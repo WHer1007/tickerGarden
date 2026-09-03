@@ -10,7 +10,7 @@ import {ProtocolFeeVaultRecoveryRoots} from "./ProtocolFeeVaultRecoveryRoots.sol
 abstract contract ProtocolFeeVaultRecoveryClaims is ProtocolFeeVaultRecoveryRoots {
     bytes32 private constant RECOVERY_LEAF_DOMAIN = keccak256("TICKERGARDEN_V2_RECOVERY_LEAF_V1");
     uint256 private constant RECOVERY_LEAF_SCHEMA_VERSION = 1;
-    bytes32 private constant EXECUTION_SPEC_ID = keccak256("V2-EXEC-4");
+    bytes32 private constant EXECUTION_SPEC_ID = keccak256("V2-EXEC-5");
 
     mapping(bytes32 marketId => mapping(uint32 epoch => mapping(address asset => mapping(address user => bool))))
         private _recoveryClaimed;

@@ -209,9 +209,6 @@ export function applyV2Event(state: V2IndexerState, event: DecodedV2Event): "app
     case "AllocationRageQuitExecuted(address,bytes32,uint256,uint256,uint256,bool)":
       mergePosition(state.gaugePositions, key(event.args.user, event.args.marketId), { ...event.args, lastEvent: event.signature }, at);
       break;
-    case "AllocationMoved(bytes32,address,bytes32,bytes32,uint256)":
-    case "AllocationMigrated(address,bytes32,bytes32,uint256,uint256,uint64,uint64)":
-      put(state.allocations, at.eventKey, event.args, at); break;
     case "PendingScheduled(address,bytes32,uint256,uint64,uint64)":
     case "PendingRescheduled(address,bytes32,uint64,uint64,uint256,uint64)":
     case "PendingMaterialized(address,bytes32,uint64,uint256)":

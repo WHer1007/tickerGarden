@@ -12,9 +12,7 @@ import {MockExactQuoteToken} from "../mocks/MockV2QuoteAssets.sol";
 
 interface IUserStockVaultLedgerHarness {
     function lockAllocation(bytes32 assetUid, address user, bytes32 marketId, uint256 amount) external;
-    function releaseAllocation(bytes32 assetUid, address user, bytes32 marketId, uint256 amount) external;
-    function moveAllocation(bytes32 assetUid, address user, bytes32 fromMarketId, bytes32 toMarketId, uint256 amount)
-        external;
+    function releaseAllocation(bytes32 assetUid, address user, bytes32 marketId) external returns (uint256);
 }
 
 contract MockVaultMarketRegistry {
@@ -41,25 +39,11 @@ contract MockVaultLedgerAllocationManager {
         vault.lockAllocation(assetUid, user, marketId, amount);
     }
 
-    function release(
-        IUserStockVaultLedgerHarness vault,
-        bytes32 assetUid,
-        address user,
-        bytes32 marketId,
-        uint256 amount
-    ) external {
-        vault.releaseAllocation(assetUid, user, marketId, amount);
-    }
-
-    function move(
-        IUserStockVaultLedgerHarness vault,
-        bytes32 assetUid,
-        address user,
-        bytes32 fromMarketId,
-        bytes32 toMarketId,
-        uint256 amount
-    ) external {
-        vault.moveAllocation(assetUid, user, fromMarketId, toMarketId, amount);
+    function release(IUserStockVaultLedgerHarness vault, bytes32 assetUid, address user, bytes32 marketId)
+        external
+        returns (uint256)
+    {
+        return vault.releaseAllocation(assetUid, user, marketId);
     }
 }
 
@@ -81,10 +65,6 @@ contract UserStockVaultLedgerHarness is UserStockVaultLedger, IUserStockVaultLed
         uint256 userMarketAllocation,
         uint256 userTotalAllocated
     );
-    event AllocationMoved(
-        bytes32 indexed assetUid, address indexed user, bytes32 indexed fromMarketId, bytes32 toMarketId, uint256 amount
-    );
-
     constructor(address registry, address marketRegistry, address manager)
         UserStockVaultLedger(registry, marketRegistry, manager)
     {}
@@ -105,24 +85,16 @@ contract UserStockVaultLedgerHarness is UserStockVaultLedger, IUserStockVaultLed
         );
     }
 
-    function releaseAllocation(bytes32 assetUid, address user, bytes32 marketId, uint256 amount)
+    function releaseAllocation(bytes32 assetUid, address user, bytes32 marketId)
         external
         override
         onlyAllocationManager
+        returns (uint256 amount)
     {
-        _releaseAllocation(assetUid, user, marketId, amount);
+        amount = _releaseAllocation(assetUid, user, marketId);
         emit AllocationReleased(
             assetUid, user, marketId, amount, _allocation[assetUid][user][marketId], _allocated[assetUid][user]
         );
-    }
-
-    function moveAllocation(bytes32 assetUid, address user, bytes32 fromMarketId, bytes32 toMarketId, uint256 amount)
-        external
-        override
-        onlyAllocationManager
-    {
-        _moveAllocation(assetUid, user, fromMarketId, toMarketId, amount);
-        emit AllocationMoved(assetUid, user, fromMarketId, toMarketId, amount);
     }
 
     function deposited(bytes32 assetUid, address user) external view returns (uint256) {
@@ -162,7 +134,7 @@ contract UserStockVaultLedgerHarness is UserStockVaultLedger, IUserStockVaultLed
             address(_officialStockRegistry),
             address(_marketRegistry),
             _allocationManager,
-            keccak256("TickerGarden.UserStockVault.MultiAsset.v2")
+            keccak256("TickerGarden.UserStockVault.MultiAsset.v3")
         );
     }
 }
@@ -202,10 +174,6 @@ contract UserStockVaultLedgerTest is Test {
         uint256 userMarketAllocation,
         uint256 userTotalAllocated
     );
-    event AllocationMoved(
-        bytes32 indexed assetUid, address indexed user, bytes32 indexed fromMarketId, bytes32 toMarketId, uint256 amount
-    );
-
     function setUp() public {
         accessManager = new AccessManager(address(this));
         registry = new OfficialStockRegistryV2(address(accessManager));
@@ -322,96 +290,52 @@ contract UserStockVaultLedgerTest is Test {
         assertEq(vault.totalAllocated(ASSET_UID), 0);
     }
 
-    function test_releaseUpdatesEveryLedgerLevelAndEmitsCanonicalPostState() public {
+    function test_releaseClearsTheWholeMarketPositionAndEmitsCanonicalPostState() public {
         _deposit(ALICE, 500);
         manager.lock(vault, ASSET_UID, ALICE, MARKET_A, 400);
 
         vm.expectEmit(true, true, false, true, address(vault));
-        emit AllocationReleased(ASSET_UID, ALICE, MARKET_A, 150, 250, 250);
-        manager.release(vault, ASSET_UID, ALICE, MARKET_A, 150);
+        emit AllocationReleased(ASSET_UID, ALICE, MARKET_A, 400, 0, 0);
+        assertEq(manager.release(vault, ASSET_UID, ALICE, MARKET_A), 400);
 
-        _assertUser(ALICE, 500, 250, 250);
-        assertEq(vault.allocation(ASSET_UID, ALICE, MARKET_A), 250);
-        assertEq(vault.marketAllocated(ASSET_UID, MARKET_A), 250);
-        assertEq(vault.totalAllocated(ASSET_UID), 250);
+        _assertUser(ALICE, 500, 0, 500);
+        assertEq(vault.allocation(ASSET_UID, ALICE, MARKET_A), 0);
+        assertEq(vault.marketAllocated(ASSET_UID, MARKET_A), 0);
+        assertEq(vault.totalAllocated(ASSET_UID), 0);
     }
 
-    function test_releaseAndMoveRejectInsufficientSourceAtomically() public {
+    function test_releaseRejectsEmptySourceAtomically() public {
         _deposit(ALICE, 500);
-        manager.lock(vault, ASSET_UID, ALICE, MARKET_A, 200);
-
         vm.expectRevert(
             abi.encodeWithSelector(
-                UserStockVaultLedger.InsufficientMarketAllocation.selector, MARKET_A, uint256(201), uint256(200)
+                UserStockVaultLedger.NoMarketAllocation.selector, ALICE, MARKET_A
             )
         );
-        manager.release(vault, ASSET_UID, ALICE, MARKET_A, 201);
-        vm.expectRevert(
-            abi.encodeWithSelector(
-                UserStockVaultLedger.InsufficientMarketAllocation.selector, MARKET_A, uint256(201), uint256(200)
-            )
-        );
-        manager.move(vault, ASSET_UID, ALICE, MARKET_A, MARKET_B, 201);
+        manager.release(vault, ASSET_UID, ALICE, MARKET_A);
 
-        assertEq(vault.allocation(ASSET_UID, ALICE, MARKET_A), 200);
+        assertEq(vault.allocation(ASSET_UID, ALICE, MARKET_A), 0);
         assertEq(vault.allocation(ASSET_UID, ALICE, MARKET_B), 0);
-        assertEq(vault.allocated(ASSET_UID, ALICE), 200);
-        assertEq(vault.totalAllocated(ASSET_UID), 200);
+        assertEq(vault.allocated(ASSET_UID, ALICE), 0);
+        assertEq(vault.totalAllocated(ASSET_UID), 0);
     }
 
-    function test_movePreservesUserAndGlobalTotalsWhileMovingMarketOccupancy() public {
-        _deposit(ALICE, 1_000);
-        manager.lock(vault, ASSET_UID, ALICE, MARKET_A, 700);
-
-        vm.expectEmit(true, true, true, true, address(vault));
-        emit AllocationMoved(ASSET_UID, ALICE, MARKET_A, MARKET_B, 275);
-        manager.move(vault, ASSET_UID, ALICE, MARKET_A, MARKET_B, 275);
-
-        _assertUser(ALICE, 1_000, 700, 300);
-        assertEq(vault.allocation(ASSET_UID, ALICE, MARKET_A), 425);
-        assertEq(vault.allocation(ASSET_UID, ALICE, MARKET_B), 275);
-        assertEq(vault.marketAllocated(ASSET_UID, MARKET_A), 425);
-        assertEq(vault.marketAllocated(ASSET_UID, MARKET_B), 275);
-        assertEq(vault.totalAllocated(ASSET_UID), 700);
-    }
-
-    function test_moveRejectsZeroAndSameMarket() public {
-        _deposit(ALICE, 100);
-        manager.lock(vault, ASSET_UID, ALICE, MARKET_A, 50);
-        vm.expectRevert(abi.encodeWithSelector(UserStockVaultLedger.InvalidAllocationAmount.selector, uint256(0)));
-        manager.move(vault, ASSET_UID, ALICE, MARKET_A, MARKET_B, 0);
-        vm.expectRevert(abi.encodeWithSelector(UserStockVaultLedger.SameAllocationMarket.selector, MARKET_A));
-        manager.move(vault, ASSET_UID, ALICE, MARKET_A, MARKET_A, 1);
-
-        assertEq(vault.allocation(ASSET_UID, ALICE, MARKET_A), 50);
-        assertEq(vault.totalAllocated(ASSET_UID), 50);
-    }
-
-    function testFuzz_lockReleaseMovePreserveAllEquations(uint96 first, uint96 second, uint96 released, uint96 moved)
-        public
-    {
+    function testFuzz_lockAndWholeReleasePreserveAllEquations(uint96 first, uint96 second) public {
         uint256 depositAmount = 1e24;
         first = uint96(bound(first, 1, depositAmount / 2));
         second = uint96(bound(second, 1, depositAmount - first));
-        released = uint96(bound(released, 0, first));
-        moved = uint96(bound(moved, 0, uint256(first) - released));
         _deposit(ALICE, depositAmount);
 
         manager.lock(vault, ASSET_UID, ALICE, MARKET_A, first);
         manager.lock(vault, ASSET_UID, ALICE, MARKET_B, second);
-        if (released != 0) manager.release(vault, ASSET_UID, ALICE, MARKET_A, released);
-        if (moved != 0) manager.move(vault, ASSET_UID, ALICE, MARKET_A, MARKET_B, moved);
+        assertEq(manager.release(vault, ASSET_UID, ALICE, MARKET_A), first);
 
-        uint256 marketA = uint256(first) - released - moved;
-        uint256 marketB = uint256(second) + moved;
-        uint256 expectedAllocated = marketA + marketB;
-        assertEq(vault.allocation(ASSET_UID, ALICE, MARKET_A), marketA);
-        assertEq(vault.allocation(ASSET_UID, ALICE, MARKET_B), marketB);
-        assertEq(vault.allocated(ASSET_UID, ALICE), expectedAllocated);
-        assertEq(vault.marketAllocated(ASSET_UID, MARKET_A), marketA);
-        assertEq(vault.marketAllocated(ASSET_UID, MARKET_B), marketB);
-        assertEq(vault.totalAllocated(ASSET_UID), expectedAllocated);
-        assertEq(vault.freeBalanceOf(ASSET_UID, ALICE), depositAmount - expectedAllocated);
+        assertEq(vault.allocation(ASSET_UID, ALICE, MARKET_A), 0);
+        assertEq(vault.allocation(ASSET_UID, ALICE, MARKET_B), second);
+        assertEq(vault.allocated(ASSET_UID, ALICE), second);
+        assertEq(vault.marketAllocated(ASSET_UID, MARKET_A), 0);
+        assertEq(vault.marketAllocated(ASSET_UID, MARKET_B), second);
+        assertEq(vault.totalAllocated(ASSET_UID), second);
+        assertEq(vault.freeBalanceOf(ASSET_UID, ALICE), depositAmount - second);
         assertLe(vault.totalAllocated(ASSET_UID), vault.totalDeposited(ASSET_UID));
     }
 

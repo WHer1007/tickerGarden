@@ -3,7 +3,7 @@
 > 规格任务：`V2-P-001`  
 > 状态：`FROZEN / IMPLEMENTATION_ALLOWED`  
 > State model revision：`V2-STATE-5-FROZEN`  
-> 适用执行基线：`V2-EXEC-4`
+> 适用执行基线：`V2-EXEC-5`
 > 更新时间：2026-09-04
 
 本文只冻结市场状态的唯一权威、字段归属、写权限和迁移图，不改变已确认的 V2 经济规则。后续 ABI、权限矩阵和合约实现必须以本文及 `spec/v2_execution_manifest.json.stateAuthority` 为准。

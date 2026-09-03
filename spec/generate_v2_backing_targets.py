@@ -1,7 +1,7 @@
 """Retired V2-EXEC-1 backing-target research generator.
 
 This file is retained only to audit the abandoned price-based design. It is not
-an input to V2-EXEC-4 and must not be used for STOCK eligibility, market
+an input to V2-EXEC-5 and must not be used for STOCK eligibility, market
 creation, staking weight, fee distribution or readiness. See
 RETIRED_STOCK_PRICE_RESEARCH.md.
 """

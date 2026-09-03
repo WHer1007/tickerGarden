@@ -8,7 +8,7 @@
   "properties": {
     "schemaVersion": { "const": 1 },
     "manifestKind": { "const": "TICKERGARDEN_V2_NETWORK_DEPLOYMENT" },
-    "executionSpecId": { "const": "V2-EXEC-4" },
+    "executionSpecId": { "const": "V2-EXEC-5" },
     "releaseStatus": { "enum": ["DEPLOYMENT_CANDIDATE", "PRODUCTION_CANDIDATE"] },
     "readinessCertificate": { "$ref": "#/$defs/readinessCertificate" },
     "chain": { "$ref": "#/$defs/chainEvidence" },
@@ -268,7 +268,7 @@
       "required": ["address", "runtimeCodeHash", "framework", "protocolPermissions", "administrativePermissions", "roles", "exactDiffHash", "exactDiffVerified"],
       "properties": {
         "address": { "$ref": "#/$defs/nonZeroAddress" }, "runtimeCodeHash": { "$ref": "#/$defs/bytes32" }, "framework": { "const": "OPENZEPPELIN_ACCESS_MANAGER_5_7_0" },
-        "protocolPermissions": { "type": "array", "minItems": 85, "maxItems": 85, "uniqueItems": true, "items": { "$ref": "#/$defs/permission" } },
+        "protocolPermissions": { "type": "array", "minItems": 82, "maxItems": 82, "uniqueItems": true, "items": { "$ref": "#/$defs/permission" } },
         "administrativePermissions": { "type": "array", "minItems": 6, "maxItems": 6, "uniqueItems": true, "items": { "$ref": "#/$defs/permission" } },
         "roles": {
           "type": "array", "minItems": 4, "maxItems": 4, "uniqueItems": true, "items": { "$ref": "#/$defs/roleBinding" },

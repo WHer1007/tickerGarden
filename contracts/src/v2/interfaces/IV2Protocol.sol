@@ -2,7 +2,7 @@
 pragma solidity 0.8.26;
 
 // GENERATED FILE. DO NOT EDIT.
-// Source: spec/v2_abi_surface.json (V2-EXEC-4)
+// Source: spec/v2_abi_surface.json (V2-EXEC-5)
 // forge-lint: disable-start(multi-contract-file)
 // forgefmt: disable-start
 
@@ -392,7 +392,6 @@ interface IUserStockVault {
     event AllocationLocked(bytes32 indexed assetUid, address indexed user, bytes32 indexed marketId, uint256 amount, uint256 userMarketAllocation, uint256 userTotalAllocated);
     event AllocationReleased(bytes32 indexed assetUid, address indexed user, bytes32 indexed marketId, uint256 amount, uint256 userMarketAllocation, uint256 userTotalAllocated);
     event AllocationRageQuit(bytes32 indexed assetUid, address indexed user, bytes32 indexed marketId, uint256 amount);
-    event AllocationMoved(bytes32 indexed assetUid, address indexed user, bytes32 indexed fromMarketId, bytes32 toMarketId, uint256 amount);
     event AllocationForceReleased(bytes32 indexed assetUid, address indexed user, bytes32 indexed marketId, uint256 amount, uint32 recoveryEpoch);
 
     function depositStock(bytes32 arg0, uint256 arg1) external;
@@ -400,9 +399,8 @@ interface IUserStockVault {
     function withdrawFreeStock(bytes32 arg0, uint256 arg1) external;
     function forceReleaseAllocation(bytes32 arg0, bytes32 arg1) external returns (uint256 output0);
     function lockAllocation(bytes32 arg0, address arg1, bytes32 arg2, uint256 arg3) external;
-    function releaseAllocation(bytes32 arg0, address arg1, bytes32 arg2, uint256 arg3) external;
-    function rageQuitAllocation(bytes32 arg0, address arg1, bytes32 arg2, uint256 arg3) external;
-    function moveAllocation(bytes32 arg0, address arg1, bytes32 arg2, bytes32 arg3, uint256 arg4) external;
+    function releaseAllocation(bytes32 arg0, address arg1, bytes32 arg2) external returns (uint256 output0);
+    function rageQuitAllocation(bytes32 arg0, address arg1, bytes32 arg2) external returns (uint256 output0);
     function deposited(bytes32 arg0, address arg1) external view returns (uint256 output0);
     function allocated(bytes32 arg0, address arg1) external view returns (uint256 output0);
     function allocation(bytes32 arg0, address arg1, bytes32 arg2) external view returns (uint256 output0);
@@ -414,15 +412,12 @@ interface IUserStockVault {
 }
 
 interface IAllocationManager {
-    event AllocationMigrated(address indexed user, bytes32 indexed fromMarketId, bytes32 indexed toMarketId, uint256 amount, uint256 sourceRemaining, uint64 targetPendingGeneration, uint64 targetUnlockAt);
     event AllocationRageQuitExecuted(address indexed user, bytes32 indexed marketId, uint256 principal, uint256 quoteForfeited, uint256 memeForfeited, bool redistributed);
 
     function allocate(bytes32 arg0, uint256 arg1) external;
     function increaseAllocation(bytes32 arg0, uint256 arg1) external;
-    function decreaseAllocation(bytes32 arg0, uint256 arg1) external;
     function closeAllocation(bytes32 arg0) external;
     function rageQuit(bytes32 arg0) external;
-    function migrateAllocation(bytes32 arg0, bytes32 arg1, uint256 arg2) external;
     function depositAndAllocate(bytes32 arg0, uint256 arg1, uint256 arg2) external;
 }
 
@@ -437,7 +432,7 @@ interface IMemeStockGauge {
 
     function gaugeIdentity() external view returns (GaugeIdentity memory output0);
     function addPending(address arg0, uint256 arg1, uint64 arg2, uint64 arg3) external;
-    function removeAllocation(address arg0, uint256 arg1) external;
+    function removeAllocation(address arg0) external returns (uint256 output0);
     function rageQuit(address arg0) external returns (uint256 output0, uint256 output1, uint256 output2, bool output3);
     function checkpointActivations() external returns (uint256 output0, uint256 output1);
     function settle(address arg0) external;

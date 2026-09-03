@@ -58,14 +58,13 @@ contract MemeStockGauge is MemeStockGaugeForfeitures {
         }
     }
 
-    function removeAllocation(address user, uint256 amount) external whenOperational {
+    function removeAllocation(address user) external whenOperational returns (uint256 amount) {
         GaugeIdentity memory identity = MemeStockGaugeClone.read(address(this));
         if (msg.sender != identity.allocationManager) {
             revert UnauthorizedAllocationModule(msg.sender, identity.allocationManager);
         }
-        _removeAllocation(
+        amount = _removeAllocation(
             user,
-            amount,
             identity.marketId,
             _rewardStates[QUOTE_REWARD_INDEX].accFeePerShare,
             _rewardStates[MEME_REWARD_INDEX].accFeePerShare

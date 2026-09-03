@@ -194,7 +194,7 @@ contract VaultGaugeInvariantHandler is Test {
         vault.withdrawFreeStock(ASSET_UID, amount);
     }
 
-    function decrease(uint8 userSeed, uint8 marketSeed, uint96 rawAmount, bool closePosition) external {
+    function close(uint8 userSeed, uint8 marketSeed) external {
         address user = _user(userSeed);
         bytes32 marketId = _market(marketSeed);
         MemeStockGauge gauge = _gauge(marketSeed);
@@ -205,34 +205,7 @@ contract VaultGaugeInvariantHandler is Test {
         if (block.timestamp < position.unlockAt) return;
 
         vm.prank(user);
-        if (closePosition || current <= MINIMUM_POSITION) {
-            manager.closeAllocation(marketId);
-        } else {
-            uint256 amount = bound(uint256(rawAmount), 1, current - MINIMUM_POSITION);
-            manager.decreaseAllocation(marketId, amount);
-        }
-    }
-
-    function migrate(uint8 userSeed, bool fromA, uint96 rawAmount) external {
-        address user = _user(userSeed);
-        bytes32 sourceMarket = fromA ? marketA : marketB;
-        bytes32 targetMarket = fromA ? marketB : marketA;
-        if (_isEmergency(sourceMarket) || !_isActive(targetMarket)) return;
-        MemeStockGauge sourceGauge = fromA ? gaugeA : gaugeB;
-        uint256 source = vault.allocation(ASSET_UID, user, sourceMarket);
-        if (source < MINIMUM_POSITION) return;
-        PositionView memory position = sourceGauge.positionOf(user);
-        if (block.timestamp < position.unlockAt) return;
-        if (position.pendingAmount != 0 && position.pendingGeneration > block.timestamp) return;
-
-        uint256 amount;
-        if (source < MINIMUM_POSITION * 2) {
-            amount = source;
-        } else {
-            amount = bound(uint256(rawAmount), MINIMUM_POSITION, source - MINIMUM_POSITION);
-        }
-        vm.prank(user);
-        manager.migrateAllocation(sourceMarket, targetMarket, amount);
+        manager.closeAllocation(marketId);
     }
 
     function activateEmergency(uint8 marketSeed) external {
@@ -343,20 +316,19 @@ contract VaultGaugeInvariantTest is StdInvariant, Test {
         handler = new VaultGaugeInvariantHandler(
             stock, vault, manager, gaugeA, gaugeB, marketRegistry, controller, MARKET_A, MARKET_B
         );
-        bytes4[] memory selectors = new bytes4[](13);
+        bytes4[] memory selectors = new bytes4[](12);
         selectors[0] = handler.deposit.selector;
         selectors[1] = handler.depositAndAllocate.selector;
         selectors[2] = handler.allocate.selector;
         selectors[3] = handler.elapse.selector;
         selectors[4] = handler.withdraw.selector;
-        selectors[5] = handler.decrease.selector;
-        selectors[6] = handler.migrate.selector;
-        selectors[7] = handler.activateEmergency.selector;
-        selectors[8] = handler.forceRelease.selector;
-        selectors[9] = handler.pauseMarket.selector;
-        selectors[10] = handler.reactivateMarket.selector;
-        selectors[11] = handler.retireMarket.selector;
-        selectors[12] = handler.rageQuit.selector;
+        selectors[5] = handler.close.selector;
+        selectors[6] = handler.activateEmergency.selector;
+        selectors[7] = handler.forceRelease.selector;
+        selectors[8] = handler.pauseMarket.selector;
+        selectors[9] = handler.reactivateMarket.selector;
+        selectors[10] = handler.retireMarket.selector;
+        selectors[11] = handler.rageQuit.selector;
         targetContract(address(handler));
         targetSelector(FuzzSelector({addr: address(handler), selectors: selectors}));
     }

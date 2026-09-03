@@ -14,7 +14,7 @@ import {
 } from "../interfaces/IV2Protocol.sol";
 
 /// @notice Shared allocate/increase path for the final AllocationManager.
-/// @dev Quote status intentionally does not gate an existing PoolCreated market: V2-EXEC-4 limits later Quote
+/// @dev Quote status intentionally does not gate an existing PoolCreated market: V2-EXEC-5 limits later Quote
 ///      status changes to new-market admission, while Market status is the explicit historical-market control.
 abstract contract AllocationManagerIncreases is ReentrancyGuard {
     uint8 internal constant ASSET_STATUS_ACTIVE = 1;

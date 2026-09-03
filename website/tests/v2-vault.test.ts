@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { encodeAbiParameters, encodeEventTopics, parseAbiParameters, type TransactionReceipt } from "viem";
-import { buildAllocate, buildClaimRecovery, buildCloseAllocation, buildClaimStaker, buildDecreaseAllocation, buildDeposit, buildDepositAndAllocate, buildFinalizeRecoveryRoot, buildForceRelease, buildIncreaseAllocation, buildMigrateAllocation, buildRageQuit, buildStockApproval, buildVaultView, buildWithdraw, hasCanonicalRecoveryClaim, PENDING_SECONDS, RECOVERY_CHALLENGE_SECONDS, UNLOCK_SECONDS, validateRecoveryRootState } from "../src/v2/features/vault.ts";
+import { buildAllocate, buildClaimRecovery, buildCloseAllocation, buildClaimStaker, buildDeposit, buildDepositAndAllocate, buildFinalizeRecoveryRoot, buildForceRelease, buildRageQuit, buildStockApproval, buildVaultView, buildWithdraw, hasCanonicalRecoveryClaim, PENDING_SECONDS, RECOVERY_CHALLENGE_SECONDS, UNLOCK_SECONDS, validateRecoveryRootState } from "../src/v2/features/vault.ts";
 import { v2Abis } from "../src/v2/generated/abis.ts";
 import { assertCanonicalAssetBinding } from "../src/v2/chainBindings.ts";
 
@@ -11,7 +11,7 @@ const source = { chainId: 4663, blockNumber: "1", blockHash: h("10"), transactio
 const market = { marketId: h("1"), assetUid: h("2"), memeToken: a("6"), gauge: a("7"), quoteAsset: a("8"), curve: a("9"), launchPhase: 2, marketStatus: 0, source } as never;
 const position = { marketId: h("1"), assetUid: h("2"), user: a("3"), free: "10", allocated: "7", pending: "3", active: "4", unlockAt: null, claimable: [{ asset: a("8"), amount: "5" }, { asset: a("6"), amount: "6" }], source } as never;
 const asset = { status: 1, tokenDecimals: 18, minimumAllocation: 10_000n } as const;
-const snapshot = { executionSpecId: "V2-EXEC-4", revision: `1:${h("10")}`, syncStatus: "synced" } as const;
+const snapshot = { executionSpecId: "V2-EXEC-5", revision: `1:${h("10")}`, syncStatus: "synced" } as const;
 
 test("vault view exposes threshold, timing, balances and dual claimables", () => {
   const view = buildVaultView(market, position, snapshot, asset, 100n);
@@ -25,11 +25,8 @@ test("builders use canonical targets and exact ABI argument order", () => {
   assert.equal(buildStockApproval(token, vault, 2n).args?.[0], vault);
   assert.deepEqual(buildDeposit(vault, assetUid, 2n).args, [assetUid, 2n]); assert.deepEqual(buildWithdraw(vault, assetUid, 2n).args, [assetUid, 2n]);
   assert.deepEqual(buildAllocate(manager, h("1"), 2n).args, [h("1"), 2n]);
-  assert.deepEqual(buildIncreaseAllocation(manager, h("1"), 2n).args, [h("1"), 2n]);
-  assert.deepEqual(buildDecreaseAllocation(manager, h("1"), 2n).args, [h("1"), 2n]);
   assert.deepEqual(buildCloseAllocation(manager, h("1")).args, [h("1")]);
   assert.deepEqual(buildRageQuit(manager, h("1")).args, [h("1")]);
-  assert.deepEqual(buildMigrateAllocation(manager, h("1"), h("2"), 2n).args, [h("1"), h("2"), 2n]);
   assert.deepEqual(buildDepositAndAllocate(manager, h("1"), 2n, 3n).args, [h("1"), 2n, 3n]);
   assert.deepEqual(buildClaimStaker(fee, h("1"), token).args, [h("1"), token]);
   assert.deepEqual(buildClaimStaker(fee, h("1"), a("0")).args, [h("1"), a("0")]);
@@ -81,11 +78,9 @@ test("unlock boundaries and paused, retired, emergency states are explicit", () 
   assert.equal(lockedView.canExit, true);
   assert.equal(lockedView.canRageQuit, true);
   assert.equal(lockedView.canClaim, false);
-  assert.equal(buildVaultView(market, locked as never, snapshot, asset, 100n).canDecrease, true);
   assert.equal(buildVaultView(Object.assign({}, market, { marketStatus: 1 }) as never, locked as never, snapshot, asset, 100n).canClose, true);
-  assert.equal(buildVaultView(Object.assign({}, market, { marketStatus: 2 }) as never, locked as never, snapshot, asset, 100n).canMigrate, true);
   const emergency = buildVaultView(Object.assign({}, market, { marketStatus: 3 }) as never, locked as never, snapshot, asset, 0n);
-  assert.equal(emergency.canForceRelease, true); assert.equal(emergency.canDecrease, false);
+  assert.equal(emergency.canForceRelease, true);
 });
 
 test("paused and retired assets close exposure without removing unlocked exits", () => {
@@ -94,9 +89,7 @@ test("paused and retired assets close exposure without removing unlocked exits",
   for (const status of [2, 3]) {
     const view = buildVaultView(market, unlocked as never, snapshot, { status, tokenDecimals: 18, minimumAllocation: asset.minimumAllocation }, 100n);
     assert.equal(view.allocationOpen, false, `asset status ${status} must block new allocation`);
-    assert.equal(view.canDecrease, true, `asset status ${status} must preserve decrease`);
     assert.equal(view.canClose, true, `asset status ${status} must preserve close`);
-    assert.equal(view.canMigrate, true, `asset status ${status} must preserve migrate`);
     assert.equal(view.canForceRelease, false, `asset status ${status} alone is not emergency`);
   }
 
@@ -109,9 +102,7 @@ test("paused and retired assets close exposure without removing unlocked exits",
   );
   assert.equal(emergency.allocationOpen, false);
   assert.equal(emergency.canExit, true);
-  assert.equal(emergency.canDecrease, false);
   assert.equal(emergency.canClose, false);
-  assert.equal(emergency.canMigrate, false);
   assert.equal(emergency.canForceRelease, true);
 });
 

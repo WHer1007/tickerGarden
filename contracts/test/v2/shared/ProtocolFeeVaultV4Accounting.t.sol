@@ -198,7 +198,7 @@ contract ProtocolFeeVaultV4AccountingTest is Test {
     bytes32 private constant MARKET_ID = keccak256("v4-accounting-market");
     bytes32 private constant POOL_ID = keccak256("v4-accounting-pool");
     bytes32 private constant FEE_POLICY_ID = keccak256("v2-fee-policy");
-    bytes32 private constant EXECUTION_SPEC_ID = keccak256("V2-EXEC-4");
+    bytes32 private constant EXECUTION_SPEC_ID = keccak256("V2-EXEC-5");
     uint32 private constant SOURCE_VERSION = 3;
     uint256 private constant B = 10;
     address private constant CREATOR = address(0xC0FFEE);

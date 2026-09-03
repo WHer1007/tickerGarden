@@ -2,7 +2,7 @@
 
 > 状态：`IMPLEMENTED_LOCAL / NOT_DEPLOYABLE`
 > 日期：2026-09-04
-> 适用版本：TickerGarden V2 / `V2-EXEC-4` 的部署前架构修订
+> 适用版本：TickerGarden V2 / `V2-EXEC-5` 的部署前架构修订
 > 机器规范：[`spec/v2_execution_manifest.json`](./spec/v2_execution_manifest.json)、[`spec/v2_abi_surface.json`](./spec/v2_abi_surface.json)
 
 ## 1. 决策
@@ -10,38 +10,38 @@
 Stock 本金托管采用“**每个 Vault schema 版本一个共享 MultiAsset `UserStockVault`**”，当前 schema 为：
 
 ```text
-keccak256("TickerGarden.UserStockVault.MultiAsset.v2")
+keccak256("TickerGarden.UserStockVault.MultiAsset.v3")
 ```
 
 当前 194 种以及后续新增的官方 Stock Token 均可绑定到这一个 Vault。这里的“单一”不是永远只有一个不可替换地址：新 schema 可以部署 successor Vault，但 `OfficialStockRegistryV2` 强制每个 schema 只能解析到一个 canonical Vault；每个已登记 Asset UID 的 Vault 绑定仍然 write-once。
 
 ```text
 OfficialStockRegistryV2
-├─ schema v2 ──> UserStockVault v2
-│  ├─ Asset UID A ──> Stock Token A
-│  ├─ Asset UID B ──> Stock Token B
-│  └─ ...
-└─ future schema v3 ──> UserStockVault v3
+└─ schema v3 ──> UserStockVault v3
+   ├─ Asset UID A ──> Stock Token A
+   ├─ Asset UID B ──> Stock Token B
+   └─ ...
 
 MarketRegistryV2: marketId ──> Asset UID
 AllocationManager: marketId ──> Asset UID ──> canonical Vault
 MemeStockGauge: 每市场独立状态，不托管 STOCK
 ```
 
-### 1.1 V2-EXEC-4 质押手续费与仓位门槛
+### 1.1 V2-EXEC-5 质押手续费与仓位门槛
 
-本节是当前部署前冻结的 `V2-EXEC-4` 规则。移除原先的 `10 STOCK` 线性释放/饱和开关；它不再参与手续费分桶，也不再作为任何存入或仓位门槛。
+本节是当前部署前冻结的 `V2-EXEC-5` 规则。移除原先的 `10 STOCK` 线性释放/饱和开关；它不再参与手续费分桶，也不再作为任何存入或仓位门槛。
 
 - 某 market 只要存在已激活的 STOCK 仓位，Staker 固定获得 non-LP 手续费的 `50%`（总手续费约 `40%`），并由该 market 的所有 active stake 按 raw-unit 质押比例分配。
 - 没有 active stake 时，Staker 为 `0`；Creator 与 Platform 各承接 non-LP 手续费的一半。LP 的固定份额不变。
 - 最低门槛是 OfficialStockRegistry 按 `assetUid` 配置的 raw-unit `minimumAllocation`。资产注册时指定，管理员只能通过延迟治理权限更新；它不是 Vault 普通 `deposit` 的最小金额。普通 deposit 仍可存入任意正数量的空闲本金。
-- 新建仓位、增仓后的总仓位、迁入后的目标仓位必须 `>=` 当前门槛；部分减仓或迁出后的非零剩余必须 `>=` 当前门槛。
+- 新建仓位和增仓后的总仓位必须 `>=` 当前门槛；allocation 不允许部分减仓或跨市场迁移，因此不存在“减仓后剩余”或“迁入后的目标仓位”校验。
+- allocation 只有两类余额变化：向 Vault 存入 STOCK 后新建/增加仓位，以及整仓退出。正常整仓 `close` 在 24 小时锁定结束后保留已结算收益，并将本金先变为 Vault free balance；用户随后可调用 `withdrawFreeStock` 取回钱包。`rageQuit` 则绕过锁定，放弃全部未领取收益并直接把整仓本金退回用户钱包。
 - 门槛更新不强平老仓。若既有仓位低于新门槛，用户可以继续持有，但只能补足到当前门槛或全额退出；正常全退与紧急逃生均不受门槛阻挡。
 - `rageQuit` 是用户级、原子、全额退出 allocation 的操作：绕过 24 小时锁，立即取回调用者自己的 STOCK 本金，但放弃该仓位全部尚未领取的 Quote/Meme 收益。它不改变 market 状态、不暂停市场，也不影响其他用户的正常存取和收益。
 - `rageQuit` 结算出的放弃收益若仍有其他 Active staker，则通过该 market 的双资产累加器按实际 active stake 重分配；若没有其他 Active staker，则按 `marketId + feeAsset` 记入 forfeiture reserve。该 reserve 不再属于 staker，后续由平台 claim 时转换为平台收入。
 - 正常 `claim` 与正常 `close` 必须满足整个仓位的 24 小时 `unlockAt`，并保留已结算/可领取收益；因此不能先 claim 再用 `rageQuit` 绕过 24 小时限制。协议级 Emergency Exit 是另一条终止性恢复路径，仅用于市场/协议进入 Emergency 状态后的恢复，不等同于用户级 `rageQuit`。
 
-该规则是部署前变更，必须与 Registry、AllocationManager、Gauge、FeeVault、ABI、Indexer 和测试作为同一 `V2-EXEC-4` 发布单元完成；既有未部署的 `V2-EXEC-3` 规格不再作为部署依据。
+该规则是部署前变更，必须与 Registry、AllocationManager、Gauge、FeeVault、ABI、Indexer 和测试作为同一 `V2-EXEC-5` 发布单元完成；既有未部署的 `V2-EXEC-3` 规格不再作为部署依据。
 
 不采用“一资产一 Vault + Factory”，也不在当前规模预先采用分片 Vault。若未来需要把托管故障域分片，应使用新 schema 明确建模，而不是在同一 schema 下静默部署多个地址。
 
@@ -55,10 +55,10 @@ MemeStockGauge: 每市场独立状态，不托管 STOCK
 
 | 项目 | 旧一资产一 Vault | 当前 MultiAsset Vault |
 |---|---:|---:|
-| creation code | 8,650 bytes | 8,880 bytes |
-| runtime code | 7,780 bytes/资产 | 8,332 bytes/schema |
-| 194 资产的 runtime code-deposit Gas | 301,864,000 | 1,666,400 |
-| 仅 runtime code-deposit 节省 | — | 300,197,600，约 99.45% |
+| creation code | 8,650 bytes | 8,183 bytes |
+| runtime code | 7,780 bytes/资产 | 7,649 bytes/schema |
+| 194 资产的 runtime code-deposit Gas | 301,864,000 | 1,529,800 |
+| 仅 runtime code-deposit 节省 | — | 300,334,200，约 99.49% |
 
 上表只按 EVM 每个 runtime byte 200 Gas 计算，不含 constructor、Registry 登记、calldata、交易基础费或目标链定价，因此不能当作最终部署报价。它说明的是数量级：资产增加到数百种后，重复部署相同 runtime 是主要浪费。
 
@@ -72,7 +72,7 @@ Registry 在首次使用 Vault 时回读 `vaultIdentity()`，校验依赖和非�
 
 | 操作 | 当前本地中位数 |
 |---|---:|
-| `depositStock(assetUid, amount)` | 109,189 gas |
+| `depositStock(assetUid, amount)` | 109,221 gas |
 | `withdrawFreeStock(assetUid, amount)` | 71,551 gas |
 | `forceReleaseAllocation(assetUid, marketId)` | 90,070 gas |
 
@@ -95,16 +95,15 @@ depositStock(bytes32 assetUid, uint256 amount)
 depositStockFor(bytes32 assetUid, address user, uint256 amount)
 withdrawFreeStock(bytes32 assetUid, uint256 amount)
 forceReleaseAllocation(bytes32 assetUid, bytes32 marketId)
-rageQuitAllocation(bytes32 assetUid, address user, bytes32 marketId, uint256 amount)
+rageQuitAllocation(bytes32 assetUid, address user, bytes32 marketId) returns (uint256 amount)
 
 lockAllocation(bytes32 assetUid, address user, bytes32 marketId, uint256 amount)
-releaseAllocation(bytes32 assetUid, address user, bytes32 marketId, uint256 amount)
-moveAllocation(bytes32 assetUid, address user, bytes32 fromMarketId, bytes32 toMarketId, uint256 amount)
+releaseAllocation(bytes32 assetUid, address user, bytes32 marketId) returns (uint256 amount)
 ```
 
 `AllocationManager.rageQuit(marketId)` 是用户调用入口；它通过 canonical Gauge 先结算并清除用户的全部 active/pending 权重，再调用 Vault 的 `rageQuitAllocation` 原子释放相同数量的 STOCK。本系统不提供按比例 rage quit：必须是该 market 的完整 allocation，避免留下半退出的收益状态。
 
-所有本金与 allocation 状态均以 Asset UID 作为第一层 key：
+`allocate`、`increaseAllocation` 与 `depositAndAllocate` 只能增加目标 market 的 allocation；不存在 partial decrease 或 cross-market migration ABI。所有本金与 allocation 状态均以 Asset UID 作为第一层 key：
 
 ```solidity
 deposited[assetUid][user]
@@ -125,7 +124,7 @@ totalAllocated[assetUid] <= totalDeposited[assetUid]
 Vault.balanceOf(canonicalToken(assetUid)) >= totalDeposited[assetUid]
 ```
 
-`AllocationManager` 先从 `marketId` 取得 canonical Asset UID，再把同一个 UID 传入 Vault；Vault 再验证市场属于该 UID。迁移同时要求源、目标 market 的 Asset UID 相同。所有 Vault allocation 事件都包含 indexed `assetUid`，避免共享地址下的事件归属歧义。
+`AllocationManager` 先从 `marketId` 取得 canonical Asset UID，再把同一个 UID 传入 Vault；Vault 再验证市场属于该 UID。所有 Vault allocation 事件都包含 indexed `assetUid`，避免共享地址下的事件归属歧义。
 
 ## 4. 安全判断
 
@@ -140,18 +139,18 @@ Vault.balanceOf(canonicalToken(assetUid)) >= totalDeposited[assetUid]
 1. 每个入口和 getter 都显式携带 `assetUid`；不从 symbol 推断，也不接受调用者提供 Token 地址。
 2. Token 只从 append-only OfficialStockRegistry 解析；Token 地址不能被两个 UID 重复登记。
 3. 每层账本都以 `assetUid` 开头，连全局 aggregate 也按资产拆分。
-4. 每次 market allocation 都校验 `market.assetUid == assetUid`；迁移只能在同资产市场间发生。
+4. 每次 market allocation 都校验 `market.assetUid == assetUid`；同一 allocation 不能跨市场迁移。
 5. 存款要求 Vault Token 余额精确增加，提款要求 Vault 精确减少且用户精确增加；异常 transfer、fee-on-transfer 等行为回滚。
 6. 存款只在 Asset ACTIVE 时开放；PAUSED/RETIRED 不阻断 free withdrawal 和已存在仓位的安全退出。用户级 `rageQuit` 只受非 Emergency 的 operational 状态约束，不会把 market 置为 PAUSED、RETIRED 或 EMERGENCY。
 7. Vault 无 owner 提款、任意 recipient、任意外部执行、delegatecall、策略投资或升级入口；Allocation mutator 只认 immutable AllocationManager。
 8. `vaultIdentity()` 固化 Registry、MarketRegistry、AllocationManager 与 schema；Registry 强制一个 schema 只有一个 canonical Vault。
-9. 测试覆盖同一 Vault 中两个真实 Token 的存款、allocation、总量和余额相互隔离，以及跨资产 market/迁移拒绝。
+9. 测试覆盖同一 Vault 中两个真实 Token 的存款、allocation、总量和余额相互隔离，以及跨资产 market、partial decrease 和 migration 拒绝。
 
 仍需接受的剩余风险是集中托管：若 MultiAsset Vault 本身存在可盗取或冻结全部 Token 的漏洞，受影响范围会大于单资产实例。部署前必须把跨资产 invariant、恶意 ERC-20 callback、异常返回值、暂停/退役退出和 Emergency release 纳入独立审计；不能用“代码相同”把集中风险从风险登记中删除。
 
-## 5. 版本、迁移与运维
+## 5. 版本切换与运维
 
-`UserStockVault` 不使用代理升级。schema 变化时部署新 Vault 地址，并在首次登记时由 Registry 建立唯一 `schema → vault` 关系。新 Asset UID 可以选择新 schema；旧 Asset UID 的 Vault 绑定不允许管理员原地改写。当前实现的 canonical schema 是 `MultiAsset.v2`，此前 `MultiAsset.v1` 仅保留为历史语境。
+`UserStockVault` 不使用代理升级。schema 变化时部署新 Vault 地址，并在首次登记时由 Registry 建立唯一 `schema → vault` 关系。新 Asset UID 可以选择新 schema；旧 Asset UID 的 Vault 绑定不允许管理员原地改写。当前实现的 canonical schema 是 `MultiAsset.v3`，此前 `MultiAsset.v1` 与 `MultiAsset.v2` 仅保留为历史语境。
 
 若未来必须把已登记资产迁移到新 Vault，当前 ABI 不允许直接 rebind。正确流程需要新的 execution spec/Registry 迁移设计，先保留旧 Vault 的用户退出，再通过显式版本迁移处理；不得增加管理员 sweep 或静默代理升级作为捷径。
 
@@ -166,4 +165,4 @@ Vault.balanceOf(canonicalToken(assetUid)) >= totalDeposited[assetUid]
 
 ## 6. 发布边界
 
-本次是尚未部署的 `V2-EXEC-4` 架构修订，旧单资产 ABI 与新 ABI 不兼容。接口、权限矩阵、compiled/product artifact、Web ABI、Indexer event catalog 和测试必须作为同一变更发布。当前本地实现通过不代表可部署；目标链 finalized Token 身份、真实部署 manifest、AccessManager 配置、Fork/E2E、外部审计和灰度门禁仍必须完成。
+本次是尚未部署的 `V2-EXEC-5` 架构修订，旧单资产 ABI 与新 ABI 不兼容。接口、权限矩阵、compiled/product artifact、Web ABI、Indexer event catalog 和测试必须作为同一变更发布。当前本地实现通过不代表可部署；目标链 finalized Token 身份、真实部署 manifest、AccessManager 配置、Fork/E2E、外部审计和灰度门禁仍必须完成。

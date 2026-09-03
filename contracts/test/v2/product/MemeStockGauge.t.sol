@@ -41,8 +41,8 @@ contract MockGaugeModuleCaller {
         gauge.addPending(user, amount, activationAt, unlockAt);
     }
 
-    function remove(MemeStockGauge gauge, address user, uint256 amount) external {
-        gauge.removeAllocation(user, amount);
+    function remove(MemeStockGauge gauge, address user) external returns (uint256) {
+        return gauge.removeAllocation(user);
     }
 
     function settle(MemeStockGauge gauge, address user) external {
@@ -241,7 +241,7 @@ contract MemeStockGaugeTest is Test {
                 MemeStockGauge.UnauthorizedAllocationModule.selector, address(this), address(manager)
             )
         );
-        gauge.removeAllocation(ALICE, 1);
+        gauge.removeAllocation(ALICE);
         vm.expectRevert(abi.encodeWithSelector(MemeStockGauge.UnauthorizedSettlementCaller.selector, address(this)));
         gauge.settle(ALICE);
         vm.expectRevert(
@@ -401,20 +401,20 @@ contract MemeStockGaugeTest is Test {
         assertEq(position.memeClaimable, 200);
     }
 
-    function test_partialRemovalSettlesFullOldWeightAndPreservesLock() public {
+    function test_fullRemovalSettlesOldWeightAndClearsLock() public {
         (uint64 generation, uint64 unlockAt) = _schedule(ALICE, 100);
         vm.warp(generation);
         feeVault.settle(gauge, ALICE);
         feeVault.credit(gauge, address(quote), 100, keccak256("before-remove"));
         vm.warp(unlockAt);
 
-        manager.remove(gauge, ALICE, 40);
+        assertEq(manager.remove(gauge, ALICE), 100);
 
         PositionView memory position = gauge.positionOf(ALICE);
-        assertEq(position.activeAmount, 60);
-        assertEq(position.unlockAt, unlockAt);
+        assertEq(position.activeAmount, 0);
+        assertEq(position.unlockAt, 0);
         assertEq(position.quoteClaimable, 100);
-        assertEq(gauge.storedTotalActiveStock(), 60);
+        assertEq(gauge.storedTotalActiveStock(), 0);
     }
 
     function test_fullClosePreservesFractionAndReallocationCanCompleteIt() public {
@@ -424,7 +424,7 @@ contract MemeStockGaugeTest is Test {
         feeVault.credit(gauge, address(quote), 1, keccak256("fraction-1"));
         feeVault.settle(gauge, ALICE);
         vm.warp(unlockAt);
-        manager.remove(gauge, ALICE, 2);
+        assertEq(manager.remove(gauge, ALICE), 2);
         PositionView memory closed = gauge.positionOf(ALICE);
         assertEq(closed.activeAmount, 0);
         assertEq(closed.unlockAt, 0);
@@ -477,16 +477,16 @@ contract MemeStockGaugeTest is Test {
         assertFalse(gauge.activationSnapshot(generation).processed);
     }
 
-    function test_invalidAmountAndLockBoundaryRemainEnforcedByConcreteGauge() public {
+    function test_lockBoundaryAndWholeRemovalRemainEnforcedByConcreteGauge() public {
         (uint64 generation, uint64 unlockAt) = _schedule(ALICE, 10);
         vm.warp(generation);
         feeVault.settle(gauge, ALICE);
         vm.warp(unlockAt - 1);
         vm.expectRevert(abi.encodeWithSelector(MemeStockGaugeLockedPositions.PositionLockedUntil.selector, unlockAt));
-        manager.remove(gauge, ALICE, 1);
+        manager.remove(gauge, ALICE);
         vm.warp(unlockAt);
-        manager.remove(gauge, ALICE, 1);
-        assertEq(gauge.positionOf(ALICE).activeAmount, 9);
+        assertEq(manager.remove(gauge, ALICE), 10);
+        assertEq(gauge.positionOf(ALICE).activeAmount, 0);
     }
 
     function test_emergencyDisableIsOneWayAndFreezesEveryMutationPath() public {
@@ -507,7 +507,7 @@ contract MemeStockGaugeTest is Test {
         vm.expectRevert(disabledError);
         manager.add(gauge, ALICE, 1, generation, uint64(block.timestamp + 24 hours));
         vm.expectRevert(disabledError);
-        manager.remove(gauge, ALICE, 1);
+        manager.remove(gauge, ALICE);
 
         vm.expectRevert(
             abi.encodeWithSelector(MemeStockGauge.GaugeAlreadyEmergencyDisabled.selector, 7, snapshotBlock, STATE_HASH)

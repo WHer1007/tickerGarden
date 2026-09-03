@@ -272,7 +272,7 @@ contract TickerGardenMemeHookFeeCalculationTest is Test {
     function test_feePolicyHashMatchesFeeVaultAndSuccessiveIdsCannotRepeat() public {
         bytes32 expectedPolicyHash = V2MarketEconomics.hashFeePolicy(
             V2MarketEconomics.FeePolicyInput({
-                executionSpecId: keccak256("V2-EXEC-4"),
+                executionSpecId: keccak256("V2-EXEC-5"),
                 feePips: 10_000,
                 lpShareBps: 2_000,
                 poolKeyFee: 0,

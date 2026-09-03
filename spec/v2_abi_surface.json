@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "executionSpecId": "V2-EXEC-4",
+  "executionSpecId": "V2-EXEC-5",
   "typeDefinitions": {
     "PoolKey": ["address currency0","address currency1","uint24 fee","int24 tickSpacing","address hooks"],
     "SwapParams": ["bool zeroForOne","int256 amountSpecified","uint160 sqrtPriceLimitX96"],
@@ -211,9 +211,8 @@
         {"signature":"withdrawFreeStock(bytes32,uint256)","mutability":"nonpayable","caller":"PUBLIC","returns":"()"},
         {"signature":"forceReleaseAllocation(bytes32,bytes32)","mutability":"nonpayable","caller":"PUBLIC","returns":"(uint256)"},
         {"signature":"lockAllocation(bytes32,address,bytes32,uint256)","mutability":"nonpayable","caller":"ALLOCATION_MODULE","returns":"()"},
-        {"signature":"releaseAllocation(bytes32,address,bytes32,uint256)","mutability":"nonpayable","caller":"ALLOCATION_MODULE","returns":"()"},
-        {"signature":"rageQuitAllocation(bytes32,address,bytes32,uint256)","mutability":"nonpayable","caller":"ALLOCATION_MODULE","returns":"()"},
-        {"signature":"moveAllocation(bytes32,address,bytes32,bytes32,uint256)","mutability":"nonpayable","caller":"ALLOCATION_MODULE","returns":"()"},
+        {"signature":"releaseAllocation(bytes32,address,bytes32)","mutability":"nonpayable","caller":"ALLOCATION_MODULE","returns":"(uint256)"},
+        {"signature":"rageQuitAllocation(bytes32,address,bytes32)","mutability":"nonpayable","caller":"ALLOCATION_MODULE","returns":"(uint256)"},
         {"signature":"deposited(bytes32,address)","mutability":"view","caller":"PUBLIC","returns":"(uint256)"},
         {"signature":"allocated(bytes32,address)","mutability":"view","caller":"PUBLIC","returns":"(uint256)"},
         {"signature":"allocation(bytes32,address,bytes32)","mutability":"view","caller":"PUBLIC","returns":"(uint256)"},
@@ -229,7 +228,6 @@
         "AllocationLocked(bytes32 indexed assetUid,address indexed user,bytes32 indexed marketId,uint256 amount,uint256 userMarketAllocation,uint256 userTotalAllocated)",
         "AllocationReleased(bytes32 indexed assetUid,address indexed user,bytes32 indexed marketId,uint256 amount,uint256 userMarketAllocation,uint256 userTotalAllocated)",
         "AllocationRageQuit(bytes32 indexed assetUid,address indexed user,bytes32 indexed marketId,uint256 amount)",
-        "AllocationMoved(bytes32 indexed assetUid,address indexed user,bytes32 indexed fromMarketId,bytes32 toMarketId,uint256 amount)",
         "AllocationForceReleased(bytes32 indexed assetUid,address indexed user,bytes32 indexed marketId,uint256 amount,uint32 recoveryEpoch)"
       ]
     },
@@ -238,14 +236,11 @@
       "functions": [
         {"signature":"allocate(bytes32,uint256)","mutability":"nonpayable","caller":"PUBLIC","returns":"()"},
         {"signature":"increaseAllocation(bytes32,uint256)","mutability":"nonpayable","caller":"PUBLIC","returns":"()"},
-        {"signature":"decreaseAllocation(bytes32,uint256)","mutability":"nonpayable","caller":"PUBLIC","returns":"()"},
         {"signature":"closeAllocation(bytes32)","mutability":"nonpayable","caller":"PUBLIC","returns":"()"},
         {"signature":"rageQuit(bytes32)","mutability":"nonpayable","caller":"PUBLIC","returns":"()"},
-        {"signature":"migrateAllocation(bytes32,bytes32,uint256)","mutability":"nonpayable","caller":"PUBLIC","returns":"()"},
         {"signature":"depositAndAllocate(bytes32,uint256,uint256)","mutability":"nonpayable","caller":"PUBLIC","returns":"()"}
       ],
       "events": [
-        "AllocationMigrated(address indexed user,bytes32 indexed fromMarketId,bytes32 indexed toMarketId,uint256 amount,uint256 sourceRemaining,uint64 targetPendingGeneration,uint64 targetUnlockAt)",
         "AllocationRageQuitExecuted(address indexed user,bytes32 indexed marketId,uint256 principal,uint256 quoteForfeited,uint256 memeForfeited,bool redistributed)"
       ]
     },
@@ -289,7 +284,7 @@
       "functions": [
         {"signature":"gaugeIdentity()","mutability":"view","caller":"PUBLIC","returns":"(GaugeIdentity)"},
         {"signature":"addPending(address,uint256,uint64,uint64)","mutability":"nonpayable","caller":"ALLOCATION_MODULE","returns":"()"},
-        {"signature":"removeAllocation(address,uint256)","mutability":"nonpayable","caller":"ALLOCATION_MODULE","returns":"()"},
+        {"signature":"removeAllocation(address)","mutability":"nonpayable","caller":"ALLOCATION_MODULE","returns":"(uint256)"},
         {"signature":"rageQuit(address)","mutability":"nonpayable","caller":"ALLOCATION_MODULE","returns":"(uint256,uint256,uint256,bool)"},
         {"signature":"checkpointActivations()","mutability":"nonpayable","caller":"PUBLIC","returns":"(uint256,uint256)"},
         {"signature":"settle(address)","mutability":"nonpayable","caller":"ALLOCATION_MODULE_OR_FEE_VAULT","returns":"()"},

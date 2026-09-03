@@ -7,24 +7,20 @@ import {MemeStockGaugePendingPositions} from "./MemeStockGaugePendingPositions.s
 /// @dev The AllocationManager repeats lock/minimum/ledger checks around this defensive Gauge boundary.
 abstract contract MemeStockGaugeLockedPositions is MemeStockGaugePendingPositions {
     error InvalidRemovalUser(address user);
-    error InvalidRemovalAmount(uint256 amount);
     error InvalidPositionLock(address user, uint64 unlockAt);
     error PositionLockedUntil(uint64 unlockAt);
     error PendingPositionNotMaterialized(address user, uint256 amount, uint64 generation);
-    error InsufficientActiveAllocation(uint256 requested, uint256 available);
     error NoActiveAllocation(address user);
 
     function _removeAllocation(
         address user,
-        uint256 amount,
         bytes32 marketId,
         uint256 currentQuoteAccumulator,
         uint256 currentMemeAccumulator
-    ) internal returns (uint256 remainingActive) {
+    ) internal returns (uint256 amount) {
         _checkpointActivations(marketId, currentQuoteAccumulator, currentMemeAccumulator);
 
         if (user == address(0)) revert InvalidRemovalUser(user);
-        if (amount == 0) revert InvalidRemovalAmount(amount);
 
         _materializePending(user, marketId, currentQuoteAccumulator, currentMemeAccumulator);
         GaugePosition storage position = _gaugePositions[user];
@@ -36,14 +32,10 @@ abstract contract MemeStockGaugeLockedPositions is MemeStockGaugePendingPosition
         if (block.timestamp < position.unlockAt) revert PositionLockedUntil(position.unlockAt);
 
         _settleRemovingPosition(user, position, currentQuoteAccumulator, currentMemeAccumulator);
-        if (amount > position.activeAmount) {
-            revert InsufficientActiveAllocation(amount, position.activeAmount);
-        }
-
-        remainingActive = position.activeAmount - amount;
-        position.activeAmount = remainingActive;
+        amount = position.activeAmount;
+        position.activeAmount = 0;
         _storedTotalActiveStock -= amount;
-        if (remainingActive == 0) position.unlockAt = 0;
+        position.unlockAt = 0;
     }
 
     /// @dev Must settle both reward assets against the position's full pre-removal active weight

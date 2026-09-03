@@ -38,7 +38,7 @@ contract OfficialStockRegistryV2Test is Test {
     bytes32 internal constant ASSET_UID = keccak256("official-stock");
     bytes32 internal constant OTHER_ASSET_UID = keccak256("other-official-stock");
     bytes32 internal constant REASON_HASH = keccak256("identity-drift");
-    bytes32 internal constant VAULT_SCHEMA_ID = keccak256("TickerGarden.UserStockVault.MultiAsset.v2");
+    bytes32 internal constant VAULT_SCHEMA_ID = keccak256("TickerGarden.UserStockVault.MultiAsset.v3");
     address internal constant DELAYED_ADMIN = address(0xA11CE);
     address internal constant FAST_ADMIN = address(0xFA57);
     address internal constant GUARDIAN = address(0x6A7D);

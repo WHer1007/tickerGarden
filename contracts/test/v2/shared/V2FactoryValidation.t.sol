@@ -81,7 +81,7 @@ contract V2FactoryValidationHarness {
         });
         _policy.feePolicyId = feePolicyId;
         _policy.fields = V2MarketEconomics.FeePolicyInput({
-            executionSpecId: keccak256("V2-EXEC-4"),
+            executionSpecId: keccak256("V2-EXEC-5"),
             feePips: 10_000,
             lpShareBps: 2_000,
             poolKeyFee: 0,
@@ -395,7 +395,7 @@ contract V2FactoryValidationTest is Test {
             launchLockerImplementation: address(0x3006),
             launchLockerCodeHash: keccak256("locker"),
             feePolicyId: FEE_POLICY_ID,
-            executionSpecId: keccak256("V2-EXEC-4"),
+            executionSpecId: keccak256("V2-EXEC-5"),
             status: 1
         });
     }

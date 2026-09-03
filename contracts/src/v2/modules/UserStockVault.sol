@@ -42,41 +42,31 @@ contract UserStockVault is IUserStockVault, UserStockVaultExits {
         );
     }
 
-    function releaseAllocation(bytes32 assetUid, address user, bytes32 marketId, uint256 amount)
+    function releaseAllocation(bytes32 assetUid, address user, bytes32 marketId)
         external
         override
         onlyAllocationManager
+        returns (uint256 amount)
     {
-        _releaseAllocation(assetUid, user, marketId, amount);
+        amount = _releaseAllocation(assetUid, user, marketId);
         emit AllocationReleased(
             assetUid, user, marketId, amount, _allocation[assetUid][user][marketId], _allocated[assetUid][user]
         );
     }
 
-    function rageQuitAllocation(bytes32 assetUid, address user, bytes32 marketId, uint256 amount)
+    function rageQuitAllocation(bytes32 assetUid, address user, bytes32 marketId)
         external
         override
         onlyAllocationManager
+        returns (uint256 amount)
     {
-        uint256 available = _allocation[assetUid][user][marketId];
-        if (amount == 0 || amount != available) revert InvalidRageQuitAmount(amount, available);
-
-        _releaseAllocation(assetUid, user, marketId, amount);
+        amount = _releaseAllocation(assetUid, user, marketId);
         emit AllocationReleased(
             assetUid, user, marketId, amount, _allocation[assetUid][user][marketId], _allocated[assetUid][user]
         );
         _withdrawFreeStock(assetUid, user, amount);
         emit StockWithdrawn(assetUid, user, amount);
         emit AllocationRageQuit(assetUid, user, marketId, amount);
-    }
-
-    function moveAllocation(bytes32 assetUid, address user, bytes32 fromMarketId, bytes32 toMarketId, uint256 amount)
-        external
-        override
-        onlyAllocationManager
-    {
-        _moveAllocation(assetUid, user, fromMarketId, toMarketId, amount);
-        emit AllocationMoved(assetUid, user, fromMarketId, toMarketId, amount);
     }
 
     function deposited(bytes32 assetUid, address user) external view override returns (uint256) {

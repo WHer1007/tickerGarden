@@ -21,12 +21,12 @@ function input(overrides: Partial<V2AccessManagerPlanInput> = {}): V2AccessManag
   };
 }
 
-test("derives 23 protocol role selectors and 62 immutable direct selectors from the 19-module manifest", () => {
+test("derives 23 protocol role selectors and 59 immutable direct selectors from the 19-module manifest", () => {
   const plan = deriveV2AccessManagerPlan(input());
   assert.equal(compiled.modules.length, 19);
-  assert.equal(compiled.mutations.length, 85);
+  assert.equal(compiled.mutations.length, 82);
   assert.equal(plan.configuredProtocolSelectorCount, 23);
-  assert.equal(plan.immutableDirectSelectorCount, 62);
+  assert.equal(plan.immutableDirectSelectorCount, 59);
   assert.equal(plan.roles.length, 4);
   assert.deepEqual(plan.roles.map((role) => [role.name, role.roleId, role.executionDelaySeconds]), [
     ["PROTOCOL_ADMIN_ROLE", V2_ACCESS_ROLES.PROTOCOL_ADMIN_ROLE.toString(), 172800],

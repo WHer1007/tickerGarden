@@ -41,8 +41,11 @@ contract MockProductVaultAllocationManager {
         vault.lockAllocation(assetUid, user, marketId, amount);
     }
 
-    function release(UserStockVault vault, bytes32 assetUid, address user, bytes32 marketId, uint256 amount) external {
-        vault.releaseAllocation(assetUid, user, marketId, amount);
+    function release(UserStockVault vault, bytes32 assetUid, address user, bytes32 marketId)
+        external
+        returns (uint256)
+    {
+        return vault.releaseAllocation(assetUid, user, marketId);
     }
 }
 
@@ -228,11 +231,11 @@ contract UserStockVaultTest is Test {
         vm.prank(ALICE);
         vault.withdrawFreeStock(ASSET_UID, 301);
 
-        manager.release(vault, ASSET_UID, ALICE, MARKET_ID, 250);
+        assertEq(manager.release(vault, ASSET_UID, ALICE, MARKET_ID), 700);
         vm.prank(ALICE);
-        vault.withdrawFreeStock(ASSET_UID, 550);
-        assertEq(vault.deposited(ASSET_UID, ALICE), 450);
-        assertEq(vault.allocated(ASSET_UID, ALICE), 450);
+        vault.withdrawFreeStock(ASSET_UID, 1_000);
+        assertEq(vault.deposited(ASSET_UID, ALICE), 0);
+        assertEq(vault.allocated(ASSET_UID, ALICE), 0);
         assertEq(vault.freeBalanceOf(ASSET_UID, ALICE), 0);
     }
 
@@ -380,11 +383,11 @@ contract UserStockVaultTest is Test {
         );
         assertEq(
             UserStockVault.releaseAllocation.selector,
-            bytes4(keccak256("releaseAllocation(bytes32,address,bytes32,uint256)"))
+            bytes4(keccak256("releaseAllocation(bytes32,address,bytes32)"))
         );
         assertEq(
-            UserStockVault.moveAllocation.selector,
-            bytes4(keccak256("moveAllocation(bytes32,address,bytes32,bytes32,uint256)"))
+            UserStockVault.rageQuitAllocation.selector,
+            bytes4(keccak256("rageQuitAllocation(bytes32,address,bytes32)"))
         );
 
         (bool withdrawFor,) = address(vault)
@@ -393,6 +396,12 @@ contract UserStockVaultTest is Test {
         (bool forceFor,) = address(vault)
             .call(abi.encodeWithSignature("forceReleaseAllocation(bytes32,address,bytes32)", ASSET_UID, BOB, MARKET_ID));
         assertFalse(forceFor);
+        (bool partialRelease,) = address(vault)
+            .call(abi.encodeWithSignature("releaseAllocation(bytes32,address,bytes32,uint256)", ASSET_UID, ALICE, MARKET_ID, 1));
+        (bool move,) = address(vault)
+            .call(abi.encodeWithSignature("moveAllocation(bytes32,address,bytes32,bytes32,uint256)", ASSET_UID, ALICE, MARKET_ID, OTHER_MARKET_ID, 1));
+        assertFalse(partialRelease);
+        assertFalse(move);
     }
 
     function testFuzz_freeWithdrawThenEmergencyReleaseReturnsOnlyCallerPrincipal(uint96 rawDeposit, uint96 rawLocked)

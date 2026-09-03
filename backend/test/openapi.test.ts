@@ -14,8 +14,8 @@ const spec = JSON.parse(await readFile(new URL("../openapi/v2.json", import.meta
 
 test("OpenAPI publishes the five read endpoints and no write operation", () => {
   assert.equal(spec.openapi, "3.1.0");
-  assert.equal(spec.info.version, "2.1.0");
-  assert.equal(spec["x-execution-spec-id"], "V2-EXEC-4");
+  assert.equal(spec.info.version, "2.2.0");
+  assert.equal(spec["x-execution-spec-id"], "V2-EXEC-5");
   assert.deepEqual(Object.keys(spec.paths).sort(), [
     "/health",
     "/v2/config/{kind}",

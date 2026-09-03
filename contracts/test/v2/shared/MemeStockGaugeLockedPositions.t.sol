@@ -37,8 +37,8 @@ contract MemeStockGaugeLockedPositionsHarness is MemeStockGaugeLockedPositions {
         _addPending(user, amount, generation, unlockAt, MARKET_ID, quoteAccumulator, memeAccumulator);
     }
 
-    function removeAllocation(address user, uint256 amount) external returns (uint256) {
-        return _removeAllocation(user, amount, MARKET_ID, quoteAccumulator, memeAccumulator);
+    function removeAllocation(address user) external returns (uint256) {
+        return _removeAllocation(user, MARKET_ID, quoteAccumulator, memeAccumulator);
     }
 
     function expectedTimes() external view returns (uint64 generation, uint64 unlockAt) {
@@ -154,7 +154,7 @@ contract MemeStockGaugeLockedPositionsTest is Test {
         vm.warp(unlockAt - 1);
 
         vm.expectRevert(abi.encodeWithSelector(MemeStockGaugeLockedPositions.PositionLockedUntil.selector, unlockAt));
-        gauge.removeAllocation(ALICE, 40);
+        gauge.removeAllocation(ALICE);
 
         (uint256 active, uint256 pending, uint64 pendingGeneration, uint64 storedUnlock) = gauge.position(ALICE);
         assertEq(active, 0);
@@ -167,20 +167,20 @@ contract MemeStockGaugeLockedPositionsTest is Test {
         assertFalse(gauge.snapshot(generation).processed);
     }
 
-    function test_exactUnlockMaterializesSettlesFullWeightThenRemovesPartial() public {
+    function test_exactUnlockMaterializesSettlesAndRemovesTheFullPosition() public {
         (uint64 generation, uint64 unlockAt) = gauge.expectedTimes();
         gauge.addPending(ALICE, 100, generation, unlockAt);
         gauge.setAccumulators(17, 29);
         vm.warp(unlockAt);
 
-        assertEq(gauge.removeAllocation(ALICE, 40), 60);
+        assertEq(gauge.removeAllocation(ALICE), 100);
 
         (uint256 active, uint256 pending, uint64 pendingGeneration, uint64 storedUnlock) = gauge.position(ALICE);
-        assertEq(active, 60);
+        assertEq(active, 0);
         assertEq(pending, 0);
         assertEq(pendingGeneration, 0);
-        assertEq(storedUnlock, unlockAt);
-        assertEq(gauge.storedActive(), 60);
+        assertEq(storedUnlock, 0);
+        assertEq(gauge.storedActive(), 0);
         assertEq(gauge.pendingTotal(), 0);
         assertFalse(gauge.snapshot(generation).processed);
         assertEq(gauge.materializeSequence(), 1);
@@ -198,7 +198,7 @@ contract MemeStockGaugeLockedPositionsTest is Test {
         gauge.seedReward(ALICE, 0, 3, 11, 19);
         gauge.seedReward(ALICE, 1, 5, 13, 23);
 
-        assertEq(gauge.removeAllocation(ALICE, 75), 0);
+        assertEq(gauge.removeAllocation(ALICE), 75);
 
         (uint256 active, uint256 pending, uint64 generation, uint64 storedUnlock) = gauge.position(ALICE);
         assertEq(active, 0);
@@ -214,17 +214,6 @@ contract MemeStockGaugeLockedPositionsTest is Test {
         assertEq(memeRemainder, 23);
     }
 
-    function test_partialRemovalPreservesOriginalWholePositionUnlock() public {
-        uint64 unlockAt = uint64(block.timestamp);
-        gauge.seedActive(ALICE, 90, unlockAt, 90);
-        gauge.removeAllocation(ALICE, 30);
-
-        (uint256 active,,, uint64 storedUnlock) = gauge.position(ALICE);
-        assertEq(active, 60);
-        assertEq(storedUnlock, unlockAt);
-        assertEq(gauge.lastRemovalSettlementWeight(), 90);
-    }
-
     function test_futurePendingCannotBeRemovedEvenWithCorruptExpiredLock() public {
         uint64 generation = uint64(block.timestamp + 10);
         uint64 unlockAt = uint64(block.timestamp - 1);
@@ -235,7 +224,7 @@ contract MemeStockGaugeLockedPositionsTest is Test {
                 MemeStockGaugeLockedPositions.PendingPositionNotMaterialized.selector, ALICE, 50, generation
             )
         );
-        gauge.removeAllocation(ALICE, 10);
+        gauge.removeAllocation(ALICE);
 
         (, uint256 pending, uint64 storedGeneration, uint64 storedUnlock) = gauge.position(ALICE);
         assertEq(pending, 50);
@@ -244,24 +233,15 @@ contract MemeStockGaugeLockedPositionsTest is Test {
         assertEq(gauge.pendingTotal(), 50);
     }
 
-    function test_zeroUserZeroAmountEmptyOverdrawAndZeroLockFailClosed() public {
+    function test_zeroUserEmptyPositionAndZeroLockFailClosed() public {
         vm.expectRevert(abi.encodeWithSelector(MemeStockGaugeLockedPositions.InvalidRemovalUser.selector, address(0)));
-        gauge.removeAllocation(address(0), 1);
-        vm.expectRevert(abi.encodeWithSelector(MemeStockGaugeLockedPositions.InvalidRemovalAmount.selector, 0));
-        gauge.removeAllocation(ALICE, 0);
+        gauge.removeAllocation(address(0));
         vm.expectRevert(abi.encodeWithSelector(MemeStockGaugeLockedPositions.NoActiveAllocation.selector, ALICE));
-        gauge.removeAllocation(ALICE, 1);
-
-        gauge.seedActive(ALICE, 10, uint64(block.timestamp), 10);
-        vm.expectRevert(
-            abi.encodeWithSelector(MemeStockGaugeLockedPositions.InsufficientActiveAllocation.selector, 11, 10)
-        );
-        gauge.removeAllocation(ALICE, 11);
-        assertEq(gauge.removeSequence(), 0);
+        gauge.removeAllocation(ALICE);
 
         gauge.seedActive(ALICE, 10, 0, 10);
         vm.expectRevert(abi.encodeWithSelector(MemeStockGaugeLockedPositions.InvalidPositionLock.selector, ALICE, 0));
-        gauge.removeAllocation(ALICE, 1);
+        gauge.removeAllocation(ALICE);
     }
 
     function test_sharedProcessedBucketOnlyMaterializesRemovedUserAndKeepsPeerReference() public {
@@ -270,7 +250,7 @@ contract MemeStockGaugeLockedPositionsTest is Test {
         gauge.addPending(BOB, 200, generation, unlockAt);
         vm.warp(unlockAt);
 
-        gauge.removeAllocation(ALICE, 100);
+        gauge.removeAllocation(ALICE);
 
         ActivationSnapshot memory snapshot = gauge.snapshot(generation);
         assertTrue(snapshot.processed);
@@ -289,14 +269,14 @@ contract MemeStockGaugeLockedPositionsTest is Test {
         vm.warp(unlockAt);
         gauge.setFailures(true, false);
         vm.expectRevert(MemeStockGaugeLockedPositionsHarness.InjectedMaterializationFailure.selector);
-        gauge.removeAllocation(ALICE, 40);
+        gauge.removeAllocation(ALICE);
         assertEq(gauge.pendingTotal(), 100);
         assertEq(gauge.storedActive(), 0);
         assertFalse(gauge.snapshot(generation).processed);
 
         gauge.setFailures(false, true);
         vm.expectRevert(MemeStockGaugeLockedPositionsHarness.InjectedRemovalFailure.selector);
-        gauge.removeAllocation(ALICE, 40);
+        gauge.removeAllocation(ALICE);
         assertEq(gauge.pendingTotal(), 100);
         assertEq(gauge.storedActive(), 0);
         assertFalse(gauge.snapshot(generation).processed);
@@ -307,7 +287,7 @@ contract MemeStockGaugeLockedPositionsTest is Test {
     function test_totalActiveUnderflowRollsBackUserAndSettlement() public {
         gauge.seedActive(ALICE, 100, uint64(block.timestamp), 50);
         vm.expectRevert(stdError.arithmeticError);
-        gauge.removeAllocation(ALICE, 60);
+        gauge.removeAllocation(ALICE);
 
         (uint256 active,,, uint64 unlockAt) = gauge.position(ALICE);
         assertEq(active, 100);
@@ -316,7 +296,7 @@ contract MemeStockGaugeLockedPositionsTest is Test {
         assertEq(gauge.removeSequence(), 0);
     }
 
-    function test_checkpointIsFirstEvenWhenRemovalAmountIsInvalid() public {
+    function test_checkpointIsFirstBeforePositionValidation() public {
         (uint64 generation, uint64 unlockAt) = gauge.expectedTimes();
         gauge.addPending(ALICE, 100, generation, unlockAt);
         gauge.injectSnapshot(generation, 1, 2, 9);
@@ -327,7 +307,7 @@ contract MemeStockGaugeLockedPositionsTest is Test {
                 MemeStockGaugeActivationSnapshots.ActivationSnapshotAlreadyProcessed.selector, generation
             )
         );
-        gauge.removeAllocation(ALICE, 0);
+        gauge.removeAllocation(ALICE);
         assertEq(gauge.pendingTotal(), 100);
         assertEq(gauge.storedActive(), 0);
     }
@@ -337,27 +317,27 @@ contract MemeStockGaugeLockedPositionsTest is Test {
         gauge.addPending(ALICE, 100, generation, unlockAt);
         vm.warp(uint256(unlockAt) + 365 days);
 
-        assertEq(gauge.removeAllocation(ALICE, 25), 75);
+        assertEq(gauge.removeAllocation(ALICE), 100);
         (uint256 active, uint256 pending,, uint64 storedUnlock) = gauge.position(ALICE);
-        assertEq(active, 75);
+        assertEq(active, 0);
         assertEq(pending, 0);
-        assertEq(storedUnlock, unlockAt);
-        assertEq(gauge.storedActive(), 75);
+        assertEq(storedUnlock, 0);
+        assertEq(gauge.storedActive(), 0);
         assertEq(gauge.pendingTotal(), 0);
     }
 
     function test_repeatedCloseFailsAndCannotUnderflowGlobalWeight() public {
         gauge.seedActive(ALICE, 10, uint64(block.timestamp), 10);
-        gauge.removeAllocation(ALICE, 10);
+        gauge.removeAllocation(ALICE);
         vm.expectRevert(abi.encodeWithSelector(MemeStockGaugeLockedPositions.NoActiveAllocation.selector, ALICE));
-        gauge.removeAllocation(ALICE, 1);
+        gauge.removeAllocation(ALICE);
         assertEq(gauge.storedActive(), 0);
     }
 
     function test_reallocateAfterFullCloseCreatesFreshLockWithoutErasingRewardDebt() public {
         gauge.seedActive(ALICE, 10, uint64(block.timestamp), 10);
         gauge.seedReward(ALICE, 0, 3, 11, 19);
-        gauge.removeAllocation(ALICE, 10);
+        gauge.removeAllocation(ALICE);
         vm.warp(block.timestamp + 5);
         (uint64 generation, uint64 unlockAt) = gauge.expectedTimes();
 
@@ -375,21 +355,17 @@ contract MemeStockGaugeLockedPositionsTest is Test {
         assertEq(gauge.storedActive(), 0);
     }
 
-    function testFuzz_partialAndFullRemovalConserveUserAndGlobalActive(uint128 activeAmount, uint128 removeAmount)
-        public
-    {
+    function testFuzz_fullRemovalClearsUserAndGlobalActive(uint128 activeAmount) public {
         activeAmount = uint128(bound(activeAmount, 1, type(uint128).max));
-        removeAmount = uint128(bound(removeAmount, 1, activeAmount));
-        uint64 unlockAt = uint64(block.timestamp);
-        gauge.seedActive(ALICE, activeAmount, unlockAt, activeAmount);
+        gauge.seedActive(ALICE, activeAmount, uint64(block.timestamp), activeAmount);
 
-        uint256 remaining = gauge.removeAllocation(ALICE, removeAmount);
+        uint256 removed = gauge.removeAllocation(ALICE);
 
         (uint256 storedUserActive,,, uint64 storedUnlock) = gauge.position(ALICE);
-        assertEq(remaining, uint256(activeAmount) - removeAmount);
-        assertEq(storedUserActive, remaining);
-        assertEq(gauge.storedActive(), remaining);
-        assertEq(storedUnlock, remaining == 0 ? 0 : unlockAt);
+        assertEq(removed, activeAmount);
+        assertEq(storedUserActive, 0);
+        assertEq(gauge.storedActive(), 0);
+        assertEq(storedUnlock, 0);
         assertEq(gauge.lastRemovalSettlementWeight(), activeAmount);
     }
 }
