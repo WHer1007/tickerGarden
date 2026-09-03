@@ -164,8 +164,8 @@ contract UserStockVaultTest is Test {
         registerSelector[0] = IOfficialStockRegistryV2.registerAsset.selector;
         accessManager.setTargetFunctionRole(address(registry), registerSelector, PROTOCOL_ADMIN_ROLE);
         accessManager.grantRole(PROTOCOL_ADMIN_ROLE, address(this), 0);
-        registry.registerAsset(ASSET_UID, address(stockToken), 18, address(vault));
-        registry.registerAsset(OTHER_ASSET_UID, address(otherStockToken), 18, address(vault));
+        registry.registerAsset(ASSET_UID, address(stockToken), 18, address(vault), 0.5 ether);
+        registry.registerAsset(OTHER_ASSET_UID, address(otherStockToken), 18, address(vault), 0.5 ether);
 
         marketRegistry.configure(MARKET_ID, ASSET_UID, 0, 0);
         marketRegistry.configure(OTHER_MARKET_ID, OTHER_ASSET_UID, 0, 0);

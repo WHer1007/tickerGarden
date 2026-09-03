@@ -2,7 +2,7 @@
 pragma solidity 0.8.26;
 
 // GENERATED FILE. DO NOT EDIT.
-// Source: spec/v2_abi_surface.json (V2-EXEC-3)
+// Source: spec/v2_abi_surface.json (V2-EXEC-4)
 // forge-lint: disable-start(multi-contract-file)
 // forgefmt: disable-start
 
@@ -82,7 +82,6 @@ struct CreateMarketParams {
 
 struct MarketConfig {
     bytes32 assetUid;
-    uint256 stakeSaturationAmount;
     bytes32 ponsBaselineId;
     bytes32 quoteAssetConfigId;
     bytes32 launchTemplateId;
@@ -222,8 +221,16 @@ interface IV2Errors {
     error FeeBalanceDeltaMismatch(address arg0, uint256 arg1, uint256 arg2);
     error ActivationSlotCollision(uint8 arg0, uint64 arg1, uint64 arg2);
     error PendingGenerationNotFound(uint64 arg0);
+    error InvalidMinimumAllocation(bytes32 arg0, uint256 arg1);
+    error AssetNotRegistered(bytes32 arg0);
+    error InvalidAssetMinimumAllocation(bytes32 arg0, uint256 arg1);
     error PositionBelowMinimum(uint256 arg0, uint256 arg1);
     error PositionLockedUntil(uint64 arg0);
+    error InvalidRageQuitAmount(uint256 arg0, uint256 arg1);
+    error InvalidRageQuitUser(address arg0);
+    error NoRageQuitPosition(address arg0);
+    error UnauthorizedForfeitureGauge(address arg0, address arg1);
+    error InvalidForfeiture(address arg0, uint256 arg1, uint256 arg2);
     error AllocationExceedsDeposit(uint256 arg0, uint256 arg1);
     error AllocationLedgerMismatch();
     error StockAllocationClosed(bytes32 arg0);
@@ -243,13 +250,16 @@ interface IV2Errors {
 interface IOfficialStockRegistryV2 {
     event StockVaultRegistered(address indexed userStockVault, bytes32 indexed schemaId, address indexed marketRegistry, address allocationManager);
     event AssetRegistered(bytes32 indexed assetUid, address indexed stockToken, address indexed userStockVault, uint8 tokenDecimals);
+    event AssetMinimumAllocationChanged(bytes32 indexed assetUid, uint256 oldMinimum, uint256 newMinimum, bytes32 reasonHash);
     event AssetStatusChanged(bytes32 indexed assetUid, uint8 oldStatus, uint8 newStatus, bytes32 reasonHash);
 
-    function registerAsset(bytes32 arg0, address arg1, uint8 arg2, address arg3) external;
+    function registerAsset(bytes32 arg0, address arg1, uint8 arg2, address arg3, uint256 arg4) external;
+    function setMinimumAllocation(bytes32 arg0, uint256 arg1, bytes32 arg2) external;
     function pauseAsset(bytes32 arg0, bytes32 arg1) external;
     function unpauseAsset(bytes32 arg0) external;
     function retireAsset(bytes32 arg0, bytes32 arg1) external;
     function asset(bytes32 arg0) external view returns (AssetView memory output0);
+    function minimumAllocation(bytes32 arg0) external view returns (uint256 output0);
     function vaultSchemaId(address arg0) external view returns (bytes32 output0);
     function vaultForSchema(bytes32 arg0) external view returns (address output0);
 }
@@ -296,7 +306,7 @@ interface ILaunchConfigResolver {
 }
 
 interface ITickerGardenFactoryV2 {
-    event MarketCreated(bytes32 indexed marketId, bytes32 indexed assetUid, address indexed memeToken, address curve, address gauge, address quoteAsset, uint256 stakeSaturationAmount, bytes32 ponsBaselineId, bytes32 quoteAssetConfigId, bytes32 expectedEconomics);
+    event MarketCreated(bytes32 indexed marketId, bytes32 indexed assetUid, address indexed memeToken, address curve, address gauge, address quoteAsset, bytes32 ponsBaselineId, bytes32 quoteAssetConfigId, bytes32 expectedEconomics);
 
     function createMarket(CreateMarketParams calldata arg0) external payable returns (bytes32 output0, address output1, address output2, address output3);
     function createMarketFor(address arg0, CreateMarketParams calldata arg1) external payable returns (bytes32 output0, address output1, address output2, address output3);
@@ -381,6 +391,7 @@ interface IUserStockVault {
     event StockWithdrawn(bytes32 indexed assetUid, address indexed user, uint256 amount);
     event AllocationLocked(bytes32 indexed assetUid, address indexed user, bytes32 indexed marketId, uint256 amount, uint256 userMarketAllocation, uint256 userTotalAllocated);
     event AllocationReleased(bytes32 indexed assetUid, address indexed user, bytes32 indexed marketId, uint256 amount, uint256 userMarketAllocation, uint256 userTotalAllocated);
+    event AllocationRageQuit(bytes32 indexed assetUid, address indexed user, bytes32 indexed marketId, uint256 amount);
     event AllocationMoved(bytes32 indexed assetUid, address indexed user, bytes32 indexed fromMarketId, bytes32 toMarketId, uint256 amount);
     event AllocationForceReleased(bytes32 indexed assetUid, address indexed user, bytes32 indexed marketId, uint256 amount, uint32 recoveryEpoch);
 
@@ -390,6 +401,7 @@ interface IUserStockVault {
     function forceReleaseAllocation(bytes32 arg0, bytes32 arg1) external returns (uint256 output0);
     function lockAllocation(bytes32 arg0, address arg1, bytes32 arg2, uint256 arg3) external;
     function releaseAllocation(bytes32 arg0, address arg1, bytes32 arg2, uint256 arg3) external;
+    function rageQuitAllocation(bytes32 arg0, address arg1, bytes32 arg2, uint256 arg3) external;
     function moveAllocation(bytes32 arg0, address arg1, bytes32 arg2, bytes32 arg3, uint256 arg4) external;
     function deposited(bytes32 arg0, address arg1) external view returns (uint256 output0);
     function allocated(bytes32 arg0, address arg1) external view returns (uint256 output0);
@@ -403,11 +415,13 @@ interface IUserStockVault {
 
 interface IAllocationManager {
     event AllocationMigrated(address indexed user, bytes32 indexed fromMarketId, bytes32 indexed toMarketId, uint256 amount, uint256 sourceRemaining, uint64 targetPendingGeneration, uint64 targetUnlockAt);
+    event AllocationRageQuitExecuted(address indexed user, bytes32 indexed marketId, uint256 principal, uint256 quoteForfeited, uint256 memeForfeited, bool redistributed);
 
     function allocate(bytes32 arg0, uint256 arg1) external;
     function increaseAllocation(bytes32 arg0, uint256 arg1) external;
     function decreaseAllocation(bytes32 arg0, uint256 arg1) external;
     function closeAllocation(bytes32 arg0) external;
+    function rageQuit(bytes32 arg0) external;
     function migrateAllocation(bytes32 arg0, bytes32 arg1, uint256 arg2) external;
     function depositAndAllocate(bytes32 arg0, uint256 arg1, uint256 arg2) external;
 }
@@ -418,10 +432,13 @@ interface IMemeStockGauge {
     event ActivationBucketProcessed(bytes32 indexed marketId, uint64 indexed generation, uint256 amount, uint256 quoteAccumulator, uint256 memeAccumulator, uint256 refs);
     event PendingMaterialized(address indexed user, bytes32 indexed marketId, uint64 indexed generation, uint256 amount);
     event StakerFeeCredited(bytes32 indexed marketId, address indexed feeAsset, bytes32 indexed feeId, uint256 amount, uint256 accumulatorDelta, uint256 indexRemainder);
+    event ForfeitedRewardRedistributed(bytes32 indexed marketId, address indexed user, address indexed feeAsset, uint256 amount, uint256 accumulatorDelta, uint256 indexRemainder);
+    event GaugeRageQuit(address indexed user, bytes32 indexed marketId, uint256 principal, uint256 quoteForfeited, uint256 memeForfeited, bool redistributed);
 
     function gaugeIdentity() external view returns (GaugeIdentity memory output0);
     function addPending(address arg0, uint256 arg1, uint64 arg2, uint64 arg3) external;
     function removeAllocation(address arg0, uint256 arg1) external;
+    function rageQuit(address arg0) external returns (uint256 output0, uint256 output1, uint256 output2, bool output3);
     function checkpointActivations() external returns (uint256 output0, uint256 output1);
     function settle(address arg0) external;
     function creditStakerFee(address arg0, uint256 arg1, bytes32 arg2) external returns (uint256 output0, uint256 output1);
@@ -453,9 +470,11 @@ interface ITickerGardenMemeHook {
 }
 
 interface IProtocolFeeVault {
-    event FeeBucketsCredited(bytes32 indexed marketId, uint32 indexed creatorEpoch, address indexed feeAsset, bytes32 feeId, uint256 creatorAmount, uint256 stakerAmount, uint256 platformAmount, uint256 activeStock, uint256 stakeSaturationAmount);
+    event FeeBucketsCredited(bytes32 indexed marketId, uint32 indexed creatorEpoch, address indexed feeAsset, bytes32 feeId, uint256 creatorAmount, uint256 stakerAmount, uint256 platformAmount, uint256 activeStock);
     event CurveFeesSwept(bytes32 indexed marketId, uint32 indexed creatorEpoch, address indexed quoteAsset, uint64 sweepNonce, bytes32 feeId, uint256 amount, uint256 creatorAmount, uint256 platformAmount);
     event FeeClaimed(uint8 indexed beneficiaryType, address indexed beneficiary, bytes32 indexed marketId, uint32 beneficiaryEpoch, address feeAsset, uint256 amount);
+    event ForfeitureReserved(bytes32 indexed marketId, address indexed user, address indexed feeAsset, uint256 amount, uint256 reserveBalance);
+    event ForfeitureReserveConverted(bytes32 indexed marketId, address indexed feeAsset, uint256 amount);
     event RecoveryCapsFrozen(bytes32 indexed marketId, uint32 indexed recoveryEpoch, uint64 snapshotBlock, bytes32 stateHash, address quoteAsset, uint256 quoteCap, address memeAsset, uint256 memeCap);
     event RecoveryRootProposed(bytes32 indexed marketId, uint32 indexed recoveryEpoch, address indexed feeAsset, uint32 proposalNonce, bytes32 root, uint256 declaredTotal, uint64 finalizableAt);
     event RecoveryRootCancelled(bytes32 indexed marketId, uint32 indexed recoveryEpoch, address indexed feeAsset, uint32 proposalNonce);
@@ -469,6 +488,7 @@ interface IProtocolFeeVault {
     function claimPlatform(bytes32 arg0, address arg1) external returns (uint256 output0);
     function claimStaker(bytes32 arg0, address arg1) external returns (uint256 output0);
     function claimStakerFor(address arg0, bytes32 arg1, address arg2) external returns (uint256 output0);
+    function recordForfeiture(bytes32 arg0, address arg1, uint256 arg2, uint256 arg3) external;
     function freezeRecoveryCaps(bytes32 arg0, uint32 arg1, uint64 arg2, bytes32 arg3) external returns (uint256 output0, uint256 output1);
     function proposeRecoveryRoot(bytes32 arg0, uint32 arg1, address arg2, bytes32 arg3, uint256 arg4) external returns (uint32 output0, uint64 output1);
     function cancelRecoveryRoot(bytes32 arg0, uint32 arg1, address arg2, uint32 arg3) external;
@@ -476,6 +496,7 @@ interface IProtocolFeeVault {
     function claimRecovery(bytes32 arg0, uint32 arg1, address arg2, uint256 arg3, bytes32[] calldata arg4) external;
     function liability(bytes32 arg0, address arg1, uint8 arg2) external view returns (uint256 output0);
     function creatorLiability(bytes32 arg0, uint32 arg1, address arg2) external view returns (uint256 output0);
+    function forfeitureReserve(bytes32 arg0, address arg1) external view returns (uint256 output0);
     function recoverySnapshot(bytes32 arg0, uint32 arg1) external view returns (uint64 output0, bytes32 output1);
     function recoveryRoot(bytes32 arg0, uint32 arg1, address arg2) external view returns (RecoveryRootView memory output0);
     function recoveryCap(bytes32 arg0, uint32 arg1, address arg2) external view returns (uint256 output0);

@@ -40,6 +40,7 @@ import {
   buildForceRelease,
   hasCanonicalRecoveryClaim,
   buildMigrateAllocation,
+  buildRageQuit,
   buildStockApproval,
   buildVaultView,
   buildWithdraw,
@@ -231,7 +232,7 @@ function App() {
   const [tradeAmount, setTradeAmount] = useState("");
   const [tradeQuote, setTradeQuote] = useState(null);
 
-  const [positionState, setPositionState] = useState({ status: "idle", items: [], markets: new Map() });
+  const [positionState, setPositionState] = useState({ status: "idle", items: [], markets: new Map(), assetBindings: new Map() });
   const [selectedPositionId, setSelectedPositionId] = useState("");
   const [depositAssetUid, setDepositAssetUid] = useState("");
   const [vaultForm, setVaultForm] = useState({ amount: "", allocation: "", targetMarketId: "" });
@@ -300,7 +301,7 @@ function App() {
     if (!wallet?.provider) return undefined;
     const invalidate = () => {
       setWallet(null);
-      setPositionState({ status: "idle", items: [], markets: new Map() });
+      setPositionState({ status: "idle", items: [], markets: new Map(), assetBindings: new Map() });
       setNotice({ tone: "warning", title: "Wallet connection changed", detail: "Reconnect before preparing another transaction." });
     };
     wallet.provider.on?.("accountsChanged", invalidate);
@@ -350,7 +351,7 @@ function App() {
 
   const disconnectWallet = () => {
     setWallet(null);
-    setPositionState({ status: "idle", items: [], markets: new Map() });
+    setPositionState({ status: "idle", items: [], markets: new Map(), assetBindings: new Map() });
     setNotice({ tone: "neutral", title: "Wallet disconnected locally" });
   };
 
@@ -392,13 +393,21 @@ function App() {
 
   const ensureCanonicalAsset = async (asset) => {
     if (foundation.status !== "ready") throw new Error("Canonical Factory bindings are unavailable");
-    const raw = await publicClient.readContract({
-      abi: v2Abis.OfficialStockRegistryV2,
-      address: foundation.bindings.officialStockRegistry,
-      functionName: "asset",
-      args: [asset.id],
-    });
-    return assertCanonicalAssetBinding(asset, raw);
+    const [raw, minimumAllocation] = await Promise.all([
+      publicClient.readContract({
+        abi: v2Abis.OfficialStockRegistryV2,
+        address: foundation.bindings.officialStockRegistry,
+        functionName: "asset",
+        args: [asset.id],
+      }),
+      publicClient.readContract({
+        abi: v2Abis.OfficialStockRegistryV2,
+        address: foundation.bindings.officialStockRegistry,
+        functionName: "minimumAllocation",
+        args: [asset.id],
+      }),
+    ]);
+    return assertCanonicalAssetBinding(asset, raw, minimumAllocation);
   };
 
   const ensureCanonicalMarket = async (market, expectedMarketId = market.marketId) => {
@@ -729,7 +738,7 @@ function App() {
 
   const refreshPositions = useCallback(async () => {
     if (!wallet || !readApi || foundation.status !== "ready") return;
-    setPositionState({ status: "loading", items: [], markets: new Map() });
+    setPositionState({ status: "loading", items: [], markets: new Map(), assetBindings: new Map() });
     try {
       const result = await readAllPositions(wallet.account);
       if (!result.sync || result.sync.status !== "synced" || result.sync.finality !== "finalized") throw new Error("Finalized position data is unavailable");
@@ -742,10 +751,17 @@ function App() {
       details.forEach((detail) => assertSameRevision(detail.sync, result.sync.revision, "position market snapshot"));
       await Promise.all(details.map((detail) => ensureCanonicalMarket(detail.market)));
       const markets = new Map(details.map((detail) => [detail.market.marketId, detail.market]));
-      setPositionState({ status: "ready", items: result.items, markets, sync: result.sync });
+      const assetIds = [...new Set(result.items.map((position) => position.assetUid))];
+      const canonicalAssets = await Promise.all(assetIds.map(async (assetUid) => {
+        const asset = foundation.assets.find((item) => item.id === assetUid);
+        if (!asset) throw new Error(`Position references unknown official STOCK ${assetUid}`);
+        return ensureCanonicalAsset(asset);
+      }));
+      const assetBindings = new Map(canonicalAssets.map((asset) => [asset.assetUid, asset]));
+      setPositionState({ status: "ready", items: result.items, markets, assetBindings, sync: result.sync });
       setSelectedPositionId((current) => current && result.items.some((item) => item.marketId === current) ? current : result.items[0]?.marketId || "");
     } catch (error) {
-      setPositionState({ status: "error", error: errorText(error), items: [], markets: new Map() });
+      setPositionState({ status: "error", error: errorText(error), items: [], markets: new Map(), assetBindings: new Map() });
     }
   }, [wallet, foundation]);
 
@@ -754,9 +770,10 @@ function App() {
   const selectedPosition = positionState.status === "ready" ? positionState.items.find((item) => item.marketId === selectedPositionId) : null;
   const selectedPositionMarket = selectedPosition ? positionState.markets.get(selectedPosition.marketId) : null;
   const selectedAsset = selectedPosition && foundation.status === "ready" ? foundation.assets.find((item) => item.id === selectedPosition.assetUid) : null;
+  const selectedAssetBinding = selectedPosition ? positionState.assetBindings?.get(selectedPosition.assetUid) : null;
   let vaultView = null;
   let vaultViewError = "";
-  if (selectedPosition && selectedPositionMarket && selectedAsset && positionState.sync) {
+  if (selectedPosition && selectedPositionMarket && selectedAsset && selectedAssetBinding && positionState.sync) {
     try {
       vaultView = buildVaultView(
         selectedPositionMarket,
@@ -765,6 +782,7 @@ function App() {
         {
           status: selectedAsset.status,
           tokenDecimals: configNumber(selectedAsset, "tokenDecimals"),
+          minimumAllocation: selectedAssetBinding.minimumAllocation,
           stockToken: configString(selectedAsset, "stockToken").toLowerCase(),
           userStockVault: configString(selectedAsset, "userStockVault").toLowerCase(),
         },
@@ -829,7 +847,7 @@ function App() {
           };
         } else if (action === "allocate") {
           if (!amount || !vaultView.allocationOpen) throw new Error("Allocation is closed or the amount is invalid");
-          if (before + amount < vaultView.minimumAllocationStock) throw new Error("Resulting allocation would not exceed 0.5 STOCK");
+          if (before + amount < canonicalAsset.minimumAllocation) throw new Error("Resulting allocation is below the current per-asset minimum");
           request = buildAllocate(foundation.bindings.allocationManager, marketId, amount);
           confirm = async () => {
             const after = await publicClient.readContract({ abi: v2Abis.UserStockVault, address: vault, functionName: "allocation", args: [canonicalAsset.assetUid, wallet.account, marketId] });
@@ -838,7 +856,7 @@ function App() {
           };
         } else if (action === "decrease") {
           if (!amount || !vaultView.canDecrease || amount > before) throw new Error("Position is locked or the decrease exceeds its allocation");
-          if (before - amount !== 0n && before - amount < vaultView.minimumAllocationStock) throw new Error("Remaining allocation would not exceed 0.5 STOCK");
+          if (before - amount !== 0n && before - amount < canonicalAsset.minimumAllocation) throw new Error("Remaining allocation is below the current per-asset minimum");
           request = buildDecreaseAllocation(foundation.bindings.allocationManager, marketId, amount);
           confirm = async () => {
             const after = await publicClient.readContract({ abi: v2Abis.UserStockVault, address: vault, functionName: "allocation", args: [canonicalAsset.assetUid, wallet.account, marketId] });
@@ -857,7 +875,7 @@ function App() {
           const deposit = amount;
           const allocation = parseAmount(vaultForm.allocation, "Allocation amount");
           if (!deposit || !vaultView.allocationOpen) throw new Error("Deposit-and-allocate is closed or invalid");
-          if (before + allocation < vaultView.minimumAllocationStock) throw new Error("Resulting allocation would not exceed 0.5 STOCK");
+          if (before + allocation < canonicalAsset.minimumAllocation) throw new Error("Resulting allocation is below the current per-asset minimum");
           request = buildDepositAndAllocate(foundation.bindings.allocationManager, marketId, deposit, allocation);
           approval = await allowanceApproval(buildStockApproval(stockToken, vault, deposit), stockToken, vault, deposit);
           confirm = async () => {
@@ -881,8 +899,8 @@ function App() {
           };
           const targetBefore = await publicClient.readContract({ abi: v2Abis.UserStockVault, address: vault, functionName: "allocation", args: [canonicalAsset.assetUid, wallet.account, target] });
           if (amount > before) throw new Error("Migration exceeds the source allocation");
-          if (before - amount !== 0n && before - amount < vaultView.minimumAllocationStock) throw new Error("Remaining source allocation would not exceed 0.5 STOCK");
-          if (targetBefore + amount < vaultView.minimumAllocationStock) throw new Error("Target allocation would not exceed 0.5 STOCK");
+          if (before - amount !== 0n && before - amount < canonicalAsset.minimumAllocation) throw new Error("Remaining source allocation is below the current per-asset minimum");
+          if (targetBefore + amount < canonicalAsset.minimumAllocation) throw new Error("Target allocation is below the current per-asset minimum");
           request = buildMigrateAllocation(foundation.bindings.allocationManager, marketId, target, amount);
           confirm = async () => {
             const [sourceAfter, targetAfter] = await Promise.all([
@@ -891,6 +909,14 @@ function App() {
             ]);
             if (sourceAfter !== before - amount || targetAfter !== targetBefore + amount) throw new Error("Fresh Vault allocations do not match the migration");
             return targetAfter;
+          };
+        } else if (action === "rage-quit") {
+          if (!vaultView.canRageQuit) throw new Error("Rage Quit is unavailable for this position");
+          request = buildRageQuit(foundation.bindings.allocationManager, marketId);
+          confirm = async () => {
+            const after = await publicClient.readContract({ abi: v2Abis.UserStockVault, address: vault, functionName: "allocation", args: [canonicalAsset.assetUid, wallet.account, marketId] });
+            if (after !== 0n) throw new Error("Fresh Vault state did not return the Rage Quit principal");
+            return after;
           };
         } else if (action === "force-release") {
           if (!vaultView.canForceRelease) throw new Error("Force release is only available in Emergency exit");
@@ -901,6 +927,7 @@ function App() {
             return after;
           };
         } else if (action === "claim-quote" || action === "claim-meme") {
+          if (!vaultView.canClaim) throw new Error("Staker fees remain locked until the normal 24-hour unlock boundary");
           const claimQuote = action === "claim-quote";
           const feeAsset = claimQuote ? selectedPositionMarket.quoteAsset : selectedPositionMarket.memeToken;
           const gaugeBefore = await publicClient.readContract({ abi: v2Abis.MemeStockGauge, address: selectedPositionMarket.gauge, functionName: "positionOf", args: [wallet.account] });
@@ -945,7 +972,7 @@ function App() {
       </header>
 
       <section className="workspace-heading" aria-labelledby="page-title">
-        <div><p className="eyebrow">V2 product console · V2-EXEC-3</p><h1 id="page-title">Every action starts<br /><em>from visible state.</em></h1></div>
+        <div><p className="eyebrow">V2 product console · V2-EXEC-4</p><h1 id="page-title">Every action starts<br /><em>from visible state.</em></h1></div>
         <aside className="gate-card">
           <span className="gate-label">Runtime gate</span>
           <strong>{runtimeReady ? "LOCAL PRODUCT FLOW READY" : foundation.status === "loading" ? "CHECKING CANONICAL RUNTIME" : "TRANSACTIONS LOCKED"}</strong>
@@ -1036,7 +1063,7 @@ function App() {
                   <Metric label="Quote claimable" value={vaultView.quoteClaimable.toString()} detail={`asset ${shortHex(selectedPositionMarket.quoteAsset)}`} />
                   <Metric label="Meme claimable" value={vaultView.memeClaimable.toString()} detail={`asset ${shortHex(selectedPositionMarket.memeToken)}`} />
                 </div>
-                <div className="threshold-card"><span>Strict non-zero position threshold</span><strong>&gt; 0.5 STOCK · minimum {vaultView.minimumAllocationStock.toString()} raw units</strong><small>New and resulting allocations are checked by the contract using this asset's frozen decimals.</small></div>
+                <div className="threshold-card"><span>Current per-asset minimum allocation</span><strong>&ge; {vaultView.minimumAllocationStock.toString()} raw units</strong><small>Governance may update this live value as the STOCK market changes; the protocol never accepts less than its 414 raw-unit arithmetic safety floor.</small></div>
                 <div className="form-grid compact">
                   <label><span>Primary amount · raw units</span><input inputMode="numeric" value={vaultForm.amount} onChange={(e) => setVaultForm({ ...vaultForm, amount: e.target.value })} placeholder="Deposit / withdraw / allocate" /></label>
                   <label><span>Allocation amount · raw units</span><input inputMode="numeric" value={vaultForm.allocation} onChange={(e) => setVaultForm({ ...vaultForm, allocation: e.target.value })} placeholder="For deposit + allocate" /></label>
@@ -1049,11 +1076,12 @@ function App() {
                   <button type="button" className="secondary" onClick={() => runVaultAction("decrease")} disabled={actionDisabled || !vaultView.canDecrease}>Decrease</button>
                   <button type="button" className="secondary" onClick={() => runVaultAction("close")} disabled={actionDisabled || !vaultView.canClose}>Close allocation</button>
                   <button type="button" className="secondary" onClick={() => runVaultAction("migrate")} disabled={actionDisabled || !vaultView.canMigrate}>Migrate</button>
-                  <button type="button" className="secondary" onClick={() => runVaultAction("claim-quote")} disabled={actionDisabled || vaultView.quoteClaimable === 0n}>Claim Quote fees</button>
-                  <button type="button" className="secondary" onClick={() => runVaultAction("claim-meme")} disabled={actionDisabled || vaultView.memeClaimable === 0n}>Claim Meme fees</button>
+                  <button type="button" className="secondary" onClick={() => runVaultAction("claim-quote")} disabled={actionDisabled || !vaultView.canClaim || vaultView.quoteClaimable === 0n}>Claim Quote fees</button>
+                  <button type="button" className="secondary" onClick={() => runVaultAction("claim-meme")} disabled={actionDisabled || !vaultView.canClaim || vaultView.memeClaimable === 0n}>Claim Meme fees</button>
+                  <button type="button" className="danger" onClick={() => runVaultAction("rage-quit")} disabled={actionDisabled || !vaultView.canRageQuit}>Rage Quit · forfeit rewards</button>
                   <button type="button" className="danger" onClick={() => runVaultAction("force-release")} disabled={actionDisabled || !vaultView.canForceRelease}>Emergency force release</button>
                 </div>
-                <p className="risk-copy">Protocol fees are claimable in two separate assets; this is not block-by-block mining or token emission. Paused and retired markets preserve mature exits. Emergency force release returns only the connected user's principal and does not depend on the Gauge.</p>
+                <p className="risk-copy">Normal claims and exits unlock after 24 hours. Rage Quit is always a caller-only full-principal exit while the market remains operational: all unclaimed Quote and Meme rewards are forfeited, then redistributed to other active stakers or reserved for later platform income when none remain. It does not pause or retire the market. Protocol Emergency force release is a separate terminal recovery path.</p>
               </> : null}
             </>}
           </article>
@@ -1096,13 +1124,13 @@ function App() {
               <div className="metric-grid"><Metric label="Pool ID" value={shortHex(marketState.response.market.poolId)} /><Metric label="Router" value={shortHex(marketState.response.market.canonicalRoute.router)} /><Metric label="Quoter" value={shortHex(marketState.response.market.canonicalRoute.quoter)} /><Metric label="Hook" value={shortHex(marketState.response.market.canonicalRoute.hook)} /></div>
               <div className="pool-key"><code>{JSON.stringify(marketState.response.market.poolKey, null, 2)}</code></div>
             </> : <div className="empty-state"><strong>No canonical PoolCreated market is loaded.</strong><span>Load a market in Launch & Curve first. Pool writes remain disabled until the pinned v4 fork evidence is complete.</span></div>}
-            <p className="risk-copy">Only the canonical PoolKey and Hook fee source count toward STOCK staker fees. The protocol's 1% swap fee splits 20% to pool fee growth and 80% to non-LP accounting; this page makes no claim about any single LP address's share.</p>
+            <p className="risk-copy">Only the canonical PoolKey and Hook fee source count toward STOCK staker fees. The protocol's 1% swap fee sends 20% to pool fee growth. When any active STOCK stake exists, stakers receive 50% of the remaining non-LP fees pro rata by active stake and Creator/Platform split the rest; without an active staker, Creator/Platform split all non-LP fees. This page makes no claim about any single LP address's share.</p>
           </article>
         </section>
       ) : null}
 
       <section className="truth-strip" aria-label="Protocol guarantees"><span>Factory-previewed economics</span><span>Simulation before every signature</span><span>Finalized source revisions</span><span>Quote and Meme fees separated</span></section>
-      <footer className="footer"><span>Execution spec V2-EXEC-3 · readiness IMPLEMENTATION_ALLOWED</span><span>Pool swaps, Recovery claims and production publishing remain closed until their explicit gates are satisfied.</span></footer>
+      <footer className="footer"><span>Execution spec V2-EXEC-4 · readiness IMPLEMENTATION_ALLOWED</span><span>Pool swaps, Recovery claims and production publishing remain closed until their explicit gates are satisfied.</span></footer>
     </main>
   );
 }

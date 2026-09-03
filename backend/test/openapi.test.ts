@@ -14,8 +14,8 @@ const spec = JSON.parse(await readFile(new URL("../openapi/v2.json", import.meta
 
 test("OpenAPI publishes the five read endpoints and no write operation", () => {
   assert.equal(spec.openapi, "3.1.0");
-  assert.equal(spec.info.version, "2.0.0");
-  assert.equal(spec["x-execution-spec-id"], "V2-EXEC-3");
+  assert.equal(spec.info.version, "2.1.0");
+  assert.equal(spec["x-execution-spec-id"], "V2-EXEC-4");
   assert.deepEqual(Object.keys(spec.paths).sort(), [
     "/health",
     "/v2/config/{kind}",
@@ -34,7 +34,7 @@ test("OpenAPI preserves chain provenance, integer precision, nullability, and er
     "chainId", "blockNumber", "blockHash", "transactionHash", "transactionIndex", "logIndex",
   ]);
   assert.equal(schemas.SourceBlock.properties.transactionIndex.minimum, 0);
-  assert.equal(schemas.MarketReadModel.properties.stakeSaturationAmount.pattern, "^(0|[1-9][0-9]*)$");
+  assert.equal(schemas.MarketReadModel.properties.curveProgress.$ref, "#/components/schemas/CurveProgress");
   assert.equal(schemas.CurveProgress.properties.realQuoteReserve.type, "string");
   assert.deepEqual(schemas.CurveProgress.properties.sweptAt.oneOf[1], { type: "null" });
   assert.deepEqual(schemas.MarketReadModel.properties.poolKey.oneOf[1], { type: "null" });

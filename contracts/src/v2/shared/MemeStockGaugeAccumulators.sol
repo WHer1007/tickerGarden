@@ -19,11 +19,20 @@ abstract contract MemeStockGaugeAccumulators is MemeStockGaugeLockedPositions {
     }
 
     GaugeRewardState[REWARD_ASSET_COUNT] internal _rewardStates;
+    uint256[REWARD_ASSET_COUNT] internal _forfeiturePrecisionRemainders;
 
     event StakerFeeCredited(
         bytes32 indexed marketId,
         address indexed feeAsset,
         bytes32 indexed feeId,
+        uint256 amount,
+        uint256 accumulatorDelta,
+        uint256 indexRemainder
+    );
+    event ForfeitedRewardRedistributed(
+        bytes32 indexed marketId,
+        address indexed user,
+        address indexed feeAsset,
         uint256 amount,
         uint256 accumulatorDelta,
         uint256 indexRemainder
@@ -51,6 +60,51 @@ abstract contract MemeStockGaugeAccumulators is MemeStockGaugeLockedPositions {
     {
         _requireRewardIndex(rewardIndex);
 
+        (accumulatorDelta, indexRemainder) = _increaseRewardAccumulator(rewardIndex, amount);
+
+        emit StakerFeeCredited(marketId, feeAsset, feeId, amount, accumulatorDelta, indexRemainder);
+    }
+
+    function _redistributeForfeitedReward(
+        uint8 rewardIndex,
+        address feeAsset,
+        uint256 amount,
+        address user,
+        bytes32 marketId
+    ) internal returns (uint256 accumulatorDelta, uint256 indexRemainder) {
+        _requireRewardIndex(rewardIndex);
+        (accumulatorDelta, indexRemainder) = _increaseRewardAccumulator(rewardIndex, amount);
+        emit ForfeitedRewardRedistributed(marketId, user, feeAsset, amount, accumulatorDelta, indexRemainder);
+    }
+
+    /// @dev User and global reward remainders are both numerators in token-unit * INDEX_PRECISION space.
+    ///      A global remainder is absorbed only when no active weight remains; otherwise it continues with
+    ///      the surviving cohort through the normal accumulator carry path.
+    function _collectForfeitedReward(
+        uint8 rewardIndex,
+        uint256 pendingFee,
+        uint256 userRemainder,
+        bool absorbGlobalRemainder
+    ) internal returns (uint256 amount) {
+        _requireRewardIndex(rewardIndex);
+        if (userRemainder >= INDEX_PRECISION) revert InvalidUserRewardRemainder(userRemainder);
+
+        uint256 precisionRemainder = _forfeiturePrecisionRemainders[rewardIndex] + userRemainder;
+        amount = pendingFee;
+        if (absorbGlobalRemainder) {
+            uint256 globalRemainder = _rewardStates[rewardIndex].indexRemainder;
+            _rewardStates[rewardIndex].indexRemainder = 0;
+            amount += globalRemainder / INDEX_PRECISION;
+            precisionRemainder += globalRemainder % INDEX_PRECISION;
+        }
+        amount += precisionRemainder / INDEX_PRECISION;
+        _forfeiturePrecisionRemainders[rewardIndex] = precisionRemainder % INDEX_PRECISION;
+    }
+
+    function _increaseRewardAccumulator(uint8 rewardIndex, uint256 amount)
+        private
+        returns (uint256 accumulatorDelta, uint256 indexRemainder)
+    {
         GaugeRewardState storage state = _rewardStates[rewardIndex];
         if (amount == 0) return (0, state.indexRemainder);
 
@@ -67,8 +121,6 @@ abstract contract MemeStockGaugeAccumulators is MemeStockGaugeLockedPositions {
         indexRemainder = merged % activeStock;
         state.accFeePerShare += accumulatorDelta;
         state.indexRemainder = indexRemainder;
-
-        emit StakerFeeCredited(marketId, feeAsset, feeId, amount, accumulatorDelta, indexRemainder);
     }
 
     function _checkpointRewardActivations(bytes32 marketId)

@@ -53,6 +53,23 @@ contract UserStockVault is IUserStockVault, UserStockVaultExits {
         );
     }
 
+    function rageQuitAllocation(bytes32 assetUid, address user, bytes32 marketId, uint256 amount)
+        external
+        override
+        onlyAllocationManager
+    {
+        uint256 available = _allocation[assetUid][user][marketId];
+        if (amount == 0 || amount != available) revert InvalidRageQuitAmount(amount, available);
+
+        _releaseAllocation(assetUid, user, marketId, amount);
+        emit AllocationReleased(
+            assetUid, user, marketId, amount, _allocation[assetUid][user][marketId], _allocated[assetUid][user]
+        );
+        _withdrawFreeStock(assetUid, user, amount);
+        emit StockWithdrawn(assetUid, user, amount);
+        emit AllocationRageQuit(assetUid, user, marketId, amount);
+    }
+
     function moveAllocation(bytes32 assetUid, address user, bytes32 fromMarketId, bytes32 toMarketId, uint256 amount)
         external
         override

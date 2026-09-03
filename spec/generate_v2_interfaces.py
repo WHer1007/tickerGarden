@@ -101,7 +101,7 @@ def render():
         "pragma solidity 0.8.26;",
         "",
         "// GENERATED FILE. DO NOT EDIT.",
-        "// Source: spec/v2_abi_surface.json (V2-EXEC-3)",
+        f"// Source: spec/v2_abi_surface.json ({abi['executionSpecId']})",
         "// forge-lint: disable-start(multi-contract-file)",
         "// forgefmt: disable-start",
         "",

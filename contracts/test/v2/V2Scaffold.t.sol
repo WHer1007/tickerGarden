@@ -6,7 +6,7 @@ import {V2Scaffold} from "../../src/v2/shared/V2Scaffold.sol";
 
 contract V2ScaffoldTest is Test {
     function test_executionSpecIdentityIsStable() public pure {
-        assertEq(V2Scaffold.executionSpecIdHash(), keccak256(bytes("V2-EXEC-3")));
+        assertEq(V2Scaffold.executionSpecIdHash(), keccak256(bytes("V2-EXEC-4")));
     }
 
     function test_completeProductRuntimeRemainsExplicitlyIncomplete() public pure {

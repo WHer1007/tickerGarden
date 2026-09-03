@@ -73,7 +73,7 @@ contract UserStockVaultDepositsHarness is UserStockVaultDeposits, IV2QuoteTransf
             address(_officialStockRegistry),
             address(_marketRegistry),
             _allocationManager,
-            keccak256("TickerGarden.UserStockVault.MultiAsset.v1")
+            keccak256("TickerGarden.UserStockVault.MultiAsset.v2")
         );
     }
 
@@ -108,8 +108,8 @@ contract UserStockVaultDepositsTest is Test {
         vault =
             new UserStockVaultDepositsHarness(address(registry), address(marketRegistry), address(allocationManager));
         _configureRegisterRole();
-        registry.registerAsset(ASSET_UID, address(stockToken), 18, address(vault));
-        registry.registerAsset(OTHER_ASSET_UID, address(otherToken), 6, address(vault));
+        registry.registerAsset(ASSET_UID, address(stockToken), 18, address(vault), 0.5 ether);
+        registry.registerAsset(OTHER_ASSET_UID, address(otherToken), 6, address(vault), 500_000);
     }
 
     function test_directDepositPullsFromAndCreditsOnlyTheCaller() public {
@@ -274,7 +274,7 @@ contract UserStockVaultDepositsTest is Test {
         returns (UserStockVaultDepositsHarness deployedVault)
     {
         deployedVault = vault;
-        registry.registerAsset(assetUid, token, 18, address(vault));
+        registry.registerAsset(assetUid, token, 18, address(vault), 0.5 ether);
     }
 
     function _configureRegisterRole() private {

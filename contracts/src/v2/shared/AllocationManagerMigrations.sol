@@ -21,7 +21,7 @@ abstract contract AllocationManagerMigrations is AllocationManagerDeposits {
         IMemeStockGauge sourceGauge;
         IMemeStockGauge targetGauge;
         bytes32 assetUid;
-        uint8 tokenDecimals;
+        uint256 minimumAllocation;
         uint64 activationAt;
         uint64 targetUnlockAt;
     }
@@ -119,9 +119,8 @@ abstract contract AllocationManagerMigrations is AllocationManagerDeposits {
 
         state.sourceRemaining = sourcePosition.activeAmount - amount;
         state.sourceUnlockAt = sourcePosition.unlockAt;
-        uint256 minimumPosition = 5 * (10 ** (context.tokenDecimals - 1)) + 1;
-        if (state.sourceRemaining != 0 && state.sourceRemaining < minimumPosition) {
-            revert PositionBelowMinimum(state.sourceRemaining, minimumPosition);
+        if (state.sourceRemaining != 0 && state.sourceRemaining < context.minimumAllocation) {
+            revert PositionBelowMinimum(state.sourceRemaining, context.minimumAllocation);
         }
     }
 
@@ -132,8 +131,9 @@ abstract contract AllocationManagerMigrations is AllocationManagerDeposits {
     {
         targetResult =
             _checkedPosition(context.targetGauge, context.vault, context.assetUid, user, toMarketId) + amount;
-        uint256 minimumPosition = 5 * (10 ** (context.tokenDecimals - 1)) + 1;
-        if (targetResult < minimumPosition) revert PositionBelowMinimum(targetResult, minimumPosition);
+        if (targetResult < context.minimumAllocation) {
+            revert PositionBelowMinimum(targetResult, context.minimumAllocation);
+        }
     }
 
     function _validateReducedSource(
@@ -199,7 +199,7 @@ abstract contract AllocationManagerMigrations is AllocationManagerDeposits {
         }
 
         context.assetUid = sourceMarket.config.assetUid;
-        context.tokenDecimals = sourceAsset.tokenDecimals;
+        context.minimumAllocation = _minimumAllocation(context.assetUid);
         (context.activationAt, context.targetUnlockAt) = _allocationTimes();
     }
 }

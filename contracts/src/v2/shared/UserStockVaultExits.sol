@@ -19,6 +19,7 @@ abstract contract UserStockVaultExits is UserStockVaultLedger {
     );
     error MarketNotInEmergencyExit(bytes32 marketId, uint8 marketStatus);
     error NoAllocationToForceRelease(address user, bytes32 marketId);
+    error InvalidRageQuitAmount(uint256 requested, uint256 available);
 
     constructor(address officialStockRegistry_, address marketRegistry_, address allocationManager_)
         UserStockVaultLedger(officialStockRegistry_, marketRegistry_, allocationManager_)

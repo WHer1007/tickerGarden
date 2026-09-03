@@ -11,15 +11,15 @@ import {V2MarketEconomics} from "./V2MarketEconomics.sol";
 abstract contract TickerGardenMemeHookFeeCalculation is TickerGardenMemeHookLifecycle {
     bytes32 private constant V4_FEE_DOMAIN = keccak256("TICKERGARDEN_V2_V4_FEE");
     uint256 private constant V4_FEE_SCHEMA_VERSION = 1;
-    bytes32 private constant EXECUTION_SPEC_ID = keccak256("V2-EXEC-3");
+    bytes32 private constant EXECUTION_SPEC_ID = keccak256("V2-EXEC-4");
     uint256 private constant FEE_PIPS_DENOMINATOR = 1_000_000;
     uint24 private constant FEE_PIPS = 10_000;
     uint256 private constant BPS_DENOMINATOR = 10_000;
     uint16 private constant LP_SHARE_BPS = 2_000;
+    uint64 private constant MAX_LIFETIME_FEE_CREDITS = type(uint48).max;
     uint24 private constant POOL_KEY_FEE = 0;
     uint8 private constant FEE_ASSET_MODE_UNSPECIFIED_CORE_SWAP_DELTA = 1;
-    uint256 private constant STAKE_SATURATION_WHOLE_TOKENS = 10;
-    uint8 private constant STAKER_RELEASE_MODE_LINEAR_CAPPED = 1;
+    uint16 private constant STAKER_NON_LP_SHARE_BPS = 5_000;
 
     struct CalculatedV4Fee {
         bytes32 marketId;
@@ -60,8 +60,7 @@ abstract contract TickerGardenMemeHookFeeCalculation is TickerGardenMemeHookLife
                 poolKeyFee: POOL_KEY_FEE,
                 hookPermissionMask: HOOK_PERMISSION_MASK,
                 feeAssetMode: FEE_ASSET_MODE_UNSPECIFIED_CORE_SWAP_DELTA,
-                stakeSaturationWholeTokens: STAKE_SATURATION_WHOLE_TOKENS,
-                stakerReleaseMode: STAKER_RELEASE_MODE_LINEAR_CAPPED
+                stakerNonLpShareBps: STAKER_NON_LP_SHARE_BPS
             })
         );
     }
@@ -82,7 +81,7 @@ abstract contract TickerGardenMemeHookFeeCalculation is TickerGardenMemeHookLife
 
         fee.lpAmount = Math.mulDiv(fee.totalFee, LP_SHARE_BPS, BPS_DENOMINATOR);
         fee.nonLpAmount = fee.totalFee - fee.lpAmount;
-        if (binding.feeNonce == type(uint64).max) revert HookFeeNonceOverflow(fee.poolId);
+        if (binding.feeNonce >= MAX_LIFETIME_FEE_CREDITS) revert HookFeeNonceOverflow(fee.poolId);
         fee.feeNonce = binding.feeNonce + 1;
         binding.feeNonce = fee.feeNonce;
         fee.feeId = _v4FeeId(fee);

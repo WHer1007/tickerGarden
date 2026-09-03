@@ -44,8 +44,8 @@ function marketCreatedLog(overrides: Readonly<{
       args: { marketId: hash("21"), assetUid: overrides.assetUid ?? params.assetUid, memeToken },
     }),
     data: encodeAbiParameters(
-      parseAbiParameters("address curve, address gauge, address quoteAsset, uint256 stakeSaturationAmount, bytes32 ponsBaselineId, bytes32 quoteAssetConfigId, bytes32 expectedEconomics"),
-      [curve, gauge, overrides.quote ?? quoteAsset, 10n, params.ponsBaselineId, params.quoteAssetConfigId, params.expectedEconomics],
+      parseAbiParameters("address curve, address gauge, address quoteAsset, bytes32 ponsBaselineId, bytes32 quoteAssetConfigId, bytes32 expectedEconomics"),
+      [curve, gauge, overrides.quote ?? quoteAsset, params.ponsBaselineId, params.quoteAssetConfigId, params.expectedEconomics],
     ),
   };
 }

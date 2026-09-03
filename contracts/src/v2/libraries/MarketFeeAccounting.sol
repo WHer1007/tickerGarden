@@ -8,12 +8,12 @@ import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
 library MarketFeeAccounting {
     uint256 internal constant BPS_DENOMINATOR = 10_000;
     uint256 internal constant LP_SHARE_BPS = 2_000;
+    uint256 internal constant STAKER_NON_LP_SHARE_BPS = 5_000;
 
     struct V4Buckets {
         uint256 creatorAmount;
         uint256 stakerAmount;
         uint256 platformAmount;
-        uint256 effectiveActiveStock;
     }
 
     struct CurveBuckets {
@@ -22,26 +22,20 @@ library MarketFeeAccounting {
     }
 
     error InvalidV4FeePartition(uint256 totalFee, uint256 lpAmount, uint256 nonLpAmount, uint256 expectedLpAmount);
-    error InvalidStakeSaturationAmount(uint256 stakeSaturationAmount);
 
-    function splitV4(
-        uint256 totalFee,
-        uint256 lpAmount,
-        uint256 nonLpAmount,
-        uint256 activeStock,
-        uint256 stakeSaturationAmount
-    ) internal pure returns (V4Buckets memory buckets) {
-        if (stakeSaturationAmount == 0 || stakeSaturationAmount > type(uint256).max / 2) {
-            revert InvalidStakeSaturationAmount(stakeSaturationAmount);
-        }
-
+    function splitV4(uint256 totalFee, uint256 lpAmount, uint256 nonLpAmount, uint256 activeStock)
+        internal
+        pure
+        returns (V4Buckets memory buckets)
+    {
         uint256 expectedLpAmount = Math.mulDiv(totalFee, LP_SHARE_BPS, BPS_DENOMINATOR);
         if (lpAmount != expectedLpAmount || lpAmount > totalFee || nonLpAmount != totalFee - lpAmount) {
             revert InvalidV4FeePartition(totalFee, lpAmount, nonLpAmount, expectedLpAmount);
         }
 
-        buckets.effectiveActiveStock = Math.min(activeStock, stakeSaturationAmount);
-        buckets.stakerAmount = Math.mulDiv(nonLpAmount, buckets.effectiveActiveStock, stakeSaturationAmount * 2);
+        if (activeStock != 0) {
+            buckets.stakerAmount = Math.mulDiv(nonLpAmount, STAKER_NON_LP_SHARE_BPS, BPS_DENOMINATOR);
+        }
         uint256 nonStakerAmount = nonLpAmount - buckets.stakerAmount;
         buckets.creatorAmount = nonStakerAmount / 2;
         buckets.platformAmount = nonStakerAmount - buckets.creatorAmount;

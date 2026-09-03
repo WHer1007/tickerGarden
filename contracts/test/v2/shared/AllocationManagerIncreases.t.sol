@@ -17,10 +17,20 @@ import {MockExactQuoteToken} from "../mocks/MockV2QuoteAssets.sol";
 
 contract MockIncreaseOfficialStockRegistry {
     mapping(bytes32 assetUid => AssetView assetView) private _assets;
+    mapping(bytes32 assetUid => uint256 minimum) private _minimumAllocations;
 
-    function configure(bytes32 assetUid, address stockToken, address vault, uint8 decimals, uint8 status) external {
-        _assets[assetUid] =
-            AssetView({stockToken: stockToken, userStockVault: vault, tokenDecimals: decimals, status: status});
+    function configure(
+        bytes32 assetUid,
+        address stockToken,
+        address vault,
+        uint8 decimals,
+        uint8 status,
+        uint256 minimum
+    ) external {
+        _assets[assetUid] = AssetView({
+            stockToken: stockToken, userStockVault: vault, tokenDecimals: decimals, status: status
+        });
+        _minimumAllocations[assetUid] = minimum;
     }
 
     function setStatus(bytes32 assetUid, uint8 status) external {
@@ -29,6 +39,10 @@ contract MockIncreaseOfficialStockRegistry {
 
     function asset(bytes32 assetUid) external view returns (AssetView memory) {
         return _assets[assetUid];
+    }
+
+    function minimumAllocation(bytes32 assetUid) external view returns (uint256) {
+        return _minimumAllocations[assetUid];
     }
 }
 
@@ -165,7 +179,7 @@ contract AllocationManagerIncreasesTest is Test {
         gauge = new MockIncreaseGauge();
         stockToken = new MockExactQuoteToken(18);
         vault = new UserStockVault(address(officialRegistry), address(marketRegistry), address(manager));
-        officialRegistry.configure(ASSET_UID, address(stockToken), address(vault), 18, 1);
+        officialRegistry.configure(ASSET_UID, address(stockToken), address(vault), 18, 1, 0.5 ether);
         marketRegistry.configure(MARKET_ID, ASSET_UID, address(gauge), 2, 0);
         gauge.configure(address(manager), vault, ASSET_UID, MARKET_ID);
     }
@@ -246,39 +260,39 @@ contract AllocationManagerIncreasesTest is Test {
         assertEq(gauge.checkpointCalls(), 0);
     }
 
-    function test_positionMustBeStrictlyGreaterThanHalfStockButCanIncreaseByOneRawUnit() public {
+    function test_positionMustMeetConfiguredMinimumAndExactBoundarySucceeds() public {
         _deposit(ALICE, 2 ether);
         vm.expectRevert(
             abi.encodeWithSelector(
-                AllocationManagerIncreases.PositionBelowMinimum.selector, uint256(0.5 ether), uint256(0.5 ether + 1)
+                AllocationManagerIncreases.PositionBelowMinimum.selector, uint256(0.5 ether - 1), uint256(0.5 ether)
             )
         );
         vm.prank(ALICE);
-        manager.allocate(MARKET_ID, 0.5 ether);
+        manager.allocate(MARKET_ID, 0.5 ether - 1);
 
         vm.prank(ALICE);
-        manager.allocate(MARKET_ID, 0.5 ether + 1);
+        manager.allocate(MARKET_ID, 0.5 ether);
         vm.prank(ALICE);
         manager.increaseAllocation(MARKET_ID, 1);
-        assertEq(vault.allocation(ASSET_UID, ALICE, MARKET_ID), 0.5 ether + 2);
+        assertEq(vault.allocation(ASSET_UID, ALICE, MARKET_ID), 0.5 ether + 1);
     }
 
     function test_decimalDomainAndSixDecimalRawUnitBoundaryFailClosed() public {
-        officialRegistry.configure(ASSET_UID, address(stockToken), address(vault), 6, 1);
+        officialRegistry.configure(ASSET_UID, address(stockToken), address(vault), 6, 1, 500_000);
         _deposit(ALICE, 1_000_000);
         vm.expectRevert(
             abi.encodeWithSelector(
-                AllocationManagerIncreases.PositionBelowMinimum.selector, uint256(500_000), uint256(500_001)
+                AllocationManagerIncreases.PositionBelowMinimum.selector, uint256(499_999), uint256(500_000)
             )
         );
+        vm.prank(ALICE);
+        manager.allocate(MARKET_ID, 499_999);
+
         vm.prank(ALICE);
         manager.allocate(MARKET_ID, 500_000);
+        assertEq(vault.allocation(ASSET_UID, ALICE, MARKET_ID), 500_000);
 
-        vm.prank(ALICE);
-        manager.allocate(MARKET_ID, 500_001);
-        assertEq(vault.allocation(ASSET_UID, ALICE, MARKET_ID), 500_001);
-
-        officialRegistry.configure(ASSET_UID, address(stockToken), address(vault), 5, 1);
+        officialRegistry.configure(ASSET_UID, address(stockToken), address(vault), 5, 1, 50_000);
         vm.expectRevert(
             abi.encodeWithSelector(
                 AllocationManagerIncreases.InvalidAllocationComponents.selector,
@@ -290,7 +304,7 @@ contract AllocationManagerIncreasesTest is Test {
         vm.prank(ALICE);
         manager.increaseAllocation(MARKET_ID, 1);
 
-        officialRegistry.configure(ASSET_UID, address(stockToken), address(vault), 19, 1);
+        officialRegistry.configure(ASSET_UID, address(stockToken), address(vault), 19, 1, 500_000_000_000_000_000);
         vm.expectRevert(
             abi.encodeWithSelector(
                 AllocationManagerIncreases.InvalidAllocationComponents.selector,
@@ -301,7 +315,7 @@ contract AllocationManagerIncreasesTest is Test {
         );
         vm.prank(ALICE);
         manager.increaseAllocation(MARKET_ID, 1);
-        assertEq(vault.allocation(ASSET_UID, ALICE, MARKET_ID), 500_001);
+        assertEq(vault.allocation(ASSET_UID, ALICE, MARKET_ID), 500_000);
     }
 
     function test_zeroAmountAndTimestampOverflowFailBeforeExternalEffects() public {

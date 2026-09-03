@@ -11,7 +11,7 @@ export interface ReadModelRepository {
 }
 
 export interface VerifiedReadModelSnapshot {
-  readonly executionSpecId: "V2-EXEC-3";
+  readonly executionSpecId: "V2-EXEC-4";
   readonly reconciliationAlerts: readonly [];
   readonly sync: SyncStatus;
   readonly markets?: readonly MarketReadModel[];
@@ -44,7 +44,7 @@ function validateMarket(market: MarketReadModel, sync: SyncStatus): void {
   assertHex(market.marketId, 32, "marketId"); assertHex(market.assetUid, 32, "assetUid");
   for (const [label, value] of Object.entries({ memeToken: market.memeToken, curve: market.curve, gauge: market.gauge, quoteAsset: market.quoteAsset })) assertHex(value, 20, label);
   assertHex(market.quoteAssetConfigId, 32, "quoteAssetConfigId"); assertHex(market.ponsBaselineId, 32, "ponsBaselineId");
-  for (const [label, value] of Object.entries({ stakeSaturationAmount: market.stakeSaturationAmount, realQuoteReserve: market.curveProgress.realQuoteReserve, sellableTokens: market.curveProgress.sellableTokens, reservedTokens: market.curveProgress.reservedTokens, accruedCurveFees: market.curveProgress.accruedCurveFees, sweptAt: market.curveProgress.sweptAt })) assertUint(value, label);
+  for (const [label, value] of Object.entries({ realQuoteReserve: market.curveProgress.realQuoteReserve, sellableTokens: market.curveProgress.sellableTokens, reservedTokens: market.curveProgress.reservedTokens, accruedCurveFees: market.curveProgress.accruedCurveFees, sweptAt: market.curveProgress.sweptAt })) assertUint(value, label);
   const route = market.canonicalRoute;
   for (const [label, value] of Object.entries({ router: route.router, quoter: route.quoter, hook: route.hook, launchLocker: route.launchLocker, graduationExecutor: route.graduationExecutor })) assertHex(value, 20, label);
   if (route.sourceVersion !== market.sourceVersion || route.launchPhase !== market.launchPhase || route.marketStatus !== market.marketStatus) throw new Error("canonicalRoute lifecycle snapshot mismatch");
@@ -71,6 +71,17 @@ function validatePosition(position: UserPositionReadModel, markets: readonly Mar
   validateSource(position.source, sync);
 }
 
+function validateConfig(config: ConfigReadModel, sync: SyncStatus): void {
+  assertHex(config.id, 32, "config.id");
+  if (config.kind === "asset") {
+    const minimumAllocation = config.values.minimumAllocation;
+    if (typeof minimumAllocation !== "string" || !UINT.test(minimumAllocation) || BigInt(minimumAllocation) < 414n) {
+      throw new Error("asset minimumAllocation must be a base-10 raw-unit string of at least 414");
+    }
+  }
+  validateSource(config.source, sync);
+}
+
 export class InMemoryReadModelRepository implements ReadModelRepository {
   readonly #sync: SyncStatus;
   readonly #markets: readonly MarketReadModel[];
@@ -78,7 +89,7 @@ export class InMemoryReadModelRepository implements ReadModelRepository {
   readonly #positions: readonly UserPositionReadModel[];
 
   constructor(input: VerifiedReadModelSnapshot) {
-    if (input.executionSpecId !== "V2-EXEC-3" || input.reconciliationAlerts.length !== 0) throw new Error("read model snapshot is not V2-reconciled");
+    if (input.executionSpecId !== "V2-EXEC-4" || input.reconciliationAlerts.length !== 0) throw new Error("read model snapshot is not V2-reconciled");
     assertUint(input.sync.blockNumber, "sync.blockNumber"); assertUint(input.sync.headBlockNumber, "sync.headBlockNumber"); assertUint(input.sync.lagBlocks, "sync.lagBlocks");
     if (input.sync.blockHash) assertHex(input.sync.blockHash, 32, "sync.blockHash");
     if (input.sync.headBlockHash) assertHex(input.sync.headBlockHash, 32, "sync.headBlockHash");
@@ -87,7 +98,7 @@ export class InMemoryReadModelRepository implements ReadModelRepository {
     this.#configs = [...input.configs ?? []];
     this.#positions = [...input.positions ?? []];
     this.#markets.forEach((market) => validateMarket(market, this.#sync));
-    this.#configs.forEach((config) => { assertHex(config.id, 32, "config.id"); validateSource(config.source, this.#sync); });
+    this.#configs.forEach((config) => validateConfig(config, this.#sync));
     this.#positions.forEach((position) => validatePosition(position, this.#markets, this.#sync));
     for (const collection of [this.#markets.map(({ marketId }) => marketId), this.#configs.map(({ kind, id }) => `${kind}:${id}`), this.#positions.map(({ user, assetUid, marketId }) => `${user}:${assetUid}:${marketId}`)]) {
       if (new Set(collection).size !== collection.length) throw new Error("read model snapshot contains duplicate canonical identities");
@@ -108,6 +119,6 @@ export class InMemoryReadModelRepository implements ReadModelRepository {
 }
 
 export const EMPTY_REPOSITORY = new InMemoryReadModelRepository({
-  executionSpecId: "V2-EXEC-3", reconciliationAlerts: [],
+  executionSpecId: "V2-EXEC-4", reconciliationAlerts: [],
   sync: { chainId: 4663, status: "unavailable", blockNumber: null, blockHash: null, finality: "unavailable", headBlockNumber: null, headBlockHash: null, lagBlocks: null, revision: "empty" },
 });

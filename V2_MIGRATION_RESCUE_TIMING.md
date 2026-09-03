@@ -17,7 +17,7 @@ checkpoint source matured slots and settle source rewards at its pre-migration w
 materialize source pending; because unlock is 24h and pending is 30s, it must now be mature
 require source position exists and now >= source.unlockAt
 require source activeAmount >= amount
-require source remainder after removal is 0 or strictly > 0.5 STOCK
+require source remainder after removal is 0 or >= current Asset UID minimumAllocation (minimum 414 raw units)
 remove exactly amount active STOCK from source Gauge
 Vault.moveAllocation(assetUid, user, from, to, amount)
 checkpoint target matured slots and settle target rewards at its pre-migration Gauge weight

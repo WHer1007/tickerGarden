@@ -29,7 +29,7 @@ function event<Signature extends V2EventSignature>(
 test("exports the immutable V2 indexer descriptor", () => {
   assert.deepEqual(getIndexerDescriptor(), {
     chainId: 4663,
-    executionSpecId: "V2-EXEC-3",
+    executionSpecId: "V2-EXEC-4",
     status: "reorg-replay-and-reconciliation",
     handlersImplemented: true,
   });
@@ -37,9 +37,9 @@ test("exports the immutable V2 indexer descriptor", () => {
 });
 
 test("catalog is generated from V2 artifacts and includes the canonical PoolManager Swap", () => {
-  assert.equal(V2_EVENT_ABI.length, 56);
+  assert.equal(V2_EVENT_ABI.length, 63);
   assert.ok(V2_EVENT_ABI.some(({ signature, modules }) =>
-    signature === "MarketCreated(bytes32,bytes32,address,address,address,address,uint256,bytes32,bytes32,bytes32)" &&
+    signature === "MarketCreated(bytes32,bytes32,address,address,address,address,bytes32,bytes32,bytes32)" &&
     modules.includes("TickerGardenFactoryV2"),
   ));
   assert.ok(V2_EVENT_ABI.some(({ signature, modules }) =>
@@ -53,19 +53,23 @@ test("projects config and market facts with complete provenance and canonical ID
   applyV2Event(state, event("AssetRegistered(bytes32,address,address,uint8)", {
     assetUid: id("11"), stockToken: address("2"), userStockVault: address("3"), tokenDecimals: 18n,
   }, 0));
-  applyV2Event(state, event("MarketCreated(bytes32,bytes32,address,address,address,address,uint256,bytes32,bytes32,bytes32)", {
-    marketId: id("22"), assetUid: id("11"), memeToken: address("4"), curve: address("5"), gauge: address("6"),
-    quoteAsset: address("7"), stakeSaturationAmount: 100n, ponsBaselineId: id("8"), quoteAssetConfigId: id("9"),
-    expectedEconomics: id("10"),
+  applyV2Event(state, event("AssetMinimumAllocationChanged(bytes32,uint256,uint256,bytes32)", {
+    assetUid: id("11"), oldMinimum: 0n, newMinimum: 500_000_000_000_000_000n, reasonHash: id("0"),
   }, 1));
+  applyV2Event(state, event("MarketCreated(bytes32,bytes32,address,address,address,address,bytes32,bytes32,bytes32)", {
+    marketId: id("22"), assetUid: id("11"), memeToken: address("4"), curve: address("5"), gauge: address("6"),
+    quoteAsset: address("7"), ponsBaselineId: id("8"), quoteAssetConfigId: id("9"),
+    expectedEconomics: id("10"),
+  }, 2));
 
   const config = state.configs.get(`asset:${id("11")}`);
   const market = state.markets.get(id("22"));
   assert.equal(config?.provenance.blockHash, id("b"));
   assert.equal(config?.provenance.transactionIndex, 0);
+  assert.equal(config?.values.minimumAllocation, 500_000_000_000_000_000n);
   assert.equal(market?.values.assetUid, id("11"));
-  assert.equal(market?.provenance.logIndex, 1);
-  assert.equal(state.events.size, 2);
+  assert.equal(market?.provenance.logIndex, 2);
+  assert.equal(state.events.size, 3);
 });
 
 test("correlates each PoolManager Swap only with its following Hook fee by transaction log order", () => {
@@ -74,9 +78,9 @@ test("correlates each PoolManager Swap only with its following Hook fee by trans
   applyV2Event(state, event("Swap(bytes32,address,int128,int128,uint160,uint128,int24,uint24)", {
     id: poolId, sender: address("a"), amount0: -10n, amount1: 9n, sqrtPriceX96: 1n, liquidity: 2n, tick: 3n, fee: 0n,
   }, 4));
-  applyV2Event(state, event("FeeBucketsCredited(bytes32,uint32,address,bytes32,uint256,uint256,uint256,uint256,uint256)", {
+  applyV2Event(state, event("FeeBucketsCredited(bytes32,uint32,address,bytes32,uint256,uint256,uint256,uint256)", {
     marketId: id("33"), creatorEpoch: 1n, feeAsset: address("7"), feeId: id("55"), creatorAmount: 2n,
-    stakerAmount: 7n, platformAmount: 1n, activeStock: 50n, stakeSaturationAmount: 100n,
+    stakerAmount: 7n, platformAmount: 1n, activeStock: 50n,
   }, 5));
   applyV2Event(state, event("V4FeeAccrued(bytes32,bytes32,address,uint64,bytes32,uint256,uint256,uint256,uint256)", {
     marketId: id("33"), poolId, feeAsset: address("7"), feeNonce: 1n, feeId: id("55"), base: 1000n,
@@ -131,8 +135,12 @@ test("plans block-tagged hydration where events intentionally contain only hashe
   const pool = event("ExpectedPoolRegistered(bytes32,bytes32,bytes32,uint32)", {
     marketId: id("5"), poolId: id("6"), keyHash: id("7"), sourceVersion: 1n,
   }, 1);
+  const minimum = event("AssetMinimumAllocationChanged(bytes32,uint256,uint256,bytes32)", {
+    assetUid: id("8"), oldMinimum: 414n, newMinimum: 10_000n, reasonHash: id("9"),
+  }, 2);
   assert.deepEqual(requiredObservations(quote).map(({ kind }) => kind), ["quote"]);
   assert.deepEqual(requiredObservations(pool).map(({ kind }) => kind), ["poolKey", "market"]);
+  assert.deepEqual(requiredObservations(minimum).map(({ kind }) => kind), ["asset"]);
 });
 
 test("keys shared-Vault allocation facts by asset UID and plans both Vault and Gauge hydration", () => {

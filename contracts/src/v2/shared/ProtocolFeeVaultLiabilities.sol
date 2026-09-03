@@ -21,6 +21,7 @@ abstract contract ProtocolFeeVaultLiabilities is ProtocolFeeVaultCurveCredit {
     mapping(bytes32 marketId => mapping(address feeAsset => uint256[3] amounts)) private _bucketLiabilities;
     mapping(bytes32 marketId => mapping(uint32 creatorEpoch => mapping(address feeAsset => uint256 amount))) private
         _creatorLiabilities;
+    mapping(bytes32 marketId => mapping(address feeAsset => uint256 amount)) private _forfeitureReserves;
     mapping(address feeAsset => uint256 amount) private _totalLiabilities;
 
     event FeeBucketsCredited(
@@ -31,8 +32,7 @@ abstract contract ProtocolFeeVaultLiabilities is ProtocolFeeVaultCurveCredit {
         uint256 creatorAmount,
         uint256 stakerAmount,
         uint256 platformAmount,
-        uint256 activeStock,
-        uint256 stakeSaturationAmount
+        uint256 activeStock
     );
     event CurveFeesSwept(
         bytes32 indexed marketId,
@@ -52,6 +52,10 @@ abstract contract ProtocolFeeVaultLiabilities is ProtocolFeeVaultCurveCredit {
         address feeAsset,
         uint256 amount
     );
+    event ForfeitureReserved(
+        bytes32 indexed marketId, address indexed user, address indexed feeAsset, uint256 amount, uint256 reserveBalance
+    );
+    event ForfeitureReserveConverted(bytes32 indexed marketId, address indexed feeAsset, uint256 amount);
 
     error InvalidPlatformTreasury(address treasury);
     error InvalidFeeMarket(bytes32 marketId);
@@ -61,6 +65,8 @@ abstract contract ProtocolFeeVaultLiabilities is ProtocolFeeVaultCurveCredit {
     error InsufficientStakerLiability(bytes32 marketId, address feeAsset, uint256 liability, uint256 claimable);
     error FeeVaultInsolvent(address feeAsset, uint256 balance, uint256 liability);
     error NativeFeeClaimFailed(address beneficiary, uint256 amount);
+    error UnauthorizedForfeitureGauge(address caller, address expectedGauge);
+    error InvalidForfeiture(address user, uint256 quoteAmount, uint256 memeAmount);
 
     constructor(
         address marketRegistry_,
@@ -98,6 +104,7 @@ abstract contract ProtocolFeeVaultLiabilities is ProtocolFeeVaultCurveCredit {
     function claimPlatform(bytes32 marketId, address feeAsset) external returns (uint256 amount) {
         _enterStandaloneOperation(bytes32("CLAIM_PLATFORM"));
         _canonicalFeeMarket(marketId, feeAsset);
+        _convertForfeitureReserve(marketId, feeAsset);
         _requireSolvent(feeAsset, _totalLiabilities[feeAsset]);
         amount = _bucketLiabilities[marketId][feeAsset][BUCKET_PLATFORM_REVENUE];
         if (amount != 0) {
@@ -116,6 +123,28 @@ abstract contract ProtocolFeeVaultLiabilities is ProtocolFeeVaultCurveCredit {
         return _claimStakerFor(user, marketId, feeAsset);
     }
 
+    function recordForfeiture(bytes32 marketId, address user, uint256 quoteAmount, uint256 memeAmount) external {
+        _enterStandaloneOperation(bytes32("RECORD_FORFEITURE"));
+        MarketView memory value = _feeMarketRegistry.market(marketId);
+        if (marketId == bytes32(0) || value.config.memeToken == address(0) || value.config.gauge == address(0)) {
+            revert InvalidFeeMarket(marketId);
+        }
+        if (msg.sender != value.config.gauge) {
+            revert UnauthorizedForfeitureGauge(msg.sender, value.config.gauge);
+        }
+        if (user == address(0) || (quoteAmount == 0 && memeAmount == 0)) {
+            revert InvalidForfeiture(user, quoteAmount, memeAmount);
+        }
+
+        _reserveForfeiture(marketId, user, value.config.quoteAsset, quoteAmount);
+        _reserveForfeiture(marketId, user, value.config.memeToken, memeAmount);
+        _requireSolvent(value.config.quoteAsset, _totalLiabilities[value.config.quoteAsset]);
+        if (value.config.memeToken != value.config.quoteAsset) {
+            _requireSolvent(value.config.memeToken, _totalLiabilities[value.config.memeToken]);
+        }
+        _exitStandaloneOperation();
+    }
+
     function liability(bytes32 marketId, address feeAsset, uint8 bucket) external view returns (uint256) {
         if (bucket >= BUCKET_TYPE_COUNT) revert InvalidBucketType(bucket);
         return _bucketLiabilities[marketId][feeAsset][bucket];
@@ -123,6 +152,10 @@ abstract contract ProtocolFeeVaultLiabilities is ProtocolFeeVaultCurveCredit {
 
     function creatorLiability(bytes32 marketId, uint32 creatorEpoch, address feeAsset) external view returns (uint256) {
         return _creatorLiabilities[marketId][creatorEpoch][feeAsset];
+    }
+
+    function forfeitureReserve(bytes32 marketId, address feeAsset) external view returns (uint256) {
+        return _forfeitureReserves[marketId][feeAsset];
     }
 
     function totalLiability(address feeAsset) external view returns (uint256) {
@@ -154,6 +187,26 @@ abstract contract ProtocolFeeVaultLiabilities is ProtocolFeeVaultCurveCredit {
         uint256 nextTotal = _totalLiabilities[feeAsset] + amount;
         _totalLiabilities[feeAsset] = nextTotal;
         _requireSolvent(feeAsset, nextTotal);
+    }
+
+    function _reserveForfeiture(bytes32 marketId, address user, address feeAsset, uint256 amount) private {
+        if (amount == 0) return;
+        uint256 available = _bucketLiabilities[marketId][feeAsset][BUCKET_STAKER_REWARD];
+        if (amount > available) {
+            revert InsufficientStakerLiability(marketId, feeAsset, available, amount);
+        }
+        _bucketLiabilities[marketId][feeAsset][BUCKET_STAKER_REWARD] = available - amount;
+        uint256 reserveBalance = _forfeitureReserves[marketId][feeAsset] + amount;
+        _forfeitureReserves[marketId][feeAsset] = reserveBalance;
+        emit ForfeitureReserved(marketId, user, feeAsset, amount, reserveBalance);
+    }
+
+    function _convertForfeitureReserve(bytes32 marketId, address feeAsset) private {
+        uint256 amount = _forfeitureReserves[marketId][feeAsset];
+        if (amount == 0) return;
+        _forfeitureReserves[marketId][feeAsset] = 0;
+        _bucketLiabilities[marketId][feeAsset][BUCKET_PLATFORM_REVENUE] += amount;
+        emit ForfeitureReserveConverted(marketId, feeAsset, amount);
     }
 
     function _recordExactCurveCredit(CurveCreditRecord memory record) internal virtual override {

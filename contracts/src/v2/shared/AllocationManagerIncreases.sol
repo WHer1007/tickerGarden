@@ -14,7 +14,7 @@ import {
 } from "../interfaces/IV2Protocol.sol";
 
 /// @notice Shared allocate/increase path for the final AllocationManager.
-/// @dev Quote status intentionally does not gate an existing PoolCreated market: V2-EXEC-3 limits later Quote
+/// @dev Quote status intentionally does not gate an existing PoolCreated market: V2-EXEC-4 limits later Quote
 ///      status changes to new-market admission, while Market status is the explicit historical-market control.
 abstract contract AllocationManagerIncreases is ReentrancyGuard {
     uint8 internal constant ASSET_STATUS_ACTIVE = 1;
@@ -30,7 +30,7 @@ abstract contract AllocationManagerIncreases is ReentrancyGuard {
         IUserStockVault vault;
         IMemeStockGauge gauge;
         bytes32 assetUid;
-        uint8 tokenDecimals;
+        uint256 minimumAllocation;
         uint64 activationAt;
         uint64 unlockAt;
     }
@@ -40,6 +40,7 @@ abstract contract AllocationManagerIncreases is ReentrancyGuard {
     error InvalidAllocationAmount(uint256 amount);
     error StockAllocationClosed(bytes32 marketId);
     error InvalidAllocationComponents(bytes32 marketId, address vault, address gauge);
+    error InvalidAssetMinimumAllocation(bytes32 assetUid, uint256 minimumAllocation);
     error PositionBelowMinimum(uint256 position, uint256 minimumPosition);
     error AllocationLedgerMismatch();
     error AllocationTimestampOverflow(uint256 timestamp);
@@ -71,9 +72,8 @@ abstract contract AllocationManagerIncreases is ReentrancyGuard {
         uint256 currentPosition = _checkedPosition(context.gauge, context.vault, context.assetUid, user, marketId);
 
         uint256 resultingPosition = currentPosition + amount;
-        uint256 minimumPosition = 5 * (10 ** (context.tokenDecimals - 1)) + 1;
-        if (resultingPosition < minimumPosition) {
-            revert PositionBelowMinimum(resultingPosition, minimumPosition);
+        if (resultingPosition < context.minimumAllocation) {
+            revert PositionBelowMinimum(resultingPosition, context.minimumAllocation);
         }
 
         context.vault.lockAllocation(context.assetUid, user, marketId, amount);
@@ -94,7 +94,7 @@ abstract contract AllocationManagerIncreases is ReentrancyGuard {
             revert StockAllocationClosed(marketId);
         }
         context.assetUid = marketView.config.assetUid;
-        context.tokenDecimals = assetView.tokenDecimals;
+        context.minimumAllocation = _minimumAllocation(context.assetUid);
     }
 
     function _allocationComponents(bytes32 marketId)
@@ -128,6 +128,11 @@ abstract contract AllocationManagerIncreases is ReentrancyGuard {
         PositionView memory position = gauge.positionOf(user);
         amount = position.activeAmount + position.pendingAmount;
         if (amount != vault.allocation(assetUid, user, marketId)) revert AllocationLedgerMismatch();
+    }
+
+    function _minimumAllocation(bytes32 assetUid) internal view returns (uint256 minimum) {
+        minimum = _officialStockRegistry.minimumAllocation(assetUid);
+        if (minimum == 0) revert InvalidAssetMinimumAllocation(assetUid, minimum);
     }
 
     function _validateAllocationRequest(address user, uint256 amount) internal view {

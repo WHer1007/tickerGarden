@@ -17,14 +17,13 @@ import {V2MarketEconomics} from "./V2MarketEconomics.sol";
 /// @notice Fail-closed Registry resolution and economics verification shared by Factory create and preview paths.
 library V2FactoryValidation {
     uint8 internal constant ACTIVE = 1;
-    bytes32 internal constant EXECUTION_SPEC_ID = keccak256("V2-EXEC-3");
+    bytes32 internal constant EXECUTION_SPEC_ID = keccak256("V2-EXEC-4");
     uint24 internal constant FEE_PIPS = 10_000;
     uint16 internal constant LP_SHARE_BPS = 2_000;
     uint24 internal constant POOL_KEY_FEE = 0;
     uint160 internal constant HOOK_PERMISSION_MASK = 0x2044;
     uint8 internal constant FEE_ASSET_MODE_UNSPECIFIED_CORE_SWAP_DELTA = 1;
-    uint256 internal constant STAKE_SATURATION_WHOLE_TOKENS = 10;
-    uint8 internal constant STAKER_RELEASE_MODE_LINEAR_CAPPED = 1;
+    uint16 internal constant STAKER_NON_LP_SHARE_BPS = 5_000;
 
     struct Registries {
         IOfficialStockRegistryV2 officialStock;
@@ -43,7 +42,6 @@ library V2FactoryValidation {
         QuoteAssetConfig quote;
         PonsBaseline baseline;
         LaunchTemplate template;
-        uint256 stakeSaturationAmount;
         bytes32 ponsBaselineHash;
         bytes32 launchTemplateHash;
         bytes32 feePolicyHash;
@@ -115,7 +113,6 @@ library V2FactoryValidation {
             revert InvalidLaunchTemplateBinding(snapshot.template.feePolicyId, snapshot.template.executionSpecId);
         }
 
-        snapshot.stakeSaturationAmount = STAKE_SATURATION_WHOLE_TOKENS * 10 ** snapshot.asset.tokenDecimals;
         snapshot.ponsBaselineHash = V2MarketEconomics.hashPonsBaseline(snapshot.baseline);
         snapshot.launchTemplateHash = registries.launchTemplate.launchTemplateHash(params.launchTemplateId);
         if (snapshot.launchTemplateHash == bytes32(0)) {
@@ -129,7 +126,6 @@ library V2FactoryValidation {
                 assetUid: params.assetUid,
                 stockToken: snapshot.asset.stockToken,
                 stockDecimals: snapshot.asset.tokenDecimals,
-                stakeSaturationAmount: snapshot.stakeSaturationAmount,
                 ponsBaselineId: params.ponsBaselineId,
                 ponsBaselineHash: snapshot.ponsBaselineHash,
                 quoteAssetConfigId: params.quoteAssetConfigId,
@@ -157,8 +153,7 @@ library V2FactoryValidation {
                 || fields.feePips != FEE_PIPS || fields.lpShareBps != LP_SHARE_BPS || fields.poolKeyFee != POOL_KEY_FEE
                 || fields.hookPermissionMask != HOOK_PERMISSION_MASK
                 || fields.feeAssetMode != FEE_ASSET_MODE_UNSPECIFIED_CORE_SWAP_DELTA
-                || fields.stakeSaturationWholeTokens != STAKE_SATURATION_WHOLE_TOKENS
-                || fields.stakerReleaseMode != STAKER_RELEASE_MODE_LINEAR_CAPPED
+                || fields.stakerNonLpShareBps != STAKER_NON_LP_SHARE_BPS
         ) revert InvalidFeePolicy(policy.feePolicyId);
     }
 }

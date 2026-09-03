@@ -1,7 +1,7 @@
 # TickerGarden V2 deployment tooling
 
 This directory is the fail-closed boundary for the future V2 deployment
-package. It reads the canonical execution manifest for `V2-EXEC-3` and exports
+package. It reads the canonical execution manifest for `V2-EXEC-4` and exports
 the shared four-state readiness derivation:
 
 - current state is `IMPLEMENTATION_ALLOWED`;

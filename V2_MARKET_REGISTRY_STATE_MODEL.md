@@ -3,8 +3,8 @@
 > 规格任务：`V2-P-001`  
 > 状态：`FROZEN / IMPLEMENTATION_ALLOWED`  
 > State model revision：`V2-STATE-5-FROZEN`  
-> 适用执行基线：`V2-EXEC-3`  
-> 更新时间：2026-09-02
+> 适用执行基线：`V2-EXEC-4`
+> 更新时间：2026-09-04
 
 本文只冻结市场状态的唯一权威、字段归属、写权限和迁移图，不改变已确认的 V2 经济规则。后续 ABI、权限矩阵和合约实现必须以本文及 `spec/v2_execution_manifest.json.stateAuthority` 为准。
 
@@ -29,7 +29,6 @@ Registry 不提供通用 setter、任意 source setter、任意状态枚举 sett
 ```solidity
 struct MarketConfig {
     bytes32 assetUid;
-    uint256 stakeSaturationAmount;
     bytes32 ponsBaselineId;
     bytes32 quoteAssetConfigId;
     bytes32 launchTemplateId;
@@ -62,7 +61,7 @@ struct MarketRuntime {
 
 - `MarketConfig` 在 `registerMarket` 成功后永久不可修改；历史 Creator beneficiary 负债由独立的 Creator epoch 模型处理，不回写创建快照。
 - `assetUid` 就是该市场唯一的 staking base 身份；登记时必须解析为 ACTIVE 官方 STOCK，不能为空或多选，创建后不可改绑。同一 `assetUid` 可被任意多个不同 `marketId` 使用，Registry 不保存需遍历的一对多数组。
-- `stakeSaturationAmount` 必须由 Factory 从 Registry 的不可变 decimals 精确派生为 `10 × 10^stockDecimals`，创建者不能传入或覆盖；它进入 `expectedEconomics`，登记后终身不变且不依赖 STOCK 价格。
+- `minimumAllocation` 按 Asset UID 从 OfficialStockRegistry 动态读取，协议安全下限为414 raw units；它不进入市场不可变快照或 `expectedEconomics`，管理员延迟更新不得低于该下限。
 - `MarketRuntime` 只能由下文列出的 Registry 入口修改。
 - `marketIdByToken[memeToken]` 与 `marketId` 同次登记，之后不可重绑。
 - 初始状态固定为 `NotGraduated + ACTIVE`、`poolId = 0`、`sourceVersion = 1`、`recoveryEpoch = 0`、`sweptAt = 0`、`statusSince = block.timestamp`、`restrictedSince = 0`。

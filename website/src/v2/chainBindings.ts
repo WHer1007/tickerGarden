@@ -25,6 +25,7 @@ export interface CanonicalAssetBinding {
   readonly userStockVault: Address;
   readonly tokenDecimals: number;
   readonly status: number;
+  readonly minimumAllocation: bigint;
 }
 
 function field(value: unknown, name: string, index: number): unknown {
@@ -137,7 +138,11 @@ export function assertCanonicalLaunchBindings(
   same(statusOf(raw.template, 13, "launch template"), selected.template.status, "launch template status");
 }
 
-export function assertCanonicalAssetBinding(config: ConfigReadModel, raw: unknown): CanonicalAssetBinding {
+export function assertCanonicalAssetBinding(
+  config: ConfigReadModel,
+  raw: unknown,
+  rawMinimumAllocation: unknown,
+): CanonicalAssetBinding {
   if (config.kind !== "asset") throw new Error("API config is not an asset record");
   const result = Object.freeze({
     assetUid: bytes32(config.id, "API assetUid", false),
@@ -145,12 +150,15 @@ export function assertCanonicalAssetBinding(config: ConfigReadModel, raw: unknow
     userStockVault: address(field(raw, "userStockVault", 1), "Asset.userStockVault"),
     tokenDecimals: integer(field(raw, "tokenDecimals", 2), "Asset.tokenDecimals"),
     status: statusOf(raw, 3, "asset"),
+    minimumAllocation: uint(rawMinimumAllocation, "Asset.minimumAllocation"),
   });
   same(result.stockToken, address(apiValue(config, "stockToken"), "API asset.stockToken"), "asset STOCK token");
   same(result.userStockVault, address(apiValue(config, "userStockVault"), "API asset.userStockVault"), "asset Vault");
   same(result.tokenDecimals, integer(apiValue(config, "tokenDecimals"), "API asset.tokenDecimals"), "asset decimals");
   same(result.status, config.status, "asset status");
+  same(result.minimumAllocation, uint(apiValue(config, "minimumAllocation"), "API asset.minimumAllocation"), "asset minimum allocation");
   if (result.tokenDecimals < 6 || result.tokenDecimals > 18) throw new Error("asset decimals are outside the frozen 6-18 domain");
+  if (result.minimumAllocation < 414n) throw new Error("asset minimum allocation is below the canonical safety floor");
   return result;
 }
 
@@ -165,13 +173,12 @@ export function assertCanonicalMarketBinding(
   bytes32(apiMarketId, "API marketId", false);
 
   same(bytes32(field(config, "assetUid", 0), "Market.assetUid", false), bytes32(api.assetUid, "API assetUid", false), "market assetUid");
-  same(uint(field(config, "stakeSaturationAmount", 1), "Market.stakeSaturationAmount"), uint(api.stakeSaturationAmount, "API stakeSaturationAmount"), "market saturation");
-  same(bytes32(field(config, "ponsBaselineId", 2), "Market.ponsBaselineId", false), bytes32(api.ponsBaselineId, "API ponsBaselineId", false), "market Pons baseline");
-  same(bytes32(field(config, "quoteAssetConfigId", 3), "Market.quoteAssetConfigId", false), bytes32(api.quoteAssetConfigId, "API quoteAssetConfigId", false), "market Quote config");
-  same(address(field(config, "memeToken", 10), "Market.memeToken"), address(api.memeToken, "API memeToken"), "market Meme token");
-  same(address(field(config, "curve", 11), "Market.curve"), address(api.curve, "API curve"), "market Curve");
-  same(address(field(config, "gauge", 12), "Market.gauge"), address(api.gauge, "API gauge"), "market Gauge");
-  same(address(field(config, "quoteAsset", 13), "Market.quoteAsset", true), address(api.quoteAsset, "API quoteAsset", true), "market Quote asset");
+  same(bytes32(field(config, "ponsBaselineId", 1), "Market.ponsBaselineId", false), bytes32(api.ponsBaselineId, "API ponsBaselineId", false), "market Pons baseline");
+  same(bytes32(field(config, "quoteAssetConfigId", 2), "Market.quoteAssetConfigId", false), bytes32(api.quoteAssetConfigId, "API quoteAssetConfigId", false), "market Quote config");
+  same(address(field(config, "memeToken", 9), "Market.memeToken"), address(api.memeToken, "API memeToken"), "market Meme token");
+  same(address(field(config, "curve", 10), "Market.curve"), address(api.curve, "API curve"), "market Curve");
+  same(address(field(config, "gauge", 11), "Market.gauge"), address(api.gauge, "API gauge"), "market Gauge");
+  same(address(field(config, "quoteAsset", 12), "Market.quoteAsset", true), address(api.quoteAsset, "API quoteAsset", true), "market Quote asset");
 
   const sourceVersion = integer(field(runtime, "sourceVersion", 1), "Market.sourceVersion");
   const launchPhase = integer(field(runtime, "launchPhase", 6), "Market.launchPhase");
@@ -188,7 +195,7 @@ export function assertCanonicalMarketBinding(
   same(address(field(rawRoute, "quoter", 3), "Route.quoter"), address(api.canonicalRoute.quoter, "API route.quoter"), "route quoter");
   const routeHook = address(field(rawRoute, "hook", 4), "Route.hook");
   same(routeHook, address(api.canonicalRoute.hook, "API route.hook"), "route hook");
-  same(routeHook, address(field(config, "graduatedHook", 14), "Market.graduatedHook"), "market graduated hook");
+  same(routeHook, address(field(config, "graduatedHook", 13), "Market.graduatedHook"), "market graduated hook");
   same(address(field(rawRoute, "quoteAsset", 5), "Route.quoteAsset", true), address(api.quoteAsset, "API quoteAsset", true), "route Quote asset");
   same(address(field(rawRoute, "memeToken", 6), "Route.memeToken"), address(api.memeToken, "API memeToken"), "route Meme token");
   same(address(field(rawRoute, "gauge", 7), "Route.gauge"), address(api.gauge, "API gauge"), "route Gauge");

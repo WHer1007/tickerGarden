@@ -106,7 +106,7 @@ contract UserStockVaultIdentityTest is Test {
         assertEq(actualRegistry, address(registry));
         assertEq(actualMarketRegistry, address(marketRegistry));
         assertEq(actualManager, address(allocationManager));
-        assertEq(actualSchemaId, keccak256("TickerGarden.UserStockVault.MultiAsset.v1"));
+        assertEq(actualSchemaId, keccak256("TickerGarden.UserStockVault.MultiAsset.v2"));
 
         (bool initialized,) = address(vault)
             .call(abi.encodeWithSignature("initialize(address,address,address)", address(1), address(2), address(3)));
@@ -126,17 +126,17 @@ contract UserStockVaultIdentityTest is Test {
         vm.expectRevert();
         vault.canonicalAsset(ASSET_UID);
 
-        registry.registerAsset(ASSET_UID, address(stockToken), 18, address(vault));
+        registry.registerAsset(ASSET_UID, address(stockToken), 18, address(vault), 0.5 ether);
         AlternateSchemaStockVaultIdentity otherVault = new AlternateSchemaStockVaultIdentity(
             address(registry), address(marketRegistry), address(allocationManager)
         );
-        registry.registerAsset(OTHER_ASSET_UID, address(otherToken), 6, address(otherVault));
+        registry.registerAsset(OTHER_ASSET_UID, address(otherToken), 6, address(otherVault), 500_000);
         vm.expectRevert();
         vault.canonicalAsset(OTHER_ASSET_UID);
     }
 
     function test_exactRegistryBindingActivatesOnlyTheCanonicalVaultAndToken() public {
-        registry.registerAsset(ASSET_UID, address(stockToken), 18, address(vault));
+        registry.registerAsset(ASSET_UID, address(stockToken), 18, address(vault), 0.5 ether);
         AssetView memory assetView = vault.activeCanonicalAsset(ASSET_UID);
         assertEq(assetView.stockToken, address(stockToken));
         assertEq(assetView.userStockVault, address(vault));
@@ -144,13 +144,13 @@ contract UserStockVaultIdentityTest is Test {
         assertEq(assetView.status, 1);
 
         MockExactQuoteToken secondToken = new MockExactQuoteToken(6);
-        registry.registerAsset(OTHER_ASSET_UID, address(secondToken), 6, address(vault));
+        registry.registerAsset(OTHER_ASSET_UID, address(secondToken), 6, address(vault), 500_000);
         assertEq(vault.activeCanonicalAsset(OTHER_ASSET_UID).stockToken, address(secondToken));
         assertEq(vault.activeCanonicalAsset(ASSET_UID).stockToken, address(stockToken));
     }
 
     function test_assetStatusGatesNewActivityButPreservesCanonicalIdentity() public {
-        registry.registerAsset(ASSET_UID, address(stockToken), 18, address(vault));
+        registry.registerAsset(ASSET_UID, address(stockToken), 18, address(vault), 0.5 ether);
         bytes4[] memory selector = new bytes4[](1);
         selector[0] = IOfficialStockRegistryV2.pauseAsset.selector;
         accessManager.setTargetFunctionRole(address(registry), selector, PROTOCOL_ADMIN_ROLE);

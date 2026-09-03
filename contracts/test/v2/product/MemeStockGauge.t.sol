@@ -367,17 +367,38 @@ contract MemeStockGaugeTest is Test {
     }
 
     function test_consumingOneAssetSettlesBothButOnlyClearsSelectedClaimable() public {
-        (uint64 generation,) = _schedule(ALICE, 100);
+        (uint64 generation, uint64 unlockAt) = _schedule(ALICE, 100);
         vm.warp(generation);
         feeVault.credit(gauge, address(quote), 100, keccak256("q"));
         feeVault.credit(gauge, address(meme), 200, keccak256("m"));
 
+        // Claiming is subject to the same 24-hour lock as normal removal.
+        vm.warp(unlockAt);
         assertEq(feeVault.consume(gauge, ALICE, address(quote)), 100);
         PositionView memory position = gauge.positionOf(ALICE);
         assertEq(position.quoteClaimable, 0);
         assertEq(position.memeClaimable, 200);
         assertEq(feeVault.consume(gauge, ALICE, address(quote)), 0);
         assertEq(feeVault.consume(gauge, ALICE, address(meme)), 200);
+    }
+
+    function test_claimBeforeUnlockRevertsForBothRewardAssetsAndPreservesClaimable() public {
+        (uint64 generation, uint64 unlockAt) = _schedule(ALICE, 100);
+        vm.warp(generation);
+        feeVault.credit(gauge, address(quote), 100, keccak256("locked-q"));
+        feeVault.credit(gauge, address(meme), 200, keccak256("locked-m"));
+        vm.warp(unlockAt - 1);
+
+        bytes memory lockedError =
+            abi.encodeWithSelector(MemeStockGaugeLockedPositions.PositionLockedUntil.selector, unlockAt);
+        vm.expectRevert(lockedError);
+        feeVault.consume(gauge, ALICE, address(quote));
+        vm.expectRevert(lockedError);
+        feeVault.consume(gauge, ALICE, address(meme));
+
+        PositionView memory position = gauge.positionOf(ALICE);
+        assertEq(position.quoteClaimable, 100);
+        assertEq(position.memeClaimable, 200);
     }
 
     function test_partialRemovalSettlesFullOldWeightAndPreservesLock() public {

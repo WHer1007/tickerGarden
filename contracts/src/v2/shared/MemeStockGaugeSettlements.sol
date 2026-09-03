@@ -54,7 +54,7 @@ abstract contract MemeStockGaugeSettlements is MemeStockGaugeAccumulators {
         _settleActivePosition(position);
     }
 
-    function _settleActivePosition(GaugePosition storage position) private {
+    function _settleActivePosition(GaugePosition storage position) internal {
         _settleRewardToCurrent(
             position.rewards[QUOTE_REWARD_INDEX],
             position.activeAmount,

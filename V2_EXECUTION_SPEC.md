@@ -1,8 +1,8 @@
 # TickerGarden V2 可验证执行规范
 
 > 文档状态：`IMPLEMENTATION_ALLOWED / NOT_DEPLOYABLE`  
-> 版本：`V2-EXEC-3`  
-> 更新时间：2026-09-03
+> 版本：`V2-EXEC-4`
+> 更新时间：2026-09-04
 > 产品规则：[V2_PROTOCOL_PARAMETERS.md](./V2_PROTOCOL_PARAMETERS.md)  
 > 技术架构：[V2_TECHNICAL_ARCHITECTURE.md](./V2_TECHNICAL_ARCHITECTURE.md)  
 > Pons 行为基线：[V2_PONS_BEHAVIOR_BASELINE.md](./V2_PONS_BEHAVIOR_BASELINE.md)  
@@ -19,7 +19,7 @@
 3. 30 秒激活时间轮、双资产累加器和数学不变量；
 4. 状态机、权限矩阵、ABI、事件和异常回滚。
 
-本文不覆盖 V1。Pons runtime 差分、首发 native/USDG Quote economics、通用数值域，以及 Robinhood 官方目录当前观测194项 STOCK 全量可选为质押 Base 的规则已经取证并冻结。STOCK 价格、USD 名义目标和 backing target 不属于协议输入。本文授权按 `V2-EXEC-3` 开始实现，但不授权在最终 artifact、目标链取证、Fork/E2E、许可、法律和审计门禁关闭前部署。
+本文不覆盖 V1。当前 canonical 执行规则为 `V2-EXEC-4`；文中明确标注的 `V2-EXEC-3` 仅为历史记录，不再是部署依据。Pons runtime 差分、首发 native/USDG Quote economics、通用数值域，以及 Robinhood 官方目录当前观测194项 STOCK 全量可选为质押 Base 的规则已经取证并冻结。STOCK 价格、USD 名义目标和 backing target 不属于协议输入。本文授权按 `V2-EXEC-4` 开始实现，但不授权在最终 artifact、目标链取证、Fork/E2E、许可、法律和审计门禁关闭前部署。
 
 ## 1. 参考版本与信任边界
 
@@ -55,14 +55,15 @@ POST_GRADUATION_FEE_PIPS = 10_000       // 1%；分母 1_000_000
 PIPS_DENOMINATOR         = 1_000_000
 LP_SHARE_BPS             = 2_000        // 总手续费的20%；分母10_000
 BPS_DENOMINATOR          = 10_000
-STAKE_SATURATION_WHOLE_TOKENS = 10     // 每市场10个完整 Base STOCK
+MINIMUM_ALLOCATION           = Registry 按 Asset UID 配置的 raw-unit 值；受 canonical numeric bounds 约束
+MINIMUM_ALLOCATION_PROTOCOL_FLOOR = 414 raw units
 FEE_ASSET_MODE           = UNSPECIFIED_CORE_SWAP_DELTA = 1
-STAKER_RELEASE_MODE      = LINEAR_CAPPED = 1
+STAKER_NON_LP_SHARE_BPS  = 5_000        // active stake 时占 non-LP 的50%
 INDEX_PRECISION          = 1e27
 ACTIVATION_DELAY         = 30 seconds
 ACTIVATION_QUANTUM       = 1 second
 ACTIVATION_WHEEL_SIZE    = 32
-MIN_POSITION             = strictly greater than 0.5 STOCK
+MIN_POSITION             = zero, or >= current Registry minimumAllocation(assetUid)
 MIN_LOCK                 = 24 hours
 EMERGENCY_DELAY          = 24 hours after PAUSED/RETIRED, post-Curve phase only
 UNPAUSE_DELAY            = 24 hours
@@ -317,7 +318,7 @@ feeId = keccak256(abi.encode(
 
 ### 4.6 不支持的收费旁路
 
-V2-EXEC-3 禁止：
+V2-EXEC-4 禁止：
 
 - dynamic fee flag、`beforeSwap` fee override 或额外 v4 LP swap fee；
 - 先收 Hook 0.8% 再收核心 0.2% 的近似组合；
@@ -478,7 +479,7 @@ allocation[assetUid][user][market] = Gauge effective active + Gauge unprocessed/
 allocate/increase:
     validate PoolCreated + Market ACTIVE + Asset ACTIVE
     process Gauge matured slots and settle user
-    validate resulting position == 0 or > 0.5 STOCK
+    validate resulting position == 0 or >= current minimumAllocation(assetUid)
     Vault.lockAllocation(assetUid, user, market, amount)
     Gauge.addPending(user, amount, now + 30s, now + 24h)
 
@@ -486,6 +487,13 @@ decrease/close:
     require now >= unlockAt
     Gauge.process/materialize/settle/remove first
     Vault.releaseAllocation(assetUid, user, market, same amount)
+
+rageQuit:
+    caller selects no recipient and must exit the market's full allocation
+    Gauge checkpoint/settle, remove active and pending weight, and discard all unclaimed Quote/Meme reward
+    if another Active staker remains, re-add each forfeited feeAsset to that Gauge accumulator
+    otherwise record each forfeited feeAsset in FeeVault reserve[marketId][feeAsset]
+    Vault.rageQuitAllocation(assetUid, caller, market, same amount) and transfer principal atomically
 
 migrate A -> B:
     prevalidate B completely
@@ -502,7 +510,11 @@ migrate A -> B:
 
 ## 7. Gauge 故障与本金逃生
 
-### 7.1 进入 EMERGENCY_EXIT
+### 7.1 用户级 rageQuit（非终止逃生）
+
+`rageQuit` 是正常运行状态下的用户级原子退出，不改变 Market 状态，也不暂停或终止其他用户的业务。它绕过 `unlockAt`，但代价是放弃全部未领取的双资产收益；正常 claim/close/migrate-out 仍须满足整个仓位的24小时锁定。放弃收益有两条路由：仍有其他 Active staker 时按剩余实际 active stake 重分配；否则按 `marketId + feeAsset` 记为 forfeiture reserve，并在后续平台 claim 时转换为平台收入。
+
+### 7.2 进入 EMERGENCY_EXIT
 
 `EMERGENCY_EXIT` 是终态，不是临时暂停。前提：Market 已离开 `NotGraduated`，且连续处于 `PAUSED` 或 `RETIRED` 至少 24 小时，并由 `RECOVERY_ROLE` 的24小时 AccessManager 延迟操作执行。`NotGraduated` Curve 即使已暂停且满24小时也必须拒绝 Emergency，并保留 delayed unpause 后继续交易或最终结算的路径。唯一外部入口和返回值是：
 
@@ -529,7 +541,7 @@ activateEmergencyExit(bytes32 marketId)
 
 同一 `marketId` 不允许原地安装 successor Gauge 或恢复旧 Gauge。未来若重新提供服务，必须新建 market/version；这避免 Vault 已释放本金后旧权重再次收取费用。
 
-### 7.2 forceReleaseAllocation
+### 7.3 forceReleaseAllocation
 
 在 `EMERGENCY_EXIT` 中，用户本人可以调用 Vault：
 
@@ -553,7 +565,7 @@ emit AllocationForceReleased(...)
 
 进入 Emergency 后，旧 Gauge 的 total/position 仅是冻结历史，不再要求与 Vault allocation 相等，也不得用于新分配或新手续费。非 Emergency 状态下仍必须满足完整等式。
 
-### 7.3 奖励恢复
+### 7.4 奖励恢复
 
 本金释放不依赖奖励恢复。进入 Emergency 时，FeeVault 对 Quote/Meme 两种资产分别冻结：
 
@@ -725,7 +737,8 @@ user.userRemainder
 
 ```text
 if R == 0: no-op
-if S == 0: invalid staker credit; the linear formula must have produced R == 0
+if S == 0: stakerAmount = 0
+if S > 0: stakerAmount = floor(D / 2)
 
 carry = floor(indexRemainder / S)
 normalized = indexRemainder % S
@@ -756,21 +769,19 @@ userRemainder = merged % P
 
 修改 active 份额前必须分别结算两资产。池级 remainder 允许在 S 改变后先通过 `div/mod` 归一化；用户 remainder 在 claim、减仓、暂时清零后继续归属于同一 user/market/asset。不同资产、市场或用户的 remainder 永不合并。
 
-## 10. 10 STOCK饱和的线性手续费分桶
+## 10. 固定手续费分桶（V2-EXEC-4）
 
 FeeVault 在实际收到 `D` 且先完成 activation checkpoint 后读取：
 
 ```text
 S = Gauge.totalActiveStock
-B = MarketConfig.stakeSaturationAmount
-  = 10 × 10^stockDecimals
-E = min(S, B)
 ```
 
-`B` 在市场创建时由 Factory 根据 Registry 冻结的 `stockDecimals` 派生并写入不可变 MarketConfig；创建者不能传入或覆盖。`B` 同时进入 `expectedEconomics` 和创建事件。固定整数公式：
+`minimumAllocation` 是 OfficialStockRegistry 中可延迟更新的逐资产仓位门槛，不是手续费分桶参数，也不进入 MarketConfig、`expectedEconomics` 或创建事件。固定整数手续费公式为：
 
 ```text
-stakerAmount = floor(D × E / (2 × B))
+stakerAmount = 0                         if S == 0
+               floor(D × 50% )           if S > 0
 remaining = D - stakerAmount
 creatorAmount = floor(remaining / 2)
 platformAmount = remaining - creatorAmount
@@ -783,9 +794,9 @@ L + D == T
 creatorAmount + stakerAmount + platformAmount == D
 ```
 
-`S = 0` 得到总手续费近似 `Creator 40 / Staker 0 / Platform 40 / LP 20`；`0 < S < B` 时 Staker 从0线性释放至40%，Creator 与 Platform 对称下降；`S >= B` 得到 `20 / 40 / 20 / 20`。`S` 超过 `B` 仍全部参与 Staker Bucket 内部按 `userActiveStock / S` 的分配，只是不再扩大 Staker 总 Bucket。整数余数按公式固定归 Platform。Quote 和 Meme Token 分别执行，不转换；STOCK 价格不参与计算。
+`S = 0` 得到总手续费近似 `Creator 40 / Staker 0 / Platform 40 / LP 20`；`S > 0` 得到 `20 / 40 / 20 / 20`。Staker Bucket 始终按 `userActiveStock / S` 分配，整数余数按固定顺序归属。Quote 和 Meme Token 分别执行，不转换；STOCK 价格不参与计算。
 
-在最低合法仓位严格大于0.5 STOCK时，`E/B` 略高于5%，所以 Staker 总份额略高于总手续费2%，不会从0跳到40%。改变 `10` 或 `LINEAR_CAPPED` 算法必须升级 FeePolicy、Factory 与 `executionSpecId`，不得影响既有市场。
+历史说明：此前 V2-EXEC-3 的 `10 STOCK` 饱和与 `LINEAR_CAPPED` 规则已废止，仅保留在历史记录中；V2-EXEC-4 不读取这些字段。
 
 ## 11. 完整状态机
 
@@ -883,7 +894,7 @@ ABI alias、caller、执行延迟与业务状态等待不得混写。规范性�
 
 ## 13. 冻结 ABI
 
-以下是 V2-EXEC-3 的最小完整外部边界。结构体字段和事件必须与机器可读 ABI 清单一致；实现可以增加纯 view，但不得增加改变资金、状态或 recipient 的旁路。
+以下是当前 V2-EXEC-4 的最小完整外部边界。结构体字段和事件必须与机器可读 ABI 清单一致；实现可以增加纯 view，但不得增加改变资金、状态或 recipient 的旁路。
 
 ### 13.0 Registry、Factory 与 Curve
 
@@ -952,7 +963,7 @@ readyToGraduate() view returns (bool)
 
 Registry economics/config 字段 append-only；pause/unpause/retire 只改变门禁状态。Trade recipient 可以由用户指定，因为它是用户主动交易的收款对象；“禁止任意 recipient”专指 Vault 本金、手续费 claim、force release、平台/创建者负债和 recovery 资产。
 
-V2 首发 mutation ABI 只提供上述单市场入口，永久不提供 `batch*`、`claimAll`、`withdrawAllMarkets` 或 `migrateAll`。后续版本若增加批量能力，必须使用新 `executionSpecId`、有界数组、Gas 基准和新增 ABI/权限审计；不得在 V2-EXEC-3 实现中静默加入。
+V2 首发 mutation ABI 只提供上述单市场入口，永久不提供 `batch*`、`claimAll`、`withdrawAllMarkets` 或 `migrateAll`。后续版本若增加批量能力，必须使用新 `executionSpecId`、有界数组、Gas 基准和新增 ABI/权限审计；不得在 V2-EXEC-4 实现中静默加入。
 
 ### 13.1 UserStockVault
 
@@ -1091,16 +1102,17 @@ isStockAllocationOpen(bytes32 marketId) view returns (bool)
 至少发出：
 
 ```text
-MarketCreated(marketId, assetUid, memeToken, curve, gauge, quoteAsset, stakeSaturationAmount, ponsBaselineId, quoteAssetConfigId, expectedEconomics)
+MarketCreated(marketId, assetUid, memeToken, curve, gauge, quoteAsset, ponsBaselineId, quoteAssetConfigId, expectedEconomics)
 ExpectedPoolRegistered(marketId, poolId, keyHash, sourceVersion)
 PoolBindingActivated(marketId, poolId, sourceVersion)
 V4FeeAccrued(marketId, poolId, feeAsset, feeNonce, feeId, base, T, L, D)
-FeeBucketsCredited(marketId, creatorEpoch, feeAsset, feeId, creatorAmount, stakerAmount, platformAmount, activeStock, stakeSaturationAmount)
+FeeBucketsCredited(marketId, creatorEpoch, feeAsset, feeId, creatorAmount, stakerAmount, platformAmount, activeStock)
 CurveFeeTransferred(marketId, sweepNonce, feeId, amount)
 CurveFeesSwept(marketId, creatorEpoch, quoteAsset, sweepNonce, feeId, amount, creatorAmount, platformAmount)
 
 StockDeposited(assetUid, user, amount)
 StockWithdrawn(assetUid, user, amount)
+AllocationRageQuit(assetUid, user, marketId, amount)
 StockVaultRegistered(userStockVault, schemaId, marketRegistry, allocationManager)
 AllocationLocked(assetUid, user, marketId, amount, userMarketAllocation, userTotalAllocated)
 AllocationReleased(assetUid, user, marketId, amount, userMarketAllocation, userTotalAllocated)
@@ -1158,7 +1170,7 @@ Indexer 可以从事件重建列表，但事件不是资金权威；链上 view�
 4. 每个成功 feeId 唯一，失败交易不留下 nonce/credit；
 5. 任意 Vault 操作序列满足 allocation 聚合等式；
 6. 同一 STOCK 不在两个 Gauge 重叠计奖；
-7. 每个非零仓位严格大于0.5 STOCK；
+7. 每个非零仓位必须达到当前 Asset UID 的 minimumAllocation，且 minimum 不得低于414 raw units；
 8. `totalPendingStock == Σ 未处理 slot.amount`；
 9. `totalActiveStock == Σ user.active + Σ 已处理未物化 pending`；
 10. 每用户每市场至多一个 pending generation；
@@ -1184,15 +1196,15 @@ Indexer 可以从事件重建列表，但事件不是资金权威；链上 view�
 canonical STOCK supply and reward/accounting amount <= int128.max
 post-graduation fee base <= 17014118346046923173168730371588410572799
 per market + fee asset lifetime fee credits <= 2^48 - 1
-minimum nonzero position = floor(10^stockDecimals / 2) + 1
-stakeSaturationAmount = 10 × 10^stockDecimals
+minimum nonzero position = current Registry minimumAllocation(assetUid)
+minimumAllocation domain and accumulator safety = constrained by canonical numeric bounds
 ```
 
 所有加减、nonce、`sourceVersion/recoveryEpoch` 和 `uint64` 时间相加都先做边界检查再写状态；`activationAt` 最晚只能从 `uint64.max-30` 调度。供应分区、曲线报价、尾单 gross-up、毕业二次分区、Q192/Q128、LiquidityAmounts、手续费分桶、池级 index 与用户 settlement 必须使用已冻结的 full-precision `mulDiv/mulmod` 语义。向上取整不得用可能溢出的 `numerator + denominator - 1`；尾单滑点必须比较两个完整 512-bit 乘积。任何 production manifest 资产若超出该 admission domain 必须拒绝，不能缩窄、饱和或截断。
 
 全量官方 STOCK 使用同一个 raw-balance 会计模型，不需要逐资产价格或目标向量。当前观测194项 ACTIVE 官方资产均可选择为 Base；生产登记前只需重新固定 Asset UID、canonical token、decimals、状态和代理实现证据。
 
-最低测试向量包括 Pons-compatible `amountOut/amountIn`、buy/sell fee 顺序、尾单部分成交/退款、runtime `[9900,618,19,0]` 反狙击表、reserved/swept/pool/locked 四类供应数量、两条真实 native/ERC-20 graduation receipt、CREATE2 四组件地址，四种 v4 swap 组合、最小整数、uint256/int128/uint64 极值、29/30/31秒、24小时边界、32槽全满与一年空闲、generation 复用、同秒大量用户、连续 pending 重置、Quote/Meme 双 fee 顺序、`S=0`、`0<S<B`、`S=B`、`S>B`、线性取整、pause/retire/emergency、自动毕业失败重试、重复 feeId/root claim，以及 locked/external LP 并存下 donate。
+最低测试向量包括 Pons-compatible `amountOut/amountIn`、buy/sell fee 顺序、尾单部分成交/退款、runtime `[9900,618,19,0]` 反狙击表、reserved/swept/pool/locked 四类供应数量、两条真实 native/ERC-20 graduation receipt、CREATE2 四组件地址，四种 v4 swap 组合、最小整数、uint256/int128/uint64 极值、29/30/31秒、24小时边界、32槽全满与一年空闲、generation 复用、同秒大量用户、连续 pending 重置、Quote/Meme 双 fee 顺序、`S=0`、`S>0` 固定分桶、动态 minimumAllocation 更新、rageQuit 两分支、pause/retire/emergency、自动毕业失败重试、重复 feeId/root claim，以及 locked/external LP 并存下 donate。
 
 ## 17. 部署前清单
 

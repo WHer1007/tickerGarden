@@ -1,7 +1,7 @@
 # TickerGarden V2 MultiAsset Stock Vault 决策
 
 > 状态：`IMPLEMENTED_LOCAL / NOT_DEPLOYABLE`
-> 日期：2026-09-03
+> 日期：2026-09-04
 > 适用版本：TickerGarden V2 / `V2-EXEC-4` 的部署前架构修订
 > 机器规范：[`spec/v2_execution_manifest.json`](./spec/v2_execution_manifest.json)、[`spec/v2_abi_surface.json`](./spec/v2_abi_surface.json)
 
@@ -10,18 +10,18 @@
 Stock 本金托管采用“**每个 Vault schema 版本一个共享 MultiAsset `UserStockVault`**”，当前 schema 为：
 
 ```text
-keccak256("TickerGarden.UserStockVault.MultiAsset.v1")
+keccak256("TickerGarden.UserStockVault.MultiAsset.v2")
 ```
 
 当前 194 种以及后续新增的官方 Stock Token 均可绑定到这一个 Vault。这里的“单一”不是永远只有一个不可替换地址：新 schema 可以部署 successor Vault，但 `OfficialStockRegistryV2` 强制每个 schema 只能解析到一个 canonical Vault；每个已登记 Asset UID 的 Vault 绑定仍然 write-once。
 
 ```text
 OfficialStockRegistryV2
-├─ schema v1 ──> UserStockVault v1
+├─ schema v2 ──> UserStockVault v2
 │  ├─ Asset UID A ──> Stock Token A
 │  ├─ Asset UID B ──> Stock Token B
 │  └─ ...
-└─ future schema v2 ──> UserStockVault v2
+└─ future schema v3 ──> UserStockVault v3
 
 MarketRegistryV2: marketId ──> Asset UID
 AllocationManager: marketId ──> Asset UID ──> canonical Vault
@@ -34,10 +34,12 @@ MemeStockGauge: 每市场独立状态，不托管 STOCK
 
 - 某 market 只要存在已激活的 STOCK 仓位，Staker 固定获得 non-LP 手续费的 `50%`（总手续费约 `40%`），并由该 market 的所有 active stake 按 raw-unit 质押比例分配。
 - 没有 active stake 时，Staker 为 `0`；Creator 与 Platform 各承接 non-LP 手续费的一半。LP 的固定份额不变。
-- 最低门槛是 OfficialStockRegistry 按 `assetUid` 配置的 raw-unit `minimumAllocation`。资产注册时指定，管理员可以延迟更新；它不是 Vault 普通 `deposit` 的最小金额。普通 deposit 仍可存入任意正数量的空闲本金。
+- 最低门槛是 OfficialStockRegistry 按 `assetUid` 配置的 raw-unit `minimumAllocation`。资产注册时指定，管理员只能通过延迟治理权限更新；它不是 Vault 普通 `deposit` 的最小金额。普通 deposit 仍可存入任意正数量的空闲本金。
 - 新建仓位、增仓后的总仓位、迁入后的目标仓位必须 `>=` 当前门槛；部分减仓或迁出后的非零剩余必须 `>=` 当前门槛。
 - 门槛更新不强平老仓。若既有仓位低于新门槛，用户可以继续持有，但只能补足到当前门槛或全额退出；正常全退与紧急逃生均不受门槛阻挡。
-- 逃生路径放弃收益并只退出调用者自己的仓位，不暂停 market；正常全退遵循锁定和收益规则。
+- `rageQuit` 是用户级、原子、全额退出 allocation 的操作：绕过 24 小时锁，立即取回调用者自己的 STOCK 本金，但放弃该仓位全部尚未领取的 Quote/Meme 收益。它不改变 market 状态、不暂停市场，也不影响其他用户的正常存取和收益。
+- `rageQuit` 结算出的放弃收益若仍有其他 Active staker，则通过该 market 的双资产累加器按实际 active stake 重分配；若没有其他 Active staker，则按 `marketId + feeAsset` 记入 forfeiture reserve。该 reserve 不再属于 staker，后续由平台 claim 时转换为平台收入。
+- 正常 `claim` 与正常 `close` 必须满足整个仓位的 24 小时 `unlockAt`，并保留已结算/可领取收益；因此不能先 claim 再用 `rageQuit` 绕过 24 小时限制。协议级 Emergency Exit 是另一条终止性恢复路径，仅用于市场/协议进入 Emergency 状态后的恢复，不等同于用户级 `rageQuit`。
 
 该规则是部署前变更，必须与 Registry、AllocationManager、Gauge、FeeVault、ABI、Indexer 和测试作为同一 `V2-EXEC-4` 发布单元完成；既有未部署的 `V2-EXEC-3` 规格不再作为部署依据。
 
@@ -53,10 +55,10 @@ MemeStockGauge: 每市场独立状态，不托管 STOCK
 
 | 项目 | 旧一资产一 Vault | 当前 MultiAsset Vault |
 |---|---:|---:|
-| creation code | 8,650 bytes | 8,355 bytes |
-| runtime code | 7,780 bytes/资产 | 7,821 bytes/schema |
-| 194 资产的 runtime code-deposit Gas | 301,864,000 | 1,564,200 |
-| 仅 runtime code-deposit 节省 | — | 300,299,800，约 99.48% |
+| creation code | 8,650 bytes | 8,880 bytes |
+| runtime code | 7,780 bytes/资产 | 8,332 bytes/schema |
+| 194 资产的 runtime code-deposit Gas | 301,864,000 | 1,666,400 |
+| 仅 runtime code-deposit 节省 | — | 300,197,600，约 99.45% |
 
 上表只按 EVM 每个 runtime byte 200 Gas 计算，不含 constructor、Registry 登记、calldata、交易基础费或目标链定价，因此不能当作最终部署报价。它说明的是数量级：资产增加到数百种后，重复部署相同 runtime 是主要浪费。
 
@@ -70,9 +72,9 @@ Registry 在首次使用 Vault 时回读 `vaultIdentity()`，校验依赖和非�
 
 | 操作 | 当前本地中位数 |
 |---|---:|
-| `depositStock(assetUid, amount)` | 109,233 gas |
-| `withdrawFreeStock(assetUid, amount)` | 71,573 gas |
-| `forceReleaseAllocation(assetUid, marketId)` | 92,342 gas |
+| `depositStock(assetUid, amount)` | 109,189 gas |
+| `withdrawFreeStock(assetUid, amount)` | 71,551 gas |
+| `forceReleaseAllocation(assetUid, marketId)` | 90,070 gas |
 
 这些数字来自测试夹具，不是旧/新严格同环境差分，也不是目标链报价。关键结论是热路径保持 O(1)，没有因支持数百资产而产生线性 Gas。
 
@@ -93,11 +95,14 @@ depositStock(bytes32 assetUid, uint256 amount)
 depositStockFor(bytes32 assetUid, address user, uint256 amount)
 withdrawFreeStock(bytes32 assetUid, uint256 amount)
 forceReleaseAllocation(bytes32 assetUid, bytes32 marketId)
+rageQuitAllocation(bytes32 assetUid, address user, bytes32 marketId, uint256 amount)
 
 lockAllocation(bytes32 assetUid, address user, bytes32 marketId, uint256 amount)
 releaseAllocation(bytes32 assetUid, address user, bytes32 marketId, uint256 amount)
 moveAllocation(bytes32 assetUid, address user, bytes32 fromMarketId, bytes32 toMarketId, uint256 amount)
 ```
+
+`AllocationManager.rageQuit(marketId)` 是用户调用入口；它通过 canonical Gauge 先结算并清除用户的全部 active/pending 权重，再调用 Vault 的 `rageQuitAllocation` 原子释放相同数量的 STOCK。本系统不提供按比例 rage quit：必须是该 market 的完整 allocation，避免留下半退出的收益状态。
 
 所有本金与 allocation 状态均以 Asset UID 作为第一层 key：
 
@@ -137,7 +142,7 @@ Vault.balanceOf(canonicalToken(assetUid)) >= totalDeposited[assetUid]
 3. 每层账本都以 `assetUid` 开头，连全局 aggregate 也按资产拆分。
 4. 每次 market allocation 都校验 `market.assetUid == assetUid`；迁移只能在同资产市场间发生。
 5. 存款要求 Vault Token 余额精确增加，提款要求 Vault 精确减少且用户精确增加；异常 transfer、fee-on-transfer 等行为回滚。
-6. 存款只在 Asset ACTIVE 时开放；PAUSED/RETIRED 不阻断 free withdrawal 和已存在仓位的安全退出。
+6. 存款只在 Asset ACTIVE 时开放；PAUSED/RETIRED 不阻断 free withdrawal 和已存在仓位的安全退出。用户级 `rageQuit` 只受非 Emergency 的 operational 状态约束，不会把 market 置为 PAUSED、RETIRED 或 EMERGENCY。
 7. Vault 无 owner 提款、任意 recipient、任意外部执行、delegatecall、策略投资或升级入口；Allocation mutator 只认 immutable AllocationManager。
 8. `vaultIdentity()` 固化 Registry、MarketRegistry、AllocationManager 与 schema；Registry 强制一个 schema 只有一个 canonical Vault。
 9. 测试覆盖同一 Vault 中两个真实 Token 的存款、allocation、总量和余额相互隔离，以及跨资产 market/迁移拒绝。
@@ -146,7 +151,7 @@ Vault.balanceOf(canonicalToken(assetUid)) >= totalDeposited[assetUid]
 
 ## 5. 版本、迁移与运维
 
-`UserStockVault` 不使用代理升级。schema 变化时部署新 Vault 地址，并在首次登记时由 Registry 建立唯一 `schema → vault` 关系。新 Asset UID 可以选择新 schema；旧 Asset UID 的 Vault 绑定不允许管理员原地改写。
+`UserStockVault` 不使用代理升级。schema 变化时部署新 Vault 地址，并在首次登记时由 Registry 建立唯一 `schema → vault` 关系。新 Asset UID 可以选择新 schema；旧 Asset UID 的 Vault 绑定不允许管理员原地改写。当前实现的 canonical schema 是 `MultiAsset.v2`，此前 `MultiAsset.v1` 仅保留为历史语境。
 
 若未来必须把已登记资产迁移到新 Vault，当前 ABI 不允许直接 rebind。正确流程需要新的 execution spec/Registry 迁移设计，先保留旧 Vault 的用户退出，再通过显式版本迁移处理；不得增加管理员 sweep 或静默代理升级作为捷径。
 

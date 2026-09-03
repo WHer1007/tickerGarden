@@ -761,22 +761,15 @@ contract MarketRegistryV2Test is Test {
     }
 
     function test_rejectsInactiveOrMismatchedAssetQuoteAndTemplateSnapshots() public {
-        MarketConfig memory config = _config(QUOTE_ASSET, MEME_TOKEN);
-        config.stakeSaturationAmount -= 1;
-        vm.expectRevert(MarketRegistryV2.InvalidMarketConfig.selector);
-        _register(MARKET_ID, config);
-
         AssetView memory assetValue = _asset();
         assetValue.tokenDecimals = 5;
         assets.setAsset(ASSET_UID, assetValue);
-        config = _config(QUOTE_ASSET, MEME_TOKEN);
-        config.stakeSaturationAmount = 10 * 10 ** 5;
+        MarketConfig memory config = _config(QUOTE_ASSET, MEME_TOKEN);
         vm.expectRevert(MarketRegistryV2.InvalidMarketConfig.selector);
         _register(MARKET_ID, config);
 
         assetValue.tokenDecimals = 19;
         assets.setAsset(ASSET_UID, assetValue);
-        config.stakeSaturationAmount = 10 * 10 ** 19;
         vm.expectRevert(MarketRegistryV2.InvalidMarketConfig.selector);
         _register(MARKET_ID, config);
         assets.setAsset(ASSET_UID, _asset());
@@ -883,12 +876,11 @@ contract MarketRegistryV2Test is Test {
     function _config(address quoteAsset, address memeToken) internal pure returns (MarketConfig memory) {
         return MarketConfig({
             assetUid: ASSET_UID,
-            stakeSaturationAmount: 10e18,
             ponsBaselineId: BASELINE_ID,
             quoteAssetConfigId: QUOTE_CONFIG_ID,
             launchTemplateId: TEMPLATE_ID,
             feePolicyId: FEE_POLICY_ID,
-            executionSpecId: keccak256("V2-EXEC-3"),
+            executionSpecId: keccak256("V2-EXEC-4"),
             expectedEconomics: ECONOMICS,
             launchConfigId: LAUNCH_CONFIG_ID,
             creatorRevenueBeneficiaryAtCreation: BENEFICIARY,
@@ -946,7 +938,7 @@ contract MarketRegistryV2Test is Test {
             launchLockerImplementation: address(0x1005),
             launchLockerCodeHash: keccak256("locker"),
             feePolicyId: FEE_POLICY_ID,
-            executionSpecId: keccak256("V2-EXEC-3"),
+            executionSpecId: keccak256("V2-EXEC-4"),
             status: 1
         });
     }

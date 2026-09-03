@@ -135,13 +135,13 @@ contract TickerGardenFactoryV2 is ITickerGardenFactoryV2, ICurveInitializationSo
     mapping(bytes32 marketId => bool reserved) private _reservedMarketIds;
 
     uint256 private constant LAUNCH_FEE = 500_000_000_000_000;
-    bytes32 private constant EXECUTION_SPEC_ID = keccak256("V2-EXEC-3");
+    bytes32 private constant EXECUTION_SPEC_ID = keccak256("V2-EXEC-4");
     bytes32 private constant TOKEN_IMPLEMENTATION_CODEHASH =
         0xe0450cdd47a6df268a83fa9270bd30e90daca35b99181dabe2a456a0d1eac7db;
     bytes32 private constant CURVE_IMPLEMENTATION_CODEHASH =
-        0x7fd268b2f04c5ac2e8606f44e9dbf46af7f46d0d35230ad9a3b19bd1efa2fa77;
+        0x5359d9b7b1ab5be416e512d044a3abf1a2b92126c27dcb68237693aa8cfda521;
     bytes32 private constant GAUGE_IMPLEMENTATION_CODEHASH =
-        0x007d94ccdd495ee7b6dc01e433b00ed2a8d1e6070f6559505dd640b980db4d41;
+        0x52e5ce07b1966d40657683d2d77436f33b0333de3e0940511570bb71425fac0f;
 
     error InvalidFactoryDependency(address dependency);
     error InvalidComponentImplementation(address implementation, bytes32 expectedHash, bytes32 actualHash);
@@ -185,8 +185,7 @@ contract TickerGardenFactoryV2 is ITickerGardenFactoryV2, ICurveInitializationSo
             poolKeyFee: 0,
             hookPermissionMask: 0x2044,
             feeAssetMode: 1,
-            stakeSaturationWholeTokens: 10,
-            stakerReleaseMode: 1
+            stakerNonLpShareBps: 5_000
         });
 
         _validateBindings(init);
@@ -304,7 +303,6 @@ contract TickerGardenFactoryV2 is ITickerGardenFactoryV2, ICurveInitializationSo
     ) private {
         MarketConfig memory config = MarketConfig({
             assetUid: params.assetUid,
-            stakeSaturationAmount: snapshot.stakeSaturationAmount,
             ponsBaselineId: params.ponsBaselineId,
             quoteAssetConfigId: params.quoteAssetConfigId,
             launchTemplateId: params.launchTemplateId,
@@ -331,7 +329,6 @@ contract TickerGardenFactoryV2 is ITickerGardenFactoryV2, ICurveInitializationSo
             curve,
             gauge,
             snapshot.quote.quoteAsset,
-            snapshot.stakeSaturationAmount,
             params.ponsBaselineId,
             params.quoteAssetConfigId,
             snapshot.expectedEconomics

@@ -18,10 +18,17 @@ export interface VaultViewModel {
   readonly quoteClaimable: bigint; readonly memeClaimable: bigint;
   readonly pendingForSeconds: number; readonly unlockAfterSeconds: number;
   readonly allocationOpen: boolean; readonly canExit: boolean;
-  readonly canDecrease: boolean; readonly canClose: boolean; readonly canMigrate: boolean; readonly canForceRelease: boolean;
+  readonly canDecrease: boolean; readonly canClose: boolean; readonly canMigrate: boolean;
+  readonly canClaim: boolean; readonly canRageQuit: boolean; readonly canForceRelease: boolean;
   readonly minimumAllocationStock: bigint;
 }
-export interface StockAssetContext { readonly status: number; readonly tokenDecimals: number; readonly stockToken?: Address; readonly userStockVault?: Address; }
+export interface StockAssetContext {
+  readonly status: number;
+  readonly tokenDecimals: number;
+  readonly minimumAllocation: bigint;
+  readonly stockToken?: Address;
+  readonly userStockVault?: Address;
+}
 export interface RecoveryRootState {
   readonly root: string; readonly declaredTotal: bigint; readonly claimedTotal: bigint;
   readonly proposedAt: bigint; readonly finalizableAt: bigint; readonly proposalNonce: number; readonly status: number;
@@ -45,7 +52,7 @@ function context(market: MarketReadModel, position: UserPositionReadModel, snaps
   bytes32(market.marketId); bytes32(position.marketId); bytes32(position.assetUid);
   address(market.memeToken); address(market.gauge); quoteAddress(market.quoteAsset); address(market.curve);
   if (market.marketId !== position.marketId || market.assetUid !== position.assetUid) throw new Error("position market identity mismatch");
-  if (snapshot.executionSpecId !== "V2-EXEC-3" || snapshot.syncStatus !== "synced" || !/^\d+:0x[0-9a-f]{64}$/.test(snapshot.revision)) throw new Error("snapshot is not reconciled");
+  if (snapshot.executionSpecId !== "V2-EXEC-4" || snapshot.syncStatus !== "synced" || !/^\d+:0x[0-9a-f]{64}$/.test(snapshot.revision)) throw new Error("snapshot is not reconciled");
   address(position.user);
   const reconciledBlock = snapshot.revision.split(":")[0] ?? "";
   if (!/^\d+$/.test(reconciledBlock)) throw new Error("invalid reconciled snapshot revision");
@@ -62,7 +69,11 @@ export function buildVaultView(market: MarketReadModel, position: UserPositionRe
   // Pausing or retiring an official STOCK must stop new exposure without
   // hiding a user's existing principal-exit path. Statuses 1..3 are the
   // canonical Active/Paused/Retired lifecycle states.
-  if (asset.status < 1 || asset.status > 3 || !Number.isInteger(asset.status) || !Number.isInteger(asset.tokenDecimals) || asset.tokenDecimals < 6 || asset.tokenDecimals > 18 || nowSeconds < 0n) throw new TypeError("invalid asset context");
+  if (
+    asset.status < 1 || asset.status > 3 || !Number.isInteger(asset.status)
+      || !Number.isInteger(asset.tokenDecimals) || asset.tokenDecimals < 6 || asset.tokenDecimals > 18
+      || asset.minimumAllocation < 414n || asset.minimumAllocation > MAX_UINT256 || nowSeconds < 0n
+  ) throw new TypeError("invalid asset context");
   if (asset.stockToken !== undefined) address(asset.stockToken);
   if (asset.userStockVault !== undefined) address(asset.userStockVault);
   const free = nonNegative(position.free), allocated = nonNegative(position.allocated), pending = nonNegative(position.pending), active = nonNegative(position.active);
@@ -72,12 +83,19 @@ export function buildVaultView(market: MarketReadModel, position: UserPositionRe
   const unlockAt = position.unlockAt === null ? null : nonNegative(position.unlockAt);
   const emergency = market.marketStatus === 3;
   const unlocked = unlockAt !== null && nowSeconds >= unlockAt;
-  const minimum = 5n * 10n ** BigInt(asset.tokenDecimals - 1) + 1n;
+  const operationalMarket = market.launchPhase === 2 && market.marketStatus < 3;
+  const minimum = asset.minimumAllocation;
+  const canRageQuit = allocated > 0n && operationalMarket;
+  const canForceRelease = allocated > 0n && emergency;
+  const canClaim = !emergency && (allocated === 0n || unlocked);
   return { free, allocated, pending, active, quoteClaimable, memeClaimable, minimumAllocationStock: minimum,
     pendingForSeconds: PENDING_SECONDS, unlockAfterSeconds: UNLOCK_SECONDS,
     allocationOpen: asset.status === 1 && market.launchPhase === 2 && market.marketStatus === 0,
-    canExit: allocated > 0n && market.launchPhase === 2 && (emergency || unlocked), canDecrease: allocated > 0n && !emergency && market.launchPhase === 2 && unlocked, canClose: allocated > 0n && !emergency && market.launchPhase === 2 && unlocked,
-    canMigrate: allocated > 0n && !emergency && market.launchPhase === 2 && unlocked, canForceRelease: allocated > 0n && emergency };
+    canExit: canRageQuit || canForceRelease || (allocated > 0n && operationalMarket && unlocked),
+    canDecrease: allocated > 0n && operationalMarket && unlocked,
+    canClose: allocated > 0n && operationalMarket && unlocked,
+    canMigrate: allocated > 0n && operationalMarket && unlocked,
+    canClaim, canRageQuit, canForceRelease };
 }
 
 export function buildStockApproval(stockToken: Address, vault: Address, amount_: bigint): ContractWriteRequest {
@@ -90,6 +108,7 @@ export function buildAllocate(manager: Address, marketId: `0x${string}`, amount_
 export function buildIncreaseAllocation(manager: Address, marketId: `0x${string}`, amount_: bigint) { address(manager); bytes32(marketId); positive(amount_); return request(v2Abis.AllocationManager, manager, "increaseAllocation", [marketId, amount_]); }
 export function buildDecreaseAllocation(manager: Address, marketId: `0x${string}`, amount_: bigint) { address(manager); bytes32(marketId); positive(amount_); return request(v2Abis.AllocationManager, manager, "decreaseAllocation", [marketId, amount_]); }
 export function buildCloseAllocation(manager: Address, marketId: `0x${string}`) { address(manager); bytes32(marketId); return request(v2Abis.AllocationManager, manager, "closeAllocation", [marketId]); }
+export function buildRageQuit(manager: Address, marketId: `0x${string}`) { address(manager); bytes32(marketId); return request(v2Abis.AllocationManager, manager, "rageQuit", [marketId]); }
 export function buildMigrateAllocation(manager: Address, from: `0x${string}`, to: `0x${string}`, amount_: bigint) { address(manager); bytes32(from); bytes32(to); positive(amount_); return request(v2Abis.AllocationManager, manager, "migrateAllocation", [from, to, amount_]); }
 export function buildDepositAndAllocate(manager: Address, marketId: `0x${string}`, deposit: bigint, allocation: bigint) { address(manager); bytes32(marketId); positive(deposit); positive(allocation); return request(v2Abis.AllocationManager, manager, "depositAndAllocate", [marketId, deposit, allocation]); }
 export function buildClaimStaker(feeVault: Address, marketId: `0x${string}`, asset: Address) { address(feeVault); bytes32(marketId); quoteAddress(asset); return request(v2Abis.ProtocolFeeVault, feeVault, "claimStaker", [marketId, asset]); }

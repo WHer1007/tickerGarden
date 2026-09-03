@@ -81,14 +81,13 @@ contract V2FactoryValidationHarness {
         });
         _policy.feePolicyId = feePolicyId;
         _policy.fields = V2MarketEconomics.FeePolicyInput({
-            executionSpecId: keccak256("V2-EXEC-3"),
+            executionSpecId: keccak256("V2-EXEC-4"),
             feePips: 10_000,
             lpShareBps: 2_000,
             poolKeyFee: 0,
             hookPermissionMask: 0x2044,
             feeAssetMode: 1,
-            stakeSaturationWholeTokens: 10,
-            stakerReleaseMode: 1
+            stakerNonLpShareBps: 5_000
         });
     }
 
@@ -103,12 +102,11 @@ contract V2FactoryValidationHarness {
     function preview(address creator, CreateMarketParams memory params)
         external
         view
-        returns (bytes32 expectedEconomics, uint256 stakeSaturationAmount, bytes32 marketId)
+        returns (bytes32 expectedEconomics, bytes32 marketId)
     {
         V2FactoryValidation.Snapshot memory snapshot =
             V2FactoryValidation.resolve(_registries, _policy, address(this), creator, params);
         expectedEconomics = snapshot.expectedEconomics;
-        stakeSaturationAmount = snapshot.stakeSaturationAmount;
         marketId = _marketId(creator, params, expectedEconomics);
     }
 
@@ -199,7 +197,6 @@ contract V2FactoryValidationTest is Test {
             assetUid: 0x5c4a029b7275e5230fd48512a07abde18983f60d7bef8648c280978d4ec500ed,
             stockToken: 0x10b4Fa177304452De91f0a2f0946E30898c90492,
             stockDecimals: 255,
-            stakeSaturationAmount: 8072,
             ponsBaselineId: 0x835edd49b4ce47edf6c0d4d310823b69161ee152cce114c266375244f58da915,
             ponsBaselineHash: 0xd87da152306d48fce2176e0124394a9b727fc9f0a7e5a01adf3202c46850c560,
             quoteAssetConfigId: 0x616f1a3de420a964cbefc678fc8cd8e58a1c8ca8057a9494712657d44e0f35a9,
@@ -212,25 +209,24 @@ contract V2FactoryValidationTest is Test {
             executionSpecId: 0x6d778d9fac5729e6943b9bef3a61d68f916469af230e2a521826a553ea0b5bad
         });
         assertEq(
-            harness.hashExpectedEconomics(input), 0xf996b6a28c8f7e0bfbbe7c82dafe38d9c449f99440af4d35ae522abcdab41484
+            harness.hashExpectedEconomics(input), 0x70d033529092e1c8583e5a470e57b3674a56dd894cfcde05bc120fd5d242df98
         );
     }
 
-    function test_resolvesActiveSnapshotsAndDerivesTenWholeStockSaturation() public view {
+    function test_resolvesActiveSnapshotsAndFixedFeePolicy() public view {
         CreateMarketParams memory params = _params(bytes32(uint256(1)));
-        (bytes32 economics, uint256 saturation, bytes32 marketId) = harness.preview(CREATOR, params);
+        (bytes32 economics, bytes32 marketId) = harness.preview(CREATOR, params);
         assertNotEq(economics, bytes32(0));
-        assertEq(saturation, 10 * 10 ** 18);
         assertNotEq(marketId, bytes32(0));
     }
 
     function test_sameAssetCanReserveMultipleDistinctMarketIdentities() public {
         CreateMarketParams memory first = _params(bytes32(uint256(1)));
-        (first.expectedEconomics,,) = harness.preview(CREATOR, first);
+        (first.expectedEconomics,) = harness.preview(CREATOR, first);
         bytes32 firstId = harness.validateAndReserve(CREATOR, first);
 
         CreateMarketParams memory second = _params(bytes32(uint256(2)));
-        (second.expectedEconomics,,) = harness.preview(CREATOR, second);
+        (second.expectedEconomics,) = harness.preview(CREATOR, second);
         bytes32 secondId = harness.validateAndReserve(CREATOR, second);
 
         assertNotEq(firstId, secondId);
@@ -241,7 +237,7 @@ contract V2FactoryValidationTest is Test {
     function test_duplicateIdentityFailsButDoesNotReserveAssetUidGlobally() public {
         CreateMarketParams memory params = _params(bytes32(uint256(1)));
         bytes32 predicted;
-        (params.expectedEconomics,, predicted) = harness.preview(CREATOR, params);
+        (params.expectedEconomics, predicted) = harness.preview(CREATOR, params);
         assertEq(harness.validateAndReserve(CREATOR, params), predicted);
         vm.expectRevert(
             abi.encodeWithSelector(V2FactoryValidationHarness.MarketIdentityAlreadyReserved.selector, predicted)
@@ -251,7 +247,7 @@ contract V2FactoryValidationTest is Test {
 
     function test_suppliedEconomicsMustEqualTheRegistryDerivedSnapshot() public {
         CreateMarketParams memory params = _params(bytes32(uint256(1)));
-        (bytes32 expected,,) = harness.preview(CREATOR, params);
+        (bytes32 expected,) = harness.preview(CREATOR, params);
         params.expectedEconomics = bytes32(uint256(123));
         vm.expectRevert(
             abi.encodeWithSelector(
@@ -399,7 +395,7 @@ contract V2FactoryValidationTest is Test {
             launchLockerImplementation: address(0x3006),
             launchLockerCodeHash: keccak256("locker"),
             feePolicyId: FEE_POLICY_ID,
-            executionSpecId: keccak256("V2-EXEC-3"),
+            executionSpecId: keccak256("V2-EXEC-4"),
             status: 1
         });
     }

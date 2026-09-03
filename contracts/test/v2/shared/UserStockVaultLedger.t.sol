@@ -162,7 +162,7 @@ contract UserStockVaultLedgerHarness is UserStockVaultLedger, IUserStockVaultLed
             address(_officialStockRegistry),
             address(_marketRegistry),
             _allocationManager,
-            keccak256("TickerGarden.UserStockVault.MultiAsset.v1")
+            keccak256("TickerGarden.UserStockVault.MultiAsset.v2")
         );
     }
 }
@@ -219,8 +219,8 @@ contract UserStockVaultLedgerTest is Test {
         selectors[0] = IOfficialStockRegistryV2.registerAsset.selector;
         accessManager.setTargetFunctionRole(address(registry), selectors, PROTOCOL_ADMIN_ROLE);
         accessManager.grantRole(PROTOCOL_ADMIN_ROLE, address(this), 0);
-        registry.registerAsset(ASSET_UID, address(stockToken), 18, address(vault));
-        registry.registerAsset(OTHER_ASSET_UID, address(otherToken), 6, address(vault));
+        registry.registerAsset(ASSET_UID, address(stockToken), 18, address(vault), 0.5 ether);
+        registry.registerAsset(OTHER_ASSET_UID, address(otherToken), 6, address(vault), 500_000);
 
         marketRegistry.configure(MARKET_A, ASSET_UID);
         marketRegistry.configure(MARKET_B, ASSET_UID);

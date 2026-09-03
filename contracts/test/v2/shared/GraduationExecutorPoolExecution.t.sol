@@ -70,12 +70,11 @@ contract PoolExecutionRegistryMock {
         _value = MarketView({
             config: MarketConfig({
                 assetUid: bytes32("ASSET"),
-                stakeSaturationAmount: 10 ether,
                 ponsBaselineId: bytes32("PONS"),
                 quoteAssetConfigId: quoteConfigId,
                 launchTemplateId: bytes32("TEMPLATE"),
                 feePolicyId: bytes32("FEE"),
-                executionSpecId: keccak256("V2-EXEC-3"),
+                executionSpecId: keccak256("V2-EXEC-4"),
                 expectedEconomics: bytes32("ECON"),
                 launchConfigId: 0,
                 creatorRevenueBeneficiaryAtCreation: address(0xBEEF),

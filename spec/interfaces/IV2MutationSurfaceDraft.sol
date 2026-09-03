@@ -36,7 +36,6 @@ struct LaunchTemplate {
 
 struct MarketConfig {
     bytes32 assetUid;
-    uint256 stakeSaturationAmount;
     bytes32 ponsBaselineId;
     bytes32 quoteAssetConfigId;
     bytes32 launchTemplateId;
@@ -92,7 +91,9 @@ struct SwapParams {
 
 interface IOfficialStockRegistryV2MutationDraft {
     // caller=PROTOCOL_ADMIN_ROLE; executionDelay=172800; stateDelay=0
-    function registerAsset(bytes32, address, uint8, address) external;
+    function registerAsset(bytes32, address, uint8, address, uint256) external;
+    // caller=PROTOCOL_ADMIN_ROLE; executionDelay=172800; stateDelay=0
+    function setMinimumAllocation(bytes32, uint256, bytes32) external;
     // caller=PAUSE_GUARDIAN_ROLE; executionDelay=0; stateDelay=0
     function pauseAsset(bytes32, bytes32) external;
     // caller=UNPAUSE_ROLE; executionDelay=86400; stateDelay=0
@@ -197,6 +198,8 @@ interface IUserStockVaultMutationDraft {
     // caller=ALLOCATION_MODULE; executionDelay=0; stateDelay=0
     function releaseAllocation(bytes32, address, bytes32, uint256) external;
     // caller=ALLOCATION_MODULE; executionDelay=0; stateDelay=0
+    function rageQuitAllocation(bytes32, address, bytes32, uint256) external;
+    // caller=ALLOCATION_MODULE; executionDelay=0; stateDelay=0
     function moveAllocation(bytes32, address, bytes32, bytes32, uint256) external;
 }
 
@@ -210,6 +213,8 @@ interface IAllocationManagerMutationDraft {
     // caller=PUBLIC; executionDelay=0; stateDelay=0
     function closeAllocation(bytes32) external;
     // caller=PUBLIC; executionDelay=0; stateDelay=0
+    function rageQuit(bytes32) external;
+    // caller=PUBLIC; executionDelay=0; stateDelay=0
     function migrateAllocation(bytes32, bytes32, uint256) external;
     // caller=PUBLIC; executionDelay=0; stateDelay=0
     function depositAndAllocate(bytes32, uint256, uint256) external;
@@ -220,6 +225,8 @@ interface IMemeStockGaugeMutationDraft {
     function addPending(address, uint256, uint64, uint64) external;
     // caller=ALLOCATION_MODULE; executionDelay=0; stateDelay=0
     function removeAllocation(address, uint256) external;
+    // caller=ALLOCATION_MODULE; executionDelay=0; stateDelay=0
+    function rageQuit(address) external returns (uint256, uint256, uint256, bool);
     // caller=PUBLIC; executionDelay=0; stateDelay=0
     function checkpointActivations() external returns (uint256, uint256);
     // caller=ALLOCATION_MODULE_OR_FEE_VAULT; executionDelay=0; stateDelay=0
@@ -260,6 +267,8 @@ interface IProtocolFeeVaultMutationDraft {
     function claimStaker(bytes32, address) external returns (uint256);
     // caller=PUBLIC; executionDelay=0; stateDelay=0
     function claimStakerFor(address, bytes32, address) external returns (uint256);
+    // caller=EXACT_REGISTERED_GAUGE; executionDelay=0; stateDelay=0
+    function recordForfeiture(bytes32, address, uint256, uint256) external;
     // caller=MARKET_CONTROLLER; executionDelay=0; stateDelay=0
     function freezeRecoveryCaps(bytes32, uint32, uint64, bytes32) external returns (uint256, uint256);
     // caller=RECOVERY_ROLE; executionDelay=86400; stateDelay=0

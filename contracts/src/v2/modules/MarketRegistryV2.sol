@@ -35,7 +35,7 @@ contract MarketRegistryV2 is IMarketRegistryV2 {
     uint64 internal constant RESCUE_DELAY_SECONDS = 7 days;
     uint64 internal constant EMERGENCY_RESTRICTION_SECONDS = 1 days;
 
-    bytes32 public constant EXECUTION_SPEC_ID = keccak256("V2-EXEC-3");
+    bytes32 public constant EXECUTION_SPEC_ID = keccak256("V2-EXEC-4");
 
     address public immutable factory;
     address public immutable officialStockRegistry;
@@ -356,12 +356,12 @@ contract MarketRegistryV2 is IMarketRegistryV2 {
 
     function _validateConfig(bytes32 marketId, MarketConfig calldata config) private view {
         if (
-            marketId == bytes32(0) || config.assetUid == bytes32(0) || config.stakeSaturationAmount == 0
-                || config.ponsBaselineId == bytes32(0) || config.quoteAssetConfigId == bytes32(0)
-                || config.launchTemplateId == bytes32(0) || config.feePolicyId == bytes32(0)
-                || config.expectedEconomics == bytes32(0) || config.creatorRevenueBeneficiaryAtCreation == address(0)
-                || config.memeToken == address(0) || config.curve == address(0) || config.gauge == address(0)
-                || config.graduatedHook == address(0) || config.marketController != marketController
+            marketId == bytes32(0) || config.assetUid == bytes32(0) || config.ponsBaselineId == bytes32(0)
+                || config.quoteAssetConfigId == bytes32(0) || config.launchTemplateId == bytes32(0)
+                || config.feePolicyId == bytes32(0) || config.expectedEconomics == bytes32(0)
+                || config.creatorRevenueBeneficiaryAtCreation == address(0) || config.memeToken == address(0)
+                || config.curve == address(0) || config.gauge == address(0) || config.graduatedHook == address(0)
+                || config.marketController != marketController
         ) revert InvalidMarketConfig();
         if (config.executionSpecId != EXECUTION_SPEC_ID) {
             revert InvalidExecutionSpecId(config.executionSpecId);
@@ -375,7 +375,6 @@ contract MarketRegistryV2 is IMarketRegistryV2 {
         if (
             asset.status != CONFIG_STATUS_ACTIVE || asset.stockToken == address(0) || asset.userStockVault == address(0)
                 || asset.tokenDecimals < 6 || asset.tokenDecimals > 18
-                || config.stakeSaturationAmount != 10 * (10 ** uint256(asset.tokenDecimals))
         ) revert InvalidMarketConfig();
 
         QuoteAssetConfig memory quote =

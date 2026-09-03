@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "executionSpecId": "V2-EXEC-3",
+  "executionSpecId": "V2-EXEC-4",
   "typeDefinitions": {
     "PoolKey": ["address currency0","address currency1","uint24 fee","int24 tickSpacing","address hooks"],
     "SwapParams": ["bool zeroForOne","int256 amountSpecified","uint160 sqrtPriceLimitX96"],
@@ -19,17 +19,20 @@
         "AssetView": ["address stockToken","address userStockVault","uint8 tokenDecimals","uint8 status"]
       },
       "functions": [
-        {"signature":"registerAsset(bytes32,address,uint8,address)","mutability":"nonpayable","caller":"PROTOCOL_ADMIN_ROLE","returns":"()"},
+        {"signature":"registerAsset(bytes32,address,uint8,address,uint256)","mutability":"nonpayable","caller":"PROTOCOL_ADMIN_ROLE","returns":"()"},
+        {"signature":"setMinimumAllocation(bytes32,uint256,bytes32)","mutability":"nonpayable","caller":"PROTOCOL_ADMIN_ROLE","returns":"()"},
         {"signature":"pauseAsset(bytes32,bytes32)","mutability":"nonpayable","caller":"PAUSE_GUARDIAN_ROLE","returns":"()"},
         {"signature":"unpauseAsset(bytes32)","mutability":"nonpayable","caller":"UNPAUSE_ROLE","returns":"()"},
         {"signature":"retireAsset(bytes32,bytes32)","mutability":"nonpayable","caller":"PROTOCOL_ADMIN_ROLE","returns":"()"},
         {"signature":"asset(bytes32)","mutability":"view","caller":"PUBLIC","returns":"(AssetView)"},
+        {"signature":"minimumAllocation(bytes32)","mutability":"view","caller":"PUBLIC","returns":"(uint256)"},
         {"signature":"vaultSchemaId(address)","mutability":"view","caller":"PUBLIC","returns":"(bytes32)"},
         {"signature":"vaultForSchema(bytes32)","mutability":"view","caller":"PUBLIC","returns":"(address)"}
       ],
       "events": [
         "StockVaultRegistered(address indexed userStockVault,bytes32 indexed schemaId,address indexed marketRegistry,address allocationManager)",
         "AssetRegistered(bytes32 indexed assetUid,address indexed stockToken,address indexed userStockVault,uint8 tokenDecimals)",
+        "AssetMinimumAllocationChanged(bytes32 indexed assetUid,uint256 oldMinimum,uint256 newMinimum,bytes32 reasonHash)",
         "AssetStatusChanged(bytes32 indexed assetUid,uint8 oldStatus,uint8 newStatus,bytes32 reasonHash)"
       ]
     },
@@ -109,13 +112,13 @@
         {"signature":"runtimeBindings()","mutability":"view","caller":"PUBLIC","returns":"(address,address,address,address,address,address,address,address)"}
       ],
       "events": [
-        "MarketCreated(bytes32 indexed marketId,bytes32 indexed assetUid,address indexed memeToken,address curve,address gauge,address quoteAsset,uint256 stakeSaturationAmount,bytes32 ponsBaselineId,bytes32 quoteAssetConfigId,bytes32 expectedEconomics)"
+        "MarketCreated(bytes32 indexed marketId,bytes32 indexed assetUid,address indexed memeToken,address curve,address gauge,address quoteAsset,bytes32 ponsBaselineId,bytes32 quoteAssetConfigId,bytes32 expectedEconomics)"
       ]
     },
     {
       "module": "MarketRegistryV2",
       "structs": {
-        "MarketConfig": ["bytes32 assetUid","uint256 stakeSaturationAmount","bytes32 ponsBaselineId","bytes32 quoteAssetConfigId","bytes32 launchTemplateId","bytes32 feePolicyId","bytes32 executionSpecId","bytes32 expectedEconomics","uint256 launchConfigId","address creatorRevenueBeneficiaryAtCreation","address memeToken","address curve","address gauge","address quoteAsset","address graduatedHook","address marketController"],
+        "MarketConfig": ["bytes32 assetUid","bytes32 ponsBaselineId","bytes32 quoteAssetConfigId","bytes32 launchTemplateId","bytes32 feePolicyId","bytes32 executionSpecId","bytes32 expectedEconomics","uint256 launchConfigId","address creatorRevenueBeneficiaryAtCreation","address memeToken","address curve","address gauge","address quoteAsset","address graduatedHook","address marketController"],
         "MarketRuntime": ["bytes32 poolId","uint32 sourceVersion","uint32 recoveryEpoch","uint64 sweptAt","uint64 statusSince","uint64 restrictedSince","uint8 launchPhase","uint8 marketStatus"],
         "MarketView": ["MarketConfig config","MarketRuntime runtime"],
         "CanonicalRoute": ["PoolKey poolKey","bytes32 poolId","address swapRouter","address quoter","address hook","address quoteAsset","address memeToken","address gauge","address curve","address launchLocker","uint32 sourceVersion","uint8 launchPhase","uint8 marketStatus","bool curveTradingEnabled","bool poolTradingEnabled"]
@@ -209,6 +212,7 @@
         {"signature":"forceReleaseAllocation(bytes32,bytes32)","mutability":"nonpayable","caller":"PUBLIC","returns":"(uint256)"},
         {"signature":"lockAllocation(bytes32,address,bytes32,uint256)","mutability":"nonpayable","caller":"ALLOCATION_MODULE","returns":"()"},
         {"signature":"releaseAllocation(bytes32,address,bytes32,uint256)","mutability":"nonpayable","caller":"ALLOCATION_MODULE","returns":"()"},
+        {"signature":"rageQuitAllocation(bytes32,address,bytes32,uint256)","mutability":"nonpayable","caller":"ALLOCATION_MODULE","returns":"()"},
         {"signature":"moveAllocation(bytes32,address,bytes32,bytes32,uint256)","mutability":"nonpayable","caller":"ALLOCATION_MODULE","returns":"()"},
         {"signature":"deposited(bytes32,address)","mutability":"view","caller":"PUBLIC","returns":"(uint256)"},
         {"signature":"allocated(bytes32,address)","mutability":"view","caller":"PUBLIC","returns":"(uint256)"},
@@ -224,6 +228,7 @@
         "StockWithdrawn(bytes32 indexed assetUid,address indexed user,uint256 amount)",
         "AllocationLocked(bytes32 indexed assetUid,address indexed user,bytes32 indexed marketId,uint256 amount,uint256 userMarketAllocation,uint256 userTotalAllocated)",
         "AllocationReleased(bytes32 indexed assetUid,address indexed user,bytes32 indexed marketId,uint256 amount,uint256 userMarketAllocation,uint256 userTotalAllocated)",
+        "AllocationRageQuit(bytes32 indexed assetUid,address indexed user,bytes32 indexed marketId,uint256 amount)",
         "AllocationMoved(bytes32 indexed assetUid,address indexed user,bytes32 indexed fromMarketId,bytes32 toMarketId,uint256 amount)",
         "AllocationForceReleased(bytes32 indexed assetUid,address indexed user,bytes32 indexed marketId,uint256 amount,uint32 recoveryEpoch)"
       ]
@@ -235,11 +240,13 @@
         {"signature":"increaseAllocation(bytes32,uint256)","mutability":"nonpayable","caller":"PUBLIC","returns":"()"},
         {"signature":"decreaseAllocation(bytes32,uint256)","mutability":"nonpayable","caller":"PUBLIC","returns":"()"},
         {"signature":"closeAllocation(bytes32)","mutability":"nonpayable","caller":"PUBLIC","returns":"()"},
+        {"signature":"rageQuit(bytes32)","mutability":"nonpayable","caller":"PUBLIC","returns":"()"},
         {"signature":"migrateAllocation(bytes32,bytes32,uint256)","mutability":"nonpayable","caller":"PUBLIC","returns":"()"},
         {"signature":"depositAndAllocate(bytes32,uint256,uint256)","mutability":"nonpayable","caller":"PUBLIC","returns":"()"}
       ],
       "events": [
-        "AllocationMigrated(address indexed user,bytes32 indexed fromMarketId,bytes32 indexed toMarketId,uint256 amount,uint256 sourceRemaining,uint64 targetPendingGeneration,uint64 targetUnlockAt)"
+        "AllocationMigrated(address indexed user,bytes32 indexed fromMarketId,bytes32 indexed toMarketId,uint256 amount,uint256 sourceRemaining,uint64 targetPendingGeneration,uint64 targetUnlockAt)",
+        "AllocationRageQuitExecuted(address indexed user,bytes32 indexed marketId,uint256 principal,uint256 quoteForfeited,uint256 memeForfeited,bool redistributed)"
       ]
     },
     {
@@ -283,6 +290,7 @@
         {"signature":"gaugeIdentity()","mutability":"view","caller":"PUBLIC","returns":"(GaugeIdentity)"},
         {"signature":"addPending(address,uint256,uint64,uint64)","mutability":"nonpayable","caller":"ALLOCATION_MODULE","returns":"()"},
         {"signature":"removeAllocation(address,uint256)","mutability":"nonpayable","caller":"ALLOCATION_MODULE","returns":"()"},
+        {"signature":"rageQuit(address)","mutability":"nonpayable","caller":"ALLOCATION_MODULE","returns":"(uint256,uint256,uint256,bool)"},
         {"signature":"checkpointActivations()","mutability":"nonpayable","caller":"PUBLIC","returns":"(uint256,uint256)"},
         {"signature":"settle(address)","mutability":"nonpayable","caller":"ALLOCATION_MODULE_OR_FEE_VAULT","returns":"()"},
         {"signature":"creditStakerFee(address,uint256,bytes32)","mutability":"nonpayable","caller":"FEE_VAULT","returns":"(uint256,uint256)"},
@@ -301,7 +309,9 @@
         "PendingRescheduled(address indexed user,bytes32 indexed marketId,uint64 oldGeneration,uint64 newGeneration,uint256 combinedAmount,uint64 unlockAt)",
         "ActivationBucketProcessed(bytes32 indexed marketId,uint64 indexed generation,uint256 amount,uint256 quoteAccumulator,uint256 memeAccumulator,uint256 refs)",
         "PendingMaterialized(address indexed user,bytes32 indexed marketId,uint64 indexed generation,uint256 amount)",
-        "StakerFeeCredited(bytes32 indexed marketId,address indexed feeAsset,bytes32 indexed feeId,uint256 amount,uint256 accumulatorDelta,uint256 indexRemainder)"
+        "StakerFeeCredited(bytes32 indexed marketId,address indexed feeAsset,bytes32 indexed feeId,uint256 amount,uint256 accumulatorDelta,uint256 indexRemainder)",
+        "ForfeitedRewardRedistributed(bytes32 indexed marketId,address indexed user,address indexed feeAsset,uint256 amount,uint256 accumulatorDelta,uint256 indexRemainder)",
+        "GaugeRageQuit(address indexed user,bytes32 indexed marketId,uint256 principal,uint256 quoteForfeited,uint256 memeForfeited,bool redistributed)"
       ]
     },
     {
@@ -349,6 +359,7 @@
         {"signature":"claimPlatform(bytes32,address)","mutability":"nonpayable","caller":"PUBLIC","returns":"(uint256)"},
         {"signature":"claimStaker(bytes32,address)","mutability":"nonpayable","caller":"PUBLIC","returns":"(uint256)"},
         {"signature":"claimStakerFor(address,bytes32,address)","mutability":"nonpayable","caller":"PUBLIC","returns":"(uint256)"},
+        {"signature":"recordForfeiture(bytes32,address,uint256,uint256)","mutability":"nonpayable","caller":"EXACT_REGISTERED_GAUGE","returns":"()"},
         {"signature":"freezeRecoveryCaps(bytes32,uint32,uint64,bytes32)","mutability":"nonpayable","caller":"MARKET_CONTROLLER","returns":"(uint256,uint256)"},
         {"signature":"proposeRecoveryRoot(bytes32,uint32,address,bytes32,uint256)","mutability":"nonpayable","caller":"RECOVERY_ROLE","returns":"(uint32,uint64)"},
         {"signature":"cancelRecoveryRoot(bytes32,uint32,address,uint32)","mutability":"nonpayable","caller":"PAUSE_GUARDIAN_ROLE","returns":"()"},
@@ -356,6 +367,7 @@
         {"signature":"claimRecovery(bytes32,uint32,address,uint256,bytes32[])","mutability":"nonpayable","caller":"PUBLIC","returns":"()"},
         {"signature":"liability(bytes32,address,uint8)","mutability":"view","caller":"PUBLIC","returns":"(uint256)"},
         {"signature":"creatorLiability(bytes32,uint32,address)","mutability":"view","caller":"PUBLIC","returns":"(uint256)"},
+        {"signature":"forfeitureReserve(bytes32,address)","mutability":"view","caller":"PUBLIC","returns":"(uint256)"},
         {"signature":"recoverySnapshot(bytes32,uint32)","mutability":"view","caller":"PUBLIC","returns":"(uint64,bytes32)"},
         {"signature":"recoveryRoot(bytes32,uint32,address)","mutability":"view","caller":"PUBLIC","returns":"(RecoveryRootView)"},
         {"signature":"recoveryCap(bytes32,uint32,address)","mutability":"view","caller":"PUBLIC","returns":"(uint256)"},
@@ -363,9 +375,11 @@
         {"signature":"consumedFeeId(bytes32)","mutability":"view","caller":"PUBLIC","returns":"(bool)"}
       ],
       "events": [
-        "FeeBucketsCredited(bytes32 indexed marketId,uint32 indexed creatorEpoch,address indexed feeAsset,bytes32 feeId,uint256 creatorAmount,uint256 stakerAmount,uint256 platformAmount,uint256 activeStock,uint256 stakeSaturationAmount)",
+        "FeeBucketsCredited(bytes32 indexed marketId,uint32 indexed creatorEpoch,address indexed feeAsset,bytes32 feeId,uint256 creatorAmount,uint256 stakerAmount,uint256 platformAmount,uint256 activeStock)",
         "CurveFeesSwept(bytes32 indexed marketId,uint32 indexed creatorEpoch,address indexed quoteAsset,uint64 sweepNonce,bytes32 feeId,uint256 amount,uint256 creatorAmount,uint256 platformAmount)",
         "FeeClaimed(uint8 indexed beneficiaryType,address indexed beneficiary,bytes32 indexed marketId,uint32 beneficiaryEpoch,address feeAsset,uint256 amount)",
+        "ForfeitureReserved(bytes32 indexed marketId,address indexed user,address indexed feeAsset,uint256 amount,uint256 reserveBalance)",
+        "ForfeitureReserveConverted(bytes32 indexed marketId,address indexed feeAsset,uint256 amount)",
         "RecoveryCapsFrozen(bytes32 indexed marketId,uint32 indexed recoveryEpoch,uint64 snapshotBlock,bytes32 stateHash,address quoteAsset,uint256 quoteCap,address memeAsset,uint256 memeCap)",
         "RecoveryRootProposed(bytes32 indexed marketId,uint32 indexed recoveryEpoch,address indexed feeAsset,uint32 proposalNonce,bytes32 root,uint256 declaredTotal,uint64 finalizableAt)",
         "RecoveryRootCancelled(bytes32 indexed marketId,uint32 indexed recoveryEpoch,address indexed feeAsset,uint32 proposalNonce)",
@@ -448,8 +462,16 @@
     "FeeBalanceDeltaMismatch(address,uint256,uint256)",
     "ActivationSlotCollision(uint8,uint64,uint64)",
     "PendingGenerationNotFound(uint64)",
+    "InvalidMinimumAllocation(bytes32,uint256)",
+    "AssetNotRegistered(bytes32)",
+    "InvalidAssetMinimumAllocation(bytes32,uint256)",
     "PositionBelowMinimum(uint256,uint256)",
     "PositionLockedUntil(uint64)",
+    "InvalidRageQuitAmount(uint256,uint256)",
+    "InvalidRageQuitUser(address)",
+    "NoRageQuitPosition(address)",
+    "UnauthorizedForfeitureGauge(address,address)",
+    "InvalidForfeiture(address,uint256,uint256)",
     "AllocationExceedsDeposit(uint256,uint256)",
     "AllocationLedgerMismatch()",
     "StockAllocationClosed(bytes32)",

@@ -1,5 +1,5 @@
 /** Permissionless V2 maintenance boundary; no keys, admin selectors, or calldata. */
-export const EXECUTION_SPEC_ID = "V2-EXEC-3" as const;
+export const EXECUTION_SPEC_ID = "V2-EXEC-4" as const;
 export const MAINTENANCE_OPERATIONS = Object.freeze([
   "sweep",
   "checkpoint",

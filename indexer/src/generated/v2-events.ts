@@ -43,6 +43,20 @@ export interface V2EventArgsBySignature {
     readonly toMarketId: string;
     readonly amount: bigint;
   };
+  readonly "AllocationRageQuit(bytes32,address,bytes32,uint256)": {
+    readonly assetUid: string;
+    readonly user: string;
+    readonly marketId: string;
+    readonly amount: bigint;
+  };
+  readonly "AllocationRageQuitExecuted(address,bytes32,uint256,uint256,uint256,bool)": {
+    readonly user: string;
+    readonly marketId: string;
+    readonly principal: bigint;
+    readonly quoteForfeited: bigint;
+    readonly memeForfeited: bigint;
+    readonly redistributed: boolean;
+  };
   readonly "AllocationReleased(bytes32,address,bytes32,uint256,uint256,uint256)": {
     readonly assetUid: string;
     readonly user: string;
@@ -55,6 +69,12 @@ export interface V2EventArgsBySignature {
     readonly owner: string;
     readonly spender: string;
     readonly value: bigint;
+  };
+  readonly "AssetMinimumAllocationChanged(bytes32,uint256,uint256,bytes32)": {
+    readonly assetUid: string;
+    readonly oldMinimum: bigint;
+    readonly newMinimum: bigint;
+    readonly reasonHash: string;
   };
   readonly "AssetRegistered(bytes32,address,address,uint8)": {
     readonly assetUid: string;
@@ -150,7 +170,7 @@ export interface V2EventArgsBySignature {
     readonly keyHash: string;
     readonly sourceVersion: bigint;
   };
-  readonly "FeeBucketsCredited(bytes32,uint32,address,bytes32,uint256,uint256,uint256,uint256,uint256)": {
+  readonly "FeeBucketsCredited(bytes32,uint32,address,bytes32,uint256,uint256,uint256,uint256)": {
     readonly marketId: string;
     readonly creatorEpoch: bigint;
     readonly feeAsset: string;
@@ -159,7 +179,6 @@ export interface V2EventArgsBySignature {
     readonly stakerAmount: bigint;
     readonly platformAmount: bigint;
     readonly activeStock: bigint;
-    readonly stakeSaturationAmount: bigint;
   };
   readonly "FeeClaimed(uint8,address,bytes32,uint32,address,uint256)": {
     readonly beneficiaryType: bigint;
@@ -168,6 +187,34 @@ export interface V2EventArgsBySignature {
     readonly beneficiaryEpoch: bigint;
     readonly feeAsset: string;
     readonly amount: bigint;
+  };
+  readonly "ForfeitedRewardRedistributed(bytes32,address,address,uint256,uint256,uint256)": {
+    readonly marketId: string;
+    readonly user: string;
+    readonly feeAsset: string;
+    readonly amount: bigint;
+    readonly accumulatorDelta: bigint;
+    readonly indexRemainder: bigint;
+  };
+  readonly "ForfeitureReserveConverted(bytes32,address,uint256)": {
+    readonly marketId: string;
+    readonly feeAsset: string;
+    readonly amount: bigint;
+  };
+  readonly "ForfeitureReserved(bytes32,address,address,uint256,uint256)": {
+    readonly marketId: string;
+    readonly user: string;
+    readonly feeAsset: string;
+    readonly amount: bigint;
+    readonly reserveBalance: bigint;
+  };
+  readonly "GaugeRageQuit(address,bytes32,uint256,uint256,uint256,bool)": {
+    readonly user: string;
+    readonly marketId: string;
+    readonly principal: bigint;
+    readonly quoteForfeited: bigint;
+    readonly memeForfeited: bigint;
+    readonly redistributed: boolean;
   };
   readonly "LaunchPhaseChanged(bytes32,uint8,uint8,uint64,bytes32,uint32)": {
     readonly marketId: string;
@@ -208,14 +255,13 @@ export interface V2EventArgsBySignature {
     readonly remaining0: bigint;
     readonly remaining1: bigint;
   };
-  readonly "MarketCreated(bytes32,bytes32,address,address,address,address,uint256,bytes32,bytes32,bytes32)": {
+  readonly "MarketCreated(bytes32,bytes32,address,address,address,address,bytes32,bytes32,bytes32)": {
     readonly marketId: string;
     readonly assetUid: string;
     readonly memeToken: string;
     readonly curve: string;
     readonly gauge: string;
     readonly quoteAsset: string;
-    readonly stakeSaturationAmount: bigint;
     readonly ponsBaselineId: string;
     readonly quoteAssetConfigId: string;
     readonly expectedEconomics: string;
@@ -445,6 +491,18 @@ export const V2_EVENT_ABI = [
     inputs: [{"name":"assetUid","type":"bytes32","indexed":true},{"name":"user","type":"address","indexed":true},{"name":"fromMarketId","type":"bytes32","indexed":true},{"name":"toMarketId","type":"bytes32","indexed":false},{"name":"amount","type":"uint256","indexed":false}],
   },
   {
+    signature: "AllocationRageQuit(bytes32,address,bytes32,uint256)",
+    name: "AllocationRageQuit",
+    modules: ["UserStockVault"],
+    inputs: [{"name":"assetUid","type":"bytes32","indexed":true},{"name":"user","type":"address","indexed":true},{"name":"marketId","type":"bytes32","indexed":true},{"name":"amount","type":"uint256","indexed":false}],
+  },
+  {
+    signature: "AllocationRageQuitExecuted(address,bytes32,uint256,uint256,uint256,bool)",
+    name: "AllocationRageQuitExecuted",
+    modules: ["AllocationManager"],
+    inputs: [{"name":"user","type":"address","indexed":true},{"name":"marketId","type":"bytes32","indexed":true},{"name":"principal","type":"uint256","indexed":false},{"name":"quoteForfeited","type":"uint256","indexed":false},{"name":"memeForfeited","type":"uint256","indexed":false},{"name":"redistributed","type":"bool","indexed":false}],
+  },
+  {
     signature: "AllocationReleased(bytes32,address,bytes32,uint256,uint256,uint256)",
     name: "AllocationReleased",
     modules: ["UserStockVault"],
@@ -455,6 +513,12 @@ export const V2_EVENT_ABI = [
     name: "Approval",
     modules: ["TickerMemeTokenV2"],
     inputs: [{"name":"owner","type":"address","indexed":true},{"name":"spender","type":"address","indexed":true},{"name":"value","type":"uint256","indexed":false}],
+  },
+  {
+    signature: "AssetMinimumAllocationChanged(bytes32,uint256,uint256,bytes32)",
+    name: "AssetMinimumAllocationChanged",
+    modules: ["OfficialStockRegistryV2"],
+    inputs: [{"name":"assetUid","type":"bytes32","indexed":true},{"name":"oldMinimum","type":"uint256","indexed":false},{"name":"newMinimum","type":"uint256","indexed":false},{"name":"reasonHash","type":"bytes32","indexed":false}],
   },
   {
     signature: "AssetRegistered(bytes32,address,address,uint8)",
@@ -547,16 +611,40 @@ export const V2_EVENT_ABI = [
     inputs: [{"name":"marketId","type":"bytes32","indexed":true},{"name":"poolId","type":"bytes32","indexed":true},{"name":"keyHash","type":"bytes32","indexed":false},{"name":"sourceVersion","type":"uint32","indexed":false}],
   },
   {
-    signature: "FeeBucketsCredited(bytes32,uint32,address,bytes32,uint256,uint256,uint256,uint256,uint256)",
+    signature: "FeeBucketsCredited(bytes32,uint32,address,bytes32,uint256,uint256,uint256,uint256)",
     name: "FeeBucketsCredited",
     modules: ["ProtocolFeeVault"],
-    inputs: [{"name":"marketId","type":"bytes32","indexed":true},{"name":"creatorEpoch","type":"uint32","indexed":true},{"name":"feeAsset","type":"address","indexed":true},{"name":"feeId","type":"bytes32","indexed":false},{"name":"creatorAmount","type":"uint256","indexed":false},{"name":"stakerAmount","type":"uint256","indexed":false},{"name":"platformAmount","type":"uint256","indexed":false},{"name":"activeStock","type":"uint256","indexed":false},{"name":"stakeSaturationAmount","type":"uint256","indexed":false}],
+    inputs: [{"name":"marketId","type":"bytes32","indexed":true},{"name":"creatorEpoch","type":"uint32","indexed":true},{"name":"feeAsset","type":"address","indexed":true},{"name":"feeId","type":"bytes32","indexed":false},{"name":"creatorAmount","type":"uint256","indexed":false},{"name":"stakerAmount","type":"uint256","indexed":false},{"name":"platformAmount","type":"uint256","indexed":false},{"name":"activeStock","type":"uint256","indexed":false}],
   },
   {
     signature: "FeeClaimed(uint8,address,bytes32,uint32,address,uint256)",
     name: "FeeClaimed",
     modules: ["ProtocolFeeVault"],
     inputs: [{"name":"beneficiaryType","type":"uint8","indexed":true},{"name":"beneficiary","type":"address","indexed":true},{"name":"marketId","type":"bytes32","indexed":true},{"name":"beneficiaryEpoch","type":"uint32","indexed":false},{"name":"feeAsset","type":"address","indexed":false},{"name":"amount","type":"uint256","indexed":false}],
+  },
+  {
+    signature: "ForfeitedRewardRedistributed(bytes32,address,address,uint256,uint256,uint256)",
+    name: "ForfeitedRewardRedistributed",
+    modules: ["MemeStockGauge"],
+    inputs: [{"name":"marketId","type":"bytes32","indexed":true},{"name":"user","type":"address","indexed":true},{"name":"feeAsset","type":"address","indexed":true},{"name":"amount","type":"uint256","indexed":false},{"name":"accumulatorDelta","type":"uint256","indexed":false},{"name":"indexRemainder","type":"uint256","indexed":false}],
+  },
+  {
+    signature: "ForfeitureReserveConverted(bytes32,address,uint256)",
+    name: "ForfeitureReserveConverted",
+    modules: ["ProtocolFeeVault"],
+    inputs: [{"name":"marketId","type":"bytes32","indexed":true},{"name":"feeAsset","type":"address","indexed":true},{"name":"amount","type":"uint256","indexed":false}],
+  },
+  {
+    signature: "ForfeitureReserved(bytes32,address,address,uint256,uint256)",
+    name: "ForfeitureReserved",
+    modules: ["ProtocolFeeVault"],
+    inputs: [{"name":"marketId","type":"bytes32","indexed":true},{"name":"user","type":"address","indexed":true},{"name":"feeAsset","type":"address","indexed":true},{"name":"amount","type":"uint256","indexed":false},{"name":"reserveBalance","type":"uint256","indexed":false}],
+  },
+  {
+    signature: "GaugeRageQuit(address,bytes32,uint256,uint256,uint256,bool)",
+    name: "GaugeRageQuit",
+    modules: ["MemeStockGauge"],
+    inputs: [{"name":"user","type":"address","indexed":true},{"name":"marketId","type":"bytes32","indexed":true},{"name":"principal","type":"uint256","indexed":false},{"name":"quoteForfeited","type":"uint256","indexed":false},{"name":"memeForfeited","type":"uint256","indexed":false},{"name":"redistributed","type":"bool","indexed":false}],
   },
   {
     signature: "LaunchPhaseChanged(bytes32,uint8,uint8,uint64,bytes32,uint32)",
@@ -595,10 +683,10 @@ export const V2_EVENT_ABI = [
     inputs: [{"name":"marketId","type":"bytes32","indexed":true},{"name":"amount0","type":"uint256","indexed":false},{"name":"amount1","type":"uint256","indexed":false},{"name":"liquidityAdded","type":"uint128","indexed":false},{"name":"remaining0","type":"uint256","indexed":false},{"name":"remaining1","type":"uint256","indexed":false}],
   },
   {
-    signature: "MarketCreated(bytes32,bytes32,address,address,address,address,uint256,bytes32,bytes32,bytes32)",
+    signature: "MarketCreated(bytes32,bytes32,address,address,address,address,bytes32,bytes32,bytes32)",
     name: "MarketCreated",
     modules: ["TickerGardenFactoryV2"],
-    inputs: [{"name":"marketId","type":"bytes32","indexed":true},{"name":"assetUid","type":"bytes32","indexed":true},{"name":"memeToken","type":"address","indexed":true},{"name":"curve","type":"address","indexed":false},{"name":"gauge","type":"address","indexed":false},{"name":"quoteAsset","type":"address","indexed":false},{"name":"stakeSaturationAmount","type":"uint256","indexed":false},{"name":"ponsBaselineId","type":"bytes32","indexed":false},{"name":"quoteAssetConfigId","type":"bytes32","indexed":false},{"name":"expectedEconomics","type":"bytes32","indexed":false}],
+    inputs: [{"name":"marketId","type":"bytes32","indexed":true},{"name":"assetUid","type":"bytes32","indexed":true},{"name":"memeToken","type":"address","indexed":true},{"name":"curve","type":"address","indexed":false},{"name":"gauge","type":"address","indexed":false},{"name":"quoteAsset","type":"address","indexed":false},{"name":"ponsBaselineId","type":"bytes32","indexed":false},{"name":"quoteAssetConfigId","type":"bytes32","indexed":false},{"name":"expectedEconomics","type":"bytes32","indexed":false}],
   },
   {
     signature: "MarketRegistered(bytes32,bytes32,address,address,address,uint32)",
