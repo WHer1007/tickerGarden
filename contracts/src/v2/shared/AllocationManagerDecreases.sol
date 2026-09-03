@@ -12,7 +12,7 @@ abstract contract AllocationManagerDecreases is AllocationManagerIncreases {
         IUserStockVault vault;
         IMemeStockGauge gauge;
         bytes32 assetUid;
-        uint8 tokenDecimals;
+        uint256 minimumAllocation;
     }
 
     error PositionLockedUntil(uint64 unlockAt);
@@ -46,9 +46,8 @@ abstract contract AllocationManagerDecreases is AllocationManagerIncreases {
         uint256 amount = closePosition ? currentPosition : requestedAmount;
         if (amount > currentPosition) revert InsufficientAllocation(amount, currentPosition);
         uint256 remainingPosition = currentPosition - amount;
-        uint256 minimumPosition = 5 * (10 ** (context.tokenDecimals - 1)) + 1;
-        if (remainingPosition != 0 && remainingPosition < minimumPosition) {
-            revert PositionBelowMinimum(remainingPosition, minimumPosition);
+        if (remainingPosition != 0 && remainingPosition < context.minimumAllocation) {
+            revert PositionBelowMinimum(remainingPosition, context.minimumAllocation);
         }
 
         context.gauge.removeAllocation(user, amount);
@@ -57,6 +56,30 @@ abstract contract AllocationManagerDecreases is AllocationManagerIncreases {
         }
         context.vault.releaseAllocation(context.assetUid, user, marketId, amount);
         if (_checkedPosition(context.gauge, context.vault, context.assetUid, user, marketId) != remainingPosition) {
+            revert AllocationLedgerMismatch();
+        }
+    }
+
+    function _rageQuitAllocation(address user, bytes32 marketId)
+        internal
+        nonReentrant
+        returns (uint256 principal, uint256 quoteForfeited, uint256 memeForfeited, bool redistributed)
+    {
+        if (user == address(0) || user == address(this)) revert InvalidAllocationUser(user);
+        ExitContext memory context = _exitContext(marketId);
+
+        uint256 vaultPosition = context.vault.allocation(context.assetUid, user, marketId);
+        if (vaultPosition == 0) revert NoAllocationPosition(user, marketId);
+        if (_gaugePosition(context.gauge, user) != vaultPosition) revert AllocationLedgerMismatch();
+
+        (principal, quoteForfeited, memeForfeited, redistributed) = context.gauge.rageQuit(user);
+        if (principal != vaultPosition || _gaugePosition(context.gauge, user) != 0) {
+            revert AllocationLedgerMismatch();
+        }
+
+        context.vault.rageQuitAllocation(context.assetUid, user, marketId, principal);
+        if (context.vault.allocation(context.assetUid, user, marketId) != 0 || _gaugePosition(context.gauge, user) != 0)
+        {
             revert AllocationLedgerMismatch();
         }
     }
@@ -72,7 +95,7 @@ abstract contract AllocationManagerDecreases is AllocationManagerIncreases {
             revert StockAllocationClosed(marketId);
         }
         context.assetUid = marketView.config.assetUid;
-        context.tokenDecimals = assetView.tokenDecimals;
+        context.minimumAllocation = _minimumAllocation(context.assetUid);
     }
 
     function _gaugePosition(IMemeStockGauge gauge, address user) internal view returns (uint256 amount) {

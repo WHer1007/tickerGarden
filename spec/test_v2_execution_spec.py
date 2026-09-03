@@ -18,9 +18,10 @@ from spec.v2_reference_model import (
     LP_SHARE_BPS,
     MAX_ACCOUNTING_AMOUNT,
     MAX_LIFETIME_FEE_CREDITS,
+    MINIMUM_SAFE_ALLOCATION_RAW,
     MIN_SUPPORTED_ASSET_DECIMALS,
     PIPS_DENOMINATOR,
-    STAKE_SATURATION_WHOLE_TOKENS,
+    STAKER_NON_LP_SHARE_BPS,
     UINT64_MAX,
     UINT256_MAX,
     accumulator_lifetime_bound,
@@ -35,7 +36,6 @@ from spec.v2_reference_model import (
     effective_snipe_tax_bps,
     graduation_seed,
     maximum_post_graduation_fee_base,
-    minimum_nonzero_stock_position,
     mul_div_ceil,
     mul_div_floor,
     partition_curve_fee,
@@ -51,7 +51,7 @@ from spec.v2_reference_model import (
     remove_activation_position,
     schedule_new_pending,
     settle_user_reward,
-    stake_saturation_amount,
+    validate_minimum_allocation,
 )
 
 
@@ -82,7 +82,7 @@ class V2ExecutionSpecTest(unittest.TestCase):
         cls.official_stock_catalog_raw = (ROOT / "v2_rh_official_stock_catalog.source.json").read_bytes()
 
     def test_spec_ids_match(self):
-        expected = "V2-EXEC-3"
+        expected = "V2-EXEC-4"
         self.assertEqual(self.manifest["executionSpecId"], expected)
         self.assertEqual(self.permissions["executionSpecId"], expected)
         self.assertEqual(self.abi["executionSpecId"], expected)
@@ -537,6 +537,7 @@ class V2ExecutionSpecTest(unittest.TestCase):
         self.assertEqual(
             graduation_functions["graduateFromCurve(bytes32)"]["caller"],
             "EXACT_REGISTERED_CURVE",
+            "EXACT_REGISTERED_GAUGE",
         )
         self.assertIn(
             "Swept_AND_ACTIVE",
@@ -647,24 +648,24 @@ class V2ExecutionSpecTest(unittest.TestCase):
         self.assertEqual(lock["toolchain"]["solcVersion"], manifest_deps["solidity"])
         self.assertEqual(lock["toolchain"]["evmVersion"], manifest_deps["evmVersion"])
 
-    def test_integer_fee_partition_and_linear_staker_bucket_conserve(self):
-        saturation = 10
+    def test_integer_fee_partition_and_fixed_active_staker_bucket_conserve(self):
         for base in range(0, 100_001):
-            total_fee = base * 10_000 // 1_000_000
-            lp_amount = total_fee * 2_000 // 10_000
-            non_lp = total_fee - lp_amount
-            self.assertEqual(lp_amount + non_lp, total_fee)
-
             for active_stock in (0, 1, 2, 5, 9, 10, 11, INT128_MAX):
-                effective = min(active_stock, saturation)
-                staker = non_lp * effective // (2 * saturation)
-                remaining = non_lp - staker
-                creator = remaining // 2
-                platform = remaining - creator
-                self.assertEqual(creator + staker + platform, non_lp)
+                partition = partition_pool_fee(base, active_stock)
+                self.assertEqual(partition.lp + partition.non_lp, partition.total)
                 self.assertEqual(
-                    staker,
-                    non_lp * min(active_stock, saturation) // (2 * saturation),
+                    partition.creator + partition.staker + partition.platform,
+                    partition.non_lp,
+                )
+                expected_staker = (
+                    partition.non_lp * STAKER_NON_LP_SHARE_BPS // BPS_DENOMINATOR
+                    if active_stock
+                    else 0
+                )
+                self.assertEqual(partition.staker, expected_staker)
+                self.assertEqual(
+                    partition.platform - partition.creator,
+                    (partition.non_lp - partition.staker) % 2,
                 )
 
     def test_activation_wheel_is_bounded_and_collision_safe(self):
@@ -916,6 +917,7 @@ class V2ExecutionSpecTest(unittest.TestCase):
             "EXACT_REGISTERED_CURVE",
             "MARKET_CONTROLLER",
             "ALLOCATION_MODULE_OR_FEE_VAULT",
+            "EXACT_REGISTERED_GAUGE",
             "FEE_VAULT",
             "CURRENT_CREATOR_BENEFICIARY",
         }
@@ -1146,9 +1148,9 @@ class V2ExecutionSpecTest(unittest.TestCase):
             vectors["recoveryLeafInner"]["innerHash"],
             vectors["recoveryLeafInner"]["result"],
         )
-        self.assertEqual(vectors["expectedEconomics"]["inputs"]["schemaVersion"], "2")
+        self.assertEqual(vectors["expectedEconomics"]["inputs"]["schemaVersion"], "3")
         self.assertEqual(vectors["ponsBaselineHash"]["inputs"]["schemaVersion"], "1")
-        self.assertEqual(vectors["feePolicyHash"]["inputs"]["schemaVersion"], "2")
+        self.assertEqual(vectors["feePolicyHash"]["inputs"]["schemaVersion"], "3")
         self.assertEqual(vectors["quoteEconomicsHash"]["inputs"]["schemaVersion"], "1")
 
         template_fields = self.hash_schemas["schemas"]["launchTemplateHash"]["fields"]
@@ -1709,8 +1711,13 @@ class V2ExecutionSpecTest(unittest.TestCase):
             function["signature"] for function in registry["functions"]
         }
         self.assertIn(
-            "registerAsset(bytes32,address,uint8,address)", registry_signatures
+            "registerAsset(bytes32,address,uint8,address,uint256)",
+            registry_signatures,
         )
+        self.assertIn(
+            "setMinimumAllocation(bytes32,uint256,bytes32)", registry_signatures
+        )
+        self.assertIn("minimumAllocation(bytes32)", registry_signatures)
         self.assertFalse(
             any("backingtarget" in signature.lower() for signature in registry_signatures)
         )
@@ -1730,7 +1737,9 @@ class V2ExecutionSpecTest(unittest.TestCase):
 
         market_config = modules["MarketRegistryV2"]["structs"]["MarketConfig"]
         self.assertIn("bytes32 assetUid", market_config)
-        self.assertIn("uint256 stakeSaturationAmount", market_config)
+        self.assertFalse(
+            any("stakeSaturation" in declaration for declaration in market_config)
+        )
         create_params = modules["TickerGardenFactoryV2"]["structs"][
             "CreateMarketParams"
         ]
@@ -1743,7 +1752,9 @@ class V2ExecutionSpecTest(unittest.TestCase):
         economics_fields = self.hash_schemas["schemas"]["expectedEconomics"][
             "fields"
         ]
-        self.assertIn("uint256 stakeSaturationAmount", economics_fields)
+        self.assertFalse(
+            any("stakeSaturation" in declaration for declaration in economics_fields)
+        )
         self.assertFalse(
             any("backingTarget" in declaration for declaration in economics_fields)
         )
@@ -1754,38 +1765,46 @@ class V2ExecutionSpecTest(unittest.TestCase):
             if event.startswith("FeeBucketsCredited(")
         )
         self.assertIn("uint256 activeStock", fee_event)
-        self.assertIn("uint256 stakeSaturationAmount", fee_event)
+        self.assertNotIn("stakeSaturation", fee_event)
         self.assertNotIn("backingTarget", fee_event)
         market_created_event = next(
             event
             for event in modules["TickerGardenFactoryV2"]["events"]
             if event.startswith("MarketCreated(")
         )
-        self.assertIn("uint256 stakeSaturationAmount", market_created_event)
+        self.assertNotIn("stakeSaturation", market_created_event)
 
         policy = self.manifest["officialStockAdmission"]
         self.assertEqual(policy["marketStakingBaseCardinality"], "EXACTLY_ONE_ASSET_UID")
         self.assertTrue(policy["stakingBaseImmutableAfterCreation"])
         self.assertFalse(policy["stockPriceRequired"])
         self.assertFalse(policy["priceFeedCoverageAffectsEligibility"])
+        self.assertEqual(
+            policy["minimumAllocationPolicy"],
+            "PER_ASSET_TIMELOCKED_ADMIN_CONFIGURATION",
+        )
 
         fee = self.manifest["postGraduationFee"]
         self.assertEqual(
             fee["stakerEligibility"],
-            "ACTIVE_STOCK_LINEAR_SATURATION",
+            "ANY_POSITIVE_ACTIVE_STOCK",
         )
-        self.assertEqual(fee["stakeSaturationWholeTokens"], 10)
+        self.assertEqual(fee["stakerNonLpShareBps"], 5_000)
         self.assertEqual(
             fee["stakerFormula"],
-            "floor(nonLpAmount*effectiveActiveStock/(2*stakeSaturationAmount))",
+            "activeStock==0?0:floor(nonLpAmount*5000/10000)",
         )
-        self.assertEqual(fee["stakerReleaseMode"], "LINEAR_CAPPED")
+        self.assertEqual(
+            fee["stakerReleaseMode"], "FIXED_BINARY_BY_ACTIVE_STOCK"
+        )
 
         fee_policy_fields = self.hash_schemas["schemas"]["feePolicyHash"][
             "fields"
         ]
-        self.assertIn("uint256 stakeSaturationWholeTokens", fee_policy_fields)
-        self.assertIn("uint8 stakerReleaseMode", fee_policy_fields)
+        self.assertIn("uint16 stakerNonLpShareBps", fee_policy_fields)
+        self.assertFalse(
+            any("stakeSaturation" in declaration for declaration in fee_policy_fields)
+        )
 
     def test_generic_numeric_domain_matches_bounds_and_extreme_values(self):
         bounds = self.numeric_bounds
@@ -1798,32 +1817,20 @@ class V2ExecutionSpecTest(unittest.TestCase):
         self.assertEqual(MIN_SUPPORTED_ASSET_DECIMALS, 6)
         self.assertEqual(MAX_ACCOUNTING_AMOUNT, INT128_MAX)
         self.assertEqual(MAX_LIFETIME_FEE_CREDITS, 2**48 - 1)
-        self.assertEqual(STAKE_SATURATION_WHOLE_TOKENS, 10)
-        self.assertEqual(stake_saturation_amount(6), 10_000_000)
+        self.assertEqual(STAKER_NON_LP_SHARE_BPS, 5_000)
+        self.assertEqual(MINIMUM_SAFE_ALLOCATION_RAW, 414)
         self.assertEqual(
-            stake_saturation_amount(18), 10_000_000_000_000_000_000
+            int(bounds["assetAdmission"]["minimumAllocationSafetyFloorRaw"]),
+            MINIMUM_SAFE_ALLOCATION_RAW,
         )
-        recorded_saturation = bounds["stakeSaturation"]
-        self.assertEqual(recorded_saturation["wholeTokens"], 10)
-        self.assertEqual(
-            int(recorded_saturation["minimumRawAt6Decimals"]),
-            stake_saturation_amount(6),
-        )
-        self.assertEqual(
-            int(recorded_saturation["maximumRawAt18Decimals"]),
-            stake_saturation_amount(18),
-        )
-
-        self.assertEqual(minimum_nonzero_stock_position(6), 500_001)
-        self.assertEqual(
-            minimum_nonzero_stock_position(18), 500_000_000_000_000_001
-        )
+        self.assertEqual(validate_minimum_allocation(6, 500_000), 500_000)
+        self.assertEqual(validate_minimum_allocation(18, 10 * 10**18), 10 * 10**18)
         with self.assertRaises(ValueError):
-            minimum_nonzero_stock_position(5)
+            validate_minimum_allocation(5, 500_000)
         with self.assertRaises(ValueError):
-            minimum_nonzero_stock_position(19)
+            validate_minimum_allocation(19, 500_000)
         with self.assertRaises(ValueError):
-            stake_saturation_amount(5)
+            validate_minimum_allocation(6, MINIMUM_SAFE_ALLOCATION_RAW - 1)
 
         registry_source = (
             PROJECT_ROOT / "contracts/src/v2/modules/OfficialStockRegistryV2.sol"
@@ -1836,13 +1843,11 @@ class V2ExecutionSpecTest(unittest.TestCase):
         ).read_text(encoding="utf-8")
         self.assertIn("MIN_TOKEN_DECIMALS = 6", registry_source)
         self.assertIn("MAX_TOKEN_DECIMALS = 18", registry_source)
+        self.assertIn("MINIMUM_SAFE_ALLOCATION_RAW = 414", registry_source)
         self.assertIn("assetView.tokenDecimals < 6", allocation_source)
         self.assertIn("assetView.tokenDecimals > 18", allocation_source)
         self.assertIn("asset.tokenDecimals < 6", market_registry_source)
         self.assertIn("asset.tokenDecimals > 18", market_registry_source)
-        with self.assertRaises(ValueError):
-            stake_saturation_amount(19)
-
         proof = accumulator_lifetime_bound()
         recorded = bounds["accumulatorProof"]
         self.assertEqual(proof.minimum_active_stock, int(recorded["minimumActiveStock"]))
@@ -1855,16 +1860,18 @@ class V2ExecutionSpecTest(unittest.TestCase):
             proof.uint256_headroom_factor, int(recorded["uint256HeadroomFactor"])
         )
         self.assertGreaterEqual(proof.uint256_headroom_factor, 1)
+        self.assertTrue(recorded["forfeitureRedistributionLiabilityProofComplete"])
+        self.assertEqual(
+            recorded["forfeitureRedistributionAccumulatorFormalProofStatus"],
+            "AUDIT_RESIDUAL_MULTI_USER_CHAINED_REMAINDER_NORMALIZATION",
+        )
 
         maximum_base = maximum_post_graduation_fee_base()
         self.assertEqual(maximum_base, int(bounds["feeBounds"]["maximumPostGraduationFeeBase"]))
-        saturation = stake_saturation_amount(18)
-        maximum_partition = partition_pool_fee(
-            maximum_base, INT128_MAX, saturation
-        )
+        maximum_partition = partition_pool_fee(maximum_base, INT128_MAX)
         self.assertEqual(maximum_partition.total, INT128_MAX)
         with self.assertRaises(ValueError):
-            partition_pool_fee(maximum_base + 1, INT128_MAX, saturation)
+            partition_pool_fee(maximum_base + 1, INT128_MAX)
 
         self.assertEqual(checked_add_uint256(UINT256_MAX), UINT256_MAX)
         with self.assertRaises(ValueError):
@@ -1985,37 +1992,28 @@ class V2ExecutionSpecTest(unittest.TestCase):
         self.assertEqual(PIPS_DENOMINATOR, fee["pipsDenominator"])
         self.assertEqual(LP_SHARE_BPS, fee["lpShareBps"])
         self.assertEqual(BPS_DENOMINATOR, fee["bpsDenominator"])
-        self.assertEqual(
-            STAKE_SATURATION_WHOLE_TOKENS,
-            fee["stakeSaturationWholeTokens"],
-        )
+        self.assertEqual(STAKER_NON_LP_SHARE_BPS, fee["stakerNonLpShareBps"])
         self.assertEqual(INDEX_PRECISION, 10**27)
 
     def test_reference_fee_model_matches_examples_and_conserves(self):
-        active = partition_pool_fee(
-            base=1_000, active_stock=5, saturation_amount=10
-        )
+        active = partition_pool_fee(base=1_000, active_stock=1)
         self.assertEqual(
             (active.creator, active.staker, active.platform, active.lp),
-            (3, 2, 3, 2),
-        )
-        full = partition_pool_fee(
-            base=1_000, active_stock=10, saturation_amount=10
-        )
-        self.assertEqual(
-            (full.creator, full.staker, full.platform, full.lp),
             (2, 4, 2, 2),
         )
-        empty = partition_pool_fee(
-            base=1_000, active_stock=0, saturation_amount=10
+        large = partition_pool_fee(base=1_000, active_stock=INT128_MAX)
+        self.assertEqual(
+            (large.creator, large.staker, large.platform, large.lp),
+            (2, 4, 2, 2),
         )
+        empty = partition_pool_fee(base=1_000, active_stock=0)
         self.assertEqual(
             (empty.creator, empty.staker, empty.platform, empty.lp), (4, 0, 4, 2)
         )
 
         for base in range(0, 100_001):
             for active_stock in (0, 1, 5, 9, 10, 11, INT128_MAX):
-                result = partition_pool_fee(base, active_stock, 10)
+                result = partition_pool_fee(base, active_stock)
                 self.assertEqual(result.lp + result.non_lp, result.total)
                 self.assertEqual(
                     result.creator + result.staker + result.platform,
@@ -2023,7 +2021,7 @@ class V2ExecutionSpecTest(unittest.TestCase):
                 )
                 self.assertEqual(
                     result.staker,
-                    result.non_lp * min(active_stock, 10) // 20,
+                    0 if active_stock == 0 else result.non_lp * 5_000 // 10_000,
                 )
 
         for total in range(0, 1_001):
@@ -2062,9 +2060,7 @@ class V2ExecutionSpecTest(unittest.TestCase):
         with self.assertRaises(ValueError):
             partition_supply(1, 0, 1)
         with self.assertRaises(ValueError):
-            partition_pool_fee(1, -1, 10)
-        with self.assertRaises(ValueError):
-            partition_pool_fee(1, 1, 0)
+            partition_pool_fee(1, -1)
         with self.assertRaises(ValueError):
             credit_pool_index(1, 0, 0)
         with self.assertRaises(ValueError):

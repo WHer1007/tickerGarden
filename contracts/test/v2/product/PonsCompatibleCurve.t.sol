@@ -643,12 +643,11 @@ contract PonsCompatibleCurveTest is Test {
     {
         return MarketConfig({
             assetUid: keccak256("ASSET"),
-            stakeSaturationAmount: 10 ether,
             ponsBaselineId: BASELINE_ID,
             quoteAssetConfigId: QUOTE_CONFIG_ID,
             launchTemplateId: keccak256("TEMPLATE"),
             feePolicyId: keccak256("FEE_POLICY"),
-            executionSpecId: keccak256("V2-EXEC-3"),
+            executionSpecId: keccak256("V2-EXEC-4"),
             expectedEconomics: keccak256("ECONOMICS"),
             launchConfigId: 0,
             creatorRevenueBeneficiaryAtCreation: BENEFICIARY,

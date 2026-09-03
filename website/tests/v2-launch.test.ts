@@ -34,12 +34,12 @@ function market(quoteAsset: Address = config.quote.quoteAsset): MarketDetailResp
     sync: { chainId: 4663, status: "synced", blockNumber: "10", blockHash: h("a"), finality: "finalized", headBlockNumber: "10", headBlockHash: h("a"), lagBlocks: "0", revision: `10:${h("a")}` },
     market: {
       marketId: h("7"), assetUid: h("1"), memeToken: a("b"), curve: a("c"), gauge: a("d"), quoteAsset,
-      quoteAssetConfigId: h("2"), ponsBaselineId: h("3"), sourceVersion: 1, launchPhase: 0, marketStatus: 0, stakeSaturationAmount: "1000",
+      quoteAssetConfigId: h("2"), ponsBaselineId: h("3"), sourceVersion: 1, launchPhase: 0, marketStatus: 0,
       curveProgress: { realQuoteReserve: "11", sellableTokens: "22", reservedTokens: "33", accruedCurveFees: "44", readyToGraduate: false, sweptAt: null },
       poolId: null, poolKey: null,
       canonicalRoute: { router: a("e"), quoter: a("f"), hook: a("1"), launchLocker: a("2"), graduationExecutor: a("3"), curveTradingEnabled: true, poolTradingEnabled: false, sourceVersion: 1, launchPhase: 0, marketStatus: 0 },
       source: { chainId: 4663, blockNumber: "10", blockHash: h("a"), transactionHash: h("b"), transactionIndex: 0, logIndex: 0 },
-    },
+    } as never,
   };
 }
 
@@ -48,7 +48,6 @@ function chainMarket(response = market()) {
     market: {
       config: {
         assetUid: response.market.assetUid,
-        stakeSaturationAmount: BigInt(response.market.stakeSaturationAmount),
         ponsBaselineId: response.market.ponsBaselineId,
         quoteAssetConfigId: response.market.quoteAssetConfigId,
         memeToken: response.market.memeToken,

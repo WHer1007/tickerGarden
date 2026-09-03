@@ -91,6 +91,7 @@ contract LiabilityCreatorRegistryMock {
 
 contract LiabilityGaugeMock {
     mapping(address => mapping(address => uint256)) public claimable;
+    mapping(address => uint64) public unlockAt;
     bool public rejectConsume;
 
     function setClaimable(address user, address feeAsset, uint256 amount) external {
@@ -101,8 +102,13 @@ contract LiabilityGaugeMock {
         rejectConsume = value;
     }
 
+    function setUnlockAt(address user, uint64 unlockAt_) external {
+        unlockAt[user] = unlockAt_;
+    }
+
     function consumeClaimable(address user, address feeAsset) external returns (uint256 amount) {
         if (rejectConsume) revert("GAUGE_REJECTED");
+        if (block.timestamp < unlockAt[user]) revert("POSITION_LOCKED");
         amount = claimable[user][feeAsset];
         claimable[user][feeAsset] = 0;
     }
@@ -322,6 +328,29 @@ contract ProtocolFeeVaultLiabilitiesTest is Test {
         assertEq(vault.liability(MARKET_ID, address(quote), 2), 0);
     }
 
+    function test_forfeitureReserveConvertsToPlatformOnNextClaimForBothAssets() public {
+        _fundAndCredit(address(quote), 20, 0, 20, 0, 1);
+        _fundAndCredit(address(meme), 30, 0, 30, 0, 1);
+
+        vm.prank(address(gauge));
+        vault.recordForfeiture(MARKET_ID, ALICE, 7, 11);
+        assertEq(vault.forfeitureReserve(MARKET_ID, address(quote)), 7);
+        assertEq(vault.forfeitureReserve(MARKET_ID, address(meme)), 11);
+        assertEq(vault.liability(MARKET_ID, address(quote), 1), 13);
+        assertEq(vault.liability(MARKET_ID, address(meme), 1), 19);
+
+        vm.prank(BOB);
+        assertEq(vault.claimPlatform(MARKET_ID, address(quote)), 7);
+        vm.prank(BOB);
+        assertEq(vault.claimPlatform(MARKET_ID, address(meme)), 11);
+        assertEq(vault.forfeitureReserve(MARKET_ID, address(quote)), 0);
+        assertEq(vault.forfeitureReserve(MARKET_ID, address(meme)), 0);
+        assertEq(vault.liability(MARKET_ID, address(quote), 1), 13);
+        assertEq(vault.liability(MARKET_ID, address(meme), 1), 19);
+        assertEq(quote.balanceOf(address(treasury)), 7);
+        assertEq(meme.balanceOf(address(treasury)), 11);
+    }
+
     function test_stakerClaimsConsumeOnlySelectedAssetAndAlwaysPayFixedUser() public {
         _fundAndCredit(address(quote), 60, 20, 20, 20, 1);
         _fundAndCredit(address(meme), 60, 20, 20, 20, 1);
@@ -342,6 +371,20 @@ contract ProtocolFeeVaultLiabilitiesTest is Test {
         assertEq(memeAmount, 17);
         assertEq(meme.balanceOf(ALICE), 17);
         assertEq(vault.liability(MARKET_ID, address(meme), 1), 3);
+    }
+
+    function test_lockedClaimAndClaimForAreRejectedByGauge() public {
+        _fundAndCredit(address(quote), 20, 0, 20, 0, 1);
+        gauge.setClaimable(ALICE, address(quote), 7);
+        gauge.setUnlockAt(ALICE, uint64(block.timestamp + 1 days));
+
+        vm.expectRevert(bytes("POSITION_LOCKED"));
+        vm.prank(ALICE);
+        vault.claimStaker(MARKET_ID, address(quote));
+        vm.expectRevert(bytes("POSITION_LOCKED"));
+        vault.claimStakerFor(ALICE, MARKET_ID, address(quote));
+        assertEq(vault.liability(MARKET_ID, address(quote), 1), 20);
+        assertEq(gauge.claimable(ALICE, address(quote)), 7);
     }
 
     function test_zeroClaimsReturnWithoutMovingOtherBuckets() public {

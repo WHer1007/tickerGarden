@@ -19,7 +19,7 @@ contract LaunchTemplateRegistryTest is Test {
 
     bytes32 internal constant TEMPLATE_ID = keccak256("launch-template-1");
     bytes32 internal constant REASON_HASH = keccak256("template-risk");
-    bytes32 internal constant EXECUTION_SPEC_ID = keccak256("V2-EXEC-3");
+    bytes32 internal constant EXECUTION_SPEC_ID = keccak256("V2-EXEC-4");
     bytes32 internal constant FEE_POLICY_ID = keccak256("immutable-fee-policy");
     address internal constant HOOK = address(uint160(0x12044));
     address internal constant DELAYED_ADMIN = address(0xA11CE);
@@ -235,7 +235,7 @@ contract LaunchTemplateRegistryTest is Test {
         value.feePolicyId = bytes32(0);
         _expectInvalid(TEMPLATE_ID, value);
         value = _validTemplate();
-        value.executionSpecId = keccak256("V2-EXEC-4");
+        value.executionSpecId = keccak256("V2-EXEC-3");
         _expectInvalid(TEMPLATE_ID, value);
         value = _validTemplate();
         value.status = 0;

@@ -1,8 +1,10 @@
 # TickerGarden V2 Pons 行为参考基线
 
+> 修订说明：Pons链上行为证据仍保留原始版本标识；TickerGarden自身的质押与费用差异已按当前`V2-EXEC-4`修订，不再使用旧版10 STOCK线性规则。
+
 > 决策状态：`PRODUCT_DIRECTION_APPROVED / IMPLEMENTATION_ALLOWED / NOT_DEPLOYABLE`  
 > 基线标识：`TG-PONS-BEHAVIOR-1`  
-> 执行规范：`V2-EXEC-3`  
+> 执行规范：`V2-EXEC-4`
 > 决策日期：2026-09-02  
 > 适用范围：TickerGarden V2；不覆盖任何 V1 文档或合约
 
@@ -52,7 +54,7 @@ Pons 当前公开 `main` 存在 Factory 已传递 `salt`、公开 Deployer 却�
 | 模块/行为 | 决策 | TickerGarden 解释 |
 |---|---|---|
 | 原生和 ERC-20 多 Quote | 继承 | 一个市场永久绑定一种 ACTIVE `quoteAssetConfigId`；每个 Quote 单独冻结 decimals、phantom 和 threshold |
-| `expectedEconomics` | 继承并扩展 | 除发行参数外，再覆盖 Asset UID、由 decimals 派生的10 STOCK质押饱和值、LaunchTemplate 和 TickerGarden fee policy；不包含价格或 backing target |
+| `expectedEconomics` | 继承并扩展 | 除发行参数外，再覆盖 Asset UID、canonical Stock身份、LaunchTemplate 和 TickerGarden fee policy；不包含价格、backing target或可动态更新的`minimumAllocation` |
 | 创建费 | 继承金额与支付语义 | 当前 Factory 固定 `0.0005` 原生资产且必须精确支付；无 setter/调价事件，改费必须新 Factory + 新 `executionSpecId` |
 | 原子 launch-and-buy | 继承 | 原生 Quote 支付“创建费 + 首买”，ERC-20 Quote 只附创建费并授权首买数量 |
 | 首买金额 | 继承 | 不设置人为的“毕业门槛1%”上限；由曲线可售余额、partial fill、退款与 `minTokensOut` 约束 |
@@ -118,8 +120,8 @@ struct CreateMarketParams {
     bytes32 salt;
 }
 
-// stakeSaturationAmount 不是 creator 参数；Factory 固定按
-// 10 × 10^OfficialStockRegistry.tokenDecimals 派生并写入 MarketConfig。
+// minimumAllocation 不是 creator 参数，也不写入不可变 MarketConfig/hash；
+// AllocationManager 每次变更仓位时从 OfficialStockRegistry 动态读取。
 
 function createMarket(CreateMarketParams calldata params)
     external payable
@@ -453,4 +455,4 @@ derive marketId
 4. USDG 上线前重取代理/实现指纹并拒绝 drift；
 5. 完成权限、监控、源代码可复现和法律门禁。
 
-本基线随 `V2-EXEC-3` 进入 `IMPLEMENTATION_ALLOWED`。反狙击 runtime、首发 native/USDG Quote 配置、通用数值域、毕业成功/失败语义、当前观测194项官方 STOCK 全量可选为质押 Base，以及每市场10 STOCK饱和的线性质押者份额均已冻结。最终 artifact/fork、目标链身份取证、安全审计、许可与法律仍约束部署和生产上线。
+本基线随当前`V2-EXEC-4`保持`IMPLEMENTATION_ALLOWED`。反狙击runtime、首发native/USDG Quote配置、通用数值域、毕业成功/失败语义、当前观测194项官方STOCK全量可选为质押Base、动态最低仓位，以及`S=0/S>0`固定质押者份额均已冻结。最终artifact/fork、目标链身份取证、安全审计、许可与法律仍约束部署和生产上线。

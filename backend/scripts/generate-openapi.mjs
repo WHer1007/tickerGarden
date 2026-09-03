@@ -31,7 +31,7 @@ const market = object({
   marketId: bytes32, assetUid: bytes32, memeToken: address, curve: address, gauge: address, quoteAsset: address,
   quoteAssetConfigId: bytes32, ponsBaselineId: bytes32, sourceVersion: { type: "integer", minimum: 1 },
   launchPhase: { type: "integer", minimum: 0, maximum: 255 }, marketStatus: { type: "integer", minimum: 0, maximum: 255 },
-  stakeSaturationAmount: uintString, curveProgress: ref("CurveProgress"), poolId: nullable(bytes32), poolKey: nullable(ref("PoolKeyReadModel")),
+  curveProgress: ref("CurveProgress"), poolId: nullable(bytes32), poolKey: nullable(ref("PoolKeyReadModel")),
   canonicalRoute: ref("CanonicalRoute"), source: ref("SourceBlock"),
 }, undefined, { description: "poolId and poolKey are null or non-null together." });
 const configValue = { oneOf: [{ type: "string" }, { type: "number" }, { type: "boolean" }, { type: "null" }] };
@@ -58,8 +58,8 @@ const errors = { "400": response(ref("ApiErrorResponse"), "Invalid input or curs
 
 const spec = {
   openapi: "3.1.0",
-  info: { title: "TickerGarden V2 Read API", version: "2.0.0", description: "Non-custodial read API backed only by reconciled V2 Indexer facts." },
-  "x-execution-spec-id": "V2-EXEC-3",
+  info: { title: "TickerGarden V2 Read API", version: "2.1.0", description: "Non-custodial read API backed only by reconciled V2 Indexer facts." },
+  "x-execution-spec-id": "V2-EXEC-4",
   paths: {
     "/health": { get: { operationId: "getHealth", responses: { "200": response(ref("HealthResponse")), ...errors } } },
     "/v2/markets": { get: { operationId: "listMarkets", parameters: [{ name: "assetUid", in: "query", required: false, schema: bytes32 }, ...queryParameters], responses: { "200": response(ref("MarketPage")), ...errors } } },
@@ -73,7 +73,7 @@ const spec = {
     UserPositionReadModel: position, MarketPage: page("MarketReadModel"), ConfigPage: page("ConfigReadModel"),
     PositionPage: page("UserPositionReadModel"), MarketDetailResponse: object({ market: ref("MarketReadModel"), sync: ref("SyncStatus") }),
     HealthResponse: object({
-      executionSpecId: { type: "string", const: "V2-EXEC-3" }, status: { type: "string", const: "read-api" }, readApiImplemented: { type: "boolean", const: true },
+      executionSpecId: { type: "string", const: "V2-EXEC-4" }, status: { type: "string", const: "read-api" }, readApiImplemented: { type: "boolean", const: true },
       productRuntimeImplemented: { type: "boolean", const: false }, custody: { type: "boolean", const: false }, transactionSubmission: { type: "boolean", const: false }, sync: ref("SyncStatus"),
     }), ApiErrorResponse: error,
   } },
@@ -129,7 +129,7 @@ const operations = Object.entries(spec.paths).map(([routePath, pathItem]) => {
 const client = `// Generated from openapi/v2.json by scripts/generate-openapi.mjs. Do not edit.\n\n${typeLines.join("\n")}\n\nexport class TickerGardenApiError extends Error { readonly status: number; readonly body: ApiErrorResponse; constructor(status: number, body: ApiErrorResponse) { super(body.message); this.name = "TickerGardenApiError"; this.status = status; this.body = body; } }\n\nexport class TickerGardenV2Client { readonly baseUrl: string; readonly fetcher: typeof fetch; constructor(baseUrl: string, fetcher: typeof fetch = fetch) { this.baseUrl = baseUrl; this.fetcher = fetcher; } private async request<T>(url: URL): Promise<T> { const response = await this.fetcher(url, { method: "GET", headers: { accept: "application/json" } }); const body: unknown = await response.json(); if (!response.ok) throw new TickerGardenApiError(response.status, body as ApiErrorResponse); return body as T; }\n${operations.join("\n")}\n}\n`;
 const specText = `${JSON.stringify(spec, null, 2)}\n`;
 const fingerprint = `sha256:${createHash("sha256").update(specText).digest("hex")}`;
-const nextLock = { schemaVersion: 1, openapiVersion: spec.info.version, executionSpecId: "V2-EXEC-3", fingerprint };
+const nextLock = { schemaVersion: 1, openapiVersion: spec.info.version, executionSpecId: "V2-EXEC-4", fingerprint };
 const lockText = `${JSON.stringify(nextLock, null, 2)}\n`;
 const previousLock = await readFile(lockPath, "utf8").then(JSON.parse).catch(() => null);
 

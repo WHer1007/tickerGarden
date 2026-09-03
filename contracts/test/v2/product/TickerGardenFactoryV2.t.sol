@@ -238,7 +238,7 @@ contract TickerGardenFactoryV2Test is Test {
     bytes32 internal constant TEMPLATE_ID = keccak256("factory-template");
     bytes32 internal constant TEMPLATE_HASH = keccak256("factory-template-content");
     bytes32 internal constant FEE_POLICY_ID = keccak256("factory-fee-policy");
-    bytes32 internal constant EXECUTION_SPEC_ID = keccak256("V2-EXEC-3");
+    bytes32 internal constant EXECUTION_SPEC_ID = keccak256("V2-EXEC-4");
     uint256 internal constant LAUNCH_FEE = 500_000_000_000_000;
     uint256 internal constant SUPPLY = 1_000_000_000 ether;
     address internal constant CREATOR = address(0xCAFE);
@@ -356,7 +356,6 @@ contract TickerGardenFactoryV2Test is Test {
 
         MarketView memory value = marketRegistry.market(marketId);
         assertEq(value.config.assetUid, ASSET_UID);
-        assertEq(value.config.stakeSaturationAmount, 10 ether);
         assertEq(value.config.ponsBaselineId, BASELINE_ID);
         assertEq(value.config.quoteAssetConfigId, QUOTE_ID);
         assertEq(value.config.launchTemplateId, TEMPLATE_ID);
@@ -517,10 +516,9 @@ contract TickerGardenFactoryV2Test is Test {
 
         Vm.Log[] memory logs = vm.getRecordedLogs();
         bytes32 signature =
-            keccak256("MarketCreated(bytes32,bytes32,address,address,address,address,uint256,bytes32,bytes32,bytes32)");
-        bytes32 expectedDataHash = keccak256(
-            abi.encode(curve, gauge, address(quote), 10 ether, BASELINE_ID, QUOTE_ID, params.expectedEconomics)
-        );
+            keccak256("MarketCreated(bytes32,bytes32,address,address,address,address,bytes32,bytes32,bytes32)");
+        bytes32 expectedDataHash =
+            keccak256(abi.encode(curve, gauge, address(quote), BASELINE_ID, QUOTE_ID, params.expectedEconomics));
         uint256 matches;
         for (uint256 i; i < logs.length; ++i) {
             if (logs[i].emitter != address(factory) || logs[i].topics[0] != signature) continue;

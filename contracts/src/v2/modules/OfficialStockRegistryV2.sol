@@ -12,8 +12,11 @@ contract OfficialStockRegistryV2 is IOfficialStockRegistryV2, ImmutableAccessMan
     uint8 internal constant ASSET_STATUS_RETIRED = 3;
     uint8 internal constant MIN_TOKEN_DECIMALS = 6;
     uint8 internal constant MAX_TOKEN_DECIMALS = 18;
+    /// @dev Lowest raw-unit denominator that keeps the documented uint48 lifetime accumulator bound inside uint256.
+    uint256 internal constant MINIMUM_SAFE_ALLOCATION_RAW = 414;
 
     mapping(bytes32 assetUid => AssetView value) private _assets;
+    mapping(bytes32 assetUid => uint256 amount) private _minimumAllocations;
     mapping(address stockToken => bytes32 assetUid) private _assetUidByStockToken;
     mapping(address userStockVault => bytes32 schemaId) private _vaultSchemaIds;
     mapping(bytes32 schemaId => address userStockVault) private _vaultBySchemaIds;
@@ -30,20 +33,27 @@ contract OfficialStockRegistryV2 is IOfficialStockRegistryV2, ImmutableAccessMan
     );
     error VaultSchemaAlreadyRegistered(bytes32 schemaId, address registeredVault, address attemptedVault);
     error InvalidStateTransition(uint8 currentState, uint8 requestedState);
+    error InvalidMinimumAllocation(bytes32 assetUid, uint256 minimumAllocation);
+    error AssetNotRegistered(bytes32 assetUid);
 
     constructor(address authority_) ImmutableAccessManaged(authority_) {}
 
-    function registerAsset(bytes32 assetUid, address stockToken, uint8 tokenDecimals, address userStockVault)
-        external
-        override
-        restricted
-    {
+    function registerAsset(
+        bytes32 assetUid,
+        address stockToken,
+        uint8 tokenDecimals,
+        address userStockVault,
+        uint256 minimumAllocation_
+    ) external override restricted {
         if (
             assetUid == bytes32(0) || stockToken == address(0) || userStockVault == address(0)
                 || stockToken == userStockVault || stockToken.code.length == 0 || userStockVault.code.length == 0
                 || tokenDecimals < MIN_TOKEN_DECIMALS || tokenDecimals > MAX_TOKEN_DECIMALS
         ) {
             revert InvalidAssetIdentity(assetUid, stockToken, tokenDecimals, userStockVault);
+        }
+        if (minimumAllocation_ < MINIMUM_SAFE_ALLOCATION_RAW) {
+            revert InvalidMinimumAllocation(assetUid, minimumAllocation_);
         }
         if (_assets[assetUid].status != ASSET_STATUS_UNSET) revert AssetAlreadyRegistered(assetUid);
 
@@ -58,9 +68,24 @@ contract OfficialStockRegistryV2 is IOfficialStockRegistryV2, ImmutableAccessMan
             tokenDecimals: tokenDecimals,
             status: ASSET_STATUS_ACTIVE
         });
+        _minimumAllocations[assetUid] = minimumAllocation_;
         _assetUidByStockToken[stockToken] = assetUid;
 
         emit AssetRegistered(assetUid, stockToken, userStockVault, tokenDecimals);
+        emit AssetMinimumAllocationChanged(assetUid, 0, minimumAllocation_, bytes32(0));
+    }
+
+    function setMinimumAllocation(bytes32 assetUid, uint256 newMinimum, bytes32 reasonHash)
+        external
+        override
+        restricted
+    {
+        if (_assets[assetUid].status == ASSET_STATUS_UNSET) revert AssetNotRegistered(assetUid);
+        if (newMinimum < MINIMUM_SAFE_ALLOCATION_RAW) revert InvalidMinimumAllocation(assetUid, newMinimum);
+
+        uint256 oldMinimum = _minimumAllocations[assetUid];
+        _minimumAllocations[assetUid] = newMinimum;
+        emit AssetMinimumAllocationChanged(assetUid, oldMinimum, newMinimum, reasonHash);
     }
 
     function pauseAsset(bytes32 assetUid, bytes32 reasonHash) external override restricted {
@@ -93,6 +118,10 @@ contract OfficialStockRegistryV2 is IOfficialStockRegistryV2, ImmutableAccessMan
 
     function asset(bytes32 assetUid) external view override returns (AssetView memory) {
         return _assets[assetUid];
+    }
+
+    function minimumAllocation(bytes32 assetUid) external view override returns (uint256) {
+        return _minimumAllocations[assetUid];
     }
 
     function vaultSchemaId(address userStockVault) external view override returns (bytes32) {

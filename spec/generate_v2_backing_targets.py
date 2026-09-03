@@ -1,7 +1,7 @@
 """Retired V2-EXEC-1 backing-target research generator.
 
 This file is retained only to audit the abandoned price-based design. It is not
-an input to V2-EXEC-3 and must not be used for STOCK eligibility, market
+an input to V2-EXEC-4 and must not be used for STOCK eligibility, market
 creation, staking weight, fee distribution or readiness. See
 RETIRED_STOCK_PRICE_RESEARCH.md.
 """
@@ -29,7 +29,7 @@ try:
         backing_target_config_hash,
         backing_target_stock_from_usd,
         minimum_nonzero_stock_position,
-        partition_pool_fee,
+        partition_pool_fee_linear_legacy,
     )
 except ModuleNotFoundError:  # direct execution from the spec directory
     from generate_v2_hash_vectors import keccak256
@@ -41,7 +41,7 @@ except ModuleNotFoundError:  # direct execution from the spec directory
         backing_target_config_hash,
         backing_target_stock_from_usd,
         minimum_nonzero_stock_position,
-        partition_pool_fee,
+        partition_pool_fee_linear_legacy,
     )
 
 
@@ -605,7 +605,7 @@ def _capture_live_evidence(
 def _vector_case(
     label: str, base: int, active: int, target: int, minimum_position: int
 ) -> dict[str, Any]:
-    result = partition_pool_fee(base, active, target)
+    result = partition_pool_fee_linear_legacy(base, active, target)
     return {
         "label": label,
         "activeStock": str(active),

@@ -2,10 +2,10 @@
   "openapi": "3.1.0",
   "info": {
     "title": "TickerGarden V2 Read API",
-    "version": "2.0.0",
+    "version": "2.1.0",
     "description": "Non-custodial read API backed only by reconciled V2 Indexer facts."
   },
-  "x-execution-spec-id": "V2-EXEC-3",
+  "x-execution-spec-id": "V2-EXEC-4",
   "paths": {
     "/health": {
       "get": {
@@ -639,10 +639,6 @@
             "minimum": 0,
             "maximum": 255
           },
-          "stakeSaturationAmount": {
-            "type": "string",
-            "pattern": "^(0|[1-9][0-9]*)$"
-          },
           "curveProgress": {
             "$ref": "#/components/schemas/CurveProgress"
           },
@@ -686,7 +682,6 @@
           "sourceVersion",
           "launchPhase",
           "marketStatus",
-          "stakeSaturationAmount",
           "curveProgress",
           "poolId",
           "poolKey",
@@ -994,7 +989,7 @@
         "properties": {
           "executionSpecId": {
             "type": "string",
-            "const": "V2-EXEC-3"
+            "const": "V2-EXEC-4"
           },
           "status": {
             "type": "string",

@@ -300,7 +300,7 @@ test("verifies complete live state at one finalized block using read-only RPC on
   const rpc = new MockRpc(manifest);
   const report = await verifyV2LiveState(manifest, rpc);
   assert.equal(report.chainId, 4663);
-  assert.equal(report.permissionChecks, 80);
+  assert.equal(report.permissionChecks, 85);
   assert.equal(report.administrativePermissionChecks, 6);
   assert.equal(report.roleMembershipChecks, 4);
   assert.equal(report.revokedMembershipChecks, 4);

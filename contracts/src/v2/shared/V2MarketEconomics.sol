@@ -9,8 +9,8 @@ library V2MarketEconomics {
     bytes32 internal constant EXPECTED_ECONOMICS_DOMAIN = keccak256("TICKERGARDEN_V2_EXPECTED_ECONOMICS");
     bytes32 internal constant FEE_POLICY_DOMAIN = keccak256("TICKERGARDEN_V2_FEE_POLICY");
     uint256 internal constant PONS_BASELINE_SCHEMA_VERSION = 1;
-    uint256 internal constant EXPECTED_ECONOMICS_SCHEMA_VERSION = 2;
-    uint256 internal constant FEE_POLICY_SCHEMA_VERSION = 2;
+    uint256 internal constant EXPECTED_ECONOMICS_SCHEMA_VERSION = 3;
+    uint256 internal constant FEE_POLICY_SCHEMA_VERSION = 3;
 
     struct FeePolicyInput {
         bytes32 executionSpecId;
@@ -19,8 +19,7 @@ library V2MarketEconomics {
         uint24 poolKeyFee;
         uint160 hookPermissionMask;
         uint8 feeAssetMode;
-        uint256 stakeSaturationWholeTokens;
-        uint8 stakerReleaseMode;
+        uint16 stakerNonLpShareBps;
     }
 
     struct ExpectedEconomicsInput {
@@ -29,7 +28,6 @@ library V2MarketEconomics {
         bytes32 assetUid;
         address stockToken;
         uint8 stockDecimals;
-        uint256 stakeSaturationAmount;
         bytes32 ponsBaselineId;
         bytes32 ponsBaselineHash;
         bytes32 quoteAssetConfigId;
@@ -71,8 +69,7 @@ library V2MarketEconomics {
                 value.poolKeyFee,
                 value.hookPermissionMask,
                 value.feeAssetMode,
-                value.stakeSaturationWholeTokens,
-                value.stakerReleaseMode
+                value.stakerNonLpShareBps
             )
         );
     }
@@ -88,7 +85,6 @@ library V2MarketEconomics {
             value.assetUid,
             value.stockToken,
             value.stockDecimals,
-            value.stakeSaturationAmount,
             value.ponsBaselineId
         );
         bytes memory second = abi.encode(

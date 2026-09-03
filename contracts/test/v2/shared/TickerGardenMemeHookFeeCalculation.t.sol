@@ -252,26 +252,33 @@ contract TickerGardenMemeHookFeeCalculationTest is Test {
     }
 
     function test_feeNonceOverflowFailsClosedWithoutWrapOrFeeId() public {
-        hook.seedNonce(poolId, type(uint64).max);
+        hook.seedNonce(poolId, type(uint48).max);
         SwapParams memory params = SwapParams({zeroForOne: true, amountSpecified: -1, sqrtPriceLimitX96: 1});
         vm.expectRevert(
             abi.encodeWithSelector(TickerGardenMemeHookFeeCalculation.HookFeeNonceOverflow.selector, poolId)
         );
         poolManager.prepare(hook, key, params, _delta(-1, 10_000));
-        assertEq(hook.poolBinding(poolId).feeNonce, type(uint64).max);
+        assertEq(hook.poolBinding(poolId).feeNonce, type(uint48).max);
+    }
+
+    function test_lastAdmittedLifetimeFeeCreditUsesUint48MaxNonce() public {
+        hook.seedNonce(poolId, type(uint48).max - 1);
+        TickerGardenMemeHookFeeCalculation.CalculatedV4Fee memory fee = _prepare(true, -1, _delta(-1, 10_000));
+
+        assertEq(fee.feeNonce, type(uint48).max);
+        assertEq(hook.poolBinding(poolId).feeNonce, type(uint48).max);
     }
 
     function test_feePolicyHashMatchesFeeVaultAndSuccessiveIdsCannotRepeat() public {
         bytes32 expectedPolicyHash = V2MarketEconomics.hashFeePolicy(
             V2MarketEconomics.FeePolicyInput({
-                executionSpecId: keccak256("V2-EXEC-3"),
+                executionSpecId: keccak256("V2-EXEC-4"),
                 feePips: 10_000,
                 lpShareBps: 2_000,
                 poolKeyFee: 0,
                 hookPermissionMask: MASK,
                 feeAssetMode: 1,
-                stakeSaturationWholeTokens: 10,
-                stakerReleaseMode: 1
+                stakerNonLpShareBps: 5_000
             })
         );
         assertEq(hook.feePolicyHash(), expectedPolicyHash);

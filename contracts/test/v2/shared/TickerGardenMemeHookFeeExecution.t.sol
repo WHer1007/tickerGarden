@@ -490,15 +490,14 @@ contract TickerGardenMemeHookFeeExecutionTest is Test {
         return keccak256(
             abi.encode(
                 keccak256("TICKERGARDEN_V2_FEE_POLICY"),
-                uint256(2),
-                keccak256("V2-EXEC-3"),
+                uint256(3),
+                keccak256("V2-EXEC-4"),
                 uint24(10_000),
                 uint16(2_000),
                 uint24(0),
                 uint160(MASK),
                 uint8(1),
-                uint256(10),
-                uint8(1)
+                uint16(5_000)
             )
         );
     }

@@ -8,7 +8,7 @@ export function requiredObservations(event: DecodedV2Event): readonly Observatio
       return [{ kind: "pons", key: event.args.baselineId, reason: "event omits the complete approved baseline record" }];
     case "LaunchTemplateAdded(bytes32,bytes32,bytes32)":
       return [{ kind: "template", key: event.args.launchTemplateId, reason: "event commits templateHash but not template fields" }];
-    case "MarketCreated(bytes32,bytes32,address,address,address,address,uint256,bytes32,bytes32,bytes32)":
+    case "MarketCreated(bytes32,bytes32,address,address,address,address,bytes32,bytes32,bytes32)":
     case "MarketRegistered(bytes32,bytes32,address,address,address,uint32)":
     case "LaunchPhaseChanged(bytes32,uint8,uint8,uint64,bytes32,uint32)":
       return [{ kind: "market", key: event.args.marketId, reason: "hydrate the canonical MarketView at this block" }];
@@ -29,11 +29,17 @@ export function requiredObservations(event: DecodedV2Event): readonly Observatio
     case "PendingRescheduled(address,bytes32,uint64,uint64,uint256,uint64)":
     case "PendingMaterialized(address,bytes32,uint64,uint256)":
       return [{ kind: "gaugePosition", key: `${event.args.user}:${event.args.marketId}`, reason: "pending and active balances are authoritative Gauge views" }];
+    case "GaugeRageQuit(address,bytes32,uint256,uint256,uint256,bool)":
+    case "AllocationRageQuitExecuted(address,bytes32,uint256,uint256,uint256,bool)":
+      return [{ kind: "gaugePosition", key: `${event.args.user}:${event.args.marketId}`, reason: "rage quit clears the authoritative Gauge position" }];
     case "StockDeposited(bytes32,address,uint256)":
     case "StockWithdrawn(bytes32,address,uint256)":
       return [{ kind: "vaultPosition", key: `${event.args.assetUid}:${event.args.user}`, reason: "deposited, allocated, and free balances are authoritative Vault views" }];
+    case "AssetMinimumAllocationChanged(bytes32,uint256,uint256,bytes32)":
+      return [{ kind: "asset", key: event.args.assetUid, reason: "minimum allocation is an authoritative Registry policy value" }];
     case "AllocationLocked(bytes32,address,bytes32,uint256,uint256,uint256)":
     case "AllocationReleased(bytes32,address,bytes32,uint256,uint256,uint256)":
+    case "AllocationRageQuit(bytes32,address,bytes32,uint256)":
       return [
         { kind: "vaultPosition", key: `${event.args.assetUid}:${event.args.user}`, reason: "asset-scoped principal totals are authoritative Vault views" },
         { kind: "gaugePosition", key: `${event.args.user}:${event.args.marketId}`, reason: "allocation changes must reconcile with the Gauge position" },
@@ -51,8 +57,12 @@ export function requiredObservations(event: DecodedV2Event): readonly Observatio
         { kind: "market", key: event.args.marketId, reason: "verify the active sourceVersion for this Hook fee" },
         { kind: "liability", key: `${event.args.marketId}:${event.args.feeAsset}`, reason: "fee credit changes authoritative FeeVault liability" },
       ];
-    case "FeeBucketsCredited(bytes32,uint32,address,bytes32,uint256,uint256,uint256,uint256,uint256)":
+    case "FeeBucketsCredited(bytes32,uint32,address,bytes32,uint256,uint256,uint256,uint256)":
       return [{ kind: "liability", key: `${event.args.marketId}:${event.args.feeAsset}`, reason: "bucket credit changes authoritative FeeVault liability" }];
+    case "ForfeitureReserved(bytes32,address,address,uint256,uint256)":
+    case "ForfeitureReserveConverted(bytes32,address,uint256)":
+    case "ForfeitedRewardRedistributed(bytes32,address,address,uint256,uint256,uint256)":
+      return [{ kind: "liability", key: `${event.args.marketId}:${event.args.feeAsset}`, reason: "forfeiture accounting changes authoritative Gauge and FeeVault state" }];
     case "CurveFeesSwept(bytes32,uint32,address,uint64,bytes32,uint256,uint256,uint256)":
       return [{ kind: "liability", key: `${event.args.marketId}:${event.args.quoteAsset}`, reason: "curve sweep changes authoritative FeeVault liability" }];
     case "FeeClaimed(uint8,address,bytes32,uint32,address,uint256)":

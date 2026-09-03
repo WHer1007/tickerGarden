@@ -5,7 +5,7 @@ import type { Address, Hash, TransactionReceipt } from "viem";
 import { ROBINHOOD_CHAIN_ID, robinhoodChain } from "../src/v2/chain.ts";
 import { createTickerGardenWagmiConfig } from "../src/v2/wagmiConfig.ts";
 import { V2_ABI_SOURCES, V2_EXECUTION_SPEC_ID, v2Abis } from "../src/v2/generated/abis.ts";
-import type { MarketReadModel, SyncStatus } from "../src/v2/readApi.ts";
+import type { ConfigReadModel, SyncStatus } from "../src/v2/readApi.ts";
 import {
   V2TransactionError,
   V2TransactionExecutor,
@@ -25,7 +25,7 @@ const request = createContractWriteRequest({
   args: [hash("1"), 1n],
 });
 const receipt = (status: "success" | "reverted" = "success") => ({ status }) as TransactionReceipt;
-const snapshot = { executionSpecId: "V2-EXEC-3", revision: "100:0xaa", syncStatus: "synced" as const };
+const snapshot = { executionSpecId: "V2-EXEC-4", revision: "100:0xaa", syncStatus: "synced" as const };
 
 function clients(options: {
   chainId?: number;
@@ -91,7 +91,7 @@ test("Robinhood Chain identity matches the frozen execution network", () => {
 });
 
 test("generated ABI bridge exactly matches all nineteen compiled E102 interface artifacts", async () => {
-  assert.equal(V2_EXECUTION_SPEC_ID, "V2-EXEC-3");
+  assert.equal(V2_EXECUTION_SPEC_ID, "V2-EXEC-4");
   assert.equal(V2_ABI_SOURCES.length, 19);
   assert.deepEqual(Object.keys(v2Abis).sort(), V2_ABI_SOURCES.map((source) => source.module).sort());
   for (const source of V2_ABI_SOURCES) {
@@ -100,11 +100,24 @@ test("generated ABI bridge exactly matches all nineteen compiled E102 interface 
   }
 });
 
-test("Web consumes the generated Backend contract instead of redefining response types", () => {
+test("Web consumes the generated Backend contract and carries dynamic minimum policy in asset config", () => {
   const sync = { chainId: 4663, status: "synced", blockNumber: "1", blockHash: hash("1"), finality: "finalized", headBlockNumber: "1", headBlockHash: hash("1"), lagBlocks: "0", revision: "1:0x01" } satisfies SyncStatus;
-  const market = { stakeSaturationAmount: "10000000000000000000" } as MarketReadModel;
+  const assetConfig = {
+    kind: "asset",
+    id: hash("2"),
+    status: 1,
+    values: { minimumAllocation: "10000000000000000000" },
+    source: {
+      chainId: 4663,
+      blockNumber: "1",
+      blockHash: hash("1"),
+      transactionHash: hash("3"),
+      transactionIndex: 0,
+      logIndex: 0,
+    },
+  } satisfies ConfigReadModel;
   assert.equal(sync.chainId, 4663);
-  assert.equal(typeof market.stakeSaturationAmount, "string");
+  assert.equal(typeof assetConfig.values.minimumAllocation, "string");
 });
 
 test("transaction path simulates before signature, waits for success, then reconciles fresh facts", async () => {

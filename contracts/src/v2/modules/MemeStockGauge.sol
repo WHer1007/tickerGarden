@@ -6,16 +6,17 @@ import {
     ActivationSnapshot,
     GaugeIdentity,
     IMarketController,
+    IProtocolFeeVault,
     PositionView,
     RewardStateView
 } from "../interfaces/IV2Protocol.sol";
 import {MemeStockGaugeClone} from "../shared/MemeStockGaugeClone.sol";
-import {MemeStockGaugeSettlements} from "../shared/MemeStockGaugeSettlements.sol";
+import {MemeStockGaugeForfeitures} from "../shared/MemeStockGaugeForfeitures.sol";
 
 /// @notice Per-market STOCK reward-weight ledger executed through an immutable-argument clone.
 /// @dev The implementation has no market identity or mutable configuration. Each registered clone carries its
 ///      eight-word GaugeIdentity in deployed bytecode and owns independent reward and emergency storage.
-contract MemeStockGauge is MemeStockGaugeSettlements {
+contract MemeStockGauge is MemeStockGaugeForfeitures {
     bool private _emergencyDisabled;
     uint32 private _disabledRecoveryEpoch;
     uint64 private _disabledSnapshotBlock;
@@ -71,6 +72,23 @@ contract MemeStockGauge is MemeStockGaugeSettlements {
         );
     }
 
+    function rageQuit(address user)
+        external
+        whenOperational
+        returns (uint256 principal, uint256 quoteForfeited, uint256 memeForfeited, bool redistributed)
+    {
+        GaugeIdentity memory identity = MemeStockGaugeClone.read(address(this));
+        if (msg.sender != identity.allocationManager) {
+            revert UnauthorizedAllocationModule(msg.sender, identity.allocationManager);
+        }
+        (principal, quoteForfeited, memeForfeited, redistributed) =
+            _rageQuitPosition(user, identity.marketId, identity.quoteAsset, identity.memeToken);
+        if (!redistributed && (quoteForfeited != 0 || memeForfeited != 0)) {
+            IProtocolFeeVault(identity.protocolFeeVault)
+                .recordForfeiture(identity.marketId, user, quoteForfeited, memeForfeited);
+        }
+    }
+
     function checkpointActivations()
         external
         whenOperational
@@ -105,6 +123,11 @@ contract MemeStockGauge is MemeStockGaugeSettlements {
         GaugeIdentity memory identity = MemeStockGaugeClone.read(address(this));
         if (msg.sender != identity.protocolFeeVault) {
             revert UnauthorizedFeeVault(msg.sender, identity.protocolFeeVault);
+        }
+        GaugePosition storage position = _gaugePositions[user];
+        if (position.activeAmount != 0 || position.pendingAmount != 0) {
+            if (position.unlockAt == 0) revert InvalidPositionLock(user, position.unlockAt);
+            if (block.timestamp < position.unlockAt) revert PositionLockedUntil(position.unlockAt);
         }
         _settlePosition(user, identity.marketId);
         return _consumeClaimable(user, _rewardIndex(feeAsset, identity));

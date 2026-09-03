@@ -37,7 +37,9 @@ SNIPE_TAX_RAW_BY_ELAPSED_SECOND = (9_900, 618, 19)
 SNIPE_MIN_NET_BPS = 100
 MIN_SUPPORTED_ASSET_DECIMALS = 6
 MAX_SUPPORTED_ASSET_DECIMALS = 18
-STAKE_SATURATION_WHOLE_TOKENS = 10
+LEGACY_STAKE_SATURATION_WHOLE_TOKENS = 10
+STAKER_NON_LP_SHARE_BPS = 5_000
+MINIMUM_SAFE_ALLOCATION_RAW = 414
 MAX_ACCOUNTING_AMOUNT = INT128_MAX
 MAX_LIFETIME_FEE_CREDITS = 2**48 - 1
 
@@ -618,7 +620,7 @@ def quote_economics_hash(
 
 
 def minimum_nonzero_stock_position(stock_decimals: int) -> int:
-    """Smallest raw balance that is strictly greater than 0.5 STOCK."""
+    """Legacy V2-EXEC-1/3 helper retained only for retired research artifacts."""
 
     if not MIN_SUPPORTED_ASSET_DECIMALS <= stock_decimals <= MAX_SUPPORTED_ASSET_DECIMALS:
         raise ValueError("unsupported Stock decimals")
@@ -626,11 +628,22 @@ def minimum_nonzero_stock_position(stock_decimals: int) -> int:
 
 
 def stake_saturation_amount(stock_decimals: int) -> int:
-    """Raw-unit snapshot for the frozen ten-STOCK saturation point."""
+    """Legacy V2-EXEC-3 helper retained only for retired research artifacts."""
 
     if not MIN_SUPPORTED_ASSET_DECIMALS <= stock_decimals <= MAX_SUPPORTED_ASSET_DECIMALS:
         raise ValueError("unsupported Stock decimals")
-    return STAKE_SATURATION_WHOLE_TOKENS * 10**stock_decimals
+    return LEGACY_STAKE_SATURATION_WHOLE_TOKENS * 10**stock_decimals
+
+
+def validate_minimum_allocation(stock_decimals: int, minimum_allocation: int) -> int:
+    """Validate one V2-EXEC-4 per-asset minimum in canonical raw units."""
+
+    if not MIN_SUPPORTED_ASSET_DECIMALS <= stock_decimals <= MAX_SUPPORTED_ASSET_DECIMALS:
+        raise ValueError("unsupported Stock decimals")
+    _require_uint(minimum_allocation=minimum_allocation)
+    if minimum_allocation < MINIMUM_SAFE_ALLOCATION_RAW:
+        raise ValueError("minimum allocation is below the accumulator safety floor")
+    return minimum_allocation
 
 
 @dataclass(frozen=True)
@@ -644,9 +657,9 @@ class AccumulatorLifetimeBound:
 
 
 def accumulator_lifetime_bound() -> AccumulatorLifetimeBound:
-    """Prove the index fits uint256 for every asset admitted by V2-EXEC-3."""
+    """Prove the base fee-credit index bound for every V2-EXEC-4 asset."""
 
-    minimum_active = minimum_nonzero_stock_position(MIN_SUPPORTED_ASSET_DECIMALS)
+    minimum_active = MINIMUM_SAFE_ALLOCATION_RAW
     maximum_carry = (MAX_ACCOUNTING_AMOUNT - 1) // minimum_active
     maximum_whole = mul_div_floor(
         MAX_ACCOUNTING_AMOUNT, INDEX_PRECISION, minimum_active
@@ -722,8 +735,6 @@ def predict_create2_address(
 class PoolFeePartition:
     base: int
     active_stock: int
-    stake_saturation_amount: int
-    effective_active_stock: int
     total: int
     lp: int
     non_lp: int
@@ -732,31 +743,22 @@ class PoolFeePartition:
     platform: int
 
 
-def partition_pool_fee(
-    base: int, active_stock: int, saturation_amount: int
-) -> PoolFeePartition:
-    """Partition a pool fee with the capped linear ten-STOCK release rule."""
+def partition_pool_fee(base: int, active_stock: int) -> PoolFeePartition:
+    """Partition a V2-EXEC-4 pool fee with a fixed active-staker share."""
 
-    _require_uint(
-        base=base,
-        active_stock=active_stock,
-        saturation_amount=saturation_amount,
-    )
-    if saturation_amount == 0:
-        raise ValueError("saturation_amount must be positive")
+    _require_uint(base=base, active_stock=active_stock)
     if base > maximum_post_graduation_fee_base():
         raise ValueError("fee base exceeds the V4 signed delta accounting bound")
     if active_stock > MAX_ACCOUNTING_AMOUNT:
         raise ValueError("Stock accounting amount exceeds int128.max")
-    if saturation_amount > MAX_ACCOUNTING_AMOUNT:
-        raise ValueError("saturation amount exceeds int128.max")
 
     total = mul_div_floor(base, FEE_PIPS, PIPS_DENOMINATOR)
     lp = mul_div_floor(total, LP_SHARE_BPS, BPS_DENOMINATOR)
     non_lp = total - lp
-    effective_active_stock = min(active_stock, saturation_amount)
-    staker = mul_div_floor(
-        non_lp, effective_active_stock, 2 * saturation_amount
+    staker = (
+        mul_div_floor(non_lp, STAKER_NON_LP_SHARE_BPS, BPS_DENOMINATOR)
+        if active_stock != 0
+        else 0
     )
     remaining = non_lp - staker
     creator = remaining // 2
@@ -764,8 +766,38 @@ def partition_pool_fee(
     return PoolFeePartition(
         base=base,
         active_stock=active_stock,
-        stake_saturation_amount=saturation_amount,
-        effective_active_stock=effective_active_stock,
+        total=total,
+        lp=lp,
+        non_lp=non_lp,
+        creator=creator,
+        staker=staker,
+        platform=platform,
+    )
+
+
+def partition_pool_fee_linear_legacy(
+    base: int, active_stock: int, saturation_amount: int
+) -> PoolFeePartition:
+    """Retired V2-EXEC-1/3 model used only by historical backing-target tooling."""
+
+    _require_uint(base=base, active_stock=active_stock, saturation_amount=saturation_amount)
+    if saturation_amount == 0:
+        raise ValueError("saturation_amount must be positive")
+    if base > maximum_post_graduation_fee_base():
+        raise ValueError("fee base exceeds the V4 signed delta accounting bound")
+    if active_stock > MAX_ACCOUNTING_AMOUNT or saturation_amount > MAX_ACCOUNTING_AMOUNT:
+        raise ValueError("legacy accounting amount exceeds int128.max")
+
+    total = mul_div_floor(base, FEE_PIPS, PIPS_DENOMINATOR)
+    lp = mul_div_floor(total, LP_SHARE_BPS, BPS_DENOMINATOR)
+    non_lp = total - lp
+    staker = mul_div_floor(non_lp, min(active_stock, saturation_amount), 2 * saturation_amount)
+    remaining = non_lp - staker
+    creator = remaining // 2
+    platform = remaining - creator
+    return PoolFeePartition(
+        base=base,
+        active_stock=active_stock,
         total=total,
         lp=lp,
         non_lp=non_lp,

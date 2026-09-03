@@ -38,7 +38,7 @@ contract OfficialStockRegistryV2Test is Test {
     bytes32 internal constant ASSET_UID = keccak256("official-stock");
     bytes32 internal constant OTHER_ASSET_UID = keccak256("other-official-stock");
     bytes32 internal constant REASON_HASH = keccak256("identity-drift");
-    bytes32 internal constant VAULT_SCHEMA_ID = keccak256("TickerGarden.UserStockVault.MultiAsset.v1");
+    bytes32 internal constant VAULT_SCHEMA_ID = keccak256("TickerGarden.UserStockVault.MultiAsset.v2");
     address internal constant DELAYED_ADMIN = address(0xA11CE);
     address internal constant FAST_ADMIN = address(0xFA57);
     address internal constant GUARDIAN = address(0x6A7D);
@@ -61,6 +61,9 @@ contract OfficialStockRegistryV2Test is Test {
         bytes32 indexed assetUid, address indexed stockToken, address indexed userStockVault, uint8 tokenDecimals
     );
     event AssetStatusChanged(bytes32 indexed assetUid, uint8 oldStatus, uint8 newStatus, bytes32 reasonHash);
+    event AssetMinimumAllocationChanged(
+        bytes32 indexed assetUid, uint256 oldMinimum, uint256 newMinimum, bytes32 reasonHash
+    );
 
     function setUp() public {
         vm.warp(1_000_000);
@@ -73,9 +76,10 @@ contract OfficialStockRegistryV2Test is Test {
             new MockUserStockVaultIdentity(address(registry), marketRegistry, allocationManager, VAULT_SCHEMA_ID)
         );
 
-        bytes4[] memory adminSelectors = new bytes4[](2);
+        bytes4[] memory adminSelectors = new bytes4[](3);
         adminSelectors[0] = IOfficialStockRegistryV2.registerAsset.selector;
         adminSelectors[1] = IOfficialStockRegistryV2.retireAsset.selector;
+        adminSelectors[2] = IOfficialStockRegistryV2.setMinimumAllocation.selector;
         manager.setTargetFunctionRole(address(registry), adminSelectors, PROTOCOL_ADMIN_ROLE);
 
         bytes4[] memory pauseSelectors = new bytes4[](1);
@@ -107,6 +111,13 @@ contract OfficialStockRegistryV2Test is Test {
         assertEq(OfficialStockRegistryV2.unpauseAsset.selector, IOfficialStockRegistryV2.unpauseAsset.selector);
         assertEq(OfficialStockRegistryV2.retireAsset.selector, IOfficialStockRegistryV2.retireAsset.selector);
         assertEq(OfficialStockRegistryV2.asset.selector, IOfficialStockRegistryV2.asset.selector);
+        assertEq(
+            OfficialStockRegistryV2.minimumAllocation.selector, IOfficialStockRegistryV2.minimumAllocation.selector
+        );
+        assertEq(
+            OfficialStockRegistryV2.setMinimumAllocation.selector,
+            IOfficialStockRegistryV2.setMinimumAllocation.selector
+        );
         assertEq(OfficialStockRegistryV2.vaultSchemaId.selector, IOfficialStockRegistryV2.vaultSchemaId.selector);
         assertEq(OfficialStockRegistryV2.vaultForSchema.selector, IOfficialStockRegistryV2.vaultForSchema.selector);
     }
@@ -121,7 +132,7 @@ contract OfficialStockRegistryV2Test is Test {
 
     function test_allMutationsRequireTheirConfiguredSelectorRole() public {
         _expectUnauthorized(IOfficialStockRegistryV2.registerAsset.selector);
-        registry.registerAsset(ASSET_UID, stockToken, 18, vault);
+        registry.registerAsset(ASSET_UID, stockToken, 18, vault, 0.5 ether);
         _expectUnauthorized(IOfficialStockRegistryV2.pauseAsset.selector);
         registry.pauseAsset(ASSET_UID, REASON_HASH);
         _expectUnauthorized(IOfficialStockRegistryV2.unpauseAsset.selector);
@@ -131,7 +142,8 @@ contract OfficialStockRegistryV2Test is Test {
     }
 
     function test_registerUsesExactTwoDayAccessManagerDelay() public {
-        bytes memory data = abi.encodeCall(IOfficialStockRegistryV2.registerAsset, (ASSET_UID, stockToken, 18, vault));
+        bytes memory data =
+            abi.encodeCall(IOfficialStockRegistryV2.registerAsset, (ASSET_UID, stockToken, 18, vault, 0.5 ether));
 
         vm.prank(DELAYED_ADMIN);
         vm.expectRevert(
@@ -141,7 +153,7 @@ contract OfficialStockRegistryV2Test is Test {
                 IOfficialStockRegistryV2.registerAsset.selector
             )
         );
-        registry.registerAsset(ASSET_UID, stockToken, 18, vault);
+        registry.registerAsset(ASSET_UID, stockToken, 18, vault, 0.5 ether);
 
         uint48 readyAt = uint48(block.timestamp + ADMIN_DELAY);
         vm.prank(DELAYED_ADMIN);
@@ -166,10 +178,75 @@ contract OfficialStockRegistryV2Test is Test {
         emit StockVaultRegistered(vault, VAULT_SCHEMA_ID, marketRegistry, allocationManager);
         vm.expectEmit(true, true, true, true);
         emit AssetRegistered(ASSET_UID, stockToken, vault, 18);
+        vm.expectEmit(true, false, false, true);
+        emit AssetMinimumAllocationChanged(ASSET_UID, 0, 0.5 ether, bytes32(0));
         _registerFast(ASSET_UID, stockToken, 18, vault);
         _assertAsset(ASSET_UID, stockToken, vault, 18, 1);
         assertEq(registry.vaultSchemaId(vault), VAULT_SCHEMA_ID);
         assertEq(registry.vaultForSchema(VAULT_SCHEMA_ID), vault);
+        assertEq(registry.minimumAllocation(ASSET_UID), 0.5 ether);
+    }
+
+    function test_minimumAllocationIsPerAssetAndUsesConfiguredAdminDelay() public {
+        _registerFast(ASSET_UID, stockToken, 18, vault);
+        address otherToken = address(new EmptyV2Contract());
+        _registerFast(OTHER_ASSET_UID, otherToken, 6, vault);
+        assertEq(registry.minimumAllocation(ASSET_UID), 0.5 ether);
+        assertEq(registry.minimumAllocation(OTHER_ASSET_UID), 500_000);
+
+        bytes memory data =
+            abi.encodeCall(IOfficialStockRegistryV2.setMinimumAllocation, (ASSET_UID, 10 ether, REASON_HASH));
+        vm.prank(DELAYED_ADMIN);
+        vm.expectRevert();
+        registry.setMinimumAllocation(ASSET_UID, 10 ether, REASON_HASH);
+
+        uint48 readyAt = uint48(block.timestamp + ADMIN_DELAY);
+        vm.prank(DELAYED_ADMIN);
+        manager.schedule(address(registry), data, readyAt);
+        vm.warp(readyAt);
+        vm.expectEmit(true, false, false, true, address(registry));
+        emit AssetMinimumAllocationChanged(ASSET_UID, 0.5 ether, 10 ether, REASON_HASH);
+        vm.prank(DELAYED_ADMIN);
+        manager.execute(address(registry), data);
+        assertEq(registry.minimumAllocation(ASSET_UID), 10 ether);
+
+        data = abi.encodeCall(IOfficialStockRegistryV2.setMinimumAllocation, (ASSET_UID, 1 ether, REASON_HASH));
+        readyAt = uint48(block.timestamp + ADMIN_DELAY);
+        vm.prank(DELAYED_ADMIN);
+        manager.schedule(address(registry), data, readyAt);
+        vm.warp(readyAt - 1);
+        vm.prank(DELAYED_ADMIN);
+        vm.expectRevert();
+        manager.execute(address(registry), data);
+
+        vm.warp(readyAt);
+        vm.expectEmit(true, false, false, true, address(registry));
+        emit AssetMinimumAllocationChanged(ASSET_UID, 10 ether, 1 ether, REASON_HASH);
+        vm.prank(DELAYED_ADMIN);
+        manager.execute(address(registry), data);
+        assertEq(registry.minimumAllocation(ASSET_UID), 1 ether);
+    }
+
+    function test_registerAndUpdateRejectMinimumBelowAccumulatorSafetyFloor() public {
+        vm.expectRevert(abi.encodeWithSelector(OfficialStockRegistryV2.InvalidMinimumAllocation.selector, ASSET_UID, 0));
+        vm.prank(FAST_ADMIN);
+        registry.registerAsset(ASSET_UID, stockToken, 18, vault, 0);
+
+        vm.expectRevert(
+            abi.encodeWithSelector(OfficialStockRegistryV2.InvalidMinimumAllocation.selector, ASSET_UID, 413)
+        );
+        vm.prank(FAST_ADMIN);
+        registry.registerAsset(ASSET_UID, stockToken, 18, vault, 413);
+
+        vm.prank(FAST_ADMIN);
+        registry.registerAsset(ASSET_UID, stockToken, 18, vault, 414);
+        assertEq(registry.minimumAllocation(ASSET_UID), 414);
+
+        vm.expectRevert(
+            abi.encodeWithSelector(OfficialStockRegistryV2.InvalidMinimumAllocation.selector, ASSET_UID, 413)
+        );
+        vm.prank(FAST_ADMIN);
+        registry.setMinimumAllocation(ASSET_UID, 413, REASON_HASH);
     }
 
     function test_registerRejectsInvalidIdentityAndDecimalBounds() public {
@@ -202,13 +279,13 @@ contract OfficialStockRegistryV2Test is Test {
         );
         vm.expectRevert(abi.encodeWithSelector(OfficialStockRegistryV2.AssetAlreadyRegistered.selector, ASSET_UID));
         vm.prank(FAST_ADMIN);
-        registry.registerAsset(ASSET_UID, otherToken, 18, otherVault);
+        registry.registerAsset(ASSET_UID, otherToken, 18, otherVault, 0.5 ether);
 
         vm.expectRevert(
             abi.encodeWithSelector(OfficialStockRegistryV2.StockTokenAlreadyRegistered.selector, stockToken, ASSET_UID)
         );
         vm.prank(FAST_ADMIN);
-        registry.registerAsset(OTHER_ASSET_UID, stockToken, 18, otherVault);
+        registry.registerAsset(OTHER_ASSET_UID, stockToken, 18, otherVault, 0.5 ether);
 
         _registerFast(OTHER_ASSET_UID, otherToken, 18, vault);
 
@@ -235,7 +312,7 @@ contract OfficialStockRegistryV2Test is Test {
             )
         );
         vm.prank(FAST_ADMIN);
-        registry.registerAsset(OTHER_ASSET_UID, otherToken, 18, duplicateSchemaVault);
+        registry.registerAsset(OTHER_ASSET_UID, otherToken, 18, duplicateSchemaVault, 0.5 ether);
 
         assertEq(registry.vaultForSchema(VAULT_SCHEMA_ID), vault);
         assertEq(registry.vaultSchemaId(duplicateSchemaVault), bytes32(0));
@@ -255,7 +332,7 @@ contract OfficialStockRegistryV2Test is Test {
             )
         );
         vm.prank(FAST_ADMIN);
-        registry.registerAsset(ASSET_UID, stockToken, 18, emptyVault);
+        registry.registerAsset(ASSET_UID, stockToken, 18, emptyVault, 0.5 ether);
 
         address wrongRegistryVault =
             address(new MockUserStockVaultIdentity(address(0xBAD), marketRegistry, allocationManager, VAULT_SCHEMA_ID));
@@ -270,7 +347,7 @@ contract OfficialStockRegistryV2Test is Test {
             )
         );
         vm.prank(FAST_ADMIN);
-        registry.registerAsset(ASSET_UID, stockToken, 18, wrongRegistryVault);
+        registry.registerAsset(ASSET_UID, stockToken, 18, wrongRegistryVault, 0.5 ether);
     }
 
     function test_pauseIsImmediateAndPreservesIdentity() public {
@@ -383,12 +460,12 @@ contract OfficialStockRegistryV2Test is Test {
             )
         );
         vm.prank(FAST_ADMIN);
-        registry.registerAsset(uid, token, decimals, assetVault);
+        registry.registerAsset(uid, token, decimals, assetVault, 0.5 ether);
     }
 
     function _registerFast(bytes32 uid, address token, uint8 decimals, address assetVault) private {
         vm.prank(FAST_ADMIN);
-        registry.registerAsset(uid, token, decimals, assetVault);
+        registry.registerAsset(uid, token, decimals, assetVault, 5 * (10 ** (decimals - 1)));
     }
 
     function _assertAsset(bytes32 uid, address token, address assetVault, uint8 decimals, uint8 status) private view {

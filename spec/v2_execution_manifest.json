@@ -1,8 +1,8 @@
 {
   "schemaVersion": 1,
-  "executionSpecId": "V2-EXEC-3",
+  "executionSpecId": "V2-EXEC-4",
   "status": "IMPLEMENTATION_ALLOWED",
-  "updatedAt": "2026-09-02",
+  "updatedAt": "2026-09-04",
   "normativeDocument": "V2_EXECUTION_SPEC.md",
   "readiness": {
     "modelVersion": 1,
@@ -25,9 +25,9 @@
       "implementation": {
         "open": [],
         "requiredEvidence": [
-          "V2_EXEC_3_CANONICAL_ABI_HASH_AND_PERMISSION_VECTORS",
+          "V2_EXEC_4_CANONICAL_ABI_HASH_AND_PERMISSION_VECTORS",
           "ALL_OFFICIAL_STOCK_BASE_SELECTION_POLICY",
-          "LINEAR_STAKER_RELEASE_WITH_TEN_STOCK_SATURATION_VECTORS",
+          "FIXED_ACTIVE_STAKER_SHARE_AND_RAGE_QUIT_FORFEITURE_VECTORS",
           "COMPLETE_SPEC_VECTOR_SUITE"
         ]
       },
@@ -217,17 +217,13 @@
     "totalFeeFormula": "floor(base*10000/1000000)",
     "lpFormula": "floor(totalFee*2000/10000)",
     "nonLpFormula": "totalFee-lpAmount",
-    "stakerEligibility": "ACTIVE_STOCK_LINEAR_SATURATION",
-    "stakeSaturationWholeTokens": 10,
-    "stakeSaturationRawFormula": "10*10^stockDecimals",
-    "stakeSaturationSnapshotField": "MarketConfig.stakeSaturationAmount",
-    "stakerReleaseMode": "LINEAR_CAPPED",
-    "effectiveActiveStockFormula": "min(totalActiveStock,stakeSaturationAmount)",
-    "stakerFormula": "floor(nonLpAmount*effectiveActiveStock/(2*stakeSaturationAmount))",
+    "stakerEligibility": "ANY_POSITIVE_ACTIVE_STOCK",
+    "stakerNonLpShareBps": 5000,
+    "stakerReleaseMode": "FIXED_BINARY_BY_ACTIVE_STOCK",
+    "stakerFormula": "activeStock==0?0:floor(nonLpAmount*5000/10000)",
     "boundaryResults": {
       "S_EQ_0": "CREATOR_40_STAKER_0_PLATFORM_40_LP_20_SUBJECT_TO_INTEGER_ROUNDING",
-      "ZERO_LT_S_LT_B": "STAKER_SHARE_RELEASES_LINEARLY_FROM_0_TO_40_PERCENT_OF_TOTAL_FEE",
-      "S_GTE_B": "CREATOR_20_STAKER_40_PLATFORM_20_LP_20_SUBJECT_TO_INTEGER_ROUNDING"
+      "S_GT_0": "CREATOR_20_STAKER_40_PLATFORM_20_LP_20_SUBJECT_TO_INTEGER_ROUNDING"
     },
     "creatorFormula": "floor((nonLpAmount-stakerAmount)/2)",
     "platformFormula": "nonLpAmount-stakerAmount-creatorAmount",
@@ -261,6 +257,8 @@
     "domain": "TICKERGARDEN_V2_V4_FEE",
     "schemaVersion": 1,
     "nonceScope": "POOL_ID",
+    "maximumFeeNonce": "281474976710655",
+    "overflowPolicy": "REJECT_WHEN_NEXT_CREDIT_WOULD_EXCEED_UINT48_MAX",
     "fields": [
       "domain",
       "schemaVersion",
@@ -310,9 +308,9 @@
     "stockPriceRequired": false,
     "stockPriceOracleDependency": false,
     "backingTargetRequired": false,
-    "stakeSaturationWholeTokens": 10,
-    "stakeSaturationRawFormula": "10*10^stockDecimals",
-    "stakeSaturationIsPriceTarget": false,
+    "minimumAllocationPolicy": "PER_ASSET_TIMELOCKED_ADMIN_CONFIGURATION",
+    "minimumAllocationSafetyFloorRaw": "414",
+    "minimumAllocationUpdateEffect": "EXISTING_POSITIONS_GRANDFATHERED_NEW_OR_INCREASED_AND_NONZERO_REMAINDER_POSITIONS_USE_CURRENT_VALUE",
     "priceFeedCoverageAffectsEligibility": false,
     "officialIdentityAndTokenSafetyChecksStillRequired": true,
     "productionRegistration": "PER_ASSET_TIMELOCKED_REGISTRY_CALLS_NO_BATCH_ABI"
@@ -334,18 +332,32 @@
   },
   "staking": {
     "indexPrecision": "1000000000000000000000000000",
-    "minPositionRule": "ZERO_OR_STRICTLY_GREATER_THAN_HALF_STOCK",
+    "minPositionRule": "ZERO_OR_AT_LEAST_CURRENT_ASSET_MINIMUM_ALLOCATION",
+    "minimumAllocationSource": "OfficialStockRegistryV2.minimumAllocation(assetUid)",
+    "minimumAllocationSafetyFloorRaw": "414",
+    "minimumAllocationUpdateRoleDelaySeconds": 172800,
+    "existingPositionGrandfathering": "NO_FORCED_EXIT; INCREASE_PARTIAL_DECREASE_AND_MIGRATION_TARGET_USE_CURRENT_MINIMUM; FULL_CLOSE_AND_RAGE_QUIT_ALWAYS_ALLOWED",
     "minLockSeconds": 86400,
     "lockStartsAt": "ALLOCATION_TRANSACTION_TIMESTAMP",
     "increaseResetsWholePositionLock": true,
+    "normalClaimRequiresUnlock": true,
+    "normalClosePreservesAccruedRewards": true,
+    "rageQuit": {
+      "callerScope": "POSITION_OWNER_ONLY_VIA_ALLOCATION_MANAGER",
+      "principalExit": "ATOMIC_FULL_POSITION_DIRECT_TO_USER_WALLET",
+      "bypassesMinimumLock": true,
+      "forfeitsAllUnclaimedQuoteAndMemeRewards": true,
+      "marketStatusEffect": "NONE",
+      "whenOtherActiveStakersRemain": "REDISTRIBUTE_PRO_RATA_TO_REMAINING_ACTIVE_STAKE",
+      "whenNoOtherActiveStakerRemains": "MOVE_TO_MARKET_AND_FEE_ASSET_ISOLATED_FORFEITURE_RESERVE",
+      "reserveConversion": "NEXT_PLATFORM_CLAIM_CONVERTS_RESERVE_TO_PLATFORM_REVENUE"
+    },
     "preGraduationAllocation": false,
     "marketBaseAssetCount": 1,
     "marketBaseSelectedAtCreation": true,
     "marketBaseImmutable": true,
     "priceOrUsdNotionalUsedForWeight": false,
-    "feeBucketRule": "CAPPED_LINEAR_RELEASE_BY_MIN_TOTAL_ACTIVE_STOCK_AND_TEN_STOCK_SATURATION",
-    "stakeSaturationWholeTokens": 10,
-    "stakeSaturationRawFormula": "10*10^stockDecimals",
+    "feeBucketRule": "ANY_POSITIVE_ACTIVE_STOCK_ENABLES_FIXED_FIFTY_PERCENT_OF_NON_LP_FOR_STAKERS",
     "rewardAssets": [
       "MARKET_QUOTE_ASSET",
       "MARKET_MEME_TOKEN"
@@ -354,7 +366,7 @@
   "vault": {
     "custodyScope": "ONE_MULTI_ASSET_USER_STOCK_VAULT_PER_VAULT_SCHEMA_VERSION",
     "initialDeploymentCount": 1,
-    "schemaIdentity": "keccak256(TickerGarden.UserStockVault.MultiAsset.v1)",
+    "schemaIdentity": "keccak256(TickerGarden.UserStockVault.MultiAsset.v2)",
     "schemaUniqueness": "OFFICIAL_STOCK_REGISTRY_ENFORCES_ONE_CANONICAL_VAULT_PER_SCHEMA",
     "schemaDiscovery": ["vaultSchemaId(address)", "vaultForSchema(bytes32)", "vaultIdentity()"],
     "assetKey": "EXPLICIT_CANONICAL_ASSET_UID",
@@ -369,6 +381,9 @@
       "ASSET_TOTAL_ALLOCATED"
     ],
     "normalReleaseRequiresGauge": true,
+    "rageQuitRequiresGauge": true,
+    "rageQuitDestination": "USER_WALLET",
+    "rageQuitChangesMarketStatus": false,
     "emergencyReleaseRequiresGauge": false,
     "emergencyReleaseDestination": "USER_FREE_BALANCE",
     "arbitraryRecipient": false
@@ -421,7 +436,7 @@
     "revision": "V2-STATE-5-FROZEN",
     "canonicalModule": "MarketRegistryV2",
     "canonicalConfigFields": [
-      "assetUid", "stakeSaturationAmount", "ponsBaselineId", "quoteAssetConfigId", "launchTemplateId",
+      "assetUid", "ponsBaselineId", "quoteAssetConfigId", "launchTemplateId",
       "feePolicyId", "executionSpecId", "expectedEconomics", "launchConfigId",
       "creatorRevenueBeneficiaryAtCreation",
       "memeToken", "curve", "gauge", "quoteAsset", "graduatedHook", "marketController"

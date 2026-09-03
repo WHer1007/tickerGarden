@@ -8,19 +8,18 @@ import {MarketFeeAccounting} from "../libraries/MarketFeeAccounting.sol";
 import {ProtocolFeeVaultLiabilities} from "./ProtocolFeeVaultLiabilities.sol";
 import {V2MarketEconomics} from "./V2MarketEconomics.sol";
 
-/// @notice Canonical v4 fee identity, active-STOCK snapshot and capped-linear attribution.
+/// @notice Canonical v4 fee identity, active-STOCK snapshot and fixed attribution when active stake exists.
 abstract contract ProtocolFeeVaultV4Accounting is ProtocolFeeVaultLiabilities {
     bytes32 private constant V4_FEE_DOMAIN = keccak256("TICKERGARDEN_V2_V4_FEE");
     uint256 private constant V4_FEE_SCHEMA_VERSION = 1;
-    bytes32 private constant EXECUTION_SPEC_ID = keccak256("V2-EXEC-3");
+    bytes32 private constant EXECUTION_SPEC_ID = keccak256("V2-EXEC-4");
     uint256 private constant FEE_PIPS_DENOMINATOR = 1_000_000;
     uint24 private constant FEE_PIPS = 10_000;
     uint16 private constant LP_SHARE_BPS = 2_000;
     uint24 private constant POOL_KEY_FEE = 0;
     uint160 private constant HOOK_PERMISSION_MASK = 0x2044;
     uint8 private constant FEE_ASSET_MODE_UNSPECIFIED_CORE_SWAP_DELTA = 1;
-    uint256 private constant STAKE_SATURATION_WHOLE_TOKENS = 10;
-    uint8 private constant STAKER_RELEASE_MODE_LINEAR_CAPPED = 1;
+    uint16 private constant STAKER_NON_LP_SHARE_BPS = 5_000;
 
     bytes32 private immutable _feePolicyId;
     bytes32 private immutable _feePolicyHash;
@@ -48,8 +47,7 @@ abstract contract ProtocolFeeVaultV4Accounting is ProtocolFeeVaultLiabilities {
                 poolKeyFee: POOL_KEY_FEE,
                 hookPermissionMask: HOOK_PERMISSION_MASK,
                 feeAssetMode: FEE_ASSET_MODE_UNSPECIFIED_CORE_SWAP_DELTA,
-                stakeSaturationWholeTokens: STAKE_SATURATION_WHOLE_TOKENS,
-                stakerReleaseMode: STAKER_RELEASE_MODE_LINEAR_CAPPED
+                stakerNonLpShareBps: STAKER_NON_LP_SHARE_BPS
             })
         );
     }
@@ -57,7 +55,7 @@ abstract contract ProtocolFeeVaultV4Accounting is ProtocolFeeVaultLiabilities {
     function _recordExactV4Credit(V4CreditRecord memory record) internal virtual override {
         MarketView memory value = _feeMarketRegistry.market(record.marketId);
         _validateV4Record(record, value);
-        _settleV4Attribution(record, value.config.gauge, value.config.stakeSaturationAmount);
+        _settleV4Attribution(record, value.config.gauge);
         _lastV4FeeNonces[value.runtime.poolId] = record.feeNonce;
     }
 
@@ -78,15 +76,12 @@ abstract contract ProtocolFeeVaultV4Accounting is ProtocolFeeVaultLiabilities {
         }
     }
 
-    function _settleV4Attribution(V4CreditRecord memory record, address gaugeAddress, uint256 stakeSaturationAmount)
-        private
-    {
+    function _settleV4Attribution(V4CreditRecord memory record, address gaugeAddress) private {
         IMemeStockGauge gauge = IMemeStockGauge(gaugeAddress);
         gauge.checkpointActivations();
         uint256 activeStock = gauge.storedTotalActiveStock();
-        MarketFeeAccounting.V4Buckets memory buckets = MarketFeeAccounting.splitV4(
-            record.totalFee, record.lpAmount, record.nonLpAmount, activeStock, stakeSaturationAmount
-        );
+        MarketFeeAccounting.V4Buckets memory buckets =
+            MarketFeeAccounting.splitV4(record.totalFee, record.lpAmount, record.nonLpAmount, activeStock);
 
         uint32 creatorEpoch = _feeCreatorRevenueRegistry.currentCreatorEpoch(record.marketId);
         if (
@@ -117,8 +112,7 @@ abstract contract ProtocolFeeVaultV4Accounting is ProtocolFeeVaultLiabilities {
             buckets.creatorAmount,
             buckets.stakerAmount,
             buckets.platformAmount,
-            activeStock,
-            stakeSaturationAmount
+            activeStock
         );
     }
 

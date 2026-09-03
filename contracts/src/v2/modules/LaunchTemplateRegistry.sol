@@ -14,7 +14,7 @@ contract LaunchTemplateRegistry is ILaunchTemplateRegistry, ImmutableAccessManag
     uint160 internal constant ALL_HOOK_PERMISSION_BITS = 0x3fff;
     uint256 internal constant LAUNCH_TEMPLATE_SCHEMA_VERSION = 1;
     bytes32 internal constant LAUNCH_TEMPLATE_DOMAIN = keccak256("TICKERGARDEN_V2_LAUNCH_TEMPLATE");
-    bytes32 public constant EXECUTION_SPEC_ID = keccak256("V2-EXEC-3");
+    bytes32 public constant EXECUTION_SPEC_ID = keccak256("V2-EXEC-4");
 
     mapping(bytes32 launchTemplateId => LaunchTemplate value) private _launchTemplates;
     mapping(bytes32 launchTemplateId => bytes32 value) private _launchTemplateHashes;

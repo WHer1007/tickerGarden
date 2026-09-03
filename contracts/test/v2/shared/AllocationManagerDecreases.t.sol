@@ -17,10 +17,20 @@ import {MockExactQuoteToken} from "../mocks/MockV2QuoteAssets.sol";
 
 contract MockDecreaseOfficialStockRegistry {
     mapping(bytes32 assetUid => AssetView assetView) private _assets;
+    mapping(bytes32 assetUid => uint256 minimum) private _minimumAllocations;
 
-    function configure(bytes32 assetUid, address stockToken, address vault, uint8 decimals, uint8 status) external {
-        _assets[assetUid] =
-            AssetView({stockToken: stockToken, userStockVault: vault, tokenDecimals: decimals, status: status});
+    function configure(
+        bytes32 assetUid,
+        address stockToken,
+        address vault,
+        uint8 decimals,
+        uint8 status,
+        uint256 minimum
+    ) external {
+        _assets[assetUid] = AssetView({
+            stockToken: stockToken, userStockVault: vault, tokenDecimals: decimals, status: status
+        });
+        _minimumAllocations[assetUid] = minimum;
     }
 
     function setStatus(bytes32 assetUid, uint8 status) external {
@@ -29,6 +39,10 @@ contract MockDecreaseOfficialStockRegistry {
 
     function asset(bytes32 assetUid) external view returns (AssetView memory) {
         return _assets[assetUid];
+    }
+
+    function minimumAllocation(bytes32 assetUid) external view returns (uint256) {
+        return _minimumAllocations[assetUid];
     }
 }
 
@@ -189,7 +203,7 @@ contract AllocationManagerDecreasesTest is Test {
         gauge = new MockDecreaseGauge();
         stockToken = new MockExactQuoteToken(18);
         vault = new UserStockVault(address(officialRegistry), address(marketRegistry), address(manager));
-        officialRegistry.configure(ASSET_UID, address(stockToken), address(vault), 18, 1);
+        officialRegistry.configure(ASSET_UID, address(stockToken), address(vault), 18, 1, 0.5 ether);
         marketRegistry.configure(MARKET_ID, ASSET_UID, address(gauge), 2, 0);
         gauge.configure(address(manager), vault, ASSET_UID, MARKET_ID);
     }
@@ -305,20 +319,20 @@ contract AllocationManagerDecreasesTest is Test {
         assertEq(vault.totalDeposited(ASSET_UID), 0);
     }
 
-    function test_partialDecreaseCannotLeaveHalfStockOrLessButOneRawUnitAboveIsValid() public {
+    function test_partialDecreaseCannotLeaveBelowConfiguredMinimumButExactBoundaryIsValid() public {
         _depositAndAllocate(ALICE, 2 ether, 1.5 ether);
         _warpToUnlock(ALICE);
         vm.expectRevert(
             abi.encodeWithSelector(
-                AllocationManagerIncreases.PositionBelowMinimum.selector, uint256(0.5 ether), uint256(0.5 ether + 1)
+                AllocationManagerIncreases.PositionBelowMinimum.selector, uint256(0.5 ether - 1), uint256(0.5 ether)
             )
         );
         vm.prank(ALICE);
-        manager.decreaseAllocation(MARKET_ID, 1 ether);
+        manager.decreaseAllocation(MARKET_ID, 1 ether + 1);
 
         vm.prank(ALICE);
-        manager.decreaseAllocation(MARKET_ID, 1 ether - 1);
-        assertEq(vault.allocation(ASSET_UID, ALICE, MARKET_ID), 0.5 ether + 1);
+        manager.decreaseAllocation(MARKET_ID, 1 ether);
+        assertEq(vault.allocation(ASSET_UID, ALICE, MARKET_ID), 0.5 ether);
     }
 
     function test_zeroOverAllocationAndEmptyCloseFailAtomically() public {
@@ -402,8 +416,8 @@ contract AllocationManagerDecreasesTest is Test {
         assertEq(vault.allocation(ASSET_UID, ALICE, MARKET_ID), 1 ether);
     }
 
-    function testFuzz_decreaseAcceptsOnlyZeroOrStrictlyAboveHalfRemainder(uint96 rawPosition, uint96 rawAmount) public {
-        uint256 minimum = 0.5 ether + 1;
+    function testFuzz_decreaseAcceptsOnlyZeroOrAtLeastConfiguredMinimum(uint96 rawPosition, uint96 rawAmount) public {
+        uint256 minimum = 0.5 ether;
         uint256 current = bound(rawPosition, minimum, 10 ether);
         uint256 amount = bound(rawAmount, 1, current);
         uint256 remaining = current - amount;

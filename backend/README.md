@@ -38,11 +38,11 @@ typed API error response.
 
 Run `npm run generate:openapi` after intentionally changing the source schema.
 `openapi/v2.lock.json` binds its fingerprint to the OpenAPI SemVer and
-`V2-EXEC-3`; any changed schema without a version increase fails closed. CI uses
+`V2-EXEC-4`; any changed schema without a version increase fails closed. CI uses
 `npm run check:openapi` to reject stale spec, client, or lock output.
 
 The bundled `InMemoryReadModelRepository` defines the adapter contract and is used
-for deterministic tests. It accepts only `V2-EXEC-3` snapshots carrying zero I502
+for deterministic tests. It accepts only `V2-EXEC-4` snapshots carrying zero I502
 reconciliation alerts, then validates canonical hex, unsigned amounts, lifecycle,
 PoolKey/route, position conservation, dual assets, uniqueness, and source bounds.
 A production process must populate that contract from the canonical I502

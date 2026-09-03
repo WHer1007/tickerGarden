@@ -245,12 +245,12 @@ contract MemeStockGaugeAccumulatorsTest is Test {
 
     function test_maximumAdmittedRewardUsesMulDivWithoutIntermediateOverflow() public {
         uint256 reward = uint256(uint128(type(int128).max));
-        gauge.seedActive(500_001);
+        gauge.seedActive(414);
 
         (uint256 delta, uint256 remainder) = gauge.credit(0, QUOTE, reward, FEE_ID);
 
-        assertEq(delta, (reward * P) / 500_001);
-        assertEq(remainder, (reward * P) % 500_001);
+        assertEq(delta, (reward * P) / 414);
+        assertEq(remainder, (reward * P) % 414);
     }
 
     function test_maximumAdmittedActiveStockAndRewardRemainExact() public {
@@ -265,13 +265,14 @@ contract MemeStockGaugeAccumulatorsTest is Test {
         _assertRewardState(1, P, 0);
     }
 
-    function test_eachApprovedStockDecimalsAndMaximumSupplyStayInsideAccumulatorDomain() public {
+    function test_dynamicMinimumExamplesAndMaximumSupplyStayInsideAccumulatorDomain() public {
         uint256 maximum = uint256(uint128(type(int128).max));
         uint256 previousAccumulator;
         uint256 previousRemainder;
+        uint256[3] memory configuredMinimums = [uint256(414), uint256(500_000), uint256(10 ether)];
 
-        for (uint8 decimals = 6; decimals <= 18; ++decimals) {
-            uint256 minimumPosition = (10 ** uint256(decimals)) / 2 + 1;
+        for (uint256 i; i < configuredMinimums.length; ++i) {
+            uint256 minimumPosition = configuredMinimums[i];
             gauge.seedActive(minimumPosition);
             (uint256 delta, uint256 newRemainder) = gauge.credit(0, QUOTE, maximum, FEE_ID);
             (uint256 accumulator,) = gauge.rewardState(0);
@@ -292,14 +293,14 @@ contract MemeStockGaugeAccumulatorsTest is Test {
 
     function test_maximumLifetimeAccumulatorProofRetainsRecordedUint256Headroom() public pure {
         uint256 maximum = uint256(uint128(type(int128).max));
-        uint256 minimumActive = 500_001;
+        uint256 minimumActive = 414;
         uint256 maximumCredits = type(uint48).max;
         uint256 maximumDelta = Math.mulDiv(maximum, P, minimumActive) + ((maximum - 1) / minimumActive) + 1;
         uint256 maximumAccumulator = maximumDelta * maximumCredits;
 
-        assertEq(maximumDelta, 340281686357565748331877944016162546049846363770647066137636);
-        assertEq(maximumAccumulator, 95780779742558228248573271207669416566285394209083720090990696582777711580);
-        assertEq(type(uint256).max / maximumAccumulator, 1_208);
+        assertEq(maximumDelta, 410969042175046453458181893444505529438331477612771265014212816);
+        assertEq(maximumAccumulator, 115677501575021392952934502843251004716326723164096785336269155381167824754480);
+        assertEq(type(uint256).max / maximumAccumulator, 1);
         assertLt(maximumAccumulator, type(uint256).max);
     }
 

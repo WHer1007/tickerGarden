@@ -19,9 +19,13 @@ import {MockExactQuoteToken} from "../mocks/MockV2QuoteAssets.sol";
 
 contract MockMigrationOfficialStockRegistry {
     mapping(bytes32 assetUid => AssetView assetView) private _assets;
+    mapping(bytes32 assetUid => uint256 minimum) private _minimumAllocations;
 
-    function configure(bytes32 assetUid, address token, address vault, uint8 decimals, uint8 status) external {
+    function configure(bytes32 assetUid, address token, address vault, uint8 decimals, uint8 status, uint256 minimum)
+        external
+    {
         _assets[assetUid] = AssetView(token, vault, decimals, status);
+        _minimumAllocations[assetUid] = minimum;
     }
 
     function setStatus(bytes32 assetUid, uint8 status) external {
@@ -30,6 +34,10 @@ contract MockMigrationOfficialStockRegistry {
 
     function asset(bytes32 assetUid) external view returns (AssetView memory) {
         return _assets[assetUid];
+    }
+
+    function minimumAllocation(bytes32 assetUid) external view returns (uint256) {
+        return _minimumAllocations[assetUid];
     }
 }
 
@@ -238,8 +246,8 @@ contract AllocationManagerTest is Test {
         sourceGauge = new MockMigrationGauge();
         targetGauge = new MockMigrationGauge();
         vault = new UserStockVault(address(officialRegistry), address(marketRegistry), address(manager));
-        officialRegistry.configure(ASSET_UID, address(stockToken), address(vault), 18, 1);
-        officialRegistry.configure(OTHER_ASSET_UID, address(otherStockToken), address(vault), 18, 1);
+        officialRegistry.configure(ASSET_UID, address(stockToken), address(vault), 18, 1, 0.5 ether);
+        officialRegistry.configure(OTHER_ASSET_UID, address(otherStockToken), address(vault), 18, 1, 0.5 ether);
         marketRegistry.configure(FROM_MARKET, ASSET_UID, address(sourceGauge), 2, 0);
         marketRegistry.configure(TO_MARKET, ASSET_UID, address(targetGauge), 2, 0);
         sourceGauge.configure(address(manager), vault, ASSET_UID, FROM_MARKET, TO_MARKET, callLog);
@@ -408,29 +416,29 @@ contract AllocationManagerTest is Test {
 
         vm.expectRevert(
             abi.encodeWithSelector(
-                AllocationManagerIncreases.PositionBelowMinimum.selector, uint256(0.5 ether), uint256(0.5 ether + 1)
+                AllocationManagerIncreases.PositionBelowMinimum.selector, uint256(0.5 ether - 1), uint256(0.5 ether)
             )
         );
         vm.prank(ALICE);
-        manager.migrateAllocation(FROM_MARKET, TO_MARKET, 0.5 ether);
+        manager.migrateAllocation(FROM_MARKET, TO_MARKET, 0.5 ether + 1);
 
         vm.prank(ALICE);
-        manager.migrateAllocation(FROM_MARKET, TO_MARKET, 0.5 ether - 1);
-        assertEq(vault.allocation(ASSET_UID, ALICE, FROM_MARKET), 0.5 ether + 1);
+        manager.migrateAllocation(FROM_MARKET, TO_MARKET, 0.5 ether);
+        assertEq(vault.allocation(ASSET_UID, ALICE, FROM_MARKET), 0.5 ether);
 
         address carol = address(0xCA401);
         _seed(carol, 1.5 ether, 0);
         vm.warp(sourceGauge.positionOf(carol).unlockAt);
         vm.expectRevert(
             abi.encodeWithSelector(
-                AllocationManagerIncreases.PositionBelowMinimum.selector, uint256(0.5 ether), uint256(0.5 ether + 1)
+                AllocationManagerIncreases.PositionBelowMinimum.selector, uint256(0.5 ether - 1), uint256(0.5 ether)
             )
         );
         vm.prank(carol);
-        manager.migrateAllocation(FROM_MARKET, TO_MARKET, 0.5 ether);
+        manager.migrateAllocation(FROM_MARKET, TO_MARKET, 0.5 ether - 1);
         vm.prank(carol);
-        manager.migrateAllocation(FROM_MARKET, TO_MARKET, 0.5 ether + 1);
-        assertEq(vault.allocation(ASSET_UID, carol, TO_MARKET), 0.5 ether + 1);
+        manager.migrateAllocation(FROM_MARKET, TO_MARKET, 0.5 ether);
+        assertEq(vault.allocation(ASSET_UID, carol, TO_MARKET), 0.5 ether);
     }
 
     function test_sameMarketZeroOverAllocationEmptyAndWrongIdentityFailAtomically() public {
@@ -588,8 +596,8 @@ contract AllocationManagerTest is Test {
         public
     {
         uint256 sourceAmount = bound(uint256(sourceSeed), 1 ether, 1_000_000 ether);
-        uint256 targetAmount = bound(uint256(targetSeed), 0.5 ether + 1, 1_000_000 ether);
-        uint256 maxPartial = sourceAmount - (0.5 ether + 1);
+        uint256 targetAmount = bound(uint256(targetSeed), 0.5 ether, 1_000_000 ether);
+        uint256 maxPartial = sourceAmount - 0.5 ether;
         uint256 amount = maxPartial == 0 ? sourceAmount : bound(uint256(moveSeed), 1, maxPartial);
         vm.warp(11_000_000);
         _seed(ALICE, sourceAmount, targetAmount);

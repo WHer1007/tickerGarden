@@ -23,7 +23,7 @@ function market(suffix: string, assetUid = id("9")): MarketReadModel {
   return {
     marketId: id(suffix), assetUid, memeToken: address(`1${suffix}`), curve: address(`2${suffix}`), gauge: address(`3${suffix}`),
     quoteAsset: address("4"), quoteAssetConfigId: id("5"), ponsBaselineId: id("6"), sourceVersion: 1,
-    launchPhase: 2, marketStatus: 1, stakeSaturationAmount: "10000000000000000000",
+    launchPhase: 2, marketStatus: 1,
     curveProgress: { realQuoteReserve: "30", sellableTokens: "40", reservedTokens: "60", accruedCurveFees: "2", readyToGraduate: false, sweptAt: null },
     poolId: id(`7${suffix}`),
     poolKey: { currency0: address("4"), currency1: address(`1${suffix}`), fee: 0, tickSpacing: 60, hooks: address("8") },
@@ -36,11 +36,11 @@ function market(suffix: string, assetUid = id("9")): MarketReadModel {
 }
 
 const repository = new InMemoryReadModelRepository({
-  executionSpecId: "V2-EXEC-3",
+    executionSpecId: "V2-EXEC-4",
   reconciliationAlerts: [],
   sync,
   markets: [market("3"), market("1"), market("2"), market("4", id("99"))],
-  configs: [{ kind: "asset", id: id("9"), status: 1, values: { stockToken: address("9"), tokenDecimals: 18 }, source }],
+  configs: [{ kind: "asset", id: id("9"), status: 1, values: { stockToken: address("9"), tokenDecimals: 18, minimumAllocation: "500000000000000000" }, source }],
   positions: [{
     user: address("a"), assetUid: id("9"), marketId: id("1"), free: "5", allocated: "7", pending: "2", active: "5",
     activationAt: "120", unlockAt: "3600",
@@ -76,7 +76,7 @@ test("health endpoint exposes read-only runtime and explicit sync state", async 
   const result = await call(baseUrl, "/health");
   assert.equal(result.statusCode, 200);
   assert.deepEqual(result.body, { ...HEALTH_RESPONSE, sync });
-  assert.equal(EXECUTION_SPEC_ID, "V2-EXEC-3");
+  assert.equal(EXECUTION_SPEC_ID, "V2-EXEC-4");
 }));
 
 test("market discovery is canonical, filterable, and cursor paginated with a hard limit", async () => withServer(async (baseUrl) => {
@@ -133,15 +133,19 @@ test("all write methods fail closed and unknown routes remain JSON 404", async (
 
 test("repository rejects unreconciled, noncanonical, or internally inconsistent snapshots", () => {
   assert.throws(() => new InMemoryReadModelRepository({
-    executionSpecId: "V2-EXEC-3", reconciliationAlerts: [{}] as never,
+    executionSpecId: "V2-EXEC-4", reconciliationAlerts: [{}] as never,
     sync, markets: [market("1")],
   }), /not V2-reconciled/);
   assert.throws(() => new InMemoryReadModelRepository({
-    executionSpecId: "V2-EXEC-3", reconciliationAlerts: [], sync,
+    executionSpecId: "V2-EXEC-4", reconciliationAlerts: [], sync,
     markets: [{ ...market("1"), canonicalRoute: { ...market("1").canonicalRoute, hook: address("99") } }],
   }), /PoolKey hook/);
   assert.throws(() => new InMemoryReadModelRepository({
-    executionSpecId: "V2-EXEC-3", reconciliationAlerts: [], sync, markets: [market("1")],
+    executionSpecId: "V2-EXEC-4", reconciliationAlerts: [], sync, markets: [market("1")],
     positions: [{ ...repository.positions(address("a"))[0]!, allocated: "8" }],
   }), /allocated must equal pending plus active/);
+  assert.throws(() => new InMemoryReadModelRepository({
+    executionSpecId: "V2-EXEC-4", reconciliationAlerts: [], sync,
+    configs: [{ kind: "asset", id: id("9"), status: 1, values: { minimumAllocation: "413" }, source }],
+  }), /minimumAllocation/);
 });

@@ -38,12 +38,11 @@ contract LaunchLockerRegistryMock {
         _market = MarketView({
             config: MarketConfig({
                 assetUid: keccak256("locker-stock"),
-                stakeSaturationAmount: 10 ether,
                 ponsBaselineId: keccak256("locker-pons"),
                 quoteAssetConfigId: keccak256("locker-quote"),
                 launchTemplateId: keccak256("locker-template"),
                 feePolicyId: keccak256("locker-fee"),
-                executionSpecId: keccak256("V2-EXEC-3"),
+                executionSpecId: keccak256("V2-EXEC-4"),
                 expectedEconomics: keccak256("locker-economics"),
                 launchConfigId: 0,
                 creatorRevenueBeneficiaryAtCreation: address(0xBEEF),

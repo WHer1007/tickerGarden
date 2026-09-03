@@ -26,6 +26,12 @@ contract AllocationManager is IAllocationManager, AllocationManagerMigrations {
         _decreaseAllocation(msg.sender, marketId, 0, true);
     }
 
+    function rageQuit(bytes32 marketId) external override {
+        (uint256 principal, uint256 quoteForfeited, uint256 memeForfeited, bool redistributed) =
+            _rageQuitAllocation(msg.sender, marketId);
+        emit AllocationRageQuitExecuted(msg.sender, marketId, principal, quoteForfeited, memeForfeited, redistributed);
+    }
+
     function migrateAllocation(bytes32 fromMarketId, bytes32 toMarketId, uint256 amount) external override {
         (uint256 sourceRemaining, uint64 targetPendingGeneration, uint64 targetUnlockAt) =
             _migrateAllocation(msg.sender, fromMarketId, toMarketId, amount);

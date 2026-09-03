@@ -1,9 +1,11 @@
 # TickerGarden V2-M0 G0 决策登记
 
 > 状态：`PRODUCT_DIRECTION_APPROVED / IMPLEMENTATION_ALLOWED / NOT_DEPLOYABLE`  
-> 执行规范：`V2-EXEC-3`  
-> 机器清单：[`spec/v2_g0_recommendations.json`](./spec/v2_g0_recommendations.json)  
+> 当前执行规范：`V2-EXEC-4`
+> 历史机器清单：[`spec/v2_g0_recommendations.json`](./spec/v2_g0_recommendations.json)
 > 外部证据：[`V2_G0_EXTERNAL_EVIDENCE.md`](./V2_G0_EXTERNAL_EVIDENCE.md)
+
+> 修订说明：底层机器清单保留旧 `V2-EXEC-3` 决策快照作为取证；本文面向当前实现的表述已按 `V2-EXEC-4` 修订。管理员按 Asset UID 动态设置 `minimumAllocation`（不得低于414 raw units），active stake 固定取得 non-LP 50%。
 
 本文记录 2026-09-02 已确认的 Pons 参考方向，并把仍需逐资产/工程/安全验证的事项留作部署门禁。产品批准不等于允许把观测值或不一致的公开源码直接部署。
 
@@ -14,7 +16,7 @@
 | Pons baseline | 官方文档当前活跃 Factory `0x7eD598…` 的固定 block/codehash 行为，不建立运行时依赖 | GitHub `main` 不是可复现 deployed source；必须独立实现并做 runtime 差分 |
 | Quote | 首发批准 native + USDG；协议保留多 Quote 能力，每市场永久选择一个 Quote | 权威配置见 [`spec/v2_initial_quote_configs.json`](./spec/v2_initial_quote_configs.json)；部署前必须重新获取可升级 USDG 的 implementation/codehash 指纹 |
 | Pons diff | 手续费路由与毕业后 STOCK 质押是产品差异；其余发行主链路继承 | TickerGarden 自有 ABI/Registry/CREATE2/测试向量是实现硬化，不复制 Pons 地址与权限 |
-| Official STOCK Base | Robinhood 官方目录中存在 chainId 4663 deployment 的全部资产均可准入；当前观测194项 ACTIVE 资产全部可由创建者选择为市场唯一质押 Base | Asset UID + token + decimals + Beacon/implementation 在生产登记前逐项验证；每市场以10个完整 Token 为质押份额饱和点；价格、Feed 覆盖和 backing target 不参与准入或权重；194不是协议上限 |
+| Official STOCK Base | Robinhood 官方目录中存在 chainId 4663 deployment 的全部资产均可准入；当前观测194项 ACTIVE 资产全部可由创建者选择为市场唯一质押 Base | Asset UID + token + decimals + Beacon/implementation 在生产登记前逐项验证；管理员按Asset设置动态最低仓位，质押量无上限；价格、Feed 覆盖和 backing target 不参与准入或权重；194不是协议上限 |
 | Launch friction | 当前 Factory 创建费 immutable 为 `0.0005` 原生资产，要求精确支付 | 不采用旧建议的 `5 USDG`、保证金、STOCK 资格或地址限速；改费必须新 Factory/Router/Template + 新 `executionSpecId` |
 | Launch-and-buy | 继承原子创建+首买、尾单部分成交和退款；不设毕业门槛1%上限 | 只允许真实 creator/beneficiary 和首买 recipient 自动豁免；活跃 runtime 的 3 秒反狙击衰减已由固定向量锁定 |
 | Batch | V2 首版不提供 batch ABI | 单市场入口永久保留；批量操作明确移出 V2 首发范围，不再等待 Gas 决策 |
@@ -37,7 +39,7 @@
 
 - 使用 TickerGarden 自己的 CREATE2 domain、MarketRegistry、Token、Curve、Gauge、Hook 和 FeeVault 地址体系；
 - 创建者附加税固定为0，属于 TickerGarden 手续费差异；
-- Pons fee beneficiary 路由替换为 TickerGarden Curve `50/50`，以及毕业后以10个完整 STOCK为饱和点、从 `40/0/40/20` 线性释放到 `20/40/20/20` 的政策；
+- Pons fee beneficiary 路由替换为 TickerGarden Curve `50/50`；毕业后无active stake时为`40/0/40/20`，存在active stake时固定为`20/40/20/20`，Staker内部按实际active STOCK比例分配；
 - 不使用 Pons BuybackVault/五年 vesting；
 - 禁止任意团队反狙击豁免数组，只自动豁免真实 creator/beneficiary 与 atomic first-buy recipient；
 - 不实现管理员 community takeover/creator override；创建者收益身份只按已冻结 epoch 规则迁移；
@@ -47,7 +49,7 @@
 
 STOCK 准入范围已经确认：Robinhood 官方 Stock Token 目录中存在 chainId `4663` deployment 的全部资产都可准入，当前观测194项均为 ACTIVE，全部可以由市场创建者选择。每个市场恰好绑定一个 Base Asset UID 且不可改绑；同一 Asset UID 可以对应任意多个 Meme，持有人在毕业后自行决定是否分配及分配数量。点时目录和链上身份向量见 [`V2_OFFICIAL_STOCK_ADMISSION.md`](./V2_OFFICIAL_STOCK_ADMISSION.md) 与 [`spec/v2_rh_official_stock_catalog.snapshot.json`](./spec/v2_rh_official_stock_catalog.snapshot.json)。
 
-STOCK 只以 raw balance 参与质押权重。每个市场固定 `stakeSaturationAmount = 10 × 10^stockDecimals`，质押者总 Bucket 按 `min(S,B)/B` 线性释放；`10` 是完整 Token 数量，不是美元目标。价格、USD 名义目标、Chainlink Price Feed、sequencer 证据和 backing target 均已从 `V2-EXEC-3` 产品路径移除。生产登记仍须使用 finalized 状态验证官方身份与代理实现；这是部署安全取证，不是价格或实施参数门禁。旧价格研究仅按 [`spec/RETIRED_STOCK_PRICE_RESEARCH.md`](./spec/RETIRED_STOCK_PRICE_RESEARCH.md) 保留审计记录。
+STOCK 只以 raw balance 参与质押权重。不存在饱和值或质押上限；只要市场存在任意active stake，Staker固定取得non-LP的50%，再按各用户实际active raw balance分配。`OfficialStockRegistry`为每个Asset保存管理员延迟更新的`minimumAllocation`，其协议下限为414 raw units；该值只约束仓位变更，不进入market hash。价格、USD 名义目标、Chainlink Price Feed、sequencer 证据和 backing target 均不进入产品路径。生产登记仍须使用 finalized 状态验证官方身份与代理实现；这是部署安全取证，不是价格或实施参数门禁。旧价格研究仅按 [`spec/RETIRED_STOCK_PRICE_RESEARCH.md`](./spec/RETIRED_STOCK_PRICE_RESEARCH.md) 保留审计记录。
 
 ## 4. 已删除的旧建议
 

@@ -9,7 +9,7 @@ import {AssetView, IMarketRegistryV2, IOfficialStockRegistryV2, MarketView} from
 abstract contract UserStockVaultIdentity {
     uint8 internal constant ASSET_STATUS_ACTIVE = 1;
     uint8 internal constant ASSET_STATUS_RETIRED = 3;
-    bytes32 internal constant VAULT_SCHEMA_ID = keccak256("TickerGarden.UserStockVault.MultiAsset.v1");
+    bytes32 internal constant VAULT_SCHEMA_ID = keccak256("TickerGarden.UserStockVault.MultiAsset.v2");
 
     IOfficialStockRegistryV2 internal immutable _officialStockRegistry;
     IMarketRegistryV2 internal immutable _marketRegistry;

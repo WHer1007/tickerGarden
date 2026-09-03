@@ -58,7 +58,7 @@ claim 可由任何人触发，但固定支付 `creatorBeneficiaryAt(marketId, cr
 CreatorRevenueEpochInitialized(marketId, epoch, beneficiary)
 CreatorRevenueBeneficiaryUpdated(marketId, oldEpoch, newEpoch, oldBeneficiary, newBeneficiary)
 CurveFeesSwept(marketId, creatorEpoch, quoteAsset, sweepNonce, feeId, amount, creatorAmount, platformAmount)
-FeeBucketsCredited(marketId, creatorEpoch, feeAsset, feeId, creator, staker, platform, activeStock, stakeSaturationAmount)
+FeeBucketsCredited(marketId, creatorEpoch, feeAsset, feeId, creator, staker, platform, activeStock)
 FeeClaimed(beneficiaryType, beneficiary, marketId, beneficiaryEpoch, feeAsset, amount)
 ```
 

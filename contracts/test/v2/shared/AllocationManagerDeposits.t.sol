@@ -81,7 +81,7 @@ contract AllocationManagerDepositsTest is Test {
         gauge = new MockIncreaseGauge();
         stockToken = new MockExactQuoteToken(18);
         vault = new UserStockVault(address(officialRegistry), address(marketRegistry), address(manager));
-        officialRegistry.configure(ASSET_UID, address(stockToken), address(vault), 18, 1);
+        officialRegistry.configure(ASSET_UID, address(stockToken), address(vault), 18, 1, 0.5 ether);
         marketRegistry.configure(MARKET_ID, ASSET_UID, address(gauge), 2, 0);
         gauge.configure(address(manager), vault, ASSET_UID, MARKET_ID);
     }
@@ -122,10 +122,10 @@ contract AllocationManagerDepositsTest is Test {
 
         _fundAndApprove(BOB, 2 ether);
         vm.prank(BOB);
-        manager.depositAndAllocate(MARKET_ID, 2 ether, 0.5 ether + 1);
+        manager.depositAndAllocate(MARKET_ID, 2 ether, 0.5 ether);
         assertEq(vault.deposited(ASSET_UID, BOB), 2 ether);
-        assertEq(vault.allocation(ASSET_UID, BOB, MARKET_ID), 0.5 ether + 1);
-        assertEq(vault.freeBalanceOf(ASSET_UID, BOB), 1.5 ether - 1);
+        assertEq(vault.allocation(ASSET_UID, BOB, MARKET_ID), 0.5 ether);
+        assertEq(vault.freeBalanceOf(ASSET_UID, BOB), 1.5 ether);
     }
 
     function test_marketAndAssetGatesRunBeforeTheVaultPull() public {
@@ -181,11 +181,11 @@ contract AllocationManagerDepositsTest is Test {
         _fundAndApprove(ALICE, 1 ether);
         vm.expectRevert(
             abi.encodeWithSelector(
-                AllocationManagerIncreases.PositionBelowMinimum.selector, uint256(0.5 ether), uint256(0.5 ether + 1)
+                AllocationManagerIncreases.PositionBelowMinimum.selector, uint256(0.5 ether - 1), uint256(0.5 ether)
             )
         );
         vm.prank(ALICE);
-        manager.depositAndAllocate(MARKET_ID, 0.5 ether, 0.5 ether);
+        manager.depositAndAllocate(MARKET_ID, 0.5 ether - 1, 0.5 ether - 1);
 
         assertEq(stockToken.balanceOf(ALICE), 1 ether);
         assertEq(stockToken.allowance(ALICE, address(vault)), 1 ether);
@@ -193,9 +193,9 @@ contract AllocationManagerDepositsTest is Test {
         assertEq(gauge.checkpointCalls(), 0);
 
         vm.prank(ALICE);
-        manager.depositAndAllocate(MARKET_ID, 0.5 ether + 1, 0.5 ether + 1);
-        assertEq(vault.deposited(ASSET_UID, ALICE), 0.5 ether + 1);
-        assertEq(vault.allocation(ASSET_UID, ALICE, MARKET_ID), 0.5 ether + 1);
+        manager.depositAndAllocate(MARKET_ID, 0.5 ether, 0.5 ether);
+        assertEq(vault.deposited(ASSET_UID, ALICE), 0.5 ether);
+        assertEq(vault.allocation(ASSET_UID, ALICE, MARKET_ID), 0.5 ether);
     }
 
     function test_preexistingLedgerMismatchRollsBackTheNewDeposit() public {
@@ -255,7 +255,7 @@ contract AllocationManagerDepositsTest is Test {
         MockIncreaseGauge callbackGauge = new MockIncreaseGauge();
         UserStockVault callbackVault =
             new UserStockVault(address(officialRegistry), address(marketRegistry), address(manager));
-        officialRegistry.configure(callbackAssetUid, address(callbackToken), address(callbackVault), 18, 1);
+        officialRegistry.configure(callbackAssetUid, address(callbackToken), address(callbackVault), 18, 1, 0.5 ether);
         marketRegistry.configure(callbackMarketId, callbackAssetUid, address(callbackGauge), 2, 0);
         callbackGauge.configure(address(manager), callbackVault, callbackAssetUid, callbackMarketId);
         callbackToken.configureAttack(IAllocationManager(address(manager)), callbackMarketId, true);

@@ -49,7 +49,7 @@ test("derives all four readiness states only from ordered open gates", () => {
 });
 
 test("loads the canonical manifest and remains blocked by deployment gates", () => {
-  assert.equal(V2_EXECUTION_SPEC_ID, "V2-EXEC-3");
+  assert.equal(V2_EXECUTION_SPEC_ID, "V2-EXEC-4");
   assert.equal(v2Readiness.state, "IMPLEMENTATION_ALLOWED");
   assert.equal(v2Readiness.implementationAllowed, true);
   assert.equal(v2Readiness.deploymentEligible, false);

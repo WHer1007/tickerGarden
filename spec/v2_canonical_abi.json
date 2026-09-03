@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "executionSpecId": "V2-EXEC-3",
+  "executionSpecId": "V2-EXEC-4",
   "sourceAbi": "v2_abi_surface.json",
   "sourcePermissions": "v2_permissions_matrix.json",
   "selectorRule": "bytes4(keccak256(bytes(canonicalSignature)))",
@@ -8,15 +8,28 @@
   "mutations": [
     {
       "module": "OfficialStockRegistryV2",
-      "displaySignature": "registerAsset(bytes32,address,uint8,address)",
-      "canonicalSignature": "registerAsset(bytes32,address,uint8,address)",
-      "selector": "0x4bd15e32",
+      "displaySignature": "registerAsset(bytes32,address,uint8,address,uint256)",
+      "canonicalSignature": "registerAsset(bytes32,address,uint8,address,uint256)",
+      "selector": "0xa5ec62bf",
       "selectorHash": "FIRST_4_BYTES_OF_KECCAK256_CANONICAL_SIGNATURE",
       "caller": "PROTOCOL_ADMIN_ROLE",
       "executionDelaySeconds": 172800,
       "stateDelaySeconds": 0,
       "stateDelayAnchor": "NONE",
       "precondition": "NONE",
+      "recipient": "none"
+    },
+    {
+      "module": "OfficialStockRegistryV2",
+      "displaySignature": "setMinimumAllocation(bytes32,uint256,bytes32)",
+      "canonicalSignature": "setMinimumAllocation(bytes32,uint256,bytes32)",
+      "selector": "0xd26b1bfc",
+      "selectorHash": "FIRST_4_BYTES_OF_KECCAK256_CANONICAL_SIGNATURE",
+      "caller": "PROTOCOL_ADMIN_ROLE",
+      "executionDelaySeconds": 172800,
+      "stateDelaySeconds": 0,
+      "stateDelayAnchor": "NONE",
+      "precondition": "REGISTERED_ASSET_AND_MINIMUM_AT_LEAST_414_RAW_UNITS",
       "recipient": "none"
     },
     {
@@ -243,8 +256,8 @@
     {
       "module": "MarketRegistryV2",
       "displaySignature": "registerMarket(bytes32,MarketConfig)",
-      "canonicalSignature": "registerMarket(bytes32,(bytes32,uint256,bytes32,bytes32,bytes32,bytes32,bytes32,bytes32,uint256,address,address,address,address,address,address,address))",
-      "selector": "0xdc49134f",
+      "canonicalSignature": "registerMarket(bytes32,(bytes32,bytes32,bytes32,bytes32,bytes32,bytes32,bytes32,uint256,address,address,address,address,address,address,address))",
+      "selector": "0x8c9353e7",
       "selectorHash": "FIRST_4_BYTES_OF_KECCAK256_CANONICAL_SIGNATURE",
       "caller": "FACTORY_MODULE",
       "executionDelaySeconds": 0,
@@ -515,6 +528,19 @@
     },
     {
       "module": "UserStockVault",
+      "displaySignature": "rageQuitAllocation(bytes32,address,bytes32,uint256)",
+      "canonicalSignature": "rageQuitAllocation(bytes32,address,bytes32,uint256)",
+      "selector": "0xa472251a",
+      "selectorHash": "FIRST_4_BYTES_OF_KECCAK256_CANONICAL_SIGNATURE",
+      "caller": "ALLOCATION_MODULE",
+      "executionDelaySeconds": 0,
+      "stateDelaySeconds": 0,
+      "stateDelayAnchor": "NONE",
+      "precondition": "FULL_CANONICAL_USER_MARKET_ALLOCATION_AND_ATOMIC_GAUGE_FORFEITURE_PRECEDES_WITHDRAWAL",
+      "recipient": "fixed_user"
+    },
+    {
+      "module": "UserStockVault",
       "displaySignature": "moveAllocation(bytes32,address,bytes32,bytes32,uint256)",
       "canonicalSignature": "moveAllocation(bytes32,address,bytes32,bytes32,uint256)",
       "selector": "0x96bccef6",
@@ -580,6 +606,19 @@
     },
     {
       "module": "AllocationManager",
+      "displaySignature": "rageQuit(bytes32)",
+      "canonicalSignature": "rageQuit(bytes32)",
+      "selector": "0x86b62995",
+      "selectorHash": "FIRST_4_BYTES_OF_KECCAK256_CANONICAL_SIGNATURE",
+      "caller": "PUBLIC",
+      "executionDelaySeconds": 0,
+      "stateDelaySeconds": 0,
+      "stateDelayAnchor": "NONE",
+      "precondition": "CALLER_FULL_POSITION_ONLY_FORFEITS_ALL_UNCLAIMED_REWARDS_BYPASSES_LOCK_AND_DOES_NOT_CHANGE_MARKET_STATE",
+      "recipient": "caller"
+    },
+    {
+      "module": "AllocationManager",
       "displaySignature": "migrateAllocation(bytes32,bytes32,uint256)",
       "canonicalSignature": "migrateAllocation(bytes32,bytes32,uint256)",
       "selector": "0xc965083b",
@@ -629,6 +668,19 @@
       "stateDelayAnchor": "NONE",
       "precondition": "NONE",
       "recipient": "user_position"
+    },
+    {
+      "module": "MemeStockGauge",
+      "displaySignature": "rageQuit(address)",
+      "canonicalSignature": "rageQuit(address)",
+      "selector": "0x16bb1135",
+      "selectorHash": "FIRST_4_BYTES_OF_KECCAK256_CANONICAL_SIGNATURE",
+      "caller": "ALLOCATION_MODULE",
+      "executionDelaySeconds": 0,
+      "stateDelaySeconds": 0,
+      "stateDelayAnchor": "NONE",
+      "precondition": "FIXED_USER_FULL_POSITION_AND_GAUGE_OPERATIONAL",
+      "recipient": "remaining_active_stakers_or_forfeiture_reserve"
     },
     {
       "module": "MemeStockGauge",
@@ -853,6 +905,19 @@
     },
     {
       "module": "ProtocolFeeVault",
+      "displaySignature": "recordForfeiture(bytes32,address,uint256,uint256)",
+      "canonicalSignature": "recordForfeiture(bytes32,address,uint256,uint256)",
+      "selector": "0x85bfcb33",
+      "selectorHash": "FIRST_4_BYTES_OF_KECCAK256_CANONICAL_SIGNATURE",
+      "caller": "EXACT_REGISTERED_GAUGE",
+      "executionDelaySeconds": 0,
+      "stateDelaySeconds": 0,
+      "stateDelayAnchor": "NONE",
+      "precondition": "NO_REMAINING_ACTIVE_STAKER_AND_AMOUNT_LE_STAKER_LIABILITY",
+      "recipient": "market_asset_forfeiture_reserves"
+    },
+    {
+      "module": "ProtocolFeeVault",
       "displaySignature": "freezeRecoveryCaps(bytes32,uint32,uint64,bytes32)",
       "canonicalSignature": "freezeRecoveryCaps(bytes32,uint32,uint64,bytes32)",
       "selector": "0xd36ff9e3",
@@ -1062,6 +1127,12 @@
     },
     {
       "module": "OfficialStockRegistryV2",
+      "displayEvent": "AssetMinimumAllocationChanged(bytes32 indexed assetUid,uint256 oldMinimum,uint256 newMinimum,bytes32 reasonHash)",
+      "canonicalSignature": "AssetMinimumAllocationChanged(bytes32,uint256,uint256,bytes32)",
+      "topic0": "0x2f70b50fac75d88abcbe6c0a4cd8919d63a4a8a5643fe7be5317f7e82be0ffe2"
+    },
+    {
+      "module": "OfficialStockRegistryV2",
       "displayEvent": "AssetStatusChanged(bytes32 indexed assetUid,uint8 oldStatus,uint8 newStatus,bytes32 reasonHash)",
       "canonicalSignature": "AssetStatusChanged(bytes32,uint8,uint8,bytes32)",
       "topic0": "0x9cc7b77b8214c03b448094f3d258c3bbe4c3655536d0db003f4f969fcb9cc205"
@@ -1104,9 +1175,9 @@
     },
     {
       "module": "TickerGardenFactoryV2",
-      "displayEvent": "MarketCreated(bytes32 indexed marketId,bytes32 indexed assetUid,address indexed memeToken,address curve,address gauge,address quoteAsset,uint256 stakeSaturationAmount,bytes32 ponsBaselineId,bytes32 quoteAssetConfigId,bytes32 expectedEconomics)",
-      "canonicalSignature": "MarketCreated(bytes32,bytes32,address,address,address,address,uint256,bytes32,bytes32,bytes32)",
-      "topic0": "0x921705acbb65f09187c254a014b33fe6828e35799c73f1ee9b406daf8da1e85e"
+      "displayEvent": "MarketCreated(bytes32 indexed marketId,bytes32 indexed assetUid,address indexed memeToken,address curve,address gauge,address quoteAsset,bytes32 ponsBaselineId,bytes32 quoteAssetConfigId,bytes32 expectedEconomics)",
+      "canonicalSignature": "MarketCreated(bytes32,bytes32,address,address,address,address,bytes32,bytes32,bytes32)",
+      "topic0": "0x6a858729b3663fb6b88c7ab55523860e884a7abcc31f02538303bf7cd4e1b4f1"
     },
     {
       "module": "MarketRegistryV2",
@@ -1212,6 +1283,12 @@
     },
     {
       "module": "UserStockVault",
+      "displayEvent": "AllocationRageQuit(bytes32 indexed assetUid,address indexed user,bytes32 indexed marketId,uint256 amount)",
+      "canonicalSignature": "AllocationRageQuit(bytes32,address,bytes32,uint256)",
+      "topic0": "0x40ac6fde3a82680ca4f73fdeadb8b266f5289dda745355813731fb2735a28d4f"
+    },
+    {
+      "module": "UserStockVault",
       "displayEvent": "AllocationMoved(bytes32 indexed assetUid,address indexed user,bytes32 indexed fromMarketId,bytes32 toMarketId,uint256 amount)",
       "canonicalSignature": "AllocationMoved(bytes32,address,bytes32,bytes32,uint256)",
       "topic0": "0xefb393712445e41ec275af49b3cc59a4535f9b5f0b15a2f2582abbd5dbecec64"
@@ -1227,6 +1304,12 @@
       "displayEvent": "AllocationMigrated(address indexed user,bytes32 indexed fromMarketId,bytes32 indexed toMarketId,uint256 amount,uint256 sourceRemaining,uint64 targetPendingGeneration,uint64 targetUnlockAt)",
       "canonicalSignature": "AllocationMigrated(address,bytes32,bytes32,uint256,uint256,uint64,uint64)",
       "topic0": "0x49a5873e97e213539b670049792f942d30f2fababde66caf535e3922de9c889e"
+    },
+    {
+      "module": "AllocationManager",
+      "displayEvent": "AllocationRageQuitExecuted(address indexed user,bytes32 indexed marketId,uint256 principal,uint256 quoteForfeited,uint256 memeForfeited,bool redistributed)",
+      "canonicalSignature": "AllocationRageQuitExecuted(address,bytes32,uint256,uint256,uint256,bool)",
+      "topic0": "0x896daa04b6d9dd8d2f2f6c4d549b43db44b2576a271a92d841a9f353ae5e1415"
     },
     {
       "module": "MemeStockGauge",
@@ -1259,6 +1342,18 @@
       "topic0": "0x12bdf514488be4ad7e85b3a5f1efa02fad0e6e7455bae64c2da7cddca9ea5750"
     },
     {
+      "module": "MemeStockGauge",
+      "displayEvent": "ForfeitedRewardRedistributed(bytes32 indexed marketId,address indexed user,address indexed feeAsset,uint256 amount,uint256 accumulatorDelta,uint256 indexRemainder)",
+      "canonicalSignature": "ForfeitedRewardRedistributed(bytes32,address,address,uint256,uint256,uint256)",
+      "topic0": "0x523448271d08414d01a9d76d18efcd0e4efffa87649085d20448aa91760b94f0"
+    },
+    {
+      "module": "MemeStockGauge",
+      "displayEvent": "GaugeRageQuit(address indexed user,bytes32 indexed marketId,uint256 principal,uint256 quoteForfeited,uint256 memeForfeited,bool redistributed)",
+      "canonicalSignature": "GaugeRageQuit(address,bytes32,uint256,uint256,uint256,bool)",
+      "topic0": "0x3513f56ba0f9c5368e47d68d309bbed39c99c93212df932575fc3a62bf584dbd"
+    },
+    {
       "module": "TickerGardenMemeHook",
       "displayEvent": "ExpectedPoolRegistered(bytes32 indexed marketId,bytes32 indexed poolId,bytes32 keyHash,uint32 sourceVersion)",
       "canonicalSignature": "ExpectedPoolRegistered(bytes32,bytes32,bytes32,uint32)",
@@ -1284,9 +1379,9 @@
     },
     {
       "module": "ProtocolFeeVault",
-      "displayEvent": "FeeBucketsCredited(bytes32 indexed marketId,uint32 indexed creatorEpoch,address indexed feeAsset,bytes32 feeId,uint256 creatorAmount,uint256 stakerAmount,uint256 platformAmount,uint256 activeStock,uint256 stakeSaturationAmount)",
-      "canonicalSignature": "FeeBucketsCredited(bytes32,uint32,address,bytes32,uint256,uint256,uint256,uint256,uint256)",
-      "topic0": "0x34333859745cb1917065328fc9c08d0bddcd8ca49320cfd45dd2c570502da897"
+      "displayEvent": "FeeBucketsCredited(bytes32 indexed marketId,uint32 indexed creatorEpoch,address indexed feeAsset,bytes32 feeId,uint256 creatorAmount,uint256 stakerAmount,uint256 platformAmount,uint256 activeStock)",
+      "canonicalSignature": "FeeBucketsCredited(bytes32,uint32,address,bytes32,uint256,uint256,uint256,uint256)",
+      "topic0": "0x5997e5c831b830c03431dc3a01b35ae67d443a0dc87e5a2f79a4608b23512c76"
     },
     {
       "module": "ProtocolFeeVault",
@@ -1299,6 +1394,18 @@
       "displayEvent": "FeeClaimed(uint8 indexed beneficiaryType,address indexed beneficiary,bytes32 indexed marketId,uint32 beneficiaryEpoch,address feeAsset,uint256 amount)",
       "canonicalSignature": "FeeClaimed(uint8,address,bytes32,uint32,address,uint256)",
       "topic0": "0xd250a50bf7ff9e9ab883bcf15b8f843d11548655a6b26c10653cf07c6f1bedcd"
+    },
+    {
+      "module": "ProtocolFeeVault",
+      "displayEvent": "ForfeitureReserved(bytes32 indexed marketId,address indexed user,address indexed feeAsset,uint256 amount,uint256 reserveBalance)",
+      "canonicalSignature": "ForfeitureReserved(bytes32,address,address,uint256,uint256)",
+      "topic0": "0xa55925df36b56bcb0445e5eca4f0a42356a8313f96815d29cc92f07c20d083c3"
+    },
+    {
+      "module": "ProtocolFeeVault",
+      "displayEvent": "ForfeitureReserveConverted(bytes32 indexed marketId,address indexed feeAsset,uint256 amount)",
+      "canonicalSignature": "ForfeitureReserveConverted(bytes32,address,uint256)",
+      "topic0": "0xbebeac3e27bbe14621361ac4793b5ef722a3592c8e9a08f6c95abec8a946ab13"
     },
     {
       "module": "ProtocolFeeVault",

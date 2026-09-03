@@ -84,7 +84,6 @@ expectedEconomics = keccak256(abi.encode(
   EXPECTED_ECONOMICS_DOMAIN, 2,
   chainId, factory,
   assetUid, stockToken, stockDecimals,
-  stakeSaturationAmount,
   ponsBaselineId, ponsBaselineHash,
   quoteAssetConfigId, quoteEconomicsHash,
   launchTemplateId, launchTemplateHash,
@@ -94,7 +93,7 @@ expectedEconomics = keccak256(abi.encode(
 ))
 ```
 
-它不包含自身、可变 status、creator、beneficiary、salt、名称或 metadata。Asset UID、canonical Stock Token 和 decimals 永久固定市场的唯一质押 Base；`stakeSaturationAmount` 固定等于 `10 × 10^stockDecimals` 并与市场一起永久快照。STOCK 价格和 backing target 不进入 hash。Factory 从 Registry 读取全部字段、派生饱和值后重算并与 caller 参数比较。
+它不包含自身、可变 status、creator、beneficiary、salt、名称或 metadata。Asset UID、canonical Stock Token 和 decimals 永久固定市场的唯一质押 Base；动态 `minimumAllocation` 由 OfficialStockRegistry 按 Asset UID 管理，不进入市场不可变 hash。协议安全下限为414 raw units。STOCK 价格和 backing target 不进入 hash。
 
 ## 4. marketId
 
@@ -143,7 +142,7 @@ predictMarketAddresses(address creator, CreateMarketParams params)
 
 ## 6. 费用与恢复 hash
 
-- `feePolicyHash`：domain/schema version 2 + executionSpecId + feePips + LP share + pool fee + Hook mask + feeAssetMode + `stakeSaturationWholeTokens=10` + stakerReleaseMode。当前枚举编码冻结为`feeAssetMode=1 (UNSPECIFIED_CORE_SWAP_DELTA)`、`stakerReleaseMode=1 (LINEAR_CAPPED)`；改变编码或语义必须升级schema与execution spec。
+- `feePolicyHash`：domain/schema version 3 + executionSpecId + feePips + LP share + pool fee + Hook mask + feeAssetMode + `stakerNonLpShareBps=5000`。当前编码为`feeAssetMode=1 (UNSPECIFIED_CORE_SWAP_DELTA)`；改变编码或语义必须升级schema与execution spec。
 - `v4FeeId`：domain/version + chainId + FeeVault + PoolManager + poolId + marketId + sourceVersion + feeNonce + feeAsset + base + totalFee + feePolicyHash。
 - `curveFeeId`：domain/version + chainId + FeeVault + curve + marketId + sourceVersion + sweepNonce + quoteAsset + sweptAmount。
 - `emergencyStateHash` 与 recovery leaf 使用 [V2_EMERGENCY_RECOVERY_LIFECYCLE.md](./V2_EMERGENCY_RECOVERY_LIFECYCLE.md) 的字段；均加入 schemaVersion，leaf 继续执行外层第二次 Keccak。

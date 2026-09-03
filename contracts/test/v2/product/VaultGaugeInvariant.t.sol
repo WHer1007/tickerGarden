@@ -9,17 +9,26 @@ import {AllocationManager} from "../../../src/v2/modules/AllocationManager.sol";
 import {MemeStockGauge} from "../../../src/v2/modules/MemeStockGauge.sol";
 import {MemeStockGaugeClone} from "../../../src/v2/shared/MemeStockGaugeClone.sol";
 import {UserStockVault} from "../../../src/v2/modules/UserStockVault.sol";
+import {UserStockVaultExits} from "../../../src/v2/shared/UserStockVaultExits.sol";
 import {MockExactQuoteToken} from "../mocks/MockV2QuoteAssets.sol";
 
 contract InvariantOfficialStockRegistry {
     mapping(bytes32 assetUid => AssetView value) private _assets;
+    mapping(bytes32 assetUid => uint256 minimum) private _minimumAllocations;
 
-    function configure(bytes32 assetUid, address token, address vault, uint8 decimals, uint8 status) external {
+    function configure(bytes32 assetUid, address token, address vault, uint8 decimals, uint8 status, uint256 minimum)
+        external
+    {
         _assets[assetUid] = AssetView(token, vault, decimals, status);
+        _minimumAllocations[assetUid] = minimum;
     }
 
     function asset(bytes32 assetUid) external view returns (AssetView memory) {
         return _assets[assetUid];
+    }
+
+    function minimumAllocation(bytes32 assetUid) external view returns (uint256) {
+        return _minimumAllocations[assetUid];
     }
 }
 
@@ -61,11 +70,35 @@ contract InvariantMarketController {
     }
 }
 
-contract InvariantFeeVault {}
+contract InvariantFeeVault {
+    bytes32 public lastMarketId;
+    address public lastUser;
+    uint256 public recordedQuoteForfeiture;
+    uint256 public recordedMemeForfeiture;
+    bool public recordForfeitureShouldRevert;
+
+    error InjectedForfeitureFailure();
+
+    function credit(MemeStockGauge gauge, address feeAsset, uint256 amount, bytes32 feeId) external {
+        gauge.creditStakerFee(feeAsset, amount, feeId);
+    }
+
+    function setRecordForfeitureShouldRevert(bool value) external {
+        recordForfeitureShouldRevert = value;
+    }
+
+    function recordForfeiture(bytes32 marketId, address user, uint256 quoteAmount, uint256 memeAmount) external {
+        if (recordForfeitureShouldRevert) revert InjectedForfeitureFailure();
+        lastMarketId = marketId;
+        lastUser = user;
+        recordedQuoteForfeiture += quoteAmount;
+        recordedMemeForfeiture += memeAmount;
+    }
+}
 
 contract VaultGaugeInvariantHandler is Test {
     bytes32 internal constant ASSET_UID = keccak256("invariant-stock");
-    uint256 internal constant MINIMUM_POSITION = 0.5 ether + 1;
+    uint256 internal constant MINIMUM_POSITION = 0.5 ether;
     uint256 internal constant MAX_ACTION_AMOUNT = 10_000 ether;
 
     MockExactQuoteToken public immutable stock;
@@ -233,6 +266,14 @@ contract VaultGaugeInvariantHandler is Test {
         vault.forceReleaseAllocation(ASSET_UID, marketId);
     }
 
+    function rageQuit(uint8 userSeed, uint8 marketSeed) external {
+        address user = _user(userSeed);
+        bytes32 marketId = _market(marketSeed);
+        if (_isEmergency(marketId) || vault.allocation(ASSET_UID, user, marketId) == 0) return;
+        vm.prank(user);
+        manager.rageQuit(marketId);
+    }
+
     function _user(uint8 seed) private view returns (address) {
         return _users[uint256(seed) % _users.length];
     }
@@ -256,10 +297,13 @@ contract VaultGaugeInvariantHandler is Test {
 
 contract VaultGaugeInvariantTest is StdInvariant, Test {
     bytes32 internal constant ASSET_UID = keccak256("invariant-stock");
+    uint256 internal constant MINIMUM_POSITION = 0.5 ether;
     bytes32 internal constant MARKET_A = keccak256("invariant-market-a");
     bytes32 internal constant MARKET_B = keccak256("invariant-market-b");
     bytes32 internal constant QUOTE_A = keccak256("invariant-quote-a");
     bytes32 internal constant QUOTE_B = keccak256("invariant-quote-b");
+    address internal constant ALICE = address(0xA11CE);
+    address internal constant BOB = address(0xB0B);
 
     InvariantOfficialStockRegistry internal stockRegistry;
     InvariantMarketRegistry internal marketRegistry;
@@ -292,14 +336,14 @@ contract VaultGaugeInvariantTest is StdInvariant, Test {
         vault = new UserStockVault(address(stockRegistry), address(marketRegistry), address(manager));
         gaugeA = _deployGauge(MARKET_A, QUOTE_A, address(memeA));
         gaugeB = _deployGauge(MARKET_B, QUOTE_B, address(memeB));
-        stockRegistry.configure(ASSET_UID, address(stock), address(vault), 18, 1);
+        stockRegistry.configure(ASSET_UID, address(stock), address(vault), 18, 1, MINIMUM_POSITION);
         marketRegistry.configure(MARKET_A, ASSET_UID, address(gaugeA));
         marketRegistry.configure(MARKET_B, ASSET_UID, address(gaugeB));
 
         handler = new VaultGaugeInvariantHandler(
             stock, vault, manager, gaugeA, gaugeB, marketRegistry, controller, MARKET_A, MARKET_B
         );
-        bytes4[] memory selectors = new bytes4[](12);
+        bytes4[] memory selectors = new bytes4[](13);
         selectors[0] = handler.deposit.selector;
         selectors[1] = handler.depositAndAllocate.selector;
         selectors[2] = handler.allocate.selector;
@@ -312,8 +356,117 @@ contract VaultGaugeInvariantTest is StdInvariant, Test {
         selectors[9] = handler.pauseMarket.selector;
         selectors[10] = handler.reactivateMarket.selector;
         selectors[11] = handler.retireMarket.selector;
+        selectors[12] = handler.rageQuit.selector;
         targetContract(address(handler));
         targetSelector(FuzzSelector({addr: address(handler), selectors: selectors}));
+    }
+
+    function test_rageQuitBeforeActivationReturnsAllPrincipalWithoutChangingMarket() public {
+        _depositAndAllocate(ALICE, MINIMUM_POSITION);
+
+        PositionView memory pending = gaugeA.positionOf(ALICE);
+        assertEq(pending.activeAmount, 0);
+        assertEq(pending.pendingAmount, MINIMUM_POSITION);
+
+        vm.prank(ALICE);
+        manager.rageQuit(MARKET_A);
+
+        PositionView memory exited = gaugeA.positionOf(ALICE);
+        assertEq(exited.activeAmount, 0);
+        assertEq(exited.pendingAmount, 0);
+        assertEq(exited.unlockAt, 0);
+        assertEq(gaugeA.totalPendingStock(), 0);
+        assertEq(vault.deposited(ASSET_UID, ALICE), 0);
+        assertEq(vault.allocation(ASSET_UID, ALICE, MARKET_A), 0);
+        assertEq(stock.balanceOf(ALICE), MINIMUM_POSITION);
+        assertEq(marketRegistry.marketStatus(MARKET_A), 0);
+        assertEq(feeVault.recordedQuoteForfeiture(), 0);
+        assertEq(feeVault.recordedMemeForfeiture(), 0);
+    }
+
+    function test_rageQuitRedistributesToRemainingActiveThenLastExitReservesForPlatform() public {
+        _depositAndAllocate(ALICE, 1 ether);
+        _depositAndAllocate(BOB, 1 ether);
+
+        vm.warp(block.timestamp + 31);
+        vm.roll(block.number + 1);
+        feeVault.credit(gaugeA, address(quote), 400, keccak256("QUOTE-FEE-1"));
+        feeVault.credit(gaugeA, address(memeA), 600, keccak256("MEME-FEE-1"));
+
+        assertEq(gaugeA.positionOf(ALICE).quoteClaimable, 200);
+        assertEq(gaugeA.positionOf(BOB).quoteClaimable, 200);
+        assertEq(gaugeA.positionOf(ALICE).memeClaimable, 300);
+        assertEq(gaugeA.positionOf(BOB).memeClaimable, 300);
+
+        vm.prank(ALICE);
+        manager.rageQuit(MARKET_A);
+
+        assertEq(stock.balanceOf(ALICE), 1 ether);
+        assertEq(vault.deposited(ASSET_UID, ALICE), 0);
+        assertEq(vault.allocation(ASSET_UID, ALICE, MARKET_A), 0);
+        assertEq(gaugeA.positionOf(ALICE).quoteClaimable, 0);
+        assertEq(gaugeA.positionOf(ALICE).memeClaimable, 0);
+        assertEq(gaugeA.positionOf(BOB).quoteClaimable, 400);
+        assertEq(gaugeA.positionOf(BOB).memeClaimable, 600);
+        assertEq(gaugeA.storedTotalActiveStock(), 1 ether);
+        assertEq(feeVault.recordedQuoteForfeiture(), 0);
+        assertEq(feeVault.recordedMemeForfeiture(), 0);
+        assertEq(marketRegistry.marketStatus(MARKET_A), 0);
+
+        vm.prank(BOB);
+        manager.rageQuit(MARKET_A);
+
+        assertEq(stock.balanceOf(BOB), 1 ether);
+        assertEq(vault.deposited(ASSET_UID, BOB), 0);
+        assertEq(vault.marketAllocated(ASSET_UID, MARKET_A), 0);
+        assertEq(gaugeA.storedTotalActiveStock(), 0);
+        assertEq(feeVault.lastMarketId(), MARKET_A);
+        assertEq(feeVault.lastUser(), BOB);
+        assertEq(feeVault.recordedQuoteForfeiture(), 400);
+        assertEq(feeVault.recordedMemeForfeiture(), 600);
+        assertEq(marketRegistry.marketStatus(MARKET_A), 0);
+    }
+
+    function test_rageQuitRemainsAvailableWhileMarketPaused() public {
+        _assertRageQuitAtMarketStatus(1);
+    }
+
+    function test_rageQuitRemainsAvailableWhileMarketRetired() public {
+        _assertRageQuitAtMarketStatus(2);
+    }
+
+    function test_rageQuitRollsBackGaugeAndVaultWhenForfeitureReserveFails() public {
+        _depositAndAllocate(ALICE, 1 ether);
+        vm.warp(block.timestamp + 31);
+        vm.roll(block.number + 1);
+        feeVault.credit(gaugeA, address(quote), 100, keccak256("ROLLBACK-FEEVAULT"));
+        feeVault.setRecordForfeitureShouldRevert(true);
+
+        vm.expectRevert(InvariantFeeVault.InjectedForfeitureFailure.selector);
+        vm.prank(ALICE);
+        manager.rageQuit(MARKET_A);
+
+        _assertAlicePositionUnchangedAfterFailedRageQuit(100);
+        assertEq(feeVault.recordedQuoteForfeiture(), 0);
+        assertEq(feeVault.recordedMemeForfeiture(), 0);
+    }
+
+    function test_rageQuitRollsBackGaugeReserveAndVaultWhenPrincipalTransferFails() public {
+        _depositAndAllocate(ALICE, 1 ether);
+        vm.warp(block.timestamp + 31);
+        vm.roll(block.number + 1);
+        feeVault.credit(gaugeA, address(quote), 100, keccak256("ROLLBACK-TRANSFER"));
+        vm.mockCallRevert(
+            address(stock), abi.encodeWithSignature("transfer(address,uint256)", ALICE, 1 ether), bytes("TRANSFER_FAIL")
+        );
+
+        vm.expectRevert(abi.encodeWithSelector(UserStockVaultExits.StockWithdrawalCallFailed.selector, address(stock)));
+        vm.prank(ALICE);
+        manager.rageQuit(MARKET_A);
+
+        _assertAlicePositionUnchangedAfterFailedRageQuit(100);
+        assertEq(feeVault.recordedQuoteForfeiture(), 0);
+        assertEq(feeVault.recordedMemeForfeiture(), 0);
     }
 
     function invariant_principalAndThreeLevelAllocationLedgersRemainEqual() public view {
@@ -383,6 +536,39 @@ contract VaultGaugeInvariantTest is StdInvariant, Test {
                 })
             )
         );
+    }
+
+    function _depositAndAllocate(address user, uint256 amount) private {
+        stock.mint(user, amount);
+        vm.startPrank(user);
+        stock.approve(address(vault), amount);
+        manager.depositAndAllocate(MARKET_A, amount, amount);
+        vm.stopPrank();
+    }
+
+    function _assertRageQuitAtMarketStatus(uint8 status) private {
+        _depositAndAllocate(ALICE, 1 ether);
+        marketRegistry.setMarketStatus(MARKET_A, status);
+
+        vm.prank(ALICE);
+        manager.rageQuit(MARKET_A);
+
+        assertEq(stock.balanceOf(ALICE), 1 ether);
+        assertEq(vault.deposited(ASSET_UID, ALICE), 0);
+        assertEq(vault.allocation(ASSET_UID, ALICE, MARKET_A), 0);
+        assertEq(_gaugePosition(gaugeA, ALICE), 0);
+        assertEq(marketRegistry.marketStatus(MARKET_A), status);
+    }
+
+    function _assertAlicePositionUnchangedAfterFailedRageQuit(uint256 quoteClaimable) private view {
+        PositionView memory position = gaugeA.positionOf(ALICE);
+        assertEq(position.activeAmount + position.pendingAmount, 1 ether);
+        assertEq(position.quoteClaimable, quoteClaimable);
+        assertEq(gaugeA.storedTotalActiveStock(), 1 ether);
+        assertEq(vault.deposited(ASSET_UID, ALICE), 1 ether);
+        assertEq(vault.allocation(ASSET_UID, ALICE, MARKET_A), 1 ether);
+        assertEq(stock.balanceOf(ALICE), 0);
+        assertEq(stock.balanceOf(address(vault)), 1 ether);
     }
 
     function _gaugePosition(MemeStockGauge gauge, address user) private view returns (uint256) {
