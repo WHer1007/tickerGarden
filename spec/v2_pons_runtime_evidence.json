@@ -1,0 +1,444 @@
+{
+  "schemaVersion": 1,
+  "executionSpecId": "V2-EXEC-3",
+  "baselineId": "TG-PONS-BEHAVIOR-1",
+  "status": "APPROVED_RUNTIME_VECTORS",
+  "capturedAt": "2026-09-02T10:15:17Z",
+  "chain": {
+    "name": "Robinhood Chain",
+    "chainId": 4663,
+    "rpc": "https://rpc.mainnet.chain.robinhood.com"
+  },
+  "factory": {
+    "address": "0x7ed598bcef8bd9edd8c97a195c6d13f40801ec7e",
+    "runtimeBytes": 24177,
+    "runtimeKeccak256": "0x89a27da6f703e0a7cdd4f233e7cb57604ff75b164530962d3ff7cf8483a67d84",
+    "referenceDependency": false
+  },
+  "antiSnipe": {
+    "observationBlock": 52491862,
+    "observationBlockHash": "0xa82b7a0b7edae5604e33e51341a41f6174bff6828e337a45bbc45a2a4f229670",
+    "launchTransactionHash": "0xcaee4dcfae3d9e41f3ff5024c2f4dee99a08fdf9541ba4ecd822aa5d3f455ce6",
+    "token": "0x2a1a21d62e6f683a939e9c5eaa59c2c671370d5c",
+    "curve": "0x6ed53601c6361eef30a2945f58dd4fe9f2b1d49d",
+    "curveRuntimeBytes": 10229,
+    "curveRuntimeKeccak256": "0xa3bebf4532d5a7f6f627a60d76a0b7ed9820887e179ec916e5aa6c033bb30fdd",
+    "creator": "0x74bd352129ec305a0d419973969c525feaca9745",
+    "quoteAsset": "0x0000000000000000000000000000000000000000",
+    "feeBps": 100,
+    "creatorTaxBpsObserved": 0,
+    "snipeTaxStartBps": 9900,
+    "snipeTaxSeconds": 3,
+    "minimumNetBps": 100,
+    "rawSchedule": [
+      {
+        "elapsedSeconds": 0,
+        "block": 52491862,
+        "blockHash": "0xa82b7a0b7edae5604e33e51341a41f6174bff6828e337a45bbc45a2a4f229670",
+        "timestamp": 1788343716,
+        "ordinaryRecipientBps": 9900,
+        "creatorRecipientBps": 0
+      },
+      {
+        "elapsedSeconds": 1,
+        "block": 52491868,
+        "blockHash": "0xe0905e14d14f1ab2001d1e208a721888605bfdcd76feb298e93e24e75624e1d7",
+        "timestamp": 1788343717,
+        "ordinaryRecipientBps": 618,
+        "creatorRecipientBps": 0
+      },
+      {
+        "elapsedSeconds": 2,
+        "block": 52491877,
+        "blockHash": "0x3864b876f22cd18a61a75f22ad7572cfbf2776f5ef31be0d145674ef3e2cfaf7",
+        "timestamp": 1788343718,
+        "ordinaryRecipientBps": 19,
+        "creatorRecipientBps": 0
+      },
+      {
+        "elapsedSeconds": 3,
+        "block": 52491887,
+        "blockHash": "0x8fc3e3e43d6237bb82ca819d078afd3f147b5d822680b6d784300fc7c57acd32",
+        "timestamp": 1788343719,
+        "ordinaryRecipientBps": 0,
+        "creatorRecipientBps": 0
+      }
+    ],
+    "effectiveCapFormula": "min(rawSnipeBps,10000-feeBps-creatorTaxBps-minimumNetBps)",
+    "tickerGardenCreatorTaxBps": 0,
+    "tickerGardenEffectiveScheduleBps": [9800, 618, 19, 0],
+    "appliesTo": "BUY_QUOTE_LEG_ONLY",
+    "automaticExemptions": [
+      "CREATOR",
+      "CREATOR_REVENUE_BENEFICIARY_AT_CREATION",
+      "ATOMIC_FIRST_BUY_RECIPIENT"
+    ],
+    "arbitraryExemptionArray": false
+  },
+  "sourceMismatch": {
+    "ponsDocsObservedWindowSeconds": 5,
+    "ponsRepositoryCommit": "845bd546b37515621e47b08015ce4f9d374f6eca",
+    "ponsRepositorySourceDefaultWindowSeconds": 15,
+    "activeRuntimeWindowSeconds": 3,
+    "decision": "FIX_EXACT_INTEGER_RUNTIME_OUTPUT_TABLE_DO_NOT_INFER_UNVERIFIED_SOURCE_FORMULA"
+  },
+  "graduationTraces": [
+    {
+      "id": "PONS_RUNTIME_NATIVE_FULL_RANGE_GRADUATION",
+      "quoteKind": "NATIVE",
+      "token": "0xf809c7e0f6333d49df18594e30191aa6cf85ee34",
+      "curve": "0x2fef3e7ac64f9a001828601991ceead51c4e2809",
+      "quoteAsset": "0x0000000000000000000000000000000000000000",
+      "phantomQuote": "1680000000000000000",
+      "graduationThreshold": "4200000000000000000",
+      "tickSpacing": 200,
+      "sweep": {
+        "transactionHash": "0xb1e899fd378afca011b4d47d6afe55395e1e43261e80487047a73e72cc64d03a",
+        "block": 52489052,
+        "blockHash": "0x55a10d67a184984f77ea0361156b313f9b3115fec0afd699673a6c4eaa0cdb81",
+        "status": 1,
+        "gasUsed": 467129,
+        "sweptQuote": "4200000000000000157",
+        "sweptTokens": "285714285714285714285714285",
+        "resultingPhase": "Swept"
+      },
+      "poolCreation": {
+        "transactionHash": "0xda9b4b880597361a402a804990f8fc01ca1a83dc1e8ed0f43490e977e349f558",
+        "caller": "0xc0b3535e207830706656016b62806d8fe9e6ae6e",
+        "creator": "0x9a885d706c53798f484bee9833329b9f89b1df0f",
+        "block": 52489056,
+        "blockHash": "0x5a4cdcbf3d30a8645dd2b505d8658f9701f18f274ef5528e3d8d7cb6d963fe75",
+        "status": 1,
+        "gasUsed": 789234,
+        "poolId": "0x9f560810ed40e1ed68f099b56138f8217dcce349c23ab060c85aa034aff62ba3",
+        "quoteIsCurrency0": true,
+        "poolMemeAmount": "204081632653061226669443287",
+        "lockedExcessMeme": "81632653061224487616270998",
+        "sqrtPriceX96": "552276925551777199545721453919781",
+        "initialTick": 176998,
+        "tickLower": -887200,
+        "tickUpper": 887200,
+        "liquidity": "29277002188455996084176",
+        "positionId": "1496564",
+        "resultingPhase": "PoolCreated"
+      }
+    },
+    {
+      "id": "PONS_RUNTIME_ERC20_FULL_RANGE_GRADUATION",
+      "quoteKind": "ERC20",
+      "token": "0xfaed654a59ce827377597485592b9d6c21198d00",
+      "curve": "0x4776cf9955e1ad7f2fd7e79a05c130e9589e6049",
+      "quoteAsset": "0x5e81213613b6b86eab4c6c50d718d34359459786",
+      "quoteSymbol": "TTWO",
+      "quoteDecimals": 18,
+      "phantomQuote": "10655602752807139311",
+      "graduationThreshold": "26639006882017848277",
+      "tickSpacing": 200,
+      "sweep": {
+        "transactionHash": "0x7a200c6c0fd8da4ce56955d9a0969f6b5551df4c4e01698e0f2e3ced9c7d7ece",
+        "block": 52496350,
+        "blockHash": "0xefa791e89941f4e51a38bb07d3542873181f338ddee722ccac27bf6a1ed9f58e",
+        "status": 1,
+        "gasUsed": 680611,
+        "sweptQuote": "26639006882017848346",
+        "sweptTokens": "285714285714285714289544789",
+        "resultingPhase": "Swept"
+      },
+      "poolCreation": {
+        "transactionHash": "0x72ed95590f6a50ad9e490e19db2d1457da43ab3a872420f864e0a10cd943e5fb",
+        "caller": "0x68c28468d3b1a6846ac3f53565e09c76f07bdd7e",
+        "creator": "0xc1338631c276017b238fb3287f65865a259e4a95",
+        "block": 52496407,
+        "blockHash": "0x017fcab460cc81cf31404c938fe5c4fb470eef1c64b76b3237f1861d16565b92",
+        "status": 1,
+        "gasUsed": 909663,
+        "poolId": "0x7beaa827d21173074319e8a2f2a1d0f8069b72fe3c44db144d7004bc82fc6173",
+        "quoteIsCurrency0": true,
+        "poolMemeAmount": "204081632653061224642468854",
+        "lockedExcessMeme": "81632653061224489647075935",
+        "sqrtPriceX96": "219291868843934996861561852956313",
+        "initialTick": 158524,
+        "tickLower": -887200,
+        "tickUpper": 887200,
+        "liquidity": "73732842185408371800139",
+        "positionId": "1497210",
+        "resultingPhase": "PoolCreated"
+      }
+    }
+  ],
+  "exceptionSemantics": {
+    "preSweepFailure": "REVERT_OUTER_TRANSACTION_AND_REMAIN_NotGraduated",
+    "postSweepAutomaticPoolFailure": "CATCH_AND_REMAIN_Swept",
+    "retry": "PERMISSIONLESS_FROM_Swept_ONLY",
+    "retryFailure": "REVERT_AND_REMAIN_Swept",
+    "rescueDelaySeconds": 604800,
+    "rescueBeforeDelay": "REVERT_AND_REMAIN_Swept",
+    "rescueAfterDelay": "ATOMIC_TRANSFER_THEN_TERMINAL_Rescued",
+    "tickerGardenAuthority": "V2_EXECUTION_SPEC_STATE_MACHINE",
+    "note": "Failure paths are normative TickerGarden behavior; the two receipts above prove the active Pons success path and permissionless caller separation."
+  },
+  "differentialVectorCount": 14,
+  "differentialVectors": [
+    {
+      "id": "RUNTIME_SUPPLY_NATIVE_CONFIG_0",
+      "kind": "supplyPartition",
+      "provenance": {
+        "type": "FACTORY_STATE",
+        "block": 52289586,
+        "blockHash": "0x9477917aacd098d56b4d5fb375e555a09d1a61b7bf33417429e5c8e4a2e86006",
+        "contract": "0x7ed598bcef8bd9edd8c97a195c6d13f40801ec7e"
+      },
+      "inputs": {
+        "supply": "1000000000000000000000000000",
+        "phantomQuote": "1680000000000000000",
+        "graduationThreshold": "4200000000000000000"
+      },
+      "outputs": {
+        "reservedTokens": "285714285714285714285714285",
+        "sellableTokens": "714285714285714285714285715"
+      }
+    },
+    {
+      "id": "RUNTIME_SUPPLY_USDG_CONFIG_0",
+      "kind": "supplyPartition",
+      "provenance": {
+        "type": "FACTORY_STATE",
+        "block": 52289586,
+        "blockHash": "0x9477917aacd098d56b4d5fb375e555a09d1a61b7bf33417429e5c8e4a2e86006",
+        "contract": "0x7ed598bcef8bd9edd8c97a195c6d13f40801ec7e"
+      },
+      "inputs": {
+        "supply": "1000000000000000000000000000",
+        "phantomQuote": "3236000000",
+        "graduationThreshold": "8090000000"
+      },
+      "outputs": {
+        "reservedTokens": "285714285714285714285714285",
+        "sellableTokens": "714285714285714285714285715"
+      }
+    },
+    {
+      "id": "RUNTIME_AMOUNT_OUT_LAUNCH_BUY",
+      "kind": "amountOut",
+      "provenance": {
+        "type": "RECEIPT_LOG",
+        "block": 52491862,
+        "blockHash": "0xa82b7a0b7edae5604e33e51341a41f6174bff6828e337a45bbc45a2a4f229670",
+        "transactionHash": "0xcaee4dcfae3d9e41f3ff5024c2f4dee99a08fdf9541ba4ecd822aa5d3f455ce6",
+        "contract": "0x6ed53601c6361eef30a2945f58dd4fe9f2b1d49d",
+        "runtimeKeccak256": "0xa3bebf4532d5a7f6f627a60d76a0b7ed9820887e179ec916e5aa6c033bb30fdd"
+      },
+      "inputs": {
+        "amountIn": "113850000000000000",
+        "reserveIn": "1680000000000000000",
+        "reserveOut": "1000000000000000000000000000",
+        "feeBps": 0
+      },
+      "outputs": {
+        "amountOut": "63466845053934275441090392"
+      }
+    },
+    {
+      "id": "RUNTIME_BUY_FEE_BEFORE_PRICING",
+      "kind": "buy",
+      "provenance": {
+        "type": "RECEIPT_LOG",
+        "block": 52491862,
+        "blockHash": "0xa82b7a0b7edae5604e33e51341a41f6174bff6828e337a45bbc45a2a4f229670",
+        "transactionHash": "0xcaee4dcfae3d9e41f3ff5024c2f4dee99a08fdf9541ba4ecd822aa5d3f455ce6",
+        "contract": "0x6ed53601c6361eef30a2945f58dd4fe9f2b1d49d",
+        "runtimeKeccak256": "0xa3bebf4532d5a7f6f627a60d76a0b7ed9820887e179ec916e5aa6c033bb30fdd"
+      },
+      "inputs": {
+        "quoteReceived": "115000000000000000",
+        "quoteReserve": "1680000000000000000",
+        "tokenReserve": "1000000000000000000000000000",
+        "reservedTokens": "285714285714285714285714285",
+        "feeBps": 100,
+        "additionalQuoteFeeBps": 0,
+        "minTokensOut": "0"
+      },
+      "outputs": {
+        "quoteSpent": "115000000000000000",
+        "fee": "1150000000000000",
+        "additionalQuoteFee": "0",
+        "netQuote": "113850000000000000",
+        "tokensOut": "63466845053934275441090392",
+        "refund": "0",
+        "partialFill": false
+      }
+    },
+    {
+      "id": "RUNTIME_BUY_TWO_QUOTE_FEE_LEGS",
+      "kind": "buy",
+      "provenance": {
+        "type": "RECEIPT_LOG",
+        "block": 51898631,
+        "blockHash": "0x14aaeda92685cce113678fb9a1224b49321265a8a47d2b68ec36dddf71e35315",
+        "transactionHash": "0x9d91f4b68024c43e67c76a0cca1f6a97b4b037e986fc1309a098c68931159222",
+        "contract": "0x2fef3e7ac64f9a001828601991ceead51c4e2809",
+        "runtimeKeccak256": "0x8922fb170a37b3a0a60b40e153abac3be265935b1b11ea7c1638088c681d3cbe"
+      },
+      "inputs": {
+        "quoteReceived": "95000000000000000",
+        "quoteReserve": "1680000000000000000",
+        "tokenReserve": "1000000000000000000000000000",
+        "reservedTokens": "285714285714285714285714285",
+        "feeBps": 100,
+        "additionalQuoteFeeBps": 200,
+        "minTokensOut": "0"
+      },
+      "outputs": {
+        "quoteSpent": "95000000000000000",
+        "fee": "950000000000000",
+        "additionalQuoteFee": "1900000000000000",
+        "netQuote": "92150000000000000",
+        "tokensOut": "51998984284626019242163473",
+        "refund": "0",
+        "partialFill": false
+      }
+    },
+    {
+      "id": "RUNTIME_SELL_FEE_AFTER_GROSS_QUOTE",
+      "kind": "sell",
+      "provenance": {
+        "type": "RECEIPT_LOG_REPLAY",
+        "block": 52491963,
+        "blockHash": "0xdc526825c58806f8e87ea8f8494178f95ec8a7c2ae6e88d3f471621e7771dfaf",
+        "transactionHash": "0x4d05506f90a59a318cdac4b5bbd337e39e917b56b98c78c83caa98cbd3e65907",
+        "contract": "0x6ed53601c6361eef30a2945f58dd4fe9f2b1d49d",
+        "runtimeKeccak256": "0xa3bebf4532d5a7f6f627a60d76a0b7ed9820887e179ec916e5aa6c033bb30fdd"
+      },
+      "inputs": {
+        "tokensIn": "7295892616512354861673570",
+        "tokenReserve": "487161849868374957688688449",
+        "quoteReserve": "3448545900000000000",
+        "feeBps": 100,
+        "additionalQuoteFeeBps": 0,
+        "minQuoteOut": "0"
+      },
+      "outputs": {
+        "grossQuoteOut": "50884470820644404",
+        "fee": "508844708206444",
+        "additionalQuoteFee": "0",
+        "quoteOut": "50375626112437960"
+      }
+    },
+    {
+      "id": "RUNTIME_TAIL_PARTIAL_FILL_AND_REFUND",
+      "kind": "buy",
+      "provenance": {
+        "type": "RECEIPT_LOG",
+        "block": 52496350,
+        "blockHash": "0xefa791e89941f4e51a38bb07d3542873181f338ddee722ccac27bf6a1ed9f58e",
+        "transactionHash": "0x7a200c6c0fd8da4ce56955d9a0969f6b5551df4c4e01698e0f2e3ced9c7d7ece",
+        "contract": "0x4776cf9955e1ad7f2fd7e79a05c130e9589e6049",
+        "runtimeKeccak256": "0x9556cf61f36f57313d6531c5d8aca0ca8a676abe3c36cf5a6cffab1a1d3f4ac2"
+      },
+      "inputs": {
+        "quoteReceived": "577115862581835864",
+        "quoteReserve": "37150053365003535576",
+        "tokenReserve": "286826041624075746059304440",
+        "reservedTokens": "285714285714285714289544789",
+        "feeBps": 100,
+        "additionalQuoteFeeBps": 0,
+        "minTokensOut": "0"
+      },
+      "outputs": {
+        "netRequired": "144556269821452080",
+        "quoteSpent": "146016434163082910",
+        "fee": "1460164341630829",
+        "additionalQuoteFee": "0",
+        "tokensOut": "1111755909790031769759651",
+        "refund": "431099428418752954",
+        "partialFill": true,
+        "slippagePass": true
+      }
+    },
+    {
+      "id": "RUNTIME_PRICE_BOUND_REVERT",
+      "kind": "partialFillSlippage",
+      "provenance": {
+        "type": "PINNED_ETH_CALL_PAIR",
+        "block": 52918892,
+        "blockHash": "0x02da9851577331d1349e7c10807e329a9a7264b83df67b6f1e901e2b071ee824",
+        "contract": "0x6ed53601c6361eef30a2945f58dd4fe9f2b1d49d",
+        "runtimeKeccak256": "0xa3bebf4532d5a7f6f627a60d76a0b7ed9820887e179ec916e5aa6c033bb30fdd",
+        "passingCalldata": "0x59a87bc100000000000000000000000000000000000000000000000000038d7ea4c68000000000000000000000000000000000000000000000007c9463220ebd410093370000000000000000000000001111111111111111111111111111111111111111",
+        "passingReturnData": "0x000000000000000000000000000000000000000000007c9463220ebd41009337",
+        "revertingCalldata": "0x59a87bc100000000000000000000000000000000000000000000000000038d7ea4c68000000000000000000000000000000000000000000000007c9463220ebd410093380000000000000000000000001111111111111111111111111111111111111111",
+        "revertData": "0x71c4efed000000000000000000000000000000000000000000007c9463220ebd41009337000000000000000000000000000000000000000000007c9463220ebd41009338"
+      },
+      "inputs": {
+        "quoteReceived": "1000000000000000",
+        "quoteSpent": "1000000000000000",
+        "tokensOut": "588310705286909985329975",
+        "minTokensOut": "588310705286909985329976"
+      },
+      "outputs": {
+        "slippagePass": false
+      }
+    },
+    {
+      "id": "RUNTIME_ANTI_SNIPE_ELAPSED_0",
+      "kind": "antiSnipeSchedule",
+      "provenance": {"type": "PINNED_RUNTIME_OBSERVATION", "observationIndex": 0},
+      "inputs": {"elapsedSeconds": 0, "exempt": false},
+      "outputs": {"rawSnipeBps": 9900}
+    },
+    {
+      "id": "RUNTIME_ANTI_SNIPE_ELAPSED_1",
+      "kind": "antiSnipeSchedule",
+      "provenance": {"type": "PINNED_RUNTIME_OBSERVATION", "observationIndex": 1},
+      "inputs": {"elapsedSeconds": 1, "exempt": false},
+      "outputs": {"rawSnipeBps": 618}
+    },
+    {
+      "id": "RUNTIME_ANTI_SNIPE_ELAPSED_2",
+      "kind": "antiSnipeSchedule",
+      "provenance": {"type": "PINNED_RUNTIME_OBSERVATION", "observationIndex": 2},
+      "inputs": {"elapsedSeconds": 2, "exempt": false},
+      "outputs": {"rawSnipeBps": 19}
+    },
+    {
+      "id": "RUNTIME_ANTI_SNIPE_ELAPSED_3",
+      "kind": "antiSnipeSchedule",
+      "provenance": {"type": "PINNED_RUNTIME_OBSERVATION", "observationIndex": 3},
+      "inputs": {"elapsedSeconds": 3, "exempt": false},
+      "outputs": {"rawSnipeBps": 0}
+    },
+    {
+      "id": "RUNTIME_ANTI_SNIPE_CREATOR_EXEMPT",
+      "kind": "antiSnipeSchedule",
+      "provenance": {"type": "PINNED_RUNTIME_OBSERVATION", "observationIndex": 0},
+      "inputs": {"elapsedSeconds": 0, "exempt": true},
+      "outputs": {"rawSnipeBps": 0}
+    },
+    {
+      "id": "RUNTIME_NATIVE_GRADUATION_PARTITION",
+      "kind": "graduationPartition",
+      "provenance": {
+        "type": "RECEIPT_LOG",
+        "sweepTransactionHash": "0xb1e899fd378afca011b4d47d6afe55395e1e43261e80487047a73e72cc64d03a",
+        "poolTransactionHash": "0xda9b4b880597361a402a804990f8fc01ca1a83dc1e8ed0f43490e977e349f558",
+        "sweepBlockHash": "0x55a10d67a184984f77ea0361156b313f9b3115fec0afd699673a6c4eaa0cdb81",
+        "poolBlockHash": "0x5a4cdcbf3d30a8645dd2b505d8658f9701f18f274ef5528e3d8d7cb6d963fe75"
+      },
+      "inputs": {
+        "sweptTokens": "285714285714285714285714285",
+        "sweptQuote": "4200000000000000157",
+        "phantomQuote": "1680000000000000000"
+      },
+      "outputs": {
+        "poolMemeAmount": "204081632653061226669443287",
+        "lockedExcessMeme": "81632653061224487616270998"
+      }
+    }
+  ],
+  "archiveLimitation": {
+    "publicRpcHistoricalStateRetention": "BOUNDED",
+    "receiptAndLogEvidencePinned": true,
+    "requireArchiveForkForFutureDifferentialReplay": true,
+    "localDifferentialGateUsesPinnedRuntimeOutputs": true
+  }
+}

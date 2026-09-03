@@ -1,0 +1,144 @@
+// SPDX-License-Identifier: MIT
+pragma solidity 0.8.26;
+
+import {ReentrancyGuard} from "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
+
+import {
+    AssetView,
+    IMarketRegistryV2,
+    IMemeStockGauge,
+    IOfficialStockRegistryV2,
+    IUserStockVault,
+    MarketView,
+    PositionView
+} from "../interfaces/IV2Protocol.sol";
+
+/// @notice Shared allocate/increase path for the final AllocationManager.
+/// @dev Quote status intentionally does not gate an existing PoolCreated market: V2-EXEC-3 limits later Quote
+///      status changes to new-market admission, while Market status is the explicit historical-market control.
+abstract contract AllocationManagerIncreases is ReentrancyGuard {
+    uint8 internal constant ASSET_STATUS_ACTIVE = 1;
+    uint8 internal constant LAUNCH_PHASE_POOL_CREATED = 2;
+    uint8 internal constant MARKET_STATUS_ACTIVE = 0;
+    uint64 internal constant ACTIVATION_DELAY = 30 seconds;
+    uint64 internal constant MINIMUM_LOCK = 24 hours;
+
+    IOfficialStockRegistryV2 internal immutable _officialStockRegistry;
+    IMarketRegistryV2 internal immutable _marketRegistry;
+
+    error InvalidAllocationManagerDependencies(address officialStockRegistry, address marketRegistry);
+    error InvalidAllocationUser(address user);
+    error InvalidAllocationAmount(uint256 amount);
+    error StockAllocationClosed(bytes32 marketId);
+    error InvalidAllocationComponents(bytes32 marketId, address vault, address gauge);
+    error PositionBelowMinimum(uint256 position, uint256 minimumPosition);
+    error AllocationLedgerMismatch();
+    error AllocationTimestampOverflow(uint256 timestamp);
+
+    constructor(address officialStockRegistry_, address marketRegistry_) {
+        if (
+            officialStockRegistry_.code.length == 0 || marketRegistry_.code.length == 0
+                || officialStockRegistry_ == marketRegistry_
+        ) {
+            revert InvalidAllocationManagerDependencies(officialStockRegistry_, marketRegistry_);
+        }
+        _officialStockRegistry = IOfficialStockRegistryV2(officialStockRegistry_);
+        _marketRegistry = IMarketRegistryV2(marketRegistry_);
+    }
+
+    function _increaseAllocation(address user, bytes32 marketId, uint256 amount) internal nonReentrant {
+        _validateAllocationRequest(user, amount);
+
+        (IUserStockVault vault, IMemeStockGauge gauge, uint8 tokenDecimals) = _openAllocationMarket(marketId);
+        (uint64 activationAt, uint64 unlockAt) = _allocationTimes();
+
+        _executeIncrease(user, marketId, amount, vault, gauge, tokenDecimals, activationAt, unlockAt);
+    }
+
+    function _executeIncrease(
+        address user,
+        bytes32 marketId,
+        uint256 amount,
+        IUserStockVault vault,
+        IMemeStockGauge gauge,
+        uint8 tokenDecimals,
+        uint64 activationAt,
+        uint64 unlockAt
+    ) internal {
+        gauge.checkpointActivations();
+        gauge.settle(user);
+
+        uint256 currentPosition = _checkedPosition(gauge, vault, user, marketId);
+
+        uint256 resultingPosition = currentPosition + amount;
+        uint256 minimumPosition = 5 * (10 ** (tokenDecimals - 1)) + 1;
+        if (resultingPosition < minimumPosition) {
+            revert PositionBelowMinimum(resultingPosition, minimumPosition);
+        }
+
+        vault.lockAllocation(user, marketId, amount);
+        gauge.addPending(user, amount, activationAt, unlockAt);
+        if (_checkedPosition(gauge, vault, user, marketId) != resultingPosition) revert AllocationLedgerMismatch();
+    }
+
+    function _openAllocationMarket(bytes32 marketId)
+        internal
+        view
+        returns (IUserStockVault vault, IMemeStockGauge gauge, uint8 tokenDecimals)
+    {
+        MarketView memory marketView;
+        AssetView memory assetView;
+        (marketView, assetView, vault, gauge) = _allocationComponents(marketId);
+        if (
+            marketView.runtime.launchPhase != LAUNCH_PHASE_POOL_CREATED
+                || marketView.runtime.marketStatus != MARKET_STATUS_ACTIVE || assetView.status != ASSET_STATUS_ACTIVE
+        ) {
+            revert StockAllocationClosed(marketId);
+        }
+        tokenDecimals = assetView.tokenDecimals;
+    }
+
+    function _allocationComponents(bytes32 marketId)
+        internal
+        view
+        returns (MarketView memory marketView, AssetView memory assetView, IUserStockVault vault, IMemeStockGauge gauge)
+    {
+        if (marketId == bytes32(0)) revert StockAllocationClosed(marketId);
+        marketView = _marketRegistry.market(marketId);
+        assetView = _officialStockRegistry.asset(marketView.config.assetUid);
+        if (
+            assetView.status == 0 || assetView.status > 3 || assetView.tokenDecimals < 1 || assetView.tokenDecimals > 36
+                || assetView.stockToken.code.length == 0 || assetView.userStockVault.code.length == 0
+                || marketView.config.gauge.code.length == 0 || assetView.stockToken == assetView.userStockVault
+                || assetView.stockToken == marketView.config.gauge
+                || assetView.userStockVault == marketView.config.gauge
+        ) {
+            revert InvalidAllocationComponents(marketId, assetView.userStockVault, marketView.config.gauge);
+        }
+        vault = IUserStockVault(assetView.userStockVault);
+        gauge = IMemeStockGauge(marketView.config.gauge);
+    }
+
+    function _checkedPosition(IMemeStockGauge gauge, IUserStockVault vault, address user, bytes32 marketId)
+        internal
+        view
+        returns (uint256 amount)
+    {
+        PositionView memory position = gauge.positionOf(user);
+        amount = position.activeAmount + position.pendingAmount;
+        if (amount != vault.allocation(user, marketId)) revert AllocationLedgerMismatch();
+    }
+
+    function _validateAllocationRequest(address user, uint256 amount) internal view {
+        if (user == address(0) || user == address(this)) revert InvalidAllocationUser(user);
+        if (amount == 0) revert InvalidAllocationAmount(amount);
+    }
+
+    function _allocationTimes() internal view returns (uint64 activationAt, uint64 unlockAt) {
+        if (block.timestamp > type(uint64).max - MINIMUM_LOCK) {
+            revert AllocationTimestampOverflow(block.timestamp);
+        }
+        activationAt = uint64(block.timestamp + ACTIVATION_DELAY);
+        unlockAt = uint64(block.timestamp + MINIMUM_LOCK);
+    }
+}

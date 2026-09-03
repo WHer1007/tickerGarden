@@ -1,0 +1,94 @@
+{
+  "schemaVersion": 1,
+  "executionSpecId": "V2-EXEC-3",
+  "status": "APPROVED_GENERIC_NUMERIC_DOMAIN",
+  "solidityDomains": {
+    "uint256Max": "115792089237316195423570985008687907853269984665640564039457584007913129639935",
+    "uint160Max": "1461501637330902918203684832716283019655932542975",
+    "uint128Max": "340282366920938463463374607431768211455",
+    "int128Max": "170141183460469231731687303715884105727",
+    "uint64Max": "18446744073709551615",
+    "uint32Max": "4294967295"
+  },
+  "assetAdmission": {
+    "minimumDecimals": 6,
+    "maximumDecimals": 18,
+    "maximumCanonicalStockSupply": "170141183460469231731687303715884105727",
+    "minimumNonzeroPositionFormula": "floor(10^stockDecimals/2)+1",
+    "minimumNonzeroPositionAtMinimumDecimals": "500001",
+    "maximumRewardOrAccountingAmount": "170141183460469231731687303715884105727",
+    "rejectionPolicy": "ASSET_OR_CONFIG_OUTSIDE_DOMAIN_CANNOT_BE_ACTIVATED"
+  },
+  "feeBounds": {
+    "feePips": 10000,
+    "pipsDenominator": 1000000,
+    "maximumPostGraduationFeeBase": "17014118346046923173168730371588410572799",
+    "maximumTotalFee": "170141183460469231731687303715884105727",
+    "v4ReturnedDeltaBound": "int128.max",
+    "maximumLifetimeFeeCreditsPerMarketAsset": "281474976710655",
+    "feeCreditCounterRule": "REJECT_WHEN_NEXT_CREDIT_WOULD_EXCEED_2^48-1"
+  },
+  "stakeSaturation": {
+    "wholeTokens": 10,
+    "rawFormula": "10*10^stockDecimals",
+    "minimumRawAt6Decimals": "10000000",
+    "maximumRawAt18Decimals": "10000000000000000000",
+    "snapshotField": "MarketConfig.stakeSaturationAmount",
+    "effectiveActiveStockFormula": "min(totalActiveStock,stakeSaturationAmount)",
+    "stakerFormula": "floor(nonLpAmount*effectiveActiveStock/(2*stakeSaturationAmount))",
+    "overflowProof": "stakeSaturationAmount<=10*10^18<int128.max; denominator=2*stakeSaturationAmount<uint256.max"
+  },
+  "accumulatorProof": {
+    "indexPrecision": "1000000000000000000000000000",
+    "minimumActiveStock": "500001",
+    "maximumRewardPerCredit": "170141183460469231731687303715884105727",
+    "maximumCredits": "281474976710655",
+    "maximumAccumulatorDelta": "340281686357565748331877944016162546049846363770647066137636",
+    "maximumAccumulator": "95780779742558228248573271207669416566285394209083720090990696582777711580",
+    "uint256HeadroomFactor": "1208",
+    "maximumLifetimeReward": "47890485652058856682514884129215430300500406707421185",
+    "proofFormula": "N*(floor(R*P/Smin)+floor((Amax-1)/Smin)+1) <= uint256.max",
+    "fullPrecisionUserSettlement": true,
+    "indexRemainderInvariant": "indexRemainder < currentActiveStock after each credit",
+    "userRemainderInvariant": "userRemainder < indexPrecision"
+  },
+  "timestampBounds": {
+    "activationDelaySeconds": 30,
+    "maximumActivationSchedulingTimestamp": "18446744073709551585",
+    "minimumLockSeconds": 86400,
+    "maximumLockStartTimestamp": "18446744073709465215",
+    "graduationRescueDelaySeconds": 604800,
+    "maximumSweptAtTimestamp": "18446744073708946815",
+    "overflowPolicy": "CHECK_BEFORE_ADD_AND_REVERT_WITHOUT_STATE_CHANGE"
+  },
+  "requiredFullPrecisionOperations": [
+    "supply*phantomQuote/(phantomQuote+graduationThreshold)",
+    "amountInWithFee*reserveOut/denominator",
+    "amountOut*(reserveIn*10000)/denominator",
+    "grossAmount*feeBps/10000",
+    "ceil(netRequired*10000/(10000-totalFeeBps))",
+    "sweptTokens*sweptQuote/(sweptQuote+phantomQuote)",
+    "amount1*2^192/amount0",
+    "LiquidityAmounts full-range calculations",
+    "base*10000/1000000",
+    "nonLpAmount*effectiveActiveStock/(2*stakeSaturationAmount)",
+    "reward*1e27/activeStock with mulmod remainder",
+    "activeStock*deltaAccumulator/1e27 with mulmod remainder",
+    "512_BIT_PRODUCT_COMPARISON_FOR_PARTIAL_FILL_SLIPPAGE"
+  ],
+  "roundingAndDust": {
+    "feeLegs": "FLOOR_EACH_LEG_INDEPENDENTLY_FINAL_RESIDUAL_TO_PLATFORM",
+    "tailGrossUp": "CEIL_WITHOUT_NUMERATOR_PLUS_DENOMINATOR_MINUS_ONE",
+    "graduationPoolMeme": "FLOOR_ROUNDING_ERROR_LESS_THAN_ONE_MEME_RAW_UNIT",
+    "index": "NO_PERMANENT_LOSS_REMAINDER_CARRIED",
+    "user": "NO_PERMANENT_LOSS_REMAINDER_CARRIED",
+    "assetConversion": false
+  },
+  "configurationDependency": {
+    "genericProofComplete": true,
+    "stockPriceOrBackingTargetRequired": false,
+    "stockPriceOrUsdNotionalRequired": false,
+    "observedOfficialStockCountIsProtocolCap": false,
+    "admissionVerifierMustCheckEveryProductionManifest": true
+  }
+}

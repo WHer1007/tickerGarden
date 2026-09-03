@@ -1,0 +1,149 @@
+name: TickerGarden V2
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  boundary-and-spec:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22.13"
+      - name: Verify V2 source boundary
+        run: npm run check:boundary
+      - name: Verify V2 machine specification
+        run: npm run test:spec
+
+  contracts-interface-and-scaffold:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22.13"
+      - uses: foundry-rs/foundry-toolchain@v1
+        with:
+          version: v1.8.1
+      - name: Restore pinned contract dependencies
+        working-directory: contracts
+        run: node scripts/sync-dependencies.mjs
+      - name: Check V2 formatting
+        working-directory: contracts
+        run: FOUNDRY_PROFILE=v2 forge fmt --check src/v2 test/v2
+      - name: Build isolated V2 namespace
+        working-directory: contracts
+        run: FOUNDRY_PROFILE=v2 forge build
+      - name: Test isolated V2 namespace
+        working-directory: contracts
+        run: FOUNDRY_PROFILE=v2 forge test
+      - name: Verify generated interfaces and compiled ABI manifest
+        run: npm run check:interfaces
+
+  contracts-product:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22.13"
+      - uses: foundry-rs/foundry-toolchain@v1
+        with:
+          version: v1.8.1
+      - name: Restore pinned contract dependencies
+        working-directory: contracts
+        run: node scripts/sync-dependencies.mjs
+      - name: Build before product artifact inventory
+        working-directory: contracts
+        run: FOUNDRY_PROFILE=v2 forge build
+      - name: Report or run V2 product tests
+        run: npm run check:product-track
+
+  contracts-fork:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22.13"
+      - uses: foundry-rs/foundry-toolchain@v1
+        with:
+          version: v1.8.1
+      - name: Restore pinned contract dependencies
+        working-directory: contracts
+        run: node scripts/sync-dependencies.mjs
+      - name: Report or run V2 fork tests
+        env:
+          ROBINHOOD_RPC_URL: ${{ secrets.ROBINHOOD_RPC_URL }}
+        run: npm run check:fork-track
+
+  deployment:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22.13"
+          cache: npm
+          cache-dependency-path: deployments/package-lock.json
+      - name: Install
+        working-directory: deployments
+        run: npm ci
+      - name: Build
+        working-directory: deployments
+        run: npm run build
+      - name: Test
+        working-directory: deployments
+        run: npm test
+      - name: Report V2 deployment-track status
+        run: npm run check:deployment-track
+
+  offchain-scaffolds:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        package:
+          - backend
+          - indexer
+          - services/maintenance-runner
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22.13"
+          cache: npm
+          cache-dependency-path: ${{ matrix.package }}/package-lock.json
+      - name: Install
+        working-directory: ${{ matrix.package }}
+        run: npm ci
+      - name: Build
+        working-directory: ${{ matrix.package }}
+        run: npm run build
+      - name: Test
+        working-directory: ${{ matrix.package }}
+        run: npm test
+
+  website-scaffold:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22.13"
+          cache: npm
+          cache-dependency-path: website/package-lock.json
+      - name: Install
+        working-directory: website
+        run: npm ci
+      - name: Build Sites bundle
+        working-directory: website
+        run: npm run build
+      - name: Test Sites worker
+        working-directory: website
+        run: npm test
