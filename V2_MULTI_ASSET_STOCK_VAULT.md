@@ -2,7 +2,7 @@
 
 > 状态：`IMPLEMENTED_LOCAL / NOT_DEPLOYABLE`
 > 日期：2026-09-03
-> 适用版本：TickerGarden V2 / `V2-EXEC-3` 的部署前架构修订
+> 适用版本：TickerGarden V2 / `V2-EXEC-4` 的部署前架构修订
 > 机器规范：[`spec/v2_execution_manifest.json`](./spec/v2_execution_manifest.json)、[`spec/v2_abi_surface.json`](./spec/v2_abi_surface.json)
 
 ## 1. 决策
@@ -27,6 +27,19 @@ MarketRegistryV2: marketId ──> Asset UID
 AllocationManager: marketId ──> Asset UID ──> canonical Vault
 MemeStockGauge: 每市场独立状态，不托管 STOCK
 ```
+
+### 1.1 V2-EXEC-4 质押手续费与仓位门槛
+
+本节是当前部署前冻结的 `V2-EXEC-4` 规则。移除原先的 `10 STOCK` 线性释放/饱和开关；它不再参与手续费分桶，也不再作为任何存入或仓位门槛。
+
+- 某 market 只要存在已激活的 STOCK 仓位，Staker 固定获得 non-LP 手续费的 `50%`（总手续费约 `40%`），并由该 market 的所有 active stake 按 raw-unit 质押比例分配。
+- 没有 active stake 时，Staker 为 `0`；Creator 与 Platform 各承接 non-LP 手续费的一半。LP 的固定份额不变。
+- 最低门槛是 OfficialStockRegistry 按 `assetUid` 配置的 raw-unit `minimumAllocation`。资产注册时指定，管理员可以延迟更新；它不是 Vault 普通 `deposit` 的最小金额。普通 deposit 仍可存入任意正数量的空闲本金。
+- 新建仓位、增仓后的总仓位、迁入后的目标仓位必须 `>=` 当前门槛；部分减仓或迁出后的非零剩余必须 `>=` 当前门槛。
+- 门槛更新不强平老仓。若既有仓位低于新门槛，用户可以继续持有，但只能补足到当前门槛或全额退出；正常全退与紧急逃生均不受门槛阻挡。
+- 逃生路径放弃收益并只退出调用者自己的仓位，不暂停 market；正常全退遵循锁定和收益规则。
+
+该规则是部署前变更，必须与 Registry、AllocationManager、Gauge、FeeVault、ABI、Indexer 和测试作为同一 `V2-EXEC-4` 发布单元完成；既有未部署的 `V2-EXEC-3` 规格不再作为部署依据。
 
 不采用“一资产一 Vault + Factory”，也不在当前规模预先采用分片 Vault。若未来需要把托管故障域分片，应使用新 schema 明确建模，而不是在同一 schema 下静默部署多个地址。
 
@@ -148,4 +161,4 @@ Vault.balanceOf(canonicalToken(assetUid)) >= totalDeposited[assetUid]
 
 ## 6. 发布边界
 
-本次是尚未部署的 `V2-EXEC-3` 架构修订，旧单资产 ABI 与新 ABI 不兼容。接口、权限矩阵、compiled/product artifact、Web ABI、Indexer event catalog 和测试必须作为同一变更发布。当前本地实现通过不代表可部署；目标链 finalized Token 身份、真实部署 manifest、AccessManager 配置、Fork/E2E、外部审计和灰度门禁仍必须完成。
+本次是尚未部署的 `V2-EXEC-4` 架构修订，旧单资产 ABI 与新 ABI 不兼容。接口、权限矩阵、compiled/product artifact、Web ABI、Indexer event catalog 和测试必须作为同一变更发布。当前本地实现通过不代表可部署；目标链 finalized Token 身份、真实部署 manifest、AccessManager 配置、Fork/E2E、外部审计和灰度门禁仍必须完成。
