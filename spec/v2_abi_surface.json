@@ -1,0 +1,441 @@
+{
+  "schemaVersion": 1,
+  "executionSpecId": "V2-EXEC-3",
+  "typeDefinitions": {
+    "PoolKey": ["address currency0","address currency1","uint24 fee","int24 tickSpacing","address hooks"],
+    "SwapParams": ["bool zeroForOne","int256 amountSpecified","uint160 sqrtPriceLimitX96"],
+    "BalanceDelta": "int256"
+  },
+  "policy": {
+    "mutationSurfaceClosed": true,
+    "additionalPureOrViewFunctionsAllowed": true,
+    "additionalStateChangingFunctionsAllowed": false,
+    "arbitraryRecipientAllowed": false
+  },
+  "modules": [
+    {
+      "module": "OfficialStockRegistryV2",
+      "structs": {
+        "AssetView": ["address stockToken","address userStockVault","uint8 tokenDecimals","uint8 status"]
+      },
+      "functions": [
+        {"signature":"registerAsset(bytes32,address,uint8,address)","mutability":"nonpayable","caller":"PROTOCOL_ADMIN_ROLE","returns":"()"},
+        {"signature":"pauseAsset(bytes32,bytes32)","mutability":"nonpayable","caller":"PAUSE_GUARDIAN_ROLE","returns":"()"},
+        {"signature":"unpauseAsset(bytes32)","mutability":"nonpayable","caller":"UNPAUSE_ROLE","returns":"()"},
+        {"signature":"retireAsset(bytes32,bytes32)","mutability":"nonpayable","caller":"PROTOCOL_ADMIN_ROLE","returns":"()"},
+        {"signature":"asset(bytes32)","mutability":"view","caller":"PUBLIC","returns":"(AssetView)"}
+      ],
+      "events": [
+        "AssetRegistered(bytes32 indexed assetUid,address indexed stockToken,address indexed userStockVault,uint8 tokenDecimals)",
+        "AssetStatusChanged(bytes32 indexed assetUid,uint8 oldStatus,uint8 newStatus,bytes32 reasonHash)"
+      ]
+    },
+    {
+      "module": "ApprovedQuoteRegistry",
+      "structs": {
+        "QuoteAssetConfig": ["bytes32 ponsBaselineId","address quoteAsset","uint8 quoteDecimals","uint256 phantomQuote","uint256 graduationThreshold","bytes32 economicsHash","uint8 status"]
+      },
+      "functions": [
+        {"signature":"addQuoteConfig(bytes32,QuoteAssetConfig)","mutability":"nonpayable","caller":"PROTOCOL_ADMIN_ROLE","returns":"()"},
+        {"signature":"pauseQuote(bytes32,bytes32)","mutability":"nonpayable","caller":"PAUSE_GUARDIAN_ROLE","returns":"()"},
+        {"signature":"unpauseQuote(bytes32)","mutability":"nonpayable","caller":"UNPAUSE_ROLE","returns":"()"},
+        {"signature":"retireQuote(bytes32,bytes32)","mutability":"nonpayable","caller":"PROTOCOL_ADMIN_ROLE","returns":"()"},
+        {"signature":"quoteConfig(bytes32)","mutability":"view","caller":"PUBLIC","returns":"(QuoteAssetConfig)"}
+      ],
+      "events": [
+        "QuoteAssetConfigAdded(bytes32 indexed configId,address indexed quoteAsset,bytes32 indexed ponsBaselineId,bytes32 economicsHash)",
+        "QuoteAssetStatusChanged(bytes32 indexed configId,uint8 oldStatus,uint8 newStatus,bytes32 reasonHash)"
+      ]
+    },
+    {
+      "module": "PonsBaselineRegistry",
+      "structs": {
+        "PonsBaseline": ["uint256 referenceChainId","address referenceFactory","bytes32 referenceFactoryCodeHash","uint256 launchConfigId","uint256 supply","uint256 curveFeeBps","uint24 poolFee","int24 tickSpacing","bytes32 behaviorVectorRoot","uint8 status"]
+      },
+      "functions": [
+        {"signature":"addBaseline(bytes32,PonsBaseline)","mutability":"nonpayable","caller":"PROTOCOL_ADMIN_ROLE","returns":"()"},
+        {"signature":"pauseBaseline(bytes32,bytes32)","mutability":"nonpayable","caller":"PAUSE_GUARDIAN_ROLE","returns":"()"},
+        {"signature":"unpauseBaseline(bytes32)","mutability":"nonpayable","caller":"UNPAUSE_ROLE","returns":"()"},
+        {"signature":"retireBaseline(bytes32,bytes32)","mutability":"nonpayable","caller":"PROTOCOL_ADMIN_ROLE","returns":"()"},
+        {"signature":"baseline(bytes32)","mutability":"view","caller":"PUBLIC","returns":"(PonsBaseline)"}
+      ],
+      "events": [
+        "PonsBaselineAdded(bytes32 indexed baselineId,bytes32 indexed behaviorVectorRoot,bytes32 factoryCodeHash)",
+        "PonsBaselineStatusChanged(bytes32 indexed baselineId,uint8 oldStatus,uint8 newStatus,bytes32 reasonHash)"
+      ]
+    },
+    {
+      "module": "LaunchTemplateRegistry",
+      "structs": {
+        "LaunchTemplate": ["address memeTokenImplementation","bytes32 memeTokenCodeHash","address curveImplementation","bytes32 curveCodeHash","address gaugeImplementation","bytes32 gaugeCodeHash","address graduatedHook","bytes32 hookCodeHash","address graduationExecutor","address launchLockerImplementation","bytes32 launchLockerCodeHash","bytes32 feePolicyId","bytes32 executionSpecId","uint8 status"]
+      },
+      "functions": [
+        {"signature":"addLaunchTemplate(bytes32,LaunchTemplate)","mutability":"nonpayable","caller":"PROTOCOL_ADMIN_ROLE","returns":"()"},
+        {"signature":"pauseLaunchTemplate(bytes32,bytes32)","mutability":"nonpayable","caller":"PAUSE_GUARDIAN_ROLE","returns":"()"},
+        {"signature":"unpauseLaunchTemplate(bytes32)","mutability":"nonpayable","caller":"UNPAUSE_ROLE","returns":"()"},
+        {"signature":"retireLaunchTemplate(bytes32,bytes32)","mutability":"nonpayable","caller":"PROTOCOL_ADMIN_ROLE","returns":"()"},
+        {"signature":"launchTemplate(bytes32)","mutability":"view","caller":"PUBLIC","returns":"(LaunchTemplate)"},
+        {"signature":"launchTemplateHash(bytes32)","mutability":"view","caller":"PUBLIC","returns":"(bytes32)"}
+      ],
+      "events": [
+        "LaunchTemplateAdded(bytes32 indexed launchTemplateId,bytes32 indexed templateHash,bytes32 indexed executionSpecId)",
+        "LaunchTemplateStatusChanged(bytes32 indexed launchTemplateId,uint8 oldStatus,uint8 newStatus,bytes32 reasonHash)"
+      ]
+    },
+    {
+      "module": "TickerGardenFactoryV2",
+      "structs": {
+        "CreateMarketParams": ["bytes32 assetUid","bytes32 ponsBaselineId","bytes32 quoteAssetConfigId","bytes32 launchTemplateId","bytes32 expectedEconomics","address creatorRevenueBeneficiary","string name","string symbol","string metadataURI","bytes32 salt"]
+      },
+      "functions": [
+        {"signature":"createMarket(CreateMarketParams)","mutability":"payable","caller":"PUBLIC","returns":"(bytes32,address,address,address)"},
+        {"signature":"createMarketFor(address,CreateMarketParams)","mutability":"payable","caller":"LAUNCH_ROUTER_MODULE","returns":"(bytes32,address,address,address)"},
+        {"signature":"previewMarketEconomics(CreateMarketParams)","mutability":"view","caller":"PUBLIC","returns":"(bytes32)"},
+        {"signature":"predictMarketAddresses(address,CreateMarketParams)","mutability":"view","caller":"PUBLIC","returns":"(bytes32,address,address,address,address)"},
+        {"signature":"launchFee()","mutability":"view","caller":"PUBLIC","returns":"(uint256)"}
+      ],
+      "events": [
+        "MarketCreated(bytes32 indexed marketId,bytes32 indexed assetUid,address indexed memeToken,address curve,address gauge,address quoteAsset,uint256 stakeSaturationAmount,bytes32 ponsBaselineId,bytes32 quoteAssetConfigId,bytes32 expectedEconomics)"
+      ]
+    },
+    {
+      "module": "MarketRegistryV2",
+      "structs": {
+        "MarketConfig": ["bytes32 assetUid","uint256 stakeSaturationAmount","bytes32 ponsBaselineId","bytes32 quoteAssetConfigId","bytes32 launchTemplateId","bytes32 feePolicyId","bytes32 executionSpecId","bytes32 expectedEconomics","uint256 launchConfigId","address creatorRevenueBeneficiaryAtCreation","address memeToken","address curve","address gauge","address quoteAsset","address graduatedHook","address marketController"],
+        "MarketRuntime": ["bytes32 poolId","uint32 sourceVersion","uint32 recoveryEpoch","uint64 sweptAt","uint64 statusSince","uint64 restrictedSince","uint8 launchPhase","uint8 marketStatus"],
+        "MarketView": ["MarketConfig config","MarketRuntime runtime"],
+        "CanonicalRoute": ["PoolKey poolKey","bytes32 poolId","address swapRouter","address quoter","address hook","address quoteAsset","address memeToken","address gauge","address curve","address launchLocker","uint32 sourceVersion","uint8 launchPhase","uint8 marketStatus","bool curveTradingEnabled","bool poolTradingEnabled"]
+      },
+      "functions": [
+        {"signature":"registerMarket(bytes32,MarketConfig)","mutability":"nonpayable","caller":"FACTORY_MODULE","returns":"()"},
+        {"signature":"markSwept(bytes32)","mutability":"nonpayable","caller":"EXACT_REGISTERED_CURVE","returns":"()"},
+        {"signature":"commitPoolCreated(bytes32,bytes32)","mutability":"nonpayable","caller":"GRADUATION_MODULE","returns":"(uint32)"},
+        {"signature":"markRescued(bytes32)","mutability":"nonpayable","caller":"GRADUATION_MODULE","returns":"()"},
+        {"signature":"setMarketPaused(bytes32,bytes32)","mutability":"nonpayable","caller":"MARKET_CONTROLLER","returns":"()"},
+        {"signature":"setMarketActive(bytes32)","mutability":"nonpayable","caller":"MARKET_CONTROLLER","returns":"()"},
+        {"signature":"setMarketRetired(bytes32,bytes32)","mutability":"nonpayable","caller":"MARKET_CONTROLLER","returns":"()"},
+        {"signature":"commitEmergencyExit(bytes32,uint64,bytes32)","mutability":"nonpayable","caller":"MARKET_CONTROLLER","returns":"(uint32)"},
+        {"signature":"market(bytes32)","mutability":"view","caller":"PUBLIC","returns":"(MarketView)"},
+        {"signature":"marketIdByToken(address)","mutability":"view","caller":"PUBLIC","returns":"(bytes32)"},
+        {"signature":"canonicalPoolKey(bytes32)","mutability":"view","caller":"PUBLIC","returns":"(PoolKey)"},
+        {"signature":"canonicalPoolId(bytes32)","mutability":"view","caller":"PUBLIC","returns":"(bytes32)"},
+        {"signature":"canonicalRoute(bytes32)","mutability":"view","caller":"PUBLIC","returns":"(CanonicalRoute)"},
+        {"signature":"activeFeeSource(bytes32)","mutability":"view","caller":"PUBLIC","returns":"(address,uint32)"}
+      ],
+      "events": [
+        "MarketRegistered(bytes32 indexed marketId,bytes32 indexed assetUid,address indexed memeToken,address curve,address gauge,uint32 sourceVersion)",
+        "LaunchPhaseChanged(bytes32 indexed marketId,uint8 oldPhase,uint8 newPhase,uint64 sweptAt,bytes32 poolId,uint32 sourceVersion)",
+        "MarketStatusChanged(bytes32 indexed marketId,uint8 oldStatus,uint8 newStatus,uint64 statusSince,uint64 restrictedSince,bytes32 reasonHash)",
+        "EmergencyStateCommitted(bytes32 indexed marketId,uint32 indexed recoveryEpoch,uint32 sourceVersion,uint64 snapshotBlock,bytes32 stateHash)"
+      ]
+    },
+    {
+      "module": "LaunchAndBuyRouter",
+      "functions": [
+        {"signature":"launchAndBuy(CreateMarketParams,uint256,uint256,address)","mutability":"payable","caller":"PUBLIC","returns":"(bytes32,address,uint256,uint256)"}
+      ],
+      "events": []
+    },
+    {
+      "module": "TickerMemeTokenV2",
+      "functions": [
+        {"signature":"name()","mutability":"view","caller":"PUBLIC","returns":"(string)"},
+        {"signature":"symbol()","mutability":"view","caller":"PUBLIC","returns":"(string)"},
+        {"signature":"decimals()","mutability":"view","caller":"PUBLIC","returns":"(uint8)"},
+        {"signature":"totalSupply()","mutability":"view","caller":"PUBLIC","returns":"(uint256)"},
+        {"signature":"balanceOf(address)","mutability":"view","caller":"PUBLIC","returns":"(uint256)"},
+        {"signature":"transfer(address,uint256)","mutability":"nonpayable","caller":"PUBLIC","returns":"(bool)"},
+        {"signature":"allowance(address,address)","mutability":"view","caller":"PUBLIC","returns":"(uint256)"},
+        {"signature":"approve(address,uint256)","mutability":"nonpayable","caller":"PUBLIC","returns":"(bool)"},
+        {"signature":"transferFrom(address,address,uint256)","mutability":"nonpayable","caller":"PUBLIC","returns":"(bool)"},
+        {"signature":"marketId()","mutability":"view","caller":"PUBLIC","returns":"(bytes32)"},
+        {"signature":"creator()","mutability":"view","caller":"PUBLIC","returns":"(address)"},
+        {"signature":"factory()","mutability":"view","caller":"PUBLIC","returns":"(address)"},
+        {"signature":"metadataURI()","mutability":"view","caller":"PUBLIC","returns":"(string)"},
+        {"signature":"initialSupply()","mutability":"view","caller":"PUBLIC","returns":"(uint256)"}
+      ],
+      "events": [
+        "Transfer(address indexed from,address indexed to,uint256 value)",
+        "Approval(address indexed owner,address indexed spender,uint256 value)"
+      ]
+    },
+    {
+      "module": "PonsCompatibleCurve",
+      "functions": [
+        {"signature":"buy(uint256,uint256,address)","mutability":"payable","caller":"PUBLIC","returns":"(uint256,uint256)"},
+        {"signature":"sell(uint256,uint256,address)","mutability":"nonpayable","caller":"PUBLIC","returns":"(uint256,uint256)"},
+        {"signature":"sweepCurveFees()","mutability":"nonpayable","caller":"PUBLIC","returns":"(uint256)"},
+        {"signature":"quoteBuy(uint256,address)","mutability":"view","caller":"PUBLIC","returns":"(uint256,uint256,uint256)"},
+        {"signature":"quoteSell(uint256)","mutability":"view","caller":"PUBLIC","returns":"(uint256,uint256)"},
+        {"signature":"quoteAsset()","mutability":"view","caller":"PUBLIC","returns":"(address)"},
+        {"signature":"getReserves()","mutability":"view","caller":"PUBLIC","returns":"(uint256,uint256)"},
+        {"signature":"realQuoteReserve()","mutability":"view","caller":"PUBLIC","returns":"(uint256)"},
+        {"signature":"sellableTokens()","mutability":"view","caller":"PUBLIC","returns":"(uint256)"},
+        {"signature":"reservedTokens()","mutability":"view","caller":"PUBLIC","returns":"(uint256)"},
+        {"signature":"readyToGraduate()","mutability":"view","caller":"PUBLIC","returns":"(bool)"},
+        {"signature":"accruedCurveFees()","mutability":"view","caller":"PUBLIC","returns":"(uint256)"},
+        {"signature":"sweepNonce()","mutability":"view","caller":"PUBLIC","returns":"(uint64)"}
+      ],
+      "events": [
+        "CurveBuy(address indexed buyer,address indexed recipient,uint256 quoteIn,uint256 tokensOut,uint256 fee,uint256 tax)",
+        "CurveSell(address indexed seller,address indexed recipient,uint256 tokensIn,uint256 quoteOut,uint256 fee,uint256 tax)",
+        "CurveBuyRefunded(address indexed buyer,uint256 unusedQuote)",
+        "CurveCompleted(bytes32 indexed marketId)",
+        "CurveFeeTransferred(bytes32 indexed marketId,uint64 indexed sweepNonce,bytes32 indexed feeId,uint256 amount)",
+        "LaunchSwept(bytes32 indexed marketId,address indexed quoteAsset,uint256 sweptQuote,uint256 sweptTokens,uint64 sweptAt)",
+        "AutoGraduationFailed(bytes32 indexed marketId,bytes32 reasonHash)"
+      ]
+    },
+    {
+      "module": "UserStockVault",
+      "functions": [
+        {"signature":"depositStock(uint256)","mutability":"nonpayable","caller":"PUBLIC","returns":"()"},
+        {"signature":"depositStockFor(address,uint256)","mutability":"nonpayable","caller":"ALLOCATION_MODULE","returns":"()"},
+        {"signature":"withdrawFreeStock(uint256)","mutability":"nonpayable","caller":"PUBLIC","returns":"()"},
+        {"signature":"forceReleaseAllocation(bytes32)","mutability":"nonpayable","caller":"PUBLIC","returns":"(uint256)"},
+        {"signature":"lockAllocation(address,bytes32,uint256)","mutability":"nonpayable","caller":"ALLOCATION_MODULE","returns":"()"},
+        {"signature":"releaseAllocation(address,bytes32,uint256)","mutability":"nonpayable","caller":"ALLOCATION_MODULE","returns":"()"},
+        {"signature":"moveAllocation(address,bytes32,bytes32,uint256)","mutability":"nonpayable","caller":"ALLOCATION_MODULE","returns":"()"},
+        {"signature":"deposited(address)","mutability":"view","caller":"PUBLIC","returns":"(uint256)"},
+        {"signature":"allocated(address)","mutability":"view","caller":"PUBLIC","returns":"(uint256)"},
+        {"signature":"allocation(address,bytes32)","mutability":"view","caller":"PUBLIC","returns":"(uint256)"},
+        {"signature":"freeBalanceOf(address)","mutability":"view","caller":"PUBLIC","returns":"(uint256)"},
+        {"signature":"marketAllocated(bytes32)","mutability":"view","caller":"PUBLIC","returns":"(uint256)"},
+        {"signature":"totalDeposited()","mutability":"view","caller":"PUBLIC","returns":"(uint256)"},
+        {"signature":"totalAllocated()","mutability":"view","caller":"PUBLIC","returns":"(uint256)"}
+      ],
+      "events": [
+        "StockDeposited(bytes32 indexed assetUid,address indexed user,uint256 amount)",
+        "StockWithdrawn(bytes32 indexed assetUid,address indexed user,uint256 amount)",
+        "AllocationLocked(address indexed user,bytes32 indexed marketId,uint256 amount,uint256 userMarketAllocation,uint256 userTotalAllocated)",
+        "AllocationReleased(address indexed user,bytes32 indexed marketId,uint256 amount,uint256 userMarketAllocation,uint256 userTotalAllocated)",
+        "AllocationMoved(address indexed user,bytes32 indexed fromMarketId,bytes32 indexed toMarketId,uint256 amount)",
+        "AllocationForceReleased(address indexed user,bytes32 indexed marketId,uint256 amount,uint32 recoveryEpoch)"
+      ]
+    },
+    {
+      "module": "AllocationManager",
+      "functions": [
+        {"signature":"allocate(bytes32,uint256)","mutability":"nonpayable","caller":"PUBLIC","returns":"()"},
+        {"signature":"increaseAllocation(bytes32,uint256)","mutability":"nonpayable","caller":"PUBLIC","returns":"()"},
+        {"signature":"decreaseAllocation(bytes32,uint256)","mutability":"nonpayable","caller":"PUBLIC","returns":"()"},
+        {"signature":"closeAllocation(bytes32)","mutability":"nonpayable","caller":"PUBLIC","returns":"()"},
+        {"signature":"migrateAllocation(bytes32,bytes32,uint256)","mutability":"nonpayable","caller":"PUBLIC","returns":"()"},
+        {"signature":"depositAndAllocate(bytes32,uint256,uint256)","mutability":"nonpayable","caller":"PUBLIC","returns":"()"}
+      ],
+      "events": [
+        "AllocationMigrated(address indexed user,bytes32 indexed fromMarketId,bytes32 indexed toMarketId,uint256 amount,uint256 sourceRemaining,uint64 targetPendingGeneration,uint64 targetUnlockAt)"
+      ]
+    },
+    {
+      "module": "MemeStockGauge",
+      "structs": {
+        "PositionView": [
+          "uint256 activeAmount",
+          "uint256 pendingAmount",
+          "uint64 pendingGeneration",
+          "uint64 unlockAt",
+          "uint256 quoteClaimable",
+          "uint256 memeClaimable"
+        ],
+        "ActivationSlot": [
+          "uint64 generation",
+          "uint256 amount",
+          "uint256 refs"
+        ],
+        "ActivationSnapshot": [
+          "uint256 quoteAccumulator",
+          "uint256 memeAccumulator",
+          "uint256 refs",
+          "bool processed"
+        ],
+        "RewardStateView": [
+          "uint256 accFeePerShare",
+          "uint256 indexRemainder"
+        ]
+      },
+      "functions": [
+        {"signature":"addPending(address,uint256,uint64,uint64)","mutability":"nonpayable","caller":"ALLOCATION_MODULE","returns":"()"},
+        {"signature":"removeAllocation(address,uint256)","mutability":"nonpayable","caller":"ALLOCATION_MODULE","returns":"()"},
+        {"signature":"checkpointActivations()","mutability":"nonpayable","caller":"PUBLIC","returns":"(uint256,uint256)"},
+        {"signature":"settle(address)","mutability":"nonpayable","caller":"ALLOCATION_MODULE_OR_FEE_VAULT","returns":"()"},
+        {"signature":"creditStakerFee(address,uint256,bytes32)","mutability":"nonpayable","caller":"FEE_VAULT","returns":"(uint256,uint256)"},
+        {"signature":"consumeClaimable(address,address)","mutability":"nonpayable","caller":"FEE_VAULT","returns":"(uint256)"},
+        {"signature":"disableForEmergency(uint32,uint64,bytes32)","mutability":"nonpayable","caller":"MARKET_CONTROLLER","returns":"()"},
+        {"signature":"positionOf(address)","mutability":"view","caller":"PUBLIC","returns":"(PositionView)"},
+        {"signature":"rewardState(address)","mutability":"view","caller":"PUBLIC","returns":"(RewardStateView)"},
+        {"signature":"storedTotalActiveStock()","mutability":"view","caller":"PUBLIC","returns":"(uint256)"},
+        {"signature":"effectiveTotalActiveStock()","mutability":"view","caller":"PUBLIC","returns":"(uint256)"},
+        {"signature":"totalPendingStock()","mutability":"view","caller":"PUBLIC","returns":"(uint256)"},
+        {"signature":"activationSlot(uint8)","mutability":"view","caller":"PUBLIC","returns":"(ActivationSlot)"},
+        {"signature":"activationSnapshot(uint64)","mutability":"view","caller":"PUBLIC","returns":"(ActivationSnapshot)"}
+      ],
+      "events": [
+        "PendingScheduled(address indexed user,bytes32 indexed marketId,uint256 amount,uint64 generation,uint64 unlockAt)",
+        "PendingRescheduled(address indexed user,bytes32 indexed marketId,uint64 oldGeneration,uint64 newGeneration,uint256 combinedAmount,uint64 unlockAt)",
+        "ActivationBucketProcessed(bytes32 indexed marketId,uint64 indexed generation,uint256 amount,uint256 quoteAccumulator,uint256 memeAccumulator,uint256 refs)",
+        "PendingMaterialized(address indexed user,bytes32 indexed marketId,uint64 indexed generation,uint256 amount)",
+        "StakerFeeCredited(bytes32 indexed marketId,address indexed feeAsset,bytes32 indexed feeId,uint256 amount,uint256 accumulatorDelta,uint256 indexRemainder)"
+      ]
+    },
+    {
+      "module": "TickerGardenMemeHook",
+      "structs": {
+        "PoolBinding": [
+          "bytes32 marketId",
+          "bytes32 keyHash",
+          "uint32 sourceVersion",
+          "uint64 feeNonce",
+          "uint8 status"
+        ]
+      },
+      "functions": [
+        {"signature":"registerExpectedPool(bytes32,PoolKey,uint32)","mutability":"nonpayable","caller":"GRADUATION_MODULE","returns":"(bytes32)"},
+        {"signature":"activatePool(bytes32)","mutability":"nonpayable","caller":"GRADUATION_MODULE","returns":"()"},
+        {"signature":"disablePool(bytes32)","mutability":"nonpayable","caller":"MARKET_CONTROLLER","returns":"()"},
+        {"signature":"beforeInitialize(address,PoolKey,uint160)","mutability":"nonpayable","caller":"POOL_MANAGER","returns":"(bytes4)"},
+        {"signature":"afterSwap(address,PoolKey,SwapParams,BalanceDelta,bytes)","mutability":"nonpayable","caller":"POOL_MANAGER","returns":"(bytes4,int128)"},
+        {"signature":"marketOfPool(bytes32)","mutability":"view","caller":"PUBLIC","returns":"(bytes32)"},
+        {"signature":"poolBinding(bytes32)","mutability":"view","caller":"PUBLIC","returns":"(PoolBinding)"},
+        {"signature":"hookPermissionMask()","mutability":"pure","caller":"PUBLIC","returns":"(uint160)"}
+      ],
+      "events": [
+        "ExpectedPoolRegistered(bytes32 indexed marketId,bytes32 indexed poolId,bytes32 keyHash,uint32 sourceVersion)",
+        "PoolBindingActivated(bytes32 indexed marketId,bytes32 indexed poolId,uint32 sourceVersion)",
+        "PoolBindingDisabled(bytes32 indexed marketId,bytes32 indexed poolId,uint32 sourceVersion)",
+        "V4FeeAccrued(bytes32 indexed marketId,bytes32 indexed poolId,address indexed feeAsset,uint64 feeNonce,bytes32 feeId,uint256 base,uint256 totalFee,uint256 lpAmount,uint256 nonLpAmount)"
+      ]
+    },
+    {
+      "module": "ProtocolFeeVault",
+      "enums": {
+        "BucketType": ["CREATOR_REVENUE","STAKER_REWARD","PLATFORM_REVENUE"],
+        "RecoveryRootStatus": ["NONE","PENDING","ACTIVE","CANCELLED"]
+      },
+      "structs": {
+        "RecoveryRootView": ["bytes32 root","uint256 declaredTotal","uint256 claimedTotal","uint64 proposedAt","uint64 finalizableAt","uint32 proposalNonce","uint8 status"]
+      },
+      "functions": [
+        {"signature":"beginV4Credit(bytes32,address,uint256,uint32,bytes32)","mutability":"nonpayable","caller":"ACTIVE_FEE_SOURCE","returns":"()"},
+        {"signature":"finalizeV4Credit(bytes32,address,uint256,uint256,uint256,uint256,uint64,bytes32)","mutability":"nonpayable","caller":"ACTIVE_FEE_SOURCE","returns":"()"},
+        {"signature":"creditCurveSweep(bytes32,address,uint256,uint32,uint64,bytes32)","mutability":"payable","caller":"EXACT_REGISTERED_CURVE","returns":"()"},
+        {"signature":"claimCreator(bytes32,uint32,address)","mutability":"nonpayable","caller":"PUBLIC","returns":"(uint256)"},
+        {"signature":"claimPlatform(bytes32,address)","mutability":"nonpayable","caller":"PUBLIC","returns":"(uint256)"},
+        {"signature":"claimStaker(bytes32,address)","mutability":"nonpayable","caller":"PUBLIC","returns":"(uint256)"},
+        {"signature":"claimStakerFor(address,bytes32,address)","mutability":"nonpayable","caller":"PUBLIC","returns":"(uint256)"},
+        {"signature":"freezeRecoveryCaps(bytes32,uint32,uint64,bytes32)","mutability":"nonpayable","caller":"MARKET_CONTROLLER","returns":"(uint256,uint256)"},
+        {"signature":"proposeRecoveryRoot(bytes32,uint32,address,bytes32,uint256)","mutability":"nonpayable","caller":"RECOVERY_ROLE","returns":"(uint32,uint64)"},
+        {"signature":"cancelRecoveryRoot(bytes32,uint32,address,uint32)","mutability":"nonpayable","caller":"PAUSE_GUARDIAN_ROLE","returns":"()"},
+        {"signature":"finalizeRecoveryRoot(bytes32,uint32,address,uint32)","mutability":"nonpayable","caller":"PUBLIC","returns":"()"},
+        {"signature":"claimRecovery(bytes32,uint32,address,uint256,bytes32[])","mutability":"nonpayable","caller":"PUBLIC","returns":"()"},
+        {"signature":"liability(bytes32,address,uint8)","mutability":"view","caller":"PUBLIC","returns":"(uint256)"},
+        {"signature":"creatorLiability(bytes32,uint32,address)","mutability":"view","caller":"PUBLIC","returns":"(uint256)"},
+        {"signature":"recoverySnapshot(bytes32,uint32)","mutability":"view","caller":"PUBLIC","returns":"(uint64,bytes32)"},
+        {"signature":"recoveryRoot(bytes32,uint32,address)","mutability":"view","caller":"PUBLIC","returns":"(RecoveryRootView)"},
+        {"signature":"recoveryCap(bytes32,uint32,address)","mutability":"view","caller":"PUBLIC","returns":"(uint256)"},
+        {"signature":"totalLiability(address)","mutability":"view","caller":"PUBLIC","returns":"(uint256)"},
+        {"signature":"consumedFeeId(bytes32)","mutability":"view","caller":"PUBLIC","returns":"(bool)"}
+      ],
+      "events": [
+        "FeeBucketsCredited(bytes32 indexed marketId,uint32 indexed creatorEpoch,address indexed feeAsset,bytes32 feeId,uint256 creatorAmount,uint256 stakerAmount,uint256 platformAmount,uint256 activeStock,uint256 stakeSaturationAmount)",
+        "CurveFeesSwept(bytes32 indexed marketId,uint32 indexed creatorEpoch,address indexed quoteAsset,uint64 sweepNonce,bytes32 feeId,uint256 amount,uint256 creatorAmount,uint256 platformAmount)",
+        "FeeClaimed(uint8 indexed beneficiaryType,address indexed beneficiary,bytes32 indexed marketId,uint32 beneficiaryEpoch,address feeAsset,uint256 amount)",
+        "RecoveryCapsFrozen(bytes32 indexed marketId,uint32 indexed recoveryEpoch,uint64 snapshotBlock,bytes32 stateHash,address quoteAsset,uint256 quoteCap,address memeAsset,uint256 memeCap)",
+        "RecoveryRootProposed(bytes32 indexed marketId,uint32 indexed recoveryEpoch,address indexed feeAsset,uint32 proposalNonce,bytes32 root,uint256 declaredTotal,uint64 finalizableAt)",
+        "RecoveryRootCancelled(bytes32 indexed marketId,uint32 indexed recoveryEpoch,address indexed feeAsset,uint32 proposalNonce)",
+        "RecoveryRootFinalized(bytes32 indexed marketId,uint32 indexed recoveryEpoch,address indexed feeAsset,uint32 proposalNonce,bytes32 root,uint256 declaredTotal)",
+        "RecoveryClaimed(bytes32 indexed marketId,uint32 indexed recoveryEpoch,address indexed feeAsset,address user,uint256 amount)"
+      ]
+    },
+    {
+      "module": "MarketController",
+      "functions": [
+        {"signature":"pauseMarket(bytes32,bytes32)","mutability":"nonpayable","caller":"PAUSE_GUARDIAN_ROLE","returns":"()"},
+        {"signature":"unpauseMarket(bytes32)","mutability":"nonpayable","caller":"UNPAUSE_ROLE","returns":"()"},
+        {"signature":"retireMarket(bytes32,bytes32)","mutability":"nonpayable","caller":"PROTOCOL_ADMIN_ROLE","returns":"()"},
+        {"signature":"activateEmergencyExit(bytes32)","mutability":"nonpayable","caller":"RECOVERY_ROLE","returns":"(uint32,uint64,bytes32)"},
+        {"signature":"marketStatus(bytes32)","mutability":"view","caller":"PUBLIC","returns":"(uint8)"},
+        {"signature":"launchPhase(bytes32)","mutability":"view","caller":"PUBLIC","returns":"(uint8)"},
+        {"signature":"isStockAllocationOpen(bytes32)","mutability":"view","caller":"PUBLIC","returns":"(bool)"}
+      ],
+      "events": [
+        "MarketStatusChanged(bytes32 indexed marketId,uint8 oldStatus,uint8 newStatus,bytes32 reasonHash)",
+        "EmergencyExitActivated(bytes32 indexed marketId,uint32 indexed recoveryEpoch,uint64 snapshotBlock,bytes32 stateHash,uint256 quoteCap,uint256 memeCap)"
+      ]
+    },
+    {
+      "module": "GraduationExecutor",
+      "functions": [
+        {"signature":"graduateFromCurve(bytes32)","mutability":"nonpayable","caller":"EXACT_REGISTERED_CURVE","returns":"()"},
+        {"signature":"retryGraduation(bytes32)","mutability":"nonpayable","caller":"PUBLIC","returns":"()"},
+        {"signature":"rescueSweptLaunch(bytes32)","mutability":"nonpayable","caller":"PUBLIC","returns":"()"},
+        {"signature":"predictLaunchLocker(bytes32)","mutability":"view","caller":"PUBLIC","returns":"(address)"}
+      ],
+      "events": [
+        "PoolGraduated(bytes32 indexed marketId,bytes32 indexed poolId,address indexed launchLocker,uint256 sweptQuote,uint256 sweptTokens,uint256 poolMemeAmount,uint256 lockedExcessMeme,uint32 sourceVersion)",
+        "LaunchRescued(bytes32 indexed marketId,uint64 sweptAt,uint64 rescuedAt)"
+      ]
+    },
+    {
+      "module": "LaunchLocker",
+      "functions": [
+        {"signature":"compoundLockedFees()","mutability":"nonpayable","caller":"PUBLIC","returns":"(uint256,uint256,uint128)"},
+        {"signature":"marketId()","mutability":"view","caller":"PUBLIC","returns":"(bytes32)"},
+        {"signature":"lockedPosition()","mutability":"view","caller":"PUBLIC","returns":"(uint256,bytes32)"},
+        {"signature":"unpairedLockedBalance(address)","mutability":"view","caller":"PUBLIC","returns":"(uint256)"}
+      ],
+      "events": [
+        "LockedFeesCompounded(bytes32 indexed marketId,uint256 amount0,uint256 amount1,uint128 liquidityAdded,uint256 remaining0,uint256 remaining1)"
+      ]
+    },
+    {
+      "module": "CreatorRevenueRegistry",
+      "functions": [
+        {"signature":"initializeCreatorRevenueEpoch(bytes32,address)","mutability":"nonpayable","caller":"FACTORY_MODULE","returns":"()"},
+        {"signature":"transferCreatorRevenueBeneficiary(bytes32,address)","mutability":"nonpayable","caller":"CURRENT_CREATOR_BENEFICIARY","returns":"(uint32)"},
+        {"signature":"currentCreatorEpoch(bytes32)","mutability":"view","caller":"PUBLIC","returns":"(uint32)"},
+        {"signature":"creatorBeneficiaryAt(bytes32,uint32)","mutability":"view","caller":"PUBLIC","returns":"(address)"}
+      ],
+      "events": [
+        "CreatorRevenueEpochInitialized(bytes32 indexed marketId,uint32 indexed epoch,address indexed beneficiary)",
+        "CreatorRevenueBeneficiaryUpdated(bytes32 indexed marketId,uint32 indexed oldEpoch,uint32 indexed newEpoch,address oldBeneficiary,address newBeneficiary)"
+      ]
+    }
+  ],
+  "requiredErrors": [
+    "InvalidLaunchFee(uint256,uint256)",
+    "TemplateCodeHashMismatch(address,bytes32,bytes32)",
+    "UnauthorizedMarketCurve(address,address)",
+    "CurveFeeSweepAfterClose(bytes32)",
+    "GraduationNotRetryable(bytes32,uint8,uint8)",
+    "LaunchLockerAddressCollision(address)",
+    "InvalidCanonicalPoolKey()",
+    "InvalidHookPermissionMask()",
+    "PoolNotExpected(bytes32)",
+    "PoolBindingNotActive(bytes32)",
+    "InactiveFeeSource(bytes32,uint32)",
+    "NonZeroCoreFee(uint24,uint24)",
+    "FeeAmountTooLarge(uint256)",
+    "FeeAssetNotCanonical(address)",
+    "FeeIdAlreadyConsumed(bytes32)",
+    "FeeCreditNotPrepared(bytes32)",
+    "FeeBalanceDeltaMismatch(address,uint256,uint256)",
+    "ActivationSlotCollision(uint8,uint64,uint64)",
+    "PendingGenerationNotFound(uint64)",
+    "PositionBelowMinimum(uint256,uint256)",
+    "PositionLockedUntil(uint64)",
+    "AllocationExceedsDeposit(uint256,uint256)",
+    "AllocationLedgerMismatch()",
+    "StockAllocationClosed(bytes32)",
+    "InvalidStateTransition(uint8,uint8)",
+    "EmergencyExitNotReady(uint64)",
+    "RecoveryCapsAlreadyFrozen(bytes32,uint32)",
+    "RecoveryCapSnapshotMismatch(bytes32,uint32)",
+    "EmergencyStateHashMismatch(bytes32,bytes32)",
+    "GaugePermanentlyDisabled(bytes32)",
+    "RecoveryCapExceeded(address,uint256,uint256)",
+    "RecoveryAlreadyClaimed(address,address)",
+    "InvalidRecoveryProof()",
+    "ArbitraryRecipientForbidden()"
+  ]
+}

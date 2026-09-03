@@ -1,0 +1,423 @@
+{
+  "schemaVersion": 1,
+  "executionSpecId": "V2-EXEC-3",
+  "encoding": "abi.encode",
+  "domainEncoding": "keccak256(bytes(utf8DomainLabel))",
+  "schemas": {
+    "quoteEconomicsHash": {
+      "domain": "TICKERGARDEN_V2_QUOTE_ECONOMICS",
+      "fields": [
+        "bytes32 domain",
+        "uint256 schemaVersion",
+        "uint256 chainId",
+        "bytes32 ponsBaselineId",
+        "address quoteAsset",
+        "uint8 quoteDecimals",
+        "uint256 phantomQuote",
+        "uint256 graduationThreshold"
+      ]
+    },
+    "launchTemplateHash": {
+      "domain": "TICKERGARDEN_V2_LAUNCH_TEMPLATE",
+      "fields": [
+        "bytes32 domain",
+        "uint256 schemaVersion",
+        "address memeTokenImplementation",
+        "bytes32 memeTokenCodeHash",
+        "address curveImplementation",
+        "bytes32 curveCodeHash",
+        "address gaugeImplementation",
+        "bytes32 gaugeCodeHash",
+        "address graduatedHook",
+        "bytes32 hookCodeHash",
+        "address graduationExecutor",
+        "address launchLockerImplementation",
+        "bytes32 launchLockerCodeHash",
+        "bytes32 feePolicyId",
+        "bytes32 executionSpecId"
+      ]
+    },
+    "ponsBaselineHash": {
+      "domain": "TICKERGARDEN_V2_PONS_BASELINE",
+      "schemaVersion": 1,
+      "fields": [
+        "bytes32 domain",
+        "uint256 schemaVersion",
+        "uint256 referenceChainId",
+        "address referenceFactory",
+        "bytes32 referenceFactoryCodeHash",
+        "uint256 launchConfigId",
+        "uint256 supply",
+        "uint256 curveFeeBps",
+        "uint24 poolFee",
+        "int24 tickSpacing",
+        "bytes32 behaviorVectorRoot"
+      ]
+    },
+    "expectedEconomics": {
+      "domain": "TICKERGARDEN_V2_EXPECTED_ECONOMICS",
+      "schemaVersion": 2,
+      "fields": [
+        "bytes32 domain",
+        "uint256 schemaVersion",
+        "uint256 chainId",
+        "address factory",
+        "bytes32 assetUid",
+        "address stockToken",
+        "uint8 stockDecimals",
+        "uint256 stakeSaturationAmount",
+        "bytes32 ponsBaselineId",
+        "bytes32 ponsBaselineHash",
+        "bytes32 quoteAssetConfigId",
+        "bytes32 quoteEconomicsHash",
+        "bytes32 launchTemplateId",
+        "bytes32 launchTemplateHash",
+        "uint256 launchConfigId",
+        "bytes32 feePolicyId",
+        "bytes32 feePolicyHash",
+        "bytes32 executionSpecId"
+      ]
+    },
+    "marketId": {
+      "domain": "TICKERGARDEN_V2_MARKET_ID",
+      "fields": [
+        "bytes32 domain",
+        "uint256 schemaVersion",
+        "uint256 chainId",
+        "address factory",
+        "address creator",
+        "address creatorRevenueBeneficiaryAtCreation",
+        "bytes32 creatorSalt",
+        "bytes32 expectedEconomics",
+        "bytes32 nameHash",
+        "bytes32 symbolHash",
+        "bytes32 metadataUriHash"
+      ]
+    },
+    "componentSalt": {
+      "domain": "TICKERGARDEN_V2_COMPONENT_SALT",
+      "fields": [
+        "bytes32 domain",
+        "uint256 schemaVersion",
+        "uint256 chainId",
+        "address factory",
+        "bytes32 marketId",
+        "bytes32 componentKind"
+      ]
+    },
+    "feePolicyHash": {
+      "domain": "TICKERGARDEN_V2_FEE_POLICY",
+      "schemaVersion": 2,
+      "fields": [
+        "bytes32 domain",
+        "uint256 schemaVersion",
+        "bytes32 executionSpecId",
+        "uint24 feePips",
+        "uint16 lpShareBps",
+        "uint24 poolKeyFee",
+        "uint160 hookPermissionMask",
+        "uint8 feeAssetMode",
+        "uint256 stakeSaturationWholeTokens",
+        "uint8 stakerReleaseMode"
+      ]
+    },
+    "v4FeeId": {
+      "domain": "TICKERGARDEN_V2_V4_FEE",
+      "fields": [
+        "bytes32 domain",
+        "uint256 schemaVersion",
+        "uint256 chainId",
+        "address feeVault",
+        "address poolManager",
+        "bytes32 poolId",
+        "bytes32 marketId",
+        "uint32 sourceVersion",
+        "uint64 feeNonce",
+        "address feeAsset",
+        "uint256 base",
+        "uint256 totalFee",
+        "bytes32 feePolicyHash"
+      ]
+    },
+    "curveFeeId": {
+      "domain": "TICKERGARDEN_V2_CURVE_SWEEP",
+      "fields": [
+        "bytes32 domain",
+        "uint256 schemaVersion",
+        "uint256 chainId",
+        "address feeVault",
+        "address curve",
+        "bytes32 marketId",
+        "uint32 sourceVersion",
+        "uint64 sweepNonce",
+        "address quoteAsset",
+        "uint256 sweptAmount"
+      ]
+    },
+    "emergencyStateHash": {
+      "domain": "TICKERGARDEN_V2_EMERGENCY_STATE_V1",
+      "fields": [
+        "bytes32 domain",
+        "uint256 schemaVersion",
+        "uint256 chainId",
+        "address marketRegistry",
+        "address feeVault",
+        "bytes32 marketId",
+        "uint32 recoveryEpoch",
+        "uint64 snapshotBlock",
+        "address oldGauge",
+        "uint32 oldSourceVersion",
+        "address quoteAsset",
+        "address memeToken",
+        "uint256 quoteRecoveryCap",
+        "uint256 memeRecoveryCap",
+        "uint256 gaugeStoredTotalActive",
+        "uint256 gaugeTotalPending"
+      ]
+    },
+    "recoveryLeafInner": {
+      "domain": "TICKERGARDEN_V2_RECOVERY_LEAF_V1",
+      "fields": [
+        "bytes32 domain",
+        "uint256 schemaVersion",
+        "uint256 chainId",
+        "address feeVault",
+        "bytes32 executionSpecId",
+        "bytes32 marketId",
+        "uint32 recoveryEpoch",
+        "address feeAsset",
+        "address user",
+        "uint256 amount"
+      ],
+      "finalTransform": "keccak256(bytes.concat(innerHash))"
+    }
+  },
+  "forbiddenFieldsInExpectedEconomics": [
+    "expectedEconomics",
+    "status",
+    "creator",
+    "creatorRevenueBeneficiary",
+    "salt",
+    "name",
+    "symbol",
+    "metadataURI"
+  ],
+  "vectors": [
+    {
+      "schema": "quoteEconomicsHash",
+      "inputs": {
+        "domain": "0xd545051c6c136e31d15dffa8839a33b1cc6aac4d3a77eaddeef773ec09af2709",
+        "schemaVersion": "1",
+        "chainId": "31337",
+        "ponsBaselineId": "0x835edd49b4ce47edf6c0d4d310823b69161ee152cce114c266375244f58da915",
+        "quoteAsset": "0x3de650124138174a84bc3598627ab72ef8faa3cc",
+        "quoteDecimals": "255",
+        "phantomQuote": "7063",
+        "graduationThreshold": "8072"
+      },
+      "encoded": "0xd545051c6c136e31d15dffa8839a33b1cc6aac4d3a77eaddeef773ec09af270900000000000000000000000000000000000000000000000000000000000000010000000000000000000000000000000000000000000000000000000000007a69835edd49b4ce47edf6c0d4d310823b69161ee152cce114c266375244f58da9150000000000000000000000003de650124138174a84bc3598627ab72ef8faa3cc00000000000000000000000000000000000000000000000000000000000000ff0000000000000000000000000000000000000000000000000000000000001b970000000000000000000000000000000000000000000000000000000000001f88",
+      "innerHash": "0x3924cb241d50bcfbf720bfd6de3096bdf620152178f85afce607a98d346cdcff",
+      "result": "0x3924cb241d50bcfbf720bfd6de3096bdf620152178f85afce607a98d346cdcff"
+    },
+    {
+      "schema": "launchTemplateHash",
+      "inputs": {
+        "domain": "0x58839e6b05505706f1bfd8799b701854c6d640d546b47a845fa6632964257e4f",
+        "schemaVersion": "1",
+        "memeTokenImplementation": "0x676127a71afc13be392ce4203e0ec24527c393fe",
+        "memeTokenCodeHash": "0xc404df846e70db76a0bd90d7b6ec6284b9d1f45e8d5ad4044c7c92d24338b04a",
+        "curveImplementation": "0x4e9fd7f49e143c7394327b8c1ae1d562df99b671",
+        "curveCodeHash": "0x02f12d2281b05161dc8e3da270712c93066d5cedee276efd353504d173c09177",
+        "gaugeImplementation": "0x63b24e32564a735b06c55b28c755c7f03206bdaf",
+        "gaugeCodeHash": "0x63931951b8c7d83fd72454be7557df8e1dffb7226552b32655bbb8cd86a75d7c",
+        "graduatedHook": "0x5f65850f5f13f234fdac7207097427c6c928ba69",
+        "hookCodeHash": "0xe32ba2f72b276137cb4c02d95fccfe453205a191b7b2ab1bba25e4d86740ce44",
+        "graduationExecutor": "0xf5956a1f2c3f696b9fdff4ff7464f850a2ecd7be",
+        "launchLockerImplementation": "0x42545e24576b18fb92b42dce0e0759f5f0e69ea4",
+        "launchLockerCodeHash": "0xfb452b0c9a8fbef840d17d6981fe726129c5a8d8dbc532f192a09b6eb35e7b91",
+        "feePolicyId": "0x21ca6e12a39c5e115bc125098217de03e2bc2d8db30f5fb2b365a0ef284c6f5f",
+        "executionSpecId": "0x6d778d9fac5729e6943b9bef3a61d68f916469af230e2a521826a553ea0b5bad"
+      },
+      "encoded": "0x58839e6b05505706f1bfd8799b701854c6d640d546b47a845fa6632964257e4f0000000000000000000000000000000000000000000000000000000000000001000000000000000000000000676127a71afc13be392ce4203e0ec24527c393fec404df846e70db76a0bd90d7b6ec6284b9d1f45e8d5ad4044c7c92d24338b04a0000000000000000000000004e9fd7f49e143c7394327b8c1ae1d562df99b67102f12d2281b05161dc8e3da270712c93066d5cedee276efd353504d173c0917700000000000000000000000063b24e32564a735b06c55b28c755c7f03206bdaf63931951b8c7d83fd72454be7557df8e1dffb7226552b32655bbb8cd86a75d7c0000000000000000000000005f65850f5f13f234fdac7207097427c6c928ba69e32ba2f72b276137cb4c02d95fccfe453205a191b7b2ab1bba25e4d86740ce44000000000000000000000000f5956a1f2c3f696b9fdff4ff7464f850a2ecd7be00000000000000000000000042545e24576b18fb92b42dce0e0759f5f0e69ea4fb452b0c9a8fbef840d17d6981fe726129c5a8d8dbc532f192a09b6eb35e7b9121ca6e12a39c5e115bc125098217de03e2bc2d8db30f5fb2b365a0ef284c6f5f6d778d9fac5729e6943b9bef3a61d68f916469af230e2a521826a553ea0b5bad",
+      "innerHash": "0x03a3cb9b9088d621b7dc7c5dc1d658bf44b76e8472892fb51a7b3f67ecf7b9ca",
+      "result": "0x03a3cb9b9088d621b7dc7c5dc1d658bf44b76e8472892fb51a7b3f67ecf7b9ca"
+    },
+    {
+      "schema": "ponsBaselineHash",
+      "inputs": {
+        "domain": "0xa3d9b1a756bdfdc2541198001f8f2825b9985ba8b3ff8bc27a61218baa803a54",
+        "schemaVersion": "1",
+        "referenceChainId": "3027",
+        "referenceFactory": "0x0dd9f133ac3bf7bc0992a126562e997418dc7e10",
+        "referenceFactoryCodeHash": "0x386ae79e6e7109c4931350331813d9c957da4cb2646030770975cb91a92b4c67",
+        "launchConfigId": "6054",
+        "supply": "7063",
+        "curveFeeBps": "8072",
+        "poolFee": "9081",
+        "tickSpacing": "10090",
+        "behaviorVectorRoot": "0xc87156b19251bf73752ecba2d385efb695b0ed4735dcbd7cde6c42adb3632e65"
+      },
+      "encoded": "0xa3d9b1a756bdfdc2541198001f8f2825b9985ba8b3ff8bc27a61218baa803a5400000000000000000000000000000000000000000000000000000000000000010000000000000000000000000000000000000000000000000000000000000bd30000000000000000000000000dd9f133ac3bf7bc0992a126562e997418dc7e10386ae79e6e7109c4931350331813d9c957da4cb2646030770975cb91a92b4c6700000000000000000000000000000000000000000000000000000000000017a60000000000000000000000000000000000000000000000000000000000001b970000000000000000000000000000000000000000000000000000000000001f880000000000000000000000000000000000000000000000000000000000002379000000000000000000000000000000000000000000000000000000000000276ac87156b19251bf73752ecba2d385efb695b0ed4735dcbd7cde6c42adb3632e65",
+      "innerHash": "0xc0e62fc4a54eec4d6866a0bb0ad24d596e7405bb5008bdff4461515159bffd31",
+      "result": "0xc0e62fc4a54eec4d6866a0bb0ad24d596e7405bb5008bdff4461515159bffd31"
+    },
+    {
+      "schema": "expectedEconomics",
+      "inputs": {
+        "domain": "0x50a4428f37109b7def2702e8fe784cf3d05941cba53cc17f729b85e46af0cb1d",
+        "schemaVersion": "2",
+        "chainId": "31337",
+        "factory": "0xd0cdeac414e546d2e7ede445f4e7032a4272c771",
+        "assetUid": "0x5c4a029b7275e5230fd48512a07abde18983f60d7bef8648c280978d4ec500ed",
+        "stockToken": "0x10b4fa177304452de91f0a2f0946e30898c90492",
+        "stockDecimals": "255",
+        "stakeSaturationAmount": "8072",
+        "ponsBaselineId": "0x835edd49b4ce47edf6c0d4d310823b69161ee152cce114c266375244f58da915",
+        "ponsBaselineHash": "0xd87da152306d48fce2176e0124394a9b727fc9f0a7e5a01adf3202c46850c560",
+        "quoteAssetConfigId": "0x616f1a3de420a964cbefc678fc8cd8e58a1c8ca8057a9494712657d44e0f35a9",
+        "quoteEconomicsHash": "0x4608d8b85db48ec7199507737df8e1ebcf477f517420e3f051630e19c4672557",
+        "launchTemplateId": "0x68c59175f786b6b27be325d6d9b7d076ab8b60f41ab561edcfbc13489f1fb4a8",
+        "launchTemplateHash": "0x56c076a7bd4b2d6dc8958e89de51acac9155b2f412a7310d674739634212de47",
+        "launchConfigId": "15135",
+        "feePolicyId": "0x21ca6e12a39c5e115bc125098217de03e2bc2d8db30f5fb2b365a0ef284c6f5f",
+        "feePolicyHash": "0x124343479b3f0d099d68176c06295d21f1686332671e3d8d18143942ae18e13b",
+        "executionSpecId": "0x6d778d9fac5729e6943b9bef3a61d68f916469af230e2a521826a553ea0b5bad"
+      },
+      "encoded": "0x50a4428f37109b7def2702e8fe784cf3d05941cba53cc17f729b85e46af0cb1d00000000000000000000000000000000000000000000000000000000000000020000000000000000000000000000000000000000000000000000000000007a69000000000000000000000000d0cdeac414e546d2e7ede445f4e7032a4272c7715c4a029b7275e5230fd48512a07abde18983f60d7bef8648c280978d4ec500ed00000000000000000000000010b4fa177304452de91f0a2f0946e30898c9049200000000000000000000000000000000000000000000000000000000000000ff0000000000000000000000000000000000000000000000000000000000001f88835edd49b4ce47edf6c0d4d310823b69161ee152cce114c266375244f58da915d87da152306d48fce2176e0124394a9b727fc9f0a7e5a01adf3202c46850c560616f1a3de420a964cbefc678fc8cd8e58a1c8ca8057a9494712657d44e0f35a94608d8b85db48ec7199507737df8e1ebcf477f517420e3f051630e19c467255768c59175f786b6b27be325d6d9b7d076ab8b60f41ab561edcfbc13489f1fb4a856c076a7bd4b2d6dc8958e89de51acac9155b2f412a7310d674739634212de470000000000000000000000000000000000000000000000000000000000003b1f21ca6e12a39c5e115bc125098217de03e2bc2d8db30f5fb2b365a0ef284c6f5f124343479b3f0d099d68176c06295d21f1686332671e3d8d18143942ae18e13b6d778d9fac5729e6943b9bef3a61d68f916469af230e2a521826a553ea0b5bad",
+      "innerHash": "0xf996b6a28c8f7e0bfbbe7c82dafe38d9c449f99440af4d35ae522abcdab41484",
+      "result": "0xf996b6a28c8f7e0bfbbe7c82dafe38d9c449f99440af4d35ae522abcdab41484"
+    },
+    {
+      "schema": "marketId",
+      "inputs": {
+        "domain": "0x827b9bdc3e1beaf3fd2ffbe7bf95030885283551337e2a00aa4f996c68578d21",
+        "schemaVersion": "1",
+        "chainId": "31337",
+        "factory": "0xd0cdeac414e546d2e7ede445f4e7032a4272c771",
+        "creator": "0x43e489a98cedaf66d744b3ab1bb877ff82930b0b",
+        "creatorRevenueBeneficiaryAtCreation": "0x39e6fb8120080f24c5d0374fd92365df51ce37e7",
+        "creatorSalt": "0xc0508e6680b39379924617191068f24c22967c0a53f6d18d40fd2257031be994",
+        "expectedEconomics": "0x0dfe7c8b7de88308dab2d810f162b512ad2aaa534e3d7aad0343681976873e5f",
+        "nameHash": "0x688cdaffbbe8b52b5101594cf7ed98a1d99ac78985c2db5a7a2a3814233e99f6",
+        "symbolHash": "0x002218150d1bebde9cdc6da057def9ab123d5d7adc920c7b1f7ebfaa400963c0",
+        "metadataUriHash": "0x4ec5ce70866038ecd7e3760c0013954d05648b59da5c3b7792dbe6737929ad23"
+      },
+      "encoded": "0x827b9bdc3e1beaf3fd2ffbe7bf95030885283551337e2a00aa4f996c68578d2100000000000000000000000000000000000000000000000000000000000000010000000000000000000000000000000000000000000000000000000000007a69000000000000000000000000d0cdeac414e546d2e7ede445f4e7032a4272c77100000000000000000000000043e489a98cedaf66d744b3ab1bb877ff82930b0b00000000000000000000000039e6fb8120080f24c5d0374fd92365df51ce37e7c0508e6680b39379924617191068f24c22967c0a53f6d18d40fd2257031be9940dfe7c8b7de88308dab2d810f162b512ad2aaa534e3d7aad0343681976873e5f688cdaffbbe8b52b5101594cf7ed98a1d99ac78985c2db5a7a2a3814233e99f6002218150d1bebde9cdc6da057def9ab123d5d7adc920c7b1f7ebfaa400963c04ec5ce70866038ecd7e3760c0013954d05648b59da5c3b7792dbe6737929ad23",
+      "innerHash": "0x12ff542ee817f723acdd7e4d780cc264883ee2f5a87e5a321f62418d0e9b87ba",
+      "result": "0x12ff542ee817f723acdd7e4d780cc264883ee2f5a87e5a321f62418d0e9b87ba"
+    },
+    {
+      "schema": "componentSalt",
+      "inputs": {
+        "domain": "0x202966cf83bc817a2c5c1a8886d121844fbaa6146c53f5bff4c63fd4c4bda0a3",
+        "schemaVersion": "1",
+        "chainId": "31337",
+        "factory": "0xd0cdeac414e546d2e7ede445f4e7032a4272c771",
+        "marketId": "0x2ec170d8ba61f2d2dfa99a99f75d456a3cef99095fe3efd8b05ad41d854c40dc",
+        "componentKind": "0x86880b80b90571b454020fcc2cca36a6641ef2a384824cadb7fa00d898b5a210"
+      },
+      "encoded": "0x202966cf83bc817a2c5c1a8886d121844fbaa6146c53f5bff4c63fd4c4bda0a300000000000000000000000000000000000000000000000000000000000000010000000000000000000000000000000000000000000000000000000000007a69000000000000000000000000d0cdeac414e546d2e7ede445f4e7032a4272c7712ec170d8ba61f2d2dfa99a99f75d456a3cef99095fe3efd8b05ad41d854c40dc86880b80b90571b454020fcc2cca36a6641ef2a384824cadb7fa00d898b5a210",
+      "innerHash": "0xe142acf050e2737fedcafc33cb44a21dbd69ef93606657642392a200d674e750",
+      "result": "0xe142acf050e2737fedcafc33cb44a21dbd69ef93606657642392a200d674e750"
+    },
+    {
+      "schema": "feePolicyHash",
+      "inputs": {
+        "domain": "0xe2effaf3ed68c765c74f0f75d44267be61102b3f3de51f9dc9ebab3131978028",
+        "schemaVersion": "2",
+        "executionSpecId": "0x6d778d9fac5729e6943b9bef3a61d68f916469af230e2a521826a553ea0b5bad",
+        "feePips": "4036",
+        "lpShareBps": "5045",
+        "poolKeyFee": "6054",
+        "hookPermissionMask": "7063",
+        "feeAssetMode": "255",
+        "stakeSaturationWholeTokens": "9081",
+        "stakerReleaseMode": "255"
+      },
+      "encoded": "0xe2effaf3ed68c765c74f0f75d44267be61102b3f3de51f9dc9ebab313197802800000000000000000000000000000000000000000000000000000000000000026d778d9fac5729e6943b9bef3a61d68f916469af230e2a521826a553ea0b5bad0000000000000000000000000000000000000000000000000000000000000fc400000000000000000000000000000000000000000000000000000000000013b500000000000000000000000000000000000000000000000000000000000017a60000000000000000000000000000000000000000000000000000000000001b9700000000000000000000000000000000000000000000000000000000000000ff000000000000000000000000000000000000000000000000000000000000237900000000000000000000000000000000000000000000000000000000000000ff",
+      "innerHash": "0x90476c1fb5bcac5ac5619d6ceeb2207562a0d103f1c8938d262ed6559dd72171",
+      "result": "0x90476c1fb5bcac5ac5619d6ceeb2207562a0d103f1c8938d262ed6559dd72171"
+    },
+    {
+      "schema": "v4FeeId",
+      "inputs": {
+        "domain": "0xba68ca4d92aea5c633fc8c26ba9fdbcd83ee04c676057a912c432f7d88f4ad71",
+        "schemaVersion": "1",
+        "chainId": "31337",
+        "feeVault": "0x3075129887e10fb320f70be56b6a5c7ff2e1efb9",
+        "poolManager": "0xd3a2ba0c73a3d215b06c2ce8f3c9916e0e99d5bb",
+        "poolId": "0x3ca6615e25ffbb907b2c9ac7732d6c7f12985a02838b54ec01b5b40a2f51718c",
+        "marketId": "0x2ec170d8ba61f2d2dfa99a99f75d456a3cef99095fe3efd8b05ad41d854c40dc",
+        "sourceVersion": "8072",
+        "feeNonce": "9081",
+        "feeAsset": "0x0f362e33461a2cd392c6a9bed57403d598ece69b",
+        "base": "11099",
+        "totalFee": "12108",
+        "feePolicyHash": "0x124343479b3f0d099d68176c06295d21f1686332671e3d8d18143942ae18e13b"
+      },
+      "encoded": "0xba68ca4d92aea5c633fc8c26ba9fdbcd83ee04c676057a912c432f7d88f4ad7100000000000000000000000000000000000000000000000000000000000000010000000000000000000000000000000000000000000000000000000000007a690000000000000000000000003075129887e10fb320f70be56b6a5c7ff2e1efb9000000000000000000000000d3a2ba0c73a3d215b06c2ce8f3c9916e0e99d5bb3ca6615e25ffbb907b2c9ac7732d6c7f12985a02838b54ec01b5b40a2f51718c2ec170d8ba61f2d2dfa99a99f75d456a3cef99095fe3efd8b05ad41d854c40dc0000000000000000000000000000000000000000000000000000000000001f8800000000000000000000000000000000000000000000000000000000000023790000000000000000000000000f362e33461a2cd392c6a9bed57403d598ece69b0000000000000000000000000000000000000000000000000000000000002b5b0000000000000000000000000000000000000000000000000000000000002f4c124343479b3f0d099d68176c06295d21f1686332671e3d8d18143942ae18e13b",
+      "innerHash": "0xccae92836634dcae0fc1ae3c729885736be63f54d8ad8c94d1efb20c9bb570be",
+      "result": "0xccae92836634dcae0fc1ae3c729885736be63f54d8ad8c94d1efb20c9bb570be"
+    },
+    {
+      "schema": "curveFeeId",
+      "inputs": {
+        "domain": "0x17c159ecefe23b215c2ae6c8ba0aff7884efe13f6e25360b54d86075a9586973",
+        "schemaVersion": "1",
+        "chainId": "31337",
+        "feeVault": "0x3075129887e10fb320f70be56b6a5c7ff2e1efb9",
+        "curve": "0x345e64763b2d91718dfb37f9969a1b0670a83e71",
+        "marketId": "0x2ec170d8ba61f2d2dfa99a99f75d456a3cef99095fe3efd8b05ad41d854c40dc",
+        "sourceVersion": "7063",
+        "sweepNonce": "8072",
+        "quoteAsset": "0x3de650124138174a84bc3598627ab72ef8faa3cc",
+        "sweptAmount": "10090"
+      },
+      "encoded": "0x17c159ecefe23b215c2ae6c8ba0aff7884efe13f6e25360b54d86075a958697300000000000000000000000000000000000000000000000000000000000000010000000000000000000000000000000000000000000000000000000000007a690000000000000000000000003075129887e10fb320f70be56b6a5c7ff2e1efb9000000000000000000000000345e64763b2d91718dfb37f9969a1b0670a83e712ec170d8ba61f2d2dfa99a99f75d456a3cef99095fe3efd8b05ad41d854c40dc0000000000000000000000000000000000000000000000000000000000001b970000000000000000000000000000000000000000000000000000000000001f880000000000000000000000003de650124138174a84bc3598627ab72ef8faa3cc000000000000000000000000000000000000000000000000000000000000276a",
+      "innerHash": "0x85befad5d3ca41d4669b2b9661a03bfe076501905e34b24200137edb402a34a1",
+      "result": "0x85befad5d3ca41d4669b2b9661a03bfe076501905e34b24200137edb402a34a1"
+    },
+    {
+      "schema": "emergencyStateHash",
+      "inputs": {
+        "domain": "0x0ea4ebd31f4a95e9b35858fd07d0bc26182016fd6b47bcabc05bc439499a4b68",
+        "schemaVersion": "1",
+        "chainId": "31337",
+        "marketRegistry": "0x7ed47c42965143f2d191587dad1f1b0bcf4d0ff1",
+        "feeVault": "0x3075129887e10fb320f70be56b6a5c7ff2e1efb9",
+        "marketId": "0x2ec170d8ba61f2d2dfa99a99f75d456a3cef99095fe3efd8b05ad41d854c40dc",
+        "recoveryEpoch": "7063",
+        "snapshotBlock": "8072",
+        "oldGauge": "0x7c9185ecef463afe9d8896491b8365e72e4ba09b",
+        "oldSourceVersion": "10090",
+        "quoteAsset": "0x3de650124138174a84bc3598627ab72ef8faa3cc",
+        "memeToken": "0xc9a1e7a794ddab2339a610711b578ba595a7da0d",
+        "quoteRecoveryCap": "13117",
+        "memeRecoveryCap": "14126",
+        "gaugeStoredTotalActive": "15135",
+        "gaugeTotalPending": "16144"
+      },
+      "encoded": "0x0ea4ebd31f4a95e9b35858fd07d0bc26182016fd6b47bcabc05bc439499a4b6800000000000000000000000000000000000000000000000000000000000000010000000000000000000000000000000000000000000000000000000000007a690000000000000000000000007ed47c42965143f2d191587dad1f1b0bcf4d0ff10000000000000000000000003075129887e10fb320f70be56b6a5c7ff2e1efb92ec170d8ba61f2d2dfa99a99f75d456a3cef99095fe3efd8b05ad41d854c40dc0000000000000000000000000000000000000000000000000000000000001b970000000000000000000000000000000000000000000000000000000000001f880000000000000000000000007c9185ecef463afe9d8896491b8365e72e4ba09b000000000000000000000000000000000000000000000000000000000000276a0000000000000000000000003de650124138174a84bc3598627ab72ef8faa3cc000000000000000000000000c9a1e7a794ddab2339a610711b578ba595a7da0d000000000000000000000000000000000000000000000000000000000000333d000000000000000000000000000000000000000000000000000000000000372e0000000000000000000000000000000000000000000000000000000000003b1f0000000000000000000000000000000000000000000000000000000000003f10",
+      "innerHash": "0x0d631ec7f2b4b3797664978c2e89f178fc815b5076ed800aea68e00f8e07a1d5",
+      "result": "0x0d631ec7f2b4b3797664978c2e89f178fc815b5076ed800aea68e00f8e07a1d5"
+    },
+    {
+      "schema": "recoveryLeafInner",
+      "inputs": {
+        "domain": "0xb08c6eb2577b83747dfc2dd1aa4ea9fd90165dacbc2b3084f44d788f4f52d6c1",
+        "schemaVersion": "1",
+        "chainId": "31337",
+        "feeVault": "0x3075129887e10fb320f70be56b6a5c7ff2e1efb9",
+        "executionSpecId": "0x6d778d9fac5729e6943b9bef3a61d68f916469af230e2a521826a553ea0b5bad",
+        "marketId": "0x2ec170d8ba61f2d2dfa99a99f75d456a3cef99095fe3efd8b05ad41d854c40dc",
+        "recoveryEpoch": "7063",
+        "feeAsset": "0x0f362e33461a2cd392c6a9bed57403d598ece69b",
+        "user": "0x57ff251ac638d3d03ab7550adfd3e166c2e7adb6",
+        "amount": "10090"
+      },
+      "encoded": "0xb08c6eb2577b83747dfc2dd1aa4ea9fd90165dacbc2b3084f44d788f4f52d6c100000000000000000000000000000000000000000000000000000000000000010000000000000000000000000000000000000000000000000000000000007a690000000000000000000000003075129887e10fb320f70be56b6a5c7ff2e1efb96d778d9fac5729e6943b9bef3a61d68f916469af230e2a521826a553ea0b5bad2ec170d8ba61f2d2dfa99a99f75d456a3cef99095fe3efd8b05ad41d854c40dc0000000000000000000000000000000000000000000000000000000000001b970000000000000000000000000f362e33461a2cd392c6a9bed57403d598ece69b00000000000000000000000057ff251ac638d3d03ab7550adfd3e166c2e7adb6000000000000000000000000000000000000000000000000000000000000276a",
+      "innerHash": "0x54e1aadb2b5abcb930517f973803c527058f0b2211960b0bf8080f49606c38ce",
+      "result": "0x282804a182d11738f7278e7396a4a7d389d6633894da8d6bbb9fda6ff8647fe4"
+    }
+  ]
+}

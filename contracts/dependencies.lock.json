@@ -1,0 +1,36 @@
+{
+  "schemaVersion": "contracts-dependencies-v2-scaffold",
+  "toolchain": {
+    "foundryVersion": "1.8.1",
+    "foundryCommit": "982849d3140c01fd3b72905759581a132df7aa98",
+    "solcVersion": "0.8.26",
+    "evmVersion": "cancun"
+  },
+  "dependencies": {
+    "forge-std": {
+      "repository": "https://github.com/foundry-rs/forge-std.git",
+      "commit": "1801b0541f4fda118a10798fd3486bb7051c5dd6",
+      "tag": "v1.14.0"
+    },
+    "openzeppelin-contracts": {
+      "repository": "https://github.com/OpenZeppelin/openzeppelin-contracts.git",
+      "commit": "cab19933c33c2ad1d4c7a84864a3601dddfd16f3",
+      "tag": "v5.7.0"
+    },
+    "v4-periphery": {
+      "repository": "https://github.com/Uniswap/v4-periphery.git",
+      "commit": "dce236d4e2057422d0791d9a973a58765eb46f65",
+      "purpose": "V2 compile-time integration pin; production deployment remains codehash/getter guarded"
+    },
+    "v4-core": {
+      "repository": "https://github.com/Uniswap/v4-core.git",
+      "commit": "59d3ecf53afa9264a16bba0e38f4c5d2231f80bc",
+      "source": "v4-periphery nested lock"
+    },
+    "permit2": {
+      "repository": "https://github.com/Uniswap/permit2.git",
+      "commit": "cc56ad0f3439c502c246fc5cfcc3db92bb8b7219",
+      "source": "v4-periphery nested lock"
+    }
+  }
+}

@@ -1,0 +1,492 @@
+{
+  "schemaVersion": 1,
+  "executionSpecId": "V2-EXEC-3",
+  "fixtureSetId": "V2-E-105-A",
+  "status": "FIXTURE_BASELINE_ONLY_NOT_LIVE_FORK_EVIDENCE",
+  "sourceFiles": [
+    {
+      "path": "spec/v2_initial_quote_configs.json",
+      "sha256": "0x82e0d07232386693f13e604f618aacb80973b88c5edc28583b30cb8b694148f0"
+    },
+    {
+      "path": "spec/v2_pons_behavior_vectors.json",
+      "sha256": "0xa967ad85c5ae11bc37be5e925db6c02cb236e06112979d445a8ce39384c25cf5"
+    },
+    {
+      "path": "spec/v2_pons_runtime_evidence.json",
+      "sha256": "0xdf5ac05313bc241cfdc6953b4d6663565762702ab31808d4f281a2e92b4b784d"
+    },
+    {
+      "path": "contracts/test/v2/mocks/MockV2QuoteAssets.sol",
+      "sha256": "0xe2d28dff184d082cf7136768267e1af17b9874f7d3303f43ba1c7c5b849b56c8"
+    }
+  ],
+  "forkSnapshots": {
+    "ponsBehavior": {
+      "chainId": 4663,
+      "factory": "0x7ed598bcef8bd9edd8c97a195c6d13f40801ec7e",
+      "block": 52289586,
+      "blockHash": "0x9477917aacd098d56b4d5fb375e555a09d1a61b7bf33417429e5c8e4a2e86006",
+      "runtimeKeccak256": "0x89a27da6f703e0a7cdd4f233e7cb57604ff75b164530962d3ff7cf8483a67d84",
+      "archiveForkRequired": true
+    },
+    "initialQuoteReview": {
+      "chainId": 4663,
+      "block": 52495836,
+      "blockHash": "0xe0465f331be5fb0c4fa98e32e533864d71c9a687fdd18df80dc56c5f3f127f2a",
+      "timestamp": 1788344117,
+      "factoryRuntimeKeccak256": "0x89a27da6f703e0a7cdd4f233e7cb57604ff75b164530962d3ff7cf8483a67d84",
+      "archiveForkRequired": true
+    }
+  },
+  "quoteFixtures": [
+    {
+      "label": "NATIVE_ETH_V1",
+      "assetKind": "NATIVE",
+      "symbol": "ETH",
+      "quoteAssetConfigId": "0xb5a193a9938ac71aa0e78e36c38ea3ad011d894b671a25baaa5ef746f29f8472",
+      "quoteAsset": "0x0000000000000000000000000000000000000000",
+      "quoteDecimals": 18,
+      "phantomQuote": "1680000000000000000",
+      "graduationThreshold": "4200000000000000000",
+      "economicsHash": "0xb5a193a9938ac71aa0e78e36c38ea3ad011d894b671a25baaa5ef746f29f8472",
+      "status": "ACTIVE",
+      "runtime": {
+        "kind": "NATIVE_SENTINEL",
+        "runtimeBytes": 0,
+        "runtimeKeccak256": "0xc5d2460186f7233c927e7db2dcc703c0e500b653ca82273b7bfad8045d85a470"
+      }
+    },
+    {
+      "label": "USDG_V1",
+      "assetKind": "ERC20",
+      "symbol": "USDG",
+      "quoteAssetConfigId": "0xbbb477fcf5f27a5738e9995055eacd60c468990275919cc0c74c7b01d5f03a67",
+      "quoteAsset": "0x5fc5360d0400a0fd4f2af552add042d716f1d168",
+      "quoteDecimals": 6,
+      "phantomQuote": "3236000000",
+      "graduationThreshold": "8090000000",
+      "economicsHash": "0xbbb477fcf5f27a5738e9995055eacd60c468990275919cc0c74c7b01d5f03a67",
+      "status": "ACTIVE",
+      "runtime": {
+        "kind": "EIP1967_PROXY",
+        "proxyRuntimeBytes": 170,
+        "proxyRuntimeKeccak256": "0x864cc9ad53b338b82da1f7cab85ab0b3d5c8861acb422b6fec63cf36234f36a6",
+        "implementation": "0x68184c449e1a8f34fa18d289737129fd27b66f8f",
+        "implementationRuntimeBytes": 18644,
+        "implementationRuntimeKeccak256": "0x3a551ac5c744af57e68a1d1431ac403c0f516ffd7d224a75746aee11fc4f3baf",
+        "preDeploymentFingerprintRecaptureRequired": true
+      }
+    }
+  ],
+  "ponsBehavior": {
+    "baselineId": "TG-PONS-BEHAVIOR-1",
+    "launch": {
+      "launchFeeRaw": "500000000000000",
+      "exactNativeValue": true,
+      "nativeLaunchAndBuy": {
+        "firstBuyAmountRaw": "150000000000000000",
+        "requiredMsgValueRaw": "150500000000000000"
+      },
+      "erc20LaunchAndBuy": {
+        "firstBuyAmountRaw": "150000000",
+        "requiredMsgValueRaw": "500000000000000",
+        "requiresTokenApproval": true
+      },
+      "firstBuyGraduationShareCapBps": null
+    },
+    "vectors": [
+      {
+        "id": "SUPPLY_NATIVE_CONFIG_0",
+        "kind": "supplyPartition",
+        "inputs": {
+          "supply": "1000000000000000000000000000",
+          "phantomQuote": "1680000000000000000",
+          "graduationThreshold": "4200000000000000000"
+        },
+        "outputs": {
+          "reservedTokens": "285714285714285714285714285",
+          "sellableTokens": "714285714285714285714285715"
+        }
+      },
+      {
+        "id": "SUPPLY_USDG_6_DECIMALS",
+        "kind": "supplyPartition",
+        "inputs": {
+          "supply": "1000000000000000000000000000",
+          "phantomQuote": "3236000000",
+          "graduationThreshold": "8090000000"
+        },
+        "outputs": {
+          "reservedTokens": "285714285714285714285714285",
+          "sellableTokens": "714285714285714285714285715"
+        }
+      },
+      {
+        "id": "AMOUNT_OUT_INTEGER_FLOOR",
+        "kind": "amountOut",
+        "inputs": {
+          "amountIn": "99",
+          "reserveIn": "1000",
+          "reserveOut": "1000000",
+          "feeBps": 0
+        },
+        "outputs": {
+          "amountOut": "90081"
+        }
+      },
+      {
+        "id": "BUY_FEE_BEFORE_PRICING",
+        "kind": "buy",
+        "inputs": {
+          "quoteReceived": "100",
+          "quoteReserve": "1000",
+          "tokenReserve": "1000000",
+          "reservedTokens": "1",
+          "feeBps": 100,
+          "additionalQuoteFeeBps": 0,
+          "minTokensOut": "0"
+        },
+        "outputs": {
+          "quoteSpent": "100",
+          "fee": "1",
+          "additionalQuoteFee": "0",
+          "netQuote": "99",
+          "tokensOut": "90081",
+          "refund": "0",
+          "partialFill": false
+        }
+      },
+      {
+        "id": "BUY_TWO_QUOTE_FEE_LEGS_FLOOR_SEPARATELY",
+        "kind": "buy",
+        "inputs": {
+          "quoteReceived": "1000",
+          "quoteReserve": "1000",
+          "tokenReserve": "1000000",
+          "reservedTokens": "1",
+          "feeBps": 100,
+          "additionalQuoteFeeBps": 50,
+          "minTokensOut": "0"
+        },
+        "outputs": {
+          "quoteSpent": "1000",
+          "fee": "10",
+          "additionalQuoteFee": "5",
+          "netQuote": "985",
+          "tokensOut": "496221",
+          "refund": "0",
+          "partialFill": false
+        }
+      },
+      {
+        "id": "SELL_FEE_AFTER_GROSS_QUOTE",
+        "kind": "sell",
+        "inputs": {
+          "tokensIn": "500000",
+          "tokenReserve": "1000000",
+          "quoteReserve": "1000",
+          "feeBps": 100,
+          "additionalQuoteFeeBps": 50,
+          "minQuoteOut": "0"
+        },
+        "outputs": {
+          "grossQuoteOut": "333",
+          "fee": "3",
+          "additionalQuoteFee": "1",
+          "quoteOut": "329"
+        }
+      },
+      {
+        "id": "TAIL_PARTIAL_FILL_AND_REFUND",
+        "kind": "buy",
+        "inputs": {
+          "quoteReceived": "1000",
+          "quoteReserve": "1000",
+          "tokenReserve": "400000",
+          "reservedTokens": "333333",
+          "feeBps": 100,
+          "additionalQuoteFeeBps": 50,
+          "minTokensOut": "100000"
+        },
+        "outputs": {
+          "netRequired": "201",
+          "quoteSpent": "205",
+          "fee": "2",
+          "additionalQuoteFee": "1",
+          "tokensOut": "66667",
+          "refund": "795",
+          "partialFill": true,
+          "slippagePass": true
+        }
+      },
+      {
+        "id": "TAIL_PARTIAL_FILL_PRICE_BOUND_REVERT",
+        "kind": "partialFillSlippage",
+        "inputs": {
+          "quoteReceived": "1000",
+          "quoteSpent": "205",
+          "tokensOut": "66667",
+          "minTokensOut": "400000"
+        },
+        "outputs": {
+          "slippagePass": false
+        }
+      },
+      {
+        "id": "ANTI_SNIPE_RUNTIME_ELAPSED_0_CLIPPED",
+        "kind": "antiSnipeBuy",
+        "inputs": {
+          "elapsedSeconds": 0,
+          "exempt": false,
+          "quoteReceived": "1000",
+          "quoteReserve": "1000",
+          "tokenReserve": "1000000",
+          "reservedTokens": "1",
+          "feeBps": 100,
+          "creatorTaxBps": 0,
+          "minimumNetBps": 100
+        },
+        "outputs": {
+          "rawSnipeBps": 9900,
+          "effectiveSnipeBps": 9800,
+          "fee": "10",
+          "snipeFee": "980",
+          "netQuote": "10",
+          "tokensOut": "9900"
+        }
+      },
+      {
+        "id": "ANTI_SNIPE_RUNTIME_ELAPSED_1",
+        "kind": "antiSnipeBuy",
+        "inputs": {
+          "elapsedSeconds": 1,
+          "exempt": false,
+          "quoteReceived": "1000",
+          "quoteReserve": "1000",
+          "tokenReserve": "1000000",
+          "reservedTokens": "1",
+          "feeBps": 100,
+          "creatorTaxBps": 0,
+          "minimumNetBps": 100
+        },
+        "outputs": {
+          "rawSnipeBps": 618,
+          "effectiveSnipeBps": 618,
+          "fee": "10",
+          "snipeFee": "61",
+          "netQuote": "929",
+          "tokensOut": "481596"
+        }
+      },
+      {
+        "id": "ANTI_SNIPE_RUNTIME_ELAPSED_2",
+        "kind": "antiSnipeBuy",
+        "inputs": {
+          "elapsedSeconds": 2,
+          "exempt": false,
+          "quoteReceived": "1000",
+          "quoteReserve": "1000",
+          "tokenReserve": "1000000",
+          "reservedTokens": "1",
+          "feeBps": 100,
+          "creatorTaxBps": 0,
+          "minimumNetBps": 100
+        },
+        "outputs": {
+          "rawSnipeBps": 19,
+          "effectiveSnipeBps": 19,
+          "fee": "10",
+          "snipeFee": "1",
+          "netQuote": "989",
+          "tokensOut": "497234"
+        }
+      },
+      {
+        "id": "ANTI_SNIPE_RUNTIME_ELAPSED_3_ZERO",
+        "kind": "antiSnipeBuy",
+        "inputs": {
+          "elapsedSeconds": 3,
+          "exempt": false,
+          "quoteReceived": "1000",
+          "quoteReserve": "1000",
+          "tokenReserve": "1000000",
+          "reservedTokens": "1",
+          "feeBps": 100,
+          "creatorTaxBps": 0,
+          "minimumNetBps": 100
+        },
+        "outputs": {
+          "rawSnipeBps": 0,
+          "effectiveSnipeBps": 0,
+          "fee": "10",
+          "snipeFee": "0",
+          "netQuote": "990",
+          "tokensOut": "497487"
+        }
+      },
+      {
+        "id": "ANTI_SNIPE_AUTOMATIC_EXEMPTION_AT_LAUNCH",
+        "kind": "antiSnipeBuy",
+        "inputs": {
+          "elapsedSeconds": 0,
+          "exempt": true,
+          "quoteReceived": "1000",
+          "quoteReserve": "1000",
+          "tokenReserve": "1000000",
+          "reservedTokens": "1",
+          "feeBps": 100,
+          "creatorTaxBps": 0,
+          "minimumNetBps": 100
+        },
+        "outputs": {
+          "rawSnipeBps": 0,
+          "effectiveSnipeBps": 0,
+          "fee": "10",
+          "snipeFee": "0",
+          "netQuote": "990",
+          "tokensOut": "497487"
+        }
+      },
+      {
+        "id": "GRADUATION_POOL_MEME_AND_LOCKED_EXCESS",
+        "kind": "graduationPartition",
+        "inputs": {
+          "sweptQuote": "4200000000000000000",
+          "phantomQuote": "1680000000000000000",
+          "sweptTokens": "285714285714285714285714285"
+        },
+        "outputs": {
+          "poolMemeAmount": "204081632653061224489795917",
+          "lockedExcessMeme": "81632653061224489795918368"
+        }
+      }
+    ],
+    "vectorCount": 14,
+    "sourceDocumentSha256": "0xa967ad85c5ae11bc37be5e925db6c02cb236e06112979d445a8ce39384c25cf5"
+  },
+  "assetBehaviorFixtures": [
+    {
+      "id": "EXACT_ERC20_6_DECIMALS",
+      "contract": "MockExactQuoteToken",
+      "behavior": {
+        "quoteDecimals": 6,
+        "exactBalanceDelta": true
+      },
+      "expected": "ACCEPT_LOCAL_CONTROL",
+      "runtime": {
+        "artifact": "contracts/out-v2/MockV2QuoteAssets.sol/MockExactQuoteToken.json",
+        "runtimeBytes": 925,
+        "runtimeKeccak256": "0x7c8f8d5aeab7b20d99f10ca186837bda5de2ead719c191cc9f11885267b0cd03"
+      }
+    },
+    {
+      "id": "FEE_ON_TRANSFER_100_BPS",
+      "contract": "MockFeeOnTransferQuoteToken",
+      "behavior": {
+        "quoteDecimals": 6,
+        "feeBps": 100
+      },
+      "expected": "REJECT_AND_ROLL_BACK_INEXACT_DELTA",
+      "runtime": {
+        "artifact": "contracts/out-v2/MockV2QuoteAssets.sol/MockFeeOnTransferQuoteToken.json",
+        "runtimeBytes": 1073,
+        "runtimeKeccak256": "0xd7cba005e75b8f4cd0dba0e74286961d5a4f54fcafa12f1601a9fc9bbfa213b0"
+      }
+    },
+    {
+      "id": "REBASING_BALANCE_DRIFT",
+      "contract": "MockRebasingQuoteToken",
+      "behavior": {
+        "quoteDecimals": 6,
+        "balanceCanChangeWithoutTransfer": true
+      },
+      "expected": "REJECT_AS_QUOTE_ASSET",
+      "runtime": {
+        "artifact": "contracts/out-v2/MockV2QuoteAssets.sol/MockRebasingQuoteToken.json",
+        "runtimeBytes": 977,
+        "runtimeKeccak256": "0xd1d044e826c2e7111549cddf58c506c5c55d1aa7230c59404125a29281b80c9f"
+      }
+    },
+    {
+      "id": "TRANSFER_CALLBACK_REENTRANCY",
+      "contract": "MockCallbackQuoteToken",
+      "behavior": {
+        "quoteDecimals": 6,
+        "recipientCallback": true
+      },
+      "expected": "REJECT_AND_ROLL_BACK_CALLBACK",
+      "runtime": {
+        "artifact": "contracts/out-v2/MockV2QuoteAssets.sol/MockCallbackQuoteToken.json",
+        "runtimeBytes": 1151,
+        "runtimeKeccak256": "0xec365e59fd02c3d3b7e3ce5dddaa07f2e2c78f004d00057908ed293e1f5561d0"
+      }
+    },
+    {
+      "id": "TRANSFER_RETURN_FALSE",
+      "contract": "MockReturnAnomalyQuoteToken",
+      "behavior": {
+        "returnMode": "FALSE"
+      },
+      "expected": "REJECT_INVALID_RETURN",
+      "runtime": {
+        "artifact": "contracts/out-v2/MockV2QuoteAssets.sol/MockReturnAnomalyQuoteToken.json",
+        "runtimeBytes": 477,
+        "runtimeKeccak256": "0x07f916db842b97adaab07064eee34495ddcee94905695c264e78be417b1de863"
+      }
+    },
+    {
+      "id": "TRANSFER_RETURN_NO_DATA",
+      "contract": "MockReturnAnomalyQuoteToken",
+      "behavior": {
+        "returnMode": "NO_DATA"
+      },
+      "expected": "REJECT_INVALID_RETURN",
+      "runtime": {
+        "artifact": "contracts/out-v2/MockV2QuoteAssets.sol/MockReturnAnomalyQuoteToken.json",
+        "runtimeBytes": 477,
+        "runtimeKeccak256": "0x07f916db842b97adaab07064eee34495ddcee94905695c264e78be417b1de863"
+      }
+    },
+    {
+      "id": "TRANSFER_RETURN_MALFORMED_TRUE",
+      "contract": "MockReturnAnomalyQuoteToken",
+      "behavior": {
+        "returnMode": "MALFORMED_TRUE",
+        "encodedValue": 2
+      },
+      "expected": "REJECT_INVALID_RETURN",
+      "runtime": {
+        "artifact": "contracts/out-v2/MockV2QuoteAssets.sol/MockReturnAnomalyQuoteToken.json",
+        "runtimeBytes": 477,
+        "runtimeKeccak256": "0x07f916db842b97adaab07064eee34495ddcee94905695c264e78be417b1de863"
+      }
+    },
+    {
+      "id": "FORCED_NATIVE_TRANSFER",
+      "contract": "MockForcedNativeSender",
+      "behavior": {
+        "canIncreaseRecipientBalanceOutsideControlledPayment": true
+      },
+      "expected": "DO_NOT_CREDIT_AS_BUSINESS_PAYMENT",
+      "runtime": {
+        "artifact": "contracts/out-v2/MockV2QuoteAssets.sol/MockForcedNativeSender.json",
+        "runtimeBytes": 114,
+        "runtimeKeccak256": "0x6e5bdd6b73ad048e643a2ee93e140181beb50ee09732b5f3904ad8c94fa1e3c2"
+      }
+    }
+  ],
+  "policies": {
+    "oneQuotePerMarket": true,
+    "nativeBuyMsgValueEqualsQuoteIn": true,
+    "erc20BuyMsgValueEqualsZero": true,
+    "erc20ExactBalanceDeltaRequired": true,
+    "feeOnTransferAccepted": false,
+    "rebasingAccepted": false,
+    "arbitraryTransferCallbacksAccepted": false,
+    "nonCanonicalTransferReturnsAccepted": false,
+    "runtimeDependencyOnPons": false,
+    "referenceCreate2ValuesAreProductionDeploymentEvidence": false
+  },
+  "fixtureSetHash": "0xc187bf0dc0b4a484ba415b86b5e20e3f43d0f18100f32ceda20afc3ba90747b3"
+}

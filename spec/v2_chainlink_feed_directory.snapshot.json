@@ -1,0 +1,1258 @@
+{
+  "schemaVersion": 1,
+  "executionSpecId": "V2-EXEC-1",
+  "status": "OBSERVED_CANONICAL_DIRECTORY_NOT_PRODUCTION_APPROVED",
+  "chainId": 4663,
+  "officialCatalogHash": "0x7df77c316178c782fc9109faf161fec1e5300cfdc80bcc665254055ee3c45c7d",
+  "capturedAt": "2026-09-02T12:53:42+00:00",
+  "source": {
+    "kind": "CHAINLINK_REFERENCE_DATA_DIRECTORY_ROBINHOOD_MAINNET",
+    "url": "https://reference-data-directory.vercel.app/feeds-robinhood-mainnet.json",
+    "responseBytes": 81235,
+    "responseSha256": "0x2ae1ea5f432cab06904134759033d7c6434c323171f954120c4933fdde42e85d",
+    "rawResponseArchived": true,
+    "rawResponseArchive": "v2_chainlink_feed_directory.source.json"
+  },
+  "policy": {
+    "primaryProxyOnlyForTargetGeneration": true,
+    "secondaryProxyNotSilentlySubstitutable": true,
+    "symbolUsedToProposeMappingNotAsStockIdentity": true,
+    "mappingIdentity": [
+      "chainId",
+      "assetUid",
+      "stockToken",
+      "primaryFeedProxy"
+    ],
+    "missingFeedDoesNotRevokeOfficialStockEligibility": true,
+    "missingFeedBlocksUniformUsdTargetGeneration": true
+  },
+  "summary": {
+    "directoryFeedCount": 57,
+    "uniquePrimaryProxyCount": 57,
+    "mappedOfficialStockFeedCount": 35,
+    "officialStockWithoutMappedFeedCount": 159,
+    "nonRobinhoodOrNonStockFeedCount": 22,
+    "unmatchedRobinhoodFeedNameCount": 0,
+    "normalizedMappingKeccak256": "0xdc1b6500a1abd8ae9f916bd96d94328811e6a4dfd95321aafba0fb6425cd3a07"
+  },
+  "unmatchedRobinhoodFeedNames": [],
+  "mappings": [
+    {
+      "assetUid": "0x0000000000000000000000000000000014eaef73a2c44d62b7952cfd0a44ff51",
+      "stockToken": "0x941ae714ec6d8130c7b75d67160ca08f1e7d11dd",
+      "symbol": "DELL",
+      "feedName": "Robinhood DELL-USD",
+      "primaryFeedProxy": "0x1c6c8cadbe02e19129c39ddb92281ce4c0bf206b",
+      "secondaryFeedProxy": "0xe9b94828424a8efe6e773c28ab5fd486851867c8",
+      "feedDecimals": 8,
+      "heartbeatSeconds": 86400,
+      "directoryEntrySha256": "0xda1cb16d5f3246b54a20dbce40754f081b5586abb9f37cc439f66809b8050e03",
+      "mappingMethod": "PROPOSED_FROM_EXACT_OFFICIAL_SYMBOL_AND_FEED_NAME_REQUIRES_GOVERNANCE_REVIEW"
+    },
+    {
+      "assetUid": "0x000000000000000000000000000000001aa9c9cc0bf34c5e95cfe7168463d310",
+      "stockToken": "0x4a0e65a3eccec6dbe60ae065f2e7bb85fae35eea",
+      "symbol": "SPCX",
+      "feedName": "Robinhood SPCX / USD",
+      "primaryFeedProxy": "0xb265810950ba6c5c0ff821c9963014a56fd8bffb",
+      "secondaryFeedProxy": "0x42a95341ff361e81fd934f39943c5c98f6991844",
+      "feedDecimals": 8,
+      "heartbeatSeconds": 86400,
+      "directoryEntrySha256": "0xce131c4a3ad66a4dc0ab1873f95fa7d284e98c2146839107185a14269553ae2e",
+      "mappingMethod": "PROPOSED_FROM_EXACT_OFFICIAL_SYMBOL_AND_FEED_NAME_REQUIRES_GOVERNANCE_REVIEW"
+    },
+    {
+      "assetUid": "0x000000000000000000000000000000001c6f27a62789417d8ed359ed3c2d3da1",
+      "stockToken": "0x117cc2133c37b721f49de2a7a74833232b3b4c0c",
+      "symbol": "SPY",
+      "feedName": "Robinhood SPY / USD",
+      "primaryFeedProxy": "0x319724394d3a0e3669269846abe664cd621f9f6a",
+      "secondaryFeedProxy": "0xa68ca83408be3f78d1c58a82081c619e9d21486d",
+      "feedDecimals": 8,
+      "heartbeatSeconds": 86400,
+      "directoryEntrySha256": "0x8d596644e3ac050d95acc2bd80ee9926415bc10de3412ccdb3b50f2361bba1c8",
+      "mappingMethod": "PROPOSED_FROM_EXACT_OFFICIAL_SYMBOL_AND_FEED_NAME_REQUIRES_GOVERNANCE_REVIEW"
+    },
+    {
+      "assetUid": "0x000000000000000000000000000000002470b933c52d47ccad017ed9ee80c9ed",
+      "stockToken": "0xd5f3879160bc7c32ebb4dc785f8a4f505888de68",
+      "symbol": "QQQ",
+      "feedName": "Robinhood QQQ / USD",
+      "primaryFeedProxy": "0x80901d846d5d7b030f26b480776ee3b29374c2ae",
+      "secondaryFeedProxy": "0x41ed2c58611790af0760e31e80bb427e4e83d603",
+      "feedDecimals": 8,
+      "heartbeatSeconds": 86400,
+      "directoryEntrySha256": "0xb8597723907354976c134a28a7d7eaa4c1b1df876891c40f6d2f01f7d8f51f44",
+      "mappingMethod": "PROPOSED_FROM_EXACT_OFFICIAL_SYMBOL_AND_FEED_NAME_REQUIRES_GOVERNANCE_REVIEW"
+    },
+    {
+      "assetUid": "0x000000000000000000000000000000002e890a0884474abd86ba66b19722e827",
+      "stockToken": "0x58ffe4a942d3885baa22d7520691f611ef09e7aa",
+      "symbol": "TSM",
+      "feedName": "Robinhood TSM / USD",
+      "primaryFeedProxy": "0x874cf94aa8ec88fd9560094dd065f2fb3e41fc2f",
+      "secondaryFeedProxy": "0xb48d6d5729ca032ca43729f4b605bbf9f257a84d",
+      "feedDecimals": 8,
+      "heartbeatSeconds": 86400,
+      "directoryEntrySha256": "0x86298798024dbb07fb49cbb34b3bdbec3c6a3d6fb524d472ae4d27ee8e051cbc",
+      "mappingMethod": "PROPOSED_FROM_EXACT_OFFICIAL_SYMBOL_AND_FEED_NAME_REQUIRES_GOVERNANCE_REVIEW"
+    },
+    {
+      "assetUid": "0x000000000000000000000000000000002eb75a2c20d7423881b4f812c27d0abe",
+      "stockToken": "0xc72b96e0e48ecd4dc75e1e45396e26300bc39681",
+      "symbol": "INTC",
+      "feedName": "Robinhood INTC / USD",
+      "primaryFeedProxy": "0x3f390c5c24628ac7c489515402235fead71d1913",
+      "secondaryFeedProxy": "0x127b1dedee6269e962a59e6c1295b4002c56c403",
+      "feedDecimals": 8,
+      "heartbeatSeconds": 86400,
+      "directoryEntrySha256": "0x32e778238509ecc70c8f1fdc8feec02460e7058317d09b57cd20b3162b744a4b",
+      "mappingMethod": "PROPOSED_FROM_EXACT_OFFICIAL_SYMBOL_AND_FEED_NAME_REQUIRES_GOVERNANCE_REVIEW"
+    },
+    {
+      "assetUid": "0x00000000000000000000000000000000307bb0113ca54f93adf80f4ff2bf681a",
+      "stockToken": "0xe93237c50d904957cf27e7b1133b510c669c2e74",
+      "symbol": "MSFT",
+      "feedName": "Robinhood MSFT / USD",
+      "primaryFeedProxy": "0x45c3c877c15e6ba2ebb19ea114ea508d14c1af2e",
+      "secondaryFeedProxy": "0xad6d88eab22aa4867efe807a5311ed64962f740d",
+      "feedDecimals": 8,
+      "heartbeatSeconds": 86400,
+      "directoryEntrySha256": "0x9955d02a9ef5827db4a5c4ac2335a3167cc4ed39544942140590e85f0b9a0179",
+      "mappingMethod": "PROPOSED_FROM_EXACT_OFFICIAL_SYMBOL_AND_FEED_NAME_REQUIRES_GOVERNANCE_REVIEW"
+    },
+    {
+      "assetUid": "0x0000000000000000000000000000000031a6c09d095b4d49b4155de0040da68f",
+      "stockToken": "0x284358abc07f9359f19f4b5b4ac91901be2597ba",
+      "symbol": "RGTI",
+      "feedName": "Robinhood RGTI / USD",
+      "primaryFeedProxy": "0x2a045cf1c49c61c166c036d2f06fa2d2d984f765",
+      "secondaryFeedProxy": "0xc9c477aeff7ed1bb89b84f7907e2e11707491466",
+      "feedDecimals": 8,
+      "heartbeatSeconds": 86400,
+      "directoryEntrySha256": "0x4819e81a39c8d994eb5e76f3cc69e801049e2c8dc7ef56d865806070c8f16fdb",
+      "mappingMethod": "PROPOSED_FROM_EXACT_OFFICIAL_SYMBOL_AND_FEED_NAME_REQUIRES_GOVERNANCE_REVIEW"
+    },
+    {
+      "assetUid": "0x00000000000000000000000000000000343e7beca03644bcba2e50b8236784f5",
+      "stockToken": "0xc0d6457c16cc70d6790dd43521c899c87ce02f35",
+      "symbol": "META",
+      "feedName": "Robinhood META / USD",
+      "primaryFeedProxy": "0x7c38c00c30bee9378381e7b6135d7283356d71b1",
+      "secondaryFeedProxy": "0x5cbc53d382e56cbb223f118cf8eefb6c9c2759f5",
+      "feedDecimals": 8,
+      "heartbeatSeconds": 86400,
+      "directoryEntrySha256": "0xa93536946f13ba0258dbea10f069c221a519c4046ce558788b64b3a43b69596a",
+      "mappingMethod": "PROPOSED_FROM_EXACT_OFFICIAL_SYMBOL_AND_FEED_NAME_REQUIRES_GOVERNANCE_REVIEW"
+    },
+    {
+      "assetUid": "0x0000000000000000000000000000000046e46cc63fe842ebbdfe6187bda403d6",
+      "stockToken": "0xb90a19ff0af67f7779aff50a882a9cff42446400",
+      "symbol": "SNDK",
+      "feedName": "Robinhood SNDK / USD",
+      "primaryFeedProxy": "0xfb133fa4b7b385802b693a293606682df47109a3",
+      "secondaryFeedProxy": "0xd1016d9da414b13d55abe02221a8a145eb89aa0d",
+      "feedDecimals": 8,
+      "heartbeatSeconds": 86400,
+      "directoryEntrySha256": "0x72e8b05521a9ec254a180c706b2cd4acc13f5784e61fe493dc9ef64b7687982c",
+      "mappingMethod": "PROPOSED_FROM_EXACT_OFFICIAL_SYMBOL_AND_FEED_NAME_REQUIRES_GOVERNANCE_REVIEW"
+    },
+    {
+      "assetUid": "0x000000000000000000000000000000004f508d5e2a7042299694d85c2f362ad2",
+      "stockToken": "0x12f190a9f9d7d37a250758b26824b97ce941bf54",
+      "symbol": "AMZN",
+      "feedName": "Robinhood AMZN / USD",
+      "primaryFeedProxy": "0xd5a1508ced74c084ebf3cbe853e2c968fb2a651c",
+      "secondaryFeedProxy": "0x9244830430bc7d9c9a48dd47603f24ad61f7c56e",
+      "feedDecimals": 8,
+      "heartbeatSeconds": 86400,
+      "directoryEntrySha256": "0x50425df5cb603bdfccddeb4d6b66601cbd4f7ec105a225150a4ef6acc6e93fab",
+      "mappingMethod": "PROPOSED_FROM_EXACT_OFFICIAL_SYMBOL_AND_FEED_NAME_REQUIRES_GOVERNANCE_REVIEW"
+    },
+    {
+      "assetUid": "0x000000000000000000000000000000005047f8f8a1a34a9ebee52a4155570807",
+      "stockToken": "0xdf0992e440dd0be65bd8439b609d6d4366bf1cb5",
+      "symbol": "CRCL",
+      "feedName": "Robinhood CRCL / USD",
+      "primaryFeedProxy": "0x6652edf64ba3731c4f2d3ce821a0fb1f1f6b482a",
+      "secondaryFeedProxy": "0x025ba3b3569ca7d15da7bfc1648f13f06a072851",
+      "feedDecimals": 8,
+      "heartbeatSeconds": 86400,
+      "directoryEntrySha256": "0x72e6fb78cbded9d0ea924c1c695d24178ef31b99a5eaeac562f08eb0c43803cd",
+      "mappingMethod": "PROPOSED_FROM_EXACT_OFFICIAL_SYMBOL_AND_FEED_NAME_REQUIRES_GOVERNANCE_REVIEW"
+    },
+    {
+      "assetUid": "0x0000000000000000000000000000000051d8408eb0484cb6bd003337551fddd5",
+      "stockToken": "0xd917b029c761d264c6a312bbbcda868658ef86a6",
+      "symbol": "USAR",
+      "feedName": "Robinhood USAR-USD",
+      "primaryFeedProxy": "0xa994d3684e8400a6c8078226925779fdee682dd9",
+      "secondaryFeedProxy": "0x451b1295aa84fd6d6b58af1a5002ea1b1a1913a0",
+      "feedDecimals": 8,
+      "heartbeatSeconds": 86400,
+      "directoryEntrySha256": "0xf7e6de116165447184021a296cc70a49a26530d8b187c26d275996e8fdc0708f",
+      "mappingMethod": "PROPOSED_FROM_EXACT_OFFICIAL_SYMBOL_AND_FEED_NAME_REQUIRES_GOVERNANCE_REVIEW"
+    },
+    {
+      "assetUid": "0x0000000000000000000000000000000053b69e2076884cc9ae2ada9bc7095df3",
+      "stockToken": "0x2e0847e8910a9732eb3fb1bb4b70a580adad4fe3",
+      "symbol": "GOOGL",
+      "feedName": "Robinhood GOOGL / USD",
+      "primaryFeedProxy": "0xf6f373a037c30f0e5010d854385ca89185ae638b",
+      "secondaryFeedProxy": "0xa04ee5c4c8827f17e82f93be9e19dea221a749a8",
+      "feedDecimals": 8,
+      "heartbeatSeconds": 86400,
+      "directoryEntrySha256": "0x0e870cda9596ad07491417466944ff4d98a7f5243933b9624566bf272652287e",
+      "mappingMethod": "PROPOSED_FROM_EXACT_OFFICIAL_SYMBOL_AND_FEED_NAME_REQUIRES_GOVERNANCE_REVIEW"
+    },
+    {
+      "assetUid": "0x000000000000000000000000000000005f7e82ad6e4c4b60ba76497863fe4a67",
+      "stockToken": "0x92fd66527192e3e61d4ddd13322aa222de86f9b5",
+      "symbol": "SGOV",
+      "feedName": "Robinhood SGOV-USD",
+      "primaryFeedProxy": "0xa0df4ee0fff975306345875e3548fcc519577a11",
+      "secondaryFeedProxy": "0xa7a18ca3f19e17ffa28f92302b817ca8c1a94b06",
+      "feedDecimals": 8,
+      "heartbeatSeconds": 86400,
+      "directoryEntrySha256": "0x60016714944cb23e0b424106bcf862502df77b260017dcdecba71317c9ab28f5",
+      "mappingMethod": "PROPOSED_FROM_EXACT_OFFICIAL_SYMBOL_AND_FEED_NAME_REQUIRES_GOVERNANCE_REVIEW"
+    },
+    {
+      "assetUid": "0x000000000000000000000000000000006ef9da606f504495ad7de6a7a58b87cd",
+      "stockToken": "0xad25ac6c84d497db898fa1e8387bf6af3532a1c4",
+      "symbol": "BABA",
+      "feedName": "Robinhood BABA / USD",
+      "primaryFeedProxy": "0x62cc8f9b5f56a33c9c8a60c8b92779f523c4e984",
+      "secondaryFeedProxy": "0xdb69948b26050818e8c9f43300f78b2582e67260",
+      "feedDecimals": 8,
+      "heartbeatSeconds": 86400,
+      "directoryEntrySha256": "0x28b944171bb523b8ee0a7ab0160e3fa8564fd2575a8ee99e78bfd03378d25056",
+      "mappingMethod": "PROPOSED_FROM_EXACT_OFFICIAL_SYMBOL_AND_FEED_NAME_REQUIRES_GOVERNANCE_REVIEW"
+    },
+    {
+      "assetUid": "0x00000000000000000000000000000000730835cf25474184af89c27075a82be1",
+      "stockToken": "0xcbb95bbf36099d34da091dc6fa6f49efa257cee3",
+      "symbol": "CLSK",
+      "feedName": "Robinhood CLSK / USD",
+      "primaryFeedProxy": "0x810c12d3a554bc47fd39597fe3b3aac4941f50ef",
+      "secondaryFeedProxy": "0x951c5e9a2a065053035d4b812b1f6ca7e64c5102",
+      "feedDecimals": 8,
+      "heartbeatSeconds": 86400,
+      "directoryEntrySha256": "0x3392a978ea1b477a71b9733c388b8cc7c48dbd0b6451afb7e7898c77d0f8a093",
+      "mappingMethod": "PROPOSED_FROM_EXACT_OFFICIAL_SYMBOL_AND_FEED_NAME_REQUIRES_GOVERNANCE_REVIEW"
+    },
+    {
+      "assetUid": "0x000000000000000000000000000000007454a90b4aab491389ce9fa3c485de42",
+      "stockToken": "0x894e1ec2d74ffe5aef8dc8a9e84686accb964f2a",
+      "symbol": "PLTR",
+      "feedName": "Robinhood PLTR / USD",
+      "primaryFeedProxy": "0x820abedff239034956b7a9d2f0a331f9f075eb4c",
+      "secondaryFeedProxy": "0x8cd1dfc0fc61fca55fa77b37e008a90f13364fce",
+      "feedDecimals": 8,
+      "heartbeatSeconds": 86400,
+      "directoryEntrySha256": "0x9fc63ce19cf7ad61898f9ad93f24ca1697d171c663e20291c59cf41e186072d7",
+      "mappingMethod": "PROPOSED_FROM_EXACT_OFFICIAL_SYMBOL_AND_FEED_NAME_REQUIRES_GOVERNANCE_REVIEW"
+    },
+    {
+      "assetUid": "0x000000000000000000000000000000007757415150a94b50a879cdc04dc90664",
+      "stockToken": "0xff080c8ce2e5feadaca0da81314ae59d232d4afd",
+      "symbol": "MU",
+      "feedName": "Robinhood MU / USD",
+      "primaryFeedProxy": "0x425eefdcf05ed6526c3ce61af99429a228a6d596",
+      "secondaryFeedProxy": "0x5b40f4e78fa58b60a4f59b8cc8cb8d2fb0690467",
+      "feedDecimals": 8,
+      "heartbeatSeconds": 86400,
+      "directoryEntrySha256": "0xa41d559eb19d4052d739e0861994ee8cf341e0b56990c0fefb084383885b3863",
+      "mappingMethod": "PROPOSED_FROM_EXACT_OFFICIAL_SYMBOL_AND_FEED_NAME_REQUIRES_GOVERNANCE_REVIEW"
+    },
+    {
+      "assetUid": "0x000000000000000000000000000000007cacd0cd4c0547d480e89459e648592b",
+      "stockToken": "0x3b14c39e89d60d627b42a1a4ca45b5bb45fc12e2",
+      "symbol": "RKLB",
+      "feedName": "Robinhood RKLB / USD",
+      "primaryFeedProxy": "0x045477bf65aef6f4f2386ad0164579e48381cc74",
+      "secondaryFeedProxy": "0x955c60932e517b36be137eee78e65343cbfc9d29",
+      "feedDecimals": 8,
+      "heartbeatSeconds": 86400,
+      "directoryEntrySha256": "0xd34ea81131f65c66bf66e8561e44489744060a0c18f1ffb71c2f2a3ccc7bf064",
+      "mappingMethod": "PROPOSED_FROM_EXACT_OFFICIAL_SYMBOL_AND_FEED_NAME_REQUIRES_GOVERNANCE_REVIEW"
+    },
+    {
+      "assetUid": "0x000000000000000000000000000000007f48cdbfaced4ff4b34fbc832f449c33",
+      "stockToken": "0x5f10a1c971b69e47e059e1dc91901b59b3fb49c3",
+      "symbol": "CRWV",
+      "feedName": "Robinhood CRWV / USD",
+      "primaryFeedProxy": "0xe1b3aabcafad1c94708dc1367dcff8aa4407487c",
+      "secondaryFeedProxy": "0x288b837a17fed1aa00c1df832ef79d0c77336c10",
+      "feedDecimals": 8,
+      "heartbeatSeconds": 86400,
+      "directoryEntrySha256": "0xa8b0b2c58d6f56971bacb7cb630f42e554a367ecfb7814ce19e495c643fe8ec4",
+      "mappingMethod": "PROPOSED_FROM_EXACT_OFFICIAL_SYMBOL_AND_FEED_NAME_REQUIRES_GOVERNANCE_REVIEW"
+    },
+    {
+      "assetUid": "0x0000000000000000000000000000000086aeaac3c7d9422c90f6fd41aff0eaf7",
+      "stockToken": "0x86923f96303d656e4aa86d9d42d1e57ad2023fdc",
+      "symbol": "AMD",
+      "feedName": "Robinhood AMD / USD",
+      "primaryFeedProxy": "0x943a29e7ae51a4798823ca9eed2ed533b2a22c72",
+      "secondaryFeedProxy": "0xf6d57763dfa625f4a413485261ab2e71ff4304cf",
+      "feedDecimals": 8,
+      "heartbeatSeconds": 86400,
+      "directoryEntrySha256": "0xec46527a159428722502a22eedc835737ec2f9bc117a80f6a032eab4b06692ea",
+      "mappingMethod": "PROPOSED_FROM_EXACT_OFFICIAL_SYMBOL_AND_FEED_NAME_REQUIRES_GOVERNANCE_REVIEW"
+    },
+    {
+      "assetUid": "0x000000000000000000000000000000008a8710f26e424b2dbc1f6b5de9f267b8",
+      "stockToken": "0x7f0abef0c07280f82c6a08ead09ded6bae2c13fc",
+      "symbol": "EWY",
+      "feedName": "Robinhood EWY / USD",
+      "primaryFeedProxy": "0xefdf54610b62a7753ec30bdc380847c12d32e1d1",
+      "secondaryFeedProxy": "0x26bca2a89d2d23787ada8f91b849608c51a26977",
+      "feedDecimals": 8,
+      "heartbeatSeconds": 86400,
+      "directoryEntrySha256": "0x4a0f091696ba6c7ecf0783a3518d94b2215b0e47fc433f91aba804fad0cd8522",
+      "mappingMethod": "PROPOSED_FROM_EXACT_OFFICIAL_SYMBOL_AND_FEED_NAME_REQUIRES_GOVERNANCE_REVIEW"
+    },
+    {
+      "assetUid": "0x00000000000000000000000000000000915f477416294f5099a5e0e09f327ce5",
+      "stockToken": "0xd0601ce157db5bdc3162bbac2a2c8af5320d9eec",
+      "symbol": "NVDA",
+      "feedName": "Robinhood NVDA / USD",
+      "primaryFeedProxy": "0x379ec4f7c378f34a1b47e4f3cbebcbac3e8e9f15",
+      "secondaryFeedProxy": "0xcf169363636d73dbbf77733629cb38919d14232d",
+      "feedDecimals": 8,
+      "heartbeatSeconds": 86400,
+      "directoryEntrySha256": "0xdd5fda91461928cb08726941b9ad91c3966cf7f5322430a2bbf406d548da68da",
+      "mappingMethod": "PROPOSED_FROM_EXACT_OFFICIAL_SYMBOL_AND_FEED_NAME_REQUIRES_GOVERNANCE_REVIEW"
+    },
+    {
+      "assetUid": "0x00000000000000000000000000000000949bd039a8ae465d9cf9336068188b55",
+      "stockToken": "0xa30fa36db767ad9ed3f7a60fc79526fb4d56d344",
+      "symbol": "USO",
+      "feedName": "Robinhood USO / USD",
+      "primaryFeedProxy": "0x75a9c76ef439e2c7c2e5a34ab105ecfe3766431c",
+      "secondaryFeedProxy": "0x6d054decb74cf8ef3675b0abc100e02921176edf",
+      "feedDecimals": 8,
+      "heartbeatSeconds": 86400,
+      "directoryEntrySha256": "0x33240b93629fe30f2634a2c78b2a0c899d8a6f0e76bfe38e129716775e321091",
+      "mappingMethod": "PROPOSED_FROM_EXACT_OFFICIAL_SYMBOL_AND_FEED_NAME_REQUIRES_GOVERNANCE_REVIEW"
+    },
+    {
+      "assetUid": "0x00000000000000000000000000000000970b46dbdece4ae4958a53815e62a85a",
+      "stockToken": "0x6330d8c3178a418788df01a47479c0ce7ccf450b",
+      "symbol": "COIN",
+      "feedName": "Robinhood COIN / USD",
+      "primaryFeedProxy": "0xa3a468a452940b7d6b69991207b508c609a98ef2",
+      "secondaryFeedProxy": "0xa7f7d79d578fb007384badf42c8e1d76a6a63bbd",
+      "feedDecimals": 8,
+      "heartbeatSeconds": 86400,
+      "directoryEntrySha256": "0x3d9ae09d6f9742ae367d80566d677d5728f111c29e1fac705a89f38f6d41ad9e",
+      "mappingMethod": "PROPOSED_FROM_EXACT_OFFICIAL_SYMBOL_AND_FEED_NAME_REQUIRES_GOVERNANCE_REVIEW"
+    },
+    {
+      "assetUid": "0x00000000000000000000000000000000994b82ab24514d439fccc87156df35f9",
+      "stockToken": "0x9d9c6684f596f66a64c030b93a886d51fd4d7931",
+      "symbol": "NBIS",
+      "feedName": "Robinhood NBIS / USD",
+      "primaryFeedProxy": "0xe1d87b116ba0fe898998f1d140339d1fa1e09705",
+      "secondaryFeedProxy": "0xca59a8f53bf4e0628cc0b1bd3a2216f2f8e04770",
+      "feedDecimals": 8,
+      "heartbeatSeconds": 86400,
+      "directoryEntrySha256": "0x4bdc2e6de3de9f86d03532e66103a1016614c591d66f37b66eb31ad73651727a",
+      "mappingMethod": "PROPOSED_FROM_EXACT_OFFICIAL_SYMBOL_AND_FEED_NAME_REQUIRES_GOVERNANCE_REVIEW"
+    },
+    {
+      "assetUid": "0x00000000000000000000000000000000b6f6e756b7ff46b88238c18d0bc07fd4",
+      "stockToken": "0x558378e000d634a36593e338ebacdd6207640efe",
+      "symbol": "IONQ",
+      "feedName": "Robinhood IONQ / USD",
+      "primaryFeedProxy": "0x22efec4919baf55f360e0edee4abeb26de4971eb",
+      "secondaryFeedProxy": "0x926d7d95e554d1e671eb2c0d238fe37a2c23a64e",
+      "feedDecimals": 8,
+      "heartbeatSeconds": 86400,
+      "directoryEntrySha256": "0x47081038c380ecbda36ab07a2f3ec055668ce25ec7cc2ac2d92ce89f25001a8e",
+      "mappingMethod": "PROPOSED_FROM_EXACT_OFFICIAL_SYMBOL_AND_FEED_NAME_REQUIRES_GOVERNANCE_REVIEW"
+    },
+    {
+      "assetUid": "0x00000000000000000000000000000000be23b7c535e841a3b1bae97bc0166eae",
+      "stockToken": "0xb0992820e760d836549ba69bc7598b4af75dee03",
+      "symbol": "ORCL",
+      "feedName": "Robinhood ORCL / USD",
+      "primaryFeedProxy": "0x0e6a64a2b58a6693a531e6c555f3a5d042eea844",
+      "secondaryFeedProxy": "0x2a07f8d87d369bd8bc36472337ae02d512a7b5e5",
+      "feedDecimals": 8,
+      "heartbeatSeconds": 86400,
+      "directoryEntrySha256": "0x4f54f2ca2fb480636947dca688650372cc19b70901a5f746d4e083f9f6f291d4",
+      "mappingMethod": "PROPOSED_FROM_EXACT_OFFICIAL_SYMBOL_AND_FEED_NAME_REQUIRES_GOVERNANCE_REVIEW"
+    },
+    {
+      "assetUid": "0x00000000000000000000000000000000c2425be3658540dd8e2424cbf3c5c649",
+      "stockToken": "0xaf3d76f1834a1d425780943c99ea8a608f8a93f9",
+      "symbol": "AAPL",
+      "feedName": "Robinhood AAPL / USD",
+      "primaryFeedProxy": "0x6b22a786baa607d76728168703a39ea9c99f2cd0",
+      "secondaryFeedProxy": "0x4bdbb3150014c6ab2c6d9347b0779c49015a2f3f",
+      "feedDecimals": 8,
+      "heartbeatSeconds": 86400,
+      "directoryEntrySha256": "0xed7fc7eb79a84669276b11e7cfec9fce397e4bf6808f12ca5fe6dc920e1b68af",
+      "mappingMethod": "PROPOSED_FROM_EXACT_OFFICIAL_SYMBOL_AND_FEED_NAME_REQUIRES_GOVERNANCE_REVIEW"
+    },
+    {
+      "assetUid": "0x00000000000000000000000000000000c5ac9420091c4f9eb3ff1fdd1d2b60c6",
+      "stockToken": "0x1b0e319c6a659f002271b69db8a7df2f911c153e",
+      "symbol": "GME",
+      "feedName": "Robinhood GME / USD",
+      "primaryFeedProxy": "0x27c71df6a64fb476468edf256cf72c038bab5b67",
+      "secondaryFeedProxy": "0x42a4652d447a5b0bccf3b265be8530b85a33b3a2",
+      "feedDecimals": 8,
+      "heartbeatSeconds": 86400,
+      "directoryEntrySha256": "0xe94abcb7208982710f2598053f2935ede80b198e2d5c926d5577547eab02f410",
+      "mappingMethod": "PROPOSED_FROM_EXACT_OFFICIAL_SYMBOL_AND_FEED_NAME_REQUIRES_GOVERNANCE_REVIEW"
+    },
+    {
+      "assetUid": "0x00000000000000000000000000000000c91ba6e57a1c493f99cae2174e43c86e",
+      "stockToken": "0xec262a75e413fafd0df80480274532c79d42da09",
+      "symbol": "MSTR",
+      "feedName": "Robinhood MSTR / USD",
+      "primaryFeedProxy": "0x396118bdfb181e6240e74d243f266b061c0edc3d",
+      "secondaryFeedProxy": "0x2521a77f42098357e83bdea7fbb2a38745bf9280",
+      "feedDecimals": 8,
+      "heartbeatSeconds": 86400,
+      "directoryEntrySha256": "0xc491cdab1cee85ff82463b1c29f7d045c475899d5e7d94a7fae6b3881f01bd16",
+      "mappingMethod": "PROPOSED_FROM_EXACT_OFFICIAL_SYMBOL_AND_FEED_NAME_REQUIRES_GOVERNANCE_REVIEW"
+    },
+    {
+      "assetUid": "0x00000000000000000000000000000000cfece3244ea34bb29414dd9488b32d9f",
+      "stockToken": "0x322f0929c4625ed5bad873c95208d54e1c003b2d",
+      "symbol": "TSLA",
+      "feedName": "Robinhood TSLA / USD",
+      "primaryFeedProxy": "0x4a1166a659a55625345e9515b32adecea5547c38",
+      "secondaryFeedProxy": "0xe4479f01738b4e8c428cd8eb72d47ab9bc3c7de6",
+      "feedDecimals": 8,
+      "heartbeatSeconds": 86400,
+      "directoryEntrySha256": "0x6b7d6b938186a0a4bc0e466205b0e598606689e1e4095c362d1c1a189a0b5f7f",
+      "mappingMethod": "PROPOSED_FROM_EXACT_OFFICIAL_SYMBOL_AND_FEED_NAME_REQUIRES_GOVERNANCE_REVIEW"
+    },
+    {
+      "assetUid": "0x00000000000000000000000000000000ddf030d4e25046cab85b3d8c7cd86553",
+      "stockToken": "0x411efb0e7f985935daec3d4c3ebaea0d0ad7d89f",
+      "symbol": "SLV",
+      "feedName": "Robinhood SLV / USD",
+      "primaryFeedProxy": "0x209b73908e92ae021826ed79609845451ecba2ce",
+      "secondaryFeedProxy": "0xda81cd9c76f1d3ea32655dffc7408ef22bb0ee2a",
+      "feedDecimals": 8,
+      "heartbeatSeconds": 86400,
+      "directoryEntrySha256": "0x08819922910ca401afd49ade1e6e937f7a9a2d89819f9b31e94351aa398aa40b",
+      "mappingMethod": "PROPOSED_FROM_EXACT_OFFICIAL_SYMBOL_AND_FEED_NAME_REQUIRES_GOVERNANCE_REVIEW"
+    },
+    {
+      "assetUid": "0x00000000000000000000000000000000f6e013126d524981acc9df053b0c19ea",
+      "stockToken": "0x47f93d52cbec7c6d2cfc080e154002370a60daea",
+      "symbol": "ASML",
+      "feedName": "Robinhood ASML / USD",
+      "primaryFeedProxy": "0xb4106147e8cce40b7d46124090d373a71b70f87d",
+      "secondaryFeedProxy": "0x3efbba343e2b1cf9ed4d4d5768e20b70307aa8c9",
+      "feedDecimals": 8,
+      "heartbeatSeconds": 86400,
+      "directoryEntrySha256": "0x718d26bc151e808a35f2ec188cefcd59659f349bb226cb3f83f8943acee9720a",
+      "mappingMethod": "PROPOSED_FROM_EXACT_OFFICIAL_SYMBOL_AND_FEED_NAME_REQUIRES_GOVERNANCE_REVIEW"
+    }
+  ],
+  "officialStocksWithoutMappedFeed": [
+    {
+      "assetUid": "0x00000000000000000000000000000000022015c295294037bfe416d3e45327b9",
+      "stockToken": "0xd95b44124e475743a7589e68f3d74008a5536d44",
+      "symbol": "CRM"
+    },
+    {
+      "assetUid": "0x0000000000000000000000000000000002c4d1ce31ec4310b2c507c921a52b70",
+      "stockToken": "0x1cdad396db64bda184d5182a97dd9b3c62100b7d",
+      "symbol": "P"
+    },
+    {
+      "assetUid": "0x0000000000000000000000000000000003bd94e037654c6a9828af2137edd3c3",
+      "stockToken": "0x44f6d488021f8233b9416294d1fe9b1fee28382d",
+      "symbol": "CIEN"
+    },
+    {
+      "assetUid": "0x000000000000000000000000000000000467fac1d4da4c0e9ae874314fc8d784",
+      "stockToken": "0xbbd09f72b025360fee5c928053dca6248d35be54",
+      "symbol": "ON"
+    },
+    {
+      "assetUid": "0x0000000000000000000000000000000004a960b45163413698f0f69b5454785d",
+      "stockToken": "0xb8dbf92f9741c9ac1c32115e78581f23509916fd",
+      "symbol": "APLD"
+    },
+    {
+      "assetUid": "0x000000000000000000000000000000000747a25837b6475c8da1a66b7d036988",
+      "stockToken": "0x5f604fba1162193a4388a5dfa56f556f3e133cc2",
+      "symbol": "AEHR"
+    },
+    {
+      "assetUid": "0x0000000000000000000000000000000007a456595d454eafba36fa1fb508973e",
+      "stockToken": "0x5b97476b922f3305131b8f0b9d333172e87f4aae",
+      "symbol": "TEAM"
+    },
+    {
+      "assetUid": "0x000000000000000000000000000000000a924e0d878747e586c22887bc2d82b1",
+      "stockToken": "0xc583c60aef9dc401da72cec1b404743a93cea1cc",
+      "symbol": "QBTS"
+    },
+    {
+      "assetUid": "0x000000000000000000000000000000000b2d487cedd9423a890231379e09bbb6",
+      "stockToken": "0x95052ddcd5dc25641657424a8cf04834997e1730",
+      "symbol": "SATS"
+    },
+    {
+      "assetUid": "0x000000000000000000000000000000000ca816dd2ffb4c279c52c5fa87bd431e",
+      "stockToken": "0x93dbb1d2dc5d63f4abacff30485273f538df68ac",
+      "symbol": "FIX"
+    },
+    {
+      "assetUid": "0x000000000000000000000000000000000cd0e8a5e7c341e09f4532de2dc256b2",
+      "stockToken": "0xc93f4d80e268ab922e871bd169156c3cc41894e6",
+      "symbol": "MTSI"
+    },
+    {
+      "assetUid": "0x000000000000000000000000000000000cfe41021541408ab92f19e6af2fa729",
+      "stockToken": "0xc01aa1fecec0605b13bc84874ff7256c0f5f562a",
+      "symbol": "SMCI"
+    },
+    {
+      "assetUid": "0x0000000000000000000000000000000014f96c01ad254647b2617a5686d6053a",
+      "stockToken": "0x48961813349333209994750ffa89b3c5c22ec969",
+      "symbol": "MXL"
+    },
+    {
+      "assetUid": "0x00000000000000000000000000000000159fb9b112cb4ac8acec13e01d48e763",
+      "stockToken": "0x756bc80af765c82da966a788858d65adf14f3793",
+      "symbol": "RUN"
+    },
+    {
+      "assetUid": "0x000000000000000000000000000000001805c8a4eb1a4b3fa49e2698c0da6baa",
+      "stockToken": "0x82da4646242e1d962e96e932269dc644c94a9caa",
+      "symbol": "WDAY"
+    },
+    {
+      "assetUid": "0x000000000000000000000000000000001acf6eeea06d40c5b323c903f77bd6d1",
+      "stockToken": "0x2d427692e928fa156ec22acfabafa0447c5805b7",
+      "symbol": "GLXY"
+    },
+    {
+      "assetUid": "0x000000000000000000000000000000001adecf2c6a3749f9873b8926b5977c0a",
+      "stockToken": "0xea72ecca2d0f6bfa1394dbbcff85b52cd4233931",
+      "symbol": "CRWD"
+    },
+    {
+      "assetUid": "0x000000000000000000000000000000001bbb45628de84cb2917abd26680c7ab9",
+      "stockToken": "0x156e175dd063a8ce274c50654ef40e0032b3fbcf",
+      "symbol": "AVGO"
+    },
+    {
+      "assetUid": "0x000000000000000000000000000000001cf204e4aa464340bf2e68461ff6d8d3",
+      "stockToken": "0x9651342cea770ae9a2969ba2a52611523146aef9",
+      "symbol": "CCL"
+    },
+    {
+      "assetUid": "0x000000000000000000000000000000001db61e88b20b481093c556e4d07195b5",
+      "stockToken": "0xc9a981fee1f9dec688bb123ccdecc63d0debfc4e",
+      "symbol": "GLD"
+    },
+    {
+      "assetUid": "0x000000000000000000000000000000002087239447ce4fcb8c6194c8941d287c",
+      "stockToken": "0xba0cab75495255d0cb58e22b648bfed4ecd1f47e",
+      "symbol": "SNOW"
+    },
+    {
+      "assetUid": "0x0000000000000000000000000000000021d840250ab344d198503610448348fe",
+      "stockToken": "0xa48f22a46c0f1c46ca7d111cb6c137c271987180",
+      "symbol": "FICO"
+    },
+    {
+      "assetUid": "0x0000000000000000000000000000000022d137a64ac743aa991898cc4c1d7af4",
+      "stockToken": "0x4189f0c66ebbb0bfef1c31f763131361ef32f77c",
+      "symbol": "PR"
+    },
+    {
+      "assetUid": "0x0000000000000000000000000000000025191a136aab4e5fa41b67ec3218a093",
+      "stockToken": "0x9e7abd3c9139d14e4c86dce0e455aab7a0c2fb3e",
+      "symbol": "WYFI"
+    },
+    {
+      "assetUid": "0x000000000000000000000000000000002850ddf4a89a4195905c49a4ef7af8a5",
+      "stockToken": "0xbef75684c43c4ea7bd18dd532a2244674ee8b926",
+      "symbol": "NNE"
+    },
+    {
+      "assetUid": "0x00000000000000000000000000000000289ac6c307ef486d8201efa27fa14d63",
+      "stockToken": "0x63b814ddbd6bf339f25fed8c36158a008d5b373e",
+      "symbol": "GE"
+    },
+    {
+      "assetUid": "0x000000000000000000000000000000002993bb34578a4b92b8addda0fc4d697b",
+      "stockToken": "0xf6589f11bc40b669e584073f428b05562f568733",
+      "symbol": "SNAP"
+    },
+    {
+      "assetUid": "0x000000000000000000000000000000002b98fc3881db4479b3827d5ca058d31a",
+      "stockToken": "0x84cab63bc87912e71ad199ff14a0ba45de68fef8",
+      "symbol": "SKHY"
+    },
+    {
+      "assetUid": "0x000000000000000000000000000000002e030d9bc86c45e2b9e02418dd312548",
+      "stockToken": "0x5c90450bbb4273d7b2f17cf6917aeb237a569679",
+      "symbol": "CBRS"
+    },
+    {
+      "assetUid": "0x000000000000000000000000000000002e3b98468b2d49bea9b69a2b92228fa6",
+      "stockToken": "0xeb30663bdff0622ef4e4e5cbb4e975f19f33f51d",
+      "symbol": "FUTU"
+    },
+    {
+      "assetUid": "0x000000000000000000000000000000002ea76ec420fa43ab81d6734184f7058a",
+      "stockToken": "0x408c14038a04f7bd235329e26d2bf569ee20e250",
+      "symbol": "NU"
+    },
+    {
+      "assetUid": "0x00000000000000000000000000000000311078f293cf441789d7bc7eb9480228",
+      "stockToken": "0xfde6b5d9bb419b10c23268c74e369abff39c0460",
+      "symbol": "RCAT"
+    },
+    {
+      "assetUid": "0x0000000000000000000000000000000032d0504fcc1a48ff8ac9b29185578559",
+      "stockToken": "0x5e81213613b6b86eab4c6c50d718d34359459786",
+      "symbol": "TTWO"
+    },
+    {
+      "assetUid": "0x0000000000000000000000000000000034a1e548dfdc4b7cbf162648f20ccffc",
+      "stockToken": "0x6006ed4b2f94110851ff7509d97d034f0eed9226",
+      "symbol": "VICR"
+    },
+    {
+      "assetUid": "0x0000000000000000000000000000000036e64f28008640f9ab10ed949faf23b2",
+      "stockToken": "0x89776d4cd68193597a2fc132cfac1fde36ccea8a",
+      "symbol": "TSEM"
+    },
+    {
+      "assetUid": "0x000000000000000000000000000000003bc66ed8f2314091a365604b4c01aef5",
+      "stockToken": "0x05b37fb53a299a1b874a619e1c4c404d52c36f4c",
+      "symbol": "RDDT"
+    },
+    {
+      "assetUid": "0x0000000000000000000000000000000040b2153b3d3d4715b8d22a15ba1acff2",
+      "stockToken": "0x7c04e6a3368f2a1de3874f0e80d2e0a1a9915da6",
+      "symbol": "GLW"
+    },
+    {
+      "assetUid": "0x00000000000000000000000000000000413cbb2a5e924576a297ccb67c272298",
+      "stockToken": "0xf23250dac154d05bb671cb0d0ebef3c635c79ce2",
+      "symbol": "UPS"
+    },
+    {
+      "assetUid": "0x00000000000000000000000000000000423f62d0b1e146a3b90e9b1ffcbf6e16",
+      "stockToken": "0xb039597ed45cba7b6e2fb9e8be51802969cee5be",
+      "symbol": "PANW"
+    },
+    {
+      "assetUid": "0x00000000000000000000000000000000441407e9a0ab483bb0d6191d23bcb654",
+      "stockToken": "0x48d60243c66437c6ac3c2495be94747aed5dfe25",
+      "symbol": "LHX"
+    },
+    {
+      "assetUid": "0x00000000000000000000000000000000450b2a4327ce4062b527224efc49589a",
+      "stockToken": "0x03bc731ffb162cdd7b98d3c6542bfc291126075d",
+      "symbol": "FLY"
+    },
+    {
+      "assetUid": "0x0000000000000000000000000000000047129a8e0f8f4091841e4004bfa08013",
+      "stockToken": "0x4d21483a44bf67a86b77e3da301411880797d452",
+      "symbol": "BA"
+    },
+    {
+      "assetUid": "0x00000000000000000000000000000000482927a418d1476c8ee89e119bf61fc7",
+      "stockToken": "0x56d23bee5f41a7120170b0c603dae30128e460e9",
+      "symbol": "INTU"
+    },
+    {
+      "assetUid": "0x000000000000000000000000000000004ed544ce43734899971a27f98af8972e",
+      "stockToken": "0x39ec44bee4f6a116c6f9b8de566848a985c53c60",
+      "symbol": "ELF"
+    },
+    {
+      "assetUid": "0x00000000000000000000000000000000500f14b2a92f44d6998e0e2b9cc9387e",
+      "stockToken": "0xe0444ef8bf4ed74f74fd73686e2ddf4c1c5591e8",
+      "symbol": "NFLX"
+    },
+    {
+      "assetUid": "0x0000000000000000000000000000000051fd963e99794a83a5e429d05ddc0347",
+      "stockToken": "0x561e2a49212b7ccf47f2744ccb83e200722fadbc",
+      "symbol": "VST"
+    },
+    {
+      "assetUid": "0x0000000000000000000000000000000052b1bd2848fd4837baefc662660c6b28",
+      "stockToken": "0xf543967eebb6f1917992ef0e68de63ab07a5a0da",
+      "symbol": "CSCO"
+    },
+    {
+      "assetUid": "0x0000000000000000000000000000000053906f8ddb574007aea297c4467f567b",
+      "stockToken": "0x9ece29a4a2397c0a35fb5fa8ee2b9509130a98cc",
+      "symbol": "FISV"
+    },
+    {
+      "assetUid": "0x00000000000000000000000000000000551774850f194601b6cdefc8c802696d",
+      "stockToken": "0x48e39e56acdba37b09020c0b734a613c9a2f100a",
+      "symbol": "BB"
+    },
+    {
+      "assetUid": "0x00000000000000000000000000000000551774b7a07e4f24a8901f266c16a86d",
+      "stockToken": "0xa4f319104089fe321dc8093c6e707d4fe190a988",
+      "symbol": "CVNA"
+    },
+    {
+      "assetUid": "0x000000000000000000000000000000005756ed74636b4fb7a1cb3bbdbd18eb64",
+      "stockToken": "0x141eea040c2250eec0314e336975e81f85f6585e",
+      "symbol": "AXTI"
+    },
+    {
+      "assetUid": "0x0000000000000000000000000000000059499b681f6d4d558c653682dd74910e",
+      "stockToken": "0xc6cbad1016b38b797610c25e1dc7d95988b1f362",
+      "symbol": "MOD"
+    },
+    {
+      "assetUid": "0x000000000000000000000000000000005b0a57398f2f4322b011fb98da1f785f",
+      "stockToken": "0x4e62068525ab11fe768e29dfd00ef909b9803016",
+      "symbol": "LULU"
+    },
+    {
+      "assetUid": "0x000000000000000000000000000000005cca09f06be14aea89a8ea6265026644",
+      "stockToken": "0x329fcaceb9ad6f9580dd5f643fed0646900d043c",
+      "symbol": "LMT"
+    },
+    {
+      "assetUid": "0x000000000000000000000000000000005d6501818f804e87ab5b352105bbad0a",
+      "stockToken": "0xb853bc83a753342a4f8320ea680b4b1e84118d21",
+      "symbol": "INFQ"
+    },
+    {
+      "assetUid": "0x0000000000000000000000000000000060d13e3566ea42a0a83a3224fd446109",
+      "stockToken": "0x40e7a279850e443f582059ae5dc1c3b6563e6395",
+      "symbol": "OUST"
+    },
+    {
+      "assetUid": "0x00000000000000000000000000000000612c7fa7477f4f21b3a425f180cffd86",
+      "stockToken": "0xf0ab0c93be6f41369d302e55db1a96b3c430212d",
+      "symbol": "IREN"
+    },
+    {
+      "assetUid": "0x00000000000000000000000000000000645f1b5c9e1a4a0e8fa96d05e16df733",
+      "stockToken": "0x43b07d15ce533bec5476d70c22a78a1b2b662155",
+      "symbol": "MRNA"
+    },
+    {
+      "assetUid": "0x0000000000000000000000000000000065968801094d4f8794208f387f3fe9f9",
+      "stockToken": "0x57b0030166db0c31690d1a5aa167e2e26e2c29a4",
+      "symbol": "LRCX"
+    },
+    {
+      "assetUid": "0x000000000000000000000000000000006604af6b5c4a4031a29417ec8c2f8c53",
+      "stockToken": "0x2f62fc9fabb470c690f141c28340ed832bb27020",
+      "symbol": "BND"
+    },
+    {
+      "assetUid": "0x0000000000000000000000000000000068576a5b6aee4a6bbc9f0d91f47e3918",
+      "stockToken": "0xae517a2903e68bd929dfd15be875f8369d53e94a",
+      "symbol": "CEG"
+    },
+    {
+      "assetUid": "0x0000000000000000000000000000000069bc82da7c264394bdf6b23c8b0cd399",
+      "stockToken": "0x748c32c3ca24edf31ea597db1f3d330a7a6da3dc",
+      "symbol": "ALAB"
+    },
+    {
+      "assetUid": "0x000000000000000000000000000000006ae9a2c6d30a4d379e93169d2441876b",
+      "stockToken": "0xb1cc0ec7db69cf43539119814df40071b9d61793",
+      "symbol": "TEM"
+    },
+    {
+      "assetUid": "0x000000000000000000000000000000006b598b911bbf43ee8ca6be4dd7267f6d",
+      "stockToken": "0xcef9027c7d6985b85f0ba431125073529a947a68",
+      "symbol": "BULL"
+    },
+    {
+      "assetUid": "0x000000000000000000000000000000006d5054df7b5d4f8f8a11cc01084242e7",
+      "stockToken": "0xcf364ea52787e289de6f32077834056e3e70d6a8",
+      "symbol": "UNH"
+    },
+    {
+      "assetUid": "0x000000000000000000000000000000006e6855f045c84b9cabd44da9108be2f8",
+      "stockToken": "0x62200915e7deab1ec7f79fb246dadbb80eacddd0",
+      "symbol": "CLOV"
+    },
+    {
+      "assetUid": "0x000000000000000000000000000000006f1951b0f7c348a480d9c135679778f7",
+      "stockToken": "0x77e655e37f4d913fb9540e0d541d824171a60e81",
+      "symbol": "SIMO"
+    },
+    {
+      "assetUid": "0x000000000000000000000000000000007001c5951f374630b5f3f52fd1ff2022",
+      "stockToken": "0xf52597345a8edf418bc4071b4a35112472277d3e",
+      "symbol": "WDC"
+    },
+    {
+      "assetUid": "0x00000000000000000000000000000000778bc606b4504ca0babd4e171d5262ee",
+      "stockToken": "0x1af6446f07eb1d97c546afc8c9544cbdf3ad5137",
+      "symbol": "ASTS"
+    },
+    {
+      "assetUid": "0x00000000000000000000000000000000794a29855a8f4a9998510dfa2604da94",
+      "stockToken": "0x237c16d66590f67b886d978acd362eaead8b18c7",
+      "symbol": "POWL"
+    },
+    {
+      "assetUid": "0x000000000000000000000000000000007bf2fcc61eea41048648bcfbe4066b63",
+      "stockToken": "0x0594134df3f171a354d9c85ebd65b7a6148f6d09",
+      "symbol": "VTI"
+    },
+    {
+      "assetUid": "0x000000000000000000000000000000007dadfeb7f65f49fb9fb1bc94bbbf2d1e",
+      "stockToken": "0x2778c5024d5ca2cdb0f8ead671ffc69963adcd9c",
+      "symbol": "TER"
+    },
+    {
+      "assetUid": "0x00000000000000000000000000000000819d5f213b4746e79145d1fc118dcfed",
+      "stockToken": "0xbf449977089c718c004a66c554b26b94ef3ad4de",
+      "symbol": "CLS"
+    },
+    {
+      "assetUid": "0x000000000000000000000000000000008616857c3143457db8534cc7ccac1420",
+      "stockToken": "0x41f4267525a8aff329540ef24fd83d9044758b33",
+      "symbol": "FIG"
+    },
+    {
+      "assetUid": "0x000000000000000000000000000000008a8af3575ac442b8ab46c2d966b2107d",
+      "stockToken": "0x285b231728c7e4333799183df1094d775246a535",
+      "symbol": "SLS"
+    },
+    {
+      "assetUid": "0x000000000000000000000000000000008e29de423e4b4105b3644e645fda354a",
+      "stockToken": "0x4d67253bc223e6b0e104f1084c1fb2b669ddc41b",
+      "symbol": "CRDO"
+    },
+    {
+      "assetUid": "0x000000000000000000000000000000008f38b46a1c554840a92533677cce89ad",
+      "stockToken": "0x072f979c2cac8e1391b0162a87fee094bf8744a0",
+      "symbol": "SMH"
+    },
+    {
+      "assetUid": "0x000000000000000000000000000000008f9ceee3a7954365bdd32ff0094d9b0f",
+      "stockToken": "0xfa78c12e6488814a0262e4e802749a4a737d5fb7",
+      "symbol": "VRT"
+    },
+    {
+      "assetUid": "0x000000000000000000000000000000008fcfbfc7a42c40d4aa44dc7dc943b078",
+      "stockToken": "0x0c3260af4b8f13a69c4c2dfb84fd667890cdfa14",
+      "symbol": "NOW"
+    },
+    {
+      "assetUid": "0x000000000000000000000000000000008ffcea951a5b43138e764a75e22284f9",
+      "stockToken": "0x15cd20759ce7f3285c29a319de2d1a2e098c6f43",
+      "symbol": "XLK"
+    },
+    {
+      "assetUid": "0x000000000000000000000000000000009148f90c74194b4ab333453c9ddaccbf",
+      "stockToken": "0x99d9d8663545151603863c5acbd6fc3218899009",
+      "symbol": "AMBA"
+    },
+    {
+      "assetUid": "0x0000000000000000000000000000000092891cbd0b204f8a87d7878e0fbd60a8",
+      "stockToken": "0xb334c5ce741b80b5b671f47f5c269cb193fe8e24",
+      "symbol": "JOBY"
+    },
+    {
+      "assetUid": "0x000000000000000000000000000000009448faa0b7c14ea798a7787a8cb9db5a",
+      "stockToken": "0x59818904ab4ce163b3ce4ffb64f2d6ca02c434b4",
+      "symbol": "QUBT"
+    },
+    {
+      "assetUid": "0x0000000000000000000000000000000094e84a8622774d5699842d9b0621b871",
+      "stockToken": "0x9ab02ead789b6903c3c44d0ed32f9c707cdf12fd",
+      "symbol": "PWR"
+    },
+    {
+      "assetUid": "0x00000000000000000000000000000000952cedaaab6e4593b884e68a4efbf481",
+      "stockToken": "0x25c288e6d899b9bc30160965ad9644c67e73be0c",
+      "symbol": "F"
+    },
+    {
+      "assetUid": "0x00000000000000000000000000000000968cee5f446f422d876c7661ff20b373",
+      "stockToken": "0x7dc013eb55e436f30d7ed1afe4e36d6e45e3c3f7",
+      "symbol": "ZS"
+    },
+    {
+      "assetUid": "0x0000000000000000000000000000000098d983331a5245e98847e635b93eb920",
+      "stockToken": "0xf9b46d3d1b22199d4d1025a9cedb540a33f1a2d5",
+      "symbol": "XOM"
+    },
+    {
+      "assetUid": "0x000000000000000000000000000000009cc71272a7ec45f0adb8a7469632dd4d",
+      "stockToken": "0xbe274710bf3d9567e1b290ef6a5f9f90ca016fd8",
+      "symbol": "SHY"
+    },
+    {
+      "assetUid": "0x00000000000000000000000000000000a12860406ce84eb098e3861878aaf584",
+      "stockToken": "0x1eebee7f74517e0279dfb09d25b0407beec3fdd6",
+      "symbol": "SMR"
+    },
+    {
+      "assetUid": "0x00000000000000000000000000000000a153b6084a5743dfa4e4264b02cc0737",
+      "stockToken": "0x6e3dfd9f7e1649baa14d25cac18c94d62db10a54",
+      "symbol": "SOUN"
+    },
+    {
+      "assetUid": "0x00000000000000000000000000000000a20e50a9f81946d58dafdad20661ec10",
+      "stockToken": "0xcf6b2d875361be807eafa57458c80f28521f9333",
+      "symbol": "POET"
+    },
+    {
+      "assetUid": "0x00000000000000000000000000000000a27266921f864cf2aa69baad4124d11f",
+      "stockToken": "0xa249baf1063af884807c1e1400aef7784836917e",
+      "symbol": "APP"
+    },
+    {
+      "assetUid": "0x00000000000000000000000000000000a47bbc4c8a0b4f44a6d1aff3242b3088",
+      "stockToken": "0x521cf887e6531c6f667b5bc4d896e5d9bfe8eb2e",
+      "symbol": "AAOI"
+    },
+    {
+      "assetUid": "0x00000000000000000000000000000000a5fc7b0af972454baf7c124f624ae97f",
+      "stockToken": "0x8ef20885f94e3d9bc7eb3080279188bd5ed7c08c",
+      "symbol": "LITE"
+    },
+    {
+      "assetUid": "0x00000000000000000000000000000000a705ceeae1b44d8981ab86169e52891e",
+      "stockToken": "0xfaf9cb261b5fcc1f404bb10cd39c5c6c1974e612",
+      "symbol": "AEIS"
+    },
+    {
+      "assetUid": "0x00000000000000000000000000000000a8a9aa61c79e45b48d4ae5e9b6941ed1",
+      "stockToken": "0x7fd06a4d81ccfa3f351394e144d5191874c31313",
+      "symbol": "KTOS"
+    },
+    {
+      "assetUid": "0x00000000000000000000000000000000a98d1e2ff1ea4e54a538680595585902",
+      "stockToken": "0x36046893810a7e7fce501229d57dc3fc8c8716d0",
+      "symbol": "AMAT"
+    },
+    {
+      "assetUid": "0x00000000000000000000000000000000aa33b104a54c4de08cc929fb8e8af349",
+      "stockToken": "0x62fd0668e10d8b72339be2dcf7643001688ff13b",
+      "symbol": "MRVL"
+    },
+    {
+      "assetUid": "0x00000000000000000000000000000000aad6874f8eba489d8a46fe1cbddc8db4",
+      "stockToken": "0xeaf2512dfc1beac608f8794b3793cd4e02894aa6",
+      "symbol": "JBL"
+    },
+    {
+      "assetUid": "0x00000000000000000000000000000000ac7debdd1135468e9b6a35678f81bb28",
+      "stockToken": "0x8005d266423c7ea827372c9c864491e5786600ea",
+      "symbol": "LLY"
+    },
+    {
+      "assetUid": "0x00000000000000000000000000000000ad4edb65cfed4b93a3f768502f7ac2b2",
+      "stockToken": "0x0f17206447090e464c277571124dd2688e48aea9",
+      "symbol": "QCOM"
+    },
+    {
+      "assetUid": "0x00000000000000000000000000000000b1ab18e03806432eac8895cdd289a769",
+      "stockToken": "0x03dfbbe0ac4e7bcdafd08ed41a400326b77d8c80",
+      "symbol": "JNJ"
+    },
+    {
+      "assetUid": "0x00000000000000000000000000000000b3a0668c099e4767b0be3e33d2542cae",
+      "stockToken": "0x12e3c047bf9aecaf9ddc98c05c31bfd1dd043993",
+      "symbol": "KSS"
+    },
+    {
+      "assetUid": "0x00000000000000000000000000000000b423c47a2fed4814a7f1c3c05e1dcb97",
+      "stockToken": "0x28babd556b60e53663b8615036479a29c2cdd1bf",
+      "symbol": "ANET"
+    },
+    {
+      "assetUid": "0x00000000000000000000000000000000b5fe9845954e479aa8519666c3f56476",
+      "stockToken": "0x63d5a3b6939a33f1e75d8bcd85759858239600db",
+      "symbol": "CTSH"
+    },
+    {
+      "assetUid": "0x00000000000000000000000000000000b6231b1f45a647a1930f919f161df020",
+      "stockToken": "0xaa4d64474c172010ab57719cb9951e6142a100d3",
+      "symbol": "PL"
+    },
+    {
+      "assetUid": "0x00000000000000000000000000000000b7d8350ca5a94c8f999bcee3b17c079d",
+      "stockToken": "0xb1969f6604ca1ae7a2cd3f1827876e914594ca2d",
+      "symbol": "TE"
+    },
+    {
+      "assetUid": "0x00000000000000000000000000000000b82496d605ca4b019c9200daa049f52f",
+      "stockToken": "0xf53f66751b1eff985311b693531e3290f600c410",
+      "symbol": "SHOP"
+    },
+    {
+      "assetUid": "0x00000000000000000000000000000000b9e9686fc0904e87aef5134b823020e3",
+      "stockToken": "0xbe6702d7b70315376dc48a3293f24f0982f86386",
+      "symbol": "NVTS"
+    },
+    {
+      "assetUid": "0x00000000000000000000000000000000ba4c7482f4e048f9a8d4a19fa2d1227a",
+      "stockToken": "0xfb2664f07b6aadd29ea7a59d8859b1aeb8645cda",
+      "symbol": "PATH"
+    },
+    {
+      "assetUid": "0x00000000000000000000000000000000bb970311792440cebde7cef41f80d446",
+      "stockToken": "0x0e6e67ba88e7b5d9b67636a215c76779b948de79",
+      "symbol": "UMC"
+    },
+    {
+      "assetUid": "0x00000000000000000000000000000000bf2748d148654427a4034359cbfb6f91",
+      "stockToken": "0x92f9f459f1a9a5ad266b182be7bffd1c6c666894",
+      "symbol": "COHR"
+    },
+    {
+      "assetUid": "0x00000000000000000000000000000000bf86ec8b050b46a9a7ad5a532b90c6af",
+      "stockToken": "0x94b8aae43a1ccc08aa64b7d1f29b4d920af4a0c9",
+      "symbol": "GEV"
+    },
+    {
+      "assetUid": "0x00000000000000000000000000000000c0c36a7e53234128bcb2e369ebc065c2",
+      "stockToken": "0x373c06c4f7bde527d7dae4ba169e42b55e393ced",
+      "symbol": "AUR"
+    },
+    {
+      "assetUid": "0x00000000000000000000000000000000c0d3fe37e35240d1a0f311a07e2b9fc4",
+      "stockToken": "0x980dcf6766fa79f5cf0c4aadb3ab477ff15a9619",
+      "symbol": "IBM"
+    },
+    {
+      "assetUid": "0x00000000000000000000000000000000c1fbbd1f58eb47a1a1d16285e48e2f20",
+      "stockToken": "0xf7181b63fdb858558a74ba96bc42732684cd7965",
+      "symbol": "NAVN"
+    },
+    {
+      "assetUid": "0x00000000000000000000000000000000c23820045b544bafbdc0dd622098fcc3",
+      "stockToken": "0xf1953dab6fad537488d5a022361ffaa8b4c95ec6",
+      "symbol": "INOD"
+    },
+    {
+      "assetUid": "0x00000000000000000000000000000000c40c1aabe3514588ae86defffe868021",
+      "stockToken": "0x05a3d1cd21d0c88145e82600e62e7e496e0f222b",
+      "symbol": "AMC"
+    },
+    {
+      "assetUid": "0x00000000000000000000000000000000c4aa88df91204d23a4ff43cd0768298d",
+      "stockToken": "0xb1bf26c1d20ff267a4f93550d1e0d06ac40a114b",
+      "symbol": "RIVN"
+    },
+    {
+      "assetUid": "0x00000000000000000000000000000000c5e6650eefa247d599fba9cf6dd5bdad",
+      "stockToken": "0x52d50d0280ad1054b43f052bd70a49a212a1b128",
+      "symbol": "MPWR"
+    },
+    {
+      "assetUid": "0x00000000000000000000000000000000c6257ac357d34120ba22c2589ba17cc9",
+      "stockToken": "0x9b23573b156b52565012f5ce02cdf60afbaa70be",
+      "symbol": "PENG"
+    },
+    {
+      "assetUid": "0x00000000000000000000000000000000c8325c5c9c7e4ca2a3d8344500c5c483",
+      "stockToken": "0x116f00968269b7bfbad4109ce591d6e74c0601d4",
+      "symbol": "NET"
+    },
+    {
+      "assetUid": "0x00000000000000000000000000000000c89bb960aac6406fb95b34dc136a6016",
+      "stockToken": "0xd63abb2c13d7a8421a8017a712802053568e3c1d",
+      "symbol": "SCHD"
+    },
+    {
+      "assetUid": "0x00000000000000000000000000000000c8fa21fd16c744c9ac5c7f5a60ca433a",
+      "stockToken": "0xa5d4968421ba94814be3b136b15cf422101ac1a3",
+      "symbol": "LUNR"
+    },
+    {
+      "assetUid": "0x00000000000000000000000000000000cbe64873637849e38e848d35826726d4",
+      "stockToken": "0x3139d77ace0cbaa5bdfd38bd1f1911a794af0b0e",
+      "symbol": "ABCL"
+    },
+    {
+      "assetUid": "0x00000000000000000000000000000000cdf9557e169847919e821c0a7bbb4fd3",
+      "stockToken": "0xc27dbd474af5181c5a8777903690d8d262d12648",
+      "symbol": "AXON"
+    },
+    {
+      "assetUid": "0x00000000000000000000000000000000d198f900bc014be980442c67f2444460",
+      "stockToken": "0x1c690498150252222c275a5ced69d3a6b1f52d5e",
+      "symbol": "EWT"
+    },
+    {
+      "assetUid": "0x00000000000000000000000000000000d246e0e1cfa541deb327dcae22f1328a",
+      "stockToken": "0x3fb8976980d486084b2eb4a404bd12e72823958f",
+      "symbol": "FTNT"
+    },
+    {
+      "assetUid": "0x00000000000000000000000000000000d2ef3f28627f47539db72dbe14c6f1f7",
+      "stockToken": "0x59dd09d4900c2e4b5f75b7c0d4e6796fcc234cb1",
+      "symbol": "HPE"
+    },
+    {
+      "assetUid": "0x00000000000000000000000000000000d3de17a58c1a4b58bd07bef4b9123e7f",
+      "stockToken": "0x26dcbfb34fc83cabd6990f449674efdc6097ff85",
+      "symbol": "VSAT"
+    },
+    {
+      "assetUid": "0x00000000000000000000000000000000d44f85ce72274d6e867a54fa2f4009cb",
+      "stockToken": "0x232b8ed6377be97813853b0ac104c4cda8378d1b",
+      "symbol": "ADBE"
+    },
+    {
+      "assetUid": "0x00000000000000000000000000000000d491ee29c5564368830ce787289dcae8",
+      "stockToken": "0xa8eb3bccbf2017ee7cbfb652eb51cf2e1b153289",
+      "symbol": "XNDU"
+    },
+    {
+      "assetUid": "0x00000000000000000000000000000000d4bd519623e545bf91b7ea590c66801e",
+      "stockToken": "0x27c99fbde9d0d2aa4f4bfb4943f237843ddf6958",
+      "symbol": "DDOG"
+    },
+    {
+      "assetUid": "0x00000000000000000000000000000000d6571fe1a63748a4b7b79b37612dc9b8",
+      "stockToken": "0x92ef19e82bd8ff36661de838d5eae7e5cef0effe",
+      "symbol": "RDW"
+    },
+    {
+      "assetUid": "0x00000000000000000000000000000000d73a53e43ed744d4b5d42c5293ba51ad",
+      "stockToken": "0x822cc93ffd030293e9842c30bbd678f530701867",
+      "symbol": "BE"
+    },
+    {
+      "assetUid": "0x00000000000000000000000000000000d8a566c761e845fc8adffb9b2295c3ee",
+      "stockToken": "0x1d11f0496982706c5e14a514d4e79f2e6bde4516",
+      "symbol": "DJT"
+    },
+    {
+      "assetUid": "0x00000000000000000000000000000000d9dd6bf798564cfd8d65f3f95fc915c3",
+      "stockToken": "0x8b2f88497f15a18e9d4ffa1a8ffb8538399ae774",
+      "symbol": "OKLO"
+    },
+    {
+      "assetUid": "0x00000000000000000000000000000000da64fede272447a3b772423f0962a984",
+      "stockToken": "0x44c4f142009036cf477ed2d09932051843137cf1",
+      "symbol": "ZM"
+    },
+    {
+      "assetUid": "0x00000000000000000000000000000000dceece67a8c740f180047f65ccb4c44a",
+      "stockToken": "0x282e87451e10fa6679bc7d76c69be44cd3fc777c",
+      "symbol": "FLNC"
+    },
+    {
+      "assetUid": "0x00000000000000000000000000000000df2cb1370b1b41a8b896a706fefae931",
+      "stockToken": "0x98e75885157c80992a8d41b696d8c9c6fb30a926",
+      "symbol": "SOFI"
+    },
+    {
+      "assetUid": "0x00000000000000000000000000000000dfb6ab4d0e0f4cc5bff6d60396755b5f",
+      "stockToken": "0xc02f12b9fe9e707079ec0d546f3050d3f6c1f8bd",
+      "symbol": "DOCN"
+    },
+    {
+      "assetUid": "0x00000000000000000000000000000000e0c9d26f234a467fa738e2642dd815ca",
+      "stockToken": "0x348be1a8663f15edde5cdf8a96bb69078f7ab6fd",
+      "symbol": "WULF"
+    },
+    {
+      "assetUid": "0x00000000000000000000000000000000e0e44220991548d0b030699e3062c2a7",
+      "stockToken": "0x4ea005168d7f09a7a0ba9d1def21a479950e44c2",
+      "symbol": "COST"
+    },
+    {
+      "assetUid": "0x00000000000000000000000000000000e2f7326613594997b83c3fa7c2e63d70",
+      "stockToken": "0x0b5fb4031cae9163db10b169ee72685f0edc8545",
+      "symbol": "TTD"
+    },
+    {
+      "assetUid": "0x00000000000000000000000000000000e42a66686f784f69abb7759114f38f51",
+      "stockToken": "0xaea445c5f3db1a462998ccc422a875a361ee5d99",
+      "symbol": "HWM"
+    },
+    {
+      "assetUid": "0x00000000000000000000000000000000e56a9632bdd64f7ea0745b48971ad047",
+      "stockToken": "0xccee82fe024c36fa15e1005ede3e9e4787e23d09",
+      "symbol": "HIMS"
+    },
+    {
+      "assetUid": "0x00000000000000000000000000000000e5c73eb672384c37ab8554f9ebe3131a",
+      "stockToken": "0x8cf07c5a878945185d327aaa6e33faa95f95e7bf",
+      "symbol": "CELH"
+    },
+    {
+      "assetUid": "0x00000000000000000000000000000000eed533334fe84ce08253d5b1dcff7373",
+      "stockToken": "0xf0c4bf4c582cb3836e98394b1d4e7b7281101be8",
+      "symbol": "RBLX"
+    },
+    {
+      "assetUid": "0x00000000000000000000000000000000eefd305f8fd04bdb882b158b0b30d776",
+      "stockToken": "0xad622320e520de39e72d41ef07438c3fd3354875",
+      "symbol": "SPMO"
+    },
+    {
+      "assetUid": "0x00000000000000000000000000000000efb0e40b668c4b92876632971560e252",
+      "stockToken": "0xdd356aa38f40a7b7076755ac854b6fbb1f0d305b",
+      "symbol": "AMKR"
+    },
+    {
+      "assetUid": "0x00000000000000000000000000000000f1469aaabbf6434cb8820d1026a28460",
+      "stockToken": "0x8ff63eaeee3fe54ba450c4f5538064ec5a893aef",
+      "symbol": "ONTO"
+    },
+    {
+      "assetUid": "0x00000000000000000000000000000000f379ff90efb54b4cb6280fc923e38926",
+      "stockToken": "0x75742c18bc1f1c5c5f448f4c9d9c6f66dafaaa38",
+      "symbol": "SOXX"
+    },
+    {
+      "assetUid": "0x00000000000000000000000000000000f759d1fccdb8418a8970ee6932aa6584",
+      "stockToken": "0xeb61c0ed490a367d4e3631ccf8a74b3bfc7e775d",
+      "symbol": "HII"
+    },
+    {
+      "assetUid": "0x00000000000000000000000000000000f7eed20de20b4d05851c48313f1701b7",
+      "stockToken": "0xf6290b5e7c26502e2da514c31509849718ea76a5",
+      "symbol": "AVAV"
+    },
+    {
+      "assetUid": "0x00000000000000000000000000000000f87aee91942940d0acf2e657187332af",
+      "stockToken": "0xacef2e09adb47ad6abebad9ff06689e60615c2b6",
+      "symbol": "INDA"
+    },
+    {
+      "assetUid": "0x00000000000000000000000000000000f92f60961bbe43028a23a3d52174b320",
+      "stockToken": "0xddf2266b79abf0b48898959b0ed6e6adf512be74",
+      "symbol": "MDB"
+    },
+    {
+      "assetUid": "0x00000000000000000000000000000000fb3ae5faa7f7465a95815518c4cd7a8b",
+      "stockToken": "0x7066a64c24e4206cd62e83bf198c1e7eb361f51e",
+      "symbol": "PFE"
+    },
+    {
+      "assetUid": "0x00000000000000000000000000000000fb93cee635bd469e8dc9849f12f889aa",
+      "stockToken": "0x96b933c74ecb4a0926b9210cef7b743ef46be2e9",
+      "symbol": "KLAC"
+    },
+    {
+      "assetUid": "0x00000000000000000000000000000000ff5617943e99488d87281bae9b706d53",
+      "stockToken": "0x7c148f74ac7445d1f28366b7fcdc6792a9fcd0cf",
+      "symbol": "IBRX"
+    }
+  ]
+}
