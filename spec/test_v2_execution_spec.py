@@ -573,6 +573,10 @@ class V2ExecutionSpecTest(unittest.TestCase):
             factory["predictMarketAddresses(address,CreateMarketParams)"]["returns"],
             "(bytes32,address,address,address,address)",
         )
+        self.assertEqual(
+            factory["runtimeBindings()"]["returns"],
+            "(address,address,address,address,address,address,address,address)",
+        )
         locker = {entry["signature"] for entry in modules["LaunchLocker"]["functions"]}
         self.assertIn("compoundLockedFees()", locker)
         self.assertNotIn("compoundLockedFees(bytes32)", locker)
@@ -582,6 +586,7 @@ class V2ExecutionSpecTest(unittest.TestCase):
             "UnauthorizedMarketCurve(address,address)",
             "GraduationNotRetryable(bytes32,uint8,uint8)",
             "LaunchLockerAddressCollision(address)",
+            "PreGraduationTerminalStateForbidden(uint8)",
             "RecoveryCapsAlreadyFrozen(bytes32,uint32)",
             "RecoveryCapSnapshotMismatch(bytes32,uint32)",
             "EmergencyStateHashMismatch(bytes32,bytes32)",
@@ -750,6 +755,34 @@ class V2ExecutionSpecTest(unittest.TestCase):
                     market_edges.add(tuple(edge))
         self.assertEqual(market_edges, {tuple(edge) for edge in self.manifest["transitions"]["MarketStatus"]})
         self.assertEqual(mutations["markRescued(bytes32)"]["minimumDelaySecondsFromSweptAt"], 604800)
+
+    def test_pre_graduation_terminal_state_products_are_forbidden(self):
+        authority = self.manifest["stateAuthority"]
+        self.assertEqual(
+            authority["forbiddenStateProducts"],
+            [
+                {"launchPhase": "NotGraduated", "marketStatus": "RETIRED"},
+                {"launchPhase": "NotGraduated", "marketStatus": "EMERGENCY_EXIT"},
+            ],
+        )
+        mutations = {entry["function"]: entry for entry in authority["mutations"]}
+        for signature in (
+            "setMarketRetired(bytes32,bytes32)",
+            "commitEmergencyExit(bytes32,uint64,bytes32)",
+        ):
+            self.assertEqual(mutations[signature]["forbiddenLaunchPhases"], ["NotGraduated"])
+
+        permissions = {
+            (entry["module"], entry["signature"]): entry
+            for entry in self.permissions["functions"]
+        }
+        for key in (
+            ("MarketRegistryV2", "setMarketRetired(bytes32,bytes32)"),
+            ("MarketRegistryV2", "commitEmergencyExit(bytes32,uint64,bytes32)"),
+            ("MarketController", "retireMarket(bytes32,bytes32)"),
+            ("MarketController", "activateEmergencyExit(bytes32)"),
+        ):
+            self.assertIn("POST_CURVE_PHASE", permissions[key]["precondition"])
 
     def test_market_registry_has_no_generic_or_governance_write_path(self):
         authority = self.manifest["stateAuthority"]
@@ -948,7 +981,7 @@ class V2ExecutionSpecTest(unittest.TestCase):
             create_for["precondition"], "CREATOR_EQUALS_ROUTER_OUTER_MSG_SENDER"
         )
         deposit_for = rows[
-            ("UserStockVault", "depositStockFor(address,uint256)")
+            ("UserStockVault", "depositStockFor(bytes32,address,uint256)")
         ]
         self.assertEqual(deposit_for["caller"], "ALLOCATION_MODULE")
         self.assertEqual(deposit_for["recipient"], "fixed_user_internal_balance")
@@ -956,6 +989,51 @@ class V2ExecutionSpecTest(unittest.TestCase):
         all_signatures = {entry["displaySignature"] for entry in rows.values()}
         self.assertFalse(any("tx.origin" in signature for signature in all_signatures))
         self.assertNotIn("launchAndBuyFor(address,CreateMarketParams,uint256,uint256,address)", all_signatures)
+
+    def test_multi_asset_vault_is_schema_singleton_and_asset_scoped(self):
+        policy = self.manifest["vault"]
+        self.assertEqual(
+            policy["custodyScope"],
+            "ONE_MULTI_ASSET_USER_STOCK_VAULT_PER_VAULT_SCHEMA_VERSION",
+        )
+        self.assertEqual(policy["initialDeploymentCount"], 1)
+        self.assertEqual(
+            policy["schemaUniqueness"],
+            "OFFICIAL_STOCK_REGISTRY_ENFORCES_ONE_CANONICAL_VAULT_PER_SCHEMA",
+        )
+        self.assertEqual(policy["assetKey"], "EXPLICIT_CANONICAL_ASSET_UID")
+        self.assertEqual(policy["allocationKey"], "ASSET_UID_USER_MARKET_ID")
+        self.assertFalse(policy["onchainAssetEnumeration"])
+
+        modules = {entry["module"]: entry for entry in self.abi["modules"]}
+        vault_functions = {
+            entry["signature"] for entry in modules["UserStockVault"]["functions"]
+        }
+        self.assertTrue(
+            {
+                "depositStock(bytes32,uint256)",
+                "withdrawFreeStock(bytes32,uint256)",
+                "forceReleaseAllocation(bytes32,bytes32)",
+                "allocation(bytes32,address,bytes32)",
+                "totalDeposited(bytes32)",
+                "totalAllocated(bytes32)",
+                "vaultIdentity()",
+            }.issubset(vault_functions)
+        )
+        self.assertFalse(any(signature.startswith("batch") for signature in vault_functions))
+
+        registry_functions = {
+            entry["signature"]
+            for entry in modules["OfficialStockRegistryV2"]["functions"]
+        }
+        self.assertIn("vaultSchemaId(address)", registry_functions)
+        self.assertIn("vaultForSchema(bytes32)", registry_functions)
+        self.assertIn(
+            "StockVaultRegistered(address indexed userStockVault,bytes32 indexed schemaId,address indexed marketRegistry,address allocationManager)",
+            modules["OfficialStockRegistryV2"]["events"],
+        )
+        for event in modules["UserStockVault"]["events"]:
+            self.assertIn("bytes32 indexed assetUid", event)
 
     def test_creator_revenue_epoch_freezes_historical_attribution(self):
         policy = self.manifest["creatorRevenue"]
@@ -1645,9 +1723,9 @@ class V2ExecutionSpecTest(unittest.TestCase):
                 "uint8 status",
             ],
         )
-        self.assertEqual(
-            registry["events"][0],
+        self.assertIn(
             "AssetRegistered(bytes32 indexed assetUid,address indexed stockToken,address indexed userStockVault,uint8 tokenDecimals)",
+            registry["events"],
         )
 
         market_config = modules["MarketRegistryV2"]["structs"]["MarketConfig"]
@@ -1712,6 +1790,8 @@ class V2ExecutionSpecTest(unittest.TestCase):
     def test_generic_numeric_domain_matches_bounds_and_extreme_values(self):
         bounds = self.numeric_bounds
         self.assertEqual(bounds["status"], "APPROVED_GENERIC_NUMERIC_DOMAIN")
+        self.assertEqual(bounds["assetAdmission"]["minimumDecimals"], 6)
+        self.assertEqual(bounds["assetAdmission"]["maximumDecimals"], 18)
         domains = bounds["solidityDomains"]
         self.assertEqual(int(domains["uint256Max"]), UINT256_MAX)
         self.assertEqual(int(domains["int128Max"]), INT128_MAX)
@@ -1744,6 +1824,22 @@ class V2ExecutionSpecTest(unittest.TestCase):
             minimum_nonzero_stock_position(19)
         with self.assertRaises(ValueError):
             stake_saturation_amount(5)
+
+        registry_source = (
+            PROJECT_ROOT / "contracts/src/v2/modules/OfficialStockRegistryV2.sol"
+        ).read_text(encoding="utf-8")
+        allocation_source = (
+            PROJECT_ROOT / "contracts/src/v2/shared/AllocationManagerIncreases.sol"
+        ).read_text(encoding="utf-8")
+        market_registry_source = (
+            PROJECT_ROOT / "contracts/src/v2/modules/MarketRegistryV2.sol"
+        ).read_text(encoding="utf-8")
+        self.assertIn("MIN_TOKEN_DECIMALS = 6", registry_source)
+        self.assertIn("MAX_TOKEN_DECIMALS = 18", registry_source)
+        self.assertIn("assetView.tokenDecimals < 6", allocation_source)
+        self.assertIn("assetView.tokenDecimals > 18", allocation_source)
+        self.assertIn("asset.tokenDecimals < 6", market_registry_source)
+        self.assertIn("asset.tokenDecimals > 18", market_registry_source)
         with self.assertRaises(ValueError):
             stake_saturation_amount(19)
 

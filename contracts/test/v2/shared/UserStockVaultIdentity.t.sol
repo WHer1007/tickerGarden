@@ -12,45 +12,62 @@ import {MockExactQuoteToken} from "../mocks/MockV2QuoteAssets.sol";
 
 contract EmptyVaultDependency {}
 
+contract AlternateSchemaStockVaultIdentity {
+    address private immutable _registry;
+    address private immutable _marketRegistry;
+    address private immutable _allocationManager;
+
+    constructor(address registry, address marketRegistry, address allocationManager) {
+        _registry = registry;
+        _marketRegistry = marketRegistry;
+        _allocationManager = allocationManager;
+    }
+
+    function vaultIdentity()
+        external
+        view
+        returns (address registry, address marketRegistry, address allocationManager, bytes32 schemaId)
+    {
+        return (
+            _registry,
+            _marketRegistry,
+            _allocationManager,
+            keccak256("TickerGarden.UserStockVault.AlternateSchema.test")
+        );
+    }
+}
+
 contract UserStockVaultIdentityHarness is UserStockVaultIdentity {
-    constructor(
-        address registry,
-        address marketRegistry,
-        address allocationManager,
-        bytes32 assetUid,
-        address stockToken
-    ) UserStockVaultIdentity(registry, marketRegistry, allocationManager, assetUid, stockToken) {}
+    constructor(address registry, address marketRegistry, address allocationManager)
+        UserStockVaultIdentity(registry, marketRegistry, allocationManager)
+    {}
 
     function identity()
         external
         view
-        returns (
-            address registry,
-            address marketRegistry,
-            address allocationManager,
-            bytes32 assetUid,
-            address stockToken
-        )
+        returns (address registry, address marketRegistry, address allocationManager, bytes32 schemaId)
     {
-        return (
-            address(_officialStockRegistry),
-            address(_marketRegistry),
-            _allocationManager,
-            _assetUid,
-            address(_stockToken)
-        );
+        return (address(_officialStockRegistry), address(_marketRegistry), _allocationManager, VAULT_SCHEMA_ID);
     }
 
-    function canonicalAsset() external view returns (AssetView memory) {
-        return _canonicalAsset();
+    function canonicalAsset(bytes32 assetUid) external view returns (AssetView memory) {
+        return _canonicalAsset(assetUid);
     }
 
-    function activeCanonicalAsset() external view returns (AssetView memory) {
-        return _activeCanonicalAsset();
+    function activeCanonicalAsset(bytes32 assetUid) external view returns (AssetView memory) {
+        return _activeCanonicalAsset(assetUid);
     }
 
     function allocationManagerProbe() external view onlyAllocationManager returns (bool) {
         return true;
+    }
+
+    function vaultIdentity()
+        external
+        view
+        returns (address registry, address marketRegistry, address allocationManager, bytes32 schemaId)
+    {
+        return (address(_officialStockRegistry), address(_marketRegistry), _allocationManager, VAULT_SCHEMA_ID);
     }
 }
 
@@ -62,6 +79,7 @@ contract UserStockVaultIdentityTest is Test {
     AccessManager internal accessManager;
     OfficialStockRegistryV2 internal registry;
     MockExactQuoteToken internal stockToken;
+    MockExactQuoteToken internal otherToken;
     EmptyVaultDependency internal allocationManager;
     EmptyVaultDependency internal marketRegistry;
     UserStockVaultIdentityHarness internal vault;
@@ -72,9 +90,9 @@ contract UserStockVaultIdentityTest is Test {
         stockToken = new MockExactQuoteToken(18);
         marketRegistry = new EmptyVaultDependency();
         allocationManager = new EmptyVaultDependency();
-        vault = new UserStockVaultIdentityHarness(
-            address(registry), address(marketRegistry), address(allocationManager), ASSET_UID, address(stockToken)
-        );
+        otherToken = new MockExactQuoteToken(6);
+        vault =
+            new UserStockVaultIdentityHarness(address(registry), address(marketRegistry), address(allocationManager));
 
         bytes4[] memory selectors = new bytes4[](1);
         selectors[0] = IOfficialStockRegistryV2.registerAsset.selector;
@@ -83,99 +101,52 @@ contract UserStockVaultIdentityTest is Test {
     }
 
     function test_constructorFreezesIdentityBeforeRegistryRegistrationWithoutInitializer() public {
-        (
-            address actualRegistry,
-            address actualMarketRegistry,
-            address actualManager,
-            bytes32 actualUid,
-            address actualToken
-        ) = vault.identity();
+        (address actualRegistry, address actualMarketRegistry, address actualManager, bytes32 actualSchemaId) =
+            vault.identity();
         assertEq(actualRegistry, address(registry));
         assertEq(actualMarketRegistry, address(marketRegistry));
         assertEq(actualManager, address(allocationManager));
-        assertEq(actualUid, ASSET_UID);
-        assertEq(actualToken, address(stockToken));
+        assertEq(actualSchemaId, keccak256("TickerGarden.UserStockVault.MultiAsset.v1"));
 
         (bool initialized,) = address(vault)
-            .call(
-                abi.encodeWithSignature(
-                    "initialize(address,address,address,bytes32,address)",
-                    address(1),
-                    address(2),
-                    address(3),
-                    bytes32(0),
-                    address(4)
-                )
-            );
+            .call(abi.encodeWithSignature("initialize(address,address,address)", address(1), address(2), address(3)));
         assertFalse(initialized);
     }
 
     function test_constructorRejectsZeroNoCodeAndAliasedDependencies() public {
-        _expectInvalid(address(0), address(marketRegistry), address(allocationManager), ASSET_UID, address(stockToken));
-        _expectInvalid(address(registry), address(0), address(allocationManager), ASSET_UID, address(stockToken));
-        _expectInvalid(address(registry), address(marketRegistry), address(0), ASSET_UID, address(stockToken));
-        _expectInvalid(
-            address(registry), address(marketRegistry), address(allocationManager), bytes32(0), address(stockToken)
-        );
-        _expectInvalid(address(registry), address(marketRegistry), address(allocationManager), ASSET_UID, address(0));
-        _expectInvalid(
-            address(0x1111), address(marketRegistry), address(allocationManager), ASSET_UID, address(stockToken)
-        );
-        _expectInvalid(address(registry), address(0x2222), address(allocationManager), ASSET_UID, address(stockToken));
-        _expectInvalid(address(registry), address(marketRegistry), address(0x3333), ASSET_UID, address(stockToken));
-        _expectInvalid(
-            address(registry), address(marketRegistry), address(allocationManager), ASSET_UID, address(0x4444)
-        );
-        _expectInvalid(address(registry), address(registry), address(allocationManager), ASSET_UID, address(stockToken));
-        _expectInvalid(
-            address(registry), address(marketRegistry), address(marketRegistry), ASSET_UID, address(stockToken)
-        );
-        _expectInvalid(address(registry), address(marketRegistry), address(stockToken), ASSET_UID, address(stockToken));
+        _expectInvalid(address(0), address(marketRegistry), address(allocationManager));
+        _expectInvalid(address(registry), address(0), address(allocationManager));
+        _expectInvalid(address(registry), address(marketRegistry), address(0));
+        _expectInvalid(address(registry), address(registry), address(allocationManager));
+        _expectInvalid(address(registry), address(marketRegistry), address(marketRegistry));
+        _expectInvalid(address(registry), address(marketRegistry), address(registry));
     }
 
     function test_unregisteredAndMismatchedRegistryBindingsFailClosed() public {
-        vm.expectRevert(
-            abi.encodeWithSelector(
-                UserStockVaultIdentity.NonCanonicalVaultBinding.selector,
-                ASSET_UID,
-                address(stockToken),
-                address(0),
-                address(vault),
-                address(0)
-            )
-        );
-        vault.canonicalAsset();
+        vm.expectRevert();
+        vault.canonicalAsset(ASSET_UID);
 
-        EmptyVaultDependency otherVault = new EmptyVaultDependency();
-        registry.registerAsset(ASSET_UID, address(stockToken), 18, address(otherVault));
-        vm.expectRevert(
-            abi.encodeWithSelector(
-                UserStockVaultIdentity.NonCanonicalVaultBinding.selector,
-                ASSET_UID,
-                address(stockToken),
-                address(stockToken),
-                address(vault),
-                address(otherVault)
-            )
+        registry.registerAsset(ASSET_UID, address(stockToken), 18, address(vault));
+        AlternateSchemaStockVaultIdentity otherVault = new AlternateSchemaStockVaultIdentity(
+            address(registry), address(marketRegistry), address(allocationManager)
         );
-        vault.canonicalAsset();
+        registry.registerAsset(OTHER_ASSET_UID, address(otherToken), 6, address(otherVault));
+        vm.expectRevert();
+        vault.canonicalAsset(OTHER_ASSET_UID);
     }
 
     function test_exactRegistryBindingActivatesOnlyTheCanonicalVaultAndToken() public {
         registry.registerAsset(ASSET_UID, address(stockToken), 18, address(vault));
-        AssetView memory assetView = vault.activeCanonicalAsset();
+        AssetView memory assetView = vault.activeCanonicalAsset(ASSET_UID);
         assertEq(assetView.stockToken, address(stockToken));
         assertEq(assetView.userStockVault, address(vault));
         assertEq(assetView.tokenDecimals, 18);
         assertEq(assetView.status, 1);
 
-        MockExactQuoteToken otherToken = new MockExactQuoteToken(6);
-        UserStockVaultIdentityHarness otherVault = new UserStockVaultIdentityHarness(
-            address(registry), address(marketRegistry), address(allocationManager), OTHER_ASSET_UID, address(otherToken)
-        );
-        registry.registerAsset(OTHER_ASSET_UID, address(otherToken), 6, address(otherVault));
-        assertEq(otherVault.activeCanonicalAsset().stockToken, address(otherToken));
-        assertEq(vault.activeCanonicalAsset().stockToken, address(stockToken));
+        MockExactQuoteToken secondToken = new MockExactQuoteToken(6);
+        registry.registerAsset(OTHER_ASSET_UID, address(secondToken), 6, address(vault));
+        assertEq(vault.activeCanonicalAsset(OTHER_ASSET_UID).stockToken, address(secondToken));
+        assertEq(vault.activeCanonicalAsset(ASSET_UID).stockToken, address(stockToken));
     }
 
     function test_assetStatusGatesNewActivityButPreservesCanonicalIdentity() public {
@@ -185,10 +156,10 @@ contract UserStockVaultIdentityTest is Test {
         accessManager.setTargetFunctionRole(address(registry), selector, PROTOCOL_ADMIN_ROLE);
         registry.pauseAsset(ASSET_UID, keccak256("pause"));
 
-        AssetView memory canonical = vault.canonicalAsset();
+        AssetView memory canonical = vault.canonicalAsset(ASSET_UID);
         assertEq(canonical.status, 2);
         vm.expectRevert(abi.encodeWithSelector(UserStockVaultIdentity.AssetNotActive.selector, ASSET_UID, uint8(2)));
-        vault.activeCanonicalAsset();
+        vault.activeCanonicalAsset(ASSET_UID);
     }
 
     function test_onlyImmutableAllocationManagerCanEnterAllocationBoundary() public {
@@ -209,14 +180,12 @@ contract UserStockVaultIdentityTest is Test {
         assertEq(stockToken.balanceOf(address(vault)), 0);
     }
 
-    function _expectInvalid(address registry_, address marketRegistry_, address manager_, bytes32 uid_, address token_)
-        private
-    {
+    function _expectInvalid(address registry_, address marketRegistry_, address manager_) private {
         vm.expectRevert(
             abi.encodeWithSelector(
-                UserStockVaultIdentity.InvalidVaultIdentity.selector, registry_, marketRegistry_, manager_, uid_, token_
+                UserStockVaultIdentity.InvalidVaultIdentity.selector, registry_, marketRegistry_, manager_
             )
         );
-        new UserStockVaultIdentityHarness(registry_, marketRegistry_, manager_, uid_, token_);
+        new UserStockVaultIdentityHarness(registry_, marketRegistry_, manager_);
     }
 }

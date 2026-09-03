@@ -3,9 +3,10 @@ pragma solidity 0.8.26;
 
 import {Test} from "forge-std/Test.sol";
 
-import {MarketConfig, MarketRuntime, MarketView} from "../../../src/v2/interfaces/IV2Protocol.sol";
+import {GaugeIdentity, MarketConfig, MarketRuntime, MarketView} from "../../../src/v2/interfaces/IV2Protocol.sol";
 import {MarketFeeAccounting} from "../../../src/v2/libraries/MarketFeeAccounting.sol";
-import {MemeStockGauge, MemeStockGaugeInit} from "../../../src/v2/modules/MemeStockGauge.sol";
+import {MemeStockGauge} from "../../../src/v2/modules/MemeStockGauge.sol";
+import {MemeStockGaugeClone} from "../../../src/v2/shared/MemeStockGaugeClone.sol";
 import {ProtocolFeeVaultV4Accounting} from "../../../src/v2/shared/ProtocolFeeVaultV4Accounting.sol";
 import {ProtocolFeeVaultV4Credit} from "../../../src/v2/shared/ProtocolFeeVaultV4Credit.sol";
 import {MockExactQuoteToken} from "../mocks/MockV2QuoteAssets.sol";
@@ -334,17 +335,22 @@ contract ProtocolFeeVaultV4AccountingTest is Test {
         vm.warp(1_000_000);
         V4AccountingAllocationManagerMock manager = new V4AccountingAllocationManagerMock();
         V4AccountingMarketControllerMock controller = new V4AccountingMarketControllerMock();
-        MemeStockGauge realGauge = new MemeStockGauge(
-            MemeStockGaugeInit({
-                marketId: MARKET_ID,
-                assetUid: keccak256("v4-accounting-stock"),
-                quoteAssetConfigId: keccak256("v4-accounting-quote"),
-                allocationManager: address(manager),
-                protocolFeeVault: address(vault),
-                marketController: address(controller),
-                quoteAsset: address(quote),
-                memeToken: address(meme)
-            })
+        MemeStockGauge implementation = new MemeStockGauge();
+        MemeStockGauge realGauge = MemeStockGauge(
+            MemeStockGaugeClone.deployDeterministic(
+                address(implementation),
+                MARKET_ID,
+                GaugeIdentity({
+                    marketId: MARKET_ID,
+                    assetUid: keccak256("v4-accounting-stock"),
+                    quoteAssetConfigId: keccak256("v4-accounting-quote"),
+                    allocationManager: address(manager),
+                    protocolFeeVault: address(vault),
+                    marketController: address(controller),
+                    quoteAsset: address(quote),
+                    memeToken: address(meme)
+                })
+            )
         );
         registry.configure(
             MARKET_ID,

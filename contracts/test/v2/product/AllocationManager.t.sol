@@ -79,6 +79,7 @@ contract MockMigrationGauge {
 
     address public manager;
     IUserStockVault public vault;
+    bytes32 public assetUid;
     bytes32 public marketId;
     bytes32 public peerMarketId;
     MigrationCallLog public callLog;
@@ -96,12 +97,14 @@ contract MockMigrationGauge {
     function configure(
         address manager_,
         IUserStockVault vault_,
+        bytes32 assetUid_,
         bytes32 marketId_,
         bytes32 peerMarketId_,
         MigrationCallLog callLog_
     ) external {
         manager = manager_;
         vault = vault_;
+        assetUid = assetUid_;
         marketId = marketId_;
         peerMarketId = peerMarketId_;
         callLog = callLog_;
@@ -156,7 +159,7 @@ contract MockMigrationGauge {
         if (failureMode == FAIL_REMOVE) revert InjectedGaugeFailure(FAIL_REMOVE);
         PositionView storage position = _positions[user];
         uint256 current = position.activeAmount + position.pendingAmount;
-        uint256 vaultAmount = vault.allocation(user, marketId);
+        uint256 vaultAmount = vault.allocation(assetUid, user, marketId);
         if (vaultAmount != current) revert InvalidVaultOrder(current, vaultAmount);
         lastRemoveSequence = callLog.record();
         if (failureMode == REENTER) {
@@ -172,7 +175,7 @@ contract MockMigrationGauge {
         if (failureMode == FAIL_ADD) revert InjectedGaugeFailure(FAIL_ADD);
         PositionView storage position = _positions[user];
         uint256 expected = position.activeAmount + position.pendingAmount + amount;
-        uint256 vaultAmount = vault.allocation(user, marketId);
+        uint256 vaultAmount = vault.allocation(assetUid, user, marketId);
         if (vaultAmount != expected) revert InvalidVaultOrder(expected, vaultAmount);
         lastAddSequence = callLog.record();
         if (failureMode == REENTER) {
@@ -206,13 +209,14 @@ contract AllocationManagerTest is Test {
     MockMigrationMarketRegistry internal marketRegistry;
     AllocationManager internal manager;
     MockExactQuoteToken internal stockToken;
+    MockExactQuoteToken internal otherStockToken;
     UserStockVault internal vault;
     MockMigrationGauge internal sourceGauge;
     MockMigrationGauge internal targetGauge;
     MigrationCallLog internal callLog;
 
     event AllocationMoved(
-        address indexed user, bytes32 indexed fromMarketId, bytes32 indexed toMarketId, uint256 amount
+        bytes32 indexed assetUid, address indexed user, bytes32 indexed fromMarketId, bytes32 toMarketId, uint256 amount
     );
     event AllocationMigrated(
         address indexed user,
@@ -229,17 +233,17 @@ contract AllocationManagerTest is Test {
         marketRegistry = new MockMigrationMarketRegistry();
         manager = new AllocationManager(address(officialRegistry), address(marketRegistry));
         stockToken = new MockExactQuoteToken(18);
+        otherStockToken = new MockExactQuoteToken(18);
         callLog = new MigrationCallLog();
         sourceGauge = new MockMigrationGauge();
         targetGauge = new MockMigrationGauge();
-        vault = new UserStockVault(
-            address(officialRegistry), address(marketRegistry), address(manager), ASSET_UID, address(stockToken)
-        );
+        vault = new UserStockVault(address(officialRegistry), address(marketRegistry), address(manager));
         officialRegistry.configure(ASSET_UID, address(stockToken), address(vault), 18, 1);
+        officialRegistry.configure(OTHER_ASSET_UID, address(otherStockToken), address(vault), 18, 1);
         marketRegistry.configure(FROM_MARKET, ASSET_UID, address(sourceGauge), 2, 0);
         marketRegistry.configure(TO_MARKET, ASSET_UID, address(targetGauge), 2, 0);
-        sourceGauge.configure(address(manager), vault, FROM_MARKET, TO_MARKET, callLog);
-        targetGauge.configure(address(manager), vault, TO_MARKET, FROM_MARKET, callLog);
+        sourceGauge.configure(address(manager), vault, ASSET_UID, FROM_MARKET, TO_MARKET, callLog);
+        targetGauge.configure(address(manager), vault, ASSET_UID, TO_MARKET, FROM_MARKET, callLog);
     }
 
     function test_migrateSettlesBothRemovesMovesThenAddsPendingAndEmitsCanonicalEvent() public {
@@ -250,7 +254,7 @@ contract AllocationManagerTest is Test {
         _resetTrace();
 
         vm.expectEmit(true, true, true, true, address(vault));
-        emit AllocationMoved(ALICE, FROM_MARKET, TO_MARKET, 0.75 ether);
+        emit AllocationMoved(ASSET_UID, ALICE, FROM_MARKET, TO_MARKET, 0.75 ether);
         vm.expectEmit(true, true, true, true, address(manager));
         emit AllocationMigrated(
             ALICE,
@@ -273,13 +277,13 @@ contract AllocationManagerTest is Test {
         assertEq(target.pendingAmount, 0.75 ether);
         assertEq(target.pendingGeneration, block.timestamp + 30 seconds);
         assertEq(target.unlockAt, block.timestamp + 24 hours);
-        assertEq(vault.allocation(ALICE, FROM_MARKET), 1.25 ether);
-        assertEq(vault.allocation(ALICE, TO_MARKET), 1.75 ether);
-        assertEq(vault.deposited(ALICE), 3 ether);
-        assertEq(vault.allocated(ALICE), 3 ether);
-        assertEq(vault.freeBalanceOf(ALICE), 0);
-        assertEq(vault.totalDeposited(), 3 ether);
-        assertEq(vault.totalAllocated(), 3 ether);
+        assertEq(vault.allocation(ASSET_UID, ALICE, FROM_MARKET), 1.25 ether);
+        assertEq(vault.allocation(ASSET_UID, ALICE, TO_MARKET), 1.75 ether);
+        assertEq(vault.deposited(ASSET_UID, ALICE), 3 ether);
+        assertEq(vault.allocated(ASSET_UID, ALICE), 3 ether);
+        assertEq(vault.freeBalanceOf(ASSET_UID, ALICE), 0);
+        assertEq(vault.totalDeposited(ASSET_UID), 3 ether);
+        assertEq(vault.totalAllocated(ASSET_UID), 3 ether);
         assertEq(stockToken.balanceOf(address(vault)), 3 ether);
         assertEq(stockToken.balanceOf(address(manager)), 0);
 
@@ -304,8 +308,8 @@ contract AllocationManagerTest is Test {
         assertEq(sourceGauge.positionOf(ALICE).pendingAmount, 0);
         assertEq(targetGauge.positionOf(ALICE).activeAmount, 0);
         assertEq(targetGauge.positionOf(ALICE).pendingAmount, 1 ether);
-        assertEq(vault.allocation(ALICE, FROM_MARKET), 0);
-        assertEq(vault.allocation(ALICE, TO_MARKET), 1 ether);
+        assertEq(vault.allocation(ASSET_UID, ALICE, FROM_MARKET), 0);
+        assertEq(vault.allocation(ASSET_UID, ALICE, TO_MARKET), 1 ether);
         assertEq(stockToken.balanceOf(address(vault)), vaultTokenBalance);
     }
 
@@ -378,7 +382,7 @@ contract AllocationManagerTest is Test {
         vm.prank(ALICE);
         manager.migrateAllocation(FROM_MARKET, TO_MARKET, 1 ether);
         assertEq(callLog.sequence(), 0);
-        assertEq(vault.allocation(ALICE, FROM_MARKET), 1 ether);
+        assertEq(vault.allocation(ASSET_UID, ALICE, FROM_MARKET), 1 ether);
     }
 
     function test_unlockBoundaryAndMaturePendingMaterializationAreExact() public {
@@ -412,7 +416,7 @@ contract AllocationManagerTest is Test {
 
         vm.prank(ALICE);
         manager.migrateAllocation(FROM_MARKET, TO_MARKET, 0.5 ether - 1);
-        assertEq(vault.allocation(ALICE, FROM_MARKET), 0.5 ether + 1);
+        assertEq(vault.allocation(ASSET_UID, ALICE, FROM_MARKET), 0.5 ether + 1);
 
         address carol = address(0xCA401);
         _seed(carol, 1.5 ether, 0);
@@ -426,7 +430,7 @@ contract AllocationManagerTest is Test {
         manager.migrateAllocation(FROM_MARKET, TO_MARKET, 0.5 ether);
         vm.prank(carol);
         manager.migrateAllocation(FROM_MARKET, TO_MARKET, 0.5 ether + 1);
-        assertEq(vault.allocation(carol, TO_MARKET), 0.5 ether + 1);
+        assertEq(vault.allocation(ASSET_UID, carol, TO_MARKET), 0.5 ether + 1);
     }
 
     function test_sameMarketZeroOverAllocationEmptyAndWrongIdentityFailAtomically() public {
@@ -451,19 +455,14 @@ contract AllocationManagerTest is Test {
         vm.prank(BOB);
         manager.migrateAllocation(FROM_MARKET, TO_MARKET, 1 ether);
 
-        assertEq(vault.allocation(ALICE, FROM_MARKET), 1 ether);
-        assertEq(vault.allocation(ALICE, TO_MARKET), 0);
+        assertEq(vault.allocation(ASSET_UID, ALICE, FROM_MARKET), 1 ether);
+        assertEq(vault.allocation(ASSET_UID, ALICE, TO_MARKET), 0);
     }
 
     function test_crossAssetAndAliasedGaugeRoutesFailBeforeAnyGaugeCall() public {
-        MockExactQuoteToken otherToken = new MockExactQuoteToken(18);
         MockMigrationGauge otherGauge = new MockMigrationGauge();
-        UserStockVault otherVault = new UserStockVault(
-            address(officialRegistry), address(marketRegistry), address(manager), OTHER_ASSET_UID, address(otherToken)
-        );
-        officialRegistry.configure(OTHER_ASSET_UID, address(otherToken), address(otherVault), 18, 1);
         marketRegistry.configure(OTHER_MARKET, OTHER_ASSET_UID, address(otherGauge), 2, 0);
-        otherGauge.configure(address(manager), otherVault, OTHER_MARKET, FROM_MARKET, callLog);
+        otherGauge.configure(address(manager), vault, OTHER_ASSET_UID, OTHER_MARKET, FROM_MARKET, callLog);
 
         vm.expectRevert(
             abi.encodeWithSelector(
@@ -545,7 +544,7 @@ contract AllocationManagerTest is Test {
         );
         vm.prank(ALICE);
         manager.migrateAllocation(FROM_MARKET, TO_MARKET, 1 ether);
-        assertEq(vault.allocation(ALICE, FROM_MARKET), 1 ether);
+        assertEq(vault.allocation(ASSET_UID, ALICE, FROM_MARKET), 1 ether);
 
         vm.warp(originalUnlock);
         sourceGauge.setFailureMode(8);
@@ -553,8 +552,8 @@ contract AllocationManagerTest is Test {
         vm.prank(ALICE);
         manager.migrateAllocation(FROM_MARKET, TO_MARKET, 1 ether);
         sourceGauge.setFailureMode(0);
-        assertEq(vault.allocation(ALICE, FROM_MARKET), 1 ether);
-        assertEq(vault.allocation(ALICE, TO_MARKET), 0);
+        assertEq(vault.allocation(ASSET_UID, ALICE, FROM_MARKET), 1 ether);
+        assertEq(vault.allocation(ASSET_UID, ALICE, TO_MARKET), 0);
     }
 
     function test_canonicalSelectorsAndNoForRecipientOrBatchMigrationSurface() public {
@@ -595,17 +594,17 @@ contract AllocationManagerTest is Test {
         vm.warp(11_000_000);
         _seed(ALICE, sourceAmount, targetAmount);
         vm.warp(sourceGauge.positionOf(ALICE).unlockAt);
-        uint256 beforeDeposited = vault.totalDeposited();
-        uint256 beforeAllocated = vault.totalAllocated();
+        uint256 beforeDeposited = vault.totalDeposited(ASSET_UID);
+        uint256 beforeAllocated = vault.totalAllocated(ASSET_UID);
 
         vm.prank(ALICE);
         manager.migrateAllocation(FROM_MARKET, TO_MARKET, amount);
 
-        assertEq(vault.totalDeposited(), beforeDeposited);
-        assertEq(vault.totalAllocated(), beforeAllocated);
-        assertEq(vault.allocated(ALICE), sourceAmount + targetAmount);
-        assertEq(vault.allocation(ALICE, FROM_MARKET), sourceAmount - amount);
-        assertEq(vault.allocation(ALICE, TO_MARKET), targetAmount + amount);
+        assertEq(vault.totalDeposited(ASSET_UID), beforeDeposited);
+        assertEq(vault.totalAllocated(ASSET_UID), beforeAllocated);
+        assertEq(vault.allocated(ASSET_UID, ALICE), sourceAmount + targetAmount);
+        assertEq(vault.allocation(ASSET_UID, ALICE, FROM_MARKET), sourceAmount - amount);
+        assertEq(vault.allocation(ASSET_UID, ALICE, TO_MARKET), targetAmount + amount);
         assertEq(_positionAmount(sourceGauge, ALICE), sourceAmount - amount);
         assertEq(_positionAmount(targetGauge, ALICE), targetAmount + amount);
     }
@@ -615,7 +614,7 @@ contract AllocationManagerTest is Test {
         stockToken.mint(user, total);
         vm.startPrank(user);
         stockToken.approve(address(vault), total);
-        vault.depositStock(total);
+        vault.depositStock(ASSET_UID, total);
         if (sourceAmount != 0) manager.allocate(FROM_MARKET, sourceAmount);
         if (targetAmount != 0) manager.allocate(TO_MARKET, targetAmount);
         vm.stopPrank();
@@ -633,10 +632,10 @@ contract AllocationManagerTest is Test {
     }
 
     function _assertOriginalState() private view {
-        assertEq(vault.deposited(ALICE), 3 ether);
-        assertEq(vault.allocated(ALICE), 3 ether);
-        assertEq(vault.allocation(ALICE, FROM_MARKET), 2 ether);
-        assertEq(vault.allocation(ALICE, TO_MARKET), 1 ether);
+        assertEq(vault.deposited(ASSET_UID, ALICE), 3 ether);
+        assertEq(vault.allocated(ASSET_UID, ALICE), 3 ether);
+        assertEq(vault.allocation(ASSET_UID, ALICE, FROM_MARKET), 2 ether);
+        assertEq(vault.allocation(ASSET_UID, ALICE, TO_MARKET), 1 ether);
         assertEq(_positionAmount(sourceGauge, ALICE), 2 ether);
         assertEq(_positionAmount(targetGauge, ALICE), 1 ether);
         assertEq(stockToken.balanceOf(address(vault)), 3 ether);

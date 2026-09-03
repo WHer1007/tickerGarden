@@ -80,6 +80,7 @@ contract MockDecreaseGauge {
 
     address public manager;
     IUserStockVault public vault;
+    bytes32 public assetUid;
     bytes32 public marketId;
     uint8 public failureMode;
     uint256 public checkpointCalls;
@@ -91,9 +92,10 @@ contract MockDecreaseGauge {
     error InvalidCallOrder();
     error VaultReleasedTooEarly(uint256 expected, uint256 actual);
 
-    function configure(address manager_, IUserStockVault vault_, bytes32 marketId_) external {
+    function configure(address manager_, IUserStockVault vault_, bytes32 assetUid_, bytes32 marketId_) external {
         manager = manager_;
         vault = vault_;
+        assetUid = assetUid_;
         marketId = marketId_;
     }
 
@@ -132,7 +134,7 @@ contract MockDecreaseGauge {
         if (msg.sender != manager) revert InvalidManager(msg.sender);
         PositionView storage position = _positions[user];
         uint256 expected = position.activeAmount + position.pendingAmount + amount;
-        if (vault.allocation(user, marketId) != expected) revert InvalidCallOrder();
+        if (vault.allocation(assetUid, user, marketId) != expected) revert InvalidCallOrder();
         position.pendingAmount += amount;
         position.pendingGeneration = activationAt;
         position.unlockAt = unlockAt;
@@ -143,7 +145,7 @@ contract MockDecreaseGauge {
         if (failureMode == FAIL_REMOVE) revert InjectedGaugeFailure(FAIL_REMOVE);
         PositionView storage position = _positions[user];
         uint256 current = position.activeAmount + position.pendingAmount;
-        uint256 vaultAmount = vault.allocation(user, marketId);
+        uint256 vaultAmount = vault.allocation(assetUid, user, marketId);
         if (vaultAmount != current) revert VaultReleasedTooEarly(current, vaultAmount);
         if (failureMode == REENTER_REMOVE) IAllocationManager(manager).closeAllocation(marketId);
         if (failureMode == NOOP_REMOVE) return;
@@ -172,6 +174,7 @@ contract AllocationManagerDecreasesTest is Test {
     UserStockVault internal vault;
 
     event AllocationReleased(
+        bytes32 indexed assetUid,
         address indexed user,
         bytes32 indexed marketId,
         uint256 amount,
@@ -185,12 +188,10 @@ contract AllocationManagerDecreasesTest is Test {
         manager = new AllocationManagerDecreasesHarness(address(officialRegistry), address(marketRegistry));
         gauge = new MockDecreaseGauge();
         stockToken = new MockExactQuoteToken(18);
-        vault = new UserStockVault(
-            address(officialRegistry), address(marketRegistry), address(manager), ASSET_UID, address(stockToken)
-        );
+        vault = new UserStockVault(address(officialRegistry), address(marketRegistry), address(manager));
         officialRegistry.configure(ASSET_UID, address(stockToken), address(vault), 18, 1);
         marketRegistry.configure(MARKET_ID, ASSET_UID, address(gauge), 2, 0);
-        gauge.configure(address(manager), vault, MARKET_ID);
+        gauge.configure(address(manager), vault, ASSET_UID, MARKET_ID);
     }
 
     function test_decreaseSettlesRemovesGaugeFirstThenReleasesVaultAndEmitsPostState() public {
@@ -198,16 +199,16 @@ contract AllocationManagerDecreasesTest is Test {
         _warpToUnlock(ALICE);
 
         vm.expectEmit(true, true, false, true, address(vault));
-        emit AllocationReleased(ALICE, MARKET_ID, 0.5 ether, 1 ether, 1 ether);
+        emit AllocationReleased(ASSET_UID, ALICE, MARKET_ID, 0.5 ether, 1 ether, 1 ether);
         vm.prank(ALICE);
         manager.decreaseAllocation(MARKET_ID, 0.5 ether);
 
         PositionView memory position = gauge.positionOf(ALICE);
         assertEq(position.activeAmount, 1 ether);
         assertEq(position.pendingAmount, 0);
-        assertEq(vault.allocation(ALICE, MARKET_ID), 1 ether);
-        assertEq(vault.allocated(ALICE), 1 ether);
-        assertEq(vault.freeBalanceOf(ALICE), 1 ether);
+        assertEq(vault.allocation(ASSET_UID, ALICE, MARKET_ID), 1 ether);
+        assertEq(vault.allocated(ASSET_UID, ALICE), 1 ether);
+        assertEq(vault.freeBalanceOf(ASSET_UID, ALICE), 1 ether);
     }
 
     function test_closeUsesEntireCurrentPositionAndOnlyReturnsItToVaultFreeBalance() public {
@@ -218,10 +219,10 @@ contract AllocationManagerDecreasesTest is Test {
         vm.prank(ALICE);
         manager.closeAllocation(MARKET_ID);
 
-        assertEq(vault.allocation(ALICE, MARKET_ID), 0);
-        assertEq(vault.allocated(ALICE), 0);
-        assertEq(vault.freeBalanceOf(ALICE), 2 ether);
-        assertEq(vault.totalAllocated(), 0);
+        assertEq(vault.allocation(ASSET_UID, ALICE, MARKET_ID), 0);
+        assertEq(vault.allocated(ASSET_UID, ALICE), 0);
+        assertEq(vault.freeBalanceOf(ASSET_UID, ALICE), 2 ether);
+        assertEq(vault.totalAllocated(ASSET_UID), 0);
         assertEq(stockToken.balanceOf(address(vault)), tokenBalanceBefore);
         assertEq(stockToken.balanceOf(ALICE), 0);
     }
@@ -233,12 +234,12 @@ contract AllocationManagerDecreasesTest is Test {
         vm.expectRevert(abi.encodeWithSelector(AllocationManagerDecreases.PositionLockedUntil.selector, unlockAt));
         vm.prank(ALICE);
         manager.closeAllocation(MARKET_ID);
-        assertEq(vault.allocation(ALICE, MARKET_ID), 1 ether);
+        assertEq(vault.allocation(ASSET_UID, ALICE, MARKET_ID), 1 ether);
 
         vm.warp(unlockAt);
         vm.prank(ALICE);
         manager.closeAllocation(MARKET_ID);
-        assertEq(vault.allocation(ALICE, MARKET_ID), 0);
+        assertEq(vault.allocation(ASSET_UID, ALICE, MARKET_ID), 0);
     }
 
     function test_pausedAndRetiredMarketsAndAssetsStillAllowMatureExit() public {
@@ -255,7 +256,7 @@ contract AllocationManagerDecreasesTest is Test {
         officialRegistry.setStatus(ASSET_UID, 3);
         vm.prank(BOB);
         manager.closeAllocation(MARKET_ID);
-        assertEq(vault.totalAllocated(), 0);
+        assertEq(vault.totalAllocated(ASSET_UID), 0);
     }
 
     function test_emergencyAndNonPoolCreatedSourcesRejectNormalExit() public {
@@ -270,7 +271,7 @@ contract AllocationManagerDecreasesTest is Test {
         vm.expectRevert(abi.encodeWithSelector(AllocationManagerIncreases.StockAllocationClosed.selector, MARKET_ID));
         vm.prank(ALICE);
         manager.closeAllocation(MARKET_ID);
-        assertEq(vault.allocation(ALICE, MARKET_ID), 1 ether);
+        assertEq(vault.allocation(ASSET_UID, ALICE, MARKET_ID), 1 ether);
     }
 
     function test_emergencyPrincipalExitIgnoresRevertingOrMissingGaugeButPauseCannotBypassLock() public {
@@ -283,25 +284,25 @@ contract AllocationManagerDecreasesTest is Test {
         vm.expectRevert(abi.encodeWithSelector(AllocationManagerDecreases.PositionLockedUntil.selector, unlockAt));
         vm.prank(ALICE);
         manager.closeAllocation(MARKET_ID);
-        assertEq(vault.allocation(ALICE, MARKET_ID), 1 ether);
+        assertEq(vault.allocation(ASSET_UID, ALICE, MARKET_ID), 1 ether);
 
         marketRegistry.configure(MARKET_ID, ASSET_UID, address(gauge), 2, 3);
         gauge.setFailureMode(1);
         vm.startPrank(ALICE);
-        assertEq(vault.forceReleaseAllocation(MARKET_ID), 1 ether);
-        vault.withdrawFreeStock(1 ether);
+        assertEq(vault.forceReleaseAllocation(ASSET_UID, MARKET_ID), 1 ether);
+        vault.withdrawFreeStock(ASSET_UID, 1 ether);
         vm.stopPrank();
         assertEq(stockToken.balanceOf(ALICE), 1 ether);
 
         vm.etch(address(gauge), hex"");
         assertEq(address(gauge).code.length, 0);
         vm.startPrank(BOB);
-        assertEq(vault.forceReleaseAllocation(MARKET_ID), 1 ether);
-        vault.withdrawFreeStock(1 ether);
+        assertEq(vault.forceReleaseAllocation(ASSET_UID, MARKET_ID), 1 ether);
+        vault.withdrawFreeStock(ASSET_UID, 1 ether);
         vm.stopPrank();
         assertEq(stockToken.balanceOf(BOB), 1 ether);
-        assertEq(vault.totalAllocated(), 0);
-        assertEq(vault.totalDeposited(), 0);
+        assertEq(vault.totalAllocated(ASSET_UID), 0);
+        assertEq(vault.totalDeposited(ASSET_UID), 0);
     }
 
     function test_partialDecreaseCannotLeaveHalfStockOrLessButOneRawUnitAboveIsValid() public {
@@ -317,7 +318,7 @@ contract AllocationManagerDecreasesTest is Test {
 
         vm.prank(ALICE);
         manager.decreaseAllocation(MARKET_ID, 1 ether - 1);
-        assertEq(vault.allocation(ALICE, MARKET_ID), 0.5 ether + 1);
+        assertEq(vault.allocation(ASSET_UID, ALICE, MARKET_ID), 0.5 ether + 1);
     }
 
     function test_zeroOverAllocationAndEmptyCloseFailAtomically() public {
@@ -357,8 +358,8 @@ contract AllocationManagerDecreasesTest is Test {
             manager.closeAllocation(MARKET_ID);
             assertEq(gauge.checkpointCalls(), checkpointsBefore);
             assertEq(gauge.settleCalls(), settlesBefore);
-            assertEq(vault.allocation(ALICE, MARKET_ID), 1 ether);
-            assertEq(vault.freeBalanceOf(ALICE), 0);
+            assertEq(vault.allocation(ASSET_UID, ALICE, MARKET_ID), 1 ether);
+            assertEq(vault.freeBalanceOf(ASSET_UID, ALICE), 0);
         }
     }
 
@@ -370,7 +371,7 @@ contract AllocationManagerDecreasesTest is Test {
         vm.expectRevert(AllocationManagerIncreases.AllocationLedgerMismatch.selector);
         vm.prank(ALICE);
         manager.closeAllocation(MARKET_ID);
-        assertEq(vault.allocation(ALICE, MARKET_ID), 1 ether);
+        assertEq(vault.allocation(ASSET_UID, ALICE, MARKET_ID), 1 ether);
     }
 
     function test_reentrantGaugeCannotCloseOrLeavePartialRelease() public {
@@ -381,8 +382,8 @@ contract AllocationManagerDecreasesTest is Test {
         vm.expectRevert();
         vm.prank(ALICE);
         manager.closeAllocation(MARKET_ID);
-        assertEq(vault.allocation(ALICE, MARKET_ID), 1 ether);
-        assertEq(vault.freeBalanceOf(ALICE), 0);
+        assertEq(vault.allocation(ASSET_UID, ALICE, MARKET_ID), 1 ether);
+        assertEq(vault.freeBalanceOf(ASSET_UID, ALICE), 0);
     }
 
     function test_noDecreaseForCloseForOrRecipientSurfaceAndBobCannotTouchAlice() public {
@@ -398,7 +399,7 @@ contract AllocationManagerDecreasesTest is Test {
         vm.expectRevert();
         vm.prank(BOB);
         manager.closeAllocation(MARKET_ID);
-        assertEq(vault.allocation(ALICE, MARKET_ID), 1 ether);
+        assertEq(vault.allocation(ASSET_UID, ALICE, MARKET_ID), 1 ether);
     }
 
     function testFuzz_decreaseAcceptsOnlyZeroOrStrictlyAboveHalfRemainder(uint96 rawPosition, uint96 rawAmount) public {
@@ -415,12 +416,12 @@ contract AllocationManagerDecreasesTest is Test {
             );
             vm.prank(ALICE);
             manager.decreaseAllocation(MARKET_ID, amount);
-            assertEq(vault.allocation(ALICE, MARKET_ID), current);
+            assertEq(vault.allocation(ASSET_UID, ALICE, MARKET_ID), current);
         } else {
             vm.prank(ALICE);
             manager.decreaseAllocation(MARKET_ID, amount);
-            assertEq(vault.allocation(ALICE, MARKET_ID), remaining);
-            assertEq(vault.freeBalanceOf(ALICE), amount);
+            assertEq(vault.allocation(ASSET_UID, ALICE, MARKET_ID), remaining);
+            assertEq(vault.freeBalanceOf(ASSET_UID, ALICE), amount);
         }
     }
 
@@ -428,7 +429,7 @@ contract AllocationManagerDecreasesTest is Test {
         stockToken.mint(user, depositAmount);
         vm.startPrank(user);
         stockToken.approve(address(vault), depositAmount);
-        vault.depositStock(depositAmount);
+        vault.depositStock(ASSET_UID, depositAmount);
         manager.allocate(MARKET_ID, allocationAmount);
         vm.stopPrank();
     }

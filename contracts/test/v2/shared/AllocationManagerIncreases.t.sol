@@ -77,6 +77,7 @@ contract MockIncreaseGauge {
 
     address public manager;
     IUserStockVault public vault;
+    bytes32 public assetUid;
     bytes32 public marketId;
     uint8 public failureMode;
     uint256 public checkpointCalls;
@@ -88,9 +89,10 @@ contract MockIncreaseGauge {
     error InvalidCallOrder();
     error VaultNotLockedFirst(uint256 expected, uint256 actual);
 
-    function configure(address manager_, IUserStockVault vault_, bytes32 marketId_) external {
+    function configure(address manager_, IUserStockVault vault_, bytes32 assetUid_, bytes32 marketId_) external {
         manager = manager_;
         vault = vault_;
+        assetUid = assetUid_;
         marketId = marketId_;
     }
 
@@ -127,7 +129,7 @@ contract MockIncreaseGauge {
 
         PositionView storage position = _positions[user];
         uint256 expected = position.activeAmount + position.pendingAmount + amount;
-        uint256 actual = vault.allocation(user, marketId);
+        uint256 actual = vault.allocation(assetUid, user, marketId);
         if (actual != expected) revert VaultNotLockedFirst(expected, actual);
         if (failureMode == NOOP_ADD) return;
 
@@ -162,12 +164,10 @@ contract AllocationManagerIncreasesTest is Test {
         manager = new AllocationManagerIncreasesHarness(address(officialRegistry), address(marketRegistry));
         gauge = new MockIncreaseGauge();
         stockToken = new MockExactQuoteToken(18);
-        vault = new UserStockVault(
-            address(officialRegistry), address(marketRegistry), address(manager), ASSET_UID, address(stockToken)
-        );
+        vault = new UserStockVault(address(officialRegistry), address(marketRegistry), address(manager));
         officialRegistry.configure(ASSET_UID, address(stockToken), address(vault), 18, 1);
         marketRegistry.configure(MARKET_ID, ASSET_UID, address(gauge), 2, 0);
-        gauge.configure(address(manager), vault, MARKET_ID);
+        gauge.configure(address(manager), vault, ASSET_UID, MARKET_ID);
     }
 
     function test_allocateUsesCanonicalOrderAndSchedulesExactDelays() public {
@@ -184,8 +184,8 @@ contract AllocationManagerIncreasesTest is Test {
         assertEq(position.pendingAmount, 0.5 ether + 1);
         assertEq(position.pendingGeneration, block.timestamp + 30 seconds);
         assertEq(position.unlockAt, block.timestamp + 24 hours);
-        assertEq(vault.allocation(ALICE, MARKET_ID), position.pendingAmount);
-        assertEq(vault.freeBalanceOf(ALICE), 1.5 ether - 1);
+        assertEq(vault.allocation(ASSET_UID, ALICE, MARKET_ID), position.pendingAmount);
+        assertEq(vault.freeBalanceOf(ASSET_UID, ALICE), 1.5 ether - 1);
         assertEq(stockToken.balanceOf(address(manager)), 0);
         assertEq(stockToken.allowance(address(vault), address(manager)), 0);
     }
@@ -207,7 +207,7 @@ contract AllocationManagerIncreasesTest is Test {
         assertEq(increased.unlockAt, block.timestamp + 24 hours);
         assertGt(increased.pendingGeneration, first.pendingGeneration);
         assertGt(increased.unlockAt, first.unlockAt);
-        assertEq(vault.allocation(ALICE, MARKET_ID), 0.7 ether);
+        assertEq(vault.allocation(ASSET_UID, ALICE, MARKET_ID), 0.7 ether);
     }
 
     function test_nonPoolCreatedAndNonActiveMarketsRejectBeforeGaugeCalls() public {
@@ -260,10 +260,10 @@ contract AllocationManagerIncreasesTest is Test {
         manager.allocate(MARKET_ID, 0.5 ether + 1);
         vm.prank(ALICE);
         manager.increaseAllocation(MARKET_ID, 1);
-        assertEq(vault.allocation(ALICE, MARKET_ID), 0.5 ether + 2);
+        assertEq(vault.allocation(ASSET_UID, ALICE, MARKET_ID), 0.5 ether + 2);
     }
 
-    function test_sixDecimalAssetUsesRawUnitHalfStockBoundaryWithoutRounding() public {
+    function test_decimalDomainAndSixDecimalRawUnitBoundaryFailClosed() public {
         officialRegistry.configure(ASSET_UID, address(stockToken), address(vault), 6, 1);
         _deposit(ALICE, 1_000_000);
         vm.expectRevert(
@@ -276,7 +276,32 @@ contract AllocationManagerIncreasesTest is Test {
 
         vm.prank(ALICE);
         manager.allocate(MARKET_ID, 500_001);
-        assertEq(vault.allocation(ALICE, MARKET_ID), 500_001);
+        assertEq(vault.allocation(ASSET_UID, ALICE, MARKET_ID), 500_001);
+
+        officialRegistry.configure(ASSET_UID, address(stockToken), address(vault), 5, 1);
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                AllocationManagerIncreases.InvalidAllocationComponents.selector,
+                MARKET_ID,
+                address(vault),
+                address(gauge)
+            )
+        );
+        vm.prank(ALICE);
+        manager.increaseAllocation(MARKET_ID, 1);
+
+        officialRegistry.configure(ASSET_UID, address(stockToken), address(vault), 19, 1);
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                AllocationManagerIncreases.InvalidAllocationComponents.selector,
+                MARKET_ID,
+                address(vault),
+                address(gauge)
+            )
+        );
+        vm.prank(ALICE);
+        manager.increaseAllocation(MARKET_ID, 1);
+        assertEq(vault.allocation(ASSET_UID, ALICE, MARKET_ID), 500_001);
     }
 
     function test_zeroAmountAndTimestampOverflowFailBeforeExternalEffects() public {
@@ -302,8 +327,8 @@ contract AllocationManagerIncreasesTest is Test {
 
         assertEq(gauge.checkpointCalls(), 0);
         assertEq(gauge.settleCalls(), 0);
-        assertEq(vault.allocation(ALICE, MARKET_ID), 0);
-        assertEq(vault.freeBalanceOf(ALICE), 0.75 ether);
+        assertEq(vault.allocation(ASSET_UID, ALICE, MARKET_ID), 0);
+        assertEq(vault.freeBalanceOf(ASSET_UID, ALICE), 0.75 ether);
     }
 
     function test_everyGaugeFailureAndNoopRollsBackVaultAndGauge() public {
@@ -315,7 +340,7 @@ contract AllocationManagerIncreasesTest is Test {
             manager.allocate(MARKET_ID, 1 ether);
             assertEq(gauge.checkpointCalls(), 0);
             assertEq(gauge.settleCalls(), 0);
-            assertEq(vault.allocation(ALICE, MARKET_ID), 0);
+            assertEq(vault.allocation(ASSET_UID, ALICE, MARKET_ID), 0);
         }
     }
 
@@ -328,7 +353,7 @@ contract AllocationManagerIncreasesTest is Test {
 
         assertEq(gauge.checkpointCalls(), 0);
         assertEq(gauge.settleCalls(), 0);
-        assertEq(vault.allocation(ALICE, MARKET_ID), 0);
+        assertEq(vault.allocation(ASSET_UID, ALICE, MARKET_ID), 0);
     }
 
     function test_reentrantGaugeCannotEnterManagerOrLeavePartialState() public {
@@ -339,8 +364,8 @@ contract AllocationManagerIncreasesTest is Test {
         manager.allocate(MARKET_ID, 1 ether);
 
         assertEq(gauge.checkpointCalls(), 0);
-        assertEq(vault.allocation(ALICE, MARKET_ID), 0);
-        assertEq(vault.allocated(ALICE), 0);
+        assertEq(vault.allocation(ASSET_UID, ALICE, MARKET_ID), 0);
+        assertEq(vault.allocated(ASSET_UID, ALICE), 0);
     }
 
     function test_constructorRejectsMissingOrAliasedRegistries() public {
@@ -365,14 +390,14 @@ contract AllocationManagerIncreasesTest is Test {
         vm.prank(BOB);
         vm.expectRevert();
         manager.allocate(MARKET_ID, 0.5 ether + 1);
-        assertEq(vault.allocation(ALICE, MARKET_ID), 0);
+        assertEq(vault.allocation(ASSET_UID, ALICE, MARKET_ID), 0);
     }
 
     function _deposit(address user, uint256 amount) private {
         stockToken.mint(user, amount);
         vm.startPrank(user);
         stockToken.approve(address(vault), amount);
-        vault.depositStock(amount);
+        vault.depositStock(ASSET_UID, amount);
         vm.stopPrank();
     }
 }

@@ -1,13 +1,14 @@
 # TickerGarden V2 协议参数与产品规则
 
 > 文档状态：`IMPLEMENTATION_ALLOWED / NOT_DEPLOYABLE`  
-> 更新时间：2026-09-02  
+> 更新时间：2026-09-03
 > 适用范围：TickerGarden V2；不覆盖、修改或废止任何 V1 文档  
 > 发行兼容基线：[Pons V2 官方文档](https://docs.ponsfamily.com/v2)  
 > 对比参考：[Pump.fun 费用](https://pump.fun/docs/fees) 与 [Pump.fun Bonding Curve](https://pump.fun/docs/bonding-curve)（仅借鉴原则，不复制其点时参数）  
 > 技术实现基线：参见 [V2_TECHNICAL_ARCHITECTURE.md](./V2_TECHNICAL_ARCHITECTURE.md)  
 > 可验证执行规范：参见 [V2_EXECUTION_SPEC.md](./V2_EXECUTION_SPEC.md)（四项执行规则以该文档为准）
 > Pons 行为基线：参见 [V2_PONS_BEHAVIOR_BASELINE.md](./V2_PONS_BEHAVIOR_BASELINE.md)
+> Stock Vault 架构决策：参见 [V2_MULTI_ASSET_STOCK_VAULT.md](./V2_MULTI_ASSET_STOCK_VAULT.md)
 
 本文把用户已经确认的产品规则写入“已冻结”章节。Pons runtime 行为、首发 Quote、通用数值域，以及 Robinhood 官方目录当前观测到的194种 STOCK 全量可选规则已经形成机器证据。STOCK 只作为质押 Base 和分配权重，不使用价格、USD 名义目标或 backing target。当前 readiness 是 `IMPLEMENTATION_ALLOWED`：可以开始产品实现，但最终 artifact、目标链取证、Fork/E2E、审计与法律签字完成前仍不可部署。
 
@@ -40,8 +41,8 @@ Ticker Meme 是文化与社区用途的 meme token，不代表对应股票的所
 4. V2 删除自定义的 `2,500 USDC` 毕业门槛和 `1% LaunchAllocation`。Ticker Meme 固定总供应量全部铸入曲线，但曲线只出售 Pons V2 公式确定的 `sellableTokens`；毕业池的 `reservedTokens` 由 `supply`、所选 Quote Asset 的 `phantomQuote` 与 `graduationThreshold` 推导，不是独立百分比参数，也不存在跨 Quote 通用的固定毕业金额。
 5. 每个 Ticker Meme 创建时必须选择并永久绑定一个 Registry 认证的官方 Stock Token `Asset UID`。
 6. 同一个 `Asset UID` 可以对应任意数量的 Ticker Meme；V2 不再执行“一种 STOCK 只能有一个官方 Meme”的唯一性约束。
-7. 每种官方 STOCK 设置一个独立的用户本金 `UserStockVault`；每个 Ticker Meme 设置一个独立的轻量 `MemeStockGauge`。
-8. 用户只需把同一种 STOCK 存入一次 `UserStockVault`，之后可以自由决定向该 STOCK 下任意多个已经进入 `PoolCreated` 的 Meme Gauge 分配多少 STOCK。
+7. 每个 Vault schema 版本设置一个共享 MultiAsset `UserStockVault`，所有本金账本以 Asset UID 隔离；每个 Ticker Meme 设置一个独立的轻量 `MemeStockGauge`。
+8. 用户只需把同一种 STOCK 按 Asset UID 存入一次 canonical `UserStockVault`，之后可以自由决定向该 STOCK 下任意多个已经进入 `PoolCreated` 的 Meme Gauge 分配多少 STOCK。
 9. 合约层不设置一个钱包参与 Meme 的固定数量上限。每钱包一个 Meme 或最多五个 Meme 的规则均不进入 V2 协议；用户实际可参与数量仍受其 STOCK 本金、每仓位最低值与 Gas 成本限制。
 10. 每个非零 Meme 质押仓位必须严格大于 `0.5 STOCK`；允许该 Stock Token 在 Registry 支持范围内的任意精度，不要求是 `0.5` 的整数倍，不做产品层四舍五入。
 11. 用户对所有 Meme 的 STOCK 分配总和不得超过其在对应 `UserStockVault` 中的本金余额；同一份 STOCK 不能在多个 Meme 中重复计数。
@@ -139,7 +140,7 @@ Pump 的动态费率档不进入 V2-EXEC-3。毕业池总费率固定为 `1%`，
 | 标准手续费去向 | Pons/创建者/可选 buyback，核心池费率为零 | 曲线阶段禁止质押并将非 LP 费用固定按 Creator/Platform `50/50` 分配；毕业后 LP 固定为总费用 `20%`，质押者按 `min(S,10 STOCK)/10 STOCK` 线性取得最多约`40%`并按 active STOCK 比例分配 |
 | 创建者附加税 | 创建者可在上限内选择 | V2 初版固定为 `0`，避免在三方分配之外叠加未定义费用 |
 | 创建者 buyback/vesting | 可选，并从创建者份额支出 | V2 初版关闭；不复用 Pons 的 Meme buyback vault 或五年 vesting |
-| STOCK 质押 | 无 | 每 STOCK 一个用户 Vault、每 Meme 一个 Gauge；仅 `PoolCreated` 后开放，并按有效 STOCK 分毕业池手续费 |
+| STOCK 质押 | 无 | 每 Vault schema 一个 MultiAsset 用户 Vault、每 Meme 一个 Gauge；本金按 Asset UID 隔离，仅 `PoolCreated` 后开放，并按有效 STOCK 分毕业池手续费 |
 | 创建费与首买 | 精确原生创建费；可通过可信 Router 原子 launch-and-buy | 初始创建费和付款语义兼容；保留 TickerGarden creator/marketId 身份和自有 CREATE2 domain |
 | 地址与 ABI | Pons 自有部署栈，公开源码与活跃 runtime 存在漂移 | 不复制地址或不完整源码；按确认行为建立 TickerGarden ABI、数学不变量、地址预测和固定向量 |
 
@@ -272,23 +273,26 @@ lockedExcessMeme = sweptTokens - poolMemeAmount
 
 ### 4.1 用户 STOCK 本金的唯一托管域
 
-每个 `Asset UID` 只需要一个用户本金合约：
+每个 `Asset UID` 只绑定一个 canonical 用户本金合约；当前 schema 的所有 UID 共享同一 MultiAsset Vault：
 
 ```text
 UserStockVault
-└── 只托管用户存入的 STOCK 本金
+├── deposited[assetUid][user]
+├── allocated[assetUid][user]
+└── 只托管用户存入的各类 STOCK 本金
 ```
 
 `UserStockVault` 不得把用户本金借贷、做市、转给创建者、转给平台国库或用于任何外部策略。新费率不再产生协议购买 STOCK 的资金来源，因此 V2 不部署与手续费链路相关的 `ProtocolStockTreasury`。
 
 ### 4.2 存入、空闲和已分配余额
 
-对任一用户和 `Asset UID`，始终满足：
+对任一用户和 `Asset UID`，始终独立满足：
 
 ```text
-VaultBalance = FreeBalance + TotalAllocated
-TotalAllocated = Σ Allocation(user, marketId)
-TotalAllocated <= VaultBalance
+Deposited(assetUid, user) = FreeBalance(assetUid, user) + Allocated(assetUid, user)
+Allocated(assetUid, user) = Σ Allocation(assetUid, user, marketId)
+TotalAllocated(assetUid) <= TotalDeposited(assetUid)
+Vault.balanceOf(canonicalToken(assetUid)) >= TotalDeposited(assetUid)
 ```
 
 用户可以存入任意最小单位的 canonical Stock Token，也可以提取任意空闲余额。`> 0.5 STOCK` 规则只作用于每个 Meme 的最终非零分配仓位，避免不足门槛的余额在 Vault 中被锁死。
@@ -303,7 +307,7 @@ or
 NewAllocation > 0.5 STOCK
 ```
 
-其中 Registry 在资产注册时快照并冻结 `tokenDecimals`，且只接受 `1 <= tokenDecimals <= 36`：
+其中 Registry 在资产注册时快照并冻结 `tokenDecimals`，且只接受已完成通用数值证明的 `6 <= tokenDecimals <= 18`：
 
 ```text
 HalfStockRawUnits = 5 × 10^(StockTokenDecimals - 1)
@@ -669,7 +673,7 @@ Asset 或 Quote 级状态不会链上枚举并自动暂停历史市场；若资�
 - 提取空闲 STOCK 本金；
 - 读取链上余额和奖励。
 
-任何 Gauge 故障或市场退休都不能永久锁住 `UserStockVault` 中的用户本金。Vault 必须按 `user + marketId` 保存权威 allocation，并同步维护 user/market/total 三层聚合。市场连续 PAUSED 或 RETIRED 满24小时后，延迟的 Recovery 权限可把市场推进到终态 `EMERGENCY_EXIT`，永久禁用旧 Gauge 和 fee source。此后用户本人可调用 `forceReleaseAllocation(marketId)`：只清除本人该市场 allocation 并把同额 STOCK 变为 free balance，不调用故障 Gauge、不接受 recipient，也不等待奖励恢复。普通 PAUSED/RETIRED 不绕过24小时仓位锁定。
+任何 Gauge 故障或市场退休都不能永久锁住 `UserStockVault` 中的用户本金。Vault 必须按 `assetUid + user + marketId` 保存权威 allocation，并按资产同步维护 user/market/total 三层聚合。市场必须先离开 `NotGraduated`，再连续 PAUSED 或 RETIRED 满24小时，延迟的 Recovery 权限才可把市场推进到终态 `EMERGENCY_EXIT`，永久禁用旧 Gauge 和 fee source；未毕业 Curve 只能暂停并恢复，不能进入 RETIRED/Emergency 困住真实 Quote/Meme。此后用户本人可调用 `forceReleaseAllocation(assetUid, marketId)`：Vault 先复核 market 的 Asset UID，只清除本人该资产/市场 allocation 并把同额 STOCK 变为 free balance，不调用故障 Gauge、不接受 recipient，也不等待奖励恢复。普通 PAUSED/RETIRED 不绕过24小时仓位锁定。
 
 Emergency 后旧 Gauge 普通质押者 claim 关闭，避免本金已释放后旧权重继续计奖或双领。Quote/Meme 两种未支付质押者负债分别冻结 cap，可由延迟 Recovery 权限发布按指定快照和事件重放生成、总额不超过 cap 的 Merkle root；本金退出不依赖 root。root 只能提供可验证领取，root 本身的历史计算仍需独立审计，不能被宣传为无治理信任。
 
@@ -702,7 +706,7 @@ V2 可以复用 V1 中已经验证的 canonical 资产身份、固定目的地 B
 | ID | 已冻结结论 |
 |---|---|
 | V2-FROZEN-V4-FEE-01 | `PoolKey.fee = 0`、Hook mask `0x2044`、afterSwap unspecified currency 固定1%、donate LP20%、take non-LP80%、核心 protocol/lp fee 必须为零、失败全回滚 |
-| V2-FROZEN-VAULT-01 | Vault 权威 `allocation[user][marketId]` 与三层聚合；Gauge 不托管 STOCK；终态 Emergency 中用户本人可不依赖 Gauge 释放本金 |
+| V2-FROZEN-VAULT-01 | 每schema一个共享MultiAsset Vault；权威`allocation[assetUid][user][marketId]`与资产内三层聚合；Gauge不托管STOCK；终态Emergency中用户本人可不依赖Gauge释放本金 |
 | V2-FROZEN-ACTIVATION-01 | `1s/30s/32-slot` 绝对 generation 时间轮、双指数 snapshot/refcount、`INDEX_PRECISION=1e27`、固定边界与 remainder 公式 |
 | V2-FROZEN-STATE-ABI-01 | 分离的 Asset/Quote/Launch/Market 状态机、selector 权限/延迟、终态 recovery、完整核心 ABI 和事件 |
 | V2-FROZEN-LOCKED-LP-01 | locked position 收到的 feeGrowth 只能 permissionless compound 回同一 full-range position，单边余额继续按市场锁定，无提款路径 |

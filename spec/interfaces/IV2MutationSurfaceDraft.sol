@@ -185,19 +185,19 @@ interface IPonsCompatibleCurveMutationDraft {
 
 interface IUserStockVaultMutationDraft {
     // caller=PUBLIC; executionDelay=0; stateDelay=0
-    function depositStock(uint256) external;
+    function depositStock(bytes32, uint256) external;
     // caller=ALLOCATION_MODULE; executionDelay=0; stateDelay=0
-    function depositStockFor(address, uint256) external;
+    function depositStockFor(bytes32, address, uint256) external;
     // caller=PUBLIC; executionDelay=0; stateDelay=0
-    function withdrawFreeStock(uint256) external;
+    function withdrawFreeStock(bytes32, uint256) external;
     // caller=PUBLIC; executionDelay=0; stateDelay=0
-    function forceReleaseAllocation(bytes32) external returns (uint256);
+    function forceReleaseAllocation(bytes32, bytes32) external returns (uint256);
     // caller=ALLOCATION_MODULE; executionDelay=0; stateDelay=0
-    function lockAllocation(address, bytes32, uint256) external;
+    function lockAllocation(bytes32, address, bytes32, uint256) external;
     // caller=ALLOCATION_MODULE; executionDelay=0; stateDelay=0
-    function releaseAllocation(address, bytes32, uint256) external;
+    function releaseAllocation(bytes32, address, bytes32, uint256) external;
     // caller=ALLOCATION_MODULE; executionDelay=0; stateDelay=0
-    function moveAllocation(address, bytes32, bytes32, uint256) external;
+    function moveAllocation(bytes32, address, bytes32, bytes32, uint256) external;
 }
 
 interface IAllocationManagerMutationDraft {

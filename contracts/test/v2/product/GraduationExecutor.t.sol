@@ -93,9 +93,9 @@ contract GraduationExecutorTest is Test {
         assertEq(independentlyPredicted, executorPredicted);
 
         string memory manifest = vm.readFile("../spec/v2_product_artifact_manifest.json");
-        assertEq(abi.decode(vm.parseJson(manifest, ".modules[5].module"), (string)), "LaunchLocker");
+        assertEq(abi.decode(vm.parseJson(manifest, ".modules[6].module"), (string)), "LaunchLocker");
         assertEq(
-            abi.decode(vm.parseJson(manifest, ".modules[5].creationCode.keccak256"), (bytes32)),
+            abi.decode(vm.parseJson(manifest, ".modules[6].creationCode.keccak256"), (bytes32)),
             keccak256(type(LaunchLocker).creationCode)
         );
 

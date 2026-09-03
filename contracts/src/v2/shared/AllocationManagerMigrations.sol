@@ -20,6 +20,7 @@ abstract contract AllocationManagerMigrations is AllocationManagerDeposits {
         IUserStockVault vault;
         IMemeStockGauge sourceGauge;
         IMemeStockGauge targetGauge;
+        bytes32 assetUid;
         uint8 tokenDecimals;
         uint64 activationAt;
         uint64 targetUnlockAt;
@@ -52,8 +53,8 @@ abstract contract AllocationManagerMigrations is AllocationManagerDeposits {
         context.sourceGauge.removeAllocation(user, amount);
         _validateReducedSource(context.sourceGauge, user, state.sourceRemaining, state.sourceUnlockAt);
 
-        context.vault.moveAllocation(user, fromMarketId, toMarketId, amount);
-        _validateMovedVault(context.vault, user, fromMarketId, toMarketId, state);
+        context.vault.moveAllocation(context.assetUid, user, fromMarketId, toMarketId, amount);
+        _validateMovedVault(context.vault, context.assetUid, user, fromMarketId, toMarketId, state);
 
         // Target reward settlement still uses its old Gauge weight after the atomic Vault ledger move.
         context.targetGauge.checkpointActivations();
@@ -79,10 +80,16 @@ abstract contract AllocationManagerMigrations is AllocationManagerDeposits {
             );
         }
 
-        if (_checkedPosition(context.sourceGauge, context.vault, user, fromMarketId) != state.sourceRemaining) {
+        if (
+            _checkedPosition(context.sourceGauge, context.vault, context.assetUid, user, fromMarketId)
+                != state.sourceRemaining
+        ) {
             revert AllocationLedgerMismatch();
         }
-        if (_checkedPosition(context.targetGauge, context.vault, user, toMarketId) != state.targetResult) {
+        if (
+            _checkedPosition(context.targetGauge, context.vault, context.assetUid, user, toMarketId)
+                != state.targetResult
+        ) {
             revert AllocationLedgerMismatch();
         }
         return (state.sourceRemaining, increasedTarget.pendingGeneration, increasedTarget.unlockAt);
@@ -100,7 +107,9 @@ abstract contract AllocationManagerMigrations is AllocationManagerDeposits {
 
         PositionView memory sourcePosition = context.sourceGauge.positionOf(user);
         uint256 sourceAmount = sourcePosition.activeAmount + sourcePosition.pendingAmount;
-        if (sourceAmount != context.vault.allocation(user, fromMarketId)) revert AllocationLedgerMismatch();
+        if (sourceAmount != context.vault.allocation(context.assetUid, user, fromMarketId)) {
+            revert AllocationLedgerMismatch();
+        }
         if (sourceAmount == 0) revert NoAllocationPosition(user, fromMarketId);
         if (block.timestamp < sourcePosition.unlockAt) revert PositionLockedUntil(sourcePosition.unlockAt);
         if (sourcePosition.pendingAmount != 0) {
@@ -121,7 +130,8 @@ abstract contract AllocationManagerMigrations is AllocationManagerDeposits {
         view
         returns (uint256 targetResult)
     {
-        targetResult = _checkedPosition(context.targetGauge, context.vault, user, toMarketId) + amount;
+        targetResult =
+            _checkedPosition(context.targetGauge, context.vault, context.assetUid, user, toMarketId) + amount;
         uint256 minimumPosition = 5 * (10 ** (context.tokenDecimals - 1)) + 1;
         if (targetResult < minimumPosition) revert PositionBelowMinimum(targetResult, minimumPosition);
     }
@@ -143,14 +153,15 @@ abstract contract AllocationManagerMigrations is AllocationManagerDeposits {
 
     function _validateMovedVault(
         IUserStockVault vault,
+        bytes32 assetUid,
         address user,
         bytes32 fromMarketId,
         bytes32 toMarketId,
         MigrationState memory state
     ) private view {
         if (
-            vault.allocation(user, fromMarketId) != state.sourceRemaining
-                || vault.allocation(user, toMarketId) != state.targetResult
+            vault.allocation(assetUid, user, fromMarketId) != state.sourceRemaining
+                || vault.allocation(assetUid, user, toMarketId) != state.targetResult
         ) revert AllocationLedgerMismatch();
     }
 
@@ -187,6 +198,7 @@ abstract contract AllocationManagerMigrations is AllocationManagerDeposits {
             revert MigrationGaugeAlias(address(context.sourceGauge));
         }
 
+        context.assetUid = sourceMarket.config.assetUid;
         context.tokenDecimals = sourceAsset.tokenDecimals;
         (context.activationAt, context.targetUnlockAt) = _allocationTimes();
     }

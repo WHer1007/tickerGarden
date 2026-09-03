@@ -35,13 +35,32 @@ jobs:
         run: node scripts/sync-dependencies.mjs
       - name: Check V2 formatting
         working-directory: contracts
-        run: FOUNDRY_PROFILE=v2 forge fmt --check src/v2 test/v2
+        run: forge fmt --profile v2-ci --check src/v2 test/v2
       - name: Build isolated V2 namespace
         working-directory: contracts
-        run: FOUNDRY_PROFILE=v2 forge build
+        run: forge build --profile v2-ci
       - name: Test isolated V2 namespace
         working-directory: contracts
-        run: FOUNDRY_PROFILE=v2 forge test
+        run: forge test --profile v2-ci
+      - name: Verify clean-cache invariant and coverage reproducibility
+        working-directory: contracts
+        run: |
+          forge clean --profile v2-ci
+          forge test --profile v2-ci --no-cache --match-path 'test/v2/product/VaultGaugeInvariant.t.sol' 2>&1 | tee "$RUNNER_TEMP/v2-invariant-clean.log"
+          if grep -q 'Failure from ' "$RUNNER_TEMP/v2-invariant-clean.log"; then
+            echo 'stale invariant counterexample was consumed after a clean build'
+            exit 1
+          fi
+          forge test --profile v2-ci --match-path 'test/v2/product/VaultGaugeInvariant.t.sol' 2>&1 | tee "$RUNNER_TEMP/v2-invariant-cached.log"
+          if grep -q 'Failure from ' "$RUNNER_TEMP/v2-invariant-cached.log"; then
+            echo 'cached V2 invariant run consumed a stale counterexample'
+            exit 1
+          fi
+          # Keep coverage on the representative curve suite: it exercises the
+          # V2 pricing/asset-accounting path without exact bytecode/gas checks
+          # that are intentionally incompatible with coverage's IR build.
+          forge coverage --profile v2-ci --no-cache --ir-minimum \
+            --match-path 'test/v2/product/PonsCompatibleCurve.t.sol' --report summary
       - name: Verify generated interfaces and compiled ABI manifest
         run: npm run check:interfaces
 

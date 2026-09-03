@@ -3,9 +3,11 @@
 > 文档状态：`IMPLEMENTATION_ALLOWED`；可以实现产品资金逻辑，deployment gates 关闭前禁止目标网络部署  
 > 更新时间：2026-09-03  
 > 适用版本：Robinhood Chain，TickerGarden V2 / `V2-EXEC-3`  
-> 当前实现状态：`V2_INTERFACE_BASELINE_READY / CI_GATES_READY / QUOTE_FIXTURES_READY / PRODUCT_RUNTIME_IN_PROGRESS / IMPLEMENTATION_ALLOWED`；V1运行时代码已移出工作区，Solidity已具备完整接口基线，十八个产品模块及 typed identity/CREATE2/Factory validation 共用层已实现，`V2-C-101`～`V2-C-107`、`V2-C-201`～`V2-C-204`、`V2-C-301`～`V2-C-305`及`V2-C-401`～`V2-C-403`实现任务已关闭，Indexer重放/对账核心、Backend只读API与版本化客户端、Web钱包及fail-closed交易底层已落地；Product为`ACTIVE`、Fork为仅本地固定夹具的`FIXTURES_ACTIVE`、Deployment工具为`ACTIVE`；目标链AccessManager安装证据、Maintenance Runner与Web产品旅程仍未形成完整产品或目标链交付  
+> 当前实现状态：`V2_INTERFACE_BASELINE_READY / CI_GATES_READY / QUOTE_FIXTURES_READY / PRODUCT_RUNTIME_IN_PROGRESS / IMPLEMENTATION_ALLOWED`；V1运行时代码已移出工作区，Solidity十九个产品模块（含只读 `LaunchConfigResolver`）、`V2-C-405`状态缺口修复、Indexer重放/对账、Backend只读API、无特权Maintenance Runner及Web的Launch/Curve、Vault与Emergency Recovery本地产品旅程均已实现并由分轨门禁验证；Web资金相关target已由Factory不可变信任根逐次回绑链上Registry。Product为`ACTIVE`、Fork为仅本地固定夹具的`FIXTURES_ACTIVE`、Deployment工具为`ACTIVE`。完整产品运行时仍保持fail-closed：目标链archive Fork、毕业池写旅程、法律文案签字、浏览器E2E、AccessManager安装、审计及生产部署证据尚未完成
 > 产品规则：[V2_PROTOCOL_PARAMETERS.md](./V2_PROTOCOL_PARAMETERS.md)  
 > 技术架构：[V2_TECHNICAL_ARCHITECTURE.md](./V2_TECHNICAL_ARCHITECTURE.md)  
+> 合约架构优化决策：[V2_CONTRACT_ARCHITECTURE_DECISION.md](./V2_CONTRACT_ARCHITECTURE_DECISION.md)
+> Stock Vault 优化决策：[V2_MULTI_ASSET_STOCK_VAULT.md](./V2_MULTI_ASSET_STOCK_VAULT.md)
 > 执行规范：[V2_EXECUTION_SPEC.md](./V2_EXECUTION_SPEC.md)  
 > 机器基线：[`spec/v2_execution_manifest.json`](./spec/v2_execution_manifest.json)、[`spec/v2_abi_surface.json`](./spec/v2_abi_surface.json)、[`spec/v2_permissions_matrix.json`](./spec/v2_permissions_matrix.json)
 
@@ -69,7 +71,7 @@ V2 要在 Robinhood Chain 上跑通以下闭环：
 - PoolCreated 后总交易费 1%，LP 固定20%；每市场冻结 `B=stakeSaturationAmount=10×10^stockDecimals`，质押者总 Bucket 按 `min(totalActiveStock,B)/B` 从0线性释放到总费约40%，Creator/Platform 对称承接余量；质押者桶内部按有效 STOCK raw unit 比例分配。
 - 新增 STOCK 30 秒后激活，从分配交易起整个合并仓位锁定 24 小时。
 - 每个非零市场仓位严格大于 `0.5 STOCK`，不要求 0.5 的整数倍。
-- 当前观测的194种 ACTIVE 官方 STOCK 全部可作为 staking base；一个 STOCK Vault 对应一个 Asset UID，一个 Meme 创建时选择且只绑定一个不可变 Asset UID/Gauge；同一 STOCK 可对应任意多个 Meme，用户可在这些 Meme 之间自行分配。
+- 当前观测的194种 ACTIVE 官方 STOCK 全部可作为 staking base；每个 Asset UID 绑定一个 canonical Vault，但多个 UID 共享当前 schema 的 MultiAsset Vault；一个 Meme 创建时选择且只绑定一个不可变 Asset UID/Gauge，同一 STOCK 可对应任意多个 Meme，用户可在这些 Meme 之间自行分配。
 - STOCK 价格、美元名义价值、Chainlink Feed、sequencer 和 backing target 不进入准入、收费或质押分配逻辑。
 - 发行行为以活跃 `0x7eD598…` 固定区块为参考，不运行时依赖 Pons；多 Quote 是正式能力。
 - 当前 Factory 创建费 immutable 为 `0.0005` 原生资产并精确支付；改费必须新 Factory/Router/Template 和新 `executionSpecId`；atomic launch-and-buy 不设人为的毕业门槛1%首买上限。
@@ -90,22 +92,22 @@ V2 要在 Robinhood Chain 上跑通以下闭环：
 
 ### 2.4 当前实现审查与差距登记（2026-09-02）
 
-本节最初记录的是 2026-09-02 的 V1 代码审查；同日按产品决定，V1 运行时代码、测试、旧部署脚本与旧产品界面已不经改写地移出工作区并保存在可恢复废纸篓目录。当前已建立 `contracts/src/v2/`、`contracts/test/v2/`、Backend、Indexer、Deployment、Maintenance Runner、Web 与 CI 的隔离边界，并已完成十八个产品模块、typed identity/CREATE2共用层及Indexer重放/对账核心；Backend、Runner与Web产品运行时仍未实现。任何 V1 ABI、经济机制、角色、部署清单或前端叙事都不能作为 V2 的已完成实现；删除记录见 `V1_CODE_REMOVAL_RECORD.md`。
+本节最初记录的是 2026-09-02 的 V1 代码审查；同日按产品决定，V1 运行时代码、测试、旧部署脚本与旧产品界面已不经改写地移出工作区并保存在可恢复废纸篓目录。当前已建立 `contracts/src/v2/`、`contracts/test/v2/`、Backend、Indexer、Deployment、Maintenance Runner、Web 与 CI 的隔离边界，并已完成十九个产品模块、typed identity/CREATE2共用层、Indexer重放/对账、Backend只读API、无特权Runner以及Web的Launch/Curve、Vault和Emergency/Recovery本地技术旅程。毕业池写旅程、目标链E2E、法律文案签字、审计和生产部署仍未完成；任何 V1 ABI、经济机制、角色、部署清单或前端叙事都不能作为 V2 的已完成实现。删除记录见 `V1_CODE_REMOVAL_RECORD.md`。
 
 | 差距 ID | 严重度/状态 | 当前证据与不符点 | 关闭任务 | 关闭证据 |
 |---|---|---|---|---|
-| `V2-GAP-001` | `P0 / OPEN (EIGHTEEN PRODUCT MODULES + ACCESS PLAN COMPLETE)` | V2 namespace、完整生成接口及interface artifact exact diff已存在；十八个产品模块、AccessManager精确配置计划及测试已落地，typed identity/CREATE2共用层已实现；最终目标链安装与部署证据仍未完成 | V2-E-103～V2-E-105、V2-C-101～V2-C-403 | 所有canonical product module均有artifact、ABI、单元测试和代码哈希，且V2 namespace保持独立编译 |
+| `V2-GAP-001` | `P0 / OPEN (NINETEEN PRODUCT MODULES + ACCESS PLAN COMPLETE)` | V2 namespace、完整生成接口及interface artifact exact diff已存在；十九个产品模块、AccessManager精确配置计划及测试已落地，typed identity/CREATE2与Gauge clone共用层已实现；最终目标链安装与部署证据仍未完成 | V2-E-103～V2-E-105、V2-C-101～V2-C-403 | 所有canonical product module均有artifact、ABI、单元测试和代码哈希，且V2 namespace保持独立编译 |
 | `V2-GAP-002` | `CLOSED (V2-C-103 / V2-T-101 DONE)` | 固定供应Token、Factory/Curve构造期循环解除、真实CREATE2部署及Registry/beneficiary原子登记已实现；负向矩阵、14条runtime三方差分、四组件artifact-backed CREATE2实际部署及逐阶段故障注入全部闭合 | V2-C-103、V2-T-101 | 构造/初始化、全量入 Curve、无 mint authority、旧角色不可达的负向测试全部通过 |
 | `V2-GAP-003` | `CLOSED (V2-C-106 / V2-T-101 DONE)` | 多Meme Factory、concrete Router及native/ERC-20原子创建首买均已闭合；负向矩阵、runtime差分、LaunchLocker CREATE2实际部署与逐阶段故障注入全部通过 | V2-C-106、V2-T-101 | 同 Asset UID 多 Meme、配置快照、普通创建和两类 Quote 的 launch-and-buy EVM 测试通过 |
 | `V2-GAP-004` | `P0 / OPEN (LOCAL RUNTIME + CREATE2 DONE; DEPLOYMENT EVIDENCE OPEN)` | Pons-compatible Curve、多 Quote、tracked reserve、partial fill/refund、reserved/sellable、最终 fee sweep、资产托管、可捕获毕业交接及Factory构造集成均已实现；14条runtime向量已与独立reference和生产Solidity库逐单位一致，Token/Curve/Gauge/LaunchLocker真实artifact-backed CREATE2预测与本地实际部署一致；仍缺目标链最终deployment证据 | V2-C-107、V2-T-101、V2-E-105 | Solidity 与冻结 Pons 向量逐整数单位一致；native/ERC-20、强制转账、尾单、退款及四组件实际部署测试通过 |
 | `V2-GAP-005` | `P0 / OPEN (GRADUATION + LOCKER + DISCOVERY READY; FORK OPEN)` | Registry两阶段状态机、Curve exact escrow记录、可捕获自动调用、permissionless retry、七日固定recipient rescue、canonical v4池计划、concrete GraduationExecutor/LaunchLocker、initialize/exact mint+settle/activate/commit、permissionless同仓compound及canonical Router/Quoter交易发现均已闭合；仅剩固定Fork证据 | V2-C-303～V2-C-305、V2-T-302 | 固定 Fork 中 sweep、initialize、mint、锁仓、retry/rescue 和资产守恒逐事件可核对 |
-| `V2-GAP-006` | `CLOSED (T201 / T202 DONE)` | 每 Asset Vault、多 Meme三层allocation、本人本金逃生、AllocationManager六个入口，以及具备32槽activation、24小时整仓锁、双资产accumulator、历史结算和永久Emergency禁用的concrete Gauge均已实现；T201状态化Invariant、T202-A激活轮复杂度/Gas及T202-B accumulator全域数值/最大dust证据全部闭合 | V2-C-201～V2-C-204、V2-T-201、V2-T-202 | Vault 本金、三层 allocation、激活边界、锁定边界、迁移、force release、6–18 decimals、生命周期overflow与remainder守恒全部通过 |
+| `V2-GAP-006` | `CLOSED (T201 / T202 DONE; MULTIASSET AMENDED)` | 每 schema 共享 MultiAsset Vault、按 Asset UID 隔离的多 Meme 三层 allocation、本人本金逃生、AllocationManager 六个入口，以及具备32槽activation、24小时整仓锁、双资产accumulator、历史结算和永久Emergency禁用的 concrete Gauge 均已实现；T201状态化Invariant、T202-A激活轮复杂度/Gas及T202-B accumulator全域数值/最大dust证据全部闭合 | V2-C-201～V2-C-204、V2-T-201、V2-T-202 | Vault 本金、跨资产隔离、三层 allocation、激活边界、锁定边界、迁移、force release、6–18 decimals、生命周期overflow与remainder守恒全部通过 |
 | `V2-GAP-007` | `P0 / OPEN (HOOK PRODUCT READY; FORK OPEN)` | V1 排放/回购实现已移除；FeeVault已完成Quote/Meme exact-arrival、10 STOCK饱和分桶、Gauge按raw-unit分配、三方负债与固定收款claim，concrete Hook已完成CREATE2地址、pool source生命周期、四象限unspecified资产/base、1%整数计算、pool nonce、canonical feeId、LP donate/non-LP take/exact-arrival原子执行及逐Swap的Slot0 lp/protocol fee fail-closed；仍缺真实v4 PoolManager Fork集成证据 | V2-C-301、V2-C-302、V2-T-301 | 四种 Swap 方向逐笔满足 `T=L+D`、`E=min(S,B)`、同资产到账和三方负债守恒，V1 排放/回购路径不可达 |
 | `V2-GAP-008` | `P0 / OPEN (LOCAL EMERGENCY/RECOVERY/ACCESS EVIDENCE COMPLETE; LIVE INSTALL OPEN)` | Registry、Controller、Gauge/Hook终态失效、本人本金逃生、双资产cap、root/claim、全协议AccessManager配置/只读preflight、状态/权限矩阵及故障恢复演练均已闭合；仅目标链AccessManager安装与撤权receipt仍待O701/L802完成 | V2-C-403、V2-T-401、V2-T-402、V2-O-701、V2-L-802 | 全状态乘积、target+selector+role+delay diff、部署者撤权和故障恢复演练通过 |
-| `V2-GAP-009` | `P1 / OPEN (PARTIAL PRODUCT ARTIFACT VALIDATION ACTIVE)` | 完整 Solidity interface、MarketRegistry product artifact exact ABI/event/hash清单、deployment schema及只读live preflight已建立并fail closed；其余最终product artifact、CREATE2真实initCodeHash/address及production manifest尚未生成 | V2-E-104、V2-O-701、V2-L-801、V2-L-802 | 最终 product artifact 反向生成 ABI/selector/hash；预测与实际部署一致；V2 preflight 无 placeholder且 fail closed |
-| `V2-GAP-010` | `P1 / OPEN (INDEXER + READ API + WALLET CORE DONE)` | Indexer已具备artifact事件、reorg/checkpoint与五域对账，Backend已提供有界只读API和生成客户端，Web已具备compiled ABI、Robinhood wallet与simulate-first交易状态机；仍缺Runner和完整产品旅程 | V2-W-502～V2-W-505、V2-S-501、V2-T-601 | 空库重建、真实钱包全旅程与 V2 文案验收通过，V1 service/ABI 无运行时引用 |
+| `V2-GAP-009` | `P1 / OPEN (ALL PRODUCT ARTIFACTS EXACT; DEPLOYMENT EVIDENCE OPEN)` | 十九个最终Solidity产品artifact均已反向生成并通过ABI/event/runtime hash exact diff，deployment schema及只读live preflight已建立并fail closed；Gauge额外要求clone implementation、runtime与immutable identity回读证据；仍缺目标链CREATE2实际地址/initCodeHash核对、无占位production manifest及部署receipt | V2-E-104、V2-O-701、V2-L-801、V2-L-802 | 最终 product artifact 反向生成 ABI/selector/hash；预测与实际部署一致；V2 preflight 无 placeholder且 fail closed |
+| `V2-GAP-010` | `P1 / OPEN (RUNNER + W502/W504 + W505-A LOCAL FLOW DONE)` | Indexer、Backend生成客户端、无特权Runner、compiled ABI钱包层、Launch/Curve、Vault及Emergency本金/Recovery root用户旅程均已实现；Web已把API资金相关地址回绑Factory不可变依赖与canonical Registry并在每次签名前复核，且仍显式要求完整product-runtime health后才开放交易；尚缺W503毕业池写旅程、W505-B法律文案签字和T601真实全旅程E2E | V2-W-502～V2-W-505、V2-S-501、V2-T-601 | 空库重建、真实钱包全旅程与 V2 文案验收通过，V1 service/ABI 无运行时引用 |
 | `V2-GAP-011` | `CLOSED (SPEC/CI)` | 四态 readiness 已取代旧 `FROZEN_FOR_IMPLEMENTATION`；当前因 implementation gates 为空且 deployment gates 非空，唯一推导为 `IMPLEMENTATION_ALLOWED`，deployment preflight 继续 fail closed | V2-P-012、V2-T-002 | Python/TypeScript 测试覆盖四态推导、状态/布尔一致性、placeholder 与跨展示面状态 |
-| `V2-GAP-012` | `P1 / OPEN (PARTIAL PRODUCT EXACT DIFF ACTIVE)` | Emergency、创建费、自动毕业、Curve sweep、事件来源和per-market Locker规范已唯一；MarketRegistry compiled artifact已逐mutation/event exact diff，其余产品模块及最终组合仍待实现 | V2-E-102、V2-E-103、V2-T-002 | 当前文档/manifest/ABI/权限/生成 interface 一致；全部产品artifact必须逐selector/event/tuple exact diff后才关闭 |
+| `V2-GAP-012` | `CLOSED (ALL NINETEEN PRODUCT ARTIFACTS EXACT)` | Emergency、创建费、自动毕业、Curve sweep、事件来源、Gauge clone和per-market Locker规范已唯一；十九个产品artifact均已逐selector/event/tuple/runtime hash反向exact diff，生成interface、ABI、权限和产品manifest保持一致 | V2-E-102、V2-E-103、V2-T-002 | 十九个产品artifact逐selector/event/tuple exact diff和生成物stale门禁持续通过；真实部署证据独立保留在`V2-GAP-009` |
 
 关闭规则：`V2-GAP-*` 只有在其关闭任务全部达到 `DONE` 且链接了对应 artifact、命令、测试数量和剩余风险后才能改为 `CLOSED`。文档或 Python 模型存在对应字段不构成 runtime 差距关闭。
 
@@ -114,10 +116,10 @@ V2 要在 Robinhood Chain 上跑通以下闭环：
 | 测试轨道 | 当前结果 | 能证明 | 不能证明 |
 |---|---:|---|---|
 | V1 Foundry | `ARCHIVED / NOT RUN` | 删除记录可证明旧实现被完整移出；历史审查记录为58 passed | 任何当前 V1 或 V2 运行时行为 |
-| V2 单项 Python 规格 | 57 passed | 当前 JSON、typed hash、readiness、Emergency/Graduation/Locker ABI、官方 STOCK Base、14条Pons runtime向量与独立reference逐单位一致和生成文件内部一致 | Solidity 产品 ABI 可编译、真实余额路径、重入、回滚、v4 callback 或权限部署 |
+| V2 单项 Python 规格 | 59 passed | 当前 JSON、typed hash、readiness、Emergency/Graduation/Locker ABI、官方 STOCK Base、14条Pons runtime向量与独立reference逐单位一致和生成文件内部一致 | Solidity 产品 ABI 可编译、真实余额路径、重入、回滚、v4 callback 或权限部署 |
 | V2 Foundry scaffold | 2 tests | V2 profile、namespace 和 `V2-EXEC-3` compile marker 可用 | V2 的任何链上产品能力 |
-| V2 Foundry Product | 255 tests | 十八个产品模块的身份、状态、内容哈希、权限、固定供应、Factory/Curve、Vault/Allocation/Gauge、FeeVault/Hook、Graduation/Locker、MarketController、Recovery及canonical discovery行为 | 目标链身份复核、live Fork、production deployment或生产安全 |
-| V2 Foundry shared libraries | 387 tests | typed identity、Pons差分、Vault/Allocation/Gauge、费用、Hook、毕业与Recovery共享状态机、AccessManager角色移交、256项状态乘积、Recovery恢复演练、数值/Gas边界及故障注入 | 目标链live Fork或production deployment manifest |
+| V2 Foundry Product | 272 tests | 十九个产品模块的身份、状态、内容哈希、权限、固定供应、Factory/Curve、Vault/Allocation/Gauge、FeeVault/Hook、Graduation/Locker、MarketController、Recovery、C405真实余额恢复、配置聚合读取及canonical discovery行为 | 目标链身份复核、live Fork、production deployment或生产安全 |
+| V2 Foundry shared libraries | 388 tests | typed identity、Pons差分、Vault/Allocation/Gauge、费用、Hook、毕业与Recovery共享状态机、AccessManager角色移交、256项状态乘积、Recovery恢复演练、数值/Gas边界及故障注入 | 目标链live Fork或production deployment manifest |
 | V2 Foundry Fork/E2E | 6 fixture tests / 0 live | 固定本地Quote/Pons/恶意资产夹具可复现 | 目标链live replay、端到端产品能力或生产安全 |
 
 CI 总状态必须按轨道报告，不得把 scaffold 绿灯汇总为“V2 passed”。当前 CI 的 `contracts-scaffold` 仅证明隔离边界可编译；未来 production implementation job 在 canonical artifact 未生成或产品 Foundry 测试数量为0时必须明确失败或保持 `NOT_STARTED`，不能显示成功。
@@ -126,17 +128,17 @@ CI 总状态必须按轨道报告，不得把 scaffold 绿灯汇总为“V2 pass
 
 估算以 2 名 Solidity 工程师、1 名后端/索引工程师、1 名前端工程师和兼职安全/QA 为参考，只表示相对工作量，不构成日历承诺。所有日历从 V2-M0 关闭后开始。
 
-| 里程碑 | 目标 | 工作量参考 | 前置依赖 | 退出门槛 |
-|---|---|---:|---|---|
-| V2-M0 规格与机器边界闭合 | `DONE`：已关闭状态权威、ABI、恢复、runtime/Quote/通用数值/batch scope、官方 STOCK 身份准入/194项观测、唯一 base 选择与10 STOCK饱和线性手续费分桶；安全与法律保留为后续部署/生产门禁 | 30–40 人日 | 无 | V2-P-001～V2-P-012 与 V2-T-001～V2-T-002 通过 |
-| V2-M1 V2 工程与接口基线 | 新 namespace、编译接口、生成 selector、V2 manifest schema、CI | 10–15 人日 | V2-M0 | 编译 artifact 是 ABI/权限的唯一来源 |
-| V2-M2 Launch 核心 | Registries、Token、Factory、LaunchAndBuy、Curve | 35–45 人日 | V2-M1 | Pons 差分、创建和曲线状态机通过 |
-| V2-M3 STOCK Vault 与 Gauge | 本金托管、allocation、激活轮、双资产累加器 | 30–40 人日 | V2-M1、V2-M2 的 Registry/Market 接口 | 本金、权重、锁定和奖励 Invariant 通过 |
-| V2-M4 Graduation 与 v4 费用 | FeeVault、Hook、Graduation、LaunchLocker | 40–55 人日 | V2-M2、V2-M3 | native/ERC-20 Fork 毕业与逐笔收费守恒通过 |
-| V2-M5 状态、权限与 Recovery 集成 | MarketController、Emergency、AccessManager、全协议原子性 | 20–30 人日 | V2-M2–V2-M4 | 状态/权限/逃生/恢复演练通过 |
-| V2-M6 Indexer、Backend 与 Web | 可重建读模型、API、真实钱包交互和风险展示 | 50–70 人日，可并行 | V2-E-102 及对应生产合约事件已进入 `REVIEW` | 关键用户旅程和 reorg/E2E 通过 |
-| V2-M7 硬化、部署与审计 | 全量 Fuzz/Gas、部署、监控、事故演练、外部审计 | 35–50 人日 + 外部排期 | V2-M2–V2-M6 | 审计 Critical/High 为 0 |
-| V2-M8 灰度上线 | 最终 manifest、角色移交、限范围启动和连续对账 | 10–15 人日 | V2-M7、法律签字 | 至少 72 小时核心账目与告警正常 |
+| 里程碑 | 状态 | 目标 | 工作量参考 | 前置依赖 | 退出门槛 |
+|---|---|---|---:|---|---|
+| V2-M0 规格与机器边界闭合 | `DONE` | 已关闭状态权威、ABI、恢复、runtime/Quote/通用数值/batch scope、官方 STOCK 身份准入/194项观测、唯一 base 选择与10 STOCK饱和线性手续费分桶；安全与法律保留为后续部署/生产门禁 | 30–40 人日 | 无 | V2-P-001～V2-P-012 与 V2-T-001～V2-T-002 通过 |
+| V2-M1 V2 工程与接口基线 | `DONE` | 新 namespace、编译接口、生成 selector、V2 manifest schema、CI | 10–15 人日 | V2-M0 | 编译 artifact 是 ABI/权限的唯一来源 |
+| V2-M2 Launch 核心 | `DONE (LOCAL)` | Registries、Token、Factory、LaunchAndBuy、Curve | 35–45 人日 | V2-M1 | Pons 差分、创建和曲线状态机通过 |
+| V2-M3 STOCK Vault 与 Gauge | `DONE (LOCAL)` | 本金托管、allocation、激活轮、双资产累加器 | 30–40 人日 | V2-M1、V2-M2 的 Registry/Market 接口 | 本金、权重、锁定和奖励 Invariant 通过 |
+| V2-M4 Graduation 与 v4 费用 | `BLOCKED (ARCHIVE FORK)` | FeeVault、Hook、Graduation、LaunchLocker本地实现已完成，退出门槛仍需目标链Fork | 40–55 人日 | V2-M2、V2-M3、V2-T-301/V2-T-302 | native/ERC-20 Fork 毕业与逐笔收费守恒通过 |
+| V2-M5 状态、权限与 Recovery 集成 | `BLOCKED (T403/LIVE ACCESS)` | MarketController、Emergency、Recovery及本地Access计划已完成；全协议原子性和目标链安装待证 | 20–30 人日 | V2-M2–V2-M4 | 状态/权限/逃生/恢复演练及全协议原子性通过 |
+| V2-M6 Indexer、Backend 与 Web | `BLOCKED (W503/LEGAL/E2E)` | 可重建读模型、API、无特权Runner、钱包及主要本地产品旅程已完成；毕业池、文案签字与真实E2E待完成 | 50–70 人日，可并行 | V2-E-102、V2-T-301/V2-T-302、`V2-G0-LEGAL-01` | 关键用户旅程和 reorg/E2E 通过 |
+| V2-M7 硬化、部署与审计 | `BLOCKED (UPSTREAM/EXTERNAL)` | 全量 Fuzz/Gas、部署、监控、事故演练、外部审计 | 35–50 人日 + 外部排期 | V2-M2–V2-M6 | 审计 Critical/High 为 0 |
+| V2-M8 灰度上线 | `BLOCKED (AUDIT/LEGAL/PRODUCTION)` | 最终 manifest、角色移交、限范围启动和连续对账 | 10–15 人日 | V2-M7、法律签字 | 至少 72 小时核心账目与告警正常 |
 
 关键依赖：
 
@@ -168,7 +170,7 @@ V2-M0 已关闭。后续若改变已冻结行为，必须先升级 execution spe
 | V2-P-011 | `DONE` | 关闭 canonical ABI、事件与调用入口缺口 | Emergency 单参数/链上计算与 cap-freeze ABI；immutable 创建费；exact Curve 自动毕业/sweep；事件唯一来源；四组件/per-market Locker template/hash/CREATE2 模式 | V2-P-002、`V2-G0-LAUNCH-FEE-GOVERNANCE-01` | 文档、机器 ABI/权限、template/hash schema、参考流程和生成 interface 只有一种 signature/事件/调用顺序；未来 artifact 由 T002 条件门禁校验 |
 | V2-P-012 | `DONE` | 建立唯一 readiness 状态模型 | `V2_READINESS_AND_DEPLOYMENT_GATES.md`、manifest 三组 gates、deployment 同源推导/preflight、production placeholder policy | V2-P-011 | 四态不可混用；当前严格为 `IMPLEMENTATION_ALLOWED`；未关闭 artifact、审计或72h soak时对应 deployment/production 门禁失败 |
 | V2-T-001 | `DONE` | 扩展 V2 可执行参考规格 | Python 规格测试覆盖 selector/hash/Curve/runtime Graduation/Quote/数值极值、官方194项身份目录、唯一 base 选择、价格无关 ABI 和10 STOCK饱和线性手续费分桶 | 已关闭 | `S=0`、`0<S<B`、`S=B`、`S>B`、rounding、admission、不可改绑和同 STOCK 多市场向量通过 |
-| V2-T-002 | `DONE (PRE-PRODUCT-ARTIFACT)` | 建立跨文档/机器/artifact 一致性测试 | Markdown Emergency signature/returns、readiness derivation、ABI/权限/event owner、launch fee immutability、template/hash/CREATE2、placeholder、生成接口与编译接口manifest一致性 | V2-P-002、V2-P-011、V2-P-012 | 当前56项规格测试 + 5项 deployment 测试及interface artifact exact diff通过；compiled product artifact 尚不存在且由deployment gate保持关闭，出现后必须启用product exact diff |
+| V2-T-002 | `DONE (PRODUCT ARTIFACT EXACT)` | 建立跨文档/机器/artifact 一致性测试 | Markdown Emergency signature/returns、readiness derivation、ABI/权限/event owner、launch fee immutability、template/hash/CREATE2、placeholder、生成接口、编译接口与十九个产品artifact一致性 | V2-P-002、V2-P-011、V2-P-012 | 当前59项规格测试、23项deployment测试、interface与十九个product artifact selector/event/tuple/runtime hash反向exact diff持续通过；production deployment gate仍保持关闭 |
 
 ### 4.1 V2-M0 退出检查
 
@@ -177,7 +179,7 @@ V2-M0 已关闭。后续若改变已冻结行为，必须先升级 execution spe
 - [x] `activateEmergencyExit` 的参数、链上计算责任、返回值和权限在执行规范、ABI surface、权限矩阵与生成 interface 中完全一致；compiled product artifact 仍由后续门禁校验。
 - [x] 创建费明确为 current Factory immutable；不存在 setter/event，改费必须新 Factory/Router/Template 与新 `executionSpecId`。
 - [x] readiness 使用唯一四态和同源 gate 推导；CI 与 deployment preflight 均 fail closed。
-- [x] 所有结构体均有 canonical ABI tuple 且所有 mutation selector 可由机器 surface 生成；最终编译 artifact 的反向 exact diff 属于 deployment gate。
+- [x] 所有结构体均有 canonical ABI tuple 且所有 mutation selector 可由机器 surface 生成；十九个当前产品artifact已纳入反向exact diff，生产部署地址/代码/权限的live exact diff仍属于deployment gate。
 - [x] MarketRegistry、Creator epoch、Graduation、Recovery、迁移和 rescue 都有唯一执行算法。
 - [x] 通用 Stock/Quote admission 数值域下，`INDEX_PRECISION`、remainder、时间和生命周期累计都有整数上界；STOCK 只使用 raw-unit 权重，不需要价格 target。
 - [x] Pons runtime、native/USDG Quote、immutable 创建费、launch-and-buy、batch scope、官方全量 STOCK 身份准入、唯一 base 选择与固定手续费分桶已经关闭。
@@ -190,7 +192,7 @@ V2-M0 已关闭。后续若改变已冻结行为，必须先升级 execution spe
 | ID | 状态 | 任务 | 主要产物 | 依赖 | 验收标准 |
 |---|---|---|---|---|---|
 | V2-E-101 | `DONE / SCAFFOLD ONLY` | 建立 V2 合约与测试 namespace | `contracts/src/v2/`、`contracts/test/v2/`、mock 和 fixture 边界、独立 Foundry profile | 产品要求先行建立无业务实现 scaffold；生产模块仍受 M0 门禁 | V1 runtime 已不经修改地移出；V2 namespace 可独立编译和测试；无产品合约占位实现 |
-| V2-E-102 | `DONE` | 实现接口与机器清单生成器 | `contracts/src/v2/interfaces/IV2Protocol.sol`、`spec/generate_v2_interfaces.py`、`spec/generate_v2_artifact_manifest.py`、`spec/v2_compiled_interface_manifest.json` | V2-E-101、V2-P-002 | 18个模块、77个mutation、51个event、34个required error由Solidity 0.8.26 artifact反向核对；tuple字段、mutability、indexed、selector、topic、caller/delay/precondition/recipient任一漂移均失败 |
+| V2-E-102 | `DONE` | 实现接口与机器清单生成器 | `contracts/src/v2/interfaces/IV2Protocol.sol`、`spec/generate_v2_interfaces.py`、`spec/generate_v2_artifact_manifest.py`、`spec/v2_compiled_interface_manifest.json` | V2-E-101、V2-P-002 | 19个模块、80个mutation、54个event、35个required error由Solidity 0.8.26 artifact反向核对；tuple字段、mutability、indexed、selector、topic、caller/delay/precondition/recipient任一漂移均失败 |
 | V2-E-103 | `DONE` | 建立 V2 CI 门禁 | `.github/workflows/ci.yml`、`tools/check-v2-ci-tracks.mjs`、对应10项门禁测试；boundary/spec、interface/scaffold、product、fork、deployment、off-chain、website独立分轨 | V2-E-102 | 未启动轨道明确报告 `NOT_STARTED`；Fork允许完整本地fixture层进入`FIXTURES_ACTIVE`，live fork测试启动后固定manifest/RPC仍必须成套；其余部分启动立即fail closed；完整启动层实际执行对应测试 |
 | V2-E-104 | `DONE / TOOLING ONLY` | 建立 V2 deployment schema | Schema、结构验证及只读live preflight；覆盖目标链依赖、所有模块、CREATE2、codehash、Pool/Position、Hook、AccessManager、config IDs与角色移交 | V2-E-102 | 错chain/address/codehash/config/selector/sourceVersion/fee/role/receipt时preflight fail closed；当前中央readiness仍先行阻止真实部署 |
 | V2-E-105 | `DONE / FIXTURES ONLY` | 建立 Pons/Quote 固定 fixture | 14项baseline行为向量、native/ERC-20与恶意资产mocks、两个固定block/hash快照、确定性fixture hash | V2-P-005、V2-P-010 | 本地、CI和审计复现使用同一输入和hash；不声称live fork或生产资产取证 |
@@ -203,11 +205,11 @@ V2-M0 已关闭。后续若改变已冻结行为，必须先升级 execution spe
 |---|---|---|---|
 | V2-E-101-A | V2-E-101 | `DONE`：创建 V2 Solidity/测试目录和独立 Foundry target | `src/v2`、`test/v2`、fixture/mock 目录与 `profile.v2` 已存在；scaffold 测试独立报告，后续 product 测试必须另行计数 |
 | V2-E-101-B | V2-E-101 | `DONE`：建立 V1 归档/V2 runtime 物理边界 | V1 runtime 已移出；静态规则禁止 V2 重新引入 `EmissionController`、`RewardEscrow`、`StockStakingGauge`、V1 Token/Factory/FeeExecutor/旧 Bucket；允许复用项必须为无经济语义的通用库并显式白名单 |
-| V2-E-102-A | V2-E-102 | `DONE`：从机器 surface 生成并编译完整 V2 interfaces | 18个模块的struct、enum、error、event、view和mutation进入 `IV2Protocol.sol` 并编译；draft import由boundary check禁止 |
-| V2-E-102-B | V2-E-102 | `DONE`：artifact→ABI/selector/topic/permission 生成与反向 diff | 编译源hash、tuple字段、输入输出、mutability、indexed、methodIdentifiers、topic0及77行协议权限逐项一致；CI执行 `check:interfaces` |
+| V2-E-102-A | V2-E-102 | `DONE`：从机器 surface 生成并编译完整 V2 interfaces | 19个模块的struct、enum、error、event、view和mutation进入 `IV2Protocol.sol` 并编译；draft import由boundary check禁止 |
+| V2-E-102-B | V2-E-102 | `DONE`：artifact→ABI/selector/topic/permission 生成与反向 diff | 编译源hash、tuple字段、输入输出、mutability、indexed、methodIdentifiers、topic0及80行协议权限逐项一致；CI执行 `check:interfaces` |
 | V2-E-103-A | V2-E-103 | `DONE`：拆分 CI 轨道 | `contracts-product`、`contracts-fork`、`deployment` 已从 interface/scaffold 与 off-chain scaffold 中独立；每条轨道写入 GitHub step summary |
 | V2-E-103-B | V2-E-103 | `DONE`：增加零实现/零测试硬门禁 | 全空轨道只报告`NOT_STARTED`；产品源/测试/真实source artifact必须成套；Fork的manifest/生成器/本地测试完整后为`FIXTURES_ACTIVE`，live测试出现后必须再有RPC；deployment schema/validator/tests与后续preflight/tests分层成套并实际测试成功，否则非零退出 |
-| V2-E-104-A | V2-E-104 | `DONE`：定义 V2 deployment manifest schema | `v2-deployment-manifest.schema.json`、`schema.ts`及测试已覆盖executionSpecId/readiness、外部依赖、18模块、config snapshot、Quote/STOCK身份、四类CREATE2、Hook mask/core fee、80+6权限、测试证据和角色移交；拒绝额外字段、空值、占位及低熵hash |
+| V2-E-104-A | V2-E-104 | `DONE`：定义 V2 deployment manifest schema | `v2-deployment-manifest.schema.json`、`schema.ts`及测试已覆盖executionSpecId/readiness、外部依赖、19模块、config snapshot、Quote/STOCK身份、四类CREATE2、Hook mask/core fee、80+6权限、测试证据和角色移交；拒绝额外字段、空值、占位及低熵hash |
 | V2-E-104-B | V2-E-104 | `DONE`：实现 V2 只读live preflight | 固定同一finalized block核对chain、全部runtime code、关键getter/storage、完整PoolKey/PoolId、StateView core fee、Position NFT→Locker、Hook bits/binding/sourceVersion、80条selector role与事件exact diff、Safe角色delay、部署者撤权及成功receipt；RPC白名单禁止写方法 |
 | V2-E-105-A | V2-E-105 | `DONE`：固定 native/ERC-20/恶意资产测试夹具 | 两项首发Quote固定decimals/phantom/threshold及proxy/implementation身份，14项Pons向量和两个block/hash快照原样冻结；8类行为fixture覆盖精确到账、fee-on-transfer、rebase、回调重入、false/no-data/malformed返回和强制转账，compiled runtime codehash与完整fixture hash由生成器验证 |
 
@@ -230,14 +232,14 @@ V2-M0 已关闭。后续若改变已冻结行为，必须先升级 execution spe
 |---|---|---|---|
 | V2-C-101-A | V2-C-101 | `DONE`：MarketConfig/runtime存储与只读发现 | immutable Factory独占登记；marketId/Meme Token write-once；ACTIVE Asset/Quote/Baseline/Template交叉验证；初始runtime、完整PoolKey/PoolId、Curve fee source及sourceVersion可由链上唯一重建 |
 | V2-C-101-B | V2-C-101 | `DONE`：语义化状态迁移入口 | immutable Curve/GraduationExecutor/MarketController权限；所有允许边单向且时间边界精确，事件与写入同交易完成；编译artifact对canonical接口exact diff |
-| V2-C-102-A | V2-C-102 | `DONE`：`OfficialStockRegistryV2` | 每Asset UID/Stock Token/Vault三重write-once；冻结1–36 decimals与状态；AccessManager 48h admin/即时pause/24h unpause；第195项登记测试证明无硬上限，无价格/Feed/target ABI |
+| V2-C-102-A | V2-C-102 | `DONE`：`OfficialStockRegistryV2` | Asset UID与Stock Token唯一且write-once，Asset-to-Vault绑定write-once，多Asset可共享同schema唯一Vault；冻结经通用数值证明的6–18 decimals与状态；AccessManager 48h admin/即时pause/24h unpause；第195项登记测试证明无硬上限，无价格/Feed/target ABI |
 | V2-C-102-B | V2-C-102 | `DONE`：`ApprovedQuoteRegistry` | native/ERC-20 配置逐资产冻结 decimals、phantom、threshold、baseline和economics hash；inactive配置不能创建新市场 |
 | V2-C-102-C | V2-C-102 | `DONE`：`PonsBaselineRegistry` 与 `LaunchTemplateRegistry` | baseline/template 追加式；冻结部署模式、implementation/codehash、fee policy、executionSpecId和允许状态迁移 |
 | V2-C-103-A | V2-C-103 | `DONE`：固定供应 Token 部署与身份绑定 | `marketId/creator/factory/metadataURI/initialSupply` 冻结；18 decimals标准ERC-20全量供应一次进入predicted Curve；无后续mint、V1角色或管理旁路 |
 | V2-C-104-A | V2-C-104 | `DONE`：Creator beneficiary epoch | epoch 从1开始且write-once；变更先按旧epoch从exact Curve原子sweep并确认清零；只有当前beneficiary可追加未来epoch，管理员无重定向入口 |
 | V2-C-105-A | V2-C-105 | `DONE`：typed marketId、四类 component salt 和共用 CREATE2 库 | 冻结向量及本地真实CREATE2部署使用同一共用层；Factory/GraduationExecutor最终组件constructor args、initCodeHash与manifest证据由V2-C-105-B/C及Graduation集成闭合 |
 | V2-C-105-B | V2-C-105 | `DONE`：Factory 校验、配置快照与多 Meme identity | 四个Registry ACTIVE/current交叉校验、typed expectedEconomics与10 STOCK快照已闭合；同Asset UID可保留多个不同marketId而重复identity失败；实际组件创建与登记由V2-C-105-C原子完成 |
-| V2-C-105-C | V2-C-105 | `DONE`：组件部署、初始化、Registry登记原子化 | codehash固定delegate target保持Factory CREATE2 namespace且规避代码上限；Token→Curve→Gauge真实构造、Registry→creator epoch→创建费→事件原子提交；无公开initializer、抢跑窗口或半市场 |
+| V2-C-105-C | V2-C-105 | `DONE`：组件部署、初始化、Registry登记原子化 | Token/Curve的codehash固定typed delegate target保持Factory CREATE2 namespace；Gauge使用固定implementation与immutable-args clone；Registry→creator epoch→创建费→事件原子提交；无公开initializer、抢跑窗口或半市场 |
 | V2-C-106-A | V2-C-106 | `DONE`：普通创建与 native launch-and-buy | 精确收取创建费；native `msg.value=launchFee+firstBuyAmount`；partial fill退款给creator，recipient只接收Meme；强制历史余额不被扫走，首买或退款失败全流程回滚 |
 | V2-C-106-B | V2-C-106 | `DONE`：ERC-20 launch-and-buy | `msg.value=launchFee`；Router从creator精确拉取Quote并只对新Curve设置一次精确allowance；授权、少到账、异常返回、回调、退款或首买失败时全流程回滚；canonical ABI不增加permit入口 |
 | V2-C-106-C | V2-C-106 | `DONE`：creator/beneficiary/recipient/salt 身份安全与concrete Router | 禁止 `tx.origin`；creator固定为Router外层`msg.sender`；beneficiary按canonical typed schema参与marketId但不能替换creator，recipient不参与marketId；salt改变market及全部CREATE2 namespace；原子首买recipient豁免仅一次 |
@@ -248,17 +250,17 @@ V2-M0 已关闭。后续若改变已冻结行为，必须先升级 execution spe
 | V2-C-107-E | V2-C-107 | `DONE`：Curve fee sweep、完成信号和毕业交接 | feeId/sweepNonce唯一；实际到账后credit；ready条件只由sellable耗尽触发；重复sweep/重复完成/双重毕业失败 |
 | V2-T-101-A | V2-T-101 | `DONE`：Token/Factory负向与多市场测试 | 非Factory错误供应/Curve不能伪造canonical市场；旧mint caller不可达；同Stock与同salt可按完整typed identity创建多Meme，完全重复identity失败；四Registry未知、inactive及字段漂移全覆盖且不消耗身份 |
 | V2-T-101-B | V2-T-101 | `DONE`：Pons交易三方差分 | 14条固定runtime向量覆盖Factory供应配置、真实买卖、双fee leg、尾单退款、价格边界回滚、anti-snipe及毕业；Python reference与生产Solidity库逐输出整数单位一致，difference ID登记表为空 |
-| V2-T-101-C | V2-T-101 | `DONE`：CREATE2实际部署测试 | Token/Curve/Gauge及毕业路径LaunchLocker均以真实creation code、完整constructor args、链/部署者/market/component salt、独立预测地址、actual地址、runtime code和16模块编译manifest逐项核对；无mock或地址占位替代 |
+| V2-T-101-C | V2-T-101 | `DONE`：CREATE2实际部署测试 | Token/Curve/LaunchLocker以真实creation code，Gauge以真实implementation runtime、clone init code与八字段immutable args，结合链/部署者/market/component salt、独立预测地址、actual地址和编译manifest逐项核对；无mock或地址占位替代 |
 | V2-T-101-D | V2-T-101 | `DONE`：Launch原子性与故障注入 | 收费、拉币、Token/Curve/Gauge部署、Curve构造初始化、首买、native/ERC-20退款、Market Registry及creator epoch登记逐步故障注入通过；余额、CREATE2组件、identity reservation、market与epoch全部回滚，相同identity可无残留重试；revert交易不保留事件 |
 
 ## 7. V2-M3：UserStockVault、Allocation 与 Gauge
 
 | ID | 状态 | 任务 | 主要产物 | 依赖 | 验收标准 |
 |---|---|---|---|---|---|
-| V2-C-201 | `DONE` | 实现 `UserStockVault` | immutable身份/Registry绑定、exact-arrival存款、三层allocation、本人free withdraw及终态force release完整产品模块 | V2-C-101、V2-C-102、V2-P-003 | `deposited = free + allocated`；跨 Asset/market 不能混用；只有本人收到本金 |
+| V2-C-201 | `DONE` | 实现 `UserStockVault` | 版本化MultiAsset身份/Registry绑定、exact-arrival存款、资产分区三层allocation、本人free withdraw及终态force release完整产品模块 | V2-C-101、V2-C-102、V2-P-003 | 每个Asset独立满足`deposited = free + allocated`；跨Asset/market不能混用；只有本人收到本金 |
 | V2-C-202 | `DONE` | 实现 `AllocationManager` | 六个canonical caller-only入口、同Asset/Vault迁移、完整门禁与原子回滚产品模块 | V2-C-201、V2-P-009 | 只有 PoolCreated+ACTIVE 可增加；所有动作先结算；迁移无重叠计奖且原子回滚 |
 | V2-C-203 | `DONE` | 实现 32 槽激活轮 | 32槽绝对generation、snapshot/refcount、lazy materialization及单pending merge/reset共享状态机 | V2-C-202、V2-P-007 | 29/30/31 秒、槽冲突、跨年空闲、同秒大量用户与已处理未物化状态正确 |
-| V2-C-204 | `DONE` | 实现 `MemeStockGauge` 与双资产累加器 | concrete Gauge、24小时整仓锁、Quote/Meme accumulator、active/pending历史结算、claim消费与永久Emergency禁用 | V2-C-203、V2-P-007 | 新份额不取历史费用；两资产完全隔离；S=0、0<S<B、S>=B分桶及份额比例守恒 |
+| V2-C-204 | `DONE` | 实现 `MemeStockGauge` 与双资产累加器 | 固定implementation、每市场immutable-args clone、24小时整仓锁、双资产历史结算、claim消费与永久Emergency禁用 | V2-C-203、V2-P-007 | 新份额不取历史费用；两资产及跨clone状态完全隔离；S=0、0<S<B、S>=B分桶及份额比例守恒 |
 | V2-T-201 | `DONE` | Vault/Gauge 状态化 Invariant | 4用户×2市场状态化handler覆盖多次存取、增减、迁移、时间推进、pause/reactivate/retire、Emergency激活与本人force release；边界和故障矩阵全部闭合 | V2-C-201～V2-C-204 | allocation 三层等式、权重总和、本金覆盖、单 pending 和本人退出持续成立 |
 | V2-T-202 | `DONE` | 激活轮数值与 Gas 测试 | 32槽复杂度、最坏Gas与存储报告、6–18 decimals/supply全域、remainder差分、生命周期overflow与最大dust证明均已冻结 | V2-C-203、V2-C-204 | 单次成本不随用户/历史 generation 增长；永久经济 dust 为0，不超过 V2-M0 上界 |
 
@@ -266,9 +268,9 @@ V2-M0 已关闭。后续若改变已冻结行为，必须先升级 execution spe
 
 | 子任务 ID | 父任务 | 工作包 | 产物与验收 |
 |---|---|---|---|
-| V2-C-201-A | V2-C-201 | `DONE`：Vault初始化、Asset/Vault唯一绑定 | Vault只接受Registry绑定的Stock；每Asset UID唯一；Gauge/AllocationManager不持有本金且无可消费用户余额的任意allowance |
+| V2-C-201-A | V2-C-201 | `DONE`：Vault初始化、Asset/Vault与schema绑定 | Vault只接受Registry解析的canonical Stock；每Asset绑定write-once、每schema唯一Vault；Gauge/AllocationManager不持有本金且无可消费用户余额的任意allowance |
 | V2-C-201-B | V2-C-201 | `DONE`：deposit/depositFor与实际到账 | balance delta必须等于声明金额；fee-on-transfer、rebase、异常返回值和重入失败；只能给固定用户增加free balance |
-| V2-C-201-C | V2-C-201 | `DONE`：free/allocated/market三层账本 | 每次操作保持`deposited=free+allocated`、用户/市场/全局allocation聚合相等，禁止跨Asset、跨Vault或重复使用同一本金 |
+| V2-C-201-C | V2-C-201 | `DONE`：free/allocated/market三层账本 | 每个Asset分区保持`deposited=free+allocated`、用户/市场/资产总allocation聚合相等，禁止跨Asset、跨Vault或重复使用同一本金 |
 | V2-C-201-D | V2-C-201 | `DONE`：普通withdraw与Emergency force release | 普通提款只用free；force release只作用于`msg.sender`且先回free，不接受任意user/recipient，也不依赖故障Gauge调用成功 |
 | V2-C-202-A | V2-C-202 | `DONE`：allocate/increase统一preflight | 目标必须PoolCreated+ACTIVE且Asset允许新增；Quote后续状态不改写历史市场；结果为0或严格`>0.5 STOCK`；只作用于外层调用用户 |
 | V2-C-202-B | V2-C-202 | `DONE`：decrease/close与暂停退出 | 先checkpoint/settle再改权重；必须满足24小时锁；减仓后剩余为0或`>0.5`；PAUSED/RETIRED仍允许到期退出和历史claim |
@@ -294,8 +296,8 @@ V2-M0 已关闭。后续若改变已冻结行为，必须先升级 execution spe
 | V2-C-303 | `DONE (A/B/C/D + PRODUCT)` | 实现 `GraduationExecutor` | exact Curve `graduateFromCurve`、Graduation Guard、per-market Locker CREATE2、expected pool、initialize、full-range mint、activate、public retry/rescue及concrete产品组合 | V2-C-105、V2-C-107、V2-C-302、V2-P-005 | Guard 验证 caller/阶段/PoolKey/余额/锁仓/source；native/ERC-20 正确 settle；成功原子写 PoolCreated，失败只保留 Curve 已提交的 Swept |
 | V2-C-304 | `DONE (A/B)` | 实现 per-market `LaunchLocker` | 单市场绑定、构造期一次冻结、初始 Position NFT 永久锁定、permissionless fee compound、单边余额隔离 | V2-C-303共享核心 | 无提款/approve/任意 execute；费用只增加本 Locker 的 canonical full-range liquidity；一个 Locker 不能接管另一市场 |
 | V2-C-305 | `DONE (A)` | 实现 canonical 路由发现视图 | Registry以immutable共享Router/Quoter返回完整PoolKey、预期poolId、Hook、Quote、Token、Gauge、Curve、预测/实际Locker、sourceVersion、生命周期与两类可交易状态 | V2-C-105、V2-C-303 | 标准 Router/Quoter 可从链上唯一重建调用参数；前端不自行猜测 PoolKey |
-| V2-T-301 | `READY (ARCHIVE RPC REQUIRED)` | v4 手续费与 Router/Quoter Fork 测试 | 四种 exact-in/out 方向、native/ERC-20、极值、donate/take 和 slippage | V2-C-301、V2-C-302 | 实际用户收付、Swap log、V4FeeAccrued 和 Vault 余额可逐交易对账 |
-| V2-T-302 | `READY (ARCHIVE RPC REQUIRED)` | Graduation/Locker Fork 与故障测试 | initialize/mint/settle/lock/compound、无流动性、错误 PoolKey、retry/rescue | V2-C-303、V2-C-304 | 不存在未锁定初始 LP、假 PoolCreated、资产余量丢失或 Swept 后双重毕业 |
+| V2-T-301 | `BLOCKED (ARCHIVE RPC REQUIRED)` | v4 手续费与 Router/Quoter Fork 测试 | 四种 exact-in/out 方向、native/ERC-20、极值、donate/take 和 slippage | V2-C-301、V2-C-302；外部archive `ROBINHOOD_RPC_URL` | 实际用户收付、Swap log、V4FeeAccrued 和 Vault 余额可逐交易对账 |
+| V2-T-302 | `BLOCKED (ARCHIVE RPC REQUIRED)` | Graduation/Locker Fork 与故障测试 | initialize/mint/settle/lock/compound、无流动性、错误 PoolKey、retry/rescue | V2-C-303、V2-C-304；外部archive `ROBINHOOD_RPC_URL` | 不存在未锁定初始 LP、假 PoolCreated、资产余量丢失或 Swept 后双重毕业 |
 
 ### 8.1 V2-M4 可分配子任务
 
@@ -331,7 +333,7 @@ V2-M0 已关闭。后续若改变已冻结行为，必须先升级 execution spe
 | V2-C-402 | `DONE` | 实现 Emergency 和 Recovery | Gauge/source 永久失效、cap 冻结、force release、root 生命周期与 claim | V2-C-201、V2-C-301、V2-C-401、V2-P-006 | 本金不依赖 Gauge/root；Recovery 不超 cap；旧 source/Gauge 永不恢复或双领 |
 | V2-C-403 | `DONE (LOCAL PLAN + VERIFIER; LIVE INSTALL GATED)` | 配置 `AccessManager` | selector 角色、48h/24h执行延迟、7d业务状态延迟、Guardian、模块直连权限 | V2-E-102、V2-C-101～V2-C-107、V2-C-201～V2-C-204、V2-C-301～V2-C-305、V2-C-401、V2-C-402 | 本地执行与机器矩阵逐项相同；无额外 mutation selector；部署者权限可全部撤销；目标链读取证据归O701/L802 |
 | V2-C-404 | `OUT_OF_SCOPE_V2_INITIAL_RELEASE` | 批量 mutation/辅助 Router | 首发不实现 batch；checkpoint/sweep/retry/compound 继续使用各自单市场 permissionless 入口 | `V2-G0-BATCH-01` 已通过 scope removal 关闭 | canonical ABI 与最终 artifact 均不得出现 `batch*`/`claimAll`/`withdrawAllMarkets`/`migrateAll` |
-| V2-C-405 | `TODO` | P0：关闭 `Emergency × NotGraduated` 状态缺口 | 重开并统一 MarketStatus × LaunchPhase 规范；禁止未毕业 Curve 进入不可恢复的非交易终态，或在终态提交前原子完成未毕业 Curve 的结算/救援；增加真实余额恢复 Invariant | V2-P-001、V2-P-006、V2-C-101、V2-C-107、V2-C-401、V2-C-402 | 使用真实 `PonsCompatibleCurve`，分别在 native/ERC-20 Quote 下形成非零 tracked Quote/Meme 余额；经 PAUSED/RETIRED 与24小时边界后，状态迁移必须原子回滚且保留可达恢复路径，或精确结算/救援并清零对应 tracked 资产；任何路径不得留下“永久不可交易且资产不可取回”的终态，规范、manifest、权限矩阵、artifact 与测试 exact diff 全部同步 |
+| V2-C-405 | `DONE (LOCAL PRODUCT + REAL-BALANCE INVARIANT)` | P0：关闭 `Emergency × NotGraduated` 状态缺口 | 重开并统一 MarketStatus × LaunchPhase 规范；禁止未毕业 Curve 进入不可恢复的非交易终态，或在终态提交前原子完成未毕业 Curve 的结算/救援；增加真实余额恢复 Invariant | V2-P-001、V2-P-006、V2-C-101、V2-C-107、V2-C-401、V2-C-402 | 使用真实 `PonsCompatibleCurve`，分别在 native/ERC-20 Quote 下形成非零 tracked Quote/Meme 余额；经 PAUSED/RETIRED 与24小时边界后，状态迁移必须原子回滚且保留可达恢复路径，或精确结算/救援并清零对应 tracked 资产；任何路径不得留下“永久不可交易且资产不可取回”的终态，规范、manifest、权限矩阵、artifact 与测试 exact diff 全部同步 |
 | V2-T-401 | `DONE` | 全状态机与权限负向测试 | 按各真实入口依赖因子覆盖launchPhase、marketStatus、asset/quote status、sourceVersion、caller/delay组合 | V2-C-401～V2-C-403 | 所有允许边存在，所有未列边失败；退出和历史 claim 不被普通暂停阻断 |
 | V2-T-402 | `DONE` | Emergency/Recovery 演练测试 | Gauge 故障、快照、root 修正/最终确认、force release、重复 claim | V2-C-402 | 错 root、超 cap、跨域 proof、他人本金、旧 Gauge claim 和状态恢复全部失败 |
 | V2-T-403 | `BLOCKED` | 全协议原子性测试 | create→curve→sweep→graduate→allocate→swap→claim→exit/recovery | V2-C-405、V2-T-101、V2-T-201、V2-T-301、V2-T-302、V2-T-401、V2-T-402 | 任意注入失败只有规范定义的唯一结果，不留下半状态或未覆盖负债 |
@@ -346,7 +348,7 @@ V2-M0 已关闭。后续若改变已冻结行为，必须先升级 execution spe
 | V2-C-402-B | V2-C-402 | `DONE`：本人本金force release | 不调用故障Gauge、不接受owner/recipient；只释放调用者allocation到其Vault free balance；重复释放和跨market失败 |
 | V2-C-402-C | V2-C-402 | `DONE`：Recovery root生命周期 | root绑定chain/market/epoch/asset/snapshot/stateHash；proposal nonce、24h角色延迟、48h挑战、cancel/finalize和不可复用状态完整 |
 | V2-C-402-D | V2-C-402 | `DONE`：capped Merkle claim | sorted-pair双哈希；每资产claimed不超过frozen cap；错误、未finalize、重复、跨域proof及transfer失败均安全 |
-| V2-C-403-A | V2-C-403 | `DONE`：AccessManager角色和selector安装 | 从18模块最终artifact派生22个角色selector与58个immutable direct selector；execution delay与业务state delay分离，七日rescue不进入AccessManager delay |
+| V2-C-403-A | V2-C-403 | `DONE`：AccessManager角色和selector安装 | 从19模块最终artifact派生22个角色selector与58个immutable direct selector；execution delay与业务state delay分离，七日rescue不进入AccessManager delay |
 | V2-C-403-B | V2-C-403 | `DONE`：管理权限和模块直连边界 | 四个V2角色的admin冻结为48h治理角色；Guardian绑定1/3/4角色；全局ADMIN配置面在移交后永久锁定，治理不能旁路Registry语义入口 |
 | V2-C-403-C | V2-C-403 | `DONE (LIVE EVIDENCE DEFERRED)`：角色移交与残余权限清除 | 精确事件回放拒绝额外成员/selector；部署者最后撤销ADMIN_ROLE；错误role admin/guardian/member/delay均由只读preflight拒绝，目标链交易/receipt仍受deployment gates约束 |
 | V2-C-404-A | V2-C-404 | `OUT_OF_SCOPE_V2_INITIAL_RELEASE` | 不生成实现或 ABI；后续若重开必须升级 executionSpecId 并重新评审 Gas/原子性/权限 |
@@ -366,11 +368,11 @@ V2-M0 已关闭。后续若改变已冻结行为，必须先升级 execution spe
 | V2-B-501 | `DONE` | 实现 V2 Backend 读 API | 市场发现、毕业进度、完整 PoolKey、仓位、激活/解锁、双资产收益和来源区块 | V2-I-501 | API 只读、分页有界、同步状态明确；不持有用户私钥或代签 |
 | V2-B-502 | `DONE` | 发布 OpenAPI 与生成客户端 | 版本化 schema、TypeScript client、错误/同步状态类型 | V2-B-501 | Web 不手写响应结构；破坏性 API 变更必须升版 |
 | V2-W-501 | `DONE` | 建立 V2 钱包与类型化交易层 | viem/wagmi、RH chain、compiled ABI、模拟/授权/提交/replacement 状态机 | V2-E-102、V2-B-502 | 所有写操作先模拟；错误 chain、拒签、过期报价和 replacement 可区分 |
-| V2-W-502 | `IN_PROGRESS` | 实现 Launch 与 Curve 页面 | Quote/template 选择、launch-and-buy、buy/sell、费用和毕业进度 | V2-W-501、V2-T-101 | 不允许输入任意 economics；实际 Quote、首买豁免和风险披露清楚 |
-| V2-W-503 | `BLOCKED` | 实现毕业池交易与流动性页面 | canonical Router/Quoter、PoolKey、Swap fee、外部 LP 与 locked LP 展示 | V2-W-501、V2-C-305、V2-T-301、V2-T-302 | 明确只有 canonical pool 产生 STOCK 质押者收益；最终交易参数来自链上 view |
-| V2-W-504 | `BLOCKED` | 实现 STOCK Vault/分配/收益页面 | deposit、allocate、pending/active、unlock、迁移、双资产 claim | V2-W-501、V2-T-201、V2-T-202、V2-T-401 | 毕业前不可分配；30 秒与24小时显示来自链上；不使用“挖矿产币”叙事 |
-| V2-W-505 | `BLOCKED` | 实现暂停、Emergency 与 Recovery 页面 | 状态、本人 force release、root/proof claim、项目内风险说明 | V2-W-501、V2-C-402、`V2-G0-LEGAL-01` | 本金逃生优先；索引延迟不伪装成链上失败；地区与收益文案通过签字 |
-| V2-S-501 | `BLOCKED` | 实现无特权维护 Runner | 逐市场 permissionless sweep/checkpoint/retry/compound、模拟、重试和告警；链下可调度多个单市场调用但不新增合约 batch ABI | V2-E-102、V2-C-202、V2-C-301、V2-C-303、V2-C-304 | 无专用协议角色、不持有用户资产；服务停机不阻塞任何用户安全路径 |
+| V2-W-502 | `DONE (LOCAL PRODUCT FLOW; TARGET E2E GATED)` | 实现 Launch 与 Curve 页面 | Quote/template 选择、launch-and-buy、buy/sell、费用和毕业进度 | V2-W-501、V2-T-101 | 不允许输入任意 economics；资金相关API地址逐次回绑Factory/Registry；实际 Quote、首买豁免和风险披露清楚 |
+| V2-W-503 | `BLOCKED (V2-T-301/V2-T-302)` | 实现毕业池交易与流动性页面 | canonical Router/Quoter、PoolKey、Swap fee、外部 LP 与 locked LP 展示 | V2-W-501、V2-C-305、V2-T-301、V2-T-302 | 明确只有 canonical pool 产生 STOCK 质押者收益；最终交易参数来自链上 view |
+| V2-W-504 | `DONE (LOCAL PRODUCT FLOW; TARGET E2E GATED)` | 实现 STOCK Vault/分配/收益页面 | deposit、allocate、pending/active、unlock、迁移、双资产 claim | V2-W-501、V2-T-201、V2-T-202、V2-T-401 | STOCK/Vault/Market/Gauge/fee asset与链上Registry一致；毕业前不可分配；30 秒与24小时显示来自链上；不使用“挖矿产币”叙事 |
+| V2-W-505 | `BLOCKED (W505-A LOCAL DONE; V2-G0-LEGAL-01)` | 实现暂停、Emergency 与 Recovery 页面 | 状态、本人 force release、root/proof claim、项目内风险说明 | V2-W-501、V2-C-402、`V2-G0-LEGAL-01` | 本金逃生优先；索引延迟不伪装成链上失败；地区与收益文案通过签字 |
+| V2-S-501 | `DONE (LOCAL INJECTED TRANSPORT; NO SIGNER/CUSTODY)` | 实现无特权维护 Runner | 逐市场 permissionless sweep/checkpoint/retry/compound、模拟、重试和告警；链下可调度多个单市场调用但不新增合约 batch ABI | V2-E-102、V2-C-202、V2-C-301、V2-C-303、V2-C-304 | 无专用协议角色、不持有用户资产；服务停机不阻塞任何用户安全路径 |
 | V2-T-601 | `BLOCKED` | Web/API/Indexer E2E | 创建、曲线、毕业、Swap、分配、领取、退出、暂停和恢复旅程 | V2-I-502、V2-B-502、V2-W-502～V2-W-505、V2-S-501 | Web 不直连数据库；服务分别停机时链上状态和退出不受影响 |
 
 ### 10.1 V2-M6 可分配子任务
@@ -386,12 +388,12 @@ V2-M0 已关闭。后续若改变已冻结行为，必须先升级 execution spe
 | V2-B-501-B | V2-B-501 | `DONE`：用户仓位与双资产收益API | 分别返回free/allocated/pending/active/activationAt/unlockAt及Quote/Meme claimable和来源区块 |
 | V2-B-502-A | V2-B-502 | `DONE`：OpenAPI和客户端生成 | schema版本化；Web类型自动生成；ABI/API破坏性变化使兼容测试失败并要求升版 |
 | V2-W-501-A | V2-W-501 | `DONE`：钱包、链和交易状态机 | 所有写操作先simulate；错误链、授权、拒签、过期报价、replacement、revert和索引延迟可区分 |
-| V2-W-502-A | V2-W-502 | 创建/launch-and-buy/Curve交易旅程 | 展示链上`launchFee`（首版初始0.0005 native）、实际Quote、首买、partial refund、curve fee与毕业进度；不允许用户填任意economics或硬编码可变配置 |
+| V2-W-502-A | V2-W-502 | `DONE`：创建/launch-and-buy/Curve交易旅程 | 展示链上`launchFee`（首版初始0.0005 native）、实际Quote、首买、partial refund、curve fee与毕业进度；不允许用户填任意economics或硬编码可变配置 |
 | V2-W-503-A | V2-W-503 | 毕业池Swap/LP信息 | 调用参数只来自canonical view；展示1%总费、LP 20%进入pool feeGrowth及外部/locked LP事实，不承诺单地址LP比例 |
-| V2-W-504-A | V2-W-504 | Stock Vault与多Meme allocation | 明确只在PoolCreated开放；支持同一Vault分配多个Meme；展示`>0.5`、30秒pending、24小时unlock和双资产claim |
-| V2-W-505-A | V2-W-505 | pause/Emergency/Recovery安全旅程 | 本金force release优先且可直接链上调用；说明root是审计/治理输入；Indexer延迟不伪装为链上失败 |
+| V2-W-504-A | V2-W-504 | `DONE`：Stock Vault与多Meme allocation | 明确只在PoolCreated开放；支持同一Vault分配多个Meme；展示`>0.5`、30秒pending、24小时unlock和双资产claim |
+| V2-W-505-A | V2-W-505 | `DONE (LOCAL TECHNICAL FLOW; LEGAL/E2E GATED)`：pause/Emergency/Recovery安全旅程 | 本金force release优先且可直接链上调用；PENDING root显示48小时挑战剩余、permissionless finalize及ACTIVE proof claim均simulate-first并链上读回；说明root是审计/治理输入，Indexer延迟不伪装为链上失败 |
 | V2-W-505-B | V2-W-505 | 删除V1产品叙事与合规复核 | 删除“一ticker一mStock”“block-by-block mining”“质押产币”“必须用户组LP”；Ticker Meme非股票权益和收益风险文案签字 |
-| V2-S-501-A | V2-S-501 | permissionless维护runner | 只调用公开sweep/checkpoint/retry/compound，先模拟、幂等重试和告警；无私钥特权、无用户资金托管，停机不影响安全路径 |
+| V2-S-501-A | V2-S-501 | `DONE`：permissionless维护runner | 只调用公开sweep/checkpoint/retry/compound，先模拟、幂等重试和告警；无私钥特权、无用户资金托管，停机不影响安全路径 |
 | V2-T-601-A | V2-T-601 | 全旅程浏览器E2E | 创建、两类Quote、Curve、毕业、Swap、allocate、激活、claim、迁移、退出、暂停和Recovery全部使用真实测试链交易 |
 | V2-T-601-B | V2-T-601 | 链下服务故障E2E | Indexer/API/Runner分别离线、延迟和reorg时，Web标注同步状态；用户仍能从链上发现合约并领取/退出 |
 
@@ -438,7 +440,7 @@ V2-M0 已关闭。后续若改变已冻结行为，必须先升级 execution spe
 | 市场身份 | 一个 marketId 只绑定一个 Meme、Asset UID、Quote、Curve、Gauge 和 canonical PoolKey；名称/Symbol/Logo 不是身份主键 |
 | 状态权威 | 所有模块只依赖唯一 MarketRegistry；launchPhase、marketStatus、source 与 sourceVersion 不存在双写或不同步 |
 | 固定供应 | TickerMemeTokenV2 无后续 mint、税、rebase 或黑名单；V1 排放角色不能调用 V2 Token |
-| Vault 本金 | `deposited[user] = free[user] + allocated[user]`；三层 allocation 聚合相等；只有本人可收到本金 |
+| Vault 本金 | 每个`assetUid`独立满足`deposited[assetUid][user] = free[assetUid][user] + allocated[assetUid][user]`；资产内三层allocation聚合相等；只有本人可收到本金 |
 | 仓位门槛 | 任意非零 allocation 严格大于0.5 STOCK；不是 0.5 的整数倍要求 |
 | 毕业门禁 | 非 PoolCreated 市场 active/pending 均为0；毕业前费用不追溯给后续质押者 |
 | 激活与锁定 | pending 在30秒边界前不计奖；边界当笔先激活；最新分配重置合并仓位24小时 unlockAt |
@@ -497,12 +499,12 @@ V2-M0 已关闭。后续若改变已冻结行为，必须先升级 execution spe
 
 P005、P007、P010～P012 与 T001～T002 均已完成，机器状态已自动进入 `IMPLEMENTATION_ALLOWED`。当前顺序为：
 
-> **P0 前置任务：** 先完成 `V2-C-405`，关闭 `Emergency × NotGraduated` 状态缺口，并以持有真实 native/ERC-20 Quote 与 Meme 余额的 `PonsCompatibleCurve` 恢复 Invariant 作为验收证据；该任务关闭前不得将全协议原子性、审计候选或 deployment gate 标记完成。
+> **P0 前置任务已关闭：** `V2-C-405` 已禁止 `Emergency/Retired × NotGraduated` 不可恢复终态，并以持有真实 native/ERC-20 Quote 与 Meme 余额的 `PonsCompatibleCurve` 恢复 Invariant 验收。下一条协议关键路径是需要archive RPC的`V2-T-301/V2-T-302`；其完成前`V2-T-403`、审计候选和deployment gate继续保持关闭。
 
 1. `V2-E-102-A/B` 与 `V2-E-103-A/B` 已完成：机器 surface 已生成可编译接口和artifact反向exact diff，产品/Fork/Deployment轨道已独立且fail closed。
 2. `V2-E-104-A/B`与`V2-E-105-A`已完成；固定夹具层仅为`FIXTURES_ACTIVE`，尚未执行目标链live fork或部署。
 3. M1、`V2-C-101`～`V2-C-107`、`V2-C-201`～`V2-C-204`及`V2-T-101-A/B/C/D`已完成；T101-B的14条固定runtime向量已由Python reference与生产Solidity库逐输出整数单位重放且无差异，T101-C已用真实毕业路径闭合Token/Curve/Gauge/LaunchLocker四组件的artifact-backed CREATE2预测与实际部署核对。Factory创建时仍必须冻结唯一ACTIVE官方STOCK base。
-4. `V2-C-301-A～E` FeeVault核心与`V2-C-302-A～E` concrete Hook均已完成；Hook逐Swap通过锁定v4-core `StateLibrary`验证PoolKey/slot0 LP/packed protocol fee全为零，完成LP donate 20%、non-LP take、FeeVault exact-arrival、双币种瞬时delta归零及全故障回滚。`V2-T-301`已进入READY，真实PoolManager锁内行为仍须固定Fork闭合。FeeVault Recovery仍由`V2-C-402`组合进最终产品artifact。
+4. `V2-C-301-A～E` FeeVault核心与`V2-C-302-A～E` concrete Hook均已完成；Hook逐Swap通过锁定v4-core `StateLibrary`验证PoolKey/slot0 LP/packed protocol fee全为零，完成LP donate 20%、non-LP take、FeeVault exact-arrival、双币种瞬时delta归零及全故障回滚。`V2-T-301`的本地依赖已完成，但仍被目标链archive RPC阻塞，真实PoolManager锁内行为须固定Fork闭合。FeeVault Recovery已由`V2-C-402`组合进最终产品artifact。
 5. `V2-C-303-A/B/C/D`、`V2-C-304-A/B`、`V2-C-305-A`与`V2-T-101-C`均已闭合：Curve exact escrow、毕业/救援、canonical v4池计划、Locker真实CREATE2部署、官方PositionManager mint/settle、NFT/position核验、Hook activate/PoolCreated、permissionless同仓compound及immutable Router/Quoter-backed canonical交易发现均进入concrete产品路径。下一步领取固定Fork轨道`V2-T-301`/`V2-T-302`；无目标链RPC时不得用mock结果冒充Fork证据。
 6. 最终 artifact、目标链固定区块身份取证、Fork/E2E 与权限 exact diff 全部完成后，才可关闭 deployment gates。
 
@@ -539,7 +541,7 @@ P005、P007、P010～P012 与 T001～T002 均已完成，机器状态已自动�
 ### V2-P-003（2026-09-02）
 
 - 状态：`DONE`。
-- 产物：`V2_COMPOSED_CALL_IDENTITY.md`；ABI/权限新增 `depositStockFor(address,uint256)` 与 `createMarketFor(address,CreateMarketParams)`，并重新生成 canonical ABI 和 Solidity 草案。
+- 产物：`V2_COMPOSED_CALL_IDENTITY.md`；ABI/权限中的 Vault 组合入口现为 `depositStockFor(bytes32,address,uint256)`，与 `createMarketFor(address,CreateMarketParams)` 一并进入 canonical ABI 和 Solidity 草案。
 - 决策：用户只授权 Vault；AllocationManager 只能为其外层 `msg.sender` 存款。LaunchAndBuyRouter 只能把其外层 `msg.sender` 作为 creator 传给 Factory；beneficiary 和 trade recipient 不改变 creator/salt namespace。
 - 验证：组合入口 caller、固定 recipient 与身份前置条件进入机器测试；`python3 -m unittest spec/test_v2_execution_spec.py`，20/20 通过。
 - 剩余边界：marketId/CREATE2 的精确 typed hash 由 V2-P-008 冻结；本任务只冻结身份来源和原子调用顺序。
@@ -681,7 +683,7 @@ P005、P007、P010～P012 与 T001～T002 均已完成，机器状态已自动�
 
 - 状态：`DONE / INTERFACE BASELINE READY / PRODUCT RUNTIME NOT IMPLEMENTED`。
 - 产物：由 `v2_abi_surface.json` 确定性生成 `contracts/src/v2/interfaces/IV2Protocol.sol`；`v2_compiled_interface_manifest.json` 只在 solc 0.8.26 编译成功后从 Foundry artifact 生成。
-- 精确门禁：18个模块、77个mutation、51个event、34个required error，以及tuple字段名/类型、输入输出、mutability、event indexed、Foundry method identifier、topic0、caller、执行/状态延迟、锚点、前置条件与recipient逐项核对；缺失、额外或陈旧 artifact/manifest 均非零退出。
+- 精确门禁：当前19个模块、80个mutation、54个event、35个required error，以及tuple字段名/类型、输入输出、mutability、event indexed、Foundry method identifier、topic0、caller、执行/状态延迟、锚点、前置条件与recipient逐项核对；缺失、额外或陈旧 artifact/manifest 均非零退出。
 - CI：根 `npm test` 与 contracts CI 轨道均执行 `check:interfaces`；生产源码若导入 `spec/interfaces/IV2MutationSurfaceDraft.sol`，boundary check 失败。
 - 剩余边界：当前产物仅证明接口 artifact 与冻结机器规范一致，不证明任何 concrete product contract、部署地址/codehash、CREATE2 预测或链上 AccessManager 配置；V2-E-104只提供验证工具，真实证据仍由V2-E-105、产品实现及deployment gates关闭。
 
@@ -696,7 +698,7 @@ P005、P007、P010～P012 与 T001～T002 均已完成，机器状态已自动�
 ### V2-E-104-A：V2 deployment manifest schema（2026-09-03）
 
 - 状态：`DONE / STRUCTURAL VALIDATION READY / LIVE PREFLIGHT NOT IMPLEMENTED`。
-- 产物：`deployments/schemas/v2-deployment-manifest.schema.json` 固定 Robinhood chain 4663、finalized-block证据、四个外部依赖、18个协议模块及artifact/codehash、config/Quote/STOCK身份、TOKEN/CURVE/GAUGE/LOCKER CREATE2向量、Hook `0x2044` 与core fee零值、80条协议权限、6条AccessManager管理权限、测试报告、七项deployment gate证据和角色移交。
+- 产物：`deployments/schemas/v2-deployment-manifest.schema.json` 固定 Robinhood chain 4663、finalized-block证据、四个外部依赖、19个协议模块及artifact/codehash、config/Quote/STOCK身份、TOKEN/CURVE/GAUGE/LOCKER CREATE2向量、Gauge clone implementation/immutable-args证据、Hook `0x2044` 与core fee零值、80条协议权限、6条AccessManager管理权限、测试报告、七项deployment gate证据和角色移交。
 - Fail-closed：`deployments/src/schema.ts` 使用Draft 2020-12严格校验；统一入口随后应用中央placeholder/reference-fixture/低熵值策略。未知字段、缺少模块、非native零地址、错误Hook bits、权限数量或gate证据漂移均失败。
 - 验证：deployment包12项测试通过，其中Schema测试与`v2_compiled_interface_manifest.json`、`v2_permissions_matrix.json`和`v2_execution_manifest.json`反向核对模块、权限与gate identity；Ajv锁定到无已知npm audit漏洞的8.18.0。
 - 剩余边界：本项自身没有访问RPC、验证链上getter/codehash/角色或构造交易；这些由`V2-E-104-B`的独立只读层完成。
@@ -705,7 +707,7 @@ P005、P007、P010～P012 与 T001～T002 均已完成，机器状态已自动�
 
 - 状态：`DONE / PREFLIGHT TOOLING READY / NO LIVE DEPLOYMENT CANDIDATE`；父任务V2-E-104完成，但七项deployment gate仍开放。
 - 固定快照：`deployments/src/v2/preflight.ts`只允许`eth_chainId`、固定block的block/code/call/storage/log读取及交易receipt读取；所有状态查询使用manifest的十进制finalized block转换出的明确tag，不读取`latest`，HTTP transport有15秒超时并校验JSON-RPC响应ID。
-- 链上核对：对外部依赖、18模块、Hook、AccessManager、Quote/STOCK proxy/Beacon/implementation及四类CREATE2实例执行Keccak runtime codehash；官方STOCK强制核对EIP-1967 Beacon槽和Beacon `implementation()`，ERC-1967 Quote强制核对实现槽。
+- 链上核对：对外部依赖、19模块、Hook、AccessManager、Quote/STOCK proxy/Beacon/implementation及四类CREATE2实例执行Keccak runtime codehash；官方STOCK强制核对EIP-1967 Beacon槽和Beacon `implementation()`，ERC-1967 Quote强制核对实现槽。
 - 市场核对：从唯一MarketRegistry读取完整PoolKey、canonical PoolId、MarketRuntime与activeFeeSource/sourceVersion；再核对Hook低14位和`hookPermissionMask=0x2044`、poolBinding、StateView的LP/protocol fee均为0、PositionManager NFT owner及Locker记录。
 - 权限核对：manifest 80条协议权限与6条AccessManager管理语义先和机器矩阵做diff；链上逐项读取80个协议selector role，并从AccessManager部署块重放`TargetFunctionRoleUpdated`事件形成最终非零权限集合，额外/缺失/旧selector均失败；四个Safe成员、0/24h/48h delay、role admin与guardian逐项核对，并完整回放RoleGranted/RoleRevoked要求最终成员精确等于四个Safe、无残余ADMIN或未知角色。
 - 角色移交：每笔handoff及最终deployer revoke transaction必须有成功receipt、block与manifest一致且不晚于finalized block。HTTP客户端在发网络请求前拒绝`eth_sendRawTransaction`等非只读方法；中央readiness在任何RPC前先行阻止当前`IMPLEMENTATION_ALLOWED`状态。
@@ -743,7 +745,7 @@ P005、P007、P010～P012 与 T001～T002 均已完成，机器状态已自动�
 ### V2-C-102-A：OfficialStockRegistryV2（2026-09-03）
 
 - 状态：`DONE / SECOND PRODUCT MODULE COMPLETE / PARENT V2-C-102 IN_PROGRESS`；下一子任务为V2-C-102-B `ApprovedQuoteRegistry`。
-- 身份与追加性：每个非零Asset UID只可登记一次，Stock Token和UserStockVault均有反向唯一性保护；Token与Vault必须是互异的已部署地址，`tokenDecimals`冻结在1–36范围。不存在symbol、name、ISIN、价格、Feed、USD/backing target或batch mutation。
+- 身份与追加性：每个非零Asset UID只可登记一次，Stock Token和UserStockVault均有反向唯一性保护；Token与Vault必须是互异的已部署地址，`tokenDecimals`冻结在机器数值规范批准的6–18范围。不存在symbol、name、ISIN、价格、Feed、USD/backing target或batch mutation。
 - 状态机：精确实现`UNSET -> ACTIVE <-> PAUSED -> RETIRED`，只有ACTIVE可暂停、PAUSED可恢复、ACTIVE/PAUSED可退役，RETIRED为终态；状态迁移只修改status，原始UID/Token/Vault/decimals永久不变，并发出canonical old/new/reason事件。
 - 权限：新增共享`ImmutableAccessManaged`适配器，以immutable AccessManager按target+selector授权且不暴露`setAuthority`旁路；零延迟操作可由角色成员直接调用，24h/48h操作必须由AccessManager在schedule到期后通过`execute`调用。
 - 范围边界：合约只验证非零、runtime code存在、唯一性与decimals数值域；Robinhood目录、`uid()`、proxy/Beacon/implementation及runtime fingerprint仍由生产登记前同一finalized block的deployment preflight负责。195项连续登记测试证明194只是当前观测，不是协议容量。
@@ -836,7 +838,7 @@ P005、P007、P010～P012 与 T001～T002 均已完成，机器状态已自动�
 
 ### V2-C-107-E：Curve最终sweep、完成信号与毕业交接（2026-09-03）
 
-- 状态：`DONE / PARENT V2-C-107 DONE`；Curve关键路径已闭合。Gauge仍是Factory组件集成的唯一未形成creation code依赖，下一子任务为V2-C-201-A每Asset Vault绑定。
+- 状态：`DONE / PARENT V2-C-107 DONE`；Curve关键路径已闭合。Gauge仍是Factory组件集成的唯一未形成creation code依赖；后续最初实现的每 Asset Vault 已由 V2-C-206 MultiAsset 修订替代。
 - 最终交易顺序：尾单先完成精确成交、Meme交付和调用者原路退款，发出唯一`CurveCompleted`；随后内部执行最后一次Curve fee sweep，以checked `sweepNonce`和冻结domain构造feeId，清零accrual并由FeeVault实际到账校验。sweep、退款或后续托管/Registry提交任一步失败均回滚整笔最终买入。
 - 托管与状态：Curve只把内部tracked真实Quote及reserved Meme按exact delta转给MarketRegistry绑定的immutable GraduationExecutor；强制转入余额不混入毕业资产。随后exact Curve调用`markSwept`并回读确认`Swept+ACTIVE`，清零Curve tracked余额并发`LaunchSwept`。Swept后buy/sell/sweep均永久关闭，重复完成与重复Curve毕业入口不可达。
 - 可捕获毕业：Curve仅对`graduateFromCurve(marketId)`子调用使用`try/catch`。成功路径由Executor原子提交`PoolCreated`；任意revert以`keccak256(revertData)`形成确定性`reasonHash`并发`AutoGraduationFailed`，外层保留已完成的fee归属、资产托管和retryable `Swept`。完整Locker/V4/retry/rescue算法仍由V2-C-303/V2-C-304实现，不在Curve mock中冒充完成。
@@ -846,9 +848,9 @@ P005、P007、P010～P012 与 T001～T002 均已完成，机器状态已自动�
 ### V2-C-201-A：Vault初始化与Asset/Vault唯一绑定（2026-09-03）
 
 - 状态：`DONE / PARENT V2-C-201 IN_PROGRESS`；下一子任务为V2-C-201-B `depositStock/depositStockFor`与实际到账。
-- 部署闭环：新增共享身份基类`UserStockVaultIdentity`，在构造期冻结OfficialStockRegistry、MarketRegistry、唯一AllocationManager、Asset UID和canonical STOCK。Registry登记要求Vault已有runtime code，因此构造期允许尚未登记，所有后续资金/分配入口统一复用运行时exact binding检查，解决部署先后循环且不引入公开initializer或二次重绑窗口。
-- 身份与权限：canonical检查要求OfficialStockRegistry返回的`assetUid -> stockToken/userStockVault`逐地址等于本实例，allocation阶段还要求MarketRegistry返回exact market Asset UID；ACTIVE检查拒绝UNSET/PAUSED/RETIRED。allocation mutator边界只接受immutable AllocationManager，两个Registry/Manager/Token必须有代码且两两不同；身份层没有Gauge地址、token `approve`、任意execute或本金转移能力。
-- ABI边界：基类保持internal immutable字段，不向最终`IUserStockVault`增加非canonical getter；资产和Vault身份继续由OfficialStockRegistry作为唯一公开发现源。最终产品合约将在V2-C-201-B～D组合完成后进入产品artifact，当前不以revert stub冒充已实现Vault。
+- 历史实现：本子任务最初按“一 Asset 一 Vault”冻结Asset UID和canonical STOCK；该部署拓扑已由V2-C-206替代。现行`UserStockVaultIdentity`只冻结OfficialStockRegistry、MarketRegistry和唯一AllocationManager，并通过每次调用的显式`assetUid`从Registry解析canonical STOCK。
+- 现行身份与权限：canonical检查要求OfficialStockRegistry返回的`assetUid -> stockToken/userStockVault`逐地址等于本实例，allocation阶段还要求MarketRegistry返回exact market Asset UID；ACTIVE检查拒绝UNSET/PAUSED/RETIRED。allocation mutator边界只接受immutable AllocationManager，两个Registry/Manager必须有代码且互异；身份层没有Gauge地址、token `approve`、任意execute或管理员本金转移能力。
+- ABI边界：最终Vault公开`vaultIdentity()`返回三个immutable依赖及schema ID；Registry通过`vaultSchemaId(vault)`与`vaultForSchema(schemaId)`强制每个schema只登记一个canonical Vault。资产仍由OfficialStockRegistry按UID发现，不增加Token地址型写入口或链上资产枚举。
 - 验证：专项Foundry测试7/7通过，覆盖构造期冻结、无initializer、零地址/无代码/依赖别名、未登记和错误Vault绑定fail closed、两个Asset各自独立精确绑定、暂停后身份保留但新增活动关闭、AllocationManager唯一调用者，以及Vault/Manager初始零本金和零allowance。完整workspace结果以本任务最终门禁为准。
 
 ### V2-C-201-B：deposit/depositFor与实际到账（2026-09-03）
@@ -856,13 +858,13 @@ P005、P007、P010～P012 与 T001～T002 均已完成，机器状态已自动�
 - 状态：`DONE / PARENT V2-C-201 IN_PROGRESS`；下一子任务为V2-C-201-C free/allocated/market三层账本。
 - 存款路径：新增共享`UserStockVaultDeposits`层。`depositStock`固定payer与记账用户均为外层caller；`depositStockFor`只允许immutable AllocationManager，并由后续Manager把其外层`msg.sender`作为固定user传入。两条路径都由Vault直接从user拉取STOCK，Manager不接收本金且不需要用户allowance；实现不使用`tx.origin`或任意recipient。
 - 精确到账：存款前先验证Registry exact binding与Asset ACTIVE，再执行严格ERC-20 `transferFrom`。返回值必须为exact 32-byte true，Vault余额增量必须逐单位等于声明amount；零额、零/Vault自身账户、false/no-data/malformed返回、transfer revert、fee-on-transfer、余额正向漂移及callback重入均fail closed。
-- 原子会计：只有转账与余额差验证全部成功后才checked增加`deposited[user]`和`totalDeposited`，任何失败同时回滚Token allowance、用户余额、Vault余额与内部账本。事件由最终Vault外层在成功后按canonical `StockDeposited(assetUid,user,amount)`发出；共享层不扩张产品ABI。
+- 原子会计：只有转账与余额差验证全部成功后才checked增加`deposited[assetUid][user]`和`totalDeposited[assetUid]`，任何失败同时回滚Token allowance、用户余额、Vault余额与该资产内部账本。事件由最终Vault外层在成功后按canonical `StockDeposited(assetUid,user,amount)`发出；共享层不扩张产品ABI。
 - 验证：专项Foundry测试8/8通过，覆盖直接调用者记账、组合外层用户传递、公众伪造depositFor、Vault-only allowance、零额/非法账户、PAUSED门禁、fee-on-transfer、正向rebase、三种异常返回、transfer revert和回调重入。完整workspace结果以本任务最终门禁为准。
 
 ### V2-C-201-C：free/allocated/market三层账本（2026-09-03）
 
 - 状态：`DONE / PARENT V2-C-201 IN_PROGRESS`；下一子任务为V2-C-201-D普通withdraw与Emergency force release。
-- 账本闭环：新增共享`UserStockVaultLedger`层，分别维护`allocated[user]`、`allocation[user][marketId]`、`marketAllocated[marketId]`和`totalAllocated`。Manager-only lock同步增加四层占用，release同步减少，move仅在两个market维度搬移，因此始终保持`deposited[user]=free[user]+allocated[user]`、用户市场求和、市场用户求和和全局总量三组等式。
+- 账本闭环：共享`UserStockVaultLedger`的全部状态先按`assetUid`分区，再维护user、market与asset total聚合。Manager-only lock同步增加四层占用，release同步减少，move只在同一资产的两个market维度搬移，因此始终保持`deposited[assetUid][user]=free[assetUid][user]+allocated[assetUid][user]`、用户市场求和、市场用户求和和单资产总量三组等式。
 - 身份边界：Vault identity新增immutable MarketRegistry依赖；每个lock/release/move运行时同时复核OfficialStockRegistry exact UID/Token/Vault绑定及MarketRegistry的exact `marketId -> assetUid`绑定。未知、零或跨Asset市场fail closed；同市场move、零额、零/Vault账户、超过free及超过源市场占用均在写状态前拒绝。市场阶段、状态、最小仓位和Gauge结算仍由后续AllocationManager负责，普通退出不会被Vault的ACTIVE门禁误阻断。
 - 本金安全：allocation操作不转移STOCK、不创建allowance，也不把Gauge状态当作本金账本；move保持用户与全局allocated不变，任何检查或算术失败都会原子回滚全部维度，禁止同一份deposit重复占用。
 - 验证：Vault共享层专项Foundry测试24/24通过，其中新账本9项并含256轮fuzz；覆盖多用户/多市场聚合、canonical事件post-state、Manager权限、越额/非法输入、未知/跨Asset市场、部分释放、源余额不足、迁移守恒及同市场拒绝。完整workspace结果以本任务最终门禁为准。
@@ -870,9 +872,9 @@ P005、P007、P010～P012 与 T001～T002 均已完成，机器状态已自动�
 ### V2-C-201-D：普通withdraw与Emergency force release（2026-09-03）
 
 - 状态：`DONE / PARENT V2-C-201 DONE`；第九个canonical产品模块`UserStockVault`完成，下一子任务为V2-C-202-A allocate/increase统一preflight。
-- 普通提款：`withdrawFreeStock`固定用户和收款人均为`msg.sender`，只扣减free范围内的`deposited`与`totalDeposited`，不接受owner/recipient。提款仅复核canonical Asset绑定而不要求ACTIVE，因此Asset PAUSED/RETIRED不能扣押本金；状态effects先写，随后严格要求ERC-20 exact 32-byte true、Vault余额精确减少及用户余额精确增加，任一异常原子回滚。
-- 终态逃生：`forceReleaseAllocation`从MarketRegistry核验exact market Asset UID且只接受`EMERGENCY_EXIT`，读取并清零调用者自己的market allocation，同步减少user/market/global allocated后变为free balance，事件中的recoveryEpoch直接取Registry权威。它没有user/recipient参数，不转STOCK、不调用Gauge、不等待root或奖励恢复；ACTIVE/PAUSED/RETIRED、未知/跨Asset市场、零仓位及重复释放均失败。
-- ABI与产物：最终模块完整实现`IUserStockVault`的14个函数和6个事件，无额外mutation或任意recipient重载；产品manifest增至9个模块，hash为`0x9c0ef6f13f033e04ac749eb99f9944f0de1bc553e7265129869f1652b5bad38e`。
+- 普通提款：`withdrawFreeStock(assetUid,amount)`固定用户和收款人均为`msg.sender`，只扣减该资产free范围内的`deposited`与`totalDeposited`，不接受owner/recipient。提款仅复核canonical Asset绑定而不要求ACTIVE，因此Asset PAUSED/RETIRED不能扣押本金；状态effects先写，随后严格要求ERC-20 exact 32-byte true、Vault余额精确减少及用户余额精确增加，任一异常原子回滚。
+- 终态逃生：`forceReleaseAllocation(assetUid,marketId)`从MarketRegistry核验exact market Asset UID且只接受`EMERGENCY_EXIT`，读取并清零调用者自己的market allocation，同步减少该资产user/market/global allocated后变为free balance，事件中的recoveryEpoch直接取Registry权威。它没有user/recipient参数，不转STOCK、不调用Gauge、不等待root或奖励恢复；ACTIVE/PAUSED/RETIRED、未知/跨Asset市场、零仓位及重复释放均失败。
+- 历史产物：本节记录的单资产Vault ABI与9模块hash已由V2-C-206的MultiAsset ABI及当前十九模块产物替代；旧hash仅用于追溯，不代表现行发布候选。
 - 验证：产品专项Foundry测试11/11通过并含256轮fuzz；覆盖free/allocated提款边界、PAUSED/RETIRED提款、异常返回、revert、fee-on-transfer、正向余额漂移、callback重入、三种非Emergency状态、本人/他人隔离、重复/未知/跨Asset释放、事件epoch及先提free再终态释放的本金全额取回。Product测试增至140项；完整workspace结果以本任务最终门禁为准。
 
 ### V2-C-202-A：allocate/increase统一preflight（2026-09-03）
@@ -894,7 +896,7 @@ P005、P007、P010～P012 与 T001～T002 均已完成，机器状态已自动�
 ### V2-C-202-C：depositAndAllocate身份与原子性（2026-09-03）
 
 - 状态：`DONE / PARENT V2-C-202 IN_PROGRESS`；下一子任务为V2-C-202-D migrateAllocation。concrete Gauge尚未完成，因此继续以共享组合层和严格Gauge mock验证跨Vault/Gauge的单交易边界，不提前发布缺少迁移入口的AllocationManager产品模块。
-- 身份与本金路径：新增`AllocationManagerDeposits`，公开入口只能把外层`msg.sender`传为user，不存在For/recipient重载。它先验证allocation正额、目标`PoolCreated + Market ACTIVE + Asset ACTIVE`及调度时间，再调用canonical Vault的`depositStockFor(user, depositAmount)`；STOCK由Vault直接从用户拉取，Manager始终不持有本金且无需任何allowance。
+- 身份与本金路径：新增`AllocationManagerDeposits`，公开入口只能把外层`msg.sender`传为user，不存在For/recipient重载。它先验证allocation正额、目标`PoolCreated + Market ACTIVE + Asset ACTIVE`及调度时间，再调用canonical Vault的`depositStockFor(assetUid, user, depositAmount)`；STOCK由Vault直接从用户拉取，Manager始终不持有本金且无需任何allowance。
 - 组合与原子性：存款到账后复用C-202-A唯一增仓核心，严格执行Gauge checkpoint、settle、双方账本预对账、Vault lock、Gauge addPending及最终对账。`depositAmount`可小于、等于或大于`allocationAmount`并可消费既有free；存款异常、free不足、最低仓位失败、Gauge任一步失败/no-op、账本漂移或回调重入都会连同Token余额、allowance、Vault存款与分配账本、Gauge状态整笔回滚。
 - 验证：AllocationManager A/B/C共享层专项测试37/37通过，其中C-202-C新增12项并含256轮fuzz；覆盖caller身份和两个canonical Vault事件、仅Vault授权、三种存款/分配数量关系、市场与Asset预门禁、零额、最低仓位raw-unit端点、free不足、四种Gauge故障/no-op、账本漂移、uint64时间边界、恶意Token回调、不存在For/recipient mutation，以及Manager零本金。完整workspace结果以本任务最终门禁为准。
 
@@ -950,14 +952,14 @@ P005、P007、P010～P012 与 T001～T002 均已完成，机器状态已自动�
 
 - 状态：`DONE / PARENT V2-C-204 DONE`；concrete Gauge已经形成，解除`V2-C-105-C`、`V2-T-201`与`V2-T-202`依赖。关键路径下一任务为`V2-C-105-C`，统一回接Factory的Token/Curve/Gauge真实creation code、constructor args、initCodeHash与Registry登记。
 - 两段历史结算：新增`MemeStockGaugeSettlements`，每次先checkpoint成熟generation，再分别用旧active的user paid index与新active的不可变activation snapshot结算Quote/Meme，最后才把paid推进到current index。增仓物化、减仓、关闭、迁移与claim均在权重或claimable改变前完成结算；full close只清权重和锁，两个资产的整数claimable与用户fractional remainder持续归原user/market/asset。
-- concrete身份与ABI：新增`MemeStockGauge`，构造时冻结marketId、Asset UID、Quote config、AllocationManager、ProtocolFeeVault、MarketController及固定Quote/Meme资产，无initializer、任意recipient、资产转移或托管入口。Manager独占仓位变更，FeeVault独占credit/consume，settle仅允许二者调用；add在调度完成后再次读取Controller语义门禁，关闭市场会原子回滚整个schedule。native Quote固定表示为零地址，所有资产索引只接受Quote或Meme。
+- concrete身份与ABI：`MemeStockGauge`现由一个固定不可升级implementation与每市场immutable-args clone组成。clone runtime冻结marketId、Asset UID、Quote config、AllocationManager、ProtocolFeeVault、MarketController及固定Quote/Meme资产，无initializer、任意recipient、资产转移或托管入口；position/reward/activation/Emergency storage按clone隔离。Manager独占仓位变更，FeeVault独占credit/consume，settle仅允许二者调用；add在调度完成后再次读取Controller语义门禁，关闭市场会原子回滚整个schedule。native Quote固定表示为零地址，所有资产索引只接受Quote或Meme。
 - Emergency：只有冻结Controller可按前一区块的非零snapshot block/stateHash永久禁用Gauge；禁用后add/remove/checkpoint/settle/credit/consume全部失败，重复禁用及非法快照失败。Gauge只冻结从属奖励源，不接触Vault本金，终态本金释放继续由Vault按Registry权威执行。
 - 验证：C204-C concrete Gauge专项Foundry测试19/19通过，覆盖无initializer、native Quote、固定调用者、生命周期回滚、effective view、精确activation边界、active/pending双index双资产结算、单资产claim隔离、partial/full close、重新分配fraction保留、多用户比例、非法资产、共享snapshot ref、锁边界及Emergency永久冻结。完整Foundry门禁29 suites、375/375通过，其中产品173、共享194、fixture 6、scaffold 2；`npm test`、`npm run build`及格式检查通过。产品manifest增至11模块，hash为`0x4b77104676c01c9b9cfc7fa5fef0376eb191d3d3f22ad6d24bfdd161ee220346`，canonical mutation/event exact diff通过。
 
 ### V2-C-105-C：组件部署、初始化与Registry登记原子化（2026-09-03）
 
 - 状态：`DONE / PARENT V2-C-105 DONE`；Factory关键路径已闭合并解除`V2-C-106`依赖，下一子任务为`V2-C-106-A`普通创建边界与native原子launch-and-buy。目标链部署地址、真实Hook/FeeVault/Controller/Graduation组合及production manifest仍属于后续deployment gates，不能由本地产品测试替代。
-- 可部署CREATE2架构：新增`TickerGardenFactoryV2`及Token/Curve/Gauge三个独立、无状态、codehash硬固定的部署实现器。Factory对实现器执行固定`delegatecall`，因此CREATE2 opcode的deployer仍是Factory，component salt和预测公式不变；同时Factory runtime为14164 bytes，三个实现器runtime分别为4856、15758、12427 bytes，均低于EIP-170上限，避免把三份creation code直接内联至Factory。LaunchTemplate必须逐地址绑定这三个实现器，Registry登记时继续冻结其实际runtime codehash。
+- 可部署CREATE2架构：Factory保留Token/Curve两个独立、无状态、codehash硬固定的typed部署实现器，并对其执行固定`delegatecall`，因此CREATE2 deployer仍是Factory。Gauge部署器已收敛为固定`MemeStockGauge` implementation与OpenZeppelin deterministic immutable-args clone；LaunchTemplate的`gaugeImplementation/gaugeCodeHash`绑定共享implementation而不是某个市场clone，Factory预测、部署和回读使用同一八字段参数编码。
 - 构造与原子顺序：Factory从四Registry解析ACTIVE snapshot并校验caller提交的exact economics，计算marketId、Token/Curve/Gauge及GraduationExecutor提供的Locker预测。随后按Token→构造期临时Curve snapshot→Curve→清除snapshot→Gauge部署，逐地址核对CREATE2结果；再按`MarketRegistry.registerMarket`→`CreatorRevenueRegistry.initializeCreatorRevenueEpoch`→固定`0.0005 native`平台创建费转账→`MarketCreated`提交。Curve snapshot只允许exact constructing Curve读取，失败由EVM回滚，不存在公开可写initializer或跨交易窗口。
 - 身份与失败边界：直接创建固定creator为`msg.sender`，`createMarketFor`只接受immutable LaunchRouter并保留显式creator的marketId/salt namespace；同Asset UID允许多个不同market，重复完整identity失败。Quote可为native零地址或冻结ERC-20；未毕业Gauge虽已部署但Controller语义门禁仍阻止分配。任一快照、模板实现、CREATE2、Registry、creator epoch或最晚创建费收款失败都会同时撤销组件代码、market/token mapping、epoch、预约和事件，同一identity可安全重试。
 - 验证：Factory专项Foundry测试15/15通过，覆盖构造依赖、真实预测/部署一致、完整MarketConfig/runtime与creator epoch、逐字段`MarketCreated`、Token全量直接进入Curve、三组件无initializer、同Stock多market、exact fee、Router only身份、错误economics、inactive Registry、template实现漂移、最晚阶段故障全回滚与重试、构造期snapshot不可复用、未毕业Gauge门禁、native/ERC-20 Quote及canonical selectors。完整Foundry门禁30 suites、390/390通过，其中产品188、共享194、fixture 6、scaffold 2；`npm test`、`npm run build`及格式检查通过。产品manifest增至12模块，hash为`0xbee41ab775496058a856d20cc1499011b224110c95be69cf53accef810547869`，Factory canonical mutation/event exact diff通过。
@@ -1004,7 +1006,7 @@ P005、P007、P010～P012 与 T001～T002 均已完成，机器状态已自动�
 ### V2-T-101-C：真实artifact-backed CREATE2部署核对（2026-09-03）
 
 - 状态：`DONE / PARENT V2-T-101 DONE`。没有把`FactoryGraduationExecutorMock.predictLaunchLocker`返回的空地址或历史`0x11/0xbb...`数学向量当作真实部署证据；在V2-C-303/C-304产品模块完成后，第四组件已通过真实GraduationExecutor毕业调用以CREATE2实际部署并纳入同级验收。
-- 三组件真实证据：Factory产品集成新增`test_realArtifactInitCodeSaltPredictionAndActualAddressMatchManifest`。测试直接读取`spec/v2_product_artifact_manifest.json`并确认Token、Curve、Gauge的真实编译creation-code hash；随后以本次marketId及完整constructor args重算三个initCodeHash，以`chainId + Factory + marketId + component kind`重算salt，独立调用共用CREATE2预测公式，并逐项等于Factory返回地址与实际部署地址。三个actual地址均已有runtime code。
+- 三组件真实证据：Factory产品集成`test_realArtifactInitCodeSaltPredictionAndActualAddressMatchManifest`直接读取`spec/v2_product_artifact_manifest.json`；Token/Curve确认真实编译creation-code hash，Gauge确认共享implementation runtime hash，并以本次marketId及八字段identity重算clone init-code地址。三者均以`chainId + Factory + marketId + component kind`重算salt并逐项等于Factory返回与实际部署地址，三个actual地址均已有runtime code。
 - Locker真实证据：产品集成测试直接拼接`LaunchLocker.creationCode + marketId/registry/positionManager`完整构造参数，以`chainId + registry.factory + marketId + LOCKER`推导component salt，并从GraduationExecutor部署者地址独立预测；预测值与`predictLaunchLocker`及毕业交易actual地址相同，actual地址存在runtime code，且marketId、canonical poolId、锁定tokenId、NFT owner和Registry `PoolCreated`状态全部一致。测试同时读取16模块manifest并核对LaunchLocker真实creation-code hash。
 - 边界与后续：产品artifact manifest仍明确标为编译产物而非production deployment evidence；本地四组件CREATE2核对不替代目标链manifest与最终immutable runtime codehash，后者继续由V2-E-105/deployment gates闭合。
 - 验证：LaunchLocker CREATE2毕业集成专项1/1通过；完整Foundry门禁51 suites、606/606通过，其中状态化Invariant执行128,000 calls且零revert；Python规格57/57、fixture、V2边界及product artifact exact检查全部通过，16模块product manifest hash为`0x9f2cdf177092104c49815525c042475dc652f05226f61f3e707063933cb04de2`。
@@ -1235,7 +1237,61 @@ P005、P007、P010～P012 与 T001～T002 均已完成，机器状态已自动�
 ### V2-W-501：Robinhood钱包、compiled ABI与交易状态机（2026-09-03）
 
 - 状态：`DONE`；W501-A关闭，`V2-W-502`依赖已满足并被领取。当前交付只提供底层钱包/交易能力，现有状态页继续只读；Launch/Curve、毕业池、Vault/收益及Emergency/Recovery界面必须分别由W502～W505验收，不能由本任务冒充完成。
-- 链与类型来源：引入viem/wagmi injected wallet配置，Robinhood主网固定chainId 4663、ETH与官方public RPC/Blockscout；十八模块ABI从E102 compiled interface artifact确定性生成并携带逐artifact SHA-256，stale check拒绝手抄或漂移。Backend OpenAPI客户端也由B502产物确定性同步，Web不另写响应类型。
+- 链与类型来源：引入viem/wagmi injected wallet配置，Robinhood主网固定chainId 4663、ETH与官方public RPC/Blockscout；十九模块ABI从E102 compiled interface artifact确定性生成并携带逐artifact SHA-256，stale check拒绝手抄或漂移。Backend OpenAPI客户端也由B502产物确定性同步，Web不另写响应类型。
 - 状态机与失败语义：统一流程为preflight→simulate→wallet signature→submitted/pending→receipt→fresh chain reconciliation；ERC-20可选approval自身也必须先simulate并确认后才重新验证snapshot并模拟主交易。operationKey合并重复点击，replacement更新最终hash，cancel、revert、timeout、错误chain/account、过期quote、executionSpec/revision漂移、Indexer lagging/unavailable、用户拒签及确认读回失败均为独立错误，不按calldata乐观伪造余额。
 - 漂移保护：连接chain/account、quote expiry及可选Indexer revision在初始preflight和每次simulation之后重新验证；receipt成功后必须由调用方执行fresh Registry/Vault/Gauge/FeeVault或reconciled Backend读回才能进入confirmed。生成的`createContractWriteRequest`以compiled ABI约束mutation函数名与参数类型。
 - 验证：Web生成一致性、strict TypeScript、9/9交易/ABI测试及4/4 Sites worker测试通过，覆盖18 artifact exact diff、Backend生成类型、simulate顺序、approval、replacement、重复提交、全部关键错误与simulation后漂移；Web production build通过。全仓门禁保持Foundry 59 suites、650/650，Invariant 128,000 calls零revert，Backend 13/13、Indexer 16/16、deployment 22/22、Web 13/13，Python规格、artifact/CI、其余offchain与完整build全部通过。
+
+### V2-C-405：Emergency/Retired × NotGraduated恢复缺口（2026-09-03）
+
+- 状态：`DONE (LOCAL PRODUCT + REAL-BALANCE INVARIANT)`。Registry现在防御性拒绝`NotGraduated`市场进入`RETIRED`或`EMERGENCY_EXIT`，Controller在调用Gauge、Hook、FeeVault等任何Emergency外部副作用之前执行同一前置拒绝；`PAUSED`仍可恢复为`ACTIVE`，因此未毕业Curve不会进入永久停盘且资产不可取回的终态。
+- 真实资产证据：`C405CurveRecoveryInvariant.t.sol`分别部署真实`PonsCompatibleCurve`、真实固定供应`TickerMemeTokenV2`以及native/6-decimal ERC-20 Quote，执行真实buy形成非零tracked reserve、accrued fee、Curve Quote余额和Meme余额；ACTIVE直接retire、PAUSED满24小时retire及Emergency commit均原子revert且所有tracked/raw余额不变，随后unpause并再次交易证明恢复路径可达。
+- 一致性：`PreGraduationTerminalStateForbidden(uint8)`已从最终compiled artifact反向同步至canonical ABI、权限/执行manifest、接口和Web ABI；产品manifest仍为十八模块，hash为`0x0e00c9aa61efc11bf3fb8cb25639e4ee36b93166f1ff73c9ef916a75224f790e`。
+- 验证：C405专项2/2、MarketRegistry 33/33、MarketController 10/10通过；完整Foundry为60 suites、655/655，既有Vault/Gauge状态化Invariant保持256 runs、128,000 calls、0 revert；Python规格58/58及artifact exact/stale门禁通过。目标链v4行为与部署安装不由该本地任务冒充，继续由T301/T302与O701/L802验收。
+
+### V2-S-501：无特权Maintenance Runner（2026-09-03）
+
+- 状态：`DONE (LOCAL INJECTED TRANSPORT; NO SIGNER/CUSTODY)`。Runner只接受`sweep/checkpoint/retry/compound + canonical marketId + triggerId`并映射固定公开模块/selector，不接收任意target或calldata，不内置RPC、私钥、签名器、协议角色或用户资产托管。
+- 执行边界：每次提交先simulate；noop、fatal与retryable分离，operation/market/trigger幂等键合并并发和已完成触发，批量调度仅在链下以1..16有界并发调用单市场入口。transport必须原子持久化key并实现`findSubmission`；Runner在simulate前和任何模糊submit结果后查询该来源。广播前显式retryable的durable lookup故障可消耗下一次有界attempt，未知/非retryable故障立即失败；一旦submit可能已广播，后续lookup无论错误类型都终止，绝不触发第二次广播。完成缓存和事件缓冲有界且不暴露内部可变数组；未知请求字段、Proxy/accessor响应、invalid shape及非canonical tx hash首轮fail closed。
+- 验证：`npm --prefix services/maintenance-runner test`为11/11，`npm --prefix services/maintenance-runner run build`通过；覆盖固定映射、simulate-before-submit、并发合并、新trigger、retry分类、广播前durable lookup耗尽与恢复成功、广播后lookup失败不重播、跨缓存淘汰/进程重启持久恢复、模糊submit响应、observer隔离、有界缓存/并发、未知字段、恶意响应及无效transport响应。
+
+### V2-W-502 / V2-W-504 / V2-W-505-A：本地Web产品旅程（2026-09-03）
+
+- 状态：W502与W504为`DONE (LOCAL PRODUCT FLOW; TARGET E2E GATED)`；W505-A技术子任务为`DONE (LOCAL TECHNICAL FLOW; LEGAL/E2E GATED)`，W505父任务仍被`V2-G0-LEGAL-01`阻塞。Web运行时只接受五项显式配置、origin-only Read API URL、四个非零canonical合约地址、`V2-EXEC-3`、chain 4663、完整finalized revision和read-only/non-custodial capability；Factory的`runtimeBindings()`进一步把显式Router/AllocationManager/FeeVault及四配置Registry/MarketRegistry锚定到不可变链上信任根。当前versioned Backend仍声明`productRuntimeImplemented:false`，因此完整release gate关闭且任何写按钮不可启用。
+- Launch/Curve：配置只能取finalized API的ACTIVE STOCK/Quote/Pons/template，且在preview、allowance和每个签名前用Factory解析出的四Registry逐项核对status、Quote地址、Pons关系及economics；Factory链上读取launchFee并preview绑定economics。Market API的Meme/Curve/Gauge/Quote及Router/Quoter/Hook/Locker、PoolKey和生命周期必须与`MarketRegistry.market/canonicalRoute`一致后才可报价或交易；支持create及native/ERC-20原子launch-and-buy、allowance、partial refund语义、live quote、1% tolerance、buy/sell、receipt事件和fresh reserve/sweepNonce确认。创建回执只接受配置Factory发出的、与本次asset/Quote/Pons/economics逐字段一致的`MarketCreated`。API finalized snapshot与live RPC报价/模拟在UI中明确区分。
+- Vault/Recovery：API Asset的STOCK/Vault/decimals/status先与OfficialStockRegistry一致，position关联市场及迁移目标先与MarketRegistry一致，再支持官方Vault approve/deposit、free withdraw、allocate/increase/decrease/close/migrate、deposit-and-allocate及Quote/Meme独立claim；这些绑定会在approval和主交易签名前重复检查。页面严格显示`>0.5 STOCK`、30秒pending和24小时unlock。Asset PAUSED/RETIRED停止新增敞口但不隐藏成熟退出；Emergency本人force release不依赖Gauge。Recovery页在链上绑定市场后读取真实cap/snapshot/root并校验stateHash、快照高度和NONE/PENDING/ACTIVE/CANCELLED字段不变量；输入切换后必须重读，finalize使用最新链上block timestamp，claim receipt绑定准确FeeVault/market/epoch/asset/user/amount并fresh读回claimed total。
+- 验证：Web生成ABI/API一致性、strict TypeScript、31/31 unit及4/4 Sites worker测试通过，production build成功且主bundle已拆分为React/Web3/vendor/应用块；测试覆盖Factory不可变binding、API/链上Asset/Quote/Market/route漂移拒绝、Factory preview/请求、canonical Factory receipt来源/字段绑定、伪造日志、native/ERC-20 approval、Curve状态、runtime config、Vault状态/构造器、Paused/Retired退出、Recovery生命周期/claim事件/finalize/claim builder及W501交易状态机。毕业池写旅程、完整浏览器真实交易E2E和法律文案签字继续分别由W503、T601和W505-B关闭。
+
+### V2-T-301 / V2-T-302：archive RPC阻塞复核（2026-09-03）
+
+- 状态：`BLOCKED (ARCHIVE RPC REQUIRED)`。官方公开`https://rpc.mainnet.chain.robinhood.com`返回chainId 4663，且可读取固定block header、历史logs/receipt和latest runtime/state；但在冻结块52289586（hash `0x9477917aacd098d56b4d5fb375e555a09d1a61b7bf33417429e5c8e4a2e86006`）及52495836（hash `0xe0465f331be5fb0c4fa98e32e533864d71c9a687fdd18df80dc56c5f3f127f2a`）执行历史`eth_getCode`、`eth_call`或`eth_getStorageAt`均返回`-32000 metadata is not found`。
+- 结论：公开端点是历史状态裁剪节点，`latest`或仅有logs/receipt不能满足固定Fork验收。解除阻塞必须提供通过环境变量注入、可读取上述固定高度历史state/code/storage的archive `ROBINHOOD_RPC_URL`，或已从genesis完成同步的本地archive节点；凭据不得提交仓库。在此之前不创建会把Fork轨道伪装为ACTIVE的假测试，T403、W503及后续安全/部署任务保持阻塞。
+
+### 当前本地验证快照（2026-09-03）
+
+- 当前权威本地计数：Python规格59/59；Foundry 61 suites、668/668，其中Product 272、shared 388、fixture 6、scaffold 2，状态化Invariant 128,000 calls、0 revert；Backend 13/13、Indexer 17/17、Deployment 23/23、Maintenance Runner 11/11、Web unit 31/31与Sites 4/4。十九模块当前product artifact manifest hash为`0x7d067fd53b7d187920bba90ce4fb44bd4c47dd9bc51de938d84b45cb52e520dc`。
+- 这些绿灯只证明本地实现、生成物和分轨CI边界。Fork仍为`FIXTURES_ACTIVE`，readiness仍为`IMPLEMENTATION_ALLOWED`；archive RPC、法律、安全复核、独立审计、生产manifest、AccessManager实际安装/撤权、部署receipt、浏览器真实E2E和72小时灰度对账不得由本快照替代。
+
+### V2本地收口硬化：decimals域、API链上绑定与Runner重试（2026-09-03）
+
+- 数值域：机器权威、OfficialStockRegistry、MarketRegistry防御检查、AllocationManager增加路径、Web Vault和文档已统一为官方STOCK `6..18` decimals；边界测试接受6/18并拒绝5/19。此前实现/文档中的1..36会把未获批准的资产放入缺少完整accumulator寿命证明的域，现已关闭。
+- Web信任边界：Factory新增只读`runtimeBindings()`且不扩展mutation surface；Web只从该不可变根解析Registry，所有会进入Quote、approval spender、Gauge/Vault/FeeVault或交易target的API地址均与链上Asset/Market/CanonicalRoute精确比较，并复用交易执行器的freshness checkpoint在签名前再次验证。被篡改API最多导致fail-closed，不能单凭格式合法把资金导向另一地址。
+- Runner可用性：广播前明确retryable的durable幂等查询故障按`maxAttempts`恢复；未知错误仍立即失败，广播后任何查询故障仍终止且提交次数保持1，兼顾liveness与防重复广播。
+- 验证：Factory专项51/51、Python规格59/59、Maintenance Runner 11/11、Web unit 31/31与Sites 4/4已通过；完整全仓计数以本节上方最终快照为准。Factory只读ABI、decimals runtime及本次Resolver/Gauge clone变化已重新生成compiled interface、Web ABI与十九模块product manifest，当前hash为`0x7d067fd53b7d187920bba90ce4fb44bd4c47dd9bc51de938d84b45cb52e520dc`。
+
+### V2-C-205：Meme发行合约架构收敛（2026-09-03）
+
+- 状态：`DONE LOCALLY / DEPLOYMENT EVIDENCE OPEN`。最终结构和取舍记录于 [V2_CONTRACT_ARCHITECTURE_DECISION.md](./V2_CONTRACT_ARCHITECTURE_DECISION.md)：三个配置Registry保留独立权威状态，以无缓存typed `LaunchConfigResolver`统一运维读取；Token/Curve保留完整CREATE2实例及各自typed helper；Gauge改为固定implementation加每市场OpenZeppelin immutable-args CREATE2 clone；持有Position NFT和余额的LaunchLocker继续每市场完整隔离。
+- Gauge安全边界：八字段`GaugeIdentity`写入301-byte clone runtime，无initializer或升级入口；预测期允许尚无代码的predicted Meme地址，实际部署期强制Token、非native Quote、AllocationManager、FeeVault和Controller均有代码。Factory部署后回读完整identity hash；implementation、错误长度实例、别名依赖、错误资产、重复salt和跨clone storage/Emergency污染均由负向测试拒绝。
+- 管理与部署证据：`LaunchConfigResolver`拒绝零地址、无代码地址和Registry别名；Factory不依赖Resolver可用性。canonical ABI、compiled interface、product artifact和Web ABI增至19模块。Deployment schema区分`FULL_CREATE2`与`ERC1167_IMMUTABLE_ARGS_CLONE`，并要求Gauge implementation地址/codehash、clone runtime/init-code/salt/immutableArgsHash、`gaugeIdentity()`回读及Resolver三Registry getter证据一致。
+- Gas：旧Gauge每市场runtime 10,055 bytes，新clone为301 bytes，仅code-deposit由2,011,000降至60,200 gas，减少1,950,800（约97.0%）；共享implementation当前runtime 10,361 bytes且只部署一次。Factory代表性创建测试由5,968,776降至3,998,762 gas，减少1,970,014（约33.0%）。这些是本地solc 0.8.26/optimizer 200/Cancun基准，RH Testnet仍须重新固定交易与区块证据。
+- 本地验证：Factory 51/51、Gauge 23/23、Resolver 6/6，完整 Foundry 61 suites、668/668 通过；Python 规格 59/59、Deployment 23/23、Backend 13/13、Indexer 17/17、Maintenance Runner 11/11、Web unit 31/31 与 Sites 4/4 全部通过，相关 build 均成功。canonical 产品 artifact 为 19 模块，hash `0x7d067fd53b7d187920bba90ce4fb44bd4c47dd9bc51de938d84b45cb52e520dc`。目标链 archive Fork、AccessManager 安装、实际部署 receipt、独立审计和 canary soak 仍是硬门禁。
+
+### V2-C-206：Stock Vault 收敛为版本化 MultiAsset 架构（2026-09-03）
+
+- 状态：`DONE LOCALLY / DEPLOYMENT EVIDENCE OPEN`。现行拓扑由“每Asset部署一个相同Vault”改为“每Vault schema版本一个共享MultiAsset Vault”；当前schema为`keccak256("TickerGarden.UserStockVault.MultiAsset.v1")`。`OfficialStockRegistryV2`保存`vaultSchemaId(vault)`与`vaultForSchema(schemaId)`，同一schema的第二个地址登记失败；Asset UID与Vault绑定仍write-once，新实现不使用代理或initializer。
+- 资产隔离：所有deposit/withdraw/lock/release/move/force-release入口和全部余额getter显式接收`assetUid`。Vault只从OfficialStockRegistry解析Token，不接受调用者提供Token地址；`deposited/allocated/allocation/marketAllocated/totalDeposited/totalAllocated`均以Asset UID为第一层key，MarketRegistry再次验证`market.assetUid`，跨资产迁移和市场混用fail closed。
+- 规模边界：Vault不保存资产数组，不提供batch或链上枚举，新增到数百种Stock不会改变单次用户操作的O(1)复杂度。194资产仅runtime code-deposit从旧架构约301,864,000 gas降至单实例约1,564,200 gas，节省约300,299,800（99.48%）；该数字不含constructor、登记、calldata或目标链定价。当前夹具中deposit/withdraw/force-release中位数分别为109,233/71,573/92,342 gas，只作为本地参考。
+- 风险边界：共同代码缺陷在两种拓扑中都存在，但共享地址会扩大单次故障、错误依赖或跨资产账本缺陷的blast radius，因此安全性并非完全相同。实现以canonical UID解析、逐资产聚合、exact token balance delta、immutable Manager权限、无管理员sweep/任意recipient/任意execute及PAUSED/RETIRED可退出约束风险；跨资产测试覆盖两个真实Token在同一Vault内的余额和allocation隔离。若未来风险预算要求分片，必须用新schema/execution spec显式引入，不能因资产数量增长在同一schema下静默增加Vault。
+- 跨层产物：canonical ABI、权限矩阵、compiled/product artifact、AllocationManager、Web构造器和链上读取、Indexer事件与`assetUid+user+marketId`投影键、execution manifest及文档已同步；十九模块product manifest hash为`0x7d067fd53b7d187920bba90ce4fb44bd4c47dd9bc51de938d84b45cb52e520dc`。
+- 验证：完整Foundry为61 suites、668/668，状态化Invariant为256 runs、128,000 calls、0 revert；Python机器规格59/59、Indexer 17/17、Deployment 23/23、Web unit 31/31与Sites 4/4通过。目标链archive Fork、真实部署manifest、AccessManager安装、浏览器E2E、独立审计与灰度观察仍不得由本地结果替代。

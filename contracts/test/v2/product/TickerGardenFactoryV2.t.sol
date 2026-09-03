@@ -3,10 +3,12 @@ pragma solidity 0.8.26;
 
 import {Test} from "forge-std/Test.sol";
 import {Vm} from "forge-std/Vm.sol";
+import {Errors} from "@openzeppelin/contracts/utils/Errors.sol";
 
 import {
     AssetView,
     CreateMarketParams,
+    GaugeIdentity,
     ICreatorRevenueRegistry,
     ILaunchAndBuyRouter,
     IMarketRegistryV2,
@@ -20,16 +22,16 @@ import {
 import {CreatorRevenueRegistry} from "../../../src/v2/modules/CreatorRevenueRegistry.sol";
 import {LaunchAndBuyRouter} from "../../../src/v2/modules/LaunchAndBuyRouter.sol";
 import {MarketRegistryV2} from "../../../src/v2/modules/MarketRegistryV2.sol";
-import {MemeStockGauge, MemeStockGaugeInit} from "../../../src/v2/modules/MemeStockGauge.sol";
+import {MemeStockGauge} from "../../../src/v2/modules/MemeStockGauge.sol";
 import {PonsCompatibleCurve} from "../../../src/v2/modules/PonsCompatibleCurve.sol";
 import {TickerMemeTokenV2} from "../../../src/v2/modules/TickerMemeTokenV2.sol";
 import {
-    MemeStockGaugeImplementation,
     PonsCompatibleCurveImplementation,
     TickerGardenFactoryInit,
     TickerGardenFactoryV2,
     TickerMemeTokenV2Implementation
 } from "../../../src/v2/modules/TickerGardenFactoryV2.sol";
+import {MemeStockGaugeClone} from "../../../src/v2/shared/MemeStockGaugeClone.sol";
 import {V2FactoryValidation} from "../../../src/v2/shared/V2FactoryValidation.sol";
 import {V2Create2} from "../../../src/v2/shared/V2Create2.sol";
 import {V2Identifiers} from "../../../src/v2/shared/V2Identifiers.sol";
@@ -253,7 +255,7 @@ contract TickerGardenFactoryV2Test is Test {
     LaunchAndBuyRouter internal router;
     TickerMemeTokenV2Implementation internal tokenImplementation;
     PonsCompatibleCurveImplementation internal curveImplementation;
-    MemeStockGaugeImplementation internal gaugeImplementation;
+    MemeStockGauge internal gaugeImplementation;
     MockExactQuoteToken internal stock;
     MockExactQuoteToken internal quote;
     MarketRegistryV2 internal marketRegistry;
@@ -275,7 +277,7 @@ contract TickerGardenFactoryV2Test is Test {
         router = new LaunchAndBuyRouter(predictedFactory, address(configs));
         tokenImplementation = new TickerMemeTokenV2Implementation();
         curveImplementation = new PonsCompatibleCurveImplementation();
-        gaugeImplementation = new MemeStockGaugeImplementation();
+        gaugeImplementation = new MemeStockGauge();
         stock = new MockExactQuoteToken(18);
         quote = new MockExactQuoteToken(6);
         hook = address(0x1000000000000000000000000000000000002044);
@@ -300,7 +302,25 @@ contract TickerGardenFactoryV2Test is Test {
     }
 
     function test_constructorFreezesDeployableDependenciesAndLaunchFee() public view {
+        (
+            address officialStockRegistry_,
+            address approvedQuoteRegistry_,
+            address ponsBaselineRegistry_,
+            address launchTemplateRegistry_,
+            address marketRegistry_,
+            address protocolFeeVault_,
+            address allocationManager_,
+            address launchRouter_
+        ) = factory.runtimeBindings();
         assertEq(factory.launchFee(), LAUNCH_FEE);
+        assertEq(officialStockRegistry_, address(configs));
+        assertEq(approvedQuoteRegistry_, address(configs));
+        assertEq(ponsBaselineRegistry_, address(configs));
+        assertEq(launchTemplateRegistry_, address(configs));
+        assertEq(marketRegistry_, address(marketRegistry));
+        assertEq(protocolFeeVault_, address(feeVault));
+        assertEq(allocationManager_, address(allocationManager));
+        assertEq(launchRouter_, address(router));
         assertEq(factory.memeTokenImplementation(), address(tokenImplementation));
         assertEq(factory.curveImplementation(), address(curveImplementation));
         assertEq(factory.gaugeImplementation(), address(gaugeImplementation));
@@ -361,20 +381,20 @@ contract TickerGardenFactoryV2Test is Test {
     function test_realArtifactInitCodeSaltPredictionAndActualAddressMatchManifest() public {
         string memory manifest =
             vm.readFile(string.concat(vm.projectRoot(), "/../spec/v2_product_artifact_manifest.json"));
-        assertEq(vm.parseJsonString(manifest, ".modules[9].module"), "MemeStockGauge");
-        assertEq(vm.parseJsonString(manifest, ".modules[12].module"), "PonsCompatibleCurve");
-        assertEq(vm.parseJsonString(manifest, ".modules[16].module"), "TickerMemeTokenV2");
+        assertEq(vm.parseJsonString(manifest, ".modules[10].module"), "MemeStockGauge");
+        assertEq(vm.parseJsonString(manifest, ".modules[13].module"), "PonsCompatibleCurve");
+        assertEq(vm.parseJsonString(manifest, ".modules[17].module"), "TickerMemeTokenV2");
         assertEq(
-            keccak256(type(MemeStockGauge).creationCode),
-            vm.parseJsonBytes32(manifest, ".modules[9].creationCode.keccak256")
+            keccak256(type(MemeStockGauge).runtimeCode),
+            vm.parseJsonBytes32(manifest, ".modules[10].runtimeTemplate.keccak256")
         );
         assertEq(
             keccak256(type(PonsCompatibleCurve).creationCode),
-            vm.parseJsonBytes32(manifest, ".modules[12].creationCode.keccak256")
+            vm.parseJsonBytes32(manifest, ".modules[13].creationCode.keccak256")
         );
         assertEq(
             keccak256(type(TickerMemeTokenV2).creationCode),
-            vm.parseJsonBytes32(manifest, ".modules[16].creationCode.keccak256")
+            vm.parseJsonBytes32(manifest, ".modules[17].creationCode.keccak256")
         );
 
         CreateMarketParams memory params = _validParams(CREATOR, keccak256("REAL_ARTIFACT_CREATE2"));
@@ -434,7 +454,7 @@ contract TickerGardenFactoryV2Test is Test {
         address predictedToken,
         address predictedGauge
     ) private view {
-        MemeStockGaugeInit memory init = MemeStockGaugeInit({
+        GaugeIdentity memory identity = GaugeIdentity({
             marketId: marketId,
             assetUid: params.assetUid,
             quoteAssetConfigId: params.quoteAssetConfigId,
@@ -446,9 +466,12 @@ contract TickerGardenFactoryV2Test is Test {
         });
         bytes32 salt =
             V2Identifiers.componentSalt(block.chainid, address(factory), marketId, V2Identifiers.ComponentKind.GAUGE);
-        bytes32 initCodeHash = V2Create2.initCodeHash(type(MemeStockGauge).creationCode, abi.encode(init));
-        assertEq(gaugeImplementation.initCodeHash(init), initCodeHash);
-        assertEq(predictedGauge, V2Create2.predict(address(factory), salt, initCodeHash));
+        assertEq(
+            predictedGauge,
+            MemeStockGaugeClone.predictDeterministicAddress(
+                address(gaugeImplementation), salt, identity, address(factory)
+            )
+        );
     }
 
     function test_tokenCurveAndGaugeFreezeThePredictedIdentityWithoutInitializer() public {
@@ -470,6 +493,15 @@ contract TickerGardenFactoryV2Test is Test {
         PositionView memory position = MemeStockGauge(gaugeAddress).positionOf(CREATOR);
         assertEq(position.activeAmount, 0);
         assertEq(position.pendingAmount, 0);
+        GaugeIdentity memory identity = MemeStockGauge(gaugeAddress).gaugeIdentity();
+        assertEq(identity.marketId, marketId);
+        assertEq(identity.assetUid, ASSET_UID);
+        assertEq(identity.quoteAssetConfigId, QUOTE_ID);
+        assertEq(identity.allocationManager, address(allocationManager));
+        assertEq(identity.protocolFeeVault, address(feeVault));
+        assertEq(identity.marketController, address(controller));
+        assertEq(identity.quoteAsset, address(quote));
+        assertEq(identity.memeToken, tokenAddress);
         (bool tokenInitializer,) = tokenAddress.call(abi.encodeWithSignature("initialize()"));
         (bool curveInitializer,) = curveAddress.call(abi.encodeWithSignature("initialize()"));
         (bool gaugeInitializer,) = gaugeAddress.call(abi.encodeWithSignature("initialize()"));
@@ -1601,7 +1633,11 @@ contract TickerGardenFactoryV2Test is Test {
         vm.etch(collision, hex"00");
 
         vm.prank(CREATOR);
-        vm.expectPartialRevert(TickerGardenFactoryV2.ComponentDeploymentCallFailed.selector);
+        if (failedComponent == 2) {
+            vm.expectRevert(Errors.FailedDeployment.selector);
+        } else {
+            vm.expectPartialRevert(TickerGardenFactoryV2.ComponentDeploymentCallFailed.selector);
+        }
         factory.createMarket{value: LAUNCH_FEE}(params);
         vm.etch(collision, bytes(""));
 

@@ -6,7 +6,7 @@ Current truth:
 
 - Execution-spec identity: `V2-EXEC-3`.
 - V2 documentation and machine-readable specification files are preserved.
-- Solidity has a generated, compiled interface baseline with artifact-level ABI checks. `MarketRegistryV2` implements immutable market state and transitions; the four completed configuration registries append-only freeze canonical STOCK, Quote economics, Pons behavior baselines, and launch component identities through an immutable AccessManager authority. The Indexer now has artifact-derived event handlers, canonical replay/reorg checkpoints, and reconciliation alerts; API, maintenance runner, and web retain independent scaffold boundaries.
+- Solidity has a generated, compiled interface baseline and eighteen product modules behind artifact-level ABI checks. `MarketRegistryV2` implements immutable market state and transitions; the local product and real-balance invariant evidence closes the `Emergency/Retired × NotGraduated` recovery gap, while target-chain Fork and deployment evidence remain open. The four configuration registries append-only freeze canonical STOCK, Quote economics, Pons behavior baselines, and launch component identities through an immutable AccessManager authority. The Indexer provides artifact-derived handlers, replay/reorg checkpoints and reconciliation; the Backend remains a read-only boundary, the maintenance runner submits only permissionless calls through an injected transport, and the Web binds every funds-sensitive API address back to immutable Factory/Registry views before quote, simulation or signature.
 - Product-contract, Fork, and deployment CI tracks are independent. Product is `ACTIVE` with eighteen compiled modules, Fork is `FIXTURES_ACTIVE` with deterministic local controls but no live replay, and deployment tooling is `ACTIVE` because its schema and read-only live preflight layers are complete. None of these states means a complete product, deployment candidate, or production evidence exists.
 - Canonical readiness is `IMPLEMENTATION_ALLOWED`: product implementation is in progress and deployment readiness remains **false**, but the implementation parameter gate is closed.
 - The current Robinhood official directory observation contains 194 active STOCK assets. All 194 are selectable as a market's staking base; this count is not a protocol cap.
@@ -25,12 +25,12 @@ Current truth:
 | `backend/` | Reconciled V2 read API plus versioned OpenAPI 3.1 schema and generated TypeScript client |
 | `indexer/` | Artifact-derived V2 event schema, deterministic projections, canonical replay/reorg checkpoint, and reconciliation core |
 | `deployments/` | V2 deployment manifest Schema plus fixed-block, read-only, fail-closed live preflight; never submits transactions |
-| `services/maintenance-runner/` | Non-privileged maintenance boundary; no transaction submission |
-| `website/` | Read-only V2 status page, generated API/ABI bridges, Robinhood wallet configuration, and fail-closed transaction state machine |
+| `services/maintenance-runner/` | Non-privileged permissionless maintenance runner; injected transport, simulate-first submission, bounded retries and no signer/custody |
+| `website/` | V2 product console with generated API/ABI bridges, Robinhood wallet, Launch/Curve and Vault flows, plus a fail-closed complete-runtime gate |
 | `tools/check-v2-boundary.mjs` | Static guard against V1 runtime reintroduction |
 | `tools/check-v2-ci-tracks.mjs` | Fail-closed product, Fork, and deployment track inventory and test runner |
 
-## Verify the scaffold
+## Verify the implementation
 
 Prerequisites are Node.js 22.13+, Python 3, Foundry 1.8.1, and the pinned contract dependencies.
 
@@ -40,6 +40,6 @@ npm run build
 npm test
 ```
 
-The root commands deliberately keep specification checks, V2 contract tests, off-chain tests, and website tests separate. A green scaffold does not claim that protocol functionality exists.
+The root commands deliberately keep specification checks, V2 contract tests, off-chain tests, and website tests separate. A green local build does not prove the still-open archive Fork, legal, independent-audit, AccessManager installation, production-manifest, or deployment gates.
 
 See `V2_READINESS_AND_DEPLOYMENT_GATES.md` for the four-state gate, `V2_DEVELOPMENT_PLAN.md` for implementation work, and `V1_CODE_REMOVAL_RECORD.md` for the recoverable deletion record.

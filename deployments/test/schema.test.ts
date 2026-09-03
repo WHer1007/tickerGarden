@@ -50,6 +50,14 @@ test("rejects ERC20 zero addresses, invalid Hook permissions, and incomplete CRE
   const missingLocker = clone(validManifest());
   delete ((missingLocker.create2 as JsonRecord).components as JsonRecord).LOCKER;
   assert.equal(validateV2DeploymentManifestSchema(missingLocker).valid, false);
+
+  const missingGaugeImplementation = clone(validManifest());
+  delete ((((missingGaugeImplementation.create2 as JsonRecord).components as JsonRecord).GAUGE as JsonRecord).implementationAddress);
+  assert.equal(validateV2DeploymentManifestSchema(missingGaugeImplementation).valid, false);
+
+  const fullGauge = clone(validManifest());
+  ((((fullGauge.create2 as JsonRecord).components as JsonRecord).GAUGE as JsonRecord).deploymentKind) = "FULL_CREATE2";
+  assert.equal(validateV2DeploymentManifestSchema(fullGauge).valid, false);
 });
 
 test("requires exactly 80 protocol and 6 AccessManager permissions", () => {

@@ -23,9 +23,12 @@
         {"signature":"pauseAsset(bytes32,bytes32)","mutability":"nonpayable","caller":"PAUSE_GUARDIAN_ROLE","returns":"()"},
         {"signature":"unpauseAsset(bytes32)","mutability":"nonpayable","caller":"UNPAUSE_ROLE","returns":"()"},
         {"signature":"retireAsset(bytes32,bytes32)","mutability":"nonpayable","caller":"PROTOCOL_ADMIN_ROLE","returns":"()"},
-        {"signature":"asset(bytes32)","mutability":"view","caller":"PUBLIC","returns":"(AssetView)"}
+        {"signature":"asset(bytes32)","mutability":"view","caller":"PUBLIC","returns":"(AssetView)"},
+        {"signature":"vaultSchemaId(address)","mutability":"view","caller":"PUBLIC","returns":"(bytes32)"},
+        {"signature":"vaultForSchema(bytes32)","mutability":"view","caller":"PUBLIC","returns":"(address)"}
       ],
       "events": [
+        "StockVaultRegistered(address indexed userStockVault,bytes32 indexed schemaId,address indexed marketRegistry,address allocationManager)",
         "AssetRegistered(bytes32 indexed assetUid,address indexed stockToken,address indexed userStockVault,uint8 tokenDecimals)",
         "AssetStatusChanged(bytes32 indexed assetUid,uint8 oldStatus,uint8 newStatus,bytes32 reasonHash)"
       ]
@@ -83,6 +86,16 @@
       ]
     },
     {
+      "module": "LaunchConfigResolver",
+      "functions": [
+        {"signature":"resolve(bytes32,bytes32,bytes32)","mutability":"view","caller":"PUBLIC","returns":"(QuoteAssetConfig,PonsBaseline,LaunchTemplate)"},
+        {"signature":"approvedQuoteRegistry()","mutability":"view","caller":"PUBLIC","returns":"(address)"},
+        {"signature":"ponsBaselineRegistry()","mutability":"view","caller":"PUBLIC","returns":"(address)"},
+        {"signature":"launchTemplateRegistry()","mutability":"view","caller":"PUBLIC","returns":"(address)"}
+      ],
+      "events": []
+    },
+    {
       "module": "TickerGardenFactoryV2",
       "structs": {
         "CreateMarketParams": ["bytes32 assetUid","bytes32 ponsBaselineId","bytes32 quoteAssetConfigId","bytes32 launchTemplateId","bytes32 expectedEconomics","address creatorRevenueBeneficiary","string name","string symbol","string metadataURI","bytes32 salt"]
@@ -92,7 +105,8 @@
         {"signature":"createMarketFor(address,CreateMarketParams)","mutability":"payable","caller":"LAUNCH_ROUTER_MODULE","returns":"(bytes32,address,address,address)"},
         {"signature":"previewMarketEconomics(CreateMarketParams)","mutability":"view","caller":"PUBLIC","returns":"(bytes32)"},
         {"signature":"predictMarketAddresses(address,CreateMarketParams)","mutability":"view","caller":"PUBLIC","returns":"(bytes32,address,address,address,address)"},
-        {"signature":"launchFee()","mutability":"view","caller":"PUBLIC","returns":"(uint256)"}
+        {"signature":"launchFee()","mutability":"view","caller":"PUBLIC","returns":"(uint256)"},
+        {"signature":"runtimeBindings()","mutability":"view","caller":"PUBLIC","returns":"(address,address,address,address,address,address,address,address)"}
       ],
       "events": [
         "MarketCreated(bytes32 indexed marketId,bytes32 indexed assetUid,address indexed memeToken,address curve,address gauge,address quoteAsset,uint256 stakeSaturationAmount,bytes32 ponsBaselineId,bytes32 quoteAssetConfigId,bytes32 expectedEconomics)"
@@ -189,28 +203,29 @@
     {
       "module": "UserStockVault",
       "functions": [
-        {"signature":"depositStock(uint256)","mutability":"nonpayable","caller":"PUBLIC","returns":"()"},
-        {"signature":"depositStockFor(address,uint256)","mutability":"nonpayable","caller":"ALLOCATION_MODULE","returns":"()"},
-        {"signature":"withdrawFreeStock(uint256)","mutability":"nonpayable","caller":"PUBLIC","returns":"()"},
-        {"signature":"forceReleaseAllocation(bytes32)","mutability":"nonpayable","caller":"PUBLIC","returns":"(uint256)"},
-        {"signature":"lockAllocation(address,bytes32,uint256)","mutability":"nonpayable","caller":"ALLOCATION_MODULE","returns":"()"},
-        {"signature":"releaseAllocation(address,bytes32,uint256)","mutability":"nonpayable","caller":"ALLOCATION_MODULE","returns":"()"},
-        {"signature":"moveAllocation(address,bytes32,bytes32,uint256)","mutability":"nonpayable","caller":"ALLOCATION_MODULE","returns":"()"},
-        {"signature":"deposited(address)","mutability":"view","caller":"PUBLIC","returns":"(uint256)"},
-        {"signature":"allocated(address)","mutability":"view","caller":"PUBLIC","returns":"(uint256)"},
-        {"signature":"allocation(address,bytes32)","mutability":"view","caller":"PUBLIC","returns":"(uint256)"},
-        {"signature":"freeBalanceOf(address)","mutability":"view","caller":"PUBLIC","returns":"(uint256)"},
-        {"signature":"marketAllocated(bytes32)","mutability":"view","caller":"PUBLIC","returns":"(uint256)"},
-        {"signature":"totalDeposited()","mutability":"view","caller":"PUBLIC","returns":"(uint256)"},
-        {"signature":"totalAllocated()","mutability":"view","caller":"PUBLIC","returns":"(uint256)"}
+        {"signature":"depositStock(bytes32,uint256)","mutability":"nonpayable","caller":"PUBLIC","returns":"()"},
+        {"signature":"depositStockFor(bytes32,address,uint256)","mutability":"nonpayable","caller":"ALLOCATION_MODULE","returns":"()"},
+        {"signature":"withdrawFreeStock(bytes32,uint256)","mutability":"nonpayable","caller":"PUBLIC","returns":"()"},
+        {"signature":"forceReleaseAllocation(bytes32,bytes32)","mutability":"nonpayable","caller":"PUBLIC","returns":"(uint256)"},
+        {"signature":"lockAllocation(bytes32,address,bytes32,uint256)","mutability":"nonpayable","caller":"ALLOCATION_MODULE","returns":"()"},
+        {"signature":"releaseAllocation(bytes32,address,bytes32,uint256)","mutability":"nonpayable","caller":"ALLOCATION_MODULE","returns":"()"},
+        {"signature":"moveAllocation(bytes32,address,bytes32,bytes32,uint256)","mutability":"nonpayable","caller":"ALLOCATION_MODULE","returns":"()"},
+        {"signature":"deposited(bytes32,address)","mutability":"view","caller":"PUBLIC","returns":"(uint256)"},
+        {"signature":"allocated(bytes32,address)","mutability":"view","caller":"PUBLIC","returns":"(uint256)"},
+        {"signature":"allocation(bytes32,address,bytes32)","mutability":"view","caller":"PUBLIC","returns":"(uint256)"},
+        {"signature":"freeBalanceOf(bytes32,address)","mutability":"view","caller":"PUBLIC","returns":"(uint256)"},
+        {"signature":"marketAllocated(bytes32,bytes32)","mutability":"view","caller":"PUBLIC","returns":"(uint256)"},
+        {"signature":"totalDeposited(bytes32)","mutability":"view","caller":"PUBLIC","returns":"(uint256)"},
+        {"signature":"totalAllocated(bytes32)","mutability":"view","caller":"PUBLIC","returns":"(uint256)"},
+        {"signature":"vaultIdentity()","mutability":"view","caller":"PUBLIC","returns":"(address,address,address,bytes32)"}
       ],
       "events": [
         "StockDeposited(bytes32 indexed assetUid,address indexed user,uint256 amount)",
         "StockWithdrawn(bytes32 indexed assetUid,address indexed user,uint256 amount)",
-        "AllocationLocked(address indexed user,bytes32 indexed marketId,uint256 amount,uint256 userMarketAllocation,uint256 userTotalAllocated)",
-        "AllocationReleased(address indexed user,bytes32 indexed marketId,uint256 amount,uint256 userMarketAllocation,uint256 userTotalAllocated)",
-        "AllocationMoved(address indexed user,bytes32 indexed fromMarketId,bytes32 indexed toMarketId,uint256 amount)",
-        "AllocationForceReleased(address indexed user,bytes32 indexed marketId,uint256 amount,uint32 recoveryEpoch)"
+        "AllocationLocked(bytes32 indexed assetUid,address indexed user,bytes32 indexed marketId,uint256 amount,uint256 userMarketAllocation,uint256 userTotalAllocated)",
+        "AllocationReleased(bytes32 indexed assetUid,address indexed user,bytes32 indexed marketId,uint256 amount,uint256 userMarketAllocation,uint256 userTotalAllocated)",
+        "AllocationMoved(bytes32 indexed assetUid,address indexed user,bytes32 indexed fromMarketId,bytes32 toMarketId,uint256 amount)",
+        "AllocationForceReleased(bytes32 indexed assetUid,address indexed user,bytes32 indexed marketId,uint256 amount,uint32 recoveryEpoch)"
       ]
     },
     {
@@ -230,6 +245,16 @@
     {
       "module": "MemeStockGauge",
       "structs": {
+        "GaugeIdentity": [
+          "bytes32 marketId",
+          "bytes32 assetUid",
+          "bytes32 quoteAssetConfigId",
+          "address allocationManager",
+          "address protocolFeeVault",
+          "address marketController",
+          "address quoteAsset",
+          "address memeToken"
+        ],
         "PositionView": [
           "uint256 activeAmount",
           "uint256 pendingAmount",
@@ -255,6 +280,7 @@
         ]
       },
       "functions": [
+        {"signature":"gaugeIdentity()","mutability":"view","caller":"PUBLIC","returns":"(GaugeIdentity)"},
         {"signature":"addPending(address,uint256,uint64,uint64)","mutability":"nonpayable","caller":"ALLOCATION_MODULE","returns":"()"},
         {"signature":"removeAllocation(address,uint256)","mutability":"nonpayable","caller":"ALLOCATION_MODULE","returns":"()"},
         {"signature":"checkpointActivations()","mutability":"nonpayable","caller":"PUBLIC","returns":"(uint256,uint256)"},
@@ -428,6 +454,7 @@
     "AllocationLedgerMismatch()",
     "StockAllocationClosed(bytes32)",
     "InvalidStateTransition(uint8,uint8)",
+    "PreGraduationTerminalStateForbidden(uint8)",
     "EmergencyExitNotReady(uint64)",
     "RecoveryCapsAlreadyFrozen(bytes32,uint32)",
     "RecoveryCapSnapshotMismatch(bytes32,uint32)",

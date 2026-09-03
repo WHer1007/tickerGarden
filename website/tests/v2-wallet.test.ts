@@ -2,7 +2,8 @@ import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import { test } from "node:test";
 import type { Address, Hash, TransactionReceipt } from "viem";
-import { ROBINHOOD_CHAIN_ID, createTickerGardenWagmiConfig, robinhoodChain } from "../src/v2/chain.ts";
+import { ROBINHOOD_CHAIN_ID, robinhoodChain } from "../src/v2/chain.ts";
+import { createTickerGardenWagmiConfig } from "../src/v2/wagmiConfig.ts";
 import { V2_ABI_SOURCES, V2_EXECUTION_SPEC_ID, v2Abis } from "../src/v2/generated/abis.ts";
 import type { MarketReadModel, SyncStatus } from "../src/v2/readApi.ts";
 import {
@@ -21,7 +22,7 @@ const request = createContractWriteRequest({
   abi: v2Abis.UserStockVault,
   address: address("1"),
   functionName: "withdrawFreeStock",
-  args: [1n],
+  args: [hash("1"), 1n],
 });
 const receipt = (status: "success" | "reverted" = "success") => ({ status }) as TransactionReceipt;
 const snapshot = { executionSpecId: "V2-EXEC-3", revision: "100:0xaa", syncStatus: "synced" as const };
@@ -89,9 +90,9 @@ test("Robinhood Chain identity matches the frozen execution network", () => {
   assert.equal(config.connectors.length, 1);
 });
 
-test("generated ABI bridge exactly matches all eighteen compiled E102 interface artifacts", async () => {
+test("generated ABI bridge exactly matches all nineteen compiled E102 interface artifacts", async () => {
   assert.equal(V2_EXECUTION_SPEC_ID, "V2-EXEC-3");
-  assert.equal(V2_ABI_SOURCES.length, 18);
+  assert.equal(V2_ABI_SOURCES.length, 19);
   assert.deepEqual(Object.keys(v2Abis).sort(), V2_ABI_SOURCES.map((source) => source.module).sort());
   for (const source of V2_ABI_SOURCES) {
     const artifact = JSON.parse(await readFile(new URL(`../../${source.artifact}`, import.meta.url), "utf8"));
@@ -163,6 +164,7 @@ test("preflight distinguishes chain, account, quote, snapshot, and Indexer failu
     [clients().clients, input({ snapshot: { ...snapshot, syncStatus: "lagging" } }), "indexer_lagging"],
     [clients().clients, input({ snapshot: { ...snapshot, syncStatus: "unavailable" } }), "indexer_unavailable"],
     [clients().clients, input({ currentRevision: async () => "101:0xbb" }), "stale_snapshot"],
+    [clients().clients, input({ currentRevision: async () => { throw new V2TransactionError("indexer_unavailable", "health unavailable"); } }), "indexer_unavailable"],
   ];
   for (const [clientSet, transaction, code] of cases) {
     await assert.rejects(new V2TransactionExecutor(clientSet).execute(transaction), (error: unknown) => {

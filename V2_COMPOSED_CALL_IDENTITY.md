@@ -2,7 +2,7 @@
 
 > 规格任务：`V2-P-003`  
 > 状态：`REVIEW`  
-> 更新时间：2026-09-02
+> 更新时间：2026-09-03
 
 ## 1. 原则
 
@@ -13,7 +13,7 @@
 采用 Vault 模块入口：
 
 ```solidity
-depositStockFor(address user, uint256 amount) // AllocationManager only
+depositStockFor(bytes32 assetUid, address user, uint256 amount) // AllocationManager only
 ```
 
 固定流程：
@@ -22,11 +22,11 @@ depositStockFor(address user, uint256 amount) // AllocationManager only
 user calls AllocationManager.depositAndAllocate(marketId, depositAmount, allocationAmount)
 -> user = msg.sender
 -> validate market PoolCreated + ACTIVE, asset ACTIVE and amount rules
--> Vault.depositStockFor(user, depositAmount)
+-> resolve assetUid from market and Vault.depositStockFor(assetUid, user, depositAmount)
    -> Vault.safeTransferFrom(user, Vault, depositAmount)
    -> require exact balance delta
-   -> credit deposited[user]
--> require freeBalanceOf(user) >= allocationAmount
+   -> credit deposited[assetUid][user]
+-> require freeBalanceOf(assetUid, user) >= allocationAmount
 -> settle Gauge and lock allocation for the same user
 -> create/merge pending and reset whole-position 24h lock
 ```
