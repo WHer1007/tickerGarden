@@ -30,3 +30,23 @@ cbor_metadata = false
 [profile.ci]
 fuzz = { runs = 1_000 }
 invariant = { runs = 256, depth = 64, fail_on_revert = true }
+
+# Reproducible V2 CI profile. Keep this independent from the default profile so
+# V2 jobs cannot accidentally compile the legacy namespace or reuse its cache.
+[profile.v2-ci]
+src = "src/v2"
+test = "test/v2"
+script = "script/v2"
+out = "out-v2-ci"
+cache_path = "cache-v2-ci"
+libs = ["lib"]
+fs_permissions = [{ access = "read", path = "../spec" }]
+solc_version = "0.8.26"
+evm_version = "cancun"
+optimizer = true
+optimizer_runs = 200
+bytecode_hash = "none"
+cbor_metadata = false
+auto_detect_remappings = false
+fuzz = { runs = 1_000, failure_persist_dir = "cache-v2-ci/fuzz" }
+invariant = { runs = 256, depth = 500, fail_on_revert = true, failure_persist_dir = "cache-v2-ci/invariant" }

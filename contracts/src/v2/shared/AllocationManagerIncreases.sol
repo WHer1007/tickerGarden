@@ -26,6 +26,15 @@ abstract contract AllocationManagerIncreases is ReentrancyGuard {
     IOfficialStockRegistryV2 internal immutable _officialStockRegistry;
     IMarketRegistryV2 internal immutable _marketRegistry;
 
+    struct IncreaseContext {
+        IUserStockVault vault;
+        IMemeStockGauge gauge;
+        bytes32 assetUid;
+        uint8 tokenDecimals;
+        uint64 activationAt;
+        uint64 unlockAt;
+    }
+
     error InvalidAllocationManagerDependencies(address officialStockRegistry, address marketRegistry);
     error InvalidAllocationUser(address user);
     error InvalidAllocationAmount(uint256 amount);
@@ -49,53 +58,43 @@ abstract contract AllocationManagerIncreases is ReentrancyGuard {
     function _increaseAllocation(address user, bytes32 marketId, uint256 amount) internal nonReentrant {
         _validateAllocationRequest(user, amount);
 
-        (IUserStockVault vault, IMemeStockGauge gauge, uint8 tokenDecimals) = _openAllocationMarket(marketId);
-        (uint64 activationAt, uint64 unlockAt) = _allocationTimes();
+        IncreaseContext memory context = _openAllocationMarket(marketId);
+        (context.activationAt, context.unlockAt) = _allocationTimes();
 
-        _executeIncrease(user, marketId, amount, vault, gauge, tokenDecimals, activationAt, unlockAt);
+        _executeIncrease(user, marketId, amount, context);
     }
 
-    function _executeIncrease(
-        address user,
-        bytes32 marketId,
-        uint256 amount,
-        IUserStockVault vault,
-        IMemeStockGauge gauge,
-        uint8 tokenDecimals,
-        uint64 activationAt,
-        uint64 unlockAt
-    ) internal {
-        gauge.checkpointActivations();
-        gauge.settle(user);
+    function _executeIncrease(address user, bytes32 marketId, uint256 amount, IncreaseContext memory context) internal {
+        context.gauge.checkpointActivations();
+        context.gauge.settle(user);
 
-        uint256 currentPosition = _checkedPosition(gauge, vault, user, marketId);
+        uint256 currentPosition = _checkedPosition(context.gauge, context.vault, context.assetUid, user, marketId);
 
         uint256 resultingPosition = currentPosition + amount;
-        uint256 minimumPosition = 5 * (10 ** (tokenDecimals - 1)) + 1;
+        uint256 minimumPosition = 5 * (10 ** (context.tokenDecimals - 1)) + 1;
         if (resultingPosition < minimumPosition) {
             revert PositionBelowMinimum(resultingPosition, minimumPosition);
         }
 
-        vault.lockAllocation(user, marketId, amount);
-        gauge.addPending(user, amount, activationAt, unlockAt);
-        if (_checkedPosition(gauge, vault, user, marketId) != resultingPosition) revert AllocationLedgerMismatch();
+        context.vault.lockAllocation(context.assetUid, user, marketId, amount);
+        context.gauge.addPending(user, amount, context.activationAt, context.unlockAt);
+        if (_checkedPosition(context.gauge, context.vault, context.assetUid, user, marketId) != resultingPosition) {
+            revert AllocationLedgerMismatch();
+        }
     }
 
-    function _openAllocationMarket(bytes32 marketId)
-        internal
-        view
-        returns (IUserStockVault vault, IMemeStockGauge gauge, uint8 tokenDecimals)
-    {
+    function _openAllocationMarket(bytes32 marketId) internal view returns (IncreaseContext memory context) {
         MarketView memory marketView;
         AssetView memory assetView;
-        (marketView, assetView, vault, gauge) = _allocationComponents(marketId);
+        (marketView, assetView, context.vault, context.gauge) = _allocationComponents(marketId);
         if (
             marketView.runtime.launchPhase != LAUNCH_PHASE_POOL_CREATED
                 || marketView.runtime.marketStatus != MARKET_STATUS_ACTIVE || assetView.status != ASSET_STATUS_ACTIVE
         ) {
             revert StockAllocationClosed(marketId);
         }
-        tokenDecimals = assetView.tokenDecimals;
+        context.assetUid = marketView.config.assetUid;
+        context.tokenDecimals = assetView.tokenDecimals;
     }
 
     function _allocationComponents(bytes32 marketId)
@@ -107,7 +106,7 @@ abstract contract AllocationManagerIncreases is ReentrancyGuard {
         marketView = _marketRegistry.market(marketId);
         assetView = _officialStockRegistry.asset(marketView.config.assetUid);
         if (
-            assetView.status == 0 || assetView.status > 3 || assetView.tokenDecimals < 1 || assetView.tokenDecimals > 36
+            assetView.status == 0 || assetView.status > 3 || assetView.tokenDecimals < 6 || assetView.tokenDecimals > 18
                 || assetView.stockToken.code.length == 0 || assetView.userStockVault.code.length == 0
                 || marketView.config.gauge.code.length == 0 || assetView.stockToken == assetView.userStockVault
                 || assetView.stockToken == marketView.config.gauge
@@ -119,14 +118,16 @@ abstract contract AllocationManagerIncreases is ReentrancyGuard {
         gauge = IMemeStockGauge(marketView.config.gauge);
     }
 
-    function _checkedPosition(IMemeStockGauge gauge, IUserStockVault vault, address user, bytes32 marketId)
-        internal
-        view
-        returns (uint256 amount)
-    {
+    function _checkedPosition(
+        IMemeStockGauge gauge,
+        IUserStockVault vault,
+        bytes32 assetUid,
+        address user,
+        bytes32 marketId
+    ) internal view returns (uint256 amount) {
         PositionView memory position = gauge.positionOf(user);
         amount = position.activeAmount + position.pendingAmount;
-        if (amount != vault.allocation(user, marketId)) revert AllocationLedgerMismatch();
+        if (amount != vault.allocation(assetUid, user, marketId)) revert AllocationLedgerMismatch();
     }
 
     function _validateAllocationRequest(address user, uint256 amount) internal view {

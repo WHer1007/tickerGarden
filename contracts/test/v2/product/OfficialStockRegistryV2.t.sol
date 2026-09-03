@@ -10,6 +10,24 @@ import {ImmutableAccessManaged} from "../../../src/v2/shared/ImmutableAccessMana
 
 contract EmptyV2Contract {}
 
+contract MockUserStockVaultIdentity {
+    address internal immutable _registry;
+    address internal immutable _marketRegistry;
+    address internal immutable _allocationManager;
+    bytes32 internal immutable _schemaId;
+
+    constructor(address registry_, address marketRegistry_, address allocationManager_, bytes32 schemaId_) {
+        _registry = registry_;
+        _marketRegistry = marketRegistry_;
+        _allocationManager = allocationManager_;
+        _schemaId = schemaId_;
+    }
+
+    function vaultIdentity() external view returns (address, address, address, bytes32) {
+        return (_registry, _marketRegistry, _allocationManager, _schemaId);
+    }
+}
+
 contract OfficialStockRegistryV2Test is Test {
     uint64 internal constant PROTOCOL_ADMIN_ROLE = 1;
     uint64 internal constant PAUSE_GUARDIAN_ROLE = 2;
@@ -20,6 +38,7 @@ contract OfficialStockRegistryV2Test is Test {
     bytes32 internal constant ASSET_UID = keccak256("official-stock");
     bytes32 internal constant OTHER_ASSET_UID = keccak256("other-official-stock");
     bytes32 internal constant REASON_HASH = keccak256("identity-drift");
+    bytes32 internal constant VAULT_SCHEMA_ID = keccak256("TickerGarden.UserStockVault.MultiAsset.v1");
     address internal constant DELAYED_ADMIN = address(0xA11CE);
     address internal constant FAST_ADMIN = address(0xFA57);
     address internal constant GUARDIAN = address(0x6A7D);
@@ -29,7 +48,15 @@ contract OfficialStockRegistryV2Test is Test {
     OfficialStockRegistryV2 internal registry;
     address internal stockToken;
     address internal vault;
+    address internal marketRegistry;
+    address internal allocationManager;
 
+    event StockVaultRegistered(
+        address indexed userStockVault,
+        bytes32 indexed schemaId,
+        address indexed marketRegistry,
+        address allocationManager
+    );
     event AssetRegistered(
         bytes32 indexed assetUid, address indexed stockToken, address indexed userStockVault, uint8 tokenDecimals
     );
@@ -40,7 +67,11 @@ contract OfficialStockRegistryV2Test is Test {
         manager = new AccessManager(address(this));
         registry = new OfficialStockRegistryV2(address(manager));
         stockToken = address(new EmptyV2Contract());
-        vault = address(new EmptyV2Contract());
+        marketRegistry = address(new EmptyV2Contract());
+        allocationManager = address(new EmptyV2Contract());
+        vault = address(
+            new MockUserStockVaultIdentity(address(registry), marketRegistry, allocationManager, VAULT_SCHEMA_ID)
+        );
 
         bytes4[] memory adminSelectors = new bytes4[](2);
         adminSelectors[0] = IOfficialStockRegistryV2.registerAsset.selector;
@@ -76,6 +107,8 @@ contract OfficialStockRegistryV2Test is Test {
         assertEq(OfficialStockRegistryV2.unpauseAsset.selector, IOfficialStockRegistryV2.unpauseAsset.selector);
         assertEq(OfficialStockRegistryV2.retireAsset.selector, IOfficialStockRegistryV2.retireAsset.selector);
         assertEq(OfficialStockRegistryV2.asset.selector, IOfficialStockRegistryV2.asset.selector);
+        assertEq(OfficialStockRegistryV2.vaultSchemaId.selector, IOfficialStockRegistryV2.vaultSchemaId.selector);
+        assertEq(OfficialStockRegistryV2.vaultForSchema.selector, IOfficialStockRegistryV2.vaultForSchema.selector);
     }
 
     function test_unknownAssetIsUnset() public view {
@@ -120,6 +153,8 @@ contract OfficialStockRegistryV2Test is Test {
 
         vm.warp(readyAt);
         vm.expectEmit(true, true, true, true, address(registry));
+        emit StockVaultRegistered(vault, VAULT_SCHEMA_ID, marketRegistry, allocationManager);
+        vm.expectEmit(true, true, true, true, address(registry));
         emit AssetRegistered(ASSET_UID, stockToken, vault, 18);
         vm.prank(DELAYED_ADMIN);
         manager.execute(address(registry), data);
@@ -128,9 +163,13 @@ contract OfficialStockRegistryV2Test is Test {
 
     function test_registerStoresImmutableCanonicalIdentityAndEvent() public {
         vm.expectEmit(true, true, true, true);
+        emit StockVaultRegistered(vault, VAULT_SCHEMA_ID, marketRegistry, allocationManager);
+        vm.expectEmit(true, true, true, true);
         emit AssetRegistered(ASSET_UID, stockToken, vault, 18);
         _registerFast(ASSET_UID, stockToken, 18, vault);
         _assertAsset(ASSET_UID, stockToken, vault, 18, 1);
+        assertEq(registry.vaultSchemaId(vault), VAULT_SCHEMA_ID);
+        assertEq(registry.vaultForSchema(VAULT_SCHEMA_ID), vault);
     }
 
     function test_registerRejectsInvalidIdentityAndDecimalBounds() public {
@@ -141,21 +180,26 @@ contract OfficialStockRegistryV2Test is Test {
         _expectInvalidIdentity(ASSET_UID, address(0x1111), 18, vault);
         _expectInvalidIdentity(ASSET_UID, stockToken, 18, address(0x2222));
         _expectInvalidIdentity(ASSET_UID, stockToken, 0, vault);
+        _expectInvalidIdentity(ASSET_UID, stockToken, 5, vault);
+        _expectInvalidIdentity(ASSET_UID, stockToken, 19, vault);
         _expectInvalidIdentity(ASSET_UID, stockToken, 37, vault);
 
-        _registerFast(ASSET_UID, stockToken, 1, vault);
-        assertEq(registry.asset(ASSET_UID).tokenDecimals, 1);
+        _registerFast(ASSET_UID, stockToken, 6, vault);
+        assertEq(registry.asset(ASSET_UID).tokenDecimals, 6);
         address highDecimalsToken = address(new EmptyV2Contract());
-        address highDecimalsVault = address(new EmptyV2Contract());
-        _registerFast(OTHER_ASSET_UID, highDecimalsToken, 36, highDecimalsVault);
-        assertEq(registry.asset(OTHER_ASSET_UID).tokenDecimals, 36);
+        _registerFast(OTHER_ASSET_UID, highDecimalsToken, 18, vault);
+        assertEq(registry.asset(OTHER_ASSET_UID).tokenDecimals, 18);
     }
 
-    function test_assetUidStockTokenAndVaultAreEachWriteOnce() public {
+    function test_assetUidAndStockTokenAreWriteOnceButVaultCanServeMultipleAssets() public {
         _registerFast(ASSET_UID, stockToken, 18, vault);
 
         address otherToken = address(new EmptyV2Contract());
-        address otherVault = address(new EmptyV2Contract());
+        address otherVault = address(
+            new MockUserStockVaultIdentity(
+                address(registry), marketRegistry, allocationManager, keccak256("other-schema")
+            )
+        );
         vm.expectRevert(abi.encodeWithSelector(OfficialStockRegistryV2.AssetAlreadyRegistered.selector, ASSET_UID));
         vm.prank(FAST_ADMIN);
         registry.registerAsset(ASSET_UID, otherToken, 18, otherVault);
@@ -166,14 +210,67 @@ contract OfficialStockRegistryV2Test is Test {
         vm.prank(FAST_ADMIN);
         registry.registerAsset(OTHER_ASSET_UID, stockToken, 18, otherVault);
 
-        vm.expectRevert(
-            abi.encodeWithSelector(OfficialStockRegistryV2.UserStockVaultAlreadyRegistered.selector, vault, ASSET_UID)
-        );
-        vm.prank(FAST_ADMIN);
-        registry.registerAsset(OTHER_ASSET_UID, otherToken, 18, vault);
+        _registerFast(OTHER_ASSET_UID, otherToken, 18, vault);
 
         _assertAsset(ASSET_UID, stockToken, vault, 18, 1);
+        _assertAsset(OTHER_ASSET_UID, otherToken, vault, 18, 1);
+        assertEq(registry.vaultSchemaId(vault), VAULT_SCHEMA_ID);
+        assertEq(registry.vaultForSchema(VAULT_SCHEMA_ID), vault);
+        assertEq(registry.vaultSchemaId(otherVault), bytes32(0));
+    }
+
+    function test_eachVaultSchemaCanResolveToOnlyOneCanonicalVault() public {
+        _registerFast(ASSET_UID, stockToken, 18, vault);
+
+        address otherToken = address(new EmptyV2Contract());
+        address duplicateSchemaVault = address(
+            new MockUserStockVaultIdentity(address(registry), marketRegistry, allocationManager, VAULT_SCHEMA_ID)
+        );
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                OfficialStockRegistryV2.VaultSchemaAlreadyRegistered.selector,
+                VAULT_SCHEMA_ID,
+                vault,
+                duplicateSchemaVault
+            )
+        );
+        vm.prank(FAST_ADMIN);
+        registry.registerAsset(OTHER_ASSET_UID, otherToken, 18, duplicateSchemaVault);
+
+        assertEq(registry.vaultForSchema(VAULT_SCHEMA_ID), vault);
+        assertEq(registry.vaultSchemaId(duplicateSchemaVault), bytes32(0));
         assertEq(registry.asset(OTHER_ASSET_UID).status, 0);
+    }
+
+    function test_registerRejectsVaultWithMissingOrWrongIdentity() public {
+        address emptyVault = address(new EmptyV2Contract());
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                OfficialStockRegistryV2.InvalidUserStockVaultIdentity.selector,
+                emptyVault,
+                address(0),
+                address(0),
+                address(0),
+                bytes32(0)
+            )
+        );
+        vm.prank(FAST_ADMIN);
+        registry.registerAsset(ASSET_UID, stockToken, 18, emptyVault);
+
+        address wrongRegistryVault =
+            address(new MockUserStockVaultIdentity(address(0xBAD), marketRegistry, allocationManager, VAULT_SCHEMA_ID));
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                OfficialStockRegistryV2.InvalidUserStockVaultIdentity.selector,
+                wrongRegistryVault,
+                address(0xBAD),
+                marketRegistry,
+                allocationManager,
+                VAULT_SCHEMA_ID
+            )
+        );
+        vm.prank(FAST_ADMIN);
+        registry.registerAsset(ASSET_UID, stockToken, 18, wrongRegistryVault);
     }
 
     function test_pauseIsImmediateAndPreservesIdentity() public {
@@ -266,11 +363,9 @@ contract OfficialStockRegistryV2Test is Test {
     function test_registryHasNoHardcoded194AssetLimit() public {
         for (uint256 i; i < 195; ++i) {
             bytes32 uid = bytes32(i + 1);
-            address token = address(uint160(10_000 + i * 2));
-            address assetVault = address(uint160(10_001 + i * 2));
+            address token = address(uint160(10_000 + i));
             vm.etch(token, hex"00");
-            vm.etch(assetVault, hex"00");
-            _registerFast(uid, token, 18, assetVault);
+            _registerFast(uid, token, 18, vault);
         }
         assertEq(registry.asset(bytes32(uint256(195))).status, 1);
     }

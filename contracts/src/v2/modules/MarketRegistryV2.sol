@@ -69,6 +69,7 @@ contract MarketRegistryV2 is IMarketRegistryV2 {
     error PoolNotExpected(bytes32 poolId);
     error GraduationNotRetryable(bytes32 marketId, uint8 launchPhase, uint8 marketStatus);
     error EmergencyExitNotReady(uint64 readyAt);
+    error PreGraduationTerminalStateForbidden(uint8 requestedStatus);
     error InvalidRoutingDependencies(address swapRouter, address quoter);
     error InvalidCanonicalRoute(bytes32 marketId);
 
@@ -224,6 +225,9 @@ contract MarketRegistryV2 is IMarketRegistryV2 {
         if (oldStatus != MARKET_STATUS_ACTIVE && oldStatus != MARKET_STATUS_PAUSED) {
             revert InvalidStateTransition(oldStatus, MARKET_STATUS_RETIRED);
         }
+        if (runtime.launchPhase == LAUNCH_PHASE_NOT_GRADUATED) {
+            revert PreGraduationTerminalStateForbidden(MARKET_STATUS_RETIRED);
+        }
         uint64 timestamp = _currentTimestamp();
         runtime.marketStatus = MARKET_STATUS_RETIRED;
         runtime.statusSince = timestamp;
@@ -244,6 +248,9 @@ contract MarketRegistryV2 is IMarketRegistryV2 {
         uint8 oldStatus = runtime.marketStatus;
         if (oldStatus != MARKET_STATUS_PAUSED && oldStatus != MARKET_STATUS_RETIRED) {
             revert InvalidStateTransition(oldStatus, MARKET_STATUS_EMERGENCY_EXIT);
+        }
+        if (runtime.launchPhase == LAUNCH_PHASE_NOT_GRADUATED) {
+            revert PreGraduationTerminalStateForbidden(MARKET_STATUS_EMERGENCY_EXIT);
         }
         uint64 readyAt = _checkedReadyAt(runtime.restrictedSince, EMERGENCY_RESTRICTION_SECONDS);
         if (block.timestamp < readyAt) revert EmergencyExitNotReady(readyAt);
@@ -367,7 +374,8 @@ contract MarketRegistryV2 is IMarketRegistryV2 {
         AssetView memory asset = IOfficialStockRegistryV2(officialStockRegistry).asset(config.assetUid);
         if (
             asset.status != CONFIG_STATUS_ACTIVE || asset.stockToken == address(0) || asset.userStockVault == address(0)
-                || asset.tokenDecimals > 76 || config.stakeSaturationAmount != 10 * (10 ** uint256(asset.tokenDecimals))
+                || asset.tokenDecimals < 6 || asset.tokenDecimals > 18
+                || config.stakeSaturationAmount != 10 * (10 ** uint256(asset.tokenDecimals))
         ) revert InvalidMarketConfig();
 
         QuoteAssetConfig memory quote =

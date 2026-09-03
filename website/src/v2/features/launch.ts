@@ -1,0 +1,356 @@
+import { decodeEventLog, type Address, type Hex, type TransactionReceipt } from "viem";
+import type { MarketDetailResponse, MarketReadModel, SyncStatus } from "../readApi.ts";
+import { v2Abis } from "../generated/abis.ts";
+import { createContractWriteRequest, type ContractWriteRequest } from "../transaction.ts";
+
+const ZERO_ADDRESS = "0x0000000000000000000000000000000000000000" as Address;
+const HEX32 = /^0x[0-9a-f]{64}$/;
+const ADDRESS = /^0x[0-9a-f]{40}$/;
+const ACTIVE = 1;
+const NOT_GRADUATED = 0;
+const MARKET_ACTIVE = 0;
+const ZERO_HEX32 = `0x${"0".repeat(64)}` as Hex;
+const MAX_UINT256 = (1n << 256n) - 1n;
+
+export type CreateMarketParams = Readonly<{
+  assetUid: Hex;
+  ponsBaselineId: Hex;
+  quoteAssetConfigId: Hex;
+  launchTemplateId: Hex;
+  expectedEconomics: Hex;
+  creatorRevenueBeneficiary: Address;
+  name: string;
+  symbol: string;
+  metadataURI: string;
+  salt: Hex;
+}>;
+
+export type SelectedLaunchConfig = Readonly<{
+  asset: Readonly<{ assetUid: Hex; status: number }>;
+  quote: Readonly<{ configId: Hex; economicsHash: Hex; quoteAsset: Address; ponsBaselineId: Hex; status: number }>;
+  pons: Readonly<{ baselineId: Hex; status: number }>;
+  template: Readonly<{ templateId: Hex; status: number }>;
+  creatorRevenueBeneficiary: Address;
+  name: string;
+  symbol: string;
+  metadataURI: string;
+  salt: Hex;
+}>;
+
+export type LaunchRequestSet = Readonly<{
+  params: CreateMarketParams;
+  request: ContractWriteRequest;
+  approval?: ContractWriteRequest;
+}>;
+
+export type MarketCreatedConfirmation = Readonly<{
+  marketId: Hex;
+  memeToken: Address;
+  curve: Address;
+  gauge: Address;
+}>;
+
+export type CurveViewModel = Readonly<{
+  marketId: Hex;
+  curve: Address;
+  quoteAsset: Address;
+  memeToken: Address;
+  quoteAssetKind: "native" | "erc20";
+  launchPhase: number;
+  marketStatus: number;
+  curveTradingEnabled: boolean;
+  realQuoteReserve: bigint;
+  sellableTokens: bigint;
+  reservedTokens: bigint;
+  accruedCurveFees: bigint;
+  readyToGraduate: boolean;
+  sweptAt: bigint | null;
+  launchFeeSource: "factory/chain";
+  firstBuyExemption: "creator-or-launch-beneficiary-and-authenticated-router";
+  partialRefundPossible: true;
+  sync: SyncStatus;
+}>;
+
+function canonicalHex(value: string, label: string): Hex {
+  if (!HEX32.test(value)) throw new TypeError(`${label} must be lowercase canonical bytes32`);
+  return value as Hex;
+}
+
+function canonicalAddress(value: string, label: string): Address {
+  if (!ADDRESS.test(value)) throw new TypeError(`${label} must be lowercase canonical address`);
+  return value as Address;
+}
+
+function contractAddress(value: string, label: string): Address {
+  const result = canonicalAddress(value, label);
+  if (result === ZERO_ADDRESS) throw new TypeError(`${label} cannot be zero`);
+  return result;
+}
+
+function positive(value: bigint, label: string): void {
+  if (value <= 0n || value > MAX_UINT256) throw new RangeError(`${label} must be a positive uint256`);
+}
+
+function uint256(value: bigint, label: string): void {
+  if (value < 0n || value > MAX_UINT256) throw new RangeError(`${label} must be a uint256`);
+}
+
+function active(status: number, label: string): void {
+  if (status !== ACTIVE) throw new Error(`${label} must be ACTIVE`);
+}
+
+function assertSynced(sync: SyncStatus): void {
+  if (sync.chainId !== 4663 || sync.status !== "synced" || sync.finality !== "finalized" || sync.blockNumber === null || sync.blockHash === null || !/^\d+$/.test(sync.blockNumber) || !HEX32.test(sync.blockHash) || !/^\d+:0x[0-9a-f]{64}$/.test(sync.revision)) {
+    throw new Error("chain snapshot must be synced and finalized");
+  }
+  if (sync.revision !== `${sync.blockNumber}:${sync.blockHash}`) throw new Error("chain snapshot revision drift");
+}
+
+function nonNegative(value: string, label: string): bigint {
+  if (!/^\d+$/.test(value)) throw new TypeError(`${label} must be non-negative decimal`);
+  return BigInt(value);
+}
+
+function assertAddressPair(market: MarketReadModel): void {
+  contractAddress(market.curve, "market.curve");
+  canonicalAddress(market.quoteAsset, "market.quoteAsset");
+  contractAddress(market.memeToken, "market.memeToken");
+  contractAddress(market.canonicalRoute.router, "canonicalRoute.router");
+  contractAddress(market.canonicalRoute.quoter, "canonicalRoute.quoter");
+  contractAddress(market.canonicalRoute.hook, "canonicalRoute.hook");
+  contractAddress(market.canonicalRoute.launchLocker, "canonicalRoute.launchLocker");
+  contractAddress(market.canonicalRoute.graduationExecutor, "canonicalRoute.graduationExecutor");
+}
+
+function assertCanonicalSource(source: MarketReadModel["source"], label: string): void {
+  if (
+    source.chainId !== 4663 ||
+    !/^\d+$/.test(source.blockNumber) ||
+    !HEX32.test(source.blockHash) ||
+    !HEX32.test(source.transactionHash) ||
+    !Number.isSafeInteger(source.transactionIndex) || source.transactionIndex < 0 ||
+    !Number.isSafeInteger(source.logIndex) || source.logIndex < 0
+  ) {
+    throw new Error(`${label} source is not canonical`);
+  }
+}
+
+export function deriveCreateMarketParams(config: SelectedLaunchConfig): CreateMarketParams {
+  active(config.asset.status, "asset");
+  active(config.quote.status, "quote");
+  active(config.pons.status, "pons baseline");
+  active(config.template.status, "launch template");
+  const assetUid = canonicalHex(config.asset.assetUid, "assetUid");
+  const ponsBaselineId = canonicalHex(config.pons.baselineId, "ponsBaselineId");
+  const quoteAssetConfigId = canonicalHex(config.quote.configId, "quoteAssetConfigId");
+  const launchTemplateId = canonicalHex(config.template.templateId, "launchTemplateId");
+  const quoteEconomicsHash = canonicalHex(config.quote.economicsHash, "quote.economicsHash");
+  const quoteBaselineId = canonicalHex(config.quote.ponsBaselineId, "quote.ponsBaselineId");
+  if (quoteBaselineId.toLowerCase() !== ponsBaselineId.toLowerCase()) throw new Error("quote/pons baseline mismatch");
+  if (quoteAssetConfigId.toLowerCase() !== quoteEconomicsHash.toLowerCase()) throw new Error("quote configId/economicsHash mismatch");
+  if (config.quote.quoteAsset !== ZERO_ADDRESS) canonicalAddress(config.quote.quoteAsset, "quoteAsset");
+  if (config.creatorRevenueBeneficiary === ZERO_ADDRESS) throw new Error("creatorRevenueBeneficiary cannot be zero");
+  contractAddress(config.creatorRevenueBeneficiary, "creatorRevenueBeneficiary");
+  return Object.freeze({
+    assetUid, ponsBaselineId, quoteAssetConfigId, launchTemplateId, expectedEconomics: ZERO_HEX32,
+    creatorRevenueBeneficiary: config.creatorRevenueBeneficiary,
+    name: config.name, symbol: config.symbol, metadataURI: config.metadataURI,
+    salt: canonicalHex(config.salt, "salt"),
+  });
+}
+
+export type PreviewMarketEconomics = (draft: CreateMarketParams) => Promise<Hex>;
+
+export async function previewCreateMarketParams(
+  config: SelectedLaunchConfig,
+  preview: PreviewMarketEconomics,
+): Promise<CreateMarketParams> {
+  const draft = deriveCreateMarketParams(config);
+  const previewed = canonicalHex(await preview(draft), "previewMarketEconomics");
+  if (previewed === ZERO_HEX32) throw new Error("previewMarketEconomics returned zero economics");
+  return Object.freeze({ ...draft, expectedEconomics: previewed });
+}
+
+export async function buildCreateMarketRequest(input: Readonly<{
+  factory: Address;
+  launchFee: bigint;
+  config: SelectedLaunchConfig;
+  previewMarketEconomics: PreviewMarketEconomics;
+}>): Promise<Readonly<{ params: CreateMarketParams; request: ContractWriteRequest }>> {
+  const params = await previewCreateMarketParams(input.config, input.previewMarketEconomics);
+  contractAddress(input.factory, "factory");
+  uint256(input.launchFee, "launchFee");
+  const request = createContractWriteRequest({
+    abi: v2Abis.TickerGardenFactoryV2,
+    address: input.factory,
+    functionName: "createMarket",
+    args: [params],
+    value: input.launchFee,
+  });
+  return Object.freeze({ params, request });
+}
+
+export async function buildLaunchAndBuyRequests(input: Readonly<{
+  router: Address;
+  launchFee: bigint;
+  quoteIn: bigint;
+  minTokensOut: bigint;
+  recipient: Address;
+  config: SelectedLaunchConfig;
+  previewMarketEconomics: PreviewMarketEconomics;
+}>): Promise<LaunchRequestSet> {
+  const params = await previewCreateMarketParams(input.config, input.previewMarketEconomics);
+  positive(input.quoteIn, "quoteIn");
+  positive(input.minTokensOut, "minTokensOut");
+  uint256(input.launchFee, "launchFee");
+  contractAddress(input.router, "router");
+  contractAddress(input.recipient, "recipient");
+  const native = input.config.quote.quoteAsset === ZERO_ADDRESS;
+  if (native && input.launchFee > MAX_UINT256 - input.quoteIn) throw new RangeError("native launch value exceeds uint256");
+  const request = createContractWriteRequest({
+    abi: v2Abis.LaunchAndBuyRouter,
+    address: input.router,
+    functionName: "launchAndBuy",
+    args: [params, input.quoteIn, input.minTokensOut, input.recipient],
+    value: native ? input.launchFee + input.quoteIn : input.launchFee,
+  });
+  if (native) return Object.freeze({ params, request });
+  const approval = createContractWriteRequest({
+    abi: v2Abis.TickerMemeTokenV2,
+    address: input.config.quote.quoteAsset,
+    functionName: "approve",
+    args: [input.router, input.quoteIn],
+  });
+  return Object.freeze({ params, request, approval });
+}
+
+export function findCanonicalMarketCreated(
+  receipt: Pick<TransactionReceipt, "logs">,
+  factory: Address,
+  expected: Readonly<{ params: CreateMarketParams; quoteAsset: Address }>,
+): MarketCreatedConfirmation {
+  const expectedFactory = contractAddress(factory.toLowerCase(), "factory");
+  const expectedQuote = canonicalAddress(expected.quoteAsset.toLowerCase(), "quoteAsset");
+  for (const log of receipt.logs) {
+    if (log.address.toLowerCase() !== expectedFactory) continue;
+    try {
+      const decoded = decodeEventLog({
+        abi: v2Abis.TickerGardenFactoryV2,
+        data: log.data,
+        topics: log.topics,
+      });
+      if (decoded.eventName !== "MarketCreated") continue;
+      const args = decoded.args as Record<string, unknown>;
+      const marketId = canonicalHex(String(args.marketId).toLowerCase(), "MarketCreated.marketId");
+      const assetUid = canonicalHex(String(args.assetUid).toLowerCase(), "MarketCreated.assetUid");
+      const memeToken = contractAddress(String(args.memeToken).toLowerCase(), "MarketCreated.memeToken");
+      const curve = contractAddress(String(args.curve).toLowerCase(), "MarketCreated.curve");
+      const gauge = contractAddress(String(args.gauge).toLowerCase(), "MarketCreated.gauge");
+      const quoteAsset = canonicalAddress(String(args.quoteAsset).toLowerCase(), "MarketCreated.quoteAsset");
+      const ponsBaselineId = canonicalHex(String(args.ponsBaselineId).toLowerCase(), "MarketCreated.ponsBaselineId");
+      const quoteAssetConfigId = canonicalHex(String(args.quoteAssetConfigId).toLowerCase(), "MarketCreated.quoteAssetConfigId");
+      const expectedEconomics = canonicalHex(String(args.expectedEconomics).toLowerCase(), "MarketCreated.expectedEconomics");
+      if (
+        assetUid !== expected.params.assetUid
+        || quoteAsset !== expectedQuote
+        || ponsBaselineId !== expected.params.ponsBaselineId
+        || quoteAssetConfigId !== expected.params.quoteAssetConfigId
+        || expectedEconomics !== expected.params.expectedEconomics
+      ) continue;
+      return Object.freeze({ marketId, memeToken, curve, gauge });
+    } catch {
+      // A receipt can contain unrelated logs from the Router, tokens and Curve.
+    }
+  }
+  throw new Error("The receipt did not contain the expected canonical Factory MarketCreated event");
+}
+
+function validateCurveResponse(response: MarketDetailResponse): MarketReadModel {
+  assertSynced(response.sync);
+  const market = response.market;
+  canonicalHex(market.marketId, "marketId");
+  canonicalHex(market.assetUid, "assetUid");
+  canonicalHex(market.quoteAssetConfigId, "quoteAssetConfigId");
+  canonicalHex(market.ponsBaselineId, "ponsBaselineId");
+  assertAddressPair(market);
+  assertCanonicalSource(market.source, "market");
+  if (
+    market.canonicalRoute.sourceVersion !== market.sourceVersion ||
+    market.canonicalRoute.launchPhase !== market.launchPhase ||
+    market.canonicalRoute.marketStatus !== market.marketStatus
+  ) {
+    throw new Error("canonical route lifecycle drift");
+  }
+  if (BigInt(market.source.blockNumber) > BigInt(response.sync.blockNumber as string)) {
+    throw new Error("market source is newer than finalized sync");
+  }
+  return market;
+}
+
+export function toCurveProgressViewModel(response: MarketDetailResponse): CurveViewModel {
+  const market = validateCurveResponse(response);
+  const quoteAsset = canonicalAddress(market.quoteAsset, "quoteAsset");
+  return Object.freeze({
+    marketId: canonicalHex(market.marketId, "marketId"), curve: contractAddress(market.curve, "curve"),
+    quoteAsset, memeToken: contractAddress(market.memeToken, "memeToken"),
+    quoteAssetKind: quoteAsset === ZERO_ADDRESS ? "native" : "erc20",
+    launchPhase: market.launchPhase, marketStatus: market.marketStatus,
+    curveTradingEnabled: market.canonicalRoute.curveTradingEnabled,
+    realQuoteReserve: nonNegative(market.curveProgress.realQuoteReserve, "realQuoteReserve"),
+    sellableTokens: nonNegative(market.curveProgress.sellableTokens, "sellableTokens"),
+    reservedTokens: nonNegative(market.curveProgress.reservedTokens, "reservedTokens"),
+    accruedCurveFees: nonNegative(market.curveProgress.accruedCurveFees, "accruedCurveFees"),
+    readyToGraduate: market.curveProgress.readyToGraduate,
+    sweptAt: market.curveProgress.sweptAt === null ? null : nonNegative(market.curveProgress.sweptAt, "sweptAt"),
+    launchFeeSource: "factory/chain", firstBuyExemption: "creator-or-launch-beneficiary-and-authenticated-router",
+    partialRefundPossible: true, sync: response.sync,
+  });
+}
+
+export function toCurveViewModel(response: MarketDetailResponse): CurveViewModel {
+  const view = toCurveProgressViewModel(response);
+  if (view.launchPhase !== NOT_GRADUATED || view.marketStatus !== MARKET_ACTIVE || !view.curveTradingEnabled) {
+    throw new Error("market is not an active, not-graduated curve");
+  }
+  return view;
+}
+
+export function buildCurveBuyRequest(input: Readonly<{
+  marketResponse: MarketDetailResponse;
+  quoteIn: bigint;
+  minTokensOut: bigint;
+  recipient: Address;
+}>): Readonly<{ request: ContractWriteRequest; approval?: ContractWriteRequest; view: CurveViewModel }> {
+  const view = toCurveViewModel(input.marketResponse);
+  positive(input.quoteIn, "quoteIn"); positive(input.minTokensOut, "minTokensOut");
+  const baseRequest = {
+    abi: v2Abis.PonsCompatibleCurve, address: view.curve, functionName: "buy",
+    args: [input.quoteIn, input.minTokensOut, contractAddress(input.recipient, "recipient")],
+  } as const;
+  const request = view.quoteAssetKind === "native"
+    ? createContractWriteRequest({ ...baseRequest, value: input.quoteIn })
+    : createContractWriteRequest(baseRequest);
+  if (view.quoteAssetKind === "native") return Object.freeze({ request, view });
+  const approval = createContractWriteRequest({
+    abi: v2Abis.TickerMemeTokenV2, address: view.quoteAsset, functionName: "approve", args: [view.curve, input.quoteIn],
+  });
+  return Object.freeze({ request, approval, view });
+}
+
+export function buildCurveSellRequest(input: Readonly<{
+  marketResponse: MarketDetailResponse;
+  tokensIn: bigint;
+  minQuoteOut: bigint;
+  recipient: Address;
+}>): Readonly<{ request: ContractWriteRequest; approval: ContractWriteRequest; view: CurveViewModel }> {
+  const view = toCurveViewModel(input.marketResponse);
+  positive(input.tokensIn, "tokensIn"); positive(input.minQuoteOut, "minQuoteOut");
+  const request = createContractWriteRequest({
+    abi: v2Abis.PonsCompatibleCurve, address: view.curve, functionName: "sell",
+    args: [input.tokensIn, input.minQuoteOut, contractAddress(input.recipient, "recipient")],
+  });
+  const approval = createContractWriteRequest({
+    abi: v2Abis.TickerMemeTokenV2, address: view.memeToken, functionName: "approve", args: [view.curve, input.tokensIn],
+  });
+  return Object.freeze({ request, approval, view });
+}

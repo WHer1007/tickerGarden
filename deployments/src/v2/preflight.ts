@@ -246,6 +246,65 @@ function collectCodeExpectations(manifest: Manifest): Map<string, { hash: string
   return output;
 }
 
+function verifyCreate2Evidence(manifest: Manifest): void {
+  const gauge = manifest.create2.components.GAUGE!;
+  const implementation = manifest.protocolModules.MemeStockGauge!;
+  if (stringField(gauge, "deploymentKind") !== "ERC1167_IMMUTABLE_ARGS_CLONE") {
+    fail("create2.GAUGE.deploymentKind", "ERC1167_IMMUTABLE_ARGS_CLONE", gauge.deploymentKind);
+  }
+  same(
+    "create2.GAUGE.implementationAddress",
+    stringField(implementation, "deployedAddress"),
+    stringField(gauge, "implementationAddress"),
+  );
+  same(
+    "create2.GAUGE.implementationCodeHash",
+    stringField(implementation, "runtimeCodeHash"),
+    stringField(gauge, "implementationCodeHash"),
+  );
+  if (stringField(gauge, "actualAddress").toLowerCase() === stringField(gauge, "implementationAddress").toLowerCase()) {
+    throw new Error("V2 live preflight Gauge clone address aliases its implementation");
+  }
+  const identityCheck = manifest.livePreflight.keyGetterChecks.find(
+    (check) => stringField(check, "target").toLowerCase() === stringField(gauge, "actualAddress").toLowerCase()
+      && stringField(check, "callData").toLowerCase() === callData("gaugeIdentity()").toLowerCase(),
+  );
+  if (identityCheck === undefined) {
+    throw new Error("V2 live preflight Gauge clone lacks gaugeIdentity() evidence");
+  }
+  same(
+    "create2.GAUGE.immutableArgsHash",
+    stringField(gauge, "immutableArgsHash"),
+    stringField(identityCheck, "expectedReturnDataHash"),
+  );
+}
+
+function verifyLaunchConfigResolverEvidence(manifest: Manifest): void {
+  const resolver = manifest.protocolModules.LaunchConfigResolver!;
+  const bindings = [
+    ["approvedQuoteRegistry()", "ApprovedQuoteRegistry"],
+    ["ponsBaselineRegistry()", "PonsBaselineRegistry"],
+    ["launchTemplateRegistry()", "LaunchTemplateRegistry"],
+  ] as const;
+  for (const [getter, registryName] of bindings) {
+    const check = manifest.livePreflight.keyGetterChecks.find(
+      (candidate) => stringField(candidate, "target").toLowerCase()
+        === stringField(resolver, "deployedAddress").toLowerCase()
+        && stringField(candidate, "callData").toLowerCase() === callData(getter).toLowerCase(),
+    );
+    if (check === undefined) {
+      throw new Error(`V2 live preflight LaunchConfigResolver lacks ${getter} evidence`);
+    }
+    const registry = manifest.protocolModules[registryName]!;
+    const expectedHash = keccakHex(`0x${addressWord(stringField(registry, "deployedAddress"))}`);
+    same(
+      `protocolModules.LaunchConfigResolver.${getter}`,
+      expectedHash,
+      stringField(check, "expectedReturnDataHash"),
+    );
+  }
+}
+
 function verifyProxyEvidence(manifest: Manifest): void {
   const storage = new Map(
     manifest.livePreflight.storageChecks.map((check) => [
@@ -652,6 +711,8 @@ async function verifyRoleHandoffReceipts(
 export async function verifyV2LiveState(candidate: unknown, rpc: V2ReadOnlyRpc): Promise<V2LivePreflightReport> {
   assertV2DeploymentManifest(candidate);
   const manifest = candidate as Manifest;
+  verifyCreate2Evidence(manifest);
+  verifyLaunchConfigResolverEvidence(manifest);
   verifyProxyEvidence(manifest);
   comparePermissionSemantics(manifest);
   const expectedChainId = BigInt(numberField(manifest.chain, "chainId"));

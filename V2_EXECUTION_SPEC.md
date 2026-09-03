@@ -2,12 +2,13 @@
 
 > 文档状态：`IMPLEMENTATION_ALLOWED / NOT_DEPLOYABLE`  
 > 版本：`V2-EXEC-3`  
-> 更新时间：2026-09-02  
+> 更新时间：2026-09-03
 > 产品规则：[V2_PROTOCOL_PARAMETERS.md](./V2_PROTOCOL_PARAMETERS.md)  
 > 技术架构：[V2_TECHNICAL_ARCHITECTURE.md](./V2_TECHNICAL_ARCHITECTURE.md)  
 > Pons 行为基线：[V2_PONS_BEHAVIOR_BASELINE.md](./V2_PONS_BEHAVIOR_BASELINE.md)  
 > 机器可读清单：[spec/v2_execution_manifest.json](./spec/v2_execution_manifest.json)、[spec/v2_permissions_matrix.json](./spec/v2_permissions_matrix.json)、[spec/v2_abi_surface.json](./spec/v2_abi_surface.json)  
 > 官方 STOCK 准入：[V2_OFFICIAL_STOCK_ADMISSION.md](./V2_OFFICIAL_STOCK_ADMISSION.md)
+> Stock Vault 架构决策：[V2_MULTI_ASSET_STOCK_VAULT.md](./V2_MULTI_ASSET_STOCK_VAULT.md)
 
 本文冻结 TickerGarden V2 在 Uniswap v4、STOCK Vault、30 秒激活和异常状态下的唯一执行方式。本文不是新的经济方案；它把已经确认的产品规则落实为可实现、可测试、可审计的状态、公式、权限和 ABI。
 
@@ -63,7 +64,7 @@ ACTIVATION_QUANTUM       = 1 second
 ACTIVATION_WHEEL_SIZE    = 32
 MIN_POSITION             = strictly greater than 0.5 STOCK
 MIN_LOCK                 = 24 hours
-EMERGENCY_DELAY          = 24 hours after PAUSED/RETIRED
+EMERGENCY_DELAY          = 24 hours after PAUSED/RETIRED, post-Curve phase only
 UNPAUSE_DELAY            = 24 hours
 PROTOCOL_ADMIN_DELAY     = 48 hours
 LAUNCH_FEE               = 500000000000000 native wei
@@ -444,27 +445,27 @@ Curve 在外层最终结算交易中、清零 tracked reserve 前冻结实际转
 
 ### 6.1 唯一本金账本
 
-STOCK 只存在于对应 `Asset UID` 的 `UserStockVault`。Gauge 和 AllocationManager 永不持有、approve 或转移 STOCK。
+STOCK 本金只存在于 Registry 为 `Asset UID` 解析出的 canonical `UserStockVault`。当前每个 schema 版本只有一个共享 MultiAsset Vault；Gauge 和 AllocationManager 永不持有、approve 或转移 STOCK。
 
 ```solidity
-mapping(address user => uint256) public deposited;
-mapping(address user => uint256) public allocated;
-mapping(address user => mapping(bytes32 marketId => uint256)) public allocation;
-mapping(bytes32 marketId => uint256) public marketAllocated;
-uint256 public totalDeposited;
-uint256 public totalAllocated;
+mapping(bytes32 assetUid => mapping(address user => uint256)) deposited;
+mapping(bytes32 assetUid => mapping(address user => uint256)) allocated;
+mapping(bytes32 assetUid => mapping(address user => mapping(bytes32 marketId => uint256))) allocation;
+mapping(bytes32 assetUid => mapping(bytes32 marketId => uint256)) marketAllocated;
+mapping(bytes32 assetUid => uint256) totalDeposited;
+mapping(bytes32 assetUid => uint256) totalAllocated;
 ```
 
 必须始终满足：
 
 ```text
-allocated[user] <= deposited[user]
-allocated[user] = Σ allocation[user][marketId]
-marketAllocated[marketId] = Σ allocation[user][marketId]
-totalAllocated = Σ allocated[user] = Σ marketAllocated[marketId]
-totalAllocated <= totalDeposited
-Vault token balance >= totalDeposited
-allocation[user][market] = Gauge effective active + Gauge unprocessed/processed pending
+allocated[assetUid][user] <= deposited[assetUid][user]
+allocated[assetUid][user] = Σ allocation[assetUid][user][marketId]
+marketAllocated[assetUid][marketId] = Σ allocation[assetUid][user][marketId]
+totalAllocated[assetUid] = Σ allocated[assetUid][user] = Σ marketAllocated[assetUid][marketId]
+totalAllocated[assetUid] <= totalDeposited[assetUid]
+Vault balance of canonicalToken(assetUid) >= totalDeposited[assetUid]
+allocation[assetUid][user][market] = Gauge effective active + Gauge unprocessed/processed pending
 ```
 
 等式中的求和是数学不变量，不要求链上遍历；实现通过每次增减同时维护聚合值。事件和 view 可独立重放验证。
@@ -478,18 +479,18 @@ allocate/increase:
     validate PoolCreated + Market ACTIVE + Asset ACTIVE
     process Gauge matured slots and settle user
     validate resulting position == 0 or > 0.5 STOCK
-    Vault.lockAllocation(user, market, amount)
+    Vault.lockAllocation(assetUid, user, market, amount)
     Gauge.addPending(user, amount, now + 30s, now + 24h)
 
 decrease/close:
     require now >= unlockAt
     Gauge.process/materialize/settle/remove first
-    Vault.releaseAllocation(user, market, same amount)
+    Vault.releaseAllocation(assetUid, user, market, same amount)
 
 migrate A -> B:
     prevalidate B completely
     Gauge A process/materialize/settle/remove
-    Vault.moveAllocation(user, A, B, amount)
+    Vault.moveAllocation(assetUid, user, A, B, amount)
     Gauge B process/materialize/settle/addPending
 ```
 
@@ -497,13 +498,13 @@ migrate A -> B:
 
 ### 6.3 普通退出
 
-普通暂停、Asset/Quote 状态变化和市场退休不能扣押本金。只要 `now >= unlockAt`，用户可以减少或清零旧 allocation；释放后 STOCK 先成为 Vault free balance，随后由用户本人 `withdrawFreeStock`。普通退出不把 Token 直接发送到调用者提供的 recipient。
+普通暂停、Asset/Quote 状态变化和市场退休不能扣押本金。只要 `now >= unlockAt`，用户可以减少或清零旧 allocation；释放后 STOCK 先成为该 `assetUid` 的 Vault free balance，随后由用户本人调用 `withdrawFreeStock(assetUid, amount)`。普通退出不把 Token 直接发送到调用者提供的 recipient。
 
 ## 7. Gauge 故障与本金逃生
 
 ### 7.1 进入 EMERGENCY_EXIT
 
-`EMERGENCY_EXIT` 是终态，不是临时暂停。前提：Market 已连续处于 `PAUSED` 或 `RETIRED` 至少 24 小时，并由 `RECOVERY_ROLE` 的24小时 AccessManager 延迟操作执行。唯一外部入口和返回值是：
+`EMERGENCY_EXIT` 是终态，不是临时暂停。前提：Market 已离开 `NotGraduated`，且连续处于 `PAUSED` 或 `RETIRED` 至少 24 小时，并由 `RECOVERY_ROLE` 的24小时 AccessManager 延迟操作执行。`NotGraduated` Curve 即使已暂停且满24小时也必须拒绝 Emergency，并保留 delayed unpause 后继续交易或最终结算的路径。唯一外部入口和返回值是：
 
 ```solidity
 activateEmergencyExit(bytes32 marketId)
@@ -513,14 +514,15 @@ activateEmergencyExit(bytes32 marketId)
 外部调用者不提供 epoch、snapshot、cap 或 stateHash；Controller 固定使用激活块减1并按规范字段计算 hash。激活交易顺序唯一为：
 
 ```text
-1. 读取 Registry 的旧 runtime/config、Gauge totals 和 FeeVault 当前 Quote/Meme STAKER liabilities
-2. checked 计算 recoveryEpoch = oldRecoveryEpoch + 1；snapshotBlock = block.number - 1
-3. 用固定字段顺序计算 stateHash
-4. FeeVault.freezeRecoveryCaps(...) 重读并冻结两种 exact liability；返回 cap 必须等于第1步读取值
-5. Gauge.disableForEmergency(...) 永久禁用旧 Gauge
-6. 若存在 ACTIVE Hook binding，Hook.disablePool(...) 将其永久置为 DISABLED
-7. Registry.commitEmergencyExit(...) 最后提交终态并 checked 增加 sourceVersion/recoveryEpoch
-8. Controller 发出 EmergencyExitActivated 并返回 epoch/snapshot/hash
+1. 读取 Registry 的旧 runtime/config，并在任何 Vault/Gauge/Hook 调用前拒绝 `launchPhase == NotGraduated`
+2. 读取 Gauge totals 和 FeeVault 当前 Quote/Meme STAKER liabilities
+3. checked 计算 recoveryEpoch = oldRecoveryEpoch + 1；snapshotBlock = block.number - 1
+4. 用固定字段顺序计算 stateHash
+5. FeeVault.freezeRecoveryCaps(...) 重读并冻结两种 exact liability；返回 cap 必须等于第2步读取值
+6. Gauge.disableForEmergency(...) 永久禁用旧 Gauge
+7. 若存在 ACTIVE Hook binding，Hook.disablePool(...) 将其永久置为 DISABLED
+8. Registry.commitEmergencyExit(...) 重新校验 phase，最后提交终态并 checked 增加 sourceVersion/recoveryEpoch
+9. Controller 发出 EmergencyExitActivated 并返回 epoch/snapshot/hash
 ```
 
 任一步失败时整笔交易回滚，因此 Hook/Gauge 的 precondition 明确允许在 Registry 最终 commit 之前、且仅由不可变 Controller 的该原子调用路径执行。`stateHash` 和 `snapshotBlock` 存在 FeeVault 的 recovery snapshot 中；Registry 保存终态、epoch、sourceVersion 并发出 commit 事件。
@@ -532,22 +534,22 @@ activateEmergencyExit(bytes32 marketId)
 在 `EMERGENCY_EXIT` 中，用户本人可以调用 Vault：
 
 ```solidity
-forceReleaseAllocation(bytes32 marketId)
+forceReleaseAllocation(bytes32 assetUid, bytes32 marketId)
 ```
 
 固定效果：
 
 ```text
-amount = allocation[msg.sender][marketId]
+amount = allocation[assetUid][msg.sender][marketId]
 require(amount > 0)
-allocation[msg.sender][marketId] = 0        // effects first
-allocated[msg.sender] -= amount
-marketAllocated[marketId] -= amount
-totalAllocated -= amount
+allocation[assetUid][msg.sender][marketId] = 0        // effects first
+allocated[assetUid][msg.sender] -= amount
+marketAllocated[assetUid][marketId] -= amount
+totalAllocated[assetUid] -= amount
 emit AllocationForceReleased(...)
 ```
 
-它不调用故障 Gauge、不接受 user/recipient 参数、不领取手续费，也不直接转 STOCK。用户之后调用 `withdrawFreeStock`。只有该终态可绕过24小时锁定；`PAUSED` 和 `RETIRED` 本身不能绕过。
+它先验证 `market.assetUid == assetUid`，不调用故障 Gauge、不接受 user/recipient 参数、不领取手续费，也不直接转 STOCK。用户之后调用 `withdrawFreeStock(assetUid, amount)`。只有该终态可绕过24小时锁定；`PAUSED` 和 `RETIRED` 本身不能绕过。
 
 进入 Emergency 后，旧 Gauge 的 total/position 仅是冻结历史，不再要求与 Vault allocation 相等，也不得用于新分配或新手续费。非 Emergency 状态下仍必须满足完整等式。
 
@@ -817,6 +819,7 @@ MarketStatus:
 - `Swept → Rescued` 必须满足冻结的 Pons 七日等待；
 - `sweptAt` 在进入 Swept 时写一次，首个救援边界为 `block.timestamp >= sweptAt + 604800`，暂停/退休不重置；
 - `statusSince` 表示当前状态起点，`restrictedSince` 表示连续 PAUSED/RETIRED 起点；`PAUSED → RETIRED` 保持后者，恢复 ACTIVE 才清零；
+- LaunchPhase 与 MarketStatus 是独立维度但不是无约束笛卡尔积：`NotGraduated` 只允许 `ACTIVE/PAUSED`，`RETIRED/EMERGENCY_EXIT` 必须已经离开 Curve 阶段；
 - LaunchPhase、MarketStatus、AssetStatus 和 QuoteStatus 是不同维度，不能用一个 bool 代替。
 
 ### 11.2 操作矩阵
@@ -836,6 +839,8 @@ MarketStatus:
 | withdraw free STOCK | 允许 | 允许 | 允许 | 允许 | 允许 | 允许 |
 | forceReleaseAllocation | 禁止 | 禁止 | 禁止 | 禁止 | 禁止 | 仅本人允许 |
 | recovery claim | 禁止 | 禁止 | 禁止 | 禁止 | 禁止 | root 激活后允许 |
+
+其中 `NotGraduated + PAUSED` 仍可执行既有余额的 permissionless fee sweep，并可经 delayed unpause 返回 ACTIVE；`NotGraduated + RETIRED` 与 `NotGraduated + EMERGENCY_EXIT` 为非法组合，表中 RETIRED/Emergency 行为只适用于已经离开 Curve 阶段的市场。
 
 Asset PAUSED/RETIRED 阻止新市场、STOCK deposit、allocate/increase/migrate-in，但不自动暂停既有 Meme 交易；Guardian 必须显式暂停受影响 market。Quote PAUSED/RETIRED 只阻止新市场，不隐式改写历史市场；历史市场若需停盘也使用 Market PAUSE。两种 Registry 状态均不阻止已到账费用领取、pending 到期、正常退出或 free STOCK 提取。
 
@@ -952,21 +957,26 @@ V2 首发 mutation ABI 只提供上述单市场入口，永久不提供 `batch*`
 ### 13.1 UserStockVault
 
 ```solidity
-depositStock(uint256 amount)
-depositStockFor(address user, uint256 amount) // AllocationManager only; user is outer caller
-withdrawFreeStock(uint256 amount)
-forceReleaseAllocation(bytes32 marketId)
+depositStock(bytes32 assetUid, uint256 amount)
+depositStockFor(bytes32 assetUid, address user, uint256 amount) // AllocationManager only; user is outer caller
+withdrawFreeStock(bytes32 assetUid, uint256 amount)
+forceReleaseAllocation(bytes32 assetUid, bytes32 marketId)
 
-lockAllocation(address user, bytes32 marketId, uint256 amount)          // AllocationManager only
-releaseAllocation(address user, bytes32 marketId, uint256 amount)       // AllocationManager only
-moveAllocation(address user, bytes32 fromMarketId, bytes32 toMarketId, uint256 amount) // manager only
+lockAllocation(bytes32 assetUid, address user, bytes32 marketId, uint256 amount) // AllocationManager only
+releaseAllocation(bytes32 assetUid, address user, bytes32 marketId, uint256 amount) // AllocationManager only
+moveAllocation(bytes32 assetUid, address user, bytes32 fromMarketId, bytes32 toMarketId, uint256 amount) // manager only
 
-deposited(address user) view returns (uint256)
-allocated(address user) view returns (uint256)
-allocation(address user, bytes32 marketId) view returns (uint256)
-freeBalanceOf(address user) view returns (uint256)
-marketAllocated(bytes32 marketId) view returns (uint256)
+deposited(bytes32 assetUid, address user) view returns (uint256)
+allocated(bytes32 assetUid, address user) view returns (uint256)
+allocation(bytes32 assetUid, address user, bytes32 marketId) view returns (uint256)
+freeBalanceOf(bytes32 assetUid, address user) view returns (uint256)
+marketAllocated(bytes32 assetUid, bytes32 marketId) view returns (uint256)
+totalDeposited(bytes32 assetUid) view returns (uint256)
+totalAllocated(bytes32 assetUid) view returns (uint256)
+vaultIdentity() view returns (address officialStockRegistry, address marketRegistry, address allocationManager, bytes32 schemaId)
 ```
+
+`assetUid` 必须非零且在 OfficialStockRegistry 中解析到当前 Vault；调用者不能提交 Token 地址。Registry 通过 `vaultSchemaId(vault)` 与 `vaultForSchema(schemaId)` 强制每个 schema 一个 canonical Vault。所有调用保持单资产 O(1)，不得因 Registry 中资产增加而遍历目录。
 
 ### 13.2 AllocationManager
 
@@ -1091,9 +1101,11 @@ CurveFeesSwept(marketId, creatorEpoch, quoteAsset, sweepNonce, feeId, amount, cr
 
 StockDeposited(assetUid, user, amount)
 StockWithdrawn(assetUid, user, amount)
-AllocationLocked(user, marketId, amount, userMarketAllocation, userTotalAllocated)
-AllocationReleased(user, marketId, amount, userMarketAllocation, userTotalAllocated)
-AllocationForceReleased(user, marketId, amount, recoveryEpoch)
+StockVaultRegistered(userStockVault, schemaId, marketRegistry, allocationManager)
+AllocationLocked(assetUid, user, marketId, amount, userMarketAllocation, userTotalAllocated)
+AllocationReleased(assetUid, user, marketId, amount, userMarketAllocation, userTotalAllocated)
+AllocationMoved(assetUid, user, fromMarketId, toMarketId, amount)
+AllocationForceReleased(assetUid, user, marketId, amount, recoveryEpoch)
 
 PendingScheduled(user, marketId, amount, generation, unlockAt)
 PendingRescheduled(user, marketId, oldGeneration, newGeneration, combinedAmount, unlockAt)

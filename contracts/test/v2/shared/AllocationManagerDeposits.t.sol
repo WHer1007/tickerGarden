@@ -66,6 +66,7 @@ contract AllocationManagerDepositsTest is Test {
 
     event StockDeposited(bytes32 indexed assetUid, address indexed user, uint256 amount);
     event AllocationLocked(
+        bytes32 indexed assetUid,
         address indexed user,
         bytes32 indexed marketId,
         uint256 amount,
@@ -79,12 +80,10 @@ contract AllocationManagerDepositsTest is Test {
         manager = new AllocationManagerDepositsHarness(address(officialRegistry), address(marketRegistry));
         gauge = new MockIncreaseGauge();
         stockToken = new MockExactQuoteToken(18);
-        vault = new UserStockVault(
-            address(officialRegistry), address(marketRegistry), address(manager), ASSET_UID, address(stockToken)
-        );
+        vault = new UserStockVault(address(officialRegistry), address(marketRegistry), address(manager));
         officialRegistry.configure(ASSET_UID, address(stockToken), address(vault), 18, 1);
         marketRegistry.configure(MARKET_ID, ASSET_UID, address(gauge), 2, 0);
-        gauge.configure(address(manager), vault, MARKET_ID);
+        gauge.configure(address(manager), vault, ASSET_UID, MARKET_ID);
     }
 
     function test_depositAndAllocateBindsCallerAndUsesOnlyVaultAllowance() public {
@@ -94,14 +93,14 @@ contract AllocationManagerDepositsTest is Test {
         vm.expectEmit(true, true, false, true, address(vault));
         emit StockDeposited(ASSET_UID, ALICE, 2 ether);
         vm.expectEmit(true, true, false, true, address(vault));
-        emit AllocationLocked(ALICE, MARKET_ID, 1 ether, 1 ether, 1 ether);
+        emit AllocationLocked(ASSET_UID, ALICE, MARKET_ID, 1 ether, 1 ether, 1 ether);
         vm.prank(ALICE);
         manager.depositAndAllocate(MARKET_ID, 2 ether, 1 ether);
 
         PositionView memory position = gauge.positionOf(ALICE);
-        assertEq(vault.deposited(ALICE), 2 ether);
-        assertEq(vault.allocation(ALICE, MARKET_ID), 1 ether);
-        assertEq(vault.freeBalanceOf(ALICE), 1 ether);
+        assertEq(vault.deposited(ASSET_UID, ALICE), 2 ether);
+        assertEq(vault.allocation(ASSET_UID, ALICE, MARKET_ID), 1 ether);
+        assertEq(vault.freeBalanceOf(ASSET_UID, ALICE), 1 ether);
         assertEq(position.activeAmount, 0);
         assertEq(position.pendingAmount, 1 ether);
         assertEq(position.pendingGeneration, block.timestamp + 30 seconds);
@@ -117,16 +116,16 @@ contract AllocationManagerDepositsTest is Test {
         _fundAndApprove(ALICE, 0.2 ether);
         vm.prank(ALICE);
         manager.depositAndAllocate(MARKET_ID, 0.2 ether, 0.7 ether);
-        assertEq(vault.deposited(ALICE), 0.8 ether);
-        assertEq(vault.allocation(ALICE, MARKET_ID), 0.7 ether);
-        assertEq(vault.freeBalanceOf(ALICE), 0.1 ether);
+        assertEq(vault.deposited(ASSET_UID, ALICE), 0.8 ether);
+        assertEq(vault.allocation(ASSET_UID, ALICE, MARKET_ID), 0.7 ether);
+        assertEq(vault.freeBalanceOf(ASSET_UID, ALICE), 0.1 ether);
 
         _fundAndApprove(BOB, 2 ether);
         vm.prank(BOB);
         manager.depositAndAllocate(MARKET_ID, 2 ether, 0.5 ether + 1);
-        assertEq(vault.deposited(BOB), 2 ether);
-        assertEq(vault.allocation(BOB, MARKET_ID), 0.5 ether + 1);
-        assertEq(vault.freeBalanceOf(BOB), 1.5 ether - 1);
+        assertEq(vault.deposited(ASSET_UID, BOB), 2 ether);
+        assertEq(vault.allocation(ASSET_UID, BOB, MARKET_ID), 0.5 ether + 1);
+        assertEq(vault.freeBalanceOf(ASSET_UID, BOB), 1.5 ether - 1);
     }
 
     function test_marketAndAssetGatesRunBeforeTheVaultPull() public {
@@ -144,7 +143,7 @@ contract AllocationManagerDepositsTest is Test {
 
         assertEq(stockToken.balanceOf(ALICE), 2 ether);
         assertEq(stockToken.allowance(ALICE, address(vault)), 2 ether);
-        assertEq(vault.totalDeposited(), 0);
+        assertEq(vault.totalDeposited(ASSET_UID), 0);
         assertEq(gauge.checkpointCalls(), 0);
     }
 
@@ -159,7 +158,7 @@ contract AllocationManagerDepositsTest is Test {
         manager.depositAndAllocate(MARKET_ID, 1 ether, 0);
 
         assertEq(stockToken.balanceOf(ALICE), 2 ether);
-        assertEq(vault.totalDeposited(), 0);
+        assertEq(vault.totalDeposited(ASSET_UID), 0);
         assertEq(gauge.checkpointCalls(), 0);
     }
 
@@ -172,8 +171,8 @@ contract AllocationManagerDepositsTest is Test {
         assertEq(stockToken.balanceOf(ALICE), 0.2 ether);
         assertEq(stockToken.balanceOf(address(vault)), 0);
         assertEq(stockToken.allowance(ALICE, address(vault)), 0.2 ether);
-        assertEq(vault.deposited(ALICE), 0);
-        assertEq(vault.allocation(ALICE, MARKET_ID), 0);
+        assertEq(vault.deposited(ASSET_UID, ALICE), 0);
+        assertEq(vault.allocation(ASSET_UID, ALICE, MARKET_ID), 0);
         assertEq(gauge.checkpointCalls(), 0);
         assertEq(gauge.settleCalls(), 0);
     }
@@ -190,13 +189,13 @@ contract AllocationManagerDepositsTest is Test {
 
         assertEq(stockToken.balanceOf(ALICE), 1 ether);
         assertEq(stockToken.allowance(ALICE, address(vault)), 1 ether);
-        assertEq(vault.totalDeposited(), 0);
+        assertEq(vault.totalDeposited(ASSET_UID), 0);
         assertEq(gauge.checkpointCalls(), 0);
 
         vm.prank(ALICE);
         manager.depositAndAllocate(MARKET_ID, 0.5 ether + 1, 0.5 ether + 1);
-        assertEq(vault.deposited(ALICE), 0.5 ether + 1);
-        assertEq(vault.allocation(ALICE, MARKET_ID), 0.5 ether + 1);
+        assertEq(vault.deposited(ASSET_UID, ALICE), 0.5 ether + 1);
+        assertEq(vault.allocation(ASSET_UID, ALICE, MARKET_ID), 0.5 ether + 1);
     }
 
     function test_preexistingLedgerMismatchRollsBackTheNewDeposit() public {
@@ -210,7 +209,7 @@ contract AllocationManagerDepositsTest is Test {
         assertEq(stockToken.balanceOf(ALICE), 2 ether);
         assertEq(stockToken.balanceOf(address(vault)), 0);
         assertEq(stockToken.allowance(ALICE, address(vault)), 2 ether);
-        assertEq(vault.totalDeposited(), 0);
+        assertEq(vault.totalDeposited(ASSET_UID), 0);
         assertEq(gauge.checkpointCalls(), 0);
         assertEq(gauge.settleCalls(), 0);
     }
@@ -227,7 +226,7 @@ contract AllocationManagerDepositsTest is Test {
 
         assertEq(stockToken.balanceOf(ALICE), 2 ether);
         assertEq(stockToken.allowance(ALICE, address(vault)), 2 ether);
-        assertEq(vault.totalDeposited(), 0);
+        assertEq(vault.totalDeposited(ASSET_UID), 0);
         assertEq(gauge.checkpointCalls(), 0);
     }
 
@@ -242,8 +241,8 @@ contract AllocationManagerDepositsTest is Test {
             assertEq(stockToken.balanceOf(ALICE), 4 ether);
             assertEq(stockToken.balanceOf(address(vault)), 0);
             assertEq(stockToken.allowance(ALICE, address(vault)), 4 ether);
-            assertEq(vault.deposited(ALICE), 0);
-            assertEq(vault.allocated(ALICE), 0);
+            assertEq(vault.deposited(ASSET_UID, ALICE), 0);
+            assertEq(vault.allocated(ASSET_UID, ALICE), 0);
             assertEq(gauge.checkpointCalls(), 0);
             assertEq(gauge.settleCalls(), 0);
         }
@@ -254,16 +253,11 @@ contract AllocationManagerDepositsTest is Test {
         bytes32 callbackMarketId = keccak256("callback-market");
         MockReentrantDepositToken callbackToken = new MockReentrantDepositToken();
         MockIncreaseGauge callbackGauge = new MockIncreaseGauge();
-        UserStockVault callbackVault = new UserStockVault(
-            address(officialRegistry),
-            address(marketRegistry),
-            address(manager),
-            callbackAssetUid,
-            address(callbackToken)
-        );
+        UserStockVault callbackVault =
+            new UserStockVault(address(officialRegistry), address(marketRegistry), address(manager));
         officialRegistry.configure(callbackAssetUid, address(callbackToken), address(callbackVault), 18, 1);
         marketRegistry.configure(callbackMarketId, callbackAssetUid, address(callbackGauge), 2, 0);
-        callbackGauge.configure(address(manager), callbackVault, callbackMarketId);
+        callbackGauge.configure(address(manager), callbackVault, callbackAssetUid, callbackMarketId);
         callbackToken.configureAttack(IAllocationManager(address(manager)), callbackMarketId, true);
         callbackToken.mint(ALICE, 1 ether);
         vm.prank(ALICE);
@@ -277,7 +271,7 @@ contract AllocationManagerDepositsTest is Test {
 
         assertEq(callbackToken.balanceOf(ALICE), 1 ether);
         assertEq(callbackToken.balanceOf(address(callbackVault)), 0);
-        assertEq(callbackVault.totalDeposited(), 0);
+        assertEq(callbackVault.totalDeposited(callbackAssetUid), 0);
         assertEq(callbackGauge.checkpointCalls(), 0);
     }
 
@@ -301,8 +295,8 @@ contract AllocationManagerDepositsTest is Test {
         vm.expectRevert();
         vm.prank(BOB);
         manager.depositAndAllocate(MARKET_ID, 1 ether, 1 ether);
-        assertEq(vault.deposited(ALICE), 0);
-        assertEq(vault.allocation(ALICE, MARKET_ID), 0);
+        assertEq(vault.deposited(ASSET_UID, ALICE), 0);
+        assertEq(vault.allocation(ASSET_UID, ALICE, MARKET_ID), 0);
         assertEq(stockToken.balanceOf(ALICE), 1 ether);
     }
 
@@ -314,9 +308,9 @@ contract AllocationManagerDepositsTest is Test {
         vm.prank(ALICE);
         manager.depositAndAllocate(MARKET_ID, depositAmount, allocationAmount);
 
-        assertEq(vault.deposited(ALICE), depositAmount);
-        assertEq(vault.allocated(ALICE), allocationAmount);
-        assertEq(vault.freeBalanceOf(ALICE), depositAmount - allocationAmount);
+        assertEq(vault.deposited(ASSET_UID, ALICE), depositAmount);
+        assertEq(vault.allocated(ASSET_UID, ALICE), allocationAmount);
+        assertEq(vault.freeBalanceOf(ASSET_UID, ALICE), depositAmount - allocationAmount);
         assertEq(gauge.positionOf(ALICE).pendingAmount, allocationAmount);
         assertEq(stockToken.balanceOf(address(manager)), 0);
     }
@@ -330,6 +324,6 @@ contract AllocationManagerDepositsTest is Test {
     function _directDeposit(address user, uint256 amount) private {
         _fundAndApprove(user, amount);
         vm.prank(user);
-        vault.depositStock(amount);
+        vault.depositStock(ASSET_UID, amount);
     }
 }

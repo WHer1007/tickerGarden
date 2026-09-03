@@ -4,9 +4,10 @@ pragma solidity 0.8.26;
 import {StdInvariant} from "forge-std/StdInvariant.sol";
 import {Test} from "forge-std/Test.sol";
 
-import {AssetView, MarketView, PositionView} from "../../../src/v2/interfaces/IV2Protocol.sol";
+import {AssetView, GaugeIdentity, MarketView, PositionView} from "../../../src/v2/interfaces/IV2Protocol.sol";
 import {AllocationManager} from "../../../src/v2/modules/AllocationManager.sol";
-import {MemeStockGauge, MemeStockGaugeInit} from "../../../src/v2/modules/MemeStockGauge.sol";
+import {MemeStockGauge} from "../../../src/v2/modules/MemeStockGauge.sol";
+import {MemeStockGaugeClone} from "../../../src/v2/shared/MemeStockGaugeClone.sol";
 import {UserStockVault} from "../../../src/v2/modules/UserStockVault.sol";
 import {MockExactQuoteToken} from "../mocks/MockV2QuoteAssets.sol";
 
@@ -63,6 +64,7 @@ contract InvariantMarketController {
 contract InvariantFeeVault {}
 
 contract VaultGaugeInvariantHandler is Test {
+    bytes32 internal constant ASSET_UID = keccak256("invariant-stock");
     uint256 internal constant MINIMUM_POSITION = 0.5 ether + 1;
     uint256 internal constant MAX_ACTION_AMOUNT = 10_000 ether;
 
@@ -113,7 +115,7 @@ contract VaultGaugeInvariantHandler is Test {
         totalMinted += amount;
         vm.startPrank(user);
         stock.approve(address(vault), amount);
-        vault.depositStock(amount);
+        vault.depositStock(ASSET_UID, amount);
         vm.stopPrank();
     }
 
@@ -135,8 +137,8 @@ contract VaultGaugeInvariantHandler is Test {
         address user = _user(userSeed);
         bytes32 marketId = _market(marketSeed);
         if (!_isActive(marketId)) return;
-        uint256 free = vault.freeBalanceOf(user);
-        uint256 current = vault.allocation(user, marketId);
+        uint256 free = vault.freeBalanceOf(ASSET_UID, user);
+        uint256 current = vault.allocation(ASSET_UID, user, marketId);
         uint256 minimumAmount = current == 0 ? MINIMUM_POSITION : 1;
         if (free < minimumAmount) return;
         uint256 amount = bound(uint256(rawAmount), minimumAmount, free);
@@ -152,11 +154,11 @@ contract VaultGaugeInvariantHandler is Test {
 
     function withdraw(uint8 userSeed, uint96 rawAmount) external {
         address user = _user(userSeed);
-        uint256 free = vault.freeBalanceOf(user);
+        uint256 free = vault.freeBalanceOf(ASSET_UID, user);
         if (free == 0) return;
         uint256 amount = bound(uint256(rawAmount), 1, free);
         vm.prank(user);
-        vault.withdrawFreeStock(amount);
+        vault.withdrawFreeStock(ASSET_UID, amount);
     }
 
     function decrease(uint8 userSeed, uint8 marketSeed, uint96 rawAmount, bool closePosition) external {
@@ -164,7 +166,7 @@ contract VaultGaugeInvariantHandler is Test {
         bytes32 marketId = _market(marketSeed);
         MemeStockGauge gauge = _gauge(marketSeed);
         if (_isEmergency(marketId)) return;
-        uint256 current = vault.allocation(user, marketId);
+        uint256 current = vault.allocation(ASSET_UID, user, marketId);
         if (current == 0) return;
         PositionView memory position = gauge.positionOf(user);
         if (block.timestamp < position.unlockAt) return;
@@ -184,7 +186,7 @@ contract VaultGaugeInvariantHandler is Test {
         bytes32 targetMarket = fromA ? marketB : marketA;
         if (_isEmergency(sourceMarket) || !_isActive(targetMarket)) return;
         MemeStockGauge sourceGauge = fromA ? gaugeA : gaugeB;
-        uint256 source = vault.allocation(user, sourceMarket);
+        uint256 source = vault.allocation(ASSET_UID, user, sourceMarket);
         if (source < MINIMUM_POSITION) return;
         PositionView memory position = sourceGauge.positionOf(user);
         if (block.timestamp < position.unlockAt) return;
@@ -226,9 +228,9 @@ contract VaultGaugeInvariantHandler is Test {
     function forceRelease(uint8 userSeed, uint8 marketSeed) external {
         address user = _user(userSeed);
         bytes32 marketId = _market(marketSeed);
-        if (!_isEmergency(marketId) || vault.allocation(user, marketId) == 0) return;
+        if (!_isEmergency(marketId) || vault.allocation(ASSET_UID, user, marketId) == 0) return;
         vm.prank(user);
-        vault.forceReleaseAllocation(marketId);
+        vault.forceReleaseAllocation(ASSET_UID, marketId);
     }
 
     function _user(uint8 seed) private view returns (address) {
@@ -271,6 +273,7 @@ contract VaultGaugeInvariantTest is StdInvariant, Test {
     UserStockVault internal vault;
     MemeStockGauge internal gaugeA;
     MemeStockGauge internal gaugeB;
+    MemeStockGauge internal gaugeImplementation;
     VaultGaugeInvariantHandler internal handler;
 
     function setUp() public {
@@ -285,9 +288,8 @@ contract VaultGaugeInvariantTest is StdInvariant, Test {
         memeA = new MockExactQuoteToken(18);
         memeB = new MockExactQuoteToken(18);
         manager = new AllocationManager(address(stockRegistry), address(marketRegistry));
-        vault = new UserStockVault(
-            address(stockRegistry), address(marketRegistry), address(manager), ASSET_UID, address(stock)
-        );
+        gaugeImplementation = new MemeStockGauge();
+        vault = new UserStockVault(address(stockRegistry), address(marketRegistry), address(manager));
         gaugeA = _deployGauge(MARKET_A, QUOTE_A, address(memeA));
         gaugeB = _deployGauge(MARKET_B, QUOTE_B, address(memeB));
         stockRegistry.configure(ASSET_UID, address(stock), address(vault), 18, 1);
@@ -323,11 +325,11 @@ contract VaultGaugeInvariantTest is StdInvariant, Test {
 
         for (uint256 i; i < 4; ++i) {
             address user = handler.userAt(i);
-            uint256 deposited = vault.deposited(user);
-            uint256 allocated = vault.allocated(user);
-            uint256 allocationA = vault.allocation(user, MARKET_A);
-            uint256 allocationB = vault.allocation(user, MARKET_B);
-            assertEq(deposited, vault.freeBalanceOf(user) + allocated);
+            uint256 deposited = vault.deposited(ASSET_UID, user);
+            uint256 allocated = vault.allocated(ASSET_UID, user);
+            uint256 allocationA = vault.allocation(ASSET_UID, user, MARKET_A);
+            uint256 allocationB = vault.allocation(ASSET_UID, user, MARKET_B);
+            assertEq(deposited, vault.freeBalanceOf(ASSET_UID, user) + allocated);
             assertEq(allocated, allocationA + allocationB);
             if (marketRegistry.marketStatus(MARKET_A) != 3) assertEq(_gaugePosition(gaugeA, user), allocationA);
             if (marketRegistry.marketStatus(MARKET_B) != 3) assertEq(_gaugePosition(gaugeB, user), allocationB);
@@ -338,21 +340,25 @@ contract VaultGaugeInvariantTest is StdInvariant, Test {
             userTokenBalances += stock.balanceOf(user);
         }
 
-        assertEq(vault.totalDeposited(), userDeposited);
-        assertEq(vault.totalAllocated(), userAllocated);
-        assertEq(vault.marketAllocated(MARKET_A), marketAAllocated);
-        assertEq(vault.marketAllocated(MARKET_B), marketBAllocated);
+        assertEq(vault.totalDeposited(ASSET_UID), userDeposited);
+        assertEq(vault.totalAllocated(ASSET_UID), userAllocated);
+        assertEq(vault.marketAllocated(ASSET_UID, MARKET_A), marketAAllocated);
+        assertEq(vault.marketAllocated(ASSET_UID, MARKET_B), marketBAllocated);
         assertEq(userAllocated, marketAAllocated + marketBAllocated);
-        assertEq(stock.balanceOf(address(vault)), vault.totalDeposited());
+        assertEq(stock.balanceOf(address(vault)), vault.totalDeposited(ASSET_UID));
         assertEq(stock.balanceOf(address(vault)) + userTokenBalances, handler.totalMinted());
     }
 
     function invariant_gaugeWeightMatchesMarketPrincipalAndNeverCustodiesStock() public view {
         if (marketRegistry.marketStatus(MARKET_A) != 3) {
-            assertEq(gaugeA.storedTotalActiveStock() + gaugeA.totalPendingStock(), vault.marketAllocated(MARKET_A));
+            assertEq(
+                gaugeA.storedTotalActiveStock() + gaugeA.totalPendingStock(), vault.marketAllocated(ASSET_UID, MARKET_A)
+            );
         }
         if (marketRegistry.marketStatus(MARKET_B) != 3) {
-            assertEq(gaugeB.storedTotalActiveStock() + gaugeB.totalPendingStock(), vault.marketAllocated(MARKET_B));
+            assertEq(
+                gaugeB.storedTotalActiveStock() + gaugeB.totalPendingStock(), vault.marketAllocated(ASSET_UID, MARKET_B)
+            );
         }
         assertEq(stock.balanceOf(address(gaugeA)), 0);
         assertEq(stock.balanceOf(address(gaugeB)), 0);
@@ -361,17 +367,21 @@ contract VaultGaugeInvariantTest is StdInvariant, Test {
     }
 
     function _deployGauge(bytes32 marketId, bytes32 quoteId, address meme) private returns (MemeStockGauge) {
-        return new MemeStockGauge(
-            MemeStockGaugeInit({
-                marketId: marketId,
-                assetUid: ASSET_UID,
-                quoteAssetConfigId: quoteId,
-                allocationManager: address(manager),
-                protocolFeeVault: address(feeVault),
-                marketController: address(controller),
-                quoteAsset: address(quote),
-                memeToken: meme
-            })
+        return MemeStockGauge(
+            MemeStockGaugeClone.deployDeterministic(
+                address(gaugeImplementation),
+                marketId,
+                GaugeIdentity({
+                    marketId: marketId,
+                    assetUid: ASSET_UID,
+                    quoteAssetConfigId: quoteId,
+                    allocationManager: address(manager),
+                    protocolFeeVault: address(feeVault),
+                    marketController: address(controller),
+                    quoteAsset: address(quote),
+                    memeToken: meme
+                })
+            )
         );
     }
 

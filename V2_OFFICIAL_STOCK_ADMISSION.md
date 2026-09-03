@@ -3,6 +3,7 @@
 > 规格状态：`FROZEN / IMPLEMENTATION_ALLOWED`  
 > Execution spec：`V2-EXEC-3`  
 > 点时证据：2026-09-02，Robinhood Chain `4663`
+> Stock Vault 架构决策：[V2_MULTI_ASSET_STOCK_VAULT.md](./V2_MULTI_ASSET_STOCK_VAULT.md)
 
 ## 1. 已确认的产品规则
 
@@ -19,7 +20,7 @@ TickerGarden 不维护一份人为挑选的“首批 STOCK 白名单”。Robinh
 3. 同一个官方 STOCK 可以成为任意多个 Meme 市场的 Base。
 4. STOCK 持有人在市场 `PoolCreated` 后，自行决定是否把该 STOCK 分配到某个匹配市场，以及分配多少。
 5. 用户只能向 Base `assetUid` 相同的市场分配该 STOCK；不能用另一种 STOCK 参与该市场，也不能把市场改绑到另一资产。
-6. 一个 Asset UID 对应一个 `UserStockVault`；每个 Meme 市场对应一个 Gauge。Gauge 只记录权重，不托管 STOCK 本金。
+6. 一个 Asset UID 只绑定一个 canonical `UserStockVault`，但多个 UID 共享当前 schema 的同一 MultiAsset Vault；每个 Meme 市场对应一个 Gauge。Gauge 只记录权重，不托管 STOCK 本金。
 
 Factory 的 `CreateMarketParams.assetUid` 已是这一选择的唯一字段，不再增加第二个 `stakingBaseAssetUid`，避免同一市场出现两套身份。MarketConfig 必须永久快照 `assetUid`，并可通过 OfficialStockRegistry 唯一解析 canonical Stock Token、decimals 和 Vault。Factory 还必须从 decimals 派生并冻结 `stakeSaturationAmount = 10 × 10^stockDecimals`；它不是创建者输入。
 
@@ -86,4 +87,4 @@ Platform = remaining - Creator
 
 ## 7. 当前工程状态
 
-`V2-C-102-A` 已实现 `OfficialStockRegistryV2`：Asset UID、canonical Stock Token 与 UserStockVault 三重 write-once，冻结1–36 decimals，并通过 immutable AccessManager 执行追加登记和 `ACTIVE <-> PAUSED -> RETIRED` 状态迁移；测试明确覆盖第195项登记，协议没有194硬上限。当前状态仍是 `IMPLEMENTATION_ALLOWED`，不等于允许部署：目标链 finalized 身份/代理指纹重取、最终权限 diff、Fork/E2E、审计、法律签字和72小时灰度仍是后续硬门禁。
+`V2-C-102-A` 已实现 `OfficialStockRegistryV2`：Asset UID 与 canonical Stock Token 保持 write-once；每个 UID 的 Vault 绑定也保持 write-once，但不再要求 Vault 地址对 UID 反向唯一。Registry 通过 `vaultIdentity()` 登记 schema 与不可变依赖，并以 `vaultForSchema` 强制每个 schema 只有一个 canonical Vault。Registry 冻结经通用数值证明的6–18 decimals，并通过 immutable AccessManager 执行追加登记和 `ACTIVE <-> PAUSED -> RETIRED` 状态迁移；测试明确覆盖第195项登记，协议没有194硬上限。当前状态仍是 `IMPLEMENTATION_ALLOWED`，不等于允许部署：目标链 finalized 身份/代理指纹重取、最终权限 diff、Fork/E2E、审计、法律签字和72小时灰度仍是后续硬门禁。

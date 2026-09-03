@@ -133,6 +133,17 @@ struct CanonicalRoute {
     bool poolTradingEnabled;
 }
 
+struct GaugeIdentity {
+    bytes32 marketId;
+    bytes32 assetUid;
+    bytes32 quoteAssetConfigId;
+    address allocationManager;
+    address protocolFeeVault;
+    address marketController;
+    address quoteAsset;
+    address memeToken;
+}
+
 struct PositionView {
     uint256 activeAmount;
     uint256 pendingAmount;
@@ -217,6 +228,7 @@ interface IV2Errors {
     error AllocationLedgerMismatch();
     error StockAllocationClosed(bytes32 arg0);
     error InvalidStateTransition(uint8 arg0, uint8 arg1);
+    error PreGraduationTerminalStateForbidden(uint8 arg0);
     error EmergencyExitNotReady(uint64 arg0);
     error RecoveryCapsAlreadyFrozen(bytes32 arg0, uint32 arg1);
     error RecoveryCapSnapshotMismatch(bytes32 arg0, uint32 arg1);
@@ -229,6 +241,7 @@ interface IV2Errors {
 }
 
 interface IOfficialStockRegistryV2 {
+    event StockVaultRegistered(address indexed userStockVault, bytes32 indexed schemaId, address indexed marketRegistry, address allocationManager);
     event AssetRegistered(bytes32 indexed assetUid, address indexed stockToken, address indexed userStockVault, uint8 tokenDecimals);
     event AssetStatusChanged(bytes32 indexed assetUid, uint8 oldStatus, uint8 newStatus, bytes32 reasonHash);
 
@@ -237,6 +250,8 @@ interface IOfficialStockRegistryV2 {
     function unpauseAsset(bytes32 arg0) external;
     function retireAsset(bytes32 arg0, bytes32 arg1) external;
     function asset(bytes32 arg0) external view returns (AssetView memory output0);
+    function vaultSchemaId(address arg0) external view returns (bytes32 output0);
+    function vaultForSchema(bytes32 arg0) external view returns (address output0);
 }
 
 interface IApprovedQuoteRegistry {
@@ -273,6 +288,13 @@ interface ILaunchTemplateRegistry {
     function launchTemplateHash(bytes32 arg0) external view returns (bytes32 output0);
 }
 
+interface ILaunchConfigResolver {
+    function resolve(bytes32 arg0, bytes32 arg1, bytes32 arg2) external view returns (QuoteAssetConfig memory output0, PonsBaseline memory output1, LaunchTemplate memory output2);
+    function approvedQuoteRegistry() external view returns (address output0);
+    function ponsBaselineRegistry() external view returns (address output0);
+    function launchTemplateRegistry() external view returns (address output0);
+}
+
 interface ITickerGardenFactoryV2 {
     event MarketCreated(bytes32 indexed marketId, bytes32 indexed assetUid, address indexed memeToken, address curve, address gauge, address quoteAsset, uint256 stakeSaturationAmount, bytes32 ponsBaselineId, bytes32 quoteAssetConfigId, bytes32 expectedEconomics);
 
@@ -281,6 +303,7 @@ interface ITickerGardenFactoryV2 {
     function previewMarketEconomics(CreateMarketParams calldata arg0) external view returns (bytes32 output0);
     function predictMarketAddresses(address arg0, CreateMarketParams calldata arg1) external view returns (bytes32 output0, address output1, address output2, address output3, address output4);
     function launchFee() external view returns (uint256 output0);
+    function runtimeBindings() external view returns (address output0, address output1, address output2, address output3, address output4, address output5, address output6, address output7);
 }
 
 interface IMarketRegistryV2 {
@@ -356,25 +379,26 @@ interface IPonsCompatibleCurve {
 interface IUserStockVault {
     event StockDeposited(bytes32 indexed assetUid, address indexed user, uint256 amount);
     event StockWithdrawn(bytes32 indexed assetUid, address indexed user, uint256 amount);
-    event AllocationLocked(address indexed user, bytes32 indexed marketId, uint256 amount, uint256 userMarketAllocation, uint256 userTotalAllocated);
-    event AllocationReleased(address indexed user, bytes32 indexed marketId, uint256 amount, uint256 userMarketAllocation, uint256 userTotalAllocated);
-    event AllocationMoved(address indexed user, bytes32 indexed fromMarketId, bytes32 indexed toMarketId, uint256 amount);
-    event AllocationForceReleased(address indexed user, bytes32 indexed marketId, uint256 amount, uint32 recoveryEpoch);
+    event AllocationLocked(bytes32 indexed assetUid, address indexed user, bytes32 indexed marketId, uint256 amount, uint256 userMarketAllocation, uint256 userTotalAllocated);
+    event AllocationReleased(bytes32 indexed assetUid, address indexed user, bytes32 indexed marketId, uint256 amount, uint256 userMarketAllocation, uint256 userTotalAllocated);
+    event AllocationMoved(bytes32 indexed assetUid, address indexed user, bytes32 indexed fromMarketId, bytes32 toMarketId, uint256 amount);
+    event AllocationForceReleased(bytes32 indexed assetUid, address indexed user, bytes32 indexed marketId, uint256 amount, uint32 recoveryEpoch);
 
-    function depositStock(uint256 arg0) external;
-    function depositStockFor(address arg0, uint256 arg1) external;
-    function withdrawFreeStock(uint256 arg0) external;
-    function forceReleaseAllocation(bytes32 arg0) external returns (uint256 output0);
-    function lockAllocation(address arg0, bytes32 arg1, uint256 arg2) external;
-    function releaseAllocation(address arg0, bytes32 arg1, uint256 arg2) external;
-    function moveAllocation(address arg0, bytes32 arg1, bytes32 arg2, uint256 arg3) external;
-    function deposited(address arg0) external view returns (uint256 output0);
-    function allocated(address arg0) external view returns (uint256 output0);
-    function allocation(address arg0, bytes32 arg1) external view returns (uint256 output0);
-    function freeBalanceOf(address arg0) external view returns (uint256 output0);
-    function marketAllocated(bytes32 arg0) external view returns (uint256 output0);
-    function totalDeposited() external view returns (uint256 output0);
-    function totalAllocated() external view returns (uint256 output0);
+    function depositStock(bytes32 arg0, uint256 arg1) external;
+    function depositStockFor(bytes32 arg0, address arg1, uint256 arg2) external;
+    function withdrawFreeStock(bytes32 arg0, uint256 arg1) external;
+    function forceReleaseAllocation(bytes32 arg0, bytes32 arg1) external returns (uint256 output0);
+    function lockAllocation(bytes32 arg0, address arg1, bytes32 arg2, uint256 arg3) external;
+    function releaseAllocation(bytes32 arg0, address arg1, bytes32 arg2, uint256 arg3) external;
+    function moveAllocation(bytes32 arg0, address arg1, bytes32 arg2, bytes32 arg3, uint256 arg4) external;
+    function deposited(bytes32 arg0, address arg1) external view returns (uint256 output0);
+    function allocated(bytes32 arg0, address arg1) external view returns (uint256 output0);
+    function allocation(bytes32 arg0, address arg1, bytes32 arg2) external view returns (uint256 output0);
+    function freeBalanceOf(bytes32 arg0, address arg1) external view returns (uint256 output0);
+    function marketAllocated(bytes32 arg0, bytes32 arg1) external view returns (uint256 output0);
+    function totalDeposited(bytes32 arg0) external view returns (uint256 output0);
+    function totalAllocated(bytes32 arg0) external view returns (uint256 output0);
+    function vaultIdentity() external view returns (address output0, address output1, address output2, bytes32 output3);
 }
 
 interface IAllocationManager {
@@ -395,6 +419,7 @@ interface IMemeStockGauge {
     event PendingMaterialized(address indexed user, bytes32 indexed marketId, uint64 indexed generation, uint256 amount);
     event StakerFeeCredited(bytes32 indexed marketId, address indexed feeAsset, bytes32 indexed feeId, uint256 amount, uint256 accumulatorDelta, uint256 indexRemainder);
 
+    function gaugeIdentity() external view returns (GaugeIdentity memory output0);
     function addPending(address arg0, uint256 arg1, uint64 arg2, uint64 arg3) external;
     function removeAllocation(address arg0, uint256 arg1) external;
     function checkpointActivations() external returns (uint256 output0, uint256 output1);

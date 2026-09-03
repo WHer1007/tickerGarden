@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.26;
 
-import {IMemeStockGauge, IUserStockVault} from "../interfaces/IV2Protocol.sol";
 import {AllocationManagerDecreases} from "./AllocationManagerDecreases.sol";
 
 /// @notice Shared caller-bound deposit-and-allocate path for the final AllocationManager.
@@ -17,12 +16,12 @@ abstract contract AllocationManagerDeposits is AllocationManagerDecreases {
     {
         _validateAllocationRequest(user, allocationAmount);
 
-        (IUserStockVault vault, IMemeStockGauge gauge, uint8 tokenDecimals) = _openAllocationMarket(marketId);
-        (uint64 activationAt, uint64 unlockAt) = _allocationTimes();
+        IncreaseContext memory context = _openAllocationMarket(marketId);
+        (context.activationAt, context.unlockAt) = _allocationTimes();
 
         // Vault performs the exact-arrival check and pulls directly from the same outer caller.
-        vault.depositStockFor(user, depositAmount);
+        context.vault.depositStockFor(context.assetUid, user, depositAmount);
 
-        _executeIncrease(user, marketId, allocationAmount, vault, gauge, tokenDecimals, activationAt, unlockAt);
+        _executeIncrease(user, marketId, allocationAmount, context);
     }
 }

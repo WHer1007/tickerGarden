@@ -5,6 +5,7 @@ import {ReentrancyGuard} from "@openzeppelin/contracts/utils/ReentrancyGuard.sol
 
 import {
     CreateMarketParams,
+    GaugeIdentity,
     IApprovedQuoteRegistry,
     ICreatorRevenueRegistry,
     IGraduationExecutor,
@@ -15,13 +16,14 @@ import {
     ITickerGardenFactoryV2,
     MarketConfig
 } from "../interfaces/IV2Protocol.sol";
-import {MemeStockGauge, MemeStockGaugeInit} from "./MemeStockGauge.sol";
+import {MemeStockGauge} from "./MemeStockGauge.sol";
 import {CurveInitialization, ICurveInitializationSource, PonsCompatibleCurve} from "./PonsCompatibleCurve.sol";
 import {TickerMemeTokenV2} from "./TickerMemeTokenV2.sol";
 import {V2Create2} from "../shared/V2Create2.sol";
 import {V2FactoryValidation} from "../shared/V2FactoryValidation.sol";
 import {V2Identifiers} from "../shared/V2Identifiers.sol";
 import {V2MarketEconomics} from "../shared/V2MarketEconomics.sol";
+import {MemeStockGaugeClone} from "../shared/MemeStockGaugeClone.sol";
 
 struct TickerGardenFactoryInit {
     address officialStockRegistry;
@@ -106,17 +108,6 @@ contract PonsCompatibleCurveImplementation {
     }
 }
 
-/// @dev See TickerMemeTokenV2Implementation.
-contract MemeStockGaugeImplementation {
-    function initCodeHash(MemeStockGaugeInit memory init) external pure returns (bytes32) {
-        return V2Create2.initCodeHash(type(MemeStockGauge).creationCode, abi.encode(init));
-    }
-
-    function deploy(bytes32 salt, MemeStockGaugeInit memory init) external payable returns (address) {
-        return V2Create2.deploy(salt, bytes.concat(type(MemeStockGauge).creationCode, abi.encode(init)));
-    }
-}
-
 /// @notice Canonical V2 launch Factory with atomic CREATE2 component deployment and Registry admission.
 contract TickerGardenFactoryV2 is ITickerGardenFactoryV2, ICurveInitializationSource, ReentrancyGuard {
     uint256 public immutable override launchFee;
@@ -150,7 +141,7 @@ contract TickerGardenFactoryV2 is ITickerGardenFactoryV2, ICurveInitializationSo
     bytes32 private constant CURVE_IMPLEMENTATION_CODEHASH =
         0x7fd268b2f04c5ac2e8606f44e9dbf46af7f46d0d35230ad9a3b19bd1efa2fa77;
     bytes32 private constant GAUGE_IMPLEMENTATION_CODEHASH =
-        0x1f90eba391d20c316963e897f4f1acca1e0965d5a46c73f6d0926d4370c72b93;
+        0x007d94ccdd495ee7b6dc01e433b00ed2a8d1e6070f6559505dd640b980db4d41;
 
     error InvalidFactoryDependency(address dependency);
     error InvalidComponentImplementation(address implementation, bytes32 expectedHash, bytes32 actualHash);
@@ -161,6 +152,7 @@ contract TickerGardenFactoryV2 is ITickerGardenFactoryV2, ICurveInitializationSo
     error InvalidPredictedLaunchLocker(address launchLocker);
     error ComponentDeploymentCallFailed(address implementation, bytes reason);
     error ComponentAddressMismatch(address expected, address actual);
+    error GaugeIdentityMismatch(address gauge, bytes32 expectedHash, bytes32 actualHash);
     error CurveInitializationUnavailable(address curve);
     error LaunchFeeTransferFailed(address treasury, uint256 amount);
 
@@ -223,6 +215,35 @@ contract TickerGardenFactoryV2 is ITickerGardenFactoryV2, ICurveInitializationSo
     function previewMarketEconomics(CreateMarketParams calldata params) external view override returns (bytes32) {
         V2FactoryValidation.Snapshot memory snapshot = _resolve(msg.sender, params);
         return snapshot.expectedEconomics;
+    }
+
+    /// @notice Returns the immutable trust roots needed by read-only clients to
+    /// bind API projections back to canonical onchain records.
+    function runtimeBindings()
+        external
+        view
+        override
+        returns (
+            address officialStockRegistry_,
+            address approvedQuoteRegistry_,
+            address ponsBaselineRegistry_,
+            address launchTemplateRegistry_,
+            address marketRegistry_,
+            address protocolFeeVault_,
+            address allocationManager_,
+            address launchRouter_
+        )
+    {
+        return (
+            address(officialStockRegistry),
+            address(approvedQuoteRegistry),
+            address(ponsBaselineRegistry),
+            address(launchTemplateRegistry),
+            address(marketRegistry),
+            protocolFeeVault,
+            allocationManager,
+            launchRouter
+        );
     }
 
     function predictMarketAddresses(address creator, CreateMarketParams calldata params)
@@ -376,7 +397,7 @@ contract TickerGardenFactoryV2 is ITickerGardenFactoryV2, ICurveInitializationSo
         CreateMarketParams calldata params,
         address quoteAsset
     ) private {
-        MemeStockGaugeInit memory init = MemeStockGaugeInit({
+        GaugeIdentity memory identity = GaugeIdentity({
             marketId: marketId,
             assetUid: params.assetUid,
             quoteAssetConfigId: params.quoteAssetConfigId,
@@ -386,10 +407,11 @@ contract TickerGardenFactoryV2 is ITickerGardenFactoryV2, ICurveInitializationSo
             quoteAsset: quoteAsset,
             memeToken: memeToken
         });
-        bytes memory callData = abi.encodeCall(
-            MemeStockGaugeImplementation.deploy, (_componentSalt(marketId, V2Identifiers.ComponentKind.GAUGE), init)
+        address deployed = MemeStockGaugeClone.deployDeterministic(
+            gaugeImplementation, _componentSalt(marketId, V2Identifiers.ComponentKind.GAUGE), identity
         );
-        _requireAddress(expectedGauge, _delegateDeploy(gaugeImplementation, callData));
+        _requireAddress(expectedGauge, deployed);
+        _requireGaugeIdentity(deployed, identity);
     }
 
     function _predict(address creator, CreateMarketParams calldata params, V2FactoryValidation.Snapshot memory snapshot)
@@ -449,7 +471,7 @@ contract TickerGardenFactoryV2 is ITickerGardenFactoryV2, ICurveInitializationSo
         view
         returns (address)
     {
-        MemeStockGaugeInit memory init = MemeStockGaugeInit({
+        GaugeIdentity memory identity = GaugeIdentity({
             marketId: marketId,
             assetUid: params.assetUid,
             quoteAssetConfigId: params.quoteAssetConfigId,
@@ -459,10 +481,9 @@ contract TickerGardenFactoryV2 is ITickerGardenFactoryV2, ICurveInitializationSo
             quoteAsset: quoteAsset,
             memeToken: memeToken
         });
-        return V2Create2.predict(
-            address(this),
-            _componentSalt(marketId, V2Identifiers.ComponentKind.GAUGE),
-            MemeStockGaugeImplementation(gaugeImplementation).initCodeHash(init)
+        MemeStockGaugeClone.validatePrediction(identity);
+        return MemeStockGaugeClone.predictDeterministicAddress(
+            gaugeImplementation, _componentSalt(marketId, V2Identifiers.ComponentKind.GAUGE), identity, address(this)
         );
     }
 
@@ -513,6 +534,13 @@ contract TickerGardenFactoryV2 is ITickerGardenFactoryV2, ICurveInitializationSo
 
     function _requireAddress(address expected, address actual) private pure {
         if (actual != expected) revert ComponentAddressMismatch(expected, actual);
+    }
+
+    function _requireGaugeIdentity(address gauge, GaugeIdentity memory expected) private view {
+        GaugeIdentity memory actual = MemeStockGauge(gauge).gaugeIdentity();
+        bytes32 expectedHash = MemeStockGaugeClone.identityHash(expected);
+        bytes32 actualHash = MemeStockGaugeClone.identityHash(actual);
+        if (actualHash != expectedHash) revert GaugeIdentityMismatch(gauge, expectedHash, actualHash);
     }
 
     function _transferLaunchFee() private {

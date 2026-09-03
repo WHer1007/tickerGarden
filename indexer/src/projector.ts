@@ -195,11 +195,11 @@ export function applyV2Event(state: V2IndexerState, event: DecodedV2Event): "app
     case "StockDeposited(bytes32,address,uint256)":
     case "StockWithdrawn(bytes32,address,uint256)":
       mergePosition(state.stockPositions, key(event.args.assetUid, event.args.user), { ...event.args, lastEvent: event.signature }, at); break;
-    case "AllocationLocked(address,bytes32,uint256,uint256,uint256)":
-    case "AllocationReleased(address,bytes32,uint256,uint256,uint256)":
-    case "AllocationForceReleased(address,bytes32,uint256,uint32)":
-      mergePosition(state.allocations, key(event.args.user, event.args.marketId), { ...event.args, lastEvent: event.signature }, at); break;
-    case "AllocationMoved(address,bytes32,bytes32,uint256)":
+    case "AllocationLocked(bytes32,address,bytes32,uint256,uint256,uint256)":
+    case "AllocationReleased(bytes32,address,bytes32,uint256,uint256,uint256)":
+    case "AllocationForceReleased(bytes32,address,bytes32,uint256,uint32)":
+      mergePosition(state.allocations, key(event.args.assetUid, event.args.user, event.args.marketId), { ...event.args, lastEvent: event.signature }, at); break;
+    case "AllocationMoved(bytes32,address,bytes32,bytes32,uint256)":
     case "AllocationMigrated(address,bytes32,bytes32,uint256,uint256,uint64,uint64)":
       put(state.allocations, at.eventKey, event.args, at); break;
     case "PendingScheduled(address,bytes32,uint256,uint64,uint64)":

@@ -161,6 +161,35 @@ contract MarketControllerTest is Test {
         assertEq(controller.marketStatus(MARKET_ID), 2);
     }
 
+    function test_preGraduationRetireFailsBeforeRegistryMutation() public {
+        registry.setRuntime(0, 0);
+        bytes memory data = abi.encodeCall(IMarketController.retireMarket, (MARKET_ID, REASON_HASH));
+        uint48 readyAt = uint48(block.timestamp + RETIRE_DELAY);
+        vm.prank(ADMIN);
+        manager.schedule(address(controller), data, readyAt);
+
+        vm.warp(readyAt);
+        vm.expectRevert(abi.encodeWithSelector(MarketController.PreGraduationTerminalStateForbidden.selector, uint8(2)));
+        vm.prank(ADMIN);
+        manager.execute(address(controller), data);
+
+        assertEq(controller.marketStatus(MARKET_ID), 0);
+        assertEq(registry.lastMarketId(), bytes32(0));
+    }
+
+    function test_preGraduationEmergencyFailsBeforeExternalCalls() public {
+        registry.setRuntime(0, 1);
+        manager.grantRole(RECOVERY_ROLE, ADMIN, 0);
+        vm.roll(2);
+
+        vm.expectRevert(abi.encodeWithSelector(MarketController.PreGraduationTerminalStateForbidden.selector, uint8(3)));
+        vm.prank(ADMIN);
+        controller.activateEmergencyExit(MARKET_ID);
+
+        assertEq(controller.marketStatus(MARKET_ID), 1);
+        assertEq(registry.lastMarketId(), bytes32(0));
+    }
+
     function test_invalidTransitionsRevertWithoutControllerState() public {
         vm.prank(GUARDIAN);
         controller.pauseMarket(MARKET_ID, REASON_HASH);

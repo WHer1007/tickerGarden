@@ -2,5 +2,7 @@ out/
 cache/
 out-v2/
 cache-v2/
+out-v2-ci/
+cache-v2-ci/
 broadcast/
 lib/

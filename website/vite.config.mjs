@@ -4,6 +4,19 @@ import react from "@vitejs/plugin-react";
 export default defineConfig({
   build: {
     outDir: "dist/client",
+    rollupOptions: {
+      output: {
+        manualChunks(id) {
+          if (!id.includes("node_modules")) return undefined;
+          if (id.includes("@phosphor-icons")) return "icons";
+          if (id.includes("/viem/") || id.includes("/wagmi/") || id.includes("/@wagmi/")) {
+            return "web3";
+          }
+          if (id.includes("/react/") || id.includes("/react-dom/")) return "react";
+          return "vendor";
+        },
+      },
+    },
   },
   optimizeDeps: {
     include: ["react", "react-dom/client"],

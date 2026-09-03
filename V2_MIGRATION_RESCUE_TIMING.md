@@ -2,7 +2,7 @@
 
 > 规格任务：`V2-P-009`  
 > 状态：`REVIEW`  
-> 更新时间：2026-09-02
+> 更新时间：2026-09-03
 
 ## 1. 跨 Meme 原子迁移
 
@@ -19,7 +19,7 @@ require source position exists and now >= source.unlockAt
 require source activeAmount >= amount
 require source remainder after removal is 0 or strictly > 0.5 STOCK
 remove exactly amount active STOCK from source Gauge
-Vault.moveAllocation(user, from, to, amount)
+Vault.moveAllocation(assetUid, user, from, to, amount)
 checkpoint target matured slots and settle target rewards at its pre-migration Gauge weight
 add exactly amount as target pending; merge/reset its 30s generation if needed
 reset target whole-position unlockAt = now + 24h
@@ -53,13 +53,15 @@ restrictedSince = 本轮连续非 ACTIVE（PAUSED/RETIRED）开始时间；ACTIV
 ACTIVE -> PAUSED:  statusSince=now, restrictedSince=now
 ACTIVE -> RETIRED: statusSince=now, restrictedSince=now
 PAUSED -> ACTIVE:  require now >= statusSince+24h; statusSince=now, restrictedSince=0
-PAUSED -> RETIRED: statusSince=now, restrictedSince 保持不变
-PAUSED/RETIRED -> EMERGENCY_EXIT:
+PAUSED -> RETIRED: 仅 launchPhase != NotGraduated；statusSince=now, restrictedSince 保持不变
+PAUSED/RETIRED -> EMERGENCY_EXIT: 仅 launchPhase != NotGraduated；
   require restrictedSince != 0 and now >= restrictedSince+24h
   statusSince=now, restrictedSince 保持历史起点
 ```
 
 因此 `PAUSED -> RETIRED` 不会错误重置 Emergency 连续24小时资格；unpause 会清零资格并要求未来重新累计。所有加法先防 uint64 溢出并 fail closed，时间边界统一使用 `>=`。
+
+`NotGraduated + PAUSED` 是唯一允许的未毕业受限组合：它保留 delayed unpause 后继续 Curve 交易/最终结算的路径；retire 与 Emergency 在 Controller 外部副作用前以及 Registry 最终写入处均 fail closed。
 
 ## 4. 不变量
 

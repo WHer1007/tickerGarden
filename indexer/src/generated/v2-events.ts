@@ -12,13 +12,15 @@ export interface V2EventArgsBySignature {
     readonly memeAccumulator: bigint;
     readonly refs: bigint;
   };
-  readonly "AllocationForceReleased(address,bytes32,uint256,uint32)": {
+  readonly "AllocationForceReleased(bytes32,address,bytes32,uint256,uint32)": {
+    readonly assetUid: string;
     readonly user: string;
     readonly marketId: string;
     readonly amount: bigint;
     readonly recoveryEpoch: bigint;
   };
-  readonly "AllocationLocked(address,bytes32,uint256,uint256,uint256)": {
+  readonly "AllocationLocked(bytes32,address,bytes32,uint256,uint256,uint256)": {
+    readonly assetUid: string;
     readonly user: string;
     readonly marketId: string;
     readonly amount: bigint;
@@ -34,13 +36,15 @@ export interface V2EventArgsBySignature {
     readonly targetPendingGeneration: bigint;
     readonly targetUnlockAt: bigint;
   };
-  readonly "AllocationMoved(address,bytes32,bytes32,uint256)": {
+  readonly "AllocationMoved(bytes32,address,bytes32,bytes32,uint256)": {
+    readonly assetUid: string;
     readonly user: string;
     readonly fromMarketId: string;
     readonly toMarketId: string;
     readonly amount: bigint;
   };
-  readonly "AllocationReleased(address,bytes32,uint256,uint256,uint256)": {
+  readonly "AllocationReleased(bytes32,address,bytes32,uint256,uint256,uint256)": {
+    readonly assetUid: string;
     readonly user: string;
     readonly marketId: string;
     readonly amount: bigint;
@@ -355,6 +359,12 @@ export interface V2EventArgsBySignature {
     readonly user: string;
     readonly amount: bigint;
   };
+  readonly "StockVaultRegistered(address,bytes32,address,address)": {
+    readonly userStockVault: string;
+    readonly schemaId: string;
+    readonly marketRegistry: string;
+    readonly allocationManager: string;
+  };
   readonly "StockWithdrawn(bytes32,address,uint256)": {
     readonly assetUid: string;
     readonly user: string;
@@ -411,16 +421,16 @@ export const V2_EVENT_ABI = [
     inputs: [{"name":"marketId","type":"bytes32","indexed":true},{"name":"generation","type":"uint64","indexed":true},{"name":"amount","type":"uint256","indexed":false},{"name":"quoteAccumulator","type":"uint256","indexed":false},{"name":"memeAccumulator","type":"uint256","indexed":false},{"name":"refs","type":"uint256","indexed":false}],
   },
   {
-    signature: "AllocationForceReleased(address,bytes32,uint256,uint32)",
+    signature: "AllocationForceReleased(bytes32,address,bytes32,uint256,uint32)",
     name: "AllocationForceReleased",
     modules: ["UserStockVault"],
-    inputs: [{"name":"user","type":"address","indexed":true},{"name":"marketId","type":"bytes32","indexed":true},{"name":"amount","type":"uint256","indexed":false},{"name":"recoveryEpoch","type":"uint32","indexed":false}],
+    inputs: [{"name":"assetUid","type":"bytes32","indexed":true},{"name":"user","type":"address","indexed":true},{"name":"marketId","type":"bytes32","indexed":true},{"name":"amount","type":"uint256","indexed":false},{"name":"recoveryEpoch","type":"uint32","indexed":false}],
   },
   {
-    signature: "AllocationLocked(address,bytes32,uint256,uint256,uint256)",
+    signature: "AllocationLocked(bytes32,address,bytes32,uint256,uint256,uint256)",
     name: "AllocationLocked",
     modules: ["UserStockVault"],
-    inputs: [{"name":"user","type":"address","indexed":true},{"name":"marketId","type":"bytes32","indexed":true},{"name":"amount","type":"uint256","indexed":false},{"name":"userMarketAllocation","type":"uint256","indexed":false},{"name":"userTotalAllocated","type":"uint256","indexed":false}],
+    inputs: [{"name":"assetUid","type":"bytes32","indexed":true},{"name":"user","type":"address","indexed":true},{"name":"marketId","type":"bytes32","indexed":true},{"name":"amount","type":"uint256","indexed":false},{"name":"userMarketAllocation","type":"uint256","indexed":false},{"name":"userTotalAllocated","type":"uint256","indexed":false}],
   },
   {
     signature: "AllocationMigrated(address,bytes32,bytes32,uint256,uint256,uint64,uint64)",
@@ -429,16 +439,16 @@ export const V2_EVENT_ABI = [
     inputs: [{"name":"user","type":"address","indexed":true},{"name":"fromMarketId","type":"bytes32","indexed":true},{"name":"toMarketId","type":"bytes32","indexed":true},{"name":"amount","type":"uint256","indexed":false},{"name":"sourceRemaining","type":"uint256","indexed":false},{"name":"targetPendingGeneration","type":"uint64","indexed":false},{"name":"targetUnlockAt","type":"uint64","indexed":false}],
   },
   {
-    signature: "AllocationMoved(address,bytes32,bytes32,uint256)",
+    signature: "AllocationMoved(bytes32,address,bytes32,bytes32,uint256)",
     name: "AllocationMoved",
     modules: ["UserStockVault"],
-    inputs: [{"name":"user","type":"address","indexed":true},{"name":"fromMarketId","type":"bytes32","indexed":true},{"name":"toMarketId","type":"bytes32","indexed":true},{"name":"amount","type":"uint256","indexed":false}],
+    inputs: [{"name":"assetUid","type":"bytes32","indexed":true},{"name":"user","type":"address","indexed":true},{"name":"fromMarketId","type":"bytes32","indexed":true},{"name":"toMarketId","type":"bytes32","indexed":false},{"name":"amount","type":"uint256","indexed":false}],
   },
   {
-    signature: "AllocationReleased(address,bytes32,uint256,uint256,uint256)",
+    signature: "AllocationReleased(bytes32,address,bytes32,uint256,uint256,uint256)",
     name: "AllocationReleased",
     modules: ["UserStockVault"],
-    inputs: [{"name":"user","type":"address","indexed":true},{"name":"marketId","type":"bytes32","indexed":true},{"name":"amount","type":"uint256","indexed":false},{"name":"userMarketAllocation","type":"uint256","indexed":false},{"name":"userTotalAllocated","type":"uint256","indexed":false}],
+    inputs: [{"name":"assetUid","type":"bytes32","indexed":true},{"name":"user","type":"address","indexed":true},{"name":"marketId","type":"bytes32","indexed":true},{"name":"amount","type":"uint256","indexed":false},{"name":"userMarketAllocation","type":"uint256","indexed":false},{"name":"userTotalAllocated","type":"uint256","indexed":false}],
   },
   {
     signature: "Approval(address,address,uint256)",
@@ -709,6 +719,12 @@ export const V2_EVENT_ABI = [
     name: "StockDeposited",
     modules: ["UserStockVault"],
     inputs: [{"name":"assetUid","type":"bytes32","indexed":true},{"name":"user","type":"address","indexed":true},{"name":"amount","type":"uint256","indexed":false}],
+  },
+  {
+    signature: "StockVaultRegistered(address,bytes32,address,address)",
+    name: "StockVaultRegistered",
+    modules: ["OfficialStockRegistryV2"],
+    inputs: [{"name":"userStockVault","type":"address","indexed":true},{"name":"schemaId","type":"bytes32","indexed":true},{"name":"marketRegistry","type":"address","indexed":true},{"name":"allocationManager","type":"address","indexed":false}],
   },
   {
     signature: "StockWithdrawn(bytes32,address,uint256)",

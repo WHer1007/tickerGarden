@@ -41,6 +41,18 @@ function result(words: string[]): string {
   return `0x${words.join("")}`;
 }
 
+function resolverBindingResult(manifest: JsonRecord, label: unknown): string | undefined {
+  const modules = manifest.protocolModules as JsonRecord;
+  const registryByLabel: Readonly<Record<string, string>> = {
+    "resolver-approved-quote-registry": "ApprovedQuoteRegistry",
+    "resolver-pons-baseline-registry": "PonsBaselineRegistry",
+    "resolver-launch-template-registry": "LaunchTemplateRegistry",
+  };
+  const registryName = registryByLabel[String(label)];
+  if (registryName === undefined) return undefined;
+  return result([addressWord(String((modules[registryName] as JsonRecord).deployedAddress))]);
+}
+
 function prepareManifest(): JsonRecord {
   const manifest = clone(validManifest());
   const codeHash = keccakHex("0x60006000");
@@ -59,15 +71,21 @@ function prepareManifest(): JsonRecord {
   }
   const components = (manifest.create2 as JsonRecord).components as JsonRecord;
   for (const component of Object.values(components)) (component as JsonRecord).runtimeCodeHash = codeHash;
+  (components.GAUGE as JsonRecord).implementationCodeHash = codeHash;
 
   const live = manifest.livePreflight as JsonRecord;
   const getterResult = result([word(123n)]);
   const stockImplementation = String(((manifest.officialStocks as JsonRecord[])[0] as JsonRecord).implementationAddress);
   for (const check of live.keyGetterChecks as JsonRecord[]) {
-    const expectedResult = check.category === "PROXY_OR_BEACON_LINKAGE"
-      ? result([addressWord(stockImplementation)])
-      : getterResult;
+    const expectedResult = resolverBindingResult(manifest, check.label) ?? (check.label === "gauge-clone-identity"
+      ? result(Array.from({ length: 8 }, () => word(123n)))
+      : check.category === "PROXY_OR_BEACON_LINKAGE"
+        ? result([addressWord(stockImplementation)])
+        : getterResult);
     check.expectedReturnDataHash = keccakHex(expectedResult);
+    if (check.label === "gauge-clone-identity") {
+      (components.GAUGE as JsonRecord).immutableArgsHash = check.expectedReturnDataHash;
+    }
   }
   const probe = live.marketProbe as JsonRecord;
   probe.launchLocker = ((components.LOCKER as JsonRecord).actualAddress as string);
@@ -121,9 +139,11 @@ class MockRpc implements V2ReadOnlyRpc {
     const live = manifest.livePreflight as JsonRecord;
     for (const check of live.keyGetterChecks as JsonRecord[]) {
       const stockImplementation = String((((manifest.officialStocks as JsonRecord[])[0])!).implementationAddress);
-      const callResult = check.category === "PROXY_OR_BEACON_LINKAGE"
-        ? result([addressWord(stockImplementation)])
-        : result([word(123n)]);
+      const callResult = resolverBindingResult(manifest, check.label) ?? (check.label === "gauge-clone-identity"
+        ? result(Array.from({ length: 8 }, () => word(123n)))
+        : check.category === "PROXY_OR_BEACON_LINKAGE"
+          ? result([addressWord(stockImplementation)])
+          : result([word(123n)]));
       this.#calls.set(`${String(check.target).toLowerCase()}:${String(check.callData).toLowerCase()}`, callResult);
     }
     const access = manifest.accessManager as JsonRecord;
@@ -338,6 +358,31 @@ test("rejects manifest-level proxy linkage and permission semantic drift before 
   const permissionRpc = new MockRpc(badPermission);
   await assert.rejects(verifyV2LiveState(badPermission, permissionRpc), /stateDelaySeconds/);
   assert.deepEqual(permissionRpc.methods, []);
+});
+
+test("rejects Gauge clone implementation and immutable-identity drift before RPC", async () => {
+  const wrongImplementation = prepareManifest();
+  const gauge = (((wrongImplementation.create2 as JsonRecord).components as JsonRecord).GAUGE as JsonRecord);
+  gauge.implementationAddress = address("wrong-gauge-implementation");
+  const implementationRpc = new MockRpc(wrongImplementation);
+  await assert.rejects(verifyV2LiveState(wrongImplementation, implementationRpc), /implementationAddress/);
+  assert.deepEqual(implementationRpc.methods, []);
+
+  const wrongIdentity = prepareManifest();
+  const identityCheck = ((wrongIdentity.livePreflight as JsonRecord).keyGetterChecks as JsonRecord[])
+    .find((check) => check.label === "gauge-clone-identity")!;
+  identityCheck.expectedReturnDataHash = keccakHex(result(Array.from({ length: 8 }, () => word(456n))));
+  const identityRpc = new MockRpc(wrongIdentity);
+  await assert.rejects(verifyV2LiveState(wrongIdentity, identityRpc), /immutableArgsHash/);
+  assert.deepEqual(identityRpc.methods, []);
+
+  const wrongResolver = prepareManifest();
+  const resolverCheck = ((wrongResolver.livePreflight as JsonRecord).keyGetterChecks as JsonRecord[])
+    .find((check) => check.label === "resolver-approved-quote-registry")!;
+  resolverCheck.expectedReturnDataHash = keccakHex(result([addressWord(address("wrong-quote-registry"))]));
+  const resolverRpc = new MockRpc(wrongResolver);
+  await assert.rejects(verifyV2LiveState(wrongResolver, resolverRpc), /approvedQuoteRegistry/);
+  assert.deepEqual(resolverRpc.methods, []);
 });
 
 test("rejects every canonical permission semantic and role-handoff drift before RPC", async () => {

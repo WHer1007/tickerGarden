@@ -452,9 +452,10 @@ contract MarketRegistryV2Test is Test {
         assertEq(stored.runtime.restrictedSince, 0);
     }
 
-    function test_retireFromActiveSetsRestrictionAndFromPausedPreservesIt() public {
+    function test_retirePostSweepFromActiveSetsRestrictionAndFromPausedPreservesIt() public {
         vm.warp(1_000);
         _register(MARKET_ID, _config(QUOTE_ASSET, MEME_TOKEN));
+        _sweep(MARKET_ID);
         bytes32 reasonHash = keccak256("retire");
         vm.warp(2_000);
         vm.expectEmit(true, false, false, true);
@@ -463,10 +464,11 @@ contract MarketRegistryV2Test is Test {
         registry.setMarketRetired(MARKET_ID, reasonHash);
         assertEq(registry.market(MARKET_ID).runtime.restrictedSince, 2_000);
         (address source, uint32 version) = registry.activeFeeSource(MARKET_ID);
-        assertEq(source, CURVE);
-        assertEq(version, 1);
+        assertEq(source, address(0));
+        assertEq(version, 0);
 
         _register(OTHER_MARKET_ID, _config(QUOTE_ASSET, address(0xB000)));
+        _sweep(OTHER_MARKET_ID);
         vm.warp(3_000);
         _pause(OTHER_MARKET_ID, keccak256("pause"));
         vm.warp(4_000);
@@ -477,10 +479,38 @@ contract MarketRegistryV2Test is Test {
         assertEq(registry.market(OTHER_MARKET_ID).runtime.restrictedSince, 3_000);
     }
 
+    function test_notGraduatedTerminalTransitionsRevertAndPauseRemainsRecoverable() public {
+        vm.warp(1_000);
+        _register(MARKET_ID, _config(QUOTE_ASSET, MEME_TOKEN));
+        _mockLaunchLockerRoute(MARKET_ID, false);
+
+        vm.expectRevert(abi.encodeWithSelector(MarketRegistryV2.PreGraduationTerminalStateForbidden.selector, uint8(2)));
+        vm.prank(CONTROLLER);
+        registry.setMarketRetired(MARKET_ID, keccak256("retire"));
+
+        _pause(MARKET_ID, keccak256("pause"));
+        vm.warp(1_000 + 1 days);
+        vm.expectRevert(abi.encodeWithSelector(MarketRegistryV2.PreGraduationTerminalStateForbidden.selector, uint8(2)));
+        vm.prank(CONTROLLER);
+        registry.setMarketRetired(MARKET_ID, keccak256("retire"));
+        vm.expectRevert(abi.encodeWithSelector(MarketRegistryV2.PreGraduationTerminalStateForbidden.selector, uint8(3)));
+        vm.prank(CONTROLLER);
+        registry.commitEmergencyExit(MARKET_ID, 77, keccak256("state"));
+
+        vm.prank(CONTROLLER);
+        registry.setMarketActive(MARKET_ID);
+        MarketView memory stored = registry.market(MARKET_ID);
+        assertEq(stored.runtime.launchPhase, 0);
+        assertEq(stored.runtime.marketStatus, 0);
+        assertEq(stored.runtime.restrictedSince, 0);
+        assertTrue(registry.canonicalRoute(MARKET_ID).curveTradingEnabled);
+    }
+
     function test_emergencyExitUsesInclusiveDayBoundaryAndInvalidatesSource() public {
         vm.warp(1_000);
         _register(MARKET_ID, _config(QUOTE_ASSET, MEME_TOKEN));
         _mockLaunchLockerRoute(MARKET_ID, false);
+        _sweep(MARKET_ID);
         _pause(MARKET_ID, keccak256("pause"));
 
         vm.warp(1_000 + 1 days - 1);
@@ -515,6 +545,7 @@ contract MarketRegistryV2Test is Test {
     function test_retiredMarketCanEnterEmergencyAtInclusiveDayBoundary() public {
         vm.warp(1_000);
         _register(MARKET_ID, _config(QUOTE_ASSET, MEME_TOKEN));
+        _sweep(MARKET_ID);
         vm.prank(CONTROLLER);
         registry.setMarketRetired(MARKET_ID, keccak256("retire"));
         vm.warp(1_000 + 1 days);
@@ -528,6 +559,7 @@ contract MarketRegistryV2Test is Test {
 
     function test_unlistedStatusEdgesAndEmergencyTerminalStateRevert() public {
         _register(MARKET_ID, _config(QUOTE_ASSET, MEME_TOKEN));
+        _sweep(MARKET_ID);
         vm.expectRevert(abi.encodeWithSelector(MarketRegistryV2.InvalidStateTransition.selector, 0, 0));
         vm.prank(CONTROLLER);
         registry.setMarketActive(MARKET_ID);
@@ -570,6 +602,7 @@ contract MarketRegistryV2Test is Test {
 
         address secondToken = address(0xB000);
         _register(OTHER_MARKET_ID, _config(QUOTE_ASSET, secondToken));
+        _sweep(OTHER_MARKET_ID);
         _pause(OTHER_MARKET_ID, bytes32(0));
         _setPackedRuntimeCounter(OTHER_MARKET_ID, false, type(uint32).max);
         vm.warp(1_000 + 1 days);
@@ -611,6 +644,7 @@ contract MarketRegistryV2Test is Test {
         registry.markRescued(MARKET_ID);
 
         _register(OTHER_MARKET_ID, _config(QUOTE_ASSET, address(0xB000)));
+        _sweep(OTHER_MARKET_ID);
         _pause(OTHER_MARKET_ID, bytes32(0));
         vm.expectRevert(
             abi.encodeWithSelector(
@@ -733,6 +767,21 @@ contract MarketRegistryV2Test is Test {
         _register(MARKET_ID, config);
 
         AssetView memory assetValue = _asset();
+        assetValue.tokenDecimals = 5;
+        assets.setAsset(ASSET_UID, assetValue);
+        config = _config(QUOTE_ASSET, MEME_TOKEN);
+        config.stakeSaturationAmount = 10 * 10 ** 5;
+        vm.expectRevert(MarketRegistryV2.InvalidMarketConfig.selector);
+        _register(MARKET_ID, config);
+
+        assetValue.tokenDecimals = 19;
+        assets.setAsset(ASSET_UID, assetValue);
+        config.stakeSaturationAmount = 10 * 10 ** 19;
+        vm.expectRevert(MarketRegistryV2.InvalidMarketConfig.selector);
+        _register(MARKET_ID, config);
+        assets.setAsset(ASSET_UID, _asset());
+
+        assetValue = _asset();
         assetValue.status = 2;
         assets.setAsset(ASSET_UID, assetValue);
         vm.expectRevert(MarketRegistryV2.InvalidMarketConfig.selector);

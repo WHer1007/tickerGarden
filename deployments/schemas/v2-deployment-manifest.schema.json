@@ -26,12 +26,13 @@
     "protocolModules": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["OfficialStockRegistryV2", "ApprovedQuoteRegistry", "PonsBaselineRegistry", "LaunchTemplateRegistry", "TickerGardenFactoryV2", "MarketRegistryV2", "LaunchAndBuyRouter", "TickerMemeTokenV2", "PonsCompatibleCurve", "UserStockVault", "AllocationManager", "MemeStockGauge", "TickerGardenMemeHook", "ProtocolFeeVault", "MarketController", "GraduationExecutor", "LaunchLocker", "CreatorRevenueRegistry"],
+      "required": ["OfficialStockRegistryV2", "ApprovedQuoteRegistry", "PonsBaselineRegistry", "LaunchTemplateRegistry", "LaunchConfigResolver", "TickerGardenFactoryV2", "MarketRegistryV2", "LaunchAndBuyRouter", "TickerMemeTokenV2", "PonsCompatibleCurve", "UserStockVault", "AllocationManager", "MemeStockGauge", "TickerGardenMemeHook", "ProtocolFeeVault", "MarketController", "GraduationExecutor", "LaunchLocker", "CreatorRevenueRegistry"],
       "properties": {
         "OfficialStockRegistryV2": { "$ref": "#/$defs/moduleDeployment" },
         "ApprovedQuoteRegistry": { "$ref": "#/$defs/moduleDeployment" },
         "PonsBaselineRegistry": { "$ref": "#/$defs/moduleDeployment" },
         "LaunchTemplateRegistry": { "$ref": "#/$defs/moduleDeployment" },
+        "LaunchConfigResolver": { "$ref": "#/$defs/moduleDeployment" },
         "TickerGardenFactoryV2": { "$ref": "#/$defs/moduleDeployment" },
         "MarketRegistryV2": { "$ref": "#/$defs/moduleDeployment" },
         "LaunchAndBuyRouter": { "$ref": "#/$defs/moduleDeployment" },
@@ -108,7 +109,7 @@
       "additionalProperties": false,
       "required": ["moduleKind", "sourceName", "contractName", "artifactPath", "compilerVersion", "sourceHash", "artifactHash", "abiHash", "creationCodeHash", "runtimeCodeHash", "constructorArgsHash", "immutableArgsHash", "deployedAddress", "deployer", "sourceVerified"],
       "properties": {
-        "moduleKind": { "enum": ["SHARED_IMMUTABLE", "PER_ASSET_IMPLEMENTATION", "PER_MARKET_IMPLEMENTATION"] },
+        "moduleKind": { "enum": ["SHARED_IMMUTABLE", "PER_ASSET_IMPLEMENTATION", "PER_MARKET_IMPLEMENTATION", "CLONE_IMPLEMENTATION"] },
         "sourceName": { "$ref": "#/$defs/nonEmptyString" },
         "contractName": { "$ref": "#/$defs/nonEmptyString" },
         "artifactPath": { "$ref": "#/$defs/nonEmptyString" },
@@ -182,12 +183,41 @@
     "create2Component": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["deployer", "saltDomain", "salt", "initCodeHash", "runtimeCodeHash", "constructorArgsHash", "immutableArgsHash", "predictedAddress", "actualAddress", "collisionPolicy"],
+      "required": ["deploymentKind", "deployer", "saltDomain", "salt", "initCodeHash", "runtimeCodeHash", "constructorArgsHash", "immutableArgsHash", "predictedAddress", "actualAddress", "collisionPolicy"],
       "properties": {
+        "deploymentKind": { "enum": ["FULL_CREATE2", "ERC1167_IMMUTABLE_ARGS_CLONE"] },
         "deployer": { "$ref": "#/$defs/nonZeroAddress" }, "saltDomain": { "$ref": "#/$defs/bytes32" }, "salt": { "$ref": "#/$defs/bytes32" },
         "initCodeHash": { "$ref": "#/$defs/bytes32" }, "runtimeCodeHash": { "$ref": "#/$defs/bytes32" }, "constructorArgsHash": { "$ref": "#/$defs/bytes32" }, "immutableArgsHash": { "$ref": "#/$defs/bytes32" },
+        "implementationAddress": { "$ref": "#/$defs/nonZeroAddress" }, "implementationCodeHash": { "$ref": "#/$defs/bytes32" },
         "predictedAddress": { "$ref": "#/$defs/nonZeroAddress" }, "actualAddress": { "$ref": "#/$defs/nonZeroAddress" }, "collisionPolicy": { "const": "REVERT_NO_NONCE_FALLBACK" }
       }
+    },
+    "fullCreate2Component": {
+      "allOf": [
+        { "$ref": "#/$defs/create2Component" },
+        {
+          "type": "object",
+          "properties": {
+            "deploymentKind": { "const": "FULL_CREATE2" },
+            "implementationAddress": false,
+            "implementationCodeHash": false
+          }
+        }
+      ]
+    },
+    "gaugeCloneComponent": {
+      "allOf": [
+        { "$ref": "#/$defs/create2Component" },
+        {
+          "type": "object",
+          "required": ["implementationAddress", "implementationCodeHash"],
+          "properties": {
+            "deploymentKind": { "const": "ERC1167_IMMUTABLE_ARGS_CLONE" },
+            "implementationAddress": { "$ref": "#/$defs/nonZeroAddress" },
+            "implementationCodeHash": { "$ref": "#/$defs/bytes32" }
+          }
+        }
+      ]
     },
     "create2Evidence": {
       "type": "object",
@@ -197,7 +227,7 @@
         "marketId": { "$ref": "#/$defs/bytes32" }, "creator": { "$ref": "#/$defs/nonZeroAddress" },
         "components": {
           "type": "object", "additionalProperties": false, "required": ["TOKEN", "CURVE", "GAUGE", "LOCKER"],
-          "properties": { "TOKEN": { "$ref": "#/$defs/create2Component" }, "CURVE": { "$ref": "#/$defs/create2Component" }, "GAUGE": { "$ref": "#/$defs/create2Component" }, "LOCKER": { "$ref": "#/$defs/create2Component" } }
+          "properties": { "TOKEN": { "$ref": "#/$defs/fullCreate2Component" }, "CURVE": { "$ref": "#/$defs/fullCreate2Component" }, "GAUGE": { "$ref": "#/$defs/gaugeCloneComponent" }, "LOCKER": { "$ref": "#/$defs/fullCreate2Component" } }
         },
         "predictionVectorHash": { "$ref": "#/$defs/bytes32" }, "predictionMatchesDeployment": { "const": true }
       }

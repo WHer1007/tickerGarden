@@ -6,7 +6,7 @@
 
 ## 1. Emergency 激活
 
-`EMERGENCY_EXIT` 是不可逆终态。Market 必须连续处于 `PAUSED` 或 `RETIRED` 至少24小时，`RECOVERY_ROLE` 的调用本身再受24小时 AccessManager 延迟。外部入口固定为：
+`EMERGENCY_EXIT` 是不可逆终态。Market 必须已经离开 `NotGraduated`，并连续处于 `PAUSED` 或 `RETIRED` 至少24小时；仍持有未结算 Curve 资产的 `NotGraduated` 市场只能暂停后恢复，不能进入 Emergency。`RECOVERY_ROLE` 的调用本身再受24小时 AccessManager 延迟。外部入口固定为：
 
 ```solidity
 activateEmergencyExit(bytes32 marketId)
@@ -16,15 +16,16 @@ activateEmergencyExit(bytes32 marketId)
 调用者不能提供 recoveryEpoch、snapshotBlock、cap 或 stateHash。Controller 在激活块 `N` 内固定取 `snapshotBlock = N - 1`，并原子按以下顺序执行：
 
 ```text
-1. read old Registry config/runtime, Gauge totals and current Quote/Meme STAKER liabilities
-2. checked compute recoveryEpoch = oldRecoveryEpoch + 1 and snapshotBlock = N - 1
-3. compute canonical stateHash from those exact pre-transition values
-4. FeeVault.freezeRecoveryCaps(marketId, recoveryEpoch, snapshotBlock, stateHash)
-5. require returned quoteCap/memeCap equal the values read in step 1
-6. Gauge.disableForEmergency(recoveryEpoch, snapshotBlock, stateHash)
-7. disable the ACTIVE Hook binding when a pool exists
-8. MarketRegistry.commitEmergencyExit(marketId, snapshotBlock, stateHash) last
-9. emit EmergencyExitActivated and return recoveryEpoch/snapshotBlock/stateHash
+1. read old Registry config/runtime and reject `launchPhase == NotGraduated` before any Vault/Gauge/Hook call
+2. read Gauge totals and current Quote/Meme STAKER liabilities
+3. checked compute recoveryEpoch = oldRecoveryEpoch + 1 and snapshotBlock = N - 1
+4. compute canonical stateHash from those exact pre-transition values
+5. FeeVault.freezeRecoveryCaps(marketId, recoveryEpoch, snapshotBlock, stateHash)
+6. require returned quoteCap/memeCap equal the values read in step 2
+7. Gauge.disableForEmergency(recoveryEpoch, snapshotBlock, stateHash)
+8. disable the ACTIVE Hook binding when a pool exists
+9. MarketRegistry.commitEmergencyExit(marketId, snapshotBlock, stateHash) last, with the same phase guard
+10. emit EmergencyExitActivated and return recoveryEpoch/snapshotBlock/stateHash
 ```
 
 FeeVault 冻结的 cap 必须由其自身重读两个当前 `STAKER_REWARD` liability 得出，Controller 不能指定金额；FeeVault 同时持久化 snapshotBlock/stateHash 并发出 `RecoveryCapsFrozen`。Registry 的 commit 最后发生，Hook/Gauge 的受限入口因此只允许不可变 Controller 在该原子 Emergency 调用中、Registry 尚处于 PAUSED/RETIRED 时执行。任何一步失败全部回滚。旧 Gauge/source 永久不能恢复；同一 marketId 不安装 successor。force release 只依赖 Registry 终态，不依赖 root。
@@ -118,3 +119,4 @@ struct RecoveryRootView {
 4. proof 不可跨链、FeeVault、executionSpec、市场、epoch、资产或用户重放。
 5. 本金 force release 不调用 Gauge，不等待 proposal/root。
 6. 外部 ABI 永远只有 `activateEmergencyExit(bytes32)`；任何让 caller 提供 snapshot/hash/cap 的重载都禁止。
+7. `NotGraduated + RETIRED/EMERGENCY_EXIT` 永不可达；拒绝必须发生在任何 Emergency 外部副作用之前，Registry 仍执行最终防御性校验。

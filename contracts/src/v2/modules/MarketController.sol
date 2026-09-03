@@ -35,6 +35,7 @@ struct EmergencySnapshot {
 
 /// @notice Selector-authorized market lifecycle controller and canonical allocation gate.
 contract MarketController is IMarketController, ImmutableAccessManaged {
+    uint8 internal constant LAUNCH_PHASE_NOT_GRADUATED = 0;
     uint8 internal constant LAUNCH_PHASE_POOL_CREATED = 2;
     uint8 internal constant MARKET_STATUS_ACTIVE = 0;
     uint8 internal constant MARKET_STATUS_PAUSED = 1;
@@ -53,6 +54,7 @@ contract MarketController is IMarketController, ImmutableAccessManaged {
     error InvalidControllerDependency(address dependency);
     error AliasedControllerDependency(address dependency);
     error InvalidEmergencyBlock(uint256 blockNumber);
+    error PreGraduationTerminalStateForbidden(uint8 requestedStatus);
     error RecoveryCapSnapshotMismatch(bytes32 marketId, uint32 recoveryEpoch);
     error EmergencyStateHashMismatch(bytes32 expected, bytes32 observed);
     error EmergencyCommitMismatch(uint32 expectedEpoch, uint32 committedEpoch);
@@ -83,7 +85,11 @@ contract MarketController is IMarketController, ImmutableAccessManaged {
     }
 
     function retireMarket(bytes32 marketId, bytes32 reasonHash) external override restricted {
-        uint8 oldStatus = IMarketRegistryV2(marketRegistry).market(marketId).runtime.marketStatus;
+        MarketView memory value = IMarketRegistryV2(marketRegistry).market(marketId);
+        if (value.runtime.launchPhase == LAUNCH_PHASE_NOT_GRADUATED) {
+            revert PreGraduationTerminalStateForbidden(MARKET_STATUS_RETIRED);
+        }
+        uint8 oldStatus = value.runtime.marketStatus;
         IMarketRegistryV2(marketRegistry).setMarketRetired(marketId, reasonHash);
         emit MarketStatusChanged(marketId, oldStatus, MARKET_STATUS_RETIRED, reasonHash);
     }
@@ -97,6 +103,9 @@ contract MarketController is IMarketController, ImmutableAccessManaged {
         if (block.number == 0 || block.number > type(uint64).max) revert InvalidEmergencyBlock(block.number);
 
         MarketView memory value = IMarketRegistryV2(marketRegistry).market(marketId);
+        if (value.runtime.launchPhase == LAUNCH_PHASE_NOT_GRADUATED) {
+            revert PreGraduationTerminalStateForbidden(MARKET_STATUS_EMERGENCY_EXIT);
+        }
         EmergencySnapshot memory snapshot;
         snapshot.recoveryEpoch = value.runtime.recoveryEpoch + 1;
         snapshot.snapshotBlock = uint64(block.number - 1);

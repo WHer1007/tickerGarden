@@ -37,7 +37,7 @@ test("exports the immutable V2 indexer descriptor", () => {
 });
 
 test("catalog is generated from V2 artifacts and includes the canonical PoolManager Swap", () => {
-  assert.equal(V2_EVENT_ABI.length, 55);
+  assert.equal(V2_EVENT_ABI.length, 56);
   assert.ok(V2_EVENT_ABI.some(({ signature, modules }) =>
     signature === "MarketCreated(bytes32,bytes32,address,address,address,address,uint256,bytes32,bytes32,bytes32)" &&
     modules.includes("TickerGardenFactoryV2"),
@@ -133,6 +133,21 @@ test("plans block-tagged hydration where events intentionally contain only hashe
   }, 1);
   assert.deepEqual(requiredObservations(quote).map(({ kind }) => kind), ["quote"]);
   assert.deepEqual(requiredObservations(pool).map(({ kind }) => kind), ["poolKey", "market"]);
+});
+
+test("keys shared-Vault allocation facts by asset UID and plans both Vault and Gauge hydration", () => {
+  const state = createIndexerState();
+  const assetUid = id("11");
+  const user = address("a");
+  const marketId = id("22");
+  const locked = event("AllocationLocked(bytes32,address,bytes32,uint256,uint256,uint256)", {
+    assetUid, user, marketId, amount: 7n, userMarketAllocation: 7n, userTotalAllocated: 7n,
+  }, 0);
+
+  applyV2Event(state, locked);
+
+  assert.equal(state.allocations.get(`${assetUid}:${user}:${marketId}`)?.values.userMarketAllocation, 7n);
+  assert.deepEqual(requiredObservations(locked).map(({ kind }) => kind), ["vaultPosition", "gaugePosition"]);
 });
 
 test("attributes Curve trades through the canonical curve address, never symbol text", () => {

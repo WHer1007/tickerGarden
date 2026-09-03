@@ -1,15 +1,19 @@
 # TickerGarden V2 技术架构
 
-> 文档状态：`IMPLEMENTATION_ALLOWED / NOT_DEPLOYABLE`  
-> 更新时间：2026-09-02  
-> 产品与经济规则：参见 [V2_PROTOCOL_PARAMETERS.md](./V2_PROTOCOL_PARAMETERS.md)  
-> 发行兼容基线：[Pons V2 官方文档](https://docs.ponsfamily.com/v2)  
-> 行为继承与独立实现：[V2_PONS_BEHAVIOR_BASELINE.md](./V2_PONS_BEHAVIOR_BASELINE.md)  
-> 机制对比参考：[Pump.fun 费用](https://pump.fun/docs/fees) 与 [Pump.fun Bonding Curve](https://pump.fun/docs/bonding-curve)（只借鉴原则）  
-> 版本边界：本文只描述 V2，不覆盖或修改 V1 技术架构、接口与代码  
+> 文档状态：`IMPLEMENTATION_ALLOWED / NOT_DEPLOYABLE`
+> 更新时间：2026-09-03
+> 产品与经济规则：参见 [V2_PROTOCOL_PARAMETERS.md](./V2_PROTOCOL_PARAMETERS.md)
+> 发行兼容基线：[Pons V2 官方文档](https://docs.ponsfamily.com/v2)
+> 行为继承与独立实现：[V2_PONS_BEHAVIOR_BASELINE.md](./V2_PONS_BEHAVIOR_BASELINE.md)
+> 机制对比参考：[Pump.fun 费用](https://pump.fun/docs/fees) 与 [Pump.fun Bonding Curve](https://pump.fun/docs/bonding-curve)（只借鉴原则）
+> 版本边界：本文只描述 V2，不覆盖或修改 V1 技术架构、接口与代码
 > 规范性执行细节：[V2_EXECUTION_SPEC.md](./V2_EXECUTION_SPEC.md)；机器清单位于 `spec/v2_*`
+> 合约拆分与合并决策：[V2_CONTRACT_ARCHITECTURE_DECISION.md](./V2_CONTRACT_ARCHITECTURE_DECISION.md)
+> Stock Vault 决策：[V2_MULTI_ASSET_STOCK_VAULT.md](./V2_MULTI_ASSET_STOCK_VAULT.md)
 
 本文中的“固定”表示已经确认的产品或 `V2-EXEC-3` 执行语义。Pons runtime、首发 native/USDG Quote、通用数值域，以及当前观测194种 Robinhood 官方 STOCK 全量可选为质押 Base 的规则已经取证冻结；STOCK 价格、Feed 覆盖和 backing target 不属于协议输入。当前状态为 `IMPLEMENTATION_ALLOWED`，可以编写产品实现，但未完成 artifact、目标链取证、Fork/E2E、审计和法律门禁前不得部署。
+
+本轮合约架构优化采用“合并读取入口、不合并权威状态；复用代码、不共享市场资金状态”：三个配置 Registry 保持独立并增加无缓存的 typed `LaunchConfigResolver`；Token 与 Curve 继续按市场完整 CREATE2 部署；Gauge 使用一个固定 implementation 和每市场 deterministic immutable-args clone；持有 Position NFT 与余额的 LaunchLocker 继续每市场完整隔离。安全、管理与 Gas 取舍及部署证据要求见上述架构决策文档。
 
 ## 1. 架构结论
 
@@ -18,25 +22,24 @@ TickerGarden V2 采用混合式 STOCK 质押架构：
 ```text
 经版本化冻结的 Pons V2 发行栈
 +
-每种官方 STOCK 一个极简 UserStockVault
+每个 Vault schema 版本一个共享 MultiAsset UserStockVault
 + 每个 Ticker Meme 一个独立轻量 MemeStockGauge
 + 一个受约束 AllocationManager 原子协调 Vault 与 Gauge
 ```
 
-产品层仍然表现为“一个毕业后的 Meme 对应一个可用质押池，用户自行决定每个币质押多少”；未毕业 Meme 只展示毕业进度，不提供质押入口。技术层不让每个 Meme 池分别托管 Stock Token 本金，而是让同一 STOCK 的本金只进入一次 `UserStockVault`，再以不可重复的内部额度分配给多个已开放 Gauge。
+产品层仍然表现为“一个毕业后的 Meme 对应一个可用质押池，用户自行决定每个币质押多少”；未毕业 Meme 只展示毕业进度，不提供质押入口。技术层不让每个 Meme 池分别托管 Stock Token 本金。所有资产通过显式 `assetUid` 进入当前 schema 的共享 `UserStockVault`，同一 STOCK 再以不可重复的内部额度分配给多个已开放 Gauge。
 
 该方案在三种候选结构中取得最佳平衡：
 
-| 维度 | 每 Meme 独立托管 STOCK | 单一大 Vault 内全部逻辑 | V2 混合架构 |
+| 维度 | 一资产一 Vault + Factory | 分片 MultiAsset Vault | V2：每 schema 单一 MultiAsset Vault |
 |---|---|---|---|
-| 用户授权与存入 | 每池重复 | 一次 | 一次 |
-| STOCK 本金位置 | 分散到上万个池 | 一个 Vault | 一个极简 Vault |
-| 每 Meme 奖励隔离 | 强 | 弱 | 强 |
-| 上万个 Meme | 部署与运维成本高 | 最省 | 可扩展 |
-| 单点故障范围 | 单池 | 同 STOCK 全部逻辑 | 本金按 STOCK 隔离、奖励按 Meme 隔离 |
-| 公司行动与资产暂停 | 需要协调大量池 | 集中处理 | 集中处理本金，局部处理市场 |
-| 用户跨池配置 | 多次 Token 转账 | 内部记账 | 内部记账 |
-| 推荐 | 否 | 次选 | 是 |
+| Vault 部署数量 | O(资产数) | O(分片数) | O(schema 版本数) |
+| 用户 Token 授权 | 每 Token 各自授权不同 Vault | 每 Token 授权所属分片 | 每 Token 各自授权同一 Vault 地址 |
+| 单次存取/分配复杂度 | O(1) | O(1) | O(1) |
+| 地址、验证、监控成本 | 随数百资产线性增加 | 中等 | 最低 |
+| 本金故障域 | 按资产隔离 | 按分片隔离 | 当前 schema 集中；账本按 UID 隔离 |
+| 每 Meme 奖励状态 | 独立 Gauge | 独立 Gauge | 独立 Gauge |
+| 推荐 | 否 | 风险预算触发后再评估 | 是 |
 
 ## 2. 设计目标与非目标
 
@@ -76,11 +79,11 @@ V2 不实现：
 OfficialStockRegistry
 ├── Asset UID: NVDA
 │   ├── canonical NVDA Stock Token
-│   └── NVDA UserStockVault
+│   └── UserStockVault schema v1 ─┐
 │
 └── Asset UID: TSLA
     ├── canonical TSLA Stock Token
-    └── TSLA UserStockVault
+    └── UserStockVault schema v1 ─┘（同一 canonical Vault 地址）
 
 TickerGardenFactory
 ├── Market A ── Asset UID: NVDA
@@ -99,7 +102,7 @@ TickerGardenFactory
     └── 独立 Gauge、曲线、费用与市场状态
 
 User
-→ UserStockVault.deposit(STOCK)
+→ UserStockVault.deposit(assetUid, STOCK amount)
 → wait until target market launchPhase == PoolCreated
 → AllocationManager.allocate(marketId, amount)
 → MemeStockGauge 在 checkpoint 后记录 pending，30秒后成为 active
@@ -119,7 +122,7 @@ User
 
 ### 4.1 Asset UID
 
-`OfficialStockRegistry` 继续使用稳定 `Asset UID` 与 canonical Stock Token 地址识别股票资产。Robinhood 官方目录中存在 chainId `4663` deployment 的全部资产都可准入；2026-09-02 点时观测为194项，这只是观测数量而非协议上限。每个 ACTIVE `Asset UID` 只绑定一个 `UserStockVault`，但可以绑定任意数量的 `marketId`。HTTP/API 只用于离线身份取证，运行时合约不依赖它；生产登记另需 finalized 状态和 Beacon/implementation 指纹。
+`OfficialStockRegistry` 继续使用稳定 `Asset UID` 与 canonical Stock Token 地址识别股票资产。Robinhood 官方目录中存在 chainId `4663` deployment 的全部资产都可准入；2026-09-02 点时观测为194项，这只是观测数量而非协议上限。每个 ACTIVE `Asset UID` 只绑定一个 `UserStockVault`，多个 UID 可以绑定同一共享 Vault；Registry 同时强制每个 Vault schema 只解析到一个 canonical Vault。每个 UID 可以绑定任意数量的 `marketId`。HTTP/API 只用于离线身份取证，运行时合约不依赖它；生产登记另需 finalized 状态和 Beacon/implementation 指纹。
 
 推荐关系：
 
@@ -287,6 +290,7 @@ V2 首发批准两个 content-addressed config，机器权威为 [`spec/v2_initi
 | `PonsBaselineRegistry` | 冻结参考 release、代码哈希、LaunchConfig 与差异版本 | 静默跟随外部 Pons 配置变化、修改已有 baseline |
 | `LaunchTemplateRegistry` | 追加式冻结 Token/Curve/Gauge/Hook/Locker 实现、codehash、feePolicy 与 executionSpec | 修改历史 template、让 status 进入 economics hash、原地升级旧市场 |
 | `ApprovedQuoteRegistry` | 版本化批准 native/ERC-20 Quote、逐资产 economics、decimals、状态和资产行为 | 修改历史 config、自动批准 Stock Token、把 native 与 WETH 混为同一资产 |
+| `LaunchConfigResolver` | 对三个独立配置 Registry 提供无缓存的强类型聚合读取 | 写配置、缓存配置、成为新的发行权威或强制可用性依赖 |
 | `TickerGardenFactoryV2` | 按 baseline 和极简模板创建 Ticker Meme、曲线、不可分配的 Gauge，支持受限原子 launch-and-buy，并登记 marketId | 限制一个 Asset UID 只能创建一个市场、提前开放未毕业 Gauge、接受未匹配 economics 或任意首买豁免地址 |
 | `TickerMemeToken` | 固定供应与普通 ERC-20 行为 | 按质押或 LP 持续增发 |
 | `PonsCompatibleCurve` | 精确复现 baseline 的 phantom reserve、报价、反狙击、部分成交、费用与 sweep | 自定义毕业金额、出售 `reservedTokens`、接收未获批 Quote 或把用户质押 STOCK 本金作为曲线资产 |
@@ -294,9 +298,9 @@ V2 首发批准两个 content-addressed config，机器权威为 [`spec/v2_initi
 | `LaunchLocker` | 每市场一个不可变实例，永久持有该毕业池仓位及其 LP fee 权益，并按冻结规则受限复投 | 共享多市场资金账本、提供管理员或创建者提款路径、把 locked LP fee 改分给其他受益人 |
 | `ImmutableFeePolicy V2-EXEC-3` | 固定 `PoolKey.fee=0`、afterSwap unspecified 1%、donate LP20%、take non-LP80% | 动态费率、核心费叠加、既有市场原地改费率 |
 | `TickerGardenMemeHook` | 以 Hook delta 收取总费，原子 donate LP 份额并把实际 non-LP Quote/Meme 手续费送入 FeeVault | 转换手续费资产、跨市场或跨资产净额结算、失败后改走另一收费路径 |
-| `UserStockVault` | 托管一种 canonical STOCK 的用户本金、保存本金与锁定总量 | 参与 Meme 奖励、借贷、做市、任意转账 |
+| `UserStockVault` | 每 schema 一个共享实例；按 Asset UID 隔离托管 canonical STOCK 本金及锁定总量 | 接受调用者指定 Token、参与 Meme 奖励、借贷、做市、任意转账 |
 | `AllocationManager` | 校验目标市场为 `PoolCreated` 且可新增仓位，锁定/释放 Vault 额度、协调 Gauge 原子更新 | 持有 STOCK、提前开放未毕业市场、复制用户分配、无界遍历 |
-| `MemeStockGauge` | 单 Meme active 聚合仓位、最多一个 pending 增量、30秒激活、24小时锁定及 Quote/Meme 双资产指数 | 托管或转移 Stock Token 本金、无界 pending/tranche、接受该市场 Quote/Meme 以外的第三种奖励资产 |
+| `MemeStockGauge` | 固定 implementation 与每市场 immutable-args clone；单 Meme active 聚合仓位、最多一个 pending 增量、30秒激活、24小时锁定及 Quote/Meme 双资产指数 | initializer、可升级实现、共享市场 storage、托管或转移 Stock Token 本金、接受第三种奖励资产 |
 | `MarketFeeAccounting` | 作为 FeeVault 的内部库/固定模块，验证收费来源、按实际 feeAsset 计算分桶并更新对应指数 | 托管第二份资产、维护与 FeeVault 重复的负债账本 |
 | `ProtocolFeeVault` | 唯一托管 non-LP 可分配 Quote/Meme 手续费；按实际资产原子验收，按 marketId/feeAsset/用途登记负债并支付 | 托管 LP fee、先记负债后收款、通用提款、策略投资、转换资产或跨资产混用 Bucket |
 | `MarketController` | 市场暂停、恢复与退休 | 阻止用户领取和本金逃生 |
@@ -306,31 +310,28 @@ V2 首发批准两个 content-addressed config，机器权威为 [`spec/v2_initi
 
 ### 6.1 Vault 原始余额
 
-`UserStockVault` 按 canonical Stock Token 原始最小单位记账，不使用美元价格作为质押权重，不在奖励热路径调用预言机。
+`UserStockVault` 按 Asset UID 对各 canonical Stock Token 的原始最小单位独立记账，不使用美元价格作为质押权重，不在奖励热路径调用预言机。调用者只提供 `assetUid`；Token 地址必须由 OfficialStockRegistry 解析并确认仍绑定当前 Vault。
 
 推荐状态：
 
 ```solidity
-IERC20 public immutable STOCK_TOKEN;
-bytes32 public immutable ASSET_UID;
-
-mapping(address user => uint256 amount) public deposited;
-mapping(address user => uint256 amount) public allocated;
-mapping(address user => mapping(bytes32 marketId => uint256 amount)) public allocation;
-mapping(bytes32 marketId => uint256 amount) public marketAllocated;
-uint256 public totalDeposited;
-uint256 public totalAllocated;
+mapping(bytes32 assetUid => mapping(address user => uint256 amount)) deposited;
+mapping(bytes32 assetUid => mapping(address user => uint256 amount)) allocated;
+mapping(bytes32 assetUid => mapping(address user => mapping(bytes32 marketId => uint256 amount))) allocation;
+mapping(bytes32 assetUid => mapping(bytes32 marketId => uint256 amount)) marketAllocated;
+mapping(bytes32 assetUid => uint256 amount) totalDeposited;
+mapping(bytes32 assetUid => uint256 amount) totalAllocated;
 ```
 
 始终满足：
 
 ```text
-allocated[user] <= deposited[user]
-allocated[user] = Σ allocation[user][marketId]
-marketAllocated[marketId] = Σ allocation[user][marketId]
-totalAllocated = Σ allocated[user] = Σ marketAllocated[marketId]
-totalAllocated <= totalDeposited
-free[user] = deposited[user] - allocated[user]
+allocated[assetUid][user] <= deposited[assetUid][user]
+allocated[assetUid][user] = Σ allocation[assetUid][user][marketId]
+marketAllocated[assetUid][marketId] = Σ allocation[assetUid][user][marketId]
+totalAllocated[assetUid] = Σ allocated[assetUid][user]
+totalAllocated[assetUid] <= totalDeposited[assetUid]
+free[assetUid][user] = deposited[assetUid][user] - allocated[assetUid][user]
 ```
 
 Vault 不发行可转让 ERC-20/4626 份额。用户权利由内部原始 STOCK 余额表示，避免份额转移绕过 Gauge 锁定。
@@ -350,7 +351,7 @@ Registry 未批准的 fee-on-transfer、rebasing 或异常 transfer 语义不得
 
 ### 6.3 分配不变量
 
-`AllocationManager` 是唯一可以让 Vault 的 `allocation[user][marketId]` 与聚合值增减的模块。所有 Gauge 只能由 Manager 更新 STOCK 份额，Gauge 自身不能从 Vault 转币。Vault 的市场级 allocation 是本金占用的权威；不得试图从 Gauge 反推本金。
+`AllocationManager` 是唯一可以让 Vault 的 `allocation[assetUid][user][marketId]` 与聚合值增减的模块。Manager 从 MarketRegistry 取得 canonical Asset UID 后显式传给 Vault，Vault 再复核 market 与 UID 匹配。所有 Gauge 只能由 Manager 更新 STOCK 份额，Gauge 自身不能从 Vault 转币。Vault 的资产/市场级 allocation 是本金占用的权威；不得试图从 Gauge 反推本金。
 
 对用户的每次增加：
 
@@ -358,11 +359,11 @@ Registry 未批准的 fee-on-transfer、rebasing 或异常 transfer 语义不得
 require(market.launchPhase == PoolCreated)
 require(market.status == ACTIVE)
 require(asset.status == ACTIVE)
-require(deposited[user] - allocated[user] >= amount)
-allocated[user] += amount
-allocation[user][marketId] += amount
-marketAllocated[marketId] += amount
-totalAllocated += amount
+require(deposited[assetUid][user] - allocated[assetUid][user] >= amount)
+allocated[assetUid][user] += amount
+allocation[assetUid][user][marketId] += amount
+marketAllocated[assetUid][marketId] += amount
+totalAllocated[assetUid] += amount
 Gauge.settleAndAddPending(user, amount, block.timestamp + 30 seconds)
 ```
 
@@ -370,15 +371,15 @@ Gauge.settleAndAddPending(user, amount, block.timestamp + 30 seconds)
 
 ```text
 Gauge.settleAndRemove(user, amount)
-allocated[user] -= amount
-allocation[user][marketId] -= amount
-marketAllocated[marketId] -= amount
-totalAllocated -= amount
+allocated[assetUid][user] -= amount
+allocation[assetUid][user][marketId] -= amount
+marketAllocated[assetUid][marketId] -= amount
+totalAllocated[assetUid] -= amount
 ```
 
 两个动作必须在同一笔交易中原子完成。任何一步失败都整体回滚，不能出现 Vault 已锁定但 Gauge 未记账，或 Gauge 已减仓但 Vault 仍锁定的状态。
 
-Vault 的 `allocated[user]` 同时覆盖 active 与 pending STOCK；30秒激活只改变 Gauge 内部有效权重，不移动 Token，也不再次修改 Vault。阶段门禁只限制增加方向：`allocate`、`increaseAllocation`、`depositAndAllocate` 和迁移目标都必须通过 `PoolCreated` 校验。减少、清零和迁出还必须满足 `now >= unlockAt`；市场后来 PAUSED/RETIRED 不能阻止到期结算和本金释放。单纯 `UserStockVault.deposit` 只形成通用空闲余额，不是市场质押，也不受某个 Meme 毕业状态影响。
+Vault 的 `allocated[assetUid][user]` 同时覆盖 active 与 pending STOCK；30秒激活只改变 Gauge 内部有效权重，不移动 Token，也不再次修改 Vault。阶段门禁只限制增加方向：`allocate`、`increaseAllocation`、`depositAndAllocate` 和迁移目标都必须通过 `PoolCreated` 校验。减少、清零和迁出还必须满足 `now >= unlockAt`；市场后来 PAUSED/RETIRED 不能阻止到期结算和本金释放。单纯 `UserStockVault.depositStock(assetUid, amount)` 只形成该资产的通用空闲余额，不是市场质押，也不受某个 Meme 毕业状态影响。
 
 ## 7. 每 Meme Gauge
 
@@ -494,7 +495,7 @@ for slotIndex = 0 .. 31:
 
 ### 7.4 `> 0.5 STOCK` 校验
 
-Gauge 只读取 Registry 在资产注册时快照并冻结的 `tokenDecimals`，要求 `1 <= tokenDecimals <= 36`：
+Gauge 只读取 Registry 在资产注册时快照并冻结的 `tokenDecimals`，要求 `6 <= tokenDecimals <= 18`：
 
 ```text
 HalfStockRawUnits = 5 × 10^(tokenDecimals - 1)
@@ -782,7 +783,7 @@ Creator selects ACTIVE Asset UID and ACTIVE quoteAssetConfigId
 → freezes the selected ACTIVE official Asset UID and canonical STOCK identity into MarketConfig
 → verifies caller-supplied expectedEconomics hash
 → creates full fixed-supply TickerMemeToken directly to PonsCompatibleCurve
-→ creates immutable MemeStockGauge clone in allocation-disabled, empty state
+→ creates a deterministic 301-byte MemeStockGauge immutable-args clone in allocation-disabled, empty state
 → registers marketId → assetUid/modules
 → registers pre-graduation fee source
 → emits MarketCreated
@@ -798,9 +799,10 @@ Factory 不检查 `assetUid` 是否已经存在其他市场；只检查本次 Me
 
 ```text
 User approves canonical STOCK once
-→ UserStockVault.deposit(amount)
+→ UserStockVault.depositStock(assetUid, amount)
 → AllocationManager.allocate(marketId, amount)
-→ verifies market.assetUid matches Vault.assetUid
+→ resolves market.assetUid and passes it to the canonical Vault
+→ Vault verifies market.assetUid and Registry token/Vault binding
 → verifies market.launchPhase == PoolCreated
 → verifies Market and Asset permit new allocation
 → verifies new position == 0 or > 0.5 STOCK
@@ -980,18 +982,18 @@ USDC、其他 ERC-20 Quote 和原生 Quote 的状态相互独立。
 
 ### 11.4 Gauge 故障逃生
 
-`UserStockVault` 提供只在终态 `EMERGENCY_EXIT` 开放的 `forceReleaseAllocation`。进入该终态前，市场必须连续 PAUSED 或 RETIRED 至少24小时，并由延迟 `RECOVERY_ROLE` 原子禁用所有 fee source 和旧 Gauge version、冻结两种资产的 staker recovery cap。旧 Gauge 和同一 marketId 均不得恢复或原地安装 successor。
+`UserStockVault` 提供只在终态 `EMERGENCY_EXIT` 开放的 `forceReleaseAllocation(assetUid, marketId)`。进入该终态前，市场必须已经离开 `NotGraduated`、连续 PAUSED 或 RETIRED 至少24小时，并由延迟 `RECOVERY_ROLE` 原子禁用所有 fee source 和旧 Gauge version、冻结两种资产的 staker recovery cap。Vault 先验证 market 属于显式 Asset UID，再只处理该资产账本。未毕业 Curve 只能暂停后恢复，不能被推进到 RETIRED/Emergency 而永久困住 Quote/Meme。旧 Gauge 和同一 marketId 均不得恢复或原地安装 successor。
 
 `forceReleaseAllocation` 只能：
 
-- 读取并清除 `msg.sender` 在指定 marketId 的已记录分配；
-- 减少同额 `allocated[msg.sender]`；
+- 读取并清除 `msg.sender` 在指定 `assetUid + marketId` 的已记录分配；
+- 减少同额 `allocated[assetUid][msg.sender]`；
 - 让本金变为用户自己的 free balance；
-- 发出包含 marketId、user、amount、reason 的事件。
+- 发出包含 assetUid、marketId、user、amount、recoveryEpoch 的事件。
 
 它不能指定 recipient、释放他人仓位、调用故障 Gauge 或领取手续费，也不直接转币；释放后用户另行提取 free balance。正常 PAUSED/RETIRED 路径仍遵守24小时最短锁定，只有 `EMERGENCY_EXIT` 可绕过。紧急释放以本金安全优先，不以奖励恢复完成为前提。
 
-若 Gauge 完全不可用，旧 Gauge 普通 staker claim 永久关闭。唯一外部入口是 `activateEmergencyExit(bytes32 marketId)`；调用者不能提交 epoch、snapshot、hash 或 cap。Controller 在激活块固定以 `block.number - 1` 为 snapshotBlock，读取旧 Registry/Gauge/FeeVault 状态，计算 stateHash，依次冻结 exact STAKER_REWARD caps、禁用 Gauge、禁用已有 Hook binding，最后才 commit Registry 终态；任一步失败全部回滚。奖励恢复使用该块以前的历史事件重放和独立审计生成 `marketId + recoveryEpoch + feeAsset` Merkle root；root 先由延迟 Recovery 角色 propose，经过48小时挑战期后 permissionless finalize，期间 Guardian 可取消。只有 ACTIVE root 可领取。每资产 declaredTotal 不得超过 Emergency 时冻结的 STAKER_REWARD cap。完整编码和生命周期见 [V2_EMERGENCY_RECOVERY_LIFECYCLE.md](./V2_EMERGENCY_RECOVERY_LIFECYCLE.md)。Creator/Platform 已确定的历史负债仍可按固定 beneficiary 领取。
+若 Gauge 完全不可用，旧 Gauge 普通 staker claim 永久关闭。唯一外部入口是 `activateEmergencyExit(bytes32 marketId)`；调用者不能提交 epoch、snapshot、hash 或 cap。Controller 读取 Registry 后必须先拒绝 `NotGraduated`，再在激活块固定以 `block.number - 1` 为 snapshotBlock，读取 Gauge/FeeVault 状态，计算 stateHash，依次冻结 exact STAKER_REWARD caps、禁用 Gauge、禁用已有 Hook binding，最后由 Registry 复核 phase 并 commit 终态；任一步失败全部回滚。奖励恢复使用该块以前的历史事件重放和独立审计生成 `marketId + recoveryEpoch + feeAsset` Merkle root；root 先由延迟 Recovery 角色 propose，经过48小时挑战期后 permissionless finalize，期间 Guardian 可取消。只有 ACTIVE root 可领取。每资产 declaredTotal 不得超过 Emergency 时冻结的 STAKER_REWARD cap。完整编码和生命周期见 [V2_EMERGENCY_RECOVERY_LIFECYCLE.md](./V2_EMERGENCY_RECOVERY_LIFECYCLE.md)。Creator/Platform 已确定的历史负债仍可按固定 beneficiary 领取。
 
 ### 11.5 规范性状态机
 
@@ -1006,7 +1008,7 @@ MarketStatus: ACTIVE, PAUSED, RETIRED, EMERGENCY_EXIT
 PoolBindingStatus: NONE, EXPECTED, INITIALIZE_SEEN, ACTIVE, DISABLED
 ```
 
-完整有向迁移、操作门禁和终态规则见 [V2_EXECUTION_SPEC.md](./V2_EXECUTION_SPEC.md) 第11节及 [spec/v2_execution_manifest.json](./spec/v2_execution_manifest.json)。实现不得用单一 `paused` 或 `graduated` bool 推断其他维度，也不得增加清单外的返回边。
+完整有向迁移、操作门禁和终态规则见 [V2_EXECUTION_SPEC.md](./V2_EXECUTION_SPEC.md) 第11节及 [spec/v2_execution_manifest.json](./spec/v2_execution_manifest.json)。维度独立但状态乘积受约束：`NotGraduated + RETIRED/EMERGENCY_EXIT` 非法。实现不得用单一 `paused` 或 `graduated` bool 推断其他维度，也不得增加清单外的返回边。
 
 ## 12. 上万个市场的扩展性
 
@@ -1054,13 +1056,15 @@ Indexer 维护但不成为权威来源：
 
 前端默认展示活跃、有流动性或用户已有仓位的市场，不一次加载上万个 Meme。钱包数量只能标注为地址数，不能标注为独立人数。
 
+前端不得把 Read API 返回的地址仅经格式校验后直接作为授权 spender 或交易 target。`TickerGardenFactoryV2.runtimeBindings()`一次返回不可变的OfficialStock、ApprovedQuote、Pons、LaunchTemplate、MarketRegistry、ProtocolFeeVault、AllocationManager和LaunchRouter信任根；Web先核对显式部署配置与这些根，再按需读取`asset`、`quoteConfig`、`baseline`、`launchTemplate`、`market`和`canonicalRoute`。API快照中的STOCK/Vault/Quote/Meme/Curve/Gauge/Router/Quoter/Hook/Locker及生命周期字段必须与链上记录一致，并在报价、approval模拟后、approval确认后和主交易模拟后重新验证；任一漂移都必须在钱包签名前fail closed。
+
 ## 13. 安全不变量
 
 生产实现和属性测试至少覆盖：
 
 ```text
-1. allocated[user] <= deposited[user] 始终成立。
-2. Σ 用户跨 Meme 分配不得超过其 Vault 本金。
+1. 对每个 Asset UID，`allocated[assetUid][user] <= deposited[assetUid][user]` 始终成立。
+2. Σ 用户在同一 Asset UID 下跨 Meme 分配不得超过该资产的 Vault 本金。
 3. 同一 STOCK 最小单位只能对应一份 Vault 余额和一份 active 或 pending 分配，不能重复计入多个 Meme。
 4. 每个非零目标仓位 `activeAmount + pendingAmount` 严格 > 0.5 STOCK；剩余仓位不得落入 (0, 0.5]。
 5. 不限制用户市场数量，但任何单次调用不得无界遍历用户、市场或历史 activation bucket。
@@ -1111,8 +1115,9 @@ Indexer 维护但不成为权威来源：
 
 推荐：
 
-- `UserStockVault` 保持极简且不可升级；若必须迁移，使用用户可退出、资产绑定、Timelock 延迟的 successor 流程。
+- `UserStockVault` 保持不可升级；Registry 强制每个 schema 只有一个 canonical Vault。新 schema 可部署 successor 并服务后续新资产，已有 Asset UID 继续 write-once 绑定；若必须迁移已有资产，使用新的 execution spec、用户可退出和 Timelock 延迟流程。
 - `MemeStockGauge` 使用不可升级 clone；Factory 版本决定新市场使用的实现。
+- Gauge clone 没有 initializer；八个身份/依赖字段来自 clone runtime，Factory 在部署后通过 `gaugeIdentity()` 复核，position/reward/activation/Emergency storage 仍按市场隔离。
 - `AllocationManager` 不提供任意外部调用、通用 delegatecall 或独立质押开放开关；所有增加方向必须读取发行状态机，升级或迁移必须保持 Vault 本金逃生。
 - `ProtocolFeeVault` 只允许登记费用源 credit 和固定 Gauge/beneficiary claim；不提供 Executor consume 或通用提款。
 - Hook 固定 `V2-EXEC-3` fee policy，不存在运行时 FeePolicyController；治理若要采用新策略，只能部署新 Factory/Hook 并为新市场使用新 `executionSpecId`。
@@ -1133,7 +1138,7 @@ Indexer 维护但不成为权威来源：
 | V1 | V2 |
 |---|---|
 | `marketIdForAsset(assetUid)` 一对一 | `marketId → assetUid` 多对一，列表由事件索引 |
-| 每市场 `StockStakingGauge` 托管并排放 Meme | 每 STOCK `UserStockVault` 托管本金，每 Meme `MemeStockGauge` 分该市场实际 Quote/Meme 手续费 |
+| 每市场 `StockStakingGauge` 托管并排放 Meme | 每 Vault schema 一个 MultiAsset `UserStockVault` 按 UID 隔离本金，每 Meme `MemeStockGauge` 分该市场实际 Quote/Meme 手续费 |
 | `EmissionController` | 删除 |
 | `RewardEscrow` | 删除 |
 | `CanonicalLPNFTGauge` | 删除 |
@@ -1161,6 +1166,7 @@ V2 编码前应至少冻结以下接口：
 IOfficialStockRegistryV2
 IPonsBaselineRegistry
 IApprovedQuoteRegistry
+ILaunchConfigResolver
 ITickerGardenFactoryV2
 IUserStockVault
 IAllocationManager
@@ -1181,8 +1187,8 @@ IMarketControllerV2
 关键用户动作：
 
 ```text
-depositStock(amount)
-withdrawFreeStock(amount)
+depositStock(assetUid, amount)
+withdrawFreeStock(assetUid, amount)
 launchAndBuy(createParams, firstBuyAmount, minTokensOut, recipient)
 allocate(marketId, amount)
 increaseAllocation(marketId, amount)

@@ -68,6 +68,7 @@ struct MarketRuntime {
 - 初始状态固定为 `NotGraduated + ACTIVE`、`poolId = 0`、`sourceVersion = 1`、`recoveryEpoch = 0`、`sweptAt = 0`、`statusSince = block.timestamp`、`restrictedSince = 0`。
 - ACTIVE fee source 由状态派生，不单独接受地址写入：`NotGraduated -> curve@sourceVersion`；`Swept/Rescued -> none`；`PoolCreated -> graduatedHook@sourceVersion`；`EMERGENCY_EXIT -> none`。
 - PAUSED/RETIRED 只改变业务门禁，不更换 source 身份或版本；所有交易源还必须检查 `marketStatus == ACTIVE`。
+- `NotGraduated` 只允许 `ACTIVE` 或可逆的 `PAUSED`；在 Curve 完成最终结算并进入 `Swept` 前，`RETIRED` 与 `EMERGENCY_EXIT` 均不可达，以免永久关闭仍持有 Quote/Meme 的 Curve。
 
 ## 3. 唯一写路径
 
@@ -79,8 +80,8 @@ struct MarketRuntime {
 | `markRescued(marketId)` | immutable `GraduationExecutor` | `Swept -> Rescued` | `block.timestamp >= sweptAt + baselineRescueDelay`；无 ACTIVE/残留 EXPECTED pool binding |
 | `setMarketPaused(marketId, reasonHash)` | immutable `MarketController` | `ACTIVE -> PAUSED`、更新 `statusSince/restrictedSince` | Controller 已校验 Guardian 权限 |
 | `setMarketActive(marketId)` | immutable `MarketController` | `PAUSED -> ACTIVE`、更新 `statusSince`、清零 `restrictedSince` | Controller 已执行 24h delayed unpause |
-| `setMarketRetired(marketId, reasonHash)` | immutable `MarketController` | `ACTIVE/PAUSED -> RETIRED`、更新 `statusSince`；已有 `restrictedSince` 保持 | Controller 已执行 48h delayed admin 操作 |
-| `commitEmergencyExit(marketId, snapshotBlock, stateHash)` | immutable `MarketController` | `PAUSED/RETIRED -> EMERGENCY_EXIT`、`sourceVersion + 1`、`recoveryEpoch + 1`、更新 `statusSince` | 前态连续至少24h；snapshotBlock 固定为激活块减1；Hook/Gauge 已在同一调用中永久禁用；recovery cap 已冻结 |
+| `setMarketRetired(marketId, reasonHash)` | immutable `MarketController` | `ACTIVE/PAUSED -> RETIRED`、更新 `statusSince`；已有 `restrictedSince` 保持 | `launchPhase != NotGraduated`；Controller 已执行 48h delayed admin 操作 |
+| `commitEmergencyExit(marketId, snapshotBlock, stateHash)` | immutable `MarketController` | `PAUSED/RETIRED -> EMERGENCY_EXIT`、`sourceVersion + 1`、`recoveryEpoch + 1`、更新 `statusSince` | `launchPhase != NotGraduated`；前态连续至少24h；snapshotBlock 固定为激活块减1；Hook/Gauge 已在同一调用中永久禁用；recovery cap 已冻结 |
 
 Registry 对模块地址使用 immutable/direct caller check；治理角色不能直接调用上述模块入口。AccessManager 权限位于 Factory/Controller 等业务入口，不能绕过其状态校验直接改 Registry。
 
@@ -95,19 +96,19 @@ Swept --GraduationExecutor/after-7d--> Rescued [terminal]
 MarketStatus
 ACTIVE --Controller/pause--> PAUSED
 PAUSED --Controller/delayed-unpause--> ACTIVE
-ACTIVE --Controller/delayed-retire--> RETIRED
-PAUSED --Controller/delayed-retire--> RETIRED
-PAUSED --Controller/recovery-after-24h--> EMERGENCY_EXIT [terminal]
-RETIRED --Controller/recovery-after-24h--> EMERGENCY_EXIT [terminal]
+ACTIVE --Controller/delayed-retire; phase != NotGraduated--> RETIRED
+PAUSED --Controller/delayed-retire; phase != NotGraduated--> RETIRED
+PAUSED --Controller/recovery-after-24h; phase != NotGraduated--> EMERGENCY_EXIT [terminal]
+RETIRED --Controller/recovery-after-24h; phase != NotGraduated--> EMERGENCY_EXIT [terminal]
 ```
 
-没有清单外返回边。`LaunchPhase` 与 `MarketStatus` 正交：暂停不会回滚毕业阶段，毕业也不会自动恢复市场状态。
+没有清单外返回边。`LaunchPhase` 与 `MarketStatus` 是独立维度，但其笛卡尔积受安全约束：`NotGraduated + RETIRED/EMERGENCY_EXIT` 非法；暂停不会回滚毕业阶段，毕业也不会自动恢复市场状态。
 
 ## 5. 原子性与读路径
 
 - 最终 Curve 交易按“最终成交/退款 -> 最终 sweep -> 停止新交易 -> `markSwept` -> 调用 `GraduationExecutor.graduateFromCurve`”执行；前四步任一步失败则整笔回滚，毕业子调用失败由 Curve 捕获并只保留 `Swept`。
 - 毕业子调用按“部署 per-market Locker -> 登记 EXPECTED pool -> initialize -> 建仓 -> 永久锁 LP -> 激活 Hook binding -> `commitPoolCreated`”执行；Registry commit 必须最后发生，任一步失败则整个子调用回滚并保留外层已提交的 `Swept`。
-- Emergency 外部 ABI 只有 `activateEmergencyExit(marketId)`；Controller 按“读取旧状态并计算 epoch/snapshot/hash -> FeeVault 冻结 exact caps/snapshot -> 禁用 Gauge -> 禁用 Hook -> `commitEmergencyExit`”执行；Registry commit 最后发生并与前述动作原子。
+- Emergency 外部 ABI 只有 `activateEmergencyExit(marketId)`；Controller 读取 Registry 后先拒绝 `NotGraduated`，再按“计算 epoch/snapshot/hash -> FeeVault 冻结 exact caps/snapshot -> 禁用 Gauge -> 禁用 Hook -> `commitEmergencyExit`”执行；Registry 再次校验 phase 且 commit 最后发生，并与前述动作原子。
 - Curve、Hook、FeeVault、AllocationManager、Vault 和 Gauge 只通过 Registry view 读取 canonical 状态。Indexer/Backend 只做缓存与展示，不参与安全判断。
 - Hook 的 `PoolBindingStatus` 与 Registry 必须满足：`PoolCreated` 时 exact pool binding 为 ACTIVE；`EMERGENCY_EXIT` 时其为 DISABLED。发现不一致时所有资金写入口 fail closed。
 
@@ -122,3 +123,4 @@ RETIRED --Controller/recovery-after-24h--> EMERGENCY_EXIT [terminal]
 7. Factory 只能登记，Curve 只能关闭自己的曲线阶段，Graduation 只能推进 Swept，Controller 只能改变 MarketStatus。
 8. Vault/Gauge/Hook 的本地执行状态不能单独开放交易、收费、分配或本金恢复。
 9. Emergency 连续24小时门槛使用 `restrictedSince`；`PAUSED -> RETIRED` 保持该时间，恢复 ACTIVE 才清零。
+10. 任何 `NotGraduated` 市场均不能进入 `RETIRED` 或 `EMERGENCY_EXIT`；暂停后始终保留延迟 unpause 回到 Curve 交易/最终结算的路径。

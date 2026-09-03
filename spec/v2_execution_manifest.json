@@ -151,12 +151,25 @@
       "MarketController",
       "ProtocolFeeVault",
       "AllocationManager",
+      "UserStockVault",
+      "LaunchConfigResolver",
       "TickerGardenMemeHook",
       "GraduationExecutor",
       "UniswapV4PoolManager"
     ],
-    "perAssetModules": ["UserStockVault"],
+    "perAssetModules": [],
     "perMarketCreate2AtLaunch": ["TickerMemeTokenV2", "PonsCompatibleCurve", "MemeStockGauge"],
+    "perMarketFullCreate2AtLaunch": ["TickerMemeTokenV2", "PonsCompatibleCurve"],
+    "perMarketCloneCreate2AtLaunch": ["MemeStockGauge"],
+    "cloneImplementations": {
+      "MemeStockGauge": {
+        "kind": "ERC1167_IMMUTABLE_ARGS",
+        "identityWords": 8,
+        "initializer": false,
+        "instanceRuntimeBytes": 301,
+        "storageScope": "ONE_ISOLATED_STORAGE_DOMAIN_PER_MARKET"
+      }
+    },
     "perMarketCreate2AtGraduation": ["LaunchLocker"],
     "componentKinds": ["TOKEN", "CURVE", "GAUGE", "LOCKER"],
     "launchLockerCustodyScope": "ONE_IMMUTABLE_LOCKER_PER_MARKET",
@@ -339,13 +352,21 @@
     ]
   },
   "vault": {
-    "custodyScope": "ONE_USER_STOCK_VAULT_PER_ASSET_UID",
+    "custodyScope": "ONE_MULTI_ASSET_USER_STOCK_VAULT_PER_VAULT_SCHEMA_VERSION",
+    "initialDeploymentCount": 1,
+    "schemaIdentity": "keccak256(TickerGarden.UserStockVault.MultiAsset.v1)",
+    "schemaUniqueness": "OFFICIAL_STOCK_REGISTRY_ENFORCES_ONE_CANONICAL_VAULT_PER_SCHEMA",
+    "schemaDiscovery": ["vaultSchemaId(address)", "vaultForSchema(bytes32)", "vaultIdentity()"],
+    "assetKey": "EXPLICIT_CANONICAL_ASSET_UID",
+    "tokenResolution": "OFFICIAL_STOCK_REGISTRY_ONLY_NO_CALLER_SUPPLIED_TOKEN",
+    "onchainAssetEnumeration": false,
+    "versioning": "NEW_SCHEMA_DEPLOYS_SUCCESSOR_VAULT_NEW_ASSETS_BIND_TO_SELECTED_VERSION_EXISTING_BINDINGS_STAY_WRITE_ONCE",
     "gaugeCustodiesStock": false,
-    "allocationKey": "USER_MARKET_ID",
+    "allocationKey": "ASSET_UID_USER_MARKET_ID",
     "aggregates": [
-      "USER_ALLOCATED",
-      "MARKET_ALLOCATED",
-      "TOTAL_ALLOCATED"
+      "ASSET_USER_ALLOCATED",
+      "ASSET_MARKET_ALLOCATED",
+      "ASSET_TOTAL_ALLOCATED"
     ],
     "normalReleaseRequiresGauge": true,
     "emergencyReleaseRequiresGauge": false,
@@ -426,6 +447,10 @@
       "Rescued": "NONE"
     },
     "marketStatusGate": "ACTIVE_REQUIRED_FOR_TRADING_AND_NEW_ALLOCATION",
+    "forbiddenStateProducts": [
+      {"launchPhase":"NotGraduated","marketStatus":"RETIRED"},
+      {"launchPhase":"NotGraduated","marketStatus":"EMERGENCY_EXIT"}
+    ],
     "mutations": [
       {"function":"registerMarket(bytes32,MarketConfig)","caller":"IMMUTABLE_FACTORY","writes":["MarketConfig","MarketRuntime","marketIdByToken"]},
       {"function":"markSwept(bytes32)","caller":"EXACT_REGISTERED_CURVE","transition":["NotGraduated","Swept"],"writes":["launchPhase","sweptAt"]},
@@ -433,8 +458,8 @@
       {"function":"markRescued(bytes32)","caller":"IMMUTABLE_GRADUATION_EXECUTOR","transition":["Swept","Rescued"],"writes":["launchPhase"],"minimumDelaySecondsFromSweptAt":604800},
       {"function":"setMarketPaused(bytes32,bytes32)","caller":"IMMUTABLE_MARKET_CONTROLLER","transition":["ACTIVE","PAUSED"],"writes":["marketStatus","statusSince","restrictedSince"]},
       {"function":"setMarketActive(bytes32)","caller":"IMMUTABLE_MARKET_CONTROLLER","transition":["PAUSED","ACTIVE"],"writes":["marketStatus","statusSince","restrictedSince"]},
-      {"function":"setMarketRetired(bytes32,bytes32)","caller":"IMMUTABLE_MARKET_CONTROLLER","transitions":[["ACTIVE","RETIRED"],["PAUSED","RETIRED"]],"writes":["marketStatus","statusSince","restrictedSince"],"restrictedSinceEffect":"SET_IF_ZERO_ELSE_PRESERVE"},
-      {"function":"commitEmergencyExit(bytes32,uint64,bytes32)","caller":"IMMUTABLE_MARKET_CONTROLLER","transitions":[["PAUSED","EMERGENCY_EXIT"],["RETIRED","EMERGENCY_EXIT"]],"writes":["marketStatus","statusSince","sourceVersion","recoveryEpoch"],"sourceVersionEffect":"CHECKED_INCREMENT","recoveryEpochEffect":"CHECKED_INCREMENT"}
+      {"function":"setMarketRetired(bytes32,bytes32)","caller":"IMMUTABLE_MARKET_CONTROLLER","transitions":[["ACTIVE","RETIRED"],["PAUSED","RETIRED"]],"forbiddenLaunchPhases":["NotGraduated"],"writes":["marketStatus","statusSince","restrictedSince"],"restrictedSinceEffect":"SET_IF_ZERO_ELSE_PRESERVE"},
+      {"function":"commitEmergencyExit(bytes32,uint64,bytes32)","caller":"IMMUTABLE_MARKET_CONTROLLER","transitions":[["PAUSED","EMERGENCY_EXIT"],["RETIRED","EMERGENCY_EXIT"]],"forbiddenLaunchPhases":["NotGraduated"],"writes":["marketStatus","statusSince","sourceVersion","recoveryEpoch"],"sourceVersionEffect":"CHECKED_INCREMENT","recoveryEpochEffect":"CHECKED_INCREMENT"}
     ],
     "subordinateState": {
       "TickerGardenMemeHook.PoolBindingStatus": "EXECUTION_HANDSHAKE_ONLY",

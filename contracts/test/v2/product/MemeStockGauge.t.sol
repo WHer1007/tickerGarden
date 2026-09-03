@@ -2,16 +2,20 @@
 pragma solidity 0.8.26;
 
 import {Test} from "forge-std/Test.sol";
+import {Clones} from "@openzeppelin/contracts/proxy/Clones.sol";
+import {Errors} from "@openzeppelin/contracts/utils/Errors.sol";
 
 import {
     ActivationSlot,
     ActivationSnapshot,
+    GaugeIdentity,
     IMemeStockGauge,
     PositionView,
     RewardStateView
 } from "../../../src/v2/interfaces/IV2Protocol.sol";
-import {MemeStockGauge, MemeStockGaugeInit} from "../../../src/v2/modules/MemeStockGauge.sol";
+import {MemeStockGauge} from "../../../src/v2/modules/MemeStockGauge.sol";
 import {MemeStockGaugeAccumulators} from "../../../src/v2/shared/MemeStockGaugeAccumulators.sol";
+import {MemeStockGaugeClone} from "../../../src/v2/shared/MemeStockGaugeClone.sol";
 import {MemeStockGaugeLockedPositions} from "../../../src/v2/shared/MemeStockGaugeLockedPositions.sol";
 
 contract MockGaugeToken {}
@@ -71,6 +75,7 @@ contract MemeStockGaugeTest is Test {
     MockGaugeController internal controller;
     MockGaugeToken internal quote;
     MockGaugeToken internal meme;
+    MemeStockGauge internal gaugeImplementation;
     MemeStockGauge internal gauge;
 
     function setUp() public {
@@ -79,12 +84,14 @@ contract MemeStockGaugeTest is Test {
         controller = new MockGaugeController();
         quote = new MockGaugeToken();
         meme = new MockGaugeToken();
+        gaugeImplementation = new MemeStockGauge();
         gauge = _deploy(address(quote), address(meme));
         vm.warp(1_000_000);
         vm.roll(100);
     }
 
-    function test_constructorCreatesEmptyImmutableRewardDomainWithoutInitializer() public {
+    function test_cloneCreatesEmptyImmutableRewardDomainWithoutInitializer() public {
+        assertEq(address(gauge).code.length, 301);
         assertEq(gauge.storedTotalActiveStock(), 0);
         assertEq(gauge.effectiveTotalActiveStock(), 0);
         assertEq(gauge.totalPendingStock(), 0);
@@ -93,14 +100,24 @@ contract MemeStockGaugeTest is Test {
 
         (bool initialized,) = address(gauge).call(abi.encodeWithSignature("initialize(bytes)"));
         assertFalse(initialized);
+
+        GaugeIdentity memory identity = gauge.gaugeIdentity();
+        assertEq(identity.marketId, MARKET_ID);
+        assertEq(identity.assetUid, ASSET_UID);
+        assertEq(identity.quoteAssetConfigId, QUOTE_CONFIG_ID);
+        assertEq(identity.allocationManager, address(manager));
+        assertEq(identity.protocolFeeVault, address(feeVault));
+        assertEq(identity.marketController, address(controller));
+        assertEq(identity.quoteAsset, address(quote));
+        assertEq(identity.memeToken, address(meme));
     }
 
-    function test_constructorRejectsInvalidIdentityAssetsAndAliasedDependencies() public {
-        MemeStockGaugeInit memory init = _validInit(address(quote), address(meme));
+    function test_cloneDeploymentRejectsInvalidIdentityAssetsAndAliasedDependencies() public {
+        GaugeIdentity memory init = _validInit(address(quote), address(meme));
         init.marketId = bytes32(0);
         vm.expectRevert(
             abi.encodeWithSelector(
-                MemeStockGauge.InvalidGaugeIdentity.selector,
+                MemeStockGaugeClone.InvalidGaugeIdentity.selector,
                 init.marketId,
                 init.assetUid,
                 init.quoteAssetConfigId,
@@ -108,13 +125,13 @@ contract MemeStockGaugeTest is Test {
                 init.memeToken
             )
         );
-        new MemeStockGauge(init);
+        this.deployGaugeCloneForTest(bytes32("BAD_MARKET"), init);
 
         init = _validInit(address(quote), address(meme));
         init.quoteAsset = address(0xBAD);
         vm.expectRevert(
             abi.encodeWithSelector(
-                MemeStockGauge.InvalidGaugeIdentity.selector,
+                MemeStockGaugeClone.InvalidGaugeIdentity.selector,
                 init.marketId,
                 init.assetUid,
                 init.quoteAssetConfigId,
@@ -122,29 +139,85 @@ contract MemeStockGaugeTest is Test {
                 init.memeToken
             )
         );
-        new MemeStockGauge(init);
+        this.deployGaugeCloneForTest(bytes32("BAD_QUOTE"), init);
 
         init = _validInit(address(quote), address(meme));
         init.protocolFeeVault = address(manager);
         vm.expectRevert(
             abi.encodeWithSelector(
-                MemeStockGauge.InvalidGaugeDependencies.selector,
+                MemeStockGaugeClone.InvalidGaugeDependencies.selector,
                 init.allocationManager,
                 init.protocolFeeVault,
                 init.marketController
             )
         );
-        new MemeStockGauge(init);
+        this.deployGaugeCloneForTest(bytes32("BAD_DEPS"), init);
+    }
+
+    function test_implementationAndMalformedCloneCannotActAsGauge() public {
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                MemeStockGaugeClone.InvalidGaugeCloneRuntime.selector,
+                address(gaugeImplementation),
+                address(gaugeImplementation).code.length,
+                301
+            )
+        );
+        gaugeImplementation.storedTotalActiveStock();
+
+        address malformed = Clones.cloneWithImmutableArgs(address(gaugeImplementation), hex"1234");
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                MemeStockGaugeClone.InvalidGaugeCloneRuntime.selector, malformed, malformed.code.length, 301
+            )
+        );
+        MemeStockGauge(malformed).gaugeIdentity();
+    }
+
+    function test_cloneIdentityAndStorageAreIsolatedAcrossMarkets() public {
+        GaugeIdentity memory secondIdentity = _validInit(address(quote), address(meme));
+        secondIdentity.marketId = keccak256("second-market");
+        secondIdentity.assetUid = keccak256("second-stock");
+        secondIdentity.quoteAssetConfigId = keccak256("second-quote");
+        MemeStockGauge second = MemeStockGauge(
+            MemeStockGaugeClone.deployDeterministic(
+                address(gaugeImplementation), bytes32("SECOND_GAUGE"), secondIdentity
+            )
+        );
+
+        _schedule(ALICE, 100);
+        assertEq(gauge.totalPendingStock(), 100);
+        assertEq(second.totalPendingStock(), 0);
+        assertEq(second.gaugeIdentity().marketId, secondIdentity.marketId);
+        assertNotEq(gauge.gaugeIdentity().marketId, second.gaugeIdentity().marketId);
+
+        uint64 snapshotBlock = uint64(block.number - 1);
+        controller.disable(gauge, 1, snapshotBlock, STATE_HASH);
+        (uint64 generation, uint64 unlockAt) = _times();
+        manager.add(second, BOB, 50, generation, unlockAt);
+        assertEq(second.totalPendingStock(), 50);
+        assertEq(gauge.totalPendingStock(), 100);
+        vm.expectRevert(
+            abi.encodeWithSelector(MemeStockGauge.GaugeEmergencyDisabled.selector, 1, snapshotBlock, STATE_HASH)
+        );
+        gauge.checkpointActivations();
+    }
+
+    function test_duplicateCloneSaltRevertsWithoutNonceFallback() public {
+        GaugeIdentity memory identity = _validInit(address(quote), address(meme));
+        bytes32 salt = keccak256(abi.encode(address(quote), address(meme)));
+        vm.expectRevert(Errors.FailedDeployment.selector);
+        this.deployGaugeCloneForTest(salt, identity);
     }
 
     function test_nativeQuoteIsSupportedButCannotAliasMeme() public {
         MemeStockGauge nativeGauge = _deploy(address(0), address(meme));
         _assertRewardStateFor(nativeGauge, address(0), 0, 0);
 
-        MemeStockGaugeInit memory init = _validInit(address(meme), address(meme));
+        GaugeIdentity memory init = _validInit(address(meme), address(meme));
         vm.expectRevert(
             abi.encodeWithSelector(
-                MemeStockGauge.InvalidGaugeIdentity.selector,
+                MemeStockGaugeClone.InvalidGaugeIdentity.selector,
                 init.marketId,
                 init.assetUid,
                 init.quoteAssetConfigId,
@@ -152,7 +225,7 @@ contract MemeStockGaugeTest is Test {
                 init.memeToken
             )
         );
-        new MemeStockGauge(init);
+        this.deployGaugeCloneForTest(bytes32("ALIASED_ASSETS"), init);
     }
 
     function test_allMutationCallersAreFixedAndCannotBeBypassed() public {
@@ -444,6 +517,7 @@ contract MemeStockGaugeTest is Test {
     }
 
     function test_canonicalSelectorsMatchInterface() public pure {
+        assertEq(MemeStockGauge.gaugeIdentity.selector, IMemeStockGauge.gaugeIdentity.selector);
         assertEq(MemeStockGauge.addPending.selector, IMemeStockGauge.addPending.selector);
         assertEq(MemeStockGauge.removeAllocation.selector, IMemeStockGauge.removeAllocation.selector);
         assertEq(MemeStockGauge.checkpointActivations.selector, IMemeStockGauge.checkpointActivations.selector);
@@ -451,6 +525,10 @@ contract MemeStockGaugeTest is Test {
         assertEq(MemeStockGauge.creditStakerFee.selector, IMemeStockGauge.creditStakerFee.selector);
         assertEq(MemeStockGauge.consumeClaimable.selector, IMemeStockGauge.consumeClaimable.selector);
         assertEq(MemeStockGauge.disableForEmergency.selector, IMemeStockGauge.disableForEmergency.selector);
+    }
+
+    function deployGaugeCloneForTest(bytes32 salt, GaugeIdentity calldata identity) external returns (address) {
+        return MemeStockGaugeClone.deployDeterministic(address(gaugeImplementation), salt, identity);
     }
 
     function _schedule(address user, uint256 amount) private returns (uint64 generation, uint64 unlockAt) {
@@ -464,11 +542,16 @@ contract MemeStockGaugeTest is Test {
     }
 
     function _deploy(address quoteAsset, address memeToken) private returns (MemeStockGauge) {
-        return new MemeStockGauge(_validInit(quoteAsset, memeToken));
+        GaugeIdentity memory identity = _validInit(quoteAsset, memeToken);
+        return MemeStockGauge(
+            MemeStockGaugeClone.deployDeterministic(
+                address(gaugeImplementation), keccak256(abi.encode(quoteAsset, memeToken)), identity
+            )
+        );
     }
 
-    function _validInit(address quoteAsset, address memeToken) private view returns (MemeStockGaugeInit memory init) {
-        init = MemeStockGaugeInit({
+    function _validInit(address quoteAsset, address memeToken) private view returns (GaugeIdentity memory init) {
+        init = GaugeIdentity({
             marketId: MARKET_ID,
             assetUid: ASSET_UID,
             quoteAssetConfigId: QUOTE_CONFIG_ID,
