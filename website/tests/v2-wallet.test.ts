@@ -25,7 +25,7 @@ const request = createContractWriteRequest({
   args: [hash("1"), 1n],
 });
 const receipt = (status: "success" | "reverted" = "success") => ({ status }) as TransactionReceipt;
-const snapshot = { executionSpecId: "V2-EXEC-4", revision: "100:0xaa", syncStatus: "synced" as const };
+const snapshot = { executionSpecId: "V2-EXEC-5", revision: "100:0xaa", syncStatus: "synced" as const };
 
 function clients(options: {
   chainId?: number;
@@ -91,7 +91,7 @@ test("Robinhood Chain identity matches the frozen execution network", () => {
 });
 
 test("generated ABI bridge exactly matches all nineteen compiled E102 interface artifacts", async () => {
-  assert.equal(V2_EXECUTION_SPEC_ID, "V2-EXEC-4");
+  assert.equal(V2_EXECUTION_SPEC_ID, "V2-EXEC-5");
   assert.equal(V2_ABI_SOURCES.length, 19);
   assert.deepEqual(Object.keys(v2Abis).sort(), V2_ABI_SOURCES.map((source) => source.module).sort());
   for (const source of V2_ABI_SOURCES) {

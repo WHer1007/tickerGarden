@@ -36,7 +36,7 @@ function market(suffix: string, assetUid = id("9")): MarketReadModel {
 }
 
 const repository = new InMemoryReadModelRepository({
-    executionSpecId: "V2-EXEC-4",
+    executionSpecId: "V2-EXEC-5",
   reconciliationAlerts: [],
   sync,
   markets: [market("3"), market("1"), market("2"), market("4", id("99"))],
@@ -76,7 +76,7 @@ test("health endpoint exposes read-only runtime and explicit sync state", async 
   const result = await call(baseUrl, "/health");
   assert.equal(result.statusCode, 200);
   assert.deepEqual(result.body, { ...HEALTH_RESPONSE, sync });
-  assert.equal(EXECUTION_SPEC_ID, "V2-EXEC-4");
+  assert.equal(EXECUTION_SPEC_ID, "V2-EXEC-5");
 }));
 
 test("market discovery is canonical, filterable, and cursor paginated with a hard limit", async () => withServer(async (baseUrl) => {
@@ -133,19 +133,19 @@ test("all write methods fail closed and unknown routes remain JSON 404", async (
 
 test("repository rejects unreconciled, noncanonical, or internally inconsistent snapshots", () => {
   assert.throws(() => new InMemoryReadModelRepository({
-    executionSpecId: "V2-EXEC-4", reconciliationAlerts: [{}] as never,
+    executionSpecId: "V2-EXEC-5", reconciliationAlerts: [{}] as never,
     sync, markets: [market("1")],
   }), /not V2-reconciled/);
   assert.throws(() => new InMemoryReadModelRepository({
-    executionSpecId: "V2-EXEC-4", reconciliationAlerts: [], sync,
+    executionSpecId: "V2-EXEC-5", reconciliationAlerts: [], sync,
     markets: [{ ...market("1"), canonicalRoute: { ...market("1").canonicalRoute, hook: address("99") } }],
   }), /PoolKey hook/);
   assert.throws(() => new InMemoryReadModelRepository({
-    executionSpecId: "V2-EXEC-4", reconciliationAlerts: [], sync, markets: [market("1")],
+    executionSpecId: "V2-EXEC-5", reconciliationAlerts: [], sync, markets: [market("1")],
     positions: [{ ...repository.positions(address("a"))[0]!, allocated: "8" }],
   }), /allocated must equal pending plus active/);
   assert.throws(() => new InMemoryReadModelRepository({
-    executionSpecId: "V2-EXEC-4", reconciliationAlerts: [], sync,
+    executionSpecId: "V2-EXEC-5", reconciliationAlerts: [], sync,
     configs: [{ kind: "asset", id: id("9"), status: 1, values: { minimumAllocation: "413" }, source }],
   }), /minimumAllocation/);
 });

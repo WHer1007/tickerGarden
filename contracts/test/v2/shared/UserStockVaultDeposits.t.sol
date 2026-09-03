@@ -73,7 +73,7 @@ contract UserStockVaultDepositsHarness is UserStockVaultDeposits, IV2QuoteTransf
             address(_officialStockRegistry),
             address(_marketRegistry),
             _allocationManager,
-            keccak256("TickerGarden.UserStockVault.MultiAsset.v2")
+            keccak256("TickerGarden.UserStockVault.MultiAsset.v3")
         );
     }
 

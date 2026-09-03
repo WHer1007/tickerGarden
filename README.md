@@ -4,7 +4,7 @@ This workspace is a clean V2 implementation namespace. The previous V1 product r
 
 Current truth:
 
-- Execution-spec identity: `V2-EXEC-4`.
+- Execution-spec identity: `V2-EXEC-5`.
 - V2 documentation and machine-readable specification files are preserved.
 - Solidity has a generated, compiled interface baseline and nineteen product modules behind artifact-level ABI checks. `MarketRegistryV2` implements immutable market state and transitions; the local product and real-balance invariant evidence closes the `Emergency/Retired × NotGraduated` recovery gap, while target-chain Fork and deployment evidence remain open. The four configuration registries append-only freeze canonical STOCK, Quote economics, Pons behavior baselines, and launch component identities through an immutable AccessManager authority. The Indexer provides artifact-derived handlers, replay/reorg checkpoints and reconciliation; the Backend remains a read-only boundary, the maintenance runner submits only permissionless calls through an injected transport, and the Web binds every funds-sensitive API address back to immutable Factory/Registry views before quote, simulation or signature.
 - Product-contract, Fork, and deployment CI tracks are independent. Product is `ACTIVE` with nineteen compiled modules, Fork is `FIXTURES_ACTIVE` with deterministic local controls but no live replay, and deployment tooling is `ACTIVE` because its schema and read-only live preflight layers are complete. None of these states means a complete product, deployment candidate, or production evidence exists.

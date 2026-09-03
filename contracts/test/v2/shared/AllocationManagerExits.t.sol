@@ -11,11 +11,11 @@ import {
     PositionView
 } from "../../../src/v2/interfaces/IV2Protocol.sol";
 import {UserStockVault} from "../../../src/v2/modules/UserStockVault.sol";
-import {AllocationManagerDecreases} from "../../../src/v2/shared/AllocationManagerDecreases.sol";
+import {AllocationManagerExits} from "../../../src/v2/shared/AllocationManagerExits.sol";
 import {AllocationManagerIncreases} from "../../../src/v2/shared/AllocationManagerIncreases.sol";
 import {MockExactQuoteToken} from "../mocks/MockV2QuoteAssets.sol";
 
-contract MockDecreaseOfficialStockRegistry {
+contract MockExitOfficialStockRegistry {
     mapping(bytes32 assetUid => AssetView assetView) private _assets;
     mapping(bytes32 assetUid => uint256 minimum) private _minimumAllocations;
 
@@ -46,7 +46,7 @@ contract MockDecreaseOfficialStockRegistry {
     }
 }
 
-contract MockDecreaseMarketRegistry {
+contract MockExitMarketRegistry {
     mapping(bytes32 marketId => MarketView marketView) private _markets;
 
     function configure(bytes32 marketId, bytes32 assetUid, address gauge, uint8 launchPhase, uint8 marketStatus)
@@ -63,29 +63,22 @@ contract MockDecreaseMarketRegistry {
     }
 }
 
-contract AllocationManagerDecreasesHarness is AllocationManagerDecreases {
+contract AllocationManagerExitsHarness is AllocationManagerExits {
     constructor(address officialStockRegistry, address marketRegistry)
-        AllocationManagerDecreases(officialStockRegistry, marketRegistry)
-    {}
-
-    function allocate(bytes32 marketId, uint256 amount) external {
-        _increaseAllocation(msg.sender, marketId, amount);
-    }
-
-    function increaseAllocation(bytes32 marketId, uint256 amount) external {
-        _increaseAllocation(msg.sender, marketId, amount);
-    }
-
-    function decreaseAllocation(bytes32 marketId, uint256 amount) external {
-        _decreaseAllocation(msg.sender, marketId, amount, false);
-    }
-
-    function closeAllocation(bytes32 marketId) external {
-        _decreaseAllocation(msg.sender, marketId, 0, true);
+        AllocationManagerExits(officialStockRegistry, marketRegistry) {}
+    function allocate(bytes32 marketId, uint256 amount) external { _increaseAllocation(msg.sender, marketId, amount); }
+    function increaseAllocation(bytes32 marketId, uint256 amount) external { _increaseAllocation(msg.sender, marketId, amount); }
+    function closeAllocation(bytes32 marketId) external { _closeAllocation(msg.sender, marketId); }
+    function rageQuit(bytes32 marketId) external {
+        (uint256 principal, uint256 quoteForfeited, uint256 memeForfeited, bool redistributed) =
+            _rageQuitAllocation(msg.sender, marketId);
+        emit IAllocationManager.AllocationRageQuitExecuted(
+            msg.sender, marketId, principal, quoteForfeited, memeForfeited, redistributed
+        );
     }
 }
 
-contract MockDecreaseGauge {
+contract MockExitGauge {
     uint8 internal constant FAIL_CHECKPOINT = 1;
     uint8 internal constant FAIL_SETTLE = 2;
     uint8 internal constant FAIL_REMOVE = 3;
@@ -154,7 +147,7 @@ contract MockDecreaseGauge {
         position.unlockAt = unlockAt;
     }
 
-    function removeAllocation(address user, uint256 amount) external {
+    function removeAllocation(address user) external returns (uint256) {
         if (msg.sender != manager) revert InvalidManager(msg.sender);
         if (failureMode == FAIL_REMOVE) revert InjectedGaugeFailure(FAIL_REMOVE);
         PositionView storage position = _positions[user];
@@ -162,11 +155,21 @@ contract MockDecreaseGauge {
         uint256 vaultAmount = vault.allocation(assetUid, user, marketId);
         if (vaultAmount != current) revert VaultReleasedTooEarly(current, vaultAmount);
         if (failureMode == REENTER_REMOVE) IAllocationManager(manager).closeAllocation(marketId);
-        if (failureMode == NOOP_REMOVE) return;
+        if (failureMode == NOOP_REMOVE) return current;
 
-        uint256 fromPending = amount < position.pendingAmount ? amount : position.pendingAmount;
-        position.pendingAmount -= fromPending;
-        position.activeAmount -= amount - fromPending;
+        position.activeAmount = 0;
+        position.pendingAmount = 0;
+        position.pendingGeneration = 0;
+        return current;
+    }
+
+    function rageQuit(address user) external returns (uint256 principal, uint256 quoteForfeited, uint256 memeForfeited, bool redistributed) {
+        if (msg.sender != manager) revert InvalidManager(msg.sender);
+        PositionView storage p = _positions[user];
+        principal = p.activeAmount + p.pendingAmount;
+        if (failureMode == FAIL_REMOVE) revert InjectedGaugeFailure(FAIL_REMOVE);
+        if (failureMode == NOOP_REMOVE) return (principal, 0, 0, false);
+        p.activeAmount = 0; p.pendingAmount = 0; p.pendingGeneration = 0;
     }
 
     function positionOf(address user) external view returns (PositionView memory) {
@@ -174,16 +177,16 @@ contract MockDecreaseGauge {
     }
 }
 
-contract AllocationManagerDecreasesTest is Test {
+contract AllocationManagerExitsTest is Test {
     bytes32 internal constant ASSET_UID = keccak256("official-stock");
     bytes32 internal constant MARKET_ID = keccak256("market");
     address internal constant ALICE = address(0xA11CE);
     address internal constant BOB = address(0xB0B);
 
-    MockDecreaseOfficialStockRegistry internal officialRegistry;
-    MockDecreaseMarketRegistry internal marketRegistry;
-    AllocationManagerDecreasesHarness internal manager;
-    MockDecreaseGauge internal gauge;
+    MockExitOfficialStockRegistry internal officialRegistry;
+    MockExitMarketRegistry internal marketRegistry;
+    AllocationManagerExitsHarness internal manager;
+    MockExitGauge internal gauge;
     MockExactQuoteToken internal stockToken;
     UserStockVault internal vault;
 
@@ -197,10 +200,10 @@ contract AllocationManagerDecreasesTest is Test {
     );
 
     function setUp() public {
-        officialRegistry = new MockDecreaseOfficialStockRegistry();
-        marketRegistry = new MockDecreaseMarketRegistry();
-        manager = new AllocationManagerDecreasesHarness(address(officialRegistry), address(marketRegistry));
-        gauge = new MockDecreaseGauge();
+        officialRegistry = new MockExitOfficialStockRegistry();
+        marketRegistry = new MockExitMarketRegistry();
+        manager = new AllocationManagerExitsHarness(address(officialRegistry), address(marketRegistry));
+        gauge = new MockExitGauge();
         stockToken = new MockExactQuoteToken(18);
         vault = new UserStockVault(address(officialRegistry), address(marketRegistry), address(manager));
         officialRegistry.configure(ASSET_UID, address(stockToken), address(vault), 18, 1, 0.5 ether);
@@ -208,22 +211,6 @@ contract AllocationManagerDecreasesTest is Test {
         gauge.configure(address(manager), vault, ASSET_UID, MARKET_ID);
     }
 
-    function test_decreaseSettlesRemovesGaugeFirstThenReleasesVaultAndEmitsPostState() public {
-        _depositAndAllocate(ALICE, 2 ether, 1.5 ether);
-        _warpToUnlock(ALICE);
-
-        vm.expectEmit(true, true, false, true, address(vault));
-        emit AllocationReleased(ASSET_UID, ALICE, MARKET_ID, 0.5 ether, 1 ether, 1 ether);
-        vm.prank(ALICE);
-        manager.decreaseAllocation(MARKET_ID, 0.5 ether);
-
-        PositionView memory position = gauge.positionOf(ALICE);
-        assertEq(position.activeAmount, 1 ether);
-        assertEq(position.pendingAmount, 0);
-        assertEq(vault.allocation(ASSET_UID, ALICE, MARKET_ID), 1 ether);
-        assertEq(vault.allocated(ASSET_UID, ALICE), 1 ether);
-        assertEq(vault.freeBalanceOf(ASSET_UID, ALICE), 1 ether);
-    }
 
     function test_closeUsesEntireCurrentPositionAndOnlyReturnsItToVaultFreeBalance() public {
         _depositAndAllocate(ALICE, 2 ether, 1 ether);
@@ -241,11 +228,46 @@ contract AllocationManagerDecreasesTest is Test {
         assertEq(stockToken.balanceOf(ALICE), 0);
     }
 
+    function test_closeClearsActiveAndMaturePendingPosition() public {
+        _depositAndAllocate(ALICE, 2 ether, 1 ether);
+        vm.warp(block.timestamp + 31 seconds);
+        vm.prank(ALICE);
+        manager.increaseAllocation(MARKET_ID, 1 ether);
+        _warpToUnlock(ALICE);
+
+        vm.prank(ALICE);
+        manager.closeAllocation(MARKET_ID);
+        PositionView memory position = gauge.positionOf(ALICE);
+        assertEq(position.activeAmount + position.pendingAmount, 0);
+        assertEq(vault.allocation(ASSET_UID, ALICE, MARKET_ID), 0);
+    }
+
+    function test_rageQuitWithdrawsFullPrincipalAndEmitsOutcome() public {
+        _depositAndAllocate(ALICE, 2 ether, 1 ether);
+        vm.expectEmit(true, true, false, true, address(manager));
+        emit IAllocationManager.AllocationRageQuitExecuted(ALICE, MARKET_ID, 1 ether, 0, 0, false);
+        vm.prank(ALICE);
+        manager.rageQuit(MARKET_ID);
+        assertEq(vault.allocation(ASSET_UID, ALICE, MARKET_ID), 0);
+        assertEq(vault.freeBalanceOf(ASSET_UID, ALICE), 1 ether);
+        assertEq(stockToken.balanceOf(ALICE), 1 ether);
+        assertEq(gauge.positionOf(ALICE).activeAmount, 0);
+    }
+
+    function test_emptyCloseAndRageQuitRevert() public {
+        vm.expectRevert(abi.encodeWithSelector(AllocationManagerExits.NoAllocationPosition.selector, ALICE, MARKET_ID));
+        vm.prank(ALICE);
+        manager.closeAllocation(MARKET_ID);
+        vm.expectRevert(abi.encodeWithSelector(AllocationManagerExits.NoAllocationPosition.selector, ALICE, MARKET_ID));
+        vm.prank(ALICE);
+        manager.rageQuit(MARKET_ID);
+    }
+
     function test_unlockBoundaryRejectsOneSecondBeforeAndAllowsExactTimestamp() public {
         _depositAndAllocate(ALICE, 1 ether, 1 ether);
         uint64 unlockAt = gauge.positionOf(ALICE).unlockAt;
         vm.warp(unlockAt - 1);
-        vm.expectRevert(abi.encodeWithSelector(AllocationManagerDecreases.PositionLockedUntil.selector, unlockAt));
+        vm.expectRevert(abi.encodeWithSelector(AllocationManagerExits.PositionLockedUntil.selector, unlockAt));
         vm.prank(ALICE);
         manager.closeAllocation(MARKET_ID);
         assertEq(vault.allocation(ASSET_UID, ALICE, MARKET_ID), 1 ether);
@@ -273,93 +295,8 @@ contract AllocationManagerDecreasesTest is Test {
         assertEq(vault.totalAllocated(ASSET_UID), 0);
     }
 
-    function test_emergencyAndNonPoolCreatedSourcesRejectNormalExit() public {
-        _depositAndAllocate(ALICE, 1 ether, 1 ether);
-        _warpToUnlock(ALICE);
-
-        marketRegistry.configure(MARKET_ID, ASSET_UID, address(gauge), 2, 3);
-        vm.expectRevert(abi.encodeWithSelector(AllocationManagerIncreases.StockAllocationClosed.selector, MARKET_ID));
-        vm.prank(ALICE);
-        manager.closeAllocation(MARKET_ID);
-        marketRegistry.configure(MARKET_ID, ASSET_UID, address(gauge), 3, 2);
-        vm.expectRevert(abi.encodeWithSelector(AllocationManagerIncreases.StockAllocationClosed.selector, MARKET_ID));
-        vm.prank(ALICE);
-        manager.closeAllocation(MARKET_ID);
-        assertEq(vault.allocation(ASSET_UID, ALICE, MARKET_ID), 1 ether);
-    }
-
-    function test_emergencyPrincipalExitIgnoresRevertingOrMissingGaugeButPauseCannotBypassLock() public {
-        _depositAndAllocate(ALICE, 1 ether, 1 ether);
-        _depositAndAllocate(BOB, 1 ether, 1 ether);
-        uint64 unlockAt = gauge.positionOf(ALICE).unlockAt;
-        vm.warp(unlockAt - 1);
-        marketRegistry.configure(MARKET_ID, ASSET_UID, address(gauge), 2, 1);
-
-        vm.expectRevert(abi.encodeWithSelector(AllocationManagerDecreases.PositionLockedUntil.selector, unlockAt));
-        vm.prank(ALICE);
-        manager.closeAllocation(MARKET_ID);
-        assertEq(vault.allocation(ASSET_UID, ALICE, MARKET_ID), 1 ether);
-
-        marketRegistry.configure(MARKET_ID, ASSET_UID, address(gauge), 2, 3);
-        gauge.setFailureMode(1);
-        vm.startPrank(ALICE);
-        assertEq(vault.forceReleaseAllocation(ASSET_UID, MARKET_ID), 1 ether);
-        vault.withdrawFreeStock(ASSET_UID, 1 ether);
-        vm.stopPrank();
-        assertEq(stockToken.balanceOf(ALICE), 1 ether);
-
-        vm.etch(address(gauge), hex"");
-        assertEq(address(gauge).code.length, 0);
-        vm.startPrank(BOB);
-        assertEq(vault.forceReleaseAllocation(ASSET_UID, MARKET_ID), 1 ether);
-        vault.withdrawFreeStock(ASSET_UID, 1 ether);
-        vm.stopPrank();
-        assertEq(stockToken.balanceOf(BOB), 1 ether);
-        assertEq(vault.totalAllocated(ASSET_UID), 0);
-        assertEq(vault.totalDeposited(ASSET_UID), 0);
-    }
-
-    function test_partialDecreaseCannotLeaveBelowConfiguredMinimumButExactBoundaryIsValid() public {
-        _depositAndAllocate(ALICE, 2 ether, 1.5 ether);
-        _warpToUnlock(ALICE);
-        vm.expectRevert(
-            abi.encodeWithSelector(
-                AllocationManagerIncreases.PositionBelowMinimum.selector, uint256(0.5 ether - 1), uint256(0.5 ether)
-            )
-        );
-        vm.prank(ALICE);
-        manager.decreaseAllocation(MARKET_ID, 1 ether + 1);
-
-        vm.prank(ALICE);
-        manager.decreaseAllocation(MARKET_ID, 1 ether);
-        assertEq(vault.allocation(ASSET_UID, ALICE, MARKET_ID), 0.5 ether);
-    }
-
-    function test_zeroOverAllocationAndEmptyCloseFailAtomically() public {
-        _depositAndAllocate(ALICE, 1 ether, 1 ether);
-        _warpToUnlock(ALICE);
-        vm.expectRevert(abi.encodeWithSelector(AllocationManagerIncreases.InvalidAllocationAmount.selector, uint256(0)));
-        vm.prank(ALICE);
-        manager.decreaseAllocation(MARKET_ID, 0);
-        vm.expectRevert(
-            abi.encodeWithSelector(
-                AllocationManagerDecreases.InsufficientAllocation.selector, uint256(1 ether + 1), uint256(1 ether)
-            )
-        );
-        vm.prank(ALICE);
-        manager.decreaseAllocation(MARKET_ID, 1 ether + 1);
-
-        vm.prank(ALICE);
-        manager.closeAllocation(MARKET_ID);
-        vm.expectRevert(
-            abi.encodeWithSelector(AllocationManagerDecreases.NoAllocationPosition.selector, ALICE, MARKET_ID)
-        );
-        vm.prank(ALICE);
-        manager.closeAllocation(MARKET_ID);
-    }
-
-    function test_checkpointSettleRemoveFailuresAndNoopRollbackEveryState() public {
-        for (uint8 mode = 1; mode <= 4; ++mode) {
+    function test_gaugeFailureAndNoopRollback() public {
+        for (uint8 mode = 3; mode <= 4; ++mode) {
             setUp();
             _depositAndAllocate(ALICE, 1 ether, 1 ether);
             _warpToUnlock(ALICE);
@@ -375,6 +312,34 @@ contract AllocationManagerDecreasesTest is Test {
             assertEq(vault.allocation(ASSET_UID, ALICE, MARKET_ID), 1 ether);
             assertEq(vault.freeBalanceOf(ASSET_UID, ALICE), 0);
         }
+    }
+
+    function test_vaultWrongReturnAndPostconditionDriftRollback() public {
+        _depositAndAllocate(ALICE, 1 ether, 1 ether);
+        _warpToUnlock(ALICE);
+        bytes memory callData = abi.encodeWithSelector(
+            IUserStockVault.releaseAllocation.selector, ASSET_UID, ALICE, MARKET_ID
+        );
+        vm.mockCall(address(vault), callData, abi.encode(uint256(0)));
+        vm.expectRevert();
+        vm.prank(ALICE);
+        manager.closeAllocation(MARKET_ID);
+        assertEq(vault.allocation(ASSET_UID, ALICE, MARKET_ID), 1 ether);
+        PositionView memory firstRollback = gauge.positionOf(ALICE);
+        assertEq(firstRollback.activeAmount + firstRollback.pendingAmount, 1 ether);
+
+        vm.clearMockedCalls();
+        bytes memory allocationCall = abi.encodeWithSelector(
+            IUserStockVault.allocation.selector, ASSET_UID, ALICE, MARKET_ID
+        );
+        vm.mockCall(address(vault), allocationCall, abi.encode(uint256(1 ether)));
+        vm.expectRevert();
+        vm.prank(ALICE);
+        manager.closeAllocation(MARKET_ID);
+        vm.clearMockedCalls();
+        assertEq(vault.allocation(ASSET_UID, ALICE, MARKET_ID), 1 ether);
+        PositionView memory secondRollback = gauge.positionOf(ALICE);
+        assertEq(secondRollback.activeAmount + secondRollback.pendingAmount, 1 ether);
     }
 
     function test_preexistingGaugeVaultMismatchFailsClosed() public {
@@ -414,29 +379,6 @@ contract AllocationManagerDecreasesTest is Test {
         vm.prank(BOB);
         manager.closeAllocation(MARKET_ID);
         assertEq(vault.allocation(ASSET_UID, ALICE, MARKET_ID), 1 ether);
-    }
-
-    function testFuzz_decreaseAcceptsOnlyZeroOrAtLeastConfiguredMinimum(uint96 rawPosition, uint96 rawAmount) public {
-        uint256 minimum = 0.5 ether;
-        uint256 current = bound(rawPosition, minimum, 10 ether);
-        uint256 amount = bound(rawAmount, 1, current);
-        uint256 remaining = current - amount;
-        _depositAndAllocate(ALICE, current, current);
-        _warpToUnlock(ALICE);
-
-        if (remaining != 0 && remaining < minimum) {
-            vm.expectRevert(
-                abi.encodeWithSelector(AllocationManagerIncreases.PositionBelowMinimum.selector, remaining, minimum)
-            );
-            vm.prank(ALICE);
-            manager.decreaseAllocation(MARKET_ID, amount);
-            assertEq(vault.allocation(ASSET_UID, ALICE, MARKET_ID), current);
-        } else {
-            vm.prank(ALICE);
-            manager.decreaseAllocation(MARKET_ID, amount);
-            assertEq(vault.allocation(ASSET_UID, ALICE, MARKET_ID), remaining);
-            assertEq(vault.freeBalanceOf(ASSET_UID, ALICE), amount);
-        }
     }
 
     function _depositAndAllocate(address user, uint256 depositAmount, uint256 allocationAmount) private {

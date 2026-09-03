@@ -27,22 +27,6 @@ export interface V2EventArgsBySignature {
     readonly userMarketAllocation: bigint;
     readonly userTotalAllocated: bigint;
   };
-  readonly "AllocationMigrated(address,bytes32,bytes32,uint256,uint256,uint64,uint64)": {
-    readonly user: string;
-    readonly fromMarketId: string;
-    readonly toMarketId: string;
-    readonly amount: bigint;
-    readonly sourceRemaining: bigint;
-    readonly targetPendingGeneration: bigint;
-    readonly targetUnlockAt: bigint;
-  };
-  readonly "AllocationMoved(bytes32,address,bytes32,bytes32,uint256)": {
-    readonly assetUid: string;
-    readonly user: string;
-    readonly fromMarketId: string;
-    readonly toMarketId: string;
-    readonly amount: bigint;
-  };
   readonly "AllocationRageQuit(bytes32,address,bytes32,uint256)": {
     readonly assetUid: string;
     readonly user: string;
@@ -477,18 +461,6 @@ export const V2_EVENT_ABI = [
     name: "AllocationLocked",
     modules: ["UserStockVault"],
     inputs: [{"name":"assetUid","type":"bytes32","indexed":true},{"name":"user","type":"address","indexed":true},{"name":"marketId","type":"bytes32","indexed":true},{"name":"amount","type":"uint256","indexed":false},{"name":"userMarketAllocation","type":"uint256","indexed":false},{"name":"userTotalAllocated","type":"uint256","indexed":false}],
-  },
-  {
-    signature: "AllocationMigrated(address,bytes32,bytes32,uint256,uint256,uint64,uint64)",
-    name: "AllocationMigrated",
-    modules: ["AllocationManager"],
-    inputs: [{"name":"user","type":"address","indexed":true},{"name":"fromMarketId","type":"bytes32","indexed":true},{"name":"toMarketId","type":"bytes32","indexed":true},{"name":"amount","type":"uint256","indexed":false},{"name":"sourceRemaining","type":"uint256","indexed":false},{"name":"targetPendingGeneration","type":"uint64","indexed":false},{"name":"targetUnlockAt","type":"uint64","indexed":false}],
-  },
-  {
-    signature: "AllocationMoved(bytes32,address,bytes32,bytes32,uint256)",
-    name: "AllocationMoved",
-    modules: ["UserStockVault"],
-    inputs: [{"name":"assetUid","type":"bytes32","indexed":true},{"name":"user","type":"address","indexed":true},{"name":"fromMarketId","type":"bytes32","indexed":true},{"name":"toMarketId","type":"bytes32","indexed":false},{"name":"amount","type":"uint256","indexed":false}],
   },
   {
     signature: "AllocationRageQuit(bytes32,address,bytes32,uint256)",

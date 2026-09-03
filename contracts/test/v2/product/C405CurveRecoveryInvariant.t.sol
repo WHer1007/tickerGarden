@@ -238,7 +238,7 @@ contract C405CurveRecoveryInvariantTest is Test {
             quoteAssetConfigId: QUOTE_CONFIG_ID,
             launchTemplateId: TEMPLATE_ID,
             feePolicyId: FEE_POLICY_ID,
-            executionSpecId: keccak256("V2-EXEC-4"),
+            executionSpecId: keccak256("V2-EXEC-5"),
             expectedEconomics: ECONOMICS,
             launchConfigId: 0,
             creatorRevenueBeneficiaryAtCreation: BENEFICIARY,
@@ -296,7 +296,7 @@ contract C405CurveRecoveryInvariantTest is Test {
             launchLockerImplementation: address(0x1005),
             launchLockerCodeHash: keccak256("locker"),
             feePolicyId: FEE_POLICY_ID,
-            executionSpecId: keccak256("V2-EXEC-4"),
+            executionSpecId: keccak256("V2-EXEC-5"),
             status: 1
         });
     }

@@ -1,7 +1,7 @@
 # TickerGarden V2 可验证执行规范
 
 > 文档状态：`IMPLEMENTATION_ALLOWED / NOT_DEPLOYABLE`  
-> 版本：`V2-EXEC-4`
+> 版本：`V2-EXEC-5`
 > 更新时间：2026-09-04
 > 产品规则：[V2_PROTOCOL_PARAMETERS.md](./V2_PROTOCOL_PARAMETERS.md)  
 > 技术架构：[V2_TECHNICAL_ARCHITECTURE.md](./V2_TECHNICAL_ARCHITECTURE.md)  
@@ -19,7 +19,7 @@
 3. 30 秒激活时间轮、双资产累加器和数学不变量；
 4. 状态机、权限矩阵、ABI、事件和异常回滚。
 
-本文不覆盖 V1。当前 canonical 执行规则为 `V2-EXEC-4`；文中明确标注的 `V2-EXEC-3` 仅为历史记录，不再是部署依据。Pons runtime 差分、首发 native/USDG Quote economics、通用数值域，以及 Robinhood 官方目录当前观测194项 STOCK 全量可选为质押 Base 的规则已经取证并冻结。STOCK 价格、USD 名义目标和 backing target 不属于协议输入。本文授权按 `V2-EXEC-4` 开始实现，但不授权在最终 artifact、目标链取证、Fork/E2E、许可、法律和审计门禁关闭前部署。
+本文不覆盖 V1。当前 canonical 执行规则为 `V2-EXEC-5`；文中明确标注的 `V2-EXEC-3` 仅为历史记录，不再是部署依据。Pons runtime 差分、首发 native/USDG Quote economics、通用数值域，以及 Robinhood 官方目录当前观测194项 STOCK 全量可选为质押 Base 的规则已经取证并冻结。STOCK 价格、USD 名义目标和 backing target 不属于协议输入。本文授权按 `V2-EXEC-5` 开始实现，但不授权在最终 artifact、目标链取证、Fork/E2E、许可、法律和审计门禁关闭前部署。
 
 ## 1. 参考版本与信任边界
 
@@ -318,7 +318,7 @@ feeId = keccak256(abi.encode(
 
 ### 4.6 不支持的收费旁路
 
-V2-EXEC-4 禁止：
+V2-EXEC-5 禁止：
 
 - dynamic fee flag、`beforeSwap` fee override 或额外 v4 LP swap fee；
 - 先收 Hook 0.8% 再收核心 0.2% 的近似组合；
@@ -469,11 +469,11 @@ Vault balance of canonicalToken(assetUid) >= totalDeposited[assetUid]
 allocation[assetUid][user][market] = Gauge effective active + Gauge unprocessed/processed pending
 ```
 
-等式中的求和是数学不变量，不要求链上遍历；实现通过每次增减同时维护聚合值。事件和 view 可独立重放验证。
+等式中的求和是数学不变量，不要求链上遍历；实现通过每次增加或整仓释放同时维护聚合值。事件和 view 可独立重放验证。
 
 ### 6.2 原子写入
 
-只有 immutable AllocationManager 可调用 Vault 的 `lockAllocation`、`releaseAllocation` 和 `moveAllocation`。固定顺序：
+只有 immutable AllocationManager 可调用 Vault 的 `lockAllocation`、`releaseAllocation` 和 `rageQuitAllocation`。普通 allocation 只有“存入/增加”和“整仓提取”两个方向；不存在部分减仓或链上跨市场迁移。固定顺序：
 
 ```text
 allocate/increase:
@@ -483,36 +483,31 @@ allocate/increase:
     Vault.lockAllocation(assetUid, user, market, amount)
     Gauge.addPending(user, amount, now + 30s, now + 24h)
 
-decrease/close:
+close full position:
     require now >= unlockAt
-    Gauge.process/materialize/settle/remove first
-    Vault.releaseAllocation(assetUid, user, market, same amount)
+    Gauge.process/materialize/settle/remove the full position first
+    Vault.releaseAllocation(assetUid, user, market) reads and releases the same full amount
+    principal becomes the user's free balance in Vault
 
 rageQuit:
     caller selects no recipient and must exit the market's full allocation
     Gauge checkpoint/settle, remove active and pending weight, and discard all unclaimed Quote/Meme reward
     if another Active staker remains, re-add each forfeited feeAsset to that Gauge accumulator
     otherwise record each forfeited feeAsset in FeeVault reserve[marketId][feeAsset]
-    Vault.rageQuitAllocation(assetUid, caller, market, same amount) and transfer principal atomically
-
-migrate A -> B:
-    prevalidate B completely
-    Gauge A process/materialize/settle/remove
-    Vault.moveAllocation(assetUid, user, A, B, amount)
-    Gauge B process/materialize/settle/addPending
+    Vault.rageQuitAllocation(assetUid, caller, market) reads the same full amount and transfers principal atomically
 ```
 
 任一步失败时 EVM 回滚全部状态。第三方不能替用户增仓或重置其锁定；Router 只能代表 `msg.sender`，底层 ABI 不接受任意 owner/recipient。
 
 ### 6.3 普通退出
 
-普通暂停、Asset/Quote 状态变化和市场退休不能扣押本金。只要 `now >= unlockAt`，用户可以减少或清零旧 allocation；释放后 STOCK 先成为该 `assetUid` 的 Vault free balance，随后由用户本人调用 `withdrawFreeStock(assetUid, amount)`。普通退出不把 Token 直接发送到调用者提供的 recipient。
+普通暂停、Asset/Quote 状态变化和市场退休不能扣押本金。只要 `now >= unlockAt`，用户只能通过 `closeAllocation(marketId)` 一次性清零该市场的完整 allocation；不接受 `amount`，因此不存在部分减仓。释放后 STOCK 先成为该 `assetUid` 的 Vault free balance，随后由用户本人调用 `withdrawFreeStock(assetUid, amount)`。普通退出不把 Token 直接发送到调用者提供的 recipient。
 
 ## 7. Gauge 故障与本金逃生
 
 ### 7.1 用户级 rageQuit（非终止逃生）
 
-`rageQuit` 是正常运行状态下的用户级原子退出，不改变 Market 状态，也不暂停或终止其他用户的业务。它绕过 `unlockAt`，但代价是放弃全部未领取的双资产收益；正常 claim/close/migrate-out 仍须满足整个仓位的24小时锁定。放弃收益有两条路由：仍有其他 Active staker 时按剩余实际 active stake 重分配；否则按 `marketId + feeAsset` 记为 forfeiture reserve，并在后续平台 claim 时转换为平台收入。
+`rageQuit` 是正常运行状态下的用户级原子退出，不改变 Market 状态，也不暂停或终止其他用户的业务。它绕过 `unlockAt`，但代价是放弃全部未领取的双资产收益；正常 claim/close 仍须满足整个仓位的24小时锁定。放弃收益有两条路由：仍有其他 Active staker 时按剩余实际 active stake 重分配；否则按 `marketId + feeAsset` 记为 forfeiture reserve，并在后续平台 claim 时转换为平台收入。
 
 ### 7.2 进入 EMERGENCY_EXIT
 
@@ -767,9 +762,9 @@ pendingFee += whole + floor(merged / P)
 userRemainder = merged % P
 ```
 
-修改 active 份额前必须分别结算两资产。池级 remainder 允许在 S 改变后先通过 `div/mod` 归一化；用户 remainder 在 claim、减仓、暂时清零后继续归属于同一 user/market/asset。不同资产、市场或用户的 remainder 永不合并。
+修改 active 份额前必须分别结算两资产。池级 remainder 允许在 S 改变后先通过 `div/mod` 归一化；用户 remainder 在 claim 或普通整仓关闭后继续归属于同一 user/market/asset。不同资产、市场或用户的 remainder 永不合并。
 
-## 10. 固定手续费分桶（V2-EXEC-4）
+## 10. 固定手续费分桶（V2-EXEC-5）
 
 FeeVault 在实际收到 `D` 且先完成 activation checkpoint 后读取：
 
@@ -796,7 +791,7 @@ creatorAmount + stakerAmount + platformAmount == D
 
 `S = 0` 得到总手续费近似 `Creator 40 / Staker 0 / Platform 40 / LP 20`；`S > 0` 得到 `20 / 40 / 20 / 20`。Staker Bucket 始终按 `userActiveStock / S` 分配，整数余数按固定顺序归属。Quote 和 Meme Token 分别执行，不转换；STOCK 价格不参与计算。
 
-历史说明：此前 V2-EXEC-3 的 `10 STOCK` 饱和与 `LINEAR_CAPPED` 规则已废止，仅保留在历史记录中；V2-EXEC-4 不读取这些字段。
+历史说明：此前 V2-EXEC-3 的 `10 STOCK` 饱和与 `LINEAR_CAPPED` 规则已废止，仅保留在历史记录中；V2-EXEC-5 不读取这些字段。
 
 ## 11. 完整状态机
 
@@ -842,7 +837,7 @@ MarketStatus:
 | retry graduation | 不适用 | 允许 | 不适用 | 禁止 | 禁止 | 禁止 |
 | v4 pool swap | 禁止 | 禁止 | 允许 | 禁止 | 禁止 | 禁止 |
 | STOCK deposit | 取决于 Asset ACTIVE | 取决于 Asset ACTIVE | 取决于 Asset ACTIVE | 取决于 Asset ACTIVE | 取决于 Asset ACTIVE | 取决于 Asset ACTIVE |
-| allocate/increase/migrate-in | 禁止 | 禁止 | Asset ACTIVE 时允许 | 禁止 | 禁止 | 禁止 |
+| allocate/increase | 禁止 | 禁止 | Asset ACTIVE 时允许 | 禁止 | 禁止 | 禁止 |
 | checkpoint/mature pending | 无仓位 | 无仓位 | 允许 | 允许 | 允许 | 旧 Gauge 冻结 |
 | claim staker via Gauge | 无 | 无 | 允许 | 允许 | 允许 | 禁止；改走 recovery |
 | claim Creator/Platform 历史负债 | 允许 | 允许 | 允许 | 允许 | 允许 | 允许 |
@@ -853,7 +848,7 @@ MarketStatus:
 
 其中 `NotGraduated + PAUSED` 仍可执行既有余额的 permissionless fee sweep，并可经 delayed unpause 返回 ACTIVE；`NotGraduated + RETIRED` 与 `NotGraduated + EMERGENCY_EXIT` 为非法组合，表中 RETIRED/Emergency 行为只适用于已经离开 Curve 阶段的市场。
 
-Asset PAUSED/RETIRED 阻止新市场、STOCK deposit、allocate/increase/migrate-in，但不自动暂停既有 Meme 交易；Guardian 必须显式暂停受影响 market。Quote PAUSED/RETIRED 只阻止新市场，不隐式改写历史市场；历史市场若需停盘也使用 Market PAUSE。两种 Registry 状态均不阻止已到账费用领取、pending 到期、正常退出或 free STOCK 提取。
+Asset PAUSED/RETIRED 阻止新市场、STOCK deposit、allocate/increase，但不自动暂停既有 Meme 交易；Guardian 必须显式暂停受影响 market。Quote PAUSED/RETIRED 只阻止新市场，不隐式改写历史市场；历史市场若需停盘也使用 Market PAUSE。两种 Registry 状态均不阻止已到账费用领取、pending 到期、正常整仓退出或 free STOCK 提取。
 
 ## 12. 权限模型
 
@@ -894,7 +889,7 @@ ABI alias、caller、执行延迟与业务状态等待不得混写。规范性�
 
 ## 13. 冻结 ABI
 
-以下是当前 V2-EXEC-4 的最小完整外部边界。结构体字段和事件必须与机器可读 ABI 清单一致；实现可以增加纯 view，但不得增加改变资金、状态或 recipient 的旁路。
+以下是当前 V2-EXEC-5 的最小完整外部边界。结构体字段和事件必须与机器可读 ABI 清单一致；实现可以增加纯 view，但不得增加改变资金、状态或 recipient 的旁路。
 
 ### 13.0 Registry、Factory 与 Curve
 
@@ -963,7 +958,7 @@ readyToGraduate() view returns (bool)
 
 Registry economics/config 字段 append-only；pause/unpause/retire 只改变门禁状态。Trade recipient 可以由用户指定，因为它是用户主动交易的收款对象；“禁止任意 recipient”专指 Vault 本金、手续费 claim、force release、平台/创建者负债和 recovery 资产。
 
-V2 首发 mutation ABI 只提供上述单市场入口，永久不提供 `batch*`、`claimAll`、`withdrawAllMarkets` 或 `migrateAll`。后续版本若增加批量能力，必须使用新 `executionSpecId`、有界数组、Gas 基准和新增 ABI/权限审计；不得在 V2-EXEC-4 实现中静默加入。
+V2 首发 mutation ABI 只提供上述单市场入口，永久不提供 `batch*`、`claimAll`、`withdrawAllMarkets` 或 `migrateAll`。后续版本若增加批量能力，必须使用新 `executionSpecId`、有界数组、Gas 基准和新增 ABI/权限审计；不得在 V2-EXEC-5 实现中静默加入。
 
 ### 13.1 UserStockVault
 
@@ -974,8 +969,8 @@ withdrawFreeStock(bytes32 assetUid, uint256 amount)
 forceReleaseAllocation(bytes32 assetUid, bytes32 marketId)
 
 lockAllocation(bytes32 assetUid, address user, bytes32 marketId, uint256 amount) // AllocationManager only
-releaseAllocation(bytes32 assetUid, address user, bytes32 marketId, uint256 amount) // AllocationManager only
-moveAllocation(bytes32 assetUid, address user, bytes32 fromMarketId, bytes32 toMarketId, uint256 amount) // manager only
+releaseAllocation(bytes32 assetUid, address user, bytes32 marketId) returns (uint256 amount) // AllocationManager only; full position
+rageQuitAllocation(bytes32 assetUid, address user, bytes32 marketId) returns (uint256 amount) // AllocationManager only; full position, direct transfer
 
 deposited(bytes32 assetUid, address user) view returns (uint256)
 allocated(bytes32 assetUid, address user) view returns (uint256)
@@ -994,10 +989,9 @@ vaultIdentity() view returns (address officialStockRegistry, address marketRegis
 ```solidity
 allocate(bytes32 marketId, uint256 amount)
 increaseAllocation(bytes32 marketId, uint256 amount)
-decreaseAllocation(bytes32 marketId, uint256 amount)
 closeAllocation(bytes32 marketId)
-migrateAllocation(bytes32 fromMarketId, bytes32 toMarketId, uint256 amount)
 depositAndAllocate(bytes32 marketId, uint256 depositAmount, uint256 allocationAmount)
+rageQuit(bytes32 marketId)
 ```
 
 全部动作只作用于 `msg.sender`，无 user/recipient 参数。
@@ -1006,7 +1000,7 @@ depositAndAllocate(bytes32 marketId, uint256 depositAmount, uint256 allocationAm
 
 ```solidity
 addPending(address user, uint256 amount, uint64 activationAt, uint64 unlockAt) // manager only
-removeAllocation(address user, uint256 amount)                                // manager only
+removeAllocation(address user) returns (uint256 amount)                       // manager only; full position
 checkpointActivations()                                                        // public
 settle(address user)                                                           // manager/FeeVault
 creditStakerFee(address feeAsset, uint256 amount, bytes32 feeId)               // FeeVault only
@@ -1116,7 +1110,6 @@ AllocationRageQuit(assetUid, user, marketId, amount)
 StockVaultRegistered(userStockVault, schemaId, marketRegistry, allocationManager)
 AllocationLocked(assetUid, user, marketId, amount, userMarketAllocation, userTotalAllocated)
 AllocationReleased(assetUid, user, marketId, amount, userMarketAllocation, userTotalAllocated)
-AllocationMoved(assetUid, user, fromMarketId, toMarketId, amount)
 AllocationForceReleased(assetUid, user, marketId, amount, recoveryEpoch)
 
 PendingScheduled(user, marketId, amount, generation, unlockAt)

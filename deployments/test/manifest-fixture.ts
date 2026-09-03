@@ -74,7 +74,7 @@ export function validManifest(): JsonRecord {
   const components = Object.fromEntries(["TOKEN", "CURVE", "GAUGE", "LOCKER"].map((kind) => [kind, create2Component(kind, protocolModules)])) as JsonRecord;
   const gaugeComponent = components.GAUGE as JsonRecord;
   return {
-    schemaVersion: 1, manifestKind: "TICKERGARDEN_V2_NETWORK_DEPLOYMENT", executionSpecId: "V2-EXEC-4", releaseStatus: "DEPLOYMENT_CANDIDATE",
+    schemaVersion: 1, manifestKind: "TICKERGARDEN_V2_NETWORK_DEPLOYMENT", executionSpecId: "V2-EXEC-5", releaseStatus: "DEPLOYMENT_CANDIDATE",
     readinessCertificate: { state: "DEPLOYMENT_ELIGIBLE", executionManifestHash: hash("execution-manifest"), compiledInterfaceManifestHash: hash("compiled-interface-manifest"), closedDeploymentGateEvidence: gateIds },
     chain: { chainId: 4663, network: "Robinhood Chain", rpcUrls: ["https://rpc.release.invalid"], finalizedBlockNumber: "123500", finalizedBlockHash: hash("finalized-block"), observedAt: "2026-09-03T00:00:00Z", evmVersion: "cancun" },
     externalDependencies: Object.fromEntries(["poolManager", "positionManager", "stateView", "permit2"].map((name) => [name, { address: address(name), runtimeCodeHash: hash(`${name}:runtime`), versionOrCommit: hash(`${name}:commit`).slice(2, 42) }])),

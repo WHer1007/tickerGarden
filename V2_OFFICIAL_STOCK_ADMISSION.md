@@ -1,7 +1,7 @@
 # TickerGarden V2 官方 STOCK 准入与质押 Base 选择
 
 > 规格状态：`FROZEN / IMPLEMENTATION_ALLOWED`  
-> Execution spec：`V2-EXEC-4`
+> Execution spec：`V2-EXEC-5`
 > 点时证据：2026-09-02，Robinhood Chain `4663`
 > Stock Vault 架构决策：[V2_MULTI_ASSET_STOCK_VAULT.md](./V2_MULTI_ASSET_STOCK_VAULT.md)
 
@@ -37,7 +37,7 @@ STOCK 在 V2 中只承担质押 Base、分配权重和社区背书作用，不�
 
 链上只使用 Stock Token 的实际 raw balance 与 decimals。每个 Asset UID 的 `minimumAllocation` 由管理员动态设置，但不得低于414 raw units；手续费权重使用同一 Gauge 内各用户已激活 STOCK 的相对比例。只要存在 Active stake，Staker 固定取得 non-LP 的50%。Quote 侧手续费按 Quote 分，Meme 侧手续费按 Meme 分，不转换成 STOCK，也不进行美元净额结算。
 
-此前生成的 Chainlink 目录和 backing-target 工具仅保留为 `V2-EXEC-1` 历史研究证据，不是当前 `V2-EXEC-4` 的协议输入、准入条件或部署门禁；边界见 [`spec/RETIRED_STOCK_PRICE_RESEARCH.md`](./spec/RETIRED_STOCK_PRICE_RESEARCH.md)。
+此前生成的 Chainlink 目录和 backing-target 工具仅保留为 `V2-EXEC-1` 历史研究证据，不是当前 `V2-EXEC-5` 的协议输入、准入条件或部署门禁；边界见 [`spec/RETIRED_STOCK_PRICE_RESEARCH.md`](./spec/RETIRED_STOCK_PRICE_RESEARCH.md)。
 
 ## 4. 毕业后手续费分配
 
@@ -79,7 +79,7 @@ Platform = remaining - Creator
 - 同一 Asset UID 可以对应任意多个市场；用户可在这些市场间自行分配。
 - `VaultBalance = FreeBalance + TotalAllocated` 且 `TotalAllocated <= VaultBalance`。
 - 单个非零用户市场仓位必须达到当前 Asset UID 的 `minimumAllocation`，且该值不得低于414 raw units。
-- 曲线阶段不能质押；只有 `PoolCreated + ACTIVE` 才能新增、增加或迁入 allocation。
+- 曲线阶段不能质押；只有 `PoolCreated + ACTIVE` 才能新增或增加 allocation。allocation 不能部分减仓或跨市场迁移，退出只能整仓执行。
 - 30秒前的 pending 不进入 `S`；费用只归发生时已激活的仓位。
 - STOCK 本金安全不依赖 Gauge、Indexer、后端、Oracle 或价格 Feed 在线。
 - 手续费按实际收费资产原币种守恒；只要存在 Active stake，Staker 固定取得 non-LP 的50%，再按用户 active STOCK 比例分配。无 Active stake 时 Staker 为0。

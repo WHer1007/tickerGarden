@@ -46,12 +46,6 @@ export function requiredObservations(event: DecodedV2Event): readonly Observatio
       ];
     case "AllocationForceReleased(bytes32,address,bytes32,uint256,uint32)":
       return [{ kind: "vaultPosition", key: `${event.args.assetUid}:${event.args.user}`, reason: "Emergency release changes the authoritative asset-scoped Vault position without calling the Gauge" }];
-    case "AllocationMoved(bytes32,address,bytes32,bytes32,uint256)":
-      return [
-        { kind: "vaultPosition", key: `${event.args.assetUid}:${event.args.user}`, reason: "migration preserves asset-scoped principal totals inside the canonical Vault" },
-        { kind: "gaugePosition", key: `${event.args.user}:${event.args.fromMarketId}`, reason: "hydrate the final source Gauge position" },
-        { kind: "gaugePosition", key: `${event.args.user}:${event.args.toMarketId}`, reason: "hydrate the final target Gauge position" },
-      ];
     case "V4FeeAccrued(bytes32,bytes32,address,uint64,bytes32,uint256,uint256,uint256,uint256)":
       return [
         { kind: "market", key: event.args.marketId, reason: "verify the active sourceVersion for this Hook fee" },

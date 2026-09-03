@@ -36,7 +36,7 @@ journal instead of trusting serialized materialized balances.
 The CLI prints the descriptor as one JSON line:
 
 ```text
-{"chainId":4663,"executionSpecId":"V2-EXEC-4","status":"reorg-replay-and-reconciliation","handlersImplemented":true}
+{"chainId":4663,"executionSpecId":"V2-EXEC-5","status":"reorg-replay-and-reconciliation","handlersImplemented":true}
 ```
 
 Run `npm run build`, `npm test`, or `npm start` from this directory.

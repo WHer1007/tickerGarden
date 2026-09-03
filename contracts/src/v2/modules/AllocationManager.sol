@@ -2,12 +2,12 @@
 pragma solidity 0.8.26;
 
 import {IAllocationManager} from "../interfaces/IV2Protocol.sol";
-import {AllocationManagerMigrations} from "../shared/AllocationManagerMigrations.sol";
+import {AllocationManagerDeposits} from "../shared/AllocationManagerDeposits.sol";
 
 /// @notice Canonical caller-bound coordinator for Vault allocation and per-market Gauge weight.
-contract AllocationManager is IAllocationManager, AllocationManagerMigrations {
+contract AllocationManager is IAllocationManager, AllocationManagerDeposits {
     constructor(address officialStockRegistry_, address marketRegistry_)
-        AllocationManagerMigrations(officialStockRegistry_, marketRegistry_)
+        AllocationManagerDeposits(officialStockRegistry_, marketRegistry_)
     {}
 
     function allocate(bytes32 marketId, uint256 amount) external override {
@@ -18,26 +18,14 @@ contract AllocationManager is IAllocationManager, AllocationManagerMigrations {
         _increaseAllocation(msg.sender, marketId, amount);
     }
 
-    function decreaseAllocation(bytes32 marketId, uint256 amount) external override {
-        _decreaseAllocation(msg.sender, marketId, amount, false);
-    }
-
     function closeAllocation(bytes32 marketId) external override {
-        _decreaseAllocation(msg.sender, marketId, 0, true);
+        _closeAllocation(msg.sender, marketId);
     }
 
     function rageQuit(bytes32 marketId) external override {
         (uint256 principal, uint256 quoteForfeited, uint256 memeForfeited, bool redistributed) =
             _rageQuitAllocation(msg.sender, marketId);
         emit AllocationRageQuitExecuted(msg.sender, marketId, principal, quoteForfeited, memeForfeited, redistributed);
-    }
-
-    function migrateAllocation(bytes32 fromMarketId, bytes32 toMarketId, uint256 amount) external override {
-        (uint256 sourceRemaining, uint64 targetPendingGeneration, uint64 targetUnlockAt) =
-            _migrateAllocation(msg.sender, fromMarketId, toMarketId, amount);
-        emit AllocationMigrated(
-            msg.sender, fromMarketId, toMarketId, amount, sourceRemaining, targetPendingGeneration, targetUnlockAt
-        );
     }
 
     function depositAndAllocate(bytes32 marketId, uint256 depositAmount, uint256 allocationAmount) external override {

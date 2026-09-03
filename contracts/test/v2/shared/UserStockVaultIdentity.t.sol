@@ -106,7 +106,7 @@ contract UserStockVaultIdentityTest is Test {
         assertEq(actualRegistry, address(registry));
         assertEq(actualMarketRegistry, address(marketRegistry));
         assertEq(actualManager, address(allocationManager));
-        assertEq(actualSchemaId, keccak256("TickerGarden.UserStockVault.MultiAsset.v2"));
+        assertEq(actualSchemaId, keccak256("TickerGarden.UserStockVault.MultiAsset.v3"));
 
         (bool initialized,) = address(vault)
             .call(abi.encodeWithSignature("initialize(address,address,address)", address(1), address(2), address(3)));

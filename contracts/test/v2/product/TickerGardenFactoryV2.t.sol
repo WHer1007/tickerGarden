@@ -238,7 +238,7 @@ contract TickerGardenFactoryV2Test is Test {
     bytes32 internal constant TEMPLATE_ID = keccak256("factory-template");
     bytes32 internal constant TEMPLATE_HASH = keccak256("factory-template-content");
     bytes32 internal constant FEE_POLICY_ID = keccak256("factory-fee-policy");
-    bytes32 internal constant EXECUTION_SPEC_ID = keccak256("V2-EXEC-4");
+    bytes32 internal constant EXECUTION_SPEC_ID = keccak256("V2-EXEC-5");
     uint256 internal constant LAUNCH_FEE = 500_000_000_000_000;
     uint256 internal constant SUPPLY = 1_000_000_000 ether;
     address internal constant CREATOR = address(0xCAFE);

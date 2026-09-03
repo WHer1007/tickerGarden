@@ -33,13 +33,11 @@ import {
   buildClaimRecovery,
   buildClaimStaker,
   buildCloseAllocation,
-  buildDecreaseAllocation,
   buildDeposit,
   buildDepositAndAllocate,
   buildFinalizeRecoveryRoot,
   buildForceRelease,
   hasCanonicalRecoveryClaim,
-  buildMigrateAllocation,
   buildRageQuit,
   buildStockApproval,
   buildVaultView,
@@ -235,7 +233,7 @@ function App() {
   const [positionState, setPositionState] = useState({ status: "idle", items: [], markets: new Map(), assetBindings: new Map() });
   const [selectedPositionId, setSelectedPositionId] = useState("");
   const [depositAssetUid, setDepositAssetUid] = useState("");
-  const [vaultForm, setVaultForm] = useState({ amount: "", allocation: "", targetMarketId: "" });
+  const [vaultForm, setVaultForm] = useState({ amount: "", allocation: "" });
   const [recoveryForm, setRecoveryForm] = useState({ marketId: "", epoch: "", assetKind: "quote", amount: "", proof: "[]" });
   const [recoveryState, setRecoveryState] = useState({ status: "idle" });
 
@@ -854,15 +852,6 @@ function App() {
             if (after !== before + amount) throw new Error("Fresh allocation does not match the increase");
             return after;
           };
-        } else if (action === "decrease") {
-          if (!amount || !vaultView.canDecrease || amount > before) throw new Error("Position is locked or the decrease exceeds its allocation");
-          if (before - amount !== 0n && before - amount < canonicalAsset.minimumAllocation) throw new Error("Remaining allocation is below the current per-asset minimum");
-          request = buildDecreaseAllocation(foundation.bindings.allocationManager, marketId, amount);
-          confirm = async () => {
-            const after = await publicClient.readContract({ abi: v2Abis.UserStockVault, address: vault, functionName: "allocation", args: [canonicalAsset.assetUid, wallet.account, marketId] });
-            if (after !== before - amount) throw new Error("Fresh allocation does not match the decrease");
-            return after;
-          };
         } else if (action === "close") {
           if (!vaultView.canClose) throw new Error("Position cannot be closed before its normal unlock boundary");
           request = buildCloseAllocation(foundation.bindings.allocationManager, marketId);
@@ -884,32 +873,6 @@ function App() {
             return after;
           };
           key = `vault:${action}:${marketId}:${deposit}:${allocation}:${positionState.sync.revision}`;
-        } else if (action === "migrate") {
-          if (!amount || !vaultView.canMigrate) throw new Error("Position cannot migrate before its unlock boundary");
-          const target = vaultForm.targetMarketId.trim().toLowerCase();
-          if (!HEX32.test(target) || target === marketId) throw new Error("Enter a different canonical target market ID");
-          const targetResponse = await readApi.getMarket({ marketId: target });
-          assertSameRevision(targetResponse.sync, positionState.sync.revision, "migration target snapshot");
-          if (targetResponse.market.marketId !== target) throw new Error("Read API returned a different migration target identity than requested");
-          if (targetResponse.market.assetUid !== selectedPosition.assetUid) throw new Error("Allocation migration must stay within the same STOCK asset");
-          await ensureCanonicalMarket(targetResponse.market);
-          const verifySourceAndTarget = verifyChain;
-          verifyChain = async () => {
-            await Promise.all([verifySourceAndTarget(), ensureCanonicalMarket(targetResponse.market)]);
-          };
-          const targetBefore = await publicClient.readContract({ abi: v2Abis.UserStockVault, address: vault, functionName: "allocation", args: [canonicalAsset.assetUid, wallet.account, target] });
-          if (amount > before) throw new Error("Migration exceeds the source allocation");
-          if (before - amount !== 0n && before - amount < canonicalAsset.minimumAllocation) throw new Error("Remaining source allocation is below the current per-asset minimum");
-          if (targetBefore + amount < canonicalAsset.minimumAllocation) throw new Error("Target allocation is below the current per-asset minimum");
-          request = buildMigrateAllocation(foundation.bindings.allocationManager, marketId, target, amount);
-          confirm = async () => {
-            const [sourceAfter, targetAfter] = await Promise.all([
-              publicClient.readContract({ abi: v2Abis.UserStockVault, address: vault, functionName: "allocation", args: [canonicalAsset.assetUid, wallet.account, marketId] }),
-              publicClient.readContract({ abi: v2Abis.UserStockVault, address: vault, functionName: "allocation", args: [canonicalAsset.assetUid, wallet.account, target] }),
-            ]);
-            if (sourceAfter !== before - amount || targetAfter !== targetBefore + amount) throw new Error("Fresh Vault allocations do not match the migration");
-            return targetAfter;
-          };
         } else if (action === "rage-quit") {
           if (!vaultView.canRageQuit) throw new Error("Rage Quit is unavailable for this position");
           request = buildRageQuit(foundation.bindings.allocationManager, marketId);
@@ -946,7 +909,7 @@ function App() {
       }
 
       await execute({ operationKey: key, sync, request, approval, verifyChain, confirm });
-      setVaultForm({ amount: "", allocation: "", targetMarketId: "" });
+      setVaultForm({ amount: "", allocation: "" });
       setNotice({ tone: "success", title: "Vault action confirmed from fresh onchain state" });
       window.setTimeout(() => { void refreshPositions(); }, 1200);
     } catch (error) {
@@ -972,7 +935,7 @@ function App() {
       </header>
 
       <section className="workspace-heading" aria-labelledby="page-title">
-        <div><p className="eyebrow">V2 product console · V2-EXEC-4</p><h1 id="page-title">Every action starts<br /><em>from visible state.</em></h1></div>
+        <div><p className="eyebrow">V2 product console · V2-EXEC-5</p><h1 id="page-title">Every action starts<br /><em>from visible state.</em></h1></div>
         <aside className="gate-card">
           <span className="gate-label">Runtime gate</span>
           <strong>{runtimeReady ? "LOCAL PRODUCT FLOW READY" : foundation.status === "loading" ? "CHECKING CANONICAL RUNTIME" : "TRANSACTIONS LOCKED"}</strong>
@@ -1067,15 +1030,12 @@ function App() {
                 <div className="form-grid compact">
                   <label><span>Primary amount · raw units</span><input inputMode="numeric" value={vaultForm.amount} onChange={(e) => setVaultForm({ ...vaultForm, amount: e.target.value })} placeholder="Deposit / withdraw / allocate" /></label>
                   <label><span>Allocation amount · raw units</span><input inputMode="numeric" value={vaultForm.allocation} onChange={(e) => setVaultForm({ ...vaultForm, allocation: e.target.value })} placeholder="For deposit + allocate" /></label>
-                  <label className="wide"><span>Migration target market ID</span><input value={vaultForm.targetMarketId} onChange={(e) => setVaultForm({ ...vaultForm, targetMarketId: e.target.value })} placeholder="Same STOCK asset, different Meme market" /></label>
                 </div>
                 <div className="action-cluster">
                   <button type="button" onClick={() => runVaultAction("allocate")} disabled={actionDisabled || !vaultView.allocationOpen}>Allocate / increase</button>
                   <button type="button" onClick={() => runVaultAction("deposit-allocate")} disabled={actionDisabled || !vaultView.allocationOpen}>Deposit + allocate</button>
                   <button type="button" className="secondary" onClick={() => runVaultAction("withdraw")} disabled={actionDisabled || vaultView.free === 0n}>Withdraw free</button>
-                  <button type="button" className="secondary" onClick={() => runVaultAction("decrease")} disabled={actionDisabled || !vaultView.canDecrease}>Decrease</button>
                   <button type="button" className="secondary" onClick={() => runVaultAction("close")} disabled={actionDisabled || !vaultView.canClose}>Close allocation</button>
-                  <button type="button" className="secondary" onClick={() => runVaultAction("migrate")} disabled={actionDisabled || !vaultView.canMigrate}>Migrate</button>
                   <button type="button" className="secondary" onClick={() => runVaultAction("claim-quote")} disabled={actionDisabled || !vaultView.canClaim || vaultView.quoteClaimable === 0n}>Claim Quote fees</button>
                   <button type="button" className="secondary" onClick={() => runVaultAction("claim-meme")} disabled={actionDisabled || !vaultView.canClaim || vaultView.memeClaimable === 0n}>Claim Meme fees</button>
                   <button type="button" className="danger" onClick={() => runVaultAction("rage-quit")} disabled={actionDisabled || !vaultView.canRageQuit}>Rage Quit · forfeit rewards</button>
@@ -1130,7 +1090,7 @@ function App() {
       ) : null}
 
       <section className="truth-strip" aria-label="Protocol guarantees"><span>Factory-previewed economics</span><span>Simulation before every signature</span><span>Finalized source revisions</span><span>Quote and Meme fees separated</span></section>
-      <footer className="footer"><span>Execution spec V2-EXEC-4 · readiness IMPLEMENTATION_ALLOWED</span><span>Pool swaps, Recovery claims and production publishing remain closed until their explicit gates are satisfied.</span></footer>
+      <footer className="footer"><span>Execution spec V2-EXEC-5 · readiness IMPLEMENTATION_ALLOWED</span><span>Pool swaps, Recovery claims and production publishing remain closed until their explicit gates are satisfied.</span></footer>
     </main>
   );
 }

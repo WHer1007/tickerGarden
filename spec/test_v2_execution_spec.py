@@ -82,7 +82,7 @@ class V2ExecutionSpecTest(unittest.TestCase):
         cls.official_stock_catalog_raw = (ROOT / "v2_rh_official_stock_catalog.source.json").read_bytes()
 
     def test_spec_ids_match(self):
-        expected = "V2-EXEC-4"
+        expected = "V2-EXEC-5"
         self.assertEqual(self.manifest["executionSpecId"], expected)
         self.assertEqual(self.permissions["executionSpecId"], expected)
         self.assertEqual(self.abi["executionSpecId"], expected)
@@ -1235,20 +1235,17 @@ class V2ExecutionSpecTest(unittest.TestCase):
         ]
         self.assertEqual(self.manifest["feeIdentity"]["fields"], v4_fields)
 
-    def test_migration_and_timing_have_one_execution_order(self):
-        timing = self.manifest["migrationAndTiming"]
-        self.assertEqual(timing["migrationAmount"], "EXACT_SAME_RAW_STOCK_AMOUNT")
-        self.assertEqual(timing["migrationScope"], "SAME_USER_SAME_ASSET_UID_SAME_VAULT")
+    def test_allocation_and_timing_have_one_execution_order(self):
+        timing = self.manifest["allocationAndTiming"]
         self.assertEqual(
-            timing["sourceOrder"], "CHECKPOINT_SETTLE_MATERIALIZE_THEN_REMOVE_ACTIVE"
+            timing["normalDirections"], ["DEPOSIT_OR_INCREASE", "FULL_WITHDRAWAL"]
         )
-        self.assertEqual(
-            timing["targetOrder"], "CHECKPOINT_SETTLE_THEN_ADD_OR_MERGE_PENDING"
-        )
-        self.assertFalse(timing["overlappingRewardWeight"])
-        self.assertEqual(timing["targetActivationDelaySeconds"], 30)
-        self.assertEqual(timing["targetWholePositionLockResetSeconds"], 86400)
-        self.assertFalse(timing["sourceUnlockReset"])
+        self.assertFalse(timing["partialDecreaseAllowed"])
+        self.assertFalse(timing["migrationAllowed"])
+        self.assertEqual(timing["normalWithdrawalAmount"], "FULL_USER_MARKET_ALLOCATION")
+        self.assertIn("REMOVE_FULL_POSITION", timing["normalWithdrawalOrder"])
+        self.assertEqual(timing["activationDelaySeconds"], 30)
+        self.assertEqual(timing["increaseWholePositionLockResetSeconds"], 86400)
         self.assertEqual(timing["rescueDelaySeconds"], 604800)
         self.assertEqual(timing["emergencyDelayAnchor"], "restrictedSince")
         self.assertIn("PRESERVE_PAUSED_TO_RETIRED", timing["restrictedSinceRule"])
@@ -1257,10 +1254,14 @@ class V2ExecutionSpecTest(unittest.TestCase):
             (entry["module"], entry["signature"]): entry
             for entry in self.permissions["functions"]
         }
-        migration = permissions[
-            ("AllocationManager", "migrateAllocation(bytes32,bytes32,uint256)")
-        ]
-        self.assertIn("EXACT_AMOUNT_NO_OVERLAP", migration["precondition"])
+        signatures = {
+            signature
+            for module, signature in permissions
+            if module == "AllocationManager"
+        }
+        self.assertNotIn("decreaseAllocation(bytes32,uint256)", signatures)
+        self.assertNotIn("migrateAllocation(bytes32,bytes32,uint256)", signatures)
+        self.assertIn("FULL_POSITION_ONLY", permissions[("AllocationManager", "closeAllocation(bytes32)")]["precondition"])
         emergency = permissions[("MarketController", "activateEmergencyExit(bytes32)")]
         self.assertEqual(
             emergency["stateDelayAnchor"], "MARKET_RUNTIME_RESTRICTED_SINCE"

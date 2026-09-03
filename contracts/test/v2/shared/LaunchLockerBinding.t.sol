@@ -21,7 +21,7 @@ contract LaunchLockerRegistryMock {
                 quoteAssetConfigId: bytes32("QUOTE"),
                 launchTemplateId: bytes32("TEMPLATE"),
                 feePolicyId: bytes32("FEE"),
-                executionSpecId: keccak256("V2-EXEC-4"),
+                executionSpecId: keccak256("V2-EXEC-5"),
                 expectedEconomics: bytes32("ECON"),
                 launchConfigId: 0,
                 creatorRevenueBeneficiaryAtCreation: address(0xBEEF),

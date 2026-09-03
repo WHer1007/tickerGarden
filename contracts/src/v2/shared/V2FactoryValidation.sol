@@ -17,7 +17,7 @@ import {V2MarketEconomics} from "./V2MarketEconomics.sol";
 /// @notice Fail-closed Registry resolution and economics verification shared by Factory create and preview paths.
 library V2FactoryValidation {
     uint8 internal constant ACTIVE = 1;
-    bytes32 internal constant EXECUTION_SPEC_ID = keccak256("V2-EXEC-4");
+    bytes32 internal constant EXECUTION_SPEC_ID = keccak256("V2-EXEC-5");
     uint24 internal constant FEE_PIPS = 10_000;
     uint16 internal constant LP_SHARE_BPS = 2_000;
     uint24 internal constant POOL_KEY_FEE = 0;

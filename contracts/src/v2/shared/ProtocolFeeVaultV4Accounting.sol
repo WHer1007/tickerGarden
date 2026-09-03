@@ -12,7 +12,7 @@ import {V2MarketEconomics} from "./V2MarketEconomics.sol";
 abstract contract ProtocolFeeVaultV4Accounting is ProtocolFeeVaultLiabilities {
     bytes32 private constant V4_FEE_DOMAIN = keccak256("TICKERGARDEN_V2_V4_FEE");
     uint256 private constant V4_FEE_SCHEMA_VERSION = 1;
-    bytes32 private constant EXECUTION_SPEC_ID = keccak256("V2-EXEC-4");
+    bytes32 private constant EXECUTION_SPEC_ID = keccak256("V2-EXEC-5");
     uint256 private constant FEE_PIPS_DENOMINATOR = 1_000_000;
     uint24 private constant FEE_PIPS = 10_000;
     uint16 private constant LP_SHARE_BPS = 2_000;

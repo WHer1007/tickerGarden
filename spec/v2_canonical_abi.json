@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "executionSpecId": "V2-EXEC-4",
+  "executionSpecId": "V2-EXEC-5",
   "sourceAbi": "v2_abi_surface.json",
   "sourcePermissions": "v2_permissions_matrix.json",
   "selectorRule": "bytes4(keccak256(bytes(canonicalSignature)))",
@@ -515,22 +515,22 @@
     },
     {
       "module": "UserStockVault",
-      "displaySignature": "releaseAllocation(bytes32,address,bytes32,uint256)",
-      "canonicalSignature": "releaseAllocation(bytes32,address,bytes32,uint256)",
-      "selector": "0x653384be",
+      "displaySignature": "releaseAllocation(bytes32,address,bytes32)",
+      "canonicalSignature": "releaseAllocation(bytes32,address,bytes32)",
+      "selector": "0x18113783",
       "selectorHash": "FIRST_4_BYTES_OF_KECCAK256_CANONICAL_SIGNATURE",
       "caller": "ALLOCATION_MODULE",
       "executionDelaySeconds": 0,
       "stateDelaySeconds": 0,
       "stateDelayAnchor": "NONE",
-      "precondition": "CANONICAL_ASSET_AND_MARKET_MATCH",
+      "precondition": "FULL_CANONICAL_USER_MARKET_ALLOCATION_ONLY",
       "recipient": "user_free_balance"
     },
     {
       "module": "UserStockVault",
-      "displaySignature": "rageQuitAllocation(bytes32,address,bytes32,uint256)",
-      "canonicalSignature": "rageQuitAllocation(bytes32,address,bytes32,uint256)",
-      "selector": "0xa472251a",
+      "displaySignature": "rageQuitAllocation(bytes32,address,bytes32)",
+      "canonicalSignature": "rageQuitAllocation(bytes32,address,bytes32)",
+      "selector": "0x8a35c3ae",
       "selectorHash": "FIRST_4_BYTES_OF_KECCAK256_CANONICAL_SIGNATURE",
       "caller": "ALLOCATION_MODULE",
       "executionDelaySeconds": 0,
@@ -538,19 +538,6 @@
       "stateDelayAnchor": "NONE",
       "precondition": "FULL_CANONICAL_USER_MARKET_ALLOCATION_AND_ATOMIC_GAUGE_FORFEITURE_PRECEDES_WITHDRAWAL",
       "recipient": "fixed_user"
-    },
-    {
-      "module": "UserStockVault",
-      "displaySignature": "moveAllocation(bytes32,address,bytes32,bytes32,uint256)",
-      "canonicalSignature": "moveAllocation(bytes32,address,bytes32,bytes32,uint256)",
-      "selector": "0x96bccef6",
-      "selectorHash": "FIRST_4_BYTES_OF_KECCAK256_CANONICAL_SIGNATURE",
-      "caller": "ALLOCATION_MODULE",
-      "executionDelaySeconds": 0,
-      "stateDelaySeconds": 0,
-      "stateDelayAnchor": "NONE",
-      "precondition": "CANONICAL_ASSET_AND_BOTH_MARKETS_MATCH",
-      "recipient": "none"
     },
     {
       "module": "AllocationManager",
@@ -580,19 +567,6 @@
     },
     {
       "module": "AllocationManager",
-      "displaySignature": "decreaseAllocation(bytes32,uint256)",
-      "canonicalSignature": "decreaseAllocation(bytes32,uint256)",
-      "selector": "0x0e9d8ec6",
-      "selectorHash": "FIRST_4_BYTES_OF_KECCAK256_CANONICAL_SIGNATURE",
-      "caller": "PUBLIC",
-      "executionDelaySeconds": 0,
-      "stateDelaySeconds": 0,
-      "stateDelayAnchor": "NONE",
-      "precondition": "NONE",
-      "recipient": "caller_free_balance"
-    },
-    {
-      "module": "AllocationManager",
       "displaySignature": "closeAllocation(bytes32)",
       "canonicalSignature": "closeAllocation(bytes32)",
       "selector": "0xceb03af6",
@@ -601,7 +575,7 @@
       "executionDelaySeconds": 0,
       "stateDelaySeconds": 0,
       "stateDelayAnchor": "NONE",
-      "precondition": "NONE",
+      "precondition": "CALLER_FULL_POSITION_ONLY_AND_UNLOCKED",
       "recipient": "caller_free_balance"
     },
     {
@@ -616,19 +590,6 @@
       "stateDelayAnchor": "NONE",
       "precondition": "CALLER_FULL_POSITION_ONLY_FORFEITS_ALL_UNCLAIMED_REWARDS_BYPASSES_LOCK_AND_DOES_NOT_CHANGE_MARKET_STATE",
       "recipient": "caller"
-    },
-    {
-      "module": "AllocationManager",
-      "displaySignature": "migrateAllocation(bytes32,bytes32,uint256)",
-      "canonicalSignature": "migrateAllocation(bytes32,bytes32,uint256)",
-      "selector": "0xc965083b",
-      "selectorHash": "FIRST_4_BYTES_OF_KECCAK256_CANONICAL_SIGNATURE",
-      "caller": "PUBLIC",
-      "executionDelaySeconds": 0,
-      "stateDelaySeconds": 0,
-      "stateDelayAnchor": "NONE",
-      "precondition": "SAME_USER_ASSET_AND_VAULT_SOURCE_UNLOCKED_TARGET_OPEN_EXACT_AMOUNT_NO_OVERLAP",
-      "recipient": "caller_positions"
     },
     {
       "module": "AllocationManager",
@@ -658,15 +619,15 @@
     },
     {
       "module": "MemeStockGauge",
-      "displaySignature": "removeAllocation(address,uint256)",
-      "canonicalSignature": "removeAllocation(address,uint256)",
-      "selector": "0x3aa8f697",
+      "displaySignature": "removeAllocation(address)",
+      "canonicalSignature": "removeAllocation(address)",
+      "selector": "0xc58156e0",
       "selectorHash": "FIRST_4_BYTES_OF_KECCAK256_CANONICAL_SIGNATURE",
       "caller": "ALLOCATION_MODULE",
       "executionDelaySeconds": 0,
       "stateDelaySeconds": 0,
       "stateDelayAnchor": "NONE",
-      "precondition": "NONE",
+      "precondition": "FULL_USER_POSITION_ONLY_AND_UNLOCKED",
       "recipient": "user_position"
     },
     {
@@ -1289,21 +1250,9 @@
     },
     {
       "module": "UserStockVault",
-      "displayEvent": "AllocationMoved(bytes32 indexed assetUid,address indexed user,bytes32 indexed fromMarketId,bytes32 toMarketId,uint256 amount)",
-      "canonicalSignature": "AllocationMoved(bytes32,address,bytes32,bytes32,uint256)",
-      "topic0": "0xefb393712445e41ec275af49b3cc59a4535f9b5f0b15a2f2582abbd5dbecec64"
-    },
-    {
-      "module": "UserStockVault",
       "displayEvent": "AllocationForceReleased(bytes32 indexed assetUid,address indexed user,bytes32 indexed marketId,uint256 amount,uint32 recoveryEpoch)",
       "canonicalSignature": "AllocationForceReleased(bytes32,address,bytes32,uint256,uint32)",
       "topic0": "0x092390f5a0c2fa6385e850737d1842e3f8ac44fb1669785b3f98ae3d18f1a0fd"
-    },
-    {
-      "module": "AllocationManager",
-      "displayEvent": "AllocationMigrated(address indexed user,bytes32 indexed fromMarketId,bytes32 indexed toMarketId,uint256 amount,uint256 sourceRemaining,uint64 targetPendingGeneration,uint64 targetUnlockAt)",
-      "canonicalSignature": "AllocationMigrated(address,bytes32,bytes32,uint256,uint256,uint64,uint64)",
-      "topic0": "0x49a5873e97e213539b670049792f942d30f2fababde66caf535e3922de9c889e"
     },
     {
       "module": "AllocationManager",

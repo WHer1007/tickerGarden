@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "executionSpecId": "V2-EXEC-4",
+  "executionSpecId": "V2-EXEC-5",
   "status": "IMPLEMENTATION_ALLOWED",
   "updatedAt": "2026-09-04",
   "normativeDocument": "V2_EXECUTION_SPEC.md",
@@ -25,7 +25,7 @@
       "implementation": {
         "open": [],
         "requiredEvidence": [
-          "V2_EXEC_4_CANONICAL_ABI_HASH_AND_PERMISSION_VECTORS",
+          "V2_EXEC_5_CANONICAL_ABI_HASH_AND_PERMISSION_VECTORS",
           "ALL_OFFICIAL_STOCK_BASE_SELECTION_POLICY",
           "FIXED_ACTIVE_STAKER_SHARE_AND_RAGE_QUIT_FORFEITURE_VECTORS",
           "COMPLETE_SPEC_VECTOR_SUITE"
@@ -310,7 +310,7 @@
     "backingTargetRequired": false,
     "minimumAllocationPolicy": "PER_ASSET_TIMELOCKED_ADMIN_CONFIGURATION",
     "minimumAllocationSafetyFloorRaw": "414",
-    "minimumAllocationUpdateEffect": "EXISTING_POSITIONS_GRANDFATHERED_NEW_OR_INCREASED_AND_NONZERO_REMAINDER_POSITIONS_USE_CURRENT_VALUE",
+    "minimumAllocationUpdateEffect": "EXISTING_POSITIONS_GRANDFATHERED_NEW_OR_INCREASED_POSITIONS_USE_CURRENT_VALUE_FULL_EXIT_UNCONDITIONAL",
     "priceFeedCoverageAffectsEligibility": false,
     "officialIdentityAndTokenSafetyChecksStillRequired": true,
     "productionRegistration": "PER_ASSET_TIMELOCKED_REGISTRY_CALLS_NO_BATCH_ABI"
@@ -336,7 +336,12 @@
     "minimumAllocationSource": "OfficialStockRegistryV2.minimumAllocation(assetUid)",
     "minimumAllocationSafetyFloorRaw": "414",
     "minimumAllocationUpdateRoleDelaySeconds": 172800,
-    "existingPositionGrandfathering": "NO_FORCED_EXIT; INCREASE_PARTIAL_DECREASE_AND_MIGRATION_TARGET_USE_CURRENT_MINIMUM; FULL_CLOSE_AND_RAGE_QUIT_ALWAYS_ALLOWED",
+    "existingPositionGrandfathering": "NO_FORCED_EXIT; ANY_INCREASE_RESULT_USES_CURRENT_MINIMUM; FULL_CLOSE_AND_RAGE_QUIT_ALWAYS_ALLOWED",
+    "normalPositionTransitions": ["DEPOSIT_OR_INCREASE", "FULL_WITHDRAWAL"],
+    "partialDecreaseAllowed": false,
+    "crossMarketMigrationAllowed": false,
+    "normalWithdrawalAmount": "FULL_USER_MARKET_ALLOCATION",
+    "normalWithdrawalDestination": "USER_VAULT_FREE_BALANCE",
     "minLockSeconds": 86400,
     "lockStartsAt": "ALLOCATION_TRANSACTION_TIMESTAMP",
     "increaseResetsWholePositionLock": true,
@@ -366,7 +371,7 @@
   "vault": {
     "custodyScope": "ONE_MULTI_ASSET_USER_STOCK_VAULT_PER_VAULT_SCHEMA_VERSION",
     "initialDeploymentCount": 1,
-    "schemaIdentity": "keccak256(TickerGarden.UserStockVault.MultiAsset.v2)",
+    "schemaIdentity": "keccak256(TickerGarden.UserStockVault.MultiAsset.v3)",
     "schemaUniqueness": "OFFICIAL_STOCK_REGISTRY_ENFORCES_ONE_CANONICAL_VAULT_PER_SCHEMA",
     "schemaDiscovery": ["vaultSchemaId(address)", "vaultForSchema(bytes32)", "vaultIdentity()"],
     "assetKey": "EXPLICIT_CANONICAL_ASSET_UID",
@@ -501,15 +506,14 @@
     "administratorOverride": false,
     "arbitraryClaimRecipient": false
   },
-  "migrationAndTiming": {
-    "migrationAmount": "EXACT_SAME_RAW_STOCK_AMOUNT",
-    "migrationScope": "SAME_USER_SAME_ASSET_UID_SAME_VAULT",
-    "sourceOrder": "CHECKPOINT_SETTLE_MATERIALIZE_THEN_REMOVE_ACTIVE",
-    "targetOrder": "CHECKPOINT_SETTLE_THEN_ADD_OR_MERGE_PENDING",
-    "overlappingRewardWeight": false,
-    "targetActivationDelaySeconds": 30,
-    "targetWholePositionLockResetSeconds": 86400,
-    "sourceUnlockReset": false,
+  "allocationAndTiming": {
+    "normalDirections": ["DEPOSIT_OR_INCREASE", "FULL_WITHDRAWAL"],
+    "partialDecreaseAllowed": false,
+    "migrationAllowed": false,
+    "normalWithdrawalAmount": "FULL_USER_MARKET_ALLOCATION",
+    "normalWithdrawalOrder": "CHECK_LEDGER_AND_LOCK_THEN_GAUGE_SETTLE_AND_REMOVE_FULL_POSITION_THEN_VAULT_RELEASE_FULL_ALLOCATION",
+    "activationDelaySeconds": 30,
+    "increaseWholePositionLockResetSeconds": 86400,
     "sweptAtWriteMode": "WRITE_ONCE_ON_NOT_GRADUATED_TO_SWEPT",
     "rescueDelaySeconds": 604800,
     "rescueBoundary": "BLOCK_TIMESTAMP_GTE_SWEPT_AT_PLUS_DELAY",

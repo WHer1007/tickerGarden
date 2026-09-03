@@ -54,7 +54,7 @@ productionReady        = state == PRODUCTION_READY
 
 ## 3. 各阶段最低证据
 
-active Pons runtime 差分、非空首发 Quote、通用数值/overflow 上界、batch scope，以及官方 STOCK 全目录身份准入/194项点时观测已经分别由 `spec/v2_pons_runtime_evidence.json`、`spec/v2_initial_quote_configs.json`、`spec/v2_numeric_bounds.json`、manifest 与 `spec/v2_rh_official_stock_catalog.snapshot.json` 固化。`V2-EXEC-4` 的 implementation gate 已全部关闭：市场创建时必须从 ACTIVE 官方目录选择且只选择一个 `assetUid`，之后不可改绑；同一 STOCK 可被任意多个 Meme 市场选用；毕业后持有者自行决定是否向对应市场分配该 STOCK；每个非零 allocation 使用管理员按 Asset UID 动态设置的 `minimumAllocation`，且不得低于414 raw units；只要存在 active stake，Staker 固定取得 non-LP 50%。STOCK 价格、Feed 和 backing target 不属于 implementation 证据。
+active Pons runtime 差分、非空首发 Quote、通用数值/overflow 上界、batch scope，以及官方 STOCK 全目录身份准入/194项点时观测已经分别由 `spec/v2_pons_runtime_evidence.json`、`spec/v2_initial_quote_configs.json`、`spec/v2_numeric_bounds.json`、manifest 与 `spec/v2_rh_official_stock_catalog.snapshot.json` 固化。`V2-EXEC-5` 的 implementation gate 已全部关闭：市场创建时必须从 ACTIVE 官方目录选择且只选择一个 `assetUid`，之后不可改绑；同一 STOCK 可被任意多个 Meme 市场选用；毕业后持有者自行决定是否向对应市场分配该 STOCK；每个非零 allocation 使用管理员按 Asset UID 动态设置的 `minimumAllocation`，且不得低于414 raw units；只要存在 active stake，Staker 固定取得 non-LP 50%。STOCK 价格、Feed 和 backing target 不属于 implementation 证据。
 
 进入 `DEPLOYMENT_ELIGIBLE` 前还必须有：目标 chainId/RPC/finalized block hash、所有模块 artifact/地址/init/runtime codehash、四组件 CREATE2 向量、Hook 低位权限证明、AccessManager target-selector-role-delay 精确 diff、编译 ABI/event 精确 diff，以及产品/Fork/E2E 测试。
 

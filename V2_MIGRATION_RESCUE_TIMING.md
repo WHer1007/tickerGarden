@@ -1,32 +1,25 @@
-# TickerGarden V2 迁移、救援与计时语义
+# TickerGarden V2 Allocation 退出、救援与计时语义
 
-> 规格任务：`V2-P-009`  
-> 状态：`REVIEW`  
-> 更新时间：2026-09-03
+> 规格任务：`V2-P-009`
+> 状态：`FROZEN / V2-EXEC-5`
+> 更新时间：2026-09-04
+> 历史说明：文件名沿用 V2-P-009 审计索引；V2-EXEC-5 已删除跨 Meme allocation 迁移。
 
-## 1. 跨 Meme 原子迁移
+## 1. Allocation 只增不减与整仓退出
 
-`migrateAllocation(fromMarketId, toMarketId, amount)` 只迁移同一 Asset UID、同一 UserStockVault 中调用者自己的精确 `amount`。固定顺序：
+正常 allocation 只有新建/增仓和整仓关闭两个方向。`closeAllocation(marketId)` 不接受数量、owner 或 recipient；`decreaseAllocation`、`migrateAllocation` 与 `Vault.moveAllocation` 不属于 V2-EXEC-5 ABI。固定顺序：
 
 ```text
-require from != to and amount > 0
-require both markets use same assetUid and exact same Vault
-require target is PoolCreated + ACTIVE and Asset ACTIVE
-preflight target Gauge/Vault position consistency and target resulting minimum
-checkpoint source matured slots and settle source rewards at its pre-migration weight
-materialize source pending; because unlock is 24h and pending is 30s, it must now be mature
-require source position exists and now >= source.unlockAt
-require source activeAmount >= amount
-require source remainder after removal is 0 or >= current Asset UID minimumAllocation (minimum 414 raw units)
-remove exactly amount active STOCK from source Gauge
-Vault.moveAllocation(assetUid, user, from, to, amount)
-checkpoint target matured slots and settle target rewards at its pre-migration Gauge weight
-add exactly amount as target pending; merge/reset its 30s generation if needed
-reset target whole-position unlockAt = now + 24h
-emit AllocationMigrated
+require the caller's market position exists
+require now >= position.unlockAt
+checkpoint matured slots and settle both rewards at the old full weight
+Gauge.removeAllocation(user) clears active + pending and returns full principal
+require returned principal == Vault allocation(assetUid, user, marketId)
+Vault.releaseAllocation(assetUid, user, marketId) clears and returns the same full principal
+principal becomes the caller's Vault free balance
 ```
 
-所有步骤 nonReentrant 且同一交易原子回滚。被迁移 amount 在源结算后立即失去权重，在目标30秒成熟前没有权重；任何时刻都不能同时计奖。源剩余仓位的 unlockAt 不改变；目标整个合并仓位重置。迁出允许源市场 PAUSED/RETIRED，但目标必须开放新增；EMERGENCY 源必须走 force release，不能 migrate。
+所有步骤 nonReentrant 且同一交易原子回滚。正常 close 保留已计提收益，本金先回 Vault free balance，用户随后自行 `withdrawFreeStock`。`rageQuit(marketId)` 则绕过24小时锁、整仓直接返还本金并放弃全部未领取收益。用户若更换 Meme，必须先完整关闭源市场，再以独立交易将 free balance 分配到目标市场；目标重新执行最低仓位、30秒激活和24小时锁定。
 
 ## 2. Swept 七日救援
 
@@ -47,7 +40,7 @@ statusSince      = 当前 MarketStatus 开始时间
 restrictedSince = 本轮连续非 ACTIVE（PAUSED/RETIRED）开始时间；ACTIVE 时为0
 ```
 
-迁移规则：
+状态转换规则：
 
 ```text
 ACTIVE -> PAUSED:  statusSince=now, restrictedSince=now
@@ -65,8 +58,8 @@ PAUSED/RETIRED -> EMERGENCY_EXIT: 仅 launchPhase != NotGraduated；
 
 ## 4. 不变量
 
-1. 迁移前后 Vault 总 allocated 不变，源减量等于目标增量。
-2. 同一 amount 不在两个 Gauge 同时 active/pending；目标等待期不计奖。
-3. 迁移失败时 Vault 与两个 Gauge 均无变化。
+1. Manager、Gauge、Vault 均不存在按 amount 部分释放或跨市场搬移 selector。
+2. close/rageQuit 清除的 Gauge 总仓位必须等于 Vault 对应市场总 allocation；不一致时整笔回滚。
+3. 更换市场由两笔独立操作完成，同一 STOCK 不会在两个 Gauge 同时 active/pending；目标等待期不计奖。
 4. `sweptAt` write-once；七日时钟不受 MarketStatus 变化影响。
 5. `restrictedSince` 只在离开 ACTIVE 时开始，在恢复 ACTIVE 时清零，PAUSED→RETIRED 保持。

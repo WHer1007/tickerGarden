@@ -196,11 +196,9 @@ interface IUserStockVaultMutationDraft {
     // caller=ALLOCATION_MODULE; executionDelay=0; stateDelay=0
     function lockAllocation(bytes32, address, bytes32, uint256) external;
     // caller=ALLOCATION_MODULE; executionDelay=0; stateDelay=0
-    function releaseAllocation(bytes32, address, bytes32, uint256) external;
+    function releaseAllocation(bytes32, address, bytes32) external returns (uint256);
     // caller=ALLOCATION_MODULE; executionDelay=0; stateDelay=0
-    function rageQuitAllocation(bytes32, address, bytes32, uint256) external;
-    // caller=ALLOCATION_MODULE; executionDelay=0; stateDelay=0
-    function moveAllocation(bytes32, address, bytes32, bytes32, uint256) external;
+    function rageQuitAllocation(bytes32, address, bytes32) external returns (uint256);
 }
 
 interface IAllocationManagerMutationDraft {
@@ -209,13 +207,9 @@ interface IAllocationManagerMutationDraft {
     // caller=PUBLIC; executionDelay=0; stateDelay=0
     function increaseAllocation(bytes32, uint256) external;
     // caller=PUBLIC; executionDelay=0; stateDelay=0
-    function decreaseAllocation(bytes32, uint256) external;
-    // caller=PUBLIC; executionDelay=0; stateDelay=0
     function closeAllocation(bytes32) external;
     // caller=PUBLIC; executionDelay=0; stateDelay=0
     function rageQuit(bytes32) external;
-    // caller=PUBLIC; executionDelay=0; stateDelay=0
-    function migrateAllocation(bytes32, bytes32, uint256) external;
     // caller=PUBLIC; executionDelay=0; stateDelay=0
     function depositAndAllocate(bytes32, uint256, uint256) external;
 }
@@ -224,7 +218,7 @@ interface IMemeStockGaugeMutationDraft {
     // caller=ALLOCATION_MODULE; executionDelay=0; stateDelay=0
     function addPending(address, uint256, uint64, uint64) external;
     // caller=ALLOCATION_MODULE; executionDelay=0; stateDelay=0
-    function removeAllocation(address, uint256) external;
+    function removeAllocation(address) external returns (uint256);
     // caller=ALLOCATION_MODULE; executionDelay=0; stateDelay=0
     function rageQuit(address) external returns (uint256, uint256, uint256, bool);
     // caller=PUBLIC; executionDelay=0; stateDelay=0

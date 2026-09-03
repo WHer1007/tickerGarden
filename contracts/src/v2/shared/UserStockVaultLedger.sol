@@ -17,7 +17,7 @@ abstract contract UserStockVaultLedger is UserStockVaultDeposits {
     error InvalidAllocationAmount(uint256 amount);
     error AllocationExceedsDeposit(uint256 requested, uint256 freeBalance);
     error InsufficientMarketAllocation(bytes32 marketId, uint256 requested, uint256 available);
-    error SameAllocationMarket(bytes32 marketId);
+    error NoMarketAllocation(address user, bytes32 marketId);
     error AllocationLedgerMismatch();
 
     constructor(address officialStockRegistry_, address marketRegistry_, address allocationManager_)
@@ -37,35 +37,20 @@ abstract contract UserStockVaultLedger is UserStockVaultDeposits {
         _totalAllocated[assetUid] += amount;
     }
 
-    function _releaseAllocation(bytes32 assetUid, address user, bytes32 marketId, uint256 amount) internal {
-        _validateAccountAndAmount(user, amount);
+    function _releaseAllocation(bytes32 assetUid, address user, bytes32 marketId)
+        internal
+        returns (uint256 amount)
+    {
+        if (user == address(0) || user == address(this)) revert InvalidAllocationAccount(user);
         _canonicalMarket(assetUid, marketId);
 
-        uint256 available = _allocation[assetUid][user][marketId];
-        if (amount > available) revert InsufficientMarketAllocation(marketId, amount, available);
+        amount = _allocation[assetUid][user][marketId];
+        if (amount == 0) revert NoMarketAllocation(user, marketId);
 
-        _allocation[assetUid][user][marketId] = available - amount;
+        _allocation[assetUid][user][marketId] = 0;
         _allocated[assetUid][user] -= amount;
         _marketAllocated[assetUid][marketId] -= amount;
         _totalAllocated[assetUid] -= amount;
-    }
-
-    function _moveAllocation(bytes32 assetUid, address user, bytes32 fromMarketId, bytes32 toMarketId, uint256 amount)
-        internal
-    {
-        _validateAccountAndAmount(user, amount);
-        if (fromMarketId == toMarketId) revert SameAllocationMarket(fromMarketId);
-        _canonicalAsset(assetUid);
-        _marketForAsset(assetUid, fromMarketId);
-        _marketForAsset(assetUid, toMarketId);
-
-        uint256 available = _allocation[assetUid][user][fromMarketId];
-        if (amount > available) revert InsufficientMarketAllocation(fromMarketId, amount, available);
-
-        _allocation[assetUid][user][fromMarketId] = available - amount;
-        _allocation[assetUid][user][toMarketId] += amount;
-        _marketAllocated[assetUid][fromMarketId] -= amount;
-        _marketAllocated[assetUid][toMarketId] += amount;
     }
 
     function _freeBalanceOf(bytes32 assetUid, address user) internal view returns (uint256) {

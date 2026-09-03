@@ -880,7 +880,7 @@ contract MarketRegistryV2Test is Test {
             quoteAssetConfigId: QUOTE_CONFIG_ID,
             launchTemplateId: TEMPLATE_ID,
             feePolicyId: FEE_POLICY_ID,
-            executionSpecId: keccak256("V2-EXEC-4"),
+            executionSpecId: keccak256("V2-EXEC-5"),
             expectedEconomics: ECONOMICS,
             launchConfigId: LAUNCH_CONFIG_ID,
             creatorRevenueBeneficiaryAtCreation: BENEFICIARY,
@@ -938,7 +938,7 @@ contract MarketRegistryV2Test is Test {
             launchLockerImplementation: address(0x1005),
             launchLockerCodeHash: keccak256("locker"),
             feePolicyId: FEE_POLICY_ID,
-            executionSpecId: keccak256("V2-EXEC-4"),
+            executionSpecId: keccak256("V2-EXEC-5"),
             status: 1
         });
     }

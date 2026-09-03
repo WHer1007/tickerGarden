@@ -35,7 +35,7 @@ contract MarketRegistryV2 is IMarketRegistryV2 {
     uint64 internal constant RESCUE_DELAY_SECONDS = 7 days;
     uint64 internal constant EMERGENCY_RESTRICTION_SECONDS = 1 days;
 
-    bytes32 public constant EXECUTION_SPEC_ID = keccak256("V2-EXEC-4");
+    bytes32 public constant EXECUTION_SPEC_ID = keccak256("V2-EXEC-5");
 
     address public immutable factory;
     address public immutable officialStockRegistry;

@@ -10,8 +10,8 @@ const outputPath = resolve(websiteRoot, "src/v2/generated/abis.ts");
 const check = process.argv.includes("--check");
 const manifest = JSON.parse(await readFile(manifestPath, "utf8"));
 
-if (manifest.executionSpecId !== "V2-EXEC-4" || manifest.modules.length !== 19) {
-  throw new Error("expected the frozen V2-EXEC-4 nineteen-module product manifest");
+if (manifest.executionSpecId !== "V2-EXEC-5" || manifest.modules.length !== 19) {
+  throw new Error("expected the frozen V2-EXEC-5 nineteen-module product manifest");
 }
 
 const artifactSources = [];

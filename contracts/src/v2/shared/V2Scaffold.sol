@@ -4,7 +4,7 @@ pragma solidity 0.8.26;
 /// @notice Compile-time marker for the isolated TickerGarden V2 namespace.
 /// @dev This library is not a product contract and MUST NOT be deployed.
 library V2Scaffold {
-    string internal constant EXECUTION_SPEC_ID = "V2-EXEC-4";
+    string internal constant EXECUTION_SPEC_ID = "V2-EXEC-5";
     bytes32 internal constant EXECUTION_SPEC_ID_HASH = keccak256(bytes(EXECUTION_SPEC_ID));
 
     function executionSpecIdHash() internal pure returns (bytes32) {

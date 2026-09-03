@@ -1,6 +1,6 @@
 # TickerGarden V2-M0 阻塞审计
 
-> 历史审计档案说明：本文中的 `V2-EXEC-3`、10 STOCK 线性释放和相关测试结论保留为历史证据，不代表当前执行规则。当前规范为 `V2-EXEC-4`。
+> 历史审计档案说明：本文中的 `V2-EXEC-3`、10 STOCK 线性释放和相关测试结论保留为历史证据，不代表当前执行规则。当前规范为 `V2-EXEC-5`。
 
 > 审计日期：2026-09-02  
 > 结论：`IMPLEMENTATION_ALLOWED / DEPLOYMENT_GATES_OPEN`  

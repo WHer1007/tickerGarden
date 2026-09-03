@@ -1,11 +1,11 @@
 # TickerGarden V2-M0 G0 决策登记
 
 > 状态：`PRODUCT_DIRECTION_APPROVED / IMPLEMENTATION_ALLOWED / NOT_DEPLOYABLE`  
-> 当前执行规范：`V2-EXEC-4`
+> 当前执行规范：`V2-EXEC-5`
 > 历史机器清单：[`spec/v2_g0_recommendations.json`](./spec/v2_g0_recommendations.json)
 > 外部证据：[`V2_G0_EXTERNAL_EVIDENCE.md`](./V2_G0_EXTERNAL_EVIDENCE.md)
 
-> 修订说明：底层机器清单保留旧 `V2-EXEC-3` 决策快照作为取证；本文面向当前实现的表述已按 `V2-EXEC-4` 修订。管理员按 Asset UID 动态设置 `minimumAllocation`（不得低于414 raw units），active stake 固定取得 non-LP 50%。
+> 修订说明：底层机器清单保留旧 `V2-EXEC-3` 决策快照作为取证；本文面向当前实现的表述已按 `V2-EXEC-5` 修订。管理员按 Asset UID 动态设置 `minimumAllocation`（不得低于414 raw units），active stake 固定取得 non-LP 50%。
 
 本文记录 2026-09-02 已确认的 Pons 参考方向，并把仍需逐资产/工程/安全验证的事项留作部署门禁。产品批准不等于允许把观测值或不一致的公开源码直接部署。
 
