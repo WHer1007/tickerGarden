@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 import { keccak_256 } from "@noble/hashes/sha3.js";
 
-import { HttpV2ReadOnlyRpc, preflightV2Deployment, verifyV2LiveState, type V2ReadOnlyRpc } from "../src/v2/preflight.ts";
+import { HttpV1ReadOnlyRpc, preflightV1Deployment, verifyV1LiveState, type V1ReadOnlyRpc } from "../src/v1/preflight.ts";
 import { address, clone, validManifest, type JsonRecord } from "./manifest-fixture.ts";
 
 function bytes(hex: string): Uint8Array {
@@ -53,6 +53,13 @@ function resolverBindingResult(manifest: JsonRecord, label: unknown): string | u
   return result([addressWord(String((modules[registryName] as JsonRecord).deployedAddress))]);
 }
 
+function stockIdentityResult(manifest: JsonRecord, label: unknown): string | undefined {
+  const stock = ((manifest.officialStocks as JsonRecord[])[0])!;
+  if (label === "stock-uid") return result([String(stock.assetUid).slice(2)]);
+  if (label === "stock-decimals") return result([word(stock.decimals as number)]);
+  return undefined;
+}
+
 function prepareManifest(): JsonRecord {
   const manifest = clone(validManifest());
   const codeHash = keccakHex("0x60006000");
@@ -77,7 +84,7 @@ function prepareManifest(): JsonRecord {
   const getterResult = result([word(123n)]);
   const stockImplementation = String(((manifest.officialStocks as JsonRecord[])[0] as JsonRecord).implementationAddress);
   for (const check of live.keyGetterChecks as JsonRecord[]) {
-    const expectedResult = resolverBindingResult(manifest, check.label) ?? (check.label === "gauge-clone-identity"
+    const expectedResult = resolverBindingResult(manifest, check.label) ?? stockIdentityResult(manifest, check.label) ?? (check.label === "gauge-clone-identity"
       ? result(Array.from({ length: 8 }, () => word(123n)))
       : check.category === "PROXY_OR_BEACON_LINKAGE"
         ? result([addressWord(stockImplementation)])
@@ -118,9 +125,11 @@ type Faults = Partial<{
   permissionRole: bigint;
   membershipDelay: bigint;
   receiptStatus: string;
+  stockUidResult: string;
+  stockDecimalsResult: string;
 }>;
 
-class MockRpc implements V2ReadOnlyRpc {
+class MockRpc implements V1ReadOnlyRpc {
   readonly methods: string[] = [];
   readonly #manifest: JsonRecord;
   readonly #faults: Faults;
@@ -139,7 +148,13 @@ class MockRpc implements V2ReadOnlyRpc {
     const live = manifest.livePreflight as JsonRecord;
     for (const check of live.keyGetterChecks as JsonRecord[]) {
       const stockImplementation = String((((manifest.officialStocks as JsonRecord[])[0])!).implementationAddress);
-      const callResult = resolverBindingResult(manifest, check.label) ?? (check.label === "gauge-clone-identity"
+      const canonicalStockResult = stockIdentityResult(manifest, check.label);
+      const stockResult = check.label === "stock-uid"
+        ? faults.stockUidResult ?? canonicalStockResult
+        : check.label === "stock-decimals"
+          ? faults.stockDecimalsResult ?? canonicalStockResult
+          : canonicalStockResult;
+      const callResult = resolverBindingResult(manifest, check.label) ?? stockResult ?? (check.label === "gauge-clone-identity"
         ? result(Array.from({ length: 8 }, () => word(123n)))
         : check.category === "PROXY_OR_BEACON_LINKAGE"
           ? result([addressWord(stockImplementation)])
@@ -298,12 +313,12 @@ class MockRpc implements V2ReadOnlyRpc {
 test("verifies complete live state at one finalized block using read-only RPC only", async () => {
   const manifest = prepareManifest();
   const rpc = new MockRpc(manifest);
-  const report = await verifyV2LiveState(manifest, rpc);
+  const report = await verifyV1LiveState(manifest, rpc);
   assert.equal(report.chainId, 4663);
-  assert.equal(report.permissionChecks, 82);
+  assert.equal(report.permissionChecks, 71);
   assert.equal(report.administrativePermissionChecks, 6);
-  assert.equal(report.roleMembershipChecks, 4);
-  assert.equal(report.revokedMembershipChecks, 4);
+  assert.equal(report.roleMembershipChecks, 3);
+  assert.equal(report.revokedMembershipChecks, 3);
   assert.ok(report.codeHashesChecked >= 30);
   assert.ok(report.getterChecks >= 12);
   assert.equal(report.transactionReceiptsChecked, 2);
@@ -331,14 +346,14 @@ test("fails closed on chain, code, getter, storage, source, fee, role and select
   ];
   for (const [label, faults, expected] of cases) {
     const manifest = prepareManifest();
-    await assert.rejects(verifyV2LiveState(manifest, new MockRpc(manifest, faults)), expected, label);
+    await assert.rejects(verifyV1LiveState(manifest, new MockRpc(manifest, faults)), expected, label);
   }
 });
 
 test("deployment entry remains blocked by central readiness before any RPC call", async () => {
   const manifest = prepareManifest();
   const rpc = new MockRpc(manifest);
-  await assert.rejects(preflightV2Deployment(manifest, rpc), /deployment gates/);
+  await assert.rejects(preflightV1Deployment(manifest, rpc), /deployment gates/);
   assert.deepEqual(rpc.methods, []);
 });
 
@@ -347,7 +362,7 @@ test("rejects manifest-level proxy linkage and permission semantic drift before 
   const storage = ((badBeacon.livePreflight as JsonRecord).storageChecks as JsonRecord[])[0]!;
   storage.expectedValue = `0x${addressWord(address("wrong-beacon"))}`;
   const beaconRpc = new MockRpc(badBeacon);
-  await assert.rejects(verifyV2LiveState(badBeacon, beaconRpc), /beaconSlot/);
+  await assert.rejects(verifyV1LiveState(badBeacon, beaconRpc), /beaconSlot/);
   assert.deepEqual(beaconRpc.methods, []);
 
   const badPermission = prepareManifest();
@@ -356,8 +371,30 @@ test("rejects manifest-level proxy linkage and permission semantic drift before 
   ))!;
   permission.stateDelaySeconds = 0;
   const permissionRpc = new MockRpc(badPermission);
-  await assert.rejects(verifyV2LiveState(badPermission, permissionRpc), /stateDelaySeconds/);
+  await assert.rejects(verifyV1LiveState(badPermission, permissionRpc), /stateDelaySeconds/);
   assert.deepEqual(permissionRpc.methods, []);
+});
+
+test("fails closed when finalized stock UID or decimals evidence is missing or drifts", async () => {
+  for (const label of ["stock-uid", "stock-decimals"]) {
+    const missing = prepareManifest();
+    const live = missing.livePreflight as JsonRecord;
+    live.keyGetterChecks = (live.keyGetterChecks as JsonRecord[]).filter((entry) => entry.label !== label);
+    const missingRpc = new MockRpc(missing);
+    await assert.rejects(
+      verifyV1LiveState(missing, missingRpc),
+      new RegExp(`officialStocks\\.0\\.${label === "stock-uid" ? "uidGetter" : "decimalsGetter"}`),
+    );
+    assert.deepEqual(missingRpc.methods, [], label);
+
+    const drifted = prepareManifest();
+    const faults = label === "stock-uid"
+      ? { stockUidResult: result([word(999n)]) }
+      : { stockDecimalsResult: result([word(999n)]) };
+    const driftedRpc = new MockRpc(drifted, faults);
+    await assert.rejects(verifyV1LiveState(drifted, driftedRpc), new RegExp(`keyGetterChecks\\.${label}`));
+    assert.ok(driftedRpc.methods.includes("eth_call"), label);
+  }
 });
 
 test("rejects Gauge clone implementation and immutable-identity drift before RPC", async () => {
@@ -365,7 +402,7 @@ test("rejects Gauge clone implementation and immutable-identity drift before RPC
   const gauge = (((wrongImplementation.create2 as JsonRecord).components as JsonRecord).GAUGE as JsonRecord);
   gauge.implementationAddress = address("wrong-gauge-implementation");
   const implementationRpc = new MockRpc(wrongImplementation);
-  await assert.rejects(verifyV2LiveState(wrongImplementation, implementationRpc), /implementationAddress/);
+  await assert.rejects(verifyV1LiveState(wrongImplementation, implementationRpc), /implementationAddress/);
   assert.deepEqual(implementationRpc.methods, []);
 
   const wrongIdentity = prepareManifest();
@@ -373,7 +410,7 @@ test("rejects Gauge clone implementation and immutable-identity drift before RPC
     .find((check) => check.label === "gauge-clone-identity")!;
   identityCheck.expectedReturnDataHash = keccakHex(result(Array.from({ length: 8 }, () => word(456n))));
   const identityRpc = new MockRpc(wrongIdentity);
-  await assert.rejects(verifyV2LiveState(wrongIdentity, identityRpc), /immutableArgsHash/);
+  await assert.rejects(verifyV1LiveState(wrongIdentity, identityRpc), /immutableArgsHash/);
   assert.deepEqual(identityRpc.methods, []);
 
   const wrongResolver = prepareManifest();
@@ -381,7 +418,7 @@ test("rejects Gauge clone implementation and immutable-identity drift before RPC
     .find((check) => check.label === "resolver-approved-quote-registry")!;
   resolverCheck.expectedReturnDataHash = keccakHex(result([addressWord(address("wrong-quote-registry"))]));
   const resolverRpc = new MockRpc(wrongResolver);
-  await assert.rejects(verifyV2LiveState(wrongResolver, resolverRpc), /approvedQuoteRegistry/);
+  await assert.rejects(verifyV1LiveState(wrongResolver, resolverRpc), /approvedQuoteRegistry/);
   assert.deepEqual(resolverRpc.methods, []);
 });
 
@@ -396,18 +433,18 @@ test("rejects every canonical permission semantic and role-handoff drift before 
     ["recipient", (manifest) => { (((manifest.accessManager as JsonRecord).protocolPermissions as JsonRecord[])[0]!).recipient = "arbitrary"; }],
     ["precondition", (manifest) => { (((manifest.accessManager as JsonRecord).protocolPermissions as JsonRecord[])[0]!).precondition = "BYPASS"; }],
     ["deployer alias", (manifest) => { (manifest.roleHandoff as JsonRecord).deployer = (manifest.roleHandoff as JsonRecord).governanceSafe; }],
-    ["module alias", (manifest) => { ((manifest.protocolModules as JsonRecord).OfficialStockRegistryV2 as JsonRecord).deployedAddress = (manifest.roleHandoff as JsonRecord).recoverySafe; }],
+    ["module alias", (manifest) => { ((manifest.protocolModules as JsonRecord).OfficialStockRegistryV1 as JsonRecord).deployedAddress = (manifest.roleHandoff as JsonRecord).guardianSafe; }],
   ];
   for (const [label, mutate] of cases) {
     const manifest = prepareManifest();
     mutate(manifest);
     const rpc = new MockRpc(manifest);
-    await assert.rejects(verifyV2LiveState(manifest, rpc), undefined, label);
+    await assert.rejects(verifyV1LiveState(manifest, rpc), undefined, label);
     assert.deepEqual(rpc.methods, [], label);
   }
 });
 
 test("HTTP transport rejects write RPC methods before network access", async () => {
-  const rpc = new HttpV2ReadOnlyRpc("https://rpc.release.invalid");
+  const rpc = new HttpV1ReadOnlyRpc("https://rpc.release.invalid");
   await assert.rejects(rpc.request("eth_sendRawTransaction", ["0x00"]), /non-read-only RPC method/);
 });

@@ -1,14 +1,14 @@
-export const V2_READINESS_STATES = [
+export const V1_READINESS_STATES = [
   "SPEC_FROZEN_NOT_DEPLOYABLE",
   "IMPLEMENTATION_ALLOWED",
   "DEPLOYMENT_ELIGIBLE",
   "PRODUCTION_READY",
 ] as const;
 
-export type V2ReadinessState = (typeof V2_READINESS_STATES)[number];
+export type V1ReadinessState = (typeof V1_READINESS_STATES)[number];
 export type ReadinessGateName = "implementation" | "deployment" | "production";
 
-export type V2GateSets = Readonly<Record<ReadinessGateName, readonly string[]>>;
+export type V1GateSets = Readonly<Record<ReadinessGateName, readonly string[]>>;
 
 export type ZeroRule = Readonly<{
   pathPattern: string;
@@ -38,22 +38,22 @@ export type PlaceholderViolation = Readonly<{
   value?: string;
 }>;
 
-export function deriveV2ReadinessState(gates: V2GateSets): V2ReadinessState {
+export function deriveV1ReadinessState(gates: V1GateSets): V1ReadinessState {
   if (gates.implementation.length > 0) return "SPEC_FROZEN_NOT_DEPLOYABLE";
   if (gates.deployment.length > 0) return "IMPLEMENTATION_ALLOWED";
   if (gates.production.length > 0) return "DEPLOYMENT_ELIGIBLE";
   return "PRODUCTION_READY";
 }
 
-export function readinessFlags(state: V2ReadinessState): Readonly<{
+export function readinessFlags(state: V1ReadinessState): Readonly<{
   implementationAllowed: boolean;
   deploymentEligible: boolean;
   productionReady: boolean;
 }> {
-  const index = V2_READINESS_STATES.indexOf(state);
+  const index = V1_READINESS_STATES.indexOf(state);
   return Object.freeze({
-    implementationAllowed: index >= V2_READINESS_STATES.indexOf("IMPLEMENTATION_ALLOWED"),
-    deploymentEligible: index >= V2_READINESS_STATES.indexOf("DEPLOYMENT_ELIGIBLE"),
+    implementationAllowed: index >= V1_READINESS_STATES.indexOf("IMPLEMENTATION_ALLOWED"),
+    deploymentEligible: index >= V1_READINESS_STATES.indexOf("DEPLOYMENT_ELIGIBLE"),
     productionReady: state === "PRODUCTION_READY",
   });
 }
@@ -178,5 +178,5 @@ export function assertNoProductionPlaceholders(
     .slice(0, 8)
     .map((entry) => `${entry.code}@${entry.path}`)
     .join(", ");
-  throw new Error(`TickerGarden V2 production manifest contains placeholders: ${summary}`);
+  throw new Error(`TickerGarden V1 production manifest contains placeholders: ${summary}`);
 }

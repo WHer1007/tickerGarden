@@ -1,6 +1,6 @@
-import type { DecodedV2Event, ObservationRequest } from "./schema.ts";
+import type { DecodedV1Event, ObservationRequest } from "./schema.ts";
 
-export function requiredObservations(event: DecodedV2Event): readonly ObservationRequest[] {
+export function requiredObservations(event: DecodedV1Event): readonly ObservationRequest[] {
   switch (event.signature) {
     case "QuoteAssetConfigAdded(bytes32,address,bytes32,bytes32)":
       return [{ kind: "quote", key: event.args.configId, reason: "event commits hashes but not the complete quote config" }];
@@ -31,21 +31,31 @@ export function requiredObservations(event: DecodedV2Event): readonly Observatio
       return [{ kind: "gaugePosition", key: `${event.args.user}:${event.args.marketId}`, reason: "pending and active balances are authoritative Gauge views" }];
     case "GaugeRageQuit(address,bytes32,uint256,uint256,uint256,bool)":
     case "AllocationRageQuitExecuted(address,bytes32,uint256,uint256,uint256,bool)":
+    case "RageQuitRewardSettlementDeferred(address,bytes32,uint256,address)":
+    case "RageQuitRewardSettlementFinalized(address,bytes32,uint256,uint256,uint256,bool)":
       return [{ kind: "gaugePosition", key: `${event.args.user}:${event.args.marketId}`, reason: "rage quit clears the authoritative Gauge position" }];
     case "StockDeposited(bytes32,address,uint256)":
     case "StockWithdrawn(bytes32,address,uint256)":
-      return [{ kind: "vaultPosition", key: `${event.args.assetUid}:${event.args.user}`, reason: "deposited, allocated, and free balances are authoritative Vault views" }];
+      return [
+        { kind: "vaultPosition", key: `${event.args.assetUid}:${event.args.user}`, reason: "deposited, allocated, and free balances are authoritative Vault views" },
+        { kind: "vaultSolvency", key: event.args.assetUid, reason: "the Vault token balance must cover totalDeposited for this asset" },
+        { kind: "assetIdentity", key: event.args.assetUid, reason: "verify the canonical token proxy fingerprint against the asset config" },
+      ];
+    case "StockTokenFingerprintRegistered(bytes32,bytes32,address,bytes32,address,bytes32)":
+    case "AssetImplementationAccepted(bytes32,address,address,bytes32,bytes32,bytes32)":
+      return [{ kind: "assetIdentity", key: event.args.assetUid, reason: "asset implementation and runtime fingerprint are authoritative Registry identity" }];
     case "AssetMinimumAllocationChanged(bytes32,uint256,uint256,bytes32)":
       return [{ kind: "asset", key: event.args.assetUid, reason: "minimum allocation is an authoritative Registry policy value" }];
     case "AllocationLocked(bytes32,address,bytes32,uint256,uint256,uint256)":
     case "AllocationReleased(bytes32,address,bytes32,uint256,uint256,uint256)":
     case "AllocationRageQuit(bytes32,address,bytes32,uint256)":
+    case "RageQuitRewardSettlementQueued(bytes32,address,bytes32,uint256)":
+    case "RageQuitRewardSettlementCompleted(bytes32,address,bytes32,uint256)":
       return [
         { kind: "vaultPosition", key: `${event.args.assetUid}:${event.args.user}`, reason: "asset-scoped principal totals are authoritative Vault views" },
         { kind: "gaugePosition", key: `${event.args.user}:${event.args.marketId}`, reason: "allocation changes must reconcile with the Gauge position" },
+        { kind: "assetIdentity", key: event.args.assetUid, reason: "allocation activity must detect token proxy implementation drift" },
       ];
-    case "AllocationForceReleased(bytes32,address,bytes32,uint256,uint32)":
-      return [{ kind: "vaultPosition", key: `${event.args.assetUid}:${event.args.user}`, reason: "Emergency release changes the authoritative asset-scoped Vault position without calling the Gauge" }];
     case "V4FeeAccrued(bytes32,bytes32,address,uint64,bytes32,uint256,uint256,uint256,uint256)":
       return [
         { kind: "market", key: event.args.marketId, reason: "verify the active sourceVersion for this Hook fee" },
@@ -61,8 +71,6 @@ export function requiredObservations(event: DecodedV2Event): readonly Observatio
       return [{ kind: "liability", key: `${event.args.marketId}:${event.args.quoteAsset}`, reason: "curve sweep changes authoritative FeeVault liability" }];
     case "FeeClaimed(uint8,address,bytes32,uint32,address,uint256)":
       return [{ kind: "liability", key: `${event.args.marketId}:${event.args.feeAsset}`, reason: "claims reduce authoritative FeeVault liability" }];
-    case "RecoveryClaimed(bytes32,uint32,address,address,uint256)":
-      return [{ kind: "liability", key: `${event.args.marketId}:${event.args.feeAsset}`, reason: "recovery claims reduce frozen-cap liability" }];
     default:
       return [];
   }

@@ -1,0 +1,106 @@
+{
+  "schemaVersion": 1,
+  "status": "OBSERVED_NOT_APPROVED",
+  "capturedAt": "2026-09-02T04:28:48Z",
+  "chain": {
+    "name": "Robinhood Chain",
+    "chainId": 4663,
+    "rpc": "https://rpc.mainnet.chain.robinhood.com",
+    "snapshotBlock": 52289586,
+    "snapshotBlockHex": "0x31de032",
+    "snapshotBlockHash": "0x9477917aacd098d56b4d5fb375e555a09d1a61b7bf33417429e5c8e4a2e86006"
+  },
+  "officialSourceConflict": {
+    "ponsDocsFactory": "0x7ed598bcef8bd9edd8c97a195c6d13f40801ec7e",
+    "ponsRepositoryFactory": "0x7e1eabd52ae29598e6483f72dcf1a70b14284db8",
+    "repositoryCommit": "845bd546b37515621e47b08015ce4f9d374f6eca",
+    "repositoryFactorySourceSha256": "561475202f7635d9c2caa1c4eed196642bedc2c32ed77afc6297175ef86ea2c7",
+    "classification": "BLOCKING_BASELINE_CONFLICT"
+  },
+  "commonLaunchConfig0": {
+    "enabled": true,
+    "supplyRaw": "1000000000000000000000000000",
+    "tokenDecimals": 18,
+    "curveFeeBps": 100,
+    "nativePhantomQuoteRaw": "1680000000000000000",
+    "nativeGraduationThresholdRaw": "4200000000000000000",
+    "poolFee": 0,
+    "tickSpacing": 200,
+    "reservedTokensRaw": "285714285714285714285714285",
+    "sellableTokensRaw": "714285714285714285714285715"
+  },
+  "factoryCandidates": [
+    {
+      "source": "PONS_OFFICIAL_DOCS_CURRENT_STACK",
+      "address": "0x7ed598bcef8bd9edd8c97a195c6d13f40801ec7e",
+      "runtimeBytes": 24177,
+      "runtimeKeccak256": "0x89a27da6f703e0a7cdd4f233e7cb57604ff75b164530962d3ff7cf8483a67d84",
+      "launchConfigCount": 1,
+      "launchEnabled": true,
+      "launchFeeRaw": "500000000000000",
+      "snipeTaxStartBps": 9900,
+      "snipeTaxSeconds": 3,
+      "usdG": {
+        "approvedPairToken": true,
+        "expectedDecimals": 6,
+        "phantomQuoteRaw": "3236000000",
+        "graduationThresholdRaw": "8090000000",
+        "expectedEconomics": "0x7909a028ec0fee3564b05d53b74cd91d79786f17ac5aa90be360c0b78201e86a"
+      }
+    },
+    {
+      "source": "PONS_OFFICIAL_REPOSITORY_README",
+      "address": "0x7e1eabd52ae29598e6483f72dcf1a70b14284db8",
+      "runtimeBytes": 22757,
+      "runtimeKeccak256": "0x9d6391ccd6730301cf53ea0f520b42d9f13d9dd11ba803c19ae3a01d145b7d9e",
+      "launchConfigCount": 1,
+      "launchEnabled": false,
+      "launchFeeRaw": "500000000000000",
+      "usdG": {
+        "approvedPairToken": true,
+        "expectedDecimals": 6,
+        "phantomQuoteRaw": "3236000000",
+        "graduationThresholdRaw": "8090000000",
+        "expectedEconomics": "0x7909a028ec0fee3564b05d53b74cd91d79786f17ac5aa90be360c0b78201e86a"
+      },
+      "sourceDeploymentMismatch": {
+        "observed": true,
+        "detail": "snipeTaxStartBps(), snipeTaxSeconds() and feePolicy() revert on the deployed runtime although the pinned repository source declares public getters"
+      }
+    }
+  ],
+  "quoteAssetEvidence": {
+    "officialRobinhoodStablecoin": {
+      "symbol": "USDG",
+      "address": "0x5fc5360d0400a0fd4f2af552add042d716f1d168",
+      "decimals": 6
+    },
+    "officialUsdcListed": false,
+    "productRequirement": "USDC",
+    "classification": "BLOCKING_PRODUCT_SOURCE_CONFLICT"
+  },
+  "gates": {
+    "V1-G0-PONS-BASELINE-01": {
+      "status": "BLOCKED",
+      "missing": [
+        "Select the authoritative Pons V2 factory/release",
+        "Pin an ABI/source that matches the selected deployed runtime",
+        "Approve executable behavior vectors"
+      ]
+    },
+    "V1-G0-PONS-QUOTE-01": {
+      "status": "BLOCKED",
+      "missing": [
+        "Resolve the explicit USDC requirement against Robinhood Chain official USDG",
+        "Approve the first-release native/ERC-20 quote list",
+        "Approve asset behavior and economics vectors"
+      ]
+    },
+    "V1-G0-PONS-DIFF-01": {
+      "status": "BLOCKED",
+      "missing": [
+        "Sign the inherit/differ/not-applicable matrix against the selected baseline"
+      ]
+    }
+  }
+}

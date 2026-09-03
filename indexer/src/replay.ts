@@ -1,8 +1,8 @@
 import { isDeepStrictEqual } from "node:util";
 import type { CanonicalBlock, CheckpointStore, IndexerCheckpoint } from "./checkpoint.ts";
 import { encodeCheckpoint, encodeJson } from "./checkpoint.ts";
-import { applyV2Event } from "./projector.ts";
-import { createIndexerState, type V2IndexerState } from "./schema.ts";
+import { applyV1Event } from "./projector.ts";
+import { createIndexerState, type V1IndexerState } from "./schema.ts";
 
 const lower = (value: string): string => value.toLowerCase();
 
@@ -23,15 +23,15 @@ function validateBlock(block: CanonicalBlock): void {
   }
 }
 
-function rebuild(blocks: readonly CanonicalBlock[]): V2IndexerState {
+function rebuild(blocks: readonly CanonicalBlock[]): V1IndexerState {
   const state = createIndexerState();
-  for (const block of blocks) for (const event of block.events) applyV2Event(state, event);
+  for (const block of blocks) for (const event of block.events) applyV1Event(state, event);
   return state;
 }
 
 export class CanonicalReplayEngine {
   #blocks: CanonicalBlock[] = [];
-  #state: V2IndexerState = createIndexerState();
+  #state: V1IndexerState = createIndexerState();
   readonly chainId: number;
   readonly startBlock: bigint;
   readonly anchorParentHash: string;
@@ -49,7 +49,7 @@ export class CanonicalReplayEngine {
     this.store = store;
   }
 
-  get state(): V2IndexerState { return this.#state; }
+  get state(): V1IndexerState { return this.#state; }
   get blocks(): readonly CanonicalBlock[] { return this.#blocks; }
   get tip(): CanonicalBlock | undefined { return this.#blocks.at(-1); }
 
@@ -65,7 +65,7 @@ export class CanonicalReplayEngine {
 
   checkpoint(): IndexerCheckpoint {
     return {
-      schemaVersion: 1, executionSpecId: "V2-EXEC-5", chainId: this.chainId, startBlock: this.startBlock,
+      schemaVersion: 1, executionSpecId: "V1-EXEC-6", chainId: this.chainId, startBlock: this.startBlock,
       anchorParentHash: this.anchorParentHash, blocks: this.#blocks,
     };
   }
@@ -83,8 +83,7 @@ export class CanonicalReplayEngine {
       stockPositions: sorted(this.#state.stockPositions), allocations: sorted(this.#state.allocations),
       activationBuckets: sorted(this.#state.activationBuckets), gaugePositions: sorted(this.#state.gaugePositions),
       feeCredits: sorted(this.#state.feeCredits), feeClaims: sorted(this.#state.feeClaims),
-      recoveryCaps: sorted(this.#state.recoveryCaps), recoveryRoots: sorted(this.#state.recoveryRoots),
-      recoveryClaims: sorted(this.#state.recoveryClaims), swaps: sorted(this.#state.swaps),
+      swaps: sorted(this.#state.swaps),
       observations: sorted(this.#state.observations), lastPosition: this.#state.lastPosition,
     });
   }
@@ -120,7 +119,7 @@ export class CanonicalReplayEngine {
     const nextState = rebuild(next);
     if (persist && this.store) {
       await this.store.save({
-        schemaVersion: 1, executionSpecId: "V2-EXEC-5", chainId: this.chainId, startBlock: this.startBlock,
+        schemaVersion: 1, executionSpecId: "V1-EXEC-6", chainId: this.chainId, startBlock: this.startBlock,
         anchorParentHash: this.anchorParentHash, blocks: next,
       });
     }

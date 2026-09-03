@@ -1,18 +1,18 @@
 import { mkdir, readFile, rename, writeFile } from "node:fs/promises";
 import path from "node:path";
-import type { DecodedV2Event } from "./schema.ts";
+import type { DecodedV1Event } from "./schema.ts";
 
 export interface CanonicalBlock {
   readonly chainId: number;
   readonly number: bigint;
   readonly hash: string;
   readonly parentHash: string;
-  readonly events: readonly DecodedV2Event[];
+  readonly events: readonly DecodedV1Event[];
 }
 
 export interface IndexerCheckpoint {
   readonly schemaVersion: 1;
-  readonly executionSpecId: "V2-EXEC-5";
+  readonly executionSpecId: "V1-EXEC-6";
   readonly chainId: number;
   readonly startBlock: bigint;
   readonly anchorParentHash: string;
@@ -47,9 +47,9 @@ export function decodeCheckpoint(encoded: string): IndexerCheckpoint {
   const parsed: unknown = JSON.parse(encoded, bigintReviver);
   if (
     typeof parsed !== "object" || parsed === null || !("schemaVersion" in parsed) || parsed.schemaVersion !== 1 ||
-    !("executionSpecId" in parsed) || parsed.executionSpecId !== "V2-EXEC-5"
+    !("executionSpecId" in parsed) || parsed.executionSpecId !== "V1-EXEC-6"
   ) {
-    throw new Error("unsupported or malformed V2 indexer checkpoint");
+    throw new Error("unsupported or malformed V1 indexer checkpoint");
   }
   return parsed as IndexerCheckpoint;
 }

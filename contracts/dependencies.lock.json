@@ -1,5 +1,5 @@
 {
-  "schemaVersion": "contracts-dependencies-v2-scaffold",
+  "schemaVersion": "contracts-dependencies-v1-scaffold",
   "toolchain": {
     "foundryVersion": "1.8.1",
     "foundryCommit": "982849d3140c01fd3b72905759581a132df7aa98",
@@ -20,7 +20,7 @@
     "v4-periphery": {
       "repository": "https://github.com/Uniswap/v4-periphery.git",
       "commit": "dce236d4e2057422d0791d9a973a58765eb46f65",
-      "purpose": "V2 compile-time integration pin; production deployment remains codehash/getter guarded"
+      "purpose": "V1 compile-time integration pin; production deployment remains codehash/getter guarded"
     },
     "v4-core": {
       "repository": "https://github.com/Uniswap/v4-core.git",

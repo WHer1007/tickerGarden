@@ -27,15 +27,9 @@ test("persists a bigint-safe checkpoint and resumes with byte-identical projecti
 test("rolls back to a known common ancestor and equals an empty-database rebuild", async () => {
   const anchor = id("anchor");
   const b10 = block(10n, id("10"), anchor, [event("CurveCompleted(bytes32)", { marketId: id("20") }, 10n, id("10"))]);
-  const b11a = block(11n, id("11a"), id("10"), [event(
-    "MarketStatusChanged(bytes32,uint8,uint8,bytes32)",
-    { marketId: id("20"), oldStatus: 1n, newStatus: 2n, reasonHash: id("a") }, 11n, id("11a"),
-  )]);
+  const b11a = block(11n, id("11a"), id("10"), [event("CurveCompleted(bytes32)", { marketId: id("20") }, 11n, id("11a"))]);
   const b12a = block(12n, id("12a"), id("11a"), [event("CurveCompleted(bytes32)", { marketId: id("30") }, 12n, id("12a"))]);
-  const b11b = block(11n, id("11b"), id("10"), [event(
-    "MarketStatusChanged(bytes32,uint8,uint8,bytes32)",
-    { marketId: id("20"), oldStatus: 1n, newStatus: 3n, reasonHash: id("b") }, 11n, id("11b"),
-  )]);
+  const b11b = block(11n, id("11b"), id("10"), [event("CurveCompleted(bytes32)", { marketId: id("20") }, 11n, id("11b"))]);
   const b12b = block(12n, id("12b"), id("11b"), [event("CurveCompleted(bytes32)", { marketId: id("40") }, 12n, id("12b"))]);
 
   const reorged = new CanonicalReplayEngine(4663, 10n, anchor);
@@ -47,7 +41,7 @@ test("rolls back to a known common ancestor and equals an empty-database rebuild
   assert.equal(reorged.canonicalStateBytes(), rebuilt.canonicalStateBytes());
   assert.equal(reorged.canonicalBytes(), rebuilt.canonicalBytes());
   assert.equal(reorged.state.markets.has(id("30")), false);
-  assert.equal(reorged.state.markets.get(id("20"))?.values.controllerStatus, 3n);
+  assert.equal(reorged.state.markets.get(id("20"))?.values.curveCompleted, true);
 });
 
 test("treats exact block replay as idempotent and rejects payload conflicts or disconnected branches atomically", async () => {

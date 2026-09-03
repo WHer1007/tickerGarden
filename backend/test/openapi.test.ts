@@ -3,25 +3,25 @@ import { readFile } from "node:fs/promises";
 import { test } from "node:test";
 import {
   TickerGardenApiError,
-  TickerGardenV2Client,
+  TickerGardenV1Client,
   type ApiErrorResponse,
   type MarketPage,
 } from "../src/index.ts";
 
 const id = (value: string): `0x${string}` => `0x${value.padStart(64, "0")}`;
 const address = (value: string): `0x${string}` => `0x${value.padStart(40, "0")}`;
-const spec = JSON.parse(await readFile(new URL("../openapi/v2.json", import.meta.url), "utf8"));
+const spec = JSON.parse(await readFile(new URL("../openapi/v1.json", import.meta.url), "utf8"));
 
 test("OpenAPI publishes the five read endpoints and no write operation", () => {
   assert.equal(spec.openapi, "3.1.0");
-  assert.equal(spec.info.version, "2.2.0");
-  assert.equal(spec["x-execution-spec-id"], "V2-EXEC-5");
+  assert.equal(spec.info.version, "1.0.2");
+  assert.equal(spec["x-execution-spec-id"], "V1-EXEC-6");
   assert.deepEqual(Object.keys(spec.paths).sort(), [
     "/health",
-    "/v2/config/{kind}",
-    "/v2/markets",
-    "/v2/markets/{marketId}",
-    "/v2/users/{address}/positions",
+    "/v1/config/{kind}",
+    "/v1/markets",
+    "/v1/markets/{marketId}",
+    "/v1/users/{address}/positions",
   ]);
   for (const pathItem of Object.values(spec.paths) as Record<string, unknown>[]) {
     assert.deepEqual(Object.keys(pathItem), ["get"]);
@@ -39,9 +39,9 @@ test("OpenAPI preserves chain provenance, integer precision, nullability, and er
   assert.deepEqual(schemas.CurveProgress.properties.sweptAt.oneOf[1], { type: "null" });
   assert.deepEqual(schemas.MarketReadModel.properties.poolKey.oneOf[1], { type: "null" });
   assert.deepEqual(schemas.ApiErrorResponse.required, ["error", "message", "sync"]);
-  assert.ok(spec.paths["/v2/markets"].get.responses["400"]);
-  assert.ok(spec.paths["/v2/markets/{marketId}"].get.responses["404"]);
-  assert.ok(spec.paths["/v2/markets"].get.responses["405"]);
+  assert.ok(spec.paths["/v1/markets"].get.responses["400"]);
+  assert.ok(spec.paths["/v1/markets/{marketId}"].get.responses["404"]);
+  assert.ok(spec.paths["/v1/markets"].get.responses["405"]);
 });
 
 test("generated client sends GET requests with encoded typed parameters", async () => {
@@ -57,19 +57,19 @@ test("generated client sends GET requests with encoded typed parameters", async 
     calls.push({ url: new URL(input instanceof Request ? input.url : input.toString()), init });
     return new Response(JSON.stringify(page), { status: 200, headers: { "content-type": "application/json" } });
   };
-  const client = new TickerGardenV2Client("https://api.example.test/root", fetcher);
+  const client = new TickerGardenV1Client("https://api.example.test/root", fetcher);
   await client.listMarkets({ assetUid: id("9"), limit: 2, cursor: "opaque cursor" });
   await client.getMarket({ marketId: id("7") });
   await client.listConfig({ kind: "quote", limit: 3 });
   await client.listUserPositions({ address: address("a"), cursor: "next" });
 
   assert.equal(calls.length, 4);
-  assert.equal(calls[0]!.url.pathname, "/v2/markets");
+  assert.equal(calls[0]!.url.pathname, "/v1/markets");
   assert.equal(calls[0]!.url.searchParams.get("assetUid"), id("9"));
   assert.equal(calls[0]!.url.searchParams.get("cursor"), "opaque cursor");
-  assert.equal(calls[1]!.url.pathname, `/v2/markets/${id("7")}`);
-  assert.equal(calls[2]!.url.pathname, "/v2/config/quote");
-  assert.equal(calls[3]!.url.pathname, `/v2/users/${address("a")}/positions`);
+  assert.equal(calls[1]!.url.pathname, `/v1/markets/${id("7")}`);
+  assert.equal(calls[2]!.url.pathname, "/v1/config/quote");
+  assert.equal(calls[3]!.url.pathname, `/v1/users/${address("a")}/positions`);
   for (const call of calls) {
     assert.equal(call.init?.method, "GET");
     assert.deepEqual(call.init?.headers, { accept: "application/json" });
@@ -87,7 +87,7 @@ test("generated client rejects malformed input before fetch and exposes typed AP
     calls += 1;
     return new Response(JSON.stringify(body), { status: 400, headers: { "content-type": "application/json" } });
   };
-  const client = new TickerGardenV2Client("https://api.example.test", fetcher);
+  const client = new TickerGardenV1Client("https://api.example.test", fetcher);
 
   await assert.rejects(client.getMarket({ marketId: "0x12" }), /invalid marketId/);
   await assert.rejects(client.listMarkets({ assetUid: "0x12" }), /invalid assetUid/);

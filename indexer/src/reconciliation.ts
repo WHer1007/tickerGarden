@@ -1,7 +1,7 @@
 import { isDeepStrictEqual } from "node:util";
-import type { PositionProjection, V2IndexerState } from "./schema.ts";
+import type { PositionProjection, V1IndexerState } from "./schema.ts";
 
-export type ReconciliationKind = "vaultPrincipal" | "gaugePosition" | "feeVaultLiability" | "sourceVersion" | "poolBinding";
+export type ReconciliationKind = "assetIdentity" | "vaultPrincipal" | "vaultSolvency" | "gaugePosition" | "feeVaultLiability" | "sourceVersion" | "poolBinding";
 export type ProjectionTable = "markets" | "pools" | "stockPositions" | "allocations" | "gaugePositions" | "observations";
 
 export interface ReconciliationProbe {
@@ -19,7 +19,7 @@ export interface ReconciliationAlert extends ReconciliationProbe {
   readonly blockHash: string;
 }
 
-function projection(state: V2IndexerState, table: ProjectionTable, key: string): PositionProjection | undefined {
+function projection(state: V1IndexerState, table: ProjectionTable, key: string): PositionProjection | undefined {
   if (table === "markets") {
     const market = state.markets.get(key.toLowerCase());
     return market ? { key: market.marketId, values: market.values, provenance: market.provenance } : undefined;
@@ -27,9 +27,9 @@ function projection(state: V2IndexerState, table: ProjectionTable, key: string):
   return state[table].get(key.toLowerCase());
 }
 
-export function reconcileAtTip(state: V2IndexerState, probes: readonly ReconciliationProbe[]): readonly ReconciliationAlert[] {
+export function reconcileAtTip(state: V1IndexerState, probes: readonly ReconciliationProbe[]): readonly ReconciliationAlert[] {
   const tip = state.lastPosition;
-  if (!tip) throw new Error("cannot reconcile an empty V2 index");
+  if (!tip) throw new Error("cannot reconcile an empty V1 index");
   const alerts: ReconciliationAlert[] = [];
   for (const probe of probes) {
     const projectedValue = projection(state, probe.table, probe.key)?.values[probe.field];

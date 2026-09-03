@@ -5,9 +5,9 @@ import { fileURLToPath } from "node:url";
 import { assertSchemaVersionTransition } from "./openapi-versioning.mjs";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
-const specPath = path.join(root, "openapi/v2.json");
-const lockPath = path.join(root, "openapi/v2.lock.json");
-const clientPath = path.join(root, "src/generated/v2-client.ts");
+const specPath = path.join(root, "openapi/v1.json");
+const lockPath = path.join(root, "openapi/v1.lock.json");
+const clientPath = path.join(root, "src/generated/v1-client.ts");
 const ref = (name) => ({ $ref: `#/components/schemas/${name}` });
 const nullable = (schema) => ({ oneOf: [schema, { type: "null" }] });
 const object = (properties, required = Object.keys(properties), extra = {}) => ({ type: "object", additionalProperties: false, properties, required, ...extra });
@@ -24,13 +24,13 @@ const poolKey = object({ currency0: address, currency1: address, fee: { type: "i
 const route = object({
   router: address, quoter: address, hook: address, launchLocker: address, graduationExecutor: address,
   curveTradingEnabled: { type: "boolean" }, poolTradingEnabled: { type: "boolean" }, sourceVersion: { type: "integer", minimum: 1 },
-  launchPhase: { type: "integer", minimum: 0, maximum: 255 }, marketStatus: { type: "integer", minimum: 0, maximum: 255 },
+  launchPhase: { type: "integer", minimum: 0, maximum: 255 },
 });
 const curve = object({ realQuoteReserve: uintString, sellableTokens: uintString, reservedTokens: uintString, accruedCurveFees: uintString, readyToGraduate: { type: "boolean" }, sweptAt: nullable(uintString) });
 const market = object({
   marketId: bytes32, assetUid: bytes32, memeToken: address, curve: address, gauge: address, quoteAsset: address,
   quoteAssetConfigId: bytes32, ponsBaselineId: bytes32, sourceVersion: { type: "integer", minimum: 1 },
-  launchPhase: { type: "integer", minimum: 0, maximum: 255 }, marketStatus: { type: "integer", minimum: 0, maximum: 255 },
+  launchPhase: { type: "integer", minimum: 0, maximum: 255 },
   curveProgress: ref("CurveProgress"), poolId: nullable(bytes32), poolKey: nullable(ref("PoolKeyReadModel")),
   canonicalRoute: ref("CanonicalRoute"), source: ref("SourceBlock"),
 }, undefined, { description: "poolId and poolKey are null or non-null together." });
@@ -58,14 +58,14 @@ const errors = { "400": response(ref("ApiErrorResponse"), "Invalid input or curs
 
 const spec = {
   openapi: "3.1.0",
-  info: { title: "TickerGarden V2 Read API", version: "2.2.0", description: "Non-custodial read API backed only by reconciled V2 Indexer facts." },
-  "x-execution-spec-id": "V2-EXEC-5",
+  info: { title: "TickerGarden V1 Read API", version: "1.0.2", description: "Non-custodial read API backed only by reconciled V1 Indexer facts." },
+  "x-execution-spec-id": "V1-EXEC-6",
   paths: {
     "/health": { get: { operationId: "getHealth", responses: { "200": response(ref("HealthResponse")), ...errors } } },
-    "/v2/markets": { get: { operationId: "listMarkets", parameters: [{ name: "assetUid", in: "query", required: false, schema: bytes32 }, ...queryParameters], responses: { "200": response(ref("MarketPage")), ...errors } } },
-    "/v2/markets/{marketId}": { get: { operationId: "getMarket", parameters: [{ name: "marketId", in: "path", required: true, schema: bytes32 }], responses: { "200": response(ref("MarketDetailResponse")), "404": response(ref("ApiErrorResponse"), "Market not found"), ...errors } } },
-    "/v2/config/{kind}": { get: { operationId: "listConfig", parameters: [{ name: "kind", in: "path", required: true, schema: { type: "string", enum: ["asset", "quote", "pons", "template"] } }, ...queryParameters], responses: { "200": response(ref("ConfigPage")), ...errors } } },
-    "/v2/users/{address}/positions": { get: { operationId: "listUserPositions", parameters: [{ name: "address", in: "path", required: true, schema: address }, ...queryParameters], responses: { "200": response(ref("PositionPage")), ...errors } } },
+    "/v1/markets": { get: { operationId: "listMarkets", parameters: [{ name: "assetUid", in: "query", required: false, schema: bytes32 }, ...queryParameters], responses: { "200": response(ref("MarketPage")), ...errors } } },
+    "/v1/markets/{marketId}": { get: { operationId: "getMarket", parameters: [{ name: "marketId", in: "path", required: true, schema: bytes32 }], responses: { "200": response(ref("MarketDetailResponse")), "404": response(ref("ApiErrorResponse"), "Market not found"), ...errors } } },
+    "/v1/config/{kind}": { get: { operationId: "listConfig", parameters: [{ name: "kind", in: "path", required: true, schema: { type: "string", enum: ["asset", "quote", "pons", "template"] } }, ...queryParameters], responses: { "200": response(ref("ConfigPage")), ...errors } } },
+    "/v1/users/{address}/positions": { get: { operationId: "listUserPositions", parameters: [{ name: "address", in: "path", required: true, schema: address }, ...queryParameters], responses: { "200": response(ref("PositionPage")), ...errors } } },
   },
   components: { schemas: {
     SourceBlock: source, SyncStatus: sync, PoolKeyReadModel: poolKey, CanonicalRoute: route, CurveProgress: curve,
@@ -73,7 +73,7 @@ const spec = {
     UserPositionReadModel: position, MarketPage: page("MarketReadModel"), ConfigPage: page("ConfigReadModel"),
     PositionPage: page("UserPositionReadModel"), MarketDetailResponse: object({ market: ref("MarketReadModel"), sync: ref("SyncStatus") }),
     HealthResponse: object({
-      executionSpecId: { type: "string", const: "V2-EXEC-5" }, status: { type: "string", const: "read-api" }, readApiImplemented: { type: "boolean", const: true },
+      executionSpecId: { type: "string", const: "V1-EXEC-6" }, status: { type: "string", const: "read-api" }, readApiImplemented: { type: "boolean", const: true },
       productRuntimeImplemented: { type: "boolean", const: false }, custody: { type: "boolean", const: false }, transactionSubmission: { type: "boolean", const: false }, sync: ref("SyncStatus"),
     }), ApiErrorResponse: error,
   } },
@@ -126,10 +126,10 @@ const operations = Object.entries(spec.paths).map(([routePath, pathItem]) => {
   ).join(" ");
   return `  async ${operation.operationId}(${signature}): Promise<${responseSchema}> { ${validations} const url = new URL(${urlExpression}, this.baseUrl); ${query} return this.request<${responseSchema}>(url); }`;
 });
-const client = `// Generated from openapi/v2.json by scripts/generate-openapi.mjs. Do not edit.\n\n${typeLines.join("\n")}\n\nexport class TickerGardenApiError extends Error { readonly status: number; readonly body: ApiErrorResponse; constructor(status: number, body: ApiErrorResponse) { super(body.message); this.name = "TickerGardenApiError"; this.status = status; this.body = body; } }\n\nexport class TickerGardenV2Client { readonly baseUrl: string; readonly fetcher: typeof fetch; constructor(baseUrl: string, fetcher: typeof fetch = fetch) { this.baseUrl = baseUrl; this.fetcher = fetcher; } private async request<T>(url: URL): Promise<T> { const response = await this.fetcher(url, { method: "GET", headers: { accept: "application/json" } }); const body: unknown = await response.json(); if (!response.ok) throw new TickerGardenApiError(response.status, body as ApiErrorResponse); return body as T; }\n${operations.join("\n")}\n}\n`;
+const client = `// Generated from openapi/v1.json by scripts/generate-openapi.mjs. Do not edit.\n\n${typeLines.join("\n")}\n\nexport class TickerGardenApiError extends Error { readonly status: number; readonly body: ApiErrorResponse; constructor(status: number, body: ApiErrorResponse) { super(body.message); this.name = "TickerGardenApiError"; this.status = status; this.body = body; } }\n\nexport class TickerGardenV1Client { readonly baseUrl: string; readonly fetcher: typeof fetch; constructor(baseUrl: string, fetcher: typeof fetch = fetch) { this.baseUrl = baseUrl; this.fetcher = fetcher; } private async request<T>(url: URL): Promise<T> { const response = await this.fetcher(url, { method: "GET", headers: { accept: "application/json" } }); const body: unknown = await response.json(); if (!response.ok) throw new TickerGardenApiError(response.status, body as ApiErrorResponse); return body as T; }\n${operations.join("\n")}\n}\n`;
 const specText = `${JSON.stringify(spec, null, 2)}\n`;
 const fingerprint = `sha256:${createHash("sha256").update(specText).digest("hex")}`;
-const nextLock = { schemaVersion: 1, openapiVersion: spec.info.version, executionSpecId: "V2-EXEC-5", fingerprint };
+const nextLock = { schemaVersion: 1, openapiVersion: spec.info.version, executionSpecId: "V1-EXEC-6", fingerprint };
 const lockText = `${JSON.stringify(nextLock, null, 2)}\n`;
 const previousLock = await readFile(lockPath, "utf8").then(JSON.parse).catch(() => null);
 

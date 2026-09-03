@@ -1,0 +1,1055 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "TickerGarden V1 Read API",
+    "version": "1.0.2",
+    "description": "Non-custodial read API backed only by reconciled V1 Indexer facts."
+  },
+  "x-execution-spec-id": "V1-EXEC-6",
+  "paths": {
+    "/health": {
+      "get": {
+        "operationId": "getHealth",
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HealthResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid input or cursor snapshot",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "405": {
+            "description": "Read-only API",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/markets": {
+      "get": {
+        "operationId": "listMarkets",
+        "parameters": [
+          {
+            "name": "assetUid",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "pattern": "^0x[0-9a-f]{64}$"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100,
+              "default": 50
+            }
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "required": false,
+            "description": "Opaque cursor bound to endpoint, normalized filter and Indexer revision.",
+            "schema": {
+              "type": "string",
+              "minLength": 1
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MarketPage"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid input or cursor snapshot",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "405": {
+            "description": "Read-only API",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/markets/{marketId}": {
+      "get": {
+        "operationId": "getMarket",
+        "parameters": [
+          {
+            "name": "marketId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^0x[0-9a-f]{64}$"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MarketDetailResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid input or cursor snapshot",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Market not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "405": {
+            "description": "Read-only API",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/config/{kind}": {
+      "get": {
+        "operationId": "listConfig",
+        "parameters": [
+          {
+            "name": "kind",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "asset",
+                "quote",
+                "pons",
+                "template"
+              ]
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100,
+              "default": 50
+            }
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "required": false,
+            "description": "Opaque cursor bound to endpoint, normalized filter and Indexer revision.",
+            "schema": {
+              "type": "string",
+              "minLength": 1
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ConfigPage"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid input or cursor snapshot",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "405": {
+            "description": "Read-only API",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/users/{address}/positions": {
+      "get": {
+        "operationId": "listUserPositions",
+        "parameters": [
+          {
+            "name": "address",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^0x[0-9a-f]{40}$"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100,
+              "default": 50
+            }
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "required": false,
+            "description": "Opaque cursor bound to endpoint, normalized filter and Indexer revision.",
+            "schema": {
+              "type": "string",
+              "minLength": 1
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PositionPage"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid input or cursor snapshot",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "405": {
+            "description": "Read-only API",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "SourceBlock": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "chainId": {
+            "type": "integer",
+            "const": 4663
+          },
+          "blockNumber": {
+            "type": "string",
+            "pattern": "^(0|[1-9][0-9]*)$"
+          },
+          "blockHash": {
+            "type": "string",
+            "pattern": "^0x[0-9a-f]{64}$"
+          },
+          "transactionHash": {
+            "type": "string",
+            "pattern": "^0x[0-9a-f]{64}$"
+          },
+          "transactionIndex": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "logIndex": {
+            "type": "integer",
+            "minimum": 0
+          }
+        },
+        "required": [
+          "chainId",
+          "blockNumber",
+          "blockHash",
+          "transactionHash",
+          "transactionIndex",
+          "logIndex"
+        ]
+      },
+      "SyncStatus": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "chainId": {
+            "type": "integer",
+            "const": 4663
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "synced",
+              "lagging",
+              "unavailable"
+            ]
+          },
+          "blockNumber": {
+            "oneOf": [
+              {
+                "type": "string",
+                "pattern": "^(0|[1-9][0-9]*)$"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "blockHash": {
+            "oneOf": [
+              {
+                "type": "string",
+                "pattern": "^0x[0-9a-f]{64}$"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "finality": {
+            "type": "string",
+            "enum": [
+              "finalized",
+              "safe",
+              "head",
+              "unavailable"
+            ]
+          },
+          "headBlockNumber": {
+            "oneOf": [
+              {
+                "type": "string",
+                "pattern": "^(0|[1-9][0-9]*)$"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "headBlockHash": {
+            "oneOf": [
+              {
+                "type": "string",
+                "pattern": "^0x[0-9a-f]{64}$"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "lagBlocks": {
+            "oneOf": [
+              {
+                "type": "string",
+                "pattern": "^(0|[1-9][0-9]*)$"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "revision": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "required": [
+          "chainId",
+          "status",
+          "blockNumber",
+          "blockHash",
+          "finality",
+          "headBlockNumber",
+          "headBlockHash",
+          "lagBlocks",
+          "revision"
+        ]
+      },
+      "PoolKeyReadModel": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "currency0": {
+            "type": "string",
+            "pattern": "^0x[0-9a-f]{40}$"
+          },
+          "currency1": {
+            "type": "string",
+            "pattern": "^0x[0-9a-f]{40}$"
+          },
+          "fee": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 16777215
+          },
+          "tickSpacing": {
+            "type": "integer",
+            "minimum": -8388608,
+            "maximum": 8388607
+          },
+          "hooks": {
+            "type": "string",
+            "pattern": "^0x[0-9a-f]{40}$"
+          }
+        },
+        "required": [
+          "currency0",
+          "currency1",
+          "fee",
+          "tickSpacing",
+          "hooks"
+        ]
+      },
+      "CanonicalRoute": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "router": {
+            "type": "string",
+            "pattern": "^0x[0-9a-f]{40}$"
+          },
+          "quoter": {
+            "type": "string",
+            "pattern": "^0x[0-9a-f]{40}$"
+          },
+          "hook": {
+            "type": "string",
+            "pattern": "^0x[0-9a-f]{40}$"
+          },
+          "launchLocker": {
+            "type": "string",
+            "pattern": "^0x[0-9a-f]{40}$"
+          },
+          "graduationExecutor": {
+            "type": "string",
+            "pattern": "^0x[0-9a-f]{40}$"
+          },
+          "curveTradingEnabled": {
+            "type": "boolean"
+          },
+          "poolTradingEnabled": {
+            "type": "boolean"
+          },
+          "sourceVersion": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "launchPhase": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 255
+          }
+        },
+        "required": [
+          "router",
+          "quoter",
+          "hook",
+          "launchLocker",
+          "graduationExecutor",
+          "curveTradingEnabled",
+          "poolTradingEnabled",
+          "sourceVersion",
+          "launchPhase"
+        ]
+      },
+      "CurveProgress": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "realQuoteReserve": {
+            "type": "string",
+            "pattern": "^(0|[1-9][0-9]*)$"
+          },
+          "sellableTokens": {
+            "type": "string",
+            "pattern": "^(0|[1-9][0-9]*)$"
+          },
+          "reservedTokens": {
+            "type": "string",
+            "pattern": "^(0|[1-9][0-9]*)$"
+          },
+          "accruedCurveFees": {
+            "type": "string",
+            "pattern": "^(0|[1-9][0-9]*)$"
+          },
+          "readyToGraduate": {
+            "type": "boolean"
+          },
+          "sweptAt": {
+            "oneOf": [
+              {
+                "type": "string",
+                "pattern": "^(0|[1-9][0-9]*)$"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "realQuoteReserve",
+          "sellableTokens",
+          "reservedTokens",
+          "accruedCurveFees",
+          "readyToGraduate",
+          "sweptAt"
+        ]
+      },
+      "MarketReadModel": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "marketId": {
+            "type": "string",
+            "pattern": "^0x[0-9a-f]{64}$"
+          },
+          "assetUid": {
+            "type": "string",
+            "pattern": "^0x[0-9a-f]{64}$"
+          },
+          "memeToken": {
+            "type": "string",
+            "pattern": "^0x[0-9a-f]{40}$"
+          },
+          "curve": {
+            "type": "string",
+            "pattern": "^0x[0-9a-f]{40}$"
+          },
+          "gauge": {
+            "type": "string",
+            "pattern": "^0x[0-9a-f]{40}$"
+          },
+          "quoteAsset": {
+            "type": "string",
+            "pattern": "^0x[0-9a-f]{40}$"
+          },
+          "quoteAssetConfigId": {
+            "type": "string",
+            "pattern": "^0x[0-9a-f]{64}$"
+          },
+          "ponsBaselineId": {
+            "type": "string",
+            "pattern": "^0x[0-9a-f]{64}$"
+          },
+          "sourceVersion": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "launchPhase": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 255
+          },
+          "curveProgress": {
+            "$ref": "#/components/schemas/CurveProgress"
+          },
+          "poolId": {
+            "oneOf": [
+              {
+                "type": "string",
+                "pattern": "^0x[0-9a-f]{64}$"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "poolKey": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/PoolKeyReadModel"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "canonicalRoute": {
+            "$ref": "#/components/schemas/CanonicalRoute"
+          },
+          "source": {
+            "$ref": "#/components/schemas/SourceBlock"
+          }
+        },
+        "required": [
+          "marketId",
+          "assetUid",
+          "memeToken",
+          "curve",
+          "gauge",
+          "quoteAsset",
+          "quoteAssetConfigId",
+          "ponsBaselineId",
+          "sourceVersion",
+          "launchPhase",
+          "curveProgress",
+          "poolId",
+          "poolKey",
+          "canonicalRoute",
+          "source"
+        ],
+        "description": "poolId and poolKey are null or non-null together."
+      },
+      "ConfigReadModel": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "kind": {
+            "type": "string",
+            "enum": [
+              "asset",
+              "quote",
+              "pons",
+              "template"
+            ]
+          },
+          "id": {
+            "type": "string",
+            "pattern": "^0x[0-9a-f]{64}$"
+          },
+          "status": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 255
+          },
+          "values": {
+            "type": "object",
+            "additionalProperties": {
+              "oneOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "boolean"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            }
+          },
+          "source": {
+            "$ref": "#/components/schemas/SourceBlock"
+          }
+        },
+        "required": [
+          "kind",
+          "id",
+          "status",
+          "values",
+          "source"
+        ]
+      },
+      "QuoteClaimable": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "kind": {
+            "type": "string",
+            "const": "quote"
+          },
+          "asset": {
+            "type": "string",
+            "pattern": "^0x[0-9a-f]{40}$"
+          },
+          "amount": {
+            "type": "string",
+            "pattern": "^(0|[1-9][0-9]*)$"
+          }
+        },
+        "required": [
+          "kind",
+          "asset",
+          "amount"
+        ]
+      },
+      "MemeClaimable": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "kind": {
+            "type": "string",
+            "const": "meme"
+          },
+          "asset": {
+            "type": "string",
+            "pattern": "^0x[0-9a-f]{40}$"
+          },
+          "amount": {
+            "type": "string",
+            "pattern": "^(0|[1-9][0-9]*)$"
+          }
+        },
+        "required": [
+          "kind",
+          "asset",
+          "amount"
+        ]
+      },
+      "UserPositionReadModel": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "user": {
+            "type": "string",
+            "pattern": "^0x[0-9a-f]{40}$"
+          },
+          "assetUid": {
+            "type": "string",
+            "pattern": "^0x[0-9a-f]{64}$"
+          },
+          "marketId": {
+            "type": "string",
+            "pattern": "^0x[0-9a-f]{64}$"
+          },
+          "free": {
+            "type": "string",
+            "pattern": "^(0|[1-9][0-9]*)$"
+          },
+          "allocated": {
+            "type": "string",
+            "pattern": "^(0|[1-9][0-9]*)$"
+          },
+          "pending": {
+            "type": "string",
+            "pattern": "^(0|[1-9][0-9]*)$"
+          },
+          "active": {
+            "type": "string",
+            "pattern": "^(0|[1-9][0-9]*)$"
+          },
+          "activationAt": {
+            "oneOf": [
+              {
+                "type": "string",
+                "pattern": "^(0|[1-9][0-9]*)$"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "unlockAt": {
+            "oneOf": [
+              {
+                "type": "string",
+                "pattern": "^(0|[1-9][0-9]*)$"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "claimable": {
+            "type": "array",
+            "prefixItems": [
+              {
+                "$ref": "#/components/schemas/QuoteClaimable"
+              },
+              {
+                "$ref": "#/components/schemas/MemeClaimable"
+              }
+            ],
+            "minItems": 2,
+            "maxItems": 2
+          },
+          "source": {
+            "$ref": "#/components/schemas/SourceBlock"
+          }
+        },
+        "required": [
+          "user",
+          "assetUid",
+          "marketId",
+          "free",
+          "allocated",
+          "pending",
+          "active",
+          "activationAt",
+          "unlockAt",
+          "claimable",
+          "source"
+        ]
+      },
+      "MarketPage": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/MarketReadModel"
+            }
+          },
+          "nextCursor": {
+            "oneOf": [
+              {
+                "type": "string",
+                "minLength": 1
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "sync": {
+            "$ref": "#/components/schemas/SyncStatus"
+          }
+        },
+        "required": [
+          "items",
+          "nextCursor",
+          "sync"
+        ]
+      },
+      "ConfigPage": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ConfigReadModel"
+            }
+          },
+          "nextCursor": {
+            "oneOf": [
+              {
+                "type": "string",
+                "minLength": 1
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "sync": {
+            "$ref": "#/components/schemas/SyncStatus"
+          }
+        },
+        "required": [
+          "items",
+          "nextCursor",
+          "sync"
+        ]
+      },
+      "PositionPage": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/UserPositionReadModel"
+            }
+          },
+          "nextCursor": {
+            "oneOf": [
+              {
+                "type": "string",
+                "minLength": 1
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "sync": {
+            "$ref": "#/components/schemas/SyncStatus"
+          }
+        },
+        "required": [
+          "items",
+          "nextCursor",
+          "sync"
+        ]
+      },
+      "MarketDetailResponse": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "market": {
+            "$ref": "#/components/schemas/MarketReadModel"
+          },
+          "sync": {
+            "$ref": "#/components/schemas/SyncStatus"
+          }
+        },
+        "required": [
+          "market",
+          "sync"
+        ]
+      },
+      "HealthResponse": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "executionSpecId": {
+            "type": "string",
+            "const": "V1-EXEC-6"
+          },
+          "status": {
+            "type": "string",
+            "const": "read-api"
+          },
+          "readApiImplemented": {
+            "type": "boolean",
+            "const": true
+          },
+          "productRuntimeImplemented": {
+            "type": "boolean",
+            "const": false
+          },
+          "custody": {
+            "type": "boolean",
+            "const": false
+          },
+          "transactionSubmission": {
+            "type": "boolean",
+            "const": false
+          },
+          "sync": {
+            "$ref": "#/components/schemas/SyncStatus"
+          }
+        },
+        "required": [
+          "executionSpecId",
+          "status",
+          "readApiImplemented",
+          "productRuntimeImplemented",
+          "custody",
+          "transactionSubmission",
+          "sync"
+        ]
+      },
+      "ApiErrorResponse": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "error": {
+            "type": "string",
+            "enum": [
+              "invalid_request",
+              "market_not_found",
+              "not_found",
+              "read_only"
+            ]
+          },
+          "message": {
+            "type": "string"
+          },
+          "allowedMethods": {
+            "type": "array",
+            "prefixItems": [
+              {
+                "type": "string",
+                "const": "GET"
+              }
+            ],
+            "minItems": 1,
+            "maxItems": 1
+          },
+          "sync": {
+            "$ref": "#/components/schemas/SyncStatus"
+          }
+        },
+        "required": [
+          "error",
+          "message",
+          "sync"
+        ]
+      }
+    }
+  }
+}

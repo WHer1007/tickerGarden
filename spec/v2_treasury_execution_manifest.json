@@ -1,0 +1,74 @@
+{
+  "schemaVersion": "v2-treasury-execution-manifest-1",
+  "executionSpecId": "V2-TREASURY-EXEC-1",
+  "status": "CORE_CODE_COMPLETE_LOCAL_VERIFIED_V2_INTEGRATION_PENDING_NOT_DEPLOYABLE",
+  "v1Compatibility": {
+    "partOfV1": false,
+    "changesV1Contracts": false,
+    "changesV1Abi": false,
+    "changesV1FeePolicy": false
+  },
+  "deploymentShape": {
+    "sharedTreasuryDistributorCount": 1,
+    "perMarketTreasuryContractCount": 0,
+    "marketLedgerKey": ["marketId", "epochId"],
+    "activation": "ONE_WAY_AT_V2_GRADUATION"
+  },
+  "epoch": {
+    "durationSeconds": 2592000,
+    "interval": "[windowStart,windowEnd)",
+    "fundingAssignment": "CURRENT_EPOCH_AT_EXACT_RECEIPT"
+  },
+  "memeBurn": {
+    "method": "TRANSFER_TO_DISTRIBUTOR_THEN_TOKEN_BURN",
+    "requiresExactDistributorBalanceRestoration": true,
+    "requiresExactTotalSupplyDecrease": true,
+    "genericHolderBurn": false
+  },
+  "twab": {
+    "schema": "TRANSFER_LOG_TWAB_30D_V1",
+    "source": "FINALIZED_CANONICAL_ERC20_TRANSFER_REPLAY",
+    "requiresSourceBlockTimestampAtOrAfterWindowEnd": true,
+    "unit": "RAW_TOKEN_BALANCE_SECONDS_NUMERATOR",
+    "onchainTransferCheckpoints": false,
+    "allocationRounding": "LARGEST_REMAINDER_EXACT_TOTAL",
+    "zeroAmountLeaves": false
+  },
+  "root": {
+    "trustModel": "ATTESTED_PUBLICLY_REPRODUCIBLE_WITH_REVIEW_DELAY",
+    "trustless": false,
+    "holderTriggered": true,
+    "serviceFeeEscrowedUntilFinalization": true,
+    "timeoutRefund": true,
+    "reviewCancellationRefund": true,
+    "permissionlessFinalizationAfterReview": true,
+    "immutableAfterFinalization": true
+  },
+  "claim": {
+    "fixedLeafRecipient": true,
+    "arbitraryRecipient": false,
+    "indexBitmap": true,
+    "oneLeafPerAccountGuard": true,
+    "exactTransferPostconditions": true,
+    "expiredRemainderDestination": "CURRENT_MARKET_EPOCH"
+  },
+  "fundingInterface": {
+    "feePolicyBound": false,
+    "functions": [
+      "fundQuoteTreasury(bytes32,uint256,bytes32)",
+      "burnMeme(bytes32,uint256,bytes32)"
+    ],
+    "idempotency": "CALLER_SCOPED_OPERATION_ID"
+  },
+  "openProductInputs": [
+    "FINAL_FEE_SPLITS",
+    "CANONICAL_FEE_SOURCE",
+    "ELIGIBILITY_EXCLUSIONS",
+    "ROOT_SERVICE_FEE_ASSET_AND_PRICE",
+    "RH_FINALITY_PARAMETERS",
+    "ROOT_PUBLISHER_AND_REVIEWER_SAFES",
+    "OPTIONAL_ZK_OR_FRAUD_PROOF_VERIFIER",
+    "ZERO_ELIGIBLE_TWAB_OR_NO_SIGNABLE_HOLDER_FALLBACK",
+    "ROOT_WORKER_RPC_SIGNING_AND_IDEMPOTENCY_RUNTIME"
+  ]
+}

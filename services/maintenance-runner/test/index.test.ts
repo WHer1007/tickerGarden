@@ -6,15 +6,38 @@ const id = (digit: string) => `0x${digit.repeat(64)}`;
 
 test("declares injected non-privileged boundary", () => {
   assert.deepEqual(getMaintenanceRunnerDescriptor(), {
-    executionSpecId: "V2-EXEC-5", status: "active", privileged: false,
+    executionSpecId: "V1-EXEC-6", status: "active", privileged: false,
     transactionSubmissionImplemented: true, transportInjected: true, signerProvided: false,
     rpcProvided: false, userAssetCustody: false, simulateFirst: true,
     durableIdempotencyLookupRequired: true, ambiguousSubmissionRetry: false,
-    operations: ["sweep", "checkpoint", "retry", "compound"],
-    actions: "sweep/checkpoint/retry/compound -> fixed module/signature mapping",
+    operations: ["sweep", "checkpoint", "flush-forfeiture", "settle-rage-quit", "retry", "compound"],
+    actions: "sweep/checkpoint/flush-forfeiture/settle-rage-quit/retry/compound -> fixed module/signature mapping",
   });
   assert.equal(Object.isFrozen(MAINTENANCE_RUNNER_DESCRIPTOR), true);
   assert.deepEqual(MAINTENANCE_ACTIONS.sweep, { targetModule: "PonsCompatibleCurve", signature: "sweepCurveFees()" });
+  assert.deepEqual(MAINTENANCE_ACTIONS["flush-forfeiture"], { targetModule: "MemeStockGauge", signature: "flushDeferredForfeiture()" });
+  assert.deepEqual(MAINTENANCE_ACTIONS["settle-rage-quit"], { targetModule: "AllocationManager", signature: "settleRageQuitRewards(bytes32,address)" });
+});
+
+test("builds a fixed user-scoped rage-quit settlement action", async () => {
+  const user = `0x${"a".repeat(40)}`;
+  let observed: unknown;
+  const runner = new MaintenanceRunner({
+    async findSubmission() { return null; },
+    async simulate(action) { observed = action; return { status: "ready" }; },
+    async submit() { return { txHash: id("b") }; },
+  });
+  const request = { operation: "settle-rage-quit" as const, marketId: id("4"), user, triggerId: id("5") };
+  assert.equal((await runner.run(request)).status, "submitted");
+  assert.deepEqual(observed, {
+    ...request,
+    targetModule: "AllocationManager",
+    signature: "settleRageQuitRewards(bytes32,address)",
+  });
+  assert.throws(
+    () => runner.run({ ...request, user: user.toUpperCase() }),
+    /lowercase canonical address/,
+  );
 });
 
 test("simulates before submitting and skips completed trigger replays", async () => {

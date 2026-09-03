@@ -1,4 +1,4 @@
-name: TickerGarden V2
+name: TickerGarden V1
 
 on:
   push:
@@ -15,9 +15,9 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: "22.13"
-      - name: Verify V2 source boundary
+      - name: Verify V1 source boundary
         run: npm run check:boundary
-      - name: Verify V2 machine specification
+      - name: Verify V1 machine specification
         run: npm run test:spec
 
   contracts-interface-and-scaffold:
@@ -33,36 +33,70 @@ jobs:
       - name: Restore pinned contract dependencies
         working-directory: contracts
         run: node scripts/sync-dependencies.mjs
-      - name: Check V2 formatting
+      - name: Check V1 formatting
         working-directory: contracts
-        run: forge fmt --profile v2-ci --check src/v2 test/v2
-      - name: Build isolated V2 namespace
+        run: forge fmt --profile v1-ci --check src/v1 test/v1
+      - name: Build isolated V1 namespace
         working-directory: contracts
-        run: forge build --profile v2-ci
-      - name: Test isolated V2 namespace
+        run: forge build --profile v1-ci
+      - name: Test isolated V1 namespace
         working-directory: contracts
-        run: forge test --profile v2-ci
+        run: forge test --profile v1-ci
       - name: Verify clean-cache invariant and coverage reproducibility
         working-directory: contracts
         run: |
-          forge clean --profile v2-ci
-          forge test --profile v2-ci --no-cache --match-path 'test/v2/product/VaultGaugeInvariant.t.sol' 2>&1 | tee "$RUNNER_TEMP/v2-invariant-clean.log"
-          if grep -q 'Failure from ' "$RUNNER_TEMP/v2-invariant-clean.log"; then
+          forge clean --profile v1-ci
+          forge test --profile v1-ci --no-cache --match-path 'test/v1/product/VaultGaugeInvariant.t.sol' 2>&1 | tee "$RUNNER_TEMP/v1-invariant-clean.log"
+          if grep -q 'Failure from ' "$RUNNER_TEMP/v1-invariant-clean.log"; then
             echo 'stale invariant counterexample was consumed after a clean build'
             exit 1
           fi
-          forge test --profile v2-ci --match-path 'test/v2/product/VaultGaugeInvariant.t.sol' 2>&1 | tee "$RUNNER_TEMP/v2-invariant-cached.log"
-          if grep -q 'Failure from ' "$RUNNER_TEMP/v2-invariant-cached.log"; then
-            echo 'cached V2 invariant run consumed a stale counterexample'
+          forge test --profile v1-ci --match-path 'test/v1/product/VaultGaugeInvariant.t.sol' 2>&1 | tee "$RUNNER_TEMP/v1-invariant-cached.log"
+          if grep -q 'Failure from ' "$RUNNER_TEMP/v1-invariant-cached.log"; then
+            echo 'cached V1 invariant run consumed a stale counterexample'
             exit 1
           fi
           # Keep coverage on the representative curve suite: it exercises the
-          # V2 pricing/asset-accounting path without exact bytecode/gas checks
+          # V1 pricing/asset-accounting path without exact bytecode/gas checks
           # that are intentionally incompatible with coverage's IR build.
-          forge coverage --profile v2-ci --no-cache --ir-minimum \
-            --match-path 'test/v2/product/PonsCompatibleCurve.t.sol' --report summary
+          forge coverage --profile v1-ci --no-cache --ir-minimum \
+            --match-path 'test/v1/product/PonsCompatibleCurve.t.sol' --report summary
       - name: Verify generated interfaces and compiled ABI manifest
         run: npm run check:interfaces
+
+  v2-treasury-preview:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22.13"
+          cache: npm
+          cache-dependency-path: services/treasury-root-generator/package-lock.json
+      - uses: foundry-rs/foundry-toolchain@v1
+        with:
+          version: v1.8.1
+      - name: Restore pinned contract dependencies
+        working-directory: contracts
+        run: node scripts/sync-dependencies.mjs
+      - name: Install V2 Root generator
+        working-directory: services/treasury-root-generator
+        run: npm ci
+      - name: Check isolated V2 Treasury formatting
+        working-directory: contracts
+        run: forge fmt --profile v2-ci --check src/v2 test/v2
+      - name: Build isolated V2 Treasury preview
+        working-directory: contracts
+        run: forge build --profile v2-ci
+      - name: Test isolated V2 Treasury preview
+        working-directory: contracts
+        run: forge test --profile v2-ci
+      - name: Verify V2 Treasury invariant without cache
+        working-directory: contracts
+        run: forge test --profile v2-ci --no-cache --match-path 'test/v2/product/TreasuryDistributorV2Invariant.t.sol'
+      - name: Test and build deterministic Root generator
+        working-directory: services/treasury-root-generator
+        run: npm test && npm run build
 
   contracts-product:
     runs-on: ubuntu-latest
@@ -79,8 +113,8 @@ jobs:
         run: node scripts/sync-dependencies.mjs
       - name: Build before product artifact inventory
         working-directory: contracts
-        run: FOUNDRY_PROFILE=v2 forge build
-      - name: Report or run V2 product tests
+        run: FOUNDRY_PROFILE=v1 forge build
+      - name: Report or run V1 product tests
         run: npm run check:product-track
 
   contracts-fork:
@@ -96,7 +130,7 @@ jobs:
       - name: Restore pinned contract dependencies
         working-directory: contracts
         run: node scripts/sync-dependencies.mjs
-      - name: Report or run V2 fork tests
+      - name: Report or run V1 fork tests
         env:
           ROBINHOOD_RPC_URL: ${{ secrets.ROBINHOOD_RPC_URL }}
         run: npm run check:fork-track
@@ -119,7 +153,7 @@ jobs:
       - name: Test
         working-directory: deployments
         run: npm test
-      - name: Report V2 deployment-track status
+      - name: Report V1 deployment-track status
         run: npm run check:deployment-track
 
   offchain-scaffolds:

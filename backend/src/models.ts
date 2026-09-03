@@ -1,6 +1,6 @@
-import type { SyncStatus } from "./generated/v2-client.ts";
+import type { SyncStatus } from "./generated/v1-client.ts";
 
-export const EXECUTION_SPEC_ID = "V2-EXEC-5" as const;
+export const EXECUTION_SPEC_ID = "V1-EXEC-6" as const;
 
 export type {
   ApiErrorResponse,
@@ -15,7 +15,7 @@ export type {
   SourceBlock,
   SyncStatus,
   UserPositionReadModel,
-} from "./generated/v2-client.ts";
+} from "./generated/v1-client.ts";
 
 export interface Page<T> {
   readonly items: readonly T[];

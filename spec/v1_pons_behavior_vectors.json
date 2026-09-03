@@ -1,0 +1,346 @@
+{
+  "schemaVersion": 1,
+  "baselineId": "TG-PONS-BEHAVIOR-1",
+  "executionSpecId": "V1-EXEC-3",
+  "status": "REFERENCE_VECTORS_RUNTIME_VERIFIED_ARTIFACT_HASH_PENDING",
+  "differencePolicy": {
+    "requireExplicitDifferenceId": true,
+    "registeredDifferenceIds": []
+  },
+  "runtimeEvidence": "spec/v1_pons_runtime_evidence.json",
+  "reference": {
+    "chainId": 4663,
+    "factory": "0x7ed598bcef8bd9edd8c97a195c6d13f40801ec7e",
+    "block": 52289586,
+    "blockHash": "0x9477917aacd098d56b4d5fb375e555a09d1a61b7bf33417429e5c8e4a2e86006",
+    "runtimeKeccak256": "0x89a27da6f703e0a7cdd4f233e7cb57604ff75b164530962d3ff7cf8483a67d84"
+  },
+  "launch": {
+    "launchFeeRaw": "500000000000000",
+    "exactNativeValue": true,
+    "nativeLaunchAndBuy": {
+      "firstBuyAmountRaw": "150000000000000000",
+      "requiredMsgValueRaw": "150500000000000000"
+    },
+    "erc20LaunchAndBuy": {
+      "firstBuyAmountRaw": "150000000",
+      "requiredMsgValueRaw": "500000000000000",
+      "requiresTokenApproval": true
+    },
+    "firstBuyGraduationShareCapBps": null
+  },
+  "vectors": [
+    {
+      "id": "SUPPLY_NATIVE_CONFIG_0",
+      "kind": "supplyPartition",
+      "inputs": {
+        "supply": "1000000000000000000000000000",
+        "phantomQuote": "1680000000000000000",
+        "graduationThreshold": "4200000000000000000"
+      },
+      "outputs": {
+        "reservedTokens": "285714285714285714285714285",
+        "sellableTokens": "714285714285714285714285715"
+      }
+    },
+    {
+      "id": "SUPPLY_USDG_6_DECIMALS",
+      "kind": "supplyPartition",
+      "inputs": {
+        "supply": "1000000000000000000000000000",
+        "phantomQuote": "3236000000",
+        "graduationThreshold": "8090000000"
+      },
+      "outputs": {
+        "reservedTokens": "285714285714285714285714285",
+        "sellableTokens": "714285714285714285714285715"
+      }
+    },
+    {
+      "id": "AMOUNT_OUT_INTEGER_FLOOR",
+      "kind": "amountOut",
+      "inputs": {
+        "amountIn": "99",
+        "reserveIn": "1000",
+        "reserveOut": "1000000",
+        "feeBps": 0
+      },
+      "outputs": {
+        "amountOut": "90081"
+      }
+    },
+    {
+      "id": "BUY_FEE_BEFORE_PRICING",
+      "kind": "buy",
+      "inputs": {
+        "quoteReceived": "100",
+        "quoteReserve": "1000",
+        "tokenReserve": "1000000",
+        "reservedTokens": "1",
+        "feeBps": 100,
+        "additionalQuoteFeeBps": 0,
+        "minTokensOut": "0"
+      },
+      "outputs": {
+        "quoteSpent": "100",
+        "fee": "1",
+        "additionalQuoteFee": "0",
+        "netQuote": "99",
+        "tokensOut": "90081",
+        "refund": "0",
+        "partialFill": false
+      }
+    },
+    {
+      "id": "BUY_TWO_QUOTE_FEE_LEGS_FLOOR_SEPARATELY",
+      "kind": "buy",
+      "inputs": {
+        "quoteReceived": "1000",
+        "quoteReserve": "1000",
+        "tokenReserve": "1000000",
+        "reservedTokens": "1",
+        "feeBps": 100,
+        "additionalQuoteFeeBps": 50,
+        "minTokensOut": "0"
+      },
+      "outputs": {
+        "quoteSpent": "1000",
+        "fee": "10",
+        "additionalQuoteFee": "5",
+        "netQuote": "985",
+        "tokensOut": "496221",
+        "refund": "0",
+        "partialFill": false
+      }
+    },
+    {
+      "id": "SELL_FEE_AFTER_GROSS_QUOTE",
+      "kind": "sell",
+      "inputs": {
+        "tokensIn": "500000",
+        "tokenReserve": "1000000",
+        "quoteReserve": "1000",
+        "feeBps": 100,
+        "additionalQuoteFeeBps": 50,
+        "minQuoteOut": "0"
+      },
+      "outputs": {
+        "grossQuoteOut": "333",
+        "fee": "3",
+        "additionalQuoteFee": "1",
+        "quoteOut": "329"
+      }
+    },
+    {
+      "id": "TAIL_PARTIAL_FILL_AND_REFUND",
+      "kind": "buy",
+      "inputs": {
+        "quoteReceived": "1000",
+        "quoteReserve": "1000",
+        "tokenReserve": "400000",
+        "reservedTokens": "333333",
+        "feeBps": 100,
+        "additionalQuoteFeeBps": 50,
+        "minTokensOut": "100000"
+      },
+      "outputs": {
+        "netRequired": "201",
+        "quoteSpent": "205",
+        "fee": "2",
+        "additionalQuoteFee": "1",
+        "tokensOut": "66667",
+        "refund": "795",
+        "partialFill": true,
+        "slippagePass": true
+      }
+    },
+    {
+      "id": "TAIL_PARTIAL_FILL_PRICE_BOUND_REVERT",
+      "kind": "partialFillSlippage",
+      "inputs": {
+        "quoteReceived": "1000",
+        "quoteSpent": "205",
+        "tokensOut": "66667",
+        "minTokensOut": "400000"
+      },
+      "outputs": {
+        "slippagePass": false
+      }
+    },
+    {
+      "id": "ANTI_SNIPE_RUNTIME_ELAPSED_0_CLIPPED",
+      "kind": "antiSnipeBuy",
+      "inputs": {
+        "elapsedSeconds": 0,
+        "exempt": false,
+        "quoteReceived": "1000",
+        "quoteReserve": "1000",
+        "tokenReserve": "1000000",
+        "reservedTokens": "1",
+        "feeBps": 100,
+        "creatorTaxBps": 0,
+        "minimumNetBps": 100
+      },
+      "outputs": {
+        "rawSnipeBps": 9900,
+        "effectiveSnipeBps": 9800,
+        "fee": "10",
+        "snipeFee": "980",
+        "netQuote": "10",
+        "tokensOut": "9900"
+      }
+    },
+    {
+      "id": "ANTI_SNIPE_RUNTIME_ELAPSED_1",
+      "kind": "antiSnipeBuy",
+      "inputs": {
+        "elapsedSeconds": 1,
+        "exempt": false,
+        "quoteReceived": "1000",
+        "quoteReserve": "1000",
+        "tokenReserve": "1000000",
+        "reservedTokens": "1",
+        "feeBps": 100,
+        "creatorTaxBps": 0,
+        "minimumNetBps": 100
+      },
+      "outputs": {
+        "rawSnipeBps": 618,
+        "effectiveSnipeBps": 618,
+        "fee": "10",
+        "snipeFee": "61",
+        "netQuote": "929",
+        "tokensOut": "481596"
+      }
+    },
+    {
+      "id": "ANTI_SNIPE_RUNTIME_ELAPSED_2",
+      "kind": "antiSnipeBuy",
+      "inputs": {
+        "elapsedSeconds": 2,
+        "exempt": false,
+        "quoteReceived": "1000",
+        "quoteReserve": "1000",
+        "tokenReserve": "1000000",
+        "reservedTokens": "1",
+        "feeBps": 100,
+        "creatorTaxBps": 0,
+        "minimumNetBps": 100
+      },
+      "outputs": {
+        "rawSnipeBps": 19,
+        "effectiveSnipeBps": 19,
+        "fee": "10",
+        "snipeFee": "1",
+        "netQuote": "989",
+        "tokensOut": "497234"
+      }
+    },
+    {
+      "id": "ANTI_SNIPE_RUNTIME_ELAPSED_3_ZERO",
+      "kind": "antiSnipeBuy",
+      "inputs": {
+        "elapsedSeconds": 3,
+        "exempt": false,
+        "quoteReceived": "1000",
+        "quoteReserve": "1000",
+        "tokenReserve": "1000000",
+        "reservedTokens": "1",
+        "feeBps": 100,
+        "creatorTaxBps": 0,
+        "minimumNetBps": 100
+      },
+      "outputs": {
+        "rawSnipeBps": 0,
+        "effectiveSnipeBps": 0,
+        "fee": "10",
+        "snipeFee": "0",
+        "netQuote": "990",
+        "tokensOut": "497487"
+      }
+    },
+    {
+      "id": "ANTI_SNIPE_AUTOMATIC_EXEMPTION_AT_LAUNCH",
+      "kind": "antiSnipeBuy",
+      "inputs": {
+        "elapsedSeconds": 0,
+        "exempt": true,
+        "quoteReceived": "1000",
+        "quoteReserve": "1000",
+        "tokenReserve": "1000000",
+        "reservedTokens": "1",
+        "feeBps": 100,
+        "creatorTaxBps": 0,
+        "minimumNetBps": 100
+      },
+      "outputs": {
+        "rawSnipeBps": 0,
+        "effectiveSnipeBps": 0,
+        "fee": "10",
+        "snipeFee": "0",
+        "netQuote": "990",
+        "tokensOut": "497487"
+      }
+    },
+    {
+      "id": "GRADUATION_POOL_MEME_AND_LOCKED_EXCESS",
+      "kind": "graduationPartition",
+      "inputs": {
+        "sweptQuote": "4200000000000000000",
+        "phantomQuote": "1680000000000000000",
+        "sweptTokens": "285714285714285714285714285"
+      },
+      "outputs": {
+        "poolMemeAmount": "204081632653061224489795917",
+        "lockedExcessMeme": "81632653061224489795918368"
+      }
+    }
+  ],
+  "create2": {
+    "domainLabel": "TICKERGARDEN_V1_COMPONENT_SALT",
+    "domain": "0x202966cf83bc817a2c5c1a8886d121844fbaa6146c53f5bff4c63fd4c4bda0a3",
+    "schemaVersion": 1,
+    "chainId": 4663,
+    "factory": "0x1111111111111111111111111111111111111111",
+    "launchDeployer": "0x2222222222222222222222222222222222222222",
+    "graduationDeployer": "0x3333333333333333333333333333333333333333",
+    "marketId": "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "components": [
+      {
+        "kindLabel": "CURVE",
+        "deployer": "0x2222222222222222222222222222222222222222",
+        "kind": "0xc715e3736a8cb018f630cb9a1df908ad1629e9c2da4cd190b2dc83d6687ba169",
+        "initCodeHash": "0xbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+        "componentSalt": "0x523d466b10193f59dc5a2f5abcbae41348c14b8be342810a721f4f56432077f3",
+        "predictedAddress": "0x0e8cc85e3350d4ca44b42064eb50df2b6ed03fdb"
+      },
+      {
+        "kindLabel": "TOKEN",
+        "deployer": "0x2222222222222222222222222222222222222222",
+        "kind": "0x96706879d29c248edfb2a2563a8a9d571c49634c0f82013e6f5a7cde739d35d4",
+        "initCodeHash": "0xcccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+        "componentSalt": "0x3a64384a587c5edc8676d3f5052623b881ee379c07ae93f5393524daf0e93e29",
+        "predictedAddress": "0xbb095393424c000c43d4fe5696ef2f2bb6dc13db"
+      },
+      {
+        "kindLabel": "GAUGE",
+        "deployer": "0x2222222222222222222222222222222222222222",
+        "kind": "0x778746b47e26d206d34e81cbfed09cb79b36cb5fb03976191d33bd2f9c7d05fe",
+        "initCodeHash": "0xdddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+        "componentSalt": "0xe58551d65384f0721d898488434a36cc33de5e3f002df444f863681dc99fb735",
+        "predictedAddress": "0x73af16ae7f445686926148baa6ad81200651128e"
+      },
+      {
+        "kindLabel": "LOCKER",
+        "deployer": "0x3333333333333333333333333333333333333333",
+        "kind": "0x07f43ac6ee24425b996253fe6b8df1552b31a8c2b0f2c135f7bbaf1c09645029",
+        "initCodeHash": "0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+        "componentSalt": "0x766550e1d33f016b0249853ae1e8d7ce004e4fa9bbe525ad941b1ae42d2fb58a",
+        "predictedAddress": "0x59644e32244eb0f5d7d4d5f54befaa69e80dda34"
+      }
+    ]
+  },
+  "pendingVectors": [
+    "FINAL_SOLIDITY_ARTIFACT_INIT_CODE_HASHES"
+  ]
+}

@@ -3,41 +3,41 @@
 import { readFileSync } from "node:fs";
 
 import {
-  V2_READINESS_STATES,
+  V1_READINESS_STATES,
   assertNoProductionPlaceholders,
-  deriveV2ReadinessState,
+  deriveV1ReadinessState,
   readinessFlags,
   type ProductionPlaceholderPolicy,
-  type V2GateSets,
-  type V2ReadinessState,
+  type V1GateSets,
+  type V1ReadinessState,
   type ZeroRule,
 } from "./readiness.ts";
-import { assertV2DeploymentManifestSchema } from "./schema.ts";
+import { assertV1DeploymentManifestSchema } from "./schema.ts";
 
 export * from "./readiness.ts";
 export * from "./schema.ts";
-export * from "./v2/preflight.ts";
-export * from "./v2/access-manager-plan.ts";
+export * from "./v1/preflight.ts";
+export * from "./v1/access-manager-plan.ts";
 
 type JsonRecord = Record<string, unknown>;
 
 function record(value: unknown, label: string): JsonRecord {
   if (value === null || typeof value !== "object" || Array.isArray(value)) {
-    throw new Error(`Invalid V2 execution manifest object: ${label}`);
+    throw new Error(`Invalid V1 execution manifest object: ${label}`);
   }
   return value as JsonRecord;
 }
 
 function stringValue(value: unknown, label: string): string {
   if (typeof value !== "string" || value.trim().length === 0) {
-    throw new Error(`Invalid V2 execution manifest string: ${label}`);
+    throw new Error(`Invalid V1 execution manifest string: ${label}`);
   }
   return value;
 }
 
 function booleanValue(value: unknown, label: string): boolean {
   if (typeof value !== "boolean") {
-    throw new Error(`Invalid V2 execution manifest boolean: ${label}`);
+    throw new Error(`Invalid V1 execution manifest boolean: ${label}`);
   }
   return value;
 }
@@ -47,22 +47,22 @@ function strings(value: unknown, label: string): readonly string[] {
     !Array.isArray(value) ||
     value.some((item) => typeof item !== "string" || item.trim().length === 0)
   ) {
-    throw new Error(`Invalid V2 execution manifest string array: ${label}`);
+    throw new Error(`Invalid V1 execution manifest string array: ${label}`);
   }
   return Object.freeze([...value] as string[]);
 }
 
-function readinessState(value: unknown, label: string): V2ReadinessState {
+function readinessState(value: unknown, label: string): V1ReadinessState {
   const candidate = stringValue(value, label);
-  if (!V2_READINESS_STATES.includes(candidate as V2ReadinessState)) {
-    throw new Error(`Invalid V2 readiness state: ${label}=${candidate}`);
+  if (!V1_READINESS_STATES.includes(candidate as V1ReadinessState)) {
+    throw new Error(`Invalid V1 readiness state: ${label}=${candidate}`);
   }
-  return candidate as V2ReadinessState;
+  return candidate as V1ReadinessState;
 }
 
 function zeroRules(value: unknown): readonly ZeroRule[] {
   if (!Array.isArray(value)) {
-    throw new Error("Invalid V2 execution manifest array: placeholderPolicy.allowedZeroRules");
+    throw new Error("Invalid V1 execution manifest array: placeholderPolicy.allowedZeroRules");
   }
   return Object.freeze(
     value.map((untypedRule, index) => {
@@ -97,7 +97,7 @@ function loadJson(relativePath: string): unknown {
   return JSON.parse(readFileSync(new URL(relativePath, import.meta.url), "utf8")) as unknown;
 }
 
-const manifest = record(loadJson("../../spec/v2_execution_manifest.json"), "root");
+const manifest = record(loadJson("../../spec/v1_execution_manifest.json"), "root");
 const machineReadiness = record(manifest.readiness, "readiness");
 const machineGateSets = record(machineReadiness.gateSets, "readiness.gateSets");
 
@@ -105,43 +105,43 @@ function gate(name: "implementation" | "deployment" | "production"): readonly st
   return strings(record(machineGateSets[name], `readiness.gateSets.${name}`).open, `${name}.open`);
 }
 
-export const V2_EXECUTION_SPEC_ID = stringValue(manifest.executionSpecId, "executionSpecId");
-export const v2GateSets: V2GateSets = Object.freeze({
+export const V1_EXECUTION_SPEC_ID = stringValue(manifest.executionSpecId, "executionSpecId");
+export const v1GateSets: V1GateSets = Object.freeze({
   implementation: gate("implementation"),
   deployment: gate("deployment"),
   production: gate("production"),
 });
 
-const derivedState = deriveV2ReadinessState(v2GateSets);
+const derivedState = deriveV1ReadinessState(v1GateSets);
 const declaredState = readinessState(machineReadiness.state, "readiness.state");
 const manifestStatus = readinessState(manifest.status, "status");
 if (derivedState !== declaredState || manifestStatus !== declaredState) {
   throw new Error(
-    `TickerGarden V2 readiness drift: declared=${declaredState} derived=${derivedState} status=${manifestStatus}`,
+    `TickerGarden V1 readiness drift: declared=${declaredState} derived=${derivedState} status=${manifestStatus}`,
   );
 }
 
 const flags = readinessFlags(derivedState);
 for (const key of ["implementationAllowed", "deploymentEligible", "productionReady"] as const) {
   if (booleanValue(machineReadiness[key], `readiness.${key}`) !== flags[key]) {
-    throw new Error(`TickerGarden V2 readiness flag drift: ${key}`);
+    throw new Error(`TickerGarden V1 readiness flag drift: ${key}`);
   }
 }
 
-export type V2ReadinessDescriptor = Readonly<{
+export type V1ReadinessDescriptor = Readonly<{
   executionSpecId: string;
-  state: V2ReadinessState;
+  state: V1ReadinessState;
   implementationAllowed: boolean;
   deploymentEligible: boolean;
   productionReady: boolean;
-  openGates: V2GateSets;
+  openGates: V1GateSets;
 }>;
 
-export const v2Readiness: V2ReadinessDescriptor = Object.freeze({
-  executionSpecId: V2_EXECUTION_SPEC_ID,
+export const v1Readiness: V1ReadinessDescriptor = Object.freeze({
+  executionSpecId: V1_EXECUTION_SPEC_ID,
   state: derivedState,
   ...flags,
-  openGates: v2GateSets,
+  openGates: v1GateSets,
 });
 
 const machinePlaceholderPolicy = record(
@@ -187,8 +187,8 @@ for (const untypedScope of fixtureScopes) {
 }
 export const referenceFixtureValues: ReadonlySet<string> = fixtureValues;
 
-export function assertV2DeploymentManifest(value: unknown): void {
-  assertV2DeploymentManifestSchema(value);
+export function assertV1DeploymentManifest(value: unknown): void {
+  assertV1DeploymentManifestSchema(value);
   assertNoProductionPlaceholders(
     value,
     productionPlaceholderPolicy,
@@ -197,7 +197,7 @@ export function assertV2DeploymentManifest(value: unknown): void {
 }
 
 function firstBlockingGateSet(
-  descriptor: V2ReadinessDescriptor,
+  descriptor: V1ReadinessDescriptor,
   includeProduction: boolean,
 ): Readonly<{ stage: string; gates: readonly string[] }> {
   const stages = includeProduction
@@ -210,24 +210,24 @@ function firstBlockingGateSet(
   return { stage: "readiness-consistency", gates: ["STATE_OR_FLAG_DRIFT"] };
 }
 
-export function isV2Deployable(descriptor: V2ReadinessDescriptor = v2Readiness): boolean {
+export function isV1Deployable(descriptor: V1ReadinessDescriptor = v1Readiness): boolean {
   return descriptor.deploymentEligible;
 }
 
-export function assertV2Deployable(descriptor: V2ReadinessDescriptor = v2Readiness): void {
-  if (isV2Deployable(descriptor)) return;
+export function assertV1Deployable(descriptor: V1ReadinessDescriptor = v1Readiness): void {
+  if (isV1Deployable(descriptor)) return;
   const blocking = firstBlockingGateSet(descriptor, false);
   throw new Error(
-    `TickerGarden V2 deployment is blocked at ${descriptor.state} by ${blocking.stage} gates: ${blocking.gates.join(", ")}`,
+    `TickerGarden V1 deployment is blocked at ${descriptor.state} by ${blocking.stage} gates: ${blocking.gates.join(", ")}`,
   );
 }
 
-export function assertV2ProductionReady(
-  descriptor: V2ReadinessDescriptor = v2Readiness,
+export function assertV1ProductionReady(
+  descriptor: V1ReadinessDescriptor = v1Readiness,
 ): void {
   if (descriptor.productionReady) return;
   const blocking = firstBlockingGateSet(descriptor, true);
   throw new Error(
-    `TickerGarden V2 production is blocked at ${descriptor.state} by ${blocking.stage} gates: ${blocking.gates.join(", ")}`,
+    `TickerGarden V1 production is blocked at ${descriptor.state} by ${blocking.stage} gates: ${blocking.gates.join(", ")}`,
   );
 }
