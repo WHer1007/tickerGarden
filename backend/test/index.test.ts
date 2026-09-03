@@ -23,20 +23,20 @@ function market(suffix: string, assetUid = id("9")): MarketReadModel {
   return {
     marketId: id(suffix), assetUid, memeToken: address(`1${suffix}`), curve: address(`2${suffix}`), gauge: address(`3${suffix}`),
     quoteAsset: address("4"), quoteAssetConfigId: id("5"), ponsBaselineId: id("6"), sourceVersion: 1,
-    launchPhase: 2, marketStatus: 1,
+    launchPhase: 2,
     curveProgress: { realQuoteReserve: "30", sellableTokens: "40", reservedTokens: "60", accruedCurveFees: "2", readyToGraduate: false, sweptAt: null },
     poolId: id(`7${suffix}`),
     poolKey: { currency0: address("4"), currency1: address(`1${suffix}`), fee: 0, tickSpacing: 60, hooks: address("8") },
     canonicalRoute: {
       router: address("12"), quoter: address("13"), hook: address("8"), launchLocker: address("14"), graduationExecutor: address("15"),
-      curveTradingEnabled: false, poolTradingEnabled: true, sourceVersion: 1, launchPhase: 2, marketStatus: 1,
+      curveTradingEnabled: false, poolTradingEnabled: true, sourceVersion: 1, launchPhase: 2,
     },
     source,
   };
 }
 
 const repository = new InMemoryReadModelRepository({
-    executionSpecId: "V2-EXEC-5",
+    executionSpecId: "V1-EXEC-6",
   reconciliationAlerts: [],
   sync,
   markets: [market("3"), market("1"), market("2"), market("4", id("99"))],
@@ -76,27 +76,27 @@ test("health endpoint exposes read-only runtime and explicit sync state", async 
   const result = await call(baseUrl, "/health");
   assert.equal(result.statusCode, 200);
   assert.deepEqual(result.body, { ...HEALTH_RESPONSE, sync });
-  assert.equal(EXECUTION_SPEC_ID, "V2-EXEC-5");
+  assert.equal(EXECUTION_SPEC_ID, "V1-EXEC-6");
 }));
 
 test("market discovery is canonical, filterable, and cursor paginated with a hard limit", async () => withServer(async (baseUrl) => {
-  const first = await call(baseUrl, `/v2/markets?assetUid=${id("9")}&limit=2`);
+  const first = await call(baseUrl, `/v1/markets?assetUid=${id("9")}&limit=2`);
   assert.equal(first.statusCode, 200);
   assert.deepEqual(first.body.items.map((item: MarketReadModel) => item.marketId), [id("1"), id("2")]);
   assert.equal(first.body.items[0].poolKey.hooks, address("8"));
   assert.equal(first.body.items[0].source.blockHash, id("b"));
   assert.equal(typeof first.body.nextCursor, "string");
-  const second = await call(baseUrl, `/v2/markets?assetUid=${id("9")}&limit=2&cursor=${first.body.nextCursor}`);
+  const second = await call(baseUrl, `/v1/markets?assetUid=${id("9")}&limit=2&cursor=${first.body.nextCursor}`);
   assert.deepEqual(second.body.items.map((item: MarketReadModel) => item.marketId), [id("3")]);
   assert.equal(second.body.nextCursor, null);
-  assert.equal((await call(baseUrl, "/v2/markets?limit=101")).statusCode, 400);
-  assert.equal((await call(baseUrl, "/v2/markets?cursor=***")).statusCode, 400);
-  assert.equal((await call(baseUrl, `/v2/markets?assetUid=${id("99")}&cursor=${first.body.nextCursor}`)).statusCode, 400);
-  assert.equal((await call(baseUrl, "/v2/markets?assetUid=not-a-bytes32")).statusCode, 400);
+  assert.equal((await call(baseUrl, "/v1/markets?limit=101")).statusCode, 400);
+  assert.equal((await call(baseUrl, "/v1/markets?cursor=***")).statusCode, 400);
+  assert.equal((await call(baseUrl, `/v1/markets?assetUid=${id("99")}&cursor=${first.body.nextCursor}`)).statusCode, 400);
+  assert.equal((await call(baseUrl, "/v1/markets?assetUid=not-a-bytes32")).statusCode, 400);
 }));
 
 test("market detail returns full PoolKey, Curve progress, lifecycle, and source block", async () => withServer(async (baseUrl) => {
-  const result = await call(baseUrl, `/v2/markets/${id("1")}`);
+  const result = await call(baseUrl, `/v1/markets/${id("1")}`);
   assert.equal(result.statusCode, 200);
   assert.deepEqual(result.body.market.poolKey, market("1").poolKey);
   assert.equal(result.body.market.canonicalRoute.router, address("12"));
@@ -107,14 +107,14 @@ test("market detail returns full PoolKey, Curve progress, lifecycle, and source 
   assert.equal(result.body.sync.finality, "finalized");
   assert.equal(result.body.sync.lagBlocks, "2");
   assert.deepEqual(result.body.sync, sync);
-  assert.equal((await call(baseUrl, `/v2/markets/${id("99")}`)).statusCode, 404);
+  assert.equal((await call(baseUrl, `/v1/markets/${id("99")}`)).statusCode, 404);
 }));
 
 test("config and user position endpoints expose bounded chain facts and dual-asset claimables", async () => withServer(async (baseUrl) => {
-  const configs = await call(baseUrl, "/v2/config/asset?limit=10");
+  const configs = await call(baseUrl, "/v1/config/asset?limit=10");
   assert.equal(configs.body.items[0].id, id("9"));
   assert.equal(configs.body.items[0].source.logIndex, 2);
-  const positions = await call(baseUrl, `/v2/users/${address("a")}/positions?limit=10`);
+  const positions = await call(baseUrl, `/v1/users/${address("a")}/positions?limit=10`);
   assert.equal(positions.body.items[0].free, "5");
   assert.equal(positions.body.items[0].pending, "2");
   assert.equal(positions.body.items[0].active, "5");
@@ -123,29 +123,29 @@ test("config and user position endpoints expose bounded chain facts and dual-ass
 }));
 
 test("all write methods fail closed and unknown routes remain JSON 404", async () => withServer(async (baseUrl) => {
-  const write = await call(baseUrl, "/v2/markets", "POST");
+  const write = await call(baseUrl, "/v1/markets", "POST");
   assert.equal(write.statusCode, 405);
   assert.deepEqual(write.body, { error: "read_only", message: "this API does not accept write methods", allowedMethods: ["GET"], sync });
-  const missing = await call(baseUrl, "/v2/not-implemented");
+  const missing = await call(baseUrl, "/v1/not-implemented");
   assert.equal(missing.statusCode, 404);
   assert.equal(missing.body.error, "not_found");
 }));
 
 test("repository rejects unreconciled, noncanonical, or internally inconsistent snapshots", () => {
   assert.throws(() => new InMemoryReadModelRepository({
-    executionSpecId: "V2-EXEC-5", reconciliationAlerts: [{}] as never,
+    executionSpecId: "V1-EXEC-6", reconciliationAlerts: [{}] as never,
     sync, markets: [market("1")],
-  }), /not V2-reconciled/);
+  }), /not V1-reconciled/);
   assert.throws(() => new InMemoryReadModelRepository({
-    executionSpecId: "V2-EXEC-5", reconciliationAlerts: [], sync,
+    executionSpecId: "V1-EXEC-6", reconciliationAlerts: [], sync,
     markets: [{ ...market("1"), canonicalRoute: { ...market("1").canonicalRoute, hook: address("99") } }],
   }), /PoolKey hook/);
   assert.throws(() => new InMemoryReadModelRepository({
-    executionSpecId: "V2-EXEC-5", reconciliationAlerts: [], sync, markets: [market("1")],
+    executionSpecId: "V1-EXEC-6", reconciliationAlerts: [], sync, markets: [market("1")],
     positions: [{ ...repository.positions(address("a"))[0]!, allocated: "8" }],
   }), /allocated must equal pending plus active/);
   assert.throws(() => new InMemoryReadModelRepository({
-    executionSpecId: "V2-EXEC-5", reconciliationAlerts: [], sync,
+    executionSpecId: "V1-EXEC-6", reconciliationAlerts: [], sync,
     configs: [{ kind: "asset", id: id("9"), status: 1, values: { minimumAllocation: "413" }, source }],
   }), /minimumAllocation/);
 });

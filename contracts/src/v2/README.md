@@ -1,14 +1,13 @@
-# TickerGarden V2 contract namespace
+# TickerGarden V2 Treasury preview
 
-This directory is the only production-source namespace for TickerGarden V2.
+This namespace contains only the future V2 Treasury subsystem (`V2-TREASURY-EXEC-1`). It is intentionally excluded from the V1 source profile, ABI generation, deployment manifests, indexer, backend, website client, and fee policy.
 
-Product contracts are added only after their corresponding V2-M0 inputs, canonical ABI, permissions, state transitions, and invariants are frozen. Shared compile-time definitions and deployment libraries live under `shared/`; concrete canonical product modules live under `modules/`.
+Boundaries:
 
-Planned source boundaries:
+- `interfaces/ITreasuryV2.sol`: fee-neutral funding and distribution ABI.
+- `modules/TreasuryDistributorV2.sol`: one shared, market-isolated Quote ledger and paid attested-root lifecycle.
+- `modules/TickerMemeTokenV2.sol`: fixed mint plus Distributor-only true supply burn.
+- `libraries/TreasuryClaimLeafV2.sol`: frozen Merkle leaf domain.
+- `shared/ImmutableAccessManagedV2.sol`: selector-scoped immutable authority adapter.
 
-- `interfaces/`: interfaces generated or verified from compiled artifacts.
-- `modules/`: protocol contracts after their implementation gates open.
-- `libraries/`: V2-only math, identity, accounting, and validation libraries.
-- `shared/`: product-neutral V2 compile-time definitions.
-
-No source in this namespace may import a V1 product contract, interface, library, mock, or fixture.
+No file in this namespace may import a V1 product source or mutate a V1 contract. The V2 profile is a preview gate, not deployment approval.

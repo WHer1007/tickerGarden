@@ -9,17 +9,17 @@ import {
   http,
   toHex,
 } from "viem";
-import { robinhoodChain } from "./v2/chain.ts";
-import { v2Abis, V2_EXECUTION_SPEC_ID } from "./v2/generated/abis.ts";
-import { TickerGardenV2Client } from "./v2/readApi.ts";
-import { parseV2RuntimeConfig } from "./v2/runtimeConfig.ts";
-import { V2TransactionError, V2TransactionExecutor } from "./v2/transaction.ts";
+import { robinhoodChain } from "./v1/chain.ts";
+import { v1Abis, V1_EXECUTION_SPEC_ID } from "./v1/generated/abis.ts";
+import { TickerGardenV1Client } from "./v1/readApi.ts";
+import { parseV1RuntimeConfig } from "./v1/runtimeConfig.ts";
+import { V1TransactionError, V1TransactionExecutor } from "./v1/transaction.ts";
 import {
   assertCanonicalAssetBinding,
   assertCanonicalFactoryBindings,
   assertCanonicalLaunchBindings,
   assertCanonicalMarketBinding,
-} from "./v2/chainBindings.ts";
+} from "./v1/chainBindings.ts";
 import {
   buildCreateMarketRequest,
   buildCurveBuyRequest,
@@ -27,30 +27,26 @@ import {
   buildLaunchAndBuyRequests,
   findCanonicalMarketCreated,
   toCurveProgressViewModel,
-} from "./v2/features/launch.ts";
+} from "./v1/features/launch.ts";
 import {
   buildAllocate,
-  buildClaimRecovery,
   buildClaimStaker,
   buildCloseAllocation,
   buildDeposit,
   buildDepositAndAllocate,
-  buildFinalizeRecoveryRoot,
-  buildForceRelease,
-  hasCanonicalRecoveryClaim,
+  buildDirectRageQuit,
   buildRageQuit,
   buildStockApproval,
   buildVaultView,
   buildWithdraw,
-  validateRecoveryRootState,
-} from "./v2/features/vault.ts";
+} from "./v1/features/vault.ts";
 
 const ZERO_ADDRESS = "0x0000000000000000000000000000000000000000";
 const HEX32 = /^0x[0-9a-f]{64}$/;
 const ADDRESS = /^0x[0-9a-f]{40}$/;
-const runtimeConfig = parseV2RuntimeConfig(import.meta.env);
+const runtimeConfig = parseV1RuntimeConfig(import.meta.env);
 const publicClient = createPublicClient({ chain: robinhoodChain, transport: http(robinhoodChain.rpcUrls.default.http[0]) });
-const readApi = runtimeConfig.available ? new TickerGardenV2Client(runtimeConfig.baseUrl) : null;
+const readApi = runtimeConfig.available ? new TickerGardenV1Client(runtimeConfig.baseUrl) : null;
 
 const transactionStageLabels = {
   preflight: "Checking reconciled state",
@@ -69,8 +65,6 @@ const transactionStageLabels = {
 };
 
 const launchPhases = ["Curve", "Swept", "Pool created", "Rescued"];
-const marketStatuses = ["Active", "Paused", "Retired", "Emergency exit"];
-const recoveryStatuses = ["No root", "Pending challenge", "Active", "Cancelled"];
 
 function shortHex(value, left = 6, right = 4) {
   if (!value || value.length <= left + right + 2) return value || "—";
@@ -148,7 +142,7 @@ async function readAllPositions(account) {
 }
 
 function reconciledSnapshot(sync) {
-  return { executionSpecId: V2_EXECUTION_SPEC_ID, revision: sync.revision, syncStatus: sync.status };
+  return { executionSpecId: V1_EXECUTION_SPEC_ID, revision: sync.revision, syncStatus: sync.status };
 }
 
 function parseAmount(value, label) {
@@ -165,14 +159,6 @@ function parseUint32(value, label) {
   return parsed;
 }
 
-function parseMerkleProof(value) {
-  let parsed;
-  try { parsed = JSON.parse(value); } catch { throw new Error("Merkle proof must be a JSON array of bytes32 values"); }
-  if (!Array.isArray(parsed) || parsed.length > 64 || parsed.some((node) => typeof node !== "string" || !HEX32.test(node))) {
-    throw new Error("Merkle proof must contain at most 64 lowercase bytes32 values");
-  }
-  return parsed;
-}
 
 function formatAmount(value, decimals = 18, precision = 6) {
   try {
@@ -234,8 +220,6 @@ function App() {
   const [selectedPositionId, setSelectedPositionId] = useState("");
   const [depositAssetUid, setDepositAssetUid] = useState("");
   const [vaultForm, setVaultForm] = useState({ amount: "", allocation: "" });
-  const [recoveryForm, setRecoveryForm] = useState({ marketId: "", epoch: "", assetKind: "quote", amount: "", proof: "[]" });
-  const [recoveryState, setRecoveryState] = useState({ status: "idle" });
 
   useEffect(() => {
     const timer = window.setInterval(() => setNow(Math.floor(Date.now() / 1000)), 1000);
@@ -247,9 +231,9 @@ function App() {
     setFoundation({ status: "loading" });
     try {
       const health = await readApi.getHealth();
-      if (health.executionSpecId !== V2_EXECUTION_SPEC_ID) throw new Error("Read API execution spec does not match this build");
+      if (health.executionSpecId !== V1_EXECUTION_SPEC_ID) throw new Error("Read API execution spec does not match this build");
       if (health.status !== "read-api" || !health.readApiImplemented || !health.productRuntimeImplemented || health.transactionSubmission || health.custody) {
-        throw new Error("V2 product runtime is incomplete or the Read API capability contract is unsafe");
+        throw new Error("V1 product runtime is incomplete or the Read API capability contract is unsafe");
       }
       const revision = health.sync.revision;
       assertSameRevision(health.sync, revision, "Read API health");
@@ -259,8 +243,8 @@ function App() {
         readAllConfig("pons", revision),
         readAllConfig("template", revision),
         readApi.listMarkets({ limit: 100 }),
-        publicClient.readContract({ abi: v2Abis.TickerGardenFactoryV2, address: runtimeConfig.factoryAddress, functionName: "runtimeBindings" }),
-        publicClient.readContract({ abi: v2Abis.TickerGardenFactoryV2, address: runtimeConfig.factoryAddress, functionName: "launchFee" }),
+        publicClient.readContract({ abi: v1Abis.TickerGardenFactoryV1, address: runtimeConfig.factoryAddress, functionName: "runtimeBindings" }),
+        publicClient.readContract({ abi: v1Abis.TickerGardenFactoryV1, address: runtimeConfig.factoryAddress, functionName: "launchFee" }),
       ]);
       assertSameRevision(marketsPage.sync, revision, "market snapshot");
       const bindings = assertCanonicalFactoryBindings(rawBindings, {
@@ -270,7 +254,7 @@ function App() {
       });
       const codeAddresses = [...new Set([runtimeConfig.factoryAddress, ...Object.values(bindings)])];
       const codes = await Promise.all(codeAddresses.map((address) => publicClient.getCode({ address })));
-      if (codes.some((code) => !code || code === "0x")) throw new Error("One or more configured V2 contracts have no runtime code");
+      if (codes.some((code) => !code || code === "0x")) throw new Error("One or more configured V1 contracts have no runtime code");
       setFoundation({ status: "ready", health, sync: health.sync, assets, quotes, pons, templates, markets: marketsPage.items, launchFee, bindings });
     } catch (error) {
       setFoundation({ status: "error", error: errorText(error) });
@@ -338,7 +322,7 @@ function App() {
       const account = String(accounts?.[0] || "").toLowerCase();
       if (!ADDRESS.test(account) || account === ZERO_ADDRESS) throw new Error("Wallet returned an invalid account");
       const walletClient = createWalletClient({ account, chain: robinhoodChain, transport: custom(provider) });
-      const executor = new V2TransactionExecutor({ publicClient, walletClient });
+      const executor = new V1TransactionExecutor({ publicClient, walletClient });
       setWallet({ account, provider, walletClient, executor });
       setLaunchForm((current) => ({ ...current, beneficiary: current.beneficiary || account }));
       setNotice({ tone: "success", title: "Wallet connected", detail: shortHex(account) });
@@ -363,12 +347,12 @@ function App() {
     try {
       current = await readApi.getHealth();
     } catch (error) {
-      throw new V2TransactionError("indexer_unavailable", "The Read API could not verify the current finalized revision", error);
+      throw new V1TransactionError("indexer_unavailable", "The Read API could not verify the current finalized revision", error);
     }
-    if (current.sync.status === "lagging") throw new V2TransactionError("indexer_lagging", "The Indexer is lagging; refresh before signing");
-    if (current.sync.status === "unavailable") throw new V2TransactionError("indexer_unavailable", "The Indexer is unavailable; refresh before signing");
+    if (current.sync.status === "lagging") throw new V1TransactionError("indexer_lagging", "The Indexer is lagging; refresh before signing");
+    if (current.sync.status === "unavailable") throw new V1TransactionError("indexer_unavailable", "The Indexer is unavailable; refresh before signing");
     if (
-      current.executionSpecId !== V2_EXECUTION_SPEC_ID
+      current.executionSpecId !== V1_EXECUTION_SPEC_ID
       || current.status !== "read-api"
       || !current.readApiImplemented
       || !current.productRuntimeImplemented
@@ -379,12 +363,12 @@ function App() {
       || current.sync.status !== "synced"
       || current.sync.finality !== "finalized"
     ) {
-      throw new V2TransactionError("stale_snapshot", "The reconciled snapshot changed. Refresh before signing.");
+      throw new V1TransactionError("stale_snapshot", "The reconciled snapshot changed. Refresh before signing.");
     }
     try {
       assertSameRevision(current.sync, expected, "Read API health");
     } catch (error) {
-      throw new V2TransactionError("stale_snapshot", "The Read API revision is not a canonical finalized snapshot", error);
+      throw new V1TransactionError("stale_snapshot", "The Read API revision is not a canonical finalized snapshot", error);
     }
     return current.sync.revision;
   };
@@ -393,13 +377,13 @@ function App() {
     if (foundation.status !== "ready") throw new Error("Canonical Factory bindings are unavailable");
     const [raw, minimumAllocation] = await Promise.all([
       publicClient.readContract({
-        abi: v2Abis.OfficialStockRegistryV2,
+        abi: v1Abis.OfficialStockRegistryV1,
         address: foundation.bindings.officialStockRegistry,
         functionName: "asset",
         args: [asset.id],
       }),
       publicClient.readContract({
-        abi: v2Abis.OfficialStockRegistryV2,
+        abi: v1Abis.OfficialStockRegistryV1,
         address: foundation.bindings.officialStockRegistry,
         functionName: "minimumAllocation",
         args: [asset.id],
@@ -412,8 +396,8 @@ function App() {
     if (foundation.status !== "ready") throw new Error("Canonical Factory bindings are unavailable");
     if (market.marketId !== expectedMarketId) throw new Error("Read API returned a different market identity than requested");
     const [rawMarket, rawRoute] = await Promise.all([
-      publicClient.readContract({ abi: v2Abis.MarketRegistryV2, address: foundation.bindings.marketRegistry, functionName: "market", args: [market.marketId] }),
-      publicClient.readContract({ abi: v2Abis.MarketRegistryV2, address: foundation.bindings.marketRegistry, functionName: "canonicalRoute", args: [market.marketId] }),
+      publicClient.readContract({ abi: v1Abis.MarketRegistryV1, address: foundation.bindings.marketRegistry, functionName: "market", args: [market.marketId] }),
+      publicClient.readContract({ abi: v1Abis.MarketRegistryV1, address: foundation.bindings.marketRegistry, functionName: "canonicalRoute", args: [market.marketId] }),
     ]);
     assertCanonicalMarketBinding(market, rawMarket, rawRoute);
   };
@@ -421,10 +405,10 @@ function App() {
   const ensureCanonicalLaunch = async (selected) => {
     if (foundation.status !== "ready") throw new Error("Canonical Factory bindings are unavailable");
     const [asset, quote, pons, template] = await Promise.all([
-      publicClient.readContract({ abi: v2Abis.OfficialStockRegistryV2, address: foundation.bindings.officialStockRegistry, functionName: "asset", args: [selected.asset.assetUid] }),
-      publicClient.readContract({ abi: v2Abis.ApprovedQuoteRegistry, address: foundation.bindings.approvedQuoteRegistry, functionName: "quoteConfig", args: [selected.quote.configId] }),
-      publicClient.readContract({ abi: v2Abis.PonsBaselineRegistry, address: foundation.bindings.ponsBaselineRegistry, functionName: "baseline", args: [selected.pons.baselineId] }),
-      publicClient.readContract({ abi: v2Abis.LaunchTemplateRegistry, address: foundation.bindings.launchTemplateRegistry, functionName: "launchTemplate", args: [selected.template.templateId] }),
+      publicClient.readContract({ abi: v1Abis.OfficialStockRegistryV1, address: foundation.bindings.officialStockRegistry, functionName: "asset", args: [selected.asset.assetUid] }),
+      publicClient.readContract({ abi: v1Abis.ApprovedQuoteRegistry, address: foundation.bindings.approvedQuoteRegistry, functionName: "quoteConfig", args: [selected.quote.configId] }),
+      publicClient.readContract({ abi: v1Abis.PonsBaselineRegistry, address: foundation.bindings.ponsBaselineRegistry, functionName: "baseline", args: [selected.pons.baselineId] }),
+      publicClient.readContract({ abi: v1Abis.LaunchTemplateRegistry, address: foundation.bindings.launchTemplateRegistry, functionName: "launchTemplate", args: [selected.template.templateId] }),
     ]);
     assertCanonicalLaunchBindings(selected, { asset, quote, pons, template });
   };
@@ -505,7 +489,7 @@ function App() {
       const verifyChain = () => ensureCanonicalLaunch(config);
       await verifyChain();
       const previewMarketEconomics = (draft) => publicClient.readContract({
-        abi: v2Abis.TickerGardenFactoryV2,
+        abi: v1Abis.TickerGardenFactoryV1,
         address: runtimeConfig.factoryAddress,
         functionName: "previewMarketEconomics",
         args: [draft],
@@ -538,7 +522,7 @@ function App() {
           });
           const [code, quoteAsset] = await Promise.all([
             publicClient.getCode({ address: result.curve }),
-            publicClient.readContract({ abi: v2Abis.PonsCompatibleCurve, address: result.curve, functionName: "quoteAsset" }),
+            publicClient.readContract({ abi: v1Abis.PonsCompatibleCurve, address: result.curve, functionName: "quoteAsset" }),
           ]);
           if (!code || code === "0x" || quoteAsset.toLowerCase() !== config.quote.quoteAsset) throw new Error("Fresh Curve deployment does not match the selected Quote");
           return result;
@@ -577,91 +561,6 @@ function App() {
     }
   };
 
-  const loadRecovery = async () => {
-    setRecoveryState({ status: "loading" });
-    try {
-      if (!runtimeConfig.available || !readApi || foundation.status !== "ready") throw new Error("The complete V2 runtime gate is not open");
-      const marketId = recoveryForm.marketId.trim().toLowerCase();
-      if (!HEX32.test(marketId)) throw new Error("Enter a lowercase canonical market ID");
-      const epoch = parseUint32(recoveryForm.epoch, "Recovery epoch");
-      const assetKind = recoveryForm.assetKind;
-      const response = await readApi.getMarket({ marketId });
-      assertSameRevision(response.sync, foundation.sync.revision, "Recovery market snapshot");
-      await ensureCanonicalMarket(response.market, marketId);
-      toCurveProgressViewModel(response);
-      if (response.market.marketStatus !== 3) throw new Error("Recovery roots are available only for an Emergency market");
-      const feeAsset = (assetKind === "quote" ? response.market.quoteAsset : response.market.memeToken).toLowerCase();
-      const [rawRoot, cap, rawSnapshot, latestBlock] = await Promise.all([
-        publicClient.readContract({ abi: v2Abis.ProtocolFeeVault, address: foundation.bindings.protocolFeeVault, functionName: "recoveryRoot", args: [marketId, epoch, feeAsset] }),
-        publicClient.readContract({ abi: v2Abis.ProtocolFeeVault, address: foundation.bindings.protocolFeeVault, functionName: "recoveryCap", args: [marketId, epoch, feeAsset] }),
-        publicClient.readContract({ abi: v2Abis.ProtocolFeeVault, address: foundation.bindings.protocolFeeVault, functionName: "recoverySnapshot", args: [marketId, epoch] }),
-        publicClient.getBlock({ blockTag: "latest" }),
-      ]);
-      const view = {
-        root: String(tupleField(rawRoot, "root", 0)).toLowerCase(),
-        declaredTotal: BigInt(tupleField(rawRoot, "declaredTotal", 1)),
-        claimedTotal: BigInt(tupleField(rawRoot, "claimedTotal", 2)),
-        proposedAt: BigInt(tupleField(rawRoot, "proposedAt", 3)),
-        finalizableAt: BigInt(tupleField(rawRoot, "finalizableAt", 4)),
-        proposalNonce: Number(tupleField(rawRoot, "proposalNonce", 5)),
-        status: Number(tupleField(rawRoot, "status", 6)),
-      };
-      const snapshotBlock = BigInt(tupleField(rawSnapshot, "snapshotBlock", 0));
-      const stateHash = String(tupleField(rawSnapshot, "stateHash", 1)).toLowerCase();
-      validateRecoveryRootState(view, cap, snapshotBlock, stateHash, BigInt(response.sync.blockNumber));
-      setRecoveryState({ status: "ready", marketId, epoch, assetKind, feeAsset, sync: response.sync, market: response.market, view, cap, snapshotBlock, stateHash, chainTimestamp: latestBlock.timestamp });
-    } catch (error) {
-      setRecoveryState({ status: "error", error: errorText(error) });
-    }
-  };
-
-  const executeRecovery = async (action) => {
-    try {
-      assertReady();
-      if (recoveryState.status !== "ready") throw new Error("Load a canonical recovery root first");
-      const marketId = recoveryForm.marketId.trim().toLowerCase();
-      const epoch = parseUint32(recoveryForm.epoch, "Recovery epoch");
-      if (marketId !== recoveryState.marketId || epoch !== recoveryState.epoch || recoveryForm.assetKind !== recoveryState.assetKind) throw new Error("Recovery inputs changed; reload the root before signing");
-      const verifyChain = () => ensureCanonicalMarket(recoveryState.market);
-      await verifyChain();
-      let request;
-      let confirm;
-      let operationKey;
-      if (action === "finalize") {
-        if (recoveryState.view.status !== 1) throw new Error("The root is not pending");
-        const latestBlock = await publicClient.getBlock({ blockTag: "latest" });
-        if (latestBlock.timestamp < recoveryState.view.finalizableAt) throw new Error("The root challenge period is still open at the latest chain timestamp");
-        request = buildFinalizeRecoveryRoot(foundation.bindings.protocolFeeVault, marketId, epoch, recoveryState.feeAsset, recoveryState.view.proposalNonce);
-        operationKey = `recovery:finalize:${marketId}:${epoch}:${recoveryState.feeAsset}:${recoveryState.view.proposalNonce}`;
-        confirm = async () => {
-          const current = await publicClient.readContract({ abi: v2Abis.ProtocolFeeVault, address: foundation.bindings.protocolFeeVault, functionName: "recoveryRoot", args: [marketId, epoch, recoveryState.feeAsset] });
-          if (Number(tupleField(current, "status", 6)) !== 2 || Number(tupleField(current, "proposalNonce", 5)) !== recoveryState.view.proposalNonce) throw new Error("Fresh Recovery root is not active");
-          return current;
-        };
-      } else if (action === "claim") {
-        if (recoveryState.view.status !== 2) throw new Error("Only a finalized ACTIVE recovery root can be claimed");
-        const amount = parseAmount(recoveryForm.amount, "Recovery amount");
-        const proof = parseMerkleProof(recoveryForm.proof);
-        request = buildClaimRecovery(foundation.bindings.protocolFeeVault, marketId, epoch, recoveryState.feeAsset, amount, proof);
-        operationKey = `recovery:claim:${marketId}:${epoch}:${recoveryState.feeAsset}:${wallet.account}`;
-        confirm = async (receipt) => {
-          if (!hasCanonicalRecoveryClaim(receipt, foundation.bindings.protocolFeeVault, { marketId, epoch, feeAsset: recoveryState.feeAsset, user: wallet.account, amount })) throw new Error("The receipt did not contain the exact RecoveryClaimed event");
-          const current = await publicClient.readContract({ abi: v2Abis.ProtocolFeeVault, address: foundation.bindings.protocolFeeVault, functionName: "recoveryRoot", args: [marketId, epoch, recoveryState.feeAsset] });
-          const claimed = BigInt(tupleField(current, "claimedTotal", 2));
-          if (claimed < recoveryState.view.claimedTotal + amount || claimed > recoveryState.view.declaredTotal) throw new Error("Fresh Recovery claimed total is inconsistent");
-          return current;
-        };
-      } else {
-        throw new Error("Unknown Recovery action");
-      }
-      await execute({ operationKey, sync: recoveryState.sync, request, verifyChain, confirm });
-      setNotice({ tone: "success", title: action === "claim" ? "Recovery claim verified onchain" : "Recovery root finalized onchain" });
-      window.setTimeout(() => { void loadRecovery(); }, 1200);
-    } catch (error) {
-      setNotice({ tone: "error", title: "Recovery action stopped", detail: errorText(error) });
-    }
-  };
-
   const quoteCurveTrade = async () => {
     try {
       assertReady();
@@ -672,14 +571,14 @@ function App() {
       let quote;
       if (tradeSide === "buy") {
         const [tokensOut, quoteSpent, refund] = await publicClient.readContract({
-          abi: v2Abis.PonsCompatibleCurve, address: marketState.view.curve, functionName: "quoteBuy",
+          abi: v1Abis.PonsCompatibleCurve, address: marketState.view.curve, functionName: "quoteBuy",
           args: [amount, wallet.account], account: wallet.account,
         });
         if (tokensOut <= 0n) throw new Error("Curve quote returned zero Meme output");
         quote = { side: "buy", amount, output: tokensOut, spent: quoteSpent, refund, fee: null, minimum: tokensOut * 99n / 100n || 1n };
       } else {
         const [quoteOut, fee] = await publicClient.readContract({
-          abi: v2Abis.PonsCompatibleCurve, address: marketState.view.curve, functionName: "quoteSell", args: [amount], account: wallet.account,
+          abi: v1Abis.PonsCompatibleCurve, address: marketState.view.curve, functionName: "quoteSell", args: [amount], account: wallet.account,
         });
         if (quoteOut <= 0n) throw new Error("Curve quote returned zero Quote output");
         quote = { side: "sell", amount, output: quoteOut, spent: null, refund: null, fee, minimum: quoteOut * 99n / 100n || 1n };
@@ -706,8 +605,8 @@ function App() {
       const token = tradeSide === "buy" ? built.view.quoteAsset : built.view.memeToken;
       const approval = await allowanceApproval(built.approval, token, built.view.curve, tradeQuote.amount);
       const [before, sweepNonceBefore] = await Promise.all([
-        publicClient.readContract({ abi: v2Abis.PonsCompatibleCurve, address: built.view.curve, functionName: "realQuoteReserve" }),
-        publicClient.readContract({ abi: v2Abis.PonsCompatibleCurve, address: built.view.curve, functionName: "sweepNonce" }),
+        publicClient.readContract({ abi: v1Abis.PonsCompatibleCurve, address: built.view.curve, functionName: "realQuoteReserve" }),
+        publicClient.readContract({ abi: v1Abis.PonsCompatibleCurve, address: built.view.curve, functionName: "sweepNonce" }),
       ]);
       await execute({
         operationKey: `curve:${tradeSide}:${built.view.marketId}:${tradeQuote.amount}:${tradeQuote.revision}`,
@@ -718,8 +617,8 @@ function App() {
         verifyChain,
         confirm: async () => {
           const [current, sweepNonceAfter] = await Promise.all([
-            publicClient.readContract({ abi: v2Abis.PonsCompatibleCurve, address: built.view.curve, functionName: "realQuoteReserve" }),
-            publicClient.readContract({ abi: v2Abis.PonsCompatibleCurve, address: built.view.curve, functionName: "sweepNonce" }),
+            publicClient.readContract({ abi: v1Abis.PonsCompatibleCurve, address: built.view.curve, functionName: "realQuoteReserve" }),
+            publicClient.readContract({ abi: v1Abis.PonsCompatibleCurve, address: built.view.curve, functionName: "sweepNonce" }),
           ]);
           if (current === before && sweepNonceAfter === sweepNonceBefore) throw new Error("Fresh Curve state did not reflect the confirmed trade");
           return current;
@@ -801,6 +700,7 @@ function App() {
       let confirm;
       let key;
       let verifyChain;
+      let rageQuitRewardSettlementPending = false;
 
       if (action === "deposit") {
         const asset = foundation.assets.find((item) => item.id === depositAssetUid);
@@ -809,11 +709,11 @@ function App() {
         const canonicalAsset = await verifyChain();
         const stockToken = canonicalAsset.stockToken;
         const vault = canonicalAsset.userStockVault;
-        const before = await publicClient.readContract({ abi: v2Abis.UserStockVault, address: vault, functionName: "freeBalanceOf", args: [canonicalAsset.assetUid, wallet.account] });
+        const before = await publicClient.readContract({ abi: v1Abis.UserStockVault, address: vault, functionName: "freeBalanceOf", args: [canonicalAsset.assetUid, wallet.account] });
         request = buildDeposit(vault, canonicalAsset.assetUid, amount);
         approval = await allowanceApproval(buildStockApproval(stockToken, vault, amount), stockToken, vault, amount);
         confirm = async () => {
-          const after = await publicClient.readContract({ abi: v2Abis.UserStockVault, address: vault, functionName: "freeBalanceOf", args: [canonicalAsset.assetUid, wallet.account] });
+          const after = await publicClient.readContract({ abi: v1Abis.UserStockVault, address: vault, functionName: "freeBalanceOf", args: [canonicalAsset.assetUid, wallet.account] });
           if (after !== before + amount) throw new Error("Fresh Vault balance does not match the deposit");
           return after;
         };
@@ -831,15 +731,15 @@ function App() {
         const canonicalAsset = await verifyChain();
         const vault = canonicalAsset.userStockVault;
         const stockToken = canonicalAsset.stockToken;
-        const before = await publicClient.readContract({ abi: v2Abis.UserStockVault, address: vault, functionName: "allocation", args: [canonicalAsset.assetUid, wallet.account, marketId] });
+        const before = await publicClient.readContract({ abi: v1Abis.UserStockVault, address: vault, functionName: "allocation", args: [canonicalAsset.assetUid, wallet.account, marketId] });
         key = `vault:${action}:${marketId}:${amount || 0n}:${positionState.sync.revision}`;
 
         if (action === "withdraw") {
           if (!amount || amount > vaultView.free) throw new Error("Withdrawal exceeds the displayed free STOCK balance");
-          const freeBefore = await publicClient.readContract({ abi: v2Abis.UserStockVault, address: vault, functionName: "freeBalanceOf", args: [canonicalAsset.assetUid, wallet.account] });
+          const freeBefore = await publicClient.readContract({ abi: v1Abis.UserStockVault, address: vault, functionName: "freeBalanceOf", args: [canonicalAsset.assetUid, wallet.account] });
           request = buildWithdraw(vault, canonicalAsset.assetUid, amount);
           confirm = async () => {
-            const after = await publicClient.readContract({ abi: v2Abis.UserStockVault, address: vault, functionName: "freeBalanceOf", args: [canonicalAsset.assetUid, wallet.account] });
+            const after = await publicClient.readContract({ abi: v1Abis.UserStockVault, address: vault, functionName: "freeBalanceOf", args: [canonicalAsset.assetUid, wallet.account] });
             if (after !== freeBefore - amount) throw new Error("Fresh Vault balance does not match the withdrawal");
             return after;
           };
@@ -848,7 +748,7 @@ function App() {
           if (before + amount < canonicalAsset.minimumAllocation) throw new Error("Resulting allocation is below the current per-asset minimum");
           request = buildAllocate(foundation.bindings.allocationManager, marketId, amount);
           confirm = async () => {
-            const after = await publicClient.readContract({ abi: v2Abis.UserStockVault, address: vault, functionName: "allocation", args: [canonicalAsset.assetUid, wallet.account, marketId] });
+            const after = await publicClient.readContract({ abi: v1Abis.UserStockVault, address: vault, functionName: "allocation", args: [canonicalAsset.assetUid, wallet.account, marketId] });
             if (after !== before + amount) throw new Error("Fresh allocation does not match the increase");
             return after;
           };
@@ -856,7 +756,7 @@ function App() {
           if (!vaultView.canClose) throw new Error("Position cannot be closed before its normal unlock boundary");
           request = buildCloseAllocation(foundation.bindings.allocationManager, marketId);
           confirm = async () => {
-            const after = await publicClient.readContract({ abi: v2Abis.UserStockVault, address: vault, functionName: "allocation", args: [canonicalAsset.assetUid, wallet.account, marketId] });
+            const after = await publicClient.readContract({ abi: v1Abis.UserStockVault, address: vault, functionName: "allocation", args: [canonicalAsset.assetUid, wallet.account, marketId] });
             if (after !== 0n) throw new Error("Fresh allocation is not closed");
             return after;
           };
@@ -868,37 +768,43 @@ function App() {
           request = buildDepositAndAllocate(foundation.bindings.allocationManager, marketId, deposit, allocation);
           approval = await allowanceApproval(buildStockApproval(stockToken, vault, deposit), stockToken, vault, deposit);
           confirm = async () => {
-            const after = await publicClient.readContract({ abi: v2Abis.UserStockVault, address: vault, functionName: "allocation", args: [canonicalAsset.assetUid, wallet.account, marketId] });
+            const after = await publicClient.readContract({ abi: v1Abis.UserStockVault, address: vault, functionName: "allocation", args: [canonicalAsset.assetUid, wallet.account, marketId] });
             if (after !== before + allocation) throw new Error("Fresh allocation does not match deposit-and-allocate");
             return after;
           };
           key = `vault:${action}:${marketId}:${deposit}:${allocation}:${positionState.sync.revision}`;
-        } else if (action === "rage-quit") {
+        } else if (action === "rage-quit" || action === "rage-quit-direct") {
           if (!vaultView.canRageQuit) throw new Error("Rage Quit is unavailable for this position");
-          request = buildRageQuit(foundation.bindings.allocationManager, marketId);
+          const walletStockBefore = await publicClient.readContract({
+            abi: v1Abis.TickerMemeTokenV1,
+            address: stockToken,
+            functionName: "balanceOf",
+            args: [wallet.account],
+          });
+          request = action === "rage-quit"
+            ? buildRageQuit(foundation.bindings.allocationManager, marketId)
+            : buildDirectRageQuit(vault, canonicalAsset.assetUid, marketId);
           confirm = async () => {
-            const after = await publicClient.readContract({ abi: v2Abis.UserStockVault, address: vault, functionName: "allocation", args: [canonicalAsset.assetUid, wallet.account, marketId] });
+            const [after, walletStockAfter, settlementPrincipal] = await Promise.all([
+              publicClient.readContract({ abi: v1Abis.UserStockVault, address: vault, functionName: "allocation", args: [canonicalAsset.assetUid, wallet.account, marketId] }),
+              publicClient.readContract({ abi: v1Abis.TickerMemeTokenV1, address: stockToken, functionName: "balanceOf", args: [wallet.account] }),
+              publicClient.readContract({ abi: v1Abis.UserStockVault, address: vault, functionName: "rageQuitSettlementPrincipal", args: [canonicalAsset.assetUid, wallet.account, marketId] }),
+            ]);
             if (after !== 0n) throw new Error("Fresh Vault state did not return the Rage Quit principal");
-            return after;
-          };
-        } else if (action === "force-release") {
-          if (!vaultView.canForceRelease) throw new Error("Force release is only available in Emergency exit");
-          request = buildForceRelease(vault, canonicalAsset.assetUid, marketId);
-          confirm = async () => {
-            const after = await publicClient.readContract({ abi: v2Abis.UserStockVault, address: vault, functionName: "allocation", args: [canonicalAsset.assetUid, wallet.account, marketId] });
-            if (after !== 0n) throw new Error("Fresh Vault state did not release the allocation");
+            if (walletStockAfter !== walletStockBefore + before) throw new Error("Rage Quit did not return the exact STOCK principal to the caller");
+            rageQuitRewardSettlementPending = settlementPrincipal !== 0n;
             return after;
           };
         } else if (action === "claim-quote" || action === "claim-meme") {
           if (!vaultView.canClaim) throw new Error("Staker fees remain locked until the normal 24-hour unlock boundary");
           const claimQuote = action === "claim-quote";
           const feeAsset = claimQuote ? selectedPositionMarket.quoteAsset : selectedPositionMarket.memeToken;
-          const gaugeBefore = await publicClient.readContract({ abi: v2Abis.MemeStockGauge, address: selectedPositionMarket.gauge, functionName: "positionOf", args: [wallet.account] });
+          const gaugeBefore = await publicClient.readContract({ abi: v1Abis.MemeStockGauge, address: selectedPositionMarket.gauge, functionName: "positionOf", args: [wallet.account] });
           const claimableBefore = BigInt(tupleField(gaugeBefore, claimQuote ? "quoteClaimable" : "memeClaimable", claimQuote ? 4 : 5));
           if (claimableBefore <= 0n) throw new Error(`No ${claimQuote ? "Quote" : "Meme"} fees are claimable onchain`);
           request = buildClaimStaker(foundation.bindings.protocolFeeVault, marketId, feeAsset);
           confirm = async () => {
-            const gaugeAfter = await publicClient.readContract({ abi: v2Abis.MemeStockGauge, address: selectedPositionMarket.gauge, functionName: "positionOf", args: [wallet.account] });
+            const gaugeAfter = await publicClient.readContract({ abi: v1Abis.MemeStockGauge, address: selectedPositionMarket.gauge, functionName: "positionOf", args: [wallet.account] });
             const claimableAfter = BigInt(tupleField(gaugeAfter, claimQuote ? "quoteClaimable" : "memeClaimable", claimQuote ? 4 : 5));
             if (claimableAfter >= claimableBefore) throw new Error("Fresh Gauge claimable balance did not decrease");
             return claimableAfter;
@@ -910,7 +816,13 @@ function App() {
 
       await execute({ operationKey: key, sync, request, approval, verifyChain, confirm });
       setVaultForm({ amount: "", allocation: "" });
-      setNotice({ tone: "success", title: "Vault action confirmed from fresh onchain state" });
+      if (action === "rage-quit" || action === "rage-quit-direct") {
+        setNotice(rageQuitRewardSettlementPending
+          ? { tone: "warning", title: "Principal returned immediately", detail: "All rewards were forfeited and permissionless reward cleanup is queued; this does not affect the market or other users." }
+          : { tone: "success", title: "Principal returned and reward forfeiture finalized" });
+      } else {
+        setNotice({ tone: "success", title: "Vault action confirmed from fresh onchain state" });
+      }
       window.setTimeout(() => { void refreshPositions(); }, 1200);
     } catch (error) {
       setNotice({ tone: "error", title: "Vault action stopped", detail: errorText(error) });
@@ -919,11 +831,6 @@ function App() {
 
   const runtimeReady = runtimeConfig.available && foundation.status === "ready";
   const actionDisabled = !runtimeReady || !wallet || Boolean(busy);
-  const recoverySelectionMatches = recoveryState.status === "ready"
-    && recoveryForm.marketId.trim().toLowerCase() === recoveryState.marketId
-    && recoveryForm.epoch.trim() === String(recoveryState.epoch)
-    && recoveryForm.assetKind === recoveryState.assetKind;
-
   return (
     <main className="app-shell">
       <header className="topbar">
@@ -935,7 +842,7 @@ function App() {
       </header>
 
       <section className="workspace-heading" aria-labelledby="page-title">
-        <div><p className="eyebrow">V2 product console · V2-EXEC-5</p><h1 id="page-title">Every action starts<br /><em>from visible state.</em></h1></div>
+        <div><p className="eyebrow">V1 product console · V1-EXEC-6</p><h1 id="page-title">Every action starts<br /><em>from visible state.</em></h1></div>
         <aside className="gate-card">
           <span className="gate-label">Runtime gate</span>
           <strong>{runtimeReady ? "LOCAL PRODUCT FLOW READY" : foundation.status === "loading" ? "CHECKING CANONICAL RUNTIME" : "TRANSACTIONS LOCKED"}</strong>
@@ -949,10 +856,9 @@ function App() {
       ) : null}
       <StatusNotice notice={notice} />
 
-      <nav className="surface-tabs" aria-label="V2 product areas">
+      <nav className="surface-tabs" aria-label="V1 product areas">
         <button type="button" className={section === "launch" ? "active" : ""} onClick={() => setSection("launch")}>Launch & Curve</button>
         <button type="button" className={section === "vault" ? "active" : ""} onClick={() => setSection("vault")}>Vault & earnings</button>
-        <button type="button" className={section === "recovery" ? "active" : ""} onClick={() => setSection("recovery")}>Emergency recovery</button>
         <button type="button" className={section === "pool" ? "active" : ""} onClick={() => setSection("pool")}>Graduated pool</button>
       </nav>
 
@@ -990,12 +896,12 @@ function App() {
                 <Metric label="Reserved Meme" value={formatAmount(marketState.view.reservedTokens, 18)} detail={`${marketState.view.reservedTokens} raw`} />
                 <Metric label="Accrued Curve fee" value={formatAmount(marketState.view.accruedCurveFees, marketState.quoteDecimals)} detail={`${marketState.view.accruedCurveFees} raw`} />
               </div>
-              <div className="market-line"><span>{launchPhases[marketState.view.launchPhase] || `Phase ${marketState.view.launchPhase}`}</span><span>{marketStatuses[marketState.view.marketStatus] || `Status ${marketState.view.marketStatus}`}</span><span>{marketState.view.quoteAssetKind === "native" ? "Native ETH Quote" : shortHex(marketState.view.quoteAsset)}</span></div>
+              <div className="market-line"><span>{launchPhases[marketState.view.launchPhase] || `Phase ${marketState.view.launchPhase}`}</span><span>{marketState.view.quoteAssetKind === "native" ? "Native ETH Quote" : shortHex(marketState.view.quoteAsset)}</span></div>
               <fieldset className="mode-switch"><legend>Trade side</legend><label><input type="radio" name="tradeSide" value="buy" checked={tradeSide === "buy"} onChange={(e) => { setTradeSide(e.target.value); setTradeQuote(null); }} /> Buy Meme</label><label><input type="radio" name="tradeSide" value="sell" checked={tradeSide === "sell"} onChange={(e) => { setTradeSide(e.target.value); setTradeQuote(null); }} /> Sell Meme</label></fieldset>
               <label><span>{tradeSide === "buy" ? "Quote input" : "Meme input"} · raw units</span><input inputMode="numeric" value={tradeAmount} onChange={(e) => { setTradeAmount(e.target.value); setTradeQuote(null); }} placeholder="Enter raw units" /></label>
               <div className="split-actions"><button type="button" className="secondary" onClick={quoteCurveTrade} disabled={actionDisabled || !marketState.view.curveTradingEnabled}>Read onchain quote</button><button type="button" onClick={executeCurveTrade} disabled={actionDisabled || !tradeQuote}>{busy.startsWith("curve:") ? "Trading…" : "Simulate & trade"}</button></div>
               {tradeQuote ? <div className="quote-card"><span>{tradeSide === "buy" ? "Meme output" : "Quote output"}: <strong>{tradeQuote.output.toString()} raw</strong></span><span>Minimum at 1% tolerance: <strong>{tradeQuote.minimum.toString()} raw</strong></span>{tradeQuote.refund !== null ? <span>Possible refund: <strong>{tradeQuote.refund.toString()} raw Quote</strong></span> : null}{tradeQuote.fee !== null ? <span>Curve fee: <strong>{tradeQuote.fee.toString()} raw Quote</strong></span> : null}</div> : null}
-            </> : <div className="empty-state"><strong>Load a market to inspect its canonical Curve.</strong><span>Trading remains disabled for paused, swept, graduated, rescued or Emergency markets.</span></div>}
+            </> : <div className="empty-state"><strong>Load a market to inspect its canonical Curve.</strong><span>Trading remains disabled until the canonical Curve is available for this launch phase.</span></div>}
           </article>
         </section>
       ) : null}
@@ -1038,40 +944,12 @@ function App() {
                   <button type="button" className="secondary" onClick={() => runVaultAction("close")} disabled={actionDisabled || !vaultView.canClose}>Close allocation</button>
                   <button type="button" className="secondary" onClick={() => runVaultAction("claim-quote")} disabled={actionDisabled || !vaultView.canClaim || vaultView.quoteClaimable === 0n}>Claim Quote fees</button>
                   <button type="button" className="secondary" onClick={() => runVaultAction("claim-meme")} disabled={actionDisabled || !vaultView.canClaim || vaultView.memeClaimable === 0n}>Claim Meme fees</button>
-                  <button type="button" className="danger" onClick={() => runVaultAction("rage-quit")} disabled={actionDisabled || !vaultView.canRageQuit}>Rage Quit · forfeit rewards</button>
-                  <button type="button" className="danger" onClick={() => runVaultAction("force-release")} disabled={actionDisabled || !vaultView.canForceRelease}>Emergency force release</button>
+                  <button type="button" className="danger" onClick={() => runVaultAction("rage-quit")} disabled={actionDisabled || !vaultView.canRageQuit}>Rage Quit · principal first</button>
+                  <button type="button" className="danger" onClick={() => runVaultAction("rage-quit-direct")} disabled={actionDisabled || !vaultView.canRageQuit}>Direct Vault escape</button>
                 </div>
-                <p className="risk-copy">Normal claims and exits unlock after 24 hours. Rage Quit is always a caller-only full-principal exit while the market remains operational: all unclaimed Quote and Meme rewards are forfeited, then redistributed to other active stakers or reserved for later platform income when none remain. It does not pause or retire the market. Protocol Emergency force release is a separate terminal recovery path.</p>
+                <p className="risk-copy">Normal claims and exits unlock after 24 hours. Rage Quit is a caller-only full-principal exit that ignores lock, minimum and launch phase: Vault returns principal first, then rewards are forfeited and redistributed to other active stakers or reserved for platform income when none remain. The Manager button normally finalizes both stages in one transaction; Direct Vault escape is the strongest fallback and leaves permissionless reward cleanup queued. Neither action changes the market, Meme token, Curve, Hook or LP.</p>
               </> : null}
             </>}
-          </article>
-        </section>
-      ) : null}
-
-      {section === "recovery" ? (
-        <section className="product-layout single-column">
-          <article className="panel">
-            <div className="panel-heading"><div><p className="eyebrow">Emergency recovery</p><h2>Principal first. Merkle claims only after finalization.</h2></div><span className="pill pill-warning">48h challenge</span></div>
-            <div className="form-grid">
-              <label><span>Emergency market ID</span><input value={recoveryForm.marketId} onChange={(event) => { setRecoveryForm({ ...recoveryForm, marketId: event.target.value }); setRecoveryState({ status: "idle" }); }} placeholder="0x…" /></label>
-              <label><span>Recovery epoch</span><input inputMode="numeric" value={recoveryForm.epoch} onChange={(event) => { setRecoveryForm({ ...recoveryForm, epoch: event.target.value }); setRecoveryState({ status: "idle" }); }} placeholder="1" /></label>
-              <label><span>Fee asset</span><select value={recoveryForm.assetKind} onChange={(event) => { setRecoveryForm({ ...recoveryForm, assetKind: event.target.value }); setRecoveryState({ status: "idle" }); }}><option value="quote">Quote asset</option><option value="meme">Meme asset</option></select></label>
-              <label><span>Claim amount · raw units</span><input inputMode="numeric" value={recoveryForm.amount} onChange={(event) => setRecoveryForm({ ...recoveryForm, amount: event.target.value })} placeholder="Exact leaf amount" /></label>
-              <label className="wide"><span>Merkle proof · JSON bytes32[]</span><textarea rows="4" value={recoveryForm.proof} onChange={(event) => setRecoveryForm({ ...recoveryForm, proof: event.target.value })} spellCheck="false" /></label>
-            </div>
-            <div className="split-actions"><button type="button" className="secondary" onClick={loadRecovery} disabled={!runtimeReady || recoveryState.status === "loading"}>{recoveryState.status === "loading" ? "Reading…" : "Read onchain root"}</button></div>
-            {recoveryState.status === "error" ? <p className="inline-error">{recoveryState.error}</p> : null}
-            {recoveryState.status === "ready" ? <>
-              <div className="metric-grid">
-                <Metric label="Root status" value={recoveryStatuses[recoveryState.view.status] || `Status ${recoveryState.view.status}`} detail={`nonce ${recoveryState.view.proposalNonce}`} />
-                <Metric label="Frozen cap" value={recoveryState.cap.toString()} detail={`${recoveryState.feeAsset === ZERO_ADDRESS ? "Native ETH" : shortHex(recoveryState.feeAsset)}`} />
-                <Metric label="Declared / claimed" value={`${recoveryState.view.declaredTotal} / ${recoveryState.view.claimedTotal}`} detail="raw asset units" />
-                <Metric label="Snapshot" value={recoveryState.snapshotBlock.toString()} detail={shortHex(recoveryState.stateHash)} />
-              </div>
-              <div className="threshold-card"><span>Root commitment</span><strong>{shortHex(recoveryState.view.root, 12, 10)}</strong><small>{recoveryState.view.status === 1 ? `${Number(recoveryState.view.finalizableAt > recoveryState.chainTimestamp ? recoveryState.view.finalizableAt - recoveryState.chainTimestamp : 0n)}s remained at the sampled chain block; finalize rechecks the latest chain timestamp.` : recoveryState.view.status === 2 ? "ACTIVE and immutable; your proof still binds chain, vault, spec, market, epoch, asset, user and amount." : "This root cannot be used for a claim."}</small></div>
-              <div className="split-actions"><button type="button" className="secondary" onClick={() => executeRecovery("finalize")} disabled={actionDisabled || !recoverySelectionMatches || recoveryState.view.status !== 1}>Simulate & finalize</button><button type="button" onClick={() => executeRecovery("claim")} disabled={actionDisabled || !recoverySelectionMatches || recoveryState.view.status !== 2}>Simulate & claim</button></div>
-            </> : <div className="empty-state"><strong>Read the exact root before using a proof.</strong><span>A proposed or cancelled root is never claimable. Emergency STOCK principal release remains a separate direct Vault action and never waits for this root.</span></div>}
-            <p className="risk-copy">Recovery allocations are governance and audit inputs, not balances invented by the Indexer. Verify the published leaf and proof independently. Region, eligibility and financial-risk language remains subject to the explicit legal release gate.</p>
           </article>
         </section>
       ) : null}
@@ -1090,7 +968,7 @@ function App() {
       ) : null}
 
       <section className="truth-strip" aria-label="Protocol guarantees"><span>Factory-previewed economics</span><span>Simulation before every signature</span><span>Finalized source revisions</span><span>Quote and Meme fees separated</span></section>
-      <footer className="footer"><span>Execution spec V2-EXEC-5 · readiness IMPLEMENTATION_ALLOWED</span><span>Pool swaps, Recovery claims and production publishing remain closed until their explicit gates are satisfied.</span></footer>
+      <footer className="footer"><span>Execution spec V1-EXEC-6 · readiness IMPLEMENTATION_ALLOWED</span><span>Pool swaps and production publishing remain closed until their explicit gates are satisfied.</span></footer>
     </main>
   );
 }

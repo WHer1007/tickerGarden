@@ -12,12 +12,12 @@ optimizer_runs = 200
 bytecode_hash = "none"
 cbor_metadata = false
 
-[profile.v2]
-src = "src/v2"
-test = "test/v2"
-script = "script/v2"
-out = "out-v2"
-cache_path = "cache-v2"
+[profile.v1]
+src = "src/v1"
+test = "test/v1"
+script = "script/v1"
+out = "out-v1"
+cache_path = "cache-v1"
 libs = ["lib"]
 fs_permissions = [{ access = "read", path = "../spec" }]
 solc_version = "0.8.26"
@@ -27,12 +27,48 @@ optimizer_runs = 200
 bytecode_hash = "none"
 cbor_metadata = false
 
+# Isolated preview profile for the future V2 Treasury subsystem. It is not
+# compiled into, deployed with, or advertised as part of V1.
+[profile.v2]
+src = "src/v2"
+test = "test/v2"
+script = "script/v2"
+out = "out-v2"
+cache_path = "cache-v2"
+libs = ["lib"]
+solc_version = "0.8.26"
+evm_version = "cancun"
+optimizer = true
+optimizer_runs = 200
+bytecode_hash = "none"
+cbor_metadata = false
+fuzz = { runs = 1_000, failure_persist_dir = "cache-v2/fuzz" }
+invariant = { runs = 256, depth = 500, fail_on_revert = true, failure_persist_dir = "cache-v2/invariant" }
+
 [profile.ci]
 fuzz = { runs = 1_000 }
 invariant = { runs = 256, depth = 64, fail_on_revert = true }
 
-# Reproducible V2 CI profile. Keep this independent from the default profile so
-# V2 jobs cannot accidentally compile the legacy namespace or reuse its cache.
+# Reproducible V1 CI profile. Keep this independent from the default profile so
+# V1 jobs cannot accidentally compile the legacy namespace or reuse its cache.
+[profile.v1-ci]
+src = "src/v1"
+test = "test/v1"
+script = "script/v1"
+out = "out-v1-ci"
+cache_path = "cache-v1-ci"
+libs = ["lib"]
+fs_permissions = [{ access = "read", path = "../spec" }]
+solc_version = "0.8.26"
+evm_version = "cancun"
+optimizer = true
+optimizer_runs = 200
+bytecode_hash = "none"
+cbor_metadata = false
+auto_detect_remappings = false
+fuzz = { runs = 1_000, failure_persist_dir = "cache-v1-ci/fuzz" }
+invariant = { runs = 256, depth = 500, fail_on_revert = true, failure_persist_dir = "cache-v1-ci/invariant" }
+
 [profile.v2-ci]
 src = "src/v2"
 test = "test/v2"
@@ -40,7 +76,6 @@ script = "script/v2"
 out = "out-v2-ci"
 cache_path = "cache-v2-ci"
 libs = ["lib"]
-fs_permissions = [{ access = "read", path = "../spec" }]
 solc_version = "0.8.26"
 evm_version = "cancun"
 optimizer = true

@@ -1,6 +1,8 @@
-# TickerGarden V2 maintenance runner
+# TickerGarden V1 maintenance runner
 
-This package is a permissionless maintenance boundary for the V2 public `sweep`, `checkpoint`, `retry`, and `compound` actions. It accepts only a typed operation plus canonical `marketId` and lowercase bytes32 `triggerId`; arbitrary calldata, admin selectors, keys, and user funds are outside the API.
+> **Current boundary (2026-09-04):** the runner has no deployed-market administration path and remains permissionless. It may perform async rageQuit reward settlement, forfeiture flushing, sweeping, checkpointing, retry, and compounding only. The local action catalog is synchronized to `V1-EXEC-6`; live-chain operation remains unverified.
+
+This package is a permissionless maintenance boundary for the V1 public `sweep`, `checkpoint`, deferred-forfeiture `flush`, rage-quit reward `settle`, graduation `retry`, and `compound` actions. It accepts only a typed operation plus canonical `marketId` and lowercase bytes32 `triggerId`; `settle-rage-quit` additionally requires the exact lowercase user address from the indexed Vault tombstone. Arbitrary calldata, admin selectors, keys, and user funds are outside the API.
 
 Every submission is preceded by a fresh `simulate`. Simulation can be `ready`, safe `noop`, retryable, or deterministic `fatal`; only RPC/retryable failures are retried. A result is keyed by operation, market, and trigger, so a repeated trigger is coalesced while a later trigger can run again. `runMany` schedules independent single-market calls with a caller-selected concurrency bound (1–16); it does not use an on-chain batch ABI.
 

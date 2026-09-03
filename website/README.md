@@ -1,8 +1,10 @@
 # TickerGarden website
 
-This Vite/React app is the V2 product console for Robinhood Chain (chain ID
-4663). V2 starts locked unless all five runtime settings below are supplied.
-The parser in `src/v2/runtimeConfig.ts` fails closed on any missing or malformed
+> **Current product boundary (2026-09-04):** the console must not offer market-level pause, retire, Emergency, or Recovery management. It should display one-way `launchPhase`, retain asset/configuration pause/retire messaging, and make user `rageQuit` available at all times for immediate principal return with asynchronous reward forfeiture/reallocation. This target is not a completion claim.
+
+This Vite/React app is the V1 product console for Robinhood Chain (chain ID
+4663). V1 starts locked unless all five runtime settings below are supplied.
+The parser in `src/v1/runtimeConfig.ts` fails closed on any missing or malformed
 value; contract addresses must be lowercase, non-zero 20-byte hex addresses.
 
 ## Local setup
@@ -25,29 +27,29 @@ npm run test
 and type checks before producing the build. `npm run test` runs those checks plus
 the unit and Sites-worker tests.
 
-## Required V2 environment
+## Required V1 environment
 
 Copy `.env.example` as a starting point, then provide approved values through
 the local environment. The example intentionally contains only non-production
 placeholder text; do not treat it as a deployable configuration.
 
 ```text
-VITE_V2_READ_API_URL
-VITE_V2_FACTORY_ADDRESS
-VITE_V2_LAUNCH_ROUTER_ADDRESS
-VITE_V2_ALLOCATION_MANAGER_ADDRESS
-VITE_V2_PROTOCOL_FEE_VAULT_ADDRESS
+VITE_V1_READ_API_URL
+VITE_V1_FACTORY_ADDRESS
+VITE_V1_LAUNCH_ROUTER_ADDRESS
+VITE_V1_ALLOCATION_MANAGER_ADDRESS
+VITE_V1_PROTOCOL_FEE_VAULT_ADDRESS
 ```
 
-`VITE_V2_READ_API_URL` must be an HTTP(S) origin such as
+`VITE_V1_READ_API_URL` must be an HTTP(S) origin such as
 `https://api.example.test` (or `http://localhost:8787` for local work). Paths,
 credentials, query strings, and fragments are rejected because the canonical
-read routes live at `/health` and `/v2/*`.
+read routes live at `/health` and `/v1/*`.
 
 The frontend does not accept placeholder or zero addresses. If configuration is
 missing, the page reports the missing keys, keeps transactions locked, and does
-not construct a V2 read client. It also rejects a health response that does not
-explicitly declare the complete V2 product runtime and the expected
+not construct a V1 read client. It also rejects a health response that does not
+explicitly declare the complete V1 product runtime and the expected
 read-only/non-custodial API boundary. The current Backend contract deliberately
 reports `productRuntimeImplemented: false`, so this release stays transaction-
 locked until the remaining product, legal, security, and deployment gates are

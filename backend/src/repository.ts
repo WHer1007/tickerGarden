@@ -11,7 +11,7 @@ export interface ReadModelRepository {
 }
 
 export interface VerifiedReadModelSnapshot {
-  readonly executionSpecId: "V2-EXEC-5";
+  readonly executionSpecId: "V1-EXEC-6";
   readonly reconciliationAlerts: readonly [];
   readonly sync: SyncStatus;
   readonly markets?: readonly MarketReadModel[];
@@ -47,7 +47,7 @@ function validateMarket(market: MarketReadModel, sync: SyncStatus): void {
   for (const [label, value] of Object.entries({ realQuoteReserve: market.curveProgress.realQuoteReserve, sellableTokens: market.curveProgress.sellableTokens, reservedTokens: market.curveProgress.reservedTokens, accruedCurveFees: market.curveProgress.accruedCurveFees, sweptAt: market.curveProgress.sweptAt })) assertUint(value, label);
   const route = market.canonicalRoute;
   for (const [label, value] of Object.entries({ router: route.router, quoter: route.quoter, hook: route.hook, launchLocker: route.launchLocker, graduationExecutor: route.graduationExecutor })) assertHex(value, 20, label);
-  if (route.sourceVersion !== market.sourceVersion || route.launchPhase !== market.launchPhase || route.marketStatus !== market.marketStatus) throw new Error("canonicalRoute lifecycle snapshot mismatch");
+  if (route.sourceVersion !== market.sourceVersion || route.launchPhase !== market.launchPhase) throw new Error("canonicalRoute lifecycle snapshot mismatch");
   if (market.poolId === null !== (market.poolKey === null)) throw new Error("poolId and poolKey must become available together");
   if (market.poolId && market.poolKey) {
     assertHex(market.poolId, 32, "poolId");
@@ -89,7 +89,7 @@ export class InMemoryReadModelRepository implements ReadModelRepository {
   readonly #positions: readonly UserPositionReadModel[];
 
   constructor(input: VerifiedReadModelSnapshot) {
-    if (input.executionSpecId !== "V2-EXEC-5" || input.reconciliationAlerts.length !== 0) throw new Error("read model snapshot is not V2-reconciled");
+    if (input.executionSpecId !== "V1-EXEC-6" || input.reconciliationAlerts.length !== 0) throw new Error("read model snapshot is not V1-reconciled");
     assertUint(input.sync.blockNumber, "sync.blockNumber"); assertUint(input.sync.headBlockNumber, "sync.headBlockNumber"); assertUint(input.sync.lagBlocks, "sync.lagBlocks");
     if (input.sync.blockHash) assertHex(input.sync.blockHash, 32, "sync.blockHash");
     if (input.sync.headBlockHash) assertHex(input.sync.headBlockHash, 32, "sync.headBlockHash");
@@ -119,6 +119,6 @@ export class InMemoryReadModelRepository implements ReadModelRepository {
 }
 
 export const EMPTY_REPOSITORY = new InMemoryReadModelRepository({
-  executionSpecId: "V2-EXEC-5", reconciliationAlerts: [],
+  executionSpecId: "V1-EXEC-6", reconciliationAlerts: [],
   sync: { chainId: 4663, status: "unavailable", blockNumber: null, blockHash: null, finality: "unavailable", headBlockNumber: null, headBlockHash: null, lagBlocks: null, revision: "empty" },
 });

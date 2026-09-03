@@ -20,7 +20,7 @@ const executableCandidates = [
 for (const foundryExecutable of executableCandidates) {
   const result = spawnSync(foundryExecutable, forgeArguments, {
     cwd: contractsRoot,
-    env: { ...process.env, FOUNDRY_PROFILE: "v2" },
+    env: { ...process.env, FOUNDRY_PROFILE: "v1" },
     stdio: "inherit",
   });
 

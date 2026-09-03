@@ -3,42 +3,42 @@ import { readdirSync, readFileSync } from "node:fs";
 import { test } from "node:test";
 
 import {
-  V2_EXECUTION_SPEC_ID,
-  V2_READINESS_STATES,
+  V1_EXECUTION_SPEC_ID,
+  V1_READINESS_STATES,
   assertNoProductionPlaceholders,
-  assertV2Deployable,
-  assertV2ProductionReady,
-  deriveV2ReadinessState,
+  assertV1Deployable,
+  assertV1ProductionReady,
+  deriveV1ReadinessState,
   findProductionPlaceholderViolations,
-  isV2Deployable,
+  isV1Deployable,
   productionPlaceholderPolicy,
   readinessFlags,
   referenceFixtureValues,
-  v2Readiness,
-  type V2ReadinessDescriptor,
+  v1Readiness,
+  type V1ReadinessDescriptor,
 } from "../src/index.ts";
 
 test("derives all four readiness states only from ordered open gates", () => {
-  assert.deepEqual(V2_READINESS_STATES, [
+  assert.deepEqual(V1_READINESS_STATES, [
     "SPEC_FROZEN_NOT_DEPLOYABLE",
     "IMPLEMENTATION_ALLOWED",
     "DEPLOYMENT_ELIGIBLE",
     "PRODUCTION_READY",
   ]);
   assert.equal(
-    deriveV2ReadinessState({ implementation: ["I"], deployment: ["D"], production: ["P"] }),
+    deriveV1ReadinessState({ implementation: ["I"], deployment: ["D"], production: ["P"] }),
     "SPEC_FROZEN_NOT_DEPLOYABLE",
   );
   assert.equal(
-    deriveV2ReadinessState({ implementation: [], deployment: ["D"], production: ["P"] }),
+    deriveV1ReadinessState({ implementation: [], deployment: ["D"], production: ["P"] }),
     "IMPLEMENTATION_ALLOWED",
   );
   assert.equal(
-    deriveV2ReadinessState({ implementation: [], deployment: [], production: ["P"] }),
+    deriveV1ReadinessState({ implementation: [], deployment: [], production: ["P"] }),
     "DEPLOYMENT_ELIGIBLE",
   );
   assert.equal(
-    deriveV2ReadinessState({ implementation: [], deployment: [], production: [] }),
+    deriveV1ReadinessState({ implementation: [], deployment: [], production: [] }),
     "PRODUCTION_READY",
   );
   assert.deepEqual(readinessFlags("DEPLOYMENT_ELIGIBLE"), {
@@ -49,18 +49,18 @@ test("derives all four readiness states only from ordered open gates", () => {
 });
 
 test("loads the canonical manifest and remains blocked by deployment gates", () => {
-  assert.equal(V2_EXECUTION_SPEC_ID, "V2-EXEC-5");
-  assert.equal(v2Readiness.state, "IMPLEMENTATION_ALLOWED");
-  assert.equal(v2Readiness.implementationAllowed, true);
-  assert.equal(v2Readiness.deploymentEligible, false);
-  assert.equal(v2Readiness.productionReady, false);
-  assert.deepEqual(v2Readiness.openGates.implementation, []);
-  assert.equal(isV2Deployable(), false);
-  assert.throws(() => assertV2Deployable(), /deployment gates: V2-DEPLOY-CHAIN-SNAPSHOT-01/);
-  assert.throws(() => assertV2ProductionReady(), /production is blocked/);
+  assert.equal(V1_EXECUTION_SPEC_ID, "V1-EXEC-6");
+  assert.equal(v1Readiness.state, "IMPLEMENTATION_ALLOWED");
+  assert.equal(v1Readiness.implementationAllowed, true);
+  assert.equal(v1Readiness.deploymentEligible, false);
+  assert.equal(v1Readiness.productionReady, false);
+  assert.deepEqual(v1Readiness.openGates.implementation, []);
+  assert.equal(isV1Deployable(), false);
+  assert.throws(() => assertV1Deployable(), /deployment gates: V1-DEPLOY-CHAIN-SNAPSHOT-01/);
+  assert.throws(() => assertV1ProductionReady(), /production is blocked/);
 
   const implementationAllowed = {
-    executionSpecId: "V2-EXEC-TEST",
+    executionSpecId: "V1-EXEC-TEST",
     state: "IMPLEMENTATION_ALLOWED",
     implementationAllowed: true,
     deploymentEligible: false,
@@ -70,9 +70,9 @@ test("loads the canonical manifest and remains blocked by deployment gates", () 
       deployment: ["DEPLOYMENT-EVIDENCE"],
       production: ["PRODUCTION-EVIDENCE"],
     },
-  } satisfies V2ReadinessDescriptor;
+  } satisfies V1ReadinessDescriptor;
   assert.throws(
-    () => assertV2Deployable(implementationAllowed),
+    () => assertV1Deployable(implementationAllowed),
     /deployment gates: DEPLOYMENT-EVIDENCE/,
   );
 
@@ -85,9 +85,9 @@ test("loads the canonical manifest and remains blocked by deployment gates", () 
       deployment: [],
       production: ["PRODUCTION-EVIDENCE"],
     },
-  } satisfies V2ReadinessDescriptor;
+  } satisfies V1ReadinessDescriptor;
   assert.throws(
-    () => assertV2ProductionReady(deploymentEligible),
+    () => assertV1ProductionReady(deploymentEligible),
     /production gates: PRODUCTION-EVIDENCE/,
   );
 });
@@ -104,7 +104,6 @@ test("accepts only explicitly scoped zero sentinels", () => {
     marketInitialRuntime: {
       poolId: `0x${"0".repeat(64)}`,
       sweptAt: 0,
-      recoveryEpoch: 0,
     },
     poolBindingInitial: { status: 0 },
     modules: [
@@ -133,7 +132,7 @@ test("rejects empty, draft, zero, low-entropy and reference fixture values", () 
     status: "DRAFT_RELEASE",
     module: "0x0000000000000000000000000000000000000000",
     synthetic: "0x1111111111111111111111111111111111111111",
-    copiedFixture: "0x636898801f28fe599d03199d0523e4de70f14e01",
+    copiedFixture: "0x0e8cc85e3350d4ca44b42064eb50df2b6ed03fdb",
   };
   const violations = findProductionPlaceholderViolations(
     dirty,
@@ -168,7 +167,7 @@ test("rejects empty, draft, zero, low-entropy and reference fixture values", () 
 test("scans every production manifest and forbids early candidates", () => {
   const directory = new URL("../manifests/", import.meta.url);
   const candidates = readdirSync(directory).filter((name) => name.endsWith(".production.json"));
-  if (v2Readiness.state === "SPEC_FROZEN_NOT_DEPLOYABLE") {
+  if (v1Readiness.state === "SPEC_FROZEN_NOT_DEPLOYABLE") {
     assert.deepEqual(candidates, []);
   }
   for (const name of candidates) {

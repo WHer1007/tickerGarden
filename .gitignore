@@ -7,6 +7,10 @@
 **/*.py[cod]
 contracts/out/
 contracts/cache/
+contracts/out-v1/
+contracts/cache-v1/
 contracts/out-v2/
 contracts/cache-v2/
+contracts/out-v2-ci/
+contracts/cache-v2-ci/
 contracts/broadcast/

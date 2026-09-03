@@ -1,16 +1,18 @@
-# TickerGarden V2 read API
+# TickerGarden V1 read API
 
-This package exposes a non-custodial, read-only HTTP API over V2 Indexer read
+> **Current API boundary (2026-09-04):** market responses expose one-way `launchPhase` facts and no deployed-market administration or management-recovery state. Asset/configuration status remains available where applicable. The local API and OpenAPI artifacts are synchronized to `V1-EXEC-6`; deployment, audit, and production E2E remain separate gates.
+
+This package exposes a non-custodial, read-only HTTP API over V1 Indexer read
 models. It does not hold keys, sign requests, submit transactions, or treat its
 cache as the chain's source of truth.
 
 Endpoints:
 
 - `GET /health`
-- `GET /v2/markets?assetUid=&limit=&cursor=`
-- `GET /v2/markets/:marketId`
-- `GET /v2/config/:asset|quote|pons|template?limit=&cursor=`
-- `GET /v2/users/:address/positions?limit=&cursor=`
+- `GET /v1/markets?assetUid=&limit=&cursor=`
+- `GET /v1/markets/:marketId`
+- `GET /v1/config/:asset|quote|pons|template?limit=&cursor=`
+- `GET /v1/users/:address/positions?limit=&cursor=`
 
 Market responses include canonical IDs and component addresses, Curve progress,
 the complete five-field PoolKey when graduated, Router/Quoter/Hook/LaunchLocker,
@@ -29,20 +31,20 @@ each entity includes its own source block, transaction, and log. Non-GET methods
 fail with a typed `405 read_only` envelope. Invalid requests and missing records
 use the same error shape and retain the current sync status.
 
-`openapi/v2.json` is the versioned OpenAPI 3.1 contract. The deterministic
-generator also writes `src/generated/v2-client.ts`, which exports every response
-type plus a GET-only `TickerGardenV2Client`; Backend and Web should import those
+`openapi/v1.json` is the versioned OpenAPI 3.1 contract. The deterministic
+generator also writes `src/generated/v1-client.ts`, which exports every response
+type plus a GET-only `TickerGardenV1Client`; Backend and Web should import those
 types instead of copying response interfaces. The client validates identifiers
 and page limits before issuing a request and throws `TickerGardenApiError` for a
 typed API error response.
 
 Run `npm run generate:openapi` after intentionally changing the source schema.
-`openapi/v2.lock.json` binds its fingerprint to the OpenAPI SemVer and
-`V2-EXEC-5`; any changed schema without a version increase fails closed. CI uses
+`openapi/v1.lock.json` binds its fingerprint to the OpenAPI SemVer and
+`V1-EXEC-6`; any changed schema without a version increase fails closed. CI uses
 `npm run check:openapi` to reject stale spec, client, or lock output.
 
 The bundled `InMemoryReadModelRepository` defines the adapter contract and is used
-for deterministic tests. It accepts only `V2-EXEC-5` snapshots carrying zero I502
+for deterministic tests. It accepts only `V1-EXEC-6` snapshots carrying zero I502
 reconciliation alerts, then validates canonical hex, unsigned amounts, lifecycle,
 PoolKey/route, position conservation, dual assets, uniqueness, and source bounds.
 A production process must populate that contract from the canonical I502

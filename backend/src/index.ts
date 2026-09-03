@@ -7,8 +7,8 @@ export { EXECUTION_SPEC_ID } from "./models.ts";
 export type { ApiErrorResponse, ConfigReadModel, MarketReadModel, Page, PoolKeyReadModel, SourceBlock, SyncStatus, UserPositionReadModel } from "./models.ts";
 export { InMemoryReadModelRepository } from "./repository.ts";
 export type { ConfigKind, ReadModelRepository } from "./repository.ts";
-export { TickerGardenApiError, TickerGardenV2Client } from "./generated/v2-client.ts";
-export type { ConfigPage, HealthResponse, MarketDetailResponse, MarketPage, PositionPage } from "./generated/v2-client.ts";
+export { TickerGardenApiError, TickerGardenV1Client } from "./generated/v1-client.ts";
+export type { ConfigPage, HealthResponse, MarketDetailResponse, MarketPage, PositionPage } from "./generated/v1-client.ts";
 
 export const HEALTH_RESPONSE = Object.freeze({
   executionSpecId: EXECUTION_SPEC_ID,
@@ -41,7 +41,7 @@ export function handleRequest(request: IncomingMessage, response: ServerResponse
       sendJson(response, 200, { ...HEALTH_RESPONSE, sync: repository.syncStatus() });
       return;
     }
-    if (url.pathname === "/v2/markets") {
+    if (url.pathname === "/v1/markets") {
       const assetUid = url.searchParams.get("assetUid")?.toLowerCase();
       if (assetUid !== undefined && !/^0x[0-9a-f]{64}$/.test(assetUid)) throw new Error("assetUid must be a canonical bytes32");
       const pageRequest = parsePageRequest(url.searchParams, {
@@ -52,14 +52,14 @@ export function handleRequest(request: IncomingMessage, response: ServerResponse
       sendJson(response, 200, { ...page, sync: repository.syncStatus() } satisfies Page<(typeof markets)[number]>);
       return;
     }
-    const marketMatch = /^\/v2\/markets\/(0x[0-9a-fA-F]{64})$/.exec(url.pathname);
+    const marketMatch = /^\/v1\/markets\/(0x[0-9a-fA-F]{64})$/.exec(url.pathname);
     if (marketMatch) {
       const market = repository.market(marketMatch[1]!);
       if (!market) sendJson(response, 404, { error: "market_not_found", message: "the canonical market was not found", sync: repository.syncStatus() });
       else sendJson(response, 200, { market, sync: repository.syncStatus() });
       return;
     }
-    const configMatch = /^\/v2\/config\/(asset|quote|pons|template)$/.exec(url.pathname);
+    const configMatch = /^\/v1\/config\/(asset|quote|pons|template)$/.exec(url.pathname);
     if (configMatch && configKinds.has(configMatch[1] as ConfigKind)) {
       const kind = configMatch[1] as ConfigKind;
       const pageRequest = parsePageRequest(url.searchParams, {
@@ -69,7 +69,7 @@ export function handleRequest(request: IncomingMessage, response: ServerResponse
       sendJson(response, 200, { ...page, sync: repository.syncStatus() });
       return;
     }
-    const positionMatch = /^\/v2\/users\/(0x[0-9a-fA-F]{40})\/positions$/.exec(url.pathname);
+    const positionMatch = /^\/v1\/users\/(0x[0-9a-fA-F]{40})\/positions$/.exec(url.pathname);
     if (positionMatch) {
       const pageRequest = parsePageRequest(url.searchParams, {
         scope: "positions", filter: positionMatch[1]!.toLowerCase(), snapshot: repository.syncStatus().revision,
@@ -94,5 +94,5 @@ export const createHealthServer = createReadApiServer;
 if (process.argv[1]?.endsWith("/index.js") || process.argv[1]?.endsWith("/index.ts")) {
   const host = process.env.TICKERGARDEN_API_HOST ?? "127.0.0.1";
   const port = Number(process.env.TICKERGARDEN_API_PORT ?? 8788);
-  createReadApiServer().listen(port, host, () => console.log(`TickerGarden V2 read API listening on http://${host}:${port}`));
+  createReadApiServer().listen(port, host, () => console.log(`TickerGarden V1 read API listening on http://${host}:${port}`));
 }

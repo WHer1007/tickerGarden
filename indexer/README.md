@@ -1,12 +1,14 @@
-# TickerGarden V2 indexer runtime core
+# TickerGarden V1 indexer runtime core
 
-This package contains the V2 event schema and deterministic projection handlers for
-config, market, Curve, Pool, allocation, activation, fee, claim, and recovery facts.
+> **Current projection boundary (2026-09-04):** index permanent post-deployment autonomy plus one-way `launchPhase`; no deployed-market administration or management-recovery state is projected. Asset/configuration status and user rageQuit/async reward settlement remain. Generated handlers are synchronized to `V1-EXEC-6`; live-chain replay evidence remains a deployment gate.
+
+This package contains the V1 event schema and deterministic projection handlers for
+config, market, Curve, Pool, allocation, activation, fee, claim, and rage-quit/forfeiture facts.
 Every raw fact and materialized row carries `chainId`, block number/hash,
 transaction hash/index, and log index provenance.
 
-The event catalog in `src/generated/v2-events.ts` is generated from the compiled
-V2 interface artifacts plus the vendored canonical Uniswap v4 `IPoolManager`
+The event catalog in `src/generated/v1-events.ts` is generated from the compiled
+V1 interface artifacts plus the vendored canonical Uniswap v4 `IPoolManager`
 `Swap`/`Donate` events. Run `npm run generate:events` after an ABI change and
 `npm run check:events` in verification.
 
@@ -36,7 +38,7 @@ journal instead of trusting serialized materialized balances.
 The CLI prints the descriptor as one JSON line:
 
 ```text
-{"chainId":4663,"executionSpecId":"V2-EXEC-5","status":"reorg-replay-and-reconciliation","handlersImplemented":true}
+{"chainId":4663,"executionSpecId":"V1-EXEC-6","status":"reorg-replay-and-reconciliation","handlersImplemented":true}
 ```
 
 Run `npm run build`, `npm test`, or `npm start` from this directory.

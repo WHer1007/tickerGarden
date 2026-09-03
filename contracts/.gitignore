@@ -1,5 +1,9 @@
 out/
 cache/
+out-v1/
+cache-v1/
+out-v1-ci/
+cache-v1-ci/
 out-v2/
 cache-v2/
 out-v2-ci/

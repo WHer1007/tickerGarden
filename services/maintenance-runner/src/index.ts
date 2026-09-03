@@ -1,18 +1,28 @@
-/** Permissionless V2 maintenance boundary; no keys, admin selectors, or calldata. */
-export const EXECUTION_SPEC_ID = "V2-EXEC-5" as const;
+/** Permissionless V1 maintenance boundary; no keys, admin selectors, or calldata. */
+export const EXECUTION_SPEC_ID = "V1-EXEC-6" as const;
 export const MAINTENANCE_OPERATIONS = Object.freeze([
   "sweep",
   "checkpoint",
+  "flush-forfeiture",
+  "settle-rage-quit",
   "retry",
   "compound",
 ] as const);
 export type MaintenanceOperation = (typeof MAINTENANCE_OPERATIONS)[number];
-export type MaintenanceRequest = Readonly<{ operation: MaintenanceOperation; marketId: string; triggerId: string }>;
+export type MaintenanceRequest = Readonly<{
+  operation: MaintenanceOperation;
+  marketId: string;
+  triggerId: string;
+  /** Required only for settle-rage-quit; omitted for every other fixed operation. */
+  user?: string;
+}>;
 export type MaintenanceAction = Readonly<MaintenanceRequest & {
-  targetModule: "PonsCompatibleCurve" | "MemeStockGauge" | "GraduationExecutor" | "LaunchLocker";
+  targetModule: "PonsCompatibleCurve" | "MemeStockGauge" | "AllocationManager" | "GraduationExecutor" | "LaunchLocker";
   signature:
     | "sweepCurveFees()"
     | "checkpointActivations()"
+    | "flushDeferredForfeiture()"
+    | "settleRageQuitRewards(bytes32,address)"
     | "retryGraduation(bytes32)"
     | "compoundLockedFees()";
 }>;
@@ -47,6 +57,7 @@ export type RunnerEvent = Readonly<{
   operation: MaintenanceOperation;
   marketId: string;
   triggerId: string;
+  user?: string;
   attempt: number;
   txHash?: string;
   reason?: string;
@@ -79,14 +90,17 @@ export const MAINTENANCE_RUNNER_DESCRIPTOR = Object.freeze({
   durableIdempotencyLookupRequired: true as const,
   ambiguousSubmissionRetry: false as const,
   operations: MAINTENANCE_OPERATIONS,
-  actions: "sweep/checkpoint/retry/compound -> fixed module/signature mapping",
+  actions: "sweep/checkpoint/flush-forfeiture/settle-rage-quit/retry/compound -> fixed module/signature mapping",
 });
 
 const MARKET_ID = /^0x[0-9a-f]{64}$/;
 const TX_HASH = /^0x[0-9a-f]{64}$/;
+const ADDRESS = /^0x[0-9a-f]{40}$/;
 export const MAINTENANCE_ACTIONS = Object.freeze({
   sweep: Object.freeze({ targetModule: "PonsCompatibleCurve", signature: "sweepCurveFees()" as const }),
   checkpoint: Object.freeze({ targetModule: "MemeStockGauge", signature: "checkpointActivations()" as const }),
+  "flush-forfeiture": Object.freeze({ targetModule: "MemeStockGauge", signature: "flushDeferredForfeiture()" as const }),
+  "settle-rage-quit": Object.freeze({ targetModule: "AllocationManager", signature: "settleRageQuitRewards(bytes32,address)" as const }),
   retry: Object.freeze({ targetModule: "GraduationExecutor", signature: "retryGraduation(bytes32)" as const }),
   compound: Object.freeze({ targetModule: "LaunchLocker", signature: "compoundLockedFees()" as const }),
 } as const);
@@ -96,7 +110,10 @@ function assertRequest(request: MaintenanceRequest): void {
     throw new TypeError("maintenance request must be a plain object");
   }
   const keys = Object.keys(request).sort();
-  if (keys.length !== 3 || keys[0] !== "marketId" || keys[1] !== "operation" || keys[2] !== "triggerId") {
+  const expectedKeys = request.operation === "settle-rage-quit"
+    ? ["marketId", "operation", "triggerId", "user"]
+    : ["marketId", "operation", "triggerId"];
+  if (keys.length !== expectedKeys.length || keys.some((key, index) => key !== expectedKeys[index])) {
     throw new TypeError("maintenance request contains unknown or missing fields");
   }
   if (!MAINTENANCE_OPERATIONS.includes(request.operation)) {
@@ -108,10 +125,15 @@ function assertRequest(request: MaintenanceRequest): void {
   if (!MARKET_ID.test(request.triggerId)) {
     throw new TypeError("triggerId must be a lowercase canonical bytes32");
   }
+  if (request.operation === "settle-rage-quit" && (typeof request.user !== "string" || !ADDRESS.test(request.user))) {
+    throw new TypeError("user must be a lowercase canonical address");
+  }
 }
 
 function requestKey(request: MaintenanceRequest): string {
-  return `${request.operation}:${request.marketId}:${request.triggerId}`;
+  return request.user === undefined
+    ? `${request.operation}:${request.marketId}:${request.triggerId}`
+    : `${request.operation}:${request.marketId}:${request.user}:${request.triggerId}`;
 }
 
 function actionFor(request: MaintenanceRequest): MaintenanceAction {
@@ -120,6 +142,7 @@ function actionFor(request: MaintenanceRequest): MaintenanceAction {
     operation: request.operation,
     marketId: request.marketId,
     triggerId: request.triggerId,
+    ...(request.user === undefined ? {} : { user: request.user }),
     targetModule: fixed.targetModule,
     signature: fixed.signature,
   });
