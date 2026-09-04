@@ -174,6 +174,8 @@ interface ITickerMemeTokenV1MutationDraft {
     function approve(address, uint256) external returns (bool);
     // caller=PUBLIC; executionDelay=0; stateDelay=0
     function transferFrom(address, address, uint256) external returns (bool);
+    // caller=TREASURY_DISTRIBUTOR_MODULE; executionDelay=0; stateDelay=0
+    function burnTreasury(uint256) external;
 }
 
 interface IPonsCompatibleCurveMutationDraft {
@@ -202,6 +204,8 @@ interface IUserStockVaultMutationDraft {
     function rageQuitAllocation(bytes32, address, bytes32) external returns (uint256);
     // caller=ALLOCATION_MODULE; executionDelay=0; stateDelay=0
     function completeRageQuitRewardSettlement(bytes32, address, bytes32) external returns (uint256);
+    // caller=ALLOCATION_MODULE; executionDelay=0; stateDelay=0
+    function recordGaugeRewardState(bytes32, bytes32, uint256, uint256) external;
 }
 
 interface IAllocationManagerMutationDraft {
@@ -215,6 +219,8 @@ interface IAllocationManagerMutationDraft {
     function rageQuit(bytes32) external;
     // caller=PUBLIC; executionDelay=0; stateDelay=0
     function settleRageQuitRewards(bytes32, address) external returns (uint256, uint256, bool);
+    // caller=EXACT_REGISTERED_GAUGE; executionDelay=0; stateDelay=0
+    function recordGaugeRewardState(bytes32, uint256, uint256) external;
     // caller=PUBLIC; executionDelay=0; stateDelay=0
     function depositAndAllocate(bytes32, uint256, uint256) external;
 }
@@ -277,14 +283,38 @@ interface IGraduationExecutorMutationDraft {
     function rescueSweptLaunch(bytes32) external;
 }
 
-interface ILaunchLockerMutationDraft {
-    // caller=PUBLIC; executionDelay=0; stateDelay=0
-    function compoundLockedFees() external returns (uint256, uint256, uint128);
-}
-
 interface ICreatorRevenueRegistryMutationDraft {
     // caller=FACTORY_MODULE; executionDelay=0; stateDelay=0
     function initializeCreatorRevenueEpoch(bytes32, address) external;
     // caller=CURRENT_CREATOR_BENEFICIARY; executionDelay=0; stateDelay=0
     function transferCreatorRevenueBeneficiary(bytes32, address) external returns (uint32);
+}
+
+interface ITreasuryDistributorV1MutationDraft {
+    // caller=PROTOCOL_ADMIN_ROLE; executionDelay=172800; stateDelay=0
+    function registerMarket(bytes32, address, address, bytes32) external;
+    // caller=PUBLIC; executionDelay=0; stateDelay=0
+    function activateMarket(bytes32) external;
+    // caller=PROTOCOL_ADMIN_ROLE; executionDelay=172800; stateDelay=0
+    function setRootServiceFee(address, uint128) external;
+    // caller=PUBLIC; executionDelay=0; stateDelay=0
+    function fundQuoteTreasury(bytes32, uint256, bytes32) external payable returns (uint32);
+    // caller=PUBLIC; executionDelay=0; stateDelay=0
+    function burnMeme(bytes32, uint256, bytes32) external;
+    // caller=CURRENT_MEME_HOLDER; executionDelay=0; stateDelay=0
+    function requestRoot(bytes32, uint32) external payable;
+    // caller=ROOT_PUBLISHER_ROLE; executionDelay=0; stateDelay=0
+    function publishRoot(bytes32, uint32, bytes32, bytes32, uint256, uint32, uint256) external;
+    // caller=ROOT_REVIEW_ROLE; executionDelay=0; stateDelay=0
+    function cancelPendingRoot(bytes32, uint32, bytes32) external;
+    // caller=PUBLIC; executionDelay=0; stateDelay=0
+    function finalizeRoot(bytes32, uint32) external;
+    // caller=PUBLIC; executionDelay=0; stateDelay=0
+    function expireRootRequest(bytes32, uint32) external;
+    // caller=PUBLIC; executionDelay=0; stateDelay=0
+    function claim(bytes32, uint32, uint256, address, uint256, uint256, bytes32[] calldata) external;
+    // caller=PUBLIC; executionDelay=0; stateDelay=0
+    function rolloverExpiredEpoch(bytes32, uint32) external returns (uint32, uint256);
+    // caller=SERVICE_BENEFICIARY; executionDelay=0; stateDelay=0
+    function withdrawServiceCredit(address) external returns (uint256);
 }

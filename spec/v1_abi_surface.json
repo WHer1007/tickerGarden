@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "executionSpecId": "V1-EXEC-6",
+  "executionSpecId": "V1-EXEC-8",
   "typeDefinitions": {
     "PoolKey": ["address currency0","address currency1","uint24 fee","int24 tickSpacing","address hooks"],
     "SwapParams": ["bool zeroForOne","int256 amountSpecified","uint160 sqrtPriceLimitX96"],
@@ -115,6 +115,8 @@
         {"signature":"previewMarketEconomics(CreateMarketParams)","mutability":"view","caller":"PUBLIC","returns":"(bytes32)"},
         {"signature":"predictMarketAddresses(address,CreateMarketParams)","mutability":"view","caller":"PUBLIC","returns":"(bytes32,address,address,address,address)"},
         {"signature":"launchFee()","mutability":"view","caller":"PUBLIC","returns":"(uint256)"},
+        {"signature":"treasuryDistributor()","mutability":"view","caller":"PUBLIC","returns":"(address)"},
+        {"signature":"creatorRevenueRegistry()","mutability":"view","caller":"PUBLIC","returns":"(address)"},
         {"signature":"runtimeBindings()","mutability":"view","caller":"PUBLIC","returns":"(address,address,address,address,address,address,address,address)"}
       ],
       "events": [
@@ -168,12 +170,16 @@
         {"signature":"marketId()","mutability":"view","caller":"PUBLIC","returns":"(bytes32)"},
         {"signature":"creator()","mutability":"view","caller":"PUBLIC","returns":"(address)"},
         {"signature":"factory()","mutability":"view","caller":"PUBLIC","returns":"(address)"},
+        {"signature":"treasuryDistributor()","mutability":"view","caller":"PUBLIC","returns":"(address)"},
         {"signature":"metadataURI()","mutability":"view","caller":"PUBLIC","returns":"(string)"},
-        {"signature":"initialSupply()","mutability":"view","caller":"PUBLIC","returns":"(uint256)"}
+        {"signature":"initialSupply()","mutability":"view","caller":"PUBLIC","returns":"(uint256)"},
+        {"signature":"deployedAt()","mutability":"view","caller":"PUBLIC","returns":"(uint64)"},
+        {"signature":"burnTreasury(uint256)","mutability":"nonpayable","caller":"TREASURY_DISTRIBUTOR_MODULE","returns":"()"}
       ],
       "events": [
         "Transfer(address indexed from,address indexed to,uint256 value)",
-        "Approval(address indexed owner,address indexed spender,uint256 value)"
+        "Approval(address indexed owner,address indexed spender,uint256 value)",
+        "TreasuryBurn(address indexed treasuryDistributor,uint256 amount,uint256 totalSupplyAfter)"
       ]
     },
     {
@@ -214,12 +220,15 @@
         {"signature":"releaseAllocation(bytes32,address,bytes32)","mutability":"nonpayable","caller":"ALLOCATION_MODULE","returns":"(uint256)"},
         {"signature":"rageQuitAllocation(bytes32,address,bytes32)","mutability":"nonpayable","caller":"ALLOCATION_MODULE","returns":"(uint256)"},
         {"signature":"completeRageQuitRewardSettlement(bytes32,address,bytes32)","mutability":"nonpayable","caller":"ALLOCATION_MODULE","returns":"(uint256)"},
+        {"signature":"recordGaugeRewardState(bytes32,bytes32,uint256,uint256)","mutability":"nonpayable","caller":"ALLOCATION_MODULE","returns":"()"},
         {"signature":"deposited(bytes32,address)","mutability":"view","caller":"PUBLIC","returns":"(uint256)"},
         {"signature":"allocated(bytes32,address)","mutability":"view","caller":"PUBLIC","returns":"(uint256)"},
         {"signature":"allocation(bytes32,address,bytes32)","mutability":"view","caller":"PUBLIC","returns":"(uint256)"},
         {"signature":"rageQuitSettlementPrincipal(bytes32,address,bytes32)","mutability":"view","caller":"PUBLIC","returns":"(uint256)"},
+        {"signature":"rageQuitRewardCutoff(bytes32,address,bytes32)","mutability":"view","caller":"PUBLIC","returns":"(uint256,uint256,uint256,bool)"},
         {"signature":"freeBalanceOf(bytes32,address)","mutability":"view","caller":"PUBLIC","returns":"(uint256)"},
         {"signature":"marketAllocated(bytes32,bytes32)","mutability":"view","caller":"PUBLIC","returns":"(uint256)"},
+        {"signature":"marketRewardEligible(bytes32,bytes32)","mutability":"view","caller":"PUBLIC","returns":"(uint256)"},
         {"signature":"totalDeposited(bytes32)","mutability":"view","caller":"PUBLIC","returns":"(uint256)"},
         {"signature":"totalAllocated(bytes32)","mutability":"view","caller":"PUBLIC","returns":"(uint256)"},
         {"signature":"vaultIdentity()","mutability":"view","caller":"PUBLIC","returns":"(address,address,address,bytes32)"}
@@ -243,6 +252,9 @@
         {"signature":"rageQuit(bytes32)","mutability":"nonpayable","caller":"PUBLIC","returns":"()"},
         {"signature":"settleRageQuitRewards(bytes32,address)","mutability":"nonpayable","caller":"PUBLIC","returns":"(uint256,uint256,bool)"},
         {"signature":"rageQuitSettlementPending(bytes32,address)","mutability":"view","caller":"PUBLIC","returns":"(bool,uint256)"},
+        {"signature":"rageQuitRewardCutoff(bytes32,address)","mutability":"view","caller":"PUBLIC","returns":"(uint256,uint256,uint256,bool)"},
+        {"signature":"rewardEligibleActiveStock(bytes32)","mutability":"view","caller":"PUBLIC","returns":"(uint256)"},
+        {"signature":"recordGaugeRewardState(bytes32,uint256,uint256)","mutability":"nonpayable","caller":"EXACT_REGISTERED_GAUGE","returns":"()"},
         {"signature":"depositAndAllocate(bytes32,uint256,uint256)","mutability":"nonpayable","caller":"PUBLIC","returns":"()"}
       ],
       "events": [
@@ -388,14 +400,11 @@
     {
       "module": "LaunchLocker",
       "functions": [
-        {"signature":"compoundLockedFees()","mutability":"nonpayable","caller":"PUBLIC","returns":"(uint256,uint256,uint128)"},
         {"signature":"marketId()","mutability":"view","caller":"PUBLIC","returns":"(bytes32)"},
         {"signature":"lockedPosition()","mutability":"view","caller":"PUBLIC","returns":"(uint256,bytes32)"},
         {"signature":"unpairedLockedBalance(address)","mutability":"view","caller":"PUBLIC","returns":"(uint256)"}
       ],
-      "events": [
-        "LockedFeesCompounded(bytes32 indexed marketId,uint256 amount0,uint256 amount1,uint128 liquidityAdded,uint256 remaining0,uint256 remaining1)"
-      ]
+      "events": []
     },
     {
       "module": "CreatorRevenueRegistry",
@@ -408,6 +417,61 @@
       "events": [
         "CreatorRevenueEpochInitialized(bytes32 indexed marketId,uint32 indexed epoch,address indexed beneficiary)",
         "CreatorRevenueBeneficiaryUpdated(bytes32 indexed marketId,uint32 indexed oldEpoch,uint32 indexed newEpoch,address oldBeneficiary,address newBeneficiary)"
+      ]
+    },
+    {
+      "module": "TreasuryDistributorV1",
+      "enums": {
+        "TreasuryEpochStatusV1": ["UNREQUESTED","REQUESTED","ROOT_PENDING","CLAIMING","ROLLED_OVER"]
+      },
+      "structs": {
+        "TreasuryMarketV1": ["address memeToken","address quoteToken","bytes32 eligibilityPolicyHash","uint64 activatedAt"],
+        "RootServiceFeeV1": ["address asset","uint128 amount"],
+        "TreasuryEpochV1": ["uint64 requestedAt","uint64 publishBy","uint64 finalizeAfter","uint64 claimUntil","uint64 sourceBlockNumber","uint32 leafCount","TreasuryEpochStatusV1 status","address requester","address serviceFeeAsset","uint128 serviceFeeAmount","bytes32 sourceBlockHash","bytes32 merkleRoot","bytes32 datasetHash","uint256 quoteAmount","uint256 claimedAmount","uint256 totalTwab"]
+      },
+      "functions": [
+        {"signature":"registerMarket(bytes32,address,address,bytes32)","mutability":"nonpayable","caller":"PROTOCOL_ADMIN_ROLE","returns":"()"},
+        {"signature":"activateMarket(bytes32)","mutability":"nonpayable","caller":"PUBLIC","returns":"()"},
+        {"signature":"setRootServiceFee(address,uint128)","mutability":"nonpayable","caller":"PROTOCOL_ADMIN_ROLE","returns":"()"},
+        {"signature":"fundQuoteTreasury(bytes32,uint256,bytes32)","mutability":"payable","caller":"PUBLIC","returns":"(uint32)"},
+        {"signature":"burnMeme(bytes32,uint256,bytes32)","mutability":"nonpayable","caller":"PUBLIC","returns":"()"},
+        {"signature":"requestRoot(bytes32,uint32)","mutability":"payable","caller":"CURRENT_MEME_HOLDER","returns":"()"},
+        {"signature":"publishRoot(bytes32,uint32,bytes32,bytes32,uint256,uint32,uint256)","mutability":"nonpayable","caller":"ROOT_PUBLISHER_ROLE","returns":"()"},
+        {"signature":"cancelPendingRoot(bytes32,uint32,bytes32)","mutability":"nonpayable","caller":"ROOT_REVIEW_ROLE","returns":"()"},
+        {"signature":"finalizeRoot(bytes32,uint32)","mutability":"nonpayable","caller":"PUBLIC","returns":"()"},
+        {"signature":"expireRootRequest(bytes32,uint32)","mutability":"nonpayable","caller":"PUBLIC","returns":"()"},
+        {"signature":"claim(bytes32,uint32,uint256,address,uint256,uint256,bytes32[])","mutability":"nonpayable","caller":"PUBLIC","returns":"()"},
+        {"signature":"rolloverExpiredEpoch(bytes32,uint32)","mutability":"nonpayable","caller":"PUBLIC","returns":"(uint32,uint256)"},
+        {"signature":"withdrawServiceCredit(address)","mutability":"nonpayable","caller":"SERVICE_BENEFICIARY","returns":"(uint256)"},
+        {"signature":"marketRegistry()","mutability":"view","caller":"PUBLIC","returns":"(address)"},
+        {"signature":"market(bytes32)","mutability":"view","caller":"PUBLIC","returns":"(TreasuryMarketV1)"},
+        {"signature":"epoch(bytes32,uint32)","mutability":"view","caller":"PUBLIC","returns":"(TreasuryEpochV1)"},
+        {"signature":"rootServiceFee()","mutability":"view","caller":"PUBLIC","returns":"(RootServiceFeeV1)"},
+        {"signature":"epochWindow(bytes32,uint32)","mutability":"view","caller":"PUBLIC","returns":"(uint64,uint64)"},
+        {"signature":"currentEpochId(bytes32)","mutability":"view","caller":"PUBLIC","returns":"(uint32)"},
+        {"signature":"epochQuoteAmount(bytes32,uint32)","mutability":"view","caller":"PUBLIC","returns":"(uint256)"},
+        {"signature":"serviceCredit(address,address)","mutability":"view","caller":"PUBLIC","returns":"(uint256)"},
+        {"signature":"totalQuoteLiability(address)","mutability":"view","caller":"PUBLIC","returns":"(uint256)"},
+        {"signature":"totalServiceLiability(address)","mutability":"view","caller":"PUBLIC","returns":"(uint256)"},
+        {"signature":"isClaimed(bytes32,uint32,uint256)","mutability":"view","caller":"PUBLIC","returns":"(bool)"},
+        {"signature":"accountClaimed(bytes32,uint32,address)","mutability":"view","caller":"PUBLIC","returns":"(bool)"},
+        {"signature":"operationConsumed(address,bool,bytes32)","mutability":"view","caller":"PUBLIC","returns":"(bool)"},
+        {"signature":"claimLeaf(bytes32,uint32,uint256,address,uint256,uint256)","mutability":"view","caller":"PUBLIC","returns":"(bytes32)"}
+      ],
+      "events": [
+        "TreasuryMarketRegistered(bytes32 indexed marketId,address indexed memeToken,address indexed quoteToken,bytes32 eligibilityPolicyHash)",
+        "TreasuryMarketActivated(bytes32 indexed marketId,uint64 activatedAt)",
+        "RootServiceFeeUpdated(address indexed asset,uint128 amount)",
+        "QuoteTreasuryFunded(bytes32 indexed marketId,uint32 indexed epochId,address indexed funder,address quoteToken,bytes32 fundingId,uint256 amount)",
+        "MemeTreasuryBurned(bytes32 indexed marketId,address indexed funder,address indexed memeToken,bytes32 burnId,uint256 amount,uint256 totalSupplyAfter)",
+        "RootRequested(bytes32 indexed marketId,uint32 indexed epochId,address indexed requester,uint64 windowStart,uint64 windowEnd,uint64 sourceBlockNumber,bytes32 sourceBlockHash,uint256 quoteAmount,address serviceFeeAsset,uint128 serviceFeeAmount,uint64 publishBy)",
+        "RootPublished(bytes32 indexed marketId,uint32 indexed epochId,bytes32 indexed merkleRoot,bytes32 datasetHash,uint256 totalTwab,uint32 leafCount,uint64 finalizeAfter)",
+        "PendingRootCancelled(bytes32 indexed marketId,uint32 indexed epochId,bytes32 indexed reasonHash)",
+        "RootFinalized(bytes32 indexed marketId,uint32 indexed epochId,bytes32 indexed merkleRoot,uint64 claimUntil)",
+        "RootRequestExpired(bytes32 indexed marketId,uint32 indexed epochId,address indexed requester)",
+        "TreasuryClaimed(bytes32 indexed marketId,uint32 indexed epochId,uint256 indexed leafIndex,address account,uint256 twab,uint256 amount)",
+        "EpochRemainderRolledOver(bytes32 indexed marketId,uint32 indexed fromEpochId,uint32 indexed toEpochId,uint256 amount)",
+        "ServiceCreditWithdrawn(address indexed asset,address indexed beneficiary,uint256 amount)"
       ]
     }
   ],

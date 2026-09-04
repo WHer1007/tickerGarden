@@ -55,14 +55,16 @@ abstract contract MemeStockGaugeSettlements is MemeStockGaugeAccumulators {
     }
 
     function _settleActivePosition(GaugePosition storage position) internal {
-        _settleRewardToCurrent(
-            position.rewards[QUOTE_REWARD_INDEX],
-            position.activeAmount,
-            _rewardStates[QUOTE_REWARD_INDEX].accFeePerShare
+        _settleActivePositionAt(
+            position, _rewardStates[QUOTE_REWARD_INDEX].accFeePerShare, _rewardStates[MEME_REWARD_INDEX].accFeePerShare
         );
-        _settleRewardToCurrent(
-            position.rewards[MEME_REWARD_INDEX], position.activeAmount, _rewardStates[MEME_REWARD_INDEX].accFeePerShare
-        );
+    }
+
+    function _settleActivePositionAt(GaugePosition storage position, uint256 quoteAccumulator, uint256 memeAccumulator)
+        internal
+    {
+        _settleRewardToCurrent(position.rewards[QUOTE_REWARD_INDEX], position.activeAmount, quoteAccumulator);
+        _settleRewardToCurrent(position.rewards[MEME_REWARD_INDEX], position.activeAmount, memeAccumulator);
     }
 
     function _settleMaterializingReward(
@@ -78,23 +80,35 @@ abstract contract MemeStockGaugeSettlements is MemeStockGaugeAccumulators {
     }
 
     function _previewClaimable(address user, uint8 rewardIndex) internal view returns (uint256 claimable) {
+        return _previewClaimableAt(user, rewardIndex, _rewardStates[rewardIndex].accFeePerShare);
+    }
+
+    function _previewClaimableAt(address user, uint8 rewardIndex, uint256 accumulatorCutoff)
+        internal
+        view
+        returns (uint256 claimable)
+    {
         GaugePosition storage position = _gaugePositions[user];
         GaugeUserReward storage reward = position.rewards[rewardIndex];
-        GaugeRewardState storage state = _rewardStates[rewardIndex];
         claimable = reward.pendingFee;
         uint256 remainder = reward.userRemainder;
 
         (claimable, remainder) =
-            _previewTerm(claimable, remainder, position.activeAmount, reward.accumulatorPaid, state.accFeePerShare);
+            _previewTerm(claimable, remainder, position.activeAmount, reward.accumulatorPaid, accumulatorCutoff);
 
         if (position.pendingAmount != 0) {
             ActivationSnapshot storage snapshot = _activationSnapshots[position.pendingGeneration];
             if (snapshot.processed) {
                 uint256 snapshotAccumulator =
                     rewardIndex == QUOTE_REWARD_INDEX ? snapshot.quoteAccumulator : snapshot.memeAccumulator;
-                (claimable,) = _previewTerm(
-                    claimable, remainder, position.pendingAmount, snapshotAccumulator, state.accFeePerShare
-                );
+                // A principal-first exit can leave a not-yet-active Gauge entry behind. If its bucket is only
+                // checkpointed after the exit accumulator cutoff, that pending weight never earned rewards and
+                // must not make the frozen preview regress or include post-exit fees.
+                if (snapshotAccumulator <= accumulatorCutoff) {
+                    (claimable,) = _previewTerm(
+                        claimable, remainder, position.pendingAmount, snapshotAccumulator, accumulatorCutoff
+                    );
+                }
             }
         }
     }

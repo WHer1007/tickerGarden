@@ -16,6 +16,7 @@ contract ApprovedQuoteRegistry is IApprovedQuoteRegistry, ImmutableAccessManaged
     uint8 internal constant MIN_QUOTE_DECIMALS = 6;
     uint8 internal constant MAX_QUOTE_DECIMALS = 18;
     uint256 internal constant QUOTE_ECONOMICS_SCHEMA_VERSION = 1;
+    uint256 internal constant MAX_GRADUATION_AMOUNT = uint256(uint128(type(int128).max));
     bytes32 internal constant QUOTE_ECONOMICS_DOMAIN = keccak256("TICKERGARDEN_V1_QUOTE_ECONOMICS");
     bytes4 private constant DECIMALS_SELECTOR = 0x313ce567;
 
@@ -34,6 +35,7 @@ contract ApprovedQuoteRegistry is IApprovedQuoteRegistry, ImmutableAccessManaged
             configId == bytes32(0) || config.ponsBaselineId == bytes32(0) || config.status != QUOTE_STATUS_ACTIVE
                 || config.quoteDecimals < MIN_QUOTE_DECIMALS || config.quoteDecimals > MAX_QUOTE_DECIMALS
                 || config.phantomQuote == 0 || config.graduationThreshold == 0
+                || config.phantomQuote > MAX_GRADUATION_AMOUNT || config.graduationThreshold > MAX_GRADUATION_AMOUNT
                 || config.phantomQuote > type(uint256).max - config.graduationThreshold
         ) revert InvalidQuoteConfig(configId);
         if (_quoteConfigs[configId].status != QUOTE_STATUS_UNSET) revert QuoteConfigAlreadyExists(configId);

@@ -10,10 +10,10 @@ import {
 } from "viem";
 
 export const EPOCH_DURATION_SECONDS = 30n * 24n * 60n * 60n;
-export const CLAIM_LEAF_DOMAIN = keccak256(stringToHex("TICKERGARDEN_V2_TREASURY_CLAIM_V1"));
+export const CLAIM_LEAF_DOMAIN = keccak256(stringToHex("TICKERGARDEN_V1_TREASURY_CLAIM_V1"));
 export const TWAB_SCHEMA = keccak256(stringToHex("TRANSFER_LOG_TWAB_30D_V1"));
 export const ELIGIBILITY_POLICY_DOMAIN = keccak256(
-  stringToHex("TICKERGARDEN_V2_TREASURY_ELIGIBILITY_POLICY_V1"),
+  stringToHex("TICKERGARDEN_V1_TREASURY_ELIGIBILITY_POLICY_V1"),
 );
 
 const ZERO_ADDRESS = "0x0000000000000000000000000000000000000000" as Address;
@@ -72,7 +72,7 @@ export interface TreasuryLeaf {
 }
 
 export interface TreasuryRootOutput {
-  schema: "TICKERGARDEN_V2_TREASURY_ROOT_V1";
+  schema: "TICKERGARDEN_V1_TREASURY_ROOT_V1";
   context: TreasuryClaimContext;
   sourceBlockTimestamp: bigint;
   merkleRoot: Hex;
@@ -283,7 +283,7 @@ export function generateTreasuryRoot(input: TreasuryRootInput): TreasuryRootOutp
 
   const datasetHash = hashDataset(context, input.sourceBlockTimestamp, input.quoteAmount, totalTwab, leaves);
   return {
-    schema: "TICKERGARDEN_V2_TREASURY_ROOT_V1",
+    schema: "TICKERGARDEN_V1_TREASURY_ROOT_V1",
     context,
     sourceBlockTimestamp: input.sourceBlockTimestamp,
     merkleRoot: tree.root,
@@ -347,7 +347,7 @@ function hashDataset(
   leaves: readonly Omit<TreasuryLeaf, "proof">[],
 ): Hex {
   const canonical = JSON.stringify({
-    schema: "TICKERGARDEN_V2_TREASURY_DATASET_V1",
+    schema: "TICKERGARDEN_V1_TREASURY_DATASET_V1",
     context: serializeContext(context),
     sourceBlockTimestamp: sourceBlockTimestamp.toString(),
     quoteAmount: quoteAmount.toString(),

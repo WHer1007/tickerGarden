@@ -1,0 +1,72 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Create a market — TickerGarden</title>
+    <link rel="stylesheet" href="./subpages.css" />
+  </head>
+  <body data-page="create">
+    <header class="shell-header" data-shell-header></header>
+    <main class="page">
+      <section class="page-hero">
+        <div>
+          <div class="kicker"><i class="ph ph-sparkle" aria-hidden="true"></i>Plant a new culture</div>
+          <h1>Create a<br /><em>Ticker Meme.</em></h1>
+          <p>Select an eligible STOCK and approved V1 configuration, then name a community signal. The same STOCK can anchor multiple independent Meme markets.</p>
+        </div>
+        <aside class="hero-badge"><i class="ph ph-seedling" aria-hidden="true"></i><strong>Permissionless</strong><span>Many markets may share one STOCK</span></aside>
+      </section>
+
+      <div class="create-layout">
+        <form class="panel" data-create-form>
+          <section class="form-section">
+            <h2><span class="step-number">1</span>Choose approved configuration</h2>
+            <p class="form-help">These identifiers are read from their registries. A missing or undeployed configuration fails closed.</p>
+            <div class="fields">
+              <label class="field full" for="asset-uid"><span>Eligible STOCK assetUid</span><select id="asset-uid" name="assetUid" required><option value="" selected disabled>Loading approved STOCK assets…</option></select><small>Choose one active official STOCK. This market’s STOCK base is permanent.</small></label>
+              <label class="field" for="quote-asset-config"><span>Quote asset config</span><select id="quote-asset-config" name="quoteAssetConfigId" required><option value="" selected disabled>Loading quote configurations…</option></select></label>
+              <label class="field" for="pons-baseline"><span>Pons baseline</span><select id="pons-baseline" name="ponsBaselineId" required><option value="" selected disabled>Loading Pons baselines…</option></select></label>
+              <label class="field full" for="launch-template"><span>Launch template</span><select id="launch-template" name="launchTemplateId" required><option value="" selected disabled>Loading launch templates…</option></select></label>
+            </div>
+            <p class="config-status" data-create-config-status role="status" aria-live="polite">Waiting for the V1 registries and read API.</p>
+          </section>
+
+          <section class="form-section">
+            <h2><span class="step-number">2</span>Define the market</h2>
+            <div class="fields">
+              <label class="field full" for="beneficiary"><span>Beneficiary</span><input id="beneficiary" name="beneficiary" type="text" inputmode="text" autocomplete="off" placeholder="0x… wallet address" required /><small>Receives the configured creator allocation according to the deployed protocol.</small></label>
+              <label class="field" for="market-name"><span>Meme name</span><input id="market-name" name="name" type="text" maxlength="64" placeholder="Community name" required /></label>
+              <label class="field" for="market-symbol"><span>Symbol</span><input id="market-symbol" name="symbol" type="text" maxlength="16" pattern="[A-Za-z0-9]{1,16}" placeholder="Up to 16 characters" required /><small>Fixed at creation; the community cannot edit it through this form.</small></label>
+              <label class="field full" for="metadata-uri"><span>Metadata URI</span><input id="metadata-uri" name="metadataURI" type="text" inputmode="url" maxlength="512" placeholder="https://… or ipfs://…" required /></label>
+            </div>
+          </section>
+
+          <section class="form-section">
+            <h2><span class="step-number">3</span>Choose the launch action</h2>
+            <div class="fields">
+              <label class="field full" for="launch-mode"><span>Launch mode</span><select id="launch-mode" name="launchMode" required><option value="create">Create market</option><option value="create-buy">Create and make first buy</option></select></label>
+              <label class="field" for="first-buy-amount"><span>First buy amount</span><input id="first-buy-amount" name="firstBuyAmount" type="number" min="0" step="any" inputmode="decimal" placeholder="Required for create-buy" /></label>
+              <label class="field" for="create-slippage"><span>Slippage (basis points)</span><input id="create-slippage" name="slippageBps" type="number" min="0" step="1" placeholder="Only for create-buy" /></label>
+            </div>
+            <div class="rules"><div class="rule"><i class="ph ph-check-circle" aria-hidden="true"></i><span>Creation inputs are validated against the selected registries and deployed runtime.</span></div><div class="rule"><i class="ph ph-check-circle" aria-hidden="true"></i><span>Salt, expectedEconomics and deployment addresses are derived by the runtime; ordinary users do not enter them.</span></div><div class="rule"><i class="ph ph-check-circle" aria-hidden="true"></i><span>One STOCK may be reused by many Meme markets, each with its own canonical marketId.</span></div></div>
+          </section>
+
+          <div class="create-preview" data-create-preview aria-live="polite">Complete the approved configuration fields to preview the transaction.</div>
+          <button class="action-button" type="submit" data-create-submit disabled><i class="ph ph-plant" aria-hidden="true"></i>Validate and create market</button>
+        </form>
+
+        <aside class="panel token-preview" aria-labelledby="preview-heading">
+          <div class="preview-orbit"><img src="./assets/tickergarden-mark.png" alt="" /></div>
+          <small id="preview-heading">MARKET PREVIEW</small>
+          <h2 data-token-symbol>—</h2>
+          <p data-token-name>Awaiting market name</p>
+          <div class="preview-list"><div><span>STOCK assetUid</span><strong data-preview-asset>—</strong></div><div><span>Quote config</span><strong data-preview-quote>—</strong></div><div><span>Launch mode</span><strong data-preview-mode>—</strong></div><div><span>Market ID</span><strong data-preview-market-id>Derived after validation</strong></div></div>
+        </aside>
+      </div>
+    </main>
+    <footer class="shell-footer" data-shell-footer></footer>
+    <div class="toast" data-toast role="status" aria-live="polite"></div>
+    <script type="module" src="./subpages.js"></script>
+  </body>
+</html>

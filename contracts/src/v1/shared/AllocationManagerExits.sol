@@ -5,7 +5,7 @@ import {AssetView, IMemeStockGauge, IUserStockVault, MarketView, PositionView} f
 import {AllocationManagerIncreases} from "./AllocationManagerIncreases.sol";
 
 /// @notice Full-position normal and forfeiting exit paths for the final AllocationManager.
-/// @dev V1-EXEC-6 deliberately has no partial-decrease or cross-market migration path.
+/// @dev V1-EXEC-8 deliberately has no partial-decrease or cross-market migration path.
 abstract contract AllocationManagerExits is AllocationManagerIncreases {
     uint256 private constant RAGE_QUIT_GAUGE_GAS_LIMIT = 1_000_000;
     uint256 private constant RAGE_QUIT_GAUGE_VIEW_GAS_LIMIT = 250_000;
@@ -20,6 +20,7 @@ abstract contract AllocationManagerExits is AllocationManagerIncreases {
     error PositionLockedUntil(uint64 unlockAt);
     error NoAllocationPosition(address user, bytes32 marketId);
     error NoRageQuitRewardSettlement(address user, bytes32 marketId);
+    error UnauthorizedRewardStateGauge(address caller, address expectedGauge);
 
     constructor(address officialStockRegistry_, address marketRegistry_)
         AllocationManagerIncreases(officialStockRegistry_, marketRegistry_)
@@ -132,6 +133,28 @@ abstract contract AllocationManagerExits is AllocationManagerIncreases {
         pending = principal != 0;
     }
 
+    function _rageQuitRewardCutoff(address user, bytes32 marketId)
+        internal
+        view
+        returns (uint256 principal, uint256 quoteAccumulator, uint256 memeAccumulator, bool forfeitureRedistributable)
+    {
+        ExitContext memory context = _rageQuitContext(marketId);
+        return context.vault.rageQuitRewardCutoff(context.assetUid, user, marketId);
+    }
+
+    function _rewardEligibleActiveStock(bytes32 marketId) internal view returns (uint256) {
+        ExitContext memory context = _rageQuitContext(marketId);
+        return context.vault.marketRewardEligible(context.assetUid, marketId);
+    }
+
+    function _recordGaugeRewardState(bytes32 marketId, uint256 quoteAccumulator, uint256 memeAccumulator) internal {
+        ExitContext memory context = _rageQuitContext(marketId);
+        if (msg.sender != address(context.gauge)) {
+            revert UnauthorizedRewardStateGauge(msg.sender, address(context.gauge));
+        }
+        context.vault.recordGaugeRewardState(context.assetUid, marketId, quoteAccumulator, memeAccumulator);
+    }
+
     function _exitContext(bytes32 marketId) internal view returns (ExitContext memory context) {
         MarketView memory marketView;
         AssetView memory assetView;
@@ -145,7 +168,7 @@ abstract contract AllocationManagerExits is AllocationManagerIncreases {
     /// @dev Resolves only the write-once market-to-asset-to-Vault identity required for principal escape. Market
     ///      phase, asset operational status, position lock, minimum allocation and Gauge liveness are not
     ///      principal withdrawal gates.
-    function _rageQuitContext(bytes32 marketId) private view returns (ExitContext memory context) {
+    function _rageQuitContext(bytes32 marketId) internal view returns (ExitContext memory context) {
         if (marketId == bytes32(0)) revert StockAllocationClosed(marketId);
 
         MarketView memory marketView = _marketRegistry.market(marketId);

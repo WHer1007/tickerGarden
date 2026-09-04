@@ -64,7 +64,7 @@ jobs:
       - name: Verify generated interfaces and compiled ABI manifest
         run: npm run check:interfaces
 
-  v2-treasury-preview:
+  v1-treasury:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -79,22 +79,22 @@ jobs:
       - name: Restore pinned contract dependencies
         working-directory: contracts
         run: node scripts/sync-dependencies.mjs
-      - name: Install V2 Root generator
+      - name: Install V1 Root generator
         working-directory: services/treasury-root-generator
         run: npm ci
-      - name: Check isolated V2 Treasury formatting
+      - name: Check V1 Treasury formatting
         working-directory: contracts
-        run: forge fmt --profile v2-ci --check src/v2 test/v2
-      - name: Build isolated V2 Treasury preview
+        run: forge fmt --profile v1-ci --check src/v1 test/v1/treasury
+      - name: Build V1 Treasury namespace
         working-directory: contracts
-        run: forge build --profile v2-ci
-      - name: Test isolated V2 Treasury preview
+        run: forge build --profile v1-ci
+      - name: Test V1 Treasury subsystem
         working-directory: contracts
-        run: forge test --profile v2-ci
-      - name: Verify V2 Treasury invariant without cache
+        run: forge test --profile v1-ci --match-path 'test/v1/treasury/**'
+      - name: Verify V1 Treasury invariant without cache
         working-directory: contracts
-        run: forge test --profile v2-ci --no-cache --match-path 'test/v2/product/TreasuryDistributorV2Invariant.t.sol'
-      - name: Test and build deterministic Root generator
+        run: forge test --profile v1-ci --no-cache --match-path 'test/v1/treasury/product/TreasuryDistributorV1Invariant.t.sol'
+      - name: Test and build deterministic V1 Root generator
         working-directory: services/treasury-root-generator
         run: npm test && npm run build
 
@@ -182,7 +182,7 @@ jobs:
         working-directory: ${{ matrix.package }}
         run: npm test
 
-  website-scaffold:
+  website:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -190,13 +190,13 @@ jobs:
         with:
           node-version: "22.13"
           cache: npm
-          cache-dependency-path: website/package-lock.json
+          cache-dependency-path: website-fruit-tree/package-lock.json
       - name: Install
-        working-directory: website
+        working-directory: website-fruit-tree
         run: npm ci
-      - name: Build Sites bundle
-        working-directory: website
+      - name: Build frontend
+        working-directory: website-fruit-tree
         run: npm run build
-      - name: Test Sites worker
-        working-directory: website
+      - name: Test frontend
+        working-directory: website-fruit-tree
         run: npm test

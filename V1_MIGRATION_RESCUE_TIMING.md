@@ -1,6 +1,6 @@
 # TickerGarden V1 LaunchPhase、Sweep 与 Rescue Timing
 
-> 规格：`V1-EXEC-6`；旧市场状态计时方案已 superseded。
+> 规格：`V1-EXEC-8`；旧市场状态计时方案已 superseded。
 
 ## 1. LaunchPhase 事实
 
@@ -21,4 +21,4 @@
 
 资产、Quote、Pons baseline 和 launch template 仍可按各自 Registry 规则 `ACTIVE <-> PAUSED -> RETIRED`。这些对象级状态只限制新增准入/新增敞口，不改变已部署市场的 launchPhase 或阻止 RageQuit。
 
-旧文件中的管理型市场计时均已删除；本地实现和生成物已按 V1-EXEC-6 验证，目标链部署与 E2E 仍需单独完成。
+旧文件中的管理型市场计时均已删除；本地实现和生成物已按 V1-EXEC-8 验证，目标链部署与 E2E 仍需单独完成。

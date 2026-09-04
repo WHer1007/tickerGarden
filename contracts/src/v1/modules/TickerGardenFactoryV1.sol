@@ -36,10 +36,22 @@ struct TickerGardenFactoryInit {
     address allocationManager;
     address launchRouter;
     address platformTreasury;
+    address treasuryDistributor;
     address memeTokenImplementation;
     address curveImplementation;
     address gaugeImplementation;
     bytes32 feePolicyId;
+}
+
+struct TickerMemeTokenV1Init {
+    bytes32 marketId;
+    address creator;
+    address predictedCurve;
+    address treasuryDistributor;
+    string name;
+    string symbol;
+    string metadataURI;
+    uint256 initialSupply;
 }
 
 interface IFactoryMarketRegistryDependencies {
@@ -59,36 +71,37 @@ interface IFactoryCreatorRevenueDependencies {
 /// @dev A code-identity anchor and fixed deployment delegate target. Delegatecall keeps the Factory as the
 ///      CREATE2 deployer while avoiding a Factory runtime that embeds every component's creation code.
 contract TickerMemeTokenV1Implementation {
-    function initCodeHash(
-        bytes32 marketId,
-        address creator,
-        address predictedCurve,
-        string memory name,
-        string memory symbol,
-        string memory metadataURI,
-        uint256 initialSupply
-    ) external pure returns (bytes32) {
+    function initCodeHash(TickerMemeTokenV1Init memory init) external pure returns (bytes32) {
         return V1Create2.initCodeHash(
             type(TickerMemeTokenV1).creationCode,
-            abi.encode(marketId, creator, predictedCurve, name, symbol, metadataURI, initialSupply)
+            abi.encode(
+                init.marketId,
+                init.creator,
+                init.predictedCurve,
+                init.treasuryDistributor,
+                init.name,
+                init.symbol,
+                init.metadataURI,
+                init.initialSupply
+            )
         );
     }
 
-    function deploy(
-        bytes32 salt,
-        bytes32 marketId,
-        address creator,
-        address predictedCurve,
-        string memory name,
-        string memory symbol,
-        string memory metadataURI,
-        uint256 initialSupply
-    ) external payable returns (address) {
+    function deploy(bytes32 salt, TickerMemeTokenV1Init memory init) external payable returns (address) {
         return V1Create2.deploy(
             salt,
             bytes.concat(
                 type(TickerMemeTokenV1).creationCode,
-                abi.encode(marketId, creator, predictedCurve, name, symbol, metadataURI, initialSupply)
+                abi.encode(
+                    init.marketId,
+                    init.creator,
+                    init.predictedCurve,
+                    init.treasuryDistributor,
+                    init.name,
+                    init.symbol,
+                    init.metadataURI,
+                    init.initialSupply
+                )
             )
         );
     }
@@ -115,11 +128,12 @@ contract TickerGardenFactoryV1 is ITickerGardenFactoryV1, ICurveInitializationSo
     IPonsBaselineRegistry public immutable ponsBaselineRegistry;
     ILaunchTemplateRegistry public immutable launchTemplateRegistry;
     IMarketRegistryV1 public immutable marketRegistry;
-    ICreatorRevenueRegistry public immutable creatorRevenueRegistry;
+    address public immutable override creatorRevenueRegistry;
     address public immutable protocolFeeVault;
     address public immutable allocationManager;
     address public immutable launchRouter;
     address public immutable platformTreasury;
+    address public immutable override treasuryDistributor;
     bytes32 public immutable feePolicyId;
 
     address public immutable memeTokenImplementation;
@@ -132,13 +146,13 @@ contract TickerGardenFactoryV1 is ITickerGardenFactoryV1, ICurveInitializationSo
     mapping(bytes32 marketId => bool reserved) private _reservedMarketIds;
 
     uint256 private constant LAUNCH_FEE = 500_000_000_000_000;
-    bytes32 private constant EXECUTION_SPEC_ID = keccak256("V1-EXEC-6");
+    bytes32 private constant EXECUTION_SPEC_ID = keccak256("V1-EXEC-8");
     bytes32 private constant TOKEN_IMPLEMENTATION_CODEHASH =
-        0xe0450cdd47a6df268a83fa9270bd30e90daca35b99181dabe2a456a0d1eac7db;
+        0x5a1ea402d301c312d0df4cc719db06d8f03830df83ec2073299d41d02df9cbb5;
     bytes32 private constant CURVE_IMPLEMENTATION_CODEHASH =
-        0x75095fc993180acd18808162270244860114a65720358a545439eceee0ffd964;
+        0xa6f902111fce0b1c945420bf0faba45deaababb9af551ad17b80568a6c93f73c;
     bytes32 private constant GAUGE_IMPLEMENTATION_CODEHASH =
-        0xeb6033a437d9f82652cad8b492d9063e20d911ac6efa981ae9dd9b060b3afb1b;
+        0xa220b3336e8cf16b13c4419949ae3a3e5e3ddff8fd22e2a4d75b8f6856667e1c;
 
     error InvalidFactoryDependency(address dependency);
     error InvalidComponentImplementation(address implementation, bytes32 expectedHash, bytes32 actualHash);
@@ -161,11 +175,12 @@ contract TickerGardenFactoryV1 is ITickerGardenFactoryV1, ICurveInitializationSo
         ponsBaselineRegistry = IPonsBaselineRegistry(init.ponsBaselineRegistry);
         launchTemplateRegistry = ILaunchTemplateRegistry(init.launchTemplateRegistry);
         marketRegistry = IMarketRegistryV1(init.marketRegistry);
-        creatorRevenueRegistry = ICreatorRevenueRegistry(init.creatorRevenueRegistry);
+        creatorRevenueRegistry = init.creatorRevenueRegistry;
         protocolFeeVault = init.protocolFeeVault;
         allocationManager = init.allocationManager;
         launchRouter = init.launchRouter;
         platformTreasury = init.platformTreasury;
+        treasuryDistributor = init.treasuryDistributor;
         feePolicyId = init.feePolicyId;
         launchFee = LAUNCH_FEE;
 
@@ -177,11 +192,12 @@ contract TickerGardenFactoryV1 is ITickerGardenFactoryV1, ICurveInitializationSo
         _policy.fields = V1MarketEconomics.FeePolicyInput({
             executionSpecId: EXECUTION_SPEC_ID,
             feePips: 10_000,
-            lpShareBps: 2_000,
+            lpShareBps: 0,
             poolKeyFee: 0,
             hookPermissionMask: 0x2044,
             feeAssetMode: 1,
-            stakerNonLpShareBps: 5_000
+            stakerNonLpShareBps: 3_000,
+            platformNonLpShareBps: 3_000
         });
 
         _validateBindings(init);
@@ -314,7 +330,8 @@ contract TickerGardenFactoryV1 is ITickerGardenFactoryV1, ICurveInitializationSo
             graduatedHook: snapshot.template.graduatedHook
         });
         marketRegistry.registerMarket(marketId, config);
-        creatorRevenueRegistry.initializeCreatorRevenueEpoch(marketId, params.creatorRevenueBeneficiary);
+        ICreatorRevenueRegistry(creatorRevenueRegistry)
+            .initializeCreatorRevenueEpoch(marketId, params.creatorRevenueBeneficiary);
         _transferLaunchFee();
 
         emit MarketCreated(
@@ -338,18 +355,9 @@ contract TickerGardenFactoryV1 is ITickerGardenFactoryV1, ICurveInitializationSo
         CreateMarketParams calldata params,
         uint256 supply
     ) private {
+        TickerMemeTokenV1Init memory init = _tokenInit(marketId, creator, curve, params, supply);
         bytes memory callData = abi.encodeCall(
-            TickerMemeTokenV1Implementation.deploy,
-            (
-                _componentSalt(marketId, V1Identifiers.ComponentKind.TOKEN),
-                marketId,
-                creator,
-                curve,
-                params.name,
-                params.symbol,
-                params.metadataURI,
-                supply
-            )
+            TickerMemeTokenV1Implementation.deploy, (_componentSalt(marketId, V1Identifiers.ComponentKind.TOKEN), init)
         );
         _requireAddress(expectedToken, _delegateDeploy(memeTokenImplementation, callData));
     }
@@ -453,8 +461,27 @@ contract TickerGardenFactoryV1 is ITickerGardenFactoryV1, ICurveInitializationSo
             address(this),
             _componentSalt(marketId, V1Identifiers.ComponentKind.TOKEN),
             TickerMemeTokenV1Implementation(memeTokenImplementation)
-                .initCodeHash(marketId, creator, curve, params.name, params.symbol, params.metadataURI, supply)
+                .initCodeHash(_tokenInit(marketId, creator, curve, params, supply))
         );
+    }
+
+    function _tokenInit(
+        bytes32 marketId,
+        address creator,
+        address curve,
+        CreateMarketParams calldata params,
+        uint256 supply
+    ) private view returns (TickerMemeTokenV1Init memory) {
+        return TickerMemeTokenV1Init({
+            marketId: marketId,
+            creator: creator,
+            predictedCurve: curve,
+            treasuryDistributor: treasuryDistributor,
+            name: params.name,
+            symbol: params.symbol,
+            metadataURI: params.metadataURI,
+            initialSupply: supply
+        });
     }
 
     function _predictGauge(bytes32 marketId, address memeToken, CreateMarketParams calldata params, address quoteAsset)
@@ -491,6 +518,8 @@ contract TickerGardenFactoryV1 is ITickerGardenFactoryV1, ICurveInitializationSo
             }),
             _policy,
             address(this),
+            address(marketRegistry),
+            allocationManager,
             creator,
             params
         );
@@ -539,7 +568,7 @@ contract TickerGardenFactoryV1 is ITickerGardenFactoryV1, ICurveInitializationSo
     }
 
     function _validateDependencies(TickerGardenFactoryInit memory init) private view {
-        address[13] memory dependencies = [
+        address[14] memory dependencies = [
             init.officialStockRegistry,
             init.approvedQuoteRegistry,
             init.ponsBaselineRegistry,
@@ -550,6 +579,7 @@ contract TickerGardenFactoryV1 is ITickerGardenFactoryV1, ICurveInitializationSo
             init.allocationManager,
             init.launchRouter,
             init.platformTreasury,
+            init.treasuryDistributor,
             init.memeTokenImplementation,
             init.curveImplementation,
             init.gaugeImplementation

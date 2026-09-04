@@ -84,7 +84,6 @@ def render_error(display_error, definitions):
 
 def render():
     abi = json.loads(ABI_PATH.read_text(encoding="utf-8"))
-    definitions = collect_types(abi)
     structs = {
         name: fields
         for module in abi["modules"]
@@ -94,6 +93,10 @@ def render():
         name: values
         for module in abi["modules"]
         for name, values in module.get("enums", {}).items()
+    }
+    definitions = {
+        name: value for name, value in collect_types(abi).items()
+        if name not in enums
     }
 
     lines = [

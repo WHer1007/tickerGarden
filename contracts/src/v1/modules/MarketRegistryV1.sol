@@ -30,7 +30,7 @@ contract MarketRegistryV1 is IMarketRegistryV1 {
     uint160 internal constant REQUIRED_HOOK_PERMISSION_MASK = 0x2044;
     uint64 internal constant RESCUE_DELAY_SECONDS = 7 days;
 
-    bytes32 public constant EXECUTION_SPEC_ID = keccak256("V1-EXEC-6");
+    bytes32 public constant EXECUTION_SPEC_ID = keccak256("V1-EXEC-8");
 
     address public immutable factory;
     address public immutable officialStockRegistry;

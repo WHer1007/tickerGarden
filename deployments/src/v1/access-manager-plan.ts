@@ -8,12 +8,16 @@ export const V1_ACCESS_ROLES = Object.freeze({
   PROTOCOL_ADMIN_ROLE: 1n,
   PAUSE_GUARDIAN_ROLE: 2n,
   UNPAUSE_ROLE: 3n,
+  ROOT_PUBLISHER_ROLE: 4n,
+  ROOT_REVIEW_ROLE: 5n,
 });
 
 const ROLE_DELAYS = Object.freeze({
   PROTOCOL_ADMIN_ROLE: 172800,
   PAUSE_GUARDIAN_ROLE: 0,
   UNPAUSE_ROLE: 86400,
+  ROOT_PUBLISHER_ROLE: 0,
+  ROOT_REVIEW_ROLE: 0,
 });
 
 export type V1AccessManagerPlanInput = Readonly<{
@@ -22,6 +26,8 @@ export type V1AccessManagerPlanInput = Readonly<{
   governanceSafe: string;
   guardianSafe: string;
   securityOrGovernanceSafe: string;
+  rootPublisherSafe: string;
+  rootReviewerSafe: string;
   moduleAddresses: Readonly<Record<string, string>>;
 }>;
 
@@ -103,8 +109,12 @@ export function deriveV1AccessManagerPlan(unchecked: V1AccessManagerPlanInput): 
     governanceSafe: address(unchecked.governanceSafe, "governanceSafe"),
     guardianSafe: address(unchecked.guardianSafe, "guardianSafe"),
     securityOrGovernanceSafe: address(unchecked.securityOrGovernanceSafe, "securityOrGovernanceSafe"),
+    rootPublisherSafe: address(unchecked.rootPublisherSafe, "rootPublisherSafe"),
+    rootReviewerSafe: address(unchecked.rootReviewerSafe, "rootReviewerSafe"),
   };
-  const roleMembers = [input.governanceSafe, input.guardianSafe, input.securityOrGovernanceSafe];
+  const coreRoleMembers = [input.governanceSafe, input.guardianSafe, input.securityOrGovernanceSafe];
+  const treasuryRoleMembers = [input.rootPublisherSafe, input.rootReviewerSafe];
+  const roleMembers = [...coreRoleMembers, ...treasuryRoleMembers];
   if (roleMembers.includes(input.deployer)) {
     throw new Error("Bootstrap deployer must not retain a V1 role");
   }
@@ -115,6 +125,13 @@ export function deriveV1AccessManagerPlan(unchecked: V1AccessManagerPlanInput): 
     input.guardianSafe === input.governanceSafe || input.guardianSafe === input.securityOrGovernanceSafe
   ) {
     throw new Error("Guardian role requires an independent Safe member");
+  }
+  if (
+    input.rootPublisherSafe === input.rootReviewerSafe
+      || coreRoleMembers.includes(input.rootPublisherSafe)
+      || coreRoleMembers.includes(input.rootReviewerSafe)
+  ) {
+    throw new Error("Treasury Root publisher and reviewer require dedicated, mutually independent Safe members");
   }
   const reservedAddresses = new Set([input.accessManager, input.deployer, ...roleMembers]);
   const moduleAddresses = new Map<string, string>();
@@ -135,6 +152,8 @@ export function deriveV1AccessManagerPlan(unchecked: V1AccessManagerPlanInput): 
     PROTOCOL_ADMIN_ROLE: input.governanceSafe,
     PAUSE_GUARDIAN_ROLE: input.guardianSafe,
     UNPAUSE_ROLE: input.securityOrGovernanceSafe,
+    ROOT_PUBLISHER_ROLE: input.rootPublisherSafe,
+    ROOT_REVIEW_ROLE: input.rootReviewerSafe,
   } as const;
   const roles = (Object.keys(V1_ACCESS_ROLES) as Array<keyof typeof V1_ACCESS_ROLES>).map((name) => Object.freeze({
     name,
@@ -144,7 +163,7 @@ export function deriveV1AccessManagerPlan(unchecked: V1AccessManagerPlanInput): 
   }));
 
   const actions: V1AccessManagerAction[] = [];
-  for (const roleName of ["PROTOCOL_ADMIN_ROLE", "UNPAUSE_ROLE"] as const) {
+  for (const roleName of ["PROTOCOL_ADMIN_ROLE", "UNPAUSE_ROLE", "ROOT_PUBLISHER_ROLE", "ROOT_REVIEW_ROLE"] as const) {
     actions.push(Object.freeze({
       phase: "BOOTSTRAP_GUARDIANS",
       target: input.accessManager,

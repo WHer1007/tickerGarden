@@ -1,0 +1,63 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Trade a market — TickerGarden</title>
+    <link rel="stylesheet" href="./subpages.css" />
+  </head>
+  <body data-page="trade">
+    <header class="shell-header" data-shell-header></header>
+    <main class="page">
+      <section class="page-hero">
+        <div>
+          <div class="kicker"><i class="ph ph-arrows-left-right" aria-hidden="true"></i>Verified market route</div>
+          <h1>Trade a<br /><em>Ticker Meme.</em></h1>
+          <p>Enter a canonical market identifier to load its current on-chain configuration. Quotes are shown only when the selected phase has a verified quoter and route.</p>
+        </div>
+        <aside class="hero-badge"><i class="ph ph-shield-check" aria-hidden="true"></i><strong>Fail closed</strong><span>Unverified routes cannot produce a quote</span></aside>
+      </section>
+
+      <section class="panel market-loader" aria-labelledby="market-loader-title">
+        <h2 id="market-loader-title">Load market</h2>
+        <p>Use the canonical <code>bytes32</code> marketId from the Markets directory or your read API.</p>
+        <div class="loader-row">
+          <label class="field full"><span>Canonical marketId</span><input data-market-id name="marketId" type="text" inputmode="text" autocomplete="off" placeholder="0x followed by 64 hexadecimal characters" pattern="0x[0-9a-fA-F]{64}" required /></label>
+          <button class="action-button" type="button" data-load-market><i class="ph ph-download-simple" aria-hidden="true"></i>Load market</button>
+        </div>
+        <p class="page-status" data-page-status role="status" aria-live="polite">No market loaded.</p>
+      </section>
+
+      <section class="trade-layout" aria-label="Market details and trade form">
+        <div>
+          <article class="panel" data-trade-market-summary aria-live="polite">
+            <div class="panel-title"><div class="market-identity"><span class="token-mark lime" aria-hidden="true"><img src="./assets/tickergarden-mark.png" alt="" /></span><div><h2>Market summary</h2><p data-trade-market-name>Load a canonical marketId to inspect this market.</p></div></div></div>
+            <div class="summary-grid"><div><small>STOCK asset</small><strong data-trade-stock>—</strong></div><div><small>Quote asset</small><strong data-trade-quote>—</strong></div><div><small>Launch phase</small><strong data-trade-phase>—</strong></div><div><small>Market ID</small><strong data-trade-summary-id>—</strong></div></div>
+            <p data-trade-market-note>Only values returned by the on-chain/read API are displayed.</p>
+          </article>
+          <article class="panel route-note">
+            <h2>Route status</h2>
+            <p data-trade-route-status role="status" aria-live="polite">Load a market to determine whether its route is available.</p>
+            <p>Curve phase trading is supported when its configured route can be verified. Pool swaps are locked when a V4 quoter or builder is unavailable; the interface never substitutes a fabricated quote.</p>
+          </article>
+        </div>
+
+        <form class="panel trade-box" data-trade-form>
+          <div class="trade-tabs" role="group" aria-label="Trade side"><button class="active" type="button" data-trade-side="buy">Buy</button><button type="button" data-trade-side="sell">Sell</button></div>
+          <div class="amount-box"><label for="trade-amount">Amount</label><div><input id="trade-amount" name="tradeAmount" data-trade-amount type="number" min="0" step="any" inputmode="decimal" placeholder="0" required /><span class="asset-chip" data-trade-input-asset>Quote</span></div></div>
+          <div class="swap-arrow" aria-hidden="true"><i class="ph ph-arrow-down"></i></div>
+          <div class="amount-box"><label for="trade-output">Quote output</label><div><output id="trade-output" data-trade-output aria-live="polite">—</output><span class="asset-chip" data-trade-output-asset>Meme</span></div></div>
+          <div class="quote-lines"><div><span>Rate</span><strong data-trade-rate>—</strong></div><div><span>Trading fee</span><strong data-trade-fee>—</strong></div><div><span>Price impact</span><strong data-trade-impact>—</strong></div><div><span>Minimum received</span><strong data-trade-minimum>—</strong></div></div>
+          <label class="field"><span>Slippage tolerance (basis points)</span><input name="slippageBps" data-trade-slippage type="number" min="0" step="1" placeholder="Configured by you" required /></label>
+          <div class="approval-status" data-trade-approval role="status" aria-live="polite">Approval status will appear after a market is loaded.</div>
+          <div class="trade-status" data-trade-status role="status" aria-live="polite">Connect a wallet and load a market before submitting.</div>
+          <button class="action-button buy" type="submit" data-trade-submit disabled><i class="ph ph-arrows-left-right" aria-hidden="true"></i>Submit trade</button>
+          <p class="fine-print">Ticker Meme markets are community signals. They do not represent stock ownership, equity, dividends, or redemption rights.</p>
+        </form>
+      </section>
+    </main>
+    <footer class="shell-footer" data-shell-footer></footer>
+    <div class="toast" data-toast role="status" aria-live="polite"></div>
+    <script type="module" src="./subpages.js"></script>
+  </body>
+</html>

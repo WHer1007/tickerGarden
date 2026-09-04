@@ -144,7 +144,7 @@ predictMarketAddresses(address creator, CreateMarketParams params)
 
 ## 6. 费用与恢复 hash
 
-- `feePolicyHash`：domain/schema version 3 + executionSpecId + feePips + LP share + pool fee + Hook mask + feeAssetMode + `stakerNonLpShareBps=5000`。当前编码为`feeAssetMode=1 (UNSPECIFIED_CORE_SWAP_DELTA)`；改变编码或语义必须升级schema与execution spec。
+- `feePolicyHash`：domain/schema version 4 + executionSpecId + feePips + LP share + pool fee + Hook mask + feeAssetMode + `stakerNonLpShareBps=3000` + `platformNonLpShareBps=3000`。当前编码为 `lpShareBps=0`、`feeAssetMode=1 (UNSPECIFIED_CORE_SWAP_DELTA)`；改变编码或语义必须升级 schema 与 execution spec。
 - `v4FeeId`：domain/version + chainId + FeeVault + PoolManager + poolId + marketId + sourceVersion + feeNonce + feeAsset + base + totalFee + feePolicyHash。
 - `curveFeeId`：domain/version + chainId + FeeVault + curve + marketId + sourceVersion + sweepNonce + quoteAsset + sweptAmount。
 - `emergencyStateHash` 与 recovery leaf 使用 [V1_MARKET_AUTONOMY_AND_RAGE_QUIT.md](./V1_MARKET_AUTONOMY_AND_RAGE_QUIT.md) 的字段；均加入 schemaVersion，leaf 继续执行外层第二次 Keccak。

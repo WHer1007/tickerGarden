@@ -159,8 +159,8 @@ contract TickerGardenMemeHookFeeCalculationTest is Test {
         assertEq(fee.sourceVersion, 2);
         assertEq(fee.base, 12_345);
         assertEq(fee.totalFee, 123);
-        assertEq(fee.lpAmount, 24);
-        assertEq(fee.nonLpAmount, 99);
+        assertEq(fee.lpAmount, 0);
+        assertEq(fee.nonLpAmount, 123);
         assertEq(fee.feeNonce, 1);
         assertEq(fee.feeId, _feeId(fee));
     }
@@ -270,13 +270,14 @@ contract TickerGardenMemeHookFeeCalculationTest is Test {
     function test_feePolicyHashMatchesFeeVaultAndSuccessiveIdsCannotRepeat() public {
         bytes32 expectedPolicyHash = V1MarketEconomics.hashFeePolicy(
             V1MarketEconomics.FeePolicyInput({
-                executionSpecId: keccak256("V1-EXEC-6"),
+                executionSpecId: keccak256("V1-EXEC-8"),
                 feePips: 10_000,
-                lpShareBps: 2_000,
+                lpShareBps: 0,
                 poolKeyFee: 0,
                 hookPermissionMask: MASK,
                 feeAssetMode: 1,
-                stakerNonLpShareBps: 5_000
+                stakerNonLpShareBps: 3_000,
+                platformNonLpShareBps: 3_000
             })
         );
         assertEq(hook.feePolicyHash(), expectedPolicyHash);

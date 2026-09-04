@@ -26,6 +26,7 @@ contract MemeStockGauge is MemeStockGaugeForfeitures {
     error UnauthorizedFeeVault(address caller, address expected);
     error UnauthorizedSettlementCaller(address caller);
     error UnsupportedRewardAsset(address feeAsset);
+    error InvalidGaugeMarketId(bytes32 supplied, bytes32 expected);
     error RageQuitRewardSettlementPending(address user, bytes32 marketId, uint256 principal);
 
     event ForfeitureRecordDeferred(
@@ -75,8 +76,26 @@ contract MemeStockGauge is MemeStockGaugeForfeitures {
         if (msg.sender != identity.allocationManager) {
             revert UnauthorizedAllocationModule(msg.sender, identity.allocationManager);
         }
-        (principal, quoteForfeited, memeForfeited, redistributed) =
-            _rageQuitPosition(user, identity.marketId, identity.quoteAsset, identity.memeToken);
+        (
+            uint256 expectedPrincipal,
+            uint256 quoteAccumulatorCutoff,
+            uint256 memeAccumulatorCutoff,
+            bool forfeitureRedistributable
+        ) = IAllocationManager(identity.allocationManager).rageQuitRewardCutoff(identity.marketId, user);
+        (principal, quoteForfeited, memeForfeited, redistributed) = _rageQuitPosition(
+            user,
+            RageQuitContext({
+                marketId: identity.marketId,
+                quoteAsset: identity.quoteAsset,
+                memeAsset: identity.memeToken,
+                quoteAccumulatorCutoff: quoteAccumulatorCutoff,
+                memeAccumulatorCutoff: memeAccumulatorCutoff,
+                forfeitureRedistributable: forfeitureRedistributable
+            })
+        );
+        if (principal != expectedPrincipal) {
+            revert RageQuitRewardSettlementPending(user, identity.marketId, expectedPrincipal);
+        }
         if (!redistributed && (quoteForfeited != 0 || memeForfeited != 0)) {
             try IProtocolFeeVault(identity.protocolFeeVault).recordForfeiture{gas: FORFEITURE_RECORD_GAS_LIMIT}(
                 identity.marketId, user, quoteForfeited, memeForfeited
@@ -150,15 +169,23 @@ contract MemeStockGauge is MemeStockGaugeForfeitures {
     }
 
     function positionOf(address user) external view returns (PositionView memory position) {
-        MemeStockGaugeClone.requireInstance(address(this));
+        GaugeIdentity memory identity = MemeStockGaugeClone.read(address(this));
         GaugePosition storage stored = _gaugePositions[user];
+        (uint256 rageQuitPrincipal, uint256 quoteAccumulatorCutoff, uint256 memeAccumulatorCutoff,) =
+            IAllocationManager(identity.allocationManager).rageQuitRewardCutoff(identity.marketId, user);
+        uint256 quoteClaimable = rageQuitPrincipal == 0
+            ? _previewClaimable(user, QUOTE_REWARD_INDEX)
+            : _previewClaimableAt(user, QUOTE_REWARD_INDEX, quoteAccumulatorCutoff);
+        uint256 memeClaimable = rageQuitPrincipal == 0
+            ? _previewClaimable(user, MEME_REWARD_INDEX)
+            : _previewClaimableAt(user, MEME_REWARD_INDEX, memeAccumulatorCutoff);
         position = PositionView({
             activeAmount: stored.activeAmount,
             pendingAmount: stored.pendingAmount,
             pendingGeneration: stored.pendingGeneration,
             unlockAt: stored.unlockAt,
-            quoteClaimable: _previewClaimable(user, QUOTE_REWARD_INDEX),
-            memeClaimable: _previewClaimable(user, MEME_REWARD_INDEX)
+            quoteClaimable: quoteClaimable,
+            memeClaimable: memeClaimable
         });
     }
 
@@ -174,8 +201,8 @@ contract MemeStockGauge is MemeStockGaugeForfeitures {
     }
 
     function effectiveTotalActiveStock() external view returns (uint256) {
-        MemeStockGaugeClone.requireInstance(address(this));
-        return _effectiveTotalActiveStock();
+        GaugeIdentity memory identity = MemeStockGaugeClone.read(address(this));
+        return IAllocationManager(identity.allocationManager).rewardEligibleActiveStock(identity.marketId);
     }
 
     function totalPendingStock() external view returns (uint256) {
@@ -229,5 +256,22 @@ contract MemeStockGauge is MemeStockGaugeForfeitures {
             _deferredQuoteForfeiture += quoteAmount;
             _deferredMemeForfeiture += memeAmount;
         }
+    }
+
+    function _rewardEligibleActiveStock(bytes32 marketId) internal view override returns (uint256) {
+        GaugeIdentity memory identity = MemeStockGaugeClone.read(address(this));
+        if (identity.marketId != marketId) revert InvalidGaugeMarketId(marketId, identity.marketId);
+        return IAllocationManager(identity.allocationManager).rewardEligibleActiveStock(marketId);
+    }
+
+    function _afterRewardAccumulatorUpdate(bytes32 marketId) internal override {
+        GaugeIdentity memory identity = MemeStockGaugeClone.read(address(this));
+        if (identity.marketId != marketId) revert InvalidGaugeMarketId(marketId, identity.marketId);
+        IAllocationManager(identity.allocationManager)
+            .recordGaugeRewardState(
+                marketId,
+                _rewardStates[QUOTE_REWARD_INDEX].accFeePerShare,
+                _rewardStates[MEME_REWARD_INDEX].accFeePerShare
+            );
     }
 }

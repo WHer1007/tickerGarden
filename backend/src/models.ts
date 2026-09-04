@@ -1,6 +1,6 @@
 import type { SyncStatus } from "./generated/v1-client.ts";
 
-export const EXECUTION_SPEC_ID = "V1-EXEC-6" as const;
+export const EXECUTION_SPEC_ID = "V1-EXEC-8" as const;
 
 export type {
   ApiErrorResponse,

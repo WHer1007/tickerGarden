@@ -8,7 +8,8 @@ import {LaunchLockerBinding} from "./LaunchLockerBinding.sol";
 
 /// @notice Permanent two-currency custody boundary shared by the final per-market LaunchLocker.
 /// @dev This layer intentionally has no asset/NFT transfer, approval, arbitrary-call, admin, or initialization entry.
-///      C304-B may only compound balances back into the position already frozen by LaunchLockerBinding.
+///      Any directly transferred currency remains permanently isolated with the position; no collection or compound
+///      mutation exists in the final LaunchLocker.
 abstract contract LaunchLockerCustody is LaunchLockerBinding {
     address internal immutable _lockerCurrency0;
     address internal immutable _lockerCurrency1;

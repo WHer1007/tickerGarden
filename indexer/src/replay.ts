@@ -65,7 +65,7 @@ export class CanonicalReplayEngine {
 
   checkpoint(): IndexerCheckpoint {
     return {
-      schemaVersion: 1, executionSpecId: "V1-EXEC-6", chainId: this.chainId, startBlock: this.startBlock,
+      schemaVersion: 1, executionSpecId: "V1-EXEC-8", chainId: this.chainId, startBlock: this.startBlock,
       anchorParentHash: this.anchorParentHash, blocks: this.#blocks,
     };
   }
@@ -119,7 +119,7 @@ export class CanonicalReplayEngine {
     const nextState = rebuild(next);
     if (persist && this.store) {
       await this.store.save({
-        schemaVersion: 1, executionSpecId: "V1-EXEC-6", chainId: this.chainId, startBlock: this.startBlock,
+        schemaVersion: 1, executionSpecId: "V1-EXEC-8", chainId: this.chainId, startBlock: this.startBlock,
         anchorParentHash: this.anchorParentHash, blocks: next,
       });
     }

@@ -291,13 +291,13 @@ contract ProtocolFeeVaultLiabilitiesTest is Test {
         );
 
         vm.expectEmit(true, true, true, true, address(vault));
-        emit CurveFeesSwept(MARKET_ID, 2, address(quote), 1, feeId, 81, 40, 41);
+        emit CurveFeesSwept(MARKET_ID, 2, address(quote), 1, feeId, 81, 57, 24);
         curve.sweep(ILiabilityCurveCreditVault(address(vault)), quote, MARKET_ID, 81, sourceVersion, 1, feeId);
 
-        assertEq(vault.creatorLiability(MARKET_ID, 2, address(quote)), 40);
-        assertEq(vault.liability(MARKET_ID, address(quote), 0), 40);
+        assertEq(vault.creatorLiability(MARKET_ID, 2, address(quote)), 57);
+        assertEq(vault.liability(MARKET_ID, address(quote), 0), 57);
         assertEq(vault.liability(MARKET_ID, address(quote), 1), 0);
-        assertEq(vault.liability(MARKET_ID, address(quote), 2), 41);
+        assertEq(vault.liability(MARKET_ID, address(quote), 2), 24);
         assertEq(vault.totalLiability(address(quote)), 81);
         assertTrue(vault.consumedFeeId(feeId));
     }

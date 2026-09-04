@@ -166,8 +166,8 @@ contract ProtocolFeeVaultCurveCreditTest is Test {
         curve.creditErc20(creditVault, quote, MARKET_ID, 81, SOURCE_VERSION, 1, feeId);
 
         assertEq(quote.balanceOf(address(vault)), 81);
-        assertEq(vault.creatorCredits(MARKET_ID, 1), 40);
-        assertEq(vault.platformCredits(MARKET_ID), 41);
+        assertEq(vault.creatorCredits(MARKET_ID, 1), 57);
+        assertEq(vault.platformCredits(MARKET_ID), 24);
         assertEq(vault.lastNonce(MARKET_ID), 1);
         assertTrue(vault.consumed(feeId));
         assertEq(vault.recordCount(), 1);
@@ -180,8 +180,8 @@ contract ProtocolFeeVaultCurveCreditTest is Test {
         bytes32 feeId = _feeId(address(0), 81, SOURCE_VERSION, 1);
         curve.creditNative{value: 81}(creditVault, MARKET_ID, 81, SOURCE_VERSION, 1, feeId);
         assertEq(address(vault).balance, 858);
-        assertEq(vault.creatorCredits(MARKET_ID, 1), 40);
-        assertEq(vault.platformCredits(MARKET_ID), 41);
+        assertEq(vault.creatorCredits(MARKET_ID, 1), 57);
+        assertEq(vault.platformCredits(MARKET_ID), 24);
     }
 
     function test_successiveSweepsBindTheEpochAtEachCredit() public {
@@ -192,9 +192,9 @@ contract ProtocolFeeVaultCurveCreditTest is Test {
         bytes32 second = _feeId(address(quote), 80, SOURCE_VERSION, 2);
         curve.creditErc20(creditVault, quote, MARKET_ID, 80, SOURCE_VERSION, 2, second);
 
-        assertEq(vault.creatorCredits(MARKET_ID, 1), 40);
-        assertEq(vault.creatorCredits(MARKET_ID, 2), 40);
-        assertEq(vault.platformCredits(MARKET_ID), 80);
+        assertEq(vault.creatorCredits(MARKET_ID, 1), 56);
+        assertEq(vault.creatorCredits(MARKET_ID, 2), 56);
+        assertEq(vault.platformCredits(MARKET_ID), 48);
         assertEq(vault.lastNonce(MARKET_ID), 2);
     }
 

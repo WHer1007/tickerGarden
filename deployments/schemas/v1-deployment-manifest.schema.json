@@ -8,7 +8,7 @@
   "properties": {
     "schemaVersion": { "const": 1 },
     "manifestKind": { "const": "TICKERGARDEN_V1_NETWORK_DEPLOYMENT" },
-    "executionSpecId": { "const": "V1-EXEC-6" },
+    "executionSpecId": { "const": "V1-EXEC-8" },
     "releaseStatus": { "enum": ["DEPLOYMENT_CANDIDATE", "PRODUCTION_CANDIDATE"] },
     "readinessCertificate": { "$ref": "#/$defs/readinessCertificate" },
     "chain": { "$ref": "#/$defs/chainEvidence" },
@@ -26,7 +26,7 @@
     "protocolModules": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["OfficialStockRegistryV1", "ApprovedQuoteRegistry", "PonsBaselineRegistry", "LaunchTemplateRegistry", "LaunchConfigResolver", "TickerGardenFactoryV1", "MarketRegistryV1", "LaunchAndBuyRouter", "TickerMemeTokenV1", "PonsCompatibleCurve", "UserStockVault", "AllocationManager", "MemeStockGauge", "TickerGardenMemeHook", "ProtocolFeeVault", "GraduationExecutor", "LaunchLocker", "CreatorRevenueRegistry"],
+      "required": ["OfficialStockRegistryV1", "ApprovedQuoteRegistry", "PonsBaselineRegistry", "LaunchTemplateRegistry", "LaunchConfigResolver", "TickerGardenFactoryV1", "MarketRegistryV1", "LaunchAndBuyRouter", "TickerMemeTokenV1", "PonsCompatibleCurve", "UserStockVault", "AllocationManager", "MemeStockGauge", "TickerGardenMemeHook", "ProtocolFeeVault", "GraduationExecutor", "LaunchLocker", "CreatorRevenueRegistry", "TreasuryDistributorV1"],
       "properties": {
         "OfficialStockRegistryV1": { "$ref": "#/$defs/moduleDeployment" },
         "ApprovedQuoteRegistry": { "$ref": "#/$defs/moduleDeployment" },
@@ -45,7 +45,8 @@
         "ProtocolFeeVault": { "$ref": "#/$defs/moduleDeployment" },
         "GraduationExecutor": { "$ref": "#/$defs/moduleDeployment" },
         "LaunchLocker": { "$ref": "#/$defs/moduleDeployment" },
-        "CreatorRevenueRegistry": { "$ref": "#/$defs/moduleDeployment" }
+        "CreatorRevenueRegistry": { "$ref": "#/$defs/moduleDeployment" },
+        "TreasuryDistributorV1": { "$ref": "#/$defs/moduleDeployment" }
       }
     },
     "configSnapshot": { "$ref": "#/$defs/configSnapshot" },
@@ -267,14 +268,16 @@
       "required": ["address", "runtimeCodeHash", "framework", "protocolPermissions", "administrativePermissions", "roles", "exactDiffHash", "exactDiffVerified"],
       "properties": {
         "address": { "$ref": "#/$defs/nonZeroAddress" }, "runtimeCodeHash": { "$ref": "#/$defs/bytes32" }, "framework": { "const": "OPENZEPPELIN_ACCESS_MANAGER_5_7_0" },
-        "protocolPermissions": { "type": "array", "minItems": 71, "maxItems": 71, "uniqueItems": true, "items": { "$ref": "#/$defs/permission" } },
+        "protocolPermissions": { "type": "array", "minItems": 86, "maxItems": 86, "uniqueItems": true, "items": { "$ref": "#/$defs/permission" } },
         "administrativePermissions": { "type": "array", "minItems": 6, "maxItems": 6, "uniqueItems": true, "items": { "$ref": "#/$defs/permission" } },
         "roles": {
-          "type": "array", "minItems": 3, "maxItems": 3, "uniqueItems": true, "items": { "$ref": "#/$defs/roleBinding" },
+          "type": "array", "minItems": 5, "maxItems": 5, "uniqueItems": true, "items": { "$ref": "#/$defs/roleBinding" },
           "allOf": [
             { "contains": { "type": "object", "properties": { "roleName": { "const": "PROTOCOL_ADMIN_ROLE" } }, "required": ["roleName"] }, "minContains": 1, "maxContains": 1 },
             { "contains": { "type": "object", "properties": { "roleName": { "const": "PAUSE_GUARDIAN_ROLE" } }, "required": ["roleName"] }, "minContains": 1, "maxContains": 1 },
-            { "contains": { "type": "object", "properties": { "roleName": { "const": "UNPAUSE_ROLE" } }, "required": ["roleName"] }, "minContains": 1, "maxContains": 1 }
+            { "contains": { "type": "object", "properties": { "roleName": { "const": "UNPAUSE_ROLE" } }, "required": ["roleName"] }, "minContains": 1, "maxContains": 1 },
+            { "contains": { "type": "object", "properties": { "roleName": { "const": "ROOT_PUBLISHER_ROLE" } }, "required": ["roleName"] }, "minContains": 1, "maxContains": 1 },
+            { "contains": { "type": "object", "properties": { "roleName": { "const": "ROOT_REVIEW_ROLE" } }, "required": ["roleName"] }, "minContains": 1, "maxContains": 1 }
           ]
         },
         "exactDiffHash": { "$ref": "#/$defs/bytes32" }, "exactDiffVerified": { "const": true }
@@ -363,9 +366,9 @@
     "roleHandoff": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["deployer", "governanceSafe", "guardianSafe", "securityOrGovernanceSafe", "platformTreasury", "handoffTransactions", "deployerRevocationTransactionHash", "deployerRevocationBlock", "deployerRolesRevoked", "safeRolesVerified"],
+      "required": ["deployer", "governanceSafe", "guardianSafe", "securityOrGovernanceSafe", "rootPublisherSafe", "rootReviewerSafe", "platformTreasury", "handoffTransactions", "deployerRevocationTransactionHash", "deployerRevocationBlock", "deployerRolesRevoked", "safeRolesVerified"],
       "properties": {
-        "deployer": { "$ref": "#/$defs/nonZeroAddress" }, "governanceSafe": { "$ref": "#/$defs/nonZeroAddress" }, "guardianSafe": { "$ref": "#/$defs/nonZeroAddress" }, "securityOrGovernanceSafe": { "$ref": "#/$defs/nonZeroAddress" }, "platformTreasury": { "$ref": "#/$defs/nonZeroAddress" },
+        "deployer": { "$ref": "#/$defs/nonZeroAddress" }, "governanceSafe": { "$ref": "#/$defs/nonZeroAddress" }, "guardianSafe": { "$ref": "#/$defs/nonZeroAddress" }, "securityOrGovernanceSafe": { "$ref": "#/$defs/nonZeroAddress" }, "rootPublisherSafe": { "$ref": "#/$defs/nonZeroAddress" }, "rootReviewerSafe": { "$ref": "#/$defs/nonZeroAddress" }, "platformTreasury": { "$ref": "#/$defs/nonZeroAddress" },
         "handoffTransactions": { "type": "array", "minItems": 1, "uniqueItems": true, "items": { "$ref": "#/$defs/handoffTransaction" } },
         "deployerRevocationTransactionHash": { "$ref": "#/$defs/bytes32" }, "deployerRevocationBlock": { "$ref": "#/$defs/decimalString" }, "deployerRolesRevoked": { "const": true }, "safeRolesVerified": { "const": true }
       }

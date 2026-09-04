@@ -46,6 +46,13 @@ def collect_types(abi):
             if previous is not None and previous != fields:
                 raise ValueError(f"ambiguous type definition: {name}")
             definitions[name] = fields
+        for name in module.get("enums", {}):
+            previous = definitions.get(name)
+            if previous is not None and previous != "uint8":
+                raise ValueError(f"ambiguous enum definition: {name}")
+            # Solidity enums are encoded as uint8 while the generated source
+            # keeps the named enum for readability and type safety.
+            definitions[name] = "uint8"
     return definitions
 
 

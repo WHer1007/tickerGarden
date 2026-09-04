@@ -74,7 +74,7 @@ contract PoolExecutionRegistryMock {
                 quoteAssetConfigId: quoteConfigId,
                 launchTemplateId: bytes32("TEMPLATE"),
                 feePolicyId: bytes32("FEE"),
-                executionSpecId: keccak256("V1-EXEC-6"),
+                executionSpecId: keccak256("V1-EXEC-8"),
                 expectedEconomics: bytes32("ECON"),
                 launchConfigId: 0,
                 creatorRevenueBeneficiaryAtCreation: address(0xBEEF),
@@ -314,11 +314,6 @@ contract PoolExecutionLocker is LaunchLockerBinding {
     constructor(bytes32 marketId_, address registry_, address positionManager_)
         LaunchLockerBinding(marketId_, registry_, positionManager_)
     {}
-
-    function compoundLockedFees() external view returns (uint256, uint256, uint128) {
-        _requireLockedPositionOwnership();
-        return (0, 0, 0);
-    }
 
     function unpairedLockedBalance(address currency) external view returns (uint256) {
         if (currency == address(0)) return address(this).balance;

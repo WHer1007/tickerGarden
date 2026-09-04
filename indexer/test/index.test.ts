@@ -29,7 +29,7 @@ function event<Signature extends V1EventSignature>(
 test("exports the immutable V1 indexer descriptor", () => {
   assert.deepEqual(getIndexerDescriptor(), {
     chainId: 4663,
-    executionSpecId: "V1-EXEC-6",
+    executionSpecId: "V1-EXEC-8",
     status: "reorg-replay-and-reconciliation",
     handlersImplemented: true,
   });
@@ -37,7 +37,7 @@ test("exports the immutable V1 indexer descriptor", () => {
 });
 
 test("catalog is generated from V1 artifacts and includes the canonical PoolManager Swap", () => {
-  assert.equal(V1_EVENT_ABI.length, 58);
+  assert.equal(V1_EVENT_ABI.length, 71);
   assert.ok(V1_EVENT_ABI.some(({ signature, modules }) =>
     signature === "MarketCreated(bytes32,bytes32,address,address,address,address,bytes32,bytes32,bytes32)" &&
     modules.includes("TickerGardenFactoryV1"),

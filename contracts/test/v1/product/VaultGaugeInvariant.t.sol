@@ -445,6 +445,14 @@ contract VaultGaugeInvariantTest is StdInvariant, Test {
         assertEq(vault.allocation(ASSET_UID, ALICE, MARKET_A), 0);
         assertEq(vault.rageQuitSettlementPrincipal(ASSET_UID, ALICE, MARKET_A), 1 ether);
         assertEq(_gaugePosition(gaugeA, ALICE), 1 ether);
+        assertEq(gaugeA.storedTotalActiveStock(), 2 ether);
+        assertEq(gaugeA.effectiveTotalActiveStock(), 1 ether);
+
+        // BL-01 regression: later fees use only the Vault-authoritative surviving weight. The exited user is
+        // previewed and eventually settled at the accumulator cutoff captured by the principal transaction.
+        feeVault.credit(gaugeA, address(quote), 200, keccak256("POST-RAGE-QUIT-QUOTE"));
+        assertEq(gaugeA.positionOf(ALICE).quoteClaimable, 200);
+        assertEq(gaugeA.positionOf(BOB).quoteClaimable, 400);
 
         vm.expectRevert(
             abi.encodeWithSelector(MemeStockGauge.RageQuitRewardSettlementPending.selector, ALICE, MARKET_A, 1 ether)
@@ -458,7 +466,7 @@ contract VaultGaugeInvariantTest is StdInvariant, Test {
         assertEq(vault.rageQuitSettlementPrincipal(ASSET_UID, ALICE, MARKET_A), 0);
         assertEq(_gaugePosition(gaugeA, ALICE), 0);
         assertEq(gaugeA.positionOf(ALICE).quoteClaimable, 0);
-        assertEq(gaugeA.positionOf(BOB).quoteClaimable, 400);
+        assertEq(gaugeA.positionOf(BOB).quoteClaimable, 600);
         assertEq(stock.balanceOf(BOB), 0);
         assertEq(vault.allocation(ASSET_UID, BOB, MARKET_A), 1 ether);
     }
@@ -543,6 +551,8 @@ contract VaultGaugeInvariantTest is StdInvariant, Test {
         assertEq(
             gaugeB.storedTotalActiveStock() + gaugeB.totalPendingStock(), vault.marketAllocated(ASSET_UID, MARKET_B)
         );
+        assertEq(gaugeA.effectiveTotalActiveStock(), vault.marketRewardEligible(ASSET_UID, MARKET_A));
+        assertEq(gaugeB.effectiveTotalActiveStock(), vault.marketRewardEligible(ASSET_UID, MARKET_B));
         assertEq(stock.balanceOf(address(gaugeA)), 0);
         assertEq(stock.balanceOf(address(gaugeB)), 0);
         assertEq(stock.balanceOf(address(manager)), 0);

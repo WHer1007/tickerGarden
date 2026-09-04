@@ -12,7 +12,7 @@ from math import isqrt
 
 FEE_PIPS = 10_000
 PIPS_DENOMINATOR = 1_000_000
-LP_SHARE_BPS = 2_000
+LP_SHARE_BPS = 0
 BPS_DENOMINATOR = 10_000
 INDEX_PRECISION = 10**27
 ACTIVATION_WHEEL_SIZE = 32
@@ -37,8 +37,10 @@ SNIPE_TAX_RAW_BY_ELAPSED_SECOND = (9_900, 618, 19)
 SNIPE_MIN_NET_BPS = 100
 MIN_SUPPORTED_ASSET_DECIMALS = 6
 MAX_SUPPORTED_ASSET_DECIMALS = 18
+LEGACY_LP_SHARE_BPS = 2_000
 LEGACY_STAKE_SATURATION_WHOLE_TOKENS = 10
-STAKER_NON_LP_SHARE_BPS = 5_000
+STAKER_NON_LP_SHARE_BPS = 3_000
+PLATFORM_NON_LP_SHARE_BPS = 3_000
 MINIMUM_SAFE_ALLOCATION_RAW = 414
 MAX_ACCOUNTING_AMOUNT = INT128_MAX
 MAX_LIFETIME_FEE_CREDITS = 2**48 - 1
@@ -636,7 +638,7 @@ def stake_saturation_amount(stock_decimals: int) -> int:
 
 
 def validate_minimum_allocation(stock_decimals: int, minimum_allocation: int) -> int:
-    """Validate one V1-EXEC-6 per-asset minimum in canonical raw units."""
+    """Validate one V1-EXEC-8 per-asset minimum in canonical raw units."""
 
     if not MIN_SUPPORTED_ASSET_DECIMALS <= stock_decimals <= MAX_SUPPORTED_ASSET_DECIMALS:
         raise ValueError("unsupported Stock decimals")
@@ -657,7 +659,7 @@ class AccumulatorLifetimeBound:
 
 
 def accumulator_lifetime_bound() -> AccumulatorLifetimeBound:
-    """Prove the base fee-credit index bound for every V1-EXEC-6 asset."""
+    """Prove the base fee-credit index bound for every V1-EXEC-8 asset."""
 
     minimum_active = MINIMUM_SAFE_ALLOCATION_RAW
     maximum_carry = (MAX_ACCOUNTING_AMOUNT - 1) // minimum_active
@@ -744,7 +746,7 @@ class PoolFeePartition:
 
 
 def partition_pool_fee(base: int, active_stock: int) -> PoolFeePartition:
-    """Partition a V1-EXEC-6 pool fee with a fixed active-staker share."""
+    """Partition a V1-EXEC-8 pool fee with no LP leg and fixed beneficiary shares."""
 
     _require_uint(base=base, active_stock=active_stock)
     if base > maximum_post_graduation_fee_base():
@@ -760,9 +762,8 @@ def partition_pool_fee(base: int, active_stock: int) -> PoolFeePartition:
         if active_stock != 0
         else 0
     )
-    remaining = non_lp - staker
-    creator = remaining // 2
-    platform = remaining - creator
+    platform = mul_div_floor(non_lp, PLATFORM_NON_LP_SHARE_BPS, BPS_DENOMINATOR)
+    creator = non_lp - staker - platform
     return PoolFeePartition(
         base=base,
         active_stock=active_stock,
@@ -789,7 +790,7 @@ def partition_pool_fee_linear_legacy(
         raise ValueError("legacy accounting amount exceeds int128.max")
 
     total = mul_div_floor(base, FEE_PIPS, PIPS_DENOMINATOR)
-    lp = mul_div_floor(total, LP_SHARE_BPS, BPS_DENOMINATOR)
+    lp = mul_div_floor(total, LEGACY_LP_SHARE_BPS, BPS_DENOMINATOR)
     non_lp = total - lp
     staker = mul_div_floor(non_lp, min(active_stock, saturation_amount), 2 * saturation_amount)
     remaining = non_lp - staker
@@ -815,11 +816,11 @@ class CurveFeePartition:
 
 
 def partition_curve_fee(total: int) -> CurveFeePartition:
-    """Split curve fees 50/50, assigning the indivisible unit to platform."""
+    """Split curve fees 70/30, assigning every indivisible residual unit to Creator."""
 
     _require_uint(total=total)
-    creator = total // 2
-    return CurveFeePartition(total=total, creator=creator, platform=total - creator)
+    platform = mul_div_floor(total, PLATFORM_NON_LP_SHARE_BPS, BPS_DENOMINATOR)
+    return CurveFeePartition(total=total, creator=total - platform, platform=platform)
 
 
 @dataclass(frozen=True)

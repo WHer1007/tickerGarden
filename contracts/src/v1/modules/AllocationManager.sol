@@ -60,6 +60,26 @@ contract AllocationManager is IAllocationManager, AllocationManagerDeposits {
         return _rageQuitSettlementPending(user, marketId);
     }
 
+    function rageQuitRewardCutoff(bytes32 marketId, address user)
+        external
+        view
+        override
+        returns (uint256 principal, uint256 quoteAccumulator, uint256 memeAccumulator, bool forfeitureRedistributable)
+    {
+        return _rageQuitRewardCutoff(user, marketId);
+    }
+
+    function rewardEligibleActiveStock(bytes32 marketId) external view override returns (uint256) {
+        return _rewardEligibleActiveStock(marketId);
+    }
+
+    function recordGaugeRewardState(bytes32 marketId, uint256 quoteAccumulator, uint256 memeAccumulator)
+        external
+        override
+    {
+        _recordGaugeRewardState(marketId, quoteAccumulator, memeAccumulator);
+    }
+
     function depositAndAllocate(bytes32 marketId, uint256 depositAmount, uint256 allocationAmount) external override {
         _depositAndAllocate(msg.sender, marketId, depositAmount, allocationAmount);
     }

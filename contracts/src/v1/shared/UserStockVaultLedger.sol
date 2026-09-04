@@ -1,12 +1,12 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.26;
 
-import {UserStockVaultDeposits} from "./UserStockVaultDeposits.sol";
+import {UserStockVaultRewardAccounting} from "./UserStockVaultRewardAccounting.sol";
 
 /// @notice Authoritative free, user-market, and market-total STOCK allocation accounting.
 /// @dev Market lifecycle and Gauge position checks belong to AllocationManager. This layer only accepts
 ///      calls from that immutable manager and preserves the Vault's principal-occupancy equations.
-abstract contract UserStockVaultLedger is UserStockVaultDeposits {
+abstract contract UserStockVaultLedger is UserStockVaultRewardAccounting {
     mapping(bytes32 assetUid => mapping(address user => uint256 amount)) internal _allocated;
     mapping(bytes32 assetUid => mapping(address user => mapping(bytes32 marketId => uint256 amount))) internal
         _allocation;
@@ -25,7 +25,7 @@ abstract contract UserStockVaultLedger is UserStockVaultDeposits {
     error NoRageQuitRewardSettlement(address user, bytes32 marketId);
 
     constructor(address officialStockRegistry_, address marketRegistry_, address allocationManager_)
-        UserStockVaultDeposits(officialStockRegistry_, marketRegistry_, allocationManager_)
+        UserStockVaultRewardAccounting(officialStockRegistry_, marketRegistry_, allocationManager_)
     {}
 
     function _lockAllocation(bytes32 assetUid, address user, bytes32 marketId, uint256 amount) internal {
@@ -40,6 +40,7 @@ abstract contract UserStockVaultLedger is UserStockVaultDeposits {
         uint256 freeBalance = _freeBalanceOf(assetUid, user);
         if (amount > freeBalance) revert AllocationExceedsDeposit(amount, freeBalance);
 
+        _lockRewardEligibility(assetUid, user, marketId, amount);
         _allocation[assetUid][user][marketId] += amount;
         _allocated[assetUid][user] += amount;
         _marketAllocated[assetUid][marketId] += amount;
@@ -53,6 +54,7 @@ abstract contract UserStockVaultLedger is UserStockVaultDeposits {
         amount = _allocation[assetUid][user][marketId];
         if (amount == 0) revert NoMarketAllocation(user, marketId);
 
+        _removeRewardEligibility(assetUid, user, marketId, amount);
         _allocation[assetUid][user][marketId] = 0;
         _allocated[assetUid][user] -= amount;
         _marketAllocated[assetUid][marketId] -= amount;
@@ -81,6 +83,8 @@ abstract contract UserStockVaultLedger is UserStockVaultDeposits {
 
         // The tombstone is written before any external token call. If the transfer fails, EVM atomicity rolls
         // this marker and every principal-ledger write back together.
+        _removeRewardEligibility(assetUid, user, marketId, amount);
+        _snapshotRageQuitRewardCutoff(assetUid, user, marketId);
         _rageQuitSettlementPrincipals[assetUid][user][marketId] = amount;
         _allocation[assetUid][user][marketId] = 0;
         _allocated[assetUid][user] -= amount;
@@ -95,6 +99,7 @@ abstract contract UserStockVaultLedger is UserStockVaultDeposits {
         principal = _rageQuitSettlementPrincipals[assetUid][user][marketId];
         if (principal == 0) revert NoRageQuitRewardSettlement(user, marketId);
         delete _rageQuitSettlementPrincipals[assetUid][user][marketId];
+        _clearRageQuitRewardCutoff(assetUid, user, marketId);
     }
 
     function _rageQuitSettlementPrincipal(bytes32 assetUid, address user, bytes32 marketId)

@@ -1,0 +1,317 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Rewards — TickerGarden</title>
+  <link rel="stylesheet" href="./subpages.css">
+  <style>
+    .rewards-runtime{display:grid;gap:8px;min-width:275px;background:#154f3f;border:1px solid #477160;border-radius:15px;padding:16px 18px;color:#fff}
+    .rewards-runtime strong{display:flex;align-items:center;gap:8px;font-size:13px}
+    .rewards-runtime strong i{color:var(--lime)}
+    .rewards-runtime span{color:#bcd0c5;font-size:12px;line-height:1.45}
+    .rewards-tabs{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:22px}
+    .rewards-tabs button{border:1px solid #b4c1b7;background:transparent;border-radius:999px;padding:11px 17px;color:var(--ink);font-weight:800;cursor:pointer}
+    .rewards-tabs button:hover,.rewards-tabs button[aria-selected="true"]{background:var(--ink);border-color:var(--ink);color:#fff}
+    .rewards-tabs button:focus-visible,.rewards-panel button:focus-visible,.rewards-panel input:focus-visible,.rewards-panel select:focus-visible,.rewards-panel textarea:focus-visible{outline:3px solid #b9f31d;outline-offset:2px}
+    .rewards-panel[hidden]{display:none}
+    .rewards-panel-head{display:flex;justify-content:space-between;align-items:start;gap:20px;margin-bottom:22px}
+    .rewards-panel-head h2{font:600 29px "Fraunces",serif;margin:0}
+    .rewards-panel-head p{color:var(--muted);font-size:13px;line-height:1.55;margin:6px 0 0;max-width:720px}
+    .locked-note{display:flex;gap:10px;align-items:start;border-radius:12px;background:#f4f1e8;border:1px dashed #b9c5b9;color:var(--muted);padding:13px 15px;font-size:12px;line-height:1.5}
+    .locked-note i{color:#7a8d82;font-size:18px;flex:0 0 auto}
+    .reward-forms{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:15px}
+    .reward-form{display:grid;gap:12px;border:1px solid var(--line);border-radius:15px;padding:18px;background:#fffefa}
+    .reward-form h3{font:600 21px "Fraunces",serif;margin:0}
+    .reward-form p{color:var(--muted);font-size:12px;line-height:1.5;margin:0}
+    .reward-form .field{margin-top:2px}
+    .reward-form .action-button{margin-top:auto}
+    .reward-form .action-button[disabled],.advanced-actions button[disabled]{cursor:not-allowed;opacity:.48}
+    .danger-panel{border:2px solid var(--coral);background:#fff8f4}
+    .danger-panel h3{color:#b83323}
+    .danger-button{background:var(--coral);color:var(--ink);font-size:14px}
+    .danger-copy{color:#7b342b!important;font-weight:700}
+    .subsection{border-top:1px solid var(--line);margin-top:22px;padding-top:22px}
+    .subsection h3{font:600 22px "Fraunces",serif;margin:0 0 6px}
+    .subsection>p{color:var(--muted);font-size:12px;line-height:1.5;margin:0 0 16px}
+    .reward-data-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;margin:18px 0}
+    .reward-data{background:var(--soft);border-radius:11px;padding:13px;min-width:0}
+    .reward-data small{display:block;color:var(--muted);font-size:11px}
+    .reward-data strong,.reward-data output{display:block;overflow-wrap:anywhere;margin-top:6px;font-size:13px;line-height:1.35}
+    .reward-data output{font-weight:800}
+    .reward-cards{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:15px}
+    .reward-card{display:grid;gap:14px;border:1px solid var(--line);border-radius:15px;padding:19px;background:#fffefa}
+    .reward-card .garden-head{align-items:center}
+    .reward-card h3{font:600 22px "Fraunces",serif;margin:0}
+    .reward-card small{color:var(--muted);font-size:11px}
+    .reward-card .claimable{font:600 27px "Fraunces",serif;color:var(--ink);overflow-wrap:anywhere}
+    .creator-layout,.treasury-layout{display:grid;grid-template-columns:minmax(0,1.45fr) minmax(280px,.55fr);gap:22px}
+    .creator-side,.treasury-side{height:max-content}
+    .action-stack{display:grid;gap:10px}
+    .action-stack .action-button{width:100%}
+    .advanced-actions{display:grid;gap:10px;margin-top:15px}
+    .advanced-actions button{width:100%;border:1px solid #b4c1b7;border-radius:10px;padding:12px;background:transparent;color:var(--ink);font-weight:800}
+    .role-copy{font-size:12px;line-height:1.55;color:var(--muted);margin:0}
+    .proof-box{min-height:90px;resize:vertical}
+    .form-actions{display:flex;gap:10px;flex-wrap:wrap}
+    .form-actions .action-button{width:auto;min-width:180px}
+    @media(max-width:800px){.reward-forms,.reward-cards,.creator-layout,.treasury-layout{grid-template-columns:1fr}.rewards-panel-head{display:block}.rewards-runtime{margin-top:18px}.reward-data-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
+    @media(max-width:520px){.reward-data-grid{grid-template-columns:1fr}.form-actions .action-button{width:100%}}
+  </style>
+</head>
+<body data-page="rewards">
+  <header class="shell-header" data-shell-header></header>
+  <main class="page">
+    <section class="reward-hero" aria-labelledby="rewards-title">
+      <div>
+        <div class="kicker" style="color:#bcd0c5"><i class="ph ph-sparkle" aria-hidden="true"></i>Rewards</div>
+        <h1 id="rewards-title">Protocol rewards<br>when configured.</h1>
+        <p>Manage positions, staker fees, creator revenue and treasury epochs from one wallet-aware surface.</p>
+      </div>
+      <div class="rewards-runtime" data-rewards-runtime>
+        <strong><i class="ph ph-lock-key" aria-hidden="true"></i>Runtime locked</strong>
+        <span data-rewards-status aria-live="polite" role="status">Wallet and V1 runtime configuration are required. No fallback data is shown.</span>
+        <span>Total claimable: <strong data-rewards-total>—</strong></span>
+      </div>
+    </section>
+
+    <section class="panel" aria-label="Rewards workspace">
+      <nav class="rewards-tabs" role="tablist" aria-label="Rewards functions">
+        <button type="button" role="tab" id="rewards-tab-positions" aria-selected="true" aria-controls="rewards-panel-positions" data-rewards-tab="positions">Positions</button>
+        <button type="button" role="tab" id="rewards-tab-staker" aria-selected="false" aria-controls="rewards-panel-staker" data-rewards-tab="staker">Staker rewards</button>
+        <button type="button" role="tab" id="rewards-tab-creator" aria-selected="false" aria-controls="rewards-panel-creator" data-rewards-tab="creator">Creator</button>
+        <button type="button" role="tab" id="rewards-tab-treasury" aria-selected="false" aria-controls="rewards-panel-treasury" data-rewards-tab="treasury">Treasury</button>
+      </nav>
+
+      <section class="rewards-panel" role="tabpanel" id="rewards-panel-positions" aria-labelledby="rewards-tab-positions" data-rewards-panel="positions">
+        <div class="rewards-panel-head">
+          <div>
+            <h2>Positions</h2>
+            <p>Deposit Stock Token into the user vault, allocate it to a configured market, or exit the full position.</p>
+          </div>
+          <div class="field" style="min-width:min(100%,280px)">
+            <label for="position-market">Market</label>
+            <select id="position-market" name="marketId" data-position-market aria-describedby="position-market-help">
+              <option value="">Select a configured market</option>
+            </select>
+            <small id="position-market-help">Markets are loaded from the configured V1 runtime.</small>
+          </div>
+        </div>
+        <p class="locked-note" data-position-summary aria-live="polite"><i class="ph ph-lock-key" aria-hidden="true"></i><span>Locked — connect a wallet and select a configured V1 market to load this position. No fallback balance is available.</span></p>
+
+        <div class="reward-forms" style="margin-top:18px">
+          <form class="reward-form" name="depositStock" data-reward-form="depositStock">
+            <h3>Deposit Stock Token</h3>
+            <p>Move your own Stock Token into the UserStockVault as free stock. This alone does not create a market position.</p>
+            <div class="field"><label for="deposit-stock-amount">Amount</label><input id="deposit-stock-amount" name="amount" data-reward-amount type="number" min="0" step="any" placeholder="Configured amount" autocomplete="off" required></div>
+            <button type="button" disabled class="action-button" data-reward-action="depositStock" data-action="depositStock">Deposit stock</button>
+          </form>
+          <form class="reward-form" name="withdrawFreeStock" data-reward-form="withdrawFreeStock">
+            <h3>Withdraw free stock</h3>
+            <p>Withdraw Stock Token that is free in your vault and is not allocated to a market position.</p>
+            <div class="field"><label for="withdraw-free-stock-amount">Amount</label><input id="withdraw-free-stock-amount" name="amount" data-reward-amount type="number" min="0" step="any" placeholder="Configured amount" autocomplete="off" required></div>
+            <button type="button" disabled class="action-button" data-reward-action="withdrawFreeStock" data-action="withdrawFreeStock">Withdraw free stock</button>
+          </form>
+          <form class="reward-form" name="allocate" data-reward-form="allocate">
+            <h3>Allocate existing stock</h3>
+            <p>Allocate free vault stock to the selected configured market. Allocation rules and lock state come from runtime.</p>
+            <div class="field"><label for="allocate-amount">Amount</label><input id="allocate-amount" name="amount" data-reward-amount type="number" min="0" step="any" placeholder="Configured amount" autocomplete="off" required></div>
+            <button type="button" disabled class="action-button" data-reward-action="allocate" data-action="allocate">Allocate</button>
+          </form>
+          <form class="reward-form" name="depositAndAllocate" data-reward-form="depositAndAllocate">
+            <h3>Deposit and allocate</h3>
+            <p>Deposit Stock Token and allocate the requested amount to the selected market in one transaction.</p>
+            <div class="fields">
+              <div class="field"><label for="deposit-and-allocate-deposit">Deposit amount</label><input id="deposit-and-allocate-deposit" name="depositAmount" type="number" min="0" step="any" placeholder="Configured amount" autocomplete="off" required></div>
+              <div class="field"><label for="deposit-and-allocate-allocation">Allocation amount</label><input id="deposit-and-allocate-allocation" name="allocationAmount" data-reward-amount type="number" min="0" step="any" placeholder="Configured amount" autocomplete="off" required></div>
+            </div>
+            <button type="button" disabled class="action-button" data-reward-action="depositAndAllocate" data-action="depositAndAllocate">Deposit and allocate</button>
+          </form>
+          <form class="reward-form" name="closeAllocation" data-reward-form="closeAllocation">
+            <h3>Close allocation</h3>
+            <p>Close the full normal allocation after the configured unlock condition. Already settled rewards remain claimable.</p>
+            <button type="button" disabled class="action-button" data-reward-action="closeAllocation" data-action="closeAllocation">Close full allocation</button>
+          </form>
+          <form class="reward-form danger-panel" name="rageQuit" data-reward-form="rageQuit">
+            <h3><i class="ph ph-warning" aria-hidden="true"></i> Immediate escape</h3>
+            <p class="danger-copy">Rage quit returns only your own principal immediately, forfeits all unclaimed rewards, and is not blocked by market phase or lock state.</p>
+            <button type="button" disabled class="action-button danger-button" data-reward-action="rageQuit" data-action="rageQuit" data-reward-route="allocation-manager">Rage quit position</button>
+          </form>
+        </div>
+
+        <div class="subsection">
+          <h3>Direct vault escape</h3>
+          <p>This independent on-chain route does not depend on the read API, market phase, Gauge, rewards, lock time, or asset admission status. Enter the canonical marketId; Factory, Registry, assetUid and Vault bindings are derived and verified directly on Robinhood Chain before signing.</p>
+          <form class="reward-form danger-panel" name="directVaultRageQuit" data-reward-form="directVaultRageQuit">
+            <div class="fields">
+              <div class="field full"><label for="direct-vault-market-id">Canonical marketId</label><input id="direct-vault-market-id" name="marketId" data-direct-vault-market type="text" inputmode="text" autocomplete="off" placeholder="0x followed by 64 hexadecimal characters" pattern="0x[0-9a-fA-F]{64}" aria-describedby="direct-vault-help" required></div>
+              <div class="field"><label for="direct-vault-asset-uid">Derived assetUid</label><output id="direct-vault-asset-uid" data-direct-vault-asset>—</output></div>
+              <div class="field"><label for="direct-vault-principal">Allocated principal</label><output id="direct-vault-principal" data-direct-vault-principal>—</output></div>
+            </div>
+            <p id="direct-vault-help" data-direct-vault-status role="status" aria-live="polite">Connect a wallet and enter a marketId to verify the independent principal route.</p>
+            <button type="button" disabled class="action-button danger-button" data-reward-action="directVaultRageQuit" data-action="directVaultRageQuit" aria-describedby="direct-vault-help">Direct vault rage quit</button>
+          </form>
+        </div>
+
+        <div class="subsection">
+          <h3>Settle forfeited rewards</h3>
+          <p>Permissionless cleanup retries the reward settlement after principal has already been returned. It never transfers principal a second time.</p>
+          <form class="reward-form" name="settleRageQuitRewards" data-reward-form="settleRageQuitRewards">
+            <div class="fields">
+              <div class="field"><label for="settle-market">Market</label><select id="settle-market" name="marketId" data-settle-market required><option value="">Use selected market</option></select></div>
+              <div class="field"><label for="settle-user">Position owner</label><input id="settle-user" name="user" data-settle-user type="text" placeholder="Wallet address" autocomplete="off" pattern="0x[0-9a-fA-F]{40}" required></div>
+            </div>
+            <button type="button" disabled class="action-button" data-reward-action="settleRageQuitRewards" data-action="settleRageQuitRewards">Settle rage-quit rewards</button>
+          </form>
+        </div>
+      </section>
+
+      <section class="rewards-panel" role="tabpanel" id="rewards-panel-staker" aria-labelledby="rewards-tab-staker" data-rewards-panel="staker" hidden>
+        <div class="rewards-panel-head">
+          <div>
+            <h2>Staker rewards</h2>
+            <p>Review the two dynamically quoted fee assets for the selected market and claim each asset independently.</p>
+          </div>
+        </div>
+        <div class="locked-note" data-staker-status aria-live="polite"><i class="ph ph-lock-key" aria-hidden="true"></i><span>Locked — connect a wallet and select a configured market. Claimable values come from the live V1 runtime.</span></div>
+        <div class="reward-cards" data-staker-rewards aria-live="polite" style="margin-top:18px">
+          <article class="reward-card" data-staker-reward="quote">
+            <div class="garden-head"><span class="token-mark lime"><img src="./assets/tickergarden-mark.png" alt=""></span><div><h3>Quote rewards</h3><small>Fee asset claimable for this position</small></div></div>
+            <div class="claimable" data-staker-claimable="quote">Locked — live quote required</div>
+            <button type="button" disabled class="action-button" data-reward-action="claimStaker" data-action="claimStaker" data-reward-asset="quote">Claim quote rewards</button>
+          </article>
+          <article class="reward-card" data-staker-reward="meme">
+            <div class="garden-head"><span class="token-mark coral"><img src="./assets/tickergarden-mark.png" alt=""></span><div><h3>Ticker Meme rewards</h3><small>Fee asset claimable for this position</small></div></div>
+            <div class="claimable" data-staker-claimable="meme">Locked — live Meme reward required</div>
+            <button type="button" disabled class="action-button" data-reward-action="claimStaker" data-action="claimStaker" data-reward-asset="meme">Claim Meme rewards</button>
+          </article>
+        </div>
+        <p class="locked-note" style="margin-top:18px"><i class="ph ph-info" aria-hidden="true"></i><span>Claiming settled staker rewards does not end or close your position.</span></p>
+      </section>
+
+      <section class="rewards-panel" role="tabpanel" id="rewards-panel-creator" aria-labelledby="rewards-tab-creator" data-rewards-panel="creator" hidden>
+        <div class="creator-layout">
+          <div>
+            <div class="rewards-panel-head">
+              <div><h2>Creator revenue</h2><p>Inspect the configured creator beneficiary and claim a finalized creator epoch.</p></div>
+            </div>
+            <div class="fields">
+              <div class="field"><label for="creator-market">Market</label><select id="creator-market" name="marketId" data-creator-market><option value="">Select a configured market</option></select></div>
+              <div class="field"><label for="creator-epoch">Creator epoch</label><input id="creator-epoch" name="epoch" data-creator-epoch type="number" min="0" step="1" placeholder="Configured epoch" inputmode="numeric"></div>
+              <div class="field full"><label for="creator-beneficiary">Selected epoch beneficiary</label><output id="creator-beneficiary" data-creator-beneficiary>Locked — beneficiary unavailable</output></div>
+              <div class="field full"><label for="creator-current-beneficiary">Current future-revenue controller</label><output id="creator-current-beneficiary" data-creator-current-beneficiary>Locked — beneficiary unavailable</output></div>
+              <div class="field full"><label for="creator-status">Runtime status</label><output id="creator-status" data-creator-status aria-live="polite">Locked — connect wallet and load a configured market</output></div>
+            </div>
+            <div class="subsection">
+              <form class="reward-form" name="claimCreator" data-reward-form="claimCreator">
+                <h3>Claim creator revenue</h3>
+                <p>Claims the stored beneficiary for the selected market and epoch. The destination is determined by protocol state.</p>
+                <div class="field"><label for="creator-fee-asset">Fee asset</label><input id="creator-fee-asset" name="feeAsset" data-creator-fee-asset type="text" placeholder="Configured fee asset" autocomplete="off" pattern="0x[0-9a-fA-F]{40}" required></div>
+                <button type="button" disabled class="action-button" data-reward-action="claimCreator" data-action="claimCreator">Claim creator revenue</button>
+              </form>
+            </div>
+            <div class="subsection">
+              <form class="reward-form" name="transferCreatorRevenueBeneficiary" data-reward-form="transferCreatorRevenueBeneficiary">
+                <h3>Transfer future beneficiary</h3>
+                <p>Only the current creator beneficiary may transfer future creator revenue. The runtime must confirm that caller before enabling this action.</p>
+                <div class="field"><label for="new-creator-beneficiary">New beneficiary address</label><input id="new-creator-beneficiary" name="newBeneficiary" data-creator-new-beneficiary type="text" placeholder="Wallet address" autocomplete="off" pattern="0x[0-9a-fA-F]{40}" required></div>
+                <button type="button" disabled class="action-button" data-reward-action="transferCreatorRevenueBeneficiary" data-action="transferCreatorRevenueBeneficiary">Transfer beneficiary</button>
+              </form>
+            </div>
+          </div>
+          <aside class="panel creator-side">
+            <div class="kicker"><i class="ph ph-user-circle" aria-hidden="true"></i>Beneficiary rules</div>
+            <p class="role-copy" style="margin-top:16px">Claims always pay the beneficiary recorded for the selected epoch. Only the current epoch beneficiary may transfer future revenue; historical epoch liabilities never move.</p>
+            <div class="preview-list" style="margin-top:18px"><div><span>Market</span><strong data-creator-market-summary>—</strong></div><div><span>Epoch</span><strong data-creator-epoch-summary>—</strong></div><div><span>Status</span><strong data-creator-status-summary>Locked</strong></div></div>
+          </aside>
+        </div>
+      </section>
+
+      <section class="rewards-panel" role="tabpanel" id="rewards-panel-treasury" aria-labelledby="rewards-tab-treasury" data-rewards-panel="treasury" hidden>
+        <div class="treasury-layout">
+          <div>
+            <div class="rewards-panel-head">
+              <div><h2>Treasury epochs</h2><p>Request a Root, claim from a finalized Root, or help advance an expired request. Root data is supplied by the configured proof API.</p><p class="role-copy">Treasury Roots are attested, publicly reproducible, and review-delayed. They are not trustless and do not carry a validity proof; verify the published source and computation before claiming.</p></div>
+            </div>
+            <div class="fields">
+              <div class="field"><label for="treasury-market">Market</label><select id="treasury-market" name="marketId" data-treasury-market><option value="">Select a configured market</option></select></div>
+              <div class="field"><label for="treasury-epoch">Epoch</label><input id="treasury-epoch" name="epoch" data-treasury-epoch type="number" min="1" step="1" placeholder="Epoch number" inputmode="numeric"><small>Any canonical epoch from 1 through the current epoch.</small></div>
+            </div>
+            <div class="reward-data-grid" aria-label="Treasury epoch status">
+              <div class="reward-data"><small>Status</small><output data-treasury-status aria-live="polite">Locked</output></div>
+              <div class="reward-data"><small>Epoch identifier</small><output data-treasury-epoch-id>—</output></div>
+              <div class="reward-data"><small>Merkle Root</small><output data-treasury-root>—</output></div>
+              <div class="reward-data"><small>Root service fee</small><output data-treasury-fee>Locked — configuration required</output></div>
+              <div class="reward-data"><small>Holder claimable</small><output data-treasury-claimable>Locked — finalized Root required</output></div>
+              <div class="reward-data"><small>Proof source</small><output data-treasury-proof>Locked — proof API not configured</output></div>
+            </div>
+            <p class="locked-note" data-treasury-status-note aria-live="polite"><i class="ph ph-lock-key" aria-hidden="true"></i><span>Locked — connect a wallet, choose a configured market and epoch, and load live treasury state. No Root, fee, claim or proof fallback is provided.</span></p>
+
+            <div class="subsection">
+              <form class="reward-form" name="requestRoot" data-reward-form="requestRoot">
+                <h3>Request a Root</h3>
+                <p>The current Meme holder may request a Root for a closed/finalized epoch. The configured service fee may be native currency or an ERC-20; ERC-20 requests require allowance before signing.</p>
+                <div class="fields">
+                  <div class="field"><label for="root-service-fee-asset">Service fee asset</label><output id="root-service-fee-asset" data-treasury-fee-asset>Locked — live configuration required</output></div>
+                  <div class="field"><label for="root-service-fee-allowance">ERC-20 allowance</label><output id="root-service-fee-allowance" data-treasury-fee-allowance>Locked — live allowance required</output></div>
+                </div>
+                <button type="button" disabled class="action-button" data-reward-action="requestRoot" data-action="requestRoot">Request Root</button>
+              </form>
+            </div>
+
+            <div class="subsection">
+              <form class="reward-form" name="claim" data-reward-form="claim">
+                <h3>Claim from finalized Root</h3>
+                <p>The configured proof API supplies the leaf and proof. Quote is always sent to the account in that leaf; this page does not accept an arbitrary recipient.</p>
+                <div class="fields">
+                  <div class="field"><label for="claim-leaf-index">Leaf index</label><input id="claim-leaf-index" name="leafIndex" data-treasury-leaf-index type="number" min="0" step="1" placeholder="Proof API value" inputmode="numeric" readonly></div>
+                  <div class="field"><label for="claim-account">Leaf account (fixed recipient)</label><input id="claim-account" name="account" data-treasury-leaf-account type="text" placeholder="Proof API value" autocomplete="off" readonly></div>
+                  <div class="field"><label for="claim-twab">TWAB numerator</label><input id="claim-twab" name="twab" data-treasury-twab type="number" min="0" step="1" placeholder="Proof API value" inputmode="numeric" readonly></div>
+                  <div class="field"><label for="claim-amount">Quote amount</label><input id="claim-amount" name="amount" data-treasury-claim-amount type="number" min="0" step="any" placeholder="Proof API value" readonly></div>
+                  <div class="field full"><label for="claim-proof">Merkle proof</label><textarea id="claim-proof" name="proof" class="proof-box" data-treasury-proof-input placeholder="Proof API value" spellcheck="false" readonly></textarea></div>
+                </div>
+                <button type="button" disabled class="action-button" data-reward-action="claim" data-action="claim">Claim treasury allocation</button>
+              </form>
+            </div>
+
+            <div class="subsection">
+              <h3>Permissionless epoch actions</h3>
+              <p>These actions can move the configured Root state forward after the relevant time condition. Runtime checks must remain authoritative.</p>
+              <div class="form-actions">
+                <button type="button" disabled class="action-button" data-reward-action="finalizeRoot" data-action="finalizeRoot">Finalize Root</button>
+                <button type="button" disabled class="action-button" data-reward-action="expireRootRequest" data-action="expireRootRequest">Expire Root request</button>
+                <button type="button" disabled class="action-button" data-reward-action="rolloverExpiredEpoch" data-action="rolloverExpiredEpoch">Rollover expired epoch</button>
+              </div>
+            </div>
+
+            <div class="subsection">
+              <form class="reward-form" name="withdrawServiceCredit" data-reward-form="withdrawServiceCredit">
+                <h3>Withdraw Root service credit</h3>
+                <p>If a Root request expires or is rejected, its requester receives a pull-based refund credit. Enter the original fee asset; use the zero address for native ETH. Funds can only be paid to the connected credit beneficiary.</p>
+                <div class="fields">
+                  <div class="field"><label for="treasury-service-credit-asset">Credit asset</label><input id="treasury-service-credit-asset" name="serviceCreditAsset" data-treasury-service-credit-asset type="text" inputmode="text" autocomplete="off" placeholder="0x…; zero address for native ETH" pattern="0x[0-9a-fA-F]{40}" required></div>
+                  <div class="field"><label for="treasury-service-credit">Available credit</label><output id="treasury-service-credit" data-treasury-service-credit>Locked — live credit required</output></div>
+                </div>
+                <button type="button" disabled class="action-button" data-reward-action="withdrawServiceCredit" data-action="withdrawServiceCredit">Withdraw service credit</button>
+              </form>
+            </div>
+
+            <details class="subsection" data-treasury-advanced>
+              <summary style="cursor:pointer;font-weight:800">Protocol integration boundary</summary>
+              <p style="margin-top:12px">Funding Quote Treasury and burning Ticker Meme belong to the protocol integration runtime. They are intentionally absent from the holder interface and cannot be submitted from this page.</p>
+            </details>
+          </div>
+          <aside class="panel treasury-side">
+            <div class="kicker"><i class="ph ph-shield-check" aria-hidden="true"></i>Role boundary</div>
+            <p class="role-copy" style="margin-top:16px"><code>publishRoot</code> belongs to the authorized platform publisher. <code>cancelPendingRoot</code> belongs to the independent reviewer. Neither role is exposed as a holder action here.</p>
+            <div class="preview-list" style="margin-top:18px"><div><span>Root publisher</span><strong>Platform role only</strong></div><div><span>Pending-root reviewer</span><strong>Reviewer role only</strong></div><div><span>Holder recipient</span><strong data-treasury-recipient>Leaf account only</strong></div></div>
+          </aside>
+        </div>
+      </section>
+    </section>
+  </main>
+  <footer class="shell-footer" data-shell-footer></footer>
+  <div class="toast" data-toast role="status" aria-live="polite" aria-atomic="true"></div>
+  <script type="module" src="./subpages.js"></script>
+</body>
+</html>

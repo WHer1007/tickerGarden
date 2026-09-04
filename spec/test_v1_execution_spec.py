@@ -21,6 +21,7 @@ from spec.v1_reference_model import (
     MINIMUM_SAFE_ALLOCATION_RAW,
     MIN_SUPPORTED_ASSET_DECIMALS,
     PIPS_DENOMINATOR,
+    PLATFORM_NON_LP_SHARE_BPS,
     STAKER_NON_LP_SHARE_BPS,
     UINT64_MAX,
     UINT256_MAX,
@@ -78,15 +79,74 @@ class V1ExecutionSpecTest(unittest.TestCase):
         cls.pons_runtime_evidence = load("v1_pons_runtime_evidence.json")
         cls.initial_quote_configs = load("v1_initial_quote_configs.json")
         cls.numeric_bounds = load("v1_numeric_bounds.json")
+        cls.treasury_manifest = load("v1_treasury_execution_manifest.json")
         cls.official_stock_catalog = load("v1_rh_official_stock_catalog.snapshot.json")
         cls.official_stock_catalog_raw = (ROOT / "v1_rh_official_stock_catalog.source.json").read_bytes()
 
     def test_spec_ids_match(self):
-        expected = "V1-EXEC-6"
+        expected = "V1-EXEC-8"
         self.assertEqual(self.manifest["executionSpecId"], expected)
         self.assertEqual(self.permissions["executionSpecId"], expected)
         self.assertEqual(self.abi["executionSpecId"], expected)
         self.assertEqual(self.canonical_abi["executionSpecId"], expected)
+
+    def test_treasury_access_manager_surface_is_explicit_and_matches_permissions(self):
+        treasury = self.treasury_manifest
+        access = treasury["accessManager"]
+        self.assertTrue(treasury["v1Compatibility"]["changesV1Contracts"])
+        self.assertTrue(treasury["v1Compatibility"]["changesV1Abi"])
+        self.assertEqual(
+            access["bindings"],
+            {
+                "authority": "IMMUTABLE_SHARED_V1_ACCESS_MANAGER",
+                "marketRegistry": "IMMUTABLE_CANONICAL_MARKET_REGISTRY_V1",
+                "livePreflightRequired": True,
+            },
+        )
+        self.assertEqual(
+            {
+                role["roleName"]: (
+                    role["roleId"],
+                    role["executionDelaySeconds"],
+                )
+                for role in access["roles"]
+            },
+            {
+                "PROTOCOL_ADMIN_ROLE": ("1", 172800),
+                "PAUSE_GUARDIAN_ROLE": ("2", 0),
+                "ROOT_PUBLISHER_ROLE": ("4", 0),
+                "ROOT_REVIEW_ROLE": ("5", 0),
+            },
+        )
+
+        declared = {
+            row["signature"]: (
+                row["caller"],
+                row.get("executionDelaySeconds", 0),
+            )
+            for row in access["restrictedFunctions"] + access["directFunctions"]
+        }
+        permissions = {
+            row["signature"]: (row["caller"], row["delaySeconds"])
+            for row in self.permissions["functions"]
+            if row["module"] == "TreasuryDistributorV1"
+        }
+        self.assertEqual(declared, permissions)
+        self.assertEqual(
+            {row["signature"] for row in access["restrictedFunctions"]},
+            {
+                "registerMarket(bytes32,address,address,bytes32)",
+                "setRootServiceFee(address,uint128)",
+                "publishRoot(bytes32,uint32,bytes32,bytes32,uint256,uint32,uint256)",
+                "cancelPendingRoot(bytes32,uint32,bytes32)",
+            },
+        )
+        direct = {row["signature"]: row["caller"] for row in access["directFunctions"]}
+        self.assertEqual(direct["activateMarket(bytes32)"], "PUBLIC")
+        self.assertTrue(access["handoff"]["dedicatedRootSafesRequired"])
+        self.assertTrue(access["handoff"]["rootSafesMustNotAliasCoreSafes"])
+        self.assertTrue(access["handoff"]["selectorAssignmentsFrozenBeforeProduction"])
+        self.assertTrue(access["handoff"]["bootstrapAdminRenouncedLast"])
 
     def test_pons_vectors_match_reference_model_and_bind_runtime_evidence(self):
         vectors = self.pons_vectors
@@ -409,7 +469,11 @@ class V1ExecutionSpecTest(unittest.TestCase):
         self.assertNotIn("V1-G0-BATCH-01", implementation_open)
         self.assertIn("V1-DEPLOY-ABI-DIFF-01", gate_sets["deployment"]["open"])
         self.assertIn("V1-PROD-SOAK-72H-01", gate_sets["production"]["open"])
-        for relative in ("README.md", "website/src/App.jsx", "V1_READINESS_AND_DEPLOYMENT_GATES.md"):
+        for relative in (
+            "README.md",
+            "website-fruit-tree/README.md",
+            "V1_READINESS_AND_DEPLOYMENT_GATES.md",
+        ):
             surface = (PROJECT_ROOT / relative).read_text(encoding="utf-8")
             self.assertIn(readiness["state"], surface, relative)
 
@@ -547,7 +611,7 @@ class V1ExecutionSpecTest(unittest.TestCase):
             "(address,address,address,address,address,address,address,address)",
         )
         locker = {entry["signature"] for entry in modules["LaunchLocker"]["functions"]}
-        self.assertIn("compoundLockedFees()", locker)
+        self.assertNotIn("compoundLockedFees()", locker)
         self.assertNotIn("compoundLockedFees(bytes32)", locker)
         required_errors = set(self.abi["requiredErrors"])
         for error in (
@@ -564,7 +628,9 @@ class V1ExecutionSpecTest(unittest.TestCase):
         fee = self.manifest["postGraduationFee"]
         pool = self.manifest["canonicalPool"]
         self.assertEqual(fee["feePips"] * 100, fee["pipsDenominator"])
-        self.assertEqual(fee["lpShareBps"] * 5, fee["bpsDenominator"])
+        self.assertEqual(fee["lpShareBps"], 0)
+        self.assertEqual(pool["lpDistribution"], "NONE")
+        self.assertEqual(pool["hookFeeDestination"], "PROTOCOL_FEE_VAULT_FULL_AMOUNT")
         self.assertEqual(pool["poolKeyFee"], 0)
         self.assertEqual(pool["requiredSlot0LpFee"], 0)
         self.assertEqual(pool["requiredPackedProtocolFee"], 0)
@@ -630,9 +696,10 @@ class V1ExecutionSpecTest(unittest.TestCase):
                 )
                 self.assertEqual(partition.staker, expected_staker)
                 self.assertEqual(
-                    partition.platform - partition.creator,
-                    (partition.non_lp - partition.staker) % 2,
+                    partition.platform,
+                    partition.non_lp * PLATFORM_NON_LP_SHARE_BPS // BPS_DENOMINATOR,
                 )
+                self.assertEqual(partition.lp, 0)
 
     def test_activation_wheel_is_bounded_and_collision_safe(self):
         activation = self.manifest["activation"]
@@ -837,6 +904,11 @@ class V1ExecutionSpecTest(unittest.TestCase):
             "EXACT_REGISTERED_GAUGE",
             "FEE_VAULT",
             "CURRENT_CREATOR_BENEFICIARY",
+            "TREASURY_DISTRIBUTOR_MODULE",
+            "CURRENT_MEME_HOLDER",
+            "ROOT_PUBLISHER_ROLE",
+            "ROOT_REVIEW_ROLE",
+            "SERVICE_BENEFICIARY",
         }
         for module in self.abi["modules"]:
             for function in module.get("functions", []):
@@ -1039,7 +1111,7 @@ class V1ExecutionSpecTest(unittest.TestCase):
         self.assertTrue(all(len(entry["result"]) == 66 for entry in vectors.values()))
         self.assertEqual(vectors["expectedEconomics"]["inputs"]["schemaVersion"], "3")
         self.assertEqual(vectors["ponsBaselineHash"]["inputs"]["schemaVersion"], "1")
-        self.assertEqual(vectors["feePolicyHash"]["inputs"]["schemaVersion"], "3")
+        self.assertEqual(vectors["feePolicyHash"]["inputs"]["schemaVersion"], "4")
         self.assertEqual(vectors["quoteEconomicsHash"]["inputs"]["schemaVersion"], "1")
 
         template_fields = self.hash_schemas["schemas"]["launchTemplateHash"]["fields"]
@@ -1681,10 +1753,11 @@ class V1ExecutionSpecTest(unittest.TestCase):
             fee["stakerEligibility"],
             "ANY_POSITIVE_ACTIVE_STOCK",
         )
-        self.assertEqual(fee["stakerNonLpShareBps"], 5_000)
+        self.assertEqual(fee["stakerNonLpShareBps"], 3_000)
+        self.assertEqual(fee["platformNonLpShareBps"], 3_000)
         self.assertEqual(
             fee["stakerFormula"],
-            "activeStock==0?0:floor(nonLpAmount*5000/10000)",
+            "activeStock==0?0:floor(nonLpAmount*3000/10000)",
         )
         self.assertEqual(
             fee["stakerReleaseMode"], "FIXED_BINARY_BY_ACTIVE_STOCK"
@@ -1694,6 +1767,7 @@ class V1ExecutionSpecTest(unittest.TestCase):
             "fields"
         ]
         self.assertIn("uint16 stakerNonLpShareBps", fee_policy_fields)
+        self.assertIn("uint16 platformNonLpShareBps", fee_policy_fields)
         self.assertFalse(
             any("stakeSaturation" in declaration for declaration in fee_policy_fields)
         )
@@ -1709,7 +1783,8 @@ class V1ExecutionSpecTest(unittest.TestCase):
         self.assertEqual(MIN_SUPPORTED_ASSET_DECIMALS, 6)
         self.assertEqual(MAX_ACCOUNTING_AMOUNT, INT128_MAX)
         self.assertEqual(MAX_LIFETIME_FEE_CREDITS, 2**48 - 1)
-        self.assertEqual(STAKER_NON_LP_SHARE_BPS, 5_000)
+        self.assertEqual(STAKER_NON_LP_SHARE_BPS, 3_000)
+        self.assertEqual(PLATFORM_NON_LP_SHARE_BPS, 3_000)
         self.assertEqual(MINIMUM_SAFE_ALLOCATION_RAW, 414)
         self.assertEqual(
             int(bounds["assetAdmission"]["minimumAllocationSafetyFloorRaw"]),
@@ -1885,22 +1960,23 @@ class V1ExecutionSpecTest(unittest.TestCase):
         self.assertEqual(LP_SHARE_BPS, fee["lpShareBps"])
         self.assertEqual(BPS_DENOMINATOR, fee["bpsDenominator"])
         self.assertEqual(STAKER_NON_LP_SHARE_BPS, fee["stakerNonLpShareBps"])
+        self.assertEqual(PLATFORM_NON_LP_SHARE_BPS, fee["platformNonLpShareBps"])
         self.assertEqual(INDEX_PRECISION, 10**27)
 
     def test_reference_fee_model_matches_examples_and_conserves(self):
         active = partition_pool_fee(base=1_000, active_stock=1)
         self.assertEqual(
             (active.creator, active.staker, active.platform, active.lp),
-            (2, 4, 2, 2),
+            (4, 3, 3, 0),
         )
         large = partition_pool_fee(base=1_000, active_stock=INT128_MAX)
         self.assertEqual(
             (large.creator, large.staker, large.platform, large.lp),
-            (2, 4, 2, 2),
+            (4, 3, 3, 0),
         )
         empty = partition_pool_fee(base=1_000, active_stock=0)
         self.assertEqual(
-            (empty.creator, empty.staker, empty.platform, empty.lp), (4, 0, 4, 2)
+            (empty.creator, empty.staker, empty.platform, empty.lp), (7, 0, 3, 0)
         )
 
         for base in range(0, 100_001):
@@ -1913,13 +1989,15 @@ class V1ExecutionSpecTest(unittest.TestCase):
                 )
                 self.assertEqual(
                     result.staker,
-                    0 if active_stock == 0 else result.non_lp * 5_000 // 10_000,
+                    0 if active_stock == 0 else result.non_lp * 3_000 // 10_000,
                 )
+                self.assertEqual(result.platform, result.non_lp * 3_000 // 10_000)
 
         for total in range(0, 1_001):
             curve = partition_curve_fee(total)
             self.assertEqual(curve.creator + curve.platform, total)
-            self.assertGreaterEqual(curve.platform, curve.creator)
+            self.assertEqual(curve.platform, total * 3_000 // 10_000)
+            self.assertGreaterEqual(curve.creator, curve.platform)
 
     def test_reference_accumulator_preserves_scaled_numerator(self):
         remainder = 9

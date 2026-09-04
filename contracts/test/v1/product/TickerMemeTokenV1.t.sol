@@ -17,7 +17,9 @@ contract TokenFactoryHarness {
         string memory metadataURI,
         uint256 supply
     ) external returns (TickerMemeTokenV1 token) {
-        token = new TickerMemeTokenV1{salt: salt}(marketId, creator, predictedCurve, name, symbol, metadataURI, supply);
+        token = new TickerMemeTokenV1{salt: salt}(
+            marketId, creator, predictedCurve, address(this), name, symbol, metadataURI, supply
+        );
     }
 
     function predict(
@@ -32,12 +34,16 @@ contract TokenFactoryHarness {
     ) external view returns (address) {
         bytes memory initCode = abi.encodePacked(
             type(TickerMemeTokenV1).creationCode,
-            abi.encode(marketId, creator, predictedCurve, name, symbol, metadataURI, supply)
+            abi.encode(marketId, creator, predictedCurve, address(this), name, symbol, metadataURI, supply)
         );
         return
             address(
                 uint160(uint256(keccak256(abi.encodePacked(bytes1(0xff), address(this), salt, keccak256(initCode)))))
             );
+    }
+
+    function burnTreasury(TickerMemeTokenV1 token, uint256 amount) external {
+        token.burnTreasury(amount);
     }
 }
 
@@ -65,11 +71,13 @@ contract TickerMemeTokenV1Test is Test {
         assertEq(token.marketId(), MARKET_ID);
         assertEq(token.creator(), CREATOR);
         assertEq(token.factory(), address(factory));
+        assertEq(token.treasuryDistributor(), address(factory));
         assertEq(token.name(), "Ticker Garden");
         assertEq(token.symbol(), "TGRDN");
         assertEq(token.decimals(), 18);
         assertEq(token.metadataURI(), "ipfs://market-1");
         assertEq(token.initialSupply(), SUPPLY);
+        assertGt(token.deployedAt(), 0);
     }
 
     function test_entireSupplyIsMintedOnceDirectlyToPredictedCurve() public view {
@@ -112,15 +120,23 @@ contract TickerMemeTokenV1Test is Test {
         assertEq(token.totalSupply(), SUPPLY);
     }
 
-    function test_noPostDeploymentMintBurnPauseTaxOrMetadataMutationPath() public {
-        bytes4[7] memory forbidden = [
+    function test_treasuryBurnIsTheOnlyPostDeploymentSupplyMutation() public {
+        vm.prank(CURVE);
+        token.transfer(address(factory), 10 ether);
+        vm.expectRevert(abi.encodeWithSelector(TickerMemeTokenV1.UnauthorizedTreasury.selector, BUYER));
+        vm.prank(BUYER);
+        token.burnTreasury(1 ether);
+        factory.burnTreasury(token, 4 ether);
+        assertEq(token.totalSupply(), SUPPLY - 4 ether);
+        assertEq(token.balanceOf(address(factory)), 6 ether);
+
+        bytes4[6] memory forbidden = [
             bytes4(keccak256("mint(address,uint256)")),
             bytes4(keccak256("burn(uint256)")),
             bytes4(keccak256("pause()")),
             bytes4(keccak256("blacklist(address)")),
             bytes4(keccak256("setTax(uint256)")),
-            bytes4(keccak256("setMetadataURI(string)")),
-            bytes4(keccak256("rebase(uint256)"))
+            bytes4(keccak256("setMetadataURI(string)"))
         ];
         uint256 supplyBefore = token.totalSupply();
         for (uint256 i; i < forbidden.length; ++i) {
@@ -132,23 +148,29 @@ contract TickerMemeTokenV1Test is Test {
 
     function test_constructorRejectsIncompleteIdentityOrZeroSupply() public {
         vm.expectRevert(TickerMemeTokenV1.InvalidTokenIdentity.selector);
-        new TickerMemeTokenV1(bytes32(0), CREATOR, CURVE, "Name", "SYM", "uri", SUPPLY);
+        new TickerMemeTokenV1(bytes32(0), CREATOR, CURVE, address(this), "Name", "SYM", "uri", SUPPLY);
 
         vm.expectRevert(TickerMemeTokenV1.InvalidTokenIdentity.selector);
-        new TickerMemeTokenV1(MARKET_ID, address(0), CURVE, "Name", "SYM", "uri", SUPPLY);
+        new TickerMemeTokenV1(MARKET_ID, address(0), CURVE, address(this), "Name", "SYM", "uri", SUPPLY);
 
         vm.expectRevert(TickerMemeTokenV1.InvalidTokenIdentity.selector);
-        new TickerMemeTokenV1(MARKET_ID, CREATOR, address(0), "Name", "SYM", "uri", SUPPLY);
+        new TickerMemeTokenV1(MARKET_ID, CREATOR, address(0), address(this), "Name", "SYM", "uri", SUPPLY);
 
         vm.expectRevert(TickerMemeTokenV1.InvalidTokenIdentity.selector);
-        new TickerMemeTokenV1(MARKET_ID, CREATOR, CURVE, "Name", "SYM", "uri", 0);
+        new TickerMemeTokenV1(MARKET_ID, CREATOR, CURVE, address(this), "Name", "SYM", "uri", 0);
+
+        vm.expectRevert(TickerMemeTokenV1.InvalidTokenIdentity.selector);
+        new TickerMemeTokenV1(MARKET_ID, CREATOR, CURVE, BUYER, "Name", "SYM", "uri", SUPPLY);
     }
 
     function test_customSelectorsMatchCanonicalInterface() public pure {
         assertEq(TickerMemeTokenV1.marketId.selector, ITickerMemeTokenV1.marketId.selector);
         assertEq(TickerMemeTokenV1.creator.selector, ITickerMemeTokenV1.creator.selector);
         assertEq(TickerMemeTokenV1.factory.selector, ITickerMemeTokenV1.factory.selector);
+        assertEq(TickerMemeTokenV1.treasuryDistributor.selector, ITickerMemeTokenV1.treasuryDistributor.selector);
         assertEq(TickerMemeTokenV1.metadataURI.selector, ITickerMemeTokenV1.metadataURI.selector);
         assertEq(TickerMemeTokenV1.initialSupply.selector, ITickerMemeTokenV1.initialSupply.selector);
+        assertEq(TickerMemeTokenV1.deployedAt.selector, ITickerMemeTokenV1.deployedAt.selector);
+        assertEq(TickerMemeTokenV1.burnTreasury.selector, ITickerMemeTokenV1.burnTreasury.selector);
     }
 }

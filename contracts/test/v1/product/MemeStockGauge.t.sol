@@ -22,6 +22,22 @@ contract MockGaugeToken {}
 
 contract MockGaugeModuleCaller {
     mapping(bytes32 marketId => mapping(address user => uint256 principal)) internal _rageQuitSettlementPrincipal;
+    mapping(bytes32 marketId => MemeStockGauge) internal _gauges;
+    mapping(bytes32 marketId => address[]) internal _users;
+    mapping(bytes32 marketId => mapping(address user => bool known)) internal _knownUsers;
+    mapping(bytes32 marketId => mapping(address user => bool snapshotted)) internal _hasRageQuitCutoff;
+    mapping(bytes32 marketId => mapping(address user => uint256 quoteAccumulator)) internal _quoteCutoffs;
+    mapping(bytes32 marketId => mapping(address user => uint256 memeAccumulator)) internal _memeCutoffs;
+    mapping(bytes32 marketId => uint256 quoteAccumulator) internal _latestQuoteAccumulator;
+    mapping(bytes32 marketId => uint256 memeAccumulator) internal _latestMemeAccumulator;
+    mapping(bytes32 marketId => mapping(address user => uint256 activeAmount)) internal _active;
+    mapping(bytes32 marketId => mapping(address user => uint256 pendingAmount)) internal _pending;
+    mapping(bytes32 marketId => mapping(address user => uint64 activationAt)) internal _activationAt;
+    mapping(bytes32 marketId => mapping(address user => bool rageQuiting)) internal _rageQuiting;
+    mapping(bytes32 marketId => uint256 nonce) internal _cohortNonces;
+    mapping(bytes32 marketId => mapping(address user => bool snapshotted)) internal _hasCohortSnapshot;
+    mapping(bytes32 marketId => mapping(address user => uint256 amount)) internal _remainingAtExit;
+    mapping(bytes32 marketId => mapping(address user => uint256 nonce)) internal _cohortNonceAtExit;
 
     function setRageQuitSettlementPrincipal(bytes32 marketId, address user, uint256 principal) external {
         _rageQuitSettlementPrincipal[marketId][user] = principal;
@@ -37,15 +53,104 @@ contract MockGaugeModuleCaller {
     }
 
     function add(MemeStockGauge gauge, address user, uint256 amount, uint64 activationAt, uint64 unlockAt) external {
+        bytes32 marketId = gauge.gaugeIdentity().marketId;
+        _gauges[marketId] = gauge;
+        if (!_knownUsers[marketId][user]) {
+            _knownUsers[marketId][user] = true;
+            _users[marketId].push(user);
+        }
+        PositionView memory beforePosition = gauge.positionOf(user);
+        _active[marketId][user] = beforePosition.activeAmount;
+        _pending[marketId][user] = beforePosition.pendingAmount + amount;
+        _activationAt[marketId][user] = activationAt;
         gauge.addPending(user, amount, activationAt, unlockAt);
+        ++_cohortNonces[marketId];
     }
 
     function remove(MemeStockGauge gauge, address user) external returns (uint256) {
-        return gauge.removeAllocation(user);
+        bytes32 marketId = gauge.gaugeIdentity().marketId;
+        uint256 amount = gauge.removeAllocation(user);
+        delete _active[marketId][user];
+        delete _pending[marketId][user];
+        delete _activationAt[marketId][user];
+        ++_cohortNonces[marketId];
+        return amount;
     }
 
     function rageQuit(MemeStockGauge gauge, address user) external returns (uint256, uint256, uint256, bool) {
-        return gauge.rageQuit(user);
+        bytes32 marketId = gauge.gaugeIdentity().marketId;
+        if (!_hasRageQuitCutoff[marketId][user]) _snapshotRageQuitRewardCutoff(marketId, user);
+        if (!_rageQuiting[marketId][user]) {
+            _rageQuiting[marketId][user] = true;
+            ++_cohortNonces[marketId];
+            _snapshotCohort(marketId, user);
+        }
+        (uint256 principal, uint256 quoteForfeited, uint256 memeForfeited, bool redistributed) = gauge.rageQuit(user);
+        delete _rageQuiting[marketId][user];
+        delete _active[marketId][user];
+        delete _pending[marketId][user];
+        delete _activationAt[marketId][user];
+        return (principal, quoteForfeited, memeForfeited, redistributed);
+    }
+
+    function snapshotRageQuitRewardCutoff(bytes32 marketId, address user) external {
+        _snapshotRageQuitRewardCutoff(marketId, user);
+    }
+
+    function deferRageQuitRewardCleanup(bytes32 marketId, address user) external {
+        _snapshotRageQuitRewardCutoff(marketId, user);
+        _rageQuitSettlementPrincipal[marketId][user] = _active[marketId][user] + _pending[marketId][user];
+        _rageQuiting[marketId][user] = true;
+        ++_cohortNonces[marketId];
+        _snapshotCohort(marketId, user);
+    }
+
+    function rageQuitRewardCutoff(bytes32 marketId, address user)
+        external
+        view
+        returns (uint256 principal, uint256 quoteAccumulator, uint256 memeAccumulator, bool forfeitureRedistributable)
+    {
+        principal = _rageQuitSettlementPrincipal[marketId][user];
+        if (principal == 0) principal = _active[marketId][user] + _pending[marketId][user];
+        if (_hasRageQuitCutoff[marketId][user]) {
+            forfeitureRedistributable = _hasCohortSnapshot[marketId][user] && _remainingAtExit[marketId][user] != 0
+                && _cohortNonceAtExit[marketId][user] == _cohortNonces[marketId]
+                && _remainingAtExit[marketId][user] == _rewardEligibleActiveStock(marketId);
+            return (principal, _quoteCutoffs[marketId][user], _memeCutoffs[marketId][user], forfeitureRedistributable);
+        }
+        return (principal, _latestQuoteAccumulator[marketId], _latestMemeAccumulator[marketId], false);
+    }
+
+    function rewardEligibleActiveStock(bytes32 marketId) external view returns (uint256 total) {
+        return _rewardEligibleActiveStock(marketId);
+    }
+
+    function _rewardEligibleActiveStock(bytes32 marketId) private view returns (uint256 total) {
+        for (uint256 i; i < _users[marketId].length; ++i) {
+            address user = _users[marketId][i];
+            if (_rageQuiting[marketId][user]) continue;
+            total += _active[marketId][user];
+            if (_pending[marketId][user] != 0 && _activationAt[marketId][user] <= block.timestamp) {
+                total += _pending[marketId][user];
+            }
+        }
+    }
+
+    function recordGaugeRewardState(bytes32 marketId, uint256 quoteAccumulator, uint256 memeAccumulator) external {
+        _latestQuoteAccumulator[marketId] = quoteAccumulator;
+        _latestMemeAccumulator[marketId] = memeAccumulator;
+    }
+
+    function _snapshotRageQuitRewardCutoff(bytes32 marketId, address user) private {
+        _hasRageQuitCutoff[marketId][user] = true;
+        _quoteCutoffs[marketId][user] = _latestQuoteAccumulator[marketId];
+        _memeCutoffs[marketId][user] = _latestMemeAccumulator[marketId];
+    }
+
+    function _snapshotCohort(bytes32 marketId, address user) private {
+        _hasCohortSnapshot[marketId][user] = true;
+        _remainingAtExit[marketId][user] = _rewardEligibleActiveStock(marketId);
+        _cohortNonceAtExit[marketId][user] = _cohortNonces[marketId];
     }
 
     function settle(MemeStockGauge gauge, address user) external {
@@ -71,6 +176,7 @@ contract MemeStockGaugeTest is Test {
     bytes32 internal constant QUOTE_CONFIG_ID = keccak256("quote-config");
     address internal constant ALICE = address(0xA11CE);
     address internal constant BOB = address(0xB0B);
+    address internal constant CHARLIE = address(0xCA11E);
 
     MockGaugeModuleCaller internal manager;
     MockGaugeModuleCaller internal feeVault;
@@ -415,6 +521,148 @@ contract MemeStockGaugeTest is Test {
         PositionView memory position = gauge.positionOf(ALICE);
         assertEq(position.activeAmount, 0);
         assertEq(position.pendingAmount, 0);
+    }
+
+    function test_rageQuitRedistributesOnlyWhenExitTimeCohortRemainsUnchanged() public {
+        (uint64 generation,) = _schedule(ALICE, 100);
+        _schedule(BOB, 100);
+        vm.warp(generation);
+        feeVault.credit(gauge, address(quote), 200, keccak256("stable-cohort"));
+
+        (uint256 principal, uint256 quoteForfeited,, bool redistributed) = manager.rageQuit(gauge, ALICE);
+
+        assertEq(principal, 100);
+        assertEq(quoteForfeited, 100);
+        assertTrue(redistributed);
+        assertEq(gauge.positionOf(BOB).quoteClaimable, 200);
+        (uint256 deferredQuote,) = gauge.deferredForfeiture();
+        assertEq(deferredQuote, 0);
+    }
+
+    function test_laterEntrantCannotCaptureForfeitureWhenNoActiveStakerRemainedAtExit() public {
+        (uint64 aliceGeneration,) = _schedule(ALICE, 100);
+        vm.warp(aliceGeneration);
+        feeVault.credit(gauge, address(quote), 100, keccak256("alice-only-before-exit"));
+        manager.deferRageQuitRewardCleanup(MARKET_ID, ALICE);
+
+        (uint64 bobGeneration,) = _schedule(BOB, 100);
+        vm.warp(bobGeneration);
+        gauge.checkpointActivations();
+        (uint256 principal, uint256 quoteForfeited,, bool redistributed) = manager.rageQuit(gauge, ALICE);
+
+        assertEq(principal, 100);
+        assertEq(quoteForfeited, 100);
+        assertFalse(redistributed);
+        assertEq(gauge.positionOf(BOB).quoteClaimable, 0);
+        (uint256 deferredQuote,) = gauge.deferredForfeiture();
+        assertEq(deferredQuote, 100);
+    }
+
+    function test_changedCohortFailsClosedInsteadOfDilutingExitTimeSurvivor() public {
+        (uint64 generation,) = _schedule(ALICE, 100);
+        _schedule(BOB, 100);
+        vm.warp(generation);
+        feeVault.credit(gauge, address(quote), 200, keccak256("before-deferred-exit"));
+        manager.deferRageQuitRewardCleanup(MARKET_ID, ALICE);
+
+        (uint64 charlieGeneration,) = _schedule(CHARLIE, 100);
+        vm.warp(charlieGeneration);
+        gauge.checkpointActivations();
+        (uint256 principal, uint256 quoteForfeited,, bool redistributed) = manager.rageQuit(gauge, ALICE);
+
+        assertEq(principal, 100);
+        assertEq(quoteForfeited, 100);
+        assertFalse(redistributed);
+        assertEq(gauge.positionOf(BOB).quoteClaimable, 100);
+        assertEq(gauge.positionOf(CHARLIE).quoteClaimable, 0);
+        (uint256 deferredQuote,) = gauge.deferredForfeiture();
+        assertEq(deferredQuote, 100);
+    }
+
+    function test_pendingMaturityAloneCannotJoinTheSnapshottedExitCohort() public {
+        (uint64 activeGeneration,) = _schedule(ALICE, 100);
+        _schedule(BOB, 100);
+        vm.warp(activeGeneration);
+        feeVault.settle(gauge, ALICE);
+        feeVault.settle(gauge, BOB);
+
+        (uint64 charlieGeneration,) = _schedule(CHARLIE, 100);
+        feeVault.credit(gauge, address(quote), 200, keccak256("before-pending-maturity"));
+        manager.deferRageQuitRewardCleanup(MARKET_ID, ALICE);
+
+        // No allocation mutation occurs after the exit snapshot. The independently frozen effective weight
+        // still detects Charlie's later maturity and prevents the old forfeiture from flowing to that entrant.
+        vm.warp(charlieGeneration);
+        gauge.checkpointActivations();
+        (uint256 principal, uint256 quoteForfeited,, bool redistributed) = manager.rageQuit(gauge, ALICE);
+
+        assertEq(principal, 100);
+        assertEq(quoteForfeited, 100);
+        assertFalse(redistributed);
+        assertEq(gauge.positionOf(BOB).quoteClaimable, 100);
+        assertEq(gauge.positionOf(CHARLIE).quoteClaimable, 0);
+        (uint256 deferredQuote,) = gauge.deferredForfeiture();
+        assertEq(deferredQuote, 100);
+    }
+
+    function test_changedCohortReserveDoesNotAbsorbSurvivingGlobalRemainder() public {
+        (uint64 generation,) = _schedule(ALICE, 2);
+        _schedule(BOB, 1);
+        vm.warp(generation);
+        feeVault.credit(gauge, address(quote), 1, keccak256("fraction-before-deferred-exit"));
+        assertEq(gauge.rewardState(address(quote)).indexRemainder, 1);
+        manager.deferRageQuitRewardCleanup(MARKET_ID, ALICE);
+
+        _schedule(CHARLIE, 1);
+        (,,, bool redistributed) = manager.rageQuit(gauge, ALICE);
+
+        assertFalse(redistributed);
+        assertEq(gauge.rewardState(address(quote)).indexRemainder, 1);
+    }
+
+    function test_rageQuitCutoffExcludesFeesCreditedAfterCutoffAndForfeitsPriorRewards() public {
+        (uint64 generation,) = _schedule(ALICE, 100);
+        vm.warp(generation);
+
+        feeVault.credit(gauge, address(quote), 100, keccak256("before-cutoff"));
+        manager.snapshotRageQuitRewardCutoff(MARKET_ID, ALICE);
+        feeVault.credit(gauge, address(quote), 100, keccak256("after-cutoff"));
+
+        (uint256 principal, uint256 quoteForfeited,,) = manager.rageQuit(gauge, ALICE);
+        assertEq(principal, 100);
+        // Only rewards accounted for at the cutoff can be settled and forfeited. The later fee is not ALICE's.
+        assertEq(quoteForfeited, 100);
+        (uint256 deferredQuote,) = gauge.deferredForfeiture();
+        assertEq(deferredQuote, 100);
+        assertEq(gauge.positionOf(ALICE).quoteClaimable, 0);
+    }
+
+    function test_deferredRageQuitCancelsPendingProcessedAfterCutoffWithoutPostExitRewards() public {
+        (uint64 bobGeneration,) = _schedule(BOB, 100);
+        vm.warp(bobGeneration);
+        feeVault.settle(gauge, BOB);
+
+        (uint64 aliceGeneration,) = _schedule(ALICE, 100);
+        manager.deferRageQuitRewardCleanup(MARKET_ID, ALICE);
+
+        // The departed pending weight is excluded by the authoritative manager while Bob receives the fee.
+        feeVault.credit(gauge, address(quote), 100, keccak256("post-exit-before-activation"));
+        assertEq(gauge.positionOf(ALICE).quoteClaimable, 0);
+        assertEq(gauge.positionOf(BOB).quoteClaimable, 100);
+
+        // A later checkpoint may process the stale Gauge bucket at a newer accumulator. Cleanup must cancel
+        // that bucket instead of attempting to accrue backwards to the earlier rage-quit cutoff.
+        vm.warp(aliceGeneration);
+        gauge.checkpointActivations();
+        assertEq(gauge.positionOf(ALICE).quoteClaimable, 0);
+
+        (uint256 principal, uint256 quoteForfeited, uint256 memeForfeited,) = manager.rageQuit(gauge, ALICE);
+        assertEq(principal, 100);
+        assertEq(quoteForfeited, 0);
+        assertEq(memeForfeited, 0);
+        assertEq(gauge.positionOf(ALICE).activeAmount, 0);
+        assertEq(gauge.positionOf(ALICE).pendingAmount, 0);
+        assertEq(gauge.storedTotalActiveStock(), 100);
     }
 
     function test_fullRemovalSettlesOldWeightAndClearsLock() public {

@@ -3,7 +3,7 @@
 > **适用性说明（2026-09-04）：** 本报告中的 Emergency/市场状态 Gas 与状态机结果属于旧管理架构历史数据；永久自治改造后必须重新测量。用户 rageQuit 本金路径和异步奖励结算是当前目标，资产/配置 pause/retire 仍独立保留。
 
 > 任务：`V1-T-202-B`
-> 状态：`V1-EXEC-6 FROZEN TEST EVIDENCE / FORFEITURE PROOF RESIDUAL OPEN`
+> 状态：`V1-EXEC-8 FROZEN TEST EVIDENCE / FORFEITURE PROOF RESIDUAL OPEN`
 > 日期：2026-09-04
 
 ## 1. 冻结数值域
@@ -23,7 +23,7 @@
 |---:|---|
 | `0` | Staker 为 0，非 LP 余额由 Creator / Platform 对分 |
 | `414` | Staker 固定取得`floor(nonLpAmount / 2)`，再由Gauge按实际份额分配 |
-| 任意 `S > 0` | Creator / Staker / Platform / LP约为20 / 40 / 20 / 20，与S大小无关 |
+| 任意 `S > 0` | Creator / Staker / Platform / LP 为40 / 30 / 30 / 0，与S大小无关 |
 | `int128.max` | 与最小正active使用同一固定分桶，Stock stake没有上限或饱和分支 |
 
 分桶始终满足 `creator + staker + platform = nonLpAmount`；所有整数 residual 确定性进入 Platform，不存在未记账单位。
@@ -74,7 +74,7 @@ maxAccumulator = Nmax × maxDelta
 
 ## 5. Rage Quit 弃权重分配的证明边界
 
-`rageQuit`移除退出用户后，若仍有其他Active staker，会把该用户已经形成的整数收益重新送入同一奖励资产accumulator。这个动作会在没有新增FeeVault credit时增加`accFeePerShare`，但它只转移已存在的Staker entitlement，不能增加FeeVault的`totalLiability`；没有剩余Active时则改记forfeiture reserve。
+`rageQuit`移除退出用户后，若仍有其他Active staker且清理时的cohort nonce与有效权重仍等于退出快照，会把该用户已经形成的整数收益重新送入同一奖励资产accumulator。这个动作会在没有新增FeeVault credit时增加`accFeePerShare`，但它只转移已存在的Staker entitlement，不能增加FeeVault的`totalLiability`；没有剩余Active或延期期间cohort变化时则改记forfeiture reserve。cohort变化但当前仍有Active时，不得吸收仍属于存续staker的global index remainder。
 
 对一个初始reward `R`，连续退出只会把该reward的既有份额逐步转给剩余权重；当所有中间分母均不低于`Smin=414`时，其累计重分配效果应受`R × P / Smin`同阶上界约束，而不会按退出人数复制reward。现有实现以checked arithmetic fail closed，产品测试已覆盖双资产两用户重分配、最后用户reserve，以及FeeVault失败或耗尽固定gas额度时先返还本金、再由Gauge保存待补记金额并由permissionless `flushDeferredForfeiture()`恰好成功补记一次；该重试不受历史Gauge emergency flag阻断。
 

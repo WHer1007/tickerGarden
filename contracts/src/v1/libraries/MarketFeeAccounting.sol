@@ -7,8 +7,9 @@ import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
 /// @dev The caller remains responsible for proving that the matching asset arrived before recording liabilities.
 library MarketFeeAccounting {
     uint256 internal constant BPS_DENOMINATOR = 10_000;
-    uint256 internal constant LP_SHARE_BPS = 2_000;
-    uint256 internal constant STAKER_NON_LP_SHARE_BPS = 5_000;
+    uint256 internal constant LP_SHARE_BPS = 0;
+    uint256 internal constant STAKER_NON_LP_SHARE_BPS = 3_000;
+    uint256 internal constant PLATFORM_NON_LP_SHARE_BPS = 3_000;
 
     struct V4Buckets {
         uint256 creatorAmount;
@@ -36,13 +37,14 @@ library MarketFeeAccounting {
         if (activeStock != 0) {
             buckets.stakerAmount = Math.mulDiv(nonLpAmount, STAKER_NON_LP_SHARE_BPS, BPS_DENOMINATOR);
         }
-        uint256 nonStakerAmount = nonLpAmount - buckets.stakerAmount;
-        buckets.creatorAmount = nonStakerAmount / 2;
-        buckets.platformAmount = nonStakerAmount - buckets.creatorAmount;
+        buckets.platformAmount = Math.mulDiv(nonLpAmount, PLATFORM_NON_LP_SHARE_BPS, BPS_DENOMINATOR);
+        // Both fixed beneficiary legs round down. Creator receives the indivisible residual so every fee unit is
+        // conserved without allowing either Staker or Platform to exceed its configured 30% ceiling.
+        buckets.creatorAmount = nonLpAmount - buckets.stakerAmount - buckets.platformAmount;
     }
 
     function splitCurve(uint256 amount) internal pure returns (CurveBuckets memory buckets) {
-        buckets.creatorAmount = amount / 2;
-        buckets.platformAmount = amount - buckets.creatorAmount;
+        buckets.platformAmount = Math.mulDiv(amount, PLATFORM_NON_LP_SHARE_BPS, BPS_DENOMINATOR);
+        buckets.creatorAmount = amount - buckets.platformAmount;
     }
 }

@@ -1,13 +1,13 @@
 # TickerGarden V1-M0 G0 决策登记
 
-> **当前覆盖（2026-09-04）：** `V1-EXEC-6` 已在本地实现永久自治市场、对象级配置治理和即时本金 `rageQuit`。旧管理建议已归档；目标链部署与独立审计仍开放。
+> **当前覆盖（2026-09-04）：** `V1-EXEC-8` 已在本地实现永久自治市场、对象级配置治理和即时本金 `rageQuit`。旧管理建议已归档；目标链部署与独立审计仍开放。
 
 > 状态：`PRODUCT_DIRECTION_APPROVED / IMPLEMENTATION_ALLOWED / NOT_DEPLOYABLE`  
-> 当前执行规范：`V1-EXEC-6`
+> 当前执行规范：`V1-EXEC-8`
 > 历史机器清单：[`spec/v1_g0_recommendations.json`](./spec/v1_g0_recommendations.json)
 > 外部证据：[`V1_G0_EXTERNAL_EVIDENCE.md`](./V1_G0_EXTERNAL_EVIDENCE.md)
 
-> 修订说明：底层机器清单保留旧 `V1-EXEC-3` 决策快照作为取证；本文面向当前实现的表述已按 `V1-EXEC-6` 修订。管理员按 Asset UID 动态设置 `minimumAllocation`（不得低于414 raw units），active stake 固定取得 non-LP 50%。
+> 修订说明：底层机器清单保留旧 `V1-EXEC-3` 决策快照作为取证；本文面向当前实现的表述已按 `V1-EXEC-8` 修订。管理员按 Asset UID 动态设置 `minimumAllocation`（不得低于414 raw units）；手续费按 Active 状态分配为 Creator40/Staker30/Platform30 或 Creator70/Staker0/Platform30，余数归 Creator。
 
 本文记录 2026-09-02 已确认的 Pons 参考方向，并把仍需逐资产/工程/安全验证的事项留作部署门禁。产品批准不等于允许把观测值或不一致的公开源码直接部署。
 
@@ -41,7 +41,7 @@
 
 - 使用 TickerGarden 自己的 CREATE2 domain、MarketRegistry、Token、Curve、Gauge、Hook 和 FeeVault 地址体系；
 - 创建者附加税固定为0，属于 TickerGarden 手续费差异；
-- Pons fee beneficiary 路由替换为 TickerGarden Curve `50/50`；毕业后无active stake时为`40/0/40/20`，存在active stake时固定为`20/40/20/20`，Staker内部按实际active STOCK比例分配；
+- Pons fee beneficiary 路由替换为 TickerGarden Curve `Creator70/Platform30`；毕业后无 active stake 时为 `Creator70/Staker0/Platform30/LP0`，存在 active stake 时固定为 `Creator40/Staker30/Platform30/LP0`，Staker 内部按实际 active STOCK 比例分配；
 - 不使用 Pons BuybackVault/五年 vesting；
 - 禁止任意团队反狙击豁免数组，只自动豁免真实 creator/beneficiary 与 atomic first-buy recipient；
 - 不实现管理员 community takeover/creator override；创建者收益身份只按已冻结 epoch 规则迁移；
@@ -51,7 +51,7 @@
 
 STOCK 准入范围已经确认：Robinhood 官方 Stock Token 目录中存在 chainId `4663` deployment 的全部资产都可准入，当前观测194项均为 ACTIVE，全部可以由市场创建者选择。每个市场恰好绑定一个 Base Asset UID 且不可改绑；同一 Asset UID 可以对应任意多个 Meme，持有人在毕业后自行决定是否分配及分配数量。点时目录和链上身份向量见 [`V1_OFFICIAL_STOCK_ADMISSION.md`](./V1_OFFICIAL_STOCK_ADMISSION.md) 与 [`spec/v1_rh_official_stock_catalog.snapshot.json`](./spec/v1_rh_official_stock_catalog.snapshot.json)。
 
-STOCK 只以 raw balance 参与质押权重。不存在饱和值或质押上限；只要市场存在任意active stake，Staker固定取得non-LP的50%，再按各用户实际active raw balance分配。`OfficialStockRegistry`为每个Asset保存管理员延迟更新的`minimumAllocation`，其协议下限为414 raw units；该值只约束仓位变更，不进入market hash。价格、USD 名义目标、Chainlink Price Feed、sequencer 证据和 backing target 均不进入产品路径。生产登记仍须使用 finalized 状态验证官方身份与代理实现；这是部署安全取证，不是价格或实施参数门禁。旧价格研究仅按 [`spec/RETIRED_STOCK_PRICE_RESEARCH.md`](./spec/RETIRED_STOCK_PRICE_RESEARCH.md) 保留审计记录。
+STOCK 只以 raw balance 参与质押权重。不存在饱和值或质押上限；存在 Active stake 时按 Creator40%/Staker30%/Platform30% 分配，无 Active stake 时按 Creator70%/Staker0%/Platform30% 分配，再按各用户实际 active raw balance 分配 Staker 份额。`OfficialStockRegistry`为每个Asset保存管理员延迟更新的`minimumAllocation`，其协议下限为414 raw units；该值只约束仓位变更，不进入market hash。价格、USD 名义目标、Chainlink Price Feed、sequencer 证据和 backing target 均不进入产品路径。生产登记仍须使用 finalized 状态验证官方身份与代理实现；这是部署安全取证，不是价格或实施参数门禁。旧价格研究仅按 [`spec/RETIRED_STOCK_PRICE_RESEARCH.md`](./spec/RETIRED_STOCK_PRICE_RESEARCH.md) 保留审计记录。
 
 ## 4. 已删除的旧建议
 

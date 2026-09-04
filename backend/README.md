@@ -1,6 +1,6 @@
 # TickerGarden V1 read API
 
-> **Current API boundary (2026-09-04):** market responses expose one-way `launchPhase` facts and no deployed-market administration or management-recovery state. Asset/configuration status remains available where applicable. The local API and OpenAPI artifacts are synchronized to `V1-EXEC-6`; deployment, audit, and production E2E remain separate gates.
+> **Current API boundary (2026-09-04):** market responses expose one-way `launchPhase` facts and no deployed-market administration or management-recovery state. Asset/configuration status remains available where applicable. The local API and OpenAPI artifacts are synchronized to `V1-EXEC-8`; deployment, audit, and production E2E remain separate gates.
 
 This package exposes a non-custodial, read-only HTTP API over V1 Indexer read
 models. It does not hold keys, sign requests, submit transactions, or treat its
@@ -40,11 +40,11 @@ typed API error response.
 
 Run `npm run generate:openapi` after intentionally changing the source schema.
 `openapi/v1.lock.json` binds its fingerprint to the OpenAPI SemVer and
-`V1-EXEC-6`; any changed schema without a version increase fails closed. CI uses
+`V1-EXEC-8`; any changed schema without a version increase fails closed. CI uses
 `npm run check:openapi` to reject stale spec, client, or lock output.
 
 The bundled `InMemoryReadModelRepository` defines the adapter contract and is used
-for deterministic tests. It accepts only `V1-EXEC-6` snapshots carrying zero I502
+for deterministic tests. It accepts only `V1-EXEC-8` snapshots carrying zero I502
 reconciliation alerts, then validates canonical hex, unsigned amounts, lifecycle,
 PoolKey/route, position conservation, dual assets, uniqueness, and source bounds.
 A production process must populate that contract from the canonical I502

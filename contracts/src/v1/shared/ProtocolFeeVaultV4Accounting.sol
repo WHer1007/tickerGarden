@@ -12,14 +12,15 @@ import {V1MarketEconomics} from "./V1MarketEconomics.sol";
 abstract contract ProtocolFeeVaultV4Accounting is ProtocolFeeVaultLiabilities {
     bytes32 private constant V4_FEE_DOMAIN = keccak256("TICKERGARDEN_V1_V4_FEE");
     uint256 private constant V4_FEE_SCHEMA_VERSION = 1;
-    bytes32 private constant EXECUTION_SPEC_ID = keccak256("V1-EXEC-6");
+    bytes32 private constant EXECUTION_SPEC_ID = keccak256("V1-EXEC-8");
     uint256 private constant FEE_PIPS_DENOMINATOR = 1_000_000;
     uint24 private constant FEE_PIPS = 10_000;
-    uint16 private constant LP_SHARE_BPS = 2_000;
+    uint16 private constant LP_SHARE_BPS = 0;
     uint24 private constant POOL_KEY_FEE = 0;
     uint160 private constant HOOK_PERMISSION_MASK = 0x2044;
     uint8 private constant FEE_ASSET_MODE_UNSPECIFIED_CORE_SWAP_DELTA = 1;
-    uint16 private constant STAKER_NON_LP_SHARE_BPS = 5_000;
+    uint16 private constant STAKER_NON_LP_SHARE_BPS = 3_000;
+    uint16 private constant PLATFORM_NON_LP_SHARE_BPS = 3_000;
 
     bytes32 private immutable _feePolicyId;
     bytes32 private immutable _feePolicyHash;
@@ -47,7 +48,8 @@ abstract contract ProtocolFeeVaultV4Accounting is ProtocolFeeVaultLiabilities {
                 poolKeyFee: POOL_KEY_FEE,
                 hookPermissionMask: HOOK_PERMISSION_MASK,
                 feeAssetMode: FEE_ASSET_MODE_UNSPECIFIED_CORE_SWAP_DELTA,
-                stakerNonLpShareBps: STAKER_NON_LP_SHARE_BPS
+                stakerNonLpShareBps: STAKER_NON_LP_SHARE_BPS,
+                platformNonLpShareBps: PLATFORM_NON_LP_SHARE_BPS
             })
         );
     }
@@ -79,7 +81,7 @@ abstract contract ProtocolFeeVaultV4Accounting is ProtocolFeeVaultLiabilities {
     function _settleV4Attribution(V4CreditRecord memory record, address gaugeAddress) private {
         IMemeStockGauge gauge = IMemeStockGauge(gaugeAddress);
         gauge.checkpointActivations();
-        uint256 activeStock = gauge.storedTotalActiveStock();
+        uint256 activeStock = gauge.effectiveTotalActiveStock();
         MarketFeeAccounting.V4Buckets memory buckets =
             MarketFeeAccounting.splitV4(record.totalFee, record.lpAmount, record.nonLpAmount, activeStock);
 

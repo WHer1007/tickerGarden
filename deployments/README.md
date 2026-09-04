@@ -1,9 +1,9 @@
 # TickerGarden V1 deployment tooling
 
-> **Current deployment boundary (2026-09-04):** the `V1-EXEC-6` schema, role plan, preflight, and built `dist` contain no deployed-market administration or management-recovery role/selectors. `launchPhase` is a one-way fact; asset/configuration status remains. No target-chain deployment or readiness gate is implied closed by this local implementation.
+> **Current deployment boundary (2026-09-04):** the `V1-EXEC-8` schema, role plan, preflight, and built `dist` contain no deployed-market administration or management-recovery role/selectors. `launchPhase` is a one-way fact; asset/configuration status remains. No target-chain deployment or readiness gate is implied closed by this local implementation.
 
 This directory is the fail-closed boundary for the future V1 deployment
-package. It reads the canonical execution manifest for `V1-EXEC-6` and exports
+package. It reads the canonical execution manifest for `V1-EXEC-8` and exports
 the shared four-state readiness derivation:
 
 - current state is `IMPLEMENTATION_ALLOWED`;
@@ -17,10 +17,15 @@ a read-only live verifier for runtime codehashes, key getters/storage, canonical
 PoolKey/PoolId, Hook bits, v4 core fees, Position NFT custody, AccessManager
 selector events/roles/delays, and finalized role-handoff receipts. The HTTP RPC
 transport has a strict read-method allowlist and cannot submit a transaction.
+Treasury evidence additionally requires immutable getter proofs that
+`TreasuryDistributorV1.authority()` equals the manifested AccessManager and
+`marketRegistry()` equals the canonical `MarketRegistryV1`; a selector mapping
+on an AccessManager that the Treasury does not actually use is rejected before
+any RPC request.
 
 V1-C-403 adds a deterministic, calldata-only AccessManager configuration plan.
-It derives 18 role-gated selectors and 53 immutable/direct selectors from the
-compiled 18-module manifest (71 protocol permissions in total), grants the three frozen Safe roles, makes the
+It derives 22 role-gated selectors and 64 immutable/direct selectors from the
+compiled 19-module manifest (86 protocol permissions in total), grants five frozen roles to Safe members, including dedicated and mutually independent Treasury Root publisher/reviewer members, makes the
 48-hour governance role the admin of every V1 role, and renounces the bootstrap
 `ADMIN_ROLE` last. OpenZeppelin's global-admin configuration surface is then
 intentionally locked; `grantRole` and `revokeRole` for V1 roles remain available
