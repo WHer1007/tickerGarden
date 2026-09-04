@@ -1,0 +1,74 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#f7f4ec" />
+    <title>TickerGarden — Grow community signals</title>
+    <link rel="stylesheet" href="./subpages.css" />
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body data-page="home">
+    <header class="shell-header" data-shell-header></header>
+
+    <main class="home-main">
+      <section class="home-hero">
+        <div class="hero-copy">
+          <p class="hero-kicker"><i class="ph ph-plant" aria-hidden="true"></i>Community signal markets</p>
+          <h1>Stake the ticker.<span>Grow the culture.</span></h1>
+          <p class="hero-lede">TickerGarden is where stock communities and meme culture meet—creating an open, expressive layer for every ticker story.</p>
+          <div class="hero-actions">
+            <a class="home-button primary" href="./markets.html">Explore markets <i class="ph ph-arrow-up-right" aria-hidden="true"></i></a>
+            <a class="home-button secondary" href="./create.html">Create a market <i class="ph ph-sprout" aria-hidden="true"></i></a>
+          </div>
+          <div class="hero-proof" aria-label="Protocol boundaries">
+            <span><strong>On-chain</strong> market state</span>
+            <span><strong>Open</strong> community creation</span>
+            <span><strong>Signal</strong> not stock ownership</span>
+          </div>
+        </div>
+
+        <div class="tree-stage" aria-label="Community signal garden">
+          <img class="tree-base" src="./assets/hero-tree-base.png" alt="A tree illustration representing community signals" />
+          <div class="fruit-layer" id="fruits"></div>
+        </div>
+      </section>
+
+      <section class="trending" id="gardens" aria-labelledby="home-markets-heading">
+        <div class="trending-heading">
+          <div>
+            <p class="section-kicker">On-chain directory</p>
+            <h2 id="home-markets-heading">Markets in the garden</h2>
+          </div>
+          <a href="./markets.html">View all markets <i class="ph ph-arrow-right" aria-hidden="true"></i></a>
+        </div>
+
+        <div class="market-rail" data-home-markets aria-live="polite" aria-busy="false" aria-label="Live market links">
+          <p data-home-markets-loading hidden>Loading markets from the configured read API…</p>
+          <p data-home-markets-empty>No markets are available from the configured read API yet.</p>
+          <p data-home-markets-locked hidden>Market data is locked until the required V1 configuration is deployed.</p>
+          <!-- Runtime inserts market links here. Each link must use a canonical bytes32 marketId. -->
+        </div>
+      </section>
+
+      <section class="creation-banner">
+        <div><p class="section-kicker">One STOCK. Many cultures.</p><h2>Grow the next <em>Ticker Meme.</em></h2></div>
+        <p>Every stock carries more than one story. Give the next culture room to take root.</p>
+        <a class="home-button banner-button" href="./create.html">Create a market <i class="ph ph-arrow-right" aria-hidden="true"></i></a>
+      </section>
+
+      <section class="how" aria-labelledby="how-heading">
+        <div class="how-heading"><p class="section-kicker">Simple mechanics</p><h2 id="how-heading">How it grows</h2><p>From an eligible Stock Token to a living onchain community.</p></div>
+        <div class="steps">
+          <article><img src="./assets/step-stake.png" alt="Candlesticks growing from soil" /><div><span>01</span><h3>Launch a Ticker Meme</h3><p>Bind a fixed-supply market to one official Stock Token.</p></div></article>
+          <article><img src="./assets/step-earn.png" alt="A sprouting ticker chart" /><div><span>02</span><h3>Graduate the Market</h3><p>Curve trading moves into permanently locked liquidity.</p></div></article>
+          <article><img src="./assets/step-liquidity.png" alt="A healthy liquidity garden" /><div><span>03</span><h3>Allocate STOCK, Earn Fees</h3><p>After graduation, matching STOCK can share actual market fees.</p></div></article>
+        </div>
+      </section>
+    </main>
+
+    <footer class="shell-footer" data-shell-footer></footer>
+    <div class="toast" data-toast role="status" aria-live="polite"></div>
+    <script type="module" src="./app.js"></script>
+  </body>
+</html>

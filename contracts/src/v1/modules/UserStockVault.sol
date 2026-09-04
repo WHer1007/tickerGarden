@@ -87,6 +87,17 @@ contract UserStockVault is IUserStockVault, UserStockVaultExits {
         emit RageQuitRewardSettlementCompleted(assetUid, user, marketId, principal);
     }
 
+    /// @notice Records the latest Gauge accumulator pair used as the cutoff for any later principal-first exit.
+    /// @dev Only the immutable AllocationManager can forward a state transition from the canonical market Gauge.
+    function recordGaugeRewardState(
+        bytes32 assetUid,
+        bytes32 marketId,
+        uint256 quoteAccumulator,
+        uint256 memeAccumulator
+    ) external override onlyAllocationManager {
+        _recordGaugeRewardState(assetUid, marketId, quoteAccumulator, memeAccumulator);
+    }
+
     function deposited(bytes32 assetUid, address user) external view override returns (uint256) {
         return _deposited[assetUid][user];
     }
@@ -108,12 +119,27 @@ contract UserStockVault is IUserStockVault, UserStockVaultExits {
         return _rageQuitSettlementPrincipal(assetUid, user, marketId);
     }
 
+    function rageQuitRewardCutoff(bytes32 assetUid, address user, bytes32 marketId)
+        external
+        view
+        override
+        returns (uint256 principal, uint256 quoteAccumulator, uint256 memeAccumulator, bool forfeitureRedistributable)
+    {
+        principal = _rageQuitSettlementPrincipal(assetUid, user, marketId);
+        (quoteAccumulator, memeAccumulator, forfeitureRedistributable) = _rageQuitRewardCutoff(assetUid, user, marketId);
+    }
+
     function freeBalanceOf(bytes32 assetUid, address user) external view override returns (uint256) {
         return _freeBalanceOf(assetUid, user);
     }
 
     function marketAllocated(bytes32 assetUid, bytes32 marketId) external view override returns (uint256) {
         return _marketAllocated[assetUid][marketId];
+    }
+
+    /// @notice Effective active reward weight, including matured fixed-wheel buckets and excluding rage quits.
+    function marketRewardEligible(bytes32 assetUid, bytes32 marketId) external view override returns (uint256) {
+        return _marketRewardEligible(assetUid, marketId);
     }
 
     function totalDeposited(bytes32 assetUid) external view override returns (uint256) {

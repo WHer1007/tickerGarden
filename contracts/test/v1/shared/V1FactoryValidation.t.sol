@@ -17,6 +17,7 @@ import {
 import {V1FactoryValidation} from "../../../src/v1/shared/V1FactoryValidation.sol";
 import {V1Identifiers} from "../../../src/v1/shared/V1Identifiers.sol";
 import {V1MarketEconomics} from "../../../src/v1/shared/V1MarketEconomics.sol";
+import {GraduationPoolMath} from "../../../src/v1/libraries/GraduationPoolMath.sol";
 
 contract FactoryRegistryFixtures {
     mapping(bytes32 => AssetView) internal _assets;
@@ -24,6 +25,8 @@ contract FactoryRegistryFixtures {
     mapping(bytes32 => PonsBaseline) internal _baselines;
     mapping(bytes32 => LaunchTemplate) internal _templates;
     mapping(bytes32 => bytes32) internal _templateHashes;
+    mapping(address => bytes32) internal _vaultSchemas;
+    mapping(bytes32 => address) internal _vaults;
     bool private _assetIdentityIsCurrent = true;
 
     function setAsset(bytes32 id, AssetView memory value) external {
@@ -32,6 +35,11 @@ contract FactoryRegistryFixtures {
 
     function setAssetIdentityCurrent(bool current) external {
         _assetIdentityIsCurrent = current;
+    }
+
+    function setVault(address vault, bytes32 schemaId) external {
+        _vaultSchemas[vault] = schemaId;
+        _vaults[schemaId] = vault;
     }
 
     function setQuote(bytes32 id, QuoteAssetConfig memory value) external {
@@ -56,6 +64,14 @@ contract FactoryRegistryFixtures {
         return _assetIdentityIsCurrent;
     }
 
+    function vaultSchemaId(address vault) external view returns (bytes32) {
+        return _vaultSchemas[vault];
+    }
+
+    function vaultForSchema(bytes32 schemaId) external view returns (address) {
+        return _vaults[schemaId];
+    }
+
     function quoteConfig(bytes32 id) external view returns (QuoteAssetConfig memory) {
         return _quotes[id];
     }
@@ -73,16 +89,46 @@ contract FactoryRegistryFixtures {
     }
 }
 
+contract FactoryDependencyMock {
+    address private _registry;
+    address private _marketRegistry;
+    address private _allocationManager;
+    bytes32 private _schemaId;
+
+    function setVaultIdentity(address registry, address marketRegistry, address allocationManager, bytes32 schemaId)
+        external
+    {
+        _registry = registry;
+        _marketRegistry = marketRegistry;
+        _allocationManager = allocationManager;
+        _schemaId = schemaId;
+    }
+
+    function vaultIdentity() external view returns (address, address, address, bytes32) {
+        return (_registry, _marketRegistry, _allocationManager, _schemaId);
+    }
+}
+
 contract V1FactoryValidationHarness {
     V1FactoryValidation.Registries internal _registries;
     V1FactoryValidation.Policy internal _policy;
     mapping(bytes32 => bool) public reserved;
     address public immutable launchRouter;
+    address public immutable marketRegistry;
+    address public immutable allocationManager;
 
     error MarketIdentityAlreadyReserved(bytes32 marketId);
 
-    constructor(address fixtures, bytes32 feePolicyId, address launchRouter_) {
+    constructor(
+        address fixtures,
+        bytes32 feePolicyId,
+        address launchRouter_,
+        address marketRegistry_,
+        address allocationManager_
+    ) {
         launchRouter = launchRouter_;
+        marketRegistry = marketRegistry_;
+        allocationManager = allocationManager_;
         _registries = V1FactoryValidation.Registries({
             officialStock: IOfficialStockRegistryV1(fixtures),
             approvedQuote: IApprovedQuoteRegistry(fixtures),
@@ -91,13 +137,14 @@ contract V1FactoryValidationHarness {
         });
         _policy.feePolicyId = feePolicyId;
         _policy.fields = V1MarketEconomics.FeePolicyInput({
-            executionSpecId: keccak256("V1-EXEC-6"),
+            executionSpecId: keccak256("V1-EXEC-8"),
             feePips: 10_000,
-            lpShareBps: 2_000,
+            lpShareBps: 0,
             poolKeyFee: 0,
             hookPermissionMask: 0x2044,
             feeAssetMode: 1,
-            stakerNonLpShareBps: 5_000
+            stakerNonLpShareBps: 3_000,
+            platformNonLpShareBps: 3_000
         });
     }
 
@@ -114,15 +161,17 @@ contract V1FactoryValidationHarness {
         view
         returns (bytes32 expectedEconomics, bytes32 marketId)
     {
-        V1FactoryValidation.Snapshot memory snapshot =
-            V1FactoryValidation.resolve(_registries, _policy, address(this), creator, params);
+        V1FactoryValidation.Snapshot memory snapshot = V1FactoryValidation.resolve(
+            _registries, _policy, address(this), marketRegistry, allocationManager, creator, params
+        );
         expectedEconomics = snapshot.expectedEconomics;
         marketId = _marketId(creator, params, expectedEconomics);
     }
 
     function validateAndReserve(address creator, CreateMarketParams memory params) external returns (bytes32 marketId) {
-        V1FactoryValidation.Snapshot memory snapshot =
-            V1FactoryValidation.resolve(_registries, _policy, address(this), creator, params);
+        V1FactoryValidation.Snapshot memory snapshot = V1FactoryValidation.resolve(
+            _registries, _policy, address(this), marketRegistry, allocationManager, creator, params
+        );
         V1FactoryValidation.validateExpected(snapshot, params.expectedEconomics);
         marketId = _marketId(creator, params, snapshot.expectedEconomics);
         if (reserved[marketId]) revert MarketIdentityAlreadyReserved(marketId);
@@ -168,6 +217,7 @@ contract V1FactoryValidationTest is Test {
     bytes32 internal constant QUOTE_ID = keccak256("quote");
     bytes32 internal constant TEMPLATE_ID = keccak256("template");
     bytes32 internal constant TEMPLATE_HASH = keccak256("template-content");
+    bytes32 internal constant VAULT_SCHEMA_ID = keccak256("TickerGarden.UserStockVault.MultiAsset.v6");
     bytes32 internal constant FEE_POLICY_ID = keccak256("fee-policy");
     address internal constant CREATOR = address(0xCAFE);
     address internal constant BENEFICIARY = address(0xBEEF);
@@ -175,10 +225,20 @@ contract V1FactoryValidationTest is Test {
 
     FactoryRegistryFixtures internal fixtures;
     V1FactoryValidationHarness internal harness;
+    FactoryDependencyMock internal marketRegistry;
+    FactoryDependencyMock internal allocationManager;
+    FactoryDependencyMock internal vault;
 
     function setUp() public {
         fixtures = new FactoryRegistryFixtures();
-        harness = new V1FactoryValidationHarness(address(fixtures), FEE_POLICY_ID, ROUTER);
+        marketRegistry = new FactoryDependencyMock();
+        allocationManager = new FactoryDependencyMock();
+        vault = new FactoryDependencyMock();
+        vault.setVaultIdentity(address(fixtures), address(marketRegistry), address(allocationManager), VAULT_SCHEMA_ID);
+        fixtures.setVault(address(vault), VAULT_SCHEMA_ID);
+        harness = new V1FactoryValidationHarness(
+            address(fixtures), FEE_POLICY_ID, ROUTER, address(marketRegistry), address(allocationManager)
+        );
         _setValidFixtures();
     }
 
@@ -228,6 +288,8 @@ contract V1FactoryValidationTest is Test {
         (bytes32 economics, bytes32 marketId) = harness.preview(CREATOR, params);
         assertNotEq(economics, bytes32(0));
         assertNotEq(marketId, bytes32(0));
+        assertEq(harness.marketRegistry(), address(marketRegistry));
+        assertEq(harness.allocationManager(), address(allocationManager));
     }
 
     function test_sameAssetCanReserveMultipleDistinctMarketIdentities() public {
@@ -335,6 +397,27 @@ contract V1FactoryValidationTest is Test {
         harness.preview(CREATOR, params);
     }
 
+    function test_rejectsJointEconomicsThatCannotProduceRepresentableGraduationLiquidity() public {
+        PonsBaseline memory baselineValue = _baseline();
+        baselineValue.supply = uint256(uint128(type(int128).max));
+        baselineValue.tickSpacing = 1;
+        fixtures.setBaseline(BASELINE_ID, baselineValue);
+
+        QuoteAssetConfig memory quoteValue = _quote();
+        quoteValue.phantomQuote = uint256(uint128(type(int128).max));
+        quoteValue.graduationThreshold = uint256(uint128(type(int128).max)) - 100;
+        fixtures.setQuote(QUOTE_ID, quoteValue);
+
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                GraduationPoolMath.InvalidGraduationLiquidity.selector,
+                85_070_591_730_234_615_868_149_581_540_740_050_543,
+                191_757_530_477_355_301_479_181_766_273_477
+            )
+        );
+        harness.preview(CREATOR, _params(bytes32(uint256(1))));
+    }
+
     function test_rejectsZeroCreatorAndBeneficiary() public {
         CreateMarketParams memory params = _params(bytes32(uint256(1)));
         vm.expectRevert(abi.encodeWithSelector(V1FactoryValidation.InvalidCreator.selector, address(0)));
@@ -367,8 +450,8 @@ contract V1FactoryValidationTest is Test {
         fixtures.setTemplate(TEMPLATE_ID, _template(), TEMPLATE_HASH);
     }
 
-    function _asset() private pure returns (AssetView memory) {
-        return AssetView({stockToken: address(0x1001), userStockVault: address(0x1002), tokenDecimals: 18, status: 1});
+    function _asset() private view returns (AssetView memory) {
+        return AssetView({stockToken: address(0x1001), userStockVault: address(vault), tokenDecimals: 18, status: 1});
     }
 
     function _quote() private pure returns (QuoteAssetConfig memory) {
@@ -412,7 +495,7 @@ contract V1FactoryValidationTest is Test {
             launchLockerImplementation: address(0x3006),
             launchLockerCodeHash: keccak256("locker"),
             feePolicyId: FEE_POLICY_ID,
-            executionSpecId: keccak256("V1-EXEC-6"),
+            executionSpecId: keccak256("V1-EXEC-8"),
             status: 1
         });
     }

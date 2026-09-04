@@ -1,8 +1,8 @@
 # TickerGarden V1 contracts
 
-> **Current local implementation (2026-09-04):** `V1-EXEC-6` removes deployed-market administration and management recovery from the Solidity surface. Asset/configuration registries retain object-scoped pause/retire; user `rageQuit` returns principal immediately with rewards settled asynchronously. Target-chain deployment and production approval remain separate gates.
+> **Current local implementation (2026-09-04):** `V1-EXEC-8` removes deployed-market administration and management recovery from the Solidity surface. Asset/configuration registries retain object-scoped pause/retire; user `rageQuit` returns principal immediately with rewards settled asynchronously. Target-chain deployment and production approval remain separate gates.
 
-The Foundry project now has an isolated `v1` profile. The default profile points at the same fresh source tree, while the explicit profile writes artifacts to `out-v1/` and cache data to `cache-v1/`.
+The Foundry project now has an isolated `v1` profile. The default profile points at the same fresh source tree, while the explicit profile writes artifacts to `out-v1/` and cache data to `cache-v1/`. The shared `TreasuryDistributorV1` is part of the V1 contract surface; its holder-facing claim flows are exposed by the Rewards page.
 
 This is infrastructure only. It does not contain launch, curve, fee, staking, graduation, or recovery runtime logic.
 

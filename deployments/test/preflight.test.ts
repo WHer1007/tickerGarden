@@ -53,6 +53,17 @@ function resolverBindingResult(manifest: JsonRecord, label: unknown): string | u
   return result([addressWord(String((modules[registryName] as JsonRecord).deployedAddress))]);
 }
 
+function treasuryBindingResult(manifest: JsonRecord, label: unknown): string | undefined {
+  if (label === "treasury-access-manager-authority") {
+    return result([addressWord(String((manifest.accessManager as JsonRecord).address))]);
+  }
+  if (label === "treasury-market-registry") {
+    const modules = manifest.protocolModules as JsonRecord;
+    return result([addressWord(String((modules.MarketRegistryV1 as JsonRecord).deployedAddress))]);
+  }
+  return undefined;
+}
+
 function stockIdentityResult(manifest: JsonRecord, label: unknown): string | undefined {
   const stock = ((manifest.officialStocks as JsonRecord[])[0])!;
   if (label === "stock-uid") return result([String(stock.assetUid).slice(2)]);
@@ -84,7 +95,8 @@ function prepareManifest(): JsonRecord {
   const getterResult = result([word(123n)]);
   const stockImplementation = String(((manifest.officialStocks as JsonRecord[])[0] as JsonRecord).implementationAddress);
   for (const check of live.keyGetterChecks as JsonRecord[]) {
-    const expectedResult = resolverBindingResult(manifest, check.label) ?? stockIdentityResult(manifest, check.label) ?? (check.label === "gauge-clone-identity"
+    const expectedResult = resolverBindingResult(manifest, check.label) ?? treasuryBindingResult(manifest, check.label)
+      ?? stockIdentityResult(manifest, check.label) ?? (check.label === "gauge-clone-identity"
       ? result(Array.from({ length: 8 }, () => word(123n)))
       : check.category === "PROXY_OR_BEACON_LINKAGE"
         ? result([addressWord(stockImplementation)])
@@ -154,7 +166,8 @@ class MockRpc implements V1ReadOnlyRpc {
         : check.label === "stock-decimals"
           ? faults.stockDecimalsResult ?? canonicalStockResult
           : canonicalStockResult;
-      const callResult = resolverBindingResult(manifest, check.label) ?? stockResult ?? (check.label === "gauge-clone-identity"
+      const callResult = resolverBindingResult(manifest, check.label) ?? treasuryBindingResult(manifest, check.label)
+        ?? stockResult ?? (check.label === "gauge-clone-identity"
         ? result(Array.from({ length: 8 }, () => word(123n)))
         : check.category === "PROXY_OR_BEACON_LINKAGE"
           ? result([addressWord(stockImplementation)])
@@ -315,10 +328,10 @@ test("verifies complete live state at one finalized block using read-only RPC on
   const rpc = new MockRpc(manifest);
   const report = await verifyV1LiveState(manifest, rpc);
   assert.equal(report.chainId, 4663);
-  assert.equal(report.permissionChecks, 71);
+  assert.equal(report.permissionChecks, 86);
   assert.equal(report.administrativePermissionChecks, 6);
-  assert.equal(report.roleMembershipChecks, 3);
-  assert.equal(report.revokedMembershipChecks, 3);
+  assert.equal(report.roleMembershipChecks, 5);
+  assert.equal(report.revokedMembershipChecks, 5);
   assert.ok(report.codeHashesChecked >= 30);
   assert.ok(report.getterChecks >= 12);
   assert.equal(report.transactionReceiptsChecked, 2);
@@ -422,6 +435,37 @@ test("rejects Gauge clone implementation and immutable-identity drift before RPC
   assert.deepEqual(resolverRpc.methods, []);
 });
 
+test("rejects missing or drifted Treasury AccessManager and MarketRegistry bindings before RPC", async () => {
+  const cases: Array<[string, RegExp, RegExp]> = [
+    [
+      "treasury-access-manager-authority",
+      /TreasuryDistributorV1 lacks authority\(\) evidence/,
+      /TreasuryDistributorV1\.authority\(\)/,
+    ],
+    [
+      "treasury-market-registry",
+      /TreasuryDistributorV1 lacks marketRegistry\(\) evidence/,
+      /TreasuryDistributorV1\.marketRegistry\(\)/,
+    ],
+  ];
+  for (const [label, missingError, driftError] of cases) {
+    const missing = prepareManifest();
+    const live = missing.livePreflight as JsonRecord;
+    live.keyGetterChecks = (live.keyGetterChecks as JsonRecord[]).filter((entry) => entry.label !== label);
+    const missingRpc = new MockRpc(missing);
+    await assert.rejects(verifyV1LiveState(missing, missingRpc), missingError);
+    assert.deepEqual(missingRpc.methods, [], label);
+
+    const drifted = prepareManifest();
+    const check = ((drifted.livePreflight as JsonRecord).keyGetterChecks as JsonRecord[])
+      .find((entry) => entry.label === label)!;
+    check.expectedReturnDataHash = keccakHex(result([addressWord(address(`wrong-${label}`))]));
+    const driftedRpc = new MockRpc(drifted);
+    await assert.rejects(verifyV1LiveState(drifted, driftedRpc), driftError);
+    assert.deepEqual(driftedRpc.methods, [], label);
+  }
+});
+
 test("rejects every canonical permission semantic and role-handoff drift before RPC", async () => {
   const cases: Array<[string, (manifest: JsonRecord) => void]> = [
     ["missing selector", (manifest) => { ((manifest.accessManager as JsonRecord).protocolPermissions as JsonRecord[]).splice(0, 1); }],
@@ -433,6 +477,9 @@ test("rejects every canonical permission semantic and role-handoff drift before 
     ["recipient", (manifest) => { (((manifest.accessManager as JsonRecord).protocolPermissions as JsonRecord[])[0]!).recipient = "arbitrary"; }],
     ["precondition", (manifest) => { (((manifest.accessManager as JsonRecord).protocolPermissions as JsonRecord[])[0]!).precondition = "BYPASS"; }],
     ["deployer alias", (manifest) => { (manifest.roleHandoff as JsonRecord).deployer = (manifest.roleHandoff as JsonRecord).governanceSafe; }],
+    ["Root actors alias each other", (manifest) => { (manifest.roleHandoff as JsonRecord).rootReviewerSafe = (manifest.roleHandoff as JsonRecord).rootPublisherSafe; }],
+    ["Root publisher aliases governance", (manifest) => { (manifest.roleHandoff as JsonRecord).rootPublisherSafe = (manifest.roleHandoff as JsonRecord).governanceSafe; }],
+    ["Root reviewer aliases guardian", (manifest) => { (manifest.roleHandoff as JsonRecord).rootReviewerSafe = (manifest.roleHandoff as JsonRecord).guardianSafe; }],
     ["module alias", (manifest) => { ((manifest.protocolModules as JsonRecord).OfficialStockRegistryV1 as JsonRecord).deployedAddress = (manifest.roleHandoff as JsonRecord).guardianSafe; }],
   ];
   for (const [label, mutate] of cases) {

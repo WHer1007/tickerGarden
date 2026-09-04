@@ -19,7 +19,7 @@ const ALICE = "0x000000000000000000000000000000000000a11c";
 const BOB = "0x0000000000000000000000000000000000000b0b";
 const MARKET_ID = `0x${"11".repeat(32)}` as const;
 const SOURCE_HASH = `0x${"22".repeat(32)}` as const;
-const SINGLE_HOLDER_VECTOR = "0x44d733ed1c08b532ac388800d9e34d12ddc666713d3d0b5ad9af8f4ed1acd263";
+const SINGLE_HOLDER_VECTOR = "0x0976c43f620d8d9d90e70517bae067a218078bc8e530160873e12c5a25290572";
 const START = 1_700_000_000n;
 
 function observation(
@@ -153,7 +153,7 @@ test("omits zero-value claims when Quote is smaller than the eligible holder cou
   assert.ok(output.leaves.every((leaf) => leaf.amount > 0n));
 });
 
-test("leaf hash changes across every replay-protection dimension", () => {
+test("V1 leaf hash changes across every replay-protection dimension", () => {
   const output = generateTreasuryRoot(input([observation(1n, START - 1n, ZERO, ALICE, 100n)]));
   const leaf = output.leaves[0];
   assert.ok(leaf);

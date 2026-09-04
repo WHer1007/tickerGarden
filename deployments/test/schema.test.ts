@@ -8,7 +8,7 @@ import { clone, compiled, hash, permissions, validManifest, type JsonRecord } fr
 const deploymentSchema = JSON.parse(readFileSync(new URL("../schemas/v1-deployment-manifest.schema.json", import.meta.url), "utf8")) as JsonRecord;
 const executionManifest = JSON.parse(readFileSync(new URL("../../spec/v1_execution_manifest.json", import.meta.url), "utf8")) as { readiness: { gateSets: { deployment: { open: string[] } } } };
 
-test("accepts a complete V1-EXEC-6 deployment candidate and native zero sentinel", () => {
+test("accepts a complete V1-EXEC-8 deployment candidate and native zero sentinel", () => {
   const candidate = validManifest();
   assert.deepEqual(validateV1DeploymentManifestSchema(candidate), { valid: true, errors: [] });
   assert.doesNotThrow(() => assertV1DeploymentManifest(candidate));
@@ -60,7 +60,7 @@ test("rejects ERC20 zero addresses, invalid Hook permissions, and incomplete CRE
   assert.equal(validateV1DeploymentManifestSchema(fullGauge).valid, false);
 });
 
-test("requires exactly 71 protocol and 6 AccessManager permissions", () => {
+test("requires exactly 86 protocol and 6 AccessManager permissions", () => {
   const candidate = clone(validManifest());
   const manager = candidate.accessManager as JsonRecord;
   manager.protocolPermissions = (manager.protocolPermissions as unknown[]).slice(1);

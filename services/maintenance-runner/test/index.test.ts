@@ -6,17 +6,43 @@ const id = (digit: string) => `0x${digit.repeat(64)}`;
 
 test("declares injected non-privileged boundary", () => {
   assert.deepEqual(getMaintenanceRunnerDescriptor(), {
-    executionSpecId: "V1-EXEC-6", status: "active", privileged: false,
+    executionSpecId: "V1-EXEC-8", status: "active", privileged: false,
     transactionSubmissionImplemented: true, transportInjected: true, signerProvided: false,
     rpcProvided: false, userAssetCustody: false, simulateFirst: true,
     durableIdempotencyLookupRequired: true, ambiguousSubmissionRetry: false,
-    operations: ["sweep", "checkpoint", "flush-forfeiture", "settle-rage-quit", "retry", "compound"],
-    actions: "sweep/checkpoint/flush-forfeiture/settle-rage-quit/retry/compound -> fixed module/signature mapping",
+    operations: ["sweep", "checkpoint", "flush-forfeiture", "settle-rage-quit", "retry", "rescue", "treasury-activate"],
+    actions: "sweep/checkpoint/flush-forfeiture/settle-rage-quit/retry/rescue/treasury-activate -> fixed module/signature mapping",
   });
   assert.equal(Object.isFrozen(MAINTENANCE_RUNNER_DESCRIPTOR), true);
   assert.deepEqual(MAINTENANCE_ACTIONS.sweep, { targetModule: "PonsCompatibleCurve", signature: "sweepCurveFees()" });
   assert.deepEqual(MAINTENANCE_ACTIONS["flush-forfeiture"], { targetModule: "MemeStockGauge", signature: "flushDeferredForfeiture()" });
   assert.deepEqual(MAINTENANCE_ACTIONS["settle-rage-quit"], { targetModule: "AllocationManager", signature: "settleRageQuitRewards(bytes32,address)" });
+  assert.deepEqual(MAINTENANCE_ACTIONS.rescue, { targetModule: "GraduationExecutor", signature: "rescueSweptLaunch(bytes32)" });
+  assert.deepEqual(MAINTENANCE_ACTIONS["treasury-activate"], { targetModule: "TreasuryDistributorV1", signature: "activateMarket(bytes32)" });
+});
+
+test("builds fixed rescue and Treasury activation actions without accepting user calldata", async () => {
+  const observed: unknown[] = [];
+  let submissions = 0;
+  const runner = new MaintenanceRunner({
+    async findSubmission() { return null; },
+    async simulate(action) { observed.push(action); return { status: "ready" }; },
+    async submit() { submissions += 1; return { txHash: id("c") }; },
+  });
+  const marketId = id("6");
+  const rescue = { operation: "rescue" as const, marketId, triggerId: id("1") };
+  const activation = { operation: "treasury-activate" as const, marketId, triggerId: id("2") };
+  assert.equal((await runner.run(rescue)).status, "submitted");
+  assert.equal((await runner.run(activation)).status, "submitted");
+  assert.deepEqual(observed, [
+    { ...rescue, targetModule: "GraduationExecutor", signature: "rescueSweptLaunch(bytes32)" },
+    { ...activation, targetModule: "TreasuryDistributorV1", signature: "activateMarket(bytes32)" },
+  ]);
+  assert.equal(submissions, 2);
+  assert.throws(
+    () => runner.run({ ...rescue, calldata: "0xdead" } as never),
+    /unknown or missing fields/,
+  );
 });
 
 test("builds a fixed user-scoped rage-quit settlement action", async () => {
@@ -92,7 +118,7 @@ test("does not retry deterministic submission failures and isolates observers", 
     async simulate() { return { status: "ready" }; },
     async submit() { submissions += 1; throw new MaintenanceTransportError("bad calldata", false); },
   }, { maxAttempts: 3, onEvent: () => { throw new Error("observer failed"); } });
-  const result = await runner.run({ operation: "compound", marketId: id("4"), triggerId: id("4") });
+  const result = await runner.run({ operation: "retry", marketId: id("4"), triggerId: id("4") });
   assert.equal(result.reason, "bad calldata"); assert.equal(submissions, 1);
   assert.throws(() => runner.run({ operation: "retry", marketId: "0xABC", triggerId: id("5") }), /canonical bytes32/);
 });

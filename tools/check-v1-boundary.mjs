@@ -11,7 +11,7 @@ const sourceRoots = [
   "indexer/src",
   "deployments/src",
   "services/maintenance-runner/src",
-  "website/src",
+  "website-fruit-tree/src",
 ];
 
 const requiredPaths = [
@@ -21,7 +21,7 @@ const requiredPaths = [
   "indexer/src/index.ts",
   "deployments/src/index.ts",
   "services/maintenance-runner/src/index.ts",
-  "website/src/App.jsx",
+  "website-fruit-tree/src/app.ts",
 ];
 
 const retiredPaths = [
@@ -46,10 +46,7 @@ const retiredPaths = [
   "deployments/src/cli.ts",
   "deployments/manifests/robinhood-mainnet.draft.json",
   "deployments/schemas/environment-manifest-v0.1.schema.json",
-  "website/public/assets/hero-tree-base.png",
-  "website/public/assets/step-earn.png",
-  "website/public/assets/step-liquidity.png",
-  "website/public/assets/step-stake.png",
+  "website",
   ".codex_tmp/tickergarden_sim",
 ];
 

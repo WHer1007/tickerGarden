@@ -1,6 +1,8 @@
 # TickerGarden V1 合约架构优化决策
 
-> **当前实现（2026-09-04）：** `V1-EXEC-6` 已实现部署后市场永久自治；`launchPhase` 仅保留一次性事实，用户 `rageQuit` 随时即时取回本金，奖励异步处理。目标链部署与独立审计仍开放。
+> **当前实现（2026-09-04）：** `V1-EXEC-8` 已实现部署后市场永久自治；`launchPhase` 仅保留一次性事实，用户 `rageQuit` 随时即时取回本金，奖励异步处理。目标链部署与独立审计仍开放。
+
+手续费架构更新：总协议手续费维持 1%，不再切出 LP 协议手续费；Active 分支为 Creator40/Staker30/Platform30，无 Active 分支为 Creator70/Staker0/Platform30，向下取整余数归 Creator。Hook 不再 donate，LaunchLocker 不再 collect/compound，手续费统一由 FeeVault 记账。canonical LP 继续永久锁定但无协议 LP 手续费。该取舍消除基于即时池价的复投/捐赠与 JIT 经济风险，并减少链上 gas 和 keeper 运维面。
 
 > 状态：`IMPLEMENTED / NOT YET DEPLOYMENT ELIGIBLE`
 > 日期：2026-09-03
@@ -72,12 +74,12 @@ Token 与 Curve 的构造过程本身承担安全职责：固定供应直接铸�
 
 ## 5. 为什么 LaunchLocker 保持每市场完整独立
 
-LaunchLocker 与 Gauge 的风险性质不同。Locker 会永久持有具体市场的 Position NFT、Quote/Meme 余额和 LP fee 权益，并执行同仓复投。共享多市场 Locker 会把资产归属、Permit2 allowance、tokenId、PoolKey 和余额结算集中到一个资金故障域。
+LaunchLocker 与 Gauge 的风险性质不同。Locker 仅永久持有具体市场的 Position NFT 以及意外直接转入的 Quote/Meme 余额；核心 LP fee 与协议 LP 分成都固定为0，也不存在 collect、Permit2 授权或同仓复投。继续按市场隔离 Locker，主要是为了让 tokenId、PoolKey、资产归属和永久托管边界保持一一对应，避免共享合约把多个市场集中到同一托管故障域。
 
 每市场完整 Locker 虽然增加毕业交易 Gas 和地址数量，但换来：
 
 - 一个 Locker 只能操作一个 market、PoolKey 和 tokenId；
-- 某市场的复投失败不会污染其他市场余额；
+- 某市场的 Position 状态或意外余额不会污染其他市场；
 - NFT owner、池身份和锁定余额可以直接链上证明；
 - 不需要共享账本、管理员提款或跨市场余额路由。
 

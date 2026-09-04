@@ -59,6 +59,8 @@ def validate_parameter(item, expected_type, definitions, expected_name):
     expected_internal_type = (
         f"struct {base}{suffix}"
         if isinstance(fields, list)
+        else f"enum {base}{suffix}"
+        if fields == "uint8" and item["internalType"] == f"enum {base}{suffix}"
         else expand_type(expected_type, definitions)
     )
     if item["internalType"] != expected_internal_type:

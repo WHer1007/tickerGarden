@@ -60,7 +60,7 @@ abstract contract MemeStockGaugeAccumulators is MemeStockGaugeLockedPositions {
     {
         _requireRewardIndex(rewardIndex);
 
-        (accumulatorDelta, indexRemainder) = _increaseRewardAccumulator(rewardIndex, amount);
+        (accumulatorDelta, indexRemainder) = _increaseRewardAccumulator(rewardIndex, amount, marketId);
 
         emit StakerFeeCredited(marketId, feeAsset, feeId, amount, accumulatorDelta, indexRemainder);
     }
@@ -73,7 +73,7 @@ abstract contract MemeStockGaugeAccumulators is MemeStockGaugeLockedPositions {
         bytes32 marketId
     ) internal returns (uint256 accumulatorDelta, uint256 indexRemainder) {
         _requireRewardIndex(rewardIndex);
-        (accumulatorDelta, indexRemainder) = _increaseRewardAccumulator(rewardIndex, amount);
+        (accumulatorDelta, indexRemainder) = _increaseRewardAccumulator(rewardIndex, amount, marketId);
         emit ForfeitedRewardRedistributed(marketId, user, feeAsset, amount, accumulatorDelta, indexRemainder);
     }
 
@@ -101,14 +101,14 @@ abstract contract MemeStockGaugeAccumulators is MemeStockGaugeLockedPositions {
         _forfeiturePrecisionRemainders[rewardIndex] = precisionRemainder % INDEX_PRECISION;
     }
 
-    function _increaseRewardAccumulator(uint8 rewardIndex, uint256 amount)
+    function _increaseRewardAccumulator(uint8 rewardIndex, uint256 amount, bytes32 marketId)
         private
         returns (uint256 accumulatorDelta, uint256 indexRemainder)
     {
         GaugeRewardState storage state = _rewardStates[rewardIndex];
         if (amount == 0) return (0, state.indexRemainder);
 
-        uint256 activeStock = _storedTotalActiveStock;
+        uint256 activeStock = _rewardEligibleActiveStock(marketId);
         if (activeStock == 0) revert StakerCreditWithoutActiveStock(amount);
 
         uint256 carry = state.indexRemainder / activeStock;
@@ -121,6 +121,7 @@ abstract contract MemeStockGaugeAccumulators is MemeStockGaugeLockedPositions {
         indexRemainder = merged % activeStock;
         state.accFeePerShare += accumulatorDelta;
         state.indexRemainder = indexRemainder;
+        _afterRewardAccumulatorUpdate(marketId);
     }
 
     function _checkpointRewardActivations(bytes32 marketId)
@@ -187,4 +188,14 @@ abstract contract MemeStockGaugeAccumulators is MemeStockGaugeLockedPositions {
     function _requireRewardIndex(uint8 rewardIndex) private pure {
         if (rewardIndex >= REWARD_ASSET_COUNT) revert InvalidRewardIndex(rewardIndex);
     }
+
+    /// @dev Test harnesses default to the local aggregate. The production Gauge overrides this with the
+    ///      Vault-authoritative eligibility ledger so a deferred rage-quit cleanup cannot dilute rewards.
+    function _rewardEligibleActiveStock(bytes32) internal view virtual returns (uint256) {
+        return _storedTotalActiveStock;
+    }
+
+    /// @dev Production publishes the accumulator pair to the Vault after every non-zero update. Harnesses that
+    ///      test the arithmetic primitives need no external dependency.
+    function _afterRewardAccumulatorUpdate(bytes32) internal virtual {}
 }

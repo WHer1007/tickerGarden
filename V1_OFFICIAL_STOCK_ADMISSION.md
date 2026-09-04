@@ -3,7 +3,7 @@
 > **状态边界（2026-09-04）：** 本文的 Asset `pause`/`unpause`/`retire` 仍然有效；它们是配置级准入控制，不是已部署市场的暂停权。市场永久自治，用户 rageQuit 始终可立即取回本金。其余旧市场 Emergency 表述不代表当前目标实现。
 
 > 规格状态：`FROZEN / IMPLEMENTATION_ALLOWED`  
-> Execution spec：`V1-EXEC-6`
+> Execution spec：`V1-EXEC-8`
 > 点时证据：2026-09-02，Robinhood Chain `4663`
 > Stock Vault 架构决策：[V1_MULTI_ASSET_STOCK_VAULT.md](./V1_MULTI_ASSET_STOCK_VAULT.md)
 
@@ -37,24 +37,25 @@ STOCK 在 V1 中只承担质押 Base、分配权重和社区背书作用，不�
 - 为 STOCK 质押而设置的 Sequencer Uptime Feed；
 - 任何按 STOCK 价格换算手续费或权重的逻辑。
 
-链上只使用 Stock Token 的实际 raw balance 与 decimals。每个 Asset UID 的 `minimumAllocation` 由管理员动态设置，但不得低于414 raw units；手续费权重使用同一 Gauge 内各用户已激活 STOCK 的相对比例。只要存在 Active stake，Staker 固定取得 non-LP 的50%。Quote 侧手续费按 Quote 分，Meme 侧手续费按 Meme 分，不转换成 STOCK，也不进行美元净额结算。
+链上只使用 Stock Token 的实际 raw balance 与 decimals。每个 Asset UID 的 `minimumAllocation` 由管理员动态设置，但不得低于414 raw units；手续费权重使用同一 Gauge 内各用户已激活 STOCK 的相对比例。存在 Active stake 时按 Creator40%/Staker30%/Platform30% 分配，无 Active stake 时按 Creator70%/Staker0%/Platform30% 分配。Quote 侧手续费按 Quote 分，Meme 侧手续费按 Meme 分，不转换成 STOCK，也不进行美元净额结算。
 
-此前生成的 Chainlink 目录和 backing-target 工具仅保留为 `V1-EXEC-1` 历史研究证据，不是当前 `V1-EXEC-6` 的协议输入、准入条件或部署门禁；边界见 [`spec/RETIRED_STOCK_PRICE_RESEARCH.md`](./spec/RETIRED_STOCK_PRICE_RESEARCH.md)。
+此前生成的 Chainlink 目录和 backing-target 工具仅保留为 `V1-EXEC-1` 历史研究证据，不是当前 `V1-EXEC-8` 的协议输入、准入条件或部署门禁；边界见 [`spec/RETIRED_STOCK_PRICE_RESEARCH.md`](./spec/RETIRED_STOCK_PRICE_RESEARCH.md)。
 
 ## 4. 毕业后手续费分配
 
-每笔交易先按总费用的20%分给 LP。令 `D` 为其余80%的实际到账 non-LP fee，`S` 为本次费用入账前、已处理30秒成熟队列后的 `totalActiveStock`：
+毕业后总协议手续费维持 1%，LP 协议手续费为 0%，Hook 将全部手续费统一转入 FeeVault。存在 Active staker 时按 Creator 40% / Staker 30% / Platform 30% 分配；不存在 Active staker 时按 Creator 70% / Staker 0% / Platform 30% 分配。Staker 与 Platform 份额向下取整，整数余数归 Creator。canonical LP 仍永久锁定，但不获得协议 LP 手续费。取消 donate 与 LaunchLocker collect/compound 路径，可消除即时池价复投/JIT 风险并降低 gas 与 keeper 运维成本。
+
+每笔交易的1%协议手续费全部进入 FeeVault。令 `T` 为实际手续费，`S` 为本次费用入账前、已处理30秒成熟队列后的 `totalActiveStock`：
 
 ```text
 minimumAllocation = OfficialStockRegistry.minimumAllocation(assetUid) >= 414 raw units
 Staker = 0                         if S == 0
-         floor(D × 50 / 100)       if S > 0
-remaining = D - Staker
-Creator = floor(remaining / 2)
-Platform = remaining - Creator
+         floor(T × 30 / 100)       if S > 0
+Platform = floor(T × 30 / 100)
+Creator = T - Staker - Platform
 ```
 
-`S=0` 时总费近似40/0/40/20；`S>0` 时固定达到20/40/20/20。质押者 Bucket 按费用发生时各用户的 `userActiveStock/S` 分配，不设置总质押量饱和点或线性释放。新分配在30秒激活前不参与；增加仓位不会获得历史手续费；24小时锁定从本次 allocation 交易开始计算。每种收费资产使用独立 accumulator 和 remainder，最终整数余数确定性归 Platform。
+`S=0` 时为70/0/30/0；`S>0` 时为40/30/30/0。质押者 Bucket 按费用发生时各用户的 `userActiveStock/S` 分配，不设置总质押量饱和点或线性释放。新分配在30秒激活前不参与；增加仓位不会获得历史手续费；24小时锁定从本次 allocation 交易开始计算。每种收费资产使用独立 accumulator 和 remainder，最终整数余数确定性归 Creator。
 
 ## 5. 身份、状态与异常处理
 
@@ -90,7 +91,7 @@ Platform = remaining - Creator
 - 30秒前的 pending 不进入 `S`；费用只归发生时已激活的仓位。
 - STOCK 本金安全不依赖 Gauge、Indexer、后端、Oracle 或价格 Feed 在线。
 - 对每个 Asset UID 独立满足 `actual token balance of Vault >= totalDeposited(assetUid)`；任何入账/出账 Token 行为不能形成部分账本更新。fee-on-transfer、异常返回、正向余额漂移等非精确 transfer 必须整体回滚，不能被当作可支持资产。
-- 手续费按实际收费资产原币种守恒；只要存在 Active stake，Staker 固定取得 non-LP 的50%，再按用户 active STOCK 比例分配。无 Active stake 时 Staker 为0。
+- 手续费按实际收费资产原币种守恒；存在 Active stake 时按 Creator40%/Staker30%/Platform30% 分配，无 Active stake 时按 Creator70%/Staker0%/Platform30% 分配，再按用户 active STOCK 比例分配。无 Active stake 时 Staker 为0。
 
 ## 7. 当前工程状态
 

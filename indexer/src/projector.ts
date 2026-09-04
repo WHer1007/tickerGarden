@@ -239,8 +239,6 @@ export function applyV1Event(state: V1IndexerState, event: DecodedV1Event): "app
       put(state.poolEvents, at.eventKey, event.args, at); break;
     case "LaunchRescued(bytes32,uint64,uint64)":
       put(state.poolEvents, at.eventKey, event.args, at); mergeMarket(state, event.args.marketId, { rescuedAt: event.args.rescuedAt }, at); break;
-    case "LockedFeesCompounded(bytes32,uint256,uint256,uint128,uint256,uint256)":
-      put(state.poolEvents, at.eventKey, event.args, at); break;
     case "StockDeposited(bytes32,address,uint256)":
     case "StockWithdrawn(bytes32,address,uint256)":
       mergePosition(state.stockPositions, key(event.args.assetUid, event.args.user), { ...event.args, lastEvent: event.signature }, at); break;

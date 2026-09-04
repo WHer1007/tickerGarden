@@ -305,6 +305,30 @@ function verifyLaunchConfigResolverEvidence(manifest: Manifest): void {
   }
 }
 
+function verifyTreasuryBindingEvidence(manifest: Manifest): void {
+  const treasury = manifest.protocolModules.TreasuryDistributorV1!;
+  const bindings = [
+    ["authority()", stringField(manifest.accessManager, "address")],
+    ["marketRegistry()", stringField(manifest.protocolModules.MarketRegistryV1!, "deployedAddress")],
+  ] as const;
+  for (const [getter, expectedAddress] of bindings) {
+    const check = manifest.livePreflight.keyGetterChecks.find(
+      (candidate) => stringField(candidate, "target").toLowerCase()
+        === stringField(treasury, "deployedAddress").toLowerCase()
+        && stringField(candidate, "callData").toLowerCase() === callData(getter).toLowerCase(),
+    );
+    if (check === undefined) {
+      throw new Error(`V1 live preflight TreasuryDistributorV1 lacks ${getter} evidence`);
+    }
+    const expectedHash = keccakHex(`0x${addressWord(expectedAddress)}`);
+    same(
+      `protocolModules.TreasuryDistributorV1.${getter}`,
+      expectedHash,
+      stringField(check, "expectedReturnDataHash"),
+    );
+  }
+}
+
 function verifyProxyEvidence(manifest: Manifest): void {
   const storage = new Map(
     manifest.livePreflight.storageChecks.map((check) => [
@@ -402,7 +426,10 @@ function comparePermissionSemantics(manifest: Manifest): void {
   const governanceSafe = stringField(manifest.roleHandoff, "governanceSafe").toLowerCase();
   const guardianSafe = stringField(manifest.roleHandoff, "guardianSafe").toLowerCase();
   const securitySafe = stringField(manifest.roleHandoff, "securityOrGovernanceSafe").toLowerCase();
-  const actors = [governanceSafe, guardianSafe, securitySafe];
+  const rootPublisherSafe = stringField(manifest.roleHandoff, "rootPublisherSafe").toLowerCase();
+  const rootReviewerSafe = stringField(manifest.roleHandoff, "rootReviewerSafe").toLowerCase();
+  const coreActors = [governanceSafe, guardianSafe, securitySafe];
+  const actors = [...coreActors, rootPublisherSafe, rootReviewerSafe];
   if (actors.includes(deployer) || actors.includes(accessManagerAddress) || deployer === accessManagerAddress) {
     throw new Error("V1 live preflight aliased deployer, AccessManager, or Safe actor");
   }
@@ -410,6 +437,13 @@ function comparePermissionSemantics(manifest: Manifest): void {
     guardianSafe === governanceSafe || guardianSafe === securitySafe
   ) {
     throw new Error("V1 live preflight Guardian role requires an independent Safe member");
+  }
+  if (
+    rootPublisherSafe === rootReviewerSafe
+      || coreActors.includes(rootPublisherSafe)
+      || coreActors.includes(rootReviewerSafe)
+  ) {
+    throw new Error("V1 live preflight Treasury Root publisher and reviewer require dedicated, mutually independent Safe members");
   }
   const deploymentAddresses = new Set([accessManagerAddress, deployer, ...actors]);
   for (const [name, module] of Object.entries(manifest.protocolModules)) {
@@ -421,6 +455,8 @@ function comparePermissionSemantics(manifest: Manifest): void {
     PROTOCOL_ADMIN_ROLE: { member: stringField(manifest.roleHandoff, "governanceSafe"), delay: 172800 },
     PAUSE_GUARDIAN_ROLE: { member: stringField(manifest.roleHandoff, "guardianSafe"), delay: 0 },
     UNPAUSE_ROLE: { member: stringField(manifest.roleHandoff, "securityOrGovernanceSafe"), delay: 86400 },
+    ROOT_PUBLISHER_ROLE: { member: stringField(manifest.roleHandoff, "rootPublisherSafe"), delay: 0 },
+    ROOT_REVIEW_ROLE: { member: stringField(manifest.roleHandoff, "rootReviewerSafe"), delay: 0 },
   };
   const roleIds = new Map<string, string>();
   for (const [index, role] of manifest.accessManager.roles.entries()) {
@@ -722,6 +758,7 @@ export async function verifyV1LiveState(candidate: unknown, rpc: V1ReadOnlyRpc):
   const manifest = candidate as Manifest;
   verifyCreate2Evidence(manifest);
   verifyLaunchConfigResolverEvidence(manifest);
+  verifyTreasuryBindingEvidence(manifest);
   verifyProxyEvidence(manifest);
   comparePermissionSemantics(manifest);
   const expectedChainId = BigInt(numberField(manifest.chain, "chainId"));

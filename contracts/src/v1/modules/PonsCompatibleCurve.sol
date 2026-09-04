@@ -10,8 +10,10 @@ import {
     IPonsCompatibleCurve,
     IProtocolFeeVault,
     ITickerMemeTokenV1,
-    MarketView
+    MarketView,
+    PoolKey
 } from "../interfaces/IV1Protocol.sol";
+import {GraduationPoolMath} from "../libraries/GraduationPoolMath.sol";
 import {PonsAntiSnipe} from "../libraries/PonsAntiSnipe.sol";
 import {PonsCurveMath} from "../libraries/PonsCurveMath.sol";
 import {PonsSupplyMath} from "../libraries/PonsSupplyMath.sol";
@@ -241,6 +243,7 @@ contract PonsCompatibleCurve is IPonsCompatibleCurve, ReentrancyGuard {
 
         uint256 sweptQuote = _reserves.trackedQuote;
         uint256 sweptTokens = _reserves.trackedTokens;
+        _validateActualGraduationPlan(sweptQuote, sweptTokens);
         _graduationSweptQuote = sweptQuote;
         _graduationSweptTokens = sweptTokens;
         _reserves.trackedQuote = 0;
@@ -259,6 +262,15 @@ contract PonsCompatibleCurve is IPonsCompatibleCurve, ReentrancyGuard {
         catch (bytes memory reason) {
             emit AutoGraduationFailed(_marketId, keccak256(reason));
         }
+    }
+
+    /// @dev Admission validates the configuration-derived terminal plan, while integer rounding across an arbitrary
+    ///      trade history can change the exact terminal Quote balance. Re-running the canonical pool math here keeps
+    ///      an unrepresentable path in NotGraduated and rolls the final buy back before any escrow or lifecycle write.
+    function _validateActualGraduationPlan(uint256 sweptQuote, uint256 sweptTokens) private view {
+        (uint256 poolMemeAmount,) = PonsSupplyMath.graduationPartition(sweptTokens, sweptQuote, _phantomQuote);
+        PoolKey memory key = _marketRegistry.canonicalPoolKey(_marketId);
+        GraduationPoolMath.derive(key, _quoteAsset, address(_memeToken), sweptQuote, poolMemeAmount);
     }
 
     function quoteBuy(uint256 quoteIn, address recipient)

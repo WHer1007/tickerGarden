@@ -134,6 +134,12 @@ export interface V1EventArgsBySignature {
     readonly amount0: bigint;
     readonly amount1: bigint;
   };
+  readonly "EpochRemainderRolledOver(bytes32,uint32,uint32,uint256)": {
+    readonly marketId: string;
+    readonly fromEpochId: bigint;
+    readonly toEpochId: bigint;
+    readonly amount: bigint;
+  };
   readonly "ExpectedPoolRegistered(bytes32,bytes32,bytes32,uint32)": {
     readonly marketId: string;
     readonly poolId: string;
@@ -230,14 +236,6 @@ export interface V1EventArgsBySignature {
     readonly newStatus: bigint;
     readonly reasonHash: string;
   };
-  readonly "LockedFeesCompounded(bytes32,uint256,uint256,uint128,uint256,uint256)": {
-    readonly marketId: string;
-    readonly amount0: bigint;
-    readonly amount1: bigint;
-    readonly liquidityAdded: bigint;
-    readonly remaining0: bigint;
-    readonly remaining1: bigint;
-  };
   readonly "MarketCreated(bytes32,bytes32,address,address,address,address,bytes32,bytes32,bytes32)": {
     readonly marketId: string;
     readonly assetUid: string;
@@ -257,6 +255,14 @@ export interface V1EventArgsBySignature {
     readonly gauge: string;
     readonly sourceVersion: bigint;
   };
+  readonly "MemeTreasuryBurned(bytes32,address,address,bytes32,uint256,uint256)": {
+    readonly marketId: string;
+    readonly funder: string;
+    readonly memeToken: string;
+    readonly burnId: string;
+    readonly amount: bigint;
+    readonly totalSupplyAfter: bigint;
+  };
   readonly "PendingMaterialized(address,bytes32,uint64,uint256)": {
     readonly user: string;
     readonly marketId: string;
@@ -270,6 +276,11 @@ export interface V1EventArgsBySignature {
     readonly newGeneration: bigint;
     readonly combinedAmount: bigint;
     readonly unlockAt: bigint;
+  };
+  readonly "PendingRootCancelled(bytes32,uint32,bytes32)": {
+    readonly marketId: string;
+    readonly epochId: bigint;
+    readonly reasonHash: string;
   };
   readonly "PendingScheduled(address,bytes32,uint256,uint64,uint64)": {
     readonly user: string;
@@ -316,6 +327,14 @@ export interface V1EventArgsBySignature {
     readonly newStatus: bigint;
     readonly reasonHash: string;
   };
+  readonly "QuoteTreasuryFunded(bytes32,uint32,address,address,bytes32,uint256)": {
+    readonly marketId: string;
+    readonly epochId: bigint;
+    readonly funder: string;
+    readonly quoteToken: string;
+    readonly fundingId: string;
+    readonly amount: bigint;
+  };
   readonly "RageQuitRewardSettlementCompleted(bytes32,address,bytes32,uint256)": {
     readonly assetUid: string;
     readonly user: string;
@@ -341,6 +360,48 @@ export interface V1EventArgsBySignature {
     readonly user: string;
     readonly marketId: string;
     readonly principal: bigint;
+  };
+  readonly "RootFinalized(bytes32,uint32,bytes32,uint64)": {
+    readonly marketId: string;
+    readonly epochId: bigint;
+    readonly merkleRoot: string;
+    readonly claimUntil: bigint;
+  };
+  readonly "RootPublished(bytes32,uint32,bytes32,bytes32,uint256,uint32,uint64)": {
+    readonly marketId: string;
+    readonly epochId: bigint;
+    readonly merkleRoot: string;
+    readonly datasetHash: string;
+    readonly totalTwab: bigint;
+    readonly leafCount: bigint;
+    readonly finalizeAfter: bigint;
+  };
+  readonly "RootRequested(bytes32,uint32,address,uint64,uint64,uint64,bytes32,uint256,address,uint128,uint64)": {
+    readonly marketId: string;
+    readonly epochId: bigint;
+    readonly requester: string;
+    readonly windowStart: bigint;
+    readonly windowEnd: bigint;
+    readonly sourceBlockNumber: bigint;
+    readonly sourceBlockHash: string;
+    readonly quoteAmount: bigint;
+    readonly serviceFeeAsset: string;
+    readonly serviceFeeAmount: bigint;
+    readonly publishBy: bigint;
+  };
+  readonly "RootRequestExpired(bytes32,uint32,address)": {
+    readonly marketId: string;
+    readonly epochId: bigint;
+    readonly requester: string;
+  };
+  readonly "RootServiceFeeUpdated(address,uint128)": {
+    readonly asset: string;
+    readonly amount: bigint;
+  };
+  readonly "ServiceCreditWithdrawn(address,address,uint256)": {
+    readonly asset: string;
+    readonly beneficiary: string;
+    readonly amount: bigint;
   };
   readonly "StakerFeeCredited(bytes32,address,bytes32,uint256,uint256,uint256)": {
     readonly marketId: string;
@@ -388,6 +449,29 @@ export interface V1EventArgsBySignature {
     readonly from: string;
     readonly to: string;
     readonly value: bigint;
+  };
+  readonly "TreasuryBurn(address,uint256,uint256)": {
+    readonly treasuryDistributor: string;
+    readonly amount: bigint;
+    readonly totalSupplyAfter: bigint;
+  };
+  readonly "TreasuryClaimed(bytes32,uint32,uint256,address,uint256,uint256)": {
+    readonly marketId: string;
+    readonly epochId: bigint;
+    readonly leafIndex: bigint;
+    readonly account: string;
+    readonly twab: bigint;
+    readonly amount: bigint;
+  };
+  readonly "TreasuryMarketActivated(bytes32,uint64)": {
+    readonly marketId: string;
+    readonly activatedAt: bigint;
+  };
+  readonly "TreasuryMarketRegistered(bytes32,address,address,bytes32)": {
+    readonly marketId: string;
+    readonly memeToken: string;
+    readonly quoteToken: string;
+    readonly eligibilityPolicyHash: string;
   };
   readonly "V4FeeAccrued(bytes32,bytes32,address,uint64,bytes32,uint256,uint256,uint256,uint256)": {
     readonly marketId: string;
@@ -539,6 +623,12 @@ export const V1_EVENT_ABI = [
     inputs: [{"name":"id","type":"bytes32","indexed":true},{"name":"sender","type":"address","indexed":true},{"name":"amount0","type":"uint256","indexed":false},{"name":"amount1","type":"uint256","indexed":false}],
   },
   {
+    signature: "EpochRemainderRolledOver(bytes32,uint32,uint32,uint256)",
+    name: "EpochRemainderRolledOver",
+    modules: ["TreasuryDistributorV1"],
+    inputs: [{"name":"marketId","type":"bytes32","indexed":true},{"name":"fromEpochId","type":"uint32","indexed":true},{"name":"toEpochId","type":"uint32","indexed":true},{"name":"amount","type":"uint256","indexed":false}],
+  },
+  {
     signature: "ExpectedPoolRegistered(bytes32,bytes32,bytes32,uint32)",
     name: "ExpectedPoolRegistered",
     modules: ["TickerGardenMemeHook"],
@@ -623,12 +713,6 @@ export const V1_EVENT_ABI = [
     inputs: [{"name":"launchTemplateId","type":"bytes32","indexed":true},{"name":"oldStatus","type":"uint8","indexed":false},{"name":"newStatus","type":"uint8","indexed":false},{"name":"reasonHash","type":"bytes32","indexed":false}],
   },
   {
-    signature: "LockedFeesCompounded(bytes32,uint256,uint256,uint128,uint256,uint256)",
-    name: "LockedFeesCompounded",
-    modules: ["LaunchLocker"],
-    inputs: [{"name":"marketId","type":"bytes32","indexed":true},{"name":"amount0","type":"uint256","indexed":false},{"name":"amount1","type":"uint256","indexed":false},{"name":"liquidityAdded","type":"uint128","indexed":false},{"name":"remaining0","type":"uint256","indexed":false},{"name":"remaining1","type":"uint256","indexed":false}],
-  },
-  {
     signature: "MarketCreated(bytes32,bytes32,address,address,address,address,bytes32,bytes32,bytes32)",
     name: "MarketCreated",
     modules: ["TickerGardenFactoryV1"],
@@ -641,6 +725,12 @@ export const V1_EVENT_ABI = [
     inputs: [{"name":"marketId","type":"bytes32","indexed":true},{"name":"assetUid","type":"bytes32","indexed":true},{"name":"memeToken","type":"address","indexed":true},{"name":"curve","type":"address","indexed":false},{"name":"gauge","type":"address","indexed":false},{"name":"sourceVersion","type":"uint32","indexed":false}],
   },
   {
+    signature: "MemeTreasuryBurned(bytes32,address,address,bytes32,uint256,uint256)",
+    name: "MemeTreasuryBurned",
+    modules: ["TreasuryDistributorV1"],
+    inputs: [{"name":"marketId","type":"bytes32","indexed":true},{"name":"funder","type":"address","indexed":true},{"name":"memeToken","type":"address","indexed":true},{"name":"burnId","type":"bytes32","indexed":false},{"name":"amount","type":"uint256","indexed":false},{"name":"totalSupplyAfter","type":"uint256","indexed":false}],
+  },
+  {
     signature: "PendingMaterialized(address,bytes32,uint64,uint256)",
     name: "PendingMaterialized",
     modules: ["MemeStockGauge"],
@@ -651,6 +741,12 @@ export const V1_EVENT_ABI = [
     name: "PendingRescheduled",
     modules: ["MemeStockGauge"],
     inputs: [{"name":"user","type":"address","indexed":true},{"name":"marketId","type":"bytes32","indexed":true},{"name":"oldGeneration","type":"uint64","indexed":false},{"name":"newGeneration","type":"uint64","indexed":false},{"name":"combinedAmount","type":"uint256","indexed":false},{"name":"unlockAt","type":"uint64","indexed":false}],
+  },
+  {
+    signature: "PendingRootCancelled(bytes32,uint32,bytes32)",
+    name: "PendingRootCancelled",
+    modules: ["TreasuryDistributorV1"],
+    inputs: [{"name":"marketId","type":"bytes32","indexed":true},{"name":"epochId","type":"uint32","indexed":true},{"name":"reasonHash","type":"bytes32","indexed":true}],
   },
   {
     signature: "PendingScheduled(address,bytes32,uint256,uint64,uint64)",
@@ -695,6 +791,12 @@ export const V1_EVENT_ABI = [
     inputs: [{"name":"configId","type":"bytes32","indexed":true},{"name":"oldStatus","type":"uint8","indexed":false},{"name":"newStatus","type":"uint8","indexed":false},{"name":"reasonHash","type":"bytes32","indexed":false}],
   },
   {
+    signature: "QuoteTreasuryFunded(bytes32,uint32,address,address,bytes32,uint256)",
+    name: "QuoteTreasuryFunded",
+    modules: ["TreasuryDistributorV1"],
+    inputs: [{"name":"marketId","type":"bytes32","indexed":true},{"name":"epochId","type":"uint32","indexed":true},{"name":"funder","type":"address","indexed":true},{"name":"quoteToken","type":"address","indexed":false},{"name":"fundingId","type":"bytes32","indexed":false},{"name":"amount","type":"uint256","indexed":false}],
+  },
+  {
     signature: "RageQuitRewardSettlementCompleted(bytes32,address,bytes32,uint256)",
     name: "RageQuitRewardSettlementCompleted",
     modules: ["UserStockVault"],
@@ -717,6 +819,42 @@ export const V1_EVENT_ABI = [
     name: "RageQuitRewardSettlementQueued",
     modules: ["UserStockVault"],
     inputs: [{"name":"assetUid","type":"bytes32","indexed":true},{"name":"user","type":"address","indexed":true},{"name":"marketId","type":"bytes32","indexed":true},{"name":"principal","type":"uint256","indexed":false}],
+  },
+  {
+    signature: "RootFinalized(bytes32,uint32,bytes32,uint64)",
+    name: "RootFinalized",
+    modules: ["TreasuryDistributorV1"],
+    inputs: [{"name":"marketId","type":"bytes32","indexed":true},{"name":"epochId","type":"uint32","indexed":true},{"name":"merkleRoot","type":"bytes32","indexed":true},{"name":"claimUntil","type":"uint64","indexed":false}],
+  },
+  {
+    signature: "RootPublished(bytes32,uint32,bytes32,bytes32,uint256,uint32,uint64)",
+    name: "RootPublished",
+    modules: ["TreasuryDistributorV1"],
+    inputs: [{"name":"marketId","type":"bytes32","indexed":true},{"name":"epochId","type":"uint32","indexed":true},{"name":"merkleRoot","type":"bytes32","indexed":true},{"name":"datasetHash","type":"bytes32","indexed":false},{"name":"totalTwab","type":"uint256","indexed":false},{"name":"leafCount","type":"uint32","indexed":false},{"name":"finalizeAfter","type":"uint64","indexed":false}],
+  },
+  {
+    signature: "RootRequested(bytes32,uint32,address,uint64,uint64,uint64,bytes32,uint256,address,uint128,uint64)",
+    name: "RootRequested",
+    modules: ["TreasuryDistributorV1"],
+    inputs: [{"name":"marketId","type":"bytes32","indexed":true},{"name":"epochId","type":"uint32","indexed":true},{"name":"requester","type":"address","indexed":true},{"name":"windowStart","type":"uint64","indexed":false},{"name":"windowEnd","type":"uint64","indexed":false},{"name":"sourceBlockNumber","type":"uint64","indexed":false},{"name":"sourceBlockHash","type":"bytes32","indexed":false},{"name":"quoteAmount","type":"uint256","indexed":false},{"name":"serviceFeeAsset","type":"address","indexed":false},{"name":"serviceFeeAmount","type":"uint128","indexed":false},{"name":"publishBy","type":"uint64","indexed":false}],
+  },
+  {
+    signature: "RootRequestExpired(bytes32,uint32,address)",
+    name: "RootRequestExpired",
+    modules: ["TreasuryDistributorV1"],
+    inputs: [{"name":"marketId","type":"bytes32","indexed":true},{"name":"epochId","type":"uint32","indexed":true},{"name":"requester","type":"address","indexed":true}],
+  },
+  {
+    signature: "RootServiceFeeUpdated(address,uint128)",
+    name: "RootServiceFeeUpdated",
+    modules: ["TreasuryDistributorV1"],
+    inputs: [{"name":"asset","type":"address","indexed":true},{"name":"amount","type":"uint128","indexed":false}],
+  },
+  {
+    signature: "ServiceCreditWithdrawn(address,address,uint256)",
+    name: "ServiceCreditWithdrawn",
+    modules: ["TreasuryDistributorV1"],
+    inputs: [{"name":"asset","type":"address","indexed":true},{"name":"beneficiary","type":"address","indexed":true},{"name":"amount","type":"uint256","indexed":false}],
   },
   {
     signature: "StakerFeeCredited(bytes32,address,bytes32,uint256,uint256,uint256)",
@@ -759,6 +897,30 @@ export const V1_EVENT_ABI = [
     name: "Transfer",
     modules: ["TickerMemeTokenV1"],
     inputs: [{"name":"from","type":"address","indexed":true},{"name":"to","type":"address","indexed":true},{"name":"value","type":"uint256","indexed":false}],
+  },
+  {
+    signature: "TreasuryBurn(address,uint256,uint256)",
+    name: "TreasuryBurn",
+    modules: ["TickerMemeTokenV1"],
+    inputs: [{"name":"treasuryDistributor","type":"address","indexed":true},{"name":"amount","type":"uint256","indexed":false},{"name":"totalSupplyAfter","type":"uint256","indexed":false}],
+  },
+  {
+    signature: "TreasuryClaimed(bytes32,uint32,uint256,address,uint256,uint256)",
+    name: "TreasuryClaimed",
+    modules: ["TreasuryDistributorV1"],
+    inputs: [{"name":"marketId","type":"bytes32","indexed":true},{"name":"epochId","type":"uint32","indexed":true},{"name":"leafIndex","type":"uint256","indexed":true},{"name":"account","type":"address","indexed":false},{"name":"twab","type":"uint256","indexed":false},{"name":"amount","type":"uint256","indexed":false}],
+  },
+  {
+    signature: "TreasuryMarketActivated(bytes32,uint64)",
+    name: "TreasuryMarketActivated",
+    modules: ["TreasuryDistributorV1"],
+    inputs: [{"name":"marketId","type":"bytes32","indexed":true},{"name":"activatedAt","type":"uint64","indexed":false}],
+  },
+  {
+    signature: "TreasuryMarketRegistered(bytes32,address,address,bytes32)",
+    name: "TreasuryMarketRegistered",
+    modules: ["TreasuryDistributorV1"],
+    inputs: [{"name":"marketId","type":"bytes32","indexed":true},{"name":"memeToken","type":"address","indexed":true},{"name":"quoteToken","type":"address","indexed":true},{"name":"eligibilityPolicyHash","type":"bytes32","indexed":false}],
   },
   {
     signature: "V4FeeAccrued(bytes32,bytes32,address,uint64,bytes32,uint256,uint256,uint256,uint256)",

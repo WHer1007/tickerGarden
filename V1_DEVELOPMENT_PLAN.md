@@ -1,6 +1,6 @@
 # TickerGarden V1 开发计划
 
-> 当前规范：`V1-EXEC-6`；readiness：`IMPLEMENTATION_ALLOWED / NOT_DEPLOYABLE`。
+> 当前规范：`V1-EXEC-8`；readiness：`IMPLEMENTATION_ALLOWED / NOT_DEPLOYABLE`。
 
 ## V1-ARCH-006：删除旧市场干预架构
 
@@ -15,15 +15,23 @@
 - Hook、Gauge、Curve、FeeVault、Vault 和 Allocation 不再读取或接受市场管理员状态；
 - 用户 `rageQuit` 始终先返还完整 STOCK 本金，奖励清理由 permissionless 路径异步完成；
 - Asset、Quote、Pons baseline、Launch template 的对象级 pause/unpause/retire 继续用于新增准入或新增敞口，不影响既有市场交易或本金退出；
-- Solidity ABI、权限矩阵、部署 schema、Indexer、Backend、Website、maintenance runner 和文档全部同步到 `V1-EXEC-6`。
+- Solidity ABI、权限矩阵、部署 schema、Indexer、Backend、Website、Rewards/Treasury 前端、maintenance runner 和文档全部同步到 `V1-EXEC-8`。
 
-当前 canonical 产品模块为 18 个；接口 manifest 为 70 个 mutation、54 个协议事件，Indexer 另加入 canonical PoolManager 事件后生成 56 个事件签名。Gauge clone immutable identity 从 8 个 word 收敛为 7 个 word，runtime 为 269 bytes；共享 MultiAsset Vault schema 为 v5。
+当前 canonical 产品模块为 19 个（含共享 `TreasuryDistributorV1`）；接口和事件数量以 `spec/v1_execution_manifest.json` 为准。Gauge clone immutable identity 从 8 个 word 收敛为 7 个 word，runtime 为 269 bytes；共享 MultiAsset Vault schema 为 v6。部署权限面现为 86 个协议 mutation：22 个由 5 类冻结角色门控，64 个为 immutable direct/public/module caller；Treasury Root publisher 与 independent reviewer 必须使用相互独立且不复用治理/Guardian/Unpause 成员的 Safe。
+
+## 正式用户前端边界
+
+`website-fruit-tree/` 是 V1 面向用户的唯一正式前端。页面与用户能力以该目录为准；`Rewards` 保持产品名称，并承载 Position、Staker、Creator、Treasury 四个面板。原辅助前端已迁入 `archive/legacy-website/`，只保留历史追溯用途，不参与构建、测试、CI、部署或功能对接，也不改变本计划的 readiness 结论。
+
+前端的链上与链下接入必须 fail closed：read API、Factory、LaunchRouter、AllocationManager、FeeVault、CreatorRegistry、TreasuryDistributor 与 Treasury Proof API 的配置、健康状态和 Factory/Registry 绑定任一不满足时，不得报价、模拟、签名或提交资金敏感操作。Treasury 前端随 V1 发布，但 Treasury 整体当前仍标记为 `NOT_DEPLOYABLE`、尚未完成实链 E2E，因此其 holder 写操作还必须通过独立的 `V1-TREASURY-EXEC-1:DEPLOYED_E2E_APPROVED` 发布批准门；未批准时 Rewards 只读展示 Treasury，不影响其余 V1 用户操作。
+
+曲线阶段的买卖、创建与首买已经使用 canonical V1 ABI 接入。毕业后的 Pool 页面只能在 Registry 返回 `PoolCreated` canonical route、且目标 Robinhood Chain 的 V4 Router/Quoter 地址、runtime codehash、精确 ABI、Permit2/native settlement 语义和 deadline 规则全部写入 deployment evidence 并通过 Fork/浏览器 E2E 后开放。当前这些外部身份尚未冻结，所以正式前端明确锁定 Pool swap；禁止用推测 calldata 或非 canonical 第三方 Router 补齐。
 
 ## 本地验收
 
-- Foundry：55 suites、612 tests 全部通过；Vault/Gauge 状态化不变量为 256 runs、128,000 calls、0 revert。
+- Foundry：61 suites、671 tests 全部通过；Vault/Gauge、Treasury 与多资产恶意 Token 状态化不变量均为 256 runs、128,000 calls、0 revert。
 - 机器规范：59 tests 通过；canonical ABI、compiled interface、product artifact、fixture 与权限/CI track stale checks 通过。
-- 链下：Backend 13、Indexer 19、Deployments 23、Maintenance runner 12、Website 30 unit + 4 Sites tests 通过。
+- 链下：Backend 13、Indexer 20、Deployments 24、Maintenance runner 13、正式 `website-fruit-tree` 16 tests 通过；归档旧站不再计入活动验收口径。
 - 旧管理 selector 只允许出现在“不可调用”的负向测试和明确的已删除迁移记录中；源码、生成 ABI、事件、客户端、部署 `dist` 与编译 artifact 均不得包含它们。
 
 ## 后续工作与外部支持
@@ -31,10 +39,11 @@
 本地实现完成不等于可部署。以下门禁仍开放：
 
 1. 提供并确认 Robinhood Chain 测试/归档 RPC、目标 finalized block 与官方合约身份；
-2. 生成真实 production deployment manifest，完成 CREATE2、Hook permission bits、AccessManager 角色/延迟和 codehash 取证；
-3. 在目标链完成 live Fork、部署、验证、全链路 E2E 与 canary；
-4. 独立安全审计关闭 Critical/High，并完成 Pons 来源/许可及 Stock 收益产品的法律签字；
-5. 完成监控、告警、事故 runbook 和至少 72 小时 canary soak 后，才可推进 `DEPLOYMENT_ELIGIBLE`/`PRODUCTION_READY`。
+2. 提供 Governance、Guardian、Security/Unpause、Treasury Root Publisher、Independent Root Reviewer 五类角色成员及 Platform Treasury 的最终地址，生成真实 production deployment manifest，完成 CREATE2、Hook permission bits、AccessManager 角色/延迟和 codehash 取证；
+3. 冻结目标链 V4 Router/Quoter 的地址、runtime codehash、精确 swap/quote ABI、Permit2/native settlement 与 deadline 语义，随后接通正式前端的 Pool quote/submit；
+4. 在目标链完成 live Fork、部署、验证、全链路 E2E 与 canary；
+5. 独立安全审计关闭 Critical/High，并完成 Pons 来源/许可及 Stock 收益产品的法律签字；
+6. 完成监控、告警、事故 runbook 和至少 72 小时 canary soak 后，才可推进 `DEPLOYMENT_ELIGIBLE`/`PRODUCTION_READY`。
 
 ## 历史归档
 

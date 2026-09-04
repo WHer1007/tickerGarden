@@ -10,6 +10,7 @@ import {UserStockVault} from "../../../src/v1/modules/UserStockVault.sol";
 import {UserStockVaultExits} from "../../../src/v1/shared/UserStockVaultExits.sol";
 import {UserStockVaultIdentity} from "../../../src/v1/shared/UserStockVaultIdentity.sol";
 import {UserStockVaultLedger} from "../../../src/v1/shared/UserStockVaultLedger.sol";
+import {UserStockVaultRewardAccounting} from "../../../src/v1/shared/UserStockVaultRewardAccounting.sol";
 import {MockExactQuoteToken} from "../mocks/MockV1QuoteAssets.sol";
 import {StockTokenFingerprintTestLib} from "../mocks/StockTokenFingerprintTestLib.sol";
 
@@ -47,6 +48,16 @@ contract MockProductVaultAllocationManager {
         returns (uint256)
     {
         return vault.completeRageQuitRewardSettlement(assetUid, user, marketId);
+    }
+
+    function recordGaugeRewardState(
+        UserStockVault vault,
+        bytes32 assetUid,
+        bytes32 marketId,
+        uint256 quoteAccumulator,
+        uint256 memeAccumulator
+    ) external {
+        vault.recordGaugeRewardState(assetUid, marketId, quoteAccumulator, memeAccumulator);
     }
 }
 
@@ -378,6 +389,69 @@ contract UserStockVaultTest is Test {
         assertEq(vault.rageQuitSettlementPrincipal(ASSET_UID, ALICE, MARKET_ID), 600);
     }
 
+    function test_rewardEligibilityAndRageQuitCutoffRemainVaultAuthoritative() public {
+        _deposit(ALICE, 1_000);
+        manager.lock(vault, ASSET_UID, ALICE, MARKET_ID, 600);
+
+        assertEq(vault.marketRewardEligible(ASSET_UID, MARKET_ID), 0);
+        manager.recordGaugeRewardState(vault, ASSET_UID, MARKET_ID, 100, 200);
+        vm.warp(block.timestamp + 30 seconds);
+        assertEq(vault.marketRewardEligible(ASSET_UID, MARKET_ID), 600);
+
+        vm.prank(ALICE);
+        vault.rageQuit(ASSET_UID, MARKET_ID);
+        assertEq(vault.marketRewardEligible(ASSET_UID, MARKET_ID), 0);
+
+        (uint256 principal, uint256 quoteCutoff, uint256 memeCutoff, bool forfeitureRedistributable) =
+            vault.rageQuitRewardCutoff(ASSET_UID, ALICE, MARKET_ID);
+        assertEq(principal, 600);
+        assertEq(quoteCutoff, 100);
+        assertEq(memeCutoff, 200);
+        assertFalse(forfeitureRedistributable);
+
+        manager.recordGaugeRewardState(vault, ASSET_UID, MARKET_ID, 150, 250);
+        (, quoteCutoff, memeCutoff, forfeitureRedistributable) = vault.rageQuitRewardCutoff(ASSET_UID, ALICE, MARKET_ID);
+        assertEq(quoteCutoff, 100);
+        assertEq(memeCutoff, 200);
+        assertFalse(forfeitureRedistributable);
+
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                UserStockVaultRewardAccounting.RewardAccumulatorRegression.selector, 150, 149, 250, 250
+            )
+        );
+        manager.recordGaugeRewardState(vault, ASSET_UID, MARKET_ID, 149, 250);
+
+        manager.completeRageQuitRewardSettlement(vault, ASSET_UID, ALICE, MARKET_ID);
+        (principal, quoteCutoff, memeCutoff, forfeitureRedistributable) =
+            vault.rageQuitRewardCutoff(ASSET_UID, ALICE, MARKET_ID);
+        assertEq(principal, 0);
+        assertEq(quoteCutoff, 0);
+        assertEq(memeCutoff, 0);
+        assertFalse(forfeitureRedistributable);
+    }
+
+    function test_rageQuitForfeitureRedistributionRequiresUnchangedExitCohort() public {
+        _deposit(ALICE, 600);
+        _deposit(BOB, 500);
+        manager.lock(vault, ASSET_UID, ALICE, MARKET_ID, 600);
+        manager.lock(vault, ASSET_UID, BOB, MARKET_ID, 400);
+        vm.warp(block.timestamp + 30 seconds);
+
+        vm.prank(ALICE);
+        vault.rageQuit(ASSET_UID, MARKET_ID);
+
+        (,,, bool forfeitureRedistributable) = vault.rageQuitRewardCutoff(ASSET_UID, ALICE, MARKET_ID);
+        assertTrue(forfeitureRedistributable);
+        assertEq(vault.marketRewardEligible(ASSET_UID, MARKET_ID), 400);
+
+        // Even a surviving staker's increase cannot preserve the snapshotted cohort because every allocation
+        // mutation advances the nonce. This fails closed to reserve instead of rewarding a changed cohort.
+        manager.lock(vault, ASSET_UID, BOB, MARKET_ID, 1);
+        (,,, forfeitureRedistributable) = vault.rageQuitRewardCutoff(ASSET_UID, ALICE, MARKET_ID);
+        assertFalse(forfeitureRedistributable);
+    }
+
     function test_directRageQuitStillReturnsPrincipalAfterAdmissionIdentityDrift() public {
         _deposit(ALICE, 700);
         manager.lock(vault, ASSET_UID, ALICE, MARKET_ID, 500);
@@ -481,6 +555,17 @@ contract UserStockVaultTest is Test {
         assertEq(
             UserStockVault.completeRageQuitRewardSettlement.selector,
             bytes4(keccak256("completeRageQuitRewardSettlement(bytes32,address,bytes32)"))
+        );
+        assertEq(
+            UserStockVault.recordGaugeRewardState.selector,
+            bytes4(keccak256("recordGaugeRewardState(bytes32,bytes32,uint256,uint256)"))
+        );
+        assertEq(
+            UserStockVault.rageQuitRewardCutoff.selector,
+            bytes4(keccak256("rageQuitRewardCutoff(bytes32,address,bytes32)"))
+        );
+        assertEq(
+            UserStockVault.marketRewardEligible.selector, bytes4(keccak256("marketRewardEligible(bytes32,bytes32)"))
         );
 
         (bool withdrawFor,) = address(vault)

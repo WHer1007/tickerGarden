@@ -235,45 +235,45 @@ contract TickerGardenMemeHookFeeExecutionTest is Test {
         hook.seedActive(MARKET_ID, key, 2);
     }
 
-    function test_erc20AfterSwapDonatesTakesCreditsAndNetsHookDeltaToZero() public {
+    function test_erc20AfterSwapTakesAllFeesAndCreditsVaultWithoutDonate() public {
         SwapParams memory params = _params(true, -1);
         bytes32 expectedFeeId = _feeId(address(meme), 12_345, 123, 1);
         vm.expectEmit(true, true, true, true, address(hook));
-        emit ITickerGardenMemeHook.V4FeeAccrued(MARKET_ID, poolId, address(meme), 1, expectedFeeId, 12_345, 123, 24, 99);
+        emit ITickerGardenMemeHook.V4FeeAccrued(MARKET_ID, poolId, address(meme), 1, expectedFeeId, 12_345, 123, 0, 123);
 
         (bytes4 selector, int128 returnedDelta) =
             poolManager.swap(hook, key, params, _delta(-20_000, 12_345), "forged-market-id");
 
         assertEq(selector, ITickerGardenMemeHook.afterSwap.selector);
         assertEq(returnedDelta, 123);
-        assertEq(poolManager.donateCount(), 1);
+        assertEq(poolManager.donateCount(), 0);
         assertEq(poolManager.lastAmount0(), 0);
-        assertEq(poolManager.lastAmount1(), 24);
+        assertEq(poolManager.lastAmount1(), 0);
         assertEq(poolManager.takeCount(), 1);
         assertEq(poolManager.lastTakenAsset(), address(meme));
-        assertEq(poolManager.lastTakenAmount(), 99);
-        assertEq(meme.balanceOf(address(feeVault)), 99);
+        assertEq(poolManager.lastTakenAmount(), 123);
+        assertEq(meme.balanceOf(address(feeVault)), 123);
         assertEq(meme.balanceOf(address(hook)), 0);
         assertEq(poolManager.hookDelta(address(meme)), 0);
-        _assertRecord(address(meme), 12_345, 123, 24, 99, 1, expectedFeeId);
+        _assertRecord(address(meme), 12_345, 123, 0, 123, 1, expectedFeeId);
     }
 
-    function test_nativeAfterSwapTransfersExactNonLpAmountAndDonatesCurrency0() public {
+    function test_nativeAfterSwapTransfersEntireFeeToVaultWithoutDonate() public {
         uint256 managerBefore = address(poolManager).balance;
         SwapParams memory params = _params(true, 1);
         (bytes4 selector, int128 returnedDelta) = poolManager.swap(hook, key, params, _delta(-10_000, 9_000), "ignored");
 
         assertEq(selector, ITickerGardenMemeHook.afterSwap.selector);
         assertEq(returnedDelta, 100);
-        assertEq(poolManager.lastAmount0(), 20);
+        assertEq(poolManager.lastAmount0(), 0);
         assertEq(poolManager.lastAmount1(), 0);
         assertEq(poolManager.lastTakenAsset(), QUOTE);
-        assertEq(poolManager.lastTakenAmount(), 80);
-        assertEq(address(feeVault).balance, 80);
-        assertEq(address(poolManager).balance, managerBefore - 80);
+        assertEq(poolManager.lastTakenAmount(), 100);
+        assertEq(address(feeVault).balance, 100);
+        assertEq(address(poolManager).balance, managerBefore - 100);
         assertEq(address(hook).balance, 0);
         assertEq(poolManager.hookDelta(QUOTE), 0);
-        _assertRecord(QUOTE, 10_000, 100, 20, 80, 1, _feeId(QUOTE, 10_000, 100, 1));
+        _assertRecord(QUOTE, 10_000, 100, 0, 100, 1, _feeId(QUOTE, 10_000, 100, 1));
     }
 
     function test_zeroFeeDoesNotCallDonateTakeVaultOrConsumeNonce() public {
@@ -287,7 +287,7 @@ contract TickerGardenMemeHookFeeExecutionTest is Test {
         assertEq(hook.poolBinding(poolId).feeNonce, 0);
     }
 
-    function test_oneUnitTotalFeeSkipsZeroDonationButStillCreditsExactTake() public {
+    function test_oneUnitTotalFeeCreditsExactFullTakeWithoutDonate() public {
         (, int128 returnedDelta) = poolManager.swap(hook, key, _params(true, -1), _delta(-1, 100), "ignored");
         assertEq(returnedDelta, 1);
         assertEq(poolManager.donateCount(), 0);
@@ -297,32 +297,32 @@ contract TickerGardenMemeHookFeeExecutionTest is Test {
         _assertRecord(address(meme), 100, 1, 0, 1, 1, _feeId(address(meme), 100, 1, 1));
     }
 
-    function test_donateFailureRollsBackNoncePendingStateAndEveryEffect() public {
+    function test_donateFailureIsIrrelevantWhenLpShareIsZero() public {
         poolManager.setFailures(true, false, false);
-        vm.expectRevert(HookFeeExecutionPoolManagerMock.ForcedDonateFailure.selector);
         poolManager.swap(hook, key, _params(true, -1), _delta(-1, 10_000), "ignored");
-        _assertNoEffects(address(meme));
+        assertEq(poolManager.donateCount(), 0);
+        assertEq(poolManager.lastTakenAmount(), 100);
     }
 
-    function test_takeFailureRollsBackPriorDonationAndPendingCredit() public {
+    function test_takeFailureRollsBackPendingCredit() public {
         poolManager.setFailures(false, true, false);
         vm.expectRevert(HookFeeExecutionPoolManagerMock.ForcedTakeFailure.selector);
         poolManager.swap(hook, key, _params(true, -1), _delta(-1, 10_000), "ignored");
         _assertNoEffects(address(meme));
     }
 
-    function test_inexactErc20ArrivalRollsBackTransferDonationNonceAndVault() public {
+    function test_inexactErc20ArrivalRollsBackTransferNonceAndVault() public {
         poolManager.setFailures(false, false, true);
         vm.expectRevert(
             abi.encodeWithSelector(
-                ProtocolFeeVaultV4Credit.FeeBalanceDeltaMismatch.selector, address(meme), uint256(80), uint256(79)
+                ProtocolFeeVaultV4Credit.FeeBalanceDeltaMismatch.selector, address(meme), uint256(100), uint256(99)
             )
         );
         poolManager.swap(hook, key, _params(true, -1), _delta(-1, 10_000), "ignored");
         _assertNoEffects(address(meme));
     }
 
-    function test_downstreamVaultRecordFailureRollsBackTakeDonateNonceAndEvent() public {
+    function test_downstreamVaultRecordFailureRollsBackTakeNonceAndEvent() public {
         feeVault.setFailRecord(true);
         vm.recordLogs();
         vm.expectRevert(HookFeeExecutionVault.ForcedRecordFailure.selector);
@@ -341,7 +341,7 @@ contract TickerGardenMemeHookFeeExecutionTest is Test {
         assertEq(second.feeId, _feeId(address(meme), 10_000, 100, 2));
         assertEq(hook.poolBinding(poolId).feeNonce, 2);
         assertEq(feeVault.recordCount(), 2);
-        assertEq(meme.balanceOf(address(feeVault)), 160);
+        assertEq(meme.balanceOf(address(feeVault)), 200);
     }
 
     function test_nonPoolManagerCannotEnterCanonicalAfterSwap() public {
@@ -399,16 +399,14 @@ contract TickerGardenMemeHookFeeExecutionTest is Test {
         _assertNoEffects(address(meme));
     }
 
-    function test_noInRangeLiquidityRollsBackCoreSwapNonceCreditAndEvent() public {
+    function test_noInRangeLiquidityDoesNotAffectFeeTake() public {
         poolManager.setHasInRangeLiquidity(false);
-        vm.recordLogs();
-        vm.expectRevert(HookFeeExecutionPoolManagerMock.NoLiquidityToReceiveFees.selector);
         poolManager.swap(hook, key, _params(true, -1), _delta(-1, 10_000), "ignored");
-        assertEq(vm.getRecordedLogs().length, 0);
-        _assertNoEffects(address(meme));
+        assertEq(poolManager.donateCount(), 0);
+        assertEq(poolManager.lastTakenAmount(), 100);
     }
 
-    function test_noInRangeLiquidityDoesNotBlockZeroLpDonationCase() public {
+    function test_noInRangeLiquidityDoesNotBlockFullFeeVaultTake() public {
         poolManager.setHasInRangeLiquidity(false);
         (, int128 returnedDelta) = poolManager.swap(hook, key, _params(true, -1), _delta(-1, 100), "ignored");
         assertEq(returnedDelta, 1);
@@ -487,14 +485,15 @@ contract TickerGardenMemeHookFeeExecutionTest is Test {
         return keccak256(
             abi.encode(
                 keccak256("TICKERGARDEN_V1_FEE_POLICY"),
-                uint256(3),
-                keccak256("V1-EXEC-6"),
+                uint256(4),
+                keccak256("V1-EXEC-8"),
                 uint24(10_000),
-                uint16(2_000),
+                uint16(0),
                 uint24(0),
                 uint160(MASK),
                 uint8(1),
-                uint16(5_000)
+                uint16(3_000),
+                uint16(3_000)
             )
         );
     }

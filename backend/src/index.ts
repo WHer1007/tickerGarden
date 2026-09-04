@@ -14,7 +14,7 @@ export const HEALTH_RESPONSE = Object.freeze({
   executionSpecId: EXECUTION_SPEC_ID,
   status: "read-api" as const,
   readApiImplemented: true as const,
-  productRuntimeImplemented: false as const,
+  productRuntimeImplemented: true as const,
   custody: false as const,
   transactionSubmission: false as const,
 });

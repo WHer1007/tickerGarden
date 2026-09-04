@@ -4,7 +4,7 @@
 
 > 规格任务：`V1-P-002`
 > 状态：`FROZEN / IMPLEMENTATION_ALLOWED`  
-> 适用基线：`V1-EXEC-6`
+> 适用基线：`V1-EXEC-8`
 > 更新时间：2026-09-03
 
 ## 1. 单一机器来源

@@ -1,0 +1,177 @@
+{
+  "schemaVersion": "v1-treasury-execution-manifest-1",
+  "executionSpecId": "V1-TREASURY-EXEC-1",
+  "status": "V1_RELEASE_CORE_CODE_COMPLETE_LOCAL_VERIFIED_FEE_POLICY_AND_AUTO_FUNDING_PENDING_NOT_DEPLOYABLE",
+  "v1Compatibility": {
+    "partOfV1": true,
+    "changesV1Contracts": true,
+    "changesV1Abi": true,
+    "changesV1FeePolicy": false
+  },
+  "accessManager": {
+    "bindings": {
+      "authority": "IMMUTABLE_SHARED_V1_ACCESS_MANAGER",
+      "marketRegistry": "IMMUTABLE_CANONICAL_MARKET_REGISTRY_V1",
+      "livePreflightRequired": true
+    },
+    "roles": [
+      {
+        "roleName": "PROTOCOL_ADMIN_ROLE",
+        "roleId": "1",
+        "executionDelaySeconds": 172800
+      },
+      {
+        "roleName": "PAUSE_GUARDIAN_ROLE",
+        "roleId": "2",
+        "executionDelaySeconds": 0
+      },
+      {
+        "roleName": "ROOT_PUBLISHER_ROLE",
+        "roleId": "4",
+        "executionDelaySeconds": 0
+      },
+      {
+        "roleName": "ROOT_REVIEW_ROLE",
+        "roleId": "5",
+        "executionDelaySeconds": 0
+      }
+    ],
+    "restrictedFunctions": [
+      {
+        "signature": "registerMarket(bytes32,address,address,bytes32)",
+        "caller": "PROTOCOL_ADMIN_ROLE",
+        "executionDelaySeconds": 172800
+      },
+      {
+        "signature": "setRootServiceFee(address,uint128)",
+        "caller": "PROTOCOL_ADMIN_ROLE",
+        "executionDelaySeconds": 172800
+      },
+      {
+        "signature": "publishRoot(bytes32,uint32,bytes32,bytes32,uint256,uint32,uint256)",
+        "caller": "ROOT_PUBLISHER_ROLE",
+        "executionDelaySeconds": 0
+      },
+      {
+        "signature": "cancelPendingRoot(bytes32,uint32,bytes32)",
+        "caller": "ROOT_REVIEW_ROLE",
+        "executionDelaySeconds": 0
+      }
+    ],
+    "directFunctions": [
+      {
+        "signature": "activateMarket(bytes32)",
+        "caller": "PUBLIC"
+      },
+      {
+        "signature": "fundQuoteTreasury(bytes32,uint256,bytes32)",
+        "caller": "PUBLIC"
+      },
+      {
+        "signature": "burnMeme(bytes32,uint256,bytes32)",
+        "caller": "PUBLIC"
+      },
+      {
+        "signature": "requestRoot(bytes32,uint32)",
+        "caller": "CURRENT_MEME_HOLDER"
+      },
+      {
+        "signature": "finalizeRoot(bytes32,uint32)",
+        "caller": "PUBLIC"
+      },
+      {
+        "signature": "expireRootRequest(bytes32,uint32)",
+        "caller": "PUBLIC"
+      },
+      {
+        "signature": "claim(bytes32,uint32,uint256,address,uint256,uint256,bytes32[])",
+        "caller": "PUBLIC"
+      },
+      {
+        "signature": "rolloverExpiredEpoch(bytes32,uint32)",
+        "caller": "PUBLIC"
+      },
+      {
+        "signature": "withdrawServiceCredit(address)",
+        "caller": "SERVICE_BENEFICIARY"
+      }
+    ],
+    "handoff": {
+      "roleAdmin": "PROTOCOL_ADMIN_ROLE",
+      "scheduleGuardian": "PAUSE_GUARDIAN_ROLE",
+      "dedicatedRootSafesRequired": true,
+      "rootSafesMustNotAliasCoreSafes": true,
+      "selectorAssignmentsFrozenBeforeProduction": true,
+      "bootstrapAdminRenouncedLast": true
+    }
+  },
+  "deploymentShape": {
+    "sharedTreasuryDistributorCount": 1,
+    "perMarketTreasuryContractCount": 0,
+    "marketLedgerKey": ["marketId", "epochId"],
+    "activation": "ONE_WAY_AT_V1_GRADUATION"
+  },
+  "epoch": {
+    "durationSeconds": 2592000,
+    "interval": "[windowStart,windowEnd)",
+    "fundingAssignment": "CURRENT_EPOCH_AT_EXACT_RECEIPT"
+  },
+  "memeBurn": {
+    "method": "TRANSFER_TO_DISTRIBUTOR_THEN_TOKEN_BURN",
+    "requiresExactDistributorBalanceRestoration": true,
+    "requiresExactTotalSupplyDecrease": true,
+    "genericHolderBurn": false
+  },
+  "twab": {
+    "schema": "TRANSFER_LOG_TWAB_30D_V1",
+    "source": "FINALIZED_CANONICAL_ERC20_TRANSFER_REPLAY",
+    "requiresSourceBlockTimestampAtOrAfterWindowEnd": true,
+    "unit": "RAW_TOKEN_BALANCE_SECONDS_NUMERATOR",
+    "onchainTransferCheckpoints": false,
+    "allocationRounding": "LARGEST_REMAINDER_EXACT_TOTAL",
+    "zeroAmountLeaves": false
+  },
+  "root": {
+    "rootSchema": "TICKERGARDEN_V1_TREASURY_ROOT_V1",
+    "datasetSchema": "TICKERGARDEN_V1_TREASURY_DATASET_V1",
+    "claimDomain": "TICKERGARDEN_V1_TREASURY_CLAIM_V1",
+    "eligibilityPolicyDomain": "TICKERGARDEN_V1_TREASURY_ELIGIBILITY_POLICY_V1",
+    "trustModel": "ATTESTED_PUBLICLY_REPRODUCIBLE_WITH_REVIEW_DELAY",
+    "trustless": false,
+    "holderTriggered": true,
+    "serviceFeeEscrowedUntilFinalization": true,
+    "timeoutRefund": true,
+    "reviewCancellationRefund": true,
+    "permissionlessFinalizationAfterReview": true,
+    "immutableAfterFinalization": true
+  },
+  "claim": {
+    "fixedLeafRecipient": true,
+    "arbitraryRecipient": false,
+    "indexBitmap": true,
+    "oneLeafPerAccountGuard": true,
+    "exactTransferPostconditions": true,
+    "expiredRemainderDestination": "CURRENT_MARKET_EPOCH"
+  },
+  "fundingInterface": {
+    "feePolicyBound": false,
+    "automaticFundingBound": false,
+    "functions": [
+      "fundQuoteTreasury(bytes32,uint256,bytes32)",
+      "burnMeme(bytes32,uint256,bytes32)"
+    ],
+    "idempotency": "CALLER_SCOPED_OPERATION_ID"
+  },
+  "openProductInputs": [
+    "FINAL_FEE_SPLITS",
+    "CANONICAL_FEE_SOURCE",
+    "ELIGIBILITY_EXCLUSIONS",
+    "ROOT_SERVICE_FEE_ASSET_AND_PRICE",
+    "RH_FINALITY_PARAMETERS",
+    "ROOT_PUBLISHER_AND_REVIEWER_SAFES",
+    "OPTIONAL_ZK_OR_FRAUD_PROOF_VERIFIER",
+    "ZERO_ELIGIBLE_TWAB_OR_NO_SIGNABLE_HOLDER_FALLBACK",
+    "ROOT_WORKER_RPC_SIGNING_AND_IDEMPOTENCY_RUNTIME",
+    "AUTO_FUNDING_TRIGGER_SOURCE_AND_SCHEDULE"
+  ]
+}

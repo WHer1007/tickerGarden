@@ -55,7 +55,9 @@ contract C405CurveFactory is ICurveInitializationSource {
     }
 
     function deployToken(bytes32 marketId, address predictedCurve) external returns (TickerMemeTokenV1) {
-        return new TickerMemeTokenV1(marketId, USER, predictedCurve, "Ticker", "TICK", "ipfs://ticker", 1_000_000);
+        return new TickerMemeTokenV1(
+            marketId, USER, predictedCurve, address(this), "Ticker", "TICK", "ipfs://ticker", 1_000_000
+        );
     }
 }
 
@@ -212,7 +214,7 @@ contract C405CurveAutonomyInvariantTest is Test {
             quoteAssetConfigId: QUOTE_CONFIG_ID,
             launchTemplateId: TEMPLATE_ID,
             feePolicyId: FEE_POLICY_ID,
-            executionSpecId: keccak256("V1-EXEC-6"),
+            executionSpecId: keccak256("V1-EXEC-8"),
             expectedEconomics: ECONOMICS,
             launchConfigId: 0,
             creatorRevenueBeneficiaryAtCreation: BENEFICIARY,
@@ -269,7 +271,7 @@ contract C405CurveAutonomyInvariantTest is Test {
             launchLockerImplementation: address(0x1005),
             launchLockerCodeHash: keccak256("locker"),
             feePolicyId: FEE_POLICY_ID,
-            executionSpecId: keccak256("V1-EXEC-6"),
+            executionSpecId: keccak256("V1-EXEC-8"),
             status: 1
         });
     }

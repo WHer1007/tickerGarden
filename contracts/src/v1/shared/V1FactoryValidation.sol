@@ -8,22 +8,26 @@ import {
     ILaunchTemplateRegistry,
     IOfficialStockRegistryV1,
     IPonsBaselineRegistry,
+    IUserStockVault,
     LaunchTemplate,
     PonsBaseline,
     QuoteAssetConfig
 } from "../interfaces/IV1Protocol.sol";
 import {V1MarketEconomics} from "./V1MarketEconomics.sol";
+import {V1GraduationEconomicDomain} from "../libraries/V1GraduationEconomicDomain.sol";
 
 /// @notice Fail-closed Registry resolution and economics verification shared by Factory create and preview paths.
 library V1FactoryValidation {
     uint8 internal constant ACTIVE = 1;
-    bytes32 internal constant EXECUTION_SPEC_ID = keccak256("V1-EXEC-6");
+    bytes32 internal constant EXECUTION_SPEC_ID = keccak256("V1-EXEC-8");
     uint24 internal constant FEE_PIPS = 10_000;
-    uint16 internal constant LP_SHARE_BPS = 2_000;
+    uint16 internal constant LP_SHARE_BPS = 0;
     uint24 internal constant POOL_KEY_FEE = 0;
     uint160 internal constant HOOK_PERMISSION_MASK = 0x2044;
     uint8 internal constant FEE_ASSET_MODE_UNSPECIFIED_CORE_SWAP_DELTA = 1;
-    uint16 internal constant STAKER_NON_LP_SHARE_BPS = 5_000;
+    uint16 internal constant STAKER_NON_LP_SHARE_BPS = 3_000;
+    uint16 internal constant PLATFORM_NON_LP_SHARE_BPS = 3_000;
+    bytes32 internal constant REQUIRED_VAULT_SCHEMA_ID = keccak256("TickerGarden.UserStockVault.MultiAsset.v6");
 
     struct Registries {
         IOfficialStockRegistryV1 officialStock;
@@ -53,6 +57,15 @@ library V1FactoryValidation {
     error InvalidCreatorRevenueBeneficiary(address beneficiary);
     error InactiveAsset(bytes32 assetUid, uint8 status);
     error AssetIdentityDrift(bytes32 assetUid);
+    error InvalidVaultSchema(bytes32 assetUid, address vault, bytes32 schemaId, address registeredVault);
+    error InvalidVaultIdentity(
+        bytes32 assetUid,
+        address vault,
+        address officialStockRegistry,
+        address marketRegistry,
+        address allocationManager,
+        bytes32 schemaId
+    );
     error InactiveQuote(bytes32 quoteAssetConfigId, uint8 status);
     error InactivePonsBaseline(bytes32 ponsBaselineId, uint8 status);
     error InactiveLaunchTemplate(bytes32 launchTemplateId, uint8 status);
@@ -77,6 +90,8 @@ library V1FactoryValidation {
         Registries memory registries,
         Policy memory policy,
         address factory,
+        address marketRegistry,
+        address allocationManager,
         address creator,
         CreateMarketParams memory params
     ) internal view returns (Snapshot memory snapshot) {
@@ -91,6 +106,9 @@ library V1FactoryValidation {
         if (!registries.officialStock.assetIdentityCurrent(params.assetUid)) {
             revert AssetIdentityDrift(params.assetUid);
         }
+        _validateVaultIdentity(
+            registries.officialStock, params.assetUid, snapshot.asset.userStockVault, marketRegistry, allocationManager
+        );
 
         snapshot.quote = registries.approvedQuote.quoteConfig(params.quoteAssetConfigId);
         if (snapshot.quote.status != ACTIVE) revert InactiveQuote(params.quoteAssetConfigId, snapshot.quote.status);
@@ -105,6 +123,7 @@ library V1FactoryValidation {
         if (snapshot.baseline.status != ACTIVE) {
             revert InactivePonsBaseline(params.ponsBaselineId, snapshot.baseline.status);
         }
+        V1GraduationEconomicDomain.validate(snapshot.baseline, snapshot.quote);
 
         snapshot.template = registries.launchTemplate.launchTemplate(params.launchTemplateId);
         if (snapshot.template.status != ACTIVE) {
@@ -150,6 +169,43 @@ library V1FactoryValidation {
         }
     }
 
+    function _validateVaultIdentity(
+        IOfficialStockRegistryV1 officialStock,
+        bytes32 assetUid,
+        address vault,
+        address marketRegistry,
+        address allocationManager
+    ) private view {
+        bytes32 schemaId = officialStock.vaultSchemaId(vault);
+        address registeredVault = officialStock.vaultForSchema(REQUIRED_VAULT_SCHEMA_ID);
+        if (schemaId != REQUIRED_VAULT_SCHEMA_ID || registeredVault != vault) {
+            revert InvalidVaultSchema(assetUid, vault, schemaId, registeredVault);
+        }
+
+        try IUserStockVault(vault).vaultIdentity() returns (
+            address reportedRegistry,
+            address reportedMarketRegistry,
+            address reportedAllocationManager,
+            bytes32 reportedSchemaId
+        ) {
+            if (
+                reportedRegistry != address(officialStock) || reportedMarketRegistry != marketRegistry
+                    || reportedAllocationManager != allocationManager || reportedSchemaId != REQUIRED_VAULT_SCHEMA_ID
+            ) {
+                revert InvalidVaultIdentity(
+                    assetUid,
+                    vault,
+                    reportedRegistry,
+                    reportedMarketRegistry,
+                    reportedAllocationManager,
+                    reportedSchemaId
+                );
+            }
+        } catch {
+            revert InvalidVaultIdentity(assetUid, vault, address(0), address(0), address(0), bytes32(0));
+        }
+    }
+
     function _validatePolicy(Policy memory policy) private pure {
         V1MarketEconomics.FeePolicyInput memory fields = policy.fields;
         if (
@@ -158,6 +214,7 @@ library V1FactoryValidation {
                 || fields.hookPermissionMask != HOOK_PERMISSION_MASK
                 || fields.feeAssetMode != FEE_ASSET_MODE_UNSPECIFIED_CORE_SWAP_DELTA
                 || fields.stakerNonLpShareBps != STAKER_NON_LP_SHARE_BPS
+                || fields.platformNonLpShareBps != PLATFORM_NON_LP_SHARE_BPS
         ) revert InvalidFeePolicy(policy.feePolicyId);
     }
 }

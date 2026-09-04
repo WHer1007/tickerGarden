@@ -21,7 +21,7 @@ contract LaunchTemplateRegistryTest is Test {
     bytes32 internal constant REASON_HASH = keccak256("template-risk");
 
     function EXECUTION_SPEC_ID() internal pure returns (bytes32) {
-        return keccak256("V1-EXEC-6");
+        return keccak256("V1-EXEC-8");
     }
     bytes32 internal constant FEE_POLICY_ID = keccak256("immutable-fee-policy");
     address internal constant HOOK = address(uint160(0x12044));

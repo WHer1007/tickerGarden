@@ -10,7 +10,7 @@ library V1MarketEconomics {
     bytes32 internal constant FEE_POLICY_DOMAIN = keccak256("TICKERGARDEN_V1_FEE_POLICY");
     uint256 internal constant PONS_BASELINE_SCHEMA_VERSION = 1;
     uint256 internal constant EXPECTED_ECONOMICS_SCHEMA_VERSION = 3;
-    uint256 internal constant FEE_POLICY_SCHEMA_VERSION = 3;
+    uint256 internal constant FEE_POLICY_SCHEMA_VERSION = 4;
 
     struct FeePolicyInput {
         bytes32 executionSpecId;
@@ -20,6 +20,7 @@ library V1MarketEconomics {
         uint160 hookPermissionMask;
         uint8 feeAssetMode;
         uint16 stakerNonLpShareBps;
+        uint16 platformNonLpShareBps;
     }
 
     struct ExpectedEconomicsInput {
@@ -69,7 +70,8 @@ library V1MarketEconomics {
                 value.poolKeyFee,
                 value.hookPermissionMask,
                 value.feeAssetMode,
-                value.stakerNonLpShareBps
+                value.stakerNonLpShareBps,
+                value.platformNonLpShareBps
             )
         );
     }

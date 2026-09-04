@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Stats — TickerGarden</title>
+    <link rel="stylesheet" href="./subpages.css" />
+  </head>
+  <body data-page="stats">
+    <header class="shell-header" data-shell-header></header>
+    <main class="page">
+      <section class="page-hero">
+        <div>
+          <div class="kicker"><i class="ph ph-chart-line-up" aria-hidden="true"></i>On-chain data</div>
+          <h1>Watch the culture<br /><em>take root.</em></h1>
+          <p>Stats are read-only views of raw on-chain values and the configured read API. They are grouped by quote asset and never converted into USD TVL, USD volume, or an invented price.</p>
+        </div>
+        <p class="page-status" data-page-status role="status" aria-live="polite">Loading on-chain statistics…</p>
+      </section>
+
+      <section class="stats-grid" data-stats-summary aria-live="polite" aria-busy="false">
+        <article class="stat-card"><i class="ph ph-tree" aria-hidden="true"></i><strong data-stat-markets>—</strong><small>Markets</small></article>
+        <article class="stat-card"><i class="ph ph-coins" aria-hidden="true"></i><strong data-stat-quote-volume>—</strong><small>Quote reserve asset groups</small></article>
+        <article class="stat-card"><i class="ph ph-lock-key" aria-hidden="true"></i><strong data-stat-stock-allocation>—</strong><small>Protocol total not exposed</small></article>
+        <article class="stat-card"><i class="ph ph-users-three" aria-hidden="true"></i><strong data-stat-holders>—</strong><small>Protocol total not exposed</small></article>
+      </section>
+
+      <section class="stats-layout">
+        <article class="panel" data-stats-phases aria-labelledby="phase-stats-heading">
+          <div class="panel-title"><div><h2 id="phase-stats-heading">Markets by launch phase</h2><p>Current phase facts from the read API</p></div></div>
+          <div class="activity-list" data-stats-phase-list><p data-stats-loading>Loading phase totals…</p></div>
+        </article>
+        <aside class="panel" data-stats-quotes aria-labelledby="quote-stats-heading">
+          <div class="panel-title"><div><h2 id="quote-stats-heading">Quote assets</h2><p>Grouped without currency conversion</p></div></div>
+          <div class="activity-list" data-stats-quote-list><p data-stats-empty>No quote-asset records are available yet.</p></div>
+        </aside>
+      </section>
+
+      <section class="panel stats-notice" aria-labelledby="stats-boundary-heading">
+        <h2 id="stats-boundary-heading">Reporting boundary</h2>
+        <p>STOCK participation is reported as raw token units using the asset’s configured decimals. Quote and Meme amounts remain in their source assets. No USD TVL, USD volume, price, yield, or synthetic activity is displayed.</p>
+      </section>
+    </main>
+    <footer class="shell-footer" data-shell-footer></footer>
+    <div class="toast" data-toast role="status" aria-live="polite"></div>
+    <script type="module" src="./subpages.js"></script>
+  </body>
+</html>

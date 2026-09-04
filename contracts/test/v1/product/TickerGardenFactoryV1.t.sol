@@ -29,6 +29,7 @@ import {
     PonsCompatibleCurveImplementation,
     TickerGardenFactoryInit,
     TickerGardenFactoryV1,
+    TickerMemeTokenV1Init,
     TickerMemeTokenV1Implementation
 } from "../../../src/v1/modules/TickerGardenFactoryV1.sol";
 import {MemeStockGaugeClone} from "../../../src/v1/shared/MemeStockGaugeClone.sol";
@@ -50,6 +51,8 @@ contract FactoryConfigRegistryMock {
     mapping(bytes32 => PonsBaseline) private _baselines;
     mapping(bytes32 => LaunchTemplate) private _templates;
     mapping(bytes32 => bytes32) private _templateHashes;
+    mapping(address => bytes32) private _vaultSchemaIds;
+    mapping(bytes32 => address) private _vaultsBySchema;
 
     function setAsset(bytes32 id, AssetView memory value) external {
         _assets[id] = value;
@@ -68,6 +71,11 @@ contract FactoryConfigRegistryMock {
         _templateHashes[id] = contentHash;
     }
 
+    function setVaultSchema(address vault, bytes32 schemaId) external {
+        _vaultSchemaIds[vault] = schemaId;
+        _vaultsBySchema[schemaId] = vault;
+    }
+
     function asset(bytes32 id) external view returns (AssetView memory) {
         return _assets[id];
     }
@@ -75,6 +83,14 @@ contract FactoryConfigRegistryMock {
     /// @dev Test fixture default: identity is stable unless explicitly modeled by a dedicated mock.
     function assetIdentityCurrent(bytes32) external pure returns (bool) {
         return true;
+    }
+
+    function vaultSchemaId(address vault) external view returns (bytes32) {
+        return _vaultSchemaIds[vault];
+    }
+
+    function vaultForSchema(bytes32 schemaId) external view returns (address) {
+        return _vaultsBySchema[schemaId];
     }
 
     function quoteConfig(bytes32 id) external view returns (QuoteAssetConfig memory) {
@@ -94,7 +110,29 @@ contract FactoryConfigRegistryMock {
     }
 }
 
-contract FactoryDependencyMock {}
+contract FactoryDependencyMock {
+    address private _vaultRegistry;
+    address private _vaultMarketRegistry;
+    address private _vaultAllocationManager;
+    bytes32 private _vaultSchemaId;
+
+    function setVaultIdentity(address registry, address marketRegistry, address allocationManager, bytes32 schemaId)
+        external
+    {
+        _vaultRegistry = registry;
+        _vaultMarketRegistry = marketRegistry;
+        _vaultAllocationManager = allocationManager;
+        _vaultSchemaId = schemaId;
+    }
+
+    function vaultIdentity() external view returns (address, address, address, bytes32) {
+        return (_vaultRegistry, _vaultMarketRegistry, _vaultAllocationManager, _vaultSchemaId);
+    }
+
+    function rageQuitRewardCutoff(bytes32, address) external pure returns (uint256, uint256, uint256, bool) {
+        return (0, 0, 0, false);
+    }
+}
 
 contract FactoryCurveFeeVaultMock {
     uint256 public credited;
@@ -231,7 +269,8 @@ contract TickerGardenFactoryV1Test is Test {
     bytes32 internal constant TEMPLATE_ID = keccak256("factory-template");
     bytes32 internal constant TEMPLATE_HASH = keccak256("factory-template-content");
     bytes32 internal constant FEE_POLICY_ID = keccak256("factory-fee-policy");
-    bytes32 internal constant EXECUTION_SPEC_ID = keccak256("V1-EXEC-6");
+    bytes32 internal constant EXECUTION_SPEC_ID = keccak256("V1-EXEC-8");
+    bytes32 internal constant VAULT_SCHEMA_ID = keccak256("TickerGarden.UserStockVault.MultiAsset.v6");
     uint256 internal constant LAUNCH_FEE = 500_000_000_000_000;
     uint256 internal constant SUPPLY = 1_000_000_000 ether;
     address internal constant CREATOR = address(0xCAFE);
@@ -287,6 +326,10 @@ contract TickerGardenFactoryV1Test is Test {
         revenueRegistry = new CreatorRevenueRegistry(predictedFactory, address(marketRegistry));
         factory = deployer.deploy(_factoryInit());
         assertEq(address(factory), predictedFactory);
+        stockVault.setVaultIdentity(
+            address(configs), address(marketRegistry), address(allocationManager), VAULT_SCHEMA_ID
+        );
+        configs.setVaultSchema(address(stockVault), VAULT_SCHEMA_ID);
         _setValidConfiguration(address(quote));
         vm.deal(CREATOR, 200 ether);
     }
@@ -317,6 +360,7 @@ contract TickerGardenFactoryV1Test is Test {
         assertEq(address(factory.marketRegistry()), address(marketRegistry));
         assertEq(address(factory.creatorRevenueRegistry()), address(revenueRegistry));
         assertEq(factory.platformTreasury(), address(treasury));
+        assertEq(factory.treasuryDistributor(), address(treasury));
     }
 
     function test_predictAndCreateDeployExactComponentsAndRegisterFullSnapshot() public {
@@ -424,11 +468,29 @@ contract TickerGardenFactoryV1Test is Test {
         );
         bytes32 initCodeHash = V1Create2.initCodeHash(
             type(TickerMemeTokenV1).creationCode,
-            abi.encode(marketId, CREATOR, predictedCurve, params.name, params.symbol, params.metadataURI, SUPPLY)
+            abi.encode(
+                marketId,
+                CREATOR,
+                predictedCurve,
+                address(treasury),
+                params.name,
+                params.symbol,
+                params.metadataURI,
+                SUPPLY
+            )
         );
         assertEq(
             tokenImplementation.initCodeHash(
-                marketId, CREATOR, predictedCurve, params.name, params.symbol, params.metadataURI, SUPPLY
+                TickerMemeTokenV1Init({
+                    marketId: marketId,
+                    creator: CREATOR,
+                    predictedCurve: predictedCurve,
+                    treasuryDistributor: address(treasury),
+                    name: params.name,
+                    symbol: params.symbol,
+                    metadataURI: params.metadataURI,
+                    initialSupply: SUPPLY
+                })
             ),
             initCodeHash
         );
@@ -548,13 +610,16 @@ contract TickerGardenFactoryV1Test is Test {
 
         address fakeAddress = tokenImplementation.deploy(
             bytes32("OFF-PATH"),
-            marketId,
-            CREATOR,
-            wrongCurve,
-            params.name,
-            params.symbol,
-            params.metadataURI,
-            SUPPLY - 1
+            TickerMemeTokenV1Init({
+                marketId: marketId,
+                creator: CREATOR,
+                predictedCurve: wrongCurve,
+                treasuryDistributor: address(treasury),
+                name: params.name,
+                symbol: params.symbol,
+                metadataURI: params.metadataURI,
+                initialSupply: SUPPLY - 1
+            })
         );
         TickerMemeTokenV1 fake = TickerMemeTokenV1(fakeAddress);
         assertNotEq(fakeAddress, predictedToken);
@@ -639,6 +704,54 @@ contract TickerGardenFactoryV1Test is Test {
         vm.prank(CREATOR);
         vm.expectRevert(abi.encodeWithSelector(V1FactoryValidation.InactiveAsset.selector, ASSET_UID, uint8(2)));
         factory.createMarket{value: LAUNCH_FEE}(params);
+    }
+
+    function test_factoryRejectsLegacyVaultSchemaBeforeMarketReservation() public {
+        CreateMarketParams memory params = _validParams(CREATOR, bytes32("LEGACY-VAULT-SCHEMA"));
+        bytes32 legacySchema = keccak256("TickerGarden.UserStockVault.MultiAsset.v5");
+        configs.setVaultSchema(address(stockVault), legacySchema);
+
+        _expectFactoryCreateRevert(
+            params,
+            abi.encodeWithSelector(
+                V1FactoryValidation.InvalidVaultSchema.selector,
+                ASSET_UID,
+                address(stockVault),
+                legacySchema,
+                address(stockVault)
+            )
+        );
+
+        configs.setVaultSchema(address(stockVault), VAULT_SCHEMA_ID);
+        vm.prank(CREATOR);
+        (bytes32 marketId,,,) = factory.createMarket{value: LAUNCH_FEE}(params);
+        assertNotEq(marketId, bytes32(0));
+    }
+
+    function test_factoryRejectsVaultDependencyIdentityDriftBeforeMarketReservation() public {
+        CreateMarketParams memory params = _validParams(CREATOR, bytes32("VAULT-IDENTITY-DRIFT"));
+        address wrongAllocationManager = address(0xBAD);
+        stockVault.setVaultIdentity(address(configs), address(marketRegistry), wrongAllocationManager, VAULT_SCHEMA_ID);
+
+        _expectFactoryCreateRevert(
+            params,
+            abi.encodeWithSelector(
+                V1FactoryValidation.InvalidVaultIdentity.selector,
+                ASSET_UID,
+                address(stockVault),
+                address(configs),
+                address(marketRegistry),
+                wrongAllocationManager,
+                VAULT_SCHEMA_ID
+            )
+        );
+
+        stockVault.setVaultIdentity(
+            address(configs), address(marketRegistry), address(allocationManager), VAULT_SCHEMA_ID
+        );
+        vm.prank(CREATOR);
+        (bytes32 marketId,,,) = factory.createMarket{value: LAUNCH_FEE}(params);
+        assertNotEq(marketId, bytes32(0));
     }
 
     function test_allFactoryRegistryConfigClassesFailClosedWithoutReservingIdentity() public {
@@ -1527,6 +1640,7 @@ contract TickerGardenFactoryV1Test is Test {
             allocationManager: address(allocationManager),
             launchRouter: address(router),
             platformTreasury: address(treasury),
+            treasuryDistributor: address(treasury),
             memeTokenImplementation: address(tokenImplementation),
             curveImplementation: address(curveImplementation),
             gaugeImplementation: address(gaugeImplementation),

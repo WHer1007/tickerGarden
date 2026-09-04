@@ -139,8 +139,8 @@ STOCK(u)                        += p
 `Gauge.rageQuit(user)` 只处理该用户自己的 Gauge position：
 
 - 清除 active/pending weight 和该用户未领取的 Quote/Meme reward。
-- 如果存在其他 **Active** staker，将放弃奖励按现有 active weight 重新分配。
-- 如果没有其他 Active staker，将放弃奖励交给 `ProtocolFeeVault.recordForfeiture`，由 FeeVault 记录为市场/资产对应的 reserve，后续按 FeeVault 的 reserve 规则处理。
+- 如果退出时存在其他 **Active** staker，且延期期间 cohort nonce 与有效权重均未变化，将放弃奖励按该未变化 cohort 的 active weight 重新分配。
+- 如果退出时没有其他 Active staker，或延期期间 cohort/权重已变化，将放弃奖励交给 `ProtocolFeeVault.recordForfeiture`，由 FeeVault 记录为市场/资产对应的 reserve；后加入者不能捕获旧 forfeiture。
 - FeeVault 记录失败时，Gauge 保留 deferred forfeiture 计数，并允许任何人调用 `flushDeferredForfeiture()` 重试；该重试不受历史 Gauge emergency flag 影响，也不能恢复退出用户的奖励权益。
 
 Manager 只有在 Gauge position 的 active、pending、quoteClaimable、memeClaimable 均为零，并成功调用 `completeRageQuitRewardSettlement` 后，才删除 tombstone。
@@ -155,6 +155,7 @@ Manager 只有在 Gauge position 的 active、pending、quoteClaimable、memeCla
 | Manager 因 gas reserve 跳过 Gauge | 已转出 | 保留 `p` | 在更充足 gas 下重试 |
 | Gauge 返回 principal 不等于 `p` | 已转出 | 保留 `p` | 保留 pending，先排查账本不一致 |
 | Gauge 已清零但 Vault tombstone 清除失败 | 已转出 | 保留 `p` | 任意人再次 settle；不会重复扣本金 |
+| 延期期间 Active cohort 或权重变化 | 已转出 | 清理后删除 | fail closed 到 forfeiture reserve，不向后来者重分配 |
 | 重复 rageQuit（tombstone 已存在且 allocation 已清零） | 无重复转出 | 保留原 tombstone | 等待 settlement，不允许重复退出 |
 | FeeVault 记录 forfeiture 失败 | 已转出 | Gauge settlement 可完成；FeeVault deferred | 后续 checkpoint/flush 重试记录 reserve |
 
@@ -200,16 +201,16 @@ Manager 只有在 Gauge position 的 active、pending、quoteClaimable、memeCla
 4. **无奖励回领**：tombstone 存在期间，退出用户不能 claim 或 settle 旧 Gauge 奖励。
 5. **无重复退出**：同一 allocation 只能产生一次 principal transfer；重试只处理 reward settlement。
 6. **局部影响**：其他用户 allocation、Gauge position、奖励累计、Meme/Curve/Hook/LP 状态和交易路径不因某一用户退出而被暂停或改写。
-7. **分配正确**：有其他 Active staker 时 forfeited rewards 进入其 active weight 分配；没有时进入 FeeVault/platform reserve，不能丢失或回到退出用户。
+7. **分配正确**：退出时有其他 Active staker 且 cohort/有效权重未变化时，forfeited rewards 才进入其 active weight 分配；无人或 cohort 已变化时进入 FeeVault/platform reserve，不能丢失、回到退出用户或被后来者捕获。
 8. **可恢复**：tombstone 非零但奖励未完成时，任何人都能通过 `settleRageQuitRewards` 继续处理；只有确认 Gauge position 全清且 Vault 完成确认后才删除 tombstone。
 
 ## 8. 本地验证结果
 
 - Python 执行规格：59/59。
-- Foundry：61 suites、684/684；其中 product 290/290。
-- Vault/Gauge 状态不变量：256 runs、128,000 calls、0 revert。
-- Backend、Indexer、Deployment、Maintenance Runner：分别 13/13、20/20、23/23、12/12。
-- Web unit 与 Sites：32/32、4/4。
-- 完整生产构建、Forge format、fixture、compiled interface、product artifact exact diff 均通过；十九模块 product manifest hash 为 `0x014f5482bdd41821022362a0ccfe07b92e8fbaee63d9289e96d9175bd05aabef`。
+- 普通 Foundry 测试（排除三套状态化 invariant contract）：58 suites、659/659；Gauge 31/31、Vault 16/16。
+- MultiAsset 与 Treasury 状态不变量分别通过 256 runs、128,000 calls、0 revert；Vault/Gauge 状态不变量通过 256 runs、64,000 calls、0 revert。
+- Backend、Indexer、Deployment、Maintenance Runner：分别 13/13、20/20、24/24、13/13。
+- 正式 Web：16/16；生产构建与生成 ABI 检查通过。
+- boundary、Forge format、fixture、compiled interface、product artifact exact diff 与 CI 三轨门禁均通过；十九模块 product manifest hash 为 `0x08dcffb30cf388b5545040166dfbd67639279a012fbe331ec55bb35f238cafca`。
 
 这些结果是本地实现与生成物一致性的证据，不等同于 RH 测试链部署、真实 RPC 全链路交易、独立第三方审计或生产灰度完成。

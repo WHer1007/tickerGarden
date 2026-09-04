@@ -1,10 +1,10 @@
 # TickerGarden V1 Pons 行为参考基线
 
-> 修订说明：Pons链上行为证据仍保留原始版本标识；TickerGarden自身的质押与费用差异已按当前`V1-EXEC-6`修订，不再使用旧版10 STOCK线性规则。
+> 修订说明：Pons链上行为证据仍保留原始版本标识；TickerGarden自身的质押、Treasury 与费用差异已按当前`V1-EXEC-8`修订，不再使用旧版10 STOCK线性规则。
 
 > 决策状态：`PRODUCT_DIRECTION_APPROVED / IMPLEMENTATION_ALLOWED / NOT_DEPLOYABLE`  
 > 基线标识：`TG-PONS-BEHAVIOR-1`  
-> 执行规范：`V1-EXEC-6`
+> 执行规范：`V1-EXEC-8`
 > 决策日期：2026-09-02  
 > 适用范围：TickerGarden V1；不覆盖任何 Test Prototype 文档或合约
 
@@ -455,4 +455,4 @@ derive marketId
 4. USDG 上线前重取代理/实现指纹并拒绝 drift；
 5. 完成权限、监控、源代码可复现和法律门禁。
 
-本基线随当前`V1-EXEC-6`保持`IMPLEMENTATION_ALLOWED`。反狙击runtime、首发native/USDG Quote配置、通用数值域、毕业成功/失败语义、当前观测194项官方STOCK全量可选为质押Base、动态最低仓位，以及`S=0/S>0`固定质押者份额均已冻结。最终artifact/fork、目标链身份取证、安全审计、许可与法律仍约束部署和生产上线。
+本基线随当前`V1-EXEC-8`保持`IMPLEMENTATION_ALLOWED / NOT_DEPLOYABLE`。反狙击runtime、首发native/USDG Quote配置、通用数值域、毕业成功/失败语义、当前观测194项官方STOCK全量可选为质押Base、动态最低仓位、`S=0/S>0`固定质押者份额，以及 V1 Treasury 接口边界均已冻结。最终artifact/fork、目标链身份取证、安全审计、许可与法律仍约束部署和生产上线。

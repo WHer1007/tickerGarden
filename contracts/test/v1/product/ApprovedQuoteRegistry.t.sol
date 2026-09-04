@@ -213,6 +213,14 @@ contract ApprovedQuoteRegistryTest is Test {
         config.phantomQuote = type(uint256).max;
         config.graduationThreshold = 1;
         _expectInvalidConfig(NATIVE_CONFIG_ID, config);
+        config = _nativeConfig();
+        config.phantomQuote = uint256(uint128(type(int128).max)) + 1;
+        config.economicsHash = _economicsHash(config);
+        _expectInvalidConfig(config.economicsHash, config);
+        config = _nativeConfig();
+        config.graduationThreshold = uint256(uint128(type(int128).max)) + 1;
+        config.economicsHash = _economicsHash(config);
+        _expectInvalidConfig(config.economicsHash, config);
 
         QuoteAssetConfig memory lowDecimals = _erc20Config(address(new QuoteTokenMock(5)), 5, 1, 2);
         _expectInvalidConfig(_economicsHash(lowDecimals), lowDecimals);

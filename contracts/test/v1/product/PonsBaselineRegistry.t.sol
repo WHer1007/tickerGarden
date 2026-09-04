@@ -178,6 +178,9 @@ contract PonsBaselineRegistryTest is Test {
         value.supply = 0;
         _expectInvalid(keccak256("zero-supply"), value);
         value = _validBaseline();
+        value.supply = uint256(uint128(type(int128).max)) + 1;
+        _expectInvalid(keccak256("supply-above-v4-signed-domain"), value);
+        value = _validBaseline();
         value.behaviorVectorRoot = bytes32(0);
         _expectInvalid(keccak256("zero-behavior-root"), value);
         value = _validBaseline();

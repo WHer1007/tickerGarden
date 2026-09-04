@@ -1,6 +1,6 @@
 # TickerGarden V1 Readiness 与部署门禁
 
-> **当前产品边界（2026-09-04）：** `V1-EXEC-6` 的市场自治架构已在本地实现并通过生成物与测试门禁；`launchPhase` 仅为一次性事实，资产/配置级 pause/retire 仍是独立对象状态。目标链部署、独立审计和生产 E2E 门禁仍开放。
+> **当前产品边界（2026-09-04）：** `V1-EXEC-8` 的市场自治架构已在本地实现并通过生成物与测试门禁；`launchPhase` 仅为一次性事实，资产/配置级 pause/retire 仍是独立对象状态。目标链部署、独立审计和生产 E2E 门禁仍开放。
 
 > 规格任务：`V1-P-012`
 > 当前状态：`IMPLEMENTATION_ALLOWED`  
@@ -25,7 +25,7 @@ SPEC_FROZEN_NOT_DEPLOYABLE
 | `DEPLOYMENT_ELIGIBLE` | 对已冻结目标链执行部署、验证和 canary | 宣称生产就绪或开放真实用户资金 |
 | `PRODUCTION_READY` | 按已签字 manifest 开放生产 | 对该证书静默修改参数、代码、角色或地址 |
 
-Pons runtime/毕业向量、首发 native + USDG Quote、通用数值上界、“V1 首发无 batch ABI”，以及 Robinhood 官方目录全部 STOCK 的身份准入与194项点时观测已经闭合。194 个当前观测为 `ACTIVE` 的官方 STOCK 均可由 Meme 创建者任选一个作为该市场唯一且不可变的 staking base；每个非零 allocation 使用管理员按 Asset UID 动态设置的 `minimumAllocation`，且不得低于414 raw units；只要存在 active stake，Staker 固定取得 non-LP 50%。协议不读取 STOCK 价格，不计算美元名义价值，也不以 Chainlink Feed、sequencer 或 backing target 覆盖率作为准入条件。当前 implementation open gates 已清空且本地产品资金逻辑已实现；deployment 与 production gate 仍然开放，不能部署到目标网络或宣称生产就绪。
+Pons runtime/毕业向量、首发 native + USDG Quote、通用数值上界、“V1 首发无 batch ABI”，以及 Robinhood 官方目录全部 STOCK 的身份准入与194项点时观测已经闭合。194 个当前观测为 `ACTIVE` 的官方 STOCK 均可由 Meme 创建者任选一个作为该市场唯一且不可变的 staking base；每个非零 allocation 使用管理员按 Asset UID 动态设置的 `minimumAllocation`，且不得低于414 raw units；存在 Active stake 时按 Creator40%/Staker30%/Platform30% 分配，无 Active stake 时按 Creator70%/Staker0%/Platform30% 分配。协议不读取 STOCK 价格，不计算美元名义价值，也不以 Chainlink Feed、sequencer 或 backing target 覆盖率作为准入条件。当前 implementation open gates 已清空且本地产品资金逻辑已实现；deployment 与 production gate 仍然开放，不能部署到目标网络或宣称生产就绪。
 
 ## 2. 确定性推导
 
@@ -56,9 +56,9 @@ productionReady        = state == PRODUCTION_READY
 
 ## 3. 各阶段最低证据
 
-active Pons runtime 差分、非空首发 Quote、通用数值/overflow 上界、batch scope，以及官方 STOCK 全目录身份准入/194项点时观测已经分别由 `spec/v1_pons_runtime_evidence.json`、`spec/v1_initial_quote_configs.json`、`spec/v1_numeric_bounds.json`、manifest 与 `spec/v1_rh_official_stock_catalog.snapshot.json` 固化。`V1-EXEC-6` 的 implementation gate 已全部关闭：市场创建时必须从 ACTIVE 官方目录选择且只选择一个 `assetUid`，之后不可改绑；同一 STOCK 可被任意多个 Meme 市场选用；毕业后持有者自行决定是否向对应市场分配该 STOCK；每个非零 allocation 使用管理员按 Asset UID 动态设置的 `minimumAllocation`，且不得低于414 raw units；只要存在 active stake，Staker 固定取得 non-LP 50%。STOCK 价格、Feed 和 backing target 不属于 implementation 证据。
+active Pons runtime 差分、非空首发 Quote、通用数值/overflow 上界、batch scope，以及官方 STOCK 全目录身份准入/194项点时观测已经分别由 `spec/v1_pons_runtime_evidence.json`、`spec/v1_initial_quote_configs.json`、`spec/v1_numeric_bounds.json`、manifest 与 `spec/v1_rh_official_stock_catalog.snapshot.json` 固化。`V1-EXEC-8` 的 implementation gate 已全部关闭：市场创建时必须从 ACTIVE 官方目录选择且只选择一个 `assetUid`，之后不可改绑；同一 STOCK 可被任意多个 Meme 市场选用；毕业后持有者自行决定是否向对应市场分配该 STOCK；每个非零 allocation 使用管理员按 Asset UID 动态设置的 `minimumAllocation`，且不得低于414 raw units；存在 Active stake 时按 Creator40%/Staker30%/Platform30% 分配，无 Active stake 时按 Creator70%/Staker0%/Platform30% 分配。STOCK 价格、Feed 和 backing target 不属于 implementation 证据。
 
-进入 `DEPLOYMENT_ELIGIBLE` 前还必须有：目标 chainId/RPC/finalized block hash、所有模块 artifact/地址/init/runtime codehash、四组件 CREATE2 向量、Hook 低位权限证明、AccessManager target-selector-role-delay 精确 diff、编译 ABI/event 精确 diff，以及产品/Fork/E2E 测试。
+进入 `DEPLOYMENT_ELIGIBLE` 前还必须有：目标 chainId/RPC/finalized block hash、所有模块 artifact/地址/init/runtime codehash、四组件 CREATE2 向量、Hook 低位权限证明、AccessManager target-selector-role-delay 精确 diff、Treasury `authority()`/canonical `marketRegistry()` 不可变绑定证明、编译 ABI/event 精确 diff，以及产品/Fork/E2E 测试。
 
 进入 `PRODUCTION_READY` 前还必须有：Critical/High 审计问题为0、Pons 参考许可与法律批准、deployer 权限移交/撤销、源码和可复现构建验证、监控告警与事故 runbook，以及至少72小时 canary soak。
 

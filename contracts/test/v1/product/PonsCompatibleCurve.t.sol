@@ -7,8 +7,10 @@ import {
     IPonsCompatibleCurve,
     MarketConfig,
     MarketRuntime,
-    MarketView
+    MarketView,
+    PoolKey
 } from "../../../src/v1/interfaces/IV1Protocol.sol";
+import {GraduationPoolMath} from "../../../src/v1/libraries/GraduationPoolMath.sol";
 import {
     CurveInitialization,
     ICurveInitializationSource,
@@ -29,6 +31,7 @@ contract MockCurveMarketRegistry {
     bool public rejectMarkSwept;
     uint256 public markSweptCalls;
     address public graduationExecutor;
+    int24 public tickSpacing = 200;
 
     function configure(bytes32 marketId_, MarketConfig memory config) external {
         _marketId = marketId_;
@@ -46,6 +49,10 @@ contract MockCurveMarketRegistry {
 
     function setGraduationExecutor(address value) external {
         graduationExecutor = value;
+    }
+
+    function setTickSpacing(int24 value) external {
+        tickSpacing = value;
     }
 
     function markSwept(bytes32 marketId_) external {
@@ -70,6 +77,19 @@ contract MockCurveMarketRegistry {
     function market(bytes32 marketId_) external view returns (MarketView memory) {
         require(marketId_ == _marketId, "UNKNOWN_MARKET");
         return _marketView;
+    }
+
+    function canonicalPoolKey(bytes32 marketId_) external view returns (PoolKey memory key) {
+        require(marketId_ == _marketId, "UNKNOWN_MARKET");
+        address quoteAsset = _marketView.config.quoteAsset;
+        address memeToken = _marketView.config.memeToken;
+        key = PoolKey({
+            currency0: quoteAsset < memeToken ? quoteAsset : memeToken,
+            currency1: quoteAsset < memeToken ? memeToken : quoteAsset,
+            fee: 0,
+            tickSpacing: tickSpacing,
+            hooks: _marketView.config.graduatedHook
+        });
     }
 }
 
@@ -154,7 +174,9 @@ contract MockCurveFactory is ICurveInitializationSource {
         external
         returns (TickerMemeTokenV1)
     {
-        return new TickerMemeTokenV1(marketId, creator, predictedCurve, "Ticker", "TICK", "ipfs://ticker", supply);
+        return new TickerMemeTokenV1(
+            marketId, creator, predictedCurve, address(this), "Ticker", "TICK", "ipfs://ticker", supply
+        );
     }
 
     function predictCurve(bytes32 salt) external view returns (address) {
@@ -348,6 +370,38 @@ contract PonsCompatibleCurveTest is Test {
         assertEq(address(graduationExecutor).balance, 0);
         assertEq(registry.markSweptCalls(), 0);
         (uint256 recordedQuote, uint256 recordedTokens) = curve.graduationEscrow();
+        assertEq(recordedQuote, 0);
+        assertEq(recordedTokens, 0);
+    }
+
+    function test_unrepresentableActualGraduationPlanRollsBackBeforeSweptEscrow() public {
+        uint256 maximum = uint256(uint128(type(int128).max));
+        MockExactQuoteToken quote = new MockExactQuoteToken(18);
+        Deployment memory deployment = _deploy(address(quote), maximum, maximum - 100, maximum);
+        deployment.registry.setTickSpacing(1);
+        vm.warp(block.timestamp + 3);
+
+        (, uint256 quoteSpent,) = deployment.curve.quoteBuy(maximum * 2, USER);
+        quote.mint(USER, quoteSpent);
+        vm.prank(USER);
+        quote.approve(address(deployment.curve), quoteSpent);
+
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                GraduationPoolMath.InvalidGraduationLiquidity.selector,
+                85_070_591_730_234_615_868_149_581_540_740_050_543,
+                191_757_530_477_355_301_479_181_766_273_477
+            )
+        );
+        vm.prank(USER);
+        deployment.curve.buy(quoteSpent, 0, USER);
+
+        assertEq(deployment.registry.market(MARKET_ID).runtime.launchPhase, 0);
+        assertEq(deployment.registry.markSweptCalls(), 0);
+        assertEq(deployment.feeVault.calls(), 0);
+        assertEq(quote.balanceOf(address(deployment.curve)), 0);
+        assertEq(deployment.token.balanceOf(address(deployment.curve)), maximum);
+        (uint256 recordedQuote, uint256 recordedTokens) = deployment.curve.graduationEscrow();
         assertEq(recordedQuote, 0);
         assertEq(recordedTokens, 0);
     }
@@ -632,7 +686,7 @@ contract PonsCompatibleCurveTest is Test {
             quoteAssetConfigId: QUOTE_CONFIG_ID,
             launchTemplateId: keccak256("TEMPLATE"),
             feePolicyId: keccak256("FEE_POLICY"),
-            executionSpecId: keccak256("V1-EXEC-6"),
+            executionSpecId: keccak256("V1-EXEC-8"),
             expectedEconomics: keccak256("ECONOMICS"),
             launchConfigId: 0,
             creatorRevenueBeneficiaryAtCreation: BENEFICIARY,

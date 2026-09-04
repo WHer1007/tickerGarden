@@ -1,6 +1,6 @@
 # V1 protocol modules
 
-> Current local implementation: `V1-EXEC-6`, 18 canonical modules. Target-chain deployment, independent audit, and production approval remain separate gates.
+> Current local implementation: `V1-EXEC-8`, 19 canonical modules. Target-chain deployment, independent audit, and production approval remain separate gates.
 
 | Module | Role |
 |---|---|
@@ -20,7 +20,7 @@
 | `TickerGardenMemeHook` | Binds the canonical v4 pool and atomically accounts post-graduation fees. |
 | `ProtocolFeeVault` | Exact-arrival fee liabilities, fixed-recipient claims, and forfeiture reserve accounting. |
 | `GraduationExecutor` | Permissionless pool creation/retry and delayed fixed-recipient rescue from `Swept`. |
-| `LaunchLocker` | Permanently locks the canonical full-range v4 position and only allows permissionless compounding. |
+| `LaunchLocker` | Permanently locks the canonical full-range v4 position; it has no fee collection or compounding path. |
 | `CreatorRevenueRegistry` | Immutable creator-beneficiary epochs with pre-graduation fee sweep on transfer. |
 
 ## Autonomous-market boundary
