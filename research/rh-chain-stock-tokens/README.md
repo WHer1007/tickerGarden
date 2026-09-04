@@ -14,6 +14,7 @@
 
 - Robinhood 官方 [`/rhj/assets`](https://api.robinhood.com/rhj/assets) 返回 **194** 个资产；194 个 UID、symbol 和 chain `4663` Token 地址均唯一，全部为 `ASSET_STATUS_ACTIVE`、18 decimals。
 - 当前官方响应只给出了 chainId `4663` deployment；没有给出 chainId `46630` 的 Stock Token deployment。这只能解释为“当前官方目录未发布测试链地址”，不能推断测试链永远不会发布。
+- 官方 `GET /rhj/prices/{symbol}` 已确认可读取底层股票 USD `bid/ask`、`generatedAt` 与停牌状态，可用于 Stock Quote config 生成和创建页面的点时估值；它不是链上结算价格，且换算每枚 Stock Token 价格时必须乘一次 `/rhj/assets` 的 `currentMultiplier`。
 - 与仓库 2026-09-02 快照相比，194 个资产的身份集合没有增删或变更；动态 `currentMultiplier` 有两项变化：`UPS = 1.002208724969205741`、`F = 1.000145502866134027`。Multiplier 会继续变化，不能当作静态准入身份。
 - 194 个 Token 共享同一个 Beacon 与同一个 `Stock` implementation，而不是 194 套独立实现。共享架构及对 TickerGarden Stock Vault 的风险见 [`CONTRACT_ARCHITECTURE.md`](./CONTRACT_ARCHITECTURE.md)。
 - 在固定且随后确认已 finalized 的区块 **54,350,641**，对 194 个官方 Token × USDG/WETH 执行了 **1,940** 次 canonical Uniswap V2/V3 Factory 查询，0 查询错误：
@@ -34,7 +35,7 @@
 | B | Robinhood Chain Blockscout 已验证源码 | 理解 implementation、Beacon、角色与暂停/销毁能力 | 不能确认角色实际持有人与运营流程 |
 | C | DexScreener 地址 API | 发现 V4 poolId 与非 Uniswap DEX 线索、保存点时流动性/成交快照 | 不能充当官方地址、完备枚举或路由安全证明 |
 
-TickerGarden 的 Stock 准入只能依赖 A 级身份和运行时指纹，不得依赖“是否有池”、DexScreener、symbol、name、logo 或价格。
+TickerGarden 的 Stock Base 准入只能依赖 A 级身份和运行时指纹，不得依赖“是否有池”、DexScreener、symbol、name、logo 或价格。Stock Quote 是独立的小范围 allowlist：价格可以用于生成一次性配置参考，但不能替代身份、流动性或合约行为证据。
 
 ## 3. 官方资产的法律与技术属性
 
@@ -61,6 +62,22 @@ Robinhood 官方说明，Stock Token 是 Robinhood Assets (Jersey) Limited 发�
 | `tradingCapabilities` | 底层资产的动态交易能力提示，不代表某个链上池可成交 |
 
 注意：Robinhood API 文档 schema 明确列出了 UID、symbol/name、deployments、multiplier、status 等字段；`tokenDecimals` 和 `isin` 存在于当前 live payload，但当前 schema 表没有明确列出。解析器应容忍文档与 live payload 演进，并始终用链上 getter 复核安全关键字段。
+
+### 3.1 链下价格 API 与 Stock Quote 参考
+
+官方链下只读端点为：
+
+```text
+GET https://api.robinhood.com/rhj/assets
+GET https://api.robinhood.com/rhj/prices/{symbol}
+GET https://api.robinhood.com/rhj/corporate-actions
+```
+
+`/rhj/prices/{symbol}` 返回的是底层股票每股 USD `bid/ask`，没有包含 Stock Token `uiMultiplier`；Token 等值参考价为 `underlying price × currentMultiplier`。Robinhood Chain 上对应的 Chainlink Feed 则直接返回已经 multiplier-adjusted 的每枚 Stock Token 价格，不能再乘一次 multiplier。官方文档给出的 `/prices` 缓存窗口为15秒、API 限流为60 requests/second；调用端仍必须根据 `generatedAt` 自行判断新鲜度。
+
+该 API 只允许用于配置生成器和 UI：产出可审计的参考证据后，由治理批准最终 raw `phantomQuote` 与 `graduationThreshold`。Curve、Factory 资金校验、毕业、FeeVault 与 Treasury 都不得在运行时信任 HTTP；市场创建后也不得随股价改变已冻结参数。停牌、pending multiplier、公司行动、价格陈旧、Oracle/Sequencer 异常或 REST/Chainlink 偏差超限时应禁止生成新配置。
+
+`dailyTradingVolume` 是底层股票成交量，不是链上 Stock Token 的流动性证明。选取少量启动 Quote 仍须验证 canonical DEX/RFQ route、池深度、LP 集中度与目标规模 swap simulation。完整产品与工程规范见 [`V1_STOCK_QUOTE_PRICE_REFERENCE.md`](../../V1_STOCK_QUOTE_PRICE_REFERENCE.md)。
 
 ## 4. 网络与固定观测块
 

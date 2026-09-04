@@ -26,16 +26,16 @@ contract MarketRegistryV1 is IMarketRegistryV1 {
     uint8 internal constant LAUNCH_PHASE_POOL_CREATED = 1;
     uint8 internal constant CONFIG_STATUS_ACTIVE = 1;
     uint160 internal constant REQUIRED_HOOK_PERMISSION_MASK = 0x2044;
-    bytes32 public constant EXECUTION_SPEC_ID = keccak256("V1-EXEC-9");
+    bytes32 public constant EXECUTION_SPEC_ID = keccak256("V1-EXEC-10");
 
-    address public immutable factory;
-    address public immutable officialStockRegistry;
-    address public immutable approvedQuoteRegistry;
-    address public immutable ponsBaselineRegistry;
-    address public immutable launchTemplateRegistry;
-    address public immutable graduationExecutor;
-    address public immutable swapRouter;
-    address public immutable quoter;
+    address public immutable override factory;
+    address public immutable override officialStockRegistry;
+    address public immutable override approvedQuoteRegistry;
+    address public immutable override ponsBaselineRegistry;
+    address public immutable override launchTemplateRegistry;
+    address public immutable override graduationExecutor;
+    address public immutable override swapRouter;
+    address public immutable override quoter;
 
     mapping(bytes32 marketId => MarketConfig config) private _marketConfigs;
     mapping(bytes32 marketId => MarketRuntime runtime) private _marketRuntimes;
@@ -75,6 +75,10 @@ contract MarketRegistryV1 is IMarketRegistryV1 {
         ) {
             revert ZeroConstructorAddress();
         }
+        if (
+            officialStockRegistry_.code.length == 0 || approvedQuoteRegistry_.code.length == 0
+                || ponsBaselineRegistry_.code.length == 0 || launchTemplateRegistry_.code.length == 0
+        ) revert ZeroConstructorAddress();
         if (
             swapRouter_.code.length == 0 || quoter_.code.length == 0 || swapRouter_ == quoter_
                 || swapRouter_ == graduationExecutor_ || quoter_ == graduationExecutor_

@@ -64,7 +64,7 @@ decimals = 6
 
 该比例同样推导出 `2/7` 的池保留量。它只证明 USDG 的 Pons 现网配置，不自动授权 TickerGarden 改用 USDG。
 
-结论：上述 USDG 仅是历史链上观测，`V1-G0-PONS-QUOTE-01` 不构成对其的批准。当前 V1 首发决策为仅使用原生 Quote，因此不允许首发可升级 USDG。未来若增加 ERC20 Quote，必须先提供 canonical 合约、发行/桥接权威、资产风险审查及 direct immutable 非代理证明，并登记为显式 Pons/TickerGarden 差异；在此之前该 Quote 仍为 `BLOCKED`。
+历史结论：上述 USDG 仅是链上观测，`V1-G0-PONS-QUOTE-01` 不构成对其的批准；其可升级代理身份也不符合普通 Quote 门禁。该点时快照中的“新增 Quote BLOCKED”已由 `V1-EXEC-10` 的管理员白名单实现取代：管理员现在可以追加任意通过风险评估的 native 或 direct immutable ERC-20 config，但每个具体资产在进入 `ACTIVE` 前仍必须提供 canonical 合约、发行/桥接权威、源码/行为审查及非代理证明。Robinhood 官方 Stock Token 如作为 Quote，仍必须走独立的 Asset UID/Beacon 指纹和行为审查路径，不能据此为 USDG 或其他代理资产创建通用豁免。
 
 ## 3. 已观测但未批准的其他状态
 

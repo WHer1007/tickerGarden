@@ -16,6 +16,7 @@ contract LaunchLockerCreationCodeStore {
 /// @notice Canonical atomic V1 graduation, v4 pool creation, and permanent Locker deployment module.
 contract GraduationExecutor is GraduationExecutorPoolExecution {
     address private immutable _lockerCreationCodeStore;
+    bytes32 private immutable _lockerCreationCodeHash;
 
     constructor(
         address marketRegistry_,
@@ -24,7 +25,13 @@ contract GraduationExecutor is GraduationExecutorPoolExecution {
         address positionManager_,
         address hook_
     ) GraduationExecutorPoolExecution(marketRegistry_, quoteRegistry_, poolManager_, positionManager_, hook_) {
-        _lockerCreationCodeStore = address(new LaunchLockerCreationCodeStore(type(LaunchLocker).creationCode));
+        bytes memory creationCode = type(LaunchLocker).creationCode;
+        _lockerCreationCodeHash = keccak256(creationCode);
+        _lockerCreationCodeStore = address(new LaunchLockerCreationCodeStore(creationCode));
+    }
+
+    function launchLockerCreationCodeHash() external view returns (bytes32) {
+        return _lockerCreationCodeHash;
     }
 
     function _launchLockerCreationCode() internal view override returns (bytes memory creationCode) {

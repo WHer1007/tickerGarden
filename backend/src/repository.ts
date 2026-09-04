@@ -11,7 +11,7 @@ export interface ReadModelRepository {
 }
 
 export interface VerifiedReadModelSnapshot {
-  readonly executionSpecId: "V1-EXEC-9";
+  readonly executionSpecId: "V1-EXEC-10";
   readonly reconciliationAlerts: readonly [];
   readonly sync: SyncStatus;
   readonly markets?: readonly MarketReadModel[];
@@ -96,7 +96,7 @@ export class InMemoryReadModelRepository implements ReadModelRepository {
   readonly #positions: readonly UserPositionReadModel[];
 
   constructor(input: VerifiedReadModelSnapshot) {
-    if (input.executionSpecId !== "V1-EXEC-9" || input.reconciliationAlerts.length !== 0) throw new Error("read model snapshot is not V1-reconciled");
+    if (input.executionSpecId !== "V1-EXEC-10" || input.reconciliationAlerts.length !== 0) throw new Error("read model snapshot is not V1-reconciled");
     assertUint(input.sync.blockNumber, "sync.blockNumber"); assertUint(input.sync.headBlockNumber, "sync.headBlockNumber"); assertUint(input.sync.lagBlocks, "sync.lagBlocks");
     if (input.sync.blockHash) assertHex(input.sync.blockHash, 32, "sync.blockHash");
     if (input.sync.headBlockHash) assertHex(input.sync.headBlockHash, 32, "sync.headBlockHash");
@@ -126,6 +126,6 @@ export class InMemoryReadModelRepository implements ReadModelRepository {
 }
 
 export const EMPTY_REPOSITORY = new InMemoryReadModelRepository({
-  executionSpecId: "V1-EXEC-9", reconciliationAlerts: [],
+  executionSpecId: "V1-EXEC-10", reconciliationAlerts: [],
   sync: { chainId: 4663, status: "unavailable", blockNumber: null, blockHash: null, finality: "unavailable", headBlockNumber: null, headBlockHash: null, lagBlocks: null, revision: "empty" },
 });

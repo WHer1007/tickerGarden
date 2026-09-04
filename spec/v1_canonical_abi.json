@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "executionSpecId": "V1-EXEC-9",
+  "executionSpecId": "V1-EXEC-10",
   "sourceAbi": "v1_abi_surface.json",
   "sourcePermissions": "v1_permissions_matrix.json",
   "selectorRule": "bytes4(keccak256(bytes(canonicalSignature)))",
@@ -191,8 +191,8 @@
     {
       "module": "LaunchTemplateRegistry",
       "displaySignature": "addLaunchTemplate(bytes32,LaunchTemplate)",
-      "canonicalSignature": "addLaunchTemplate(bytes32,(address,bytes32,address,bytes32,address,bytes32,address,bytes32,address,address,bytes32,bytes32,bytes32,uint8))",
-      "selector": "0xd909a699",
+      "canonicalSignature": "addLaunchTemplate(bytes32,(address,bytes32,address,bytes32,address,bytes32,address,bytes32,address,bytes32,bytes32,bytes32,uint8))",
+      "selector": "0x1050c6ba",
       "selectorHash": "FIRST_4_BYTES_OF_KECCAK256_CANONICAL_SIGNATURE",
       "caller": "PROTOCOL_ADMIN_ROLE",
       "executionDelaySeconds": 172800,
@@ -796,7 +796,7 @@
       "executionDelaySeconds": 0,
       "stateDelaySeconds": 0,
       "stateDelayAnchor": "NONE",
-      "precondition": "CALLER_EQUALS_REGISTERED_CURVE_SOURCE_VERSION_MATCHES_AND_SWEEP_PRECEDES_MARK_SWEPT",
+      "precondition": "CALLER_EQUALS_REGISTERED_CURVE_SOURCE_VERSION_MATCHES_AND_ATOMIC_FEE_SWEEP_PRECEDES_GRADUATION_TRANSFER",
       "recipient": "none"
     },
     {
@@ -1095,6 +1095,12 @@
     },
     {
       "module": "OfficialStockRegistryV1",
+      "displayEvent": "StockVaultCodeIdentityPinned(address indexed userStockVault,bytes32 indexed runtimeCodeHash)",
+      "canonicalSignature": "StockVaultCodeIdentityPinned(address,bytes32)",
+      "topic0": "0x4c829cc6a89f519d125d0218f0666fab211662261b26051309f81bbf8588fa4d"
+    },
+    {
+      "module": "OfficialStockRegistryV1",
       "displayEvent": "AssetRegistered(bytes32 indexed assetUid,address indexed stockToken,address indexed userStockVault,uint8 tokenDecimals)",
       "canonicalSignature": "AssetRegistered(bytes32,address,address,uint8)",
       "topic0": "0x25c83c3d7099e68302e20f357aec0b7380afad2d0f53881c31025848f7f69208"
@@ -1389,9 +1395,9 @@
     },
     {
       "module": "GraduationExecutor",
-      "displayEvent": "PoolGraduated(bytes32 indexed marketId,bytes32 indexed poolId,address indexed launchLocker,uint256 sweptQuote,uint256 sweptTokens,uint256 poolMemeAmount,uint256 lockedExcessMeme,uint32 sourceVersion)",
-      "canonicalSignature": "PoolGraduated(bytes32,bytes32,address,uint256,uint256,uint256,uint256,uint32)",
-      "topic0": "0x6e8ddf95f2ac66a897a0b83f2be9b253afafa77365c2cd517e1396ed28de2324"
+      "displayEvent": "PoolGraduated(bytes32 indexed marketId,bytes32 indexed poolId,address indexed launchLocker,uint256 sweptQuote,uint256 sweptTokens,uint256 poolQuoteAmount,uint256 poolMemeAmount,uint256 lockedExcessQuote,uint256 lockedExcessMeme,uint32 sourceVersion)",
+      "canonicalSignature": "PoolGraduated(bytes32,bytes32,address,uint256,uint256,uint256,uint256,uint256,uint256,uint32)",
+      "topic0": "0x40a0877811468a71acbff54ef6c83948c23306787d6c38a4f084adbb56963489"
     },
     {
       "module": "CreatorRevenueRegistry",

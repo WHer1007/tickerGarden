@@ -5,8 +5,7 @@ import {Test} from "forge-std/Test.sol";
 import {ERC20} from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
-import {MarketConfig, MarketRuntime, MarketView, QuoteAssetConfig} from "../../../src/v1/interfaces/IV1Protocol.sol";
-import {PonsSupplyMath} from "../../../src/v1/libraries/PonsSupplyMath.sol";
+import {MarketConfig, MarketRuntime, MarketView, PonsBaseline, QuoteAssetConfig} from "../../../src/v1/interfaces/IV1Protocol.sol";
 import {GraduationExecutorAssetAccounting} from "../../../src/v1/shared/GraduationExecutorAssetAccounting.sol";
 
 contract GraduationAccountingToken is ERC20 {
@@ -29,15 +28,23 @@ contract GraduationAccountingQuoteRegistryMock {
     }
 }
 
+contract GraduationAccountingPonsBaselineRegistryMock {
+    mapping(bytes32 id => PonsBaseline value) private _baselines;
+    function configure(bytes32 id, PonsBaseline calldata value) external { _baselines[id] = value; }
+    function baseline(bytes32 id) external view returns (PonsBaseline memory) { return _baselines[id]; }
+}
+
 contract GraduationAccountingRegistryMock {
     address public immutable approvedQuoteRegistry;
+    address public immutable ponsBaselineRegistry;
     address public executor;
     mapping(bytes32 marketId => MarketView value) private _markets;
 
     error UnauthorizedExecutor(address caller);
 
-    constructor(address quoteRegistry) {
+    constructor(address quoteRegistry, address baselineRegistry) {
         approvedQuoteRegistry = quoteRegistry;
+        ponsBaselineRegistry = baselineRegistry;
     }
 
     function setExecutor(address value) external {
@@ -89,7 +96,9 @@ contract GraduationAccountingExecutorHarness is GraduationExecutorAssetAccountin
     Mode private _mode;
 
     uint256 public observedPoolMeme;
-    uint256 public observedLockedExcess;
+    uint256 public observedPoolQuote;
+    uint256 public observedLockedExcessQuote;
+    uint256 public observedLockedExcessMeme;
 
     constructor(address registry, address quoteRegistry, address quoteSink, address locker)
         GraduationExecutorAssetAccounting(registry, quoteRegistry)
@@ -108,8 +117,10 @@ contract GraduationAccountingExecutorHarness is GraduationExecutorAssetAccountin
         override
         returns (address launchLocker)
     {
+        observedPoolQuote = plan.poolQuoteAmount;
         observedPoolMeme = plan.poolMemeAmount;
-        observedLockedExcess = plan.lockedExcessMeme;
+        observedLockedExcessQuote = plan.lockedExcessQuote;
+        observedLockedExcessMeme = plan.lockedExcessMeme;
 
         uint256 quoteToConsume = _mode == Mode.UNDER_CONSUME_QUOTE ? plan.sweptQuote - 1 : plan.sweptQuote;
         if (plan.quoteAsset == address(0)) {
@@ -137,11 +148,16 @@ contract GraduationExecutorAssetAccountingTest is Test {
 
     uint256 private constant NATIVE_SWEPT_QUOTE = 4_200_000_000_000_000_157;
     uint256 private constant NATIVE_PHANTOM = 1_680_000_000_000_000_000;
+    uint256 private constant NATIVE_THRESHOLD = 4_200_000_000_000_000_000;
+    uint256 private constant NATIVE_POOL_QUOTE = 4_200_000_000_000_000_001;
+    uint256 private constant NATIVE_LOCKED_EXCESS_QUOTE = 156;
     uint256 private constant NATIVE_SWEPT_TOKENS = 285_714_285_714_285_714_285_714_285;
-    uint256 private constant NATIVE_POOL_MEME = 204_081_632_653_061_226_669_443_287;
-    uint256 private constant NATIVE_LOCKED_EXCESS = 81_632_653_061_224_487_616_270_998;
+    uint256 private constant NATIVE_POOL_MEME = 204_081_632_653_061_224_503_679_022;
+    uint256 private constant NATIVE_LOCKED_EXCESS_MEME = 81_632_653_061_224_489_782_035_263;
+    uint256 private constant BASELINE_SUPPLY = 1_000_000_000 ether;
 
     GraduationAccountingQuoteRegistryMock private quotes;
+    GraduationAccountingPonsBaselineRegistryMock private baselines;
     GraduationAccountingRegistryMock private registry;
     GraduationAccountingCurveCaller private curve;
     GraduationAccountingToken private meme;
@@ -153,14 +169,17 @@ contract GraduationExecutorAssetAccountingTest is Test {
         address indexed launchLocker,
         uint256 sweptQuote,
         uint256 sweptTokens,
+        uint256 poolQuoteAmount,
         uint256 poolMemeAmount,
+        uint256 lockedExcessQuote,
         uint256 lockedExcessMeme,
         uint32 sourceVersion
     );
 
     function setUp() public {
         quotes = new GraduationAccountingQuoteRegistryMock();
-        registry = new GraduationAccountingRegistryMock(address(quotes));
+        baselines = new GraduationAccountingPonsBaselineRegistryMock();
+        registry = new GraduationAccountingRegistryMock(address(quotes), address(baselines));
         curve = new GraduationAccountingCurveCaller();
         meme = new GraduationAccountingToken("Meme", "MEME");
         executor = new GraduationAccountingExecutorHarness(address(registry), address(quotes), QUOTE_SINK, LOCKER);
@@ -181,36 +200,44 @@ contract GraduationExecutorAssetAccountingTest is Test {
             LOCKER,
             NATIVE_SWEPT_QUOTE,
             NATIVE_SWEPT_TOKENS,
+            NATIVE_POOL_QUOTE,
             NATIVE_POOL_MEME,
-            NATIVE_LOCKED_EXCESS,
+            NATIVE_LOCKED_EXCESS_QUOTE,
+            NATIVE_LOCKED_EXCESS_MEME,
             SOURCE_VERSION + 1
         );
         curve.graduate{value: NATIVE_SWEPT_QUOTE}(executor, MARKET_ID, NATIVE_SWEPT_QUOTE, NATIVE_SWEPT_TOKENS);
 
+        assertEq(executor.observedPoolQuote(), NATIVE_POOL_QUOTE);
         assertEq(executor.observedPoolMeme(), NATIVE_POOL_MEME);
-        assertEq(executor.observedLockedExcess(), NATIVE_LOCKED_EXCESS);
-        assertEq(NATIVE_POOL_MEME + NATIVE_LOCKED_EXCESS, NATIVE_SWEPT_TOKENS);
+        assertEq(executor.observedLockedExcessQuote(), NATIVE_LOCKED_EXCESS_QUOTE);
+        assertEq(executor.observedLockedExcessMeme(), NATIVE_LOCKED_EXCESS_MEME);
+        assertEq(NATIVE_POOL_MEME + NATIVE_LOCKED_EXCESS_MEME, NATIVE_SWEPT_TOKENS);
         assertEq(address(executor).balance, unrelatedQuote);
         assertEq(meme.balanceOf(address(executor)), unrelatedMeme);
         assertEq(meme.balanceOf(QUOTE_SINK), NATIVE_POOL_MEME);
-        assertEq(meme.balanceOf(LOCKER), NATIVE_LOCKED_EXCESS);
+        assertEq(meme.balanceOf(LOCKER), NATIVE_LOCKED_EXCESS_MEME);
         assertEq(registry.market(MARKET_ID).runtime.launchPhase, 1);
     }
 
     function test_erc20PlanUsesActualRecordedAmountsAndConsumesEachAssetExactly() public {
         GraduationAccountingToken quote = new GraduationAccountingToken("Quote", "QUOTE");
-        uint256 sweptQuote = 26_639_006_882_017_848_346;
+        uint256 sweptQuote = 26_639_006_882_017_848_470;
         uint256 phantom = 10_655_602_752_807_139_311;
-        uint256 sweptTokens = 285_714_285_714_285_714_289_544_789;
-        uint256 expectedPool = 204_081_632_653_061_224_642_468_854;
-        uint256 expectedExcess = 81_632_653_061_224_489_647_075_935;
+        uint256 sweptTokens = 285_714_285_714_285_713_760_935_269;
+        uint256 expectedPoolQuote = 26_639_006_882_017_848_347;
+        uint256 expectedLockedQuote = 123;
+        uint256 expectedPool = 204_081_632_653_061_224_267_079_484;
+        uint256 expectedExcess = 81_632_653_061_224_489_493_855_785;
         _configureMarket(address(quote), phantom);
         quote.mint(address(executor), sweptQuote);
         meme.mint(address(executor), sweptTokens);
         curve.graduate(executor, MARKET_ID, sweptQuote, sweptTokens);
 
+        assertEq(executor.observedPoolQuote(), expectedPoolQuote);
+        assertEq(executor.observedLockedExcessQuote(), expectedLockedQuote);
         assertEq(executor.observedPoolMeme(), expectedPool);
-        assertEq(executor.observedLockedExcess(), expectedExcess);
+        assertEq(executor.observedLockedExcessMeme(), expectedExcess);
         assertEq(expectedPool + expectedExcess, sweptTokens);
         assertEq(quote.balanceOf(address(executor)), 0);
         assertEq(quote.balanceOf(QUOTE_SINK), sweptQuote);
@@ -310,8 +337,25 @@ contract GraduationExecutorAssetAccountingTest is Test {
                 quoteAsset: quoteAsset,
                 quoteDecimals: 18,
                 phantomQuote: phantom,
-                graduationThreshold: 1,
+                graduationThreshold: quoteAsset == address(0)
+                    ? NATIVE_THRESHOLD
+                    : 26_639_006_882_017_848_346,
                 economicsHash: QUOTE_CONFIG_ID,
+                status: 1
+            })
+        );
+        baselines.configure(
+            baselineId,
+            PonsBaseline({
+                referenceChainId: block.chainid,
+                referenceFactory: address(registry),
+                referenceFactoryCodeHash: bytes32(0),
+                launchConfigId: 0,
+                supply: BASELINE_SUPPLY,
+                curveFeeBps: 0,
+                poolFee: 0,
+                tickSpacing: 1,
+                behaviorVectorRoot: bytes32(0),
                 status: 1
             })
         );

@@ -23,8 +23,7 @@ struct LaunchTemplate {
   address graduatedHook;
   bytes32 hookCodeHash;
   address graduationExecutor;
-  address launchLockerImplementation;
-  bytes32 launchLockerCodeHash;
+  bytes32 graduationExecutorCodeHash;
   bytes32 feePolicyId;
   bytes32 executionSpecId;
   uint8 status;
@@ -35,13 +34,12 @@ struct LaunchTemplate {
 
 ```text
 launchTemplateHash = keccak256(abi.encode(
-  keccak256(bytes("TICKERGARDEN_V1_LAUNCH_TEMPLATE")), 1,
+  keccak256(bytes("TICKERGARDEN_V1_LAUNCH_TEMPLATE")), 2,
   memeTokenImplementation, memeTokenCodeHash,
   curveImplementation, curveCodeHash,
   gaugeImplementation, gaugeCodeHash,
   graduatedHook, hookCodeHash,
-  graduationExecutor,
-  launchLockerImplementation, launchLockerCodeHash,
+  graduationExecutor, graduationExecutorCodeHash,
   feePolicyId, executionSpecId
 ))
 ```
@@ -50,7 +48,7 @@ launchTemplateHash = keccak256(abi.encode(
 
 ## 2. Quote economics hash
 
-每个追加式 `QuoteAssetConfig` 使用内容寻址；V1 首发仅允许原生 Quote，首发配置的 `quoteAssetConfigId` 必须等于其 `quoteEconomicsHash`。首发不批准可升级 USDG。未来如增加 ERC20 Quote，仅允许经过审查的 direct immutable、非代理 token：
+每个追加式 `QuoteAssetConfig` 使用内容寻址。创建者可以选择任意管理员已经登记且处于 `ACTIVE` 的配置；原生 ETH 只是 bootstrap 示例，不是唯一 Quote。普通 ERC20 Quote 仅允许经过审查的 direct immutable、非代理 token，当前配置的 `quoteAssetConfigId` 必须等于其 `quoteEconomicsHash`：
 
 ```text
 quoteEconomicsHash = keccak256(abi.encode(
@@ -66,7 +64,9 @@ quoteEconomicsHash = keccak256(abi.encode(
 quoteAssetConfigId = quoteEconomicsHash
 ```
 
-`status`、symbol/name、implementation 和观测区块不进入 economics hash：前者是可变准入状态，后三者属于部署证据。Registry 必须校验 ID 与重算结果一致，不能接受调用者提供的任意别名；更新任一 economics 字段都必须新增 config。精确首发值见 [`spec/v1_initial_quote_configs.json`](./spec/v1_initial_quote_configs.json)，schema 与固定向量见 [`spec/v1_hash_schemas.json`](./spec/v1_hash_schemas.json)。历史观测到的 USDG 配置仅作为外部事实保留，不构成 V1 首发批准。
+`status`、symbol/name、implementation 和观测区块不进入 economics hash：前者是可变准入状态，后三者属于部署证据。Registry 必须校验 ID 与重算结果一致，不能接受调用者提供的任意别名；更新任一 economics 字段都必须新增 config。精确当前值见 [`spec/v1_initial_quote_configs.json`](./spec/v1_initial_quote_configs.json)，schema 与固定向量见 [`spec/v1_hash_schemas.json`](./spec/v1_hash_schemas.json)。历史观测到的 USDG 配置仅作为外部事实保留，不构成 V1 批准。
+
+Robinhood 官方 Stock Quote 是待实现的专用代理资产路径。其 Asset UID、canonical Token、Beacon/implementation 指纹与价格生成证据必须被版本化绑定；在最终 hash/schema 和部署证据格式进入新的 execution spec 前，不得复用现有通用 hash 将 Stock Quote 标为 ACTIVE。链下价格只生成 raw economics，不进入市场 hash 的动态运行输入；详见 [`V1_STOCK_QUOTE_PRICE_REFERENCE.md`](./V1_STOCK_QUOTE_PRICE_REFERENCE.md)。
 
 ## 3. expectedEconomics
 

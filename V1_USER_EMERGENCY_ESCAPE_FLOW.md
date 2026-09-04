@@ -204,6 +204,6 @@ Manager 只有在 Gauge position 的 active、pending、quoteClaimable、memeCla
 
 - 根目录 `npm test` 是聚合验收入口，覆盖 60 项 Python 执行规范、全部 Foundry 测试、Backend、Indexer、Deployments、Maintenance Runner、正式 Web，以及 boundary、fixture、compiled interface、product artifact exact diff 与 CI 三轨漂移门禁；具体动态计数以当次 CI 输出为准。
 - MultiAsset、Treasury 与 Vault/Gauge 三套状态不变量固定执行 256 runs、128,000 calls，并要求 0 handler revert。
-- 当前十九模块 product manifest hash 为 `0xeb7b0a02f99afa8b27026abca7096f57d0491dd728318169a2eb8094bfd428cf`。
+- 当前十九模块 product manifest hash 为 `0x38771f3438aad3de36983441ea90be61c71ac4fb51361159cd0874b04afbc503`。
 
 这些结果是本地实现与生成物一致性的证据，不等同于 RH 测试链部署、真实 RPC 全链路交易、独立第三方审计或生产灰度完成。

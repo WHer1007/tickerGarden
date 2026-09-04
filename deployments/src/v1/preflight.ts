@@ -249,7 +249,9 @@ function collectCodeExpectations(manifest: Manifest): Map<string, { hash: string
   }
   for (const [index, stock] of manifest.officialStocks.entries()) {
     addCodeExpectation(output, stringField(stock, "tokenAddress"), stringField(stock, "runtimeCodeHash"), `officialStocks.${index}`);
-    addCodeExpectation(output, stringField(stock, "beaconAddress"), stringField(stock, "beaconCodeHash"), `officialStocks.${index}.beacon`);
+    if (stringField(stock, "proxyKind") === "IMMUTABLE_BEACON") {
+      addCodeExpectation(output, stringField(stock, "beaconAddress"), stringField(stock, "beaconCodeHash"), `officialStocks.${index}.beacon`);
+    }
     addCodeExpectation(output, stringField(stock, "implementationAddress"), stringField(stock, "implementationCodeHash"), `officialStocks.${index}.implementation`);
   }
   for (const [kind, component] of Object.entries(manifest.create2.components)) {
@@ -386,16 +388,26 @@ function verifyProxyEvidence(manifest: Manifest): void {
     const token = stringField(stock, "tokenAddress").toLowerCase();
     const assetUid = stringField(stock, "assetUid").toLowerCase();
     const decimals = numberField(stock, "decimals");
-    const beacon = stringField(stock, "beaconAddress").toLowerCase();
+    const proxyKind = stringField(stock, "proxyKind");
     const implementation = stringField(stock, "implementationAddress").toLowerCase();
-    const expectedBeaconWord = `0x${addressWord(beacon)}`;
-    const storedBeacon = storage.get(`${token}:${ERC1967_BEACON_SLOT}`);
-    if (storedBeacon !== expectedBeaconWord) fail(`officialStocks.${index}.beaconSlot`, expectedBeaconWord, storedBeacon);
-    const implementationCall = callData("implementation()").toLowerCase();
-    const expectedImplementationHash = keccakHex(`0x${addressWord(implementation)}`);
-    const getterHash = getters.get(`${beacon}:${implementationCall}`);
-    if (getterHash !== expectedImplementationHash) {
-      fail(`officialStocks.${index}.beaconImplementationGetter`, expectedImplementationHash, getterHash);
+    if (proxyKind === "DIRECT") {
+      same(`officialStocks.${index}.implementationAddress`, token, implementation);
+      same(`officialStocks.${index}.implementationCodeHash`, stringField(stock, "runtimeCodeHash"), stringField(stock, "implementationCodeHash"));
+      for (const [label, slot] of [["implementationSlot", ERC1967_IMPLEMENTATION_SLOT], ["adminSlot", ERC1967_ADMIN_SLOT], ["beaconSlot", ERC1967_BEACON_SLOT]] as const) {
+        const storedValue = storage.get(`${token}:${slot}`);
+        if (storedValue !== ZERO_STORAGE_WORD) fail(`officialStocks.${index}.${label}`, ZERO_STORAGE_WORD, storedValue);
+      }
+    } else {
+      const beacon = stringField(stock, "beaconAddress").toLowerCase();
+      const expectedBeaconWord = `0x${addressWord(beacon)}`;
+      const storedBeacon = storage.get(`${token}:${ERC1967_BEACON_SLOT}`);
+      if (storedBeacon !== expectedBeaconWord) fail(`officialStocks.${index}.beaconSlot`, expectedBeaconWord, storedBeacon);
+      const implementationCall = callData("implementation()").toLowerCase();
+      const expectedImplementationHash = keccakHex(`0x${addressWord(implementation)}`);
+      const getterHash = getters.get(`${beacon}:${implementationCall}`);
+      if (getterHash !== expectedImplementationHash) {
+        fail(`officialStocks.${index}.beaconImplementationGetter`, expectedImplementationHash, getterHash);
+      }
     }
     const uidHash = getters.get(`${token}:${callData("uid()").toLowerCase()}`);
     const expectedUidHash = keccakHex(assetUid);
@@ -828,6 +840,11 @@ export async function verifyV1LiveState(candidate: unknown, rpc: V1ReadOnlyRpc):
       .filter((quote) => quote.assetKind === "ERC20")
       .map((quote) => stringField(quote, "tokenAddress").toLowerCase()),
   );
+  const directOfficialStockTokens = new Set(
+    manifest.officialStocks
+      .filter((stock) => stringField(stock, "proxyKind") === "DIRECT")
+      .map((stock) => stringField(stock, "tokenAddress").toLowerCase()),
+  );
   for (const check of [
     ...manifest.livePreflight.keyGetterChecks,
     ...manifest.livePreflight.storageChecks,
@@ -846,6 +863,14 @@ export async function verifyV1LiveState(candidate: unknown, rpc: V1ReadOnlyRpc):
       if (opcode !== undefined) {
         throw new Error(
           `V1 live preflight immutable Quote runtime contains forbidden opcode 0x${opcode.toString(16).padStart(2, "0")} at ${address}`,
+        );
+      }
+    }
+    if (directOfficialStockTokens.has(address)) {
+      const opcode = forbiddenImmutableQuoteOpcode(code);
+      if (opcode !== undefined) {
+        throw new Error(
+          `V1 live preflight direct Official Stock runtime contains forbidden opcode 0x${opcode.toString(16).padStart(2, "0")} at ${address}`,
         );
       }
     }

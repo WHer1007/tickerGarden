@@ -3,12 +3,19 @@ pragma solidity 0.8.26;
 
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
-import {IApprovedQuoteRegistry, MarketView, QuoteAssetConfig} from "../interfaces/IV1Protocol.sol";
+import {
+    IApprovedQuoteRegistry,
+    IPonsBaselineRegistry,
+    MarketView,
+    PonsBaseline,
+    QuoteAssetConfig
+} from "../interfaces/IV1Protocol.sol";
 import {PonsSupplyMath} from "../libraries/PonsSupplyMath.sol";
 import {GraduationExecutorEntry} from "./GraduationExecutorEntry.sol";
 
 interface IGraduationRegistryDependencies {
     function approvedQuoteRegistry() external view returns (address);
+    function ponsBaselineRegistry() external view returns (address);
 }
 
 /// @notice Formula and exact-balance accounting shared by the final GraduationExecutor.
@@ -20,11 +27,14 @@ abstract contract GraduationExecutorAssetAccounting is GraduationExecutorEntry {
         address memeToken;
         uint256 sweptQuote;
         uint256 sweptTokens;
+        uint256 poolQuoteAmount;
         uint256 poolMemeAmount;
+        uint256 lockedExcessQuote;
         uint256 lockedExcessMeme;
     }
 
     IApprovedQuoteRegistry internal immutable _graduationQuoteRegistry;
+    IPonsBaselineRegistry internal immutable _graduationPonsBaselineRegistry;
 
     error InvalidGraduationQuoteRegistry(address registry);
     error GraduationQuoteRegistryMismatch(address supplied, address expected);
@@ -40,18 +50,26 @@ abstract contract GraduationExecutorAssetAccounting is GraduationExecutorEntry {
         address indexed launchLocker,
         uint256 sweptQuote,
         uint256 sweptTokens,
+        uint256 poolQuoteAmount,
         uint256 poolMemeAmount,
+        uint256 lockedExcessQuote,
         uint256 lockedExcessMeme,
         uint32 sourceVersion
     );
 
     constructor(address marketRegistry_, address quoteRegistry_) GraduationExecutorEntry(marketRegistry_) {
         if (quoteRegistry_.code.length == 0) revert InvalidGraduationQuoteRegistry(quoteRegistry_);
-        address expectedQuoteRegistry = IGraduationRegistryDependencies(marketRegistry_).approvedQuoteRegistry();
+        IGraduationRegistryDependencies dependencies = IGraduationRegistryDependencies(marketRegistry_);
+        address expectedQuoteRegistry = dependencies.approvedQuoteRegistry();
         if (quoteRegistry_ != expectedQuoteRegistry) {
             revert GraduationQuoteRegistryMismatch(quoteRegistry_, expectedQuoteRegistry);
         }
+        address ponsBaselineRegistry_ = dependencies.ponsBaselineRegistry();
+        if (ponsBaselineRegistry_.code.length == 0 || ponsBaselineRegistry_ == quoteRegistry_) {
+            revert InvalidGraduationQuoteRegistry(ponsBaselineRegistry_);
+        }
         _graduationQuoteRegistry = IApprovedQuoteRegistry(quoteRegistry_);
+        _graduationPonsBaselineRegistry = IPonsBaselineRegistry(ponsBaselineRegistry_);
     }
 
     receive() external payable {}
@@ -82,7 +100,9 @@ abstract contract GraduationExecutorAssetAccounting is GraduationExecutorEntry {
             launchLocker,
             plan.sweptQuote,
             plan.sweptTokens,
+            plan.poolQuoteAmount,
             plan.poolMemeAmount,
+            plan.lockedExcessQuote,
             plan.lockedExcessMeme,
             committedMarket.runtime.sourceVersion
         );
@@ -95,18 +115,28 @@ abstract contract GraduationExecutorAssetAccounting is GraduationExecutorEntry {
         uint256 memeAmount
     ) internal view returns (GraduationAssetPlan memory plan) {
         QuoteAssetConfig memory quote = _graduationQuoteRegistry.quoteConfig(marketView.config.quoteAssetConfigId);
+        PonsBaseline memory baseline = _graduationPonsBaselineRegistry.baseline(marketView.config.ponsBaselineId);
         if (
             quoteAmount == 0 || memeAmount == 0 || marketView.config.memeToken.code.length == 0
                 || marketView.config.memeToken == marketView.config.quoteAsset
                 || quote.quoteAsset != marketView.config.quoteAsset
                 || quote.ponsBaselineId != marketView.config.ponsBaselineId
                 || quote.economicsHash != marketView.config.quoteAssetConfigId || quote.phantomQuote == 0
+                || baseline.supply == 0
         ) revert GraduationMarketAssetMismatch(marketId);
 
         plan.sweptQuote = quoteAmount;
         plan.sweptTokens = memeAmount;
+        (uint256 reservedTokens,) =
+            PonsSupplyMath.supplyPartition(baseline.supply, quote.phantomQuote, quote.graduationThreshold);
+        plan.poolQuoteAmount =
+            PonsSupplyMath.canonicalGraduationQuote(baseline.supply, quote.phantomQuote, quote.graduationThreshold);
+        if (memeAmount != reservedTokens || quoteAmount < plan.poolQuoteAmount) {
+            revert GraduationMarketAssetMismatch(marketId);
+        }
+        plan.lockedExcessQuote = quoteAmount - plan.poolQuoteAmount;
         (plan.poolMemeAmount, plan.lockedExcessMeme) =
-            PonsSupplyMath.graduationPartition(plan.sweptTokens, plan.sweptQuote, quote.phantomQuote);
+            PonsSupplyMath.graduationPartition(plan.sweptTokens, plan.poolQuoteAmount, quote.phantomQuote);
         plan.quoteAsset = marketView.config.quoteAsset;
         plan.memeToken = marketView.config.memeToken;
     }

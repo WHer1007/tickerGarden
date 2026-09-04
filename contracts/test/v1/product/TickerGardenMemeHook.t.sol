@@ -8,6 +8,14 @@ import {TickerGardenMemeHookBinding} from "../../../src/v1/shared/TickerGardenMe
 
 contract ProductHookDependencyMock {}
 
+contract ProductHookMarketRegistryMock {
+    address public graduationExecutor;
+
+    function setGraduationExecutor(address value) external {
+        graduationExecutor = value;
+    }
+}
+
 contract ProductHookCreate2Deployer {
     function deploy(bytes memory initCode, bytes32 salt) external returns (address deployed) {
         assembly ("memory-safe") {
@@ -24,19 +32,18 @@ contract TickerGardenMemeHookTest is Test {
     uint160 private constant MASK = 0x2044;
     uint160 private constant ALL_BITS = (1 << 14) - 1;
 
-    ProductHookDependencyMock private registry;
+    ProductHookMarketRegistryMock private registry;
     ProductHookDependencyMock private poolManager;
     ProductHookDependencyMock private feeVault;
     ProductHookDependencyMock private graduation;
-    ProductHookDependencyMock private controller;
     ProductHookCreate2Deployer private deployer;
 
     function setUp() public {
-        registry = new ProductHookDependencyMock();
+        registry = new ProductHookMarketRegistryMock();
         poolManager = new ProductHookDependencyMock();
         feeVault = new ProductHookDependencyMock();
         graduation = new ProductHookDependencyMock();
-        controller = new ProductHookDependencyMock();
+        registry.setGraduationExecutor(address(graduation));
         deployer = new ProductHookCreate2Deployer();
     }
 
@@ -63,9 +70,7 @@ contract TickerGardenMemeHookTest is Test {
     function test_concreteProductRejectsAliasedDependenciesAtCanonicalAddress() public {
         bytes memory initCode = abi.encodePacked(
             type(TickerGardenMemeHook).creationCode,
-            abi.encode(
-                address(registry), address(poolManager), address(registry), address(graduation), address(controller)
-            )
+            abi.encode(address(registry), address(poolManager), address(registry), address(graduation))
         );
         bytes32 salt = _findSalt(initCode, true);
         vm.expectRevert(
@@ -74,8 +79,7 @@ contract TickerGardenMemeHookTest is Test {
                 address(registry),
                 address(poolManager),
                 address(registry),
-                address(graduation),
-                address(controller)
+                address(graduation)
             )
         );
         deployer.deploy(initCode, salt);
@@ -84,9 +88,7 @@ contract TickerGardenMemeHookTest is Test {
     function _initCode() private view returns (bytes memory) {
         return abi.encodePacked(
             type(TickerGardenMemeHook).creationCode,
-            abi.encode(
-                address(registry), address(poolManager), address(feeVault), address(graduation), address(controller)
-            )
+            abi.encode(address(registry), address(poolManager), address(feeVault), address(graduation))
         );
     }
 

@@ -18,7 +18,8 @@ import {
     MarketView,
     PoolBinding,
     PoolKey,
-    QuoteAssetConfig
+    QuoteAssetConfig,
+    PonsBaseline
 } from "../../../src/v1/interfaces/IV1Protocol.sol";
 import {GraduationPoolMath} from "../../../src/v1/libraries/GraduationPoolMath.sol";
 import {GraduationExecutorPoolExecution} from "../../../src/v1/shared/GraduationExecutorPoolExecution.sol";
@@ -44,17 +45,31 @@ contract PoolExecutionQuoteRegistryMock {
     }
 }
 
+contract PoolExecutionPonsBaselineRegistryMock {
+    mapping(bytes32 id => PonsBaseline value) private _baselines;
+
+    function setBaseline(bytes32 id, PonsBaseline calldata value) external {
+        _baselines[id] = value;
+    }
+
+    function baseline(bytes32 id) external view returns (PonsBaseline memory) {
+        return _baselines[id];
+    }
+}
+
 contract PoolExecutionRegistryMock {
     address public immutable factory = address(0xFAC7);
     address public immutable approvedQuoteRegistry;
+    address public immutable ponsBaselineRegistry;
     address public graduationExecutor;
 
     bytes32 private _marketId;
     MarketView private _value;
     PoolKey private _key;
 
-    constructor(address quoteRegistry) {
+    constructor(address quoteRegistry, address baselineRegistry) {
         approvedQuoteRegistry = quoteRegistry;
+        ponsBaselineRegistry = baselineRegistry;
     }
 
     function configure(
@@ -74,7 +89,7 @@ contract PoolExecutionRegistryMock {
                 quoteAssetConfigId: quoteConfigId,
                 launchTemplateId: bytes32("TEMPLATE"),
                 feePolicyId: bytes32("FEE"),
-                executionSpecId: keccak256("V1-EXEC-9"),
+                executionSpecId: keccak256("V1-EXEC-10"),
                 expectedEconomics: bytes32("ECON"),
                 launchConfigId: 0,
                 creatorRevenueBeneficiaryAtCreation: address(0xBEEF),
@@ -182,6 +197,7 @@ contract PoolExecutionPoolManagerMock {
 
 contract PoolExecutionHookMock {
     address public executor;
+    address public marketRegistry;
     address public poolManager;
     bool public failActivation;
     mapping(bytes32 poolId => PoolBinding binding) private _bindings;
@@ -190,6 +206,10 @@ contract PoolExecutionHookMock {
         executor = executor_;
         poolManager = poolManager_;
     }
+
+    function setMarketRegistry(address value) external { marketRegistry = value; }
+
+    function graduationExecutor() external view returns (address) { return executor; }
 
     function setFailActivation(bool value) external {
         failActivation = value;
@@ -355,6 +375,7 @@ contract GraduationExecutorPoolExecutionTest is Test {
     PoolExecutionToken private meme;
     PoolExecutionToken private quote;
     PoolExecutionQuoteRegistryMock private quoteRegistry;
+    PoolExecutionPonsBaselineRegistryMock private baselineRegistry;
     PoolExecutionRegistryMock private registry;
     PoolExecutionPermit2Mock private permit2;
     PoolExecutionPoolManagerMock private poolManager;
@@ -368,7 +389,8 @@ contract GraduationExecutorPoolExecutionTest is Test {
         meme = new PoolExecutionToken("MEME");
         quote = new PoolExecutionToken("QUOTE");
         quoteRegistry = new PoolExecutionQuoteRegistryMock();
-        registry = new PoolExecutionRegistryMock(address(quoteRegistry));
+        baselineRegistry = new PoolExecutionPonsBaselineRegistryMock();
+        registry = new PoolExecutionRegistryMock(address(quoteRegistry), address(baselineRegistry));
         permit2 = new PoolExecutionPermit2Mock();
         poolManager = new PoolExecutionPoolManagerMock();
         positionManager = new PoolExecutionPositionManagerMock(address(poolManager), address(permit2));
@@ -381,12 +403,29 @@ contract GraduationExecutorPoolExecutionTest is Test {
         math = new PoolExecutionMathHarness();
 
         _configureQuote(address(quote));
+        baselineRegistry.setBaseline(
+            bytes32("PONS"),
+            PonsBaseline({
+                referenceChainId: block.chainid,
+                referenceFactory: address(registry),
+                referenceFactoryCodeHash: bytes32(0),
+                launchConfigId: 0,
+                supply: 500 ether,
+                curveFeeBps: 0,
+                poolFee: 0,
+                tickSpacing: 200,
+                behaviorVectorRoot: bytes32(0),
+                status: 1
+            })
+        );
         registry.configure(MARKET_ID, QUOTE_ID, address(quote), address(meme), address(curve), address(hook));
+        address predictedExecutor = vm.computeCreateAddress(address(this), vm.getNonce(address(this)) + 3);
+        registry.setGraduationExecutor(predictedExecutor);
+        hook.setMarketRegistry(address(registry));
+        hook.configure(predictedExecutor, address(poolManager));
         executor = new PoolExecutionExecutorHarness(
             address(registry), address(quoteRegistry), address(poolManager), address(positionManager), address(hook)
         );
-        registry.setGraduationExecutor(address(executor));
-        hook.configure(address(executor), address(poolManager));
     }
 
     function test_erc20QuoteUsesCanonicalActionsExactPermit2AndDirectLockerOwnership() public {
@@ -414,11 +453,13 @@ contract GraduationExecutorPoolExecutionTest is Test {
     function test_nativeQuoteSettlesOnlyExactMintDebtAndRoutesDustBeforeCommit() public {
         _configureQuote(address(0));
         registry.configure(MARKET_ID, QUOTE_ID, address(0), address(meme), address(curve), address(hook));
+        address predictedExecutor = vm.computeCreateAddress(address(this), vm.getNonce(address(this)) + 3);
+        registry.setGraduationExecutor(predictedExecutor);
+        hook.setMarketRegistry(address(registry));
+        hook.configure(predictedExecutor, address(poolManager));
         PoolExecutionExecutorHarness nativeExecutor = new PoolExecutionExecutorHarness(
             address(registry), address(quoteRegistry), address(poolManager), address(positionManager), address(hook)
         );
-        registry.setGraduationExecutor(address(nativeExecutor));
-        hook.configure(address(nativeExecutor), address(poolManager));
         meme.mint(address(nativeExecutor), SWEPT_MEME);
         address predictedLocker = nativeExecutor.predictLaunchLocker(MARKET_ID);
         GraduationPoolMath.PoolPlan memory plan = _plan(address(0));

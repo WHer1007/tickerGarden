@@ -31,6 +31,7 @@ abstract contract TickerGardenMemeHookBinding is ITickerGardenMemeHook {
     error InvalidHookDependencies(
         address marketRegistry, address poolManager, address protocolFeeVault, address graduationExecutor
     );
+    error GraduationExecutorBindingMismatch(address supplied, address registered);
     error UnauthorizedHookCaller(address caller, address expected);
     error InvalidCanonicalPoolKey();
     error InvalidHookPermissionMask();
@@ -45,12 +46,22 @@ abstract contract TickerGardenMemeHookBinding is ITickerGardenMemeHook {
         }
         if (
             !_isContract(marketRegistry_) || !_isContract(poolManager_) || !_isContract(protocolFeeVault_)
-                || !_isContract(graduationExecutor_) || marketRegistry_ == poolManager_
+                || graduationExecutor_ == address(0) || marketRegistry_ == poolManager_
                 || marketRegistry_ == protocolFeeVault_ || marketRegistry_ == graduationExecutor_
                 || poolManager_ == protocolFeeVault_ || poolManager_ == graduationExecutor_
                 || protocolFeeVault_ == graduationExecutor_
         ) {
             revert InvalidHookDependencies(marketRegistry_, poolManager_, protocolFeeVault_, graduationExecutor_);
+        }
+
+        address registeredExecutor;
+        try IMarketRegistryV1(marketRegistry_).graduationExecutor() returns (address value) {
+            registeredExecutor = value;
+        } catch {
+            revert GraduationExecutorBindingMismatch(graduationExecutor_, address(0));
+        }
+        if (registeredExecutor != graduationExecutor_) {
+            revert GraduationExecutorBindingMismatch(graduationExecutor_, registeredExecutor);
         }
 
         _hookMarketRegistry = IMarketRegistryV1(marketRegistry_);
@@ -99,6 +110,22 @@ abstract contract TickerGardenMemeHookBinding is ITickerGardenMemeHook {
 
     function hookPermissionMask() external pure virtual override returns (uint160) {
         return HOOK_PERMISSION_MASK;
+    }
+
+    function marketRegistry() external view virtual override returns (address) {
+        return address(_hookMarketRegistry);
+    }
+
+    function poolManager() external view virtual override returns (address) {
+        return _hookPoolManager;
+    }
+
+    function protocolFeeVault() external view virtual override returns (address) {
+        return _hookProtocolFeeVault;
+    }
+
+    function graduationExecutor() external view virtual override returns (address) {
+        return _hookGraduationExecutor;
     }
 
     function _validateActivePool(PoolKey calldata key)

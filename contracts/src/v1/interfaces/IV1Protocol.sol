@@ -2,7 +2,7 @@
 pragma solidity 0.8.26;
 
 // GENERATED FILE. DO NOT EDIT.
-// Source: spec/v1_abi_surface.json (V1-EXEC-9)
+// Source: spec/v1_abi_surface.json (V1-EXEC-10)
 // forge-lint: disable-start(multi-contract-file)
 // forgefmt: disable-start
 
@@ -68,8 +68,7 @@ struct LaunchTemplate {
     address graduatedHook;
     bytes32 hookCodeHash;
     address graduationExecutor;
-    address launchLockerImplementation;
-    bytes32 launchLockerCodeHash;
+    bytes32 graduationExecutorCodeHash;
     bytes32 feePolicyId;
     bytes32 executionSpecId;
     uint8 status;
@@ -266,6 +265,7 @@ interface IV1Errors {
 
 interface IOfficialStockRegistryV1 {
     event StockVaultRegistered(address indexed userStockVault, bytes32 indexed schemaId, address indexed marketRegistry, address allocationManager);
+    event StockVaultCodeIdentityPinned(address indexed userStockVault, bytes32 indexed runtimeCodeHash);
     event AssetRegistered(bytes32 indexed assetUid, address indexed stockToken, address indexed userStockVault, uint8 tokenDecimals);
     event StockTokenFingerprintRegistered(bytes32 indexed assetUid, bytes32 indexed tokenRuntimeCodeHash, address indexed beacon, bytes32 beaconRuntimeCodeHash, address implementation, bytes32 implementationRuntimeCodeHash);
     event AssetImplementationAccepted(bytes32 indexed assetUid, address indexed oldImplementation, address indexed newImplementation, bytes32 oldImplementationRuntimeCodeHash, bytes32 newImplementationRuntimeCodeHash, bytes32 reasonHash);
@@ -284,6 +284,8 @@ interface IOfficialStockRegistryV1 {
     function minimumAllocation(bytes32 arg0) external view returns (uint256 output0);
     function vaultSchemaId(address arg0) external view returns (bytes32 output0);
     function vaultForSchema(bytes32 arg0) external view returns (address output0);
+    function vaultRuntimeCodeHash(address arg0) external view returns (bytes32 output0);
+    function vaultIdentityCurrent(address arg0) external view returns (bool output0);
 }
 
 interface IApprovedQuoteRegistry {
@@ -355,10 +357,20 @@ interface IMarketRegistryV1 {
     function canonicalPoolId(bytes32 arg0) external view returns (bytes32 output0);
     function canonicalRoute(bytes32 arg0) external view returns (CanonicalRoute memory output0);
     function activeFeeSource(bytes32 arg0) external view returns (address output0, uint32 output1);
+    function factory() external view returns (address output0);
+    function officialStockRegistry() external view returns (address output0);
+    function approvedQuoteRegistry() external view returns (address output0);
+    function ponsBaselineRegistry() external view returns (address output0);
+    function launchTemplateRegistry() external view returns (address output0);
+    function graduationExecutor() external view returns (address output0);
+    function swapRouter() external view returns (address output0);
+    function quoter() external view returns (address output0);
 }
 
 interface ILaunchAndBuyRouter {
     function launchAndBuy(CreateMarketParams calldata arg0, uint256 arg1, uint256 arg2, address arg3) external payable returns (bytes32 output0, address output1, uint256 output2, uint256 output3);
+    function factory() external view returns (address output0);
+    function approvedQuoteRegistry() external view returns (address output0);
 }
 
 interface ITickerMemeTokenV1 {
@@ -453,6 +465,8 @@ interface IAllocationManager {
     function rewardEligibleActiveStock(bytes32 arg0) external view returns (uint256 output0);
     function recordGaugeRewardState(bytes32 arg0, uint256 arg1, uint256 arg2) external;
     function depositAndAllocate(bytes32 arg0, uint256 arg1, uint256 arg2) external;
+    function officialStockRegistry() external view returns (address output0);
+    function marketRegistry() external view returns (address output0);
 }
 
 interface IMemeStockGauge {
@@ -496,6 +510,10 @@ interface ITickerGardenMemeHook {
     function marketOfPool(bytes32 arg0) external view returns (bytes32 output0);
     function poolBinding(bytes32 arg0) external view returns (PoolBinding memory output0);
     function hookPermissionMask() external pure returns (uint160 output0);
+    function marketRegistry() external view returns (address output0);
+    function poolManager() external view returns (address output0);
+    function protocolFeeVault() external view returns (address output0);
+    function graduationExecutor() external view returns (address output0);
 }
 
 interface IProtocolFeeVault {
@@ -519,13 +537,27 @@ interface IProtocolFeeVault {
     function forfeitureReserve(bytes32 arg0, address arg1) external view returns (uint256 output0);
     function totalLiability(address arg0) external view returns (uint256 output0);
     function consumedFeeId(bytes32 arg0) external view returns (bool output0);
+    function marketRegistry() external view returns (address output0);
+    function poolManager() external view returns (address output0);
+    function creatorRevenueRegistry() external view returns (address output0);
+    function platformTreasury() external view returns (address output0);
+    function feePolicyId() external view returns (bytes32 output0);
+    function feePolicyHash() external view returns (bytes32 output0);
 }
 
 interface IGraduationExecutor {
-    event PoolGraduated(bytes32 indexed marketId, bytes32 indexed poolId, address indexed launchLocker, uint256 sweptQuote, uint256 sweptTokens, uint256 poolMemeAmount, uint256 lockedExcessMeme, uint32 sourceVersion);
+    event PoolGraduated(bytes32 indexed marketId, bytes32 indexed poolId, address indexed launchLocker, uint256 sweptQuote, uint256 sweptTokens, uint256 poolQuoteAmount, uint256 poolMemeAmount, uint256 lockedExcessQuote, uint256 lockedExcessMeme, uint32 sourceVersion);
 
     function graduateFromCurve(bytes32 arg0, uint256 arg1, uint256 arg2) external payable;
     function predictLaunchLocker(bytes32 arg0) external view returns (address output0);
+    function marketRegistry() external view returns (address output0);
+    function approvedQuoteRegistry() external view returns (address output0);
+    function factory() external view returns (address output0);
+    function poolManager() external view returns (address output0);
+    function positionManager() external view returns (address output0);
+    function permit2() external view returns (address output0);
+    function hook() external view returns (address output0);
+    function launchLockerCreationCodeHash() external view returns (bytes32 output0);
 }
 
 interface ILaunchLocker {
@@ -542,6 +574,8 @@ interface ICreatorRevenueRegistry {
     function transferCreatorRevenueBeneficiary(bytes32 arg0, address arg1) external returns (uint32 output0);
     function currentCreatorEpoch(bytes32 arg0) external view returns (uint32 output0);
     function creatorBeneficiaryAt(bytes32 arg0, uint32 arg1) external view returns (address output0);
+    function factory() external view returns (address output0);
+    function marketRegistry() external view returns (address output0);
 }
 
 interface ITreasuryDistributorV1 {

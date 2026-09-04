@@ -132,7 +132,7 @@ test("runtime capabilities are independently parsed and never use a demo fallbac
 });
 
 test("frontend execution and rageQuit configuration stay on the current V1 contract", () => {
-  assert.equal(V1_EXECUTION_SPEC_ID, "V1-EXEC-9");
+  assert.equal(V1_EXECUTION_SPEC_ID, "V1-EXEC-10");
   const emergencyOnly = parseV1RuntimeConfig({ VITE_V1_FACTORY_ADDRESS: addr("1") });
   assert.equal(emergencyOnly.rageQuitFactory.available, true);
   assert.equal(emergencyOnly.rageQuitFactory.available && emergencyOnly.rageQuitFactory.value, addr("1"));
@@ -150,7 +150,7 @@ test("launch and vault gates fail closed while preserving principal exit", () =>
   const source = { chainId: 4663, blockNumber: "10", blockHash: bytes32("7"), transactionHash: bytes32("8"), transactionIndex: 0, logIndex: 0 };
   const marketModel = { marketId: market, assetUid: bytes32("1"), memeToken: addr("9"), quoteAsset: zeroAddress, curve: addr("a"), gauge: addr("b"), launchPhase: 0, source };
   const position = { marketId: market, assetUid: bytes32("1"), user: addr("c"), free: "0", allocated: "10", pending: "0", active: "10", unlockAt: "9999999999", claimable: [{ asset: zeroAddress, amount: "0" }, { asset: addr("9"), amount: "0" }], source };
-  const view = buildVaultView(marketModel as never, position as never, { executionSpecId: "V1-EXEC-9", revision: `10:${bytes32("7")}`, syncStatus: "synced" }, { status: 3, tokenDecimals: 18, minimumAllocation: 414n }, 0n);
+  const view = buildVaultView(marketModel as never, position as never, { executionSpecId: "V1-EXEC-10", revision: `10:${bytes32("7")}`, syncStatus: "synced" }, { status: 3, tokenDecimals: 18, minimumAllocation: 414n }, 0n);
   assert.equal(view.allocationOpen, false);
   assert.equal(view.canRageQuit, true);
 });

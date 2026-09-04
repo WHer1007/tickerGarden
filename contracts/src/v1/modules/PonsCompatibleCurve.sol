@@ -65,6 +65,8 @@ contract PonsCompatibleCurve is IPonsCompatibleCurve, ReentrancyGuard {
     IERC20 private immutable _memeToken;
     address private immutable _quoteAsset;
     uint256 private immutable _phantomQuote;
+    uint256 private immutable _graduationThreshold;
+    uint256 private immutable _initialSupply;
     uint256 private immutable _curveFeeBps;
     uint256 private immutable _launchTimestamp;
 
@@ -109,6 +111,8 @@ contract PonsCompatibleCurve is IPonsCompatibleCurve, ReentrancyGuard {
         _memeToken = IERC20(init.memeToken);
         _quoteAsset = init.quoteAsset;
         _phantomQuote = init.phantomQuote;
+        _graduationThreshold = init.graduationThreshold;
+        _initialSupply = init.initialSupply;
         _curveFeeBps = init.curveFeeBps;
         _launchTimestamp = block.timestamp;
         _reserves = PonsSupplyMath.initialize(init.initialSupply, init.phantomQuote, init.graduationThreshold);
@@ -270,13 +274,18 @@ contract PonsCompatibleCurve is IPonsCompatibleCurve, ReentrancyGuard {
         }
     }
 
-    /// @dev Admission validates the configuration-derived terminal plan, while integer rounding across an arbitrary
-    ///      trade history can change the exact terminal Quote balance. Re-running the canonical pool math here keeps
-    ///      an unrepresentable path in NotGraduated and rolls the final buy back before any escrow or lifecycle write.
+    /// @dev Integer rounding across an arbitrary trade history may leave more Quote than the configuration-derived
+    ///      terminal amount. Pool price and liquidity remain history-independent: all excess Quote is transferred to
+    ///      the permanent Locker, while this check rolls back any impossible under-collateralized terminal state.
     function _validateActualGraduationPlan(uint256 sweptQuote, uint256 sweptTokens) private view {
-        (uint256 poolMemeAmount,) = PonsSupplyMath.graduationPartition(sweptTokens, sweptQuote, _phantomQuote);
+        uint256 reserved = _reserves.reservedTokens;
+        uint256 poolQuoteAmount =
+            PonsSupplyMath.canonicalGraduationQuote(_initialSupply, _phantomQuote, _graduationThreshold);
+        if (sweptTokens != reserved || sweptQuote < poolQuoteAmount) revert InvalidInitialization();
+        (uint256 poolMemeAmount,) =
+            PonsSupplyMath.graduationPartition(sweptTokens, poolQuoteAmount, _phantomQuote);
         PoolKey memory key = _marketRegistry.canonicalPoolKey(_marketId);
-        GraduationPoolMath.derive(key, _quoteAsset, address(_memeToken), sweptQuote, poolMemeAmount);
+        GraduationPoolMath.derive(key, _quoteAsset, address(_memeToken), poolQuoteAmount, poolMemeAmount);
     }
 
     function quoteBuy(uint256 quoteIn, address recipient)

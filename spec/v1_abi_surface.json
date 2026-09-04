@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "executionSpecId": "V1-EXEC-9",
+  "executionSpecId": "V1-EXEC-10",
   "typeDefinitions": {
     "PoolKey": ["address currency0","address currency1","uint24 fee","int24 tickSpacing","address hooks"],
     "SwapParams": ["bool zeroForOne","int256 amountSpecified","uint160 sqrtPriceLimitX96"],
@@ -31,10 +31,13 @@
         {"signature":"assetIdentityCurrent(bytes32)","mutability":"view","caller":"PUBLIC","returns":"(bool)"},
         {"signature":"minimumAllocation(bytes32)","mutability":"view","caller":"PUBLIC","returns":"(uint256)"},
         {"signature":"vaultSchemaId(address)","mutability":"view","caller":"PUBLIC","returns":"(bytes32)"},
-        {"signature":"vaultForSchema(bytes32)","mutability":"view","caller":"PUBLIC","returns":"(address)"}
+        {"signature":"vaultForSchema(bytes32)","mutability":"view","caller":"PUBLIC","returns":"(address)"},
+        {"signature":"vaultRuntimeCodeHash(address)","mutability":"view","caller":"PUBLIC","returns":"(bytes32)"},
+        {"signature":"vaultIdentityCurrent(address)","mutability":"view","caller":"PUBLIC","returns":"(bool)"}
       ],
       "events": [
         "StockVaultRegistered(address indexed userStockVault,bytes32 indexed schemaId,address indexed marketRegistry,address allocationManager)",
+        "StockVaultCodeIdentityPinned(address indexed userStockVault,bytes32 indexed runtimeCodeHash)",
         "AssetRegistered(bytes32 indexed assetUid,address indexed stockToken,address indexed userStockVault,uint8 tokenDecimals)",
         "StockTokenFingerprintRegistered(bytes32 indexed assetUid,bytes32 indexed tokenRuntimeCodeHash,address indexed beacon,bytes32 beaconRuntimeCodeHash,address implementation,bytes32 implementationRuntimeCodeHash)",
         "AssetImplementationAccepted(bytes32 indexed assetUid,address indexed oldImplementation,address indexed newImplementation,bytes32 oldImplementationRuntimeCodeHash,bytes32 newImplementationRuntimeCodeHash,bytes32 reasonHash)",
@@ -82,7 +85,7 @@
     {
       "module": "LaunchTemplateRegistry",
       "structs": {
-        "LaunchTemplate": ["address memeTokenImplementation","bytes32 memeTokenCodeHash","address curveImplementation","bytes32 curveCodeHash","address gaugeImplementation","bytes32 gaugeCodeHash","address graduatedHook","bytes32 hookCodeHash","address graduationExecutor","address launchLockerImplementation","bytes32 launchLockerCodeHash","bytes32 feePolicyId","bytes32 executionSpecId","uint8 status"]
+        "LaunchTemplate": ["address memeTokenImplementation","bytes32 memeTokenCodeHash","address curveImplementation","bytes32 curveCodeHash","address gaugeImplementation","bytes32 gaugeCodeHash","address graduatedHook","bytes32 hookCodeHash","address graduationExecutor","bytes32 graduationExecutorCodeHash","bytes32 feePolicyId","bytes32 executionSpecId","uint8 status"]
       },
       "functions": [
         {"signature":"addLaunchTemplate(bytes32,LaunchTemplate)","mutability":"nonpayable","caller":"PROTOCOL_ADMIN_ROLE","returns":"()"},
@@ -142,7 +145,15 @@
         {"signature":"canonicalPoolKey(bytes32)","mutability":"view","caller":"PUBLIC","returns":"(PoolKey)"},
         {"signature":"canonicalPoolId(bytes32)","mutability":"view","caller":"PUBLIC","returns":"(bytes32)"},
         {"signature":"canonicalRoute(bytes32)","mutability":"view","caller":"PUBLIC","returns":"(CanonicalRoute)"},
-        {"signature":"activeFeeSource(bytes32)","mutability":"view","caller":"PUBLIC","returns":"(address,uint32)"}
+        {"signature":"activeFeeSource(bytes32)","mutability":"view","caller":"PUBLIC","returns":"(address,uint32)"},
+        {"signature":"factory()","mutability":"view","caller":"PUBLIC","returns":"(address)"},
+        {"signature":"officialStockRegistry()","mutability":"view","caller":"PUBLIC","returns":"(address)"},
+        {"signature":"approvedQuoteRegistry()","mutability":"view","caller":"PUBLIC","returns":"(address)"},
+        {"signature":"ponsBaselineRegistry()","mutability":"view","caller":"PUBLIC","returns":"(address)"},
+        {"signature":"launchTemplateRegistry()","mutability":"view","caller":"PUBLIC","returns":"(address)"},
+        {"signature":"graduationExecutor()","mutability":"view","caller":"PUBLIC","returns":"(address)"},
+        {"signature":"swapRouter()","mutability":"view","caller":"PUBLIC","returns":"(address)"},
+        {"signature":"quoter()","mutability":"view","caller":"PUBLIC","returns":"(address)"}
       ],
       "events": [
         "MarketRegistered(bytes32 indexed marketId,bytes32 indexed assetUid,address indexed memeToken,address curve,address gauge,uint32 sourceVersion)",
@@ -152,7 +163,9 @@
     {
       "module": "LaunchAndBuyRouter",
       "functions": [
-        {"signature":"launchAndBuy(CreateMarketParams,uint256,uint256,address)","mutability":"payable","caller":"PUBLIC","returns":"(bytes32,address,uint256,uint256)"}
+        {"signature":"launchAndBuy(CreateMarketParams,uint256,uint256,address)","mutability":"payable","caller":"PUBLIC","returns":"(bytes32,address,uint256,uint256)"},
+        {"signature":"factory()","mutability":"view","caller":"PUBLIC","returns":"(address)"},
+        {"signature":"approvedQuoteRegistry()","mutability":"view","caller":"PUBLIC","returns":"(address)"}
       ],
       "events": []
     },
@@ -254,7 +267,9 @@
         {"signature":"rageQuitRewardCutoff(bytes32,address)","mutability":"view","caller":"PUBLIC","returns":"(uint256,uint256,uint256,bool)"},
         {"signature":"rewardEligibleActiveStock(bytes32)","mutability":"view","caller":"PUBLIC","returns":"(uint256)"},
         {"signature":"recordGaugeRewardState(bytes32,uint256,uint256)","mutability":"nonpayable","caller":"EXACT_REGISTERED_GAUGE","returns":"()"},
-        {"signature":"depositAndAllocate(bytes32,uint256,uint256)","mutability":"nonpayable","caller":"PUBLIC","returns":"()"}
+        {"signature":"depositAndAllocate(bytes32,uint256,uint256)","mutability":"nonpayable","caller":"PUBLIC","returns":"()"},
+        {"signature":"officialStockRegistry()","mutability":"view","caller":"PUBLIC","returns":"(address)"},
+        {"signature":"marketRegistry()","mutability":"view","caller":"PUBLIC","returns":"(address)"}
       ],
       "events": [
         "AllocationRageQuitExecuted(address indexed user,bytes32 indexed marketId,uint256 principal,uint256 quoteForfeited,uint256 memeForfeited,bool redistributed)",
@@ -346,7 +361,11 @@
         {"signature":"afterSwap(address,PoolKey,SwapParams,BalanceDelta,bytes)","mutability":"nonpayable","caller":"POOL_MANAGER","returns":"(bytes4,int128)"},
         {"signature":"marketOfPool(bytes32)","mutability":"view","caller":"PUBLIC","returns":"(bytes32)"},
         {"signature":"poolBinding(bytes32)","mutability":"view","caller":"PUBLIC","returns":"(PoolBinding)"},
-        {"signature":"hookPermissionMask()","mutability":"pure","caller":"PUBLIC","returns":"(uint160)"}
+        {"signature":"hookPermissionMask()","mutability":"pure","caller":"PUBLIC","returns":"(uint160)"},
+        {"signature":"marketRegistry()","mutability":"view","caller":"PUBLIC","returns":"(address)"},
+        {"signature":"poolManager()","mutability":"view","caller":"PUBLIC","returns":"(address)"},
+        {"signature":"protocolFeeVault()","mutability":"view","caller":"PUBLIC","returns":"(address)"},
+        {"signature":"graduationExecutor()","mutability":"view","caller":"PUBLIC","returns":"(address)"}
       ],
       "events": [
         "ExpectedPoolRegistered(bytes32 indexed marketId,bytes32 indexed poolId,bytes32 keyHash,uint32 sourceVersion)",
@@ -373,7 +392,13 @@
         {"signature":"creatorLiability(bytes32,uint32,address)","mutability":"view","caller":"PUBLIC","returns":"(uint256)"},
         {"signature":"forfeitureReserve(bytes32,address)","mutability":"view","caller":"PUBLIC","returns":"(uint256)"},
         {"signature":"totalLiability(address)","mutability":"view","caller":"PUBLIC","returns":"(uint256)"},
-        {"signature":"consumedFeeId(bytes32)","mutability":"view","caller":"PUBLIC","returns":"(bool)"}
+        {"signature":"consumedFeeId(bytes32)","mutability":"view","caller":"PUBLIC","returns":"(bool)"},
+        {"signature":"marketRegistry()","mutability":"view","caller":"PUBLIC","returns":"(address)"},
+        {"signature":"poolManager()","mutability":"view","caller":"PUBLIC","returns":"(address)"},
+        {"signature":"creatorRevenueRegistry()","mutability":"view","caller":"PUBLIC","returns":"(address)"},
+        {"signature":"platformTreasury()","mutability":"view","caller":"PUBLIC","returns":"(address)"},
+        {"signature":"feePolicyId()","mutability":"view","caller":"PUBLIC","returns":"(bytes32)"},
+        {"signature":"feePolicyHash()","mutability":"view","caller":"PUBLIC","returns":"(bytes32)"}
       ],
       "events": [
         "FeeBucketsCredited(bytes32 indexed marketId,uint32 indexed creatorEpoch,address indexed feeAsset,bytes32 feeId,uint256 creatorAmount,uint256 stakerAmount,uint256 platformAmount,uint256 activeStock)",
@@ -387,10 +412,18 @@
       "module": "GraduationExecutor",
       "functions": [
         {"signature":"graduateFromCurve(bytes32,uint256,uint256)","mutability":"payable","caller":"EXACT_REGISTERED_CURVE","returns":"()"},
-        {"signature":"predictLaunchLocker(bytes32)","mutability":"view","caller":"PUBLIC","returns":"(address)"}
+        {"signature":"predictLaunchLocker(bytes32)","mutability":"view","caller":"PUBLIC","returns":"(address)"},
+        {"signature":"marketRegistry()","mutability":"view","caller":"PUBLIC","returns":"(address)"},
+        {"signature":"approvedQuoteRegistry()","mutability":"view","caller":"PUBLIC","returns":"(address)"},
+        {"signature":"factory()","mutability":"view","caller":"PUBLIC","returns":"(address)"},
+        {"signature":"poolManager()","mutability":"view","caller":"PUBLIC","returns":"(address)"},
+        {"signature":"positionManager()","mutability":"view","caller":"PUBLIC","returns":"(address)"},
+        {"signature":"permit2()","mutability":"view","caller":"PUBLIC","returns":"(address)"},
+        {"signature":"hook()","mutability":"view","caller":"PUBLIC","returns":"(address)"},
+        {"signature":"launchLockerCreationCodeHash()","mutability":"view","caller":"PUBLIC","returns":"(bytes32)"}
       ],
       "events": [
-        "PoolGraduated(bytes32 indexed marketId,bytes32 indexed poolId,address indexed launchLocker,uint256 sweptQuote,uint256 sweptTokens,uint256 poolMemeAmount,uint256 lockedExcessMeme,uint32 sourceVersion)"
+        "PoolGraduated(bytes32 indexed marketId,bytes32 indexed poolId,address indexed launchLocker,uint256 sweptQuote,uint256 sweptTokens,uint256 poolQuoteAmount,uint256 poolMemeAmount,uint256 lockedExcessQuote,uint256 lockedExcessMeme,uint32 sourceVersion)"
       ]
     },
     {
@@ -408,7 +441,9 @@
         {"signature":"initializeCreatorRevenueEpoch(bytes32,address)","mutability":"nonpayable","caller":"FACTORY_MODULE","returns":"()"},
         {"signature":"transferCreatorRevenueBeneficiary(bytes32,address)","mutability":"nonpayable","caller":"CURRENT_CREATOR_BENEFICIARY","returns":"(uint32)"},
         {"signature":"currentCreatorEpoch(bytes32)","mutability":"view","caller":"PUBLIC","returns":"(uint32)"},
-        {"signature":"creatorBeneficiaryAt(bytes32,uint32)","mutability":"view","caller":"PUBLIC","returns":"(address)"}
+        {"signature":"creatorBeneficiaryAt(bytes32,uint32)","mutability":"view","caller":"PUBLIC","returns":"(address)"},
+        {"signature":"factory()","mutability":"view","caller":"PUBLIC","returns":"(address)"},
+        {"signature":"marketRegistry()","mutability":"view","caller":"PUBLIC","returns":"(address)"}
       ],
       "events": [
         "CreatorRevenueEpochInitialized(bytes32 indexed marketId,uint32 indexed epoch,address indexed beneficiary)",

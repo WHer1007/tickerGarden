@@ -44,6 +44,20 @@ library PonsSupplyMath {
         initialSellableTokens = supply - reservedTokens;
     }
 
+    /// @notice Smallest real Quote reserve that preserves the initial constant-product invariant at graduation.
+    /// @dev Unlike amountIn(), this uses mathematical ceiling rather than an unconditional `floor + 1`. The
+    ///      distinction matters when the division is exact: an ordinary buy can sell the complete curve inventory
+    ///      with exactly this amount, so requiring one additional unit would make that valid terminal trade revert.
+    function canonicalGraduationQuote(uint256 supply, uint256 phantomQuote, uint256 graduationThreshold)
+        internal
+        pure
+        returns (uint256)
+    {
+        (uint256 reservedTokens, uint256 initialSellableTokens) =
+            supplyPartition(supply, phantomQuote, graduationThreshold);
+        return Math.mulDiv(initialSellableTokens, phantomQuote, reservedTokens, Math.Rounding.Ceil);
+    }
+
     function graduationPartition(uint256 sweptTokens, uint256 sweptQuote, uint256 phantomQuote)
         internal
         pure

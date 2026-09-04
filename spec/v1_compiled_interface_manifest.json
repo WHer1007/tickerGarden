@@ -1,9 +1,9 @@
 {
   "schemaVersion": 1,
-  "executionSpecId": "V1-EXEC-9",
+  "executionSpecId": "V1-EXEC-10",
   "source": "COMPILED_SOLC_0_8_26_INTERFACE_ARTIFACTS",
   "compilerVersion": "0.8.26+commit.8a97fa7a",
-  "interfaceSourceKeccak256": "0x72e665f1cba60c89ca62602c657c69da7def7b413912bce5bca5cdaec1ac87c5",
+  "interfaceSourceKeccak256": "0xfd5f27acd3b802e39d3a091523cb4b2e7ec9b82bd855614f9f061007df6654cc",
   "compiledSourceTypes": {
     "aliases": {
       "BalanceDelta": "int256"
@@ -65,8 +65,7 @@
         "address graduatedHook",
         "bytes32 hookCodeHash",
         "address graduationExecutor",
-        "address launchLockerImplementation",
-        "bytes32 launchLockerCodeHash",
+        "bytes32 graduationExecutorCodeHash",
         "bytes32 feePolicyId",
         "bytes32 executionSpecId",
         "uint8 status"
@@ -211,8 +210,8 @@
     {
       "target": "OfficialStockRegistryV1",
       "artifact": "contracts/out-v1/IV1Protocol.sol/IOfficialStockRegistryV1.json",
-      "functionCount": 12,
-      "eventCount": 6
+      "functionCount": 14,
+      "eventCount": 7
     },
     {
       "target": "ApprovedQuoteRegistry",
@@ -247,13 +246,13 @@
     {
       "target": "MarketRegistryV1",
       "artifact": "contracts/out-v1/IV1Protocol.sol/IMarketRegistryV1.json",
-      "functionCount": 8,
+      "functionCount": 16,
       "eventCount": 2
     },
     {
       "target": "LaunchAndBuyRouter",
       "artifact": "contracts/out-v1/IV1Protocol.sol/ILaunchAndBuyRouter.json",
-      "functionCount": 1,
+      "functionCount": 3,
       "eventCount": 0
     },
     {
@@ -277,7 +276,7 @@
     {
       "target": "AllocationManager",
       "artifact": "contracts/out-v1/IV1Protocol.sol/IAllocationManager.json",
-      "functionCount": 10,
+      "functionCount": 12,
       "eventCount": 3
     },
     {
@@ -289,19 +288,19 @@
     {
       "target": "TickerGardenMemeHook",
       "artifact": "contracts/out-v1/IV1Protocol.sol/ITickerGardenMemeHook.json",
-      "functionCount": 7,
+      "functionCount": 11,
       "eventCount": 3
     },
     {
       "target": "ProtocolFeeVault",
       "artifact": "contracts/out-v1/IV1Protocol.sol/IProtocolFeeVault.json",
-      "functionCount": 14,
+      "functionCount": 20,
       "eventCount": 5
     },
     {
       "target": "GraduationExecutor",
       "artifact": "contracts/out-v1/IV1Protocol.sol/IGraduationExecutor.json",
-      "functionCount": 2,
+      "functionCount": 10,
       "eventCount": 1
     },
     {
@@ -313,7 +312,7 @@
     {
       "target": "CreatorRevenueRegistry",
       "artifact": "contracts/out-v1/IV1Protocol.sol/ICreatorRevenueRegistry.json",
-      "functionCount": 4,
+      "functionCount": 6,
       "eventCount": 2
     },
     {
@@ -535,8 +534,8 @@
     {
       "target": "LaunchTemplateRegistry",
       "displaySignature": "addLaunchTemplate(bytes32,LaunchTemplate)",
-      "canonicalSignature": "addLaunchTemplate(bytes32,(address,bytes32,address,bytes32,address,bytes32,address,bytes32,address,address,bytes32,bytes32,bytes32,uint8))",
-      "selector": "0xd909a699",
+      "canonicalSignature": "addLaunchTemplate(bytes32,(address,bytes32,address,bytes32,address,bytes32,address,bytes32,address,bytes32,bytes32,bytes32,uint8))",
+      "selector": "0x1050c6ba",
       "caller": "PROTOCOL_ADMIN_ROLE",
       "executionDelaySeconds": 172800,
       "stateDelaySeconds": 0,
@@ -1093,7 +1092,7 @@
       "executionDelaySeconds": 0,
       "stateDelaySeconds": 0,
       "stateDelayAnchor": "NONE",
-      "precondition": "CALLER_EQUALS_REGISTERED_CURVE_SOURCE_VERSION_MATCHES_AND_SWEEP_PRECEDES_MARK_SWEPT",
+      "precondition": "CALLER_EQUALS_REGISTERED_CURVE_SOURCE_VERSION_MATCHES_AND_ATOMIC_FEE_SWEEP_PRECEDES_GRADUATION_TRANSFER",
       "recipient": "none"
     },
     {
@@ -1369,6 +1368,11 @@
     },
     {
       "target": "OfficialStockRegistryV1",
+      "canonicalSignature": "StockVaultCodeIdentityPinned(address,bytes32)",
+      "topic0": "0x4c829cc6a89f519d125d0218f0666fab211662261b26051309f81bbf8588fa4d"
+    },
+    {
+      "target": "OfficialStockRegistryV1",
       "canonicalSignature": "AssetRegistered(bytes32,address,address,uint8)",
       "topic0": "0x25c83c3d7099e68302e20f357aec0b7380afad2d0f53881c31025848f7f69208"
     },
@@ -1614,8 +1618,8 @@
     },
     {
       "target": "GraduationExecutor",
-      "canonicalSignature": "PoolGraduated(bytes32,bytes32,address,uint256,uint256,uint256,uint256,uint32)",
-      "topic0": "0x6e8ddf95f2ac66a897a0b83f2be9b253afafa77365c2cd517e1396ed28de2324"
+      "canonicalSignature": "PoolGraduated(bytes32,bytes32,address,uint256,uint256,uint256,uint256,uint256,uint256,uint32)",
+      "topic0": "0x40a0877811468a71acbff54ef6c83948c23306787d6c38a4f084adbb56963489"
     },
     {
       "target": "CreatorRevenueRegistry",

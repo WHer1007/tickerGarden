@@ -4,7 +4,7 @@
 
 > 规格任务：`V1-P-002`
 > 状态：`FROZEN / IMPLEMENTATION_ALLOWED`  
-> 适用基线：`V1-EXEC-9`
+> 适用基线：`V1-EXEC-10`
 > 更新时间：2026-09-03
 
 ## 1. 单一机器来源
@@ -49,7 +49,7 @@ recipient
 ```
 
 - `executionDelaySeconds` 是 AccessManager/角色执行延迟。
-- `stateDelaySeconds` 是业务状态从某个链上时间锚点开始的等待；不能伪装成角色延迟。当前 V1-EXEC-9 全部为0。
+- `stateDelaySeconds` 是业务状态从某个链上时间锚点开始的等待；不能伪装成角色延迟。当前 V1-EXEC-10 全部为0。
 - 当前 ABI 不得出现 graduation retry、terminal rescue、`sweptAt` 锚点或市场资产接收人。
 - `PUBLIC_SELF_ONLY` 不是 caller。caller 使用 `PUBLIC`，本人收款约束写入 `recipient/precondition`。
 - `*_DELAYED` 不是 caller。caller 与延迟必须拆成两个字段。

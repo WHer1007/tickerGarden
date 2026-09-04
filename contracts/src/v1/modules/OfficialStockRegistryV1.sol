@@ -31,6 +31,9 @@ contract OfficialStockRegistryV1 is IOfficialStockRegistryV1, ImmutableAccessMan
     mapping(address stockToken => bytes32 assetUid) private _assetUidByStockToken;
     mapping(address userStockVault => bytes32 schemaId) private _vaultSchemaIds;
     mapping(bytes32 schemaId => address userStockVault) private _vaultBySchemaIds;
+    mapping(address userStockVault => bytes32 runtimeCodeHash) private _vaultRuntimeCodeHashes;
+    mapping(address userStockVault => address marketRegistry) private _vaultMarketRegistries;
+    mapping(address userStockVault => address allocationManager) private _vaultAllocationManagers;
 
     error InvalidAssetIdentity(bytes32 assetUid, address stockToken, uint8 tokenDecimals, address userStockVault);
     error AssetAlreadyRegistered(bytes32 assetUid);
@@ -43,6 +46,8 @@ contract OfficialStockRegistryV1 is IOfficialStockRegistryV1, ImmutableAccessMan
         bytes32 reportedSchemaId
     );
     error VaultSchemaAlreadyRegistered(bytes32 schemaId, address registeredVault, address attemptedVault);
+    error InvalidUserStockVaultCodeIdentity(address userStockVault, bytes32 expectedHash, bytes32 observedHash);
+    error UserStockVaultIdentityDrift(address userStockVault);
     error InvalidStateTransition(uint8 currentState, uint8 requestedState);
     error InvalidMinimumAllocation(bytes32 assetUid, uint256 minimumAllocation);
     error AssetNotRegistered(bytes32 assetUid);
@@ -240,9 +245,18 @@ contract OfficialStockRegistryV1 is IOfficialStockRegistryV1, ImmutableAccessMan
         return _vaultBySchemaIds[schemaId];
     }
 
+    function vaultRuntimeCodeHash(address userStockVault) external view override returns (bytes32) {
+        return _vaultRuntimeCodeHashes[userStockVault];
+    }
+
+    function vaultIdentityCurrent(address userStockVault) external view override returns (bool) {
+        return _vaultIdentityCurrent(userStockVault);
+    }
+
     function _assetIdentityCurrent(bytes32 assetUid) private view returns (bool) {
         AssetView storage value = _assets[assetUid];
         if (value.status == ASSET_STATUS_UNSET) return false;
+        if (!_vaultIdentityCurrent(value.userStockVault)) return false;
         StockTokenFingerprint storage fingerprint = _assetFingerprints[assetUid];
         if (!_baseIdentityCurrent(assetUid, value, fingerprint)) return false;
         if (fingerprint.beacon == address(0)) {
@@ -396,7 +410,18 @@ contract OfficialStockRegistryV1 is IOfficialStockRegistryV1, ImmutableAccessMan
     }
 
     function _registerVaultIdentityIfNeeded(address userStockVault) private {
-        if (_vaultSchemaIds[userStockVault] != bytes32(0)) return;
+        if (_vaultSchemaIds[userStockVault] != bytes32(0)) {
+            if (!_vaultIdentityCurrent(userStockVault)) revert UserStockVaultIdentityDrift(userStockVault);
+            return;
+        }
+
+        bytes32 observedCodeHash = userStockVault.codehash;
+        if (
+            userStockVault.code.length == 0 || observedCodeHash == bytes32(0)
+                || _containsForbiddenVaultOpcode(userStockVault)
+        ) {
+            revert InvalidUserStockVaultCodeIdentity(userStockVault, bytes32(0), observedCodeHash);
+        }
 
         try IUserStockVault(userStockVault).vaultIdentity() returns (
             address reportedRegistry,
@@ -437,6 +462,49 @@ contract OfficialStockRegistryV1 is IOfficialStockRegistryV1, ImmutableAccessMan
 
         _vaultSchemaIds[userStockVault] = schemaId;
         _vaultBySchemaIds[schemaId] = userStockVault;
+        bytes32 runtimeCodeHash = userStockVault.codehash;
+        _vaultRuntimeCodeHashes[userStockVault] = runtimeCodeHash;
+        _vaultMarketRegistries[userStockVault] = reportedMarketRegistry;
+        _vaultAllocationManagers[userStockVault] = reportedAllocationManager;
         emit StockVaultRegistered(userStockVault, schemaId, reportedMarketRegistry, reportedAllocationManager);
+        emit StockVaultCodeIdentityPinned(userStockVault, runtimeCodeHash);
+    }
+
+    function _vaultIdentityCurrent(address userStockVault) private view returns (bool) {
+        bytes32 schemaId = _vaultSchemaIds[userStockVault];
+        bytes32 runtimeCodeHash = _vaultRuntimeCodeHashes[userStockVault];
+        if (
+            schemaId == bytes32(0) || runtimeCodeHash == bytes32(0) || userStockVault.code.length == 0
+                || userStockVault.codehash != runtimeCodeHash || _vaultBySchemaIds[schemaId] != userStockVault
+                || _containsForbiddenVaultOpcode(userStockVault)
+        ) return false;
+
+        try IUserStockVault(userStockVault).vaultIdentity() returns (
+            address reportedRegistry,
+            address reportedMarketRegistry,
+            address reportedAllocationManager,
+            bytes32 reportedSchemaId
+        ) {
+            return reportedRegistry == address(this) && reportedSchemaId == schemaId
+                && reportedMarketRegistry == _vaultMarketRegistries[userStockVault]
+                && reportedAllocationManager == _vaultAllocationManagers[userStockVault]
+                && reportedMarketRegistry.code.length != 0 && reportedAllocationManager.code.length != 0
+                && reportedMarketRegistry != reportedAllocationManager && reportedMarketRegistry != userStockVault
+                && reportedAllocationManager != userStockVault;
+        } catch {
+            return false;
+        }
+    }
+
+    function _containsForbiddenVaultOpcode(address userStockVault) private view returns (bool) {
+        bytes memory runtime = userStockVault.code;
+        for (uint256 offset; offset < runtime.length; ++offset) {
+            uint8 opcode = uint8(runtime[offset]);
+            if (opcode == 0xf2 || opcode == 0xf4 || opcode == 0xff) return true;
+            if (opcode >= 0x60 && opcode <= 0x7f) {
+                offset += opcode - 0x5f;
+            }
+        }
+        return false;
     }
 }

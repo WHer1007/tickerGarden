@@ -3,12 +3,12 @@
 > **适用性说明（2026-09-04）：** 本报告中的 Emergency/市场状态 Gas 与状态机结果属于旧管理架构历史数据；永久自治改造后必须重新测量。用户 rageQuit 本金路径和异步奖励结算是当前目标，资产/配置 pause/retire 仍独立保留。
 
 > 任务：`V1-T-202-B`
-> 状态：`V1-EXEC-9 FROZEN TEST EVIDENCE / FORFEITURE PROOF RESIDUAL OPEN`
+> 状态：`V1-EXEC-10 FROZEN TEST EVIDENCE / FORFEITURE PROOF CLOSED`
 > 日期：2026-09-04
 
 ## 1. 冻结数值域
 
-- STOCK decimals：逐一覆盖 `6..18`；费用权重只使用实际 active raw balance，不再派生10 STOCK饱和值。
+- STOCK decimals：逐一覆盖 `6..18`；费用权重只使用实际 active raw balance，不再派生10 STOCK饱和值。Stock stake 没有业务上限或饱和分支；仅受已批准的整数安全域约束。
 - 单次 reward、会计 amount 与 canonical STOCK supply 上界：`int128.max`。
 - 每个Asset的业务最低仓位由管理员经48小时延迟动态配置；精确接受`position >= minimumAllocation(assetUid)`。协议只冻结算术安全下限`414 raw units`，它不是推荐业务门槛。
 - accumulator 精度：`P = 1e27`；单市场、单奖励资产生命周期 credit 上限：`2^48 - 1`。
@@ -26,7 +26,7 @@
 | 任意 `S > 0` | Creator / Staker / Platform / LP 为40 / 30 / 30 / 0，与S大小无关 |
 | `int128.max` | 与最小正active使用同一固定分桶，Stock stake没有上限或饱和分支 |
 
-分桶始终满足 `creator + staker + platform = nonLpAmount`；所有整数 residual 确定性进入 Platform，不存在未记账单位。
+分桶始终满足 `creator + staker + platform = nonLpAmount`；Staker 与 Platform 各自向下取整，所有整数 residual 确定性归 Creator，不存在未记账单位。
 
 `MemeStockGaugeAccumulators.t.sol` 使用协议安全下限414及多个更高管理员配置值（500,000 raw units、10e18 raw units）和`int128.max` reward，逐次验证：
 
@@ -36,7 +36,7 @@ reward × P + oldPoolRemainder
 newPoolRemainder < activeStock
 ```
 
-并在 `activeStock = reward = int128.max` 时得到精确 `accumulatorDelta = P`、`remainder = 0`。
+并在 `activeStock = reward = int128.max` 时得到精确 `accumulatorDelta = P`、`remainder = 0`。当前 `MemeStockGaugeAccumulators` 用 subtraction/carry 合并 `normalizedRemainder` 与 `fraction`：在两者数学和可能超过 `activeStock` 时先减去 `activeStock - fraction` 并提升 carry，避免直接相加溢出；因此不需要人为设置 Stock stake 上限。
 
 ## 3. 多用户与 Dust 守恒
 

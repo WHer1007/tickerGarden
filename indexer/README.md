@@ -1,6 +1,6 @@
 # TickerGarden V1 indexer runtime core
 
-> **Current projection boundary (2026-09-04):** index permanent post-deployment autonomy plus one-way `launchPhase` (`0=NotGraduated`, `1=PoolCreated`); no deployed-market administration or management-recovery state is projected. Asset/configuration status and user rageQuit/async reward settlement remain. Generated handlers are synchronized to `V1-EXEC-9`; live-chain replay evidence remains a deployment gate.
+> **Current projection boundary (2026-09-04):** index permanent post-deployment autonomy plus one-way `launchPhase` (`0=NotGraduated`, `1=PoolCreated`); no deployed-market administration or management-recovery state is projected. Asset/configuration status and user rageQuit/async reward settlement remain. Generated handlers are synchronized to `V1-EXEC-10`; live-chain replay evidence remains a deployment gate.
 
 This package contains the V1 event schema and deterministic projection handlers for
 config, market, Curve, Pool, allocation, activation, fee, claim, and rage-quit/forfeiture facts.
@@ -40,7 +40,7 @@ journal instead of trusting serialized materialized balances.
 The CLI prints the descriptor as one JSON line:
 
 ```text
-{"chainId":4663,"executionSpecId":"V1-EXEC-9","status":"reorg-replay-and-reconciliation","handlersImplemented":true}
+{"chainId":4663,"executionSpecId":"V1-EXEC-10","status":"reorg-replay-and-reconciliation","handlersImplemented":true}
 ```
 
 Run `npm run build`, `npm test`, or `npm start` from this directory.

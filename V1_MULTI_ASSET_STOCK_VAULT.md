@@ -1,6 +1,6 @@
 # TickerGarden V1 MultiAsset Stock Vault
 
-> 版本：`V1-EXEC-9`；本地实现边界，未声称目标链部署、审计或 E2E 完成。
+> 版本：`V1-EXEC-10`；本地实现边界，未声称目标链部署、审计或 E2E 完成。
 
 ## 决策
 

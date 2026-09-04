@@ -209,8 +209,7 @@ contract LaunchConfigResolverTest is Test {
         value.graduatedHook = address(uint160(uint256(seed) + 6));
         value.hookCodeHash = bytes32(uint256(seed) + 7);
         value.graduationExecutor = address(uint160(uint256(seed) + 8));
-        value.launchLockerImplementation = address(uint160(uint256(seed) + 9));
-        value.launchLockerCodeHash = bytes32(uint256(seed) + 10);
+        value.graduationExecutorCodeHash = bytes32(uint256(seed) + 9);
         value.feePolicyId = bytes32(uint256(seed) + 11);
         value.executionSpecId = bytes32(uint256(seed) + 12);
         value.status = status;
@@ -228,8 +227,7 @@ contract LaunchConfigResolverTest is Test {
         value.graduatedHook = address(0x3004);
         value.hookCodeHash = bytes32(uint256(0x3336));
         value.graduationExecutor = address(0x3005);
-        value.launchLockerImplementation = address(0x3006);
-        value.launchLockerCodeHash = bytes32(uint256(0x3337));
+        value.graduationExecutorCodeHash = bytes32(uint256(0x3337));
         value.feePolicyId = bytes32(uint256(0xcccc));
         value.executionSpecId = bytes32(uint256(0xdddd));
         value.status = status;

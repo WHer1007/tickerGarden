@@ -68,6 +68,50 @@ interface IFactoryCreatorRevenueDependencies {
     function marketRegistry() external view returns (address);
 }
 
+interface IFactoryAuthorityDependency {
+    function authority() external view returns (address);
+}
+
+interface IFactoryGraduationDependencies {
+    function marketRegistry() external view returns (address);
+    function approvedQuoteRegistry() external view returns (address);
+    function factory() external view returns (address);
+    function poolManager() external view returns (address);
+    function positionManager() external view returns (address);
+    function permit2() external view returns (address);
+    function hook() external view returns (address);
+    function launchLockerCreationCodeHash() external view returns (bytes32);
+}
+
+interface IFactoryHookDependencies {
+    function marketRegistry() external view returns (address);
+    function poolManager() external view returns (address);
+    function protocolFeeVault() external view returns (address);
+    function graduationExecutor() external view returns (address);
+}
+
+interface IFactoryFeeVaultDependencies {
+    function marketRegistry() external view returns (address);
+    function poolManager() external view returns (address);
+    function creatorRevenueRegistry() external view returns (address);
+    function platformTreasury() external view returns (address);
+    function feePolicyId() external view returns (bytes32);
+}
+
+interface IFactoryAllocationDependencies {
+    function officialStockRegistry() external view returns (address);
+    function marketRegistry() external view returns (address);
+}
+
+interface IFactoryLaunchRouterDependencies {
+    function factory() external view returns (address);
+    function approvedQuoteRegistry() external view returns (address);
+}
+
+interface IFactoryTreasuryDependencies {
+    function marketRegistry() external view returns (address);
+}
+
 /// @dev A code-identity anchor and fixed deployment delegate target. Delegatecall keeps the Factory as the
 ///      CREATE2 deployer while avoiding a Factory runtime that embeds every component's creation code.
 contract TickerMemeTokenV1Implementation {
@@ -146,13 +190,13 @@ contract TickerGardenFactoryV1 is ITickerGardenFactoryV1, ICurveInitializationSo
     mapping(bytes32 marketId => bool reserved) private _reservedMarketIds;
 
     uint256 private constant LAUNCH_FEE = 500_000_000_000_000;
-    bytes32 private constant EXECUTION_SPEC_ID = keccak256("V1-EXEC-9");
+    bytes32 private constant EXECUTION_SPEC_ID = keccak256("V1-EXEC-10");
     bytes32 private constant TOKEN_IMPLEMENTATION_CODEHASH =
         0x5a1ea402d301c312d0df4cc719db06d8f03830df83ec2073299d41d02df9cbb5;
     bytes32 private constant CURVE_IMPLEMENTATION_CODEHASH =
-        0x6feec146597292da0639e2a762521b2515507640092f19038224d8af20b5b749;
+        0x84dda11712855256ac7f9d27d4387cd10ef2da27a4d7dd85d1e0566de1ef5920;
     bytes32 private constant GAUGE_IMPLEMENTATION_CODEHASH =
-        0x4b43e05c2cca68728b2b1a65bf7469639d5f6dc6dd4132e4519484a0a75cc3f9;
+        0x8c4755b6ffce089d1150cc0fdf80b5eefa88324acfccc6b8fffbc8b1a6a171a7;
 
     error InvalidFactoryDependency(address dependency);
     error InvalidComponentImplementation(address implementation, bytes32 expectedHash, bytes32 actualHash);
@@ -611,6 +655,43 @@ contract TickerGardenFactoryV1 is ITickerGardenFactoryV1, ICurveInitializationSo
                 || registry.ponsBaselineRegistry() != init.ponsBaselineRegistry
                 || registry.launchTemplateRegistry() != init.launchTemplateRegistry
                 || revenue.factory() != address(this) || revenue.marketRegistry() != init.marketRegistry
+        ) revert InvalidFactoryBinding();
+        _validateRegistryAuthorities(init);
+        _validateRuntimeGraph(init, registry.graduationExecutor());
+    }
+
+    function _validateRegistryAuthorities(TickerGardenFactoryInit memory init) private view {
+        address authority_ = IFactoryAuthorityDependency(init.officialStockRegistry).authority();
+        if (
+            authority_.code.length == 0 || IFactoryAuthorityDependency(init.approvedQuoteRegistry).authority() != authority_
+                || IFactoryAuthorityDependency(init.ponsBaselineRegistry).authority() != authority_
+                || IFactoryAuthorityDependency(init.launchTemplateRegistry).authority() != authority_
+        ) revert InvalidFactoryBinding();
+    }
+
+    function _validateRuntimeGraph(TickerGardenFactoryInit memory init, address executorAddress) private view {
+        IFactoryGraduationDependencies executor = IFactoryGraduationDependencies(executorAddress);
+        address hookAddress = executor.hook();
+        IFactoryHookDependencies hook = IFactoryHookDependencies(hookAddress);
+        IFactoryFeeVaultDependencies feeVault = IFactoryFeeVaultDependencies(init.protocolFeeVault);
+        IFactoryAllocationDependencies allocation = IFactoryAllocationDependencies(init.allocationManager);
+        IFactoryLaunchRouterDependencies router = IFactoryLaunchRouterDependencies(init.launchRouter);
+
+        if (
+            executorAddress.code.length == 0 || hookAddress.code.length == 0
+                || executor.marketRegistry() != init.marketRegistry
+                || executor.approvedQuoteRegistry() != init.approvedQuoteRegistry || executor.factory() != address(this)
+                || executor.poolManager().code.length == 0 || executor.positionManager().code.length == 0
+                || executor.permit2().code.length == 0 || executor.launchLockerCreationCodeHash() == bytes32(0)
+                || hook.marketRegistry() != init.marketRegistry || hook.poolManager() != executor.poolManager()
+                || hook.protocolFeeVault() != init.protocolFeeVault || hook.graduationExecutor() != executorAddress
+                || feeVault.marketRegistry() != init.marketRegistry || feeVault.poolManager() != executor.poolManager()
+                || feeVault.creatorRevenueRegistry() != init.creatorRevenueRegistry
+                || feeVault.platformTreasury() != init.platformTreasury || feeVault.feePolicyId() != init.feePolicyId
+                || allocation.officialStockRegistry() != init.officialStockRegistry
+                || allocation.marketRegistry() != init.marketRegistry || router.factory() != address(this)
+                || router.approvedQuoteRegistry() != init.approvedQuoteRegistry
+                || IFactoryTreasuryDependencies(init.treasuryDistributor).marketRegistry() != init.marketRegistry
         ) revert InvalidFactoryBinding();
     }
 }

@@ -1,6 +1,6 @@
 # TickerGarden V1 业务逻辑审计整改
 
-> 基线：`V1-EXEC-9`，2026-09-04。DR-01 已通过原子毕业架构关闭；DR-02 的首发风险通过 native-only 与不可升级 Quote 准入加固，未来 ERC-20 仍需逐资产审查。本文不构成部署就绪声明。
+> 基线：`V1-EXEC-10`，2026-09-05。DR-01 已通过原子毕业架构关闭；DR-02 通过管理员逐项准入的 Quote 白名单和普通 ERC-20 不可升级身份门禁加固。原生 ETH 只是 bootstrap 示例，不是唯一 Quote；官方 Stock Quote 的代理专用路径仍属于后续范围。本文不构成部署就绪声明。
 
 ## 已实现：BL-01 RageQuit 后的幽灵手续费权重
 
@@ -23,30 +23,40 @@ Factory 同时要求资产绑定的 Vault 必须是 Registry 中 `MultiAsset.v6`
 
 原问题是 Quote/Pons Registry 只做局部形状校验，某些各自合法的 supply、phantomQuote、graduationThreshold 与 tickSpacing 组合，会在 `GraduationPoolMath` 的 signed amount、sqrt price 或 max-liquidity 域失败。市场可能已经创建并交易，直到毕业才永久失败。
 
-整改分三层：Registry 先拒绝超过 `int128.max` 的单项经济数值；Factory preview/create 再在 marketId 预留和 CREATE2 部署前，对实际 baseline + quote 组合计算 Pons 理论终点资产，并按两种 token 地址排序执行与毕业一致的 pool math。任一组合不可表示时，市场创建直接失败。最后，Curve 针对任意多笔买卖造成的整数舍入路径，在最终 fee sweep 后、转移毕业资产前，使用真实 Quote/Meme 和 canonical PoolKey 再运行同一 `GraduationPoolMath`；失败会让最终买入整体回滚并保持 `NotGraduated`，不会形成不可毕业的持久托管状态。Q192 精确边界改走 Q128 分支，避免临界 `mulDiv` 商等于 `2^256` 时溢出。目标链 fork 上的真实 Uniswap v4 执行和 gas 仍属于部署前验证门槛。
+整改分三层：Registry 先拒绝超过 `int128.max` 的单项经济数值；Factory preview/create 再在 marketId 预留和 CREATE2 部署前，对实际 baseline + quote 组合计算配置决定的 canonical pool Quote/Meme，并按两种 token 地址排序执行与毕业一致的 pool math。任一组合不可表示时，市场创建直接失败。最后，Curve 针对任意多笔买卖造成的整数舍入路径，在最终 fee sweep 后、转移毕业资产前，要求 Meme 恰好等于 reserved 数量、真实 Quote 不低于 canonical pool Quote，并再次验证 canonical PoolKey；多出的历史舍入 Quote 与 Meme dust 一起永久锁入 Locker。失败会让最终买入整体回滚并保持 `NotGraduated`，不会形成不可毕业的持久托管状态。Q192 精确边界改走 Q128 分支，避免临界 `mulDiv` 商等于 `2^256` 时溢出。目标链 fork 上的真实 Uniswap v4 执行和 gas 仍属于部署前验证门槛。
 
 ## 已关闭：DR-01 七日后 permissionless terminal rescue
 
 旧设计的风险属于 Curve 毕业托管资产的灾难恢复，不是 Stock Vault 的用户 RageQuit：`Swept` 七日后任何地址都可抢先触发不可逆 `Rescued`，并与仍可能成功的 graduation 形成排序竞争。即使 recipient 在部署时冻结，也无法自动证明其具备公平退款语义。
 
-V1-EXEC-9 不再尝试为这一中间态设计更复杂的救援，而是删除中间态本身：最终 Curve 买入同步调用 exact registered Executor，最后 fee sweep、精确资产移交、Locker 部署、Pool 初始化、LP mint、双资产 dust 锁定、Hook 激活和 Registry `PoolCreated` 提交必须全成或全败。任何错误向上冒泡并回滚最终买入，资产不会留在 Executor 的 per-market escrow；因此也没有 retry、七日计时、终态 rescue、指定 recipient 或可被任意调用者抢先执行的路径。
+V1-EXEC-10 不再尝试为这一中间态设计更复杂的救援，而是删除中间态本身：最终 Curve 买入同步调用 exact registered Executor，最后 fee sweep、精确资产移交、Locker 部署、Pool 初始化、LP mint、双资产 dust 锁定、Hook 激活和 Registry `PoolCreated` 提交必须全成或全败。任何错误向上冒泡并回滚最终买入，资产不会留在 Executor 的 per-market escrow；因此也没有 retry、七日计时、终态 rescue、指定 recipient 或可被任意调用者抢先执行的路径。
 
 关闭状态：`IMPLEMENTED / NEGATIVE_SURFACE_TESTED`。这不等于 Pool 出现后 Owner 可以干预；PoolCreated 后仍坚持永久自治，canonical LP 与 dust 均留在无提款/任意调用入口的 LaunchLocker。用户本金风险继续由独立的 `rageQuit` 处理。
 
-## 已加固首发边界：DR-02 可升级 Quote 的既有市场依赖漂移
+## 已加固 Quote 白名单边界：DR-02 可升级 Quote 的既有市场依赖漂移
 
 当前 Quote Registry 登记时只在链上检查 code 与 decimals；部署 preflight 虽要求记录 USDG implementation/codehash，但既有自主市场不会持续读取该指纹。Registry pause 只阻止新市场，无法保护已经引用同一代理地址的 Curve、Pool、Hook 和 FeeVault。
 
-当前首发只允许 native Quote，USDG 等可升级代理不在 initial release。`ApprovedQuoteRegistry` 对未来 ERC-20 仅接受 direct immutable、非代理身份，保存 runtime/implementation 指纹并提供 `quoteIdentityCurrent(configId)`；Factory 与 MarketRegistry 在创建前同时 fail closed，部署 schema/preflight 要求 token 与 implementation 同址、固定 runtime hash、禁止委托 opcode且三个 EIP-1967 槽为零。Quote 到账与领取继续使用 exact balance delta 和 nonReentrant 防线。
+Quote 不再被限制为 native。管理员可以通过延迟权限向 `ApprovedQuoteRegistry` 追加任意经评估的 native 或普通 ERC-20 config，市场创建者可以从所有 `ACTIVE` config 中选择；市场创建后 Quote 地址与 economics 永久冻结。对普通 ERC-20，Registry 只接受 direct immutable、非代理身份，保存 runtime 指纹并提供 `quoteIdentityCurrent(configId)`；Factory 与 MarketRegistry 在创建前同时 fail closed，部署 schema/preflight 要求 token 与 implementation 同址、固定 runtime hash、禁止委托 opcode且三个 EIP-1967 槽为零。Quote 到账与领取继续使用 exact balance delta 和 nonReentrant 防线。USDG 等可升级代理仍不符合这一通用路径。
 
-状态：`INITIAL_RELEASE_MITIGATED / FUTURE_ERC20_REVIEW_REQUIRED`。当前架构刻意不为已创建的永久自治市场增加管理员 circuit breaker；未来若要支持新的 ERC-20 Quote，仍需逐资产源码/行为审计、目标链证据和独立产品决定。可升级 Quote 不能通过别名或配置更新进入首发。
+Robinhood 官方 Stock Token 的 BeaconProxy 结构不满足这一现有路径。它只能在实现 Asset UID + canonical Token + Beacon/implementation 持续指纹、独立 allowlist、暂停/黑名单/adminBurn 行为审查和真实 fork 测试后成为专用例外；不能通过放宽通用代理门禁实现。其链下价格参考规则见 [`V1_STOCK_QUOTE_PRICE_REFERENCE.md`](./V1_STOCK_QUOTE_PRICE_REFERENCE.md)。
+
+状态：`ADMIN_CURATED_MULTI_QUOTE_IMPLEMENTED / PER_ASSET_REVIEW_REQUIRED`。新增 direct ERC-20 Quote 不需要更换 Factory，但必须逐资产完成管理员风险评估、源码/行为审查和目标链证据，再以新的内容寻址 config 追加。当前架构刻意不为已创建的永久自治市场增加管理员 circuit breaker；暂停或下架 Quote 只影响后续市场，不改变历史市场。可升级 Quote 不能通过别名或配置更新绕过准入门禁。
+
+## 已执行：部署图与代码身份防御性加固
+
+Factory 构造期现在逐一读取 Official Stock、Quote、Pons Baseline、Launch Template 四个 Registry 的 `authority()`，要求四者都绑定同一个有代码的 canonical AccessManager；不能再用“其中一个 Registry 绑定正确”替代其余三个的独立证明。Factory 同时验证 MarketRegistry、GraduationExecutor、Hook、ProtocolFeeVault、AllocationManager、Launch Router、Creator Registry 与 Treasury 的双向不可变绑定，避免把分别合法但来自不同部署图的组件拼成一个可创建市场的系统。
+
+Launch Template schema 升级为 v2，固定 Hook 与 GraduationExecutor 的 runtime codehash、相互绑定和 Locker creation-code hash，并拒绝包含 `DELEGATECALL`、`CALLCODE` 或 `SELFDESTRUCT` 的直接模板 runtime。Official Stock Registry 另外固定共享 Stock Vault 的 runtime codehash及其首次自报依赖；Factory 每次创建市场前复核该 Vault 身份仍然有效。这样做的原因不是赋予 Owner 新的市场控制权，而是在市场不可干预之前，确保被永久冻结的是同一套已审核代码和依赖图。
+
+对应生成 ABI、部署 preflight、Backend、Website 与 Indexer 已同步；Indexer 按包含 canonical pool amounts 和双资产锁定余量的十参数 `PoolGraduated` 事件观察与投影，避免原子毕业成功后链下状态遗漏。
 
 ## 本地验证与剩余边界
 
 - BL-01 专项覆盖 `MemeStockGauge`、`UserStockVault`、Gauge accumulators、`ProtocolFeeVaultV4Accounting` 与 Factory/Vault schema；精确用例数量以当次 CI 输出为准。
 - BL-03/原子毕业专项覆盖 Quote/Pons 单项上界、Factory 联合 max-liquidity 拒绝、真实终点回滚、Q192 临界值、exact Curve 调用、原生/ERC-20 精确资产消费、Locker/Pool/Hook/Registry 全原子提交与已删除 retry/rescue 负向表面。
 - 全部 Foundry 测试与三套状态化测试纳入根目录 `npm test`；MultiAsset、Treasury 与 Vault/Gauge 均固定为 256 runs / 128,000 calls / 0 handler revert。
-- 执行规范当前为 60 项；链下、正式 Web、boundary、fixture、compiled interface、product artifact 和 CI 三轨均由同一根门禁验证。当前十九模块 product manifest hash 为 `0xeb7b0a02f99afa8b27026abca7096f57d0491dd728318169a2eb8094bfd428cf`。
+- 执行规范当前为 60 项；链下、正式 Web、boundary、fixture、compiled interface、product artifact 和 CI 三轨均由同一根门禁验证。当前十九模块 product manifest hash 为 `0x38771f3438aad3de36983441ea90be61c71ac4fb51361159cd0874b04afbc503`。
 
 BL-01 的当前规则是有意的简单且确定：任何 rageQuit 产生的 forfeited Quote/Meme 奖励均进入 platform forfeiture reserve，不依赖 Active staker 数量、cohort 变化或清理时序。这样不会因异步清理或小额 allocation mutation 触发不同的受益人，也不需要引入历史 epoch/per-user 权重账本。ABI 中 legacy `redistributed` 字段保留以兼容旧消费者，但实现恒为 `false`。
 

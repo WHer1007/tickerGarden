@@ -1,6 +1,6 @@
 export const INDEXER_DESCRIPTOR = Object.freeze({
   chainId: 4663 as const,
-  executionSpecId: "V1-EXEC-9" as const,
+  executionSpecId: "V1-EXEC-10" as const,
   status: "reorg-replay-and-reconciliation" as const,
   handlersImplemented: true as const,
 });

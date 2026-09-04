@@ -197,6 +197,31 @@ contract ApprovedQuoteRegistryTest is Test {
         registry.addQuoteConfig(wrongId, wrongDecimals);
     }
 
+    function test_adminMayAppendMultipleIndependentActiveQuoteConfigs() public {
+        QuoteTokenMock secondToken = new QuoteTokenMock(18);
+        QuoteAssetConfig memory nativeConfig = _nativeConfig();
+        QuoteAssetConfig memory sixDecimalConfig = _erc20Config(address(token), 6, 3_236_000_000, 8_090_000_000);
+        QuoteAssetConfig memory eighteenDecimalConfig =
+            _erc20Config(address(secondToken), 18, 2 ether, 5 ether);
+
+        _addFast(nativeConfig.economicsHash, nativeConfig);
+        _addFast(sixDecimalConfig.economicsHash, sixDecimalConfig);
+        _addFast(eighteenDecimalConfig.economicsHash, eighteenDecimalConfig);
+
+        assertEq(registry.quoteConfig(nativeConfig.economicsHash).status, 1);
+        assertEq(registry.quoteConfig(sixDecimalConfig.economicsHash).status, 1);
+        assertEq(registry.quoteConfig(eighteenDecimalConfig.economicsHash).status, 1);
+        assertTrue(registry.quoteIdentityCurrent(nativeConfig.economicsHash));
+        assertTrue(registry.quoteIdentityCurrent(sixDecimalConfig.economicsHash));
+        assertTrue(registry.quoteIdentityCurrent(eighteenDecimalConfig.economicsHash));
+
+        vm.prank(GUARDIAN);
+        registry.pauseQuote(sixDecimalConfig.economicsHash, REASON_HASH);
+        assertEq(registry.quoteConfig(sixDecimalConfig.economicsHash).status, 2);
+        assertEq(registry.quoteConfig(nativeConfig.economicsHash).status, 1);
+        assertEq(registry.quoteConfig(eighteenDecimalConfig.economicsHash).status, 1);
+    }
+
     function test_erc20AdmissionPinsRuntimeIdentityAndRejectsProxyOpcodes() public {
         QuoteAssetConfig memory config = _erc20Config(address(token), 6, 3_236_000_000, 8_090_000_000);
         bytes32 configId = config.economicsHash;

@@ -3,12 +3,12 @@ import { readFileSync } from "node:fs";
 import { test } from "node:test";
 
 import { assertV1DeploymentManifest, validateV1DeploymentManifestSchema } from "../src/index.ts";
-import { clone, compiled, hash, permissions, validManifest, type JsonRecord } from "./manifest-fixture.ts";
+import { address, clone, compiled, hash, permissions, validManifest, type JsonRecord } from "./manifest-fixture.ts";
 
 const deploymentSchema = JSON.parse(readFileSync(new URL("../schemas/v1-deployment-manifest.schema.json", import.meta.url), "utf8")) as JsonRecord;
 const executionManifest = JSON.parse(readFileSync(new URL("../../spec/v1_execution_manifest.json", import.meta.url), "utf8")) as { readiness: { gateSets: { deployment: { open: string[] } } } };
 
-test("accepts a complete V1-EXEC-9 deployment candidate and native zero sentinel", () => {
+test("accepts a complete V1-EXEC-10 deployment candidate and native zero sentinel", () => {
   const candidate = validManifest();
   assert.deepEqual(validateV1DeploymentManifestSchema(candidate), { valid: true, errors: [] });
   assert.doesNotThrow(() => assertV1DeploymentManifest(candidate));
@@ -81,6 +81,25 @@ test("first release schema rejects every upgradeable ERC20 Quote kind", () => {
     }];
     assert.equal(validateV1DeploymentManifestSchema(candidate).valid, false, proxyKind);
   }
+});
+
+test("accepts DIRECT Official Stock shape and rejects beacon leakage or missing discriminator", () => {
+  const direct = clone(validManifest());
+  const stock = (direct.officialStocks as JsonRecord[])[0]!;
+  stock.proxyKind = "DIRECT";
+  stock.implementationAddress = stock.tokenAddress;
+  stock.implementationCodeHash = stock.runtimeCodeHash;
+  delete stock.beaconAddress;
+  delete stock.beaconCodeHash;
+  assert.equal(validateV1DeploymentManifestSchema(direct).valid, true);
+
+  const beaconLeak = clone(direct);
+  (beaconLeak.officialStocks as JsonRecord[])[0]!.beaconAddress = address("unexpected-beacon");
+  assert.equal(validateV1DeploymentManifestSchema(beaconLeak).valid, false);
+
+  const missingKind = clone(direct);
+  delete (missingKind.officialStocks as JsonRecord[])[0]!.proxyKind;
+  assert.equal(validateV1DeploymentManifestSchema(missingKind).valid, false);
 });
 
 test("requires exactly 83 protocol and 6 AccessManager permissions", () => {

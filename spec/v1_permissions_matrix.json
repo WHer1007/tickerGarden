@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "executionSpecId": "V1-EXEC-9",
+  "executionSpecId": "V1-EXEC-10",
   "accessFramework": "OpenZeppelin AccessManager 5.7.0",
   "selectorRule": "bytes4(keccak256(canonicalAbiSignatureFromCompiledInterface))",
   "abiSource": "spec/v1_abi_surface.json",
@@ -92,7 +92,7 @@
     {"module":"MemeStockGauge","signature":"consumeClaimable(address,address)","caller":"FEE_VAULT","delaySeconds":0,"recipient":"fixed_user"},
     {"module":"ProtocolFeeVault","signature":"beginV4Credit(bytes32,address,uint256,uint32,bytes32)","caller":"ACTIVE_FEE_SOURCE","delaySeconds":0,"recipient":"none","precondition":"source_is_registered_hook"},
     {"module":"ProtocolFeeVault","signature":"finalizeV4Credit(bytes32,address,uint256,uint256,uint256,uint256,uint64,bytes32)","caller":"ACTIVE_FEE_SOURCE","delaySeconds":0,"recipient":"fixed_buckets","precondition":"exact_balance_delta"},
-    {"module":"ProtocolFeeVault","signature":"beginCurveCredit(bytes32,address,uint256,uint32,uint64,bytes32)","caller":"EXACT_REGISTERED_CURVE","delaySeconds":0,"recipient":"none","precondition":"CALLER_EQUALS_REGISTERED_CURVE_SOURCE_VERSION_MATCHES_AND_SWEEP_PRECEDES_MARK_SWEPT"},
+    {"module":"ProtocolFeeVault","signature":"beginCurveCredit(bytes32,address,uint256,uint32,uint64,bytes32)","caller":"EXACT_REGISTERED_CURVE","delaySeconds":0,"recipient":"none","precondition":"CALLER_EQUALS_REGISTERED_CURVE_SOURCE_VERSION_MATCHES_AND_ATOMIC_FEE_SWEEP_PRECEDES_GRADUATION_TRANSFER"},
     {"module":"ProtocolFeeVault","signature":"finalizeCurveCredit(bytes32,address,uint256,uint32,uint64,bytes32)","caller":"EXACT_REGISTERED_CURVE","delaySeconds":0,"recipient":"creator_and_platform","precondition":"MATCHING_BEGIN_AND_EXACT_BALANCE_DELTA"},
     {"module":"ProtocolFeeVault","signature":"claimCreator(bytes32,uint32,address)","caller":"PUBLIC","delaySeconds":0,"recipient":"stored_creator_epoch_beneficiary"},
     {"module":"ProtocolFeeVault","signature":"claimPlatform(bytes32,address)","caller":"PUBLIC","delaySeconds":0,"recipient":"stored_platform_treasury"},

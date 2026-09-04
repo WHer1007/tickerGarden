@@ -257,7 +257,7 @@ export function applyV1Event(state: V1IndexerState, event: DecodedV1Event): "app
       put(state.curveTrades, at.eventKey, event.args, at); mergeMarket(state, event.args.marketId, { curveCompleted: true }, at); break;
     case "ExpectedPoolRegistered(bytes32,bytes32,bytes32,uint32)":
     case "PoolBindingActivated(bytes32,bytes32,uint32)":
-    case "PoolGraduated(bytes32,bytes32,address,uint256,uint256,uint256,uint256,uint32)":
+    case "PoolGraduated(bytes32,bytes32,address,uint256,uint256,uint256,uint256,uint256,uint256,uint32)":
       mergePosition(state.pools, lower(event.args.poolId), event.args, at);
       put(state.poolEvents, at.eventKey, event.args, at);
       mergeMarket(state, event.args.marketId, { poolId: event.args.poolId, poolEvent: event.signature }, at); break;

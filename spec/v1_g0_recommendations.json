@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "status": "PRODUCT_DIRECTION_APPROVED_IMPLEMENTATION_ALLOWED",
-  "executionSpecId": "V1-EXEC-9",
+  "executionSpecId": "V1-EXEC-10",
   "recommendations": {
     "V1-G0-PONS-BASELINE-01": {
       "status": "APPROVED_BEHAVIOR_REFERENCE",
@@ -13,7 +13,7 @@
       "runtimeDependency": false
     },
     "V1-G0-PONS-QUOTE-01": {
-      "status": "APPROVED_NATIVE_FIRST_RELEASE_WITH_IMMUTABLE_ERC20_EXTENSION",
+      "status": "APPROVED_ADMIN_APPROVED_ACTIVE_QUOTES_WITH_NATIVE_EXAMPLE",
       "nativeQuoteSupported": true,
       "erc20QuoteSupported": true,
       "productionQuoteConfigs": [
@@ -35,7 +35,7 @@
           "releaseEligibility": "REJECTED_UPGRADEABLE_REFERENCE"
         }
       ],
-      "productionListStatus": "APPROVED_NATIVE_ONLY_PENDING_IMMUTABLE_ERC20",
+      "productionListStatus": "NATIVE_EXAMPLE_CONFIGURED_ERC20_REQUIRES_IMMUTABLE_DIRECT_REVIEW",
       "deploymentPreflight": "ONLY_DIRECT_NON_DELEGATING_RUNTIME_WITH_PINNED_CODEHASH_AND_ZERO_EIP1967_SLOTS"
     },
     "V1-G0-PONS-DIFF-01": {
@@ -43,10 +43,10 @@
       "matrix": {
         "constantProductAndPhantomReserve": "INHERIT",
         "partialFillAndRefund": "INHERIT",
-        "graduationPoolMemeFormula": "INHERIT",
+        "graduationPoolMemeFormula": "TICKERGARDEN_CONFIGURATION_DERIVED_CANONICAL_POOL_AMOUNTS_HISTORY_SURPLUS_LOCKED",
         "antiSnipeDecay": "INHERIT_FROZEN_PARAMETERS",
-        "twoPhaseGraduationAndRetry": "INHERIT",
-        "sevenDayRescue": "INHERIT",
+        "twoPhaseGraduationAndRetry": "REPLACED_BY_ATOMIC_FINAL_BUY_GRADUATION",
+        "sevenDayRescue": "NOT_INHERITED_NO_TERMINAL_RESCUE",
         "permanentFullRangeLiquidityLock": "INHERIT",
         "create2AddressDomain": "TICKERGARDEN_DIFFERENCE",
         "creatorTax": "DISABLED_ZERO",

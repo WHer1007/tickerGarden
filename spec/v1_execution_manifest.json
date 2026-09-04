@@ -1,8 +1,8 @@
 {
   "schemaVersion": 1,
-  "executionSpecId": "V1-EXEC-9",
+  "executionSpecId": "V1-EXEC-10",
   "status": "IMPLEMENTATION_ALLOWED",
-  "updatedAt": "2026-09-04",
+  "updatedAt": "2026-09-05",
   "normativeDocument": "V1_EXECUTION_SPEC.md",
   "readiness": {
     "modelVersion": 1,
@@ -132,7 +132,13 @@
   },
   "quoteConfigs": {
     "authoritativeArtifact": "spec/v1_initial_quote_configs.json",
-    "initialRelease": ["NATIVE_ETH_V1"],
+    "configuredExamples": ["NATIVE_ETH_V1"],
+    "configuredExamplesAreProtocolCap": false,
+    "selectionRule": "NEW_MARKET_MAY_SELECT_ANY_ADMIN_APPROVED_ACTIVE_QUOTE",
+    "approvalRequirement": "ADMIN_APPROVED_AND_ACTIVE",
+    "riskAcceptance": "ADMIN_EVALUATES_EACH_QUOTE_BEFORE_TIMELOCKED_ADMISSION",
+    "erc20AdmissionRequirement": "DIRECT_IMMUTABLE_ERC20_WITH_PINNED_RUNTIME_AND_ZERO_EIP1967_SLOTS",
+    "nativeQuoteIsProtocolRequirement": false,
     "configurationMode": "APPEND_ONLY_CONTENT_ADDRESSED",
     "individualGraduationAmountBound": "phantomQuote_AND_graduationThreshold_LE_int128.max",
     "jointGraduationDomainGate": "FACTORY_PREVIEW_AND_CREATE_VALIDATE_PAIRED_BASELINE_AND_QUOTE_BEFORE_RESERVATION_OR_DEPLOYMENT",
@@ -181,11 +187,12 @@
     "perMarketCreate2AtGraduation": ["LaunchLocker"],
     "componentKinds": ["TOKEN", "CURVE", "GAUGE", "LOCKER"],
     "launchLockerCustodyScope": "ONE_IMMUTABLE_LOCKER_PER_MARKET",
+    "hookExecutorBootstrap": "ONE_SHOT_CREATE2_MINED_HELPER_DEPLOYS_HOOK_AT_CREATE_NONCE_1_AND_EXECUTOR_AT_NONCE_2_WITH_ATOMIC_RECIPROCAL_BINDING_CHECK",
     "addressCollisionPolicy": "REVERT_NO_NONCE_FALLBACK"
   },
   "graduation": {
     "automaticTrigger": "FINAL_CURVE_BUY_AFTER_SETTLEMENT_REFUND_AND_FINAL_FEE_SWEEP",
-    "terminalMathPrecommit": "EXACT_ACTUAL_ASSETS_REVALIDATED_WITH_CANONICAL_GraduationPoolMath_BEFORE_TRANSFER_OR_POOL_INITIALIZATION",
+    "terminalMathPrecommit": "REQUIRE_RESERVED_MEME_EXACT_AND_ACTUAL_QUOTE_AT_LEAST_CONFIGURATION_DERIVED_CANONICAL_POOL_QUOTE_BEFORE_TRANSFER_OR_POOL_INITIALIZATION",
     "terminalMathFailure": "REVERT_FINAL_BUY_ATOMICALLY_AND_REMAIN_NotGraduated",
     "automaticEntrypoint": "GraduationExecutor.graduateFromCurve(bytes32,uint256,uint256)",
     "automaticCaller": "EXACT_REGISTERED_CURVE",
@@ -201,8 +208,11 @@
   "graduationSupply": {
     "reservedFormula": "floor(supply*phantomQuote/(phantomQuote+graduationThreshold))",
     "sellableFormula": "supply-reservedTokens",
-    "poolMemeFormula": "floor(sweptTokens*sweptQuote/(sweptQuote+phantomQuote))",
-    "lockedExcessFormula": "sweptTokens-poolMemeAmount"
+    "poolQuoteFormula": "ceil(sellableTokens*phantomQuote/reservedTokens)",
+    "lockedExcessQuoteFormula": "sweptQuote-poolQuoteAmount",
+    "poolMemeFormula": "floor(reservedTokens*poolQuoteAmount/(poolQuoteAmount+phantomQuote))",
+    "lockedExcessMemeFormula": "reservedTokens-poolMemeAmount",
+    "historyRoundingPolicy": "ACTUAL_QUOTE_ABOVE_CANONICAL_POOL_QUOTE_IS_PERMANENTLY_LOCKED_OUTSIDE_THE_POOL"
   },
   "dependencies": {
     "uniswapV4Core": {

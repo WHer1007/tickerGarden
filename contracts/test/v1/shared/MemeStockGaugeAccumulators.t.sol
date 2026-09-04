@@ -243,6 +243,20 @@ contract MemeStockGaugeAccumulatorsTest is Test {
         _assertRewardState(0, 17 + P + 9, 0);
     }
 
+    function test_maximumActiveStockMergesFractionalCarryWithoutOverflow() public {
+        uint256 activeStock = type(uint256).max;
+        uint256 previousRemainder = activeStock - 1;
+        gauge.seedActive(activeStock);
+        gauge.seedRewardState(0, 0, previousRemainder);
+
+        (uint256 delta, uint256 newRemainder) = gauge.credit(0, QUOTE, 1, FEE_ID);
+
+        assertEq(delta, 1);
+        assertEq(newRemainder, P - 1);
+        assertEq(activeStock - previousRemainder + newRemainder, P);
+        _assertRewardState(0, delta, newRemainder);
+    }
+
     function test_maximumAdmittedRewardUsesMulDivWithoutIntermediateOverflow() public {
         uint256 reward = uint256(uint128(type(int128).max));
         gauge.seedActive(414);

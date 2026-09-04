@@ -6,7 +6,7 @@ const id = (digit: string) => `0x${digit.repeat(64)}`;
 
 test("declares injected non-privileged boundary", () => {
   assert.deepEqual(getMaintenanceRunnerDescriptor(), {
-    executionSpecId: "V1-EXEC-9", status: "active", privileged: false,
+    executionSpecId: "V1-EXEC-10", status: "active", privileged: false,
     transactionSubmissionImplemented: true, transportInjected: true, signerProvided: false,
     rpcProvided: false, userAssetCustody: false, simulateFirst: true,
     durableIdempotencyLookupRequired: true, ambiguousSubmissionRetry: false,
