@@ -7,21 +7,21 @@ const repositoryRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url))
 const sourceRoots = [
   "contracts/src/v1",
   "contracts/test/v1",
-  "backend/src",
-  "indexer/src",
+  "services/backend-api/src",
+  "services/indexer/src",
   "deployments/src",
   "services/maintenance-runner/src",
-  "website-fruit-tree/src",
+  "apps/web/src",
 ];
 
 const requiredPaths = [
   "contracts/src/v1/shared/V1Scaffold.sol",
   "contracts/test/v1/V1Scaffold.t.sol",
-  "backend/src/index.ts",
-  "indexer/src/index.ts",
+  "services/backend-api/src/index.ts",
+  "services/indexer/src/index.ts",
   "deployments/src/index.ts",
   "services/maintenance-runner/src/index.ts",
-  "website-fruit-tree/src/app.ts",
+  "apps/web/src/app.ts",
 ];
 
 const retiredPaths = [

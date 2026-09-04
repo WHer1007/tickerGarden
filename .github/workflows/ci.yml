@@ -162,8 +162,8 @@ jobs:
       fail-fast: false
       matrix:
         package:
-          - backend
-          - indexer
+          - services/backend-api
+          - services/indexer
           - services/maintenance-runner
     steps:
       - uses: actions/checkout@v4
@@ -190,13 +190,13 @@ jobs:
         with:
           node-version: "22.13"
           cache: npm
-          cache-dependency-path: website-fruit-tree/package-lock.json
+          cache-dependency-path: apps/web/package-lock.json
       - name: Install
-        working-directory: website-fruit-tree
+        working-directory: apps/web
         run: npm ci
       - name: Build frontend
-        working-directory: website-fruit-tree
+        working-directory: apps/web
         run: npm run build
       - name: Test frontend
-        working-directory: website-fruit-tree
+        working-directory: apps/web
         run: npm test

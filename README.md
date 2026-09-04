@@ -2,12 +2,12 @@
 
 > **Current implementation (2026-09-05):** `V1-EXEC-10` implements permanently autonomous deployed markets, administrator-curated multi-Quote admission, and atomic graduation in the final Curve buy. Any pool-creation failure rolls back the entire final buy; there is no persistent `Swept` state, graduation retry, terminal rescue, or market-asset recipient. Asset/configuration registries retain object-scoped controls, and `rageQuit` returns principal immediately before asynchronous reward cleanup. Local verification does not close target-chain deployment, independent-audit, or production-E2E gates.
 
-This workspace contains the canonical TickerGarden V1 implementation. The earlier product prototype is classified as **Test Prototype** and is not part of the V1 build or runtime graph. The formal and only active user-facing V1 frontend is `website-fruit-tree/`; its `Rewards` page retains that name and owns the Position, Staker, Creator, and Treasury surfaces. The former auxiliary frontend has been moved to `archive/legacy-website/` for historical traceability and is excluded from builds, tests, CI and deployment. The product surface covers market/configuration registries, creator revenue, fixed-supply Meme token, Curve, Gauge, Factory, Vault/allocation, launch Router, FeeVault, Hook, GraduationExecutor, LaunchLocker, and the V1 `TreasuryDistributor` surfaced through Rewards. Native and ERC-20 atomic launch-and-buy code paths share the same canonical Router entry point and preserve the immediate caller as creator. A new market may select any administrator-approved `ACTIVE` Quote config; native ETH is one bootstrap example, not a unique or hard-coded release Quote. Direct ERC-20 Quotes must additionally pass immutable runtime identity, decimals, exact-transfer, and non-proxy admission checks.
+This workspace contains the canonical TickerGarden V1 implementation. The earlier product prototype is classified as **Test Prototype** and is not part of the V1 build or runtime graph. Runnable products are grouped under `apps/` and `services/`: the formal user-facing frontend is `apps/web/`, while the read API, Indexer, maintenance runner, and Treasury root generator live under `services/`. The former auxiliary frontend remains in `archive/legacy-website/` for historical traceability and is excluded from builds, tests, CI and deployment. The product surface covers market/configuration registries, creator revenue, fixed-supply Meme token, Curve, Gauge, Factory, Vault/allocation, launch Router, FeeVault, Hook, GraduationExecutor, LaunchLocker, and the V1 `TreasuryDistributor` surfaced through Rewards. Native and ERC-20 atomic launch-and-buy code paths share the same canonical Router entry point and preserve the immediate caller as creator. A new market may select any administrator-approved `ACTIVE` Quote config; native ETH is one bootstrap example, not a unique or hard-coded release Quote. Direct ERC-20 Quotes must additionally pass immutable runtime identity, decimals, exact-transfer, and non-proxy admission checks.
 
 Current truth:
 
 - Execution-spec identity: `V1-EXEC-10`.
-- V1 documentation and machine-readable specification files at the repository root and under `spec/` are canonical.
+- Human-readable V1 documentation under `docs/v1/` and machine-readable specification files under `spec/` are canonical.
 - Solidity has a generated, compiled interface baseline for the current autonomous market surface; target-chain Fork and deployment evidence remain open. The four configuration registries append-only freeze canonical STOCK, Quote economics, Pons behavior baselines, and launch component identities through an immutable AccessManager authority. The Indexer provides artifact-derived handlers, replay/reorg checkpoints and reconciliation; the Backend remains a read-only boundary, the maintenance runner submits only permissionless calls through an injected transport, and the Web binds every funds-sensitive API address back to immutable Factory/Registry views before quote, simulation or signature.
 - Product-contract, Fork, and deployment CI tracks are independent. Product is `ACTIVE` with nineteen compiled modules, Fork is `FIXTURES_ACTIVE` with deterministic local controls but no live replay, and deployment tooling is `ACTIVE` because its schema and read-only live preflight layers are complete. None of these states means a complete product, deployment candidate, or production evidence exists.
 - Canonical readiness is `IMPLEMENTATION_ALLOWED`: product implementation is in progress and deployment readiness remains **false**, but the implementation parameter gate is closed.
@@ -23,17 +23,17 @@ The repository intentionally has no compatibility alias for the former developme
 
 | Path | Current responsibility |
 | --- | --- |
-| `contracts/src/v1` | Isolated Foundry namespace; generated interfaces, nineteen artifact-checked product modules, reusable implementation layers, and a compile marker |
-| `docs/test-prototype/` | Historical pre-V1 product prototype documents; audit context only |
+| `apps/web/` | Formal V1 user-facing frontend; markets, trade, create, stats, FAQ, and the `Rewards` page |
+| `services/backend-api/` | Reconciled V1 read API, OpenAPI 3.1 schema, and generated TypeScript client |
+| `services/indexer/` | Artifact-derived event schema, deterministic projections, replay/reorg checkpoint, and reconciliation core |
+| `services/maintenance-runner/` | Non-privileged, simulate-first permissionless maintenance runner |
+| `services/treasury-root-generator/` | Deterministic Treasury root generation and proof material |
+| `contracts/src/v1/` | Isolated Foundry namespace; generated interfaces, nineteen artifact-checked product modules, reusable implementation layers, and a compile marker |
+| `deployments/` | Deployment manifest schema and fixed-block, read-only, fail-closed live preflight; never submits transactions |
 | `spec/` | V1 execution manifests, reference model, vectors, generators, and compiled-product artifact manifest |
-| `V1_OFFICIAL_STOCK_ADMISSION.md` | All-official-STOCK admission rule, fixed-block identity evidence, and user-selectable staking-base boundary |
-| `V1_STOCK_QUOTE_PRICE_REFERENCE.md` | Planned limited RH Stock Quote allowlist, creation-time price reference, trust boundary, and implementation gaps |
-| `backend/` | Reconciled V1 read API plus versioned OpenAPI 3.1 schema and generated TypeScript client |
-| `indexer/` | Artifact-derived V1 event schema, deterministic projections, canonical replay/reorg checkpoint, and reconciliation core |
-| `deployments/` | V1 deployment manifest Schema plus fixed-block, read-only, fail-closed live preflight; never submits transactions |
-| `services/maintenance-runner/` | Non-privileged permissionless maintenance runner; injected transport, simulate-first submission, bounded retries and no signer/custody |
+| `docs/v1/` | Canonical human-readable V1 architecture, product rules, audit decisions, and readiness gates |
+| `docs/test-prototype/` | Historical pre-V1 product prototype documents; audit context only |
 | `brand/BRAND_CULTURE_AND_ECOSYSTEM.md` | Approved stock-culture-garden positioning, slogan system, ecosystem flywheel, and the non-normative `Bloom` user-language mapping |
-| `website-fruit-tree/` | Formal V1 user-facing frontend; markets, trade, create, stats, FAQ, and the `Rewards` page (Position/Staker/Creator/Treasury) |
 | `archive/legacy-website/` | Archived former auxiliary frontend; historical reference only and excluded from active build, test, CI and deployment graphs |
 | `tools/check-v1-boundary.mjs` | Static guard against Test Prototype runtime reintroduction |
 | `tools/check-v1-ci-tracks.mjs` | Fail-closed product, Fork, and deployment track inventory and test runner |
@@ -48,6 +48,6 @@ npm run build
 npm test
 ```
 
-The root commands deliberately keep specification checks, V1 contract tests, off-chain tests, and the formal `website-fruit-tree` tests separate. A green local build does not prove the still-open archive Fork, legal, independent-audit, AccessManager installation, production-manifest, or deployment gates.
+The root commands deliberately keep specification checks, V1 contract tests, off-chain tests, and the formal `apps/web` tests separate. A green local build does not prove the still-open live Fork, legal, independent-audit, AccessManager installation, production-manifest, or deployment gates.
 
-See `V1_READINESS_AND_DEPLOYMENT_GATES.md` for the four-state gate, `V1_DEVELOPMENT_PLAN.md` for implementation work, and `docs/test-prototype/TEST_CODE_REMOVAL_RECORD.md` for the recoverable deletion record.
+See `docs/README.md` for the documentation index, `docs/v1/V1_READINESS_AND_DEPLOYMENT_GATES.md` for the four-state gate, and `docs/v1/V1_DEVELOPMENT_PLAN.md` for implementation work.

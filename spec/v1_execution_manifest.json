@@ -3,7 +3,7 @@
   "executionSpecId": "V1-EXEC-10",
   "status": "IMPLEMENTATION_ALLOWED",
   "updatedAt": "2026-09-05",
-  "normativeDocument": "V1_EXECUTION_SPEC.md",
+  "normativeDocument": "docs/v1/V1_EXECUTION_SPEC.md",
   "readiness": {
     "modelVersion": 1,
     "state": "IMPLEMENTATION_ALLOWED",
@@ -101,7 +101,7 @@
   },
   "ponsBehaviorBaseline": {
     "id": "TG-PONS-BEHAVIOR-1",
-    "document": "V1_PONS_BEHAVIOR_BASELINE.md",
+    "document": "docs/v1/V1_PONS_BEHAVIOR_BASELINE.md",
     "vectors": "spec/v1_pons_behavior_vectors.json",
     "runtimeEvidence": "spec/v1_pons_runtime_evidence.json",
     "referenceFactory": "0x7ed598bcef8bd9edd8c97a195c6d13f40801ec7e",

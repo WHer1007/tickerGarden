@@ -3,7 +3,7 @@
  * Reproducible standard-pool capture for Robinhood Chain Stock Tokens.
  *
  * This intentionally uses the repository's already-installed viem runtime
- * (website-fruit-tree/node_modules/viem) and does not add a dependency.  The
+ * (apps/web/node_modules/viem) and does not add a dependency.  The
  * capture is pinned to one block: every factory and pool read uses the same
  * block number, so the resulting files can be consumed by
  * build_observed_snapshot.py without mixing chain state.
@@ -15,7 +15,7 @@ import {
   defineChain,
   encodeFunctionData,
   http,
-} from "../../website-fruit-tree/node_modules/viem/_esm/index.js";
+} from "../../apps/web/node_modules/viem/_esm/index.js";
 
 const CHAIN_ID = 4663;
 const RPC_DEFAULT = "https://rpc.mainnet.chain.robinhood.com";

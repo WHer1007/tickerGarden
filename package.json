@@ -24,10 +24,10 @@
     "check:deployment-track": "node tools/check-v1-ci-tracks.mjs deployment",
     "check:tracks": "node tools/check-v1-ci-tracks.mjs all",
     "test:ci-gates": "node --test tools/check-v1-ci-tracks.test.mjs && npm run check:tracks",
-    "build:offchain": "npm --prefix backend run build && npm --prefix indexer run build && npm --prefix deployments run build && npm --prefix services/maintenance-runner run build",
-    "test:offchain": "npm --prefix backend test && npm --prefix indexer test && npm --prefix deployments test && npm --prefix services/maintenance-runner test",
-    "build:web": "npm --prefix website-fruit-tree run build",
-    "test:web": "npm --prefix website-fruit-tree test",
+    "build:offchain": "npm --prefix services/backend-api run build && npm --prefix services/indexer run build && npm --prefix deployments run build && npm --prefix services/maintenance-runner run build",
+    "test:offchain": "npm --prefix services/backend-api test && npm --prefix services/indexer test && npm --prefix deployments test && npm --prefix services/maintenance-runner test",
+    "build:web": "npm --prefix apps/web run build",
+    "test:web": "npm --prefix apps/web test",
     "build": "npm run check:boundary && npm run build:contracts && npm run check:fixtures && npm run check:product-artifacts && npm run build:offchain && npm run build:web",
     "test": "npm run check:boundary && npm run test:spec && npm run test:contracts && npm run check:fixtures && npm run check:interfaces && npm run check:product-artifacts && npm run test:ci-gates && npm run test:offchain && npm run test:web"
   }

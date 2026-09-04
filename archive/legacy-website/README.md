@@ -1,6 +1,6 @@
 # TickerGarden legacy website（已归档）
 
-> **Archived 2026-09-04:** 本目录是已停止维护的旧辅助前端，仅用于历史追溯。TickerGarden V1 唯一正式用户前端是仓库根目录的 `website-fruit-tree/`。本目录不参与根级构建、测试、CI、部署或新功能对接；旧托管描述符已改名为 `.openai/hosting.json.archived`，避免被识别为可发布站点。以下内容保留为归档时快照，不代表当前产品口径。
+> **Archived 2026-09-04:** 本目录是已停止维护的旧辅助前端，仅用于历史追溯。TickerGarden V1 唯一正式用户前端是 `apps/web/`。本目录不参与根级构建、测试、CI、部署或新功能对接；旧托管描述符已改名为 `.openai/hosting.json.archived`，避免被识别为可发布站点。以下内容保留为归档时快照，不代表当前产品口径。
 
 > **Current product boundary (2026-09-04):** the console must not offer market-level pause, retire, Emergency, or Recovery management. It should display one-way `launchPhase`, retain asset/configuration pause/retire messaging, and make user `rageQuit` available at all times for immediate principal return with asynchronous reward forfeiture/reallocation. This target is not a completion claim.
 

@@ -1,0 +1,40 @@
+# TickerGarden V1 documentation index
+
+`V1-EXEC-10` is the current execution baseline. Machine-readable manifests under [`spec/`](../../spec/) take precedence when a prose document and generated protocol artifact disagree.
+
+## Canonical product and execution rules
+
+- [`V1_EXECUTION_SPEC.md`](./V1_EXECUTION_SPEC.md) — executable contract and lifecycle rules.
+- [`V1_PROTOCOL_PARAMETERS.md`](./V1_PROTOCOL_PARAMETERS.md) — product parameters and economic behavior.
+- [`V1_TYPED_IDENTIFIERS.md`](./V1_TYPED_IDENTIFIERS.md) — typed IDs, hashes, and CREATE2 domains.
+- [`V1_PONS_BEHAVIOR_BASELINE.md`](./V1_PONS_BEHAVIOR_BASELINE.md) — adopted and rejected Pons behavior.
+- [`V1_DEVELOPMENT_PLAN.md`](./V1_DEVELOPMENT_PLAN.md) — implementation scope and acceptance gates.
+
+## Contract architecture and accounting
+
+- [`V1_TECHNICAL_ARCHITECTURE.md`](./V1_TECHNICAL_ARCHITECTURE.md)
+- [`V1_CONTRACT_ARCHITECTURE_DECISION.md`](./V1_CONTRACT_ARCHITECTURE_DECISION.md)
+- [`V1_MULTI_ASSET_STOCK_VAULT.md`](./V1_MULTI_ASSET_STOCK_VAULT.md)
+- [`V1_MARKET_REGISTRY_STATE_MODEL.md`](./V1_MARKET_REGISTRY_STATE_MODEL.md)
+- [`V1_CREATOR_REVENUE_EPOCH.md`](./V1_CREATOR_REVENUE_EPOCH.md)
+- [`V1_TREASURY_ARCHITECTURE.md`](./V1_TREASURY_ARCHITECTURE.md)
+- [`V1_CANONICAL_ABI_POLICY.md`](./V1_CANONICAL_ABI_POLICY.md)
+- [`V1_COMPOSED_CALL_IDENTITY.md`](./V1_COMPOSED_CALL_IDENTITY.md)
+
+## Stock, Quote, allocation, and exits
+
+- [`V1_OFFICIAL_STOCK_ADMISSION.md`](./V1_OFFICIAL_STOCK_ADMISSION.md)
+- [`V1_STOCK_QUOTE_PRICE_REFERENCE.md`](./V1_STOCK_QUOTE_PRICE_REFERENCE.md)
+- [`V1_MARKET_AUTONOMY_AND_RAGE_QUIT.md`](./V1_MARKET_AUTONOMY_AND_RAGE_QUIT.md)
+- [`V1_USER_EMERGENCY_ESCAPE_FLOW.md`](./V1_USER_EMERGENCY_ESCAPE_FLOW.md)
+- [`V1_MIGRATION_RESCUE_TIMING.md`](./V1_MIGRATION_RESCUE_TIMING.md)
+
+## Audit, evidence, and readiness
+
+- [`V1_BUSINESS_LOGIC_REMEDIATION.md`](./V1_BUSINESS_LOGIC_REMEDIATION.md)
+- [`V1_M0_BLOCKER_AUDIT.md`](./V1_M0_BLOCKER_AUDIT.md)
+- [`V1_G0_EXTERNAL_EVIDENCE.md`](./V1_G0_EXTERNAL_EVIDENCE.md)
+- [`V1_G0_RECOMMENDATIONS.md`](./V1_G0_RECOMMENDATIONS.md)
+- [`V1_READINESS_AND_DEPLOYMENT_GATES.md`](./V1_READINESS_AND_DEPLOYMENT_GATES.md)
+- [`V1_ACCUMULATOR_NUMERIC_REPORT.md`](./V1_ACCUMULATOR_NUMERIC_REPORT.md)
+- [`V1_ACTIVATION_WHEEL_GAS_REPORT.md`](./V1_ACTIVATION_WHEEL_GAS_REPORT.md)

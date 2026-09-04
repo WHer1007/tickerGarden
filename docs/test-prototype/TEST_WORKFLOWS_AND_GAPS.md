@@ -1,6 +1,6 @@
 # TickerGarden Test Prototype 端到端链路与缺口
 
-> 历史归档：本文链路与缺口不代表当前 V1 状态；当前状态以根目录 `V1_DEVELOPMENT_PLAN.md` 为准。
+> 历史归档：本文链路与缺口不代表当前 V1 状态；当前状态以 `docs/v1/V1_DEVELOPMENT_PLAN.md` 为准。
 
 > 文档状态：Test Prototype 编码前评审清单
 > 更新时间：2026-09-02  
