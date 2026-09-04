@@ -268,7 +268,7 @@ contract TreasuryDistributorV1InvariantTest is Test {
         );
 
         _configureRoles();
-        marketRegistry.setMarket(MARKET_ID, address(meme), address(quote), 2);
+        marketRegistry.setMarket(MARKET_ID, address(meme), address(quote), 1);
         distributor.registerMarket(MARKET_ID, address(meme), address(quote), ELIGIBILITY_POLICY);
         distributor.activateMarket(MARKET_ID);
 

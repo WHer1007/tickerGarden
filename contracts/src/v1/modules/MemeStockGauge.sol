@@ -80,23 +80,23 @@ contract MemeStockGauge is MemeStockGaugeForfeitures {
             uint256 expectedPrincipal,
             uint256 quoteAccumulatorCutoff,
             uint256 memeAccumulatorCutoff,
-            bool forfeitureRedistributable
+            /* forfeitureRedistributable */
         ) = IAllocationManager(identity.allocationManager).rageQuitRewardCutoff(identity.marketId, user);
         (principal, quoteForfeited, memeForfeited, redistributed) = _rageQuitPosition(
             user,
             RageQuitContext({
                 marketId: identity.marketId,
-                quoteAsset: identity.quoteAsset,
-                memeAsset: identity.memeToken,
                 quoteAccumulatorCutoff: quoteAccumulatorCutoff,
-                memeAccumulatorCutoff: memeAccumulatorCutoff,
-                forfeitureRedistributable: forfeitureRedistributable
+                memeAccumulatorCutoff: memeAccumulatorCutoff
             })
         );
         if (principal != expectedPrincipal) {
             revert RageQuitRewardSettlementPending(user, identity.marketId, expectedPrincipal);
         }
-        if (!redistributed && (quoteForfeited != 0 || memeForfeited != 0)) {
+        // Every reward forfeited by an escape is platform-owned.  The FeeVault call is best-effort so a
+        // temporary downstream failure cannot roll back the principal escape; the deferred amounts are retried
+        // through checkpointActivations/flushDeferredForfeiture and remain unavailable to any staker.
+        if (quoteForfeited != 0 || memeForfeited != 0) {
             try IProtocolFeeVault(identity.protocolFeeVault).recordForfeiture{gas: FORFEITURE_RECORD_GAS_LIMIT}(
                 identity.marketId, user, quoteForfeited, memeForfeited
             ) {}

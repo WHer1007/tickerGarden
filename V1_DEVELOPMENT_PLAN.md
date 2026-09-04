@@ -1,6 +1,6 @@
 # TickerGarden V1 开发计划
 
-> 当前规范：`V1-EXEC-8`；readiness：`IMPLEMENTATION_ALLOWED / NOT_DEPLOYABLE`。
+> 当前规范：`V1-EXEC-9`；readiness：`IMPLEMENTATION_ALLOWED / NOT_DEPLOYABLE`。
 
 ## V1-ARCH-006：删除旧市场干预架构
 
@@ -10,14 +10,14 @@
 
 - 删除市场级暂停、恢复、退休、紧急接管和恢复分配状态；
 - 删除 `MarketController` 及 FeeVault 的 recovery cap/root/claim 组件；
-- `MarketRuntime` 收敛为 `poolId + sourceVersion + sweptAt + launchPhase`；
-- `launchPhase` 只允许 `NotGraduated -> Swept -> PoolCreated|Rescued`；
+- `MarketRuntime` 收敛为 `poolId + sourceVersion + launchPhase`；
+- `launchPhase` 只允许 `NotGraduated -> PoolCreated`；最终买入与毕业全原子，删除持久 `Swept`、重试、终态救援和市场资产接收人；
 - Hook、Gauge、Curve、FeeVault、Vault 和 Allocation 不再读取或接受市场管理员状态；
 - 用户 `rageQuit` 始终先返还完整 STOCK 本金，奖励清理由 permissionless 路径异步完成；
 - Asset、Quote、Pons baseline、Launch template 的对象级 pause/unpause/retire 继续用于新增准入或新增敞口，不影响既有市场交易或本金退出；
-- Solidity ABI、权限矩阵、部署 schema、Indexer、Backend、Website、Rewards/Treasury 前端、maintenance runner 和文档全部同步到 `V1-EXEC-8`。
+- Solidity ABI、权限矩阵、部署 schema、Indexer、Backend、Website、Rewards/Treasury 前端、maintenance runner 和文档全部同步到 `V1-EXEC-9`。
 
-当前 canonical 产品模块为 19 个（含共享 `TreasuryDistributorV1`）；接口和事件数量以 `spec/v1_execution_manifest.json` 为准。Gauge clone immutable identity 从 8 个 word 收敛为 7 个 word，runtime 为 269 bytes；共享 MultiAsset Vault schema 为 v6。部署权限面现为 86 个协议 mutation：22 个由 5 类冻结角色门控，64 个为 immutable direct/public/module caller；Treasury Root publisher 与 independent reviewer 必须使用相互独立且不复用治理/Guardian/Unpause 成员的 Safe。
+当前 canonical 产品模块为 19 个（含共享 `TreasuryDistributorV1`）；接口和事件数量以 `spec/v1_execution_manifest.json` 为准。Gauge clone immutable identity 从 8 个 word 收敛为 7 个 word，runtime 为 269 bytes；共享 MultiAsset Vault schema 为 v6。部署权限面现为83个协议 mutation：22个由5类冻结角色门控，61个为 immutable direct/public/module caller，且所有业务状态延迟为0；Treasury Root publisher 与 independent reviewer 必须使用相互独立且不复用治理/Guardian/Unpause 成员的 Safe。
 
 ## 正式用户前端边界
 
@@ -29,9 +29,8 @@
 
 ## 本地验收
 
-- Foundry：61 suites、671 tests 全部通过；Vault/Gauge、Treasury 与多资产恶意 Token 状态化不变量均为 256 runs、128,000 calls、0 revert。
-- 机器规范：59 tests 通过；canonical ABI、compiled interface、product artifact、fixture 与权限/CI track stale checks 通过。
-- 链下：Backend 13、Indexer 20、Deployments 24、Maintenance runner 13、正式 `website-fruit-tree` 16 tests 通过；归档旧站不再计入活动验收口径。
+- 根门禁：以仓库根目录 `npm test` 为唯一聚合验收入口；它必须同时通过执行规范、全部 Foundry 测试、fixture/interface/product artifact 漂移检查、CI 三轨、Backend、Indexer、Deployments、Maintenance runner 与正式 `website-fruit-tree`。具体 suite/case 数量以当次 CI 输出为准，避免文档硬编码计数漂移。
+- 状态化验证：Vault/Gauge、Treasury 与多资产恶意 Token 不变量均固定执行 256 runs、128,000 calls，并要求 0 handler revert。
 - 旧管理 selector 只允许出现在“不可调用”的负向测试和明确的已删除迁移记录中；源码、生成 ABI、事件、客户端、部署 `dist` 与编译 artifact 均不得包含它们。
 
 ## 后续工作与外部支持

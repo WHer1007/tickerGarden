@@ -270,7 +270,7 @@ contract TickerGardenMemeHookFeeCalculationTest is Test {
     function test_feePolicyHashMatchesFeeVaultAndSuccessiveIdsCannotRepeat() public {
         bytes32 expectedPolicyHash = V1MarketEconomics.hashFeePolicy(
             V1MarketEconomics.FeePolicyInput({
-                executionSpecId: keccak256("V1-EXEC-8"),
+                executionSpecId: keccak256("V1-EXEC-9"),
                 feePips: 10_000,
                 lpShareBps: 0,
                 poolKeyFee: 0,
@@ -315,7 +315,7 @@ contract TickerGardenMemeHookFeeCalculationTest is Test {
         config.memeToken = MEME;
         config.graduatedHook = address(hook);
         MarketRuntime memory runtime;
-        runtime.launchPhase = 2;
+        runtime.launchPhase = 1;
         runtime.poolId = canonicalPoolId;
         runtime.sourceVersion = 2;
         registry.configure(MARKET_ID, MarketView({config: config, runtime: runtime}), canonicalKey);

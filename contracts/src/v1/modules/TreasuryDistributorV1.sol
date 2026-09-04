@@ -172,7 +172,7 @@ contract TreasuryDistributorV1 is ITreasuryDistributorV1, ImmutableAccessManaged
         TreasuryMarketV1 storage value = _registeredMarket(marketId);
         if (value.activatedAt != 0) revert MarketAlreadyActive(marketId);
         MarketView memory canonical = _canonicalMarket(marketId);
-        if (canonical.runtime.launchPhase != 2) {
+        if (canonical.runtime.launchPhase != 1) {
             revert InvalidCanonicalLaunchPhase(marketId, canonical.runtime.launchPhase);
         }
         value.activatedAt = _timestamp();

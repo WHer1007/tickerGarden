@@ -57,7 +57,9 @@ const READ_ONLY_METHODS = new Set([
 ]);
 
 const ERC1967_IMPLEMENTATION_SLOT = "0x360894a13ba1a3210667c828492db98dca3e2076cc3735a920a3ca505d382bbc";
+const ERC1967_ADMIN_SLOT = "0xb53127684a568b3173ae13b9f8a6016e243e63b6e8ee1178d6a717850b5d6103";
 const ERC1967_BEACON_SLOT = "0xa3f0ad74e5423aebfd80d3ef4346578335a9a72aeaee59ff6cb3582b35133d50";
+const ZERO_STORAGE_WORD = `0x${"00".repeat(32)}`;
 
 export class HttpV1ReadOnlyRpc implements V1ReadOnlyRpc {
   readonly #url: string;
@@ -127,6 +129,16 @@ function normalizedHex(value: unknown, label: string): string {
 
 function bytesFromHex(value: string): Uint8Array {
   return Uint8Array.from(value.slice(2).match(/../g) ?? [], (byte) => Number.parseInt(byte, 16));
+}
+
+function forbiddenImmutableQuoteOpcode(runtimeCode: string): number | undefined {
+  const bytes = bytesFromHex(runtimeCode);
+  for (let index = 0; index < bytes.length;) {
+    const opcode = bytes[index] as number;
+    if (opcode === 0xf2 || opcode === 0xf4 || opcode === 0xff) return opcode;
+    index += opcode >= 0x60 && opcode <= 0x7f ? opcode - 0x5f + 1 : 1;
+  }
+  return undefined;
 }
 
 function keccakHex(value: string): string {
@@ -329,6 +341,34 @@ function verifyTreasuryBindingEvidence(manifest: Manifest): void {
   }
 }
 
+function verifyRegistryAuthorityEvidence(manifest: Manifest): void {
+  const accessManagerAddress = stringField(manifest.accessManager, "address");
+  const bindings = [
+    ["OfficialStockRegistryV1", "official-stock-registry-access-manager-authority"],
+    ["ApprovedQuoteRegistry", "approved-quote-registry-access-manager-authority"],
+    ["PonsBaselineRegistry", "pons-baseline-registry-access-manager-authority"],
+    ["LaunchTemplateRegistry", "launch-template-registry-access-manager-authority"],
+  ] as const;
+  for (const [registryName, label] of bindings) {
+    const registry = manifest.protocolModules[registryName]!;
+    const check = manifest.livePreflight.keyGetterChecks.find(
+      (candidate) => stringField(candidate, "label") === label
+        && stringField(candidate, "category") === "IMMUTABLE_BINDING"
+        && stringField(candidate, "target").toLowerCase() === stringField(registry, "deployedAddress").toLowerCase()
+        && stringField(candidate, "callData").toLowerCase() === callData("authority()").toLowerCase(),
+    );
+    if (check === undefined) {
+      throw new Error(`V1 live preflight ${registryName} lacks authority() evidence`);
+    }
+    const expectedHash = keccakHex(`0x${addressWord(accessManagerAddress)}`);
+    same(
+      `protocolModules.${registryName}.authority()`,
+      expectedHash,
+      stringField(check, "expectedReturnDataHash"),
+    );
+  }
+}
+
 function verifyProxyEvidence(manifest: Manifest): void {
   const storage = new Map(
     manifest.livePreflight.storageChecks.map((check) => [
@@ -371,26 +411,30 @@ function verifyProxyEvidence(manifest: Manifest): void {
   for (const [index, quote] of manifest.quoteAssets.entries()) {
     if (quote.assetKind !== "ERC20") continue;
     const token = stringField(quote, "tokenAddress").toLowerCase();
+    const decimals = numberField(quote, "decimals");
     const implementation = stringField(quote, "implementationAddress").toLowerCase();
     const proxyKind = stringField(quote, "proxyKind");
-    if (proxyKind === "ERC1967") {
-      const expectedImplementationWord = `0x${addressWord(implementation)}`;
-      const storedImplementation = storage.get(`${token}:${ERC1967_IMPLEMENTATION_SLOT}`);
-      if (storedImplementation !== expectedImplementationWord) {
-        fail(`quoteAssets.${index}.implementationSlot`, expectedImplementationWord, storedImplementation);
+    if (proxyKind !== "NONE") fail(`quoteAssets.${index}.proxyKind`, "NONE", proxyKind);
+    if (token !== implementation) fail(`quoteAssets.${index}.implementationAddress`, token, implementation);
+    same(
+      `quoteAssets.${index}.implementationCodeHash`,
+      stringField(quote, "runtimeCodeHash"),
+      stringField(quote, "implementationCodeHash"),
+    );
+    const decimalsHash = getters.get(`${token}:${callData("decimals()").toLowerCase()}`);
+    const expectedDecimalsHash = keccakHex(`0x${uintWord(BigInt(decimals))}`);
+    if (decimalsHash !== expectedDecimalsHash) {
+      fail(`quoteAssets.${index}.decimalsGetter`, expectedDecimalsHash, decimalsHash);
+    }
+    for (const [label, slot] of [
+      ["implementationSlot", ERC1967_IMPLEMENTATION_SLOT],
+      ["adminSlot", ERC1967_ADMIN_SLOT],
+      ["beaconSlot", ERC1967_BEACON_SLOT],
+    ] as const) {
+      const storedValue = storage.get(`${token}:${slot}`);
+      if (storedValue !== ZERO_STORAGE_WORD) {
+        fail(`quoteAssets.${index}.${label}`, ZERO_STORAGE_WORD, storedValue);
       }
-    } else if (proxyKind === "BEACON") {
-      const linkage = manifest.livePreflight.keyGetterChecks.some(
-        (check) => check.category === "PROXY_OR_BEACON_LINKAGE" && stringField(check, "target").toLowerCase() === token,
-      );
-      if (!linkage) throw new Error(`V1 live preflight quoteAssets.${index} lacks beacon linkage getter`);
-    } else if (proxyKind === "NONE" && token !== implementation) {
-      fail(`quoteAssets.${index}.implementationAddress`, token, implementation);
-    } else if (proxyKind === "OTHER_VERIFIED") {
-      const linkage = manifest.livePreflight.keyGetterChecks.some(
-        (check) => check.category === "PROXY_OR_BEACON_LINKAGE" && stringField(check, "target").toLowerCase() === token,
-      );
-      if (!linkage) throw new Error(`V1 live preflight quoteAssets.${index} lacks verified implementation linkage`);
     }
   }
 }
@@ -759,6 +803,7 @@ export async function verifyV1LiveState(candidate: unknown, rpc: V1ReadOnlyRpc):
   verifyCreate2Evidence(manifest);
   verifyLaunchConfigResolverEvidence(manifest);
   verifyTreasuryBindingEvidence(manifest);
+  verifyRegistryAuthorityEvidence(manifest);
   verifyProxyEvidence(manifest);
   comparePermissionSemantics(manifest);
   const expectedChainId = BigInt(numberField(manifest.chain, "chainId"));
@@ -778,6 +823,11 @@ export async function verifyV1LiveState(candidate: unknown, rpc: V1ReadOnlyRpc):
   same("chain.finalizedBlockHash", blockHash, stringField(block, "hash"));
 
   const codeExpectations = collectCodeExpectations(manifest);
+  const immutableQuoteTokens = new Set(
+    manifest.quoteAssets
+      .filter((quote) => quote.assetKind === "ERC20")
+      .map((quote) => stringField(quote, "tokenAddress").toLowerCase()),
+  );
   for (const check of [
     ...manifest.livePreflight.keyGetterChecks,
     ...manifest.livePreflight.storageChecks,
@@ -791,6 +841,14 @@ export async function verifyV1LiveState(candidate: unknown, rpc: V1ReadOnlyRpc):
     const code = normalizedHex(await rpc.request("eth_getCode", [address, blockTag]), `eth_getCode:${address}`);
     if (code === "0x") throw new Error(`V1 live preflight empty code at ${address} (${expectation.labels.join(", ")})`);
     same(`runtimeCodeHash:${expectation.labels.join("+")}`, expectation.hash, keccakHex(code));
+    if (immutableQuoteTokens.has(address)) {
+      const opcode = forbiddenImmutableQuoteOpcode(code);
+      if (opcode !== undefined) {
+        throw new Error(
+          `V1 live preflight immutable Quote runtime contains forbidden opcode 0x${opcode.toString(16).padStart(2, "0")} at ${address}`,
+        );
+      }
+    }
   }
 
   let getterChecks = 0;

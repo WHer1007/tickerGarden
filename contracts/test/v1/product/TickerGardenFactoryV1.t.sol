@@ -53,6 +53,7 @@ contract FactoryConfigRegistryMock {
     mapping(bytes32 => bytes32) private _templateHashes;
     mapping(address => bytes32) private _vaultSchemaIds;
     mapping(bytes32 => address) private _vaultsBySchema;
+    bool private _quoteIdentityIsCurrent = true;
 
     function setAsset(bytes32 id, AssetView memory value) external {
         _assets[id] = value;
@@ -60,6 +61,10 @@ contract FactoryConfigRegistryMock {
 
     function setQuote(bytes32 id, QuoteAssetConfig memory value) external {
         _quotes[id] = value;
+    }
+
+    function setQuoteIdentityCurrent(bool current) external {
+        _quoteIdentityIsCurrent = current;
     }
 
     function setBaseline(bytes32 id, PonsBaseline memory value) external {
@@ -95,6 +100,10 @@ contract FactoryConfigRegistryMock {
 
     function quoteConfig(bytes32 id) external view returns (QuoteAssetConfig memory) {
         return _quotes[id];
+    }
+
+    function quoteIdentityCurrent(bytes32) external view returns (bool) {
+        return _quoteIdentityIsCurrent;
     }
 
     function baseline(bytes32 id) external view returns (PonsBaseline memory) {
@@ -137,21 +146,36 @@ contract FactoryDependencyMock {
 contract FactoryCurveFeeVaultMock {
     uint256 public credited;
 
-    function creditCurveSweep(bytes32, address quoteAsset, uint256 amount, uint32, uint64, bytes32) external payable {
+    function beginCurveCredit(bytes32, address, uint256, uint32, uint64, bytes32) external {}
+
+    function finalizeCurveCredit(bytes32, address quoteAsset, uint256 amount, uint32, uint64, bytes32)
+        external
+        payable
+    {
         require(msg.value == (quoteAsset == address(0) ? amount : 0), "INVALID_SWEEP_VALUE");
         credited += amount;
     }
 }
 
 contract FactoryGraduationExecutorMock {
+    IMarketRegistryV1 public marketRegistry;
+
     receive() external payable {}
+
+    function setMarketRegistry(IMarketRegistryV1 value) external {
+        require(address(marketRegistry) == address(0), "REGISTRY_ALREADY_SET");
+        marketRegistry = value;
+    }
 
     function predictLaunchLocker(bytes32 marketId) external view returns (address) {
         return address(uint160(uint256(keccak256(abi.encode("LOCKER", address(this), marketId)))));
     }
 
-    function graduateFromCurve(bytes32) external pure {
-        revert("GRADUATION_NOT_IMPLEMENTED");
+    function graduateFromCurve(bytes32 marketId, uint256 quoteAmount, uint256) external payable {
+        MarketView memory value = marketRegistry.market(marketId);
+        require(value.config.curve == msg.sender, "INVALID_CURVE");
+        require(msg.value == (value.config.quoteAsset == address(0) ? quoteAmount : 0), "INVALID_VALUE");
+        marketRegistry.commitPoolCreated(marketId, keccak256(abi.encode(marketRegistry.canonicalPoolKey(marketId))));
     }
 }
 
@@ -269,7 +293,7 @@ contract TickerGardenFactoryV1Test is Test {
     bytes32 internal constant TEMPLATE_ID = keccak256("factory-template");
     bytes32 internal constant TEMPLATE_HASH = keccak256("factory-template-content");
     bytes32 internal constant FEE_POLICY_ID = keccak256("factory-fee-policy");
-    bytes32 internal constant EXECUTION_SPEC_ID = keccak256("V1-EXEC-8");
+    bytes32 internal constant EXECUTION_SPEC_ID = keccak256("V1-EXEC-9");
     bytes32 internal constant VAULT_SCHEMA_ID = keccak256("TickerGarden.UserStockVault.MultiAsset.v6");
     uint256 internal constant LAUNCH_FEE = 500_000_000_000_000;
     uint256 internal constant SUPPLY = 1_000_000_000 ether;
@@ -323,6 +347,7 @@ contract TickerGardenFactoryV1Test is Test {
             address(stockVault),
             address(allocationManager)
         );
+        graduation.setMarketRegistry(marketRegistry);
         revenueRegistry = new CreatorRevenueRegistry(predictedFactory, address(marketRegistry));
         factory = deployer.deploy(_factoryInit());
         assertEq(address(factory), predictedFactory);

@@ -12,7 +12,7 @@ export interface CanonicalBlock {
 
 export interface IndexerCheckpoint {
   readonly schemaVersion: 1;
-  readonly executionSpecId: "V1-EXEC-8";
+  readonly executionSpecId: "V1-EXEC-9";
   readonly chainId: number;
   readonly startBlock: bigint;
   readonly anchorParentHash: string;
@@ -47,7 +47,7 @@ export function decodeCheckpoint(encoded: string): IndexerCheckpoint {
   const parsed: unknown = JSON.parse(encoded, bigintReviver);
   if (
     typeof parsed !== "object" || parsed === null || !("schemaVersion" in parsed) || parsed.schemaVersion !== 1 ||
-    !("executionSpecId" in parsed) || parsed.executionSpecId !== "V1-EXEC-8"
+    !("executionSpecId" in parsed) || parsed.executionSpecId !== "V1-EXEC-9"
   ) {
     throw new Error("unsupported or malformed V1 indexer checkpoint");
   }

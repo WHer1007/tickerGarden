@@ -21,7 +21,7 @@ contract LaunchLockerRegistryMock {
                 quoteAssetConfigId: bytes32("QUOTE"),
                 launchTemplateId: bytes32("TEMPLATE"),
                 feePolicyId: bytes32("FEE"),
-                executionSpecId: keccak256("V1-EXEC-8"),
+                executionSpecId: keccak256("V1-EXEC-9"),
                 expectedEconomics: bytes32("ECON"),
                 launchConfigId: 0,
                 creatorRevenueBeneficiaryAtCreation: address(0xBEEF),
@@ -31,7 +31,7 @@ contract LaunchLockerRegistryMock {
                 quoteAsset: address(0x2000),
                 graduatedHook: address(0x2044)
             }),
-            runtime: MarketRuntime({poolId: existingPool, sourceVersion: 1, sweptAt: 1, launchPhase: phase})
+            runtime: MarketRuntime({poolId: existingPool, sourceVersion: 1, launchPhase: phase})
         });
         _key = PoolKey({
             currency0: address(0x2000), currency1: address(0x3000), fee: 0, tickSpacing: 200, hooks: address(0x2044)
@@ -105,7 +105,7 @@ contract LaunchLockerBindingTest is Test {
         registry = new LaunchLockerRegistryMock();
         positionManager = new LaunchLockerPositionManagerMock();
         deployer = new LaunchLockerDeployerHarness();
-        registry.configure(address(deployer), MARKET_ID, 1, bytes32(0));
+        registry.configure(address(deployer), MARKET_ID, 0, bytes32(0));
     }
 
     function test_predictionIsStableWhileConstructorBindsCurrentNextTokenId() public {
@@ -141,7 +141,7 @@ contract LaunchLockerBindingTest is Test {
     }
 
     function test_onlyRegistryExecutorCanDeployTheBinding() public {
-        registry.configure(address(0xBEEF), MARKET_ID, 1, bytes32(0));
+        registry.configure(address(0xBEEF), MARKET_ID, 0, bytes32(0));
         vm.expectRevert(
             abi.encodeWithSelector(
                 LaunchLockerBinding.UnauthorizedLaunchLockerDeployer.selector, address(this), address(0xBEEF)
@@ -150,14 +150,14 @@ contract LaunchLockerBindingTest is Test {
         new LaunchLockerBindingHarness(MARKET_ID, address(registry), address(positionManager));
     }
 
-    function test_onlySweptMarketWithValidProspectiveTokenCanBind() public {
-        registry.configure(address(this), MARKET_ID, 0, bytes32(0));
+    function test_onlyNotGraduatedMarketWithValidProspectiveTokenCanBind() public {
+        registry.configure(address(this), MARKET_ID, 1, bytes32(0));
         vm.expectRevert(
-            abi.encodeWithSelector(LaunchLockerBinding.LaunchLockerMarketNotSwept.selector, MARKET_ID, uint8(0))
+            abi.encodeWithSelector(LaunchLockerBinding.LaunchLockerMarketAlreadyGraduated.selector, MARKET_ID, uint8(1))
         );
         new LaunchLockerBindingHarness(MARKET_ID, address(registry), address(positionManager));
 
-        registry.configure(address(this), MARKET_ID, 1, bytes32(0));
+        registry.configure(address(this), MARKET_ID, 0, bytes32(0));
         positionManager.setNextTokenId(0);
         vm.expectRevert(abi.encodeWithSelector(LaunchLockerBinding.InvalidProspectivePositionId.selector, uint256(0)));
         new LaunchLockerBindingHarness(MARKET_ID, address(registry), address(positionManager));

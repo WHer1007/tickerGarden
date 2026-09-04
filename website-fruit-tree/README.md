@@ -13,6 +13,10 @@
 - `stats.html`：统计
 - `faq.html`：FAQ 与边界说明
 - `rewards.html`：Rewards（保持名称），承载 Position、Staker、Creator、Treasury
+- `privacy.html`：Privacy Policy 预发布法律草案
+- `terms.html`：Terms of Use 预发布法律草案
+
+Privacy 与 Terms 已按正式页面接入全站页脚，但在运营主体、法定联系邮箱、适用法律、争议解决机制和地区准入规则经律师确认前，必须保持 `Pre-launch legal draft` 标识，不能作为已经生效的最终法律文本发布。
 
 ## 真实接入能力
 

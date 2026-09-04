@@ -50,7 +50,7 @@ contract TreasuryDistributorV1AccessManagerTest is Test {
             "ipfs://treasury-access",
             1_000_000 ether
         );
-        marketRegistry.setMarket(MARKET_ID, address(meme), address(quote), 2);
+        marketRegistry.setMarket(MARKET_ID, address(meme), address(quote), 1);
         _configureAndFreezeAccessManager();
     }
 

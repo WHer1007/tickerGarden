@@ -12,7 +12,7 @@ export const ADDRESS_PATTERN = /^0x[0-9a-f]{40}$/;
 export const BYTES32_PATTERN = /^0x[0-9a-f]{64}$/;
 export const MAX_UINT256 = (1n << 256n) - 1n;
 
-export const PHASE_LABELS = ["Curve", "Swept", "Pool", "Rescued"] as const;
+export const PHASE_LABELS = ["Not Graduated", "Pool Created"] as const;
 
 export function phaseLabel(phase: number): string {
   return PHASE_LABELS[phase] ?? `Phase ${phase}`;

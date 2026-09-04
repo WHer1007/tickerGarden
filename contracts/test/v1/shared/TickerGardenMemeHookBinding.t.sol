@@ -124,7 +124,7 @@ contract TickerGardenMemeHookBindingTest is Test {
         deployer = new HookCreate2Deployer();
         hook = _deployHook(address(registry), address(poolManager), address(feeVault), address(graduation));
         key = PoolKey({currency0: QUOTE, currency1: MEME, fee: 0, tickSpacing: 60, hooks: address(hook)});
-        _configure(1, bytes32(0), key);
+        _configure(0, bytes32(0), key);
     }
 
     function test_create2DeploymentHasExactlyTheFrozenPermissionBits() public view {
@@ -188,16 +188,20 @@ contract TickerGardenMemeHookBindingTest is Test {
         );
         graduation.register(hook, MARKET_ID, key, 1);
 
-        _configure(0, bytes32(0), key);
+        _configure(1, bytes32(0), key);
         vm.expectRevert();
         graduation.register(hook, MARKET_ID, key, 2);
 
-        _configure(1, bytes32(0), key);
+        _configure(2, bytes32(0), key);
+        vm.expectRevert();
+        graduation.register(hook, MARKET_ID, key, 2);
+
+        _configure(0, bytes32(0), key);
         assertEq(graduation.register(hook, MARKET_ID, key, 2), keccak256(abi.encode(key)));
     }
 
     function test_sourceVersionOverflowFailsClosed() public {
-        _configure(1, bytes32(0), key, type(uint32).max);
+        _configure(0, bytes32(0), key, type(uint32).max);
         vm.expectRevert(
             abi.encodeWithSelector(
                 TickerGardenMemeHookBinding.HookSourceVersionOverflow.selector, MARKET_ID, type(uint32).max
@@ -225,7 +229,7 @@ contract TickerGardenMemeHookBindingTest is Test {
 
         PoolKey memory wrongCanonical = key;
         wrongCanonical.tickSpacing = 120;
-        _configure(1, bytes32(0), wrongCanonical);
+        _configure(0, bytes32(0), wrongCanonical);
         _expectInvalidKey(key);
     }
 
@@ -252,7 +256,7 @@ contract TickerGardenMemeHookBindingTest is Test {
 
     function test_activeGuardUsesStoredBindingAndIgnoresUntrustedHookData() public {
         bytes32 poolId = graduation.register(hook, MARKET_ID, key, 2);
-        _configure(2, poolId, key, 2);
+        _configure(1, poolId, key, 2);
         graduation.activate(hook, poolId);
 
         (bytes4 selector, int128 delta) = poolManager.swap(hook, key, abi.encode(MARKET_ID, address(0xBAD)));
@@ -262,7 +266,7 @@ contract TickerGardenMemeHookBindingTest is Test {
 
     function test_activeGuardRejectsWrongFullKeyAndRegistrySourceDrift() public {
         bytes32 poolId = graduation.register(hook, MARKET_ID, key, 2);
-        _configure(2, poolId, key, 2);
+        _configure(1, poolId, key, 2);
         graduation.activate(hook, poolId);
 
         PoolKey memory changed = key;
@@ -270,7 +274,7 @@ contract TickerGardenMemeHookBindingTest is Test {
         vm.expectRevert();
         poolManager.swap(hook, changed, "");
 
-        _configure(2, poolId, key, 3);
+        _configure(1, poolId, key, 3);
         vm.expectRevert(
             abi.encodeWithSelector(TickerGardenMemeHookBinding.InactiveFeeSource.selector, MARKET_ID, uint32(2))
         );

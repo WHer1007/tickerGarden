@@ -17,7 +17,7 @@ interface ILaunchLockerPositionOwner {
 /// @dev The token id is deliberately read during CREATE2 construction rather than included in init code. This keeps
 ///      the Factory-time predicted address stable while letting the graduation transaction bind the next real v4 NFT.
 abstract contract LaunchLockerBinding {
-    uint8 private constant LAUNCH_PHASE_SWEPT = 1;
+    uint8 private constant LAUNCH_PHASE_NOT_GRADUATED = 0;
 
     bytes32 private immutable _lockerMarketId;
     bytes32 private immutable _lockerPoolId;
@@ -28,7 +28,7 @@ abstract contract LaunchLockerBinding {
 
     error InvalidLaunchLockerBinding(bytes32 marketId, address marketRegistry, address positionManager);
     error UnauthorizedLaunchLockerDeployer(address caller, address expectedExecutor);
-    error LaunchLockerMarketNotSwept(bytes32 marketId, uint8 launchPhase);
+    error LaunchLockerMarketAlreadyGraduated(bytes32 marketId, uint8 launchPhase);
     error InvalidProspectivePositionId(uint256 tokenId);
     error LockedPositionNotOwned(uint256 tokenId, address actualOwner);
 
@@ -43,8 +43,8 @@ abstract contract LaunchLockerBinding {
 
         IMarketRegistryV1 registry = IMarketRegistryV1(marketRegistry_);
         MarketView memory value = registry.market(marketId_);
-        if (value.runtime.launchPhase != LAUNCH_PHASE_SWEPT || value.runtime.poolId != bytes32(0)) {
-            revert LaunchLockerMarketNotSwept(marketId_, value.runtime.launchPhase);
+        if (value.runtime.launchPhase != LAUNCH_PHASE_NOT_GRADUATED || value.runtime.poolId != bytes32(0)) {
+            revert LaunchLockerMarketAlreadyGraduated(marketId_, value.runtime.launchPhase);
         }
 
         bytes32 poolId = registry.canonicalPoolId(marketId_);

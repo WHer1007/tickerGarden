@@ -36,7 +36,7 @@ contract LaunchLockerRegistryMock {
                 quoteAssetConfigId: keccak256("locker-quote"),
                 launchTemplateId: keccak256("locker-template"),
                 feePolicyId: keccak256("locker-fee"),
-                executionSpecId: keccak256("V1-EXEC-8"),
+                executionSpecId: keccak256("V1-EXEC-9"),
                 expectedEconomics: keccak256("locker-economics"),
                 launchConfigId: 0,
                 creatorRevenueBeneficiaryAtCreation: address(0xBEEF),
@@ -46,7 +46,7 @@ contract LaunchLockerRegistryMock {
                 quoteAsset: quote,
                 graduatedHook: hook
             }),
-            runtime: MarketRuntime({poolId: bytes32(0), sourceVersion: 1, sweptAt: 1, launchPhase: 1})
+            runtime: MarketRuntime({poolId: bytes32(0), sourceVersion: 1, launchPhase: 0})
         });
     }
 

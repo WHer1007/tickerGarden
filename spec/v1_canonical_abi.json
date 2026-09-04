@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "executionSpecId": "V1-EXEC-8",
+  "executionSpecId": "V1-EXEC-9",
   "sourceAbi": "v1_abi_surface.json",
   "sourcePermissions": "v1_permissions_matrix.json",
   "selectorRule": "bytes4(keccak256(bytes(canonicalSignature)))",
@@ -281,19 +281,6 @@
     },
     {
       "module": "MarketRegistryV1",
-      "displaySignature": "markSwept(bytes32)",
-      "canonicalSignature": "markSwept(bytes32)",
-      "selector": "0x9f38a1cf",
-      "selectorHash": "FIRST_4_BYTES_OF_KECCAK256_CANONICAL_SIGNATURE",
-      "caller": "EXACT_REGISTERED_CURVE",
-      "executionDelaySeconds": 0,
-      "stateDelaySeconds": 0,
-      "stateDelayAnchor": "NONE",
-      "precondition": "NotGraduated_AND_FINAL_SETTLEMENT_AND_FINAL_SWEEP_COMPLETE",
-      "recipient": "none"
-    },
-    {
-      "module": "MarketRegistryV1",
       "displaySignature": "commitPoolCreated(bytes32,bytes32)",
       "canonicalSignature": "commitPoolCreated(bytes32,bytes32)",
       "selector": "0x7be4ff2a",
@@ -302,21 +289,8 @@
       "executionDelaySeconds": 0,
       "stateDelaySeconds": 0,
       "stateDelayAnchor": "NONE",
-      "precondition": "Swept_AND_CANONICAL_POOL_ACTIVE_AND_LP_PERMANENTLY_LOCKED",
+      "precondition": "NotGraduated_AND_CANONICAL_POOL_ACTIVE_AND_LP_PERMANENTLY_LOCKED_IN_SAME_TRANSACTION",
       "recipient": "none"
-    },
-    {
-      "module": "MarketRegistryV1",
-      "displaySignature": "markRescued(bytes32)",
-      "canonicalSignature": "markRescued(bytes32)",
-      "selector": "0xc74267ed",
-      "selectorHash": "FIRST_4_BYTES_OF_KECCAK256_CANONICAL_SIGNATURE",
-      "caller": "GRADUATION_MODULE",
-      "executionDelaySeconds": 0,
-      "stateDelaySeconds": 604800,
-      "stateDelayAnchor": "MARKET_RUNTIME_SWEPT_AT",
-      "precondition": "Swept_AND_BLOCK_TIMESTAMP_GTE_SWEPT_AT_PLUS_604800",
-      "recipient": "baseline_fixed_refund_path"
     },
     {
       "module": "LaunchAndBuyRouter",
@@ -601,8 +575,8 @@
       "executionDelaySeconds": 0,
       "stateDelaySeconds": 0,
       "stateDelayAnchor": "NONE",
-      "precondition": "VAULT_REWARD_SETTLEMENT_TOMBSTONE_EXISTS; EXIT_COHORT_UNCHANGED_FOR_REDISTRIBUTION_ELSE_RESERVE; PERMISSIONLESS_IDEMPOTENT_RETRY",
-      "recipient": "remaining_active_stakers_or_forfeiture_reserve"
+      "precondition": "VAULT_REWARD_SETTLEMENT_TOMBSTONE_EXISTS; ALL_ESCAPE_REWARDS_PLATFORM_FORFEITED; PERMISSIONLESS_IDEMPOTENT_RETRY",
+      "recipient": "market_asset_forfeiture_reserves"
     },
     {
       "module": "AllocationManager",
@@ -666,8 +640,8 @@
       "executionDelaySeconds": 0,
       "stateDelaySeconds": 0,
       "stateDelayAnchor": "NONE",
-      "precondition": "FIXED_USER_FULL_POSITION; VAULT_EXIT_COHORT_SNAPSHOT; EXIT_COHORT_UNCHANGED_FOR_REDISTRIBUTION_ELSE_RESERVE; NO_ADMINISTRATIVE_DISABLE_GATE",
-      "recipient": "remaining_active_stakers_or_forfeiture_reserve"
+      "precondition": "FIXED_USER_FULL_POSITION; ALL_UNCLAIMED_REWARDS_PLATFORM_FORFEITED; NO_ADMINISTRATIVE_DISABLE_GATE",
+      "recipient": "market_asset_forfeiture_reserves"
     },
     {
       "module": "MemeStockGauge",
@@ -814,15 +788,28 @@
     },
     {
       "module": "ProtocolFeeVault",
-      "displaySignature": "creditCurveSweep(bytes32,address,uint256,uint32,uint64,bytes32)",
-      "canonicalSignature": "creditCurveSweep(bytes32,address,uint256,uint32,uint64,bytes32)",
-      "selector": "0xa38d2465",
+      "displaySignature": "beginCurveCredit(bytes32,address,uint256,uint32,uint64,bytes32)",
+      "canonicalSignature": "beginCurveCredit(bytes32,address,uint256,uint32,uint64,bytes32)",
+      "selector": "0x510e6f03",
       "selectorHash": "FIRST_4_BYTES_OF_KECCAK256_CANONICAL_SIGNATURE",
       "caller": "EXACT_REGISTERED_CURVE",
       "executionDelaySeconds": 0,
       "stateDelaySeconds": 0,
       "stateDelayAnchor": "NONE",
       "precondition": "CALLER_EQUALS_REGISTERED_CURVE_SOURCE_VERSION_MATCHES_AND_SWEEP_PRECEDES_MARK_SWEPT",
+      "recipient": "none"
+    },
+    {
+      "module": "ProtocolFeeVault",
+      "displaySignature": "finalizeCurveCredit(bytes32,address,uint256,uint32,uint64,bytes32)",
+      "canonicalSignature": "finalizeCurveCredit(bytes32,address,uint256,uint32,uint64,bytes32)",
+      "selector": "0x68f6aabe",
+      "selectorHash": "FIRST_4_BYTES_OF_KECCAK256_CANONICAL_SIGNATURE",
+      "caller": "EXACT_REGISTERED_CURVE",
+      "executionDelaySeconds": 0,
+      "stateDelaySeconds": 0,
+      "stateDelayAnchor": "NONE",
+      "precondition": "MATCHING_BEGIN_AND_EXACT_BALANCE_DELTA",
       "recipient": "creator_and_platform"
     },
     {
@@ -887,47 +874,21 @@
       "executionDelaySeconds": 0,
       "stateDelaySeconds": 0,
       "stateDelayAnchor": "NONE",
-      "precondition": "NO_EXIT_TIME_ACTIVE_STAKER_OR_EXIT_COHORT_CHANGED; AMOUNT_LE_STAKER_LIABILITY",
+      "precondition": "ESCAPE_REWARD_FORFEITURE_ONLY; AMOUNT_LE_STAKER_LIABILITY",
       "recipient": "market_asset_forfeiture_reserves"
     },
     {
       "module": "GraduationExecutor",
-      "displaySignature": "graduateFromCurve(bytes32)",
-      "canonicalSignature": "graduateFromCurve(bytes32)",
-      "selector": "0x1fb4d3b8",
+      "displaySignature": "graduateFromCurve(bytes32,uint256,uint256)",
+      "canonicalSignature": "graduateFromCurve(bytes32,uint256,uint256)",
+      "selector": "0xa32a0e26",
       "selectorHash": "FIRST_4_BYTES_OF_KECCAK256_CANONICAL_SIGNATURE",
       "caller": "EXACT_REGISTERED_CURVE",
       "executionDelaySeconds": 0,
       "stateDelaySeconds": 0,
       "stateDelayAnchor": "NONE",
-      "precondition": "Swept_AND_CALLER_MATCHES_MARKET_CURVE_AND_ASSETS_ALREADY_ESCROWED",
+      "precondition": "NotGraduated_AND_CALLER_MATCHES_MARKET_CURVE_AND_EXACT_ASSETS_RECEIVED_IN_SAME_TRANSACTION",
       "recipient": "canonical_per_market_launch_locker"
-    },
-    {
-      "module": "GraduationExecutor",
-      "displaySignature": "retryGraduation(bytes32)",
-      "canonicalSignature": "retryGraduation(bytes32)",
-      "selector": "0x6db204b0",
-      "selectorHash": "FIRST_4_BYTES_OF_KECCAK256_CANONICAL_SIGNATURE",
-      "caller": "PUBLIC",
-      "executionDelaySeconds": 0,
-      "stateDelaySeconds": 0,
-      "stateDelayAnchor": "NONE",
-      "precondition": "Swept_AND_NOT_RESCUED_AND_ASSETS_ALREADY_ESCROWED",
-      "recipient": "canonical_per_market_launch_locker"
-    },
-    {
-      "module": "GraduationExecutor",
-      "displaySignature": "rescueSweptLaunch(bytes32)",
-      "canonicalSignature": "rescueSweptLaunch(bytes32)",
-      "selector": "0x0fc21133",
-      "selectorHash": "FIRST_4_BYTES_OF_KECCAK256_CANONICAL_SIGNATURE",
-      "caller": "PUBLIC",
-      "executionDelaySeconds": 0,
-      "stateDelaySeconds": 604800,
-      "stateDelayAnchor": "MARKET_RUNTIME_SWEPT_AT",
-      "precondition": "Swept_AND_BLOCK_TIMESTAMP_GTE_SWEPT_AT_PLUS_604800",
-      "recipient": "baseline_fixed_refund_path"
     },
     {
       "module": "CreatorRevenueRegistry",
@@ -1170,6 +1131,12 @@
     },
     {
       "module": "ApprovedQuoteRegistry",
+      "displayEvent": "QuoteAssetIdentityPinned(bytes32 indexed configId,address indexed quoteAsset,bytes32 runtimeCodeHash)",
+      "canonicalSignature": "QuoteAssetIdentityPinned(bytes32,address,bytes32)",
+      "topic0": "0xbdcd70301642de13679a8c38d9817e551a27fa61ae65190e8c11d16d3806ab32"
+    },
+    {
+      "module": "ApprovedQuoteRegistry",
       "displayEvent": "QuoteAssetStatusChanged(bytes32 indexed configId,uint8 oldStatus,uint8 newStatus,bytes32 reasonHash)",
       "canonicalSignature": "QuoteAssetStatusChanged(bytes32,uint8,uint8,bytes32)",
       "topic0": "0x80af1665440e10f4ab09a88bf0fc7a45a994da5c825d9a824059e93bf93f236b"
@@ -1212,9 +1179,9 @@
     },
     {
       "module": "MarketRegistryV1",
-      "displayEvent": "LaunchPhaseChanged(bytes32 indexed marketId,uint8 oldPhase,uint8 newPhase,uint64 sweptAt,bytes32 poolId,uint32 sourceVersion)",
-      "canonicalSignature": "LaunchPhaseChanged(bytes32,uint8,uint8,uint64,bytes32,uint32)",
-      "topic0": "0xa9de32d9c6b723daa51867ebd59d5f4b059487b17bafd13221c8ac601328d491"
+      "displayEvent": "LaunchPhaseChanged(bytes32 indexed marketId,uint8 oldPhase,uint8 newPhase,bytes32 poolId,uint32 sourceVersion)",
+      "canonicalSignature": "LaunchPhaseChanged(bytes32,uint8,uint8,bytes32,uint32)",
+      "topic0": "0x59c469a64ab7ac0450b678fe316c1913a100ae0e91989e692f09e8eeee5eea96"
     },
     {
       "module": "TickerMemeTokenV1",
@@ -1263,18 +1230,6 @@
       "displayEvent": "CurveFeeTransferred(bytes32 indexed marketId,uint64 indexed sweepNonce,bytes32 indexed feeId,uint256 amount)",
       "canonicalSignature": "CurveFeeTransferred(bytes32,uint64,bytes32,uint256)",
       "topic0": "0xd62dfe58ba50b57bf5eda81549d26d747301a59d8f9f0b3de5adc69823b285f1"
-    },
-    {
-      "module": "PonsCompatibleCurve",
-      "displayEvent": "LaunchSwept(bytes32 indexed marketId,address indexed quoteAsset,uint256 sweptQuote,uint256 sweptTokens,uint64 sweptAt)",
-      "canonicalSignature": "LaunchSwept(bytes32,address,uint256,uint256,uint64)",
-      "topic0": "0x0207c5619241e902ffe71da285c24f31b03a359ecc94b30e4fdc5be6375f1ee4"
-    },
-    {
-      "module": "PonsCompatibleCurve",
-      "displayEvent": "AutoGraduationFailed(bytes32 indexed marketId,bytes32 reasonHash)",
-      "canonicalSignature": "AutoGraduationFailed(bytes32,bytes32)",
-      "topic0": "0xabcc1adccd81c00028588cedc64e5537d1c67b6a7e178dad8d15cc8a1fede714"
     },
     {
       "module": "UserStockVault",
@@ -1368,12 +1323,6 @@
     },
     {
       "module": "MemeStockGauge",
-      "displayEvent": "ForfeitedRewardRedistributed(bytes32 indexed marketId,address indexed user,address indexed feeAsset,uint256 amount,uint256 accumulatorDelta,uint256 indexRemainder)",
-      "canonicalSignature": "ForfeitedRewardRedistributed(bytes32,address,address,uint256,uint256,uint256)",
-      "topic0": "0x523448271d08414d01a9d76d18efcd0e4efffa87649085d20448aa91760b94f0"
-    },
-    {
-      "module": "MemeStockGauge",
       "displayEvent": "GaugeRageQuit(address indexed user,bytes32 indexed marketId,uint256 principal,uint256 quoteForfeited,uint256 memeForfeited,bool redistributed)",
       "canonicalSignature": "GaugeRageQuit(address,bytes32,uint256,uint256,uint256,bool)",
       "topic0": "0x3513f56ba0f9c5368e47d68d309bbed39c99c93212df932575fc3a62bf584dbd"
@@ -1443,12 +1392,6 @@
       "displayEvent": "PoolGraduated(bytes32 indexed marketId,bytes32 indexed poolId,address indexed launchLocker,uint256 sweptQuote,uint256 sweptTokens,uint256 poolMemeAmount,uint256 lockedExcessMeme,uint32 sourceVersion)",
       "canonicalSignature": "PoolGraduated(bytes32,bytes32,address,uint256,uint256,uint256,uint256,uint32)",
       "topic0": "0x6e8ddf95f2ac66a897a0b83f2be9b253afafa77365c2cd517e1396ed28de2324"
-    },
-    {
-      "module": "GraduationExecutor",
-      "displayEvent": "LaunchRescued(bytes32 indexed marketId,uint64 sweptAt,uint64 rescuedAt)",
-      "canonicalSignature": "LaunchRescued(bytes32,uint64,uint64)",
-      "topic0": "0x731199ce421148d0c6bd97a611ce98a05d35e335a6a553bd21b3b48612c0753d"
     },
     {
       "module": "CreatorRevenueRegistry",

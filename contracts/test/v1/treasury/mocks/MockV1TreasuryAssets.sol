@@ -16,7 +16,7 @@ contract MockTreasuryMarketRegistryV1 {
         config.quoteAsset = quoteToken;
         _markets[marketId] = MarketView({
             config: config,
-            runtime: MarketRuntime({poolId: bytes32(0), sourceVersion: 1, sweptAt: 0, launchPhase: launchPhase})
+            runtime: MarketRuntime({poolId: bytes32(0), sourceVersion: 1, launchPhase: launchPhase})
         });
         _registered[marketId] = true;
     }

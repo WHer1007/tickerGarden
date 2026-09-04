@@ -43,7 +43,7 @@ function context(market: MarketReadModel, position: UserPositionReadModel, snaps
   bytes32(market.marketId); bytes32(position.marketId); bytes32(position.assetUid);
   address(market.memeToken); address(market.gauge); quoteAddress(market.quoteAsset); address(market.curve);
   if (market.marketId !== position.marketId || market.assetUid !== position.assetUid) throw new Error("position market identity mismatch");
-  if (snapshot.executionSpecId !== "V1-EXEC-8" || snapshot.syncStatus !== "synced" || !/^\d+:0x[0-9a-f]{64}$/.test(snapshot.revision)) throw new Error("snapshot is not reconciled");
+  if (snapshot.executionSpecId !== "V1-EXEC-9" || snapshot.syncStatus !== "synced" || !/^\d+:0x[0-9a-f]{64}$/.test(snapshot.revision)) throw new Error("snapshot is not reconciled");
   address(position.user);
   const reconciledBlock = snapshot.revision.split(":")[0] ?? "";
   if (!/^\d+$/.test(reconciledBlock)) throw new Error("invalid reconciled snapshot revision");
@@ -73,7 +73,7 @@ export function buildVaultView(market: MarketReadModel, position: UserPositionRe
   if (quote.asset.toLowerCase() !== market.quoteAsset.toLowerCase() || meme.asset.toLowerCase() !== market.memeToken.toLowerCase()) throw new Error("claimable asset mismatch");
   const unlockAt = position.unlockAt === null ? null : nonNegative(position.unlockAt);
   const unlocked = unlockAt !== null && nowSeconds >= unlockAt;
-  const operationalMarket = market.launchPhase === 2;
+  const operationalMarket = market.launchPhase === 1;
   const minimum = asset.minimumAllocation;
   // Rage Quit is the user's principal escape hatch. It is deliberately
   // independent of launch phase, unlock time, and allocation minimums; those
@@ -82,7 +82,7 @@ export function buildVaultView(market: MarketReadModel, position: UserPositionRe
   const canClaim = allocated === 0n || unlocked;
   return { free, allocated, pending, active, quoteClaimable, memeClaimable, minimumAllocationStock: minimum,
     pendingForSeconds: PENDING_SECONDS, unlockAfterSeconds: UNLOCK_SECONDS,
-    allocationOpen: asset.status === 1 && market.launchPhase === 2,
+    allocationOpen: asset.status === 1 && market.launchPhase === 1,
     canExit: canRageQuit || (allocated > 0n && operationalMarket && unlocked),
     canClose: allocated > 0n && operationalMarket && unlocked,
     canClaim, canRageQuit };

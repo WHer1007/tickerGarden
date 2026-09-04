@@ -49,7 +49,7 @@ test("derives all four readiness states only from ordered open gates", () => {
 });
 
 test("loads the canonical manifest and remains blocked by deployment gates", () => {
-  assert.equal(V1_EXECUTION_SPEC_ID, "V1-EXEC-8");
+  assert.equal(V1_EXECUTION_SPEC_ID, "V1-EXEC-9");
   assert.equal(v1Readiness.state, "IMPLEMENTATION_ALLOWED");
   assert.equal(v1Readiness.implementationAllowed, true);
   assert.equal(v1Readiness.deploymentEligible, false);
@@ -103,9 +103,17 @@ test("accepts only explicitly scoped zero sentinels", () => {
     ],
     marketInitialRuntime: {
       poolId: `0x${"0".repeat(64)}`,
-      sweptAt: 0,
     },
     poolBindingInitial: { status: 0 },
+    livePreflight: {
+      storageChecks: [
+        {
+          target: "0x72f1c5610d245c6fc4758b842f93f0f119a22e3d",
+          slot: "0x360894a13ba1a3210667c828492db98dca3e2076cc3735a920a3ca505d382bbc",
+          expectedValue: `0x${"0".repeat(64)}`,
+        },
+      ],
+    },
     modules: [
       {
         address: "0x72f1c5610d245c6fc4758b842f93f0f119a22e3d",
@@ -120,6 +128,18 @@ test("accepts only explicitly scoped zero sentinels", () => {
       referenceFixtureValues,
     ),
     [],
+  );
+
+  const unrecognizedZeroSlot = structuredClone(clean);
+  unrecognizedZeroSlot.livePreflight.storageChecks[0]!.slot =
+    "0x836aa117d9309e84ee102fb3e520195fecc5e515ec9e152d301e6033af5b05d9";
+  assert.deepEqual(
+    findProductionPlaceholderViolations(
+      unrecognizedZeroSlot,
+      productionPlaceholderPolicy,
+      referenceFixtureValues,
+    ).map((violation) => [violation.path, violation.code]),
+    [["$.livePreflight.storageChecks.0.expectedValue", "ZERO_ADDRESS_OR_HASH"]],
   );
 });
 

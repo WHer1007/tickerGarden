@@ -14,11 +14,11 @@ import {
 } from "../interfaces/IV1Protocol.sol";
 
 /// @notice Shared allocate/increase path for the final AllocationManager.
-/// @dev Quote status intentionally does not gate an existing PoolCreated market: V1-EXEC-8 limits later Quote
+/// @dev Quote status intentionally does not gate an existing PoolCreated market: V1-EXEC-9 limits later Quote
 ///      status changes to new-market admission. Deployed markets have no platform-controlled runtime status.
 abstract contract AllocationManagerIncreases is ReentrancyGuard {
     uint8 internal constant ASSET_STATUS_ACTIVE = 1;
-    uint8 internal constant LAUNCH_PHASE_POOL_CREATED = 2;
+    uint8 internal constant LAUNCH_PHASE_POOL_CREATED = 1;
     uint64 internal constant ACTIVATION_DELAY = 30 seconds;
     uint64 internal constant MINIMUM_LOCK = 24 hours;
 

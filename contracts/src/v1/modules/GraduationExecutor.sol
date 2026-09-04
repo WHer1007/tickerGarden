@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.26;
 
-import {GraduationExecutorRetryAndRescue} from "../shared/GraduationExecutorRetryAndRescue.sol";
+import {GraduationExecutorPoolExecution} from "../shared/GraduationExecutorPoolExecution.sol";
 import {LaunchLocker} from "./LaunchLocker.sol";
 
 /// @dev Runtime bytecode is the exact LaunchLocker creation code and exposes no callable ABI or mutable state.
@@ -13,8 +13,8 @@ contract LaunchLockerCreationCodeStore {
     }
 }
 
-/// @notice Canonical V1 graduation, retry, rescue, v4 pool creation, and permanent Locker deployment module.
-contract GraduationExecutor is GraduationExecutorRetryAndRescue {
+/// @notice Canonical atomic V1 graduation, v4 pool creation, and permanent Locker deployment module.
+contract GraduationExecutor is GraduationExecutorPoolExecution {
     address private immutable _lockerCreationCodeStore;
 
     constructor(
@@ -22,20 +22,8 @@ contract GraduationExecutor is GraduationExecutorRetryAndRescue {
         address quoteRegistry_,
         address poolManager_,
         address positionManager_,
-        address hook_,
-        address quoteDustRecipient_,
-        address rescueRecipient_
-    )
-        GraduationExecutorRetryAndRescue(
-            marketRegistry_,
-            quoteRegistry_,
-            poolManager_,
-            positionManager_,
-            hook_,
-            quoteDustRecipient_,
-            rescueRecipient_
-        )
-    {
+        address hook_
+    ) GraduationExecutorPoolExecution(marketRegistry_, quoteRegistry_, poolManager_, positionManager_, hook_) {
         _lockerCreationCodeStore = address(new LaunchLockerCreationCodeStore(type(LaunchLocker).creationCode));
     }
 

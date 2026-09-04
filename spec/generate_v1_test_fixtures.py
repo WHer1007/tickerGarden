@@ -70,15 +70,13 @@ def quote_fixture(config):
         }
         if config["assetKind"] == "NATIVE"
         else {
-            "kind": "EIP1967_PROXY",
-            "proxyRuntimeBytes": config["assetReview"]["proxyRuntimeBytes"],
-            "proxyRuntimeKeccak256": config["assetReview"]["proxyRuntimeKeccak256"],
-            "implementation": config["assetReview"]["implementation"],
-            "implementationRuntimeBytes": config["assetReview"]["implementationRuntimeBytes"],
-            "implementationRuntimeKeccak256": config["assetReview"][
-                "implementationRuntimeKeccak256"
-            ],
-            "preDeploymentFingerprintRecaptureRequired": True,
+            "kind": "IMMUTABLE_DIRECT_ERC20",
+            "runtimeBytes": config["assetReview"]["runtimeBytes"],
+            "runtimeKeccak256": config["assetReview"]["runtimeKeccak256"],
+            "implementation": config["quoteAsset"],
+            "implementationRuntimeKeccak256": config["assetReview"]["runtimeKeccak256"],
+            "proxyKind": "NONE",
+            "eip1967SlotsZeroRequired": True,
         }
     )
     return fixture
@@ -202,8 +200,8 @@ def build():
 def validate(fixture):
     if fixture["ponsBehavior"]["vectorCount"] != 14:
         raise ValueError("expected exactly 14 approved Pons behavior vectors")
-    if len(fixture["quoteFixtures"]) != 2:
-        raise ValueError("expected exactly two initial Quote fixtures")
+    if len(fixture["quoteFixtures"]) != 1:
+        raise ValueError("expected exactly one native initial Quote fixture")
     for quote in fixture["quoteFixtures"]:
         if quote["quoteAssetConfigId"] != quote["economicsHash"]:
             raise ValueError(f"{quote['label']} config id differs from economics hash")

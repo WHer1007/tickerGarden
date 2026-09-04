@@ -23,14 +23,10 @@ import {
 /// @notice Canonical immutable market snapshots, semantic transitions, and discovery for TickerGarden V1.
 contract MarketRegistryV1 is IMarketRegistryV1 {
     uint8 internal constant LAUNCH_PHASE_NOT_GRADUATED = 0;
-    uint8 internal constant LAUNCH_PHASE_SWEPT = 1;
-    uint8 internal constant LAUNCH_PHASE_POOL_CREATED = 2;
-    uint8 internal constant LAUNCH_PHASE_RESCUED = 3;
+    uint8 internal constant LAUNCH_PHASE_POOL_CREATED = 1;
     uint8 internal constant CONFIG_STATUS_ACTIVE = 1;
     uint160 internal constant REQUIRED_HOOK_PERMISSION_MASK = 0x2044;
-    uint64 internal constant RESCUE_DELAY_SECONDS = 7 days;
-
-    bytes32 public constant EXECUTION_SPEC_ID = keccak256("V1-EXEC-8");
+    bytes32 public constant EXECUTION_SPEC_ID = keccak256("V1-EXEC-9");
 
     address public immutable factory;
     address public immutable officialStockRegistry;
@@ -55,14 +51,10 @@ contract MarketRegistryV1 is IMarketRegistryV1 {
     error InvalidExecutionSpecId(bytes32 supplied);
     error InvalidPonsBaseline(bytes32 baselineId);
     error InvalidCanonicalPoolKey();
-    error BlockTimestampOverflow(uint256 timestamp);
-    error UnauthorizedMarketCurve(address caller, address expectedCurve);
     error UnauthorizedModule(address caller, address expectedModule);
     error InvalidStateTransition(uint8 currentState, uint8 requestedState);
     error InactiveFeeSource(bytes32 marketId, uint32 sourceVersion);
     error PoolNotExpected(bytes32 poolId);
-    error GraduationNotRetryable(bytes32 marketId, uint8 launchPhase);
-    error RescueDelayNotElapsed(uint64 readyAt);
     error InvalidRoutingDependencies(address swapRouter, address quoter);
     error InvalidCanonicalRoute(bytes32 marketId);
 
@@ -109,33 +101,17 @@ contract MarketRegistryV1 is IMarketRegistryV1 {
         _registeredMarkets[marketId] = true;
         _marketConfigs[marketId] = config;
         _marketRuntimes[marketId] =
-            MarketRuntime({poolId: bytes32(0), sourceVersion: 1, sweptAt: 0, launchPhase: LAUNCH_PHASE_NOT_GRADUATED});
+            MarketRuntime({poolId: bytes32(0), sourceVersion: 1, launchPhase: LAUNCH_PHASE_NOT_GRADUATED});
         _marketIdsByToken[config.memeToken] = marketId;
 
         emit MarketRegistered(marketId, config.assetUid, config.memeToken, config.curve, config.gauge, 1);
-    }
-
-    function markSwept(bytes32 marketId) external override {
-        _requireRegistered(marketId);
-        MarketConfig storage config = _marketConfigs[marketId];
-        if (msg.sender != config.curve) revert UnauthorizedMarketCurve(msg.sender, config.curve);
-        MarketRuntime storage runtime = _marketRuntimes[marketId];
-        if (runtime.launchPhase != LAUNCH_PHASE_NOT_GRADUATED) {
-            revert InvalidStateTransition(runtime.launchPhase, LAUNCH_PHASE_SWEPT);
-        }
-
-        runtime.launchPhase = LAUNCH_PHASE_SWEPT;
-        runtime.sweptAt = _currentTimestamp();
-        emit LaunchPhaseChanged(
-            marketId, LAUNCH_PHASE_NOT_GRADUATED, LAUNCH_PHASE_SWEPT, runtime.sweptAt, bytes32(0), runtime.sourceVersion
-        );
     }
 
     function commitPoolCreated(bytes32 marketId, bytes32 poolId) external override returns (uint32 sourceVersion) {
         _requireGraduationExecutor();
         _requireRegistered(marketId);
         MarketRuntime storage runtime = _marketRuntimes[marketId];
-        if (runtime.launchPhase != LAUNCH_PHASE_SWEPT) {
+        if (runtime.launchPhase != LAUNCH_PHASE_NOT_GRADUATED) {
             revert InvalidStateTransition(runtime.launchPhase, LAUNCH_PHASE_POOL_CREATED);
         }
         if (poolId == bytes32(0) || poolId != _canonicalPoolId(marketId)) revert PoolNotExpected(poolId);
@@ -143,25 +119,7 @@ contract MarketRegistryV1 is IMarketRegistryV1 {
         runtime.launchPhase = LAUNCH_PHASE_POOL_CREATED;
         runtime.poolId = poolId;
         sourceVersion = ++runtime.sourceVersion;
-        emit LaunchPhaseChanged(
-            marketId, LAUNCH_PHASE_SWEPT, LAUNCH_PHASE_POOL_CREATED, runtime.sweptAt, poolId, sourceVersion
-        );
-    }
-
-    function markRescued(bytes32 marketId) external override {
-        _requireGraduationExecutor();
-        _requireRegistered(marketId);
-        MarketRuntime storage runtime = _marketRuntimes[marketId];
-        if (runtime.launchPhase != LAUNCH_PHASE_SWEPT) {
-            revert GraduationNotRetryable(marketId, runtime.launchPhase);
-        }
-        uint64 readyAt = _checkedReadyAt(runtime.sweptAt, RESCUE_DELAY_SECONDS);
-        if (block.timestamp < readyAt) revert RescueDelayNotElapsed(readyAt);
-
-        runtime.launchPhase = LAUNCH_PHASE_RESCUED;
-        emit LaunchPhaseChanged(
-            marketId, LAUNCH_PHASE_SWEPT, LAUNCH_PHASE_RESCUED, runtime.sweptAt, bytes32(0), runtime.sourceVersion
-        );
+        emit LaunchPhaseChanged(marketId, LAUNCH_PHASE_NOT_GRADUATED, LAUNCH_PHASE_POOL_CREATED, poolId, sourceVersion);
     }
 
     function market(bytes32 marketId) external view override returns (MarketView memory) {
@@ -280,6 +238,7 @@ contract MarketRegistryV1 is IMarketRegistryV1 {
         if (
             quote.status != CONFIG_STATUS_ACTIVE || quote.ponsBaselineId != config.ponsBaselineId
                 || quote.quoteAsset != config.quoteAsset || quote.economicsHash != config.quoteAssetConfigId
+                || !IApprovedQuoteRegistry(approvedQuoteRegistry).quoteIdentityCurrent(config.quoteAssetConfigId)
         ) revert InvalidMarketConfig();
 
         PonsBaseline memory baseline = IPonsBaselineRegistry(ponsBaselineRegistry).baseline(config.ponsBaselineId);
@@ -315,16 +274,5 @@ contract MarketRegistryV1 is IMarketRegistryV1 {
 
     function _canonicalPoolId(bytes32 marketId) private view returns (bytes32) {
         return keccak256(abi.encode(canonicalPoolKey(marketId)));
-    }
-
-    function _currentTimestamp() private view returns (uint64 timestamp) {
-        if (block.timestamp > type(uint64).max) revert BlockTimestampOverflow(block.timestamp);
-        timestamp = uint64(block.timestamp);
-    }
-
-    function _checkedReadyAt(uint64 startedAt, uint64 delaySeconds) private pure returns (uint64 readyAt) {
-        uint256 result = uint256(startedAt) + delaySeconds;
-        if (result > type(uint64).max) revert BlockTimestampOverflow(result);
-        readyAt = uint64(result);
     }
 }

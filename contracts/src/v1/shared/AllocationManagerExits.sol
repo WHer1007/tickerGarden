@@ -5,7 +5,7 @@ import {AssetView, IMemeStockGauge, IUserStockVault, MarketView, PositionView} f
 import {AllocationManagerIncreases} from "./AllocationManagerIncreases.sol";
 
 /// @notice Full-position normal and forfeiting exit paths for the final AllocationManager.
-/// @dev V1-EXEC-8 deliberately has no partial-decrease or cross-market migration path.
+/// @dev V1-EXEC-9 deliberately has no partial-decrease or cross-market migration path.
 abstract contract AllocationManagerExits is AllocationManagerIncreases {
     uint256 private constant RAGE_QUIT_GAUGE_GAS_LIMIT = 1_000_000;
     uint256 private constant RAGE_QUIT_GAUGE_VIEW_GAS_LIMIT = 250_000;
@@ -107,7 +107,7 @@ abstract contract AllocationManagerExits is AllocationManagerIncreases {
         } else {
             if (gaugePrincipal != principal) revert AllocationLedgerMismatch();
             uint256 forfeitedPrincipal;
-            (forfeitedPrincipal, quoteForfeited, memeForfeited, redistributed) = context.gauge.rageQuit(user);
+            (forfeitedPrincipal, quoteForfeited, memeForfeited,) = context.gauge.rageQuit(user);
             if (forfeitedPrincipal != principal) revert AllocationLedgerMismatch();
 
             PositionView memory afterPosition = context.gauge.positionOf(user);
@@ -117,6 +117,9 @@ abstract contract AllocationManagerExits is AllocationManagerIncreases {
             ) {
                 revert AllocationLedgerMismatch();
             }
+            // RageQuit forfeitures are platform-owned; retain the legacy return slot but never report a
+            // redistributable outcome from an escape settlement.
+            redistributed = false;
         }
 
         uint256 completedPrincipal = context.vault.completeRageQuitRewardSettlement(context.assetUid, user, marketId);
@@ -198,7 +201,7 @@ abstract contract AllocationManagerExits is AllocationManagerIncreases {
         }
 
         try context.gauge.rageQuit{gas: RAGE_QUIT_GAUGE_GAS_LIMIT}(user) returns (
-            uint256 forfeitedPrincipal, uint256 forfeitedQuote, uint256 forfeitedMeme, bool didRedistribute
+            uint256 forfeitedPrincipal, uint256 forfeitedQuote, uint256 forfeitedMeme, bool /* didRedistribute */
         ) {
             if (forfeitedPrincipal != principal) return (0, 0, false, false);
 
@@ -216,7 +219,7 @@ abstract contract AllocationManagerExits is AllocationManagerIncreases {
                     uint256 completedPrincipal
                 ) {
                     if (completedPrincipal != principal) return (0, 0, false, false);
-                    return (forfeitedQuote, forfeitedMeme, didRedistribute, true);
+                    return (forfeitedQuote, forfeitedMeme, false, true);
                 } catch {
                     return (0, 0, false, false);
                 }

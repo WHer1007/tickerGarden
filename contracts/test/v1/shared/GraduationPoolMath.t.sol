@@ -2,6 +2,7 @@
 pragma solidity 0.8.26;
 
 import {Test} from "forge-std/Test.sol";
+import {TickMath} from "@uniswap/v4-core/src/libraries/TickMath.sol";
 
 import {PoolKey} from "../../../src/v1/interfaces/IV1Protocol.sol";
 import {GraduationPoolMath} from "../../../src/v1/libraries/GraduationPoolMath.sol";
@@ -83,6 +84,28 @@ contract GraduationPoolMathTest is Test {
         assertEq(plan.sqrtPriceX96, uint256(1) << 146);
         assertEq(plan.initialTick, 693_181);
         assertGt(plan.liquidity, 0);
+    }
+
+    function test_q128FallbackAtQ192BoundaryRemainsValid() public view {
+        PoolKey memory key = _key(QUOTE, MEME, 200, HOOK);
+        uint256 amount0 = 1;
+        uint256 amount1 = amount0 << 64;
+
+        GraduationPoolMath.PoolPlan memory plan = harness.derive(key, QUOTE, MEME, amount0, amount1);
+
+        // At the boundary the Q192 quotient is exactly 2^192. The Q128 branch
+        // must be selected so the intermediate FullMath multiplication cannot
+        // overflow uint256, while producing the same exact square-root price.
+        assertEq(plan.amount0, amount0);
+        assertEq(plan.amount1, amount1);
+        assertEq(plan.sqrtPriceX96, uint160(1) << 128);
+        assertGt(plan.sqrtPriceX96, TickMath.MIN_SQRT_PRICE);
+        assertLt(plan.sqrtPriceX96, TickMath.MAX_SQRT_PRICE);
+        assertGt(plan.liquidity, 0);
+        assertGt(plan.mintAmount0, 0);
+        assertGt(plan.mintAmount1, 0);
+        assertLe(plan.mintAmount0, plan.amount0);
+        assertLe(plan.mintAmount1, plan.amount1);
     }
 
     function test_zeroAndInt128OverflowAmountsFailClosed() public {

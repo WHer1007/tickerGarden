@@ -19,7 +19,7 @@ import {V1GraduationEconomicDomain} from "../libraries/V1GraduationEconomicDomai
 /// @notice Fail-closed Registry resolution and economics verification shared by Factory create and preview paths.
 library V1FactoryValidation {
     uint8 internal constant ACTIVE = 1;
-    bytes32 internal constant EXECUTION_SPEC_ID = keccak256("V1-EXEC-8");
+    bytes32 internal constant EXECUTION_SPEC_ID = keccak256("V1-EXEC-9");
     uint24 internal constant FEE_PIPS = 10_000;
     uint16 internal constant LP_SHARE_BPS = 0;
     uint24 internal constant POOL_KEY_FEE = 0;
@@ -67,6 +67,7 @@ library V1FactoryValidation {
         bytes32 schemaId
     );
     error InactiveQuote(bytes32 quoteAssetConfigId, uint8 status);
+    error QuoteIdentityDrift(bytes32 quoteAssetConfigId);
     error InactivePonsBaseline(bytes32 ponsBaselineId, uint8 status);
     error InactiveLaunchTemplate(bytes32 launchTemplateId, uint8 status);
     error QuoteBaselineMismatch(bytes32 quoteBaselineId, bytes32 requestedBaselineId);
@@ -112,6 +113,9 @@ library V1FactoryValidation {
 
         snapshot.quote = registries.approvedQuote.quoteConfig(params.quoteAssetConfigId);
         if (snapshot.quote.status != ACTIVE) revert InactiveQuote(params.quoteAssetConfigId, snapshot.quote.status);
+        if (!registries.approvedQuote.quoteIdentityCurrent(params.quoteAssetConfigId)) {
+            revert QuoteIdentityDrift(params.quoteAssetConfigId);
+        }
         if (snapshot.quote.ponsBaselineId != params.ponsBaselineId) {
             revert QuoteBaselineMismatch(snapshot.quote.ponsBaselineId, params.ponsBaselineId);
         }

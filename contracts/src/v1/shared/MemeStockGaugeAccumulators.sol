@@ -29,15 +29,6 @@ abstract contract MemeStockGaugeAccumulators is MemeStockGaugeLockedPositions {
         uint256 accumulatorDelta,
         uint256 indexRemainder
     );
-    event ForfeitedRewardRedistributed(
-        bytes32 indexed marketId,
-        address indexed user,
-        address indexed feeAsset,
-        uint256 amount,
-        uint256 accumulatorDelta,
-        uint256 indexRemainder
-    );
-
     error InvalidRewardIndex(uint8 rewardIndex);
     error StakerCreditWithoutActiveStock(uint256 amount);
     error RewardAccumulatorRegression(uint256 startingAccumulator, uint256 currentAccumulator);
@@ -63,18 +54,6 @@ abstract contract MemeStockGaugeAccumulators is MemeStockGaugeLockedPositions {
         (accumulatorDelta, indexRemainder) = _increaseRewardAccumulator(rewardIndex, amount, marketId);
 
         emit StakerFeeCredited(marketId, feeAsset, feeId, amount, accumulatorDelta, indexRemainder);
-    }
-
-    function _redistributeForfeitedReward(
-        uint8 rewardIndex,
-        address feeAsset,
-        uint256 amount,
-        address user,
-        bytes32 marketId
-    ) internal returns (uint256 accumulatorDelta, uint256 indexRemainder) {
-        _requireRewardIndex(rewardIndex);
-        (accumulatorDelta, indexRemainder) = _increaseRewardAccumulator(rewardIndex, amount, marketId);
-        emit ForfeitedRewardRedistributed(marketId, user, feeAsset, amount, accumulatorDelta, indexRemainder);
     }
 
     /// @dev User and global reward remainders are both numerators in token-unit * INDEX_PRECISION space.

@@ -9,7 +9,8 @@ import {ProtocolFeeVaultV4Credit} from "../../../src/v1/shared/ProtocolFeeVaultV
 import {MockExactQuoteToken} from "../mocks/MockV1QuoteAssets.sol";
 
 interface ICurveCreditVault {
-    function creditCurveSweep(bytes32, address, uint256, uint32, uint64, bytes32) external payable;
+    function beginCurveCredit(bytes32, address, uint256, uint32, uint64, bytes32) external;
+    function finalizeCurveCredit(bytes32, address, uint256, uint32, uint64, bytes32) external payable;
 }
 
 contract CurveCreditMarketRegistryMock {
@@ -90,10 +91,11 @@ contract CurveCreditSourceMock {
     ) external {
         uint256 sourceBefore = quote.balanceOf(address(this));
         uint256 vaultBefore = quote.balanceOf(address(vault));
+        vault.beginCurveCredit(marketId, address(quote), amount, sourceVersion, sweepNonce, feeId);
         require(quote.transfer(address(vault), amount), "TRANSFER");
         require(sourceBefore - quote.balanceOf(address(this)) == amount, "DEBIT");
         require(quote.balanceOf(address(vault)) - vaultBefore == amount, "CREDIT");
-        vault.creditCurveSweep(marketId, address(quote), amount, sourceVersion, sweepNonce, feeId);
+        vault.finalizeCurveCredit(marketId, address(quote), amount, sourceVersion, sweepNonce, feeId);
     }
 
     function creditWithoutTransfer(
@@ -105,7 +107,8 @@ contract CurveCreditSourceMock {
         uint64 sweepNonce,
         bytes32 feeId
     ) external {
-        vault.creditCurveSweep(marketId, quoteAsset, amount, sourceVersion, sweepNonce, feeId);
+        vault.beginCurveCredit(marketId, quoteAsset, amount, sourceVersion, sweepNonce, feeId);
+        vault.finalizeCurveCredit(marketId, quoteAsset, amount, sourceVersion, sweepNonce, feeId);
     }
 
     function creditNative(
@@ -116,7 +119,10 @@ contract CurveCreditSourceMock {
         uint64 sweepNonce,
         bytes32 feeId
     ) external payable {
-        vault.creditCurveSweep{value: msg.value}(marketId, address(0), amount, sourceVersion, sweepNonce, feeId);
+        vault.beginCurveCredit(marketId, address(0), amount, sourceVersion, sweepNonce, feeId);
+        vault.finalizeCurveCredit{value: msg.value}(
+            marketId, address(0), amount, sourceVersion, sweepNonce, feeId
+        );
     }
 
     function creditErc20WithValue(
@@ -128,8 +134,11 @@ contract CurveCreditSourceMock {
         uint64 sweepNonce,
         bytes32 feeId
     ) external payable {
+        vault.beginCurveCredit(marketId, address(quote), amount, sourceVersion, sweepNonce, feeId);
         require(quote.transfer(address(vault), amount), "TRANSFER");
-        vault.creditCurveSweep{value: msg.value}(marketId, address(quote), amount, sourceVersion, sweepNonce, feeId);
+        vault.finalizeCurveCredit{value: msg.value}(
+            marketId, address(quote), amount, sourceVersion, sweepNonce, feeId
+        );
     }
 }
 
@@ -247,7 +256,7 @@ contract ProtocolFeeVaultCurveCreditTest is Test {
                 ProtocolFeeVaultCurveCredit.UnauthorizedMarketCurve.selector, address(this), address(curve)
             )
         );
-        vault.creditCurveSweep(MARKET_ID, address(quote), 80, SOURCE_VERSION, 1, feeId);
+        vault.beginCurveCredit(MARKET_ID, address(quote), 80, SOURCE_VERSION, 1, feeId);
 
         _configure(address(quote), 1, SOURCE_VERSION);
         quote.mint(address(curve), 80);
@@ -307,6 +316,19 @@ contract ProtocolFeeVaultCurveCreditTest is Test {
             abi.encodeWithSelector(ProtocolFeeVaultV4Credit.FeeBalanceDeltaMismatch.selector, address(quote), 0, 1)
         );
         curve.creditErc20WithValue{value: 1}(creditVault, quote, MARKET_ID, 80, SOURCE_VERSION, 1, feeId);
+    }
+
+    function test_preexistingErc20BalanceCannotBeReusedAsAFalseSweep() public {
+        quote.mint(address(vault), 1_000);
+        bytes32 feeId = _feeId(address(quote), 80, SOURCE_VERSION, 1);
+        vm.expectRevert(
+            abi.encodeWithSelector(ProtocolFeeVaultV4Credit.FeeBalanceDeltaMismatch.selector, address(quote), 80, 0)
+        );
+        curve.creditWithoutTransfer(creditVault, address(quote), MARKET_ID, 80, SOURCE_VERSION, 1, feeId);
+
+        assertEq(quote.balanceOf(address(vault)), 1_000);
+        assertEq(vault.lastNonce(MARKET_ID), 0);
+        assertFalse(vault.consumed(feeId));
     }
 
     function test_downstreamFailureRollsBackTransferNonceBucketsAndFeeId() public {

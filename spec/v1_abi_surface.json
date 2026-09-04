@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "executionSpecId": "V1-EXEC-8",
+  "executionSpecId": "V1-EXEC-9",
   "typeDefinitions": {
     "PoolKey": ["address currency0","address currency1","uint24 fee","int24 tickSpacing","address hooks"],
     "SwapParams": ["bool zeroForOne","int256 amountSpecified","uint160 sqrtPriceLimitX96"],
@@ -52,10 +52,13 @@
         {"signature":"pauseQuote(bytes32,bytes32)","mutability":"nonpayable","caller":"PAUSE_GUARDIAN_ROLE","returns":"()"},
         {"signature":"unpauseQuote(bytes32)","mutability":"nonpayable","caller":"UNPAUSE_ROLE","returns":"()"},
         {"signature":"retireQuote(bytes32,bytes32)","mutability":"nonpayable","caller":"PROTOCOL_ADMIN_ROLE","returns":"()"},
-        {"signature":"quoteConfig(bytes32)","mutability":"view","caller":"PUBLIC","returns":"(QuoteAssetConfig)"}
+        {"signature":"quoteConfig(bytes32)","mutability":"view","caller":"PUBLIC","returns":"(QuoteAssetConfig)"},
+        {"signature":"quoteRuntimeCodeHash(bytes32)","mutability":"view","caller":"PUBLIC","returns":"(bytes32)"},
+        {"signature":"quoteIdentityCurrent(bytes32)","mutability":"view","caller":"PUBLIC","returns":"(bool)"}
       ],
       "events": [
         "QuoteAssetConfigAdded(bytes32 indexed configId,address indexed quoteAsset,bytes32 indexed ponsBaselineId,bytes32 economicsHash)",
+        "QuoteAssetIdentityPinned(bytes32 indexed configId,address indexed quoteAsset,bytes32 runtimeCodeHash)",
         "QuoteAssetStatusChanged(bytes32 indexed configId,uint8 oldStatus,uint8 newStatus,bytes32 reasonHash)"
       ]
     },
@@ -127,15 +130,13 @@
       "module": "MarketRegistryV1",
       "structs": {
         "MarketConfig": ["bytes32 assetUid","bytes32 ponsBaselineId","bytes32 quoteAssetConfigId","bytes32 launchTemplateId","bytes32 feePolicyId","bytes32 executionSpecId","bytes32 expectedEconomics","uint256 launchConfigId","address creatorRevenueBeneficiaryAtCreation","address memeToken","address curve","address gauge","address quoteAsset","address graduatedHook"],
-        "MarketRuntime": ["bytes32 poolId","uint32 sourceVersion","uint64 sweptAt","uint8 launchPhase"],
+        "MarketRuntime": ["bytes32 poolId","uint32 sourceVersion","uint8 launchPhase"],
         "MarketView": ["MarketConfig config","MarketRuntime runtime"],
         "CanonicalRoute": ["PoolKey poolKey","bytes32 poolId","address swapRouter","address quoter","address hook","address quoteAsset","address memeToken","address gauge","address curve","address launchLocker","uint32 sourceVersion","uint8 launchPhase","bool curveTradingEnabled","bool poolTradingEnabled"]
       },
       "functions": [
         {"signature":"registerMarket(bytes32,MarketConfig)","mutability":"nonpayable","caller":"FACTORY_MODULE","returns":"()"},
-        {"signature":"markSwept(bytes32)","mutability":"nonpayable","caller":"EXACT_REGISTERED_CURVE","returns":"()"},
         {"signature":"commitPoolCreated(bytes32,bytes32)","mutability":"nonpayable","caller":"GRADUATION_MODULE","returns":"(uint32)"},
-        {"signature":"markRescued(bytes32)","mutability":"nonpayable","caller":"GRADUATION_MODULE","returns":"()"},
         {"signature":"market(bytes32)","mutability":"view","caller":"PUBLIC","returns":"(MarketView)"},
         {"signature":"marketIdByToken(address)","mutability":"view","caller":"PUBLIC","returns":"(bytes32)"},
         {"signature":"canonicalPoolKey(bytes32)","mutability":"view","caller":"PUBLIC","returns":"(PoolKey)"},
@@ -145,7 +146,7 @@
       ],
       "events": [
         "MarketRegistered(bytes32 indexed marketId,bytes32 indexed assetUid,address indexed memeToken,address curve,address gauge,uint32 sourceVersion)",
-        "LaunchPhaseChanged(bytes32 indexed marketId,uint8 oldPhase,uint8 newPhase,uint64 sweptAt,bytes32 poolId,uint32 sourceVersion)"
+        "LaunchPhaseChanged(bytes32 indexed marketId,uint8 oldPhase,uint8 newPhase,bytes32 poolId,uint32 sourceVersion)"
       ]
     },
     {
@@ -204,9 +205,7 @@
         "CurveSell(address indexed seller,address indexed recipient,uint256 tokensIn,uint256 quoteOut,uint256 fee,uint256 tax)",
         "CurveBuyRefunded(address indexed buyer,uint256 unusedQuote)",
         "CurveCompleted(bytes32 indexed marketId)",
-        "CurveFeeTransferred(bytes32 indexed marketId,uint64 indexed sweepNonce,bytes32 indexed feeId,uint256 amount)",
-        "LaunchSwept(bytes32 indexed marketId,address indexed quoteAsset,uint256 sweptQuote,uint256 sweptTokens,uint64 sweptAt)",
-        "AutoGraduationFailed(bytes32 indexed marketId,bytes32 reasonHash)"
+        "CurveFeeTransferred(bytes32 indexed marketId,uint64 indexed sweepNonce,bytes32 indexed feeId,uint256 amount)"
       ]
     },
     {
@@ -324,7 +323,6 @@
         "ActivationBucketProcessed(bytes32 indexed marketId,uint64 indexed generation,uint256 amount,uint256 quoteAccumulator,uint256 memeAccumulator,uint256 refs)",
         "PendingMaterialized(address indexed user,bytes32 indexed marketId,uint64 indexed generation,uint256 amount)",
         "StakerFeeCredited(bytes32 indexed marketId,address indexed feeAsset,bytes32 indexed feeId,uint256 amount,uint256 accumulatorDelta,uint256 indexRemainder)",
-        "ForfeitedRewardRedistributed(bytes32 indexed marketId,address indexed user,address indexed feeAsset,uint256 amount,uint256 accumulatorDelta,uint256 indexRemainder)",
         "GaugeRageQuit(address indexed user,bytes32 indexed marketId,uint256 principal,uint256 quoteForfeited,uint256 memeForfeited,bool redistributed)",
         "ForfeitureRecordDeferred(bytes32 indexed marketId,address indexed user,uint256 quoteAmount,uint256 memeAmount,uint256 totalDeferredQuote,uint256 totalDeferredMeme)",
         "ForfeitureRecordFlushed(bytes32 indexed marketId,uint256 quoteAmount,uint256 memeAmount)"
@@ -364,7 +362,8 @@
       "functions": [
         {"signature":"beginV4Credit(bytes32,address,uint256,uint32,bytes32)","mutability":"nonpayable","caller":"ACTIVE_FEE_SOURCE","returns":"()"},
         {"signature":"finalizeV4Credit(bytes32,address,uint256,uint256,uint256,uint256,uint64,bytes32)","mutability":"nonpayable","caller":"ACTIVE_FEE_SOURCE","returns":"()"},
-        {"signature":"creditCurveSweep(bytes32,address,uint256,uint32,uint64,bytes32)","mutability":"payable","caller":"EXACT_REGISTERED_CURVE","returns":"()"},
+        {"signature":"beginCurveCredit(bytes32,address,uint256,uint32,uint64,bytes32)","mutability":"nonpayable","caller":"EXACT_REGISTERED_CURVE","returns":"()"},
+        {"signature":"finalizeCurveCredit(bytes32,address,uint256,uint32,uint64,bytes32)","mutability":"payable","caller":"EXACT_REGISTERED_CURVE","returns":"()"},
         {"signature":"claimCreator(bytes32,uint32,address)","mutability":"nonpayable","caller":"PUBLIC","returns":"(uint256)"},
         {"signature":"claimPlatform(bytes32,address)","mutability":"nonpayable","caller":"PUBLIC","returns":"(uint256)"},
         {"signature":"claimStaker(bytes32,address)","mutability":"nonpayable","caller":"PUBLIC","returns":"(uint256)"},
@@ -387,14 +386,11 @@
     {
       "module": "GraduationExecutor",
       "functions": [
-        {"signature":"graduateFromCurve(bytes32)","mutability":"nonpayable","caller":"EXACT_REGISTERED_CURVE","returns":"()"},
-        {"signature":"retryGraduation(bytes32)","mutability":"nonpayable","caller":"PUBLIC","returns":"()"},
-        {"signature":"rescueSweptLaunch(bytes32)","mutability":"nonpayable","caller":"PUBLIC","returns":"()"},
+        {"signature":"graduateFromCurve(bytes32,uint256,uint256)","mutability":"payable","caller":"EXACT_REGISTERED_CURVE","returns":"()"},
         {"signature":"predictLaunchLocker(bytes32)","mutability":"view","caller":"PUBLIC","returns":"(address)"}
       ],
       "events": [
-        "PoolGraduated(bytes32 indexed marketId,bytes32 indexed poolId,address indexed launchLocker,uint256 sweptQuote,uint256 sweptTokens,uint256 poolMemeAmount,uint256 lockedExcessMeme,uint32 sourceVersion)",
-        "LaunchRescued(bytes32 indexed marketId,uint64 sweptAt,uint64 rescuedAt)"
+        "PoolGraduated(bytes32 indexed marketId,bytes32 indexed poolId,address indexed launchLocker,uint256 sweptQuote,uint256 sweptTokens,uint256 poolMemeAmount,uint256 lockedExcessMeme,uint32 sourceVersion)"
       ]
     },
     {
@@ -480,7 +476,6 @@
     "TemplateCodeHashMismatch(address,bytes32,bytes32)",
     "UnauthorizedMarketCurve(address,address)",
     "CurveFeeSweepAfterClose(bytes32)",
-    "GraduationNotRetryable(bytes32,uint8)",
     "LaunchLockerAddressCollision(address)",
     "InvalidCanonicalPoolKey()",
     "InvalidHookPermissionMask()",

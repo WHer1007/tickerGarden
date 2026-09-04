@@ -29,7 +29,7 @@ function event<Signature extends V1EventSignature>(
 test("exports the immutable V1 indexer descriptor", () => {
   assert.deepEqual(getIndexerDescriptor(), {
     chainId: 4663,
-    executionSpecId: "V1-EXEC-8",
+    executionSpecId: "V1-EXEC-9",
     status: "reorg-replay-and-reconciliation",
     handlersImplemented: true,
   });
@@ -37,7 +37,7 @@ test("exports the immutable V1 indexer descriptor", () => {
 });
 
 test("catalog is generated from V1 artifacts and includes the canonical PoolManager Swap", () => {
-  assert.equal(V1_EVENT_ABI.length, 71);
+  assert.equal(V1_EVENT_ABI.length, 68);
   assert.ok(V1_EVENT_ABI.some(({ signature, modules }) =>
     signature === "MarketCreated(bytes32,bytes32,address,address,address,address,bytes32,bytes32,bytes32)" &&
     modules.includes("TickerGardenFactoryV1"),
@@ -109,6 +109,35 @@ test("projects registered and accepted STOCK fingerprints onto the canonical ass
     reasonHash: id("19"),
   }, 3);
   assert.deepEqual(requiredObservations(accepted).map(({ kind }) => kind), ["assetIdentity"]);
+});
+
+test("projects the pinned immutable Quote runtime identity", () => {
+  const state = createIndexerState();
+  const configId = id("21");
+  const quoteAsset = address("22");
+  applyV1Event(state, event("QuoteAssetConfigAdded(bytes32,address,bytes32,bytes32)", {
+    configId, quoteAsset, ponsBaselineId: id("23"), economicsHash: configId,
+  }, 0));
+  const pinned = event("QuoteAssetIdentityPinned(bytes32,address,bytes32)", {
+    configId, quoteAsset, runtimeCodeHash: id("24"),
+  }, 1);
+  applyV1Event(state, pinned);
+
+  assert.equal(state.configs.get(`quote:${configId}`)?.values.runtimeCodeHash, id("24"));
+  assert.deepEqual(requiredObservations(pinned).map(({ kind }) => kind), ["quote"]);
+});
+
+test("rejects a pinned Quote identity for a different asset", () => {
+  const state = createIndexerState();
+  const configId = id("25");
+  applyV1Event(state, event("QuoteAssetConfigAdded(bytes32,address,bytes32,bytes32)", {
+    configId, quoteAsset: address("26"), ponsBaselineId: id("27"), economicsHash: configId,
+  }, 0));
+  assert.throws(() => applyV1Event(state, event("QuoteAssetIdentityPinned(bytes32,address,bytes32)", {
+    configId, quoteAsset: address("28"), runtimeCodeHash: id("29"),
+  }, 1)), /quote identity asset mismatch/);
+  assert.equal(state.events.size, 1);
+  assert.equal(state.configs.get(`quote:${configId}`)?.values.runtimeCodeHash, undefined);
 });
 
 test("correlates each PoolManager Swap only with its following Hook fee by transaction log order", () => {
@@ -236,14 +265,24 @@ test("projects the principal-first rage-quit tombstone and clears it only on Vau
   assert.equal(state.gaugePositions.get(gaugeKey)?.values.rageQuitSettlementPending, false);
 
   applyV1Event(state, event("RageQuitRewardSettlementFinalized(address,bytes32,uint256,uint256,uint256,bool)", {
-    user, marketId, principal, quoteForfeited: 11n, memeForfeited: 7n, redistributed: true,
+    user, marketId, principal, quoteForfeited: 11n, memeForfeited: 7n, redistributed: false,
   }, 3));
   const finalized = state.gaugePositions.get(gaugeKey);
   assert.equal(finalized?.values.rageQuitSettlementStatus, "finalized");
   assert.equal(finalized?.values.rageQuitQuoteForfeited, 11n);
   assert.equal(finalized?.values.rageQuitMemeForfeited, 7n);
-  assert.equal(finalized?.values.rageQuitRewardsRedistributed, true);
+  assert.equal(finalized?.values.rageQuitRewardsRedistributed, false);
+  assert.equal(finalized?.values.rageQuitForfeitureDestination, "platform_forfeiture_reserve");
   assert.equal(finalized?.provenance.logIndex, 3);
+});
+
+test("fails closed on a legacy rage-quit redistribution flag", () => {
+  const state = createIndexerState();
+  assert.throws(() => applyV1Event(state, event("RageQuitRewardSettlementFinalized(address,bytes32,uint256,uint256,uint256,bool)", {
+    user: address("d"), marketId: id("44"), principal: 1n, quoteForfeited: 2n, memeForfeited: 3n, redistributed: true,
+  }, 0)), /platform forfeiture policy/);
+  assert.equal(state.events.size, 0);
+  assert.equal(state.gaugePositions.size, 0);
 });
 
 test("does not fabricate an asset-scoped tombstone when replay starts with a Manager settlement event", () => {

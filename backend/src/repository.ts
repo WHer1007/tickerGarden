@@ -11,7 +11,7 @@ export interface ReadModelRepository {
 }
 
 export interface VerifiedReadModelSnapshot {
-  readonly executionSpecId: "V1-EXEC-8";
+  readonly executionSpecId: "V1-EXEC-9";
   readonly reconciliationAlerts: readonly [];
   readonly sync: SyncStatus;
   readonly markets?: readonly MarketReadModel[];
@@ -44,11 +44,18 @@ function validateMarket(market: MarketReadModel, sync: SyncStatus): void {
   assertHex(market.marketId, 32, "marketId"); assertHex(market.assetUid, 32, "assetUid");
   for (const [label, value] of Object.entries({ memeToken: market.memeToken, curve: market.curve, gauge: market.gauge, quoteAsset: market.quoteAsset })) assertHex(value, 20, label);
   assertHex(market.quoteAssetConfigId, 32, "quoteAssetConfigId"); assertHex(market.ponsBaselineId, 32, "ponsBaselineId");
-  for (const [label, value] of Object.entries({ realQuoteReserve: market.curveProgress.realQuoteReserve, sellableTokens: market.curveProgress.sellableTokens, reservedTokens: market.curveProgress.reservedTokens, accruedCurveFees: market.curveProgress.accruedCurveFees, sweptAt: market.curveProgress.sweptAt })) assertUint(value, label);
+  for (const [label, value] of Object.entries({ realQuoteReserve: market.curveProgress.realQuoteReserve, sellableTokens: market.curveProgress.sellableTokens, reservedTokens: market.curveProgress.reservedTokens, accruedCurveFees: market.curveProgress.accruedCurveFees })) assertUint(value, label);
   const route = market.canonicalRoute;
   for (const [label, value] of Object.entries({ router: route.router, quoter: route.quoter, hook: route.hook, launchLocker: route.launchLocker, graduationExecutor: route.graduationExecutor })) assertHex(value, 20, label);
   if (route.sourceVersion !== market.sourceVersion || route.launchPhase !== market.launchPhase) throw new Error("canonicalRoute lifecycle snapshot mismatch");
+  if (market.launchPhase !== 0 && market.launchPhase !== 1) throw new Error("market launchPhase must be NotGraduated or PoolCreated");
   if (market.poolId === null !== (market.poolKey === null)) throw new Error("poolId and poolKey must become available together");
+  if (market.launchPhase === 0 && (market.poolId !== null || route.curveTradingEnabled !== true || route.poolTradingEnabled !== false)) {
+    throw new Error("NotGraduated market must expose only the Curve route and no Pool");
+  }
+  if (market.launchPhase === 1 && (market.poolId === null || route.curveTradingEnabled !== false || route.poolTradingEnabled !== true)) {
+    throw new Error("PoolCreated market must expose only the canonical Pool route");
+  }
   if (market.poolId && market.poolKey) {
     assertHex(market.poolId, 32, "poolId");
     for (const [label, value] of Object.entries({ currency0: market.poolKey.currency0, currency1: market.poolKey.currency1, hooks: market.poolKey.hooks })) assertHex(value, 20, label);
@@ -89,7 +96,7 @@ export class InMemoryReadModelRepository implements ReadModelRepository {
   readonly #positions: readonly UserPositionReadModel[];
 
   constructor(input: VerifiedReadModelSnapshot) {
-    if (input.executionSpecId !== "V1-EXEC-8" || input.reconciliationAlerts.length !== 0) throw new Error("read model snapshot is not V1-reconciled");
+    if (input.executionSpecId !== "V1-EXEC-9" || input.reconciliationAlerts.length !== 0) throw new Error("read model snapshot is not V1-reconciled");
     assertUint(input.sync.blockNumber, "sync.blockNumber"); assertUint(input.sync.headBlockNumber, "sync.headBlockNumber"); assertUint(input.sync.lagBlocks, "sync.lagBlocks");
     if (input.sync.blockHash) assertHex(input.sync.blockHash, 32, "sync.blockHash");
     if (input.sync.headBlockHash) assertHex(input.sync.headBlockHash, 32, "sync.headBlockHash");
@@ -119,6 +126,6 @@ export class InMemoryReadModelRepository implements ReadModelRepository {
 }
 
 export const EMPTY_REPOSITORY = new InMemoryReadModelRepository({
-  executionSpecId: "V1-EXEC-8", reconciliationAlerts: [],
+  executionSpecId: "V1-EXEC-9", reconciliationAlerts: [],
   sync: { chainId: 4663, status: "unavailable", blockNumber: null, blockHash: null, finality: "unavailable", headBlockNumber: null, headBlockHash: null, lagBlocks: null, revision: "empty" },
 });

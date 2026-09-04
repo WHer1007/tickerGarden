@@ -14,8 +14,8 @@ const spec = JSON.parse(await readFile(new URL("../openapi/v1.json", import.meta
 
 test("OpenAPI publishes the five read endpoints and no write operation", () => {
   assert.equal(spec.openapi, "3.1.0");
-  assert.equal(spec.info.version, "1.0.4");
-  assert.equal(spec["x-execution-spec-id"], "V1-EXEC-8");
+  assert.equal(spec.info.version, "1.0.6");
+  assert.equal(spec["x-execution-spec-id"], "V1-EXEC-9");
   assert.deepEqual(Object.keys(spec.paths).sort(), [
     "/health",
     "/v1/config/{kind}",
@@ -36,7 +36,11 @@ test("OpenAPI preserves chain provenance, integer precision, nullability, and er
   assert.equal(schemas.SourceBlock.properties.transactionIndex.minimum, 0);
   assert.equal(schemas.MarketReadModel.properties.curveProgress.$ref, "#/components/schemas/CurveProgress");
   assert.equal(schemas.CurveProgress.properties.realQuoteReserve.type, "string");
-  assert.deepEqual(schemas.CurveProgress.properties.sweptAt.oneOf[1], { type: "null" });
+  assert.deepEqual(Object.keys(schemas.CurveProgress.properties).sort(), [
+    "accruedCurveFees", "readyToGraduate", "realQuoteReserve", "reservedTokens", "sellableTokens",
+  ]);
+  assert.deepEqual(schemas.MarketReadModel.properties.launchPhase.enum, [0, 1]);
+  assert.deepEqual(schemas.CanonicalRoute.properties.launchPhase.enum, [0, 1]);
   assert.deepEqual(schemas.MarketReadModel.properties.poolKey.oneOf[1], { type: "null" });
   assert.deepEqual(schemas.ApiErrorResponse.required, ["error", "message", "sync"]);
   assert.ok(spec.paths["/v1/markets"].get.responses["400"]);

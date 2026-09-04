@@ -74,7 +74,7 @@ contract PoolExecutionRegistryMock {
                 quoteAssetConfigId: quoteConfigId,
                 launchTemplateId: bytes32("TEMPLATE"),
                 feePolicyId: bytes32("FEE"),
-                executionSpecId: keccak256("V1-EXEC-8"),
+                executionSpecId: keccak256("V1-EXEC-9"),
                 expectedEconomics: bytes32("ECON"),
                 launchConfigId: 0,
                 creatorRevenueBeneficiaryAtCreation: address(0xBEEF),
@@ -84,7 +84,7 @@ contract PoolExecutionRegistryMock {
                 quoteAsset: quoteAsset,
                 graduatedHook: hook
             }),
-            runtime: MarketRuntime({poolId: bytes32(0), sourceVersion: 1, sweptAt: 10, launchPhase: 1})
+            runtime: MarketRuntime({poolId: bytes32(0), sourceVersion: 1, launchPhase: 0})
         });
     }
 
@@ -114,17 +114,10 @@ contract PoolExecutionRegistryMock {
     function commitPoolCreated(bytes32 marketId_, bytes32 poolId) external returns (uint32 sourceVersion) {
         require(msg.sender == graduationExecutor, "executor");
         require(marketId_ == _marketId && poolId == keccak256(abi.encode(_key)), "pool");
-        require(_value.runtime.launchPhase == 1 && _value.runtime.poolId == bytes32(0), "phase");
-        _value.runtime.launchPhase = 2;
+        require(_value.runtime.launchPhase == 0 && _value.runtime.poolId == bytes32(0), "phase");
+        _value.runtime.launchPhase = 1;
         _value.runtime.poolId = poolId;
         sourceVersion = ++_value.runtime.sourceVersion;
-    }
-
-    function markRescued(bytes32 marketId_) external {
-        require(msg.sender == graduationExecutor, "executor");
-        require(marketId_ == _marketId && _value.runtime.launchPhase == 1, "phase");
-        require(block.timestamp >= uint256(_value.runtime.sweptAt) + 7 days, "early");
-        _value.runtime.launchPhase = 3;
     }
 
     function _canonicalKey(address quoteAsset, address memeToken, address hook) private pure returns (PoolKey memory) {
@@ -315,6 +308,8 @@ contract PoolExecutionLocker is LaunchLockerBinding {
         LaunchLockerBinding(marketId_, registry_, positionManager_)
     {}
 
+    receive() external payable {}
+
     function unpairedLockedBalance(address currency) external view returns (uint256) {
         if (currency == address(0)) return address(this).balance;
         return ERC20(currency).balanceOf(address(this));
@@ -322,31 +317,9 @@ contract PoolExecutionLocker is LaunchLockerBinding {
 }
 
 contract PoolExecutionExecutorHarness is GraduationExecutorPoolExecution {
-    mapping(bytes32 marketId => uint256 quote) private _quote;
-    mapping(bytes32 marketId => uint256 meme) private _meme;
-
-    constructor(
-        address registry,
-        address quoteRegistry,
-        address poolManager,
-        address positionManager,
-        address hook,
-        address dustRecipient
-    ) GraduationExecutorPoolExecution(registry, quoteRegistry, poolManager, positionManager, hook, dustRecipient) {}
-
-    function record(bytes32 marketId, uint256 quote, uint256 meme) external {
-        _quote[marketId] = quote;
-        _meme[marketId] = meme;
-    }
-
-    function _recordedGraduationEscrow(bytes32 marketId, MarketView memory)
-        internal
-        view
-        override
-        returns (uint256, uint256)
-    {
-        return (_quote[marketId], _meme[marketId]);
-    }
+    constructor(address registry, address quoteRegistry, address poolManager, address positionManager, address hook)
+        GraduationExecutorPoolExecution(registry, quoteRegistry, poolManager, positionManager, hook)
+    {}
 
     function _launchLockerCreationCode() internal pure override returns (bytes memory) {
         return type(PoolExecutionLocker).creationCode;
@@ -354,20 +327,10 @@ contract PoolExecutionExecutorHarness is GraduationExecutorPoolExecution {
 }
 
 contract PoolExecutionCurveCaller {
-    uint256 private _sweptQuote;
-    uint256 private _sweptTokens;
-
-    function setGraduationEscrow(uint256 sweptQuote, uint256 sweptTokens) external {
-        _sweptQuote = sweptQuote;
-        _sweptTokens = sweptTokens;
-    }
-
-    function graduationEscrow() external view returns (uint256 sweptQuote, uint256 sweptTokens) {
-        return (_sweptQuote, _sweptTokens);
-    }
-
-    function graduate(address executor, bytes32 marketId) external {
-        PoolExecutionExecutorHarness(payable(executor)).graduateFromCurve(marketId);
+    function graduate(address executor, bytes32 marketId, uint256 quoteAmount, uint256 memeAmount) external payable {
+        PoolExecutionExecutorHarness(payable(executor)).graduateFromCurve{value: msg.value}(
+            marketId, quoteAmount, memeAmount
+        );
     }
 }
 
@@ -381,25 +344,10 @@ contract PoolExecutionMathHarness {
     }
 }
 
-contract PoolExecutionDustOrderReceiver {
-    PoolExecutionPositionManagerMock private immutable _positionManager;
-    bool public observedMintBeforeDust;
-
-    constructor(PoolExecutionPositionManagerMock positionManager_) {
-        _positionManager = positionManager_;
-    }
-
-    receive() external payable {
-        require(_positionManager.nextTokenId() == 2, "dust before mint");
-        observedMintBeforeDust = true;
-    }
-}
-
 contract GraduationExecutorPoolExecutionTest is Test {
     bytes32 private constant MARKET_ID = keccak256("POOL-EXECUTION");
     bytes32 private constant QUOTE_ID = keccak256("QUOTE-CONFIG");
     address private constant HOOK_ADDRESS = address(0x2044);
-    address private constant DUST_RECIPIENT = address(0xD057);
     uint256 private constant SWEPT_QUOTE = 40 ether;
     uint256 private constant SWEPT_MEME = 100 ether;
     uint256 private constant PHANTOM = 10 ether;
@@ -435,16 +383,10 @@ contract GraduationExecutorPoolExecutionTest is Test {
         _configureQuote(address(quote));
         registry.configure(MARKET_ID, QUOTE_ID, address(quote), address(meme), address(curve), address(hook));
         executor = new PoolExecutionExecutorHarness(
-            address(registry),
-            address(quoteRegistry),
-            address(poolManager),
-            address(positionManager),
-            address(hook),
-            DUST_RECIPIENT
+            address(registry), address(quoteRegistry), address(poolManager), address(positionManager), address(hook)
         );
         registry.setGraduationExecutor(address(executor));
         hook.configure(address(executor), address(poolManager));
-        executor.record(MARKET_ID, SWEPT_QUOTE, SWEPT_MEME);
     }
 
     function test_erc20QuoteUsesCanonicalActionsExactPermit2AndDirectLockerOwnership() public {
@@ -453,13 +395,13 @@ contract GraduationExecutorPoolExecutionTest is Test {
         address predictedLocker = executor.predictLaunchLocker(MARKET_ID);
         GraduationPoolMath.PoolPlan memory plan = _plan(address(quote));
 
-        curve.graduate(address(executor), MARKET_ID);
+        curve.graduate(address(executor), MARKET_ID, SWEPT_QUOTE, SWEPT_MEME);
 
         _assertCommittedPosition(predictedLocker, plan);
         (uint256 quoteMint, uint256 memeMint) = _assetMints(plan, address(quote));
         assertEq(quote.balanceOf(address(poolManager)), quoteMint);
         assertEq(meme.balanceOf(address(poolManager)), memeMint);
-        assertEq(quote.balanceOf(DUST_RECIPIENT), SWEPT_QUOTE - quoteMint);
+        assertEq(quote.balanceOf(predictedLocker), SWEPT_QUOTE - quoteMint);
         assertEq(meme.balanceOf(predictedLocker), SWEPT_MEME - memeMint);
         assertEq(quote.balanceOf(address(executor)), 0);
         assertEq(meme.balanceOf(address(executor)), 0);
@@ -472,30 +414,21 @@ contract GraduationExecutorPoolExecutionTest is Test {
     function test_nativeQuoteSettlesOnlyExactMintDebtAndRoutesDustBeforeCommit() public {
         _configureQuote(address(0));
         registry.configure(MARKET_ID, QUOTE_ID, address(0), address(meme), address(curve), address(hook));
-        PoolExecutionDustOrderReceiver dustReceiver = new PoolExecutionDustOrderReceiver(positionManager);
         PoolExecutionExecutorHarness nativeExecutor = new PoolExecutionExecutorHarness(
-            address(registry),
-            address(quoteRegistry),
-            address(poolManager),
-            address(positionManager),
-            address(hook),
-            address(dustReceiver)
+            address(registry), address(quoteRegistry), address(poolManager), address(positionManager), address(hook)
         );
         registry.setGraduationExecutor(address(nativeExecutor));
         hook.configure(address(nativeExecutor), address(poolManager));
-        nativeExecutor.record(MARKET_ID, SWEPT_QUOTE, SWEPT_MEME);
-        vm.deal(address(nativeExecutor), SWEPT_QUOTE);
         meme.mint(address(nativeExecutor), SWEPT_MEME);
         address predictedLocker = nativeExecutor.predictLaunchLocker(MARKET_ID);
         GraduationPoolMath.PoolPlan memory plan = _plan(address(0));
 
-        curve.graduate(address(nativeExecutor), MARKET_ID);
+        curve.graduate{value: SWEPT_QUOTE}(address(nativeExecutor), MARKET_ID, SWEPT_QUOTE, SWEPT_MEME);
 
         _assertCommittedPosition(predictedLocker, plan);
         (uint256 quoteMint, uint256 memeMint) = _assetMints(plan, address(0));
         assertEq(address(poolManager).balance, quoteMint);
-        assertEq(address(dustReceiver).balance, SWEPT_QUOTE - quoteMint);
-        assertTrue(dustReceiver.observedMintBeforeDust());
+        assertEq(predictedLocker.balance, SWEPT_QUOTE - quoteMint);
         assertEq(meme.balanceOf(address(poolManager)), memeMint);
         assertEq(meme.balanceOf(predictedLocker), SWEPT_MEME - memeMint);
         assertEq(address(nativeExecutor).balance, 0);
@@ -509,7 +442,7 @@ contract GraduationExecutorPoolExecutionTest is Test {
         hook.setFailActivation(true);
 
         vm.expectRevert(bytes("activation"));
-        curve.graduate(address(executor), MARKET_ID);
+        curve.graduate(address(executor), MARKET_ID, SWEPT_QUOTE, SWEPT_MEME);
 
         assertEq(predictedLocker.code.length, 0);
         assertEq(positionManager.nextTokenId(), 1);
@@ -517,9 +450,9 @@ contract GraduationExecutorPoolExecutionTest is Test {
         assertEq(meme.balanceOf(address(executor)), SWEPT_MEME);
         assertEq(quote.balanceOf(address(poolManager)), 0);
         assertEq(meme.balanceOf(address(poolManager)), 0);
-        assertEq(quote.balanceOf(DUST_RECIPIENT), 0);
+        assertEq(quote.balanceOf(predictedLocker), 0);
         assertEq(hook.poolBinding(poolId).status, 0);
-        assertEq(registry.market(MARKET_ID).runtime.launchPhase, 1);
+        assertEq(registry.market(MARKET_ID).runtime.launchPhase, 0);
     }
 
     function test_initializeCannotStealProspectiveTokenIdWithoutAtomicRollback() public {
@@ -533,11 +466,11 @@ contract GraduationExecutorPoolExecutionTest is Test {
                 GraduationExecutorPoolExecution.UnexpectedPositionCounter.selector, uint256(3), uint256(2)
             )
         );
-        curve.graduate(address(executor), MARKET_ID);
+        curve.graduate(address(executor), MARKET_ID, SWEPT_QUOTE, SWEPT_MEME);
 
         assertEq(predictedLocker.code.length, 0);
         assertEq(positionManager.nextTokenId(), 1);
-        assertEq(registry.market(MARKET_ID).runtime.launchPhase, 1);
+        assertEq(registry.market(MARKET_ID).runtime.launchPhase, 0);
     }
 
     function _configureQuote(address quoteAsset) private {
@@ -575,13 +508,13 @@ contract GraduationExecutorPoolExecutionTest is Test {
         assertTrue(positionManager.usedCanonicalActions());
         assertEq(positionManager.nextTokenId(), 2);
         assertEq(positionManager.ownerOf(1), locker);
-        (uint256 tokenId, bytes32 poolId) = PoolExecutionLocker(locker).lockedPosition();
+        (uint256 tokenId, bytes32 poolId) = PoolExecutionLocker(payable(locker)).lockedPosition();
         assertEq(tokenId, 1);
         assertEq(poolId, plan.poolId);
         assertEq(positionManager.getPositionLiquidity(tokenId), plan.liquidity);
         assertEq(hook.poolBinding(poolId).status, 3);
         MarketView memory value = registry.market(MARKET_ID);
-        assertEq(value.runtime.launchPhase, 2);
+        assertEq(value.runtime.launchPhase, 1);
         assertEq(value.runtime.poolId, poolId);
         assertEq(value.runtime.sourceVersion, 2);
     }

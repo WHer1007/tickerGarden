@@ -154,12 +154,8 @@ interface ITickerGardenFactoryV1MutationDraft {
 interface IMarketRegistryV1MutationDraft {
     // caller=FACTORY_MODULE; executionDelay=0; stateDelay=0
     function registerMarket(bytes32, MarketConfig calldata) external;
-    // caller=EXACT_REGISTERED_CURVE; executionDelay=0; stateDelay=0
-    function markSwept(bytes32) external;
     // caller=GRADUATION_MODULE; executionDelay=0; stateDelay=0
     function commitPoolCreated(bytes32, bytes32) external returns (uint32);
-    // caller=GRADUATION_MODULE; executionDelay=0; stateDelay=604800
-    function markRescued(bytes32) external;
 }
 
 interface ILaunchAndBuyRouterMutationDraft {
@@ -261,7 +257,9 @@ interface IProtocolFeeVaultMutationDraft {
     // caller=ACTIVE_FEE_SOURCE; executionDelay=0; stateDelay=0
     function finalizeV4Credit(bytes32, address, uint256, uint256, uint256, uint256, uint64, bytes32) external;
     // caller=EXACT_REGISTERED_CURVE; executionDelay=0; stateDelay=0
-    function creditCurveSweep(bytes32, address, uint256, uint32, uint64, bytes32) external payable;
+    function beginCurveCredit(bytes32, address, uint256, uint32, uint64, bytes32) external;
+    // caller=EXACT_REGISTERED_CURVE; executionDelay=0; stateDelay=0
+    function finalizeCurveCredit(bytes32, address, uint256, uint32, uint64, bytes32) external payable;
     // caller=PUBLIC; executionDelay=0; stateDelay=0
     function claimCreator(bytes32, uint32, address) external returns (uint256);
     // caller=PUBLIC; executionDelay=0; stateDelay=0
@@ -276,11 +274,7 @@ interface IProtocolFeeVaultMutationDraft {
 
 interface IGraduationExecutorMutationDraft {
     // caller=EXACT_REGISTERED_CURVE; executionDelay=0; stateDelay=0
-    function graduateFromCurve(bytes32) external;
-    // caller=PUBLIC; executionDelay=0; stateDelay=0
-    function retryGraduation(bytes32) external;
-    // caller=PUBLIC; executionDelay=0; stateDelay=604800
-    function rescueSweptLaunch(bytes32) external;
+    function graduateFromCurve(bytes32, uint256, uint256) external payable;
 }
 
 interface ICreatorRevenueRegistryMutationDraft {

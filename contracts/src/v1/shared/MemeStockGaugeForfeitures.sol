@@ -8,11 +8,8 @@ import {MemeStockGaugeSettlements} from "./MemeStockGaugeSettlements.sol";
 abstract contract MemeStockGaugeForfeitures is MemeStockGaugeSettlements {
     struct RageQuitContext {
         bytes32 marketId;
-        address quoteAsset;
-        address memeAsset;
         uint256 quoteAccumulatorCutoff;
         uint256 memeAccumulatorCutoff;
-        bool forfeitureRedistributable;
     }
 
     event GaugeRageQuit(
@@ -50,27 +47,18 @@ abstract contract MemeStockGaugeForfeitures is MemeStockGaugeSettlements {
         }
         position.unlockAt = 0;
 
-        redistributed = context.forfeitureRedistributable;
         bool absorbGlobalRemainder = _rewardEligibleActiveStock(context.marketId) == 0;
         quoteForfeited = _forfeitReward(
-            position.rewards[QUOTE_REWARD_INDEX], QUOTE_REWARD_INDEX, redistributed, absorbGlobalRemainder
+            position.rewards[QUOTE_REWARD_INDEX], QUOTE_REWARD_INDEX, absorbGlobalRemainder
         );
         memeForfeited = _forfeitReward(
-            position.rewards[MEME_REWARD_INDEX], MEME_REWARD_INDEX, redistributed, absorbGlobalRemainder
+            position.rewards[MEME_REWARD_INDEX], MEME_REWARD_INDEX, absorbGlobalRemainder
         );
 
-        if (redistributed) {
-            if (quoteForfeited != 0) {
-                _redistributeForfeitedReward(
-                    QUOTE_REWARD_INDEX, context.quoteAsset, quoteForfeited, user, context.marketId
-                );
-            }
-            if (memeForfeited != 0) {
-                _redistributeForfeitedReward(
-                    MEME_REWARD_INDEX, context.memeAsset, memeForfeited, user, context.marketId
-                );
-            }
-        }
+        // The return slot remains for compatibility with existing manager events, but escaped rewards are
+        // never reintroduced into the Gauge accumulator.  MemeStockGauge records both values in the
+        // ProtocolFeeVault platform forfeiture reserve below.
+        redistributed = false;
 
         emit GaugeRageQuit(user, context.marketId, principal, quoteForfeited, memeForfeited, redistributed);
     }
@@ -116,14 +104,12 @@ abstract contract MemeStockGaugeForfeitures is MemeStockGaugeSettlements {
     function _forfeitReward(
         GaugeUserReward storage reward,
         uint8 rewardIndex,
-        bool redistributed,
         bool absorbGlobalRemainder
     ) private returns (uint256 amount) {
-        // A changed cohort can force this user's forfeiture into reserve even while active weight remains.
-        // Only a truly empty current cohort owns no global carry; do not sweep surviving stakers' carry merely
-        // because historical-cohort redistribution failed closed.
+        // User reward carry is always forfeited to the platform reserve. A global index remainder is only
+        // absorbed when no eligible stock remains; with an active cohort it remains normal accumulator carry.
         amount = _collectForfeitedReward(
-            rewardIndex, reward.pendingFee, reward.userRemainder, !redistributed && absorbGlobalRemainder
+            rewardIndex, reward.pendingFee, reward.userRemainder, absorbGlobalRemainder
         );
         reward.pendingFee = 0;
         reward.userRemainder = 0;

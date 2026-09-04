@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "executionSpecId": "V1-EXEC-8",
+  "executionSpecId": "V1-EXEC-9",
   "status": "APPROVED_GENERIC_NUMERIC_DOMAIN",
   "solidityDomains": {
     "uint256Max": "115792089237316195423570985008687907853269984665640564039457584007913129639935",
@@ -61,18 +61,16 @@
     "fullPrecisionUserSettlement": true,
     "indexRemainderInvariant": "indexRemainder < currentActiveStock after each credit",
     "userRemainderInvariant": "userRemainder < indexPrecision",
-    "forfeitureRedistribution": "NO_NEW_FEE_LIABILITY; CHECKED_ACCUMULATOR_UPDATE_TRANSFERS_EXISTING_STAKER_ENTITLEMENT",
+    "forfeitureRedistribution": "FORBIDDEN_ESCAPE_REWARDS_NEVER_REENTER_STAKER_ACCUMULATORS",
     "forfeitureReserve": "STAKER_BUCKET_TO_MARKET_AND_FEE_ASSET_RESERVE_PRESERVES_TOTAL_LIABILITY",
-    "forfeitureRedistributionLiabilityProofComplete": true,
-    "forfeitureRedistributionAccumulatorFormalProofStatus": "AUDIT_RESIDUAL_MULTI_USER_CHAINED_REMAINDER_NORMALIZATION"
+    "forfeiturePlatformReserveLiabilityProofComplete": true,
+    "forfeiturePrecisionRemainderPolicy": "ACCUMULATE_ONLY_TO_WHOLE_UNITS_THEN_RESERVE_FOR_PLATFORM"
   },
   "timestampBounds": {
     "activationDelaySeconds": 30,
     "maximumActivationSchedulingTimestamp": "18446744073709551585",
     "minimumLockSeconds": 86400,
     "maximumLockStartTimestamp": "18446744073709465215",
-    "graduationRescueDelaySeconds": 604800,
-    "maximumSweptAtTimestamp": "18446744073708946815",
     "overflowPolicy": "CHECK_BEFORE_ADD_AND_REVERT_WITHOUT_STATE_CHANGE"
   },
   "requiredFullPrecisionOperations": [

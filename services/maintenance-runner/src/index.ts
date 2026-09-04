@@ -1,12 +1,10 @@
 /** Permissionless V1 maintenance boundary; no keys, admin selectors, or calldata. */
-export const EXECUTION_SPEC_ID = "V1-EXEC-8" as const;
+export const EXECUTION_SPEC_ID = "V1-EXEC-9" as const;
 export const MAINTENANCE_OPERATIONS = Object.freeze([
   "sweep",
   "checkpoint",
   "flush-forfeiture",
   "settle-rage-quit",
-  "retry",
-  "rescue",
   "treasury-activate",
 ] as const);
 export type MaintenanceOperation = (typeof MAINTENANCE_OPERATIONS)[number];
@@ -24,8 +22,6 @@ export type MaintenanceAction = Readonly<MaintenanceRequest & {
     | "checkpointActivations()"
     | "flushDeferredForfeiture()"
     | "settleRageQuitRewards(bytes32,address)"
-    | "retryGraduation(bytes32)"
-    | "rescueSweptLaunch(bytes32)"
     | "activateMarket(bytes32)";
 }>;
 export type SimulationResult = Readonly<
@@ -92,7 +88,7 @@ export const MAINTENANCE_RUNNER_DESCRIPTOR = Object.freeze({
   durableIdempotencyLookupRequired: true as const,
   ambiguousSubmissionRetry: false as const,
   operations: MAINTENANCE_OPERATIONS,
-  actions: "sweep/checkpoint/flush-forfeiture/settle-rage-quit/retry/rescue/treasury-activate -> fixed module/signature mapping",
+  actions: "sweep/checkpoint/flush-forfeiture/settle-rage-quit/treasury-activate -> fixed module/signature mapping",
 });
 
 const MARKET_ID = /^0x[0-9a-f]{64}$/;
@@ -103,8 +99,6 @@ export const MAINTENANCE_ACTIONS = Object.freeze({
   checkpoint: Object.freeze({ targetModule: "MemeStockGauge", signature: "checkpointActivations()" as const }),
   "flush-forfeiture": Object.freeze({ targetModule: "MemeStockGauge", signature: "flushDeferredForfeiture()" as const }),
   "settle-rage-quit": Object.freeze({ targetModule: "AllocationManager", signature: "settleRageQuitRewards(bytes32,address)" as const }),
-  retry: Object.freeze({ targetModule: "GraduationExecutor", signature: "retryGraduation(bytes32)" as const }),
-  rescue: Object.freeze({ targetModule: "GraduationExecutor", signature: "rescueSweptLaunch(bytes32)" as const }),
   "treasury-activate": Object.freeze({ targetModule: "TreasuryDistributorV1", signature: "activateMarket(bytes32)" as const }),
 } as const);
 

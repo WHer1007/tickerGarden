@@ -73,10 +73,6 @@ export interface V1EventArgsBySignature {
     readonly newStatus: bigint;
     readonly reasonHash: string;
   };
-  readonly "AutoGraduationFailed(bytes32,bytes32)": {
-    readonly marketId: string;
-    readonly reasonHash: string;
-  };
   readonly "CreatorRevenueBeneficiaryUpdated(bytes32,uint32,uint32,address,address)": {
     readonly marketId: string;
     readonly oldEpoch: bigint;
@@ -164,14 +160,6 @@ export interface V1EventArgsBySignature {
     readonly feeAsset: string;
     readonly amount: bigint;
   };
-  readonly "ForfeitedRewardRedistributed(bytes32,address,address,uint256,uint256,uint256)": {
-    readonly marketId: string;
-    readonly user: string;
-    readonly feeAsset: string;
-    readonly amount: bigint;
-    readonly accumulatorDelta: bigint;
-    readonly indexRemainder: bigint;
-  };
   readonly "ForfeitureRecordDeferred(bytes32,address,uint256,uint256,uint256,uint256)": {
     readonly marketId: string;
     readonly user: string;
@@ -205,25 +193,12 @@ export interface V1EventArgsBySignature {
     readonly memeForfeited: bigint;
     readonly redistributed: boolean;
   };
-  readonly "LaunchPhaseChanged(bytes32,uint8,uint8,uint64,bytes32,uint32)": {
+  readonly "LaunchPhaseChanged(bytes32,uint8,uint8,bytes32,uint32)": {
     readonly marketId: string;
     readonly oldPhase: bigint;
     readonly newPhase: bigint;
-    readonly sweptAt: bigint;
     readonly poolId: string;
     readonly sourceVersion: bigint;
-  };
-  readonly "LaunchRescued(bytes32,uint64,uint64)": {
-    readonly marketId: string;
-    readonly sweptAt: bigint;
-    readonly rescuedAt: bigint;
-  };
-  readonly "LaunchSwept(bytes32,address,uint256,uint256,uint64)": {
-    readonly marketId: string;
-    readonly quoteAsset: string;
-    readonly sweptQuote: bigint;
-    readonly sweptTokens: bigint;
-    readonly sweptAt: bigint;
   };
   readonly "LaunchTemplateAdded(bytes32,bytes32,bytes32)": {
     readonly launchTemplateId: string;
@@ -320,6 +295,11 @@ export interface V1EventArgsBySignature {
     readonly quoteAsset: string;
     readonly ponsBaselineId: string;
     readonly economicsHash: string;
+  };
+  readonly "QuoteAssetIdentityPinned(bytes32,address,bytes32)": {
+    readonly configId: string;
+    readonly quoteAsset: string;
+    readonly runtimeCodeHash: string;
   };
   readonly "QuoteAssetStatusChanged(bytes32,uint8,uint8,bytes32)": {
     readonly configId: string;
@@ -563,12 +543,6 @@ export const V1_EVENT_ABI = [
     inputs: [{"name":"assetUid","type":"bytes32","indexed":true},{"name":"oldStatus","type":"uint8","indexed":false},{"name":"newStatus","type":"uint8","indexed":false},{"name":"reasonHash","type":"bytes32","indexed":false}],
   },
   {
-    signature: "AutoGraduationFailed(bytes32,bytes32)",
-    name: "AutoGraduationFailed",
-    modules: ["PonsCompatibleCurve"],
-    inputs: [{"name":"marketId","type":"bytes32","indexed":true},{"name":"reasonHash","type":"bytes32","indexed":false}],
-  },
-  {
     signature: "CreatorRevenueBeneficiaryUpdated(bytes32,uint32,uint32,address,address)",
     name: "CreatorRevenueBeneficiaryUpdated",
     modules: ["CreatorRevenueRegistry"],
@@ -647,12 +621,6 @@ export const V1_EVENT_ABI = [
     inputs: [{"name":"beneficiaryType","type":"uint8","indexed":true},{"name":"beneficiary","type":"address","indexed":true},{"name":"marketId","type":"bytes32","indexed":true},{"name":"beneficiaryEpoch","type":"uint32","indexed":false},{"name":"feeAsset","type":"address","indexed":false},{"name":"amount","type":"uint256","indexed":false}],
   },
   {
-    signature: "ForfeitedRewardRedistributed(bytes32,address,address,uint256,uint256,uint256)",
-    name: "ForfeitedRewardRedistributed",
-    modules: ["MemeStockGauge"],
-    inputs: [{"name":"marketId","type":"bytes32","indexed":true},{"name":"user","type":"address","indexed":true},{"name":"feeAsset","type":"address","indexed":true},{"name":"amount","type":"uint256","indexed":false},{"name":"accumulatorDelta","type":"uint256","indexed":false},{"name":"indexRemainder","type":"uint256","indexed":false}],
-  },
-  {
     signature: "ForfeitureRecordDeferred(bytes32,address,uint256,uint256,uint256,uint256)",
     name: "ForfeitureRecordDeferred",
     modules: ["MemeStockGauge"],
@@ -683,22 +651,10 @@ export const V1_EVENT_ABI = [
     inputs: [{"name":"user","type":"address","indexed":true},{"name":"marketId","type":"bytes32","indexed":true},{"name":"principal","type":"uint256","indexed":false},{"name":"quoteForfeited","type":"uint256","indexed":false},{"name":"memeForfeited","type":"uint256","indexed":false},{"name":"redistributed","type":"bool","indexed":false}],
   },
   {
-    signature: "LaunchPhaseChanged(bytes32,uint8,uint8,uint64,bytes32,uint32)",
+    signature: "LaunchPhaseChanged(bytes32,uint8,uint8,bytes32,uint32)",
     name: "LaunchPhaseChanged",
     modules: ["MarketRegistryV1"],
-    inputs: [{"name":"marketId","type":"bytes32","indexed":true},{"name":"oldPhase","type":"uint8","indexed":false},{"name":"newPhase","type":"uint8","indexed":false},{"name":"sweptAt","type":"uint64","indexed":false},{"name":"poolId","type":"bytes32","indexed":false},{"name":"sourceVersion","type":"uint32","indexed":false}],
-  },
-  {
-    signature: "LaunchRescued(bytes32,uint64,uint64)",
-    name: "LaunchRescued",
-    modules: ["GraduationExecutor"],
-    inputs: [{"name":"marketId","type":"bytes32","indexed":true},{"name":"sweptAt","type":"uint64","indexed":false},{"name":"rescuedAt","type":"uint64","indexed":false}],
-  },
-  {
-    signature: "LaunchSwept(bytes32,address,uint256,uint256,uint64)",
-    name: "LaunchSwept",
-    modules: ["PonsCompatibleCurve"],
-    inputs: [{"name":"marketId","type":"bytes32","indexed":true},{"name":"quoteAsset","type":"address","indexed":true},{"name":"sweptQuote","type":"uint256","indexed":false},{"name":"sweptTokens","type":"uint256","indexed":false},{"name":"sweptAt","type":"uint64","indexed":false}],
+    inputs: [{"name":"marketId","type":"bytes32","indexed":true},{"name":"oldPhase","type":"uint8","indexed":false},{"name":"newPhase","type":"uint8","indexed":false},{"name":"poolId","type":"bytes32","indexed":false},{"name":"sourceVersion","type":"uint32","indexed":false}],
   },
   {
     signature: "LaunchTemplateAdded(bytes32,bytes32,bytes32)",
@@ -783,6 +739,12 @@ export const V1_EVENT_ABI = [
     name: "QuoteAssetConfigAdded",
     modules: ["ApprovedQuoteRegistry"],
     inputs: [{"name":"configId","type":"bytes32","indexed":true},{"name":"quoteAsset","type":"address","indexed":true},{"name":"ponsBaselineId","type":"bytes32","indexed":true},{"name":"economicsHash","type":"bytes32","indexed":false}],
+  },
+  {
+    signature: "QuoteAssetIdentityPinned(bytes32,address,bytes32)",
+    name: "QuoteAssetIdentityPinned",
+    modules: ["ApprovedQuoteRegistry"],
+    inputs: [{"name":"configId","type":"bytes32","indexed":true},{"name":"quoteAsset","type":"address","indexed":true},{"name":"runtimeCodeHash","type":"bytes32","indexed":false}],
   },
   {
     signature: "QuoteAssetStatusChanged(bytes32,uint8,uint8,bytes32)",

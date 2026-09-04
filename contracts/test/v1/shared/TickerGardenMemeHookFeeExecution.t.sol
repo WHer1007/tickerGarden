@@ -455,7 +455,7 @@ contract TickerGardenMemeHookFeeExecutionTest is Test {
         config.memeToken = address(meme);
         config.graduatedHook = address(hook);
         MarketRuntime memory runtime;
-        runtime.launchPhase = 2;
+        runtime.launchPhase = 1;
         runtime.poolId = poolId;
         runtime.sourceVersion = 2;
         registry.configure(MARKET_ID, MarketView({config: config, runtime: runtime}), key);
@@ -486,7 +486,7 @@ contract TickerGardenMemeHookFeeExecutionTest is Test {
             abi.encode(
                 keccak256("TICKERGARDEN_V1_FEE_POLICY"),
                 uint256(4),
-                keccak256("V1-EXEC-8"),
+                keccak256("V1-EXEC-9"),
                 uint24(10_000),
                 uint16(0),
                 uint24(0),

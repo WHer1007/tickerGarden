@@ -49,7 +49,7 @@ abstract contract TickerGardenMemeHookLifecycle is TickerGardenMemeHookBinding {
         view
     {
         if (
-            value.runtime.launchPhase != LAUNCH_PHASE_SWEPT || value.runtime.poolId != bytes32(0)
+            value.runtime.launchPhase != LAUNCH_PHASE_NOT_GRADUATED || value.runtime.poolId != bytes32(0)
                 || _nextSourceVersion(binding.marketId, value.runtime.sourceVersion) != binding.sourceVersion
                 || binding.keyHash != poolId
         ) revert InactiveFeeSource(binding.marketId, binding.sourceVersion);

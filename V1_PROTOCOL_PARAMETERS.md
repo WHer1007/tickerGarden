@@ -1,6 +1,6 @@
 # TickerGarden V1 协议参数与产品规则
 
-> **当前架构边界（2026-09-04）：** `V1-EXEC-8` 已在本地实现市场永久自治；`launchPhase` 仅为一次性事实。资产与配置对象的 pause/retire 参数仍保留。目标链部署、外部审计和生产 E2E 尚未完成。
+> **当前架构边界（2026-09-04）：** `V1-EXEC-9` 已在本地实现市场永久自治与最终买入内原子毕业；`launchPhase` 只允许 `NotGraduated -> PoolCreated`。资产与配置对象的 pause/retire 参数仍保留。目标链部署、外部审计和生产 E2E 尚未完成。
 
 > 文档状态：`IMPLEMENTATION_ALLOWED / NOT_DEPLOYABLE`
 > 更新时间：2026-09-04
@@ -8,7 +8,7 @@
 > 发行兼容基线：[Pons V2 官方文档](https://docs.ponsfamily.com/v2)
 > 对比参考：[Pump.fun 费用](https://pump.fun/docs/fees) 与 [Pump.fun Bonding Curve](https://pump.fun/docs/bonding-curve)（仅借鉴原则，不复制其点时参数）
 > 技术实现基线：参见 [V1_TECHNICAL_ARCHITECTURE.md](./V1_TECHNICAL_ARCHITECTURE.md)
-> 可验证执行规范：参见 [V1_EXECUTION_SPEC.md](./V1_EXECUTION_SPEC.md)（当前 canonical 执行规则为 `V1-EXEC-8`）
+> 可验证执行规范：参见 [V1_EXECUTION_SPEC.md](./V1_EXECUTION_SPEC.md)（当前 canonical 执行规则为 `V1-EXEC-9`）
 > Pons 行为基线：参见 [V1_PONS_BEHAVIOR_BASELINE.md](./V1_PONS_BEHAVIOR_BASELINE.md)
 > Stock Vault 架构决策：参见 [V1_MULTI_ASSET_STOCK_VAULT.md](./V1_MULTI_ASSET_STOCK_VAULT.md)
 > 品牌文化与用户语言：参见 [brand/BRAND_CULTURE_AND_ECOSYSTEM.md](./brand/BRAND_CULTURE_AND_ECOSYSTEM.md)
@@ -58,7 +58,7 @@ Ticker Meme 是文化与社区用途的 meme token，不代表对应股票的所
 17. 同一用户在同一 Gauge 最多保存一个 pending 增量；激活前再次增仓时，新数量与原 pending 合并，并把 pending 的 `activationAt` 重置为本次分配时间加 `30 seconds`。已 active 的旧份额不因 pending 重置而停止计奖。
 18. 每次新仓位或增仓成功时，整个合并仓位的 `unlockAt` 重置为该笔分配交易时间加 `24 hours`。`unlockAt` 从分配交易而不是激活时点起算；未达到该时间不得正常 claim 或整仓 close。用户级 `rageQuit` 是例外：可绕过24小时，但放弃全部未领取双资产收益并整仓取回本金。
 19. 领取、激活和整仓 close 必须先结算旧有效份额的两种手续费权益，再改变有效份额。rageQuit 是本金优先的例外：Vault 先返还本金并留下奖励弃权 tombstone，Gauge 清理可在同笔交易中尽力完成，也可随后重试；待结算用户不能领取旧奖励或重新进入同一仓位。新份额不得领取 `activationAt` 之前产生的历史手续费，零质押期间产生的手续费不得追溯分给未来质押者。
-20. Ticker Meme 创建时可以登记固定 Gauge，但该 Gauge 在毕业完成前保持不可分配、无有效仓位状态。`NotGraduated`、`Swept` 和 `Rescued` 均禁止新增或增加 STOCK 分配；只有成功进入 `PoolCreated` 才开放质押。毕业不改变 `marketId`、Asset UID 或 Gauge 身份，曲线期费用不追溯给毕业后质押者。
+20. Ticker Meme 创建时可以登记固定 Gauge，但该 Gauge 在毕业完成前保持不可分配、无有效仓位状态。`NotGraduated` 禁止新增或增加 STOCK 分配；只有最终买入原子成功并进入 `PoolCreated` 才开放质押。毕业不改变 `marketId`、Asset UID 或 Gauge 身份，曲线期费用不追溯给毕业后质押者。
 21. V1 不设置 LP 质押挖矿或 Ticker Meme 排放。毕业后固定以 Uniswap v4 核心 Swap 的 unspecified currency 实际 delta 为基数收取 `1%`，全部由 Hook 转入 FeeVault；LP 协议手续费为0，canonical LP 仍永久锁定但不获得协议 LP 手续费。
 22. 所有市场、Gauge、费用、国库和毕业池使用 `marketId`、`Asset UID` 与 canonical 合约地址关联；Symbol、名称和 Logo 不是身份主键。
 23. 协议假设同一实际用户可以控制任意数量的钱包。钱包级限制不得被描述为一人级限制，平台指标不得把钱包数量等同于独立用户数量。
@@ -73,8 +73,8 @@ Ticker Meme 是文化与社区用途的 meme token，不代表对应股票的所
 - `launchConfigId` 及其 `supply`、`curveFeeBps`、`phantomQuote`、`graduationThreshold`、`poolFee`、`tickSpacing`；
 - 原生 Quote 语义，以及每个获批 ERC-20 Quote 的地址、decimals、`phantomQuote`、`graduationThreshold` 与资产行为约束；
 - 反狙击曲线、费用计算顺序、部分成交与退款规则；
-- `NotGraduated → Swept → PoolCreated / Rescued` 状态机；
-- 毕业执行、失败重试、七日救援和永久 Locker 语义；
+- `NotGraduated → PoolCreated` 原子状态机；
+- 最终买入失败全回滚、无毕业重试/终态救援/市场资产接收人，以及永久 Locker 语义；
 - 毕业后 Hook 对 Quote/Meme 两种实际收费资产的原样分桶、到账校验和领取语义；
 - 一组可执行的曲线、报价、毕业和费用参考测试向量。
 
@@ -118,7 +118,7 @@ TickerGarden 不把任一平台整体照搬，而是冻结以下组合：
 | Pons V2 | Phantom Reserve 曲线和公式推导 `reservedTokens` | 不设置自定义 `1% LaunchAllocation` |
 | Pons V2 | 逐市场 `expectedEconomics` | 已发行市场不受后续全局配置修改影响 |
 | Pons V2 | 多 Quote、反狙击、尾单部分成交与退款 | 逐 Quote economics，发行时永久选定一种 Quote |
-| Pons V2 | 自动毕业、permissionless retry、救援状态机 | 毕业不依赖创建者或平台后台 |
+| Pons V2 | 自动毕业、两阶段 retry 与救援状态机（仅作对照） | 只采纳自动触发；TickerGarden 采用单交易原子毕业、失败整笔回滚，不提供 retry、终态救援或市场资产接收人 |
 | Pons V2 | canonical 全范围流动性永久锁定 | 创建者和平台不能撤走初始流动性 |
 | Pons V2 | Pull 式费用领取 | 某个收款地址失败不能阻塞全市场分配 |
 | Pump.fun | 极简默认发行模板 | 普通创建者只看到一个推荐曲线模板和 Quote 选择；底层参数不开放随意填写 |
@@ -131,7 +131,7 @@ TickerGarden 不把任一平台整体照搬，而是冻结以下组合：
 
 Pons 的开盘反狙击定价和原子 `launch-and-buy` 行为作为参考。首买不设置“毕业门槛1%”这一额外上限；最大成交量由剩余 `sellableTokens`、尾单部分成交、退款和 `minTokensOut` 决定。作为 TickerGarden 自有 ABI 的安全收窄，不暴露 Pons 的任意团队豁免数组，只自动豁免真实 creator/beneficiary 和原子首买 recipient。活跃 runtime 已固定精确 raw 表：elapsed `0/1/2/≥3s` 分别为 `9900/618/19/0 bps`；在基础费100 bps、creator tax 0、至少保留100 bps净 Quote 的 clip 下，TickerGarden effective 表为 `9800/618/19/0 bps`。Pons 文档5秒、固定仓库源码默认15秒和 runtime 3秒互相冲突，因此只实现这张整数输出表，不插值或猜测连续公式；证据见 [`spec/v1_pons_runtime_evidence.json`](./spec/v1_pons_runtime_evidence.json)。
 
-Pump 的 LP 手续费与动态费率档均不进入 V1-EXEC-8。毕业池总协议费率固定为 `1%`，不存在 TWAP、流动性、滚动量、现货市值或治理触发的升降档；`PoolKey.fee = 0`，Hook 收取的手续费全部进入 FeeVault。精确 PoolKey、Hook、取整和原子结算见 [V1_EXECUTION_SPEC.md](./V1_EXECUTION_SPEC.md)。
+Pump 的 LP 手续费与动态费率档均不进入 V1-EXEC-9。毕业池总协议费率固定为 `1%`，不存在 TWAP、流动性、滚动量、现货市值或治理触发的升降档；`PoolKey.fee = 0`，Hook 收取的手续费全部进入 FeeVault。精确 PoolKey、Hook、取整和原子结算见 [V1_EXECUTION_SPEC.md](./V1_EXECUTION_SPEC.md)。
 
 ### 3.3 已确认的 TickerGarden 差异
 
@@ -148,9 +148,9 @@ Pump 的 LP 手续费与动态费率档均不进入 V1-EXEC-8。毕业池总协�
 | 创建费与首买 | 精确原生创建费；可通过可信 Router 原子 launch-and-buy | 初始创建费和付款语义兼容；保留 TickerGarden creator/marketId 身份和自有 CREATE2 domain |
 | 地址与 ABI | Pons 自有部署栈，公开源码与活跃 runtime 存在漂移 | 不复制地址或不完整源码；按确认行为建立 TickerGarden ABI、数学不变量、地址预测和固定向量 |
 
-Pons V2 的曲线基础费率、开盘反狙击税及其衰减规则随 `ponsBaselineId` 冻结。TickerGarden 不额外叠加“质押手续费”；曲线期只替换 non-LP 费用受益人路由。`PoolCreated` 后采用不可变 `V1-EXEC-8` fee policy：`PoolKey.fee = 0`，Hook 对核心 Swap 的 unspecified currency 实际 delta 固定收取1%，全部实际转入 FeeVault。Staker 是否取得 non-LP 的固定30%（无 Active 时为0）仅由该笔费用发生时是否存在 active stake 决定，不再读取 saturation 或 release 参数。反狙击税只属于曲线阶段，按 Pons 规则并入曲线标准手续费后，以该市场 Quote 进入同一 TickerGarden 分配流程。
+Pons V2 的曲线基础费率、开盘反狙击税及其衰减规则随 `ponsBaselineId` 冻结。TickerGarden 不额外叠加“质押手续费”；曲线期只替换 non-LP 费用受益人路由。`PoolCreated` 后采用不可变 `V1-EXEC-9` fee policy：`PoolKey.fee = 0`，Hook 对核心 Swap 的 unspecified currency 实际 delta 固定收取1%，全部实际转入 FeeVault。Staker 是否取得 non-LP 的固定30%（无 Active 时为0）仅由该笔费用发生时是否存在 active stake 决定，不再读取 saturation 或 release 参数。反狙击税只属于曲线阶段，按 Pons 规则并入曲线标准手续费后，以该市场 Quote 进入同一 TickerGarden 分配流程。
 
-CREATE2 使用 TickerGarden 自有 domain 和可离线验证的标准 EIP-1014 公式；创建者收益身份沿用已冻结 epoch 模型，community takeover/管理员任意 override 不继承；两阶段毕业、permissionless retry、七日 rescue 和永久锁仓继承行为语义。`launch-and-buy`、多 Quote 和公式化毕业池数量均已确定采纳。精确矩阵见 [V1_PONS_BEHAVIOR_BASELINE.md](./V1_PONS_BEHAVIOR_BASELINE.md)。
+CREATE2 使用 TickerGarden 自有 domain 和可离线验证的标准 EIP-1014 公式；创建者收益身份沿用已冻结 epoch 模型，community takeover/管理员任意 override 不继承。TickerGarden 仅继承 Pons 的最终买入自动触发与永久锁仓原则，不继承两阶段 `Swept`、permissionless retry 或 owner/terminal rescue；本项目采用全原子失败回滚。`launch-and-buy`、多 Quote 和公式化毕业池数量均已确定采纳。精确矩阵见 [V1_PONS_BEHAVIOR_BASELINE.md](./V1_PONS_BEHAVIOR_BASELINE.md)。
 
 ### 3.4 Quote Asset 选择与冻结
 
@@ -173,7 +173,9 @@ economicsHash
 status
 ```
 
-获批 ERC-20 必须拒绝 fee-on-transfer、rebasing、可变 decimals 和其他无法按实际余额守恒结算的行为。Quote config 的地址、decimals、phantom/threshold 和 `economicsHash` 永不修改；`status` 是独立的新发行门禁，可以暂停某资产的新发行，但不能把历史市场迁移到另一 Quote。更新 economics 必须新增 `quoteAssetConfigId`，`expectedEconomics` 不包含可变的 status。
+获批 ERC-20 必须是不可升级的直接合约，并拒绝 fee-on-transfer、rebasing、可变 decimals 和其他无法按实际余额守恒结算的行为。Registry 在登记时拒绝 runtime 中可执行的 `DELEGATECALL`、`CALLCODE`、`SELFDESTRUCT`，保存 runtime codehash；恢复 Quote 与 Factory/MarketRegistry 创建市场时都重新检查 codehash 和 decimals。部署 preflight 进一步要求 `proxyKind == NONE`、`implementationAddress == tokenAddress`、implementation/runtime codehash 相等，并证明 EIP-1967 implementation/admin/beacon 三个槽均为零。opcode 与槽位检查不能证明 Token 没有 owner blacklist 等业务权限，因此源码审计与 exact-transfer 行为测试仍是独立准入条件。
+
+Quote config 的地址、decimals、phantom/threshold 和 `economicsHash` 永不修改；`status` 是独立的新发行门禁，可以暂停某资产的新发行，但不能把历史市场迁移到另一 Quote。更新 economics 必须新增 `quoteAssetConfigId`，`expectedEconomics` 不包含可变的 status。
 
 Robinhood 官方 Stock Token 目录中存在 chainId `4663` deployment 的全部资产都属于可准入 STOCK；2026-09-02 点时观测为194项，但该数量不是协议上限。准入身份必须绑定 `chainId + Asset UID + canonical token + decimals`，并在生产登记前复核 Beacon/implementation；symbol/name 不能作为身份。HTTP 目录只用于离线取证，合约运行时只认 TickerGarden Registry。
 
@@ -181,14 +183,13 @@ Robinhood 官方 Stock Token 目录中存在 chainId `4663` deployment 的全部
 
 TickerGarden 的获批列表不必与 Pons 现网列表永久相同，但每个 Pons 现网未批准的新增 Quote 都必须登记为显式 TickerGarden 差异，独立冻结 economics、完成参考向量和安全审查；不能借“兼容 Pons”省略这些步骤。
 
-首发 Quote 已冻结为两项，权威记录为 [`spec/v1_initial_quote_configs.json`](./spec/v1_initial_quote_configs.json)：
+首发 Quote 收窄为一项，权威记录为 [`spec/v1_initial_quote_configs.json`](./spec/v1_initial_quote_configs.json)：
 
 | Config | Quote | Decimals | `phantomQuote` | `graduationThreshold` | `quoteAssetConfigId == economicsHash` |
 |---|---|---:|---:|---:|---|
 | `NATIVE_ETH_V1` | `address(0)` | 18 | `1680000000000000000` | `4200000000000000000` | `0x110acc145df286ef871d394b987b4ce12b062dc4d50d75343cdac7986a21e64e` |
-| `USDG_V1` | `0x5fc5360D0400a0Fd4f2af552ADD042D716F1d168` | 6 | `3236000000` | `8090000000` | `0xf821fb65a35fd50ac97c95e0cd87251bf65fc80f33524a221ea8cc56b2a0fc09` |
 
-Robinhood Chain 官方资产页列出的稳定币是 USDG，没有列出官方 USDC；实现者不得自行把 USDG 重命名为 USDC，也不得仅凭 symbol 选择同名资产。USDG 当前是可升级代理，生产部署 preflight 必须在同一 finalized block 重取 proxy codehash、implementation 地址/codehash、decimals 与实际转账行为；任何漂移都拒绝新市场并重新资产审查。后续 Quote 只能通过新的追加式 config 导入，不能改写上述历史 economics。
+已观测 USDG 是可升级代理，因此不再属于 V1 首发 ACTIVE Quote，也不得通过 `ApprovedQuoteRegistry` 登记。未来 ERC-20 Quote 只能在证明为不可升级直接合约并完成独立行为审查后，以新的追加式 config 导入；不能把代理资产通过别名、包装声明或仅凭 symbol 绕过该门禁。
 
 市场创建时，创建者选择一个 ACTIVE `assetUid` 作为质押 Base，并选择一个 ACTIVE `quoteAssetConfigId`；Factory 将 canonical Stock Token/decimals/Vault 身份连同 `ponsBaselineId`、`launchConfigId`、`launchTemplateId` 和 `feePolicyId` 一起纳入 `expectedEconomics`。创建后以下项目终身一致：
 
@@ -244,9 +245,9 @@ V1 当前 Factory 的创建费参考 Pons 活跃部署，immutable 为 `50000000
 
 ### 3.7 毕业
 
-> **用户侧品牌术语：Bloom（绽放）。** `Bloom` 是协议 Graduation 成功事件的非规范性产品语言，唯一对应 canonical Registry 中 `launchPhase == PoolCreated`；成功后的持续状态统一显示为 `In Bloom`，不使用 `Bloomed`。`readyToGraduate() == true` 只能称为 `Ready to Bloom`，`launchPhase == Swept` 只能称为 `Bloom Pending`；二者均不得显示为 `In Bloom`，也不得据此开放 STOCK 配置。`Rooted Liquidity` 只描述 `PoolCreated` 后 canonical 初始流动性永久锁定的事实，`Harvest` 只描述已经实际产生并记账的手续费，二者都不是新的 `launchPhase`。`Rescued` 不是 Bloom。合约、ABI、事件与技术规范继续使用 `Graduation`、`PoolGraduated` 和 `PoolCreated`，完整语言规则见 [`brand/BRAND_CULTURE_AND_ECOSYSTEM.md`](./brand/BRAND_CULTURE_AND_ECOSYSTEM.md)。
+> **用户侧品牌术语：Bloom（绽放）。** `Bloom` 是协议 Graduation 成功事件的非规范性产品语言，唯一对应 canonical Registry 中 `launchPhase == PoolCreated`；成功后的持续状态统一显示为 `In Bloom`，不使用 `Bloomed`。`readyToGraduate() == true` 只能称为 `Ready to Bloom`，不得显示为 `In Bloom`，也不得据此开放 STOCK 配置。当前协议没有可持续观察的 `Bloom Pending`/`Swept` 或 `Rescued` 状态。`Rooted Liquidity` 只描述 `PoolCreated` 后 canonical 初始流动性永久锁定的事实，`Harvest` 只描述已经实际产生并记账的手续费，二者都不是新的 `launchPhase`。合约、ABI、事件与技术规范继续使用 `Graduation`、`PoolGraduated` 和 `PoolCreated`，完整语言规则见 [`brand/BRAND_CULTURE_AND_ECOSYSTEM.md`](./brand/BRAND_CULTURE_AND_ECOSYSTEM.md)。
 
-当 `sellableTokens == 0` 且 `readyToGraduate() == true` 时，市场按冻结的 Pons V2 状态机进入毕业。初始公式把 `realQuoteReserve` 的理论终点锚定在本市场 `QuoteAssetConfig` 中的 `graduationThreshold` 附近；实际数值会受每笔整数舍入影响，不得假设与阈值逐 raw unit 恒等。阈值以所选 Quote 的原始单位表示，不是跨资产统一的美元门槛，更不是 TickerGarden 全局写死的 `2,500 USDC`。Factory 在创建前验证理论终点，Curve 在最终买入提交 `Swept` 前以真实 swept 余额和 canonical PoolKey 再跑同一 `GraduationPoolMath`；若真实路径不可表示，最终买入整体回滚且市场保持 `NotGraduated`。
+当最后一笔买入使 `sellableTokens == 0` 时，Curve 在同一交易内自动执行毕业。初始公式把 `realQuoteReserve` 的理论终点锚定在本市场 `QuoteAssetConfig` 中的 `graduationThreshold` 附近；实际数值会受每笔整数舍入影响，不得假设与阈值逐 raw unit 恒等。阈值以所选 Quote 的原始单位表示，不是跨资产统一的美元门槛，更不是 TickerGarden 全局写死的 `2,500 USDC`。Factory 在创建前验证理论终点，Curve 在转移资产前以真实余额和 canonical PoolKey 再跑同一 `GraduationPoolMath`；若真实路径不可表示或任一建池步骤失败，最终买入整体回滚且市场保持 `NotGraduated`。
 
 曲线的 `reservedTokens` 会在第一阶段作为正常 `sweptTokens` 交给毕业模块，但第二阶段真正注入 V4 池的 Meme 还要移除虚拟 Quote 对终端价格的影响：
 
@@ -264,14 +265,14 @@ lockedExcessMeme = sweptTokens - poolMemeAmount
 
 - 只使用真实到账的市场 Quote，不信任调用参数、美元估值或链下展示值；
 - 同一市场只能成功毕业一次；
-- 最后一笔买入优先自动完成毕业；若池创建失败，市场停留在 `Swept`，任何人都可安全重试，不能丢失储备；
+- 最后一笔买入必须自动完成毕业；若池创建失败，最终买入及所有副作用整体回滚，资产仍在原 Curve 状态中，不产生可重试的中间托管；
 - 毕业后的官方池永久锁定，创建者和平台不能移除其 canonical 流动性；
 - Gauge 地址、创建者身份和绑定 Stock Token 不因毕业改变；毕业前 Gauge 必须为空且不产生质押者奖励，成功进入 `PoolCreated` 时才原子开放新增分配；曲线期已经产生的费用归属不得追溯重算；
 - 毕业前后全部使用同一个 `marketId`。
 
-费用源必须跟随 Pons 阶段而不是假设毕业永远一步成功：`NotGraduated` 时曲线是 ACTIVE fee source；进入 `Swept` 后曲线永久停止新交易，毕业池尚未启用，允许暂时没有 ACTIVE 交易源；只有 `PoolCreated` 成功后毕业池 Hook 才成为新 ACTIVE fee source。最后一笔曲线费用必须在提交 `Swept` 前完成最后一次 sweep，使用 curve 地址、`sourceVersion` 和单调 `sweepNonce` 形成唯一 `curveFeeId`。毕业池则使用 `poolId + sourceVersion + feeNonce + feeAsset + base + T` 形成 `feeId`，不依赖不存在的外部 `tradeId`。
+费用源与唯一阶段事实绑定：`NotGraduated` 时 Curve 是 ACTIVE fee source；同一交易原子进入 `PoolCreated` 后，毕业池 Hook 成为新的 ACTIVE fee source，不存在持久的无来源窗口。最后一笔曲线费用必须在 Pool 创建前完成最后一次 sweep，使用 Curve 地址、`sourceVersion` 和单调 `sweepNonce` 形成唯一 `curveFeeId`。毕业池则使用 `poolId + sourceVersion + feeNonce + feeAsset + base + T` 形成 `feeId`，不依赖不存在的外部 `tradeId`。
 
-质押门禁与同一状态机绑定，不设置管理员可独立切换的“提前开放”开关。最终曲线交易先原子结算、sweep 并提交 `Swept`；随后由 exact registered Curve `try/catch GraduationExecutor.graduateFromCurve(marketId)`，执行 per-market Locker 部署、池注册、初始化、永久锁仓、Hook 启用、`sourceVersion` 增加与 `PoolCreated`。该子调用必须全成或全败：失败时保留已经安全提交的 `Swept`，由 Curve 发出 `AutoGraduationFailed` 并允许任何人在 `Swept + ACTIVE` 下重试，不得让部分 Locker/Pool/Hook 状态泄漏。停留在 `Swept` 或最终进入 `Rescued` 时，质押始终关闭。
+质押门禁与同一状态机绑定，不设置管理员可独立切换的“提前开放”开关。最终曲线交易完成成交、退款和最后 fee sweep 后，由 exact registered Curve 同步调用 payable `GraduationExecutor.graduateFromCurve(marketId, quoteAmount, memeAmount)`，执行 per-market Locker 部署、池注册、初始化、永久锁仓、双资产 dust 锁定、Hook 启用、`sourceVersion` 增加与 `PoolCreated`。调用不使用 `try/catch` 吞错；失败会向上回滚最终买入，确保没有部分 Locker/Pool/Hook 状态泄漏。协议没有管理员或任意调用者可触发的毕业救援，也没有任何市场资产接收人。
 
 精确曲线、价格、Token/Quote 注入数量、滑点与边界不得由实现者另行设计；必须来自冻结的 Pons V2 基线、逐 Quote economics 和可执行参考测试。TickerGarden 只对已登记差异编写附加规格。
 
@@ -351,7 +352,7 @@ Total  = 10 NVDA
 
 ### 5.1 毕业后分配与30秒延迟激活
 
-单纯存入 `UserStockVault` 不代表支持任何 Meme，因此不会产生收益。分配入口首先要求目标市场已经进入 `PoolCreated` 且允许新增仓位；`NotGraduated`、`Swept`、`Rescued` 或 PAUSED/RETIRED 市场必须拒绝新增和增加。通过门禁后，用户调用 `allocate(marketId, amount)`，或在同一笔交易调用 `depositAndAllocate` 指定 Meme，新增份额先进入 pending，不立即增加有效权重。固定顺序为：
+单纯存入 `UserStockVault` 不代表支持任何 Meme，因此不会产生收益。分配入口首先要求目标市场已经进入 `PoolCreated` 且对应 Asset 允许新增仓位；`NotGraduated` 或 Asset PAUSED/RETIRED 时必须拒绝新增和增加。通过门禁后，用户调用 `allocate(marketId, amount)`，或在同一笔交易调用 `depositAndAllocate` 指定 Meme，新增份额先进入 pending，不立即增加有效权重。固定顺序为：
 
 ```text
 处理已经到期的 activation bucket
@@ -429,7 +430,7 @@ D_asset = T_asset
 
 `D_curve/D_asset/L_asset/T_asset` 均不包括 Gas。毕业池不使用请求交易额或指定资产名义值，而使用核心实际成交后的 unspecified delta，所以部分成交不会被按未成交数量过收。`PoolCreated` 后的 STOCK 质押不会额外叠加收费，只改变 `D_asset` 的受益人。Hook 每笔都必须确认 v4 `lpFee == 0` 且 packed `protocolFee == 0`；否则整笔 Swap 回滚，防止用户在1%之外被核心重复收费。
 
-### 6.2 固定毕业池分配（V1-EXEC-8）
+### 6.2 固定毕业池分配（V1-EXEC-9）
 
 毕业后每笔 Swap 使用处理完到期 activation bucket 后的 `totalActiveStock` 快照。只要 `S > 0`，按 Creator40% / Staker30% / Platform30% 分配；`S == 0` 时按 Creator70% / Staker0% / Platform30% 分配。LP 协议手续费始终为0。
 
@@ -456,12 +457,9 @@ else:
 3. 对 canonical STOCK 执行精确转账，本金在本交易中直接到本人钱包；若 Token 转账本身失败，前三步按 EVM 原子性全部回滚；
 4. Manager 仅在本金完成后，以限定 Gas 尝试 Gauge 弃权清理。失败不得回滚本金；tombstone 留待 `settleRageQuitRewards(marketId,user)` 被任何人重试。
 
-奖励清理完成时，Gauge 清除调用者的 active/pending 权重和全部未领取 Quote/Meme 权益，并以 Vault 在本金退出时冻结的 remaining-active weight 与 cohort nonce 处理放弃收益：
+奖励清理完成时，Gauge 清除调用者的 active/pending 权重和全部未领取 Quote/Meme 权益。所有因 `rageQuit` 放弃的完整最小单位都按 `marketId + feeAsset` 隔离记入 forfeiture reserve，随后只可在平台 claim 时转换为平台收入；无论当时是否仍有 Active staker，都不得重新进入 Gauge accumulator，也不得被现有或后加入的 staker 捕获。这样取消了对 remaining-active cohort 与 mutation nonce 的分支依赖，也避免异步清理时需要重建历史质押者集合。
 
-1. 若退出时有其他 Active staker，且清理前 cohort nonce 与有效权重均未变化，放弃的每种 feeAsset 通过该 market 的 accumulator 重新加入，按退出后仍未变化的 active stake 比例分配。
-2. 若退出时没有其他 Active staker，或延期期间发生任何 allocation mutation/有效权重变化，放弃额按 `marketId + feeAsset` 隔离记入 forfeiture reserve；后加入者不能捕获或稀释旧 forfeiture。它不再属于 staker，并在后续平台 claim 时转换为平台收入。FeeVault 暂时失败或耗尽固定 Gas 时，Gauge 记录聚合 deferred amount，任何人可调用 `flushDeferredForfeiture()` 补记；补记采用先清零、失败恢复，不能重复入账。
-
-正常 Manager 入口在同一交易内完成奖励清理时严格执行“有剩余 Active 则重分配”。只有本金已完成、奖励清理被迫延期且 cohort 随后变化时才 fail closed 到 reserve；若未来要求精确回溯退出瞬间的历史 cohort，需要另行引入 epoch/per-user checkpoint 账本。
+FeeVault 暂时失败或耗尽固定 Gas 时，Gauge 记录聚合 deferred amount，任何人可调用 `flushDeferredForfeiture()` 补记；补记采用先清零、失败恢复，不能重复入账。用户的本金完成状态不依赖该补记。
 
 在 tombstone 清除前，Gauge 的 `settle`/`consumeClaimable` 必须拒绝该用户，Vault 也拒绝其重新锁入同一 `assetUid + marketId`；其他用户的交易、质押、领取以及 Meme/Curve/Hook/LP 均不受影响。正常 `claim` 与整仓 `close` 仍需 `now >= unlockAt`，并保留已结算收益。市场级 Emergency 与 `forceReleaseAllocation` 已删除，不是用户级 rageQuit 的前置条件。
 
@@ -479,6 +477,8 @@ LP = 0
 曲线费用不得进入 Gauge accumulator 或 `STAKER_REWARD` Bucket，也不得在毕业后追溯给任何质押者。该阶段规则避免把 LP 或质押者费用存入一个未来可能被抢领的 Bucket，也避免为了加入额外 Quote 而改变 Pons 的 `reservedTokens` 和毕业初始价格。前端必须分别展示“曲线手续费”和“毕业池手续费”，不能用一个模糊费率覆盖两个阶段。
 
 Creator 收益受益人使用单调 epoch。受益人变更前必须先在旧 epoch 下原子 sweep 所有已产生 Curve fee，确认累计值归零后才创建新 epoch；毕业池费用在每笔 credit 时绑定当时 epoch。旧 epoch 负债永久支付给旧 beneficiary，管理员不能重定向。
+
+Curve→FeeVault 的 ERC-20 sweep 使用 `beginCurveCredit → exact transfer → finalizeCurveCredit`。begin 在全局 credit lock 内冻结 FeeVault 的资产余额，finalize 只在同一 canonical Curve、market/sourceVersion、nonce、feeId 全部匹配且 `balanceAfter - balanceBefore == sweptAmount` 时记账；预先存在于 FeeVault 的余额不能冒充本次到账。native Quote 走同一 begin/finalize 身份验证，并要求 finalize 的 `msg.value` 精确等于本次金额。任一步失败会使 Curve 的 nonce、储备更新、资产转账和 FeeVault 负债整体回滚。
 
 ### 6.5 整数守恒
 
@@ -529,7 +529,7 @@ user.reward[feeAsset].pendingFee
 user.reward[feeAsset].remainder
 ```
 
-V1-EXEC-8 固定指数精度为：
+V1-EXEC-9 固定指数精度为：
 
 ```text
 INDEX_PRECISION = 1e27
@@ -642,7 +642,7 @@ Hook transient delta = T_asset - D_asset = 0
 - 每个 Meme 的有效 STOCK、手续费、毕业、流动性、暂停和退休状态；
 - 用户按 marketId 分别待领取的 Quote/Meme 资产与数量。
 
-V1-EXEC-8 永久只保留单市场操作，不提供 batch ABI，也不得提供 `claimAll()` 或 `withdrawAllMarkets()`。若后续版本需要批量领取或部分退出，必须升级 `executionSpecId`、使用有界数组并重新完成 Gas、ABI、权限和原子性审计，不能静默加入首发实现。
+V1-EXEC-9 永久只保留单市场操作，不提供 batch ABI，也不得提供 `claimAll()` 或 `withdrawAllMarkets()`。若后续版本需要批量领取或部分退出，必须升级 `executionSpecId`、使用有界数组并重新完成 Gas、ABI、权限和原子性审计，不能静默加入首发实现。
 
 ## 11. 配置状态与用户逃生
 
@@ -656,7 +656,7 @@ V1-EXEC-8 永久只保留单市场操作，不提供 batch ABI，也不得提供
 
 任何 Gauge 故障或配置状态都不能锁住 `UserStockVault` 中的用户本金。Vault 按 `assetUid + user + marketId` 保存权威 allocation，并按资产同步维护 user/market/total 三层聚合。用户本人可随时调用 `rageQuit(assetUid, marketId)`：不读取 Gauge，不检查24小时锁、最低仓位或 `launchPhase`，先留下奖励弃权 tombstone，再清除本人 allocation 并把同额 STOCK 直接转回本人钱包。若 Gauge 故障，奖励权重可延后清理，但该用户旧 claim 与同 market 再入保持关闭，直至 permissionless retry 成功。
 
-协议没有部署后市场暂停、退休、接管或管理员恢复入口。用户本金只通过无状态依赖的 `rageQuit` 取回；奖励异步放弃、再分配或进入 reserve。
+协议没有部署后市场暂停、退休、接管或管理员恢复入口。用户本金只通过无状态依赖的 `rageQuit` 取回；被放弃奖励异步进入平台 forfeiture reserve，不向其他 staker 重分配。
 
 费用与参数安全不变量：市场创建时选择的 ACTIVE 官方 `Asset UID` 是唯一且不可变的质押 Base；STOCK 价格和美元估值不进入协议计算。每笔毕业池手续费必须使用记账时的 `S = totalActiveStock` 原子快照：`S=0` 时按 Creator70/Staker0/Platform30，`S>0` 时按 Creator40/Staker30/Platform30，Staker 与 Platform 向下取整、余数归 Creator；LP为0且同资产整数守恒始终成立，pending 在30秒激活前不得进入 `S`。
 
@@ -682,7 +682,7 @@ V1 可以复用 Test Prototype 中已经验证的 canonical 资产身份、固�
 
 ## 13. 已关闭的执行决策与仍开放的产品参数
 
-以下执行设计与本轮新增取证已由当前 `V1-EXEC-8` 关闭，不再属于实现者可选项：
+以下执行设计与本轮新增取证已由当前 `V1-EXEC-9` 关闭，不再属于实现者可选项：
 
 | ID | 已冻结结论 |
 |---|---|
@@ -692,7 +692,7 @@ V1 可以复用 Test Prototype 中已经验证的 canonical 资产身份、固�
 | V1-FROZEN-STATE-ABI-01 | Asset/Quote/Pons/Template 保留对象级准入状态；市场仅有单向 `launchPhase` 事实；不存在部署后市场管理或管理员恢复 selector；核心 ABI、事件与权限由机器清单生成 |
 | V1-FROZEN-LOCKED-LP-01 | canonical locked position 永久持有；协议 LP 手续费为0，LaunchLocker 无 collect/compound 或提款路径 |
 | V1-G0-PONS-RUNTIME-VECTORS-01 | 活跃 runtime 的3秒反狙击整数表与 native/ERC-20 完整毕业 receipt 已固定，并由独立整数模型逐值复核 |
-| V1-G0-PRODUCTION-QUOTES-01 | 首发 Quote 固定为 content-addressed `NATIVE_ETH_V1 + USDG_V1`；USDG 部署前必须重取代理/实现指纹 |
+| V1-G0-PRODUCTION-QUOTES-01 | 首发 Quote 仅 `NATIVE_ETH_V1`；可升级 USDG 移出首发，后续 ERC-20 必须是 codehash 固定、非代理的直接合约 |
 | V1-FROZEN-NUMERIC-01 | 6–18 decimals admission、int128/uint256/uint64 上限、full-precision mulDiv 与 accumulator 生命周期证明见 `spec/v1_numeric_bounds.json` |
 | V1-G0-BATCH-01 | batch ABI 明确移出 V1 首发范围；单市场入口永久保留 |
 
@@ -708,7 +708,7 @@ V1 可以复用 Test Prototype 中已经验证的 canonical 资产身份、固�
 | V1-G0-LAUNCH-FRICTION-01 | 当前 Factory 创建费 immutable 为 `0.0005` 原生资产并精确支付；不使用旧建议的 `5 USDG`；改费必须新 Factory + 新 `executionSpecId` |
 | V1-G0-ANTI-SNIPE-01 | 采用原子 launch-and-buy 和 Pons 尾单/退款语义；不设人为的“毕业门槛1%”首买上限；精确 runtime raw/effective 表已固定 |
 | V1-G0-OFFICIAL-STOCK-BASE-01 | 当前观测194项 ACTIVE 官方 STOCK 全部可由创建者选择为市场唯一质押 Base；STOCK 只作 raw-unit 质押分配，不使用价格、Feed 或 backing target |
-| [历史] V1-FROZEN-STAKER-SATURATION-01 | 旧 `V1-EXEC-3` 曾冻结 `stakeSaturationWholeTokens = 10`；每市场 `B = 10 × 10^stockDecimals`，质押者 Bucket 按 `min(S,B)/B` 线性释放。该历史决策已被当前 `V1-EXEC-8` 的动态 `minimumAllocation` 与 active Creator40/Staker30/Platform30 取代，不再生效。 |
+| [历史] V1-FROZEN-STAKER-SATURATION-01 | 旧 `V1-EXEC-3` 曾冻结 `stakeSaturationWholeTokens = 10`；每市场 `B = 10 × 10^stockDecimals`，质押者 Bucket 按 `min(S,B)/B` 线性释放。该历史决策已被当前 `V1-EXEC-9` 的动态 `minimumAllocation` 与 active Creator40/Staker30/Platform30 取代，不再生效。 |
 
 本地实现、artifact、生成 ABI 与测试门禁已经闭合，readiness 仍为 `IMPLEMENTATION_ALLOWED`；目标链 finalized 身份/实现指纹、live Fork/E2E 和外部签字仍必须通过部署或生产门禁。
 
@@ -721,4 +721,4 @@ V1 可以复用 Test Prototype 中已经验证的 canonical 资产身份、固�
 | V1-G0-PONS-SECURITY-01 | 确认源码/许可、完成 baseline 等价验证，并对 Pons 未关闭审计风险和 TickerGarden 差异代码取得独立安全签字 | 法律、合约、审计、部署审批 |
 | V1-G0-LEGAL-01 | 冻结 Stock Token 质押手续费收益的地区准入、风险披露和前端措辞 | Web、合规、部署范围 |
 
-`V1-P-010` 与 `V1-T-001` 已随当前 `V1-EXEC-8` 的无价格 STOCK Base 规则闭合，implementation gate 当前为空。Pons security 与 Legal 属于后续 production gates；目标链快照、生产 manifest、实链权限 diff、Fork/E2E 属于 deployment gates，因此 `IMPLEMENTATION_ALLOWED` 仍不得被表述为可部署或生产可用。
+`V1-P-010` 与 `V1-T-001` 已随当前 `V1-EXEC-9` 的无价格 STOCK Base 规则闭合，implementation gate 当前为空。Pons security 与 Legal 属于后续 production gates；目标链快照、生产 manifest、实链权限 diff、Fork/E2E 属于 deployment gates，因此 `IMPLEMENTATION_ALLOWED` 仍不得被表述为可部署或生产可用。

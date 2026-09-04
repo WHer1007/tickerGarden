@@ -67,18 +67,16 @@ TickerGarden 的文化由以下五项原则组成：
 |---|---|---|
 | 市场创建并处于 `NotGraduated` | **Seed / Seeded**（种下） | 市场已经创建，可以开始曲线阶段；不表示平台背书或保证毕业。 |
 | 曲线交易进行中 | **Growing**（生长中） | 社区与曲线市场仍在形成；不得把交易热度描述为股票价值增长。 |
-| `readyToGraduate() == true`，但尚未进入 `PoolCreated` | **Ready to Bloom**（即将绽放） | 仅表示已满足曲线毕业条件；池创建仍可能需要自动执行或 permissionless retry。 |
-| `launchPhase == Swept` | **Bloom Pending**（等待绽放） | 曲线资产已经安全 sweep，但 canonical Pool 尚未成功创建；此时不得显示 `In Bloom`，也不得开放 STOCK 配置。 |
+| 前端模拟显示下一笔可能吃完曲线 | **Ready to Bloom**（即将绽放） | 仅是非权威交易预览；链上不存在可持续观察的 ready 或 pending 阶段。 |
 | canonical Registry 中 `launchPhase == PoolCreated` | **Bloom / In Bloom**（绽放 / 已绽放） | `Bloom` 唯一成立条件。事件发生时使用 `Bloom`，成功后的市场状态使用 `In Bloom`。表示 canonical Pool 已成功创建；此后才能在满足其他协议门禁时接受对应 STOCK 配置。 |
 | `PoolCreated` 后的 canonical 初始流动性保持永久锁定 | **Rooted Liquidity**（流动性已扎根） | 描述 Bloom 后已经形成的持久流动性结果，不是独立 `launchPhase`，也不表示流动性规模或币价不会变化。 |
-| `launchPhase == Rescued` | **Rescued**（已救援） | 这是未完成 Bloom 后的独立终态，不能描述为 Bloom、毕业成功或活跃池。 |
 | 市场已经产生并记账的可领取手续费 | **Harvest**（收获） | 只指已经实际产生、到账并可核验的手续费；不得用于预估收益、固定回报、排放奖励或 APY。 |
 
 ### 4.1 `Bloom` 的产品展示规则
 
 - 合约、ABI、事件、Indexer 和技术文档继续使用 `Graduation`、`PoolGraduated` 与 `PoolCreated`，不得为了品牌语言重命名协议接口。
 - Web 的最终状态必须读取 canonical Registry；不能根据前端进度条、成交额估算或链下数据库自行判定 Bloom。
-- `readyToGraduate` 可以显示 “Ready to Bloom”，`Swept` 可以显示 “Bloom Pending”，只有 `PoolCreated` 可以显示 “In Bloom”。
+- 只有 canonical `PoolCreated` 可以显示 “In Bloom”。“Ready to Bloom”只能来自明确标注的前端模拟；不得从缓存或不存在的中间阶段推断成功。
 - `Bloom` 用于命名成功转换事件；持续状态、市场徽章和筛选标签统一使用 `In Bloom`，不再使用 `Bloomed`。
 - “Liquidity rooted permanently” 或 `Rooted Liquidity` 只描述 canonical 初始流动性的永久锁定事实；`Rooted` 不能替代 `PoolCreated`，也不能单独用于判定市场状态。
 - `Harvest` 只描述已经实际产生并记账的手续费，不得用于收益预测、奖励排放或尚未到账的金额。

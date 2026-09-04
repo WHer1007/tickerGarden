@@ -12,8 +12,8 @@ interface IGraduationRegistryDependencies {
 }
 
 /// @notice Formula and exact-balance accounting shared by the final GraduationExecutor.
-/// @dev A concrete executor supplies the already-recorded per-market escrow amounts and consumes them by creating
-///      the canonical pool and permanent Locker. Unrelated balances are deliberately excluded from the plan.
+/// @dev The exact registered Curve supplies the terminal amounts in the same transaction that creates the canonical
+///      pool and permanent Locker. Unrelated balances are deliberately excluded from the plan.
 abstract contract GraduationExecutorAssetAccounting is GraduationExecutorEntry {
     struct GraduationAssetPlan {
         address quoteAsset;
@@ -29,6 +29,7 @@ abstract contract GraduationExecutorAssetAccounting is GraduationExecutorEntry {
     error InvalidGraduationQuoteRegistry(address registry);
     error GraduationQuoteRegistryMismatch(address supplied, address expected);
     error GraduationMarketAssetMismatch(bytes32 marketId);
+    error InvalidGraduationPaymentValue(uint256 expected, uint256 actual);
     error InsufficientGraduationEscrow(address asset, uint256 required, uint256 available);
     error GraduationAssetConsumptionMismatch(address asset, uint256 expected, uint256 actual);
     error InvalidLaunchLocker(address launchLocker);
@@ -55,14 +56,20 @@ abstract contract GraduationExecutorAssetAccounting is GraduationExecutorEntry {
 
     receive() external payable {}
 
-    function _graduateSweptMarket(bytes32 marketId, MarketView memory sweptMarket) internal override {
-        GraduationAssetPlan memory plan = _graduationAssetPlan(marketId, sweptMarket);
+    function _graduateMarket(bytes32 marketId, MarketView memory marketView, uint256 quoteAmount, uint256 memeAmount)
+        internal
+        override
+    {
+        uint256 expectedValue = marketView.config.quoteAsset == address(0) ? quoteAmount : 0;
+        if (msg.value != expectedValue) revert InvalidGraduationPaymentValue(expectedValue, msg.value);
+
+        GraduationAssetPlan memory plan = _graduationAssetPlan(marketId, marketView, quoteAmount, memeAmount);
         uint256 quoteBalanceBefore = _graduationAssetBalance(plan.quoteAsset);
         uint256 memeBalanceBefore = _graduationAssetBalance(plan.memeToken);
         _requireEscrowBalance(plan.quoteAsset, plan.sweptQuote, quoteBalanceBefore);
         _requireEscrowBalance(plan.memeToken, plan.sweptTokens, memeBalanceBefore);
 
-        address launchLocker = _executeGraduationAssetPlan(marketId, sweptMarket, plan);
+        address launchLocker = _executeGraduationAssetPlan(marketId, marketView, plan);
         if (launchLocker == address(0) || launchLocker == address(this)) revert InvalidLaunchLocker(launchLocker);
 
         _requireExactConsumption(plan.quoteAsset, plan.sweptQuote, quoteBalanceBefore);
@@ -81,25 +88,27 @@ abstract contract GraduationExecutorAssetAccounting is GraduationExecutorEntry {
         );
     }
 
-    function _graduationAssetPlan(bytes32 marketId, MarketView memory sweptMarket)
-        internal
-        view
-        returns (GraduationAssetPlan memory plan)
-    {
-        QuoteAssetConfig memory quote = _graduationQuoteRegistry.quoteConfig(sweptMarket.config.quoteAssetConfigId);
+    function _graduationAssetPlan(
+        bytes32 marketId,
+        MarketView memory marketView,
+        uint256 quoteAmount,
+        uint256 memeAmount
+    ) internal view returns (GraduationAssetPlan memory plan) {
+        QuoteAssetConfig memory quote = _graduationQuoteRegistry.quoteConfig(marketView.config.quoteAssetConfigId);
         if (
-            sweptMarket.config.memeToken.code.length == 0
-                || sweptMarket.config.memeToken == sweptMarket.config.quoteAsset
-                || quote.quoteAsset != sweptMarket.config.quoteAsset
-                || quote.ponsBaselineId != sweptMarket.config.ponsBaselineId
-                || quote.economicsHash != sweptMarket.config.quoteAssetConfigId || quote.phantomQuote == 0
+            quoteAmount == 0 || memeAmount == 0 || marketView.config.memeToken.code.length == 0
+                || marketView.config.memeToken == marketView.config.quoteAsset
+                || quote.quoteAsset != marketView.config.quoteAsset
+                || quote.ponsBaselineId != marketView.config.ponsBaselineId
+                || quote.economicsHash != marketView.config.quoteAssetConfigId || quote.phantomQuote == 0
         ) revert GraduationMarketAssetMismatch(marketId);
 
-        (plan.sweptQuote, plan.sweptTokens) = _recordedGraduationEscrow(marketId, sweptMarket);
+        plan.sweptQuote = quoteAmount;
+        plan.sweptTokens = memeAmount;
         (plan.poolMemeAmount, plan.lockedExcessMeme) =
             PonsSupplyMath.graduationPartition(plan.sweptTokens, plan.sweptQuote, quote.phantomQuote);
-        plan.quoteAsset = sweptMarket.config.quoteAsset;
-        plan.memeToken = sweptMarket.config.memeToken;
+        plan.quoteAsset = marketView.config.quoteAsset;
+        plan.memeToken = marketView.config.memeToken;
     }
 
     function _graduationAssetBalance(address asset) internal view returns (uint256 balance) {
@@ -116,14 +125,6 @@ abstract contract GraduationExecutorAssetAccounting is GraduationExecutorEntry {
         uint256 actual = beforeBalance >= afterBalance ? beforeBalance - afterBalance : type(uint256).max;
         if (actual != expected) revert GraduationAssetConsumptionMismatch(asset, expected, actual);
     }
-
-    /// @dev C303-D reads the immutable record frozen by the exact per-market Curve in the outer sweep transaction, so
-    ///      retries and rescue never infer amounts from this contract's aggregate balance.
-    function _recordedGraduationEscrow(bytes32 marketId, MarketView memory sweptMarket)
-        internal
-        view
-        virtual
-        returns (uint256 sweptQuote, uint256 sweptTokens);
 
     /// @dev C303-C consumes poolMemeAmount and lockedExcessMeme through the canonical pool and permanent Locker.
     function _executeGraduationAssetPlan(

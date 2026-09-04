@@ -45,18 +45,17 @@ contract GraduationAccountingRegistryMock {
         executor = value;
     }
 
-    function configure(bytes32 marketId, MarketConfig calldata config, uint32 sourceVersion, uint64 sweptAt) external {
+    function configure(bytes32 marketId, MarketConfig calldata config, uint32 sourceVersion) external {
         MarketRuntime memory runtime;
-        runtime.launchPhase = 1;
+        runtime.launchPhase = 0;
         runtime.sourceVersion = sourceVersion;
-        runtime.sweptAt = sweptAt;
         _markets[marketId] = MarketView({config: config, runtime: runtime});
     }
 
     function commitPool(bytes32 marketId, bytes32 poolId) external {
         if (msg.sender != executor) revert UnauthorizedExecutor(msg.sender);
         MarketRuntime storage runtime = _markets[marketId].runtime;
-        runtime.launchPhase = 2;
+        runtime.launchPhase = 1;
         runtime.poolId = poolId;
         runtime.sourceVersion += 1;
     }
@@ -67,8 +66,13 @@ contract GraduationAccountingRegistryMock {
 }
 
 contract GraduationAccountingCurveCaller {
-    function graduate(GraduationExecutorAssetAccounting executor, bytes32 marketId) external {
-        executor.graduateFromCurve(marketId);
+    function graduate(
+        GraduationExecutorAssetAccounting executor,
+        bytes32 marketId,
+        uint256 quoteAmount,
+        uint256 memeAmount
+    ) external payable {
+        executor.graduateFromCurve{value: msg.value}(marketId, quoteAmount, memeAmount);
     }
 }
 
@@ -82,8 +86,6 @@ contract GraduationAccountingExecutorHarness is GraduationExecutorAssetAccountin
     GraduationAccountingRegistryMock private immutable _registry;
     address private immutable _quoteSink;
     address private immutable _locker;
-    uint256 private _sweptQuote;
-    uint256 private _sweptTokens;
     Mode private _mode;
 
     uint256 public observedPoolMeme;
@@ -97,17 +99,8 @@ contract GraduationAccountingExecutorHarness is GraduationExecutorAssetAccountin
         _locker = locker;
     }
 
-    function setEscrow(uint256 sweptQuote, uint256 sweptTokens) external {
-        _sweptQuote = sweptQuote;
-        _sweptTokens = sweptTokens;
-    }
-
     function setMode(Mode value) external {
         _mode = value;
-    }
-
-    function _recordedGraduationEscrow(bytes32, MarketView memory) internal view override returns (uint256, uint256) {
-        return (_sweptQuote, _sweptTokens);
     }
 
     function _executeGraduationAssetPlan(bytes32 marketId, MarketView memory, GraduationAssetPlan memory plan)
@@ -138,7 +131,6 @@ contract GraduationExecutorAssetAccountingTest is Test {
     bytes32 private constant BASELINE_ID = keccak256("graduation-accounting-baseline");
     bytes32 private constant QUOTE_CONFIG_ID = keccak256("graduation-accounting-quote");
     bytes32 private constant POOL_ID = keccak256("graduation-accounting-pool");
-    uint64 private constant SWEPT_AT = 1_000;
     uint32 private constant SOURCE_VERSION = 7;
     address private constant QUOTE_SINK = address(0xBEEF);
     address private constant LOCKER = address(0xCAFE);
@@ -179,9 +171,8 @@ contract GraduationExecutorAssetAccountingTest is Test {
     function test_nativePlanMatchesPinnedRuntimeAndPreservesUnrelatedBalances() public {
         uint256 unrelatedQuote = 13 ether;
         uint256 unrelatedMeme = 99;
-        vm.deal(address(executor), NATIVE_SWEPT_QUOTE + unrelatedQuote);
+        vm.deal(address(executor), unrelatedQuote);
         meme.mint(address(executor), NATIVE_SWEPT_TOKENS + unrelatedMeme);
-        executor.setEscrow(NATIVE_SWEPT_QUOTE, NATIVE_SWEPT_TOKENS);
 
         vm.expectEmit(true, true, true, true, address(executor));
         emit PoolGraduated(
@@ -194,7 +185,7 @@ contract GraduationExecutorAssetAccountingTest is Test {
             NATIVE_LOCKED_EXCESS,
             SOURCE_VERSION + 1
         );
-        curve.graduate(executor, MARKET_ID);
+        curve.graduate{value: NATIVE_SWEPT_QUOTE}(executor, MARKET_ID, NATIVE_SWEPT_QUOTE, NATIVE_SWEPT_TOKENS);
 
         assertEq(executor.observedPoolMeme(), NATIVE_POOL_MEME);
         assertEq(executor.observedLockedExcess(), NATIVE_LOCKED_EXCESS);
@@ -203,7 +194,7 @@ contract GraduationExecutorAssetAccountingTest is Test {
         assertEq(meme.balanceOf(address(executor)), unrelatedMeme);
         assertEq(meme.balanceOf(QUOTE_SINK), NATIVE_POOL_MEME);
         assertEq(meme.balanceOf(LOCKER), NATIVE_LOCKED_EXCESS);
-        assertEq(registry.market(MARKET_ID).runtime.launchPhase, 2);
+        assertEq(registry.market(MARKET_ID).runtime.launchPhase, 1);
     }
 
     function test_erc20PlanUsesActualRecordedAmountsAndConsumesEachAssetExactly() public {
@@ -216,9 +207,7 @@ contract GraduationExecutorAssetAccountingTest is Test {
         _configureMarket(address(quote), phantom);
         quote.mint(address(executor), sweptQuote);
         meme.mint(address(executor), sweptTokens);
-        executor.setEscrow(sweptQuote, sweptTokens);
-
-        curve.graduate(executor, MARKET_ID);
+        curve.graduate(executor, MARKET_ID, sweptQuote, sweptTokens);
 
         assertEq(executor.observedPoolMeme(), expectedPool);
         assertEq(executor.observedLockedExcess(), expectedExcess);
@@ -229,30 +218,25 @@ contract GraduationExecutorAssetAccountingTest is Test {
         assertEq(meme.balanceOf(LOCKER), expectedExcess);
     }
 
-    function test_insufficientRecordedEscrowFailsBeforeAnyConsumption() public {
-        vm.deal(address(executor), NATIVE_SWEPT_QUOTE - 1);
+    function test_inexactNativeCallValueFailsBeforeAnyConsumption() public {
         meme.mint(address(executor), NATIVE_SWEPT_TOKENS);
-        executor.setEscrow(NATIVE_SWEPT_QUOTE, NATIVE_SWEPT_TOKENS);
 
         vm.expectRevert(
             abi.encodeWithSelector(
-                GraduationExecutorAssetAccounting.InsufficientGraduationEscrow.selector,
-                address(0),
+                GraduationExecutorAssetAccounting.InvalidGraduationPaymentValue.selector,
                 NATIVE_SWEPT_QUOTE,
                 NATIVE_SWEPT_QUOTE - 1
             )
         );
-        curve.graduate(executor, MARKET_ID);
+        curve.graduate{value: NATIVE_SWEPT_QUOTE - 1}(executor, MARKET_ID, NATIVE_SWEPT_QUOTE, NATIVE_SWEPT_TOKENS);
 
         assertEq(address(QUOTE_SINK).balance, 0);
         assertEq(meme.balanceOf(LOCKER), 0);
-        assertEq(registry.market(MARKET_ID).runtime.launchPhase, 1);
+        assertEq(registry.market(MARKET_ID).runtime.launchPhase, 0);
     }
 
     function test_partialConsumptionRevertsPoolCommitAndEveryTransfer() public {
-        vm.deal(address(executor), NATIVE_SWEPT_QUOTE);
         meme.mint(address(executor), NATIVE_SWEPT_TOKENS);
-        executor.setEscrow(NATIVE_SWEPT_QUOTE, NATIVE_SWEPT_TOKENS);
         executor.setMode(GraduationAccountingExecutorHarness.Mode.UNDER_CONSUME_QUOTE);
 
         vm.expectRevert(
@@ -263,56 +247,48 @@ contract GraduationExecutorAssetAccountingTest is Test {
                 NATIVE_SWEPT_QUOTE - 1
             )
         );
-        curve.graduate(executor, MARKET_ID);
+        curve.graduate{value: NATIVE_SWEPT_QUOTE}(executor, MARKET_ID, NATIVE_SWEPT_QUOTE, NATIVE_SWEPT_TOKENS);
 
-        assertEq(address(executor).balance, NATIVE_SWEPT_QUOTE);
+        assertEq(address(executor).balance, 0);
         assertEq(meme.balanceOf(address(executor)), NATIVE_SWEPT_TOKENS);
         assertEq(address(QUOTE_SINK).balance, 0);
         assertEq(meme.balanceOf(LOCKER), 0);
-        assertEq(registry.market(MARKET_ID).runtime.launchPhase, 1);
+        assertEq(registry.market(MARKET_ID).runtime.launchPhase, 0);
     }
 
     function test_zeroOrDegenerateRecordedAmountsFailClosed() public {
-        vm.deal(address(executor), NATIVE_SWEPT_QUOTE);
         meme.mint(address(executor), NATIVE_SWEPT_TOKENS);
-        executor.setEscrow(0, NATIVE_SWEPT_TOKENS);
-
-        vm.expectRevert(
-            abi.encodeWithSelector(
-                PonsSupplyMath.InvalidGraduationPartition.selector, NATIVE_SWEPT_TOKENS, uint256(0), NATIVE_PHANTOM
-            )
-        );
-        curve.graduate(executor, MARKET_ID);
-        assertEq(registry.market(MARKET_ID).runtime.launchPhase, 1);
-    }
-
-    function test_wrongFrozenQuoteBindingFailsBeforeUsingEscrow() public {
-        _configureQuote(address(0), NATIVE_PHANTOM, keccak256("wrong-baseline"));
-        vm.deal(address(executor), NATIVE_SWEPT_QUOTE);
-        meme.mint(address(executor), NATIVE_SWEPT_TOKENS);
-        executor.setEscrow(NATIVE_SWEPT_QUOTE, NATIVE_SWEPT_TOKENS);
 
         vm.expectRevert(
             abi.encodeWithSelector(GraduationExecutorAssetAccounting.GraduationMarketAssetMismatch.selector, MARKET_ID)
         );
-        curve.graduate(executor, MARKET_ID);
-        assertEq(registry.market(MARKET_ID).runtime.launchPhase, 1);
+        curve.graduate(executor, MARKET_ID, 0, NATIVE_SWEPT_TOKENS);
+        assertEq(registry.market(MARKET_ID).runtime.launchPhase, 0);
+    }
+
+    function test_wrongFrozenQuoteBindingFailsBeforeUsingEscrow() public {
+        _configureQuote(address(0), NATIVE_PHANTOM, keccak256("wrong-baseline"));
+        meme.mint(address(executor), NATIVE_SWEPT_TOKENS);
+
+        vm.expectRevert(
+            abi.encodeWithSelector(GraduationExecutorAssetAccounting.GraduationMarketAssetMismatch.selector, MARKET_ID)
+        );
+        curve.graduate{value: NATIVE_SWEPT_QUOTE}(executor, MARKET_ID, NATIVE_SWEPT_QUOTE, NATIVE_SWEPT_TOKENS);
+        assertEq(registry.market(MARKET_ID).runtime.launchPhase, 0);
     }
 
     function test_invalidLockerRollsBackAssetsAndPoolCommit() public {
-        vm.deal(address(executor), NATIVE_SWEPT_QUOTE);
         meme.mint(address(executor), NATIVE_SWEPT_TOKENS);
-        executor.setEscrow(NATIVE_SWEPT_QUOTE, NATIVE_SWEPT_TOKENS);
         executor.setMode(GraduationAccountingExecutorHarness.Mode.ZERO_LOCKER);
 
         vm.expectRevert(
             abi.encodeWithSelector(GraduationExecutorAssetAccounting.InvalidLaunchLocker.selector, address(0))
         );
-        curve.graduate(executor, MARKET_ID);
+        curve.graduate{value: NATIVE_SWEPT_QUOTE}(executor, MARKET_ID, NATIVE_SWEPT_QUOTE, NATIVE_SWEPT_TOKENS);
 
-        assertEq(address(executor).balance, NATIVE_SWEPT_QUOTE);
+        assertEq(address(executor).balance, 0);
         assertEq(meme.balanceOf(address(executor)), NATIVE_SWEPT_TOKENS);
-        assertEq(registry.market(MARKET_ID).runtime.launchPhase, 1);
+        assertEq(registry.market(MARKET_ID).runtime.launchPhase, 0);
     }
 
     function _configureMarket(address quoteAsset, uint256 phantom) private {
@@ -323,7 +299,7 @@ contract GraduationExecutorAssetAccountingTest is Test {
         config.quoteAsset = quoteAsset;
         config.ponsBaselineId = BASELINE_ID;
         config.quoteAssetConfigId = QUOTE_CONFIG_ID;
-        registry.configure(MARKET_ID, config, SOURCE_VERSION, SWEPT_AT);
+        registry.configure(MARKET_ID, config, SOURCE_VERSION);
     }
 
     function _configureQuote(address quoteAsset, uint256 phantom, bytes32 baselineId) private {

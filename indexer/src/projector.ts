@@ -135,11 +135,30 @@ export function applyV1Event(state: V1IndexerState, event: DecodedV1Event): "app
   if (event.signature === "FeeBucketsCredited(bytes32,uint32,address,bytes32,uint256,uint256,uint256,uint256)") {
     assertFeeIdentity(state, event.args.feeId, event.args.marketId, event.args.feeAsset);
   }
+  if (
+    (
+      event.signature === "AllocationRageQuitExecuted(address,bytes32,uint256,uint256,uint256,bool)" ||
+      event.signature === "RageQuitRewardSettlementFinalized(address,bytes32,uint256,uint256,uint256,bool)" ||
+      event.signature === "GaugeRageQuit(address,bytes32,uint256,uint256,uint256,bool)"
+    ) && event.args.redistributed
+  ) {
+    throw new Error(`${event.signature} redistributed=true violates the platform forfeiture policy`);
+  }
   if (event.signature === "CurveFeesSwept(bytes32,uint32,address,uint64,bytes32,uint256,uint256,uint256)") {
     assertFeeIdentity(state, event.args.feeId, event.args.marketId, event.args.quoteAsset);
   }
   if (event.signature === "StakerFeeCredited(bytes32,address,bytes32,uint256,uint256,uint256)") {
     assertFeeIdentity(state, event.args.feeId, event.args.marketId, event.args.feeAsset);
+  }
+  if (event.signature === "QuoteAssetIdentityPinned(bytes32,address,bytes32)") {
+    const old = state.configs.get(key("quote", event.args.configId));
+    if (!old) throw new Error(`cannot pin unknown quote config ${event.args.configId}`);
+    if (
+      typeof old.values.quoteAsset !== "string"
+        || lower(old.values.quoteAsset) !== lower(event.args.quoteAsset)
+    ) {
+      throw new Error(`quote identity asset mismatch for ${event.args.configId}`);
+    }
   }
   if (
     event.signature === "CurveBuy(address,address,uint256,uint256,uint256,uint256)" ||
@@ -189,6 +208,15 @@ export function applyV1Event(state: V1IndexerState, event: DecodedV1Event): "app
     case "QuoteAssetConfigAdded(bytes32,address,bytes32,bytes32)":
       state.configs.set(key("quote", event.args.configId), { kind: "quote", id: lower(event.args.configId), status: 1n, values: values(event.args), provenance: at });
       break;
+    case "QuoteAssetIdentityPinned(bytes32,address,bytes32)": {
+      const k = key("quote", event.args.configId); const old = state.configs.get(k)!;
+      state.configs.set(k, {
+        ...old,
+        values: { ...old.values, quoteAsset: event.args.quoteAsset, runtimeCodeHash: event.args.runtimeCodeHash },
+        provenance: at,
+      });
+      break;
+    }
     case "QuoteAssetStatusChanged(bytes32,uint8,uint8,bytes32)": {
       const k = key("quote", event.args.configId); const old = state.configs.get(k);
       state.configs.set(k, { kind: "quote", id: lower(event.args.configId), status: event.args.newStatus, values: { ...old?.values, reasonHash: event.args.reasonHash }, provenance: at });
@@ -213,8 +241,8 @@ export function applyV1Event(state: V1IndexerState, event: DecodedV1Event): "app
     case "MarketCreated(bytes32,bytes32,address,address,address,address,bytes32,bytes32,bytes32)":
     case "MarketRegistered(bytes32,bytes32,address,address,address,uint32)":
       mergeMarket(state, event.args.marketId, event.args, at); break;
-    case "LaunchPhaseChanged(bytes32,uint8,uint8,uint64,bytes32,uint32)":
-      mergeMarket(state, event.args.marketId, { launchPhase: event.args.newPhase, sweptAt: event.args.sweptAt, poolId: event.args.poolId, sourceVersion: event.args.sourceVersion }, at); break;
+    case "LaunchPhaseChanged(bytes32,uint8,uint8,bytes32,uint32)":
+      mergeMarket(state, event.args.marketId, { launchPhase: event.args.newPhase, poolId: event.args.poolId, sourceVersion: event.args.sourceVersion }, at); break;
     case "CreatorRevenueEpochInitialized(bytes32,uint32,address)":
       mergeMarket(state, event.args.marketId, { creatorEpoch: event.args.epoch, creatorBeneficiary: event.args.beneficiary }, at); break;
     case "CreatorRevenueBeneficiaryUpdated(bytes32,uint32,uint32,address,address)":
@@ -224,8 +252,6 @@ export function applyV1Event(state: V1IndexerState, event: DecodedV1Event): "app
     case "CurveBuyRefunded(address,uint256)":
       put(state.curveTrades, at.eventKey, { ...event.args, marketId: marketIdForCurve(state, event.emitter) }, at); break;
     case "CurveFeeTransferred(bytes32,uint64,bytes32,uint256)":
-    case "LaunchSwept(bytes32,address,uint256,uint256,uint64)":
-    case "AutoGraduationFailed(bytes32,bytes32)":
       put(state.curveTrades, at.eventKey, event.args, at); break;
     case "CurveCompleted(bytes32)":
       put(state.curveTrades, at.eventKey, event.args, at); mergeMarket(state, event.args.marketId, { curveCompleted: true }, at); break;
@@ -237,8 +263,6 @@ export function applyV1Event(state: V1IndexerState, event: DecodedV1Event): "app
       mergeMarket(state, event.args.marketId, { poolId: event.args.poolId, poolEvent: event.signature }, at); break;
     case "Donate(bytes32,address,uint256,uint256)":
       put(state.poolEvents, at.eventKey, event.args, at); break;
-    case "LaunchRescued(bytes32,uint64,uint64)":
-      put(state.poolEvents, at.eventKey, event.args, at); mergeMarket(state, event.args.marketId, { rescuedAt: event.args.rescuedAt }, at); break;
     case "StockDeposited(bytes32,address,uint256)":
     case "StockWithdrawn(bytes32,address,uint256)":
       mergePosition(state.stockPositions, key(event.args.assetUid, event.args.user), { ...event.args, lastEvent: event.signature }, at); break;
@@ -247,7 +271,12 @@ export function applyV1Event(state: V1IndexerState, event: DecodedV1Event): "app
     case "AllocationRageQuit(bytes32,address,bytes32,uint256)":
       mergePosition(state.allocations, key(event.args.assetUid, event.args.user, event.args.marketId), { ...event.args, lastEvent: event.signature }, at); break;
     case "AllocationRageQuitExecuted(address,bytes32,uint256,uint256,uint256,bool)":
-      mergePosition(state.gaugePositions, key(event.args.user, event.args.marketId), { ...event.args, lastEvent: event.signature }, at);
+      mergePosition(state.gaugePositions, key(event.args.user, event.args.marketId), {
+        ...event.args,
+        redistributed: false,
+        forfeitureDestination: "platform_forfeiture_reserve",
+        lastEvent: event.signature,
+      }, at);
       break;
     case "RageQuitRewardSettlementQueued(bytes32,address,bytes32,uint256)": {
       const projectionKey = allocationKey(event.args.assetUid, event.args.user, event.args.marketId);
@@ -302,7 +331,8 @@ export function applyV1Event(state: V1IndexerState, event: DecodedV1Event): "app
         rageQuitSettlementStatus: "finalized",
         rageQuitQuoteForfeited: event.args.quoteForfeited,
         rageQuitMemeForfeited: event.args.memeForfeited,
-        rageQuitRewardsRedistributed: event.args.redistributed,
+        rageQuitRewardsRedistributed: false,
+        rageQuitForfeitureDestination: "platform_forfeiture_reserve",
         lastEvent: event.signature,
       };
       mergePosition(state.gaugePositions, gaugeKey(event.args.user, event.args.marketId), patch, at);
@@ -314,7 +344,12 @@ export function applyV1Event(state: V1IndexerState, event: DecodedV1Event): "app
     case "PendingMaterialized(address,bytes32,uint64,uint256)":
       mergePosition(state.gaugePositions, key(event.args.user, event.args.marketId), { ...event.args, lastEvent: event.signature }, at); break;
     case "GaugeRageQuit(address,bytes32,uint256,uint256,uint256,bool)":
-      mergePosition(state.gaugePositions, key(event.args.user, event.args.marketId), { ...event.args, lastEvent: event.signature }, at); break;
+      mergePosition(state.gaugePositions, key(event.args.user, event.args.marketId), {
+        ...event.args,
+        redistributed: false,
+        forfeitureDestination: "platform_forfeiture_reserve",
+        lastEvent: event.signature,
+      }, at); break;
     case "ForfeitureRecordDeferred(bytes32,address,uint256,uint256,uint256,uint256)":
       mergePosition(state.gaugePositions, gaugeKey(event.args.user, event.args.marketId), {
         ...event.args,
@@ -342,8 +377,6 @@ export function applyV1Event(state: V1IndexerState, event: DecodedV1Event): "app
     case "FeeBucketsCredited(bytes32,uint32,address,bytes32,uint256,uint256,uint256,uint256)":
     case "CurveFeesSwept(bytes32,uint32,address,uint64,bytes32,uint256,uint256,uint256)":
       mergePosition(state.feeCredits, lower(event.args.feeId), { ...event.args, lastEvent: event.signature }, at); break;
-    case "ForfeitedRewardRedistributed(bytes32,address,address,uint256,uint256,uint256)":
-      mergePosition(state.feeCredits, key("forfeiture-redistributed", event.args.marketId, event.args.feeAsset), { ...event.args, lastEvent: event.signature }, at); break;
     case "ForfeitureReserved(bytes32,address,address,uint256,uint256)":
       mergePosition(state.feeCredits, key("forfeiture-reserve", event.args.marketId, event.args.feeAsset), { ...event.args, lastEvent: event.signature }, at); break;
     case "ForfeitureReserveConverted(bytes32,address,uint256)":
