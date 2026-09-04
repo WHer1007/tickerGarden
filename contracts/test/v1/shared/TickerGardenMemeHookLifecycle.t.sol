@@ -127,7 +127,7 @@ contract TickerGardenMemeHookLifecycleTest is Test {
         deployer = new HookLifecycleCreate2Deployer();
         hook = _deployHook();
         key = PoolKey({currency0: QUOTE, currency1: MEME, fee: 0, tickSpacing: 60, hooks: address(hook)});
-        _configure(1, bytes32(0), 1, key);
+        _configure(0, bytes32(0), 1, key);
     }
 
     function test_beforeInitializeConsumesExpectedBindingExactlyOnce() public {
@@ -158,13 +158,13 @@ contract TickerGardenMemeHookLifecycleTest is Test {
 
     function test_beforeInitializeFailsClosedOnRegistryLifecycleVersionAndCanonicalDrift() public {
         bytes32 poolId = _register();
-        _configure(2, poolId, 2, key);
+        _configure(1, poolId, 2, key);
         vm.expectRevert(
             abi.encodeWithSelector(TickerGardenMemeHookBinding.InactiveFeeSource.selector, MARKET_ID, uint32(2))
         );
         poolManager.initialize(hook, key);
 
-        _configure(1, bytes32(0), 2, key);
+        _configure(0, bytes32(0), 2, key);
         vm.expectRevert(
             abi.encodeWithSelector(TickerGardenMemeHookBinding.InactiveFeeSource.selector, MARKET_ID, uint32(2))
         );
@@ -172,7 +172,7 @@ contract TickerGardenMemeHookLifecycleTest is Test {
 
         PoolKey memory canonical = key;
         canonical.tickSpacing = 120;
-        _configure(1, bytes32(0), 1, canonical);
+        _configure(0, bytes32(0), 1, canonical);
         vm.expectRevert(TickerGardenMemeHookBinding.InvalidCanonicalPoolKey.selector);
         poolManager.initialize(hook, key);
         assertEq(hook.poolBinding(poolId).status, 1);
@@ -211,7 +211,7 @@ contract TickerGardenMemeHookLifecycleTest is Test {
         );
         hook.activatePool(poolId);
 
-        _configure(2, poolId, 2, key);
+        _configure(1, poolId, 2, key);
         vm.expectRevert(
             abi.encodeWithSelector(TickerGardenMemeHookBinding.InactiveFeeSource.selector, MARKET_ID, uint32(2))
         );
@@ -219,7 +219,7 @@ contract TickerGardenMemeHookLifecycleTest is Test {
 
         PoolKey memory wrongCanonical = key;
         wrongCanonical.tickSpacing = 120;
-        _configure(1, bytes32(0), 1, wrongCanonical);
+        _configure(0, bytes32(0), 1, wrongCanonical);
         vm.expectRevert(
             abi.encodeWithSelector(TickerGardenMemeHookBinding.InactiveFeeSource.selector, MARKET_ID, uint32(2))
         );
@@ -242,7 +242,7 @@ contract TickerGardenMemeHookLifecycleTest is Test {
         );
         poolManager.swap(hook, key);
 
-        _configure(2, poolId, 2, key);
+        _configure(1, poolId, 2, key);
         (bytes4 selector, int128 delta) = poolManager.swap(hook, key);
         assertEq(selector, ITickerGardenMemeHook.afterSwap.selector);
         assertEq(delta, 0);
@@ -267,7 +267,7 @@ contract TickerGardenMemeHookLifecycleTest is Test {
     function _activateAndCommit() private returns (bytes32 poolId) {
         poolId = _initialize();
         graduation.activate(hook, poolId);
-        _configure(2, poolId, 2, key);
+        _configure(1, poolId, 2, key);
     }
 
     function _configure(uint8 phase, bytes32 poolId, uint32 version, PoolKey memory canonical) private {

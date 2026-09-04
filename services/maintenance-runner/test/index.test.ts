@@ -6,22 +6,21 @@ const id = (digit: string) => `0x${digit.repeat(64)}`;
 
 test("declares injected non-privileged boundary", () => {
   assert.deepEqual(getMaintenanceRunnerDescriptor(), {
-    executionSpecId: "V1-EXEC-8", status: "active", privileged: false,
+    executionSpecId: "V1-EXEC-9", status: "active", privileged: false,
     transactionSubmissionImplemented: true, transportInjected: true, signerProvided: false,
     rpcProvided: false, userAssetCustody: false, simulateFirst: true,
     durableIdempotencyLookupRequired: true, ambiguousSubmissionRetry: false,
-    operations: ["sweep", "checkpoint", "flush-forfeiture", "settle-rage-quit", "retry", "rescue", "treasury-activate"],
-    actions: "sweep/checkpoint/flush-forfeiture/settle-rage-quit/retry/rescue/treasury-activate -> fixed module/signature mapping",
+    operations: ["sweep", "checkpoint", "flush-forfeiture", "settle-rage-quit", "treasury-activate"],
+    actions: "sweep/checkpoint/flush-forfeiture/settle-rage-quit/treasury-activate -> fixed module/signature mapping",
   });
   assert.equal(Object.isFrozen(MAINTENANCE_RUNNER_DESCRIPTOR), true);
   assert.deepEqual(MAINTENANCE_ACTIONS.sweep, { targetModule: "PonsCompatibleCurve", signature: "sweepCurveFees()" });
   assert.deepEqual(MAINTENANCE_ACTIONS["flush-forfeiture"], { targetModule: "MemeStockGauge", signature: "flushDeferredForfeiture()" });
   assert.deepEqual(MAINTENANCE_ACTIONS["settle-rage-quit"], { targetModule: "AllocationManager", signature: "settleRageQuitRewards(bytes32,address)" });
-  assert.deepEqual(MAINTENANCE_ACTIONS.rescue, { targetModule: "GraduationExecutor", signature: "rescueSweptLaunch(bytes32)" });
   assert.deepEqual(MAINTENANCE_ACTIONS["treasury-activate"], { targetModule: "TreasuryDistributorV1", signature: "activateMarket(bytes32)" });
 });
 
-test("builds fixed rescue and Treasury activation actions without accepting user calldata", async () => {
+test("builds fixed Treasury activation actions without accepting user calldata", async () => {
   const observed: unknown[] = [];
   let submissions = 0;
   const runner = new MaintenanceRunner({
@@ -30,17 +29,14 @@ test("builds fixed rescue and Treasury activation actions without accepting user
     async submit() { submissions += 1; return { txHash: id("c") }; },
   });
   const marketId = id("6");
-  const rescue = { operation: "rescue" as const, marketId, triggerId: id("1") };
   const activation = { operation: "treasury-activate" as const, marketId, triggerId: id("2") };
-  assert.equal((await runner.run(rescue)).status, "submitted");
   assert.equal((await runner.run(activation)).status, "submitted");
   assert.deepEqual(observed, [
-    { ...rescue, targetModule: "GraduationExecutor", signature: "rescueSweptLaunch(bytes32)" },
     { ...activation, targetModule: "TreasuryDistributorV1", signature: "activateMarket(bytes32)" },
   ]);
-  assert.equal(submissions, 2);
+  assert.equal(submissions, 1);
   assert.throws(
-    () => runner.run({ ...rescue, calldata: "0xdead" } as never),
+    () => runner.run({ ...activation, calldata: "0xdead" } as never),
     /unknown or missing fields/,
   );
 });
@@ -84,10 +80,10 @@ test("allows new trigger and coalesces same-trigger concurrency", async () => {
   const gate = new Promise<void>((resolve) => { release = resolve; });
   const runner = new MaintenanceRunner({
     async findSubmission() { return null; },
-    async simulate(action, key) { assert.equal(action.signature, "retryGraduation(bytes32)"); assert.match(key, /^retry:0x.*:0x/); return { status: "ready" }; },
+    async simulate(action, key) { assert.equal(action.signature, "activateMarket(bytes32)"); assert.match(key, /^treasury-activate:0x.*:0x/); return { status: "ready" }; },
     async submit() { submissions += 1; await gate; return { txHash: id("b") }; },
   });
-  const request = { operation: "retry" as const, marketId: id("5"), triggerId: id("d") };
+  const request = { operation: "treasury-activate" as const, marketId: id("5"), triggerId: id("d") };
   const first = runner.run(request); const second = runner.run(request); release();
   assert.equal((await first).status, "submitted"); assert.equal((await second).status, "submitted");
   assert.equal((await runner.run({ ...request, triggerId: id("e") })).status, "submitted");
@@ -107,7 +103,7 @@ test("classifies noop, fatal, and retryable outcomes", async () => {
   }, { maxAttempts: 3 });
   assert.equal((await runner.run({ operation: "checkpoint", marketId: id("1"), triggerId: id("1") })).status, "skipped");
   assert.equal((await runner.run({ operation: "sweep", marketId: id("2"), triggerId: id("2") })).status, "failed");
-  assert.equal((await runner.run({ operation: "retry", marketId: id("3"), triggerId: id("3") })).status, "submitted");
+  assert.equal((await runner.run({ operation: "treasury-activate", marketId: id("3"), triggerId: id("3") })).status, "submitted");
   assert.equal(submits, 3);
 });
 
@@ -118,9 +114,9 @@ test("does not retry deterministic submission failures and isolates observers", 
     async simulate() { return { status: "ready" }; },
     async submit() { submissions += 1; throw new MaintenanceTransportError("bad calldata", false); },
   }, { maxAttempts: 3, onEvent: () => { throw new Error("observer failed"); } });
-  const result = await runner.run({ operation: "retry", marketId: id("4"), triggerId: id("4") });
+  const result = await runner.run({ operation: "treasury-activate", marketId: id("4"), triggerId: id("4") });
   assert.equal(result.reason, "bad calldata"); assert.equal(submissions, 1);
-  assert.throws(() => runner.run({ operation: "retry", marketId: "0xABC", triggerId: id("5") }), /canonical bytes32/);
+  assert.throws(() => runner.run({ operation: "treasury-activate", marketId: "0xABC", triggerId: id("5") }), /canonical bytes32/);
 });
 
 test("runMany respects bounded concurrency", async () => {
@@ -225,7 +221,7 @@ test("ambiguous submission recovers its durable hash or stops without a second b
     async simulate() { simulations += 1; return { status: "ready" }; },
     async submit() { preBroadcastSubmissions += 1; return { txHash: id("z") }; },
   }, { maxAttempts: 3 });
-  const preBroadcastResult = await preBroadcastRetry.run({ operation: "retry", marketId: id("3"), triggerId: id("b") });
+  const preBroadcastResult = await preBroadcastRetry.run({ operation: "treasury-activate", marketId: id("3"), triggerId: id("b") });
   assert.equal(preBroadcastResult.status, "failed");
   assert.equal(preBroadcastResult.attempt, 3);
   assert.match(preBroadcastResult.reason ?? "", /temporary durable store outage/);
@@ -244,7 +240,7 @@ test("ambiguous submission recovers its durable hash or stops without a second b
     async simulate() { return { status: "ready" }; },
     async submit() { recoveringSubmissions += 1; return { txHash: id("b") }; },
   }, { maxAttempts: 3 });
-  const lookupRecoveryResult = await lookupRecovers.run({ operation: "retry", marketId: id("3"), triggerId: id("f") });
+  const lookupRecoveryResult = await lookupRecovers.run({ operation: "treasury-activate", marketId: id("3"), triggerId: id("f") });
   assert.equal(lookupRecoveryResult.status, "submitted");
   assert.equal(lookupRecoveryResult.attempt, 3);
   assert.equal(recoveringLookups, 3);
@@ -259,7 +255,7 @@ test("ambiguous submission recovers its durable hash or stops without a second b
     async simulate() { throw new Error("must not simulate"); },
     async submit() { throw new Error("must not submit"); },
   }, { maxAttempts: 3 });
-  const nonRetryableResult = await nonRetryableLookup.run({ operation: "retry", marketId: id("3"), triggerId: id("a") });
+  const nonRetryableResult = await nonRetryableLookup.run({ operation: "treasury-activate", marketId: id("3"), triggerId: id("a") });
   assert.equal(nonRetryableResult.status, "failed");
   assert.equal(nonRetryableResult.attempt, 1);
   assert.equal(nonRetryableLookups, 1);
@@ -275,7 +271,7 @@ test("ambiguous submission recovers its durable hash or stops without a second b
       throw new Error("response lost after broadcast");
     },
   }, { maxAttempts: 3 });
-  const request = { operation: "retry" as const, marketId: id("3"), triggerId: id("c") };
+  const request = { operation: "treasury-activate" as const, marketId: id("3"), triggerId: id("c") };
   assert.equal((await recovered.run(request)).txHash, id("c"));
   assert.equal(submissions, 1);
 

@@ -36,6 +36,7 @@ contract MarketRegistryStockMock {
 
 contract MarketRegistryQuoteMock {
     mapping(bytes32 configId => QuoteAssetConfig value) private _quotes;
+    bool private _identityIsCurrent = true;
 
     function setQuote(bytes32 configId, QuoteAssetConfig calldata value) external {
         _quotes[configId] = value;
@@ -43,6 +44,14 @@ contract MarketRegistryQuoteMock {
 
     function quoteConfig(bytes32 configId) external view returns (QuoteAssetConfig memory) {
         return _quotes[configId];
+    }
+
+    function setIdentityCurrent(bool current) external {
+        _identityIsCurrent = current;
+    }
+
+    function quoteIdentityCurrent(bytes32) external view returns (bool) {
+        return _identityIsCurrent;
     }
 }
 
@@ -105,7 +114,7 @@ contract MarketRegistryV1Test is Test {
         uint32 sourceVersion
     );
     event LaunchPhaseChanged(
-        bytes32 indexed marketId, uint8 oldPhase, uint8 newPhase, uint64 sweptAt, bytes32 poolId, uint32 sourceVersion
+        bytes32 indexed marketId, uint8 oldPhase, uint8 newPhase, bytes32 poolId, uint32 sourceVersion
     );
 
     function setUp() public {
@@ -140,7 +149,6 @@ contract MarketRegistryV1Test is Test {
         assertEq(keccak256(abi.encode(stored.config)), keccak256(abi.encode(config)));
         assertEq(stored.runtime.poolId, bytes32(0));
         assertEq(stored.runtime.sourceVersion, 1);
-        assertEq(stored.runtime.sweptAt, 0);
         assertEq(stored.runtime.launchPhase, 0);
         assertEq(registry.marketIdByToken(MEME_TOKEN), MARKET_ID);
         (address source, uint32 version) = registry.activeFeeSource(MARKET_ID);
@@ -150,14 +158,14 @@ contract MarketRegistryV1Test is Test {
 
     function test_canonicalSelectorsAndOldInterventionSelectorsAreAbsent() public {
         assertEq(MarketRegistryV1.registerMarket.selector, IMarketRegistryV1.registerMarket.selector);
-        assertEq(MarketRegistryV1.markSwept.selector, IMarketRegistryV1.markSwept.selector);
         assertEq(MarketRegistryV1.commitPoolCreated.selector, IMarketRegistryV1.commitPoolCreated.selector);
-        assertEq(MarketRegistryV1.markRescued.selector, IMarketRegistryV1.markRescued.selector);
-        bytes4[4] memory removed = [
+        bytes4[6] memory removed = [
             bytes4(keccak256("setMarketPaused(bytes32,bytes32)")),
             bytes4(keccak256("setMarketActive(bytes32)")),
             bytes4(keccak256("setMarketRetired(bytes32,bytes32)")),
-            bytes4(keccak256("commitEmergencyExit(bytes32,uint64,bytes32)"))
+            bytes4(keccak256("commitEmergencyExit(bytes32,uint64,bytes32)")),
+            bytes4(keccak256("markSwept(bytes32)")),
+            bytes4(keccak256("markRescued(bytes32)"))
         ];
         for (uint256 i; i < removed.length; ++i) {
             (bool success,) = address(registry).call(abi.encodePacked(removed[i], bytes32(0), bytes32(0), bytes32(0)));
@@ -166,19 +174,16 @@ contract MarketRegistryV1Test is Test {
     }
 
     function test_launchLifecycleIsOneWayAndCannotBeInterrupted() public {
-        vm.warp(1_000);
         _register(MARKET_ID, _config(QUOTE_ASSET, MEME_TOKEN));
         _mockLaunchLocker(MARKET_ID, false);
         vm.expectEmit(true, false, false, true);
-        emit LaunchPhaseChanged(MARKET_ID, 0, 1, 1_000, bytes32(0), 1);
-        vm.prank(CURVE);
-        registry.markSwept(MARKET_ID);
         bytes32 poolId = registry.canonicalPoolId(MARKET_ID);
+        emit LaunchPhaseChanged(MARKET_ID, 0, 1, poolId, 2);
         vm.prank(GRADUATION);
         assertEq(registry.commitPoolCreated(MARKET_ID, poolId), 2);
         _mockLaunchLocker(MARKET_ID, true);
         MarketView memory stored = registry.market(MARKET_ID);
-        assertEq(stored.runtime.launchPhase, 2);
+        assertEq(stored.runtime.launchPhase, 1);
         assertEq(stored.runtime.poolId, poolId);
         assertEq(stored.runtime.sourceVersion, 2);
         (address source, uint32 version) = registry.activeFeeSource(MARKET_ID);
@@ -187,17 +192,13 @@ contract MarketRegistryV1Test is Test {
         CanonicalRoute memory route = registry.canonicalRoute(MARKET_ID);
         assertFalse(route.curveTradingEnabled);
         assertTrue(route.poolTradingEnabled);
-        vm.expectRevert(abi.encodeWithSelector(MarketRegistryV1.InvalidStateTransition.selector, 2, 2));
+        vm.expectRevert(abi.encodeWithSelector(MarketRegistryV1.InvalidStateTransition.selector, 1, 1));
         vm.prank(GRADUATION);
         registry.commitPoolCreated(MARKET_ID, poolId);
     }
 
-    function test_curveAndExecutorAuthenticationAndCanonicalPoolBinding() public {
+    function test_executorAuthenticationAndCanonicalPoolBinding() public {
         _register(MARKET_ID, _config(QUOTE_ASSET, MEME_TOKEN));
-        vm.expectRevert(abi.encodeWithSelector(MarketRegistryV1.UnauthorizedMarketCurve.selector, address(this), CURVE));
-        registry.markSwept(MARKET_ID);
-        vm.prank(CURVE);
-        registry.markSwept(MARKET_ID);
         vm.expectRevert(abi.encodeWithSelector(MarketRegistryV1.UnauthorizedModule.selector, address(this), GRADUATION));
         registry.commitPoolCreated(MARKET_ID, bytes32(uint256(1)));
         bytes32 wrongPool = keccak256("wrong-pool");
@@ -206,33 +207,9 @@ contract MarketRegistryV1Test is Test {
         registry.commitPoolCreated(MARKET_ID, wrongPool);
     }
 
-    function test_rescueUsesInclusiveSevenDayBoundary() public {
-        vm.warp(1_000);
-        _register(MARKET_ID, _config(QUOTE_ASSET, MEME_TOKEN));
-        _mockLaunchLocker(MARKET_ID, false);
-        vm.prank(CURVE);
-        registry.markSwept(MARKET_ID);
-        vm.warp(1_000 + 7 days - 1);
-        vm.expectRevert(abi.encodeWithSelector(MarketRegistryV1.RescueDelayNotElapsed.selector, 1_000 + 7 days));
-        vm.prank(GRADUATION);
-        registry.markRescued(MARKET_ID);
-        vm.warp(1_000 + 7 days);
-        vm.prank(GRADUATION);
-        registry.markRescued(MARKET_ID);
-        assertEq(registry.market(MARKET_ID).runtime.launchPhase, 3);
-        (address source, uint32 version) = registry.activeFeeSource(MARKET_ID);
-        assertEq(source, address(0));
-        assertEq(version, 0);
-        vm.expectRevert(abi.encodeWithSelector(MarketRegistryV1.GraduationNotRetryable.selector, MARKET_ID, 3));
-        vm.prank(GRADUATION);
-        registry.markRescued(MARKET_ID);
-    }
-
     function test_poolRouteAttestsCanonicalDeployedLocker() public {
         _register(MARKET_ID, _config(QUOTE_ASSET, MEME_TOKEN));
         _mockLaunchLocker(MARKET_ID, false);
-        vm.prank(CURVE);
-        registry.markSwept(MARKET_ID);
         bytes32 poolId = registry.canonicalPoolId(MARKET_ID);
         vm.prank(GRADUATION);
         registry.commitPoolCreated(MARKET_ID, poolId);
@@ -259,6 +236,12 @@ contract MarketRegistryV1Test is Test {
         _register(OTHER_MARKET_ID, wrongSpec);
     }
 
+    function test_registrationRejectsQuoteIdentityDrift() public {
+        quotes.setIdentityCurrent(false);
+        vm.expectRevert(MarketRegistryV1.InvalidMarketConfig.selector);
+        _register(MARKET_ID, _config(QUOTE_ASSET, MEME_TOKEN));
+    }
+
     function test_configStatusChangesAfterRegistrationCannotDisableExistingMarket() public {
         MarketConfig memory config = _config(QUOTE_ASSET, MEME_TOKEN);
         _register(MARKET_ID, config);
@@ -281,8 +264,6 @@ contract MarketRegistryV1Test is Test {
         assertEq(source, CURVE);
         assertEq(version, 1);
 
-        vm.prank(CURVE);
-        registry.markSwept(MARKET_ID);
         vm.prank(GRADUATION);
         registry.commitPoolCreated(MARKET_ID, expectedPoolId);
         _mockLaunchLocker(MARKET_ID, true);
@@ -319,7 +300,7 @@ contract MarketRegistryV1Test is Test {
             quoteAssetConfigId: QUOTE_CONFIG_ID,
             launchTemplateId: TEMPLATE_ID,
             feePolicyId: FEE_POLICY_ID,
-            executionSpecId: keccak256("V1-EXEC-8"),
+            executionSpecId: keccak256("V1-EXEC-9"),
             expectedEconomics: ECONOMICS,
             launchConfigId: 0,
             creatorRevenueBeneficiaryAtCreation: address(0xBEEF),
@@ -372,7 +353,7 @@ contract MarketRegistryV1Test is Test {
             launchLockerImplementation: address(0x1005),
             launchLockerCodeHash: keccak256("locker"),
             feePolicyId: FEE_POLICY_ID,
-            executionSpecId: keccak256("V1-EXEC-8"),
+            executionSpecId: keccak256("V1-EXEC-9"),
             status: 1
         });
     }

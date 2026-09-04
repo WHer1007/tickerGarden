@@ -42,7 +42,6 @@ abstract contract GraduationExecutorPoolExecution is GraduationExecutorAssetAcco
     IPositionManager internal immutable _graduationPositionManager;
     IAllowanceTransfer internal immutable _graduationPermit2;
     ITickerGardenMemeHook internal immutable _graduationHook;
-    address internal immutable _graduationQuoteDustRecipient;
 
     struct PoolExecutionContext {
         PoolKey key;
@@ -53,7 +52,7 @@ abstract contract GraduationExecutorPoolExecution is GraduationExecutorAssetAcco
     }
 
     error InvalidGraduationPoolDependencies(
-        address poolManager, address positionManager, address permit2, address hook, address quoteDustRecipient
+        address poolManager, address positionManager, address permit2, address hook
     );
     error InvalidLaunchLockerCreationCode();
     error UnexpectedGraduationPoolId(bytes32 supplied, bytes32 expected);
@@ -72,8 +71,7 @@ abstract contract GraduationExecutorPoolExecution is GraduationExecutorAssetAcco
         address quoteRegistry_,
         address poolManager_,
         address positionManager_,
-        address hook_,
-        address quoteDustRecipient_
+        address hook_
     ) GraduationExecutorAssetAccounting(marketRegistry_, quoteRegistry_) {
         address permit2_;
         address boundPoolManager;
@@ -87,29 +85,22 @@ abstract contract GraduationExecutorPoolExecution is GraduationExecutorAssetAcco
         }
         if (
             poolManager_.code.length == 0 || positionManager_.code.length == 0 || permit2_.code.length == 0
-                || hook_.code.length == 0 || quoteDustRecipient_ == address(0) || poolManager_ == positionManager_
-                || poolManager_ == permit2_ || poolManager_ == hook_ || positionManager_ == permit2_
-                || positionManager_ == hook_ || permit2_ == hook_ || quoteDustRecipient_ == address(this)
-                || quoteDustRecipient_ == poolManager_ || quoteDustRecipient_ == positionManager_
-                || quoteDustRecipient_ == permit2_ || quoteDustRecipient_ == hook_ || boundPoolManager != poolManager_
+                || hook_.code.length == 0 || poolManager_ == positionManager_ || poolManager_ == permit2_
+                || poolManager_ == hook_ || positionManager_ == permit2_ || positionManager_ == hook_
+                || permit2_ == hook_ || boundPoolManager != poolManager_
         ) {
-            revert InvalidGraduationPoolDependencies(
-                poolManager_, positionManager_, permit2_, hook_, quoteDustRecipient_
-            );
+            revert InvalidGraduationPoolDependencies(poolManager_, positionManager_, permit2_, hook_);
         }
 
         address factory_ = IGraduationPoolRegistryDependencies(marketRegistry_).factory();
         if (factory_ == address(0)) {
-            revert InvalidGraduationPoolDependencies(
-                poolManager_, positionManager_, permit2_, hook_, quoteDustRecipient_
-            );
+            revert InvalidGraduationPoolDependencies(poolManager_, positionManager_, permit2_, hook_);
         }
         _graduationFactory = factory_;
         _graduationPoolManager = IPoolManager(poolManager_);
         _graduationPositionManager = IPositionManager(positionManager_);
         _graduationPermit2 = IAllowanceTransfer(permit2_);
         _graduationHook = ITickerGardenMemeHook(hook_);
-        _graduationQuoteDustRecipient = quoteDustRecipient_;
     }
 
     function predictLaunchLocker(bytes32 marketId) public view returns (address) {
@@ -129,8 +120,7 @@ abstract contract GraduationExecutorPoolExecution is GraduationExecutorAssetAcco
                 address(_graduationPoolManager),
                 address(_graduationPositionManager),
                 address(_graduationPermit2),
-                address(_graduationHook),
-                _graduationQuoteDustRecipient
+                address(_graduationHook)
             );
         }
         context.poolPlan = GraduationPoolMath.derive(
@@ -171,7 +161,7 @@ abstract contract GraduationExecutorPoolExecution is GraduationExecutorAssetAcco
         if (memeRemainder < assetPlan.lockedExcessMeme) {
             revert InvalidGraduationDust(quoteDust, memeRemainder, assetPlan.lockedExcessMeme);
         }
-        _transferGraduationAsset(assetPlan.quoteAsset, _graduationQuoteDustRecipient, quoteDust);
+        _transferGraduationAsset(assetPlan.quoteAsset, context.launchLocker, quoteDust);
         _transferGraduationAsset(assetPlan.memeToken, context.launchLocker, memeRemainder);
     }
 

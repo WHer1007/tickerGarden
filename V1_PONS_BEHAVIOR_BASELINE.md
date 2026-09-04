@@ -1,10 +1,10 @@
 # TickerGarden V1 Pons 行为参考基线
 
-> 修订说明：Pons链上行为证据仍保留原始版本标识；TickerGarden自身的质押、Treasury 与费用差异已按当前`V1-EXEC-8`修订，不再使用旧版10 STOCK线性规则。
+> 修订说明：Pons链上行为证据仍保留原始版本标识；TickerGarden自身的质押、Treasury、费用与原子毕业差异已按当前`V1-EXEC-9`修订，不再使用旧版10 STOCK线性规则。
 
 > 决策状态：`PRODUCT_DIRECTION_APPROVED / IMPLEMENTATION_ALLOWED / NOT_DEPLOYABLE`  
 > 基线标识：`TG-PONS-BEHAVIOR-1`  
-> 执行规范：`V1-EXEC-8`
+> 执行规范：`V1-EXEC-9`
 > 决策日期：2026-09-02  
 > 适用范围：TickerGarden V1；不覆盖任何 Test Prototype 文档或合约
 
@@ -15,7 +15,7 @@ TickerGarden V1 的发行主链路以 Pons V2 当前活跃部署的已确认链�
 1. Pons 的协议/创作者/buyback 手续费路由替换为 TickerGarden 已冻结的手续费分配；
 2. 市场进入 `PoolCreated` 后，增加按 Meme 独立 Gauge 分配 STOCK、延迟激活、最短持有和手续费领取。
 
-多资产 Quote、创建费、原子创建并首买、固定供应 Token、phantom-reserve 曲线、尾单部分成交与退款、公式化供应分区、两阶段毕业、permissionless retry、全范围初始 LP 和永久锁定等行为均以本基线为实现目标。
+多资产 Quote、创建费、原子创建并首买、固定供应 Token、phantom-reserve 曲线、尾单部分成交与退款、公式化供应分区、全范围初始 LP 和永久锁定等行为以本基线为参考目标。Pons 的两阶段毕业、permissionless retry 与 owner rescue 仅保留为对照证据；TickerGarden 明确改为最终买入内原子毕业、失败整笔回滚，且不提供终态救援或市场资产接收人。
 
 “参考 Pons”指行为与整数结果兼容，不指：
 
@@ -61,7 +61,7 @@ Pons 当前公开 `main` 存在 Factory 已传递 `salt`、公开 Deployer 却�
 | Token 固定供应 | 继承 | 全量初始供应一次性进入 Curve，无后续 mint、无独立 LaunchAllocation |
 | Curve 数学 | 继承 | 相同 constant-product、费用顺序、整数向下/向上取整、tracked reserve 和尾单规则 |
 | 反狙击 | 定价行为继承、入口收窄 | 采用活跃 runtime 的精确整数输出表：elapsed `0/1/2/≥3` 秒为 raw `9900/618/19/0 bps`；TickerGarden `creatorTax=0`、base fee `100`、`minimumNet=100` 后 effective 为 `9800/618/19/0 bps`。不反推未经验证的公式；只自动豁免真实 creator/beneficiary 和原子首买 recipient |
-| 两阶段毕业 | 继承并收窄救援权限 | `NotGraduated -> Swept -> PoolCreated/Rescued`，失败可 permissionless retry；七日救援金额取 Curve 冻结的 exact sweep 记录，recipient 是 Executor 部署时冻结的 distributor，不继承 Pons owner 任意指定 recipient |
+| 毕业触发与失败 | 部分继承、执行模型不同 | 继承最终 Curve 买入自动触发与永久锁仓；TickerGarden 改为 `NotGraduated -> PoolCreated` 单交易原子提交，任一步骤失败使最终买入整体回滚，不保留 `Swept`，不提供 permissionless retry、owner/terminal rescue 或市场资产接收人 |
 | 初始 LP | 继承 | canonical full-range position 直接进入不可提款 Locker |
 | Pons fee beneficiary/buyback | 替换 | 统一进入 TickerGarden FeeVault 和已冻结手续费分配；不使用 Pons BuybackVault |
 | STOCK 质押 | 新增 | 只在 `PoolCreated` 后开放，一个 Meme 一个 Gauge，收到什么手续费资产就分什么资产 |
@@ -91,16 +91,15 @@ struct QuoteAssetConfig {
 3. ERC-20 批准时和创建时都读取 decimals；异常或变化时拒绝新市场；
 4. config 追加而不覆盖；更新 economics 必须生成新 ID；
 5. 暂停 Quote 默认只阻止新市场，不改变历史市场资产，也不阻止已到账费用领取；
-6. V1 首发冻结两项 ACTIVE 配置：`NATIVE_ETH_V1` 与 `USDG_V1`。配置内容、`quoteAssetConfigId == economicsHash` 规则和链上快照见 [`spec/v1_initial_quote_configs.json`](./spec/v1_initial_quote_configs.json)。USDG 为可升级代理，部署前必须重新取得代理/实现地址、runtime bytes/hash 与实现变更状态；指纹漂移时暂停新市场并重新审查。后续 Quote 只能 append-only 新建配置，不修改历史市场。
+6. V1 首发仅冻结 `NATIVE_ETH_V1`。已观测 USDG 是可升级代理，按首发“Quote 不可升级”规则移出 ACTIVE 列表。后续 ERC-20 Quote 只能以 `proxyKind == NONE` 的不可升级直接合约追加，Registry 固定 runtime codehash 并在创建市场时复核，部署 preflight 还须证明 implementation/admin/beacon 三个 EIP-1967 槽均为零。
 
 首发配置的冻结值为：
 
 | 配置 | Quote 地址 | decimals | phantomQuote | graduationThreshold | configId / economicsHash |
 |---|---|---:|---:|---:|---|
 | `NATIVE_ETH_V1` | `0x0000000000000000000000000000000000000000` | 18 | `1680000000000000000` | `4200000000000000000` | `0x110acc145df286ef871d394b987b4ce12b062dc4d50d75343cdac7986a21e64e` |
-| `USDG_V1` | `0x5fc5360d0400a0fd4f2af552add042d716f1d168` | 6 | `3236000000` | `8090000000` | `0xf821fb65a35fd50ac97c95e0cd87251bf65fc80f33524a221ea8cc56b2a0fc09` |
 
-Quote economics hash 使用 domain `TICKERGARDEN_V1_QUOTE_ECONOMICS`、schema version `1` 和 `keccak256(abi.encode(domain,schemaVersion,chainId,ponsBaselineId,quoteAsset,quoteDecimals,phantomQuote,graduationThreshold))`。USDG 的 canonical 来源、代理/实现 runtime 指纹和 drift 处理规则以首发配置机器文件为准。
+Quote economics hash 使用 domain `TICKERGARDEN_V1_QUOTE_ECONOMICS`、schema version `1` 和 `keccak256(abi.encode(domain,schemaVersion,chainId,ponsBaselineId,quoteAsset,quoteDecimals,phantomQuote,graduationThreshold))`。ERC-20 的代码身份另由 Registry 的 append-only runtime codehash 指纹和部署 manifest 固定。
 
 ## 5. 创建 ABI 和付款语义
 
@@ -298,8 +297,8 @@ readyToGraduate = !graduated && sellableTokens == 0
 必须区分以下三个数量：
 
 1. `reservedTokens`：曲线永不出售的 Meme 下限；
-2. `sweptTokens`：毕业第一阶段从曲线实际收到的 Meme，正常情况下等于 `reservedTokens`；
-3. `poolMemeAmount`：第二阶段真正注入 V4 池的 Meme。
+2. `sweptTokens`：原子毕业时从曲线实际收到的 Meme，正常情况下等于 `reservedTokens`；
+3. `poolMemeAmount`：同一交易中真正注入 V4 池的 Meme。
 
 真正注入毕业池的 Meme 为：
 
@@ -315,7 +314,7 @@ lockedExcessMeme = sweptTokens - poolMemeAmount
 
 全部 `sweptQuote` 与 `poolMemeAmount` 创建 canonical full-range position；`lockedExcessMeme` 永久进入 Locker，不能给创建者、平台或质押者。
 
-链上证明分为两个事件：exact Curve 在完成 sweep/close/`markSwept` 后发出 `LaunchSwept` 记录 `sweptQuote/sweptTokens`，GraduationExecutor 成功建池后发出 `PoolGraduated`，同时记录 `sweptQuote/sweptTokens/poolMemeAmount/lockedExcessMeme`。自动子调用失败也只由 Curve 发出 `AutoGraduationFailed`；Router 不复制这些事件。事件、per-market Locker 余额、V4 仓位和 Curve tracked accounting 必须可以交叉核对。
+TickerGarden 的链上成功证明由同一最终买入交易中的 `CurveCompleted` 与 `PoolGraduated` 组成。`PoolGraduated` 记录 `sweptQuote/sweptTokens/poolMemeAmount/lockedExcessMeme`，并可与 per-market Locker 余额、V4 仓位和 Curve tracked accounting 交叉核对。失败交易整体回滚，因此不发出持久的 `LaunchSwept` 或 `AutoGraduationFailed` 事件；Router 不复制毕业事件。
 
 以当前 Pons 原生配置为例：
 
@@ -351,7 +350,7 @@ lockedExcessMeme / supply           = 4 / 49  ≈ 8.1633%
 
 对应 poolId 分别为 `0x9f560810ed40e1ed68f099b56138f8217dcce349c23ab060c85aa034aff62ba3` 与 `0x7beaa827d21173074319e8a2f2a1d0f8069b72fe3c44db144d7004bc82fc6173`；两条路径的 full-range ticks 均为 `[-887200, 887200]`。
 
-每条路径都严格经历 `NotGraduated -> Swept -> PoolCreated`；sweep 与建池是两阶段交易。Pool 创建调用者与 creator 分离，证明建池入口是 permissionless。若 sweep 前失败，外层回滚且仍为 `NotGraduated`；自动建池失败捕获后保持 `Swept`，任何人可从 `Swept` retry；retry 失败仍保持 `Swept`；rescue 仅在 604800 秒后可执行，并原子转移后进入终态 `Rescued`。事件权威、区块/交易 hash、gas、全范围 tick 与异常语义以 runtime evidence 为准。
+这些收据证明的是 Pons V2 参考实现的两阶段、permissionless Pool 创建与七日 owner rescue 行为，不是 TickerGarden 当前状态机。TickerGarden 仅复用其可验证的资产数量、价格和 full-range tick 行为：exact registered Curve 在最终买入中同步调用 Executor，并直接从 `NotGraduated` 提交 `PoolCreated`。若建池失败，整个最终买入回滚；任何外部账户都不能 retry 或 rescue。Pons 事件、区块/交易 hash、gas 和异常语义继续保留在 runtime evidence 中，仅作为差分参考。
 
 ### 8.2 V1 首发不提供批量 ABI
 
@@ -400,7 +399,7 @@ derive marketId
 → Curve.initialize(Token)
 → assert actual == predicted for all components
 → register Market atomically
-→ final buy 进入 Swept 后，GraduationExecutor 在毕业子调用中部署 predicted Locker
+→ final buy 同步调用 GraduationExecutor，部署 predicted Locker 并原子提交 PoolCreated
 ```
 
 要求：
@@ -424,11 +423,11 @@ derive marketId
 5. 每笔买卖的 gross、fee、net、spent/refund 和储备变化逐整数单位守恒。
 6. native 买入必须 `msg.value == quoteIn`；ERC-20 买入必须 `msg.value == 0` 并以实际 balance delta 为收到数量。
 7. 未截断买入满足普通 `tokensOut >= minTokensOut`；截断尾单满足价格比例不等式。
-8. `readyToGraduate` 当且仅当未毕业且 `sellableTokens == 0`。
+8. 最终买入一旦使 `sellableTokens == 0`，必须在同一交易中成功提交 `PoolCreated`；若失败则整笔回滚，不存在可持续观察的 ready/pending 状态。
 9. `poolMemeAmount + lockedExcessMeme == sweptTokens`，二者均非负，且可建池时 `poolMemeAmount > 0`。
 10. `circulatingMeme + poolMemeAmount + lockedExcessMeme + burnedMeme == initialSupply`。
-11. `NotGraduated -> Swept -> PoolCreated/Rescued` 之外不存在毕业迁移；`PoolCreated` 和 `Rescued` 是终态。
-12. Curve、Hook 任一时刻至多一个是 ACTIVE fee source；`Swept/Rescued` 时没有 ACTIVE 交易源。
+11. 唯一毕业迁移是 `NotGraduated -> PoolCreated`，且 `PoolCreated` 是终态。
+12. Curve、Hook 任一已提交状态至多一个是 ACTIVE fee source；原子切换不产生持久的无来源阶段。
 13. STOCK allocation 仅在 `PoolCreated` 后增加；毕业前累计手续费不得追溯给之后的质押者。
 14. Quote/Meme 手续费按实际收费资产独立守恒，不跨资产估值、兑换或补洞。
 15. `predictMarketAddresses` 的每个结果必须等于实际部署地址，且相同输入跨客户端得到相同结果。
@@ -443,7 +442,7 @@ derive marketId
 - `reservedTokens`、`poolMemeAmount`、`lockedExcessMeme` 三者区别；
 - native/ERC-20 的创建费与 launch-and-buy `msg.value`；
 - ERC-20 实际到账不足、decimals 变化、暂停和非标准 transfer；
-- 自动毕业成功、自动毕业失败后 permissionless retry、七日 rescue；
+- 自动毕业成功，以及 Pool 初始化、LP mint、Locker dust、Hook 激活或 Registry 提交失败时最终买入全回滚；
 - CREATE2 Curve/Token/Gauge/LaunchLocker 固定地址；地址已有代码、deployer 或 initCodeHash 变化；
 - TickerGarden 手续费差异和毕业后 STOCK Gauge 不改变 Pons 曲线输出。
 
@@ -452,7 +451,7 @@ derive marketId
 1. 生产登记前使用 finalized-state RPC 重新验证官方 Asset UID、canonical token、decimals、状态及代理实现；不读取 STOCK 价格，也不按 Feed 覆盖筛选；
 2. 从最终 Solidity artifact 重新生成真实 ABI、selector、initCodeHash 和 CREATE2 向量；
 3. 完成 Pons 参考许可审查、TickerGarden 独立审计和目标链 fork 验证；
-4. USDG 上线前重取代理/实现指纹并拒绝 drift；
+4. ERC-20 Quote 上线前证明其为不可升级直接合约，并固定 runtime/implementation 指纹与零 EIP-1967 槽证据；
 5. 完成权限、监控、源代码可复现和法律门禁。
 
-本基线随当前`V1-EXEC-8`保持`IMPLEMENTATION_ALLOWED / NOT_DEPLOYABLE`。反狙击runtime、首发native/USDG Quote配置、通用数值域、毕业成功/失败语义、当前观测194项官方STOCK全量可选为质押Base、动态最低仓位、`S=0/S>0`固定质押者份额，以及 V1 Treasury 接口边界均已冻结。最终artifact/fork、目标链身份取证、安全审计、许可与法律仍约束部署和生产上线。
+本基线随当前`V1-EXEC-9`保持`IMPLEMENTATION_ALLOWED / NOT_DEPLOYABLE`。反狙击runtime、首发 native-only Quote 配置、通用数值域、原子毕业成功/失败语义、当前观测194项官方STOCK全量可选为质押Base、动态最低仓位、`S=0/S>0`固定质押者份额，以及 V1 Treasury 接口边界均已冻结。最终artifact/fork、目标链身份取证、安全审计、许可与法律仍约束部署和生产上线。

@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "status": "PRODUCT_DIRECTION_APPROVED_IMPLEMENTATION_ALLOWED",
-  "executionSpecId": "V1-EXEC-3",
+  "executionSpecId": "V1-EXEC-9",
   "recommendations": {
     "V1-G0-PONS-BASELINE-01": {
       "status": "APPROVED_BEHAVIOR_REFERENCE",
@@ -13,7 +13,7 @@
       "runtimeDependency": false
     },
     "V1-G0-PONS-QUOTE-01": {
-      "status": "APPROVED_MULTI_QUOTE_WITH_INITIAL_CONFIGS",
+      "status": "APPROVED_NATIVE_FIRST_RELEASE_WITH_IMMUTABLE_ERC20_EXTENSION",
       "nativeQuoteSupported": true,
       "erc20QuoteSupported": true,
       "productionQuoteConfigs": [
@@ -22,12 +22,6 @@
           "quoteAssetConfigId": "0x110acc145df286ef871d394b987b4ce12b062dc4d50d75343cdac7986a21e64e",
           "quoteAsset": "0x0000000000000000000000000000000000000000",
           "decimals": 18
-        },
-        {
-          "label": "USDG_V1",
-          "quoteAssetConfigId": "0xf821fb65a35fd50ac97c95e0cd87251bf65fc80f33524a221ea8cc56b2a0fc09",
-          "quoteAsset": "0x5fc5360d0400a0fd4f2af552add042d716f1d168",
-          "decimals": 6
         }
       ],
       "authoritativeConfigArtifact": "spec/v1_initial_quote_configs.json",
@@ -37,11 +31,12 @@
           "address": "0x5fc5360d0400a0fd4f2af552add042d716f1d168",
           "decimals": 6,
           "phantomQuoteRaw": "3236000000",
-          "graduationThresholdRaw": "8090000000"
+          "graduationThresholdRaw": "8090000000",
+          "releaseEligibility": "REJECTED_UPGRADEABLE_REFERENCE"
         }
       ],
-      "productionListStatus": "APPROVED_NATIVE_AND_USDG",
-      "deploymentPreflight": "RECAPTURE_CODE_AND_IMPLEMENTATION_FINGERPRINTS_AND_REJECT_DRIFT"
+      "productionListStatus": "APPROVED_NATIVE_ONLY_PENDING_IMMUTABLE_ERC20",
+      "deploymentPreflight": "ONLY_DIRECT_NON_DELEGATING_RUNTIME_WITH_PINNED_CODEHASH_AND_ZERO_EIP1967_SLOTS"
     },
     "V1-G0-PONS-DIFF-01": {
       "status": "APPROVED_DIFFERENCE_MATRIX",
@@ -83,11 +78,11 @@
       "stockPriceRequired": false,
       "priceFeedCoverageAffectsEligibility": false,
       "backingTargetRequired": false,
-      "stakerBucketRule": "CAPPED_LINEAR_RELEASE_BY_MIN_TOTAL_ACTIVE_STOCK_AND_TEN_STOCK_SATURATION",
-      "stakeSaturationWholeTokens": 10,
-      "stakeSaturationRawFormula": "10*10^stockDecimals",
-      "stakeSaturationSnapshotField": "MarketConfig.stakeSaturationAmount",
-      "stakerReleaseMode": "LINEAR_CAPPED",
+      "stakerBucketRule": "ACTIVE_STAKE_SWITCHES_FIXED_STAKER_THIRTY_PERCENT",
+      "stakeSaturationEnabled": false,
+      "stakerBucketBpsWhenActive": 3000,
+      "stakerBucketBpsWhenInactive": 0,
+      "stakerReleaseMode": "BINARY_ACTIVE_STATE",
       "stakerInternalDistribution": "PRO_RATA_BY_ACTIVE_STOCK_AT_FEE_CREDIT",
       "finalizedIdentityAndImplementationRecaptureRequiredBeforeProductionRegistration": true,
       "historicalPriceResearchArtifactsAreProtocolInputs": false

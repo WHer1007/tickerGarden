@@ -64,7 +64,9 @@ contract C405CurveFactory is ICurveInitializationSource {
 contract C405FeeVault {
     receive() external payable {}
 
-    function creditCurveSweep(bytes32, address, uint256, uint32, uint64, bytes32) external payable {}
+    function beginCurveCredit(bytes32, address, uint256, uint32, uint64, bytes32) external {}
+
+    function finalizeCurveCredit(bytes32, address, uint256, uint32, uint64, bytes32) external payable {}
 }
 
 /// @dev Regression vectors proving a live Curve cannot be administratively interrupted.
@@ -214,7 +216,7 @@ contract C405CurveAutonomyInvariantTest is Test {
             quoteAssetConfigId: QUOTE_CONFIG_ID,
             launchTemplateId: TEMPLATE_ID,
             feePolicyId: FEE_POLICY_ID,
-            executionSpecId: keccak256("V1-EXEC-8"),
+            executionSpecId: keccak256("V1-EXEC-9"),
             expectedEconomics: ECONOMICS,
             launchConfigId: 0,
             creatorRevenueBeneficiaryAtCreation: BENEFICIARY,
@@ -271,7 +273,7 @@ contract C405CurveAutonomyInvariantTest is Test {
             launchLockerImplementation: address(0x1005),
             launchLockerCodeHash: keccak256("locker"),
             feePolicyId: FEE_POLICY_ID,
-            executionSpecId: keccak256("V1-EXEC-8"),
+            executionSpecId: keccak256("V1-EXEC-9"),
             status: 1
         });
     }

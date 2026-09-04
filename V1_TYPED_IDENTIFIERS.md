@@ -50,7 +50,7 @@ launchTemplateHash = keccak256(abi.encode(
 
 ## 2. Quote economics hash
 
-每个追加式 `QuoteAssetConfig` 使用内容寻址；首发 native/USDG 的 `quoteAssetConfigId` 必须等于其 `quoteEconomicsHash`：
+每个追加式 `QuoteAssetConfig` 使用内容寻址；V1 首发仅允许原生 Quote，首发配置的 `quoteAssetConfigId` 必须等于其 `quoteEconomicsHash`。首发不批准可升级 USDG。未来如增加 ERC20 Quote，仅允许经过审查的 direct immutable、非代理 token：
 
 ```text
 quoteEconomicsHash = keccak256(abi.encode(
@@ -66,7 +66,7 @@ quoteEconomicsHash = keccak256(abi.encode(
 quoteAssetConfigId = quoteEconomicsHash
 ```
 
-`status`、symbol/name、代理 implementation 和观测区块不进入 economics hash：前者是可变准入状态，后三者属于部署证据。Registry 必须校验 ID 与重算结果一致，不能接受调用者提供的任意别名；更新任一 economics 字段都必须新增 config。精确首发值见 [`spec/v1_initial_quote_configs.json`](./spec/v1_initial_quote_configs.json)，schema 与固定向量见 [`spec/v1_hash_schemas.json`](./spec/v1_hash_schemas.json)。
+`status`、symbol/name、implementation 和观测区块不进入 economics hash：前者是可变准入状态，后三者属于部署证据。Registry 必须校验 ID 与重算结果一致，不能接受调用者提供的任意别名；更新任一 economics 字段都必须新增 config。精确首发值见 [`spec/v1_initial_quote_configs.json`](./spec/v1_initial_quote_configs.json)，schema 与固定向量见 [`spec/v1_hash_schemas.json`](./spec/v1_hash_schemas.json)。历史观测到的 USDG 配置仅作为外部事实保留，不构成 V1 首发批准。
 
 ## 3. expectedEconomics
 

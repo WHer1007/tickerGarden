@@ -33,7 +33,7 @@ current beneficiary calls transferCreatorRevenueBeneficiary(marketId, newBenefic
 -> store beneficiaryAt[newEpoch]
 ```
 
-Curve sweep 在 epoch 增加前读取 current epoch，所以此前累计费用全部 credit 给旧 epoch。sweep、实际到账、FeeVault credit 或 epoch 写入任一失败，整笔变更回滚。`Swept/PoolCreated/Rescued` 已按状态机完成最终 Curve sweep，但仍断言 accrued 为0。毕业池 Hook fee 每笔原子 credit，直接绑定交易当时的 epoch。
+Curve sweep 在 epoch 增加前读取 current epoch，所以此前累计费用全部 credit 给旧 epoch。sweep、实际到账、FeeVault credit 或 epoch 写入任一失败，整笔变更回滚。原子毕业进入 `PoolCreated` 前必须完成最终 Curve sweep 并断言 accrued 为0；失败则最终买入与 sweep 一并回滚。毕业池 Hook fee 每笔原子 credit，直接绑定交易当时的 epoch。
 
 该设计无需 Curve 保存可增长的 epoch 队列，也不遍历历史 beneficiary。
 

@@ -133,7 +133,7 @@ interface WalletState {
   readonly executor: V1TransactionExecutor;
 }
 
-type PageName = "home" | "markets" | "trade" | "create" | "stats" | "rewards" | "faq";
+type PageName = "home" | "markets" | "trade" | "create" | "stats" | "rewards" | "faq" | "privacy" | "terms";
 
 const runtimeConfig = parseV1RuntimeConfig(import.meta.env);
 const publicClient = createPublicClient({
@@ -203,7 +203,7 @@ function setDisabled(element: HTMLButtonElement | HTMLInputElement | HTMLSelectE
 
 function currentPage(): PageName {
   const candidate = document.body.dataset.page;
-  return (["home", "markets", "trade", "create", "stats", "rewards", "faq"] as const).includes(candidate as PageName)
+  return (["home", "markets", "trade", "create", "stats", "rewards", "faq", "privacy", "terms"] as const).includes(candidate as PageName)
     ? candidate as PageName
     : "home";
 }
@@ -523,6 +523,8 @@ function setupShell(): void {
     ["faq", "FAQ", "faq.html"],
   ];
   const header = required<HTMLElement>("[data-shell-header]");
+  const footerLink = (id: PageName, label: string, url: string): string =>
+    `<a class="${page === id ? "active" : ""}" ${page === id ? "aria-current=\"page\"" : ""} href="${url}">${label}</a>`;
   header.innerHTML = `
     <a class="brand" href="index.html" aria-label="TickerGarden home">
       <img src="./assets/tickergarden-mark.png" alt=""><img class="wordmark" src="./assets/tickergarden-wordmark-tight.png" alt="TickerGarden">
@@ -531,9 +533,17 @@ function setupShell(): void {
     <button class="wallet" type="button" data-wallet><i class="ph ph-wallet" aria-hidden="true"></i><span>Connect Wallet</span><i class="ph ph-plant" aria-hidden="true"></i></button>
     <button class="menu" type="button" data-menu aria-label="Open navigation" aria-expanded="false"><i class="ph ph-list" aria-hidden="true"></i></button>`;
   required<HTMLElement>("[data-shell-footer]").innerHTML = `
-    <a class="brand" href="index.html"><img src="./assets/tickergarden-mark.png" alt=""><img class="wordmark" src="./assets/tickergarden-wordmark-tight.png" alt="TickerGarden"></a>
-    <p>Where stock communities meet meme culture—and new onchain possibilities take root.</p>
-    <div><a href="faq.html">Docs & FAQ</a><span>© 2026 TickerGarden · V1</span></div>`;
+    <div class="footer-intro">
+      <a class="brand" href="index.html"><img src="./assets/tickergarden-mark.png" alt=""><img class="wordmark" src="./assets/tickergarden-wordmark-tight.png" alt="TickerGarden"></a>
+      <p>Where stock communities meet meme culture—and new onchain possibilities take root.</p>
+    </div>
+    <nav class="footer-navigation" aria-label="Footer navigation">
+      <section><strong>Garden</strong>${footerLink("home", "Home", "index.html")}${footerLink("markets", "Markets", "markets.html")}${footerLink("create", "Create", "create.html")}${footerLink("stats", "Stats", "stats.html")}</section>
+      <section><strong>Community</strong>${footerLink("rewards", "Rewards", "rewards.html")}${footerLink("faq", "FAQ", "faq.html")}</section>
+      <section><strong>Legal</strong>${footerLink("privacy", "Privacy Policy", "privacy.html")}${footerLink("terms", "Terms of Use", "terms.html")}</section>
+    </nav>
+    <div class="footer-risk"><strong>Risk notice</strong><p>Wallet-approved blockchain transactions may be irreversible. Ticker Meme tokens can be volatile or lose all value. TickerGarden does not provide investment advice or stock ownership through a Ticker Meme.</p></div>
+    <div class="footer-meta"><span>© 2026 TickerGarden · V1</span><span>Pre-launch · Legal review required</span></div>`;
 
   required<HTMLButtonElement>("[data-wallet]").addEventListener("click", () => {
     if (wallet) disconnectWallet();
@@ -691,15 +701,8 @@ async function marketMetadata(market: MarketReadModel): Promise<MarketMetadata> 
   }
 }
 
-const fruitPositions = [
-  [39, 16, 58, "lime"], [61, 17, 55, "forest"], [27, 31, 56, "coral"], [49, 31, 59, "lime"],
-  [75, 31, 61, "lime"], [24, 50, 54, "forest"], [42, 49, 58, "coral"], [62, 49, 57, "lime"],
-  [70, 66, 55, "forest"], [82, 49, 58, "coral"],
-] as const;
-
 async function renderHome(): Promise<void> {
   const rail = query<HTMLElement>("[data-home-markets]");
-  const fruitLayer = query<HTMLElement>("#fruits");
   if (!rail) return;
   const loading = query<HTMLElement>("[data-home-markets-loading]", rail);
   const empty = query<HTMLElement>("[data-home-markets-empty]", rail);
@@ -714,7 +717,6 @@ async function renderHome(): Promise<void> {
     return;
   }
   rail.querySelectorAll("[data-runtime-market]").forEach((item) => item.remove());
-  fruitLayer?.replaceChildren();
   if (loading) loading.hidden = true;
   if (locked) locked.hidden = true;
   if (empty) empty.hidden = foundation.markets.length > 0;
@@ -723,7 +725,7 @@ async function renderHome(): Promise<void> {
   const recent = [...foundation.markets]
     .sort((left, right) => Number(BigInt(right.source.blockNumber) - BigInt(left.source.blockNumber)))
     .slice(0, 10);
-  await Promise.all(recent.map(async (market, index) => {
+  await Promise.all(recent.map(async (market) => {
     let metadata: MarketMetadata | null = null;
     try { metadata = await marketMetadata(market); } catch { /* Identity remains available without optional ERC-20 metadata. */ }
     const link = document.createElement("a");
@@ -739,16 +741,6 @@ async function renderHome(): Promise<void> {
     link.append(heading, detail, identity);
     rail.append(link);
 
-    const position = fruitPositions[index];
-    if (fruitLayer && position) {
-      const fruit = document.createElement("a");
-      fruit.className = `ticker-fruit ${position[3]}`;
-      fruit.href = link.href;
-      fruit.setAttribute("aria-label", `Open ${metadata?.symbol ?? shortHex(market.marketId)} market`);
-      fruit.style.cssText = `--fruit-x:${position[0]}%;--fruit-y:${position[1]}%;--fruit-size:${position[2]}px`;
-      fruit.textContent = metadata?.symbol ?? String(index + 1);
-      fruitLayer.append(fruit);
-    }
   }));
 }
 
@@ -767,7 +759,7 @@ function setupMarkets(): void {
 
 function marketMatchesPhase(market: MarketReadModel): boolean {
   if (marketPhaseFilter === "curve") return market.launchPhase === 0 && market.canonicalRoute.curveTradingEnabled;
-  if (marketPhaseFilter === "pool") return market.launchPhase === 2 && market.canonicalRoute.poolTradingEnabled;
+  if (marketPhaseFilter === "pool") return market.launchPhase === 1 && market.canonicalRoute.poolTradingEnabled;
   return true;
 }
 
@@ -813,7 +805,7 @@ async function renderMarkets(): Promise<void> {
     const fragment = template.content.cloneNode(true) as DocumentFragment;
     const card = required<HTMLAnchorElement>("[data-market-card]", fragment);
     card.dataset.runtimeMarket = market.marketId;
-    card.dataset.category = market.launchPhase === 2 ? "pool" : market.launchPhase === 0 ? "curve" : "transition";
+    card.dataset.category = market.launchPhase === 1 ? "pool" : "curve";
     card.href = `./trade.html?marketId=${encodeURIComponent(market.marketId)}`;
     text("[data-market-name]", metadata ? `${metadata.name} (${metadata.symbol})` : `Market ${shortHex(market.marketId)}`, fragment);
     text("[data-market-asset-label]", `STOCK ${shortHex(market.assetUid, 8, 6)}`, fragment);
@@ -2152,7 +2144,7 @@ async function refreshTreasuryReward(resetEpoch: boolean): Promise<void> {
   if (!select?.value) return;
   try {
     const detail = await getRewardMarketDetail(selectedRewardMarket("[data-treasury-market]"));
-    if (detail.market.launchPhase !== 2) throw new Error("Treasury activates only after the canonical Pool is created");
+    if (detail.market.launchPhase !== 1) throw new Error("Treasury activates only after the canonical Pool is created");
     const distributor = runtimeConfig.contracts.value.treasuryDistributorAddress;
     const rawTreasuryMarket = await publicClient.readContract({ abi: v1Abis.TreasuryDistributorV1, address: distributor, functionName: "market", args: [detail.market.marketId] });
     const memeToken = canonicalAddress(tupleString(rawTreasuryMarket, "memeToken", 0), "Treasury Meme token");
@@ -2274,10 +2266,10 @@ function updateRewardsAvailability(): void {
     const normalClaimReady = rewardPosition.allocated === 0n || (rewardPosition.unlockAt > 0n && rewardPosition.now >= rewardPosition.unlockAt);
     setDisabled(rewardActionButton("depositStock")!, rewardPosition.asset.status !== 1);
     setDisabled(rewardActionButton("withdrawFreeStock")!, rewardPosition.free <= 0n);
-    const allocationOpen = rewardPosition.asset.status === 1 && rewardPosition.detail.market.launchPhase === 2 && rewardPosition.settlementPrincipal === 0n;
+    const allocationOpen = rewardPosition.asset.status === 1 && rewardPosition.detail.market.launchPhase === 1 && rewardPosition.settlementPrincipal === 0n;
     setDisabled(rewardActionButton("allocate")!, !allocationOpen);
     setDisabled(rewardActionButton("depositAndAllocate")!, !allocationOpen);
-    setDisabled(rewardActionButton("closeAllocation")!, rewardPosition.allocated <= 0n || rewardPosition.detail.market.launchPhase !== 2 || rewardPosition.unlockAt === 0n || rewardPosition.now < rewardPosition.unlockAt);
+    setDisabled(rewardActionButton("closeAllocation")!, rewardPosition.allocated <= 0n || rewardPosition.detail.market.launchPhase !== 1 || rewardPosition.unlockAt === 0n || rewardPosition.now < rewardPosition.unlockAt);
     setDisabled(rewardActionButton("rageQuit", "allocation-manager")!, rewardPosition.allocated <= 0n);
     queryAll<HTMLButtonElement>("[data-reward-action=claimStaker]").forEach((button) => {
       const amount = button.dataset.rewardAsset === "meme" ? rewardPosition!.memeClaimable : rewardPosition!.quoteClaimable;
@@ -2806,7 +2798,7 @@ async function renderRewards(): Promise<void> {
   const directMarket = query<HTMLInputElement>("[data-direct-vault-market]");
   if (directMarket && !directMarket.value && defaultMarket) directMarket.value = defaultMarket;
   const treasuryMarket = query<HTMLSelectElement>("[data-treasury-market]");
-  const defaultTreasuryMarket = foundation.markets.find((market) => market.launchPhase === 2)?.marketId ?? defaultMarket;
+  const defaultTreasuryMarket = foundation.markets.find((market) => market.launchPhase === 1)?.marketId ?? defaultMarket;
   if (treasuryMarket && !treasuryMarket.value && defaultTreasuryMarket) treasuryMarket.value = defaultTreasuryMarket;
   const settleUser = query<HTMLInputElement>("[data-settle-user]");
   if (settleUser && !settleUser.value) settleUser.value = wallet.account;
@@ -2838,12 +2830,17 @@ async function refreshCurrentPage(): Promise<void> {
 async function start(): Promise<void> {
   setupShell();
   renderWallet();
-  switch (currentPage()) {
+  const page = currentPage();
+  switch (page) {
     case "markets": setupMarkets(); break;
     case "trade": setupTrade(); break;
     case "create": setupCreate(); break;
     case "rewards": setupRewards(); break;
     case "faq": setupFaq(); break;
+  }
+  if (page === "privacy" || page === "terms") {
+    refreshActionAvailability();
+    return;
   }
   await loadFoundation();
   await refreshCurrentPage();

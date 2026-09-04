@@ -1,6 +1,6 @@
 # TickerGarden V1 合约架构优化决策
 
-> **当前实现（2026-09-04）：** `V1-EXEC-8` 已实现部署后市场永久自治；`launchPhase` 仅保留一次性事实，用户 `rageQuit` 随时即时取回本金，奖励异步处理。目标链部署与独立审计仍开放。
+> **当前实现（2026-09-04）：** `V1-EXEC-9` 已实现部署后市场永久自治与最终买入原子毕业；`launchPhase` 只允许 `NotGraduated -> PoolCreated`，用户 `rageQuit` 随时即时取回本金，奖励异步处理。目标链部署与独立审计仍开放。
 
 手续费架构更新：总协议手续费维持 1%，不再切出 LP 协议手续费；Active 分支为 Creator40/Staker30/Platform30，无 Active 分支为 Creator70/Staker0/Platform30，向下取整余数归 Creator。Hook 不再 donate，LaunchLocker 不再 collect/compound，手续费统一由 FeeVault 记账。canonical LP 继续永久锁定但无协议 LP 手续费。该取舍消除基于即时池价的复投/捐赠与 JIT 经济风险，并减少链上 gas 和 keeper 运维面。
 

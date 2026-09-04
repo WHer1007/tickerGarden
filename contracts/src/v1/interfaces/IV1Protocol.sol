@@ -2,7 +2,7 @@
 pragma solidity 0.8.26;
 
 // GENERATED FILE. DO NOT EDIT.
-// Source: spec/v1_abi_surface.json (V1-EXEC-8)
+// Source: spec/v1_abi_surface.json (V1-EXEC-9)
 // forge-lint: disable-start(multi-contract-file)
 // forgefmt: disable-start
 
@@ -108,7 +108,6 @@ struct MarketConfig {
 struct MarketRuntime {
     bytes32 poolId;
     uint32 sourceVersion;
-    uint64 sweptAt;
     uint8 launchPhase;
 }
 
@@ -229,7 +228,6 @@ interface IV1Errors {
     error TemplateCodeHashMismatch(address arg0, bytes32 arg1, bytes32 arg2);
     error UnauthorizedMarketCurve(address arg0, address arg1);
     error CurveFeeSweepAfterClose(bytes32 arg0);
-    error GraduationNotRetryable(bytes32 arg0, uint8 arg1);
     error LaunchLockerAddressCollision(address arg0);
     error InvalidCanonicalPoolKey();
     error InvalidHookPermissionMask();
@@ -290,6 +288,7 @@ interface IOfficialStockRegistryV1 {
 
 interface IApprovedQuoteRegistry {
     event QuoteAssetConfigAdded(bytes32 indexed configId, address indexed quoteAsset, bytes32 indexed ponsBaselineId, bytes32 economicsHash);
+    event QuoteAssetIdentityPinned(bytes32 indexed configId, address indexed quoteAsset, bytes32 runtimeCodeHash);
     event QuoteAssetStatusChanged(bytes32 indexed configId, uint8 oldStatus, uint8 newStatus, bytes32 reasonHash);
 
     function addQuoteConfig(bytes32 arg0, QuoteAssetConfig calldata arg1) external;
@@ -297,6 +296,8 @@ interface IApprovedQuoteRegistry {
     function unpauseQuote(bytes32 arg0) external;
     function retireQuote(bytes32 arg0, bytes32 arg1) external;
     function quoteConfig(bytes32 arg0) external view returns (QuoteAssetConfig memory output0);
+    function quoteRuntimeCodeHash(bytes32 arg0) external view returns (bytes32 output0);
+    function quoteIdentityCurrent(bytes32 arg0) external view returns (bool output0);
 }
 
 interface IPonsBaselineRegistry {
@@ -344,12 +345,10 @@ interface ITickerGardenFactoryV1 {
 
 interface IMarketRegistryV1 {
     event MarketRegistered(bytes32 indexed marketId, bytes32 indexed assetUid, address indexed memeToken, address curve, address gauge, uint32 sourceVersion);
-    event LaunchPhaseChanged(bytes32 indexed marketId, uint8 oldPhase, uint8 newPhase, uint64 sweptAt, bytes32 poolId, uint32 sourceVersion);
+    event LaunchPhaseChanged(bytes32 indexed marketId, uint8 oldPhase, uint8 newPhase, bytes32 poolId, uint32 sourceVersion);
 
     function registerMarket(bytes32 arg0, MarketConfig calldata arg1) external;
-    function markSwept(bytes32 arg0) external;
     function commitPoolCreated(bytes32 arg0, bytes32 arg1) external returns (uint32 output0);
-    function markRescued(bytes32 arg0) external;
     function market(bytes32 arg0) external view returns (MarketView memory output0);
     function marketIdByToken(address arg0) external view returns (bytes32 output0);
     function canonicalPoolKey(bytes32 arg0) external view returns (PoolKey memory output0);
@@ -392,8 +391,6 @@ interface IPonsCompatibleCurve {
     event CurveBuyRefunded(address indexed buyer, uint256 unusedQuote);
     event CurveCompleted(bytes32 indexed marketId);
     event CurveFeeTransferred(bytes32 indexed marketId, uint64 indexed sweepNonce, bytes32 indexed feeId, uint256 amount);
-    event LaunchSwept(bytes32 indexed marketId, address indexed quoteAsset, uint256 sweptQuote, uint256 sweptTokens, uint64 sweptAt);
-    event AutoGraduationFailed(bytes32 indexed marketId, bytes32 reasonHash);
 
     function buy(uint256 arg0, uint256 arg1, address arg2) external payable returns (uint256 output0, uint256 output1);
     function sell(uint256 arg0, uint256 arg1, address arg2) external returns (uint256 output0, uint256 output1);
@@ -464,7 +461,6 @@ interface IMemeStockGauge {
     event ActivationBucketProcessed(bytes32 indexed marketId, uint64 indexed generation, uint256 amount, uint256 quoteAccumulator, uint256 memeAccumulator, uint256 refs);
     event PendingMaterialized(address indexed user, bytes32 indexed marketId, uint64 indexed generation, uint256 amount);
     event StakerFeeCredited(bytes32 indexed marketId, address indexed feeAsset, bytes32 indexed feeId, uint256 amount, uint256 accumulatorDelta, uint256 indexRemainder);
-    event ForfeitedRewardRedistributed(bytes32 indexed marketId, address indexed user, address indexed feeAsset, uint256 amount, uint256 accumulatorDelta, uint256 indexRemainder);
     event GaugeRageQuit(address indexed user, bytes32 indexed marketId, uint256 principal, uint256 quoteForfeited, uint256 memeForfeited, bool redistributed);
     event ForfeitureRecordDeferred(bytes32 indexed marketId, address indexed user, uint256 quoteAmount, uint256 memeAmount, uint256 totalDeferredQuote, uint256 totalDeferredMeme);
     event ForfeitureRecordFlushed(bytes32 indexed marketId, uint256 quoteAmount, uint256 memeAmount);
@@ -511,7 +507,8 @@ interface IProtocolFeeVault {
 
     function beginV4Credit(bytes32 arg0, address arg1, uint256 arg2, uint32 arg3, bytes32 arg4) external;
     function finalizeV4Credit(bytes32 arg0, address arg1, uint256 arg2, uint256 arg3, uint256 arg4, uint256 arg5, uint64 arg6, bytes32 arg7) external;
-    function creditCurveSweep(bytes32 arg0, address arg1, uint256 arg2, uint32 arg3, uint64 arg4, bytes32 arg5) external payable;
+    function beginCurveCredit(bytes32 arg0, address arg1, uint256 arg2, uint32 arg3, uint64 arg4, bytes32 arg5) external;
+    function finalizeCurveCredit(bytes32 arg0, address arg1, uint256 arg2, uint32 arg3, uint64 arg4, bytes32 arg5) external payable;
     function claimCreator(bytes32 arg0, uint32 arg1, address arg2) external returns (uint256 output0);
     function claimPlatform(bytes32 arg0, address arg1) external returns (uint256 output0);
     function claimStaker(bytes32 arg0, address arg1) external returns (uint256 output0);
@@ -526,11 +523,8 @@ interface IProtocolFeeVault {
 
 interface IGraduationExecutor {
     event PoolGraduated(bytes32 indexed marketId, bytes32 indexed poolId, address indexed launchLocker, uint256 sweptQuote, uint256 sweptTokens, uint256 poolMemeAmount, uint256 lockedExcessMeme, uint32 sourceVersion);
-    event LaunchRescued(bytes32 indexed marketId, uint64 sweptAt, uint64 rescuedAt);
 
-    function graduateFromCurve(bytes32 arg0) external;
-    function retryGraduation(bytes32 arg0) external;
-    function rescueSweptLaunch(bytes32 arg0) external;
+    function graduateFromCurve(bytes32 arg0, uint256 arg1, uint256 arg2) external payable;
     function predictLaunchLocker(bytes32 arg0) external view returns (address output0);
 }
 

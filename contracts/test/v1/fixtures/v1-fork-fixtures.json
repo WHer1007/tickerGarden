@@ -6,7 +6,7 @@
   "sourceFiles": [
     {
       "path": "spec/v1_initial_quote_configs.json",
-      "sha256": "0xf9705bb2f219deb7bf649f646c75d8670e991efa8508d7e383153408f4660456"
+      "sha256": "0x796a952db45d229222aaa2877675c66fc789f7f5168054d82fb228def0664754"
     },
     {
       "path": "spec/v1_pons_behavior_vectors.json",
@@ -55,27 +55,6 @@
         "kind": "NATIVE_SENTINEL",
         "runtimeBytes": 0,
         "runtimeKeccak256": "0xc5d2460186f7233c927e7db2dcc703c0e500b653ca82273b7bfad8045d85a470"
-      }
-    },
-    {
-      "label": "USDG_V1",
-      "assetKind": "ERC20",
-      "symbol": "USDG",
-      "quoteAssetConfigId": "0xf821fb65a35fd50ac97c95e0cd87251bf65fc80f33524a221ea8cc56b2a0fc09",
-      "quoteAsset": "0x5fc5360d0400a0fd4f2af552add042d716f1d168",
-      "quoteDecimals": 6,
-      "phantomQuote": "3236000000",
-      "graduationThreshold": "8090000000",
-      "economicsHash": "0xf821fb65a35fd50ac97c95e0cd87251bf65fc80f33524a221ea8cc56b2a0fc09",
-      "status": "ACTIVE",
-      "runtime": {
-        "kind": "EIP1967_PROXY",
-        "proxyRuntimeBytes": 170,
-        "proxyRuntimeKeccak256": "0x864cc9ad53b338b82da1f7cab85ab0b3d5c8861acb422b6fec63cf36234f36a6",
-        "implementation": "0x68184c449e1a8f34fa18d289737129fd27b66f8f",
-        "implementationRuntimeBytes": 18644,
-        "implementationRuntimeKeccak256": "0x3a551ac5c744af57e68a1d1431ac403c0f516ffd7d224a75746aee11fc4f3baf",
-        "preDeploymentFingerprintRecaptureRequired": true
       }
     }
   ],
@@ -488,5 +467,5 @@
     "runtimeDependencyOnPons": false,
     "referenceCreate2ValuesAreProductionDeploymentEvidence": false
   },
-  "fixtureSetHash": "0xaafd1747034a38424c711b7a3770bfc053c33a3c01c8a3d4d06c3129d81eea02"
+  "fixtureSetHash": "0x72b1ef3fa3b81e9d03ae9a936b83ea9e3d82464b79e742fc5bdd6ae1c6673c19"
 }

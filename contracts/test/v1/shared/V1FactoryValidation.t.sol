@@ -28,6 +28,7 @@ contract FactoryRegistryFixtures {
     mapping(address => bytes32) internal _vaultSchemas;
     mapping(bytes32 => address) internal _vaults;
     bool private _assetIdentityIsCurrent = true;
+    bool private _quoteIdentityIsCurrent = true;
 
     function setAsset(bytes32 id, AssetView memory value) external {
         _assets[id] = value;
@@ -44,6 +45,10 @@ contract FactoryRegistryFixtures {
 
     function setQuote(bytes32 id, QuoteAssetConfig memory value) external {
         _quotes[id] = value;
+    }
+
+    function setQuoteIdentityCurrent(bool current) external {
+        _quoteIdentityIsCurrent = current;
     }
 
     function setBaseline(bytes32 id, PonsBaseline memory value) external {
@@ -74,6 +79,10 @@ contract FactoryRegistryFixtures {
 
     function quoteConfig(bytes32 id) external view returns (QuoteAssetConfig memory) {
         return _quotes[id];
+    }
+
+    function quoteIdentityCurrent(bytes32) external view returns (bool) {
+        return _quoteIdentityIsCurrent;
     }
 
     function baseline(bytes32 id) external view returns (PonsBaseline memory) {
@@ -137,7 +146,7 @@ contract V1FactoryValidationHarness {
         });
         _policy.feePolicyId = feePolicyId;
         _policy.fields = V1MarketEconomics.FeePolicyInput({
-            executionSpecId: keccak256("V1-EXEC-8"),
+            executionSpecId: keccak256("V1-EXEC-9"),
             feePips: 10_000,
             lpShareBps: 0,
             poolKeyFee: 0,
@@ -371,6 +380,13 @@ contract V1FactoryValidationTest is Test {
         harness.preview(CREATOR, params);
     }
 
+    function test_quoteIdentityDriftBlocksPreviewBeforeMarketIdentityReservation() public {
+        CreateMarketParams memory params = _params(bytes32(uint256(1)));
+        fixtures.setQuoteIdentityCurrent(false);
+        vm.expectRevert(abi.encodeWithSelector(V1FactoryValidation.QuoteIdentityDrift.selector, QUOTE_ID));
+        harness.preview(CREATOR, params);
+    }
+
     function test_rejectsCrossBaselineQuoteAndTemplatePolicyDrift() public {
         CreateMarketParams memory params = _params(bytes32(uint256(1)));
         QuoteAssetConfig memory quoteValue = _quote();
@@ -495,7 +511,7 @@ contract V1FactoryValidationTest is Test {
             launchLockerImplementation: address(0x3006),
             launchLockerCodeHash: keccak256("locker"),
             feePolicyId: FEE_POLICY_ID,
-            executionSpecId: keccak256("V1-EXEC-8"),
+            executionSpecId: keccak256("V1-EXEC-9"),
             status: 1
         });
     }

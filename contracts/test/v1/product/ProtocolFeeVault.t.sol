@@ -33,7 +33,10 @@ contract ProtocolFeeVaultProductTest is Test {
     function test_canonicalMutationAndLiabilityViewSelectors() public pure {
         assertEq(ProtocolFeeVaultV4Credit.beginV4Credit.selector, IProtocolFeeVault.beginV4Credit.selector);
         assertEq(ProtocolFeeVaultV4Credit.finalizeV4Credit.selector, IProtocolFeeVault.finalizeV4Credit.selector);
-        assertEq(ProtocolFeeVaultCurveCredit.creditCurveSweep.selector, IProtocolFeeVault.creditCurveSweep.selector);
+        assertEq(ProtocolFeeVaultCurveCredit.beginCurveCredit.selector, IProtocolFeeVault.beginCurveCredit.selector);
+        assertEq(
+            ProtocolFeeVaultCurveCredit.finalizeCurveCredit.selector, IProtocolFeeVault.finalizeCurveCredit.selector
+        );
         assertEq(ProtocolFeeVaultLiabilities.claimCreator.selector, IProtocolFeeVault.claimCreator.selector);
         assertEq(ProtocolFeeVaultLiabilities.claimPlatform.selector, IProtocolFeeVault.claimPlatform.selector);
         assertEq(ProtocolFeeVaultLiabilities.claimStaker.selector, IProtocolFeeVault.claimStaker.selector);

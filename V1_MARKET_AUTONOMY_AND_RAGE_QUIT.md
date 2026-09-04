@@ -1,6 +1,6 @@
 # V1 市场自治与用户 RageQuit
 
-> 版本：`V1-EXEC-8`；本地实现与生成物已验证，目标链部署、独立审计和实链 E2E 尚未完成。
+> 版本：`V1-EXEC-9`；本地实现与生成物已验证，目标链部署、独立审计和实链 E2E 尚未完成。
 
 ## 市场自治
 
@@ -12,4 +12,4 @@
 
 ## 迁移不兼容
 
-旧 `V1_EMERGENCY_RECOVERY_LIFECYCLE.md` 已移除。其 MarketStatus、MarketController、Emergency、Recovery root/cap、Merkle claim 和相关 ABI/权限均为 superseded 设计，不在本文件复述。源码、生成物、manifest 与本地测试已按 V1-EXEC-8 验收；外部部署与生产门禁仍独立开放。
+旧 `V1_EMERGENCY_RECOVERY_LIFECYCLE.md` 已移除。其 MarketStatus、MarketController、Emergency、Recovery root/cap、Merkle claim 和相关 ABI/权限均为 superseded 设计，不在本文件复述。源码、生成物、manifest 与本地测试已按 V1-EXEC-9 验收；外部部署与生产门禁仍独立开放。

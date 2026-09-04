@@ -22,7 +22,8 @@ interface ILiabilityClaimVault {
 }
 
 interface ILiabilityCurveCreditVault {
-    function creditCurveSweep(bytes32, address, uint256, uint32, uint64, bytes32) external payable;
+    function beginCurveCredit(bytes32, address, uint256, uint32, uint64, bytes32) external;
+    function finalizeCurveCredit(bytes32, address, uint256, uint32, uint64, bytes32) external payable;
 }
 
 contract LiabilityMarketRegistryMock {
@@ -71,7 +72,7 @@ contract LiabilityMarketRegistryMock {
         MarketRuntime memory runtime;
         runtime.poolId = keccak256("pool");
         runtime.sourceVersion = sourceVersion;
-        runtime.launchPhase = 2;
+        runtime.launchPhase = 1;
         _markets[marketId] = MarketView({config: config, runtime: runtime});
     }
 
@@ -127,8 +128,9 @@ contract LiabilityCurveSourceMock {
         uint64 sweepNonce,
         bytes32 feeId
     ) external {
+        vault.beginCurveCredit(marketId, address(quote), amount, sourceVersion, sweepNonce, feeId);
         require(quote.transfer(address(vault), amount), "TRANSFER");
-        vault.creditCurveSweep(marketId, address(quote), amount, sourceVersion, sweepNonce, feeId);
+        vault.finalizeCurveCredit(marketId, address(quote), amount, sourceVersion, sweepNonce, feeId);
     }
 }
 

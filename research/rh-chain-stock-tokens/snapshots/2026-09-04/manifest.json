@@ -1,0 +1,93 @@
+{
+  "schemaVersion": 1,
+  "builtAt": "2026-09-04T15:57:10+00:00",
+  "generators": [
+    {
+      "path": "research/rh-chain-stock-tokens/build_observed_snapshot.py",
+      "sha256": "0xd9028f98e3c2eae4ebfea48f42b5909805c7bf7d990a96dea1800ede188cca36"
+    },
+    {
+      "path": "research/rh-chain-stock-tokens/capture_standard_pools.mjs",
+      "sha256": "0x881f0668884bc1d2a246daf1e235faf450da58f56817443ee7df0c48ef391a5a"
+    },
+    {
+      "path": "research/rh-chain-stock-tokens/capture_snapshot.py",
+      "sha256": "0x9f8cec639256a2586af695c4e669b02aa0beee47a261bd091bee8fe79d3383f9"
+    }
+  ],
+  "inputCaptureTimestamps": {
+    "factoryCalls": "2026-09-04T14:53:32+00:00",
+    "v3Details": "2026-09-04T14:54:09+00:00",
+    "dexscreener": "2026-09-04T14:50:21+00:00"
+  },
+  "validation": {
+    "officialAssetCount": 194,
+    "expectedFactoryQueryCount": 1940,
+    "observedFactoryQueryCount": 1940,
+    "factoryQueryErrors": 0,
+    "v3NonzeroResultDetailSetMatched": true,
+    "dexscreenerAddressRequestsMatchedOfficialCatalog": true
+  },
+  "files": [
+    {
+      "path": "official-assets.source.json",
+      "bytes": 154149,
+      "sha256": "0xaf6387ef7bad187d8a45d1ec9e94807bdd96cd1485d0f7ca85246b70d70119ee"
+    },
+    {
+      "path": "uniswap-standard-factory-calls.source.json",
+      "bytes": 1076605,
+      "sha256": "0x3e7a33e69d25622721c6f8c6941e6b0ee471d5d1f7455c808f3835e6f599a659"
+    },
+    {
+      "path": "uniswap-v3-details.source.json",
+      "bytes": 247604,
+      "sha256": "0x38b073758157e48d3d39f0f29a2f1651c82dd054d778b9b0eb0612df7534b012"
+    },
+    {
+      "path": "dexscreener-address-scan.source.json",
+      "bytes": 1911858,
+      "sha256": "0xdd50b5ef2df7c474c81ab8fbe07919388de8f14899fb15c5e8a0ee0e6b3f5800"
+    },
+    {
+      "path": "contract-architecture.json",
+      "bytes": 4952,
+      "sha256": "0x1a591ce567e66112d299020b53a5128deaa1785f39fe0f047a515f25b80b4b96"
+    },
+    {
+      "path": "stock-token-reference.json",
+      "bytes": 266145,
+      "sha256": "0x076e31ebddaadf98bc43f2ab7d7a99dd8524ed68a59273f6e557a76c3664aa29"
+    },
+    {
+      "path": "stock-tokens.csv",
+      "bytes": 61993,
+      "sha256": "0x97f3ed8e7738d0891d228749f5b9c6999748103c2c015690d114aa6354a8a359"
+    },
+    {
+      "path": "uniswap-standard-queries.json",
+      "bytes": 1049994,
+      "sha256": "0xfc74bb83231e75f087b602bd9bbaa4be1a66b1835cb561aa356989c28e698dac"
+    },
+    {
+      "path": "uniswap-standard-pools.json",
+      "bytes": 235921,
+      "sha256": "0x63c8b6fe2e5284609fd84614af7765edb808ee423d3a9ac6e7fb8e00b8bf3342"
+    },
+    {
+      "path": "uniswap-standard-pools.csv",
+      "bytes": 131491,
+      "sha256": "0x0d87e4c6b48e0f96196d87211cebdd41f8ef0dc9a313d854e0890b8f72e072d1"
+    },
+    {
+      "path": "dexscreener-standard-quote-discovery.json",
+      "bytes": 1932314,
+      "sha256": "0x6b514bca81f1188ff89768c3a5e52471d95e659f475d8c020c53f8ae2dde850d"
+    },
+    {
+      "path": "dexscreener-standard-quote-discovery.csv",
+      "bytes": 485138,
+      "sha256": "0x587099f25759dc6e70545fa8e6061cf13a83209436001b90b410eed067ea4da4"
+    }
+  ]
+}

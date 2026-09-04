@@ -57,7 +57,7 @@ creator calls LaunchAndBuyRouter.launchAndBuy(params, firstBuyAmount, minTokensO
 
 `creator` 是市场身份和 salt namespace；`creatorRevenueBeneficiary` 是可单独指定的收入受益人，二者不得混为一个字段。Factory 的普通 `createMarket(params)` 固定使用自身 `msg.sender`。`createMarketFor` 只信任登记的 immutable Router；Router 不提供 `launchAndBuyFor(arbitraryCreator, ...)`。首买不设置人为的毕业门槛百分比上限；最大实际成交由曲线剩余 `sellableTokens`、尾单 partial fill、退款和 `minTokensOut` 共同决定。若未来增加 relayer，必须另开 executionSpecId 并使用带 chainId、nonce、deadline、完整 params hash 的 EIP-712 授权，本版本不预留通用签名入口。
 
-Router 不发与 Factory/Curve 重复的摘要事件。创建身份以 Factory 的 `MarketCreated` 为准；首买、退款、最终 `LaunchSwept` 和自动毕业失败以 exact Curve 的事件为准；成功建池以 GraduationExecutor 的 `PoolGraduated` 为准。
+Router 不发与 Factory/Curve 重复的摘要事件。创建身份以 Factory 的 `MarketCreated` 为准；买入与退款以 exact Curve 的事件为准；若首买即吃完曲线，毕业也必须在同一交易原子完成，成功由 Curve 的 `CurveCompleted` 与 GraduationExecutor 的 `PoolGraduated` 共同证明，失败则整笔 launch-and-buy 回滚。
 
 ## 4. 不变量
 

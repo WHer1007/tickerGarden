@@ -2,10 +2,10 @@
   "openapi": "3.1.0",
   "info": {
     "title": "TickerGarden V1 Read API",
-    "version": "1.0.4",
+    "version": "1.0.6",
     "description": "Non-custodial read API backed only by reconciled V1 Indexer facts."
   },
-  "x-execution-spec-id": "V1-EXEC-8",
+  "x-execution-spec-id": "V1-EXEC-9",
   "paths": {
     "/health": {
       "get": {
@@ -523,8 +523,10 @@
           },
           "launchPhase": {
             "type": "integer",
-            "minimum": 0,
-            "maximum": 255
+            "enum": [
+              0,
+              1
+            ]
           }
         },
         "required": [
@@ -561,17 +563,6 @@
           },
           "readyToGraduate": {
             "type": "boolean"
-          },
-          "sweptAt": {
-            "oneOf": [
-              {
-                "type": "string",
-                "pattern": "^(0|[1-9][0-9]*)$"
-              },
-              {
-                "type": "null"
-              }
-            ]
           }
         },
         "required": [
@@ -579,8 +570,7 @@
           "sellableTokens",
           "reservedTokens",
           "accruedCurveFees",
-          "readyToGraduate",
-          "sweptAt"
+          "readyToGraduate"
         ]
       },
       "MarketReadModel": {
@@ -625,8 +615,10 @@
           },
           "launchPhase": {
             "type": "integer",
-            "minimum": 0,
-            "maximum": 255
+            "enum": [
+              0,
+              1
+            ]
           },
           "curveProgress": {
             "$ref": "#/components/schemas/CurveProgress"
@@ -977,7 +969,7 @@
         "properties": {
           "executionSpecId": {
             "type": "string",
-            "const": "V1-EXEC-8"
+            "const": "V1-EXEC-9"
           },
           "status": {
             "type": "string",

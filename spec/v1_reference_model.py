@@ -638,7 +638,7 @@ def stake_saturation_amount(stock_decimals: int) -> int:
 
 
 def validate_minimum_allocation(stock_decimals: int, minimum_allocation: int) -> int:
-    """Validate one V1-EXEC-8 per-asset minimum in canonical raw units."""
+    """Validate one V1-EXEC-9 per-asset minimum in canonical raw units."""
 
     if not MIN_SUPPORTED_ASSET_DECIMALS <= stock_decimals <= MAX_SUPPORTED_ASSET_DECIMALS:
         raise ValueError("unsupported Stock decimals")
@@ -659,7 +659,7 @@ class AccumulatorLifetimeBound:
 
 
 def accumulator_lifetime_bound() -> AccumulatorLifetimeBound:
-    """Prove the base fee-credit index bound for every V1-EXEC-8 asset."""
+    """Prove the base fee-credit index bound for every V1-EXEC-9 asset."""
 
     minimum_active = MINIMUM_SAFE_ALLOCATION_RAW
     maximum_carry = (MAX_ACCOUNTING_AMOUNT - 1) // minimum_active
@@ -746,7 +746,7 @@ class PoolFeePartition:
 
 
 def partition_pool_fee(base: int, active_stock: int) -> PoolFeePartition:
-    """Partition a V1-EXEC-8 pool fee with no LP leg and fixed beneficiary shares."""
+    """Partition a V1-EXEC-9 pool fee with no LP leg and fixed beneficiary shares."""
 
     _require_uint(base=base, active_stock=active_stock)
     if base > maximum_post_graduation_fee_base():

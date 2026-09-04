@@ -10,7 +10,7 @@ abstract contract ProtocolFeeVaultV4Credit {
     uint8 private constant CREDIT_IDLE = 0;
     uint8 private constant CREDIT_PENDING = 1;
     uint8 private constant CREDIT_FINALIZING = 2;
-    uint8 private constant LAUNCH_PHASE_POOL_CREATED = 2;
+    uint8 private constant LAUNCH_PHASE_POOL_CREATED = 1;
 
     struct PendingV4Credit {
         bytes32 marketId;

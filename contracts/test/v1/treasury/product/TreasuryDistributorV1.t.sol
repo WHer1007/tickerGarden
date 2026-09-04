@@ -63,7 +63,7 @@ contract TreasuryDistributorV1Test is Test {
         meme = _deployMeme(MARKET_ID);
 
         _configureRoles();
-        marketRegistry.setMarket(MARKET_ID, address(meme), address(quote), 2);
+        marketRegistry.setMarket(MARKET_ID, address(meme), address(quote), 1);
         distributor.registerMarket(MARKET_ID, address(meme), address(quote), ELIGIBILITY_POLICY);
         distributor.activateMarket(MARKET_ID);
 
@@ -95,7 +95,7 @@ contract TreasuryDistributorV1Test is Test {
 
         bytes32 otherMarket = keccak256("OTHER");
         MockInvalidMemeTokenV1 invalid = new MockInvalidMemeTokenV1();
-        marketRegistry.setMarket(otherMarket, address(invalid), address(quote), 2);
+        marketRegistry.setMarket(otherMarket, address(invalid), address(quote), 1);
         vm.expectRevert(abi.encodeWithSelector(TreasuryDistributorV1.InvalidMemeToken.selector, address(invalid)));
         distributor.registerMarket(otherMarket, address(invalid), address(quote), ELIGIBILITY_POLICY);
     }
@@ -115,6 +115,12 @@ contract TreasuryDistributorV1Test is Test {
         distributor.activateMarket(marketId);
 
         marketRegistry.setLaunchPhase(marketId, 2);
+        vm.expectRevert(
+            abi.encodeWithSelector(TreasuryDistributorV1.InvalidCanonicalLaunchPhase.selector, marketId, uint8(2))
+        );
+        distributor.activateMarket(marketId);
+
+        marketRegistry.setLaunchPhase(marketId, 1);
         distributor.activateMarket(marketId);
         assertEq(distributor.market(marketId).activatedAt, block.timestamp);
     }
@@ -122,7 +128,7 @@ contract TreasuryDistributorV1Test is Test {
     function test_activationRemainsPermissionlessAndHasNoAccessManagerRoleAssignment() public {
         bytes32 marketId = keccak256("PUBLIC-ACTIVATION-MARKET");
         TickerMemeTokenV1 marketMeme = _deployMeme(marketId);
-        marketRegistry.setMarket(marketId, address(marketMeme), address(0), 2);
+        marketRegistry.setMarket(marketId, address(marketMeme), address(0), 1);
         distributor.registerMarket(marketId, address(marketMeme), address(0), ELIGIBILITY_POLICY);
 
         assertEq(
@@ -187,7 +193,7 @@ contract TreasuryDistributorV1Test is Test {
     function test_nativeQuoteTreasuryFundsAndClaimsWithExactValue() public {
         bytes32 marketId = keccak256("NATIVE-QUOTE-MARKET");
         TickerMemeTokenV1 marketMeme = _deployMeme(marketId);
-        marketRegistry.setMarket(marketId, address(marketMeme), address(0), 2);
+        marketRegistry.setMarket(marketId, address(marketMeme), address(0), 1);
         distributor.registerMarket(marketId, address(marketMeme), address(0), ELIGIBILITY_POLICY);
         distributor.activateMarket(marketId);
         vm.prank(CURVE);
@@ -230,7 +236,7 @@ contract TreasuryDistributorV1Test is Test {
         bytes32 marketId = keccak256("TAX-MARKET");
         MockTaxQuoteTokenV1 taxed = new MockTaxQuoteTokenV1(address(0xCA11));
         TickerMemeTokenV1 marketMeme = _deployMeme(marketId);
-        marketRegistry.setMarket(marketId, address(marketMeme), address(taxed), 2);
+        marketRegistry.setMarket(marketId, address(marketMeme), address(taxed), 1);
         distributor.registerMarket(marketId, address(marketMeme), address(taxed), ELIGIBILITY_POLICY);
         distributor.activateMarket(marketId);
         taxed.mint(FUNDER, 1_000 ether);
@@ -400,7 +406,7 @@ contract TreasuryDistributorV1Test is Test {
         bytes32 marketId = keccak256("MUTABLE-TAX-MARKET");
         MockTaxQuoteTokenV1 taxed = new MockTaxQuoteTokenV1(address(0xCA11));
         TickerMemeTokenV1 marketMeme = _deployMeme(marketId);
-        marketRegistry.setMarket(marketId, address(marketMeme), address(taxed), 2);
+        marketRegistry.setMarket(marketId, address(marketMeme), address(taxed), 1);
         distributor.registerMarket(marketId, address(marketMeme), address(taxed), ELIGIBILITY_POLICY);
         distributor.activateMarket(marketId);
         vm.prank(CURVE);

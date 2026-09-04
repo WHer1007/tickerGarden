@@ -49,7 +49,7 @@ interface ICurveMarketRegistryDependencies {
 ///      the Meme token address and create a circular address prediction.
 contract PonsCompatibleCurve is IPonsCompatibleCurve, ReentrancyGuard {
     uint8 private constant LAUNCH_PHASE_NOT_GRADUATED = 0;
-    uint8 private constant LAUNCH_PHASE_SWEPT = 1;
+    uint8 private constant LAUNCH_PHASE_POOL_CREATED = 1;
     bytes32 private constant CURVE_SWEEP_DOMAIN = keccak256("TICKERGARDEN_V1_CURVE_SWEEP");
     uint256 private constant CURVE_SWEEP_SCHEMA_VERSION = 1;
 
@@ -69,8 +69,6 @@ contract PonsCompatibleCurve is IPonsCompatibleCurve, ReentrancyGuard {
     uint256 private immutable _launchTimestamp;
 
     PonsSupplyMath.TrackedReserves private _reserves;
-    uint256 private _graduationSweptQuote;
-    uint256 private _graduationSweptTokens;
     uint64 private _sweepNonce;
     bool private _hasExecutedTrade;
     bool private _completed;
@@ -90,7 +88,7 @@ contract PonsCompatibleCurve is IPonsCompatibleCurve, ReentrancyGuard {
     error InsufficientTrackedQuote(uint256 available, uint256 required);
     error SweepNonceOverflow();
     error CurveFeeSweepAfterClose(bytes32 marketId);
-    error LaunchSweepNotCommitted(bytes32 marketId, uint8 launchPhase);
+    error AtomicGraduationNotCommitted(bytes32 marketId, uint8 launchPhase, bytes32 poolId);
 
     constructor(address factory_) {
         if (factory_ == address(0) || msg.sender != factory_ || factory_.code.length == 0) {
@@ -159,8 +157,8 @@ contract PonsCompatibleCurve is IPonsCompatibleCurve, ReentrancyGuard {
             curveQuote.additionalQuoteFee
         );
         if (_completed) {
-            emit CurveCompleted(_marketId);
             _finalizeLaunch();
+            emit CurveCompleted(_marketId);
         }
         return (curveQuote.tokensOut, curveQuote.quoteSpent);
     }
@@ -224,13 +222,16 @@ contract PonsCompatibleCurve is IPonsCompatibleCurve, ReentrancyGuard {
         _sweepNonce = nextNonce;
         _reserves.accruedQuoteFees = 0;
         _reserves.trackedQuote -= sweptAmount;
+        _protocolFeeVault.beginCurveCredit(
+            _marketId, _quoteAsset, sweptAmount, marketView.runtime.sourceVersion, nextNonce, feeId
+        );
         if (_quoteAsset == address(0)) {
-            _protocolFeeVault.creditCurveSweep{value: sweptAmount}(
+            _protocolFeeVault.finalizeCurveCredit{value: sweptAmount}(
                 _marketId, _quoteAsset, sweptAmount, marketView.runtime.sourceVersion, nextNonce, feeId
             );
         } else {
             _transferTokenExact(_quoteAsset, address(_protocolFeeVault), sweptAmount);
-            _protocolFeeVault.creditCurveSweep(
+            _protocolFeeVault.finalizeCurveCredit(
                 _marketId, _quoteAsset, sweptAmount, marketView.runtime.sourceVersion, nextNonce, feeId
             );
         }
@@ -239,28 +240,33 @@ contract PonsCompatibleCurve is IPonsCompatibleCurve, ReentrancyGuard {
 
     function _finalizeLaunch() private {
         MarketView memory marketView = _requireRegisteredCurve();
+        if (marketView.runtime.launchPhase != LAUNCH_PHASE_NOT_GRADUATED) {
+            revert AtomicGraduationNotCommitted(_marketId, marketView.runtime.launchPhase, marketView.runtime.poolId);
+        }
         _sweepCurveFees(marketView);
 
         uint256 sweptQuote = _reserves.trackedQuote;
         uint256 sweptTokens = _reserves.trackedTokens;
         _validateActualGraduationPlan(sweptQuote, sweptTokens);
-        _graduationSweptQuote = sweptQuote;
-        _graduationSweptTokens = sweptTokens;
         _reserves.trackedQuote = 0;
         _reserves.trackedTokens = 0;
 
-        _transferQuoteExact(address(_graduationExecutor), sweptQuote);
         _transferTokenExact(address(_memeToken), address(_graduationExecutor), sweptTokens);
-        _marketRegistry.markSwept(_marketId);
-
-        MarketView memory sweptMarket = _requireRegisteredCurve();
-        if (sweptMarket.runtime.launchPhase != LAUNCH_PHASE_SWEPT) {
-            revert LaunchSweepNotCommitted(_marketId, sweptMarket.runtime.launchPhase);
+        if (_quoteAsset == address(0)) {
+            _graduationExecutor.graduateFromCurve{value: sweptQuote}(_marketId, sweptQuote, sweptTokens);
+        } else {
+            _transferTokenExact(_quoteAsset, address(_graduationExecutor), sweptQuote);
+            _graduationExecutor.graduateFromCurve(_marketId, sweptQuote, sweptTokens);
         }
-        emit LaunchSwept(_marketId, _quoteAsset, sweptQuote, sweptTokens, sweptMarket.runtime.sweptAt);
-        try _graduationExecutor.graduateFromCurve(_marketId) {}
-        catch (bytes memory reason) {
-            emit AutoGraduationFailed(_marketId, keccak256(reason));
+
+        MarketView memory committedMarket = _requireRegisteredCurve();
+        if (
+            committedMarket.runtime.launchPhase != LAUNCH_PHASE_POOL_CREATED
+                || committedMarket.runtime.poolId == bytes32(0)
+        ) {
+            revert AtomicGraduationNotCommitted(
+                _marketId, committedMarket.runtime.launchPhase, committedMarket.runtime.poolId
+            );
         }
     }
 
@@ -316,7 +322,7 @@ contract PonsCompatibleCurve is IPonsCompatibleCurve, ReentrancyGuard {
     function readyToGraduate() external view override returns (bool) {
         if (!_completed) return false;
         MarketView memory marketView = _marketRegistry.market(_marketId);
-        return marketView.config.curve == address(this) && marketView.runtime.launchPhase <= LAUNCH_PHASE_SWEPT;
+        return marketView.config.curve == address(this) && marketView.runtime.launchPhase == LAUNCH_PHASE_NOT_GRADUATED;
     }
 
     function accruedCurveFees() external view override returns (uint256) {
@@ -325,13 +331,6 @@ contract PonsCompatibleCurve is IPonsCompatibleCurve, ReentrancyGuard {
 
     function sweepNonce() external view override returns (uint64) {
         return _sweepNonce;
-    }
-
-    /// @notice Frozen exact amounts transferred to the bound GraduationExecutor.
-    /// @dev This supplemental view is deliberately not a mutation in the closed canonical surface. The values are
-    ///      written in the same outer transaction as the exact transfers and survive a caught auto-graduation failure.
-    function graduationEscrow() external view returns (uint256 sweptQuote, uint256 sweptTokens) {
-        return (_graduationSweptQuote, _graduationSweptTokens);
     }
 
     function _buyQuote(uint256 quoteIn, uint256 minTokensOut, address recipient, address caller)

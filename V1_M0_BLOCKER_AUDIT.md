@@ -1,6 +1,6 @@
 # TickerGarden V1-M0 阻塞审计
 
-> 当前执行规范：`V1-EXEC-8`；readiness：`IMPLEMENTATION_ALLOWED / NOT_DEPLOYABLE`；更新：2026-09-04。
+> 当前执行规范：`V1-EXEC-9`；readiness：`IMPLEMENTATION_ALLOWED / NOT_DEPLOYABLE`；更新：2026-09-04。
 
 ## 已关闭的本地实现项
 
@@ -10,9 +10,9 @@
 | 用户本金 | `rageQuit` 先返还完整本金，奖励失败只能进入异步清理 |
 | 配置治理 | Asset、Quote、Pons baseline、Launch template 仅控制新增准入/新增敞口 |
 | 合约与 ABI | 19 个 canonical 产品模块（含 TreasuryDistributorV1）；源码、接口和 product artifact 已同步 |
-| 权限与部署 schema | 86 个协议 mutation（22 个角色门控、64 个 immutable direct/public/module caller）、5 类协议角色；Root publisher 与 independent reviewer 分离；无部署后市场管理角色 |
-| 链下消费者 | Indexer、Backend、Website、Rewards/Treasury 前端与 maintenance runner 已同步 `V1-EXEC-8` |
-| 本地验证 | Foundry 671、规格 59、链下与 Web 全部测试通过 |
+| 权限与部署 schema | 83 个协议 mutation（22 个角色门控、61 个 immutable direct/public/module caller）、5 类协议角色；Root publisher 与 independent reviewer 分离；四个配置 Registry 分别证明绑定同一 canonical AccessManager；无部署后市场管理角色 |
+| 链下消费者 | Indexer、Backend、Website、Rewards/Treasury 前端与 maintenance runner 已同步 `V1-EXEC-9` |
+| 本地验证 | 根目录 `npm test` 聚合验证 60 项执行规范、全部 Foundry/状态化不变量、链下与 Web；具体动态计数以当次 CI 输出为准 |
 
 ## 用户前端归属与 Treasury 边界
 

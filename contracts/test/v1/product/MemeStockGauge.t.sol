@@ -523,7 +523,7 @@ contract MemeStockGaugeTest is Test {
         assertEq(position.pendingAmount, 0);
     }
 
-    function test_rageQuitRedistributesOnlyWhenExitTimeCohortRemainsUnchanged() public {
+    function test_rageQuitForfeitsToPlatformEvenWhenExitTimeCohortRemainsUnchanged() public {
         (uint64 generation,) = _schedule(ALICE, 100);
         _schedule(BOB, 100);
         vm.warp(generation);
@@ -533,10 +533,12 @@ contract MemeStockGaugeTest is Test {
 
         assertEq(principal, 100);
         assertEq(quoteForfeited, 100);
-        assertTrue(redistributed);
-        assertEq(gauge.positionOf(BOB).quoteClaimable, 200);
+        assertFalse(redistributed);
+        // The exiting user's reward is never reintroduced into the Gauge accumulator.  This mock FeeVault
+        // intentionally lacks recordForfeiture, so the platform-owned amount remains deferred for retry.
+        assertEq(gauge.positionOf(BOB).quoteClaimable, 100);
         (uint256 deferredQuote,) = gauge.deferredForfeiture();
-        assertEq(deferredQuote, 0);
+        assertEq(deferredQuote, 100);
     }
 
     function test_laterEntrantCannotCaptureForfeitureWhenNoActiveStakerRemainedAtExit() public {

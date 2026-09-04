@@ -1,6 +1,6 @@
 # TickerGarden V1 技术架构
 
-> 版本：`V1-EXEC-8`；状态：`LOCAL_IMPLEMENTATION_VERIFIED / NOT_DEPLOYABLE`。
+> 版本：`V1-EXEC-9`；状态：`LOCAL_IMPLEMENTATION_VERIFIED / NOT_DEPLOYABLE`。
 > 旧 V1-EXEC-5 市场管理与 Recovery 方案已 superseded。
 
 ## 1. 组件边界
@@ -21,7 +21,7 @@ Treasury 合约与 Rewards 内的 Treasury 前端都是 V1 范围内的能力，
 
 ## 2. 市场事实
 
-Market Registry 是 marketId 的唯一事实来源，保存 immutable 创建快照和仅含 `poolId + sourceVersion + sweptAt + launchPhase` 的 runtime。`launchPhase` 只单向记录 `NotGraduated`、`Swept`、`PoolCreated` 或 `Rescued`；不存在第二个市场状态维度。Factory、Curve、GraduationExecutor、Hook、Vault、Allocation、Gauge、FeeVault、Indexer、Backend 和 Web 必须读取 canonical Registry/Factory 事实，不得自行创建市场管理状态。
+Market Registry 是 marketId 的唯一事实来源，保存 immutable 创建快照和仅含 `poolId + sourceVersion + launchPhase` 的 runtime。`launchPhase` 只允许 `NotGraduated -> PoolCreated`；不存在持久毕业中间态或第二个市场状态维度。最终 Curve 买入与最后费用 sweep、资产移交、Pool/LP/Locker 建立、Hook 激活和 Registry 提交全原子，任一失败整体回滚。Factory、Curve、GraduationExecutor、Hook、Vault、Allocation、Gauge、FeeVault、Indexer、Backend 和 Web 必须读取 canonical Registry/Factory 事实，不得自行创建市场管理状态。
 
 ## 3. 配置状态
 
@@ -29,7 +29,7 @@ Official STOCK、Quote、Pons baseline、Launch template Registry 继续支持�
 
 ## 4. Vault 与 RageQuit
 
-Vault allocation 是本金权威。用户在任意 launchPhase、任意时间调用 `rageQuit`，按 Vault-first 顺序写入 tombstone、清除本人 allocation 并立即返还本金；不依赖 Gauge、管理权限、时间锁或 Recovery。未领取奖励异步放弃，由 permissionless 结算再分配或进入 reserve，且奖励失败不回滚本金。
+Vault allocation 是本金权威。用户在任意 launchPhase、任意时间调用 `rageQuit`，按 Vault-first 顺序写入 tombstone、清除本人 allocation 并立即返还本金；不依赖 Gauge、管理权限、时间锁或 Recovery。未领取奖励异步放弃并进入 platform forfeiture reserve，且奖励失败不回滚本金。
 
 ## 5. 安全、管理与 Gas 边界
 
@@ -37,4 +37,4 @@ Vault allocation 是本金权威。用户在任意 launchPhase、任意时间调
 
 ## 6. 验收边界
 
-Solidity、ABI、权限、Indexer、Backend、Website、Deployments schema、机器规范和生成物已同步到 `V1-EXEC-8` 并通过本地门禁。目标链部署、production manifest、独立审计、实链 E2E 与上线批准不在该本地结论内。
+Solidity、ABI、权限、Indexer、Backend、Website、Deployments schema、机器规范和生成物已同步到 `V1-EXEC-9` 并通过本地门禁。目标链部署、production manifest、独立审计、实链 E2E 与上线批准不在该本地结论内。

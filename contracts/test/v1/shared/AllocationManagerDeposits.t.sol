@@ -82,7 +82,7 @@ contract AllocationManagerDepositsTest is Test {
         stockToken = new MockExactQuoteToken(18);
         vault = new UserStockVault(address(officialRegistry), address(marketRegistry), address(manager));
         officialRegistry.configure(ASSET_UID, address(stockToken), address(vault), 18, 1, 0.5 ether);
-        marketRegistry.configure(MARKET_ID, ASSET_UID, address(gauge), 2);
+        marketRegistry.configure(MARKET_ID, ASSET_UID, address(gauge), 1);
         gauge.configure(address(manager), vault, ASSET_UID, MARKET_ID);
     }
 
@@ -130,12 +130,12 @@ contract AllocationManagerDepositsTest is Test {
 
     function test_marketAndAssetGatesRunBeforeTheVaultPull() public {
         _fundAndApprove(ALICE, 2 ether);
-        marketRegistry.configure(MARKET_ID, ASSET_UID, address(gauge), 1);
+        marketRegistry.configure(MARKET_ID, ASSET_UID, address(gauge), 0);
         vm.expectRevert(abi.encodeWithSelector(AllocationManagerIncreases.StockAllocationClosed.selector, MARKET_ID));
         vm.prank(ALICE);
         manager.depositAndAllocate(MARKET_ID, 1 ether, 1 ether);
 
-        marketRegistry.configure(MARKET_ID, ASSET_UID, address(gauge), 2);
+        marketRegistry.configure(MARKET_ID, ASSET_UID, address(gauge), 1);
         officialRegistry.setStatus(ASSET_UID, 2);
         vm.expectRevert(abi.encodeWithSelector(AllocationManagerIncreases.StockAllocationClosed.selector, MARKET_ID));
         vm.prank(ALICE);
@@ -256,7 +256,7 @@ contract AllocationManagerDepositsTest is Test {
         UserStockVault callbackVault =
             new UserStockVault(address(officialRegistry), address(marketRegistry), address(manager));
         officialRegistry.configure(callbackAssetUid, address(callbackToken), address(callbackVault), 18, 1, 0.5 ether);
-        marketRegistry.configure(callbackMarketId, callbackAssetUid, address(callbackGauge), 2);
+        marketRegistry.configure(callbackMarketId, callbackAssetUid, address(callbackGauge), 1);
         callbackGauge.configure(address(manager), callbackVault, callbackAssetUid, callbackMarketId);
         callbackToken.configureAttack(IAllocationManager(address(manager)), callbackMarketId, true);
         callbackToken.mint(ALICE, 1 ether);

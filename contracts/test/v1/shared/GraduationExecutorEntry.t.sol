@@ -17,22 +17,19 @@ contract GraduationEntryRegistryMock {
         executor = value;
     }
 
-    function configure(bytes32 marketId, address curve, uint8 launchPhase, uint32 sourceVersion, uint64 sweptAt)
-        external
-    {
+    function configure(bytes32 marketId, address curve, uint8 launchPhase, uint32 sourceVersion) external {
         MarketConfig memory config;
         config.curve = curve;
         MarketRuntime memory runtime;
         runtime.launchPhase = launchPhase;
         runtime.sourceVersion = sourceVersion;
-        runtime.sweptAt = sweptAt;
         _markets[marketId] = MarketView({config: config, runtime: runtime});
     }
 
     function commitPool(bytes32 marketId, bytes32 poolId) external {
         if (msg.sender != executor) revert UnauthorizedExecutor(msg.sender);
         MarketRuntime storage runtime = _markets[marketId].runtime;
-        runtime.launchPhase = 2;
+        runtime.launchPhase = 1;
         runtime.poolId = poolId;
         runtime.sourceVersion += 1;
     }
@@ -43,8 +40,11 @@ contract GraduationEntryRegistryMock {
 }
 
 contract GraduationEntryCurveCaller {
-    function graduate(GraduationExecutorEntry executor, bytes32 marketId) external {
-        executor.graduateFromCurve(marketId);
+    function graduate(GraduationExecutorEntry executor, bytes32 marketId, uint256 quoteAmount, uint256 memeAmount)
+        external
+        payable
+    {
+        executor.graduateFromCurve{value: msg.value}(marketId, quoteAmount, memeAmount);
     }
 }
 
@@ -59,7 +59,8 @@ contract GraduationExecutorEntryHarness is GraduationExecutorEntry {
     Mode public mode;
     uint256 public attemptCount;
     bytes32 public lastMarketId;
-    uint64 public lastSweptAt;
+    uint256 public lastQuoteAmount;
+    uint256 public lastMemeAmount;
 
     error ForcedGraduationFailure();
 
@@ -71,10 +72,14 @@ contract GraduationExecutorEntryHarness is GraduationExecutorEntry {
         mode = value;
     }
 
-    function _graduateSweptMarket(bytes32 marketId, MarketView memory sweptMarket) internal override {
+    function _graduateMarket(bytes32 marketId, MarketView memory, uint256 quoteAmount, uint256 memeAmount)
+        internal
+        override
+    {
         attemptCount += 1;
         lastMarketId = marketId;
-        lastSweptAt = sweptMarket.runtime.sweptAt;
+        lastQuoteAmount = quoteAmount;
+        lastMemeAmount = memeAmount;
         if (mode == Mode.REVERT) revert ForcedGraduationFailure();
         if (mode == Mode.COMMIT) _registry.commitPool(marketId, keccak256("canonical-pool"));
     }
@@ -82,7 +87,8 @@ contract GraduationExecutorEntryHarness is GraduationExecutorEntry {
 
 contract GraduationExecutorEntryTest is Test {
     bytes32 private constant MARKET_ID = keccak256("graduation-entry-market");
-    uint64 private constant SWEPT_AT = 1_000;
+    uint256 private constant QUOTE_AMOUNT = 11;
+    uint256 private constant MEME_AMOUNT = 22;
 
     GraduationEntryRegistryMock private registry;
     GraduationEntryCurveCaller private curve;
@@ -93,20 +99,20 @@ contract GraduationExecutorEntryTest is Test {
         curve = new GraduationEntryCurveCaller();
         executor = new GraduationExecutorEntryHarness(address(registry));
         registry.setExecutor(address(executor));
-        registry.configure(MARKET_ID, address(curve), 1, 7, SWEPT_AT);
+        registry.configure(MARKET_ID, address(curve), 0, 7);
     }
 
     function test_exactRegisteredCurveCanCommitOneCompleteGraduation() public {
-        curve.graduate(executor, MARKET_ID);
+        curve.graduate(executor, MARKET_ID, QUOTE_AMOUNT, MEME_AMOUNT);
 
         MarketView memory value = registry.market(MARKET_ID);
-        assertEq(value.runtime.launchPhase, 2);
+        assertEq(value.runtime.launchPhase, 1);
         assertEq(value.runtime.poolId, keccak256("canonical-pool"));
         assertEq(value.runtime.sourceVersion, 8);
-        assertEq(value.runtime.sweptAt, SWEPT_AT);
         assertEq(executor.attemptCount(), 1);
         assertEq(executor.lastMarketId(), MARKET_ID);
-        assertEq(executor.lastSweptAt(), SWEPT_AT);
+        assertEq(executor.lastQuoteAmount(), QUOTE_AMOUNT);
+        assertEq(executor.lastMemeAmount(), MEME_AMOUNT);
     }
 
     function test_nonRegisteredCurveCannotEnterAutomaticGraduation() public {
@@ -115,16 +121,16 @@ contract GraduationExecutorEntryTest is Test {
                 GraduationExecutorEntry.UnauthorizedGraduationCurve.selector, address(this), address(curve)
             )
         );
-        executor.graduateFromCurve(MARKET_ID);
+        executor.graduateFromCurve(MARKET_ID, QUOTE_AMOUNT, MEME_AMOUNT);
         assertEq(executor.attemptCount(), 0);
     }
 
-    function test_onlySweptMarketCanReachGraduationAlgorithm() public {
-        registry.configure(MARKET_ID, address(curve), 0, 7, 0);
+    function test_onlyNotGraduatedMarketCanReachGraduationAlgorithm() public {
+        registry.configure(MARKET_ID, address(curve), 1, 7);
         vm.expectRevert(
-            abi.encodeWithSelector(GraduationExecutorEntry.GraduationNotRetryable.selector, MARKET_ID, uint8(0))
+            abi.encodeWithSelector(GraduationExecutorEntry.GraduationNotReady.selector, MARKET_ID, uint8(1))
         );
-        curve.graduate(executor, MARKET_ID);
+        curve.graduate(executor, MARKET_ID, QUOTE_AMOUNT, MEME_AMOUNT);
 
         assertEq(executor.attemptCount(), 0);
     }
@@ -132,12 +138,11 @@ contract GraduationExecutorEntryTest is Test {
     function test_downstreamFailureRollsBackEveryEntrySideEffect() public {
         executor.setMode(GraduationExecutorEntryHarness.Mode.REVERT);
         vm.expectRevert(GraduationExecutorEntryHarness.ForcedGraduationFailure.selector);
-        curve.graduate(executor, MARKET_ID);
+        curve.graduate(executor, MARKET_ID, QUOTE_AMOUNT, MEME_AMOUNT);
 
         MarketView memory value = registry.market(MARKET_ID);
-        assertEq(value.runtime.launchPhase, 1);
+        assertEq(value.runtime.launchPhase, 0);
         assertEq(value.runtime.sourceVersion, 7);
-        assertEq(value.runtime.sweptAt, SWEPT_AT);
         assertEq(executor.attemptCount(), 0);
         assertEq(executor.lastMarketId(), bytes32(0));
     }
@@ -146,17 +151,12 @@ contract GraduationExecutorEntryTest is Test {
         executor.setMode(GraduationExecutorEntryHarness.Mode.RETURN_WITHOUT_COMMIT);
         vm.expectRevert(
             abi.encodeWithSelector(
-                GraduationExecutorEntry.GraduationNotCommitted.selector,
-                MARKET_ID,
-                uint8(1),
-                bytes32(0),
-                uint32(7),
-                SWEPT_AT
+                GraduationExecutorEntry.GraduationNotCommitted.selector, MARKET_ID, uint8(0), bytes32(0), uint32(7)
             )
         );
-        curve.graduate(executor, MARKET_ID);
+        curve.graduate(executor, MARKET_ID, QUOTE_AMOUNT, MEME_AMOUNT);
 
         assertEq(executor.attemptCount(), 0);
-        assertEq(registry.market(MARKET_ID).runtime.launchPhase, 1);
+        assertEq(registry.market(MARKET_ID).runtime.launchPhase, 0);
     }
 }

@@ -43,7 +43,7 @@ contract InvariantMarketRegistry {
     function configure(bytes32 marketId, bytes32 assetUid, address gauge) external {
         _markets[marketId].config.assetUid = assetUid;
         _markets[marketId].config.gauge = gauge;
-        _markets[marketId].runtime.launchPhase = 2;
+        _markets[marketId].runtime.launchPhase = 1;
     }
 
     function market(bytes32 marketId) external view returns (MarketView memory) {
@@ -298,7 +298,7 @@ contract VaultGaugeInvariantTest is StdInvariant, Test {
         assertEq(feeVault.recordedMemeForfeiture(), 0);
     }
 
-    function test_rageQuitRedistributesToRemainingActiveThenLastExitReservesForPlatform() public {
+    function test_everyRageQuitForfeitureIsReservedForPlatform() public {
         _depositAndAllocate(ALICE, 1 ether);
         _depositAndAllocate(BOB, 1 ether);
 
@@ -320,11 +320,11 @@ contract VaultGaugeInvariantTest is StdInvariant, Test {
         assertEq(vault.allocation(ASSET_UID, ALICE, MARKET_A), 0);
         assertEq(gaugeA.positionOf(ALICE).quoteClaimable, 0);
         assertEq(gaugeA.positionOf(ALICE).memeClaimable, 0);
-        assertEq(gaugeA.positionOf(BOB).quoteClaimable, 400);
-        assertEq(gaugeA.positionOf(BOB).memeClaimable, 600);
+        assertEq(gaugeA.positionOf(BOB).quoteClaimable, 200);
+        assertEq(gaugeA.positionOf(BOB).memeClaimable, 300);
         assertEq(gaugeA.storedTotalActiveStock(), 1 ether);
-        assertEq(feeVault.recordedQuoteForfeiture(), 0);
-        assertEq(feeVault.recordedMemeForfeiture(), 0);
+        assertEq(feeVault.recordedQuoteForfeiture(), 200);
+        assertEq(feeVault.recordedMemeForfeiture(), 300);
 
         vm.prank(BOB);
         manager.rageQuit(MARKET_A);
@@ -466,7 +466,8 @@ contract VaultGaugeInvariantTest is StdInvariant, Test {
         assertEq(vault.rageQuitSettlementPrincipal(ASSET_UID, ALICE, MARKET_A), 0);
         assertEq(_gaugePosition(gaugeA, ALICE), 0);
         assertEq(gaugeA.positionOf(ALICE).quoteClaimable, 0);
-        assertEq(gaugeA.positionOf(BOB).quoteClaimable, 600);
+        assertEq(gaugeA.positionOf(BOB).quoteClaimable, 400);
+        assertEq(feeVault.recordedQuoteForfeiture(), 200);
         assertEq(stock.balanceOf(BOB), 0);
         assertEq(vault.allocation(ASSET_UID, BOB, MARKET_A), 1 ether);
     }

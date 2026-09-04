@@ -224,7 +224,7 @@ contract AllocationManagerExitsTest is Test {
         stockToken = new MockExactQuoteToken(18);
         vault = new UserStockVault(address(officialRegistry), address(marketRegistry), address(manager));
         officialRegistry.configure(ASSET_UID, address(stockToken), address(vault), 18, 1, 0.5 ether);
-        marketRegistry.configure(MARKET_ID, ASSET_UID, address(gauge), 2);
+        marketRegistry.configure(MARKET_ID, ASSET_UID, address(gauge), 1);
         gauge.configure(address(manager), vault, ASSET_UID, MARKET_ID);
     }
 
@@ -299,12 +299,12 @@ contract AllocationManagerExitsTest is Test {
         _depositAndAllocate(BOB, 1 ether, 1 ether);
         _warpToUnlock(ALICE);
 
-        marketRegistry.configure(MARKET_ID, ASSET_UID, address(gauge), 2);
+        marketRegistry.configure(MARKET_ID, ASSET_UID, address(gauge), 1);
         officialRegistry.setStatus(ASSET_UID, 2);
         vm.prank(ALICE);
         manager.closeAllocation(MARKET_ID);
 
-        marketRegistry.configure(MARKET_ID, ASSET_UID, address(gauge), 2);
+        marketRegistry.configure(MARKET_ID, ASSET_UID, address(gauge), 1);
         officialRegistry.setStatus(ASSET_UID, 3);
         vm.prank(BOB);
         manager.closeAllocation(MARKET_ID);

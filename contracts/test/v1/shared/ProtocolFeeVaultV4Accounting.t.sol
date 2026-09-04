@@ -40,12 +40,16 @@ contract V4AccountingMarketRegistryMock {
         MarketRuntime memory runtime;
         runtime.poolId = poolId;
         runtime.sourceVersion = sourceVersion;
-        runtime.launchPhase = 2;
+        runtime.launchPhase = 1;
         _markets[marketId] = MarketView({config: config, runtime: runtime});
     }
 
     function market(bytes32 marketId) external view returns (MarketView memory) {
         return _markets[marketId];
+    }
+
+    function setLaunchPhase(bytes32 marketId, uint8 launchPhase) external {
+        _markets[marketId].runtime.launchPhase = launchPhase;
     }
 }
 
@@ -230,7 +234,7 @@ contract ProtocolFeeVaultV4AccountingTest is Test {
     bytes32 private constant MARKET_ID = keccak256("v4-accounting-market");
     bytes32 private constant POOL_ID = keccak256("v4-accounting-pool");
     bytes32 private constant FEE_POLICY_ID = keccak256("v1-fee-policy");
-    bytes32 private constant EXECUTION_SPEC_ID = keccak256("V1-EXEC-8");
+    bytes32 private constant EXECUTION_SPEC_ID = keccak256("V1-EXEC-9");
     uint32 private constant SOURCE_VERSION = 3;
     uint256 private constant B = 10;
     address private constant CREATOR = address(0xC0FFEE);
@@ -274,6 +278,21 @@ contract ProtocolFeeVaultV4AccountingTest is Test {
         assertEq(vault.liability(MARKET_ID, address(quote), 2), 30);
         assertEq(gauge.checkpointCalls(), 1);
         assertEq(gauge.creditCalls(), 0);
+    }
+
+    function test_legacyPhaseTwoCannotCreditPoolFees() public {
+        registry.setLaunchPhase(MARKET_ID, 2);
+        bytes32 feeId = _feeId(address(quote), 10_000, 100, 1);
+        quote.mint(address(source), 100);
+
+        vm.expectRevert(
+            abi.encodeWithSelector(ProtocolFeeVaultV4Credit.InactiveFeeSource.selector, MARKET_ID, SOURCE_VERSION)
+        );
+        _creditErc20(quote, 10_000, 100, 0, 100, 1, feeId);
+
+        assertEq(quote.balanceOf(address(source)), 100);
+        assertEq(quote.balanceOf(address(vault)), 0);
+        assertFalse(vault.consumedFeeId(feeId));
     }
 
     function test_maturedActiveStakeIsCheckpointedBeforeSnapshotAndCreditsGauge() public {

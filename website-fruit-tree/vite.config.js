@@ -11,7 +11,9 @@ export default defineConfig({
         create: resolve(import.meta.dirname, "create.html"),
         stats: resolve(import.meta.dirname, "stats.html"),
         faq: resolve(import.meta.dirname, "faq.html"),
-        rewards: resolve(import.meta.dirname, "rewards.html")
+        rewards: resolve(import.meta.dirname, "rewards.html"),
+        privacy: resolve(import.meta.dirname, "privacy.html"),
+        terms: resolve(import.meta.dirname, "terms.html")
       }
     }
   }

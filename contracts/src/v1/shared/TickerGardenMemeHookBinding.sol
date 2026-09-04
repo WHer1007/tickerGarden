@@ -13,8 +13,8 @@ import {
 abstract contract TickerGardenMemeHookBinding is ITickerGardenMemeHook {
     uint160 internal constant HOOK_PERMISSION_MASK = 0x2044;
     uint160 private constant ALL_HOOK_PERMISSION_BITS = (1 << 14) - 1;
-    uint8 internal constant LAUNCH_PHASE_SWEPT = 1;
-    uint8 internal constant LAUNCH_PHASE_POOL_CREATED = 2;
+    uint8 internal constant LAUNCH_PHASE_NOT_GRADUATED = 0;
+    uint8 internal constant LAUNCH_PHASE_POOL_CREATED = 1;
     uint8 internal constant BINDING_NONE = 0;
     uint8 internal constant BINDING_EXPECTED = 1;
     uint8 internal constant BINDING_INITIALIZE_SEEN = 2;
@@ -68,7 +68,7 @@ abstract contract TickerGardenMemeHookBinding is ITickerGardenMemeHook {
         _requireHookCaller(_hookGraduationExecutor);
         MarketView memory value = _hookMarketRegistry.market(marketId);
         if (
-            marketId == bytes32(0) || value.runtime.launchPhase != LAUNCH_PHASE_SWEPT
+            marketId == bytes32(0) || value.runtime.launchPhase != LAUNCH_PHASE_NOT_GRADUATED
                 || value.runtime.poolId != bytes32(0)
         ) {
             revert InactiveFeeSource(marketId, value.runtime.sourceVersion);

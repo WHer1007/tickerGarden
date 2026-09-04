@@ -8,7 +8,7 @@ import { clone, compiled, hash, permissions, validManifest, type JsonRecord } fr
 const deploymentSchema = JSON.parse(readFileSync(new URL("../schemas/v1-deployment-manifest.schema.json", import.meta.url), "utf8")) as JsonRecord;
 const executionManifest = JSON.parse(readFileSync(new URL("../../spec/v1_execution_manifest.json", import.meta.url), "utf8")) as { readiness: { gateSets: { deployment: { open: string[] } } } };
 
-test("accepts a complete V1-EXEC-8 deployment candidate and native zero sentinel", () => {
+test("accepts a complete V1-EXEC-9 deployment candidate and native zero sentinel", () => {
   const candidate = validManifest();
   assert.deepEqual(validateV1DeploymentManifestSchema(candidate), { valid: true, errors: [] });
   assert.doesNotThrow(() => assertV1DeploymentManifest(candidate));
@@ -60,7 +60,30 @@ test("rejects ERC20 zero addresses, invalid Hook permissions, and incomplete CRE
   assert.equal(validateV1DeploymentManifestSchema(fullGauge).valid, false);
 });
 
-test("requires exactly 86 protocol and 6 AccessManager permissions", () => {
+test("first release schema rejects every upgradeable ERC20 Quote kind", () => {
+  for (const proxyKind of ["ERC1967", "BEACON", "OTHER_VERIFIED"]) {
+    const candidate = clone(validManifest());
+    candidate.quoteAssets = [{
+      configId: hash("erc20-quote"),
+      ponsBaselineId: hash("baseline"),
+      economicsHash: hash("erc20-economics"),
+      assetKind: "ERC20",
+      tokenAddress: "0x1234567890abcdef1234567890abcdef12345678",
+      decimals: 6,
+      phantomQuote: "1000000",
+      graduationThreshold: "2000000",
+      runtimeCodeHash: hash("erc20-runtime"),
+      proxyKind,
+      implementationAddress: "0x1234567890abcdef1234567890abcdef12345678",
+      implementationCodeHash: hash("erc20-runtime"),
+      observationBlockHash: hash("erc20-observation"),
+      exactBalanceDeltaEvidenceHash: hash("erc20-balance-delta"),
+    }];
+    assert.equal(validateV1DeploymentManifestSchema(candidate).valid, false, proxyKind);
+  }
+});
+
+test("requires exactly 83 protocol and 6 AccessManager permissions", () => {
   const candidate = clone(validManifest());
   const manager = candidate.accessManager as JsonRecord;
   manager.protocolPermissions = (manager.protocolPermissions as unknown[]).slice(1);

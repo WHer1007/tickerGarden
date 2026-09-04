@@ -10,7 +10,7 @@ import {LiquidityAmounts} from "@uniswap/v4-periphery/src/libraries/LiquidityAmo
 
 import {PoolKey} from "../interfaces/IV1Protocol.sol";
 
-/// @notice Canonical price, full-range tick, and liquidity derivation for a swept V1 launch.
+/// @notice Canonical price, full-range tick, and liquidity derivation for an atomic V1 graduation.
 library GraduationPoolMath {
     uint160 internal constant HOOK_PERMISSION_MASK = 0x2044;
     uint160 private constant ALL_HOOK_PERMISSION_BITS = (1 << 14) - 1;
@@ -86,7 +86,7 @@ library GraduationPoolMath {
         uint256 raw;
         // With both amounts constrained to int128.max, this comparison exactly identifies whether the Q192
         // FullMath quotient fits uint256. The Q128 fallback then remains representable for the entire domain.
-        if (amount1 <= (amount0 << 64)) {
+        if (amount1 < (amount0 << 64)) {
             raw = Math.sqrt(FullMath.mulDiv(amount1, Q192, amount0));
         } else {
             raw = Math.sqrt(FullMath.mulDiv(amount1, Q128, amount0)) << 32;

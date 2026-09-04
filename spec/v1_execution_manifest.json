@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "executionSpecId": "V1-EXEC-8",
+  "executionSpecId": "V1-EXEC-9",
   "status": "IMPLEMENTATION_ALLOWED",
   "updatedAt": "2026-09-04",
   "normativeDocument": "V1_EXECUTION_SPEC.md",
@@ -87,8 +87,10 @@
       ],
       "allowedZeroRules": [
         {"pathPattern":"$.quoteAssets.*.tokenAddress","requiresSibling":{"field":"assetKind","equals":"NATIVE"}},
+        {"pathPattern":"$.livePreflight.storageChecks.*.expectedValue","requiresSibling":{"field":"slot","equals":"0x360894a13ba1a3210667c828492db98dca3e2076cc3735a920a3ca505d382bbc"}},
+        {"pathPattern":"$.livePreflight.storageChecks.*.expectedValue","requiresSibling":{"field":"slot","equals":"0xb53127684a568b3173ae13b9f8a6016e243e63b6e8ee1178d6a717850b5d6103"}},
+        {"pathPattern":"$.livePreflight.storageChecks.*.expectedValue","requiresSibling":{"field":"slot","equals":"0xa3f0ad74e5423aebfd80d3ef4346578335a9a72aeaee59ff6cb3582b35133d50"}},
         {"pathPattern":"$.marketInitialRuntime.poolId"},
-        {"pathPattern":"$.marketInitialRuntime.sweptAt"},
         {"pathPattern":"$.poolBindingInitial.status"}
       ],
       "referenceFixtureScopes": [
@@ -130,7 +132,7 @@
   },
   "quoteConfigs": {
     "authoritativeArtifact": "spec/v1_initial_quote_configs.json",
-    "initialRelease": ["NATIVE_ETH_V1", "USDG_V1"],
+    "initialRelease": ["NATIVE_ETH_V1"],
     "configurationMode": "APPEND_ONLY_CONTENT_ADDRESSED",
     "individualGraduationAmountBound": "phantomQuote_AND_graduationThreshold_LE_int128.max",
     "jointGraduationDomainGate": "FACTORY_PREVIEW_AND_CREATE_VALIDATE_PAIRED_BASELINE_AND_QUOTE_BEFORE_RESERVATION_OR_DEPLOYMENT",
@@ -140,7 +142,7 @@
       "BOTH_CANONICAL_TOKEN_ADDRESS_ORDERINGS",
       "SQRT_PRICE_TICK_AND_MAX_LIQUIDITY_REPRESENTABILITY"
     ],
-    "deploymentPreflight": "RECAPTURE_CODE_AND_IMPLEMENTATION_FINGERPRINTS_AND_REJECT_DRIFT"
+    "deploymentPreflight": "ERC20_PROXY_KIND_NONE_IMPLEMENTATION_EQUALS_TOKEN_THREE_EIP1967_SLOTS_ZERO_AND_RUNTIME_HASH_PINNED"
   },
   "numericBounds": {
     "authoritativeArtifact": "spec/v1_numeric_bounds.json",
@@ -182,17 +184,18 @@
     "addressCollisionPolicy": "REVERT_NO_NONCE_FALLBACK"
   },
   "graduation": {
-    "automaticTrigger": "FINAL_CURVE_BUY_AFTER_SETTLEMENT_REFUND_FINAL_FEE_SWEEP_CLOSE_AND_MARK_SWEPT",
-    "terminalMathPrecommit": "EXACT_ACTUAL_ESCROW_REVALIDATED_WITH_CANONICAL_GraduationPoolMath_BEFORE_ESCROW_RECORD_OR_MARK_SWEPT",
+    "automaticTrigger": "FINAL_CURVE_BUY_AFTER_SETTLEMENT_REFUND_AND_FINAL_FEE_SWEEP",
+    "terminalMathPrecommit": "EXACT_ACTUAL_ASSETS_REVALIDATED_WITH_CANONICAL_GraduationPoolMath_BEFORE_TRANSFER_OR_POOL_INITIALIZATION",
     "terminalMathFailure": "REVERT_FINAL_BUY_ATOMICALLY_AND_REMAIN_NotGraduated",
-    "automaticEntrypoint": "GraduationExecutor.graduateFromCurve(bytes32)",
+    "automaticEntrypoint": "GraduationExecutor.graduateFromCurve(bytes32,uint256,uint256)",
     "automaticCaller": "EXACT_REGISTERED_CURVE",
-    "retryEntrypoint": "GraduationExecutor.retryGraduation(bytes32)",
-    "retryCaller": "PUBLIC",
-    "retryPrecondition": "Swept_AND_NOT_RESCUED",
-    "failureState": "Swept",
-    "curveEventAuthority": ["LaunchSwept", "AutoGraduationFailed"],
-    "executorEventAuthority": ["PoolGraduated", "LaunchRescued"],
+    "atomic": true,
+    "failureMode": "REVERT_FINAL_BUY_AND_ALL_GRADUATION_EFFECTS",
+    "manualRetryEntrypoint": false,
+    "terminalRescueEntrypoint": false,
+    "marketAssetRecipient": "NONE_OUTSIDE_CANONICAL_POOL_AND_PERMANENT_LAUNCH_LOCKER",
+    "curveEventAuthority": ["CurveCompleted"],
+    "executorEventAuthority": ["PoolGraduated"],
     "launchAndBuyRouterSummaryEvent": false
   },
   "graduationSupply": {
@@ -374,10 +377,10 @@
       "postExitRewardAccrual": "NONE_EVEN_WHEN_GAUGE_CLEANUP_IS_DEFERRED",
       "retryEntrypoint": "AllocationManager.settleRageQuitRewards(bytes32,address)",
       "retryCaller": "PUBLIC",
-      "redistributionCondition": "EXIT_TIME_REMAINING_ACTIVE_NONZERO_AND_COHORT_NONCE_AND_EFFECTIVE_WEIGHT_UNCHANGED_AT_CLEANUP",
-      "whenOtherActiveStakersRemain": "REDISTRIBUTE_PRO_RATA_ONLY_WHILE_EXIT_COHORT_REMAINS_UNCHANGED",
-      "whenNoOtherActiveStakerRemains": "MOVE_TO_MARKET_AND_FEE_ASSET_ISOLATED_FORFEITURE_RESERVE",
-      "whenExitCohortChanged": "FAIL_CLOSED_TO_MARKET_AND_FEE_ASSET_ISOLATED_FORFEITURE_RESERVE",
+      "redistributionCondition": "NONE_ESCAPE_REWARDS_NEVER_RETURN_TO_STAKER_ACCUMULATORS",
+      "whenOtherActiveStakersRemain": "MOVE_TO_MARKET_AND_FEE_ASSET_ISOLATED_PLATFORM_FORFEITURE_RESERVE",
+      "whenNoOtherActiveStakerRemains": "MOVE_TO_MARKET_AND_FEE_ASSET_ISOLATED_PLATFORM_FORFEITURE_RESERVE",
+      "whenExitCohortChanged": "MOVE_TO_MARKET_AND_FEE_ASSET_ISOLATED_PLATFORM_FORFEITURE_RESERVE",
       "forfeitureReserveRecordFailure": "STORE_GAUGE_LOCAL_DEFERRED_QUOTE_AND_MEME_AMOUNTS_WITHOUT_RESTORING_USER_REWARDS",
       "forfeitureReserveRetryEntrypoint": "MemeStockGauge.flushDeferredForfeiture()",
       "forfeitureReserveRetryCaller": "PUBLIC",
@@ -453,7 +456,7 @@
     "genericWithdraw": false
   },
   "stateAuthority": {
-    "revision": "V1-STATE-6-FROZEN",
+    "revision": "V1-STATE-7-FROZEN",
     "canonicalModule": "MarketRegistryV1",
     "canonicalConfigFields": [
       "assetUid", "ponsBaselineId", "quoteAssetConfigId", "launchTemplateId",
@@ -462,26 +465,21 @@
       "memeToken", "curve", "gauge", "quoteAsset", "graduatedHook"
     ],
     "canonicalRuntimeFields": [
-      "poolId", "sourceVersion", "sweptAt", "launchPhase"
+      "poolId", "sourceVersion", "launchPhase"
     ],
     "initialRuntime": {
       "poolId": "ZERO",
       "sourceVersion": 1,
-      "sweptAt": 0,
       "launchPhase": "NotGraduated"
     },
     "activeFeeSourceByPhase": {
       "NotGraduated": "REGISTERED_CURVE_AT_CURRENT_SOURCE_VERSION",
-      "Swept": "NONE",
-      "PoolCreated": "REGISTERED_HOOK_AND_POOL_AT_CURRENT_SOURCE_VERSION",
-      "Rescued": "NONE"
+      "PoolCreated": "REGISTERED_HOOK_AND_POOL_AT_CURRENT_SOURCE_VERSION"
     },
     "marketAdministrativeState": "ABSENT",
     "mutations": [
       {"function":"registerMarket(bytes32,MarketConfig)","caller":"IMMUTABLE_FACTORY","writes":["MarketConfig","MarketRuntime","marketIdByToken"]},
-      {"function":"markSwept(bytes32)","caller":"EXACT_REGISTERED_CURVE","transition":["NotGraduated","Swept"],"writes":["launchPhase","sweptAt"]},
-      {"function":"commitPoolCreated(bytes32,bytes32)","caller":"IMMUTABLE_GRADUATION_EXECUTOR","transition":["Swept","PoolCreated"],"writes":["launchPhase","poolId","sourceVersion"],"sourceVersionEffect":"CHECKED_INCREMENT"},
-      {"function":"markRescued(bytes32)","caller":"IMMUTABLE_GRADUATION_EXECUTOR","transition":["Swept","Rescued"],"writes":["launchPhase"],"minimumDelaySecondsFromSweptAt":604800}
+      {"function":"commitPoolCreated(bytes32,bytes32)","caller":"IMMUTABLE_GRADUATION_EXECUTOR","transition":["NotGraduated","PoolCreated"],"writes":["launchPhase","poolId","sourceVersion"],"sourceVersionEffect":"CHECKED_INCREMENT","atomicWith":"FINAL_CURVE_BUY_POOL_INITIALIZATION_LP_MINT_AND_LOCK_HOOK_ACTIVATION"}
     ],
     "subordinateState": {
       "TickerGardenMemeHook.PoolBindingStatus": "EXECUTION_HANDSHAKE_ONLY",
@@ -515,10 +513,7 @@
     "normalWithdrawalAmount": "FULL_USER_MARKET_ALLOCATION",
     "normalWithdrawalOrder": "CHECK_LEDGER_AND_LOCK_THEN_GAUGE_SETTLE_AND_REMOVE_FULL_POSITION_THEN_VAULT_RELEASE_FULL_ALLOCATION",
     "activationDelaySeconds": 30,
-    "increaseWholePositionLockResetSeconds": 86400,
-    "sweptAtWriteMode": "WRITE_ONCE_ON_NOT_GRADUATED_TO_SWEPT",
-    "rescueDelaySeconds": 604800,
-    "rescueBoundary": "BLOCK_TIMESTAMP_GTE_SWEPT_AT_PLUS_DELAY"
+    "increaseWholePositionLockResetSeconds": 86400
   },
   "states": {
     "AssetStatus": [
@@ -547,9 +542,7 @@
     ],
     "LaunchPhase": [
       "NotGraduated",
-      "Swept",
-      "PoolCreated",
-      "Rescued"
+      "PoolCreated"
     ],
     "PoolBindingStatus": [
       "NONE",
@@ -587,11 +580,7 @@
       ["ACTIVE", "RETIRED"],
       ["PAUSED", "RETIRED"]
     ],
-    "LaunchPhase": [
-      ["NotGraduated", "Swept"],
-      ["Swept", "PoolCreated"],
-      ["Swept", "Rescued"]
-    ],
+    "LaunchPhase": [["NotGraduated", "PoolCreated"]],
     "PoolBindingStatus": [
       ["NONE", "EXPECTED"],
       ["EXPECTED", "INITIALIZE_SEEN"],

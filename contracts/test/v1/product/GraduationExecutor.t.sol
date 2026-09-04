@@ -23,8 +23,6 @@ contract GraduationExecutorTest is Test {
     bytes32 private constant MARKET_ID = keccak256("PRODUCT-GRADUATION");
     bytes32 private constant QUOTE_ID = keccak256("PRODUCT-QUOTE");
     address private constant HOOK_ADDRESS = address(0x2044);
-    address private constant DUST_RECIPIENT = address(0xD057);
-    address private constant RESCUE_RECIPIENT = address(0x5E5C);
     uint256 private constant SWEPT_QUOTE = 40 ether;
     uint256 private constant SWEPT_MEME = 100 ether;
     uint256 private constant PHANTOM = 10 ether;
@@ -68,17 +66,10 @@ contract GraduationExecutorTest is Test {
         );
         registry.configure(MARKET_ID, QUOTE_ID, address(quote), address(meme), address(curve), address(hook));
         executor = new GraduationExecutor(
-            address(registry),
-            address(quoteRegistry),
-            address(poolManager),
-            address(positionManager),
-            address(hook),
-            DUST_RECIPIENT,
-            RESCUE_RECIPIENT
+            address(registry), address(quoteRegistry), address(poolManager), address(positionManager), address(hook)
         );
         registry.setGraduationExecutor(address(executor));
         hook.configure(address(executor), address(poolManager));
-        curve.setGraduationEscrow(SWEPT_QUOTE, SWEPT_MEME);
     }
 
     function test_realLockerCreationCodeSaltPredictionAndActualDeploymentMatchManifest() public {
@@ -101,7 +92,7 @@ contract GraduationExecutorTest is Test {
 
         quote.mint(address(executor), SWEPT_QUOTE);
         meme.mint(address(executor), SWEPT_MEME);
-        curve.graduate(address(executor), MARKET_ID);
+        curve.graduate(address(executor), MARKET_ID, SWEPT_QUOTE, SWEPT_MEME);
 
         assertGt(executorPredicted.code.length, 0);
         LaunchLocker deployed = LaunchLocker(payable(executorPredicted));
@@ -111,7 +102,7 @@ contract GraduationExecutorTest is Test {
         assertEq(poolId, registry.canonicalPoolId(MARKET_ID));
         assertEq(positionManager.ownerOf(tokenId), executorPredicted);
         assertEq(registry.market(MARKET_ID).runtime.poolId, poolId);
-        assertEq(registry.market(MARKET_ID).runtime.launchPhase, 2);
+        assertEq(registry.market(MARKET_ID).runtime.launchPhase, 1);
         assertEq(meme.balanceOf(executorPredicted), deployed.unpairedLockedBalance(address(meme)));
     }
 }

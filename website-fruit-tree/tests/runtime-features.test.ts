@@ -45,12 +45,12 @@ function canonicalMarketFixture() {
   const api = {
     marketId: market, assetUid: bytes32("1"), memeToken, curve: addr("4"), gauge: addr("5"), quoteAsset,
     quoteAssetConfigId: bytes32("6"), ponsBaselineId: bytes32("7"), sourceVersion: 1, launchPhase: 0,
-    curveProgress: { sweptAt: null }, poolId: null, poolKey: null,
+    curveProgress: { realQuoteReserve: "0", sellableTokens: "0", reservedTokens: "0", accruedCurveFees: "0", readyToGraduate: false }, poolId: null, poolKey: null,
     canonicalRoute: { router: addr("8"), quoter: addr("9"), hook, launchLocker: addr("a"), graduationExecutor: addr("b"), curveTradingEnabled: true, poolTradingEnabled: false, sourceVersion: 1, launchPhase: 0 },
   } as const;
   const rawMarket = {
     config: [api.assetUid, api.ponsBaselineId, api.quoteAssetConfigId, bytes32("c"), bytes32("d"), bytes32("e"), bytes32("f"), 0n, addr("c"), memeToken, api.curve, api.gauge, quoteAsset, hook],
-    runtime: { poolId: bytes32("0"), sourceVersion: 1, sweptAt: 0n, launchPhase: 0 },
+    runtime: { poolId: bytes32("0"), sourceVersion: 1, launchPhase: 0 },
   } as const;
   const rawRoute = [key, poolId, api.canonicalRoute.router, api.canonicalRoute.quoter, hook, quoteAsset, memeToken, api.gauge, api.curve, api.canonicalRoute.launchLocker, 1, 0, 0, true, false] as const;
   return { api, rawMarket, rawRoute, poolId, key };
@@ -83,7 +83,8 @@ test("canonical identifiers and finalized Robinhood snapshot are fail-closed", (
   };
   assert.doesNotThrow(() => assertFinalizedSync(sync));
   assert.throws(() => assertFinalizedSync({ ...sync, chainId: 1 } as unknown as SyncStatus), /Robinhood/);
-  assert.equal(phaseLabel(0), "Curve");
+  assert.equal(phaseLabel(0), "Not Graduated");
+  assert.equal(phaseLabel(1), "Pool Created");
   assert.equal(phaseLabel(99), "Phase 99");
 });
 
@@ -131,7 +132,7 @@ test("runtime capabilities are independently parsed and never use a demo fallbac
 });
 
 test("frontend execution and rageQuit configuration stay on the current V1 contract", () => {
-  assert.equal(V1_EXECUTION_SPEC_ID, "V1-EXEC-8");
+  assert.equal(V1_EXECUTION_SPEC_ID, "V1-EXEC-9");
   const emergencyOnly = parseV1RuntimeConfig({ VITE_V1_FACTORY_ADDRESS: addr("1") });
   assert.equal(emergencyOnly.rageQuitFactory.available, true);
   assert.equal(emergencyOnly.rageQuitFactory.available && emergencyOnly.rageQuitFactory.value, addr("1"));
@@ -149,7 +150,7 @@ test("launch and vault gates fail closed while preserving principal exit", () =>
   const source = { chainId: 4663, blockNumber: "10", blockHash: bytes32("7"), transactionHash: bytes32("8"), transactionIndex: 0, logIndex: 0 };
   const marketModel = { marketId: market, assetUid: bytes32("1"), memeToken: addr("9"), quoteAsset: zeroAddress, curve: addr("a"), gauge: addr("b"), launchPhase: 0, source };
   const position = { marketId: market, assetUid: bytes32("1"), user: addr("c"), free: "0", allocated: "10", pending: "0", active: "10", unlockAt: "9999999999", claimable: [{ asset: zeroAddress, amount: "0" }, { asset: addr("9"), amount: "0" }], source };
-  const view = buildVaultView(marketModel as never, position as never, { executionSpecId: "V1-EXEC-8", revision: `10:${bytes32("7")}`, syncStatus: "synced" }, { status: 3, tokenDecimals: 18, minimumAllocation: 414n }, 0n);
+  const view = buildVaultView(marketModel as never, position as never, { executionSpecId: "V1-EXEC-9", revision: `10:${bytes32("7")}`, syncStatus: "synced" }, { status: 3, tokenDecimals: 18, minimumAllocation: 414n }, 0n);
   assert.equal(view.allocationOpen, false);
   assert.equal(view.canRageQuit, true);
 });

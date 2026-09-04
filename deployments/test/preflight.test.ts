@@ -3,7 +3,7 @@ import { test } from "node:test";
 import { keccak_256 } from "@noble/hashes/sha3.js";
 
 import { HttpV1ReadOnlyRpc, preflightV1Deployment, verifyV1LiveState, type V1ReadOnlyRpc } from "../src/v1/preflight.ts";
-import { address, clone, validManifest, type JsonRecord } from "./manifest-fixture.ts";
+import { address, clone, hash, validManifest, type JsonRecord } from "./manifest-fixture.ts";
 
 function bytes(hex: string): Uint8Array {
   return Uint8Array.from(hex.slice(2).match(/../g) ?? [], (byte) => Number.parseInt(byte, 16));
@@ -37,6 +37,11 @@ function data(signature: string, arguments_: string[] = []): string {
   return `${selector(signature)}${arguments_.join("")}`;
 }
 
+const ERC1967_IMPLEMENTATION_SLOT = "0x360894a13ba1a3210667c828492db98dca3e2076cc3735a920a3ca505d382bbc";
+const ERC1967_ADMIN_SLOT = "0xb53127684a568b3173ae13b9f8a6016e243e63b6e8ee1178d6a717850b5d6103";
+const ERC1967_BEACON_SLOT = "0xa3f0ad74e5423aebfd80d3ef4346578335a9a72aeaee59ff6cb3582b35133d50";
+const ZERO_STORAGE_WORD = `0x${"00".repeat(32)}`;
+
 function result(words: string[]): string {
   return `0x${words.join("")}`;
 }
@@ -62,6 +67,17 @@ function treasuryBindingResult(manifest: JsonRecord, label: unknown): string | u
     return result([addressWord(String((modules.MarketRegistryV1 as JsonRecord).deployedAddress))]);
   }
   return undefined;
+}
+
+function registryAuthorityResult(manifest: JsonRecord, label: unknown): string | undefined {
+  const registryLabels = new Set([
+    "official-stock-registry-access-manager-authority",
+    "approved-quote-registry-access-manager-authority",
+    "pons-baseline-registry-access-manager-authority",
+    "launch-template-registry-access-manager-authority",
+  ]);
+  if (!registryLabels.has(String(label))) return undefined;
+  return result([addressWord(String((manifest.accessManager as JsonRecord).address))]);
 }
 
 function stockIdentityResult(manifest: JsonRecord, label: unknown): string | undefined {
@@ -95,7 +111,8 @@ function prepareManifest(): JsonRecord {
   const getterResult = result([word(123n)]);
   const stockImplementation = String(((manifest.officialStocks as JsonRecord[])[0] as JsonRecord).implementationAddress);
   for (const check of live.keyGetterChecks as JsonRecord[]) {
-    const expectedResult = resolverBindingResult(manifest, check.label) ?? treasuryBindingResult(manifest, check.label)
+    const expectedResult = resolverBindingResult(manifest, check.label) ?? registryAuthorityResult(manifest, check.label)
+      ?? treasuryBindingResult(manifest, check.label)
       ?? stockIdentityResult(manifest, check.label) ?? (check.label === "gauge-clone-identity"
       ? result(Array.from({ length: 8 }, () => word(123n)))
       : check.category === "PROXY_OR_BEACON_LINKAGE"
@@ -120,10 +137,49 @@ function prepareManifest(): JsonRecord {
   return manifest;
 }
 
+function prepareImmutableErc20QuoteManifest(): JsonRecord {
+  const manifest = prepareManifest();
+  const quoteConfigId = hash("immutable-erc20-quote");
+  const token = address("immutable-erc20-quote-token");
+  const runtimeCodeHash = keccakHex("0x60006000");
+  (manifest.configSnapshot as JsonRecord).quoteConfigIds = [quoteConfigId];
+  manifest.quoteAssets = [{
+    configId: quoteConfigId,
+    ponsBaselineId: hash("baseline"),
+    economicsHash: hash("immutable-erc20-economics"),
+    assetKind: "ERC20",
+    tokenAddress: token,
+    decimals: 6,
+    phantomQuote: "1000000",
+    graduationThreshold: "2000000",
+    runtimeCodeHash,
+    proxyKind: "NONE",
+    implementationAddress: token,
+    implementationCodeHash: runtimeCodeHash,
+    observationBlockHash: hash("immutable-erc20-observation"),
+    exactBalanceDeltaEvidenceHash: hash("immutable-erc20-balance-delta"),
+  }];
+  const live = manifest.livePreflight as JsonRecord;
+  (live.keyGetterChecks as JsonRecord[]).push({
+    label: "immutable-erc20-quote-decimals",
+    category: "EXTERNAL_IDENTITY",
+    target: token,
+    callData: selector("decimals()"),
+    expectedReturnDataHash: keccakHex(`0x${word(6)}`),
+  });
+  (live.storageChecks as JsonRecord[]).push(
+    { label: "immutable-erc20-quote-implementation-slot", target: token, slot: ERC1967_IMPLEMENTATION_SLOT, expectedValue: ZERO_STORAGE_WORD },
+    { label: "immutable-erc20-quote-admin-slot", target: token, slot: ERC1967_ADMIN_SLOT, expectedValue: ZERO_STORAGE_WORD },
+    { label: "immutable-erc20-quote-beacon-slot", target: token, slot: ERC1967_BEACON_SLOT, expectedValue: ZERO_STORAGE_WORD },
+  );
+  return manifest;
+}
+
 type Faults = Partial<{
   chainId: string;
   blockHash: string;
   code: string;
+  codeByAddress: Readonly<Record<string, string>>;
   getterResult: string;
   storageValue: string;
   sourceVersion: bigint;
@@ -166,9 +222,12 @@ class MockRpc implements V1ReadOnlyRpc {
         : check.label === "stock-decimals"
           ? faults.stockDecimalsResult ?? canonicalStockResult
           : canonicalStockResult;
-      const callResult = resolverBindingResult(manifest, check.label) ?? treasuryBindingResult(manifest, check.label)
+      const callResult = resolverBindingResult(manifest, check.label) ?? registryAuthorityResult(manifest, check.label)
+        ?? treasuryBindingResult(manifest, check.label)
         ?? stockResult ?? (check.label === "gauge-clone-identity"
         ? result(Array.from({ length: 8 }, () => word(123n)))
+        : check.label === "immutable-erc20-quote-decimals"
+          ? result([word(6)])
         : check.category === "PROXY_OR_BEACON_LINKAGE"
           ? result([addressWord(stockImplementation)])
           : result([word(123n)]));
@@ -235,11 +294,18 @@ class MockRpc implements V1ReadOnlyRpc {
     }
     if (method === "eth_getCode") {
       assert.equal(params[1], this.#blockTag);
-      return this.#faults.code ?? "0x60006000";
+      return this.#faults.codeByAddress?.[String(params[0]).toLowerCase()]
+        ?? this.#faults.code
+        ?? "0x60006000";
     }
     if (method === "eth_getStorageAt") {
       assert.equal(params[2], this.#blockTag);
-      const check = (((this.#manifest.livePreflight as JsonRecord).storageChecks as JsonRecord[])[0])!;
+      const target = String(params[0]).toLowerCase();
+      const slot = String(params[1]).toLowerCase();
+      const check = ((this.#manifest.livePreflight as JsonRecord).storageChecks as JsonRecord[]).find(
+        (entry) => String(entry.target).toLowerCase() === target && String(entry.slot).toLowerCase() === slot,
+      );
+      if (check === undefined) throw new Error(`unexpected storage check ${target}:${slot}`);
       return this.#faults.storageValue ?? check.expectedValue;
     }
     if (method === "eth_getLogs") {
@@ -328,7 +394,7 @@ test("verifies complete live state at one finalized block using read-only RPC on
   const rpc = new MockRpc(manifest);
   const report = await verifyV1LiveState(manifest, rpc);
   assert.equal(report.chainId, 4663);
-  assert.equal(report.permissionChecks, 86);
+  assert.equal(report.permissionChecks, 83);
   assert.equal(report.administrativePermissionChecks, 6);
   assert.equal(report.roleMembershipChecks, 5);
   assert.equal(report.revokedMembershipChecks, 5);
@@ -379,10 +445,8 @@ test("rejects manifest-level proxy linkage and permission semantic drift before 
   assert.deepEqual(beaconRpc.methods, []);
 
   const badPermission = prepareManifest();
-  const permission = (((badPermission.accessManager as JsonRecord).protocolPermissions as JsonRecord[]).find(
-    (row) => row.stateDelaySeconds === 604800,
-  ))!;
-  permission.stateDelaySeconds = 0;
+  const permission = ((badPermission.accessManager as JsonRecord).protocolPermissions as JsonRecord[])[0]!;
+  permission.stateDelaySeconds = 1;
   const permissionRpc = new MockRpc(badPermission);
   await assert.rejects(verifyV1LiveState(badPermission, permissionRpc), /stateDelaySeconds/);
   assert.deepEqual(permissionRpc.methods, []);
@@ -466,6 +530,126 @@ test("rejects missing or drifted Treasury AccessManager and MarketRegistry bindi
   }
 });
 
+test("rejects missing or drifted Registry AccessManager bindings before RPC", async () => {
+  const registries = [
+    ["OfficialStockRegistryV1", "official-stock-registry-access-manager-authority"],
+    ["ApprovedQuoteRegistry", "approved-quote-registry-access-manager-authority"],
+    ["PonsBaselineRegistry", "pons-baseline-registry-access-manager-authority"],
+    ["LaunchTemplateRegistry", "launch-template-registry-access-manager-authority"],
+  ] as const;
+  for (const [registryName, label] of registries) {
+    const missing = prepareManifest();
+    const live = missing.livePreflight as JsonRecord;
+    live.keyGetterChecks = (live.keyGetterChecks as JsonRecord[]).filter((entry) => entry.label !== label);
+    const missingRpc = new MockRpc(missing);
+    await assert.rejects(verifyV1LiveState(missing, missingRpc), new RegExp(`${registryName} lacks authority\\(\\) evidence`), registryName);
+    assert.deepEqual(missingRpc.methods, [], `${registryName} missing`);
+
+    const drifted = prepareManifest();
+    const check = ((drifted.livePreflight as JsonRecord).keyGetterChecks as JsonRecord[])
+      .find((entry) => entry.label === label)!;
+    check.expectedReturnDataHash = keccakHex(result([addressWord(address(`wrong-${registryName}`))]));
+    const driftedRpc = new MockRpc(drifted);
+    await assert.rejects(verifyV1LiveState(drifted, driftedRpc), new RegExp(`protocolModules\\.${registryName}\\.authority\\(\\)`), registryName);
+    assert.deepEqual(driftedRpc.methods, [], `${registryName} drifted`);
+
+    const miscategorized = prepareManifest();
+    const miscategorizedCheck = ((miscategorized.livePreflight as JsonRecord).keyGetterChecks as JsonRecord[])
+      .find((entry) => entry.label === label)!;
+    miscategorizedCheck.category = "EXTERNAL_IDENTITY";
+    const miscategorizedRpc = new MockRpc(miscategorized);
+    await assert.rejects(
+      verifyV1LiveState(miscategorized, miscategorizedRpc),
+      new RegExp(`${registryName} lacks authority\\(\\) evidence`),
+      `${registryName} category`,
+    );
+    assert.deepEqual(miscategorizedRpc.methods, [], `${registryName} category`);
+  }
+});
+
+test("accepts a direct immutable ERC20 Quote with pinned runtime and empty proxy slots", async () => {
+  const manifest = prepareImmutableErc20QuoteManifest();
+  const rpc = new MockRpc(manifest);
+  const report = await verifyV1LiveState(manifest, rpc);
+  assert.equal(report.storageChecks, 4);
+  assert.ok(report.getterChecks >= 13);
+  assert.ok(rpc.methods.includes("eth_getStorageAt"));
+});
+
+test("fails closed for immutable ERC20 Quote linkage and EIP-1967 evidence drift", async () => {
+  const linkageCases: Array<[string, (quote: JsonRecord) => void, RegExp]> = [
+    ["implementation address", (quote) => { quote.implementationAddress = address("wrong-immutable-quote-implementation"); }, /quoteAssets\.0\.implementationAddress/],
+    ["implementation code hash", (quote) => { quote.implementationCodeHash = hash("wrong-immutable-quote-code"); }, /quoteAssets\.0\.implementationCodeHash/],
+  ];
+  for (const [label, mutate, expected] of linkageCases) {
+    const manifest = prepareImmutableErc20QuoteManifest();
+    mutate((manifest.quoteAssets as JsonRecord[])[0]!);
+    const rpc = new MockRpc(manifest);
+    await assert.rejects(verifyV1LiveState(manifest, rpc), expected, label);
+    assert.deepEqual(rpc.methods, [], label);
+  }
+
+  const slotCases: Array<[string, string, boolean]> = [
+    ["missing implementation slot", "immutable-erc20-quote-implementation-slot", false],
+    ["missing admin slot", "immutable-erc20-quote-admin-slot", false],
+    ["missing beacon slot", "immutable-erc20-quote-beacon-slot", false],
+    ["non-zero implementation slot", "immutable-erc20-quote-implementation-slot", true],
+    ["non-zero admin slot", "immutable-erc20-quote-admin-slot", true],
+    ["non-zero beacon slot", "immutable-erc20-quote-beacon-slot", true],
+  ];
+  for (const [label, slotLabel, nonZero] of slotCases) {
+    const manifest = prepareImmutableErc20QuoteManifest();
+    const live = manifest.livePreflight as JsonRecord;
+    const checks = live.storageChecks as JsonRecord[];
+    if (nonZero) {
+      const check = checks.find((entry) => entry.label === slotLabel)!;
+      check.expectedValue = `0x${address("unexpected-quote-proxy-slot").slice(2).padStart(64, "0")}`;
+    } else {
+      live.storageChecks = checks.filter((entry) => entry.label !== slotLabel);
+    }
+    const rpc = new MockRpc(manifest);
+    await assert.rejects(verifyV1LiveState(manifest, rpc), /quoteAssets\.0\.(implementationSlot|adminSlot|beaconSlot)/, label);
+    assert.deepEqual(rpc.methods, [], label);
+  }
+});
+
+test("fails closed when immutable ERC20 Quote decimals evidence is missing or drifts", async () => {
+  const missing = prepareImmutableErc20QuoteManifest();
+  const live = missing.livePreflight as JsonRecord;
+  live.keyGetterChecks = (live.keyGetterChecks as JsonRecord[]).filter((entry) => entry.label !== "immutable-erc20-quote-decimals");
+  const missingRpc = new MockRpc(missing);
+  await assert.rejects(verifyV1LiveState(missing, missingRpc), /quoteAssets\.0\.decimalsGetter/);
+  assert.deepEqual(missingRpc.methods, []);
+
+  const drifted = prepareImmutableErc20QuoteManifest();
+  const check = ((drifted.livePreflight as JsonRecord).keyGetterChecks as JsonRecord[])
+    .find((entry) => entry.label === "immutable-erc20-quote-decimals")!;
+  check.expectedReturnDataHash = keccakHex(`0x${word(18)}`);
+  const driftedRpc = new MockRpc(drifted);
+  await assert.rejects(
+    verifyV1LiveState(drifted, driftedRpc),
+    /quoteAssets\.0\.decimalsGetter|keyGetterChecks\.immutable-erc20-quote-decimals/,
+  );
+});
+
+test("rejects forbidden delegate runtime in an immutable ERC20 Quote at the finalized block", async () => {
+  const manifest = prepareImmutableErc20QuoteManifest();
+  const quote = (manifest.quoteAssets as JsonRecord[])[0]!;
+  const token = String(quote.tokenAddress).toLowerCase();
+  const delegateRuntime = "0xf400";
+  const delegateRuntimeHash = keccakHex(delegateRuntime);
+  quote.runtimeCodeHash = delegateRuntimeHash;
+  quote.implementationCodeHash = delegateRuntimeHash;
+
+  await assert.rejects(
+    verifyV1LiveState(
+      manifest,
+      new MockRpc(manifest, { codeByAddress: { [token]: delegateRuntime } }),
+    ),
+    /immutable Quote runtime contains forbidden opcode 0xf4/,
+  );
+});
+
 test("rejects every canonical permission semantic and role-handoff drift before RPC", async () => {
   const cases: Array<[string, (manifest: JsonRecord) => void]> = [
     ["missing selector", (manifest) => { ((manifest.accessManager as JsonRecord).protocolPermissions as JsonRecord[]).splice(0, 1); }],
@@ -473,7 +657,7 @@ test("rejects every canonical permission semantic and role-handoff drift before 
     ["role", (manifest) => { (((manifest.accessManager as JsonRecord).protocolPermissions as JsonRecord[])[0]!).roleId = "99"; }],
     ["member", (manifest) => { (((manifest.accessManager as JsonRecord).roles as JsonRecord[])[0]!).members = [address("wrong-member")]; }],
     ["execution delay", (manifest) => { (((manifest.accessManager as JsonRecord).protocolPermissions as JsonRecord[])[0]!).executionDelaySeconds = 99; }],
-    ["state delay", (manifest) => { const row = ((manifest.accessManager as JsonRecord).protocolPermissions as JsonRecord[]).find((item) => item.stateDelaySeconds === 604800)!; row.stateDelaySeconds = 0; }],
+    ["state delay", (manifest) => { ((manifest.accessManager as JsonRecord).protocolPermissions as JsonRecord[])[0]!.stateDelaySeconds = 1; }],
     ["recipient", (manifest) => { (((manifest.accessManager as JsonRecord).protocolPermissions as JsonRecord[])[0]!).recipient = "arbitrary"; }],
     ["precondition", (manifest) => { (((manifest.accessManager as JsonRecord).protocolPermissions as JsonRecord[])[0]!).precondition = "BYPASS"; }],
     ["deployer alias", (manifest) => { (manifest.roleHandoff as JsonRecord).deployer = (manifest.roleHandoff as JsonRecord).governanceSafe; }],

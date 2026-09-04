@@ -431,7 +431,7 @@ contract UserStockVaultTest is Test {
         assertFalse(forfeitureRedistributable);
     }
 
-    function test_rageQuitForfeitureRedistributionRequiresUnchangedExitCohort() public {
+    function test_rageQuitForfeitureIsNeverRedistributableRegardlessOfExitCohort() public {
         _deposit(ALICE, 600);
         _deposit(BOB, 500);
         manager.lock(vault, ASSET_UID, ALICE, MARKET_ID, 600);
@@ -442,11 +442,10 @@ contract UserStockVaultTest is Test {
         vault.rageQuit(ASSET_UID, MARKET_ID);
 
         (,,, bool forfeitureRedistributable) = vault.rageQuitRewardCutoff(ASSET_UID, ALICE, MARKET_ID);
-        assertTrue(forfeitureRedistributable);
+        assertFalse(forfeitureRedistributable);
         assertEq(vault.marketRewardEligible(ASSET_UID, MARKET_ID), 400);
 
-        // Even a surviving staker's increase cannot preserve the snapshotted cohort because every allocation
-        // mutation advances the nonce. This fails closed to reserve instead of rewarding a changed cohort.
+        // Cohort mutations do not change the platform-only forfeiture policy.
         manager.lock(vault, ASSET_UID, BOB, MARKET_ID, 1);
         (,,, forfeitureRedistributable) = vault.rageQuitRewardCutoff(ASSET_UID, ALICE, MARKET_ID);
         assertFalse(forfeitureRedistributable);

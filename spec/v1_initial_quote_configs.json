@@ -38,44 +38,13 @@
         "rebasing": false,
         "upgradeable": false
       }
-    },
-    {
-      "label": "USDG_V1",
-      "assetKind": "ERC20",
-      "symbol": "USDG",
-      "name": "Global Dollar",
-      "quoteAssetConfigId": "0xf821fb65a35fd50ac97c95e0cd87251bf65fc80f33524a221ea8cc56b2a0fc09",
-      "quoteAsset": "0x5fc5360d0400a0fd4f2af552add042d716f1d168",
-      "quoteDecimals": 6,
-      "phantomQuote": "3236000000",
-      "graduationThreshold": "8090000000",
-      "economicsHash": "0xf821fb65a35fd50ac97c95e0cd87251bf65fc80f33524a221ea8cc56b2a0fc09",
-      "ponsPreviewLaunchEconomics": "0x7909a028ec0fee3564b05d53b74cd91d79786f17ac5aa90be360c0b78201e86a",
-      "status": "ACTIVE",
-      "assetReview": {
-        "canonicalSource": "https://docs.robinhood.com/chain/contracts/",
-        "decimalsCall": 6,
-        "proxyRuntimeBytes": 170,
-        "proxyRuntimeKeccak256": "0x864cc9ad53b338b82da1f7cab85ab0b3d5c8861acb422b6fec63cf36234f36a6",
-        "implementation": "0x68184c449e1a8f34fa18d289737129fd27b66f8f",
-        "implementationRuntimeBytes": 18644,
-        "implementationRuntimeKeccak256": "0x3a551ac5c744af57e68a1d1431ac403c0f516ffd7d224a75746aee11fc4f3baf",
-        "eip1967Admin": "0x0000000000000000000000000000000000000000",
-        "eip1967Beacon": "0x0000000000000000000000000000000000000000",
-        "upgradeable": true,
-        "feeOnTransferAccepted": false,
-        "rebasingAccepted": false,
-        "variableDecimalsAccepted": false,
-        "exactBalanceDeltaRequired": true,
-        "preDeploymentFingerprintRecaptureRequired": true,
-        "implementationChangeAction": "PAUSE_NEW_MARKETS_AND_REPEAT_ASSET_REVIEW"
-      }
     }
   ],
   "scope": {
-    "initialReleaseQuoteCount": 2,
+    "initialReleaseQuoteCount": 1,
     "oneQuotePerMarket": true,
-    "additionalQuotes": "APPEND_ONLY_NEW_CONFIG_AND_REVIEW",
+    "additionalQuotes": "APPEND_ONLY_IMMUTABLE_DIRECT_ERC20_CONFIG_AND_REVIEW",
+    "upgradeableQuotePolicy": "FORBIDDEN_IN_V1_INITIAL_RELEASE",
     "historicalMarketMutation": false,
     "runtimeDependencyOnPons": false
   }

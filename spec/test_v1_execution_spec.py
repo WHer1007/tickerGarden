@@ -84,7 +84,7 @@ class V1ExecutionSpecTest(unittest.TestCase):
         cls.official_stock_catalog_raw = (ROOT / "v1_rh_official_stock_catalog.source.json").read_bytes()
 
     def test_spec_ids_match(self):
-        expected = "V1-EXEC-8"
+        expected = "V1-EXEC-9"
         self.assertEqual(self.manifest["executionSpecId"], expected)
         self.assertEqual(self.permissions["executionSpecId"], expected)
         self.assertEqual(self.abi["executionSpecId"], expected)
@@ -497,6 +497,24 @@ class V1ExecutionSpecTest(unittest.TestCase):
             item for item in rules if item["pathPattern"] == "$.quoteAssets.*.tokenAddress"
         )
         self.assertEqual(native["requiresSibling"], {"field": "assetKind", "equals": "NATIVE"})
+        quote_slot_rules = [
+            item
+            for item in rules
+            if item["pathPattern"]
+            == "$.livePreflight.storageChecks.*.expectedValue"
+        ]
+        self.assertEqual(
+            {
+                item["requiresSibling"]["equals"]
+                for item in quote_slot_rules
+                if item["requiresSibling"]["field"] == "slot"
+            },
+            {
+                "0x360894a13ba1a3210667c828492db98dca3e2076cc3735a920a3ca505d382bbc",
+                "0xb53127684a568b3173ae13b9f8a6016e243e63b6e8ee1178d6a717850b5d6103",
+                "0xa3f0ad74e5423aebfd80d3ef4346578335a9a72aeaee59ff6cb3582b35133d50",
+            },
+        )
         self.assertEqual(
             {(item["file"], item["jsonPointer"]) for item in policy["referenceFixtureScopes"]},
             {
@@ -567,21 +585,22 @@ class V1ExecutionSpecTest(unittest.TestCase):
             entry["signature"]: entry for entry in modules["GraduationExecutor"]["functions"]
         }
         self.assertEqual(
-            graduation_functions["graduateFromCurve(bytes32)"]["caller"],
+            graduation_functions["graduateFromCurve(bytes32,uint256,uint256)"]["caller"],
             "EXACT_REGISTERED_CURVE",
-            "EXACT_REGISTERED_GAUGE",
         )
-        self.assertIn(
-            "Swept_AND_NOT_RESCUED",
-            permission[("GraduationExecutor", "retryGraduation(bytes32)")]["precondition"],
-        )
+        self.assertEqual(set(graduation_functions), {
+            "graduateFromCurve(bytes32,uint256,uint256)",
+            "predictLaunchLocker(bytes32)",
+        })
+        self.assertNotIn(("GraduationExecutor", "retryGraduation(bytes32)"), permission)
+        self.assertNotIn(("GraduationExecutor", "rescueSweptLaunch(bytes32)"), permission)
         curve_events = set(modules["PonsCompatibleCurve"]["events"])
         executor_events = set(modules["GraduationExecutor"]["events"])
-        self.assertTrue(any(event.startswith("LaunchSwept(") for event in curve_events))
-        self.assertTrue(any(event.startswith("AutoGraduationFailed(") for event in curve_events))
-        self.assertFalse(any(event.startswith("LaunchSwept(") for event in executor_events))
-        self.assertFalse(any(event.startswith("AutoGraduationFailed(") for event in executor_events))
+        self.assertFalse(any(event.startswith("LaunchSwept(") for event in curve_events))
+        self.assertFalse(any(event.startswith("AutoGraduationFailed(") for event in curve_events))
+        self.assertTrue(any(event.startswith("CurveCompleted(") for event in curve_events))
         self.assertTrue(any(event.startswith("PoolGraduated(") for event in executor_events))
+        self.assertFalse(any(event.startswith("LaunchRescued(") for event in executor_events))
         self.assertEqual(modules["LaunchAndBuyRouter"]["events"], [])
         self.assertTrue(any(event.startswith("CurveFeeTransferred(") for event in curve_events))
         self.assertFalse(any(event.startswith("CurveFeesSwept(") for event in curve_events))
@@ -617,7 +636,6 @@ class V1ExecutionSpecTest(unittest.TestCase):
         for error in (
             "InvalidLaunchFee(uint256,uint256)",
             "UnauthorizedMarketCurve(address,address)",
-            "GraduationNotRetryable(bytes32,uint8)",
             "LaunchLockerAddressCollision(address)",
             "RageQuitRewardSettlementPending(address,bytes32,uint256)",
             "NoRageQuitRewardSettlement(address,bytes32)",
@@ -717,7 +735,7 @@ class V1ExecutionSpecTest(unittest.TestCase):
 
     def test_terminal_states_have_no_outgoing_transition(self):
         transitions = self.manifest["transitions"]
-        for terminal in ("PoolCreated", "Rescued"):
+        for terminal in ("PoolCreated",):
             self.assertFalse(any(source == terminal for source, _ in transitions["LaunchPhase"]))
         self.assertFalse(any(source == "RETIRED" for source, _ in transitions["AssetStatus"]))
         self.assertFalse(any(source == "RETIRED" for source, _ in transitions["QuoteStatus"]))
@@ -739,7 +757,6 @@ class V1ExecutionSpecTest(unittest.TestCase):
             {
                 "bytes32 poolId",
                 "uint32 sourceVersion",
-                "uint64 sweptAt",
                 "uint8 launchPhase",
             },
         )
@@ -757,9 +774,7 @@ class V1ExecutionSpecTest(unittest.TestCase):
             set(mutations),
             {
                 "registerMarket(bytes32,MarketConfig)",
-                "markSwept(bytes32)",
                 "commitPoolCreated(bytes32,bytes32)",
-                "markRescued(bytes32)",
             },
         )
         launch_edges = {
@@ -770,7 +785,11 @@ class V1ExecutionSpecTest(unittest.TestCase):
         }
         self.assertEqual(launch_edges, {tuple(edge) for edge in self.manifest["transitions"]["LaunchPhase"]})
 
-        self.assertEqual(mutations["markRescued(bytes32)"]["minimumDelaySecondsFromSweptAt"], 604800)
+        self.assertEqual(
+            mutations["commitPoolCreated(bytes32,bytes32)"]["transition"],
+            ["NotGraduated", "PoolCreated"],
+        )
+        self.assertIn("FINAL_CURVE_BUY", mutations["commitPoolCreated(bytes32,bytes32)"]["atomicWith"])
 
     def test_market_lifecycle_has_no_administrative_state_product(self):
         authority = self.manifest["stateAuthority"]
@@ -926,20 +945,16 @@ class V1ExecutionSpecTest(unittest.TestCase):
                 self.assertNotIn("_DELAYED", canonical["caller"])
                 self.assertNotIn("SELF_ONLY", canonical["caller"])
 
-    def test_rescue_uses_state_delay_not_access_delay(self):
+    def test_graduation_has_no_retry_rescue_or_state_delay(self):
         rows = {
             (entry["module"], entry["displaySignature"]): entry
             for entry in self.canonical_abi["mutations"]
         }
-        for key in (
-            ("GraduationExecutor", "rescueSweptLaunch(bytes32)"),
-            ("MarketRegistryV1", "markRescued(bytes32)"),
-        ):
-            row = rows[key]
-            self.assertEqual(row["executionDelaySeconds"], 0)
-            self.assertEqual(row["stateDelaySeconds"], 604800)
-            self.assertEqual(row["stateDelayAnchor"], "MARKET_RUNTIME_SWEPT_AT")
-            self.assertIn("SWEPT_AT_PLUS_604800", row["precondition"])
+        self.assertNotIn(("GraduationExecutor", "retryGraduation(bytes32)"), rows)
+        self.assertNotIn(("GraduationExecutor", "rescueSweptLaunch(bytes32)"), rows)
+        self.assertNotIn(("MarketRegistryV1", "markSwept(bytes32)"), rows)
+        self.assertNotIn(("MarketRegistryV1", "markRescued(bytes32)"), rows)
+        self.assertTrue(all(entry["stateDelaySeconds"] == 0 for entry in rows.values()))
 
     def test_struct_aliases_expand_to_canonical_tuples(self):
         rows = {
@@ -1207,7 +1222,7 @@ class V1ExecutionSpecTest(unittest.TestCase):
         self.assertIn("REMOVE_FULL_POSITION", timing["normalWithdrawalOrder"])
         self.assertEqual(timing["activationDelaySeconds"], 30)
         self.assertEqual(timing["increaseWholePositionLockResetSeconds"], 86400)
-        self.assertEqual(timing["rescueDelaySeconds"], 604800)
+        self.assertNotIn("rescueDelaySeconds", timing)
 
         permissions = {
             (entry["module"], entry["signature"]): entry
@@ -1221,12 +1236,8 @@ class V1ExecutionSpecTest(unittest.TestCase):
         self.assertNotIn("decreaseAllocation(bytes32,uint256)", signatures)
         self.assertNotIn("migrateAllocation(bytes32,bytes32,uint256)", signatures)
         self.assertIn("FULL_POSITION_ONLY", permissions[("AllocationManager", "closeAllocation(bytes32)")]["precondition"])
-        rescue = permissions[("GraduationExecutor", "rescueSweptLaunch(bytes32)")]
-        self.assertEqual(rescue["stateDelayAnchor"], "MARKET_RUNTIME_SWEPT_AT")
-        self.assertEqual(
-            rescue["precondition"],
-            "Swept_AND_BLOCK_TIMESTAMP_GTE_SWEPT_AT_PLUS_604800",
-        )
+        self.assertNotIn(("GraduationExecutor", "rescueSweptLaunch(bytes32)"), permissions)
+        self.assertNotIn(("GraduationExecutor", "retryGraduation(bytes32)"), permissions)
 
     def test_no_arbitrary_recipient_surface(self):
         self.assertFalse(self.abi["policy"]["arbitraryRecipientAllowed"])
@@ -1496,9 +1507,9 @@ class V1ExecutionSpecTest(unittest.TestCase):
         artifact = self.initial_quote_configs
         self.assertEqual(artifact["status"], "APPROVED_INITIAL_RELEASE_CONFIGS")
         self.assertEqual(artifact["chainId"], 4663)
-        self.assertEqual(artifact["scope"]["initialReleaseQuoteCount"], 2)
+        self.assertEqual(artifact["scope"]["initialReleaseQuoteCount"], 1)
         configs = {entry["label"]: entry for entry in artifact["configs"]}
-        self.assertEqual(set(configs), {"NATIVE_ETH_V1", "USDG_V1"})
+        self.assertEqual(set(configs), {"NATIVE_ETH_V1"})
 
         ids = set()
         for config in configs.values():
@@ -1515,26 +1526,17 @@ class V1ExecutionSpecTest(unittest.TestCase):
             self.assertRegex(config["ponsPreviewLaunchEconomics"], r"^0x[0-9a-f]{64}$")
             self.assertEqual(config["status"], "ACTIVE")
             ids.add(expected_hash)
-        self.assertEqual(len(ids), 2)
+        self.assertEqual(len(ids), 1)
 
         native = configs["NATIVE_ETH_V1"]
         self.assertEqual(native["quoteAsset"], "0x" + "00" * 20)
         self.assertEqual(native["quoteDecimals"], 18)
         self.assertFalse(native["assetReview"]["upgradeable"])
 
-        usdg = configs["USDG_V1"]
         self.assertEqual(
-            usdg["quoteAsset"], "0x5fc5360d0400a0fd4f2af552add042d716f1d168"
+            artifact["scope"]["upgradeableQuotePolicy"],
+            "FORBIDDEN_IN_V1_INITIAL_RELEASE",
         )
-        self.assertEqual(usdg["quoteDecimals"], 6)
-        self.assertEqual(int(usdg["phantomQuote"]), 3_236_000_000)
-        self.assertEqual(int(usdg["graduationThreshold"]), 8_090_000_000)
-        review = usdg["assetReview"]
-        self.assertTrue(review["upgradeable"])
-        self.assertTrue(review["exactBalanceDeltaRequired"])
-        self.assertTrue(review["preDeploymentFingerprintRecaptureRequired"])
-        self.assertFalse(review["feeOnTransferAccepted"])
-        self.assertFalse(review["rebasingAccepted"])
 
     def test_official_stock_catalog_covers_the_dynamic_robinhood_universe(self):
         catalog = self.official_stock_catalog
@@ -1827,10 +1829,10 @@ class V1ExecutionSpecTest(unittest.TestCase):
             proof.uint256_headroom_factor, int(recorded["uint256HeadroomFactor"])
         )
         self.assertGreaterEqual(proof.uint256_headroom_factor, 1)
-        self.assertTrue(recorded["forfeitureRedistributionLiabilityProofComplete"])
+        self.assertTrue(recorded["forfeiturePlatformReserveLiabilityProofComplete"])
         self.assertEqual(
-            recorded["forfeitureRedistributionAccumulatorFormalProofStatus"],
-            "AUDIT_RESIDUAL_MULTI_USER_CHAINED_REMAINDER_NORMALIZATION",
+            recorded["forfeiturePrecisionRemainderPolicy"],
+            "ACCUMULATE_ONLY_TO_WHOLE_UNITS_THEN_RESERVE_FOR_PLATFORM",
         )
 
         maximum_base = maximum_post_graduation_fee_base()
@@ -1944,10 +1946,11 @@ class V1ExecutionSpecTest(unittest.TestCase):
         modules = {entry["module"]: entry for entry in self.abi["modules"]}
         curve_events = set(modules["PonsCompatibleCurve"]["events"])
         graduation_events = set(modules["GraduationExecutor"]["events"])
-        self.assertIn(
+        self.assertNotIn(
             "LaunchSwept(bytes32 indexed marketId,address indexed quoteAsset,uint256 sweptQuote,uint256 sweptTokens,uint64 sweptAt)",
             curve_events,
         )
+        self.assertIn("CurveCompleted(bytes32 indexed marketId)", curve_events)
         self.assertIn(
             "PoolGraduated(bytes32 indexed marketId,bytes32 indexed poolId,address indexed launchLocker,uint256 sweptQuote,uint256 sweptTokens,uint256 poolMemeAmount,uint256 lockedExcessMeme,uint32 sourceVersion)",
             graduation_events,
@@ -2038,7 +2041,7 @@ class V1ExecutionSpecTest(unittest.TestCase):
 
     def test_g0_register_separates_approved_direction_from_open_deployment_inputs(self):
         register = self.g0_recommendations
-        self.assertEqual(register["executionSpecId"], "V1-EXEC-3")
+        self.assertEqual(register["executionSpecId"], "V1-EXEC-9")
         self.assertEqual(
             register["status"], "PRODUCT_DIRECTION_APPROVED_IMPLEMENTATION_ALLOWED"
         )
@@ -2065,12 +2068,15 @@ class V1ExecutionSpecTest(unittest.TestCase):
         quote = recommendations["V1-G0-PONS-QUOTE-01"]
         self.assertTrue(quote["nativeQuoteSupported"])
         self.assertTrue(quote["erc20QuoteSupported"])
-        self.assertEqual(len(quote["productionQuoteConfigs"]), 2)
+        self.assertEqual(len(quote["productionQuoteConfigs"]), 1)
         self.assertEqual(
             {entry["label"] for entry in quote["productionQuoteConfigs"]},
-            {"NATIVE_ETH_V1", "USDG_V1"},
+            {"NATIVE_ETH_V1"},
         )
-        self.assertEqual(quote["productionListStatus"], "APPROVED_NATIVE_AND_USDG")
+        self.assertEqual(
+            quote["productionListStatus"],
+            "APPROVED_NATIVE_ONLY_PENDING_IMMUTABLE_ERC20",
+        )
         self.assertEqual(quote["observedExampleConfigs"][0]["symbol"], "USDG")
         stock_base = recommendations["V1-G0-OFFICIAL-STOCK-BASE-01"]
         self.assertEqual(
@@ -2082,7 +2088,9 @@ class V1ExecutionSpecTest(unittest.TestCase):
         self.assertTrue(stock_base["allObservedActiveAssetsSelectableAsStakingBase"])
         self.assertFalse(stock_base["stockPriceRequired"])
         self.assertFalse(stock_base["backingTargetRequired"])
-        self.assertEqual(stock_base["stakeSaturationWholeTokens"], 10)
+        self.assertFalse(stock_base["stakeSaturationEnabled"])
+        self.assertEqual(stock_base["stakerBucketBpsWhenActive"], 3000)
+        self.assertEqual(stock_base["stakerBucketBpsWhenInactive"], 0)
         launch_fee = recommendations["V1-G0-LAUNCH-FRICTION-01"]
         self.assertEqual(launch_fee["asset"], "NATIVE")
         self.assertEqual(int(launch_fee["amountRaw"]), 500_000_000_000_000)

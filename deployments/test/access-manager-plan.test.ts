@@ -29,12 +29,12 @@ function input(overrides: Partial<V1AccessManagerPlanInput> = {}): V1AccessManag
   };
 }
 
-test("derives 22 protocol role selectors and 64 immutable direct selectors from the 19-module manifest", () => {
+test("derives 22 protocol role selectors and 61 immutable direct selectors from the 19-module manifest", () => {
   const plan = deriveV1AccessManagerPlan(input());
   assert.equal(compiled.modules.length, 19);
-  assert.equal(compiled.mutations.length, 86);
+  assert.equal(compiled.mutations.length, 83);
   assert.equal(plan.configuredProtocolSelectorCount, 22);
-  assert.equal(plan.immutableDirectSelectorCount, 64);
+  assert.equal(plan.immutableDirectSelectorCount, 61);
   assert.equal(plan.roles.length, 5);
   assert.deepEqual(plan.roles.map((role) => [role.name, role.roleId, role.executionDelaySeconds]), [
     ["PROTOCOL_ADMIN_ROLE", V1_ACCESS_ROLES.PROTOCOL_ADMIN_ROLE.toString(), 172800],
@@ -47,7 +47,7 @@ test("derives 22 protocol role selectors and 64 immutable direct selectors from 
   assert.equal(new Set(plan.permanentlyLockedAdminSelectors).size, 8);
 });
 
-test("binds all five roles to the intended Safe members and keeps 7d rescue as state delay only", () => {
+test("binds all five roles to the intended Safe members and exposes no delayed terminal rescue", () => {
   const plan = deriveV1AccessManagerPlan(input());
   assert.deepEqual(plan.roles.map((role) => role.member), [
     fixtureAddress("governance-safe").toLowerCase(),
@@ -56,9 +56,15 @@ test("binds all five roles to the intended Safe members and keeps 7d rescue as s
     fixtureAddress("root-publisher-safe").toLowerCase(),
     fixtureAddress("root-reviewer-safe").toLowerCase(),
   ]);
-  const rescue = compiled.mutations.find((row) => row.displaySignature === "rescueSweptLaunch(bytes32)");
-  assert.equal(rescue?.stateDelaySeconds, 604800);
-  assert.equal(rescue?.executionDelaySeconds, 0);
+  assert.ok(compiled.mutations.every((row) => row.stateDelaySeconds === 0));
+  for (const removedSignature of [
+    "retryGraduation(bytes32)",
+    "rescueSweptLaunch(bytes32)",
+    "markSwept(bytes32)",
+    "markRescued(bytes32)",
+  ]) {
+    assert.equal(compiled.mutations.some((row) => row.displaySignature === removedSignature), false);
+  }
   assert.equal(plan.actions.filter((action) => action.phase === "PROTOCOL_SELECTORS").reduce((n, action) => n + Number(action.description.match(/\((\d+) selector/)?.[1] ?? 0), 0), 22);
   assert.equal(plan.actions.filter((action) => action.phase === "BOOTSTRAP_GUARDIANS").length, 4);
 });

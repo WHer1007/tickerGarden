@@ -183,7 +183,7 @@ contract FeeCreditSourceMock {
         address memeToken
     ) external {
         vault.beginV4Credit(marketId, address(token), 80, sourceVersion, feeId);
-        registry.configure(marketId, address(this), address(token), memeToken, 2, sourceVersion + 1, keccak256("POOL"));
+        registry.configure(marketId, address(this), address(token), memeToken, 1, sourceVersion + 1, keccak256("POOL"));
         require(token.transfer(address(vault), 80), "TRANSFER");
         vault.finalizeV4Credit(marketId, address(token), 10_000, 100, 20, 80, 1, feeId);
     }
@@ -219,7 +219,7 @@ contract ProtocolFeeVaultV4CreditTest is Test {
         source = new FeeCreditSourceMock();
         quote = new MockExactQuoteToken(6);
         meme = new MockExactQuoteToken(18);
-        registry.configure(MARKET_ID, address(source), address(quote), address(meme), 2, SOURCE_VERSION, POOL_ID);
+        registry.configure(MARKET_ID, address(source), address(quote), address(meme), 1, SOURCE_VERSION, POOL_ID);
     }
 
     function test_exactErc20ArrivalConsumesFeeIdAndClearsPendingLock() public {
@@ -239,7 +239,7 @@ contract ProtocolFeeVaultV4CreditTest is Test {
 
     function test_exactNativeArrivalAcceptsOnlyPoolManagerDuringPendingWindow() public {
         bytes32 feeId = keccak256("NATIVE");
-        registry.configure(MARKET_ID, address(source), address(0), address(meme), 2, SOURCE_VERSION, POOL_ID);
+        registry.configure(MARKET_ID, address(source), address(0), address(meme), 1, SOURCE_VERSION, POOL_ID);
         vm.deal(address(vault), 777);
         vm.deal(address(this), 80);
         source.creditNative{value: 80}(creditVault, poolManager, MARKET_ID, SOURCE_VERSION, feeId, 80);
@@ -251,7 +251,7 @@ contract ProtocolFeeVaultV4CreditTest is Test {
 
     function test_feeOnTransferMismatchRollsBackTransferBeginAndConsumption() public {
         MockFeeOnTransferQuoteToken taxed = new MockFeeOnTransferQuoteToken(6, 1_250);
-        registry.configure(MARKET_ID, address(source), address(taxed), address(meme), 2, SOURCE_VERSION, POOL_ID);
+        registry.configure(MARKET_ID, address(source), address(taxed), address(meme), 1, SOURCE_VERSION, POOL_ID);
         taxed.mint(address(source), 80);
         bytes32 feeId = keccak256("TAXED");
 
@@ -350,9 +350,10 @@ contract ProtocolFeeVaultV4CreditTest is Test {
     }
 
     function test_everyInactiveLaunchShapeRejectsBegin() public {
-        _expectInactiveBegin(1, SOURCE_VERSION, POOL_ID);
-        _expectInactiveBegin(2, SOURCE_VERSION, bytes32(0));
-        _expectInactiveBegin(2, SOURCE_VERSION + 1, POOL_ID);
+        _expectInactiveBegin(0, SOURCE_VERSION, POOL_ID);
+        _expectInactiveBegin(1, SOURCE_VERSION, bytes32(0));
+        _expectInactiveBegin(1, SOURCE_VERSION + 1, POOL_ID);
+        _expectInactiveBegin(2, SOURCE_VERSION, POOL_ID);
     }
 
     function test_onlyActiveRegisteredHookAndCanonicalAssetsCanBegin() public {
@@ -415,7 +416,7 @@ contract ProtocolFeeVaultV4CreditTest is Test {
         assertFalse(direct);
 
         FeeBalanceMalformedMock malformed = new FeeBalanceMalformedMock();
-        registry.configure(MARKET_ID, address(source), address(malformed), address(meme), 2, SOURCE_VERSION, POOL_ID);
+        registry.configure(MARKET_ID, address(source), address(malformed), address(meme), 1, SOURCE_VERSION, POOL_ID);
         vm.prank(address(source));
         vm.expectRevert(
             abi.encodeWithSelector(ProtocolFeeVaultV4Credit.FeeAssetBalanceUnavailable.selector, address(malformed))

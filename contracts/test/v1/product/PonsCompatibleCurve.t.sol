@@ -28,23 +28,22 @@ import {
 contract MockCurveMarketRegistry {
     bytes32 private _marketId;
     MarketView private _marketView;
-    bool public rejectMarkSwept;
-    uint256 public markSweptCalls;
+    bool public rejectCommit;
     address public graduationExecutor;
     int24 public tickSpacing = 200;
 
     function configure(bytes32 marketId_, MarketConfig memory config) external {
         _marketId = marketId_;
         _marketView.config = config;
-        _marketView.runtime = MarketRuntime({poolId: bytes32(0), sourceVersion: 1, sweptAt: 0, launchPhase: 0});
+        _marketView.runtime = MarketRuntime({poolId: bytes32(0), sourceVersion: 1, launchPhase: 0});
     }
 
     function setRuntime(uint8 launchPhase) external {
         _marketView.runtime.launchPhase = launchPhase;
     }
 
-    function setRejectMarkSwept(bool value) external {
-        rejectMarkSwept = value;
+    function setRejectCommit(bool value) external {
+        rejectCommit = value;
     }
 
     function setGraduationExecutor(address value) external {
@@ -55,21 +54,12 @@ contract MockCurveMarketRegistry {
         tickSpacing = value;
     }
 
-    function markSwept(bytes32 marketId_) external {
-        require(!rejectMarkSwept, "MARK_SWEPT_REJECTED");
-        require(marketId_ == _marketId, "UNKNOWN_MARKET");
-        require(msg.sender == _marketView.config.curve, "WRONG_CURVE");
-        require(_marketView.runtime.launchPhase == 0, "WRONG_PHASE");
-        ++markSweptCalls;
-        _marketView.runtime.launchPhase = 1;
-        _marketView.runtime.sweptAt = uint64(block.timestamp);
-    }
-
     function commitPoolCreated(bytes32 marketId_, bytes32 poolId) external {
+        require(!rejectCommit, "COMMIT_REJECTED");
         require(marketId_ == _marketId, "UNKNOWN_MARKET");
         require(msg.sender == graduationExecutor, "WRONG_EXECUTOR");
-        require(_marketView.runtime.launchPhase == 1, "WRONG_PHASE");
-        _marketView.runtime.launchPhase = 2;
+        require(_marketView.runtime.launchPhase == 0, "WRONG_PHASE");
+        _marketView.runtime.launchPhase = 1;
         _marketView.runtime.poolId = poolId;
         _marketView.runtime.sourceVersion += 1;
     }
@@ -99,6 +89,8 @@ contract MockCurveGraduationExecutor is GraduationExecutorEntry {
     MockCurveMarketRegistry public registry;
     bytes32 public marketId;
     uint256 public calls;
+    uint256 public quoteAmount;
+    uint256 public memeAmount;
     bool public shouldRevert;
 
     receive() external payable {}
@@ -111,9 +103,14 @@ contract MockCurveGraduationExecutor is GraduationExecutorEntry {
         shouldRevert = shouldRevert_;
     }
 
-    function _graduateSweptMarket(bytes32 marketId_, MarketView memory) internal override {
+    function _graduateMarket(bytes32 marketId_, MarketView memory, uint256 quoteAmount_, uint256 memeAmount_)
+        internal
+        override
+    {
         if (shouldRevert) revert GraduationRejected();
         marketId = marketId_;
+        quoteAmount = quoteAmount_;
+        memeAmount = memeAmount_;
         ++calls;
         registry.commitPoolCreated(marketId_, keccak256("mock-curve-pool"));
     }
@@ -128,12 +125,30 @@ contract MockCurveFeeVault {
     bytes32 public feeId;
     uint256 public calls;
     bool public shouldRevert;
+    bool private pending;
 
     function setShouldRevert(bool value) external {
         shouldRevert = value;
     }
 
-    function creditCurveSweep(
+    function beginCurveCredit(
+        bytes32 marketId_,
+        address quoteAsset_,
+        uint256 amount_,
+        uint32 sourceVersion_,
+        uint64 nonce_,
+        bytes32 feeId_
+    ) external {
+        marketId = marketId_;
+        quoteAsset = quoteAsset_;
+        amount = amount_;
+        sourceVersion = sourceVersion_;
+        nonce = nonce_;
+        feeId = feeId_;
+        pending = true;
+    }
+
+    function finalizeCurveCredit(
         bytes32 marketId_,
         address quoteAsset_,
         uint256 amount_,
@@ -142,12 +157,13 @@ contract MockCurveFeeVault {
         bytes32 feeId_
     ) external payable {
         if (shouldRevert) revert("VAULT_REJECTED");
-        marketId = marketId_;
-        quoteAsset = quoteAsset_;
-        amount = amount_;
-        sourceVersion = sourceVersion_;
-        nonce = nonce_;
-        feeId = feeId_;
+        require(pending, "NOT_PENDING");
+        require(
+            marketId == marketId_ && quoteAsset == quoteAsset_ && amount == amount_ && sourceVersion == sourceVersion_
+                && nonce == nonce_ && feeId == feeId_,
+            "CREDIT_MISMATCH"
+        );
+        pending = false;
         ++calls;
         if (quoteAsset_ == address(0)) require(msg.value == amount_, "WRONG_VALUE");
         else require(msg.value == 0, "UNEXPECTED_VALUE");
@@ -252,10 +268,6 @@ contract PonsCompatibleCurveTest is Test {
     );
     event CurveBuyRefunded(address indexed buyer, uint256 unusedQuote);
     event CurveCompleted(bytes32 indexed marketId);
-    event LaunchSwept(
-        bytes32 indexed marketId, address indexed quoteAsset, uint256 sweptQuote, uint256 sweptTokens, uint64 sweptAt
-    );
-    event AutoGraduationFailed(bytes32 indexed marketId, bytes32 reasonHash);
 
     MockCurveFactory internal factory;
     MockCurveMarketRegistry internal registry;
@@ -288,8 +300,6 @@ contract PonsCompatibleCurveTest is Test {
         emit CurveBuy(USER, RECIPIENT, 204, 66_667, 2, 0);
         vm.expectEmit(true, false, false, true, address(curve));
         emit CurveCompleted(MARKET_ID);
-        vm.expectEmit(true, true, false, true, address(curve));
-        emit LaunchSwept(MARKET_ID, address(0), 202, 333_333, uint64(block.timestamp));
         vm.prank(USER);
         (uint256 tokensOut, uint256 quoteSpent) = curve.buy{value: 1_000}(1_000, 100_000, RECIPIENT);
 
@@ -325,36 +335,28 @@ contract PonsCompatibleCurveTest is Test {
         assertEq(tokenReserve, 0);
         assertEq(curve.sellableTokens(), 0);
         assertFalse(curve.readyToGraduate());
-        (uint256 recordedQuote, uint256 recordedTokens) = curve.graduationEscrow();
-        assertEq(recordedQuote, 202);
-        assertEq(recordedTokens, 333_333);
-        assertEq(registry.markSweptCalls(), 1);
         assertEq(graduationExecutor.calls(), 1);
         assertEq(graduationExecutor.marketId(), MARKET_ID);
-        assertEq(registry.market(MARKET_ID).runtime.launchPhase, 2);
+        assertEq(graduationExecutor.quoteAmount(), 202);
+        assertEq(graduationExecutor.memeAmount(), 333_333);
+        assertEq(registry.market(MARKET_ID).runtime.launchPhase, 1);
     }
 
-    function test_failedAutomaticGraduationKeepsSweptAssetsAndEmitsDeterministicReason() public {
+    function test_failedAutomaticGraduationRollsBackEntireFinalBuy() public {
         graduationExecutor.setShouldRevert(true);
-        bytes memory reason = abi.encodeWithSelector(MockCurveGraduationExecutor.GraduationRejected.selector);
-        vm.expectEmit(true, false, false, true, address(curve));
-        emit AutoGraduationFailed(MARKET_ID, keccak256(reason));
-
+        vm.expectRevert(MockCurveGraduationExecutor.GraduationRejected.selector);
         vm.prank(USER);
         curve.buy{value: 1_000}(1_000, 0, RECIPIENT);
 
-        assertEq(registry.market(MARKET_ID).runtime.launchPhase, 1);
-        assertEq(registry.markSweptCalls(), 1);
+        _assertInitialState(curve, memeToken);
+        assertEq(registry.market(MARKET_ID).runtime.launchPhase, 0);
         assertEq(graduationExecutor.calls(), 0);
-        assertEq(address(graduationExecutor).balance, 202);
-        assertEq(memeToken.balanceOf(address(graduationExecutor)), 333_333);
-        assertEq(address(feeVault).balance, 2);
+        assertEq(address(graduationExecutor).balance, 0);
+        assertEq(memeToken.balanceOf(address(graduationExecutor)), 0);
+        assertEq(address(feeVault).balance, 0);
         assertEq(curve.accruedCurveFees(), 0);
-        assertEq(curve.sweepNonce(), 1);
-        assertTrue(curve.readyToGraduate());
-        (uint256 recordedQuote, uint256 recordedTokens) = curve.graduationEscrow();
-        assertEq(recordedQuote, 202);
-        assertEq(recordedTokens, 333_333);
+        assertEq(curve.sweepNonce(), 0);
+        assertFalse(curve.readyToGraduate());
     }
 
     function test_finalFeeSweepFailureRollsBackTheEntireFinalBuy() public {
@@ -368,13 +370,9 @@ contract PonsCompatibleCurveTest is Test {
         assertEq(address(feeVault).balance, 0);
         assertEq(feeVault.calls(), 0);
         assertEq(address(graduationExecutor).balance, 0);
-        assertEq(registry.markSweptCalls(), 0);
-        (uint256 recordedQuote, uint256 recordedTokens) = curve.graduationEscrow();
-        assertEq(recordedQuote, 0);
-        assertEq(recordedTokens, 0);
     }
 
-    function test_unrepresentableActualGraduationPlanRollsBackBeforeSweptEscrow() public {
+    function test_unrepresentableActualGraduationPlanRollsBackBeforeAtomicGraduation() public {
         uint256 maximum = uint256(uint128(type(int128).max));
         MockExactQuoteToken quote = new MockExactQuoteToken(18);
         Deployment memory deployment = _deploy(address(quote), maximum, maximum - 100, maximum);
@@ -397,18 +395,14 @@ contract PonsCompatibleCurveTest is Test {
         deployment.curve.buy(quoteSpent, 0, USER);
 
         assertEq(deployment.registry.market(MARKET_ID).runtime.launchPhase, 0);
-        assertEq(deployment.registry.markSweptCalls(), 0);
         assertEq(deployment.feeVault.calls(), 0);
         assertEq(quote.balanceOf(address(deployment.curve)), 0);
         assertEq(deployment.token.balanceOf(address(deployment.curve)), maximum);
-        (uint256 recordedQuote, uint256 recordedTokens) = deployment.curve.graduationEscrow();
-        assertEq(recordedQuote, 0);
-        assertEq(recordedTokens, 0);
     }
 
-    function test_markSweptFailureRollsBackFeesEscrowAndFinalBuy() public {
-        registry.setRejectMarkSwept(true);
-        vm.expectRevert("MARK_SWEPT_REJECTED");
+    function test_poolCommitFailureRollsBackFeesAssetsAndFinalBuy() public {
+        registry.setRejectCommit(true);
+        vm.expectRevert("COMMIT_REJECTED");
         vm.prank(USER);
         curve.buy{value: 1_000}(1_000, 0, RECIPIENT);
 
@@ -416,12 +410,8 @@ contract PonsCompatibleCurveTest is Test {
         assertEq(memeToken.balanceOf(RECIPIENT), 0);
         assertEq(address(feeVault).balance, 0);
         assertEq(feeVault.calls(), 0);
-        (uint256 recordedQuote, uint256 recordedTokens) = curve.graduationEscrow();
-        assertEq(recordedQuote, 0);
-        assertEq(recordedTokens, 0);
         assertEq(address(graduationExecutor).balance, 0);
         assertEq(memeToken.balanceOf(address(graduationExecutor)), 0);
-        assertEq(registry.markSweptCalls(), 0);
     }
 
     function test_zeroFeeSweepIsNoOpAndDoesNotConsumeNonce() public {
@@ -593,14 +583,13 @@ contract PonsCompatibleCurveTest is Test {
         registry.setRuntime(0);
         vm.prank(USER);
         curve.buy{value: 1_000}(1_000, 0, RECIPIENT);
-        vm.expectRevert(abi.encodeWithSelector(PonsCompatibleCurve.MarketNotTradable.selector, 2, true));
+        vm.expectRevert(abi.encodeWithSelector(PonsCompatibleCurve.MarketNotTradable.selector, 1, true));
         vm.prank(USER);
         curve.buy{value: 1}(1, 0, RECIPIENT);
 
         vm.expectRevert(abi.encodeWithSelector(PonsCompatibleCurve.CurveFeeSweepAfterClose.selector, MARKET_ID));
         curve.sweepCurveFees();
         assertEq(graduationExecutor.calls(), 1);
-        assertEq(registry.markSweptCalls(), 1);
     }
 
     function test_curveFeeSweepIsAtomicAndDoesNotChangeRealReserve() public {
@@ -686,7 +675,7 @@ contract PonsCompatibleCurveTest is Test {
             quoteAssetConfigId: QUOTE_CONFIG_ID,
             launchTemplateId: keccak256("TEMPLATE"),
             feePolicyId: keccak256("FEE_POLICY"),
-            executionSpecId: keccak256("V1-EXEC-8"),
+            executionSpecId: keccak256("V1-EXEC-9"),
             expectedEconomics: keccak256("ECONOMICS"),
             launchConfigId: 0,
             creatorRevenueBeneficiaryAtCreation: BENEFICIARY,

@@ -49,7 +49,11 @@ contract MockAllocationMarketRegistry {
     function configure(bytes32 marketId, bytes32 assetUid, address gauge) external {
         _markets[marketId].config.assetUid = assetUid;
         _markets[marketId].config.gauge = gauge;
-        _markets[marketId].runtime.launchPhase = 2;
+        _markets[marketId].runtime.launchPhase = 1;
+    }
+
+    function setLaunchPhase(bytes32 marketId, uint8 launchPhase) external {
+        _markets[marketId].runtime.launchPhase = launchPhase;
     }
 
     function market(bytes32 marketId) external view returns (MarketView memory) {
@@ -194,6 +198,20 @@ contract AllocationManagerTest is Test {
         assertEq(vault.allocation(ASSET_UID, ALICE, MARKET_ID), 2.5 ether);
         assertEq(vault.freeBalanceOf(ASSET_UID, ALICE), 1.5 ether);
         assertEq(vault.deposited(ASSET_UID, ALICE), 4 ether);
+    }
+
+    function test_legacyPhaseTwoCannotOpenAnAllocation() public {
+        stockToken.mint(ALICE, 1 ether);
+        vm.startPrank(ALICE);
+        stockToken.approve(address(vault), 1 ether);
+        vault.depositStock(ASSET_UID, 1 ether);
+        marketRegistry.setLaunchPhase(MARKET_ID, 2);
+        vm.expectRevert(abi.encodeWithSelector(AllocationManagerIncreases.StockAllocationClosed.selector, MARKET_ID));
+        manager.allocate(MARKET_ID, 1 ether);
+        vm.stopPrank();
+
+        assertEq(vault.freeBalanceOf(ASSET_UID, ALICE), 1 ether);
+        assertEq(vault.allocation(ASSET_UID, ALICE, MARKET_ID), 0);
     }
 
     function test_closeAtUnlockRemovesAndReleasesTheWholePosition() public {

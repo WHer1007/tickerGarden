@@ -191,13 +191,11 @@ export function assertCanonicalMarketBinding(
   same(address(field(config, "quoteAsset", 12), "Market.quoteAsset", true), address(api.quoteAsset, "API quoteAsset", true), "market Quote asset");
 
   const sourceVersion = integer(field(runtime, "sourceVersion", 1), "Market.sourceVersion");
-  const launchPhase = integer(field(runtime, "launchPhase", 6), "Market.launchPhase");
+  const launchPhase = integer(field(runtime, "launchPhase", 2), "Market.launchPhase");
   same(sourceVersion, api.sourceVersion, "market sourceVersion");
   same(launchPhase, api.launchPhase, "market launch phase");
   const runtimePoolId = bytes32(field(runtime, "poolId", 0), "Market.poolId");
   same(runtimePoolId, api.poolId === null ? ZERO_HEX32 as Hex : bytes32(api.poolId, "API poolId", false), "market runtime poolId");
-  const sweptAt = uint(field(runtime, "sweptAt", 3), "Market.sweptAt");
-  same(sweptAt, api.curveProgress.sweptAt === null ? 0n : uint(api.curveProgress.sweptAt, "API sweptAt"), "market sweptAt");
 
   same(address(field(rawRoute, "swapRouter", 2), "Route.swapRouter"), address(api.canonicalRoute.router, "API route.router"), "route router");
   same(address(field(rawRoute, "quoter", 3), "Route.quoter"), address(api.canonicalRoute.quoter, "API route.quoter"), "route quoter");

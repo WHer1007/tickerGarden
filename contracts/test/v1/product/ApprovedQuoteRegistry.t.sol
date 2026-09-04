@@ -16,6 +16,18 @@ contract QuoteTokenMock {
     }
 }
 
+contract MutableDecimalsQuoteMock {
+    uint8 public decimals;
+
+    constructor(uint8 decimals_) {
+        decimals = decimals_;
+    }
+
+    function setDecimals(uint8 decimals_) external {
+        decimals = decimals_;
+    }
+}
+
 contract RevertingDecimalsMock {
     function decimals() external pure returns (uint8) {
         revert();
@@ -41,9 +53,7 @@ contract ApprovedQuoteRegistryTest is Test {
 
     bytes32 internal constant BASELINE_ID = 0x78d3fa45758f93f793093e0ea0cd900f9aaade792dc1cb6a1d3567b1dc81881d;
     bytes32 internal constant NATIVE_CONFIG_ID = 0x110acc145df286ef871d394b987b4ce12b062dc4d50d75343cdac7986a21e64e;
-    bytes32 internal constant USDG_CONFIG_ID = 0xf821fb65a35fd50ac97c95e0cd87251bf65fc80f33524a221ea8cc56b2a0fc09;
     bytes32 internal constant REASON_HASH = keccak256("quote-risk");
-    address internal constant USDG = 0x5fc5360D0400a0Fd4f2af552ADD042D716F1d168;
     address internal constant DELAYED_ADMIN = address(0xA11CE);
     address internal constant FAST_ADMIN = address(0xFA57);
     address internal constant GUARDIAN = address(0x6A7D);
@@ -56,6 +66,7 @@ contract ApprovedQuoteRegistryTest is Test {
     event QuoteAssetConfigAdded(
         bytes32 indexed configId, address indexed quoteAsset, bytes32 indexed ponsBaselineId, bytes32 economicsHash
     );
+    event QuoteAssetIdentityPinned(bytes32 indexed configId, address indexed quoteAsset, bytes32 runtimeCodeHash);
     event QuoteAssetStatusChanged(bytes32 indexed configId, uint8 oldStatus, uint8 newStatus, bytes32 reasonHash);
 
     function setUp() public {
@@ -99,6 +110,10 @@ contract ApprovedQuoteRegistryTest is Test {
         assertEq(ApprovedQuoteRegistry.unpauseQuote.selector, IApprovedQuoteRegistry.unpauseQuote.selector);
         assertEq(ApprovedQuoteRegistry.retireQuote.selector, IApprovedQuoteRegistry.retireQuote.selector);
         assertEq(ApprovedQuoteRegistry.quoteConfig.selector, IApprovedQuoteRegistry.quoteConfig.selector);
+        assertEq(
+            ApprovedQuoteRegistry.quoteRuntimeCodeHash.selector, IApprovedQuoteRegistry.quoteRuntimeCodeHash.selector
+        );
+        assertEq(ApprovedQuoteRegistry.quoteIdentityCurrent.selector, IApprovedQuoteRegistry.quoteIdentityCurrent.selector);
     }
 
     function test_unknownConfigIsUnsetAndNotNative() public view {
@@ -110,6 +125,8 @@ contract ApprovedQuoteRegistryTest is Test {
         assertEq(config.graduationThreshold, 0);
         assertEq(config.economicsHash, bytes32(0));
         assertEq(config.status, 0);
+        assertEq(registry.quoteRuntimeCodeHash(keccak256("unknown")), bytes32(0));
+        assertFalse(registry.quoteIdentityCurrent(keccak256("unknown")));
     }
 
     function test_allMutationsRequireTheirConfiguredSelectorRole() public {
@@ -169,6 +186,8 @@ contract ApprovedQuoteRegistryTest is Test {
         config.economicsHash = configId;
         _addFast(configId, config);
         _assertConfig(configId, config, 1);
+        assertEq(registry.quoteRuntimeCodeHash(configId), address(token).codehash);
+        assertTrue(registry.quoteIdentityCurrent(configId));
 
         QuoteAssetConfig memory wrongDecimals = _erc20Config(address(token), 8, 1, 2);
         bytes32 wrongId = _economicsHash(wrongDecimals);
@@ -178,17 +197,69 @@ contract ApprovedQuoteRegistryTest is Test {
         registry.addQuoteConfig(wrongId, wrongDecimals);
     }
 
-    function test_addsExactFrozenUsdgInitialConfig() public {
-        vm.etch(USDG, hex"00");
-        vm.mockCall(USDG, abi.encodeWithSignature("decimals()"), abi.encode(uint8(6)));
-        QuoteAssetConfig memory config = _erc20Config(USDG, 6, 3_236_000_000, 8_090_000_000);
-        assertEq(_economicsHash(config), USDG_CONFIG_ID);
-        assertEq(config.economicsHash, USDG_CONFIG_ID);
-
+    function test_erc20AdmissionPinsRuntimeIdentityAndRejectsProxyOpcodes() public {
+        QuoteAssetConfig memory config = _erc20Config(address(token), 6, 3_236_000_000, 8_090_000_000);
+        bytes32 configId = config.economicsHash;
         vm.expectEmit(true, true, true, true);
-        emit QuoteAssetConfigAdded(USDG_CONFIG_ID, USDG, BASELINE_ID, USDG_CONFIG_ID);
-        _addFast(USDG_CONFIG_ID, config);
-        _assertConfig(USDG_CONFIG_ID, config, 1);
+        emit QuoteAssetConfigAdded(configId, address(token), BASELINE_ID, configId);
+        vm.expectEmit(true, true, false, true);
+        emit QuoteAssetIdentityPinned(configId, address(token), address(token).codehash);
+        _addFast(configId, config);
+
+        address candidate = address(0xD311);
+        for (uint256 index; index < 3; ++index) {
+            bytes1 opcode = index == 0 ? bytes1(0xf2) : index == 1 ? bytes1(0xf4) : bytes1(0xff);
+            vm.etch(candidate, abi.encodePacked(opcode));
+            QuoteAssetConfig memory forbidden = _erc20Config(candidate, 6, 1, 2);
+            vm.expectRevert(
+                abi.encodeWithSelector(ApprovedQuoteRegistry.ForbiddenQuoteOpcode.selector, candidate, opcode)
+            );
+            vm.prank(FAST_ADMIN);
+            registry.addQuoteConfig(forbidden.economicsHash, forbidden);
+        }
+    }
+
+    function test_runtimeScannerSkipsForbiddenBytesInsidePushData() public {
+        address candidate = address(0xD312);
+        // PUSH1 0xf4; POP; then return ABI-encoded decimals=6. The 0xf4 byte is data, not DELEGATECALL.
+        vm.etch(candidate, hex"60f450600660005260206000f3");
+        QuoteAssetConfig memory config = _erc20Config(candidate, 6, 1, 2);
+        _addFast(config.economicsHash, config);
+        assertTrue(registry.quoteIdentityCurrent(config.economicsHash));
+    }
+
+    function test_mutableDecimalsDriftFailsIdentityEvenWhenRuntimeCodehashIsUnchanged() public {
+        MutableDecimalsQuoteMock mutableToken = new MutableDecimalsQuoteMock(6);
+        QuoteAssetConfig memory config = _erc20Config(address(mutableToken), 6, 1, 2);
+        _addFast(config.economicsHash, config);
+        bytes32 pinned = address(mutableToken).codehash;
+
+        mutableToken.setDecimals(18);
+
+        assertEq(address(mutableToken).codehash, pinned);
+        assertFalse(registry.quoteIdentityCurrent(config.economicsHash));
+    }
+
+    function test_runtimeCodeDriftBlocksIdentityCheckAndUnpause() public {
+        QuoteAssetConfig memory config = _erc20Config(address(token), 6, 1, 2);
+        bytes32 configId = config.economicsHash;
+        _addFast(configId, config);
+        bytes32 pinned = address(token).codehash;
+        assertEq(registry.quoteRuntimeCodeHash(configId), pinned);
+
+        vm.prank(GUARDIAN);
+        registry.pauseQuote(configId, REASON_HASH);
+        vm.etch(address(token), hex"00");
+        assertFalse(registry.quoteIdentityCurrent(configId));
+
+        bytes memory data = abi.encodeCall(IApprovedQuoteRegistry.unpauseQuote, (configId));
+        uint48 readyAt = uint48(block.timestamp + UNPAUSE_DELAY);
+        vm.prank(UNPAUSER);
+        manager.schedule(address(registry), data, readyAt);
+        vm.warp(readyAt);
+        vm.expectRevert(abi.encodeWithSelector(ApprovedQuoteRegistry.QuoteAssetIdentityDrift.selector, configId));
+        vm.prank(UNPAUSER);
+        manager.execute(address(registry), data);
     }
 
     function test_rejectsInvalidConfigShapeAndNumericDomain() public {

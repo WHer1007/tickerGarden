@@ -187,7 +187,7 @@ contract AllocationManagerIncreasesTest is Test {
         stockToken = new MockExactQuoteToken(18);
         vault = new UserStockVault(address(officialRegistry), address(marketRegistry), address(manager));
         officialRegistry.configure(ASSET_UID, address(stockToken), address(vault), 18, 1, 0.5 ether);
-        marketRegistry.configure(MARKET_ID, ASSET_UID, address(gauge), 2);
+        marketRegistry.configure(MARKET_ID, ASSET_UID, address(gauge), 1);
         gauge.configure(address(manager), vault, ASSET_UID, MARKET_ID);
     }
 
@@ -234,7 +234,7 @@ contract AllocationManagerIncreasesTest is Test {
     function test_nonPoolCreatedMarketsRejectBeforeGaugeCalls() public {
         _deposit(ALICE, 2 ether);
         for (uint8 phase; phase < 4; ++phase) {
-            if (phase == 2) continue;
+            if (phase == 1) continue;
             marketRegistry.configure(MARKET_ID, ASSET_UID, address(gauge), phase);
             vm.expectRevert(
                 abi.encodeWithSelector(AllocationManagerIncreases.StockAllocationClosed.selector, MARKET_ID)

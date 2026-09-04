@@ -3,7 +3,7 @@
 > **适用性说明（2026-09-04）：** 本报告中的 Emergency/市场状态 Gas 与状态机结果属于旧管理架构历史数据；永久自治改造后必须重新测量。用户 rageQuit 本金路径和异步奖励结算是当前目标，资产/配置 pause/retire 仍独立保留。
 
 > 任务：`V1-T-202-B`
-> 状态：`V1-EXEC-8 FROZEN TEST EVIDENCE / FORFEITURE PROOF RESIDUAL OPEN`
+> 状态：`V1-EXEC-9 FROZEN TEST EVIDENCE / FORFEITURE PROOF RESIDUAL OPEN`
 > 日期：2026-09-04
 
 ## 1. 冻结数值域
@@ -72,13 +72,13 @@ maxAccumulator = Nmax × maxDelta
 
 `uint256.max / maxAccumulator = 1`，剩余约0.099% headroom；因此414是当前证明允许的最小值，不能由管理员进一步降低。实现同时对人工构造的 accumulator/pendingFee 越界状态执行原子回滚，证明超出批准域时 fail closed，而不是静默截断。
 
-## 5. Rage Quit 弃权重分配的证明边界
+## 5. Rage Quit forfeiture 归属与数值边界
 
-`rageQuit`移除退出用户后，若仍有其他Active staker且清理时的cohort nonce与有效权重仍等于退出快照，会把该用户已经形成的整数收益重新送入同一奖励资产accumulator。这个动作会在没有新增FeeVault credit时增加`accFeePerShare`，但它只转移已存在的Staker entitlement，不能增加FeeVault的`totalLiability`；没有剩余Active或延期期间cohort变化时则改记forfeiture reserve。cohort变化但当前仍有Active时，不得吸收仍属于存续staker的global index remainder。
+`rageQuit` 移除退出用户后，退出用户已经形成但尚未领取的 Quote/Meme 奖励不再进入任何 staker accumulator，也不根据 Active staker 数量、cohort nonce 或清理时序分支。Gauge 将其交给 `ProtocolFeeVault.recordForfeiture`，统一记为平台 forfeiture reserve；这不会增加任何用户的 `totalLiability`，也不会把旧收益暴露给后加入者。正常新手续费仍按当前有效 Active 权重分配，但 rageQuit forfeiture 与正常分配路径严格隔离。
 
-对一个初始reward `R`，连续退出只会把该reward的既有份额逐步转给剩余权重；当所有中间分母均不低于`Smin=414`时，其累计重分配效果应受`R × P / Smin`同阶上界约束，而不会按退出人数复制reward。现有实现以checked arithmetic fail closed，产品测试已覆盖双资产两用户重分配、最后用户reserve，以及FeeVault失败或耗尽固定gas额度时先返还本金、再由Gauge保存待补记金额并由permissionless `flushDeferredForfeiture()`恰好成功补记一次；该重试不受历史Gauge emergency flag阻断。
+现有实现以 checked arithmetic fail closed，测试已覆盖双资产退出、平台 reserve 记账，以及 FeeVault 失败或耗尽固定 gas 额度时先返还本金、再由 Gauge 保存待补记金额并由 permissionless `flushDeferredForfeiture()` 补记一次；该重试不受历史 Gauge emergency flag 阻断。ABI 中 legacy `redistributed` 字段保留用于兼容，但恒为 `false`。
 
-但当前机器证明尚未把“3个以上不同权重用户连续rageQuit + denominator变化 + index/user/forfeiture remainder归一化”写成独立形式化不变量。因此本报告不把该组合场景声明为完全证明；外部审计前必须补充数学推导和多用户双资产连续退出fuzz，并确认它仍被上述每credit最小分母上界覆盖。该项当前是证明覆盖缺口，不是已确认的新增负债或可提取资金漏洞。
+因此不再需要以“连续退出重分配效果”作为当前协议不变量或形式化证明目标。仍需持续验证的是：每次 forfeiture 金额只记账一次、deferred flush 幂等、reserve 余额 delta 精确，以及本次记账失败绝不影响已完成的本金退出。
 
 ## 6. 复现
 

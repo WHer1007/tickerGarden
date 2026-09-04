@@ -30,8 +30,6 @@ abstract contract UserStockVaultRewardAccounting is UserStockVaultDeposits {
     struct RageQuitRewardSnapshot {
         uint256 quoteAccumulator;
         uint256 memeAccumulator;
-        uint256 remainingActiveStock;
-        uint256 cohortNonce;
     }
 
     mapping(
@@ -44,7 +42,6 @@ abstract contract UserStockVaultRewardAccounting is UserStockVaultDeposits {
     ) internal _rewardEligibilityPositions;
     mapping(bytes32 assetUid => mapping(bytes32 marketId => RewardAccumulatorPair value)) internal
         _latestRewardAccumulators;
-    mapping(bytes32 assetUid => mapping(bytes32 marketId => uint256 nonce)) internal _rewardCohortNonces;
     mapping(bytes32 assetUid => mapping(address user => mapping(bytes32 marketId => RageQuitRewardSnapshot value)))
         internal _rageQuitRewardCutoffs;
 
@@ -77,7 +74,6 @@ abstract contract UserStockVaultRewardAccounting is UserStockVaultDeposits {
         _scheduleRewardEligibility(assetUid, marketId, generation, combinedPending, 1);
         position.pendingGeneration = generation;
         position.pendingAmount = combinedPending;
-        ++_rewardCohortNonces[assetUid][marketId];
     }
 
     function _removeRewardEligibility(bytes32 assetUid, address user, bytes32 marketId, uint256 allocationAmount)
@@ -102,7 +98,6 @@ abstract contract UserStockVaultRewardAccounting is UserStockVaultDeposits {
         }
         _storedRewardActive[assetUid][marketId] = storedActive - activeAmount;
         delete _rewardEligibilityPositions[assetUid][user][marketId];
-        ++_rewardCohortNonces[assetUid][marketId];
     }
 
     function _recordGaugeRewardState(
@@ -126,9 +121,7 @@ abstract contract UserStockVaultRewardAccounting is UserStockVaultDeposits {
         RewardAccumulatorPair storage latest = _latestRewardAccumulators[assetUid][marketId];
         _rageQuitRewardCutoffs[assetUid][user][marketId] = RageQuitRewardSnapshot({
             quoteAccumulator: latest.quoteAccumulator,
-            memeAccumulator: latest.memeAccumulator,
-            remainingActiveStock: _marketRewardEligible(assetUid, marketId),
-            cohortNonce: _rewardCohortNonces[assetUid][marketId]
+            memeAccumulator: latest.memeAccumulator
         });
     }
 
@@ -153,9 +146,8 @@ abstract contract UserStockVaultRewardAccounting is UserStockVaultDeposits {
         RageQuitRewardSnapshot storage cutoff = _rageQuitRewardCutoffs[assetUid][user][marketId];
         quoteAccumulator = cutoff.quoteAccumulator;
         memeAccumulator = cutoff.memeAccumulator;
-        forfeitureRedistributable = cutoff.remainingActiveStock != 0
-            && cutoff.cohortNonce == _rewardCohortNonces[assetUid][marketId]
-            && cutoff.remainingActiveStock == _marketRewardEligible(assetUid, marketId);
+        // Keep the return slot for source/ABI compatibility, but V1 escape forfeitures are always platform-owned.
+        forfeitureRedistributable = false;
     }
 
     function _checkpointRewardEligibility(bytes32 assetUid, bytes32 marketId) private {

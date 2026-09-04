@@ -4,7 +4,7 @@
 
 > 规格任务：`V1-P-002`
 > 状态：`FROZEN / IMPLEMENTATION_ALLOWED`  
-> 适用基线：`V1-EXEC-8`
+> 适用基线：`V1-EXEC-9`
 > 更新时间：2026-09-03
 
 ## 1. 单一机器来源
@@ -49,8 +49,8 @@ recipient
 ```
 
 - `executionDelaySeconds` 是 AccessManager/角色执行延迟。
-- `stateDelaySeconds` 是业务状态从某个链上时间锚点开始的等待；不能伪装成角色延迟。
-- 七日 rescue 固定为 `stateDelaySeconds = 604800`、`stateDelayAnchor = MARKET_RUNTIME_SWEPT_AT`，其 public 调用没有 AccessManager 延迟。
+- `stateDelaySeconds` 是业务状态从某个链上时间锚点开始的等待；不能伪装成角色延迟。当前 V1-EXEC-9 全部为0。
+- 当前 ABI 不得出现 graduation retry、terminal rescue、`sweptAt` 锚点或市场资产接收人。
 - `PUBLIC_SELF_ONLY` 不是 caller。caller 使用 `PUBLIC`，本人收款约束写入 `recipient/precondition`。
 - `*_DELAYED` 不是 caller。caller 与延迟必须拆成两个字段。
 
@@ -84,8 +84,8 @@ AccessManager 自身的管理函数使用其官方 caller 语义，单独保留�
 - ABI caller 与权限 caller 不完全相等；
 - 存在未定义或递归 ABI 类型；
 - tuple 展开结果与已提交派生文件不同；
-- rescue 的七日等待被删除、改成角色延迟或锚点不是 `sweptAt`；
+- 任一 mutation 的 `stateDelaySeconds` 非0，或重新出现 graduation retry/terminal rescue；
 - 新增 mutation 未同步 recipient、precondition 和 delay；
 - 出现 `PUBLIC_SELF_ONLY`、`*_DELAYED` 等混合词汇。
 - Markdown 冻结签名与机器 ABI 的参数或返回值不同；任何已删除的市场管理或 recovery selector 再次出现。
-- 同一语义事件由多个模块重复定义；`LaunchSwept/AutoGraduationFailed` 只属于 Curve，`PoolGraduated/LaunchRescued` 只属于 GraduationExecutor，Curve 的转账证明与 FeeVault 的分桶证明使用不同事件名。
+- 同一语义事件由多个模块重复定义；当前 Curve 只以 `CurveCompleted` 表示最终成交完成，GraduationExecutor 只以 `PoolGraduated` 表示原子成功，已删除的 `LaunchSwept`、`AutoGraduationFailed`、`LaunchRescued` 不得回流。Curve 的手续费转账证明与 FeeVault 的分桶证明继续使用不同事件名。

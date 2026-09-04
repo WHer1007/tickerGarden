@@ -146,13 +146,13 @@ contract TickerGardenFactoryV1 is ITickerGardenFactoryV1, ICurveInitializationSo
     mapping(bytes32 marketId => bool reserved) private _reservedMarketIds;
 
     uint256 private constant LAUNCH_FEE = 500_000_000_000_000;
-    bytes32 private constant EXECUTION_SPEC_ID = keccak256("V1-EXEC-8");
+    bytes32 private constant EXECUTION_SPEC_ID = keccak256("V1-EXEC-9");
     bytes32 private constant TOKEN_IMPLEMENTATION_CODEHASH =
         0x5a1ea402d301c312d0df4cc719db06d8f03830df83ec2073299d41d02df9cbb5;
     bytes32 private constant CURVE_IMPLEMENTATION_CODEHASH =
-        0xa6f902111fce0b1c945420bf0faba45deaababb9af551ad17b80568a6c93f73c;
+        0x6feec146597292da0639e2a762521b2515507640092f19038224d8af20b5b749;
     bytes32 private constant GAUGE_IMPLEMENTATION_CODEHASH =
-        0xa220b3336e8cf16b13c4419949ae3a3e5e3ddff8fd22e2a4d75b8f6856667e1c;
+        0x4b43e05c2cca68728b2b1a65bf7469639d5f6dc6dd4132e4519484a0a75cc3f9;
 
     error InvalidFactoryDependency(address dependency);
     error InvalidComponentImplementation(address implementation, bytes32 expectedHash, bytes32 actualHash);

@@ -1,0 +1,114 @@
+{
+  "schemaVersion": 1,
+  "architectureId": "RH_STOCK_SHARED_BEACON_2026_09_04",
+  "chainId": 4663,
+  "observationBlock": {
+    "number": 54348820,
+    "hash": "0x934e85c2499f788c6515d5f2cb7fec156a2c2c19613ccc59db32ccee2a71d350",
+    "timestamp": "2026-09-04T14:49:27+00:00"
+  },
+  "tokenProxyFleet": {
+    "observedTokenCount": 194,
+    "kind": "OPENZEPPELIN_BEACON_PROXY_WITH_SHARED_FIXED_BEACON",
+    "runtimeBytes": 283,
+    "runtimeKeccak256": "0x6c1fdd40002dcb440c7fff6a84171404d279ccb057803b65826f7546acd65630",
+    "allRuntimeFingerprintsMatched": true,
+    "eip1967ImplementationSlotAllZero": true,
+    "eip1967AdminSlotAllZero": true,
+    "eip1967BeaconSlotAllMatchedSharedBeacon": true,
+    "verifiedSourceExample": {
+      "symbol": "CRM",
+      "address": "0xd95b44124e475743a7589e68f3d74008a5536d44",
+      "blockscoutMatch": "PARTIAL_MATCH_OPENZEPPELIN_BEACON_PROXY",
+      "compiler": "v0.8.33+commit.64118f21",
+      "evmVersion": "prague",
+      "optimizerEnabled": true,
+      "optimizerRuns": 200,
+      "verifiedAt": "2026-07-30",
+      "url": "https://robinhoodchain.blockscout.com/address/0xd95b44124e475743a7589e68f3d74008a5536d44?tab=contract"
+    },
+    "getterAuditDuringResearch": {
+      "uidMatchesOfficialDirectory": "194/194",
+      "decimalsEquals18": "194/194",
+      "symbolMatchesOfficialDirectory": "194/194",
+      "nameCallsSucceeded": "194/194",
+      "perAssetPinnedEvidence": "spec/v1_rh_official_stock_catalog.snapshot.json"
+    }
+  },
+  "sharedAccessControlsRegistryAndBeacon": {
+    "address": "0xe10b6f6b275de231345c20d14ab812db62151b00",
+    "runtimeBytes": 2332,
+    "runtimeKeccak256": "0x8b465c0b53a2ba499566e9b4ca67d8c90ed6131743df806a570d156956a7e90e",
+    "verifiedSource": {
+      "match": "EXACT_MATCH",
+      "contractName": "AccessControlsRegistry",
+      "file": "src/AccessControlsRegistry.sol",
+      "compiler": "v0.8.33+commit.64118f21",
+      "evmVersion": "cancun",
+      "optimizerEnabled": true,
+      "optimizerRuns": 200,
+      "verifiedAt": "2026-06-16T07:41:00",
+      "url": "https://robinhoodchain.blockscout.com/address/0xe10b6f6b275de231345c20d14ab812db62151b00?tab=contract"
+    },
+    "capabilities": [
+      "AccessControl role registry",
+      "IBeacon implementation()",
+      "BEACON_UPGRADER_ROLE-gated upgradeTo(address)",
+      "PAUSER_ROLE-gated global pause/unpause",
+      "BLOCKER_ROLE-gated shared address blocklist"
+    ],
+    "pausedAtSample": false
+  },
+  "sharedStockImplementation": {
+    "address": "0xb35490d6f9163de4f80d88dc75c3516eb64c5ae2",
+    "runtimeBytes": 11614,
+    "runtimeKeccak256": "0xdc07e86ee482f99641bdafb9a0d772846b167401e094d90a666b94dbdcd1eec7",
+    "registryConstructorArgument": "0xe10b6f6b275de231345c20d14ab812db62151b00",
+    "verifiedSource": {
+      "match": "EXACT_MATCH",
+      "contractName": "Stock",
+      "file": "src/Stock.sol",
+      "compiler": "v0.8.33+commit.64118f21",
+      "evmVersion": "cancun",
+      "optimizerEnabled": true,
+      "optimizerRuns": 200,
+      "verifiedAt": "2026-06-16T07:47:14",
+      "url": "https://robinhoodchain.blockscout.com/address/0xb35490d6f9163de4f80d88dc75c3516eb64c5ae2?tab=contract"
+    },
+    "inheritance": [
+      "IStock",
+      "AccessControlled",
+      "OraclePausable",
+      "ERC20ScaledUIUpgradeable"
+    ],
+    "capabilities": [
+      "ERC20 and EIP-2612 permit",
+      "uid() and mutable display metadata",
+      "ERC-8056 uiMultiplier with scheduled multiplier updates",
+      "role-gated mint, burn, and adminBurn",
+      "token-level and registry-global pause enforcement",
+      "shared registry address blocklist enforcement",
+      "separate oracle pause flag"
+    ],
+    "crmStateSample": {
+      "paused": false,
+      "tokenPaused": false
+    }
+  },
+  "knownRoleHashes": {
+    "MINTER_ROLE": "0x9f2df0fed2c77648de5860a4cc508cd0818c85b8b8a1ab4ceeef8d981c8956a6",
+    "BURNER_ROLE": "0x3c11d16cbaffd01df69ce1c404f6340ee057498f5f00246190ea54220576a848",
+    "PAUSER_ROLE": "0x65d7a28e3265b37a6474929f336521b332c1681b933f6cb9f3376673440d862a",
+    "BEACON_UPGRADER_ROLE": "0x5ab8bd28475e0dc8d5764e9ce50f85ffe2f14ec40c5b74e45f541485ad510c39",
+    "MULTIPLIER_UPDATER_ROLE": "0x7158cf42e4a4f01c5456c8d75cdbd375748d45e9db7e812f5bcd18844122b615",
+    "METADATA_UPDATER_ROLE": "0x7f5260842512b02356ff92de24be96e7e1aac2e234d9371b076ac2b4cddda61e",
+    "ADMIN_BURNER_ROLE": "0x25e7ebc863fa4efd16243c82323b71f247c0cf439aca64c51b84a74afb738936",
+    "TOKEN_PAUSER_ROLE": "0xe95e22ec6dbf4c911d1fae59680a3e9cb71dd35b3a1c697d232e4b01a8ff30a2",
+    "ORACLE_PAUSER_ROLE": "0x155fc2c2b00b801014447f9d3a1522625740f8e592e4c0b0bb7c5867c150aa11"
+  },
+  "unresolved": [
+    "Current members and operational custody of every privileged role were not resolved.",
+    "All-token pause and blocklist state was not resampled because the public RPC rate-limited the scan.",
+    "Role governance delay, multisig threshold, and incident process are not established by source shape alone."
+  ]
+}

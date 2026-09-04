@@ -3,7 +3,7 @@
 > **状态边界（2026-09-04）：** 本文的 Asset `pause`/`unpause`/`retire` 仍然有效；它们是配置级准入控制，不是已部署市场的暂停权。市场永久自治，用户 rageQuit 始终可立即取回本金。其余旧市场 Emergency 表述不代表当前目标实现。
 
 > 规格状态：`FROZEN / IMPLEMENTATION_ALLOWED`  
-> Execution spec：`V1-EXEC-8`
+> Execution spec：`V1-EXEC-9`
 > 点时证据：2026-09-02，Robinhood Chain `4663`
 > Stock Vault 架构决策：[V1_MULTI_ASSET_STOCK_VAULT.md](./V1_MULTI_ASSET_STOCK_VAULT.md)
 
@@ -39,7 +39,7 @@ STOCK 在 V1 中只承担质押 Base、分配权重和社区背书作用，不�
 
 链上只使用 Stock Token 的实际 raw balance 与 decimals。每个 Asset UID 的 `minimumAllocation` 由管理员动态设置，但不得低于414 raw units；手续费权重使用同一 Gauge 内各用户已激活 STOCK 的相对比例。存在 Active stake 时按 Creator40%/Staker30%/Platform30% 分配，无 Active stake 时按 Creator70%/Staker0%/Platform30% 分配。Quote 侧手续费按 Quote 分，Meme 侧手续费按 Meme 分，不转换成 STOCK，也不进行美元净额结算。
 
-此前生成的 Chainlink 目录和 backing-target 工具仅保留为 `V1-EXEC-1` 历史研究证据，不是当前 `V1-EXEC-8` 的协议输入、准入条件或部署门禁；边界见 [`spec/RETIRED_STOCK_PRICE_RESEARCH.md`](./spec/RETIRED_STOCK_PRICE_RESEARCH.md)。
+此前生成的 Chainlink 目录和 backing-target 工具仅保留为 `V1-EXEC-1` 历史研究证据，不是当前 `V1-EXEC-9` 的协议输入、准入条件或部署门禁；边界见 [`spec/RETIRED_STOCK_PRICE_RESEARCH.md`](./spec/RETIRED_STOCK_PRICE_RESEARCH.md)。
 
 ## 4. 毕业后手续费分配
 

@@ -62,7 +62,6 @@ export type CurveViewModel = Readonly<{
   reservedTokens: bigint;
   accruedCurveFees: bigint;
   readyToGraduate: boolean;
-  sweptAt: bigint | null;
   launchFeeSource: "factory/chain";
   firstBuyExemption: "creator-or-launch-beneficiary-and-authenticated-router";
   partialRefundPossible: true;
@@ -298,7 +297,6 @@ export function toCurveProgressViewModel(response: MarketDetailResponse): CurveV
     reservedTokens: nonNegative(market.curveProgress.reservedTokens, "reservedTokens"),
     accruedCurveFees: nonNegative(market.curveProgress.accruedCurveFees, "accruedCurveFees"),
     readyToGraduate: market.curveProgress.readyToGraduate,
-    sweptAt: market.curveProgress.sweptAt === null ? null : nonNegative(market.curveProgress.sweptAt, "sweptAt"),
     launchFeeSource: "factory/chain", firstBuyExemption: "creator-or-launch-beneficiary-and-authenticated-router",
     partialRefundPossible: true, sync: response.sync,
   });

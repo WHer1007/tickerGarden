@@ -4,19 +4,20 @@ export function requiredObservations(event: DecodedV1Event): readonly Observatio
   switch (event.signature) {
     case "QuoteAssetConfigAdded(bytes32,address,bytes32,bytes32)":
       return [{ kind: "quote", key: event.args.configId, reason: "event commits hashes but not the complete quote config" }];
+    case "QuoteAssetIdentityPinned(bytes32,address,bytes32)":
+      return [{ kind: "quote", key: event.args.configId, reason: "confirm the pinned runtime identity and live decimals at this block" }];
     case "PonsBaselineAdded(bytes32,bytes32,bytes32)":
       return [{ kind: "pons", key: event.args.baselineId, reason: "event omits the complete approved baseline record" }];
     case "LaunchTemplateAdded(bytes32,bytes32,bytes32)":
       return [{ kind: "template", key: event.args.launchTemplateId, reason: "event commits templateHash but not template fields" }];
     case "MarketCreated(bytes32,bytes32,address,address,address,address,bytes32,bytes32,bytes32)":
     case "MarketRegistered(bytes32,bytes32,address,address,address,uint32)":
-    case "LaunchPhaseChanged(bytes32,uint8,uint8,uint64,bytes32,uint32)":
+    case "LaunchPhaseChanged(bytes32,uint8,uint8,bytes32,uint32)":
       return [{ kind: "market", key: event.args.marketId, reason: "hydrate the canonical MarketView at this block" }];
     case "CurveBuy(address,address,uint256,uint256,uint256,uint256)":
     case "CurveSell(address,address,uint256,uint256,uint256,uint256)":
       return [{ kind: "curve", key: event.emitter, reason: "reserves and progress are authoritative contract views" }];
     case "CurveCompleted(bytes32)":
-    case "LaunchSwept(bytes32,address,uint256,uint256,uint64)":
       return [{ kind: "curve", key: event.emitter, reason: "reserves and progress are authoritative contract views" }];
     case "ExpectedPoolRegistered(bytes32,bytes32,bytes32,uint32)":
     case "PoolBindingActivated(bytes32,bytes32,uint32)":
@@ -65,7 +66,6 @@ export function requiredObservations(event: DecodedV1Event): readonly Observatio
       return [{ kind: "liability", key: `${event.args.marketId}:${event.args.feeAsset}`, reason: "bucket credit changes authoritative FeeVault liability" }];
     case "ForfeitureReserved(bytes32,address,address,uint256,uint256)":
     case "ForfeitureReserveConverted(bytes32,address,uint256)":
-    case "ForfeitedRewardRedistributed(bytes32,address,address,uint256,uint256,uint256)":
       return [{ kind: "liability", key: `${event.args.marketId}:${event.args.feeAsset}`, reason: "forfeiture accounting changes authoritative Gauge and FeeVault state" }];
     case "CurveFeesSwept(bytes32,uint32,address,uint64,bytes32,uint256,uint256,uint256)":
       return [{ kind: "liability", key: `${event.args.marketId}:${event.args.quoteAsset}`, reason: "curve sweep changes authoritative FeeVault liability" }];
