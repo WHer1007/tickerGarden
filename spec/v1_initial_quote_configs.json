@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
-  "executionSpecId": "V1-EXEC-3",
-  "status": "APPROVED_INITIAL_RELEASE_CONFIGS",
+  "executionSpecId": "V1-EXEC-10",
+  "status": "APPROVED_BOOTSTRAP_EXAMPLE_CONFIGS",
   "chainId": 4663,
   "ponsBaselineIdLabel": "TG-PONS-BEHAVIOR-1",
   "ponsBaselineId": "0x78d3fa45758f93f793093e0ea0cd900f9aaade792dc1cb6a1d3567b1dc81881d",
@@ -10,7 +10,8 @@
     "domain": "0xd545051c6c136e31d15dffa8839a33b1cc6aac4d3a77eaddeef773ec09af2709",
     "schemaVersion": 1,
     "encoding": "keccak256(abi.encode(domain,schemaVersion,chainId,ponsBaselineId,quoteAsset,quoteDecimals,phantomQuote,graduationThreshold))",
-    "configIdRule": "quoteAssetConfigId == economicsHash"
+    "configIdRule": "quoteAssetConfigId == economicsHash",
+    "selectionRule": "NEW_MARKET_MAY_SELECT_ANY_ADMIN_APPROVED_ACTIVE_QUOTE_CONFIG"
   },
   "evidenceSnapshot": {
     "block": 52495836,
@@ -41,10 +42,15 @@
     }
   ],
   "scope": {
-    "initialReleaseQuoteCount": 1,
+    "configuredQuoteCount": 1,
+    "configuredQuoteCountMeaning": "BOOTSTRAP_EXAMPLES_ONLY_NOT_A_PROTOCOL_CAP_OR_RELEASE_ALLOWLIST_FREEZE",
+    "quoteSelection": "ANY_ADMIN_APPROVED_ACTIVE_QUOTE",
+    "approvalRequirement": "ADMIN_APPROVED_AND_ACTIVE",
+    "erc20AdmissionRequirement": "DIRECT_IMMUTABLE_ERC20_WITH_PINNED_RUNTIME_AND_ZERO_EIP1967_SLOTS",
+    "nativeQuoteIsProtocolRequirement": false,
     "oneQuotePerMarket": true,
-    "additionalQuotes": "APPEND_ONLY_IMMUTABLE_DIRECT_ERC20_CONFIG_AND_REVIEW",
-    "upgradeableQuotePolicy": "FORBIDDEN_IN_V1_INITIAL_RELEASE",
+    "additionalQuotes": "ADMIN_MAY_APPEND_ANY_REVIEWED_NATIVE_OR_DIRECT_IMMUTABLE_ERC20_CONFIG_AND_ACTIVATE_IT",
+    "upgradeableQuotePolicy": "FORBIDDEN_FOR_ACTIVE_ERC20_QUOTE_CONFIGS",
     "historicalMarketMutation": false,
     "runtimeDependencyOnPons": false
   }

@@ -22,6 +22,11 @@ contract HookFeeCalculationDependencyMock {}
 contract HookFeeCalculationRegistryMock {
     mapping(bytes32 marketId => MarketView value) private _markets;
     mapping(bytes32 marketId => PoolKey key) private _keys;
+    address public graduationExecutor;
+
+    function setGraduationExecutor(address value) external {
+        graduationExecutor = value;
+    }
 
     function configure(bytes32 marketId, MarketView calldata value, PoolKey calldata key) external {
         _markets[marketId] = value;
@@ -123,6 +128,7 @@ contract TickerGardenMemeHookFeeCalculationTest is Test {
         poolManager = new HookFeeCalculationPoolManagerMock();
         feeVault = new HookFeeCalculationDependencyMock();
         graduation = new HookFeeCalculationDependencyMock();
+        registry.setGraduationExecutor(address(graduation));
         deployer = new HookFeeCalculationCreate2Deployer();
         hook = _deployHook();
         key = PoolKey({currency0: QUOTE, currency1: MEME, fee: 0, tickSpacing: 60, hooks: address(hook)});
@@ -270,7 +276,7 @@ contract TickerGardenMemeHookFeeCalculationTest is Test {
     function test_feePolicyHashMatchesFeeVaultAndSuccessiveIdsCannotRepeat() public {
         bytes32 expectedPolicyHash = V1MarketEconomics.hashFeePolicy(
             V1MarketEconomics.FeePolicyInput({
-                executionSpecId: keccak256("V1-EXEC-9"),
+                executionSpecId: keccak256("V1-EXEC-10"),
                 feePips: 10_000,
                 lpShareBps: 0,
                 poolKeyFee: 0,

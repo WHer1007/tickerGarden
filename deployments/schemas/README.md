@@ -1,6 +1,6 @@
 # V1 deployment schemas
 
-> **Current schema boundary (2026-09-04):** `V1-EXEC-9` encodes atomic graduation and removes deployed-market administration, graduation retry, and terminal rescue role/selector requirements; asset/configuration status and the direct `NotGraduated -> PoolCreated` fact remain. The schema is locally synchronized but is not evidence of a target-chain deployment.
+> **Current schema boundary (2026-09-04):** `V1-EXEC-10` encodes atomic graduation and removes deployed-market administration, graduation retry, and terminal rescue role/selector requirements; asset/configuration status and the direct `NotGraduated -> PoolCreated` fact remain. The schema is locally synchronized but is not evidence of a target-chain deployment.
 
 The release-readiness and placeholder rules are frozen in
 `spec/v1_execution_manifest.json.readiness` and enforced by the deployment

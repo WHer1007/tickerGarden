@@ -2,10 +2,10 @@
   "openapi": "3.1.0",
   "info": {
     "title": "TickerGarden V1 Read API",
-    "version": "1.0.6",
+    "version": "1.0.7",
     "description": "Non-custodial read API backed only by reconciled V1 Indexer facts."
   },
-  "x-execution-spec-id": "V1-EXEC-9",
+  "x-execution-spec-id": "V1-EXEC-10",
   "paths": {
     "/health": {
       "get": {
@@ -969,7 +969,7 @@
         "properties": {
           "executionSpecId": {
             "type": "string",
-            "const": "V1-EXEC-9"
+            "const": "V1-EXEC-10"
           },
           "status": {
             "type": "string",

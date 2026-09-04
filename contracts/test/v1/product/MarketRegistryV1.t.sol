@@ -300,7 +300,7 @@ contract MarketRegistryV1Test is Test {
             quoteAssetConfigId: QUOTE_CONFIG_ID,
             launchTemplateId: TEMPLATE_ID,
             feePolicyId: FEE_POLICY_ID,
-            executionSpecId: keccak256("V1-EXEC-9"),
+            executionSpecId: keccak256("V1-EXEC-10"),
             expectedEconomics: ECONOMICS,
             launchConfigId: 0,
             creatorRevenueBeneficiaryAtCreation: address(0xBEEF),
@@ -350,10 +350,9 @@ contract MarketRegistryV1Test is Test {
             graduatedHook: HOOK,
             hookCodeHash: keccak256("hook"),
             graduationExecutor: GRADUATION,
-            launchLockerImplementation: address(0x1005),
-            launchLockerCodeHash: keccak256("locker"),
+            graduationExecutorCodeHash: keccak256("executor"),
             feePolicyId: FEE_POLICY_ID,
-            executionSpecId: keccak256("V1-EXEC-9"),
+            executionSpecId: keccak256("V1-EXEC-10"),
             status: 1
         });
     }

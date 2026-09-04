@@ -280,13 +280,15 @@ export interface V1EventArgsBySignature {
     readonly poolId: string;
     readonly sourceVersion: bigint;
   };
-  readonly "PoolGraduated(bytes32,bytes32,address,uint256,uint256,uint256,uint256,uint32)": {
+  readonly "PoolGraduated(bytes32,bytes32,address,uint256,uint256,uint256,uint256,uint256,uint256,uint32)": {
     readonly marketId: string;
     readonly poolId: string;
     readonly launchLocker: string;
     readonly sweptQuote: bigint;
     readonly sweptTokens: bigint;
+    readonly poolQuoteAmount: bigint;
     readonly poolMemeAmount: bigint;
+    readonly lockedExcessQuote: bigint;
     readonly lockedExcessMeme: bigint;
     readonly sourceVersion: bigint;
   };
@@ -403,6 +405,10 @@ export interface V1EventArgsBySignature {
     readonly beaconRuntimeCodeHash: string;
     readonly implementation: string;
     readonly implementationRuntimeCodeHash: string;
+  };
+  readonly "StockVaultCodeIdentityPinned(address,bytes32)": {
+    readonly userStockVault: string;
+    readonly runtimeCodeHash: string;
   };
   readonly "StockVaultRegistered(address,bytes32,address,address)": {
     readonly userStockVault: string;
@@ -729,10 +735,10 @@ export const V1_EVENT_ABI = [
     inputs: [{"name":"marketId","type":"bytes32","indexed":true},{"name":"poolId","type":"bytes32","indexed":true},{"name":"sourceVersion","type":"uint32","indexed":false}],
   },
   {
-    signature: "PoolGraduated(bytes32,bytes32,address,uint256,uint256,uint256,uint256,uint32)",
+    signature: "PoolGraduated(bytes32,bytes32,address,uint256,uint256,uint256,uint256,uint256,uint256,uint32)",
     name: "PoolGraduated",
     modules: ["GraduationExecutor"],
-    inputs: [{"name":"marketId","type":"bytes32","indexed":true},{"name":"poolId","type":"bytes32","indexed":true},{"name":"launchLocker","type":"address","indexed":true},{"name":"sweptQuote","type":"uint256","indexed":false},{"name":"sweptTokens","type":"uint256","indexed":false},{"name":"poolMemeAmount","type":"uint256","indexed":false},{"name":"lockedExcessMeme","type":"uint256","indexed":false},{"name":"sourceVersion","type":"uint32","indexed":false}],
+    inputs: [{"name":"marketId","type":"bytes32","indexed":true},{"name":"poolId","type":"bytes32","indexed":true},{"name":"launchLocker","type":"address","indexed":true},{"name":"sweptQuote","type":"uint256","indexed":false},{"name":"sweptTokens","type":"uint256","indexed":false},{"name":"poolQuoteAmount","type":"uint256","indexed":false},{"name":"poolMemeAmount","type":"uint256","indexed":false},{"name":"lockedExcessQuote","type":"uint256","indexed":false},{"name":"lockedExcessMeme","type":"uint256","indexed":false},{"name":"sourceVersion","type":"uint32","indexed":false}],
   },
   {
     signature: "QuoteAssetConfigAdded(bytes32,address,bytes32,bytes32)",
@@ -835,6 +841,12 @@ export const V1_EVENT_ABI = [
     name: "StockTokenFingerprintRegistered",
     modules: ["OfficialStockRegistryV1"],
     inputs: [{"name":"assetUid","type":"bytes32","indexed":true},{"name":"tokenRuntimeCodeHash","type":"bytes32","indexed":true},{"name":"beacon","type":"address","indexed":true},{"name":"beaconRuntimeCodeHash","type":"bytes32","indexed":false},{"name":"implementation","type":"address","indexed":false},{"name":"implementationRuntimeCodeHash","type":"bytes32","indexed":false}],
+  },
+  {
+    signature: "StockVaultCodeIdentityPinned(address,bytes32)",
+    name: "StockVaultCodeIdentityPinned",
+    modules: ["OfficialStockRegistryV1"],
+    inputs: [{"name":"userStockVault","type":"address","indexed":true},{"name":"runtimeCodeHash","type":"bytes32","indexed":true}],
   },
   {
     signature: "StockVaultRegistered(address,bytes32,address,address)",

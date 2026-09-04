@@ -27,6 +27,8 @@ contract FactoryRegistryFixtures {
     mapping(bytes32 => bytes32) internal _templateHashes;
     mapping(address => bytes32) internal _vaultSchemas;
     mapping(bytes32 => address) internal _vaults;
+    mapping(address => bytes32) internal _vaultRuntimeCodeHashes;
+    mapping(address => bool) internal _vaultIdentityIsCurrent;
     bool private _assetIdentityIsCurrent = true;
     bool private _quoteIdentityIsCurrent = true;
 
@@ -41,6 +43,16 @@ contract FactoryRegistryFixtures {
     function setVault(address vault, bytes32 schemaId) external {
         _vaultSchemas[vault] = schemaId;
         _vaults[schemaId] = vault;
+        _vaultRuntimeCodeHashes[vault] = vault.codehash;
+        _vaultIdentityIsCurrent[vault] = true;
+    }
+
+    function setVaultRuntimeCodeHash(address vault, bytes32 value) external {
+        _vaultRuntimeCodeHashes[vault] = value;
+    }
+
+    function setVaultIdentityCurrent(address vault, bool current) external {
+        _vaultIdentityIsCurrent[vault] = current;
     }
 
     function setQuote(bytes32 id, QuoteAssetConfig memory value) external {
@@ -75,6 +87,14 @@ contract FactoryRegistryFixtures {
 
     function vaultForSchema(bytes32 schemaId) external view returns (address) {
         return _vaults[schemaId];
+    }
+
+    function vaultRuntimeCodeHash(address vault) external view returns (bytes32) {
+        return _vaultRuntimeCodeHashes[vault];
+    }
+
+    function vaultIdentityCurrent(address vault) external view returns (bool) {
+        return _vaultIdentityIsCurrent[vault];
     }
 
     function quoteConfig(bytes32 id) external view returns (QuoteAssetConfig memory) {
@@ -146,7 +166,7 @@ contract V1FactoryValidationHarness {
         });
         _policy.feePolicyId = feePolicyId;
         _policy.fields = V1MarketEconomics.FeePolicyInput({
-            executionSpecId: keccak256("V1-EXEC-9"),
+            executionSpecId: keccak256("V1-EXEC-10"),
             feePips: 10_000,
             lpShareBps: 0,
             poolKeyFee: 0,
@@ -508,10 +528,9 @@ contract V1FactoryValidationTest is Test {
             graduatedHook: address(uint160(0x4000 | 0x2044)),
             hookCodeHash: keccak256("hook"),
             graduationExecutor: address(0x3005),
-            launchLockerImplementation: address(0x3006),
-            launchLockerCodeHash: keccak256("locker"),
+            graduationExecutorCodeHash: keccak256("executor"),
             feePolicyId: FEE_POLICY_ID,
-            executionSpecId: keccak256("V1-EXEC-9"),
+            executionSpecId: keccak256("V1-EXEC-10"),
             status: 1
         });
     }

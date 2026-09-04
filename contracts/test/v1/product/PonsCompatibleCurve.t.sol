@@ -675,7 +675,7 @@ contract PonsCompatibleCurveTest is Test {
             quoteAssetConfigId: QUOTE_CONFIG_ID,
             launchTemplateId: keccak256("TEMPLATE"),
             feePolicyId: keccak256("FEE_POLICY"),
-            executionSpecId: keccak256("V1-EXEC-9"),
+            executionSpecId: keccak256("V1-EXEC-10"),
             expectedEconomics: keccak256("ECONOMICS"),
             launchConfigId: 0,
             creatorRevenueBeneficiaryAtCreation: BENEFICIARY,

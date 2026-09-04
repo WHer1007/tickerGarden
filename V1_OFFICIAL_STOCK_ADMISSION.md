@@ -3,13 +3,13 @@
 > **状态边界（2026-09-04）：** 本文的 Asset `pause`/`unpause`/`retire` 仍然有效；它们是配置级准入控制，不是已部署市场的暂停权。市场永久自治，用户 rageQuit 始终可立即取回本金。其余旧市场 Emergency 表述不代表当前目标实现。
 
 > 规格状态：`FROZEN / IMPLEMENTATION_ALLOWED`  
-> Execution spec：`V1-EXEC-9`
+> Execution spec：`V1-EXEC-10`
 > 点时证据：2026-09-02，Robinhood Chain `4663`
 > Stock Vault 架构决策：[V1_MULTI_ASSET_STOCK_VAULT.md](./V1_MULTI_ASSET_STOCK_VAULT.md)
 
 ## 1. 已确认的产品规则
 
-TickerGarden 不维护一份人为挑选的“首批 STOCK 白名单”。Robinhood 官方 Stock Token 目录中存在 chainId `4663` canonical deployment 的每个资产，都属于 TickerGarden 可准入 STOCK 范围。Asset UID 是主身份；symbol、name、ISIN 和价格只用于展示，不能替代身份。
+TickerGarden 不人为缩小“质押 Base”资产范围。Robinhood 官方 Stock Token 目录中存在 chainId `4663` canonical deployment 的每个资产，都属于 TickerGarden 可准入 STOCK Base 范围。Asset UID 是主身份；symbol、name、ISIN 和价格只用于展示，不能替代身份。Quote 是风险更高的独立资格：不会把全量 Base 自动转为 Quote，只允许少量通过流动性、合约行为和价格参考门禁的 Stock Token 进入追加式 Quote allowlist。
 
 2026-09-02 的点时观测返回194个资产，194个 UID 和 token 地址均唯一，全部为 `ASSET_STATUS_ACTIVE`、18 decimals；同一固定区块上的 `uid()`、`decimals()`、proxy runtime、共享 Beacon 和当前 implementation 指纹检查全部通过。当前194个资产全部可以登记并由市场创建者选择为质押 Base。194只是本次观测数量，不是协议上限；Robinhood 后续新增的官方资产可按同一规则追加。
 
@@ -26,7 +26,7 @@ TickerGarden 不维护一份人为挑选的“首批 STOCK 白名单”。Robinh
 
 Factory 的 `CreateMarketParams.assetUid` 已是这一选择的唯一字段，不再增加第二个 `stakingBaseAssetUid`，避免同一市场出现两套身份。MarketConfig 必须永久快照 `assetUid`，并可通过 OfficialStockRegistry 唯一解析 canonical Stock Token、decimals、Vault 和动态 `minimumAllocation`。该最低 allocation 不是创建者输入，且不得低于协议安全下限414 raw units。
 
-## 3. STOCK 不需要价格
+## 3. STOCK 作为质押 Base 不需要价格
 
 STOCK 在 V1 中只承担质押 Base、分配权重和社区背书作用，不是 Meme Token 的抵押品，也不决定 Meme 曲线价格、毕业门槛、LP 初始价格或赎回价值。因此协议明确不使用：
 
@@ -39,7 +39,19 @@ STOCK 在 V1 中只承担质押 Base、分配权重和社区背书作用，不�
 
 链上只使用 Stock Token 的实际 raw balance 与 decimals。每个 Asset UID 的 `minimumAllocation` 由管理员动态设置，但不得低于414 raw units；手续费权重使用同一 Gauge 内各用户已激活 STOCK 的相对比例。存在 Active stake 时按 Creator40%/Staker30%/Platform30% 分配，无 Active stake 时按 Creator70%/Staker0%/Platform30% 分配。Quote 侧手续费按 Quote 分，Meme 侧手续费按 Meme 分，不转换成 STOCK，也不进行美元净额结算。
 
-此前生成的 Chainlink 目录和 backing-target 工具仅保留为 `V1-EXEC-1` 历史研究证据，不是当前 `V1-EXEC-9` 的协议输入、准入条件或部署门禁；边界见 [`spec/RETIRED_STOCK_PRICE_RESEARCH.md`](./spec/RETIRED_STOCK_PRICE_RESEARCH.md)。
+此前生成的 Chainlink 目录和 backing-target 工具仅保留为 `V1-EXEC-1` 历史研究证据，不是当前 `V1-EXEC-10` 的质押 Base 协议输入、准入条件或部署门禁；边界见 [`spec/RETIRED_STOCK_PRICE_RESEARCH.md`](./spec/RETIRED_STOCK_PRICE_RESEARCH.md)。
+
+### 3.1 Stock Token 作为 Quote 时的创建参考
+
+如果某个官方 Stock Token 另行通过 Quote 审查，Robinhood 官方链下 API 可以用于“生成 Quote config 与创建页面估值”，但不能进入链上结算信任路径：
+
+- `/rhj/assets` 提供 Asset UID、chain `4663` canonical 地址、状态和 `currentMultiplier`；
+- `/rhj/prices/{symbol}` 提供底层股票 USD `bid/ask`、`generatedAt` 与 `isTradingHalt`，其价格尚未包含 multiplier；
+- REST Token 参考价 = 底层股票价格 × `currentMultiplier`；
+- Robinhood Chain Chainlink Feed 已返回每枚 Stock Token 的 multiplier-adjusted 价格，不能再次乘 multiplier；
+- API 与 Chainlink 只生成/校验一次版本化 raw 参数；市场创建后不会根据股价或 multiplier 变化修改曲线或毕业门槛。
+
+停牌、陈旧报价、pending multiplier、进行中的公司行动、Oracle/Sequencer 异常或 REST/Chainlink 偏差超限时必须停止生成新 config。API 的底层股票成交量不能证明链上 Stock Token 流动性，Quote allowlist 仍需 DEX/RFQ 深度和真实 swap simulation。详见 [`V1_STOCK_QUOTE_PRICE_REFERENCE.md`](./V1_STOCK_QUOTE_PRICE_REFERENCE.md)。
 
 ## 4. 毕业后手续费分配
 
@@ -82,7 +94,7 @@ Creator = T - Staker - Platform
 
 ## 6. 不变量
 
-- 194个当前观测 ACTIVE 官方资产全部具有同等产品准入资格，Feed 覆盖和价格不能缩小该集合。
+- 194个当前观测 ACTIVE 官方资产全部具有同等“质押 Base”产品准入资格，Feed 覆盖和价格不能缩小该 Base 集合；Quote 资格是独立的小范围 allowlist。
 - 每个市场恰好一个 Base Asset UID，并在创建后不可变。
 - 同一 Asset UID 可以对应任意多个市场；用户可在这些市场间自行分配。
 - `VaultBalance = FreeBalance + TotalAllocated` 且 `TotalAllocated <= VaultBalance`。
@@ -95,4 +107,6 @@ Creator = T - Staker - Platform
 
 ## 7. 当前工程状态
 
-`V1-C-102-A` 已实现 `OfficialStockRegistryV1`：Asset UID 与 canonical Stock Token 保持 write-once；每个 UID 的 Vault 绑定也保持 write-once，但不再要求 Vault 地址对 UID 反向唯一。Registry 通过 `vaultIdentity()` 登记 schema 与不可变依赖，并以 `vaultForSchema` 强制每个 schema 只有一个 canonical Vault。Registry 冻结经通用数值证明的6–18 decimals，并把 `uid()`、decimals、token/Beacon/implementation codehash 以及 immutable-beacon 绑定纳入链上准入和运行时健康门禁；经过延迟治理确认的升级只能替换 implementation 指纹。测试明确覆盖真实 OpenZeppelin BeaconProxy 漂移、第195项登记和漂移期间 rageQuit 本金不受阻，协议没有194硬上限。当前状态仍是 `IMPLEMENTATION_ALLOWED`，不等于允许部署：目标链 finalized 身份/代理指纹重取、最终权限 diff、Fork/E2E、审计、法律签字和72小时灰度仍是后续硬门禁。
+`V1-C-102-A` 已实现 `OfficialStockRegistryV1`：Asset UID 与 canonical Stock Token 保持 write-once；每个 UID 的 Vault 绑定也保持 write-once，但不再要求 Vault 地址对 UID 反向唯一。Registry 通过 `vaultIdentity()` 登记 schema 与不可变依赖，并以 `vaultForSchema` 强制每个 schema 只有一个 canonical Vault。Registry 冻结经通用数值证明的6–18 decimals，并把 `uid()`、decimals、token/Beacon/implementation codehash 以及 immutable-beacon 绑定纳入链上准入和运行时健康门禁；经过延迟治理确认的升级只能替换 implementation 指纹。测试明确覆盖真实 OpenZeppelin BeaconProxy 漂移、第195项登记和漂移期间 rageQuit 本金不受阻，协议没有194硬上限。
+
+上述完成状态只覆盖质押 Base。`V1-EXEC-10` 的通用 Quote Registry 已允许管理员追加 native 或 direct immutable ERC-20，并由市场创建者从 `ACTIVE` 白名单中选择；native 只是 bootstrap 示例。官方 Stock Token 因 BeaconProxy 结构仍需专用代理准入、配置生成器、价格证据、有限 allowlist 与 fork/E2E，当前为 `IMPLEMENTATION_PENDING`。目标链 finalized 身份/代理指纹重取、最终权限 diff、Fork/E2E、审计、法律签字和72小时灰度仍是部署硬门禁。

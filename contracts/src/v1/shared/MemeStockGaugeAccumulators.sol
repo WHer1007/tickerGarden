@@ -94,10 +94,18 @@ abstract contract MemeStockGaugeAccumulators is MemeStockGaugeLockedPositions {
         uint256 normalizedRemainder = state.indexRemainder % activeStock;
         uint256 whole = Math.mulDiv(amount, INDEX_PRECISION, activeStock);
         uint256 fraction = mulmod(amount, INDEX_PRECISION, activeStock);
-        uint256 merged = normalizedRemainder + fraction;
+        // Add two values that are each strictly below activeStock without assuming an active-STOCK upper bound.
+        // The subtraction form preserves the exact quotient/remainder even when their mathematical sum exceeds
+        // uint256.max, so staking remains uncapped by an artificial accounting limit.
+        uint256 fractionalCarry;
+        if (fraction != 0 && normalizedRemainder >= activeStock - fraction) {
+            fractionalCarry = 1;
+            indexRemainder = normalizedRemainder - (activeStock - fraction);
+        } else {
+            indexRemainder = normalizedRemainder + fraction;
+        }
 
-        accumulatorDelta = carry + whole + (merged / activeStock);
-        indexRemainder = merged % activeStock;
+        accumulatorDelta = carry + whole + fractionalCarry;
         state.accFeePerShare += accumulatorDelta;
         state.indexRemainder = indexRemainder;
         _afterRewardAccumulatorUpdate(marketId);

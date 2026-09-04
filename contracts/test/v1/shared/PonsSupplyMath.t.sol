@@ -45,6 +45,14 @@ contract PonsSupplyMathHarness {
         return PonsSupplyMath.graduationPartition(sweptTokens, sweptQuote, phantomQuote);
     }
 
+    function canonicalGraduationQuote(uint256 supply, uint256 phantomQuote, uint256 graduationThreshold)
+        external
+        pure
+        returns (uint256)
+    {
+        return PonsSupplyMath.canonicalGraduationQuote(supply, phantomQuote, graduationThreshold);
+    }
+
     function sellableTokens() external view returns (uint256) {
         return PonsSupplyMath.sellableTokens(_state);
     }
@@ -86,6 +94,14 @@ contract PonsSupplyMathTest is Test {
         assertEq(poolMeme, 204_081_632_653_061_224_489_795_917);
         assertEq(lockedExcess, 81_632_653_061_224_489_795_918_368);
         assertEq(poolMeme + lockedExcess, RESERVED);
+    }
+
+    function test_canonicalGraduationQuoteUsesCeilingRatherThanUnconditionalPlusOne() public view {
+        // reserved=2 and sellable=8, so the invariant requires exactly ceil(8*1/2)=4 Quote.
+        // PonsCurveMath.amountIn deliberately returns floor(...)+1 (=5), which is suitable for exact-output
+        // quoting but would incorrectly reject a normal exact-in buy that reaches the terminal state with 4.
+        assertEq(harness.canonicalGraduationQuote(10, 1, 4), 4);
+        assertEq(harness.canonicalGraduationQuote(10, 1, 2), 3);
     }
 
     function test_fullPrecisionPartitionDoesNotOverflowTheIntermediateProduct() public view {

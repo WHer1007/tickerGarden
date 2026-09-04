@@ -75,6 +75,41 @@ contract MockUserStockVaultIdentity {
     }
 }
 
+contract MockMutableUserStockVaultIdentity {
+    address public registry;
+    address public marketRegistry;
+    address public allocationManager;
+    bytes32 public schemaId;
+
+    constructor(address registry_, address marketRegistry_, address allocationManager_, bytes32 schemaId_) {
+        registry = registry_;
+        marketRegistry = marketRegistry_;
+        allocationManager = allocationManager_;
+        schemaId = schemaId_;
+    }
+
+    function setBindings(address marketRegistry_, address allocationManager_) external {
+        marketRegistry = marketRegistry_;
+        allocationManager = allocationManager_;
+    }
+
+    function vaultIdentity() external view returns (address, address, address, bytes32) {
+        return (registry, marketRegistry, allocationManager, schemaId);
+    }
+}
+
+contract MockDelegatingUserStockVaultIdentity is MockUserStockVaultIdentity {
+    constructor(address registry_, address marketRegistry_, address allocationManager_, bytes32 schemaId_)
+        MockUserStockVaultIdentity(registry_, marketRegistry_, allocationManager_, schemaId_)
+    {}
+
+    function delegateInto(address target, bytes calldata data) external returns (bytes memory result) {
+        (bool success, bytes memory returned) = target.delegatecall(data);
+        require(success, "DELEGATE_FAILED");
+        return returned;
+    }
+}
+
 contract OfficialStockRegistryV1Test is Test {
     uint64 internal constant PROTOCOL_ADMIN_ROLE = 1;
     uint64 internal constant PAUSE_GUARDIAN_ROLE = 2;
@@ -104,6 +139,7 @@ contract OfficialStockRegistryV1Test is Test {
         address indexed marketRegistry,
         address allocationManager
     );
+    event StockVaultCodeIdentityPinned(address indexed userStockVault, bytes32 indexed runtimeCodeHash);
     event AssetRegistered(
         bytes32 indexed assetUid, address indexed stockToken, address indexed userStockVault, uint8 tokenDecimals
     );
@@ -244,6 +280,8 @@ contract OfficialStockRegistryV1Test is Test {
         vm.expectEmit(true, true, true, true, address(registry));
         emit StockVaultRegistered(vault, VAULT_SCHEMA_ID, marketRegistry, allocationManager);
         vm.expectEmit(true, true, true, true, address(registry));
+        emit StockVaultCodeIdentityPinned(vault, vault.codehash);
+        vm.expectEmit(true, true, true, true, address(registry));
         emit AssetRegistered(ASSET_UID, stockToken, vault, 18);
         vm.prank(DELAYED_ADMIN);
         manager.execute(address(registry), data);
@@ -253,6 +291,8 @@ contract OfficialStockRegistryV1Test is Test {
     function test_registerStoresImmutableCanonicalIdentityAndEvent() public {
         vm.expectEmit(true, true, true, true);
         emit StockVaultRegistered(vault, VAULT_SCHEMA_ID, marketRegistry, allocationManager);
+        vm.expectEmit(true, true, true, true);
+        emit StockVaultCodeIdentityPinned(vault, vault.codehash);
         vm.expectEmit(true, true, true, true);
         emit AssetRegistered(ASSET_UID, stockToken, vault, 18);
         StockTokenFingerprint memory fingerprint = _directFingerprint(stockToken);
@@ -272,6 +312,51 @@ contract OfficialStockRegistryV1Test is Test {
         assertEq(registry.vaultSchemaId(vault), VAULT_SCHEMA_ID);
         assertEq(registry.vaultForSchema(VAULT_SCHEMA_ID), vault);
         assertEq(registry.minimumAllocation(ASSET_UID), 0.5 ether);
+        assertEq(registry.vaultRuntimeCodeHash(vault), vault.codehash);
+        assertTrue(registry.vaultIdentityCurrent(vault));
+    }
+
+    function test_vaultRuntimeCodeHashAndIdentityCurrentDetectCodeDrift() public {
+        _registerFast(ASSET_UID, stockToken, 18, vault);
+        bytes32 pinned = registry.vaultRuntimeCodeHash(vault);
+        assertEq(pinned, vault.codehash);
+        assertTrue(registry.vaultIdentityCurrent(vault));
+        vm.etch(vault, hex"00");
+        assertEq(registry.vaultRuntimeCodeHash(vault), pinned);
+        assertFalse(registry.vaultIdentityCurrent(vault));
+        assertFalse(registry.assetIdentityCurrent(ASSET_UID));
+    }
+
+    function test_vaultIdentityCurrentPinsReportedRuntimeBindings() public {
+        MockMutableUserStockVaultIdentity mutableVault = new MockMutableUserStockVaultIdentity(
+            address(registry), marketRegistry, allocationManager, VAULT_SCHEMA_ID
+        );
+        _registerFast(ASSET_UID, stockToken, 18, address(mutableVault));
+        assertTrue(registry.vaultIdentityCurrent(address(mutableVault)));
+
+        mutableVault.setBindings(address(new EmptyV1Contract()), allocationManager);
+        assertFalse(registry.vaultIdentityCurrent(address(mutableVault)));
+        assertFalse(registry.assetIdentityCurrent(ASSET_UID));
+    }
+
+    function test_registerRejectsVaultRuntimeWithDelegatedExecution() public {
+        address delegatingVault = address(
+            new MockDelegatingUserStockVaultIdentity(
+                address(registry), marketRegistry, allocationManager, VAULT_SCHEMA_ID
+            )
+        );
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                OfficialStockRegistryV1.InvalidUserStockVaultCodeIdentity.selector,
+                delegatingVault,
+                bytes32(0),
+                delegatingVault.codehash
+            )
+        );
+        vm.prank(FAST_ADMIN);
+        registry.registerAsset(
+            ASSET_UID, stockToken, 18, delegatingVault, 0.5 ether, _directFingerprint(stockToken)
+        );
     }
 
     function test_minimumAllocationIsPerAssetAndUsesConfiguredAdminDelay() public {

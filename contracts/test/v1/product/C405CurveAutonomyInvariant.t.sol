@@ -216,7 +216,7 @@ contract C405CurveAutonomyInvariantTest is Test {
             quoteAssetConfigId: QUOTE_CONFIG_ID,
             launchTemplateId: TEMPLATE_ID,
             feePolicyId: FEE_POLICY_ID,
-            executionSpecId: keccak256("V1-EXEC-9"),
+            executionSpecId: keccak256("V1-EXEC-10"),
             expectedEconomics: ECONOMICS,
             launchConfigId: 0,
             creatorRevenueBeneficiaryAtCreation: BENEFICIARY,
@@ -270,10 +270,9 @@ contract C405CurveAutonomyInvariantTest is Test {
             graduatedHook: HOOK,
             hookCodeHash: keccak256("hook"),
             graduationExecutor: graduationExecutor,
-            launchLockerImplementation: address(0x1005),
-            launchLockerCodeHash: keccak256("locker"),
+            graduationExecutorCodeHash: keccak256("executor"),
             feePolicyId: FEE_POLICY_ID,
-            executionSpecId: keccak256("V1-EXEC-9"),
+            executionSpecId: keccak256("V1-EXEC-10"),
             status: 1
         });
     }

@@ -1,6 +1,6 @@
 # TickerGarden V1 开发计划
 
-> 当前规范：`V1-EXEC-9`；readiness：`IMPLEMENTATION_ALLOWED / NOT_DEPLOYABLE`。
+> 当前规范：`V1-EXEC-10`；readiness：`IMPLEMENTATION_ALLOWED / NOT_DEPLOYABLE`。
 
 ## V1-ARCH-006：删除旧市场干预架构
 
@@ -15,9 +15,26 @@
 - Hook、Gauge、Curve、FeeVault、Vault 和 Allocation 不再读取或接受市场管理员状态；
 - 用户 `rageQuit` 始终先返还完整 STOCK 本金，奖励清理由 permissionless 路径异步完成；
 - Asset、Quote、Pons baseline、Launch template 的对象级 pause/unpause/retire 继续用于新增准入或新增敞口，不影响既有市场交易或本金退出；
-- Solidity ABI、权限矩阵、部署 schema、Indexer、Backend、Website、Rewards/Treasury 前端、maintenance runner 和文档全部同步到 `V1-EXEC-9`。
+- Solidity ABI、权限矩阵、部署 schema、Indexer、Backend、Website、Rewards/Treasury 前端、maintenance runner 和文档全部同步到 `V1-EXEC-10`。
 
 当前 canonical 产品模块为 19 个（含共享 `TreasuryDistributorV1`）；接口和事件数量以 `spec/v1_execution_manifest.json` 为准。Gauge clone immutable identity 从 8 个 word 收敛为 7 个 word，runtime 为 269 bytes；共享 MultiAsset Vault schema 为 v6。部署权限面现为83个协议 mutation：22个由5类冻结角色门控，61个为 immutable direct/public/module caller，且所有业务状态延迟为0；Treasury Root publisher 与 independent reviewer 必须使用相互独立且不复用治理/Guardian/Unpause 成员的 Safe。
+
+## V1-QUOTE-001：RH Stock Quote 创建时价格参考与专用准入
+
+状态：`SPECIFIED / IMPLEMENTATION_PENDING`（2026-09-05）；这里只指 BeaconProxy Stock Quote 的专用准入与价格生成器。`V1-EXEC-10` 已完成管理员可追加 native/direct immutable ERC-20 Quote 的通用白名单能力。
+
+Robinhood 官方 `/rhj/prices/{symbol}` 已确认可以为创建页面和受约束的 Quote Config Generator 提供底层股票 USD `bid/ask`。生成 Stock Token 参考价时必须乘一次 `/rhj/assets` 的 `currentMultiplier`；RH Chain Chainlink Feed 已经包含 multiplier，不得再次相乘。API/Oracle 不进入 Curve、毕业、FeeVault 或 Treasury 的链上运行路径，市场创建后 raw 参数保持冻结。
+
+后续实现必须按顺序关闭：
+
+1. 为少量经审核的官方 Stock Token 实现 Asset UID + canonical Token + Beacon/implementation 指纹专用 Quote 准入；普通 ERC-20 的 direct immutable 规则不变；
+2. 实现确定性的 Quote Config Generator、价格证据 hash、定点数换算、舍入和 REST/Chainlink 交叉校验；
+3. 定义价格最大时效、偏差阈值、停牌、pending multiplier、公司行动、Oracle 与 Sequencer 的 fail-closed 规则；
+4. 依据链上 DEX/RFQ 深度和真实 swap simulation 选择有限 Quote allowlist，不能以底层股票日成交量替代链上流动性；
+5. 完成恶意/真实 Stock Token、Beacon 升级、pause/blocklist/adminBurn、买卖、原子毕业、FeeVault/Treasury 偿付的 fork/E2E；
+6. 更新 execution spec、机器 manifest、ABI、部署 preflight 和正式创建页后，才允许新增 ACTIVE Stock Quote config。
+
+权威设计见 [`V1_STOCK_QUOTE_PRICE_REFERENCE.md`](./V1_STOCK_QUOTE_PRICE_REFERENCE.md)，RH 资料与动态字段见 [`research/rh-chain-stock-tokens/README.md`](./research/rh-chain-stock-tokens/README.md)。
 
 ## 正式用户前端边界
 

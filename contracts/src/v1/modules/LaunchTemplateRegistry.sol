@@ -1,7 +1,14 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.26;
 
-import {ILaunchTemplateRegistry, LaunchTemplate} from "../interfaces/IV1Protocol.sol";
+import {
+    IGraduationExecutor,
+    ILaunchTemplateRegistry,
+    IMarketRegistryV1,
+    IProtocolFeeVault,
+    ITickerGardenMemeHook,
+    LaunchTemplate
+} from "../interfaces/IV1Protocol.sol";
 import {DelayedUnpause} from "../shared/DelayedUnpause.sol";
 import {ImmutableAccessManaged} from "../shared/ImmutableAccessManaged.sol";
 
@@ -13,9 +20,9 @@ contract LaunchTemplateRegistry is ILaunchTemplateRegistry, ImmutableAccessManag
     uint8 internal constant TEMPLATE_STATUS_RETIRED = 3;
     uint160 internal constant REQUIRED_HOOK_PERMISSION_MASK = 0x2044;
     uint160 internal constant ALL_HOOK_PERMISSION_BITS = 0x3fff;
-    uint256 internal constant LAUNCH_TEMPLATE_SCHEMA_VERSION = 1;
+    uint256 internal constant LAUNCH_TEMPLATE_SCHEMA_VERSION = 2;
     bytes32 internal constant LAUNCH_TEMPLATE_DOMAIN = keccak256("TICKERGARDEN_V1_LAUNCH_TEMPLATE");
-    bytes32 public constant EXECUTION_SPEC_ID = keccak256("V1-EXEC-9");
+    bytes32 public constant EXECUTION_SPEC_ID = keccak256("V1-EXEC-10");
 
     mapping(bytes32 launchTemplateId => LaunchTemplate value) private _launchTemplates;
     mapping(bytes32 launchTemplateId => bytes32 value) private _launchTemplateHashes;
@@ -23,6 +30,8 @@ contract LaunchTemplateRegistry is ILaunchTemplateRegistry, ImmutableAccessManag
     error InvalidLaunchTemplate(bytes32 launchTemplateId);
     error LaunchTemplateAlreadyExists(bytes32 launchTemplateId);
     error CodeIdentityMismatch(address component, bytes32 suppliedHash, bytes32 observedHash);
+    error UnsafeTemplateRuntime(address component, uint8 opcode);
+    error InvalidLaunchTemplateBindings(address hook, address executor);
     error InvalidStateTransition(uint8 currentState, uint8 requestedState);
 
     constructor(address authority_) ImmutableAccessManaged(authority_) {}
@@ -34,7 +43,7 @@ contract LaunchTemplateRegistry is ILaunchTemplateRegistry, ImmutableAccessManag
                 || value.curveCodeHash == bytes32(0) || value.gaugeImplementation == address(0)
                 || value.gaugeCodeHash == bytes32(0) || value.graduatedHook == address(0)
                 || value.hookCodeHash == bytes32(0) || value.graduationExecutor == address(0)
-                || value.launchLockerImplementation == address(0) || value.launchLockerCodeHash == bytes32(0)
+                || value.graduationExecutorCodeHash == bytes32(0)
                 || value.feePolicyId == bytes32(0) || value.executionSpecId != EXECUTION_SPEC_ID
                 || value.status != TEMPLATE_STATUS_ACTIVE
                 || (uint160(value.graduatedHook) & ALL_HOOK_PERMISSION_BITS) != REQUIRED_HOOK_PERMISSION_MASK
@@ -47,10 +56,10 @@ contract LaunchTemplateRegistry is ILaunchTemplateRegistry, ImmutableAccessManag
         _validateCodeIdentity(value.curveImplementation, value.curveCodeHash);
         _validateCodeIdentity(value.gaugeImplementation, value.gaugeCodeHash);
         _validateCodeIdentity(value.graduatedHook, value.hookCodeHash);
-        _validateCodeIdentity(value.launchLockerImplementation, value.launchLockerCodeHash);
-        if (value.graduationExecutor.code.length == 0) {
-            revert CodeIdentityMismatch(value.graduationExecutor, bytes32(0), value.graduationExecutor.codehash);
-        }
+        _validateCodeIdentity(value.graduationExecutor, value.graduationExecutorCodeHash);
+        _validateDirectRuntime(value.graduatedHook);
+        _validateDirectRuntime(value.graduationExecutor);
+        _validateBindingGraph(value);
 
         bytes32 templateHash = _computeTemplateHash(value);
         _launchTemplates[launchTemplateId] = value;
@@ -122,11 +131,43 @@ contract LaunchTemplateRegistry is ILaunchTemplateRegistry, ImmutableAccessManag
             value.graduatedHook,
             value.hookCodeHash,
             value.graduationExecutor,
-            value.launchLockerImplementation,
-            value.launchLockerCodeHash,
+            value.graduationExecutorCodeHash,
             value.feePolicyId,
             value.executionSpecId
         );
         return keccak256(bytes.concat(first, second));
+    }
+
+    function _validateBindingGraph(LaunchTemplate calldata value) private view {
+        ITickerGardenMemeHook hook = ITickerGardenMemeHook(value.graduatedHook);
+        IGraduationExecutor executor = IGraduationExecutor(value.graduationExecutor);
+        address marketRegistryAddress = hook.marketRegistry();
+        IMarketRegistryV1 marketRegistry = IMarketRegistryV1(marketRegistryAddress);
+        address poolManagerAddress = hook.poolManager();
+        address feeVaultAddress = hook.protocolFeeVault();
+        IProtocolFeeVault feeVault = IProtocolFeeVault(feeVaultAddress);
+
+        if (
+            marketRegistryAddress.code.length == 0 || poolManagerAddress.code.length == 0
+                || feeVaultAddress.code.length == 0 || hook.graduationExecutor() != value.graduationExecutor
+                || executor.hook() != value.graduatedHook || executor.marketRegistry() != marketRegistryAddress
+                || executor.poolManager() != poolManagerAddress
+                || executor.approvedQuoteRegistry() != marketRegistry.approvedQuoteRegistry()
+                || executor.factory() != marketRegistry.factory()
+                || marketRegistry.graduationExecutor() != value.graduationExecutor
+                || feeVault.marketRegistry() != marketRegistryAddress || feeVault.poolManager() != poolManagerAddress
+                || feeVault.feePolicyId() != value.feePolicyId || executor.launchLockerCreationCodeHash() == bytes32(0)
+        ) revert InvalidLaunchTemplateBindings(value.graduatedHook, value.graduationExecutor);
+    }
+
+    function _validateDirectRuntime(address component) private view {
+        bytes memory runtime = component.code;
+        for (uint256 offset; offset < runtime.length; ++offset) {
+            uint8 opcode = uint8(runtime[offset]);
+            if (opcode == 0xf2 || opcode == 0xf4 || opcode == 0xff) {
+                revert UnsafeTemplateRuntime(component, opcode);
+            }
+            if (opcode >= 0x60 && opcode <= 0x7f) offset += opcode - 0x5f;
+        }
     }
 }

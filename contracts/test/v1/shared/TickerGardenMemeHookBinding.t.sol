@@ -18,8 +18,11 @@ import {TickerGardenMemeHookBinding} from "../../../src/v1/shared/TickerGardenMe
 contract HookDependencyMock {}
 
 contract HookMarketRegistryMock {
+    address public graduationExecutor;
     mapping(bytes32 marketId => MarketView value) private _markets;
     mapping(bytes32 marketId => PoolKey key) private _keys;
+
+    function setGraduationExecutor(address value) external { graduationExecutor = value; }
 
     function configure(bytes32 marketId, MarketView calldata value, PoolKey calldata key) external {
         _markets[marketId] = value;
@@ -122,6 +125,7 @@ contract TickerGardenMemeHookBindingTest is Test {
         feeVault = new HookDependencyMock();
         graduation = new HookGraduationModuleMock();
         deployer = new HookCreate2Deployer();
+        registry.setGraduationExecutor(address(graduation));
         hook = _deployHook(address(registry), address(poolManager), address(feeVault), address(graduation));
         key = PoolKey({currency0: QUOTE, currency1: MEME, fee: 0, tickSpacing: 60, hooks: address(hook)});
         _configure(0, bytes32(0), key);

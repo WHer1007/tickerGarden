@@ -41,7 +41,11 @@ function observation(
   };
 }
 
-function input(transfers: TransferObservation[], excludedAccounts: string[] = []): TreasuryRootInput {
+function input(
+  transfers: TransferObservation[],
+  excludedAccounts: string[] = [],
+  quoteToken: string = QUOTE,
+): TreasuryRootInput {
   const policy = computeEligibilityPolicyHash(
     46630n,
     MARKET_ID,
@@ -52,7 +56,7 @@ function input(transfers: TransferObservation[], excludedAccounts: string[] = []
     distributor: DISTRIBUTOR,
     marketId: MARKET_ID,
     memeToken: MEME,
-    quoteToken: QUOTE,
+    quoteToken: quoteToken as TreasuryRootInput["quoteToken"],
     eligibilityPolicyHash: policy,
     excludedAccounts: excludedAccounts as TreasuryRootInput["excludedAccounts"],
     epochId: 1,
@@ -65,6 +69,20 @@ function input(transfers: TransferObservation[], excludedAccounts: string[] = []
     transfers,
   };
 }
+
+test("accepts native ETH as the quote token while requiring nonzero distributor and meme token", () => {
+  const nativeInput = input([observation(1n, START - 1n, ZERO, ALICE, 100n)], [], ZERO);
+  const output = generateTreasuryRoot(nativeInput);
+  assert.equal(output.context.quoteToken.toLowerCase(), ZERO);
+
+  const zeroDistributor = { ...nativeInput, distributor: ZERO as TreasuryRootInput["distributor"] };
+  assert.throws(
+    () => generateTreasuryRoot(zeroDistributor),
+    /contract address cannot be zero/,
+  );
+  const zeroMeme = { ...nativeInput, memeToken: ZERO as TreasuryRootInput["memeToken"] };
+  assert.throws(() => generateTreasuryRoot(zeroMeme), /contract address cannot be zero/);
+});
 
 test("computes a 30-day TWAB, exact largest-remainder allocation, and valid proofs", () => {
   const half = EPOCH_DURATION_SECONDS / 2n;

@@ -175,6 +175,27 @@ function prepareImmutableErc20QuoteManifest(): JsonRecord {
   return manifest;
 }
 
+function prepareDirectOfficialStockManifest(): JsonRecord {
+  const manifest = prepareManifest();
+  const stock = (manifest.officialStocks as JsonRecord[])[0]!;
+  const token = String(stock.tokenAddress);
+  stock.proxyKind = "DIRECT";
+  stock.implementationAddress = token;
+  stock.implementationCodeHash = stock.runtimeCodeHash;
+  delete stock.beaconAddress;
+  delete stock.beaconCodeHash;
+  const live = manifest.livePreflight as JsonRecord;
+  live.keyGetterChecks = (live.keyGetterChecks as JsonRecord[]).filter((entry) => entry.label !== "stock-beacon-implementation");
+  const beaconSlot = (live.storageChecks as JsonRecord[]).find((entry) => entry.label === "stock-beacon-slot")!;
+  beaconSlot.label = "stock-beacon-slot";
+  beaconSlot.expectedValue = ZERO_STORAGE_WORD;
+  (live.storageChecks as JsonRecord[]).push(
+    { label: "stock-implementation-slot", target: token, slot: ERC1967_IMPLEMENTATION_SLOT, expectedValue: ZERO_STORAGE_WORD },
+    { label: "stock-admin-slot", target: token, slot: ERC1967_ADMIN_SLOT, expectedValue: ZERO_STORAGE_WORD },
+  );
+  return manifest;
+}
+
 type Faults = Partial<{
   chainId: string;
   blockHash: string;
@@ -574,6 +595,29 @@ test("accepts a direct immutable ERC20 Quote with pinned runtime and empty proxy
   assert.equal(report.storageChecks, 4);
   assert.ok(report.getterChecks >= 13);
   assert.ok(rpc.methods.includes("eth_getStorageAt"));
+});
+
+test("accepts a direct immutable Official Stock and rejects linkage, slots, and forbidden runtime", async () => {
+  const manifest = prepareDirectOfficialStockManifest();
+  const rpc = new MockRpc(manifest);
+  const report = await verifyV1LiveState(manifest, rpc);
+  assert.equal(report.storageChecks, 3);
+
+  const badLink = prepareDirectOfficialStockManifest();
+  (badLink.officialStocks as JsonRecord[])[0]!.implementationAddress = address("wrong-direct-implementation");
+  await assert.rejects(verifyV1LiveState(badLink, new MockRpc(badLink)), /officialStocks\.0\.implementationAddress/);
+
+  const badSlot = prepareDirectOfficialStockManifest();
+  const slot = ((badSlot.livePreflight as JsonRecord).storageChecks as JsonRecord[]).find((entry) => entry.label === "stock-admin-slot")!;
+  slot.expectedValue = `0x${address("unexpected-direct-slot").slice(2).padStart(64, "0")}`;
+  await assert.rejects(verifyV1LiveState(badSlot, new MockRpc(badSlot)), /officialStocks\.0\.adminSlot/);
+
+  const badRuntime = prepareDirectOfficialStockManifest();
+  const direct = (badRuntime.officialStocks as JsonRecord[])[0]!;
+  const forbidden = "0xf400";
+  direct.runtimeCodeHash = keccakHex(forbidden);
+  direct.implementationCodeHash = direct.runtimeCodeHash;
+  await assert.rejects(verifyV1LiveState(badRuntime, new MockRpc(badRuntime, { codeByAddress: { [String(direct.tokenAddress).toLowerCase()]: forbidden } })), /direct Official Stock runtime contains forbidden opcode 0xf4/);
 });
 
 test("fails closed for immutable ERC20 Quote linkage and EIP-1967 evidence drift", async () => {

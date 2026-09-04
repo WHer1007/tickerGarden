@@ -1,12 +1,12 @@
 {
   "schemaVersion": 1,
-  "executionSpecId": "V1-EXEC-3",
+  "executionSpecId": "V1-EXEC-10",
   "fixtureSetId": "V1-E-105-A",
   "status": "FIXTURE_BASELINE_ONLY_NOT_LIVE_FORK_EVIDENCE",
   "sourceFiles": [
     {
       "path": "spec/v1_initial_quote_configs.json",
-      "sha256": "0x796a952db45d229222aaa2877675c66fc789f7f5168054d82fb228def0664754"
+      "sha256": "0x97977aa1690fba3d2cd0cbae58b9b812eb4e20c189fa8b81bb2391b08fd958a6"
     },
     {
       "path": "spec/v1_pons_behavior_vectors.json",
@@ -59,6 +59,7 @@
     }
   ],
   "ponsBehavior": {
+    "referenceExecutionSpecId": "V1-EXEC-3",
     "baselineId": "TG-PONS-BEHAVIOR-1",
     "launch": {
       "launchFeeRaw": "500000000000000",
@@ -467,5 +468,5 @@
     "runtimeDependencyOnPons": false,
     "referenceCreate2ValuesAreProductionDeploymentEvidence": false
   },
-  "fixtureSetHash": "0x72b1ef3fa3b81e9d03ae9a936b83ea9e3d82464b79e742fc5bdd6ae1c6673c19"
+  "fixtureSetHash": "0xcb39e7a8c66779ee0a07993bd059adf5eb8b87823e105288c56dac4236e82504"
 }

@@ -1,12 +1,12 @@
 # Shared V1 implementation
 
-> Current local boundary: `V1-EXEC-9`. Shared code contains no deployed-market administrator, pause/retire/takeover switch, Hook/Gauge disable path, graduation retry, terminal rescue, or management-recovery ledger.
+> Current local boundary: `V1-EXEC-10`. Shared code contains no deployed-market administrator, pause/retire/takeover switch, Hook/Gauge disable path, graduation retry, terminal rescue, or management-recovery ledger.
 
 ## Foundation
 
 - `ImmutableAccessManaged` and `DelayedUnpause` implement selector-scoped AccessManager authorization and the state-relative 24-hour unpause delay for Asset/Quote/Pons/Template configuration objects only.
 - `V1Identifiers`, `V1Create2`, `V1MarketEconomics`, and `V1FactoryValidation` provide typed IDs, deterministic deployment, immutable economics hashes, active configuration-snapshot validation, and exact `MultiAsset.v6` Vault schema/dependency admission.
-- `V1Scaffold` freezes the `V1-EXEC-9` compile identity.
+- `V1Scaffold` freezes the `V1-EXEC-10` compile identity.
 
 ## Launch and creation
 

@@ -10,6 +10,57 @@ import {ImmutableAccessManaged} from "../../../src/v1/shared/ImmutableAccessMana
 
 contract EmptyTemplateComponent {}
 
+contract TemplateBindingComponent {
+    address public marketRegistry;
+    address public approvedQuoteRegistry;
+    address public factory;
+    address public poolManager;
+    address public positionManager;
+    address public permit2;
+    address public hook;
+    address public protocolFeeVault;
+    address public graduationExecutor;
+    address public creatorRevenueRegistry;
+    address public platformTreasury;
+    bytes32 public feePolicyId;
+    bytes32 public launchLockerCreationCodeHash;
+
+    function configureAddresses(
+        address marketRegistry_,
+        address approvedQuoteRegistry_,
+        address factory_,
+        address poolManager_,
+        address positionManager_,
+        address permit2_,
+        address hook_,
+        address protocolFeeVault_,
+        address graduationExecutor_,
+        address creatorRevenueRegistry_,
+        address platformTreasury_
+    ) external {
+        marketRegistry = marketRegistry_;
+        approvedQuoteRegistry = approvedQuoteRegistry_;
+        factory = factory_;
+        poolManager = poolManager_;
+        positionManager = positionManager_;
+        permit2 = permit2_;
+        hook = hook_;
+        protocolFeeVault = protocolFeeVault_;
+        graduationExecutor = graduationExecutor_;
+        creatorRevenueRegistry = creatorRevenueRegistry_;
+        platformTreasury = platformTreasury_;
+    }
+
+    function configureHashes(bytes32 feePolicyId_, bytes32 launchLockerCreationCodeHash_) external {
+        feePolicyId = feePolicyId_;
+        launchLockerCreationCodeHash = launchLockerCreationCodeHash_;
+    }
+
+    function setGraduationExecutor(address value) external {
+        graduationExecutor = value;
+    }
+}
+
 contract LaunchTemplateRegistryTest is Test {
     uint64 internal constant PROTOCOL_ADMIN_ROLE = 1;
     uint64 internal constant PAUSE_GUARDIAN_ROLE = 2;
@@ -21,7 +72,7 @@ contract LaunchTemplateRegistryTest is Test {
     bytes32 internal constant REASON_HASH = keccak256("template-risk");
 
     function EXECUTION_SPEC_ID() internal pure returns (bytes32) {
-        return keccak256("V1-EXEC-9");
+        return keccak256("V1-EXEC-10");
     }
     bytes32 internal constant FEE_POLICY_ID = keccak256("immutable-fee-policy");
     address internal constant HOOK = address(uint160(0x12044));
@@ -36,7 +87,9 @@ contract LaunchTemplateRegistryTest is Test {
     address internal curveImplementation;
     address internal gaugeImplementation;
     address internal graduationExecutor;
-    address internal launchLockerImplementation;
+    address internal marketRegistry;
+    address internal poolManager;
+    address internal feeVault;
 
     event LaunchTemplateAdded(
         bytes32 indexed launchTemplateId, bytes32 indexed templateHash, bytes32 indexed executionSpecId
@@ -52,9 +105,76 @@ contract LaunchTemplateRegistryTest is Test {
         memeTokenImplementation = address(new EmptyTemplateComponent());
         curveImplementation = address(new EmptyTemplateComponent());
         gaugeImplementation = address(new EmptyTemplateComponent());
-        graduationExecutor = address(new EmptyTemplateComponent());
-        launchLockerImplementation = address(new EmptyTemplateComponent());
-        vm.etch(HOOK, hex"00");
+        TemplateBindingComponent marketRegistryComponent = new TemplateBindingComponent();
+        TemplateBindingComponent feeVaultComponent = new TemplateBindingComponent();
+        TemplateBindingComponent executorComponent = new TemplateBindingComponent();
+        TemplateBindingComponent hookComponent = new TemplateBindingComponent();
+        marketRegistry = address(marketRegistryComponent);
+        feeVault = address(feeVaultComponent);
+        graduationExecutor = address(executorComponent);
+        poolManager = address(new EmptyTemplateComponent());
+        address quoteRegistry = address(new EmptyTemplateComponent());
+        address positionManager = address(new EmptyTemplateComponent());
+        address permit2 = address(new EmptyTemplateComponent());
+        address factory = address(0xFACA);
+        address creatorRevenue = address(new EmptyTemplateComponent());
+        address platformTreasury = address(new EmptyTemplateComponent());
+        vm.etch(HOOK, address(hookComponent).code);
+
+        TemplateBindingComponent(HOOK).configureAddresses(
+            marketRegistry,
+            quoteRegistry,
+            factory,
+            poolManager,
+            positionManager,
+            permit2,
+            HOOK,
+            feeVault,
+            graduationExecutor,
+            creatorRevenue,
+            platformTreasury
+        );
+        executorComponent.configureAddresses(
+            marketRegistry,
+            quoteRegistry,
+            factory,
+            poolManager,
+            positionManager,
+            permit2,
+            HOOK,
+            feeVault,
+            graduationExecutor,
+            creatorRevenue,
+            platformTreasury
+        );
+        executorComponent.configureHashes(FEE_POLICY_ID, keccak256("LaunchLocker.creationCode"));
+        marketRegistryComponent.configureAddresses(
+            marketRegistry,
+            quoteRegistry,
+            factory,
+            poolManager,
+            positionManager,
+            permit2,
+            HOOK,
+            feeVault,
+            graduationExecutor,
+            creatorRevenue,
+            platformTreasury
+        );
+        feeVaultComponent.configureAddresses(
+            marketRegistry,
+            quoteRegistry,
+            factory,
+            poolManager,
+            positionManager,
+            permit2,
+            HOOK,
+            feeVault,
+            graduationExecutor,
+            creatorRevenue,
+            platformTreasury
+        );
+        feeVaultComponent.configureHashes(FEE_POLICY_ID, bytes32(0));
 
         bytes4[] memory adminSelectors = new bytes4[](2);
         adminSelectors[0] = ILaunchTemplateRegistry.addLaunchTemplate.selector;
@@ -181,10 +301,7 @@ contract LaunchTemplateRegistryTest is Test {
         value.graduationExecutor = curveImplementation;
         assertNotEq(_templateHash(value), original);
         value = _validTemplate();
-        value.launchLockerImplementation = curveImplementation;
-        assertNotEq(_templateHash(value), original);
-        value = _validTemplate();
-        value.launchLockerCodeHash = keccak256("locker");
+        value.graduationExecutorCodeHash = keccak256("executor");
         assertNotEq(_templateHash(value), original);
         value = _validTemplate();
         value.feePolicyId = keccak256("other-policy");
@@ -208,13 +325,12 @@ contract LaunchTemplateRegistryTest is Test {
             graduatedHook: address(bytes20(hex"5f65850f5f13f234fdac7207097427c6c928ba69")),
             hookCodeHash: 0xe32ba2f72b276137cb4c02d95fccfe453205a191b7b2ab1bba25e4d86740ce44,
             graduationExecutor: address(bytes20(hex"f5956a1f2c3f696b9fdff4ff7464f850a2ecd7be")),
-            launchLockerImplementation: address(bytes20(hex"42545e24576b18fb92b42dce0e0759f5f0e69ea4")),
-            launchLockerCodeHash: 0xfb452b0c9a8fbef840d17d6981fe726129c5a8d8dbc532f192a09b6eb35e7b91,
+            graduationExecutorCodeHash: 0xfb452b0c9a8fbef840d17d6981fe726129c5a8d8dbc532f192a09b6eb35e7b91,
             feePolicyId: 0x21ca6e12a39c5e115bc125098217de03e2bc2d8db30f5fb2b365a0ef284c6f5f,
             executionSpecId: 0x6d778d9fac5729e6943b9bef3a61d68f916469af230e2a521826a553ea0b5bad,
             status: 3
         });
-        assertEq(_templateHash(value), 0x431febfd78dbd8a37a9fad82346a849a6675a2efaf2676aa73d93ffd11295956);
+        assertEq(_templateHash(value), 0xb04c3e7650bc3b96b04c4bb81bc82ce603917df0a0063a0483a81f886a7e8478);
     }
 
     function test_rejectsZeroIdentityPolicySpecAndNonActiveStatus() public {
@@ -229,10 +345,7 @@ contract LaunchTemplateRegistryTest is Test {
         value.graduationExecutor = address(0);
         _expectInvalid(TEMPLATE_ID, value);
         value = _validTemplate();
-        value.launchLockerImplementation = address(0);
-        _expectInvalid(TEMPLATE_ID, value);
-        value = _validTemplate();
-        value.launchLockerCodeHash = bytes32(0);
+        value.graduationExecutorCodeHash = bytes32(0);
         _expectInvalid(TEMPLATE_ID, value);
         value = _validTemplate();
         value.feePolicyId = bytes32(0);
@@ -268,12 +381,63 @@ contract LaunchTemplateRegistryTest is Test {
 
         value = _validTemplate();
         value.graduationExecutor = address(0x5678);
+        value.graduationExecutorCodeHash = keccak256("missing-executor");
         vm.expectRevert(
             abi.encodeWithSelector(
                 LaunchTemplateRegistry.CodeIdentityMismatch.selector,
                 value.graduationExecutor,
-                bytes32(0),
+                value.graduationExecutorCodeHash,
                 value.graduationExecutor.codehash
+            )
+        );
+        vm.prank(FAST_ADMIN);
+        registry.addLaunchTemplate(TEMPLATE_ID, value);
+    }
+
+    function test_rejectsHookWithUnsafeMutableRuntimeOpcode() public {
+        LaunchTemplate memory value = _validTemplate();
+        vm.etch(HOOK, hex"f4");
+        value.hookCodeHash = HOOK.codehash;
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                LaunchTemplateRegistry.UnsafeTemplateRuntime.selector, HOOK, uint8(0xf4)
+            )
+        );
+        vm.prank(FAST_ADMIN);
+        registry.addLaunchTemplate(TEMPLATE_ID, value);
+    }
+
+    function test_rejectsExecutorWithUnsafeDestructiveRuntimeOpcode() public {
+        LaunchTemplate memory value = _validTemplate();
+        vm.etch(graduationExecutor, hex"ff");
+        value.graduationExecutorCodeHash = graduationExecutor.codehash;
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                LaunchTemplateRegistry.UnsafeTemplateRuntime.selector,
+                graduationExecutor,
+                uint8(0xff)
+            )
+        );
+        vm.prank(FAST_ADMIN);
+        registry.addLaunchTemplate(TEMPLATE_ID, value);
+    }
+
+    function test_rejectsBrokenReciprocalBindingAndLockerCreationIdentity() public {
+        LaunchTemplate memory value = _validTemplate();
+        TemplateBindingComponent(HOOK).setGraduationExecutor(address(0xBAD));
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                LaunchTemplateRegistry.InvalidLaunchTemplateBindings.selector, HOOK, graduationExecutor
+            )
+        );
+        vm.prank(FAST_ADMIN);
+        registry.addLaunchTemplate(TEMPLATE_ID, value);
+
+        TemplateBindingComponent(HOOK).setGraduationExecutor(graduationExecutor);
+        TemplateBindingComponent(graduationExecutor).configureHashes(FEE_POLICY_ID, bytes32(0));
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                LaunchTemplateRegistry.InvalidLaunchTemplateBindings.selector, HOOK, graduationExecutor
             )
         );
         vm.prank(FAST_ADMIN);
@@ -401,8 +565,7 @@ contract LaunchTemplateRegistryTest is Test {
             graduatedHook: HOOK,
             hookCodeHash: HOOK.codehash,
             graduationExecutor: graduationExecutor,
-            launchLockerImplementation: launchLockerImplementation,
-            launchLockerCodeHash: launchLockerImplementation.codehash,
+            graduationExecutorCodeHash: graduationExecutor.codehash,
             feePolicyId: FEE_POLICY_ID,
             executionSpecId: EXECUTION_SPEC_ID(),
             status: 1
@@ -412,7 +575,7 @@ contract LaunchTemplateRegistryTest is Test {
     function _templateHash(LaunchTemplate memory value) private pure returns (bytes32) {
         bytes memory first = abi.encode(
             keccak256("TICKERGARDEN_V1_LAUNCH_TEMPLATE"),
-            uint256(1),
+            uint256(2),
             value.memeTokenImplementation,
             value.memeTokenCodeHash,
             value.curveImplementation,
@@ -424,8 +587,7 @@ contract LaunchTemplateRegistryTest is Test {
             value.graduatedHook,
             value.hookCodeHash,
             value.graduationExecutor,
-            value.launchLockerImplementation,
-            value.launchLockerCodeHash,
+            value.graduationExecutorCodeHash,
             value.feePolicyId,
             value.executionSpecId
         );
@@ -475,8 +637,7 @@ contract LaunchTemplateRegistryTest is Test {
         assertEq(actual.graduatedHook, expected.graduatedHook);
         assertEq(actual.hookCodeHash, expected.hookCodeHash);
         assertEq(actual.graduationExecutor, expected.graduationExecutor);
-        assertEq(actual.launchLockerImplementation, expected.launchLockerImplementation);
-        assertEq(actual.launchLockerCodeHash, expected.launchLockerCodeHash);
+        assertEq(actual.graduationExecutorCodeHash, expected.graduationExecutorCodeHash);
         assertEq(actual.feePolicyId, expected.feePolicyId);
         assertEq(actual.executionSpecId, expected.executionSpecId);
         assertEq(actual.status, expectedStatus);

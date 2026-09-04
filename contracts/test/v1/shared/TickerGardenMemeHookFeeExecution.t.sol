@@ -23,6 +23,11 @@ contract HookFeeExecutionDependencyMock {}
 contract HookFeeExecutionRegistryMock {
     mapping(bytes32 marketId => MarketView value) private _markets;
     mapping(bytes32 marketId => PoolKey key) private _keys;
+    address public graduationExecutor;
+
+    function setGraduationExecutor(address value) external {
+        graduationExecutor = value;
+    }
 
     function configure(bytes32 marketId, MarketView calldata value, PoolKey calldata key) external {
         _markets[marketId] = value;
@@ -224,6 +229,7 @@ contract TickerGardenMemeHookFeeExecutionTest is Test {
         feeVault = new HookFeeExecutionVault(address(registry), address(poolManager));
         poolManager.setFeeVault(address(feeVault));
         graduation = new HookFeeExecutionDependencyMock();
+        registry.setGraduationExecutor(address(graduation));
         deployer = new HookFeeExecutionCreate2Deployer();
         meme = new MockExactQuoteToken(18);
         meme.mint(address(poolManager), 1_000_000 ether);
@@ -486,7 +492,7 @@ contract TickerGardenMemeHookFeeExecutionTest is Test {
             abi.encode(
                 keccak256("TICKERGARDEN_V1_FEE_POLICY"),
                 uint256(4),
-                keccak256("V1-EXEC-9"),
+                keccak256("V1-EXEC-10"),
                 uint24(10_000),
                 uint16(0),
                 uint24(0),

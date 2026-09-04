@@ -84,7 +84,7 @@ class V1ExecutionSpecTest(unittest.TestCase):
         cls.official_stock_catalog_raw = (ROOT / "v1_rh_official_stock_catalog.source.json").read_bytes()
 
     def test_spec_ids_match(self):
-        expected = "V1-EXEC-9"
+        expected = "V1-EXEC-10"
         self.assertEqual(self.manifest["executionSpecId"], expected)
         self.assertEqual(self.permissions["executionSpecId"], expected)
         self.assertEqual(self.abi["executionSpecId"], expected)
@@ -588,10 +588,21 @@ class V1ExecutionSpecTest(unittest.TestCase):
             graduation_functions["graduateFromCurve(bytes32,uint256,uint256)"]["caller"],
             "EXACT_REGISTERED_CURVE",
         )
-        self.assertEqual(set(graduation_functions), {
-            "graduateFromCurve(bytes32,uint256,uint256)",
-            "predictLaunchLocker(bytes32)",
-        })
+        self.assertEqual(
+            set(graduation_functions),
+            {
+                "graduateFromCurve(bytes32,uint256,uint256)",
+                "predictLaunchLocker(bytes32)",
+                "marketRegistry()",
+                "approvedQuoteRegistry()",
+                "factory()",
+                "poolManager()",
+                "positionManager()",
+                "permit2()",
+                "hook()",
+                "launchLockerCreationCodeHash()",
+            },
+        )
         self.assertNotIn(("GraduationExecutor", "retryGraduation(bytes32)"), permission)
         self.assertNotIn(("GraduationExecutor", "rescueSweptLaunch(bytes32)"), permission)
         curve_events = set(modules["PonsCompatibleCurve"]["events"])
@@ -609,7 +620,9 @@ class V1ExecutionSpecTest(unittest.TestCase):
         )
 
         template = modules["LaunchTemplateRegistry"]["structs"]["LaunchTemplate"]
-        self.assertIn("bytes32 launchLockerCodeHash", template)
+        self.assertIn("bytes32 graduationExecutorCodeHash", template)
+        self.assertNotIn("address launchLockerImplementation", template)
+        self.assertNotIn("bytes32 launchLockerCodeHash", template)
         self.assertEqual(
             self.manifest["templateDeployment"]["componentKinds"],
             ["TOKEN", "CURVE", "GAUGE", "LOCKER"],
@@ -1144,8 +1157,7 @@ class V1ExecutionSpecTest(unittest.TestCase):
                 "address graduatedHook",
                 "bytes32 hookCodeHash",
                 "address graduationExecutor",
-                "address launchLockerImplementation",
-                "bytes32 launchLockerCodeHash",
+                "bytes32 graduationExecutorCodeHash",
                 "bytes32 feePolicyId",
                 "bytes32 executionSpecId",
             ],
@@ -1505,9 +1517,24 @@ class V1ExecutionSpecTest(unittest.TestCase):
 
     def test_initial_quote_configs_are_content_addressed_and_fail_closed(self):
         artifact = self.initial_quote_configs
-        self.assertEqual(artifact["status"], "APPROVED_INITIAL_RELEASE_CONFIGS")
+        self.assertEqual(artifact["executionSpecId"], "V1-EXEC-10")
+        self.assertEqual(artifact["status"], "APPROVED_BOOTSTRAP_EXAMPLE_CONFIGS")
         self.assertEqual(artifact["chainId"], 4663)
-        self.assertEqual(artifact["scope"]["initialReleaseQuoteCount"], 1)
+        self.assertEqual(artifact["scope"]["configuredQuoteCount"], 1)
+        self.assertEqual(
+            artifact["scope"]["configuredQuoteCountMeaning"],
+            "BOOTSTRAP_EXAMPLES_ONLY_NOT_A_PROTOCOL_CAP_OR_RELEASE_ALLOWLIST_FREEZE",
+        )
+        self.assertEqual(
+            artifact["scope"]["quoteSelection"],
+            "ANY_ADMIN_APPROVED_ACTIVE_QUOTE",
+        )
+        self.assertFalse(artifact["scope"]["nativeQuoteIsProtocolRequirement"])
+        self.assertEqual(artifact["scope"]["approvalRequirement"], "ADMIN_APPROVED_AND_ACTIVE")
+        self.assertEqual(
+            artifact["scope"]["erc20AdmissionRequirement"],
+            "DIRECT_IMMUTABLE_ERC20_WITH_PINNED_RUNTIME_AND_ZERO_EIP1967_SLOTS",
+        )
         configs = {entry["label"]: entry for entry in artifact["configs"]}
         self.assertEqual(set(configs), {"NATIVE_ETH_V1"})
 
@@ -1535,7 +1562,7 @@ class V1ExecutionSpecTest(unittest.TestCase):
 
         self.assertEqual(
             artifact["scope"]["upgradeableQuotePolicy"],
-            "FORBIDDEN_IN_V1_INITIAL_RELEASE",
+            "FORBIDDEN_FOR_ACTIVE_ERC20_QUOTE_CONFIGS",
         )
 
     def test_official_stock_catalog_covers_the_dynamic_robinhood_universe(self):
@@ -1834,6 +1861,20 @@ class V1ExecutionSpecTest(unittest.TestCase):
             recorded["forfeiturePrecisionRemainderPolicy"],
             "ACCUMULATE_ONLY_TO_WHOLE_UNITS_THEN_RESERVE_FOR_PLATFORM",
         )
+        residual_policy = "FLOOR_STAKER_AND_PLATFORM_FINAL_RESIDUAL_TO_CREATOR"
+        self.assertEqual(bounds["roundingAndDust"]["feeLegs"], residual_policy)
+        self.assertEqual(
+            bounds["fixedStakerShare"]["roundingResidualBeneficiary"], "CREATOR"
+        )
+        self.assertEqual(
+            self.manifest["postGraduationFee"]["roundingDust"],
+            "STAKER_AND_PLATFORM_FLOOR_THEN_CREATOR_RESIDUAL",
+        )
+        report = (PROJECT_ROOT / "V1_ACCUMULATOR_NUMERIC_REPORT.md").read_text(
+            encoding="utf-8"
+        )
+        self.assertIn("所有整数 residual 确定性归 Creator", report)
+        self.assertIn("Stock stake 没有业务上限", report)
 
         maximum_base = maximum_post_graduation_fee_base()
         self.assertEqual(maximum_base, int(bounds["feeBounds"]["maximumPostGraduationFeeBase"]))
@@ -1952,7 +1993,7 @@ class V1ExecutionSpecTest(unittest.TestCase):
         )
         self.assertIn("CurveCompleted(bytes32 indexed marketId)", curve_events)
         self.assertIn(
-            "PoolGraduated(bytes32 indexed marketId,bytes32 indexed poolId,address indexed launchLocker,uint256 sweptQuote,uint256 sweptTokens,uint256 poolMemeAmount,uint256 lockedExcessMeme,uint32 sourceVersion)",
+            "PoolGraduated(bytes32 indexed marketId,bytes32 indexed poolId,address indexed launchLocker,uint256 sweptQuote,uint256 sweptTokens,uint256 poolQuoteAmount,uint256 poolMemeAmount,uint256 lockedExcessQuote,uint256 lockedExcessMeme,uint32 sourceVersion)",
             graduation_events,
         )
 
@@ -2041,7 +2082,7 @@ class V1ExecutionSpecTest(unittest.TestCase):
 
     def test_g0_register_separates_approved_direction_from_open_deployment_inputs(self):
         register = self.g0_recommendations
-        self.assertEqual(register["executionSpecId"], "V1-EXEC-9")
+        self.assertEqual(register["executionSpecId"], "V1-EXEC-10")
         self.assertEqual(
             register["status"], "PRODUCT_DIRECTION_APPROVED_IMPLEMENTATION_ALLOWED"
         )
@@ -2068,14 +2109,14 @@ class V1ExecutionSpecTest(unittest.TestCase):
         quote = recommendations["V1-G0-PONS-QUOTE-01"]
         self.assertTrue(quote["nativeQuoteSupported"])
         self.assertTrue(quote["erc20QuoteSupported"])
-        self.assertEqual(len(quote["productionQuoteConfigs"]), 1)
+        self.assertGreaterEqual(len(quote["productionQuoteConfigs"]), 1)
         self.assertEqual(
             {entry["label"] for entry in quote["productionQuoteConfigs"]},
             {"NATIVE_ETH_V1"},
         )
         self.assertEqual(
             quote["productionListStatus"],
-            "APPROVED_NATIVE_ONLY_PENDING_IMMUTABLE_ERC20",
+            "NATIVE_EXAMPLE_CONFIGURED_ERC20_REQUIRES_IMMUTABLE_DIRECT_REVIEW",
         )
         self.assertEqual(quote["observedExampleConfigs"][0]["symbol"], "USDG")
         stock_base = recommendations["V1-G0-OFFICIAL-STOCK-BASE-01"]

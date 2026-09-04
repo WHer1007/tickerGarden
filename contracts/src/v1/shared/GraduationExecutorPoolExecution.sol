@@ -54,10 +54,16 @@ abstract contract GraduationExecutorPoolExecution is GraduationExecutorAssetAcco
     error InvalidGraduationPoolDependencies(
         address poolManager, address positionManager, address permit2, address hook
     );
+    error InvalidGraduationHookBinding(address hook, address executor, address marketRegistry, address poolManager);
     error InvalidLaunchLockerCreationCode();
     error UnexpectedGraduationPoolId(bytes32 supplied, bytes32 expected);
     error UnexpectedGraduationInitialTick(int24 supplied, int24 expected);
-    error InvalidGraduationDust(uint256 quoteDust, uint256 memeRemainder, uint256 lockedExcess);
+    error InvalidGraduationDust(
+        uint256 quoteDust,
+        uint256 memeRemainder,
+        uint256 expectedLockedExcessQuote,
+        uint256 expectedLockedExcessMeme
+    );
     error GraduationAssetTransferFailed(address asset, address recipient, uint256 amount);
     error UnexpectedLockedPosition(uint256 tokenId, bytes32 poolId, bytes32 expectedPoolId);
     error UnexpectedPositionCounter(uint256 supplied, uint256 expected);
@@ -91,6 +97,18 @@ abstract contract GraduationExecutorPoolExecution is GraduationExecutorAssetAcco
         ) {
             revert InvalidGraduationPoolDependencies(poolManager_, positionManager_, permit2_, hook_);
         }
+        if (
+            ITickerGardenMemeHook(hook_).graduationExecutor() != address(this)
+                || ITickerGardenMemeHook(hook_).marketRegistry() != marketRegistry_
+                || ITickerGardenMemeHook(hook_).poolManager() != poolManager_
+        ) {
+            revert InvalidGraduationHookBinding(
+                hook_,
+                ITickerGardenMemeHook(hook_).graduationExecutor(),
+                ITickerGardenMemeHook(hook_).marketRegistry(),
+                ITickerGardenMemeHook(hook_).poolManager()
+            );
+        }
 
         address factory_ = IGraduationPoolRegistryDependencies(marketRegistry_).factory();
         if (factory_ == address(0)) {
@@ -106,6 +124,34 @@ abstract contract GraduationExecutorPoolExecution is GraduationExecutorAssetAcco
     function predictLaunchLocker(bytes32 marketId) public view returns (address) {
         bytes memory initCode = _launchLockerInitCode(marketId);
         return V1Create2.predict(address(this), _lockerSalt(marketId), keccak256(initCode));
+    }
+
+    function marketRegistry() external view returns (address) {
+        return address(_graduationMarketRegistry);
+    }
+
+    function approvedQuoteRegistry() external view returns (address) {
+        return address(_graduationQuoteRegistry);
+    }
+
+    function factory() external view returns (address) {
+        return _graduationFactory;
+    }
+
+    function poolManager() external view returns (address) {
+        return address(_graduationPoolManager);
+    }
+
+    function positionManager() external view returns (address) {
+        return address(_graduationPositionManager);
+    }
+
+    function permit2() external view returns (address) {
+        return address(_graduationPermit2);
+    }
+
+    function hook() external view returns (address) {
+        return address(_graduationHook);
     }
 
     function _executeGraduationAssetPlan(
@@ -124,7 +170,7 @@ abstract contract GraduationExecutorPoolExecution is GraduationExecutorAssetAcco
             );
         }
         context.poolPlan = GraduationPoolMath.derive(
-            context.key, assetPlan.quoteAsset, assetPlan.memeToken, assetPlan.sweptQuote, assetPlan.poolMemeAmount
+            context.key, assetPlan.quoteAsset, assetPlan.memeToken, assetPlan.poolQuoteAmount, assetPlan.poolMemeAmount
         );
         if (sweptMarket.runtime.sourceVersion == type(uint32).max) {
             revert UnexpectedCommittedSource(marketId, sweptMarket.runtime.sourceVersion, 0);
@@ -158,8 +204,10 @@ abstract contract GraduationExecutorPoolExecution is GraduationExecutorAssetAcco
             : (context.poolPlan.mintAmount1, context.poolPlan.mintAmount0);
         uint256 quoteDust = assetPlan.sweptQuote - quoteMint;
         uint256 memeRemainder = assetPlan.sweptTokens - memeMint;
-        if (memeRemainder < assetPlan.lockedExcessMeme) {
-            revert InvalidGraduationDust(quoteDust, memeRemainder, assetPlan.lockedExcessMeme);
+        if (quoteDust < assetPlan.lockedExcessQuote || memeRemainder < assetPlan.lockedExcessMeme) {
+            revert InvalidGraduationDust(
+                quoteDust, memeRemainder, assetPlan.lockedExcessQuote, assetPlan.lockedExcessMeme
+            );
         }
         _transferGraduationAsset(assetPlan.quoteAsset, context.launchLocker, quoteDust);
         _transferGraduationAsset(assetPlan.memeToken, context.launchLocker, memeRemainder);

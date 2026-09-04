@@ -3,15 +3,13 @@ pragma solidity 0.8.26;
 
 import {PonsBaseline, PoolKey, QuoteAssetConfig} from "../interfaces/IV1Protocol.sol";
 import {GraduationPoolMath} from "./GraduationPoolMath.sol";
-import {PonsCurveMath} from "./PonsCurveMath.sol";
 import {PonsSupplyMath} from "./PonsSupplyMath.sol";
 
 /// @notice Admission-time proof that a paired Pons/Quote configuration has a representable graduation plan.
-/// @dev The terminal Quote bound includes both independently rounded fee legs. Both token address orderings are
-///      checked because the CREATE2 meme address is not known when a Quote or Pons baseline is registered.
+/// @dev The pool amount is derived only from immutable configuration. Arbitrary-history rounding surplus is locked
+///      outside the pool at graduation, so admission needs to prove one canonical plan for both token orderings.
 library V1GraduationEconomicDomain {
     uint256 internal constant MAX_V4_SIGNED_AMOUNT = uint256(uint128(type(int128).max));
-    uint256 private constant MAX_TERMINAL_FEE_ROUNDING = 2;
     address private constant SYNTHETIC_TOKEN_0 = address(1);
     address private constant SYNTHETIC_TOKEN_1 = address(2);
     address private constant CANONICAL_HOOK = address(0x2044);
@@ -28,18 +26,14 @@ library V1GraduationEconomicDomain {
             revert EconomicValueOutsideGraduationDomain(baseline.supply, quote.phantomQuote, quote.graduationThreshold);
         }
 
-        (uint256 sweptTokens, uint256 sellableTokens) =
+        (uint256 sweptTokens,) =
             PonsSupplyMath.supplyPartition(baseline.supply, quote.phantomQuote, quote.graduationThreshold);
-        uint256 minimumTerminalQuote = PonsCurveMath.amountIn(sellableTokens, quote.phantomQuote, baseline.supply, 0);
-        if (minimumTerminalQuote > MAX_V4_SIGNED_AMOUNT - MAX_TERMINAL_FEE_ROUNDING) {
-            revert TerminalQuoteOutsideGraduationDomain(minimumTerminalQuote, MAX_V4_SIGNED_AMOUNT);
+        uint256 canonicalPoolQuote =
+            PonsSupplyMath.canonicalGraduationQuote(baseline.supply, quote.phantomQuote, quote.graduationThreshold);
+        if (canonicalPoolQuote > MAX_V4_SIGNED_AMOUNT) {
+            revert TerminalQuoteOutsideGraduationDomain(canonicalPoolQuote, MAX_V4_SIGNED_AMOUNT);
         }
-        uint256 maximumTerminalQuote = minimumTerminalQuote + MAX_TERMINAL_FEE_ROUNDING;
-
-        _validatePoolPlan(sweptTokens, minimumTerminalQuote, quote.phantomQuote, baseline.tickSpacing);
-        if (maximumTerminalQuote != minimumTerminalQuote) {
-            _validatePoolPlan(sweptTokens, maximumTerminalQuote, quote.phantomQuote, baseline.tickSpacing);
-        }
+        _validatePoolPlan(sweptTokens, canonicalPoolQuote, quote.phantomQuote, baseline.tickSpacing);
     }
 
     function _validatePoolPlan(uint256 sweptTokens, uint256 sweptQuote, uint256 phantomQuote, int24 tickSpacing)

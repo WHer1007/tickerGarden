@@ -21,7 +21,7 @@ export function requiredObservations(event: DecodedV1Event): readonly Observatio
       return [{ kind: "curve", key: event.emitter, reason: "reserves and progress are authoritative contract views" }];
     case "ExpectedPoolRegistered(bytes32,bytes32,bytes32,uint32)":
     case "PoolBindingActivated(bytes32,bytes32,uint32)":
-    case "PoolGraduated(bytes32,bytes32,address,uint256,uint256,uint256,uint256,uint32)":
+    case "PoolGraduated(bytes32,bytes32,address,uint256,uint256,uint256,uint256,uint256,uint256,uint32)":
       return [
         { kind: "poolKey", key: event.args.poolId, reason: "events carry keyHash, while readers require the full canonical PoolKey" },
         { kind: "market", key: event.args.marketId, reason: "hydrate canonical route and sourceVersion at this block" },

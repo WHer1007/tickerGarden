@@ -27,8 +27,7 @@ struct LaunchTemplate {
     address graduatedHook;
     bytes32 hookCodeHash;
     address graduationExecutor;
-    address launchLockerImplementation;
-    bytes32 launchLockerCodeHash;
+    bytes32 graduationExecutorCodeHash;
     bytes32 feePolicyId;
     bytes32 executionSpecId;
     uint8 status;

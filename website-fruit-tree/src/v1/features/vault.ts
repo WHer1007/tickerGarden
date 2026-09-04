@@ -43,7 +43,7 @@ function context(market: MarketReadModel, position: UserPositionReadModel, snaps
   bytes32(market.marketId); bytes32(position.marketId); bytes32(position.assetUid);
   address(market.memeToken); address(market.gauge); quoteAddress(market.quoteAsset); address(market.curve);
   if (market.marketId !== position.marketId || market.assetUid !== position.assetUid) throw new Error("position market identity mismatch");
-  if (snapshot.executionSpecId !== "V1-EXEC-9" || snapshot.syncStatus !== "synced" || !/^\d+:0x[0-9a-f]{64}$/.test(snapshot.revision)) throw new Error("snapshot is not reconciled");
+  if (snapshot.executionSpecId !== "V1-EXEC-10" || snapshot.syncStatus !== "synced" || !/^\d+:0x[0-9a-f]{64}$/.test(snapshot.revision)) throw new Error("snapshot is not reconciled");
   address(position.user);
   const reconciledBlock = snapshot.revision.split(":")[0] ?? "";
   if (!/^\d+$/.test(reconciledBlock)) throw new Error("invalid reconciled snapshot revision");

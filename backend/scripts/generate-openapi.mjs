@@ -58,8 +58,8 @@ const errors = { "400": response(ref("ApiErrorResponse"), "Invalid input or curs
 
 const spec = {
   openapi: "3.1.0",
-  info: { title: "TickerGarden V1 Read API", version: "1.0.6", description: "Non-custodial read API backed only by reconciled V1 Indexer facts." },
-  "x-execution-spec-id": "V1-EXEC-9",
+  info: { title: "TickerGarden V1 Read API", version: "1.0.7", description: "Non-custodial read API backed only by reconciled V1 Indexer facts." },
+  "x-execution-spec-id": "V1-EXEC-10",
   paths: {
     "/health": { get: { operationId: "getHealth", responses: { "200": response(ref("HealthResponse")), ...errors } } },
     "/v1/markets": { get: { operationId: "listMarkets", parameters: [{ name: "assetUid", in: "query", required: false, schema: bytes32 }, ...queryParameters], responses: { "200": response(ref("MarketPage")), ...errors } } },
@@ -73,7 +73,7 @@ const spec = {
     UserPositionReadModel: position, MarketPage: page("MarketReadModel"), ConfigPage: page("ConfigReadModel"),
     PositionPage: page("UserPositionReadModel"), MarketDetailResponse: object({ market: ref("MarketReadModel"), sync: ref("SyncStatus") }),
     HealthResponse: object({
-      executionSpecId: { type: "string", const: "V1-EXEC-9" }, status: { type: "string", const: "read-api" }, readApiImplemented: { type: "boolean", const: true },
+      executionSpecId: { type: "string", const: "V1-EXEC-10" }, status: { type: "string", const: "read-api" }, readApiImplemented: { type: "boolean", const: true },
       productRuntimeImplemented: { type: "boolean", const: true }, custody: { type: "boolean", const: false }, transactionSubmission: { type: "boolean", const: false }, sync: ref("SyncStatus"),
     }), ApiErrorResponse: error,
   } },
@@ -129,7 +129,7 @@ const operations = Object.entries(spec.paths).map(([routePath, pathItem]) => {
 const client = `// Generated from openapi/v1.json by scripts/generate-openapi.mjs. Do not edit.\n\n${typeLines.join("\n")}\n\nexport class TickerGardenApiError extends Error { readonly status: number; readonly body: ApiErrorResponse; constructor(status: number, body: ApiErrorResponse) { super(body.message); this.name = "TickerGardenApiError"; this.status = status; this.body = body; } }\n\nexport class TickerGardenV1Client { readonly baseUrl: string; readonly fetcher: typeof fetch; constructor(baseUrl: string, fetcher: typeof fetch = fetch) { this.baseUrl = baseUrl; this.fetcher = fetcher; } private async request<T>(url: URL): Promise<T> { const response = await this.fetcher(url, { method: "GET", headers: { accept: "application/json" } }); const body: unknown = await response.json(); if (!response.ok) throw new TickerGardenApiError(response.status, body as ApiErrorResponse); return body as T; }\n${operations.join("\n")}\n}\n`;
 const specText = `${JSON.stringify(spec, null, 2)}\n`;
 const fingerprint = `sha256:${createHash("sha256").update(specText).digest("hex")}`;
-const nextLock = { schemaVersion: 1, openapiVersion: spec.info.version, executionSpecId: "V1-EXEC-9", fingerprint };
+const nextLock = { schemaVersion: 1, openapiVersion: spec.info.version, executionSpecId: "V1-EXEC-10", fingerprint };
 const lockText = `${JSON.stringify(nextLock, null, 2)}\n`;
 const previousLock = await readFile(lockPath, "utf8").then(JSON.parse).catch(() => null);
 

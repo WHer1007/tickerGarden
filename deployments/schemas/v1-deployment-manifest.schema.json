@@ -8,7 +8,7 @@
   "properties": {
     "schemaVersion": { "const": 1 },
     "manifestKind": { "const": "TICKERGARDEN_V1_NETWORK_DEPLOYMENT" },
-    "executionSpecId": { "const": "V1-EXEC-9" },
+    "executionSpecId": { "const": "V1-EXEC-10" },
     "releaseStatus": { "enum": ["DEPLOYMENT_CANDIDATE", "PRODUCTION_CANDIDATE"] },
     "readinessCertificate": { "$ref": "#/$defs/readinessCertificate" },
     "chain": { "$ref": "#/$defs/chainEvidence" },
@@ -171,12 +171,27 @@
       ]
     },
     "officialStock": {
-      "type": "object",
-      "additionalProperties": false,
-      "required": ["assetUid", "tokenAddress", "decimals", "runtimeCodeHash", "beaconAddress", "beaconCodeHash", "implementationAddress", "implementationCodeHash", "observationBlockHash", "exactBalanceDeltaEvidenceHash"],
+      "oneOf": [
+        { "$ref": "#/$defs/directOfficialStock" },
+        { "$ref": "#/$defs/beaconOfficialStock" }
+      ]
+    },
+    "directOfficialStock": {
+      "type": "object", "additionalProperties": false,
+      "required": ["assetUid", "tokenAddress", "decimals", "runtimeCodeHash", "proxyKind", "implementationAddress", "implementationCodeHash", "observationBlockHash", "exactBalanceDeltaEvidenceHash"],
       "properties": {
         "assetUid": { "$ref": "#/$defs/bytes32" }, "tokenAddress": { "$ref": "#/$defs/nonZeroAddress" }, "decimals": { "type": "integer", "minimum": 6, "maximum": 18 },
-        "runtimeCodeHash": { "$ref": "#/$defs/bytes32" }, "beaconAddress": { "$ref": "#/$defs/nonZeroAddress" }, "beaconCodeHash": { "$ref": "#/$defs/bytes32" },
+        "runtimeCodeHash": { "$ref": "#/$defs/bytes32" }, "proxyKind": { "const": "DIRECT" },
+        "implementationAddress": { "$ref": "#/$defs/nonZeroAddress" }, "implementationCodeHash": { "$ref": "#/$defs/bytes32" },
+        "observationBlockHash": { "$ref": "#/$defs/bytes32" }, "exactBalanceDeltaEvidenceHash": { "$ref": "#/$defs/bytes32" }
+      }
+    },
+    "beaconOfficialStock": {
+      "type": "object", "additionalProperties": false,
+      "required": ["assetUid", "tokenAddress", "decimals", "runtimeCodeHash", "proxyKind", "beaconAddress", "beaconCodeHash", "implementationAddress", "implementationCodeHash", "observationBlockHash", "exactBalanceDeltaEvidenceHash"],
+      "properties": {
+        "assetUid": { "$ref": "#/$defs/bytes32" }, "tokenAddress": { "$ref": "#/$defs/nonZeroAddress" }, "decimals": { "type": "integer", "minimum": 6, "maximum": 18 },
+        "runtimeCodeHash": { "$ref": "#/$defs/bytes32" }, "proxyKind": { "const": "IMMUTABLE_BEACON" }, "beaconAddress": { "$ref": "#/$defs/nonZeroAddress" }, "beaconCodeHash": { "$ref": "#/$defs/bytes32" },
         "implementationAddress": { "$ref": "#/$defs/nonZeroAddress" }, "implementationCodeHash": { "$ref": "#/$defs/bytes32" },
         "observationBlockHash": { "$ref": "#/$defs/bytes32" }, "exactBalanceDeltaEvidenceHash": { "$ref": "#/$defs/bytes32" }
       }

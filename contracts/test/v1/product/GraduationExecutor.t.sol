@@ -3,7 +3,7 @@ pragma solidity 0.8.26;
 
 import {Test} from "forge-std/Test.sol";
 
-import {QuoteAssetConfig} from "../../../src/v1/interfaces/IV1Protocol.sol";
+import {PonsBaseline, QuoteAssetConfig} from "../../../src/v1/interfaces/IV1Protocol.sol";
 import {GraduationExecutor} from "../../../src/v1/modules/GraduationExecutor.sol";
 import {LaunchLocker} from "../../../src/v1/modules/LaunchLocker.sol";
 import {V1Create2} from "../../../src/v1/shared/V1Create2.sol";
@@ -14,6 +14,7 @@ import {
     PoolExecutionPermit2Mock,
     PoolExecutionPoolManagerMock,
     PoolExecutionPositionManagerMock,
+    PoolExecutionPonsBaselineRegistryMock,
     PoolExecutionQuoteRegistryMock,
     PoolExecutionRegistryMock,
     PoolExecutionToken
@@ -30,6 +31,7 @@ contract GraduationExecutorTest is Test {
     PoolExecutionToken private meme;
     PoolExecutionToken private quote;
     PoolExecutionQuoteRegistryMock private quoteRegistry;
+    PoolExecutionPonsBaselineRegistryMock private baselineRegistry;
     PoolExecutionRegistryMock private registry;
     PoolExecutionPermit2Mock private permit2;
     PoolExecutionPoolManagerMock private poolManager;
@@ -42,7 +44,8 @@ contract GraduationExecutorTest is Test {
         meme = new PoolExecutionToken("MEME");
         quote = new PoolExecutionToken("QUOTE");
         quoteRegistry = new PoolExecutionQuoteRegistryMock();
-        registry = new PoolExecutionRegistryMock(address(quoteRegistry));
+        baselineRegistry = new PoolExecutionPonsBaselineRegistryMock();
+        registry = new PoolExecutionRegistryMock(address(quoteRegistry), address(baselineRegistry));
         permit2 = new PoolExecutionPermit2Mock();
         poolManager = new PoolExecutionPoolManagerMock();
         positionManager = new PoolExecutionPositionManagerMock(address(poolManager), address(permit2));
@@ -64,12 +67,29 @@ contract GraduationExecutorTest is Test {
                 status: 1
             })
         );
+        baselineRegistry.setBaseline(
+            bytes32("PONS"),
+            PonsBaseline({
+                referenceChainId: block.chainid,
+                referenceFactory: address(registry),
+                referenceFactoryCodeHash: bytes32(0),
+                launchConfigId: 0,
+                supply: 500 ether,
+                curveFeeBps: 0,
+                poolFee: 0,
+                tickSpacing: 200,
+                behaviorVectorRoot: bytes32(0),
+                status: 1
+            })
+        );
         registry.configure(MARKET_ID, QUOTE_ID, address(quote), address(meme), address(curve), address(hook));
+        address predictedExecutor = vm.computeCreateAddress(address(this), vm.getNonce(address(this)) + 3);
+        registry.setGraduationExecutor(predictedExecutor);
+        hook.setMarketRegistry(address(registry));
+        hook.configure(predictedExecutor, address(poolManager));
         executor = new GraduationExecutor(
             address(registry), address(quoteRegistry), address(poolManager), address(positionManager), address(hook)
         );
-        registry.setGraduationExecutor(address(executor));
-        hook.configure(address(executor), address(poolManager));
     }
 
     function test_realLockerCreationCodeSaltPredictionAndActualDeploymentMatchManifest() public {

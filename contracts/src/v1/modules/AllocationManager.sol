@@ -83,4 +83,12 @@ contract AllocationManager is IAllocationManager, AllocationManagerDeposits {
     function depositAndAllocate(bytes32 marketId, uint256 depositAmount, uint256 allocationAmount) external override {
         _depositAndAllocate(msg.sender, marketId, depositAmount, allocationAmount);
     }
+
+    function officialStockRegistry() external view override returns (address) {
+        return address(_officialStockRegistry);
+    }
+
+    function marketRegistry() external view override returns (address) {
+        return address(_marketRegistry);
+    }
 }

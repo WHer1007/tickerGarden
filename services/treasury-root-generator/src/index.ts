@@ -444,8 +444,7 @@ function validateInput(input: TreasuryRootInput): void {
   }
   if (
     input.distributor.toLowerCase() === ZERO_ADDRESS ||
-    input.memeToken.toLowerCase() === ZERO_ADDRESS ||
-    input.quoteToken.toLowerCase() === ZERO_ADDRESS
+    input.memeToken.toLowerCase() === ZERO_ADDRESS
   ) {
     throw new Error("contract address cannot be zero");
   }

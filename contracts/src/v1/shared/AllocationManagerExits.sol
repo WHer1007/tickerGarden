@@ -5,7 +5,7 @@ import {AssetView, IMemeStockGauge, IUserStockVault, MarketView, PositionView} f
 import {AllocationManagerIncreases} from "./AllocationManagerIncreases.sol";
 
 /// @notice Full-position normal and forfeiting exit paths for the final AllocationManager.
-/// @dev V1-EXEC-9 deliberately has no partial-decrease or cross-market migration path.
+/// @dev V1-EXEC-10 deliberately has no partial-decrease or cross-market migration path.
 abstract contract AllocationManagerExits is AllocationManagerIncreases {
     uint256 private constant RAGE_QUIT_GAUGE_GAS_LIMIT = 1_000_000;
     uint256 private constant RAGE_QUIT_GAUGE_VIEW_GAS_LIMIT = 250_000;

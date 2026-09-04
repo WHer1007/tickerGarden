@@ -19,7 +19,7 @@ import {V1GraduationEconomicDomain} from "../libraries/V1GraduationEconomicDomai
 /// @notice Fail-closed Registry resolution and economics verification shared by Factory create and preview paths.
 library V1FactoryValidation {
     uint8 internal constant ACTIVE = 1;
-    bytes32 internal constant EXECUTION_SPEC_ID = keccak256("V1-EXEC-9");
+    bytes32 internal constant EXECUTION_SPEC_ID = keccak256("V1-EXEC-10");
     uint24 internal constant FEE_PIPS = 10_000;
     uint16 internal constant LP_SHARE_BPS = 0;
     uint24 internal constant POOL_KEY_FEE = 0;
@@ -58,6 +58,7 @@ library V1FactoryValidation {
     error InactiveAsset(bytes32 assetUid, uint8 status);
     error AssetIdentityDrift(bytes32 assetUid);
     error InvalidVaultSchema(bytes32 assetUid, address vault, bytes32 schemaId, address registeredVault);
+    error VaultIdentityDrift(bytes32 assetUid, address vault, bytes32 expectedRuntimeCodeHash);
     error InvalidVaultIdentity(
         bytes32 assetUid,
         address vault,
@@ -184,6 +185,9 @@ library V1FactoryValidation {
         address registeredVault = officialStock.vaultForSchema(REQUIRED_VAULT_SCHEMA_ID);
         if (schemaId != REQUIRED_VAULT_SCHEMA_ID || registeredVault != vault) {
             revert InvalidVaultSchema(assetUid, vault, schemaId, registeredVault);
+        }
+        if (!officialStock.vaultIdentityCurrent(vault)) {
+            revert VaultIdentityDrift(assetUid, vault, officialStock.vaultRuntimeCodeHash(vault));
         }
 
         try IUserStockVault(vault).vaultIdentity() returns (

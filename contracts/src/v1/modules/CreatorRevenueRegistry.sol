@@ -15,8 +15,8 @@ contract CreatorRevenueRegistry is ICreatorRevenueRegistry, ReentrancyGuard {
     uint32 internal constant INITIAL_CREATOR_EPOCH = 1;
     uint8 internal constant LAUNCH_PHASE_NOT_GRADUATED = 0;
 
-    address public immutable factory;
-    address public immutable marketRegistry;
+    address public immutable override factory;
+    address public immutable override marketRegistry;
 
     mapping(bytes32 marketId => uint32 epoch) internal _currentCreatorEpoch;
     mapping(bytes32 marketId => mapping(uint32 epoch => address beneficiary)) internal _creatorBeneficiaries;

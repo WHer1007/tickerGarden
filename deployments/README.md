@@ -1,9 +1,9 @@
 # TickerGarden V1 deployment tooling
 
-> **Current deployment boundary (2026-09-04):** the `V1-EXEC-9` schema, role plan, preflight, and built `dist` contain no deployed-market administration, graduation retry, or terminal rescue role/selectors. Graduation is atomic with the final curve buy; `launchPhase` moves directly from `NotGraduated` to `PoolCreated`. Asset/configuration status remains. No target-chain deployment or readiness gate is implied closed by this local implementation.
+> **Current deployment boundary (2026-09-04):** the `V1-EXEC-10` schema, role plan, preflight, and built `dist` contain no deployed-market administration, graduation retry, or terminal rescue role/selectors. Graduation is atomic with the final curve buy; `launchPhase` moves directly from `NotGraduated` to `PoolCreated`. Asset/configuration status remains. No target-chain deployment or readiness gate is implied closed by this local implementation.
 
 This directory is the fail-closed boundary for the future V1 deployment
-package. It reads the canonical execution manifest for `V1-EXEC-9` and exports
+package. It reads the canonical execution manifest for `V1-EXEC-10` and exports
 the shared four-state readiness derivation:
 
 - current state is `IMPLEMENTATION_ALLOWED`;
@@ -37,6 +37,13 @@ prove the configured `decimals()` value, and executable `CALLCODE`,
 `DELEGATECALL`, or `SELFDESTRUCT` opcodes are rejected. Native Quote remains the
 zero-address branch. This proxy proof supplements, rather than replaces, source
 review and exact-balance-delta behavior evidence.
+
+Robinhood official Stock Tokens are BeaconProxy assets and are intentionally
+unsupported by this current Quote preflight. A future Stock Quote path must bind
+the official Asset UID, canonical token, Beacon, implementation, runtime hashes,
+and transfer/admin behavior without weakening the direct ERC-20 rule. Until that
+separate path and its execution-spec evidence are implemented, no Stock Token may
+be marked as an ACTIVE Quote.
 
 V1-C-403 adds a deterministic, calldata-only AccessManager configuration plan.
 It derives 22 role-gated selectors and 61 immutable/direct selectors from the

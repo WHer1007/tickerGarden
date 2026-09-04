@@ -96,8 +96,8 @@ def build():
     quotes = read_json(SOURCE_PATHS[0])
     vectors = read_json(SOURCE_PATHS[1])
     runtime = read_json(SOURCE_PATHS[2])
-    if len({quotes["executionSpecId"], vectors["executionSpecId"], runtime["executionSpecId"]}) != 1:
-        raise ValueError("execution spec identities differ")
+    if vectors["executionSpecId"] != runtime["executionSpecId"]:
+        raise ValueError("Pons reference execution spec identities differ")
     if vectors["baselineId"] != runtime["baselineId"]:
         raise ValueError("Pons baseline identities differ")
 
@@ -124,6 +124,7 @@ def build():
         },
         "quoteFixtures": [quote_fixture(config) for config in quotes["configs"]],
         "ponsBehavior": {
+            "referenceExecutionSpecId": vectors["executionSpecId"],
             "baselineId": vectors["baselineId"],
             "launch": vectors["launch"],
             "vectors": vectors["vectors"],
@@ -200,8 +201,8 @@ def build():
 def validate(fixture):
     if fixture["ponsBehavior"]["vectorCount"] != 14:
         raise ValueError("expected exactly 14 approved Pons behavior vectors")
-    if len(fixture["quoteFixtures"]) != 1:
-        raise ValueError("expected exactly one native initial Quote fixture")
+    if not fixture["quoteFixtures"]:
+        raise ValueError("expected at least one configured Quote fixture")
     for quote in fixture["quoteFixtures"]:
         if quote["quoteAssetConfigId"] != quote["economicsHash"]:
             raise ValueError(f"{quote['label']} config id differs from economics hash")

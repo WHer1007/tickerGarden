@@ -1,6 +1,6 @@
 # TickerGarden V1 技术架构
 
-> 版本：`V1-EXEC-9`；状态：`LOCAL_IMPLEMENTATION_VERIFIED / NOT_DEPLOYABLE`。
+> 版本：`V1-EXEC-10`；状态：`LOCAL_IMPLEMENTATION_VERIFIED / NOT_DEPLOYABLE`。
 > 旧 V1-EXEC-5 市场管理与 Recovery 方案已 superseded。
 
 ## 1. 组件边界
@@ -37,4 +37,4 @@ Vault allocation 是本金权威。用户在任意 launchPhase、任意时间调
 
 ## 6. 验收边界
 
-Solidity、ABI、权限、Indexer、Backend、Website、Deployments schema、机器规范和生成物已同步到 `V1-EXEC-9` 并通过本地门禁。目标链部署、production manifest、独立审计、实链 E2E 与上线批准不在该本地结论内。
+Solidity、ABI、权限、Indexer、Backend、Website、Deployments schema、机器规范和生成物已同步到 `V1-EXEC-10` 并通过本地门禁。目标链部署、production manifest、独立审计、实链 E2E 与上线批准不在该本地结论内。

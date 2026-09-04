@@ -29,7 +29,7 @@ function event<Signature extends V1EventSignature>(
 test("exports the immutable V1 indexer descriptor", () => {
   assert.deepEqual(getIndexerDescriptor(), {
     chainId: 4663,
-    executionSpecId: "V1-EXEC-9",
+    executionSpecId: "V1-EXEC-10",
     status: "reorg-replay-and-reconciliation",
     handlersImplemented: true,
   });
@@ -37,7 +37,7 @@ test("exports the immutable V1 indexer descriptor", () => {
 });
 
 test("catalog is generated from V1 artifacts and includes the canonical PoolManager Swap", () => {
-  assert.equal(V1_EVENT_ABI.length, 68);
+  assert.equal(V1_EVENT_ABI.length, 69);
   assert.ok(V1_EVENT_ABI.some(({ signature, modules }) =>
     signature === "MarketCreated(bytes32,bytes32,address,address,address,address,bytes32,bytes32,bytes32)" &&
     modules.includes("TickerGardenFactoryV1"),
@@ -203,16 +203,44 @@ test("plans block-tagged hydration where events intentionally contain only hashe
   const pool = event("ExpectedPoolRegistered(bytes32,bytes32,bytes32,uint32)", {
     marketId: id("5"), poolId: id("6"), keyHash: id("7"), sourceVersion: 1n,
   }, 1);
+  const graduation = event("PoolGraduated(bytes32,bytes32,address,uint256,uint256,uint256,uint256,uint256,uint256,uint32)", {
+    marketId: id("5"), poolId: id("6"), launchLocker: address("7"), sweptQuote: 13n, sweptTokens: 17n,
+    poolQuoteAmount: 11n, poolMemeAmount: 12n, lockedExcessQuote: 2n, lockedExcessMeme: 5n, sourceVersion: 2n,
+  }, 2);
   const minimum = event("AssetMinimumAllocationChanged(bytes32,uint256,uint256,bytes32)", {
     assetUid: id("8"), oldMinimum: 414n, newMinimum: 10_000n, reasonHash: id("9"),
-  }, 2);
+  }, 3);
   const deposit = event("StockDeposited(bytes32,address,uint256)", {
     assetUid: id("8"), user: address("a"), amount: 10n,
-  }, 3);
+  }, 4);
   assert.deepEqual(requiredObservations(quote).map(({ kind }) => kind), ["quote"]);
   assert.deepEqual(requiredObservations(pool).map(({ kind }) => kind), ["poolKey", "market"]);
+  assert.deepEqual(requiredObservations(graduation).map(({ kind }) => kind), ["poolKey", "market"]);
   assert.deepEqual(requiredObservations(minimum).map(({ kind }) => kind), ["asset"]);
   assert.deepEqual(requiredObservations(deposit).map(({ kind }) => kind), ["vaultPosition", "vaultSolvency", "assetIdentity"]);
+});
+
+test("projects canonical and locked graduation amounts from the current PoolGraduated event", () => {
+  const state = createIndexerState();
+  const marketId = id("51");
+  const poolId = id("61");
+  const graduated = event("PoolGraduated(bytes32,bytes32,address,uint256,uint256,uint256,uint256,uint256,uint256,uint32)", {
+    marketId,
+    poolId,
+    launchLocker: address("71"),
+    sweptQuote: 13n,
+    sweptTokens: 17n,
+    poolQuoteAmount: 11n,
+    poolMemeAmount: 12n,
+    lockedExcessQuote: 2n,
+    lockedExcessMeme: 5n,
+    sourceVersion: 2n,
+  }, 0);
+
+  assert.equal(applyV1Event(state, graduated), "applied");
+  assert.equal(state.pools.get(poolId)?.values.poolQuoteAmount, 11n);
+  assert.equal(state.pools.get(poolId)?.values.lockedExcessQuote, 2n);
+  assert.equal(state.markets.get(marketId)?.values.poolId, poolId);
 });
 
 test("keys shared-Vault allocation facts by asset UID and plans both Vault and Gauge hydration", () => {
