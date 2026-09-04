@@ -471,8 +471,8 @@ class V1ExecutionSpecTest(unittest.TestCase):
         self.assertIn("V1-PROD-SOAK-72H-01", gate_sets["production"]["open"])
         for relative in (
             "README.md",
-            "website-fruit-tree/README.md",
-            "V1_READINESS_AND_DEPLOYMENT_GATES.md",
+            "apps/web/README.md",
+            "docs/v1/V1_READINESS_AND_DEPLOYMENT_GATES.md",
         ):
             surface = (PROJECT_ROOT / relative).read_text(encoding="utf-8")
             self.assertIn(readiness["state"], surface, relative)
@@ -1870,7 +1870,7 @@ class V1ExecutionSpecTest(unittest.TestCase):
             self.manifest["postGraduationFee"]["roundingDust"],
             "STAKER_AND_PLATFORM_FLOOR_THEN_CREATOR_RESIDUAL",
         )
-        report = (PROJECT_ROOT / "V1_ACCUMULATOR_NUMERIC_REPORT.md").read_text(
+        report = (PROJECT_ROOT / "docs/v1/V1_ACCUMULATOR_NUMERIC_REPORT.md").read_text(
             encoding="utf-8"
         )
         self.assertIn("所有整数 residual 确定性归 Creator", report)

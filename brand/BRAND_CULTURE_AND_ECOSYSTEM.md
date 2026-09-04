@@ -3,7 +3,7 @@
 > 决策状态：`APPROVED BRAND DIRECTION`
 > 确认日期：2026-09-04
 > 适用范围：TickerGarden V1 的官网、产品界面、社区内容、活动与生态合作
-> 规范边界：本文定义非链上的品牌与用户语言，不新增或修改任何合约状态、经济参数、权限或执行条件。协议事实以 [`V1_PROTOCOL_PARAMETERS.md`](../V1_PROTOCOL_PARAMETERS.md) 和 [`V1_EXECUTION_SPEC.md`](../V1_EXECUTION_SPEC.md) 为准。
+> 规范边界：本文定义非链上的品牌与用户语言，不新增或修改任何合约状态、经济参数、权限或执行条件。协议事实以 [`V1_PROTOCOL_PARAMETERS.md`](../docs/v1/V1_PROTOCOL_PARAMETERS.md) 和 [`V1_EXECUTION_SPEC.md`](../docs/v1/V1_EXECUTION_SPEC.md) 为准。
 
 ## 1. 品牌定位
 

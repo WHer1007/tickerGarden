@@ -16,7 +16,7 @@
 
 ## 用户前端归属与 Treasury 边界
 
-V1 唯一正式用户 UI 为 `website-fruit-tree/`；其中 `Rewards` 保持名称并承载 Position、Staker、Creator、Treasury。原辅助前端已迁入 `archive/legacy-website/`，只作历史追溯，不参与构建、测试、CI、部署或功能对接。正式前端对 read API、Factory、LaunchRouter、AllocationManager、FeeVault、CreatorRegistry、TreasuryDistributor 和 Treasury Proof API 执行配置、健康及 canonical 绑定校验，失败即 fail closed。
+V1 唯一正式用户 UI 为 `apps/web/`；其中 `Rewards` 保持名称并承载 Position、Staker、Creator、Treasury。原辅助前端位于 `archive/legacy-website/`，只作历史追溯，不参与构建、测试、CI、部署或功能对接。正式前端对 read API、Factory、LaunchRouter、AllocationManager、FeeVault、CreatorRegistry、TreasuryDistributor 和 Treasury Proof API 执行配置、健康及 canonical 绑定校验，失败即 fail closed。
 
 Treasury 属于 V1，但当前仍为 `NOT_DEPLOYABLE`，未完成实链 E2E。上述前端归属说明不改变本审计既有 readiness 或部署阻塞结论。
 
@@ -44,4 +44,4 @@ Treasury 属于 V1，但当前仍为 `NOT_DEPLOYABLE`，未完成实链 E2E。�
 - 完成 deployer 权限移交/撤销、监控告警、事故 runbook 和至少 72 小时 canary soak；
 - 浏览器实链 E2E 与运维演练通过。
 
-机器权威始终是 [`spec/v1_execution_manifest.json`](./spec/v1_execution_manifest.json) 与部署 manifest；本文不复制会漂移的 gate ID 清单。
+机器权威始终是 [`spec/v1_execution_manifest.json`](../../spec/v1_execution_manifest.json) 与部署 manifest；本文不复制会漂移的 gate ID 清单。

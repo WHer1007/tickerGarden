@@ -77,7 +77,7 @@ GET https://api.robinhood.com/rhj/corporate-actions
 
 该 API 只允许用于配置生成器和 UI：产出可审计的参考证据后，由治理批准最终 raw `phantomQuote` 与 `graduationThreshold`。Curve、Factory 资金校验、毕业、FeeVault 与 Treasury 都不得在运行时信任 HTTP；市场创建后也不得随股价改变已冻结参数。停牌、pending multiplier、公司行动、价格陈旧、Oracle/Sequencer 异常或 REST/Chainlink 偏差超限时应禁止生成新配置。
 
-`dailyTradingVolume` 是底层股票成交量，不是链上 Stock Token 的流动性证明。选取少量启动 Quote 仍须验证 canonical DEX/RFQ route、池深度、LP 集中度与目标规模 swap simulation。完整产品与工程规范见 [`V1_STOCK_QUOTE_PRICE_REFERENCE.md`](../../V1_STOCK_QUOTE_PRICE_REFERENCE.md)。
+`dailyTradingVolume` 是底层股票成交量，不是链上 Stock Token 的流动性证明。选取少量启动 Quote 仍须验证 canonical DEX/RFQ route、池深度、LP 集中度与目标规模 swap simulation。完整产品与工程规范见 [`V1_STOCK_QUOTE_PRICE_REFERENCE.md`](../../docs/v1/V1_STOCK_QUOTE_PRICE_REFERENCE.md)。
 
 ## 4. 网络与固定观测块
 

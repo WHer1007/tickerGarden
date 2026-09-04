@@ -64,7 +64,7 @@ quoteEconomicsHash = keccak256(abi.encode(
 quoteAssetConfigId = quoteEconomicsHash
 ```
 
-`status`、symbol/name、implementation 和观测区块不进入 economics hash：前者是可变准入状态，后三者属于部署证据。Registry 必须校验 ID 与重算结果一致，不能接受调用者提供的任意别名；更新任一 economics 字段都必须新增 config。精确当前值见 [`spec/v1_initial_quote_configs.json`](./spec/v1_initial_quote_configs.json)，schema 与固定向量见 [`spec/v1_hash_schemas.json`](./spec/v1_hash_schemas.json)。历史观测到的 USDG 配置仅作为外部事实保留，不构成 V1 批准。
+`status`、symbol/name、implementation 和观测区块不进入 economics hash：前者是可变准入状态，后三者属于部署证据。Registry 必须校验 ID 与重算结果一致，不能接受调用者提供的任意别名；更新任一 economics 字段都必须新增 config。精确当前值见 [`spec/v1_initial_quote_configs.json`](../../spec/v1_initial_quote_configs.json)，schema 与固定向量见 [`spec/v1_hash_schemas.json`](../../spec/v1_hash_schemas.json)。历史观测到的 USDG 配置仅作为外部事实保留，不构成 V1 批准。
 
 Robinhood 官方 Stock Quote 是待实现的专用代理资产路径。其 Asset UID、canonical Token、Beacon/implementation 指纹与价格生成证据必须被版本化绑定；在最终 hash/schema 和部署证据格式进入新的 execution spec 前，不得复用现有通用 hash 将 Stock Quote 标为 ACTIVE。链下价格只生成 raw economics，不进入市场 hash 的动态运行输入；详见 [`V1_STOCK_QUOTE_PRICE_REFERENCE.md`](./V1_STOCK_QUOTE_PRICE_REFERENCE.md)。
 

@@ -1,6 +1,6 @@
 # TickerGarden V1 正式用户前端
 
-`website-fruit-tree/` 是 TickerGarden V1 面向用户的唯一正式前端。原辅助前端已迁入 `archive/legacy-website/`，只作历史追溯，不参与活动构建、测试、CI、部署或功能对接。
+`apps/web/` 是 TickerGarden V1 面向用户的唯一正式前端。原辅助前端位于 `archive/legacy-website/`，只作历史追溯，不参与活动构建、测试、CI、部署或功能对接。
 
 当前仓库 readiness 为 `IMPLEMENTATION_ALLOWED / NOT_DEPLOYABLE`。本地实现允许继续开发，但这不表示目标链部署、实链 E2E 或生产发布已经获批。
 

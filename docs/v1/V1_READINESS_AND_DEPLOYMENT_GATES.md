@@ -4,7 +4,7 @@
 
 > 规格任务：`V1-P-012`
 > 当前状态：`IMPLEMENTATION_ALLOWED`  
-> 机器权威：[`spec/v1_execution_manifest.json`](./spec/v1_execution_manifest.json) 的 `readiness`
+> 机器权威：[`spec/v1_execution_manifest.json`](../../spec/v1_execution_manifest.json) 的 `readiness`
 > 更新时间：2026-09-04
 
 本文只定义某个 `executionSpecId` 可以做什么，不替代协议状态机。产品市场的 `launchPhase` 与发布工程的 readiness 是两个完全独立的状态域。

@@ -11,7 +11,7 @@
 > 可验证执行规范：参见 [V1_EXECUTION_SPEC.md](./V1_EXECUTION_SPEC.md)（当前 canonical 执行规则为 `V1-EXEC-10`）
 > Pons 行为基线：参见 [V1_PONS_BEHAVIOR_BASELINE.md](./V1_PONS_BEHAVIOR_BASELINE.md)
 > Stock Vault 架构决策：参见 [V1_MULTI_ASSET_STOCK_VAULT.md](./V1_MULTI_ASSET_STOCK_VAULT.md)
-> 品牌文化与用户语言：参见 [brand/BRAND_CULTURE_AND_ECOSYSTEM.md](./brand/BRAND_CULTURE_AND_ECOSYSTEM.md)
+> 品牌文化与用户语言：参见 [brand/BRAND_CULTURE_AND_ECOSYSTEM.md](../../brand/BRAND_CULTURE_AND_ECOSYSTEM.md)
 
 本文把用户已经确认的产品规则写入“已冻结”章节。Pons runtime 行为、管理员准入的 native/direct ERC-20 Quote 集合、通用数值域，以及 Robinhood 官方目录当前观测到的194种 STOCK 全量可选 Base 规则已经形成机器证据。当前已实现的 STOCK 路径只作为质押 Base 和分配权重，不使用价格、USD 名义目标或 backing target；少量官方 Stock Token 作为 Quote 的价格参考与代理专用准入是已确认但尚未实现的追加方向。当前 readiness 是 `IMPLEMENTATION_ALLOWED`：可以继续产品实现，但最终 artifact、目标链取证、Fork/E2E、审计与法律签字完成前仍不可部署。
 
@@ -129,7 +129,7 @@ TickerGarden 不把任一平台整体照搬，而是冻结以下组合：
 
 明确不采纳：零成本无限创建、基于即时现货市值的二十多个费率档位、全局修改已发行项目 economics、没有明确反狙击保护，以及 Mayhem、返现或新的代币排放玩法。创建费参考 Pons 活跃部署：当前 Factory 永久固定为 `0.0005` 原生资产、严格匹配 `msg.value`、直接进入平台收入；不再另设 `5 USDG`、可退保证金、STOCK 创建资格或地址级限速，也不存在原地调价 setter。
 
-Pons 的开盘反狙击定价和原子 `launch-and-buy` 行为作为参考。首买不设置“毕业门槛1%”这一额外上限；最大成交量由剩余 `sellableTokens`、尾单部分成交、退款和 `minTokensOut` 决定。作为 TickerGarden 自有 ABI 的安全收窄，不暴露 Pons 的任意团队豁免数组，只自动豁免真实 creator/beneficiary 和原子首买 recipient。活跃 runtime 已固定精确 raw 表：elapsed `0/1/2/≥3s` 分别为 `9900/618/19/0 bps`；在基础费100 bps、creator tax 0、至少保留100 bps净 Quote 的 clip 下，TickerGarden effective 表为 `9800/618/19/0 bps`。Pons 文档5秒、固定仓库源码默认15秒和 runtime 3秒互相冲突，因此只实现这张整数输出表，不插值或猜测连续公式；证据见 [`spec/v1_pons_runtime_evidence.json`](./spec/v1_pons_runtime_evidence.json)。
+Pons 的开盘反狙击定价和原子 `launch-and-buy` 行为作为参考。首买不设置“毕业门槛1%”这一额外上限；最大成交量由剩余 `sellableTokens`、尾单部分成交、退款和 `minTokensOut` 决定。作为 TickerGarden 自有 ABI 的安全收窄，不暴露 Pons 的任意团队豁免数组，只自动豁免真实 creator/beneficiary 和原子首买 recipient。活跃 runtime 已固定精确 raw 表：elapsed `0/1/2/≥3s` 分别为 `9900/618/19/0 bps`；在基础费100 bps、creator tax 0、至少保留100 bps净 Quote 的 clip 下，TickerGarden effective 表为 `9800/618/19/0 bps`。Pons 文档5秒、固定仓库源码默认15秒和 runtime 3秒互相冲突，因此只实现这张整数输出表，不插值或猜测连续公式；证据见 [`spec/v1_pons_runtime_evidence.json`](../../spec/v1_pons_runtime_evidence.json)。
 
 Pump 的 LP 手续费与动态费率档均不进入 V1-EXEC-10。毕业池总协议费率固定为 `1%`，不存在 TWAP、流动性、滚动量、现货市值或治理触发的升降档；`PoolKey.fee = 0`，Hook 收取的手续费全部进入 FeeVault。精确 PoolKey、Hook、取整和原子结算见 [V1_EXECUTION_SPEC.md](./V1_EXECUTION_SPEC.md)。
 
@@ -187,7 +187,7 @@ Base 资格与 Quote 资格必须分开：194项官方资产的 Base 资格不�
 
 TickerGarden 的获批列表不必与 Pons 现网列表永久相同，但每个 Pons 现网未批准的新增 Quote 都必须登记为显式 TickerGarden 差异，独立冻结 economics、完成参考向量和安全审查；不能借“兼容 Pons”省略这些步骤。
 
-当前仓库提供一个 native bootstrap 示例，权威记录为 [`spec/v1_initial_quote_configs.json`](./spec/v1_initial_quote_configs.json)。它不是协议上限或首发 allowlist 冻结；管理员可在部署前后按相同规则追加多项 config：
+当前仓库提供一个 native bootstrap 示例，权威记录为 [`spec/v1_initial_quote_configs.json`](../../spec/v1_initial_quote_configs.json)。它不是协议上限或首发 allowlist 冻结；管理员可在部署前后按相同规则追加多项 config：
 
 | Config | Quote | Decimals | `phantomQuote` | `graduationThreshold` | `quoteAssetConfigId == economicsHash` |
 |---|---|---:|---:|---:|---|
@@ -249,7 +249,7 @@ V1 当前 Factory 的创建费参考 Pons 活跃部署，immutable 为 `50000000
 
 ### 3.7 毕业
 
-> **用户侧品牌术语：Bloom（绽放）。** `Bloom` 是协议 Graduation 成功事件的非规范性产品语言，唯一对应 canonical Registry 中 `launchPhase == PoolCreated`；成功后的持续状态统一显示为 `In Bloom`，不使用 `Bloomed`。`readyToGraduate() == true` 只能称为 `Ready to Bloom`，不得显示为 `In Bloom`，也不得据此开放 STOCK 配置。当前协议没有可持续观察的 `Bloom Pending`/`Swept` 或 `Rescued` 状态。`Rooted Liquidity` 只描述 `PoolCreated` 后 canonical 初始流动性永久锁定的事实，`Harvest` 只描述已经实际产生并记账的手续费，二者都不是新的 `launchPhase`。合约、ABI、事件与技术规范继续使用 `Graduation`、`PoolGraduated` 和 `PoolCreated`，完整语言规则见 [`brand/BRAND_CULTURE_AND_ECOSYSTEM.md`](./brand/BRAND_CULTURE_AND_ECOSYSTEM.md)。
+> **用户侧品牌术语：Bloom（绽放）。** `Bloom` 是协议 Graduation 成功事件的非规范性产品语言，唯一对应 canonical Registry 中 `launchPhase == PoolCreated`；成功后的持续状态统一显示为 `In Bloom`，不使用 `Bloomed`。`readyToGraduate() == true` 只能称为 `Ready to Bloom`，不得显示为 `In Bloom`，也不得据此开放 STOCK 配置。当前协议没有可持续观察的 `Bloom Pending`/`Swept` 或 `Rescued` 状态。`Rooted Liquidity` 只描述 `PoolCreated` 后 canonical 初始流动性永久锁定的事实，`Harvest` 只描述已经实际产生并记账的手续费，二者都不是新的 `launchPhase`。合约、ABI、事件与技术规范继续使用 `Graduation`、`PoolGraduated` 和 `PoolCreated`，完整语言规则见 [`brand/BRAND_CULTURE_AND_ECOSYSTEM.md`](../../brand/BRAND_CULTURE_AND_ECOSYSTEM.md)。
 
 当最后一笔买入使 `sellableTokens == 0` 时，Curve 在同一交易内自动执行毕业。初始公式把 `realQuoteReserve` 的理论终点锚定在本市场 `QuoteAssetConfig` 中的 `graduationThreshold` 附近；实际数值会受每笔整数舍入影响，不得假设与阈值逐 raw unit 恒等。阈值以所选 Quote 的原始单位表示，不是跨资产统一的美元门槛，更不是 TickerGarden 全局写死的 `2,500 USDC`。Factory 在创建前验证配置决定的 canonical pool 数量，Curve 在转移资产前要求真实 Quote 不低于该数量、真实 Meme 恰好等于 reservedTokens，并以 canonical PoolKey 再跑同一 `GraduationPoolMath`；若真实路径不可表示或任一建池步骤失败，最终买入整体回滚且市场保持 `NotGraduated`。
 

@@ -3,7 +3,7 @@
 本目录只保存退出活动工程图的历史实现，便于审计与迁移追溯。
 
 - `legacy-website/`：2026-09-04 从根目录 `website/` 迁入的旧辅助前端。
-- TickerGarden V1 唯一正式用户前端是 `website-fruit-tree/`。
+- TickerGarden V1 唯一正式用户前端是 `apps/web/`。
 - 归档目录不得加入根级构建、测试、CI、部署或新功能对接。
 - 旧站托管描述符已保留为 `.openai/hosting.json.archived`，避免托管工具将归档误识别为可发布站点。
 - 归档内的依赖和构建产物可以按其锁文件重新生成，但不属于发布产物。

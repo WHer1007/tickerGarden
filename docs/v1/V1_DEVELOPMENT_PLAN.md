@@ -34,11 +34,11 @@ Robinhood 官方 `/rhj/prices/{symbol}` 已确认可以为创建页面和受约�
 5. 完成恶意/真实 Stock Token、Beacon 升级、pause/blocklist/adminBurn、买卖、原子毕业、FeeVault/Treasury 偿付的 fork/E2E；
 6. 更新 execution spec、机器 manifest、ABI、部署 preflight 和正式创建页后，才允许新增 ACTIVE Stock Quote config。
 
-权威设计见 [`V1_STOCK_QUOTE_PRICE_REFERENCE.md`](./V1_STOCK_QUOTE_PRICE_REFERENCE.md)，RH 资料与动态字段见 [`research/rh-chain-stock-tokens/README.md`](./research/rh-chain-stock-tokens/README.md)。
+权威设计见 [`V1_STOCK_QUOTE_PRICE_REFERENCE.md`](./V1_STOCK_QUOTE_PRICE_REFERENCE.md)，RH 资料与动态字段见 [`research/rh-chain-stock-tokens/README.md`](../../research/rh-chain-stock-tokens/README.md)。
 
 ## 正式用户前端边界
 
-`website-fruit-tree/` 是 V1 面向用户的唯一正式前端。页面与用户能力以该目录为准；`Rewards` 保持产品名称，并承载 Position、Staker、Creator、Treasury 四个面板。原辅助前端已迁入 `archive/legacy-website/`，只保留历史追溯用途，不参与构建、测试、CI、部署或功能对接，也不改变本计划的 readiness 结论。
+`apps/web/` 是 V1 面向用户的唯一正式前端。页面与用户能力以该目录为准；`Rewards` 保持产品名称，并承载 Position、Staker、Creator、Treasury 四个面板。原辅助前端位于 `archive/legacy-website/`，只保留历史追溯用途，不参与构建、测试、CI、部署或功能对接，也不改变本计划的 readiness 结论。
 
 前端的链上与链下接入必须 fail closed：read API、Factory、LaunchRouter、AllocationManager、FeeVault、CreatorRegistry、TreasuryDistributor 与 Treasury Proof API 的配置、健康状态和 Factory/Registry 绑定任一不满足时，不得报价、模拟、签名或提交资金敏感操作。Treasury 前端随 V1 发布，但 Treasury 整体当前仍标记为 `NOT_DEPLOYABLE`、尚未完成实链 E2E，因此其 holder 写操作还必须通过独立的 `V1-TREASURY-EXEC-1:DEPLOYED_E2E_APPROVED` 发布批准门；未批准时 Rewards 只读展示 Treasury，不影响其余 V1 用户操作。
 
@@ -46,7 +46,7 @@ Robinhood 官方 `/rhj/prices/{symbol}` 已确认可以为创建页面和受约�
 
 ## 本地验收
 
-- 根门禁：以仓库根目录 `npm test` 为唯一聚合验收入口；它必须同时通过执行规范、全部 Foundry 测试、fixture/interface/product artifact 漂移检查、CI 三轨、Backend、Indexer、Deployments、Maintenance runner 与正式 `website-fruit-tree`。具体 suite/case 数量以当次 CI 输出为准，避免文档硬编码计数漂移。
+- 根门禁：以仓库根目录 `npm test` 为唯一聚合验收入口；它必须同时通过执行规范、全部 Foundry 测试、fixture/interface/product artifact 漂移检查、CI 三轨、Backend、Indexer、Deployments、Maintenance runner 与正式 `apps/web`。具体 suite/case 数量以当次 CI 输出为准，避免文档硬编码计数漂移。
 - 状态化验证：Vault/Gauge、Treasury 与多资产恶意 Token 不变量均固定执行 256 runs、128,000 calls，并要求 0 handler revert。
 - 旧管理 selector 只允许出现在“不可调用”的负向测试和明确的已删除迁移记录中；源码、生成 ABI、事件、客户端、部署 `dist` 与编译 artifact 均不得包含它们。
 

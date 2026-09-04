@@ -13,7 +13,7 @@ TickerGarden 不人为缩小“质押 Base”资产范围。Robinhood 官方 Sto
 
 2026-09-02 的点时观测返回194个资产，194个 UID 和 token 地址均唯一，全部为 `ASSET_STATUS_ACTIVE`、18 decimals；同一固定区块上的 `uid()`、`decimals()`、proxy runtime、共享 Beacon 和当前 implementation 指纹检查全部通过。当前194个资产全部可以登记并由市场创建者选择为质押 Base。194只是本次观测数量，不是协议上限；Robinhood 后续新增的官方资产可按同一规则追加。
 
-机器证据见 [`spec/v1_rh_official_stock_catalog.snapshot.json`](./spec/v1_rh_official_stock_catalog.snapshot.json)，原始官方响应归档见 [`spec/v1_rh_official_stock_catalog.source.json`](./spec/v1_rh_official_stock_catalog.source.json)，可复跑生成器见 [`spec/generate_v1_rh_stock_catalog.py`](./spec/generate_v1_rh_stock_catalog.py)。当前快照是点时观测；生产登记前仍须在 finalized 区块重新验证身份和代理实现，但这属于部署取证，不是价格门禁，也不阻塞实现。
+机器证据见 [`spec/v1_rh_official_stock_catalog.snapshot.json`](../../spec/v1_rh_official_stock_catalog.snapshot.json)，原始官方响应归档见 [`spec/v1_rh_official_stock_catalog.source.json`](../../spec/v1_rh_official_stock_catalog.source.json)，可复跑生成器见 [`spec/generate_v1_rh_stock_catalog.py`](../../spec/generate_v1_rh_stock_catalog.py)。当前快照是点时观测；生产登记前仍须在 finalized 区块重新验证身份和代理实现，但这属于部署取证，不是价格门禁，也不阻塞实现。
 
 ## 2. 市场如何选择 STOCK Base
 
@@ -39,7 +39,7 @@ STOCK 在 V1 中只承担质押 Base、分配权重和社区背书作用，不�
 
 链上只使用 Stock Token 的实际 raw balance 与 decimals。每个 Asset UID 的 `minimumAllocation` 由管理员动态设置，但不得低于414 raw units；手续费权重使用同一 Gauge 内各用户已激活 STOCK 的相对比例。存在 Active stake 时按 Creator40%/Staker30%/Platform30% 分配，无 Active stake 时按 Creator70%/Staker0%/Platform30% 分配。Quote 侧手续费按 Quote 分，Meme 侧手续费按 Meme 分，不转换成 STOCK，也不进行美元净额结算。
 
-此前生成的 Chainlink 目录和 backing-target 工具仅保留为 `V1-EXEC-1` 历史研究证据，不是当前 `V1-EXEC-10` 的质押 Base 协议输入、准入条件或部署门禁；边界见 [`spec/RETIRED_STOCK_PRICE_RESEARCH.md`](./spec/RETIRED_STOCK_PRICE_RESEARCH.md)。
+此前生成的 Chainlink 目录和 backing-target 工具仅保留为 `V1-EXEC-1` 历史研究证据，不是当前 `V1-EXEC-10` 的质押 Base 协议输入、准入条件或部署门禁；边界见 [`spec/RETIRED_STOCK_PRICE_RESEARCH.md`](../../spec/RETIRED_STOCK_PRICE_RESEARCH.md)。
 
 ### 3.1 Stock Token 作为 Quote 时的创建参考
 

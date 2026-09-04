@@ -7,8 +7,8 @@
 
 - Pons Privacy Policy: <https://www.ponsfamily.com/privacy>
 - Pons Terms of Use: <https://www.ponsfamily.com/terms>
-- TickerGarden protocol/product source: [`../V1_PROTOCOL_PARAMETERS.md`](../V1_PROTOCOL_PARAMETERS.md)
-- TickerGarden brand-language source: [`../brand/BRAND_CULTURE_AND_ECOSYSTEM.md`](../brand/BRAND_CULTURE_AND_ECOSYSTEM.md)
+- TickerGarden protocol/product source: [`../../docs/v1/V1_PROTOCOL_PARAMETERS.md`](../../docs/v1/V1_PROTOCOL_PARAMETERS.md)
+- TickerGarden brand-language source: [`../../brand/BRAND_CULTURE_AND_ECOSYSTEM.md`](../../brand/BRAND_CULTURE_AND_ECOSYSTEM.md)
 
 Pons was used as a structural reference for topics expected on a wallet-connected token interface: public blockchain data, browser and infrastructure data, third-party providers, wallet security, irreversible transactions, user-created content, market and liquidity risk, fees, acceptable use, warranty and liability boundaries, and legal contacts.
 

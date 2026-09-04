@@ -11,7 +11,7 @@
 
 ## 1.1 正式用户 UI 与 Rewards 边界
 
-`website-fruit-tree/` 是 V1 唯一正式用户前端。原辅助前端已迁入 `archive/legacy-website/`，只作历史追溯并从活动构建、测试、CI、部署及功能对接范围排除。正式前端的 `Rewards` 页面保持名称，并统一承载 Position、Staker、Creator、Treasury 四类用户面板。其运行时依赖 read API、Factory、LaunchRouter、AllocationManager、FeeVault、CreatorRegistry、TreasuryDistributor 和 Treasury Proof API，并在配置、健康检查及 Factory/Registry 地址绑定无法证明时 fail closed。
+`apps/web/` 是 V1 唯一正式用户前端。原辅助前端位于 `archive/legacy-website/`，只作历史追溯并从活动构建、测试、CI、部署及功能对接范围排除。正式前端的 `Rewards` 页面保持名称，并统一承载 Position、Staker、Creator、Treasury 四类用户面板。其运行时依赖 read API、Factory、LaunchRouter、AllocationManager、FeeVault、CreatorRegistry、TreasuryDistributor 和 Treasury Proof API，并在配置、健康检查及 Factory/Registry 地址绑定无法证明时 fail closed。
 
 本金逃生是上述常规运行时的唯一例外边界：Rewards 的 direct Vault escape 仅需钱包、配置的 Factory 与 Robinhood Chain RPC，直接沿 Factory→MarketRegistry/OfficialStockRegistry→UserStockVault 核验不可变身份、schema 反向登记和用户 allocation。它不依赖 read API、Gauge/奖励读取、market phase、lock、`minimumAllocation` 或 Asset 的新增准入状态；交易仍必须 simulation-first，并以 canonical Vault 事件、receipt-block allocation 归零和用户 STOCK 精确到账共同确认。
 

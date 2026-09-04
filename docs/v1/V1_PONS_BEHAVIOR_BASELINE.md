@@ -344,7 +344,7 @@ lockedExcessMeme / supply           = 4 / 49  ≈ 8.1633%
 | 2 | 19 | 19 |
 | ≥3 | 0 | 0 |
 
-其中 effective 为 `min(rawSnipeBps, 10000-feeBps-creatorTaxBps-minimumNetBps)`，上表使用 `feeBps=100`、TickerGarden `creatorTaxBps=0`、`minimumNetBps=100`；仅作用于 BUY 的 Quote leg。creator、creator revenue beneficiary 和 atomic first-buy recipient 自动豁免，不存在任意豁免数组。完整区块、交易、runtime hash 和向量见 [`spec/v1_pons_runtime_evidence.json`](./spec/v1_pons_runtime_evidence.json)。
+其中 effective 为 `min(rawSnipeBps, 10000-feeBps-creatorTaxBps-minimumNetBps)`，上表使用 `feeBps=100`、TickerGarden `creatorTaxBps=0`、`minimumNetBps=100`；仅作用于 BUY 的 Quote leg。creator、creator revenue beneficiary 和 atomic first-buy recipient 自动豁免，不存在任意豁免数组。完整区块、交易、runtime hash 和向量见 [`spec/v1_pons_runtime_evidence.json`](../../spec/v1_pons_runtime_evidence.json)。
 
 ### 8.1 真实毕业收据与权限语义
 
@@ -365,7 +365,7 @@ lockedExcessMeme / supply           = 4 / 49  ≈ 8.1633%
 
 ### 8.3 数值域与精度边界
 
-通用数值域见 [`spec/v1_numeric_bounds.json`](./spec/v1_numeric_bounds.json)。首发实现限定资产 decimals 为 `6..18`；供应、reward/accounting 及 v4 returned delta 均须在 Solidity 对应有符号/无符号边界内。所有乘除、部分成交比较、毕业分区、手续费、V4 价格/流动性和质押累计器使用 full-precision mulDiv；每一步的 floor/ceil 与 residual 归属按机器文件冻结。激活延迟为30秒、最短锁定为86400秒，所有时间加法必须先检查 `uint64` 溢出，失败不得改写状态。
+通用数值域见 [`spec/v1_numeric_bounds.json`](../../spec/v1_numeric_bounds.json)。首发实现限定资产 decimals 为 `6..18`；供应、reward/accounting 及 v4 returned delta 均须在 Solidity 对应有符号/无符号边界内。所有乘除、部分成交比较、毕业分区、手续费、V4 价格/流动性和质押累计器使用 full-precision mulDiv；每一步的 floor/ceil 与 residual 归属按机器文件冻结。激活延迟为30秒、最短锁定为86400秒，所有时间加法必须先检查 `uint64` 溢出，失败不得改写状态。
 
 ## 9. TickerGarden CREATE2 地址规则
 
@@ -419,7 +419,7 @@ derive marketId
 - `predictMarketAddresses` 与部署代码必须调用同一内部库；测试不得分别重写公式；
 - Hook、GraduationExecutor、FeeVault 与 PoolManager 为 execution-spec 级共享不可变部署；Token/Curve/Gauge 是创建时的 per-market CREATE2 instance，LaunchLocker 是毕业时的 per-market CREATE2 instance。Hook 单独执行权限位 salt mining，并在 manifest 中冻结地址、salt、initCodeHash 和 runtime codehash。
 
-固定 CREATE2 示例向量位于 [`spec/v1_pons_behavior_vectors.json`](./spec/v1_pons_behavior_vectors.json)。
+固定 CREATE2 示例向量位于 [`spec/v1_pons_behavior_vectors.json`](../../spec/v1_pons_behavior_vectors.json)。
 
 ## 10. 必须持续成立的数学和状态不变量
 

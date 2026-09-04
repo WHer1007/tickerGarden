@@ -4,7 +4,7 @@
 > 观测时间：2026-09-02 12:28:48（Asia/Shanghai）  
 > 固定区块：Robinhood Chain `52,289,586`（`0x31de032`）  
 > 区块哈希：`0x9477917aacd098d56b4d5fb375e555a09d1a61b7bf33417429e5c8e4a2e86006`  
-> 机器记录：[`spec/v1_g0_external_evidence.json`](./spec/v1_g0_external_evidence.json)
+> 机器记录：[`spec/v1_g0_external_evidence.json`](../../spec/v1_g0_external_evidence.json)
 
 > 后续决策：本文件保留取证当时的 `BLOCKED` 快照，不随产品决定回写。2026-09-02 后续已选择 `0x7eD598…` 固定行为作为参考并批准多 Quote 协议能力；当前规范见 [V1_PONS_BEHAVIOR_BASELINE.md](./V1_PONS_BEHAVIOR_BASELINE.md) 与 [V1_G0_RECOMMENDATIONS.md](./V1_G0_RECOMMENDATIONS.md)。公开源码复现、反狙击差分和逐资产生产配置仍未关闭。
 

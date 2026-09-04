@@ -4,7 +4,7 @@ import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const websiteRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..");
-const repoRoot = resolve(websiteRoot, "..");
+const repoRoot = resolve(websiteRoot, "../..");
 const manifestPath = resolve(repoRoot, "spec/v1_product_artifact_manifest.json");
 const outputPath = resolve(websiteRoot, "src/v1/generated/abis.ts");
 const check = process.argv.includes("--check");

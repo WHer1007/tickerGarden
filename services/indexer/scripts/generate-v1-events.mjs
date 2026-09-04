@@ -3,7 +3,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 const indexerRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
-const repositoryRoot = path.resolve(indexerRoot, "..");
+const repositoryRoot = path.resolve(indexerRoot, "../..");
 const manifestPath = path.join(repositoryRoot, "spec/v1_product_artifact_manifest.json");
 const outputPath = path.join(indexerRoot, "src/generated/v1-events.ts");
 
