@@ -13,6 +13,10 @@ function keccakHex(hex: string): string {
   return `0x${Buffer.from(keccak_256(bytes(hex))).toString("hex")}`;
 }
 
+function keccakUtf8(value: string): string {
+  return `0x${Buffer.from(keccak_256(new TextEncoder().encode(value))).toString("hex")}`;
+}
+
 function selector(signature: string): string {
   return `0x${Buffer.from(keccak_256(new TextEncoder().encode(signature))).subarray(0, 4).toString("hex")}`;
 }
@@ -41,6 +45,10 @@ const ERC1967_IMPLEMENTATION_SLOT = "0x360894a13ba1a3210667c828492db98dca3e2076c
 const ERC1967_ADMIN_SLOT = "0xb53127684a568b3173ae13b9f8a6016e243e63b6e8ee1178d6a717850b5d6103";
 const ERC1967_BEACON_SLOT = "0xa3f0ad74e5423aebfd80d3ef4346578335a9a72aeaee59ff6cb3582b35133d50";
 const ZERO_STORAGE_WORD = `0x${"00".repeat(32)}`;
+
+function immutableBeaconProxyRuntime(beacon: string): string {
+  return `0x6080604052600a600c565b005b60186014601a565b609d565b565b5f7f${"00".repeat(12)}${beacon.slice(2).toLowerCase()}6001600160a01b0316635c60da1b6040518163ffffffff1660e01b8152600401602060405180830381865afa1580156076573d5f803e3d5ffd5b505050506040513d601f19601f820116820180604052508101906098919060ba565b905090565b365f80375f80365f845af43d5f803e80801560b6573d5ff35b3d5ffd5b5f6020828403121560c9575f80fd5b81516001600160a01b038116811460de575f80fd5b939250505056`;
+}
 
 function result(words: string[]): string {
   return `0x${words.join("")}`;
@@ -80,11 +88,48 @@ function registryAuthorityResult(manifest: JsonRecord, label: unknown): string |
   return result([addressWord(String((manifest.accessManager as JsonRecord).address))]);
 }
 
+function quoteRegistryStockBindingResult(manifest: JsonRecord, label: unknown): string | undefined {
+  if (label !== "approved-quote-registry-official-stock-registry") return undefined;
+  const modules = manifest.protocolModules as JsonRecord;
+  return result([addressWord(String((modules.OfficialStockRegistryV1 as JsonRecord).deployedAddress))]);
+}
+
 function stockIdentityResult(manifest: JsonRecord, label: unknown): string | undefined {
   const stock = ((manifest.officialStocks as JsonRecord[])[0])!;
   if (label === "stock-uid") return result([String(stock.assetUid).slice(2)]);
   if (label === "stock-decimals") return result([word(stock.decimals as number)]);
   return undefined;
+}
+
+function stockQuoteIdentityResult(manifest: JsonRecord, label: unknown): string | undefined {
+  const stock = ((manifest.officialStocks as JsonRecord[])[0])!;
+  if (label === "official-stock-quote-uid") return result([String(stock.assetUid).slice(2)]);
+  if (label === "official-stock-quote-decimals") return result([word(stock.decimals as number)]);
+  if (label === "official-stock-quote-beacon-implementation") {
+    return result([addressWord(String(stock.implementationAddress))]);
+  }
+  return undefined;
+}
+
+function stockQuoteFingerprintHash(manifest: JsonRecord, stock: JsonRecord): string {
+  return keccakHex(`0x${[
+    keccakUtf8("TICKERGARDEN_V1_STOCK_QUOTE_FINGERPRINT").slice(2), word(1),
+    word((manifest.chain as JsonRecord).chainId as number), String(stock.assetUid).slice(2),
+    addressWord(String(stock.tokenAddress)), word(stock.decimals as number), String(stock.runtimeCodeHash).slice(2),
+    addressWord(String(stock.beaconAddress)), String(stock.beaconCodeHash).slice(2),
+    addressWord(String(stock.implementationAddress)), String(stock.implementationCodeHash).slice(2),
+  ].join("")}`);
+}
+
+function stockQuoteEconomicsHash(manifest: JsonRecord, quote: JsonRecord): string {
+  return keccakHex(`0x${[
+    keccakUtf8("TICKERGARDEN_V1_STOCK_QUOTE_ECONOMICS").slice(2), word(1),
+    word((manifest.chain as JsonRecord).chainId as number), String(quote.ponsBaselineId).slice(2),
+    addressWord(String(quote.tokenAddress)), word(quote.decimals as number), word(quote.phantomQuote as string),
+    word(quote.graduationThreshold as string), String(quote.assetUid).slice(2),
+    String(quote.stockTokenFingerprintHash).slice(2), String(quote.referenceEvidenceHash).slice(2),
+    String(quote.generatorPolicyId).slice(2),
+  ].join("")}`);
 }
 
 function prepareManifest(): JsonRecord {
@@ -99,7 +144,7 @@ function prepareManifest(): JsonRecord {
   (manifest.hook as JsonRecord).runtimeCodeHash = codeHash;
   (manifest.accessManager as JsonRecord).runtimeCodeHash = codeHash;
   for (const stock of manifest.officialStocks as JsonRecord[]) {
-    stock.runtimeCodeHash = codeHash;
+    stock.runtimeCodeHash = keccakHex(immutableBeaconProxyRuntime(String(stock.beaconAddress)));
     stock.beaconCodeHash = codeHash;
     stock.implementationCodeHash = codeHash;
   }
@@ -112,8 +157,10 @@ function prepareManifest(): JsonRecord {
   const stockImplementation = String(((manifest.officialStocks as JsonRecord[])[0] as JsonRecord).implementationAddress);
   for (const check of live.keyGetterChecks as JsonRecord[]) {
     const expectedResult = resolverBindingResult(manifest, check.label) ?? registryAuthorityResult(manifest, check.label)
+      ?? quoteRegistryStockBindingResult(manifest, check.label)
       ?? treasuryBindingResult(manifest, check.label)
-      ?? stockIdentityResult(manifest, check.label) ?? (check.label === "gauge-clone-identity"
+      ?? stockIdentityResult(manifest, check.label)
+      ?? stockQuoteIdentityResult(manifest, check.label) ?? (check.label === "gauge-clone-identity"
       ? result(Array.from({ length: 8 }, () => word(123n)))
       : check.category === "PROXY_OR_BEACON_LINKAGE"
         ? result([addressWord(stockImplementation)])
@@ -175,11 +222,40 @@ function prepareImmutableErc20QuoteManifest(): JsonRecord {
   return manifest;
 }
 
+function prepareOfficialStockQuoteManifest(): JsonRecord {
+  const manifest = prepareManifest();
+  const stock = (manifest.officialStocks as JsonRecord[])[0]!;
+  const quote: JsonRecord = {
+    assetKind: "OFFICIAL_STOCK", assetUid: stock.assetUid, tokenAddress: stock.tokenAddress, decimals: stock.decimals,
+    phantomQuote: "1000000", graduationThreshold: "2000000", ponsBaselineId: hash("baseline"),
+    runtimeCodeHash: stock.runtimeCodeHash, proxyKind: stock.proxyKind, beaconAddress: stock.beaconAddress,
+    beaconCodeHash: stock.beaconCodeHash, implementationAddress: stock.implementationAddress,
+    implementationCodeHash: stock.implementationCodeHash, referenceEvidenceHash: hash("stock-quote-reference"),
+    generatorPolicyId: hash("stock-quote-generator"), stockTokenFingerprintHash: "0x" + "00".repeat(32),
+    configId: "0x" + "00".repeat(32), economicsHash: "0x" + "00".repeat(32),
+    observationBlockHash: hash("stock-quote-observation"), exactBalanceDeltaEvidenceHash: hash("stock-quote-balance-delta"),
+  };
+  quote.stockTokenFingerprintHash = stockQuoteFingerprintHash(manifest, stock);
+  quote.configId = stockQuoteEconomicsHash(manifest, quote);
+  quote.economicsHash = quote.configId;
+  (manifest.configSnapshot as JsonRecord).quoteConfigIds = [quote.configId];
+  manifest.quoteAssets = [quote];
+  const live = manifest.livePreflight as JsonRecord;
+  (live.keyGetterChecks as JsonRecord[]).push(
+    { label: "official-stock-quote-uid", category: "EXTERNAL_IDENTITY", target: quote.tokenAddress, callData: selector("uid()"), expectedReturnDataHash: keccakHex(result([String(stock.assetUid).slice(2)])) },
+    { label: "official-stock-quote-decimals", category: "EXTERNAL_IDENTITY", target: quote.tokenAddress, callData: selector("decimals()"), expectedReturnDataHash: keccakHex(result([word(stock.decimals as number)])) },
+    { label: "official-stock-quote-beacon-implementation", category: "PROXY_OR_BEACON_LINKAGE", target: quote.beaconAddress, callData: selector("implementation()"), expectedReturnDataHash: keccakHex(result([addressWord(String(stock.implementationAddress))])) },
+  );
+  (live.storageChecks as JsonRecord[]).push({ label: "official-stock-quote-beacon-slot", target: quote.tokenAddress, slot: ERC1967_BEACON_SLOT, expectedValue: `0x${String(quote.beaconAddress).slice(2).padStart(64, "0")}` });
+  return manifest;
+}
+
 function prepareDirectOfficialStockManifest(): JsonRecord {
   const manifest = prepareManifest();
   const stock = (manifest.officialStocks as JsonRecord[])[0]!;
   const token = String(stock.tokenAddress);
   stock.proxyKind = "DIRECT";
+  stock.runtimeCodeHash = keccakHex("0x60006000");
   stock.implementationAddress = token;
   stock.implementationCodeHash = stock.runtimeCodeHash;
   delete stock.beaconAddress;
@@ -216,6 +292,9 @@ type Faults = Partial<{
   receiptStatus: string;
   stockUidResult: string;
   stockDecimalsResult: string;
+  quoteUidResult: string;
+  quoteDecimalsResult: string;
+  quoteBeaconImplementationResult: string;
 }>;
 
 class MockRpc implements V1ReadOnlyRpc {
@@ -242,8 +321,15 @@ class MockRpc implements V1ReadOnlyRpc {
         ? faults.stockUidResult ?? canonicalStockResult
         : check.label === "stock-decimals"
           ? faults.stockDecimalsResult ?? canonicalStockResult
+          : check.label === "official-stock-quote-uid"
+            ? faults.quoteUidResult ?? stockQuoteIdentityResult(manifest, check.label)
+          : check.label === "official-stock-quote-decimals"
+            ? faults.quoteDecimalsResult ?? stockQuoteIdentityResult(manifest, check.label)
+            : check.label === "official-stock-quote-beacon-implementation"
+              ? faults.quoteBeaconImplementationResult ?? stockQuoteIdentityResult(manifest, check.label)
           : canonicalStockResult;
       const callResult = resolverBindingResult(manifest, check.label) ?? registryAuthorityResult(manifest, check.label)
+        ?? quoteRegistryStockBindingResult(manifest, check.label)
         ?? treasuryBindingResult(manifest, check.label)
         ?? stockResult ?? (check.label === "gauge-clone-identity"
         ? result(Array.from({ length: 8 }, () => word(123n)))
@@ -315,8 +401,16 @@ class MockRpc implements V1ReadOnlyRpc {
     }
     if (method === "eth_getCode") {
       assert.equal(params[1], this.#blockTag);
+      const target = String(params[0]).toLowerCase();
+      const stock = (this.#manifest.officialStocks as JsonRecord[]).find(
+        (entry) => String(entry.tokenAddress).toLowerCase() === target,
+      );
+      const stockRuntime = stock !== undefined && stock.proxyKind === "IMMUTABLE_BEACON"
+        ? immutableBeaconProxyRuntime(String(stock.beaconAddress))
+        : undefined;
       return this.#faults.codeByAddress?.[String(params[0]).toLowerCase()]
         ?? this.#faults.code
+        ?? stockRuntime
         ?? "0x60006000";
     }
     if (method === "eth_getStorageAt") {
@@ -415,7 +509,7 @@ test("verifies complete live state at one finalized block using read-only RPC on
   const rpc = new MockRpc(manifest);
   const report = await verifyV1LiveState(manifest, rpc);
   assert.equal(report.chainId, 4663);
-  assert.equal(report.permissionChecks, 83);
+  assert.equal(report.permissionChecks, 99);
   assert.equal(report.administrativePermissionChecks, 6);
   assert.equal(report.roleMembershipChecks, 5);
   assert.equal(report.revokedMembershipChecks, 5);
@@ -450,11 +544,12 @@ test("fails closed on chain, code, getter, storage, source, fee, role and select
   }
 });
 
-test("deployment entry remains blocked by central readiness before any RPC call", async () => {
+test("deployment entry validates live state after technical gates close", async () => {
   const manifest = prepareManifest();
   const rpc = new MockRpc(manifest);
-  await assert.rejects(preflightV1Deployment(manifest, rpc), /deployment gates/);
-  assert.deepEqual(rpc.methods, []);
+  const report = await preflightV1Deployment(manifest, rpc);
+  assert.ok(report.codeHashesChecked > 0);
+  assert.ok(rpc.methods.length > 0);
 });
 
 test("rejects manifest-level proxy linkage and permission semantic drift before RPC", async () => {
@@ -471,6 +566,32 @@ test("rejects manifest-level proxy linkage and permission semantic drift before 
   const permissionRpc = new MockRpc(badPermission);
   await assert.rejects(verifyV1LiveState(badPermission, permissionRpc), /stateDelaySeconds/);
   assert.deepEqual(permissionRpc.methods, []);
+});
+
+test("rejects an immutable Beacon runtime whose embedded Beacon disagrees with manifested linkage", async () => {
+  const manifest = prepareManifest();
+  const stock = (manifest.officialStocks as JsonRecord[])[0]!;
+  const wrongRuntime = immutableBeaconProxyRuntime(address("wrong-embedded-beacon"));
+  stock.runtimeCodeHash = keccakHex(wrongRuntime);
+  await assert.rejects(
+    verifyV1LiveState(
+      manifest,
+      new MockRpc(manifest, {
+        codeByAddress: { [String(stock.tokenAddress).toLowerCase()]: wrongRuntime },
+      }),
+    ),
+    /immutableBeaconRuntime/,
+  );
+});
+
+test("rejects decoy Beacon code even when its runtime hash and storage linkage are approved", async () => {
+  const manifest = prepareManifest();
+  const stock = (manifest.officialStocks as JsonRecord[])[0]!;
+  const decoy = `0x365f5f375f5f365f5f545af43d5f5f3e3d5ff37f${"00".repeat(12)}${String(stock.beaconAddress).slice(2)}6001600160a01b0316635c60da1b`;
+  stock.runtimeCodeHash = keccakHex(decoy);
+  await assert.rejects(verifyV1LiveState(manifest, new MockRpc(manifest, {
+    codeByAddress: { [String(stock.tokenAddress).toLowerCase()]: decoy },
+  })), /immutable Beacon proxy runtime is unrecognized/);
 });
 
 test("fails closed when finalized stock UID or decimals evidence is missing or drifts", async () => {
@@ -620,41 +741,76 @@ test("accepts a direct immutable Official Stock and rejects linkage, slots, and 
   await assert.rejects(verifyV1LiveState(badRuntime, new MockRpc(badRuntime, { codeByAddress: { [String(direct.tokenAddress).toLowerCase()]: forbidden } })), /direct Official Stock runtime contains forbidden opcode 0xf4/);
 });
 
-test("fails closed for immutable ERC20 Quote linkage and EIP-1967 evidence drift", async () => {
-  const linkageCases: Array<[string, (quote: JsonRecord) => void, RegExp]> = [
-    ["implementation address", (quote) => { quote.implementationAddress = address("wrong-immutable-quote-implementation"); }, /quoteAssets\.0\.implementationAddress/],
-    ["implementation code hash", (quote) => { quote.implementationCodeHash = hash("wrong-immutable-quote-code"); }, /quoteAssets\.0\.implementationCodeHash/],
-  ];
-  for (const [label, mutate, expected] of linkageCases) {
-    const manifest = prepareImmutableErc20QuoteManifest();
-    mutate((manifest.quoteAssets as JsonRecord[])[0]!);
-    const rpc = new MockRpc(manifest);
-    await assert.rejects(verifyV1LiveState(manifest, rpc), expected, label);
-    assert.deepEqual(rpc.methods, [], label);
-  }
+test("accepts unreachable literal data between INVALID and CBOR", async () => {
+  const manifest = prepareDirectOfficialStockManifest();
+  const stock = (manifest.officialStocks as JsonRecord[])[0]!;
+  // CRM has literal data (including f4) after INVALID and before CBOR.
+  const runtime = "0x600000fe112233f4a26469706673";
+  stock.runtimeCodeHash = keccakHex(runtime);
+  stock.implementationCodeHash = stock.runtimeCodeHash;
+  const report = await verifyV1LiveState(manifest, new MockRpc(manifest, {
+    codeByAddress: { [String(stock.tokenAddress).toLowerCase()]: runtime },
+  }));
+  assert.ok(report.codeHashesChecked > 0);
+});
 
-  const slotCases: Array<[string, string, boolean]> = [
-    ["missing implementation slot", "immutable-erc20-quote-implementation-slot", false],
-    ["missing admin slot", "immutable-erc20-quote-admin-slot", false],
-    ["missing beacon slot", "immutable-erc20-quote-beacon-slot", false],
-    ["non-zero implementation slot", "immutable-erc20-quote-implementation-slot", true],
-    ["non-zero admin slot", "immutable-erc20-quote-admin-slot", true],
-    ["non-zero beacon slot", "immutable-erc20-quote-beacon-slot", true],
+test("rejects a forbidden opcode in a jumpable INVALID suffix", async () => {
+  const manifest = prepareDirectOfficialStockManifest();
+  const stock = (manifest.officialStocks as JsonRecord[])[0]!;
+  // JUMPDEST makes the suffix executable again; f4 must remain rejected.
+  const runtime = "0xfe5bf4";
+  stock.runtimeCodeHash = keccakHex(runtime);
+  stock.implementationCodeHash = stock.runtimeCodeHash;
+  await assert.rejects(
+    verifyV1LiveState(manifest, new MockRpc(manifest, {
+      codeByAddress: { [String(stock.tokenAddress).toLowerCase()]: runtime },
+    })),
+    /direct Official Stock runtime contains forbidden opcode 0xf4/,
+  );
+});
+
+test("reviewed ERC20 proxy slots may be nonzero and remain checked against observed evidence", async () => {
+  const manifest = prepareImmutableErc20QuoteManifest();
+  const quote = (manifest.quoteAssets as JsonRecord[])[0]!;
+  quote.proxyKind = "ERC1967";
+  const checks = (manifest.livePreflight as JsonRecord).storageChecks as JsonRecord[];
+  const implementationSlot = checks.find(entry => entry.label === "immutable-erc20-quote-implementation-slot")!;
+  implementationSlot.expectedValue = `0x${String(quote.implementationAddress).slice(2).padStart(64, "0")}`;
+  await verifyV1LiveState(manifest, new MockRpc(manifest));
+  await assert.rejects(verifyV1LiveState(manifest, new MockRpc(manifest, { storageValue: ZERO_STORAGE_WORD })), /storageChecks/);
+});
+
+test("verifies OFFICIAL_STOCK Quote binding and fingerprint/economics domains", async () => {
+  const manifest = prepareOfficialStockQuoteManifest();
+  const report = await verifyV1LiveState(manifest, new MockRpc(manifest));
+  assert.ok(report.codeHashesChecked >= 30);
+
+  const driftCases: Array<[string, (quote: JsonRecord) => void, RegExp]> = [
+    ["canonical token", (quote) => { quote.tokenAddress = address("wrong-stock-token"); }, /quoteAssets\.0\.(tokenAddress|decimalsGetter|stockTokenFingerprintHash)/],
+    ["canonical UID", (quote) => { quote.assetUid = hash("wrong-stock-uid"); }, /quoteAssets\.0\.(assetUid|officialStockLink|uidGetter|stockTokenFingerprintHash)/],
+    ["beacon", (quote) => { quote.beaconAddress = address("wrong-stock-beacon"); }, /quoteAssets\.0\.(beaconAddress|beaconSlot)/],
+    ["implementation", (quote) => { quote.implementationAddress = address("wrong-stock-implementation"); }, /quoteAssets\.0\.(implementationAddress|beaconImplementationGetter)/],
+    ["fingerprint", (quote) => { quote.stockTokenFingerprintHash = hash("wrong-fingerprint"); }, /quoteAssets\.0\.stockTokenFingerprintHash/],
+    ["economics", (quote) => { quote.configId = hash("wrong-config"); }, /quoteAssets\.0\.configId/],
   ];
-  for (const [label, slotLabel, nonZero] of slotCases) {
-    const manifest = prepareImmutableErc20QuoteManifest();
-    const live = manifest.livePreflight as JsonRecord;
-    const checks = live.storageChecks as JsonRecord[];
-    if (nonZero) {
-      const check = checks.find((entry) => entry.label === slotLabel)!;
-      check.expectedValue = `0x${address("unexpected-quote-proxy-slot").slice(2).padStart(64, "0")}`;
-    } else {
-      live.storageChecks = checks.filter((entry) => entry.label !== slotLabel);
-    }
-    const rpc = new MockRpc(manifest);
-    await assert.rejects(verifyV1LiveState(manifest, rpc), /quoteAssets\.0\.(implementationSlot|adminSlot|beaconSlot)/, label);
-    assert.deepEqual(rpc.methods, [], label);
+  for (const [label, mutate, expected] of driftCases) {
+    const drifted = prepareOfficialStockQuoteManifest();
+    mutate((drifted.quoteAssets as JsonRecord[])[0]!);
+    await assert.rejects(verifyV1LiveState(drifted, new MockRpc(drifted)), expected, label);
   }
+});
+
+test("fails closed when OFFICIAL_STOCK Quote Beacon getter or slot evidence drifts", async () => {
+  const implementationDrift = prepareOfficialStockQuoteManifest();
+  await assert.rejects(
+    verifyV1LiveState(implementationDrift, new MockRpc(implementationDrift, { quoteBeaconImplementationResult: result([addressWord(address("wrong-implementation"))]) })),
+    /quoteAssets\.0\.beaconImplementationGetter|keyGetterChecks\.stock-beacon-implementation/,
+  );
+  const beaconSlotDrift = prepareOfficialStockQuoteManifest();
+  await assert.rejects(
+    verifyV1LiveState(beaconSlotDrift, new MockRpc(beaconSlotDrift, { storageValue: `0x${address("wrong-beacon-slot").slice(2).padStart(64, "0")}` })),
+    /quoteAssets\.0\.beaconSlot|storageChecks\.stock-beacon-slot/,
+  );
 });
 
 test("fails closed when immutable ERC20 Quote decimals evidence is missing or drifts", async () => {
@@ -676,7 +832,7 @@ test("fails closed when immutable ERC20 Quote decimals evidence is missing or dr
   );
 });
 
-test("rejects forbidden delegate runtime in an immutable ERC20 Quote at the finalized block", async () => {
+test("accepts administrator-reviewed delegate runtime in an ERC20 Quote at the finalized block", async () => {
   const manifest = prepareImmutableErc20QuoteManifest();
   const quote = (manifest.quoteAssets as JsonRecord[])[0]!;
   const token = String(quote.tokenAddress).toLowerCase();
@@ -685,13 +841,8 @@ test("rejects forbidden delegate runtime in an immutable ERC20 Quote at the fina
   quote.runtimeCodeHash = delegateRuntimeHash;
   quote.implementationCodeHash = delegateRuntimeHash;
 
-  await assert.rejects(
-    verifyV1LiveState(
-      manifest,
-      new MockRpc(manifest, { codeByAddress: { [token]: delegateRuntime } }),
-    ),
-    /immutable Quote runtime contains forbidden opcode 0xf4/,
-  );
+  const report = await verifyV1LiveState(manifest, new MockRpc(manifest, { codeByAddress: { [token]: delegateRuntime } }));
+  assert.ok(report.codeHashesChecked > 0);
 });
 
 test("rejects every canonical permission semantic and role-handoff drift before RPC", async () => {

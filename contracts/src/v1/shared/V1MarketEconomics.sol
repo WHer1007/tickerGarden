@@ -9,7 +9,7 @@ library V1MarketEconomics {
     bytes32 internal constant EXPECTED_ECONOMICS_DOMAIN = keccak256("TICKERGARDEN_V1_EXPECTED_ECONOMICS");
     bytes32 internal constant FEE_POLICY_DOMAIN = keccak256("TICKERGARDEN_V1_FEE_POLICY");
     uint256 internal constant PONS_BASELINE_SCHEMA_VERSION = 1;
-    uint256 internal constant EXPECTED_ECONOMICS_SCHEMA_VERSION = 3;
+    uint256 internal constant EXPECTED_ECONOMICS_SCHEMA_VERSION = 5;
     uint256 internal constant FEE_POLICY_SCHEMA_VERSION = 4;
 
     struct FeePolicyInput {
@@ -39,6 +39,8 @@ library V1MarketEconomics {
         bytes32 feePolicyId;
         bytes32 feePolicyHash;
         bytes32 executionSpecId;
+        uint16 creatorTaxBps;
+        bool creatorFeesToHolders;
     }
 
     function hashPonsBaseline(PonsBaseline memory value) internal pure returns (bytes32) {
@@ -98,7 +100,9 @@ library V1MarketEconomics {
             value.launchConfigId,
             value.feePolicyId,
             value.feePolicyHash,
-            value.executionSpecId
+            value.executionSpecId,
+            value.creatorTaxBps,
+            value.creatorFeesToHolders
         );
         return keccak256(bytes.concat(first, second));
     }

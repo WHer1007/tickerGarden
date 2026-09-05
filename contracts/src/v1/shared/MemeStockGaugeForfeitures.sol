@@ -48,12 +48,8 @@ abstract contract MemeStockGaugeForfeitures is MemeStockGaugeSettlements {
         position.unlockAt = 0;
 
         bool absorbGlobalRemainder = _rewardEligibleActiveStock(context.marketId) == 0;
-        quoteForfeited = _forfeitReward(
-            position.rewards[QUOTE_REWARD_INDEX], QUOTE_REWARD_INDEX, absorbGlobalRemainder
-        );
-        memeForfeited = _forfeitReward(
-            position.rewards[MEME_REWARD_INDEX], MEME_REWARD_INDEX, absorbGlobalRemainder
-        );
+        quoteForfeited = _forfeitReward(position.rewards[QUOTE_REWARD_INDEX], QUOTE_REWARD_INDEX, absorbGlobalRemainder);
+        memeForfeited = _forfeitReward(position.rewards[MEME_REWARD_INDEX], MEME_REWARD_INDEX, absorbGlobalRemainder);
 
         // The return slot remains for compatibility with existing manager events, but escaped rewards are
         // never reintroduced into the Gauge accumulator.  MemeStockGauge records both values in the
@@ -101,16 +97,13 @@ abstract contract MemeStockGaugeForfeitures is MemeStockGaugeSettlements {
         position.pendingGeneration = 0;
     }
 
-    function _forfeitReward(
-        GaugeUserReward storage reward,
-        uint8 rewardIndex,
-        bool absorbGlobalRemainder
-    ) private returns (uint256 amount) {
+    function _forfeitReward(GaugeUserReward storage reward, uint8 rewardIndex, bool absorbGlobalRemainder)
+        private
+        returns (uint256 amount)
+    {
         // User reward carry is always forfeited to the platform reserve. A global index remainder is only
         // absorbed when no eligible stock remains; with an active cohort it remains normal accumulator carry.
-        amount = _collectForfeitedReward(
-            rewardIndex, reward.pendingFee, reward.userRemainder, absorbGlobalRemainder
-        );
+        amount = _collectForfeitedReward(rewardIndex, reward.pendingFee, reward.userRemainder, absorbGlobalRemainder);
         reward.pendingFee = 0;
         reward.userRemainder = 0;
     }

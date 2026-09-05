@@ -1,12 +1,12 @@
 {
   "schemaVersion": 1,
-  "executionSpecId": "V1-EXEC-10",
-  "status": "IMPLEMENTATION_ALLOWED",
+  "executionSpecId": "V1-EXEC-11",
+  "status": "DEPLOYMENT_ELIGIBLE",
   "updatedAt": "2026-09-05",
   "normativeDocument": "docs/v1/V1_EXECUTION_SPEC.md",
   "readiness": {
     "modelVersion": 1,
-    "state": "IMPLEMENTATION_ALLOWED",
+    "state": "DEPLOYMENT_ELIGIBLE",
     "stateOrder": [
       "SPEC_FROZEN_NOT_DEPLOYABLE",
       "IMPLEMENTATION_ALLOWED",
@@ -14,12 +14,21 @@
       "PRODUCTION_READY"
     ],
     "allowedTransitions": [
-      ["SPEC_FROZEN_NOT_DEPLOYABLE", "IMPLEMENTATION_ALLOWED"],
-      ["IMPLEMENTATION_ALLOWED", "DEPLOYMENT_ELIGIBLE"],
-      ["DEPLOYMENT_ELIGIBLE", "PRODUCTION_READY"]
+      [
+        "SPEC_FROZEN_NOT_DEPLOYABLE",
+        "IMPLEMENTATION_ALLOWED"
+      ],
+      [
+        "IMPLEMENTATION_ALLOWED",
+        "DEPLOYMENT_ELIGIBLE"
+      ],
+      [
+        "DEPLOYMENT_ELIGIBLE",
+        "PRODUCTION_READY"
+      ]
     ],
     "implementationAllowed": true,
-    "deploymentEligible": false,
+    "deploymentEligible": true,
     "productionReady": false,
     "gateSets": {
       "implementation": {
@@ -27,20 +36,13 @@
         "requiredEvidence": [
           "V1_EXEC_6_CANONICAL_ABI_HASH_AND_PERMISSION_VECTORS",
           "ALL_OFFICIAL_STOCK_BASE_SELECTION_POLICY",
+          "OFFICIAL_STOCK_QUOTE_IMMUTABLE_BEACON_TYPED_ADMISSION_AND_PREFLIGHT",
           "FIXED_ACTIVE_STAKER_SHARE_AND_RAGE_QUIT_FORFEITURE_VECTORS",
           "COMPLETE_SPEC_VECTOR_SUITE"
         ]
       },
       "deployment": {
-        "open": [
-          "V1-DEPLOY-CHAIN-SNAPSHOT-01",
-          "V1-DEPLOY-ARTIFACT-CODEHASH-01",
-          "V1-DEPLOY-CREATE2-VECTORS-01",
-          "V1-DEPLOY-HOOK-MASK-01",
-          "V1-DEPLOY-PERMISSIONS-01",
-          "V1-DEPLOY-ABI-DIFF-01",
-          "V1-DEPLOY-PRODUCT-FORK-E2E-01"
-        ],
+        "open": [],
         "requiredEvidence": [
           "CHAIN_ID_RPC_AND_FINALIZED_BLOCK_HASH",
           "ALL_MODULE_ADDRESSES_ARTIFACTS_AND_RUNTIME_CODEHASHES",
@@ -86,16 +88,50 @@
         "REFERENCE_FIXTURE_VALUE"
       ],
       "allowedZeroRules": [
-        {"pathPattern":"$.quoteAssets.*.tokenAddress","requiresSibling":{"field":"assetKind","equals":"NATIVE"}},
-        {"pathPattern":"$.livePreflight.storageChecks.*.expectedValue","requiresSibling":{"field":"slot","equals":"0x360894a13ba1a3210667c828492db98dca3e2076cc3735a920a3ca505d382bbc"}},
-        {"pathPattern":"$.livePreflight.storageChecks.*.expectedValue","requiresSibling":{"field":"slot","equals":"0xb53127684a568b3173ae13b9f8a6016e243e63b6e8ee1178d6a717850b5d6103"}},
-        {"pathPattern":"$.livePreflight.storageChecks.*.expectedValue","requiresSibling":{"field":"slot","equals":"0xa3f0ad74e5423aebfd80d3ef4346578335a9a72aeaee59ff6cb3582b35133d50"}},
-        {"pathPattern":"$.marketInitialRuntime.poolId"},
-        {"pathPattern":"$.poolBindingInitial.status"}
+        {
+          "pathPattern": "$.quoteAssets.*.tokenAddress",
+          "requiresSibling": {
+            "field": "assetKind",
+            "equals": "NATIVE"
+          }
+        },
+        {
+          "pathPattern": "$.livePreflight.storageChecks.*.expectedValue",
+          "requiresSibling": {
+            "field": "slot",
+            "equals": "0x360894a13ba1a3210667c828492db98dca3e2076cc3735a920a3ca505d382bbc"
+          }
+        },
+        {
+          "pathPattern": "$.livePreflight.storageChecks.*.expectedValue",
+          "requiresSibling": {
+            "field": "slot",
+            "equals": "0xb53127684a568b3173ae13b9f8a6016e243e63b6e8ee1178d6a717850b5d6103"
+          }
+        },
+        {
+          "pathPattern": "$.livePreflight.storageChecks.*.expectedValue",
+          "requiresSibling": {
+            "field": "slot",
+            "equals": "0xa3f0ad74e5423aebfd80d3ef4346578335a9a72aeaee59ff6cb3582b35133d50"
+          }
+        },
+        {
+          "pathPattern": "$.marketInitialRuntime.poolId"
+        },
+        {
+          "pathPattern": "$.poolBindingInitial.status"
+        }
       ],
       "referenceFixtureScopes": [
-        {"file":"spec/v1_hash_schemas.json","jsonPointer":"/vectors"},
-        {"file":"spec/v1_pons_behavior_vectors.json","jsonPointer":"/create2"}
+        {
+          "file": "spec/v1_hash_schemas.json",
+          "jsonPointer": "/vectors"
+        },
+        {
+          "file": "spec/v1_pons_behavior_vectors.json",
+          "jsonPointer": "/create2"
+        }
       ]
     }
   },
@@ -121,23 +157,45 @@
     "arbitrarySnipeExemptionArray": false,
     "antiSnipe": {
       "durationSeconds": 3,
-      "rawBpsByElapsedSecond": [9900, 618, 19],
+      "rawBpsByElapsedSecond": [
+        9900,
+        618,
+        19
+      ],
       "zeroFromElapsedSecond": 3,
       "minimumNetBps": 100,
       "effectiveBpsFormula": "min(rawSnipeBps,10000-feeBps-creatorTaxBps-minimumNetBps)",
       "creatorTaxBps": 0,
-      "automaticExemptions": ["CREATOR", "CREATOR_REVENUE_BENEFICIARY_AT_CREATION", "ATOMIC_FIRST_BUY_RECIPIENT"],
+      "automaticExemptions": [
+        "CREATOR",
+        "CREATOR_REVENUE_BENEFICIARY_AT_CREATION",
+        "ATOMIC_FIRST_BUY_RECIPIENT"
+      ],
       "runtimeEvidence": "spec/v1_pons_runtime_evidence.json"
     }
   },
   "quoteConfigs": {
     "authoritativeArtifact": "spec/v1_initial_quote_configs.json",
-    "configuredExamples": ["NATIVE_ETH_V1"],
+    "configuredExamples": [
+      "NATIVE_ETH_V1"
+    ],
     "configuredExamplesAreProtocolCap": false,
     "selectionRule": "NEW_MARKET_MAY_SELECT_ANY_ADMIN_APPROVED_ACTIVE_QUOTE",
     "approvalRequirement": "ADMIN_APPROVED_AND_ACTIVE",
     "riskAcceptance": "ADMIN_EVALUATES_EACH_QUOTE_BEFORE_TIMELOCKED_ADMISSION",
     "erc20AdmissionRequirement": "DIRECT_IMMUTABLE_ERC20_WITH_PINNED_RUNTIME_AND_ZERO_EIP1967_SLOTS",
+    "officialStockQuoteAdmissionRequirement": "SEPARATE_OFFICIAL_ACTIVE_ASSET_UID_CANONICAL_TOKEN_IMMUTABLE_BEACON_AND_PINNED_FINGERPRINT",
+    "officialStockQuoteIdentityPolicy": "FAIL_CLOSED_ON_ASSET_STATUS_TOKEN_RUNTIME_BEACON_IMPLEMENTATION_OR_DECIMALS_DRIFT",
+    "officialStockQuoteEconomicsBinding": "CONTENT_ADDRESSED_HASH_BINDS_CHAIN_BASELINE_RAW_ECONOMICS_ASSET_UID_FINGERPRINT_REFERENCE_EVIDENCE_AND_GENERATOR_POLICY",
+    "stockQuoteAdmissionStatus": "IMPLEMENTED_LOCAL_VERIFIED",
+    "stockQuoteIdentityDriftPolicyStatus": "IMPLEMENTED_LOCAL_VERIFIED",
+    "stockQuoteDeploymentPreflightStatus": "IMPLEMENTED_LOCAL_VERIFIED",
+    "stockBaseAutoPromotionToQuote": false,
+    "initialStockQuoteConfigs": [],
+    "stockQuoteConfigGeneratorStatus": "PENDING_PRODUCT_ACTIVATION",
+    "stockQuoteActivationStatus": "NO_ACTIVE_CONFIG",
+    "stockQuoteTargetChainEvidenceStatus": "MAINNET_FORK_ADMISSION_VERIFIED",
+    "stockQuoteForkE2EStatus": "FORK_ADMISSION_VERIFIED_NO_ACTIVE_PRODUCT_CONFIG",
     "nativeQuoteIsProtocolRequirement": false,
     "configurationMode": "APPEND_ONLY_CONTENT_ADDRESSED",
     "individualGraduationAmountBound": "phantomQuote_AND_graduationThreshold_LE_int128.max",
@@ -148,7 +206,8 @@
       "BOTH_CANONICAL_TOKEN_ADDRESS_ORDERINGS",
       "SQRT_PRICE_TICK_AND_MAX_LIQUIDITY_REPRESENTABILITY"
     ],
-    "deploymentPreflight": "ERC20_PROXY_KIND_NONE_IMPLEMENTATION_EQUALS_TOKEN_THREE_EIP1967_SLOTS_ZERO_AND_RUNTIME_HASH_PINNED"
+    "deploymentPreflight": "ERC20_PROXY_KIND_NONE_IMPLEMENTATION_EQUALS_TOKEN_THREE_EIP1967_SLOTS_ZERO_AND_RUNTIME_HASH_PINNED",
+    "officialStockQuoteDeploymentPreflight": "OFFICIAL_STOCK_LINK_UID_DECIMALS_RUNTIME_IMMUTABLE_BEACON_IMPLEMENTATION_FINGERPRINT_AND_TYPED_ECONOMICS_HASH"
   },
   "numericBounds": {
     "authoritativeArtifact": "spec/v1_numeric_bounds.json",
@@ -172,9 +231,18 @@
       "UniswapV4PoolManager"
     ],
     "perAssetModules": [],
-    "perMarketCreate2AtLaunch": ["TickerMemeTokenV1", "PonsCompatibleCurve", "MemeStockGauge"],
-    "perMarketFullCreate2AtLaunch": ["TickerMemeTokenV1", "PonsCompatibleCurve"],
-    "perMarketCloneCreate2AtLaunch": ["MemeStockGauge"],
+    "perMarketCreate2AtLaunch": [
+      "TickerMemeTokenV1",
+      "PonsCompatibleCurve",
+      "MemeStockGauge"
+    ],
+    "perMarketFullCreate2AtLaunch": [
+      "TickerMemeTokenV1",
+      "PonsCompatibleCurve"
+    ],
+    "perMarketCloneCreate2AtLaunch": [
+      "MemeStockGauge"
+    ],
     "cloneImplementations": {
       "MemeStockGauge": {
         "kind": "ERC1167_IMMUTABLE_ARGS",
@@ -184,8 +252,15 @@
         "storageScope": "ONE_ISOLATED_STORAGE_DOMAIN_PER_MARKET"
       }
     },
-    "perMarketCreate2AtGraduation": ["LaunchLocker"],
-    "componentKinds": ["TOKEN", "CURVE", "GAUGE", "LOCKER"],
+    "perMarketCreate2AtGraduation": [
+      "LaunchLocker"
+    ],
+    "componentKinds": [
+      "TOKEN",
+      "CURVE",
+      "GAUGE",
+      "LOCKER"
+    ],
     "launchLockerCustodyScope": "ONE_IMMUTABLE_LOCKER_PER_MARKET",
     "hookExecutorBootstrap": "ONE_SHOT_CREATE2_MINED_HELPER_DEPLOYS_HOOK_AT_CREATE_NONCE_1_AND_EXECUTOR_AT_NONCE_2_WITH_ATOMIC_RECIPROCAL_BINDING_CHECK",
     "addressCollisionPolicy": "REVERT_NO_NONCE_FALLBACK"
@@ -201,8 +276,12 @@
     "manualRetryEntrypoint": false,
     "terminalRescueEntrypoint": false,
     "marketAssetRecipient": "NONE_OUTSIDE_CANONICAL_POOL_AND_PERMANENT_LAUNCH_LOCKER",
-    "curveEventAuthority": ["CurveCompleted"],
-    "executorEventAuthority": ["PoolGraduated"],
+    "curveEventAuthority": [
+      "CurveCompleted"
+    ],
+    "executorEventAuthority": [
+      "PoolGraduated"
+    ],
     "launchAndBuyRouterSummaryEvent": false
   },
   "graduationSupply": {
@@ -303,6 +382,7 @@
     "chainId": 4663,
     "eligibilityStatus": "APPROVED_ALL_ROBINHOOD_OFFICIAL_STOCK_TOKENS",
     "eligibilityRule": "EVERY_ASSET_RETURNED_BY_THE_ROBINHOOD_OFFICIAL_STOCK_TOKEN_DIRECTORY_WITH_A_CHAIN_4663_DEPLOYMENT",
+    "issuerAuthenticityTrustModel": "GOVERNANCE_ATTESTED_FROM_ARCHIVED_OFFICIAL_DIRECTORY_AND_FINALIZED_CHAIN_EVIDENCE_NOT_ONCHAIN_ISSUER_SIGNATURE_VERIFICATION",
     "identityTuple": [
       "chainId",
       "assetUid",
@@ -360,7 +440,10 @@
     "minimumAllocationSafetyFloorRaw": "414",
     "minimumAllocationUpdateRoleDelaySeconds": 172800,
     "existingPositionGrandfathering": "NO_FORCED_EXIT; ANY_INCREASE_RESULT_USES_CURRENT_MINIMUM; FULL_CLOSE_AND_RAGE_QUIT_ALWAYS_ALLOWED",
-    "normalPositionTransitions": ["DEPOSIT_OR_INCREASE", "FULL_WITHDRAWAL"],
+    "normalPositionTransitions": [
+      "DEPOSIT_OR_INCREASE",
+      "FULL_WITHDRAWAL"
+    ],
     "partialDecreaseAllowed": false,
     "crossMarketMigrationAllowed": false,
     "normalWithdrawalAmount": "FULL_USER_MARKET_ALLOCATION",
@@ -417,7 +500,11 @@
     "initialDeploymentCount": 1,
     "schemaIdentity": "keccak256(TickerGarden.UserStockVault.MultiAsset.v6)",
     "schemaUniqueness": "OFFICIAL_STOCK_REGISTRY_ENFORCES_ONE_CANONICAL_VAULT_PER_SCHEMA",
-    "schemaDiscovery": ["vaultSchemaId(address)", "vaultForSchema(bytes32)", "vaultIdentity()"],
+    "schemaDiscovery": [
+      "vaultSchemaId(address)",
+      "vaultForSchema(bytes32)",
+      "vaultIdentity()"
+    ],
     "assetKey": "EXPLICIT_CANONICAL_ASSET_UID",
     "tokenResolution": "OFFICIAL_STOCK_REGISTRY_ONLY_NO_CALLER_SUPPLIED_TOKEN",
     "onchainAssetEnumeration": false,
@@ -469,13 +556,25 @@
     "revision": "V1-STATE-7-FROZEN",
     "canonicalModule": "MarketRegistryV1",
     "canonicalConfigFields": [
-      "assetUid", "ponsBaselineId", "quoteAssetConfigId", "launchTemplateId",
-      "feePolicyId", "executionSpecId", "expectedEconomics", "launchConfigId",
+      "assetUid",
+      "ponsBaselineId",
+      "quoteAssetConfigId",
+      "launchTemplateId",
+      "feePolicyId",
+      "executionSpecId",
+      "expectedEconomics",
+      "launchConfigId",
       "creatorRevenueBeneficiaryAtCreation",
-      "memeToken", "curve", "gauge", "quoteAsset", "graduatedHook"
+      "memeToken",
+      "curve",
+      "gauge",
+      "quoteAsset",
+      "graduatedHook"
     ],
     "canonicalRuntimeFields": [
-      "poolId", "sourceVersion", "launchPhase"
+      "poolId",
+      "sourceVersion",
+      "launchPhase"
     ],
     "initialRuntime": {
       "poolId": "ZERO",
@@ -488,8 +587,30 @@
     },
     "marketAdministrativeState": "ABSENT",
     "mutations": [
-      {"function":"registerMarket(bytes32,MarketConfig)","caller":"IMMUTABLE_FACTORY","writes":["MarketConfig","MarketRuntime","marketIdByToken"]},
-      {"function":"commitPoolCreated(bytes32,bytes32)","caller":"IMMUTABLE_GRADUATION_EXECUTOR","transition":["NotGraduated","PoolCreated"],"writes":["launchPhase","poolId","sourceVersion"],"sourceVersionEffect":"CHECKED_INCREMENT","atomicWith":"FINAL_CURVE_BUY_POOL_INITIALIZATION_LP_MINT_AND_LOCK_HOOK_ACTIVATION"}
+      {
+        "function": "registerMarket(bytes32,MarketConfig)",
+        "caller": "IMMUTABLE_FACTORY",
+        "writes": [
+          "MarketConfig",
+          "MarketRuntime",
+          "marketIdByToken"
+        ]
+      },
+      {
+        "function": "commitPoolCreated(bytes32,bytes32)",
+        "caller": "IMMUTABLE_GRADUATION_EXECUTOR",
+        "transition": [
+          "NotGraduated",
+          "PoolCreated"
+        ],
+        "writes": [
+          "launchPhase",
+          "poolId",
+          "sourceVersion"
+        ],
+        "sourceVersionEffect": "CHECKED_INCREMENT",
+        "atomicWith": "FINAL_CURVE_BUY_POOL_INITIALIZATION_LP_MINT_AND_LOCK_HOOK_ACTIVATION"
+      }
     ],
     "subordinateState": {
       "TickerGardenMemeHook.PoolBindingStatus": "EXECUTION_HANDSHAKE_ONLY",
@@ -497,9 +618,12 @@
       "MemeStockGauge.position": "REWARD_WEIGHT_ACCOUNTING_ONLY"
     },
     "forbidden": [
-      "SECOND_CANONICAL_MARKET_COPY", "GENERIC_MARKET_SETTER",
-      "ARBITRARY_FEE_SOURCE_SETTER", "GOVERNANCE_DIRECT_REGISTRY_MUTATION",
-      "SHARED_DELEGATECALL_STORAGE", "POST_DEPLOYMENT_MARKET_INTERVENTION"
+      "SECOND_CANONICAL_MARKET_COPY",
+      "GENERIC_MARKET_SETTER",
+      "ARBITRARY_FEE_SOURCE_SETTER",
+      "GOVERNANCE_DIRECT_REGISTRY_MUTATION",
+      "SHARED_DELEGATECALL_STORAGE",
+      "POST_DEPLOYMENT_MARKET_INTERVENTION"
     ]
   },
   "creatorRevenue": {
@@ -511,13 +635,20 @@
     "curveBoundary": "ATOMIC_SWEEP_OLD_EPOCH_BEFORE_INCREMENT",
     "curveAccruedRequiredAfterBoundary": 0,
     "poolFeeAttribution": "CURRENT_EPOCH_AT_ATOMIC_FEE_CREDIT",
-    "creatorLiabilityKey": ["marketId", "creatorEpoch", "feeAsset"],
+    "creatorLiabilityKey": [
+      "marketId",
+      "creatorEpoch",
+      "feeAsset"
+    ],
     "claimRecipient": "creatorBeneficiaryAt(marketId,creatorEpoch)",
     "administratorOverride": false,
     "arbitraryClaimRecipient": false
   },
   "allocationAndTiming": {
-    "normalDirections": ["DEPOSIT_OR_INCREASE", "FULL_WITHDRAWAL"],
+    "normalDirections": [
+      "DEPOSIT_OR_INCREASE",
+      "FULL_WITHDRAWAL"
+    ],
     "partialDecreaseAllowed": false,
     "migrationAllowed": false,
     "normalWithdrawalAmount": "FULL_USER_MARKET_ALLOCATION",
@@ -563,38 +694,112 @@
   },
   "transitions": {
     "AssetStatus": [
-      ["UNSET", "ACTIVE"],
-      ["ACTIVE", "PAUSED"],
-      ["PAUSED", "ACTIVE"],
-      ["ACTIVE", "RETIRED"],
-      ["PAUSED", "RETIRED"]
+      [
+        "UNSET",
+        "ACTIVE"
+      ],
+      [
+        "ACTIVE",
+        "PAUSED"
+      ],
+      [
+        "PAUSED",
+        "ACTIVE"
+      ],
+      [
+        "ACTIVE",
+        "RETIRED"
+      ],
+      [
+        "PAUSED",
+        "RETIRED"
+      ]
     ],
     "QuoteStatus": [
-      ["UNSET", "ACTIVE"],
-      ["ACTIVE", "PAUSED"],
-      ["PAUSED", "ACTIVE"],
-      ["ACTIVE", "RETIRED"],
-      ["PAUSED", "RETIRED"]
+      [
+        "UNSET",
+        "ACTIVE"
+      ],
+      [
+        "ACTIVE",
+        "PAUSED"
+      ],
+      [
+        "PAUSED",
+        "ACTIVE"
+      ],
+      [
+        "ACTIVE",
+        "RETIRED"
+      ],
+      [
+        "PAUSED",
+        "RETIRED"
+      ]
     ],
     "BaselineStatus": [
-      ["UNSET", "ACTIVE"],
-      ["ACTIVE", "PAUSED"],
-      ["PAUSED", "ACTIVE"],
-      ["ACTIVE", "RETIRED"],
-      ["PAUSED", "RETIRED"]
+      [
+        "UNSET",
+        "ACTIVE"
+      ],
+      [
+        "ACTIVE",
+        "PAUSED"
+      ],
+      [
+        "PAUSED",
+        "ACTIVE"
+      ],
+      [
+        "ACTIVE",
+        "RETIRED"
+      ],
+      [
+        "PAUSED",
+        "RETIRED"
+      ]
     ],
     "LaunchTemplateStatus": [
-      ["UNSET", "ACTIVE"],
-      ["ACTIVE", "PAUSED"],
-      ["PAUSED", "ACTIVE"],
-      ["ACTIVE", "RETIRED"],
-      ["PAUSED", "RETIRED"]
+      [
+        "UNSET",
+        "ACTIVE"
+      ],
+      [
+        "ACTIVE",
+        "PAUSED"
+      ],
+      [
+        "PAUSED",
+        "ACTIVE"
+      ],
+      [
+        "ACTIVE",
+        "RETIRED"
+      ],
+      [
+        "PAUSED",
+        "RETIRED"
+      ]
     ],
-    "LaunchPhase": [["NotGraduated", "PoolCreated"]],
+    "LaunchPhase": [
+      [
+        "NotGraduated",
+        "PoolCreated"
+      ]
+    ],
     "PoolBindingStatus": [
-      ["NONE", "EXPECTED"],
-      ["EXPECTED", "INITIALIZE_SEEN"],
-      ["INITIALIZE_SEEN", "ACTIVE"]
+      [
+        "NONE",
+        "EXPECTED"
+      ],
+      [
+        "EXPECTED",
+        "INITIALIZE_SEEN"
+      ],
+      [
+        "INITIALIZE_SEEN",
+        "ACTIVE"
+      ]
     ]
   }
 }

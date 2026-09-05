@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "executionSpecId": "V1-EXEC-10",
+  "executionSpecId": "V1-EXEC-11",
   "sourceAbi": "v1_abi_surface.json",
   "sourcePermissions": "v1_permissions_matrix.json",
   "selectorRule": "bytes4(keccak256(bytes(canonicalSignature)))",
@@ -95,6 +95,19 @@
       "stateDelaySeconds": 0,
       "stateDelayAnchor": "NONE",
       "precondition": "NONE",
+      "recipient": "none"
+    },
+    {
+      "module": "ApprovedQuoteRegistry",
+      "displaySignature": "addStockQuoteConfig(bytes32,QuoteAssetConfig,StockQuoteBinding)",
+      "canonicalSignature": "addStockQuoteConfig(bytes32,(bytes32,address,uint8,uint256,uint256,bytes32,uint8),(bytes32,bytes32,bytes32,bytes32))",
+      "selector": "0xa8674373",
+      "selectorHash": "FIRST_4_BYTES_OF_KECCAK256_CANONICAL_SIGNATURE",
+      "caller": "PROTOCOL_ADMIN_ROLE",
+      "executionDelaySeconds": 172800,
+      "stateDelaySeconds": 0,
+      "stateDelayAnchor": "NONE",
+      "precondition": "OFFICIAL_ACTIVE_IMMUTABLE_BEACON_ASSET_AND_PINNED_FINGERPRINT_PRICE_EVIDENCE",
       "recipient": "none"
     },
     {
@@ -243,8 +256,8 @@
     {
       "module": "TickerGardenFactoryV1",
       "displaySignature": "createMarket(CreateMarketParams)",
-      "canonicalSignature": "createMarket((bytes32,bytes32,bytes32,bytes32,bytes32,address,string,string,string,bytes32))",
-      "selector": "0xaeccd623",
+      "canonicalSignature": "createMarket((bytes32,bytes32,bytes32,bytes32,bytes32,address,string,string,string,bytes32,uint16,bool))",
+      "selector": "0xa9a78996",
       "selectorHash": "FIRST_4_BYTES_OF_KECCAK256_CANONICAL_SIGNATURE",
       "caller": "PUBLIC",
       "executionDelaySeconds": 0,
@@ -256,8 +269,8 @@
     {
       "module": "TickerGardenFactoryV1",
       "displaySignature": "createMarketFor(address,CreateMarketParams)",
-      "canonicalSignature": "createMarketFor(address,(bytes32,bytes32,bytes32,bytes32,bytes32,address,string,string,string,bytes32))",
-      "selector": "0x6e754ce4",
+      "canonicalSignature": "createMarketFor(address,(bytes32,bytes32,bytes32,bytes32,bytes32,address,string,string,string,bytes32,uint16,bool))",
+      "selector": "0xcded5aa0",
       "selectorHash": "FIRST_4_BYTES_OF_KECCAK256_CANONICAL_SIGNATURE",
       "caller": "LAUNCH_ROUTER_MODULE",
       "executionDelaySeconds": 0,
@@ -269,8 +282,8 @@
     {
       "module": "MarketRegistryV1",
       "displaySignature": "registerMarket(bytes32,MarketConfig)",
-      "canonicalSignature": "registerMarket(bytes32,(bytes32,bytes32,bytes32,bytes32,bytes32,bytes32,bytes32,uint256,address,address,address,address,address,address))",
-      "selector": "0x0c238949",
+      "canonicalSignature": "registerMarket(bytes32,(bytes32,bytes32,bytes32,bytes32,bytes32,bytes32,bytes32,uint256,address,address,address,address,address,address,uint16,bool))",
+      "selector": "0x9b911d59",
       "selectorHash": "FIRST_4_BYTES_OF_KECCAK256_CANONICAL_SIGNATURE",
       "caller": "FACTORY_MODULE",
       "executionDelaySeconds": 0,
@@ -295,8 +308,8 @@
     {
       "module": "LaunchAndBuyRouter",
       "displaySignature": "launchAndBuy(CreateMarketParams,uint256,uint256,address)",
-      "canonicalSignature": "launchAndBuy((bytes32,bytes32,bytes32,bytes32,bytes32,address,string,string,string,bytes32),uint256,uint256,address)",
-      "selector": "0x8c756956",
+      "canonicalSignature": "launchAndBuy((bytes32,bytes32,bytes32,bytes32,bytes32,address,string,string,string,bytes32,uint16,bool),uint256,uint256,address)",
+      "selector": "0xa3baea51",
       "selectorHash": "FIRST_4_BYTES_OF_KECCAK256_CANONICAL_SIGNATURE",
       "caller": "PUBLIC",
       "executionDelaySeconds": 0,
@@ -476,6 +489,19 @@
     },
     {
       "module": "UserStockVault",
+      "displaySignature": "releaseAllocationAndWithdraw(bytes32,address,bytes32)",
+      "canonicalSignature": "releaseAllocationAndWithdraw(bytes32,address,bytes32)",
+      "selector": "0x82693d3a",
+      "selectorHash": "FIRST_4_BYTES_OF_KECCAK256_CANONICAL_SIGNATURE",
+      "caller": "ALLOCATION_MODULE",
+      "executionDelaySeconds": 0,
+      "stateDelaySeconds": 0,
+      "stateDelayAnchor": "NONE",
+      "precondition": "FULL_CANONICAL_USER_MARKET_ALLOCATION_ONLY",
+      "recipient": "fixed_user"
+    },
+    {
+      "module": "UserStockVault",
       "displaySignature": "rageQuitAllocation(bytes32,address,bytes32)",
       "canonicalSignature": "rageQuitAllocation(bytes32,address,bytes32)",
       "selector": "0x8a35c3ae",
@@ -528,6 +554,19 @@
     },
     {
       "module": "AllocationManager",
+      "displaySignature": "stake(bytes32,uint256)",
+      "canonicalSignature": "stake(bytes32,uint256)",
+      "selector": "0x8caa5230",
+      "selectorHash": "FIRST_4_BYTES_OF_KECCAK256_CANONICAL_SIGNATURE",
+      "caller": "PUBLIC",
+      "executionDelaySeconds": 0,
+      "stateDelaySeconds": 0,
+      "stateDelayAnchor": "NONE",
+      "precondition": "NONE",
+      "recipient": "caller_position"
+    },
+    {
+      "module": "AllocationManager",
       "displaySignature": "increaseAllocation(bytes32,uint256)",
       "canonicalSignature": "increaseAllocation(bytes32,uint256)",
       "selector": "0xcc7bca9a",
@@ -551,6 +590,19 @@
       "stateDelayAnchor": "NONE",
       "precondition": "CALLER_FULL_POSITION_ONLY_AND_UNLOCKED",
       "recipient": "caller_free_balance"
+    },
+    {
+      "module": "AllocationManager",
+      "displaySignature": "unstakeAndWithdraw(bytes32)",
+      "canonicalSignature": "unstakeAndWithdraw(bytes32)",
+      "selector": "0x305154fd",
+      "selectorHash": "FIRST_4_BYTES_OF_KECCAK256_CANONICAL_SIGNATURE",
+      "caller": "PUBLIC",
+      "executionDelaySeconds": 0,
+      "stateDelaySeconds": 0,
+      "stateDelayAnchor": "NONE",
+      "precondition": "CALLER_FULL_POSITION_ONLY_AND_UNLOCKED",
+      "recipient": "caller"
     },
     {
       "module": "AllocationManager",
@@ -603,6 +655,32 @@
       "stateDelayAnchor": "NONE",
       "precondition": "NONE",
       "recipient": "caller_position"
+    },
+    {
+      "module": "MemeStockGauge",
+      "displaySignature": "consumeForConversion(address,uint256)",
+      "canonicalSignature": "consumeForConversion(address,uint256)",
+      "selector": "0x59922bb6",
+      "selectorHash": "FIRST_4_BYTES_OF_KECCAK256_CANONICAL_SIGNATURE",
+      "caller": "FEE_VAULT",
+      "executionDelaySeconds": 0,
+      "stateDelaySeconds": 0,
+      "stateDelayAnchor": "NONE",
+      "precondition": "NONE",
+      "recipient": "fixed_reward_beneficiary_or_canonical_pool"
+    },
+    {
+      "module": "MemeStockGauge",
+      "displaySignature": "creditConversion(address,uint256,uint256)",
+      "canonicalSignature": "creditConversion(address,uint256,uint256)",
+      "selector": "0xdb0998c3",
+      "selectorHash": "FIRST_4_BYTES_OF_KECCAK256_CANONICAL_SIGNATURE",
+      "caller": "FEE_VAULT",
+      "executionDelaySeconds": 0,
+      "stateDelaySeconds": 0,
+      "stateDelayAnchor": "NONE",
+      "precondition": "NONE",
+      "recipient": "fixed_reward_beneficiary_or_canonical_pool"
     },
     {
       "module": "MemeStockGauge",
@@ -710,6 +788,32 @@
     },
     {
       "module": "TickerGardenMemeHook",
+      "displaySignature": "convertRewards(bytes32,uint256,uint256,uint256)",
+      "canonicalSignature": "convertRewards(bytes32,uint256,uint256,uint256)",
+      "selector": "0xe7b25a8c",
+      "selectorHash": "FIRST_4_BYTES_OF_KECCAK256_CANONICAL_SIGNATURE",
+      "caller": "FEE_VAULT",
+      "executionDelaySeconds": 0,
+      "stateDelaySeconds": 0,
+      "stateDelayAnchor": "NONE",
+      "precondition": "NONE",
+      "recipient": "fixed_reward_beneficiary_or_canonical_pool"
+    },
+    {
+      "module": "TickerGardenMemeHook",
+      "displaySignature": "unlockCallback(bytes)",
+      "canonicalSignature": "unlockCallback(bytes)",
+      "selector": "0x91dd7346",
+      "selectorHash": "FIRST_4_BYTES_OF_KECCAK256_CANONICAL_SIGNATURE",
+      "caller": "POOL_MANAGER",
+      "executionDelaySeconds": 0,
+      "stateDelaySeconds": 0,
+      "stateDelayAnchor": "NONE",
+      "precondition": "NONE",
+      "recipient": "fixed_reward_beneficiary_or_canonical_pool"
+    },
+    {
+      "module": "TickerGardenMemeHook",
       "displaySignature": "registerExpectedPool(bytes32,PoolKey,uint32)",
       "canonicalSignature": "registerExpectedPool(bytes32,(address,address,uint24,int24,address),uint32)",
       "selector": "0xfc7df2ee",
@@ -762,6 +866,58 @@
     },
     {
       "module": "ProtocolFeeVault",
+      "displaySignature": "settleRewards(bytes32,ConversionItem[],uint256,uint256)",
+      "canonicalSignature": "settleRewards(bytes32,(address,uint32,uint256)[],uint256,uint256)",
+      "selector": "0x07638b1c",
+      "selectorHash": "FIRST_4_BYTES_OF_KECCAK256_CANONICAL_SIGNATURE",
+      "caller": "SETTLEMENT_OPERATOR",
+      "executionDelaySeconds": 0,
+      "stateDelaySeconds": 0,
+      "stateDelayAnchor": "NONE",
+      "precondition": "NONE",
+      "recipient": "fixed_reward_beneficiary_or_canonical_pool"
+    },
+    {
+      "module": "ProtocolFeeVault",
+      "displaySignature": "setSettlementOperator(address)",
+      "canonicalSignature": "setSettlementOperator(address)",
+      "selector": "0x448758d5",
+      "selectorHash": "FIRST_4_BYTES_OF_KECCAK256_CANONICAL_SIGNATURE",
+      "caller": "FIXED_PLATFORM_BENEFICIARY",
+      "executionDelaySeconds": 0,
+      "stateDelaySeconds": 0,
+      "stateDelayAnchor": "NONE",
+      "precondition": "NONE",
+      "recipient": "fixed_reward_beneficiary_or_canonical_pool"
+    },
+    {
+      "module": "ProtocolFeeVault",
+      "displaySignature": "requestRawRewardExit(bytes32)",
+      "canonicalSignature": "requestRawRewardExit(bytes32)",
+      "selector": "0x9af01aa1",
+      "selectorHash": "FIRST_4_BYTES_OF_KECCAK256_CANONICAL_SIGNATURE",
+      "caller": "PUBLIC",
+      "executionDelaySeconds": 0,
+      "stateDelaySeconds": 0,
+      "stateDelayAnchor": "NONE",
+      "precondition": "NONE",
+      "recipient": "fixed_reward_beneficiary_or_canonical_pool"
+    },
+    {
+      "module": "ProtocolFeeVault",
+      "displaySignature": "cancelRawRewardExit(bytes32)",
+      "canonicalSignature": "cancelRawRewardExit(bytes32)",
+      "selector": "0x7773ea39",
+      "selectorHash": "FIRST_4_BYTES_OF_KECCAK256_CANONICAL_SIGNATURE",
+      "caller": "PUBLIC",
+      "executionDelaySeconds": 0,
+      "stateDelaySeconds": 0,
+      "stateDelayAnchor": "NONE",
+      "precondition": "NONE",
+      "recipient": "fixed_reward_beneficiary_or_canonical_pool"
+    },
+    {
+      "module": "ProtocolFeeVault",
       "displaySignature": "beginV4Credit(bytes32,address,uint256,uint32,bytes32)",
       "canonicalSignature": "beginV4Credit(bytes32,address,uint256,uint32,bytes32)",
       "selector": "0x4fc8b920",
@@ -788,9 +944,9 @@
     },
     {
       "module": "ProtocolFeeVault",
-      "displaySignature": "beginCurveCredit(bytes32,address,uint256,uint32,uint64,bytes32)",
-      "canonicalSignature": "beginCurveCredit(bytes32,address,uint256,uint32,uint64,bytes32)",
-      "selector": "0x510e6f03",
+      "displaySignature": "beginCurveCredit(bytes32,address,uint256,uint256,uint32,uint64,bytes32)",
+      "canonicalSignature": "beginCurveCredit(bytes32,address,uint256,uint256,uint32,uint64,bytes32)",
+      "selector": "0x3d2cdd31",
       "selectorHash": "FIRST_4_BYTES_OF_KECCAK256_CANONICAL_SIGNATURE",
       "caller": "EXACT_REGISTERED_CURVE",
       "executionDelaySeconds": 0,
@@ -801,9 +957,9 @@
     },
     {
       "module": "ProtocolFeeVault",
-      "displaySignature": "finalizeCurveCredit(bytes32,address,uint256,uint32,uint64,bytes32)",
-      "canonicalSignature": "finalizeCurveCredit(bytes32,address,uint256,uint32,uint64,bytes32)",
-      "selector": "0x68f6aabe",
+      "displaySignature": "finalizeCurveCredit(bytes32,address,uint256,uint256,uint32,uint64,bytes32)",
+      "canonicalSignature": "finalizeCurveCredit(bytes32,address,uint256,uint256,uint32,uint64,bytes32)",
+      "selector": "0x9b731a8a",
       "selectorHash": "FIRST_4_BYTES_OF_KECCAK256_CANONICAL_SIGNATURE",
       "caller": "EXACT_REGISTERED_CURVE",
       "executionDelaySeconds": 0,
@@ -876,6 +1032,32 @@
       "stateDelayAnchor": "NONE",
       "precondition": "ESCAPE_REWARD_FORFEITURE_ONLY; AMOUNT_LE_STAKER_LIABILITY",
       "recipient": "market_asset_forfeiture_reserves"
+    },
+    {
+      "module": "ProtocolFeeVault",
+      "displaySignature": "fundHolderRewards(bytes32,uint32)",
+      "canonicalSignature": "fundHolderRewards(bytes32,uint32)",
+      "selector": "0xa02693dd",
+      "selectorHash": "FIRST_4_BYTES_OF_KECCAK256_CANONICAL_SIGNATURE",
+      "caller": "PUBLIC",
+      "executionDelaySeconds": 0,
+      "stateDelaySeconds": 0,
+      "stateDelayAnchor": "NONE",
+      "precondition": "NONE",
+      "recipient": "fixed_holder_distribution_market_and_epoch"
+    },
+    {
+      "module": "ProtocolFeeVault",
+      "displaySignature": "settleHolderRewards(bytes32,uint32,uint256,uint256,uint256)",
+      "canonicalSignature": "settleHolderRewards(bytes32,uint32,uint256,uint256,uint256)",
+      "selector": "0xce7b3021",
+      "selectorHash": "FIRST_4_BYTES_OF_KECCAK256_CANONICAL_SIGNATURE",
+      "caller": "SETTLEMENT_OPERATOR",
+      "executionDelaySeconds": 0,
+      "stateDelaySeconds": 0,
+      "stateDelayAnchor": "NONE",
+      "precondition": "NONE",
+      "recipient": "fixed_holder_distribution_market_and_epoch"
     },
     {
       "module": "GraduationExecutor",
@@ -1084,6 +1266,32 @@
       "stateDelayAnchor": "NONE",
       "precondition": "NONZERO_CALLER_SERVICE_CREDIT",
       "recipient": "caller"
+    },
+    {
+      "module": "TreasuryDistributorV1",
+      "displaySignature": "registerFeeSharingMarket(bytes32,address,address)",
+      "canonicalSignature": "registerFeeSharingMarket(bytes32,address,address)",
+      "selector": "0x29253f00",
+      "selectorHash": "FIRST_4_BYTES_OF_KECCAK256_CANONICAL_SIGNATURE",
+      "caller": "FACTORY_MODULE",
+      "executionDelaySeconds": 0,
+      "stateDelaySeconds": 0,
+      "stateDelayAnchor": "NONE",
+      "precondition": "NONE",
+      "recipient": "fixed_holder_distribution_market_and_epoch"
+    },
+    {
+      "module": "TreasuryDistributorV1",
+      "displaySignature": "fundCreatorFees(bytes32,uint32,uint256)",
+      "canonicalSignature": "fundCreatorFees(bytes32,uint32,uint256)",
+      "selector": "0xd35659ee",
+      "selectorHash": "FIRST_4_BYTES_OF_KECCAK256_CANONICAL_SIGNATURE",
+      "caller": "FEE_VAULT",
+      "executionDelaySeconds": 0,
+      "stateDelaySeconds": 0,
+      "stateDelayAnchor": "NONE",
+      "precondition": "NONE",
+      "recipient": "fixed_holder_distribution_market_and_epoch"
     }
   ],
   "events": [
@@ -1140,6 +1348,12 @@
       "displayEvent": "QuoteAssetIdentityPinned(bytes32 indexed configId,address indexed quoteAsset,bytes32 runtimeCodeHash)",
       "canonicalSignature": "QuoteAssetIdentityPinned(bytes32,address,bytes32)",
       "topic0": "0xbdcd70301642de13679a8c38d9817e551a27fa61ae65190e8c11d16d3806ab32"
+    },
+    {
+      "module": "ApprovedQuoteRegistry",
+      "displayEvent": "StockQuoteConfigBound(bytes32 indexed configId,bytes32 indexed assetUid,address indexed quoteAsset,bytes32 stockTokenFingerprintHash,bytes32 referenceEvidenceHash,bytes32 generatorPolicyId)",
+      "canonicalSignature": "StockQuoteConfigBound(bytes32,bytes32,address,bytes32,bytes32,bytes32)",
+      "topic0": "0xe477a31896eb79ef58cae75e4e6eb71fac35bf6ea079e420f6b9bb0017ed6a67"
     },
     {
       "module": "ApprovedQuoteRegistry",
@@ -1392,6 +1606,48 @@
       "displayEvent": "ForfeitureReserveConverted(bytes32 indexed marketId,address indexed feeAsset,uint256 amount)",
       "canonicalSignature": "ForfeitureReserveConverted(bytes32,address,uint256)",
       "topic0": "0xbebeac3e27bbe14621361ac4793b5ef722a3592c8e9a08f6c95abec8a946ab13"
+    },
+    {
+      "module": "ProtocolFeeVault",
+      "displayEvent": "SettlementOperatorUpdated(address indexed operator)",
+      "canonicalSignature": "SettlementOperatorUpdated(address)",
+      "topic0": "0xb35cbbe58db4d37ac8a1acf0fb9de201f04ed1629dcb371e39abd30f2889e4a8"
+    },
+    {
+      "module": "ProtocolFeeVault",
+      "displayEvent": "RawRewardExitRequested(bytes32 indexed marketId,address indexed user,uint256 availableAt)",
+      "canonicalSignature": "RawRewardExitRequested(bytes32,address,uint256)",
+      "topic0": "0xec7a98316b23b2bedcf3762c9472c2345e9334ca78524ce273e4fd0d091f0449"
+    },
+    {
+      "module": "ProtocolFeeVault",
+      "displayEvent": "RawRewardExitCancelled(bytes32 indexed marketId,address indexed user)",
+      "canonicalSignature": "RawRewardExitCancelled(bytes32,address)",
+      "topic0": "0x94117f2aca070fee3f4ccab97b123099ba4711430e93c5ba6e9fbdd09686c3c2"
+    },
+    {
+      "module": "ProtocolFeeVault",
+      "displayEvent": "RewardConverted(bytes32 indexed marketId,address indexed user,uint32 indexed creatorEpoch,uint256 memeSpent,uint256 quoteReceived)",
+      "canonicalSignature": "RewardConverted(bytes32,address,uint32,uint256,uint256)",
+      "topic0": "0x536d8aaaf2bd3a634add9a0cbb15879e5cd81e4ef97a16fe231d48974e4c49d2"
+    },
+    {
+      "module": "ProtocolFeeVault",
+      "displayEvent": "RewardBatchConverted(bytes32 indexed marketId,uint256 indexed nonce,address memeAsset,address quoteAsset,uint256 memeSpent,uint256 quoteReceived)",
+      "canonicalSignature": "RewardBatchConverted(bytes32,uint256,address,address,uint256,uint256)",
+      "topic0": "0x426c15483c6ec6406a71c28295cfba9e4798dc18360d4c6f13cf7cf4ba6ee811"
+    },
+    {
+      "module": "ProtocolFeeVault",
+      "displayEvent": "HolderFeesAccrued(bytes32 indexed marketId,uint32 indexed epochId,address indexed feeAsset,uint256 amount)",
+      "canonicalSignature": "HolderFeesAccrued(bytes32,uint32,address,uint256)",
+      "topic0": "0xff2e873256e8b94ff57ab6a55118e0ea49f9a2457166d4937fff41c4e87e7800"
+    },
+    {
+      "module": "ProtocolFeeVault",
+      "displayEvent": "HolderRewardsConverted(bytes32 indexed marketId,uint32 indexed epochId,address memeAsset,address quoteAsset,uint256 memeSpent,uint256 quoteReceived)",
+      "canonicalSignature": "HolderRewardsConverted(bytes32,uint32,address,address,uint256,uint256)",
+      "topic0": "0x7ae99036b2006836a52c075b523224285c33d2adc620071e0dca6ef481d67fa3"
     },
     {
       "module": "GraduationExecutor",

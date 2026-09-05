@@ -4,8 +4,13 @@ pragma solidity 0.8.26;
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 
-import {IMemeStockGauge, MarketView} from "../interfaces/IV1Protocol.sol";
+import {IMemeStockGauge, ITickerMemeTokenV1, MarketView} from "../interfaces/IV1Protocol.sol";
 import {ProtocolFeeVaultCurveCredit} from "./ProtocolFeeVaultCurveCredit.sol";
+
+interface IHolderDistribution {
+    function currentEpochId(bytes32 marketId) external view returns (uint32);
+    function fundCreatorFees(bytes32 marketId, uint32 epochId, uint256 amount) external payable;
+}
 
 /// @notice Asset-isolated fee liabilities and fixed-recipient claims for the eventual ProtocolFeeVault.
 abstract contract ProtocolFeeVaultLiabilities is ProtocolFeeVaultCurveCredit {
@@ -14,15 +19,20 @@ abstract contract ProtocolFeeVaultLiabilities is ProtocolFeeVaultCurveCredit {
     uint8 internal constant BUCKET_CREATOR_REVENUE = 0;
     uint8 internal constant BUCKET_STAKER_REWARD = 1;
     uint8 internal constant BUCKET_PLATFORM_REVENUE = 2;
-    uint8 private constant BUCKET_TYPE_COUNT = 3;
+    uint8 internal constant BUCKET_HOLDER_REWARD = 3;
+    uint8 private constant BUCKET_TYPE_COUNT = 4;
 
     address internal immutable _feePlatformTreasury;
 
-    mapping(bytes32 marketId => mapping(address feeAsset => uint256[3] amounts)) private _bucketLiabilities;
-    mapping(bytes32 marketId => mapping(uint32 creatorEpoch => mapping(address feeAsset => uint256 amount))) private
+    mapping(bytes32 marketId => mapping(address feeAsset => uint256[4] amounts)) private _bucketLiabilities;
+    mapping(bytes32 marketId => mapping(uint32 creatorEpoch => mapping(address feeAsset => uint256 amount))) internal
         _creatorLiabilities;
     mapping(bytes32 marketId => mapping(address feeAsset => uint256 amount)) private _forfeitureReserves;
     mapping(address feeAsset => uint256 amount) private _totalLiabilities;
+
+    mapping(bytes32 => mapping(uint32 => mapping(address => uint256))) public holderLiability;
+    event HolderFeesAccrued(bytes32 indexed marketId, uint32 indexed epochId, address indexed feeAsset, uint256 amount);
+    error CreatorFeesAssignedToHolders();
 
     event FeeBucketsCredited(
         bytes32 indexed marketId,
@@ -94,6 +104,7 @@ abstract contract ProtocolFeeVaultLiabilities is ProtocolFeeVaultCurveCredit {
         address beneficiary = _feeCreatorRevenueRegistry.creatorBeneficiaryAt(marketId, creatorEpoch);
         if (creatorEpoch == 0 || beneficiary == address(0)) revert InvalidFeeBeneficiary(beneficiary);
 
+        _beforeRewardClaim(marketId, feeAsset, beneficiary);
         amount = _creatorLiabilities[marketId][creatorEpoch][feeAsset];
         if (amount != 0) {
             _creatorLiabilities[marketId][creatorEpoch][feeAsset] = 0;
@@ -192,6 +203,76 @@ abstract contract ProtocolFeeVaultLiabilities is ProtocolFeeVaultCurveCredit {
         _requireSolvent(feeAsset, nextTotal);
     }
 
+    /// @dev Split only newly collected base creator fees, never tax or converted/refunded rewards.
+    function _creditTradingFeeLiabilities(
+        bytes32 marketId,
+        uint32 creatorEpoch,
+        address feeAsset,
+        uint256 amount,
+        uint256 creatorAmount,
+        uint256 stakerAmount,
+        uint256 platformAmount,
+        uint256 creatorTaxAmount
+    ) internal returns (uint256 holderAmount) {
+        if (creatorTaxAmount > creatorAmount) {
+            revert InvalidFeeLiabilityCredit(amount, creatorTaxAmount);
+        }
+        _creditFeeLiabilities(marketId, creatorEpoch, feeAsset, amount, creatorAmount, stakerAmount, platformAmount);
+        if (_feeMarketRegistry.market(marketId).config.creatorFeesToHolders) {
+            holderAmount = (creatorAmount - creatorTaxAmount) / 2;
+            if (holderAmount != 0) {
+                uint32 holderEpoch = IHolderDistribution(_holderDistributor(marketId)).currentEpochId(marketId);
+                _creatorLiabilities[marketId][creatorEpoch][feeAsset] -= holderAmount;
+                _bucketLiabilities[marketId][feeAsset][BUCKET_CREATOR_REVENUE] -= holderAmount;
+                _bucketLiabilities[marketId][feeAsset][BUCKET_HOLDER_REWARD] += holderAmount;
+                holderLiability[marketId][holderEpoch][feeAsset] += holderAmount;
+                emit HolderFeesAccrued(marketId, holderEpoch, feeAsset, holderAmount);
+            }
+        }
+    }
+
+    function _holderDistributor(bytes32 marketId) internal view returns (address) {
+        MarketView memory value = _feeMarketRegistry.market(marketId);
+        if (!value.config.creatorFeesToHolders) revert CreatorFeesAssignedToHolders();
+        return ITickerMemeTokenV1(value.config.memeToken).treasuryDistributor();
+    }
+
+    function _creditHolderFee(bytes32 marketId, uint32 epochId, address asset, uint256 amount) internal {
+        if (amount == 0) return;
+        holderLiability[marketId][epochId][asset] += amount;
+        _bucketLiabilities[marketId][asset][BUCKET_HOLDER_REWARD] += amount;
+        _totalLiabilities[asset] += amount;
+        _requireAssetSolvent(asset);
+    }
+
+    function _debitHolderFee(bytes32 marketId, uint32 epochId, address asset, uint256 amount) internal {
+        holderLiability[marketId][epochId][asset] -= amount;
+        _debitLiability(marketId, asset, BUCKET_HOLDER_REWARD, amount);
+    }
+
+    /// @notice Permissionless transfer to the fixed holder distributor and original accounting epoch.
+    function fundHolderRewards(bytes32 marketId, uint32 epochId) external returns (uint256 amount) {
+        _enterStandaloneOperation(bytes32("FUND_HOLDER_REWARDS"));
+        address distributor = _holderDistributor(marketId);
+        address quote = _feeMarketRegistry.market(marketId).config.quoteAsset;
+        _requireAssetSolvent(quote);
+        amount = holderLiability[marketId][epochId][quote];
+        if (amount != 0) {
+            uint256 beforeBalance = _assetBalance(quote);
+            _debitHolderFee(marketId, epochId, quote, amount);
+            if (quote != address(0)) IERC20(quote).forceApprove(distributor, amount);
+            IHolderDistribution(distributor).fundCreatorFees{value: quote == address(0) ? amount : 0}(
+                marketId, epochId, amount
+            );
+            if (quote != address(0)) IERC20(quote).forceApprove(distributor, 0);
+            if (_assetBalance(quote) + amount != beforeBalance) {
+                revert InexactFeePayment(quote, distributor, amount, 0, 0);
+            }
+            _requireAssetSolvent(quote);
+        }
+        _exitStandaloneOperation();
+    }
+
     function _reserveForfeiture(bytes32 marketId, address user, address feeAsset, uint256 amount) private {
         if (amount == 0) return;
         uint256 available = _bucketLiabilities[marketId][feeAsset][BUCKET_STAKER_REWARD];
@@ -213,14 +294,15 @@ abstract contract ProtocolFeeVaultLiabilities is ProtocolFeeVaultCurveCredit {
     }
 
     function _recordExactCurveCredit(CurveCreditRecord memory record) internal virtual override {
-        _creditFeeLiabilities(
+        uint256 holderAmount = _creditTradingFeeLiabilities(
             record.marketId,
             record.creatorEpoch,
             record.quoteAsset,
             record.amount,
             record.creatorAmount,
             0,
-            record.platformAmount
+            record.platformAmount,
+            record.creatorTaxAmount
         );
         emit CurveFeesSwept(
             record.marketId,
@@ -229,7 +311,7 @@ abstract contract ProtocolFeeVaultLiabilities is ProtocolFeeVaultCurveCredit {
             record.sweepNonce,
             record.feeId,
             record.amount,
-            record.creatorAmount,
+            record.creatorAmount - holderAmount,
             record.platformAmount
         );
     }
@@ -239,6 +321,7 @@ abstract contract ProtocolFeeVaultLiabilities is ProtocolFeeVaultCurveCredit {
         _enterStandaloneOperation(bytes32("CLAIM_STAKER"));
         MarketView memory value = _canonicalFeeMarket(marketId, feeAsset);
         _requireSolvent(feeAsset, _totalLiabilities[feeAsset]);
+        _beforeRewardClaim(marketId, feeAsset, user);
         amount = IMemeStockGauge(value.config.gauge).consumeClaimable(user, feeAsset);
         uint256 available = _bucketLiabilities[marketId][feeAsset][BUCKET_STAKER_REWARD];
         if (amount > available) {
@@ -251,6 +334,8 @@ abstract contract ProtocolFeeVaultLiabilities is ProtocolFeeVaultCurveCredit {
         }
         _exitStandaloneOperation();
     }
+
+    function _beforeRewardClaim(bytes32, address, address) internal view virtual {}
 
     function _canonicalFeeMarket(bytes32 marketId, address feeAsset) internal view returns (MarketView memory value) {
         value = _feeMarketRegistry.market(marketId);
@@ -287,6 +372,10 @@ abstract contract ProtocolFeeVaultLiabilities is ProtocolFeeVaultCurveCredit {
                 revert InexactFeePayment(feeAsset, beneficiary, amount, vaultDecrease, beneficiaryIncrease);
             }
         }
+        _requireSolvent(feeAsset, _totalLiabilities[feeAsset]);
+    }
+
+    function _requireAssetSolvent(address feeAsset) internal view {
         _requireSolvent(feeAsset, _totalLiabilities[feeAsset]);
     }
 

@@ -120,6 +120,7 @@ contract MockCurveFeeVault {
     bytes32 public marketId;
     address public quoteAsset;
     uint256 public amount;
+    uint256 public creatorTaxAmount;
     uint32 public sourceVersion;
     uint64 public nonce;
     bytes32 public feeId;
@@ -135,6 +136,7 @@ contract MockCurveFeeVault {
         bytes32 marketId_,
         address quoteAsset_,
         uint256 amount_,
+        uint256 tax_,
         uint32 sourceVersion_,
         uint64 nonce_,
         bytes32 feeId_
@@ -142,6 +144,7 @@ contract MockCurveFeeVault {
         marketId = marketId_;
         quoteAsset = quoteAsset_;
         amount = amount_;
+        creatorTaxAmount = tax_;
         sourceVersion = sourceVersion_;
         nonce = nonce_;
         feeId = feeId_;
@@ -152,6 +155,7 @@ contract MockCurveFeeVault {
         bytes32 marketId_,
         address quoteAsset_,
         uint256 amount_,
+        uint256 tax_,
         uint32 sourceVersion_,
         uint64 nonce_,
         bytes32 feeId_
@@ -159,8 +163,8 @@ contract MockCurveFeeVault {
         if (shouldRevert) revert("VAULT_REJECTED");
         require(pending, "NOT_PENDING");
         require(
-            marketId == marketId_ && quoteAsset == quoteAsset_ && amount == amount_ && sourceVersion == sourceVersion_
-                && nonce == nonce_ && feeId == feeId_,
+            creatorTaxAmount == tax_ && marketId == marketId_ && quoteAsset == quoteAsset_ && amount == amount_
+                && sourceVersion == sourceVersion_ && nonce == nonce_ && feeId == feeId_,
             "CREDIT_MISMATCH"
         );
         pending = false;
@@ -324,7 +328,8 @@ contract PonsCompatibleCurveTest is Test {
                 uint32(1),
                 uint64(1),
                 address(0),
-                uint256(2)
+                uint256(2),
+                uint256(0)
             )
         );
         assertEq(feeVault.feeId(), expectedFeeId);
@@ -629,6 +634,61 @@ contract PonsCompatibleCurveTest is Test {
         assertEq(PonsCompatibleCurve.sweepCurveFees.selector, IPonsCompatibleCurve.sweepCurveFees.selector);
     }
 
+    function test_creatorTaxBuySellAndSweepConserveReserves() public {
+        testTaxBps = 500;
+        Deployment memory d = _deploy(address(0), 1_000_000, 999_000_000, 1_000_000_000);
+        vm.warp(block.timestamp + 3);
+        vm.prank(USER);
+        (uint256 bought,) = d.curve.buy{value: 100_000}(100_000, 0, USER);
+        assertEq(d.curve.creatorTaxBps(), 500);
+        assertEq(d.curve.realQuoteReserve(), 94_000);
+        assertEq(d.curve.accruedCreatorTax(), 5_000);
+        assertEq(d.curve.accruedCurveFees(), 6_000);
+        vm.prank(USER);
+        d.token.approve(address(d.curve), bought / 2);
+        (uint256 preview, uint256 totalFees) = d.curve.quoteSell(bought / 2);
+        uint256 reserveBefore = d.curve.realQuoteReserve();
+        vm.prank(USER);
+        (uint256 received, uint256 paidFees) = d.curve.sell(bought / 2, preview, USER);
+        assertEq(received, preview);
+        assertEq(totalFees, paidFees);
+        assertEq(d.curve.realQuoteReserve(), reserveBefore - received - paidFees);
+        uint256 gross = received + paidFees;
+        assertEq(d.curve.accruedCreatorTax(), 5_000 + gross * 500 / 10_000);
+        uint256 accrued = d.curve.accruedCurveFees();
+        uint256 reserve = d.curve.realQuoteReserve();
+        assertEq(d.curve.sweepCurveFees(), accrued);
+        assertEq(d.curve.accruedCreatorTax(), 0);
+        assertEq(d.curve.accruedCurveFees(), 0);
+        assertEq(d.curve.realQuoteReserve(), reserve);
+        assertEq(address(d.feeVault).balance, accrued);
+    }
+
+    function test_creatorTaxPartialFillOnlyTaxesSpentAndRefundsRest() public {
+        testTaxBps = 500;
+        Deployment memory d = _deploy(address(0), 1_000, 200, 400_000);
+        vm.warp(block.timestamp + 3);
+        uint256 beforeBalance = USER.balance;
+        vm.prank(USER);
+        (, uint256 spent) = d.curve.buy{value: 10_000}(10_000, 0, USER);
+        assertLt(spent, 10_000);
+        assertEq(beforeBalance - USER.balance, spent);
+        assertEq(d.feeVault.creatorTaxAmount(), spent * 500 / 10_000);
+        assertEq(d.feeVault.amount(), spent / 100 + spent * 500 / 10_000);
+    }
+
+    function test_creatorTaxLeavesOnePercentNetDuringAntiSnipe() public {
+        testTaxBps = 500;
+        Deployment memory d = _deploy(address(0), 1_000_000, 999_000_000, 1_000_000_000);
+        vm.prank(USER);
+        d.curve.buy{value: 10_000}(10_000, 0, USER);
+        assertEq(d.curve.realQuoteReserve(), 100);
+        assertEq(d.curve.accruedCreatorTax(), 500);
+        assertEq(d.curve.accruedCurveFees(), 9_900);
+    }
+
+    uint16 private testTaxBps;
+
     function _deploy(address quoteAsset, uint256 phantom, uint256 threshold, uint256 supply)
         private
         returns (Deployment memory deployment)
@@ -656,7 +716,8 @@ contract PonsCompatibleCurveTest is Test {
             phantomQuote: phantom,
             graduationThreshold: threshold,
             initialSupply: supply,
-            curveFeeBps: 100
+            curveFeeBps: 100,
+            creatorTaxBps: testTaxBps
         });
         deployment.factory.setInitialization(predictedCurve, initialization);
         deployment.registry.configure(MARKET_ID, _marketConfig(predictedCurve, address(deployment.token), quoteAsset));
@@ -666,7 +727,7 @@ contract PonsCompatibleCurveTest is Test {
 
     function _marketConfig(address curve_, address token_, address quoteAsset_)
         private
-        pure
+        view
         returns (MarketConfig memory)
     {
         return MarketConfig({
@@ -675,7 +736,7 @@ contract PonsCompatibleCurveTest is Test {
             quoteAssetConfigId: QUOTE_CONFIG_ID,
             launchTemplateId: keccak256("TEMPLATE"),
             feePolicyId: keccak256("FEE_POLICY"),
-            executionSpecId: keccak256("V1-EXEC-10"),
+            executionSpecId: keccak256("V1-EXEC-11"),
             expectedEconomics: keccak256("ECONOMICS"),
             launchConfigId: 0,
             creatorRevenueBeneficiaryAtCreation: BENEFICIARY,
@@ -683,7 +744,9 @@ contract PonsCompatibleCurveTest is Test {
             curve: curve_,
             gauge: address(0x600D),
             quoteAsset: quoteAsset_,
-            graduatedHook: address(0x2044)
+            graduatedHook: address(0x2044),
+            creatorTaxBps: testTaxBps,
+            creatorFeesToHolders: false
         });
     }
 

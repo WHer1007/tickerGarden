@@ -15,11 +15,12 @@ import {
 } from "../interfaces/IV1Protocol.sol";
 import {V1MarketEconomics} from "./V1MarketEconomics.sol";
 import {V1GraduationEconomicDomain} from "../libraries/V1GraduationEconomicDomain.sol";
+import {CreatorTax} from "../libraries/CreatorTax.sol";
 
 /// @notice Fail-closed Registry resolution and economics verification shared by Factory create and preview paths.
 library V1FactoryValidation {
     uint8 internal constant ACTIVE = 1;
-    bytes32 internal constant EXECUTION_SPEC_ID = keccak256("V1-EXEC-10");
+    bytes32 internal constant EXECUTION_SPEC_ID = keccak256("V1-EXEC-11");
     uint24 internal constant FEE_PIPS = 10_000;
     uint16 internal constant LP_SHARE_BPS = 0;
     uint24 internal constant POOL_KEY_FEE = 0;
@@ -102,6 +103,7 @@ library V1FactoryValidation {
             revert InvalidCreatorRevenueBeneficiary(params.creatorRevenueBeneficiary);
         }
         _validatePolicy(policy);
+        CreatorTax.validate(params.creatorTaxBps);
 
         snapshot.asset = registries.officialStock.asset(params.assetUid);
         if (snapshot.asset.status != ACTIVE) revert InactiveAsset(params.assetUid, snapshot.asset.status);
@@ -129,6 +131,9 @@ library V1FactoryValidation {
             revert InactivePonsBaseline(params.ponsBaselineId, snapshot.baseline.status);
         }
         V1GraduationEconomicDomain.validate(snapshot.baseline, snapshot.quote);
+        if (snapshot.baseline.curveFeeBps + uint256(params.creatorTaxBps) > 9_900) {
+            revert InvalidFeePolicy(policy.feePolicyId);
+        }
 
         snapshot.template = registries.launchTemplate.launchTemplate(params.launchTemplateId);
         if (snapshot.template.status != ACTIVE) {
@@ -163,7 +168,9 @@ library V1FactoryValidation {
                 launchConfigId: snapshot.baseline.launchConfigId,
                 feePolicyId: policy.feePolicyId,
                 feePolicyHash: snapshot.feePolicyHash,
-                executionSpecId: policy.fields.executionSpecId
+                executionSpecId: policy.fields.executionSpecId,
+                creatorTaxBps: params.creatorTaxBps,
+                creatorFeesToHolders: params.creatorFeesToHolders
             })
         );
     }

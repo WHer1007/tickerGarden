@@ -64,9 +64,9 @@ contract C405CurveFactory is ICurveInitializationSource {
 contract C405FeeVault {
     receive() external payable {}
 
-    function beginCurveCredit(bytes32, address, uint256, uint32, uint64, bytes32) external {}
+    function beginCurveCredit(bytes32, address, uint256, uint256, uint32, uint64, bytes32) external {}
 
-    function finalizeCurveCredit(bytes32, address, uint256, uint32, uint64, bytes32) external payable {}
+    function finalizeCurveCredit(bytes32, address, uint256, uint256, uint32, uint64, bytes32) external payable {}
 }
 
 /// @dev Regression vectors proving a live Curve cannot be administratively interrupted.
@@ -97,6 +97,7 @@ contract C405CurveAutonomyInvariantTest is Test {
     function setUp() public {
         assets = new MarketRegistryStockMock();
         quotes = new MarketRegistryQuoteMock();
+        quotes.setOfficialStockRegistry(address(assets));
         baselines = new MarketRegistryBaselineMock();
         templates = new MarketRegistryTemplateMock();
         assets.setAsset(ASSET_UID, _asset());
@@ -216,7 +217,7 @@ contract C405CurveAutonomyInvariantTest is Test {
             quoteAssetConfigId: QUOTE_CONFIG_ID,
             launchTemplateId: TEMPLATE_ID,
             feePolicyId: FEE_POLICY_ID,
-            executionSpecId: keccak256("V1-EXEC-10"),
+            executionSpecId: keccak256("V1-EXEC-11"),
             expectedEconomics: ECONOMICS,
             launchConfigId: 0,
             creatorRevenueBeneficiaryAtCreation: BENEFICIARY,
@@ -224,7 +225,9 @@ contract C405CurveAutonomyInvariantTest is Test {
             curve: curve,
             gauge: GAUGE,
             quoteAsset: quoteAsset,
-            graduatedHook: HOOK
+            graduatedHook: HOOK,
+            creatorTaxBps: 0,
+            creatorFeesToHolders: false
         });
     }
 
@@ -272,7 +275,7 @@ contract C405CurveAutonomyInvariantTest is Test {
             graduationExecutor: graduationExecutor,
             graduationExecutorCodeHash: keccak256("executor"),
             feePolicyId: FEE_POLICY_ID,
-            executionSpecId: keccak256("V1-EXEC-10"),
+            executionSpecId: keccak256("V1-EXEC-11"),
             status: 1
         });
     }
@@ -301,7 +304,8 @@ contract C405CurveAutonomyInvariantTest is Test {
                 phantomQuote: 1,
                 graduationThreshold: 400_000,
                 initialSupply: 1_000_000,
-                curveFeeBps: 100
+                curveFeeBps: 100,
+                creatorTaxBps: 0
             })
         );
         curve = factory.deployCurve(salt);

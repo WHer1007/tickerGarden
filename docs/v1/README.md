@@ -1,6 +1,8 @@
 # TickerGarden V1 documentation index
 
-`V1-EXEC-10` is the current execution baseline. Machine-readable manifests under [`spec/`](../../spec/) take precedence when a prose document and generated protocol artifact disagree.
+Current release status: `DEPLOYMENT_ELIGIBLE / NOT_PRODUCTION_READY / NOT_BROADCAST`. Refreshed verification is recorded in [`outputs/reviews/testnet-release-candidate/`](../../outputs/reviews/testnet-release-candidate/) and [`deployments/evidence/v1-deployment-gates-current.json`](../../deployments/evidence/v1-deployment-gates-current.json). No current release certificate exists.
+
+`V1-EXEC-11` is the current execution baseline. Machine-readable manifests under [`spec/`](../../spec/) take precedence when a prose document and generated protocol artifact disagree.
 
 ## Canonical product and execution rules
 
@@ -38,3 +40,8 @@
 - [`V1_READINESS_AND_DEPLOYMENT_GATES.md`](./V1_READINESS_AND_DEPLOYMENT_GATES.md)
 - [`V1_ACCUMULATOR_NUMERIC_REPORT.md`](./V1_ACCUMULATOR_NUMERIC_REPORT.md)
 - [`V1_ACTIVATION_WHEEL_GAS_REPORT.md`](./V1_ACTIVATION_WHEEL_GAS_REPORT.md)
+
+## Testnet deployment operations
+
+- [`V1_TESTNET_DEPLOYMENT_RUNBOOK.md`](./V1_TESTNET_DEPLOYMENT_RUNBOOK.md) — deterministic preview, rehearsal, broadcast boundary, role handoff, and deployed-manifest verification.
+- [`V1_TESTNET_ROLLBACK_CHECKLIST.md`](./V1_TESTNET_ROLLBACK_CHECKLIST.md) — phase-specific retry, abandonment, pause/retire, user-exit, and incident handling.

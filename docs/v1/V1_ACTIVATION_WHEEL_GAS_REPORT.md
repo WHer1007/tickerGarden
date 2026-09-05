@@ -1,7 +1,7 @@
 # TickerGarden V1 激活轮 Gas 与存储报告
 
 > 任务：`V1-T-202-A`
-> 状态：`FROZEN TEST EVIDENCE / NOT A PRODUCTION GAS BUDGET`  
+> 状态：`FROZEN TEST EVIDENCE / NOT A PRODUCTION GAS BUDGET`
 > 日期：2026-09-03
 
 ## 1. 测量环境

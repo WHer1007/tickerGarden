@@ -1,11 +1,11 @@
 # V1 protocol modules
 
-> Current local implementation: `V1-EXEC-10`, 19 canonical modules. Target-chain deployment, independent audit, and production approval remain separate gates.
+> Current local implementation: `V1-EXEC-11`, 19 canonical modules. Target-chain deployment, independent audit, and production approval remain separate gates.
 
 | Module | Role |
 |---|---|
 | `OfficialStockRegistryV1` | Append-only STOCK identity, shared-Vault binding, decimals, dynamic `minimumAllocation`, and asset admission status. |
-| `ApprovedQuoteRegistry` | Append-only administrator-curated native/direct-immutable ERC-20 Quote economics and admission status; any identity-current `ACTIVE` config may be selected by a new market. |
+| `ApprovedQuoteRegistry` | Append-only native/direct-immutable ERC-20 Quote admission plus a separate official Stock immutable-Beacon path that pins UID, canonical token, proxy fingerprint, and evidence; any identity-current `ACTIVE` config may be selected by a new market. |
 | `PonsBaselineRegistry` | Frozen Pons-compatible curve, anti-snipe, supply, and graduation baseline. |
 | `LaunchTemplateRegistry` | Frozen implementation/code identity and fee-policy template. |
 | `LaunchConfigResolver` | Read-only aggregation of the three launch-configuration registries. |

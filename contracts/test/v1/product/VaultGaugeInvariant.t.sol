@@ -159,6 +159,26 @@ contract VaultGaugeInvariantHandler is Test {
         vm.stopPrank();
     }
 
+    function stake(uint8 userSeed, uint8 marketSeed, uint96 rawAmount) external {
+        address user = _user(userSeed);
+        uint256 amount = bound(uint256(rawAmount), MINIMUM_POSITION, MAX_ACTION_AMOUNT);
+        stock.mint(user, amount);
+        totalMinted += amount;
+        vm.startPrank(user);
+        stock.approve(address(vault), amount);
+        manager.stake(_market(marketSeed), amount);
+        vm.stopPrank();
+    }
+
+    function unstake(uint8 userSeed, uint8 marketSeed) external {
+        address user = _user(userSeed);
+        bytes32 marketId = _market(marketSeed);
+        if (vault.allocation(ASSET_UID, user, marketId) == 0) return;
+        if (block.timestamp < _gauge(marketSeed).positionOf(user).unlockAt) return;
+        vm.prank(user);
+        manager.unstakeAndWithdraw(marketId);
+    }
+
     function allocate(uint8 userSeed, uint8 marketSeed, uint96 rawAmount) external {
         address user = _user(userSeed);
         bytes32 marketId = _market(marketSeed);
@@ -264,7 +284,7 @@ contract VaultGaugeInvariantTest is StdInvariant, Test {
         marketRegistry.configure(MARKET_B, ASSET_UID, address(gaugeB));
 
         handler = new VaultGaugeInvariantHandler(stock, vault, manager, gaugeA, gaugeB, MARKET_A, MARKET_B);
-        bytes4[] memory selectors = new bytes4[](7);
+        bytes4[] memory selectors = new bytes4[](9);
         selectors[0] = handler.deposit.selector;
         selectors[1] = handler.depositAndAllocate.selector;
         selectors[2] = handler.allocate.selector;
@@ -272,8 +292,61 @@ contract VaultGaugeInvariantTest is StdInvariant, Test {
         selectors[4] = handler.withdraw.selector;
         selectors[5] = handler.close.selector;
         selectors[6] = handler.rageQuit.selector;
+        selectors[7] = handler.stake.selector;
+        selectors[8] = handler.unstake.selector;
         targetContract(address(handler));
         targetSelector(FuzzSelector({addr: address(handler), selectors: selectors}));
+    }
+
+    function test_marketStakeExitPreservesRealGaugeRewardsWithoutRewardTransfers() public {
+        stock.mint(ALICE, 2 ether);
+        vm.startPrank(ALICE);
+        stock.approve(address(vault), 2 ether);
+        manager.stake(MARKET_A, 2 ether);
+        vm.stopPrank();
+        assertEq(gaugeA.positionOf(ALICE).pendingAmount, 2 ether);
+        vm.warp(block.timestamp + 31);
+        feeVault.credit(gaugeA, address(quote), 400, keccak256("normal-quote"));
+        feeVault.credit(gaugeA, address(memeA), 600, keccak256("normal-meme"));
+        vm.warp(gaugeA.positionOf(ALICE).unlockAt);
+        // Any reward token interaction would fail. Principal must remain independently withdrawable.
+        vm.mockCallRevert(address(quote), abi.encodeWithSignature("transfer(address,uint256)"), "reward paused");
+        vm.mockCallRevert(address(memeA), abi.encodeWithSignature("transfer(address,uint256)"), "reward paused");
+        vm.prank(ALICE);
+        manager.unstakeAndWithdraw(MARKET_A);
+        assertEq(stock.balanceOf(ALICE), 2 ether);
+        assertEq(vault.deposited(ASSET_UID, ALICE), 0);
+        assertEq(vault.marketAllocated(ASSET_UID, MARKET_A), 0);
+        PositionView memory position = gaugeA.positionOf(ALICE);
+        assertEq(position.activeAmount + position.pendingAmount, 0);
+        assertEq(position.quoteClaimable, 400);
+        assertEq(position.memeClaimable, 600);
+        vm.expectRevert();
+        vm.prank(ALICE);
+        manager.unstakeAndWithdraw(MARKET_A);
+        vm.prank(address(feeVault));
+        assertEq(gaugeA.consumeClaimable(ALICE, address(quote)), 400);
+        vm.prank(address(feeVault));
+        assertEq(gaugeA.consumeClaimable(ALICE, address(memeA)), 600);
+        assertEq(stock.balanceOf(ALICE), 2 ether);
+    }
+
+    function test_marketStakeAdditionResetsWholeLockAndKeepsMarketsSeparate() public {
+        stock.mint(ALICE, 3 ether);
+        vm.startPrank(ALICE);
+        stock.approve(address(vault), 3 ether);
+        manager.stake(MARKET_A, 1 ether);
+        manager.stake(MARKET_B, 1 ether);
+        vm.warp(block.timestamp + 1 days);
+        manager.stake(MARKET_A, 1 ether);
+        assertEq(gaugeA.positionOf(ALICE).unlockAt, block.timestamp + 1 days);
+        vm.expectRevert();
+        manager.unstakeAndWithdraw(MARKET_A);
+        manager.unstakeAndWithdraw(MARKET_B);
+        vm.stopPrank();
+        assertEq(stock.balanceOf(ALICE), 1 ether);
+        assertEq(vault.allocation(ASSET_UID, ALICE, MARKET_A), 2 ether);
+        assertEq(vault.allocation(ASSET_UID, ALICE, MARKET_B), 0);
     }
 
     function test_rageQuitBeforeActivationReturnsAllPrincipalWithoutChangingMarket() public {

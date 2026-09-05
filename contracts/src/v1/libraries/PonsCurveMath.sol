@@ -9,6 +9,7 @@ library PonsCurveMath {
     uint256 internal constant BPS_DENOMINATOR = 10_000;
 
     struct BuyQuote {
+        uint256 creatorTaxFee;
         uint256 quoteReceived;
         uint256 quoteSpent;
         uint256 fee;
@@ -79,7 +80,22 @@ library PonsCurveMath {
         uint256 additionalQuoteFeeBps,
         uint256 minTokensOut
     ) internal pure returns (BuyQuote memory quote) {
-        uint256 totalFeeBps = _validatedTotalFee(feeBps, additionalQuoteFeeBps);
+        return quoteBuyWithCreatorTax(
+            quoteReceived, quoteReserve, tokenReserve, reservedTokens, feeBps, additionalQuoteFeeBps, 0, minTokensOut
+        );
+    }
+
+    function quoteBuyWithCreatorTax(
+        uint256 quoteReceived,
+        uint256 quoteReserve,
+        uint256 tokenReserve,
+        uint256 reservedTokens,
+        uint256 feeBps,
+        uint256 additionalQuoteFeeBps,
+        uint256 creatorTaxBps,
+        uint256 minTokensOut
+    ) internal pure returns (BuyQuote memory quote) {
+        uint256 totalFeeBps = _validatedTotalFee(feeBps, additionalQuoteFeeBps + creatorTaxBps);
         if (tokenReserve <= reservedTokens) {
             revert InsufficientSellableLiquidity(tokenReserve, reservedTokens);
         }
@@ -88,6 +104,8 @@ library PonsCurveMath {
         quote.quoteSpent = quoteReceived;
         (quote.fee, quote.additionalQuoteFee, quote.netQuote) =
             _netAfterFees(quote.quoteSpent, feeBps, additionalQuoteFeeBps);
+        quote.creatorTaxFee = Math.mulDiv(quote.quoteSpent, creatorTaxBps, BPS_DENOMINATOR);
+        quote.netQuote -= quote.creatorTaxFee;
         quote.tokensOut = amountOut(quote.netQuote, quoteReserve, tokenReserve, 0);
 
         uint256 sellableTokens = tokenReserve - reservedTokens;
@@ -100,6 +118,8 @@ library PonsCurveMath {
             quote.quoteSpent = Math.min(grossRequired, quoteReceived);
             (quote.fee, quote.additionalQuoteFee, quote.netQuote) =
                 _netAfterFees(quote.quoteSpent, feeBps, additionalQuoteFeeBps);
+            quote.creatorTaxFee = Math.mulDiv(quote.quoteSpent, creatorTaxBps, BPS_DENOMINATOR);
+            quote.netQuote -= quote.creatorTaxFee;
         }
 
         quote.refund = quoteReceived - quote.quoteSpent;

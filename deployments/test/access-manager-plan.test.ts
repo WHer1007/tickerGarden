@@ -29,12 +29,12 @@ function input(overrides: Partial<V1AccessManagerPlanInput> = {}): V1AccessManag
   };
 }
 
-test("derives 22 protocol role selectors and 61 immutable direct selectors from the 19-module manifest", () => {
+test("derives 23 protocol role selectors and 76 immutable direct selectors from the 19-module manifest", () => {
   const plan = deriveV1AccessManagerPlan(input());
   assert.equal(compiled.modules.length, 19);
-  assert.equal(compiled.mutations.length, 83);
-  assert.equal(plan.configuredProtocolSelectorCount, 22);
-  assert.equal(plan.immutableDirectSelectorCount, 61);
+  assert.equal(compiled.mutations.length, 99);
+  assert.equal(plan.configuredProtocolSelectorCount, 23);
+  assert.equal(plan.immutableDirectSelectorCount, 76);
   assert.equal(plan.roles.length, 5);
   assert.deepEqual(plan.roles.map((role) => [role.name, role.roleId, role.executionDelaySeconds]), [
     ["PROTOCOL_ADMIN_ROLE", V1_ACCESS_ROLES.PROTOCOL_ADMIN_ROLE.toString(), 172800],
@@ -65,7 +65,7 @@ test("binds all five roles to the intended Safe members and exposes no delayed t
   ]) {
     assert.equal(compiled.mutations.some((row) => row.displaySignature === removedSignature), false);
   }
-  assert.equal(plan.actions.filter((action) => action.phase === "PROTOCOL_SELECTORS").reduce((n, action) => n + Number(action.description.match(/\((\d+) selector/)?.[1] ?? 0), 0), 22);
+  assert.equal(plan.actions.filter((action) => action.phase === "PROTOCOL_SELECTORS").reduce((n, action) => n + Number(action.description.match(/\((\d+) selector/)?.[1] ?? 0), 0), 23);
   assert.equal(plan.actions.filter((action) => action.phase === "BOOTSTRAP_GUARDIANS").length, 4);
 });
 

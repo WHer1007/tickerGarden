@@ -5,7 +5,13 @@ import {Test} from "forge-std/Test.sol";
 import {ERC20} from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
-import {MarketConfig, MarketRuntime, MarketView, PonsBaseline, QuoteAssetConfig} from "../../../src/v1/interfaces/IV1Protocol.sol";
+import {
+    MarketConfig,
+    MarketRuntime,
+    MarketView,
+    PonsBaseline,
+    QuoteAssetConfig
+} from "../../../src/v1/interfaces/IV1Protocol.sol";
 import {GraduationExecutorAssetAccounting} from "../../../src/v1/shared/GraduationExecutorAssetAccounting.sol";
 
 contract GraduationAccountingToken is ERC20 {
@@ -30,8 +36,14 @@ contract GraduationAccountingQuoteRegistryMock {
 
 contract GraduationAccountingPonsBaselineRegistryMock {
     mapping(bytes32 id => PonsBaseline value) private _baselines;
-    function configure(bytes32 id, PonsBaseline calldata value) external { _baselines[id] = value; }
-    function baseline(bytes32 id) external view returns (PonsBaseline memory) { return _baselines[id]; }
+
+    function configure(bytes32 id, PonsBaseline calldata value) external {
+        _baselines[id] = value;
+    }
+
+    function baseline(bytes32 id) external view returns (PonsBaseline memory) {
+        return _baselines[id];
+    }
 }
 
 contract GraduationAccountingRegistryMock {
@@ -337,9 +349,7 @@ contract GraduationExecutorAssetAccountingTest is Test {
                 quoteAsset: quoteAsset,
                 quoteDecimals: 18,
                 phantomQuote: phantom,
-                graduationThreshold: quoteAsset == address(0)
-                    ? NATIVE_THRESHOLD
-                    : 26_639_006_882_017_848_346,
+                graduationThreshold: quoteAsset == address(0) ? NATIVE_THRESHOLD : 26_639_006_882_017_848_346,
                 economicsHash: QUOTE_CONFIG_ID,
                 status: 1
             })

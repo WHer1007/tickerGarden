@@ -9,8 +9,8 @@ import {ProtocolFeeVaultV4Credit} from "../../../src/v1/shared/ProtocolFeeVaultV
 import {MockExactQuoteToken} from "../mocks/MockV1QuoteAssets.sol";
 
 interface ICurveCreditVault {
-    function beginCurveCredit(bytes32, address, uint256, uint32, uint64, bytes32) external;
-    function finalizeCurveCredit(bytes32, address, uint256, uint32, uint64, bytes32) external payable;
+    function beginCurveCredit(bytes32, address, uint256, uint256, uint32, uint64, bytes32) external;
+    function finalizeCurveCredit(bytes32, address, uint256, uint256, uint32, uint64, bytes32) external payable;
 }
 
 contract CurveCreditMarketRegistryMock {
@@ -91,11 +91,42 @@ contract CurveCreditSourceMock {
     ) external {
         uint256 sourceBefore = quote.balanceOf(address(this));
         uint256 vaultBefore = quote.balanceOf(address(vault));
-        vault.beginCurveCredit(marketId, address(quote), amount, sourceVersion, sweepNonce, feeId);
+        vault.beginCurveCredit(marketId, address(quote), amount, 0, sourceVersion, sweepNonce, feeId);
         require(quote.transfer(address(vault), amount), "TRANSFER");
         require(sourceBefore - quote.balanceOf(address(this)) == amount, "DEBIT");
         require(quote.balanceOf(address(vault)) - vaultBefore == amount, "CREDIT");
-        vault.finalizeCurveCredit(marketId, address(quote), amount, sourceVersion, sweepNonce, feeId);
+        vault.finalizeCurveCredit(marketId, address(quote), amount, 0, sourceVersion, sweepNonce, feeId);
+    }
+
+    function creditErc20WithTax(
+        ICurveCreditVault vault,
+        MockExactQuoteToken quote,
+        bytes32 marketId,
+        uint256 amount,
+        uint256 creatorTaxAmount,
+        uint32 sourceVersion,
+        uint64 sweepNonce,
+        bytes32 feeId
+    ) external {
+        vault.beginCurveCredit(marketId, address(quote), amount, creatorTaxAmount, sourceVersion, sweepNonce, feeId);
+        require(quote.transfer(address(vault), amount), "TRANSFER");
+        vault.finalizeCurveCredit(marketId, address(quote), amount, creatorTaxAmount, sourceVersion, sweepNonce, feeId);
+    }
+
+    function creditErc20WithMismatchedFinalizeTax(
+        ICurveCreditVault vault,
+        MockExactQuoteToken quote,
+        bytes32 marketId,
+        uint256 amount,
+        uint256 beginTaxAmount,
+        uint256 finalizeTaxAmount,
+        uint32 sourceVersion,
+        uint64 sweepNonce,
+        bytes32 feeId
+    ) external {
+        vault.beginCurveCredit(marketId, address(quote), amount, beginTaxAmount, sourceVersion, sweepNonce, feeId);
+        require(quote.transfer(address(vault), amount), "TRANSFER");
+        vault.finalizeCurveCredit(marketId, address(quote), amount, finalizeTaxAmount, sourceVersion, sweepNonce, feeId);
     }
 
     function creditWithoutTransfer(
@@ -107,8 +138,8 @@ contract CurveCreditSourceMock {
         uint64 sweepNonce,
         bytes32 feeId
     ) external {
-        vault.beginCurveCredit(marketId, quoteAsset, amount, sourceVersion, sweepNonce, feeId);
-        vault.finalizeCurveCredit(marketId, quoteAsset, amount, sourceVersion, sweepNonce, feeId);
+        vault.beginCurveCredit(marketId, quoteAsset, amount, 0, sourceVersion, sweepNonce, feeId);
+        vault.finalizeCurveCredit(marketId, quoteAsset, amount, 0, sourceVersion, sweepNonce, feeId);
     }
 
     function creditNative(
@@ -119,10 +150,8 @@ contract CurveCreditSourceMock {
         uint64 sweepNonce,
         bytes32 feeId
     ) external payable {
-        vault.beginCurveCredit(marketId, address(0), amount, sourceVersion, sweepNonce, feeId);
-        vault.finalizeCurveCredit{value: msg.value}(
-            marketId, address(0), amount, sourceVersion, sweepNonce, feeId
-        );
+        vault.beginCurveCredit(marketId, address(0), amount, 0, sourceVersion, sweepNonce, feeId);
+        vault.finalizeCurveCredit{value: msg.value}(marketId, address(0), amount, 0, sourceVersion, sweepNonce, feeId);
     }
 
     function creditErc20WithValue(
@@ -134,10 +163,10 @@ contract CurveCreditSourceMock {
         uint64 sweepNonce,
         bytes32 feeId
     ) external payable {
-        vault.beginCurveCredit(marketId, address(quote), amount, sourceVersion, sweepNonce, feeId);
+        vault.beginCurveCredit(marketId, address(quote), amount, 0, sourceVersion, sweepNonce, feeId);
         require(quote.transfer(address(vault), amount), "TRANSFER");
         vault.finalizeCurveCredit{value: msg.value}(
-            marketId, address(quote), amount, sourceVersion, sweepNonce, feeId
+            marketId, address(quote), amount, 0, sourceVersion, sweepNonce, feeId
         );
     }
 }
@@ -180,6 +209,41 @@ contract ProtocolFeeVaultCurveCreditTest is Test {
         assertEq(vault.lastNonce(MARKET_ID), 1);
         assertTrue(vault.consumed(feeId));
         assertEq(vault.recordCount(), 1);
+    }
+
+    function test_creatorTaxAmountIsCreatorOwnedAndLeavesBaseSplitUnchanged() public {
+        quote.mint(address(curve), 600);
+        bytes32 feeId = _feeIdWithTax(address(quote), 600, 500, SOURCE_VERSION, 1);
+        curve.creditErc20WithTax(creditVault, quote, MARKET_ID, 600, 500, SOURCE_VERSION, 1, feeId);
+
+        assertEq(vault.creatorCredits(MARKET_ID, 1), 570);
+        assertEq(vault.platformCredits(MARKET_ID), 30);
+        assertEq(vault.lastNonce(MARKET_ID), 1);
+        assertTrue(vault.consumed(feeId));
+    }
+
+    function test_creatorTaxAmountCannotExceedSweepAmount() public {
+        bytes32 feeId = _feeIdWithTax(address(quote), 600, 601, SOURCE_VERSION, 1);
+        vm.expectRevert(abi.encodeWithSelector(ProtocolFeeVaultV4Credit.FeeAmountTooLarge.selector, 601));
+        curve.creditErc20WithTax(creditVault, quote, MARKET_ID, 600, 601, SOURCE_VERSION, 1, feeId);
+
+        assertEq(vault.lastNonce(MARKET_ID), 0);
+        assertFalse(vault.consumed(feeId));
+    }
+
+    function test_mismatchedFinalizeCreatorTaxRollsBackTransferNonceAndFeeId() public {
+        quote.mint(address(curve), 600);
+        bytes32 feeId = _feeIdWithTax(address(quote), 600, 500, SOURCE_VERSION, 1);
+        vm.expectRevert(abi.encodeWithSelector(ProtocolFeeVaultV4Credit.FeeCreditNotPrepared.selector, feeId));
+        curve.creditErc20WithMismatchedFinalizeTax(
+            creditVault, quote, MARKET_ID, 600, 500, 499, SOURCE_VERSION, 1, feeId
+        );
+
+        assertEq(quote.balanceOf(address(curve)), 600);
+        assertEq(quote.balanceOf(address(vault)), 0);
+        assertEq(vault.lastNonce(MARKET_ID), 0);
+        assertEq(vault.recordCount(), 0);
+        assertFalse(vault.consumed(feeId));
     }
 
     function test_nativeSweepRequiresExactMsgValueAndPreservesPreexistingBalance() public {
@@ -256,7 +320,7 @@ contract ProtocolFeeVaultCurveCreditTest is Test {
                 ProtocolFeeVaultCurveCredit.UnauthorizedMarketCurve.selector, address(this), address(curve)
             )
         );
-        vault.beginCurveCredit(MARKET_ID, address(quote), 80, SOURCE_VERSION, 1, feeId);
+        vault.beginCurveCredit(MARKET_ID, address(quote), 80, 0, SOURCE_VERSION, 1, feeId);
 
         _configure(address(quote), 1, SOURCE_VERSION);
         quote.mint(address(curve), 80);
@@ -354,6 +418,16 @@ contract ProtocolFeeVaultCurveCreditTest is Test {
         view
         returns (bytes32)
     {
+        return _feeIdWithTax(quoteAsset, amount, 0, sourceVersion, sweepNonce);
+    }
+
+    function _feeIdWithTax(
+        address quoteAsset,
+        uint256 amount,
+        uint256 creatorTaxAmount,
+        uint32 sourceVersion,
+        uint64 sweepNonce
+    ) private view returns (bytes32) {
         return keccak256(
             abi.encode(
                 keccak256("TICKERGARDEN_V1_CURVE_SWEEP"),
@@ -365,7 +439,8 @@ contract ProtocolFeeVaultCurveCreditTest is Test {
                 sourceVersion,
                 sweepNonce,
                 quoteAsset,
-                amount
+                amount,
+                creatorTaxAmount
             )
         );
     }

@@ -37,6 +37,15 @@ contract MarketRegistryStockMock {
 contract MarketRegistryQuoteMock {
     mapping(bytes32 configId => QuoteAssetConfig value) private _quotes;
     bool private _identityIsCurrent = true;
+    address private _officialStockRegistry;
+
+    function setOfficialStockRegistry(address registry) external {
+        _officialStockRegistry = registry;
+    }
+
+    function officialStockRegistry() external view returns (address) {
+        return _officialStockRegistry;
+    }
 
     function setQuote(bytes32 configId, QuoteAssetConfig calldata value) external {
         _quotes[configId] = value;
@@ -123,12 +132,37 @@ contract MarketRegistryV1Test is Test {
         baselines = new MarketRegistryBaselineMock();
         templates = new MarketRegistryTemplateMock();
         assets.setAsset(ASSET_UID, AssetView(address(0x570C), address(0xA017), 18, 1));
+        quotes.setOfficialStockRegistry(address(assets));
         quotes.setQuote(QUOTE_CONFIG_ID, _quote(QUOTE_ASSET));
         baselines.setBaseline(BASELINE_ID, _baseline());
         templates.setTemplate(TEMPLATE_ID, _template());
         vm.etch(SWAP_ROUTER, hex"00");
         vm.etch(QUOTER, hex"00");
         registry = new MarketRegistryV1(
+            FACTORY,
+            address(assets),
+            address(quotes),
+            address(baselines),
+            address(templates),
+            GRADUATION,
+            SWAP_ROUTER,
+            QUOTER
+        );
+    }
+
+    function test_constructorRejectsQuoteRegistryBoundToDifferentOfficialStockRegistry() public {
+        address wrongStockRegistry = address(new MarketRegistryStockMock());
+        quotes.setOfficialStockRegistry(wrongStockRegistry);
+
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                MarketRegistryV1.InvalidQuoteRegistryBinding.selector,
+                address(quotes),
+                address(assets),
+                wrongStockRegistry
+            )
+        );
+        new MarketRegistryV1(
             FACTORY,
             address(assets),
             address(quotes),
@@ -300,7 +334,7 @@ contract MarketRegistryV1Test is Test {
             quoteAssetConfigId: QUOTE_CONFIG_ID,
             launchTemplateId: TEMPLATE_ID,
             feePolicyId: FEE_POLICY_ID,
-            executionSpecId: keccak256("V1-EXEC-10"),
+            executionSpecId: keccak256("V1-EXEC-11"),
             expectedEconomics: ECONOMICS,
             launchConfigId: 0,
             creatorRevenueBeneficiaryAtCreation: address(0xBEEF),
@@ -308,7 +342,9 @@ contract MarketRegistryV1Test is Test {
             curve: CURVE,
             gauge: GAUGE,
             quoteAsset: quoteAsset,
-            graduatedHook: HOOK
+            graduatedHook: HOOK,
+            creatorTaxBps: 0,
+            creatorFeesToHolders: false
         });
     }
 
@@ -352,7 +388,7 @@ contract MarketRegistryV1Test is Test {
             graduationExecutor: GRADUATION,
             graduationExecutorCodeHash: keccak256("executor"),
             feePolicyId: FEE_POLICY_ID,
-            executionSpecId: keccak256("V1-EXEC-10"),
+            executionSpecId: keccak256("V1-EXEC-11"),
             status: 1
         });
     }

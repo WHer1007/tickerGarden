@@ -220,6 +220,28 @@ contract PonsBaselineRegistryTest is Test {
         assertEq(registry.baseline(highId).status, 1);
     }
 
+    function test_curveFeeBpsMatchesCurveInclusiveUpperBound() public {
+        PonsBaseline memory value = _validBaseline();
+        value.curveFeeBps = 9_899;
+        _addFast(keccak256("curve-fee-9899"), value);
+
+        value = _validBaseline();
+        value.curveFeeBps = 9_900;
+        _addFast(keccak256("curve-fee-9900"), value);
+
+        value = _validBaseline();
+        value.curveFeeBps = 9_901;
+        _expectInvalid(keccak256("curve-fee-9901"), value);
+
+        value = _validBaseline();
+        value.curveFeeBps = 9_999;
+        _expectInvalid(keccak256("curve-fee-9999"), value);
+
+        value = _validBaseline();
+        value.curveFeeBps = 10_000;
+        _expectInvalid(keccak256("curve-fee-10000"), value);
+    }
+
     function test_baselineIdIsWriteOnceAndFieldsRemainFrozen() public {
         bytes32 id = keccak256("write-once");
         PonsBaseline memory value = _validBaseline();

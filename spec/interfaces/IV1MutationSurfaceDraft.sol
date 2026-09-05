@@ -4,6 +4,12 @@ pragma solidity 0.8.26;
 // GENERATED DRAFT: do not implement against this file before V1-M0 closes.
 // Source: v1_abi_surface.json + v1_permissions_matrix.json
 
+struct ConversionItem {
+    address user;
+    uint32 creatorEpoch;
+    uint256 maximumMeme;
+}
+
 struct CreateMarketParams {
     bytes32 assetUid;
     bytes32 ponsBaselineId;
@@ -15,6 +21,8 @@ struct CreateMarketParams {
     string symbol;
     string metadataURI;
     bytes32 salt;
+    uint16 creatorTaxBps;
+    bool creatorFeesToHolders;
 }
 
 struct LaunchTemplate {
@@ -48,6 +56,8 @@ struct MarketConfig {
     address gauge;
     address quoteAsset;
     address graduatedHook;
+    uint16 creatorTaxBps;
+    bool creatorFeesToHolders;
 }
 
 struct PonsBaseline {
@@ -79,6 +89,13 @@ struct QuoteAssetConfig {
     uint256 graduationThreshold;
     bytes32 economicsHash;
     uint8 status;
+}
+
+struct StockQuoteBinding {
+    bytes32 assetUid;
+    bytes32 stockTokenFingerprintHash;
+    bytes32 referenceEvidenceHash;
+    bytes32 generatorPolicyId;
 }
 
 struct StockTokenFingerprint {
@@ -113,6 +130,8 @@ interface IOfficialStockRegistryV1MutationDraft {
 interface IApprovedQuoteRegistryMutationDraft {
     // caller=PROTOCOL_ADMIN_ROLE; executionDelay=172800; stateDelay=0
     function addQuoteConfig(bytes32, QuoteAssetConfig calldata) external;
+    // caller=PROTOCOL_ADMIN_ROLE; executionDelay=172800; stateDelay=0
+    function addStockQuoteConfig(bytes32, QuoteAssetConfig calldata, StockQuoteBinding calldata) external;
     // caller=PAUSE_GUARDIAN_ROLE; executionDelay=0; stateDelay=0
     function pauseQuote(bytes32, bytes32) external;
     // caller=UNPAUSE_ROLE; executionDelay=86400; stateDelay=0
@@ -196,6 +215,8 @@ interface IUserStockVaultMutationDraft {
     // caller=ALLOCATION_MODULE; executionDelay=0; stateDelay=0
     function releaseAllocation(bytes32, address, bytes32) external returns (uint256);
     // caller=ALLOCATION_MODULE; executionDelay=0; stateDelay=0
+    function releaseAllocationAndWithdraw(bytes32, address, bytes32) external returns (uint256);
+    // caller=ALLOCATION_MODULE; executionDelay=0; stateDelay=0
     function rageQuitAllocation(bytes32, address, bytes32) external returns (uint256);
     // caller=ALLOCATION_MODULE; executionDelay=0; stateDelay=0
     function completeRageQuitRewardSettlement(bytes32, address, bytes32) external returns (uint256);
@@ -207,9 +228,13 @@ interface IAllocationManagerMutationDraft {
     // caller=PUBLIC; executionDelay=0; stateDelay=0
     function allocate(bytes32, uint256) external;
     // caller=PUBLIC; executionDelay=0; stateDelay=0
+    function stake(bytes32, uint256) external;
+    // caller=PUBLIC; executionDelay=0; stateDelay=0
     function increaseAllocation(bytes32, uint256) external;
     // caller=PUBLIC; executionDelay=0; stateDelay=0
     function closeAllocation(bytes32) external;
+    // caller=PUBLIC; executionDelay=0; stateDelay=0
+    function unstakeAndWithdraw(bytes32) external;
     // caller=PUBLIC; executionDelay=0; stateDelay=0
     function rageQuit(bytes32) external;
     // caller=PUBLIC; executionDelay=0; stateDelay=0
@@ -221,6 +246,10 @@ interface IAllocationManagerMutationDraft {
 }
 
 interface IMemeStockGaugeMutationDraft {
+    // caller=FEE_VAULT; executionDelay=0; stateDelay=0
+    function consumeForConversion(address, uint256) external returns (uint256);
+    // caller=FEE_VAULT; executionDelay=0; stateDelay=0
+    function creditConversion(address, uint256, uint256) external;
     // caller=ALLOCATION_MODULE; executionDelay=0; stateDelay=0
     function addPending(address, uint256, uint64, uint64) external;
     // caller=ALLOCATION_MODULE; executionDelay=0; stateDelay=0
@@ -240,6 +269,10 @@ interface IMemeStockGaugeMutationDraft {
 }
 
 interface ITickerGardenMemeHookMutationDraft {
+    // caller=FEE_VAULT; executionDelay=0; stateDelay=0
+    function convertRewards(bytes32, uint256, uint256, uint256) external returns (uint256, uint256);
+    // caller=POOL_MANAGER; executionDelay=0; stateDelay=0
+    function unlockCallback(bytes calldata) external returns (bytes);
     // caller=GRADUATION_MODULE; executionDelay=0; stateDelay=0
     function registerExpectedPool(bytes32, PoolKey calldata, uint32) external returns (bytes32);
     // caller=GRADUATION_MODULE; executionDelay=0; stateDelay=0
@@ -251,14 +284,22 @@ interface ITickerGardenMemeHookMutationDraft {
 }
 
 interface IProtocolFeeVaultMutationDraft {
+    // caller=SETTLEMENT_OPERATOR; executionDelay=0; stateDelay=0
+    function settleRewards(bytes32, ConversionItem[] calldata, uint256, uint256) external returns (uint256, uint256);
+    // caller=FIXED_PLATFORM_BENEFICIARY; executionDelay=0; stateDelay=0
+    function setSettlementOperator(address) external;
+    // caller=PUBLIC; executionDelay=0; stateDelay=0
+    function requestRawRewardExit(bytes32) external;
+    // caller=PUBLIC; executionDelay=0; stateDelay=0
+    function cancelRawRewardExit(bytes32) external;
     // caller=ACTIVE_FEE_SOURCE; executionDelay=0; stateDelay=0
     function beginV4Credit(bytes32, address, uint256, uint32, bytes32) external;
     // caller=ACTIVE_FEE_SOURCE; executionDelay=0; stateDelay=0
     function finalizeV4Credit(bytes32, address, uint256, uint256, uint256, uint256, uint64, bytes32) external;
     // caller=EXACT_REGISTERED_CURVE; executionDelay=0; stateDelay=0
-    function beginCurveCredit(bytes32, address, uint256, uint32, uint64, bytes32) external;
+    function beginCurveCredit(bytes32, address, uint256, uint256, uint32, uint64, bytes32) external;
     // caller=EXACT_REGISTERED_CURVE; executionDelay=0; stateDelay=0
-    function finalizeCurveCredit(bytes32, address, uint256, uint32, uint64, bytes32) external payable;
+    function finalizeCurveCredit(bytes32, address, uint256, uint256, uint32, uint64, bytes32) external payable;
     // caller=PUBLIC; executionDelay=0; stateDelay=0
     function claimCreator(bytes32, uint32, address) external returns (uint256);
     // caller=PUBLIC; executionDelay=0; stateDelay=0
@@ -269,6 +310,10 @@ interface IProtocolFeeVaultMutationDraft {
     function claimStakerFor(address, bytes32, address) external returns (uint256);
     // caller=EXACT_REGISTERED_GAUGE; executionDelay=0; stateDelay=0
     function recordForfeiture(bytes32, address, uint256, uint256) external;
+    // caller=PUBLIC; executionDelay=0; stateDelay=0
+    function fundHolderRewards(bytes32, uint32) external returns (uint256);
+    // caller=SETTLEMENT_OPERATOR; executionDelay=0; stateDelay=0
+    function settleHolderRewards(bytes32, uint32, uint256, uint256, uint256) external returns (uint256, uint256);
 }
 
 interface IGraduationExecutorMutationDraft {
@@ -310,4 +355,8 @@ interface ITreasuryDistributorV1MutationDraft {
     function rolloverExpiredEpoch(bytes32, uint32) external returns (uint32, uint256);
     // caller=SERVICE_BENEFICIARY; executionDelay=0; stateDelay=0
     function withdrawServiceCredit(address) external returns (uint256);
+    // caller=FACTORY_MODULE; executionDelay=0; stateDelay=0
+    function registerFeeSharingMarket(bytes32, address, address) external;
+    // caller=FEE_VAULT; executionDelay=0; stateDelay=0
+    function fundCreatorFees(bytes32, uint32, uint256) external payable;
 }

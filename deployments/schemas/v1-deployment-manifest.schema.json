@@ -5,10 +5,27 @@
   "type": "object",
   "additionalProperties": false,
   "required": ["schemaVersion", "manifestKind", "executionSpecId", "releaseStatus", "readinessCertificate", "chain", "externalDependencies", "protocolModules", "configSnapshot", "quoteAssets", "officialStocks", "create2", "hook", "accessManager", "livePreflight", "tests", "roleHandoff", "evidence"],
+  "allOf": [
+    {
+      "if": {
+        "properties": { "releaseStatus": { "const": "PRODUCTION_CANDIDATE" } },
+        "required": ["releaseStatus"]
+      },
+      "then": {
+        "properties": {
+          "chain": {
+            "type": "object",
+            "properties": { "chainId": { "const": 4663 } },
+            "required": ["chainId"]
+          }
+        }
+      }
+    }
+  ],
   "properties": {
     "schemaVersion": { "const": 1 },
     "manifestKind": { "const": "TICKERGARDEN_V1_NETWORK_DEPLOYMENT" },
-    "executionSpecId": { "const": "V1-EXEC-10" },
+    "executionSpecId": { "const": "V1-EXEC-11" },
     "releaseStatus": { "enum": ["DEPLOYMENT_CANDIDATE", "PRODUCTION_CANDIDATE"] },
     "readinessCertificate": { "$ref": "#/$defs/readinessCertificate" },
     "chain": { "$ref": "#/$defs/chainEvidence" },
@@ -86,7 +103,7 @@
       "additionalProperties": false,
       "required": ["chainId", "network", "rpcUrls", "finalizedBlockNumber", "finalizedBlockHash", "observedAt", "evmVersion"],
       "properties": {
-        "chainId": { "const": 4663 },
+        "chainId": { "enum": [4663, 46630] },
         "network": { "$ref": "#/$defs/nonEmptyString" },
         "rpcUrls": { "type": "array", "minItems": 1, "uniqueItems": true, "items": { "type": "string", "pattern": "^(https?|wss)://\\S+$" } },
         "finalizedBlockNumber": { "$ref": "#/$defs/decimalString" },
@@ -158,12 +175,27 @@
         {
           "type": "object",
           "additionalProperties": false,
-          "required": ["configId", "ponsBaselineId", "economicsHash", "assetKind", "tokenAddress", "decimals", "phantomQuote", "graduationThreshold", "runtimeCodeHash", "proxyKind", "implementationAddress", "implementationCodeHash", "observationBlockHash", "exactBalanceDeltaEvidenceHash"],
+          "required": ["configId", "ponsBaselineId", "economicsHash", "assetKind", "tokenAddress", "decimals", "phantomQuote", "graduationThreshold", "runtimeCodeHash", "proxyKind", "observationBlockHash", "exactBalanceDeltaEvidenceHash"],
           "properties": {
             "configId": { "$ref": "#/$defs/bytes32" }, "ponsBaselineId": { "$ref": "#/$defs/bytes32" }, "economicsHash": { "$ref": "#/$defs/bytes32" },
             "assetKind": { "const": "ERC20" }, "tokenAddress": { "$ref": "#/$defs/nonZeroAddress" }, "decimals": { "type": "integer", "minimum": 6, "maximum": 18 },
             "phantomQuote": { "$ref": "#/$defs/decimalString" }, "graduationThreshold": { "$ref": "#/$defs/decimalString" },
-            "runtimeCodeHash": { "$ref": "#/$defs/bytes32" }, "proxyKind": { "const": "NONE" },
+            "runtimeCodeHash": { "$ref": "#/$defs/bytes32" }, "proxyKind": { "type": "string", "minLength": 1 },
+            "implementationAddress": { "$ref": "#/$defs/nonZeroAddress" }, "implementationCodeHash": { "$ref": "#/$defs/bytes32" },
+            "observationBlockHash": { "$ref": "#/$defs/bytes32" }, "exactBalanceDeltaEvidenceHash": { "$ref": "#/$defs/bytes32" }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["configId", "ponsBaselineId", "economicsHash", "assetKind", "assetUid", "tokenAddress", "decimals", "phantomQuote", "graduationThreshold", "stockTokenFingerprintHash", "referenceEvidenceHash", "generatorPolicyId", "runtimeCodeHash", "proxyKind", "beaconAddress", "beaconCodeHash", "implementationAddress", "implementationCodeHash", "observationBlockHash", "exactBalanceDeltaEvidenceHash"],
+          "properties": {
+            "configId": { "$ref": "#/$defs/bytes32" }, "ponsBaselineId": { "$ref": "#/$defs/bytes32" }, "economicsHash": { "$ref": "#/$defs/bytes32" },
+            "assetKind": { "const": "OFFICIAL_STOCK" }, "assetUid": { "$ref": "#/$defs/bytes32" }, "tokenAddress": { "$ref": "#/$defs/nonZeroAddress" }, "decimals": { "type": "integer", "minimum": 6, "maximum": 18 },
+            "phantomQuote": { "$ref": "#/$defs/decimalString" }, "graduationThreshold": { "$ref": "#/$defs/decimalString" },
+            "stockTokenFingerprintHash": { "$ref": "#/$defs/bytes32" }, "referenceEvidenceHash": { "$ref": "#/$defs/bytes32" }, "generatorPolicyId": { "$ref": "#/$defs/bytes32" },
+            "runtimeCodeHash": { "$ref": "#/$defs/bytes32" }, "proxyKind": { "const": "IMMUTABLE_BEACON" },
+            "beaconAddress": { "$ref": "#/$defs/nonZeroAddress" }, "beaconCodeHash": { "$ref": "#/$defs/bytes32" },
             "implementationAddress": { "$ref": "#/$defs/nonZeroAddress" }, "implementationCodeHash": { "$ref": "#/$defs/bytes32" },
             "observationBlockHash": { "$ref": "#/$defs/bytes32" }, "exactBalanceDeltaEvidenceHash": { "$ref": "#/$defs/bytes32" }
           }
@@ -284,7 +316,7 @@
       "required": ["address", "runtimeCodeHash", "framework", "protocolPermissions", "administrativePermissions", "roles", "exactDiffHash", "exactDiffVerified"],
       "properties": {
         "address": { "$ref": "#/$defs/nonZeroAddress" }, "runtimeCodeHash": { "$ref": "#/$defs/bytes32" }, "framework": { "const": "OPENZEPPELIN_ACCESS_MANAGER_5_7_0" },
-        "protocolPermissions": { "type": "array", "minItems": 83, "maxItems": 83, "uniqueItems": true, "items": { "$ref": "#/$defs/permission" } },
+        "protocolPermissions": { "type": "array", "minItems": 99, "maxItems": 99, "uniqueItems": true, "items": { "$ref": "#/$defs/permission" } },
         "administrativePermissions": { "type": "array", "minItems": 6, "maxItems": 6, "uniqueItems": true, "items": { "$ref": "#/$defs/permission" } },
         "roles": {
           "type": "array", "minItems": 5, "maxItems": 5, "uniqueItems": true, "items": { "$ref": "#/$defs/roleBinding" },

@@ -34,6 +34,7 @@ struct CurveInitialization {
     uint256 graduationThreshold;
     uint256 initialSupply;
     uint256 curveFeeBps;
+    uint16 creatorTaxBps;
 }
 
 interface ICurveInitializationSource {
@@ -68,6 +69,8 @@ contract PonsCompatibleCurve is IPonsCompatibleCurve, ReentrancyGuard {
     uint256 private immutable _graduationThreshold;
     uint256 private immutable _initialSupply;
     uint256 private immutable _curveFeeBps;
+    uint16 private immutable _creatorTaxBps;
+    uint256 public override accruedCreatorTax;
     uint256 private immutable _launchTimestamp;
 
     PonsSupplyMath.TrackedReserves private _reserves;
@@ -114,6 +117,7 @@ contract PonsCompatibleCurve is IPonsCompatibleCurve, ReentrancyGuard {
         _graduationThreshold = init.graduationThreshold;
         _initialSupply = init.initialSupply;
         _curveFeeBps = init.curveFeeBps;
+        _creatorTaxBps = init.creatorTaxBps;
         _launchTimestamp = block.timestamp;
         _reserves = PonsSupplyMath.initialize(init.initialSupply, init.phantomQuote, init.graduationThreshold);
 
@@ -141,7 +145,8 @@ contract PonsCompatibleCurve is IPonsCompatibleCurve, ReentrancyGuard {
 
         PonsCurveMath.BuyQuote memory curveQuote = quote.curveQuote;
         _reserves.trackedQuote += curveQuote.quoteSpent;
-        _reserves.accruedQuoteFees += curveQuote.fee + curveQuote.additionalQuoteFee;
+        _reserves.accruedQuoteFees += curveQuote.fee + curveQuote.additionalQuoteFee + curveQuote.creatorTaxFee;
+        accruedCreatorTax += curveQuote.creatorTaxFee;
         _reserves.trackedTokens -= curveQuote.tokensOut;
         _hasExecutedTrade = true;
         if (PonsSupplyMath.sellableTokens(_reserves) == 0) _completed = true;
@@ -158,7 +163,7 @@ contract PonsCompatibleCurve is IPonsCompatibleCurve, ReentrancyGuard {
             curveQuote.quoteSpent,
             curveQuote.tokensOut,
             curveQuote.fee,
-            curveQuote.additionalQuoteFee
+            curveQuote.additionalQuoteFee + curveQuote.creatorTaxFee
         );
         if (_completed) {
             _finalizeLaunch();
@@ -186,12 +191,13 @@ contract PonsCompatibleCurve is IPonsCompatibleCurve, ReentrancyGuard {
 
         _reserves.trackedTokens += tokensIn;
         _reserves.trackedQuote -= quote.quoteOut;
-        _reserves.accruedQuoteFees += quote.fee;
+        _reserves.accruedQuoteFees += quote.fee + quote.additionalQuoteFee;
+        accruedCreatorTax += quote.additionalQuoteFee;
         _hasExecutedTrade = true;
 
         _transferQuoteExact(recipient, quote.quoteOut);
         emit CurveSell(msg.sender, recipient, tokensIn, quote.quoteOut, quote.fee, quote.additionalQuoteFee);
-        return (quote.quoteOut, quote.fee);
+        return (quote.quoteOut, quote.fee + quote.additionalQuoteFee);
     }
 
     function sweepCurveFees() external override nonReentrant returns (uint256 sweptAmount) {
@@ -219,7 +225,8 @@ contract PonsCompatibleCurve is IPonsCompatibleCurve, ReentrancyGuard {
                 marketView.runtime.sourceVersion,
                 nextNonce,
                 _quoteAsset,
-                sweptAmount
+                sweptAmount,
+                accruedCreatorTax
             )
         );
 
@@ -227,18 +234,31 @@ contract PonsCompatibleCurve is IPonsCompatibleCurve, ReentrancyGuard {
         _reserves.accruedQuoteFees = 0;
         _reserves.trackedQuote -= sweptAmount;
         _protocolFeeVault.beginCurveCredit(
-            _marketId, _quoteAsset, sweptAmount, marketView.runtime.sourceVersion, nextNonce, feeId
+            _marketId, _quoteAsset, sweptAmount, accruedCreatorTax, marketView.runtime.sourceVersion, nextNonce, feeId
         );
         if (_quoteAsset == address(0)) {
             _protocolFeeVault.finalizeCurveCredit{value: sweptAmount}(
-                _marketId, _quoteAsset, sweptAmount, marketView.runtime.sourceVersion, nextNonce, feeId
+                _marketId,
+                _quoteAsset,
+                sweptAmount,
+                accruedCreatorTax,
+                marketView.runtime.sourceVersion,
+                nextNonce,
+                feeId
             );
         } else {
             _transferTokenExact(_quoteAsset, address(_protocolFeeVault), sweptAmount);
             _protocolFeeVault.finalizeCurveCredit(
-                _marketId, _quoteAsset, sweptAmount, marketView.runtime.sourceVersion, nextNonce, feeId
+                _marketId,
+                _quoteAsset,
+                sweptAmount,
+                accruedCreatorTax,
+                marketView.runtime.sourceVersion,
+                nextNonce,
+                feeId
             );
         }
+        accruedCreatorTax = 0;
         emit CurveFeeTransferred(_marketId, nextNonce, feeId, sweptAmount);
     }
 
@@ -282,8 +302,7 @@ contract PonsCompatibleCurve is IPonsCompatibleCurve, ReentrancyGuard {
         uint256 poolQuoteAmount =
             PonsSupplyMath.canonicalGraduationQuote(_initialSupply, _phantomQuote, _graduationThreshold);
         if (sweptTokens != reserved || sweptQuote < poolQuoteAmount) revert InvalidInitialization();
-        (uint256 poolMemeAmount,) =
-            PonsSupplyMath.graduationPartition(sweptTokens, poolQuoteAmount, _phantomQuote);
+        (uint256 poolMemeAmount,) = PonsSupplyMath.graduationPartition(sweptTokens, poolQuoteAmount, _phantomQuote);
         PoolKey memory key = _marketRegistry.canonicalPoolKey(_marketId);
         GraduationPoolMath.derive(key, _quoteAsset, address(_memeToken), poolQuoteAmount, poolMemeAmount);
     }
@@ -303,7 +322,7 @@ contract PonsCompatibleCurve is IPonsCompatibleCurve, ReentrancyGuard {
     function quoteSell(uint256 tokensIn) external view override returns (uint256 quoteOut, uint256 fee) {
         _requireTradable();
         PonsCurveMath.SellQuote memory quote = _sellQuote(tokensIn, 0);
-        return (quote.quoteOut, quote.fee);
+        return (quote.quoteOut, quote.fee + quote.additionalQuoteFee);
     }
 
     function quoteAsset() external view override returns (address) {
@@ -334,6 +353,10 @@ contract PonsCompatibleCurve is IPonsCompatibleCurve, ReentrancyGuard {
         return marketView.config.curve == address(this) && marketView.runtime.launchPhase == LAUNCH_PHASE_NOT_GRADUATED;
     }
 
+    function creatorTaxBps() external view override returns (uint16) {
+        return _creatorTaxBps;
+    }
+
     function accruedCurveFees() external view override returns (uint256) {
         return _reserves.accruedQuoteFees;
     }
@@ -349,24 +372,31 @@ contract PonsCompatibleCurve is IPonsCompatibleCurve, ReentrancyGuard {
     {
         (uint256 quoteReserve, uint256 tokenReserve) = PonsSupplyMath.pricingReserves(_reserves, _phantomQuote);
         address atomicFirstBuyRecipient = caller == _launchRouter && !_hasExecutedTrade ? recipient : address(0);
-        return PonsAntiSnipe.quoteBuy(
+        PonsAntiSnipe.AntiSnipeBuyQuote memory quote;
+        quote.exempt = PonsAntiSnipe.isExempt(
+            recipient,
+            caller,
+            PonsAntiSnipe.ExemptionContext(_creator, _beneficiaryAtCreation, _launchRouter, atomicFirstBuyRecipient)
+        );
+        (quote.rawSnipeBps, quote.effectiveSnipeBps) = PonsAntiSnipe.effectiveSnipeBps(
+            PonsAntiSnipe.elapsedSince(block.timestamp, _launchTimestamp), quote.exempt, _curveFeeBps + _creatorTaxBps
+        );
+        quote.curveQuote = PonsCurveMath.quoteBuyWithCreatorTax(
             quoteIn,
             quoteReserve,
             tokenReserve,
             _reserves.reservedTokens,
             _curveFeeBps,
-            minTokensOut,
-            block.timestamp,
-            _launchTimestamp,
-            recipient,
-            caller,
-            PonsAntiSnipe.ExemptionContext(_creator, _beneficiaryAtCreation, _launchRouter, atomicFirstBuyRecipient)
+            quote.effectiveSnipeBps,
+            _creatorTaxBps,
+            minTokensOut
         );
+        return quote;
     }
 
     function _sellQuote(uint256 tokensIn, uint256 minQuoteOut) private view returns (PonsCurveMath.SellQuote memory) {
         (uint256 quoteReserve, uint256 tokenReserve) = PonsSupplyMath.pricingReserves(_reserves, _phantomQuote);
-        return PonsCurveMath.quoteSell(tokensIn, tokenReserve, quoteReserve, _curveFeeBps, 0, minQuoteOut);
+        return PonsCurveMath.quoteSell(tokensIn, tokenReserve, quoteReserve, _curveFeeBps, _creatorTaxBps, minQuoteOut);
     }
 
     function _requireTradable() private view {
@@ -382,6 +412,7 @@ contract PonsCompatibleCurve is IPonsCompatibleCurve, ReentrancyGuard {
             marketView.config.curve != address(this) || marketView.config.memeToken != address(_memeToken)
                 || marketView.config.quoteAsset != _quoteAsset || marketView.config.ponsBaselineId != _ponsBaselineId
                 || marketView.config.quoteAssetConfigId != _quoteAssetConfigId
+                || marketView.config.creatorTaxBps != _creatorTaxBps
                 || marketView.config.creatorRevenueBeneficiaryAtCreation != _beneficiaryAtCreation
         ) revert MarketBindingMismatch(_marketId);
     }
@@ -445,7 +476,8 @@ contract PonsCompatibleCurve is IPonsCompatibleCurve, ReentrancyGuard {
                 || init.graduationExecutor.code.length == 0 || init.launchRouter.code.length == 0
                 || init.creator == address(0) || init.beneficiaryAtCreation == address(0)
                 || init.memeToken.code.length == 0 || init.phantomQuote == 0 || init.graduationThreshold == 0
-                || init.initialSupply == 0 || init.curveFeeBps > 9_900
+                || init.initialSupply == 0 || init.creatorTaxBps > 500
+                || init.curveFeeBps + uint256(init.creatorTaxBps) > 9_900
                 || (init.quoteAsset != address(0) && init.quoteAsset.code.length == 0)
         ) revert InvalidInitialization();
 

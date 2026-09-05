@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
-  "status": "PRODUCT_DIRECTION_APPROVED_IMPLEMENTATION_ALLOWED",
-  "executionSpecId": "V1-EXEC-10",
+  "status": "PRODUCT_DIRECTION_APPROVED_DEPLOYMENT_ELIGIBLE_NOT_PRODUCTION_READY",
+  "executionSpecId": "V1-EXEC-11",
   "recommendations": {
     "V1-G0-PONS-BASELINE-01": {
       "status": "APPROVED_BEHAVIOR_REFERENCE",

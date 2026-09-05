@@ -21,6 +21,7 @@ contract MemeStockGauge is MemeStockGaugeForfeitures {
 
     uint256 private _deferredQuoteForfeiture;
     uint256 private _deferredMemeForfeiture;
+    uint256 private _observedRewardCohortEpoch;
 
     error UnauthorizedAllocationModule(address caller, address expected);
     error UnauthorizedFeeVault(address caller, address expected);
@@ -82,6 +83,8 @@ contract MemeStockGauge is MemeStockGaugeForfeitures {
             uint256 memeAccumulatorCutoff,
             /* forfeitureRedistributable */
         ) = IAllocationManager(identity.allocationManager).rageQuitRewardCutoff(identity.marketId, user);
+        uint256 priorDeferredQuote = _deferredQuoteForfeiture;
+        uint256 priorDeferredMeme = _deferredMemeForfeiture;
         (principal, quoteForfeited, memeForfeited, redistributed) = _rageQuitPosition(
             user,
             RageQuitContext({
@@ -93,6 +96,12 @@ contract MemeStockGauge is MemeStockGaugeForfeitures {
         if (principal != expectedPrincipal) {
             revert RageQuitRewardSettlementPending(user, identity.marketId, expectedPrincipal);
         }
+        // Include any cohort dust newly isolated by this settlement's checkpoint in the same
+        // best-effort record. Previously deferred liabilities remain separate and are not counted twice.
+        quoteForfeited += _deferredQuoteForfeiture - priorDeferredQuote;
+        memeForfeited += _deferredMemeForfeiture - priorDeferredMeme;
+        _deferredQuoteForfeiture = priorDeferredQuote;
+        _deferredMemeForfeiture = priorDeferredMeme;
         // Every reward forfeited by an escape is platform-owned.  The FeeVault call is best-effort so a
         // temporary downstream failure cannot roll back the principal escape; the deferred amounts are retried
         // through checkpointActivations/flushDeferredForfeiture and remain unavailable to any staker.
@@ -141,6 +150,29 @@ contract MemeStockGauge is MemeStockGaugeForfeitures {
         _checkpointRewardActivations(identity.marketId);
         uint8 rewardIndex = _rewardIndex(feeAsset, identity);
         return _applyStakerFee(rewardIndex, feeAsset, amount, feeId, identity.marketId);
+    }
+
+    /// @notice Vault-only denomination change preserves the user, fractional carry, and lock.
+    function consumeForConversion(address user, uint256 maximum) external returns (uint256 amount) {
+        GaugeIdentity memory identity = MemeStockGaugeClone.read(address(this));
+        if (msg.sender != identity.protocolFeeVault) {
+            revert UnauthorizedFeeVault(msg.sender, identity.protocolFeeVault);
+        }
+        _requireNoRageQuitSettlement(identity, user);
+        _settlePosition(user, identity.marketId);
+        GaugeUserReward storage reward = _gaugePositions[user].rewards[MEME_REWARD_INDEX];
+        amount = reward.pendingFee < maximum ? reward.pendingFee : maximum;
+        reward.pendingFee -= amount;
+    }
+
+    function creditConversion(address user, uint256 memeRefund, uint256 quoteAmount) external {
+        GaugeIdentity memory identity = MemeStockGaugeClone.read(address(this));
+        if (msg.sender != identity.protocolFeeVault) {
+            revert UnauthorizedFeeVault(msg.sender, identity.protocolFeeVault);
+        }
+        _requireNoRageQuitSettlement(identity, user);
+        _gaugePositions[user].rewards[MEME_REWARD_INDEX].pendingFee += memeRefund;
+        _gaugePositions[user].rewards[QUOTE_REWARD_INDEX].pendingFee += quoteAmount;
     }
 
     function consumeClaimable(address user, address feeAsset) external returns (uint256 amount) {
@@ -256,6 +288,29 @@ contract MemeStockGauge is MemeStockGaugeForfeitures {
             _deferredQuoteForfeiture += quoteAmount;
             _deferredMemeForfeiture += memeAmount;
         }
+    }
+
+    /// @dev Consult Vault history before every activation/credit/settlement checkpoint. Current eligible
+    ///      weight alone cannot reveal an empty interval hidden by an already-pending bucket maturing.
+    function _reserveOrphanedRemainders(GaugeIdentity memory identity) private {
+        IAllocationManager manager = IAllocationManager(identity.allocationManager);
+        uint256 epoch = manager.rewardCohortEpoch(identity.marketId);
+        bool endedCohort = epoch != _observedRewardCohortEpoch;
+        _observedRewardCohortEpoch = epoch;
+        if (!endedCohort && manager.rewardEligibleActiveStock(identity.marketId) != 0) return;
+
+        uint256 quoteAmount = _collectForfeitedReward(QUOTE_REWARD_INDEX, 0, 0, true);
+        uint256 memeAmount = _collectForfeitedReward(MEME_REWARD_INDEX, 0, 0, true);
+        if (quoteAmount == 0 && memeAmount == 0) return;
+
+        _deferredQuoteForfeiture += quoteAmount;
+        _deferredMemeForfeiture += memeAmount;
+    }
+
+    function _beforeRewardActivationCheckpoint(bytes32 marketId) internal override {
+        GaugeIdentity memory identity = MemeStockGaugeClone.read(address(this));
+        if (identity.marketId != marketId) revert InvalidGaugeMarketId(marketId, identity.marketId);
+        _reserveOrphanedRemainders(identity);
     }
 
     function _rewardEligibleActiveStock(bytes32 marketId) internal view override returns (uint256) {

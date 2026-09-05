@@ -22,8 +22,8 @@ interface ILiabilityClaimVault {
 }
 
 interface ILiabilityCurveCreditVault {
-    function beginCurveCredit(bytes32, address, uint256, uint32, uint64, bytes32) external;
-    function finalizeCurveCredit(bytes32, address, uint256, uint32, uint64, bytes32) external payable;
+    function beginCurveCredit(bytes32, address, uint256, uint256, uint32, uint64, bytes32) external;
+    function finalizeCurveCredit(bytes32, address, uint256, uint256, uint32, uint64, bytes32) external payable;
 }
 
 contract LiabilityMarketRegistryMock {
@@ -128,9 +128,9 @@ contract LiabilityCurveSourceMock {
         uint64 sweepNonce,
         bytes32 feeId
     ) external {
-        vault.beginCurveCredit(marketId, address(quote), amount, sourceVersion, sweepNonce, feeId);
+        vault.beginCurveCredit(marketId, address(quote), amount, 0, sourceVersion, sweepNonce, feeId);
         require(quote.transfer(address(vault), amount), "TRANSFER");
-        vault.finalizeCurveCredit(marketId, address(quote), amount, sourceVersion, sweepNonce, feeId);
+        vault.finalizeCurveCredit(marketId, address(quote), amount, 0, sourceVersion, sweepNonce, feeId);
     }
 }
 
@@ -288,7 +288,8 @@ contract ProtocolFeeVaultLiabilitiesTest is Test {
                 sourceVersion,
                 uint64(1),
                 address(quote),
-                uint256(81)
+                uint256(81),
+                uint256(0)
             )
         );
 
@@ -414,8 +415,8 @@ contract ProtocolFeeVaultLiabilitiesTest is Test {
         vault.claimPlatform(OTHER_MARKET_ID, address(0));
         vm.expectRevert(abi.encodeWithSelector(ProtocolFeeVaultV4Credit.FeeAssetNotCanonical.selector, address(third)));
         vault.claimPlatform(MARKET_ID, address(third));
-        vm.expectRevert(abi.encodeWithSelector(ProtocolFeeVaultLiabilities.InvalidBucketType.selector, uint8(3)));
-        vault.liability(MARKET_ID, address(quote), 3);
+        vm.expectRevert(abi.encodeWithSelector(ProtocolFeeVaultLiabilities.InvalidBucketType.selector, uint8(4)));
+        vault.liability(MARKET_ID, address(quote), 4);
         vm.expectRevert(abi.encodeWithSelector(ProtocolFeeVaultLiabilities.InvalidFeeBeneficiary.selector, address(0)));
         vault.claimCreator(MARKET_ID, 0, address(quote));
         vm.expectRevert(abi.encodeWithSelector(ProtocolFeeVaultLiabilities.InvalidFeeBeneficiary.selector, address(0)));

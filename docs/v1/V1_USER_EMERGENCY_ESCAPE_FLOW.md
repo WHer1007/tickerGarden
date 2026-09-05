@@ -1,16 +1,16 @@
 # V1 用户紧急逃生（Rage Quit）流程
 
-> **名称与语义覆盖（2026-09-04）：** 本文现定义为用户即时 `rageQuit`，不是协议 Emergency。市场部署后永久自治，不存在市场级 PAUSED/RETIRED/EMERGENCY_EXIT 或 Recovery 管理状态；用户随时立即取回本金，奖励异步放弃并统一记入平台 forfeiture reserve。旧版 Emergency 术语仅为迁移审计索引。
+> **名称与语义覆盖（2026-09-04）：** 本文现定义为用户即时 `rageQuit`，不是协议 Emergency。市场部署后永久自治，不存在市场级 PAUSED/RETIRED/EMERGENCY_EXIT 或 Recovery 管理状态；退出不依赖 Gauge、Indexer 或奖励清理，但本金到账仍以底层 STOCK token 转账成功且实际到账金额精确为前提。发行方暂停、黑名单规则或实现升级可能使转账回滚；奖励异步放弃并统一记入平台 forfeiture reserve。旧版 Emergency 术语仅为迁移审计索引。
 
 ## 1. 目的与不可变承诺
 
 用户紧急逃生是**用户级别的本金退出机制**，不是市场级别的暂停、关闭或治理操作。它必须满足以下承诺：
 
-- 用户发起后立即完成本金退出，不等待 24 小时，不受 `minimumAllocation` 限制，也不读取市场运行状态。
+- 用户发起后，在底层 STOCK token 转账成功且精确到账的条件下完成本金退出；该路径不等待 24 小时、不受 `minimumAllocation` 限制，也不读取市场运行状态。发行方暂停、黑名单规则或实现升级可能使转账回滚，届时本次退出整体回滚。
 - 用户放弃本次仓位尚未领取的 Quote/Meme 奖励；这些奖励不属于退出用户，也不因存在其他 Active staker 而重新分配。
 - 只影响发起用户自己的 STOCK allocation、Gauge 仓位及其奖励权益，不改变 Meme 代币、市场、Curve、Hook、LP、其他用户仓位或交易可用性。
-- STOCK 转账必须是完整且精确的本金转账。若 STOCK token 转账失败或余额变化不精确，整笔交易回滚，账本和用户资产均不进入半完成状态。
-- 奖励清理不是本金退出的前置条件。Gauge、FeeVault 或奖励记录失败时，不能回滚已经完成的本金退出；系统留下可观察、可重试的 settlement tombstone。
+- STOCK 转账必须是完整且精确的本金转账。若 STOCK token 转账失败或余额变化不精确，整笔交易回滚，账本和用户资产均不进入半完成状态；发行方暂停、黑名单规则或实现升级都可能触发该回滚。
+- 奖励清理不是本金退出的前置条件。Gauge、Indexer、FeeVault 或奖励记录失败时，不能回滚已经成功完成的本金转账；系统留下可观察、可重试的 settlement tombstone。
 
 本文件只描述用户级 `rageQuit`。市场级状态、Controller、Emergency、Recovery 和 `forceReleaseAllocation` 已从当前架构删除；它们不属于本流程，也不是 `rageQuit` 的前置条件。
 
@@ -22,7 +22,7 @@
 UserStockVault.rageQuit(bytes32 assetUid, bytes32 marketId)
 ```
 
-该入口由用户直接调用，`msg.sender` 就是退出用户。它只依赖 Vault 中已经存在的权威 allocation 记录和写入时确定的 asset-to-token 绑定，不依赖 AllocationManager、Gauge 是否可用，也不依赖市场状态。
+该入口由用户直接调用，`msg.sender` 就是退出用户。它只依赖 Vault 中已经存在的权威 allocation 记录和写入时确定的 asset-to-token 绑定，不依赖 AllocationManager、Gauge、Indexer 或奖励清理是否可用，也不依赖市场状态；实际成功仍取决于底层 token 的精确转账。
 
 它在同一笔交易内完成：
 
@@ -103,7 +103,7 @@ totalAllocated[a]    >= p
 rageQuitSettlementPrincipal[a][u][m] = 0
 ```
 
-`p` 是本次必须完整退出的 STOCK 本金。系统不重新计算一个较小金额，也不因 `minimumAllocation`、unlock 时间或市场运行状态拒绝该全额退出。
+`p` 是本次必须完整退出的 STOCK 本金。系统不重新计算一个较小金额，也不因 `minimumAllocation`、unlock 时间或市场运行状态拒绝该全额退出；但底层 token 若暂停、拒绝黑名单地址或因实现升级拒绝转账，精确转账检查会使本次退出回滚。
 
 ### 阶段 B：本金优先提交
 
@@ -196,14 +196,14 @@ Manager 只有在 Gauge position 的 active、pending、quoteClaimable、memeCla
 3. **账本守恒**：成功写入 tombstone 后，用户-市场 allocation 为零，用户/市场/资产聚合量同步扣减同一 principal。
 4. **无奖励回领**：tombstone 存在期间，退出用户不能 claim 或 settle 旧 Gauge 奖励。
 5. **无重复退出**：同一 allocation 只能产生一次 principal transfer；重试只处理 reward settlement。
-6. **局部影响**：其他用户 allocation、Gauge position、奖励累计、Meme/Curve/Hook/LP 状态和交易路径不因某一用户退出而被暂停或改写。
+6. **局部影响**：其他用户 allocation、Gauge position、奖励累计、Meme/Curve/Hook/LP 状态和交易路径不因某一用户退出而被暂停或改写；这些组件及 Indexer/奖励清理也不构成本金转账的前置条件。
 7. **放弃收益归属正确**：任何 rageQuit forfeited Quote/Meme rewards 都进入 FeeVault 的 platform forfeiture reserve，不因 Active staker 或 cohort 状态重新分配，不能丢失、回到退出用户或被后来者捕获；ABI legacy `redistributed` 仅为兼容并恒为 `false`。
 8. **可恢复**：tombstone 非零但奖励未完成时，任何人都能通过 `settleRageQuitRewards` 继续处理；只有确认 Gauge position 全清且 Vault 完成确认后才删除 tombstone。
 
 ## 8. 本地验证结果
 
-- 根目录 `npm test` 是聚合验收入口，覆盖 60 项 Python 执行规范、全部 Foundry 测试、Backend、Indexer、Deployments、Maintenance Runner、正式 Web，以及 boundary、fixture、compiled interface、product artifact exact diff 与 CI 三轨漂移门禁；具体动态计数以当次 CI 输出为准。
+- 根目录 `npm test` 是聚合验收入口，覆盖 61 项 Python 执行规范、全部 Foundry 测试、Backend、Indexer、Deployments、Maintenance Runner、正式 Web，以及 boundary、fixture、compiled interface、product artifact exact diff 与 CI 三轨漂移门禁；具体动态计数以当次 CI 输出为准。
 - MultiAsset、Treasury 与 Vault/Gauge 三套状态不变量固定执行 256 runs、128,000 calls，并要求 0 handler revert。
-- 当前十九模块 product manifest hash 为 `0x38771f3438aad3de36983441ea90be61c71ac4fb51361159cd0874b04afbc503`。
+- 当前十九模块 product manifest hash 为 `0xc397f82a06fb40cf507f2c328384165867f37b3e6be63e36b87d09272ffcbcc4`。
 
 这些结果是本地实现与生成物一致性的证据，不等同于 RH 测试链部署、真实 RPC 全链路交易、独立第三方审计或生产灰度完成。

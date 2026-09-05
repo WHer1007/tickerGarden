@@ -1,10 +1,12 @@
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import test from "node:test";
 
 import {
   classifyDeploymentTrack,
   classifyForkTrack,
   classifyProductTrack,
+  validateForkSnapshot,
 } from "./check-v1-ci-tracks.mjs";
 
 function forkInventory(overrides = {}) {
@@ -143,4 +145,47 @@ test("complete inventories activate their tracks", () => {
     classifyDeploymentTrack({ schemas: 1, schemaSources: 1, schemaTests: 1, preflightSources: 1, preflightTests: 1 }).state,
     "ACTIVE",
   );
+});
+
+test("fork snapshot validation binds both chain ID and exact block hash", () => {
+  const evidence = {
+    chainId: 4663,
+    blockNumber: "54574453",
+    blockHash: "0x890779a9495c5e825a5c19c70d0de3afd3e4076e7da74387346b30bc79460e22",
+  };
+  validateForkSnapshot({
+    evidence,
+    chainId: "0x1237",
+    block: { number: "0x340bd75", hash: evidence.blockHash },
+  });
+  assert.throws(
+    () =>
+      validateForkSnapshot({
+        evidence,
+        chainId: "0x1237",
+        block: { number: "0x340bd75", hash: `0x${"11".repeat(32)}` },
+      }),
+    /hash mismatch/,
+  );
+  assert.throws(
+    () => validateForkSnapshot({ evidence, chainId: "0xb626", block: null }),
+    /chain ID mismatch/,
+  );
+});
+
+test("root CI keeps live Fork coverage outside contract tests and routes it through the gate runner", () => {
+  const packageJson = JSON.parse(
+    readFileSync(new URL("../package.json", import.meta.url), "utf8"),
+  );
+  const scripts = packageJson.scripts;
+
+  assert.equal(typeof scripts?.["test:contracts"], "string");
+  assert.match(
+    scripts["test:contracts"],
+    /--no-match-path\s+["']test\/v1\/fork\/\*\*["']/,
+  );
+  assert.equal(typeof scripts?.test, "string");
+  assert.match(scripts.test, /npm run test:ci-gates/);
+  assert.equal(typeof scripts?.["test:ci-gates"], "string");
+  assert.match(scripts["test:ci-gates"], /npm run check:tracks/);
 });

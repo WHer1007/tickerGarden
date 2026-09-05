@@ -35,6 +35,7 @@ contract MockGaugeModuleCaller {
     mapping(bytes32 marketId => mapping(address user => uint64 activationAt)) internal _activationAt;
     mapping(bytes32 marketId => mapping(address user => bool rageQuiting)) internal _rageQuiting;
     mapping(bytes32 marketId => uint256 nonce) internal _cohortNonces;
+    mapping(bytes32 marketId => uint256 epoch) internal _emptyCohortEpochs;
     mapping(bytes32 marketId => mapping(address user => bool snapshotted)) internal _hasCohortSnapshot;
     mapping(bytes32 marketId => mapping(address user => uint256 amount)) internal _remainingAtExit;
     mapping(bytes32 marketId => mapping(address user => uint256 nonce)) internal _cohortNonceAtExit;
@@ -69,10 +70,12 @@ contract MockGaugeModuleCaller {
 
     function remove(MemeStockGauge gauge, address user) external returns (uint256) {
         bytes32 marketId = gauge.gaugeIdentity().marketId;
+        uint256 beforeActive = _rewardEligibleActiveStock(marketId);
         uint256 amount = gauge.removeAllocation(user);
         delete _active[marketId][user];
         delete _pending[marketId][user];
         delete _activationAt[marketId][user];
+        if (beforeActive != 0 && _rewardEligibleActiveStock(marketId) == 0) ++_emptyCohortEpochs[marketId];
         ++_cohortNonces[marketId];
         return amount;
     }
@@ -81,7 +84,9 @@ contract MockGaugeModuleCaller {
         bytes32 marketId = gauge.gaugeIdentity().marketId;
         if (!_hasRageQuitCutoff[marketId][user]) _snapshotRageQuitRewardCutoff(marketId, user);
         if (!_rageQuiting[marketId][user]) {
+            uint256 beforeActive = _rewardEligibleActiveStock(marketId);
             _rageQuiting[marketId][user] = true;
+            if (beforeActive != 0 && _rewardEligibleActiveStock(marketId) == 0) ++_emptyCohortEpochs[marketId];
             ++_cohortNonces[marketId];
             _snapshotCohort(marketId, user);
         }
@@ -98,9 +103,11 @@ contract MockGaugeModuleCaller {
     }
 
     function deferRageQuitRewardCleanup(bytes32 marketId, address user) external {
+        uint256 beforeActive = _rewardEligibleActiveStock(marketId);
         _snapshotRageQuitRewardCutoff(marketId, user);
         _rageQuitSettlementPrincipal[marketId][user] = _active[marketId][user] + _pending[marketId][user];
         _rageQuiting[marketId][user] = true;
+        if (beforeActive != 0 && _rewardEligibleActiveStock(marketId) == 0) ++_emptyCohortEpochs[marketId];
         ++_cohortNonces[marketId];
         _snapshotCohort(marketId, user);
     }
@@ -123,6 +130,10 @@ contract MockGaugeModuleCaller {
 
     function rewardEligibleActiveStock(bytes32 marketId) external view returns (uint256 total) {
         return _rewardEligibleActiveStock(marketId);
+    }
+
+    function rewardCohortEpoch(bytes32 marketId) external view returns (uint256) {
+        return _emptyCohortEpochs[marketId];
     }
 
     function _rewardEligibleActiveStock(bytes32 marketId) private view returns (uint256 total) {
@@ -166,6 +177,14 @@ contract MockGaugeModuleCaller {
 
     function consume(MemeStockGauge gauge, address user, address feeAsset) external returns (uint256) {
         return gauge.consumeClaimable(user, feeAsset);
+    }
+
+    function consumeConversion(MemeStockGauge gauge, address user, uint256 maximum) external returns (uint256) {
+        return gauge.consumeForConversion(user, maximum);
+    }
+
+    function creditConversion(MemeStockGauge gauge, address user, uint256 memeRefund, uint256 quoteAmount) external {
+        gauge.creditConversion(user, memeRefund, quoteAmount);
     }
 }
 
@@ -472,6 +491,70 @@ contract MemeStockGaugeTest is Test {
         assertEq(position.memeClaimable, 200);
         assertEq(feeVault.consume(gauge, ALICE, address(quote)), 0);
         assertEq(feeVault.consume(gauge, ALICE, address(meme)), 200);
+    }
+
+    function test_conversionConsumesOnlyTheOldUsersMemeFeesAndCreditsQuoteToThatUser() public {
+        (uint64 generation,) = _schedule(ALICE, 100);
+        vm.warp(generation);
+        feeVault.credit(gauge, address(meme), 200, keccak256("conversion-meme"));
+        feeVault.settle(gauge, ALICE);
+
+        (uint64 bobGeneration,) = _schedule(BOB, 100);
+        vm.warp(bobGeneration);
+        feeVault.settle(gauge, BOB);
+        assertEq(feeVault.consumeConversion(gauge, ALICE, 150), 150);
+        feeVault.creditConversion(gauge, ALICE, 0, 75);
+
+        PositionView memory alice = gauge.positionOf(ALICE);
+        PositionView memory bob = gauge.positionOf(BOB);
+        assertEq(alice.memeClaimable, 50);
+        assertEq(alice.quoteClaimable, 75);
+        assertEq(bob.memeClaimable, 0);
+        assertEq(bob.quoteClaimable, 0);
+    }
+
+    function test_conversionBypassesClaimLockButPreservesUnlockAndClaimRemainsLocked() public {
+        (uint64 generation, uint64 unlockAt) = _schedule(ALICE, 100);
+        vm.warp(generation);
+        feeVault.credit(gauge, address(meme), 200, keccak256("locked-conversion"));
+        vm.warp(unlockAt - 1);
+
+        assertEq(feeVault.consumeConversion(gauge, ALICE, type(uint256).max), 200);
+        feeVault.creditConversion(gauge, ALICE, 0, 100);
+        assertEq(gauge.positionOf(ALICE).unlockAt, unlockAt);
+        vm.expectRevert(abi.encodeWithSelector(MemeStockGaugeLockedPositions.PositionLockedUntil.selector, unlockAt));
+        feeVault.consume(gauge, ALICE, address(quote));
+    }
+
+    function test_normalExitPreservesConvertedQuoteButRageQuitForfeitsIt() public {
+        (uint64 generation, uint64 unlockAt) = _schedule(ALICE, 100);
+        vm.warp(generation);
+        feeVault.credit(gauge, address(meme), 200, keccak256("converted-reward"));
+        assertEq(feeVault.consumeConversion(gauge, ALICE, 200), 200);
+        feeVault.creditConversion(gauge, ALICE, 0, 100);
+        vm.warp(unlockAt);
+        assertEq(manager.remove(gauge, ALICE), 100);
+        assertEq(gauge.positionOf(ALICE).quoteClaimable, 100);
+        assertEq(feeVault.consume(gauge, ALICE, address(quote)), 100);
+
+        (uint64 nextGeneration,) = _schedule(ALICE, 100);
+        vm.warp(nextGeneration);
+        feeVault.creditConversion(gauge, ALICE, 0, 125);
+        (uint256 principal, uint256 quoteForfeited,,) = manager.rageQuit(gauge, ALICE);
+        assertEq(principal, 100);
+        assertEq(quoteForfeited, 125);
+        assertEq(gauge.positionOf(ALICE).quoteClaimable, 0);
+    }
+
+    function test_conversionCallsAreVaultOnly() public {
+        vm.expectRevert(
+            abi.encodeWithSelector(MemeStockGauge.UnauthorizedFeeVault.selector, address(this), address(feeVault))
+        );
+        gauge.consumeForConversion(ALICE, 1);
+        vm.expectRevert(
+            abi.encodeWithSelector(MemeStockGauge.UnauthorizedFeeVault.selector, address(this), address(feeVault))
+        );
+        gauge.creditConversion(ALICE, 1, 1);
     }
 
     function test_claimBeforeUnlockRevertsForBothRewardAssetsAndPreservesClaimable() public {

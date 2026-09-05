@@ -121,7 +121,12 @@ abstract contract ProtocolFeeVaultV4Credit {
         _creditState = CREDIT_IDLE;
     }
 
+    function _isRewardSettlementPayment() internal view virtual returns (bool) {
+        return false;
+    }
+
     receive() external payable {
+        if (_isRewardSettlementPayment()) return;
         PendingV4Credit memory pending = _pendingCredit;
         if (
             _creditState != CREDIT_PENDING || pending.feeAsset != address(0) || msg.sender != _feePoolManager

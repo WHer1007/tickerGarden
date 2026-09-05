@@ -15,6 +15,8 @@ file SHA-256 values, runtime Keccak-256 values, and its canonical fixture-set
 hash. `V1QuoteFixtures.t.sol` exercises the local asset behaviors without an
 RPC.
 
-This layer is `FIXTURES_ACTIVE`, not live-fork or production evidence. Tests in
-`contracts/test/v1/fork` remain absent until an archive RPC can replay the
-fixed block/hash pairs in the manifest.
+This fixture layer remains deterministic local evidence. The separate
+`test/v1/fork/` track is `ACTIVE` and provides fixed-block live-fork evidence;
+neither layer is production evidence. The Fork runner requires an
+archive-capable RPC at execution time and verifies the exact chain ID, block
+number and block hash before invoking Foundry.

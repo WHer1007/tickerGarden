@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.26;
 
+import {CreatorTax} from "../libraries/CreatorTax.sol";
 import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
 
 import {IMemeStockGauge, MarketView} from "../interfaces/IV1Protocol.sol";
@@ -12,7 +13,7 @@ import {V1MarketEconomics} from "./V1MarketEconomics.sol";
 abstract contract ProtocolFeeVaultV4Accounting is ProtocolFeeVaultLiabilities {
     bytes32 private constant V4_FEE_DOMAIN = keccak256("TICKERGARDEN_V1_V4_FEE");
     uint256 private constant V4_FEE_SCHEMA_VERSION = 1;
-    bytes32 private constant EXECUTION_SPEC_ID = keccak256("V1-EXEC-10");
+    bytes32 private constant EXECUTION_SPEC_ID = keccak256("V1-EXEC-11");
     uint256 private constant FEE_PIPS_DENOMINATOR = 1_000_000;
     uint24 private constant FEE_PIPS = 10_000;
     uint16 private constant LP_SHARE_BPS = 0;
@@ -66,7 +67,8 @@ abstract contract ProtocolFeeVaultV4Accounting is ProtocolFeeVaultLiabilities {
             revert InvalidV4MarketPolicy(record.marketId, value.config.feePolicyId, value.config.executionSpecId);
         }
 
-        uint256 expectedTotalFee = Math.mulDiv(record.base, FEE_PIPS, FEE_PIPS_DENOMINATOR);
+        uint256 expectedTotalFee = Math.mulDiv(record.base, FEE_PIPS, FEE_PIPS_DENOMINATOR)
+            + CreatorTax.amount(record.base, value.config.creatorTaxBps);
         if (record.totalFee == 0 || record.totalFee != expectedTotalFee) {
             revert InvalidV4FeeAmounts(record.base, record.totalFee, expectedTotalFee);
         }
@@ -82,8 +84,10 @@ abstract contract ProtocolFeeVaultV4Accounting is ProtocolFeeVaultLiabilities {
         IMemeStockGauge gauge = IMemeStockGauge(gaugeAddress);
         gauge.checkpointActivations();
         uint256 activeStock = gauge.effectiveTotalActiveStock();
+        uint256 tax = CreatorTax.amount(record.base, _feeMarketRegistry.market(record.marketId).config.creatorTaxBps);
         MarketFeeAccounting.V4Buckets memory buckets =
-            MarketFeeAccounting.splitV4(record.totalFee, record.lpAmount, record.nonLpAmount, activeStock);
+            MarketFeeAccounting.splitV4(record.totalFee - tax, record.lpAmount, record.nonLpAmount - tax, activeStock);
+        buckets.creatorAmount += tax;
 
         uint32 creatorEpoch = _feeCreatorRevenueRegistry.currentCreatorEpoch(record.marketId);
         if (
@@ -96,14 +100,15 @@ abstract contract ProtocolFeeVaultV4Accounting is ProtocolFeeVaultLiabilities {
         if (buckets.stakerAmount != 0) {
             gauge.creditStakerFee(record.feeAsset, buckets.stakerAmount, record.feeId);
         }
-        _creditFeeLiabilities(
+        uint256 holderAmount = _creditTradingFeeLiabilities(
             record.marketId,
             creatorEpoch,
             record.feeAsset,
             record.nonLpAmount,
             buckets.creatorAmount,
             buckets.stakerAmount,
-            buckets.platformAmount
+            buckets.platformAmount,
+            tax
         );
 
         emit FeeBucketsCredited(
@@ -111,7 +116,7 @@ abstract contract ProtocolFeeVaultV4Accounting is ProtocolFeeVaultLiabilities {
             creatorEpoch,
             record.feeAsset,
             record.feeId,
-            buckets.creatorAmount,
+            buckets.creatorAmount - holderAmount,
             buckets.stakerAmount,
             buckets.platformAmount,
             activeStock

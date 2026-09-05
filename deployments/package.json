@@ -8,7 +8,10 @@
   },
   "scripts": {
     "build": "tsc -p tsconfig.json",
-    "test": "node --experimental-strip-types --test test/*.test.ts"
+    "test": "node --experimental-strip-types --test test/*.test.ts",
+    "check:testnet-plan-live": "node --experimental-strip-types src/v1/verify-testnet-plan.ts",
+    "render:access-manager-plan": "node --experimental-strip-types src/v1/render-access-manager-plan.ts",
+    "check:manifest-live": "node --experimental-strip-types src/v1/verify-deployment-manifest.ts"
   },
   "devDependencies": {
     "@types/node": "22.20.1",

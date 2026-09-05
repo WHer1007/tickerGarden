@@ -89,7 +89,7 @@ contract PoolExecutionRegistryMock {
                 quoteAssetConfigId: quoteConfigId,
                 launchTemplateId: bytes32("TEMPLATE"),
                 feePolicyId: bytes32("FEE"),
-                executionSpecId: keccak256("V1-EXEC-10"),
+                executionSpecId: keccak256("V1-EXEC-11"),
                 expectedEconomics: bytes32("ECON"),
                 launchConfigId: 0,
                 creatorRevenueBeneficiaryAtCreation: address(0xBEEF),
@@ -97,7 +97,9 @@ contract PoolExecutionRegistryMock {
                 curve: curve,
                 gauge: address(0x5000),
                 quoteAsset: quoteAsset,
-                graduatedHook: hook
+                graduatedHook: hook,
+                creatorTaxBps: 0,
+                creatorFeesToHolders: false
             }),
             runtime: MarketRuntime({poolId: bytes32(0), sourceVersion: 1, launchPhase: 0})
         });
@@ -207,9 +209,13 @@ contract PoolExecutionHookMock {
         poolManager = poolManager_;
     }
 
-    function setMarketRegistry(address value) external { marketRegistry = value; }
+    function setMarketRegistry(address value) external {
+        marketRegistry = value;
+    }
 
-    function graduationExecutor() external view returns (address) { return executor; }
+    function graduationExecutor() external view returns (address) {
+        return executor;
+    }
 
     function setFailActivation(bool value) external {
         failActivation = value;

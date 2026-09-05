@@ -540,6 +540,50 @@ contract TreasuryDistributorV1Test is Test {
         assertEq(afterFee.amount, 7 ether);
     }
 
+    function test_reviewedEmptyEpochRollsWholeAmountWithoutChangingLiability() public {
+        _fund(100 ether, keccak256("EMPTY-EPOCH"));
+        _closeEpoch(1);
+        _requestNative(HOLDER, 1);
+        _publish(1, keccak256("TICKERGARDEN_V1_TREASURY_EMPTY_EPOCH_V1"), 0, 0, 0);
+        TreasuryEpochV1 memory pending = distributor.epoch(MARKET_ID, 1);
+        vm.expectRevert(abi.encodeWithSelector(TreasuryDistributorV1.RootReviewPending.selector, pending.finalizeAfter));
+        distributor.finalizeRoot(MARKET_ID, 1);
+        _finalize(1);
+        assertEq(uint8(distributor.epoch(MARKET_ID, 1).status), uint8(TreasuryEpochStatusV1.ROLLED_OVER));
+        assertEq(distributor.epochQuoteAmount(MARKET_ID, 1), 0);
+        assertEq(distributor.epochQuoteAmount(MARKET_ID, distributor.currentEpochId(MARKET_ID)), 100 ether);
+        assertEq(distributor.totalQuoteLiability(address(quote)), 100 ether);
+        assertEq(quote.balanceOf(address(distributor)), 100 ether);
+        vm.expectRevert();
+        distributor.finalizeRoot(MARKET_ID, 1);
+    }
+
+    function test_emptyEpochMustUseExplicitCommitmentAndCanBeCancelled() public {
+        _fund(100 ether, keccak256("EMPTY-CANCEL"));
+        _closeEpoch(1);
+        _requestNative(HOLDER, 1);
+        vm.expectRevert(TreasuryDistributorV1.InvalidRootCommitment.selector);
+        _publish(1, DATASET_HASH, 0, 0, 0);
+        _publish(1, keccak256("TICKERGARDEN_V1_TREASURY_EMPTY_EPOCH_V1"), 0, 0, 0);
+        vm.prank(ROOT_GUARDIAN);
+        distributor.cancelPendingRoot(MARKET_ID, 1, keccak256("INCOMPLETE-DATA"));
+        assertEq(distributor.epochQuoteAmount(MARKET_ID, 1), 100 ether);
+        assertEq(distributor.serviceCredit(address(0), HOLDER), ROOT_FEE);
+        assertEq(uint8(distributor.epoch(MARKET_ID, 1).status), uint8(TreasuryEpochStatusV1.UNREQUESTED));
+    }
+
+    function test_nonholderCanTriggerOnlyAfterFallbackDelay() public {
+        _fund(100 ether, keccak256("NO-SIGNING-HOLDER"));
+        _closeEpoch(1);
+        address caller = address(0xAABB);
+        vm.deal(caller, 1 ether);
+        vm.expectRevert(abi.encodeWithSelector(TreasuryDistributorV1.RequesterIsNotHolder.selector, caller));
+        _requestNative(caller, 1);
+        vm.warp(block.timestamp + PUBLICATION_WINDOW);
+        _requestNative(caller, 1);
+        assertEq(distributor.epoch(MARKET_ID, 1).requester, caller);
+    }
+
     function _configureRoles() private {
         bytes4[] memory configSelectors = new bytes4[](2);
         configSelectors[0] = TreasuryDistributorV1.registerMarket.selector;

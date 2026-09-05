@@ -19,7 +19,7 @@ script = "script/v1"
 out = "out-v1"
 cache_path = "cache-v1"
 libs = ["lib"]
-fs_permissions = [{ access = "read", path = "../spec" }]
+fs_permissions = [{ access = "read", path = "../spec" }, { access = "read", path = "../deployments/evidence" }]
 solc_version = "0.8.26"
 evm_version = "cancun"
 optimizer = true
@@ -40,7 +40,7 @@ script = "script/v1"
 out = "out-v1-ci"
 cache_path = "cache-v1-ci"
 libs = ["lib"]
-fs_permissions = [{ access = "read", path = "../spec" }]
+fs_permissions = [{ access = "read", path = "../spec" }, { access = "read", path = "../deployments/evidence" }]
 solc_version = "0.8.26"
 evm_version = "cancun"
 optimizer = true

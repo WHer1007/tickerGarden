@@ -1,6 +1,6 @@
 # TickerGarden V1 开发计划
 
-> 当前规范：`V1-EXEC-10`；readiness：`IMPLEMENTATION_ALLOWED / NOT_DEPLOYABLE`。
+> 当前规范：`V1-EXEC-11`；readiness：`DEPLOYMENT_ELIGIBLE / NOT_PRODUCTION_READY / NOT_BROADCAST`。
 
 ## V1-ARCH-006：删除旧市场干预架构
 
@@ -15,24 +15,22 @@
 - Hook、Gauge、Curve、FeeVault、Vault 和 Allocation 不再读取或接受市场管理员状态；
 - 用户 `rageQuit` 始终先返还完整 STOCK 本金，奖励清理由 permissionless 路径异步完成；
 - Asset、Quote、Pons baseline、Launch template 的对象级 pause/unpause/retire 继续用于新增准入或新增敞口，不影响既有市场交易或本金退出；
-- Solidity ABI、权限矩阵、部署 schema、Indexer、Backend、Website、Rewards/Treasury 前端、maintenance runner 和文档全部同步到 `V1-EXEC-10`。
+- Solidity ABI、权限矩阵、部署 schema、Indexer、Backend、Website、Rewards/Treasury 前端、maintenance runner 和文档全部同步到 `V1-EXEC-11`。
 
-当前 canonical 产品模块为 19 个（含共享 `TreasuryDistributorV1`）；接口和事件数量以 `spec/v1_execution_manifest.json` 为准。Gauge clone immutable identity 从 8 个 word 收敛为 7 个 word，runtime 为 269 bytes；共享 MultiAsset Vault schema 为 v6。部署权限面现为83个协议 mutation：22个由5类冻结角色门控，61个为 immutable direct/public/module caller，且所有业务状态延迟为0；Treasury Root publisher 与 independent reviewer 必须使用相互独立且不复用治理/Guardian/Unpause 成员的 Safe。
+当前 canonical 产品模块为 19 个（含共享 `TreasuryDistributorV1`）；接口和事件数量以 `spec/v1_execution_manifest.json` 为准。Gauge clone immutable identity 从 8 个 word 收敛为 7 个 word，runtime 为 269 bytes；共享 MultiAsset Vault schema 为 v6。部署权限面现为84个协议 mutation：23个由5类冻结角色门控，61个为 immutable direct/public/module caller，且所有业务状态延迟为0；Treasury Root publisher 与 independent reviewer 必须使用相互独立且不复用治理/Guardian/Unpause 成员的 Safe。
 
 ## V1-QUOTE-001：RH Stock Quote 创建时价格参考与专用准入
 
-状态：`SPECIFIED / IMPLEMENTATION_PENDING`（2026-09-05）；这里只指 BeaconProxy Stock Quote 的专用准入与价格生成器。`V1-EXEC-10` 已完成管理员可追加 native/direct immutable ERC-20 Quote 的通用白名单能力。
+状态：`IMPLEMENTED_FORK_VERIFIED / NO_ACTIVE_CONFIG`（2026-09-05）。`V1-EXEC-11` 已实现 BeaconProxy Stock Quote 专用准入、官方 UID/canonical token/Beacon/implementation 指纹钉死、身份漂移 fail-closed 与部署 preflight；固定区块 Fork 已对真实 Stock Token 代理/实现、专用 Quote admission、真实 v4 原子毕业与 Vault/rageQuit 会计执行 E2E。普通 native/direct immutable ERC-20 Quote 门禁不变。194 个 Base 不自动成为 Quote。价格生成器与首批 allowlist 仍是 `PENDING_PRODUCT_ACTIVATION`。
 
 Robinhood 官方 `/rhj/prices/{symbol}` 已确认可以为创建页面和受约束的 Quote Config Generator 提供底层股票 USD `bid/ask`。生成 Stock Token 参考价时必须乘一次 `/rhj/assets` 的 `currentMultiplier`；RH Chain Chainlink Feed 已经包含 multiplier，不得再次相乘。API/Oracle 不进入 Curve、毕业、FeeVault 或 Treasury 的链上运行路径，市场创建后 raw 参数保持冻结。
 
-后续实现必须按顺序关闭：
+仍需按顺序关闭：
 
-1. 为少量经审核的官方 Stock Token 实现 Asset UID + canonical Token + Beacon/implementation 指纹专用 Quote 准入；普通 ERC-20 的 direct immutable 规则不变；
-2. 实现确定性的 Quote Config Generator、价格证据 hash、定点数换算、舍入和 REST/Chainlink 交叉校验；
-3. 定义价格最大时效、偏差阈值、停牌、pending multiplier、公司行动、Oracle 与 Sequencer 的 fail-closed 规则；
-4. 依据链上 DEX/RFQ 深度和真实 swap simulation 选择有限 Quote allowlist，不能以底层股票日成交量替代链上流动性；
-5. 完成恶意/真实 Stock Token、Beacon 升级、pause/blocklist/adminBurn、买卖、原子毕业、FeeVault/Treasury 偿付的 fork/E2E；
-6. 更新 execution spec、机器 manifest、ABI、部署 preflight 和正式创建页后，才允许新增 ACTIVE Stock Quote config。
+1. 实现确定性的 Quote Config Generator、价格证据 hash、定点数换算、舍入和 REST/Chainlink 交叉校验；
+2. 冻结产品价格参数与首批有限 Quote allowlist，并定义价格最大时效、偏差阈值、停牌、pending multiplier、公司行动、Oracle 与 Sequencer 的 fail-closed 规则；
+3. 在首批 ACTIVE Stock Quote 配置前，补齐 pause/blocklist/adminBurn、Beacon 升级、链下价格生成与浏览器交易的专项行为测试；真实代理转账、Quote admission、原子毕业及 Vault/rageQuit 主路径已由固定区块 Fork 覆盖；
+4. 上述证据与批准完成后，才允许新增 ACTIVE Stock Quote config。
 
 权威设计见 [`V1_STOCK_QUOTE_PRICE_REFERENCE.md`](./V1_STOCK_QUOTE_PRICE_REFERENCE.md)，RH 资料与动态字段见 [`research/rh-chain-stock-tokens/README.md`](../../research/rh-chain-stock-tokens/README.md)。
 
@@ -40,9 +38,9 @@ Robinhood 官方 `/rhj/prices/{symbol}` 已确认可以为创建页面和受约�
 
 `apps/web/` 是 V1 面向用户的唯一正式前端。页面与用户能力以该目录为准；`Rewards` 保持产品名称，并承载 Position、Staker、Creator、Treasury 四个面板。原辅助前端位于 `archive/legacy-website/`，只保留历史追溯用途，不参与构建、测试、CI、部署或功能对接，也不改变本计划的 readiness 结论。
 
-前端的链上与链下接入必须 fail closed：read API、Factory、LaunchRouter、AllocationManager、FeeVault、CreatorRegistry、TreasuryDistributor 与 Treasury Proof API 的配置、健康状态和 Factory/Registry 绑定任一不满足时，不得报价、模拟、签名或提交资金敏感操作。Treasury 前端随 V1 发布，但 Treasury 整体当前仍标记为 `NOT_DEPLOYABLE`、尚未完成实链 E2E，因此其 holder 写操作还必须通过独立的 `V1-TREASURY-EXEC-1:DEPLOYED_E2E_APPROVED` 发布批准门；未批准时 Rewards 只读展示 Treasury，不影响其余 V1 用户操作。
+前端的链上与链下接入必须 fail closed：read API、Factory、LaunchRouter、AllocationManager、FeeVault、CreatorRegistry、TreasuryDistributor 与 Treasury Proof API 的配置、健康状态和 Factory/Registry 绑定任一不满足时，不得报价、模拟、签名或提交资金敏感操作。Treasury 合约已达到技术部署资格但尚未实际部署或取得 holder 写操作上线批准，因此仍须通过独立的 `V1-TREASURY-EXEC-1:DEPLOYED_E2E_APPROVED` 发布门；未批准时 Rewards 只读展示 Treasury，不影响其余 V1 用户操作。
 
-曲线阶段的买卖、创建与首买已经使用 canonical V1 ABI 接入。毕业后的 Pool 页面只能在 Registry 返回 `PoolCreated` canonical route、且目标 Robinhood Chain 的 V4 Router/Quoter 地址、runtime codehash、精确 ABI、Permit2/native settlement 语义和 deadline 规则全部写入 deployment evidence 并通过 Fork/浏览器 E2E 后开放。当前这些外部身份尚未冻结，所以正式前端明确锁定 Pool swap；禁止用推测 calldata 或非 canonical 第三方 Router 补齐。
+曲线阶段的买卖、创建与首买已经使用 canonical V1 ABI 接入。测试网计划已固定 v4 Router/Quoter/Permit2 地址与 runtime codehash，合约级 Fork 已通过；毕业后的 Pool 页面仍须等实际 release manifest、精确前端 ABI/settlement/deadline 复核和浏览器实链 E2E 后开放。正式前端在此之前继续锁定 Pool swap，禁止用推测 calldata 或非 canonical 第三方 Router 补齐。
 
 ## 本地验收
 
@@ -52,14 +50,14 @@ Robinhood 官方 `/rhj/prices/{symbol}` 已确认可以为创建页面和受约�
 
 ## 后续工作与外部支持
 
-本地实现完成不等于可部署。以下门禁仍开放：
+技术 deployment gates 已关闭；以下是实际广播与生产发布工作：
 
-1. 提供并确认 Robinhood Chain 测试/归档 RPC、目标 finalized block 与官方合约身份；
-2. 提供 Governance、Guardian、Security/Unpause、Treasury Root Publisher、Independent Root Reviewer 五类角色成员及 Platform Treasury 的最终地址，生成真实 production deployment manifest，完成 CREATE2、Hook permission bits、AccessManager 角色/延迟和 codehash 取证；
-3. 冻结目标链 V4 Router/Quoter 的地址、runtime codehash、精确 swap/quote ABI、Permit2/native settlement 与 deadline 语义，随后接通正式前端的 Pool quote/submit；
-4. 在目标链完成 live Fork、部署、验证、全链路 E2E 与 canary；
+1. 按测试网 runbook 显式接受 chain 46630 的 project-pinned test-only v4 dependencies，并在广播前重新核验 latest codehash/binding；
+2. 签字冻结 deployer、Governance、Guardian、Security/Unpause、Treasury Root Publisher、Independent Root Reviewer、Platform Treasury、Root Service Treasury 及全部 Treasury 时间/费用参数；
+3. 先执行无私钥 deterministic preview，再执行无 `--broadcast` 的完整模拟；只有预测地址、payload hash、余额和 gas 审核通过后才允许测试网 broadcast；
+4. 部署后生成 receipt-bound manifest，完成源码验证、AccessManager 安装/撤权、浏览器全链路 E2E 与 canary；
 5. 独立安全审计关闭 Critical/High，并完成 Pons 来源/许可及 Stock 收益产品的法律签字；
-6. 完成监控、告警、事故 runbook 和至少 72 小时 canary soak 后，才可推进 `DEPLOYMENT_ELIGIBLE`/`PRODUCTION_READY`。
+6. 完成生产监控、告警、事故演练和至少72小时 canary soak 后，才可推进 `PRODUCTION_READY`。
 
 ## 历史归档
 

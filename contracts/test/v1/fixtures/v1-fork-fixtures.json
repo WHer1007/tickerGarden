@@ -1,12 +1,12 @@
 {
   "schemaVersion": 1,
-  "executionSpecId": "V1-EXEC-10",
+  "executionSpecId": "V1-EXEC-11",
   "fixtureSetId": "V1-E-105-A",
   "status": "FIXTURE_BASELINE_ONLY_NOT_LIVE_FORK_EVIDENCE",
   "sourceFiles": [
     {
       "path": "spec/v1_initial_quote_configs.json",
-      "sha256": "0x97977aa1690fba3d2cd0cbae58b9b812eb4e20c189fa8b81bb2391b08fd958a6"
+      "sha256": "0x3193b973e4f410d056c868efd3875badd1d833874c45e73dafb828c51223bd87"
     },
     {
       "path": "spec/v1_pons_behavior_vectors.json",
@@ -468,5 +468,5 @@
     "runtimeDependencyOnPons": false,
     "referenceCreate2ValuesAreProductionDeploymentEvidence": false
   },
-  "fixtureSetHash": "0xcb39e7a8c66779ee0a07993bd059adf5eb8b87823e105288c56dac4236e82504"
+  "fixtureSetHash": "0xd45f8bad728704edb56eca60e379a5b1b055e2d48f65ab469c8563153dbcc475"
 }

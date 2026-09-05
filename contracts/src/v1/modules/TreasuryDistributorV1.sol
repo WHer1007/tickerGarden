@@ -19,6 +19,15 @@ import {
 import {TreasuryClaimLeafV1} from "../libraries/TreasuryClaimLeafV1.sol";
 import {ImmutableAccessManaged} from "../shared/ImmutableAccessManaged.sol";
 
+interface IHolderSharingHook {
+    function poolManager() external view returns (address);
+    function protocolFeeVault() external view returns (address);
+}
+
+interface IHolderSharingFeeVault {
+    function holderLiability(bytes32 marketId, uint32 epochId, address asset) external view returns (uint256);
+}
+
 struct TreasuryDistributorInitV1 {
     address authority;
     address marketRegistry;
@@ -55,6 +64,10 @@ contract TreasuryDistributorV1 is ITreasuryDistributorV1, ImmutableAccessManaged
     uint32 public immutable claimWindow;
 
     RootServiceFeeV1 private _rootServiceFee;
+    mapping(bytes32 => address) public override feeSharingVault;
+    mapping(bytes32 => address[]) private _feeSharingExclusions;
+    error InvalidFeeSharingCaller();
+    error HolderFeesAwaitingSettlement();
 
     mapping(bytes32 marketId => TreasuryMarketV1 value) private _markets;
     mapping(bytes32 marketId => mapping(uint32 epochId => uint256 amount)) private _epochQuoteAmounts;
@@ -142,6 +155,12 @@ contract TreasuryDistributorV1 is ITreasuryDistributorV1, ImmutableAccessManaged
         override
         restricted
     {
+        _registerMarket(marketId, memeToken, quoteToken, eligibilityPolicyHash);
+    }
+
+    function _registerMarket(bytes32 marketId, address memeToken, address quoteToken, bytes32 eligibilityPolicyHash)
+        private
+    {
         if (marketId == bytes32(0)) revert InvalidMarketId();
         if (_markets[marketId].memeToken != address(0)) revert MarketAlreadyRegistered(marketId);
         if (memeToken == address(0) || memeToken.code.length == 0) revert InvalidMemeToken(memeToken);
@@ -165,6 +184,82 @@ contract TreasuryDistributorV1 is ITreasuryDistributorV1, ImmutableAccessManaged
             memeToken: memeToken, quoteToken: quoteToken, eligibilityPolicyHash: eligibilityPolicyHash, activatedAt: 0
         });
         emit TreasuryMarketRegistered(marketId, memeToken, quoteToken, eligibilityPolicyHash);
+    }
+
+    /// @notice Factory-only, immutable fee routing begins at creation, including curve fees.
+    function registerFeeSharingMarket(bytes32 marketId, address feeVault, address locker) external override {
+        if (msg.sender != IMarketRegistryV1(marketRegistry).factory()) revert InvalidFeeSharingCaller();
+        MarketView memory canonical = _canonicalMarket(marketId);
+        if (
+            !canonical.config.creatorFeesToHolders || feeVault == address(0) || locker == address(0)
+                || IHolderSharingHook(canonical.config.graduatedHook).protocolFeeVault() != feeVault
+        ) revert InvalidFeeSharingCaller();
+        address[] memory candidates = new address[](9);
+        candidates[0] = address(0);
+        candidates[1] = address(0xdead);
+        candidates[2] = canonical.config.memeToken;
+        candidates[3] = canonical.config.curve;
+        candidates[4] = IHolderSharingHook(canonical.config.graduatedHook).poolManager();
+        candidates[5] = locker;
+        candidates[6] = address(this);
+        candidates[7] = feeVault;
+        candidates[8] = canonical.config.graduatedHook;
+        for (uint256 i = 1; i < candidates.length; ++i) {
+            address next = candidates[i];
+            uint256 j = i;
+            while (j > 0 && uint160(candidates[j - 1]) > uint160(next)) {
+                candidates[j] = candidates[j - 1];
+                --j;
+            }
+            candidates[j] = next;
+        }
+        for (uint256 i; i < candidates.length; ++i) {
+            if (i == 0 || candidates[i] != candidates[i - 1]) _feeSharingExclusions[marketId].push(candidates[i]);
+        }
+        bytes32 policyHash = keccak256(
+            abi.encode(
+                keccak256("TICKERGARDEN_V1_TREASURY_ELIGIBILITY_POLICY_V1"),
+                block.chainid,
+                marketId,
+                _feeSharingExclusions[marketId]
+            )
+        );
+        _registerMarket(marketId, canonical.config.memeToken, canonical.config.quoteAsset, policyHash);
+        feeSharingVault[marketId] = feeVault;
+        _markets[marketId].activatedAt = _timestamp();
+        emit TreasuryMarketActivated(marketId, _markets[marketId].activatedAt);
+    }
+
+    function feeSharingExcludedAccounts(bytes32 marketId) external view override returns (address[] memory) {
+        return _feeSharingExclusions[marketId];
+    }
+
+    /// @notice Only the bound FeeVault can fund a historical, still-unsealed fee epoch.
+    function fundCreatorFees(bytes32 marketId, uint32 epochId, uint256 amount) external payable override nonReentrant {
+        if (msg.sender != feeSharingVault[marketId] || msg.sender == address(0)) revert InvalidFeeSharingCaller();
+        TreasuryMarketV1 storage value = _activeMarket(marketId);
+        if (epochId == 0 || epochId > _currentEpochId(marketId, value)) revert InvalidEpochId(epochId);
+        if (_epochs[marketId][epochId].status != TreasuryEpochStatusV1.UNREQUESTED) {
+            revert InvalidEpochStatus(_epochs[marketId][epochId].status, TreasuryEpochStatusV1.UNREQUESTED);
+        }
+        if (amount == 0) revert InvalidAmount();
+        if (value.quoteToken == address(0)) {
+            if (msg.value != amount) revert IncorrectNativeFunding(msg.value, amount);
+        } else {
+            if (msg.value != 0) revert UnexpectedNativeValue(msg.value);
+            _pullExact(value.quoteToken, msg.sender, amount);
+        }
+        _epochQuoteAmounts[marketId][epochId] += amount;
+        _totalQuoteLiabilities[value.quoteToken] += amount;
+        _assertSolvent(value.quoteToken);
+        emit QuoteTreasuryFunded(
+            marketId,
+            epochId,
+            msg.sender,
+            value.quoteToken,
+            keccak256(abi.encode(marketId, epochId, _epochQuoteAmounts[marketId][epochId])),
+            amount
+        );
     }
 
     /// @notice One-way activation seam after the canonical V1 pool has been created.
@@ -242,13 +337,24 @@ contract TreasuryDistributorV1 is ITreasuryDistributorV1, ImmutableAccessManaged
         uint64 readyAt = _checkedTimestamp(uint256(windowEnd) + finalityDelaySeconds);
         if (block.timestamp < readyAt) revert EpochNotClosed(readyAt);
 
+        address sharingVault = feeSharingVault[marketId];
+        if (
+            sharingVault != address(0)
+                && (IHolderSharingFeeVault(sharingVault).holderLiability(marketId, epochId, value.quoteToken) != 0
+                    || IHolderSharingFeeVault(sharingVault).holderLiability(marketId, epochId, value.memeToken) != 0)
+        ) revert HolderFeesAwaitingSettlement();
         uint256 quoteAmount = _epochQuoteAmounts[marketId][epochId];
         if (quoteAmount == 0) revert EmptyEpoch(marketId, epochId);
         TreasuryEpochV1 storage valueEpoch = _epochs[marketId][epochId];
         if (valueEpoch.status != TreasuryEpochStatusV1.UNREQUESTED) {
             revert RootAlreadyRequested(marketId, epochId, valueEpoch.status);
         }
-        if (IERC20(value.memeToken).balanceOf(msg.sender) == 0) revert RequesterIsNotHolder(msg.sender);
+        // Historical holders may have sold and the remaining supply may be in system addresses.
+        // After one publication window anyone can pay to trigger the same reviewed process.
+        if (
+            IERC20(value.memeToken).balanceOf(msg.sender) == 0
+                && block.timestamp < uint256(readyAt) + rootPublicationWindow
+        ) revert RequesterIsNotHolder(msg.sender);
         if (block.number <= finalityDelayBlocks || block.number - finalityDelayBlocks > type(uint64).max) {
             revert FinalityBlockUnavailable(block.number, finalityDelayBlocks);
         }
@@ -299,10 +405,16 @@ contract TreasuryDistributorV1 is ITreasuryDistributorV1, ImmutableAccessManaged
         TreasuryEpochV1 storage valueEpoch = _epochs[marketId][epochId];
         _requireEpochStatus(valueEpoch, TreasuryEpochStatusV1.REQUESTED);
         if (block.timestamp > valueEpoch.publishBy) revert RootPublicationExpired(valueEpoch.publishBy);
-        if (merkleRoot == bytes32(0) || datasetHash == bytes32(0) || totalTwab == 0 || leafCount == 0) {
+        bool emptyEpoch = totalTwab == 0 && leafCount == 0 && totalAllocated == 0;
+        if (
+            datasetHash == bytes32(0)
+                || (emptyEpoch
+                        ? merkleRoot != keccak256("TICKERGARDEN_V1_TREASURY_EMPTY_EPOCH_V1")
+                        : merkleRoot == bytes32(0) || totalTwab == 0 || leafCount == 0)
+        ) {
             revert InvalidRootCommitment();
         }
-        if (totalAllocated != valueEpoch.quoteAmount) {
+        if (!emptyEpoch && totalAllocated != valueEpoch.quoteAmount) {
             revert InvalidRootAllocation(totalAllocated, valueEpoch.quoteAmount);
         }
 
@@ -336,6 +448,19 @@ contract TreasuryDistributorV1 is ITreasuryDistributorV1, ImmutableAccessManaged
         _requireEpochStatus(valueEpoch, TreasuryEpochStatusV1.ROOT_PENDING);
         if (block.timestamp < valueEpoch.finalizeAfter) revert RootReviewPending(valueEpoch.finalizeAfter);
 
+        if (valueEpoch.totalTwab == 0 && valueEpoch.leafCount == 0) {
+            TreasuryMarketV1 storage value = _activeMarket(marketId);
+            uint32 toEpochId = _currentEpochId(marketId, value);
+            if (toEpochId <= epochId) revert InvalidRolloverEpoch(epochId, toEpochId);
+            uint256 amount = valueEpoch.quoteAmount;
+            valueEpoch.status = TreasuryEpochStatusV1.ROLLED_OVER;
+            _epochQuoteAmounts[marketId][epochId] = 0;
+            _epochQuoteAmounts[marketId][toEpochId] += amount;
+            _creditService(valueEpoch.serviceFeeAsset, rootServiceTreasury, valueEpoch.serviceFeeAmount);
+            emit RootFinalized(marketId, epochId, valueEpoch.merkleRoot, 0);
+            emit EpochRemainderRolledOver(marketId, epochId, toEpochId, amount);
+            return;
+        }
         valueEpoch.status = TreasuryEpochStatusV1.CLAIMING;
         valueEpoch.claimUntil = _checkedTimestamp(block.timestamp + claimWindow);
         _creditService(valueEpoch.serviceFeeAsset, rootServiceTreasury, valueEpoch.serviceFeeAmount);

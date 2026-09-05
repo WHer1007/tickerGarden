@@ -59,10 +59,7 @@ abstract contract GraduationExecutorPoolExecution is GraduationExecutorAssetAcco
     error UnexpectedGraduationPoolId(bytes32 supplied, bytes32 expected);
     error UnexpectedGraduationInitialTick(int24 supplied, int24 expected);
     error InvalidGraduationDust(
-        uint256 quoteDust,
-        uint256 memeRemainder,
-        uint256 expectedLockedExcessQuote,
-        uint256 expectedLockedExcessMeme
+        uint256 quoteDust, uint256 memeRemainder, uint256 expectedLockedExcessQuote, uint256 expectedLockedExcessMeme
     );
     error GraduationAssetTransferFailed(address asset, address recipient, uint256 amount);
     error UnexpectedLockedPosition(uint256 tokenId, bytes32 poolId, bytes32 expectedPoolId);

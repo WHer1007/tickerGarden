@@ -57,6 +57,7 @@ contract FactoryConfigRegistryMock {
     mapping(address => bool) private _vaultIdentitiesCurrent;
     bool private _quoteIdentityIsCurrent = true;
     address private _authority = address(this);
+    address private _officialStockRegistry;
 
     function authority() external view returns (address) {
         return _authority;
@@ -64,6 +65,14 @@ contract FactoryConfigRegistryMock {
 
     function setAuthority(address value) external {
         _authority = value;
+    }
+
+    function setOfficialStockRegistry(address value) external {
+        _officialStockRegistry = value;
+    }
+
+    function officialStockRegistry() external view returns (address) {
+        return _officialStockRegistry;
     }
 
     function setAsset(bytes32 id, AssetView memory value) external {
@@ -201,9 +210,9 @@ contract FactoryCurveFeeVaultMock {
         feePolicyId = feePolicyId_;
     }
 
-    function beginCurveCredit(bytes32, address, uint256, uint32, uint64, bytes32) external {}
+    function beginCurveCredit(bytes32, address, uint256, uint256, uint32, uint64, bytes32) external {}
 
-    function finalizeCurveCredit(bytes32, address quoteAsset, uint256 amount, uint32, uint64, bytes32)
+    function finalizeCurveCredit(bytes32, address quoteAsset, uint256 amount, uint256, uint32, uint64, bytes32)
         external
         payable
     {
@@ -278,6 +287,11 @@ contract FactoryGraduationExecutorMock {
 
 contract FactoryTreasuryMock {
     bool public reject;
+    bool public rejectRegistration;
+    uint256 public registrationCalls;
+    bytes32 public registeredMarketId;
+    address public registeredFeeVault;
+    address public registeredLocker;
     address public marketRegistry;
 
     function setMarketRegistry(address value) external {
@@ -286,6 +300,18 @@ contract FactoryTreasuryMock {
 
     function setReject(bool value) external {
         reject = value;
+    }
+
+    function setRejectRegistration(bool value) external {
+        rejectRegistration = value;
+    }
+
+    function registerFeeSharingMarket(bytes32 marketId, address feeVault, address locker) external {
+        require(!rejectRegistration, "TREASURY_REGISTRATION_REJECTED");
+        registrationCalls += 1;
+        registeredMarketId = marketId;
+        registeredFeeVault = feeVault;
+        registeredLocker = locker;
     }
 
     receive() external payable {
@@ -396,7 +422,7 @@ contract TickerGardenFactoryV1Test is Test {
     bytes32 internal constant TEMPLATE_ID = keccak256("factory-template");
     bytes32 internal constant TEMPLATE_HASH = keccak256("factory-template-content");
     bytes32 internal constant FEE_POLICY_ID = keccak256("factory-fee-policy");
-    bytes32 internal constant EXECUTION_SPEC_ID = keccak256("V1-EXEC-10");
+    bytes32 internal constant EXECUTION_SPEC_ID = keccak256("V1-EXEC-11");
     bytes32 internal constant VAULT_SCHEMA_ID = keccak256("TickerGarden.UserStockVault.MultiAsset.v6");
     uint256 internal constant LAUNCH_FEE = 500_000_000_000_000;
     uint256 internal constant SUPPLY = 1_000_000_000 ether;
@@ -434,6 +460,7 @@ contract TickerGardenFactoryV1Test is Test {
         accessManager = new FactoryDependencyMock();
         configs.setAuthority(address(accessManager));
         quoteConfigs.setAuthority(address(accessManager));
+        quoteConfigs.setOfficialStockRegistry(address(configs));
         ponsConfigs.setAuthority(address(accessManager));
         templateConfigs.setAuthority(address(accessManager));
         stockVault = new FactoryDependencyMock();
@@ -541,6 +568,15 @@ contract TickerGardenFactoryV1Test is Test {
         for (uint256 i; i < registries.length; ++i) {
             registries[i].setAuthority(address(accessManager));
         }
+    }
+
+    function test_constructorRejectsQuoteRegistryBoundToDifferentOfficialStockRegistry() public {
+        // Keep all four registry authorities aligned; only the Quote Registry's
+        // Stock Registry binding is intentionally inconsistent.
+        address wrongStockRegistry = address(new FactoryConfigRegistryMock());
+        quoteConfigs.setOfficialStockRegistry(wrongStockRegistry);
+
+        _expectConstructorBindingFailure();
     }
 
     function test_predictAndCreateDeployExactComponentsAndRegisterFullSnapshot() public {
@@ -1926,6 +1962,129 @@ contract TickerGardenFactoryV1Test is Test {
         );
     }
 
+    function test_creatorTaxCapAndEconomicsCommitment() public {
+        CreateMarketParams memory params = _validParams(CREATOR, bytes32("TAX-CAP"));
+        bytes32 untaxed = params.expectedEconomics;
+        params.creatorTaxBps = 500;
+        bytes32 taxed = factory.previewMarketEconomics(params);
+        assertTrue(taxed != untaxed);
+        params.expectedEconomics = taxed;
+        vm.prank(CREATOR);
+        (bytes32 marketId,, address curveAddress,) = factory.createMarket{value: LAUNCH_FEE}(params);
+        assertEq(marketRegistry.market(marketId).config.creatorTaxBps, 500);
+        assertEq(PonsCompatibleCurve(payable(curveAddress)).creatorTaxBps(), 500);
+        params.creatorTaxBps = 501;
+        vm.expectRevert(abi.encodeWithSignature("CreatorTaxTooHigh(uint256,uint256)", uint256(501), uint256(500)));
+        factory.previewMarketEconomics(params);
+    }
+
+    function test_creatorFeesToHoldersChangesEconomicsAndPredictedIdentity() public {
+        CreateMarketParams memory params = _validParams(CREATOR, bytes32("HOLDER-FEES"));
+        bytes32 creatorOnlyEconomics = params.expectedEconomics;
+        (bytes32 creatorOnlyMarket,,,,) = factory.predictMarketAddresses(CREATOR, params);
+
+        params.creatorFeesToHolders = true;
+        bytes32 holderSharingEconomics = factory.previewMarketEconomics(params);
+        params.expectedEconomics = holderSharingEconomics;
+        (bytes32 holderSharingMarket,,,,) = factory.predictMarketAddresses(CREATOR, params);
+
+        assertTrue(holderSharingEconomics != creatorOnlyEconomics);
+        assertTrue(holderSharingMarket != creatorOnlyMarket);
+        assertEq(factory.previewMarketEconomics(params), holderSharingEconomics);
+    }
+
+    function test_enabledCreatorFeesToHoldersRegistersImmutableSharingConfig() public {
+        CreateMarketParams memory params = _validParams(CREATOR, bytes32("HOLDER-REGISTER"));
+        params.creatorFeesToHolders = true;
+        params.expectedEconomics = factory.previewMarketEconomics(params);
+        (bytes32 predictedMarket,,,, address predictedLocker) = factory.predictMarketAddresses(CREATOR, params);
+
+        vm.prank(CREATOR);
+        (bytes32 marketId,,,) = factory.createMarket{value: LAUNCH_FEE}(params);
+
+        assertEq(marketId, predictedMarket);
+        assertEq(treasury.registrationCalls(), 1);
+        assertEq(treasury.registeredMarketId(), marketId);
+        assertEq(treasury.registeredFeeVault(), address(feeVault));
+        assertEq(treasury.registeredLocker(), predictedLocker);
+        assertTrue(marketRegistry.market(marketId).config.creatorFeesToHolders);
+    }
+
+    function test_revertingCreatorFeesToHoldersRegistrationRollsBackCreation() public {
+        CreateMarketParams memory params = _validParams(CREATOR, bytes32("HOLDER-REVERT"));
+        params.creatorFeesToHolders = true;
+        params.expectedEconomics = factory.previewMarketEconomics(params);
+        (bytes32 marketId, address token, address curve, address gauge,) =
+            factory.predictMarketAddresses(CREATOR, params);
+        treasury.setRejectRegistration(true);
+
+        vm.prank(CREATOR);
+        vm.expectRevert(bytes("TREASURY_REGISTRATION_REJECTED"));
+        factory.createMarket{value: LAUNCH_FEE}(params);
+
+        assertEq(treasury.registrationCalls(), 0);
+        assertEq(token.code.length, 0);
+        assertEq(curve.code.length, 0);
+        assertEq(gauge.code.length, 0);
+        assertEq(revenueRegistry.currentCreatorEpoch(marketId), 0);
+        vm.expectRevert(abi.encodeWithSelector(MarketRegistryV1.MarketNotRegistered.selector, marketId));
+        marketRegistry.market(marketId);
+    }
+
+    function test_disabledCreatorFeesToHoldersPreservesExistingFlow() public {
+        CreateMarketParams memory params = _validParams(CREATOR, bytes32("HOLDER-OFF"));
+        assertFalse(params.creatorFeesToHolders);
+
+        vm.prank(CREATOR);
+        (bytes32 marketId,,,) = factory.createMarket{value: LAUNCH_FEE}(params);
+
+        assertEq(treasury.registrationCalls(), 0);
+        assertFalse(marketRegistry.market(marketId).config.creatorFeesToHolders);
+        assertEq(revenueRegistry.currentCreatorEpoch(marketId), 1);
+    }
+
+    function test_atomicDeveloperBuyPaysCreatorTaxEvenWhenSnipeExempt() public {
+        _setValidConfiguration(address(0));
+        CreateMarketParams memory params = _validParams(CREATOR, bytes32("ATOMIC-TAX"));
+        params.creatorTaxBps = 500;
+        params.expectedEconomics = factory.previewMarketEconomics(params);
+        uint256 spend = 0.01 ether;
+        vm.prank(CREATOR);
+        (bytes32 marketId,, uint256 tokensOut, uint256 refund) =
+            router.launchAndBuy{value: LAUNCH_FEE + spend}(params, spend, 1, CREATOR);
+        PonsCompatibleCurve c = PonsCompatibleCurve(payable(marketRegistry.market(marketId).config.curve));
+        assertGt(tokensOut, 0);
+        assertEq(refund, 0);
+        assertEq(c.accruedCreatorTax(), spend * 500 / 10_000);
+        assertEq(c.realQuoteReserve(), spend * 9400 / 10_000);
+    }
+
+    function test_taxedERC20AtomicBuyAndFailedBuyRollback() public {
+        CreateMarketParams memory params = _validParams(CREATOR, bytes32("ERC20-TAX"));
+        params.creatorTaxBps = 500;
+        params.expectedEconomics = factory.previewMarketEconomics(params);
+        uint256 spend = 1_000_000;
+        quote.mint(CREATOR, spend);
+        vm.prank(CREATOR);
+        quote.approve(address(router), spend);
+        (, address predictedToken, address predictedCurve,,) = factory.predictMarketAddresses(CREATOR, params);
+        vm.prank(CREATOR);
+        vm.expectRevert();
+        router.launchAndBuy{value: LAUNCH_FEE}(params, spend, type(uint256).max, CREATOR);
+        assertEq(predictedToken.code.length, 0);
+        assertEq(predictedCurve.code.length, 0);
+        assertEq(quote.balanceOf(CREATOR), spend);
+        vm.prank(CREATOR);
+        (bytes32 marketId,, uint256 tokensOut, uint256 refund) =
+            router.launchAndBuy{value: LAUNCH_FEE}(params, spend, 1, CREATOR);
+        PonsCompatibleCurve c = PonsCompatibleCurve(payable(marketRegistry.market(marketId).config.curve));
+        assertGt(tokensOut, 0);
+        assertEq(refund, 0);
+        assertEq(c.accruedCreatorTax(), 50_000);
+        assertEq(c.realQuoteReserve(), 940_000);
+        assertEq(quote.balanceOf(address(router)), 0);
+    }
+
     function _validParams(address creator, bytes32 salt) private returns (CreateMarketParams memory params) {
         params = CreateMarketParams({
             assetUid: ASSET_UID,
@@ -1937,7 +2096,9 @@ contract TickerGardenFactoryV1Test is Test {
             name: "Ticker Garden",
             symbol: "GARDEN",
             metadataURI: "ipfs://ticker-garden",
-            salt: salt
+            salt: salt,
+            creatorTaxBps: 0,
+            creatorFeesToHolders: false
         });
         vm.prank(creator);
         params.expectedEconomics = factory.previewMarketEconomics(params);

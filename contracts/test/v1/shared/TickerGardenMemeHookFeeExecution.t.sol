@@ -194,6 +194,14 @@ contract HookFeeExecutionCreate2Deployer {
 }
 
 contract TickerGardenMemeHookFeeExecutionHarness is TickerGardenMemeHookFeeExecution {
+    function convertRewards(bytes32, uint256, uint256, uint256) external pure override returns (uint256, uint256) {
+        revert("UNSUPPORTED_TEST_LAYER");
+    }
+
+    function unlockCallback(bytes calldata) external pure override returns (bytes memory) {
+        revert("UNSUPPORTED_TEST_LAYER");
+    }
+
     constructor(address registry, address poolManager, address feeVault, address graduation)
         TickerGardenMemeHookFeeExecution(registry, poolManager, feeVault, graduation)
     {}
@@ -492,7 +500,7 @@ contract TickerGardenMemeHookFeeExecutionTest is Test {
             abi.encode(
                 keccak256("TICKERGARDEN_V1_FEE_POLICY"),
                 uint256(4),
-                keccak256("V1-EXEC-10"),
+                keccak256("V1-EXEC-11"),
                 uint24(10_000),
                 uint16(0),
                 uint24(0),

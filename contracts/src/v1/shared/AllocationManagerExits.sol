@@ -5,7 +5,7 @@ import {AssetView, IMemeStockGauge, IUserStockVault, MarketView, PositionView} f
 import {AllocationManagerIncreases} from "./AllocationManagerIncreases.sol";
 
 /// @notice Full-position normal and forfeiting exit paths for the final AllocationManager.
-/// @dev V1-EXEC-10 deliberately has no partial-decrease or cross-market migration path.
+/// @dev V1-EXEC-11 deliberately has no partial-decrease or cross-market migration path.
 abstract contract AllocationManagerExits is AllocationManagerIncreases {
     uint256 private constant RAGE_QUIT_GAUGE_GAS_LIMIT = 1_000_000;
     uint256 private constant RAGE_QUIT_GAUGE_VIEW_GAS_LIMIT = 250_000;
@@ -27,6 +27,14 @@ abstract contract AllocationManagerExits is AllocationManagerIncreases {
     {}
 
     function _closeAllocation(address user, bytes32 marketId) internal nonReentrant {
+        _closePosition(user, marketId, false);
+    }
+
+    function _unstakeAndWithdraw(address user, bytes32 marketId) internal nonReentrant {
+        _closePosition(user, marketId, true);
+    }
+
+    function _closePosition(address user, bytes32 marketId, bool withdraw) private {
         if (user == address(0) || user == address(this)) revert InvalidAllocationUser(user);
 
         ExitContext memory context = _exitContext(marketId);
@@ -42,7 +50,9 @@ abstract contract AllocationManagerExits is AllocationManagerIncreases {
             revert AllocationLedgerMismatch();
         }
 
-        uint256 released = context.vault.releaseAllocation(context.assetUid, user, marketId);
+        uint256 released = withdraw
+            ? context.vault.releaseAllocationAndWithdraw(context.assetUid, user, marketId)
+            : context.vault.releaseAllocation(context.assetUid, user, marketId);
         if (released != vaultPosition || context.vault.allocation(context.assetUid, user, marketId) != 0) {
             revert AllocationLedgerMismatch();
         }
@@ -201,7 +211,10 @@ abstract contract AllocationManagerExits is AllocationManagerIncreases {
         }
 
         try context.gauge.rageQuit{gas: RAGE_QUIT_GAUGE_GAS_LIMIT}(user) returns (
-            uint256 forfeitedPrincipal, uint256 forfeitedQuote, uint256 forfeitedMeme, bool /* didRedistribute */
+            uint256 forfeitedPrincipal,
+            uint256 forfeitedQuote,
+            uint256 forfeitedMeme,
+            bool /* didRedistribute */
         ) {
             if (forfeitedPrincipal != principal) return (0, 0, false, false);
 

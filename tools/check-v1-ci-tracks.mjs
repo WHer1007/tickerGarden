@@ -122,17 +122,54 @@ function forgeExecutable() {
     });
 }
 
-function runForgeTests(track, matchPath, forkUrl) {
+function runForgeTests(track, matchPath, forkOptions = {}) {
   const executable = forgeExecutable();
   if (!executable) failed(track, "Foundry forge is unavailable");
   const args = ["test", "--match-path", matchPath];
-  if (forkUrl) args.push("--fork-url", forkUrl);
+  if (forkOptions.forkUrl) args.push("--fork-url", forkOptions.forkUrl);
+  if (forkOptions.forkBlockNumber) {
+    args.push("--fork-block-number", String(forkOptions.forkBlockNumber));
+  }
   const result = spawnSync(executable, args, {
     cwd: path.join(repositoryRoot, "contracts"),
     env: { ...process.env, FOUNDRY_PROFILE: "v1" },
     stdio: "inherit",
   });
   if (result.status !== 0) failed(track, "Foundry tests failed");
+}
+
+export function validateForkSnapshot({ evidence, chainId, block }) {
+  if (String(BigInt(chainId)) !== String(BigInt(evidence.chainId))) {
+    failed("fork", `chain ID mismatch: expected ${evidence.chainId}`);
+  }
+  if (
+    block === null ||
+    BigInt(block.number) !== BigInt(evidence.blockNumber) ||
+    typeof block.hash !== "string" ||
+    block.hash.toLowerCase() !== evidence.blockHash.toLowerCase()
+  ) {
+    failed("fork", `pinned block ${evidence.blockNumber} hash mismatch`);
+  }
+}
+
+async function rpcRequest(rpcUrl, method, params) {
+  const response = await fetch(rpcUrl, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ jsonrpc: "2.0", id: 1, method, params }),
+    signal: AbortSignal.timeout(30_000),
+  });
+  if (!response.ok) failed("fork", `RPC preflight ${method} returned HTTP ${response.status}`);
+  const body = await response.json();
+  if (body.error) failed("fork", `RPC preflight ${method} failed with code ${body.error.code ?? "UNKNOWN"}`);
+  return body.result;
+}
+
+async function verifyForkSnapshot(rpcUrl, evidence) {
+  const chainId = await rpcRequest(rpcUrl, "eth_chainId", []);
+  const blockNumberHex = `0x${BigInt(evidence.blockNumber).toString(16)}`;
+  const block = await rpcRequest(rpcUrl, "eth_getBlockByNumber", [blockNumberHex, false]);
+  validateForkSnapshot({ evidence, chainId, block });
 }
 
 function runFixtureValidator() {
@@ -155,6 +192,7 @@ function runDeploymentChecks() {
   for (const args of [
     ["--prefix", "deployments", "run", "build"],
     ["--prefix", "deployments", "test"],
+    ["--prefix", "deployments", "run", "check:testnet-plan-live"],
   ]) {
     const result = spawnSync("npm", args, { cwd: repositoryRoot, stdio: "inherit" });
     if (result.status !== 0) failed("deployment", `npm ${args.join(" ")} failed`);
@@ -242,7 +280,28 @@ async function forkStatus() {
     runForgeTests("fork", "test/v1/fixtures/**/*.t.sol");
     runFixtureValidator();
   }
-  if (status.state === "ACTIVE") runForgeTests("fork", "test/v1/fork/**/*.t.sol", rpcUrl);
+  if (status.state === "ACTIVE") {
+    const plan = JSON.parse(
+      await readFile(
+        path.join(repositoryRoot, "deployments/manifests/robinhood-testnet-46630.v1.plan.json"),
+        "utf8",
+      ),
+    );
+    const evidence = plan.forkEvidence;
+    if (
+      evidence?.network !== "Robinhood Chain" ||
+      evidence?.chainId !== 4663 ||
+      !/^[0-9]+$/.test(evidence?.blockNumber ?? "") ||
+      !/^0x[0-9a-fA-F]{64}$/.test(evidence?.blockHash ?? "")
+    ) {
+      failed("fork", "testnet plan contains no valid Robinhood mainnet fork pin");
+    }
+    await verifyForkSnapshot(rpcUrl, evidence);
+    runForgeTests("fork", "test/v1/fork/**/*.t.sol", {
+      forkUrl: rpcUrl,
+      forkBlockNumber: evidence.blockNumber,
+    });
+  }
   return status;
 }
 
@@ -281,7 +340,9 @@ async function main() {
   const option = process.argv[2] ?? "all";
   const runners = { product: productStatus, fork: forkStatus, deployment: deploymentStatus };
   if (option === "all") {
-    publish(await Promise.all(Object.values(runners).map((runner) => runner())));
+    const statuses = [];
+    for (const runner of Object.values(runners)) statuses.push(await runner());
+    publish(statuses);
     return;
   }
   if (!(option in runners)) failed("selection", `unknown track: ${option}`);

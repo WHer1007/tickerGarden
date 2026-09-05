@@ -36,6 +36,8 @@ abstract contract UserStockVaultRewardAccounting is UserStockVaultDeposits {
         bytes32 assetUid => mapping(bytes32 marketId => RewardActivationSlot[REWARD_ACTIVATION_WHEEL_SIZE] slots)
     ) internal _rewardActivationWheels;
     mapping(bytes32 assetUid => mapping(bytes32 marketId => uint256 amount)) internal _storedRewardActive;
+    // Monotonic history: a later matured pending bucket must not hide a zero-active boundary.
+    mapping(bytes32 assetUid => mapping(bytes32 marketId => uint256 epoch)) internal _rewardCohortEpochs;
     mapping(bytes32 assetUid => mapping(bytes32 marketId => uint256 amount)) internal _rewardPending;
     mapping(
         bytes32 assetUid => mapping(address user => mapping(bytes32 marketId => RewardEligibilityPosition value))
@@ -97,6 +99,9 @@ abstract contract UserStockVaultRewardAccounting is UserStockVaultDeposits {
             revert RewardEligibilityLedgerMismatch(storedActive, activeAmount);
         }
         _storedRewardActive[assetUid][marketId] = storedActive - activeAmount;
+        if (activeAmount != 0 && activeAmount == storedActive) {
+            ++_rewardCohortEpochs[assetUid][marketId];
+        }
         delete _rewardEligibilityPositions[assetUid][user][marketId];
     }
 
@@ -120,8 +125,7 @@ abstract contract UserStockVaultRewardAccounting is UserStockVaultDeposits {
     function _snapshotRageQuitRewardCutoff(bytes32 assetUid, address user, bytes32 marketId) internal {
         RewardAccumulatorPair storage latest = _latestRewardAccumulators[assetUid][marketId];
         _rageQuitRewardCutoffs[assetUid][user][marketId] = RageQuitRewardSnapshot({
-            quoteAccumulator: latest.quoteAccumulator,
-            memeAccumulator: latest.memeAccumulator
+            quoteAccumulator: latest.quoteAccumulator, memeAccumulator: latest.memeAccumulator
         });
     }
 

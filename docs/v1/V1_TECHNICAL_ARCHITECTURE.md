@@ -1,6 +1,6 @@
 # TickerGarden V1 技术架构
 
-> 版本：`V1-EXEC-10`；状态：`LOCAL_IMPLEMENTATION_VERIFIED / NOT_DEPLOYABLE`。
+> 版本：`V1-EXEC-11`；状态：`DEPLOYMENT_ELIGIBLE / NOT_PRODUCTION_READY / NOT_BROADCAST`。
 > 旧 V1-EXEC-5 市场管理与 Recovery 方案已 superseded。
 
 ## 1. 组件边界
@@ -15,9 +15,9 @@
 
 本金逃生是上述常规运行时的唯一例外边界：Rewards 的 direct Vault escape 仅需钱包、配置的 Factory 与 Robinhood Chain RPC，直接沿 Factory→MarketRegistry/OfficialStockRegistry→UserStockVault 核验不可变身份、schema 反向登记和用户 allocation。它不依赖 read API、Gauge/奖励读取、market phase、lock、`minimumAllocation` 或 Asset 的新增准入状态；交易仍必须 simulation-first，并以 canonical Vault 事件、receipt-block allocation 归零和用户 STOCK 精确到账共同确认。
 
-Treasury 合约与 Rewards 内的 Treasury 前端都是 V1 范围内的能力，但当前状态为 `NOT_DEPLOYABLE`，尚未完成实链 E2E。正式前端因此对 Treasury 使用独立发布批准门：未取得 `V1-TREASURY-EXEC-1:DEPLOYED_E2E_APPROVED` 时仍可读取链上 Epoch、Root 和 proof，但不得模拟、签名或提交 holder 写操作；本节不构成部署或上线声明。
+Treasury 合约与 Rewards 内的 Treasury 前端都是 V1 范围内的能力，并已纳入技术 deployment evidence；但当前没有实际部署，也没有 Treasury holder 写操作上线批准。正式前端因此使用独立发布门：未取得 `V1-TREASURY-EXEC-1:DEPLOYED_E2E_APPROVED` 时仍可读取链上 Epoch、Root 和 proof，但不得模拟、签名或提交 holder 写操作；本节不构成部署或上线声明。
 
-正式前端已接通 Curve quote/buy/sell；毕业后的 Pool swap 仍是显式 fail-closed 边界。Registry 的 canonical PoolKey/PoolId 只解决路由身份发现，并不等价于已经冻结目标 Robinhood Chain V4 peripheral 合约。只有 deployment evidence 固定 Router/Quoter 地址与 runtime codehash、精确 ABI、Permit2/native settlement、deadline 规则，并完成 Fork 与浏览器实链 E2E 后，才允许加入 Pool quote/submit builder。
+正式前端已接通 Curve quote/buy/sell；毕业后的 Pool swap 仍是显式 fail-closed 边界。Registry 的 canonical PoolKey/PoolId 只解决路由身份发现。测试网 deployment evidence 已固定 project-pinned Router/Quoter/Permit2 并完成合约 Fork；仍须由实际 release manifest 固定生产依赖、精确前端 ABI、native settlement/deadline 规则并通过浏览器实链 E2E，才允许加入 Pool quote/submit builder。
 
 ## 2. 市场事实
 
@@ -37,4 +37,4 @@ Vault allocation 是本金权威。用户在任意 launchPhase、任意时间调
 
 ## 6. 验收边界
 
-Solidity、ABI、权限、Indexer、Backend、Website、Deployments schema、机器规范和生成物已同步到 `V1-EXEC-10` 并通过本地门禁。目标链部署、production manifest、独立审计、实链 E2E 与上线批准不在该本地结论内。
+Solidity、ABI、权限、Indexer、Backend、Website、Deployments schema、机器规范和生成物已同步到 `V1-EXEC-11` 并通过本地门禁。目标链部署、production manifest、独立审计、实链 E2E 与上线批准不在该本地结论内。

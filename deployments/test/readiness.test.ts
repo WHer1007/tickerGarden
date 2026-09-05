@@ -48,15 +48,16 @@ test("derives all four readiness states only from ordered open gates", () => {
   });
 });
 
-test("loads the canonical manifest and remains blocked by deployment gates", () => {
-  assert.equal(V1_EXECUTION_SPEC_ID, "V1-EXEC-10");
-  assert.equal(v1Readiness.state, "IMPLEMENTATION_ALLOWED");
+test("permits testnet rehearsal after fresh current-runtime evidence while production stays blocked", () => {
+  assert.equal(V1_EXECUTION_SPEC_ID, "V1-EXEC-11");
+  assert.equal(v1Readiness.state, "DEPLOYMENT_ELIGIBLE");
   assert.equal(v1Readiness.implementationAllowed, true);
-  assert.equal(v1Readiness.deploymentEligible, false);
+  assert.equal(v1Readiness.deploymentEligible, true);
   assert.equal(v1Readiness.productionReady, false);
   assert.deepEqual(v1Readiness.openGates.implementation, []);
-  assert.equal(isV1Deployable(), false);
-  assert.throws(() => assertV1Deployable(), /deployment gates: V1-DEPLOY-CHAIN-SNAPSHOT-01/);
+  assert.equal(v1Readiness.openGates.deployment.length, 0);
+  assert.equal(isV1Deployable(), true);
+  assert.doesNotThrow(() => assertV1Deployable());
   assert.throws(() => assertV1ProductionReady(), /production is blocked/);
 
   const implementationAllowed = {

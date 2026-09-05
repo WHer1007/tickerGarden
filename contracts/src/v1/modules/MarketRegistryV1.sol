@@ -26,7 +26,7 @@ contract MarketRegistryV1 is IMarketRegistryV1 {
     uint8 internal constant LAUNCH_PHASE_POOL_CREATED = 1;
     uint8 internal constant CONFIG_STATUS_ACTIVE = 1;
     uint160 internal constant REQUIRED_HOOK_PERMISSION_MASK = 0x2044;
-    bytes32 public constant EXECUTION_SPEC_ID = keccak256("V1-EXEC-10");
+    bytes32 public constant EXECUTION_SPEC_ID = keccak256("V1-EXEC-11");
 
     address public immutable override factory;
     address public immutable override officialStockRegistry;
@@ -56,6 +56,9 @@ contract MarketRegistryV1 is IMarketRegistryV1 {
     error InactiveFeeSource(bytes32 marketId, uint32 sourceVersion);
     error PoolNotExpected(bytes32 poolId);
     error InvalidRoutingDependencies(address swapRouter, address quoter);
+    error InvalidQuoteRegistryBinding(
+        address quoteRegistry, address expectedStockRegistry, address observedStockRegistry
+    );
     error InvalidCanonicalRoute(bytes32 marketId);
 
     constructor(
@@ -83,6 +86,10 @@ contract MarketRegistryV1 is IMarketRegistryV1 {
             swapRouter_.code.length == 0 || quoter_.code.length == 0 || swapRouter_ == quoter_
                 || swapRouter_ == graduationExecutor_ || quoter_ == graduationExecutor_
         ) revert InvalidRoutingDependencies(swapRouter_, quoter_);
+        address quoteStockRegistry = IApprovedQuoteRegistry(approvedQuoteRegistry_).officialStockRegistry();
+        if (quoteStockRegistry != officialStockRegistry_) {
+            revert InvalidQuoteRegistryBinding(approvedQuoteRegistry_, officialStockRegistry_, quoteStockRegistry);
+        }
         factory = factory_;
         officialStockRegistry = officialStockRegistry_;
         approvedQuoteRegistry = approvedQuoteRegistry_;
@@ -221,6 +228,7 @@ contract MarketRegistryV1 is IMarketRegistryV1 {
                 || config.feePolicyId == bytes32(0) || config.expectedEconomics == bytes32(0)
                 || config.creatorRevenueBeneficiaryAtCreation == address(0) || config.memeToken == address(0)
                 || config.curve == address(0) || config.gauge == address(0) || config.graduatedHook == address(0)
+                || config.creatorTaxBps > 500
         ) revert InvalidMarketConfig();
         if (config.executionSpecId != EXECUTION_SPEC_ID) {
             revert InvalidExecutionSpecId(config.executionSpecId);

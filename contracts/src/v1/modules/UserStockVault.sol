@@ -48,6 +48,19 @@ contract UserStockVault is IUserStockVault, UserStockVaultExits {
         );
     }
 
+    function releaseAllocationAndWithdraw(bytes32 assetUid, address user, bytes32 marketId)
+        external
+        override
+        onlyAllocationManager
+        returns (uint256 amount)
+    {
+        amount = _releaseAllocationAndWithdraw(assetUid, user, marketId);
+        emit AllocationReleased(
+            assetUid, user, marketId, amount, _allocation[assetUid][user][marketId], _allocated[assetUid][user]
+        );
+        emit StockWithdrawn(assetUid, user, amount);
+    }
+
     function releaseAllocation(bytes32 assetUid, address user, bytes32 marketId)
         external
         override
@@ -140,6 +153,11 @@ contract UserStockVault is IUserStockVault, UserStockVaultExits {
     /// @notice Effective active reward weight, including matured fixed-wheel buckets and excluding rage quits.
     function marketRewardEligible(bytes32 assetUid, bytes32 marketId) external view override returns (uint256) {
         return _marketRewardEligible(assetUid, marketId);
+    }
+
+    /// @notice Advances whenever removal of active principal ends a reward cohort, independently of Gauge cleanup.
+    function marketRewardCohortEpoch(bytes32 assetUid, bytes32 marketId) external view override returns (uint256) {
+        return _rewardCohortEpochs[assetUid][marketId];
     }
 
     function totalDeposited(bytes32 assetUid) external view override returns (uint256) {

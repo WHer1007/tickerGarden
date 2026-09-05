@@ -166,7 +166,7 @@ contract V1FactoryValidationHarness {
         });
         _policy.feePolicyId = feePolicyId;
         _policy.fields = V1MarketEconomics.FeePolicyInput({
-            executionSpecId: keccak256("V1-EXEC-10"),
+            executionSpecId: keccak256("V1-EXEC-11"),
             feePips: 10_000,
             lpShareBps: 0,
             poolKeyFee: 0,
@@ -302,13 +302,15 @@ contract V1FactoryValidationTest is Test {
             quoteEconomicsHash: 0x4608d8b85db48ec7199507737df8e1ebcf477f517420e3f051630e19c4672557,
             launchTemplateId: 0x68c59175f786b6b27be325d6d9b7d076ab8b60f41ab561edcfbc13489f1fb4a8,
             launchTemplateHash: 0x56c076a7bd4b2d6dc8958e89de51acac9155b2f412a7310d674739634212de47,
-            launchConfigId: 15135,
+            launchConfigId: 14126,
             feePolicyId: 0x21ca6e12a39c5e115bc125098217de03e2bc2d8db30f5fb2b365a0ef284c6f5f,
             feePolicyHash: 0x124343479b3f0d099d68176c06295d21f1686332671e3d8d18143942ae18e13b,
-            executionSpecId: 0x6d778d9fac5729e6943b9bef3a61d68f916469af230e2a521826a553ea0b5bad
+            executionSpecId: 0x6d778d9fac5729e6943b9bef3a61d68f916469af230e2a521826a553ea0b5bad,
+            creatorTaxBps: 18162,
+            creatorFeesToHolders: true
         });
         assertEq(
-            harness.hashExpectedEconomics(input), 0xe925737cc71b485361c34f937e10094c10402b938671e4a9a8d4365d27d15f3b
+            harness.hashExpectedEconomics(input), 0xc8e133e0820a643eb2115057a73c278cabe060fd7452005f05d32f148fda70d2
         );
     }
 
@@ -530,7 +532,7 @@ contract V1FactoryValidationTest is Test {
             graduationExecutor: address(0x3005),
             graduationExecutorCodeHash: keccak256("executor"),
             feePolicyId: FEE_POLICY_ID,
-            executionSpecId: keccak256("V1-EXEC-10"),
+            executionSpecId: keccak256("V1-EXEC-11"),
             status: 1
         });
     }
@@ -546,7 +548,9 @@ contract V1FactoryValidationTest is Test {
             name: "Garden",
             symbol: "GRDN",
             metadataURI: "ipfs://garden",
-            salt: salt
+            salt: salt,
+            creatorTaxBps: 0,
+            creatorFeesToHolders: false
         });
     }
 }

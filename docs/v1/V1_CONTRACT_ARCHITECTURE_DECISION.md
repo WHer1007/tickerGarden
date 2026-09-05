@@ -1,6 +1,6 @@
 # TickerGarden V1 合约架构优化决策
 
-> **当前实现（2026-09-04）：** `V1-EXEC-10` 已实现部署后市场永久自治与最终买入原子毕业；`launchPhase` 只允许 `NotGraduated -> PoolCreated`，用户 `rageQuit` 随时即时取回本金，奖励异步处理。目标链部署与独立审计仍开放。
+> **当前实现（2026-09-04）：** `V1-EXEC-11` 已实现部署后市场永久自治与最终买入原子毕业；`launchPhase` 只允许 `NotGraduated -> PoolCreated`，用户 `rageQuit` 随时即时取回本金，奖励异步处理。目标链部署与独立审计仍开放。
 
 手续费架构更新：总协议手续费维持 1%，不再切出 LP 协议手续费；Active 分支为 Creator40/Staker30/Platform30，无 Active 分支为 Creator70/Staker0/Platform30，向下取整余数归 Creator。Hook 不再 donate，LaunchLocker 不再 collect/compound，手续费统一由 FeeVault 记账。canonical LP 继续永久锁定但无协议 LP 手续费。该取舍消除基于即时池价的复投/捐赠与 JIT 经济风险，并减少链上 gas 和 keeper 运维面。
 
@@ -112,7 +112,7 @@ LaunchLocker 与 Gauge 的风险性质不同。Locker 仅永久持有具体市�
 - TOKEN、CURVE、LOCKER 仍标记为 `FULL_CREATE2`；
 - 所有 CREATE2 冲突必须回滚，禁止 nonce fallback。
 
-当前本地实现和测试不等于可部署状态。RH Testnet 仍需完成目标链外部依赖快照、真实部署清单、AccessManager 安装、固定区块 Fork/E2E、源码验证、独立审计和 canary soak。
+当前架构已达到 `DEPLOYMENT_ELIGIBLE`：RH Testnet 外部依赖快照、artifact/CREATE2/Hook/权限/ABI 证据和固定区块 Fork/E2E 已闭合。尚未广播交易；实际部署清单、AccessManager 安装与撤权、源码验证、独立审计和 canary soak 仍分别属于广播后或 production work。
 
 ## 8. 必须持续成立的不变量
 

@@ -12,6 +12,7 @@ contract PonsBaselineRegistry is IPonsBaselineRegistry, ImmutableAccessManaged, 
     uint8 internal constant BASELINE_STATUS_PAUSED = 2;
     uint8 internal constant BASELINE_STATUS_RETIRED = 3;
     uint256 internal constant BPS_DENOMINATOR = 10_000;
+    uint256 internal constant MAX_CURVE_FEE_BPS = 9_900;
     uint256 internal constant MAX_GRADUATION_AMOUNT = uint256(uint128(type(int128).max));
 
     mapping(bytes32 baselineId => PonsBaseline value) private _baselines;
@@ -27,7 +28,7 @@ contract PonsBaselineRegistry is IPonsBaselineRegistry, ImmutableAccessManaged, 
         if (
             baselineId == bytes32(0) || value.referenceChainId == 0 || value.referenceFactory == address(0)
                 || value.referenceFactoryCodeHash == bytes32(0) || value.supply == 0
-                || value.supply > MAX_GRADUATION_AMOUNT || value.curveFeeBps >= BPS_DENOMINATOR || value.poolFee != 0
+                || value.supply > MAX_GRADUATION_AMOUNT || value.curveFeeBps > MAX_CURVE_FEE_BPS || value.poolFee != 0
                 || value.tickSpacing < 1 || value.tickSpacing > 32_767 || value.behaviorVectorRoot == bytes32(0)
                 || value.status != BASELINE_STATUS_ACTIVE
         ) revert InvalidPonsBaseline(baselineId);

@@ -1,0 +1,215 @@
+{
+  "schemaVersion": 1,
+  "manifestKind": "TICKERGARDEN_V1_TESTNET_DEPLOYMENT_PLAN",
+  "executionSpecId": "V1-EXEC-11",
+  "target": "ROBINHOOD_CHAIN_TESTNET_REHEARSAL",
+  "chain": {
+    "chainId": 46630,
+    "network": "Robinhood Chain Testnet",
+    "rpcUrl": "https://rpc.testnet.chain.robinhood.com",
+    "explorerUrl": "https://explorer.testnet.chain.robinhood.com",
+    "evmVersion": "cancun",
+    "latestSnapshot": {
+      "number": "113046891",
+      "hash": "0xe96faf4af5a9ab471c0230b19d832e4e46ff1470c57ce26e65cba5223e46e019",
+      "timestamp": "2026-09-04T21:09:37Z"
+    },
+    "finalizedSnapshot": {
+      "number": "113040908",
+      "hash": "0xe9a960875b2ef0e51c22092083f168efd92bd9cae9b46e0833013b5291a74de9",
+      "timestamp": "2026-09-04T20:54:17Z"
+    },
+    "dependencyStateReadTag": "latest"
+  },
+  "dependencyProvenance": {
+    "identityStatus": "PROJECT_PINNED_UNISWAP_V4_TEST_DEPENDENCY_NOT_OFFICIAL_46630",
+    "uniswapOfficial46630ListingAvailable": false,
+    "projectUsageScope": "TESTNET_REHEARSAL_ONLY",
+    "sourceUrls": [
+      "https://docs.robinhood.com/chain/connecting/",
+      "https://github.com/Uniswap/contracts/blob/main/deployments/4663.md",
+      "https://developers.uniswap.org/docs/protocols/v4/deployments"
+    ],
+    "acceptance": "EXPLICIT_TEST_ONLY_PIN_REQUIRED_BEFORE_BROADCAST"
+  },
+  "externalDependencies": [
+    {
+      "name": "CANONICAL_CREATE2_DEPLOYER",
+      "address": "0x4e59B44847b379578588920cA78FbF26c0B4956C",
+      "runtimeCodeHash": "0x2fa86add0aed31f33a762c9d88e807c475bd51d0f52bd0955754b2608f7e4989",
+      "runtimeCodeSize": 69,
+      "observationBlockHash": "0xe96faf4af5a9ab471c0230b19d832e4e46ff1470c57ce26e65cba5223e46e019"
+    },
+    {
+      "name": "POOL_MANAGER",
+      "address": "0x8366a39cc670b4001a1121b8f6a443a643e40951",
+      "runtimeCodeHash": "0xbd3881180b547f5fe817545743cfb4343e96b1bc6640dcd70c106b0066e95626",
+      "runtimeCodeSize": 24009,
+      "observationBlockHash": "0xe96faf4af5a9ab471c0230b19d832e4e46ff1470c57ce26e65cba5223e46e019"
+    },
+    {
+      "name": "POSITION_MANAGER",
+      "address": "0x58daec3116aae6d93017baaea7749052e8a04fa7",
+      "runtimeCodeHash": "0xf3a0edb689229fa4bf135a728f2ec2eb4a2fbee2e41e3e74ffadb7b4c56e8a6d",
+      "runtimeCodeSize": 23877,
+      "observationBlockHash": "0xe96faf4af5a9ab471c0230b19d832e4e46ff1470c57ce26e65cba5223e46e019"
+    },
+    {
+      "name": "PERMIT2",
+      "address": "0x000000000022D473030F116dDEE9F6B43aC78BA3",
+      "runtimeCodeHash": "0x0117e0ed818bc3f2a8729ffc336c837e63e965f04b473047b39b35ad86aac259",
+      "runtimeCodeSize": 9152,
+      "observationBlockHash": "0xe96faf4af5a9ab471c0230b19d832e4e46ff1470c57ce26e65cba5223e46e019"
+    },
+    {
+      "name": "UNIVERSAL_ROUTER",
+      "address": "0x8876789976decbfcbbbe364623c63652db8c0904",
+      "runtimeCodeHash": "0xfdd90802f39ce5fc8bac4c2f1b3ac7bac530fd17ff46b0630f1bd00f1e14082f",
+      "runtimeCodeSize": 24546,
+      "observationBlockHash": "0xe96faf4af5a9ab471c0230b19d832e4e46ff1470c57ce26e65cba5223e46e019"
+    },
+    {
+      "name": "V4_QUOTER",
+      "address": "0x8dc178efb8111bb0973dd9d722ebeff267c98f94",
+      "runtimeCodeHash": "0xd707b1da8cb165e5ea35a3b4450d971eb562ec171e23492aa117036b78a868f6",
+      "runtimeCodeSize": 6118,
+      "observationBlockHash": "0xe96faf4af5a9ab471c0230b19d832e4e46ff1470c57ce26e65cba5223e46e019"
+    },
+    {
+      "name": "STATE_VIEW",
+      "address": "0xf3334192d15450cdd385c8b70e03f9a6bd9e673b",
+      "runtimeCodeHash": "0x7d9c591e0956fd89d98feb4ffcfe8bf1f7a62bd485edd979fa21d104b49878a6",
+      "runtimeCodeSize": 3531,
+      "observationBlockHash": "0xe96faf4af5a9ab471c0230b19d832e4e46ff1470c57ce26e65cba5223e46e019"
+    }
+  ],
+  "deterministicDeployment": {
+    "broadcastStatus": "NOT_BROADCAST",
+    "entrypoint": "contracts/script/v1/DeployV1Deterministic.s.sol:DeployV1Deterministic",
+    "previewEntrypoint": "contracts/script/v1/DeployV1Deterministic.s.sol:DeployV1Deterministic.preview",
+    "canonicalCreate2Deployer": "0x4e59B44847b379578588920cA78FbF26c0B4956C",
+    "orchestratorSaltDomain": "0xf0a18756cd4eee5355ce7dfed745941aa646cdac210fc28dc93489d11cdf5749",
+    "helperSaltDomain": "0xf990c74b44aade0a5b245ec9081986e1d56d135f1f14042309f5def79f5dd626",
+    "factorySaltDomain": "0x156d61438582fef00fcc7ec1ea957c7a13af3924f12fc1b91038aba085a42066",
+    "ordinaryComponentCount": 16,
+    "ordinaryComponentOrder": [
+      "AccessManager",
+      "OfficialStockRegistryV1",
+      "ApprovedQuoteRegistry",
+      "PonsBaselineRegistry",
+      "LaunchTemplateRegistry",
+      "LaunchConfigResolver",
+      "TickerMemeTokenV1Implementation",
+      "PonsCompatibleCurveImplementation",
+      "MemeStockGauge",
+      "LaunchAndBuyRouter",
+      "MarketRegistryV1",
+      "CreatorRevenueRegistry",
+      "AllocationManager",
+      "UserStockVault",
+      "TreasuryDistributorV1",
+      "ProtocolFeeVault"
+    ],
+    "requiredHookPermissionMask": "0x2044",
+    "hookAddressBitMask": "0x3fff",
+    "maximumHelperSaltAttempts": 500000,
+    "runtimeGraphAtomic": true,
+    "retryPreservesAddresses": true,
+    "activationSeparate": true
+  },
+  "configurationInputs": [
+    "DEPLOYER_PRIVATE_KEY",
+    "V1_EXPECTED_DEPLOYER",
+    "V1_EXPECTED_CHAIN_ID",
+    "V1_RELEASE_ID",
+    "V1_EXPECTED_ORCHESTRATOR",
+    "V1_INITIAL_ADMIN",
+    "V1_POOL_MANAGER",
+    "V1_POOL_MANAGER_CODEHASH",
+    "V1_POSITION_MANAGER",
+    "V1_POSITION_MANAGER_CODEHASH",
+    "V1_PERMIT2",
+    "V1_PERMIT2_CODEHASH",
+    "V1_SWAP_ROUTER",
+    "V1_SWAP_ROUTER_CODEHASH",
+    "V1_QUOTER",
+    "V1_QUOTER_CODEHASH",
+    "V1_PLATFORM_TREASURY",
+    "V1_PLATFORM_TREASURY_CODEHASH",
+    "V1_ROOT_SERVICE_TREASURY",
+    "V1_ROOT_SERVICE_FEE_ASSET",
+    "V1_ROOT_SERVICE_FEE_AMOUNT",
+    "V1_FINALITY_DELAY_SECONDS",
+    "V1_FINALITY_DELAY_BLOCKS",
+    "V1_ROOT_PUBLICATION_WINDOW",
+    "V1_ROOT_REVIEW_DELAY",
+    "V1_CLAIM_WINDOW",
+    "V1_FEE_POLICY_ID"
+  ],
+  "forkEvidence": {
+    "status": "PASSED",
+    "network": "Robinhood Chain",
+    "chainId": 4663,
+    "blockNumber": "55165256",
+    "blockHash": "0xc6c62c0bc02d8a2e71d1898213cdd3f7606a957de11827e5df6646bca1d16ed7",
+    "testPath": "contracts/test/v1/fork/V1ProductForkE2E.t.sol",
+    "reportPath": "deployments/evidence/v1-deployment-gates.json"
+  },
+  "deploymentGateEvidence": [
+    {
+      "gateId": "V1-DEPLOY-CHAIN-SNAPSHOT-01",
+      "status": "CLOSED",
+      "evidence": [
+        "deployments/evidence/v1-deployment-gates.json#testnetChainEvidence"
+      ]
+    },
+    {
+      "gateId": "V1-DEPLOY-ARTIFACT-CODEHASH-01",
+      "status": "CLOSED",
+      "evidence": [
+        "deployments/evidence/v1-deployment-gates.json#artifactEvidence"
+      ]
+    },
+    {
+      "gateId": "V1-DEPLOY-CREATE2-VECTORS-01",
+      "status": "CLOSED",
+      "evidence": [
+        "deployments/evidence/v1-deployment-gates.json#orchestrationEvidence"
+      ]
+    },
+    {
+      "gateId": "V1-DEPLOY-HOOK-MASK-01",
+      "status": "CLOSED",
+      "evidence": [
+        "deployments/evidence/v1-deployment-gates.json#orchestrationEvidence/hookMask"
+      ]
+    },
+    {
+      "gateId": "V1-DEPLOY-PERMISSIONS-01",
+      "status": "CLOSED",
+      "evidence": [
+        "deployments/evidence/v1-deployment-gates.json#gates/V1-DEPLOY-PERMISSIONS-01"
+      ]
+    },
+    {
+      "gateId": "V1-DEPLOY-ABI-DIFF-01",
+      "status": "CLOSED",
+      "evidence": [
+        "deployments/evidence/v1-deployment-gates.json#gates/V1-DEPLOY-ABI-DIFF-01"
+      ]
+    },
+    {
+      "gateId": "V1-DEPLOY-PRODUCT-FORK-E2E-01",
+      "status": "CLOSED",
+      "evidence": [
+        "deployments/evidence/v1-deployment-gates.json#forkEvidence"
+      ]
+    }
+  ],
+  "limitations": [
+    "No Uniswap-published deployment mapping currently identifies chain 46630; matching addresses are project-pinned test dependencies only.",
+    "The public testnet RPC exposes latest dependency state but rejected finalized historical eth_getCode during the evidence run.",
+    "Robinhood official Stock Tokens used by the product Fork/E2E are available on mainnet chain 4663, not on testnet chain 46630.",
+    "No public testnet transaction has been broadcast by this manifest."
+  ]
+}

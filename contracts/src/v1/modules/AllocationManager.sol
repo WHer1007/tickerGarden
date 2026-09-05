@@ -18,6 +18,16 @@ contract AllocationManager is IAllocationManager, AllocationManagerDeposits {
         _increaseAllocation(msg.sender, marketId, amount);
     }
 
+    /// @notice Stake wallet-owned STOCK directly into one market.
+    function stake(bytes32 marketId, uint256 amount) external override {
+        _depositAndAllocate(msg.sender, marketId, amount, amount);
+    }
+
+    /// @notice Return the entire unlocked principal to the caller, preserving claimable rewards.
+    function unstakeAndWithdraw(bytes32 marketId) external override {
+        _unstakeAndWithdraw(msg.sender, marketId);
+    }
+
     function closeAllocation(bytes32 marketId) external override {
         _closeAllocation(msg.sender, marketId);
     }
@@ -71,6 +81,11 @@ contract AllocationManager is IAllocationManager, AllocationManagerDeposits {
 
     function rewardEligibleActiveStock(bytes32 marketId) external view override returns (uint256) {
         return _rewardEligibleActiveStock(marketId);
+    }
+
+    function rewardCohortEpoch(bytes32 marketId) external view override returns (uint256) {
+        ExitContext memory context = _rageQuitContext(marketId);
+        return context.vault.marketRewardCohortEpoch(context.assetUid, marketId);
     }
 
     function recordGaugeRewardState(bytes32 marketId, uint256 quoteAccumulator, uint256 memeAccumulator)

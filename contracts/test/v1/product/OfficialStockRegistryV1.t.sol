@@ -110,6 +110,18 @@ contract MockDelegatingUserStockVaultIdentity is MockUserStockVaultIdentity {
     }
 }
 
+contract OfficialStockRegistryV1InspectionHarness is OfficialStockRegistryV1 {
+    constructor(address authority_) OfficialStockRegistryV1(authority_) {}
+
+    function containsForbiddenVaultOpcode(address target) external view returns (bool) {
+        return _containsForbiddenVaultOpcode(target);
+    }
+
+    function containsDelegateExecution(address target) external view returns (bool) {
+        return _containsDelegateExecution(target);
+    }
+}
+
 contract OfficialStockRegistryV1Test is Test {
     uint64 internal constant PROTOCOL_ADMIN_ROLE = 1;
     uint64 internal constant PAUSE_GUARDIAN_ROLE = 2;
@@ -354,9 +366,7 @@ contract OfficialStockRegistryV1Test is Test {
             )
         );
         vm.prank(FAST_ADMIN);
-        registry.registerAsset(
-            ASSET_UID, stockToken, 18, delegatingVault, 0.5 ether, _directFingerprint(stockToken)
-        );
+        registry.registerAsset(ASSET_UID, stockToken, 18, delegatingVault, 0.5 ether, _directFingerprint(stockToken));
     }
 
     function test_minimumAllocationIsPerAssetAndUsesConfiguredAdminDelay() public {
@@ -490,6 +500,62 @@ contract OfficialStockRegistryV1Test is Test {
         );
         vm.prank(FAST_ADMIN);
         registry.registerAsset(ASSET_UID, address(proxy), 18, vault, 0.5 ether, _directFingerprint(address(proxy)));
+    }
+
+    function test_vaultScannerSkipsOnlyUnreachableInvalidDelimitedConstants() public {
+        OfficialStockRegistryV1InspectionHarness harness =
+            new OfficialStockRegistryV1InspectionHarness(address(manager));
+        address target = address(0xCA04);
+        vm.etch(target, hex"60006000f3fef2f4ff");
+        assertFalse(harness.containsForbiddenVaultOpcode(target));
+        // A jump target after INVALID makes the suffix executable.
+        vm.etch(target, hex"600456fe5bf4");
+        assertTrue(harness.containsForbiddenVaultOpcode(target));
+        // INVALID inside PUSH data must never terminate the scan.
+        vm.etch(target, hex"60fef4");
+        assertTrue(harness.containsForbiddenVaultOpcode(target));
+        vm.etch(target, hex"f2fe");
+        assertTrue(harness.containsForbiddenVaultOpcode(target));
+        vm.etch(target, hex"fffe");
+        assertTrue(harness.containsForbiddenVaultOpcode(target));
+        vm.etch(target, hex"62f2f4ff00");
+        assertFalse(harness.containsForbiddenVaultOpcode(target));
+    }
+
+    function test_delegateScannerIgnoresSolidityCborMetadataButNotExecutableOpcodes() public {
+        OfficialStockRegistryV1InspectionHarness harness =
+            new OfficialStockRegistryV1InspectionHarness(address(manager));
+        address metadataOnly = address(0xCA01);
+        address executableDelegate = address(0xCA02);
+        address jumpableSuffix = address(0xCA03);
+        address fakeMetadataAfterPushImmediate = address(0xCA05);
+        vm.etch(metadataOnly, hex"60006000f3fea16178f40004");
+        vm.etch(executableDelegate, hex"60006000f40000");
+        vm.etch(jumpableSuffix, hex"60006000f3fe5bf4a16178000004");
+        vm.etch(fakeMetadataAfterPushImmediate, hex"60fe50365f5f375f5f365f5f545af43d5f5f3e3d5ff3a00001");
+
+        assertFalse(harness.containsDelegateExecution(metadataOnly));
+        assertTrue(harness.containsDelegateExecution(executableDelegate));
+        assertTrue(harness.containsDelegateExecution(jumpableSuffix));
+        assertTrue(harness.containsDelegateExecution(fakeMetadataAfterPushImmediate));
+    }
+
+    function test_delegateScannerHandlesLiteralDataBeforeCborWithoutHidingJumpableCode() public {
+        OfficialStockRegistryV1InspectionHarness harness =
+            new OfficialStockRegistryV1InspectionHarness(address(manager));
+        address constantsBeforeCbor = address(0xCA06);
+        address laterJumpDestination = address(0xCA07);
+        address invalidInsidePush = address(0xCA08);
+        // The real CRM implementation has this INVALID + literals + CBOR layout.
+        vm.etch(
+            constantsBeforeCbor,
+            hex"00fe395525728d1d6f4af44d273368682dd92b28e7464d750ef3212d3cb7f5959d0052c63247e1f47db19d5ce0460030c497f067ca4cebf71ba98eeadabe20bace0068747470733a2f2f726f62696e686f6f642e636f6d2f73746f636b746f6b656e2f72686a8d25ea8ee309999a79f0af498fbab0e424669497170669bd9e93b81a62babc008d25ea8ee309999a79f0af498fbab0e424669497170669bd9e93b81a62babc01a2646970667358221220de4ea362122513b8e7578bfb315ce99fc240a11e4e9c5464cada2fa0503fe7aa64736f6c63430008210033"
+        );
+        vm.etch(laterJumpDestination, hex"600456fe5bf4fe112233");
+        vm.etch(invalidInsidePush, hex"61fe0050f400");
+        assertFalse(harness.containsDelegateExecution(constantsBeforeCbor));
+        assertTrue(harness.containsDelegateExecution(laterJumpDestination));
+        assertTrue(harness.containsDelegateExecution(invalidInsidePush));
     }
 
     function test_beaconUpgradeDriftRequiresPauseAndCommittedImplementationAcceptance() public {

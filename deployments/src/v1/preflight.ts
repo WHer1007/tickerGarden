@@ -1,3 +1,5 @@
+import { assertReleasePairedAssets } from "./release-paired-assets.ts";
+import { verifiedImmutableBeacon } from "./immutable-beacon.ts";
 import { keccak_256 } from "@noble/hashes/sha3.js";
 import { readFileSync } from "node:fs";
 
@@ -133,8 +135,27 @@ function bytesFromHex(value: string): Uint8Array {
 
 function forbiddenImmutableQuoteOpcode(runtimeCode: string): number | undefined {
   const bytes = bytesFromHex(runtimeCode);
+  // Solidity runtimes may contain literal bytes before the CBOR metadata suffix.
+  // Treat an opcode-aligned INVALID with no subsequent opcode-aligned JUMPDEST as
+  // the start of that suffix, while still parsing PUSH immediates as data.
+  let suffixBoundary = bytes.length;
   for (let index = 0; index < bytes.length;) {
     const opcode = bytes[index] as number;
+    if (opcode >= 0x60 && opcode <= 0x7f) {
+      index += opcode - 0x5f + 1;
+      continue;
+    }
+    if (opcode === 0x5b) {
+      suffixBoundary = bytes.length;
+    } else if (opcode === 0xfe && suffixBoundary === bytes.length) {
+      suffixBoundary = index;
+    }
+    index += 1;
+  }
+
+  for (let index = 0; index < bytes.length;) {
+    const opcode = bytes[index] as number;
+    if (index >= suffixBoundary) return undefined;
     if (opcode === 0xf2 || opcode === 0xf4 || opcode === 0xff) return opcode;
     index += opcode >= 0x60 && opcode <= 0x7f ? opcode - 0x5f + 1 : 1;
   }
@@ -143,6 +164,10 @@ function forbiddenImmutableQuoteOpcode(runtimeCode: string): number | undefined 
 
 function keccakHex(value: string): string {
   return `0x${Buffer.from(keccak_256(bytesFromHex(value))).toString("hex")}`;
+}
+
+function keccakUtf8(value: string): string {
+  return `0x${Buffer.from(keccak_256(new TextEncoder().encode(value))).toString("hex")}`;
 }
 
 function selector(signature: string): string {
@@ -231,6 +256,10 @@ function addCodeExpectation(
   else prior.labels.push(label);
 }
 
+function embeddedImmutableBeacon(runtimeCode: string): string | undefined {
+  return verifiedImmutableBeacon(normalizedHex(runtimeCode, "immutable Beacon proxy runtime"));
+}
+
 function collectCodeExpectations(manifest: Manifest): Map<string, { hash: string; labels: string[] }> {
   const output = new Map<string, { hash: string; labels: string[] }>();
   for (const [name, dependency] of Object.entries(manifest.externalDependencies)) {
@@ -242,9 +271,12 @@ function collectCodeExpectations(manifest: Manifest): Map<string, { hash: string
   addCodeExpectation(output, stringField(manifest.hook, "address"), stringField(manifest.hook, "runtimeCodeHash"), "hook");
   addCodeExpectation(output, stringField(manifest.accessManager, "address"), stringField(manifest.accessManager, "runtimeCodeHash"), "accessManager");
   for (const [index, quote] of manifest.quoteAssets.entries()) {
-    if (quote.assetKind === "ERC20") {
+    if (quote.assetKind === "ERC20" || quote.assetKind === "OFFICIAL_STOCK") {
       addCodeExpectation(output, stringField(quote, "tokenAddress"), stringField(quote, "runtimeCodeHash"), `quoteAssets.${index}`);
-      addCodeExpectation(output, stringField(quote, "implementationAddress"), stringField(quote, "implementationCodeHash"), `quoteAssets.${index}.implementation`);
+      if (quote.implementationAddress && quote.implementationCodeHash) addCodeExpectation(output, stringField(quote, "implementationAddress"), stringField(quote, "implementationCodeHash"), `quoteAssets.${index}.implementation`);
+      if (quote.assetKind === "OFFICIAL_STOCK") {
+        addCodeExpectation(output, stringField(quote, "beaconAddress"), stringField(quote, "beaconCodeHash"), `quoteAssets.${index}.beacon`);
+      }
     }
   }
   for (const [index, stock] of manifest.officialStocks.entries()) {
@@ -371,6 +403,59 @@ function verifyRegistryAuthorityEvidence(manifest: Manifest): void {
   }
 }
 
+function verifyQuoteRegistryStockBindingEvidence(manifest: Manifest): void {
+  const quoteRegistry = manifest.protocolModules.ApprovedQuoteRegistry!;
+  const stockRegistry = manifest.protocolModules.OfficialStockRegistryV1!;
+  const check = manifest.livePreflight.keyGetterChecks.find(
+    (candidate) => stringField(candidate, "label") === "approved-quote-registry-official-stock-registry"
+      && stringField(candidate, "category") === "IMMUTABLE_BINDING"
+      && stringField(candidate, "target").toLowerCase() === stringField(quoteRegistry, "deployedAddress").toLowerCase()
+      && stringField(candidate, "callData").toLowerCase() === callData("officialStockRegistry()").toLowerCase(),
+  );
+  if (check === undefined) {
+    throw new Error("V1 live preflight ApprovedQuoteRegistry lacks officialStockRegistry() evidence");
+  }
+  const expectedHash = keccakHex(`0x${addressWord(stringField(stockRegistry, "deployedAddress"))}`);
+  same(
+    "protocolModules.ApprovedQuoteRegistry.officialStockRegistry()",
+    expectedHash,
+    stringField(check, "expectedReturnDataHash"),
+  );
+}
+
+function stockQuoteFingerprintHash(manifest: Manifest, stock: JsonRecord): string {
+  return keccakHex(`0x${[
+    keccakUtf8("TICKERGARDEN_V1_STOCK_QUOTE_FINGERPRINT").slice(2),
+    uintWord(1n),
+    uintWord(BigInt(numberField(manifest.chain, "chainId"))),
+    stringField(stock, "assetUid").slice(2),
+    addressWord(stringField(stock, "tokenAddress")),
+    uintWord(BigInt(numberField(stock, "decimals"))),
+    stringField(stock, "runtimeCodeHash").slice(2),
+    addressWord(stringField(stock, "beaconAddress")),
+    stringField(stock, "beaconCodeHash").slice(2),
+    addressWord(stringField(stock, "implementationAddress")),
+    stringField(stock, "implementationCodeHash").slice(2),
+  ].join("")}`);
+}
+
+function stockQuoteEconomicsHash(manifest: Manifest, quote: JsonRecord): string {
+  return keccakHex(`0x${[
+    keccakUtf8("TICKERGARDEN_V1_STOCK_QUOTE_ECONOMICS").slice(2),
+    uintWord(1n),
+    uintWord(BigInt(numberField(manifest.chain, "chainId"))),
+    stringField(quote, "ponsBaselineId").slice(2),
+    addressWord(stringField(quote, "tokenAddress")),
+    uintWord(BigInt(numberField(quote, "decimals"))),
+    uintWord(BigInt(stringField(quote, "phantomQuote"))),
+    uintWord(BigInt(stringField(quote, "graduationThreshold"))),
+    stringField(quote, "assetUid").slice(2),
+    stringField(quote, "stockTokenFingerprintHash").slice(2),
+    stringField(quote, "referenceEvidenceHash").slice(2),
+    stringField(quote, "generatorPolicyId").slice(2),
+  ].join("")}`);
+}
+
 function verifyProxyEvidence(manifest: Manifest): void {
   const storage = new Map(
     manifest.livePreflight.storageChecks.map((check) => [
@@ -421,33 +506,73 @@ function verifyProxyEvidence(manifest: Manifest): void {
     }
   }
   for (const [index, quote] of manifest.quoteAssets.entries()) {
-    if (quote.assetKind !== "ERC20") continue;
+    if (quote.assetKind === "NATIVE") continue;
     const token = stringField(quote, "tokenAddress").toLowerCase();
     const decimals = numberField(quote, "decimals");
-    const implementation = stringField(quote, "implementationAddress").toLowerCase();
     const proxyKind = stringField(quote, "proxyKind");
-    if (proxyKind !== "NONE") fail(`quoteAssets.${index}.proxyKind`, "NONE", proxyKind);
-    if (token !== implementation) fail(`quoteAssets.${index}.implementationAddress`, token, implementation);
-    same(
-      `quoteAssets.${index}.implementationCodeHash`,
-      stringField(quote, "runtimeCodeHash"),
-      stringField(quote, "implementationCodeHash"),
-    );
     const decimalsHash = getters.get(`${token}:${callData("decimals()").toLowerCase()}`);
     const expectedDecimalsHash = keccakHex(`0x${uintWord(BigInt(decimals))}`);
     if (decimalsHash !== expectedDecimalsHash) {
       fail(`quoteAssets.${index}.decimalsGetter`, expectedDecimalsHash, decimalsHash);
     }
-    for (const [label, slot] of [
-      ["implementationSlot", ERC1967_IMPLEMENTATION_SLOT],
-      ["adminSlot", ERC1967_ADMIN_SLOT],
-      ["beaconSlot", ERC1967_BEACON_SLOT],
+
+    // Reviewed ERC20 proxies are eligible. Proxy slots and implementation metadata
+    // are evidence, not an immutable-only admission gate.
+    if (quote.assetKind === "ERC20") continue;
+
+    const implementation = stringField(quote, "implementationAddress").toLowerCase();
+    if (proxyKind !== "IMMUTABLE_BEACON") {
+      fail(`quoteAssets.${index}.proxyKind`, "IMMUTABLE_BEACON", proxyKind);
+    }
+    const assetUid = stringField(quote, "assetUid").toLowerCase();
+    const matches = manifest.officialStocks.filter(
+      (stock) => stringField(stock, "assetUid").toLowerCase() === assetUid,
+    );
+    if (matches.length !== 1) fail(`quoteAssets.${index}.officialStockLink`, 1, matches.length);
+    const stock = matches[0]!;
+    for (const field of [
+      "tokenAddress",
+      "decimals",
+      "runtimeCodeHash",
+      "proxyKind",
+      "beaconAddress",
+      "beaconCodeHash",
+      "implementationAddress",
+      "implementationCodeHash",
     ] as const) {
-      const storedValue = storage.get(`${token}:${slot}`);
-      if (storedValue !== ZERO_STORAGE_WORD) {
-        fail(`quoteAssets.${index}.${label}`, ZERO_STORAGE_WORD, storedValue);
+      const quoteValue = quote[field];
+      const stockValue = stock[field];
+      if (typeof quoteValue === "string" && typeof stockValue === "string") {
+        same(`quoteAssets.${index}.${field}`, stockValue, quoteValue);
+      } else if (quoteValue !== stockValue) {
+        fail(`quoteAssets.${index}.${field}`, stockValue, quoteValue);
       }
     }
+    const beacon = stringField(quote, "beaconAddress").toLowerCase();
+    const expectedBeaconWord = `0x${addressWord(beacon)}`;
+    const storedBeacon = storage.get(`${token}:${ERC1967_BEACON_SLOT}`);
+    if (storedBeacon !== expectedBeaconWord) {
+      fail(`quoteAssets.${index}.beaconSlot`, expectedBeaconWord, storedBeacon);
+    }
+    const expectedImplementationHash = keccakHex(`0x${addressWord(implementation)}`);
+    const getterHash = getters.get(`${beacon}:${callData("implementation()").toLowerCase()}`);
+    if (getterHash !== expectedImplementationHash) {
+      fail(`quoteAssets.${index}.beaconImplementationGetter`, expectedImplementationHash, getterHash);
+    }
+    const uidHash = getters.get(`${token}:${callData("uid()").toLowerCase()}`);
+    const expectedUidHash = keccakHex(assetUid);
+    if (uidHash !== expectedUidHash) {
+      fail(`quoteAssets.${index}.uidGetter`, expectedUidHash, uidHash);
+    }
+    const expectedFingerprint = stockQuoteFingerprintHash(manifest, stock);
+    same(
+      `quoteAssets.${index}.stockTokenFingerprintHash`,
+      expectedFingerprint,
+      stringField(quote, "stockTokenFingerprintHash"),
+    );
+    const expectedEconomics = stockQuoteEconomicsHash(manifest, quote);
+    same(`quoteAssets.${index}.configId`, expectedEconomics, stringField(quote, "configId"));
+    same(`quoteAssets.${index}.economicsHash`, expectedEconomics, stringField(quote, "economicsHash"));
   }
 }
 
@@ -816,6 +941,7 @@ export async function verifyV1LiveState(candidate: unknown, rpc: V1ReadOnlyRpc):
   verifyLaunchConfigResolverEvidence(manifest);
   verifyTreasuryBindingEvidence(manifest);
   verifyRegistryAuthorityEvidence(manifest);
+  verifyQuoteRegistryStockBindingEvidence(manifest);
   verifyProxyEvidence(manifest);
   comparePermissionSemantics(manifest);
   const expectedChainId = BigInt(numberField(manifest.chain, "chainId"));
@@ -835,11 +961,35 @@ export async function verifyV1LiveState(candidate: unknown, rpc: V1ReadOnlyRpc):
   same("chain.finalizedBlockHash", blockHash, stringField(block, "hash"));
 
   const codeExpectations = collectCodeExpectations(manifest);
-  const immutableQuoteTokens = new Set(
+  const stockQuoteSupportContracts = new Set(
     manifest.quoteAssets
-      .filter((quote) => quote.assetKind === "ERC20")
-      .map((quote) => stringField(quote, "tokenAddress").toLowerCase()),
+      .filter((quote) => quote.assetKind === "OFFICIAL_STOCK")
+      .flatMap((quote) => [
+        stringField(quote, "beaconAddress").toLowerCase(),
+        stringField(quote, "implementationAddress").toLowerCase(),
+      ]),
   );
+  const immutableBeaconTokens = new Map<string, string>();
+  for (const [index, stock] of manifest.officialStocks.entries()) {
+    if (stringField(stock, "proxyKind") !== "IMMUTABLE_BEACON") continue;
+    const token = stringField(stock, "tokenAddress").toLowerCase();
+    const beacon = stringField(stock, "beaconAddress").toLowerCase();
+    const prior = immutableBeaconTokens.get(token);
+    if (prior !== undefined && prior !== beacon) {
+      fail(`officialStocks.${index}.beaconAddress`, prior, beacon);
+    }
+    immutableBeaconTokens.set(token, beacon);
+  }
+  for (const [index, quote] of manifest.quoteAssets.entries()) {
+    if (quote.assetKind !== "OFFICIAL_STOCK") continue;
+    const token = stringField(quote, "tokenAddress").toLowerCase();
+    const beacon = stringField(quote, "beaconAddress").toLowerCase();
+    const prior = immutableBeaconTokens.get(token);
+    if (prior !== undefined && prior !== beacon) {
+      fail(`quoteAssets.${index}.beaconAddress`, prior, beacon);
+    }
+    immutableBeaconTokens.set(token, beacon);
+  }
   const directOfficialStockTokens = new Set(
     manifest.officialStocks
       .filter((stock) => stringField(stock, "proxyKind") === "DIRECT")
@@ -858,19 +1008,27 @@ export async function verifyV1LiveState(candidate: unknown, rpc: V1ReadOnlyRpc):
     const code = normalizedHex(await rpc.request("eth_getCode", [address, blockTag]), `eth_getCode:${address}`);
     if (code === "0x") throw new Error(`V1 live preflight empty code at ${address} (${expectation.labels.join(", ")})`);
     same(`runtimeCodeHash:${expectation.labels.join("+")}`, expectation.hash, keccakHex(code));
-    if (immutableQuoteTokens.has(address)) {
-      const opcode = forbiddenImmutableQuoteOpcode(code);
-      if (opcode !== undefined) {
-        throw new Error(
-          `V1 live preflight immutable Quote runtime contains forbidden opcode 0x${opcode.toString(16).padStart(2, "0")} at ${address}`,
-        );
+    const expectedEmbeddedBeacon = immutableBeaconTokens.get(address);
+    if (expectedEmbeddedBeacon !== undefined) {
+      const observedEmbeddedBeacon = embeddedImmutableBeacon(code);
+      if (observedEmbeddedBeacon === undefined) {
+        throw new Error(`V1 live preflight immutable Beacon proxy runtime is unrecognized or ambiguous at ${address}`);
       }
+      same(`immutableBeaconRuntime:${address}`, expectedEmbeddedBeacon, observedEmbeddedBeacon);
     }
     if (directOfficialStockTokens.has(address)) {
       const opcode = forbiddenImmutableQuoteOpcode(code);
       if (opcode !== undefined) {
         throw new Error(
           `V1 live preflight direct Official Stock runtime contains forbidden opcode 0x${opcode.toString(16).padStart(2, "0")} at ${address}`,
+        );
+      }
+    }
+    if (stockQuoteSupportContracts.has(address)) {
+      const opcode = forbiddenImmutableQuoteOpcode(code);
+      if (opcode !== undefined) {
+        throw new Error(
+          `V1 live preflight Stock Quote Beacon/implementation runtime contains forbidden opcode 0x${opcode.toString(16).padStart(2, "0")} at ${address}`,
         );
       }
     }
@@ -920,5 +1078,6 @@ export async function preflightV1Deployment(candidate: unknown, rpc: V1ReadOnlyR
 export async function preflightProductionManifest(candidate: unknown, rpc: V1ReadOnlyRpc): Promise<V1LivePreflightReport> {
   assertV1Deployable();
   assertV1ProductionReady();
+  assertReleasePairedAssets(candidate);
   return verifyV1LiveState(candidate, rpc);
 }

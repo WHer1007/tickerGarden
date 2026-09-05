@@ -11,9 +11,8 @@ contract HookExecutorHelperCreate2Factory {
     }
 
     function predict(bytes32 salt, address authorizer) external view returns (address) {
-        bytes32 initCodeHash = keccak256(
-            bytes.concat(type(V1HookExecutorDeployer).creationCode, abi.encode(authorizer))
-        );
+        bytes32 initCodeHash =
+            keccak256(bytes.concat(type(V1HookExecutorDeployer).creationCode, abi.encode(authorizer)));
         return address(uint160(uint256(keccak256(abi.encodePacked(bytes1(0xff), address(this), salt, initCodeHash)))));
     }
 }
@@ -92,13 +91,10 @@ contract V1HookExecutorDeployerTest is Test {
         address executor = helper.predictedExecutor();
 
         bytes memory hookInitCode = bytes.concat(
-            type(HookExecutorHelperHookMock).creationCode,
-            abi.encode(registry, poolManager, feeVault, executor)
+            type(HookExecutorHelperHookMock).creationCode, abi.encode(registry, poolManager, feeVault, executor)
         );
-        bytes memory executorInitCode = bytes.concat(
-            type(HookExecutorHelperExecutorMock).creationCode,
-            abi.encode(registry, poolManager, hook)
-        );
+        bytes memory executorInitCode =
+            bytes.concat(type(HookExecutorHelperExecutorMock).creationCode, abi.encode(registry, poolManager, hook));
 
         (address deployedHook, address deployedExecutor) = helper.deploy(hookInitCode, executorInitCode);
 
@@ -115,13 +111,10 @@ contract V1HookExecutorDeployerTest is Test {
         address hook = helper.predictedHook();
         address executor = helper.predictedExecutor();
         bytes memory hookInitCode = bytes.concat(
-            type(HookExecutorHelperHookMock).creationCode,
-            abi.encode(registry, poolManager, feeVault, executor)
+            type(HookExecutorHelperHookMock).creationCode, abi.encode(registry, poolManager, feeVault, executor)
         );
-        bytes memory badExecutorCode = bytes.concat(
-            type(HookExecutorHelperExecutorMock).creationCode,
-            abi.encode(registry, address(0xBAD), hook)
-        );
+        bytes memory badExecutorCode =
+            bytes.concat(type(HookExecutorHelperExecutorMock).creationCode, abi.encode(registry, address(0xBAD), hook));
 
         vm.expectRevert(
             abi.encodeWithSelector(V1HookExecutorDeployer.InvalidReciprocalBindings.selector, hook, executor)
@@ -131,10 +124,8 @@ contract V1HookExecutorDeployerTest is Test {
         assertEq(executor.code.length, 0);
         assertFalse(helper.completed());
 
-        bytes memory executorInitCode = bytes.concat(
-            type(HookExecutorHelperExecutorMock).creationCode,
-            abi.encode(registry, poolManager, hook)
-        );
+        bytes memory executorInitCode =
+            bytes.concat(type(HookExecutorHelperExecutorMock).creationCode, abi.encode(registry, poolManager, hook));
         helper.deploy(hookInitCode, executorInitCode);
         assertTrue(helper.completed());
     }
@@ -146,15 +137,12 @@ contract V1HookExecutorDeployerTest is Test {
             abi.encode(registry, poolManager, feeVault, helper.predictedExecutor())
         );
         bytes memory executorInitCode = bytes.concat(
-            type(HookExecutorHelperExecutorMock).creationCode,
-            abi.encode(registry, poolManager, helper.predictedHook())
+            type(HookExecutorHelperExecutorMock).creationCode, abi.encode(registry, poolManager, helper.predictedHook())
         );
 
         vm.prank(address(0xBAD));
         vm.expectRevert(
-            abi.encodeWithSelector(
-                V1HookExecutorDeployer.UnauthorizedDeployer.selector, address(0xBAD), address(this)
-            )
+            abi.encodeWithSelector(V1HookExecutorDeployer.UnauthorizedDeployer.selector, address(0xBAD), address(this))
         );
         helper.deploy(hookInitCode, executorInitCode);
 

@@ -22,7 +22,9 @@ contract HookLifecycleRegistryMock {
     mapping(bytes32 marketId => MarketView value) private _markets;
     mapping(bytes32 marketId => PoolKey key) private _keys;
 
-    function setGraduationExecutor(address value) external { graduationExecutor = value; }
+    function setGraduationExecutor(address value) external {
+        graduationExecutor = value;
+    }
 
     function configure(bytes32 marketId, MarketView calldata value, PoolKey calldata key) external {
         _markets[marketId] = value;
@@ -93,6 +95,14 @@ contract HookLifecyclePoolManagerMock {
 }
 
 contract TickerGardenMemeHookLifecycleHarness is TickerGardenMemeHookLifecycle {
+    function convertRewards(bytes32, uint256, uint256, uint256) external pure override returns (uint256, uint256) {
+        revert("UNSUPPORTED_TEST_LAYER");
+    }
+
+    function unlockCallback(bytes calldata) external pure override returns (bytes memory) {
+        revert("UNSUPPORTED_TEST_LAYER");
+    }
+
     constructor(address registry, address poolManager, address feeVault, address graduation)
         TickerGardenMemeHookLifecycle(registry, poolManager, feeVault, graduation)
     {}

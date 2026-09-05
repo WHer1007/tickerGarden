@@ -13,6 +13,7 @@ abstract contract ProtocolFeeVaultCurveCredit is ProtocolFeeVaultV4Credit {
         address quoteAsset;
         uint256 amount;
         uint256 balanceBefore;
+        uint256 creatorTaxAmount;
         uint32 sourceVersion;
         uint64 sweepNonce;
         bytes32 feeId;
@@ -25,6 +26,7 @@ abstract contract ProtocolFeeVaultCurveCredit is ProtocolFeeVaultV4Credit {
         address quoteAsset;
         uint256 amount;
         uint256 creatorAmount;
+        uint256 creatorTaxAmount;
         uint256 platformAmount;
         uint256 currentBalance;
         uint32 sourceVersion;
@@ -61,11 +63,13 @@ abstract contract ProtocolFeeVaultCurveCredit is ProtocolFeeVaultV4Credit {
         bytes32 marketId,
         address quoteAsset,
         uint256 amount,
+        uint256 creatorTaxAmount,
         uint32 sourceVersion,
         uint64 sweepNonce,
         bytes32 feeId
     ) external {
         _enterStandaloneCredit(feeId);
+        if (creatorTaxAmount > amount) revert FeeAmountTooLarge(creatorTaxAmount);
         if (amount == 0 || amount > uint256(uint128(type(int128).max))) revert FeeAmountTooLarge(amount);
 
         PendingCurveCredit memory pending = PendingCurveCredit({
@@ -74,6 +78,7 @@ abstract contract ProtocolFeeVaultCurveCredit is ProtocolFeeVaultV4Credit {
             quoteAsset: quoteAsset,
             amount: amount,
             balanceBefore: 0,
+            creatorTaxAmount: creatorTaxAmount,
             sourceVersion: sourceVersion,
             sweepNonce: sweepNonce,
             feeId: feeId,
@@ -89,13 +94,15 @@ abstract contract ProtocolFeeVaultCurveCredit is ProtocolFeeVaultV4Credit {
         bytes32 marketId,
         address quoteAsset,
         uint256 amount,
+        uint256 creatorTaxAmount,
         uint32 sourceVersion,
         uint64 sweepNonce,
         bytes32 feeId
     ) external payable {
         PendingCurveCredit memory pending = _pendingCurveCredit;
         if (
-            pending.marketId != marketId || pending.quoteAsset != quoteAsset || pending.amount != amount
+            pending.creatorTaxAmount != creatorTaxAmount || pending.marketId != marketId
+                || pending.quoteAsset != quoteAsset || pending.amount != amount
                 || pending.sourceVersion != sourceVersion || pending.sweepNonce != sweepNonce || pending.feeId != feeId
                 || pending.source != msg.sender
         ) revert FeeCreditNotPrepared(feeId);
@@ -113,7 +120,9 @@ abstract contract ProtocolFeeVaultCurveCredit is ProtocolFeeVaultV4Credit {
             currentBalance >= pending.balanceBefore ? currentBalance - pending.balanceBefore : type(uint256).max;
         if (actualDelta != amount) revert FeeBalanceDeltaMismatch(quoteAsset, amount, actualDelta);
 
-        MarketFeeAccounting.CurveBuckets memory buckets = MarketFeeAccounting.splitCurve(amount);
+        MarketFeeAccounting.CurveBuckets memory buckets =
+            MarketFeeAccounting.splitCurve(amount - pending.creatorTaxAmount);
+        buckets.creatorAmount += pending.creatorTaxAmount;
         _lastCurveSweepNonces[marketId] = sweepNonce;
         CurveCreditRecord memory record;
         record.marketId = marketId;
@@ -121,6 +130,7 @@ abstract contract ProtocolFeeVaultCurveCredit is ProtocolFeeVaultV4Credit {
         record.quoteAsset = quoteAsset;
         record.amount = amount;
         record.creatorAmount = buckets.creatorAmount;
+        record.creatorTaxAmount = pending.creatorTaxAmount;
         record.platformAmount = buckets.platformAmount;
         record.currentBalance = currentBalance;
         record.sourceVersion = sourceVersion;
@@ -153,7 +163,8 @@ abstract contract ProtocolFeeVaultCurveCredit is ProtocolFeeVaultV4Credit {
                 pending.sourceVersion,
                 pending.sweepNonce,
                 pending.quoteAsset,
-                pending.amount
+                pending.amount,
+                pending.creatorTaxAmount
             )
         );
         uint64 expectedNonce = _lastCurveSweepNonces[pending.marketId] + 1;
