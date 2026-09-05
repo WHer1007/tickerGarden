@@ -28,7 +28,20 @@
           </div>
         </div>
 
-        <div class="tree-stage" aria-label="Community signal garden">
+        <div class="tree-stage" data-garden aria-label="Interactive community signal garden">
+          <div class="garden-heading" aria-hidden="true"><span><i></i> THE SIGNAL GARDEN</span><span>VOL. 01 / STOCK STORIES</span></div>
+          <div class="garden-viewport" data-garden-viewport tabindex="0" role="group" aria-label="3D fruit tree. Drag to rotate, or use left and right arrow keys. Home resets rotation.">
+            <div class="garden-labels" data-garden-labels></div>
+          </div>
+          <div class="garden-ui">
+            <div class="garden-instruction">DRAG TO ROTATE <span>·</span> PICK A FRUIT</div>
+            <div class="garden-inspector">
+              <div class="garden-story"><span class="garden-dot"></span><div><strong data-garden-symbol>Pick a ticker</strong><p data-garden-story>Every branch has a different story.</p></div></div>
+              <button type="button" data-garden-next aria-label="Explore next ticker">→</button>
+            </div>
+            <div class="garden-controls"><span>Illustrative garden · not live prices</span><div><button type="button" data-garden-motion aria-pressed="true">Pause motion</button><button type="button" data-garden-reset>Reset view</button></div></div>
+          </div>
+          <span class="garden-sr-only" data-garden-status role="status" aria-live="polite"></span>
           <img class="tree-base" src="./assets/hero-tree-base.png" alt="A tree illustration representing community signals" />
           <div class="fruit-layer" aria-hidden="true">
             <span class="ticker-fruit lime" style="--fruit-x:39%;--fruit-y:16%;--fruit-size:58px">NVDA</span>
@@ -81,5 +94,6 @@
     <footer class="shell-footer" data-shell-footer></footer>
     <div class="toast" data-toast role="status" aria-live="polite"></div>
     <script type="module" src="./app.js"></script>
+    <script type="module" src="./src/home/garden-entry.ts"></script>
   </body>
 </html>
