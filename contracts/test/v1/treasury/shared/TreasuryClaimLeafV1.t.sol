@@ -18,7 +18,7 @@ contract TreasuryClaimLeafHarnessV1 {
 }
 
 contract TreasuryClaimLeafV1Test is Test {
-    bytes32 private constant EXPECTED = 0xfcec448e9468d13dbef0ea605274261f78542bd32d01c6372b0fc6909d13d96c;
+    bytes32 private constant EXPECTED = 0xab280e273527f73b10b62757d6010f593c0298c7fba4f6c61e9d2028c07ee054;
     bytes32 private constant POLICY = 0x9eb852c8b30899159ae73ab17ba2015052ea0ca12e229b11b43ee1cf79dfc2ea;
 
     TreasuryClaimLeafHarnessV1 private harness;
@@ -28,18 +28,18 @@ contract TreasuryClaimLeafV1Test is Test {
     }
 
     function test_typescriptGeneratorAndSolidityLeafSchemaMatch() public view {
-        bytes32 actual = harness.hash(_context(), 0, address(0xa11c), 259_200_000, 1_000);
+        bytes32 actual = harness.hash(_context(), 0, address(0xa11c), 60_480_000, 1_000);
         assertEq(actual, EXPECTED);
     }
 
     function test_replayProtectionFieldsChangeLeaf() public view {
         TreasuryClaimLeafV1.Context memory context = _context();
-        bytes32 canonical = harness.hash(context, 0, address(0xa11c), 259_200_000, 1_000);
+        bytes32 canonical = harness.hash(context, 0, address(0xa11c), 60_480_000, 1_000);
         context.chainId = 1;
-        assertNotEq(harness.hash(context, 0, address(0xa11c), 259_200_000, 1_000), canonical);
+        assertNotEq(harness.hash(context, 0, address(0xa11c), 60_480_000, 1_000), canonical);
         context = _context();
         context.sourceBlockHash = keccak256("OTHER");
-        assertNotEq(harness.hash(context, 0, address(0xa11c), 259_200_000, 1_000), canonical);
+        assertNotEq(harness.hash(context, 0, address(0xa11c), 60_480_000, 1_000), canonical);
     }
 
     function _context() private pure returns (TreasuryClaimLeafV1.Context memory context) {
@@ -51,7 +51,7 @@ contract TreasuryClaimLeafV1Test is Test {
         context.quoteToken = address(0x2000);
         context.eligibilityPolicyHash = POLICY;
         context.windowStart = 1_700_000_000;
-        context.windowEnd = 1_702_592_000;
+        context.windowEnd = 1_700_604_800;
         context.sourceBlockNumber = 999;
         context.sourceBlockHash = 0x2222222222222222222222222222222222222222222222222222222222222222;
     }

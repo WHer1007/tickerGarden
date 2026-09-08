@@ -112,7 +112,7 @@
     "activation": "ONE_WAY_AT_V1_GRADUATION"
   },
   "epoch": {
-    "durationSeconds": 2592000,
+    "durationSeconds": 604800,
     "interval": "[windowStart,windowEnd)",
     "fundingAssignment": "CURRENT_EPOCH_AT_EXACT_RECEIPT"
   },
@@ -123,7 +123,7 @@
     "genericHolderBurn": false
   },
   "twab": {
-    "schema": "TRANSFER_LOG_TWAB_30D_V1",
+    "schema": "TRANSFER_LOG_TWAB_7D_V1",
     "source": "FINALIZED_CANONICAL_ERC20_TRANSFER_REPLAY",
     "requiresSourceBlockTimestampAtOrAfterWindowEnd": true,
     "unit": "RAW_TOKEN_BALANCE_SECONDS_NUMERATOR",

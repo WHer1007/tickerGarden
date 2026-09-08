@@ -4,7 +4,7 @@ pragma solidity 0.8.26;
 /// @notice Canonical double-hashed leaf used by the V1 TWAB Merkle distributor.
 library TreasuryClaimLeafV1 {
     bytes32 internal constant CLAIM_LEAF_DOMAIN = keccak256("TICKERGARDEN_V1_TREASURY_CLAIM_V1");
-    bytes32 internal constant TWAB_SCHEMA = keccak256("TRANSFER_LOG_TWAB_30D_V1");
+    bytes32 internal constant TWAB_SCHEMA = keccak256("TRANSFER_LOG_TWAB_7D_V1");
 
     struct Context {
         uint256 chainId;

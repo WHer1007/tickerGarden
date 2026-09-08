@@ -194,7 +194,7 @@ contract TickerGardenFactoryV1 is ITickerGardenFactoryV1, ICurveInitializationSo
     bytes32 private constant TOKEN_IMPLEMENTATION_CODEHASH =
         0x5a1ea402d301c312d0df4cc719db06d8f03830df83ec2073299d41d02df9cbb5;
     bytes32 private constant CURVE_IMPLEMENTATION_CODEHASH =
-        0x84dda11712855256ac7f9d27d4387cd10ef2da27a4d7dd85d1e0566de1ef5920;
+        0x591508a441a430552bb45dc77d3dcc09ed566331e794a1da65281c875039e811;
     bytes32 private constant GAUGE_IMPLEMENTATION_CODEHASH =
         0x8c4755b6ffce089d1150cc0fdf80b5eefa88324acfccc6b8fffbc8b1a6a171a7;
 

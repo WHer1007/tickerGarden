@@ -467,17 +467,17 @@
     {
       "module": "PonsCompatibleCurve",
       "source": "contracts/src/v1/modules/PonsCompatibleCurve.sol",
-      "sourceSha256": "0x977d76886e3ec92af3caaac447859fdcb39068c78b80fc5fb55e9706b01ae18a",
+      "sourceSha256": "0x6711f6feefab44bbaeed86de48699faee99dbec6b1e7165b25c4811166fa946e",
       "artifact": "contracts/out-v1/PonsCompatibleCurve.sol/PonsCompatibleCurve.json",
       "interfaceArtifact": "contracts/out-v1/IV1Protocol.sol/IPonsCompatibleCurve.json",
       "compilerVersion": "0.8.26+commit.8a97fa7a",
       "creationCode": {
-        "bytes": 20228,
-        "keccak256": "0xc6535acff2a04f31434216bb6f7da72b0655cd20226493278b7614669479f0aa"
+        "bytes": 20261,
+        "keccak256": "0x956d5835e05c63eb28fd7092cdeae750e5322ce30fbdd1e4f4a5ee1c3fef4225"
       },
       "runtimeTemplate": {
-        "bytes": 17007,
-        "keccak256": "0xed1299017c5800ffe44c3ee9c72fa83461222d302a51fc295cf4042909791159",
+        "bytes": 17040,
+        "keccak256": "0xe3153f335974461b3e3d7f899d3a25fa168682057f48e6eb0698e9b3781bd787",
         "immutableReferenceGroups": 16,
         "isFinalDeploymentCodeHash": false
       },
@@ -570,13 +570,13 @@
     {
       "module": "TickerGardenFactoryV1",
       "source": "contracts/src/v1/modules/TickerGardenFactoryV1.sol",
-      "sourceSha256": "0xb518255a9eedc7cfc69248c498b2c42eab9b7b55d605f0de1d0044cab98cef07",
+      "sourceSha256": "0xe4ddd3bc2fcf76c4996b1f74d9c7f74b60e233744b99dd70049a8904b7653e05",
       "artifact": "contracts/out-v1/TickerGardenFactoryV1.sol/TickerGardenFactoryV1.json",
       "interfaceArtifact": "contracts/out-v1/IV1Protocol.sol/ITickerGardenFactoryV1.json",
       "compilerVersion": "0.8.26+commit.8a97fa7a",
       "creationCode": {
         "bytes": 29346,
-        "keccak256": "0xdd4b816e4a08677b82d3deff9aae52e8f0868c3482e3640ac155bad63725050b"
+        "keccak256": "0x6ca24a6c03ecec04712488672a6c3932046540cab915699cba5519895459c9d7"
       },
       "runtimeTemplate": {
         "bytes": 22761,
@@ -661,7 +661,7 @@
     {
       "module": "TickerMemeTokenV1",
       "source": "contracts/src/v1/modules/TickerMemeTokenV1.sol",
-      "sourceSha256": "0x446920b03c76618266b0d01705cb76f36d2e0a41aba886a81867e835059f6708",
+      "sourceSha256": "0xf15c68c6281bbaa32682cbc528b4cea1cf30fede6611fd75d0da7fef1b77f6c2",
       "artifact": "contracts/out-v1/TickerMemeTokenV1.sol/TickerMemeTokenV1.json",
       "interfaceArtifact": "contracts/out-v1/IV1Protocol.sol/ITickerMemeTokenV1.json",
       "compilerVersion": "0.8.26+commit.8a97fa7a",
@@ -709,17 +709,17 @@
     {
       "module": "TreasuryDistributorV1",
       "source": "contracts/src/v1/modules/TreasuryDistributorV1.sol",
-      "sourceSha256": "0x348777e41da9040d992c1554ae2152f5e8425fb24bed3b0ce2419c6ce1338c8e",
+      "sourceSha256": "0xb4ad9f9d474cf55ecd9e779e55eaed609796203245112c0c1078dd24b9ecfc75",
       "artifact": "contracts/out-v1/TreasuryDistributorV1.sol/TreasuryDistributorV1.json",
       "interfaceArtifact": "contracts/out-v1/IV1Protocol.sol/ITreasuryDistributorV1.json",
       "compilerVersion": "0.8.26+commit.8a97fa7a",
       "creationCode": {
         "bytes": 18556,
-        "keccak256": "0x24efae119058ad11c7c2acecc6c8d6fb4f0fc0006f57ea676ec9bb2c27349ca3"
+        "keccak256": "0xda82d0ff336a5dfebe7052ddf0c47f84218c2e62948440d10deec46c8a04caf9"
       },
       "runtimeTemplate": {
         "bytes": 17322,
-        "keccak256": "0x86aa128cca63449ebc5da4358fb46075540f74b018477936b137e77e175c24df",
+        "keccak256": "0xfa08226abc754dbf714aaf3183dd5efaf8f0ce7c0c06dcd84b8f786a4f218765",
         "immutableReferenceGroups": 8,
         "isFinalDeploymentCodeHash": false
       },
@@ -855,5 +855,5 @@
       ]
     }
   ],
-  "manifestHash": "0x38771f3438aad3de36983441ea90be61c71ac4fb51361159cd0874b04afbc503"
+  "manifestHash": "0xf2cba89227b83f69ce3873ca9c374c2bdcf456c032b29ee0c4d6756ccbe384ef"
 }

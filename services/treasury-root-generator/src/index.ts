@@ -9,9 +9,9 @@ import {
   type Hex,
 } from "viem";
 
-export const EPOCH_DURATION_SECONDS = 30n * 24n * 60n * 60n;
+export const EPOCH_DURATION_SECONDS = 7n * 24n * 60n * 60n;
 export const CLAIM_LEAF_DOMAIN = keccak256(stringToHex("TICKERGARDEN_V1_TREASURY_CLAIM_V1"));
-export const TWAB_SCHEMA = keccak256(stringToHex("TRANSFER_LOG_TWAB_30D_V1"));
+export const TWAB_SCHEMA = keccak256(stringToHex("TRANSFER_LOG_TWAB_7D_V1"));
 export const ELIGIBILITY_POLICY_DOMAIN = keccak256(
   stringToHex("TICKERGARDEN_V1_TREASURY_ELIGIBILITY_POLICY_V1"),
 );
@@ -473,7 +473,7 @@ function validateInput(input: TreasuryRootInput): void {
     throw new Error("invalid TWAB window");
   }
   if (input.windowEnd - input.windowStart !== EPOCH_DURATION_SECONDS) {
-    throw new Error("TWAB window must be exactly 30 days");
+    throw new Error("TWAB window must be exactly 7 days");
   }
   if (
     input.sourceBlockNumber < 0n ||
