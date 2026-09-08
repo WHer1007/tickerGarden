@@ -51,3 +51,5 @@ npm test
 The root commands deliberately keep specification checks, V1 contract tests, off-chain tests, and the formal `apps/web` tests separate. A green local build does not prove the still-open live Fork, legal, independent-audit, AccessManager installation, production-manifest, or deployment gates.
 
 See `docs/README.md` for the documentation index, `docs/v1/V1_READINESS_AND_DEPLOYMENT_GATES.md` for the four-state gate, and `docs/v1/V1_DEVELOPMENT_PLAN.md` for implementation work.
+
+环境配置与分支说明见 [config/README.md](config/README.md)。当前 master 保留原业务源码；正式环境尚未配置，请勿合入 test 的地址与快速测试参数。
