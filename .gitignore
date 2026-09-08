@@ -14,3 +14,17 @@ contracts/cache-v2/
 contracts/out-v2-ci/
 contracts/cache-v2-ci/
 contracts/broadcast/
+
+# Local configuration, credentials and operational state are never source inputs.
+.env.*.local
+**/.env.local
+**/.env.*.local
+**/.env.staged
+**/.state/
+**/bin/
+.codex_tmp/
+outputs/
+/-
+# Examples and explicitly committed historical evidence remain in Git.
+/services/backend-go/api
+/services/backend-go/candidate-inspect
