@@ -202,7 +202,10 @@ export class V1TransactionExecutor {
   pending(account: Address): PendingTransaction | null {
     const raw = this.journal.getItem(this.#journalKey(account));
     if (!raw) return null;
-    const parsed = JSON.parse(raw) as PendingTransaction;
+    let parsed: PendingTransaction;
+    try { parsed = JSON.parse(raw) as PendingTransaction; }
+    catch { throw new V1TransactionError("pending_transaction", "Saved transaction record cannot be read; check wallet history before continuing"); }
+    if (!parsed || typeof parsed !== 'object') throw new V1TransactionError("pending_transaction", "Saved transaction record is invalid; check wallet history before continuing");
     if (!/^0x[0-9a-fA-F]{64}$/.test(parsed.hash) || typeof parsed.intent !== "string" || typeof parsed.approval !== "boolean") {
       throw new V1TransactionError("pending_transaction", "Pending transaction journal is invalid; reconcile wallet history before continuing");
     }

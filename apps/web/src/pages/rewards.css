@@ -3,6 +3,20 @@
     .rewards-runtime strong{display:flex;align-items:center;gap:8px;font-size:13px}
     .rewards-runtime strong i{color:var(--lime)}
     .rewards-runtime span{color:#bcd0c5;font-size:12px;line-height:1.45}
+    .rewards-runtime a{color:#d9f58a;text-decoration:underline}
+    .runtime-refresh{justify-self:start;border:1px solid #87a897;border-radius:999px;padding:7px 11px;background:transparent;color:#fff;font:inherit;font-size:12px;font-weight:800;cursor:pointer}
+    .runtime-refresh:hover{background:#286650}
+    .runtime-refresh i{margin-right:5px}
+    .rewards-runtime [data-rewards-action-status]:empty{display:none}
+    .staker-market-field{min-width:min(100%,280px)}
+    .tab-action-help{margin:0 0 14px}
+    .reward-details{padding-top:16px}
+    .reward-details>summary{cursor:pointer;font-weight:800;color:var(--ink)}
+    .reward-details[open]>summary{margin-bottom:16px}
+    .details-content{display:grid;gap:12px}
+    .fallback-status{margin-top:10px}
+    .proof-details{border-top:0;margin-top:10px;padding-top:0}
+    .proof-details>summary{font-size:12px;color:var(--muted)}
     .rewards-tabs{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:22px}
     .rewards-tabs button{border:1px solid #b4c1b7;background:transparent;border-radius:999px;padding:11px 17px;color:var(--ink);font-weight:800;cursor:pointer}
     .rewards-tabs button:hover,.rewards-tabs button[aria-selected="true"]{background:var(--ink);border-color:var(--ink);color:#fff}

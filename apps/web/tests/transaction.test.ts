@@ -186,3 +186,14 @@ test('direct state mode still requires live wallet and state checks before signi
  await assert.rejects(executor.execute({...input(async()=>{}),snapshot:{...snapshot,syncStatus:'unavailable',authority:'direct-chain'},currentRevision:undefined}),{code:'stale_snapshot'});
  assert.equal(writes,0);
 });
+
+test('malformed pending journal fails closed with a readable error and is not deleted', () => {
+  for (const raw of ['{broken','null','[]','{}']) {
+    let removed = false;
+    const executor = new V1TransactionExecutor(clients(async () => hash), {
+      getItem: () => raw, setItem: () => {}, removeItem: () => { removed = true; },
+    });
+    assert.throws(() => executor.pending(account), (error: unknown) => error instanceof V1TransactionError && error.code === 'pending_transaction');
+    assert.equal(removed,false);
+  }
+});

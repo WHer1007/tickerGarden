@@ -1,3 +1,5 @@
+import { tradingRoute, stakerClaimHelp, rewardTab } from "./v1/flowUx.ts";
+import { readCreateDraft, writeCreateDraft, clearCreateDraft, type CreateDraft } from "./create/draft.ts";
 import {graduationProgress} from "./v1/graduationProgress.ts";
 import {PERMIT2,poolRouterAbi,poolQuoterAbi,permit2Abi,poolSwapAbi,assertPoolRouterProfile,poolTradeRoute,poolAmount,buildPoolTrade} from "./v1/poolTrade.ts";
 import { assertRecoveredLaunchReceipt } from "./create/launch-confirmation.ts";
@@ -374,8 +376,12 @@ function runtimeReasons(): readonly string[] {
   return foundation.writeReasons.map(publicMessage);
 }
 
+function hasPendingTransaction(): boolean {
+  if (!wallet) return false;
+  try { return !!wallet.executor.pending(wallet.account); } catch { return true; }
+}
 function writeReady(): boolean {
-  return Boolean(foundation?.writeReady && wallet && !busyOperation && !walletConnecting);
+  return Boolean(foundation?.writeReady && wallet && !busyOperation && !walletConnecting && !hasPendingTransaction());
 }
 
 function treasuryWritesReady(): boolean {
@@ -695,6 +701,7 @@ async function executeTransaction<T>(input: Readonly<{
       confirm: input.confirm,
       onUpdate: (update) => {
         input.onUpdate?.(update);
+        showTransactionUpdate(update);
         const detail = update.error ? `${update.error.code}: ${update.error.message}` : update.hash ? shortHex(update.hash, 9, 7) : "";
         toast(`${transactionStageLabels[update.stage]}${detail ? ` — ${detail}` : ""}`, update.stage === "failed" ? "error" : update.stage === "confirmed" ? "success" : "neutral");
       },
@@ -704,6 +711,41 @@ async function executeTransaction<T>(input: Readonly<{
     renderRecoveryControls();
     refreshActionAvailability();
   }
+}
+
+function confirmFlowAction(message: string): Promise<boolean> {
+  return new Promise(resolve => {
+    const dialog = document.createElement('dialog'); dialog.className = 'flow-confirm';
+    dialog.setAttribute('aria-label', 'Confirm action');
+    const heading = document.createElement('h2'); heading.textContent = 'Confirm action';
+    const description = document.createElement('p'); description.textContent = message; description.id = 'flow-confirm-description';
+    dialog.setAttribute('aria-describedby', description.id);
+    const controls = document.createElement('div');
+    const cancel = document.createElement('button'); cancel.type = 'button'; cancel.textContent = 'Cancel'; cancel.autofocus = true;
+    const confirm = document.createElement('button'); confirm.type = 'button'; confirm.textContent = 'Confirm';
+    let settled = false;
+    const finish = (accepted: boolean) => { if (settled) return; settled = true; dialog.close(); dialog.remove(); resolve(accepted); };
+    cancel.onclick = () => finish(false); confirm.onclick = () => finish(true);
+    dialog.addEventListener('cancel', event => { event.preventDefault(); finish(false); });
+    dialog.addEventListener('close', () => finish(false));
+    controls.append(cancel, confirm); dialog.append(heading, description, controls); document.body.append(dialog); dialog.showModal();
+  });
+}
+
+function showTransactionUpdate(update: TransactionUpdate): void {
+  if (launchProgress) return;
+  let panel = query<HTMLElement>('[data-transaction-progress]');
+  if (!panel) {
+    panel = document.createElement('section'); panel.dataset.transactionProgress = ''; panel.className = 'runtime-recovery';
+    panel.setAttribute('role', 'status'); panel.setAttribute('aria-live', 'polite');
+    (query<HTMLElement>('main') ?? document.body).prepend(panel);
+  }
+  panel.replaceChildren();
+  const status = document.createElement('strong'); status.textContent = transactionStageLabels[update.stage]; panel.append(status);
+  const note = document.createElement('span');
+  note.textContent = update.error ? errorText(update.error) : update.stage === 'confirmed' ? 'Confirmed. Your balances are being refreshed.' : update.hash ? 'You can refresh this page. Check the existing transaction before submitting again.' : 'Review the request in your wallet. No transaction has been confirmed yet.';
+  panel.append(note);
+  if (update.hash) { const link = document.createElement('a'); link.href = `${robinhoodChain.blockExplorers.default.url}/tx/${update.hash}`; link.target = '_blank'; link.rel = 'noopener noreferrer'; link.textContent = 'View transaction'; panel.append(link); }
 }
 
 function receiptEvent(
@@ -1309,8 +1351,24 @@ let tradeQuote: TradeQuote | null = null;
 let tradeLoadGeneration = 0;
 let tradeQuoteGeneration = 0;
 let tradeQuoteTimer = 0;
+let tradeQuoteExpiryTimer = 0;
+let tradePhaseTimer = 0;
+let tradePhaseLoading = false;
 
 function setupTrade(): void {
+  tradePhaseTimer = window.setInterval(async () => {
+    const current = tradeMarket;
+    if (document.hidden || busyOperation || pageActionPending || tradePhaseLoading || !current || !foundation?.direct || !directMarkets) return;
+    tradePhaseLoading = true;
+    try {
+      const fresh = await directMarkets.market(current.market.marketId);
+      if (tradeMarket !== current || currentPage() !== 'trade') return;
+      if (fresh.market.launchPhase !== current.market.launchPhase || fresh.market.sourceVersion !== current.market.sourceVersion) await loadTradeMarket(current.market.marketId);
+    } catch { text('[data-detail-phase-note]', 'Market update unavailable. Refresh the quote before trading.'); }
+    finally { tradePhaseLoading = false; }
+  }, 30_000);
+
+  query<HTMLButtonElement>("[data-trade-requote]")?.addEventListener("click", scheduleTradeQuote);
   query<HTMLButtonElement>('[data-detail-connect]')?.addEventListener('click',()=>query<HTMLButtonElement>('[data-wallet]')?.click());
   query<HTMLButtonElement>('[data-detail-fee-details]')?.addEventListener('click',()=>{const node=query<HTMLElement>('[data-detail-fee-rows]')?.closest<HTMLElement>('section');node?.scrollIntoView({behavior:'smooth',block:'center'});node?.focus({preventScroll:true});});
   query<HTMLButtonElement>('[data-trade-reverse]')?.addEventListener('click',()=>query<HTMLButtonElement>(`[data-trade-side="${tradeSide==='buy'?'sell':'buy'}"]`)?.click());
@@ -1360,7 +1418,7 @@ function clearTradeMarketState(): void {
   ++detailBalancesGeneration;detailBalances=null;
   queryAll<HTMLElement>('[data-detail-symbol]').forEach(el=>el.textContent='Unavailable');
   text('[data-detail-description]','No description available.');
-  const avatar=query<HTMLImageElement>('[data-detail-image]');if(avatar)avatar.src=new URL('../assets/tickergarden-mark.png',import.meta.url).href;
+  const avatar=query<HTMLImageElement>('[data-detail-image]');if(avatar){const fallback=new URL('../assets/token-placeholder.svg',import.meta.url).href;avatar.onerror=()=>{avatar.onerror=null;avatar.src=fallback;};avatar.src=fallback;}
   for(const key of ['website','x']){const link=query<HTMLAnchorElement>(`[data-detail-${key}]`);if(link){link.hidden=true;link.removeAttribute('href');}}
   const linksEmpty=query<HTMLElement>('[data-detail-links-empty]');if(linksEmpty)linksEmpty.hidden=false;
   text('[data-detail-stock-label]','Unavailable');text('[data-detail-venue]','Unavailable');
@@ -1415,7 +1473,7 @@ async function loadTradeMarket(explicit?: string): Promise<void> {
   const raw = explicit ?? query<HTMLInputElement>("[data-market-id]")?.value ?? "";
   let marketId: Hex;
   try { marketId = canonicalBytes32(raw.trim().toLowerCase(), "marketId"); }
-  catch (error) { setPageStatus(errorText(error), "error"); return; }
+  catch (error) { text("[data-detail-phase]", "Choose a market"); text("[data-detail-phase-note]", "Open a token from Explore to view its trading pool."); setPageStatus(errorText(error), "error"); return; }
   if (!foundation || !readApi) {
     setPageStatus(`Market data unavailable — ${runtimeReasons().join("; ")}`, "error");
     return;
@@ -1493,6 +1551,8 @@ async function loadTradeMarket(explicit?: string): Promise<void> {
   } catch (error) {
     if (generation !== tradeLoadGeneration) return;
     clearTradeMarketState();
+    text("[data-detail-phase]", "Market unavailable");
+    text("[data-detail-phase-note]", errorText(error));
     setPageStatus(`Market load failed — ${errorText(error)}`, "error");
     text("[data-trade-route-status]", "The route could not be verified; trading remains locked.");
     updateTradeAvailability();
@@ -1548,8 +1608,8 @@ async function quoteTrade(generation: number): Promise<void> {
   const metadata = tradeMetadata;
   const activeWallet = wallet;
   const side = tradeSide;
-  if (!market.market.canonicalRoute.curveTradingEnabled && !market.market.canonicalRoute.poolTradingEnabled) {
-    text("[data-trade-status]", "This market is no longer tradable through its Curve.");
+  if (!tradingRoute(market.market.launchPhase, market.market.canonicalRoute)) {
+    text("[data-trade-status]", "The trading route is unavailable. Refresh the market before trying again.");
     updateTradeAvailability();
     return;
   }
@@ -1606,6 +1666,13 @@ async function quoteTrade(generation: number): Promise<void> {
       || tradeSide !== side
     ) return;
     tradeQuote = quote;
+    window.clearTimeout(tradeQuoteExpiryTimer);
+    tradeQuoteExpiryTimer = window.setTimeout(() => {
+      if (tradeQuote !== quote) return;
+      tradeQuote = null;
+      renderTradeQuote();
+      if (!pageActionPending && !busyOperation) text('[data-trade-status]', 'Quote expired. Refresh quote to continue.');
+    }, Math.max(0, quote.expiresAtMs - Date.now()));
     renderTradeQuote();
     await renderTradeAllowance(quote, market, activeWallet, generation);
   } catch (error) {
@@ -1682,7 +1749,13 @@ function updateTradeAvailability(): void {
     && tradeQuote.marketId === tradeMarket.market.marketId
     && tradeQuote.side === tradeSide,
   );
-  setDisabled(submit, !writeReady() || !quoteFresh);
+  const routeReady = tradeMarket && tradingRoute(tradeMarket.market.launchPhase, tradeMarket.market.canonicalRoute);
+  const balance = detailBalanceAccount === wallet?.account ? (tradeSide === 'buy' ? detailBalances?.quote : detailBalances?.meme) : undefined;
+  const insufficient = !!tradeQuote && balance !== undefined && tradeQuote.input > balance;
+  setDisabled(submit, !writeReady() || !quoteFresh || !routeReady || insufficient);
+  const retry = query<HTMLButtonElement>('[data-trade-requote]');
+  if (retry) { retry.hidden = !wallet || !tradeMarket; retry.disabled = !writeReady() || !routeReady; }
+  if (insufficient) text('[data-trade-status]', 'Insufficient balance for this amount. Reduce the amount and keep ETH for network fees.');
 }
 
 async function submitTrade(): Promise<void> {
@@ -1707,6 +1780,7 @@ async function submitTrade(): Promise<void> {
     if (currentInput !== quote.input || currentSlippageBps !== quote.slippageBps) {
       throw new Error("The trade form changed after quoting; request a fresh quote");
     }
+    if (!tradingRoute(market.market.launchPhase, market.market.canonicalRoute)) throw new Error("Trading route changed. Refresh the market and quote.");
     if(market.market.launchPhase===1){await submitPoolTrade(market,quote,activeWallet);return;}
     const curve = canonicalAddress(market.market.curve, "Curve");
     const account = activeWallet.account;
@@ -1845,8 +1919,11 @@ function finishRecoveredLaunch(state:LaunchState,receipt:TransactionReceipt):voi
  if(state.listing){latestListing={snapshot:{...state.listing,txHash:receipt.transactionHash},marketId:expected.marketId};localStorage.setItem(`tg-listing:${robinhoodChain.id}`,JSON.stringify(latestListing));}
  // Clear only a matching executor journal, never an unrelated approval/trade.
  const key=`tickergarden:pending:${state.chainId}:${state.account.toLowerCase()}`;
- const pending=JSON.parse(localStorage.getItem(key)??'null');
- if(pending?.intent===state.intent)localStorage.removeItem(key);
+ try {
+  const pending=JSON.parse(localStorage.getItem(key)??'null');
+  if(pending?.intent===state.intent)localStorage.removeItem(key);
+ } catch { /* Preserve unrelated or unreadable recovery data. */ }
+ clearCreateDraft(localStorage, state.chainId); pendingCreateDraft = null;
  launchProgress={...state,phase:'complete',hash:receipt.transactionHash,detail:'Your token is ready. Opening its market…'};
  saveLaunchState(localStorage,launchProgress);navigateCompletedLaunch(launchProgress);
 }
@@ -2016,11 +2093,77 @@ function showLatestListing(): void {
   again.onclick=()=>{latestListing=null;try{localStorage.removeItem(`tg-listing:${robinhoodChain.id}`);}catch{}host.hidden=true;if(layout)layout.hidden=false;};
  }
 }
+let pendingCreateDraft: CreateDraft | null = null;
+let draftImageMissing = false;
+function applyCreateDraft(configReady: boolean): void {
+  if (!pendingCreateDraft) return;
+  const form = query<HTMLFormElement>('[data-create-form]'); if (!form) return;
+  const unavailable: string[] = [];
+  for (const [key,value] of Object.entries(pendingCreateDraft)) {
+    if (['tickerGardenBaselineId', 'launchTemplateId', 'launchMode'].includes(key)) continue;
+    const field = form.elements.namedItem(key);
+    if (field instanceof HTMLSelectElement) { if (configReady && typeof value === 'string') {
+      if (value && !Array.from(field.options).some(option => option.value === value)) {
+        unavailable.push(key);
+      } else field.value = value;
+    } }
+    else if (field instanceof HTMLInputElement && field.type === 'checkbox' && typeof value === 'boolean') field.checked = value;
+    else if ((field instanceof HTMLInputElement || field instanceof HTMLTextAreaElement) && typeof value === 'string') field.value = value;
+  }
+  if (configReady) {
+    pendingCreateDraft = null;
+    const paired = query<HTMLSelectElement>('[name=quoteAssetConfigId]'); if (paired) populatePairedAssets();
+    const stock = query<HTMLSelectElement>('[name=assetUid]');
+    for (const name of unavailable) {
+      const field = form.elements.namedItem(name);
+      if (field instanceof HTMLSelectElement) {
+        const option = new Option('Previous asset unavailable — choose again', '');
+        field.prepend(option); field.value = '';
+        field.setCustomValidity('Your previous asset is no longer available. Choose an active asset.');
+      }
+    }
+    if (unavailable.length) text('[data-create-draft-status]', 'Draft restored. A previous asset is unavailable; choose an active asset again.');
+    if (stock && foundation) updateQuotePicker(stock, foundation.assets.filter(a=>a.status===1).map(a=>({value:a.id,symbol:String(a.values.tokenSymbol??'STOCK'),name:String(a.values.tokenName??'Stock'),pending:false})));
+  }
+}
+function saveCurrentCreateDraft(): void {
+  const form = query<HTMLFormElement>('[data-create-form]'); if (!form || launchSubmitting) return;
+  const values: Record<string,string|boolean> = {};
+  for (const field of Array.from(form.elements)) {
+    if (field instanceof HTMLInputElement && field.type === 'checkbox') values[field.name] = field.checked;
+    else if ((field instanceof HTMLInputElement && field.type !== 'file') || field instanceof HTMLSelectElement || field instanceof HTMLTextAreaElement) values[field.name] = field.value;
+  }
+  const saved = writeCreateDraft(localStorage, robinhoodChain.id, {...values,hadImage:draftImageMissing || !!launchImage || !!query<HTMLInputElement>('[name=tokenImage]')?.files?.length});
+  text('[data-create-draft-status]', saved ? 'Draft saved on this device. Images need to be selected again after a refresh.' : 'Draft could not be saved in this browser. Keep this page open until you finish.');
+}
+
 function setupCreate(): void {
  if(!latestListing){try{latestListing=parseSavedListing(localStorage.getItem(`tg-listing:${robinhoodChain.id}`),robinhoodChain.id);}catch{/* Browser storage may be disabled. */}}
  showLatestListing();
   const form = query<HTMLFormElement>("[data-create-form]");
   if (!form) return;
+  pendingCreateDraft = readCreateDraft(localStorage, robinhoodChain.id);
+  draftImageMissing = pendingCreateDraft?.hadImage === true;
+  const draftNote = document.createElement('p'); draftNote.dataset.createDraftStatus = ''; draftNote.setAttribute('role', 'status');
+  draftNote.textContent = pendingCreateDraft ? `Draft restored.${pendingCreateDraft.hadImage ? ' Please choose your image again.' : ''}` : 'Your form is saved on this device as you edit.';
+  form.prepend(draftNote);
+  const clearDraft = document.createElement('button'); clearDraft.type = 'button'; clearDraft.textContent = 'Clear draft'; clearDraft.dataset.clearCreateDraft = '';
+  clearDraft.onclick = async () => {
+    if (launchSubmitting || launchProgress || !await confirmFlowAction('Clear this form and start a new draft?')) return;
+    clearCreateDraft(localStorage, robinhoodChain.id); pendingCreateDraft = null; draftImageMissing = false;
+    form.reset();
+    for (const field of Array.from(form.elements)) if (field instanceof HTMLInputElement || field instanceof HTMLSelectElement || field instanceof HTMLTextAreaElement) field.setCustomValidity('');
+    const skip = query<HTMLButtonElement>('[data-skip-draft-image]'); if (skip) skip.hidden = true;
+    ++launchImageGeneration; launchImage = undefined; launchImageReading = false; renderSelectedTokenImage();
+    preparedMetadataURI = ''; preparedMetadataKey = ''; renderCreateConfig(); text('[data-create-draft-status]', 'Draft cleared.');
+  };
+  draftNote.insertAdjacentElement('afterend', clearDraft);
+  const skipImage = document.createElement('button'); skipImage.type = 'button'; skipImage.textContent = 'Continue without the previous image'; skipImage.hidden = !draftImageMissing; skipImage.dataset.skipDraftImage = '';
+  skipImage.onclick = () => { draftImageMissing = false; skipImage.hidden = true; saveCurrentCreateDraft(); updateCreateAvailability(); };
+  clearDraft.insertAdjacentElement('afterend', skipImage);
+  applyCreateDraft(false);
+  form.addEventListener('input', saveCurrentCreateDraft);
+  form.addEventListener('change', saveCurrentCreateDraft);
   query<HTMLInputElement>("[name=firstBuyAmount]", form)?.addEventListener("focus", renderDeveloperBuyBalance);
   form.addEventListener("input", () => {
     updateLaunchMode();
@@ -2050,6 +2193,7 @@ function setupCreate(): void {
       }
       if (generation !== launchImageGeneration) return;
       launchImage = image;
+      draftImageMissing = false; const skip = query<HTMLButtonElement>("[data-skip-draft-image]"); if (skip) skip.hidden = true; saveCurrentCreateDraft();
       renderSelectedTokenImage(image, file, dimensions);
     } catch (error) { if (generation === launchImageGeneration) { input.setCustomValidity(errorText(error)); text("[data-image-status]", errorText(error)); } }
     if (generation !== launchImageGeneration) return;
@@ -2058,6 +2202,7 @@ function setupCreate(): void {
   });
   form.addEventListener("change", (event) => {
     const target = event.target as HTMLInputElement | HTMLSelectElement;
+    if ((target.name === "quoteAssetConfigId" || target.name === "assetUid") && target.value) target.setCustomValidity("");
     if (target.name === "quoteAssetConfigId") alignBaselineToQuote();
     updateLaunchMode();
     renderCreateIdentity();
@@ -2113,6 +2258,7 @@ function renderCreateConfig(): void {
   })));
   populateSelect(required<HTMLSelectElement>("[name=tickerGardenBaselineId]", form), foundation.baseline.filter((item) => item.status === 1), "Select an active TickerGarden baseline");
   populateSelect(required<HTMLSelectElement>("[name=launchTemplateId]", form), foundation.templates.filter((item) => item.status === 1), "Select an active launch template");
+  applyCreateDraft(true);
   alignBaselineToQuote();
   text("[data-create-config-status]", foundation.writeReady
     ? "Launch settings ready."
@@ -2338,13 +2484,14 @@ function updateCreateAvailability(): void {
   const buyMode = query<HTMLSelectElement>("[name=launchMode]")?.value === "create-buy";
   const invalid = [...form.elements].find((e): e is HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement =>
     (e instanceof HTMLInputElement || e instanceof HTMLSelectElement || e instanceof HTMLTextAreaElement) && !e.disabled && !e.validity.valid);
-  const labels: Record<string,string> = {name:"Name",symbol:"Ticker",assetUid:"Staking asset",quoteAssetConfigId:"Paired asset",website:"Website",x:"X profile",firstBuyAmount:"Developer buy"};
-  const reason = createDisabledReason({submitting:launchSubmitting||Boolean(launchProgress&&launchProgress.phase!=="complete"),imageReading:launchImageReading,
-    runtimeReady:Boolean(foundation?.writeReady),runtimeReason:runtimeReasons().join("; "),walletConnected:Boolean(wallet),busy:Boolean(busyOperation||walletConnecting),
+  const labels: Record<string,string> = {name:"Name",symbol:"Ticker",assetUid:"Staking asset",quoteAssetConfigId:"Paired asset",website:"Website",x:"X profile",firstBuyAmount:"Developer buy",creatorTax:"Creator tax",beneficiary:"Creator beneficiary",tickerGardenBaselineId:"Market pricing",launchTemplateId:"Launch settings",tokenImage:"Token image"};
+  const reason = draftImageMissing ? "Choose your previous image again, or continue without it above." : createDisabledReason({submitting:launchSubmitting||Boolean(launchProgress&&launchProgress.phase!=="complete"),imageReading:launchImageReading,
+    runtimeReady:Boolean(foundation?.writeReady),runtimeReason:runtimeReasons().join("; "),walletConnected:Boolean(wallet),busy:Boolean(busyOperation||walletConnecting||hasPendingTransaction()),
     pendingQuote:query<HTMLSelectElement>("[name=quoteAssetConfigId]")?.value.startsWith("pending:")===true,
     invalidField:invalid ? labels[invalid.name] ?? invalid.name : undefined,metadataReady:Boolean(launchMetadataOrigin),buyMode,
     fundingReady:Boolean(launchFunding),insufficientEth:Boolean(launchFunding&&launchFunding.ethBalance<launchFunding.totalRequired)});
   setDisabled(button, Boolean(reason));
+  const clear = query<HTMLButtonElement>("[data-clear-create-draft]"); if (clear) clear.disabled = launchSubmitting || !!launchProgress;
   let hint = query<HTMLElement>("[data-create-blocker]",form);
   if(!hint){hint=document.createElement("p");hint.dataset.createBlocker="";hint.id="create-blocker";hint.setAttribute("role","status");button.insertAdjacentElement("afterend",hint);}
   hint.textContent=reason??"";hint.hidden=!reason;
@@ -2589,6 +2736,7 @@ async function performLaunch(): Promise<void> {
         return result;
       },
     });
+    clearCreateDraft(localStorage, robinhoodChain.id); pendingCreateDraft = null;
     launchSalt = randomSalt();
     launchPreview = null;
     toast(`Market created and verified — ${shortHex(created.marketId, 9, 7)}`, "success");
@@ -2718,7 +2866,7 @@ function filterStakeMarkets(): void {
   if (!select || !foundation) return;
   const search = query<HTMLInputElement>("[data-position-search]")?.value.trim().toLowerCase() ?? "";
   const previous = select.value;
-  const matches = foundation.markets.filter((market) =>
+  const matches = foundation.markets.filter((market) => market.gauge !== ZERO_ADDRESS &&
     `${rewardMarketLabels.get(market.marketId)?.search ?? ""} ${market.marketId} ${market.assetUid}`.toLowerCase().includes(search));
   select.replaceChildren(new Option(matches.length ? "Select a market" : "No matching markets", ""));
   matches.forEach((market) => select.add(new Option(rewardMarketLabels.get(market.marketId)?.label ?? rewardMarketOptionLabel(market), market.marketId)));
@@ -2744,16 +2892,24 @@ function updateStakePreview(): void {
   }
   const state = rewardPosition;
   const amount = validStakeAmount();
+  const field = query<HTMLInputElement>('#stake-amount');
+  let amountError = '';
+  if (field?.value.trim()) {
+    try { const parsed = parseTokenAmount(field.value, state.asset.tokenDecimals, 'Stake amount'); validateMarketStake(parsed,state.walletBalance,state.allocated,state.asset.minimumAllocation); }
+    catch(error) { amountError = errorText(error); }
+  }
   const open = state.asset.status === 1 && state.detail.market.launchPhase === 1 && state.settlementPrincipal === 0n;
   text("[data-stake-preview]", !open
     ? "New stakes are unavailable: the market must be Bloomed, STOCK active, and any emergency reward cleanup complete."
     : amount === null
-      ? `Enter a positive amount within your wallet balance. Minimum total position: ${formatTokenAmount(state.asset.minimumAllocation, state.asset.tokenDecimals)} STOCK.`
+      ? amountError || `Enter a positive amount within your wallet balance. Minimum total position: ${formatTokenAmount(state.asset.minimumAllocation, state.asset.tokenDecimals)} STOCK.`
       : `New total: ${formatTokenAmount(state.allocated + amount, state.asset.tokenDecimals)} STOCK. The entire position locks for 24 hours from confirmation.`);
 }
 
 function setupRewards(): void {
   query<HTMLInputElement>("[data-position-search]")?.addEventListener("input", filterStakeMarkets);
+  query<HTMLButtonElement>("[data-rewards-connect]")?.addEventListener("click", () => query<HTMLButtonElement>("[data-wallet]")?.click());
+  query<HTMLDetailsElement>("[data-emergency-recovery]")?.addEventListener("toggle", event => { if ((event.currentTarget as HTMLDetailsElement).open) void refreshDirectEscape(); });
   query<HTMLInputElement>("#stake-amount")?.addEventListener("input", () => { updateStakePreview(); updateRewardsAvailability(); });
   queryAll<HTMLFormElement>("[data-reward-form]").forEach((form) => form.addEventListener("submit", (event) => {
     event.preventDefault();
@@ -2762,10 +2918,10 @@ function setupRewards(): void {
   }));
   rewardRefreshTimer = window.setInterval(() => {
     if (currentPage() === "rewards" && document.visibilityState === "visible" && wallet && foundation && !busyOperation) {
-      void refreshRewardPosition();
-      if (continuousReward) void refreshTreasuryReward(false);
+      void refreshActiveReward();
     }
   }, 30_000);
+  query<HTMLButtonElement>("[data-rewards-refresh]")?.addEventListener("click", () => { void refreshActiveReward(); });
   const tabs = queryAll<HTMLButtonElement>("[data-rewards-tab]");
   const selectTab = (next: HTMLButtonElement, focus = false) => {
     const id = next.dataset.rewardsTab ?? "positions";
@@ -2779,7 +2935,9 @@ function setupRewards(): void {
     });
     syncUserActivity();
     if (focus) next.focus();
+    const changed = rewardTab(window.location.hash) !== id;
     router.replaceLocation(`#${id}`);
+    if (changed) void refreshActiveReward();
   };
   tabs.forEach((tab, index) => {
     tab.addEventListener("click", () => selectTab(tab));
@@ -2800,11 +2958,12 @@ function setupRewards(): void {
   };
   syncRewardHash();
 
-  queryAll<HTMLSelectElement>("[data-position-market],[data-settle-market]").forEach((select) => {
+  queryAll<HTMLSelectElement>("[data-position-market],[data-staker-market],[data-settle-market]").forEach((select) => {
     select.addEventListener("change", () => {
+      if (select.matches('[data-staker-market]')) { const search = query<HTMLInputElement>('[data-position-search]'); if (search) search.value = ''; filterStakeMarkets(); }
       const position = query<HTMLSelectElement>("[data-position-market]");
       if (select.matches("[data-position-market]")) syncRewardMarketSelections(select.value, "position");
-      else if (position && select.value) {
+      else if (position) {
         position.value = select.value;
         syncRewardMarketSelections(select.value, "position");
       }
@@ -2825,12 +2984,14 @@ function setupRewards(): void {
   });
   query<HTMLSelectElement>("[data-creator-market]")?.addEventListener("change", (event) => {
     const marketId = (event.currentTarget as HTMLSelectElement).value;
+    const epoch = query<HTMLInputElement>("[data-creator-epoch]"); if (epoch) epoch.value = "";
     syncRewardMarketSelections(marketId, "creator");
     const market = foundation?.markets.find((entry) => entry.marketId === marketId);
     const feeAsset = query<HTMLInputElement>("[data-creator-fee-asset]");
     if (market && feeAsset) feeAsset.value = market.quoteAsset;
     void refreshCreatorReward();
   });
+  query<HTMLButtonElement>("[data-creator-current]")?.addEventListener("click", () => { const epoch = query<HTMLInputElement>("[data-creator-epoch]"); if (epoch) epoch.value = ""; void refreshCreatorReward(); });
   query<HTMLInputElement>("[data-creator-epoch]")?.addEventListener("change", () => { void refreshCreatorReward(); });
   query<HTMLInputElement>("[data-creator-fee-asset]")?.addEventListener("change", () => { void refreshCreatorReward(); });
   query<HTMLSelectElement>("[data-treasury-market]")?.addEventListener("change", (event) => {
@@ -2854,12 +3015,12 @@ function rewardMarketOptionLabel(market: MarketReadModel): string {
 
 function populateRewardMarkets(): void {
   if (!foundation) return;
-  const selects = queryAll<HTMLSelectElement>("[data-position-market],[data-settle-market],[data-creator-market],[data-treasury-market]");
+  const selects = queryAll<HTMLSelectElement>("[data-position-market],[data-staker-market],[data-settle-market],[data-creator-market],[data-treasury-market]");
   selects.forEach((select) => {
     const prior = select.value;
     const placeholder = select.matches("[data-direct-vault-market],[data-settle-market]") ? "Use selected market" : "Select a configured market";
     select.replaceChildren(new Option(placeholder, ""));
-    foundation!.markets.filter((market) => !select.matches("[data-position-market],[data-settle-market]") || market.gauge !== ZERO_ADDRESS).forEach((market) => select.add(new Option(rewardMarketOptionLabel(market), market.marketId)));
+    foundation!.markets.filter((market) => !select.matches("[data-position-market],[data-staker-market],[data-settle-market]") || market.gauge !== ZERO_ADDRESS).forEach((market) => select.add(new Option(rewardMarketOptionLabel(market), market.marketId)));
     if (foundation!.markets.some((market) => market.marketId === prior)) select.value = prior;
   });
   filterStakeMarkets();
@@ -2884,9 +3045,9 @@ function populateRewardMarkets(): void {
 }
 
 function syncRewardMarketSelections(marketId: string, source: "position" | "creator" | "treasury"): void {
-  if (!marketId) return;
+  if (!marketId && source !== "position") return;
   if (source === "position") {
-    queryAll<HTMLSelectElement>("[data-settle-market]").forEach((select) => { select.value = marketId; });
+    queryAll<HTMLSelectElement>("[data-staker-market],[data-settle-market]").forEach((select) => { select.value = marketId; });
     const direct = query<HTMLInputElement>("[data-direct-vault-market]");
     if (direct) direct.value = marketId;
   }
@@ -3092,7 +3253,7 @@ async function readRewardPositionState(detail: MarketDetailResponse): Promise<Re
 }
 
 function renderRewardPosition(state: RewardPositionState): void {
-  const stock = (amount: bigint) => `${formatTokenAmount(amount, state.asset.tokenDecimals)} (${amount} raw)`;
+  const stock = (amount: bigint) => formatTokenAmount(amount, state.asset.tokenDecimals);
   const unlock = state.unlockAt === 0n ? "not set" : new Date(Number(state.unlockAt) * 1_000).toLocaleString();
   const settlement = state.settlementPrincipal > 0n
     ? ` Reward cleanup pending for ${stock(state.settlementPrincipal)}; principal has already been returned.`
@@ -3103,7 +3264,7 @@ function renderRewardPosition(state: RewardPositionState): void {
   text("[data-staker-claimable=quote]", `${formatTokenAmount(state.quoteClaimable, state.metadata.quoteDecimals)} ${state.metadata.quoteSymbol}`);
   text("[data-staker-claimable=meme]", `${formatTokenAmount(state.memeClaimable, 18)} ${state.metadata.symbol}`);
   text("[data-rewards-total]", `${formatTokenAmount(state.quoteClaimable, state.metadata.quoteDecimals)} ${state.metadata.quoteSymbol} · ${formatTokenAmount(state.memeClaimable, 18)} ${state.metadata.symbol}`);
-  iconText("[data-staker-status]", "ph-check-circle", `Live claimables for ${state.metadata.symbol} at ${foundation?.sync.revision}. Quote is settled; Meme is awaiting automatic conversion. Existing reward locks still apply.`);
+  iconText("[data-staker-status]", "ph-check-circle", `Rewards for ${state.metadata.symbol}. Settled rewards are paid in ${state.metadata.quoteSymbol}; pending tokens are awaiting conversion.`);
   text("[data-staker-conversion-status]", rawExitStatus(state.rawExitAt, state.now));
   text("[data-ragequit-estimate]", `Principal: ${stock(state.allocated)} STOCK. Estimated unclaimed rewards forfeited to the platform: ${formatTokenAmount(state.quoteClaimable, state.metadata.quoteDecimals)} ${state.metadata.quoteSymbol} + ${formatTokenAmount(state.memeClaimable, 18)} ${state.metadata.symbol}. Final reward amounts may change before execution.`);
   const directAsset = query<HTMLInputElement>("[data-direct-vault-asset]");
@@ -3143,7 +3304,7 @@ async function refreshRewardPosition(): Promise<void> {
     if (generation !== rewardLoadGeneration) return;
     rewardPosition = state;
     renderRewardPosition(state);
-    text("[data-rewards-status]", `Position verified for ${shortHex(wallet.account)} at ${foundation.sync.revision}.`);
+    text("[data-rewards-status]", `Balances updated for ${shortHex(wallet.account)} at ${new Date().toLocaleTimeString()}.`);
     updateRewardsAvailability();
   } catch (error) {
     if (generation !== rewardLoadGeneration) return;
@@ -3190,6 +3351,7 @@ async function refreshCreatorReward(): Promise<void> {
     const epochInput = required<HTMLInputElement>("[data-creator-epoch]");
     if (!epochInput.value) epochInput.value = String(currentEpoch);
     const epoch = parseUint32(epochInput.value, "Creator epoch");
+    epochInput.max = String(currentEpoch);
     if (epoch > currentEpoch) throw new Error("Creator epoch is newer than the on-chain current epoch");
     const feeAsset = configuredCreatorFeeAsset(market);
     const [beneficiary, currentBeneficiary, liability, rawMarket] = await Promise.all([
@@ -3219,7 +3381,7 @@ async function refreshCreatorReward(): Promise<void> {
     text("[data-creator-current-beneficiary]", canonicalCurrentBeneficiary);
     text("[data-creator-market-summary]", shortHex(market.marketId, 9, 7));
     text("[data-creator-epoch-summary]", String(epoch));
-    text("[data-creator-status]", `Liability ${liability} raw units in ${shortHex(feeAsset)}; claims pay the recorded beneficiary.${creatorFeesToHolders ? " Holder fee sharing is enabled: this amount covers only the creator's retained base fee share and all creator tax; holder rewards are claimed separately." : ""}`);
+    text("[data-creator-status]", `${formatTokenAmount(liability, metadata.quoteDecimals)} ${metadata.quoteSymbol} available; payment goes to ${shortHex(canonicalBeneficiary)}.${creatorFeesToHolders ? " Holder fee sharing is enabled: this amount covers only the creator's retained base fee share and all creator tax; holder rewards are claimed separately." : ""}`);
     text("[data-creator-status-summary]", wallet.account === canonicalCurrentBeneficiary ? "Current future-revenue controller" : wallet.account === canonicalBeneficiary ? "Selected historical-epoch beneficiary" : "Read / permissionless claim only");
     updateRewardsAvailability();
   } catch (error) {
@@ -3472,6 +3634,12 @@ function setContinuousRewardsView(enabled: boolean): void {
 }
 
 function updateRewardsAvailability(): void {
+  const connect = query<HTMLButtonElement>("[data-rewards-connect]"); if (connect) connect.hidden = !!wallet;
+  const prerequisite = !wallet ? 'Connect your wallet to continue.' : busyOperation ? 'A transaction is in progress. Check its status above.' : hasPendingTransaction() ? 'Check the existing transaction above before submitting another.' : !foundation?.writeReady ? 'Transactions are unavailable until the market connection is restored.' : '';
+  text('[data-staker-action-help]', prerequisite || (rewardPosition ? stakerClaimHelp(rewardPosition) : 'Choose a market to view your stake and rewards.'));
+  text('[data-creator-action-help]', prerequisite || (!creatorReward ? 'Choose a market to view creator rewards.' : creatorReward.liability > 0n ? `Ready to claim. Funds go to ${shortHex(creatorReward.beneficiary)}, the beneficiary for this version.` : creatorReward.memeLiability > 0n ? 'Rewards are awaiting conversion. See original-token options below if conversion cannot complete.' : 'No creator revenue to claim for this beneficiary version yet.'));
+  text('[data-holder-action-help]', prerequisite || (continuousReward ? continuousReward.claimable > 0n ? 'Rewards are ready to claim to your wallet.' : 'Nothing claimable yet. Check the release and funding status below.' : treasuryReward ? treasuryReward.accountClaimed ? 'You have already claimed this reward cycle.' : treasuryReward.status === 3 && treasuryReward.proof ? treasuryReward.now > treasuryReward.claimUntil ? 'This reward cycle has expired.' : 'Your verified reward is ready to claim.' : 'Rewards will be available after this cycle closes and its distribution is ready. See cycle status below.' : 'Choose a market to load its reward schedule.'));
+
   queryAll<HTMLButtonElement>("[data-reward-action]").forEach((button) => setDisabled(button, true));
   const direct = rewardActionButton("directVaultRageQuit");
   if (direct) {
@@ -3625,6 +3793,7 @@ async function executePositionAction(action: string, button: HTMLButtonElement):
     verifyChain,
     confirm,
   });
+  if (action === "stake") { const input = query<HTMLInputElement>("#stake-amount"); if (input) input.value = ""; }
   toast(action === "rageQuit" ? "Principal returned immediately; reward cleanup state refreshed" : "Market position updated; principal verified on chain", "success");
   await refreshRewardPosition();
 }
@@ -4016,6 +4185,10 @@ async function executeTreasuryAction(action: string): Promise<void> {
 
 async function runRewardAction(button: HTMLButtonElement): Promise<void> {
   const action = button.dataset.rewardAction ?? "";
+  if (['rageQuit','directVaultRageQuit'].includes(action) && !await confirmFlowAction('Return all principal immediately? All unclaimed rewards in this position will be permanently forfeited to the platform.')) return;
+  if (action === 'stake' && rewardPosition && rewardPosition.allocated > 0n && !await confirmFlowAction('Adding stake restarts the 24-hour lock for your entire position and normal reward claims. Continue?')) return;
+  if (action === 'transferCreatorRevenueBeneficiary' && !await confirmFlowAction('Nominate this wallet to receive future creator revenue? The change takes effect only when it accepts. Past earnings stay with the recorded beneficiary.')) return;
+  text("[data-rewards-action-status]", "Preparing your transaction…");
   try {
     const form = button.closest<HTMLFormElement>("form");
     if (form && !form.reportValidity()) {
@@ -4042,13 +4215,36 @@ async function runRewardAction(button: HTMLButtonElement): Promise<void> {
     } else {
       throw new Error("Unknown Rewards action");
     }
+    text("[data-rewards-action-status]", "Transaction confirmed. Balances refreshed.");
   } catch (error) {
+    text("[data-rewards-action-status]", `Action stopped — ${errorText(error)}`);
     toast(`Rewards action stopped — ${errorText(error)}`, "error");
     updateRewardsAvailability();
   }
 }
 
 let rewardDeepLinkApplied = false;
+let rewardTabLoading = false;
+let rewardRefreshQueued = false;
+async function refreshActiveReward(): Promise<void> {
+  if (rewardTabLoading) { rewardRefreshQueued = true; return; }
+  if (busyOperation || document.hidden || currentPage() !== 'rewards') return;
+  rewardTabLoading = true;
+  const generation = routeGeneration;
+  const button = query<HTMLButtonElement>('[data-rewards-refresh]');
+  if (button) button.disabled = true;
+  try {
+    const tab = rewardTab(window.location.hash);
+    if (tab === 'positions' || tab === 'staker') await refreshRewardPosition();
+    else if (tab === 'creator') await refreshCreatorReward();
+    else if (tab === 'treasury') await refreshTreasuryReward(false);
+    else syncUserActivity();
+  } finally {
+    rewardTabLoading = false;
+    if (generation === routeGeneration && button) button.disabled = false;
+    if (rewardRefreshQueued) { rewardRefreshQueued = false; void refreshActiveReward(); }
+  }
+}
 let accountBalancesRequest: AbortController | undefined;
 let accountBalancesWallet: string | undefined;
 function clearAccountBalances(): void {
@@ -4090,7 +4286,7 @@ async function refreshAccountBalances(): Promise<void> {
 
 async function renderRewards(): Promise<void> {
   const pageGeneration = routeGeneration;
-  void refreshAccountBalances();
+  if (rewardTab(window.location.hash) === "positions") void refreshAccountBalances();
   const requestedMarket = new URLSearchParams(window.location.search).get("marketId")?.toLowerCase();
   if (foundation && readApi && requestedMarket && !rewardDeepLinkApplied) {
     try {
@@ -4120,6 +4316,9 @@ async function renderRewards(): Promise<void> {
     }
   }
   populateRewardMarkets();
+  text('[data-rewards-runtime-title]', wallet ? 'Your rewards' : 'Connect your wallet');
+  const empty = query<HTMLElement>('[data-rewards-empty]');
+  if (empty) empty.hidden = !foundation || foundation.markets.length > 0;
   if (!foundation) {
     text("[data-rewards-status]", `Rewards unavailable — ${runtimeReasons().join("; ")}`);
     await refreshDirectEscape();
@@ -4127,8 +4326,8 @@ async function renderRewards(): Promise<void> {
     return;
   }
   text("[data-rewards-status]", wallet
-    ? `Wallet connected. Choose a canonical market; every action is simulated and receipt-verified at ${foundation.sync.revision}.`
-    : `Finalized V1 data loaded at ${foundation.sync.revision}; connect a wallet to inspect account state.`);
+    ? "Choose a market to view your position and rewards. Each transaction is checked before signing."
+    : "Connect your wallet to view balances, stake Stock or claim rewards.");
   if (!wallet) {
     await refreshDirectEscape();
     updateRewardsAvailability();
@@ -4145,7 +4344,7 @@ async function renderRewards(): Promise<void> {
   if (treasuryMarket && !treasuryMarket.value && defaultTreasuryMarket) treasuryMarket.value = defaultTreasuryMarket;
   const settleUser = query<HTMLInputElement>("[data-settle-user]");
   if (settleUser && !settleUser.value) settleUser.value = wallet.account;
-  await Promise.allSettled([refreshRewardPosition(), refreshCreatorReward(), refreshTreasuryReward(true), refreshDirectEscape()]);
+  await refreshActiveReward();
   updateRewardsAvailability();
 }
 
@@ -4204,19 +4403,22 @@ function renderRecoveryControls(): void {
         const search = query<HTMLInputElement>("[data-position-search]");
         if (search) search.value = "";
         populateRewardMarkets();
-        queryAll<HTMLSelectElement>("[data-position-market],[data-settle-market],[data-creator-market],[data-treasury-market]").forEach((select) => { select.value = marketId; });
-        await Promise.allSettled([refreshRewardPosition(), refreshCreatorReward(), refreshTreasuryReward(true)]);
+        queryAll<HTMLSelectElement>("[data-position-market],[data-staker-market],[data-settle-market],[data-creator-market],[data-treasury-market]").forEach((select) => { select.value = marketId; });
+        await refreshActiveReward();
       } catch (error) { if (generation === routeGeneration) toast(errorText(error), "warning"); }
       finally { load.disabled = false; }
     };
-    panel.append(marketInput, load);
+    const advanced = document.createElement("details"); const summary = document.createElement("summary"); summary.textContent = "Find a market by ID"; advanced.append(summary, marketInput, load); panel.append(advanced);
   }
   if (wallet) {
     const active = wallet;
-    const pending = active.executor.pending(active.account);
+    let pending: ReturnType<typeof active.executor.pending> = null;
+    try { pending = active.executor.pending(active.account); }
+    catch { const note = document.createElement('p'); note.textContent = 'Your saved transaction record cannot be read. Check wallet history before trying another transaction; no transaction has been resent.'; panel.append(note); }
     if (pending && !launchProgress) {
       const description = document.createElement("span");
-      description.textContent = `Transaction outcome awaiting verification: ${pending.hash}. `;
+      description.textContent = `${pending.approval ? 'Token approval' : 'Transaction'} awaiting confirmation. `;
+      const explorer = document.createElement('a'); explorer.textContent = 'View transaction'; explorer.href = `${robinhoodChain.blockExplorers.default.url}/tx/${pending.hash}`; explorer.target = '_blank'; explorer.rel = 'noopener noreferrer'; panel.append(explorer);
       const recover = document.createElement("button");
       recover.textContent = "Check existing transaction";
       recover.onclick = () => { void runPageAction(async () => {
@@ -4265,7 +4467,7 @@ async function refreshCurrentPage(preserveSnapshot = false): Promise<void> {
       else {
         const marketId = query<HTMLInputElement>("[data-market-id]")?.value.trim().toLowerCase() ?? "";
         if (BYTES32_PATTERN.test(marketId)) await loadTradeMarket(marketId);
-        else updateTradeAvailability();
+        else { text("[data-detail-phase]", "Choose a market"); text("[data-detail-phase-note]", "Open a token from Explore to trade."); updateTradeAvailability(); }
       }
       break;
     case "create": renderCreateConfig(); break;
@@ -4313,6 +4515,7 @@ function invalidateSnapshotReads(): void {
   continuousReward = null;
   setContinuousRewardsView(false);
   window.clearTimeout(tradeQuoteTimer);
+  window.clearTimeout(tradeQuoteExpiryTimer);
   window.clearTimeout(launchPreviewTimer);
 }
 
@@ -4392,6 +4595,7 @@ function unmountPage(): void {
   disposeVisuals?.(); disposeVisuals = undefined;
   queryAll<HTMLSelectElement>("[data-quote-picker] select").forEach(destroyQuotePicker);
   window.clearInterval(rewardRefreshTimer);
+  window.clearInterval(tradePhaseTimer);
   window.clearTimeout(directEscapeRefreshTimer);
   invalidateSnapshotReads();
   ++directEscapeLoadGeneration; directEscape = null;

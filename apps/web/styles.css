@@ -645,3 +645,11 @@
 .field-error { display:block; color:#b42318; font-size:0.8125rem; line-height:1.5; margin:0.25rem 0 0.6rem; }
 .field-error[hidden] { display:none; }
 [aria-invalid="true"] { outline:2px solid #b42318; outline-offset:2px; }
+
+/* In-page confirmations keep consequences readable on desktop and mobile. */
+.flow-confirm{width:min(460px,calc(100vw - 32px));padding:24px;border:1px solid #e3e5df;border-radius:18px;background:#fff;color:#242b27;box-shadow:0 20px 80px #18231b33}
+.flow-confirm::backdrop{background:#18231b66}
+.flow-confirm h2{margin:0 0 12px;font-size:20px}.flow-confirm p{line-height:1.6}.flow-confirm>div{display:flex;justify-content:flex-end;gap:12px;margin-top:20px}.flow-confirm button{min-height:44px;padding:10px 20px;border:1px solid #bdc7bd;border-radius:10px;background:#fff;cursor:pointer}.flow-confirm button:last-child{background:#233e2c;color:#fff}
+
+[data-clear-create-draft],[data-skip-draft-image],[data-creator-current]{width:fit-content;min-height:40px;padding:8px 14px;border:1px solid #bdc7bd;border-radius:10px;background:#fff;color:#233e2c;font:inherit;font-size:12px;cursor:pointer}
+[data-create-draft-status]{font-size:12px;color:#647367;line-height:1.5}
