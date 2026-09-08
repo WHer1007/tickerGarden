@@ -340,7 +340,7 @@ function setDisabled(element: HTMLButtonElement | HTMLInputElement | HTMLSelectE
 
 function currentPage(): PageName {
   const candidate = document.body.dataset.page;
-  return (["home", "markets", "trade", "create", "stats", "rewards", "docs", "privacy", "terms", "risks", "not-found"] as const).includes(candidate as PageName)
+  return (["home", "markets", "trade", "create", "stats", "rewards", "staking", "docs", "privacy", "terms", "risks", "not-found"] as const).includes(candidate as PageName)
     ? candidate as PageName
     : "home";
 }
@@ -376,6 +376,7 @@ function runtimeReasons(): readonly string[] {
   return foundation.writeReasons.map(publicMessage);
 }
 
+function isRewardsPage(): boolean { return currentPage() === 'rewards' || currentPage() === 'staking'; }
 function hasPendingTransaction(): boolean {
   if (!wallet) return false;
   try { return !!wallet.executor.pending(wallet.account); } catch { return true; }
@@ -774,6 +775,7 @@ function setupShell(): void {
     ["create", "Create", "/create"],
     ["stats", "Stats", "/stats"],
     ["rewards", "Claim", "/claim"],
+    ["staking", "Stake", "/stake"],
     ["docs", "Docs", "/docs"],
   ];
   const header = required<HTMLElement>("[data-shell-header]");
@@ -784,7 +786,7 @@ function setupShell(): void {
     <a class="brand" href="/" aria-label="TickerGarden home">
       <img src="${brandMarkUrl}" alt="">${brandWordmark}
     </a>
-    <nav aria-label="Primary navigation">${nav.map(([id, label, url]) => `<a class="${page === id ? "active" : ""}" ${page === id ? "aria-current=\"page\"" : ""} ${id === "rewards" ? "data-wallet-only hidden" : ""} href="${url}">${label}</a>`).join("")}</nav>
+    <nav aria-label="Primary navigation">${nav.map(([id, label, url]) => `<a class="${page === id ? "active" : ""}" ${page === id ? "aria-current=\"page\"" : ""} ${(id === "rewards" || id === "staking") ? "data-wallet-only hidden" : ""} href="${url}">${label}</a>`).join("")}</nav>
     <div class="header-actions">
       <button class="wallet" type="button" data-wallet><i class="ph ph-wallet" aria-hidden="true"></i><span>Connect Wallet</span></button>
       <button class="menu" type="button" data-menu aria-label="Open navigation" aria-expanded="false"><i class="ph ph-list" aria-hidden="true"></i></button>
@@ -902,7 +904,7 @@ function refreshActionAvailability(): void {
   queryAll<HTMLButtonElement>("[data-requires-write]").forEach((button) => setDisabled(button, !writeReady()));
   if (currentPage() === "trade") updateTradeAvailability();
   if (currentPage() === "create") updateCreateAvailability();
-  if (currentPage() === "rewards") updateRewardsAvailability();
+  if (isRewardsPage()) updateRewardsAvailability();
 }
 
 let marketStockSymbols = new Map<string, string>();
@@ -1438,7 +1440,7 @@ function clearTradeMarketState(): void {
   text("[data-trade-market-note]", "Only values returned by the on-chain/read API are displayed.");
   text("[data-trade-route-status]", "Load a market to determine whether its route is available.");
   const stakeLink = query<HTMLAnchorElement>("[data-market-stake-link]");
-  if (stakeLink) stakeLink.href = "/claim#positions";
+  if (stakeLink) stakeLink.href = "/stake#positions";
   renderTradeQuote();
 }
 
@@ -1526,7 +1528,7 @@ async function loadTradeMarket(explicit?: string): Promise<void> {
     router.replaceLocation(nextUrl.href);
     text("[data-trade-market-name]", metadata.name);
     const stakeLink = query<HTMLAnchorElement>("[data-market-stake-link]");
-    if (stakeLink) stakeLink.href = `/claim?marketId=${encodeURIComponent(response.market.marketId)}#positions`;
+    if (stakeLink) stakeLink.href = `/stake?marketId=${encodeURIComponent(response.market.marketId)}#positions`;
     text("[data-trade-stock]", shortHex(response.market.assetUid, 9, 7));
     text('[data-detail-venue]',response.market.launchPhase===0?'Bonding curve':'Uniswap v4');
     if(response.market.gauge===ZERO_ADDRESS)text('[data-detail-stock-label]','Staking disabled');
@@ -2908,6 +2910,11 @@ function updateStakePreview(): void {
 
 function setupRewards(): void {
   query<HTMLInputElement>("[data-position-search]")?.addEventListener("input", filterStakeMarkets);
+  query<HTMLButtonElement>('[data-copy-beneficiary]')?.addEventListener('click', async () => {
+    if (!creatorReward) return;
+    try { await navigator.clipboard.writeText(creatorReward.beneficiary); toast('Recipient address copied', 'success'); }
+    catch { toast('Unable to copy. Select the recipient address instead.', 'warning'); }
+  });
   query<HTMLButtonElement>("[data-rewards-connect]")?.addEventListener("click", () => query<HTMLButtonElement>("[data-wallet]")?.click());
   query<HTMLDetailsElement>("[data-emergency-recovery]")?.addEventListener("toggle", event => { if ((event.currentTarget as HTMLDetailsElement).open) void refreshDirectEscape(); });
   query<HTMLInputElement>("#stake-amount")?.addEventListener("input", () => { updateStakePreview(); updateRewardsAvailability(); });
@@ -2917,7 +2924,7 @@ function setupRewards(): void {
     if (button && !button.disabled) void runPageAction(() => runRewardAction(button));
   }));
   rewardRefreshTimer = window.setInterval(() => {
-    if (currentPage() === "rewards" && document.visibilityState === "visible" && wallet && foundation && !busyOperation) {
+    if (isRewardsPage() && document.visibilityState === "visible" && wallet && foundation && !busyOperation) {
       void refreshActiveReward();
     }
   }, 30_000);
@@ -2942,11 +2949,11 @@ function setupRewards(): void {
   tabs.forEach((tab, index) => {
     tab.addEventListener("click", () => selectTab(tab));
     tab.addEventListener("keydown", (event) => {
-      if (!["ArrowLeft", "ArrowRight", "Home", "End"].includes(event.key)) return;
+      if (!["ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown", "Home", "End"].includes(event.key)) return;
       event.preventDefault();
       const nextIndex = event.key === "Home" ? 0
         : event.key === "End" ? tabs.length - 1
-          : (index + (event.key === "ArrowRight" ? 1 : -1) + tabs.length) % tabs.length;
+          : (index + (["ArrowRight", "ArrowDown"].includes(event.key) ? 1 : -1) + tabs.length) % tabs.length;
       const next = tabs[nextIndex];
       if (next) selectTab(next, true);
     });
@@ -3018,7 +3025,7 @@ function populateRewardMarkets(): void {
   const selects = queryAll<HTMLSelectElement>("[data-position-market],[data-staker-market],[data-settle-market],[data-creator-market],[data-treasury-market]");
   selects.forEach((select) => {
     const prior = select.value;
-    const placeholder = select.matches("[data-direct-vault-market],[data-settle-market]") ? "Use selected market" : "Select a configured market";
+    const placeholder = select.matches("[data-direct-vault-market],[data-settle-market]") ? "Use selected market" : currentPage() === "rewards" ? "Select a token" : "Select a configured market";
     select.replaceChildren(new Option(placeholder, ""));
     foundation!.markets.filter((market) => !select.matches("[data-position-market],[data-staker-market],[data-settle-market]") || market.gauge !== ZERO_ADDRESS).forEach((market) => select.add(new Option(rewardMarketOptionLabel(market), market.marketId)));
     if (foundation!.markets.some((market) => market.marketId === prior)) select.value = prior;
@@ -3323,6 +3330,8 @@ function configuredCreatorFeeAsset(market: MarketReadModel): Address {
 async function refreshCreatorReward(): Promise<void> {
   const generation = ++creatorLoadGeneration;
   creatorReward = null;
+  text("[data-creator-receive-asset]", "—");
+  text("[data-creator-status]", "");
   text("[data-creator-beneficiary]", "—");
   text("[data-creator-pending-beneficiary]", "—");
   text("[data-creator-current-beneficiary]", "—");
@@ -3334,7 +3343,7 @@ async function refreshCreatorReward(): Promise<void> {
   text("[data-creator-conversion-status]", "Load verified creator rewards to see conversion status.");
   updateRewardsAvailability();
   if (!foundation || !wallet || !runtimeConfig.contracts.available) {
-    text("[data-creator-status]", `Locked — ${runtimeReasons().join("; ") || "connect a wallet"}`);
+    text("[data-creator-status]", !wallet ? "" : `Connection unavailable — ${runtimeReasons().join("; ")}`);
     return;
   }
   const select = query<HTMLSelectElement>("[data-creator-market]");
@@ -3374,9 +3383,10 @@ async function refreshCreatorReward(): Promise<void> {
     text("[data-creator-pending-beneficiary]", pendingBeneficiary === null ? "Two-step handoff unavailable: unsupported release or RPC read failure" : pendingBeneficiary === ZERO_ADDRESS ? "No pending handoff" : pendingBeneficiary);
     const creatorFeesToHolders = tupleField(tupleField(rawMarket, "config", 0), "creatorFeesToHolders", 15) === true;
     creatorReward = Object.freeze({ pendingBeneficiary, creatorFeesToHolders, marketId: market.marketId, epoch, beneficiary: canonicalBeneficiary, currentEpoch, currentBeneficiary: canonicalCurrentBeneficiary, feeAsset, liability, memeAsset, memeLiability, rawExitAt, now: block.timestamp });
-    text("[data-creator-quote-asset]", `${formatTokenAmount(liability, metadata.quoteDecimals)} ${metadata.quoteSymbol} settled`);
-    text("[data-creator-pending-meme]", `${formatTokenAmount(memeLiability, 18)} ${metadata.symbol} awaiting conversion`);
+    text("[data-creator-quote-asset]", `${formatTokenAmount(liability, metadata.quoteDecimals)} ${metadata.quoteSymbol}`);
+    text("[data-creator-pending-meme]", `${formatTokenAmount(memeLiability, 18)} ${metadata.symbol}`);
     text("[data-creator-conversion-status]", rawExitStatus(rawExitAt, block.timestamp));
+    text("[data-creator-receive-asset]", metadata.quoteSymbol);
     text("[data-creator-beneficiary]", canonicalBeneficiary);
     text("[data-creator-current-beneficiary]", canonicalCurrentBeneficiary);
     text("[data-creator-market-summary]", shortHex(market.marketId, 9, 7));
@@ -3473,7 +3483,7 @@ async function refreshTreasuryReward(resetEpoch: boolean): Promise<void> {
   text("[data-treasury-fee-asset]", "Locked — live configuration required");
   text("[data-treasury-fee-allowance]", "Locked — live allowance required");
   text("[data-treasury-service-credit]", "Locked — live credit required");
-  text("[data-treasury-claimable]", "Locked — finalized Root required");
+  text("[data-treasury-claimable]", "Unavailable");
   text("[data-treasury-proof]", "No verified proof loaded");
   updateRewardsAvailability();
   if (!foundation || !wallet || !runtimeConfig.contracts.available) {
@@ -3634,6 +3644,7 @@ function setContinuousRewardsView(enabled: boolean): void {
 }
 
 function updateRewardsAvailability(): void {
+  const copy = query<HTMLButtonElement>("[data-copy-beneficiary]"); if (copy) copy.disabled = !creatorReward;
   const connect = query<HTMLButtonElement>("[data-rewards-connect]"); if (connect) connect.hidden = !!wallet;
   const prerequisite = !wallet ? 'Connect your wallet to continue.' : busyOperation ? 'A transaction is in progress. Check its status above.' : hasPendingTransaction() ? 'Check the existing transaction above before submitting another.' : !foundation?.writeReady ? 'Transactions are unavailable until the market connection is restored.' : '';
   text('[data-staker-action-help]', prerequisite || (rewardPosition ? stakerClaimHelp(rewardPosition) : 'Choose a market to view your stake and rewards.'));
@@ -4228,7 +4239,7 @@ let rewardTabLoading = false;
 let rewardRefreshQueued = false;
 async function refreshActiveReward(): Promise<void> {
   if (rewardTabLoading) { rewardRefreshQueued = true; return; }
-  if (busyOperation || document.hidden || currentPage() !== 'rewards') return;
+  if (busyOperation || document.hidden || !isRewardsPage()) return;
   rewardTabLoading = true;
   const generation = routeGeneration;
   const button = query<HTMLButtonElement>('[data-rewards-refresh]');
@@ -4306,6 +4317,7 @@ async function renderRewards(): Promise<void> {
       const select = query<HTMLSelectElement>("[data-position-market]");
       if (select) select.value = marketId;
       syncRewardMarketSelections(marketId, "position");
+      queryAll<HTMLSelectElement>("[data-creator-market],[data-treasury-market]").forEach(select => { select.value = marketId; });
       rewardDeepLinkApplied = true;
     } catch (error) {
       if (pageGeneration !== routeGeneration) return;
@@ -4321,20 +4333,20 @@ async function renderRewards(): Promise<void> {
   if (empty) empty.hidden = !foundation || foundation.markets.length > 0;
   if (!foundation) {
     text("[data-rewards-status]", `Rewards unavailable — ${runtimeReasons().join("; ")}`);
-    await refreshDirectEscape();
+    if (currentPage() === "staking") await refreshDirectEscape();
     updateRewardsAvailability();
     return;
   }
   text("[data-rewards-status]", wallet
     ? "Choose a market to view your position and rewards. Each transaction is checked before signing."
-    : "Connect your wallet to view balances, stake Stock or claim rewards.");
+    : currentPage() === "staking" ? "Connect your wallet to view positions and staking rewards." : "Connect your wallet to view and claim rewards.");
   if (!wallet) {
-    await refreshDirectEscape();
+    if (currentPage() === "staking") await refreshDirectEscape();
     updateRewardsAvailability();
     return;
   }
   const defaultMarket = foundation.markets.find((market) => market.marketId === requestedMarket)?.marketId ?? foundation.markets.find((market) => market.launchPhase === 1)?.marketId ?? foundation.markets[0]?.marketId ?? "";
-  queryAll<HTMLSelectElement>("[data-position-market],[data-settle-market],[data-creator-market]").forEach((select) => {
+  queryAll<HTMLSelectElement>("[data-position-market],[data-staker-market],[data-settle-market],[data-creator-market]").forEach((select) => {
     if (!select.value && defaultMarket) select.value = defaultMarket;
   });
   const directMarket = query<HTMLInputElement>("[data-direct-vault-market]");
@@ -4373,7 +4385,7 @@ function renderRecoveryControls(): void {
     (query<HTMLElement>("main") ?? document.body).prepend(panel);
   }
   panel.replaceChildren();
-  if (foundation?.marketNextCursor && currentPage() === "rewards") {
+  if (foundation?.marketNextCursor && isRewardsPage()) {
     const more = document.createElement("button");
     more.textContent = "Load next 100 markets";
     more.onclick = async () => {
@@ -4383,7 +4395,7 @@ function renderRecoveryControls(): void {
     };
     panel.append(more);
   }
-  if (currentPage() === "rewards" && foundation && readApi) {
+  if (isRewardsPage() && foundation && readApi) {
     const marketInput = document.createElement("input");
     marketInput.placeholder = "Load a reward market by marketId";
     marketInput.name="marketId"; marketInput.required=true; marketInput.pattern="0x[0-9a-fA-F]{64}";
@@ -4408,7 +4420,9 @@ function renderRecoveryControls(): void {
       } catch (error) { if (generation === routeGeneration) toast(errorText(error), "warning"); }
       finally { load.disabled = false; }
     };
-    const advanced = document.createElement("details"); const summary = document.createElement("summary"); summary.textContent = "Find a market by ID"; advanced.append(summary, marketInput, load); panel.append(advanced);
+    const advanced = document.createElement("details"); const summary = document.createElement("summary"); summary.textContent = "Find a market by ID"; advanced.append(summary, marketInput, load);
+    const lookup = query<HTMLElement>("[data-claim-market-lookup]");
+    if (lookup) lookup.replaceChildren(advanced); else panel.append(advanced);
   }
   if (wallet) {
     const active = wallet;
@@ -4472,6 +4486,7 @@ async function refreshCurrentPage(preserveSnapshot = false): Promise<void> {
       break;
     case "create": renderCreateConfig(); break;
     case "stats": await renderStats(); break;
+    case "staking":
     case "rewards": await renderRewards(); break;
     case "docs": setPageStatus("Docs loaded. Runtime-dependent actions are documented as fail-closed.", "success"); break;
   }
@@ -4644,6 +4659,7 @@ function mountRoute(route: Route): void {
     case "trade": setupTrade(); break;
     case "create": setupCreate(); break;
     case "stats": setupStats(); break;
+    case "staking":
     case "rewards": setupRewards(); break;
     case "docs": setupDocs(); break;
   }
@@ -4666,7 +4682,7 @@ const router = createRouter({
   render: mountRoute,
   canNavigate: () => !pageActionPending && !busyOperation && !walletConnecting && !launchSubmitting,
   blocked: () => toast("Finish the current wallet operation before leaving this page.", "warning"),
-  hashChanged: () => { if (currentPage() === "rewards") syncRewardHash?.(); },
+  hashChanged: () => { if (isRewardsPage()) syncRewardHash?.(); },
 });
 router.start();
 void restoreLaunchProgress();
@@ -4681,13 +4697,13 @@ async function refreshDirectDirectory():Promise<void>{
  try{
   const feed=await integrationFeed(runtimeConfig.readApi.value);
   for(const e of feed.events){const l=e.payload;directMarkets.observe({address:l.address,topics:l.topics,data:l.data,blockNumber:BigInt(e.blockNumber),blockHash:e.blockHash as Hex,transactionHash:l.transactionHash,transactionIndex:Number(BigInt(l.transactionIndex)),logIndex:Number(BigInt(l.logIndex))});}
-  if((currentPage()==="home"||currentPage()==="markets"||currentPage()==="rewards")&&foundation?.direct){
+  if((currentPage()==="home"||currentPage()==="markets"||isRewardsPage())&&foundation?.direct){
    const refreshStates=Date.now()-directDirectoryReadAt>10*60_000;
    const previous=new Map(foundation.markets.map(m=>[m.marketId,m]));
    const records=await mapConcurrent([...directMarkets.sources.keys()].slice(currentPage()==="home"?-10:-20),async id=>!refreshStates&&previous.has(id)?previous.get(id)!:await directMarkets!.market(id).then(x=>x.market).catch(()=>null),2);
    if(refreshStates)directDirectoryReadAt=Date.now();
    const markets=records.filter((x):x is MarketReadModel=>x!==null);
-   if(JSON.stringify(foundation.markets)!==JSON.stringify(markets)){foundation=Object.freeze({...foundation,markets});if(currentPage()==="home")await renderHome();else if(currentPage()==="rewards")populateRewardMarkets();else await renderMarkets();}
+   if(JSON.stringify(foundation.markets)!==JSON.stringify(markets)){foundation=Object.freeze({...foundation,markets});if(currentPage()==="home")await renderHome();else if(isRewardsPage())populateRewardMarkets();else await renderMarkets();}
   }
  }catch{/* Query history is optional and cannot disable wallet interactions. */}finally{directDirectoryBusy=false;}
 }

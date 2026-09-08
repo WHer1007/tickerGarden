@@ -1,3 +1,37 @@
+# Claim redesign — 2026-09-09
+
+final result: passed
+
+Scope: layout and available UI interactions. This is not a funded-wallet transaction acceptance result.
+
+## Target and evidence
+
+Selected revision: `/Users/dear/.codex/generated_images/01a080b4-ed81-71b0-a3bf-13184e8b2883/exec-148914b1-254c-4b61-9084-84092e1aa21a.png` (1487×1058). User explicitly removed the top Claim title/subtitle/update row and authorized implementation. Creator and Holder are the only Claim tabs, vertically arranged; staking is separate.
+
+Implementation: `http://127.0.0.1:5178/claim`. Captures: `outputs/reviews/claim-redesign-2026-09-09/creator-desktop.png`, `holder-desktop.png`, `creator-mobile.png`. Desktop CSS viewport 1440×1024, mobile 390×844. Source and desktop capture opened together in one comparison input. Reference is a connected-wallet example; implementation captures are disconnected/empty. Compare structure and typography, not mock amounts or claim-enabled state. No example amounts were inserted into live product code.
+
+## Comparison and fixes
+
+- Typography: retained existing Fraunces headings and sans-serif UI; section heading 23px, primary amount 27px, compact 12–14px labels and controls. No large Claim hero remains.
+- Layout: two vertical role tabs; thin bordered, light content surface; selected token, reward amounts, recipient, action, advanced controls. Compact max-width follows existing site. Original global header/footer retained instead of the mock's abbreviated footer.
+- Colors and assets: existing ivory/green tokens and supplied brand logo; Phosphor icons, neutral coin selector icon. No fabricated token logos or decorative bitmap assets required.
+- Initial P2: inherited full-width creator CTA pushed helper text outside panel. Fixed explicit CTA width/flex sizing, recaptured and verified.
+- Initial P2: recovery market lookup occupied the removed top row. Moved optional lookup below content; actual pending transaction recovery remains visible when needed.
+- Initial P2: Holder fields had unequal vertical alignment. Fixed field alignment and compact claim action; post-fix screenshot verified.
+- Initial P2: route focus outline encircled whole Claim page. Removed main-only outline; tab and form keyboard focus styles remain.
+- Copy: recipient and fees remain real-data driven. Advanced creator beneficiary version/handoff/raw claims and holder proof/distribution actions retained, collapsed by default. Data unavailable stays unavailable.
+- Mobile: Creator and Holder vertically stacked navigation retained above content; readable single column, no horizontal overflow at 390px.
+
+## Interaction checks
+
+Creator/Holder clicks select only their own panel and update URL hash. Holder Advanced options expands. Refresh is present. No-wallet claims and recipient copy stay disabled. Legacy `/claim#positions` visibly redirects to `/stake#positions`; position, exit and staking reward hooks preserved. Browser error logs empty during checks. No contract rechecks, block history scan or transactions were performed.
+
+Automated validation: 224 frontend tests passed, including route migration and Claim/staking action isolation; generated ABI/client checks and TypeScript checks passed; production build passed (existing large-chunk advisory remains); `git diff --check` passed.
+
+Remaining limitation: actual funded creator/holder claim and staking transaction execution was not exercised in this visual redesign. Staking route preserves existing functionality/layout; a separately selected visual redesign for staking is outside this Claim design acceptance.
+
+---
+
 # Token detail — option 2 implementation QA (2026-09-08)
 
 Source visual truth: `/Users/dear/.codex/generated_images/01a08060-7dd4-7e53-aedd-ab8c80f90dcc/exec-0d276e25-b48b-48bb-9a15-5b73ae721d59.png`.

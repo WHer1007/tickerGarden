@@ -10,7 +10,8 @@ const terms = read("../src/pages/terms.ts");
 
 test("holder fee sharing uses the approved feature label and creation semantics", () => {
   const label = "Holder fee sharing";
-  for (const page of [create, rewards, docs, terms]) assert.ok(page.includes(label));
+  for (const page of [create, docs, terms]) assert.ok(page.includes(label));
+  assert.match(rewards, /Holder rewards/);
   assert.match(create, /Share 50% of your base fee earnings/i);
   assert.match(create, /Fixed at launch; creator tax stays yours/i);
   assert.match(create, /claim rewards after settlement/i);

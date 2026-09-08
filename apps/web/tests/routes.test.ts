@@ -7,12 +7,13 @@ const url = (path: string) => new URL(path, origin);
 
 test("resolves all canonical routes and preserves query/hash", () => {
   for (const [page, pathname] of Object.entries(PAGE_PATHS)) {
-    const route = resolveRoute(url(`${pathname}?marketId=abc#positions`));
+    const hash = page === "rewards" ? "#other" : "#positions";
+    const route = resolveRoute(url(`${pathname}?marketId=abc${hash}`));
     assert.equal(route.page, page);
     assert.equal(route.pathname, pathname);
     assert.equal(route.search, "?marketId=abc");
-    assert.equal(route.hash, "#positions");
-    assert.equal(route.href, `${pathname}?marketId=abc#positions`);
+    assert.equal(route.hash, hash);
+    assert.equal(route.href, `${pathname}?marketId=abc${hash}`);
   }
 });
 
@@ -36,6 +37,24 @@ test("normalizes legacy html URLs and trailing slashes", () => {
     assert.equal(resolveRoute(url(trailing)).pathname, pathname);
     assert.equal(resolveRoute(url(`${legacy}?x=1#tab`)).href, `${pathname}?x=1#tab`);
   }
+});
+
+test("has an isolated staking route and migrates legacy claim tabs", () => {
+  const staking = resolveRoute(url("/stake?marketId=abc#positions"));
+  assert.equal(staking.page, "staking");
+  assert.equal(staking.pathname, "/stake");
+  assert.equal(staking.href, "/stake?marketId=abc#positions");
+
+  for (const hash of ["#positions", "#staker", "#activity"]) {
+    const route = resolveRoute(url(`/claim?marketId=abc${hash}`));
+    assert.equal(route.page, "staking");
+    assert.equal(route.pathname, "/stake");
+    assert.equal(route.search, "?marketId=abc");
+    assert.equal(route.hash, hash);
+    assert.equal(route.href, `/stake?marketId=abc${hash}`);
+    assert.equal(isRouteLink(url(`/claim${hash}`), origin), true);
+  }
+  assert.equal(resolveRoute(url("/claim#other")).page, "rewards");
 });
 
 test("rejects unknown pages, prefix collisions, external links, and static assets", () => {
