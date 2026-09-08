@@ -18,7 +18,7 @@ function environment(profile = "test") {
     TG_EXPECTED_POSITION_LOCK_SECONDS: "86400",
     TG_EXPECTED_UNPAUSE_SECONDS: "86400",
     TG_EXPECTED_RAW_EXIT_SECONDS: profile === "test" ? "604800" : "not-implemented",
-    TG_EXPECTED_ANTI_SNIPE_SECONDS: profile === "test" ? "5" : "3",
+    TG_EXPECTED_ANTI_SNIPE_SECONDS: "5",
     V1_NATIVE_PHANTOM_WEI: p.phantom,
     V1_NATIVE_GRADUATION_WEI: p.graduation,
     V1_FINALITY_DELAY_SECONDS: "600",
@@ -111,4 +111,13 @@ test("source checks reject drift without mutating source files", () => {
   const before = readFileSync(path.join(temp, "contracts/src/v1/modules/TreasuryDistributorV1.sol"), "utf8");
   assert.throws(() => checkSource({ ...environment(), TG_EXPECTED_EPOCH_SECONDS: "1209600" }, temp), /Treasury epoch differs/);
   assert.equal(readFileSync(path.join(temp, "contracts/src/v1/modules/TreasuryDistributorV1.sol"), "utf8"), before);
+});
+
+ test("master and test share approved reward and anti-snipe clocks", () => {
+  for (const profile of ["master", "test"]) {
+    assert.equal(policies[profile].epoch, "604800");
+    assert.equal(policies[profile].snipe, "5");
+    assert.throws(() => validateEnvironment(profile, { ...environment(profile), TG_EXPECTED_EPOCH_SECONDS: "2592000" }, profile), /TG_EXPECTED_EPOCH_SECONDS/);
+    assert.throws(() => validateEnvironment(profile, { ...environment(profile), TG_EXPECTED_ANTI_SNIPE_SECONDS: "3" }, profile), /TG_EXPECTED_ANTI_SNIPE_SECONDS/);
+  }
 });

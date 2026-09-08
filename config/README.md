@@ -24,13 +24,13 @@
 | Allocation / position 锁定 | 24h / 24h | 24h / 24h | 20min / 20min |
 | 解除暂停等待 | 24h | 24h | 20min |
 | Raw exit 等待 | 7d | 旧 master 尚无该实现 | 1h |
-| Treasury epoch | **7d，新版本** | **30d，旧版本** | 1h |
-| Anti-snipe | **5s，新版本** | **3s，旧版本** | 历史快照，勿套用当前源码 |
+| Treasury epoch | **7d，新版本** | **7d** | 1h |
+| Anti-snipe | **5s，新版本** | **5s** | 历史快照，勿套用当前源码 |
 | Finality | 600s + 2 blocks | 正式候选配置为 600s + 2 blocks | 600s + 2 blocks |
 | Root publication / review | 24h / 1h | 正式候选配置为 24h / 1h | 20min / 5min |
 | Claim window | 30d | 正式候选配置为 30d | 2h |
 
-**7d epoch 与 5s anti-snipe 是合约策略升级，不是测试加速。** 旧 master 也没有新版 Raw-exit 结算实现（配置明确标记 `not-implemented`，不是零等待）。 合并 test 到 master 前，必须明确审阅这两项及同步 ABI、参考模型、TWAB schema、后端结算，而不是只把环境名改成 master。上表的 master 金额/可配置时间是源码规范或候选基线，不代表已有主网合约部署事实。
+**7d epoch 与 5s anti-snipe 是合约策略升级，不是测试加速。** 旧 master 也没有新版 Raw-exit 结算实现（配置明确标记 `not-implemented`，不是零等待）。 master 已按确认对齐 7d epoch 和 5s anti-snipe，并同步 TWAB schema、奖励计算及生产税率表；其他版本差异仍需单独审阅。上表的 master 金额/可配置时间是源码规范或候选基线，不代表已有主网合约部署事实。
 
 金额按配对资产原始单位存储，不可把所有 Stock 的门槛当成 ETH 门槛。本次当前发布中 TSLA 为 2.6 TSLA；其余资产分别使用 `apps/web/public/integration/rh-f72a2cdf.json` 中绑定的 quote 配置，公开地址/池信息保留在 `deployments/manifests/`。未为 master 杜撰或复制 Stock 的正式报价配置。
 
