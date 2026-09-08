@@ -17,7 +17,7 @@ function environment(profile = "test") {
     TG_EXPECTED_ALLOCATION_LOCK_SECONDS: "86400",
     TG_EXPECTED_POSITION_LOCK_SECONDS: "86400",
     TG_EXPECTED_UNPAUSE_SECONDS: "86400",
-    TG_EXPECTED_RAW_EXIT_SECONDS: "604800",
+    TG_EXPECTED_RAW_EXIT_SECONDS: profile === "test" ? "604800" : "not-implemented",
     TG_EXPECTED_ANTI_SNIPE_SECONDS: profile === "test" ? "5" : "3",
     V1_NATIVE_PHANTOM_WEI: p.phantom,
     V1_NATIVE_GRADUATION_WEI: p.graduation,

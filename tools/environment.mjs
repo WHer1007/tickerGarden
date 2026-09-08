@@ -14,7 +14,7 @@ export function validateEnvironment(profile,env,branch){
  if(Object.keys(env).some(k=>/^VITE_.*(JWT|SECRET|PASSWORD|API_KEY)/i.test(k)))throw Error('Secret-looking variable must not use the public VITE prefix');
  if(branch!==profile && !(profile==='test'&&branch.startsWith('codex/')))throw Error(`Branch ${branch||'detached HEAD'} cannot use ${profile} configuration`);
  const expected={TG_PROFILE:profile,TG_CHAIN_ID:p.chain,VITE_V1_CHAIN_ID:p.chain,V1_EXPECTED_CHAIN_ID:p.chain,
- TG_EXPECTED_EPOCH_SECONDS:p.epoch,TG_EXPECTED_ANTI_SNIPE_SECONDS:p.snipe,TG_EXPECTED_ALLOCATION_LOCK_SECONDS:'86400',TG_EXPECTED_POSITION_LOCK_SECONDS:'86400',TG_EXPECTED_UNPAUSE_SECONDS:'86400',TG_EXPECTED_RAW_EXIT_SECONDS:'604800',
+ TG_EXPECTED_EPOCH_SECONDS:p.epoch,TG_EXPECTED_ANTI_SNIPE_SECONDS:p.snipe,TG_EXPECTED_ALLOCATION_LOCK_SECONDS:'86400',TG_EXPECTED_POSITION_LOCK_SECONDS:'86400',TG_EXPECTED_UNPAUSE_SECONDS:'86400',TG_EXPECTED_RAW_EXIT_SECONDS:profile==='test'?'604800':'not-implemented',
  V1_NATIVE_PHANTOM_WEI:p.phantom,V1_NATIVE_GRADUATION_WEI:p.graduation,V1_FINALITY_DELAY_SECONDS:'600',V1_FINALITY_DELAY_BLOCKS:'2',V1_ROOT_PUBLICATION_WINDOW:'86400',V1_ROOT_REVIEW_DELAY:'3600',V1_CLAIM_WINDOW:'2592000'};
  for(const [key,value] of Object.entries(expected))if(env[key]!==value)throw Error(`Wrong ${profile} parameter: ${key}`);
  if(env.TG_RPC_CU_PER_SECOND&&(!/^\d+$/.test(env.TG_RPC_CU_PER_SECOND)||Number(env.TG_RPC_CU_PER_SECOND)<1||Number(env.TG_RPC_CU_PER_SECOND)>10000))throw Error('RPC CU budget must be between 1 and 10000 per second');
@@ -53,7 +53,10 @@ export function checkSource(values,directory=root){
  if(!fs.readFileSync(file,'utf8').includes(`EPOCH_DURATION = ${days} days`))throw Error('Treasury epoch differs from the selected branch profile; changing env cannot change compiled contracts');
  const anti=fs.existsSync(path.join(directory,'contracts/src/v1/libraries/TickerGardenAntiSnipe.sol'))?'TickerGardenAntiSnipe.sol':'PonsAntiSnipe.sol';
  if(!fs.readFileSync(path.join(directory,'contracts/src/v1/libraries',anti),'utf8').includes(`SNIPE_TAX_SECONDS = ${values.TG_EXPECTED_ANTI_SNIPE_SECONDS}`))throw Error('Anti-snipe policy differs from the selected branch');
- const clocks=[['shared/AllocationManagerIncreases.sol','MINIMUM_LOCK = 24 hours'],['shared/MemeStockGaugePendingPositions.sol','MINIMUM_POSITION_LOCK = 24 hours'],['shared/DelayedUnpause.sol','UNPAUSE_STATE_DELAY = 1 days'],['shared/ProtocolFeeVaultRewardSettlement.sol','RAW_EXIT_DELAY = 7 days']];
+ const clocks=[['shared/AllocationManagerIncreases.sol','MINIMUM_LOCK = 24 hours'],['shared/MemeStockGaugePendingPositions.sol','MINIMUM_POSITION_LOCK = 24 hours'],['shared/DelayedUnpause.sol','UNPAUSE_STATE_DELAY = 1 days']];
+ const rawExit=path.join(directory,'contracts/src/v1/shared/ProtocolFeeVaultRewardSettlement.sol');
+ if(values.TG_PROFILE==='test'&&!fs.readFileSync(rawExit,'utf8').includes('RAW_EXIT_DELAY = 7 days'))throw Error('Raw exit clock drift');
+ if(values.TG_PROFILE==='master'&&fs.existsSync(rawExit))throw Error('Master acquired raw-exit implementation; review its policy before updating the profile');
  for(const [f,needle]of clocks)if(!fs.readFileSync(path.join(directory,'contracts/src/v1',f),'utf8').includes(needle))throw Error(`Unexpected shortened contract clock: ${f}`);
  if(values.TG_PROFILE==='test'){
   const file=path.join(directory,'apps/web/public',values.VITE_INTEGRATION_BOOTSTRAP||'');
