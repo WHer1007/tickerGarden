@@ -53,7 +53,7 @@ test('current settings hide disabled staking stages and recipient columns', () =
     const rows = feePreviewRows(sharing, false);
     assert.equal(rows.length, 2);
     assert.ok(rows.every(row => row.stakers === 0 && !row.activeStake));
-    assert.equal(rows[1]?.stage, 'After graduation');
+    assert.equal(rows[1]?.stage, 'Bloomed');
     const markup = feePreviewTable(sharing, false);
     assert.doesNotMatch(markup, />Stakers<|active stake/);
     assert.equal(markup.includes('>Holders<'), sharing);

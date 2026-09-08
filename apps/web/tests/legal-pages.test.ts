@@ -27,7 +27,7 @@ test("privacy and terms pages expose complete legal-page structure", () => {
   assert.match(privacy, /Public blockchain and distributed records/);
   assert.match(terms, /Ticker Meme and STOCK relationship/);
   assert.match(terms, /UserStockVault/);
-  assert.match(terms, /In Bloom/);
+  assert.match(terms, /Bloomed/);
   assert.match(terms, /rageQuit/);
   assert.doesNotMatch(privacy, /\bPons\b/i);
   assert.doesNotMatch(terms, /\bPons\b/i);

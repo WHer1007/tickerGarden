@@ -36,7 +36,7 @@ export default {
                   <select id="quote-asset-config" class="quote-native-select" name="quoteAssetConfigId" tabindex="-1" aria-hidden="true" required><option value="" selected disabled>Loading paired assets…</option></select>
                 </div>
               </div>
-              <div class="graduation-note field full"><i class="ph ph-trend-up" aria-hidden="true"></i><div><strong data-graduation-caption>Loading graduation target…</strong><details class="graduation-details"><summary>Details</summary><small>Based on net funds raised, excluding fees and virtual reserves.</small><small data-graduation-exact></small><p class="muted display-price-reference" data-display-price>USD reference unavailable.</p></details></div></div>
+              <div class="graduation-note field full"><i class="ph ph-trend-up" aria-hidden="true"></i><div><strong data-graduation-caption>Loading bloom target…</strong><details class="graduation-details"><summary>Details</summary><small>Based on net funds raised, excluding fees and virtual reserves.</small><small data-graduation-exact></small><p class="muted display-price-reference" data-display-price>USD reference unavailable.</p></details></div></div>
               <div class="field full launch-treasury"><div class="treasury-heading"><i class="ph ph-plant" aria-hidden="true"></i><label for="staking-enabled"><strong>Enable staking rewards</strong></label><input id="staking-enabled" type="checkbox" role="switch" name="stakingEnabled" aria-controls="staking-stock-field" checked /></div><small>Fixed at launch. Cannot be changed later.</small></div>
               <div class="field full" id="staking-stock-field" data-staking-stock-field>
                 <label id="rewards-stock-label" for="rewards-stock-trigger">Staking asset</label>
@@ -79,13 +79,13 @@ export default {
         <aside class="panel token-preview" aria-labelledby="preview-heading">
           <div class="preview-orbit" data-preview-image-frame><i class="ph ph-image-square" data-token-placeholder role="img" aria-label="Your token image"></i><img data-token-image alt="Token preview" hidden /></div>
           <small id="preview-heading">YOUR TOKEN</small><h2 data-token-symbol>ticker</h2><p data-token-name>Your next big idea</p><p class="token-description" data-token-description></p>
-          <div class="preview-list"><div><span>Launch fee</span><strong data-preview-launch-fee>—</strong></div><div><span>Paired with</span><strong data-preview-quote>—</strong></div><div><span>Base trade fee</span><strong data-preview-trade-fee>—</strong></div><div><span>Graduation</span><strong data-preview-graduation>—</strong></div><div><span>Liquidity</span><strong>Locked at graduation</strong></div><div><span>Staking asset</span><strong data-preview-asset>—</strong></div><div><span>Developer buy</span><strong data-preview-mode>None</strong></div><div><span>Creator tax</span><strong data-preview-creator-tax>0%</strong></div><div><span>Holder fee sharing</span><strong data-preview-treasury>Off</strong></div></div>
+          <div class="preview-list"><div><span>Launch fee</span><strong data-preview-launch-fee>—</strong></div><div><span>Paired with</span><strong data-preview-quote>—</strong></div><div><span>Base trade fee</span><strong data-preview-trade-fee>—</strong></div><div><span>Bloom target</span><strong data-preview-graduation>—</strong></div><div><span>Liquidity</span><strong>Locked when Bloomed</strong></div><div><span>Staking asset</span><strong data-preview-asset>—</strong></div><div><span>Developer buy</span><strong data-preview-mode>None</strong></div><div><span>Creator tax</span><strong data-preview-creator-tax>0%</strong></div><div><span>Holder fee sharing</span><strong data-preview-treasury>Off</strong></div></div>
           <section class="fee-preview" aria-labelledby="fee-preview-heading">
             <h2 id="fee-preview-heading">Your fee earnings</h2>
             <p>Share of trading fees, not trading volume.</p>
             <section class="fee-scenario is-current" data-fee-current-table>${feePreviewTable(false, true)}</section>
             <div class="creator-tax-summary"><span>Creator tax <strong data-fee-tax>0%</strong></span><strong>100% to you</strong></div>
-            <p class="fee-preview-note" data-fee-staking-note>Staker fees start after graduation, once a stake is active.</p>
+            <p class="fee-preview-note" data-fee-staking-note>Staker fees start once the market is Bloomed and a stake is active.</p>
             <small>Creator tax is added separately. No LP fee share. Amounts may vary slightly due to rounding.</small>
           </section>
         </aside>

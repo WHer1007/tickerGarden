@@ -1438,8 +1438,8 @@ async function loadTradeMarket(explicit?: string): Promise<void> {
     const baseline=foundation.baseline.find(c=>c.kind==='baseline'&&c.id===response.market.tickerGardenBaselineId);
     const supply=baseline?.values.supply;
     const graduated=response.market.launchPhase===1;
-    text('[data-detail-phase]',graduated?'Graduated · Uniswap v4':'Bonding curve');
-    text('[data-detail-phase-note]',graduated?'Trading has moved to the canonical liquidity pool.':view.readyToGraduate?'Ready to graduate':'Trades take place on the bonding curve until graduation.');
+    text('[data-detail-phase]',graduated?'Bloomed · Uniswap v4':'Growing');
+    text('[data-detail-phase-note]',graduated?'Trading has moved to the canonical liquidity pool.':view.readyToGraduate?'Ready to bloom':'While Growing, trades take place on the bonding curve.');
     const graduation=query<HTMLElement>('[data-detail-graduation]');if(graduation)graduation.hidden=graduated;
     const progress=typeof supply==='string'?graduationProgress(BigInt(supply),view.reservedTokens,view.sellableTokens):null;
     text('[data-detail-progress-label]',progress===null?'Unavailable':`${progress.toFixed(2)}%`);
@@ -2176,8 +2176,8 @@ function renderCreateIdentity(): void {
     text("[data-fee-tax]", `${formatTokenAmount(BigInt(tax), 2)}%`);
   } catch { text("[data-fee-tax]", "Invalid rate"); }
   text("[data-fee-staking-note]", stakingEnabled
-    ? "Staker fees start after graduation, once a stake is active."
-    : "Staking is off. Your fee split stays the same after graduation.");
+    ? "Staker fees start once the market is Bloomed and a stake is active."
+    : "Staking is off. Your fee split stays the same once the market is Bloomed.");
   text("[data-preview-asset]", !stakingEnabled ? "Not enabled" : stockSelect?.value ? stockSelect.selectedOptions[0]?.textContent?.split(" · ")[0] ?? "—" : "—");
   const selection = query<HTMLSelectElement>("[name=quoteAssetConfigId]")?.value ?? "";
   const quote = foundation?.quotes.find(item => item.id === selection);
@@ -2186,7 +2186,7 @@ function renderCreateIdentity(): void {
   text("[data-preview-launch-fee]", foundation?.launchFee === undefined ? "—" : `${formatTokenAmount(foundation.launchFee, 18)} ETH`);
   text("[data-preview-trade-fee]", "—");
   text("[data-preview-graduation]", "—");
-  text("[data-graduation-caption]", "Loading graduation target…");
+  text("[data-graduation-caption]", "Loading bloom target…");
   text("[data-graduation-exact]", "");
   const symbol = releaseAsset?.symbol ?? "—";
   text("[data-preview-quote]", symbol);
@@ -2197,7 +2197,7 @@ function renderCreateIdentity(): void {
     if (releaseAsset) {
       const amount = graduationAmount(BigInt(releaseAsset.graduationThreshold), releaseAsset.decimals);
       const economics = graduationEconomics(RELEASE_SUPPLY, BigInt(releaseAsset.phantomQuote), BigInt(releaseAsset.graduationThreshold));
-      text("[data-graduation-caption]", `Graduation target: ${amount.display} ${symbol}`);
+      text("[data-graduation-caption]", `Bloom target: ${amount.display} ${symbol}`);
       text("[data-preview-graduation]", `${amount.display} ${symbol}`);
       text("[data-graduation-exact]", `Release target · observed ${RELEASE_OBSERVED_AT.slice(0, 10)}. Pending activation on this network. Exact curve minimum: ${graduationAmount(economics.requiredNet, releaseAsset.decimals).exact} ${symbol}.`);
     }
@@ -2210,13 +2210,13 @@ function renderCreateIdentity(): void {
     const threshold = configBigInt(quote, "graduationThreshold");
     const result = graduationEconomics(configBigInt(baseline, "supply"), configBigInt(quote, "phantomQuote"), threshold);
     const formatted = graduationAmount(threshold, decimals);
-    text("[data-graduation-caption]", `Graduation target: ${formatted.display} ${symbol}`);
+    text("[data-graduation-caption]", `Bloom target: ${formatted.display} ${symbol}`);
     text("[data-preview-graduation]", `${formatted.display} ${symbol}`);
     text("[data-graduation-exact]", `Exact minimum after curve rounding: ${graduationAmount(result.requiredNet, decimals).exact} ${symbol}.`);
     const feeBps = configBigInt(baseline, "curveFeeBps");
     text("[data-preview-trade-fee]", `${formatTokenAmount(feeBps, 2)}% base`);
     text("[data-creator-fee-note]", `Base trading fee: ${formatTokenAmount(feeBps, 2)}%. Extra fees may apply to buys in the first 5 seconds; your developer buy is exempt.`);
-  } catch { text("[data-graduation-caption]", "Graduation target unavailable."); }
+  } catch { text("[data-graduation-caption]", "Bloom target unavailable."); }
 }
 
 function selectedLaunchConfig(allowPendingMetadata = false): SelectedLaunchConfig {
@@ -2746,7 +2746,7 @@ function updateStakePreview(): void {
   const amount = validStakeAmount();
   const open = state.asset.status === 1 && state.detail.market.launchPhase === 1 && state.settlementPrincipal === 0n;
   text("[data-stake-preview]", !open
-    ? "New stakes are unavailable: the market must be graduated, STOCK active, and any emergency reward cleanup complete."
+    ? "New stakes are unavailable: the market must be Bloomed, STOCK active, and any emergency reward cleanup complete."
     : amount === null
       ? `Enter a positive amount within your wallet balance. Minimum total position: ${formatTokenAmount(state.asset.minimumAllocation, state.asset.tokenDecimals)} STOCK.`
       : `New total: ${formatTokenAmount(state.allocated + amount, state.asset.tokenDecimals)} STOCK. The entire position locks for 24 hours from confirmation.`);

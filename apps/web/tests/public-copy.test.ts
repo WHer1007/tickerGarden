@@ -10,3 +10,9 @@ test("implementation diagnostics use public product names without changing amoun
   assert.equal(publicMessage(detail), detail);
   assert.doesNotMatch(publicMessage("V1-EXEC-9 configuration mismatch"), /V1/);
 });
+
+test("market phase diagnostics use Growing and Bloomed without changing protocol identifiers", () => {
+  assert.equal(publicMessage("not-graduated curve; graduated pool; ready to graduate"), "Growing curve; Bloomed pool; ready to bloom");
+  const internal = "graduationThreshold readyToGraduate NOT_GRADUATED GraduationExecutor";
+  assert.equal(publicMessage(internal), internal);
+});

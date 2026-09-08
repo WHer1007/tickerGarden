@@ -3,9 +3,9 @@
  */
 export function feePreviewRows(holderSharing: boolean, stakingEnabled = true) {
   return [
-    { stage: 'Before graduation', activeStake: false },
-    { stage: stakingEnabled ? 'After · no active stake' : 'After graduation', activeStake: false },
-    { stage: 'After · active stake', activeStake: true },
+    { stage: 'Growing', activeStake: false },
+    { stage: stakingEnabled ? 'Bloomed · no active stake' : 'Bloomed', activeStake: false },
+    { stage: 'Bloomed · active stake', activeStake: true },
   ].filter(row => stakingEnabled || !row.activeStake).map(({ stage, activeStake }) => {
     const stakers = activeStake ? 30 : 0;
     const creatorBase = 100 - 30 - stakers;

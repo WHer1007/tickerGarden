@@ -58,7 +58,7 @@ export default {
 
           <section id="terms-service">
             <h2>2. About TickerGarden</h2>
-            <p>TickerGarden is a software interface for discovering and creating fixed-supply Ticker Meme markets associated with eligible official Stock Tokens, preparing wallet transactions, reading public blockchain state, trading through configured Curve or Pool routes, allocating matching STOCK after a market is In Bloom, and viewing or claiming protocol-defined fees where available.</p>
+            <p>TickerGarden is a software interface for discovering and creating fixed-supply Ticker Meme markets associated with eligible official Stock Tokens, preparing wallet transactions, reading public blockchain state, trading through configured Curve or Pool routes, allocating matching STOCK after a market blooms, and viewing or claiming protocol-defined fees where available.</p>
             <p>The interface operator is not the issuer of third-party Stock Tokens or the companies referenced by their tickers. Unless expressly stated in a separate written agreement, the operator is not a bank, broker, securities exchange, custodian, investment adviser, fiduciary, transfer agent, or tax adviser. Nothing in the interface is investment, legal, accounting, or tax advice.</p>
           </section>
 
@@ -96,7 +96,7 @@ export default {
           <section id="terms-assets">
             <h2>7. Ticker Meme and STOCK relationship</h2>
             <div class="legal-callout"><strong>A Ticker Meme is not the referenced stock.</strong><p>It does not represent company ownership, shares, voting rights, dividends, a fixed redemption right, or a promise to track the price of a stock or Stock Token.</p></div>
-            <p>An eligible Stock Token serves as the market’s immutable community association and, after the market is In Bloom, as the matching asset used for protocol allocation and actual-fee distribution. STOCK is not collateral or a redemption reserve for the Ticker Meme.</p>
+            <p>An eligible Stock Token serves as the market’s immutable community association and, after the market blooms, as the matching asset used for protocol allocation and actual-fee distribution. STOCK is not collateral or a redemption reserve for the Ticker Meme.</p>
             <p>The same STOCK can anchor multiple independent Ticker Meme markets. Names, symbols, images, and ticker references can be similar or misleading; verify the canonical <code>marketId</code>, Asset UID, token address, creator, Curve, Pool, and Gauge before interacting.</p>
             <p>Third-party Stock Tokens have their own issuer, legal terms, technical controls, backing or redemption arrangements, transfer limitations, and regulatory risks. TickerGarden does not guarantee any of those characteristics.</p>
           </section>
@@ -110,7 +110,7 @@ export default {
 
           <section id="terms-bloom">
             <h2>9. Market lifecycle and Bloom</h2>
-            <p><strong>Bloom</strong> is TickerGarden’s user-facing name for a successful protocol Graduation. A market is <strong>In Bloom</strong> only when the canonical Registry records <code>launchPhase == PoolCreated</code>. “Ready to Bloom” and “Bloom Pending” are earlier conditions and do not mean Pool creation succeeded.</p>
+            <p><strong>Bloom</strong> is TickerGarden’s user-facing name for a successful protocol lifecycle transition. A market is <strong>Bloomed</strong> only when the canonical Registry records <code>launchPhase == PoolCreated</code>. “Ready to Bloom” and “Bloom Pending” are earlier conditions and do not mean Pool creation succeeded.</p>
             <p>Bloom confirms a lifecycle transition and creation of the canonical Pool under the applicable protocol rules. It is not a quality rating, endorsement, valuation, liquidity guarantee, promise of future trading, or assurance that users can exit at a desired price. Permanently locked initial liquidity does not prevent price movement, thin market depth, smart-contract loss, or loss of token value.</p>
           </section>
 

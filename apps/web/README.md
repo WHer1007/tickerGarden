@@ -92,3 +92,7 @@ B14 display references: create.html and trade.html show a separate USD reference
 Rewards 的 `#activity` 标签在钱包已连接、标签/页面可见且在线时，每次读取完成后等待 30 秒检查活动历史。相同 revision 保留加载过的分页；revision 改变重新显示第一页。失败清空旧记录并按 60/120 秒重试，手动刷新和重新联网可立即恢复；隐藏、断网、断开或切换钱包会取消旧读取。活动版本独立于首页发布快照。该页面仍仅展示 finalized 事件引用和合约原始单位。
 
 交易历史生命周期浏览器回归：启动本地 Vite 后打开 `/tests/browser/history-lifecycle.html`，页面自动运行真实 mountTrades/mountCandles/mountHolders 与 DOM 断言，标题及结果区必须显示 PASS。受控 fetch 故意忽略 AbortSignal，可验证初次渲染、stop 清成交表/图/持有人列表、刷新不复用已暂停身份、旧市场迟到响应不覆盖新市场、stop 后迟到响应不恢复旧数据、显式 setMarket 后恢复。测试结束恢复原 fetch 并停止组件；这是组件浏览器回归，不替代正式交易页/RPC/钱包联调。
+
+### 生命周期文案口径
+
+前端状态统一为 `Growing`（未毕业）和 `Bloomed`（已毕业），不再使用 `Graduated`、`In Bloom` 作为展示状态。过程文案使用 `bloom`，进度与金额目标分别为 `Bloom progress`、`Bloom target`。内部讨论、协议与接口仍使用“毕业／未毕业”及既有 `graduation`、`NOT_GRADUATED`、`readyToGraduate` 等标识；只在展示边界转换诊断信息，不改业务状态或数据字段。
