@@ -1,3 +1,8 @@
+import {quoteIconUrl} from './create/quote-icons.ts';
+import {allocatedFeeTotals, validateStakePositions, stakeHistoryEvent, stakeAfter} from './v1/stakingView.ts';
+import {validateTokenDetail, displayDecimal} from './v1/tokenDetail.ts';
+import {validateUserActivity} from './v1/userActivity.ts';
+import type {PositionPage, UserActivityPage} from './v1/generated/read-api.ts';
 import { tradingRoute, stakerClaimHelp, rewardTab } from "./v1/flowUx.ts";
 import { readCreateDraft, writeCreateDraft, clearCreateDraft, type CreateDraft } from "./create/draft.ts";
 import {graduationProgress} from "./v1/graduationProgress.ts";
@@ -61,6 +66,7 @@ import {
   decodeEventLog,
   encodeFunctionData,
   erc20Abi,
+  formatUnits,
   http,
   parseAbi,
   toHex,
@@ -735,6 +741,7 @@ function confirmFlowAction(message: string): Promise<boolean> {
 
 function showTransactionUpdate(update: TransactionUpdate): void {
   if (launchProgress) return;
+  text('[data-stake-transaction-status]',`${transactionStageLabels[update.stage]}${update.error ? ': '+errorText(update.error) : ''}`);
   let panel = query<HTMLElement>('[data-transaction-progress]');
   if (!panel) {
     panel = document.createElement('section'); panel.dataset.transactionProgress = ''; panel.className = 'runtime-recovery';
@@ -2863,6 +2870,152 @@ const treasuryStatusLabels = ["Not requested", "Root requested", "Root under rev
 
 const rewardMarketLabels = new Map<string, { label: string; search: string }>();
 
+// Statistics are display-only, cached for ten minutes, and never gate transactions.
+type StakeStats = {title:string;description:string;phase:string;volume:string;fees:string;total:string;status:string;expiresAt:number};
+const stakeStatsCache = new Map<string,{at:number;data:StakeStats}>();
+const stakeStatsRequests = new Map<string,Promise<StakeStats>>();
+let stakeStatsGeneration = 0;
+let stakeStatisticsTimer=0;
+let stakePageListeners:AbortController|undefined;
+function stakeText(selector:string,value:string):void { queryAll<HTMLElement>(selector).forEach(el=>{el.textContent=publicMessage(value);}); }
+function stockSymbol(config:ConfigReadModel):string {return String(config.values.tokenSymbol ?? 'STOCK');}
+async function refreshStakeStatistics():Promise<void>{
+  if(currentPage()!=='staking'||document.hidden)return;
+  const generation=++stakeStatsGeneration;
+  const id=query<HTMLSelectElement>('[data-position-market]')?.value;
+  const market=foundation?.markets.find(m=>m.marketId===id);
+  stakeText('[data-stake-market-title],[data-stake-modal-market]',market ? rewardMarketLabels.get(market.marketId)?.label ?? shortHex(market.marketId) : 'Select a market');
+  stakeText('[data-stake-market-description]', 'Choose a market to see its staking activity.');
+  stakeText('[data-stake-phase]',market ? phaseLabel(market.launchPhase) : '—');
+  stakeText('[data-stake-modal-stock]','—');
+  const stockIcon=query<HTMLImageElement>('[data-stake-stock-icon]');if(stockIcon){stockIcon.hidden=true;stockIcon.removeAttribute('src');}
+  for(const key of ['volume','fees','total'])stakeText(`[data-stake-${key}]`,'Unavailable');
+  stakeText('[data-stake-stats-status]',market ? 'Loading market statistics…' : 'Search or select a market to get started.');
+  if(!market)return;
+  const config=foundation?.assets.find(a=>a.id===market.assetUid);
+  stakeText('[data-stake-modal-stock]',config ? stockSymbol(config) : 'STOCK');
+  const iconUrl=config ? quoteIconUrl(stockSymbol(config)) : null;if(stockIcon&&iconUrl){stockIcon.src=iconUrl;stockIcon.hidden=false;}
+  const load=async():Promise<StakeStats>=>{
+    const metadata=await marketMetadata(market);
+    const data:StakeStats={title:metadata.symbol,description:`${metadata.name} · ${metadata.quoteSymbol} pair`,phase:phaseLabel(market.launchPhase),volume:'Unavailable',fees:'Unavailable',total:'Unavailable',status:'Statistics unavailable. Your position can still load independently.',expiresAt:Date.now()+600000};
+    const results=await Promise.allSettled([
+      (async()=>{
+        if(!runtimeConfig.readApi.available)throw Error('Analytics unavailable');
+        const api=new TickerGardenV1Client(runtimeConfig.readApi.value,(input,init)=>fetch(input,{...init,signal:AbortSignal.timeout(12000)}));
+        const raw=await api.getTokenDetail({marketId:market.marketId,period:'1D'});
+        return validateTokenDetail(raw,robinhoodChain.id,{marketId:market.marketId,memeToken:market.memeToken,quoteAsset:market.quoteAsset,quoteDecimals:metadata.quoteDecimals,symbol:metadata.symbol,quoteSymbol:metadata.quoteSymbol},'1D');
+      })(),
+      (async()=>{
+        // Display-only aggregate from the configured Vault; signing uses canonical bindings separately.
+        if(!config)throw Error('Stock configuration unavailable');
+        const decimals=Number(config.values.tokenDecimals);
+        if(!Number.isInteger(decimals)||decimals<0||decimals>18)throw Error('Stock decimals unavailable');
+        const vault=canonicalAddress(String(config.values.userStockVault),'Stock Vault');
+        const total=await publicClient.readContract({abi:v1Abis.UserStockVault,address:vault,functionName:'marketAllocated',args:[market.assetUid,market.marketId]});
+        return `${formatTokenAmount(total,decimals)} ${stockSymbol(config)}`;
+      })()
+    ]);
+    const analytics=results[0];
+    if(analytics.status==='fulfilled'){
+      const detail=analytics.value;
+      if(detail.statistics?.volume24h!==null&&detail.statistics?.volume24h!==undefined)data.volume=`${displayDecimal(detail.statistics.volume24h)} ${metadata.quoteSymbol}`;
+      const totals=allocatedFeeTotals(detail.fees);
+      if(totals)data.fees=totals.size ? [...totals].map(([asset,amount])=>`${formatTokenAmount(amount,asset===market.quoteAsset ? metadata.quoteDecimals : 18)} ${asset===market.quoteAsset ? metadata.quoteSymbol : metadata.symbol}`).join(' + ') : `0 ${metadata.quoteSymbol}`;
+      const asOf=detail.sources.statistics?.asOf ?? detail.sources.fees?.asOf;
+      const times=[detail.sources.statistics?.asOf,detail.sources.fees?.asOf].filter((value):value is number=>value!==undefined);
+      if(times.length)data.expiresAt=Math.min(data.expiresAt,Math.min(...times)*1000+1200000);
+      data.status=asOf ? `Analytics as of ${new Date(asOf*1000).toLocaleTimeString()}. Total fees are cumulative allocated fees. Cached for 10 minutes.` : 'Analytics unavailable. Market totals are read separately.';
+    }
+    if(results[1].status==='fulfilled')data.total=results[1].value;
+    return data;
+  };
+  try{
+    let cached=stakeStatsCache.get(market.marketId);
+    if(!cached||Date.now()-cached.at>=600000||Date.now()>=cached.data.expiresAt){
+      let request=stakeStatsRequests.get(market.marketId);
+      if(!request){request=load();stakeStatsRequests.set(market.marketId,request);void request.finally(()=>stakeStatsRequests.delete(market.marketId)).catch(()=>{});}
+      cached={at:Date.now(),data:await request};stakeStatsCache.set(market.marketId,cached);
+    }
+    if(generation!==stakeStatsGeneration||currentPage()!=='staking')return;
+    const data=cached.data;
+    stakeText('[data-stake-market-title],[data-stake-modal-market]',data.title);
+    stakeText('[data-stake-market-description]',data.description);
+    for(const key of ['volume','fees','total','status'] as const)stakeText(key==='status'?'[data-stake-stats-status]':`[data-stake-${key}]`,data[key]);
+  }catch{if(generation===stakeStatsGeneration)stakeText('[data-stake-stats-status]','Market statistics unavailable. Refresh to retry.');}
+}
+
+type StakeDirectoryRow={marketId:string;assetUid:string;label:string};
+let stakeDirectoryAccount='';
+let stakeDirectoryAt=0;
+let stakeDirectoryGeneration=0;
+let stakeDirectoryBusy=false;
+let stakePositionsPage:PositionPage|undefined;
+let stakeActivityPage:UserActivityPage|undefined;
+const stakeDirectoryRows=new Map<string,StakeDirectoryRow>();
+function renderStakeDirectory():void{
+  const target=query<HTMLElement>('[data-stake-my-markets]');if(!target)return;
+  target.replaceChildren();
+  const search=query<HTMLInputElement>('[data-position-search]')?.value.toLowerCase().trim()??'';
+  for(const row of stakeDirectoryRows.values()){
+    const label=rewardMarketLabels.get(row.marketId)?.label ?? shortHex(row.marketId,8,6);
+    if(!`${label} ${row.marketId} ${row.assetUid}`.toLowerCase().includes(search))continue;
+    const button=document.createElement('button');button.type='button';button.className='stake-market-item';
+    button.setAttribute('aria-pressed',String(query<HTMLSelectElement>('[data-position-market]')?.value===row.marketId));
+    const name=document.createElement('strong');name.textContent=label;const note=document.createElement('small');note.textContent=row.label;button.append(name,note);
+    button.addEventListener('click',()=>{
+      const select=query<HTMLSelectElement>('[data-position-market]');
+      if(select && [...select.options].some(o=>o.value===row.marketId)){select.value=row.marketId;select.dispatchEvent(new Event('change'));renderStakeDirectory();}
+      else router.navigate(`/stake?marketId=${encodeURIComponent(row.marketId)}#positions`);
+    });target.append(button);
+  }
+  if(!target.childElementCount)target.textContent=!wallet ? 'Connect a wallet to view your markets.' : search ? 'No matching recorded markets.' : 'No staking records loaded.';
+  const more=query<HTMLButtonElement>('[data-stake-history-more]');if(more){more.hidden=!stakePositionsPage?.nextCursor&&!stakeActivityPage?.nextCursor;more.disabled=stakeDirectoryBusy;}
+}
+async function refreshStakeDirectory(more=false,force=false):Promise<void>{
+  if(currentPage()!=='staking')return;
+  const account=wallet?.account.toLowerCase()??'';
+  if(account!==stakeDirectoryAccount){stakeDirectoryAccount=account;stakeDirectoryRows.clear();stakePositionsPage=undefined;stakeActivityPage=undefined;stakeDirectoryAt=0;stakeDirectoryBusy=false;++stakeDirectoryGeneration;}
+  renderStakeDirectory();
+  if(!account){stakeText('[data-stake-history-status]','');return;}
+  if(stakeDirectoryBusy||(!more&&!force&&Date.now()-stakeDirectoryAt<600000))return;
+  if(!runtimeConfig.readApi.available){stakeText('[data-stake-history-status]','Recorded history unavailable. You can select a market directly.');return;}
+  stakeDirectoryBusy=true;const generation=++stakeDirectoryGeneration;renderStakeDirectory();
+  stakeText('[data-stake-history-status]','Loading recorded positions…');
+  const api=new TickerGardenV1Client(runtimeConfig.readApi.value,(input,init)=>fetch(input,{...init,signal:AbortSignal.timeout(12000)}));
+  try{
+    const results=await Promise.allSettled([
+      more&&!stakePositionsPage?.nextCursor ? Promise.resolve(undefined) : api.listUserPositions({address:account as Address,limit:100,...(more&&stakePositionsPage ? {cursor:stakePositionsPage.nextCursor!,revision:stakePositionsPage.sync.revision} : {})}),
+      more&&!stakeActivityPage?.nextCursor ? Promise.resolve(undefined) : api.listUserActivity({address:account as Address,limit:100,...(more&&stakeActivityPage ? {cursor:stakeActivityPage.nextCursor!} : {})})
+    ]);
+    if(generation!==stakeDirectoryGeneration||wallet?.account.toLowerCase()!==account||currentPage()!=='staking')return;
+    const errors:string[]=[];
+    const positions=results[0];
+    if(positions.status==='fulfilled'&&positions.value){try{
+      const page=positions.value;assertFinalizedSync(page.sync,more&&stakePositionsPage ? stakePositionsPage.sync.revision : page.sync.revision,'staking directory');
+      validateStakePositions(page.items,account,robinhoodChain.id);
+      if(page.nextCursor!==null&&(typeof page.nextCursor!=='string'||!page.nextCursor||(more&&page.nextCursor===stakePositionsPage?.nextCursor)))throw Error('Invalid continuation');
+      if(!more)stakeDirectoryRows.clear();
+      for(const p of page.items)stakeDirectoryRows.set(p.marketId,{marketId:p.marketId,assetUid:p.assetUid,label:BigInt(p.allocated)>0n ? 'Staked · indexed position' : 'No active stake · indexed position'});
+      stakePositionsPage=page;
+    }catch{errors.push('Positions unavailable');}}else if(positions.status==='rejected')errors.push('Positions unavailable');
+    const activity=results[1];
+    if(activity.status==='fulfilled'&&activity.value){try{
+      const page=validateUserActivity(activity.value,robinhoodChain.id,account,100,more ? stakeActivityPage : undefined);
+      for(const event of page.items){const row=stakeHistoryEvent(event,account);if(row&&!stakeDirectoryRows.has(row.marketId))stakeDirectoryRows.set(row.marketId,{...row,label:row.exited?'Exited · recorded history':'Staked before · recorded history'});}
+      stakeActivityPage=page;
+    }catch{errors.push('History unavailable');}}else if(activity.status==='rejected')errors.push('History unavailable');
+    stakeDirectoryAt=Date.now();
+    const coverage=stakeActivityPage ? `Recorded blocks ${stakeActivityPage.indexedFrom}–${stakeActivityPage.sourceBlockNumber}.` : 'Historical coverage unavailable.';
+    stakeText('[data-stake-history-status]',[...errors,coverage,(stakeActivityPage?.nextCursor||stakePositionsPage?.nextCursor)?'More records available below.':''].filter(Boolean).join(' '));
+    if(rewardPosition)recordLiveStake(rewardPosition);
+  }finally{if(generation===stakeDirectoryGeneration){stakeDirectoryBusy=false;renderStakeDirectory();}}
+}
+function recordLiveStake(state:RewardPositionState):void{
+  if(stakeDirectoryAccount!==wallet?.account.toLowerCase())return;
+  if(state.allocated>0n||stakeDirectoryRows.has(state.detail.market.marketId))stakeDirectoryRows.set(state.detail.market.marketId,{marketId:state.detail.market.marketId,assetUid:state.asset.assetUid,label:state.allocated>0n ? `${formatTokenAmount(state.allocated,state.asset.tokenDecimals)} ${stockSymbol(state.assetConfig)} staked` : 'No active stake · verified'});
+  renderStakeDirectory();
+}
+
 function filterStakeMarkets(): void {
   const select = query<HTMLSelectElement>("[data-position-market]");
   if (!select || !foundation) return;
@@ -2874,6 +3027,7 @@ function filterStakeMarkets(): void {
   matches.forEach((market) => select.add(new Option(rewardMarketLabels.get(market.marketId)?.label ?? rewardMarketOptionLabel(market), market.marketId)));
   if (matches.some((market) => market.marketId === previous)) select.value = previous;
   text("[data-position-search-status]", `${matches.length} matching markets in ${foundation.markets.length} loaded.${foundation.marketNextCursor ? " Load the next page above to search more markets." : ""}`);
+  renderStakeDirectory();
   if (previous && select.value !== previous) void refreshRewardPosition();
 }
 
@@ -2888,6 +3042,8 @@ function validStakeAmount(): bigint | null {
 }
 
 function updateStakePreview(): void {
+  const after=rewardPosition ? stakeAfter(rewardPosition.allocated,validStakeAmount()) : null;
+  stakeText('[data-stake-modal-after]',after===null ? '—' : `${formatTokenAmount(after,rewardPosition!.asset.tokenDecimals)} ${stockSymbol(rewardPosition!.assetConfig)}`);
   if (!rewardPosition) {
     text("[data-stake-preview]", "Connect a wallet and select a market to preview your stake.");
     return;
@@ -2909,6 +3065,17 @@ function updateStakePreview(): void {
 }
 
 function setupRewards(): void {
+  if(currentPage()==='staking'){
+    stakePageListeners=new AbortController();
+    stakeStatisticsTimer=window.setInterval(()=>{if(!document.hidden)void refreshStakeStatistics();},60000);
+    document.addEventListener('visibilitychange',()=>{if(!document.hidden){void refreshStakeStatistics();void refreshActiveReward();void refreshStakeDirectory();}},{signal:stakePageListeners.signal});
+  }
+  const dialog=query<HTMLDialogElement>('[data-stake-dialog]');
+  query<HTMLButtonElement>('[data-open-stake]')?.addEventListener('click',()=>{text('[data-stake-transaction-status]','');updateStakePreview();updateRewardsAvailability();dialog?.showModal();});
+  queryAll<HTMLButtonElement>('[data-close-stake]').forEach(button=>button.addEventListener('click',()=>{if(!busyOperation)dialog?.close();}));
+  dialog?.addEventListener('cancel',event=>{if(busyOperation)event.preventDefault();});
+  query<HTMLButtonElement>('[data-stake-max]')?.addEventListener('click',()=>{const field=query<HTMLInputElement>('#stake-amount');if(field&&rewardPosition){field.value=formatUnits(rewardPosition.walletBalance,rewardPosition.asset.tokenDecimals);field.dispatchEvent(new Event('input',{bubbles:true}));}});
+  query<HTMLButtonElement>('[data-stake-history-more]')?.addEventListener('click',()=>void refreshStakeDirectory(true));
   query<HTMLInputElement>("[data-position-search]")?.addEventListener("input", filterStakeMarkets);
   query<HTMLButtonElement>('[data-copy-beneficiary]')?.addEventListener('click', async () => {
     if (!creatorReward) return;
@@ -2928,7 +3095,7 @@ function setupRewards(): void {
       void refreshActiveReward();
     }
   }, 30_000);
-  query<HTMLButtonElement>("[data-rewards-refresh]")?.addEventListener("click", () => { void refreshActiveReward(); });
+  query<HTMLButtonElement>("[data-rewards-refresh]")?.addEventListener("click", () => { void refreshActiveReward(); void refreshStakeDirectory(false,true); });
   const tabs = queryAll<HTMLButtonElement>("[data-rewards-tab]");
   const selectTab = (next: HTMLButtonElement, focus = false) => {
     const id = next.dataset.rewardsTab ?? "positions";
@@ -2967,6 +3134,7 @@ function setupRewards(): void {
 
   queryAll<HTMLSelectElement>("[data-position-market],[data-staker-market],[data-settle-market]").forEach((select) => {
     select.addEventListener("change", () => {
+      const stakeAmount=query<HTMLInputElement>('#stake-amount');if(stakeAmount){stakeAmount.value="";stakeAmount.setCustomValidity("");}
       if (select.matches('[data-staker-market]')) { const search = query<HTMLInputElement>('[data-position-search]'); if (search) search.value = ''; filterStakeMarkets(); }
       const position = query<HTMLSelectElement>("[data-position-market]");
       if (select.matches("[data-position-market]")) syncRewardMarketSelections(select.value, "position");
@@ -3260,6 +3428,12 @@ async function readRewardPositionState(detail: MarketDetailResponse): Promise<Re
 }
 
 function renderRewardPosition(state: RewardPositionState): void {
+  const unit=stockSymbol(state.assetConfig);
+  stakeText('[data-stake-wallet],[data-stake-modal-wallet]',`${formatTokenAmount(state.walletBalance,state.asset.tokenDecimals)} ${unit}`);
+  stakeText('[data-stake-allocated],[data-stake-modal-current]',`${formatTokenAmount(state.allocated,state.asset.tokenDecimals)} ${unit}`);
+  stakeText('[data-stake-modal-stock]',unit);
+  stakeText('[data-stake-unlock]',state.allocated===0n ? 'No active stake' : state.now>=state.unlockAt ? 'Unlocked' : `Locked until ${new Date(Number(state.unlockAt)*1000).toLocaleString()}`);
+  recordLiveStake(state);
   const stock = (amount: bigint) => formatTokenAmount(amount, state.asset.tokenDecimals);
   const unlock = state.unlockAt === 0n ? "not set" : new Date(Number(state.unlockAt) * 1_000).toLocaleString();
   const settlement = state.settlementPrincipal > 0n
@@ -3281,13 +3455,15 @@ function renderRewardPosition(state: RewardPositionState): void {
 }
 
 async function refreshRewardPosition(): Promise<void> {
+  void refreshStakeStatistics();
+  for(const key of ['wallet','allocated','unlock','modal-wallet','modal-current'])stakeText(`[data-stake-${key}]`,'Unavailable');
   const generation = ++rewardLoadGeneration;
   rewardPosition = null;
   updateStakePreview();
   text("[data-unstake-preview]", "Select a market to load your staked balance and unlock time.");
   text("[data-ragequit-estimate]", "Load a verified position to see principal and estimated forfeited rewards.");
-  text("[data-staker-claimable=quote]", "Locked — verified position required");
-  text("[data-staker-claimable=meme]", "Locked — verified position required");
+  text("[data-staker-claimable=quote]", "Unavailable");
+  text("[data-staker-claimable=meme]", "Unavailable");
   text("[data-rewards-total]", "—");
   text("[data-staker-conversion-status]", "Load a verified position to see conversion status.");
   updateRewardsAvailability();
@@ -3644,6 +3820,9 @@ function setContinuousRewardsView(enabled: boolean): void {
 }
 
 function updateRewardsAvailability(): void {
+  const max=query<HTMLButtonElement>('[data-stake-max]');if(max)max.disabled=!rewardPosition||!!busyOperation;
+  const open=query<HTMLButtonElement>('[data-open-stake]');if(open)open.disabled=!!busyOperation;
+  queryAll<HTMLButtonElement>('[data-close-stake]').forEach(button=>{button.disabled=!!busyOperation;});
   const copy = query<HTMLButtonElement>("[data-copy-beneficiary]"); if (copy) copy.disabled = !creatorReward;
   const connect = query<HTMLButtonElement>("[data-rewards-connect]"); if (connect) connect.hidden = !!wallet;
   const prerequisite = !wallet ? 'Connect your wallet to continue.' : busyOperation ? 'A transaction is in progress. Check its status above.' : hasPendingTransaction() ? 'Check the existing transaction above before submitting another.' : !foundation?.writeReady ? 'Transactions are unavailable until the market connection is restored.' : '';
@@ -3804,7 +3983,9 @@ async function executePositionAction(action: string, button: HTMLButtonElement):
     verifyChain,
     confirm,
   });
-  if (action === "stake") { const input = query<HTMLInputElement>("#stake-amount"); if (input) input.value = ""; }
+  if (action === "stake") { const input = query<HTMLInputElement>("#stake-amount"); if (input) input.value = ""; query<HTMLDialogElement>('[data-stake-dialog]')?.close(); }
+  stakeStatsCache.delete(marketId);
+  stakeDirectoryAt=0;
   toast(action === "rageQuit" ? "Principal returned immediately; reward cleanup state refreshed" : "Market position updated; principal verified on chain", "success");
   await refreshRewardPosition();
 }
@@ -4200,6 +4381,7 @@ async function runRewardAction(button: HTMLButtonElement): Promise<void> {
   if (action === 'stake' && rewardPosition && rewardPosition.allocated > 0n && !await confirmFlowAction('Adding stake restarts the 24-hour lock for your entire position and normal reward claims. Continue?')) return;
   if (action === 'transferCreatorRevenueBeneficiary' && !await confirmFlowAction('Nominate this wallet to receive future creator revenue? The change takes effect only when it accepts. Past earnings stay with the recorded beneficiary.')) return;
   text("[data-rewards-action-status]", "Preparing your transaction…");
+  if(action==='stake')text('[data-stake-transaction-status]','Preparing your transaction…');
   try {
     const form = button.closest<HTMLFormElement>("form");
     if (form && !form.reportValidity()) {
@@ -4229,6 +4411,7 @@ async function runRewardAction(button: HTMLButtonElement): Promise<void> {
     text("[data-rewards-action-status]", "Transaction confirmed. Balances refreshed.");
   } catch (error) {
     text("[data-rewards-action-status]", `Action stopped — ${errorText(error)}`);
+    if(action==='stake')text('[data-stake-transaction-status]',`Action stopped — ${errorText(error)}`);
     toast(`Rewards action stopped — ${errorText(error)}`, "error");
     updateRewardsAvailability();
   }
@@ -4328,6 +4511,8 @@ async function renderRewards(): Promise<void> {
     }
   }
   populateRewardMarkets();
+  void refreshStakeDirectory();
+  void refreshStakeStatistics();
   text('[data-rewards-runtime-title]', wallet ? 'Your rewards' : 'Connect your wallet');
   const empty = query<HTMLElement>('[data-rewards-empty]');
   if (empty) empty.hidden = !foundation || foundation.markets.length > 0;
@@ -4341,7 +4526,7 @@ async function renderRewards(): Promise<void> {
     ? "Choose a market to view your position and rewards. Each transaction is checked before signing."
     : currentPage() === "staking" ? "Connect your wallet to view positions and staking rewards." : "Connect your wallet to view and claim rewards.");
   if (!wallet) {
-    if (currentPage() === "staking") await refreshDirectEscape();
+    if (currentPage() === "staking") { await refreshRewardPosition(); await refreshDirectEscape(); }
     updateRewardsAvailability();
     return;
   }
@@ -4600,6 +4785,8 @@ function isStaticPage(): boolean {
 
 let disposeFieldValidation: (() => void) | undefined;
 function unmountPage(): void {
+  window.clearInterval(stakeStatisticsTimer);stakePageListeners?.abort();stakePageListeners=undefined;
+  ++stakeStatsGeneration; ++stakeDirectoryGeneration; stakeDirectoryBusy=false;
   disposeFieldValidation?.(); disposeFieldValidation=undefined;
   snapshotPoller?.stop();
   ++foundationGeneration;

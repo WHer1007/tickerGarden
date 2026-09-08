@@ -1,3 +1,50 @@
+# Staking redesign, option 3 — 2026-09-09
+
+final result: passed
+
+Scope: selected design implementation, responsive layout, disconnected/empty states and available browser interactions. This is not acceptance of funded-wallet transactions or production readiness.
+
+## Target and evidence
+
+- Source visual: `/Users/dear/.codex/generated_images/01a080b4-ed81-71b0-a3bf-13184e8b2883/exec-e1654d4b-64a7-4b22-abe0-488194030495.png` (1487 × 1058).
+- Implementation: `http://127.0.0.1:5178/stake#positions`.
+- Desktop captures: `outputs/reviews/staking-redesign-2026-09-09/desktop.png` and `desktop-modal.png`, 1440 × 1024 CSS and image pixels.
+- Mobile captures: `outputs/reviews/staking-redesign-2026-09-09/mobile.png` and `mobile-modal.png`, 390 × 844 CSS and image pixels.
+- Source and desktop modal screenshot were opened together in one comparison input. The source has example funded positions; the implementation has a disconnected wallet and no loaded markets. Amounts, market rows and enabled transaction controls cannot be compared as identical states. No example data was injected into live balances.
+- No density conversion was necessary; source width is approximately 3% wider. Typography uses the existing product Fraunces/UI fonts, with headings capped at 22px as requested. The source's larger generated lettering is intentionally reduced.
+
+## Findings and comparison history
+
+1. P2: three narrow mobile statistic columns broke Unavailable across lines. Evidence: `mobile-before.png`. Fixed by using three horizontal label/value rows below 480px. Recaptured as `mobile.png`; values now fit and document width equals viewport width (390px).
+2. P2: long locked-state messages appeared in large numeric slots. Fixed to show Unavailable, keeping explanatory text below the actions. Post-fix desktop and modal captures show short values.
+3. Template integration review caught duplicated stake action, hidden fallback actions and history controls inside a replaced container. Fixed before final browser QA: one modal stake form, reachable original-token fallback, independent directory status/pagination controls. Regression test enforces the modal and fallback structure.
+
+## Required fidelity surfaces
+
+- Fonts: compact Fraunces headings and amounts; existing sans-serif UI labels. Mobile values remain readable without word splitting. Amount errors and transaction status are separate from numeric summaries.
+- Layout: left market directory, selected-market statistics, personal position and reward area. Desktop add-stake dialog sits on the right; mobile dialog is centered, 358px wide in a 390px viewport. No horizontal document overflow. Buttons and cancellation fit within the mobile dialog.
+- Colors: existing ivory background, warm white cards, forest green actions and restrained amber lock notice. CSS is scoped to `.staking-page` so Claim styling remains unaffected.
+- Assets: existing brand assets and Phosphor leaf/search/action icons; Stock symbol icons reuse `quoteIconUrl`. Unknown/unselected markets use a library leaf icon, not the project's logo. No fabricated token logos.
+- Copy: Growing/Bloomed uses the shared phase labels. Total fees is cumulative allocated fees (backend aggregation starts at market creation), not 24H fees. Different fee assets stay separate. 24H applies only to volume. The generated About/Chart/Trades material is intentionally omitted. Lock reset and delayed activation notices remain visible in the dialog.
+- Focused check: desktop and mobile dialog captures clearly show amount input, Max, current/after amounts, lock notice, disabled submit and Cancel; no extra crop was needed to read these regions.
+
+## Interaction and implementation checks
+
+- Open and cancel add-stake dialog; disabled submit/Max with no verified position; exactly one stake action in DOM.
+- Search TSLA, empty search result, clear search and refresh balances.
+- Mobile document width 390px, dialog width 358px, no dialog remains open after Cancel.
+- Browser error log: no error entries during the checked interactions.
+- 229 frontend tests passed, including asset-separated fee totals, position/account validation, history owner validation, and modal/fallback regressions. Typecheck, generated ABI/client checks and production build passed. Existing bundle-size warning remains.
+
+## Data and transaction boundary
+
+- Selected-market analytics: existing detail API, cached 10 minutes and coalesced per market. Total staked: one targeted configured Vault `marketAllocated(assetUid, marketId)` read per cache refresh. Display totals do not authorize signing.
+- Personal balances, position and claims retain existing canonical transaction checks and 30-second visible-page refresh. Statistics and directory loading do not block those reads or signing.
+- My markets loads at most 100 indexed positions and 100 account activity records initially. Further pages require Load more records. Explicit indexed block coverage; account-owned staking events only. No historical RPC block scan.
+- Missing market data and disconnected balances stay Unavailable. Funded market selection, approval, stake, unstake and reward claim receipts still need the user's test-wallet integration session; this task did not broadcast transactions.
+
+---
+
 # Claim redesign — 2026-09-09
 
 final result: passed

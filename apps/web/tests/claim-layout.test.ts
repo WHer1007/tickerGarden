@@ -15,3 +15,16 @@ test('separate staking surface retains position exits and staking rewards',()=>{
   for(const action of ['stake','unstakeAndWithdraw','rageQuit','directVaultRageQuit','claimStaker'])assert.ok(staking.html.includes(`data-reward-action="${action}"`));
   assert.doesNotMatch(staking.html,/data-rewards-tab="(?:creator|treasury)"/);
 });
+
+test('staking keeps a single modal submission and reachable fallback actions',()=>{
+  assert.equal([...staking.html.matchAll(/data-reward-action="stake"/g)].length,1);
+  assert.equal([...staking.html.matchAll(/id="stake-amount"/g)].length,1);
+  const dialog=staking.html.slice(staking.html.indexOf('<dialog'));
+  assert.match(dialog,/data-reward-form="stake"/);
+  assert.match(dialog,/aria-describedby="stake-preview" required/);
+  assert.doesNotMatch(dialog,/method="dialog"/);
+  for(const action of ['requestStakerRawExit','cancelStakerRawExit'])assert.ok(staking.html.includes(`data-reward-action="${action}"`));
+  assert.match(staking.html,/data-reward-asset="meme"/);
+  assert.deepEqual([...staking.html.matchAll(/data-rewards-tab="([^"]+)"/g)].map(m=>m[1]),['positions']);
+  assert.ok(staking.html.indexOf('data-stake-history-more')>staking.html.indexOf('</div>',staking.html.indexOf('data-stake-my-markets')));
+});

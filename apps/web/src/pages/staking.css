@@ -1,0 +1,96 @@
+.staking-page{display:grid;grid-template-columns:244px minmax(0,1fr);gap:24px 28px;color:var(--ink);font-size:14px;max-width:1260px;padding:28px 32px 56px;margin:auto;min-height:720px}
+.staking-page .stake-runtime{grid-column:1/-1;display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin:0;font-size:12px;color:var(--muted)}
+.staking-page .stake-runtime>span:first-child{flex:1;min-width:180px}
+.staking-page [data-rewards-action-status]:empty{display:none}
+.staking-page .stake-sidebar{border-right:1px solid var(--line);padding:4px 22px 0 0;min-width:0}
+.staking-page h1,.staking-page h2{font:600 22px/1.3 'Fraunces',Georgia,serif;margin:0}
+.staking-page h3{font-size:15px;margin:0 0 8px}
+.staking-page .search-field{height:40px;border:1px solid var(--line);border-radius:9px;background:#fffefa;display:flex;align-items:center;padding:0 12px;gap:8px;margin:16px 0 8px}
+.staking-page .search-field input{border:0;outline:0;width:100%;min-width:0;font:inherit;background:transparent}
+.staking-page [data-position-search-status],.staking-page [data-stake-history-status]{display:block;font-size:11px;color:var(--muted);line-height:1.6}
+.staking-page [data-stake-my-markets]{display:grid;gap:10px;margin-top:20px;color:var(--muted);font-size:13px;line-height:1.6}
+.staking-page .stake-market-item{display:grid;gap:5px;text-align:left;background:#fffefa;border:1px solid var(--line);padding:14px;border-radius:12px;color:var(--ink);width:100%;overflow-wrap:anywhere;cursor:pointer}
+.staking-page .stake-market-item[aria-pressed=true]{background:#edf2e2;border-color:#789780}
+.staking-page .stake-market-item small{font-size:11px;color:var(--muted)}
+.staking-page .stake-content{min-width:0}
+.staking-page .stake-toolbar{display:flex;gap:10px;align-items:center;color:var(--muted);margin:0 0 16px;font-size:12px}
+.staking-page .stake-toolbar strong{color:var(--ink);min-width:0;overflow-wrap:anywhere}
+.staking-page select{border:1px solid var(--line);border-radius:8px;padding:9px;background:#fffefa;color:var(--ink);font:inherit;max-width:100%}
+.staking-page .stake-toolbar select{margin-left:auto;max-width:48%;min-width:145px}
+.staking-page .market-card,.staking-page .position-card{background:#fffefa;border:1px solid var(--line);border-radius:14px;padding:22px;margin-bottom:16px}
+.staking-page .market-card-head{display:flex;gap:14px;align-items:center;min-width:0}
+.staking-page .market-card-head>div{min-width:0;overflow-wrap:anywhere}
+.staking-page p{margin:7px 0;color:var(--muted);line-height:1.6}
+.staking-page .token-mark{width:46px;height:46px;flex:none;border-radius:50%;display:grid;place-items:center;background:var(--ink);color:#e3f2d4;font-size:24px}
+.staking-page .phase-pill{background:#dfedcf;border-radius:20px;padding:5px 10px;font-size:11px;white-space:nowrap;color:var(--ink);margin-left:auto}
+.staking-page .market-stats,.staking-page .position-stats,.staking-page .reward-values{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px;border-radius:10px;padding:18px;margin-top:20px}
+.staking-page .market-stats{background:#f2f3eb}
+.staking-page .market-stats>div,.staking-page .position-stats>div,.staking-page .reward-values>div{border-right:1px solid var(--line);padding-right:14px;min-width:0}
+.staking-page .market-stats>div:last-child,.staking-page .position-stats>div:last-child,.staking-page .reward-values>div:last-child{border:0;padding-right:0}
+.staking-page .market-stats span,.staking-page .position-stats span,.staking-page .reward-values span{display:block;color:var(--muted);font-size:12px}
+.staking-page .market-stats strong,.staking-page .position-stats strong,.staking-page .reward-values strong{display:block;font:600 20px/1.35 'Fraunces',Georgia,serif;margin-top:7px;overflow-wrap:anywhere}
+.staking-page .market-stats small{display:block;color:var(--muted);font-size:10px;margin-top:5px}
+.staking-page [data-stake-unlock]{font-family:inherit;font-weight:600;font-size:13px;line-height:1.5}
+.staking-page .status-line{font-size:11px;margin-top:12px}
+.staking-page .section-heading{display:flex;justify-content:space-between;align-items:center;gap:16px}
+.staking-page .section-heading p{font-size:12px}
+.staking-page button{font-family:inherit;cursor:pointer}
+.staking-page button:disabled{opacity:.45;cursor:not-allowed}
+.staking-page .primary-button{border:1px solid var(--ink);border-radius:9px;background:var(--ink);color:#fffefa;padding:11px 20px;font-size:13px;font-weight:600;white-space:nowrap}
+.staking-page .position-stats{border:1px solid var(--line)}
+.staking-page .rewards-card{border:1px solid var(--line);border-radius:11px;padding:18px;margin-top:16px}
+.staking-page .rewards-card h2{font-size:18px}
+.staking-page .reward-values{padding:0;margin:18px 0;grid-template-columns:repeat(2,minmax(0,1fr))}
+.staking-page .reward-actions{display:flex;gap:24px;align-items:center}
+.staking-page .link-button{border:0;background:transparent;color:var(--ink);text-decoration:underline;padding:8px 0;font-size:12px}
+.staking-page .rewards-card p{font-size:11px}
+.staking-page .advanced-section{margin-top:16px;border-top:1px solid var(--line);padding-top:15px;font-size:12px}
+.staking-page summary{cursor:pointer;font-weight:600}
+.staking-page .advanced-body{display:grid;gap:12px;margin-top:15px}
+.staking-page .advanced-body form{border:1px solid var(--line);border-radius:10px;padding:16px;min-width:0}
+.staking-page .advanced-body button,.staking-page [data-stake-history-more]{padding:9px 12px;border:1px solid var(--line);border-radius:8px;color:var(--ink);background:#fffefa}
+.staking-page .advanced-body input{padding:9px;border:1px solid var(--line);border-radius:7px;width:100%;box-sizing:border-box;background:#fffefa;color:var(--ink);font:inherit}
+.staking-page .advanced-body label,.staking-page .advanced-body output{display:block;margin:8px 0;overflow-wrap:anywhere}
+.staking-page .advanced-body select{width:100%}
+.staking-page dialog[data-stake-dialog]{border:1px solid var(--line);border-radius:16px;padding:0;background:#fffefa;color:var(--ink);width:470px;max-width:calc(100vw - 32px);max-height:calc(100dvh - 32px);overflow:auto;box-shadow:0 24px 80px #10231d33;margin:auto 32px auto auto}
+.staking-page dialog[data-stake-dialog]::backdrop{background:#16221966}
+.staking-page .stake-dialog-form{position:relative;padding:26px;font-size:13px}
+.staking-page .stake-dialog-form h2{margin-bottom:20px}
+.staking-page .dialog-close{position:absolute;right:18px;top:17px;width:32px;height:32px;border:0;background:transparent;font-size:18px;color:var(--ink)}
+.staking-page .dialog-market{display:flex;align-items:center;gap:12px;border:1px solid var(--line);border-radius:11px;padding:14px}
+.staking-page .dialog-market>div{min-width:0;overflow-wrap:anywhere}
+.staking-page .dialog-market strong{display:block;font-size:14px}
+.staking-page .dialog-market div span{display:block;color:var(--muted);margin-top:6px;font-size:12px}
+.staking-page .dialog-market b{color:var(--ink);margin-left:5px}
+.staking-page .dialog-balance,.staking-page .after-stake div{display:flex;justify-content:space-between;gap:16px;padding:17px 0}
+.staking-page .dialog-balance strong,.staking-page .after-stake strong{text-align:right;overflow-wrap:anywhere;min-width:0}
+.staking-page .stake-dialog-form label{display:block;font-weight:600}
+.staking-page .amount-row{display:flex;gap:10px;align-items:stretch;margin-top:8px}
+.staking-page .amount-field{display:flex;border:1px solid #b4c5b6;border-radius:9px;padding:0 12px;align-items:center;gap:8px;flex:1;min-width:0}
+.staking-page .amount-field input{border:0;outline:0;padding:13px 0;width:100%;min-width:0;background:transparent;color:var(--ink);font:inherit;font-size:17px}
+.staking-page [data-stake-max]{border:1px solid var(--line);background:#f7f7f0;border-radius:9px;padding:0 15px;color:var(--ink);font-weight:600}
+.staking-page .after-stake{background:#f2f3eb;border-radius:10px;padding:0 16px;margin-top:18px}
+.staking-page .after-stake div+div{border-top:1px solid var(--line)}
+.staking-page .lock-notice{display:flex;align-items:center;gap:10px;background:#fff5df;border:1px solid #efcf8b;border-radius:9px;padding:12px;margin-top:15px;color:#80561a;line-height:1.5;font-size:12px}
+.staking-page .lock-notice i{font-size:20px;flex:none}
+.staking-page .activation-note,.staking-page [data-stake-preview]{font-size:11px;margin:9px 0}
+.staking-page [data-stake-transaction-status]:empty{display:none}
+.staking-page .dialog-submit,.staking-page .secondary-button{width:100%;margin-top:10px}
+.staking-page .secondary-button{background:transparent;border:1px solid var(--line);border-radius:9px;padding:11px;color:var(--ink);font-weight:600}
+.staking-page .stake-dialog-form>small{display:block;text-align:center;color:var(--muted);margin-top:14px;font-size:10px}
+.staking-page :is(button,input,select,summary):focus-visible{outline:2px solid #528066;outline-offset:3px}
+.staking-page .search-field:focus-within,.staking-page .amount-field:focus-within{outline:2px solid #528066;outline-offset:2px}
+@media(max-width:800px){.staking-page{grid-template-columns:minmax(0,1fr);padding:22px 18px 40px;gap:20px}.staking-page .stake-sidebar{border:0;padding:0}.staking-page .stake-sidebar h1{font-size:20px}.staking-page .stake-toolbar{flex-wrap:wrap}.staking-page .stake-toolbar select{width:100%;max-width:100%;margin:0}.staking-page .market-card,.staking-page .position-card{padding:17px}.staking-page .market-card-head{flex-wrap:wrap}.staking-page .market-card-head h2{font-size:20px}.staking-page .market-stats,.staking-page .position-stats{gap:10px;padding:13px}.staking-page .market-stats strong,.staking-page .position-stats strong{font-size:16px}.staking-page .market-stats>div,.staking-page .position-stats>div{padding-right:8px}.staking-page .market-stats small{font-size:9px}.staking-page .section-heading{align-items:flex-start}.staking-page .section-heading h2{font-size:20px}.staking-page .primary-button{padding:10px 14px}.staking-page .rewards-card{padding:14px}.staking-page dialog[data-stake-dialog]{margin:auto;width:470px}.staking-page .stake-dialog-form{padding:22px}.staking-page .stake-runtime>span:first-child{flex-basis:100%}}
+
+.staking-page [data-stake-stock-icon]{vertical-align:middle;object-fit:contain;margin-left:6px}
+.staking-page [data-stake-stock-icon][hidden]{display:none}
+.staking-page .search-field input:focus,.staking-page .amount-field input:focus{outline:none;box-shadow:none}
+@media(max-width:480px){
+  .staking-page .market-card-head{display:grid;grid-template-columns:46px minmax(0,1fr) auto;gap:10px}
+  .staking-page .market-card-head h2{font-size:18px}
+  .staking-page .market-stats,.staking-page .position-stats{grid-template-columns:minmax(0,1fr);gap:0;padding:4px 14px}
+  .staking-page .market-stats>div,.staking-page .position-stats>div{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.2fr);gap:4px 12px;align-items:center;border:0;border-bottom:1px solid var(--line);padding:12px 0}
+  .staking-page .market-stats strong,.staking-page .position-stats strong{margin:0;text-align:right;font-size:16px}
+  .staking-page .market-stats small{grid-column:1/-1;font-size:10px}
+  .staking-page .reward-values strong{font-size:17px}
+}
