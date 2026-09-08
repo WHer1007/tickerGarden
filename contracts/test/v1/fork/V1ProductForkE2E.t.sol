@@ -18,12 +18,13 @@ import {
     CreateMarketParams,
     LaunchTemplate,
     MarketView,
-    PonsBaseline,
+    TickerGardenBaseline,
     PositionView,
     PoolKey,
     QuoteAssetConfig,
     StockQuoteBinding,
-    StockTokenFingerprint
+    StockTokenFingerprint,
+    ConversionItem
 } from "../../../src/v1/interfaces/IV1Protocol.sol";
 import {AllocationManager} from "../../../src/v1/modules/AllocationManager.sol";
 import {ApprovedQuoteRegistry} from "../../../src/v1/modules/ApprovedQuoteRegistry.sol";
@@ -31,10 +32,12 @@ import {LaunchTemplateRegistry} from "../../../src/v1/modules/LaunchTemplateRegi
 import {MarketRegistryV1} from "../../../src/v1/modules/MarketRegistryV1.sol";
 import {MemeStockGauge} from "../../../src/v1/modules/MemeStockGauge.sol";
 import {OfficialStockRegistryV1} from "../../../src/v1/modules/OfficialStockRegistryV1.sol";
-import {PonsBaselineRegistry} from "../../../src/v1/modules/PonsBaselineRegistry.sol";
-import {PonsCompatibleCurve} from "../../../src/v1/modules/PonsCompatibleCurve.sol";
+import {TickerGardenBaselineRegistry} from "../../../src/v1/modules/TickerGardenBaselineRegistry.sol";
+import {TickerGardenCurve} from "../../../src/v1/modules/TickerGardenCurve.sol";
 import {LaunchAndBuyRouter} from "../../../src/v1/modules/LaunchAndBuyRouter.sol";
 import {TickerGardenFactoryV1} from "../../../src/v1/modules/TickerGardenFactoryV1.sol";
+import {HolderRewardsDistributorV1} from "../../../src/v1/modules/HolderRewardsDistributorV1.sol";
+import {CreatorRevenueRegistry} from "../../../src/v1/modules/CreatorRevenueRegistry.sol";
 import {TreasuryDistributorV1} from "../../../src/v1/modules/TreasuryDistributorV1.sol";
 import {UserStockVault} from "../../../src/v1/modules/UserStockVault.sol";
 import {
@@ -57,15 +60,21 @@ interface IProtocolFeeVaultFork {
     function setSettlementOperator(address) external;
     function settleHolderRewards(bytes32, uint32, uint256, uint256, uint256) external returns (uint256, uint256);
     function fundHolderRewards(bytes32, uint32) external returns (uint256);
+    function claimCreator(bytes32, uint32, address) external returns (uint256);
+    function claimPlatform(bytes32, address) external returns (uint256);
+    function liability(bytes32, address, uint8) external view returns (uint256);
+    function requestRawRewardExit(bytes32) external;
+    function settleRewards(bytes32, ConversionItem[] calldata, uint256, uint256) external returns (uint256, uint256);
+    function platformTreasury() external view returns (address);
 }
 
 /// @notice Real Robinhood Chain state-fork proof for immutable Stock admission, atomic v4 graduation and rageQuit.
 /// @dev The test pins a recent block because the public RPC is not an archival endpoint. Long-lived CI must supply
 ///      an archive-capable ROBINHOOD_RPC_URL that can still serve FORK_BLOCK_NUMBER.
 contract V1ProductForkE2ETest is Test {
-    uint256 private constant FORK_BLOCK_NUMBER = 55165256;
-    bytes32 private constant FORK_BLOCK_HASH = 0xc6c62c0bc02d8a2e71d1898213cdd3f7606a957de11827e5df6646bca1d16ed7;
-    uint256 private constant FORK_L1_BLOCK_NUMBER = 25911498;
+    uint256 private constant FORK_BLOCK_NUMBER = 55747994;
+    bytes32 private constant FORK_BLOCK_HASH = 0xd7bc428f76e456752aed5c129204b1aed67239a2cb824f1be544d41dcd60df78;
+    uint256 private constant FORK_L1_BLOCK_NUMBER = 25916380;
 
     address private constant POOL_MANAGER = 0x8366a39CC670B4001A1121B8F6A443A643e40951;
     address private constant POSITION_MANAGER = 0x58daec3116aae6D93017bAAea7749052E8a04fA7;
@@ -106,7 +115,7 @@ contract V1ProductForkE2ETest is Test {
     V1DeploymentPlan private plan;
     OfficialStockRegistryV1 private stockRegistry;
     ApprovedQuoteRegistry private quoteRegistry;
-    PonsBaselineRegistry private baselineRegistry;
+    TickerGardenBaselineRegistry private baselineRegistry;
     LaunchTemplateRegistry private templateRegistry;
     MarketRegistryV1 private marketRegistry;
     AllocationManager private allocationManager;
@@ -154,9 +163,9 @@ contract V1ProductForkE2ETest is Test {
             router.launchAndBuy{value: LAUNCH_FEE + 0.01 ether}(params, 0.01 ether, 1, HOLDER);
         address curve = marketRegistry.market(marketId).config.curve;
         assertGt(IERC20(memeToken).balanceOf(HOLDER), 0, "router first buy holder balance");
-        assertEq(PonsCompatibleCurve(payable(curve)).creatorTaxBps(), 500, "creator tax");
+        assertEq(TickerGardenCurve(payable(curve)).creatorTaxBps(), 500, "creator tax");
         vm.prank(CREATOR);
-        PonsCompatibleCurve(payable(curve)).buy{value: 10 ether}(10 ether, 0, CREATOR);
+        TickerGardenCurve(payable(curve)).buy{value: 10 ether}(10 ether, 0, CREATOR);
         MarketView memory graduated = marketRegistry.market(marketId);
         assertEq(graduated.runtime.launchPhase, 1, "graduated");
         address feeVault = plan.ordinaryComponents[15];
@@ -168,6 +177,90 @@ contract V1ProductForkE2ETest is Test {
 
         _swapNativeForMeme(marketId);
         _settleAndClaimHolder(marketId, memeToken, feeVault);
+    }
+
+    function test_disabledStakingRouterGraduationSwapAndHolderClaim() public {
+        vm.deal(CREATOR, 30 ether);
+        CreateMarketParams memory params = _marketParams(true, 500, keccak256("NO_STAKING_FORK"));
+        params.stakingEnabled = false;
+        params.assetUid = bytes32(0);
+        params.expectedEconomics = factory.previewMarketEconomics(params);
+        vm.prank(CREATOR);
+        (bytes32 marketId, address memeToken,,) = LaunchAndBuyRouter(payable(plan.ordinaryComponents[9]))
+        .launchAndBuy{value: LAUNCH_FEE + 0.01 ether}(
+            params, 0.01 ether, 1, HOLDER
+        );
+        MarketView memory created = marketRegistry.market(marketId);
+        assertFalse(created.config.stakingEnabled);
+        assertEq(created.config.assetUid, bytes32(0));
+        assertEq(created.config.gauge, address(0));
+        vm.prank(CREATOR);
+        TickerGardenCurve(payable(created.config.curve)).buy{value: 10 ether}(10 ether, 0, CREATOR);
+        assertEq(marketRegistry.market(marketId).runtime.launchPhase, 1);
+        _swapNativeForMeme(marketId);
+        _settleAndClaimHolder(marketId, memeToken, plan.ordinaryComponents[15]);
+    }
+
+    /// @dev Current streaming release against real v4 contracts; no root or ArbSys hash adapter.
+    function test_continuousReleaseRealV4ConversionAnytimeClaimAndCreatorHandoff() public {
+        _deployRuntimeGraph(true);
+        _activateConfiguration();
+        vm.deal(CREATOR, 30 ether);
+        CreateMarketParams memory params = _marketParams(true, 500, keccak256("CONTINUOUS_RH_FORK"));
+        params.stakingEnabled = false;
+        params.assetUid = bytes32(0);
+        params.expectedEconomics = factory.previewMarketEconomics(params);
+        vm.prank(CREATOR);
+        (bytes32 id, address token,,) = LaunchAndBuyRouter(payable(plan.ordinaryComponents[9]))
+            .launchAndBuy{value: LAUNCH_FEE + 0.01 ether}(params, 0.01 ether, 1, HOLDER);
+        MarketView memory market = marketRegistry.market(id);
+        vm.prank(CREATOR);
+        TickerGardenCurve(payable(market.config.curve)).buy{value: 10 ether}(10 ether, 0, CREATOR);
+        assertEq(marketRegistry.market(id).runtime.launchPhase, 1);
+        _swapNativeForMeme(id);
+        _verifyContinuousClaim(id, token);
+    }
+
+    function _verifyContinuousClaim(bytes32 id, address token) private {
+        IProtocolFeeVaultFork vault = IProtocolFeeVaultFork(plan.ordinaryComponents[15]);
+        HolderRewardsDistributorV1 distributor = HolderRewardsDistributorV1(payable(plan.ordinaryComponents[14]));
+        vault.setSettlementOperator(address(this));
+        uint256 creatorMeme = vault.creatorLiability(id, 1, token);
+        uint256 pendingMeme = vault.holderLiability(id, 1, token);
+        assertGt(pendingMeme, 0);
+        vault.settleHolderRewards(id, 1, pendingMeme, 1, block.timestamp + 5 minutes);
+        assertEq(vault.holderLiability(id, 1, token), 0);
+        assertEq(vault.creatorLiability(id, 1, token), creatorMeme, "separate creator balance");
+        vault.fundHolderRewards(id, 1);
+        assertEq(distributor.lastFundingAt(id), block.timestamp);
+        assertEq(distributor.claimable(id, HOLDER), 0, "no instant reward on funding");
+        vm.warp(block.timestamp + 12 hours);
+        uint256 earned = distributor.claimable(id, HOLDER);
+        assertGt(earned, 0);
+        uint256 beforeBalance = HOLDER.balance;
+        vm.prank(HOLDER);
+        assertEq(distributor.claim(id), earned);
+        assertEq(HOLDER.balance, beforeBalance + earned);
+        // Earnings remain the seller's; a recipient cannot inherit previously earned rewards.
+        uint256 holderTokens = IERC20(token).balanceOf(HOLDER);
+        vm.prank(HOLDER);
+        IERC20(token).transfer(STAKER, holderTokens);
+        assertEq(distributor.claimable(id, STAKER), 0);
+        vm.warp(block.timestamp + 12 hours);
+        assertEq(distributor.claimable(id, HOLDER), 0);
+        assertGt(distributor.claimable(id, STAKER), 0);
+        vm.prank(STAKER);
+        distributor.claim(id);
+        CreatorRevenueRegistry revenue = CreatorRevenueRegistry(factory.creatorRevenueRegistry());
+        vm.prank(CREATOR);
+        revenue.transferCreatorRevenueBeneficiary(id, STAKER);
+        assertEq(revenue.currentCreatorEpoch(id), 1, "nomination does not change attribution");
+        vm.prank(STAKER);
+        revenue.acceptCreatorRevenueBeneficiary(id);
+        assertEq(revenue.currentCreatorEpoch(id), 2);
+        assertEq(revenue.creatorBeneficiaryAt(id, 1), CREATOR, "historical beneficiary remains");
+        assertEq(revenue.creatorBeneficiaryAt(id, 2), STAKER);
+        _claimCreatorAndPlatform(vault, id, token, creatorMeme);
     }
 
     function _swapNativeForMeme(bytes32 marketId) private {
@@ -217,8 +310,11 @@ contract V1ProductForkE2ETest is Test {
         uint256 epochAmount = treasuryDistributor.epochQuoteAmount(marketId, 1);
         vm.warp(block.timestamp + 31 days);
         vm.deal(HOLDER, 0.01 ether);
-        vm.roll(block.number + 100);
-        vm.setBlockhash(block.number - 2, keccak256("TEST_ONLY_ROOT_FINALITY_BLOCK"));
+        // Foundry does not emulate Nitro arbBlockHash. Both the block header and this
+        // exact precompile call were checked via live RPC at pinned block 55747994.
+        // Scope the test adapter to one selector/height; do not mock protocol contracts.
+        vm.mockCall(address(100), abi.encodeWithSignature("arbBlockHash(uint256)", FORK_BLOCK_NUMBER - 2),
+            abi.encode(bytes32(0x0acd8b1dace2891f5fb2ea1d4a028bd6e06613c8255f023b5041dd2b84e42e11)));
         vm.prank(HOLDER);
         treasuryDistributor.requestRoot{value: 0.001 ether}(marketId, 1);
         bytes32 leaf = treasuryDistributor.claimLeaf(marketId, 1, 0, HOLDER, 1, epochAmount);
@@ -230,6 +326,50 @@ contract V1ProductForkE2ETest is Test {
         uint256 beforeClaim = HOLDER.balance;
         treasuryDistributor.claim(marketId, 1, 0, HOLDER, 1, epochAmount, new bytes32[](0));
         assertEq(HOLDER.balance, beforeClaim + epochAmount, "holder claim");
+
+        // The no-gauge path must leave creator and platform fee buckets claimable in both assets.
+        _claimCreatorAndPlatform(vault, marketId, memeToken, creatorMemeBefore);
+    }
+
+    function _claimCreatorAndPlatform(
+        IProtocolFeeVaultFork vault, bytes32 marketId, address memeToken, uint256 creatorMemeBefore
+    ) private {
+        uint256 creatorMeme = vault.creatorLiability(marketId, 1, memeToken);
+        assertGt(creatorMeme, 0, "creator meme accrual");
+        assertEq(creatorMeme, creatorMemeBefore, "holder conversion preserves creator reward");
+        uint256 creatorNativeBefore = CREATOR.balance;
+        uint256 creatorTokenBefore = IERC20(memeToken).balanceOf(CREATOR);
+        ConversionItem[] memory items = new ConversionItem[](1);
+        items[0] = ConversionItem(CREATOR, 1, creatorMeme);
+        (, uint256 convertedQuote) = vault.settleRewards(marketId, items, 1, block.timestamp + 240);
+        assertGt(convertedQuote, 0, "creator conversion output");
+        assertEq(vault.creatorLiability(marketId, 1, memeToken), 0, "creator meme converted");
+        uint256 creatorQuote = vault.creatorLiability(marketId, 1, address(0));
+        assertGe(creatorQuote, convertedQuote);
+        assertEq(vault.claimCreator(marketId, 1, address(0)), creatorQuote);
+        assertEq(CREATOR.balance, creatorNativeBefore + creatorQuote, "creator quote paid");
+        assertEq(IERC20(memeToken).balanceOf(CREATOR), creatorTokenBefore, "creator meme stays internal");
+        assertEq(vault.creatorLiability(marketId, 1, address(0)), 0);
+        assertEq(vault.claimCreator(marketId, 1, address(0)), 0);
+        _claimPlatformFees(vault, marketId, memeToken);
+    }
+
+    function _claimPlatformFees(IProtocolFeeVaultFork vault, bytes32 marketId, address memeToken) private {
+        address platform = vault.platformTreasury();
+        uint256 platformQuote = vault.liability(marketId, address(0), 2);
+        uint256 platformMeme = vault.liability(marketId, memeToken, 2);
+        assertGt(platformQuote, 0, "platform quote accrual");
+        assertGt(platformMeme, 0, "platform meme accrual");
+        uint256 platformNativeBefore = platform.balance;
+        uint256 platformTokenBefore = IERC20(memeToken).balanceOf(platform);
+        assertEq(vault.claimPlatform(marketId, address(0)), platformQuote);
+        assertEq(vault.claimPlatform(marketId, memeToken), platformMeme);
+        assertEq(platform.balance, platformNativeBefore + platformQuote, "platform quote paid");
+        assertEq(IERC20(memeToken).balanceOf(platform), platformTokenBefore + platformMeme, "platform meme paid");
+        assertEq(vault.liability(marketId, address(0), 2), 0);
+        assertEq(vault.liability(marketId, memeToken, 2), 0);
+        assertEq(vault.claimPlatform(marketId, address(0)), 0);
+        assertEq(vault.claimPlatform(marketId, memeToken), 0);
     }
 
     function _createMarket(bool holderFees, uint16 taxBps, string memory saltText)
@@ -255,7 +395,7 @@ contract V1ProductForkE2ETest is Test {
     {
         params = CreateMarketParams({
             assetUid: CRM_ASSET_UID,
-            ponsBaselineId: BASELINE_ID,
+            tickerGardenBaselineId: BASELINE_ID,
             quoteAssetConfigId: quoteConfigId,
             launchTemplateId: TEMPLATE_ID,
             expectedEconomics: bytes32(0),
@@ -265,14 +405,15 @@ contract V1ProductForkE2ETest is Test {
             metadataURI: "ipfs://tickergarden/fork/crm",
             salt: salt,
             creatorTaxBps: taxBps,
-            creatorFeesToHolders: holderFees
+            creatorFeesToHolders: holderFees,
+            stakingEnabled: true
         });
     }
 
     function _graduateMarket(bytes32 marketId, address curve) private returns (CanonicalRoute memory route) {
         vm.prank(CREATOR);
         (uint256 tokensOut, uint256 quoteSpent) =
-            PonsCompatibleCurve(payable(curve)).buy{value: 10 ether}(10 ether, 0, CREATOR);
+            TickerGardenCurve(payable(curve)).buy{value: 10 ether}(10 ether, 0, CREATOR);
         assertGt(tokensOut, 0, "final buy tokens");
         assertLt(quoteSpent, 10 ether, "partial-fill refund");
 
@@ -334,10 +475,14 @@ contract V1ProductForkE2ETest is Test {
         assertEq(abi.decode(decimalsData, (uint256)), 18, "CRM decimals");
     }
 
-    function _deployRuntimeGraph() private {
+    function _deployRuntimeGraph() private { _deployRuntimeGraph(false); }
+
+    function _deployRuntimeGraph(bool continuous) private {
         V1DeploymentConfig memory config = V1DeploymentConfig({
             initialAdmin: address(this),
             poolManager: POOL_MANAGER,
+            nativeQuotePoolFee: 10_000,
+            nativeQuoteTickSpacing: 200,
             positionManager: POSITION_MANAGER,
             swapRouter: UNIVERSAL_ROUTER,
             quoter: V4_QUOTER,
@@ -358,12 +503,13 @@ contract V1ProductForkE2ETest is Test {
             V1DeterministicDeploymentBuilder.mineHelperSalt(address(orchestrator), RELEASE_ID, 500_000);
         bytes32 factorySalt = V1DeterministicDeploymentBuilder.factorySalt(block.chainid, RELEASE_ID);
         V1DeploymentPayload memory payload;
-        (plan, payload) = V1DeterministicDeploymentBuilder.build(address(orchestrator), config, helperSalt, factorySalt);
+        if (continuous) (plan, payload) = V1DeterministicDeploymentBuilder.buildContinuous(address(orchestrator), config, helperSalt, factorySalt);
+        else (plan, payload) = V1DeterministicDeploymentBuilder.build(address(orchestrator), config, helperSalt, factorySalt);
         orchestrator.deploy(payload, plan.payloadHash);
 
         stockRegistry = OfficialStockRegistryV1(plan.ordinaryComponents[1]);
         quoteRegistry = ApprovedQuoteRegistry(plan.ordinaryComponents[2]);
-        baselineRegistry = PonsBaselineRegistry(plan.ordinaryComponents[3]);
+        baselineRegistry = TickerGardenBaselineRegistry(plan.ordinaryComponents[3]);
         templateRegistry = LaunchTemplateRegistry(plan.ordinaryComponents[4]);
         marketRegistry = MarketRegistryV1(plan.ordinaryComponents[10]);
         allocationManager = AllocationManager(plan.ordinaryComponents[12]);
@@ -391,7 +537,7 @@ contract V1ProductForkE2ETest is Test {
 
         baselineRegistry.addBaseline(
             BASELINE_ID,
-            PonsBaseline({
+            TickerGardenBaseline({
                 referenceChainId: 4663,
                 referenceFactory: PONS_REFERENCE_FACTORY,
                 referenceFactoryCodeHash: PONS_REFERENCE_FACTORY_CODEHASH,
@@ -422,7 +568,7 @@ contract V1ProductForkE2ETest is Test {
         quoteRegistry.addQuoteConfig(
             quoteConfigId,
             QuoteAssetConfig({
-                ponsBaselineId: BASELINE_ID,
+                tickerGardenBaselineId: BASELINE_ID,
                 quoteAsset: address(0),
                 quoteDecimals: 18,
                 phantomQuote: PHANTOM_QUOTE,
@@ -476,7 +622,7 @@ contract V1ProductForkE2ETest is Test {
             generatorPolicyId: STOCK_QUOTE_GENERATOR_POLICY_ID
         });
         QuoteAssetConfig memory config = QuoteAssetConfig({
-            ponsBaselineId: BASELINE_ID,
+            tickerGardenBaselineId: BASELINE_ID,
             quoteAsset: CRM_STOCK_TOKEN,
             quoteDecimals: 18,
             phantomQuote: 2 ether,
@@ -489,7 +635,7 @@ contract V1ProductForkE2ETest is Test {
                 keccak256("TICKERGARDEN_V1_STOCK_QUOTE_ECONOMICS"),
                 uint256(1),
                 block.chainid,
-                config.ponsBaselineId,
+                config.tickerGardenBaselineId,
                 config.quoteAsset,
                 config.quoteDecimals,
                 config.phantomQuote,

@@ -48,7 +48,7 @@ test("stale evidence cannot attest to the current product artifact", () => {
   assert.notEqual(sha256(String(artifacts.productArtifactManifest)), artifacts.productArtifactManifestSha256);
   assert.equal((evidence.applicability as JsonRecord).status, "STALE");
   assert.equal((executionManifest.readiness as JsonRecord).deploymentEligible, true);
-  assert.equal((plan.deploymentGateEvidence as JsonRecord[]).every((gate) => gate.status === "CLOSED"), true);
+  assert.deepEqual((plan.deploymentGateEvidence as JsonRecord[]).filter(gate => gate.status === "OPEN").map(gate => gate.gateId), []);
 });
 
 test("preserves historical dependencies and Fork pin while current rehearsal is refreshed", () => {
@@ -72,19 +72,42 @@ test("preserves historical dependencies and Fork pin while current rehearsal is 
 });
 
 
-test("current gate evidence binds every current source file and passing validation log", () => {
-  const current = JSON.parse(readFileSync(path.join(repositoryRoot, "deployments/evidence/v1-deployment-gates-current.json"), "utf8"));
-  assert.deepEqual(validateV1DeploymentGateEvidenceSchema(current), { valid: true, errors: [] });
-  assert.equal(current.applicability.status, "CURRENT");
-  assert.equal(current.artifactEvidence.productArtifactManifestSha256, sha256(current.artifactEvidence.productArtifactManifest));
-  const paths = new Set<string>();
-  for (const file of current.artifactEvidence.files) {
-    assert.equal(file.sha256, sha256(file.path), file.path);
-    paths.add(file.path);
-  }
-  for (const required of ["contracts/script/v1/V1ReleaseGate.sol", "contracts/src/v1/modules/OfficialStockRegistryV1.sol", "contracts/test/v1/fork/V1ProductForkE2E.t.sol", "outputs/reviews/testnet-release-candidate/contracts.log", "outputs/reviews/testnet-release-candidate/fork.log"]) assert.ok(paths.has(required), required);
-  assert.equal(current.forkEvidence.l2BlockNumber, (plan.forkEvidence as JsonRecord).blockNumber);
-  assert.equal(current.forkEvidence.l2BlockHash, (plan.forkEvidence as JsonRecord).blockHash);
-  assert.deepEqual(new Set(current.gates.map((gate: JsonRecord) => gate.gateId)), new Set(V1_DEPLOYMENT_GATE_IDS));
-  assert.ok(current.gates.every((gate: JsonRecord) => gate.status === "CLOSED"));
+test("pre-brand evidence cannot certify renamed sources or reopen deployment", () => {
+  const previous = JSON.parse(readFileSync(path.join(repositoryRoot, "deployments/evidence/v1-arbitrum-support-rh-regression.json"), "utf8"));
+  assert.deepEqual(validateV1DeploymentGateEvidenceSchema(previous), { valid: true, errors: [] });
+  assert.equal(previous.applicability.status, "STALE");
+  assert.notEqual(previous.artifactEvidence.productArtifactManifestSha256, sha256(previous.artifactEvidence.productArtifactManifest));
+  assert.equal((executionManifest.readiness as JsonRecord).deploymentEligible, true);
+  assert.ok(previous.gates.every((gate: JsonRecord) => gate.status === "CLOSED")); // Historical results retained, not re-attested.
+});
+
+test("R3 evidence is historical after the no-staking fee fix", () => {
+ const previous = JSON.parse(readFileSync(path.join(repositoryRoot, "deployments/evidence/v1-r3-test-validation.json"), "utf8"));
+ const artifact = previous.files.find((file: {path: string}) => file.path === "spec/v1_product_artifact_manifest.json");
+ assert.notEqual(sha256(artifact.path), artifact.sha256);
+});
+
+test("R5 evidence stays historical after continuous holder accounting changes", () => {
+ const current = JSON.parse(readFileSync(path.join(repositoryRoot, "deployments/evidence/v1-r5-test-validation.json"), "utf8"));
+ assert.equal(current.status, "VERIFIED_TEST_ONLY_CANDIDATE");
+ assert.equal(current.productionReady, false);
+ assert.equal(current.chainId, 421614);
+ assert.equal(current.productionTargetChainId, 4663);
+ for (const required of [
+   "contracts/src/v1/shared/ProtocolFeeVaultLiabilities.sol",
+   "contracts/test/v1/shared/ProtocolFeeVaultLiabilities.t.sol",
+   "contracts/test/v1/shared/RewardSettlement.t.sol",
+   "contracts/test/v1/fork/V1ProductForkE2E.t.sol",
+   "contracts/test/v1/fork/V1ArbitrumSepoliaForkE2E.t.sol",
+   "outputs/reviews/arbitrum-r4-fix/contracts-clean-strict.log",
+   "outputs/reviews/arbitrum-r4-fix/arbitrum-clean-fork.log",
+   "outputs/reviews/arbitrum-r4-fix/rh-clean-fork.log",
+ ]) assert.ok(current.files.some((file: {path: string}) => file.path === required), required);
+ // Retain historical evidence unchanged; it must not authorize the new token/distributor release.
+ const oldProduct = current.files.find((file: {path: string}) => file.path === "spec/v1_product_artifact_manifest.json");
+ assert.notEqual(sha256(oldProduct.path), oldProduct.sha256);
+ for (const file of current.files.filter((file: {path: string}) => file.path.startsWith("outputs/reviews/"))) {
+   assert.equal(sha256(file.path), file.sha256, file.path);
+ }
+
 });

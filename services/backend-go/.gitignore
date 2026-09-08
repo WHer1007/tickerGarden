@@ -1,0 +1,10 @@
+/bin/
+/.env
+/.env.*
+!/.env.example
+/coverage.out
+
+__pycache__/
+*.pyc
+
+/.state/

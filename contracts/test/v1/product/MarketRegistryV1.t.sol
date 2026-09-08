@@ -12,7 +12,7 @@ import {
     LaunchTemplate,
     MarketConfig,
     MarketView,
-    PonsBaseline,
+    TickerGardenBaseline,
     QuoteAssetConfig
 } from "../../../src/v1/interfaces/IV1Protocol.sol";
 import {MarketRegistryV1} from "../../../src/v1/modules/MarketRegistryV1.sol";
@@ -65,13 +65,13 @@ contract MarketRegistryQuoteMock {
 }
 
 contract MarketRegistryBaselineMock {
-    mapping(bytes32 baselineId => PonsBaseline value) private _baselines;
+    mapping(bytes32 baselineId => TickerGardenBaseline value) private _baselines;
 
-    function setBaseline(bytes32 baselineId, PonsBaseline calldata value) external {
+    function setBaseline(bytes32 baselineId, TickerGardenBaseline calldata value) external {
         _baselines[baselineId] = value;
     }
 
-    function baseline(bytes32 baselineId) external view returns (PonsBaseline memory) {
+    function baseline(bytes32 baselineId) external view returns (TickerGardenBaseline memory) {
         return _baselines[baselineId];
     }
 }
@@ -285,7 +285,7 @@ contract MarketRegistryV1Test is Test {
         QuoteAssetConfig memory quote = _quote(QUOTE_ASSET);
         quote.status = 3;
         quotes.setQuote(QUOTE_CONFIG_ID, quote);
-        PonsBaseline memory baseline = _baseline();
+        TickerGardenBaseline memory baseline = _baseline();
         baseline.status = 3;
         baselines.setBaseline(BASELINE_ID, baseline);
         LaunchTemplate memory template = _template();
@@ -330,7 +330,7 @@ contract MarketRegistryV1Test is Test {
     function _config(address quoteAsset, address memeToken) private pure returns (MarketConfig memory) {
         return MarketConfig({
             assetUid: ASSET_UID,
-            ponsBaselineId: BASELINE_ID,
+            tickerGardenBaselineId: BASELINE_ID,
             quoteAssetConfigId: QUOTE_CONFIG_ID,
             launchTemplateId: TEMPLATE_ID,
             feePolicyId: FEE_POLICY_ID,
@@ -344,13 +344,14 @@ contract MarketRegistryV1Test is Test {
             quoteAsset: quoteAsset,
             graduatedHook: HOOK,
             creatorTaxBps: 0,
-            creatorFeesToHolders: false
+            creatorFeesToHolders: false,
+            stakingEnabled: true
         });
     }
 
     function _quote(address quoteAsset) private pure returns (QuoteAssetConfig memory) {
         return QuoteAssetConfig({
-            ponsBaselineId: BASELINE_ID,
+            tickerGardenBaselineId: BASELINE_ID,
             quoteAsset: quoteAsset,
             quoteDecimals: quoteAsset == address(0) ? 18 : 6,
             phantomQuote: 1,
@@ -360,8 +361,8 @@ contract MarketRegistryV1Test is Test {
         });
     }
 
-    function _baseline() private pure returns (PonsBaseline memory) {
-        return PonsBaseline({
+    function _baseline() private pure returns (TickerGardenBaseline memory) {
+        return TickerGardenBaseline({
             referenceChainId: 4663,
             referenceFactory: address(0xFACADE),
             referenceFactoryCodeHash: keccak256("factory-runtime"),

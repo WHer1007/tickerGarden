@@ -7,10 +7,10 @@ import {
     IApprovedQuoteRegistry,
     ILaunchTemplateRegistry,
     IOfficialStockRegistryV1,
-    IPonsBaselineRegistry,
+    ITickerGardenBaselineRegistry,
     IUserStockVault,
     LaunchTemplate,
-    PonsBaseline,
+    TickerGardenBaseline,
     QuoteAssetConfig
 } from "../interfaces/IV1Protocol.sol";
 import {V1MarketEconomics} from "./V1MarketEconomics.sol";
@@ -33,7 +33,7 @@ library V1FactoryValidation {
     struct Registries {
         IOfficialStockRegistryV1 officialStock;
         IApprovedQuoteRegistry approvedQuote;
-        IPonsBaselineRegistry ponsBaseline;
+        ITickerGardenBaselineRegistry tickerGardenBaseline;
         ILaunchTemplateRegistry launchTemplate;
     }
 
@@ -45,9 +45,9 @@ library V1FactoryValidation {
     struct Snapshot {
         AssetView asset;
         QuoteAssetConfig quote;
-        PonsBaseline baseline;
+        TickerGardenBaseline baseline;
         LaunchTemplate template;
-        bytes32 ponsBaselineHash;
+        bytes32 tickerGardenBaselineHash;
         bytes32 launchTemplateHash;
         bytes32 feePolicyHash;
         bytes32 expectedEconomics;
@@ -56,6 +56,7 @@ library V1FactoryValidation {
     error InvalidCreator(address creator);
     error UnauthorizedLaunchRouter(address caller);
     error InvalidCreatorRevenueBeneficiary(address beneficiary);
+    error InvalidStakingConfiguration();
     error InactiveAsset(bytes32 assetUid, uint8 status);
     error AssetIdentityDrift(bytes32 assetUid);
     error InvalidVaultSchema(bytes32 assetUid, address vault, bytes32 schemaId, address registeredVault);
@@ -70,7 +71,7 @@ library V1FactoryValidation {
     );
     error InactiveQuote(bytes32 quoteAssetConfigId, uint8 status);
     error QuoteIdentityDrift(bytes32 quoteAssetConfigId);
-    error InactivePonsBaseline(bytes32 ponsBaselineId, uint8 status);
+    error InactiveTickerGardenBaseline(bytes32 tickerGardenBaselineId, uint8 status);
     error InactiveLaunchTemplate(bytes32 launchTemplateId, uint8 status);
     error QuoteBaselineMismatch(bytes32 quoteBaselineId, bytes32 requestedBaselineId);
     error InvalidQuoteEconomics(bytes32 quoteAssetConfigId, bytes32 economicsHash);
@@ -105,30 +106,39 @@ library V1FactoryValidation {
         _validatePolicy(policy);
         CreatorTax.validate(params.creatorTaxBps);
 
-        snapshot.asset = registries.officialStock.asset(params.assetUid);
-        if (snapshot.asset.status != ACTIVE) revert InactiveAsset(params.assetUid, snapshot.asset.status);
-        if (!registries.officialStock.assetIdentityCurrent(params.assetUid)) {
-            revert AssetIdentityDrift(params.assetUid);
+        if (params.stakingEnabled) {
+            if (params.assetUid == bytes32(0)) revert InvalidStakingConfiguration();
+            snapshot.asset = registries.officialStock.asset(params.assetUid);
+            if (snapshot.asset.status != ACTIVE) revert InactiveAsset(params.assetUid, snapshot.asset.status);
+            if (!registries.officialStock.assetIdentityCurrent(params.assetUid)) {
+                revert AssetIdentityDrift(params.assetUid);
+            }
+            _validateVaultIdentity(
+                registries.officialStock,
+                params.assetUid,
+                snapshot.asset.userStockVault,
+                marketRegistry,
+                allocationManager
+            );
+        } else if (params.assetUid != bytes32(0)) {
+            revert InvalidStakingConfiguration();
         }
-        _validateVaultIdentity(
-            registries.officialStock, params.assetUid, snapshot.asset.userStockVault, marketRegistry, allocationManager
-        );
 
         snapshot.quote = registries.approvedQuote.quoteConfig(params.quoteAssetConfigId);
         if (snapshot.quote.status != ACTIVE) revert InactiveQuote(params.quoteAssetConfigId, snapshot.quote.status);
         if (!registries.approvedQuote.quoteIdentityCurrent(params.quoteAssetConfigId)) {
             revert QuoteIdentityDrift(params.quoteAssetConfigId);
         }
-        if (snapshot.quote.ponsBaselineId != params.ponsBaselineId) {
-            revert QuoteBaselineMismatch(snapshot.quote.ponsBaselineId, params.ponsBaselineId);
+        if (snapshot.quote.tickerGardenBaselineId != params.tickerGardenBaselineId) {
+            revert QuoteBaselineMismatch(snapshot.quote.tickerGardenBaselineId, params.tickerGardenBaselineId);
         }
         if (snapshot.quote.economicsHash != params.quoteAssetConfigId) {
             revert InvalidQuoteEconomics(params.quoteAssetConfigId, snapshot.quote.economicsHash);
         }
 
-        snapshot.baseline = registries.ponsBaseline.baseline(params.ponsBaselineId);
+        snapshot.baseline = registries.tickerGardenBaseline.baseline(params.tickerGardenBaselineId);
         if (snapshot.baseline.status != ACTIVE) {
-            revert InactivePonsBaseline(params.ponsBaselineId, snapshot.baseline.status);
+            revert InactiveTickerGardenBaseline(params.tickerGardenBaselineId, snapshot.baseline.status);
         }
         V1GraduationEconomicDomain.validate(snapshot.baseline, snapshot.quote);
         if (snapshot.baseline.curveFeeBps + uint256(params.creatorTaxBps) > 9_900) {
@@ -146,7 +156,7 @@ library V1FactoryValidation {
             revert InvalidLaunchTemplateBinding(snapshot.template.feePolicyId, snapshot.template.executionSpecId);
         }
 
-        snapshot.ponsBaselineHash = V1MarketEconomics.hashPonsBaseline(snapshot.baseline);
+        snapshot.tickerGardenBaselineHash = V1MarketEconomics.hashTickerGardenBaseline(snapshot.baseline);
         snapshot.launchTemplateHash = registries.launchTemplate.launchTemplateHash(params.launchTemplateId);
         if (snapshot.launchTemplateHash == bytes32(0)) {
             revert InactiveLaunchTemplate(params.launchTemplateId, snapshot.template.status);
@@ -159,8 +169,8 @@ library V1FactoryValidation {
                 assetUid: params.assetUid,
                 stockToken: snapshot.asset.stockToken,
                 stockDecimals: snapshot.asset.tokenDecimals,
-                ponsBaselineId: params.ponsBaselineId,
-                ponsBaselineHash: snapshot.ponsBaselineHash,
+                tickerGardenBaselineId: params.tickerGardenBaselineId,
+                tickerGardenBaselineHash: snapshot.tickerGardenBaselineHash,
                 quoteAssetConfigId: params.quoteAssetConfigId,
                 quoteEconomicsHash: snapshot.quote.economicsHash,
                 launchTemplateId: params.launchTemplateId,
@@ -170,7 +180,8 @@ library V1FactoryValidation {
                 feePolicyHash: snapshot.feePolicyHash,
                 executionSpecId: policy.fields.executionSpecId,
                 creatorTaxBps: params.creatorTaxBps,
-                creatorFeesToHolders: params.creatorFeesToHolders
+                creatorFeesToHolders: params.creatorFeesToHolders,
+                stakingEnabled: params.stakingEnabled
             })
         );
     }

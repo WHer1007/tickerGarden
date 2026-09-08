@@ -1,0 +1,539 @@
+{
+  "verifiedAt": "2026-09-08",
+  "method": "Dune MCP listBlockchains",
+  "arguments": {
+    "categories": [
+      "canonical"
+    ],
+    "query": "*",
+    "limit": 500,
+    "offset": 0
+  },
+  "result": {
+    "total": 129,
+    "results": [
+      {
+        "blockchain": "flow",
+        "table_count": 18
+      },
+      {
+        "blockchain": "stellar",
+        "table_count": 18
+      },
+      {
+        "blockchain": "cardano",
+        "table_count": 17
+      },
+      {
+        "blockchain": "peaq",
+        "table_count": 14
+      },
+      {
+        "blockchain": "xrpl",
+        "table_count": 13
+      },
+      {
+        "blockchain": "ton",
+        "table_count": 10
+      },
+      {
+        "blockchain": "ethereum",
+        "table_count": 10
+      },
+      {
+        "blockchain": "arbitrum",
+        "table_count": 10
+      },
+      {
+        "blockchain": "tac",
+        "table_count": 9
+      },
+      {
+        "blockchain": "ink",
+        "table_count": 9
+      },
+      {
+        "blockchain": "bnb",
+        "table_count": 9
+      },
+      {
+        "blockchain": "rise",
+        "table_count": 9
+      },
+      {
+        "blockchain": "nova",
+        "table_count": 9
+      },
+      {
+        "blockchain": "kaia",
+        "table_count": 9
+      },
+      {
+        "blockchain": "celo",
+        "table_count": 9
+      },
+      {
+        "blockchain": "boba",
+        "table_count": 9
+      },
+      {
+        "blockchain": "base",
+        "table_count": 9
+      },
+      {
+        "blockchain": "tempo",
+        "table_count": 9
+      },
+      {
+        "blockchain": "taiko",
+        "table_count": 9
+      },
+      {
+        "blockchain": "story",
+        "table_count": 9
+      },
+      {
+        "blockchain": "sonic",
+        "table_count": 9
+      },
+      {
+        "blockchain": "morph",
+        "table_count": 9
+      },
+      {
+        "blockchain": "monad",
+        "table_count": 9
+      },
+      {
+        "blockchain": "linea",
+        "table_count": 9
+      },
+      {
+        "blockchain": "flare",
+        "table_count": 9
+      },
+      {
+        "blockchain": "zksync",
+        "table_count": 9
+      },
+      {
+        "blockchain": "sophon",
+        "table_count": 9
+      },
+      {
+        "blockchain": "scroll",
+        "table_count": 9
+      },
+      {
+        "blockchain": "plasma",
+        "table_count": 9
+      },
+      {
+        "blockchain": "mantle",
+        "table_count": 9
+      },
+      {
+        "blockchain": "katana",
+        "table_count": 9
+      },
+      {
+        "blockchain": "initia",
+        "table_count": 9
+      },
+      {
+        "blockchain": "hedera",
+        "table_count": 9
+      },
+      {
+        "blockchain": "gnosis",
+        "table_count": 9
+      },
+      {
+        "blockchain": "fantom",
+        "table_count": 9
+      },
+      {
+        "blockchain": "cronos",
+        "table_count": 9
+      },
+      {
+        "blockchain": "polygon",
+        "table_count": 9
+      },
+      {
+        "blockchain": "henesys",
+        "table_count": 9
+      },
+      {
+        "blockchain": "unichain",
+        "table_count": 9
+      },
+      {
+        "blockchain": "optimism",
+        "table_count": 9
+      },
+      {
+        "blockchain": "apechain",
+        "table_count": 9
+      },
+      {
+        "blockchain": "tezos_evm",
+        "table_count": 9
+      },
+      {
+        "blockchain": "robinhood",
+        "table_count": 9
+      },
+      {
+        "blockchain": "berachain",
+        "table_count": 9
+      },
+      {
+        "blockchain": "avalanche_c",
+        "table_count": 9
+      },
+      {
+        "blockchain": "monad_testnet",
+        "table_count": 9
+      },
+      {
+        "blockchain": "b3",
+        "table_count": 8
+      },
+      {
+        "blockchain": "sui",
+        "table_count": 8
+      },
+      {
+        "blockchain": "sei",
+        "table_count": 8
+      },
+      {
+        "blockchain": "bob",
+        "table_count": 8
+      },
+      {
+        "blockchain": "mezo",
+        "table_count": 8
+      },
+      {
+        "blockchain": "lens",
+        "table_count": 8
+      },
+      {
+        "blockchain": "hemi",
+        "table_count": 8
+      },
+      {
+        "blockchain": "corn",
+        "table_count": 8
+      },
+      {
+        "blockchain": "zkevm",
+        "table_count": 8
+      },
+      {
+        "blockchain": "shape",
+        "table_count": 8
+      },
+      {
+        "blockchain": "ronin",
+        "table_count": 8
+      },
+      {
+        "blockchain": "plume",
+        "table_count": 8
+      },
+      {
+        "blockchain": "opbnb",
+        "table_count": 8
+      },
+      {
+        "blockchain": "degen",
+        "table_count": 8
+      },
+      {
+        "blockchain": "blast",
+        "table_count": 8
+      },
+      {
+        "blockchain": "xlayer",
+        "table_count": 8
+      },
+      {
+        "blockchain": "somnia",
+        "table_count": 8
+      },
+      {
+        "blockchain": "kusama",
+        "table_count": 8
+      },
+      {
+        "blockchain": "viction",
+        "table_count": 8
+      },
+      {
+        "blockchain": "sepolia",
+        "table_count": 8
+      },
+      {
+        "blockchain": "megaeth",
+        "table_count": 8
+      },
+      {
+        "blockchain": "polkadot",
+        "table_count": 8
+      },
+      {
+        "blockchain": "midnight",
+        "table_count": 8
+      },
+      {
+        "blockchain": "hyperevm",
+        "table_count": 8
+      },
+      {
+        "blockchain": "abstract",
+        "table_count": 8
+      },
+      {
+        "blockchain": "superseed",
+        "table_count": 8
+      },
+      {
+        "blockchain": "worldchain",
+        "table_count": 8
+      },
+      {
+        "blockchain": "near",
+        "table_count": 7
+      },
+      {
+        "blockchain": "astar",
+        "table_count": 7
+      },
+      {
+        "blockchain": "hydradx",
+        "table_count": 7
+      },
+      {
+        "blockchain": "bifrost",
+        "table_count": 7
+      },
+      {
+        "blockchain": "hydration",
+        "table_count": 7
+      },
+      {
+        "blockchain": "centrifuge",
+        "table_count": 7
+      },
+      {
+        "blockchain": "tron",
+        "table_count": 6
+      },
+      {
+        "blockchain": "laos",
+        "table_count": 6
+      },
+      {
+        "blockchain": "kilt",
+        "table_count": 6
+      },
+      {
+        "blockchain": "phala",
+        "table_count": 6
+      },
+      {
+        "blockchain": "manta",
+        "table_count": 6
+      },
+      {
+        "blockchain": "ajuna",
+        "table_count": 6
+      },
+      {
+        "blockchain": "people",
+        "table_count": 6
+      },
+      {
+        "blockchain": "mythos",
+        "table_count": 6
+      },
+      {
+        "blockchain": "hashed",
+        "table_count": 6
+      },
+      {
+        "blockchain": "polimec",
+        "table_count": 6
+      },
+      {
+        "blockchain": "polkadex",
+        "table_count": 6
+      },
+      {
+        "blockchain": "pendulum",
+        "table_count": 6
+      },
+      {
+        "blockchain": "parallel",
+        "table_count": 6
+      },
+      {
+        "blockchain": "neuroweb",
+        "table_count": 6
+      },
+      {
+        "blockchain": "moonbeam",
+        "table_count": 6
+      },
+      {
+        "blockchain": "litentry",
+        "table_count": 6
+      },
+      {
+        "blockchain": "coretime",
+        "table_count": 6
+      },
+      {
+        "blockchain": "bitgreen",
+        "table_count": 6
+      },
+      {
+        "blockchain": "assethub",
+        "table_count": 6
+      },
+      {
+        "blockchain": "zeitgeist",
+        "table_count": 6
+      },
+      {
+        "blockchain": "frequency",
+        "table_count": 6
+      },
+      {
+        "blockchain": "bridgehub",
+        "table_count": 6
+      },
+      {
+        "blockchain": "integritee",
+        "table_count": 6
+      },
+      {
+        "blockchain": "energywebx",
+        "table_count": 6
+      },
+      {
+        "blockchain": "hyperbridge",
+        "table_count": 6
+      },
+      {
+        "blockchain": "collectives",
+        "table_count": 6
+      },
+      {
+        "blockchain": "assethub_kusama",
+        "table_count": 6
+      },
+      {
+        "blockchain": "nodle",
+        "table_count": 5
+      },
+      {
+        "blockchain": "acala",
+        "table_count": 5
+      },
+      {
+        "blockchain": "beacon",
+        "table_count": 5
+      },
+      {
+        "blockchain": "yominet",
+        "table_count": 5
+      },
+      {
+        "blockchain": "echelon",
+        "table_count": 5
+      },
+      {
+        "blockchain": "interlay",
+        "table_count": 5
+      },
+      {
+        "blockchain": "composable",
+        "table_count": 5
+      },
+      {
+        "blockchain": "mode",
+        "table_count": 4
+      },
+      {
+        "blockchain": "crust",
+        "table_count": 4
+      },
+      {
+        "blockchain": "fuel",
+        "table_count": 3
+      },
+      {
+        "blockchain": "logion",
+        "table_count": 3
+      },
+      {
+        "blockchain": "bridgehub_kusama",
+        "table_count": 3
+      },
+      {
+        "blockchain": "kalshi",
+        "table_count": 2
+      },
+      {
+        "blockchain": "succinct",
+        "table_count": 2
+      },
+      {
+        "blockchain": "layerzero",
+        "table_count": 2
+      },
+      {
+        "blockchain": "t3rn",
+        "table_count": 1
+      },
+      {
+        "blockchain": "unique",
+        "table_count": 1
+      },
+      {
+        "blockchain": "solana",
+        "table_count": 1
+      },
+      {
+        "blockchain": "invarch",
+        "table_count": 1
+      },
+      {
+        "blockchain": "aventus",
+        "table_count": 1
+      },
+      {
+        "blockchain": "darwinia",
+        "table_count": 1
+      },
+      {
+        "blockchain": "people_kusama",
+        "table_count": 1
+      },
+      {
+        "blockchain": "coretime_kusama",
+        "table_count": 1
+      }
+    ],
+    "pagination": {
+      "limit": 500,
+      "offset": 0,
+      "nextOffset": null,
+      "hasMore": false
+    }
+  }
+}

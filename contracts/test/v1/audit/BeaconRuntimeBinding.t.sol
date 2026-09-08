@@ -90,6 +90,13 @@ contract BeaconRuntimeBindingTest is Test {
         assertEq(keccak256(runtime), 0x6c1fdd40002dcb440c7fff6a84171404d279ccb057803b65826f7546acd65630);
     }
 
+    function test_observedRobinhoodTestnetTemplateDispatchesToMonitoredBeacon() public view {
+        address beacon = 0x1dF3cA0fD30ED5eeb09eB01938f4E9c5196E6Ca5;
+        bytes memory runtime = _template(2, beacon);
+        assertEq(keccak256(runtime), 0x2f367e6a678e7b30ab613d5963e541e6f4d3ca586de76e2f441fbfeb1a27c440);
+        assertEq(ImmutableBeaconProxyRuntime.beacon(runtime), beacon);
+    }
+
     function test_rejectAppendedCodeAndPushDataDecoys() public view {
         bytes memory runtime = _template(0, address(0xBEEF));
         assertEq(ImmutableBeaconProxyRuntime.beacon(abi.encodePacked(runtime, hex"00")), address(0));
@@ -97,7 +104,7 @@ contract BeaconRuntimeBindingTest is Test {
     }
 
     function testFuzz_anyNonAddressByteMutationFailsClosed(uint8 which, uint256 offset, uint8 xorMask) public view {
-        bytes memory runtime = _template(which % 2, address(0xBEEF));
+        bytes memory runtime = _template(which % 3, address(0xBEEF));
         offset = bound(offset, 0, runtime.length - 1);
         vm.assume(offset < 41 || offset > 60);
         xorMask = uint8(bound(xorMask, 1, 255));

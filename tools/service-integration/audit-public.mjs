@@ -1,0 +1,43 @@
+// Read-only audit of the separate service journal. No credentials or signer.
+import fs from 'node:fs';
+import assert from 'node:assert/strict';
+import {createHash} from 'node:crypto';
+import {createPublicClient,http,keccak256} from '../../apps/web/node_modules/viem/_esm/index.js';
+const root='.codex_tmp/r6-fast-test';
+const dir='outputs/reviews/formal-clock-service-integration-2026-09-06/service-live';
+const path=root+'/outputs/reviews/service-live-2026-09-06/results.json';
+const raw=fs.readFileSync(path),s=JSON.parse(raw);
+const roles=JSON.parse(fs.readFileSync(root+'/outputs/reviews/service-live-2026-09-06/roles.json')).roles;
+assert.equal(s.chainId,421614);
+assert.equal(s.releaseId,'0xf2ab431cdae9144d0bd1b5f4f3c52c337e0b77a5aa8fd5504cff3d46bf2eec4f');
+const c=createPublicClient({transport:http('https://sepolia-rollup.arbitrum.io/rpc')});
+assert.equal(await c.getChainId(),421614);
+const rows=[];let gas=0n;
+const seen=new Set();
+for(const t of s.transactions){
+ assert.equal(t.status,'CONFIRMED',t.id);assert.ok(!seen.has(t.hash));seen.add(t.hash);
+ const tx=await c.getTransaction({hash:t.hash});
+ const r=await c.getTransactionReceipt({hash:t.hash});
+ const b=await c.getBlock({blockNumber:r.blockNumber});
+ assert.equal(r.status,'success',t.id);assert.equal(r.blockHash,b.hash);
+ assert.equal(r.blockHash,t.blockHash);assert.equal(String(r.blockNumber),t.blockNumber);
+ assert.equal(tx.to.toLowerCase(),t.to.toLowerCase());assert.equal(String(tx.value),t.value);
+ assert.equal(tx.from.toLowerCase(),roles[t.role].toLowerCase());
+ assert.equal(tx.nonce,t.nonce);assert.equal(keccak256(tx.input),t.inputHash);
+ const cost=r.gasUsed*r.effectiveGasPrice;gas+=cost;
+ assert.equal(String(r.gasUsed),t.gasUsed);assert.equal(String(cost),t.gasCostWei);
+ rows.push({id:t.id,hash:t.hash,blockNumber:String(r.blockNumber),blockHash:b.hash,gasWei:String(cost),status:'PASS'});
+}
+const manifest=JSON.parse(fs.readFileSync(dir+'/manifest.json'));
+const address=manifest.contracts.find(x=>x.module==='TreasuryDistributorV1').address;
+const abi=JSON.parse(fs.readFileSync(root+'/contracts/out-v1/TreasuryDistributorV1.sol/TreasuryDistributorV1.json')).abi;
+const header=await c.getBlock(),zero='0x0000000000000000000000000000000000000000';
+const read=(functionName,args)=>c.readContract({address,abi,functionName,args,blockNumber:header.number});
+const balance=await c.getBalance({address,blockNumber:header.number});
+const quote=await read('totalQuoteLiability',[zero]),service=await read('totalServiceLiability',[zero]);
+assert.ok(balance>=quote+service,'Distributor native solvency');
+assert.equal((await c.getBlock({blockNumber:header.number})).hash,header.hash);
+const report={status:'PASS',scope:'Separate R6 service transaction identity, receipt success, canonical block, gas and native distributor solvency audit; service completion is assessed separately.',observedAt:new Date().toISOString(),chainId:s.chainId,releaseId:s.releaseId,journalSHA256:createHash('sha256').update(raw).digest('hex'),transactions:rows,gasWei:String(gas),solvency:{blockNumber:String(header.number),blockHash:header.hash,balance:String(balance),quoteLiability:String(quote),serviceLiability:String(service)}};
+fs.writeFileSync(dir+'/public-receipt-audit.json',JSON.stringify(report,null,2)+'\n');
+fs.writeFileSync(dir+'/public-results.json',raw);
+console.log(JSON.stringify({status:report.status,transactions:rows.length,gasWei:String(gas)}));

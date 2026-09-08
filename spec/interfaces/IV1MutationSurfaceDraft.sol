@@ -12,7 +12,7 @@ struct ConversionItem {
 
 struct CreateMarketParams {
     bytes32 assetUid;
-    bytes32 ponsBaselineId;
+    bytes32 tickerGardenBaselineId;
     bytes32 quoteAssetConfigId;
     bytes32 launchTemplateId;
     bytes32 expectedEconomics;
@@ -23,6 +23,7 @@ struct CreateMarketParams {
     bytes32 salt;
     uint16 creatorTaxBps;
     bool creatorFeesToHolders;
+    bool stakingEnabled;
 }
 
 struct LaunchTemplate {
@@ -43,7 +44,7 @@ struct LaunchTemplate {
 
 struct MarketConfig {
     bytes32 assetUid;
-    bytes32 ponsBaselineId;
+    bytes32 tickerGardenBaselineId;
     bytes32 quoteAssetConfigId;
     bytes32 launchTemplateId;
     bytes32 feePolicyId;
@@ -58,19 +59,7 @@ struct MarketConfig {
     address graduatedHook;
     uint16 creatorTaxBps;
     bool creatorFeesToHolders;
-}
-
-struct PonsBaseline {
-    uint256 referenceChainId;
-    address referenceFactory;
-    bytes32 referenceFactoryCodeHash;
-    uint256 launchConfigId;
-    uint256 supply;
-    uint256 curveFeeBps;
-    uint24 poolFee;
-    int24 tickSpacing;
-    bytes32 behaviorVectorRoot;
-    uint8 status;
+    bool stakingEnabled;
 }
 
 struct PoolKey {
@@ -82,7 +71,7 @@ struct PoolKey {
 }
 
 struct QuoteAssetConfig {
-    bytes32 ponsBaselineId;
+    bytes32 tickerGardenBaselineId;
     address quoteAsset;
     uint8 quoteDecimals;
     uint256 phantomQuote;
@@ -110,6 +99,19 @@ struct SwapParams {
     bool zeroForOne;
     int256 amountSpecified;
     uint160 sqrtPriceLimitX96;
+}
+
+struct TickerGardenBaseline {
+    uint256 referenceChainId;
+    address referenceFactory;
+    bytes32 referenceFactoryCodeHash;
+    uint256 launchConfigId;
+    uint256 supply;
+    uint256 curveFeeBps;
+    uint24 poolFee;
+    int24 tickSpacing;
+    bytes32 behaviorVectorRoot;
+    uint8 status;
 }
 
 interface IOfficialStockRegistryV1MutationDraft {
@@ -140,9 +142,9 @@ interface IApprovedQuoteRegistryMutationDraft {
     function retireQuote(bytes32, bytes32) external;
 }
 
-interface IPonsBaselineRegistryMutationDraft {
+interface ITickerGardenBaselineRegistryMutationDraft {
     // caller=PROTOCOL_ADMIN_ROLE; executionDelay=172800; stateDelay=0
-    function addBaseline(bytes32, PonsBaseline calldata) external;
+    function addBaseline(bytes32, TickerGardenBaseline calldata) external;
     // caller=PAUSE_GUARDIAN_ROLE; executionDelay=0; stateDelay=0
     function pauseBaseline(bytes32, bytes32) external;
     // caller=UNPAUSE_ROLE; executionDelay=86400; stateDelay=0
@@ -179,6 +181,8 @@ interface IMarketRegistryV1MutationDraft {
 interface ILaunchAndBuyRouterMutationDraft {
     // caller=PUBLIC; executionDelay=0; stateDelay=0
     function launchAndBuy(CreateMarketParams calldata, uint256, uint256, address) external payable returns (bytes32, address, uint256, uint256);
+    // caller=POOL_MANAGER; executionDelay=0; stateDelay=0
+    function unlockCallback(bytes calldata) external returns (bytes);
 }
 
 interface ITickerMemeTokenV1MutationDraft {
@@ -190,9 +194,11 @@ interface ITickerMemeTokenV1MutationDraft {
     function transferFrom(address, address, uint256) external returns (bool);
     // caller=TREASURY_DISTRIBUTOR_MODULE; executionDelay=0; stateDelay=0
     function burnTreasury(uint256) external;
+    // caller=TREASURY_DISTRIBUTOR_MODULE; executionDelay=0; stateDelay=0
+    function enableContinuousRewards() external;
 }
 
-interface IPonsCompatibleCurveMutationDraft {
+interface ITickerGardenCurveMutationDraft {
     // caller=PUBLIC; executionDelay=0; stateDelay=0
     function buy(uint256, uint256, address) external payable returns (uint256, uint256);
     // caller=PUBLIC; executionDelay=0; stateDelay=0
@@ -326,6 +332,10 @@ interface ICreatorRevenueRegistryMutationDraft {
     function initializeCreatorRevenueEpoch(bytes32, address) external;
     // caller=CURRENT_CREATOR_BENEFICIARY; executionDelay=0; stateDelay=0
     function transferCreatorRevenueBeneficiary(bytes32, address) external returns (uint32);
+    // caller=PENDING_CREATOR_REVENUE_BENEFICIARY; executionDelay=0; stateDelay=0
+    function acceptCreatorRevenueBeneficiary(bytes32) external returns (uint32);
+    // caller=CURRENT_CREATOR_BENEFICIARY; executionDelay=0; stateDelay=0
+    function cancelCreatorRevenueBeneficiaryTransfer(bytes32) external;
 }
 
 interface ITreasuryDistributorV1MutationDraft {

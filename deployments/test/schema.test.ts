@@ -78,7 +78,7 @@ test("release schema accepts administrator-reviewed ERC20 proxy kinds", () => {
     const candidate = clone(validManifest());
     candidate.quoteAssets = [{
       configId: hash("erc20-quote"),
-      ponsBaselineId: hash("baseline"),
+      tickerGardenBaselineId: hash("baseline"),
       economicsHash: hash("erc20-economics"),
       assetKind: "ERC20",
       tokenAddress: "0x1234567890abcdef1234567890abcdef12345678",
@@ -119,7 +119,7 @@ test("accepts a complete OFFICIAL_STOCK Quote and rejects incomplete or non-Beac
   const candidate = clone(validManifest());
   const stock = (candidate.officialStocks as JsonRecord[])[0]!;
   candidate.quoteAssets = [{
-    configId: hash("stock-quote"), ponsBaselineId: hash("baseline"), economicsHash: hash("stock-economics"),
+    configId: hash("stock-quote"), tickerGardenBaselineId: hash("baseline"), economicsHash: hash("stock-economics"),
     assetKind: "OFFICIAL_STOCK", assetUid: stock.assetUid, tokenAddress: stock.tokenAddress, decimals: stock.decimals,
     phantomQuote: "1000000", graduationThreshold: "2000000", stockTokenFingerprintHash: hash("fingerprint"),
     referenceEvidenceHash: hash("reference"), generatorPolicyId: hash("generator"), runtimeCodeHash: stock.runtimeCodeHash,
@@ -171,4 +171,14 @@ test("rejects unknown fields, placeholders, low-entropy identifiers, and incompl
   const lowEntropy = clone(validManifest());
   (lowEntropy.chain as JsonRecord).finalizedBlockHash = `0x${"11".repeat(32)}`;
   assert.throws(() => assertV1DeploymentManifest(lowEntropy), /contains placeholders/);
+});
+
+test("Arbitrum Sepolia can only be a test deployment candidate, never the production target", () => {
+  const candidate = clone(validManifest());
+  (candidate.chain as JsonRecord).chainId = 421614;
+  (candidate.chain as JsonRecord).network = "Arbitrum Sepolia";
+  assert.deepEqual(validateV1DeploymentManifestSchema(candidate), { valid: true, errors: [] });
+  assert.doesNotThrow(() => assertV1DeploymentManifest(candidate));
+  candidate.releaseStatus = "PRODUCTION_CANDIDATE";
+  assert.equal(validateV1DeploymentManifestSchema(candidate).valid, false);
 });

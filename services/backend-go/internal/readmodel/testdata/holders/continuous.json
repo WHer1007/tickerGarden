@@ -1,0 +1,86 @@
+{
+  "scope": "known-holder-coverage-v1",
+  "chainId": 46630,
+  "blockNumber": "0x1",
+  "blockHash": "0x2222222222222222222222222222222222222222222222222222222222222222",
+  "expected": 3,
+  "observations": [
+    {
+      "kind": "holderMarket",
+      "key": "0x00000000000000000000000000000000000000000000000000000000000000aa",
+      "value": {
+        "count": "2",
+        "fullReconciliation": false,
+        "funded": "3",
+        "head": "1",
+        "idle": "7",
+        "index": "4",
+        "indexRemainder": "5",
+        "lastFundingAt": "153",
+        "marketId": "0x00000000000000000000000000000000000000000000000000000000000000aa",
+        "paid": "0",
+        "quote": "0x0000000000000000000000000000000000000000",
+        "rate": "6",
+        "releaseState": {
+          "activeStreams": "7",
+          "idleQuote": "5",
+          "nextEnd": "6",
+          "unreleased": "4"
+        },
+        "rewardMode": "continuous-24h",
+        "streamDuration": "86400",
+        "supply": "3",
+        "token": "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "treasuryDistributor": "0x8888888888888888888888888888888888888888",
+        "treasuryRuntimeCodeHash": "0xd33e25809fcaa2b6900567812852539da8559dc8b76a7ce3fc5ddd77e8d19a69",
+        "updatedAt": "256",
+        "vault": "0x0000000000000000000000000000000000000007"
+      }
+    },
+    {
+      "kind": "treasurySolvency",
+      "key": "0x8888888888888888888888888888888888888888:0x0000000000000000000000000000000000000000",
+      "value": {
+        "asset": "0x0000000000000000000000000000000000000000",
+        "balance": "3",
+        "checks": {
+          "balanceCoversLiabilities": true,
+          "knownHolderSumEqualsQuoteLiability": true
+        },
+        "fullReconciliation": false,
+        "knownHolderMarketOutstanding": "3",
+        "requiredBalance": "3",
+        "rewardMode": "continuous-24h",
+        "totalQuoteLiability": "3",
+        "totalServiceLiability": "0",
+        "treasuryDistributor": "0x8888888888888888888888888888888888888888"
+      }
+    },
+    {
+      "kind": "market",
+      "key": "0x00000000000000000000000000000000000000000000000000000000000000aa",
+      "value": {
+        "assetUid": "0x0000000000000000000000000000000000000000000000000000000000000000",
+        "creatorFeesToHolders": true,
+        "creatorRevenueBeneficiaryAtCreation": "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "creatorTaxBps": "100",
+        "curve": "0xbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+        "executionSpecId": "0xbe17658476819fb4584897aaa4fb7cb14f33532e64eb209633640be14c01493e",
+        "expectedEconomics": "0x0000000000000000000000000000000000000000000000000000000000000033",
+        "feePolicyId": "0x0000000000000000000000000000000000000000000000000000000000000055",
+        "gauge": "0x0000000000000000000000000000000000000000",
+        "graduatedHook": "0x0000000000000000000000000000000000002044",
+        "launchConfigId": "1",
+        "launchPhase": "0",
+        "launchTemplateId": "0x0000000000000000000000000000000000000000000000000000000000000044",
+        "memeToken": "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "poolId": "0x0000000000000000000000000000000000000000000000000000000000000000",
+        "quoteAsset": "0x0000000000000000000000000000000000000000",
+        "quoteAssetConfigId": "0x0000000000000000000000000000000000000000000000000000000000000022",
+        "sourceVersion": "1",
+        "stakingEnabled": false,
+        "tickerGardenBaselineId": "0x0000000000000000000000000000000000000000000000000000000000000011"
+      }
+    }
+  ]
+}

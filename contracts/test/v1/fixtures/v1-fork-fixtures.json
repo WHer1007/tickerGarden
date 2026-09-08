@@ -6,7 +6,7 @@
   "sourceFiles": [
     {
       "path": "spec/v1_initial_quote_configs.json",
-      "sha256": "0x3193b973e4f410d056c868efd3875badd1d833874c45e73dafb828c51223bd87"
+      "sha256": "0x61aeab3f12d13d00e5ea0fa98b4ef9c12b6bff56cc52a2b960af2aad831202eb"
     },
     {
       "path": "spec/v1_pons_behavior_vectors.json",
@@ -468,5 +468,5 @@
     "runtimeDependencyOnPons": false,
     "referenceCreate2ValuesAreProductionDeploymentEvidence": false
   },
-  "fixtureSetHash": "0xd45f8bad728704edb56eca60e379a5b1b055e2d48f65ab469c8563153dbcc475"
+  "fixtureSetHash": "0x10df69171d7b17ca3a1f464dbe326f7f8ee250752541ad2c3b9ffcc3cab904a2"
 }

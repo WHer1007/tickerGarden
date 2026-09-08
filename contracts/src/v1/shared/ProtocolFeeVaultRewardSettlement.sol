@@ -180,6 +180,7 @@ abstract contract ProtocolFeeVaultRewardSettlement is ProtocolFeeVaultV4Accounti
             }
             uint256 amount;
             if (item.creatorEpoch == 0) {
+                if (!value.config.stakingEnabled) revert InvalidConversion();
                 amount = IRewardConversionGauge(value.config.gauge).consumeForConversion(item.user, item.maximumMeme);
             } else {
                 if (_feeCreatorRevenueRegistry.creatorBeneficiaryAt(marketId, item.creatorEpoch) != item.user) {

@@ -29,7 +29,7 @@ from spec.v1_reference_model import (
     add_activation_bucket,
     checked_add_uint256,
     credit_pool_index,
-    current_snipe_tax_bps,
+    historical_snipe_tax_bps as current_snipe_tax_bps,  # historical reference vectors stay immutable
     curve_amount_in,
     curve_amount_out,
     derive_component_salt,
@@ -183,6 +183,14 @@ class V1ExecutionSpecTest(unittest.TestCase):
         self.assertTrue(access["handoff"]["rootSafesMustNotAliasCoreSafes"])
         self.assertTrue(access["handoff"]["selectorAssignmentsFrozenBeforeProduction"])
         self.assertTrue(access["handoff"]["bootstrapAdminRenouncedLast"])
+
+    def test_approved_five_second_policy_is_separate_from_historical_observations(self):
+        from spec.v1_reference_model import current_snipe_tax_bps as production_snipe
+        policy = self.manifest["launch"]["antiSnipe"]
+        self.assertEqual(policy["durationSeconds"], 5)
+        self.assertEqual(policy["rawBpsByElapsedSecond"], [9900, 2475, 309, 19, 1])
+        self.assertEqual([production_snipe(i) for i in range(7)], [9900, 2475, 309, 19, 1, 0, 0])
+        self.assertEqual([production_snipe(i, True) for i in range(7)], [0] * 7)
 
     def test_pons_vectors_match_reference_model_and_bind_runtime_evidence(self):
         vectors = self.pons_vectors
@@ -675,7 +683,7 @@ class V1ExecutionSpecTest(unittest.TestCase):
         )
         self.assertNotIn(("GraduationExecutor", "retryGraduation(bytes32)"), permission)
         self.assertNotIn(("GraduationExecutor", "rescueSweptLaunch(bytes32)"), permission)
-        curve_events = set(modules["PonsCompatibleCurve"]["events"])
+        curve_events = set(modules["TickerGardenCurve"]["events"])
         executor_events = set(modules["GraduationExecutor"]["events"])
         self.assertFalse(any(event.startswith("LaunchSwept(") for event in curve_events))
         self.assertFalse(any(event.startswith("AutoGraduationFailed(") for event in curve_events))
@@ -1006,6 +1014,7 @@ class V1ExecutionSpecTest(unittest.TestCase):
             "EXACT_REGISTERED_GAUGE",
             "FEE_VAULT",
             "CURRENT_CREATOR_BENEFICIARY",
+            "PENDING_CREATOR_REVENUE_BENEFICIARY",
             "TREASURY_DISTRIBUTOR_MODULE",
             "CURRENT_MEME_HOLDER",
             "ROOT_PUBLISHER_ROLE",
@@ -1171,7 +1180,10 @@ class V1ExecutionSpecTest(unittest.TestCase):
             ("CreatorRevenueRegistry", "transferCreatorRevenueBeneficiary(bytes32,address)")
         ]
         self.assertEqual(transfer["caller"], "CURRENT_CREATOR_BENEFICIARY")
-        self.assertIn("ATOMIC_OLD_EPOCH_SWEEP", transfer["precondition"])
+        self.assertIn("PROPOSE_ONLY", transfer["precondition"])
+        accept = permissions[("CreatorRevenueRegistry", "acceptCreatorRevenueBeneficiary(bytes32)")]
+        self.assertEqual(accept["caller"], "PENDING_CREATOR_REVENUE_BENEFICIARY")
+        self.assertIn("ATOMIC_OLD_EPOCH_SWEEP", accept["precondition"])
         claim = permissions[
             ("ProtocolFeeVault", "claimCreator(bytes32,uint32,address)")
         ]
@@ -1202,7 +1214,7 @@ class V1ExecutionSpecTest(unittest.TestCase):
         schemas = self.hash_schemas["schemas"]
         expected_names = {
             "launchTemplateHash",
-            "ponsBaselineHash",
+            "tickerGardenBaselineHash",
             "expectedEconomics",
             "marketId",
             "componentSalt",
@@ -1221,8 +1233,8 @@ class V1ExecutionSpecTest(unittest.TestCase):
         vectors = {entry["schema"]: entry for entry in self.hash_schemas["vectors"]}
         self.assertEqual(set(vectors), expected_names)
         self.assertTrue(all(len(entry["result"]) == 66 for entry in vectors.values()))
-        self.assertEqual(vectors["expectedEconomics"]["inputs"]["schemaVersion"], "5")
-        self.assertEqual(vectors["ponsBaselineHash"]["inputs"]["schemaVersion"], "1")
+        self.assertEqual(vectors["expectedEconomics"]["inputs"]["schemaVersion"], "6")
+        self.assertEqual(vectors["tickerGardenBaselineHash"]["inputs"]["schemaVersion"], "1")
         self.assertEqual(vectors["feePolicyHash"]["inputs"]["schemaVersion"], "4")
         self.assertEqual(vectors["quoteEconomicsHash"]["inputs"]["schemaVersion"], "1")
         self.assertEqual(vectors["stockQuoteFingerprintHash"]["inputs"]["schemaVersion"], "1")
@@ -1250,7 +1262,7 @@ class V1ExecutionSpecTest(unittest.TestCase):
                 "bytes32 domain",
                 "uint256 schemaVersion",
                 "uint256 chainId",
-                "bytes32 ponsBaselineId",
+                "bytes32 tickerGardenBaselineId",
                 "address quoteAsset",
                 "uint8 quoteDecimals",
                 "uint256 phantomQuote",
@@ -1283,7 +1295,7 @@ class V1ExecutionSpecTest(unittest.TestCase):
             ],
         )
         self.assertEqual(
-            self.hash_schemas["schemas"]["ponsBaselineHash"]["fields"],
+            self.hash_schemas["schemas"]["tickerGardenBaselineHash"]["fields"],
             [
                 "bytes32 domain",
                 "uint256 schemaVersion",
@@ -1698,7 +1710,7 @@ class V1ExecutionSpecTest(unittest.TestCase):
         for config in configs.values():
             expected_hash = quote_economics_hash(
                 artifact["chainId"],
-                artifact["ponsBaselineId"],
+                artifact["tickerGardenBaselineId"],
                 config["quoteAsset"],
                 config["quoteDecimals"],
                 int(config["phantomQuote"]),
@@ -2141,7 +2153,7 @@ class V1ExecutionSpecTest(unittest.TestCase):
 
     def test_graduation_events_expose_each_supply_partition(self):
         modules = {entry["module"]: entry for entry in self.abi["modules"]}
-        curve_events = set(modules["PonsCompatibleCurve"]["events"])
+        curve_events = set(modules["TickerGardenCurve"]["events"])
         graduation_events = set(modules["GraduationExecutor"]["events"])
         self.assertNotIn(
             "LaunchSwept(bytes32 indexed marketId,address indexed quoteAsset,uint256 sweptQuote,uint256 sweptTokens,uint64 sweptAt)",

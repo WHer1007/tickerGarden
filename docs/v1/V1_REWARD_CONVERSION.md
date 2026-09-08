@@ -15,7 +15,7 @@
 3. Gauge 先结算该用户原有累计器，再扣减待兑换余额。锁定收益可以兑换，但不能提前领取。正常退出保留收益，rage quit 继续执行原有罚没规则。
 4. FeeVault 临时授权该市场 Hook；Hook 经真实 PoolManager unlock/swap 路径，在自身已激活的 canonical pool 内将 Meme 卖为 Quote。Hook 作为调用者，v4 跳过该 Hook 自身回调，因此不会对内部兑换递归征收平台费或 Creator tax。核心池的 protocolFee/lpFee 必须为零，否则拒绝兑换。
 5. 按本批实际消耗与实际收到的 Quote 分配，逐项累计舍入确保总额守恒。部分成交时剩余 Meme 退回原用户/原 creator epoch；不会把收益分给后来加入的质押者。若某项消耗 Meme 但舍入后 Quote 为零，整批回滚，执行者需调整批量或合并积累。
-6. FeeVault 校验前后余额差、清除授权，将 Quote 直接记入对应用户或历史创作者的负债。兑换不会成为一笔新的手续费分成，并保留原 creator epoch。Holder period 从市场创建开始按 30 天计算；Quote 在 FeeVault credit 时归属当期，包含 curve sweep 入账时点。
+6. FeeVault 校验前后余额差、清除授权，将 Quote 直接记入对应用户或历史创作者的负债。兑换不会成为一笔新的手续费分成，并保留原 creator epoch。Holder period 从市场创建开始按 7 天计算；Quote 在 FeeVault credit 时归属当期，包含 curve sweep 入账时点。
 
 兑换是独立交易，不嵌入用户交易、退出或已结算收益领取。兑换失败会原子回滚；无法兑换的 Meme 不应显示成已结算 Quote。请求 Root 前，待兑换 Meme 与待结算 Quote 必须清空；不能把未完成的内部兑换纳入可领取快照。国库与持有人 Merkle 奖励继续使用既有机制。
 
@@ -48,4 +48,4 @@ maintenance-runner 提供独立的 `reward-settlement` 规划器、执行器和 
 - 前端生产构建及各服务 TypeScript 构建通过；桌面/手机奖励页、断开钱包时的写入限制与图片加载已做浏览器检查。QA 阻断 Google Fonts CDN，使用回退字体。
 - 接口、产品制品、fixture 和编译接口清单校验通过。
 - `check:tracks` 的产品轨道 308 通过；live Fork 轨道因未配置 `ROBINHOOD_RPC_URL` 停止，不能报告通过。新版奖励路径的 live Fork 和运营 transport 尚未完成环境接入。
-- 当前 readiness 为 `DEPLOYMENT_ELIGIBLE`。本轮重新执行验证后关闭七个部署门槛，独立新证据为 `deployments/evidence/v1-deployment-gates-current.json`；原部署证据仍标记 `STALE`，保留原 hash 和历史结果。尚未广播，生产门槛仍开放。
+- 当前 readiness 为 `DEPLOYMENT_ELIGIBLE`。本轮重新执行验证后关闭七个部署门槛，独立新证据为 `deployments/evidence/v1-optional-staking-gates.json`；原部署证据仍标记 `STALE`，保留原 hash 和历史结果。尚未广播，生产门槛仍开放。

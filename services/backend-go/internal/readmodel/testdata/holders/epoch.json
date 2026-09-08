@@ -1,0 +1,165 @@
+{
+  "scope": "known-holder-coverage-v1",
+  "chainId": 46630,
+  "blockNumber": "0x1",
+  "blockHash": "0x2222222222222222222222222222222222222222222222222222222222222222",
+  "expected": 5,
+  "observations": [
+    {
+      "kind": "holderEpoch",
+      "key": "0x00000000000000000000000000000000000000000000000000000000000000aa:1",
+      "value": {
+        "checks": {
+          "claimedWithinCommitted": true,
+          "claimedWithinFunding": true,
+          "fundingEqualsCommitment": true,
+          "windowOrdered": true
+        },
+        "claimUntil": "4",
+        "claimedAmount": "3",
+        "datasetHash": "0x4444444444444444444444444444444444444444444444444444444444444444",
+        "epoch": "1",
+        "finalizeAfter": "3",
+        "fundedQuoteAmount": "10",
+        "holderMemeLiability": "0",
+        "holderQuoteLiability": "0",
+        "leafCount": "1",
+        "marketId": "0x00000000000000000000000000000000000000000000000000000000000000aa",
+        "memeAsset": "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "merkleRoot": "0x3333333333333333333333333333333333333333333333333333333333333333",
+        "outstandingQuoteAmount": "7",
+        "publishBy": "2",
+        "quoteAmount": "10",
+        "quoteAsset": "0x0000000000000000000000000000000000000000",
+        "requestedAt": "1",
+        "requester": "0x0000000000000000000000000000000000000000",
+        "serviceFeeAmount": "0",
+        "serviceFeeAsset": "0x0000000000000000000000000000000000000000",
+        "sourceBlockHash": "0x2222222222222222222222222222222222222222222222222222222222222222",
+        "sourceBlockNumber": "5",
+        "status": "3",
+        "totalTwab": "32",
+        "treasuryDistributor": "0x8888888888888888888888888888888888888888",
+        "window": {
+          "end": "2",
+          "start": "1"
+        }
+      }
+    },
+    {
+      "kind": "holderEpoch",
+      "key": "0x00000000000000000000000000000000000000000000000000000000000000aa:2",
+      "value": {
+        "checks": {
+          "claimedWithinCommitted": true,
+          "rolledOverFundingCleared": true,
+          "windowOrdered": true
+        },
+        "claimUntil": "4",
+        "claimedAmount": "3",
+        "datasetHash": "0x4444444444444444444444444444444444444444444444444444444444444444",
+        "epoch": "2",
+        "finalizeAfter": "3",
+        "fundedQuoteAmount": "0",
+        "holderMemeLiability": "0",
+        "holderQuoteLiability": "0",
+        "leafCount": "1",
+        "marketId": "0x00000000000000000000000000000000000000000000000000000000000000aa",
+        "memeAsset": "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "merkleRoot": "0x3333333333333333333333333333333333333333333333333333333333333333",
+        "outstandingQuoteAmount": "0",
+        "publishBy": "2",
+        "quoteAmount": "10",
+        "quoteAsset": "0x0000000000000000000000000000000000000000",
+        "requestedAt": "1",
+        "requester": "0x0000000000000000000000000000000000000000",
+        "serviceFeeAmount": "0",
+        "serviceFeeAsset": "0x0000000000000000000000000000000000000000",
+        "sourceBlockHash": "0x2222222222222222222222222222222222222222222222222222222222222222",
+        "sourceBlockNumber": "5",
+        "status": "4",
+        "totalTwab": "32",
+        "treasuryDistributor": "0x8888888888888888888888888888888888888888",
+        "window": {
+          "end": "2",
+          "start": "1"
+        }
+      }
+    },
+    {
+      "kind": "holderMarket",
+      "key": "0x00000000000000000000000000000000000000000000000000000000000000aa",
+      "value": {
+        "activatedAt": "1",
+        "checks": {
+          "memeEpochSumEqualsBucket": true,
+          "quoteEpochSumEqualsBucket": true
+        },
+        "claimWindow": "100",
+        "currentEpochId": "2",
+        "currentServiceFeeAmount": "2",
+        "currentServiceFeeAsset": "0x0000000000000000000000000000000000000000",
+        "eligibilityPolicyHash": "0x1111111111111111111111111111111111111111111111111111111111111111",
+        "epochDuration": "604800",
+        "finalityDelayBlocks": "1",
+        "finalityDelaySeconds": "1",
+        "fullReconciliation": false,
+        "holderMemeEpochSum": "0",
+        "holderQuoteEpochSum": "0",
+        "marketId": "0x00000000000000000000000000000000000000000000000000000000000000aa",
+        "memeToken": "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "quoteToken": "0x0000000000000000000000000000000000000000",
+        "rootPublicationWindow": "10",
+        "rootReviewDelay": "10",
+        "rootServiceTreasury": "0x7777777777777777777777777777777777777777",
+        "treasuryDistributor": "0x8888888888888888888888888888888888888888",
+        "treasuryRuntimeCodeHash": "0xd33e25809fcaa2b6900567812852539da8559dc8b76a7ce3fc5ddd77e8d19a69",
+        "twabSchema": "0xb5aa937bbc5288c664511e98cc7d33bfe89abd4d718d7d4d09c80788d76eff82"
+      }
+    },
+    {
+      "kind": "treasurySolvency",
+      "key": "0x8888888888888888888888888888888888888888:0x0000000000000000000000000000000000000000",
+      "value": {
+        "asset": "0x0000000000000000000000000000000000000000",
+        "balance": "9",
+        "checks": {
+          "balanceCoversLiabilities": true,
+          "knownHolderSumEqualsQuoteLiability": true
+        },
+        "fullReconciliation": false,
+        "knownHolderMarketOutstanding": "7",
+        "requiredBalance": "9",
+        "totalQuoteLiability": "7",
+        "totalServiceLiability": "2",
+        "treasuryDistributor": "0x8888888888888888888888888888888888888888"
+      }
+    },
+    {
+      "kind": "market",
+      "key": "0x00000000000000000000000000000000000000000000000000000000000000aa",
+      "value": {
+        "assetUid": "0x0000000000000000000000000000000000000000000000000000000000000000",
+        "creatorFeesToHolders": true,
+        "creatorRevenueBeneficiaryAtCreation": "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "creatorTaxBps": "100",
+        "curve": "0xbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+        "executionSpecId": "0xbe17658476819fb4584897aaa4fb7cb14f33532e64eb209633640be14c01493e",
+        "expectedEconomics": "0x0000000000000000000000000000000000000000000000000000000000000033",
+        "feePolicyId": "0x0000000000000000000000000000000000000000000000000000000000000055",
+        "gauge": "0x0000000000000000000000000000000000000000",
+        "graduatedHook": "0x0000000000000000000000000000000000002044",
+        "launchConfigId": "1",
+        "launchPhase": "0",
+        "launchTemplateId": "0x0000000000000000000000000000000000000000000000000000000000000044",
+        "memeToken": "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "poolId": "0x0000000000000000000000000000000000000000000000000000000000000000",
+        "quoteAsset": "0x0000000000000000000000000000000000000000",
+        "quoteAssetConfigId": "0x0000000000000000000000000000000000000000000000000000000000000022",
+        "sourceVersion": "1",
+        "stakingEnabled": false,
+        "tickerGardenBaselineId": "0x0000000000000000000000000000000000000000000000000000000000000011"
+      }
+    }
+  ]
+}

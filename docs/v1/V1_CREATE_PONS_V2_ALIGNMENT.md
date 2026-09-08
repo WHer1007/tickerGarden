@@ -8,7 +8,7 @@
 
 底层 baseline 和 launch template 自动选择。Creator wallet 留空始终使用当前连接钱包。Developer buy 空或零调用 createMarket，正数调用已有原子的 launchAndBuy；ERC-20 授权、slippage、模拟和回执校验保持原有链路。上传期间锁定表单，确认上传前后 metadata 内容与钱包没有变化。
 
-Advanced 展示 Creator wallet、Creator tax 与「创建者手续费分配给持有人」开关。手动 slippage 和 Hosted metadata 已从页面移除，资料由保存服务自动生成 URI。Creator tax 支持 0–5%，在固定手续费之外额外收取，并在创建时固定；Curve、Hook 和前端创建参数已接通，详见 [Creator tax 规则](V1_CREATOR_TAX.md)。当前实现尚未部署，发布仍受运行时就绪检查约束。该不可变开关默认关闭；开启后，50% 的 creator base fee share（不含 creator tax）分配给持有人，创建者保留另外 50% 的 base fee share 和 100% creator tax。Factory 创建时登记 holder fee sharing 配置；不存在额外 per-user deposit 步骤。Holder period 从市场创建开始，按 30 天余额时间加权；Quote 在 FeeVault 入账时（包括 curve sweep 时）归属当前 period。Meme 转 Quote 保留原 creator epoch。Root 仍可能延迟，不能宣传已部署的自动 keeper 或即时领取。
+Advanced 展示 Creator wallet、Creator tax 与「创建者手续费分配给持有人」开关。手动 slippage 和 Hosted metadata 已从页面移除，资料由保存服务自动生成 URI。Creator tax 支持 0–5%，在固定手续费之外额外收取，并在创建时固定；Curve、Hook 和前端创建参数已接通，详见 [Creator tax 规则](V1_CREATOR_TAX.md)。当前实现尚未部署，发布仍受运行时就绪检查约束。该不可变开关默认关闭；开启后，50% 的 creator base fee share（不含 creator tax）分配给持有人，创建者保留另外 50% 的 base fee share 和 100% creator tax。Factory 创建时登记 holder fee sharing 配置；不存在额外 per-user deposit 步骤。Holder period 从市场创建开始，按 7 天余额时间加权；Quote 在 FeeVault 入账时（包括 curve sweep 时）归属当前 period。Meme 转 Quote 保留原 creator epoch。Root 仍可能延迟，不能宣传已部署的自动 keeper 或即时领取。
 
 ## 毕业门槛
 
@@ -27,7 +27,7 @@ Pons 页面原生 ETH 使用 launch config 的 raw `graduationThreshold`；非�
 
 我们显示自己的 ACTIVE Registry 配置；尚未激活时显示明确标记为 release target 的观测快照。选择只有同链、ACTIVE、地址/decimals/phantom/threshold 一致才进入现有 Factory 校验，静态名单不能替代链上批准。
 
-“raises”指净实际 Quote，排除虚拟储备、交易费和 launch fee；不是买入总额、token market cap 或流动性池总价值。PonsSupplyMath 的整数分区也不能忽略：
+“raises”指净实际 Quote，排除虚拟储备、交易费和 launch fee；不是买入总额、token market cap 或流动性池总价值。TickerGardenSupplyMath 的整数分区也不能忽略：
 
 ```
 reserved = floor(supply * phantom / (phantom + threshold))
@@ -72,7 +72,7 @@ VITE_LAUNCH_METADATA_ORIGIN=https://metadata.example.com
 ## 验证
 
 - `npm --prefix apps/web test` / `npm --prefix apps/web run build`
-- `npm --prefix services/backend-api test` / `npm --prefix services/backend-api run build`
+- `make -C services/backend-go verify` / `make -C services/backend-go contract-check`
 - `npm --prefix deployments test` / `npm --prefix deployments run build`
 - `python3 tools/generate-v1-paired-assets.py --check`
 - `node outputs/designs/create-pons-v2/check.cjs`：桌面/手机、56 项、不同精度门槛、首购切换、图片预览、Advanced 和禁用状态。

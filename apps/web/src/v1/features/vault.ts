@@ -1,3 +1,4 @@
+import { ROBINHOOD_CHAIN_ID } from "../chain.ts";
 import type { Address } from "viem";
 import { v1Abis } from "../generated/abis.ts";
 import { createContractWriteRequest, type ContractWriteRequest, type ReconciledSnapshot } from "../transaction.ts";
@@ -33,7 +34,7 @@ function positive(value: bigint): void { if (value <= 0n || value > MAX_UINT256)
 function nonNegative(value: string): bigint { if (!/^\d+$/.test(value)) throw new TypeError("invalid integer amount"); return BigInt(value); }
 function source(source_: MarketReadModel["source"], reconciledBlock: bigint): void {
   if (
-    source_.chainId !== 4663 || !/^\d+$/.test(source_.blockNumber) || !HEX32.test(source_.blockHash)
+    source_.chainId !== ROBINHOOD_CHAIN_ID || !/^\d+$/.test(source_.blockNumber) || !HEX32.test(source_.blockHash)
       || !HEX32.test(source_.transactionHash) || !Number.isSafeInteger(source_.transactionIndex)
       || source_.transactionIndex < 0 || !Number.isSafeInteger(source_.logIndex) || source_.logIndex < 0
       || BigInt(source_.blockNumber) > reconciledBlock
@@ -43,7 +44,7 @@ function context(market: MarketReadModel, position: UserPositionReadModel, snaps
   bytes32(market.marketId); bytes32(position.marketId); bytes32(position.assetUid);
   address(market.memeToken); address(market.gauge); quoteAddress(market.quoteAsset); address(market.curve);
   if (market.marketId !== position.marketId || market.assetUid !== position.assetUid) throw new Error("position market identity mismatch");
-  if (snapshot.executionSpecId !== "V1-EXEC-10" || snapshot.syncStatus !== "synced" || !/^\d+:0x[0-9a-f]{64}$/.test(snapshot.revision)) throw new Error("snapshot is not reconciled");
+  if (snapshot.executionSpecId !== "V1-EXEC-11" || snapshot.syncStatus !== "synced" || !/^\d+:0x[0-9a-f]{64}$/.test(snapshot.revision)) throw new Error("snapshot is not reconciled");
   address(position.user);
   const reconciledBlock = snapshot.revision.split(":")[0] ?? "";
   if (!/^\d+$/.test(reconciledBlock)) throw new Error("invalid reconciled snapshot revision");
@@ -104,3 +105,15 @@ export function buildDepositAndAllocate(manager: Address, marketId: `0x${string}
 export function buildClaimStaker(feeVault: Address, marketId: `0x${string}`, asset: Address) { address(feeVault); bytes32(marketId); quoteAddress(asset); return request(v1Abis.ProtocolFeeVault, feeVault, "claimStaker", [marketId, asset]); }
 export const buildClaimQuote = buildClaimStaker;
 export const buildClaimMeme = buildClaimStaker;
+
+/** Wallet-funded market entry; no reuse of free Vault principal. */
+export function buildStake(manager: Address, marketId: `0x${string}`, amount_: bigint) { address(manager); bytes32(marketId); positive(amount_); return request(v1Abis.AllocationManager, manager, "stake", [marketId, amount_]); }
+export function buildUnstakeAndWithdraw(manager: Address, marketId: `0x${string}`) { address(manager); bytes32(marketId); return request(v1Abis.AllocationManager, manager, "unstakeAndWithdraw", [marketId]); }
+
+export function validateMarketStake(amount_: bigint, walletBalance: bigint, currentStake: bigint, minimum: bigint): void {
+  positive(amount_);
+  if (walletBalance < 0n || currentStake < 0n || minimum <= 0n) throw new TypeError("invalid staking state");
+  if (amount_ > walletBalance) throw new RangeError("Stake exceeds your wallet STOCK balance");
+  if (currentStake + amount_ > MAX_UINT256) throw new RangeError("Total stake exceeds uint256");
+  if (currentStake + amount_ < minimum) throw new RangeError("Resulting stake is below the market minimum");
+}

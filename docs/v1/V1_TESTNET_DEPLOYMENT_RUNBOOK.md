@@ -1,12 +1,14 @@
+配套参考：[RH 测试网网络、资产与交易池资料](./V1_ROBINHOOD_TESTNET_REFERENCE.md)（历史快照与候选功能分开记录）。
+
 # TickerGarden V1 Robinhood 测试网部署手册
 
 状态：`DEPLOYMENT_ELIGIBLE / NOT_PRODUCTION_READY / NOT_BROADCAST`
 执行规范：`V1-EXEC-11`
 目标网络：Robinhood Chain Testnet（chain ID `46630`）
 部署计划：[`deployments/manifests/robinhood-testnet-46630.v1.plan.json`](../../deployments/manifests/robinhood-testnet-46630.v1.plan.json)
-当前技术 gate 证据：[`deployments/evidence/v1-deployment-gates-current.json`](../../deployments/evidence/v1-deployment-gates-current.json)；历史证据：[`deployments/evidence/v1-deployment-gates.json`](../../deployments/evidence/v1-deployment-gates.json)
+当前技术 gate 证据：[`deployments/evidence/v1-optional-staking-gates.json`](../../deployments/evidence/v1-optional-staking-gates.json)；历史证据：[`deployments/evidence/v1-deployment-gates.json`](../../deployments/evidence/v1-deployment-gates.json)
 
-本文是正式操作顺序，不是广播授权。仓库当前为 `DEPLOYMENT_ELIGIBLE`，没有测试网部署交易或 release certificate，`broadcastAuthorized=false`；七个 deployment gate 已由当前证据关闭，八个生产 gate 仍开放。完整验证材料见 [`outputs/reviews/testnet-release-candidate/`](../../outputs/reviews/testnet-release-candidate/)。
+本文是正式操作顺序，不是广播授权。仓库当前为 `DEPLOYMENT_ELIGIBLE`，没有测试网部署交易或 release certificate，`broadcastAuthorized=false`；七个 deployment gate 已由当前证据关闭，八个生产 gate 仍开放。完整验证材料见 [`outputs/reviews/optional-stock-staking/`](../../outputs/reviews/optional-stock-staking/)。
 
 `DeployV1Deterministic.run()` 现在先执行 `V1ReleaseGate._assertReleaseEligibility()`，再读取 `DEPLOYER_PRIVATE_KEY`。因此当前 open gate 会在私钥读取前 fail closed，不能通过官方 Forge broadcast entrypoint 绕过。`preview()` 仍只执行无密钥的确定性计划校验，不读取或要求 release certificate，也不授权广播。
 
@@ -67,6 +69,8 @@ V1_EXPECTED_ORCHESTRATOR
 V1_INITIAL_ADMIN
 V1_POOL_MANAGER
 V1_POOL_MANAGER_CODEHASH
+V1_NATIVE_QUOTE_POOL_FEE
+V1_NATIVE_QUOTE_TICK_SPACING
 V1_POSITION_MANAGER
 V1_POSITION_MANAGER_CODEHASH
 V1_PERMIT2
@@ -147,7 +151,7 @@ ROBINHOOD_TESTNET_RPC_URL="$TG_RH_TESTNET_RPC_URL" \
 - chain ID 精确为 `46630`；不得连接 chain `4663` 或其他网络。
 - canonical CREATE2 deployer、PoolManager、PositionManager、Permit2、Router、Quoter、StateView 的地址、代码长度、codehash 与 plan 完全一致。
 - PositionManager 的 `poolManager()` 和 `permit2()` 绑定一致。
-- 固定主网 Fork pin 以 [`outputs/reviews/testnet-release-candidate/fork-pin.json`](../../outputs/reviews/testnet-release-candidate/fork-pin.json) 和对应的官方 header 记录为准；本轮验证使用块 `55165256`、哈希 `0xc6c62c0bc02d8a2e71d1898213cdd3f7606a957de11827e5df6646bca1d16ed7`。BlockReq 的响应省略 `l1BlockNumber`；适配器核对两个来源同一区块的 hash/stateRoot 后，仅从该区块的官方原始 header 恢复此字段，不修改账户、存储或交易状态。
+- 固定主网 Fork pin 以 [`outputs/reviews/optional-stock-staking/fork-pin.json`](../../outputs/reviews/optional-stock-staking/fork-pin.json) 和对应的官方 header 记录为准；本轮验证使用块 `55193897`、哈希 `0xd3a2c524e03c76549e4f6fad9f35fbd1a42624e5fe9c0f8a796dd6c3c0ee6ceb`。BlockReq 的响应省略 `l1BlockNumber`；适配器核对两个来源同一区块的 hash/stateRoot 后，仅从该区块的官方原始 header 恢复此字段，不修改账户、存储或交易状态。
 - Fork/E2E 真实执行官方 CRM BeaconProxy/Beacon/implementation、Stock Quote 准入、最终一笔 buy 的原子 v4 graduation、StateView、Vault deposit/allocation/rageQuit。Stock 余额由测试 cheatcode 合成，不得描述为历史自然余额。
 
 公共测试网 RPC 只适合近期 `latest` 读取；无法读取历史合约状态时，固定 Fork 必须改用 archive-capable RPC，不能把近期读数当作历史证明或伪造 finalized codehash。兼容代理只能转换特定 EIP-1898 block 参数，不能把裁剪节点变成 archive 节点。Fork 中用于资金准备的 synthetic TWAB 仅是测试证据，不代表生产权重。

@@ -1,0 +1,33 @@
+.launch-progress-dialog {
+  width: min(100% - 2rem, 34rem);
+  max-width: 34rem;
+  border: 1px solid #b9ddc4;
+  border-radius: 1rem;
+  padding: 0;
+  color: #163a26;
+  background: #f7fff9;
+  box-shadow: 0 1.5rem 4rem rgb(20 70 39 / 22%);
+}
+
+.launch-progress-dialog::backdrop { background: rgb(8 31 17 / 48%); }
+.launch-progress-dialog__content { display: grid; gap: 1rem; padding: 1.5rem; }
+.launch-progress-dialog__title { margin: 0; font-size: 1.25rem; }
+.launch-progress-dialog__status p { margin: 0; }
+.launch-progress-dialog__step { font-weight: 700; }
+.launch-progress-dialog__detail { margin-top: .35rem !important; color: #41614b; }
+.launch-progress-dialog__progress-label { display: grid; gap: .45rem; font-size: .8rem; font-weight: 700; }
+.launch-progress-dialog__progress { width: 100%; height: .65rem; accent-color: #27834b; }
+.launch-progress-dialog__stages { display: grid; gap: .4rem; margin: 0; padding-left: 1.25rem; color: #66806d; font-size: .85rem; }
+.launch-progress-dialog__stages li[data-state='current'] { color: #176d39; font-weight: 700; }
+.launch-progress-dialog__stages li[data-state='complete'] { color: #27834b; }
+.launch-progress-dialog__hash { overflow-wrap: anywhere; margin: 0; font-family: ui-monospace, SFMono-Regular, monospace; font-size: .8rem; }
+.launch-progress-dialog__hash-form { display: grid; gap: .5rem; }
+.launch-progress-dialog__hash-form label { display: grid; gap: .35rem; font-weight: 700; }
+.launch-progress-dialog input { min-width: 0; border: 1px solid #a8cdb3; border-radius: .45rem; padding: .65rem; font: inherit; }
+.launch-progress-dialog__help { color: #52725c; font-size: .8rem; }
+.launch-progress-dialog button { border: 0; border-radius: .45rem; padding: .65rem .9rem; font: inherit; font-weight: 700; cursor: pointer; }
+.launch-progress-dialog__track { color: #fff; background: #27834b; }
+.launch-progress-dialog button:disabled { cursor: not-allowed; opacity: .5; }
+.launch-progress-dialog__explorer { color: #176d39; font-weight: 700; }
+.launch-progress-dialog__dismiss { justify-self: start; color: #285337; background: #e3f2e7; }
+@media (max-width: 35rem) { .launch-progress-dialog__content { padding: 1.1rem; } }

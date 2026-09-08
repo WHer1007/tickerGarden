@@ -10,12 +10,12 @@ import {
     ILaunchTemplateRegistry,
     IMarketRegistryV1,
     IOfficialStockRegistryV1,
-    IPonsBaselineRegistry,
+    ITickerGardenBaselineRegistry,
     LaunchTemplate,
     MarketConfig,
     MarketRuntime,
     MarketView,
-    PonsBaseline,
+    TickerGardenBaseline,
     PoolKey,
     QuoteAssetConfig
 } from "../interfaces/IV1Protocol.sol";
@@ -31,7 +31,7 @@ contract MarketRegistryV1 is IMarketRegistryV1 {
     address public immutable override factory;
     address public immutable override officialStockRegistry;
     address public immutable override approvedQuoteRegistry;
-    address public immutable override ponsBaselineRegistry;
+    address public immutable override tickerGardenBaselineRegistry;
     address public immutable override launchTemplateRegistry;
     address public immutable override graduationExecutor;
     address public immutable override swapRouter;
@@ -49,7 +49,7 @@ contract MarketRegistryV1 is IMarketRegistryV1 {
     error MemeTokenAlreadyRegistered(address memeToken, bytes32 marketId);
     error InvalidMarketConfig();
     error InvalidExecutionSpecId(bytes32 supplied);
-    error InvalidPonsBaseline(bytes32 baselineId);
+    error InvalidTickerGardenBaseline(bytes32 baselineId);
     error InvalidCanonicalPoolKey();
     error UnauthorizedModule(address caller, address expectedModule);
     error InvalidStateTransition(uint8 currentState, uint8 requestedState);
@@ -65,7 +65,7 @@ contract MarketRegistryV1 is IMarketRegistryV1 {
         address factory_,
         address officialStockRegistry_,
         address approvedQuoteRegistry_,
-        address ponsBaselineRegistry_,
+        address tickerGardenBaselineRegistry_,
         address launchTemplateRegistry_,
         address graduationExecutor_,
         address swapRouter_,
@@ -73,14 +73,14 @@ contract MarketRegistryV1 is IMarketRegistryV1 {
     ) {
         if (
             factory_ == address(0) || officialStockRegistry_ == address(0) || approvedQuoteRegistry_ == address(0)
-                || ponsBaselineRegistry_ == address(0) || launchTemplateRegistry_ == address(0)
+                || tickerGardenBaselineRegistry_ == address(0) || launchTemplateRegistry_ == address(0)
                 || graduationExecutor_ == address(0)
         ) {
             revert ZeroConstructorAddress();
         }
         if (
             officialStockRegistry_.code.length == 0 || approvedQuoteRegistry_.code.length == 0
-                || ponsBaselineRegistry_.code.length == 0 || launchTemplateRegistry_.code.length == 0
+                || tickerGardenBaselineRegistry_.code.length == 0 || launchTemplateRegistry_.code.length == 0
         ) revert ZeroConstructorAddress();
         if (
             swapRouter_.code.length == 0 || quoter_.code.length == 0 || swapRouter_ == quoter_
@@ -93,7 +93,7 @@ contract MarketRegistryV1 is IMarketRegistryV1 {
         factory = factory_;
         officialStockRegistry = officialStockRegistry_;
         approvedQuoteRegistry = approvedQuoteRegistry_;
-        ponsBaselineRegistry = ponsBaselineRegistry_;
+        tickerGardenBaselineRegistry = tickerGardenBaselineRegistry_;
         launchTemplateRegistry = launchTemplateRegistry_;
         graduationExecutor = graduationExecutor_;
         swapRouter = swapRouter_;
@@ -145,8 +145,8 @@ contract MarketRegistryV1 is IMarketRegistryV1 {
     function canonicalPoolKey(bytes32 marketId) public view override returns (PoolKey memory key) {
         _requireRegistered(marketId);
         MarketConfig storage config = _marketConfigs[marketId];
-        PonsBaseline memory baseline = IPonsBaselineRegistry(ponsBaselineRegistry).baseline(config.ponsBaselineId);
-        _validatePoolBaseline(config.ponsBaselineId, config.launchConfigId, baseline);
+        TickerGardenBaseline memory baseline = ITickerGardenBaselineRegistry(tickerGardenBaselineRegistry).baseline(config.tickerGardenBaselineId);
+        _validatePoolBaseline(config.tickerGardenBaselineId, config.launchConfigId, baseline);
 
         (address currency0, address currency1) = config.quoteAsset < config.memeToken
             ? (config.quoteAsset, config.memeToken)
@@ -223,11 +223,10 @@ contract MarketRegistryV1 is IMarketRegistryV1 {
 
     function _validateConfig(bytes32 marketId, MarketConfig calldata config) private view {
         if (
-            marketId == bytes32(0) || config.assetUid == bytes32(0) || config.ponsBaselineId == bytes32(0)
-                || config.quoteAssetConfigId == bytes32(0) || config.launchTemplateId == bytes32(0)
-                || config.feePolicyId == bytes32(0) || config.expectedEconomics == bytes32(0)
-                || config.creatorRevenueBeneficiaryAtCreation == address(0) || config.memeToken == address(0)
-                || config.curve == address(0) || config.gauge == address(0) || config.graduatedHook == address(0)
+            marketId == bytes32(0) || config.tickerGardenBaselineId == bytes32(0) || config.quoteAssetConfigId == bytes32(0)
+                || config.launchTemplateId == bytes32(0) || config.feePolicyId == bytes32(0)
+                || config.expectedEconomics == bytes32(0) || config.creatorRevenueBeneficiaryAtCreation == address(0)
+                || config.memeToken == address(0) || config.curve == address(0) || config.graduatedHook == address(0)
                 || config.creatorTaxBps > 500
         ) revert InvalidMarketConfig();
         if (config.executionSpecId != EXECUTION_SPEC_ID) {
@@ -238,24 +237,29 @@ contract MarketRegistryV1 is IMarketRegistryV1 {
             revert InvalidCanonicalPoolKey();
         }
 
-        AssetView memory asset = IOfficialStockRegistryV1(officialStockRegistry).asset(config.assetUid);
-        if (
-            asset.status != CONFIG_STATUS_ACTIVE || asset.stockToken == address(0) || asset.userStockVault == address(0)
-                || asset.tokenDecimals < 6 || asset.tokenDecimals > 18
-                || !IOfficialStockRegistryV1(officialStockRegistry).assetIdentityCurrent(config.assetUid)
-        ) revert InvalidMarketConfig();
+        if (config.stakingEnabled) {
+            if (config.assetUid == bytes32(0) || config.gauge == address(0)) revert InvalidMarketConfig();
+            AssetView memory asset = IOfficialStockRegistryV1(officialStockRegistry).asset(config.assetUid);
+            if (
+                asset.status != CONFIG_STATUS_ACTIVE || asset.stockToken == address(0)
+                    || asset.userStockVault == address(0) || asset.tokenDecimals < 6 || asset.tokenDecimals > 18
+                    || !IOfficialStockRegistryV1(officialStockRegistry).assetIdentityCurrent(config.assetUid)
+            ) revert InvalidMarketConfig();
+        } else if (config.assetUid != bytes32(0) || config.gauge != address(0)) {
+            revert InvalidMarketConfig();
+        }
 
         QuoteAssetConfig memory quote =
             IApprovedQuoteRegistry(approvedQuoteRegistry).quoteConfig(config.quoteAssetConfigId);
         if (
-            quote.status != CONFIG_STATUS_ACTIVE || quote.ponsBaselineId != config.ponsBaselineId
+            quote.status != CONFIG_STATUS_ACTIVE || quote.tickerGardenBaselineId != config.tickerGardenBaselineId
                 || quote.quoteAsset != config.quoteAsset || quote.economicsHash != config.quoteAssetConfigId
                 || !IApprovedQuoteRegistry(approvedQuoteRegistry).quoteIdentityCurrent(config.quoteAssetConfigId)
         ) revert InvalidMarketConfig();
 
-        PonsBaseline memory baseline = IPonsBaselineRegistry(ponsBaselineRegistry).baseline(config.ponsBaselineId);
-        _validatePoolBaseline(config.ponsBaselineId, config.launchConfigId, baseline);
-        if (baseline.status != CONFIG_STATUS_ACTIVE) revert InvalidPonsBaseline(config.ponsBaselineId);
+        TickerGardenBaseline memory baseline = ITickerGardenBaselineRegistry(tickerGardenBaselineRegistry).baseline(config.tickerGardenBaselineId);
+        _validatePoolBaseline(config.tickerGardenBaselineId, config.launchConfigId, baseline);
+        if (baseline.status != CONFIG_STATUS_ACTIVE) revert InvalidTickerGardenBaseline(config.tickerGardenBaselineId);
 
         LaunchTemplate memory template =
             ILaunchTemplateRegistry(launchTemplateRegistry).launchTemplate(config.launchTemplateId);
@@ -266,14 +270,14 @@ contract MarketRegistryV1 is IMarketRegistryV1 {
         ) revert InvalidMarketConfig();
     }
 
-    function _validatePoolBaseline(bytes32 baselineId, uint256 launchConfigId, PonsBaseline memory baseline)
+    function _validatePoolBaseline(bytes32 baselineId, uint256 launchConfigId, TickerGardenBaseline memory baseline)
         private
         pure
     {
         if (
             baseline.launchConfigId != launchConfigId || baseline.poolFee != 0 || baseline.tickSpacing < 1
                 || baseline.tickSpacing > 32_767
-        ) revert InvalidPonsBaseline(baselineId);
+        ) revert InvalidTickerGardenBaseline(baselineId);
     }
 
     function _requireRegistered(bytes32 marketId) private view {

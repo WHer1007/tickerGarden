@@ -184,11 +184,13 @@ contract CreatorRevenueRegistryTest is Test {
         _initialize();
         curve.setAccrued(100 ether);
 
-        vm.expectEmit(true, true, true, true, address(registry));
-        emit CreatorRevenueBeneficiaryUpdated(MARKET_ID, 1, 2, BENEFICIARY, NEW_BENEFICIARY);
         vm.prank(BENEFICIARY);
         uint32 newEpoch = registry.transferCreatorRevenueBeneficiary(MARKET_ID, NEW_BENEFICIARY);
-
+        assertEq(newEpoch, 1);
+        vm.expectEmit(true, true, true, true, address(registry));
+        emit CreatorRevenueBeneficiaryUpdated(MARKET_ID, 1, 2, BENEFICIARY, NEW_BENEFICIARY);
+        vm.prank(NEW_BENEFICIARY);
+        newEpoch = registry.acceptCreatorRevenueBeneficiary(MARKET_ID);
         assertEq(newEpoch, 2);
         assertEq(curve.sweepCalls(), 1);
         assertEq(curve.epochObservedDuringSweep(), 1);
@@ -200,8 +202,7 @@ contract CreatorRevenueRegistryTest is Test {
 
     function test_notGraduatedZeroAccruedStillExecutesNoOpSweep() public {
         _initialize();
-        vm.prank(BENEFICIARY);
-        registry.transferCreatorRevenueBeneficiary(MARKET_ID, NEW_BENEFICIARY);
+        _proposeAndAccept(BENEFICIARY, NEW_BENEFICIARY);
         assertEq(curve.sweepCalls(), 1);
         assertEq(curve.epochObservedDuringSweep(), 1);
     }
@@ -235,23 +236,54 @@ contract CreatorRevenueRegistryTest is Test {
         registry.transferCreatorRevenueBeneficiary(MARKET_ID, NEW_BENEFICIARY);
     }
 
+    function test_proposalReplacementCancelAndWrongAcceptDoNotShiftAccrual() public {
+        _initialize();
+        curve.setAccrued(7 ether);
+        vm.prank(BENEFICIARY);
+        assertEq(registry.transferCreatorRevenueBeneficiary(MARKET_ID, NEW_BENEFICIARY), 1);
+        assertEq(registry.pendingCreatorRevenueBeneficiary(MARKET_ID), NEW_BENEFICIARY);
+
+        vm.prank(BENEFICIARY);
+        registry.transferCreatorRevenueBeneficiary(MARKET_ID, THIRD_BENEFICIARY);
+        assertEq(registry.pendingCreatorRevenueBeneficiary(MARKET_ID), THIRD_BENEFICIARY);
+        vm.prank(NEW_BENEFICIARY);
+        vm.expectRevert(
+            abi.encodeWithSelector(CreatorRevenueRegistry.UnauthorizedPendingBeneficiary.selector, NEW_BENEFICIARY, THIRD_BENEFICIARY)
+        );
+        registry.acceptCreatorRevenueBeneficiary(MARKET_ID);
+        assertEq(registry.currentCreatorEpoch(MARKET_ID), 1);
+        assertEq(curve.accruedCurveFees(), 7 ether);
+
+        vm.prank(STRANGER);
+        vm.expectRevert(
+            abi.encodeWithSelector(CreatorRevenueRegistry.UnauthorizedCurrentBeneficiary.selector, STRANGER, BENEFICIARY)
+        );
+        registry.cancelCreatorRevenueBeneficiaryTransfer(MARKET_ID);
+        vm.prank(BENEFICIARY);
+        registry.cancelCreatorRevenueBeneficiaryTransfer(MARKET_ID);
+        assertEq(registry.pendingCreatorRevenueBeneficiary(MARKET_ID), address(0));
+        assertEq(curve.accruedCurveFees(), 7 ether);
+    }
+
     function test_sweepFailureOrResidualAccrualRollsBackEpoch() public {
         _initialize();
         curve.setAccrued(100 ether);
         curve.setFailure(true);
         vm.prank(BENEFICIARY);
-        vm.expectRevert("SWEEP_FAILED");
         registry.transferCreatorRevenueBeneficiary(MARKET_ID, NEW_BENEFICIARY);
+        vm.prank(NEW_BENEFICIARY);
+        vm.expectRevert("SWEEP_FAILED");
+        registry.acceptCreatorRevenueBeneficiary(MARKET_ID);
         assertEq(registry.currentCreatorEpoch(MARKET_ID), 1);
         assertEq(curve.accruedCurveFees(), 100 ether);
 
         curve.setFailure(false);
         curve.setLeaveAccrued(true);
-        vm.prank(BENEFICIARY);
+        vm.prank(NEW_BENEFICIARY);
         vm.expectRevert(
             abi.encodeWithSelector(CreatorRevenueRegistry.CurveFeesOutstanding.selector, MARKET_ID, 100 ether)
         );
-        registry.transferCreatorRevenueBeneficiary(MARKET_ID, NEW_BENEFICIARY);
+        registry.acceptCreatorRevenueBeneficiary(MARKET_ID);
         assertEq(registry.currentCreatorEpoch(MARKET_ID), 1);
         assertEq(curve.sweepCalls(), 0);
     }
@@ -262,8 +294,7 @@ contract CreatorRevenueRegistryTest is Test {
         address next = NEW_BENEFICIARY;
         for (uint8 phase = 1; phase <= 3; ++phase) {
             marketRegistry.setLaunchPhase(phase);
-            vm.prank(caller);
-            registry.transferCreatorRevenueBeneficiary(MARKET_ID, next);
+            _proposeAndAccept(caller, next);
             caller = next;
             next = phase == 1 ? THIRD_BENEFICIARY : address(uint160(0xD00D + phase));
         }
@@ -272,8 +303,10 @@ contract CreatorRevenueRegistryTest is Test {
 
         curve.setAccrued(1);
         vm.prank(caller);
-        vm.expectRevert(abi.encodeWithSelector(CreatorRevenueRegistry.CurveFeesOutstanding.selector, MARKET_ID, 1));
         registry.transferCreatorRevenueBeneficiary(MARKET_ID, address(0xF00D));
+        vm.prank(address(0xF00D));
+        vm.expectRevert(abi.encodeWithSelector(CreatorRevenueRegistry.CurveFeesOutstanding.selector, MARKET_ID, 1));
+        registry.acceptCreatorRevenueBeneficiary(MARKET_ID);
         assertEq(registry.currentCreatorEpoch(MARKET_ID), 4);
     }
 
@@ -285,8 +318,10 @@ contract CreatorRevenueRegistryTest is Test {
         marketRegistry.setLaunchPhase(1);
 
         vm.prank(BENEFICIARY);
-        vm.expectRevert();
         harness.transferCreatorRevenueBeneficiary(MARKET_ID, NEW_BENEFICIARY);
+        vm.prank(NEW_BENEFICIARY);
+        vm.expectRevert();
+        harness.acceptCreatorRevenueBeneficiary(MARKET_ID);
         assertEq(harness.currentCreatorEpoch(MARKET_ID), type(uint32).max);
     }
 
@@ -297,6 +332,9 @@ contract CreatorRevenueRegistryTest is Test {
         curve.setReentry(THIRD_BENEFICIARY);
 
         uint32 newEpoch = curve.transferAsBeneficiary(NEW_BENEFICIARY);
+        assertEq(newEpoch, 1);
+        vm.prank(NEW_BENEFICIARY);
+        newEpoch = registry.acceptCreatorRevenueBeneficiary(MARKET_ID);
         assertEq(newEpoch, 2);
         assertFalse(curve.reentrySucceeded());
         assertEq(registry.creatorBeneficiaryAt(MARKET_ID, 2), NEW_BENEFICIARY);
@@ -322,5 +360,12 @@ contract CreatorRevenueRegistryTest is Test {
 
     function _initialize() private {
         registry.initializeCreatorRevenueEpoch(MARKET_ID, BENEFICIARY);
+    }
+
+    function _proposeAndAccept(address current, address next) private {
+        vm.prank(current);
+        registry.transferCreatorRevenueBeneficiary(MARKET_ID, next);
+        vm.prank(next);
+        registry.acceptCreatorRevenueBeneficiary(MARKET_ID);
     }
 }

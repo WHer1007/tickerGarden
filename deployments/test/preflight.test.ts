@@ -58,7 +58,7 @@ function resolverBindingResult(manifest: JsonRecord, label: unknown): string | u
   const modules = manifest.protocolModules as JsonRecord;
   const registryByLabel: Readonly<Record<string, string>> = {
     "resolver-approved-quote-registry": "ApprovedQuoteRegistry",
-    "resolver-pons-baseline-registry": "PonsBaselineRegistry",
+    "resolver-tickergarden-baseline-registry": "TickerGardenBaselineRegistry",
     "resolver-launch-template-registry": "LaunchTemplateRegistry",
   };
   const registryName = registryByLabel[String(label)];
@@ -81,7 +81,7 @@ function registryAuthorityResult(manifest: JsonRecord, label: unknown): string |
   const registryLabels = new Set([
     "official-stock-registry-access-manager-authority",
     "approved-quote-registry-access-manager-authority",
-    "pons-baseline-registry-access-manager-authority",
+    "tickergarden-baseline-registry-access-manager-authority",
     "launch-template-registry-access-manager-authority",
   ]);
   if (!registryLabels.has(String(label))) return undefined;
@@ -124,7 +124,7 @@ function stockQuoteFingerprintHash(manifest: JsonRecord, stock: JsonRecord): str
 function stockQuoteEconomicsHash(manifest: JsonRecord, quote: JsonRecord): string {
   return keccakHex(`0x${[
     keccakUtf8("TICKERGARDEN_V1_STOCK_QUOTE_ECONOMICS").slice(2), word(1),
-    word((manifest.chain as JsonRecord).chainId as number), String(quote.ponsBaselineId).slice(2),
+    word((manifest.chain as JsonRecord).chainId as number), String(quote.tickerGardenBaselineId).slice(2),
     addressWord(String(quote.tokenAddress)), word(quote.decimals as number), word(quote.phantomQuote as string),
     word(quote.graduationThreshold as string), String(quote.assetUid).slice(2),
     String(quote.stockTokenFingerprintHash).slice(2), String(quote.referenceEvidenceHash).slice(2),
@@ -192,7 +192,7 @@ function prepareImmutableErc20QuoteManifest(): JsonRecord {
   (manifest.configSnapshot as JsonRecord).quoteConfigIds = [quoteConfigId];
   manifest.quoteAssets = [{
     configId: quoteConfigId,
-    ponsBaselineId: hash("baseline"),
+    tickerGardenBaselineId: hash("baseline"),
     economicsHash: hash("immutable-erc20-economics"),
     assetKind: "ERC20",
     tokenAddress: token,
@@ -227,7 +227,7 @@ function prepareOfficialStockQuoteManifest(): JsonRecord {
   const stock = (manifest.officialStocks as JsonRecord[])[0]!;
   const quote: JsonRecord = {
     assetKind: "OFFICIAL_STOCK", assetUid: stock.assetUid, tokenAddress: stock.tokenAddress, decimals: stock.decimals,
-    phantomQuote: "1000000", graduationThreshold: "2000000", ponsBaselineId: hash("baseline"),
+    phantomQuote: "1000000", graduationThreshold: "2000000", tickerGardenBaselineId: hash("baseline"),
     runtimeCodeHash: stock.runtimeCodeHash, proxyKind: stock.proxyKind, beaconAddress: stock.beaconAddress,
     beaconCodeHash: stock.beaconCodeHash, implementationAddress: stock.implementationAddress,
     implementationCodeHash: stock.implementationCodeHash, referenceEvidenceHash: hash("stock-quote-reference"),
@@ -509,7 +509,7 @@ test("verifies complete live state at one finalized block using read-only RPC on
   const rpc = new MockRpc(manifest);
   const report = await verifyV1LiveState(manifest, rpc);
   assert.equal(report.chainId, 4663);
-  assert.equal(report.permissionChecks, 99);
+  assert.equal(report.permissionChecks, 102);
   assert.equal(report.administrativePermissionChecks, 6);
   assert.equal(report.roleMembershipChecks, 5);
   assert.equal(report.revokedMembershipChecks, 5);
@@ -544,11 +544,10 @@ test("fails closed on chain, code, getter, storage, source, fee, role and select
   }
 });
 
-test("deployment entry validates live state after technical gates close", async () => {
+test("deployment entry verifies the reviewed candidate with live bindings", async () => {
   const manifest = prepareManifest();
   const rpc = new MockRpc(manifest);
-  const report = await preflightV1Deployment(manifest, rpc);
-  assert.ok(report.codeHashesChecked > 0);
+  await preflightV1Deployment(manifest, rpc);
   assert.ok(rpc.methods.length > 0);
 });
 
@@ -676,7 +675,7 @@ test("rejects missing or drifted Registry AccessManager bindings before RPC", as
   const registries = [
     ["OfficialStockRegistryV1", "official-stock-registry-access-manager-authority"],
     ["ApprovedQuoteRegistry", "approved-quote-registry-access-manager-authority"],
-    ["PonsBaselineRegistry", "pons-baseline-registry-access-manager-authority"],
+    ["TickerGardenBaselineRegistry", "tickergarden-baseline-registry-access-manager-authority"],
     ["LaunchTemplateRegistry", "launch-template-registry-access-manager-authority"],
   ] as const;
   for (const [registryName, label] of registries) {

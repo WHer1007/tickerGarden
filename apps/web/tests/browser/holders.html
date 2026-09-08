@@ -1,0 +1,11 @@
+<!doctype html><meta name="viewport" content="width=device-width, initial-scale=1"><title>Holder component verification</title>
+<style>body{font:15px system-ui;margin:20px;background:#fbfaf3;color:#25382b}section{padding:16px;border:1px solid #ccc;max-width:1100px}button{padding:10px;margin:4px}table{border-collapse:collapse;text-align:left}td,th{border-bottom:1px solid #ddd}caption{text-align:left;overflow-wrap:anywhere}</style>
+<button id="normal">Normal</button><button id="stale">Stale second page</button><button id="empty">Empty</button><button id="unavailable">Unavailable</button>
+<section id="holders"><h2>Holder balances</h2></section>
+<script type="module">
+import {mountHolders} from '/src/v1/holderWidget.ts';
+const id={marketId:'0x'+'1'.repeat(64),memeToken:'0x'+'2'.repeat(40)};let mode='normal';
+window.fetch=async input=>{const url=new URL(String(input));if(mode==='unavailable'||(mode==='stale'&&url.searchParams.has('cursor')))return new Response(JSON.stringify({error:mode==='stale'?'holder_page_changed':'analytics_unavailable',message:'fixture',requestId:'test'}),{status:mode==='stale'?409:503});const offset=url.searchParams.has('cursor')?50:0;const total=mode==='empty'?0:51;const balances=Array.from({length:Math.min(50,total-offset)},(_,i)=>({account:'0x'+(offset+i+1).toString(16).padStart(40,'0'),balanceRaw:'1000000000000000001',excluded:offset+i===0}));return new Response(JSON.stringify({chainId:4663,displayOnly:true,...id,creationBlockNumber:'1',sourceBlockNumber:'100',sourceBlockHash:id.marketId,finality:'finalized',exclusionPolicy:'KNOWN_PROTOCOL_ADDRESSES_V1',totalSupplyRaw:(BigInt(total)*1000000000000000001n).toString(),positiveAddressCount:total,includedAddressCount:Math.max(0,total-1),excludedAccounts:['0x'+'1'.padStart(40,'0')],balances,revision:'sha256:'+'1'.repeat(64),nextCursor:offset+balances.length<total?'next':null}));};
+const widget=mountHolders(document.querySelector('#holders'),'http://fixture.test',4663);
+for(const name of ['normal','stale','empty','unavailable'])document.getElementById(name).onclick=()=>{mode=name;widget.setMarket(id);};widget.setMarket(id);
+</script>

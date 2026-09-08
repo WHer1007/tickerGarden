@@ -24,6 +24,7 @@ contract RewardSettlementRegistryMock {
         c.quoteAsset = quote;
         c.memeToken = meme;
         c.gauge = gauge;
+        c.stakingEnabled = true;
         c.feePolicyId = keccak256("policy");
         c.executionSpecId = keccak256("V1-EXEC-11");
         MarketRuntime memory r;
@@ -31,6 +32,11 @@ contract RewardSettlementRegistryMock {
         r.sourceVersion = 1;
         r.launchPhase = 1;
         markets[id] = MarketView(c, r);
+    }
+
+    function disableStaking(bytes32 id) external {
+        markets[id].config.stakingEnabled = false;
+        markets[id].config.gauge = address(0);
     }
 
     function market(bytes32 id) external view returns (MarketView memory) {
@@ -173,6 +179,49 @@ contract RewardSettlementTest is Test {
     function seedStaker(address who, uint256 amount) internal {
         gauge.setReward(who, amount);
         vault.seed(ID, 1, address(meme), amount, 0, amount);
+    }
+
+    function test_disabledStakingCreatorConversionAndQuoteClaimWithoutGauge() public {
+        registry.disableStaking(ID);
+        vault.seed(ID, 1, address(meme), 100, 100, 0);
+        ConversionItem[] memory xs = new ConversionItem[](1);
+        xs[0] = item(CREATOR, 1, 100);
+        vm.prank(TREASURY);
+        (uint256 spent, uint256 received) = vault.settleRewards(ID, xs, 200, deadline());
+        assertEq(spent, 100);
+        assertEq(received, 200);
+        assertEq(vault.creatorLiability(ID, 1, address(meme)), 0);
+        vm.prank(BOB);
+        assertEq(vault.claimCreator(ID, 1, address(quote)), 200);
+        assertEq(quote.balanceOf(CREATOR), 200);
+        assertEq(quote.balanceOf(BOB), 0);
+        assertEq(vault.totalLiability(address(quote)), 0);
+        assertEq(vault.claimCreator(ID, 1, address(quote)), 0);
+    }
+
+    function test_disabledStakingCreatorRawExitStillRequiresDelay() public {
+        registry.disableStaking(ID);
+        vault.seed(ID, 1, address(meme), 10, 10, 0);
+        vm.prank(CREATOR);
+        vault.requestRawRewardExit(ID);
+        uint256 availableAt = vault.rawRewardExitAt(ID, CREATOR);
+        vm.expectRevert(abi.encodeWithSelector(
+            ProtocolFeeVaultRewardSettlement.OriginalRewardExitNotReady.selector, availableAt
+        ));
+        vault.claimCreator(ID, 1, address(meme));
+        vm.warp(availableAt);
+        assertEq(vault.claimCreator(ID, 1, address(meme)), 10);
+        assertEq(meme.balanceOf(CREATOR), 10);
+        assertEq(vault.claimCreator(ID, 1, address(meme)), 0);
+    }
+
+    function test_disabledStakingCannotConvertStakerItems() public {
+        registry.disableStaking(ID);
+        ConversionItem[] memory xs = new ConversionItem[](1);
+        xs[0] = item(ALICE, 0, 10);
+        vm.prank(TREASURY);
+        vm.expectRevert(ProtocolFeeVaultRewardSettlement.InvalidConversion.selector);
+        vault.settleRewards(ID, xs, 1, deadline());
     }
 
     function test_creatorAndStakerBatchProRataPreservesFixedRecipients() public {

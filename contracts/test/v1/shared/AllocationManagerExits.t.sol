@@ -56,6 +56,7 @@ contract MockExitMarketRegistry {
     function configure(bytes32 marketId, bytes32 assetUid, address gauge, uint8 launchPhase) external {
         _markets[marketId].config.assetUid = assetUid;
         _markets[marketId].config.gauge = gauge;
+        _markets[marketId].config.stakingEnabled = true;
         _markets[marketId].runtime.launchPhase = launchPhase;
     }
 

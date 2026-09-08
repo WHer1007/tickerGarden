@@ -1,0 +1,1569 @@
+{
+  "schemaVersion": 1,
+  "chainId": 46630,
+  "releaseId": "0x985650b4d3758a5345be196182d2945b9c2df3f828fdb4dbd1a94e4b6def2b64",
+  "status": "PUBLIC_TESTNET_ATOMIC_BUY_PASSED",
+  "transactions": [
+    {
+      "id": "fund-test-actor",
+      "hash": "0x3a6ed981a8ce4713ad18a0bf850a157af0790e40191c18228d4f8cf53ddde93a",
+      "from": "0xA6c3298a5559544c3b4cf8e6DC5f349f4be524ea",
+      "to": "0xeFc48ef27bb113a907cc0dD96e71291ddBeB3B4D",
+      "nonce": 122,
+      "value": "12000000000000000",
+      "inputHash": "0xc5d2460186f7233c927e7db2dcc703c0e500b653ca82273b7bfad8045d85a470",
+      "maxCostWei": "12001200000000000",
+      "status": "success",
+      "blockNumber": "115506267",
+      "blockHash": "0xdc44293dd7ab143f1f40a2f8d6aa75ad64f8f5161dfefdc67c5cfc95e7d9400a",
+      "gasUsed": "24265",
+      "feeWei": "242650000000"
+    },
+    {
+      "id": "zero-TSLA",
+      "hash": "0xb3aefff875a0073e4ac84b775a51a5b3e2b65b86b6509c77dc92be6837b523b0",
+      "from": "0xeFc48ef27bb113a907cc0dD96e71291ddBeB3B4D",
+      "to": "0x76cB1DcB45BbC003AE4AA433e936a678Cd4c2388",
+      "nonce": 0,
+      "value": "804715944670871",
+      "inputHash": "0x9ad3011fb0d187a1a571e8e8599bedb1c7b6500bac46c2ec21b8e12eab208e16",
+      "maxCostWei": "900715944670871",
+      "status": "reverted",
+      "blockNumber": "115507034",
+      "blockHash": "0xcf81f8bb098e5cde167996dc72d7569674e40d3b27e17de9ba1c2cc6739e64d5",
+      "gasUsed": "7789394",
+      "feeWei": "77893940000000"
+    },
+    {
+      "id": "zero-TSLA-gas16m",
+      "hash": "0xc440c0f5bb3bd8d67b76a92256c9f94c016a4e0218b0a9f42bea09f40c27e4bb",
+      "from": "0xeFc48ef27bb113a907cc0dD96e71291ddBeB3B4D",
+      "to": "0x76cB1DcB45BbC003AE4AA433e936a678Cd4c2388",
+      "nonce": 1,
+      "value": "804715944670871",
+      "inputHash": "0x9ad3011fb0d187a1a571e8e8599bedb1c7b6500bac46c2ec21b8e12eab208e16",
+      "maxCostWei": "996715944670871",
+      "status": "success",
+      "blockNumber": "115512162",
+      "blockHash": "0x8ff57450f9a5a85a31d25d0c5658ec3d59d5b484ed43228bf83e83852fef20bd",
+      "gasUsed": "12820796",
+      "feeWei": "128207960000000"
+    },
+    {
+      "id": "zero-AMZN",
+      "hash": "0x43a64e812f9026771169ab44936e10bc74c2c05feb0eba4378698049347e5a82",
+      "from": "0xeFc48ef27bb113a907cc0dD96e71291ddBeB3B4D",
+      "to": "0x76cB1DcB45BbC003AE4AA433e936a678Cd4c2388",
+      "nonce": 2,
+      "value": "505351948623949",
+      "inputHash": "0x55d15ab0505f346cb29163c5c10546cdc1d637b7ee24ee81ce83b98ae00d8f51",
+      "maxCostWei": "697351948623949",
+      "status": "success",
+      "blockNumber": "115512243",
+      "blockHash": "0x5bfa86e84aaab338b62521e50934f4975c3a45389bee7f8d0a06723d4873b61c",
+      "gasUsed": "12820100",
+      "feeWei": "128201000000000"
+    },
+    {
+      "id": "zero-PLTR",
+      "hash": "0x9a80a0310ad7c84e3df07064ccd7707213770640dc3c9094c0497fc3bd79ad53",
+      "from": "0xeFc48ef27bb113a907cc0dD96e71291ddBeB3B4D",
+      "to": "0x76cB1DcB45BbC003AE4AA433e936a678Cd4c2388",
+      "nonce": 3,
+      "value": "743461550144730",
+      "inputHash": "0x94c1a324a919c0833b73760288ce084aba1be20594883aa330bd887613514900",
+      "maxCostWei": "935461550144730",
+      "status": "success",
+      "blockNumber": "115512336",
+      "blockHash": "0x1abd4b5e92bad9610a7c6d33a3cfae36f71aea71d73689cd69802fc9f2e3eb36",
+      "gasUsed": "12820953",
+      "feeWei": "128209530000000"
+    },
+    {
+      "id": "zero-NFLX",
+      "hash": "0x1ded81adf3abfaddb19cc9bc0391cba18ac79db852c318853034dac23b884433",
+      "from": "0xeFc48ef27bb113a907cc0dD96e71291ddBeB3B4D",
+      "to": "0x76cB1DcB45BbC003AE4AA433e936a678Cd4c2388",
+      "nonce": 4,
+      "value": "1079853614525508",
+      "inputHash": "0x87b422b05e6e9050a9deac395c4cced7ed5510ff8cc8fea005bee2ec3b06aebc",
+      "maxCostWei": "1271853614525508",
+      "status": "success",
+      "blockNumber": "115512418",
+      "blockHash": "0x8faabd7011c0942aa50215aec1b63d967e176003a50293b201f7b92bbad68415",
+      "gasUsed": "12820795",
+      "feeWei": "128207950000000"
+    },
+    {
+      "id": "zero-AMD",
+      "hash": "0xe10d77d0cef469619cb46ff5525e74b7e13fb0fb67ec4eda6302f25db1bad922",
+      "from": "0xeFc48ef27bb113a907cc0dD96e71291ddBeB3B4D",
+      "to": "0x76cB1DcB45BbC003AE4AA433e936a678Cd4c2388",
+      "nonce": 5,
+      "value": "515288339683003",
+      "inputHash": "0x9e6c1a5c3e6e941c9701c55e922efa15ca5dec1d4e597462f19b5b46c6b21b57",
+      "maxCostWei": "707288339683003",
+      "status": "success",
+      "blockNumber": "115512497",
+      "blockHash": "0xa30a7e7a199bdfdfc6c7dcd0e4c231737a069a3cd65ea805a82fa0c9fe89efef",
+      "gasUsed": "12820466",
+      "feeWei": "128204660000000"
+    },
+    {
+      "id": "revert-max-eth",
+      "hash": "0x6256343f2013218683fc8803f2f4adb625392514b4522c3438ae8233be20bf70",
+      "from": "0xeFc48ef27bb113a907cc0dD96e71291ddBeB3B4D",
+      "to": "0x76cB1DcB45BbC003AE4AA433e936a678Cd4c2388",
+      "nonce": 6,
+      "value": "500000000000001",
+      "inputHash": "0x6f8ed86e3ffb1ab1fc48ec1f1c1330930d1abbb3ec05ac23962e3e166be579c1",
+      "maxCostWei": "692000000000001",
+      "status": "reverted",
+      "blockNumber": "115512575",
+      "blockHash": "0xeba922e235217020cf96df0015d45c34f00a4eb2d0a9ad9db9eab054e7ed9a59",
+      "gasUsed": "152542",
+      "feeWei": "1525420000000"
+    },
+    {
+      "id": "revert-min-output",
+      "hash": "0xa1705478bcde37491e3e8942ae15cf04099e4092816d8bf34e03ba504fdae252",
+      "from": "0xeFc48ef27bb113a907cc0dD96e71291ddBeB3B4D",
+      "to": "0x76cB1DcB45BbC003AE4AA433e936a678Cd4c2388",
+      "nonce": 7,
+      "value": "829711484052140",
+      "inputHash": "0x25317feaf25a460fab5053aa2b3235f5fcac8f7d8e9ddccc019bf83835114d0b",
+      "maxCostWei": "1021711484052140",
+      "status": "reverted",
+      "blockNumber": "115512650",
+      "blockHash": "0x7e86a523d8832ffb81f23d7f4ba60df1a94fc78dae8c30efbf5fe35ad5328027",
+      "gasUsed": "13057520",
+      "feeWei": "130575200000000"
+    },
+    {
+      "id": "fund-partial-quote",
+      "hash": "0xca6de7b8fb68f8a69cc51f912b14b9d6a016f81dd72a3041bbd8e7ed701f3e65",
+      "from": "0xA6c3298a5559544c3b4cf8e6DC5f349f4be524ea",
+      "to": "0xc9f9c86933092bbbfff3ccb4b105a4a94bf3bd4e",
+      "nonce": 123,
+      "value": "0",
+      "inputHash": "0xc7f8bcfdbc41a724420e18f11db4a8d454ca564a7fef8bc5cc71b6babb9bf926",
+      "maxCostWei": "192000000000000",
+      "status": "success",
+      "blockNumber": "115512702",
+      "blockHash": "0x103707d29b159aba0d3bc9182f2cac26e12811eb2f566f93f63fbcc68ecfdd3f",
+      "gasUsed": "82643",
+      "feeWei": "826430000000"
+    },
+    {
+      "id": "partial-TSLA",
+      "hash": "0x2282b8eec4aa9697956755f71d13c0f09df75877939ffcdca31a631be87ab473",
+      "from": "0xeFc48ef27bb113a907cc0dD96e71291ddBeB3B4D",
+      "to": "0x76cB1DcB45BbC003AE4AA433e936a678Cd4c2388",
+      "nonce": 8,
+      "value": "829711484052140",
+      "inputHash": "0x166d6b167dc01c68f0f7f147e858ca5c366ab93bac3a4558490dc5cadf936209",
+      "maxCostWei": "1021711484052140",
+      "status": "success",
+      "blockNumber": "115512761",
+      "blockHash": "0xd12e526f0dbaf6350b79a027e7000d188b6679e9b3fac6a635a929d11d6f6fd3",
+      "gasUsed": "12820410",
+      "feeWei": "128204100000000"
+    },
+    {
+      "id": "fund-direct-quote",
+      "hash": "0x1870fdda554b43937792189201a77193e30d0f9e62ad9ce817398bd629c7dd71",
+      "from": "0xA6c3298a5559544c3b4cf8e6DC5f349f4be524ea",
+      "to": "0xc9f9c86933092bbbfff3ccb4b105a4a94bf3bd4e",
+      "nonce": 124,
+      "value": "0",
+      "inputHash": "0x62f5f46da2ffa0b1d03e73f79881cca42e47849deb35870ca053b3da161f2391",
+      "maxCostWei": "192000000000000",
+      "status": "success",
+      "blockNumber": "115512806",
+      "blockHash": "0x12878118fd030a68e7850b417aa41557759907496d892b519412abcfad37aa15",
+      "gasUsed": "65543",
+      "feeWei": "655430000000"
+    },
+    {
+      "id": "approve-direct-quote",
+      "hash": "0xe26fda281dad1a6f8443a9d519532d3a4ec974d517199a8e3449d94983776f42",
+      "from": "0xeFc48ef27bb113a907cc0dD96e71291ddBeB3B4D",
+      "to": "0xc9f9c86933092bbbfff3ccb4b105a4a94bf3bd4e",
+      "nonce": 9,
+      "value": "0",
+      "inputHash": "0x58cb98afbc347d5281e9dff7fd8596fc2a587c2c0fb9c957ff5d29b70e6f41b4",
+      "maxCostWei": "192000000000000",
+      "status": "success",
+      "blockNumber": "115512847",
+      "blockHash": "0x6d9b313e5ef9f1ad2f1bd0c043ac5e0717547e60f9dc0f2053bfc29f04a7028a",
+      "gasUsed": "65572",
+      "feeWei": "655720000000"
+    },
+    {
+      "id": "direct-TSLA",
+      "hash": "0x0678d777d3c9035a79243329e253eda2a18f1d3fb9d716b1f97632145a6e6364",
+      "from": "0xeFc48ef27bb113a907cc0dD96e71291ddBeB3B4D",
+      "to": "0x76cB1DcB45BbC003AE4AA433e936a678Cd4c2388",
+      "nonce": 10,
+      "value": "500000000000000",
+      "inputHash": "0x5cd4c7de1132382590ec7a7a55f6fcb8d79d00d61010cdca1d49124011cf62e0",
+      "maxCostWei": "692000000000000",
+      "status": "success",
+      "blockNumber": "115512882",
+      "blockHash": "0x8906caac8c2c2d828675b4545615564c906eba74a7a89204ebe2d95b4bfb0faf",
+      "gasUsed": "12754250",
+      "feeWei": "127542500000000"
+    },
+    {
+      "id": "native-ETH",
+      "hash": "0x6de1793c5cdff27bcf424ca1e3b9411af62af8f4babf0a4757e220dfa38b0e00",
+      "from": "0xeFc48ef27bb113a907cc0dD96e71291ddBeB3B4D",
+      "to": "0x76cB1DcB45BbC003AE4AA433e936a678Cd4c2388",
+      "nonce": 11,
+      "value": "600000000000000",
+      "inputHash": "0x922d938cbc4a926d524d6b83b722c66013cbc05e284ac3abfda6615ccae952cb",
+      "maxCostWei": "792000000000000",
+      "status": "success",
+      "blockNumber": "115512938",
+      "blockHash": "0xd84a995add80c365fcbaffb7b309978a0dedad949067f95519c2f3b1062caebc",
+      "gasUsed": "5880631",
+      "feeWei": "58806310000000"
+    }
+  ],
+  "cases": [
+    {
+      "id": "zero-TSLA",
+      "mode": "fallback",
+      "asset": "TSLA",
+      "params": {
+        "assetUid": "0x0000000000000000000000000000000000000000000000000000000000000000",
+        "tickerGardenBaselineId": "0x4772f3fbe874a16fec74d7dcf2c05fda34cb6b3815a495a028ff233499cdad13",
+        "quoteAssetConfigId": "0xc8df85dcb8bee16885f1f510c49dbb43c311c70e98dbfc5103d00c604b18f154",
+        "launchTemplateId": "0xdbda74d7cbfc4ef8d7e20d18faf5724c1e51d470f7d0ba3be4411f806973cc52",
+        "expectedEconomics": "0xfac2ed321788ec1eccf94f92107ea4770c53c4555160d819732d8355b2b015c0",
+        "creatorRevenueBeneficiary": "0xeFc48ef27bb113a907cc0dD96e71291ddBeB3B4D",
+        "name": "TG atomic test zero-TSLA",
+        "symbol": "TGTEST",
+        "metadataURI": "data:application/json,%7B%22testOnly%22%3Atrue%7D",
+        "salt": "0xb1fd07ee7f1be26e8151c71dc62a18549aed2e4547ed480e6262a14f4e41e3ca",
+        "creatorTaxBps": 500,
+        "creatorFeesToHolders": true,
+        "stakingEnabled": false
+      },
+      "amount": "1000000000000000",
+      "quoted": "301698955119674",
+      "max": "304715944670871",
+      "value": "804715944670871",
+      "marketId": "0x167944a494548bfd1b71df280090ce06856034fe3f0c9fa874479a807a02082b",
+      "token": "0x4B35DA4c2f65A88237aCdb2bb0B8C3FB47DdA416",
+      "predictedTokens": "903029953695698119007819",
+      "simulatedRefund": "3016989551197",
+      "quoteBefore": "0",
+      "ethBefore": "11922106060000000",
+      "routerETHBefore": "0",
+      "routerQuoteBefore": "0",
+      "status": "PASSED",
+      "txId": "zero-TSLA-gas16m",
+      "events": [
+        {
+          "address": "0x8366a39cc670b4001a1121b8f6a443a643e40951",
+          "topics": [
+            "0x40e9cecb9f5f1f1c5b9c97dec2917b7ee92e57ba5563708daca94dd84ad7112f",
+            "0x197d7e73cb45f6f3974316879f46fc19c80c78f3f1096ecd58effe52cd9b2152",
+            "0x00000000000000000000000076cb1dcb45bbc003ae4aa433e936a678cd4c2388"
+          ],
+          "data": "0xfffffffffffffffffffffffffffffffffffffffffffffffffffeed9b3cf373c600000000000000000000000000000000000000000000000000038d7ea4c680000000000000000000000000000000000000000001cb74dd9271cfa7b34c796d7c00000000000000000000000000000000000000000000000000323e328a37c7060000000000000000000000000000000000000000000000000000000000002db10000000000000000000000000000000000000000000000000000000000002710"
+        },
+        {
+          "address": "0xc9f9c86933092bbbfff3ccb4b105a4a94bf3bd4e",
+          "topics": [
+            "0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef",
+            "0x0000000000000000000000008366a39cc670b4001a1121b8f6a443a643e40951",
+            "0x00000000000000000000000076cb1dcb45bbc003ae4aa433e936a678cd4c2388"
+          ],
+          "data": "0x00000000000000000000000000000000000000000000000000038d7ea4c68000"
+        },
+        {
+          "address": "0xc9f9c86933092bbbfff3ccb4b105a4a94bf3bd4e",
+          "topics": [
+            "0x37e7f0db430edc9dd31bc66f25f8449353aa0818f503b906747dd8f286cd3802",
+            "0x0000000000000000000000008366a39cc670b4001a1121b8f6a443a643e40951",
+            "0x00000000000000000000000076cb1dcb45bbc003ae4aa433e936a678cd4c2388"
+          ],
+          "data": "0x00000000000000000000000000000000000000000000000000038d7ea4c6800000000000000000000000000000000000000000000000000000038d7ea4c68000"
+        },
+        {
+          "address": "0x4b35da4c2f65a88237acdb2bb0b8c3fb47dda416",
+          "topics": [
+            "0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef",
+            "0x0000000000000000000000000000000000000000000000000000000000000000",
+            "0x0000000000000000000000004eb92702aabfe9edcd9f305bcf95c0353d56ff00"
+          ],
+          "data": "0x0000000000000000000000000000000000000000033b2e3c9fd0803ce8000000"
+        },
+        {
+          "address": "0x2aaf1b2097595814a50a181af65b4dbe3d5e3ea6",
+          "topics": [
+            "0xf5a17aec72961f0cea164745a33be97d2939e3215767c14a909fb4a0284f3486",
+            "0x167944a494548bfd1b71df280090ce06856034fe3f0c9fa874479a807a02082b",
+            "0x0000000000000000000000000000000000000000000000000000000000000000",
+            "0x0000000000000000000000004b35da4c2f65a88237acdb2bb0b8c3fb47dda416"
+          ],
+          "data": "0x0000000000000000000000004eb92702aabfe9edcd9f305bcf95c0353d56ff0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000001"
+        },
+        {
+          "address": "0xa951cd6f4192b4aab041ebb5ab5c40752f53e3f1",
+          "topics": [
+            "0xe1b281e232fe499b6466f312f26201c447ca57197233231f90a3096843e938c7",
+            "0x167944a494548bfd1b71df280090ce06856034fe3f0c9fa874479a807a02082b",
+            "0x0000000000000000000000000000000000000000000000000000000000000001",
+            "0x000000000000000000000000efc48ef27bb113a907cc0dd96e71291ddbeb3b4d"
+          ],
+          "data": "0x"
+        },
+        {
+          "address": "0xe30d2e71a3095c1c4c813338f8691a0c40127560",
+          "topics": [
+            "0x948d65a87633cf1e633c35375965924f98eefc17f214e630dd565880c4ec5f7b",
+            "0x167944a494548bfd1b71df280090ce06856034fe3f0c9fa874479a807a02082b",
+            "0x0000000000000000000000004b35da4c2f65a88237acdb2bb0b8c3fb47dda416"
+          ],
+          "data": "0x000000000000000000000000c9f9c86933092bbbfff3ccb4b105a4a94bf3bd4e000000000000000000000000bc5eb2ce05db5c9d19b3e0b0878100a299d2709a"
+        },
+        {
+          "address": "0xe74162027c477e1c591fac1d36e219c28dad1522",
+          "topics": [
+            "0x6a858729b3663fb6b88c7ab55523860e884a7abcc31f02538303bf7cd4e1b4f1",
+            "0x167944a494548bfd1b71df280090ce06856034fe3f0c9fa874479a807a02082b",
+            "0x0000000000000000000000000000000000000000000000000000000000000000",
+            "0x0000000000000000000000004b35da4c2f65a88237acdb2bb0b8c3fb47dda416"
+          ],
+          "data": "0x0000000000000000000000004eb92702aabfe9edcd9f305bcf95c0353d56ff000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000c9f9c86933092bbbfff3ccb4b105a4a94bf3bd4e4772f3fbe874a16fec74d7dcf2c05fda34cb6b3815a495a028ff233499cdad13c8df85dcb8bee16885f1f510c49dbb43c311c70e98dbfc5103d00c604b18f154fac2ed321788ec1eccf94f92107ea4770c53c4555160d819732d8355b2b015c0"
+        },
+        {
+          "address": "0xc9f9c86933092bbbfff3ccb4b105a4a94bf3bd4e",
+          "topics": [
+            "0x8c5be1e5ebec7d5bd14f71427d1e84f3dd0314c0f7b2291e5b200ac8c7c3b925",
+            "0x00000000000000000000000076cb1dcb45bbc003ae4aa433e936a678cd4c2388",
+            "0x0000000000000000000000004eb92702aabfe9edcd9f305bcf95c0353d56ff00"
+          ],
+          "data": "0x00000000000000000000000000000000000000000000000000038d7ea4c68000"
+        },
+        {
+          "address": "0xc9f9c86933092bbbfff3ccb4b105a4a94bf3bd4e",
+          "topics": [
+            "0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef",
+            "0x00000000000000000000000076cb1dcb45bbc003ae4aa433e936a678cd4c2388",
+            "0x0000000000000000000000004eb92702aabfe9edcd9f305bcf95c0353d56ff00"
+          ],
+          "data": "0x00000000000000000000000000000000000000000000000000038d7ea4c68000"
+        },
+        {
+          "address": "0xc9f9c86933092bbbfff3ccb4b105a4a94bf3bd4e",
+          "topics": [
+            "0x37e7f0db430edc9dd31bc66f25f8449353aa0818f503b906747dd8f286cd3802",
+            "0x00000000000000000000000076cb1dcb45bbc003ae4aa433e936a678cd4c2388",
+            "0x0000000000000000000000004eb92702aabfe9edcd9f305bcf95c0353d56ff00"
+          ],
+          "data": "0x00000000000000000000000000000000000000000000000000038d7ea4c6800000000000000000000000000000000000000000000000000000038d7ea4c68000"
+        },
+        {
+          "address": "0x4b35da4c2f65a88237acdb2bb0b8c3fb47dda416",
+          "topics": [
+            "0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef",
+            "0x0000000000000000000000004eb92702aabfe9edcd9f305bcf95c0353d56ff00",
+            "0x000000000000000000000000efc48ef27bb113a907cc0dd96e71291ddbeb3b4d"
+          ],
+          "data": "0x00000000000000000000000000000000000000000000bf395a14dc7d7ae79e4b"
+        },
+        {
+          "address": "0x4eb92702aabfe9edcd9f305bcf95c0353d56ff00",
+          "topics": [
+            "0xec36bf571f136799e8dc0b0b8bea4b04d8bd3d43de838aab0d5fc21d4cbfc455",
+            "0x00000000000000000000000076cb1dcb45bbc003ae4aa433e936a678cd4c2388",
+            "0x000000000000000000000000efc48ef27bb113a907cc0dd96e71291ddbeb3b4d"
+          ],
+          "data": "0x00000000000000000000000000000000000000000000000000038d7ea4c6800000000000000000000000000000000000000000000000bf395a14dc7d7ae79e4b000000000000000000000000000000000000000000000000000009184e72a00000000000000000000000000000000000000000000000000000002d79883d2000"
+        }
+      ],
+      "received": "903029953695698119007819",
+      "quoteAfter": "0",
+      "ethAfter": "10992199144880326",
+      "actualValueSpent": "801698955119674",
+      "txHash": "0xc440c0f5bb3bd8d67b76a92256c9f94c016a4e0218b0a9f42bea09f40c27e4bb"
+    },
+    {
+      "id": "zero-AMZN",
+      "mode": "fallback",
+      "asset": "AMZN",
+      "params": {
+        "assetUid": "0x0000000000000000000000000000000000000000000000000000000000000000",
+        "tickerGardenBaselineId": "0x4772f3fbe874a16fec74d7dcf2c05fda34cb6b3815a495a028ff233499cdad13",
+        "quoteAssetConfigId": "0x6e60f0d352845a4392ec00241221d8abf5843fe0edafce32c2db927b18c314fd",
+        "launchTemplateId": "0xdbda74d7cbfc4ef8d7e20d18faf5724c1e51d470f7d0ba3be4411f806973cc52",
+        "expectedEconomics": "0x837a8c77bc98c5c3eaf739861f7f7354998a53f2e7439d3174a9e026aaa60299",
+        "creatorRevenueBeneficiary": "0xeFc48ef27bb113a907cc0dD96e71291ddBeB3B4D",
+        "name": "TG atomic test zero-AMZN",
+        "symbol": "TGTEST",
+        "metadataURI": "data:application/json,%7B%22testOnly%22%3Atrue%7D",
+        "salt": "0xaa5725d5cdba78740a64de18fcfdbbd2bd9dbe94dcea84236bc290dbe20b2a02",
+        "creatorTaxBps": 500,
+        "creatorFeesToHolders": true,
+        "stakingEnabled": false
+      },
+      "amount": "1000000000000000",
+      "quoted": "5298959033612",
+      "max": "5351948623949",
+      "value": "505351948623949",
+      "marketId": "0xc6c1d710faa629a046a20869fb693b786044cf45e9c5970827278de0dcd60161",
+      "token": "0x676Ca551d27AC4d0E1B3982F6e5295C0D6b80644",
+      "predictedTokens": "800578021633818184661617",
+      "simulatedRefund": "52989590337",
+      "quoteBefore": "0",
+      "ethBefore": "10992199144880326",
+      "routerETHBefore": "0",
+      "routerQuoteBefore": "0",
+      "status": "PASSED",
+      "events": [
+        {
+          "address": "0x8366a39cc670b4001a1121b8f6a443a643e40951",
+          "topics": [
+            "0x40e9cecb9f5f1f1c5b9c97dec2917b7ee92e57ba5563708daca94dd84ad7112f",
+            "0x978bf7f3949ffc284ed352e28b0bc32efecc9efd0f4f0c4bc971ff742ac3b066",
+            "0x00000000000000000000000076cb1dcb45bbc003ae4aa433e936a678cd4c2388"
+          ],
+          "data": "0xfffffffffffffffffffffffffffffffffffffffffffffffffffffb2e3d6ddaf400000000000000000000000000000000000000000000000000038d7ea4c68000000000000000000000000000000000000000000dc5740bd4bf28e09fb94d8cca00000000000000000000000000000000000000000000000000323e328a37c706000000000000000000000000000000000000000000000000000000000000cce60000000000000000000000000000000000000000000000000000000000002710"
+        },
+        {
+          "address": "0x5884ad2f920c162cfbbacc88c9c51aa75ec09e02",
+          "topics": [
+            "0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef",
+            "0x0000000000000000000000008366a39cc670b4001a1121b8f6a443a643e40951",
+            "0x00000000000000000000000076cb1dcb45bbc003ae4aa433e936a678cd4c2388"
+          ],
+          "data": "0x00000000000000000000000000000000000000000000000000038d7ea4c68000"
+        },
+        {
+          "address": "0x5884ad2f920c162cfbbacc88c9c51aa75ec09e02",
+          "topics": [
+            "0x37e7f0db430edc9dd31bc66f25f8449353aa0818f503b906747dd8f286cd3802",
+            "0x0000000000000000000000008366a39cc670b4001a1121b8f6a443a643e40951",
+            "0x00000000000000000000000076cb1dcb45bbc003ae4aa433e936a678cd4c2388"
+          ],
+          "data": "0x00000000000000000000000000000000000000000000000000038d7ea4c6800000000000000000000000000000000000000000000000000000038d7ea4c68000"
+        },
+        {
+          "address": "0x676ca551d27ac4d0e1b3982f6e5295c0d6b80644",
+          "topics": [
+            "0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef",
+            "0x0000000000000000000000000000000000000000000000000000000000000000",
+            "0x00000000000000000000000072577d822b168a2af4c0bbd4708545176dddd12b"
+          ],
+          "data": "0x0000000000000000000000000000000000000000033b2e3c9fd0803ce8000000"
+        },
+        {
+          "address": "0x2aaf1b2097595814a50a181af65b4dbe3d5e3ea6",
+          "topics": [
+            "0xf5a17aec72961f0cea164745a33be97d2939e3215767c14a909fb4a0284f3486",
+            "0xc6c1d710faa629a046a20869fb693b786044cf45e9c5970827278de0dcd60161",
+            "0x0000000000000000000000000000000000000000000000000000000000000000",
+            "0x000000000000000000000000676ca551d27ac4d0e1b3982f6e5295c0d6b80644"
+          ],
+          "data": "0x00000000000000000000000072577d822b168a2af4c0bbd4708545176dddd12b00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000001"
+        },
+        {
+          "address": "0xa951cd6f4192b4aab041ebb5ab5c40752f53e3f1",
+          "topics": [
+            "0xe1b281e232fe499b6466f312f26201c447ca57197233231f90a3096843e938c7",
+            "0xc6c1d710faa629a046a20869fb693b786044cf45e9c5970827278de0dcd60161",
+            "0x0000000000000000000000000000000000000000000000000000000000000001",
+            "0x000000000000000000000000efc48ef27bb113a907cc0dd96e71291ddbeb3b4d"
+          ],
+          "data": "0x"
+        },
+        {
+          "address": "0xe30d2e71a3095c1c4c813338f8691a0c40127560",
+          "topics": [
+            "0x948d65a87633cf1e633c35375965924f98eefc17f214e630dd565880c4ec5f7b",
+            "0xc6c1d710faa629a046a20869fb693b786044cf45e9c5970827278de0dcd60161",
+            "0x000000000000000000000000676ca551d27ac4d0e1b3982f6e5295c0d6b80644"
+          ],
+          "data": "0x0000000000000000000000005884ad2f920c162cfbbacc88c9c51aa75ec09e02000000000000000000000000bc5eb2ce05db5c9d19b3e0b0878100a299d2709a"
+        },
+        {
+          "address": "0xe74162027c477e1c591fac1d36e219c28dad1522",
+          "topics": [
+            "0x6a858729b3663fb6b88c7ab55523860e884a7abcc31f02538303bf7cd4e1b4f1",
+            "0xc6c1d710faa629a046a20869fb693b786044cf45e9c5970827278de0dcd60161",
+            "0x0000000000000000000000000000000000000000000000000000000000000000",
+            "0x000000000000000000000000676ca551d27ac4d0e1b3982f6e5295c0d6b80644"
+          ],
+          "data": "0x00000000000000000000000072577d822b168a2af4c0bbd4708545176dddd12b00000000000000000000000000000000000000000000000000000000000000000000000000000000000000005884ad2f920c162cfbbacc88c9c51aa75ec09e024772f3fbe874a16fec74d7dcf2c05fda34cb6b3815a495a028ff233499cdad136e60f0d352845a4392ec00241221d8abf5843fe0edafce32c2db927b18c314fd837a8c77bc98c5c3eaf739861f7f7354998a53f2e7439d3174a9e026aaa60299"
+        },
+        {
+          "address": "0x5884ad2f920c162cfbbacc88c9c51aa75ec09e02",
+          "topics": [
+            "0x8c5be1e5ebec7d5bd14f71427d1e84f3dd0314c0f7b2291e5b200ac8c7c3b925",
+            "0x00000000000000000000000076cb1dcb45bbc003ae4aa433e936a678cd4c2388",
+            "0x00000000000000000000000072577d822b168a2af4c0bbd4708545176dddd12b"
+          ],
+          "data": "0x00000000000000000000000000000000000000000000000000038d7ea4c68000"
+        },
+        {
+          "address": "0x5884ad2f920c162cfbbacc88c9c51aa75ec09e02",
+          "topics": [
+            "0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef",
+            "0x00000000000000000000000076cb1dcb45bbc003ae4aa433e936a678cd4c2388",
+            "0x00000000000000000000000072577d822b168a2af4c0bbd4708545176dddd12b"
+          ],
+          "data": "0x00000000000000000000000000000000000000000000000000038d7ea4c68000"
+        },
+        {
+          "address": "0x5884ad2f920c162cfbbacc88c9c51aa75ec09e02",
+          "topics": [
+            "0x37e7f0db430edc9dd31bc66f25f8449353aa0818f503b906747dd8f286cd3802",
+            "0x00000000000000000000000076cb1dcb45bbc003ae4aa433e936a678cd4c2388",
+            "0x00000000000000000000000072577d822b168a2af4c0bbd4708545176dddd12b"
+          ],
+          "data": "0x00000000000000000000000000000000000000000000000000038d7ea4c6800000000000000000000000000000000000000000000000000000038d7ea4c68000"
+        },
+        {
+          "address": "0x676ca551d27ac4d0e1b3982f6e5295c0d6b80644",
+          "topics": [
+            "0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef",
+            "0x00000000000000000000000072577d822b168a2af4c0bbd4708545176dddd12b",
+            "0x000000000000000000000000efc48ef27bb113a907cc0dd96e71291ddbeb3b4d"
+          ],
+          "data": "0x00000000000000000000000000000000000000000000a9876be867cf73d03a71"
+        },
+        {
+          "address": "0x72577d822b168a2af4c0bbd4708545176dddd12b",
+          "topics": [
+            "0xec36bf571f136799e8dc0b0b8bea4b04d8bd3d43de838aab0d5fc21d4cbfc455",
+            "0x00000000000000000000000076cb1dcb45bbc003ae4aa433e936a678cd4c2388",
+            "0x000000000000000000000000efc48ef27bb113a907cc0dd96e71291ddbeb3b4d"
+          ],
+          "data": "0x00000000000000000000000000000000000000000000000000038d7ea4c6800000000000000000000000000000000000000000000000a9876be867cf73d03a71000000000000000000000000000000000000000000000000000009184e72a00000000000000000000000000000000000000000000000000000002d79883d2000"
+        }
+      ],
+      "received": "800578021633818184661617",
+      "quoteAfter": "0",
+      "ethAfter": "10358699185846714",
+      "actualValueSpent": "505298959033612",
+      "txHash": "0x43a64e812f9026771169ab44936e10bc74c2c05feb0eba4378698049347e5a82"
+    },
+    {
+      "id": "zero-PLTR",
+      "mode": "fallback",
+      "asset": "PLTR",
+      "params": {
+        "assetUid": "0x0000000000000000000000000000000000000000000000000000000000000000",
+        "tickerGardenBaselineId": "0x4772f3fbe874a16fec74d7dcf2c05fda34cb6b3815a495a028ff233499cdad13",
+        "quoteAssetConfigId": "0x7c9668a18481147efd6babaf348b14ca59b99dfe12c530a4ef7259af52e34034",
+        "launchTemplateId": "0xdbda74d7cbfc4ef8d7e20d18faf5724c1e51d470f7d0ba3be4411f806973cc52",
+        "expectedEconomics": "0x065c8b8b8c378741dafaaaf943699f68e727d963f79d90fa504301af00327a70",
+        "creatorRevenueBeneficiary": "0xeFc48ef27bb113a907cc0dD96e71291ddBeB3B4D",
+        "name": "TG atomic test zero-PLTR",
+        "symbol": "TGTEST",
+        "metadataURI": "data:application/json,%7B%22testOnly%22%3Atrue%7D",
+        "salt": "0xaf23269a539d1006ad2ed3d698587a1e9f346f789a871a7fbe5d87cdc053e06b",
+        "creatorTaxBps": 500,
+        "creatorFeesToHolders": true,
+        "stakingEnabled": false
+      },
+      "amount": "1000000000000000",
+      "quoted": "241051039747257",
+      "max": "243461550144730",
+      "value": "743461550144730",
+      "marketId": "0xd351a73a0db2f66da2407e07a31bb18d9ce3c694c71ddffd0b20a3d8a7b22941",
+      "token": "0x272d7D0c61ba04a6Bd8Dc7041aa8E5138C4cacfb",
+      "predictedTokens": "499058952529314618260879",
+      "simulatedRefund": "2410510397473",
+      "quoteBefore": "0",
+      "ethBefore": "10358699185846714",
+      "routerETHBefore": "0",
+      "routerQuoteBefore": "0",
+      "status": "PASSED",
+      "events": [
+        {
+          "address": "0x8366a39cc670b4001a1121b8f6a443a643e40951",
+          "topics": [
+            "0x40e9cecb9f5f1f1c5b9c97dec2917b7ee92e57ba5563708daca94dd84ad7112f",
+            "0xaf250b056bbe12c268c19e837927431c661d51b92f78471c1e5f9477a048a500",
+            "0x00000000000000000000000076cb1dcb45bbc003ae4aa433e936a678cd4c2388"
+          ],
+          "data": "0xffffffffffffffffffffffffffffffffffffffffffffffffffff24c3ee67334700000000000000000000000000000000000000000000000000038d7ea4c6800000000000000000000000000000000000000000020312422a54dbb5ade56cd84700000000000000000000000000000000000000000000000000323e328a37c706000000000000000000000000000000000000000000000000000000000000369f0000000000000000000000000000000000000000000000000000000000002710"
+        },
+        {
+          "address": "0x1fbe1a0e43594b3455993b5de5fd0a7a266298d0",
+          "topics": [
+            "0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef",
+            "0x0000000000000000000000008366a39cc670b4001a1121b8f6a443a643e40951",
+            "0x00000000000000000000000076cb1dcb45bbc003ae4aa433e936a678cd4c2388"
+          ],
+          "data": "0x00000000000000000000000000000000000000000000000000038d7ea4c68000"
+        },
+        {
+          "address": "0x1fbe1a0e43594b3455993b5de5fd0a7a266298d0",
+          "topics": [
+            "0x37e7f0db430edc9dd31bc66f25f8449353aa0818f503b906747dd8f286cd3802",
+            "0x0000000000000000000000008366a39cc670b4001a1121b8f6a443a643e40951",
+            "0x00000000000000000000000076cb1dcb45bbc003ae4aa433e936a678cd4c2388"
+          ],
+          "data": "0x00000000000000000000000000000000000000000000000000038d7ea4c6800000000000000000000000000000000000000000000000000000038d7ea4c68000"
+        },
+        {
+          "address": "0x272d7d0c61ba04a6bd8dc7041aa8e5138c4cacfb",
+          "topics": [
+            "0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef",
+            "0x0000000000000000000000000000000000000000000000000000000000000000",
+            "0x00000000000000000000000072c737f8a6150c00aedec3b90c4831f33a6f712d"
+          ],
+          "data": "0x0000000000000000000000000000000000000000033b2e3c9fd0803ce8000000"
+        },
+        {
+          "address": "0x2aaf1b2097595814a50a181af65b4dbe3d5e3ea6",
+          "topics": [
+            "0xf5a17aec72961f0cea164745a33be97d2939e3215767c14a909fb4a0284f3486",
+            "0xd351a73a0db2f66da2407e07a31bb18d9ce3c694c71ddffd0b20a3d8a7b22941",
+            "0x0000000000000000000000000000000000000000000000000000000000000000",
+            "0x000000000000000000000000272d7d0c61ba04a6bd8dc7041aa8e5138c4cacfb"
+          ],
+          "data": "0x00000000000000000000000072c737f8a6150c00aedec3b90c4831f33a6f712d00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000001"
+        },
+        {
+          "address": "0xa951cd6f4192b4aab041ebb5ab5c40752f53e3f1",
+          "topics": [
+            "0xe1b281e232fe499b6466f312f26201c447ca57197233231f90a3096843e938c7",
+            "0xd351a73a0db2f66da2407e07a31bb18d9ce3c694c71ddffd0b20a3d8a7b22941",
+            "0x0000000000000000000000000000000000000000000000000000000000000001",
+            "0x000000000000000000000000efc48ef27bb113a907cc0dd96e71291ddbeb3b4d"
+          ],
+          "data": "0x"
+        },
+        {
+          "address": "0xe30d2e71a3095c1c4c813338f8691a0c40127560",
+          "topics": [
+            "0x948d65a87633cf1e633c35375965924f98eefc17f214e630dd565880c4ec5f7b",
+            "0xd351a73a0db2f66da2407e07a31bb18d9ce3c694c71ddffd0b20a3d8a7b22941",
+            "0x000000000000000000000000272d7d0c61ba04a6bd8dc7041aa8e5138c4cacfb"
+          ],
+          "data": "0x0000000000000000000000001fbe1a0e43594b3455993b5de5fd0a7a266298d0000000000000000000000000bc5eb2ce05db5c9d19b3e0b0878100a299d2709a"
+        },
+        {
+          "address": "0xe74162027c477e1c591fac1d36e219c28dad1522",
+          "topics": [
+            "0x6a858729b3663fb6b88c7ab55523860e884a7abcc31f02538303bf7cd4e1b4f1",
+            "0xd351a73a0db2f66da2407e07a31bb18d9ce3c694c71ddffd0b20a3d8a7b22941",
+            "0x0000000000000000000000000000000000000000000000000000000000000000",
+            "0x000000000000000000000000272d7d0c61ba04a6bd8dc7041aa8e5138c4cacfb"
+          ],
+          "data": "0x00000000000000000000000072c737f8a6150c00aedec3b90c4831f33a6f712d00000000000000000000000000000000000000000000000000000000000000000000000000000000000000001fbe1a0e43594b3455993b5de5fd0a7a266298d04772f3fbe874a16fec74d7dcf2c05fda34cb6b3815a495a028ff233499cdad137c9668a18481147efd6babaf348b14ca59b99dfe12c530a4ef7259af52e34034065c8b8b8c378741dafaaaf943699f68e727d963f79d90fa504301af00327a70"
+        },
+        {
+          "address": "0x1fbe1a0e43594b3455993b5de5fd0a7a266298d0",
+          "topics": [
+            "0x8c5be1e5ebec7d5bd14f71427d1e84f3dd0314c0f7b2291e5b200ac8c7c3b925",
+            "0x00000000000000000000000076cb1dcb45bbc003ae4aa433e936a678cd4c2388",
+            "0x00000000000000000000000072c737f8a6150c00aedec3b90c4831f33a6f712d"
+          ],
+          "data": "0x00000000000000000000000000000000000000000000000000038d7ea4c68000"
+        },
+        {
+          "address": "0x1fbe1a0e43594b3455993b5de5fd0a7a266298d0",
+          "topics": [
+            "0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef",
+            "0x00000000000000000000000076cb1dcb45bbc003ae4aa433e936a678cd4c2388",
+            "0x00000000000000000000000072c737f8a6150c00aedec3b90c4831f33a6f712d"
+          ],
+          "data": "0x00000000000000000000000000000000000000000000000000038d7ea4c68000"
+        },
+        {
+          "address": "0x1fbe1a0e43594b3455993b5de5fd0a7a266298d0",
+          "topics": [
+            "0x37e7f0db430edc9dd31bc66f25f8449353aa0818f503b906747dd8f286cd3802",
+            "0x00000000000000000000000076cb1dcb45bbc003ae4aa433e936a678cd4c2388",
+            "0x00000000000000000000000072c737f8a6150c00aedec3b90c4831f33a6f712d"
+          ],
+          "data": "0x00000000000000000000000000000000000000000000000000038d7ea4c6800000000000000000000000000000000000000000000000000000038d7ea4c68000"
+        },
+        {
+          "address": "0x272d7d0c61ba04a6bd8dc7041aa8e5138c4cacfb",
+          "topics": [
+            "0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef",
+            "0x00000000000000000000000072c737f8a6150c00aedec3b90c4831f33a6f712d",
+            "0x000000000000000000000000efc48ef27bb113a907cc0dd96e71291ddbeb3b4d"
+          ],
+          "data": "0x0000000000000000000000000000000000000000000069ae0a3f2dc24a7fbd8f"
+        },
+        {
+          "address": "0x72c737f8a6150c00aedec3b90c4831f33a6f712d",
+          "topics": [
+            "0xec36bf571f136799e8dc0b0b8bea4b04d8bd3d43de838aab0d5fc21d4cbfc455",
+            "0x00000000000000000000000076cb1dcb45bbc003ae4aa433e936a678cd4c2388",
+            "0x000000000000000000000000efc48ef27bb113a907cc0dd96e71291ddbeb3b4d"
+          ],
+          "data": "0x00000000000000000000000000000000000000000000000000038d7ea4c680000000000000000000000000000000000000000000000069ae0a3f2dc24a7fbd8f000000000000000000000000000000000000000000000000000009184e72a00000000000000000000000000000000000000000000000000000002d79883d2000"
+        }
+      ],
+      "received": "499058952529314618260879",
+      "quoteAfter": "0",
+      "ethAfter": "9489438616099457",
+      "actualValueSpent": "741051039747257",
+      "txHash": "0x9a80a0310ad7c84e3df07064ccd7707213770640dc3c9094c0497fc3bd79ad53"
+    },
+    {
+      "id": "zero-NFLX",
+      "mode": "fallback",
+      "asset": "NFLX",
+      "params": {
+        "assetUid": "0x0000000000000000000000000000000000000000000000000000000000000000",
+        "tickerGardenBaselineId": "0x4772f3fbe874a16fec74d7dcf2c05fda34cb6b3815a495a028ff233499cdad13",
+        "quoteAssetConfigId": "0x37ce1c05967d8116444d9569304adfdae5b857791d81d730a18433242ee1741d",
+        "launchTemplateId": "0xdbda74d7cbfc4ef8d7e20d18faf5724c1e51d470f7d0ba3be4411f806973cc52",
+        "expectedEconomics": "0xfe36e25c40c3fb297c613d65eaf4555a89c6b907d2bc627a254eea5556f257f2",
+        "creatorRevenueBeneficiary": "0xeFc48ef27bb113a907cc0dD96e71291ddBeB3B4D",
+        "name": "TG atomic test zero-NFLX",
+        "symbol": "TGTEST",
+        "metadataURI": "data:application/json,%7B%22testOnly%22%3Atrue%7D",
+        "salt": "0x0e66a74dc4fac1cb70c530d47c8ac03d5b7ef70fd110c3e4e3308654ac4fcd20",
+        "creatorTaxBps": 500,
+        "creatorFeesToHolders": true,
+        "stakingEnabled": false
+      },
+      "amount": "1000000000000000",
+      "quoted": "574112489629215",
+      "max": "579853614525508",
+      "value": "1079853614525508",
+      "marketId": "0x7d1ffa2db82a3f56340482232ca1a0d9c13dee40fa8d573db63ece2276e7c642",
+      "token": "0xfB4a33e609c9183585F357cAE032d1e27bAB891E",
+      "predictedTokens": "180316295158440144930472",
+      "simulatedRefund": "5741124896293",
+      "quoteBefore": "0",
+      "ethBefore": "9489438616099457",
+      "routerETHBefore": "0",
+      "routerQuoteBefore": "0",
+      "status": "PASSED",
+      "events": [
+        {
+          "address": "0x8366a39cc670b4001a1121b8f6a443a643e40951",
+          "topics": [
+            "0x40e9cecb9f5f1f1c5b9c97dec2917b7ee92e57ba5563708daca94dd84ad7112f",
+            "0xb445c05bebb8a2fb61cf8dc6427c65a4aeea36d6f9527edf22fff59da0fc846a",
+            "0x00000000000000000000000076cb1dcb45bbc003ae4aa433e936a678cd4c2388"
+          ],
+          "data": "0xfffffffffffffffffffffffffffffffffffffffffffffffffffdf5d904fe99e100000000000000000000000000000000000000000000000000038d7ea4c6800000000000000000000000000000000000000000014aa2a8401e9d6c57938d524700000000000000000000000000000000000000000000000000323e328a37c70600000000000000000000000000000000000000000000000000000000000013fd0000000000000000000000000000000000000000000000000000000000002710"
+        },
+        {
+          "address": "0x3b8262a63d25f0477c4dde23f83cfe22cb768c93",
+          "topics": [
+            "0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef",
+            "0x0000000000000000000000008366a39cc670b4001a1121b8f6a443a643e40951",
+            "0x00000000000000000000000076cb1dcb45bbc003ae4aa433e936a678cd4c2388"
+          ],
+          "data": "0x00000000000000000000000000000000000000000000000000038d7ea4c68000"
+        },
+        {
+          "address": "0x3b8262a63d25f0477c4dde23f83cfe22cb768c93",
+          "topics": [
+            "0x37e7f0db430edc9dd31bc66f25f8449353aa0818f503b906747dd8f286cd3802",
+            "0x0000000000000000000000008366a39cc670b4001a1121b8f6a443a643e40951",
+            "0x00000000000000000000000076cb1dcb45bbc003ae4aa433e936a678cd4c2388"
+          ],
+          "data": "0x00000000000000000000000000000000000000000000000000038d7ea4c6800000000000000000000000000000000000000000000000000000038d7ea4c68000"
+        },
+        {
+          "address": "0xfb4a33e609c9183585f357cae032d1e27bab891e",
+          "topics": [
+            "0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef",
+            "0x0000000000000000000000000000000000000000000000000000000000000000",
+            "0x0000000000000000000000001942cf17f52ada2b035102ec4beb6908702729d9"
+          ],
+          "data": "0x0000000000000000000000000000000000000000033b2e3c9fd0803ce8000000"
+        },
+        {
+          "address": "0x2aaf1b2097595814a50a181af65b4dbe3d5e3ea6",
+          "topics": [
+            "0xf5a17aec72961f0cea164745a33be97d2939e3215767c14a909fb4a0284f3486",
+            "0x7d1ffa2db82a3f56340482232ca1a0d9c13dee40fa8d573db63ece2276e7c642",
+            "0x0000000000000000000000000000000000000000000000000000000000000000",
+            "0x000000000000000000000000fb4a33e609c9183585f357cae032d1e27bab891e"
+          ],
+          "data": "0x0000000000000000000000001942cf17f52ada2b035102ec4beb6908702729d900000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000001"
+        },
+        {
+          "address": "0xa951cd6f4192b4aab041ebb5ab5c40752f53e3f1",
+          "topics": [
+            "0xe1b281e232fe499b6466f312f26201c447ca57197233231f90a3096843e938c7",
+            "0x7d1ffa2db82a3f56340482232ca1a0d9c13dee40fa8d573db63ece2276e7c642",
+            "0x0000000000000000000000000000000000000000000000000000000000000001",
+            "0x000000000000000000000000efc48ef27bb113a907cc0dd96e71291ddbeb3b4d"
+          ],
+          "data": "0x"
+        },
+        {
+          "address": "0xe30d2e71a3095c1c4c813338f8691a0c40127560",
+          "topics": [
+            "0x948d65a87633cf1e633c35375965924f98eefc17f214e630dd565880c4ec5f7b",
+            "0x7d1ffa2db82a3f56340482232ca1a0d9c13dee40fa8d573db63ece2276e7c642",
+            "0x000000000000000000000000fb4a33e609c9183585f357cae032d1e27bab891e"
+          ],
+          "data": "0x0000000000000000000000003b8262a63d25f0477c4dde23f83cfe22cb768c93000000000000000000000000bc5eb2ce05db5c9d19b3e0b0878100a299d2709a"
+        },
+        {
+          "address": "0xe74162027c477e1c591fac1d36e219c28dad1522",
+          "topics": [
+            "0x6a858729b3663fb6b88c7ab55523860e884a7abcc31f02538303bf7cd4e1b4f1",
+            "0x7d1ffa2db82a3f56340482232ca1a0d9c13dee40fa8d573db63ece2276e7c642",
+            "0x0000000000000000000000000000000000000000000000000000000000000000",
+            "0x000000000000000000000000fb4a33e609c9183585f357cae032d1e27bab891e"
+          ],
+          "data": "0x0000000000000000000000001942cf17f52ada2b035102ec4beb6908702729d900000000000000000000000000000000000000000000000000000000000000000000000000000000000000003b8262a63d25f0477c4dde23f83cfe22cb768c934772f3fbe874a16fec74d7dcf2c05fda34cb6b3815a495a028ff233499cdad1337ce1c05967d8116444d9569304adfdae5b857791d81d730a18433242ee1741dfe36e25c40c3fb297c613d65eaf4555a89c6b907d2bc627a254eea5556f257f2"
+        },
+        {
+          "address": "0x3b8262a63d25f0477c4dde23f83cfe22cb768c93",
+          "topics": [
+            "0x8c5be1e5ebec7d5bd14f71427d1e84f3dd0314c0f7b2291e5b200ac8c7c3b925",
+            "0x00000000000000000000000076cb1dcb45bbc003ae4aa433e936a678cd4c2388",
+            "0x0000000000000000000000001942cf17f52ada2b035102ec4beb6908702729d9"
+          ],
+          "data": "0x00000000000000000000000000000000000000000000000000038d7ea4c68000"
+        },
+        {
+          "address": "0x3b8262a63d25f0477c4dde23f83cfe22cb768c93",
+          "topics": [
+            "0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef",
+            "0x00000000000000000000000076cb1dcb45bbc003ae4aa433e936a678cd4c2388",
+            "0x0000000000000000000000001942cf17f52ada2b035102ec4beb6908702729d9"
+          ],
+          "data": "0x00000000000000000000000000000000000000000000000000038d7ea4c68000"
+        },
+        {
+          "address": "0x3b8262a63d25f0477c4dde23f83cfe22cb768c93",
+          "topics": [
+            "0x37e7f0db430edc9dd31bc66f25f8449353aa0818f503b906747dd8f286cd3802",
+            "0x00000000000000000000000076cb1dcb45bbc003ae4aa433e936a678cd4c2388",
+            "0x0000000000000000000000001942cf17f52ada2b035102ec4beb6908702729d9"
+          ],
+          "data": "0x00000000000000000000000000000000000000000000000000038d7ea4c6800000000000000000000000000000000000000000000000000000038d7ea4c68000"
+        },
+        {
+          "address": "0xfb4a33e609c9183585f357cae032d1e27bab891e",
+          "topics": [
+            "0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef",
+            "0x0000000000000000000000001942cf17f52ada2b035102ec4beb6908702729d9",
+            "0x000000000000000000000000efc48ef27bb113a907cc0dd96e71291ddbeb3b4d"
+          ],
+          "data": "0x00000000000000000000000000000000000000000000262ef74851ecc13c06a8"
+        },
+        {
+          "address": "0x1942cf17f52ada2b035102ec4beb6908702729d9",
+          "topics": [
+            "0xec36bf571f136799e8dc0b0b8bea4b04d8bd3d43de838aab0d5fc21d4cbfc455",
+            "0x00000000000000000000000076cb1dcb45bbc003ae4aa433e936a678cd4c2388",
+            "0x000000000000000000000000efc48ef27bb113a907cc0dd96e71291ddbeb3b4d"
+          ],
+          "data": "0x00000000000000000000000000000000000000000000000000038d7ea4c6800000000000000000000000000000000000000000000000262ef74851ecc13c06a8000000000000000000000000000000000000000000000000000009184e72a00000000000000000000000000000000000000000000000000000002d79883d2000"
+        }
+      ],
+      "received": "180316295158440144930472",
+      "quoteAfter": "0",
+      "ethAfter": "8287118176470242",
+      "actualValueSpent": "1074112489629215",
+      "txHash": "0x1ded81adf3abfaddb19cc9bc0391cba18ac79db852c318853034dac23b884433"
+    },
+    {
+      "id": "zero-AMD",
+      "mode": "fallback",
+      "asset": "AMD",
+      "params": {
+        "assetUid": "0x0000000000000000000000000000000000000000000000000000000000000000",
+        "tickerGardenBaselineId": "0x4772f3fbe874a16fec74d7dcf2c05fda34cb6b3815a495a028ff233499cdad13",
+        "quoteAssetConfigId": "0xc7574793f7fb5accd4350a084c3d4775ecd1fe74f37550d6aebf027cc7c6b9d1",
+        "launchTemplateId": "0xdbda74d7cbfc4ef8d7e20d18faf5724c1e51d470f7d0ba3be4411f806973cc52",
+        "expectedEconomics": "0x57d2691c400741971bdc7c31870905c57d41e90d9d9cc1ed16ca9b80196f90ba",
+        "creatorRevenueBeneficiary": "0xeFc48ef27bb113a907cc0dD96e71291ddBeB3B4D",
+        "name": "TG atomic test zero-AMD",
+        "symbol": "TGTEST",
+        "metadataURI": "data:application/json,%7B%22testOnly%22%3Atrue%7D",
+        "salt": "0x86242d595796196bca0e1ebe2de7b69b1d593cafc4329e255f7819679b370d4a",
+        "creatorTaxBps": 500,
+        "creatorFeesToHolders": true,
+        "stakingEnabled": false
+      },
+      "amount": "1000000000000000",
+      "quoted": "15136969983171",
+      "max": "15288339683003",
+      "value": "515288339683003",
+      "marketId": "0x0d55f5a00d1a9df03b9ad832ac2e6755f4323c08499329f58b4a34838fe63ef2",
+      "token": "0x32c7A605559917CF095C1163B32dE980BF63e81b",
+      "predictedTokens": "1408112741051717105363605",
+      "simulatedRefund": "151369699832",
+      "quoteBefore": "0",
+      "ethBefore": "8287118176470242",
+      "routerETHBefore": "0",
+      "routerQuoteBefore": "0",
+      "status": "PASSED",
+      "events": [
+        {
+          "address": "0x8366a39cc670b4001a1121b8f6a443a643e40951",
+          "topics": [
+            "0x40e9cecb9f5f1f1c5b9c97dec2917b7ee92e57ba5563708daca94dd84ad7112f",
+            "0xb8153b22310c84eb2f20f0c8ef9189cf97e706bc449384cd4f87adc556d589f8",
+            "0x00000000000000000000000076cb1dcb45bbc003ae4aa433e936a678cd4c2388"
+          ],
+          "data": "0xfffffffffffffffffffffffffffffffffffffffffffffffffffff23ba647fb3d00000000000000000000000000000000000000000000000000038d7ea4c6800000000000000000000000000000000000000000082234318b5288a05710e9734a00000000000000000000000000000000000000000000000000323e328a37c706000000000000000000000000000000000000000000000000000000000000a3c20000000000000000000000000000000000000000000000000000000000002710"
+        },
+        {
+          "address": "0x71178bac73cbeb415514eb542a8995b82669778d",
+          "topics": [
+            "0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef",
+            "0x0000000000000000000000008366a39cc670b4001a1121b8f6a443a643e40951",
+            "0x00000000000000000000000076cb1dcb45bbc003ae4aa433e936a678cd4c2388"
+          ],
+          "data": "0x00000000000000000000000000000000000000000000000000038d7ea4c68000"
+        },
+        {
+          "address": "0x71178bac73cbeb415514eb542a8995b82669778d",
+          "topics": [
+            "0x37e7f0db430edc9dd31bc66f25f8449353aa0818f503b906747dd8f286cd3802",
+            "0x0000000000000000000000008366a39cc670b4001a1121b8f6a443a643e40951",
+            "0x00000000000000000000000076cb1dcb45bbc003ae4aa433e936a678cd4c2388"
+          ],
+          "data": "0x00000000000000000000000000000000000000000000000000038d7ea4c6800000000000000000000000000000000000000000000000000000038d7ea4c68000"
+        },
+        {
+          "address": "0x32c7a605559917cf095c1163b32de980bf63e81b",
+          "topics": [
+            "0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef",
+            "0x0000000000000000000000000000000000000000000000000000000000000000",
+            "0x000000000000000000000000b47dfc5e8ae81af17e76ccd0a2fb06b9eee98019"
+          ],
+          "data": "0x0000000000000000000000000000000000000000033b2e3c9fd0803ce8000000"
+        },
+        {
+          "address": "0x2aaf1b2097595814a50a181af65b4dbe3d5e3ea6",
+          "topics": [
+            "0xf5a17aec72961f0cea164745a33be97d2939e3215767c14a909fb4a0284f3486",
+            "0x0d55f5a00d1a9df03b9ad832ac2e6755f4323c08499329f58b4a34838fe63ef2",
+            "0x0000000000000000000000000000000000000000000000000000000000000000",
+            "0x00000000000000000000000032c7a605559917cf095c1163b32de980bf63e81b"
+          ],
+          "data": "0x000000000000000000000000b47dfc5e8ae81af17e76ccd0a2fb06b9eee9801900000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000001"
+        },
+        {
+          "address": "0xa951cd6f4192b4aab041ebb5ab5c40752f53e3f1",
+          "topics": [
+            "0xe1b281e232fe499b6466f312f26201c447ca57197233231f90a3096843e938c7",
+            "0x0d55f5a00d1a9df03b9ad832ac2e6755f4323c08499329f58b4a34838fe63ef2",
+            "0x0000000000000000000000000000000000000000000000000000000000000001",
+            "0x000000000000000000000000efc48ef27bb113a907cc0dd96e71291ddbeb3b4d"
+          ],
+          "data": "0x"
+        },
+        {
+          "address": "0xe30d2e71a3095c1c4c813338f8691a0c40127560",
+          "topics": [
+            "0x948d65a87633cf1e633c35375965924f98eefc17f214e630dd565880c4ec5f7b",
+            "0x0d55f5a00d1a9df03b9ad832ac2e6755f4323c08499329f58b4a34838fe63ef2",
+            "0x00000000000000000000000032c7a605559917cf095c1163b32de980bf63e81b"
+          ],
+          "data": "0x00000000000000000000000071178bac73cbeb415514eb542a8995b82669778d000000000000000000000000bc5eb2ce05db5c9d19b3e0b0878100a299d2709a"
+        },
+        {
+          "address": "0xe74162027c477e1c591fac1d36e219c28dad1522",
+          "topics": [
+            "0x6a858729b3663fb6b88c7ab55523860e884a7abcc31f02538303bf7cd4e1b4f1",
+            "0x0d55f5a00d1a9df03b9ad832ac2e6755f4323c08499329f58b4a34838fe63ef2",
+            "0x0000000000000000000000000000000000000000000000000000000000000000",
+            "0x00000000000000000000000032c7a605559917cf095c1163b32de980bf63e81b"
+          ],
+          "data": "0x000000000000000000000000b47dfc5e8ae81af17e76ccd0a2fb06b9eee98019000000000000000000000000000000000000000000000000000000000000000000000000000000000000000071178bac73cbeb415514eb542a8995b82669778d4772f3fbe874a16fec74d7dcf2c05fda34cb6b3815a495a028ff233499cdad13c7574793f7fb5accd4350a084c3d4775ecd1fe74f37550d6aebf027cc7c6b9d157d2691c400741971bdc7c31870905c57d41e90d9d9cc1ed16ca9b80196f90ba"
+        },
+        {
+          "address": "0x71178bac73cbeb415514eb542a8995b82669778d",
+          "topics": [
+            "0x8c5be1e5ebec7d5bd14f71427d1e84f3dd0314c0f7b2291e5b200ac8c7c3b925",
+            "0x00000000000000000000000076cb1dcb45bbc003ae4aa433e936a678cd4c2388",
+            "0x000000000000000000000000b47dfc5e8ae81af17e76ccd0a2fb06b9eee98019"
+          ],
+          "data": "0x00000000000000000000000000000000000000000000000000038d7ea4c68000"
+        },
+        {
+          "address": "0x71178bac73cbeb415514eb542a8995b82669778d",
+          "topics": [
+            "0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef",
+            "0x00000000000000000000000076cb1dcb45bbc003ae4aa433e936a678cd4c2388",
+            "0x000000000000000000000000b47dfc5e8ae81af17e76ccd0a2fb06b9eee98019"
+          ],
+          "data": "0x00000000000000000000000000000000000000000000000000038d7ea4c68000"
+        },
+        {
+          "address": "0x71178bac73cbeb415514eb542a8995b82669778d",
+          "topics": [
+            "0x37e7f0db430edc9dd31bc66f25f8449353aa0818f503b906747dd8f286cd3802",
+            "0x00000000000000000000000076cb1dcb45bbc003ae4aa433e936a678cd4c2388",
+            "0x000000000000000000000000b47dfc5e8ae81af17e76ccd0a2fb06b9eee98019"
+          ],
+          "data": "0x00000000000000000000000000000000000000000000000000038d7ea4c6800000000000000000000000000000000000000000000000000000038d7ea4c68000"
+        },
+        {
+          "address": "0x32c7a605559917cf095c1163b32de980bf63e81b",
+          "topics": [
+            "0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef",
+            "0x000000000000000000000000b47dfc5e8ae81af17e76ccd0a2fb06b9eee98019",
+            "0x000000000000000000000000efc48ef27bb113a907cc0dd96e71291ddbeb3b4d"
+          ],
+          "data": "0x000000000000000000000000000000000000000000012a2df1d46d7df2022a95"
+        },
+        {
+          "address": "0xb47dfc5e8ae81af17e76ccd0a2fb06b9eee98019",
+          "topics": [
+            "0xec36bf571f136799e8dc0b0b8bea4b04d8bd3d43de838aab0d5fc21d4cbfc455",
+            "0x00000000000000000000000076cb1dcb45bbc003ae4aa433e936a678cd4c2388",
+            "0x000000000000000000000000efc48ef27bb113a907cc0dd96e71291ddbeb3b4d"
+          ],
+          "data": "0x00000000000000000000000000000000000000000000000000038d7ea4c68000000000000000000000000000000000000000000000012a2df1d46d7df2022a95000000000000000000000000000000000000000000000000000009184e72a00000000000000000000000000000000000000000000000000000002d79883d2000"
+        }
+      ],
+      "received": "1408112741051717105363605",
+      "quoteAfter": "0",
+      "ethAfter": "7643776546487071",
+      "actualValueSpent": "515136969983171",
+      "txHash": "0xe10d77d0cef469619cb46ff5525e74b7e13fb0fb67ec4eda6302f25db1bad922"
+    },
+    {
+      "id": "revert-max-eth",
+      "mode": "fallback",
+      "asset": "TSLA",
+      "params": {
+        "assetUid": "0x0000000000000000000000000000000000000000000000000000000000000000",
+        "tickerGardenBaselineId": "0x4772f3fbe874a16fec74d7dcf2c05fda34cb6b3815a495a028ff233499cdad13",
+        "quoteAssetConfigId": "0xc8df85dcb8bee16885f1f510c49dbb43c311c70e98dbfc5103d00c604b18f154",
+        "launchTemplateId": "0xdbda74d7cbfc4ef8d7e20d18faf5724c1e51d470f7d0ba3be4411f806973cc52",
+        "expectedEconomics": "0xfac2ed321788ec1eccf94f92107ea4770c53c4555160d819732d8355b2b015c0",
+        "creatorRevenueBeneficiary": "0xeFc48ef27bb113a907cc0dD96e71291ddBeB3B4D",
+        "name": "TG atomic test revert-max-eth",
+        "symbol": "TGTEST",
+        "metadataURI": "data:application/json,%7B%22testOnly%22%3Atrue%7D",
+        "salt": "0x553196f34e75bdb60b883d23ebb4452de06ae3685f1d0d26665743ef22dba83b",
+        "creatorTaxBps": 500,
+        "creatorFeesToHolders": true,
+        "stakingEnabled": false
+      },
+      "amount": "1000000000000000",
+      "quoted": "326447013913009",
+      "max": "329711484052140",
+      "value": "829711484052140",
+      "marketId": "0xc78ce145c24032c4b608af047e7b88c60b788d9d92c5413e7a7185665ba5d77d",
+      "token": "0xaD76b1050eAAbc2Cfc9DC11827B8Aecf2DeDaD80",
+      "predictedTokens": "903029953695698119007819",
+      "simulatedRefund": "3264470139131",
+      "quoteBefore": "0",
+      "ethBefore": "7643776546487071",
+      "routerETHBefore": "0",
+      "routerQuoteBefore": "0",
+      "status": "PASSED",
+      "quoteAfter": "0",
+      "ethAfter": "7642251126487071",
+      "actualValueSpent": "0",
+      "txHash": "0x6256343f2013218683fc8803f2f4adb625392514b4522c3438ae8233be20bf70"
+    },
+    {
+      "id": "revert-min-output",
+      "mode": "fallback",
+      "asset": "TSLA",
+      "params": {
+        "assetUid": "0x0000000000000000000000000000000000000000000000000000000000000000",
+        "tickerGardenBaselineId": "0x4772f3fbe874a16fec74d7dcf2c05fda34cb6b3815a495a028ff233499cdad13",
+        "quoteAssetConfigId": "0xc8df85dcb8bee16885f1f510c49dbb43c311c70e98dbfc5103d00c604b18f154",
+        "launchTemplateId": "0xdbda74d7cbfc4ef8d7e20d18faf5724c1e51d470f7d0ba3be4411f806973cc52",
+        "expectedEconomics": "0xfac2ed321788ec1eccf94f92107ea4770c53c4555160d819732d8355b2b015c0",
+        "creatorRevenueBeneficiary": "0xeFc48ef27bb113a907cc0dD96e71291ddBeB3B4D",
+        "name": "TG atomic test revert-min-output",
+        "symbol": "TGTEST",
+        "metadataURI": "data:application/json,%7B%22testOnly%22%3Atrue%7D",
+        "salt": "0x3cb746aede70f6765244849038d511124750778e5ec9c8177ce742c43a39f7bc",
+        "creatorTaxBps": 500,
+        "creatorFeesToHolders": true,
+        "stakingEnabled": false
+      },
+      "amount": "1000000000000000",
+      "quoted": "326447013913009",
+      "max": "329711484052140",
+      "value": "829711484052140",
+      "marketId": "0xdd7c5e1b000e56642691a4da54032b5bcb4a29c62033c775c3d2fbe8e9f6c0ee",
+      "token": "0xf5d33d72c501Df447D5D97ae34DB300c15DA9A8A",
+      "predictedTokens": "903029953695698119007819",
+      "simulatedRefund": "3264470139131",
+      "quoteBefore": "0",
+      "ethBefore": "7642251126487071",
+      "routerETHBefore": "0",
+      "routerQuoteBefore": "0",
+      "status": "PASSED",
+      "quoteAfter": "0",
+      "ethAfter": "7511675926487071",
+      "actualValueSpent": "0",
+      "txHash": "0xa1705478bcde37491e3e8942ae15cf04099e4092816d8bf34e03ba504fdae252"
+    },
+    {
+      "id": "partial-TSLA",
+      "mode": "fallback",
+      "asset": "TSLA",
+      "params": {
+        "assetUid": "0x0000000000000000000000000000000000000000000000000000000000000000",
+        "tickerGardenBaselineId": "0x4772f3fbe874a16fec74d7dcf2c05fda34cb6b3815a495a028ff233499cdad13",
+        "quoteAssetConfigId": "0xc8df85dcb8bee16885f1f510c49dbb43c311c70e98dbfc5103d00c604b18f154",
+        "launchTemplateId": "0xdbda74d7cbfc4ef8d7e20d18faf5724c1e51d470f7d0ba3be4411f806973cc52",
+        "expectedEconomics": "0xfac2ed321788ec1eccf94f92107ea4770c53c4555160d819732d8355b2b015c0",
+        "creatorRevenueBeneficiary": "0xeFc48ef27bb113a907cc0dD96e71291ddBeB3B4D",
+        "name": "TG atomic test partial-TSLA",
+        "symbol": "TGTEST",
+        "metadataURI": "data:application/json,%7B%22testOnly%22%3Atrue%7D",
+        "salt": "0xde74cb8318885751bd0b978ef2bacec8221d4f89a5d08a75825e5be7001f2016",
+        "creatorTaxBps": 500,
+        "creatorFeesToHolders": true,
+        "stakingEnabled": false
+      },
+      "amount": "1000000000000000",
+      "quoted": "326447013913009",
+      "max": "329711484052140",
+      "value": "829711484052140",
+      "marketId": "0xd2cd741d572a2db3ccada6371eab84819da9da84dea905a8bf5950cfed193960",
+      "token": "0x513661d0D6D2ECc9038aCbcb6E7ce20d62D0369b",
+      "predictedTokens": "903029953695698119007819",
+      "simulatedRefund": "3264470139131",
+      "quoteBefore": "100000000000000",
+      "ethBefore": "7511675926487071",
+      "routerETHBefore": "0",
+      "routerQuoteBefore": "0",
+      "status": "PASSED",
+      "events": [
+        {
+          "address": "0x8366a39cc670b4001a1121b8f6a443a643e40951",
+          "topics": [
+            "0x40e9cecb9f5f1f1c5b9c97dec2917b7ee92e57ba5563708daca94dd84ad7112f",
+            "0x197d7e73cb45f6f3974316879f46fc19c80c78f3f1096ecd58effe52cd9b2152",
+            "0x00000000000000000000000076cb1dcb45bbc003ae4aa433e936a678cd4c2388"
+          ],
+          "data": "0xfffffffffffffffffffffffffffffffffffffffffffffffffffed71921b29e4f00000000000000000000000000000000000000000000000000038d7ea4c680000000000000000000000000000000000000000001b95ac540726c9d790d5a326800000000000000000000000000000000000000000000000000323e328a37c7060000000000000000000000000000000000000000000000000000000000002a8d0000000000000000000000000000000000000000000000000000000000002710"
+        },
+        {
+          "address": "0xc9f9c86933092bbbfff3ccb4b105a4a94bf3bd4e",
+          "topics": [
+            "0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef",
+            "0x0000000000000000000000008366a39cc670b4001a1121b8f6a443a643e40951",
+            "0x00000000000000000000000076cb1dcb45bbc003ae4aa433e936a678cd4c2388"
+          ],
+          "data": "0x00000000000000000000000000000000000000000000000000038d7ea4c68000"
+        },
+        {
+          "address": "0xc9f9c86933092bbbfff3ccb4b105a4a94bf3bd4e",
+          "topics": [
+            "0x37e7f0db430edc9dd31bc66f25f8449353aa0818f503b906747dd8f286cd3802",
+            "0x0000000000000000000000008366a39cc670b4001a1121b8f6a443a643e40951",
+            "0x00000000000000000000000076cb1dcb45bbc003ae4aa433e936a678cd4c2388"
+          ],
+          "data": "0x00000000000000000000000000000000000000000000000000038d7ea4c6800000000000000000000000000000000000000000000000000000038d7ea4c68000"
+        },
+        {
+          "address": "0x513661d0d6d2ecc9038acbcb6e7ce20d62d0369b",
+          "topics": [
+            "0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef",
+            "0x0000000000000000000000000000000000000000000000000000000000000000",
+            "0x0000000000000000000000003c89fd344fc50637bd61d32bdc5b39621d8b1127"
+          ],
+          "data": "0x0000000000000000000000000000000000000000033b2e3c9fd0803ce8000000"
+        },
+        {
+          "address": "0x2aaf1b2097595814a50a181af65b4dbe3d5e3ea6",
+          "topics": [
+            "0xf5a17aec72961f0cea164745a33be97d2939e3215767c14a909fb4a0284f3486",
+            "0xd2cd741d572a2db3ccada6371eab84819da9da84dea905a8bf5950cfed193960",
+            "0x0000000000000000000000000000000000000000000000000000000000000000",
+            "0x000000000000000000000000513661d0d6d2ecc9038acbcb6e7ce20d62d0369b"
+          ],
+          "data": "0x0000000000000000000000003c89fd344fc50637bd61d32bdc5b39621d8b112700000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000001"
+        },
+        {
+          "address": "0xa951cd6f4192b4aab041ebb5ab5c40752f53e3f1",
+          "topics": [
+            "0xe1b281e232fe499b6466f312f26201c447ca57197233231f90a3096843e938c7",
+            "0xd2cd741d572a2db3ccada6371eab84819da9da84dea905a8bf5950cfed193960",
+            "0x0000000000000000000000000000000000000000000000000000000000000001",
+            "0x000000000000000000000000efc48ef27bb113a907cc0dd96e71291ddbeb3b4d"
+          ],
+          "data": "0x"
+        },
+        {
+          "address": "0xe30d2e71a3095c1c4c813338f8691a0c40127560",
+          "topics": [
+            "0x948d65a87633cf1e633c35375965924f98eefc17f214e630dd565880c4ec5f7b",
+            "0xd2cd741d572a2db3ccada6371eab84819da9da84dea905a8bf5950cfed193960",
+            "0x000000000000000000000000513661d0d6d2ecc9038acbcb6e7ce20d62d0369b"
+          ],
+          "data": "0x000000000000000000000000c9f9c86933092bbbfff3ccb4b105a4a94bf3bd4e000000000000000000000000bc5eb2ce05db5c9d19b3e0b0878100a299d2709a"
+        },
+        {
+          "address": "0xe74162027c477e1c591fac1d36e219c28dad1522",
+          "topics": [
+            "0x6a858729b3663fb6b88c7ab55523860e884a7abcc31f02538303bf7cd4e1b4f1",
+            "0xd2cd741d572a2db3ccada6371eab84819da9da84dea905a8bf5950cfed193960",
+            "0x0000000000000000000000000000000000000000000000000000000000000000",
+            "0x000000000000000000000000513661d0d6d2ecc9038acbcb6e7ce20d62d0369b"
+          ],
+          "data": "0x0000000000000000000000003c89fd344fc50637bd61d32bdc5b39621d8b11270000000000000000000000000000000000000000000000000000000000000000000000000000000000000000c9f9c86933092bbbfff3ccb4b105a4a94bf3bd4e4772f3fbe874a16fec74d7dcf2c05fda34cb6b3815a495a028ff233499cdad13c8df85dcb8bee16885f1f510c49dbb43c311c70e98dbfc5103d00c604b18f154fac2ed321788ec1eccf94f92107ea4770c53c4555160d819732d8355b2b015c0"
+        },
+        {
+          "address": "0xc9f9c86933092bbbfff3ccb4b105a4a94bf3bd4e",
+          "topics": [
+            "0x8c5be1e5ebec7d5bd14f71427d1e84f3dd0314c0f7b2291e5b200ac8c7c3b925",
+            "0x00000000000000000000000076cb1dcb45bbc003ae4aa433e936a678cd4c2388",
+            "0x0000000000000000000000003c89fd344fc50637bd61d32bdc5b39621d8b1127"
+          ],
+          "data": "0x00000000000000000000000000000000000000000000000000038d7ea4c68000"
+        },
+        {
+          "address": "0xc9f9c86933092bbbfff3ccb4b105a4a94bf3bd4e",
+          "topics": [
+            "0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef",
+            "0x00000000000000000000000076cb1dcb45bbc003ae4aa433e936a678cd4c2388",
+            "0x0000000000000000000000003c89fd344fc50637bd61d32bdc5b39621d8b1127"
+          ],
+          "data": "0x00000000000000000000000000000000000000000000000000038d7ea4c68000"
+        },
+        {
+          "address": "0xc9f9c86933092bbbfff3ccb4b105a4a94bf3bd4e",
+          "topics": [
+            "0x37e7f0db430edc9dd31bc66f25f8449353aa0818f503b906747dd8f286cd3802",
+            "0x00000000000000000000000076cb1dcb45bbc003ae4aa433e936a678cd4c2388",
+            "0x0000000000000000000000003c89fd344fc50637bd61d32bdc5b39621d8b1127"
+          ],
+          "data": "0x00000000000000000000000000000000000000000000000000038d7ea4c6800000000000000000000000000000000000000000000000000000038d7ea4c68000"
+        },
+        {
+          "address": "0x513661d0d6d2ecc9038acbcb6e7ce20d62d0369b",
+          "topics": [
+            "0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef",
+            "0x0000000000000000000000003c89fd344fc50637bd61d32bdc5b39621d8b1127",
+            "0x000000000000000000000000efc48ef27bb113a907cc0dd96e71291ddbeb3b4d"
+          ],
+          "data": "0x00000000000000000000000000000000000000000000bf395a14dc7d7ae79e4b"
+        },
+        {
+          "address": "0x3c89fd344fc50637bd61d32bdc5b39621d8b1127",
+          "topics": [
+            "0xec36bf571f136799e8dc0b0b8bea4b04d8bd3d43de838aab0d5fc21d4cbfc455",
+            "0x00000000000000000000000076cb1dcb45bbc003ae4aa433e936a678cd4c2388",
+            "0x000000000000000000000000efc48ef27bb113a907cc0dd96e71291ddbeb3b4d"
+          ],
+          "data": "0x00000000000000000000000000000000000000000000000000038d7ea4c6800000000000000000000000000000000000000000000000bf395a14dc7d7ae79e4b000000000000000000000000000000000000000000000000000009184e72a00000000000000000000000000000000000000000000000000000002d79883d2000"
+        }
+      ],
+      "received": "903029953695698119007819",
+      "quoteAfter": "100000000000000",
+      "ethAfter": "6557024812574062",
+      "actualValueSpent": "826447013913009",
+      "txHash": "0x2282b8eec4aa9697956755f71d13c0f09df75877939ffcdca31a631be87ab473"
+    },
+    {
+      "id": "direct-TSLA",
+      "mode": "quote",
+      "asset": "TSLA",
+      "params": {
+        "assetUid": "0x0000000000000000000000000000000000000000000000000000000000000000",
+        "tickerGardenBaselineId": "0x4772f3fbe874a16fec74d7dcf2c05fda34cb6b3815a495a028ff233499cdad13",
+        "quoteAssetConfigId": "0xc8df85dcb8bee16885f1f510c49dbb43c311c70e98dbfc5103d00c604b18f154",
+        "launchTemplateId": "0xdbda74d7cbfc4ef8d7e20d18faf5724c1e51d470f7d0ba3be4411f806973cc52",
+        "expectedEconomics": "0xfac2ed321788ec1eccf94f92107ea4770c53c4555160d819732d8355b2b015c0",
+        "creatorRevenueBeneficiary": "0xeFc48ef27bb113a907cc0dD96e71291ddBeB3B4D",
+        "name": "TG atomic test direct-TSLA",
+        "symbol": "TGTEST",
+        "metadataURI": "data:application/json,%7B%22testOnly%22%3Atrue%7D",
+        "salt": "0x510ce2386c33ad122c71c72ba54b3bfe1ed76284be961e2a1a3da953aea645a2",
+        "creatorTaxBps": 500,
+        "creatorFeesToHolders": true,
+        "stakingEnabled": false
+      },
+      "amount": "1000000000000000",
+      "quoted": "0",
+      "max": "0",
+      "value": "500000000000000",
+      "marketId": "0x560948ed2ad3767a73e5cc74db3cf1b6bfdfb87425bae2903e123a725cfff037",
+      "token": "0xEf095241b593323E539D0c8e4e66fF4Fdc6d4824",
+      "predictedTokens": "903029953695698119007819",
+      "simulatedRefund": "0",
+      "quoteBefore": "2100000000000000",
+      "ethBefore": "6556369092574062",
+      "routerETHBefore": "0",
+      "routerQuoteBefore": "0",
+      "status": "PASSED",
+      "events": [
+        {
+          "address": "0xc9f9c86933092bbbfff3ccb4b105a4a94bf3bd4e",
+          "topics": [
+            "0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef",
+            "0x000000000000000000000000efc48ef27bb113a907cc0dd96e71291ddbeb3b4d",
+            "0x00000000000000000000000076cb1dcb45bbc003ae4aa433e936a678cd4c2388"
+          ],
+          "data": "0x00000000000000000000000000000000000000000000000000038d7ea4c68000"
+        },
+        {
+          "address": "0xc9f9c86933092bbbfff3ccb4b105a4a94bf3bd4e",
+          "topics": [
+            "0x37e7f0db430edc9dd31bc66f25f8449353aa0818f503b906747dd8f286cd3802",
+            "0x000000000000000000000000efc48ef27bb113a907cc0dd96e71291ddbeb3b4d",
+            "0x00000000000000000000000076cb1dcb45bbc003ae4aa433e936a678cd4c2388"
+          ],
+          "data": "0x00000000000000000000000000000000000000000000000000038d7ea4c6800000000000000000000000000000000000000000000000000000038d7ea4c68000"
+        },
+        {
+          "address": "0xef095241b593323e539d0c8e4e66ff4fdc6d4824",
+          "topics": [
+            "0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef",
+            "0x0000000000000000000000000000000000000000000000000000000000000000",
+            "0x000000000000000000000000700fba01703e526d6bcd425aac8931ccea325828"
+          ],
+          "data": "0x0000000000000000000000000000000000000000033b2e3c9fd0803ce8000000"
+        },
+        {
+          "address": "0x2aaf1b2097595814a50a181af65b4dbe3d5e3ea6",
+          "topics": [
+            "0xf5a17aec72961f0cea164745a33be97d2939e3215767c14a909fb4a0284f3486",
+            "0x560948ed2ad3767a73e5cc74db3cf1b6bfdfb87425bae2903e123a725cfff037",
+            "0x0000000000000000000000000000000000000000000000000000000000000000",
+            "0x000000000000000000000000ef095241b593323e539d0c8e4e66ff4fdc6d4824"
+          ],
+          "data": "0x000000000000000000000000700fba01703e526d6bcd425aac8931ccea32582800000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000001"
+        },
+        {
+          "address": "0xa951cd6f4192b4aab041ebb5ab5c40752f53e3f1",
+          "topics": [
+            "0xe1b281e232fe499b6466f312f26201c447ca57197233231f90a3096843e938c7",
+            "0x560948ed2ad3767a73e5cc74db3cf1b6bfdfb87425bae2903e123a725cfff037",
+            "0x0000000000000000000000000000000000000000000000000000000000000001",
+            "0x000000000000000000000000efc48ef27bb113a907cc0dd96e71291ddbeb3b4d"
+          ],
+          "data": "0x"
+        },
+        {
+          "address": "0xe30d2e71a3095c1c4c813338f8691a0c40127560",
+          "topics": [
+            "0x948d65a87633cf1e633c35375965924f98eefc17f214e630dd565880c4ec5f7b",
+            "0x560948ed2ad3767a73e5cc74db3cf1b6bfdfb87425bae2903e123a725cfff037",
+            "0x000000000000000000000000ef095241b593323e539d0c8e4e66ff4fdc6d4824"
+          ],
+          "data": "0x000000000000000000000000c9f9c86933092bbbfff3ccb4b105a4a94bf3bd4e000000000000000000000000bc5eb2ce05db5c9d19b3e0b0878100a299d2709a"
+        },
+        {
+          "address": "0xe74162027c477e1c591fac1d36e219c28dad1522",
+          "topics": [
+            "0x6a858729b3663fb6b88c7ab55523860e884a7abcc31f02538303bf7cd4e1b4f1",
+            "0x560948ed2ad3767a73e5cc74db3cf1b6bfdfb87425bae2903e123a725cfff037",
+            "0x0000000000000000000000000000000000000000000000000000000000000000",
+            "0x000000000000000000000000ef095241b593323e539d0c8e4e66ff4fdc6d4824"
+          ],
+          "data": "0x000000000000000000000000700fba01703e526d6bcd425aac8931ccea3258280000000000000000000000000000000000000000000000000000000000000000000000000000000000000000c9f9c86933092bbbfff3ccb4b105a4a94bf3bd4e4772f3fbe874a16fec74d7dcf2c05fda34cb6b3815a495a028ff233499cdad13c8df85dcb8bee16885f1f510c49dbb43c311c70e98dbfc5103d00c604b18f154fac2ed321788ec1eccf94f92107ea4770c53c4555160d819732d8355b2b015c0"
+        },
+        {
+          "address": "0xc9f9c86933092bbbfff3ccb4b105a4a94bf3bd4e",
+          "topics": [
+            "0x8c5be1e5ebec7d5bd14f71427d1e84f3dd0314c0f7b2291e5b200ac8c7c3b925",
+            "0x00000000000000000000000076cb1dcb45bbc003ae4aa433e936a678cd4c2388",
+            "0x000000000000000000000000700fba01703e526d6bcd425aac8931ccea325828"
+          ],
+          "data": "0x00000000000000000000000000000000000000000000000000038d7ea4c68000"
+        },
+        {
+          "address": "0xc9f9c86933092bbbfff3ccb4b105a4a94bf3bd4e",
+          "topics": [
+            "0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef",
+            "0x00000000000000000000000076cb1dcb45bbc003ae4aa433e936a678cd4c2388",
+            "0x000000000000000000000000700fba01703e526d6bcd425aac8931ccea325828"
+          ],
+          "data": "0x00000000000000000000000000000000000000000000000000038d7ea4c68000"
+        },
+        {
+          "address": "0xc9f9c86933092bbbfff3ccb4b105a4a94bf3bd4e",
+          "topics": [
+            "0x37e7f0db430edc9dd31bc66f25f8449353aa0818f503b906747dd8f286cd3802",
+            "0x00000000000000000000000076cb1dcb45bbc003ae4aa433e936a678cd4c2388",
+            "0x000000000000000000000000700fba01703e526d6bcd425aac8931ccea325828"
+          ],
+          "data": "0x00000000000000000000000000000000000000000000000000038d7ea4c6800000000000000000000000000000000000000000000000000000038d7ea4c68000"
+        },
+        {
+          "address": "0xef095241b593323e539d0c8e4e66ff4fdc6d4824",
+          "topics": [
+            "0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef",
+            "0x000000000000000000000000700fba01703e526d6bcd425aac8931ccea325828",
+            "0x000000000000000000000000efc48ef27bb113a907cc0dd96e71291ddbeb3b4d"
+          ],
+          "data": "0x00000000000000000000000000000000000000000000bf395a14dc7d7ae79e4b"
+        },
+        {
+          "address": "0x700fba01703e526d6bcd425aac8931ccea325828",
+          "topics": [
+            "0xec36bf571f136799e8dc0b0b8bea4b04d8bd3d43de838aab0d5fc21d4cbfc455",
+            "0x00000000000000000000000076cb1dcb45bbc003ae4aa433e936a678cd4c2388",
+            "0x000000000000000000000000efc48ef27bb113a907cc0dd96e71291ddbeb3b4d"
+          ],
+          "data": "0x00000000000000000000000000000000000000000000000000038d7ea4c6800000000000000000000000000000000000000000000000bf395a14dc7d7ae79e4b000000000000000000000000000000000000000000000000000009184e72a00000000000000000000000000000000000000000000000000000002d79883d2000"
+        }
+      ],
+      "received": "903029953695698119007819",
+      "quoteAfter": "1100000000000000",
+      "ethAfter": "5928826592574062",
+      "actualValueSpent": "500000000000000",
+      "txHash": "0x0678d777d3c9035a79243329e253eda2a18f1d3fb9d716b1f97632145a6e6364"
+    },
+    {
+      "id": "native-ETH",
+      "mode": "native",
+      "asset": "ETH",
+      "params": {
+        "assetUid": "0x0000000000000000000000000000000000000000000000000000000000000000",
+        "tickerGardenBaselineId": "0x4772f3fbe874a16fec74d7dcf2c05fda34cb6b3815a495a028ff233499cdad13",
+        "quoteAssetConfigId": "0x1ef830e3a3fe94b18b47de5cd6e5967ac2ebdb52bda53a2270a2bd201bb11b32",
+        "launchTemplateId": "0xdbda74d7cbfc4ef8d7e20d18faf5724c1e51d470f7d0ba3be4411f806973cc52",
+        "expectedEconomics": "0x75de6cacd7a79b21e6e0d70e45639db46f773c180e547011c934302ec5d080b6",
+        "creatorRevenueBeneficiary": "0xeFc48ef27bb113a907cc0dD96e71291ddBeB3B4D",
+        "name": "TG atomic test native-ETH",
+        "symbol": "TGTEST",
+        "metadataURI": "data:application/json,%7B%22testOnly%22%3Atrue%7D",
+        "salt": "0x735a641f4fa3579d8192f3338eaf0fee15ca04921476c03a2a2469ccd1b0e75a",
+        "creatorTaxBps": 500,
+        "creatorFeesToHolders": true,
+        "stakingEnabled": false
+      },
+      "amount": "100000000000000",
+      "quoted": "0",
+      "max": "0",
+      "value": "600000000000000",
+      "marketId": "0xecfb045d640c29cf39adf842264d134cab29b6656ae156f6de68cab580ef0a1a",
+      "token": "0x1A53edb43a2f4F6cd2a9609565634118Df507d83",
+      "predictedTokens": "559210917700810260925434",
+      "simulatedRefund": "0",
+      "quoteBefore": "0",
+      "ethBefore": "5928826592574062",
+      "routerETHBefore": "0",
+      "routerQuoteBefore": "0",
+      "status": "PASSED",
+      "events": [
+        {
+          "address": "0x1a53edb43a2f4f6cd2a9609565634118df507d83",
+          "topics": [
+            "0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef",
+            "0x0000000000000000000000000000000000000000000000000000000000000000",
+            "0x0000000000000000000000003c984920569b1d62e2e8b15da575d5a1c34659a6"
+          ],
+          "data": "0x0000000000000000000000000000000000000000033b2e3c9fd0803ce8000000"
+        },
+        {
+          "address": "0x2aaf1b2097595814a50a181af65b4dbe3d5e3ea6",
+          "topics": [
+            "0xf5a17aec72961f0cea164745a33be97d2939e3215767c14a909fb4a0284f3486",
+            "0xecfb045d640c29cf39adf842264d134cab29b6656ae156f6de68cab580ef0a1a",
+            "0x0000000000000000000000000000000000000000000000000000000000000000",
+            "0x0000000000000000000000001a53edb43a2f4f6cd2a9609565634118df507d83"
+          ],
+          "data": "0x0000000000000000000000003c984920569b1d62e2e8b15da575d5a1c34659a600000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000001"
+        },
+        {
+          "address": "0xa951cd6f4192b4aab041ebb5ab5c40752f53e3f1",
+          "topics": [
+            "0xe1b281e232fe499b6466f312f26201c447ca57197233231f90a3096843e938c7",
+            "0xecfb045d640c29cf39adf842264d134cab29b6656ae156f6de68cab580ef0a1a",
+            "0x0000000000000000000000000000000000000000000000000000000000000001",
+            "0x000000000000000000000000efc48ef27bb113a907cc0dd96e71291ddbeb3b4d"
+          ],
+          "data": "0x"
+        },
+        {
+          "address": "0xe30d2e71a3095c1c4c813338f8691a0c40127560",
+          "topics": [
+            "0x948d65a87633cf1e633c35375965924f98eefc17f214e630dd565880c4ec5f7b",
+            "0xecfb045d640c29cf39adf842264d134cab29b6656ae156f6de68cab580ef0a1a",
+            "0x0000000000000000000000001a53edb43a2f4f6cd2a9609565634118df507d83"
+          ],
+          "data": "0x0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000bc5eb2ce05db5c9d19b3e0b0878100a299d2709a"
+        },
+        {
+          "address": "0xe74162027c477e1c591fac1d36e219c28dad1522",
+          "topics": [
+            "0x6a858729b3663fb6b88c7ab55523860e884a7abcc31f02538303bf7cd4e1b4f1",
+            "0xecfb045d640c29cf39adf842264d134cab29b6656ae156f6de68cab580ef0a1a",
+            "0x0000000000000000000000000000000000000000000000000000000000000000",
+            "0x0000000000000000000000001a53edb43a2f4f6cd2a9609565634118df507d83"
+          ],
+          "data": "0x0000000000000000000000003c984920569b1d62e2e8b15da575d5a1c34659a6000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000004772f3fbe874a16fec74d7dcf2c05fda34cb6b3815a495a028ff233499cdad131ef830e3a3fe94b18b47de5cd6e5967ac2ebdb52bda53a2270a2bd201bb11b3275de6cacd7a79b21e6e0d70e45639db46f773c180e547011c934302ec5d080b6"
+        },
+        {
+          "address": "0x1a53edb43a2f4f6cd2a9609565634118df507d83",
+          "topics": [
+            "0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef",
+            "0x0000000000000000000000003c984920569b1d62e2e8b15da575d5a1c34659a6",
+            "0x000000000000000000000000efc48ef27bb113a907cc0dd96e71291ddbeb3b4d"
+          ],
+          "data": "0x00000000000000000000000000000000000000000000766ae274a676c518cbfa"
+        },
+        {
+          "address": "0x3c984920569b1d62e2e8b15da575d5a1c34659a6",
+          "topics": [
+            "0xec36bf571f136799e8dc0b0b8bea4b04d8bd3d43de838aab0d5fc21d4cbfc455",
+            "0x00000000000000000000000076cb1dcb45bbc003ae4aa433e936a678cd4c2388",
+            "0x000000000000000000000000efc48ef27bb113a907cc0dd96e71291ddbeb3b4d"
+          ],
+          "data": "0x00000000000000000000000000000000000000000000000000005af3107a400000000000000000000000000000000000000000000000766ae274a676c518cbfa000000000000000000000000000000000000000000000000000000e8d4a510000000000000000000000000000000000000000000000000000000048c27395000"
+        }
+      ],
+      "received": "559210917700810260925434",
+      "quoteAfter": "0",
+      "ethAfter": "5270020282574062",
+      "actualValueSpent": "600000000000000",
+      "txHash": "0x6de1793c5cdff27bcf424ca1e3b9411af62af8f4babf0a4757e220dfa38b0e00"
+    }
+  ],
+  "actor": "0xeFc48ef27bb113a907cc0dD96e71291ddBeB3B4D",
+  "priorAttempts": [
+    {
+      "id": "zero-TSLA",
+      "mode": "fallback",
+      "asset": "TSLA",
+      "params": {
+        "assetUid": "0x0000000000000000000000000000000000000000000000000000000000000000",
+        "tickerGardenBaselineId": "0x4772f3fbe874a16fec74d7dcf2c05fda34cb6b3815a495a028ff233499cdad13",
+        "quoteAssetConfigId": "0xc8df85dcb8bee16885f1f510c49dbb43c311c70e98dbfc5103d00c604b18f154",
+        "launchTemplateId": "0xdbda74d7cbfc4ef8d7e20d18faf5724c1e51d470f7d0ba3be4411f806973cc52",
+        "expectedEconomics": "0xfac2ed321788ec1eccf94f92107ea4770c53c4555160d819732d8355b2b015c0",
+        "creatorRevenueBeneficiary": "0xeFc48ef27bb113a907cc0dD96e71291ddBeB3B4D",
+        "name": "TG atomic test zero-TSLA",
+        "symbol": "TGTEST",
+        "metadataURI": "data:application/json,%7B%22testOnly%22%3Atrue%7D",
+        "salt": "0xb1fd07ee7f1be26e8151c71dc62a18549aed2e4547ed480e6262a14f4e41e3ca",
+        "creatorTaxBps": 500,
+        "creatorFeesToHolders": true,
+        "stakingEnabled": false
+      },
+      "amount": "1000000000000000",
+      "quoted": "301698955119674",
+      "max": "304715944670871",
+      "value": "804715944670871",
+      "marketId": "0x167944a494548bfd1b71df280090ce06856034fe3f0c9fa874479a807a02082b",
+      "token": "0x4B35DA4c2f65A88237aCdb2bb0B8C3FB47DdA416",
+      "predictedTokens": "903029953695698119007819",
+      "simulatedRefund": "3016989551197",
+      "quoteBefore": "0",
+      "ethBefore": "12000000000000000",
+      "routerETHBefore": "0",
+      "routerQuoteBefore": "0",
+      "status": "REVERTED_GAS_BUDGET_8M",
+      "txHash": "0xb3aefff875a0073e4ac84b775a51a5b3e2b65b86b6509c77dc92be6837b523b0"
+    }
+  ],
+  "completedAt": "2026-09-08T10:36:21.472Z",
+  "resolvedHarnessIssues": [
+    "Economics preview now explicitly passes the creator account; previous read-only preview used zero address.",
+    "Initial 8M gas transaction reverted; preserved under priorAttempts. Same-block calls with 16M and 30M succeeded; public 16M retry succeeded."
+  ]
+}

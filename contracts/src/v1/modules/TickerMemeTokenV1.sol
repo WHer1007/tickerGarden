@@ -2,11 +2,12 @@
 pragma solidity 0.8.26;
 
 import {ERC20} from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
+import {IContinuousHolderRewards} from "../interfaces/IContinuousHolderRewards.sol";
 
 /// @notice A market-bound, fixed-supply ERC-20 whose entire supply is created directly in its Curve.
 /// @dev Treasury burns are the only post-deployment supply mutation and can only destroy tokens held by the
-///      shared V1 TreasuryDistributor. Standard transfers do not write TWAB checkpoints; the 30-day holder
-///      distribution is reconstructed from finalized Transfer logs.
+///      bound distributor. Continuous mode checkpoints accrued rewards before balance changes.
+///      Legacy distributors never enable that callback and retain their Transfer-log accounting.
 contract TickerMemeTokenV1 is ERC20 {
     bytes32 private immutable _marketId;
     address private immutable _creator;
@@ -16,6 +17,7 @@ contract TickerMemeTokenV1 is ERC20 {
     uint64 private immutable _deployedAt;
 
     string private _metadataURI;
+    bool public continuousRewardsEnabled;
 
     event TreasuryBurn(address indexed treasuryDistributor, uint256 amount, uint256 totalSupplyAfter);
 
@@ -23,6 +25,22 @@ contract TickerMemeTokenV1 is ERC20 {
     error UnauthorizedTreasury(address caller);
     error InvalidBurnAmount();
     error BlockTimestampOverflow(uint256 timestamp);
+    error RewardsAlreadyEnabled();
+
+    /// @notice One-time opt-in by the immutable distributor after canonical market registration.
+    /// @dev Legacy distributors never call this, so existing Merkle-mode deployments retain their behavior.
+    function enableContinuousRewards() external {
+        if (msg.sender != _treasuryDistributor) revert UnauthorizedTreasury(msg.sender);
+        if (continuousRewardsEnabled) revert RewardsAlreadyEnabled();
+        continuousRewardsEnabled = true;
+    }
+
+    function _update(address from, address to, uint256 amount) internal override {
+        if (continuousRewardsEnabled) {
+            IContinuousHolderRewards(_treasuryDistributor).checkpointTransfer(_marketId, from, to, amount);
+        }
+        super._update(from, to, amount);
+    }
 
     constructor(
         bytes32 marketId_,

@@ -11,12 +11,12 @@
       "interfaceArtifact": "contracts/out-v1/IV1Protocol.sol/IAllocationManager.json",
       "compilerVersion": "0.8.26+commit.8a97fa7a",
       "creationCode": {
-        "bytes": 10867,
-        "keccak256": "0x44e1f4295a5943af368087af6e927c33d547a087a66893bac448f86170357050"
+        "bytes": 10928,
+        "keccak256": "0xc9918314cb800abb4506ead735c756347abce4a11766df16c29efebfcb43f1af"
       },
       "runtimeTemplate": {
-        "bytes": 10486,
-        "keccak256": "0x16107e60b8d840457acd4aef111fa1c772482dd98940018f773b32b03dedc99b",
+        "bytes": 10547,
+        "keccak256": "0xd6a2be94a10da03b5800d65467e8c07fddecbeec51851c8422ff84a84052cc1d",
         "immutableReferenceGroups": 2,
         "isFinalDeploymentCodeHash": false
       },
@@ -57,7 +57,7 @@
     {
       "module": "ApprovedQuoteRegistry",
       "source": "contracts/src/v1/modules/ApprovedQuoteRegistry.sol",
-      "sourceSha256": "0xc2dc60d3a5bab8d81426f2ac66f5e41ed3c826d6fa88d20deb6acf0b13cdc1c5",
+      "sourceSha256": "0x1f7d4d06e488fffece452ca37a3e94bc40f37614b7fcc6544683debe68b8c87f",
       "artifact": "contracts/out-v1/ApprovedQuoteRegistry.sol/ApprovedQuoteRegistry.json",
       "interfaceArtifact": "contracts/out-v1/IV1Protocol.sol/IApprovedQuoteRegistry.json",
       "compilerVersion": "0.8.26+commit.8a97fa7a",
@@ -101,33 +101,40 @@
     {
       "module": "CreatorRevenueRegistry",
       "source": "contracts/src/v1/modules/CreatorRevenueRegistry.sol",
-      "sourceSha256": "0x7044511cb9f14a0f6f2ee295b7d792e4edf16b603586bbe1a2c3d1e631a1a5a3",
+      "sourceSha256": "0xec4761bb7e8f35daf9a5a76debf2c72f7302a7fecaccd1c13b65561381901711",
       "artifact": "contracts/out-v1/CreatorRevenueRegistry.sol/CreatorRevenueRegistry.json",
       "interfaceArtifact": "contracts/out-v1/IV1Protocol.sol/ICreatorRevenueRegistry.json",
       "compilerVersion": "0.8.26+commit.8a97fa7a",
       "creationCode": {
-        "bytes": 3030,
-        "keccak256": "0xfec7d3f9dec3496c157d4fa5b7415d091915bd097e56585aa3cef22d17f6f118"
+        "bytes": 3722,
+        "keccak256": "0xa44bc27d8798e7377f3f5411e56bfc4579221af2505c76cd1f44072446a598b6"
       },
       "runtimeTemplate": {
-        "bytes": 2709,
-        "keccak256": "0xc6b0d08d2c86730937ee4e8f74d74c5dac9173a46ece3e218f4a2cfca17a1beb",
+        "bytes": 3400,
+        "keccak256": "0x0df913808f97daf9eabc89a90c25a3ae0c00d35bd8fa01bc6ae54c0f36c2afc1",
         "immutableReferenceGroups": 2,
         "isFinalDeploymentCodeHash": false
       },
       "functions": [
+        "acceptCreatorRevenueBeneficiary(bytes32)",
+        "cancelCreatorRevenueBeneficiaryTransfer(bytes32)",
         "creatorBeneficiaryAt(bytes32,uint32)",
         "currentCreatorEpoch(bytes32)",
         "factory()",
         "initializeCreatorRevenueEpoch(bytes32,address)",
         "marketRegistry()",
+        "pendingCreatorRevenueBeneficiary(bytes32)",
         "transferCreatorRevenueBeneficiary(bytes32,address)"
       ],
       "mutations": [
+        "acceptCreatorRevenueBeneficiary(bytes32)",
+        "cancelCreatorRevenueBeneficiaryTransfer(bytes32)",
         "initializeCreatorRevenueEpoch(bytes32,address)",
         "transferCreatorRevenueBeneficiary(bytes32,address)"
       ],
       "events": [
+        "CreatorRevenueBeneficiaryProposed(bytes32,uint32,address,address)",
+        "CreatorRevenueBeneficiaryTransferCancelled(bytes32,uint32)",
         "CreatorRevenueBeneficiaryUpdated(bytes32,uint32,uint32,address,address)",
         "CreatorRevenueEpochInitialized(bytes32,uint32,address)"
       ]
@@ -140,12 +147,12 @@
       "interfaceArtifact": "contracts/out-v1/IV1Protocol.sol/IGraduationExecutor.json",
       "compilerVersion": "0.8.26+commit.8a97fa7a",
       "creationCode": {
-        "bytes": 23503,
-        "keccak256": "0x7accccb180332f40fecf9a3c47790fb72684bd7f82a08f0de094f523df93f0fa"
+        "bytes": 23541,
+        "keccak256": "0xdc5bb65890095793faeae819162eb0bcb9e880933dd08d53596e3ff5ced272dd"
       },
       "runtimeTemplate": {
-        "bytes": 17293,
-        "keccak256": "0x063d12651048c37d3859c2018d8b5e44a8017fbc89b64b02a9c42e3a2f8832f4",
+        "bytes": 17312,
+        "keccak256": "0x12a521eab0602a6545b0e1f246965b4ff9f93714eeb5eb527716956a8317bb26",
         "immutableReferenceGroups": 10,
         "isFinalDeploymentCodeHash": false
       },
@@ -171,52 +178,56 @@
     {
       "module": "LaunchAndBuyRouter",
       "source": "contracts/src/v1/modules/LaunchAndBuyRouter.sol",
-      "sourceSha256": "0x7906ad7fc7c783d9ccdced373a2c29623a043044df0a2ed4325376b3df3f87cd",
+      "sourceSha256": "0x84089856eb1c494aa1ac32bddf6b30c8bbf756afa08b38613bf223d8349da4a5",
       "artifact": "contracts/out-v1/LaunchAndBuyRouter.sol/LaunchAndBuyRouter.json",
       "interfaceArtifact": "contracts/out-v1/IV1Protocol.sol/ILaunchAndBuyRouter.json",
       "compilerVersion": "0.8.26+commit.8a97fa7a",
       "creationCode": {
-        "bytes": 6575,
-        "keccak256": "0x333870a231f59d3d0927d030d20168ee648f7828403d7ff3f0ef72a2b1809e6c"
+        "bytes": 16110,
+        "keccak256": "0xc6ce6d04cd3502fe013f1aa99ae2537e7061493ec295e797bbea4f48d4e4aad8"
       },
       "runtimeTemplate": {
-        "bytes": 6115,
-        "keccak256": "0x597faccedef7cbd9770b43ae5aba230a8ea456561aead6ab7f053819b53150a3",
-        "immutableReferenceGroups": 2,
+        "bytes": 15297,
+        "keccak256": "0x896d3f55b57fec87aa03360bb86681bfddb8ca52130bf76d34e73df58a5caf1b",
+        "immutableReferenceGroups": 5,
         "isFinalDeploymentCodeHash": false
       },
       "functions": [
         "approvedQuoteRegistry()",
         "factory()",
-        "launchAndBuy((bytes32,bytes32,bytes32,bytes32,bytes32,address,string,string,string,bytes32,uint16,bool),uint256,uint256,address)"
+        "launchAndBuy((bytes32,bytes32,bytes32,bytes32,bytes32,address,string,string,string,bytes32,uint16,bool,bool),uint256,uint256,address)",
+        "msgSender()",
+        "poolManager()",
+        "unlockCallback(bytes)"
       ],
       "mutations": [
-        "launchAndBuy((bytes32,bytes32,bytes32,bytes32,bytes32,address,string,string,string,bytes32,uint16,bool),uint256,uint256,address)"
+        "launchAndBuy((bytes32,bytes32,bytes32,bytes32,bytes32,address,string,string,string,bytes32,uint16,bool,bool),uint256,uint256,address)",
+        "unlockCallback(bytes)"
       ],
       "events": []
     },
     {
       "module": "LaunchConfigResolver",
       "source": "contracts/src/v1/modules/LaunchConfigResolver.sol",
-      "sourceSha256": "0xe44e184fb2ca403cdde4a77d5cc5d9f75a65532263bfd1a53c6f549f369c6d23",
+      "sourceSha256": "0xe6efff3fe33fa13ec8c87f01bfe6074b31f0c107fafb97db2c4d3d60584dc8e2",
       "artifact": "contracts/out-v1/LaunchConfigResolver.sol/LaunchConfigResolver.json",
       "interfaceArtifact": "contracts/out-v1/IV1Protocol.sol/ILaunchConfigResolver.json",
       "compilerVersion": "0.8.26+commit.8a97fa7a",
       "creationCode": {
         "bytes": 2600,
-        "keccak256": "0x4d0b7700bb49812bc83f9904e3b5137e3156b4b64dc7aa42af636bf4e6833387"
+        "keccak256": "0x27f4e8fbf79fde529d4139417a7283e5fb747ee5106cf5764f6553617d27bdfb"
       },
       "runtimeTemplate": {
         "bytes": 2165,
-        "keccak256": "0x9472551dc766dc50a438c84e2d4a3b946b8a6366ceedbe25dc7adce072be23aa",
+        "keccak256": "0x5b8938fc0495b7b3d6472fe344122ed4a909271bf30bedf88530495b2b04e969",
         "immutableReferenceGroups": 3,
         "isFinalDeploymentCodeHash": false
       },
       "functions": [
         "approvedQuoteRegistry()",
         "launchTemplateRegistry()",
-        "ponsBaselineRegistry()",
-        "resolve(bytes32,bytes32,bytes32)"
+        "resolve(bytes32,bytes32,bytes32)",
+        "tickerGardenBaselineRegistry()"
       ],
       "mutations": [],
       "events": []
@@ -229,8 +240,8 @@
       "interfaceArtifact": "contracts/out-v1/IV1Protocol.sol/ILaunchLocker.json",
       "compilerVersion": "0.8.26+commit.8a97fa7a",
       "creationCode": {
-        "bytes": 3222,
-        "keccak256": "0x9d892e41b801eb73fcfdc8c80030071ead014bf4060f386edfdc2ce5b5fb588c"
+        "bytes": 3241,
+        "keccak256": "0xf5f947ab239d4f73c526012da2ab4fcdfad57d495643719e4177369333d6c7a1"
       },
       "runtimeTemplate": {
         "bytes": 744,
@@ -287,17 +298,17 @@
     {
       "module": "MarketRegistryV1",
       "source": "contracts/src/v1/modules/MarketRegistryV1.sol",
-      "sourceSha256": "0xf8f11b93387838c131f83a0b7f8476e1f4a7c715d2a194d2aee52b7994aebbea",
+      "sourceSha256": "0x681bde6fad68edc6a86d6d2238400ab5b1b6fb888c252b33a8193b0244dac6ef",
       "artifact": "contracts/out-v1/MarketRegistryV1.sol/MarketRegistryV1.json",
       "interfaceArtifact": "contracts/out-v1/IV1Protocol.sol/IMarketRegistryV1.json",
       "compilerVersion": "0.8.26+commit.8a97fa7a",
       "creationCode": {
-        "bytes": 9689,
-        "keccak256": "0xb6cf7b2a546c403656fd16c459f8a0b29a97eb7225869c72b8a72c782e9bd716"
+        "bytes": 9931,
+        "keccak256": "0x2fa74237c5e4249cb7457d90a127cbccc77eadfeb005d1386fec4135f8b19110"
       },
       "runtimeTemplate": {
-        "bytes": 8612,
-        "keccak256": "0x2d21fcba73620c63a8a2f84e7d99f4842776b51337c2682e2ea62dfe642a479b",
+        "bytes": 8854,
+        "keccak256": "0x55da3222fdf68cd3c596cffff23d38b0dfcdb845b82a232f1ee923b024cd3e1f",
         "immutableReferenceGroups": 8,
         "isFinalDeploymentCodeHash": false
       },
@@ -315,14 +326,14 @@
         "market(bytes32)",
         "marketIdByToken(address)",
         "officialStockRegistry()",
-        "ponsBaselineRegistry()",
         "quoter()",
-        "registerMarket(bytes32,(bytes32,bytes32,bytes32,bytes32,bytes32,bytes32,bytes32,uint256,address,address,address,address,address,address,uint16,bool))",
-        "swapRouter()"
+        "registerMarket(bytes32,(bytes32,bytes32,bytes32,bytes32,bytes32,bytes32,bytes32,uint256,address,address,address,address,address,address,uint16,bool,bool))",
+        "swapRouter()",
+        "tickerGardenBaselineRegistry()"
       ],
       "mutations": [
         "commitPoolCreated(bytes32,bytes32)",
-        "registerMarket(bytes32,(bytes32,bytes32,bytes32,bytes32,bytes32,bytes32,bytes32,uint256,address,address,address,address,address,address,uint16,bool))"
+        "registerMarket(bytes32,(bytes32,bytes32,bytes32,bytes32,bytes32,bytes32,bytes32,uint256,address,address,address,address,address,address,uint16,bool,bool))"
       ],
       "events": [
         "LaunchPhaseChanged(bytes32,uint8,uint8,bytes32,uint32)",
@@ -398,12 +409,12 @@
       "interfaceArtifact": "contracts/out-v1/IV1Protocol.sol/IOfficialStockRegistryV1.json",
       "compilerVersion": "0.8.26+commit.8a97fa7a",
       "creationCode": {
-        "bytes": 9654,
-        "keccak256": "0xe62c272b0b7878f3b1332044c9736295d146c0da830ecf28f3774d06f6fdffa6"
+        "bytes": 9698,
+        "keccak256": "0x12145749062576b0ff1b70257f58f7fee09909b778fa1796bc1baba6e946fcac"
       },
       "runtimeTemplate": {
-        "bytes": 9446,
-        "keccak256": "0x0c841a49ce5ce70e03650637526902844cdaf89ad38adb5e5c2325b32582edbf",
+        "bytes": 9490,
+        "keccak256": "0x72128615ec697e32a80928a56bc00a7a2a92e96ca7dbd5798f7440a1ba9190ab",
         "immutableReferenceGroups": 1,
         "isFinalDeploymentCodeHash": false
       },
@@ -443,89 +454,6 @@
       ]
     },
     {
-      "module": "PonsBaselineRegistry",
-      "source": "contracts/src/v1/modules/PonsBaselineRegistry.sol",
-      "sourceSha256": "0x6f5306ef74eea0f76aa22487fe5cca74aaeaf1824ad31f03b492ac049a192c7b",
-      "artifact": "contracts/out-v1/PonsBaselineRegistry.sol/PonsBaselineRegistry.json",
-      "interfaceArtifact": "contracts/out-v1/IV1Protocol.sol/IPonsBaselineRegistry.json",
-      "compilerVersion": "0.8.26+commit.8a97fa7a",
-      "creationCode": {
-        "bytes": 3184,
-        "keccak256": "0x6193330b5bb1d0a865d65a6e7495d19a22d3f06cce161cbb339618a8b2db8c24"
-      },
-      "runtimeTemplate": {
-        "bytes": 2976,
-        "keccak256": "0x39dbe864cbe35a63d0ec25632b6c0d6d5d5d652d8490758b9355a3143b60f9e2",
-        "immutableReferenceGroups": 1,
-        "isFinalDeploymentCodeHash": false
-      },
-      "functions": [
-        "addBaseline(bytes32,(uint256,address,bytes32,uint256,uint256,uint256,uint24,int24,bytes32,uint8))",
-        "authority()",
-        "baseline(bytes32)",
-        "pauseBaseline(bytes32,bytes32)",
-        "retireBaseline(bytes32,bytes32)",
-        "unpauseBaseline(bytes32)"
-      ],
-      "mutations": [
-        "addBaseline(bytes32,(uint256,address,bytes32,uint256,uint256,uint256,uint24,int24,bytes32,uint8))",
-        "pauseBaseline(bytes32,bytes32)",
-        "retireBaseline(bytes32,bytes32)",
-        "unpauseBaseline(bytes32)"
-      ],
-      "events": [
-        "PonsBaselineAdded(bytes32,bytes32,bytes32)",
-        "PonsBaselineStatusChanged(bytes32,uint8,uint8,bytes32)"
-      ]
-    },
-    {
-      "module": "PonsCompatibleCurve",
-      "source": "contracts/src/v1/modules/PonsCompatibleCurve.sol",
-      "sourceSha256": "0x9ec25a2053378529838f5722532dfc8a6325908e888ab23c756869d4dcdf49fd",
-      "artifact": "contracts/out-v1/PonsCompatibleCurve.sol/PonsCompatibleCurve.json",
-      "interfaceArtifact": "contracts/out-v1/IV1Protocol.sol/IPonsCompatibleCurve.json",
-      "compilerVersion": "0.8.26+commit.8a97fa7a",
-      "creationCode": {
-        "bytes": 21005,
-        "keccak256": "0xa6405bdb7790e2ca7f4b205df382a24382f30c11e9876f0c5adc1a34d307d74b"
-      },
-      "runtimeTemplate": {
-        "bytes": 17647,
-        "keccak256": "0x992036dd7e8366e8a618f314b3b2779f5171be88700e4319b2aa40b243424198",
-        "immutableReferenceGroups": 17,
-        "isFinalDeploymentCodeHash": false
-      },
-      "functions": [
-        "accruedCreatorTax()",
-        "accruedCurveFees()",
-        "buy(uint256,uint256,address)",
-        "creatorTaxBps()",
-        "getReserves()",
-        "quoteAsset()",
-        "quoteBuy(uint256,address)",
-        "quoteSell(uint256)",
-        "readyToGraduate()",
-        "realQuoteReserve()",
-        "reservedTokens()",
-        "sell(uint256,uint256,address)",
-        "sellableTokens()",
-        "sweepCurveFees()",
-        "sweepNonce()"
-      ],
-      "mutations": [
-        "buy(uint256,uint256,address)",
-        "sell(uint256,uint256,address)",
-        "sweepCurveFees()"
-      ],
-      "events": [
-        "CurveBuy(address,address,uint256,uint256,uint256,uint256)",
-        "CurveBuyRefunded(address,uint256)",
-        "CurveCompleted(bytes32)",
-        "CurveFeeTransferred(bytes32,uint64,bytes32,uint256)",
-        "CurveSell(address,address,uint256,uint256,uint256,uint256)"
-      ]
-    },
-    {
       "module": "ProtocolFeeVault",
       "source": "contracts/src/v1/modules/ProtocolFeeVault.sol",
       "sourceSha256": "0x1e354f7cc34f8b40254bd9ee1b50538ff14a815d5e510764674ea97de3654ceb",
@@ -533,12 +461,12 @@
       "interfaceArtifact": "contracts/out-v1/IV1Protocol.sol/IProtocolFeeVault.json",
       "compilerVersion": "0.8.26+commit.8a97fa7a",
       "creationCode": {
-        "bytes": 23758,
-        "keccak256": "0x9864e16486a2d3346700c26b3eb97aec5c00197dc2a8247dfb44227d1ff64a17"
+        "bytes": 24055,
+        "keccak256": "0x37c7cb7adabd697841f5328164dc577dab61a0eba1986f3e12d9a5fd190f2881"
       },
       "runtimeTemplate": {
-        "bytes": 22443,
-        "keccak256": "0x864053582e87ee61baf5498a774e90f0fd04f10c1afdbb0b550df86d3daa3cb9",
+        "bytes": 22733,
+        "keccak256": "0x344cd53b1a2da84b5a770a526977b607891056187936be4091dd23c94ec5c531",
         "immutableReferenceGroups": 6,
         "isFinalDeploymentCodeHash": false
       },
@@ -609,27 +537,110 @@
       ]
     },
     {
+      "module": "TickerGardenBaselineRegistry",
+      "source": "contracts/src/v1/modules/TickerGardenBaselineRegistry.sol",
+      "sourceSha256": "0xca29144f5c523c61b1decb9fe18567326d65889a39e86057bf03b52b05470eaa",
+      "artifact": "contracts/out-v1/TickerGardenBaselineRegistry.sol/TickerGardenBaselineRegistry.json",
+      "interfaceArtifact": "contracts/out-v1/IV1Protocol.sol/ITickerGardenBaselineRegistry.json",
+      "compilerVersion": "0.8.26+commit.8a97fa7a",
+      "creationCode": {
+        "bytes": 3184,
+        "keccak256": "0x87bb9b9a55a0cc685857254aadd280cfd8523c58301c53add09c23855d61be34"
+      },
+      "runtimeTemplate": {
+        "bytes": 2976,
+        "keccak256": "0x2f557072f52e1987112fcad11a18ec6befeef90728d7c4edac5c911aff55ce7b",
+        "immutableReferenceGroups": 1,
+        "isFinalDeploymentCodeHash": false
+      },
+      "functions": [
+        "addBaseline(bytes32,(uint256,address,bytes32,uint256,uint256,uint256,uint24,int24,bytes32,uint8))",
+        "authority()",
+        "baseline(bytes32)",
+        "pauseBaseline(bytes32,bytes32)",
+        "retireBaseline(bytes32,bytes32)",
+        "unpauseBaseline(bytes32)"
+      ],
+      "mutations": [
+        "addBaseline(bytes32,(uint256,address,bytes32,uint256,uint256,uint256,uint24,int24,bytes32,uint8))",
+        "pauseBaseline(bytes32,bytes32)",
+        "retireBaseline(bytes32,bytes32)",
+        "unpauseBaseline(bytes32)"
+      ],
+      "events": [
+        "TickerGardenBaselineAdded(bytes32,bytes32,bytes32)",
+        "TickerGardenBaselineStatusChanged(bytes32,uint8,uint8,bytes32)"
+      ]
+    },
+    {
+      "module": "TickerGardenCurve",
+      "source": "contracts/src/v1/modules/TickerGardenCurve.sol",
+      "sourceSha256": "0xdf02b11fc101cb85dca524a820be43c9d75eb4f97474b4afd1a09fa0331b6cdc",
+      "artifact": "contracts/out-v1/TickerGardenCurve.sol/TickerGardenCurve.json",
+      "interfaceArtifact": "contracts/out-v1/IV1Protocol.sol/ITickerGardenCurve.json",
+      "compilerVersion": "0.8.26+commit.8a97fa7a",
+      "creationCode": {
+        "bytes": 21065,
+        "keccak256": "0x0796a42118dd89bde17a4b59f1775ab953f8246decde14dcea6c4669140c095f"
+      },
+      "runtimeTemplate": {
+        "bytes": 17707,
+        "keccak256": "0x01aeddcb89603c51ad7a84d990fbc71b02aad0906b449b831f8d12aa59c4798f",
+        "immutableReferenceGroups": 17,
+        "isFinalDeploymentCodeHash": false
+      },
+      "functions": [
+        "accruedCreatorTax()",
+        "accruedCurveFees()",
+        "buy(uint256,uint256,address)",
+        "creatorTaxBps()",
+        "getReserves()",
+        "quoteAsset()",
+        "quoteBuy(uint256,address)",
+        "quoteSell(uint256)",
+        "readyToGraduate()",
+        "realQuoteReserve()",
+        "reservedTokens()",
+        "sell(uint256,uint256,address)",
+        "sellableTokens()",
+        "sweepCurveFees()",
+        "sweepNonce()"
+      ],
+      "mutations": [
+        "buy(uint256,uint256,address)",
+        "sell(uint256,uint256,address)",
+        "sweepCurveFees()"
+      ],
+      "events": [
+        "CurveBuy(address,address,uint256,uint256,uint256,uint256)",
+        "CurveBuyRefunded(address,uint256)",
+        "CurveCompleted(bytes32)",
+        "CurveFeeTransferred(bytes32,uint64,bytes32,uint256)",
+        "CurveSell(address,address,uint256,uint256,uint256,uint256)"
+      ]
+    },
+    {
       "module": "TickerGardenFactoryV1",
       "source": "contracts/src/v1/modules/TickerGardenFactoryV1.sol",
-      "sourceSha256": "0x804c83861c86c892ce4aab7dc63083ebbe359f5e0016d386ebf6ff8f5ffd92b9",
+      "sourceSha256": "0x95a61db44a4edeb803c7d12e3e67ecc3f8f8e09adc6ffb48ef8b583bf11f321f",
       "artifact": "contracts/out-v1/TickerGardenFactoryV1.sol/TickerGardenFactoryV1.json",
       "interfaceArtifact": "contracts/out-v1/IV1Protocol.sol/ITickerGardenFactoryV1.json",
       "compilerVersion": "0.8.26+commit.8a97fa7a",
       "creationCode": {
-        "bytes": 30372,
-        "keccak256": "0x7cd4620eeabd75d1340b9acdeb9d0e719a4d97bf8d58ed7d3752259aa72ca5cf"
+        "bytes": 30560,
+        "keccak256": "0x8402d89654acbca9cb60e2acf2711a3644808d753b7a2154a2b8981d8c0b535a"
       },
       "runtimeTemplate": {
-        "bytes": 23642,
-        "keccak256": "0x786c1c4796f176e57905d0ba73e86b0d4628bd387cf7e473cb375722f3894efe",
+        "bytes": 23830,
+        "keccak256": "0x2935cb7a2a8c40489428567e142625ebca33acf3994187bbccf47a8de7eec78c",
         "immutableReferenceGroups": 16,
         "isFinalDeploymentCodeHash": false
       },
       "functions": [
         "allocationManager()",
         "approvedQuoteRegistry()",
-        "createMarket((bytes32,bytes32,bytes32,bytes32,bytes32,address,string,string,string,bytes32,uint16,bool))",
-        "createMarketFor(address,(bytes32,bytes32,bytes32,bytes32,bytes32,address,string,string,string,bytes32,uint16,bool))",
+        "createMarket((bytes32,bytes32,bytes32,bytes32,bytes32,address,string,string,string,bytes32,uint16,bool,bool))",
+        "createMarketFor(address,(bytes32,bytes32,bytes32,bytes32,bytes32,address,string,string,string,bytes32,uint16,bool,bool))",
         "creatorRevenueRegistry()",
         "curveImplementation()",
         "curveInitialization(address)",
@@ -642,16 +653,16 @@
         "memeTokenImplementation()",
         "officialStockRegistry()",
         "platformTreasury()",
-        "ponsBaselineRegistry()",
-        "predictMarketAddresses(address,(bytes32,bytes32,bytes32,bytes32,bytes32,address,string,string,string,bytes32,uint16,bool))",
-        "previewMarketEconomics((bytes32,bytes32,bytes32,bytes32,bytes32,address,string,string,string,bytes32,uint16,bool))",
+        "predictMarketAddresses(address,(bytes32,bytes32,bytes32,bytes32,bytes32,address,string,string,string,bytes32,uint16,bool,bool))",
+        "previewMarketEconomics((bytes32,bytes32,bytes32,bytes32,bytes32,address,string,string,string,bytes32,uint16,bool,bool))",
         "protocolFeeVault()",
         "runtimeBindings()",
+        "tickerGardenBaselineRegistry()",
         "treasuryDistributor()"
       ],
       "mutations": [
-        "createMarket((bytes32,bytes32,bytes32,bytes32,bytes32,address,string,string,string,bytes32,uint16,bool))",
-        "createMarketFor(address,(bytes32,bytes32,bytes32,bytes32,bytes32,address,string,string,string,bytes32,uint16,bool))"
+        "createMarket((bytes32,bytes32,bytes32,bytes32,bytes32,address,string,string,string,bytes32,uint16,bool,bool))",
+        "createMarketFor(address,(bytes32,bytes32,bytes32,bytes32,bytes32,address,string,string,string,bytes32,uint16,bool,bool))"
       ],
       "events": [
         "MarketCreated(bytes32,bytes32,address,address,address,address,bytes32,bytes32,bytes32)"
@@ -665,12 +676,12 @@
       "interfaceArtifact": "contracts/out-v1/IV1Protocol.sol/ITickerGardenMemeHook.json",
       "compilerVersion": "0.8.26+commit.8a97fa7a",
       "creationCode": {
-        "bytes": 15463,
-        "keccak256": "0xe5f85af63ef91fa653ea29a2ed3c53dd64109f1a9b69f298b7ddb0606057dd19"
+        "bytes": 15490,
+        "keccak256": "0x7d0695a4bc182474dd3b4a20fa2e27fb764e3fe2ea5a753e11860704ef3cd23c"
       },
       "runtimeTemplate": {
-        "bytes": 14007,
-        "keccak256": "0xbf2ad743b3ded88137ade99ac8e0649ccb91778c67310b65c18bd386a8da12f2",
+        "bytes": 14034,
+        "keccak256": "0x74780816d8e15652d58b8e56bea2fbcf715d3f8378d966c9bccdf269d7ac4929",
         "immutableReferenceGroups": 7,
         "isFinalDeploymentCodeHash": false
       },
@@ -707,17 +718,17 @@
     {
       "module": "TickerMemeTokenV1",
       "source": "contracts/src/v1/modules/TickerMemeTokenV1.sol",
-      "sourceSha256": "0x446920b03c76618266b0d01705cb76f36d2e0a41aba886a81867e835059f6708",
+      "sourceSha256": "0xb5bacd895abea5425b6d4c2d8a57fa0e888e33c99bf3f41b12d9b22d1cb68d62",
       "artifact": "contracts/out-v1/TickerMemeTokenV1.sol/TickerMemeTokenV1.json",
       "interfaceArtifact": "contracts/out-v1/IV1Protocol.sol/ITickerMemeTokenV1.json",
       "compilerVersion": "0.8.26+commit.8a97fa7a",
       "creationCode": {
-        "bytes": 3905,
-        "keccak256": "0x510cb7ab6399af869570a6f30155e8286869d6c9a34c28a839421a3b04263fa8"
+        "bytes": 4427,
+        "keccak256": "0x3a6f4408a5522928bebcce4b7c7652ad6076207365c01d6b81e5ac2e73c52fe6"
       },
       "runtimeTemplate": {
-        "bytes": 2401,
-        "keccak256": "0xa5aa29666f0bce726311b98fdcd8c74c93e226e0abbc87a651421fe5fa3b35c7",
+        "bytes": 2759,
+        "keccak256": "0x1494517f01f74e187c750bb7065fd4e087f0cc8d3965edae04d68247645c27f8",
         "immutableReferenceGroups": 6,
         "isFinalDeploymentCodeHash": false
       },
@@ -726,9 +737,11 @@
         "approve(address,uint256)",
         "balanceOf(address)",
         "burnTreasury(uint256)",
+        "continuousRewardsEnabled()",
         "creator()",
         "decimals()",
         "deployedAt()",
+        "enableContinuousRewards()",
         "factory()",
         "initialSupply()",
         "marketId()",
@@ -743,6 +756,7 @@
       "mutations": [
         "approve(address,uint256)",
         "burnTreasury(uint256)",
+        "enableContinuousRewards()",
         "transfer(address,uint256)",
         "transferFrom(address,address,uint256)"
       ],
@@ -755,17 +769,17 @@
     {
       "module": "TreasuryDistributorV1",
       "source": "contracts/src/v1/modules/TreasuryDistributorV1.sol",
-      "sourceSha256": "0x0013b8772d0e8830f81ff9085b76a4de91e51ee3076d2209d53a4aea52d20390",
+      "sourceSha256": "0x80923c830b61ef41ccc5618363424107a2d6abbe7307629f21bef59e7d0dc7fe",
       "artifact": "contracts/out-v1/TreasuryDistributorV1.sol/TreasuryDistributorV1.json",
       "interfaceArtifact": "contracts/out-v1/IV1Protocol.sol/ITreasuryDistributorV1.json",
       "compilerVersion": "0.8.26+commit.8a97fa7a",
       "creationCode": {
-        "bytes": 22636,
-        "keccak256": "0x32239dda8ff9e076fd9279798359fab09d840547dede6985e791c7b72be79d4b"
+        "bytes": 22982,
+        "keccak256": "0x59021f20f85de5ee99110580713de8e33608403a4d504c6982d8a507e29d1cb8"
       },
       "runtimeTemplate": {
-        "bytes": 21381,
-        "keccak256": "0x40fe5b7a625ad7b1e06d75e5e09df2e449c74883e555708c1b6a945749f23b8a",
+        "bytes": 21727,
+        "keccak256": "0x67f8283c0f48a0337564cd3286f361f50187e6db39f9f2a8792677361a71a8dd",
         "immutableReferenceGroups": 8,
         "isFinalDeploymentCodeHash": false
       },
@@ -854,12 +868,12 @@
       "interfaceArtifact": "contracts/out-v1/IV1Protocol.sol/IUserStockVault.json",
       "compilerVersion": "0.8.26+commit.8a97fa7a",
       "creationCode": {
-        "bytes": 12678,
-        "keccak256": "0xdc18bda056198717ea2a33f2c3c940b9fe5b74633ab606aeeacb8170be36ba05"
+        "bytes": 12705,
+        "keccak256": "0x1d5eb4dcbf1933d92136c1f6f479dd0eda6674d7691bba33f5ce51a414d54437"
       },
       "runtimeTemplate": {
-        "bytes": 12089,
-        "keccak256": "0x2e576928a7f4db75d9245ecd82199693ea2daad3c2e918f5194de283c5d57ce1",
+        "bytes": 12116,
+        "keccak256": "0xeed366669bfa5af3e697aa2a22be99c29723f8cbe9fb2e00cd71e2e88968bef3",
         "immutableReferenceGroups": 3,
         "isFinalDeploymentCodeHash": false
       },
@@ -910,5 +924,653 @@
       ]
     }
   ],
-  "manifestHash": "0x0e3cc60e5ef6071f941badf7c341a8c0dafab6eeef861373dd76db2ef40eddbd"
+  "extensionModules": [
+    {
+      "module": "HolderRewardsDistributorV1",
+      "mode": "TICKERGARDEN_HOLDER_STREAM_24H_V1",
+      "source": "contracts/src/v1/modules/HolderRewardsDistributorV1.sol",
+      "sourceSha256": "0xbdb7e9d1c8aa390211fdb74fd8d83f7b17181a215550f38ec9d2a35ae2f13c90",
+      "artifact": "contracts/out-v1/HolderRewardsDistributorV1.sol/HolderRewardsDistributorV1.json",
+      "abi": [
+        {
+          "type": "constructor",
+          "inputs": [
+            {
+              "name": "registry",
+              "type": "address",
+              "internalType": "address"
+            }
+          ],
+          "stateMutability": "nonpayable"
+        },
+        {
+          "type": "function",
+          "name": "MAX_STREAMS",
+          "inputs": [],
+          "outputs": [
+            {
+              "name": "",
+              "type": "uint256",
+              "internalType": "uint256"
+            }
+          ],
+          "stateMutability": "view"
+        },
+        {
+          "type": "function",
+          "name": "PRECISION",
+          "inputs": [],
+          "outputs": [
+            {
+              "name": "",
+              "type": "uint256",
+              "internalType": "uint256"
+            }
+          ],
+          "stateMutability": "view"
+        },
+        {
+          "type": "function",
+          "name": "REWARD_MODE",
+          "inputs": [],
+          "outputs": [
+            {
+              "name": "",
+              "type": "bytes32",
+              "internalType": "bytes32"
+            }
+          ],
+          "stateMutability": "view"
+        },
+        {
+          "type": "function",
+          "name": "STREAM_DURATION",
+          "inputs": [],
+          "outputs": [
+            {
+              "name": "",
+              "type": "uint256",
+              "internalType": "uint256"
+            }
+          ],
+          "stateMutability": "view"
+        },
+        {
+          "type": "function",
+          "name": "checkpoint",
+          "inputs": [
+            {
+              "name": "id",
+              "type": "bytes32",
+              "internalType": "bytes32"
+            }
+          ],
+          "outputs": [],
+          "stateMutability": "nonpayable"
+        },
+        {
+          "type": "function",
+          "name": "checkpointTransfer",
+          "inputs": [
+            {
+              "name": "id",
+              "type": "bytes32",
+              "internalType": "bytes32"
+            },
+            {
+              "name": "from",
+              "type": "address",
+              "internalType": "address"
+            },
+            {
+              "name": "to",
+              "type": "address",
+              "internalType": "address"
+            },
+            {
+              "name": "amount",
+              "type": "uint256",
+              "internalType": "uint256"
+            }
+          ],
+          "outputs": [],
+          "stateMutability": "nonpayable"
+        },
+        {
+          "type": "function",
+          "name": "claim",
+          "inputs": [
+            {
+              "name": "id",
+              "type": "bytes32",
+              "internalType": "bytes32"
+            }
+          ],
+          "outputs": [
+            {
+              "name": "amount",
+              "type": "uint256",
+              "internalType": "uint256"
+            }
+          ],
+          "stateMutability": "nonpayable"
+        },
+        {
+          "type": "function",
+          "name": "claimable",
+          "inputs": [
+            {
+              "name": "id",
+              "type": "bytes32",
+              "internalType": "bytes32"
+            },
+            {
+              "name": "user",
+              "type": "address",
+              "internalType": "address"
+            }
+          ],
+          "outputs": [
+            {
+              "name": "",
+              "type": "uint256",
+              "internalType": "uint256"
+            }
+          ],
+          "stateMutability": "view"
+        },
+        {
+          "type": "function",
+          "name": "currentEpochId",
+          "inputs": [
+            {
+              "name": "id",
+              "type": "bytes32",
+              "internalType": "bytes32"
+            }
+          ],
+          "outputs": [
+            {
+              "name": "",
+              "type": "uint32",
+              "internalType": "uint32"
+            }
+          ],
+          "stateMutability": "view"
+        },
+        {
+          "type": "function",
+          "name": "excluded",
+          "inputs": [
+            {
+              "name": "",
+              "type": "bytes32",
+              "internalType": "bytes32"
+            },
+            {
+              "name": "",
+              "type": "address",
+              "internalType": "address"
+            }
+          ],
+          "outputs": [
+            {
+              "name": "",
+              "type": "bool",
+              "internalType": "bool"
+            }
+          ],
+          "stateMutability": "view"
+        },
+        {
+          "type": "function",
+          "name": "feeSharingExcludedAccounts",
+          "inputs": [
+            {
+              "name": "id",
+              "type": "bytes32",
+              "internalType": "bytes32"
+            }
+          ],
+          "outputs": [
+            {
+              "name": "",
+              "type": "address[]",
+              "internalType": "address[]"
+            }
+          ],
+          "stateMutability": "view"
+        },
+        {
+          "type": "function",
+          "name": "feeSharingVault",
+          "inputs": [
+            {
+              "name": "id",
+              "type": "bytes32",
+              "internalType": "bytes32"
+            }
+          ],
+          "outputs": [
+            {
+              "name": "",
+              "type": "address",
+              "internalType": "address"
+            }
+          ],
+          "stateMutability": "view"
+        },
+        {
+          "type": "function",
+          "name": "fundCreatorFees",
+          "inputs": [
+            {
+              "name": "id",
+              "type": "bytes32",
+              "internalType": "bytes32"
+            },
+            {
+              "name": "bucket",
+              "type": "uint32",
+              "internalType": "uint32"
+            },
+            {
+              "name": "amount",
+              "type": "uint256",
+              "internalType": "uint256"
+            }
+          ],
+          "outputs": [],
+          "stateMutability": "payable"
+        },
+        {
+          "type": "function",
+          "name": "lastFundingAt",
+          "inputs": [
+            {
+              "name": "",
+              "type": "bytes32",
+              "internalType": "bytes32"
+            }
+          ],
+          "outputs": [
+            {
+              "name": "",
+              "type": "uint64",
+              "internalType": "uint64"
+            }
+          ],
+          "stateMutability": "view"
+        },
+        {
+          "type": "function",
+          "name": "marketRegistry",
+          "inputs": [],
+          "outputs": [
+            {
+              "name": "",
+              "type": "address",
+              "internalType": "address"
+            }
+          ],
+          "stateMutability": "view"
+        },
+        {
+          "type": "function",
+          "name": "marketState",
+          "inputs": [
+            {
+              "name": "id",
+              "type": "bytes32",
+              "internalType": "bytes32"
+            }
+          ],
+          "outputs": [
+            {
+              "name": "",
+              "type": "tuple",
+              "internalType": "struct HolderRewardsDistributorV1.Market",
+              "components": [
+                {
+                  "name": "token",
+                  "type": "address",
+                  "internalType": "address"
+                },
+                {
+                  "name": "quote",
+                  "type": "address",
+                  "internalType": "address"
+                },
+                {
+                  "name": "vault",
+                  "type": "address",
+                  "internalType": "address"
+                },
+                {
+                  "name": "updatedAt",
+                  "type": "uint64",
+                  "internalType": "uint64"
+                },
+                {
+                  "name": "head",
+                  "type": "uint8",
+                  "internalType": "uint8"
+                },
+                {
+                  "name": "count",
+                  "type": "uint8",
+                  "internalType": "uint8"
+                },
+                {
+                  "name": "supply",
+                  "type": "uint256",
+                  "internalType": "uint256"
+                },
+                {
+                  "name": "index",
+                  "type": "uint256",
+                  "internalType": "uint256"
+                },
+                {
+                  "name": "indexRemainder",
+                  "type": "uint256",
+                  "internalType": "uint256"
+                },
+                {
+                  "name": "rate",
+                  "type": "uint256",
+                  "internalType": "uint256"
+                },
+                {
+                  "name": "idle",
+                  "type": "uint256",
+                  "internalType": "uint256"
+                },
+                {
+                  "name": "funded",
+                  "type": "uint256",
+                  "internalType": "uint256"
+                },
+                {
+                  "name": "paid",
+                  "type": "uint256",
+                  "internalType": "uint256"
+                }
+              ]
+            }
+          ],
+          "stateMutability": "view"
+        },
+        {
+          "type": "function",
+          "name": "registerFeeSharingMarket",
+          "inputs": [
+            {
+              "name": "id",
+              "type": "bytes32",
+              "internalType": "bytes32"
+            },
+            {
+              "name": "vault",
+              "type": "address",
+              "internalType": "address"
+            },
+            {
+              "name": "locker",
+              "type": "address",
+              "internalType": "address"
+            }
+          ],
+          "outputs": [],
+          "stateMutability": "nonpayable"
+        },
+        {
+          "type": "function",
+          "name": "releaseState",
+          "inputs": [
+            {
+              "name": "id",
+              "type": "bytes32",
+              "internalType": "bytes32"
+            }
+          ],
+          "outputs": [
+            {
+              "name": "unreleased",
+              "type": "uint256",
+              "internalType": "uint256"
+            },
+            {
+              "name": "idleQuote",
+              "type": "uint256",
+              "internalType": "uint256"
+            },
+            {
+              "name": "nextEnd",
+              "type": "uint64",
+              "internalType": "uint64"
+            },
+            {
+              "name": "activeStreams",
+              "type": "uint256",
+              "internalType": "uint256"
+            }
+          ],
+          "stateMutability": "view"
+        },
+        {
+          "type": "function",
+          "name": "rewardMode",
+          "inputs": [],
+          "outputs": [
+            {
+              "name": "",
+              "type": "bytes32",
+              "internalType": "bytes32"
+            }
+          ],
+          "stateMutability": "pure"
+        },
+        {
+          "type": "function",
+          "name": "totalLiability",
+          "inputs": [
+            {
+              "name": "",
+              "type": "address",
+              "internalType": "address"
+            }
+          ],
+          "outputs": [
+            {
+              "name": "",
+              "type": "uint256",
+              "internalType": "uint256"
+            }
+          ],
+          "stateMutability": "view"
+        },
+        {
+          "type": "event",
+          "name": "HolderStreamClaimed",
+          "inputs": [
+            {
+              "name": "marketId",
+              "type": "bytes32",
+              "indexed": true,
+              "internalType": "bytes32"
+            },
+            {
+              "name": "account",
+              "type": "address",
+              "indexed": true,
+              "internalType": "address"
+            },
+            {
+              "name": "asset",
+              "type": "address",
+              "indexed": false,
+              "internalType": "address"
+            },
+            {
+              "name": "amount",
+              "type": "uint256",
+              "indexed": false,
+              "internalType": "uint256"
+            }
+          ],
+          "anonymous": false
+        },
+        {
+          "type": "event",
+          "name": "HolderStreamFunded",
+          "inputs": [
+            {
+              "name": "marketId",
+              "type": "bytes32",
+              "indexed": true,
+              "internalType": "bytes32"
+            },
+            {
+              "name": "amount",
+              "type": "uint256",
+              "indexed": false,
+              "internalType": "uint256"
+            },
+            {
+              "name": "end",
+              "type": "uint64",
+              "indexed": false,
+              "internalType": "uint64"
+            }
+          ],
+          "anonymous": false
+        },
+        {
+          "type": "event",
+          "name": "HolderStreamMarketRegistered",
+          "inputs": [
+            {
+              "name": "marketId",
+              "type": "bytes32",
+              "indexed": true,
+              "internalType": "bytes32"
+            },
+            {
+              "name": "token",
+              "type": "address",
+              "indexed": true,
+              "internalType": "address"
+            },
+            {
+              "name": "quote",
+              "type": "address",
+              "indexed": false,
+              "internalType": "address"
+            },
+            {
+              "name": "vault",
+              "type": "address",
+              "indexed": false,
+              "internalType": "address"
+            }
+          ],
+          "anonymous": false
+        },
+        {
+          "type": "event",
+          "name": "IdleRewardsRestarted",
+          "inputs": [
+            {
+              "name": "marketId",
+              "type": "bytes32",
+              "indexed": true,
+              "internalType": "bytes32"
+            },
+            {
+              "name": "scaledAmount",
+              "type": "uint256",
+              "indexed": false,
+              "internalType": "uint256"
+            },
+            {
+              "name": "end",
+              "type": "uint64",
+              "indexed": false,
+              "internalType": "uint64"
+            }
+          ],
+          "anonymous": false
+        },
+        {
+          "type": "error",
+          "name": "InexactTransfer",
+          "inputs": []
+        },
+        {
+          "type": "error",
+          "name": "Insolvent",
+          "inputs": []
+        },
+        {
+          "type": "error",
+          "name": "InvalidFunding",
+          "inputs": []
+        },
+        {
+          "type": "error",
+          "name": "InvalidMarket",
+          "inputs": []
+        },
+        {
+          "type": "error",
+          "name": "ReentrancyGuardReentrantCall",
+          "inputs": []
+        },
+        {
+          "type": "error",
+          "name": "SafeERC20FailedOperation",
+          "inputs": [
+            {
+              "name": "token",
+              "type": "address",
+              "internalType": "address"
+            }
+          ]
+        },
+        {
+          "type": "error",
+          "name": "StreamCapacity",
+          "inputs": []
+        },
+        {
+          "type": "error",
+          "name": "TransferFailed",
+          "inputs": []
+        },
+        {
+          "type": "error",
+          "name": "Unauthorized",
+          "inputs": []
+        }
+      ],
+      "creationCode": {
+        "bytes": 11313,
+        "keccak256": "0xcfad4e75f8ea8ddffe71355033e28a078a8e98bb83cde17865c917d7f022e964"
+      },
+      "runtimeTemplate": {
+        "bytes": 11089,
+        "keccak256": "0x5ff10bb043aef0ee9c87f31fa158b93ca7791f53af93bd69ee8962a60ec14bcd",
+        "isFinalDeploymentCodeHash": false
+      },
+      "mutations": [
+        "checkpoint(bytes32)",
+        "checkpointTransfer(bytes32,address,address,uint256)",
+        "claim(bytes32)",
+        "fundCreatorFees(bytes32,uint32,uint256)",
+        "registerFeeSharingMarket(bytes32,address,address)"
+      ]
+    }
+  ],
+  "manifestHash": "0x0b239144d146ca15558f2f5da3dfbac187d7c7ed57dd6c8de965ac99144bd21b"
 }

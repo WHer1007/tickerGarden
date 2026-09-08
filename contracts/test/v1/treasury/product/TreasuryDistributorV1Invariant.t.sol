@@ -10,7 +10,7 @@ import {TickerMemeTokenV1} from "../../../../src/v1/modules/TickerMemeTokenV1.so
 import {MockQuoteTokenV1, MockTreasuryMarketRegistryV1} from "../mocks/MockV1TreasuryAssets.sol";
 
 contract TreasuryDistributorV1InvariantHandler is Test {
-    uint32 internal constant EPOCH_DURATION = 30 days;
+    uint32 internal constant EPOCH_DURATION = 7 days;
     uint32 internal constant FINALITY_DELAY_SECONDS = 1 hours;
     uint16 internal constant FINALITY_DELAY_BLOCKS = 2;
     uint32 internal constant PUBLICATION_WINDOW = 3 days;
@@ -342,7 +342,7 @@ contract TreasuryDistributorV1InvariantTest is Test {
         uint32 currentEpoch = distributor.currentEpochId(MARKET_ID);
         assertGt(currentEpoch, 0);
         (uint64 start, uint64 end) = distributor.epochWindow(MARKET_ID, currentEpoch);
-        assertEq(start, uint64(uint256(value.activatedAt) + uint256(currentEpoch - 1) * 30 days));
+        assertEq(start, uint64(uint256(value.activatedAt) + uint256(currentEpoch - 1) * 7 days));
         assertGt(end, start);
         assertLe(uint256(end), type(uint64).max);
 

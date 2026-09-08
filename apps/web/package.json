@@ -4,7 +4,8 @@
   "version": "1.0.0",
   "type": "module",
   "scripts": {
-    "dev": "vite",
+    "dev": "node ../../tools/environment.mjs run auto web",
+    "preview": "vite preview",
     "generate:abis": "node scripts/generate-v1-abis.mjs",
     "generate:client": "node scripts/sync-v1-read-client.mjs",
     "generate": "npm run generate:abis && npm run generate:client",

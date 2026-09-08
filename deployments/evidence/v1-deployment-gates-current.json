@@ -1270,7 +1270,7 @@
     "All eight production gates remain open."
   ],
   "applicability": {
-    "status": "CURRENT",
-    "reason": "Fresh current-runtime local, invariant, deployment and two real Fork E2E cases verified; see hashed logs. No broadcast."
+    "status": "STALE",
+    "reason": "Optional immutable stock staking changes the ABI and runtime; this report remains evidence for commit a5cd19b only."
   }
 }

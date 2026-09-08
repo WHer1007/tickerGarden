@@ -13,16 +13,17 @@ import {LaunchTemplateRegistry} from "../../src/v1/modules/LaunchTemplateRegistr
 import {MarketRegistryV1} from "../../src/v1/modules/MarketRegistryV1.sol";
 import {MemeStockGauge} from "../../src/v1/modules/MemeStockGauge.sol";
 import {OfficialStockRegistryV1} from "../../src/v1/modules/OfficialStockRegistryV1.sol";
-import {PonsBaselineRegistry} from "../../src/v1/modules/PonsBaselineRegistry.sol";
+import {TickerGardenBaselineRegistry} from "../../src/v1/modules/TickerGardenBaselineRegistry.sol";
 import {ProtocolFeeVault, ProtocolFeeVaultInit} from "../../src/v1/modules/ProtocolFeeVault.sol";
 import {
-    PonsCompatibleCurveImplementation,
+    TickerGardenCurveImplementation,
     TickerGardenFactoryInit,
     TickerGardenFactoryV1,
     TickerMemeTokenV1Implementation
 } from "../../src/v1/modules/TickerGardenFactoryV1.sol";
 import {TickerGardenMemeHook} from "../../src/v1/modules/TickerGardenMemeHook.sol";
 import {TreasuryDistributorInitV1, TreasuryDistributorV1} from "../../src/v1/modules/TreasuryDistributorV1.sol";
+import {HolderRewardsDistributorV1} from "../../src/v1/modules/HolderRewardsDistributorV1.sol";
 import {UserStockVault} from "../../src/v1/modules/UserStockVault.sol";
 import {V1HookExecutorDeployer} from "./V1HookExecutorDeployer.sol";
 import {V1DeploymentPayload} from "./V1DeterministicDeploymentOrchestrator.sol";
@@ -30,6 +31,8 @@ import {V1DeploymentPayload} from "./V1DeterministicDeploymentOrchestrator.sol";
 struct V1DeploymentConfig {
     address initialAdmin;
     address poolManager;
+    uint24 nativeQuotePoolFee;
+    int24 nativeQuoteTickSpacing;
     address positionManager;
     address swapRouter;
     address quoter;
@@ -68,7 +71,7 @@ library V1DeterministicDeploymentBuilder {
     uint8 internal constant ACCESS_MANAGER = 0;
     uint8 internal constant OFFICIAL_STOCK_REGISTRY = 1;
     uint8 internal constant APPROVED_QUOTE_REGISTRY = 2;
-    uint8 internal constant PONS_BASELINE_REGISTRY = 3;
+    uint8 internal constant LAUNCH_BASELINE_REGISTRY = 3;
     uint8 internal constant LAUNCH_TEMPLATE_REGISTRY = 4;
     uint8 internal constant LAUNCH_CONFIG_RESOLVER = 5;
     uint8 internal constant MEME_TOKEN_IMPLEMENTATION = 6;
@@ -125,6 +128,17 @@ library V1DeterministicDeploymentBuilder {
         plan.payloadHash = keccak256(abi.encode(payload));
     }
 
+    /// @notice New-release streaming variant; preserves old release reproducibility through build().
+    function buildContinuous(
+        address orchestrator, V1DeploymentConfig memory config, bytes32 helperSalt_, bytes32 factorySalt_
+    ) internal pure returns (V1DeploymentPlan memory plan, V1DeploymentPayload memory payload) {
+        (plan, payload) = build(orchestrator, config, helperSalt_, factorySalt_);
+        payload.ordinaryInitCodes[TREASURY_DISTRIBUTOR] = bytes.concat(
+            type(HolderRewardsDistributorV1).creationCode, abi.encode(plan.ordinaryComponents[MARKET_REGISTRY])
+        );
+        plan.payloadHash = keccak256(abi.encode(payload));
+    }
+
     function hookMaskMatches(address hook) internal pure returns (bool) {
         return uint160(hook) & ALL_HOOK_PERMISSION_BITS == REQUIRED_HOOK_PERMISSION_MASK;
     }
@@ -176,23 +190,30 @@ library V1DeterministicDeploymentBuilder {
             type(ApprovedQuoteRegistry).creationCode,
             abi.encode(components[ACCESS_MANAGER], components[OFFICIAL_STOCK_REGISTRY])
         );
-        initCodes[PONS_BASELINE_REGISTRY] =
-            bytes.concat(type(PonsBaselineRegistry).creationCode, abi.encode(components[ACCESS_MANAGER]));
+        initCodes[LAUNCH_BASELINE_REGISTRY] =
+            bytes.concat(type(TickerGardenBaselineRegistry).creationCode, abi.encode(components[ACCESS_MANAGER]));
         initCodes[LAUNCH_TEMPLATE_REGISTRY] =
             bytes.concat(type(LaunchTemplateRegistry).creationCode, abi.encode(components[ACCESS_MANAGER]));
         initCodes[LAUNCH_CONFIG_RESOLVER] = bytes.concat(
             type(LaunchConfigResolver).creationCode,
             abi.encode(
                 components[APPROVED_QUOTE_REGISTRY],
-                components[PONS_BASELINE_REGISTRY],
+                components[LAUNCH_BASELINE_REGISTRY],
                 components[LAUNCH_TEMPLATE_REGISTRY]
             )
         );
         initCodes[MEME_TOKEN_IMPLEMENTATION] = type(TickerMemeTokenV1Implementation).creationCode;
-        initCodes[CURVE_IMPLEMENTATION] = type(PonsCompatibleCurveImplementation).creationCode;
+        initCodes[CURVE_IMPLEMENTATION] = type(TickerGardenCurveImplementation).creationCode;
         initCodes[GAUGE_IMPLEMENTATION] = type(MemeStockGauge).creationCode;
         initCodes[LAUNCH_ROUTER] = bytes.concat(
-            type(LaunchAndBuyRouter).creationCode, abi.encode(plan.factory, components[APPROVED_QUOTE_REGISTRY])
+            type(LaunchAndBuyRouter).creationCode,
+            abi.encode(
+                plan.factory,
+                components[APPROVED_QUOTE_REGISTRY],
+                config.poolManager,
+                config.nativeQuotePoolFee,
+                config.nativeQuoteTickSpacing
+            )
         );
         initCodes[MARKET_REGISTRY] = bytes.concat(
             type(MarketRegistryV1).creationCode,
@@ -200,7 +221,7 @@ library V1DeterministicDeploymentBuilder {
                 plan.factory,
                 components[OFFICIAL_STOCK_REGISTRY],
                 components[APPROVED_QUOTE_REGISTRY],
-                components[PONS_BASELINE_REGISTRY],
+                components[LAUNCH_BASELINE_REGISTRY],
                 components[LAUNCH_TEMPLATE_REGISTRY],
                 plan.executor,
                 config.swapRouter,
@@ -260,7 +281,7 @@ library V1DeterministicDeploymentBuilder {
                 TickerGardenFactoryInit({
                     officialStockRegistry: components[OFFICIAL_STOCK_REGISTRY],
                     approvedQuoteRegistry: components[APPROVED_QUOTE_REGISTRY],
-                    ponsBaselineRegistry: components[PONS_BASELINE_REGISTRY],
+                    tickerGardenBaselineRegistry: components[LAUNCH_BASELINE_REGISTRY],
                     launchTemplateRegistry: components[LAUNCH_TEMPLATE_REGISTRY],
                     marketRegistry: components[MARKET_REGISTRY],
                     creatorRevenueRegistry: components[CREATOR_REVENUE_REGISTRY],

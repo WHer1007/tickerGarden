@@ -34,6 +34,7 @@ contract LiabilityMarketRegistryMock {
         config.quoteAsset = quoteAsset;
         config.memeToken = memeToken;
         config.gauge = gauge;
+        config.stakingEnabled = true;
         MarketRuntime memory runtime;
         _markets[marketId] = MarketView({config: config, runtime: runtime});
     }
@@ -50,6 +51,7 @@ contract LiabilityMarketRegistryMock {
         config.quoteAsset = quoteAsset;
         config.memeToken = memeToken;
         config.gauge = gauge;
+        config.stakingEnabled = true;
         config.curve = curve;
         MarketRuntime memory runtime;
         runtime.sourceVersion = sourceVersion;
@@ -68,12 +70,18 @@ contract LiabilityMarketRegistryMock {
         config.quoteAsset = quoteAsset;
         config.memeToken = memeToken;
         config.gauge = gauge;
+        config.stakingEnabled = true;
         config.graduatedHook = hook;
         MarketRuntime memory runtime;
         runtime.poolId = keccak256("pool");
         runtime.sourceVersion = sourceVersion;
         runtime.launchPhase = 1;
         _markets[marketId] = MarketView({config: config, runtime: runtime});
+    }
+
+    function disableStaking(bytes32 marketId) external {
+        _markets[marketId].config.stakingEnabled = false;
+        _markets[marketId].config.gauge = address(0);
     }
 
     function market(bytes32 marketId) external view returns (MarketView memory) {
@@ -303,6 +311,54 @@ contract ProtocolFeeVaultLiabilitiesTest is Test {
         assertEq(vault.liability(MARKET_ID, address(quote), 2), 24);
         assertEq(vault.totalLiability(address(quote)), 81);
         assertTrue(vault.consumedFeeId(feeId));
+    }
+
+    function test_disabledStakingCreatorAndPlatformCanClaimBothAssetsWithoutGauge() public {
+        registry.disableStaking(MARKET_ID);
+        address[2] memory assets = [address(quote), address(meme)];
+        for (uint256 i; i < assets.length; ++i) {
+            _fundAndCredit(assets[i], 100, 70, 0, 30, 1);
+            vm.prank(BOB);
+            assertEq(vault.claimCreator(MARKET_ID, 1, assets[i]), 70);
+            vm.prank(ALICE);
+            assertEq(vault.claimPlatform(MARKET_ID, assets[i]), 30);
+            assertEq(MockExactQuoteToken(assets[i]).balanceOf(CREATOR_ONE), 70);
+            assertEq(MockExactQuoteToken(assets[i]).balanceOf(address(treasury)), 30);
+            assertEq(vault.totalLiability(assets[i]), 0);
+            assertEq(vault.claimCreator(MARKET_ID, 1, assets[i]), 0);
+            assertEq(vault.claimPlatform(MARKET_ID, assets[i]), 0);
+            assertEq(MockExactQuoteToken(assets[i]).balanceOf(address(vault)), 0);
+        }
+    }
+
+    function test_disabledStakingNativeClaimsPayRecipientsAndClearLiabilities() public {
+        registry.configure(MARKET_ID, address(0), address(meme), address(0));
+        registry.disableStaking(MARKET_ID);
+        vm.deal(address(vault), 100);
+        vault.creditBuckets(MARKET_ID, 1, address(0), 100, 70, 0, 30);
+        uint256 creatorBefore = CREATOR_ONE.balance;
+        uint256 treasuryBefore = address(treasury).balance;
+        assertEq(vault.claimCreator(MARKET_ID, 1, address(0)), 70);
+        assertEq(vault.claimPlatform(MARKET_ID, address(0)), 30);
+        assertEq(CREATOR_ONE.balance, creatorBefore + 70);
+        assertEq(address(treasury).balance, treasuryBefore + 30);
+        assertEq(vault.totalLiability(address(0)), 0);
+        assertEq(vault.claimCreator(MARKET_ID, 1, address(0)), 0);
+        assertEq(vault.claimPlatform(MARKET_ID, address(0)), 0);
+    }
+
+    function test_disabledStakingRejectsBothStakerClaimEntrypoints() public {
+        registry.disableStaking(MARKET_ID);
+        vm.expectRevert(abi.encodeWithSelector(ProtocolFeeVaultLiabilities.InvalidFeeMarket.selector, MARKET_ID));
+        vault.claimStaker(MARKET_ID, address(quote));
+        vm.expectRevert(abi.encodeWithSelector(ProtocolFeeVaultLiabilities.InvalidFeeMarket.selector, MARKET_ID));
+        vault.claimStakerFor(ALICE, MARKET_ID, address(quote));
+    }
+
+    function test_enabledStakingWithoutGaugeStillRejectsFeeClaims() public {
+        registry.configure(MARKET_ID, address(quote), address(meme), address(0));
+        vm.expectRevert(abi.encodeWithSelector(ProtocolFeeVaultLiabilities.InvalidFeeMarket.selector, MARKET_ID));
+        vault.claimCreator(MARKET_ID, 1, address(quote));
     }
 
     function test_creatorClaimIsPermissionlessButPaysHistoricalEpochBeneficiary() public {

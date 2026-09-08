@@ -1,49 +1,69 @@
-# TickerGarden Homepage Restoration QA
+# Homepage signal arbor — design QA
 
-## Comparison target
+final result: passed
 
-- Original visual direction: `/Users/dear/.codex/generated_images/01a05c0a-7536-7772-8034-b71c14f478a4/exec-447605d4-58ba-4b06-a9fc-637e81a151dc.png`
-- Most recent approved lifecycle reference: `qa-captures/homepage-product-copy-footer-1487x1050.png`
-- Implementation URL: `http://127.0.0.1:5174/`
-- Restored hero capture: `qa-captures/homepage-restored-hero.png`
-- Restored lifecycle capture: `qa-captures/homepage-restored-how.png`
-- Focused normalized comparison: `qa-captures/homepage-restored-how-comparison.png`
-- Reference pixels: 1487 × 1050. Restored lifecycle capture: 1280 × 720. Focused reference and implementation regions were normalized to 1280 × 220 without changing their content order.
-- State: signed-out homepage, navigation closed, current local Vite preview.
+## Scope and visual target
 
-## Full-view and focused evidence
+Only the homepage right-hand illustration is replaced. Existing homepage typography, colors, copy, header, actions, proof strip and all subpages are explicitly preserved per the user instruction.
 
-- The restored browser-rendered page visibly contains the stock tree and all ten ticker fruits: NVDA, AAPL, MSFT, AMZN, GOOGL, META, TSLA, AVGO, JPM, and COST.
-- The focused comparison places the previous approved lifecycle copy and the restored implementation together. The section title, introduction, three step titles, body copy, images, order, palette, and layout match; only natural line wrapping differs with viewport width.
-- The browser loaded `app.js`, which imports the shared shell and injects the fruit links. The prior broken page loaded only `subpages.js`, leaving `#fruits` empty.
+Source: `/Users/dear/.codex/generated_images/01a06fba-6fc6-7362-ac2a-fa635e9dc15b/exec-33aa4162-74ed-4dd5-9a8d-308e48cb103e.png`.
+Asset: `assets/signal-arbor.png`, 1254 × 1254, extracted by ImageGen from the approved illustration. Its nine fruit labels remain part of the artwork.
+
+## Evidence
+
+- Full homepage: `../../outputs/designs/signal-arbor/1440-rest.png`, Chrome viewport 1440 × 980, device scale factor 1.
+- Focused comparison: `../../outputs/designs/signal-arbor/comparison.png`. The approved right-hand artwork is cropped and normalized in an HTML comparison viewer alongside the browser-rendered 570 × 570 component. Original source screenshot is not stretched to the full current page, because the user expressly excluded changes to the other page content.
+- Mobile: `../../outputs/designs/signal-arbor/390-tree.png`, 350 × 350 illustration inside a 390px viewport.
+- Hover/click: `1440-hover.png`, `1440-click.png` and mobile equivalents in the same evidence directory.
+- No-JavaScript image fallback: `fallback.png`.
+- In-app browser preview inspected: homepage exposes all nine fruit buttons with accessible stock labels.
 
 ## Required fidelity surfaces
 
-- Fonts and typography: the existing Fraunces and DM Sans hierarchy is unchanged; the restored copy uses the previous heading and body weights.
-- Spacing and layout: the existing four-column lifecycle row and responsive stacking rules are unchanged.
-- Colors and tokens: cream, forest, lime, coral, line, paper, and muted tokens remain unchanged.
-- Image quality: the original local tree and all three process illustrations remain in use with no replacements or regenerated approximations.
-- Copy and content: restored to “Launch a Ticker Meme”, “Graduate the Market”, and “Allocate STOCK, Earn Fees”, including the earlier fixed-supply, locked-liquidity, and actual-fee descriptions.
-- Interaction and accessibility: ten fruit links are present in the rendered DOM; the existing hover/focus `fruit-sway` rule and reduced-motion fallback remain in `styles.css`. Browser console warnings and errors were empty.
+- Typography: existing Fraunces/DM Sans page styling unchanged; ticker lettering retained within the image cutouts. Accessible button labels mirror all nine tickers. Mobile raster lettering is naturally smaller than desktop but the image remains sharp at 2x density.
+- Spacing/layout: tree stays in the existing right column with a clear gap from the left content. On mobile it stacks in the existing hero flow. No horizontal overflow. Illustration has a little more internal breathing room than the mock to fit its existing responsive slot.
+- Colors/tokens: SHA-256 checks confirm `styles.css`, `subpages.css`, the hero copy and every checked subpage are unchanged. New component styles are scoped to `.signal-arbor`. The image white matte is removed at runtime and blended onto the actual existing cream surface, preventing a white rectangle or a new page background.
+- Image quality: full leafy line-art silhouette, single lime NVDA fruit and nine distinct ticker fruits match the approved direction. No new 3D approximation; runtime layers are literal source-image cutouts. Slight silhouette/proportion variation from ImageGen extraction remains a P3 refinement, not a change of direction.
+- Copy/content: all existing page text preserved. No visible picker, instructions, tree heading, footer controls, made-up metrics or market data. Artwork stays independent of data service configuration.
 
-## Comparison history
+## Interaction validation
 
-### Pass 1 — blocked
+Mouse hover highlights source branch pixels, lifts the fruit and briefly sways selected leaves. Highlight selection is exclusive, including neutralization of the baked-in NVDA color when another fruit is active. Click detaches the fruit image, accelerates it downward, fades it near the roots and restores it after 1.55 seconds. Repeated clicks during a fall are ignored. Neighboring leaf tips remain attached. Arrow keys/Home/End move between stock fruit buttons; Enter activates native buttons. Reduced-motion mode disables transforms/animations. No automatic animation loop. The initial PNG renders without JavaScript. Page errors: none in automated checks. Homepage no longer requests Three.js/garden-3d.
 
-- [P1] The homepage entry loaded `subpages.js` directly, so the fruit-generation code in `app.js` never executed and the tree had no fruits.
-- [P2] The approved lifecycle copy had been replaced by implementation-status language unrelated to the intended homepage story.
+## Findings and comparison history
 
-Fixes: restored the homepage module entry to `app.js` and restored the latest protocol-aligned lifecycle copy recovered from the local screenshot and session history.
+First focused source/implementation comparison found no actionable P0/P1/P2 differences. Existing page styling differences versus the generated full-page mock are intentional preservation, not drift. P3: minor raster extraction differences in leaf outlines and compact mobile ticker size; no additional iteration is required for the decorative component.
 
-### Pass 2 — passed
+## Validation
 
-- Browser DOM reports 10 ticker fruits and the three restored lifecycle headings.
-- Browser console reports no warnings or errors.
-- `npx vite build` succeeds and emits the homepage bundle with its `home` JavaScript entry.
-- No actionable P0, P1, or P2 visual findings remain in the requested restoration scope.
+37 frontend tests passed; TypeScript and production build passed. `outputs/designs/signal-arbor/check.cjs` covers desktop/mobile, hover/click, keyboard, reduced motion and no-JavaScript fallback. `preservation-check.json` records unchanged hashes for both existing stylesheets, the runtime app, left hero content and subpages. No protocol, wallet or dependency files changed in this task.
 
-## Technical note
+## Interaction revision
 
-The repository-level `npm run build` gate is currently blocked by separate in-progress V1 application changes in `src/app.ts` and a stale generated ABI bridge. Those files were not changed as part of this homepage restoration; the Vite production bundle itself passes.
+Verified the reported hover issue against the new hover capture: AAPL is filled lime and NVDA is neutral line art; exactly one fruit and branch are active. The click capture shows the fruit below its branch. Desktop/mobile browser checks, 37 frontend tests and production build passed after the revision. Existing site colors and other pages remain unchanged.
+
+## Font wordmark revision — 2026-09-06
 
 final result: passed
+
+### Source and implementation evidence
+
+- Source visual truth: `assets/tickergarden-wordmark-tight.png`, 1144 × 160 transparent PNG; previous browser baseline `../../outputs/designs/signal-arbor/1440-rest.png`, 1440 × 980 at device scale factor 1.
+- Implementation: `http://127.0.0.1:4174/index.html`, captured and inspected in the Codex in-app browser at 1280 × 720 and 390 × 844. The focused header and footer states were also inspected at their rendered CSS sizes.
+- State: homepage at rest with Google Fonts loaded; header sticky state at the top and footer at the bottom.
+
+### Required fidelity surfaces
+
+- Fonts and typography: the raster wordmark is replaced by editable `Ticker` and `Garden` spans using Nunito Sans 900 with DM Sans as fallback. At desktop the wordmark measures 176.3 × 52 CSS px beside a 52 × 52 mark; at mobile it measures 136.5 × 42 beside a 42 × 42 mark. The tighter tracking preserves the compact rounded silhouette without raster softness.
+- Spacing and layout rhythm: the existing 10px desktop and 7px mobile brand gaps remain. The font version is slightly narrower than the former 190px/145px image boxes, which gives navigation more breathing room. Desktop and 390px layouts have no horizontal overflow.
+- Colors and visual tokens: header `Ticker` remains dark green and `Garden` remains lime. Footer text renders solid white with `filter:none`, replacing the former raster inversion filter.
+- Image quality and asset fidelity: the illustrated mark remains the supplied transparent PNG unchanged. Only the textual wordmark is converted to live type; no shape or CSS drawing substitutes for the logo mark.
+- Copy and content: the visible name remains exactly `TickerGarden`; the link keeps its existing `TickerGarden home` accessible name, while the decorative split spans are hidden from duplicate announcement.
+
+### Findings and comparison history
+
+The first comparison found no P0/P1/P2 issue. The font version closely preserves the original rounded weight while improving high-density sharpness, responsive sizing and footer color control. The remaining difference is P3: Nunito Sans has slightly less bulbous terminals than the raster source. This is acceptable because the overall silhouette and two-color recognition remain intact.
+
+### Validation
+
+Nunito Sans reported loaded in the browser. Header and footer were checked at desktop and 390 × 844; no missing font, wrapping, overflow or console-visible rendering problem was observed. All 57 frontend tests and the full production build passed.

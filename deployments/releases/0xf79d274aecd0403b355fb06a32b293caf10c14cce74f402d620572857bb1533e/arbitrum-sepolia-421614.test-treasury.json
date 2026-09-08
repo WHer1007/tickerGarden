@@ -1,0 +1,10 @@
+{
+  "chainId": 421614,
+  "owner": "0xA6c3298a5559544c3b4cf8e6DC5f349f4be524ea",
+  "address": "0xD84897cD860Da0B51D39a252961B18D54fBbb266",
+  "transactionHash": "0xaad0ebc16f0a1412eea0df3fde62547b6b2e0b85e10a39139fbe82c85b9e61aa",
+  "status": "DEPLOYED_VERIFIED",
+  "runtimeCodeHash": "0xf6f03e9d585c8ef3f040707ba0367e12c6c83a9ef0c03ee67e2b1ba1f18379e2",
+  "blockNumber": "305756396",
+  "gasUsed": "200322"
+}

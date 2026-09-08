@@ -4,6 +4,14 @@ pragma solidity 0.8.26;
 import {Test} from "forge-std/Test.sol";
 import {Vm} from "forge-std/Vm.sol";
 import {Errors} from "@openzeppelin/contracts/utils/Errors.sol";
+import {Currency} from "@uniswap/v4-core/src/types/Currency.sol";
+import {PoolKey} from "@uniswap/v4-core/src/types/PoolKey.sol";
+import {SwapParams} from "@uniswap/v4-core/src/types/PoolOperation.sol";
+import {BalanceDelta, toBalanceDelta} from "@uniswap/v4-core/src/types/BalanceDelta.sol";
+
+interface IFactoryUnlockCallback {
+    function unlockCallback(bytes calldata data) external returns (bytes memory);
+}
 
 import {
     AssetView,
@@ -15,7 +23,8 @@ import {
     ITickerGardenFactoryV1,
     LaunchTemplate,
     MarketView,
-    PonsBaseline,
+    MarketConfig,
+    TickerGardenBaseline,
     PositionView,
     QuoteAssetConfig
 } from "../../../src/v1/interfaces/IV1Protocol.sol";
@@ -23,10 +32,10 @@ import {CreatorRevenueRegistry} from "../../../src/v1/modules/CreatorRevenueRegi
 import {LaunchAndBuyRouter} from "../../../src/v1/modules/LaunchAndBuyRouter.sol";
 import {MarketRegistryV1} from "../../../src/v1/modules/MarketRegistryV1.sol";
 import {MemeStockGauge} from "../../../src/v1/modules/MemeStockGauge.sol";
-import {PonsCompatibleCurve} from "../../../src/v1/modules/PonsCompatibleCurve.sol";
+import {TickerGardenCurve} from "../../../src/v1/modules/TickerGardenCurve.sol";
 import {TickerMemeTokenV1} from "../../../src/v1/modules/TickerMemeTokenV1.sol";
 import {
-    PonsCompatibleCurveImplementation,
+    TickerGardenCurveImplementation,
     TickerGardenFactoryInit,
     TickerGardenFactoryV1,
     TickerMemeTokenV1Init,
@@ -48,7 +57,7 @@ import {
 contract FactoryConfigRegistryMock {
     mapping(bytes32 => AssetView) private _assets;
     mapping(bytes32 => QuoteAssetConfig) private _quotes;
-    mapping(bytes32 => PonsBaseline) private _baselines;
+    mapping(bytes32 => TickerGardenBaseline) private _baselines;
     mapping(bytes32 => LaunchTemplate) private _templates;
     mapping(bytes32 => bytes32) private _templateHashes;
     mapping(address => bytes32) private _vaultSchemaIds;
@@ -87,7 +96,7 @@ contract FactoryConfigRegistryMock {
         _quoteIdentityIsCurrent = current;
     }
 
-    function setBaseline(bytes32 id, PonsBaseline memory value) external {
+    function setBaseline(bytes32 id, TickerGardenBaseline memory value) external {
         _baselines[id] = value;
     }
 
@@ -136,7 +145,7 @@ contract FactoryConfigRegistryMock {
         return _quoteIdentityIsCurrent;
     }
 
-    function baseline(bytes32 id) external view returns (PonsBaseline memory) {
+    function baseline(bytes32 id) external view returns (TickerGardenBaseline memory) {
         return _baselines[id];
     }
 
@@ -408,6 +417,49 @@ contract FactoryRouterCaller {
     }
 }
 
+contract FactoryV4PoolManagerMock {
+    address public quote;
+    address private locker;
+    mapping(bytes32 => bytes32) private transientValues;
+    uint256 public nativeCost;
+
+    function configure(address quote_, uint256 nativeCost_) external { quote = quote_; nativeCost = nativeCost_; }
+    function unlock(bytes calldata data) external returns (bytes memory result) {
+        locker = msg.sender;
+        result = IFactoryUnlockCallback(msg.sender).unlockCallback(data);
+        require(_delta(msg.sender, address(0)) == 0 && _delta(msg.sender, quote) == 0, "OPEN_DELTA");
+        locker = address(0);
+    }
+    function swap(PoolKey calldata key, SwapParams calldata params, bytes calldata) external returns (BalanceDelta) {
+        require(msg.sender == locker && Currency.unwrap(key.currency0) == address(0) && Currency.unwrap(key.currency1) == quote, "BAD_POOL");
+        uint256 output = uint256(params.amountSpecified);
+        require(output <= uint256(uint128(type(int128).max)) && nativeCost <= uint256(uint128(type(int128).max)), "RANGE");
+        _setDelta(msg.sender, address(0), -int256(nativeCost));
+        _setDelta(msg.sender, quote, int256(output));
+        return toBalanceDelta(-int128(int256(nativeCost)), int128(int256(output)));
+    }
+    function sync(Currency) external {}
+    function settle() external payable returns (uint256 paid) {
+        require(msg.sender == locker && msg.value == uint256(-_delta(msg.sender, address(0))), "BAD_SETTLE");
+        _setDelta(msg.sender, address(0), 0);
+        return msg.value;
+    }
+    function take(Currency currency, address to, uint256 amount) external {
+        address token = Currency.unwrap(currency);
+        require(msg.sender == locker && _delta(msg.sender, token) == int256(amount), "BAD_TAKE");
+        _setDelta(msg.sender, token, 0);
+        require(FactoryToggleApproveQuoteToken(token).transfer(to, amount), "TRANSFER");
+    }
+    function exttload(bytes32 slot) external view returns (bytes32) { return transientValues[slot]; }
+    function exttload(bytes32[] calldata slots) external view returns (bytes32[] memory values) {
+        values = new bytes32[](slots.length);
+        for (uint256 i; i < slots.length; ++i) values[i] = transientValues[slots[i]];
+    }
+    function _setDelta(address target, address token, int256 value) private { transientValues[keccak256(abi.encode(target, token))] = bytes32(uint256(value)); }
+    function _delta(address target, address token) private view returns (int256) { return int256(uint256(transientValues[keccak256(abi.encode(target, token))])); }
+    receive() external payable {}
+}
+
 contract FactoryAddressDeployer {
     function deploy(TickerGardenFactoryInit memory init) external returns (TickerGardenFactoryV1) {
         return new TickerGardenFactoryV1(init);
@@ -432,18 +484,19 @@ contract TickerGardenFactoryV1Test is Test {
 
     FactoryConfigRegistryMock internal configs;
     FactoryConfigRegistryMock internal quoteConfigs;
-    FactoryConfigRegistryMock internal ponsConfigs;
+    FactoryConfigRegistryMock internal baselineConfigs;
     FactoryConfigRegistryMock internal templateConfigs;
     FactoryDependencyMock internal accessManager;
     FactoryDependencyMock internal stockVault;
     FactoryCurveFeeVaultMock internal feeVault;
     FactoryDependencyMock internal allocationManager;
     FactoryDependencyMock internal lockerImplementation;
+    FactoryV4PoolManagerMock internal fallbackPoolManager;
     FactoryGraduationExecutorMock internal graduation;
     FactoryTreasuryMock internal treasury;
     LaunchAndBuyRouter internal router;
     TickerMemeTokenV1Implementation internal tokenImplementation;
-    PonsCompatibleCurveImplementation internal curveImplementation;
+    TickerGardenCurveImplementation internal curveImplementation;
     MemeStockGauge internal gaugeImplementation;
     MockExactQuoteToken internal stock;
     MockExactQuoteToken internal quote;
@@ -455,13 +508,13 @@ contract TickerGardenFactoryV1Test is Test {
     function setUp() public {
         configs = new FactoryConfigRegistryMock();
         quoteConfigs = new FactoryConfigRegistryMock();
-        ponsConfigs = new FactoryConfigRegistryMock();
+        baselineConfigs = new FactoryConfigRegistryMock();
         templateConfigs = new FactoryConfigRegistryMock();
         accessManager = new FactoryDependencyMock();
         configs.setAuthority(address(accessManager));
         quoteConfigs.setAuthority(address(accessManager));
         quoteConfigs.setOfficialStockRegistry(address(configs));
-        ponsConfigs.setAuthority(address(accessManager));
+        baselineConfigs.setAuthority(address(accessManager));
         templateConfigs.setAuthority(address(accessManager));
         stockVault = new FactoryDependencyMock();
         feeVault = new FactoryCurveFeeVaultMock();
@@ -474,17 +527,20 @@ contract TickerGardenFactoryV1Test is Test {
         hook = FactoryHookMock(CANONICAL_HOOK);
         FactoryAddressDeployer deployer = new FactoryAddressDeployer();
         address predictedFactory = vm.computeCreateAddress(address(deployer), 1);
-        router = new LaunchAndBuyRouter(predictedFactory, address(quoteConfigs));
+        fallbackPoolManager = new FactoryV4PoolManagerMock();
+        router = new LaunchAndBuyRouter(predictedFactory, address(quoteConfigs), address(fallbackPoolManager), 10_000, 200);
         tokenImplementation = new TickerMemeTokenV1Implementation();
-        curveImplementation = new PonsCompatibleCurveImplementation();
+        curveImplementation = new TickerGardenCurveImplementation();
         gaugeImplementation = new MemeStockGauge();
         stock = new MockExactQuoteToken(18);
         quote = new MockExactQuoteToken(6);
+        fallbackPoolManager.configure(address(quote), 0.002 ether);
+        quote.mint(address(fallbackPoolManager), 1_000_000_000_000);
         marketRegistry = new MarketRegistryV1(
             predictedFactory,
             address(configs),
             address(quoteConfigs),
-            address(ponsConfigs),
+            address(baselineConfigs),
             address(templateConfigs),
             address(graduation),
             address(stockVault),
@@ -525,7 +581,7 @@ contract TickerGardenFactoryV1Test is Test {
         (
             address officialStockRegistry_,
             address approvedQuoteRegistry_,
-            address ponsBaselineRegistry_,
+            address tickerGardenBaselineRegistry_,
             address launchTemplateRegistry_,
             address marketRegistry_,
             address protocolFeeVault_,
@@ -535,7 +591,7 @@ contract TickerGardenFactoryV1Test is Test {
         assertEq(factory.launchFee(), LAUNCH_FEE);
         assertEq(officialStockRegistry_, address(configs));
         assertEq(approvedQuoteRegistry_, address(quoteConfigs));
-        assertEq(ponsBaselineRegistry_, address(ponsConfigs));
+        assertEq(tickerGardenBaselineRegistry_, address(baselineConfigs));
         assertEq(launchTemplateRegistry_, address(templateConfigs));
         assertEq(marketRegistry_, address(marketRegistry));
         assertEq(protocolFeeVault_, address(feeVault));
@@ -551,7 +607,7 @@ contract TickerGardenFactoryV1Test is Test {
     }
 
     function test_eachConfigRegistryMustShareOneCodeBearingAccessManager() public {
-        FactoryConfigRegistryMock[4] memory registries = [configs, quoteConfigs, ponsConfigs, templateConfigs];
+        FactoryConfigRegistryMock[4] memory registries = [configs, quoteConfigs, baselineConfigs, templateConfigs];
         address mismatchedAuthority = address(new FactoryDependencyMock());
 
         for (uint256 i; i < registries.length; ++i) {
@@ -606,7 +662,7 @@ contract TickerGardenFactoryV1Test is Test {
 
         MarketView memory value = marketRegistry.market(marketId);
         assertEq(value.config.assetUid, ASSET_UID);
-        assertEq(value.config.ponsBaselineId, BASELINE_ID);
+        assertEq(value.config.tickerGardenBaselineId, BASELINE_ID);
         assertEq(value.config.quoteAssetConfigId, QUOTE_ID);
         assertEq(value.config.launchTemplateId, TEMPLATE_ID);
         assertEq(value.config.feePolicyId, FEE_POLICY_ID);
@@ -629,15 +685,15 @@ contract TickerGardenFactoryV1Test is Test {
         string memory manifest =
             vm.readFile(string.concat(vm.projectRoot(), "/../spec/v1_product_artifact_manifest.json"));
         assertEq(vm.parseJsonString(manifest, ".modules[9].module"), "MemeStockGauge");
-        assertEq(vm.parseJsonString(manifest, ".modules[12].module"), "PonsCompatibleCurve");
+        assertEq(vm.parseJsonString(manifest, ".modules[13].module"), "TickerGardenCurve");
         assertEq(vm.parseJsonString(manifest, ".modules[16].module"), "TickerMemeTokenV1");
         assertEq(
             keccak256(type(MemeStockGauge).runtimeCode),
             vm.parseJsonBytes32(manifest, ".modules[9].runtimeTemplate.keccak256")
         );
         assertEq(
-            keccak256(type(PonsCompatibleCurve).creationCode),
-            vm.parseJsonBytes32(manifest, ".modules[12].creationCode.keccak256")
+            keccak256(type(TickerGardenCurve).creationCode),
+            vm.parseJsonBytes32(manifest, ".modules[13].creationCode.keccak256")
         );
         assertEq(
             keccak256(type(TickerMemeTokenV1).creationCode),
@@ -668,7 +724,7 @@ contract TickerGardenFactoryV1Test is Test {
         bytes32 salt =
             V1Identifiers.componentSalt(block.chainid, address(factory), marketId, V1Identifiers.ComponentKind.CURVE);
         bytes32 initCodeHash =
-            V1Create2.initCodeHash(type(PonsCompatibleCurve).creationCode, abi.encode(address(factory)));
+            V1Create2.initCodeHash(type(TickerGardenCurve).creationCode, abi.encode(address(factory)));
         assertEq(curveImplementation.initCodeHash(address(factory)), initCodeHash);
         assertEq(predictedCurve, V1Create2.predict(address(factory), salt, initCodeHash));
     }
@@ -752,7 +808,7 @@ contract TickerGardenFactoryV1Test is Test {
         assertEq(token.totalSupply(), SUPPLY);
         assertEq(token.balanceOf(curveAddress), SUPPLY);
         assertEq(token.balanceOf(address(factory)), 0);
-        assertEq(PonsCompatibleCurve(payable(curveAddress)).quoteAsset(), address(quote));
+        assertEq(TickerGardenCurve(payable(curveAddress)).quoteAsset(), address(quote));
 
         PositionView memory position = MemeStockGauge(gaugeAddress).positionOf(CREATOR);
         assertEq(position.activeAmount, 0);
@@ -1001,21 +1057,21 @@ contract TickerGardenFactoryV1Test is Test {
         _setValidConfiguration(address(quote));
 
         quoteConfig = quoteConfigs.quoteConfig(QUOTE_ID);
-        quoteConfig.ponsBaselineId = bytes32("OTHER-BASELINE");
+        quoteConfig.tickerGardenBaselineId = bytes32("OTHER-BASELINE");
         quoteConfigs.setQuote(QUOTE_ID, quoteConfig);
         _expectFactoryCreateRevert(
             params,
             abi.encodeWithSelector(
-                V1FactoryValidation.QuoteBaselineMismatch.selector, quoteConfig.ponsBaselineId, BASELINE_ID
+                V1FactoryValidation.QuoteBaselineMismatch.selector, quoteConfig.tickerGardenBaselineId, BASELINE_ID
             )
         );
         _setValidConfiguration(address(quote));
 
-        PonsBaseline memory baseline = ponsConfigs.baseline(BASELINE_ID);
+        TickerGardenBaseline memory baseline = baselineConfigs.baseline(BASELINE_ID);
         baseline.status = 2;
-        ponsConfigs.setBaseline(BASELINE_ID, baseline);
+        baselineConfigs.setBaseline(BASELINE_ID, baseline);
         _expectFactoryCreateRevert(
-            params, abi.encodeWithSelector(V1FactoryValidation.InactivePonsBaseline.selector, BASELINE_ID, uint8(2))
+            params, abi.encodeWithSelector(V1FactoryValidation.InactiveTickerGardenBaseline.selector, BASELINE_ID, uint8(2))
         );
         _setValidConfiguration(address(quote));
 
@@ -1091,13 +1147,13 @@ contract TickerGardenFactoryV1Test is Test {
 
         bytes32 missingBaseline = bytes32("MISSING-BASELINE");
         CreateMarketParams memory missingBaselineParams = _validParams(CREATOR, bytes32("UNKNOWN-BASELINE"));
-        missingBaselineParams.ponsBaselineId = missingBaseline;
+        missingBaselineParams.tickerGardenBaselineId = missingBaseline;
         QuoteAssetConfig memory quoteConfig = quoteConfigs.quoteConfig(QUOTE_ID);
-        quoteConfig.ponsBaselineId = missingBaseline;
+        quoteConfig.tickerGardenBaselineId = missingBaseline;
         quoteConfigs.setQuote(QUOTE_ID, quoteConfig);
         _expectFactoryCreateRevert(
             missingBaselineParams,
-            abi.encodeWithSelector(V1FactoryValidation.InactivePonsBaseline.selector, missingBaseline, uint8(0))
+            abi.encodeWithSelector(V1FactoryValidation.InactiveTickerGardenBaseline.selector, missingBaseline, uint8(0))
         );
         _setValidConfiguration(address(quote));
 
@@ -1258,7 +1314,7 @@ contract TickerGardenFactoryV1Test is Test {
         vm.prank(CREATOR);
         (bytes32 marketId,, address curve, address gauge) = factory.createMarket{value: LAUNCH_FEE}(params);
         assertEq(marketRegistry.market(marketId).config.quoteAsset, address(0));
-        assertEq(PonsCompatibleCurve(payable(curve)).quoteAsset(), address(0));
+        assertEq(TickerGardenCurve(payable(curve)).quoteAsset(), address(0));
         MemeStockGauge(gauge).rewardState(address(0));
     }
 
@@ -1267,7 +1323,7 @@ contract TickerGardenFactoryV1Test is Test {
         quoteConfigs.setQuote(
             SECOND_QUOTE_ID,
             QuoteAssetConfig({
-                ponsBaselineId: BASELINE_ID,
+                tickerGardenBaselineId: BASELINE_ID,
                 quoteAsset: address(secondQuote),
                 quoteDecimals: 18,
                 phantomQuote: 0.3 ether,
@@ -1466,6 +1522,39 @@ contract TickerGardenFactoryV1Test is Test {
         assertEq(address(router).balance, 0);
     }
 
+    function test_launchAndBuyERC20WithZeroQuoteAutomaticallyUsesNativeExactOutput() public {
+        CreateMarketParams memory params = _validParams(CREATOR, bytes32("ROUTER-ERC20-NATIVE-FALLBACK"));
+        uint256 firstBuyAmount = 1_000_000;
+        uint256 maxNativeInput = 0.003 ether;
+        uint256 creatorBefore = CREATOR.balance;
+        assertEq(quote.balanceOf(CREATOR), 0);
+        assertEq(quote.allowance(CREATOR, address(router)), 0);
+
+        vm.prank(CREATOR);
+        (bytes32 marketId, address token, uint256 tokensOut, uint256 nativeRefund) = router.launchAndBuy{
+            value: LAUNCH_FEE + maxNativeInput
+        }(params, firstBuyAmount, 1, CREATOR);
+
+        assertGt(tokensOut, 0);
+        assertEq(TickerMemeTokenV1(token).balanceOf(CREATOR), tokensOut);
+        assertEq(nativeRefund, 0.001 ether);
+        assertEq(CREATOR.balance, creatorBefore - LAUNCH_FEE - 0.002 ether);
+        assertEq(address(router).balance, 0);
+        assertEq(quote.balanceOf(address(router)), 0);
+        assertEq(marketRegistry.market(marketId).config.quoteAsset, address(quote));
+    }
+
+    function test_launchAndBuyERC20NativeFallbackRollsBackWhenMaximumIsTooLow() public {
+        CreateMarketParams memory params = _validParams(CREATOR, bytes32("ROUTER-ERC20-NATIVE-LIMIT"));
+        (, address token, address curve, address gauge,) = factory.predictMarketAddresses(CREATOR, params);
+        vm.prank(CREATOR);
+        vm.expectRevert();
+        router.launchAndBuy{value: LAUNCH_FEE + 0.001 ether}(params, 1_000_000, 1, CREATOR);
+        assertEq(token.code.length, 0);
+        assertEq(curve.code.length, 0);
+        assertEq(gauge.code.length, 0);
+    }
+
     function test_launchAndBuyERC20TailFillReturnsExactTokenRefundToCreator() public {
         CreateMarketParams memory params = _validParams(CREATOR, bytes32("ROUTER-ERC20-TAIL"));
         uint256 firstBuyAmount = 100_000_000;
@@ -1490,7 +1579,7 @@ contract TickerGardenFactoryV1Test is Test {
         assertGt(feeVault.credited(), 0);
     }
 
-    function test_launchAndBuyERC20RequiresOnlyExactNativeLaunchFee() public {
+    function test_launchAndBuyERC20DirectPathRequiresLaunchFee() public {
         CreateMarketParams memory params = _validParams(CREATOR, bytes32("ROUTER-ERC20-FEE"));
         (, address token, address curve, address gauge,) = factory.predictMarketAddresses(CREATOR, params);
 
@@ -1499,14 +1588,6 @@ contract TickerGardenFactoryV1Test is Test {
             abi.encodeWithSelector(LaunchAndBuyRouterNative.InvalidLaunchAndBuyValue.selector, LAUNCH_FEE, 0)
         );
         router.launchAndBuy(params, 1, 0, CREATOR);
-        vm.prank(CREATOR);
-        vm.expectRevert(
-            abi.encodeWithSelector(
-                LaunchAndBuyRouterNative.InvalidLaunchAndBuyValue.selector, LAUNCH_FEE, LAUNCH_FEE + 1
-            )
-        );
-        router.launchAndBuy{value: LAUNCH_FEE + 1}(params, 1, 0, CREATOR);
-
         assertEq(token.code.length, 0);
         assertEq(curve.code.length, 0);
         assertEq(gauge.code.length, 0);
@@ -1790,7 +1871,7 @@ contract TickerGardenFactoryV1Test is Test {
         vm.deal(address(router), firstBuyAmount);
         vm.recordLogs();
         vm.prank(address(router));
-        PonsCompatibleCurve(payable(curve)).buy{value: firstBuyAmount}(firstBuyAmount, 0, recipient);
+        TickerGardenCurve(payable(curve)).buy{value: firstBuyAmount}(firstBuyAmount, 0, recipient);
         (bool foundSecond, uint256 secondTax) = _curveBuyTax(vm.getRecordedLogs(), curve, address(router), recipient);
         assertTrue(foundSecond);
         assertGt(secondTax, 0);
@@ -1831,7 +1912,8 @@ contract TickerGardenFactoryV1Test is Test {
 
     function test_launchAndBuyRouterRejectsFactoryRegistryBindingDrift() public {
         FactoryConfigRegistryMock wrongRegistry = new FactoryConfigRegistryMock();
-        LaunchAndBuyRouter wrongRouter = new LaunchAndBuyRouter(address(factory), address(wrongRegistry));
+        LaunchAndBuyRouter wrongRouter =
+            new LaunchAndBuyRouter(address(factory), address(wrongRegistry), address(lockerImplementation), 10_000, 200);
         CreateMarketParams memory params = _validParams(CREATOR, bytes32("ROUTER-BINDING"));
 
         vm.prank(CREATOR);
@@ -1849,14 +1931,14 @@ contract TickerGardenFactoryV1Test is Test {
         vm.expectRevert(
             abi.encodeWithSelector(LaunchAndBuyRouterNative.InvalidLaunchRouterDependency.selector, address(0))
         );
-        new LaunchAndBuyRouter(address(0), address(quoteConfigs));
+        new LaunchAndBuyRouter(address(0), address(quoteConfigs), address(lockerImplementation), 10_000, 200);
         vm.expectRevert(
             abi.encodeWithSelector(LaunchAndBuyRouterNative.InvalidLaunchRouterDependency.selector, address(0))
         );
-        new LaunchAndBuyRouter(address(factory), address(0));
+        new LaunchAndBuyRouter(address(factory), address(0), address(lockerImplementation), 10_000, 200);
         address noCode = address(0x123456);
         vm.expectRevert(abi.encodeWithSelector(LaunchAndBuyRouterNative.InvalidLaunchRouterDependency.selector, noCode));
-        new LaunchAndBuyRouter(address(factory), noCode);
+        new LaunchAndBuyRouter(address(factory), noCode, address(lockerImplementation), 10_000, 200);
     }
 
     function test_factorySelectorsMatchCanonicalInterfaceAndNoInitializerExists() public {
@@ -1879,7 +1961,7 @@ contract TickerGardenFactoryV1Test is Test {
         init = TickerGardenFactoryInit({
             officialStockRegistry: address(configs),
             approvedQuoteRegistry: address(quoteConfigs),
-            ponsBaselineRegistry: address(ponsConfigs),
+            tickerGardenBaselineRegistry: address(baselineConfigs),
             launchTemplateRegistry: address(templateConfigs),
             marketRegistry: address(marketRegistry),
             creatorRevenueRegistry: address(revenueRegistry),
@@ -1917,7 +1999,7 @@ contract TickerGardenFactoryV1Test is Test {
         quoteConfigs.setQuote(
             QUOTE_ID,
             QuoteAssetConfig({
-                ponsBaselineId: BASELINE_ID,
+                tickerGardenBaselineId: BASELINE_ID,
                 quoteAsset: quoteAsset,
                 quoteDecimals: quoteAsset == address(0) ? 18 : 6,
                 phantomQuote: quoteAsset == address(0) ? 0.3 ether : 30_000_000,
@@ -1926,9 +2008,9 @@ contract TickerGardenFactoryV1Test is Test {
                 status: 1
             })
         );
-        ponsConfigs.setBaseline(
+        baselineConfigs.setBaseline(
             BASELINE_ID,
-            PonsBaseline({
+            TickerGardenBaseline({
                 referenceChainId: 3027,
                 referenceFactory: address(0x1234),
                 referenceFactoryCodeHash: keccak256("reference-factory"),
@@ -1972,9 +2054,51 @@ contract TickerGardenFactoryV1Test is Test {
         vm.prank(CREATOR);
         (bytes32 marketId,, address curveAddress,) = factory.createMarket{value: LAUNCH_FEE}(params);
         assertEq(marketRegistry.market(marketId).config.creatorTaxBps, 500);
-        assertEq(PonsCompatibleCurve(payable(curveAddress)).creatorTaxBps(), 500);
+        assertEq(TickerGardenCurve(payable(curveAddress)).creatorTaxBps(), 500);
         params.creatorTaxBps = 501;
         vm.expectRevert(abi.encodeWithSignature("CreatorTaxTooHigh(uint256,uint256)", uint256(501), uint256(500)));
+        factory.previewMarketEconomics(params);
+    }
+
+    function test_disabledStakingCreatesWithoutStockOrGaugeAndPreservesHolderChoice() public {
+        CreateMarketParams memory params = _validParams(CREATOR, bytes32("NO-STAKING"));
+        bytes32 enabledEconomics = params.expectedEconomics;
+        params.stakingEnabled = false;
+        params.assetUid = bytes32(0);
+        params.creatorFeesToHolders = true;
+        params.creatorTaxBps = 500;
+        vm.mockCallRevert(
+            address(configs), abi.encodeWithSignature("asset(bytes32)", bytes32(0)), bytes("NO_STOCK_LOOKUP")
+        );
+        params.expectedEconomics = factory.previewMarketEconomics(params);
+        assertNotEq(params.expectedEconomics, enabledEconomics);
+        (bytes32 expectedId, address predictedToken, address predictedCurve, address predictedGauge,) =
+            factory.predictMarketAddresses(CREATOR, params);
+        assertEq(predictedGauge, address(0));
+        vm.prank(CREATOR);
+        (bytes32 id, address token, address curve, address gauge) = factory.createMarket{value: LAUNCH_FEE}(params);
+        assertEq(id, expectedId);
+        assertEq(token, predictedToken);
+        assertEq(curve, predictedCurve);
+        assertEq(gauge, address(0));
+        MarketConfig memory config = marketRegistry.market(id).config;
+        assertFalse(config.stakingEnabled);
+        assertEq(config.assetUid, bytes32(0));
+        assertTrue(config.creatorFeesToHolders);
+        assertEq(config.creatorTaxBps, 500);
+        assertEq(treasury.registeredMarketId(), id);
+    }
+
+    function test_stakingModeRejectsContradictoryStockAndStaleEconomics() public {
+        CreateMarketParams memory params = _validParams(CREATOR, bytes32("STAKING-MODE"));
+        params.stakingEnabled = false;
+        vm.expectRevert(abi.encodeWithSignature("InvalidStakingConfiguration()"));
+        factory.previewMarketEconomics(params);
+        params.assetUid = bytes32(0);
+        vm.expectRevert();
+        factory.predictMarketAddresses(CREATOR, params);
+        params.stakingEnabled = true;
+        vm.expectRevert(abi.encodeWithSignature("InvalidStakingConfiguration()"));
         factory.previewMarketEconomics(params);
     }
 
@@ -2052,7 +2176,7 @@ contract TickerGardenFactoryV1Test is Test {
         vm.prank(CREATOR);
         (bytes32 marketId,, uint256 tokensOut, uint256 refund) =
             router.launchAndBuy{value: LAUNCH_FEE + spend}(params, spend, 1, CREATOR);
-        PonsCompatibleCurve c = PonsCompatibleCurve(payable(marketRegistry.market(marketId).config.curve));
+        TickerGardenCurve c = TickerGardenCurve(payable(marketRegistry.market(marketId).config.curve));
         assertGt(tokensOut, 0);
         assertEq(refund, 0);
         assertEq(c.accruedCreatorTax(), spend * 500 / 10_000);
@@ -2077,7 +2201,7 @@ contract TickerGardenFactoryV1Test is Test {
         vm.prank(CREATOR);
         (bytes32 marketId,, uint256 tokensOut, uint256 refund) =
             router.launchAndBuy{value: LAUNCH_FEE}(params, spend, 1, CREATOR);
-        PonsCompatibleCurve c = PonsCompatibleCurve(payable(marketRegistry.market(marketId).config.curve));
+        TickerGardenCurve c = TickerGardenCurve(payable(marketRegistry.market(marketId).config.curve));
         assertGt(tokensOut, 0);
         assertEq(refund, 0);
         assertEq(c.accruedCreatorTax(), 50_000);
@@ -2088,7 +2212,7 @@ contract TickerGardenFactoryV1Test is Test {
     function _validParams(address creator, bytes32 salt) private returns (CreateMarketParams memory params) {
         params = CreateMarketParams({
             assetUid: ASSET_UID,
-            ponsBaselineId: BASELINE_ID,
+            tickerGardenBaselineId: BASELINE_ID,
             quoteAssetConfigId: QUOTE_ID,
             launchTemplateId: TEMPLATE_ID,
             expectedEconomics: bytes32(0),
@@ -2098,7 +2222,8 @@ contract TickerGardenFactoryV1Test is Test {
             metadataURI: "ipfs://ticker-garden",
             salt: salt,
             creatorTaxBps: 0,
-            creatorFeesToHolders: false
+            creatorFeesToHolders: false,
+            stakingEnabled: true
         });
         vm.prank(creator);
         params.expectedEconomics = factory.previewMarketEconomics(params);

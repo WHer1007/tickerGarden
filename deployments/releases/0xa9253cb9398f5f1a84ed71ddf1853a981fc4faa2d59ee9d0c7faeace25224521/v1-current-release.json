@@ -1,0 +1,52 @@
+{
+  "schemaVersion": 1,
+  "status": "VERIFIED",
+  "executionSpecId": "V1-EXEC-11",
+  "chainId": 421614,
+  "deployer": "0xA6c3298a5559544c3b4cf8e6DC5f349f4be524ea",
+  "releaseId": "0xa9253cb9398f5f1a84ed71ddf1853a981fc4faa2d59ee9d0c7faeace25224521",
+  "payloadHash": "0x6bc6075d3e5e863c2168e5ab1f618b917be603bd1109e9608c9b6e870c2c9153",
+  "verifiedAt": 1788673772,
+  "expiresAt": 1788680972,
+  "executionManifestSha256": "0xeb700ff36ecb7478135356a675869eea948475e2b556483f110d22bfd2d4ff2f",
+  "productArtifactManifestSha256": "0x97ce4f5a066389803b53594022339e5b48a11456820cc208492f328ce580ca42",
+  "compiledInterfaceManifestSha256": "0x9c1ba31035dec23ab331d5938ddf2365e8223843212ef56b2115c76dc48d138f",
+  "scope": "ARBITRUM_SEPOLIA_TEST_ONLY_REVIEWED_PAYLOAD",
+  "productionTargetChainId": 4663,
+  "notes": [
+    "User authorized bug fix, strict local tests, then testnet redeployment. RH production is not authorized for broadcast.",
+    "822 ordinary tests, Arbitrum Fork 1, RH Fork 3 passed. Product track 315, gate tooling 19, deployment track and offchain 145 passed. Web 57, spec 62, root generator 8 and Go suites passed.",
+    "Combined track invocation lacked ROBINHOOD_RPC_URL after product passed; fork track subsequently passed independently through a pinned official RH RPC proxy. No test bypasses.",
+    "Fresh R4 source evidence replaces current reliance on stale R3 evidence; old deployment and reports remain archived."
+  ],
+  "files": [
+    {
+      "path": "deployments/evidence/v1-r4-test-validation.json",
+      "sha256": "0x6b9c94b42121c66bde74c079529a232f06d29f32f074132c9d4ff0df220c1d83"
+    },
+    {
+      "path": "deployments/manifests/arbitrum-sepolia-421614.v1.preview.json",
+      "sha256": "0x8186d21dbc47cbf6c97d0da31a87827b2d0f5c196738d8f063bdb1a13774a9dc"
+    },
+    {
+      "path": "outputs/reviews/arbitrum-wallet-deployment/preview.log",
+      "sha256": "0x9aae8f249cd555cd029fce28a180f1af0fe5e21dc5cee0bd4a47bdd243beb310"
+    },
+    {
+      "path": "outputs/reviews/arbitrum-r4-fix/offchain-final.log",
+      "sha256": "0x0f25971aec9490c177787f3ac005d23b51285959d1e683febe57d6cd6d5ed532"
+    },
+    {
+      "path": "outputs/reviews/arbitrum-r4-fix/offchain-build-final.log",
+      "sha256": "0x48612a5cfdd769555330b35a0048a3b4430b29a14dbd706899c0f7d60a128a2d"
+    },
+    {
+      "path": "outputs/reviews/arbitrum-r4-fix/deployment-track.log",
+      "sha256": "0x5244d6b23635c3a0e65e30b6544e3f6ea0b98421a2db134df7f5d64b2dff3e61"
+    },
+    {
+      "path": "outputs/reviews/arbitrum-r4-fix/ci-gates.log",
+      "sha256": "0xfee095e4a1f5392e7451e3fea5504632a2b7388f38707ca560802568d42d236c"
+    }
+  ]
+}

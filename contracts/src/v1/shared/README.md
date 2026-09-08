@@ -4,7 +4,7 @@
 
 ## Foundation
 
-- `ImmutableAccessManaged` and `DelayedUnpause` implement selector-scoped AccessManager authorization and the state-relative 24-hour unpause delay for Asset/Quote/Pons/Template configuration objects only.
+- `ImmutableAccessManaged` and `DelayedUnpause` implement selector-scoped AccessManager authorization and the state-relative 24-hour unpause delay for Asset/Quote/TickerGarden/Template configuration objects only.
 - `V1Identifiers`, `V1Create2`, `V1MarketEconomics`, and `V1FactoryValidation` provide typed IDs, deterministic deployment, immutable economics hashes, active configuration-snapshot validation, and exact `MultiAsset.v6` Vault schema/dependency admission.
 - `V1Scaffold` freezes the `V1-EXEC-11` compile identity.
 

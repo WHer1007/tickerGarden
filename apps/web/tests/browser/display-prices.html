@@ -1,0 +1,10 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Display price integration fixture</title><link rel="stylesheet" href="../../subpages.css"></head><body><main class="page"><h1>Display price integration fixture</h1><p>Synthetic reference from the real Go HTTP router. This is not a live market quote.</p><section class="panel"><h2>Quote reference</h2><p class="muted display-price-reference" data-display-price></p><button id="reload">Reload reference</button><button id="clear">Clear selection</button></section></main><script type="module">
+import {mountDisplayPrice} from '../../src/v1/displayPrices.ts';
+const base=new URL(location.href).searchParams.get('api');
+if(!base || !/^http:\/\/127\.0\.0\.1:\d+$/.test(base))throw new Error('Local Go API origin required');
+const token='0x'+'1'.repeat(40);
+const widget=mountDisplayPrice(document.querySelector('[data-display-price]'),base,4663);
+document.querySelector('#reload').onclick=()=>{widget.setToken(null);widget.setToken(token);};
+document.querySelector('#clear').onclick=()=>widget.setToken(null);
+window.addEventListener('pagehide',()=>widget.stop());widget.setToken(token);
+</script></body></html>

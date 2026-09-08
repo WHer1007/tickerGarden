@@ -1,0 +1,39 @@
+{
+  "schemaVersion": 1,
+  "status": "VERIFIED",
+  "executionSpecId": "V1-EXEC-11",
+  "chainId": 421614,
+  "deployer": "0xA6c3298a5559544c3b4cf8e6DC5f349f4be524ea",
+  "releaseId": "0xf79d274aecd0403b355fb06a32b293caf10c14cce74f402d620572857bb1533e",
+  "payloadHash": "0xb382730535bfe97d77d8fae3b02a888f8c2f48a8278af8e96bd550528bf58aa5",
+  "verifiedAt": 1788629490,
+  "expiresAt": 1788633085,
+  "executionManifestSha256": "0x0d8b18524bab2ba468eb5a87d3ed07b2e37dde591ba44d0ee8e37a7e584b6763",
+  "productArtifactManifestSha256": "0x5ca2111c1b95c41f1f3161595710746aee9e732372c78d4e65520628725d5e0a",
+  "compiledInterfaceManifestSha256": "0xd48b7d8d2edd9d37af789a080477a141ff366a62c1ff6baa0d21ea6e9f99551e",
+  "scope": "ARBITRUM_SEPOLIA_TEST_ONLY_REVIEWED_PAYLOAD",
+  "productionTargetChainId": 4663,
+  "notes": [
+    "Test-only reviewed payload identity; successful input-bound full simulation required before broadcast.",
+    "Platform receiver is a verified contract owned by the test operator.",
+    "RH production readiness is not implied."
+  ],
+  "files": [
+    {
+      "path": "outputs/reviews/arbitrum-wallet-deployment/preview.log",
+      "sha256": "0xee050b6379e173450dfd32334bd2d263a35e20114a0c2239932efe3ee41728b3"
+    },
+    {
+      "path": "outputs/reviews/arbitrum-wallet-deployment/staged-tests.log",
+      "sha256": "0x3f86ef1f6146fcf8e4dabb1b834fd6925ac256bcdd2a9ec761714d6c3b0ace6b"
+    },
+    {
+      "path": "deployments/manifests/arbitrum-sepolia-421614.test-treasury.json",
+      "sha256": "0x600a5eb601e3c26e845a62f82d95c1dd9f38ec6a9a03a10cb238890ea8408da9"
+    },
+    {
+      "path": "outputs/reviews/arbitrum-sepolia/fork-verified.log",
+      "sha256": "0xcd152e123a20bcb1bb2048a9b083baf22102d178047644b97f181fcdf3e0c5b0"
+    }
+  ]
+}

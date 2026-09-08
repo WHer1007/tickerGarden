@@ -1,0 +1,5284 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "TickerGarden V1 Read API",
+    "version": "2.27.0",
+    "description": "Non-custodial read API with published snapshots and explicitly incomplete finalized reward observations."
+  },
+  "x-execution-spec-id": "V1-EXEC-11",
+  "paths": {
+    "/v1/users/{address}/activity": {
+      "get": {
+        "operationId": "listUserActivity",
+        "description": "Finalized address-referenced protocol events, newest first, from the configured indexing start. All canonical batches and stored receipt commitments must be complete. Roles are event references, not verified transaction initiators or trading volume. A changed history returns 409; restart pagination. No transaction submission. These nine history/transaction observation routes share a limit of four active requests per API instance. Excess requests return 503 analytics_unavailable with Retry-After: 5, without queueing.",
+        "parameters": [
+          {
+            "name": "address",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^0x[0-9a-f]{40}$"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100,
+              "default": 50
+            }
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 1024
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UserActivityPage"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ActivityError"
+                }
+              }
+            }
+          },
+          "405": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ActivityError"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ActivityError"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ActivityError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/transactions/{txHash}": {
+      "get": {
+        "operationId": "getTransactionStatus",
+        "description": "Read-only transaction observations. Distinguishes unknown, pending, confirmed, finalized and reorged; execution success/revert is separate. Confirms against a bracketed RPC head with journal provenance and retained orphan history. Unknown does not prove non-submission. Conflicting, stale or missing observations return 503. No signing or transaction submission. These nine history/transaction observation routes share a limit of four active requests per API instance. Excess requests return 503 analytics_unavailable with Retry-After: 5, without queueing.",
+        "parameters": [
+          {
+            "name": "txHash",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^0x[0-9a-f]{64}$"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TransactionStatusResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TransactionError"
+                }
+              }
+            }
+          },
+          "405": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TransactionError"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TransactionError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/stats/holders": {
+      "get": {
+        "operationId": "getGlobalHolderCounts",
+        "description": "Go backend. Full finalized market histories in one snapshot. Global and per-STOCK positive addresses are deduplicated; market-address pairs are separate. Adjusted counts exclude the union of known protocol addresses across all markets. These are addresses, not people or reward eligibility. At most 1000 markets and 1000000 positive market-address pairs; complete-history budgets and 10-second timeout apply. Missing or oversized histories return 503. These nine history/transaction observation routes share a limit of four active requests per API instance. Excess requests return 503 analytics_unavailable with Retry-After: 5, without queueing.",
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GlobalHolderCountsResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CandleError"
+                }
+              }
+            }
+          },
+          "405": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CandleError"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CandleError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/stats/series": {
+      "get": {
+        "operationId": "getGlobalFlowSeries",
+        "description": "Go backend. Verified execution flows grouped by STOCK/Quote in aligned [from,to) buckets. Empty buckets retain zero-flow groups; no synthetic trades, prices, balances or historical market counts. Maximum 2000 buckets and 100000 market-bucket cells, in addition to complete-history reader budgets. Incomplete/oversized history returns 503. These nine history/transaction observation routes share a limit of four active requests per API instance. Excess requests return 503 analytics_unavailable with Retry-After: 5, without queueing.",
+        "parameters": [
+          {
+            "name": "interval",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "1m",
+                "5m",
+                "15m",
+                "1h",
+                "4h",
+                "1d"
+              ]
+            }
+          },
+          {
+            "name": "from",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^(0|[1-9][0-9]*)$"
+            }
+          },
+          {
+            "name": "to",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^(0|[1-9][0-9]*)$"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GlobalFlowSeriesResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CandleError"
+                }
+              }
+            }
+          },
+          "405": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CandleError"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CandleError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/stats/overview": {
+      "get": {
+        "operationId": "getGlobalStatistics",
+        "description": "Go backend. Market and registered STOCK counts at the projection checkpoint (including retired registrations), execution flows within [from,to). Groups remain separated by STOCK and Quote; zero assetUid with binding=unbound explicitly means no STOCK binding. No implicit USD, reserve or holder total. One verified snapshot; maximum 1000 markets, 1000 registrations and 100000 executions, 10000 per market; incomplete or oversized history returns 503. These nine history/transaction observation routes share a limit of four active requests per API instance. Excess requests return 503 analytics_unavailable with Retry-After: 5, without queueing.",
+        "parameters": [
+          {
+            "name": "from",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^(0|[1-9][0-9]*)$"
+            }
+          },
+          {
+            "name": "to",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^(0|[1-9][0-9]*)$"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GlobalStatisticsResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CandleError"
+                }
+              }
+            }
+          },
+          "405": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CandleError"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CandleError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/assets/{assetUid}/statistics": {
+      "get": {
+        "operationId": "getAssetStatistics",
+        "description": "Go backend. Registered STOCK execution flows for [from,to), read in one verified database snapshot. Quote currencies and fee assets remain separate; includes internal conversions explicitly. This is not reserves, holder balances or USD value. Retired assets remain queryable. Maximum 1000 markets, 10000 executions per market and 100000 total; incomplete or oversized observations return 503, never truncated totals. These nine history/transaction observation routes share a limit of four active requests per API instance. Excess requests return 503 analytics_unavailable with Retry-After: 5, without queueing.",
+        "parameters": [
+          {
+            "name": "assetUid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^0x[0-9a-f]{64}$"
+            }
+          },
+          {
+            "name": "from",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^(0|[1-9][0-9]*)$"
+            }
+          },
+          {
+            "name": "to",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^(0|[1-9][0-9]*)$"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AssetStatisticsResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CandleError"
+                }
+              }
+            }
+          },
+          "405": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CandleError"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CandleError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/markets/{marketId}/holders": {
+      "get": {
+        "operationId": "listMarketHolders",
+        "description": "Go backend. Complete Meme Token Transfer replay from creation through the finalized projection checkpoint. Balances in ascending address order, including excluded protocol accounts with explicit flags. Counts are addresses, not users or reward eligibility. Keep limit unchanged; on 409 discard prior pages and restart. Each page currently rereads bounded complete history (at most one million blocks and 100000 receipts/logs, 64MiB range payload budget, 10-second deadline); incomplete or oversized history returns 503. These nine history/transaction observation routes share a limit of four active requests per API instance. Excess requests return 503 analytics_unavailable with Retry-After: 5, without queueing.",
+        "parameters": [
+          {
+            "name": "marketId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^0x[0-9a-f]{64}$"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100,
+              "default": 50
+            }
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 2048
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MarketHoldersResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HolderError"
+                }
+              }
+            }
+          },
+          "405": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HolderError"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HolderError"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HolderError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/markets/{marketId}/trades": {
+      "get": {
+        "operationId": "listMarketTrades",
+        "description": "Go backend. Newest-first canonical executions with explicit amount basis and caller identity confidence. Conversion summaries do not create extra executions. Keep market/from/to/limit unchanged across pages. HTTP 409 requires discarding previous pages and restarting without cursor. Currently revalidates the complete bounded interval per page (10000 executions maximum; database-side full-history coverage verification is subject to the request timeout). These nine history/transaction observation routes share a limit of four active requests per API instance. Excess requests return 503 analytics_unavailable with Retry-After: 5, without queueing.",
+        "parameters": [
+          {
+            "name": "marketId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^0x[0-9a-f]{64}$"
+            }
+          },
+          {
+            "name": "from",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^(0|[1-9][0-9]*)$"
+            }
+          },
+          {
+            "name": "to",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^(0|[1-9][0-9]*)$"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100,
+              "default": 50
+            }
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 2048
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MarketTradesResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TradeError"
+                }
+              }
+            }
+          },
+          "405": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TradeError"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TradeError"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TradeError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/markets/{marketId}/detail": {
+      "get": {
+        "operationId": "getTokenDetail",
+        "description": "Display-only approved token detail analytics. Prefers cached scheduled Dune results and falls back per section to finalized indexer coverage. Null means unavailable, never zero. Amounts are decimal strings; price and cap are Quote denominated. Protocol-balance exclusions define circulating supply. No execution or settlement authority.",
+        "parameters": [
+          {
+            "name": "marketId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^0x[0-9a-f]{64}$"
+            }
+          },
+          {
+            "name": "period",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "1H",
+                "12H",
+                "1D"
+              ]
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TokenDetailResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CandleError"
+                }
+              }
+            }
+          },
+          "405": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CandleError"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CandleError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/markets/{marketId}/candles": {
+      "get": {
+        "operationId": "getMarketCandles",
+        "description": "Go backend display-only canonical executions, including separately reported internal conversions. Aligned half-open Unix-second range; no synthetic trades or carry-forward prices. Missing coverage or configuration returns 503. At most 2000 buckets and 10000 trades. Database-side full-history coverage verification is subject to the request timeout. Independent coverage checkpoint, not a published snapshot revision. These nine history/transaction observation routes share a limit of four active requests per API instance. Excess requests return 503 analytics_unavailable with Retry-After: 5, without queueing.",
+        "parameters": [
+          {
+            "name": "marketId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^0x[0-9a-f]{64}$"
+            }
+          },
+          {
+            "name": "interval",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "1m",
+                "5m",
+                "15m",
+                "1h",
+                "4h",
+                "1d"
+              ]
+            }
+          },
+          {
+            "name": "from",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^(0|[1-9][0-9]*)$"
+            }
+          },
+          {
+            "name": "to",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^(0|[1-9][0-9]*)$"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MarketCandlesResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CandleError"
+                }
+              }
+            }
+          },
+          "405": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CandleError"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CandleError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/updates": {
+      "get": {
+        "operationId": "getSnapshotUpdates",
+        "description": "Go backend. Compare published finalized snapshots. Refetch invalidated endpoint families pinned to sync.revision, clearing their old cursors. Reset requires all four families to be reloaded. An unavailable response must not advance the client revision. Prices, rewards and treasury use independent freshness mechanisms.",
+        "parameters": [
+          {
+            "name": "since",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "pattern": "^(0|[1-9][0-9]*):0x[0-9a-f]{64}$"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SnapshotUpdatesResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SnapshotUpdatesError"
+                }
+              }
+            }
+          },
+          "405": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SnapshotUpdatesError"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SnapshotUpdatesError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/prices/references": {
+      "get": {
+        "operationId": "listDisplayPriceReferences",
+        "description": "Go backend. Cached provider-reported display estimates only, never a chain snapshot, execution price or creation authorization. No query parameters. Stale/unavailable prices are null.",
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DisplayPriceResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Query parameters unsupported",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DisplayPriceError"
+                }
+              }
+            }
+          },
+          "405": {
+            "description": "Read only",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DisplayPriceError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/users/{address}/rewards": {
+      "get": {
+        "operationId": "listUserRewards",
+        "description": "Go backend: current finalized observations, not a certified payout or conversion plan. Incomplete claim history is explicitly marked; unavailable data returns 503. Pagination must restart if the projection revision changes.",
+        "parameters": [
+          {
+            "name": "address",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^0x[0-9a-f]{40}$"
+            }
+          },
+          {
+            "name": "revision",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "pattern": "^[0-9]+:0x[0-9a-f]{64}$"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100,
+              "default": 50
+            }
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "required": false,
+            "description": "Opaque cursor bound to endpoint, normalized filter and Indexer revision.",
+            "schema": {
+              "type": "string",
+              "minLength": 1
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RewardPage"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid query or changed revision",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RewardError"
+                }
+              }
+            }
+          },
+          "405": {
+            "description": "Read only",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RewardError"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Observations unavailable",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RewardError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/health": {
+      "get": {
+        "operationId": "getHealth",
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HealthResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid input or cursor snapshot",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "405": {
+            "description": "Read-only API",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/markets": {
+      "get": {
+        "operationId": "listMarkets",
+        "parameters": [
+          {
+            "name": "assetUid",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "pattern": "^0x[0-9a-f]{64}$"
+            }
+          },
+          {
+            "name": "marketId",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "pattern": "^0x[0-9a-f]{64}$"
+            }
+          },
+          {
+            "name": "memeToken",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "pattern": "^0x[0-9a-f]{40}$"
+            }
+          },
+          {
+            "name": "launchPhase",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "enum": [
+                0,
+                1
+              ]
+            }
+          },
+          {
+            "name": "search",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128
+            },
+            "description": "Market name substring or complete canonical Meme Token contract address only. Name matching is ASCII case-insensitive with other Unicode exact. Symbol, marketId and assetUid are outside the V1 search contract."
+          },
+          {
+            "name": "createdFrom",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "pattern": "^(0|[1-9][0-9]*)$"
+            },
+            "description": "Inclusive Unix seconds, max signed bigint."
+          },
+          {
+            "name": "createdTo",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "pattern": "^(0|[1-9][0-9]*)$"
+            },
+            "description": "Inclusive Unix seconds, max signed bigint."
+          },
+          {
+            "name": "sort",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "marketId_asc",
+                "marketId_desc",
+                "createdAt_asc",
+                "createdAt_desc",
+                "name_asc",
+                "launchPhase_asc",
+                "volume24hUsd_desc",
+                "marketCapUsd_desc"
+              ]
+            },
+            "description": "ID, deployment-time, name, lifecycle-phase, 24-hour USD volume or USD market-cap order, with ascending marketId as tie-breaker. USD sorts use one revision-cached complete directory and place unavailable values last. Filters apply to the full revision-pinned catalog before pagination. Cursors are bound to normalized filters and sort."
+          },
+          {
+            "name": "revision",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "pattern": "^[0-9]+:0x[0-9a-f]{64}$"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100,
+              "default": 50
+            }
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "required": false,
+            "description": "Opaque cursor bound to endpoint, normalized filter and Indexer revision.",
+            "schema": {
+              "type": "string",
+              "minLength": 1
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MarketPage"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid input or cursor snapshot",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "405": {
+            "description": "Read-only API",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Market identity or ranking metrics unavailable",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/markets/{marketId}": {
+      "get": {
+        "operationId": "getMarket",
+        "parameters": [
+          {
+            "name": "marketId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^0x[0-9a-f]{64}$"
+            }
+          },
+          {
+            "name": "revision",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "pattern": "^[0-9]+:0x[0-9a-f]{64}$"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MarketDetailResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid input or cursor snapshot",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Market not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "405": {
+            "description": "Read-only API",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/config/{kind}": {
+      "get": {
+        "operationId": "listConfig",
+        "parameters": [
+          {
+            "name": "kind",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "asset",
+                "quote",
+                "baseline",
+                "template"
+              ]
+            }
+          },
+          {
+            "name": "revision",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "pattern": "^[0-9]+:0x[0-9a-f]{64}$"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100,
+              "default": 50
+            }
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "required": false,
+            "description": "Opaque cursor bound to endpoint, normalized filter and Indexer revision.",
+            "schema": {
+              "type": "string",
+              "minLength": 1
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ConfigPage"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid input or cursor snapshot",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "405": {
+            "description": "Read-only API",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/users/{address}/accounts": {
+      "get": {
+        "operationId": "listUserAccounts",
+        "description": "Vault principal once per wallet and asset, including accounts without market positions. Old snapshots without account coverage return 503.",
+        "parameters": [
+          {
+            "name": "address",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^0x[0-9a-f]{40}$"
+            }
+          },
+          {
+            "name": "revision",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "pattern": "^[0-9]+:0x[0-9a-f]{64}$"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100,
+              "default": 50
+            }
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "required": false,
+            "description": "Opaque cursor bound to endpoint, normalized filter and Indexer revision.",
+            "schema": {
+              "type": "string",
+              "minLength": 1
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AccountPage"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid input or cursor snapshot",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "405": {
+            "description": "Read-only API",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/users/{address}/positions": {
+      "get": {
+        "operationId": "listUserPositions",
+        "parameters": [
+          {
+            "name": "address",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^0x[0-9a-f]{40}$"
+            }
+          },
+          {
+            "name": "revision",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "pattern": "^[0-9]+:0x[0-9a-f]{64}$"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100,
+              "default": 50
+            }
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "required": false,
+            "description": "Opaque cursor bound to endpoint, normalized filter and Indexer revision.",
+            "schema": {
+              "type": "string",
+              "minLength": 1
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PositionPage"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid input or cursor snapshot",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "405": {
+            "description": "Read-only API",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "AssetHolderCounts": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "assetUid": {
+            "type": "string",
+            "pattern": "^0x[0-9a-f]{64}$"
+          },
+          "binding": {
+            "type": "string",
+            "enum": [
+              "registered_stock",
+              "unbound"
+            ]
+          },
+          "marketCount": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "positiveMarketAddressPairs": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "positiveAddressCount": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "includedAddressCount": {
+            "type": "integer",
+            "minimum": 0
+          }
+        },
+        "required": [
+          "assetUid",
+          "binding",
+          "marketCount",
+          "positiveMarketAddressPairs",
+          "positiveAddressCount",
+          "includedAddressCount"
+        ]
+      },
+      "UserActivityRecord": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 256
+          },
+          "chainId": {
+            "type": "integer",
+            "enum": [
+              4663,
+              46630,
+              421614
+            ]
+          },
+          "account": {
+            "type": "string",
+            "pattern": "^0x[0-9a-f]{40}$"
+          },
+          "roles": {
+            "type": "array",
+            "minItems": 1,
+            "maxItems": 3,
+            "uniqueItems": true,
+            "items": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 64
+            }
+          },
+          "identityBasis": {
+            "type": "string",
+            "const": "event_address_reference_not_verified_initiator"
+          },
+          "module": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128
+          },
+          "signature": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 1024
+          },
+          "emitter": {
+            "type": "string",
+            "pattern": "^0x[0-9a-f]{40}$"
+          },
+          "blockNumber": {
+            "type": "string",
+            "pattern": "^(0|[1-9][0-9]*)$"
+          },
+          "blockHash": {
+            "type": "string",
+            "pattern": "^0x[0-9a-f]{64}$"
+          },
+          "transactionHash": {
+            "type": "string",
+            "pattern": "^0x[0-9a-f]{64}$"
+          },
+          "transactionIndex": {
+            "type": "string",
+            "pattern": "^(0|[1-9][0-9]*)$"
+          },
+          "logIndex": {
+            "type": "string",
+            "pattern": "^(0|[1-9][0-9]*)$"
+          },
+          "arguments": {
+            "type": "object",
+            "maxProperties": 32,
+            "additionalProperties": {
+              "oneOf": [
+                {
+                  "type": "string",
+                  "maxLength": 1024
+                },
+                {
+                  "type": "boolean"
+                }
+              ]
+            }
+          }
+        },
+        "required": [
+          "id",
+          "chainId",
+          "account",
+          "roles",
+          "identityBasis",
+          "module",
+          "signature",
+          "emitter",
+          "blockNumber",
+          "blockHash",
+          "transactionHash",
+          "transactionIndex",
+          "logIndex",
+          "arguments"
+        ]
+      },
+      "UserActivityPage": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "chainId": {
+            "type": "integer",
+            "enum": [
+              4663,
+              46630,
+              421614
+            ]
+          },
+          "account": {
+            "type": "string",
+            "pattern": "^0x[0-9a-f]{40}$"
+          },
+          "items": {
+            "type": "array",
+            "maxItems": 100,
+            "items": {
+              "$ref": "#/components/schemas/UserActivityRecord"
+            }
+          },
+          "nextCursor": {
+            "oneOf": [
+              {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 1024
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "indexedFrom": {
+            "type": "string",
+            "pattern": "^(0|[1-9][0-9]*)$"
+          },
+          "sourceBlockNumber": {
+            "type": "string",
+            "pattern": "^(0|[1-9][0-9]*)$"
+          },
+          "sourceBlockHash": {
+            "type": "string",
+            "pattern": "^0x[0-9a-f]{64}$"
+          },
+          "revision": {
+            "type": "string",
+            "pattern": "^sha256:[0-9a-f]{64}$"
+          },
+          "finality": {
+            "type": "string",
+            "const": "finalized"
+          },
+          "observedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "displayOnly": {
+            "type": "boolean",
+            "const": true
+          }
+        },
+        "required": [
+          "chainId",
+          "account",
+          "items",
+          "nextCursor",
+          "indexedFrom",
+          "sourceBlockNumber",
+          "sourceBlockHash",
+          "revision",
+          "finality",
+          "observedAt",
+          "displayOnly"
+        ]
+      },
+      "ActivityError": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "error": {
+            "type": "string",
+            "enum": [
+              "invalid_query",
+              "method_not_allowed",
+              "activity_unavailable",
+              "activity_page_changed",
+              "analytics_unavailable"
+            ]
+          },
+          "message": {
+            "type": "string"
+          },
+          "requestId": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "error",
+          "message",
+          "requestId"
+        ]
+      },
+      "TransactionReceiptStatus": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "blockNumber": {
+            "type": "string",
+            "pattern": "^(0|[1-9][0-9]*)$"
+          },
+          "blockHash": {
+            "type": "string",
+            "pattern": "^0x[0-9a-f]{64}$"
+          },
+          "transactionIndex": {
+            "type": "string",
+            "pattern": "^(0|[1-9][0-9]*)$"
+          },
+          "execution": {
+            "type": "string",
+            "enum": [
+              "succeeded",
+              "reverted"
+            ]
+          }
+        },
+        "required": [
+          "blockNumber",
+          "blockHash",
+          "transactionIndex",
+          "execution"
+        ]
+      },
+      "TransactionStatusResponse": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "chainId": {
+            "type": "integer",
+            "enum": [
+              4663,
+              46630,
+              421614
+            ]
+          },
+          "transactionHash": {
+            "type": "string",
+            "pattern": "^0x[0-9a-f]{64}$"
+          },
+          "state": {
+            "type": "string",
+            "enum": [
+              "unknown",
+              "pending",
+              "confirmed",
+              "finalized",
+              "reorged"
+            ]
+          },
+          "confirmations": {
+            "type": "string",
+            "pattern": "^(0|[1-9][0-9]*)$"
+          },
+          "receipt": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/TransactionReceiptStatus"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "orphanedReceipts": {
+            "type": "array",
+            "maxItems": 128,
+            "items": {
+              "$ref": "#/components/schemas/TransactionReceiptStatus"
+            }
+          },
+          "headNumber": {
+            "type": "string",
+            "pattern": "^(0|[1-9][0-9]*)$"
+          },
+          "headHash": {
+            "type": "string",
+            "pattern": "^0x[0-9a-f]{64}$"
+          },
+          "finalizedNumber": {
+            "type": "string",
+            "pattern": "^(0|[1-9][0-9]*)$"
+          },
+          "finalizedHash": {
+            "type": "string",
+            "pattern": "^0x[0-9a-f]{64}$"
+          },
+          "source": {
+            "type": "string",
+            "const": "indexed_journal_and_rpc"
+          },
+          "indexedFrom": {
+            "type": "string",
+            "pattern": "^(0|[1-9][0-9]*)$"
+          },
+          "journalHeadNumber": {
+            "type": "string",
+            "pattern": "^(0|[1-9][0-9]*)$"
+          },
+          "journalHeadHash": {
+            "type": "string",
+            "pattern": "^0x[0-9a-f]{64}$"
+          },
+          "journalObservedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "rpcObservedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "displayOnly": {
+            "type": "boolean",
+            "const": true
+          }
+        },
+        "required": [
+          "chainId",
+          "transactionHash",
+          "state",
+          "confirmations",
+          "receipt",
+          "orphanedReceipts",
+          "headNumber",
+          "headHash",
+          "finalizedNumber",
+          "finalizedHash",
+          "source",
+          "indexedFrom",
+          "journalHeadNumber",
+          "journalHeadHash",
+          "journalObservedAt",
+          "rpcObservedAt",
+          "displayOnly"
+        ]
+      },
+      "TransactionError": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "error": {
+            "type": "string",
+            "enum": [
+              "invalid_query",
+              "method_not_allowed",
+              "transaction_unavailable",
+              "analytics_unavailable"
+            ]
+          },
+          "message": {
+            "type": "string"
+          },
+          "requestId": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "error",
+          "message",
+          "requestId"
+        ]
+      },
+      "GlobalHolderCountsResponse": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "chainId": {
+            "type": "integer",
+            "enum": [
+              4663,
+              46630,
+              421614
+            ]
+          },
+          "displayOnly": {
+            "type": "boolean",
+            "const": true
+          },
+          "finality": {
+            "type": "string",
+            "const": "finalized"
+          },
+          "sourceBlockNumber": {
+            "type": "string",
+            "pattern": "^(0|[1-9][0-9]*)$"
+          },
+          "sourceBlockHash": {
+            "type": "string",
+            "pattern": "^0x[0-9a-f]{64}$"
+          },
+          "marketCount": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 1000
+          },
+          "positiveMarketAddressPairs": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 1000000
+          },
+          "positiveAddressCount": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "includedAddressCount": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "exclusionPolicy": {
+            "type": "string",
+            "const": "UNION_OF_KNOWN_PROTOCOL_ADDRESSES_V1"
+          },
+          "excludedAccounts": {
+            "type": "array",
+            "maxItems": 1000000,
+            "items": {
+              "type": "string",
+              "pattern": "^0x[0-9a-f]{40}$"
+            }
+          },
+          "groups": {
+            "type": "array",
+            "maxItems": 1000,
+            "items": {
+              "$ref": "#/components/schemas/AssetHolderCounts"
+            }
+          }
+        },
+        "required": [
+          "chainId",
+          "displayOnly",
+          "finality",
+          "sourceBlockNumber",
+          "sourceBlockHash",
+          "marketCount",
+          "positiveMarketAddressPairs",
+          "positiveAddressCount",
+          "includedAddressCount",
+          "exclusionPolicy",
+          "excludedAccounts",
+          "groups"
+        ]
+      },
+      "GlobalFlowSeriesResponse": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "chainId": {
+            "type": "integer",
+            "enum": [
+              4663,
+              46630,
+              421614
+            ]
+          },
+          "displayOnly": {
+            "type": "boolean",
+            "const": true
+          },
+          "coverage": {
+            "$ref": "#/components/schemas/CandleCoverage"
+          },
+          "interval": {
+            "type": "integer",
+            "enum": [
+              60,
+              300,
+              900,
+              3600,
+              14400,
+              86400
+            ]
+          },
+          "volumeBasis": {
+            "type": "string",
+            "const": "CURVE_EXCLUDING_FEE_TAX_OR_POOL_CORE"
+          },
+          "emptyPolicy": {
+            "type": "string",
+            "const": "ZERO_FLOW_NO_SYNTHETIC_EXECUTIONS"
+          },
+          "points": {
+            "type": "array",
+            "maxItems": 2000,
+            "items": {
+              "$ref": "#/components/schemas/GlobalFlowPoint"
+            }
+          }
+        },
+        "required": [
+          "chainId",
+          "displayOnly",
+          "coverage",
+          "interval",
+          "volumeBasis",
+          "emptyPolicy",
+          "points"
+        ]
+      },
+      "GlobalFlowPoint": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "timestamp": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "groups": {
+            "type": "array",
+            "maxItems": 1000,
+            "items": {
+              "$ref": "#/components/schemas/GlobalFlowGroup"
+            }
+          }
+        },
+        "required": [
+          "timestamp",
+          "groups"
+        ]
+      },
+      "StockIdentity": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "assetUid": {
+            "type": "string",
+            "pattern": "^0x[0-9a-f]{64}$"
+          },
+          "stockToken": {
+            "type": "string",
+            "pattern": "^0x[0-9a-f]{40}$"
+          },
+          "stockDecimals": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 18
+          }
+        },
+        "required": [
+          "assetUid",
+          "stockToken",
+          "stockDecimals"
+        ]
+      },
+      "GlobalStatisticsResponse": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "chainId": {
+            "type": "integer",
+            "enum": [
+              4663,
+              46630,
+              421614
+            ]
+          },
+          "displayOnly": {
+            "type": "boolean",
+            "const": true
+          },
+          "coverage": {
+            "$ref": "#/components/schemas/CandleCoverage"
+          },
+          "marketCount": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "registeredStockCount": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "boundMarketCount": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "unboundMarketCount": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "stocks": {
+            "type": "array",
+            "maxItems": 1000,
+            "items": {
+              "$ref": "#/components/schemas/StockIdentity"
+            }
+          },
+          "groups": {
+            "type": "array",
+            "maxItems": 1000,
+            "items": {
+              "$ref": "#/components/schemas/GlobalTradeGroup"
+            }
+          }
+        },
+        "required": [
+          "chainId",
+          "displayOnly",
+          "coverage",
+          "marketCount",
+          "registeredStockCount",
+          "boundMarketCount",
+          "unboundMarketCount",
+          "stocks",
+          "groups"
+        ]
+      },
+      "HolderBalance": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "account": {
+            "type": "string",
+            "pattern": "^0x[0-9a-f]{40}$"
+          },
+          "balanceRaw": {
+            "type": "string",
+            "pattern": "^(0|[1-9][0-9]*)$"
+          },
+          "excluded": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "account",
+          "balanceRaw",
+          "excluded"
+        ]
+      },
+      "MarketHoldersResponse": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "chainId": {
+            "type": "integer",
+            "enum": [
+              4663,
+              46630,
+              421614
+            ]
+          },
+          "displayOnly": {
+            "type": "boolean",
+            "const": true
+          },
+          "marketId": {
+            "type": "string",
+            "pattern": "^0x[0-9a-f]{64}$"
+          },
+          "memeToken": {
+            "type": "string",
+            "pattern": "^0x[0-9a-f]{40}$"
+          },
+          "creationBlockNumber": {
+            "type": "string",
+            "pattern": "^(0|[1-9][0-9]*)$"
+          },
+          "sourceBlockNumber": {
+            "type": "string",
+            "pattern": "^(0|[1-9][0-9]*)$"
+          },
+          "sourceBlockHash": {
+            "type": "string",
+            "pattern": "^0x[0-9a-f]{64}$"
+          },
+          "finality": {
+            "type": "string",
+            "const": "finalized"
+          },
+          "exclusionPolicy": {
+            "type": "string",
+            "const": "KNOWN_PROTOCOL_ADDRESSES_V1"
+          },
+          "totalSupplyRaw": {
+            "type": "string",
+            "pattern": "^(0|[1-9][0-9]*)$"
+          },
+          "positiveAddressCount": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "includedAddressCount": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "excludedAccounts": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "pattern": "^0x[0-9a-f]{40}$"
+            }
+          },
+          "balances": {
+            "type": "array",
+            "maxItems": 100,
+            "items": {
+              "$ref": "#/components/schemas/HolderBalance"
+            }
+          },
+          "revision": {
+            "type": "string",
+            "pattern": "^sha256:[0-9a-f]{64}$"
+          },
+          "nextCursor": {
+            "oneOf": [
+              {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 2048
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "chainId",
+          "displayOnly",
+          "marketId",
+          "memeToken",
+          "creationBlockNumber",
+          "sourceBlockNumber",
+          "sourceBlockHash",
+          "finality",
+          "exclusionPolicy",
+          "totalSupplyRaw",
+          "positiveAddressCount",
+          "includedAddressCount",
+          "excludedAccounts",
+          "balances",
+          "revision",
+          "nextCursor"
+        ]
+      },
+      "HolderError": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "error": {
+            "type": "string",
+            "enum": [
+              "invalid_query",
+              "method_not_allowed",
+              "analytics_unavailable",
+              "holder_page_changed"
+            ]
+          },
+          "message": {
+            "type": "string"
+          },
+          "requestId": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "error",
+          "message",
+          "requestId"
+        ]
+      },
+      "AssetFeeTotal": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "asset": {
+            "type": "string",
+            "pattern": "^0x[0-9a-f]{40}$"
+          },
+          "decimals": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 18
+          },
+          "feeRaw": {
+            "type": "string",
+            "pattern": "^(0|[1-9][0-9]*)$"
+          },
+          "taxRaw": {
+            "type": "string",
+            "pattern": "^(0|[1-9][0-9]*)$"
+          }
+        },
+        "required": [
+          "asset",
+          "decimals",
+          "feeRaw",
+          "taxRaw"
+        ]
+      },
+      "AssetTradeStats": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "assetUid": {
+            "type": "string",
+            "pattern": "^0x[0-9a-f]{64}$"
+          },
+          "quoteAsset": {
+            "type": "string",
+            "pattern": "^0x[0-9a-f]{40}$"
+          },
+          "quoteDecimals": {
+            "type": "integer",
+            "minimum": 6,
+            "maximum": 18
+          },
+          "marketCount": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "tradingMarketCount": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "tradeCount": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "internalTradeCount": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "unclassifiedTradeCount": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "quoteVolumeRaw": {
+            "type": "string",
+            "pattern": "^(0|[1-9][0-9]*)$"
+          },
+          "internalQuoteVolumeRaw": {
+            "type": "string",
+            "pattern": "^(0|[1-9][0-9]*)$"
+          },
+          "fees": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AssetFeeTotal"
+            }
+          },
+          "unknownFeeTradeCount": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "volumeBasis": {
+            "type": "string",
+            "const": "CURVE_EXCLUDING_FEE_TAX_OR_POOL_CORE"
+          }
+        },
+        "required": [
+          "assetUid",
+          "quoteAsset",
+          "quoteDecimals",
+          "marketCount",
+          "tradingMarketCount",
+          "tradeCount",
+          "internalTradeCount",
+          "unclassifiedTradeCount",
+          "quoteVolumeRaw",
+          "internalQuoteVolumeRaw",
+          "fees",
+          "unknownFeeTradeCount",
+          "volumeBasis"
+        ]
+      },
+      "AssetStatisticsResponse": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "chainId": {
+            "type": "integer",
+            "enum": [
+              4663,
+              46630,
+              421614
+            ]
+          },
+          "displayOnly": {
+            "type": "boolean",
+            "const": true
+          },
+          "assetUid": {
+            "type": "string",
+            "pattern": "^0x[0-9a-f]{64}$"
+          },
+          "stockToken": {
+            "type": "string",
+            "pattern": "^0x[0-9a-f]{40}$"
+          },
+          "stockDecimals": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 18
+          },
+          "coverage": {
+            "$ref": "#/components/schemas/CandleCoverage"
+          },
+          "groups": {
+            "type": "array",
+            "maxItems": 1000,
+            "items": {
+              "$ref": "#/components/schemas/AssetTradeStats"
+            }
+          }
+        },
+        "required": [
+          "chainId",
+          "displayOnly",
+          "assetUid",
+          "stockToken",
+          "stockDecimals",
+          "coverage",
+          "groups"
+        ]
+      },
+      "TradeSource": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "chainId": {
+            "type": "integer",
+            "enum": [
+              4663,
+              46630,
+              421614
+            ]
+          },
+          "blockNumber": {
+            "type": "string",
+            "pattern": "^(0|[1-9][0-9]*)$"
+          },
+          "blockHash": {
+            "type": "string",
+            "pattern": "^0x[0-9a-f]{64}$"
+          },
+          "transactionHash": {
+            "type": "string",
+            "pattern": "^0x[0-9a-f]{64}$"
+          },
+          "transactionIndex": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "logIndex": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "emitter": {
+            "type": "string",
+            "pattern": "^0x[0-9a-f]{40}$"
+          },
+          "eventKey": {
+            "type": "string",
+            "pattern": "^[0-9]+:0x[0-9a-f]{64}:[0-9]+$"
+          }
+        },
+        "required": [
+          "chainId",
+          "blockNumber",
+          "blockHash",
+          "transactionHash",
+          "transactionIndex",
+          "logIndex",
+          "emitter",
+          "eventKey"
+        ]
+      },
+      "TradeActivity": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "source": {
+            "$ref": "#/components/schemas/TradeSource"
+          },
+          "venue": {
+            "type": "string",
+            "enum": [
+              "curve",
+              "pool"
+            ]
+          },
+          "marketId": {
+            "type": "string",
+            "pattern": "^0x[0-9a-f]{64}$"
+          },
+          "timestamp": {
+            "type": "string",
+            "pattern": "^(0|[1-9][0-9]*)$"
+          },
+          "side": {
+            "type": "string",
+            "enum": [
+              "buy",
+              "sell"
+            ]
+          },
+          "classification": {
+            "type": "string",
+            "enum": [
+              "unclassified",
+              "internal_reward_conversion",
+              "internal_holder_conversion"
+            ]
+          },
+          "actor": {
+            "oneOf": [
+              {
+                "type": "string",
+                "pattern": "^0x[0-9a-f]{40}$"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "actorConfidence": {
+            "type": "string",
+            "enum": [
+              "contract_caller_not_verified_wallet",
+              "unavailable"
+            ]
+          },
+          "recipient": {
+            "oneOf": [
+              {
+                "type": "string",
+                "pattern": "^0x[0-9a-f]{40}$"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "memeAsset": {
+            "type": "string",
+            "pattern": "^0x[0-9a-f]{40}$"
+          },
+          "quoteAsset": {
+            "type": "string",
+            "pattern": "^0x[0-9a-f]{40}$"
+          },
+          "quoteDecimals": {
+            "type": "integer",
+            "minimum": 6,
+            "maximum": 18
+          },
+          "memeRaw": {
+            "type": "string",
+            "pattern": "^(0|[1-9][0-9]*)$"
+          },
+          "quoteRaw": {
+            "type": "string",
+            "pattern": "^(0|[1-9][0-9]*)$"
+          },
+          "amountBasis": {
+            "type": "string",
+            "enum": [
+              "CURVE_EXCLUDING_FEE_TAX",
+              "POOL_CORE"
+            ]
+          },
+          "price": {
+            "$ref": "#/components/schemas/CandlePrice"
+          },
+          "priceUnit": {
+            "type": "string",
+            "const": "QUOTE_PER_WHOLE_MEME"
+          },
+          "feeRaw": {
+            "oneOf": [
+              {
+                "type": "string",
+                "pattern": "^(0|[1-9][0-9]*)$"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "feeAsset": {
+            "oneOf": [
+              {
+                "type": "string",
+                "pattern": "^0x[0-9a-f]{40}$"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "taxRaw": {
+            "oneOf": [
+              {
+                "type": "string",
+                "pattern": "^(0|[1-9][0-9]*)$"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "feeStatus": {
+            "type": "string",
+            "enum": [
+              "event_reported",
+              "paired_event",
+              "not_provided"
+            ]
+          }
+        },
+        "required": [
+          "source",
+          "venue",
+          "marketId",
+          "timestamp",
+          "side",
+          "classification",
+          "actor",
+          "actorConfidence",
+          "recipient",
+          "memeAsset",
+          "quoteAsset",
+          "quoteDecimals",
+          "memeRaw",
+          "quoteRaw",
+          "amountBasis",
+          "price",
+          "priceUnit",
+          "feeRaw",
+          "feeAsset",
+          "taxRaw",
+          "feeStatus"
+        ]
+      },
+      "MarketTradesResponse": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "chainId": {
+            "type": "integer",
+            "enum": [
+              4663,
+              46630,
+              421614
+            ]
+          },
+          "displayOnly": {
+            "type": "boolean",
+            "const": true
+          },
+          "marketId": {
+            "type": "string",
+            "pattern": "^0x[0-9a-f]{64}$"
+          },
+          "memeAsset": {
+            "type": "string",
+            "pattern": "^0x[0-9a-f]{40}$"
+          },
+          "quoteAsset": {
+            "type": "string",
+            "pattern": "^0x[0-9a-f]{40}$"
+          },
+          "quoteDecimals": {
+            "type": "integer",
+            "minimum": 6,
+            "maximum": 18
+          },
+          "coverage": {
+            "$ref": "#/components/schemas/CandleCoverage"
+          },
+          "revision": {
+            "type": "string",
+            "pattern": "^sha256:[0-9a-f]{64}$"
+          },
+          "items": {
+            "type": "array",
+            "maxItems": 100,
+            "items": {
+              "$ref": "#/components/schemas/TradeActivity"
+            }
+          },
+          "nextCursor": {
+            "oneOf": [
+              {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 2048
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "chainId",
+          "displayOnly",
+          "marketId",
+          "memeAsset",
+          "quoteAsset",
+          "quoteDecimals",
+          "coverage",
+          "revision",
+          "items",
+          "nextCursor"
+        ]
+      },
+      "TradeError": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "error": {
+            "type": "string",
+            "enum": [
+              "invalid_query",
+              "method_not_allowed",
+              "analytics_unavailable",
+              "trade_page_changed"
+            ]
+          },
+          "message": {
+            "type": "string"
+          },
+          "requestId": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "error",
+          "message",
+          "requestId"
+        ]
+      },
+      "CandlePrice": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "numerator": {
+            "type": "string",
+            "pattern": "^[1-9][0-9]*$"
+          },
+          "denominator": {
+            "type": "string",
+            "pattern": "^[1-9][0-9]*$"
+          }
+        },
+        "required": [
+          "numerator",
+          "denominator"
+        ]
+      },
+      "Candle": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "timestamp": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "open": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/CandlePrice"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "high": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/CandlePrice"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "low": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/CandlePrice"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "close": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/CandlePrice"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "memeVolumeRaw": {
+            "type": "string",
+            "pattern": "^(0|[1-9][0-9]*)$"
+          },
+          "quoteVolumeRaw": {
+            "type": "string",
+            "pattern": "^(0|[1-9][0-9]*)$"
+          },
+          "internalMemeVolumeRaw": {
+            "type": "string",
+            "pattern": "^(0|[1-9][0-9]*)$"
+          },
+          "internalQuoteVolumeRaw": {
+            "type": "string",
+            "pattern": "^(0|[1-9][0-9]*)$"
+          },
+          "tradeCount": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "internalTradeCount": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "unclassifiedTradeCount": {
+            "type": "integer",
+            "minimum": 0
+          }
+        },
+        "required": [
+          "timestamp",
+          "open",
+          "high",
+          "low",
+          "close",
+          "memeVolumeRaw",
+          "quoteVolumeRaw",
+          "internalMemeVolumeRaw",
+          "internalQuoteVolumeRaw",
+          "tradeCount",
+          "internalTradeCount",
+          "unclassifiedTradeCount"
+        ]
+      },
+      "CandleCoverage": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "from": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "to": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "anchorNumber": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "anchorHash": {
+            "type": "string",
+            "pattern": "^0x[0-9a-f]{64}$"
+          },
+          "throughNumber": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "throughHash": {
+            "type": "string",
+            "pattern": "^0x[0-9a-f]{64}$"
+          },
+          "projectionNumber": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "projectionHash": {
+            "type": "string",
+            "pattern": "^0x[0-9a-f]{64}$"
+          }
+        },
+        "required": [
+          "from",
+          "to",
+          "anchorNumber",
+          "anchorHash",
+          "throughNumber",
+          "throughHash",
+          "projectionNumber",
+          "projectionHash"
+        ]
+      },
+      "CandleSeries": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "candles": {
+            "type": "array",
+            "maxItems": 2000,
+            "items": {
+              "$ref": "#/components/schemas/Candle"
+            }
+          },
+          "priceUnit": {
+            "type": "string",
+            "const": "QUOTE_PER_WHOLE_MEME"
+          },
+          "volumeBasis": {
+            "type": "string",
+            "const": "CURVE_EXCLUDING_FEE_TAX_OR_POOL_CORE"
+          },
+          "pricePopulation": {
+            "type": "string",
+            "const": "ALL_EXECUTIONS_INCLUDING_INTERNAL_CONVERSIONS"
+          },
+          "emptyPolicy": {
+            "type": "string",
+            "const": "NULL_OHLC_ZERO_VOLUME"
+          }
+        },
+        "required": [
+          "candles",
+          "priceUnit",
+          "volumeBasis",
+          "pricePopulation",
+          "emptyPolicy"
+        ]
+      },
+      "TokenDetailSource": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "provider": {
+            "type": "string",
+            "enum": [
+              "dune",
+              "indexer"
+            ]
+          },
+          "asOf": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "blockNumber": {
+            "type": "string",
+            "pattern": "^(0|[1-9][0-9]*)$"
+          },
+          "blockHash": {
+            "type": "string",
+            "pattern": "^0x[0-9a-f]{64}$"
+          },
+          "queryId": {
+            "type": "string"
+          },
+          "executionId": {
+            "type": "string"
+          },
+          "cachedAt": {
+            "type": "integer",
+            "minimum": 0
+          }
+        },
+        "required": [
+          "provider",
+          "asOf",
+          "blockNumber",
+          "blockHash"
+        ]
+      },
+      "TokenDetailStatistics": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "price": {
+            "oneOf": [
+              {
+                "type": "string",
+                "pattern": "^(0|[1-9][0-9]*)(\\.[0-9]{1,36})?$"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "volume24h": {
+            "oneOf": [
+              {
+                "type": "string",
+                "pattern": "^(0|[1-9][0-9]{0,179})(\\.[0-9]{1,18})?$"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "volumeFrom": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "volumeTo": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "volumeBasis": {
+            "type": "string",
+            "const": "EXTERNAL_EXECUTIONS_CURVE_EXCLUDING_FEE_TAX_OR_POOL_CORE"
+          }
+        },
+        "required": [
+          "price",
+          "volume24h",
+          "volumeFrom",
+          "volumeTo",
+          "volumeBasis"
+        ]
+      },
+      "TokenDetailPoint": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "timestamp": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "price": {
+            "oneOf": [
+              {
+                "type": "string",
+                "pattern": "^(0|[1-9][0-9]*)(\\.[0-9]{1,36})?$"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "timestamp",
+          "price"
+        ]
+      },
+      "TokenDetailChart": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "from": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "to": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "interval": {
+            "type": "integer",
+            "enum": [
+              60,
+              300,
+              900,
+              3600,
+              14400,
+              86400
+            ]
+          },
+          "points": {
+            "type": "array",
+            "maxItems": 2000,
+            "items": {
+              "$ref": "#/components/schemas/TokenDetailPoint"
+            }
+          }
+        },
+        "required": [
+          "from",
+          "to",
+          "interval",
+          "points"
+        ]
+      },
+      "TokenDetailTrade": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "timestamp": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "side": {
+            "type": "string",
+            "enum": [
+              "buy",
+              "sell"
+            ]
+          },
+          "price": {
+            "type": "string"
+          },
+          "memeRaw": {
+            "type": "string",
+            "pattern": "^(0|[1-9][0-9]*)$"
+          },
+          "quoteRaw": {
+            "type": "string",
+            "pattern": "^(0|[1-9][0-9]*)$"
+          },
+          "actor": {
+            "oneOf": [
+              {
+                "type": "string",
+                "pattern": "^0x[0-9a-f]{40}$"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "txHash": {
+            "type": "string",
+            "pattern": "^0x[0-9a-f]{64}$"
+          },
+          "eventKey": {
+            "type": "string"
+          },
+          "classification": {
+            "type": "string",
+            "enum": [
+              "unclassified",
+              "internal_reward_conversion",
+              "internal_holder_conversion"
+            ]
+          }
+        },
+        "required": [
+          "timestamp",
+          "side",
+          "price",
+          "memeRaw",
+          "quoteRaw",
+          "actor",
+          "txHash",
+          "eventKey",
+          "classification"
+        ]
+      },
+      "TokenDetailHolder": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "account": {
+            "type": "string",
+            "pattern": "^0x[0-9a-f]{40}$"
+          },
+          "balanceRaw": {
+            "type": "string",
+            "pattern": "^(0|[1-9][0-9]*)$"
+          }
+        },
+        "required": [
+          "account",
+          "balanceRaw"
+        ]
+      },
+      "TokenDetailHolders": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "totalSupplyRaw": {
+            "type": "string",
+            "pattern": "^(0|[1-9][0-9]*)$"
+          },
+          "circulatingSupplyRaw": {
+            "type": "string",
+            "pattern": "^(0|[1-9][0-9]*)$"
+          },
+          "count": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "basis": {
+            "type": "string",
+            "const": "TOTAL_MINUS_KNOWN_PROTOCOL_BALANCES_V1"
+          },
+          "items": {
+            "type": "array",
+            "maxItems": 100,
+            "items": {
+              "$ref": "#/components/schemas/TokenDetailHolder"
+            }
+          }
+        },
+        "required": [
+          "totalSupplyRaw",
+          "circulatingSupplyRaw",
+          "count",
+          "basis",
+          "items"
+        ]
+      },
+      "TokenDetailFee": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "recipient": {
+            "type": "string",
+            "enum": [
+              "creator",
+              "stakers",
+              "platform",
+              "holders"
+            ]
+          },
+          "asset": {
+            "type": "string",
+            "pattern": "^0x[0-9a-f]{40}$"
+          },
+          "amountRaw": {
+            "type": "string",
+            "pattern": "^(0|[1-9][0-9]*)$"
+          }
+        },
+        "required": [
+          "recipient",
+          "asset",
+          "amountRaw"
+        ]
+      },
+      "TokenDetailResponse": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "version": {
+            "type": "integer",
+            "const": 1
+          },
+          "chainId": {
+            "type": "integer",
+            "enum": [
+              4663,
+              46630,
+              421614
+            ]
+          },
+          "displayOnly": {
+            "type": "boolean",
+            "const": true
+          },
+          "marketId": {
+            "type": "string",
+            "pattern": "^0x[0-9a-f]{64}$"
+          },
+          "memeToken": {
+            "type": "string",
+            "pattern": "^0x[0-9a-f]{40}$"
+          },
+          "quoteAsset": {
+            "type": "string",
+            "pattern": "^0x[0-9a-f]{40}$"
+          },
+          "quoteDecimals": {
+            "type": "integer",
+            "minimum": 6,
+            "maximum": 18
+          },
+          "period": {
+            "type": "string",
+            "enum": [
+              "1H",
+              "12H",
+              "1D"
+            ]
+          },
+          "statistics": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/TokenDetailStatistics"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "chart": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/TokenDetailChart"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "trades": {
+            "oneOf": [
+              {
+                "type": "array",
+                "maxItems": 100,
+                "items": {
+                  "$ref": "#/components/schemas/TokenDetailTrade"
+                }
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "holders": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/TokenDetailHolders"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "fees": {
+            "oneOf": [
+              {
+                "type": "array",
+                "maxItems": 8,
+                "items": {
+                  "$ref": "#/components/schemas/TokenDetailFee"
+                }
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "sources": {
+            "type": "object",
+            "additionalProperties": {
+              "$ref": "#/components/schemas/TokenDetailSource"
+            }
+          },
+          "reasons": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "string"
+            }
+          }
+        },
+        "required": [
+          "version",
+          "chainId",
+          "displayOnly",
+          "marketId",
+          "memeToken",
+          "quoteAsset",
+          "quoteDecimals",
+          "period",
+          "statistics",
+          "chart",
+          "trades",
+          "holders",
+          "fees",
+          "sources",
+          "reasons"
+        ]
+      },
+      "MarketCandlesResponse": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "chainId": {
+            "type": "integer",
+            "enum": [
+              4663,
+              46630,
+              421614
+            ]
+          },
+          "displayOnly": {
+            "type": "boolean",
+            "const": true
+          },
+          "marketId": {
+            "type": "string",
+            "pattern": "^0x[0-9a-f]{64}$"
+          },
+          "memeAsset": {
+            "type": "string",
+            "pattern": "^0x[0-9a-f]{40}$"
+          },
+          "quoteAsset": {
+            "type": "string",
+            "pattern": "^0x[0-9a-f]{40}$"
+          },
+          "quoteDecimals": {
+            "type": "integer",
+            "minimum": 6,
+            "maximum": 18
+          },
+          "interval": {
+            "type": "integer",
+            "enum": [
+              60,
+              300,
+              900,
+              3600,
+              14400,
+              86400
+            ]
+          },
+          "coverage": {
+            "$ref": "#/components/schemas/CandleCoverage"
+          },
+          "series": {
+            "$ref": "#/components/schemas/CandleSeries"
+          }
+        },
+        "required": [
+          "chainId",
+          "displayOnly",
+          "marketId",
+          "memeAsset",
+          "quoteAsset",
+          "quoteDecimals",
+          "interval",
+          "coverage",
+          "series"
+        ]
+      },
+      "CandleError": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "error": {
+            "type": "string",
+            "enum": [
+              "invalid_query",
+              "method_not_allowed",
+              "analytics_unavailable"
+            ]
+          },
+          "message": {
+            "type": "string"
+          },
+          "requestId": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "error",
+          "message",
+          "requestId"
+        ]
+      },
+      "SnapshotUpdatesResponse": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "mode": {
+            "type": "string",
+            "enum": [
+              "unchanged",
+              "changed",
+              "reset"
+            ]
+          },
+          "sync": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "chainId": {
+                "type": "integer",
+                "enum": [
+                  4663,
+                  46630,
+                  421614
+                ]
+              },
+              "status": {
+                "type": "string",
+                "enum": [
+                  "synced",
+                  "lagging",
+                  "unavailable"
+                ]
+              },
+              "blockNumber": {
+                "oneOf": [
+                  {
+                    "type": "string",
+                    "pattern": "^(0|[1-9][0-9]*)$"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "blockHash": {
+                "oneOf": [
+                  {
+                    "type": "string",
+                    "pattern": "^0x[0-9a-f]{64}$"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "finality": {
+                "type": "string",
+                "enum": [
+                  "finalized",
+                  "safe",
+                  "head",
+                  "unavailable"
+                ]
+              },
+              "headBlockNumber": {
+                "oneOf": [
+                  {
+                    "type": "string",
+                    "pattern": "^(0|[1-9][0-9]*)$"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "headBlockHash": {
+                "oneOf": [
+                  {
+                    "type": "string",
+                    "pattern": "^0x[0-9a-f]{64}$"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "lagBlocks": {
+                "oneOf": [
+                  {
+                    "type": "string",
+                    "pattern": "^(0|[1-9][0-9]*)$"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "revision": {
+                "type": "string",
+                "minLength": 1
+              }
+            },
+            "required": [
+              "chainId",
+              "status",
+              "blockNumber",
+              "blockHash",
+              "finality",
+              "headBlockNumber",
+              "headBlockHash",
+              "lagBlocks",
+              "revision"
+            ]
+          },
+          "invalidated": {
+            "type": "array",
+            "maxItems": 4,
+            "uniqueItems": true,
+            "items": {
+              "type": "string",
+              "enum": [
+                "markets",
+                "configs",
+                "positions",
+                "accounts"
+              ]
+            }
+          },
+          "pollAfterMs": {
+            "type": "integer",
+            "const": 5000
+          }
+        },
+        "required": [
+          "mode",
+          "sync",
+          "invalidated",
+          "pollAfterMs"
+        ]
+      },
+      "SnapshotUpdatesError": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "error": {
+            "type": "string",
+            "enum": [
+              "invalid_query",
+              "method_not_allowed",
+              "snapshot_unavailable"
+            ]
+          },
+          "message": {
+            "type": "string"
+          },
+          "requestId": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "error",
+          "message",
+          "requestId"
+        ]
+      },
+      "DisplayPriceReference": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "chainId": {
+            "type": "integer",
+            "enum": [
+              4663,
+              46630,
+              421614
+            ]
+          },
+          "token": {
+            "type": "string",
+            "pattern": "^0x[0-9a-f]{40}$"
+          },
+          "assetUid": {
+            "type": "string",
+            "pattern": "^0x[0-9a-f]{64}$"
+          },
+          "symbol": {
+            "type": "string",
+            "pattern": "^[A-Z][A-Z0-9.\\-]{0,15}$"
+          },
+          "source": {
+            "type": "string",
+            "const": "robinhood_rest"
+          },
+          "unit": {
+            "type": "string",
+            "const": "USD_PER_WHOLE_TOKEN"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "available",
+              "stale",
+              "unavailable"
+            ]
+          },
+          "reason": {
+            "type": "string"
+          },
+          "bidUsd": {
+            "oneOf": [
+              {
+                "type": "string",
+                "pattern": "^(0|[1-9][0-9]{0,119})(\\.[0-9]{1,36})?$"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "askUsd": {
+            "oneOf": [
+              {
+                "type": "string",
+                "pattern": "^(0|[1-9][0-9]{0,119})(\\.[0-9]{1,36})?$"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "multiplier": {
+            "oneOf": [
+              {
+                "type": "string",
+                "pattern": "^(0|[1-9][0-9]{0,119})(\\.[0-9]{1,36})?$"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "asOf": {
+            "oneOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "expiresAt": {
+            "oneOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "retrievedAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "chainId",
+          "token",
+          "assetUid",
+          "symbol",
+          "source",
+          "unit",
+          "status",
+          "bidUsd",
+          "askUsd",
+          "multiplier",
+          "asOf",
+          "expiresAt",
+          "retrievedAt"
+        ],
+        "allOf": [
+          {
+            "if": {
+              "properties": {
+                "status": {
+                  "const": "available"
+                }
+              }
+            },
+            "then": {
+              "properties": {
+                "bidUsd": {
+                  "type": "string",
+                  "pattern": "^(0|[1-9][0-9]{0,119})(\\.[0-9]{1,36})?$"
+                },
+                "askUsd": {
+                  "type": "string",
+                  "pattern": "^(0|[1-9][0-9]{0,119})(\\.[0-9]{1,36})?$"
+                },
+                "multiplier": {
+                  "type": "string",
+                  "pattern": "^(0|[1-9][0-9]{0,119})(\\.[0-9]{1,36})?$"
+                },
+                "asOf": {
+                  "type": "string",
+                  "format": "date-time"
+                },
+                "expiresAt": {
+                  "type": "string",
+                  "format": "date-time"
+                }
+              }
+            },
+            "else": {
+              "properties": {
+                "bidUsd": {
+                  "type": "null"
+                },
+                "askUsd": {
+                  "type": "null"
+                }
+              }
+            }
+          }
+        ]
+      },
+      "DisplayPriceResponse": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "chainId": {
+            "type": "integer",
+            "enum": [
+              4663,
+              46630,
+              421614
+            ]
+          },
+          "displayOnly": {
+            "type": "boolean",
+            "const": true
+          },
+          "confidence": {
+            "type": "string",
+            "const": "provider_reported"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "configured",
+              "not_configured"
+            ]
+          },
+          "references": {
+            "type": "array",
+            "maxItems": 64,
+            "items": {
+              "$ref": "#/components/schemas/DisplayPriceReference"
+            }
+          }
+        },
+        "required": [
+          "chainId",
+          "displayOnly",
+          "confidence",
+          "status",
+          "references"
+        ]
+      },
+      "DisplayPriceError": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "error": {
+            "type": "string",
+            "enum": [
+              "invalid_query",
+              "method_not_allowed"
+            ]
+          },
+          "message": {
+            "type": "string"
+          },
+          "requestId": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "error",
+          "message",
+          "requestId"
+        ]
+      },
+      "RewardValues": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "claimStatus": {
+            "description": "Observed reward and lock conditions only; candidate does not certify solvency, simulation or successful payment.",
+            "type": "string",
+            "enum": [
+              "candidate",
+              "no_rewards",
+              "rage_quit_pending",
+              "position_locked",
+              "raw_exit_required",
+              "raw_exit_waiting"
+            ]
+          },
+          "claimCandidateAmount": {
+            "type": "string",
+            "pattern": "^(0|[1-9][0-9]*)$",
+            "description": "Original fee-asset unpaid amount only when claimStatus is candidate; otherwise zero."
+          },
+          "positionUnlockAt": {
+            "type": "string",
+            "pattern": "^(0|[1-9][0-9]*)$"
+          },
+          "positionLockSatisfied": {
+            "type": "boolean",
+            "description": "Gauge principal lock condition only; true for Creator. Other claim conditions are reported separately."
+          },
+          "conversionStatus": {
+            "type": "string",
+            "enum": [
+              "not_applicable",
+              "no_rewards",
+              "not_graduated",
+              "rage_quit_pending",
+              "raw_exit_ready",
+              "candidate"
+            ]
+          },
+          "conversionCandidateAmount": {
+            "type": "string",
+            "pattern": "^(0|[1-9][0-9]*)$"
+          },
+          "marketId": {
+            "type": "string",
+            "pattern": "^0x[0-9a-f]{64}$"
+          },
+          "feeAsset": {
+            "type": "string",
+            "pattern": "^0x[0-9a-f]{40}$"
+          },
+          "assetKind": {
+            "type": "string",
+            "enum": [
+              "quote",
+              "meme"
+            ]
+          },
+          "beneficiaryType": {
+            "type": "string",
+            "enum": [
+              "0",
+              "1"
+            ]
+          },
+          "beneficiary": {
+            "type": "string",
+            "pattern": "^0x[0-9a-f]{40}$"
+          },
+          "beneficiaryEpoch": {
+            "type": "string",
+            "pattern": "^(0|[1-9][0-9]*)$"
+          },
+          "unpaidAmount": {
+            "type": "string",
+            "pattern": "^(0|[1-9][0-9]*)$"
+          },
+          "observedClaimedAmount": {
+            "type": "string",
+            "pattern": "^(0|[1-9][0-9]*)$"
+          },
+          "observedClaimCount": {
+            "type": "string",
+            "pattern": "^(0|[1-9][0-9]*)$"
+          },
+          "firstClaimEventKey": {
+            "oneOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "rawRewardExitAt": {
+            "type": "string",
+            "pattern": "^(0|[1-9][0-9]*)$"
+          },
+          "rawRewardExitReady": {
+            "type": "boolean"
+          },
+          "observedAtTimestamp": {
+            "type": "string",
+            "pattern": "^(0|[1-9][0-9]*)$"
+          },
+          "historyComplete": {
+            "type": "boolean",
+            "const": false
+          },
+          "publicationEligible": {
+            "type": "boolean",
+            "const": false
+          }
+        },
+        "required": [
+          "claimStatus",
+          "claimCandidateAmount",
+          "positionUnlockAt",
+          "positionLockSatisfied",
+          "conversionStatus",
+          "conversionCandidateAmount",
+          "marketId",
+          "feeAsset",
+          "assetKind",
+          "beneficiaryType",
+          "beneficiary",
+          "beneficiaryEpoch",
+          "unpaidAmount",
+          "observedClaimedAmount",
+          "observedClaimCount",
+          "firstClaimEventKey",
+          "rawRewardExitAt",
+          "rawRewardExitReady",
+          "observedAtTimestamp",
+          "historyComplete",
+          "publicationEligible"
+        ]
+      },
+      "RewardSource": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "observedClaimHistoryVerified": {
+            "type": "boolean",
+            "const": true
+          },
+          "replayedInputCount": {
+            "type": "string",
+            "pattern": "^(0|[1-9][0-9]*)$"
+          },
+          "chainId": {
+            "type": "integer",
+            "enum": [
+              4663,
+              46630,
+              421614
+            ]
+          },
+          "blockNumber": {
+            "type": "string",
+            "pattern": "^(0|[1-9][0-9]*)$"
+          },
+          "blockHash": {
+            "type": "string",
+            "pattern": "^0x[0-9a-f]{64}$"
+          },
+          "revision": {
+            "type": "string"
+          },
+          "finality": {
+            "type": "string",
+            "const": "finalized"
+          },
+          "historyComplete": {
+            "type": "boolean",
+            "const": false
+          },
+          "publicationEligible": {
+            "type": "boolean",
+            "const": false
+          }
+        },
+        "required": [
+          "observedClaimHistoryVerified",
+          "replayedInputCount",
+          "chainId",
+          "blockNumber",
+          "blockHash",
+          "revision",
+          "finality",
+          "historyComplete",
+          "publicationEligible"
+        ]
+      },
+      "RewardError": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "error": {
+            "type": "string"
+          },
+          "message": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "error",
+          "message"
+        ]
+      },
+      "RewardObservation": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "kind": {
+            "type": "string",
+            "const": "rewardPosition"
+          },
+          "key": {
+            "type": "string"
+          },
+          "value": {
+            "$ref": "#/components/schemas/RewardValues"
+          }
+        },
+        "required": [
+          "kind",
+          "key",
+          "value"
+        ]
+      },
+      "RewardPage": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/RewardObservation"
+            }
+          },
+          "nextCursor": {
+            "oneOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "source": {
+            "$ref": "#/components/schemas/RewardSource"
+          }
+        },
+        "required": [
+          "items",
+          "nextCursor",
+          "source"
+        ]
+      },
+      "SourceBlock": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "chainId": {
+            "type": "integer",
+            "enum": [
+              4663,
+              46630,
+              421614
+            ]
+          },
+          "blockNumber": {
+            "type": "string",
+            "pattern": "^(0|[1-9][0-9]*)$"
+          },
+          "blockHash": {
+            "type": "string",
+            "pattern": "^0x[0-9a-f]{64}$"
+          },
+          "transactionHash": {
+            "type": "string",
+            "pattern": "^0x[0-9a-f]{64}$"
+          },
+          "transactionIndex": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "logIndex": {
+            "type": "integer",
+            "minimum": 0
+          }
+        },
+        "required": [
+          "chainId",
+          "blockNumber",
+          "blockHash",
+          "transactionHash",
+          "transactionIndex",
+          "logIndex"
+        ]
+      },
+      "SyncStatus": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "chainId": {
+            "type": "integer",
+            "enum": [
+              4663,
+              46630,
+              421614
+            ]
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "synced",
+              "lagging",
+              "unavailable"
+            ]
+          },
+          "blockNumber": {
+            "oneOf": [
+              {
+                "type": "string",
+                "pattern": "^(0|[1-9][0-9]*)$"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "blockHash": {
+            "oneOf": [
+              {
+                "type": "string",
+                "pattern": "^0x[0-9a-f]{64}$"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "finality": {
+            "type": "string",
+            "enum": [
+              "finalized",
+              "safe",
+              "head",
+              "unavailable"
+            ]
+          },
+          "headBlockNumber": {
+            "oneOf": [
+              {
+                "type": "string",
+                "pattern": "^(0|[1-9][0-9]*)$"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "headBlockHash": {
+            "oneOf": [
+              {
+                "type": "string",
+                "pattern": "^0x[0-9a-f]{64}$"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "lagBlocks": {
+            "oneOf": [
+              {
+                "type": "string",
+                "pattern": "^(0|[1-9][0-9]*)$"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "revision": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "required": [
+          "chainId",
+          "status",
+          "blockNumber",
+          "blockHash",
+          "finality",
+          "headBlockNumber",
+          "headBlockHash",
+          "lagBlocks",
+          "revision"
+        ]
+      },
+      "PoolKeyReadModel": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "currency0": {
+            "type": "string",
+            "pattern": "^0x[0-9a-f]{40}$"
+          },
+          "currency1": {
+            "type": "string",
+            "pattern": "^0x[0-9a-f]{40}$"
+          },
+          "fee": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 16777215
+          },
+          "tickSpacing": {
+            "type": "integer",
+            "minimum": -8388608,
+            "maximum": 8388607
+          },
+          "hooks": {
+            "type": "string",
+            "pattern": "^0x[0-9a-f]{40}$"
+          }
+        },
+        "required": [
+          "currency0",
+          "currency1",
+          "fee",
+          "tickSpacing",
+          "hooks"
+        ]
+      },
+      "CanonicalRoute": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "router": {
+            "type": "string",
+            "pattern": "^0x[0-9a-f]{40}$"
+          },
+          "quoter": {
+            "type": "string",
+            "pattern": "^0x[0-9a-f]{40}$"
+          },
+          "hook": {
+            "type": "string",
+            "pattern": "^0x[0-9a-f]{40}$"
+          },
+          "launchLocker": {
+            "type": "string",
+            "pattern": "^0x[0-9a-f]{40}$"
+          },
+          "graduationExecutor": {
+            "type": "string",
+            "pattern": "^0x[0-9a-f]{40}$"
+          },
+          "curveTradingEnabled": {
+            "type": "boolean"
+          },
+          "poolTradingEnabled": {
+            "type": "boolean"
+          },
+          "sourceVersion": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "launchPhase": {
+            "type": "integer",
+            "enum": [
+              0,
+              1
+            ]
+          }
+        },
+        "required": [
+          "router",
+          "quoter",
+          "hook",
+          "launchLocker",
+          "graduationExecutor",
+          "curveTradingEnabled",
+          "poolTradingEnabled",
+          "sourceVersion",
+          "launchPhase"
+        ]
+      },
+      "CurveProgress": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "realQuoteReserve": {
+            "type": "string",
+            "pattern": "^(0|[1-9][0-9]*)$"
+          },
+          "sellableTokens": {
+            "type": "string",
+            "pattern": "^(0|[1-9][0-9]*)$"
+          },
+          "reservedTokens": {
+            "type": "string",
+            "pattern": "^(0|[1-9][0-9]*)$"
+          },
+          "accruedCurveFees": {
+            "type": "string",
+            "pattern": "^(0|[1-9][0-9]*)$"
+          },
+          "readyToGraduate": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "realQuoteReserve",
+          "sellableTokens",
+          "reservedTokens",
+          "accruedCurveFees",
+          "readyToGraduate"
+        ]
+      },
+      "MarketReadModel": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "marketId": {
+            "type": "string",
+            "pattern": "^0x[0-9a-f]{64}$"
+          },
+          "assetUid": {
+            "type": "string",
+            "pattern": "^0x[0-9a-f]{64}$"
+          },
+          "memeToken": {
+            "type": "string",
+            "pattern": "^0x[0-9a-f]{40}$"
+          },
+          "curve": {
+            "type": "string",
+            "pattern": "^0x[0-9a-f]{40}$"
+          },
+          "gauge": {
+            "type": "string",
+            "pattern": "^0x[0-9a-f]{40}$"
+          },
+          "quoteAsset": {
+            "type": "string",
+            "pattern": "^0x[0-9a-f]{40}$"
+          },
+          "quoteAssetConfigId": {
+            "type": "string",
+            "pattern": "^0x[0-9a-f]{64}$"
+          },
+          "tickerGardenBaselineId": {
+            "type": "string",
+            "pattern": "^0x[0-9a-f]{64}$"
+          },
+          "sourceVersion": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "launchPhase": {
+            "type": "integer",
+            "enum": [
+              0,
+              1
+            ]
+          },
+          "curveProgress": {
+            "$ref": "#/components/schemas/CurveProgress"
+          },
+          "poolId": {
+            "oneOf": [
+              {
+                "type": "string",
+                "pattern": "^0x[0-9a-f]{64}$"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "poolKey": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/PoolKeyReadModel"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "canonicalRoute": {
+            "$ref": "#/components/schemas/CanonicalRoute"
+          },
+          "source": {
+            "$ref": "#/components/schemas/SourceBlock"
+          },
+          "identity": {
+            "$ref": "#/components/schemas/MarketIdentityReadModel"
+          },
+          "metrics": {
+            "$ref": "#/components/schemas/MarketMetricsReadModel"
+          }
+        },
+        "required": [
+          "marketId",
+          "assetUid",
+          "memeToken",
+          "curve",
+          "gauge",
+          "quoteAsset",
+          "quoteAssetConfigId",
+          "tickerGardenBaselineId",
+          "sourceVersion",
+          "launchPhase",
+          "curveProgress",
+          "poolId",
+          "poolKey",
+          "canonicalRoute",
+          "source"
+        ],
+        "description": "poolId and poolKey are null or non-null together."
+      },
+      "MarketIdentityReadModel": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "name": {
+            "type": "string",
+            "maxLength": 4096
+          },
+          "symbol": {
+            "type": "string",
+            "maxLength": 4096
+          },
+          "metadataURI": {
+            "type": "string",
+            "maxLength": 16384
+          },
+          "deployedAt": {
+            "type": "string",
+            "pattern": "^(0|[1-9][0-9]*)$"
+          },
+          "blockNumber": {
+            "type": "string",
+            "pattern": "^(0|[1-9][0-9]*)$"
+          },
+          "blockHash": {
+            "type": "string",
+            "pattern": "^0x[0-9a-f]{64}$"
+          },
+          "runtimeCodeHash": {
+            "type": "string",
+            "pattern": "^0x[0-9a-f]{64}$"
+          }
+        },
+        "required": [
+          "name",
+          "symbol",
+          "metadataURI",
+          "deployedAt",
+          "blockNumber",
+          "blockHash",
+          "runtimeCodeHash"
+        ]
+      },
+      "MarketMetricsReadModel": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "status": {
+            "type": "string",
+            "enum": [
+              "available",
+              "unavailable"
+            ]
+          },
+          "reason": {
+            "type": "string"
+          },
+          "volume24hUsd": {
+            "oneOf": [
+              {
+                "type": "string",
+                "pattern": "^(0|[1-9][0-9]{0,179})(\\.[0-9]{1,18})?$"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "marketCapUsd": {
+            "oneOf": [
+              {
+                "type": "string",
+                "pattern": "^(0|[1-9][0-9]{0,179})(\\.[0-9]{1,18})?$"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "quoteUsdMidpoint": {
+            "oneOf": [
+              {
+                "type": "string",
+                "pattern": "^(0|[1-9][0-9]{0,179})(\\.[0-9]{1,18})?$"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "windowFromTimestamp": {
+            "type": "string",
+            "pattern": "^(0|[1-9][0-9]*)$"
+          },
+          "asOfTimestamp": {
+            "type": "string",
+            "pattern": "^(0|[1-9][0-9]*)$"
+          },
+          "usdPriceAsOf": {
+            "oneOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "usdPriceSource": {
+            "oneOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "robinhood_rest"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "volumeBasis": {
+            "type": "string",
+            "const": "EXTERNAL_EXECUTIONS_CURVE_EXCLUDING_FEE_TAX_OR_POOL_CORE"
+          },
+          "marketCapBasis": {
+            "type": "string",
+            "const": "BASELINE_TOTAL_SUPPLY_X_LATEST_FINALIZED_24H_EXECUTION_PRICE"
+          }
+        },
+        "required": [
+          "status",
+          "reason",
+          "volume24hUsd",
+          "marketCapUsd",
+          "quoteUsdMidpoint",
+          "windowFromTimestamp",
+          "asOfTimestamp",
+          "usdPriceAsOf",
+          "usdPriceSource",
+          "volumeBasis",
+          "marketCapBasis"
+        ]
+      },
+      "ConfigReadModel": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "kind": {
+            "type": "string",
+            "enum": [
+              "asset",
+              "quote",
+              "baseline",
+              "template"
+            ]
+          },
+          "id": {
+            "type": "string",
+            "pattern": "^0x[0-9a-f]{64}$"
+          },
+          "status": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 255
+          },
+          "values": {
+            "type": "object",
+            "additionalProperties": {
+              "oneOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "boolean"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            }
+          },
+          "source": {
+            "$ref": "#/components/schemas/SourceBlock"
+          }
+        },
+        "required": [
+          "kind",
+          "id",
+          "status",
+          "values",
+          "source"
+        ]
+      },
+      "QuoteClaimable": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "kind": {
+            "type": "string",
+            "const": "quote"
+          },
+          "asset": {
+            "type": "string",
+            "pattern": "^0x[0-9a-f]{40}$"
+          },
+          "amount": {
+            "type": "string",
+            "pattern": "^(0|[1-9][0-9]*)$"
+          }
+        },
+        "required": [
+          "kind",
+          "asset",
+          "amount"
+        ]
+      },
+      "MemeClaimable": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "kind": {
+            "type": "string",
+            "const": "meme"
+          },
+          "asset": {
+            "type": "string",
+            "pattern": "^0x[0-9a-f]{40}$"
+          },
+          "amount": {
+            "type": "string",
+            "pattern": "^(0|[1-9][0-9]*)$"
+          }
+        },
+        "required": [
+          "kind",
+          "asset",
+          "amount"
+        ]
+      },
+      "UserAccountReadModel": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "user": {
+            "type": "string",
+            "pattern": "^0x[0-9a-f]{40}$"
+          },
+          "assetUid": {
+            "type": "string",
+            "pattern": "^0x[0-9a-f]{64}$"
+          },
+          "vault": {
+            "type": "string",
+            "pattern": "^0x[0-9a-f]{40}$"
+          },
+          "deposited": {
+            "type": "string",
+            "pattern": "^(0|[1-9][0-9]*)$"
+          },
+          "allocated": {
+            "type": "string",
+            "pattern": "^(0|[1-9][0-9]*)$"
+          },
+          "free": {
+            "type": "string",
+            "pattern": "^(0|[1-9][0-9]*)$"
+          },
+          "source": {
+            "$ref": "#/components/schemas/SourceBlock"
+          }
+        },
+        "required": [
+          "user",
+          "assetUid",
+          "vault",
+          "deposited",
+          "allocated",
+          "free",
+          "source"
+        ]
+      },
+      "AccountPage": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/UserAccountReadModel"
+            }
+          },
+          "nextCursor": {
+            "oneOf": [
+              {
+                "type": "string",
+                "minLength": 1
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "sync": {
+            "$ref": "#/components/schemas/SyncStatus"
+          }
+        },
+        "required": [
+          "items",
+          "nextCursor",
+          "sync"
+        ]
+      },
+      "UserPositionReadModel": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "user": {
+            "type": "string",
+            "pattern": "^0x[0-9a-f]{40}$"
+          },
+          "assetUid": {
+            "type": "string",
+            "pattern": "^0x[0-9a-f]{64}$"
+          },
+          "marketId": {
+            "type": "string",
+            "pattern": "^0x[0-9a-f]{64}$"
+          },
+          "free": {
+            "type": "string",
+            "pattern": "^(0|[1-9][0-9]*)$"
+          },
+          "allocated": {
+            "type": "string",
+            "pattern": "^(0|[1-9][0-9]*)$"
+          },
+          "pending": {
+            "type": "string",
+            "pattern": "^(0|[1-9][0-9]*)$"
+          },
+          "active": {
+            "type": "string",
+            "pattern": "^(0|[1-9][0-9]*)$"
+          },
+          "activationAt": {
+            "oneOf": [
+              {
+                "type": "string",
+                "pattern": "^(0|[1-9][0-9]*)$"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "unlockAt": {
+            "oneOf": [
+              {
+                "type": "string",
+                "pattern": "^(0|[1-9][0-9]*)$"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "claimable": {
+            "type": "array",
+            "prefixItems": [
+              {
+                "$ref": "#/components/schemas/QuoteClaimable"
+              },
+              {
+                "$ref": "#/components/schemas/MemeClaimable"
+              }
+            ],
+            "minItems": 2,
+            "maxItems": 2
+          },
+          "source": {
+            "$ref": "#/components/schemas/SourceBlock"
+          }
+        },
+        "required": [
+          "user",
+          "assetUid",
+          "marketId",
+          "free",
+          "allocated",
+          "pending",
+          "active",
+          "activationAt",
+          "unlockAt",
+          "claimable",
+          "source"
+        ]
+      },
+      "MarketPage": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/MarketReadModel"
+            }
+          },
+          "nextCursor": {
+            "oneOf": [
+              {
+                "type": "string",
+                "minLength": 1
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "sync": {
+            "$ref": "#/components/schemas/SyncStatus"
+          }
+        },
+        "required": [
+          "items",
+          "nextCursor",
+          "sync"
+        ]
+      },
+      "ConfigPage": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ConfigReadModel"
+            }
+          },
+          "nextCursor": {
+            "oneOf": [
+              {
+                "type": "string",
+                "minLength": 1
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "sync": {
+            "$ref": "#/components/schemas/SyncStatus"
+          }
+        },
+        "required": [
+          "items",
+          "nextCursor",
+          "sync"
+        ]
+      },
+      "PositionPage": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/UserPositionReadModel"
+            }
+          },
+          "nextCursor": {
+            "oneOf": [
+              {
+                "type": "string",
+                "minLength": 1
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "sync": {
+            "$ref": "#/components/schemas/SyncStatus"
+          }
+        },
+        "required": [
+          "items",
+          "nextCursor",
+          "sync"
+        ]
+      },
+      "MarketDetailResponse": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "market": {
+            "$ref": "#/components/schemas/MarketReadModel"
+          },
+          "sync": {
+            "$ref": "#/components/schemas/SyncStatus"
+          }
+        },
+        "required": [
+          "market",
+          "sync"
+        ]
+      },
+      "HealthResponse": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "executionSpecId": {
+            "type": "string",
+            "const": "V1-EXEC-11"
+          },
+          "status": {
+            "type": "string",
+            "const": "read-api"
+          },
+          "readApiImplemented": {
+            "type": "boolean",
+            "const": true
+          },
+          "productRuntimeImplemented": {
+            "type": "boolean",
+            "const": true
+          },
+          "custody": {
+            "type": "boolean",
+            "const": false
+          },
+          "transactionSubmission": {
+            "type": "boolean",
+            "const": false
+          },
+          "sync": {
+            "$ref": "#/components/schemas/SyncStatus"
+          }
+        },
+        "required": [
+          "executionSpecId",
+          "status",
+          "readApiImplemented",
+          "productRuntimeImplemented",
+          "custody",
+          "transactionSubmission",
+          "sync"
+        ]
+      },
+      "ApiErrorResponse": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "error": {
+            "type": "string",
+            "enum": [
+              "invalid_request",
+              "market_not_found",
+              "not_found",
+              "read_only",
+              "identity_unavailable",
+              "market_metrics_unavailable",
+              "accounts_unavailable"
+            ]
+          },
+          "message": {
+            "type": "string"
+          },
+          "allowedMethods": {
+            "type": "array",
+            "prefixItems": [
+              {
+                "type": "string",
+                "const": "GET"
+              }
+            ],
+            "minItems": 1,
+            "maxItems": 1
+          },
+          "sync": {
+            "$ref": "#/components/schemas/SyncStatus"
+          }
+        },
+        "required": [
+          "error",
+          "message",
+          "sync"
+        ]
+      },
+      "GlobalTradeGroup": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "assetUid": {
+            "type": "string",
+            "pattern": "^0x[0-9a-f]{64}$"
+          },
+          "quoteAsset": {
+            "type": "string",
+            "pattern": "^0x[0-9a-f]{40}$"
+          },
+          "quoteDecimals": {
+            "type": "integer",
+            "minimum": 6,
+            "maximum": 18
+          },
+          "marketCount": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "tradingMarketCount": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "tradeCount": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "internalTradeCount": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "unclassifiedTradeCount": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "quoteVolumeRaw": {
+            "type": "string",
+            "pattern": "^(0|[1-9][0-9]*)$"
+          },
+          "internalQuoteVolumeRaw": {
+            "type": "string",
+            "pattern": "^(0|[1-9][0-9]*)$"
+          },
+          "fees": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AssetFeeTotal"
+            }
+          },
+          "unknownFeeTradeCount": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "volumeBasis": {
+            "type": "string",
+            "const": "CURVE_EXCLUDING_FEE_TAX_OR_POOL_CORE"
+          },
+          "binding": {
+            "type": "string",
+            "enum": [
+              "registered_stock",
+              "unbound"
+            ]
+          }
+        },
+        "required": [
+          "assetUid",
+          "quoteAsset",
+          "quoteDecimals",
+          "marketCount",
+          "tradingMarketCount",
+          "tradeCount",
+          "internalTradeCount",
+          "unclassifiedTradeCount",
+          "quoteVolumeRaw",
+          "internalQuoteVolumeRaw",
+          "fees",
+          "unknownFeeTradeCount",
+          "volumeBasis",
+          "binding"
+        ]
+      },
+      "GlobalFlowGroup": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "assetUid": {
+            "type": "string",
+            "pattern": "^0x[0-9a-f]{64}$"
+          },
+          "quoteAsset": {
+            "type": "string",
+            "pattern": "^0x[0-9a-f]{40}$"
+          },
+          "quoteDecimals": {
+            "type": "integer",
+            "minimum": 6,
+            "maximum": 18
+          },
+          "tradeCount": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "internalTradeCount": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "unclassifiedTradeCount": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "quoteVolumeRaw": {
+            "type": "string",
+            "pattern": "^(0|[1-9][0-9]*)$"
+          },
+          "internalQuoteVolumeRaw": {
+            "type": "string",
+            "pattern": "^(0|[1-9][0-9]*)$"
+          },
+          "fees": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AssetFeeTotal"
+            }
+          },
+          "unknownFeeTradeCount": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "binding": {
+            "type": "string",
+            "enum": [
+              "registered_stock",
+              "unbound"
+            ]
+          }
+        },
+        "required": [
+          "assetUid",
+          "quoteAsset",
+          "quoteDecimals",
+          "tradeCount",
+          "internalTradeCount",
+          "unclassifiedTradeCount",
+          "quoteVolumeRaw",
+          "internalQuoteVolumeRaw",
+          "fees",
+          "unknownFeeTradeCount",
+          "binding"
+        ]
+      }
+    }
+  }
+}

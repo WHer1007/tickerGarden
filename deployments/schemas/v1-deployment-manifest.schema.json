@@ -43,18 +43,18 @@
     "protocolModules": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["OfficialStockRegistryV1", "ApprovedQuoteRegistry", "PonsBaselineRegistry", "LaunchTemplateRegistry", "LaunchConfigResolver", "TickerGardenFactoryV1", "MarketRegistryV1", "LaunchAndBuyRouter", "TickerMemeTokenV1", "PonsCompatibleCurve", "UserStockVault", "AllocationManager", "MemeStockGauge", "TickerGardenMemeHook", "ProtocolFeeVault", "GraduationExecutor", "LaunchLocker", "CreatorRevenueRegistry", "TreasuryDistributorV1"],
+      "required": ["OfficialStockRegistryV1", "ApprovedQuoteRegistry", "TickerGardenBaselineRegistry", "LaunchTemplateRegistry", "LaunchConfigResolver", "TickerGardenFactoryV1", "MarketRegistryV1", "LaunchAndBuyRouter", "TickerMemeTokenV1", "TickerGardenCurve", "UserStockVault", "AllocationManager", "MemeStockGauge", "TickerGardenMemeHook", "ProtocolFeeVault", "GraduationExecutor", "LaunchLocker", "CreatorRevenueRegistry", "TreasuryDistributorV1"],
       "properties": {
         "OfficialStockRegistryV1": { "$ref": "#/$defs/moduleDeployment" },
         "ApprovedQuoteRegistry": { "$ref": "#/$defs/moduleDeployment" },
-        "PonsBaselineRegistry": { "$ref": "#/$defs/moduleDeployment" },
+        "TickerGardenBaselineRegistry": { "$ref": "#/$defs/moduleDeployment" },
         "LaunchTemplateRegistry": { "$ref": "#/$defs/moduleDeployment" },
         "LaunchConfigResolver": { "$ref": "#/$defs/moduleDeployment" },
         "TickerGardenFactoryV1": { "$ref": "#/$defs/moduleDeployment" },
         "MarketRegistryV1": { "$ref": "#/$defs/moduleDeployment" },
         "LaunchAndBuyRouter": { "$ref": "#/$defs/moduleDeployment" },
         "TickerMemeTokenV1": { "$ref": "#/$defs/moduleDeployment" },
-        "PonsCompatibleCurve": { "$ref": "#/$defs/moduleDeployment" },
+        "TickerGardenCurve": { "$ref": "#/$defs/moduleDeployment" },
         "UserStockVault": { "$ref": "#/$defs/moduleDeployment" },
         "AllocationManager": { "$ref": "#/$defs/moduleDeployment" },
         "MemeStockGauge": { "$ref": "#/$defs/moduleDeployment" },
@@ -103,7 +103,7 @@
       "additionalProperties": false,
       "required": ["chainId", "network", "rpcUrls", "finalizedBlockNumber", "finalizedBlockHash", "observedAt", "evmVersion"],
       "properties": {
-        "chainId": { "enum": [4663, 46630] },
+        "chainId": { "enum": [4663, 46630, 421614] },
         "network": { "$ref": "#/$defs/nonEmptyString" },
         "rpcUrls": { "type": "array", "minItems": 1, "uniqueItems": true, "items": { "type": "string", "pattern": "^(https?|wss)://\\S+$" } },
         "finalizedBlockNumber": { "$ref": "#/$defs/decimalString" },
@@ -147,9 +147,9 @@
     "configSnapshot": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["ponsBaselineIds", "quoteConfigIds", "launchTemplateIds", "feePolicyId", "launchFeeRaw", "numericBoundsHash", "officialStockCatalogHash", "snapshotHash"],
+      "required": ["tickerGardenBaselineIds", "quoteConfigIds", "launchTemplateIds", "feePolicyId", "launchFeeRaw", "numericBoundsHash", "officialStockCatalogHash", "snapshotHash"],
       "properties": {
-        "ponsBaselineIds": { "type": "array", "minItems": 1, "uniqueItems": true, "items": { "$ref": "#/$defs/bytes32" } },
+        "tickerGardenBaselineIds": { "type": "array", "minItems": 1, "uniqueItems": true, "items": { "$ref": "#/$defs/bytes32" } },
         "quoteConfigIds": { "type": "array", "minItems": 1, "uniqueItems": true, "items": { "$ref": "#/$defs/bytes32" } },
         "launchTemplateIds": { "type": "array", "minItems": 1, "uniqueItems": true, "items": { "$ref": "#/$defs/bytes32" } },
         "feePolicyId": { "$ref": "#/$defs/bytes32" },
@@ -164,9 +164,9 @@
         {
           "type": "object",
           "additionalProperties": false,
-          "required": ["configId", "ponsBaselineId", "economicsHash", "assetKind", "tokenAddress", "decimals", "phantomQuote", "graduationThreshold", "observationBlockHash", "exactBalanceDeltaEvidenceHash"],
+          "required": ["configId", "tickerGardenBaselineId", "economicsHash", "assetKind", "tokenAddress", "decimals", "phantomQuote", "graduationThreshold", "observationBlockHash", "exactBalanceDeltaEvidenceHash"],
           "properties": {
-            "configId": { "$ref": "#/$defs/bytes32" }, "ponsBaselineId": { "$ref": "#/$defs/bytes32" }, "economicsHash": { "$ref": "#/$defs/bytes32" },
+            "configId": { "$ref": "#/$defs/bytes32" }, "tickerGardenBaselineId": { "$ref": "#/$defs/bytes32" }, "economicsHash": { "$ref": "#/$defs/bytes32" },
             "assetKind": { "const": "NATIVE" }, "tokenAddress": { "const": "0x0000000000000000000000000000000000000000" }, "decimals": { "const": 18 },
             "phantomQuote": { "$ref": "#/$defs/decimalString" }, "graduationThreshold": { "$ref": "#/$defs/decimalString" },
             "observationBlockHash": { "$ref": "#/$defs/bytes32" }, "exactBalanceDeltaEvidenceHash": { "$ref": "#/$defs/bytes32" }
@@ -175,9 +175,9 @@
         {
           "type": "object",
           "additionalProperties": false,
-          "required": ["configId", "ponsBaselineId", "economicsHash", "assetKind", "tokenAddress", "decimals", "phantomQuote", "graduationThreshold", "runtimeCodeHash", "proxyKind", "observationBlockHash", "exactBalanceDeltaEvidenceHash"],
+          "required": ["configId", "tickerGardenBaselineId", "economicsHash", "assetKind", "tokenAddress", "decimals", "phantomQuote", "graduationThreshold", "runtimeCodeHash", "proxyKind", "observationBlockHash", "exactBalanceDeltaEvidenceHash"],
           "properties": {
-            "configId": { "$ref": "#/$defs/bytes32" }, "ponsBaselineId": { "$ref": "#/$defs/bytes32" }, "economicsHash": { "$ref": "#/$defs/bytes32" },
+            "configId": { "$ref": "#/$defs/bytes32" }, "tickerGardenBaselineId": { "$ref": "#/$defs/bytes32" }, "economicsHash": { "$ref": "#/$defs/bytes32" },
             "assetKind": { "const": "ERC20" }, "tokenAddress": { "$ref": "#/$defs/nonZeroAddress" }, "decimals": { "type": "integer", "minimum": 6, "maximum": 18 },
             "phantomQuote": { "$ref": "#/$defs/decimalString" }, "graduationThreshold": { "$ref": "#/$defs/decimalString" },
             "runtimeCodeHash": { "$ref": "#/$defs/bytes32" }, "proxyKind": { "type": "string", "minLength": 1 },
@@ -188,9 +188,9 @@
         {
           "type": "object",
           "additionalProperties": false,
-          "required": ["configId", "ponsBaselineId", "economicsHash", "assetKind", "assetUid", "tokenAddress", "decimals", "phantomQuote", "graduationThreshold", "stockTokenFingerprintHash", "referenceEvidenceHash", "generatorPolicyId", "runtimeCodeHash", "proxyKind", "beaconAddress", "beaconCodeHash", "implementationAddress", "implementationCodeHash", "observationBlockHash", "exactBalanceDeltaEvidenceHash"],
+          "required": ["configId", "tickerGardenBaselineId", "economicsHash", "assetKind", "assetUid", "tokenAddress", "decimals", "phantomQuote", "graduationThreshold", "stockTokenFingerprintHash", "referenceEvidenceHash", "generatorPolicyId", "runtimeCodeHash", "proxyKind", "beaconAddress", "beaconCodeHash", "implementationAddress", "implementationCodeHash", "observationBlockHash", "exactBalanceDeltaEvidenceHash"],
           "properties": {
-            "configId": { "$ref": "#/$defs/bytes32" }, "ponsBaselineId": { "$ref": "#/$defs/bytes32" }, "economicsHash": { "$ref": "#/$defs/bytes32" },
+            "configId": { "$ref": "#/$defs/bytes32" }, "tickerGardenBaselineId": { "$ref": "#/$defs/bytes32" }, "economicsHash": { "$ref": "#/$defs/bytes32" },
             "assetKind": { "const": "OFFICIAL_STOCK" }, "assetUid": { "$ref": "#/$defs/bytes32" }, "tokenAddress": { "$ref": "#/$defs/nonZeroAddress" }, "decimals": { "type": "integer", "minimum": 6, "maximum": 18 },
             "phantomQuote": { "$ref": "#/$defs/decimalString" }, "graduationThreshold": { "$ref": "#/$defs/decimalString" },
             "stockTokenFingerprintHash": { "$ref": "#/$defs/bytes32" }, "referenceEvidenceHash": { "$ref": "#/$defs/bytes32" }, "generatorPolicyId": { "$ref": "#/$defs/bytes32" },
@@ -316,7 +316,7 @@
       "required": ["address", "runtimeCodeHash", "framework", "protocolPermissions", "administrativePermissions", "roles", "exactDiffHash", "exactDiffVerified"],
       "properties": {
         "address": { "$ref": "#/$defs/nonZeroAddress" }, "runtimeCodeHash": { "$ref": "#/$defs/bytes32" }, "framework": { "const": "OPENZEPPELIN_ACCESS_MANAGER_5_7_0" },
-        "protocolPermissions": { "type": "array", "minItems": 99, "maxItems": 99, "uniqueItems": true, "items": { "$ref": "#/$defs/permission" } },
+        "protocolPermissions": { "type": "array", "minItems": 102, "maxItems": 102, "uniqueItems": true, "items": { "$ref": "#/$defs/permission" } },
         "administrativePermissions": { "type": "array", "minItems": 6, "maxItems": 6, "uniqueItems": true, "items": { "$ref": "#/$defs/permission" } },
         "roles": {
           "type": "array", "minItems": 5, "maxItems": 5, "uniqueItems": true, "items": { "$ref": "#/$defs/roleBinding" },

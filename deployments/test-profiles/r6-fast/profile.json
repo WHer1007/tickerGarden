@@ -1,0 +1,259 @@
+{
+  "profile": "R6_FAST_TEST_ONLY",
+  "chainId": 421614,
+  "productionTargetChainId": 4663,
+  "productionEligible": false,
+  "parentRelease": "0x14963af9576a3b1cb915b8a13e86e0899a4c8345c010c47d4932789ebf46031d",
+  "lockSeconds": 1200,
+  "unpauseSeconds": 1200,
+  "rawExitSeconds": 3600,
+  "epochSeconds": 3600,
+  "claimWindowSeconds": 7200,
+  "rootPublicationWindowSeconds": 1200,
+  "rootReviewSeconds": 300,
+  "finalitySeconds": 600,
+  "finalityBlocks": 2,
+  "graduationWei": "4200000000000000",
+  "phantomWei": "1680000000000000",
+  "changes": [
+    {
+      "path": "contracts/src/v1/shared/AllocationManagerIncreases.sol",
+      "before": "cabc8e7f31e771d70bb9fc3c3f1daf4a7f98f2861f0d3fa506cba8e5ed7d3d39",
+      "after": "6e27a9845edf607b301a421dfb6dbef5b6b5e3e1b0dc46d68e5340e8e178d248",
+      "replacements": [
+        [
+          "MINIMUM_LOCK = 24 hours",
+          "MINIMUM_LOCK = 20 minutes"
+        ]
+      ]
+    },
+    {
+      "path": "contracts/src/v1/shared/MemeStockGaugePendingPositions.sol",
+      "before": "8113b236cf2bf1631652243cbbb4d196e128f1a4a88df98b97bc402b25a07e56",
+      "after": "d9204bf652f69f531433aa634e340879f816c6539000fe496baf15b5e12b3391",
+      "replacements": [
+        [
+          "MINIMUM_POSITION_LOCK = 24 hours",
+          "MINIMUM_POSITION_LOCK = 20 minutes"
+        ]
+      ]
+    },
+    {
+      "path": "contracts/src/v1/shared/DelayedUnpause.sol",
+      "before": "f26807178227c5c01f0544387698f4cfbddcf756740e4e77dddc2a739126ce89",
+      "after": "a903f2d59595b579b8c4f8f2c681db755317076e6d79556d45b758928deef45f",
+      "replacements": [
+        [
+          "UNPAUSE_STATE_DELAY = 1 days",
+          "UNPAUSE_STATE_DELAY = 20 minutes"
+        ]
+      ]
+    },
+    {
+      "path": "contracts/src/v1/shared/ProtocolFeeVaultRewardSettlement.sol",
+      "before": "68159e8c3b08b15177c4d196fd5e47c9c03360bc7db7b174b2462c8160fe6f7c",
+      "after": "215bd1b89033daf7946d7d597144f9f95aaea70b3266f62504c908af03168c42",
+      "replacements": [
+        [
+          "RAW_EXIT_DELAY = 7 days",
+          "RAW_EXIT_DELAY = 1 hours"
+        ]
+      ]
+    },
+    {
+      "path": "contracts/src/v1/modules/TreasuryDistributorV1.sol",
+      "before": "cfc9cd2fac9b6dd8a522c3c94ab1575542aec5256643947055d220953f8347b7",
+      "after": "2b55c376b444c5e18ff169aaeb53ce7832771bb54c212fbe27808eb2adf7be25",
+      "replacements": [
+        [
+          "EPOCH_DURATION = 7 days",
+          "EPOCH_DURATION = 1 hours"
+        ]
+      ]
+    },
+    {
+      "path": "contracts/test/v1/shared/RewardSettlement.t.sol",
+      "before": "472b81e058097391494ddba37317614c68610f1cbca3d417f33d7c996e9839ea",
+      "after": "9bbf0d8b2269afdea8ce7893c3fb7433b23a26e4aee984e53a0a639dc3fc1692",
+      "replacements": [
+        [
+          "7 days",
+          "1 hours"
+        ]
+      ]
+    },
+    {
+      "path": "contracts/test/v1/shared/MemeStockGaugePendingPositions.t.sol",
+      "before": "0d272ca9a599235035236bb48c59c620265de6fed5bf7b36fca0eabe2e265d76",
+      "after": "cb136953f83a5463fa3ba8badba0090905c6685e2edf80bd07b6a802ccf8e47c",
+      "replacements": [
+        [
+          "24 hours",
+          "20 minutes"
+        ]
+      ]
+    },
+    {
+      "path": "contracts/test/v1/shared/AllocationManagerIncreases.t.sol",
+      "before": "901e68c79e46b0e28bf88cd57a93618c773cb40753585e7b5e6143fd7f488a39",
+      "after": "235a0bb38340a3543cac37c900012cc0e1ccd182ea5fc793ffb574fcef34378f",
+      "replacements": [
+        [
+          "24 hours",
+          "20 minutes"
+        ]
+      ]
+    },
+    {
+      "path": "contracts/test/v1/shared/ProtocolFeeVaultV4Accounting.t.sol",
+      "before": "cdae00f3a59c3cc206791ec13e77c623ec111ade66710dd7e83a208ac6e6358a",
+      "after": "7906611a4af610acdd4a6cae9289d43be8740d908fb02f16572168aadb4f5caf",
+      "replacements": [
+        [
+          "24 hours",
+          "20 minutes"
+        ]
+      ]
+    },
+    {
+      "path": "contracts/test/v1/shared/AllocationManagerDeposits.t.sol",
+      "before": "f83dcc7b72af7ec88e1146d86ff5f51ead4c77e7a008fffea716fe19ae8b12ea",
+      "after": "f1c587743acc9b9b3684afb0fda39c9d1b2edf93d61529c7786789a18456a6d0",
+      "replacements": [
+        [
+          "24 hours",
+          "20 minutes"
+        ]
+      ]
+    },
+    {
+      "path": "contracts/test/v1/product/ApprovedQuoteRegistry.t.sol",
+      "before": "92ba71948f41fbbd41aadfcb7c61c660233c8a55a72a8ea5b6489cdaeaa5acad",
+      "after": "257c94036ad13cdc23f76774b032ce8c37fdd5f5b0a32382e6c6e6e2f310d780",
+      "replacements": [
+        [
+          "UNPAUSE_DELAY = 1 days",
+          "UNPAUSE_DELAY = 20 minutes"
+        ]
+      ]
+    },
+    {
+      "path": "contracts/test/v1/product/MemeStockGauge.t.sol",
+      "before": "79eacb88712be531ca7034bbed891875059919c5154955c160f7d1dec48c216f",
+      "after": "a159e079e220575f06cdeda9b99154af4fa20495d5ee3a07b3a8313676dbd346",
+      "replacements": [
+        [
+          "24 hours",
+          "20 minutes"
+        ]
+      ]
+    },
+    {
+      "path": "contracts/test/v1/product/TickerGardenBaselineRegistry.t.sol",
+      "before": "6450696f6903fd931cba981d210d5da3c9d78d81bdf0aad07161cef2092ef48e",
+      "after": "9b55103ba8607143e86821204e13142ffa770fc719d989f9d63d568623266ae9",
+      "replacements": [
+        [
+          "UNPAUSE_DELAY = 1 days",
+          "UNPAUSE_DELAY = 20 minutes"
+        ]
+      ]
+    },
+    {
+      "path": "contracts/test/v1/product/VaultGaugeInvariant.t.sol",
+      "before": "3057d0bfee7716d15ab3e6d19371aac5b9a60088548eebc4d0a7d21ce8a84912",
+      "after": "9ced8d9f1c6cd13b2bdc5e145ada27324aadfdb6d09ca36f6ccc9ee0196daf67",
+      "replacements": [
+        [
+          "block.timestamp + 1 days",
+          "block.timestamp + 20 minutes"
+        ]
+      ]
+    },
+    {
+      "path": "contracts/test/v1/product/LaunchTemplateRegistry.t.sol",
+      "before": "5e6133a97d90ae2bf00ee9c330f11ce04ae2d1c58d4df4bd2dd04fa323f0ddce",
+      "after": "242f7b95439c74042a1fbe4adc2cb45346a6f7a9db5b17e09792248db0e3eb16",
+      "replacements": [
+        [
+          "UNPAUSE_DELAY = 1 days",
+          "UNPAUSE_DELAY = 20 minutes"
+        ]
+      ]
+    },
+    {
+      "path": "contracts/test/v1/product/OfficialStockRegistryV1.t.sol",
+      "before": "e929de0056d5072015d6f273e41264e3c0163e59e694acfc4728955acdfa9275",
+      "after": "b7583ce8674dca688b1275237b647eb4f2fd036f1d67b45ecb56a0ff97ca11c8",
+      "replacements": [
+        [
+          "UNPAUSE_DELAY = 1 days",
+          "UNPAUSE_DELAY = 20 minutes"
+        ]
+      ]
+    },
+    {
+      "path": "contracts/test/v1/product/TickerGardenFactoryV1.t.sol",
+      "before": "19e9a8189deb01e32bd9fb4dcf197d670947b2a2f125c85f27921de0c8372c43",
+      "after": "37b6dccc94d5a3e080da809acaec683206c3f319574a6949b39a26963cf07345",
+      "replacements": [
+        [
+          "24 hours",
+          "20 minutes"
+        ]
+      ]
+    },
+    {
+      "path": "contracts/test/v1/treasury/product/TreasuryDistributorV1.t.sol",
+      "before": "d78953c3224ed354c83c7fc3a34ddaa16e49627f9656b0bed681f7bd23b0832d",
+      "after": "e2c2db11589bac265cb31ec284399c9fc7e58862995e730d59fc7d8d207a4660",
+      "replacements": [
+        [
+          "7 days",
+          "1 hours"
+        ]
+      ]
+    },
+    {
+      "path": "contracts/test/v1/treasury/product/TreasuryDistributorV1Invariant.t.sol",
+      "before": "74a5c13c3e3b1a2c80f62ec8ede9cd151fd33e66fb9383ac338e28d1be1cad9e",
+      "after": "4472c1efd4d875905f8ffc25cbf128905b50a83876bd33856691f1c9109137a3",
+      "replacements": [
+        [
+          "7 days",
+          "1 hours"
+        ]
+      ]
+    },
+    {
+      "path": "contracts/test/v1/treasury/product/TreasurySevenDayBoundary.t.sol",
+      "before": "bd407c9d7f80b53cc101ca760379b995426317687ddccc7180d7a14c5e9d2a62",
+      "after": "d4cf66ac973a9be3b4830183f2768ddbff94b00319a9d28b5e4b302bbd157905",
+      "replacements": [
+        [
+          "7 days",
+          "1 hours"
+        ]
+      ]
+    },
+    {
+      "path": "deployments/config/arbitrum-sepolia.public.env",
+      "before": "a6c93b13a9abbe073d23b9c0faa37cc7d8c11757bcba603d3c6381f41b8ac044",
+      "after": "53e6431e61481b3cb7b7aefd89c0516d72f95951bec5bd93566ee77fd9c018de",
+      "replacements": [
+        [
+          "V1_CLAIM_WINDOW=2592000",
+          "V1_CLAIM_WINDOW=7200"
+        ],
+        [
+          "V1_ROOT_PUBLICATION_WINDOW=86400",
+          "V1_ROOT_PUBLICATION_WINDOW=1200"
+        ],
+        [
+          "V1_ROOT_REVIEW_DELAY=3600",
+          "V1_ROOT_REVIEW_DELAY=300"
+        ]
+      ]
+    }
+  ]
+}

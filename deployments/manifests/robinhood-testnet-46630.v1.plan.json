@@ -96,11 +96,11 @@
       "AccessManager",
       "OfficialStockRegistryV1",
       "ApprovedQuoteRegistry",
-      "PonsBaselineRegistry",
+      "TickerGardenBaselineRegistry",
       "LaunchTemplateRegistry",
       "LaunchConfigResolver",
       "TickerMemeTokenV1Implementation",
-      "PonsCompatibleCurveImplementation",
+      "TickerGardenCurveImplementation",
       "MemeStockGauge",
       "LaunchAndBuyRouter",
       "MarketRegistryV1",
@@ -150,8 +150,8 @@
     "status": "PASSED",
     "network": "Robinhood Chain",
     "chainId": 4663,
-    "blockNumber": "55165256",
-    "blockHash": "0xc6c62c0bc02d8a2e71d1898213cdd3f7606a957de11827e5df6646bca1d16ed7",
+    "blockNumber": "55747994",
+    "blockHash": "0xd7bc428f76e456752aed5c129204b1aed67239a2cb824f1be544d41dcd60df78",
     "testPath": "contracts/test/v1/fork/V1ProductForkE2E.t.sol",
     "reportPath": "deployments/evidence/v1-deployment-gates.json"
   },
@@ -160,49 +160,49 @@
       "gateId": "V1-DEPLOY-CHAIN-SNAPSHOT-01",
       "status": "CLOSED",
       "evidence": [
-        "deployments/evidence/v1-deployment-gates.json#testnetChainEvidence"
+        "deployments/evidence/v1-optional-staking-gates.json#gates/V1-DEPLOY-CHAIN-SNAPSHOT-01"
       ]
     },
     {
       "gateId": "V1-DEPLOY-ARTIFACT-CODEHASH-01",
       "status": "CLOSED",
       "evidence": [
-        "deployments/evidence/v1-deployment-gates.json#artifactEvidence"
+        "deployments/evidence/v1-r3-test-validation.json"
       ]
     },
     {
       "gateId": "V1-DEPLOY-CREATE2-VECTORS-01",
       "status": "CLOSED",
       "evidence": [
-        "deployments/evidence/v1-deployment-gates.json#orchestrationEvidence"
+        "deployments/evidence/v1-optional-staking-gates.json#gates/V1-DEPLOY-CREATE2-VECTORS-01"
       ]
     },
     {
       "gateId": "V1-DEPLOY-HOOK-MASK-01",
       "status": "CLOSED",
       "evidence": [
-        "deployments/evidence/v1-deployment-gates.json#orchestrationEvidence/hookMask"
+        "deployments/evidence/v1-optional-staking-gates.json#gates/V1-DEPLOY-HOOK-MASK-01"
       ]
     },
     {
       "gateId": "V1-DEPLOY-PERMISSIONS-01",
       "status": "CLOSED",
       "evidence": [
-        "deployments/evidence/v1-deployment-gates.json#gates/V1-DEPLOY-PERMISSIONS-01"
+        "deployments/evidence/v1-optional-staking-gates.json#gates/V1-DEPLOY-PERMISSIONS-01"
       ]
     },
     {
       "gateId": "V1-DEPLOY-ABI-DIFF-01",
       "status": "CLOSED",
       "evidence": [
-        "deployments/evidence/v1-deployment-gates.json#gates/V1-DEPLOY-ABI-DIFF-01"
+        "deployments/evidence/v1-optional-staking-gates.json#gates/V1-DEPLOY-ABI-DIFF-01"
       ]
     },
     {
       "gateId": "V1-DEPLOY-PRODUCT-FORK-E2E-01",
       "status": "CLOSED",
       "evidence": [
-        "deployments/evidence/v1-deployment-gates.json#forkEvidence"
+        "deployments/evidence/v1-optional-staking-gates.json#gates/V1-DEPLOY-PRODUCT-FORK-E2E-01"
       ]
     }
   ],

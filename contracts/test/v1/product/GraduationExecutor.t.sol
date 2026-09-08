@@ -3,7 +3,7 @@ pragma solidity 0.8.26;
 
 import {Test} from "forge-std/Test.sol";
 
-import {PonsBaseline, QuoteAssetConfig} from "../../../src/v1/interfaces/IV1Protocol.sol";
+import {TickerGardenBaseline, QuoteAssetConfig} from "../../../src/v1/interfaces/IV1Protocol.sol";
 import {GraduationExecutor} from "../../../src/v1/modules/GraduationExecutor.sol";
 import {LaunchLocker} from "../../../src/v1/modules/LaunchLocker.sol";
 import {V1Create2} from "../../../src/v1/shared/V1Create2.sol";
@@ -14,7 +14,7 @@ import {
     PoolExecutionPermit2Mock,
     PoolExecutionPoolManagerMock,
     PoolExecutionPositionManagerMock,
-    PoolExecutionPonsBaselineRegistryMock,
+    PoolExecutionTickerGardenBaselineRegistryMock,
     PoolExecutionQuoteRegistryMock,
     PoolExecutionRegistryMock,
     PoolExecutionToken
@@ -31,7 +31,7 @@ contract GraduationExecutorTest is Test {
     PoolExecutionToken private meme;
     PoolExecutionToken private quote;
     PoolExecutionQuoteRegistryMock private quoteRegistry;
-    PoolExecutionPonsBaselineRegistryMock private baselineRegistry;
+    PoolExecutionTickerGardenBaselineRegistryMock private baselineRegistry;
     PoolExecutionRegistryMock private registry;
     PoolExecutionPermit2Mock private permit2;
     PoolExecutionPoolManagerMock private poolManager;
@@ -44,7 +44,7 @@ contract GraduationExecutorTest is Test {
         meme = new PoolExecutionToken("MEME");
         quote = new PoolExecutionToken("QUOTE");
         quoteRegistry = new PoolExecutionQuoteRegistryMock();
-        baselineRegistry = new PoolExecutionPonsBaselineRegistryMock();
+        baselineRegistry = new PoolExecutionTickerGardenBaselineRegistryMock();
         registry = new PoolExecutionRegistryMock(address(quoteRegistry), address(baselineRegistry));
         permit2 = new PoolExecutionPermit2Mock();
         poolManager = new PoolExecutionPoolManagerMock();
@@ -58,7 +58,7 @@ contract GraduationExecutorTest is Test {
         quoteRegistry.setQuote(
             QUOTE_ID,
             QuoteAssetConfig({
-                ponsBaselineId: bytes32("PONS"),
+                tickerGardenBaselineId: bytes32("TICKERGARDEN"),
                 quoteAsset: address(quote),
                 quoteDecimals: 18,
                 phantomQuote: PHANTOM,
@@ -68,8 +68,8 @@ contract GraduationExecutorTest is Test {
             })
         );
         baselineRegistry.setBaseline(
-            bytes32("PONS"),
-            PonsBaseline({
+            bytes32("TICKERGARDEN"),
+            TickerGardenBaseline({
                 referenceChainId: block.chainid,
                 referenceFactory: address(registry),
                 referenceFactoryCodeHash: bytes32(0),

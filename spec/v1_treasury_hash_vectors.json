@@ -9,13 +9,13 @@
     "quoteToken": "0x0000000000000000000000000000000000002000",
     "eligibilityPolicyHash": "0xc71fbfc704065d2bcdde22c8dc6f9e1a0f85fa2195013a0e0623442d336fbb25",
     "windowStart": "1700000000",
-    "windowEnd": "1702592000",
+    "windowEnd": "1700604800",
     "sourceBlockNumber": "999",
     "sourceBlockHash": "0x2222222222222222222222222222222222222222222222222222222222222222",
     "leafIndex": "0",
     "account": "0x000000000000000000000000000000000000a11c",
-    "twab": "259200000",
+    "twab": "60480000",
     "amount": "1000",
-    "expectedLeaf": "0x0976c43f620d8d9d90e70517bae067a218078bc8e530160873e12c5a25290572"
+    "expectedLeaf": "0x563309c36eaee683b8f3b6290c5227f9fc1027356d8e5c134a4b0e8c586e3aff"
   }
 }

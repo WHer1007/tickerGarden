@@ -15,6 +15,8 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: "22.13"
+      - name: Check environment isolation
+        run: node --test tools/environment.test.mjs
       - name: Verify V1 source boundary
         run: npm run check:boundary
       - name: Verify V1 machine specification
@@ -72,15 +74,15 @@ jobs:
         with:
           node-version: "22.13"
           cache: npm
-          cache-dependency-path: services/treasury-root-generator/package-lock.json
+          cache-dependency-path: apps/web/package-lock.json
       - uses: foundry-rs/foundry-toolchain@v1
         with:
           version: v1.8.1
       - name: Restore pinned contract dependencies
         working-directory: contracts
         run: node scripts/sync-dependencies.mjs
-      - name: Install V1 Root generator
-        working-directory: services/treasury-root-generator
+      - name: Install pinned test encoder dependencies
+        working-directory: apps/web
         run: npm ci
       - name: Check V1 Treasury formatting
         working-directory: contracts
@@ -94,9 +96,12 @@ jobs:
       - name: Verify V1 Treasury invariant without cache
         working-directory: contracts
         run: forge test --profile v1-ci --no-cache --match-path 'test/v1/treasury/product/TreasuryDistributorV1Invariant.t.sol'
-      - name: Test and build deterministic V1 Root generator
-        working-directory: services/treasury-root-generator
-        run: npm test && npm run build
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: services/backend-go/go.mod
+          cache-dependency-path: services/backend-go/go.sum
+      - name: Test and build Go Treasury root worker and independent vectors
+        run: npm run test:v1-root-generator && npm run build:v1-root-generator
 
   contracts-product:
     runs-on: ubuntu-latest
@@ -156,31 +161,17 @@ jobs:
       - name: Report V1 deployment-track status
         run: npm run check:deployment-track
 
-  offchain-scaffolds:
+  go-backend:
     runs-on: ubuntu-latest
-    strategy:
-      fail-fast: false
-      matrix:
-        package:
-          - services/backend-api
-          - services/indexer
-          - services/maintenance-runner
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-go@v5
         with:
-          node-version: "22.13"
-          cache: npm
-          cache-dependency-path: ${{ matrix.package }}/package-lock.json
-      - name: Install
-        working-directory: ${{ matrix.package }}
-        run: npm ci
-      - name: Build
-        working-directory: ${{ matrix.package }}
-        run: npm run build
-      - name: Test
-        working-directory: ${{ matrix.package }}
-        run: npm test
+          go-version-file: services/backend-go/go.mod
+          cache-dependency-path: services/backend-go/go.sum
+      - name: Verify Go backend
+        working-directory: services/backend-go
+        run: make verify
 
   website:
     runs-on: ubuntu-latest

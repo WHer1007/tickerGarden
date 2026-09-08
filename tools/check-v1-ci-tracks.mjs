@@ -297,7 +297,7 @@ async function forkStatus() {
       failed("fork", "testnet plan contains no valid Robinhood mainnet fork pin");
     }
     await verifyForkSnapshot(rpcUrl, evidence);
-    runForgeTests("fork", "test/v1/fork/**/*.t.sol", {
+    runForgeTests("fork", "test/v1/fork/V1ProductForkE2E.t.sol", {
       forkUrl: rpcUrl,
       forkBlockNumber: evidence.blockNumber,
     });

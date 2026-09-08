@@ -1,0 +1,846 @@
+[
+  {
+    "name": "empty",
+    "input": {
+      "chainId": 46630,
+      "marketId": "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "now": 1700000000,
+      "pendingParticipants": [],
+      "rawExitAt": {},
+      "perBatchCap": "100000",
+      "totalMeme": "100000",
+      "deadline": 1700000300,
+      "slippageBps": 100
+    },
+    "plan": {
+      "marketId": "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "chainId": 46630,
+      "items": [],
+      "batches": [],
+      "requestDigest": "0x7f0d384a050a35f9cd0e4f2b4d2f326ffb18ad35cb02cafa51bc9b85595e2439",
+      "minimumQuote": "0",
+      "deadline": 1700000300,
+      "quoteReferenceId": ""
+    }
+  },
+  {
+    "name": "roles",
+    "input": {
+      "chainId": 46630,
+      "marketId": "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "now": 1700000000,
+      "pendingParticipants": [
+        {
+          "user": "0x0000000000000000000000000000000000000001",
+          "creatorEpoch": 0,
+          "maximumMeme": "19"
+        },
+        {
+          "user": "0x0000000000000000000000000000000000000001",
+          "creatorEpoch": 3,
+          "maximumMeme": "31"
+        }
+      ],
+      "rawExitAt": {},
+      "perBatchCap": "100000",
+      "totalMeme": "100000",
+      "deadline": 1700000300,
+      "slippageBps": 100,
+      "quote": {
+        "chainId": 46630,
+        "marketId": "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "expectedOutput": "10003",
+        "quotedAt": 1699999970,
+        "requestDigest": "0x60b73b9d91d801b762826f312519a8d21a5a6af49faae355109a3b9eaa5b64e2",
+        "referenceId": "test-reference"
+      }
+    },
+    "plan": {
+      "marketId": "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "chainId": 46630,
+      "items": [
+        {
+          "user": "0x0000000000000000000000000000000000000001",
+          "creatorEpoch": 0,
+          "maximumMeme": "19"
+        },
+        {
+          "user": "0x0000000000000000000000000000000000000001",
+          "creatorEpoch": 3,
+          "maximumMeme": "31"
+        }
+      ],
+      "batches": [
+        {
+          "marketId": "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "items": [
+            {
+              "user": "0x0000000000000000000000000000000000000001",
+              "creatorEpoch": 0,
+              "maximumMeme": "19"
+            },
+            {
+              "user": "0x0000000000000000000000000000000000000001",
+              "creatorEpoch": 3,
+              "maximumMeme": "31"
+            }
+          ],
+          "minimumQuote": "9902",
+          "deadline": 1700000300,
+          "requestDigest": "0x60b73b9d91d801b762826f312519a8d21a5a6af49faae355109a3b9eaa5b64e2",
+          "quoteReferenceId": "test-reference"
+        }
+      ],
+      "requestDigest": "0x60b73b9d91d801b762826f312519a8d21a5a6af49faae355109a3b9eaa5b64e2",
+      "minimumQuote": "9902",
+      "deadline": 1700000300,
+      "quoteReferenceId": "test-reference"
+    }
+  },
+  {
+    "name": "raw-exit-boundary",
+    "input": {
+      "chainId": 46630,
+      "marketId": "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "now": 1700000000,
+      "pendingParticipants": [
+        {
+          "user": "0x0000000000000000000000000000000000000001",
+          "creatorEpoch": 0,
+          "maximumMeme": "7"
+        },
+        {
+          "user": "0x0000000000000000000000000000000000000002",
+          "creatorEpoch": 1,
+          "maximumMeme": "13"
+        },
+        {
+          "user": "0x0000000000000000000000000000000000000003",
+          "creatorEpoch": 2,
+          "maximumMeme": "0"
+        }
+      ],
+      "rawExitAt": {
+        "0x0000000000000000000000000000000000000001": "1700000000",
+        "0x0000000000000000000000000000000000000002": "1700000001"
+      },
+      "perBatchCap": "100000",
+      "totalMeme": "100000",
+      "deadline": 1700000300,
+      "slippageBps": 100,
+      "quote": {
+        "chainId": 46630,
+        "marketId": "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "expectedOutput": "10003",
+        "quotedAt": 1699999970,
+        "requestDigest": "0xbe23a39a810d28813493130cb32dd2bc4521f3c91b8918f4a0b1eb9a6135ef5c",
+        "referenceId": "test-reference"
+      }
+    },
+    "plan": {
+      "marketId": "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "chainId": 46630,
+      "items": [
+        {
+          "user": "0x0000000000000000000000000000000000000002",
+          "creatorEpoch": 1,
+          "maximumMeme": "13"
+        }
+      ],
+      "batches": [
+        {
+          "marketId": "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "items": [
+            {
+              "user": "0x0000000000000000000000000000000000000002",
+              "creatorEpoch": 1,
+              "maximumMeme": "13"
+            }
+          ],
+          "minimumQuote": "9902",
+          "deadline": 1700000300,
+          "requestDigest": "0xbe23a39a810d28813493130cb32dd2bc4521f3c91b8918f4a0b1eb9a6135ef5c",
+          "quoteReferenceId": "test-reference"
+        }
+      ],
+      "requestDigest": "0xbe23a39a810d28813493130cb32dd2bc4521f3c91b8918f4a0b1eb9a6135ef5c",
+      "minimumQuote": "9902",
+      "deadline": 1700000300,
+      "quoteReferenceId": "test-reference"
+    }
+  },
+  {
+    "name": "all-exited",
+    "input": {
+      "chainId": 46630,
+      "marketId": "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "now": 1700000000,
+      "pendingParticipants": [
+        {
+          "user": "0x0000000000000000000000000000000000000001",
+          "creatorEpoch": 0,
+          "maximumMeme": "7"
+        }
+      ],
+      "rawExitAt": {
+        "0x0000000000000000000000000000000000000001": "1699999999"
+      },
+      "perBatchCap": "100000",
+      "totalMeme": "100000",
+      "deadline": 1700000300,
+      "slippageBps": 100
+    },
+    "plan": {
+      "marketId": "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "chainId": 46630,
+      "items": [],
+      "batches": [],
+      "requestDigest": "0x7f0d384a050a35f9cd0e4f2b4d2f326ffb18ad35cb02cafa51bc9b85595e2439",
+      "minimumQuote": "0",
+      "deadline": 1700000300,
+      "quoteReferenceId": ""
+    }
+  },
+  {
+    "name": "max-items",
+    "input": {
+      "chainId": 46630,
+      "marketId": "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "now": 1700000000,
+      "pendingParticipants": [
+        {
+          "user": "0x0000000000000000000000000000000000000001",
+          "creatorEpoch": 0,
+          "maximumMeme": "1"
+        },
+        {
+          "user": "0x0000000000000000000000000000000000000002",
+          "creatorEpoch": 1,
+          "maximumMeme": "1"
+        },
+        {
+          "user": "0x0000000000000000000000000000000000000003",
+          "creatorEpoch": 2,
+          "maximumMeme": "1"
+        },
+        {
+          "user": "0x0000000000000000000000000000000000000004",
+          "creatorEpoch": 3,
+          "maximumMeme": "1"
+        },
+        {
+          "user": "0x0000000000000000000000000000000000000005",
+          "creatorEpoch": 4,
+          "maximumMeme": "1"
+        },
+        {
+          "user": "0x0000000000000000000000000000000000000006",
+          "creatorEpoch": 5,
+          "maximumMeme": "1"
+        },
+        {
+          "user": "0x0000000000000000000000000000000000000007",
+          "creatorEpoch": 6,
+          "maximumMeme": "1"
+        },
+        {
+          "user": "0x0000000000000000000000000000000000000008",
+          "creatorEpoch": 7,
+          "maximumMeme": "1"
+        },
+        {
+          "user": "0x0000000000000000000000000000000000000009",
+          "creatorEpoch": 8,
+          "maximumMeme": "1"
+        },
+        {
+          "user": "0x000000000000000000000000000000000000000a",
+          "creatorEpoch": 9,
+          "maximumMeme": "1"
+        },
+        {
+          "user": "0x000000000000000000000000000000000000000b",
+          "creatorEpoch": 10,
+          "maximumMeme": "1"
+        },
+        {
+          "user": "0x000000000000000000000000000000000000000c",
+          "creatorEpoch": 11,
+          "maximumMeme": "1"
+        },
+        {
+          "user": "0x000000000000000000000000000000000000000d",
+          "creatorEpoch": 12,
+          "maximumMeme": "1"
+        },
+        {
+          "user": "0x000000000000000000000000000000000000000e",
+          "creatorEpoch": 13,
+          "maximumMeme": "1"
+        },
+        {
+          "user": "0x000000000000000000000000000000000000000f",
+          "creatorEpoch": 14,
+          "maximumMeme": "1"
+        },
+        {
+          "user": "0x0000000000000000000000000000000000000010",
+          "creatorEpoch": 15,
+          "maximumMeme": "1"
+        },
+        {
+          "user": "0x0000000000000000000000000000000000000011",
+          "creatorEpoch": 16,
+          "maximumMeme": "1"
+        },
+        {
+          "user": "0x0000000000000000000000000000000000000012",
+          "creatorEpoch": 17,
+          "maximumMeme": "1"
+        },
+        {
+          "user": "0x0000000000000000000000000000000000000013",
+          "creatorEpoch": 18,
+          "maximumMeme": "1"
+        },
+        {
+          "user": "0x0000000000000000000000000000000000000014",
+          "creatorEpoch": 19,
+          "maximumMeme": "1"
+        },
+        {
+          "user": "0x0000000000000000000000000000000000000015",
+          "creatorEpoch": 20,
+          "maximumMeme": "1"
+        },
+        {
+          "user": "0x0000000000000000000000000000000000000016",
+          "creatorEpoch": 21,
+          "maximumMeme": "1"
+        },
+        {
+          "user": "0x0000000000000000000000000000000000000017",
+          "creatorEpoch": 22,
+          "maximumMeme": "1"
+        },
+        {
+          "user": "0x0000000000000000000000000000000000000018",
+          "creatorEpoch": 23,
+          "maximumMeme": "1"
+        },
+        {
+          "user": "0x0000000000000000000000000000000000000019",
+          "creatorEpoch": 24,
+          "maximumMeme": "1"
+        },
+        {
+          "user": "0x000000000000000000000000000000000000001a",
+          "creatorEpoch": 25,
+          "maximumMeme": "1"
+        },
+        {
+          "user": "0x000000000000000000000000000000000000001b",
+          "creatorEpoch": 26,
+          "maximumMeme": "1"
+        },
+        {
+          "user": "0x000000000000000000000000000000000000001c",
+          "creatorEpoch": 27,
+          "maximumMeme": "1"
+        },
+        {
+          "user": "0x000000000000000000000000000000000000001d",
+          "creatorEpoch": 28,
+          "maximumMeme": "1"
+        },
+        {
+          "user": "0x000000000000000000000000000000000000001e",
+          "creatorEpoch": 29,
+          "maximumMeme": "1"
+        },
+        {
+          "user": "0x000000000000000000000000000000000000001f",
+          "creatorEpoch": 30,
+          "maximumMeme": "1"
+        },
+        {
+          "user": "0x0000000000000000000000000000000000000020",
+          "creatorEpoch": 31,
+          "maximumMeme": "1"
+        }
+      ],
+      "rawExitAt": {},
+      "perBatchCap": "100000",
+      "totalMeme": "100000",
+      "deadline": 1700000300,
+      "slippageBps": 100,
+      "quote": {
+        "chainId": 46630,
+        "marketId": "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "expectedOutput": "10003",
+        "quotedAt": 1699999970,
+        "requestDigest": "0x2f8c75c14bf4a42d5df407d8fb763e9ab4bfd25df9bb450c2e8b40f6e67392d1",
+        "referenceId": "test-reference"
+      }
+    },
+    "plan": {
+      "marketId": "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "chainId": 46630,
+      "items": [
+        {
+          "user": "0x0000000000000000000000000000000000000001",
+          "creatorEpoch": 0,
+          "maximumMeme": "1"
+        },
+        {
+          "user": "0x0000000000000000000000000000000000000002",
+          "creatorEpoch": 1,
+          "maximumMeme": "1"
+        },
+        {
+          "user": "0x0000000000000000000000000000000000000003",
+          "creatorEpoch": 2,
+          "maximumMeme": "1"
+        },
+        {
+          "user": "0x0000000000000000000000000000000000000004",
+          "creatorEpoch": 3,
+          "maximumMeme": "1"
+        },
+        {
+          "user": "0x0000000000000000000000000000000000000005",
+          "creatorEpoch": 4,
+          "maximumMeme": "1"
+        },
+        {
+          "user": "0x0000000000000000000000000000000000000006",
+          "creatorEpoch": 5,
+          "maximumMeme": "1"
+        },
+        {
+          "user": "0x0000000000000000000000000000000000000007",
+          "creatorEpoch": 6,
+          "maximumMeme": "1"
+        },
+        {
+          "user": "0x0000000000000000000000000000000000000008",
+          "creatorEpoch": 7,
+          "maximumMeme": "1"
+        },
+        {
+          "user": "0x0000000000000000000000000000000000000009",
+          "creatorEpoch": 8,
+          "maximumMeme": "1"
+        },
+        {
+          "user": "0x000000000000000000000000000000000000000a",
+          "creatorEpoch": 9,
+          "maximumMeme": "1"
+        },
+        {
+          "user": "0x000000000000000000000000000000000000000b",
+          "creatorEpoch": 10,
+          "maximumMeme": "1"
+        },
+        {
+          "user": "0x000000000000000000000000000000000000000c",
+          "creatorEpoch": 11,
+          "maximumMeme": "1"
+        },
+        {
+          "user": "0x000000000000000000000000000000000000000d",
+          "creatorEpoch": 12,
+          "maximumMeme": "1"
+        },
+        {
+          "user": "0x000000000000000000000000000000000000000e",
+          "creatorEpoch": 13,
+          "maximumMeme": "1"
+        },
+        {
+          "user": "0x000000000000000000000000000000000000000f",
+          "creatorEpoch": 14,
+          "maximumMeme": "1"
+        },
+        {
+          "user": "0x0000000000000000000000000000000000000010",
+          "creatorEpoch": 15,
+          "maximumMeme": "1"
+        },
+        {
+          "user": "0x0000000000000000000000000000000000000011",
+          "creatorEpoch": 16,
+          "maximumMeme": "1"
+        },
+        {
+          "user": "0x0000000000000000000000000000000000000012",
+          "creatorEpoch": 17,
+          "maximumMeme": "1"
+        },
+        {
+          "user": "0x0000000000000000000000000000000000000013",
+          "creatorEpoch": 18,
+          "maximumMeme": "1"
+        },
+        {
+          "user": "0x0000000000000000000000000000000000000014",
+          "creatorEpoch": 19,
+          "maximumMeme": "1"
+        },
+        {
+          "user": "0x0000000000000000000000000000000000000015",
+          "creatorEpoch": 20,
+          "maximumMeme": "1"
+        },
+        {
+          "user": "0x0000000000000000000000000000000000000016",
+          "creatorEpoch": 21,
+          "maximumMeme": "1"
+        },
+        {
+          "user": "0x0000000000000000000000000000000000000017",
+          "creatorEpoch": 22,
+          "maximumMeme": "1"
+        },
+        {
+          "user": "0x0000000000000000000000000000000000000018",
+          "creatorEpoch": 23,
+          "maximumMeme": "1"
+        },
+        {
+          "user": "0x0000000000000000000000000000000000000019",
+          "creatorEpoch": 24,
+          "maximumMeme": "1"
+        },
+        {
+          "user": "0x000000000000000000000000000000000000001a",
+          "creatorEpoch": 25,
+          "maximumMeme": "1"
+        },
+        {
+          "user": "0x000000000000000000000000000000000000001b",
+          "creatorEpoch": 26,
+          "maximumMeme": "1"
+        },
+        {
+          "user": "0x000000000000000000000000000000000000001c",
+          "creatorEpoch": 27,
+          "maximumMeme": "1"
+        },
+        {
+          "user": "0x000000000000000000000000000000000000001d",
+          "creatorEpoch": 28,
+          "maximumMeme": "1"
+        },
+        {
+          "user": "0x000000000000000000000000000000000000001e",
+          "creatorEpoch": 29,
+          "maximumMeme": "1"
+        },
+        {
+          "user": "0x000000000000000000000000000000000000001f",
+          "creatorEpoch": 30,
+          "maximumMeme": "1"
+        },
+        {
+          "user": "0x0000000000000000000000000000000000000020",
+          "creatorEpoch": 31,
+          "maximumMeme": "1"
+        }
+      ],
+      "batches": [
+        {
+          "marketId": "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "items": [
+            {
+              "user": "0x0000000000000000000000000000000000000001",
+              "creatorEpoch": 0,
+              "maximumMeme": "1"
+            },
+            {
+              "user": "0x0000000000000000000000000000000000000002",
+              "creatorEpoch": 1,
+              "maximumMeme": "1"
+            },
+            {
+              "user": "0x0000000000000000000000000000000000000003",
+              "creatorEpoch": 2,
+              "maximumMeme": "1"
+            },
+            {
+              "user": "0x0000000000000000000000000000000000000004",
+              "creatorEpoch": 3,
+              "maximumMeme": "1"
+            },
+            {
+              "user": "0x0000000000000000000000000000000000000005",
+              "creatorEpoch": 4,
+              "maximumMeme": "1"
+            },
+            {
+              "user": "0x0000000000000000000000000000000000000006",
+              "creatorEpoch": 5,
+              "maximumMeme": "1"
+            },
+            {
+              "user": "0x0000000000000000000000000000000000000007",
+              "creatorEpoch": 6,
+              "maximumMeme": "1"
+            },
+            {
+              "user": "0x0000000000000000000000000000000000000008",
+              "creatorEpoch": 7,
+              "maximumMeme": "1"
+            },
+            {
+              "user": "0x0000000000000000000000000000000000000009",
+              "creatorEpoch": 8,
+              "maximumMeme": "1"
+            },
+            {
+              "user": "0x000000000000000000000000000000000000000a",
+              "creatorEpoch": 9,
+              "maximumMeme": "1"
+            },
+            {
+              "user": "0x000000000000000000000000000000000000000b",
+              "creatorEpoch": 10,
+              "maximumMeme": "1"
+            },
+            {
+              "user": "0x000000000000000000000000000000000000000c",
+              "creatorEpoch": 11,
+              "maximumMeme": "1"
+            },
+            {
+              "user": "0x000000000000000000000000000000000000000d",
+              "creatorEpoch": 12,
+              "maximumMeme": "1"
+            },
+            {
+              "user": "0x000000000000000000000000000000000000000e",
+              "creatorEpoch": 13,
+              "maximumMeme": "1"
+            },
+            {
+              "user": "0x000000000000000000000000000000000000000f",
+              "creatorEpoch": 14,
+              "maximumMeme": "1"
+            },
+            {
+              "user": "0x0000000000000000000000000000000000000010",
+              "creatorEpoch": 15,
+              "maximumMeme": "1"
+            },
+            {
+              "user": "0x0000000000000000000000000000000000000011",
+              "creatorEpoch": 16,
+              "maximumMeme": "1"
+            },
+            {
+              "user": "0x0000000000000000000000000000000000000012",
+              "creatorEpoch": 17,
+              "maximumMeme": "1"
+            },
+            {
+              "user": "0x0000000000000000000000000000000000000013",
+              "creatorEpoch": 18,
+              "maximumMeme": "1"
+            },
+            {
+              "user": "0x0000000000000000000000000000000000000014",
+              "creatorEpoch": 19,
+              "maximumMeme": "1"
+            },
+            {
+              "user": "0x0000000000000000000000000000000000000015",
+              "creatorEpoch": 20,
+              "maximumMeme": "1"
+            },
+            {
+              "user": "0x0000000000000000000000000000000000000016",
+              "creatorEpoch": 21,
+              "maximumMeme": "1"
+            },
+            {
+              "user": "0x0000000000000000000000000000000000000017",
+              "creatorEpoch": 22,
+              "maximumMeme": "1"
+            },
+            {
+              "user": "0x0000000000000000000000000000000000000018",
+              "creatorEpoch": 23,
+              "maximumMeme": "1"
+            },
+            {
+              "user": "0x0000000000000000000000000000000000000019",
+              "creatorEpoch": 24,
+              "maximumMeme": "1"
+            },
+            {
+              "user": "0x000000000000000000000000000000000000001a",
+              "creatorEpoch": 25,
+              "maximumMeme": "1"
+            },
+            {
+              "user": "0x000000000000000000000000000000000000001b",
+              "creatorEpoch": 26,
+              "maximumMeme": "1"
+            },
+            {
+              "user": "0x000000000000000000000000000000000000001c",
+              "creatorEpoch": 27,
+              "maximumMeme": "1"
+            },
+            {
+              "user": "0x000000000000000000000000000000000000001d",
+              "creatorEpoch": 28,
+              "maximumMeme": "1"
+            },
+            {
+              "user": "0x000000000000000000000000000000000000001e",
+              "creatorEpoch": 29,
+              "maximumMeme": "1"
+            },
+            {
+              "user": "0x000000000000000000000000000000000000001f",
+              "creatorEpoch": 30,
+              "maximumMeme": "1"
+            },
+            {
+              "user": "0x0000000000000000000000000000000000000020",
+              "creatorEpoch": 31,
+              "maximumMeme": "1"
+            }
+          ],
+          "minimumQuote": "9902",
+          "deadline": 1700000300,
+          "requestDigest": "0x2f8c75c14bf4a42d5df407d8fb763e9ab4bfd25df9bb450c2e8b40f6e67392d1",
+          "quoteReferenceId": "test-reference"
+        }
+      ],
+      "requestDigest": "0x2f8c75c14bf4a42d5df407d8fb763e9ab4bfd25df9bb450c2e8b40f6e67392d1",
+      "minimumQuote": "9902",
+      "deadline": 1700000300,
+      "quoteReferenceId": "test-reference"
+    }
+  },
+  {
+    "name": "uint256",
+    "input": {
+      "chainId": 46630,
+      "marketId": "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "now": 1700000000,
+      "pendingParticipants": [
+        {
+          "user": "0x0000000000000000000000000000000000000001",
+          "creatorEpoch": 4294967295,
+          "maximumMeme": "115792089237316195423570985008687907853269984665640564039457584007913129639935"
+        }
+      ],
+      "rawExitAt": {},
+      "perBatchCap": "115792089237316195423570985008687907853269984665640564039457584007913129639935",
+      "totalMeme": "115792089237316195423570985008687907853269984665640564039457584007913129639935",
+      "deadline": 1700000300,
+      "slippageBps": 100,
+      "quote": {
+        "chainId": 46630,
+        "marketId": "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "expectedOutput": "115792089237316195423570985008687907853269984665640564039457584007913129639935",
+        "quotedAt": 1699999970,
+        "requestDigest": "0x0621f1c29a39403a81f9863097dade89c16e90c40e78a8762ddd67f291635403",
+        "referenceId": "test-reference"
+      }
+    },
+    "plan": {
+      "marketId": "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "chainId": 46630,
+      "items": [
+        {
+          "user": "0x0000000000000000000000000000000000000001",
+          "creatorEpoch": 4294967295,
+          "maximumMeme": "115792089237316195423570985008687907853269984665640564039457584007913129639935"
+        }
+      ],
+      "batches": [
+        {
+          "marketId": "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "items": [
+            {
+              "user": "0x0000000000000000000000000000000000000001",
+              "creatorEpoch": 4294967295,
+              "maximumMeme": "115792089237316195423570985008687907853269984665640564039457584007913129639935"
+            }
+          ],
+          "minimumQuote": "114634168344943033469335275158601028774737284818984158399063008167833998343535",
+          "deadline": 1700000300,
+          "requestDigest": "0x0621f1c29a39403a81f9863097dade89c16e90c40e78a8762ddd67f291635403",
+          "quoteReferenceId": "test-reference"
+        }
+      ],
+      "requestDigest": "0x0621f1c29a39403a81f9863097dade89c16e90c40e78a8762ddd67f291635403",
+      "minimumQuote": "114634168344943033469335275158601028774737284818984158399063008167833998343535",
+      "deadline": 1700000300,
+      "quoteReferenceId": "test-reference"
+    }
+  },
+  {
+    "name": "zero-slippage",
+    "input": {
+      "chainId": 46630,
+      "marketId": "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "now": 1700000000,
+      "pendingParticipants": [
+        {
+          "user": "0x0000000000000000000000000000000000000001",
+          "creatorEpoch": 0,
+          "maximumMeme": "1"
+        }
+      ],
+      "rawExitAt": {},
+      "perBatchCap": "100000",
+      "totalMeme": "100000",
+      "deadline": 1700000000,
+      "slippageBps": 0,
+      "quote": {
+        "chainId": 46630,
+        "marketId": "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "expectedOutput": "10003",
+        "quotedAt": 1699999970,
+        "requestDigest": "0xc37eee0ceeeed1f958d1e5918b70387edd2e6625a9d0084258c4147e3432c4c9",
+        "referenceId": "test-reference"
+      }
+    },
+    "plan": {
+      "marketId": "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "chainId": 46630,
+      "items": [
+        {
+          "user": "0x0000000000000000000000000000000000000001",
+          "creatorEpoch": 0,
+          "maximumMeme": "1"
+        }
+      ],
+      "batches": [
+        {
+          "marketId": "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "items": [
+            {
+              "user": "0x0000000000000000000000000000000000000001",
+              "creatorEpoch": 0,
+              "maximumMeme": "1"
+            }
+          ],
+          "minimumQuote": "10003",
+          "deadline": 1700000000,
+          "requestDigest": "0xc37eee0ceeeed1f958d1e5918b70387edd2e6625a9d0084258c4147e3432c4c9",
+          "quoteReferenceId": "test-reference"
+        }
+      ],
+      "requestDigest": "0xc37eee0ceeeed1f958d1e5918b70387edd2e6625a9d0084258c4147e3432c4c9",
+      "minimumQuote": "10003",
+      "deadline": 1700000000,
+      "quoteReferenceId": "test-reference"
+    }
+  }
+]

@@ -8,7 +8,7 @@
 
 V1 的部署形态是一个共享 `TreasuryDistributorV1`；每个毕业市场在共享合约中登记独立账本，不为每个 Meme 市场创建 Treasury 合约。该 runtime 已进入确定性部署图；实际 release 参数和生产激活仍受本文列出的签字输入约束。
 
-- Quote Treasury：按 `marketId + 30 天 epoch` 隔离金额和负债；共享托管地址不代表共享账本。
+- Quote Treasury：按 `marketId + 7 天 epoch` 隔离金额和负债；共享托管地址不代表共享账本。
 - Meme 销毁：Meme 先精确转入 Distributor，再调用该 Meme Token 的 Treasury 专用 burn；必须同时验证 Distributor 余额恢复及 `totalSupply` 精确减少。
 - TWAB：平台从 Meme Token 的标准 `Transfer` 日志重放 `[windowStart, windowEnd)` 的 raw-token balance-seconds，不在每次交易中写链上 checkpoint。
 - Merkle：每个叶子固定包含账户、TWAB numerator、Quote 分配金额和完整 replay domain。
@@ -17,7 +17,7 @@ V1 的部署形态是一个共享 `TreasuryDistributorV1`；每个毕业市场�
 
 ## 2. V1 发布边界
 
-Treasury 是 V1 发布的一部分，接口、登记、资金隔离、30 天 TWAB Merkle Root、持有人领取及 permissionless finalize/expire/rollover 范围已经实现并接入 Rewards 页面。Treasury runtime 已纳入确定性部署图，当前状态为 `DEPLOYMENT_ELIGIBLE`；本轮已重新验证七个部署门槛，证据见 `deployments/evidence/v1-deployment-gates-current.json`。旧部署证据仍保留为 STALE。启用不可变 holder fee sharing 后，creator base fee share 的固定 50%（不含 creator tax）进入持有人账本，creator 保留另外 50% 及 100% creator tax；platform/staker split 不变。Holder period 从市场创建开始，Quote 在 FeeVault credit 时（包括 curve sweep）归属当前 period。当前没有广播或 holder 写操作上线批准，这不表示 Treasury 属于未来 V2 或仅为 preview。
+Treasury 是 V1 发布的一部分，接口、登记、资金隔离、7 天（`604800` 秒）TWAB Merkle Root、持有人领取及 permissionless finalize/expire/rollover 范围已经实现并接入 Rewards 页面。当前源码中的周期长度仅在新的 release 部署后生效；Arbitrum Sepolia R2 的历史链上快照仍采用 30 天 epoch/TWAB，源码改动不会回写或改变该已部署事实。Treasury runtime 已纳入确定性部署图，当前状态为 `DEPLOYMENT_ELIGIBLE`；本轮已重新验证七个部署门槛，证据见 `deployments/evidence/v1-optional-staking-gates.json`。旧部署证据仍保留为 STALE。启用不可变 holder fee sharing 后，creator base fee share 的固定 50%（不含 creator tax）进入持有人账本，creator 保留另外 50% 及 100% creator tax；platform/staker split 不变。Holder period 从市场创建开始，Quote 在 FeeVault credit 时（包括 curve sweep）归属当前 period。当前没有广播或 holder 写操作上线批准，这不表示 Treasury 属于未来 V2 或仅为 preview。
 
 V1 手续费模块只需对接两个接口：
 
@@ -40,14 +40,14 @@ V1 Factory 创建 canonical 市场
 REGISTERED -- 任意人于 PoolCreated 后调用 activateMarket --> ACTIVE (不可逆)
                                                               |
                                                               v
-                                         epoch N = [start, start + 30 days)
+                                         epoch N = [start, start + 7 days)
 ```
 
 Factory 仅在创建参数启用 holder fee sharing 时调用 `registerFeeSharingMarket(marketId, protocolFeeVault, predictedLaunchLocker)`，并由 Treasury 校验 canonical MarketConfig 与 Hook 绑定；禁用时保持原有流程，不发生登记调用。资金注入和 Meme 销毁仍由显式、receipt-bound 流程执行。Rewards 只在链上已经完成 canonical 登记与激活后开放读取，并在独立发布批准门关闭前保持所有 Treasury 写操作禁用。
 
 `activateMarket` 是毕业对接点。毕业前不能注入 Quote Treasury、销毁 Treasury Meme 或发起 Root。
 
-Holder period 从市场创建时间开始，每个周期持续 30 天。Quote 在 FeeVault credit 时直接归属当时的 period；curve sweep 的入账时间决定归属周期。周期结束后的新入账进入下一个 period，避免 Root 生成较慢时把新资金分给旧持有人。Meme 转 Quote 保留原 creator epoch。
+Holder period 从市场创建时间开始，每个周期持续 7 天（`604800` 秒）。Quote 在 FeeVault credit 时直接归属当时的 period；curve sweep 的入账时间决定归属周期。周期结束后的新入账进入下一个 period，避免 Root 生成较慢时把新资金分给旧持有人。Meme 转 Quote 保留原 creator epoch。`claimWindow` 仍为 30 天（`2592000` 秒），从 Root finalize 起计算，与 epoch 周期独立。
 
 ### 3.1 AccessManager 权限闭环
 
@@ -91,13 +91,13 @@ Rewards 页面承载 holder-facing 的 request、claim、permissionless finalize
 
 ## 5. TWAB 与 Merkle 冻结规则
 
-TWAB schema 为 `TRANSFER_LOG_TWAB_30D_V1`：
+TWAB schema 为 `TRANSFER_LOG_TWAB_7D_V1`：
 
 ```text
 accountTwab = sum(balanceAtIntervalStart * intervalSeconds)
 ```
 
-这里保存的是未除以 30 天的精确 numerator。所有账户使用同一窗口，因此比例不变，同时避免提前整数除法造成精度损失。
+这里保存的是未除以 7 天的精确 numerator。所有账户使用同一窗口，因此比例不变，同时避免提前整数除法造成精度损失。
 
 Root 输出 schema 为 `TICKERGARDEN_V1_TREASURY_ROOT_V1`，dataset hash 的 schema 为 `TICKERGARDEN_V1_TREASURY_DATASET_V1`；claim domain 为 `TICKERGARDEN_V1_TREASURY_CLAIM_V1`，eligibility policy domain 为 `TICKERGARDEN_V1_TREASURY_ELIGIBILITY_POLICY_V1`。
 
@@ -117,7 +117,7 @@ Root 输出 schema 为 `TICKERGARDEN_V1_TREASURY_ROOT_V1`，dataset hash 的 sch
 - `marketId`、`epochId`；
 - Meme Token、Quote Token；
 - eligibility policy hash；
-- 30 天窗口；
+- 7 天窗口（`604800` 秒）；
 - finalized source block number/hash；
 - leaf index、account、TWAB、amount。
 
@@ -158,9 +158,9 @@ bitmap 和 account mapping 同时阻止重复 index 与重复账户领取。
 - 合约：`contracts/src/v1/modules/TreasuryDistributorV1.sol`
 - Token：`contracts/src/v1/modules/TickerMemeTokenV1.sol`
 - 对接接口：`contracts/src/v1/interfaces/IV1Protocol.sol`（`ITreasuryDistributorV1`）
-- Root 生成器：`services/treasury-root-generator/`
-- 独立构建：`npm --prefix services/treasury-root-generator run build`
-- 独立测试：`npm --prefix services/treasury-root-generator test`
+- Root 生成器：`services/backend-go/cmd/treasury-worker/`
+- 独立构建：`npm run build:v1-root-generator`
+- 独立测试：`npm run test:v1-root-generator`
 
 门禁必须覆盖普通业务、Token/leaf 边界、生产式 AccessManager handoff 以及 invariant suite；测试数量以当前 CI 输出为准。当前结果支持受控测试网部署验证，但不替代第三方审计、部署后 receipt/source 验证或生产 RH 链路验收。
 

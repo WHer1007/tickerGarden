@@ -4,96 +4,23 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="theme-color" content="#f7f4ec" />
+    <link rel="icon" href="/favicon-32x32.png" sizes="32x32" type="image/png" />
+    <link rel="shortcut icon" href="/favicon.ico" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" sizes="180x180" />
     <title>TickerGarden — Grow community signals</title>
-    <link rel="stylesheet" href="./subpages.css" />
-    <link rel="stylesheet" href="./styles.css" />
+    <link rel="stylesheet" href="/subpages.css" />
+    <link rel="stylesheet" href="/styles.css" />
+    <link rel="stylesheet" href="/src/home/signal-arbor.css" />
+    <link rel="stylesheet" href="/src/create/create.css" />
+    <link rel="stylesheet" href="/src/pages/rewards.css" />
+    <link rel="stylesheet" href="/legal.css" />
   </head>
-  <body data-page="home">
+  <body>
     <header class="shell-header" data-shell-header></header>
-
-    <main class="home-main">
-      <section class="home-hero">
-        <div class="hero-copy">
-          <p class="hero-kicker"><i class="ph ph-plant" aria-hidden="true"></i>Community signal markets</p>
-          <h1>Stake the ticker.<span>Grow the culture.</span></h1>
-          <p class="hero-lede">TickerGarden is where stock communities and meme culture meet—creating an open, expressive layer for every ticker story.</p>
-          <div class="hero-actions">
-            <a class="home-button primary" href="./markets.html">Explore markets <i class="ph ph-arrow-up-right" aria-hidden="true"></i></a>
-            <a class="home-button secondary" href="./create.html">Create a market <i class="ph ph-sprout" aria-hidden="true"></i></a>
-          </div>
-          <div class="hero-proof" aria-label="Protocol boundaries">
-            <span><strong>On-chain</strong> market state</span>
-            <span><strong>Open</strong> community creation</span>
-            <span><strong>Signal</strong> not stock ownership</span>
-          </div>
-        </div>
-
-        <div class="tree-stage" data-garden aria-label="Interactive community signal garden">
-          <div class="garden-heading" aria-hidden="true"><span><i></i> THE SIGNAL GARDEN</span><span>VOL. 01 / STOCK STORIES</span></div>
-          <div class="garden-viewport" data-garden-viewport tabindex="0" role="group" aria-label="3D fruit tree. Drag to rotate, or use left and right arrow keys. Home resets rotation.">
-            <div class="garden-labels" data-garden-labels></div>
-          </div>
-          <div class="garden-ui">
-            <div class="garden-instruction">DRAG TO ROTATE <span>·</span> PICK A FRUIT</div>
-            <div class="garden-inspector">
-              <div class="garden-story"><span class="garden-dot"></span><div><strong data-garden-symbol>Pick a ticker</strong><p data-garden-story>Every branch has a different story.</p></div></div>
-              <button type="button" data-garden-next aria-label="Explore next ticker">→</button>
-            </div>
-            <div class="garden-controls"><span>Illustrative garden · not live prices</span><div><button type="button" data-garden-motion aria-pressed="true">Pause motion</button><button type="button" data-garden-reset>Reset view</button></div></div>
-          </div>
-          <span class="garden-sr-only" data-garden-status role="status" aria-live="polite"></span>
-          <img class="tree-base" src="./assets/hero-tree-base.png" alt="A tree illustration representing community signals" />
-          <div class="fruit-layer" aria-hidden="true">
-            <span class="ticker-fruit lime" style="--fruit-x:39%;--fruit-y:16%;--fruit-size:58px">NVDA</span>
-            <span class="ticker-fruit forest" style="--fruit-x:61%;--fruit-y:17%;--fruit-size:55px">AAPL</span>
-            <span class="ticker-fruit coral" style="--fruit-x:27%;--fruit-y:31%;--fruit-size:56px">MSFT</span>
-            <span class="ticker-fruit lime" style="--fruit-x:49%;--fruit-y:31%;--fruit-size:59px">AMZN</span>
-            <span class="ticker-fruit lime" style="--fruit-x:75%;--fruit-y:31%;--fruit-size:61px">GOOGL</span>
-            <span class="ticker-fruit forest" style="--fruit-x:24%;--fruit-y:50%;--fruit-size:54px">META</span>
-            <span class="ticker-fruit coral" style="--fruit-x:42%;--fruit-y:49%;--fruit-size:58px">TSLA</span>
-            <span class="ticker-fruit lime" style="--fruit-x:62%;--fruit-y:49%;--fruit-size:57px">AVGO</span>
-            <span class="ticker-fruit forest" style="--fruit-x:70%;--fruit-y:66%;--fruit-size:55px">JPM</span>
-            <span class="ticker-fruit coral" style="--fruit-x:82%;--fruit-y:49%;--fruit-size:58px">COST</span>
-          </div>
-        </div>
-      </section>
-
-      <section class="trending" id="gardens" aria-labelledby="home-markets-heading">
-        <div class="trending-heading">
-          <div>
-            <p class="section-kicker">On-chain directory</p>
-            <h2 id="home-markets-heading">Markets in the garden</h2>
-          </div>
-          <a href="./markets.html">View all markets <i class="ph ph-arrow-right" aria-hidden="true"></i></a>
-        </div>
-
-        <div class="market-rail" data-home-markets aria-live="polite" aria-busy="false" aria-label="Live market links">
-          <p data-home-markets-loading hidden>Loading markets from the configured read API…</p>
-          <p data-home-markets-empty>No markets are available from the configured read API yet.</p>
-          <p data-home-markets-locked hidden>Market data is locked until the required V1 configuration is deployed.</p>
-          <!-- Runtime inserts market links here. Each link must use a canonical bytes32 marketId. -->
-        </div>
-      </section>
-
-      <section class="creation-banner">
-        <div><p class="section-kicker">One STOCK. Many cultures.</p><h2>Grow the next <em>Ticker Meme.</em></h2></div>
-        <p>Every stock carries more than one story. Give the next culture room to take root.</p>
-        <a class="home-button banner-button" href="./create.html">Create a market <i class="ph ph-arrow-right" aria-hidden="true"></i></a>
-      </section>
-
-      <section class="how" aria-labelledby="how-heading">
-        <div class="how-heading"><p class="section-kicker">Simple mechanics</p><h2 id="how-heading">How it grows</h2><p>From an eligible Stock Token to a living onchain community.</p></div>
-        <div class="steps">
-          <article><img src="./assets/step-stake.png" alt="Candlesticks growing from soil" /><div><span>01</span><h3>Launch a Ticker Meme</h3><p>Bind a fixed-supply market to one official Stock Token.</p></div></article>
-          <article><img src="./assets/step-earn.png" alt="A sprouting ticker chart" /><div><span>02</span><h3>Graduate the Market</h3><p>Curve trading moves into permanently locked liquidity.</p></div></article>
-          <article><img src="./assets/step-liquidity.png" alt="A healthy liquidity garden" /><div><span>03</span><h3>Allocate STOCK, Earn Fees</h3><p>After graduation, matching STOCK can share actual market fees.</p></div></article>
-        </div>
-      </section>
-    </main>
-
+    <div data-route-outlet></div>
+    <noscript><main class="page"><h1>TickerGarden</h1><p>Enable JavaScript to browse markets and connect your wallet.</p><img data-arbor-source src="./assets/signal-arbor.png" width="1254" height="1254" style="max-width:100%;height:auto" alt="A leafy tree bearing AAPL, AMZN, MSFT, NVDA, GOOGL, COST, TSLA, META and AVGO fruits." /></main></noscript>
     <footer class="shell-footer" data-shell-footer></footer>
     <div class="toast" data-toast role="status" aria-live="polite"></div>
-    <script type="module" src="./app.js"></script>
-    <script type="module" src="./src/home/garden-entry.ts"></script>
+    <script type="module" src="/src/app.ts"></script>
   </body>
 </html>

@@ -1,0 +1,139 @@
+rule_files: [alerts.yml]
+evaluation_interval: 1m
+tests:
+  - interval: 1m
+    input_series:
+      - series: 'up{job="tickergarden-api",instance="api"}'
+        values: '0+0x5'
+    alert_rule_test:
+      - eval_time: 3m
+        alertname: TickerGardenAPIDown
+        exp_alerts:
+          - exp_labels: {job: tickergarden-api, instance: api, severity: critical}
+            exp_annotations: {summary: "TickerGarden API metrics cannot be scraped"}
+  - interval: 1m
+    input_series:
+      - series: 'tickergarden_api_ready{job="tickergarden-api",instance="api"}'
+        values: '0+0x6'
+      - series: 'tickergarden_api_readiness_observed_timestamp_seconds{job="tickergarden-api",instance="api"}'
+        values: '0+60x6'
+    alert_rule_test:
+      - eval_time: 3m
+        alertname: TickerGardenNotReady
+        exp_alerts:
+          - exp_labels: {job: tickergarden-api, instance: api, severity: critical}
+            exp_annotations: {summary: "TickerGarden database or published read model is not ready"}
+      - eval_time: 3m
+        alertname: TickerGardenReadinessStale
+        exp_alerts: []
+  - interval: 1m
+    input_series:
+      - series: 'tickergarden_api_ready{job="tickergarden-api",instance="api"}'
+        values: '1+0x8'
+      - series: 'tickergarden_api_readiness_observed_timestamp_seconds{job="tickergarden-api",instance="api"}'
+        values: '0+0x8'
+    alert_rule_test:
+      - eval_time: 6m
+        alertname: TickerGardenReadinessStale
+        exp_alerts:
+          - exp_labels: {job: tickergarden-api, instance: api, severity: warning}
+            exp_annotations: {summary: "TickerGarden readiness probe is missing or stale"}
+      - eval_time: 6m
+        alertname: TickerGardenNotReady
+        exp_alerts: []
+  - interval: 1m
+    input_series:
+      - series: 'tickergarden_http_requests_total{job="tickergarden-api",instance="api",route="/v1/*",status_class="5xx"}'
+        values: '0+20x15'
+      - series: 'tickergarden_http_requests_total{job="tickergarden-api",instance="api",route="/v1/*",status_class="2xx"}'
+        values: '0+80x15'
+      - series: 'tickergarden_http_request_duration_seconds_bucket{job="tickergarden-api",instance="api",route="/v1/*",le="1"}'
+        values: '0+50x15'
+      - series: 'tickergarden_http_request_duration_seconds_bucket{job="tickergarden-api",instance="api",route="/v1/*",le="5"}'
+        values: '0+100x15'
+      - series: 'tickergarden_http_request_duration_seconds_bucket{job="tickergarden-api",instance="api",route="/v1/*",le="+Inf"}'
+        values: '0+100x15'
+      - series: 'tickergarden_http_request_duration_seconds_count{job="tickergarden-api",instance="api",route="/v1/*"}'
+        values: '0+100x15'
+    alert_rule_test:
+      - eval_time: 10m
+        alertname: TickerGardenAPIErrorRate
+        exp_alerts:
+          - exp_labels: {job: tickergarden-api, instance: api, severity: warning}
+            exp_annotations: {summary: "TickerGarden API 5xx ratio exceeds 5 percent"}
+      - eval_time: 10m
+        alertname: TickerGardenAPILatency
+        exp_alerts:
+          - exp_labels: {job: tickergarden-api, instance: api, severity: warning}
+            exp_annotations: {summary: "TickerGarden API p95 latency exceeds one second"}
+  - interval: 1m
+    input_series:
+      - series: 'up{job="tickergarden-api",instance="api"}'
+        values: '0+0x3 1+0x10'
+      - series: 'tickergarden_api_ready{job="tickergarden-api",instance="api"}'
+        values: '0+0x3 1+0x10'
+      - series: 'tickergarden_api_readiness_observed_timestamp_seconds{job="tickergarden-api",instance="api"}'
+        values: '0+60x15'
+      - series: 'tickergarden_http_requests_total{job="tickergarden-api",instance="api",route="/v1/*",status_class="5xx"}'
+        values: '0+5x15'
+      - series: 'tickergarden_http_requests_total{job="tickergarden-api",instance="api",route="/v1/*",status_class="2xx"}'
+        values: '0+5x15'
+    alert_rule_test:
+      - {eval_time: 10m, alertname: TickerGardenAPIDown, exp_alerts: []}
+      - {eval_time: 10m, alertname: TickerGardenNotReady, exp_alerts: []}
+      - {eval_time: 10m, alertname: TickerGardenReadinessStale, exp_alerts: []}
+      - {eval_time: 10m, alertname: TickerGardenAPIErrorRate, exp_alerts: []}
+  - interval: 1m
+    input_series:
+      - series: 'up{job="tickergarden-api",instance="missing-time"}'
+        values: '1+0x10'
+      - series: 'tickergarden_api_ready{job="tickergarden-api",instance="missing-time"}'
+        values: '1+0x10'
+      - series: 'up{job="tickergarden-api",instance="missing-ready"}'
+        values: '1+0x10'
+      - series: 'tickergarden_api_readiness_observed_timestamp_seconds{job="tickergarden-api",instance="missing-ready"}'
+        values: '0+60x10'
+      - series: 'up{job="tickergarden-api",instance="healthy"}'
+        values: '1+0x10'
+      - series: 'tickergarden_api_ready{job="tickergarden-api",instance="healthy"}'
+        values: '1+0x10'
+      - series: 'tickergarden_api_readiness_observed_timestamp_seconds{job="tickergarden-api",instance="healthy"}'
+        values: '0+60x10'
+      - series: 'up{job="tickergarden-api",instance="down"}'
+        values: '0+0x10'
+    alert_rule_test:
+      - eval_time: 3m
+        alertname: TickerGardenReadinessMetricsMissing
+        exp_alerts:
+          - exp_labels: {job: tickergarden-api, instance: missing-time, severity: warning}
+            exp_annotations: {summary: "TickerGarden API scrape lacks required readiness metrics"}
+          - exp_labels: {job: tickergarden-api, instance: missing-ready, severity: warning}
+            exp_annotations: {summary: "TickerGarden API scrape lacks required readiness metrics"}
+  - interval: 1m
+    input_series:
+      - series: 'up{job="tickergarden-api",instance="api"}'
+        values: '1+0x10'
+      - series: 'tickergarden_api_ready{job="tickergarden-api",instance="api"}'
+        values: '_ _ _ _ 1+0x6'
+      - series: 'tickergarden_api_readiness_observed_timestamp_seconds{job="tickergarden-api",instance="api"}'
+        values: '_ _ _ _ 240+60x6'
+    alert_rule_test:
+      - eval_time: 3m
+        alertname: TickerGardenReadinessMetricsMissing
+        exp_alerts:
+          - exp_labels: {job: tickergarden-api, instance: api, severity: warning}
+            exp_annotations: {summary: "TickerGarden API scrape lacks required readiness metrics"}
+      - {eval_time: 6m, alertname: TickerGardenReadinessMetricsMissing, exp_alerts: []}
+  - interval: 1m
+    input_series:
+      - series: 'tickergarden_api_readiness_observed_timestamp_seconds{job="tickergarden-api",instance="future"}'
+        values: '3600+60x3 240+60x6'
+      - series: 'tickergarden_api_readiness_observed_timestamp_seconds{job="tickergarden-api",instance="healthy"}'
+        values: '0+60x10'
+    alert_rule_test:
+      - eval_time: 3m
+        alertname: TickerGardenReadinessClockSkew
+        exp_alerts:
+          - exp_labels: {job: tickergarden-api, instance: future, severity: warning}
+            exp_annotations: {summary: "TickerGarden readiness observation is in the future"}
+      - {eval_time: 6m, alertname: TickerGardenReadinessClockSkew, exp_alerts: []}

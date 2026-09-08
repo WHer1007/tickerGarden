@@ -136,7 +136,7 @@ contract HolderFeeSharingTest is Test {
         hook = new HolderFeeHookMock(POOL_MANAGER, address(vault), meme, quote);
         config = MarketConfig({
             assetUid: bytes32(0),
-            ponsBaselineId: bytes32(0),
+            tickerGardenBaselineId: bytes32(0),
             quoteAssetConfigId: bytes32(0),
             launchTemplateId: bytes32(0),
             feePolicyId: keccak256("policy-id"),
@@ -150,7 +150,8 @@ contract HolderFeeSharingTest is Test {
             quoteAsset: address(quote),
             graduatedHook: address(hook),
             creatorTaxBps: 1000,
-            creatorFeesToHolders: true
+            creatorFeesToHolders: true,
+            stakingEnabled: true
         });
         registry.setMarket(ID, MarketView(config, MarketRuntime(bytes32(0), 1, 0)));
         creators.setEpoch(ID, 1, CREATOR);

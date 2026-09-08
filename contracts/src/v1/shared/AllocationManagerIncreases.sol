@@ -104,6 +104,7 @@ abstract contract AllocationManagerIncreases is ReentrancyGuard {
     {
         if (marketId == bytes32(0)) revert StockAllocationClosed(marketId);
         marketView = _marketRegistry.market(marketId);
+        if (!marketView.config.stakingEnabled) revert StockAllocationClosed(marketId);
         assetView = _officialStockRegistry.asset(marketView.config.assetUid);
         if (
             assetView.status == 0 || assetView.status > 3 || assetView.tokenDecimals < 6 || assetView.tokenDecimals > 18

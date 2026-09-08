@@ -1,0 +1,100 @@
+{
+  "executionSpecId": "V1-EXEC-11",
+  "chainId": 46630,
+  "genesisHash": "0x829a42e6d68c872aafcef3abb2123fe371138fc415dd8b44381bbbf23049dd32",
+  "contracts": [
+    {
+      "module": "UniswapV4PoolManager",
+      "address": "0x8366a39cc670b4001a1121b8f6a443a643e40951",
+      "runtimeCodeHash": "0xbd3881180b547f5fe817545743cfb4343e96b1bc6640dcd70c106b0066e95626"
+    },
+    {
+      "module": "OfficialStockRegistryV1",
+      "address": "0xb35452cee96d9b882e133484d3acfb66b0eae12f",
+      "runtimeCodeHash": "0x506722ec68dbdae44dbe4bf47a8db6b3bb74511da27c0a2e195cea312a964850"
+    },
+    {
+      "module": "ApprovedQuoteRegistry",
+      "address": "0xb7c1d84fcc8162f94f4d6d4e5dd34390e490f4a4",
+      "runtimeCodeHash": "0xbe8682b73431cb40f8ce515e0b20f84518c2db306c1060fecc4a326039f91cf0"
+    },
+    {
+      "module": "TickerGardenBaselineRegistry",
+      "address": "0xd1c94c797dd1fb1c6826822cc666041127c38aba",
+      "runtimeCodeHash": "0x332e21ad7ca05aed16307140c13fa68c84610ea6313a4186e55cfa2fc4ef6f54"
+    },
+    {
+      "module": "LaunchTemplateRegistry",
+      "address": "0x1d9f2913665ff3f16f570909c5736e1478f762d9",
+      "runtimeCodeHash": "0xebae8dab95b0d7c8c300673c53236c0b58a51f28b15363975d16840e420a386a"
+    },
+    {
+      "module": "LaunchConfigResolver",
+      "address": "0xef6708a0b285b1c28264e7524e9d333c717710ad",
+      "runtimeCodeHash": "0x834617942c7193aeecc1473a7482a999ea5f3bd1d14f6f8777f758e5e4070ba7"
+    },
+    {
+      "module": "MemeStockGauge",
+      "address": "0x5d28f7c01906e79f38ba90416eb8b07844974ac0",
+      "runtimeCodeHash": "0xec738c978b5191270dba28deadca13f2deef471e8e740b2cd7f775d92dff6361"
+    },
+    {
+      "module": "LaunchAndBuyRouter",
+      "address": "0x7607a3e4be3e5e7dfb28dfe70680c9e59e3e4f50",
+      "runtimeCodeHash": "0x0ecf0aa06c0cfa5bb6c7572265c992c6bb919c675faaa11c29f0c5077de8749e"
+    },
+    {
+      "module": "MarketRegistryV1",
+      "address": "0x20a37d426da4f88fde3a8bb67527b8008d9c5ac9",
+      "runtimeCodeHash": "0xf960a7cef4b4ec4f35c01cbacb7248c389bfbac8d2ae7547749e55cece1d2849"
+    },
+    {
+      "module": "CreatorRevenueRegistry",
+      "address": "0xd0a0d0008ed94bc99a2fd3686a4ad657e737b257",
+      "runtimeCodeHash": "0x08cdcf3ba50ccb0253c1782acfff4e7c818e82460b7d5ba464f4670288b5fec8"
+    },
+    {
+      "module": "AllocationManager",
+      "address": "0xb749df3735bc843e7994fcfb3e383f4eb598c4c8",
+      "runtimeCodeHash": "0x4525fa5656d2b23da17d8eea6a1e477d971717e237354282e15d722d5777300c"
+    },
+    {
+      "module": "UserStockVault",
+      "address": "0x7b76b6c262dabfbcf4167a2bbbb83b6f3c03b5be",
+      "runtimeCodeHash": "0x132c27e60b6515062a5ab155f45414017c6f9b1fa2bb9b8d955585c4932b0d0e"
+    },
+    {
+      "module": "HolderRewardsDistributorV1",
+      "address": "0x62e21613e029af5238c6b0a7ce9a72935f246185",
+      "runtimeCodeHash": "0xecdb7734d03d05363d65c4ca7ea2c9c1d59cfd83f51d01a917554f2129b6cb1e"
+    },
+    {
+      "module": "ProtocolFeeVault",
+      "address": "0xe3a38ee1a9e943e259eff2797d27cdd86cc76f44",
+      "runtimeCodeHash": "0x288a10b78a838fc8998c69997f44e8d67563a7da928ec8e570a583215b5352ba"
+    },
+    {
+      "module": "TickerGardenMemeHook",
+      "address": "0x429aee749c7a80328a6e42e7067afce987a82044",
+      "runtimeCodeHash": "0xb3bacaf90c14ab84a885337f397ccee5c63ed1e8ad738a66b5cd61bd390d253d"
+    },
+    {
+      "module": "GraduationExecutor",
+      "address": "0x6ad709f4c04fd64f7d335a592e610c361452b45b",
+      "runtimeCodeHash": "0xedabf0057d6ca34612544ed95a21595ff6246b2872816cc0e6295cbeb08ee385"
+    },
+    {
+      "module": "TickerGardenFactoryV1",
+      "address": "0xf36e6af97dde5ecc7fd7d9817c5c2f9fea2f1fe7",
+      "runtimeCodeHash": "0x9ada844728ad5d8bce8fc89fa370d8bc906aed414df5d4994dc62bf640e48ff8"
+    }
+  ],
+  "bootstrap": {
+    "version": 1,
+    "deploymentStartBlock": 115575937,
+    "deploymentStartHash": "0x841b2d5f0bfbd3ec08e987769017cb1e02fee94048ef0bb74dd8ad40f1e58c5a",
+    "businessStartBlock": 115576876,
+    "businessStartHash": "0xc7bbf3a0698f243e94c2375ac755e0c510a124dec479dde412228d0d3480a393",
+    "evidenceHash": "0x6793199dc0d8130655390fb39cda38811e27d81b80a8a2deb7fbf16321716acb"
+  }
+}

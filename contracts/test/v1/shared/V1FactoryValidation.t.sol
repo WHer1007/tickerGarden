@@ -9,9 +9,9 @@ import {
     IApprovedQuoteRegistry,
     ILaunchTemplateRegistry,
     IOfficialStockRegistryV1,
-    IPonsBaselineRegistry,
+    ITickerGardenBaselineRegistry,
     LaunchTemplate,
-    PonsBaseline,
+    TickerGardenBaseline,
     QuoteAssetConfig
 } from "../../../src/v1/interfaces/IV1Protocol.sol";
 import {V1FactoryValidation} from "../../../src/v1/shared/V1FactoryValidation.sol";
@@ -22,7 +22,7 @@ import {GraduationPoolMath} from "../../../src/v1/libraries/GraduationPoolMath.s
 contract FactoryRegistryFixtures {
     mapping(bytes32 => AssetView) internal _assets;
     mapping(bytes32 => QuoteAssetConfig) internal _quotes;
-    mapping(bytes32 => PonsBaseline) internal _baselines;
+    mapping(bytes32 => TickerGardenBaseline) internal _baselines;
     mapping(bytes32 => LaunchTemplate) internal _templates;
     mapping(bytes32 => bytes32) internal _templateHashes;
     mapping(address => bytes32) internal _vaultSchemas;
@@ -63,7 +63,7 @@ contract FactoryRegistryFixtures {
         _quoteIdentityIsCurrent = current;
     }
 
-    function setBaseline(bytes32 id, PonsBaseline memory value) external {
+    function setBaseline(bytes32 id, TickerGardenBaseline memory value) external {
         _baselines[id] = value;
     }
 
@@ -105,7 +105,7 @@ contract FactoryRegistryFixtures {
         return _quoteIdentityIsCurrent;
     }
 
-    function baseline(bytes32 id) external view returns (PonsBaseline memory) {
+    function baseline(bytes32 id) external view returns (TickerGardenBaseline memory) {
         return _baselines[id];
     }
 
@@ -161,7 +161,7 @@ contract V1FactoryValidationHarness {
         _registries = V1FactoryValidation.Registries({
             officialStock: IOfficialStockRegistryV1(fixtures),
             approvedQuote: IApprovedQuoteRegistry(fixtures),
-            ponsBaseline: IPonsBaselineRegistry(fixtures),
+            tickerGardenBaseline: ITickerGardenBaselineRegistry(fixtures),
             launchTemplate: ILaunchTemplateRegistry(fixtures)
         });
         _policy.feePolicyId = feePolicyId;
@@ -207,8 +207,8 @@ contract V1FactoryValidationHarness {
         reserved[marketId] = true;
     }
 
-    function hashPonsBaseline(PonsBaseline memory value) external pure returns (bytes32) {
-        return V1MarketEconomics.hashPonsBaseline(value);
+    function hashTickerGardenBaseline(TickerGardenBaseline memory value) external pure returns (bytes32) {
+        return V1MarketEconomics.hashTickerGardenBaseline(value);
     }
 
     function hashExpectedEconomics(V1MarketEconomics.ExpectedEconomicsInput memory value)
@@ -271,8 +271,8 @@ contract V1FactoryValidationTest is Test {
         _setValidFixtures();
     }
 
-    function test_hashPonsBaselineMatchesFrozenMachineVector() public view {
-        PonsBaseline memory value = PonsBaseline({
+    function test_hashTickerGardenBaselineMatchesFrozenMachineVector() public view {
+        TickerGardenBaseline memory value = TickerGardenBaseline({
             referenceChainId: 3027,
             referenceFactory: 0x0dD9f133ac3Bf7BC0992A126562E997418dC7e10,
             referenceFactoryCodeHash: 0x386ae79e6e7109c4931350331813d9c957da4cb2646030770975cb91a92b4c67,
@@ -284,9 +284,9 @@ contract V1FactoryValidationTest is Test {
             behaviorVectorRoot: 0xc87156b19251bf73752ecba2d385efb695b0ed4735dcbd7cde6c42adb3632e65,
             status: 77
         });
-        assertEq(harness.hashPonsBaseline(value), 0xde8535cc8ea8c4001e1970f18a7f1448ffbef4def9c1045ac7cafb414619c51e);
+        assertEq(harness.hashTickerGardenBaseline(value), 0x82e4d2fc20474a7058ed18d917d441a5f665510b83471eb38e0203dc5c91c64c);
         value.status = 1;
-        assertEq(harness.hashPonsBaseline(value), 0xde8535cc8ea8c4001e1970f18a7f1448ffbef4def9c1045ac7cafb414619c51e);
+        assertEq(harness.hashTickerGardenBaseline(value), 0x82e4d2fc20474a7058ed18d917d441a5f665510b83471eb38e0203dc5c91c64c);
     }
 
     function test_hashExpectedEconomicsMatchesFrozenMachineVector() public view {
@@ -296,8 +296,8 @@ contract V1FactoryValidationTest is Test {
             assetUid: 0x5c4a029b7275e5230fd48512a07abde18983f60d7bef8648c280978d4ec500ed,
             stockToken: 0x10b4Fa177304452De91f0a2f0946E30898c90492,
             stockDecimals: 255,
-            ponsBaselineId: 0x835edd49b4ce47edf6c0d4d310823b69161ee152cce114c266375244f58da915,
-            ponsBaselineHash: 0xd87da152306d48fce2176e0124394a9b727fc9f0a7e5a01adf3202c46850c560,
+            tickerGardenBaselineId: 0x835edd49b4ce47edf6c0d4d310823b69161ee152cce114c266375244f58da915,
+            tickerGardenBaselineHash: 0xd87da152306d48fce2176e0124394a9b727fc9f0a7e5a01adf3202c46850c560,
             quoteAssetConfigId: 0x616f1a3de420a964cbefc678fc8cd8e58a1c8ca8057a9494712657d44e0f35a9,
             quoteEconomicsHash: 0x4608d8b85db48ec7199507737df8e1ebcf477f517420e3f051630e19c4672557,
             launchTemplateId: 0x68c59175f786b6b27be325d6d9b7d076ab8b60f41ab561edcfbc13489f1fb4a8,
@@ -307,10 +307,11 @@ contract V1FactoryValidationTest is Test {
             feePolicyHash: 0x124343479b3f0d099d68176c06295d21f1686332671e3d8d18143942ae18e13b,
             executionSpecId: 0x6d778d9fac5729e6943b9bef3a61d68f916469af230e2a521826a553ea0b5bad,
             creatorTaxBps: 18162,
-            creatorFeesToHolders: true
+            creatorFeesToHolders: true,
+            stakingEnabled: true
         });
         assertEq(
-            harness.hashExpectedEconomics(input), 0xc8e133e0820a643eb2115057a73c278cabe060fd7452005f05d32f148fda70d2
+            harness.hashExpectedEconomics(input), 0xe6fe5f9c165aab630ef76a8c78b8abc1a1339208c2f3d52a08cbc3a3cba18938
         );
     }
 
@@ -377,11 +378,11 @@ contract V1FactoryValidationTest is Test {
         harness.preview(CREATOR, params);
         fixtures.setQuote(QUOTE_ID, _quote());
 
-        PonsBaseline memory baselineValue = _baseline();
+        TickerGardenBaseline memory baselineValue = _baseline();
         baselineValue.status = 2;
         fixtures.setBaseline(BASELINE_ID, baselineValue);
         vm.expectRevert(
-            abi.encodeWithSelector(V1FactoryValidation.InactivePonsBaseline.selector, BASELINE_ID, uint8(2))
+            abi.encodeWithSelector(V1FactoryValidation.InactiveTickerGardenBaseline.selector, BASELINE_ID, uint8(2))
         );
         harness.preview(CREATOR, params);
         fixtures.setBaseline(BASELINE_ID, _baseline());
@@ -412,11 +413,11 @@ contract V1FactoryValidationTest is Test {
     function test_rejectsCrossBaselineQuoteAndTemplatePolicyDrift() public {
         CreateMarketParams memory params = _params(bytes32(uint256(1)));
         QuoteAssetConfig memory quoteValue = _quote();
-        quoteValue.ponsBaselineId = bytes32(uint256(999));
+        quoteValue.tickerGardenBaselineId = bytes32(uint256(999));
         fixtures.setQuote(QUOTE_ID, quoteValue);
         vm.expectRevert(
             abi.encodeWithSelector(
-                V1FactoryValidation.QuoteBaselineMismatch.selector, quoteValue.ponsBaselineId, BASELINE_ID
+                V1FactoryValidation.QuoteBaselineMismatch.selector, quoteValue.tickerGardenBaselineId, BASELINE_ID
             )
         );
         harness.preview(CREATOR, params);
@@ -436,7 +437,7 @@ contract V1FactoryValidationTest is Test {
     }
 
     function test_rejectsJointEconomicsThatCannotProduceRepresentableGraduationLiquidity() public {
-        PonsBaseline memory baselineValue = _baseline();
+        TickerGardenBaseline memory baselineValue = _baseline();
         baselineValue.supply = uint256(uint128(type(int128).max));
         baselineValue.tickSpacing = 1;
         fixtures.setBaseline(BASELINE_ID, baselineValue);
@@ -494,7 +495,7 @@ contract V1FactoryValidationTest is Test {
 
     function _quote() private pure returns (QuoteAssetConfig memory) {
         return QuoteAssetConfig({
-            ponsBaselineId: BASELINE_ID,
+            tickerGardenBaselineId: BASELINE_ID,
             quoteAsset: address(0),
             quoteDecimals: 18,
             phantomQuote: 1.68 ether,
@@ -504,8 +505,8 @@ contract V1FactoryValidationTest is Test {
         });
     }
 
-    function _baseline() private pure returns (PonsBaseline memory) {
-        return PonsBaseline({
+    function _baseline() private pure returns (TickerGardenBaseline memory) {
+        return TickerGardenBaseline({
             referenceChainId: 4663,
             referenceFactory: address(0x2001),
             referenceFactoryCodeHash: keccak256("factory"),
@@ -540,7 +541,7 @@ contract V1FactoryValidationTest is Test {
     function _params(bytes32 salt) private pure returns (CreateMarketParams memory) {
         return CreateMarketParams({
             assetUid: ASSET_UID,
-            ponsBaselineId: BASELINE_ID,
+            tickerGardenBaselineId: BASELINE_ID,
             quoteAssetConfigId: QUOTE_ID,
             launchTemplateId: TEMPLATE_ID,
             expectedEconomics: bytes32(0),
@@ -550,7 +551,8 @@ contract V1FactoryValidationTest is Test {
             metadataURI: "ipfs://garden",
             salt: salt,
             creatorTaxBps: 0,
-            creatorFeesToHolders: false
+            creatorFeesToHolders: false,
+            stakingEnabled: true
         });
     }
 }

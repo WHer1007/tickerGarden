@@ -34,6 +34,7 @@ contract V4AccountingMarketRegistryMock {
         config.quoteAsset = quoteAsset;
         config.memeToken = memeToken;
         config.gauge = gauge;
+        config.stakingEnabled = true;
         config.graduatedHook = hook;
         config.feePolicyId = feePolicyId;
         config.executionSpecId = executionSpecId;
@@ -50,6 +51,11 @@ contract V4AccountingMarketRegistryMock {
 
     function setLaunchPhase(bytes32 marketId, uint8 launchPhase) external {
         _markets[marketId].runtime.launchPhase = launchPhase;
+    }
+
+    function disableStaking(bytes32 marketId) external {
+        _markets[marketId].config.stakingEnabled = false;
+        _markets[marketId].config.gauge = address(0);
     }
 
     function setCreatorTaxBps(bytes32 marketId, uint16 creatorTaxBps) external {
@@ -272,6 +278,18 @@ contract ProtocolFeeVaultV4AccountingTest is Test {
         meme = new MockExactQuoteToken(18);
         creatorRegistry.setEpoch(MARKET_ID, 1, CREATOR);
         _configure(FEE_POLICY_ID, EXECUTION_SPEC_ID);
+    }
+
+    function test_disabledStakingNeverCallsGaugeAndRetainsAllCreatorTax() public {
+        registry.disableStaking(MARKET_ID);
+        registry.setCreatorTaxBps(MARKET_ID, 500);
+        bytes32 feeId = _feeId(address(quote), 10_000, 600, 1);
+        quote.mint(address(source), 600);
+        _creditErc20(quote, 10_000, 600, 0, 600, 1, feeId);
+        assertEq(vault.liability(MARKET_ID, address(quote), 0), 570);
+        assertEq(vault.liability(MARKET_ID, address(quote), 1), 0);
+        assertEq(vault.liability(MARKET_ID, address(quote), 2), 30);
+        assertEq(gauge.checkpointCalls(), 0);
     }
 
     function test_zeroActiveStockCreditsSeventyZeroThirtyAndSkipsGaugeCredit() public {

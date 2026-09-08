@@ -44,11 +44,11 @@ export const V1_ORDINARY_COMPONENT_ORDER = [
   "AccessManager",
   "OfficialStockRegistryV1",
   "ApprovedQuoteRegistry",
-  "PonsBaselineRegistry",
+  "TickerGardenBaselineRegistry",
   "LaunchTemplateRegistry",
   "LaunchConfigResolver",
   "TickerMemeTokenV1Implementation",
-  "PonsCompatibleCurveImplementation",
+  "TickerGardenCurveImplementation",
   "MemeStockGauge",
   "LaunchAndBuyRouter",
   "MarketRegistryV1",
@@ -196,7 +196,9 @@ export function assertV1TestnetDeploymentPlanConsistency(value: unknown): void {
   const readiness = record(executionManifest.readiness, "executionManifest.readiness");
   const gateSets = record(readiness.gateSets, "executionManifest.readiness.gateSets");
   const deployment = record(gateSets.deployment, "executionManifest.readiness.gateSets.deployment");
-  const openGateIds = new Set(strings(deployment.open, "deployment.open"));
+  // Arbitrum integration has its own unclosed release gates; RH eligibility is not transferable.
+  const openGateIds = new Set(plan.target === "ARBITRUM_SEPOLIA_V4_INTEGRATION"
+    ? V1_DEPLOYMENT_GATE_IDS : strings(deployment.open, "deployment.open"));
 
   const dependencies = records(plan.externalDependencies, "externalDependencies");
   exactSet(
@@ -231,7 +233,7 @@ export function assertV1TestnetDeploymentPlanConsistency(value: unknown): void {
   }
 
   const forkEvidence = record(plan.forkEvidence, "forkEvidence");
-  const expectedForkStatus = openGateIds.has("V1-DEPLOY-PRODUCT-FORK-E2E-01") ? "OPEN" : "PASSED";
+  const expectedForkStatus = new Set(strings(deployment.open, "deployment.open")).has("V1-DEPLOY-PRODUCT-FORK-E2E-01") ? "OPEN" : "PASSED";
   if (forkEvidence.status !== expectedForkStatus) {
     throw new Error(`V1 testnet plan fork evidence drift: expected ${expectedForkStatus}`);
   }
@@ -332,3 +334,12 @@ export const v1TestnetDeploymentPlan = Object.freeze(
 );
 
 assertV1TestnetDeploymentPlanConsistency(v1TestnetDeploymentPlan);
+
+export function loadV1TestnetDeploymentPlan(target = "robinhood-testnet") {
+  const filename = target === "robinhood-testnet" ? "robinhood-testnet-46630.v1.plan.json"
+    : target === "arbitrum-sepolia" ? "arbitrum-sepolia-421614.v1.plan.json" : undefined;
+  if (!filename) throw new Error("Unsupported V1 testnet target");
+  const plan = JSON.parse(readFileSync(new URL(`../../manifests/${filename}`, import.meta.url), "utf8")) as JsonRecord;
+  assertV1TestnetDeploymentPlanConsistency(plan);
+  return Object.freeze(plan);
+}

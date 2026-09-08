@@ -68,6 +68,9 @@
     },
     "SERVICE_BENEFICIARY": {
       "delaySeconds": 0
+    },
+    "PENDING_CREATOR_REVENUE_BENEFICIARY": {
+      "delaySeconds": 0
     }
   },
   "functions": [
@@ -252,28 +255,28 @@
       "recipient": "none"
     },
     {
-      "module": "PonsBaselineRegistry",
-      "signature": "addBaseline(bytes32,PonsBaseline)",
+      "module": "TickerGardenBaselineRegistry",
+      "signature": "addBaseline(bytes32,TickerGardenBaseline)",
       "caller": "PROTOCOL_ADMIN_ROLE",
       "delaySeconds": 172800,
       "recipient": "none"
     },
     {
-      "module": "PonsBaselineRegistry",
+      "module": "TickerGardenBaselineRegistry",
       "signature": "pauseBaseline(bytes32,bytes32)",
       "caller": "PAUSE_GUARDIAN_ROLE",
       "delaySeconds": 0,
       "recipient": "none"
     },
     {
-      "module": "PonsBaselineRegistry",
+      "module": "TickerGardenBaselineRegistry",
       "signature": "unpauseBaseline(bytes32)",
       "caller": "UNPAUSE_ROLE",
       "delaySeconds": 86400,
       "recipient": "none"
     },
     {
-      "module": "PonsBaselineRegistry",
+      "module": "TickerGardenBaselineRegistry",
       "signature": "retireBaseline(bytes32,bytes32)",
       "caller": "PROTOCOL_ADMIN_ROLE",
       "delaySeconds": 172800,
@@ -330,6 +333,13 @@
       "recipient": "specified_first_buy_recipient"
     },
     {
+      "module": "LaunchAndBuyRouter",
+      "signature": "unlockCallback(bytes)",
+      "caller": "POOL_MANAGER",
+      "delaySeconds": 0,
+      "recipient": "canonical_native_quote_pool_and_launch_router"
+    },
+    {
       "module": "TickerMemeTokenV1",
       "signature": "transfer(address,uint256)",
       "caller": "PUBLIC",
@@ -374,7 +384,7 @@
       "precondition": "NotGraduated_AND_CANONICAL_POOL_ACTIVE_AND_LP_PERMANENTLY_LOCKED_IN_SAME_TRANSACTION"
     },
     {
-      "module": "PonsCompatibleCurve",
+      "module": "TickerGardenCurve",
       "signature": "buy(uint256,uint256,address)",
       "caller": "PUBLIC",
       "delaySeconds": 0,
@@ -382,7 +392,7 @@
       "precondition": "LaunchPhase==NotGraduated"
     },
     {
-      "module": "PonsCompatibleCurve",
+      "module": "TickerGardenCurve",
       "signature": "sell(uint256,uint256,address)",
       "caller": "PUBLIC",
       "delaySeconds": 0,
@@ -390,7 +400,7 @@
       "precondition": "LaunchPhase==NotGraduated"
     },
     {
-      "module": "PonsCompatibleCurve",
+      "module": "TickerGardenCurve",
       "signature": "sweepCurveFees()",
       "caller": "PUBLIC",
       "delaySeconds": 0,
@@ -721,8 +731,8 @@
       "signature": "transferCreatorRevenueBeneficiary(bytes32,address)",
       "caller": "CURRENT_CREATOR_BENEFICIARY",
       "delaySeconds": 0,
-      "recipient": "new_beneficiary_for_future_fees",
-      "precondition": "CURVE_ACCRUED_FEE_ZERO_AFTER_ATOMIC_OLD_EPOCH_SWEEP"
+      "recipient": "pending_beneficiary_only",
+      "precondition": "PROPOSE_ONLY_CURRENT_BENEFICIARY_NO_EPOCH_CHANGE"
     },
     {
       "module": "TreasuryDistributorV1",
@@ -854,6 +864,30 @@
       "caller": "FEE_VAULT",
       "delaySeconds": 0,
       "recipient": "fixed_holder_distribution_market_and_epoch"
+    },
+    {
+      "module": "TickerMemeTokenV1",
+      "signature": "enableContinuousRewards()",
+      "caller": "TREASURY_DISTRIBUTOR_MODULE",
+      "delaySeconds": 0,
+      "recipient": "none",
+      "precondition": "ONCE_ONLY_BY_IMMUTABLE_DISTRIBUTOR_AFTER_CANONICAL_REGISTRATION"
+    },
+    {
+      "module": "CreatorRevenueRegistry",
+      "signature": "acceptCreatorRevenueBeneficiary(bytes32)",
+      "caller": "PENDING_CREATOR_REVENUE_BENEFICIARY",
+      "delaySeconds": 0,
+      "recipient": "none",
+      "precondition": "PENDING_BENEFICIARY_ACCEPTS_WITH_ATOMIC_OLD_EPOCH_SWEEP"
+    },
+    {
+      "module": "CreatorRevenueRegistry",
+      "signature": "cancelCreatorRevenueBeneficiaryTransfer(bytes32)",
+      "caller": "CURRENT_CREATOR_BENEFICIARY",
+      "delaySeconds": 0,
+      "recipient": "none",
+      "precondition": "CURRENT_BENEFICIARY_CANCELS_PENDING_NOMINATION"
     }
   ],
   "forbiddenCapabilities": [

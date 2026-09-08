@@ -43,6 +43,7 @@ contract InvariantMarketRegistry {
     function configure(bytes32 marketId, bytes32 assetUid, address gauge) external {
         _markets[marketId].config.assetUid = assetUid;
         _markets[marketId].config.gauge = gauge;
+        _markets[marketId].config.stakingEnabled = true;
         _markets[marketId].runtime.launchPhase = 1;
     }
 

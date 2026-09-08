@@ -65,7 +65,7 @@ phantomQuoteRaw        = floor(
 )
 ```
 
-生成后必须用与 Factory/GraduationExecutor 相同的 `PonsSupplyMath` 和 `GraduationPoolMath` 验证供应分区、整数舍入、signed amount、sqrt price、tick 与 max-liquidity 域。治理实际登记的是最终 raw integers；`targetGraduationUsd` 和参考价格只属于可审计的生成证据，不进入 Curve 热路径，也不意味着毕业时仍值同样的美元金额。
+生成后必须用与 Factory/GraduationExecutor 相同的 `TickerGardenSupplyMath` 和 `GraduationPoolMath` 验证供应分区、整数舍入、signed amount、sqrt price、tick 与 max-liquidity 域。治理实际登记的是最终 raw integers；`targetGraduationUsd` 和参考价格只属于可审计的生成证据，不进入 Curve 热路径，也不意味着毕业时仍值同样的美元金额。
 
 若产品尚未冻结 `targetGraduationUsd`、比例、价差容忍度或最大价格时效，生成器只能输出 `PROPOSED` 草案，不能生成 ACTIVE Quote config。
 

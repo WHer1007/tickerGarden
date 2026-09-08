@@ -5,6 +5,7 @@ import {IPoolManager} from "@uniswap/v4-core/src/interfaces/IPoolManager.sol";
 import {IAllowanceTransfer} from "permit2/src/interfaces/IAllowanceTransfer.sol";
 import {Test} from "forge-std/Test.sol";
 
+import {HolderRewardsDistributorV1} from "../../../src/v1/modules/HolderRewardsDistributorV1.sol";
 import {GraduationExecutor} from "../../../src/v1/modules/GraduationExecutor.sol";
 import {LaunchAndBuyRouter} from "../../../src/v1/modules/LaunchAndBuyRouter.sol";
 import {MarketRegistryV1} from "../../../src/v1/modules/MarketRegistryV1.sol";
@@ -58,6 +59,8 @@ contract V1DeterministicDeploymentOrchestratorTest is Test {
         config = V1DeploymentConfig({
             initialAdmin: address(this),
             poolManager: address(poolManager),
+            nativeQuotePoolFee: 10_000,
+            nativeQuoteTickSpacing: 200,
             positionManager: address(positionManager),
             swapRouter: address(swapRouter),
             quoter: address(quoter),
@@ -112,6 +115,24 @@ contract V1DeterministicDeploymentOrchestratorTest is Test {
         assertEq(feeVault.marketRegistry(), address(marketRegistry));
         assertEq(address(deployedFactory.marketRegistry()), address(marketRegistry));
         assertEq(deployedFactory.protocolFeeVault(), address(feeVault));
+    }
+
+    function test_continuousReleaseDeploysBoundRuntimeGraph() public {
+        V1DeterministicDeploymentOrchestrator orchestrator =
+            new V1DeterministicDeploymentOrchestrator(address(this), RELEASE_ID);
+        (bytes32 salt,) = V1DeterministicDeploymentBuilder.mineHelperSalt(address(orchestrator), RELEASE_ID, 200_000);
+        bytes32 factorySalt = V1DeterministicDeploymentBuilder.factorySalt(block.chainid, RELEASE_ID);
+        (V1DeploymentPlan memory legacy,) = _build(orchestrator);
+        (V1DeploymentPlan memory plan, V1DeploymentPayload memory payload) =
+            V1DeterministicDeploymentBuilder.buildContinuous(address(orchestrator), config, salt, factorySalt);
+        assertNotEq(plan.payloadHash, legacy.payloadHash);
+        orchestrator.deploy(payload, plan.payloadHash);
+        HolderRewardsDistributorV1 rewards = HolderRewardsDistributorV1(plan.ordinaryComponents[14]);
+        assertEq(rewards.marketRegistry(), plan.ordinaryComponents[10]);
+        assertEq(rewards.STREAM_DURATION(), 24 hours);
+        assertEq(rewards.rewardMode(), keccak256("TICKERGARDEN_HOLDER_STREAM_24H_V1"));
+        assertEq(TickerGardenFactoryV1(plan.factory).treasuryDistributor(), address(rewards));
+        assertTrue(orchestrator.completed());
     }
 
     function test_anyFailureRollsBackEveryComponentAndExactRetrySucceeds() public {

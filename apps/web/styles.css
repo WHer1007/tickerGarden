@@ -622,38 +622,26 @@
 .runtime-recovery button:focus-visible, .runtime-recovery input:focus-visible { outline: 3px solid #627c43; outline-offset: 2px; }
 
 /* A real 3D sculpture progressively replaces the original illustrated tree. */
-.tree-stage[data-garden] { isolation:isolate; --selected-fruit:#c5ed42; }
-.tree-stage[data-garden].garden-ready { height:540px; }
-.garden-heading,.garden-viewport,.garden-ui { display:none; }
+/* A standalone, fully round orchard sculpture. */
+.tree-stage[data-garden] { isolation:isolate; }
+.tree-stage[data-garden].garden-ready { height:560px; }
+.garden-viewport { display:none; position:absolute; inset:0; touch-action:pan-y; cursor:grab; outline:none; }
 .garden-ready .tree-base,.garden-ready .fruit-layer { visibility:hidden; pointer-events:none; }
-.garden-ready .garden-heading { display:flex; }
-.garden-ready .garden-viewport,.garden-ready .garden-ui { display:block; }
-.garden-heading { position:absolute; top:8px; left:20px; right:20px; justify-content:space-between; gap:10px; font:600 9px/1.4 "Inter",sans-serif; letter-spacing:1.3px; color:#6c7d64; }
-.garden-heading span:first-child { display:flex; align-items:center; gap:7px; color:#2a543b; }
-.garden-heading i { width:6px; height:6px; border-radius:50%; background:#6a913c; }
-.garden-viewport { position:absolute; inset:12px 0 100px; touch-action:pan-y; cursor:grab; outline:none; border-radius:50%; background:radial-gradient(ellipse at 50% 62%, #d9e4bc55 0%,#eaf0d944 37%,transparent 68%); }
-.garden-viewport::after { content:""; position:absolute; width:46%; height:6%; bottom:5%; left:27%; border-radius:50%; background:#3b50362b; filter:blur(13px); z-index:-1; pointer-events:none; }
+.garden-ready .garden-viewport { display:block; }
+.garden-viewport::after { content:""; position:absolute; width:29%; height:4%; bottom:12%; left:35.5%; border-radius:50%; background:#38513428; filter:blur(12px); z-index:-1; pointer-events:none; }
 .garden-viewport.is-dragging { cursor:grabbing; }
-.garden-viewport:focus-visible { outline:2px dashed #749543; outline-offset:-12px; }
+.garden-viewport:focus-visible { outline:2px dashed #749543; outline-offset:-12px; border-radius:30px; }
 .garden-viewport canvas { width:100%; height:100%; display:block; }
 .garden-labels { position:absolute; inset:0; pointer-events:none; }
-.garden-fruit-label { pointer-events:auto; position:absolute; transform:translate(-50%,-50%); border:0; background:transparent; color:#193f29; font:800 11px/1 "Inter",sans-serif; letter-spacing:-.25px; padding:16px 7px; min-width:44px; min-height:44px; border-radius:50%; cursor:pointer; text-shadow:0 1px 5px #ffffff45; transition:color .2s,box-shadow .2s; }
-.garden-fruit-label:hover,.garden-fruit-label.is-selected { box-shadow:0 0 0 1px #fff9,0 0 0 5px #eafa9940; }
-.garden-fruit-label:focus-visible { outline:2px solid #173f2c; outline-offset:3px; }
-.garden-ui { position:absolute; bottom:0; left:22px; right:22px; }
-.garden-instruction { color:#7b886e; font-size:8px; font-weight:600; letter-spacing:1.5px; text-align:center; margin-bottom:13px; }
-.garden-instruction span { padding:0 9px; }
-.garden-inspector { display:flex; align-items:center; justify-content:space-between; gap:10px; border:1px solid #52653d25; background:#fffdf580; border-radius:16px; padding:14px 16px; box-shadow:0 8px 24px #4e563605; backdrop-filter:blur(10px); }
-.garden-story { display:flex; align-items:center; gap:12px; min-width:0; }
-.garden-dot { height:24px; width:24px; border-radius:50%; background:radial-gradient(circle at 30% 25%,#fff9,var(--selected-fruit) 55%); box-shadow:inset -2px -3px 6px #25452115; flex-shrink:0; }
-.garden-story strong { font:600 17px/1.2 "Fraunces",serif; color:#244e34; }
-.garden-story p { margin:4px 0 0; color:#73806a; font-size:10px; line-height:1.4; }
-.garden-inspector>button { border:1px solid #ced5b9; background:transparent; color:#355439; border-radius:50%; width:36px; height:36px; flex-shrink:0; font-size:20px; cursor:pointer; }
-.garden-controls { display:flex; justify-content:space-between; align-items:center; gap:8px; margin-top:10px; font-size:10px; color:#68765e; }
-.garden-controls>div { display:flex; gap:10px; }
-.garden-controls button { border:0; padding:6px 0; background:none; text-decoration:underline; text-underline-offset:3px; color:#60734e; font:inherit; cursor:pointer; }
-.garden-ui button:focus-visible { outline:2px solid #355439; outline-offset:3px; }
+.garden-fruit-label { pointer-events:auto; position:absolute; transform:translate(-50%,-50%); border:0; background:transparent; color:#31492f; font:800 10px/1 "Inter",sans-serif; letter-spacing:-.3px; padding:12px 2px; min-width:40px; min-height:40px; border-radius:50%; cursor:pointer; }
+.garden-fruit-label:hover { color:#173c26; text-shadow:0 1px 5px #fff9; }
+.garden-fruit-label:focus-visible { outline:2px solid #173f2c; outline-offset:2px; }
 .garden-sr-only { position:absolute; width:1px; height:1px; overflow:hidden; clip-path:inset(50%); white-space:nowrap; }
 @media(max-width:1100px) and (min-width:801px) { .tree-stage[data-garden].garden-ready { height:510px; } }
 @media(max-width:800px) { .tree-stage[data-garden].garden-ready { width:min(570px,100%); height:510px; transform:none; } }
-@media(max-width:520px) { .tree-stage[data-garden].garden-ready { width:100%; height:440px; } .garden-ui { left:0; right:0; } .garden-heading { left:0; right:0; font-size:7px; letter-spacing:1px; } .garden-fruit-label { font-size:9px; padding:13px 3px; } .garden-viewport { inset:12px -12px 112px; } .garden-story p { font-size:9px; } .garden-controls { font-size:9px; } }
+@media(max-width:520px) { .tree-stage[data-garden].garden-ready { width:100%; height:440px; } .garden-fruit-label { font-size:8px; min-width:36px; min-height:36px; } }
+
+/* Field validation shared by create, trade and rewards. */
+.field-error { display:block; color:#b42318; font-size:0.8125rem; line-height:1.5; margin:0.25rem 0 0.6rem; }
+.field-error[hidden] { display:none; }
+[aria-invalid="true"] { outline:2px solid #b42318; outline-offset:2px; }

@@ -36,7 +36,7 @@ struct StockTokenFingerprint {
 }
 
 struct QuoteAssetConfig {
-    bytes32 ponsBaselineId;
+    bytes32 tickerGardenBaselineId;
     address quoteAsset;
     uint8 quoteDecimals;
     uint256 phantomQuote;
@@ -52,7 +52,7 @@ struct StockQuoteBinding {
     bytes32 generatorPolicyId;
 }
 
-struct PonsBaseline {
+struct TickerGardenBaseline {
     uint256 referenceChainId;
     address referenceFactory;
     bytes32 referenceFactoryCodeHash;
@@ -83,7 +83,7 @@ struct LaunchTemplate {
 
 struct CreateMarketParams {
     bytes32 assetUid;
-    bytes32 ponsBaselineId;
+    bytes32 tickerGardenBaselineId;
     bytes32 quoteAssetConfigId;
     bytes32 launchTemplateId;
     bytes32 expectedEconomics;
@@ -94,11 +94,12 @@ struct CreateMarketParams {
     bytes32 salt;
     uint16 creatorTaxBps;
     bool creatorFeesToHolders;
+    bool stakingEnabled;
 }
 
 struct MarketConfig {
     bytes32 assetUid;
-    bytes32 ponsBaselineId;
+    bytes32 tickerGardenBaselineId;
     bytes32 quoteAssetConfigId;
     bytes32 launchTemplateId;
     bytes32 feePolicyId;
@@ -113,6 +114,7 @@ struct MarketConfig {
     address graduatedHook;
     uint16 creatorTaxBps;
     bool creatorFeesToHolders;
+    bool stakingEnabled;
 }
 
 struct MarketRuntime {
@@ -306,7 +308,7 @@ interface IOfficialStockRegistryV1 {
 }
 
 interface IApprovedQuoteRegistry {
-    event QuoteAssetConfigAdded(bytes32 indexed configId, address indexed quoteAsset, bytes32 indexed ponsBaselineId, bytes32 economicsHash);
+    event QuoteAssetConfigAdded(bytes32 indexed configId, address indexed quoteAsset, bytes32 indexed tickerGardenBaselineId, bytes32 economicsHash);
     event QuoteAssetIdentityPinned(bytes32 indexed configId, address indexed quoteAsset, bytes32 runtimeCodeHash);
     event StockQuoteConfigBound(bytes32 indexed configId, bytes32 indexed assetUid, address indexed quoteAsset, bytes32 stockTokenFingerprintHash, bytes32 referenceEvidenceHash, bytes32 generatorPolicyId);
     event QuoteAssetStatusChanged(bytes32 indexed configId, uint8 oldStatus, uint8 newStatus, bytes32 reasonHash);
@@ -323,15 +325,15 @@ interface IApprovedQuoteRegistry {
     function officialStockRegistry() external view returns (address output0);
 }
 
-interface IPonsBaselineRegistry {
-    event PonsBaselineAdded(bytes32 indexed baselineId, bytes32 indexed behaviorVectorRoot, bytes32 factoryCodeHash);
-    event PonsBaselineStatusChanged(bytes32 indexed baselineId, uint8 oldStatus, uint8 newStatus, bytes32 reasonHash);
+interface ITickerGardenBaselineRegistry {
+    event TickerGardenBaselineAdded(bytes32 indexed baselineId, bytes32 indexed behaviorVectorRoot, bytes32 factoryCodeHash);
+    event TickerGardenBaselineStatusChanged(bytes32 indexed baselineId, uint8 oldStatus, uint8 newStatus, bytes32 reasonHash);
 
-    function addBaseline(bytes32 arg0, PonsBaseline calldata arg1) external;
+    function addBaseline(bytes32 arg0, TickerGardenBaseline calldata arg1) external;
     function pauseBaseline(bytes32 arg0, bytes32 arg1) external;
     function unpauseBaseline(bytes32 arg0) external;
     function retireBaseline(bytes32 arg0, bytes32 arg1) external;
-    function baseline(bytes32 arg0) external view returns (PonsBaseline memory output0);
+    function baseline(bytes32 arg0) external view returns (TickerGardenBaseline memory output0);
 }
 
 interface ILaunchTemplateRegistry {
@@ -347,14 +349,14 @@ interface ILaunchTemplateRegistry {
 }
 
 interface ILaunchConfigResolver {
-    function resolve(bytes32 arg0, bytes32 arg1, bytes32 arg2) external view returns (QuoteAssetConfig memory output0, PonsBaseline memory output1, LaunchTemplate memory output2);
+    function resolve(bytes32 arg0, bytes32 arg1, bytes32 arg2) external view returns (QuoteAssetConfig memory output0, TickerGardenBaseline memory output1, LaunchTemplate memory output2);
     function approvedQuoteRegistry() external view returns (address output0);
-    function ponsBaselineRegistry() external view returns (address output0);
+    function tickerGardenBaselineRegistry() external view returns (address output0);
     function launchTemplateRegistry() external view returns (address output0);
 }
 
 interface ITickerGardenFactoryV1 {
-    event MarketCreated(bytes32 indexed marketId, bytes32 indexed assetUid, address indexed memeToken, address curve, address gauge, address quoteAsset, bytes32 ponsBaselineId, bytes32 quoteAssetConfigId, bytes32 expectedEconomics);
+    event MarketCreated(bytes32 indexed marketId, bytes32 indexed assetUid, address indexed memeToken, address curve, address gauge, address quoteAsset, bytes32 tickerGardenBaselineId, bytes32 quoteAssetConfigId, bytes32 expectedEconomics);
 
     function createMarket(CreateMarketParams calldata arg0) external payable returns (bytes32 output0, address output1, address output2, address output3);
     function createMarketFor(address arg0, CreateMarketParams calldata arg1) external payable returns (bytes32 output0, address output1, address output2, address output3);
@@ -381,7 +383,7 @@ interface IMarketRegistryV1 {
     function factory() external view returns (address output0);
     function officialStockRegistry() external view returns (address output0);
     function approvedQuoteRegistry() external view returns (address output0);
-    function ponsBaselineRegistry() external view returns (address output0);
+    function tickerGardenBaselineRegistry() external view returns (address output0);
     function launchTemplateRegistry() external view returns (address output0);
     function graduationExecutor() external view returns (address output0);
     function swapRouter() external view returns (address output0);
@@ -390,8 +392,10 @@ interface IMarketRegistryV1 {
 
 interface ILaunchAndBuyRouter {
     function launchAndBuy(CreateMarketParams calldata arg0, uint256 arg1, uint256 arg2, address arg3) external payable returns (bytes32 output0, address output1, uint256 output2, uint256 output3);
+    function unlockCallback(bytes calldata arg0) external returns (bytes memory output0);
     function factory() external view returns (address output0);
     function approvedQuoteRegistry() external view returns (address output0);
+    function poolManager() external view returns (address output0);
 }
 
 interface ITickerMemeTokenV1 {
@@ -416,9 +420,11 @@ interface ITickerMemeTokenV1 {
     function initialSupply() external view returns (uint256 output0);
     function deployedAt() external view returns (uint64 output0);
     function burnTreasury(uint256 arg0) external;
+    function continuousRewardsEnabled() external view returns (bool output0);
+    function enableContinuousRewards() external;
 }
 
-interface IPonsCompatibleCurve {
+interface ITickerGardenCurve {
     event CurveBuy(address indexed buyer, address indexed recipient, uint256 quoteIn, uint256 tokensOut, uint256 fee, uint256 tax);
     event CurveSell(address indexed seller, address indexed recipient, uint256 tokensIn, uint256 quoteOut, uint256 fee, uint256 tax);
     event CurveBuyRefunded(address indexed buyer, uint256 unusedQuote);
@@ -618,6 +624,8 @@ interface ILaunchLocker {
 interface ICreatorRevenueRegistry {
     event CreatorRevenueEpochInitialized(bytes32 indexed marketId, uint32 indexed epoch, address indexed beneficiary);
     event CreatorRevenueBeneficiaryUpdated(bytes32 indexed marketId, uint32 indexed oldEpoch, uint32 indexed newEpoch, address oldBeneficiary, address newBeneficiary);
+    event CreatorRevenueBeneficiaryProposed(bytes32 indexed marketId, uint32 indexed epoch, address indexed currentBeneficiary, address pendingBeneficiary);
+    event CreatorRevenueBeneficiaryTransferCancelled(bytes32 indexed marketId, uint32 indexed epoch);
 
     function initializeCreatorRevenueEpoch(bytes32 arg0, address arg1) external;
     function transferCreatorRevenueBeneficiary(bytes32 arg0, address arg1) external returns (uint32 output0);
@@ -625,6 +633,9 @@ interface ICreatorRevenueRegistry {
     function creatorBeneficiaryAt(bytes32 arg0, uint32 arg1) external view returns (address output0);
     function factory() external view returns (address output0);
     function marketRegistry() external view returns (address output0);
+    function pendingCreatorRevenueBeneficiary(bytes32 arg0) external view returns (address output0);
+    function acceptCreatorRevenueBeneficiary(bytes32 arg0) external returns (uint32 output0);
+    function cancelCreatorRevenueBeneficiaryTransfer(bytes32 arg0) external;
 }
 
 interface ITreasuryDistributorV1 {

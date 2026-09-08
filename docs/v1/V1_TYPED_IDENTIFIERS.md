@@ -54,7 +54,7 @@ launchTemplateHash = keccak256(abi.encode(
 quoteEconomicsHash = keccak256(abi.encode(
   keccak256(bytes("TICKERGARDEN_V1_QUOTE_ECONOMICS")), 1,
   chainId,
-  ponsBaselineId,
+  tickerGardenBaselineId,
   quoteAsset,
   quoteDecimals,
   phantomQuote,
@@ -70,11 +70,11 @@ Robinhood 官方 Stock Quote 使用专用代理资产路径。其 Asset UID、ca
 
 ## 3. expectedEconomics
 
-`ponsBaselineHash` 对 baseline 的全部不可变内容进行版本化内容寻址，`status` 不参与：
+`tickerGardenBaselineHash` 对 baseline 的全部不可变内容进行版本化内容寻址，`status` 不参与：
 
 ```text
-ponsBaselineHash = keccak256(abi.encode(
-  keccak256(bytes("TICKERGARDEN_V1_PONS_BASELINE")), 1,
+tickerGardenBaselineHash = keccak256(abi.encode(
+  keccak256(bytes("TICKERGARDEN_V1_LAUNCH_BASELINE")), 1,
   referenceChainId, referenceFactory, referenceFactoryCodeHash,
   launchConfigId, supply, curveFeeBps, poolFee, tickSpacing,
   behaviorVectorRoot
@@ -86,7 +86,7 @@ expectedEconomics = keccak256(abi.encode(
   EXPECTED_ECONOMICS_DOMAIN, 2,
   chainId, factory,
   assetUid, stockToken, stockDecimals,
-  ponsBaselineId, ponsBaselineHash,
+  tickerGardenBaselineId, tickerGardenBaselineHash,
   quoteAssetConfigId, quoteEconomicsHash,
   launchTemplateId, launchTemplateHash,
   launchConfigId,

@@ -1,0 +1,38 @@
+{
+  "schemaVersion": 1,
+  "status": "VERIFIED",
+  "executionSpecId": "V1-EXEC-11",
+  "chainId": 421614,
+  "deployer": "0xA6c3298a5559544c3b4cf8e6DC5f349f4be524ea",
+  "releaseId": "0x52e3a1752759c8af00047af2b2e1d8b091cc4d7abab6d6f6cd2097e209c247d9",
+  "payloadHash": "0x051ae94b7a5cdd23a1e80b22b9ebbfb398d5ac603705b3895ac99f7ab98d714d",
+  "verifiedAt": 1788632894,
+  "expiresAt": 1788636489,
+  "executionManifestSha256": "0x0d8b18524bab2ba468eb5a87d3ed07b2e37dde591ba44d0ee8e37a7e584b6763",
+  "productArtifactManifestSha256": "0x5ca2111c1b95c41f1f3161595710746aee9e732372c78d4e65520628725d5e0a",
+  "compiledInterfaceManifestSha256": "0xd48b7d8d2edd9d37af789a080477a141ff366a62c1ff6baa0d21ea6e9f99551e",
+  "scope": "ARBITRUM_SEPOLIA_TEST_ONLY_REVIEWED_PAYLOAD",
+  "productionTargetChainId": 4663,
+  "notes": [
+    "Test-only reviewed deployment payload. Receiver configure method unit tests passed. Broadcast additionally requires fresh receiver integration Fork pass and input-bound simulation.",
+    "No production readiness or live full reward settlement is implied."
+  ],
+  "files": [
+    {
+      "path": "outputs/reviews/arbitrum-wallet-deployment/preview.log",
+      "sha256": "0xadaf0e5fb26c1399fe8b7694b3dc338764084bdaca8a60965764195c85ba6c65"
+    },
+    {
+      "path": "outputs/reviews/arbitrum-wallet-deployment/receiver-fix-tests.log",
+      "sha256": "0x05f5ea6bc24923b0c6c76edeeb5a1ca666f662e2182fd2a380a12639480588d6"
+    },
+    {
+      "path": "deployments/manifests/arbitrum-sepolia-421614.test-treasury-r2.json",
+      "sha256": "0xfdcffa9a0b420487a2d337ff9ee520024362777f8cbb810654fcfe8395923e79"
+    },
+    {
+      "path": "outputs/reviews/arbitrum-wallet-deployment/receiver-r2-artifacts.log",
+      "sha256": "0x2ff23cdaf3d4905d00b3f21fd4755107fbe903633fab3c1fbd22518abc7f3797"
+    }
+  ]
+}

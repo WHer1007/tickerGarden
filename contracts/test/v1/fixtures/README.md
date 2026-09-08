@@ -1,7 +1,7 @@
 # V1 fixtures
 
 `v1-fork-fixtures.json` is the deterministic V1-E-105-A fixture manifest. It
-freezes both initial Quote configurations, all 14 approved Pons behavior
+freezes both initial Quote configurations, all 14 approved TickerGarden behavior
 vectors, two chain snapshots, and the deployed-runtime hashes of the local
 asset behavior mocks. Regenerate it only with:
 

@@ -1,0 +1,2250 @@
+{
+  "schemaVersion": "R5-BUSINESS-2026-09-06",
+  "definition": "Business cases are requirements, selectors are partial supporting evidence, not automatic PASS.",
+  "cases": [
+    {
+      "caseId": "R5-ENV-01",
+      "title": "锁定源码、部署身份及外部依赖",
+      "priority": "P0",
+      "preconditions": [
+        "R5 已激活；RPC可读"
+      ],
+      "steps": [
+        "记录源码哈希、releaseId和区块哈希",
+        "在同一区块读取21个部署地址代码并比较manifest",
+        "核实chainId和所有配置ID"
+      ],
+      "expected": [
+        "RPC为421614；RH4663仅为目标",
+        "21个runtime哈希逐一相等；缺失任何一项即停止公共写入"
+      ],
+      "requiredEnvironments": [
+        "local",
+        "public"
+      ],
+      "localSelectors": [],
+      "publicRequirements": [
+        "绑定当前 R5 release；交易状态变化必须有真实回执、区块哈希和前后快照；只读拒绝单独注明 ETH_CALL"
+      ]
+    },
+    {
+      "caseId": "R5-ADM-01",
+      "title": "无权限账户不得更改白名单",
+      "priority": "P0",
+      "preconditions": [
+        "admin与outsider分离；全新uid"
+      ],
+      "steps": [
+        "outsider注册、暂停、退休股票及暂停Quote",
+        "管理员在隔离fixture执行同一合法操作"
+      ],
+      "expected": [
+        "outsider精确权限错误；配置和事件不变",
+        "admin操作成功且只影响指定fixture"
+      ],
+      "requiredEnvironments": [
+        "local",
+        "public"
+      ],
+      "localSelectors": [],
+      "publicRequirements": [
+        "绑定当前 R5 release；交易状态变化必须有真实回执、区块哈希和前后快照；只读拒绝单独注明 ETH_CALL"
+      ]
+    },
+    {
+      "caseId": "R5-ADM-02",
+      "title": "平台接收器配置兑换执行者和轮换",
+      "priority": "P0",
+      "preconditions": [
+        "独立测试接收器与FeeVault绑定"
+      ],
+      "steps": [
+        "owner设置operatorA再换B",
+        "非owner、零地址、自身、EOA vault及错误receiver分别设置"
+      ],
+      "expected": [
+        "仅owner能配置",
+        "轮换后旧operator不能兑换，新operator可兑换",
+        "无效目标失败且原operator不变"
+      ],
+      "requiredEnvironments": [
+        "local",
+        "public"
+      ],
+      "localSelectors": [
+        "test_configureSettlementOperator_succeedsAndRotates",
+        "test_configureSettlementOperator_rejectsUnauthorized",
+        "test_configureSettlementOperator_rejectsZeroAndSelfOperator",
+        "test_configureSettlementOperator_rejectsEOAAndWrongTreasury",
+        "test_configureSettlementOperator_revertsWhenGetterMismatchesAndRollsBack"
+      ],
+      "publicRequirements": [
+        "绑定当前 R5 release；交易状态变化必须有真实回执、区块哈希和前后快照；只读拒绝单独注明 ETH_CALL"
+      ]
+    },
+    {
+      "caseId": "R5-ADM-03",
+      "title": "管理员转移与最小权限角色隔离",
+      "priority": "P0",
+      "preconditions": [
+        "独立组件/本地全图，不能改变活动R5所有权"
+      ],
+      "steps": [
+        "枚举所有restricted入口及角色",
+        "将管理权交给候选多签治理配置",
+        "旧账户和新账户分别调用"
+      ],
+      "expected": [
+        "新控制方能完成需要的操作；旧权限确实撤销",
+        "未移交模块列为缺口；不能只验证一个owner字段"
+      ],
+      "requiredEnvironments": [
+        "local",
+        "public"
+      ],
+      "localSelectors": [],
+      "publicRequirements": [
+        "绑定当前 R5 release；交易状态变化必须有真实回执、区块哈希和前后快照；只读拒绝单独注明 ETH_CALL"
+      ]
+    },
+    {
+      "caseId": "R5-REG-01",
+      "title": "未知、暂停、退休和身份漂移股票不能创建市场",
+      "priority": "P1",
+      "preconditions": [
+        "staking开启；记录预测地址和现有市场数"
+      ],
+      "steps": [
+        "分别提供未知uid、paused、retired、错误代码指纹",
+        "对每次失败比较预测地址代码和注册表状态"
+      ],
+      "expected": [
+        "全部fail closed；不产生token/curve/gauge或预约身份",
+        "既有合法股票市场不受影响"
+      ],
+      "requiredEnvironments": [
+        "local",
+        "public"
+      ],
+      "localSelectors": [
+        "test_inactiveRegistrySnapshotFailsClosed",
+        "test_allFactoryRegistryConfigClassesFailClosedWithoutReservingIdentity",
+        "test_unknownFactoryConfigIdsFailClosedAcrossEveryRegistry"
+      ],
+      "publicRequirements": [
+        "绑定当前 R5 release；交易状态变化必须有真实回执、区块哈希和前后快照；只读拒绝单独注明 ETH_CALL"
+      ]
+    },
+    {
+      "caseId": "R5-REG-02",
+      "title": "Quote风险准入与停用",
+      "priority": "P1",
+      "preconditions": [
+        "独立ERC20 fixture管理员已审核"
+      ],
+      "steps": [
+        "登记Quote及经济参数",
+        "使用未知和暂停Quote创建",
+        "对6/8/18位精度分别计算承诺与阈值"
+      ],
+      "expected": [
+        "合法登记可创建；未知暂停不可创建",
+        "精度只转换单位不改变经济承诺；身份漂移拒绝"
+      ],
+      "requiredEnvironments": [
+        "local",
+        "public"
+      ],
+      "localSelectors": [
+        "test_newMarketsMaySelectDifferentIndependentActiveQuoteConfigs"
+      ],
+      "publicRequirements": [
+        "绑定当前 R5 release；交易状态变化必须有真实回执、区块哈希和前后快照；只读拒绝单独注明 ETH_CALL"
+      ]
+    },
+    {
+      "caseId": "R5-REG-03",
+      "title": "代币异常返回、转账扣费和回调",
+      "priority": "P0",
+      "preconditions": [
+        "本地对抗Quote/stock fixture"
+      ],
+      "steps": [
+        "无返回/false/畸形返回/扣费Quote分别执行atomic buy",
+        "回调中重入router或canonical mutation",
+        "比较用户余额、allowance、市场注册"
+      ],
+      "expected": [
+        "不满足exact arrival或返回格式的交易整笔回滚",
+        "回调不能进入二次mutation；无残留市场"
+      ],
+      "requiredEnvironments": [
+        "local"
+      ],
+      "localSelectors": [
+        "test_launchAndBuyERC20RejectsFeeOnTransferBeforeMarketCreation",
+        "test_launchAndBuyERC20RejectsNonCanonicalTransferReturns",
+        "test_launchAndBuyERC20TransferCallbackCannotEnterRouter",
+        "test_launchAndBuyERC20ReentrantTransferCannotEnterCanonicalMutation"
+      ],
+      "publicRequirements": [
+        "故障注入或边界时间推进仅在本地，不能替代公开自然时间"
+      ]
+    },
+    {
+      "caseId": "R5-CREATE-01",
+      "title": "股票质押可选而且语义一致",
+      "priority": "P1",
+      "preconditions": [
+        "合法模板和Quote"
+      ],
+      "steps": [
+        "关闭staking+zero uid创建",
+        "开启staking+zero uid创建",
+        "关闭staking+非零uid创建"
+      ],
+      "expected": [
+        "关闭时无Gauge且可交易领奖",
+        "矛盾组合拒绝；不能默默改变用户选择"
+      ],
+      "requiredEnvironments": [
+        "local",
+        "public"
+      ],
+      "localSelectors": [
+        "test_disabledStakingCreatesWithoutStockOrGaugeAndPreservesHolderChoice",
+        "test_stakingModeRejectsContradictoryStockAndStaleEconomics"
+      ],
+      "publicRequirements": [
+        "绑定当前 R5 release；交易状态变化必须有真实回执、区块哈希和前后快照；只读拒绝单独注明 ETH_CALL"
+      ]
+    },
+    {
+      "caseId": "R5-CREATE-02",
+      "title": "经济承诺、命名空间和CREATE2重复创建",
+      "priority": "P1",
+      "preconditions": [
+        "相同salt和不同creator/config"
+      ],
+      "steps": [
+        "验证预测与实际组件地址",
+        "同身份重建",
+        "不同creator、tax、sharing各重用salt",
+        "提交stale expectedEconomics"
+      ],
+      "expected": [
+        "实际地址与预测一致；同身份拒绝",
+        "独立身份不互相抢占；stale承诺在部署前失败"
+      ],
+      "requiredEnvironments": [
+        "local",
+        "public"
+      ],
+      "localSelectors": [
+        "test_predictAndCreateDeployExactComponentsAndRegisterFullSnapshot",
+        "test_sameStockAndSaltCanCreateDistinctTypedMarketsButIdenticalIdentityCannotRepeat",
+        "test_wrongEconomicsRevertsBeforeAnyAddressIsDeployed",
+        "test_creatorFeesToHoldersChangesEconomicsAndPredictedIdentity"
+      ],
+      "publicRequirements": [
+        "绑定当前 R5 release；交易状态变化必须有真实回执、区块哈希和前后快照；只读拒绝单独注明 ETH_CALL"
+      ]
+    },
+    {
+      "caseId": "R5-CREATE-03",
+      "title": "创建手续费和Developer buy支付边界",
+      "priority": "P1",
+      "preconditions": [
+        "ETH和ERC20各一合法配置"
+      ],
+      "steps": [
+        "ETH分别发送应付-1/应付/应付+1 wei",
+        "ERC20仅发送launchFee并批准Quote",
+        "测试allowance不足、零recipient和minOut过高"
+      ],
+      "expected": [
+        "只接受规定value；有效调用同笔创建和买入",
+        "失败不留下市场、token、creator epoch或已扣资金"
+      ],
+      "requiredEnvironments": [
+        "local",
+        "public"
+      ],
+      "localSelectors": [
+        "test_launchAndBuyNativeRequiresExactCombinedValueBeforeDeployment",
+        "test_launchAndBuyNativeRejectsInvalidBuyAndRecipientBeforeDeployment",
+        "test_launchAndBuyERC20MissingAllowanceFailsBeforeMarketCreation",
+        "test_launchAndBuyNativeBuyFailureRollsBackMarketAndCanRetrySameIdentity"
+      ],
+      "publicRequirements": [
+        "绑定当前 R5 release；交易状态变化必须有真实回执、区块哈希和前后快照；只读拒绝单独注明 ETH_CALL"
+      ]
+    },
+    {
+      "caseId": "R5-CREATE-04",
+      "title": "部分成交退款和合约调用者身份",
+      "priority": "P1",
+      "preconditions": [
+        "atomic buy超过剩余曲线容量；合约caller"
+      ],
+      "steps": [
+        "ETH/ERC20分别tail fill",
+        "收款合约拒收退款",
+        "通过中间合约调用创建"
+      ],
+      "expected": [
+        "只收实际成交；多余返回真实caller",
+        "拒收退款整笔回滚",
+        "creator取msg.sender而非tx.origin；beneficiary不替代creator"
+      ],
+      "requiredEnvironments": [
+        "local",
+        "public"
+      ],
+      "localSelectors": [
+        "test_launchAndBuyNativeTailFillReturnsExactRefundToCreatorAndLeavesNoDust",
+        "test_launchAndBuyERC20TailFillReturnsExactTokenRefundToCreator",
+        "test_launchAndBuyNativeRejectedRefundRollsBackTheWholeLaunch",
+        "test_launchAndBuyUsesImmediateContractCallerAndNeverTxOriginAsCreator",
+        "test_beneficiaryIsTypedRevenueIdentityButNeverReplacesCreatorOrMemeRecipient"
+      ],
+      "publicRequirements": [
+        "绑定当前 R5 release；交易状态变化必须有真实回执、区块哈希和前后快照；只读拒绝单独注明 ETH_CALL"
+      ]
+    },
+    {
+      "caseId": "R5-CREATE-05",
+      "title": "创建多组件后期故障原子回滚",
+      "priority": "P0",
+      "preconditions": [
+        "本地故障注入部署/注册/奖励初始化"
+      ],
+      "steps": [
+        "逐个组件构造、market注册、creator注册、holder注册点抛错",
+        "修复故障后复用原salt重试"
+      ],
+      "expected": [
+        "每次失败全部组件和预约、资金回滚",
+        "修复后同身份可成功创建"
+      ],
+      "requiredEnvironments": [
+        "local"
+      ],
+      "localSelectors": [
+        "test_eachComponentDeploymentFailureRollsBackEarlierComponentsAndReservation",
+        "test_marketRegistrationFailureRollsBackComponentsFeeEpochAndReservation",
+        "test_creatorEpochRegistrationFailureRollsBackMarketComponentsFeeAndReservation",
+        "test_revertingCreatorFeesToHoldersRegistrationRollsBackCreation"
+      ],
+      "publicRequirements": [
+        "故障注入或边界时间推进仅在本地，不能替代公开自然时间"
+      ]
+    },
+    {
+      "caseId": "R5-TAX-01",
+      "title": "Creator tax上下限及持有人隔离",
+      "priority": "P0",
+      "preconditions": [
+        "sharing开关各一组；tax=0/250/500/501"
+      ],
+      "steps": [
+        "分别创建并买卖",
+        "独立复算base tax及creator holder平台增量"
+      ],
+      "expected": [
+        "0/250/500允许，501拒绝",
+        "tax全部归creator；holder只分creator基础份额50%"
+      ],
+      "requiredEnvironments": [
+        "local",
+        "public"
+      ],
+      "localSelectors": [
+        "test_creatorTaxCapAndEconomicsCommitment",
+        "test_creatorTax500IsAddedToCreatorAfterBaseFeeSplitWithActiveStake",
+        "test_creatorTax500WithZeroActiveStakeRemainsCreatorOwned"
+      ],
+      "publicRequirements": [
+        "绑定当前 R5 release；交易状态变化必须有真实回执、区块哈希和前后快照；只读拒绝单独注明 ETH_CALL"
+      ]
+    },
+    {
+      "caseId": "R5-CURVE-01",
+      "title": "反狙击与开发者首次购买例外",
+      "priority": "P1",
+      "preconditions": [
+        "新建市场；精确时间边界"
+      ],
+      "steps": [
+        "首次router atomic buy",
+        "随后普通buyer同窗口购买",
+        "窗口边界前后报价执行"
+      ],
+      "expected": [
+        "首次特许不免Creator tax；后续不继承豁免",
+        "扣费符合时间函数，净额不为负"
+      ],
+      "requiredEnvironments": [
+        "local",
+        "public"
+      ],
+      "localSelectors": [
+        "test_atomicDeveloperBuyPaysCreatorTaxEvenWhenSnipeExempt",
+        "test_creatorTaxLeavesOnePercentNetDuringAntiSnipe"
+      ],
+      "publicRequirements": [
+        "绑定当前 R5 release；交易状态变化必须有真实回执、区块哈希和前后快照；只读拒绝单独注明 ETH_CALL"
+      ]
+    },
+    {
+      "caseId": "R5-CURVE-02",
+      "title": "滑点、精确支付与强制余额隔离",
+      "priority": "P1",
+      "preconditions": [
+        "有曲线储备和意外转入余额"
+      ],
+      "steps": [
+        "minOut高于可得输出买卖",
+        "ETH支付错误",
+        "强制转入Quote/meme后重新报价及毕业进度"
+      ],
+      "expected": [
+        "滑点/支付失败不改储备和余额",
+        "意外余额不改变定价和净毕业进度"
+      ],
+      "requiredEnvironments": [
+        "local",
+        "public"
+      ],
+      "localSelectors": [
+        "test_tailProportionalSlippageRevertsWithoutChangingState",
+        "test_nativePaymentMustEqualDeclaredQuote",
+        "test_forcedBalancesDoNotChangePricingOrGraduationProgress"
+      ],
+      "publicRequirements": [
+        "绑定当前 R5 release；交易状态变化必须有真实回执、区块哈希和前后快照；只读拒绝单独注明 ETH_CALL"
+      ]
+    },
+    {
+      "caseId": "R5-GRAD-01",
+      "title": "净Quote阈值、部分成交及v4资产交接",
+      "priority": "P0",
+      "preconditions": [
+        "距毕业有少量余量；ETH净门槛0.42"
+      ],
+      "steps": [
+        "记录真实储备而非累计gross输入",
+        "不足阈值买入",
+        "超额最终买入并捕获refund及pool状态"
+      ],
+      "expected": [
+        "只有净储备到阈值才毕业；费用不算筹款",
+        "精确退款；phase一次变更，LP/余量资产可对账",
+        "毕业后curve买卖拒绝"
+      ],
+      "requiredEnvironments": [
+        "local",
+        "public"
+      ],
+      "localSelectors": [
+        "test_tailNativeBuyPartiallyFillsRefundsCallerAndCompletes",
+        "test_exactErc20TailBuyRefundsInTheSameAsset",
+        "test_completedMarketRejectsFurtherTrades"
+      ],
+      "publicRequirements": [
+        "绑定当前 R5 release；交易状态变化必须有真实回执、区块哈希和前后快照；只读拒绝单独注明 ETH_CALL"
+      ]
+    },
+    {
+      "caseId": "R5-GRAD-02",
+      "title": "毕业hook/PoolManager/收费故障原子回滚",
+      "priority": "P0",
+      "preconditions": [
+        "本地真实部署图故障注入"
+      ],
+      "steps": [
+        "最终买入在sweep/plan/pool commit分别失败",
+        "比较之前reserve phase fee nonce部署池及余额"
+      ],
+      "expected": [
+        "不得留下半毕业状态",
+        "所有收费、买入输出和phase回滚"
+      ],
+      "requiredEnvironments": [
+        "local"
+      ],
+      "localSelectors": [
+        "test_failedAutomaticGraduationRollsBackEntireFinalBuy",
+        "test_finalFeeSweepFailureRollsBackTheEntireFinalBuy",
+        "test_poolCommitFailureRollsBackFeesAssetsAndFinalBuy"
+      ],
+      "publicRequirements": [
+        "故障注入或边界时间推进仅在本地，不能替代公开自然时间"
+      ]
+    },
+    {
+      "caseId": "R5-FEE-01",
+      "title": "无质押市场创建者和平台可领取",
+      "priority": "P0",
+      "preconditions": [
+        "staking关闭，Gauge为zero；ETH/ERC20费用均已入账"
+      ],
+      "steps": [
+        "外部账户触发creator/platform claim",
+        "比较真实收款人余额与各bucket",
+        "再次领取；尝试claimStaker"
+      ],
+      "expected": [
+        "creator/platform准确收到各自费用，债务清零",
+        "二次领取不重复付款；staker路径InvalidFeeMarket"
+      ],
+      "requiredEnvironments": [
+        "local",
+        "public"
+      ],
+      "localSelectors": [
+        "test_disabledStakingCreatorConversionAndQuoteClaimWithoutGauge",
+        "test_disabledStakingCannotConvertStakerItems"
+      ],
+      "publicRequirements": [
+        "绑定当前 R5 release；交易状态变化必须有真实回执、区块哈希和前后快照；只读拒绝单独注明 ETH_CALL"
+      ]
+    },
+    {
+      "caseId": "R5-FEE-02",
+      "title": "多资产多市场多epoch隔离与偿付",
+      "priority": "P0",
+      "preconditions": [
+        "两市场/两creator epoch/Quote和meme都有负债"
+      ],
+      "steps": [
+        "只领取一bucket并记录其他bucket",
+        "插入不足总backing场景再领取兑换"
+      ],
+      "expected": [
+        "未选bucket不变；资产总余额不低于总负债",
+        "不足总backing时整体拒绝，不抢先付给一个用户"
+      ],
+      "requiredEnvironments": [
+        "local",
+        "public"
+      ],
+      "localSelectors": [
+        "test_quoteAndMemeCreditsUseIndependentLiabilitiesAndGaugeAssets",
+        "test_insufficientTotalBackingRollsBackSelectedBatch"
+      ],
+      "publicRequirements": [
+        "绑定当前 R5 release；交易状态变化必须有真实回执、区块哈希和前后快照；只读拒绝单独注明 ETH_CALL"
+      ]
+    },
+    {
+      "caseId": "R5-FEE-03",
+      "title": "有效质押零与正值分配切换及舍入",
+      "priority": "P0",
+      "preconditions": [
+        "已毕业staking市场；0/小额/大额active stock"
+      ],
+      "steps": [
+        "0active交易；激活后交易；全退出后再交易",
+        "独立整数计算含1wei等极小fee"
+      ],
+      "expected": [
+        "0active基础70/0/30；正active40/30/30",
+        "holder再从creatorBase取floor(50%)；tax独立",
+        "各方总和精确等于fee，余数遵循creator归集"
+      ],
+      "requiredEnvironments": [
+        "local",
+        "public"
+      ],
+      "localSelectors": [
+        "test_zeroActiveStockCreditsSeventyZeroThirtyAndSkipsGaugeCredit",
+        "test_maturedActiveStakeIsCheckpointedBeforeSnapshotAndCreditsGauge",
+        "test_integerRemainderGoesToCreatorAfterFixedBeneficiaryFloors",
+        "test_creatorTaxAndBaseFeeBothUseFloorRoundingForTinyBase"
+      ],
+      "publicRequirements": [
+        "绑定当前 R5 release；交易状态变化必须有真实回执、区块哈希和前后快照；只读拒绝单独注明 ETH_CALL"
+      ]
+    },
+    {
+      "caseId": "R5-FEE-04",
+      "title": "收费入口nonce重放与身份漂移",
+      "priority": "P0",
+      "preconditions": [
+        "合法fee记录已提交；本地可控制hook身份"
+      ],
+      "steps": [
+        "重复feeId或nonce；改market/asset/epoch/policy",
+        "checkpoint或Gauge credit故障"
+      ],
+      "expected": [
+        "全部异常不改变收款/负债/nonce",
+        "合法下一序号仍可使用"
+      ],
+      "requiredEnvironments": [
+        "local"
+      ],
+      "localSelectors": [
+        "test_feeIdAndNonceMustMatchEveryCanonicalFieldAndSequence",
+        "test_policyOrCreatorEpochDriftRollsBackEverything",
+        "test_gaugeCheckpointOrCreditFailureRollsBackTransferFeeIdAndNonce"
+      ],
+      "publicRequirements": [
+        "故障注入或边界时间推进仅在本地，不能替代公开自然时间"
+      ]
+    },
+    {
+      "caseId": "R5-STAKE-01",
+      "title": "直接钱包质押准入与失败无扣款",
+      "priority": "P0",
+      "preconditions": [
+        "staking开/关及未毕业/已毕业市场；股票在钱包"
+      ],
+      "steps": [
+        "在禁止状态stake",
+        "allowance不足、wallet不足、低于minimum",
+        "正确approve Vault后stake100"
+      ],
+      "expected": [
+        "禁止状态精确拒绝且钱包不变",
+        "成功钱包减少100，Vault allocation和Gauge position增加100"
+      ],
+      "requiredEnvironments": [
+        "local",
+        "public"
+      ],
+      "localSelectors": [
+        "test_stakeWalletFundsFullRoundTripAndPreservesRewards",
+        "test_stakeCannotUseFreeLedgerWhenWalletIsInsufficient",
+        "test_stakeBelowMinimumRevertsAndDoesNotPullWalletFunds"
+      ],
+      "publicRequirements": [
+        "绑定当前 R5 release；交易状态变化必须有真实回执、区块哈希和前后快照；只读拒绝单独注明 ETH_CALL"
+      ]
+    },
+    {
+      "caseId": "R5-STAKE-02",
+      "title": "两用户权重与激活、追加锁定",
+      "priority": "P1",
+      "preconditions": [
+        "A=100，B=300；新增stake尚未激活"
+      ],
+      "steps": [
+        "激活前交易",
+        "等pendingGeneration后checkpoint",
+        "再次交易；A增加100后比较pending/active和unlock"
+      ],
+      "expected": [
+        "未激活本金不获奖励",
+        "激活后按1:3分30%bucket，追加不篡改既有奖励",
+        "unlock按规则更新，Vault总账保持一致"
+      ],
+      "requiredEnvironments": [
+        "local",
+        "public"
+      ],
+      "localSelectors": [
+        "test_allDepositPathsOnlyIncreaseOnePosition",
+        "test_realGaugeDistributesStakerBucketByActiveRawStockAndClaimsThroughVault"
+      ],
+      "publicRequirements": [
+        "绑定当前 R5 release；交易状态变化必须有真实回执、区块哈希和前后快照；只读拒绝单独注明 ETH_CALL"
+      ]
+    },
+    {
+      "caseId": "R5-STAKE-03",
+      "title": "正常整仓退出及精确本金",
+      "priority": "P0",
+      "preconditions": [
+        "有本金和已赚奖励，锁定期结束时间已读出"
+      ],
+      "steps": [
+        "unlockAt-1拒绝",
+        "unlockAt和+1各独立状态退出",
+        "重复退出；尝试指定他人收款或部分退出"
+      ],
+      "expected": [
+        "仅整仓返还原用户本金，无跨用户绕过",
+        "奖励保留；重复不重复释放"
+      ],
+      "requiredEnvironments": [
+        "local",
+        "public"
+      ],
+      "localSelectors": [
+        "test_closeAtUnlockRemovesAndReleasesTheWholePosition",
+        "test_unstakeLockedRevertsWithoutChangingPrincipal",
+        "testFuzz_unstakeAlwaysReturnsExactlyTheFullPrincipal",
+        "test_vaultWithdrawalEndpointRejectsCrossUserCaller",
+        "test_canonicalSurfaceHasNoDecreaseMigrationOrRecipientBypass"
+      ],
+      "publicRequirements": [
+        "绑定当前 R5 release；交易状态变化必须有真实回执、区块哈希和前后快照；只读拒绝单独注明 ETH_CALL"
+      ]
+    },
+    {
+      "caseId": "R5-STAKE-04",
+      "title": "暂停/退休时仍可退出；转账失败回滚",
+      "priority": "P0",
+      "preconditions": [
+        "本地或独立fixture有stake"
+      ],
+      "steps": [
+        "pause/retire后新增stake",
+        "正常整仓退出",
+        "注入stock转账失败、Gauge故障或重入"
+      ],
+      "expected": [
+        "新stake禁止，正常退出仍可行",
+        "转账/账本失败时Gauge Vault wallet全部回滚"
+      ],
+      "requiredEnvironments": [
+        "local",
+        "public"
+      ],
+      "localSelectors": [
+        "test_unstakePausedAndRetiredAssetStillWithdraws",
+        "test_unstakeWithdrawalTokenFailureRollsBackGaugeVaultAndWallet",
+        "test_gaugeFailureNoopWrongReturnAndReentrancyRollBackTheWholeClose"
+      ],
+      "publicRequirements": [
+        "绑定当前 R5 release；交易状态变化必须有真实回执、区块哈希和前后快照；只读拒绝单独注明 ETH_CALL"
+      ]
+    },
+    {
+      "caseId": "R5-STAKE-05",
+      "title": "提前退出本金优先与奖励清算重试",
+      "priority": "P0",
+      "preconditions": [
+        "未unlock，有pending/active及两种奖励"
+      ],
+      "steps": [
+        "rageQuit；模拟奖励清算失败",
+        "比较本金到账和deferred状态",
+        "permissionless settleRageQuitRewards重试两次"
+      ],
+      "expected": [
+        "本金只回一次且无残留allocation",
+        "应没收奖励不得领取；清算失败可独立重试",
+        "旧position/tombstone不会污染重新stake"
+      ],
+      "requiredEnvironments": [
+        "local",
+        "public"
+      ],
+      "localSelectors": [
+        "test_rageQuitStillWithdrawsTheWholePositionDirectly"
+      ],
+      "publicRequirements": [
+        "绑定当前 R5 release；交易状态变化必须有真实回执、区块哈希和前后快照；只读拒绝单独注明 ETH_CALL"
+      ]
+    },
+    {
+      "caseId": "R5-REWARD-01",
+      "title": "创建者和质押者内部批量兑换",
+      "priority": "P0",
+      "preconditions": [
+        "同市场creator与staker meme奖励>0"
+      ],
+      "steps": [
+        "operator以两item兑换且minQuote>0",
+        "比较meme支出、Quote到账及item分摊",
+        "第三方触发creator quote claim"
+      ],
+      "expected": [
+        "Quote按实际输出分配且总和守恒；不二次扣普通fee或tax",
+        "接收者不可替换；holderbucket完全不变"
+      ],
+      "requiredEnvironments": [
+        "local",
+        "public"
+      ],
+      "localSelectors": [
+        "test_creatorAndStakerBatchProRataPreservesFixedRecipients",
+        "test_nativeQuoteConversionUsesExactBalanceDelta",
+        "test_partialOutputRefundReturnsToOriginalOwner"
+      ],
+      "publicRequirements": [
+        "绑定当前 R5 release；交易状态变化必须有真实回执、区块哈希和前后快照；只读拒绝单独注明 ETH_CALL"
+      ]
+    },
+    {
+      "caseId": "R5-REWARD-02",
+      "title": "兑换授权、deadline、重复项和滑点失败",
+      "priority": "P0",
+      "preconditions": [
+        "有可转换奖励；前后快照固定"
+      ],
+      "steps": [
+        "非operator、过期、超过最大deadline、重复item、错误epoch beneficiary、过高minQuote分别调用"
+      ],
+      "expected": [
+        "全部精确拒绝且所有用户负债/资金原样",
+        "合法重试可成功，不因失败耗掉nonce或权益"
+      ],
+      "requiredEnvironments": [
+        "local",
+        "public"
+      ],
+      "localSelectors": [
+        "test_badOperatorAndDuplicateItems",
+        "test_historicalEpochRecipientValidation",
+        "test_minOutputAndBalanceMismatchRollback"
+      ],
+      "publicRequirements": [
+        "绑定当前 R5 release；交易状态变化必须有真实回执、区块哈希和前后快照；只读拒绝单独注明 ETH_CALL"
+      ]
+    },
+    {
+      "caseId": "R5-REWARD-03",
+      "title": "Quote领取锁定与原币7天退出",
+      "priority": "P0",
+      "preconditions": [
+        "已兑换staker Quote；未unlock；creator有meme"
+      ],
+      "steps": [
+        "lock前领取Quote",
+        "requestRawRewardExit并重复request",
+        "cancel后再request",
+        "readyAt-1/readyAt/+1领取meme"
+      ],
+      "expected": [
+        "Quote按各角色锁定规则，creator不受meme raw gate影响",
+        "重复request不绕过等待；cancel重新计时",
+        "到期原币只发给真实权益人且只发一次"
+      ],
+      "requiredEnvironments": [
+        "local",
+        "public"
+      ],
+      "localSelectors": [
+        "test_rawExitBlocksClaimsUntilReadyAndSettlementExcludesReady",
+        "test_quoteClaimsUnaffectedByMemeExitGate",
+        "test_disabledStakingCreatorRawExitStillRequiresDelay"
+      ],
+      "publicRequirements": [
+        "绑定当前 R5 release；交易状态变化必须有真实回执、区块哈希和前后快照；只读拒绝单独注明 ETH_CALL"
+      ]
+    },
+    {
+      "caseId": "R5-CREATOR-01",
+      "title": "创建者收益权转移与历史epoch",
+      "priority": "P0",
+      "preconditions": [
+        "两beneficiary，曲线有未sweep费用"
+      ],
+      "steps": [
+        "旧beneficiary转给新地址",
+        "转移前后各交易和claim",
+        "非owner、same地址、zero地址尝试转移"
+      ],
+      "expected": [
+        "旧费用先结算旧epoch；新fee归新epoch",
+        "历史权益不可被新beneficiary盗领",
+        "错误转移拒绝，epoch不可溢出"
+      ],
+      "requiredEnvironments": [
+        "local",
+        "public"
+      ],
+      "localSelectors": [
+        "test_notGraduatedSweepsOldEpochBeforeCheckedIncrement",
+        "test_onlyCurrentBeneficiaryCanTransferAndInputMustChange",
+        "test_closedLaunchPhasesDoNotResweepButStillRequireZeroAccrued",
+        "test_epochIncrementCannotWrapUint32"
+      ],
+      "publicRequirements": [
+        "绑定当前 R5 release；交易状态变化必须有真实回执、区块哈希和前后快照；只读拒绝单独注明 ETH_CALL"
+      ]
+    },
+    {
+      "caseId": "R5-HOLDER-01",
+      "title": "持有人独立兑换、周期注资与开关",
+      "priority": "P0",
+      "preconditions": [
+        "sharing开关及tax0/500市场都有费用"
+      ],
+      "steps": [
+        "分别兑换creator和holder meme",
+        "fundHolderRewards至epoch",
+        "第三方重复fund；检查creator未受影响"
+      ],
+      "expected": [
+        "关时holder为0；开时只含creator基础份额一半",
+        "holderQuote进入对应epoch且不重复记账",
+        "Creator tax仍100%在creator路径"
+      ],
+      "requiredEnvironments": [
+        "local",
+        "public"
+      ],
+      "localSelectors": [
+        "test_disabledCreatorFeesToHoldersPreservesExistingFlow",
+        "test_enabledCreatorFeesToHoldersRegistersImmutableSharingConfig"
+      ],
+      "publicRequirements": [
+        "绑定当前 R5 release；交易状态变化必须有真实回执、区块哈希和前后快照；只读拒绝单独注明 ETH_CALL"
+      ]
+    },
+    {
+      "caseId": "R5-HOLDER-02",
+      "title": "7天周期起止与finality",
+      "priority": "P1",
+      "preconditions": [
+        "已毕业sharing市场，epochWindow已取得"
+      ],
+      "steps": [
+        "end-1请求root",
+        "end加所需秒和区块后请求",
+        "查询第2epoch起始"
+      ],
+      "expected": [
+        "未满足7天及finality必须拒绝",
+        "epoch2恰好接epoch1，不能重叠/漏秒",
+        "自然时间真实请求回执与本地warp分开"
+      ],
+      "requiredEnvironments": [
+        "local",
+        "public"
+      ],
+      "localSelectors": [
+        "test_sevenDaysMinusOneSecondCannotRequest",
+        "test_sevenDaysPlusFinalityCanRequest",
+        "test_epochTwoStartsExactlyAtSevenDayBoundary"
+      ],
+      "publicRequirements": [
+        "绑定当前 R5 release；交易状态变化必须有真实回执、区块哈希和前后快照；只读拒绝单独注明 ETH_CALL"
+      ]
+    },
+    {
+      "caseId": "R5-HOLDER-03",
+      "title": "真实持仓积分和根发布到领取",
+      "priority": "P0",
+      "preconditions": [
+        "真实R5市场已满epoch；indexer完成canonical finality"
+      ],
+      "steps": [
+        "回放实际Transfer与排除地址",
+        "独立计算TWAB根",
+        "requestRoot、publish、审核finalize",
+        "两holder提交proof并比较余额"
+      ],
+      "expected": [
+        "根总量和periodQuote、积分可独立复算",
+        "只有有效完整证明领取且不超funded",
+        "全过程真实链上事件与服务任务可追溯"
+      ],
+      "requiredEnvironments": [
+        "local",
+        "public"
+      ],
+      "localSelectors": [],
+      "publicRequirements": [
+        "绑定当前 R5 release；交易状态变化必须有真实回执、区块哈希和前后快照；只读拒绝单独注明 ETH_CALL"
+      ]
+    },
+    {
+      "caseId": "R5-HOLDER-04",
+      "title": "错误根、proof、重复领取与挑战",
+      "priority": "P0",
+      "preconditions": [
+        "独立周期有funding和已发布根"
+      ],
+      "steps": [
+        "wrongchain/market/epoch/account/amount proof",
+        "重复claim、过早finalize、过期publish",
+        "触发并解决challenge"
+      ],
+      "expected": [
+        "错误根/证明不可支付；重复领取不可重复付款",
+        "争议期不允许绕过finalize；bond处理可对账"
+      ],
+      "requiredEnvironments": [
+        "local",
+        "public"
+      ],
+      "localSelectors": [],
+      "publicRequirements": [
+        "绑定当前 R5 release；交易状态变化必须有真实回执、区块哈希和前后快照；只读拒绝单独注明 ETH_CALL"
+      ]
+    },
+    {
+      "caseId": "R5-HOLDER-05",
+      "title": "30天领取截止与结转",
+      "priority": "P1",
+      "preconditions": [
+        "已finalize且有未领取余额"
+      ],
+      "steps": [
+        "claimDeadline-1/at/+1各独立状态claim",
+        "窗口后结转并尝试旧proof"
+      ],
+      "expected": [
+        "领取截止规则精确；超期旧proof拒绝",
+        "未领资金不丢失或重复使用，结转有完整会计"
+      ],
+      "requiredEnvironments": [
+        "local",
+        "public"
+      ],
+      "localSelectors": [
+        "test_thirtyDayClaimWindowIsIndependentFromSevenDayEpoch"
+      ],
+      "publicRequirements": [
+        "绑定当前 R5 release；交易状态变化必须有真实回执、区块哈希和前后快照；只读拒绝单独注明 ETH_CALL"
+      ]
+    },
+    {
+      "caseId": "R5-REG-04",
+      "title": "股票解暂停延时与身份复验",
+      "priority": "P1",
+      "preconditions": [
+        "独立已pause股票"
+      ],
+      "steps": [
+        "pause后立刻unpause",
+        "unlock-1/at/+1",
+        "等待中改变fingerprint再解暂停"
+      ],
+      "expected": [
+        "时间未到拒绝；到期仍须身份匹配",
+        "不能用等待绕过风险审核"
+      ],
+      "requiredEnvironments": [
+        "local",
+        "public"
+      ],
+      "localSelectors": [],
+      "publicRequirements": [
+        "绑定当前 R5 release；交易状态变化必须有真实回执、区块哈希和前后快照；只读拒绝单独注明 ETH_CALL"
+      ]
+    },
+    {
+      "caseId": "R5-SERVICE-01",
+      "title": "索引器重复回放和链重组",
+      "priority": "P0",
+      "preconditions": [
+        "R5实际交易回执与日志；独立数据库"
+      ],
+      "steps": [
+        "同区块批量导入两次",
+        "重启后从checkpoint续跑",
+        "模拟canonical分支撤销重放"
+      ],
+      "expected": [
+        "事件唯一键不重复；回滚影响投影和cursor一致",
+        "最终投影与真实canonical余额/market/fee事实一致"
+      ],
+      "requiredEnvironments": [
+        "local",
+        "public"
+      ],
+      "localSelectors": [],
+      "publicRequirements": [
+        "绑定当前 R5 release；交易状态变化必须有真实回执、区块哈希和前后快照；只读拒绝单独注明 ETH_CALL"
+      ]
+    },
+    {
+      "caseId": "R5-SERVICE-02",
+      "title": "维护任务幂等、租约与失败恢复",
+      "priority": "P0",
+      "preconditions": [
+        "隔离维护数据库/worker"
+      ],
+      "steps": [
+        "两个worker抢同任务",
+        "签名前失败、签后无响应、已上链未回写",
+        "恢复并按hash/nonce查询receipt"
+      ],
+      "expected": [
+        "同任务不双发；未知交易先reconcile",
+        "租约过期能恢复，永久失败不无限重试",
+        "确认链上事实后再标success"
+      ],
+      "requiredEnvironments": [
+        "local",
+        "public"
+      ],
+      "localSelectors": [],
+      "publicRequirements": [
+        "绑定当前 R5 release；交易状态变化必须有真实回执、区块哈希和前后快照；只读拒绝单独注明 ETH_CALL"
+      ]
+    },
+    {
+      "caseId": "R5-SERVICE-03",
+      "title": "根生成器确定性、精度和排除地址",
+      "priority": "P0",
+      "preconditions": [
+        "已冻结canonical输入文件"
+      ],
+      "steps": [
+        "不同输入顺序重复生成",
+        "积分为0、极小余额、精度大数",
+        "恶意/缺失/重复用户及错误epoch输入"
+      ],
+      "expected": [
+        "相同事实相同root和proof",
+        "分配总和不超资金，零积分按规则处理",
+        "无效输入fail closed而非静默剔除"
+      ],
+      "requiredEnvironments": [
+        "local",
+        "public"
+      ],
+      "localSelectors": [],
+      "publicRequirements": [
+        "绑定当前 R5 release；交易状态变化必须有真实回执、区块哈希和前后快照；只读拒绝单独注明 ETH_CALL"
+      ]
+    },
+    {
+      "caseId": "R5-SERVICE-04",
+      "title": "后端读API、报价与错误配置",
+      "priority": "P1",
+      "preconditions": [
+        "连接R5的独立服务实例"
+      ],
+      "steps": [
+        "错chain/旧release/失效价格调用",
+        "服务重启、RPC429/timeout/停服",
+        "ReadAPI分页和canonical状态比对"
+      ],
+      "expected": [
+        "错误或过时数据不驱动签名/结算",
+        "不可用状态清楚，恢复不重复处理事件",
+        "API结果绑定正确chain release和最终区块"
+      ],
+      "requiredEnvironments": [
+        "local",
+        "public"
+      ],
+      "localSelectors": [],
+      "publicRequirements": [
+        "绑定当前 R5 release；交易状态变化必须有真实回执、区块哈希和前后快照；只读拒绝单独注明 ETH_CALL"
+      ]
+    },
+    {
+      "caseId": "R5-SERVICE-05",
+      "title": "真实服务端到端领取链路",
+      "priority": "P0",
+      "preconditions": [
+        "R5已成熟epoch和独立运行服务"
+      ],
+      "steps": [
+        "实际公共链事件→indexer→root input→publisher→finalizer→API→claim",
+        "重启其中一个服务后恢复"
+      ],
+      "expected": [
+        "任务状态与链上receipt一一一致",
+        "root来自真实历史，不用预造fixture替代",
+        "可复现操作命令和日志完整"
+      ],
+      "requiredEnvironments": [
+        "local",
+        "public"
+      ],
+      "localSelectors": [],
+      "publicRequirements": [
+        "绑定当前 R5 release；交易状态变化必须有真实回执、区块哈希和前后快照；只读拒绝单独注明 ETH_CALL"
+      ]
+    },
+    {
+      "caseId": "R5-UI-01",
+      "title": "Chrome MetaMask创建交易质押领取联合测试",
+      "priority": "P1",
+      "preconditions": [
+        "用户确认纳入且钱包为Arbitrum Sepolia"
+      ],
+      "steps": [
+        "核对页面R5地址",
+        "创建、buy/sell、stake、convert/claim、拒签、切错链、交易pending恢复"
+      ],
+      "expected": [
+        "展示数量和签名calldata一致；拒签不显示success",
+        "切链阻止错误网络发送；待确认和失败清晰",
+        "实际钱包截图/tx，不以单测替代"
+      ],
+      "requiredEnvironments": [
+        "frontend",
+        "public"
+      ],
+      "localSelectors": [],
+      "publicRequirements": [
+        "绑定当前 R5 release；交易状态变化必须有真实回执、区块哈希和前后快照；只读拒绝单独注明 ETH_CALL"
+      ]
+    },
+    {
+      "caseId": "R5-PROD-01",
+      "title": "RH生产依赖与stock实际行为",
+      "priority": "P0",
+      "preconditions": [
+        "RH目标网络独立只读/Fork；不得广播"
+      ],
+      "steps": [
+        "核实PoolManager等runtime和chain",
+        "真实RH Stock Token代码/转移限制/升级指纹",
+        "目标Quote池流动性和执行滑点"
+      ],
+      "expected": [
+        "兼容性证据绑定真实RH地址区块",
+        "合成Stock不算同源码验证；Arbitrum通过不能自动放行RH"
+      ],
+      "requiredEnvironments": [
+        "rh-fork"
+      ],
+      "localSelectors": [],
+      "publicRequirements": [
+        "故障注入或边界时间推进仅在本地，不能替代公开自然时间"
+      ]
+    },
+    {
+      "caseId": "R5-PROD-02",
+      "title": "生产治理、密钥恢复与经济参数门禁",
+      "priority": "P0",
+      "preconditions": [
+        "正式多签治理/运营方案尚待配置"
+      ],
+      "steps": [
+        "复核治理角色、应急暂停、换operator和恢复流程",
+        "用生产参数回测launch/graduation/兑换滑点和gas预算",
+        "演练RPC中断和人工恢复"
+      ],
+      "expected": [
+        "明确多签阈值、延时、监控及恢复责任",
+        "0.42测试门槛不等于4.2生产经济验证",
+        "门禁未完成不出生产可上线结论"
+      ],
+      "requiredEnvironments": [
+        "production-plan"
+      ],
+      "localSelectors": [],
+      "publicRequirements": [
+        "故障注入或边界时间推进仅在本地，不能替代公开自然时间"
+      ]
+    },
+    {
+      "caseId": "R5-MATRIX-ETH-S0-H0-T0-CORE",
+      "title": "ETH-S0-H0-T0 创建—曲线—领取",
+      "priority": "P1",
+      "preconditions": [
+        "Quote=ETH；staking=False；holder=False；tax=0bps",
+        "已白名单；creator与buyer隔离"
+      ],
+      "steps": [
+        "以0.001 Quote执行atomic developer buy",
+        "buyer再买同数量；卖出其token的1/4",
+        "sweep全部curve fees",
+        "outsider触发creator/platform claim并重复eth_call"
+      ],
+      "expected": [
+        "市场配置精确等于Quote=ETH；staking=False；holder=False；tax=0bps",
+        "Gauge为零；developer获得实际token",
+        "creatorBase=basic-floor(basic*30%)；holder=0；tax全部creator",
+        "各笔CurveBuy/Sell原始fee独立复算分配，Quote总负债守恒",
+        "真实收款人余额增加对应bucket，bucket清零，重复无付款"
+      ],
+      "requiredEnvironments": [
+        "local",
+        "public"
+      ],
+      "localSelectors": [],
+      "publicRequirements": [
+        "绑定当前 R5 release；交易状态变化必须有真实回执、区块哈希和前后快照；只读拒绝单独注明 ETH_CALL"
+      ],
+      "matrixKey": "ETH-S0-H0-T0",
+      "phase": "CORE"
+    },
+    {
+      "caseId": "R5-MATRIX-ETH-S0-H0-T0-GRAD",
+      "title": "ETH-S0-H0-T0 毕业—v4—兑换",
+      "priority": "P1",
+      "preconditions": [
+        "Quote=ETH；staking=False；holder=False；tax=0bps",
+        "CORE完成；有足额毕业本金"
+      ],
+      "steps": [
+        "最终买入触发毕业且超额退款",
+        "无active stock时v4买和卖",
+        "兑换creator",
+        "领取creator/platform并检查time-gated staker"
+      ],
+      "expected": [
+        "净门槛达标一次毕业；买入fee为meme，卖出为Quote",
+        "无active70/0/30，任何时刻无stakerbucket；holder只分creator基础一半",
+        "兑换不再收base/tax；batch输出与item精确守恒；holder与creator互不污染",
+        "逐asset余额>=totalLiability；真实锁定期未到不冒充staker已领"
+      ],
+      "requiredEnvironments": [
+        "local",
+        "public"
+      ],
+      "localSelectors": [],
+      "publicRequirements": [
+        "绑定当前 R5 release；交易状态变化必须有真实回执、区块哈希和前后快照；只读拒绝单独注明 ETH_CALL"
+      ],
+      "matrixKey": "ETH-S0-H0-T0",
+      "phase": "GRAD"
+    },
+    {
+      "caseId": "R5-MATRIX-ETH-S0-H0-T500-CORE",
+      "title": "ETH-S0-H0-T500 创建—曲线—领取",
+      "priority": "P1",
+      "preconditions": [
+        "Quote=ETH；staking=False；holder=False；tax=500bps",
+        "已白名单；creator与buyer隔离"
+      ],
+      "steps": [
+        "以0.001 Quote执行atomic developer buy",
+        "buyer再买同数量；卖出其token的1/4",
+        "sweep全部curve fees",
+        "outsider触发creator/platform claim并重复eth_call"
+      ],
+      "expected": [
+        "市场配置精确等于Quote=ETH；staking=False；holder=False；tax=500bps",
+        "Gauge为零；developer获得实际token",
+        "creatorBase=basic-floor(basic*30%)；holder=0；tax全部creator",
+        "各笔CurveBuy/Sell原始fee独立复算分配，Quote总负债守恒",
+        "真实收款人余额增加对应bucket，bucket清零，重复无付款"
+      ],
+      "requiredEnvironments": [
+        "local",
+        "public"
+      ],
+      "localSelectors": [],
+      "publicRequirements": [
+        "绑定当前 R5 release；交易状态变化必须有真实回执、区块哈希和前后快照；只读拒绝单独注明 ETH_CALL"
+      ],
+      "matrixKey": "ETH-S0-H0-T500",
+      "phase": "CORE"
+    },
+    {
+      "caseId": "R5-MATRIX-ETH-S0-H0-T500-GRAD",
+      "title": "ETH-S0-H0-T500 毕业—v4—兑换",
+      "priority": "P1",
+      "preconditions": [
+        "Quote=ETH；staking=False；holder=False；tax=500bps",
+        "CORE完成；有足额毕业本金"
+      ],
+      "steps": [
+        "最终买入触发毕业且超额退款",
+        "无active stock时v4买和卖",
+        "兑换creator",
+        "领取creator/platform并检查time-gated staker"
+      ],
+      "expected": [
+        "净门槛达标一次毕业；买入fee为meme，卖出为Quote",
+        "无active70/0/30，任何时刻无stakerbucket；holder只分creator基础一半",
+        "兑换不再收base/tax；batch输出与item精确守恒；holder与creator互不污染",
+        "逐asset余额>=totalLiability；真实锁定期未到不冒充staker已领"
+      ],
+      "requiredEnvironments": [
+        "local",
+        "public"
+      ],
+      "localSelectors": [],
+      "publicRequirements": [
+        "绑定当前 R5 release；交易状态变化必须有真实回执、区块哈希和前后快照；只读拒绝单独注明 ETH_CALL"
+      ],
+      "matrixKey": "ETH-S0-H0-T500",
+      "phase": "GRAD"
+    },
+    {
+      "caseId": "R5-MATRIX-ETH-S0-H1-T0-CORE",
+      "title": "ETH-S0-H1-T0 创建—曲线—领取",
+      "priority": "P1",
+      "preconditions": [
+        "Quote=ETH；staking=False；holder=True；tax=0bps",
+        "已白名单；creator与buyer隔离"
+      ],
+      "steps": [
+        "以0.001 Quote执行atomic developer buy",
+        "buyer再买同数量；卖出其token的1/4",
+        "sweep全部curve fees",
+        "outsider触发creator/platform claim并重复eth_call"
+      ],
+      "expected": [
+        "市场配置精确等于Quote=ETH；staking=False；holder=True；tax=0bps",
+        "Gauge为零；developer获得实际token",
+        "creatorBase=basic-floor(basic*30%)；holder=floor(creatorBase/2)；tax全部creator",
+        "各笔CurveBuy/Sell原始fee独立复算分配，Quote总负债守恒",
+        "真实收款人余额增加对应bucket，bucket清零，重复无付款"
+      ],
+      "requiredEnvironments": [
+        "local",
+        "public"
+      ],
+      "localSelectors": [],
+      "publicRequirements": [
+        "绑定当前 R5 release；交易状态变化必须有真实回执、区块哈希和前后快照；只读拒绝单独注明 ETH_CALL"
+      ],
+      "matrixKey": "ETH-S0-H1-T0",
+      "phase": "CORE"
+    },
+    {
+      "caseId": "R5-MATRIX-ETH-S0-H1-T0-GRAD",
+      "title": "ETH-S0-H1-T0 毕业—v4—兑换",
+      "priority": "P1",
+      "preconditions": [
+        "Quote=ETH；staking=False；holder=True；tax=0bps",
+        "CORE完成；有足额毕业本金"
+      ],
+      "steps": [
+        "最终买入触发毕业且超额退款",
+        "无active stock时v4买和卖",
+        "兑换creator",
+        "独立兑换holder并fund epoch",
+        "领取creator/platform并检查time-gated staker"
+      ],
+      "expected": [
+        "净门槛达标一次毕业；买入fee为meme，卖出为Quote",
+        "无active70/0/30，任何时刻无stakerbucket；holder只分creator基础一半",
+        "兑换不再收base/tax；batch输出与item精确守恒；holder与creator互不污染",
+        "逐asset余额>=totalLiability；真实锁定期未到不冒充staker已领"
+      ],
+      "requiredEnvironments": [
+        "local",
+        "public"
+      ],
+      "localSelectors": [],
+      "publicRequirements": [
+        "绑定当前 R5 release；交易状态变化必须有真实回执、区块哈希和前后快照；只读拒绝单独注明 ETH_CALL"
+      ],
+      "matrixKey": "ETH-S0-H1-T0",
+      "phase": "GRAD"
+    },
+    {
+      "caseId": "R5-MATRIX-ETH-S0-H1-T500-CORE",
+      "title": "ETH-S0-H1-T500 创建—曲线—领取",
+      "priority": "P1",
+      "preconditions": [
+        "Quote=ETH；staking=False；holder=True；tax=500bps",
+        "已白名单；creator与buyer隔离"
+      ],
+      "steps": [
+        "以0.001 Quote执行atomic developer buy",
+        "buyer再买同数量；卖出其token的1/4",
+        "sweep全部curve fees",
+        "outsider触发creator/platform claim并重复eth_call"
+      ],
+      "expected": [
+        "市场配置精确等于Quote=ETH；staking=False；holder=True；tax=500bps",
+        "Gauge为零；developer获得实际token",
+        "creatorBase=basic-floor(basic*30%)；holder=floor(creatorBase/2)；tax全部creator",
+        "各笔CurveBuy/Sell原始fee独立复算分配，Quote总负债守恒",
+        "真实收款人余额增加对应bucket，bucket清零，重复无付款"
+      ],
+      "requiredEnvironments": [
+        "local",
+        "public"
+      ],
+      "localSelectors": [],
+      "publicRequirements": [
+        "绑定当前 R5 release；交易状态变化必须有真实回执、区块哈希和前后快照；只读拒绝单独注明 ETH_CALL"
+      ],
+      "matrixKey": "ETH-S0-H1-T500",
+      "phase": "CORE"
+    },
+    {
+      "caseId": "R5-MATRIX-ETH-S0-H1-T500-GRAD",
+      "title": "ETH-S0-H1-T500 毕业—v4—兑换",
+      "priority": "P1",
+      "preconditions": [
+        "Quote=ETH；staking=False；holder=True；tax=500bps",
+        "CORE完成；有足额毕业本金"
+      ],
+      "steps": [
+        "最终买入触发毕业且超额退款",
+        "无active stock时v4买和卖",
+        "兑换creator",
+        "独立兑换holder并fund epoch",
+        "领取creator/platform并检查time-gated staker"
+      ],
+      "expected": [
+        "净门槛达标一次毕业；买入fee为meme，卖出为Quote",
+        "无active70/0/30，任何时刻无stakerbucket；holder只分creator基础一半",
+        "兑换不再收base/tax；batch输出与item精确守恒；holder与creator互不污染",
+        "逐asset余额>=totalLiability；真实锁定期未到不冒充staker已领"
+      ],
+      "requiredEnvironments": [
+        "local",
+        "public"
+      ],
+      "localSelectors": [],
+      "publicRequirements": [
+        "绑定当前 R5 release；交易状态变化必须有真实回执、区块哈希和前后快照；只读拒绝单独注明 ETH_CALL"
+      ],
+      "matrixKey": "ETH-S0-H1-T500",
+      "phase": "GRAD"
+    },
+    {
+      "caseId": "R5-MATRIX-ETH-S1-H0-T0-CORE",
+      "title": "ETH-S1-H0-T0 创建—曲线—领取",
+      "priority": "P1",
+      "preconditions": [
+        "Quote=ETH；staking=True；holder=False；tax=0bps",
+        "已白名单；creator与buyer隔离"
+      ],
+      "steps": [
+        "以0.001 Quote执行atomic developer buy",
+        "buyer再买同数量；卖出其token的1/4",
+        "sweep全部curve fees",
+        "outsider触发creator/platform claim并重复eth_call"
+      ],
+      "expected": [
+        "市场配置精确等于Quote=ETH；staking=True；holder=False；tax=0bps",
+        "Gauge非零；developer获得实际token",
+        "creatorBase=basic-floor(basic*30%)；holder=0；tax全部creator",
+        "各笔CurveBuy/Sell原始fee独立复算分配，Quote总负债守恒",
+        "真实收款人余额增加对应bucket，bucket清零，重复无付款"
+      ],
+      "requiredEnvironments": [
+        "local",
+        "public"
+      ],
+      "localSelectors": [],
+      "publicRequirements": [
+        "绑定当前 R5 release；交易状态变化必须有真实回执、区块哈希和前后快照；只读拒绝单独注明 ETH_CALL"
+      ],
+      "matrixKey": "ETH-S1-H0-T0",
+      "phase": "CORE"
+    },
+    {
+      "caseId": "R5-MATRIX-ETH-S1-H0-T0-GRAD",
+      "title": "ETH-S1-H0-T0 毕业—v4—兑换",
+      "priority": "P1",
+      "preconditions": [
+        "Quote=ETH；staking=True；holder=False；tax=0bps",
+        "CORE完成；有足额毕业本金"
+      ],
+      "steps": [
+        "最终买入触发毕业且超额退款",
+        "无active stock时v4买和卖",
+        "两用户stake100/300；自然激活后再买卖",
+        "兑换creator和staker批次",
+        "领取creator/platform并检查time-gated staker"
+      ],
+      "expected": [
+        "净门槛达标一次毕业；买入fee为meme，卖出为Quote",
+        "无active70/0/30，active40/30/30按1:3权重；holder只分creator基础一半",
+        "兑换不再收base/tax；batch输出与item精确守恒；holder与creator互不污染",
+        "逐asset余额>=totalLiability；真实锁定期未到不冒充staker已领"
+      ],
+      "requiredEnvironments": [
+        "local",
+        "public"
+      ],
+      "localSelectors": [],
+      "publicRequirements": [
+        "绑定当前 R5 release；交易状态变化必须有真实回执、区块哈希和前后快照；只读拒绝单独注明 ETH_CALL"
+      ],
+      "matrixKey": "ETH-S1-H0-T0",
+      "phase": "GRAD"
+    },
+    {
+      "caseId": "R5-MATRIX-ETH-S1-H0-T500-CORE",
+      "title": "ETH-S1-H0-T500 创建—曲线—领取",
+      "priority": "P1",
+      "preconditions": [
+        "Quote=ETH；staking=True；holder=False；tax=500bps",
+        "已白名单；creator与buyer隔离"
+      ],
+      "steps": [
+        "以0.001 Quote执行atomic developer buy",
+        "buyer再买同数量；卖出其token的1/4",
+        "sweep全部curve fees",
+        "outsider触发creator/platform claim并重复eth_call"
+      ],
+      "expected": [
+        "市场配置精确等于Quote=ETH；staking=True；holder=False；tax=500bps",
+        "Gauge非零；developer获得实际token",
+        "creatorBase=basic-floor(basic*30%)；holder=0；tax全部creator",
+        "各笔CurveBuy/Sell原始fee独立复算分配，Quote总负债守恒",
+        "真实收款人余额增加对应bucket，bucket清零，重复无付款"
+      ],
+      "requiredEnvironments": [
+        "local",
+        "public"
+      ],
+      "localSelectors": [],
+      "publicRequirements": [
+        "绑定当前 R5 release；交易状态变化必须有真实回执、区块哈希和前后快照；只读拒绝单独注明 ETH_CALL"
+      ],
+      "matrixKey": "ETH-S1-H0-T500",
+      "phase": "CORE"
+    },
+    {
+      "caseId": "R5-MATRIX-ETH-S1-H0-T500-GRAD",
+      "title": "ETH-S1-H0-T500 毕业—v4—兑换",
+      "priority": "P1",
+      "preconditions": [
+        "Quote=ETH；staking=True；holder=False；tax=500bps",
+        "CORE完成；有足额毕业本金"
+      ],
+      "steps": [
+        "最终买入触发毕业且超额退款",
+        "无active stock时v4买和卖",
+        "两用户stake100/300；自然激活后再买卖",
+        "兑换creator和staker批次",
+        "领取creator/platform并检查time-gated staker"
+      ],
+      "expected": [
+        "净门槛达标一次毕业；买入fee为meme，卖出为Quote",
+        "无active70/0/30，active40/30/30按1:3权重；holder只分creator基础一半",
+        "兑换不再收base/tax；batch输出与item精确守恒；holder与creator互不污染",
+        "逐asset余额>=totalLiability；真实锁定期未到不冒充staker已领"
+      ],
+      "requiredEnvironments": [
+        "local",
+        "public"
+      ],
+      "localSelectors": [],
+      "publicRequirements": [
+        "绑定当前 R5 release；交易状态变化必须有真实回执、区块哈希和前后快照；只读拒绝单独注明 ETH_CALL"
+      ],
+      "matrixKey": "ETH-S1-H0-T500",
+      "phase": "GRAD"
+    },
+    {
+      "caseId": "R5-MATRIX-ETH-S1-H1-T0-CORE",
+      "title": "ETH-S1-H1-T0 创建—曲线—领取",
+      "priority": "P1",
+      "preconditions": [
+        "Quote=ETH；staking=True；holder=True；tax=0bps",
+        "已白名单；creator与buyer隔离"
+      ],
+      "steps": [
+        "以0.001 Quote执行atomic developer buy",
+        "buyer再买同数量；卖出其token的1/4",
+        "sweep全部curve fees",
+        "outsider触发creator/platform claim并重复eth_call"
+      ],
+      "expected": [
+        "市场配置精确等于Quote=ETH；staking=True；holder=True；tax=0bps",
+        "Gauge非零；developer获得实际token",
+        "creatorBase=basic-floor(basic*30%)；holder=floor(creatorBase/2)；tax全部creator",
+        "各笔CurveBuy/Sell原始fee独立复算分配，Quote总负债守恒",
+        "真实收款人余额增加对应bucket，bucket清零，重复无付款"
+      ],
+      "requiredEnvironments": [
+        "local",
+        "public"
+      ],
+      "localSelectors": [],
+      "publicRequirements": [
+        "绑定当前 R5 release；交易状态变化必须有真实回执、区块哈希和前后快照；只读拒绝单独注明 ETH_CALL"
+      ],
+      "matrixKey": "ETH-S1-H1-T0",
+      "phase": "CORE"
+    },
+    {
+      "caseId": "R5-MATRIX-ETH-S1-H1-T0-GRAD",
+      "title": "ETH-S1-H1-T0 毕业—v4—兑换",
+      "priority": "P1",
+      "preconditions": [
+        "Quote=ETH；staking=True；holder=True；tax=0bps",
+        "CORE完成；有足额毕业本金"
+      ],
+      "steps": [
+        "最终买入触发毕业且超额退款",
+        "无active stock时v4买和卖",
+        "两用户stake100/300；自然激活后再买卖",
+        "兑换creator和staker批次",
+        "独立兑换holder并fund epoch",
+        "领取creator/platform并检查time-gated staker"
+      ],
+      "expected": [
+        "净门槛达标一次毕业；买入fee为meme，卖出为Quote",
+        "无active70/0/30，active40/30/30按1:3权重；holder只分creator基础一半",
+        "兑换不再收base/tax；batch输出与item精确守恒；holder与creator互不污染",
+        "逐asset余额>=totalLiability；真实锁定期未到不冒充staker已领"
+      ],
+      "requiredEnvironments": [
+        "local",
+        "public"
+      ],
+      "localSelectors": [],
+      "publicRequirements": [
+        "绑定当前 R5 release；交易状态变化必须有真实回执、区块哈希和前后快照；只读拒绝单独注明 ETH_CALL"
+      ],
+      "matrixKey": "ETH-S1-H1-T0",
+      "phase": "GRAD"
+    },
+    {
+      "caseId": "R5-MATRIX-ETH-S1-H1-T500-CORE",
+      "title": "ETH-S1-H1-T500 创建—曲线—领取",
+      "priority": "P1",
+      "preconditions": [
+        "Quote=ETH；staking=True；holder=True；tax=500bps",
+        "已白名单；creator与buyer隔离"
+      ],
+      "steps": [
+        "以0.001 Quote执行atomic developer buy",
+        "buyer再买同数量；卖出其token的1/4",
+        "sweep全部curve fees",
+        "outsider触发creator/platform claim并重复eth_call"
+      ],
+      "expected": [
+        "市场配置精确等于Quote=ETH；staking=True；holder=True；tax=500bps",
+        "Gauge非零；developer获得实际token",
+        "creatorBase=basic-floor(basic*30%)；holder=floor(creatorBase/2)；tax全部creator",
+        "各笔CurveBuy/Sell原始fee独立复算分配，Quote总负债守恒",
+        "真实收款人余额增加对应bucket，bucket清零，重复无付款"
+      ],
+      "requiredEnvironments": [
+        "local",
+        "public"
+      ],
+      "localSelectors": [],
+      "publicRequirements": [
+        "绑定当前 R5 release；交易状态变化必须有真实回执、区块哈希和前后快照；只读拒绝单独注明 ETH_CALL"
+      ],
+      "matrixKey": "ETH-S1-H1-T500",
+      "phase": "CORE"
+    },
+    {
+      "caseId": "R5-MATRIX-ETH-S1-H1-T500-GRAD",
+      "title": "ETH-S1-H1-T500 毕业—v4—兑换",
+      "priority": "P1",
+      "preconditions": [
+        "Quote=ETH；staking=True；holder=True；tax=500bps",
+        "CORE完成；有足额毕业本金"
+      ],
+      "steps": [
+        "最终买入触发毕业且超额退款",
+        "无active stock时v4买和卖",
+        "两用户stake100/300；自然激活后再买卖",
+        "兑换creator和staker批次",
+        "独立兑换holder并fund epoch",
+        "领取creator/platform并检查time-gated staker"
+      ],
+      "expected": [
+        "净门槛达标一次毕业；买入fee为meme，卖出为Quote",
+        "无active70/0/30，active40/30/30按1:3权重；holder只分creator基础一半",
+        "兑换不再收base/tax；batch输出与item精确守恒；holder与creator互不污染",
+        "逐asset余额>=totalLiability；真实锁定期未到不冒充staker已领"
+      ],
+      "requiredEnvironments": [
+        "local",
+        "public"
+      ],
+      "localSelectors": [],
+      "publicRequirements": [
+        "绑定当前 R5 release；交易状态变化必须有真实回执、区块哈希和前后快照；只读拒绝单独注明 ETH_CALL"
+      ],
+      "matrixKey": "ETH-S1-H1-T500",
+      "phase": "GRAD"
+    },
+    {
+      "caseId": "R5-MATRIX-ERC20-S0-H0-T0-CORE",
+      "title": "ERC20-S0-H0-T0 创建—曲线—领取",
+      "priority": "P1",
+      "preconditions": [
+        "Quote=测试ERC20(18位)；staking=False；holder=False；tax=0bps",
+        "已白名单；creator与buyer隔离"
+      ],
+      "steps": [
+        "以1 Quote执行atomic developer buy",
+        "buyer再买同数量；卖出其token的1/4",
+        "sweep全部curve fees",
+        "outsider触发creator/platform claim并重复eth_call"
+      ],
+      "expected": [
+        "市场配置精确等于Quote=测试ERC20(18位)；staking=False；holder=False；tax=0bps",
+        "Gauge为零；developer获得实际token",
+        "creatorBase=basic-floor(basic*30%)；holder=0；tax全部creator",
+        "各笔CurveBuy/Sell原始fee独立复算分配，Quote总负债守恒",
+        "真实收款人余额增加对应bucket，bucket清零，重复无付款"
+      ],
+      "requiredEnvironments": [
+        "local",
+        "public"
+      ],
+      "localSelectors": [],
+      "publicRequirements": [
+        "绑定当前 R5 release；交易状态变化必须有真实回执、区块哈希和前后快照；只读拒绝单独注明 ETH_CALL"
+      ],
+      "matrixKey": "ERC20-S0-H0-T0",
+      "phase": "CORE"
+    },
+    {
+      "caseId": "R5-MATRIX-ERC20-S0-H0-T0-GRAD",
+      "title": "ERC20-S0-H0-T0 毕业—v4—兑换",
+      "priority": "P1",
+      "preconditions": [
+        "Quote=测试ERC20(18位)；staking=False；holder=False；tax=0bps",
+        "CORE完成；有足额毕业本金"
+      ],
+      "steps": [
+        "最终买入触发毕业且超额退款",
+        "无active stock时v4买和卖",
+        "兑换creator",
+        "领取creator/platform并检查time-gated staker"
+      ],
+      "expected": [
+        "净门槛达标一次毕业；买入fee为meme，卖出为Quote",
+        "无active70/0/30，任何时刻无stakerbucket；holder只分creator基础一半",
+        "兑换不再收base/tax；batch输出与item精确守恒；holder与creator互不污染",
+        "逐asset余额>=totalLiability；真实锁定期未到不冒充staker已领"
+      ],
+      "requiredEnvironments": [
+        "local",
+        "public"
+      ],
+      "localSelectors": [],
+      "publicRequirements": [
+        "绑定当前 R5 release；交易状态变化必须有真实回执、区块哈希和前后快照；只读拒绝单独注明 ETH_CALL"
+      ],
+      "matrixKey": "ERC20-S0-H0-T0",
+      "phase": "GRAD"
+    },
+    {
+      "caseId": "R5-MATRIX-ERC20-S0-H0-T500-CORE",
+      "title": "ERC20-S0-H0-T500 创建—曲线—领取",
+      "priority": "P1",
+      "preconditions": [
+        "Quote=测试ERC20(18位)；staking=False；holder=False；tax=500bps",
+        "已白名单；creator与buyer隔离"
+      ],
+      "steps": [
+        "以1 Quote执行atomic developer buy",
+        "buyer再买同数量；卖出其token的1/4",
+        "sweep全部curve fees",
+        "outsider触发creator/platform claim并重复eth_call"
+      ],
+      "expected": [
+        "市场配置精确等于Quote=测试ERC20(18位)；staking=False；holder=False；tax=500bps",
+        "Gauge为零；developer获得实际token",
+        "creatorBase=basic-floor(basic*30%)；holder=0；tax全部creator",
+        "各笔CurveBuy/Sell原始fee独立复算分配，Quote总负债守恒",
+        "真实收款人余额增加对应bucket，bucket清零，重复无付款"
+      ],
+      "requiredEnvironments": [
+        "local",
+        "public"
+      ],
+      "localSelectors": [],
+      "publicRequirements": [
+        "绑定当前 R5 release；交易状态变化必须有真实回执、区块哈希和前后快照；只读拒绝单独注明 ETH_CALL"
+      ],
+      "matrixKey": "ERC20-S0-H0-T500",
+      "phase": "CORE"
+    },
+    {
+      "caseId": "R5-MATRIX-ERC20-S0-H0-T500-GRAD",
+      "title": "ERC20-S0-H0-T500 毕业—v4—兑换",
+      "priority": "P1",
+      "preconditions": [
+        "Quote=测试ERC20(18位)；staking=False；holder=False；tax=500bps",
+        "CORE完成；有足额毕业本金"
+      ],
+      "steps": [
+        "最终买入触发毕业且超额退款",
+        "无active stock时v4买和卖",
+        "兑换creator",
+        "领取creator/platform并检查time-gated staker"
+      ],
+      "expected": [
+        "净门槛达标一次毕业；买入fee为meme，卖出为Quote",
+        "无active70/0/30，任何时刻无stakerbucket；holder只分creator基础一半",
+        "兑换不再收base/tax；batch输出与item精确守恒；holder与creator互不污染",
+        "逐asset余额>=totalLiability；真实锁定期未到不冒充staker已领"
+      ],
+      "requiredEnvironments": [
+        "local",
+        "public"
+      ],
+      "localSelectors": [],
+      "publicRequirements": [
+        "绑定当前 R5 release；交易状态变化必须有真实回执、区块哈希和前后快照；只读拒绝单独注明 ETH_CALL"
+      ],
+      "matrixKey": "ERC20-S0-H0-T500",
+      "phase": "GRAD"
+    },
+    {
+      "caseId": "R5-MATRIX-ERC20-S0-H1-T0-CORE",
+      "title": "ERC20-S0-H1-T0 创建—曲线—领取",
+      "priority": "P1",
+      "preconditions": [
+        "Quote=测试ERC20(18位)；staking=False；holder=True；tax=0bps",
+        "已白名单；creator与buyer隔离"
+      ],
+      "steps": [
+        "以1 Quote执行atomic developer buy",
+        "buyer再买同数量；卖出其token的1/4",
+        "sweep全部curve fees",
+        "outsider触发creator/platform claim并重复eth_call"
+      ],
+      "expected": [
+        "市场配置精确等于Quote=测试ERC20(18位)；staking=False；holder=True；tax=0bps",
+        "Gauge为零；developer获得实际token",
+        "creatorBase=basic-floor(basic*30%)；holder=floor(creatorBase/2)；tax全部creator",
+        "各笔CurveBuy/Sell原始fee独立复算分配，Quote总负债守恒",
+        "真实收款人余额增加对应bucket，bucket清零，重复无付款"
+      ],
+      "requiredEnvironments": [
+        "local",
+        "public"
+      ],
+      "localSelectors": [],
+      "publicRequirements": [
+        "绑定当前 R5 release；交易状态变化必须有真实回执、区块哈希和前后快照；只读拒绝单独注明 ETH_CALL"
+      ],
+      "matrixKey": "ERC20-S0-H1-T0",
+      "phase": "CORE"
+    },
+    {
+      "caseId": "R5-MATRIX-ERC20-S0-H1-T0-GRAD",
+      "title": "ERC20-S0-H1-T0 毕业—v4—兑换",
+      "priority": "P1",
+      "preconditions": [
+        "Quote=测试ERC20(18位)；staking=False；holder=True；tax=0bps",
+        "CORE完成；有足额毕业本金"
+      ],
+      "steps": [
+        "最终买入触发毕业且超额退款",
+        "无active stock时v4买和卖",
+        "兑换creator",
+        "独立兑换holder并fund epoch",
+        "领取creator/platform并检查time-gated staker"
+      ],
+      "expected": [
+        "净门槛达标一次毕业；买入fee为meme，卖出为Quote",
+        "无active70/0/30，任何时刻无stakerbucket；holder只分creator基础一半",
+        "兑换不再收base/tax；batch输出与item精确守恒；holder与creator互不污染",
+        "逐asset余额>=totalLiability；真实锁定期未到不冒充staker已领"
+      ],
+      "requiredEnvironments": [
+        "local",
+        "public"
+      ],
+      "localSelectors": [],
+      "publicRequirements": [
+        "绑定当前 R5 release；交易状态变化必须有真实回执、区块哈希和前后快照；只读拒绝单独注明 ETH_CALL"
+      ],
+      "matrixKey": "ERC20-S0-H1-T0",
+      "phase": "GRAD"
+    },
+    {
+      "caseId": "R5-MATRIX-ERC20-S0-H1-T500-CORE",
+      "title": "ERC20-S0-H1-T500 创建—曲线—领取",
+      "priority": "P1",
+      "preconditions": [
+        "Quote=测试ERC20(18位)；staking=False；holder=True；tax=500bps",
+        "已白名单；creator与buyer隔离"
+      ],
+      "steps": [
+        "以1 Quote执行atomic developer buy",
+        "buyer再买同数量；卖出其token的1/4",
+        "sweep全部curve fees",
+        "outsider触发creator/platform claim并重复eth_call"
+      ],
+      "expected": [
+        "市场配置精确等于Quote=测试ERC20(18位)；staking=False；holder=True；tax=500bps",
+        "Gauge为零；developer获得实际token",
+        "creatorBase=basic-floor(basic*30%)；holder=floor(creatorBase/2)；tax全部creator",
+        "各笔CurveBuy/Sell原始fee独立复算分配，Quote总负债守恒",
+        "真实收款人余额增加对应bucket，bucket清零，重复无付款"
+      ],
+      "requiredEnvironments": [
+        "local",
+        "public"
+      ],
+      "localSelectors": [],
+      "publicRequirements": [
+        "绑定当前 R5 release；交易状态变化必须有真实回执、区块哈希和前后快照；只读拒绝单独注明 ETH_CALL"
+      ],
+      "matrixKey": "ERC20-S0-H1-T500",
+      "phase": "CORE"
+    },
+    {
+      "caseId": "R5-MATRIX-ERC20-S0-H1-T500-GRAD",
+      "title": "ERC20-S0-H1-T500 毕业—v4—兑换",
+      "priority": "P1",
+      "preconditions": [
+        "Quote=测试ERC20(18位)；staking=False；holder=True；tax=500bps",
+        "CORE完成；有足额毕业本金"
+      ],
+      "steps": [
+        "最终买入触发毕业且超额退款",
+        "无active stock时v4买和卖",
+        "兑换creator",
+        "独立兑换holder并fund epoch",
+        "领取creator/platform并检查time-gated staker"
+      ],
+      "expected": [
+        "净门槛达标一次毕业；买入fee为meme，卖出为Quote",
+        "无active70/0/30，任何时刻无stakerbucket；holder只分creator基础一半",
+        "兑换不再收base/tax；batch输出与item精确守恒；holder与creator互不污染",
+        "逐asset余额>=totalLiability；真实锁定期未到不冒充staker已领"
+      ],
+      "requiredEnvironments": [
+        "local",
+        "public"
+      ],
+      "localSelectors": [],
+      "publicRequirements": [
+        "绑定当前 R5 release；交易状态变化必须有真实回执、区块哈希和前后快照；只读拒绝单独注明 ETH_CALL"
+      ],
+      "matrixKey": "ERC20-S0-H1-T500",
+      "phase": "GRAD"
+    },
+    {
+      "caseId": "R5-MATRIX-ERC20-S1-H0-T0-CORE",
+      "title": "ERC20-S1-H0-T0 创建—曲线—领取",
+      "priority": "P1",
+      "preconditions": [
+        "Quote=测试ERC20(18位)；staking=True；holder=False；tax=0bps",
+        "已白名单；creator与buyer隔离"
+      ],
+      "steps": [
+        "以1 Quote执行atomic developer buy",
+        "buyer再买同数量；卖出其token的1/4",
+        "sweep全部curve fees",
+        "outsider触发creator/platform claim并重复eth_call"
+      ],
+      "expected": [
+        "市场配置精确等于Quote=测试ERC20(18位)；staking=True；holder=False；tax=0bps",
+        "Gauge非零；developer获得实际token",
+        "creatorBase=basic-floor(basic*30%)；holder=0；tax全部creator",
+        "各笔CurveBuy/Sell原始fee独立复算分配，Quote总负债守恒",
+        "真实收款人余额增加对应bucket，bucket清零，重复无付款"
+      ],
+      "requiredEnvironments": [
+        "local",
+        "public"
+      ],
+      "localSelectors": [],
+      "publicRequirements": [
+        "绑定当前 R5 release；交易状态变化必须有真实回执、区块哈希和前后快照；只读拒绝单独注明 ETH_CALL"
+      ],
+      "matrixKey": "ERC20-S1-H0-T0",
+      "phase": "CORE"
+    },
+    {
+      "caseId": "R5-MATRIX-ERC20-S1-H0-T0-GRAD",
+      "title": "ERC20-S1-H0-T0 毕业—v4—兑换",
+      "priority": "P1",
+      "preconditions": [
+        "Quote=测试ERC20(18位)；staking=True；holder=False；tax=0bps",
+        "CORE完成；有足额毕业本金"
+      ],
+      "steps": [
+        "最终买入触发毕业且超额退款",
+        "无active stock时v4买和卖",
+        "两用户stake100/300；自然激活后再买卖",
+        "兑换creator和staker批次",
+        "领取creator/platform并检查time-gated staker"
+      ],
+      "expected": [
+        "净门槛达标一次毕业；买入fee为meme，卖出为Quote",
+        "无active70/0/30，active40/30/30按1:3权重；holder只分creator基础一半",
+        "兑换不再收base/tax；batch输出与item精确守恒；holder与creator互不污染",
+        "逐asset余额>=totalLiability；真实锁定期未到不冒充staker已领"
+      ],
+      "requiredEnvironments": [
+        "local",
+        "public"
+      ],
+      "localSelectors": [],
+      "publicRequirements": [
+        "绑定当前 R5 release；交易状态变化必须有真实回执、区块哈希和前后快照；只读拒绝单独注明 ETH_CALL"
+      ],
+      "matrixKey": "ERC20-S1-H0-T0",
+      "phase": "GRAD"
+    },
+    {
+      "caseId": "R5-MATRIX-ERC20-S1-H0-T500-CORE",
+      "title": "ERC20-S1-H0-T500 创建—曲线—领取",
+      "priority": "P1",
+      "preconditions": [
+        "Quote=测试ERC20(18位)；staking=True；holder=False；tax=500bps",
+        "已白名单；creator与buyer隔离"
+      ],
+      "steps": [
+        "以1 Quote执行atomic developer buy",
+        "buyer再买同数量；卖出其token的1/4",
+        "sweep全部curve fees",
+        "outsider触发creator/platform claim并重复eth_call"
+      ],
+      "expected": [
+        "市场配置精确等于Quote=测试ERC20(18位)；staking=True；holder=False；tax=500bps",
+        "Gauge非零；developer获得实际token",
+        "creatorBase=basic-floor(basic*30%)；holder=0；tax全部creator",
+        "各笔CurveBuy/Sell原始fee独立复算分配，Quote总负债守恒",
+        "真实收款人余额增加对应bucket，bucket清零，重复无付款"
+      ],
+      "requiredEnvironments": [
+        "local",
+        "public"
+      ],
+      "localSelectors": [],
+      "publicRequirements": [
+        "绑定当前 R5 release；交易状态变化必须有真实回执、区块哈希和前后快照；只读拒绝单独注明 ETH_CALL"
+      ],
+      "matrixKey": "ERC20-S1-H0-T500",
+      "phase": "CORE"
+    },
+    {
+      "caseId": "R5-MATRIX-ERC20-S1-H0-T500-GRAD",
+      "title": "ERC20-S1-H0-T500 毕业—v4—兑换",
+      "priority": "P1",
+      "preconditions": [
+        "Quote=测试ERC20(18位)；staking=True；holder=False；tax=500bps",
+        "CORE完成；有足额毕业本金"
+      ],
+      "steps": [
+        "最终买入触发毕业且超额退款",
+        "无active stock时v4买和卖",
+        "两用户stake100/300；自然激活后再买卖",
+        "兑换creator和staker批次",
+        "领取creator/platform并检查time-gated staker"
+      ],
+      "expected": [
+        "净门槛达标一次毕业；买入fee为meme，卖出为Quote",
+        "无active70/0/30，active40/30/30按1:3权重；holder只分creator基础一半",
+        "兑换不再收base/tax；batch输出与item精确守恒；holder与creator互不污染",
+        "逐asset余额>=totalLiability；真实锁定期未到不冒充staker已领"
+      ],
+      "requiredEnvironments": [
+        "local",
+        "public"
+      ],
+      "localSelectors": [],
+      "publicRequirements": [
+        "绑定当前 R5 release；交易状态变化必须有真实回执、区块哈希和前后快照；只读拒绝单独注明 ETH_CALL"
+      ],
+      "matrixKey": "ERC20-S1-H0-T500",
+      "phase": "GRAD"
+    },
+    {
+      "caseId": "R5-MATRIX-ERC20-S1-H1-T0-CORE",
+      "title": "ERC20-S1-H1-T0 创建—曲线—领取",
+      "priority": "P1",
+      "preconditions": [
+        "Quote=测试ERC20(18位)；staking=True；holder=True；tax=0bps",
+        "已白名单；creator与buyer隔离"
+      ],
+      "steps": [
+        "以1 Quote执行atomic developer buy",
+        "buyer再买同数量；卖出其token的1/4",
+        "sweep全部curve fees",
+        "outsider触发creator/platform claim并重复eth_call"
+      ],
+      "expected": [
+        "市场配置精确等于Quote=测试ERC20(18位)；staking=True；holder=True；tax=0bps",
+        "Gauge非零；developer获得实际token",
+        "creatorBase=basic-floor(basic*30%)；holder=floor(creatorBase/2)；tax全部creator",
+        "各笔CurveBuy/Sell原始fee独立复算分配，Quote总负债守恒",
+        "真实收款人余额增加对应bucket，bucket清零，重复无付款"
+      ],
+      "requiredEnvironments": [
+        "local",
+        "public"
+      ],
+      "localSelectors": [],
+      "publicRequirements": [
+        "绑定当前 R5 release；交易状态变化必须有真实回执、区块哈希和前后快照；只读拒绝单独注明 ETH_CALL"
+      ],
+      "matrixKey": "ERC20-S1-H1-T0",
+      "phase": "CORE"
+    },
+    {
+      "caseId": "R5-MATRIX-ERC20-S1-H1-T0-GRAD",
+      "title": "ERC20-S1-H1-T0 毕业—v4—兑换",
+      "priority": "P1",
+      "preconditions": [
+        "Quote=测试ERC20(18位)；staking=True；holder=True；tax=0bps",
+        "CORE完成；有足额毕业本金"
+      ],
+      "steps": [
+        "最终买入触发毕业且超额退款",
+        "无active stock时v4买和卖",
+        "两用户stake100/300；自然激活后再买卖",
+        "兑换creator和staker批次",
+        "独立兑换holder并fund epoch",
+        "领取creator/platform并检查time-gated staker"
+      ],
+      "expected": [
+        "净门槛达标一次毕业；买入fee为meme，卖出为Quote",
+        "无active70/0/30，active40/30/30按1:3权重；holder只分creator基础一半",
+        "兑换不再收base/tax；batch输出与item精确守恒；holder与creator互不污染",
+        "逐asset余额>=totalLiability；真实锁定期未到不冒充staker已领"
+      ],
+      "requiredEnvironments": [
+        "local",
+        "public"
+      ],
+      "localSelectors": [],
+      "publicRequirements": [
+        "绑定当前 R5 release；交易状态变化必须有真实回执、区块哈希和前后快照；只读拒绝单独注明 ETH_CALL"
+      ],
+      "matrixKey": "ERC20-S1-H1-T0",
+      "phase": "GRAD"
+    },
+    {
+      "caseId": "R5-MATRIX-ERC20-S1-H1-T500-CORE",
+      "title": "ERC20-S1-H1-T500 创建—曲线—领取",
+      "priority": "P1",
+      "preconditions": [
+        "Quote=测试ERC20(18位)；staking=True；holder=True；tax=500bps",
+        "已白名单；creator与buyer隔离"
+      ],
+      "steps": [
+        "以1 Quote执行atomic developer buy",
+        "buyer再买同数量；卖出其token的1/4",
+        "sweep全部curve fees",
+        "outsider触发creator/platform claim并重复eth_call"
+      ],
+      "expected": [
+        "市场配置精确等于Quote=测试ERC20(18位)；staking=True；holder=True；tax=500bps",
+        "Gauge非零；developer获得实际token",
+        "creatorBase=basic-floor(basic*30%)；holder=floor(creatorBase/2)；tax全部creator",
+        "各笔CurveBuy/Sell原始fee独立复算分配，Quote总负债守恒",
+        "真实收款人余额增加对应bucket，bucket清零，重复无付款"
+      ],
+      "requiredEnvironments": [
+        "local",
+        "public"
+      ],
+      "localSelectors": [],
+      "publicRequirements": [
+        "绑定当前 R5 release；交易状态变化必须有真实回执、区块哈希和前后快照；只读拒绝单独注明 ETH_CALL"
+      ],
+      "matrixKey": "ERC20-S1-H1-T500",
+      "phase": "CORE"
+    },
+    {
+      "caseId": "R5-MATRIX-ERC20-S1-H1-T500-GRAD",
+      "title": "ERC20-S1-H1-T500 毕业—v4—兑换",
+      "priority": "P1",
+      "preconditions": [
+        "Quote=测试ERC20(18位)；staking=True；holder=True；tax=500bps",
+        "CORE完成；有足额毕业本金"
+      ],
+      "steps": [
+        "最终买入触发毕业且超额退款",
+        "无active stock时v4买和卖",
+        "两用户stake100/300；自然激活后再买卖",
+        "兑换creator和staker批次",
+        "独立兑换holder并fund epoch",
+        "领取creator/platform并检查time-gated staker"
+      ],
+      "expected": [
+        "净门槛达标一次毕业；买入fee为meme，卖出为Quote",
+        "无active70/0/30，active40/30/30按1:3权重；holder只分creator基础一半",
+        "兑换不再收base/tax；batch输出与item精确守恒；holder与creator互不污染",
+        "逐asset余额>=totalLiability；真实锁定期未到不冒充staker已领"
+      ],
+      "requiredEnvironments": [
+        "local",
+        "public"
+      ],
+      "localSelectors": [],
+      "publicRequirements": [
+        "绑定当前 R5 release；交易状态变化必须有真实回执、区块哈希和前后快照；只读拒绝单独注明 ETH_CALL"
+      ],
+      "matrixKey": "ERC20-S1-H1-T500",
+      "phase": "GRAD"
+    }
+  ]
+}

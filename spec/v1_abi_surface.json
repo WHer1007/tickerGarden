@@ -140,7 +140,7 @@
       "module": "ApprovedQuoteRegistry",
       "structs": {
         "QuoteAssetConfig": [
-          "bytes32 ponsBaselineId",
+          "bytes32 tickerGardenBaselineId",
           "address quoteAsset",
           "uint8 quoteDecimals",
           "uint256 phantomQuote",
@@ -218,16 +218,16 @@
         }
       ],
       "events": [
-        "QuoteAssetConfigAdded(bytes32 indexed configId,address indexed quoteAsset,bytes32 indexed ponsBaselineId,bytes32 economicsHash)",
+        "QuoteAssetConfigAdded(bytes32 indexed configId,address indexed quoteAsset,bytes32 indexed tickerGardenBaselineId,bytes32 economicsHash)",
         "QuoteAssetIdentityPinned(bytes32 indexed configId,address indexed quoteAsset,bytes32 runtimeCodeHash)",
         "StockQuoteConfigBound(bytes32 indexed configId,bytes32 indexed assetUid,address indexed quoteAsset,bytes32 stockTokenFingerprintHash,bytes32 referenceEvidenceHash,bytes32 generatorPolicyId)",
         "QuoteAssetStatusChanged(bytes32 indexed configId,uint8 oldStatus,uint8 newStatus,bytes32 reasonHash)"
       ]
     },
     {
-      "module": "PonsBaselineRegistry",
+      "module": "TickerGardenBaselineRegistry",
       "structs": {
-        "PonsBaseline": [
+        "TickerGardenBaseline": [
           "uint256 referenceChainId",
           "address referenceFactory",
           "bytes32 referenceFactoryCodeHash",
@@ -242,7 +242,7 @@
       },
       "functions": [
         {
-          "signature": "addBaseline(bytes32,PonsBaseline)",
+          "signature": "addBaseline(bytes32,TickerGardenBaseline)",
           "mutability": "nonpayable",
           "caller": "PROTOCOL_ADMIN_ROLE",
           "returns": "()"
@@ -269,12 +269,12 @@
           "signature": "baseline(bytes32)",
           "mutability": "view",
           "caller": "PUBLIC",
-          "returns": "(PonsBaseline)"
+          "returns": "(TickerGardenBaseline)"
         }
       ],
       "events": [
-        "PonsBaselineAdded(bytes32 indexed baselineId,bytes32 indexed behaviorVectorRoot,bytes32 factoryCodeHash)",
-        "PonsBaselineStatusChanged(bytes32 indexed baselineId,uint8 oldStatus,uint8 newStatus,bytes32 reasonHash)"
+        "TickerGardenBaselineAdded(bytes32 indexed baselineId,bytes32 indexed behaviorVectorRoot,bytes32 factoryCodeHash)",
+        "TickerGardenBaselineStatusChanged(bytes32 indexed baselineId,uint8 oldStatus,uint8 newStatus,bytes32 reasonHash)"
       ]
     },
     {
@@ -346,7 +346,7 @@
           "signature": "resolve(bytes32,bytes32,bytes32)",
           "mutability": "view",
           "caller": "PUBLIC",
-          "returns": "(QuoteAssetConfig,PonsBaseline,LaunchTemplate)"
+          "returns": "(QuoteAssetConfig,TickerGardenBaseline,LaunchTemplate)"
         },
         {
           "signature": "approvedQuoteRegistry()",
@@ -355,7 +355,7 @@
           "returns": "(address)"
         },
         {
-          "signature": "ponsBaselineRegistry()",
+          "signature": "tickerGardenBaselineRegistry()",
           "mutability": "view",
           "caller": "PUBLIC",
           "returns": "(address)"
@@ -374,7 +374,7 @@
       "structs": {
         "CreateMarketParams": [
           "bytes32 assetUid",
-          "bytes32 ponsBaselineId",
+          "bytes32 tickerGardenBaselineId",
           "bytes32 quoteAssetConfigId",
           "bytes32 launchTemplateId",
           "bytes32 expectedEconomics",
@@ -384,7 +384,8 @@
           "string metadataURI",
           "bytes32 salt",
           "uint16 creatorTaxBps",
-          "bool creatorFeesToHolders"
+          "bool creatorFeesToHolders",
+          "bool stakingEnabled"
         ]
       },
       "functions": [
@@ -438,7 +439,7 @@
         }
       ],
       "events": [
-        "MarketCreated(bytes32 indexed marketId,bytes32 indexed assetUid,address indexed memeToken,address curve,address gauge,address quoteAsset,bytes32 ponsBaselineId,bytes32 quoteAssetConfigId,bytes32 expectedEconomics)"
+        "MarketCreated(bytes32 indexed marketId,bytes32 indexed assetUid,address indexed memeToken,address curve,address gauge,address quoteAsset,bytes32 tickerGardenBaselineId,bytes32 quoteAssetConfigId,bytes32 expectedEconomics)"
       ]
     },
     {
@@ -446,7 +447,7 @@
       "structs": {
         "MarketConfig": [
           "bytes32 assetUid",
-          "bytes32 ponsBaselineId",
+          "bytes32 tickerGardenBaselineId",
           "bytes32 quoteAssetConfigId",
           "bytes32 launchTemplateId",
           "bytes32 feePolicyId",
@@ -460,7 +461,8 @@
           "address quoteAsset",
           "address graduatedHook",
           "uint16 creatorTaxBps",
-          "bool creatorFeesToHolders"
+          "bool creatorFeesToHolders",
+          "bool stakingEnabled"
         ],
         "MarketRuntime": [
           "bytes32 poolId",
@@ -556,7 +558,7 @@
           "returns": "(address)"
         },
         {
-          "signature": "ponsBaselineRegistry()",
+          "signature": "tickerGardenBaselineRegistry()",
           "mutability": "view",
           "caller": "PUBLIC",
           "returns": "(address)"
@@ -601,6 +603,12 @@
           "returns": "(bytes32,address,uint256,uint256)"
         },
         {
+          "signature": "unlockCallback(bytes)",
+          "mutability": "nonpayable",
+          "caller": "POOL_MANAGER",
+          "returns": "(bytes)"
+        },
+        {
           "signature": "factory()",
           "mutability": "view",
           "caller": "PUBLIC",
@@ -608,6 +616,12 @@
         },
         {
           "signature": "approvedQuoteRegistry()",
+          "mutability": "view",
+          "caller": "PUBLIC",
+          "returns": "(address)"
+        },
+        {
+          "signature": "poolManager()",
           "mutability": "view",
           "caller": "PUBLIC",
           "returns": "(address)"
@@ -719,6 +733,18 @@
           "mutability": "nonpayable",
           "caller": "TREASURY_DISTRIBUTOR_MODULE",
           "returns": "()"
+        },
+        {
+          "signature": "continuousRewardsEnabled()",
+          "mutability": "view",
+          "caller": "PUBLIC",
+          "returns": "(bool)"
+        },
+        {
+          "signature": "enableContinuousRewards()",
+          "mutability": "nonpayable",
+          "caller": "TREASURY_DISTRIBUTOR_MODULE",
+          "returns": "()"
         }
       ],
       "events": [
@@ -728,7 +754,7 @@
       ]
     },
     {
-      "module": "PonsCompatibleCurve",
+      "module": "TickerGardenCurve",
       "functions": [
         {
           "signature": "buy(uint256,uint256,address)",
@@ -1678,11 +1704,31 @@
           "mutability": "view",
           "caller": "PUBLIC",
           "returns": "(address)"
+        },
+        {
+          "signature": "pendingCreatorRevenueBeneficiary(bytes32)",
+          "mutability": "view",
+          "caller": "PUBLIC",
+          "returns": "(address)"
+        },
+        {
+          "signature": "acceptCreatorRevenueBeneficiary(bytes32)",
+          "mutability": "nonpayable",
+          "caller": "PENDING_CREATOR_REVENUE_BENEFICIARY",
+          "returns": "(uint32)"
+        },
+        {
+          "signature": "cancelCreatorRevenueBeneficiaryTransfer(bytes32)",
+          "mutability": "nonpayable",
+          "caller": "CURRENT_CREATOR_BENEFICIARY",
+          "returns": "()"
         }
       ],
       "events": [
         "CreatorRevenueEpochInitialized(bytes32 indexed marketId,uint32 indexed epoch,address indexed beneficiary)",
-        "CreatorRevenueBeneficiaryUpdated(bytes32 indexed marketId,uint32 indexed oldEpoch,uint32 indexed newEpoch,address oldBeneficiary,address newBeneficiary)"
+        "CreatorRevenueBeneficiaryUpdated(bytes32 indexed marketId,uint32 indexed oldEpoch,uint32 indexed newEpoch,address oldBeneficiary,address newBeneficiary)",
+        "CreatorRevenueBeneficiaryProposed(bytes32 indexed marketId,uint32 indexed epoch,address indexed currentBeneficiary,address pendingBeneficiary)",
+        "CreatorRevenueBeneficiaryTransferCancelled(bytes32 indexed marketId,uint32 indexed epoch)"
       ]
     },
     {

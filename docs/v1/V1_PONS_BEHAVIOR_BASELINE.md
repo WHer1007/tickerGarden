@@ -1,5 +1,7 @@
 # TickerGarden V1 Pons 行为参考基线
 
+> 历史基线说明：本文件中的三秒窗口是外部 runtime 存档。2026-09-07 起 TickerGarden 新 release 改用五秒表，见 [新规则](../planning/PROTOCOL_OPTIMIZATION_2026-09-07.md)。
+
 > 修订说明：Pons链上行为证据仍保留原始版本标识；TickerGarden自身的质押、Treasury、费用与原子毕业差异已按当前`V1-EXEC-11`修订，不再使用旧版10 STOCK线性规则。
 
 > 决策状态：`PRODUCT_DIRECTION_APPROVED / DEPLOYMENT_ELIGIBLE / NOT_PRODUCTION_READY`
@@ -24,7 +26,7 @@ TickerGarden V1 的发行主链路以 Pons V2 当前活跃部署的已确认链�
 - 沿用 Pons 地址、管理员、手续费受益人、BuybackVault 或升级权限；
 - 把未来 Pons 配置变更自动应用到既有 TickerGarden 市场。
 
-TickerGarden 使用自己的 ABI、Registry、CREATE2 domain、部署 manifest、数学不变量和测试向量。市场创建时冻结 `ponsBaselineId`、`quoteAssetConfigId`、`launchTemplateId`、`feePolicyId` 和 `expectedEconomics`；历史市场不随外部状态改变。
+TickerGarden 使用自己的 ABI、Registry、CREATE2 domain、部署 manifest、数学不变量和测试向量。市场创建时冻结 `tickerGardenBaselineId`、`quoteAssetConfigId`、`launchTemplateId`、`feePolicyId` 和 `expectedEconomics`；历史市场不随外部状态改变。
 
 ## 2. 参考部署和证据等级
 
@@ -74,7 +76,7 @@ TickerGarden 采用“一市场一 Quote、平台支持多 Quote”的模型：
 
 ```solidity
 struct QuoteAssetConfig {
-    bytes32 ponsBaselineId;
+    bytes32 tickerGardenBaselineId;
     address quoteAsset;            // address(0) = native
     uint8 quoteDecimals;
     uint256 phantomQuote;
@@ -101,7 +103,7 @@ struct QuoteAssetConfig {
 |---|---|---:|---:|---:|---|
 | `NATIVE_ETH_V1` | `0x0000000000000000000000000000000000000000` | 18 | `1680000000000000000` | `4200000000000000000` | `0x110acc145df286ef871d394b987b4ce12b062dc4d50d75343cdac7986a21e64e` |
 
-Quote economics hash 使用 domain `TICKERGARDEN_V1_QUOTE_ECONOMICS`、schema version `1` 和 `keccak256(abi.encode(domain,schemaVersion,chainId,ponsBaselineId,quoteAsset,quoteDecimals,phantomQuote,graduationThreshold))`。ERC-20 的代码身份另由 Registry 的 append-only runtime codehash 指纹和部署 manifest 固定。
+Quote economics hash 使用 domain `TICKERGARDEN_V1_QUOTE_ECONOMICS`、schema version `1` 和 `keccak256(abi.encode(domain,schemaVersion,chainId,tickerGardenBaselineId,quoteAsset,quoteDecimals,phantomQuote,graduationThreshold))`。ERC-20 的代码身份另由 Registry 的 append-only runtime codehash 指纹和部署 manifest 固定。
 
 ## 5. 创建 ABI 和付款语义
 
@@ -110,7 +112,7 @@ TickerGarden 不追求 Pons 二进制 ABI 相同，保留自己的市场身份�
 ```solidity
 struct CreateMarketParams {
     bytes32 assetUid;
-    bytes32 ponsBaselineId;
+    bytes32 tickerGardenBaselineId;
     bytes32 quoteAssetConfigId;
     bytes32 launchTemplateId;
     bytes32 expectedEconomics;

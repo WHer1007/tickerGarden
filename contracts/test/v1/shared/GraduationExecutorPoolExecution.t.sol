@@ -19,7 +19,7 @@ import {
     PoolBinding,
     PoolKey,
     QuoteAssetConfig,
-    PonsBaseline
+    TickerGardenBaseline
 } from "../../../src/v1/interfaces/IV1Protocol.sol";
 import {GraduationPoolMath} from "../../../src/v1/libraries/GraduationPoolMath.sol";
 import {GraduationExecutorPoolExecution} from "../../../src/v1/shared/GraduationExecutorPoolExecution.sol";
@@ -45,14 +45,14 @@ contract PoolExecutionQuoteRegistryMock {
     }
 }
 
-contract PoolExecutionPonsBaselineRegistryMock {
-    mapping(bytes32 id => PonsBaseline value) private _baselines;
+contract PoolExecutionTickerGardenBaselineRegistryMock {
+    mapping(bytes32 id => TickerGardenBaseline value) private _baselines;
 
-    function setBaseline(bytes32 id, PonsBaseline calldata value) external {
+    function setBaseline(bytes32 id, TickerGardenBaseline calldata value) external {
         _baselines[id] = value;
     }
 
-    function baseline(bytes32 id) external view returns (PonsBaseline memory) {
+    function baseline(bytes32 id) external view returns (TickerGardenBaseline memory) {
         return _baselines[id];
     }
 }
@@ -60,7 +60,7 @@ contract PoolExecutionPonsBaselineRegistryMock {
 contract PoolExecutionRegistryMock {
     address public immutable factory = address(0xFAC7);
     address public immutable approvedQuoteRegistry;
-    address public immutable ponsBaselineRegistry;
+    address public immutable tickerGardenBaselineRegistry;
     address public graduationExecutor;
 
     bytes32 private _marketId;
@@ -69,7 +69,7 @@ contract PoolExecutionRegistryMock {
 
     constructor(address quoteRegistry, address baselineRegistry) {
         approvedQuoteRegistry = quoteRegistry;
-        ponsBaselineRegistry = baselineRegistry;
+        tickerGardenBaselineRegistry = baselineRegistry;
     }
 
     function configure(
@@ -85,7 +85,7 @@ contract PoolExecutionRegistryMock {
         _value = MarketView({
             config: MarketConfig({
                 assetUid: bytes32("ASSET"),
-                ponsBaselineId: bytes32("PONS"),
+                tickerGardenBaselineId: bytes32("TICKERGARDEN"),
                 quoteAssetConfigId: quoteConfigId,
                 launchTemplateId: bytes32("TEMPLATE"),
                 feePolicyId: bytes32("FEE"),
@@ -99,7 +99,8 @@ contract PoolExecutionRegistryMock {
                 quoteAsset: quoteAsset,
                 graduatedHook: hook,
                 creatorTaxBps: 0,
-                creatorFeesToHolders: false
+                creatorFeesToHolders: false,
+                stakingEnabled: true
             }),
             runtime: MarketRuntime({poolId: bytes32(0), sourceVersion: 1, launchPhase: 0})
         });
@@ -381,7 +382,7 @@ contract GraduationExecutorPoolExecutionTest is Test {
     PoolExecutionToken private meme;
     PoolExecutionToken private quote;
     PoolExecutionQuoteRegistryMock private quoteRegistry;
-    PoolExecutionPonsBaselineRegistryMock private baselineRegistry;
+    PoolExecutionTickerGardenBaselineRegistryMock private baselineRegistry;
     PoolExecutionRegistryMock private registry;
     PoolExecutionPermit2Mock private permit2;
     PoolExecutionPoolManagerMock private poolManager;
@@ -395,7 +396,7 @@ contract GraduationExecutorPoolExecutionTest is Test {
         meme = new PoolExecutionToken("MEME");
         quote = new PoolExecutionToken("QUOTE");
         quoteRegistry = new PoolExecutionQuoteRegistryMock();
-        baselineRegistry = new PoolExecutionPonsBaselineRegistryMock();
+        baselineRegistry = new PoolExecutionTickerGardenBaselineRegistryMock();
         registry = new PoolExecutionRegistryMock(address(quoteRegistry), address(baselineRegistry));
         permit2 = new PoolExecutionPermit2Mock();
         poolManager = new PoolExecutionPoolManagerMock();
@@ -410,8 +411,8 @@ contract GraduationExecutorPoolExecutionTest is Test {
 
         _configureQuote(address(quote));
         baselineRegistry.setBaseline(
-            bytes32("PONS"),
-            PonsBaseline({
+            bytes32("TICKERGARDEN"),
+            TickerGardenBaseline({
                 referenceChainId: block.chainid,
                 referenceFactory: address(registry),
                 referenceFactoryCodeHash: bytes32(0),
@@ -500,6 +501,10 @@ contract GraduationExecutorPoolExecutionTest is Test {
         assertEq(quote.balanceOf(predictedLocker), 0);
         assertEq(hook.poolBinding(poolId).status, 0);
         assertEq(registry.market(MARKET_ID).runtime.launchPhase, 0);
+        // Clearing the external fault allows the same ordinary atomic path to succeed.
+        hook.setFailActivation(false);
+        curve.graduate(address(executor), MARKET_ID, SWEPT_QUOTE, SWEPT_MEME);
+        _assertCommittedPosition(predictedLocker, _plan(address(quote)));
     }
 
     function test_initializeCannotStealProspectiveTokenIdWithoutAtomicRollback() public {
@@ -524,7 +529,7 @@ contract GraduationExecutorPoolExecutionTest is Test {
         quoteRegistry.setQuote(
             QUOTE_ID,
             QuoteAssetConfig({
-                ponsBaselineId: bytes32("PONS"),
+                tickerGardenBaselineId: bytes32("TICKERGARDEN"),
                 quoteAsset: quoteAsset,
                 quoteDecimals: 18,
                 phantomQuote: PHANTOM,

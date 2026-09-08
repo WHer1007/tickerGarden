@@ -320,6 +320,7 @@ abstract contract ProtocolFeeVaultLiabilities is ProtocolFeeVaultCurveCredit {
         if (user == address(0)) revert InvalidFeeBeneficiary(user);
         _enterStandaloneOperation(bytes32("CLAIM_STAKER"));
         MarketView memory value = _canonicalFeeMarket(marketId, feeAsset);
+        if (!value.config.stakingEnabled || value.config.gauge == address(0)) revert InvalidFeeMarket(marketId);
         _requireSolvent(feeAsset, _totalLiabilities[feeAsset]);
         _beforeRewardClaim(marketId, feeAsset, user);
         amount = IMemeStockGauge(value.config.gauge).consumeClaimable(user, feeAsset);
@@ -339,7 +340,11 @@ abstract contract ProtocolFeeVaultLiabilities is ProtocolFeeVaultCurveCredit {
 
     function _canonicalFeeMarket(bytes32 marketId, address feeAsset) internal view returns (MarketView memory value) {
         value = _feeMarketRegistry.market(marketId);
-        if (marketId == bytes32(0) || value.config.memeToken == address(0) || value.config.gauge == address(0)) {
+        // Non-staking markets legitimately have no Gauge; creator/platform revenue remains claimable.
+        if (
+            marketId == bytes32(0) || value.config.memeToken == address(0)
+                || (value.config.stakingEnabled && value.config.gauge == address(0))
+        ) {
             revert InvalidFeeMarket(marketId);
         }
         if (feeAsset != value.config.quoteAsset && feeAsset != value.config.memeToken) {

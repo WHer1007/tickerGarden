@@ -5,9 +5,9 @@ import {
     IApprovedQuoteRegistry,
     ILaunchConfigResolver,
     ILaunchTemplateRegistry,
-    IPonsBaselineRegistry,
+    ITickerGardenBaselineRegistry,
     LaunchTemplate,
-    PonsBaseline,
+    TickerGardenBaseline,
     QuoteAssetConfig
 } from "../interfaces/IV1Protocol.sol";
 
@@ -16,35 +16,35 @@ import {
 ///      only local state; every resolve call forwards directly to the corresponding registry.
 contract LaunchConfigResolver is ILaunchConfigResolver {
     address public immutable override approvedQuoteRegistry;
-    address public immutable override ponsBaselineRegistry;
+    address public immutable override tickerGardenBaselineRegistry;
     address public immutable override launchTemplateRegistry;
 
     error InvalidRegistry(address registry);
     error AliasedRegistries(address first, address second);
 
-    constructor(address approvedQuoteRegistry_, address ponsBaselineRegistry_, address launchTemplateRegistry_) {
+    constructor(address approvedQuoteRegistry_, address tickerGardenBaselineRegistry_, address launchTemplateRegistry_) {
         _requireRegistry(approvedQuoteRegistry_);
-        _requireRegistry(ponsBaselineRegistry_);
+        _requireRegistry(tickerGardenBaselineRegistry_);
         _requireRegistry(launchTemplateRegistry_);
-        _requireDistinct(approvedQuoteRegistry_, ponsBaselineRegistry_);
+        _requireDistinct(approvedQuoteRegistry_, tickerGardenBaselineRegistry_);
         _requireDistinct(approvedQuoteRegistry_, launchTemplateRegistry_);
-        _requireDistinct(ponsBaselineRegistry_, launchTemplateRegistry_);
+        _requireDistinct(tickerGardenBaselineRegistry_, launchTemplateRegistry_);
 
         approvedQuoteRegistry = approvedQuoteRegistry_;
-        ponsBaselineRegistry = ponsBaselineRegistry_;
+        tickerGardenBaselineRegistry = tickerGardenBaselineRegistry_;
         launchTemplateRegistry = launchTemplateRegistry_;
     }
 
     /// @notice Resolve one quote, baseline, and launch template snapshot in one typed read.
     /// @dev Registry storage remains authoritative and is read independently for each supplied ID.
-    function resolve(bytes32 quoteAssetConfigId, bytes32 ponsBaselineId, bytes32 launchTemplateId)
+    function resolve(bytes32 quoteAssetConfigId, bytes32 tickerGardenBaselineId, bytes32 launchTemplateId)
         external
         view
         override
-        returns (QuoteAssetConfig memory quote, PonsBaseline memory baseline, LaunchTemplate memory template)
+        returns (QuoteAssetConfig memory quote, TickerGardenBaseline memory baseline, LaunchTemplate memory template)
     {
         quote = IApprovedQuoteRegistry(approvedQuoteRegistry).quoteConfig(quoteAssetConfigId);
-        baseline = IPonsBaselineRegistry(ponsBaselineRegistry).baseline(ponsBaselineId);
+        baseline = ITickerGardenBaselineRegistry(tickerGardenBaselineRegistry).baseline(tickerGardenBaselineId);
         template = ILaunchTemplateRegistry(launchTemplateRegistry).launchTemplate(launchTemplateId);
     }
 

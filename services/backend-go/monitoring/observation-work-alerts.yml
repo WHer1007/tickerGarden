@@ -1,0 +1,33 @@
+groups:
+  - name: tickergarden-observation-work
+    rules:
+      - alert: TickerGardenObservationCollectorDown
+        expr: up{job="tickergarden-observation"} == 0
+        for: 2m
+        labels: {severity: critical}
+        annotations: {summary: "Observation queue collector cannot be scraped"}
+      - alert: TickerGardenObservationMetricsMissing
+        expr: |
+          (up{job="tickergarden-observation"} == 1 unless on (job, instance) tickergarden_observation_observed_timestamp_seconds{job="tickergarden-observation"})
+          or (up{job="tickergarden-observation"} == 1 unless on (job, instance) tickergarden_observation_attention{job="tickergarden-observation"})
+        for: 2m
+        labels: {severity: warning}
+        annotations: {summary: "Observation queue scrape lacks required metrics"}
+      - alert: TickerGardenObservationReportStale
+        expr: time() - tickergarden_observation_observed_timestamp_seconds{job="tickergarden-observation"} > 120
+        for: 2m
+        labels: {severity: warning}
+        annotations: {summary: "Observation queue report is stale"}
+      - alert: TickerGardenObservationClockSkew
+        expr: tickergarden_observation_observed_timestamp_seconds{job="tickergarden-observation"} - time() > 30
+        for: 2m
+        labels: {severity: warning}
+        annotations: {summary: "Observation queue report is in the future"}
+      - alert: TickerGardenObservationAttention
+        expr: |
+          (tickergarden_observation_attention{job="tickergarden-observation"} == 1)
+          and on (job, instance) (time() - tickergarden_observation_observed_timestamp_seconds{job="tickergarden-observation"} <= 120)
+          and on (job, instance) (tickergarden_observation_observed_timestamp_seconds{job="tickergarden-observation"} - time() <= 30)
+        for: 2m
+        labels: {severity: warning}
+        annotations: {summary: "Observation queue has stalled, retrying or invalid jobs"}

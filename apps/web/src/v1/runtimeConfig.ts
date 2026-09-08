@@ -1,3 +1,4 @@
+import type { MarketRelease } from "./marketRelease.ts";
 import type { Address } from "viem";
 
 const ADDRESS_PATTERN = /^0x[0-9a-f]{40}$/;
@@ -22,10 +23,14 @@ export interface V1RuntimeConfig {
   readonly rageQuitFactory: Availability<Address>;
   readonly treasuryProofApi: Availability<string>;
   readonly treasuryWrites: Availability<true>;
+  readonly continuousHolderWrites: Availability<true>;
+  readonly releaseCatalog: readonly MarketRelease[];
   readonly reasons: readonly string[];
 }
 
-export const V1_TREASURY_RELEASE_APPROVAL = "V1-TREASURY-EXEC-1:DEPLOYED_E2E_APPROVED";
+export const V1_TREASURY_RELEASE_APPROVAL = "V1-TREASURY-EXEC-1:EMPTY_EPOCH_V1:DEPLOYED_E2E_APPROVED";
+
+export const CONTINUOUS_HOLDER_RELEASE_APPROVAL = "HOLDER_STREAM_24H_V1:DEPLOYED_E2E_APPROVED";
 
 const ADDRESS_KEYS = [
   ["VITE_V1_FACTORY_ADDRESS", "factoryAddress"],
@@ -102,10 +107,16 @@ export function parseV1RuntimeConfig(env: Record<string, string | boolean | unde
           `VITE_V1_TREASURY_RELEASE_APPROVAL must equal ${V1_TREASURY_RELEASE_APPROVAL} after deployment and live E2E approval`,
         ]),
       });
+  const continuousHolderWrites: Availability<true> = env.VITE_CONTINUOUS_HOLDER_RELEASE_APPROVAL === CONTINUOUS_HOLDER_RELEASE_APPROVAL
+    ? Object.freeze({ available: true, value: true })
+    : Object.freeze({ available: false, reasons: Object.freeze(["Continuous holder release requires deployment and live E2E approval"]) });
+  const catalogValue = env.VITE_MARKET_RELEASE_CATALOG;
+  const releaseCatalog: readonly MarketRelease[] = typeof catalogValue === "string" && catalogValue.trim() ? JSON.parse(catalogValue) : [];
+  if (!Array.isArray(releaseCatalog)) throw new Error("Release catalog must be an array");
   const reasons = [
     ...(readApi.available ? [] : readApi.reasons),
     ...(contracts.available ? [] : contracts.reasons),
     ...(treasuryProofApi.available ? [] : treasuryProofApi.reasons),
   ];
-  return Object.freeze({ readApi, contracts, rageQuitFactory, treasuryProofApi, treasuryWrites, reasons: Object.freeze(reasons) });
+  return Object.freeze({ readApi, contracts, rageQuitFactory, treasuryProofApi, treasuryWrites, continuousHolderWrites, releaseCatalog, reasons: Object.freeze(reasons) });
 }

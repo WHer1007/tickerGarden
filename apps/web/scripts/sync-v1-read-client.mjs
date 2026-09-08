@@ -3,7 +3,7 @@ import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const websiteRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..");
-const backendClientPath = resolve(websiteRoot, "../../services/backend-api/src/generated/v1-client.ts");
+const backendClientPath = resolve(websiteRoot, "../../services/backend-go/openapi/generated/v1-client.ts");
 const outputPath = resolve(websiteRoot, "src/v1/generated/read-api.ts");
 const check = process.argv.includes("--check");
 const backendClient = await readFile(backendClientPath, "utf8");

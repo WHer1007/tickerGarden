@@ -7,7 +7,7 @@ import {PoolKey} from "../../../src/v1/interfaces/IV1Protocol.sol";
 import {LaunchLockerBinding} from "../../../src/v1/shared/LaunchLockerBinding.sol";
 import {LaunchLockerCustody} from "../../../src/v1/shared/LaunchLockerCustody.sol";
 import {
-    PoolExecutionPonsBaselineRegistryMock,
+    PoolExecutionTickerGardenBaselineRegistryMock,
     PoolExecutionQuoteRegistryMock,
     PoolExecutionRegistryMock,
     PoolExecutionToken
@@ -42,7 +42,7 @@ contract LaunchLockerCustodyTest is Test {
         quote = new PoolExecutionToken("QUOTE");
         meme = new PoolExecutionToken("MEME");
         PoolExecutionQuoteRegistryMock quoteRegistry = new PoolExecutionQuoteRegistryMock();
-        PoolExecutionPonsBaselineRegistryMock baselineRegistry = new PoolExecutionPonsBaselineRegistryMock();
+        PoolExecutionTickerGardenBaselineRegistryMock baselineRegistry = new PoolExecutionTickerGardenBaselineRegistryMock();
         registry = new PoolExecutionRegistryMock(address(quoteRegistry), address(baselineRegistry));
         positionManager = new LaunchLockerPositionManagerMock();
         registry.configure(MARKET_ID, QUOTE_ID, address(quote), address(meme), address(0xC0A7), HOOK);

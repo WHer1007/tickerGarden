@@ -3,7 +3,7 @@ pragma solidity 0.8.26;
 
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
-import {CreateMarketParams, IPonsCompatibleCurve, QuoteAssetConfig} from "../interfaces/IV1Protocol.sol";
+import {CreateMarketParams, ITickerGardenCurve, QuoteAssetConfig} from "../interfaces/IV1Protocol.sol";
 import {LaunchAndBuyRouterNative} from "./LaunchAndBuyRouterNative.sol";
 
 /// @notice Exact-arrival ERC-20 Quote composition shared by the final LaunchAndBuyRouter.
@@ -52,7 +52,7 @@ abstract contract LaunchAndBuyRouterERC20 is LaunchAndBuyRouterNative {
         _requireCreatedMarket(marketId, memeToken, state.curve);
         _approveCurveExact(state.quoteAsset, state.curve, firstBuyAmount);
 
-        (tokensOut, state.quoteSpent) = IPonsCompatibleCurve(state.curve).buy(firstBuyAmount, minTokensOut, recipient);
+        (tokensOut, state.quoteSpent) = ITickerGardenCurve(state.curve).buy(firstBuyAmount, minTokensOut, recipient);
         if (state.quoteSpent > firstBuyAmount) revert InvalidQuoteSpent(firstBuyAmount, state.quoteSpent);
         refund = firstBuyAmount - state.quoteSpent;
 
@@ -65,7 +65,7 @@ abstract contract LaunchAndBuyRouterERC20 is LaunchAndBuyRouterNative {
         }
     }
 
-    function _requireERC20Quote(bytes32 quoteAssetConfigId) private view returns (address quoteAsset) {
+    function _requireERC20Quote(bytes32 quoteAssetConfigId) internal view returns (address quoteAsset) {
         QuoteAssetConfig memory quote = _approvedQuoteRegistry.quoteConfig(quoteAssetConfigId);
         if (quote.status != CONFIG_STATUS_ACTIVE) {
             revert QuoteConfigNotActive(quoteAssetConfigId, quote.status);
@@ -82,13 +82,13 @@ abstract contract LaunchAndBuyRouterERC20 is LaunchAndBuyRouterNative {
         if (received != amount) revert InexactQuoteBalanceDelta(quoteAsset, amount, received);
     }
 
-    function _approveCurveExact(address quoteAsset, address curve, uint256 amount) private {
+    function _approveCurveExact(address quoteAsset, address curve, uint256 amount) internal {
         _requireAllowance(quoteAsset, curve, 0);
         _strictQuoteCall(quoteAsset, abi.encodeCall(IERC20.approve, (curve, amount)));
         _requireAllowance(quoteAsset, curve, amount);
     }
 
-    function _transferQuoteExact(address quoteAsset, address creator, uint256 amount) private {
+    function _transferQuoteExact(address quoteAsset, address creator, uint256 amount) internal {
         uint256 senderBefore = _balanceOf(quoteAsset, address(this));
         uint256 creatorBefore = _balanceOf(quoteAsset, creator);
         _strictQuoteCall(quoteAsset, abi.encodeCall(IERC20.transfer, (creator, amount)));
@@ -100,12 +100,12 @@ abstract contract LaunchAndBuyRouterERC20 is LaunchAndBuyRouterNative {
         if (credit != amount) revert InexactQuoteBalanceDelta(quoteAsset, amount, credit);
     }
 
-    function _requireBalance(address quoteAsset, address account, uint256 expected) private view {
+    function _requireBalance(address quoteAsset, address account, uint256 expected) internal view {
         uint256 actual = _balanceOf(quoteAsset, account);
         if (actual != expected) revert InexactQuoteBalanceDelta(quoteAsset, expected, actual);
     }
 
-    function _requireAllowance(address quoteAsset, address spender, uint256 expected) private view {
+    function _requireAllowance(address quoteAsset, address spender, uint256 expected) internal view {
         (bool success, bytes memory result) =
             quoteAsset.staticcall(abi.encodeCall(IERC20.allowance, (address(this), spender)));
         if (!success || result.length != 32) {
@@ -115,13 +115,13 @@ abstract contract LaunchAndBuyRouterERC20 is LaunchAndBuyRouterNative {
         if (actual != expected) revert InexactQuoteAllowance(quoteAsset, spender, expected, actual);
     }
 
-    function _balanceOf(address quoteAsset, address account) private view returns (uint256 balance) {
+    function _balanceOf(address quoteAsset, address account) internal view returns (uint256 balance) {
         (bool success, bytes memory result) = quoteAsset.staticcall(abi.encodeCall(IERC20.balanceOf, (account)));
         if (!success || result.length != 32) revert InvalidQuoteBalanceRead(quoteAsset, account);
         balance = abi.decode(result, (uint256));
     }
 
-    function _strictQuoteCall(address quoteAsset, bytes memory data) private {
+    function _strictQuoteCall(address quoteAsset, bytes memory data) internal {
         (bool success, bytes memory result) = quoteAsset.call(data);
         if (!success) revert QuoteTransferCallFailed(quoteAsset);
         if (result.length != 32) revert InvalidQuoteTransferReturn(quoteAsset);

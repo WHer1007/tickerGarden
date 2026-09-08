@@ -14,8 +14,8 @@ import {
     InvariantMarketRegistry,
     InvariantFeeVault
 } from "../product/VaultGaugeInvariant.t.sol";
-import {StockTokenFingerprint, GaugeIdentity, PonsBaseline} from "../../../src/v1/interfaces/IV1Protocol.sol";
-import {PonsBaselineRegistry} from "../../../src/v1/modules/PonsBaselineRegistry.sol";
+import {StockTokenFingerprint, GaugeIdentity, TickerGardenBaseline} from "../../../src/v1/interfaces/IV1Protocol.sol";
+import {TickerGardenBaselineRegistry} from "../../../src/v1/modules/TickerGardenBaselineRegistry.sol";
 import {AllocationManager} from "../../../src/v1/modules/AllocationManager.sol";
 import {UserStockVault} from "../../../src/v1/modules/UserStockVault.sol";
 import {MemeStockGauge} from "../../../src/v1/modules/MemeStockGauge.sol";
@@ -82,9 +82,9 @@ contract Audit20260905ScannerTest is Test {
 
 contract Audit20260905AdmissionTest is Test {
     function test_audit_baselineRejectsFeeAboveCurveLimit() public {
-        PonsBaselineRegistry registry = new PonsBaselineRegistry(address(new AccessManager(address(this))));
+        TickerGardenBaselineRegistry registry = new TickerGardenBaselineRegistry(address(new AccessManager(address(this))));
         address referenceFactory = address(new EmptyV1Contract());
-        PonsBaseline memory baseline = PonsBaseline({
+        TickerGardenBaseline memory baseline = TickerGardenBaseline({
             referenceChainId: block.chainid,
             referenceFactory: referenceFactory,
             referenceFactoryCodeHash: referenceFactory.codehash,
@@ -97,7 +97,7 @@ contract Audit20260905AdmissionTest is Test {
             status: 1
         });
         bytes32 id = keccak256("audit-baseline");
-        vm.expectRevert(abi.encodeWithSelector(PonsBaselineRegistry.InvalidPonsBaseline.selector, id));
+        vm.expectRevert(abi.encodeWithSelector(TickerGardenBaselineRegistry.InvalidTickerGardenBaseline.selector, id));
         registry.addBaseline(id, baseline);
     }
 }

@@ -31,7 +31,7 @@ Robinhood 官方链下 `/rhj/prices/{symbol}` 可供受约束的配置生成器�
 
 ## 4. 毕业经济域准入
 
-`PonsBaselineRegistry` 与 `ApprovedQuoteRegistry` 分别拒绝超过 `int128.max` 的 supply、phantomQuote 和 graduationThreshold。Factory 的 preview/create 在预留 marketId 或部署任何组件之前，再对实际 baseline + quote 组合执行联合校验。canonical pool Quote 固定为 `ceil(sellableTokens × phantomQuote / reservedTokens)`；canonical pool Meme 固定按该 Quote 与 reservedTokens 推导。这样初始池价格不受任意交易历史的整数舍入影响。Curve 在最终 fee sweep 后、转移资产前要求实际 Meme 恰好等于 reservedTokens、实际 Quote 不低于 canonical pool Quote；多出的 Quote 和未进池 Meme 永久锁入 LaunchLocker。两种 token 地址排序都运行同一 `GraduationPoolMath`，覆盖 v4 signed amount、sqrt price、tick 与 max-liquidity 域；任一步不可表示或建池失败，最终买入整笔回滚并保持 `NotGraduated`。Factory 还要求 Stock Vault 是 Registry 中 canonical `MultiAsset.v6` reverse binding，runtime codehash 与初次登记一致，且 Vault 自报的 Registry、MarketRegistry、AllocationManager 与 schema 全部匹配。无法形成可表示 canonical pool 或身份漂移的 Vault 组合不得创建市场。
+`TickerGardenBaselineRegistry` 与 `ApprovedQuoteRegistry` 分别拒绝超过 `int128.max` 的 supply、phantomQuote 和 graduationThreshold。Factory 的 preview/create 在预留 marketId 或部署任何组件之前，再对实际 baseline + quote 组合执行联合校验。canonical pool Quote 固定为 `ceil(sellableTokens × phantomQuote / reservedTokens)`；canonical pool Meme 固定按该 Quote 与 reservedTokens 推导。这样初始池价格不受任意交易历史的整数舍入影响。Curve 在最终 fee sweep 后、转移资产前要求实际 Meme 恰好等于 reservedTokens、实际 Quote 不低于 canonical pool Quote；多出的 Quote 和未进池 Meme 永久锁入 LaunchLocker。两种 token 地址排序都运行同一 `GraduationPoolMath`，覆盖 v4 signed amount、sqrt price、tick 与 max-liquidity 域；任一步不可表示或建池失败，最终买入整笔回滚并保持 `NotGraduated`。Factory 还要求 Stock Vault 是 Registry 中 canonical `MultiAsset.v6` reverse binding，runtime codehash 与初次登记一致，且 Vault 自报的 Registry、MarketRegistry、AllocationManager 与 schema 全部匹配。无法形成可表示 canonical pool 或身份漂移的 Vault 组合不得创建市场。
 
 ## 5. 迁移不兼容清单
 

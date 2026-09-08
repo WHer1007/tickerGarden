@@ -1,6 +1,14 @@
+最新 RH 测试网原子首买：[部署、公开链测试与激活报告](../../deployments/releases/0x985650b4d3758a5345be196182d2945b9c2df3f828fdb4dbd1a94e4b6def2b64/ATOMIC_BUY_REPORT.md)。
+
+RH 测试网资料入口：[网络、官方资产、v4 池、部署地址与 ETH 原子首买参考](./V1_ROBINHOOD_TESTNET_REFERENCE.md)。
+
+> 2026-09-06 更新：R3 测试链版本已部署，使用 7 天持有人周期与 0.42 ETH 测试毕业门槛。此前重命名候选的 NOT_BROADCAST / 阻塞记录属于历史阶段；当前验证范围和时间限制以 [R3 测试报告](../../outputs/reviews/arbitrum-r3-scenarios/REPORT.md) 为准。RH 生产就绪仍未确认。
+
 # TickerGarden V1 documentation index
 
-Current release status: `DEPLOYMENT_ELIGIBLE / NOT_PRODUCTION_READY / NOT_BROADCAST`. Refreshed verification is recorded in [`outputs/reviews/testnet-release-candidate/`](../../outputs/reviews/testnet-release-candidate/) and [`deployments/evidence/v1-deployment-gates-current.json`](../../deployments/evidence/v1-deployment-gates-current.json). No current release certificate exists.
+品牌重命名说明：当前源码与 ABI 是未部署候选版本。本文涉及的 R2 地址与链上快照仍属重命名前版本，不能将新 ABI 用于旧 R2；后续新 release 必须重新部署并重新生成操作记录。本索引不写部署成功结论，也不修改历史链上事实。
+
+Current Arbitrum Sepolia R2 status: `DEPLOYED_VERIFIED_ACTIVE_TEST_ONLY`; see the [confirmed deployment](../../deployments/manifests/arbitrum-sepolia-421614.v1.deployed.json) and [activation manifest](../../deployments/manifests/arbitrum-sepolia-421614.v1.activation.json). RH remains the final production target; this is not production readiness. The earlier [`optional-stock-staking` review](../../outputs/reviews/optional-stock-staking/) and [gate evidence](../../deployments/evidence/v1-optional-staking-gates.json) describe their historical pre-broadcast checkpoint.
 
 `V1-EXEC-11` is the current execution baseline. Machine-readable manifests under [`spec/`](../../spec/) take precedence when a prose document and generated protocol artifact disagree.
 
@@ -11,6 +19,7 @@ Current release status: `DEPLOYMENT_ELIGIBLE / NOT_PRODUCTION_READY / NOT_BROADC
 - [`V1_TYPED_IDENTIFIERS.md`](./V1_TYPED_IDENTIFIERS.md) — typed IDs, hashes, and CREATE2 domains.
 - [`V1_PONS_BEHAVIOR_BASELINE.md`](./V1_PONS_BEHAVIOR_BASELINE.md) — adopted and rejected Pons behavior.
 - [`V1_DEVELOPMENT_PLAN.md`](./V1_DEVELOPMENT_PLAN.md) — implementation scope and acceptance gates.
+- [`../PLATFORM_REVENUE_USE.md`](../PLATFORM_REVENUE_USE.md) — user-facing explanation of how the Platform uses its protocol-fee share.
 
 ## Contract architecture and accounting
 
@@ -43,5 +52,8 @@ Current release status: `DEPLOYMENT_ELIGIBLE / NOT_PRODUCTION_READY / NOT_BROADC
 
 ## Testnet deployment operations
 
+- [`V1_ADMIN_OPERATIONS_MANUAL.md`](./V1_ADMIN_OPERATIONS_MANUAL.md) — 中文人工管理教程：权限边界、角色移交、多签、延迟执行、各项参数、白名单、奖励兑换、Root 发布、排错与操作记录。
 - [`V1_TESTNET_DEPLOYMENT_RUNBOOK.md`](./V1_TESTNET_DEPLOYMENT_RUNBOOK.md) — deterministic preview, rehearsal, broadcast boundary, role handoff, and deployed-manifest verification.
 - [`V1_TESTNET_ROLLBACK_CHECKLIST.md`](./V1_TESTNET_ROLLBACK_CHECKLIST.md) — phase-specific retry, abandonment, pause/retire, user-exit, and incident handling.
+
+品牌命名变更及兼容性说明：[V1_BRAND_RENAME.md](V1_BRAND_RENAME.md)。

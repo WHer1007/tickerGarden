@@ -1,3 +1,4 @@
+import { ROBINHOOD_CHAIN_ID } from "../chain.ts";
 import { decodeEventLog, type Address, type Hex, type TransactionReceipt } from "viem";
 import type { MarketDetailResponse, MarketReadModel, SyncStatus } from "../readApi.ts";
 import { v1Abis } from "../generated/abis.ts";
@@ -13,7 +14,7 @@ const MAX_UINT256 = (1n << 256n) - 1n;
 
 export type CreateMarketParams = Readonly<{
   assetUid: Hex;
-  ponsBaselineId: Hex;
+  tickerGardenBaselineId: Hex;
   quoteAssetConfigId: Hex;
   launchTemplateId: Hex;
   expectedEconomics: Hex;
@@ -22,18 +23,24 @@ export type CreateMarketParams = Readonly<{
   symbol: string;
   metadataURI: string;
   salt: Hex;
+  creatorTaxBps: number;
+  creatorFeesToHolders: boolean;
+  stakingEnabled: boolean;
 }>;
 
 export type SelectedLaunchConfig = Readonly<{
-  asset: Readonly<{ assetUid: Hex; status: number }>;
-  quote: Readonly<{ configId: Hex; economicsHash: Hex; quoteAsset: Address; ponsBaselineId: Hex; status: number }>;
-  pons: Readonly<{ baselineId: Hex; status: number }>;
+  asset?: Readonly<{ assetUid: Hex; status: number }>;
+  quote: Readonly<{ configId: Hex; economicsHash: Hex; quoteAsset: Address; tickerGardenBaselineId: Hex; status: number }>;
+  baseline: Readonly<{ baselineId: Hex; status: number }>;
   template: Readonly<{ templateId: Hex; status: number }>;
   creatorRevenueBeneficiary: Address;
   name: string;
   symbol: string;
   metadataURI: string;
   salt: Hex;
+  creatorTaxBps?: number;
+  creatorFeesToHolders?: boolean;
+  stakingEnabled?: boolean;
 }>;
 
 export type LaunchRequestSet = Readonly<{
@@ -97,7 +104,7 @@ function active(status: number, label: string): void {
 }
 
 function assertSynced(sync: SyncStatus): void {
-  if (sync.chainId !== 4663 || sync.status !== "synced" || sync.finality !== "finalized" || sync.blockNumber === null || sync.blockHash === null || !/^\d+$/.test(sync.blockNumber) || !HEX32.test(sync.blockHash) || !/^\d+:0x[0-9a-f]{64}$/.test(sync.revision)) {
+  if (sync.chainId !== ROBINHOOD_CHAIN_ID || sync.status !== "synced" || sync.finality !== "finalized" || sync.blockNumber === null || sync.blockHash === null || !/^\d+$/.test(sync.blockNumber) || !HEX32.test(sync.blockHash) || !/^\d+:0x[0-9a-f]{64}$/.test(sync.revision)) {
     throw new Error("chain snapshot must be synced and finalized");
   }
   if (sync.revision !== `${sync.blockNumber}:${sync.blockHash}`) throw new Error("chain snapshot revision drift");
@@ -121,7 +128,7 @@ function assertAddressPair(market: MarketReadModel): void {
 
 function assertCanonicalSource(source: MarketReadModel["source"], label: string): void {
   if (
-    source.chainId !== 4663 ||
+    source.chainId !== ROBINHOOD_CHAIN_ID ||
     !/^\d+$/.test(source.blockNumber) ||
     !HEX32.test(source.blockHash) ||
     !HEX32.test(source.transactionHash) ||
@@ -133,23 +140,38 @@ function assertCanonicalSource(source: MarketReadModel["source"], label: string)
 }
 
 export function deriveCreateMarketParams(config: SelectedLaunchConfig): CreateMarketParams {
-  active(config.asset.status, "asset");
+  const stakingEnabled = config.stakingEnabled ?? true;
+  if (typeof stakingEnabled !== "boolean") throw new TypeError("stakingEnabled must be boolean");
+  const suppliedAssetUid = config.asset?.assetUid;
+  if (stakingEnabled) {
+    if (!config.asset) throw new Error("asset is required when staking is enabled");
+    active(config.asset.status, "asset");
+    if (canonicalHex(config.asset.assetUid, "assetUid") === ZERO_HEX32) throw new Error("Enabled staking requires a nonzero stock asset");
+  } else if (suppliedAssetUid !== undefined && canonicalHex(suppliedAssetUid, "assetUid") !== ZERO_HEX32) {
+    throw new Error("disabled staking requires assetUid to be zero");
+  }
   active(config.quote.status, "quote");
-  active(config.pons.status, "pons baseline");
+  active(config.baseline.status, "baseline baseline");
   active(config.template.status, "launch template");
-  const assetUid = canonicalHex(config.asset.assetUid, "assetUid");
-  const ponsBaselineId = canonicalHex(config.pons.baselineId, "ponsBaselineId");
+  const assetUid = stakingEnabled ? canonicalHex(config.asset!.assetUid, "assetUid") : ZERO_HEX32;
+  const tickerGardenBaselineId = canonicalHex(config.baseline.baselineId, "tickerGardenBaselineId");
   const quoteAssetConfigId = canonicalHex(config.quote.configId, "quoteAssetConfigId");
   const launchTemplateId = canonicalHex(config.template.templateId, "launchTemplateId");
   const quoteEconomicsHash = canonicalHex(config.quote.economicsHash, "quote.economicsHash");
-  const quoteBaselineId = canonicalHex(config.quote.ponsBaselineId, "quote.ponsBaselineId");
-  if (quoteBaselineId.toLowerCase() !== ponsBaselineId.toLowerCase()) throw new Error("quote/pons baseline mismatch");
+  const quoteBaselineId = canonicalHex(config.quote.tickerGardenBaselineId, "quote.tickerGardenBaselineId");
+  if (quoteBaselineId.toLowerCase() !== tickerGardenBaselineId.toLowerCase()) throw new Error("quote/baseline baseline mismatch");
   if (quoteAssetConfigId.toLowerCase() !== quoteEconomicsHash.toLowerCase()) throw new Error("quote configId/economicsHash mismatch");
   if (config.quote.quoteAsset !== ZERO_ADDRESS) canonicalAddress(config.quote.quoteAsset, "quoteAsset");
   if (config.creatorRevenueBeneficiary === ZERO_ADDRESS) throw new Error("creatorRevenueBeneficiary cannot be zero");
   contractAddress(config.creatorRevenueBeneficiary, "creatorRevenueBeneficiary");
+  if (config.creatorFeesToHolders !== undefined && typeof config.creatorFeesToHolders !== "boolean") throw new TypeError("Holder fee sharing must be boolean");
+  const tax = config.creatorTaxBps ?? 0;
+  if (!Number.isInteger(tax) || tax < 0 || tax > 500) throw new RangeError("Creator tax must be between 0 and 500 bps");
   return Object.freeze({
-    assetUid, ponsBaselineId, quoteAssetConfigId, launchTemplateId, expectedEconomics: ZERO_HEX32,
+    creatorTaxBps: tax,
+    creatorFeesToHolders: config.creatorFeesToHolders ?? false,
+    stakingEnabled,
+    assetUid, tickerGardenBaselineId, quoteAssetConfigId, launchTemplateId, expectedEconomics: ZERO_HEX32,
     creatorRevenueBeneficiary: config.creatorRevenueBeneficiary,
     name: config.name, symbol: config.symbol, metadataURI: config.metadataURI,
     salt: canonicalHex(config.salt, "salt"),
@@ -191,6 +213,12 @@ export async function buildLaunchAndBuyRequests(input: Readonly<{
   router: Address;
   launchFee: bigint;
   quoteIn: bigint;
+  /**
+   * Optional native currency budget for an ERC-20 Quote fallback route.
+   * The launch ABI remains unchanged; the receiving router must support this
+   * value-bearing fallback before this option is enabled in production.
+   */
+  maxNativeQuoteInput?: bigint;
   minTokensOut: bigint;
   recipient: Address;
   config: SelectedLaunchConfig;
@@ -204,14 +232,25 @@ export async function buildLaunchAndBuyRequests(input: Readonly<{
   contractAddress(input.recipient, "recipient");
   const native = input.config.quote.quoteAsset === ZERO_ADDRESS;
   if (native && input.launchFee > MAX_UINT256 - input.quoteIn) throw new RangeError("native launch value exceeds uint256");
+  const nativeQuoteFallback = !native && input.maxNativeQuoteInput !== undefined;
+  if (nativeQuoteFallback) {
+    positive(input.maxNativeQuoteInput!, "maxNativeQuoteInput");
+    if (input.launchFee > MAX_UINT256 - input.maxNativeQuoteInput!) {
+      throw new RangeError("native fallback launch value exceeds uint256");
+    }
+  }
   const request = createContractWriteRequest({
     abi: v1Abis.LaunchAndBuyRouter,
     address: input.router,
     functionName: "launchAndBuy",
     args: [params, input.quoteIn, input.minTokensOut, input.recipient],
-    value: native ? input.launchFee + input.quoteIn : input.launchFee,
+    value: native
+      ? input.launchFee + input.quoteIn
+      : nativeQuoteFallback
+        ? input.launchFee + input.maxNativeQuoteInput!
+        : input.launchFee,
   });
-  if (native) return Object.freeze({ params, request });
+  if (native || nativeQuoteFallback) return Object.freeze({ params, request });
   const approval = createContractWriteRequest({
     abi: v1Abis.TickerMemeTokenV1,
     address: input.config.quote.quoteAsset,
@@ -242,19 +281,20 @@ export function findCanonicalMarketCreated(
       const assetUid = canonicalHex(String(args.assetUid).toLowerCase(), "MarketCreated.assetUid");
       const memeToken = contractAddress(String(args.memeToken).toLowerCase(), "MarketCreated.memeToken");
       const curve = contractAddress(String(args.curve).toLowerCase(), "MarketCreated.curve");
-      const gauge = contractAddress(String(args.gauge).toLowerCase(), "MarketCreated.gauge");
+      const rawGauge = canonicalAddress(String(args.gauge).toLowerCase(), "MarketCreated.gauge");
       const quoteAsset = canonicalAddress(String(args.quoteAsset).toLowerCase(), "MarketCreated.quoteAsset");
-      const ponsBaselineId = canonicalHex(String(args.ponsBaselineId).toLowerCase(), "MarketCreated.ponsBaselineId");
+      const tickerGardenBaselineId = canonicalHex(String(args.tickerGardenBaselineId).toLowerCase(), "MarketCreated.tickerGardenBaselineId");
       const quoteAssetConfigId = canonicalHex(String(args.quoteAssetConfigId).toLowerCase(), "MarketCreated.quoteAssetConfigId");
       const expectedEconomics = canonicalHex(String(args.expectedEconomics).toLowerCase(), "MarketCreated.expectedEconomics");
       if (
         assetUid !== expected.params.assetUid
+        || (expected.params.stakingEnabled ? rawGauge === ZERO_ADDRESS : rawGauge !== ZERO_ADDRESS)
         || quoteAsset !== expectedQuote
-        || ponsBaselineId !== expected.params.ponsBaselineId
+        || tickerGardenBaselineId !== expected.params.tickerGardenBaselineId
         || quoteAssetConfigId !== expected.params.quoteAssetConfigId
         || expectedEconomics !== expected.params.expectedEconomics
       ) continue;
-      return Object.freeze({ marketId, memeToken, curve, gauge });
+      return Object.freeze({ marketId, memeToken, curve, gauge: rawGauge });
     } catch {
       // A receipt can contain unrelated logs from the Router, tokens and Curve.
     }
@@ -263,12 +303,15 @@ export function findCanonicalMarketCreated(
 }
 
 function validateCurveResponse(response: MarketDetailResponse): MarketReadModel {
-  assertSynced(response.sync);
+  if ("observation" in response && response.observation === "direct-chain") {
+    const s=response.sync;
+    if(s.chainId!==ROBINHOOD_CHAIN_ID||s.status!=="synced"||s.finality!=="head"||!s.blockNumber||!s.blockHash||s.revision!==`${s.blockNumber}:${s.blockHash}`)throw Error("Invalid direct market observation");
+  } else assertSynced(response.sync);
   const market = response.market;
   canonicalHex(market.marketId, "marketId");
   canonicalHex(market.assetUid, "assetUid");
   canonicalHex(market.quoteAssetConfigId, "quoteAssetConfigId");
-  canonicalHex(market.ponsBaselineId, "ponsBaselineId");
+  canonicalHex(market.tickerGardenBaselineId, "tickerGardenBaselineId");
   assertAddressPair(market);
   assertCanonicalSource(market.source, "market");
   if (
@@ -319,7 +362,7 @@ export function buildCurveBuyRequest(input: Readonly<{
   const view = toCurveViewModel(input.marketResponse);
   positive(input.quoteIn, "quoteIn"); positive(input.minTokensOut, "minTokensOut");
   const baseRequest = {
-    abi: v1Abis.PonsCompatibleCurve, address: view.curve, functionName: "buy",
+    abi: v1Abis.TickerGardenCurve, address: view.curve, functionName: "buy",
     args: [input.quoteIn, input.minTokensOut, contractAddress(input.recipient, "recipient")],
   } as const;
   const request = view.quoteAssetKind === "native"
@@ -341,7 +384,7 @@ export function buildCurveSellRequest(input: Readonly<{
   const view = toCurveViewModel(input.marketResponse);
   positive(input.tokensIn, "tokensIn"); positive(input.minQuoteOut, "minQuoteOut");
   const request = createContractWriteRequest({
-    abi: v1Abis.PonsCompatibleCurve, address: view.curve, functionName: "sell",
+    abi: v1Abis.TickerGardenCurve, address: view.curve, functionName: "sell",
     args: [input.tokensIn, input.minQuoteOut, contractAddress(input.recipient, "recipient")],
   });
   const approval = createContractWriteRequest({

@@ -22,3 +22,7 @@ Official-stock evidence retains the registration calldata fingerprint and
 immutable beacon binding. An implementation upgrade follows immediate guardian
 `pauseAsset`, 48-hour-governance `acceptAssetImplementation`, then delayed
 `unpauseAsset`, in that order.
+
+## Reusable RH testnet Stock swap routes
+
+`robinhood-testnet-46630.stock-swap-routes.json` records the five successfully executed Synthra V3 purchase routes. Read this configuration first for future ETH-to-Stock funding. Use the saved pool and fee directly; refresh only the requested amount quote and transaction state. Do not repeat address discovery or historical scans. See [the runbook](../../docs/runbooks/robinhood-testnet-stock-purchases.md).

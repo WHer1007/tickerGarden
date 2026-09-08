@@ -14,12 +14,12 @@
 
 ```text
 ApprovedQuoteRegistry ─┐
-PonsBaselineRegistry ──┼─> LaunchConfigResolver（只读、无缓存、可选调用面）
+TickerGardenBaselineRegistry ──┼─> LaunchConfigResolver（只读、无缓存、可选调用面）
 LaunchTemplateRegistry ┘
 
 TickerGardenFactoryV1
 ├─ TickerMemeTokenV1：每市场完整 CREATE2 合约
-├─ PonsCompatibleCurve：每市场完整 CREATE2 合约
+├─ TickerGardenCurve：每市场完整 CREATE2 合约
 ├─ MemeStockGauge：一个固定 implementation + 每市场 immutable-args CREATE2 clone
 └─ LaunchLocker：每个毕业市场一个完整、独立 CREATE2 合约
 ```
@@ -35,7 +35,7 @@ TickerGardenFactoryV1
 - 独立 selector 权限、暂停和退休状态机；
 - 任一 Registry 缺陷不直接改写其他配置类型；
 - 原有事件和索引语义不迁移；
-- Web/运维可一次读取 `QuoteAssetConfig + PonsBaseline + LaunchTemplate`；
+- Web/运维可一次读取 `QuoteAssetConfig + TickerGardenBaseline + LaunchTemplate`；
 - Registry 返回值始终是实时权威值，不存在缓存漂移。
 
 因此，Resolver 是管理面的聚合，不是安全边界的合并。

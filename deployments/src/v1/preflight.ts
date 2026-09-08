@@ -329,7 +329,7 @@ function verifyLaunchConfigResolverEvidence(manifest: Manifest): void {
   const resolver = manifest.protocolModules.LaunchConfigResolver!;
   const bindings = [
     ["approvedQuoteRegistry()", "ApprovedQuoteRegistry"],
-    ["ponsBaselineRegistry()", "PonsBaselineRegistry"],
+    ["tickerGardenBaselineRegistry()", "TickerGardenBaselineRegistry"],
     ["launchTemplateRegistry()", "LaunchTemplateRegistry"],
   ] as const;
   for (const [getter, registryName] of bindings) {
@@ -380,7 +380,7 @@ function verifyRegistryAuthorityEvidence(manifest: Manifest): void {
   const bindings = [
     ["OfficialStockRegistryV1", "official-stock-registry-access-manager-authority"],
     ["ApprovedQuoteRegistry", "approved-quote-registry-access-manager-authority"],
-    ["PonsBaselineRegistry", "pons-baseline-registry-access-manager-authority"],
+    ["TickerGardenBaselineRegistry", "tickergarden-baseline-registry-access-manager-authority"],
     ["LaunchTemplateRegistry", "launch-template-registry-access-manager-authority"],
   ] as const;
   for (const [registryName, label] of bindings) {
@@ -444,7 +444,7 @@ function stockQuoteEconomicsHash(manifest: Manifest, quote: JsonRecord): string 
     keccakUtf8("TICKERGARDEN_V1_STOCK_QUOTE_ECONOMICS").slice(2),
     uintWord(1n),
     uintWord(BigInt(numberField(manifest.chain, "chainId"))),
-    stringField(quote, "ponsBaselineId").slice(2),
+    stringField(quote, "tickerGardenBaselineId").slice(2),
     addressWord(stringField(quote, "tokenAddress")),
     uintWord(BigInt(numberField(quote, "decimals"))),
     uintWord(BigInt(stringField(quote, "phantomQuote"))),

@@ -7,24 +7,27 @@ const repositoryRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url))
 const sourceRoots = [
   "contracts/src/v1",
   "contracts/test/v1",
-  "services/backend-api/src",
-  "services/indexer/src",
+  "services/backend-go/cmd",
+  "services/backend-go/internal",
   "deployments/src",
-  "services/maintenance-runner/src",
   "apps/web/src",
 ];
 
 const requiredPaths = [
   "contracts/src/v1/shared/V1Scaffold.sol",
   "contracts/test/v1/V1Scaffold.t.sol",
-  "services/backend-api/src/index.ts",
-  "services/indexer/src/index.ts",
+  "services/backend-go/cmd/api/main.go",
+  "services/backend-go/cmd/indexer/main.go",
   "deployments/src/index.ts",
-  "services/maintenance-runner/src/index.ts",
+  "services/backend-go/cmd/maintenance-worker/main.go",
   "apps/web/src/app.ts",
 ];
 
 const retiredPaths = [
+  "services/backend-api",
+  "services/indexer",
+  "services/maintenance-runner",
+  "services/treasury-root-generator",
   "contracts/src/EmissionController.sol",
   "contracts/src/RewardEscrow.sol",
   "contracts/src/StockStakingGauge.sol",
@@ -67,7 +70,7 @@ const forbiddenSymbols = [
 
 const forbiddenProductionImports = ["spec/interfaces/IV1MutationSurfaceDraft.sol"];
 
-const sourceExtensions = new Set([".sol", ".ts", ".tsx", ".js", ".jsx"]);
+const sourceExtensions = new Set([".sol", ".ts", ".tsx", ".js", ".jsx", ".go"]);
 const ignoredDirectories = new Set(["node_modules", "dist", "out", "out-v1", "cache", "cache-v1"]);
 
 async function exists(relativePath) {
@@ -102,7 +105,7 @@ for (const requiredPath of requiredPaths) {
 }
 
 for (const retiredPath of retiredPaths) {
-  if (await exists(retiredPath)) failures.push(`retired Test Prototype path is present: ${retiredPath}`);
+  if (await exists(retiredPath)) failures.push(`retired runtime path is present: ${retiredPath}`);
 }
 
 for (const sourceRoot of sourceRoots) {

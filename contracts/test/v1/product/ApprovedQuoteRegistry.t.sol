@@ -122,7 +122,7 @@ contract ApprovedQuoteRegistryTest is Test {
     address internal stockVault;
 
     event QuoteAssetConfigAdded(
-        bytes32 indexed configId, address indexed quoteAsset, bytes32 indexed ponsBaselineId, bytes32 economicsHash
+        bytes32 indexed configId, address indexed quoteAsset, bytes32 indexed tickerGardenBaselineId, bytes32 economicsHash
     );
     event QuoteAssetIdentityPinned(bytes32 indexed configId, address indexed quoteAsset, bytes32 runtimeCodeHash);
     event StockQuoteConfigBound(
@@ -248,7 +248,7 @@ contract ApprovedQuoteRegistryTest is Test {
 
     function test_unknownConfigIsUnsetAndNotNative() public view {
         QuoteAssetConfig memory config = registry.quoteConfig(keccak256("unknown"));
-        assertEq(config.ponsBaselineId, bytes32(0));
+        assertEq(config.tickerGardenBaselineId, bytes32(0));
         assertEq(config.quoteAsset, address(0));
         assertEq(config.quoteDecimals, 0);
         assertEq(config.phantomQuote, 0);
@@ -476,7 +476,7 @@ contract ApprovedQuoteRegistryTest is Test {
             generatorPolicyId: GENERATOR_POLICY_ID
         });
         QuoteAssetConfig memory config = QuoteAssetConfig({
-            ponsBaselineId: BASELINE_ID,
+            tickerGardenBaselineId: BASELINE_ID,
             quoteAsset: address(directStock),
             quoteDecimals: 18,
             phantomQuote: 2 ether,
@@ -631,7 +631,7 @@ contract ApprovedQuoteRegistryTest is Test {
         QuoteAssetConfig memory config = _nativeConfig();
         _expectInvalidConfig(bytes32(0), config);
 
-        config.ponsBaselineId = bytes32(0);
+        config.tickerGardenBaselineId = bytes32(0);
         _expectInvalidConfig(NATIVE_CONFIG_ID, config);
         config = _nativeConfig();
         config.status = 0;
@@ -830,7 +830,7 @@ contract ApprovedQuoteRegistryTest is Test {
 
     function _nativeConfig() private pure returns (QuoteAssetConfig memory) {
         return QuoteAssetConfig({
-            ponsBaselineId: BASELINE_ID,
+            tickerGardenBaselineId: BASELINE_ID,
             quoteAsset: address(0),
             quoteDecimals: 18,
             phantomQuote: 1_680_000_000_000_000_000,
@@ -846,7 +846,7 @@ contract ApprovedQuoteRegistryTest is Test {
         returns (QuoteAssetConfig memory config)
     {
         config = QuoteAssetConfig({
-            ponsBaselineId: BASELINE_ID,
+            tickerGardenBaselineId: BASELINE_ID,
             quoteAsset: quoteAsset,
             quoteDecimals: decimals,
             phantomQuote: phantom,
@@ -863,7 +863,7 @@ contract ApprovedQuoteRegistryTest is Test {
                 keccak256("TICKERGARDEN_V1_QUOTE_ECONOMICS"),
                 uint256(1),
                 block.chainid,
-                config.ponsBaselineId,
+                config.tickerGardenBaselineId,
                 config.quoteAsset,
                 config.quoteDecimals,
                 config.phantomQuote,
@@ -889,7 +889,7 @@ contract ApprovedQuoteRegistryTest is Test {
         returns (QuoteAssetConfig memory config)
     {
         config = QuoteAssetConfig({
-            ponsBaselineId: BASELINE_ID,
+            tickerGardenBaselineId: BASELINE_ID,
             quoteAsset: stockToken,
             quoteDecimals: 18,
             phantomQuote: phantom,
@@ -932,7 +932,7 @@ contract ApprovedQuoteRegistryTest is Test {
                 keccak256("TICKERGARDEN_V1_STOCK_QUOTE_ECONOMICS"),
                 uint256(1),
                 block.chainid,
-                config.ponsBaselineId,
+                config.tickerGardenBaselineId,
                 config.quoteAsset,
                 config.quoteDecimals,
                 config.phantomQuote,
@@ -978,7 +978,7 @@ contract ApprovedQuoteRegistryTest is Test {
 
     function _assertConfig(bytes32 configId, QuoteAssetConfig memory expected, uint8 status) private view {
         QuoteAssetConfig memory actual = registry.quoteConfig(configId);
-        assertEq(actual.ponsBaselineId, expected.ponsBaselineId);
+        assertEq(actual.tickerGardenBaselineId, expected.tickerGardenBaselineId);
         assertEq(actual.quoteAsset, expected.quoteAsset);
         assertEq(actual.quoteDecimals, expected.quoteDecimals);
         assertEq(actual.phantomQuote, expected.phantomQuote);

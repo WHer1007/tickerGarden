@@ -96,8 +96,26 @@ def build():
     canonical_modules = {module["module"] for module in surface["modules"]}
     source_paths = sorted(MODULES_ROOT.glob("*.sol"))
     modules = []
+    extensions = []
     for source_path in source_paths:
         module = source_path.stem
+        if module == "HolderRewardsDistributorV1":
+            artifact_path = ARTIFACT_ROOT / source_path.name / f"{module}.json"
+            artifact = json.loads(artifact_path.read_text(encoding="utf-8"))
+            mutations = sorted(signature(x) for x in entries(artifact["abi"], "function")
+                               if x["stateMutability"] not in ("view", "pure"))
+            expected = sorted(["registerFeeSharingMarket(bytes32,address,address)",
+                "fundCreatorFees(bytes32,uint32,uint256)", "checkpointTransfer(bytes32,address,address,uint256)",
+                "claim(bytes32)", "checkpoint(bytes32)"])
+            if mutations != expected:
+                raise ValueError("continuous holder mutation surface drift")
+            extensions.append({"module": module, "mode": "TICKERGARDEN_HOLDER_STREAM_24H_V1",
+                "source": str(source_path.relative_to(ROOT)), "sourceSha256": sha256_bytes(source_path.read_bytes()),
+                "artifact": str(artifact_path.relative_to(ROOT)), "abi": artifact["abi"],
+                "creationCode": code_identity(artifact["bytecode"]),
+                "runtimeTemplate": {**code_identity(artifact["deployedBytecode"]), "isFinalDeploymentCodeHash": False},
+                "mutations": mutations})
+            continue
         if module not in canonical_modules:
             raise ValueError(f"non-canonical product module source: {source_path.relative_to(ROOT)}")
         artifact_path = ARTIFACT_ROOT / source_path.name / f"{module}.json"
@@ -138,6 +156,7 @@ def build():
         "executionSpecId": surface["executionSpecId"],
         "status": "PRODUCT_ARTIFACTS_COMPILED_NOT_DEPLOYMENT_EVIDENCE",
         "modules": modules,
+        "extensionModules": extensions,
     }
     manifest["manifestHash"] = canonical_hash(manifest)
     return manifest

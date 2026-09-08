@@ -9,7 +9,7 @@ import {
     MarketConfig,
     MarketRuntime,
     MarketView,
-    PonsBaseline,
+    TickerGardenBaseline,
     QuoteAssetConfig
 } from "../../../src/v1/interfaces/IV1Protocol.sol";
 import {GraduationExecutorAssetAccounting} from "../../../src/v1/shared/GraduationExecutorAssetAccounting.sol";
@@ -34,21 +34,21 @@ contract GraduationAccountingQuoteRegistryMock {
     }
 }
 
-contract GraduationAccountingPonsBaselineRegistryMock {
-    mapping(bytes32 id => PonsBaseline value) private _baselines;
+contract GraduationAccountingTickerGardenBaselineRegistryMock {
+    mapping(bytes32 id => TickerGardenBaseline value) private _baselines;
 
-    function configure(bytes32 id, PonsBaseline calldata value) external {
+    function configure(bytes32 id, TickerGardenBaseline calldata value) external {
         _baselines[id] = value;
     }
 
-    function baseline(bytes32 id) external view returns (PonsBaseline memory) {
+    function baseline(bytes32 id) external view returns (TickerGardenBaseline memory) {
         return _baselines[id];
     }
 }
 
 contract GraduationAccountingRegistryMock {
     address public immutable approvedQuoteRegistry;
-    address public immutable ponsBaselineRegistry;
+    address public immutable tickerGardenBaselineRegistry;
     address public executor;
     mapping(bytes32 marketId => MarketView value) private _markets;
 
@@ -56,7 +56,7 @@ contract GraduationAccountingRegistryMock {
 
     constructor(address quoteRegistry, address baselineRegistry) {
         approvedQuoteRegistry = quoteRegistry;
-        ponsBaselineRegistry = baselineRegistry;
+        tickerGardenBaselineRegistry = baselineRegistry;
     }
 
     function setExecutor(address value) external {
@@ -169,7 +169,7 @@ contract GraduationExecutorAssetAccountingTest is Test {
     uint256 private constant BASELINE_SUPPLY = 1_000_000_000 ether;
 
     GraduationAccountingQuoteRegistryMock private quotes;
-    GraduationAccountingPonsBaselineRegistryMock private baselines;
+    GraduationAccountingTickerGardenBaselineRegistryMock private baselines;
     GraduationAccountingRegistryMock private registry;
     GraduationAccountingCurveCaller private curve;
     GraduationAccountingToken private meme;
@@ -190,7 +190,7 @@ contract GraduationExecutorAssetAccountingTest is Test {
 
     function setUp() public {
         quotes = new GraduationAccountingQuoteRegistryMock();
-        baselines = new GraduationAccountingPonsBaselineRegistryMock();
+        baselines = new GraduationAccountingTickerGardenBaselineRegistryMock();
         registry = new GraduationAccountingRegistryMock(address(quotes), address(baselines));
         curve = new GraduationAccountingCurveCaller();
         meme = new GraduationAccountingToken("Meme", "MEME");
@@ -336,7 +336,7 @@ contract GraduationExecutorAssetAccountingTest is Test {
         config.curve = address(curve);
         config.memeToken = address(meme);
         config.quoteAsset = quoteAsset;
-        config.ponsBaselineId = BASELINE_ID;
+        config.tickerGardenBaselineId = BASELINE_ID;
         config.quoteAssetConfigId = QUOTE_CONFIG_ID;
         registry.configure(MARKET_ID, config, SOURCE_VERSION);
     }
@@ -345,7 +345,7 @@ contract GraduationExecutorAssetAccountingTest is Test {
         quotes.configure(
             QUOTE_CONFIG_ID,
             QuoteAssetConfig({
-                ponsBaselineId: baselineId,
+                tickerGardenBaselineId: baselineId,
                 quoteAsset: quoteAsset,
                 quoteDecimals: 18,
                 phantomQuote: phantom,
@@ -356,7 +356,7 @@ contract GraduationExecutorAssetAccountingTest is Test {
         );
         baselines.configure(
             baselineId,
-            PonsBaseline({
+            TickerGardenBaseline({
                 referenceChainId: block.chainid,
                 referenceFactory: address(registry),
                 referenceFactoryCodeHash: bytes32(0),

@@ -32,7 +32,7 @@ contract LaunchLockerRegistryMock {
         _market = MarketView({
             config: MarketConfig({
                 assetUid: keccak256("locker-stock"),
-                ponsBaselineId: keccak256("locker-pons"),
+                tickerGardenBaselineId: keccak256("locker-pons"),
                 quoteAssetConfigId: keccak256("locker-quote"),
                 launchTemplateId: keccak256("locker-template"),
                 feePolicyId: keccak256("locker-fee"),
@@ -46,7 +46,8 @@ contract LaunchLockerRegistryMock {
                 quoteAsset: quote,
                 graduatedHook: hook,
                 creatorTaxBps: 0,
-                creatorFeesToHolders: false
+                creatorFeesToHolders: false,
+                stakingEnabled: true
             }),
             runtime: MarketRuntime({poolId: bytes32(0), sourceVersion: 1, launchPhase: 0})
         });

@@ -1,0 +1,98 @@
+{
+  "schemaVersion": 1,
+  "status": "REGISTRY_ACTIVE",
+  "networkScope": "ROBINHOOD_TESTNET_ONLY",
+  "chainId": 46630,
+  "releaseId": "0x7b2614a529d1d3a06e8826cf38329e211f134c69200acda3b9ced5d4791b4df0",
+  "officialStockRegistry": "0x61b41F452CCb6D02aC23Ff5e8132Baa1cA007aCA",
+  "userStockVault": "0xAA47fBF67c9b7D15Ff4B12C62c607ac2A63176e8",
+  "canonicalFaucet": "0x8762f93772c663c6a88ba50900bd5381df2717be",
+  "assets": [
+    {
+      "symbol": "TSLA",
+      "name": "Tesla",
+      "assetUid": "0x00000000000000000000000000000000aa1fee9afa45465cbc65157b4edf63f5",
+      "tokenAddress": "0xc9f9c86933092bbbfff3ccb4b105a4a94bf3bd4e",
+      "decimals": 18,
+      "minimumAllocation": "1000000000000000000",
+      "fingerprint": {
+        "tokenRuntimeCodeHash": "0x2f367e6a678e7b30ab613d5963e541e6f4d3ca586de76e2f441fbfeb1a27c440",
+        "beacon": "0x1df3ca0fd30ed5eeb09eb01938f4e9c5196e6ca5",
+        "beaconRuntimeCodeHash": "0x404e8188c4b1d0c9804205e0da253d11570e9d48d03964962cb689072b1735d2",
+        "implementation": "0xBd14156E05c6AF28ad39aA53a2AB8eB9CDf657DA",
+        "implementationRuntimeCodeHash": "0x137f26aacb7b1675d89017cebbf5018515c7bf4b87ae1848984494a56f3e1912"
+      },
+      "quoteAssetConfigId": "0x46b3c48fa5accb30728ef8dbdd33ba68f33596dda3e42dd932b9603979f61f8f",
+      "status": "REGISTRY_ACTIVE"
+    },
+    {
+      "symbol": "AMZN",
+      "name": "Amazon",
+      "assetUid": "0x0000000000000000000000000000000099c33a4e234448e99d6c8a5e5dddeda0",
+      "tokenAddress": "0x5884ad2f920c162cfbbacc88c9c51aa75ec09e02",
+      "decimals": 18,
+      "minimumAllocation": "1000000000000000000",
+      "fingerprint": {
+        "tokenRuntimeCodeHash": "0x2f367e6a678e7b30ab613d5963e541e6f4d3ca586de76e2f441fbfeb1a27c440",
+        "beacon": "0x1df3ca0fd30ed5eeb09eb01938f4e9c5196e6ca5",
+        "beaconRuntimeCodeHash": "0x404e8188c4b1d0c9804205e0da253d11570e9d48d03964962cb689072b1735d2",
+        "implementation": "0xBd14156E05c6AF28ad39aA53a2AB8eB9CDf657DA",
+        "implementationRuntimeCodeHash": "0x137f26aacb7b1675d89017cebbf5018515c7bf4b87ae1848984494a56f3e1912"
+      },
+      "quoteAssetConfigId": "0xd998e217ba379ccb90756e76da600e8c08c6542b56f2ae2a6a0ef74758d6ed45",
+      "status": "REGISTRY_ACTIVE"
+    },
+    {
+      "symbol": "PLTR",
+      "name": "Palantir Technologies",
+      "assetUid": "0x0000000000000000000000000000000052cd6b007b15456ba5fbc3aa605765e0",
+      "tokenAddress": "0x1fbe1a0e43594b3455993b5de5fd0a7a266298d0",
+      "decimals": 18,
+      "minimumAllocation": "1000000000000000000",
+      "fingerprint": {
+        "tokenRuntimeCodeHash": "0x2f367e6a678e7b30ab613d5963e541e6f4d3ca586de76e2f441fbfeb1a27c440",
+        "beacon": "0x1df3ca0fd30ed5eeb09eb01938f4e9c5196e6ca5",
+        "beaconRuntimeCodeHash": "0x404e8188c4b1d0c9804205e0da253d11570e9d48d03964962cb689072b1735d2",
+        "implementation": "0xBd14156E05c6AF28ad39aA53a2AB8eB9CDf657DA",
+        "implementationRuntimeCodeHash": "0x137f26aacb7b1675d89017cebbf5018515c7bf4b87ae1848984494a56f3e1912"
+      },
+      "quoteAssetConfigId": "0xe1a5bb9babb8994d34adf9237ab2a0aec56f9a717aba7cd9b555ea495a09d33d",
+      "status": "REGISTRY_ACTIVE"
+    },
+    {
+      "symbol": "NFLX",
+      "name": "Netflix",
+      "assetUid": "0x0000000000000000000000000000000041de1e6ae0f4cd3825f77b5a4a3cc784",
+      "tokenAddress": "0x3b8262a63d25f0477c4dde23f83cfe22cb768c93",
+      "decimals": 18,
+      "minimumAllocation": "1000000000000000000",
+      "fingerprint": {
+        "tokenRuntimeCodeHash": "0x2f367e6a678e7b30ab613d5963e541e6f4d3ca586de76e2f441fbfeb1a27c440",
+        "beacon": "0x1df3ca0fd30ed5eeb09eb01938f4e9c5196e6ca5",
+        "beaconRuntimeCodeHash": "0x404e8188c4b1d0c9804205e0da253d11570e9d48d03964962cb689072b1735d2",
+        "implementation": "0xBd14156E05c6AF28ad39aA53a2AB8eB9CDf657DA",
+        "implementationRuntimeCodeHash": "0x137f26aacb7b1675d89017cebbf5018515c7bf4b87ae1848984494a56f3e1912"
+      },
+      "quoteAssetConfigId": "0xa1462f70ba240240dc36b5bc2eb9e808121579b025a8a535d160fe66d3c64982",
+      "status": "REGISTRY_ACTIVE"
+    },
+    {
+      "symbol": "AMD",
+      "name": "AMD",
+      "assetUid": "0x00000000000000000000000000000000958cc238f7a04144bf5eb07da3d3734e",
+      "tokenAddress": "0x71178bac73cbeb415514eb542a8995b82669778d",
+      "decimals": 18,
+      "minimumAllocation": "1000000000000000000",
+      "fingerprint": {
+        "tokenRuntimeCodeHash": "0x2f367e6a678e7b30ab613d5963e541e6f4d3ca586de76e2f441fbfeb1a27c440",
+        "beacon": "0x1df3ca0fd30ed5eeb09eb01938f4e9c5196e6ca5",
+        "beaconRuntimeCodeHash": "0x404e8188c4b1d0c9804205e0da253d11570e9d48d03964962cb689072b1735d2",
+        "implementation": "0xBd14156E05c6AF28ad39aA53a2AB8eB9CDf657DA",
+        "implementationRuntimeCodeHash": "0x137f26aacb7b1675d89017cebbf5018515c7bf4b87ae1848984494a56f3e1912"
+      },
+      "quoteAssetConfigId": "0x7926c54add1544bc58d34a3e24da29a148161bb167d38aaa3a40181f138463e2",
+      "status": "REGISTRY_ACTIVE"
+    }
+  ],
+  "observedAt": "2026-09-07T20:02:48.919Z"
+}

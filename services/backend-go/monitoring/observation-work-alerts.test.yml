@@ -1,0 +1,263 @@
+{
+  "rule_files": [
+    "observation-work-alerts.yml"
+  ],
+  "evaluation_interval": "1m",
+  "tests": [
+    {
+      "interval": "1m",
+      "input_series": [
+        {
+          "series": "up{job=\"tickergarden-observation\",instance=\"test\"}",
+          "values": "0+0x10"
+        }
+      ],
+      "alert_rule_test": [
+        {
+          "eval_time": "3m",
+          "alertname": "TickerGardenObservationCollectorDown",
+          "exp_alerts": [
+            {
+              "exp_labels": {
+                "job": "tickergarden-observation",
+                "instance": "test",
+                "severity": "critical"
+              },
+              "exp_annotations": {
+                "summary": "Observation queue collector cannot be scraped"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "interval": "1m",
+      "input_series": [
+        {
+          "series": "up{job=\"tickergarden-observation\",instance=\"test\"}",
+          "values": "1+0x10"
+        }
+      ],
+      "alert_rule_test": [
+        {
+          "eval_time": "3m",
+          "alertname": "TickerGardenObservationMetricsMissing",
+          "exp_alerts": [
+            {
+              "exp_labels": {
+                "job": "tickergarden-observation",
+                "instance": "test",
+                "severity": "warning"
+              },
+              "exp_annotations": {
+                "summary": "Observation queue scrape lacks required metrics"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "interval": "1m",
+      "input_series": [
+        {
+          "series": "up{job=\"tickergarden-observation\",instance=\"test\"}",
+          "values": "1+0x10"
+        },
+        {
+          "series": "tickergarden_observation_observed_timestamp_seconds{job=\"tickergarden-observation\",instance=\"test\"}",
+          "values": "0+60x10"
+        },
+        {
+          "series": "tickergarden_observation_attention{job=\"tickergarden-observation\",instance=\"test\"}",
+          "values": "1+0x10"
+        }
+      ],
+      "alert_rule_test": [
+        {
+          "eval_time": "3m",
+          "alertname": "TickerGardenObservationAttention",
+          "exp_alerts": [
+            {
+              "exp_labels": {
+                "job": "tickergarden-observation",
+                "instance": "test",
+                "severity": "warning"
+              },
+              "exp_annotations": {
+                "summary": "Observation queue has stalled, retrying or invalid jobs"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "interval": "1m",
+      "input_series": [
+        {
+          "series": "up{job=\"tickergarden-observation\",instance=\"test\"}",
+          "values": "1+0x10"
+        },
+        {
+          "series": "tickergarden_observation_observed_timestamp_seconds{job=\"tickergarden-observation\",instance=\"test\"}",
+          "values": "0+60x10"
+        },
+        {
+          "series": "tickergarden_observation_attention{job=\"tickergarden-observation\",instance=\"test\"}",
+          "values": "1 1 1 0+0x7"
+        }
+      ],
+      "alert_rule_test": [
+        {
+          "eval_time": "5m",
+          "alertname": "TickerGardenObservationAttention",
+          "exp_alerts": []
+        }
+      ]
+    },
+    {
+      "interval": "1m",
+      "input_series": [
+        {
+          "series": "up{job=\"tickergarden-observation\",instance=\"test\"}",
+          "values": "1+0x10"
+        },
+        {
+          "series": "tickergarden_observation_observed_timestamp_seconds{job=\"tickergarden-observation\",instance=\"test\"}",
+          "values": "0+0x10"
+        },
+        {
+          "series": "tickergarden_observation_attention{job=\"tickergarden-observation\",instance=\"test\"}",
+          "values": "1+0x10"
+        }
+      ],
+      "alert_rule_test": [
+        {
+          "eval_time": "5m",
+          "alertname": "TickerGardenObservationReportStale",
+          "exp_alerts": [
+            {
+              "exp_labels": {
+                "job": "tickergarden-observation",
+                "instance": "test",
+                "severity": "warning"
+              },
+              "exp_annotations": {
+                "summary": "Observation queue report is stale"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "interval": "1m",
+      "input_series": [
+        {
+          "series": "up{job=\"tickergarden-observation\",instance=\"test\"}",
+          "values": "1+0x10"
+        },
+        {
+          "series": "tickergarden_observation_observed_timestamp_seconds{job=\"tickergarden-observation\",instance=\"test\"}",
+          "values": "0+0x10"
+        },
+        {
+          "series": "tickergarden_observation_attention{job=\"tickergarden-observation\",instance=\"test\"}",
+          "values": "1+0x10"
+        }
+      ],
+      "alert_rule_test": [
+        {
+          "eval_time": "5m",
+          "alertname": "TickerGardenObservationAttention",
+          "exp_alerts": []
+        }
+      ]
+    },
+    {
+      "interval": "1m",
+      "input_series": [
+        {
+          "series": "up{job=\"tickergarden-observation\",instance=\"test\"}",
+          "values": "1+0x10"
+        },
+        {
+          "series": "tickergarden_observation_observed_timestamp_seconds{job=\"tickergarden-observation\",instance=\"test\"}",
+          "values": "600+60x10"
+        },
+        {
+          "series": "tickergarden_observation_attention{job=\"tickergarden-observation\",instance=\"test\"}",
+          "values": "1+0x10"
+        }
+      ],
+      "alert_rule_test": [
+        {
+          "eval_time": "3m",
+          "alertname": "TickerGardenObservationClockSkew",
+          "exp_alerts": [
+            {
+              "exp_labels": {
+                "job": "tickergarden-observation",
+                "instance": "test",
+                "severity": "warning"
+              },
+              "exp_annotations": {
+                "summary": "Observation queue report is in the future"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "interval": "1m",
+      "input_series": [
+        {
+          "series": "up{job=\"tickergarden-observation\",instance=\"test\"}",
+          "values": "1+0x10"
+        },
+        {
+          "series": "tickergarden_observation_observed_timestamp_seconds{job=\"tickergarden-observation\",instance=\"test\"}",
+          "values": "600+60x10"
+        },
+        {
+          "series": "tickergarden_observation_attention{job=\"tickergarden-observation\",instance=\"test\"}",
+          "values": "1+0x10"
+        }
+      ],
+      "alert_rule_test": [
+        {
+          "eval_time": "3m",
+          "alertname": "TickerGardenObservationAttention",
+          "exp_alerts": []
+        }
+      ]
+    },
+    {
+      "interval": "1m",
+      "input_series": [
+        {
+          "series": "up{job=\"tickergarden-observation\",instance=\"test\"}",
+          "values": "1+0x10"
+        },
+        {
+          "series": "tickergarden_observation_observed_timestamp_seconds{job=\"tickergarden-observation\",instance=\"test\"}",
+          "values": "0+60x10"
+        },
+        {
+          "series": "tickergarden_observation_attention{job=\"tickergarden-observation\",instance=\"test\"}",
+          "values": "0+0x10"
+        }
+      ],
+      "alert_rule_test": [
+        {
+          "eval_time": "5m",
+          "alertname": "TickerGardenObservationAttention",
+          "exp_alerts": []
+        }
+      ]
+    }
+  ]
+}

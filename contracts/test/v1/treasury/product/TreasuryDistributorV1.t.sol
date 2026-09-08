@@ -86,7 +86,7 @@ contract TreasuryDistributorV1Test is Test {
         assertEq(distributor.currentEpochId(MARKET_ID), 1);
         (uint64 start, uint64 end) = distributor.epochWindow(MARKET_ID, 1);
         assertEq(start, 1_700_000_000);
-        assertEq(end - start, 30 days);
+        assertEq(end - start, 7 days);
     }
 
     function test_marketCannotBeActivatedTwiceOrRegisteredWithWrongTokenIdentity() public {

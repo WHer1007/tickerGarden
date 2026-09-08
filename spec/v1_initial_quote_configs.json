@@ -3,13 +3,13 @@
   "executionSpecId": "V1-EXEC-11",
   "status": "APPROVED_BOOTSTRAP_EXAMPLE_CONFIGS",
   "chainId": 4663,
-  "ponsBaselineIdLabel": "TG-PONS-BEHAVIOR-1",
-  "ponsBaselineId": "0x78d3fa45758f93f793093e0ea0cd900f9aaade792dc1cb6a1d3567b1dc81881d",
+  "tickerGardenBaselineIdLabel": "TG-PONS-BEHAVIOR-1",
+  "tickerGardenBaselineId": "0x78d3fa45758f93f793093e0ea0cd900f9aaade792dc1cb6a1d3567b1dc81881d",
   "quoteEconomicsHash": {
     "domainLabel": "TICKERGARDEN_V1_QUOTE_ECONOMICS",
     "domain": "0xd545051c6c136e31d15dffa8839a33b1cc6aac4d3a77eaddeef773ec09af2709",
     "schemaVersion": 1,
-    "encoding": "keccak256(abi.encode(domain,schemaVersion,chainId,ponsBaselineId,quoteAsset,quoteDecimals,phantomQuote,graduationThreshold))",
+    "encoding": "keccak256(abi.encode(domain,schemaVersion,chainId,tickerGardenBaselineId,quoteAsset,quoteDecimals,phantomQuote,graduationThreshold))",
     "configIdRule": "quoteAssetConfigId == economicsHash",
     "selectionRule": "NEW_MARKET_MAY_SELECT_ANY_ADMIN_APPROVED_ACTIVE_QUOTE_CONFIG"
   },

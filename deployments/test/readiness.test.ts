@@ -48,14 +48,14 @@ test("derives all four readiness states only from ordered open gates", () => {
   });
 });
 
-test("permits testnet rehearsal after fresh current-runtime evidence while production stays blocked", () => {
+test("accepts the reviewed R3 test candidate without production readiness", () => {
   assert.equal(V1_EXECUTION_SPEC_ID, "V1-EXEC-11");
   assert.equal(v1Readiness.state, "DEPLOYMENT_ELIGIBLE");
   assert.equal(v1Readiness.implementationAllowed, true);
   assert.equal(v1Readiness.deploymentEligible, true);
   assert.equal(v1Readiness.productionReady, false);
   assert.deepEqual(v1Readiness.openGates.implementation, []);
-  assert.equal(v1Readiness.openGates.deployment.length, 0);
+  assert.deepEqual(v1Readiness.openGates.deployment, []);
   assert.equal(isV1Deployable(), true);
   assert.doesNotThrow(() => assertV1Deployable());
   assert.throws(() => assertV1ProductionReady(), /production is blocked/);

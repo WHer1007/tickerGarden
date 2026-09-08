@@ -1,0 +1,15 @@
+{
+  "status": "ACTIVE_TEST_BUSINESS_ATOMIC_BUY_VERIFIED",
+  "chainId": 46630,
+  "releaseId": "0x985650b4d3758a5345be196182d2945b9c2df3f828fdb4dbd1a94e4b6def2b64",
+  "productionStatus": "NOT_PRODUCTION_READY",
+  "publicAtomicBuyTests": "PASSED",
+  "testReportSha256": "3df928e5e1a3ee9b0a734af61210cc762e1323989a9af27a5f1a5d3b0559e8ac",
+  "activatedAt": "2026-09-08T10:37:09.855Z",
+  "factory": "0xE74162027c477E1c591Fac1d36e219C28DAd1522",
+  "router": "0x76cb1dcb45bbc003ae4aa433e936a678cd4c2388",
+  "frontendConfiguration": "UPDATED",
+  "backendConfiguration": "UPDATED_REQUIRES_SERVICE_RELOAD",
+  "readApiStatus": "unavailable",
+  "scope": "Public-chain atomic first-buy only; not full frontend or holder-settlement E2E"
+}

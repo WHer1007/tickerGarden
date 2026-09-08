@@ -6,7 +6,7 @@ import {ReentrancyGuard} from "@openzeppelin/contracts/utils/ReentrancyGuard.sol
 import {
     CreateMarketParams,
     IApprovedQuoteRegistry,
-    IPonsCompatibleCurve,
+    ITickerGardenCurve,
     ITickerGardenFactoryV1,
     QuoteAssetConfig
 } from "../interfaces/IV1Protocol.sol";
@@ -76,7 +76,7 @@ abstract contract LaunchAndBuyRouterNative is ReentrancyGuard {
         _nativeRefundSource = curve;
         uint256 quoteSpent;
         (tokensOut, quoteSpent) =
-            IPonsCompatibleCurve(curve).buy{value: firstBuyAmount}(firstBuyAmount, minTokensOut, recipient);
+            ITickerGardenCurve(curve).buy{value: firstBuyAmount}(firstBuyAmount, minTokensOut, recipient);
         _nativeRefundSource = address(0);
         if (quoteSpent > firstBuyAmount) revert InvalidQuoteSpent(firstBuyAmount, quoteSpent);
         refund = firstBuyAmount - quoteSpent;

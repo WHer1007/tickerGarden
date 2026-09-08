@@ -3,7 +3,7 @@
   "executionSpecId": "V1-EXEC-11",
   "source": "COMPILED_SOLC_0_8_26_INTERFACE_ARTIFACTS",
   "compilerVersion": "0.8.26+commit.8a97fa7a",
-  "interfaceSourceKeccak256": "0x917de2d69d981b0f963f92ceaacbae3d2824087385ca5af3bf9b94f07f1d92eb",
+  "interfaceSourceKeccak256": "0x9ad905d7db1b8818bf9fb3b8dca7c26f9c129a805b2af6011ecb64904efce2eb",
   "compiledSourceTypes": {
     "aliases": {
       "BalanceDelta": "int256"
@@ -35,7 +35,7 @@
         "bytes32 implementationRuntimeCodeHash"
       ],
       "QuoteAssetConfig": [
-        "bytes32 ponsBaselineId",
+        "bytes32 tickerGardenBaselineId",
         "address quoteAsset",
         "uint8 quoteDecimals",
         "uint256 phantomQuote",
@@ -49,7 +49,7 @@
         "bytes32 referenceEvidenceHash",
         "bytes32 generatorPolicyId"
       ],
-      "PonsBaseline": [
+      "TickerGardenBaseline": [
         "uint256 referenceChainId",
         "address referenceFactory",
         "bytes32 referenceFactoryCodeHash",
@@ -78,7 +78,7 @@
       ],
       "CreateMarketParams": [
         "bytes32 assetUid",
-        "bytes32 ponsBaselineId",
+        "bytes32 tickerGardenBaselineId",
         "bytes32 quoteAssetConfigId",
         "bytes32 launchTemplateId",
         "bytes32 expectedEconomics",
@@ -88,11 +88,12 @@
         "string metadataURI",
         "bytes32 salt",
         "uint16 creatorTaxBps",
-        "bool creatorFeesToHolders"
+        "bool creatorFeesToHolders",
+        "bool stakingEnabled"
       ],
       "MarketConfig": [
         "bytes32 assetUid",
-        "bytes32 ponsBaselineId",
+        "bytes32 tickerGardenBaselineId",
         "bytes32 quoteAssetConfigId",
         "bytes32 launchTemplateId",
         "bytes32 feePolicyId",
@@ -106,7 +107,8 @@
         "address quoteAsset",
         "address graduatedHook",
         "uint16 creatorTaxBps",
-        "bool creatorFeesToHolders"
+        "bool creatorFeesToHolders",
+        "bool stakingEnabled"
       ],
       "MarketRuntime": [
         "bytes32 poolId",
@@ -235,8 +237,8 @@
       "eventCount": 4
     },
     {
-      "target": "PonsBaselineRegistry",
-      "artifact": "contracts/out-v1/IV1Protocol.sol/IPonsBaselineRegistry.json",
+      "target": "TickerGardenBaselineRegistry",
+      "artifact": "contracts/out-v1/IV1Protocol.sol/ITickerGardenBaselineRegistry.json",
       "functionCount": 5,
       "eventCount": 2
     },
@@ -267,18 +269,18 @@
     {
       "target": "LaunchAndBuyRouter",
       "artifact": "contracts/out-v1/IV1Protocol.sol/ILaunchAndBuyRouter.json",
-      "functionCount": 3,
+      "functionCount": 5,
       "eventCount": 0
     },
     {
       "target": "TickerMemeTokenV1",
       "artifact": "contracts/out-v1/IV1Protocol.sol/ITickerMemeTokenV1.json",
-      "functionCount": 17,
+      "functionCount": 19,
       "eventCount": 3
     },
     {
-      "target": "PonsCompatibleCurve",
-      "artifact": "contracts/out-v1/IV1Protocol.sol/IPonsCompatibleCurve.json",
+      "target": "TickerGardenCurve",
+      "artifact": "contracts/out-v1/IV1Protocol.sol/ITickerGardenCurve.json",
       "functionCount": 15,
       "eventCount": 5
     },
@@ -327,8 +329,8 @@
     {
       "target": "CreatorRevenueRegistry",
       "artifact": "contracts/out-v1/IV1Protocol.sol/ICreatorRevenueRegistry.json",
-      "functionCount": 6,
-      "eventCount": 2
+      "functionCount": 9,
+      "eventCount": 4
     },
     {
       "target": "TreasuryDistributorV1",
@@ -511,8 +513,8 @@
       "recipient": "none"
     },
     {
-      "target": "PonsBaselineRegistry",
-      "displaySignature": "addBaseline(bytes32,PonsBaseline)",
+      "target": "TickerGardenBaselineRegistry",
+      "displaySignature": "addBaseline(bytes32,TickerGardenBaseline)",
       "canonicalSignature": "addBaseline(bytes32,(uint256,address,bytes32,uint256,uint256,uint256,uint24,int24,bytes32,uint8))",
       "selector": "0x915408a1",
       "caller": "PROTOCOL_ADMIN_ROLE",
@@ -523,7 +525,7 @@
       "recipient": "none"
     },
     {
-      "target": "PonsBaselineRegistry",
+      "target": "TickerGardenBaselineRegistry",
       "displaySignature": "pauseBaseline(bytes32,bytes32)",
       "canonicalSignature": "pauseBaseline(bytes32,bytes32)",
       "selector": "0x24440ed4",
@@ -535,7 +537,7 @@
       "recipient": "none"
     },
     {
-      "target": "PonsBaselineRegistry",
+      "target": "TickerGardenBaselineRegistry",
       "displaySignature": "unpauseBaseline(bytes32)",
       "canonicalSignature": "unpauseBaseline(bytes32)",
       "selector": "0xb1c63609",
@@ -547,7 +549,7 @@
       "recipient": "none"
     },
     {
-      "target": "PonsBaselineRegistry",
+      "target": "TickerGardenBaselineRegistry",
       "displaySignature": "retireBaseline(bytes32,bytes32)",
       "canonicalSignature": "retireBaseline(bytes32,bytes32)",
       "selector": "0x2f76602e",
@@ -609,8 +611,8 @@
     {
       "target": "TickerGardenFactoryV1",
       "displaySignature": "createMarket(CreateMarketParams)",
-      "canonicalSignature": "createMarket((bytes32,bytes32,bytes32,bytes32,bytes32,address,string,string,string,bytes32,uint16,bool))",
-      "selector": "0xa9a78996",
+      "canonicalSignature": "createMarket((bytes32,bytes32,bytes32,bytes32,bytes32,address,string,string,string,bytes32,uint16,bool,bool))",
+      "selector": "0x4d16039b",
       "caller": "PUBLIC",
       "executionDelaySeconds": 0,
       "stateDelaySeconds": 0,
@@ -621,8 +623,8 @@
     {
       "target": "TickerGardenFactoryV1",
       "displaySignature": "createMarketFor(address,CreateMarketParams)",
-      "canonicalSignature": "createMarketFor(address,(bytes32,bytes32,bytes32,bytes32,bytes32,address,string,string,string,bytes32,uint16,bool))",
-      "selector": "0xcded5aa0",
+      "canonicalSignature": "createMarketFor(address,(bytes32,bytes32,bytes32,bytes32,bytes32,address,string,string,string,bytes32,uint16,bool,bool))",
+      "selector": "0x3551dd44",
       "caller": "LAUNCH_ROUTER_MODULE",
       "executionDelaySeconds": 0,
       "stateDelaySeconds": 0,
@@ -633,8 +635,8 @@
     {
       "target": "MarketRegistryV1",
       "displaySignature": "registerMarket(bytes32,MarketConfig)",
-      "canonicalSignature": "registerMarket(bytes32,(bytes32,bytes32,bytes32,bytes32,bytes32,bytes32,bytes32,uint256,address,address,address,address,address,address,uint16,bool))",
-      "selector": "0x9b911d59",
+      "canonicalSignature": "registerMarket(bytes32,(bytes32,bytes32,bytes32,bytes32,bytes32,bytes32,bytes32,uint256,address,address,address,address,address,address,uint16,bool,bool))",
+      "selector": "0x534619e7",
       "caller": "FACTORY_MODULE",
       "executionDelaySeconds": 0,
       "stateDelaySeconds": 0,
@@ -657,14 +659,26 @@
     {
       "target": "LaunchAndBuyRouter",
       "displaySignature": "launchAndBuy(CreateMarketParams,uint256,uint256,address)",
-      "canonicalSignature": "launchAndBuy((bytes32,bytes32,bytes32,bytes32,bytes32,address,string,string,string,bytes32,uint16,bool),uint256,uint256,address)",
-      "selector": "0xa3baea51",
+      "canonicalSignature": "launchAndBuy((bytes32,bytes32,bytes32,bytes32,bytes32,address,string,string,string,bytes32,uint16,bool,bool),uint256,uint256,address)",
+      "selector": "0x75199371",
       "caller": "PUBLIC",
       "executionDelaySeconds": 0,
       "stateDelaySeconds": 0,
       "stateDelayAnchor": "NONE",
       "precondition": "NONE",
       "recipient": "specified_first_buy_recipient"
+    },
+    {
+      "target": "LaunchAndBuyRouter",
+      "displaySignature": "unlockCallback(bytes)",
+      "canonicalSignature": "unlockCallback(bytes)",
+      "selector": "0x91dd7346",
+      "caller": "POOL_MANAGER",
+      "executionDelaySeconds": 0,
+      "stateDelaySeconds": 0,
+      "stateDelayAnchor": "NONE",
+      "precondition": "NONE",
+      "recipient": "canonical_native_quote_pool_and_launch_router"
     },
     {
       "target": "TickerMemeTokenV1",
@@ -715,7 +729,19 @@
       "recipient": "burn_address"
     },
     {
-      "target": "PonsCompatibleCurve",
+      "target": "TickerMemeTokenV1",
+      "displaySignature": "enableContinuousRewards()",
+      "canonicalSignature": "enableContinuousRewards()",
+      "selector": "0x2fded928",
+      "caller": "TREASURY_DISTRIBUTOR_MODULE",
+      "executionDelaySeconds": 0,
+      "stateDelaySeconds": 0,
+      "stateDelayAnchor": "NONE",
+      "precondition": "ONCE_ONLY_BY_IMMUTABLE_DISTRIBUTOR_AFTER_CANONICAL_REGISTRATION",
+      "recipient": "none"
+    },
+    {
+      "target": "TickerGardenCurve",
       "displaySignature": "buy(uint256,uint256,address)",
       "canonicalSignature": "buy(uint256,uint256,address)",
       "selector": "0x59a87bc1",
@@ -727,7 +753,7 @@
       "recipient": "specified_trade_recipient"
     },
     {
-      "target": "PonsCompatibleCurve",
+      "target": "TickerGardenCurve",
       "displaySignature": "sell(uint256,uint256,address)",
       "canonicalSignature": "sell(uint256,uint256,address)",
       "selector": "0xd04c6983",
@@ -739,7 +765,7 @@
       "recipient": "specified_trade_recipient"
     },
     {
-      "target": "PonsCompatibleCurve",
+      "target": "TickerGardenCurve",
       "displaySignature": "sweepCurveFees()",
       "canonicalSignature": "sweepCurveFees()",
       "selector": "0x5442e4d7",
@@ -1383,8 +1409,32 @@
       "executionDelaySeconds": 0,
       "stateDelaySeconds": 0,
       "stateDelayAnchor": "NONE",
-      "precondition": "CURVE_ACCRUED_FEE_ZERO_AFTER_ATOMIC_OLD_EPOCH_SWEEP",
-      "recipient": "new_beneficiary_for_future_fees"
+      "precondition": "PROPOSE_ONLY_CURRENT_BENEFICIARY_NO_EPOCH_CHANGE",
+      "recipient": "pending_beneficiary_only"
+    },
+    {
+      "target": "CreatorRevenueRegistry",
+      "displaySignature": "acceptCreatorRevenueBeneficiary(bytes32)",
+      "canonicalSignature": "acceptCreatorRevenueBeneficiary(bytes32)",
+      "selector": "0x544a901b",
+      "caller": "PENDING_CREATOR_REVENUE_BENEFICIARY",
+      "executionDelaySeconds": 0,
+      "stateDelaySeconds": 0,
+      "stateDelayAnchor": "NONE",
+      "precondition": "PENDING_BENEFICIARY_ACCEPTS_WITH_ATOMIC_OLD_EPOCH_SWEEP",
+      "recipient": "none"
+    },
+    {
+      "target": "CreatorRevenueRegistry",
+      "displaySignature": "cancelCreatorRevenueBeneficiaryTransfer(bytes32)",
+      "canonicalSignature": "cancelCreatorRevenueBeneficiaryTransfer(bytes32)",
+      "selector": "0x35344c03",
+      "caller": "CURRENT_CREATOR_BENEFICIARY",
+      "executionDelaySeconds": 0,
+      "stateDelaySeconds": 0,
+      "stateDelayAnchor": "NONE",
+      "precondition": "CURRENT_BENEFICIARY_CANCELS_PENDING_NOMINATION",
+      "recipient": "none"
     },
     {
       "target": "TreasuryDistributorV1",
@@ -1624,14 +1674,14 @@
       "topic0": "0x80af1665440e10f4ab09a88bf0fc7a45a994da5c825d9a824059e93bf93f236b"
     },
     {
-      "target": "PonsBaselineRegistry",
-      "canonicalSignature": "PonsBaselineAdded(bytes32,bytes32,bytes32)",
-      "topic0": "0xe9b67081d2e2224b989625607ccc6acecf7f96cae2c3825a00e0a7bcb0935a2c"
+      "target": "TickerGardenBaselineRegistry",
+      "canonicalSignature": "TickerGardenBaselineAdded(bytes32,bytes32,bytes32)",
+      "topic0": "0x2502cff12d6b884461058f677208a859c1f68b66a286f09a196aa51650b5ba22"
     },
     {
-      "target": "PonsBaselineRegistry",
-      "canonicalSignature": "PonsBaselineStatusChanged(bytes32,uint8,uint8,bytes32)",
-      "topic0": "0xc6d72b3d62a2157daf2cd2468fea096c05c39addb039c406b0e49827cbfbc461"
+      "target": "TickerGardenBaselineRegistry",
+      "canonicalSignature": "TickerGardenBaselineStatusChanged(bytes32,uint8,uint8,bytes32)",
+      "topic0": "0xf82a07e5f72e20dc5340da9f6112cd3920dc7991a7e9cb32961b22400344d443"
     },
     {
       "target": "LaunchTemplateRegistry",
@@ -1674,27 +1724,27 @@
       "topic0": "0x30bf3b3d2274938937a55be5ac6242eda933beaa7d7646e41086e0163f911603"
     },
     {
-      "target": "PonsCompatibleCurve",
+      "target": "TickerGardenCurve",
       "canonicalSignature": "CurveBuy(address,address,uint256,uint256,uint256,uint256)",
       "topic0": "0xec36bf571f136799e8dc0b0b8bea4b04d8bd3d43de838aab0d5fc21d4cbfc455"
     },
     {
-      "target": "PonsCompatibleCurve",
+      "target": "TickerGardenCurve",
       "canonicalSignature": "CurveSell(address,address,uint256,uint256,uint256,uint256)",
       "topic0": "0x8113d738abdcb6b38357e9d53a54a7157861a09031b453651f0fe7fe151f59df"
     },
     {
-      "target": "PonsCompatibleCurve",
+      "target": "TickerGardenCurve",
       "canonicalSignature": "CurveBuyRefunded(address,uint256)",
       "topic0": "0xa69e8258ccc7b9bbb70ab953fc2d1062b4ee28b8ca827534097e1732e87b0262"
     },
     {
-      "target": "PonsCompatibleCurve",
+      "target": "TickerGardenCurve",
       "canonicalSignature": "CurveCompleted(bytes32)",
       "topic0": "0x8fafdbf0442bf0c2c56a01cd83f8db917529df37df6009be1bdf499f525b89cb"
     },
     {
-      "target": "PonsCompatibleCurve",
+      "target": "TickerGardenCurve",
       "canonicalSignature": "CurveFeeTransferred(bytes32,uint64,bytes32,uint256)",
       "topic0": "0xd62dfe58ba50b57bf5eda81549d26d747301a59d8f9f0b3de5adc69823b285f1"
     },
@@ -1877,6 +1927,16 @@
       "target": "CreatorRevenueRegistry",
       "canonicalSignature": "CreatorRevenueBeneficiaryUpdated(bytes32,uint32,uint32,address,address)",
       "topic0": "0x7b1419f1f316ee1b1dc57b5bf029f0b7fc49d1971a9948c61598c70d52c04a54"
+    },
+    {
+      "target": "CreatorRevenueRegistry",
+      "canonicalSignature": "CreatorRevenueBeneficiaryProposed(bytes32,uint32,address,address)",
+      "topic0": "0x92156174605bd499667ed7dbc14b889ee4a4d77f8f7d3e71d6062d294d1786c6"
+    },
+    {
+      "target": "CreatorRevenueRegistry",
+      "canonicalSignature": "CreatorRevenueBeneficiaryTransferCancelled(bytes32,uint32)",
+      "topic0": "0x20a3ad6ceb1c1be5760ac75ffe3685625f0b693f6932e73e0cf2706f01fb915e"
     },
     {
       "target": "TreasuryDistributorV1",

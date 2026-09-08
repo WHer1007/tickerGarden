@@ -1,0 +1,45 @@
+{
+  "schemaVersion": 1,
+  "chainId": 421614,
+  "productionTargetChainId": 4663,
+  "status": "TEST_ONLY_CHAIN_ACTIVATED",
+  "selectionSource": "ARBITRUM_SEPOLIA_NATIVE_ETH_INTEGRATION",
+  "economicsPolicy": "EXPLICIT_TEST_ECONOMICS_0_168_PHANTOM_0_42_GRADUATION",
+  "observedAt": "2026-09-05T19:49:38.328Z",
+  "supplyReferenceRaw": "1000000000000000000000000000",
+  "assets": [
+    {
+      "symbol": "ETH",
+      "name": "Ether",
+      "chainId": 421614,
+      "tokenAddress": "0x0000000000000000000000000000000000000000",
+      "decimals": 18,
+      "assetKind": "NATIVE",
+      "assetUid": null,
+      "officialStatus": null,
+      "currentMultiplier": null,
+      "pendingMultiplier": null,
+      "phantomQuote": "168000000000000000",
+      "graduationThreshold": "420000000000000000",
+      "includedInRelease": true,
+      "activationStatus": "REGISTRY_ACTIVE",
+      "runtimeCodeHash": null,
+      "proxySlots": null,
+      "admissionPath": "ADMIN_REVIEWED_WHITELIST",
+      "quoteConfigId": "0x416c5d46b1f0b9bf0f5dd1ba7383e526657e385973bb1ac963b818c3f0b37887"
+    }
+  ],
+  "activationRequirements": [
+    "Own test baseline fixture registered on chain421614",
+    "Own ACTIVE quote configuration and matching economics",
+    "Verified registry activation receipt; this file is not a whitelist transaction"
+  ],
+  "limitations": [
+    "Native test ETH only; no RH address copied",
+    "RH4663 remains production",
+    "No Pons factory deployment on Arbitrum is asserted"
+  ],
+  "releaseId": "0xe451138ea1858fdd816e0c1f4a0480945b16d85713056d33655a91bfb74eeeb7",
+  "quoteRegistry": "0x81aBdB325cab65888eb955F9930fc3A17A77c7Cd",
+  "activationEvidence": "arbitrum-sepolia-421614.v1.activation.json"
+}

@@ -1,7 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://tickergarden.local/schemas/v1-testnet-deployment-plan.schema.json",
-  "title": "TickerGarden V1 Robinhood Chain testnet deployment plan",
+  "title": "TickerGarden V1 testnet deployment plan",
   "type": "object",
   "additionalProperties": false,
   "required": [
@@ -19,45 +19,89 @@
     "limitations"
   ],
   "properties": {
-    "schemaVersion": { "const": 1 },
-    "manifestKind": { "const": "TICKERGARDEN_V1_TESTNET_DEPLOYMENT_PLAN" },
-    "executionSpecId": { "const": "V1-EXEC-11" },
-    "target": { "const": "ROBINHOOD_CHAIN_TESTNET_REHEARSAL" },
-    "chain": { "$ref": "#/$defs/chain" },
-    "dependencyProvenance": { "$ref": "#/$defs/dependencyProvenance" },
+    "schemaVersion": {
+      "const": 1
+    },
+    "manifestKind": {
+      "const": "TICKERGARDEN_V1_TESTNET_DEPLOYMENT_PLAN"
+    },
+    "executionSpecId": {
+      "const": "V1-EXEC-11"
+    },
+    "target": {
+      "enum": [
+        "ROBINHOOD_CHAIN_TESTNET_REHEARSAL",
+        "ARBITRUM_SEPOLIA_V4_INTEGRATION"
+      ]
+    },
+    "chain": {
+      "$ref": "#/$defs/chain"
+    },
+    "dependencyProvenance": {
+      "$ref": "#/$defs/dependencyProvenance"
+    },
     "externalDependencies": {
       "type": "array",
       "minItems": 7,
       "maxItems": 7,
-      "items": { "$ref": "#/$defs/dependency" }
+      "items": {
+        "$ref": "#/$defs/dependency"
+      }
     },
-    "deterministicDeployment": { "$ref": "#/$defs/deterministicDeployment" },
+    "deterministicDeployment": {
+      "$ref": "#/$defs/deterministicDeployment"
+    },
     "configurationInputs": {
       "type": "array",
       "minItems": 27,
       "maxItems": 27,
       "uniqueItems": true,
-      "items": { "type": "string", "pattern": "^[A-Z][A-Z0-9_]+$" }
+      "items": {
+        "type": "string",
+        "pattern": "^[A-Z][A-Z0-9_]+$"
+      }
     },
-    "forkEvidence": { "$ref": "#/$defs/forkEvidence" },
+    "forkEvidence": {
+      "$ref": "#/$defs/forkEvidence"
+    },
     "deploymentGateEvidence": {
       "type": "array",
       "minItems": 7,
       "maxItems": 7,
-      "items": { "$ref": "#/$defs/gateEvidence" }
+      "items": {
+        "$ref": "#/$defs/gateEvidence"
+      }
     },
     "limitations": {
       "type": "array",
       "minItems": 3,
       "uniqueItems": true,
-      "items": { "$ref": "#/$defs/nonEmptyString" }
+      "items": {
+        "$ref": "#/$defs/nonEmptyString"
+      }
+    },
+    "productionTargetChainId": {
+      "const": 4663
     }
   },
   "$defs": {
-    "address": { "type": "string", "pattern": "^0x(?!0{40}$)[0-9a-fA-F]{40}$" },
-    "bytes32": { "type": "string", "pattern": "^0x(?!0{64}$)[0-9a-fA-F]{64}$" },
-    "decimalString": { "type": "string", "pattern": "^(0|[1-9][0-9]*)$" },
-    "nonEmptyString": { "type": "string", "minLength": 1, "pattern": "\\S" },
+    "address": {
+      "type": "string",
+      "pattern": "^0x(?!0{40}$)[0-9a-fA-F]{40}$"
+    },
+    "bytes32": {
+      "type": "string",
+      "pattern": "^0x(?!0{64}$)[0-9a-fA-F]{64}$"
+    },
+    "decimalString": {
+      "type": "string",
+      "pattern": "^(0|[1-9][0-9]*)$"
+    },
+    "nonEmptyString": {
+      "type": "string",
+      "minLength": 1,
+      "pattern": "\\S"
+    },
     "utcTimestamp": {
       "type": "string",
       "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}Z$"
@@ -65,11 +109,21 @@
     "blockSnapshot": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["number", "hash", "timestamp"],
+      "required": [
+        "number",
+        "hash",
+        "timestamp"
+      ],
       "properties": {
-        "number": { "$ref": "#/$defs/decimalString" },
-        "hash": { "$ref": "#/$defs/bytes32" },
-        "timestamp": { "$ref": "#/$defs/utcTimestamp" }
+        "number": {
+          "$ref": "#/$defs/decimalString"
+        },
+        "hash": {
+          "$ref": "#/$defs/bytes32"
+        },
+        "timestamp": {
+          "$ref": "#/$defs/utcTimestamp"
+        }
       }
     },
     "chain": {
@@ -86,14 +140,42 @@
         "dependencyStateReadTag"
       ],
       "properties": {
-        "chainId": { "const": 46630 },
-        "network": { "const": "Robinhood Chain Testnet" },
-        "rpcUrl": { "const": "https://rpc.testnet.chain.robinhood.com" },
-        "explorerUrl": { "const": "https://explorer.testnet.chain.robinhood.com" },
-        "evmVersion": { "const": "cancun" },
-        "latestSnapshot": { "$ref": "#/$defs/blockSnapshot" },
-        "finalizedSnapshot": { "$ref": "#/$defs/blockSnapshot" },
-        "dependencyStateReadTag": { "const": "latest" }
+        "chainId": {
+          "enum": [
+            46630,
+            421614
+          ]
+        },
+        "network": {
+          "enum": [
+            "Robinhood Chain Testnet",
+            "Arbitrum Sepolia"
+          ]
+        },
+        "rpcUrl": {
+          "enum": [
+            "https://rpc.testnet.chain.robinhood.com",
+            "https://sepolia-rollup.arbitrum.io/rpc"
+          ]
+        },
+        "explorerUrl": {
+          "enum": [
+            "https://explorer.testnet.chain.robinhood.com",
+            "https://sepolia.arbiscan.io"
+          ]
+        },
+        "evmVersion": {
+          "const": "cancun"
+        },
+        "latestSnapshot": {
+          "$ref": "#/$defs/blockSnapshot"
+        },
+        "finalizedSnapshot": {
+          "$ref": "#/$defs/blockSnapshot"
+        },
+        "dependencyStateReadTag": {
+          "const": "latest"
+        }
       }
     },
     "dependencyProvenance": {
@@ -108,23 +190,41 @@
       ],
       "properties": {
         "identityStatus": {
-          "const": "PROJECT_PINNED_UNISWAP_V4_TEST_DEPENDENCY_NOT_OFFICIAL_46630"
+          "enum": [
+            "PROJECT_PINNED_UNISWAP_V4_TEST_DEPENDENCY_NOT_OFFICIAL_46630",
+            "OFFICIAL_UNISWAP_V4_ARBITRUM_SEPOLIA"
+          ]
         },
-        "uniswapOfficial46630ListingAvailable": { "const": false },
-        "projectUsageScope": { "const": "TESTNET_REHEARSAL_ONLY" },
+        "uniswapOfficial46630ListingAvailable": {
+          "const": false
+        },
+        "projectUsageScope": {
+          "const": "TESTNET_REHEARSAL_ONLY"
+        },
         "sourceUrls": {
           "type": "array",
           "minItems": 2,
           "uniqueItems": true,
-          "items": { "type": "string", "pattern": "^https://\\S+$" }
+          "items": {
+            "type": "string",
+            "pattern": "^https://\\S+$"
+          }
         },
-        "acceptance": { "const": "EXPLICIT_TEST_ONLY_PIN_REQUIRED_BEFORE_BROADCAST" }
+        "acceptance": {
+          "const": "EXPLICIT_TEST_ONLY_PIN_REQUIRED_BEFORE_BROADCAST"
+        }
       }
     },
     "dependency": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["name", "address", "runtimeCodeHash", "runtimeCodeSize", "observationBlockHash"],
+      "required": [
+        "name",
+        "address",
+        "runtimeCodeHash",
+        "runtimeCodeSize",
+        "observationBlockHash"
+      ],
       "properties": {
         "name": {
           "enum": [
@@ -137,10 +237,19 @@
             "STATE_VIEW"
           ]
         },
-        "address": { "$ref": "#/$defs/address" },
-        "runtimeCodeHash": { "$ref": "#/$defs/bytes32" },
-        "runtimeCodeSize": { "type": "integer", "minimum": 1 },
-        "observationBlockHash": { "$ref": "#/$defs/bytes32" }
+        "address": {
+          "$ref": "#/$defs/address"
+        },
+        "runtimeCodeHash": {
+          "$ref": "#/$defs/bytes32"
+        },
+        "runtimeCodeSize": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "observationBlockHash": {
+          "$ref": "#/$defs/bytes32"
+        }
       }
     },
     "deterministicDeployment": {
@@ -164,41 +273,99 @@
         "activationSeparate"
       ],
       "properties": {
-        "broadcastStatus": { "enum": ["NOT_BROADCAST", "BROADCAST_VERIFIED"] },
-        "entrypoint": { "const": "contracts/script/v1/DeployV1Deterministic.s.sol:DeployV1Deterministic" },
-        "previewEntrypoint": { "const": "contracts/script/v1/DeployV1Deterministic.s.sol:DeployV1Deterministic.preview" },
-        "canonicalCreate2Deployer": { "$ref": "#/$defs/address" },
-        "orchestratorSaltDomain": { "$ref": "#/$defs/bytes32" },
-        "helperSaltDomain": { "$ref": "#/$defs/bytes32" },
-        "factorySaltDomain": { "$ref": "#/$defs/bytes32" },
-        "ordinaryComponentCount": { "const": 16 },
+        "broadcastStatus": {
+          "enum": [
+            "NOT_BROADCAST",
+            "BROADCAST_VERIFIED"
+          ]
+        },
+        "entrypoint": {
+          "const": "contracts/script/v1/DeployV1Deterministic.s.sol:DeployV1Deterministic"
+        },
+        "previewEntrypoint": {
+          "const": "contracts/script/v1/DeployV1Deterministic.s.sol:DeployV1Deterministic.preview"
+        },
+        "canonicalCreate2Deployer": {
+          "$ref": "#/$defs/address"
+        },
+        "orchestratorSaltDomain": {
+          "$ref": "#/$defs/bytes32"
+        },
+        "helperSaltDomain": {
+          "$ref": "#/$defs/bytes32"
+        },
+        "factorySaltDomain": {
+          "$ref": "#/$defs/bytes32"
+        },
+        "ordinaryComponentCount": {
+          "const": 16
+        },
         "ordinaryComponentOrder": {
           "type": "array",
           "minItems": 16,
           "maxItems": 16,
           "uniqueItems": true,
-          "items": { "$ref": "#/$defs/nonEmptyString" }
+          "items": {
+            "$ref": "#/$defs/nonEmptyString"
+          }
         },
-        "requiredHookPermissionMask": { "const": "0x2044" },
-        "hookAddressBitMask": { "const": "0x3fff" },
-        "maximumHelperSaltAttempts": { "const": 500000 },
-        "runtimeGraphAtomic": { "const": true },
-        "retryPreservesAddresses": { "const": true },
-        "activationSeparate": { "const": true }
+        "requiredHookPermissionMask": {
+          "const": "0x2044"
+        },
+        "hookAddressBitMask": {
+          "const": "0x3fff"
+        },
+        "maximumHelperSaltAttempts": {
+          "const": 500000
+        },
+        "runtimeGraphAtomic": {
+          "const": true
+        },
+        "retryPreservesAddresses": {
+          "const": true
+        },
+        "activationSeparate": {
+          "const": true
+        }
       }
     },
     "forkEvidence": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["status", "network", "chainId", "blockNumber", "blockHash", "testPath", "reportPath"],
+      "required": [
+        "status",
+        "network",
+        "chainId",
+        "blockNumber",
+        "blockHash",
+        "testPath",
+        "reportPath"
+      ],
       "properties": {
-        "status": { "enum": ["OPEN", "PASSED"] },
-        "network": { "const": "Robinhood Chain" },
-        "chainId": { "const": 4663 },
-        "blockNumber": { "$ref": "#/$defs/decimalString" },
-        "blockHash": { "$ref": "#/$defs/bytes32" },
-        "testPath": { "const": "contracts/test/v1/fork/V1ProductForkE2E.t.sol" },
-        "reportPath": { "const": "deployments/evidence/v1-deployment-gates.json" }
+        "status": {
+          "enum": [
+            "OPEN",
+            "PASSED"
+          ]
+        },
+        "network": {
+          "const": "Robinhood Chain"
+        },
+        "chainId": {
+          "const": 4663
+        },
+        "blockNumber": {
+          "$ref": "#/$defs/decimalString"
+        },
+        "blockHash": {
+          "$ref": "#/$defs/bytes32"
+        },
+        "testPath": {
+          "const": "contracts/test/v1/fork/V1ProductForkE2E.t.sol"
+        },
+        "reportPath": {
+          "const": "deployments/evidence/v1-deployment-gates.json"
+        }
       }
     },
     "deploymentGateId": {
@@ -215,17 +382,114 @@
     "gateEvidence": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["gateId", "status", "evidence"],
+      "required": [
+        "gateId",
+        "status",
+        "evidence"
+      ],
       "properties": {
-        "gateId": { "$ref": "#/$defs/deploymentGateId" },
-        "status": { "enum": ["OPEN", "CLOSED"] },
+        "gateId": {
+          "$ref": "#/$defs/deploymentGateId"
+        },
+        "status": {
+          "enum": [
+            "OPEN",
+            "CLOSED"
+          ]
+        },
         "evidence": {
           "type": "array",
           "minItems": 1,
           "uniqueItems": true,
-          "items": { "$ref": "#/$defs/nonEmptyString" }
+          "items": {
+            "$ref": "#/$defs/nonEmptyString"
+          }
         }
       }
     }
-  }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "target": {
+            "const": "ROBINHOOD_CHAIN_TESTNET_REHEARSAL"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "chain": {
+            "properties": {
+              "chainId": {
+                "const": 46630
+              },
+              "network": {
+                "const": "Robinhood Chain Testnet"
+              },
+              "rpcUrl": {
+                "const": "https://rpc.testnet.chain.robinhood.com"
+              },
+              "explorerUrl": {
+                "const": "https://explorer.testnet.chain.robinhood.com"
+              }
+            },
+            "type": "object"
+          },
+          "dependencyProvenance": {
+            "properties": {
+              "identityStatus": {
+                "const": "PROJECT_PINNED_UNISWAP_V4_TEST_DEPENDENCY_NOT_OFFICIAL_46630"
+              }
+            },
+            "type": "object"
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "target": {
+            "const": "ARBITRUM_SEPOLIA_V4_INTEGRATION"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "chain": {
+            "properties": {
+              "chainId": {
+                "const": 421614
+              },
+              "network": {
+                "const": "Arbitrum Sepolia"
+              },
+              "rpcUrl": {
+                "const": "https://sepolia-rollup.arbitrum.io/rpc"
+              },
+              "explorerUrl": {
+                "const": "https://sepolia.arbiscan.io"
+              }
+            },
+            "type": "object"
+          },
+          "dependencyProvenance": {
+            "properties": {
+              "identityStatus": {
+                "const": "OFFICIAL_UNISWAP_V4_ARBITRUM_SEPOLIA"
+              }
+            },
+            "type": "object"
+          },
+          "productionTargetChainId": {
+            "const": 4663
+          }
+        },
+        "required": [
+          "productionTargetChainId"
+        ]
+      }
+    }
+  ]
 }

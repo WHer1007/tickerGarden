@@ -92,6 +92,7 @@ contract MultiAssetMarketRegistryMock {
 
     function configureFeeMarket(bytes32 marketId, address gauge, address quoteAsset, address memeToken) external {
         _markets[marketId].config.gauge = gauge;
+        _markets[marketId].config.stakingEnabled = true;
         _markets[marketId].config.quoteAsset = quoteAsset;
         _markets[marketId].config.memeToken = memeToken;
     }

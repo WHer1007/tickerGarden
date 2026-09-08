@@ -82,8 +82,11 @@ abstract contract ProtocolFeeVaultV4Accounting is ProtocolFeeVaultLiabilities {
 
     function _settleV4Attribution(V4CreditRecord memory record, address gaugeAddress) private {
         IMemeStockGauge gauge = IMemeStockGauge(gaugeAddress);
-        gauge.checkpointActivations();
-        uint256 activeStock = gauge.effectiveTotalActiveStock();
+        uint256 activeStock;
+        if (_feeMarketRegistry.market(record.marketId).config.stakingEnabled) {
+            gauge.checkpointActivations();
+            activeStock = gauge.effectiveTotalActiveStock();
+        }
         uint256 tax = CreatorTax.amount(record.base, _feeMarketRegistry.market(record.marketId).config.creatorTaxBps);
         MarketFeeAccounting.V4Buckets memory buckets =
             MarketFeeAccounting.splitV4(record.totalFee - tax, record.lpAmount, record.nonLpAmount - tax, activeStock);

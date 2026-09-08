@@ -7,7 +7,7 @@
 > 适用基线：`V1-EXEC-11`
 > 更新时间：2026-09-05
 
-当前 ABI/compiled-interface 证据属于 [`outputs/reviews/testnet-release-candidate/`](../../outputs/reviews/testnet-release-candidate/) 对应候选；旧部署证据仅作历史记录。完整状态由 [`deployments/evidence/v1-deployment-gates-current.json`](../../deployments/evidence/v1-deployment-gates-current.json) 表示，不因 `DEPLOYMENT_ELIGIBLE` 自动获得生产批准或广播授权。
+当前 ABI/compiled-interface 证据属于 [`outputs/reviews/optional-stock-staking/`](../../outputs/reviews/optional-stock-staking/) 对应候选；旧部署证据仅作历史记录。完整状态由 [`deployments/evidence/v1-optional-staking-gates.json`](../../deployments/evidence/v1-optional-staking-gates.json) 表示，不因 `DEPLOYMENT_ELIGIBLE` 自动获得生产批准或广播授权。
 
 ## 1. 单一机器来源
 

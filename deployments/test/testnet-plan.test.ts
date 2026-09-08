@@ -10,6 +10,7 @@ import {
   assertV1TestnetRuntimeObservation,
   assertV1TestnetDeploymentPlanConsistency,
   v1TestnetDeploymentPlan,
+  loadV1TestnetDeploymentPlan,
 } from "../src/v1/testnet-plan.ts";
 import { validateV1TestnetDeploymentPlanSchema } from "../src/schema.ts";
 
@@ -91,4 +92,18 @@ test("deployment script environment names exactly match the testnet configuratio
     [...new Set(extracted)].sort(),
     [...new Set(V1_DEPLOYMENT_CONFIGURATION_INPUTS)].sort(),
   );
+});
+
+test("Arbitrum integration is explicit, RH production is fixed, and release gates stay independent", () => {
+  const plan = loadV1TestnetDeploymentPlan("arbitrum-sepolia");
+  assert.equal((plan.chain as Record<string, unknown>).chainId, 421614);
+  assert.equal(plan.productionTargetChainId, 4663);
+  assert.ok((plan.deploymentGateEvidence as Array<Record<string, unknown>>).every(gate => gate.status === "OPEN"));
+  const wrongChain = structuredClone(plan);
+  (wrongChain.chain as Record<string, unknown>).chainId = 46630;
+  assert.throws(() => assertV1TestnetDeploymentPlanConsistency(wrongChain));
+  const copiedGate = structuredClone(plan);
+  (copiedGate.deploymentGateEvidence as Array<Record<string, unknown>>)[0]!.status = "CLOSED";
+  assert.throws(() => assertV1TestnetDeploymentPlanConsistency(copiedGate), /gate drift/);
+  assert.throws(() => loadV1TestnetDeploymentPlan("arbitrum-one"), /Unsupported/);
 });

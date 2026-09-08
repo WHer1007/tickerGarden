@@ -105,13 +105,21 @@ contract DeployV1Deterministic is V1ReleaseGate {
             context.orchestrator, context.releaseId, MAXIMUM_HOOK_SALT_ATTEMPTS
         );
         context.factorySalt = V1DeterministicDeploymentBuilder.factorySalt(block.chainid, context.releaseId);
-        (plan, payload) = V1DeterministicDeploymentBuilder.build(
-            context.orchestrator, config, context.helperSalt, context.factorySalt
-        );
+        if (_continuousHolderRewards()) {
+            (plan, payload) = V1DeterministicDeploymentBuilder.buildContinuous(
+                context.orchestrator, config, context.helperSalt, context.factorySalt
+            );
+        } else {
+            (plan, payload) = V1DeterministicDeploymentBuilder.build(
+                context.orchestrator, config, context.helperSalt, context.factorySalt
+            );
+        }
         if (!V1DeterministicDeploymentBuilder.hookMaskMatches(plan.hook)) {
             revert InvalidConfiguration("HOOK_PERMISSION_MASK");
         }
     }
+
+    function _continuousHolderRewards() internal pure virtual returns (bool) { return false; }
 
     function _broadcast(
         V1BootstrapContext memory context,
@@ -139,6 +147,8 @@ contract DeployV1Deterministic is V1ReleaseGate {
         config = V1DeploymentConfig({
             initialAdmin: vm.envAddress("V1_INITIAL_ADMIN"),
             poolManager: vm.envAddress("V1_POOL_MANAGER"),
+            nativeQuotePoolFee: _toUint24("V1_NATIVE_QUOTE_POOL_FEE", vm.envUint("V1_NATIVE_QUOTE_POOL_FEE")),
+            nativeQuoteTickSpacing: _toInt24("V1_NATIVE_QUOTE_TICK_SPACING", vm.envInt("V1_NATIVE_QUOTE_TICK_SPACING")),
             positionManager: vm.envAddress("V1_POSITION_MANAGER"),
             swapRouter: vm.envAddress("V1_SWAP_ROUTER"),
             quoter: vm.envAddress("V1_QUOTER"),
@@ -168,7 +178,9 @@ contract DeployV1Deterministic is V1ReleaseGate {
         );
         _assertConfiguredCodeHash("V1_SWAP_ROUTER", config.swapRouter, "V1_SWAP_ROUTER_CODEHASH");
         _assertConfiguredCodeHash("V1_QUOTER", config.quoter, "V1_QUOTER_CODEHASH");
-        _assertConfiguredCodeHash("V1_PLATFORM_TREASURY", config.platformTreasury, "V1_PLATFORM_TREASURY_CODEHASH");
+        _validatePlatformTreasury(
+            config.platformTreasury, config.initialAdmin, vm.envBytes32("V1_PLATFORM_TREASURY_CODEHASH")
+        );
 
         _assertAddress(
             "POSITION_MANAGER_POOL_MANAGER",
@@ -214,6 +226,11 @@ contract DeployV1Deterministic is V1ReleaseGate {
         }
     }
 
+    /// @dev Match the Factory dependency requirement on every network.
+    function _validatePlatformTreasury(address treasury, address, bytes32 expected) internal view {
+        _assertCodeHash("V1_PLATFORM_TREASURY", treasury, expected);
+    }
+
     function _assertConfiguredCodeHash(string memory field, address target, string memory hashEnvironment)
         private
         view
@@ -238,6 +255,18 @@ contract DeployV1Deterministic is V1ReleaseGate {
     function _toUint128(string memory field, uint256 value) private pure returns (uint128) {
         if (value > type(uint128).max) revert ValueOutOfRange(field, value, type(uint128).max);
         return uint128(value);
+    }
+
+    function _toUint24(string memory field, uint256 value) private pure returns (uint24) {
+        if (value > type(uint24).max) revert ValueOutOfRange(field, value, type(uint24).max);
+        return uint24(value);
+    }
+
+    function _toInt24(string memory field, int256 value) private pure returns (int24) {
+        if (value < type(int24).min || value > type(int24).max) {
+            revert InvalidConfiguration(field);
+        }
+        return int24(value);
     }
 
     function _toUint32(string memory field, uint256 value) private pure returns (uint32) {

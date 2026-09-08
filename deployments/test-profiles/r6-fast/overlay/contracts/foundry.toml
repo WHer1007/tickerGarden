@@ -1,0 +1,52 @@
+[profile.default]
+src = "src"
+test = "test"
+script = "script"
+out = "out"
+cache_path = "cache"
+libs = ["lib"]
+solc_version = "0.8.26"
+evm_version = "cancun"
+optimizer = true
+optimizer_runs = 200
+bytecode_hash = "none"
+cbor_metadata = false
+
+[profile.v1]
+src = "src/v1"
+test = "test/v1"
+script = "script/v1"
+out = "out-v1"
+cache_path = "cache-v1"
+libs = ["lib"]
+fs_permissions = [{ access = "read", path = "../outputs/reviews/r6-fast-test-2026-09-06/time-fixture.json" }, { access = "read", path = "../outputs/reviews/r5-business-acceptance-2026-09-06/time-fixture.json" }, { access = "read", path = "../deployments/releases/0xe451138ea1858fdd816e0c1f4a0480945b16d85713056d33655a91bfb74eeeb7/arbitrum-sepolia-421614.v1.deployed.json" }, { access = "read", path = "../spec" }, { access = "read", path = "../deployments/evidence" }, { access = "read", path = "../deployments/manifests/arbitrum-sepolia-421614.v1.deployed.json" }, { access = "read", path = "../outputs/reviews/arbitrum-r3-scenarios/results.json" }, { access = "read", path = "../outputs/reviews/arbitrum-r3-scenarios/roles.json" }]
+solc_version = "0.8.26"
+evm_version = "cancun"
+optimizer = true
+optimizer_runs = 200
+bytecode_hash = "none"
+cbor_metadata = false
+
+[profile.ci]
+fuzz = { runs = 1_000 }
+invariant = { runs = 256, depth = 64, fail_on_revert = true }
+
+# Reproducible V1 CI profile. Keep this independent from the default profile so
+# V1 jobs cannot accidentally compile the legacy namespace or reuse its cache.
+[profile.v1-ci]
+src = "src/v1"
+test = "test/v1"
+script = "script/v1"
+out = "out-v1-ci"
+cache_path = "cache-v1-ci"
+libs = ["lib"]
+fs_permissions = [{ access = "read", path = "../outputs/reviews/r6-fast-test-2026-09-06/time-fixture.json" }, { access = "read", path = "../outputs/reviews/r5-business-acceptance-2026-09-06/time-fixture.json" }, { access = "read", path = "../deployments/releases/0xe451138ea1858fdd816e0c1f4a0480945b16d85713056d33655a91bfb74eeeb7/arbitrum-sepolia-421614.v1.deployed.json" }, { access = "read", path = "../spec" }, { access = "read", path = "../deployments/evidence" }, { access = "read", path = "../deployments/manifests/arbitrum-sepolia-421614.v1.deployed.json" }, { access = "read", path = "../outputs/reviews/arbitrum-r3-scenarios/results.json" }, { access = "read", path = "../outputs/reviews/arbitrum-r3-scenarios/roles.json" }]
+solc_version = "0.8.26"
+evm_version = "cancun"
+optimizer = true
+optimizer_runs = 200
+bytecode_hash = "none"
+cbor_metadata = false
+auto_detect_remappings = false
+fuzz = { runs = 1_000, failure_persist_dir = "cache-v1-ci/fuzz" }
+invariant = { runs = 256, depth = 500, fail_on_revert = true, failure_persist_dir = "cache-v1-ci/invariant" }

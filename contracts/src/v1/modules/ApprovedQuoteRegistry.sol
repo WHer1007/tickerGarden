@@ -72,7 +72,7 @@ contract ApprovedQuoteRegistry is IApprovedQuoteRegistry, ImmutableAccessManaged
                 QUOTE_ECONOMICS_DOMAIN,
                 QUOTE_ECONOMICS_SCHEMA_VERSION,
                 block.chainid,
-                config.ponsBaselineId,
+                config.tickerGardenBaselineId,
                 config.quoteAsset,
                 config.quoteDecimals,
                 config.phantomQuote,
@@ -258,7 +258,7 @@ contract ApprovedQuoteRegistry is IApprovedQuoteRegistry, ImmutableAccessManaged
 
     function _validateConfigShape(bytes32 configId, QuoteAssetConfig calldata config) private view {
         if (
-            configId == bytes32(0) || config.ponsBaselineId == bytes32(0) || config.status != QUOTE_STATUS_ACTIVE
+            configId == bytes32(0) || config.tickerGardenBaselineId == bytes32(0) || config.status != QUOTE_STATUS_ACTIVE
                 || config.quoteDecimals < MIN_QUOTE_DECIMALS || config.quoteDecimals > MAX_QUOTE_DECIMALS
                 || config.phantomQuote == 0 || config.graduationThreshold == 0
                 || config.phantomQuote > MAX_GRADUATION_AMOUNT || config.graduationThreshold > MAX_GRADUATION_AMOUNT
@@ -270,7 +270,7 @@ contract ApprovedQuoteRegistry is IApprovedQuoteRegistry, ImmutableAccessManaged
     function _storeQuoteConfig(bytes32 configId, QuoteAssetConfig calldata config, bytes32 runtimeCodeHash) private {
         _quoteConfigs[configId] = config;
         _quoteRuntimeCodeHashes[configId] = runtimeCodeHash;
-        emit QuoteAssetConfigAdded(configId, config.quoteAsset, config.ponsBaselineId, config.economicsHash);
+        emit QuoteAssetConfigAdded(configId, config.quoteAsset, config.tickerGardenBaselineId, config.economicsHash);
         emit QuoteAssetIdentityPinned(configId, config.quoteAsset, runtimeCodeHash);
     }
 
@@ -306,7 +306,7 @@ contract ApprovedQuoteRegistry is IApprovedQuoteRegistry, ImmutableAccessManaged
                 STOCK_QUOTE_ECONOMICS_DOMAIN,
                 STOCK_QUOTE_ECONOMICS_SCHEMA_VERSION,
                 block.chainid,
-                config.ponsBaselineId,
+                config.tickerGardenBaselineId,
                 config.quoteAsset,
                 config.quoteDecimals,
                 config.phantomQuote,

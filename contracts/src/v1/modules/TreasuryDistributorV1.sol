@@ -16,6 +16,7 @@ import {
     TreasuryEpochV1,
     TreasuryMarketV1
 } from "../interfaces/IV1Protocol.sol";
+import {CanonicalBlockClock} from "../libraries/CanonicalBlockClock.sol";
 import {TreasuryClaimLeafV1} from "../libraries/TreasuryClaimLeafV1.sol";
 import {ImmutableAccessManaged} from "../shared/ImmutableAccessManaged.sol";
 
@@ -47,9 +48,9 @@ struct TreasuryDistributorInitV1 {
 contract TreasuryDistributorV1 is ITreasuryDistributorV1, ImmutableAccessManaged, ReentrancyGuard {
     using SafeERC20 for IERC20;
 
-    uint32 public constant EPOCH_DURATION = 30 days;
+    uint32 public constant EPOCH_DURATION = 7 days;
     bytes32 public constant EXECUTION_SPEC_ID = keccak256("V1-TREASURY-EXEC-1");
-    bytes32 public constant TWAB_SCHEMA = keccak256("TRANSFER_LOG_TWAB_30D_V1");
+    bytes32 public constant TWAB_SCHEMA = keccak256("TRANSFER_LOG_TWAB_7D_V1");
     bytes32 public constant CLAIM_LEAF_DOMAIN = keccak256("TICKERGARDEN_V1_TREASURY_CLAIM_V1");
 
     bytes32 private constant FUND_OPERATION_DOMAIN = keccak256("V1_TREASURY_FUND_QUOTE");
@@ -331,6 +332,16 @@ contract TreasuryDistributorV1 is ITreasuryDistributorV1, ImmutableAccessManaged
         emit MemeTreasuryBurned(marketId, msg.sender, value.memeToken, burnId, amount, supplyAfter);
     }
 
+    function _canonicalSourceBlock() private view returns (uint64 sourceBlockNumber, bytes32 sourceBlockHash) {
+        uint256 currentBlockNumber = CanonicalBlockClock.number();
+        if (currentBlockNumber <= finalityDelayBlocks || currentBlockNumber - finalityDelayBlocks > type(uint64).max) {
+            revert FinalityBlockUnavailable(currentBlockNumber, finalityDelayBlocks);
+        }
+        sourceBlockNumber = uint64(currentBlockNumber - finalityDelayBlocks);
+        sourceBlockHash = CanonicalBlockClock.hash(sourceBlockNumber);
+        if (sourceBlockHash == bytes32(0)) revert FinalityBlockUnavailable(currentBlockNumber, finalityDelayBlocks);
+    }
+
     function requestRoot(bytes32 marketId, uint32 epochId) external payable override nonReentrant {
         TreasuryMarketV1 storage value = _activeMarket(marketId);
         (uint64 windowStart, uint64 windowEnd) = _epochWindow(marketId, value, epochId);
@@ -355,13 +366,7 @@ contract TreasuryDistributorV1 is ITreasuryDistributorV1, ImmutableAccessManaged
             IERC20(value.memeToken).balanceOf(msg.sender) == 0
                 && block.timestamp < uint256(readyAt) + rootPublicationWindow
         ) revert RequesterIsNotHolder(msg.sender);
-        if (block.number <= finalityDelayBlocks || block.number - finalityDelayBlocks > type(uint64).max) {
-            revert FinalityBlockUnavailable(block.number, finalityDelayBlocks);
-        }
-
-        uint64 sourceBlockNumber = uint64(block.number - finalityDelayBlocks);
-        bytes32 sourceBlockHash = blockhash(sourceBlockNumber);
-        if (sourceBlockHash == bytes32(0)) revert FinalityBlockUnavailable(block.number, finalityDelayBlocks);
+        (uint64 sourceBlockNumber, bytes32 sourceBlockHash) = _canonicalSourceBlock();
 
         RootServiceFeeV1 memory fee = _rootServiceFee;
         _collectServiceFee(fee);

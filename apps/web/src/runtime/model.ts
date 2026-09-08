@@ -1,3 +1,4 @@
+import { ROBINHOOD_CHAIN_ID } from "../v1/chain.ts";
 import { concatHex, formatUnits, keccak256, parseUnits, type Address, type Hex } from "viem";
 import type {
   ConfigReadModel,
@@ -12,7 +13,7 @@ export const ADDRESS_PATTERN = /^0x[0-9a-f]{40}$/;
 export const BYTES32_PATTERN = /^0x[0-9a-f]{64}$/;
 export const MAX_UINT256 = (1n << 256n) - 1n;
 
-export const PHASE_LABELS = ["Not Graduated", "Pool Created"] as const;
+export const PHASE_LABELS = ["Growing", "Bloomed"] as const;
 
 export function phaseLabel(phase: number): string {
   return PHASE_LABELS[phase] ?? `Phase ${phase}`;
@@ -67,7 +68,7 @@ export function configBigInt(config: ConfigReadModel, key: string): bigint {
 
 export function assertFinalizedSync(sync: SyncStatus, expectedRevision?: string, label = "snapshot"): void {
   if (
-    sync.chainId !== 4663
+    sync.chainId !== ROBINHOOD_CHAIN_ID
     || sync.status !== "synced"
     || sync.finality !== "finalized"
     || typeof sync.blockNumber !== "string"

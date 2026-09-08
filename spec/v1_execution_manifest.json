@@ -156,13 +156,15 @@
     "firstBuyGraduationShareCapBps": null,
     "arbitrarySnipeExemptionArray": false,
     "antiSnipe": {
-      "durationSeconds": 3,
+      "durationSeconds": 5,
       "rawBpsByElapsedSecond": [
         9900,
-        618,
-        19
+        2475,
+        309,
+        19,
+        1
       ],
-      "zeroFromElapsedSecond": 3,
+      "zeroFromElapsedSecond": 5,
       "minimumNetBps": 100,
       "effectiveBpsFormula": "min(rawSnipeBps,10000-feeBps-creatorTaxBps-minimumNetBps)",
       "creatorTaxBps": 0,
@@ -171,7 +173,8 @@
         "CREATOR_REVENUE_BENEFICIARY_AT_CREATION",
         "ATOMIC_FIRST_BUY_RECIPIENT"
       ],
-      "runtimeEvidence": "spec/v1_pons_runtime_evidence.json"
+      "runtimeEvidence": "USER_APPROVED_2026_09_07_NOT_PONS_RUNTIME_EVIDENCE",
+      "policyId": "TICKERGARDEN_ANTI_SNIPE_5S_V1"
     }
   },
   "quoteConfigs": {
@@ -233,12 +236,12 @@
     "perAssetModules": [],
     "perMarketCreate2AtLaunch": [
       "TickerMemeTokenV1",
-      "PonsCompatibleCurve",
+      "TickerGardenCurve",
       "MemeStockGauge"
     ],
     "perMarketFullCreate2AtLaunch": [
       "TickerMemeTokenV1",
-      "PonsCompatibleCurve"
+      "TickerGardenCurve"
     ],
     "perMarketCloneCreate2AtLaunch": [
       "MemeStockGauge"
@@ -341,7 +344,7 @@
     "dynamicFee": false,
     "currencyOrder": "ADDRESS_ASCENDING",
     "nativeCurrency": "0x0000000000000000000000000000000000000000",
-    "tickSpacingSource": "FROZEN_PONS_BASELINE",
+    "tickSpacingSource": "FROZEN_LAUNCH_BASELINE",
     "hookPermissionMaskHex": "0x2044",
     "hookPermissionMaskDecimal": 8260,
     "hookPermissions": [
@@ -557,7 +560,7 @@
     "canonicalModule": "MarketRegistryV1",
     "canonicalConfigFields": [
       "assetUid",
-      "ponsBaselineId",
+      "tickerGardenBaselineId",
       "quoteAssetConfigId",
       "launchTemplateId",
       "feePolicyId",
@@ -801,5 +804,22 @@
         "ACTIVE"
       ]
     ]
+  },
+  "optionalStockStaking": {
+    "creationField": "stakingEnabled",
+    "immutable": true,
+    "expectedEconomicsSchemaVersion": 6,
+    "enabledRequires": "ACTIVE_STOCK_CURRENT_FINGERPRINT_AND_CANONICAL_VAULT",
+    "disabledAssetUid": "ZERO_BYTES32",
+    "disabledGauge": "ZERO_ADDRESS_NOT_DEPLOYED",
+    "disabledStakingCalls": "REVERT",
+    "disabledPostGraduationBaseFeeSplitBps": {
+      "creator": 7000,
+      "staker": 0,
+      "platform": 3000,
+      "lp": 0
+    },
+    "holderSharingIndependent": true,
+    "creatorTaxIndependent": true
   }
 }

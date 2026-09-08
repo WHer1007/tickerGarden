@@ -1,14 +1,18 @@
-> 2026-09-05 release-candidate verification: current revision is `DEPLOYMENT_ELIGIBLE`, with eight production gates still open. Refreshed verification is recorded in [`outputs/reviews/testnet-release-candidate/`](../../outputs/reviews/testnet-release-candidate/) and [`deployments/evidence/v1-deployment-gates-current.json`](../../deployments/evidence/v1-deployment-gates-current.json). No release certificate exists and no broadcast was performed; the older evidence remains historical (`STALE`).
+> 2026-09-06 更新：R3 测试链版本已部署，使用 7 天持有人周期与 0.42 ETH 测试毕业门槛。此前重命名候选的 NOT_BROADCAST / 阻塞记录属于历史阶段；当前验证范围和时间限制以 [R3 测试报告](../../outputs/reviews/arbitrum-r3-scenarios/REPORT.md) 为准。RH 生产就绪仍未确认。
+
+> Historical 2026-09-05 pre-brand-renaming verification: that revision was `DEPLOYMENT_ELIGIBLE`, with eight production gates still open. Historical verification is recorded in [`outputs/reviews/optional-stock-staking/`](../../outputs/reviews/optional-stock-staking/) and [`deployments/evidence/v1-optional-staking-gates.json`](../../deployments/evidence/v1-optional-staking-gates.json). No release certificate exists and no broadcast was performed; the older evidence remains historical (`STALE`).
+
+Current brand-renamed candidate: `IMPLEMENTATION_ALLOWED / NOT_BROADCAST`. Gate `V1-DEPLOY-ARTIFACT-CODEHASH-01` requires new release identity, ABI/codehash review and deployment rehearsal. Earlier R2 evidence is historical and does not certify these renamed sources.
 
 # TickerGarden V1 Readiness 与部署门禁
 
-> 历史说明：早先 Treasury 修复阶段的 `IMPLEMENTATION_ALLOWED` 与旧部署证据失效结论仅适用于当时的候选版本；当前候选已由同一版本的完整验证重新取证，详见上述 release-candidate report。
+> 历史说明：早先 Treasury 修复阶段的 `IMPLEMENTATION_ALLOWED` 与旧部署证据失效结论仅适用于当时的候选版本；上述旧候选曾由同一版本的完整验证重新取证，品牌重命名后的候选需新的 release 证明。
 
 
-> **当前产品边界（2026-09-05）：** `V1-EXEC-11` 的市场自治与原子毕业架构已通过生成物、确定性部署编排、测试网依赖核验及固定区块 Fork/E2E。`launchPhase` 只允许 `NotGraduated -> PoolCreated`，资产/配置级 pause/retire 仍是独立对象状态。当前没有广播测试网交易或 release certificate；独立审计和生产 E2E 门禁仍开放。
+> **历史产品验证记录（2026-09-05，重命名前）：** `V1-EXEC-11` 的市场自治与原子毕业架构已通过生成物、确定性部署编排、测试网依赖核验及固定区块 Fork/E2E。`launchPhase` 只允许 `NotGraduated -> PoolCreated`，资产/配置级 pause/retire 仍是独立对象状态。当前没有广播测试网交易或 release certificate；独立审计和生产 E2E 门禁仍开放。
 
 > 规格任务：`V1-P-012`
-> 当前状态：`DEPLOYMENT_ELIGIBLE`
+> 当前状态：`IMPLEMENTATION_ALLOWED`
 > 机器权威：[`spec/v1_execution_manifest.json`](../../spec/v1_execution_manifest.json) 的 `readiness`
 > 更新时间：2026-09-05
 
@@ -65,7 +69,7 @@ productionReady        = state == PRODUCTION_READY
 
 active Pons runtime 差分、非空首发 Quote、通用数值/overflow 上界、batch scope，以及官方 STOCK 全目录质押 Base 身份准入/194项点时观测已经分别由 `spec/v1_pons_runtime_evidence.json`、`spec/v1_initial_quote_configs.json`、`spec/v1_numeric_bounds.json`、manifest 与 `spec/v1_rh_official_stock_catalog.snapshot.json` 固化。`V1-EXEC-11` 的现有 implementation gate 已全部关闭：市场创建时必须从 ACTIVE 官方目录选择且只选择一个 `assetUid`，之后不可改绑；同一 STOCK 可被任意多个 Meme 市场选用；毕业后持有者自行决定是否向对应市场分配该 STOCK；每个非零 allocation 使用管理员按 Asset UID 动态设置的 `minimumAllocation`，且不得低于414 raw units；存在 Active stake 时按 Creator40%/Staker30%/Platform30% 分配，无 Active stake 时按 Creator70%/Staker0%/Platform30% 分配。质押 Base 的 STOCK 价格、Feed 和 backing target 不属于现有 implementation 证据；Stock Quote 扩展必须另行建立证据和门禁。
 
-当前 `DEPLOYMENT_ELIGIBLE` 证据由 [`deployments/evidence/v1-deployment-gates-current.json`](../../deployments/evidence/v1-deployment-gates-current.json) 记录，验证详情见 [`outputs/reviews/testnet-release-candidate/`](../../outputs/reviews/testnet-release-candidate/)。旧 [`v1-deployment-gates.json`](../../deployments/evidence/v1-deployment-gates.json) 保留为 `STALE` 历史证据。测试网计划仍要求在广播前再次读取 latest 依赖代码；公共 RPC 只提供近期状态，固定历史 Fork 需要 archive-capable RPC。
+当前 `DEPLOYMENT_ELIGIBLE` 证据由 [`deployments/evidence/v1-optional-staking-gates.json`](../../deployments/evidence/v1-optional-staking-gates.json) 记录，验证详情见 [`outputs/reviews/optional-stock-staking/`](../../outputs/reviews/optional-stock-staking/)。旧 [`v1-deployment-gates.json`](../../deployments/evidence/v1-deployment-gates.json) 保留为 `STALE` 历史证据。测试网计划仍要求在广播前再次读取 latest 依赖代码；公共 RPC 只提供近期状态，固定历史 Fork 需要 archive-capable RPC。
 
 进入 `PRODUCTION_READY` 前还必须有：Critical/High 审计问题为0、Pons 参考许可与法律批准、deployer 权限移交/撤销、源码和可复现构建验证、监控告警与事故 runbook，以及至少72小时 canary soak。
 

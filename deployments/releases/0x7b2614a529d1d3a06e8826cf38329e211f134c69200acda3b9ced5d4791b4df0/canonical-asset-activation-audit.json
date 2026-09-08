@@ -1,0 +1,13 @@
+{
+  "schemaVersion": 1,
+  "status": "APPROVED_FOR_CANONICAL_TEST_ASSET_ACTIVATION",
+  "scope": "ROBINHOOD_TESTNET_CANONICAL_ASSETS",
+  "chainId": 46630,
+  "releaseId": "0x7b2614a529d1d3a06e8826cf38329e211f134c69200acda3b9ced5d4791b4df0",
+  "planSha256": "0xd9ac48e62c6283c4d2346affe36ea13196ad8a4390d57f667b6b414e1887ec6d",
+  "evidenceSha256": "0x081658c892f8914bed16eb864f1efdbb0f670d05ac2794d496db55b7fa3c2178",
+  "auditBlock": "115078181",
+  "expiresAtUnix": 1788897707,
+  "transactionCount": 11,
+  "reviewer": "AUTOMATED_FAIL_CLOSED_REVIEW"
+}
