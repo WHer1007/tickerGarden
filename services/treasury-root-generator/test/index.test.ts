@@ -19,7 +19,7 @@ const ALICE = "0x000000000000000000000000000000000000a11c";
 const BOB = "0x0000000000000000000000000000000000000b0b";
 const MARKET_ID = `0x${"11".repeat(32)}` as const;
 const SOURCE_HASH = `0x${"22".repeat(32)}` as const;
-const SINGLE_HOLDER_VECTOR = "0x0976c43f620d8d9d90e70517bae067a218078bc8e530160873e12c5a25290572";
+const SINGLE_HOLDER_VECTOR = "0x563309c36eaee683b8f3b6290c5227f9fc1027356d8e5c134a4b0e8c586e3aff";
 const START = 1_700_000_000n;
 
 function observation(
@@ -84,7 +84,7 @@ test("accepts native ETH as the quote token while requiring nonzero distributor 
   assert.throws(() => generateTreasuryRoot(zeroMeme), /contract address cannot be zero/);
 });
 
-test("computes a 30-day TWAB, exact largest-remainder allocation, and valid proofs", () => {
+test("computes a 7-day TWAB, exact largest-remainder allocation, and valid proofs", () => {
   const half = EPOCH_DURATION_SECONDS / 2n;
   const output = generateTreasuryRoot(
     input([
@@ -137,7 +137,7 @@ test("eligibility policy excludes committed accounts and detects policy drift", 
   );
 });
 
-test("rejects incomplete histories, non-30-day windows, and observations beyond the source tip", () => {
+test("rejects incomplete histories, non-7-day windows, and observations beyond the source tip", () => {
   assert.throws(
     () => generateTreasuryRoot(input([observation(2n, START, ALICE, BOB, 1n)])),
     /negative balance/,
@@ -145,7 +145,7 @@ test("rejects incomplete histories, non-30-day windows, and observations beyond 
 
   const wrongWindow = input([observation(1n, START - 1n, ZERO, ALICE, 1n)]);
   wrongWindow.windowEnd -= 1n;
-  assert.throws(() => generateTreasuryRoot(wrongWindow), /exactly 30 days/);
+  assert.throws(() => generateTreasuryRoot(wrongWindow), /exactly 7 days/);
 
   assert.throws(
     () => generateTreasuryRoot(input([observation(1_000n, START - 1n, ZERO, ALICE, 1n)])),

@@ -120,14 +120,15 @@
     "firstBuyGraduationShareCapBps": null,
     "arbitrarySnipeExemptionArray": false,
     "antiSnipe": {
-      "durationSeconds": 3,
-      "rawBpsByElapsedSecond": [9900, 618, 19],
-      "zeroFromElapsedSecond": 3,
+      "durationSeconds": 5,
+      "rawBpsByElapsedSecond": [9900, 2475, 309, 19, 1],
+      "zeroFromElapsedSecond": 5,
       "minimumNetBps": 100,
       "effectiveBpsFormula": "min(rawSnipeBps,10000-feeBps-creatorTaxBps-minimumNetBps)",
       "creatorTaxBps": 0,
       "automaticExemptions": ["CREATOR", "CREATOR_REVENUE_BENEFICIARY_AT_CREATION", "ATOMIC_FIRST_BUY_RECIPIENT"],
-      "runtimeEvidence": "spec/v1_pons_runtime_evidence.json"
+      "historicalRuntimeEvidence": "spec/v1_pons_runtime_evidence.json",
+      "policy": "TICKERGARDEN_FIVE_SECOND_SCHEDULE"
     }
   },
   "quoteConfigs": {

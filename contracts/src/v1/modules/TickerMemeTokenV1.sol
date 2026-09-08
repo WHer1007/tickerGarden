@@ -5,7 +5,7 @@ import {ERC20} from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 
 /// @notice A market-bound, fixed-supply ERC-20 whose entire supply is created directly in its Curve.
 /// @dev Treasury burns are the only post-deployment supply mutation and can only destroy tokens held by the
-///      shared V1 TreasuryDistributor. Standard transfers do not write TWAB checkpoints; the 30-day holder
+///      shared V1 TreasuryDistributor. Standard transfers do not write TWAB checkpoints; the 7-day holder
 ///      distribution is reconstructed from finalized Transfer logs.
 contract TickerMemeTokenV1 is ERC20 {
     bytes32 private immutable _marketId;

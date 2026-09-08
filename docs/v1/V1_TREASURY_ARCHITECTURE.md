@@ -8,7 +8,7 @@
 
 V1 的目标部署形态是一个共享 `TreasuryDistributorV1`；每个毕业市场在共享合约中登记独立账本，不为每个 Meme 市场创建 Treasury 合约。该目标形态仍受本文列出的未冻结输入约束，并不表示当前可部署。
 
-- Quote Treasury：按 `marketId + 30 天 epoch` 隔离金额和负债；共享托管地址不代表共享账本。
+- Quote Treasury：按 `marketId + 7 天 epoch` 隔离金额和负债；共享托管地址不代表共享账本。
 - Meme 销毁：Meme 先精确转入 Distributor，再调用该 Meme Token 的 Treasury 专用 burn；必须同时验证 Distributor 余额恢复及 `totalSupply` 精确减少。
 - TWAB：平台从 Meme Token 的标准 `Transfer` 日志重放 `[windowStart, windowEnd)` 的 raw-token balance-seconds，不在每次交易中写链上 checkpoint。
 - Merkle：每个叶子固定包含账户、TWAB numerator、Quote 分配金额和完整 replay domain。
@@ -17,7 +17,7 @@ V1 的目标部署形态是一个共享 `TreasuryDistributorV1`；每个毕业�
 
 ## 2. V1 发布边界
 
-Treasury 是 V1 发布的一部分，接口、登记、资金隔离、30 天 TWAB Merkle Root、持有人领取及 permissionless finalize/expire/rollover 范围已经实现并接入 Rewards 页面。当前统一手续费比例与自动注资触发/来源/调度仍由后续产品决策冻结，因此 Treasury 仍为 `NOT_DEPLOYABLE`；这不再表示 Treasury 属于未来 V2 或仅为 preview。
+Treasury 是 V1 发布的一部分，接口、登记、资金隔离、7 天 TWAB Merkle Root、持有人领取及 permissionless finalize/expire/rollover 范围已经实现并接入 Rewards 页面。当前统一手续费比例与自动注资触发/来源/调度仍由后续产品决策冻结，因此 Treasury 仍为 `NOT_DEPLOYABLE`；这不再表示 Treasury 属于未来 V2 或仅为 preview。
 
 V1 手续费模块只需对接两个接口：
 
@@ -40,7 +40,7 @@ V1 Factory 创建 canonical 市场
 REGISTERED -- 任意人于 PoolCreated 后调用 activateMarket --> ACTIVE (不可逆)
                                                               |
                                                               v
-                                         epoch N = [start, start + 30 days)
+                                         epoch N = [start, start + 7 days)
 ```
 
 当前 Factory 与 GraduationExecutor 都不会自动调用上述两个 Treasury 入口；登记、激活、手续费注资和 Meme 销毁的生产编排仍是 V1 上线阻塞项。Rewards 只在链上已经完成 canonical 登记与激活后开放读取，并在发布批准门关闭时保持所有 Treasury 写操作禁用。
@@ -91,13 +91,13 @@ Rewards 页面承载 holder-facing 的 request、claim、permissionless finalize
 
 ## 5. TWAB 与 Merkle 冻结规则
 
-TWAB schema 为 `TRANSFER_LOG_TWAB_30D_V1`：
+TWAB schema 为 `TRANSFER_LOG_TWAB_7D_V1`：
 
 ```text
 accountTwab = sum(balanceAtIntervalStart * intervalSeconds)
 ```
 
-这里保存的是未除以 30 天的精确 numerator。所有账户使用同一窗口，因此比例不变，同时避免提前整数除法造成精度损失。
+这里保存的是未除以 7 天的精确 numerator。所有账户使用同一窗口，因此比例不变，同时避免提前整数除法造成精度损失。
 
 Root 输出 schema 为 `TICKERGARDEN_V1_TREASURY_ROOT_V1`，dataset hash 的 schema 为 `TICKERGARDEN_V1_TREASURY_DATASET_V1`；claim domain 为 `TICKERGARDEN_V1_TREASURY_CLAIM_V1`，eligibility policy domain 为 `TICKERGARDEN_V1_TREASURY_ELIGIBILITY_POLICY_V1`。
 
@@ -117,7 +117,7 @@ Root 输出 schema 为 `TICKERGARDEN_V1_TREASURY_ROOT_V1`，dataset hash 的 sch
 - `marketId`、`epochId`；
 - Meme Token、Quote Token；
 - eligibility policy hash；
-- 30 天窗口；
+- 7 天窗口；
 - finalized source block number/hash；
 - leaf index、account、TWAB、amount。
 

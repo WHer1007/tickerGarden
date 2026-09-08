@@ -78,3 +78,7 @@ STOCK 作为质押 Base 时只以 raw balance 参与权重。不存在饱和值�
 状态和完整 gate ID 不在本文重复维护，统一读取 `spec/v1_execution_manifest.json.readiness`。
 
 发行主链路的正式说明见 [V1_PONS_BEHAVIOR_BASELINE.md](./V1_PONS_BEHAVIOR_BASELINE.md)，机器向量见 [`spec/v1_pons_behavior_vectors.json`](../../spec/v1_pons_behavior_vectors.json)。
+
+## Current launch policy override
+
+The historical Pons runtime observations above retain their original three-second schedule. Current TickerGarden production buys use the approved five-second schedule in `spec/v1_execution_manifest.json` and `TickerGardenAntiSnipe.sol`: 9900, 2475, 309, 19, 1 raw bps, then zero from elapsed second 5.

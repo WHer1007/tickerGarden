@@ -32,8 +32,8 @@ MIN_SQRT_PRICE = 4_295_128_739
 MAX_SQRT_PRICE = 1_461_446_703_485_210_103_287_273_052_203_988_822_378_723_970_342
 Q96 = 2**96
 SNIPE_TAX_START_BPS = 9_900
-SNIPE_TAX_SECONDS = 3
-SNIPE_TAX_RAW_BY_ELAPSED_SECOND = (9_900, 618, 19)
+SNIPE_TAX_SECONDS = 5
+SNIPE_TAX_RAW_BY_ELAPSED_SECOND = (9_900, 2475, 309, 19, 1)
 SNIPE_MIN_NET_BPS = 100
 MIN_SUPPORTED_ASSET_DECIMALS = 6
 MAX_SUPPORTED_ASSET_DECIMALS = 18
@@ -361,7 +361,7 @@ def partition_graduation_tokens(
 
 
 def current_snipe_tax_bps(elapsed_seconds: int, exempt: bool = False) -> int:
-    """Return the frozen three-second runtime schedule for a buy recipient."""
+    """Return the approved five-second TickerGarden schedule for a buy recipient."""
 
     _require_uint(64, elapsed_seconds=elapsed_seconds)
     if exempt or elapsed_seconds >= SNIPE_TAX_SECONDS:
@@ -1026,3 +1026,9 @@ def schedule_new_pending(
     processed_slots, _ = process_mature_activations(slots, now)
     due = now + ACTIVATION_DELAY_SECONDS
     return add_activation_bucket(processed_slots, due, amount), due
+
+
+def historical_snipe_tax_bps(elapsed_seconds: int, exempt: bool = False) -> int:
+    """Historical Pons observation, separate from the active TickerGarden policy."""
+    _require_uint(64, elapsed_seconds=elapsed_seconds)
+    return 0 if exempt or elapsed_seconds >= 3 else (9900, 618, 19)[elapsed_seconds]

@@ -38,9 +38,9 @@ struct TreasuryDistributorInitV1 {
 contract TreasuryDistributorV1 is ITreasuryDistributorV1, ImmutableAccessManaged, ReentrancyGuard {
     using SafeERC20 for IERC20;
 
-    uint32 public constant EPOCH_DURATION = 30 days;
+    uint32 public constant EPOCH_DURATION = 7 days;
     bytes32 public constant EXECUTION_SPEC_ID = keccak256("V1-TREASURY-EXEC-1");
-    bytes32 public constant TWAB_SCHEMA = keccak256("TRANSFER_LOG_TWAB_30D_V1");
+    bytes32 public constant TWAB_SCHEMA = keccak256("TRANSFER_LOG_TWAB_7D_V1");
     bytes32 public constant CLAIM_LEAF_DOMAIN = keccak256("TICKERGARDEN_V1_TREASURY_CLAIM_V1");
 
     bytes32 private constant FUND_OPERATION_DOMAIN = keccak256("V1_TREASURY_FUND_QUOTE");

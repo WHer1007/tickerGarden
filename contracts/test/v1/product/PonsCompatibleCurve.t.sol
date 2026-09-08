@@ -285,7 +285,7 @@ contract PonsCompatibleCurveTest is Test {
         memeToken = deployment.token;
         curve = deployment.curve;
         vm.deal(USER, 10 ether);
-        vm.warp(block.timestamp + 3);
+        vm.warp(block.timestamp + 5);
     }
 
     function test_tailNativeBuyPartiallyFillsRefundsCallerAndCompletes() public {
@@ -377,7 +377,7 @@ contract PonsCompatibleCurveTest is Test {
         MockExactQuoteToken quote = new MockExactQuoteToken(18);
         Deployment memory deployment = _deploy(address(quote), maximum, maximum - 100, maximum);
         deployment.registry.setTickSpacing(1);
-        vm.warp(block.timestamp + 3);
+        vm.warp(block.timestamp + 5);
 
         (, uint256 quoteSpent,) = deployment.curve.quoteBuy(maximum * 2, USER);
         quote.mint(USER, quoteSpent);
@@ -469,7 +469,7 @@ contract PonsCompatibleCurveTest is Test {
         quote.mint(USER, 1_000);
         vm.prank(USER);
         quote.approve(address(ercCurve), 1_000);
-        vm.warp(block.timestamp + 3);
+        vm.warp(block.timestamp + 5);
 
         vm.prank(USER);
         (uint256 tokensOut, uint256 spent) = ercCurve.buy(1_000, 100_000, RECIPIENT);
@@ -492,7 +492,7 @@ contract PonsCompatibleCurveTest is Test {
         quote.mint(USER, 1_000);
         vm.prank(USER);
         quote.approve(address(ercCurve), 1_000);
-        vm.warp(block.timestamp + 3);
+        vm.warp(block.timestamp + 5);
 
         vm.prank(USER);
         vm.expectRevert(
@@ -508,7 +508,7 @@ contract PonsCompatibleCurveTest is Test {
     function test_falseNoDataAndMalformedTransferReturnsAreRejected() public {
         MockReturnAnomalyQuoteToken quote = new MockReturnAnomalyQuoteToken();
         PonsCompatibleCurve ercCurve = _deploy(address(quote), 1_000, 200, 400_000).curve;
-        vm.warp(block.timestamp + 3);
+        vm.warp(block.timestamp + 5);
 
         vm.expectRevert(abi.encodeWithSelector(PonsCompatibleCurve.InvalidTransferReturn.selector, address(quote)));
         vm.prank(USER);
@@ -532,7 +532,7 @@ contract PonsCompatibleCurveTest is Test {
         vm.prank(USER);
         quote.approve(address(ercCurve), 1_000);
         quote.configure(ercCurve, true);
-        vm.warp(block.timestamp + 3);
+        vm.warp(block.timestamp + 5);
 
         vm.expectRevert(abi.encodeWithSelector(PonsCompatibleCurve.TransferCallFailed.selector, address(quote)));
         vm.prank(USER);
@@ -544,7 +544,7 @@ contract PonsCompatibleCurveTest is Test {
         Deployment memory deployment = _deploy(address(0), 1_000, 999_000, 1_000_000);
         TickerMemeTokenV1 token = deployment.token;
         PonsCompatibleCurve liquidCurve = deployment.curve;
-        vm.warp(block.timestamp + 3);
+        vm.warp(block.timestamp + 5);
         vm.prank(USER);
         (uint256 bought,) = liquidCurve.buy{value: 100}(100, 0, USER);
         uint256 tokensIn = bought / 2;
@@ -594,7 +594,7 @@ contract PonsCompatibleCurveTest is Test {
 
     function test_curveFeeSweepIsAtomicAndDoesNotChangeRealReserve() public {
         PonsCompatibleCurve liquidCurve = _deploy(address(0), 1_000, 999_000, 1_000_000).curve;
-        vm.warp(block.timestamp + 3);
+        vm.warp(block.timestamp + 5);
         vm.prank(USER);
         liquidCurve.buy{value: 100}(100, 0, USER);
         uint256 realBefore = liquidCurve.realQuoteReserve();
@@ -609,7 +609,7 @@ contract PonsCompatibleCurveTest is Test {
         Deployment memory deployment = _deploy(address(0), 1_000, 999_000, 1_000_000);
         MockCurveFeeVault vault = deployment.feeVault;
         PonsCompatibleCurve liquidCurve = deployment.curve;
-        vm.warp(block.timestamp + 3);
+        vm.warp(block.timestamp + 5);
         vm.prank(USER);
         liquidCurve.buy{value: 100}(100, 0, USER);
         vault.setShouldRevert(true);

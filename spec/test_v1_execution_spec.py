@@ -29,7 +29,7 @@ from spec.v1_reference_model import (
     add_activation_bucket,
     checked_add_uint256,
     credit_pool_index,
-    current_snipe_tax_bps,
+    historical_snipe_tax_bps,
     curve_amount_in,
     curve_amount_out,
     derive_component_salt,
@@ -247,7 +247,7 @@ class V1ExecutionSpecTest(unittest.TestCase):
                     )
                 }
             elif kind == "antiSnipeBuy":
-                raw = current_snipe_tax_bps(
+                raw = historical_snipe_tax_bps(
                     inputs["elapsedSeconds"], inputs["exempt"]
                 )
                 effective = effective_snipe_tax_bps(
@@ -392,7 +392,7 @@ class V1ExecutionSpecTest(unittest.TestCase):
                     vector["provenance"]["revertData"][:10], "0x71c4efed"
                 )
             elif kind == "antiSnipeSchedule":
-                raw = current_snipe_tax_bps(
+                raw = historical_snipe_tax_bps(
                     inputs["elapsedSeconds"], inputs["exempt"]
                 )
                 actual = {"rawSnipeBps": raw}
@@ -1375,7 +1375,7 @@ class V1ExecutionSpecTest(unittest.TestCase):
                     outputs["slippagePass"],
                 )
             elif kind == "antiSnipeBuy":
-                raw_snipe_bps = current_snipe_tax_bps(
+                raw_snipe_bps = historical_snipe_tax_bps(
                     inputs["elapsedSeconds"], bool(inputs["exempt"])
                 )
                 effective_snipe_bps = effective_snipe_tax_bps(
@@ -1455,7 +1455,7 @@ class V1ExecutionSpecTest(unittest.TestCase):
         self.assertEqual(observed, [9900, 618, 19, 0])
         self.assertEqual(
             [
-                current_snipe_tax_bps(entry["elapsedSeconds"])
+                historical_snipe_tax_bps(entry["elapsedSeconds"])
                 for entry in anti_snipe["rawSchedule"]
             ],
             observed,
@@ -1472,7 +1472,7 @@ class V1ExecutionSpecTest(unittest.TestCase):
             ],
             anti_snipe["tickerGardenEffectiveScheduleBps"],
         )
-        self.assertEqual(current_snipe_tax_bps(0, exempt=True), 0)
+        self.assertEqual(historical_snipe_tax_bps(0, exempt=True), 0)
 
         traces = evidence["graduationTraces"]
         self.assertEqual({trace["quoteKind"] for trace in traces}, {"NATIVE", "ERC20"})
@@ -2197,3 +2197,15 @@ class V1ExecutionSpecTest(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class CurrentLaunchPolicyTest(unittest.TestCase):
+    def test_five_second_schedule(self):
+        from spec.v1_reference_model import current_snipe_tax_bps
+        expected = [9900,2475,309,19,1]
+        self.assertEqual([current_snipe_tax_bps(i) for i in range(7)], expected + [0,0])
+        manifest = json.loads((Path(__file__).parent / "v1_execution_manifest.json").read_text())
+        policy = manifest["launch"]["antiSnipe"]
+        self.assertEqual(policy["rawBpsByElapsedSecond"], expected)
+        self.assertEqual(policy["durationSeconds"], 5)
+        self.assertEqual(policy["zeroFromElapsedSecond"], 5)

@@ -14,7 +14,7 @@ import {
     PoolKey
 } from "../interfaces/IV1Protocol.sol";
 import {GraduationPoolMath} from "../libraries/GraduationPoolMath.sol";
-import {PonsAntiSnipe} from "../libraries/PonsAntiSnipe.sol";
+import {TickerGardenAntiSnipe} from "../libraries/TickerGardenAntiSnipe.sol";
 import {PonsCurveMath} from "../libraries/PonsCurveMath.sol";
 import {PonsSupplyMath} from "../libraries/PonsSupplyMath.sol";
 
@@ -132,7 +132,7 @@ contract PonsCompatibleCurve is IPonsCompatibleCurve, ReentrancyGuard {
     {
         _requireTradable();
         _requireRecipient(recipient);
-        PonsAntiSnipe.AntiSnipeBuyQuote memory quote = _buyQuote(quoteIn, minTokensOut, recipient, msg.sender);
+        TickerGardenAntiSnipe.AntiSnipeBuyQuote memory quote = _buyQuote(quoteIn, minTokensOut, recipient, msg.sender);
         if (!quote.curveQuote.slippagePass) {
             revert SlippageExceeded(quote.curveQuote.tokensOut, minTokensOut);
         }
@@ -345,11 +345,11 @@ contract PonsCompatibleCurve is IPonsCompatibleCurve, ReentrancyGuard {
     function _buyQuote(uint256 quoteIn, uint256 minTokensOut, address recipient, address caller)
         private
         view
-        returns (PonsAntiSnipe.AntiSnipeBuyQuote memory)
+        returns (TickerGardenAntiSnipe.AntiSnipeBuyQuote memory)
     {
         (uint256 quoteReserve, uint256 tokenReserve) = PonsSupplyMath.pricingReserves(_reserves, _phantomQuote);
         address atomicFirstBuyRecipient = caller == _launchRouter && !_hasExecutedTrade ? recipient : address(0);
-        return PonsAntiSnipe.quoteBuy(
+        return TickerGardenAntiSnipe.quoteBuy(
             quoteIn,
             quoteReserve,
             tokenReserve,
@@ -360,7 +360,7 @@ contract PonsCompatibleCurve is IPonsCompatibleCurve, ReentrancyGuard {
             _launchTimestamp,
             recipient,
             caller,
-            PonsAntiSnipe.ExemptionContext(_creator, _beneficiaryAtCreation, _launchRouter, atomicFirstBuyRecipient)
+            TickerGardenAntiSnipe.ExemptionContext(_creator, _beneficiaryAtCreation, _launchRouter, atomicFirstBuyRecipient)
         );
     }
 
