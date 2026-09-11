@@ -41,7 +41,6 @@ export default {
             <span><strong>Grown</strong> by communities</span>
             <span><strong>Inspired</strong> by ticker culture</span>
           </div>
-          <p class="hero-boundary">Ticker Memes are community signal tokens, not stock ownership, equity, dividends, or redemption rights. <a href="/risks">Review risks</a>.</p>
         </div>
 
         <div class="tree-stage signal-arbor" data-signal-arbor role="group" aria-label="Interactive stock fruit tree">

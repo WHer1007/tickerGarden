@@ -133,20 +133,6 @@
   font: 600 18px "Inter Variable", serif;
 }
 
-.hero-boundary {
-  max-width: 570px;
-  margin: 12px 0 0;
-  color: #718078;
-  font-size: 10px;
-  line-height: 1.55;
-}
-
-.hero-boundary a {
-  color: var(--ink);
-  font-weight: 700;
-  text-underline-offset: 2px;
-}
-
 .tree-stage {
   width: 570px;
   height: 438px;
@@ -502,10 +488,6 @@
   }
 
   .hero-lede {
-    margin-inline: auto;
-  }
-
-  .hero-boundary {
     margin-inline: auto;
   }
 

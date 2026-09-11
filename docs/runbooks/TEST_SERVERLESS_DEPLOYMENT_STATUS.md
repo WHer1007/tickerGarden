@@ -1,6 +1,6 @@
 # Test serverless deployment status
 
-Last verified: 2026-09-12 00:26 (Asia/Shanghai)
+Last verified: 2026-09-12 00:30 (Asia/Shanghai)
 
 ## Active scope
 
@@ -12,7 +12,7 @@ This is test-environment evidence. It is not production readiness or permission 
 
 | Component | Endpoint | State |
 | --- | --- | --- |
-| Web | `https://tickergarden-web-test.vercel.app` | active; Preview deployment `dpl_4QDFDVaQ1jyTWRhkMGeNCEFvuRmC` |
+| Web | `https://tickergarden-web-test.vercel.app` | active; Preview deployment `dpl_CxRMvqrTMoQY9aTmKkE9Dx4kUgUc` |
 | Read API | `https://tickergarden-read-api-test.vercel.app` | active; Preview deployment `dpl_3qjNCFFouEEnKPrMKToBWt7rhy1f` |
 | Content API | `https://tickergarden-content-test.vercel.app` | active |
 | Pipeline | `https://tickergarden-pipeline-test.vercel.app` | active; Preview deployment `dpl_2HZFTLkoCxkngmBvtQViDCBKcQw3` |
