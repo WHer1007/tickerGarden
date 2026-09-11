@@ -1,6 +1,6 @@
 # Test serverless deployment status
 
-Last verified: 2026-09-12 00:39 (Asia/Shanghai)
+Last verified: 2026-09-12 01:33 (Asia/Shanghai)
 
 ## Active scope
 
@@ -12,10 +12,10 @@ This is test-environment evidence. It is not production readiness or permission 
 
 | Component | Endpoint | State |
 | --- | --- | --- |
-| Web | `https://tickergarden-web-test.vercel.app` | active; Preview deployment `dpl_DJeGm5WWeS6u8ZTcAhPMbCYWqnMf` |
-| Read API | `https://tickergarden-read-api-test.vercel.app` | active; Preview deployment `dpl_3qjNCFFouEEnKPrMKToBWt7rhy1f` |
+| Web | `https://tickergarden-web-test.vercel.app` | active; Preview deployment `dpl_3eRkHvE3tzDH6PeaVM9L1SfbhFGW` |
+| Read API | `https://tickergarden-read-api-test.vercel.app` | active; Preview deployment `dpl_55iDW8DQ6MJTvmZG84pSYApjj94V` |
 | Content API | `https://tickergarden-content-test.vercel.app` | active |
-| Pipeline | `https://tickergarden-pipeline-test.vercel.app` | active; Preview deployment `dpl_2HZFTLkoCxkngmBvtQViDCBKcQw3` |
+| Pipeline | `https://tickergarden-pipeline-test.vercel.app` | active; Preview deployment `dpl_6rumYGnby6NvP1pspLhnhDKh9xyh` |
 | Chain event relay | VPS internal `chain-event-relay-test:8081` | healthy |
 | Queue relay | `https://queue-test.159-89-207-161.sslip.io` | active |
 | S3-compatible storage | `https://s3-test.159-89-207-161.sslip.io` | active |
@@ -31,9 +31,9 @@ The test pipeline uses three bounded RPC roles:
 - dRPC is the independent archive/status RPC used for historical `eth_call`, code identity, block, and finality consensus.
 - Robinhood's official testnet RPC is the independent historical-log RPC used for large filtered `eth_getLogs` ranges.
 
-Initial ingestion starts at release activation block `117032526`. It queries only the frozen frontend event topics and release-bound contract addresses. The shared Uniswap v4 PoolManager is queried separately with registered project `poolId` values. Fourteen complete filtered ranges cover activation through finalized block `117485970`; primary and log-secondary result sets matched before each range was committed.
+Initial ingestion starts at release activation block `117032526`. It queries only the frozen frontend event topics and release-bound contract addresses. The shared Uniswap v4 PoolManager is queried separately with registered project `poolId` values. Twenty-one complete filtered ranges cover activation through finalized block `117582716`; primary and log-secondary result sets matched before each range was committed.
 
-The finalized publication revision is `117485970:0x5587c1d90d929b7463b8e5bbafe25104203decbafcc0d4c596e09f0afea7f7e9`. All six projection checkpoints are present at the same revision: `configs`, `markets`, `accounts`, `positions`, `history`, and `analytics`. Current published/test data includes 12 markets, 4 accounts, 4 positions, 61 normalized trades, and 46 positive market/address balance pairs. The chain queue has 11 succeeded jobs, no pending/retry/dead jobs, and no unresolved source conflicts.
+The finalized publication revision is `117582716:0xaead33ea991a0a6cbcdb2f32547267854f5cd645adb3cb496b1ca5779ab09f60`. All six projection checkpoints are present at the same revision: `configs`, `markets`, `accounts`, `positions`, `history`, and `analytics`. Current published/test data includes 12 markets, 4 accounts, 4 positions, 61 normalized trades, and 46 positive market/address balance pairs. The chain queue has 18 succeeded jobs, no pending/retry/dead jobs, and no unresolved source conflicts.
 
 The VPS relay reads dynamic sources from `contract_sources` and current pool IDs from the published `markets` projection. Its verified health state is 49 active sources, 3 active pools, 2 filtered log subscriptions, 0 pending events, 0 dead events, and no last error. `CHAIN_RELAY_MAX_BACKFILL_BLOCKS=100000` allows bounded reconnect recovery; the current deployment recovered the earlier 50,000-plus-block gap before becoming healthy.
 
@@ -54,14 +54,18 @@ The 2026-09-11 online checks passed for:
 
 The browser made no legacy `/integration/` bootstrap request. The frontend reads the deployed Read API.
 
+The online Stats check returned HTTP 200 for `/health`, `/v1/protocol-statistics`, `/v1/statistics-prices`, and `/v1/updates`. The page rendered 12 launches in the current 24-hour window, 3 Bloomed markets, 2 staking wallets, and `$13.41` of stock staking value. Metrics without complete historical USD coverage render `Unavailable` rather than a zero placeholder.
+
 Market-cap reads are available independently of complete 24-hour historical coverage. The test price worker combines Coinbase ETH/USD with identity-verified Synthra V3 testnet pool spots for the five configured stock tokens; the VPS runs `tickergarden-price-refresh-test.timer` every minute. Explore merges `/v1/market-statistics` into Read API directory rows and displays current MC values. A transient failed quote refresh does not replace an unexpired successful reference.
 
 Token detail fee allocation reads use the current immutable market configuration and cumulative finalized allocation rows. Curve and Bloomed markets display each recipient percentage and exact asset-separated Quote/Meme amounts; the snapshot label distinguishes these totals from live settlement authority.
 
-The 24-hour volume fields remain `null` while activation-to-finalized history covers less than a complete 24-hour window. Protocol statistics that require complete interval coverage remain fail-closed; the UI must show `Unavailable`, never fabricated `$0`.
+The 24-hour volume fields remain `null` while the deployment is younger than a complete 24-hour window and time-aligned historical USD observations are unavailable. Protocol statistics that require complete historical price coverage remain fail-closed; the UI shows `Unavailable`, never fabricated `$0`.
 
 ## Operational notes
 
-Reapply `permissionsSql(...)` after schema or read-surface changes. The Read API role requires `SELECT` on `projection_checkpoints` for the statistics endpoints; this grant was applied on 2026-09-11.
+Reapply `permissionsSql(...)` after schema or read-surface changes. The Read API role requires `SELECT` on `projection_checkpoints` and `ingestion_checkpoints` for the statistics endpoints; these grants were applied on 2026-09-11.
+
+The VPS runs the chain coverage fence every five minutes and repairs or dispatches continuation jobs every minute. Reaching a finalized fence refreshes all coherent projections even when the filtered interval contains no events, so `/v1/updates` remains synchronized during quiet periods. All chain-refresh, chain-dispatch, and price-refresh timers were active at the last verification.
 
 When adding a new market, commit its discovered sources first. The relay refreshes `contract_sources` and current published pool IDs, backfills each new source from its birth block, then adds it to the live filtered subscriptions.
