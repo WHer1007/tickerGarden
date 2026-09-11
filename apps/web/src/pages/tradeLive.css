@@ -204,3 +204,5 @@ body:has(.trade-live){background:#faf9f4}.trade-live .ref-token-symbol{color:#11
 .trade-live .ref-fee-rows p{min-width:0;max-width:100%;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;text-align:right;font-variant-numeric:tabular-nums}
 
 .trade-live .trade-verification-status{min-height:18px;margin:-8px 0 12px;color:var(--muted,#66806d);font-size:10px;line-height:1.5}
+.trade-live .ref-meta [data-detail-copy]{width:36px;height:36px;flex-basis:36px}
+.trade-live .trade-balance-fill{min-height:32px;min-width:44px}

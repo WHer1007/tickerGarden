@@ -3,7 +3,7 @@ import {test} from 'node:test';
 import fs from 'node:fs';
 import stats from '../src/pages/stats.ts';
 test('Stats contains the requested metrics without old analytics sections',()=>{
- for(const label of ['24H Volume','Token Launches In 24H','Bloomed Markets','Total Stock Staked','Staking Wallets','24H Fee Revenue','Stock Staking Value','Allocated In 24H'])assert.ok(stats.html.includes(label));
+ for(const label of ['24h volume','Token launches in 24h','Bloomed markets','Total staking value','Staking wallets','24h fee revenue','Staking value by Stock','Allocated in 24h'])assert.ok(stats.html.includes(label));
  for(const key of ['creator','staker','holder','platform'])assert.ok(stats.html.includes(`data-stat-fee-${key}`));
  assert.doesNotMatch(stats.html,/Current holder addresses|data-global-holders|data-global-series|Total Market Cap|data-stats-period|Holder Breakdown|Trading Breakdown/);
 });

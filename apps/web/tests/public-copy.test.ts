@@ -9,6 +9,8 @@ test("implementation diagnostics use public product names without changing amoun
   const detail = "12.5 STOCK at 0x1111111111111111111111111111111111111111";
   assert.equal(publicMessage(detail), detail);
   assert.doesNotMatch(publicMessage("V1-EXEC-9 configuration mismatch"), /V1/);
+  assert.equal(publicMessage("Canonical route unavailable from PoolManager"), "trading route unavailable from liquidity pool");
+  assert.equal(publicMessage("Market snapshot unavailable"), "market data unavailable");
 });
 
 test("market phase diagnostics use Growing and Bloomed without changing protocol identifiers", () => {

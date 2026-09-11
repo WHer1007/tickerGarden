@@ -6,6 +6,10 @@ export function publicMessage(value: string): string {
     return "Network connection unavailable. Please try again shortly.";
   }
   return value
+    .replace(/\bcanonical (?:trading )?route\b/gi, "trading route")
+    .replace(/\bmarket snapshot\b/gi, "market data")
+    .replace(/\bverified (?:directory|market) data\b/gi, "current market data")
+    .replace(/\bPoolManager\b/g, "liquidity pool")
     // Keep protocol names and identifiers internal; translate readable diagnostics only.
     .replace(/\b(?:not[- ]graduated|ungraduated)\b/gi, "Growing")
     .replace(/\bgraduated\b/gi, "Bloomed")

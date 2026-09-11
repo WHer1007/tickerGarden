@@ -396,11 +396,22 @@ function setPageStatus(message: string, tone: "neutral" | "success" | "warning" 
   if (!target) return;
   target.textContent = publicMessage(message);
   target.dataset.state = tone;
+  target.parentElement?.querySelector("[data-page-retry]")?.remove();
+  if (tone === "error") {
+    const retry = document.createElement("button");
+    retry.type = "button";
+    retry.className = "page-retry";
+    retry.dataset.pageRetry = "";
+    retry.textContent = "Try again";
+    retry.setAttribute("aria-label", "Reload this page and try again");
+    retry.addEventListener("click", () => window.location.reload());
+    target.insertAdjacentElement("afterend", retry);
+  }
 }
 
 function runtimeReasons(): readonly string[] {
   if (foundationError) return [publicMessage(foundationError)];
-  if (!foundation) return ["Loading Market Data"];
+  if (!foundation) return ["Loading market data"];
   return foundation.writeReasons.map(publicMessage);
 }
 
@@ -1094,7 +1105,7 @@ function clearHomeMarketView(): void {
   const locked = query<HTMLElement>("[data-home-markets-locked]", rail);
   if (locked) {
     locked.hidden = false;
-    locked.textContent = "Market snapshot unavailable. Waiting for verified market data…";
+    locked.textContent = "Markets are temporarily unavailable. We’ll keep trying in the background.";
   }
 }
 
@@ -1235,13 +1246,12 @@ function clearMarketDirectoryView(resetPages=true):void {
  list.querySelectorAll("[data-runtime-market]").forEach(item=>item.remove());
  list.setAttribute("aria-busy","false");
  for(const selector of ["[data-market-loading]","[data-market-empty]"]){const item=query<HTMLElement>(selector,list);if(item)item.hidden=true;}
- const locked=query<HTMLElement>("[data-market-locked]",list);if(locked){locked.hidden=false;locked.textContent="Market snapshot unavailable. Waiting for verified directory data…";}
+ const locked=query<HTMLElement>("[data-market-locked]",list);if(locked){locked.hidden=false;locked.textContent="Markets are temporarily unavailable. We’ll keep trying in the background.";}
  const more=query<HTMLButtonElement>("[data-market-query-more]");if(more)more.hidden=true;
- const badge=query<HTMLElement>(".hero-badge span");if(badge)badge.textContent="Waiting for canonical market data";
+ const badge=query<HTMLElement>(".hero-badge span");if(badge)badge.textContent="Waiting for current market data";
 }
 window.addEventListener("pagehide",()=>{marketDirectory.reset();clearMarketDirectoryView();});
 let marketPhaseFilter = "bloomed";
-let statsPeriod: "24h" | "all" = "24h";
 
 async function loadMarketStockSymbols(): Promise<void> {
   if (!runtimeConfig.readApi.available) return;
@@ -1302,7 +1312,7 @@ async function renderMarkets():Promise<void>{
  const statistics=refreshExploreStatistics();
  if(foundation?.direct&&!foundation.markets.length)void refreshDirectDirectory();
  const list=query<HTMLElement>('[data-market-list]');if(!list)return;
- if(!foundation){setPageStatus('Loading Tokens…');return;}
+ if(!foundation){setPageStatus('Loading markets…');return;}
  const select=required<HTMLSelectElement>('[data-market-asset]');
  const options=[{value:'',symbol:'All Stocks',name:'',logo:undefined as string|undefined},...foundation.assets.map(asset=>({value:asset.id,symbol:stockSymbol(asset),name:stakingAssetForConfig(robinhoodChain.id,asset)?.name??stockToken(asset)??'',logo:stockLogo(asset)}))];
  if(exploreStockPicker)exploreStockPicker.update(options);else exploreStockPicker=setupExploreStockPicker(select,options);
@@ -1327,9 +1337,7 @@ async function renderExploreStage(phase:0|1,direction:'current'|'next'|'previous
  const params:DirectoryQuery={revision:current.sync.revision,launchPhase:phase,sort:sort as DirectoryQuery['sort'],...(search?{search}:{}),...(asset?{assetUid:canonicalBytes32(asset,'Stock')}:{})};
  const previous=query<HTMLButtonElement>(`[data-stage-prev="${phase}"]`),next=query<HTMLButtonElement>(`[data-stage-next="${phase}"]`),empty=query<HTMLElement>(`[data-stage-empty="${phase}"]`);
  const wasPreviousDisabled=previous?.disabled??true,wasNextDisabled=next?.disabled??true;
- let retry=query<HTMLButtonElement>(`[data-stage-retry="${phase}"]`);
- if(!retry){retry=document.createElement('button');retry.type='button';retry.dataset.stageRetry=String(phase);retry.textContent='Retry';retry.hidden=true;retry.onclick=()=>{void renderExploreStage(phase,direction);};grid.insertAdjacentElement('afterend',retry);}
- retry.hidden=true;
+ empty?.querySelector('[data-stage-retry]')?.remove();
  if(previous)previous.disabled=true;if(next)next.disabled=true;grid.setAttribute('aria-busy','true');
  try{
   const page=await explorePagers[phase].load(params,direction);
@@ -1338,7 +1346,7 @@ async function renderExploreStage(phase:0|1,direction:'current'|'next'|'previous
   const filtered=page.items;
   grid.querySelectorAll('[data-runtime-market]').forEach(node=>node.remove());
   text(`[data-stage-count="${phase}"]`,String(filtered.length));
-  if(empty){empty.hidden=filtered.length>0;empty.textContent=directDirectoryBusy&&current.direct?'Loading Tokens…':search||asset?'No Matching Tokens':phase===1?'No Bloomed Tokens Yet':'No Growing Tokens Yet';}
+  if(empty){empty.hidden=filtered.length>0;empty.textContent=directDirectoryBusy&&current.direct?'Loading markets…':search||asset?'No matching tokens':phase===1?'No Bloomed tokens yet':'No Growing tokens yet';}
   const template=required<HTMLTemplateElement>('[data-market-item-template]',list);
   for (const market of filtered) {
     const fragment = template.content.cloneNode(true) as DocumentFragment;
@@ -1423,14 +1431,14 @@ async function renderExploreStage(phase:0|1,direction:'current'|'next'|'previous
    }
   }
   if(previous)previous.disabled=!page.hasPrevious;if(next)next.disabled=!page.hasNext;
- }catch(error){if(generation===explorePageGeneration[phase]){if(empty){empty.hidden=false;empty.textContent='Unable To Load Tokens. Please Try Again.';}if(previous)previous.disabled=wasPreviousDisabled;if(next)next.disabled=wasNextDisabled;if(retry){retry.hidden=false;retry.onclick=()=>{void renderExploreStage(phase,direction);};}}}
+ }catch(error){if(generation===explorePageGeneration[phase]){if(empty){empty.hidden=false;empty.textContent='We couldn’t load these markets.';const retry=document.createElement('button');retry.type='button';retry.dataset.stageRetry=String(phase);retry.textContent='Try again';retry.setAttribute('aria-label',`Try loading ${phase===1?'Bloomed':'Growing'} markets again`);retry.onclick=()=>{void renderExploreStage(phase,direction);};empty.append(retry);}if(previous)previous.disabled=wasPreviousDisabled;if(next)next.disabled=wasNextDisabled;}}
  finally{if(generation===explorePageGeneration[phase])grid.setAttribute('aria-busy','false');}
 }
 
 function clearStatsSnapshotView(_message: string): void {
   for(const selector of ['[data-stat-market-cap]','[data-stat-volume]','[data-stat-launches]','[data-stat-bloomed]','[data-stat-total-markets]'])text(selector,'Unavailable');
   for(const selector of ['[data-stats-phase-list]','[data-stats-stock-list]','[data-stats-quote-list]']){
-    const container=query<HTMLElement>(selector);if(container){const empty=document.createElement('p');empty.className='stats-empty';empty.textContent='Data Is Not Available Yet';container.replaceChildren(empty);}
+    const container=query<HTMLElement>(selector);if(container){const empty=document.createElement('p');empty.className='stats-empty';empty.textContent='Data is not available yet';container.replaceChildren(empty);}
   }
   for(const selector of ['[data-stats-growing-bar]','[data-stats-bloomed-bar]']){const bar=query<HTMLElement>(selector);if(bar)bar.style.width='0%';}
   query<HTMLElement>('[data-stats-summary]')?.setAttribute('aria-busy','false');
@@ -1438,15 +1446,6 @@ function clearStatsSnapshotView(_message: string): void {
 let statsWarmupUntil=0;
 function setupStats(): void {
  statsWarmupUntil=Date.now()+180000;
-  const buttons=queryAll<HTMLButtonElement>('[data-stats-period]');
-  for(const button of buttons){
-    button.addEventListener('click',()=>{
-      const next=button.dataset.statsPeriod==='all'?'all':'24h';if(next===statsPeriod)return;statsPeriod=next;
-      for(const item of buttons){const selected=item===button;item.setAttribute('aria-selected',String(selected));item.tabIndex=selected?0:-1;}
-      void renderStats();
-    });
-    button.addEventListener('keydown',event=>{if(!['ArrowLeft','ArrowRight','Home','End'].includes(event.key))return;event.preventDefault();const index=buttons.indexOf(button),next=event.key==='Home'?0:event.key==='End'?buttons.length-1:(index+(event.key==='ArrowRight'?1:-1)+buttons.length)%buttons.length;buttons[next]?.focus();buttons[next]?.click();});
-  }
 }
 function statsAsset(address:string):{label:string;icon?:string}{
  if(address==='0x'+'0'.repeat(40))return{label:'ETH',icon:quoteIconUrl('ETH')};
@@ -1456,7 +1455,7 @@ function statsAsset(address:string):{label:string;icon?:string}{
 }
 function renderStatsDistribution(selector:string,groups:Map<string,{label:string;icon?:string;count:number}>,total:number){
  const list=query<HTMLElement>(selector);if(!list)return;
- if(!groups.size){const empty=document.createElement('p');empty.className='stats-empty';empty.textContent='No Markets Yet';list.replaceChildren(empty);return;}
+ if(!groups.size){const empty=document.createElement('p');empty.className='stats-empty';empty.textContent='No markets yet';list.replaceChildren(empty);return;}
  const fragment=document.createDocumentFragment();
  for(const group of [...groups.values()].sort((a,b)=>b.count-a.count||a.label.localeCompare(b.label))){
   const wrapper=document.createElement('div'),row=document.createElement('div');row.className='stats-distribution-row';
@@ -1520,16 +1519,14 @@ async function renderProtocolStatistics(current:()=>boolean,attempt=0):Promise<b
  }
 }
 async function renderStats():Promise<void>{
- const render=statsRender.begin(),all=false;statsPeriod='24h';
- text('[data-stat-volume-period]',all?'All Time · USD':'Last 24 Hours · USD');text('[data-stat-launches-label]',all?'All Time':'Last 24 Hours');
- queryAll<HTMLButtonElement>('[data-stats-period]').forEach(button=>{const selected=button.dataset.statsPeriod===statsPeriod;button.setAttribute('aria-selected',String(selected));button.tabIndex=selected?0:-1;});
- if(!foundation){clearStatsSnapshotView('');setPageStatus('Unable To Load Statistics','error');return;}
+ const render=statsRender.begin();
+ if(!foundation){clearStatsSnapshotView('');setPageStatus('Stats are temporarily unavailable. Try again.','error');return;}
  try{
   if(!render.isCurrent())return;
   const available=await renderProtocolStatistics(()=>render.isCurrent());
   if(!render.isCurrent())return;
-  query<HTMLElement>('[data-stats-summary]')?.setAttribute('aria-busy','false');setPageStatus(available?'':'Statistics Are Still Syncing. Verified Values Will Appear Automatically.',available?'success':'warning');
- }catch{if(render.isCurrent()){clearStatsSnapshotView('');setPageStatus('Unable To Load Statistics','error');}}
+  query<HTMLElement>('[data-stats-summary]')?.setAttribute('aria-busy','false');setPageStatus(available?'':'Stats are still syncing. Verified values will appear automatically.',available?'success':'warning');
+ }catch{if(render.isCurrent()){clearStatsSnapshotView('');setPageStatus('Stats are temporarily unavailable. Try again.','error');}}
 }
 
 function setupDocs(): void {
@@ -1664,8 +1661,17 @@ function setupTrade(): void {
     queryAll<HTMLButtonElement>('[data-detail-tab]').forEach(tab => {
       tab.classList.toggle('active', tab === button);
       tab.setAttribute('aria-selected', String(tab === button));
+      tab.tabIndex = tab === button ? 0 : -1;
     });
     queryAll<HTMLElement>('[data-detail-panel]').forEach(panel => { panel.hidden = panel.dataset.detailPanel !== button.dataset.detailTab; });
+  }));
+  queryAll<HTMLButtonElement>('[data-detail-tab]').forEach((button, _index, tabs) => button.addEventListener('keydown', event => {
+    if (!['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) return;
+    event.preventDefault();
+    const index = tabs.indexOf(button);
+    const next = event.key === 'Home' ? 0 : event.key === 'End' ? tabs.length - 1 : (index + (event.key === 'ArrowRight' ? 1 : -1) + tabs.length) % tabs.length;
+    tabs[next]?.focus();
+    tabs[next]?.click();
   }));
   query<HTMLButtonElement>('[data-detail-copy]')?.addEventListener('click', () => {
     if (!tradeMarket) return;
@@ -1763,7 +1769,7 @@ async function refreshTradeStake():Promise<void>{
   const withdraw=query<HTMLButtonElement>('[data-trade-stake-action="withdraw"]');
   if(add)add.disabled=market.launchPhase!==1;
   if(withdraw)withdraw.disabled=true;
-  text('[data-trade-stake-note]',market.launchPhase!==1?'Staking Opens After Blooming':!account?'Connect Wallet To View Your Stake':'');
+  text('[data-trade-stake-note]',market.launchPhase!==1?'Staking opens after Blooming':!account?'Connect your wallet to view your stake':'');
   try{
     const config=findAsset(market.assetUid);
     const decimals=Number(config.values.tokenDecimals);
@@ -1810,13 +1816,13 @@ function clearTradeMarketState(): void {
   curvePricing=null;
   query<HTMLElement>('.ref-hero')?.setAttribute('aria-busy','true');
   query<HTMLElement>('[data-detail-phase]')?.classList.remove('is-bloomed');
-  text('[data-detail-phase]','Loading market');text('[data-detail-phase-note]','');text('[data-detail-trading-pool]','Loading Trading Route…');
+  text('[data-detail-phase]','Loading market');text('[data-detail-phase-note]','');text('[data-detail-trading-pool]','Loading trading route…');
   const graduation=query<HTMLElement>('[data-detail-graduation]');if(graduation)graduation.hidden=true;
   tokenDetailWidget?.setMarket(null);
   detailContentAbort?.abort();detailContentAbort=null;
   ++detailBalancesGeneration;detailBalances=null;
   queryAll<HTMLElement>('[data-detail-symbol]').forEach(el=>el.textContent='-');
-  text('[data-detail-description]','Loading Description…');
+  text('[data-detail-description]','Loading description…');
   const avatar=query<HTMLImageElement>('[data-detail-image]');if(avatar){const fallback=new URL('../assets/token-placeholder.svg',import.meta.url).href;avatar.onerror=()=>{avatar.onerror=null;avatar.src=fallback;};avatar.src=fallback;}
   for(const key of ['website','x']){const link=query<HTMLButtonElement>(`[data-detail-${key}]`);if(link){link.hidden=false;link.disabled=true;delete link.dataset.externalUrl;link.removeAttribute('title');}}
   text('[data-detail-stock-label]','-');text('[data-detail-venue]','-');
@@ -1841,16 +1847,16 @@ function clearTradeMarketState(): void {
 function renderVerifiedTradeRoute(market: MarketReadModel): void {
   const route = market.canonicalRoute;
   text("[data-trade-route-status]", route.curveTradingEnabled
-    ? `Curve route verified at ${shortHex(market.curve, 9, 7)}. Quotes expire after 30 seconds.`
+    ? `Trading is ready on the launch curve. Quotes refresh every 30 seconds.`
     : route.poolTradingEnabled
-      ? `Canonical Uniswap v4 pool ${shortHex(market.poolId)}. Quotes expire after 30 seconds.`
-      : `No user trading route is enabled during ${phaseLabel(market.launchPhase)}.`);
+      ? `Trading is ready in the Uniswap v4 pool. Quotes refresh every 30 seconds.`
+      : `Trading is not available while this market is ${phaseLabel(market.launchPhase)}.`);
 }
 
 async function verifyTradeMarket(detail: MarketDetailResponse, generation: number): Promise<void> {
   if (!foundation?.bindings) {
     if (generation === tradeLoadGeneration && tradeMarket?.market.marketId === detail.market.marketId) {
-      text("[data-trade-route-status]", "The canonical route configuration is unavailable; trading remains locked.");
+      text("[data-trade-route-status]", "Trading is temporarily unavailable because the market route could not be checked.");
       updateTradeAvailability();
     }
     return;
@@ -1870,25 +1876,25 @@ async function verifyTradeMarket(detail: MarketDetailResponse, generation: numbe
   } catch {
     if (generation !== tradeLoadGeneration || tradeMarket?.market.marketId !== detail.market.marketId) return;
     tradeMarketVerified = false;
-    text("[data-trade-route-status]", "The route could not be verified; trading remains locked while market data stays available.");
-    text("[data-detail-fee-note]", "Fee configuration is awaiting canonical route verification.");
+    text("[data-trade-route-status]", "Trading is temporarily unavailable because the market route could not be checked. Market details remain visible.");
+    text("[data-detail-fee-note]", "Fee details will appear after the trading route is checked.");
     updateTradeAvailability();
   }
 }
 
 async function loadDetailContent(market:MarketReadModel,generation:number):Promise<void>{
   const abort=new AbortController();detailContentAbort?.abort();detailContentAbort=abort;const timeout=setTimeout(()=>abort.abort(),10000);
-  try{const value=await readDetailMetadata(market.identity?.metadataURI??tradeMetadata?.metadataURI??'',launchMetadataOrigin,abort.signal,import.meta.env.VITE_IPFS_GATEWAY);if(generation!==tradeLoadGeneration||abort.signal.aborted)return;if(!value){text('[data-detail-description]','No Description Added');return;}
+  try{const value=await readDetailMetadata(market.identity?.metadataURI??tradeMetadata?.metadataURI??'',launchMetadataOrigin,abort.signal,import.meta.env.VITE_IPFS_GATEWAY);if(generation!==tradeLoadGeneration||abort.signal.aborted)return;if(!value){text('[data-detail-description]','No description added.');return;}
     text('[data-detail-description]',value.description||'No description available.');const image=query<HTMLImageElement>('[data-detail-image]');if(image&&value.image)image.src=value.image;
     for(const key of ['website','x'] as const){const link=query<HTMLButtonElement>(`[data-detail-${key}]`);if(link&&value[key]){link.dataset.externalUrl=value[key];link.title=value[key];link.hidden=false;link.disabled=false;}}
-  }catch{if(generation===tradeLoadGeneration){text('[data-detail-description]','Description Could Not Be Loaded');}}finally{clearTimeout(timeout);}
+  }catch{if(generation===tradeLoadGeneration){text('[data-detail-description]','Description could not be loaded.');}}finally{clearTimeout(timeout);}
 }
 function renderDetailBalances():void{
  if(detailBalanceAccount!==wallet?.account)detailBalances=null;
  const pay=tradeSide==='buy'?detailBalances?.quote:detailBalances?.meme,receive=tradeSide==='buy'?detailBalances?.meme:detailBalances?.quote;
  text('[data-detail-pay-balance]',pay===undefined||!tradeMetadata?'-':`${formatTokenAmount(pay,tradeSide==='buy'?tradeMetadata.quoteDecimals:18)} ${tradeSide==='buy'?tradeMetadata.quoteSymbol:tradeMetadata.symbol}`);
  text('[data-detail-receive-balance]',receive===undefined||!tradeMetadata?'-':`${formatTokenAmount(receive,tradeSide==='buy'?18:tradeMetadata.quoteDecimals)} ${tradeSide==='buy'?tradeMetadata.symbol:tradeMetadata.quoteSymbol}`);
- for(const [side,balance] of [['pay',pay],['receive',receive]] as const){const button=query<HTMLButtonElement>(`[data-fill-trade-balance="${side}"]`);if(button){button.disabled=!wallet||!tradeMetadata||balance===undefined||balance<=0n;button.setAttribute('aria-label',side==='pay'?'Use Pay Asset Balance':'Switch Direction And Use Balance');}}
+ for(const [side,balance] of [['pay',pay],['receive',receive]] as const){const button=query<HTMLButtonElement>(`[data-fill-trade-balance="${side}"]`);if(button){button.disabled=!wallet||!tradeMetadata||balance===undefined||balance<=0n;const symbol=side==='pay'?(tradeSide==='buy'?tradeMetadata?.quoteSymbol:tradeMetadata?.symbol):(tradeSide==='buy'?tradeMetadata?.symbol:tradeMetadata?.quoteSymbol);const label=side==='pay'?`Use full ${symbol??'pay asset'} balance`:`Switch direction and use full ${symbol??'receive asset'} balance`;button.setAttribute('aria-label',label);button.title=label;}}
 
 }
 async function loadDetailBalances(preserve=true):Promise<void>{
@@ -1980,7 +1986,7 @@ async function loadTradeMarket(explicit?: string): Promise<void> {
     const explorer = query<HTMLAnchorElement>('[data-detail-explorer]');
     if (explorer) { explorer.href = `${robinhoodChain.blockExplorers.default.url}/token/${response.market.memeToken}`; explorer.hidden = false; }
     const copy = query<HTMLButtonElement>('[data-detail-copy]'); if (copy) copy.disabled = false;
-    text("[data-trade-route-status]", "Verifying the canonical trading route…");
+    text("[data-trade-route-status]", "Checking the trading route…");
     void verifyTradeMarket(response, generation);
  candleWidget?.setMarket({marketId:response.market.marketId,memeAsset:response.market.memeToken,quoteAsset:response.market.quoteAsset,quoteDecimals:metadata.quoteDecimals});
  holderWidget?.setMarket({marketId:response.market.marketId,memeToken:response.market.memeToken});
@@ -2010,10 +2016,10 @@ async function loadTradeMarket(explicit?: string): Promise<void> {
     text("[data-detail-phase]", "Market unavailable");
     query<HTMLElement>('.ref-hero')?.setAttribute('aria-busy','false');
     tokenDetailWidget?.setUnavailable();
-    text('[data-detail-description]','Token Details Could Not Be Loaded');
+    text('[data-detail-description]','Token details could not be loaded.');
     text("[data-detail-phase-note]", errorText(error));
     setPageStatus(`Market load failed — ${errorText(error)}`, "error");
-    text("[data-trade-route-status]", "The route could not be verified; trading remains locked.");
+    text("[data-trade-route-status]", "Trading is temporarily unavailable because the market route could not be checked.");
     updateTradeAvailability();
   } finally {
     if(generation===tradeLoadGeneration)setTradePageLoading(false);
@@ -2089,7 +2095,7 @@ async function quoteTrade(generation: number): Promise<void> {
   if (!input) { text('[data-trade-status]', ''); return; }
   const decimals = tradeSide === 'buy' ? tradeMetadata.quoteDecimals : 18;
   if (!/^(?:0|[1-9][0-9]*)(?:\.[0-9]+)?$/.test(input) || !/[1-9]/.test(input)) {
-    text('[data-trade-status]', 'Enter A Valid Amount'); return;
+    text('[data-trade-status]', 'Enter a valid amount.'); return;
   }
   if ((input.split('.')[1]?.length ?? 0) > decimals) {
     text('[data-trade-status]', `Use Up To ${decimals} Decimal Places`); return;
@@ -3587,7 +3593,7 @@ async function refreshStakeStatistics():Promise<void>{
     stakeText('[data-stake-modal-stock]','-');
     if(stockIcon){stockIcon.hidden=true;stockIcon.removeAttribute('src');}
     for(const key of ['volume','fees','total'])stakeText(`[data-stake-${key}]`,'-');
-    stakeText('[data-stake-stats-status]',market?'Loading Market Statistics…':'Search Or Select A Market');
+    stakeText('[data-stake-stats-status]',market?'Loading market statistics…':'Search or select a market');
   }
   stakeText('[data-stake-phase]',market?phaseLabel(market.launchPhase):'-');
   renderSelectedStakeLogo();
@@ -3806,7 +3812,7 @@ function filterStakeMarkets(): void {
       button.onclick=()=>{select.value=market.marketId;select.dispatchEvent(new Event('change'));if(input){input.value='';input.setAttribute('aria-expanded','false');input.focus();}results.hidden=true;};
       results.append(button);
     }
-    if(!matches.length){const empty=document.createElement('p');empty.textContent='No Matching Markets';results.append(empty);}
+    if(!matches.length){const empty=document.createElement('p');empty.textContent='No matching markets';results.append(empty);}
     return;
   }
   select.replaceChildren(new Option(matches.length ? "Select a market" : "No matching markets", ""));
@@ -3850,8 +3856,8 @@ function updateStakePreview(): void {
     try { const parsed = parseTokenAmount(field.value, state.asset.tokenDecimals, 'Stake amount'); validateMarketStake(parsed,state.walletBalance,state.allocated,state.asset.minimumAllocation); }
     catch(error) {
       const symbol=stockSymbol(state.assetConfig);
-      try{const parsed=parseTokenAmount(field.value,state.asset.tokenDecimals,'Amount');amountError=parsed>state.walletBalance?`Insufficient ${symbol}`:state.allocated+parsed<state.asset.minimumAllocation?`Minimum Total Stake: ${formatTokenAmount(state.asset.minimumAllocation,state.asset.tokenDecimals)} ${symbol}`:'Amount Too Large';}
-      catch{amountError=/^0+(?:\.0*)?$/.test(field.value.trim())?'Enter An Amount Greater Than Zero.':'Enter A Valid Amount';}
+      try{const parsed=parseTokenAmount(field.value,state.asset.tokenDecimals,'Amount');amountError=parsed>state.walletBalance?`Insufficient ${symbol}`:state.allocated+parsed<state.asset.minimumAllocation?`Minimum total stake: ${formatTokenAmount(state.asset.minimumAllocation,state.asset.tokenDecimals)} ${symbol}`:'Amount is too large.';}
+      catch{amountError=/^0+(?:\.0*)?$/.test(field.value.trim())?'Enter an amount greater than zero.':'Enter a valid amount.';}
     }
   }
   if(field){field.setCustomValidity(amountError);if(amountError)field.setAttribute('aria-invalid','true');}
@@ -3859,7 +3865,7 @@ function updateStakePreview(): void {
   const open = state.asset.status === 1 && state.detail.market.launchPhase === 1 && state.settlementPrincipal === 0n;
   text("[data-stake-preview]", amountError || (!open
     ? state.detail.market.launchPhase!==1?"Staking Opens After Blooming":"Staking Is Unavailable"
-    : amount === null ? `Minimum Total Stake: ${formatTokenAmount(state.asset.minimumAllocation,state.asset.tokenDecimals)} ${stockSymbol(state.assetConfig)}` : ""));
+    : amount === null ? `Minimum total stake: ${formatTokenAmount(state.asset.minimumAllocation,state.asset.tokenDecimals)} ${stockSymbol(state.assetConfig)}` : ""));
 }
 
 function setupRewards(): void {
@@ -3902,7 +3908,7 @@ function setupRewards(): void {
   if(stakeAmountField)bindStakeAmountInput(stakeAmountField,()=>rewardPosition?.asset.tokenDecimals??18,()=>{updateStakePreview();updateRewardsAvailability();});
   stakeAmountField?.addEventListener('invalid',event=>{
     event.preventDefault();
-    text('[data-stake-preview]',stakeAmountField.validity.valueMissing?'Enter An Amount Greater Than Zero.':stakeAmountField.validationMessage||'Enter A Valid Amount');
+    text('[data-stake-preview]',stakeAmountField.validity.valueMissing?'Enter an amount greater than zero.':stakeAmountField.validationMessage||'Enter a valid amount.');
     query<HTMLElement>('[data-stake-preview]')?.classList.add('is-error');
     stakeAmountField.setAttribute('aria-invalid','true');
     stakeAmountField.focus();
@@ -4080,13 +4086,13 @@ async function renderHolderSearch():Promise<void>{
    const address=document.createElement('small');address.textContent=shortHex(item.memeToken);address.title=item.memeToken;
    button.append(label,address);button.addEventListener('click',()=>{void selectHolderSearchResult(item,input,results);});results.append(button);
   }
- }catch(error){if(!request.signal.aborted&&results.isConnected)results.textContent='Unable To Search Tokens';}
+ }catch(error){if(!request.signal.aborted&&results.isConnected)results.textContent='Unable to search tokens. Try again.';}
 }
 async function selectHolderSearchResult(item:HolderMarket,input:HTMLInputElement,results:HTMLElement):Promise<void>{
  const generation=routeGeneration;
  try{
   if(!foundation||!readApi)return;
-  results.textContent='Loading Token…';
+  results.textContent='Loading token…';
   let market=foundation.markets.find(m=>m.marketId===item.marketId);
   if(!market){const current=foundation;const detail=current.direct&&directMarkets?await directMarkets.market(item.marketId as Hex):await readApi.getMarket({marketId:item.marketId as Hex,revision:current.sync.revision});
    if(routeGeneration!==generation||foundation!==current)return;
@@ -4101,7 +4107,7 @@ async function selectHolderSearchResult(item:HolderMarket,input:HTMLInputElement
   const epoch=query<HTMLInputElement>('[data-treasury-epoch]');if(epoch)epoch.value='';
   rememberHolderMarket(item);
   await refreshTreasuryReward(true);
- }catch(error){if(routeGeneration===generation)results.textContent='Unable To Load Token';}
+ }catch(error){if(routeGeneration===generation)results.textContent='Unable to load token. Try again.';}
 }
 const creatorMarketIds=new Set<string>();
 let creatorDirectoryAccount='';
@@ -4129,7 +4135,7 @@ async function refreshCreatorDirectory():Promise<void>{
       if(market&&market.memeToken.toLowerCase()===row.memeToken.toLowerCase())creatorMarketIds.add(market.marketId);
     }
     creatorDirectoryAt=Date.now();
-  }catch(error){if(!request.signal.aborted){creatorDirectoryError='Unable To Load Your Tokens.';creatorDirectoryAt=Date.now()-570000;}}
+  }catch(error){if(!request.signal.aborted){creatorDirectoryError='Unable to load your tokens. Try again.';creatorDirectoryAt=Date.now()-570000;}}
   finally{if(creatorDirectoryRequest===request){creatorDirectoryRequest=undefined;populateRewardMarkets();}}
 }
 function populateRewardMarkets(): void {
@@ -4518,7 +4524,7 @@ async function refreshRewardPosition(force=true): Promise<void> {
     return;
   }
   try {
-    if(!samePosition)text("[data-rewards-status]", "Loading Your Balances…");
+    if(!samePosition)text("[data-rewards-status]", "Loading your balances…");
     const market = selectedRewardMarket("[data-position-market]");
     const detail = await getRewardMarketDetail(market);
     const state = await readRewardPositionState(detail);
@@ -4537,7 +4543,7 @@ async function refreshRewardPosition(force=true): Promise<void> {
   } catch (error) {
     if (generation !== rewardLoadGeneration) return;
     iconText("[data-position-summary]", "ph-warning", `Position locked — ${errorText(error)}`);
-    text("[data-rewards-status]", `Unable To Load Your Position — ${errorText(error)}`);
+    text("[data-rewards-status]", `Unable to load your position — ${errorText(error)}`);
     updateRewardsAvailability();
   }
 }
@@ -4711,7 +4717,7 @@ async function refreshTreasuryReward(resetEpoch: boolean): Promise<void> {
   continuousReward = null;
   if(!preserveContinuous){setContinuousRewardsView(false);queryAll<HTMLElement>('[data-legacy-treasury]').forEach(el=>el.hidden=true);}
   clearTreasuryProof();
-  text("[data-treasury-status]", wallet?"Select A Token":"Connect Wallet");
+  text("[data-treasury-status]", wallet?"Select a token":"Connect wallet");
   text("[data-treasury-epoch-id]", "-");
   text("[data-treasury-root]", "-");
   text("[data-treasury-fee]", "Locked — live configuration required");
@@ -4722,7 +4728,7 @@ async function refreshTreasuryReward(resetEpoch: boolean): Promise<void> {
   text("[data-treasury-proof]", "No verified proof loaded");
   updateRewardsAvailability();
   if (!foundation || !wallet || !runtimeConfig.contracts.available) {
-    text("[data-treasury-status-note]", wallet?"Unable To Load Rewards":"");
+    text("[data-treasury-status-note]", wallet?"Unable to load rewards. Try again.":"");
     return;
   }
   const select = query<HTMLSelectElement>("[data-treasury-market]");
@@ -4870,7 +4876,7 @@ async function refreshTreasuryReward(resetEpoch: boolean): Promise<void> {
     updateRewardsAvailability();
   } catch (error) {
     if (generation !== treasuryLoadGeneration) return;
-    text("[data-treasury-status]", wallet?"Select A Token":"Connect Wallet");
+    text("[data-treasury-status]", wallet?"Select a token":"Connect wallet");
     text("[data-treasury-status-note]", `Holder fee sharing locked — ${errorText(error)}`);
     text("[data-treasury-proof]", "No verified proof loaded");
     updateRewardsAvailability();
@@ -4898,8 +4904,8 @@ function updateRewardsAvailability(): void {
   if(!wallet)queryAll<HTMLElement>("[data-legacy-treasury],[data-continuous-treasury]").forEach(panel=>panel.hidden=true);
   const prerequisite = !wallet ? 'Connect your wallet.' : busyOperation ? 'A transaction is in progress. Check its status above.' : hasPendingTransaction() ? 'Check the existing transaction above before submitting another.' : !foundation?.writeReady ? 'Transactions are unavailable until the market connection is restored.' : '';
   text('[data-staker-action-help]', prerequisite || (rewardPosition ? stakerClaimHelp(rewardPosition) : 'Choose a market to view your stake and rewards.'));
-  text('[data-creator-action-help]', prerequisite || (creatorDirectoryError||(!creatorMarketIds.size?'No Tokens Created By This Wallet.':creatorRewardNotOwned?'No Creator Rewards For This Wallet.':!creatorReward ? 'Choose a market to view creator rewards.' : creatorReward.liability > 0n ? `Ready to claim. Funds go to ${shortHex(creatorReward.beneficiary)}, the beneficiary for this version.` : creatorReward.memeLiability > 0n ? 'Choose How To Receive Your Rewards.' : 'No creator revenue to claim for this beneficiary version yet.')));
-  text('[data-holder-action-help]', prerequisite || (continuousReward ? continuousReward.claimable > 0n ? '' : 'No Rewards Available Yet.' : treasuryReward ? treasuryReward.accountClaimed ? 'You have already claimed this reward cycle.' : treasuryReward.status === 3 && treasuryReward.proof ? treasuryReward.now > treasuryReward.claimUntil ? 'This reward cycle has expired.' : 'Your verified reward is ready to claim.' : 'Rewards will be available after this cycle closes and its distribution is ready. See cycle status below.' : 'Select A Token To View Rewards.'));
+  text('[data-creator-action-help]', prerequisite || (creatorDirectoryError||(!creatorMarketIds.size?'No tokens were created by this wallet.':creatorRewardNotOwned?'No creator rewards are available for this wallet.':!creatorReward ? 'Choose a market to view creator rewards.' : creatorReward.liability > 0n ? `Ready to claim. Funds go to ${shortHex(creatorReward.beneficiary)}, the beneficiary for this version.` : creatorReward.memeLiability > 0n ? 'Choose how to receive your rewards.' : 'No creator revenue to claim for this beneficiary version yet.')));
+  text('[data-holder-action-help]', prerequisite || (continuousReward ? continuousReward.claimable > 0n ? '' : 'No rewards available yet.' : treasuryReward ? treasuryReward.accountClaimed ? 'You have already claimed this reward cycle.' : treasuryReward.status === 3 && treasuryReward.proof ? treasuryReward.now > treasuryReward.claimUntil ? 'This reward cycle has expired.' : 'Your verified reward is ready to claim.' : 'Rewards will be available after this cycle closes and its distribution is ready. See cycle status below.' : 'Select A Token To View Rewards.'));
 
   queryAll<HTMLButtonElement>("[data-reward-action]").forEach((button) => {setDisabled(button, true);if(currentPage()==='rewards')button.hidden=!wallet;});
   const direct = rewardActionButton("directVaultRageQuit");
@@ -5455,7 +5461,7 @@ async function runRewardAction(button: HTMLButtonElement): Promise<void> {
     rewardClaimOutcomeMessage='';
   } catch (error) {
     if(action==='stake'){
-      const message=hasPendingTransaction()?'Confirmation Pending. Check Your Wallet.':/reject|denied|cancel/i.test(errorText(error))?'Transaction Cancelled.':'Unable To Stake. Please Try Again.';
+      const message=hasPendingTransaction()?'Confirmation pending. Check your wallet.':/reject|denied|cancel/i.test(errorText(error))?'Transaction cancelled.':'Unable to stake. Please try again.';
       text('[data-stake-transaction-status]',message);
       const status=query<HTMLElement>('[data-stake-transaction-status]');if(status)status.dataset.state='error';
     }else{
@@ -5734,7 +5740,7 @@ function invalidateSnapshotReads(preserveTradeDisplay=false): void {
   marketDirectory.reset();
   clearMarketDirectoryView(false);
   statsRender.invalidate();
-  clearStatsSnapshotView("Market snapshot unavailable. Waiting for a verified snapshot.");
+  clearStatsSnapshotView("Stats are temporarily unavailable.");
   // Immutable token identity is keyed by chain, token and quote configuration;
   // a new snapshot or page navigation must not refetch it (bounded to 256 entries).
   verifiedMarketReleases.clear();
@@ -5848,7 +5854,7 @@ function unmountPage(): void {
   preparedMetadataURI = ""; preparedMetadataKey = "";
   launchSalt = randomSalt();
   tradeMarket = null; tradeMetadata = null; tradeMarketVerified = false; tradeSide = "buy";
-  marketPhaseFilter = "bloomed"; statsPeriod = "24h"; rewardDeepLinkApplied = false; syncRewardHash = undefined;
+  marketPhaseFilter = "bloomed"; rewardDeepLinkApplied = false; syncRewardHash = undefined;
   userActivityWidget = null; globalHoldersWidget = null; seriesWidget = null;
   globalStatsWidgets = []; analyticsWidgets = [];
   setTradePageLoading(false);
@@ -5869,6 +5875,12 @@ function mountRoute(route: Route): void {
     if (generation !== routeGeneration) return;
     document.title = page.title;
     outlet.innerHTML = page.html;
+    const main = outlet.querySelector<HTMLElement>("main");
+    if (main) {
+      main.id = "main-content";
+      main.tabIndex = -1;
+      if (generation > 1) main.focus({ preventScroll: true });
+    }
     mountPageWidgets();
     disposeFieldValidation=mountFieldValidation(outlet,field=>{
       if(field.matches('[data-reward-amount]'))return rewardPosition?.asset.tokenDecimals;
@@ -5894,8 +5906,8 @@ function mountRoute(route: Route): void {
   })().catch(error => {
     if (generation !== routeGeneration) return;
     foundationError = errorText(error);
-    setPageStatus("Unable To Load Data. Please Refresh.", "error");
-    text("[data-rewards-status]", "Unable To Load Data. Please Refresh.");
+    setPageStatus("We couldn’t load this page. Try again.", "error");
+    text("[data-rewards-status]", "We couldn’t load this page. Try again.");
     refreshActionAvailability();
   });
 }
@@ -5956,9 +5968,9 @@ async function refreshDirectDirectory(renderAfter=true):Promise<void>{
   if(currentPage()==='markets'&&foundation?.markets.length){
    for(const phase of [0,1] as const){
     const empty=query<HTMLElement>(`[data-stage-empty="${phase}"]`);
-    if(empty&&!empty.hidden&&empty.textContent==='Loading Tokens…'){
+    if(empty&&!empty.hidden&&empty.textContent==='Loading markets…'){
      const filtered=!!query<HTMLInputElement>('[data-market-search]')?.value.trim()||!!query<HTMLSelectElement>('[data-market-asset]')?.value;
-     empty.textContent=filtered?'No Matching Tokens':phase===1?'No Bloomed Tokens Yet':'No Growing Tokens Yet';
+     empty.textContent=filtered?'No matching tokens':phase===1?'No Bloomed tokens yet':'No Growing tokens yet';
     }
    }
   }

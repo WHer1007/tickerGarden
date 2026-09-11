@@ -45,7 +45,7 @@ export function createWalletPicker(actions: { connect(provider: InjectedProvider
   dialog.setAttribute("aria-labelledby", "wallet-dialog-title");
   dialog.innerHTML = `<div class="wallet-dialog-head"><span class="wallet-dialog-kicker">YOUR GARDEN STARTS HERE</span><button type="button" class="wallet-close" aria-label="Close wallet chooser">×</button></div>
     <h2 id="wallet-dialog-title">Connect a wallet</h2>
-    <div class="wallet-current" hidden><div class="wallet-current-address"><span data-wallet-address></span><button type="button" class="wallet-copy" data-wallet-copy aria-label="Copy Wallet Address" title="Copy Wallet Address"><i class="ph ph-copy" aria-hidden="true"></i></button></div><button type="button" data-wallet-disconnect>Disconnect</button></div>
+    <div class="wallet-current" hidden><div class="wallet-current-address"><span data-wallet-address></span><button type="button" class="wallet-copy" data-wallet-copy aria-label="Copy wallet address" title="Copy wallet address"><i class="ph ph-copy" aria-hidden="true"></i></button></div><button type="button" data-wallet-disconnect>Disconnect</button></div>
     <div class="wallet-options"></div><p class="wallet-picker-status" role="status" aria-live="polite"></p>
     <p class="wallet-dialog-foot">Use an installed browser wallet or open this site in your wallet’s browser. Connecting does not submit a transaction.</p>`;
   document.body.append(dialog);
@@ -61,10 +61,10 @@ export function createWalletPicker(actions: { connect(provider: InjectedProvider
     try{
       await navigator.clipboard.writeText(account);
       button.querySelector('i')?.classList.replace('ph-copy','ph-check');
-      status.textContent='Wallet Address Copied';
-      button.title='Address Copied';button.setAttribute('aria-label','Address Copied');
-      window.setTimeout(()=>{button.querySelector('i')?.classList.replace('ph-check','ph-copy');button.title='Copy Wallet Address';button.setAttribute('aria-label','Copy Wallet Address');button.disabled=false;},1800);
-    }catch{status.textContent='Unable To Copy Address';button.disabled=false;}
+      status.textContent='Wallet address copied';
+      button.title='Address copied';button.setAttribute('aria-label','Address copied');
+      window.setTimeout(()=>{button.querySelector('i')?.classList.replace('ph-check','ph-copy');button.title='Copy wallet address';button.setAttribute('aria-label','Copy wallet address');button.disabled=false;},1800);
+    }catch{status.textContent='Unable to copy address. Try again.';button.disabled=false;}
   });
 
   function addWallet(entry: Discovered) {

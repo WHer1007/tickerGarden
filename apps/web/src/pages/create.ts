@@ -23,7 +23,7 @@ export default {
             <div class="fields">
               <div class="field full quote-asset-field">
                 <label id="quote-asset-label" for="quote-asset-trigger">Paired asset</label>
-                
+
                 <div class="quote-picker" data-quote-picker>
                   <button id="quote-asset-trigger" class="quote-picker-trigger" type="button" aria-haspopup="listbox" aria-expanded="false" aria-controls="quote-asset-options" aria-labelledby="quote-asset-label quote-asset-current">
                     <span id="quote-asset-current" class="quote-picker-current" data-quote-current>Loading paired assets…</span>
@@ -34,7 +34,7 @@ export default {
                 </div>
               </div>
               <div class="graduation-note field full"><i class="ph ph-trend-up" aria-hidden="true"></i><div><strong data-graduation-caption>Loading bloom target…</strong><details class="graduation-details"><summary>Details</summary><small>Net funds raised, excluding fees and virtual reserves.</small><small data-graduation-exact></small><p class="muted display-price-reference" data-display-price>USD reference unavailable.</p></details></div></div>
-              <div class="field full launch-treasury"><div class="treasury-heading"><i class="ph ph-plant" aria-hidden="true"></i><label for="staking-enabled"><strong>Enable Staking Rewards</strong></label><a class="staking-docs-link" href="/docs#staking-rewards" target="_blank" rel="noopener noreferrer" aria-label="Staking Rewards Docs (Opens In A New Tab)">Docs <i class="ph ph-arrow-up-right" aria-hidden="true"></i></a><input id="staking-enabled" type="checkbox" role="switch" name="stakingEnabled" aria-controls="staking-stock-field" /></div><small>Cannot Be Changed After Launch.</small></div>
+              <div class="field full launch-treasury"><div class="treasury-heading"><i class="ph ph-plant" aria-hidden="true"></i><label for="staking-enabled"><strong>Enable staking rewards</strong></label><a class="staking-docs-link" href="/docs#staking-rewards" target="_blank" rel="noopener noreferrer" aria-label="Staking rewards docs (opens in a new tab)">Docs <i class="ph ph-arrow-up-right" aria-hidden="true"></i></a><input id="staking-enabled" type="checkbox" role="switch" name="stakingEnabled" aria-controls="staking-stock-field" /></div><small>Cannot be changed after launch.</small></div>
               <div class="field full" id="staking-stock-field" data-staking-stock-field hidden>
                 <label id="rewards-stock-label" for="rewards-stock-trigger">Staking asset</label>
                 <div class="quote-picker" data-quote-picker>
@@ -45,7 +45,7 @@ export default {
                   <div id="rewards-stock-options" class="quote-picker-options" data-quote-options role="listbox" aria-labelledby="rewards-stock-label" hidden></div>
                   <select id="asset-uid" class="quote-native-select" name="assetUid" tabindex="-1" aria-hidden="true" disabled><option value="" selected disabled>Loading staking assets…</option></select>
                 </div>
-                <small id="rewards-stock-help">Stake This Asset To Earn Trading Fees.</small>
+                <small id="rewards-stock-help">Stake this asset to earn trading fees.</small>
               </div>
               <label class="field full" for="first-buy-amount"><span>Developer buy <small>Optional</small></span><span class="launch-amount"><input id="first-buy-amount" name="firstBuyAmount" type="text" inputmode="decimal" pattern="(?:0|[1-9][0-9]*)(?:\.[0-9]+)?" placeholder="0.00" aria-describedby="developer-buy-help developer-buy-balance developer-buy-notice" /><strong data-buy-symbol>-</strong></span><span class="developer-buy-footer"><small id="developer-buy-help">Leave blank to skip.</small><small id="developer-buy-balance" data-developer-buy-balance role="status">Connect wallet for balance</small></span><small id="developer-buy-notice" data-developer-buy-notice role="status" hidden></small></label>
             </div>

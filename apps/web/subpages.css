@@ -509,7 +509,7 @@ button.wallet-option .wallet-option-state{color:#32723c;background:#edf5e4;paddi
 @media(prefers-reduced-motion:reduce){.status-notice,.trade-tx-spinner{animation:none}}
 
 /* Inputs use their existing border and caret instead of an outer focus ring. */
-input:focus,input:focus-visible,textarea:focus,textarea:focus-visible,select:focus,select:focus-visible{outline:none!important;box-shadow:none!important}
+input:focus,textarea:focus,select:focus{outline:none;box-shadow:none}
 input[aria-invalid="true"]:focus,textarea[aria-invalid="true"]:focus,select[aria-invalid="true"]:focus{outline:2px solid #b42318!important;outline-offset:2px}
 
 /* Docs: expanded, sectioned reading layout; search is isolated from trading/list filters. */
@@ -543,3 +543,12 @@ input[aria-invalid="true"]:focus,textarea[aria-invalid="true"]:focus,select[aria
 .docs-article a:hover{text-decoration-color:var(--ink)}
 .docs-empty{padding:28px 0;color:var(--muted);font-size:14px}
 @media(max-width:800px){.docs-body{grid-template-columns:minmax(0,1fr);gap:30px}.docs-toc{position:static;display:flex;flex-wrap:wrap;gap:5px}.docs-toc-label{flex-basis:100%;padding-left:0}.docs-toc a{padding:8px 11px;background:#edf0e7}.docs-toc a i{display:none}.docs-page .docs-search{margin-bottom:24px}.docs-section-heading h2{font-size:21px}.docs-section{margin-bottom:26px;padding-bottom:26px}}
+
+/* Keyboard navigation and recoverable page states. */
+.skip-link{position:fixed;left:16px;top:12px;z-index:1000;transform:translateY(-160%);padding:10px 14px;border-radius:8px;background:#063f2e;color:#fff;font-weight:700;text-decoration:none;box-shadow:0 8px 24px rgba(6,63,46,.24)}
+.skip-link:focus{transform:translateY(0)}
+:where(a,button,input,select,textarea,summary):focus-visible{outline:2px solid #315f46!important;outline-offset:3px!important}
+[data-route-outlet] main:focus{outline:none}
+.page-retry{display:inline-flex;align-items:center;justify-content:center;min-height:36px;margin:0 0 14px;padding:7px 13px;border:1px solid #b9c8b8;border-radius:8px;background:#fffefa;color:#31553c;font-weight:650;cursor:pointer}
+.page-retry:hover{background:#edf3e8}
+@media(prefers-reduced-motion:reduce){html{scroll-behavior:auto}.skip-link{transition:none}}

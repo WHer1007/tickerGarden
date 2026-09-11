@@ -7,6 +7,6 @@ test("Stats exposes the current summary, staking, and fee panels", () => {
   assert.doesNotMatch(home.html, /data-stats-summary|Stats/);
   assert.match(stats.html, /data-stats-summary/);
   assert.match(stats.html, /data-stats-staking-values/);
-  assert.match(stats.html, /Allocated In 24H/);
+  assert.match(stats.html, /Allocated in 24h/);
   assert.match(stats.html, /data-stat-fee-(?:creator|staker|holder|platform)/);
 });

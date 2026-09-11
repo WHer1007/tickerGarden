@@ -55,6 +55,7 @@ export function setupExploreStockPicker(
     const selected = selectedOption();
     if (!selected) {
       current.textContent = "All Stocks";
+      trigger.setAttribute("aria-label", "Stock filter: all");
       return;
     }
     if (selected.logo) {
@@ -64,6 +65,7 @@ export function setupExploreStockPicker(
       current.append(image);
     }
     current.append(document.createTextNode(selected.symbol));
+    trigger.setAttribute("aria-label", `Stock filter: ${selected.symbol}`);
   }
 
   function renderOptions(): void {
@@ -107,6 +109,8 @@ export function setupExploreStockPicker(
       focusedIndex = -1;
       search.focus();
       renderOptions();
+    } else if (menu.contains(document.activeElement)) {
+      trigger.focus();
     }
   }
 
