@@ -1473,7 +1473,7 @@ async function renderStockStatistics(current:()=>boolean,valuations:any,summary:
  const fresh=statisticsFresh(summary.stakingObservedAt,Date.now());
  const rows=assets.map(asset=>{
   const token=stockToken(asset),info=token?statsAsset(token):{label:shortHex(asset.id)},decimals=Number(asset.values.tokenDecimals);
-  const raw=summary.stockAmounts?.[asset.id];
+  const raw=summary.stockAmounts&&typeof summary.stockAmounts==='object'?(summary.stockAmounts[asset.id]??'0'):undefined;
   const amount=fresh&&typeof raw==='string'&&/^(0|[1-9][0-9]*)$/.test(raw)?BigInt(raw):null;
   const value=amount===null?null:statisticsUSD(raw,decimals,valuations.prices?.[token?.toLowerCase()??''],valuations.expiresAt?.[token?.toLowerCase()??''],Date.now());
   return {...info,value,amount,decimals};
