@@ -20,6 +20,18 @@ test('failure retains revision and unchanged recovery refetches all caches',asyn
  const poller=createSnapshotPoller({chainId:4663,fetchUpdate:async(since)=>{requested.push(since);if(fail)throw Error('offline');return first?update():{...update(),mode:'unchanged',invalidated:[]};},prepare:async(u)=>{modes.push(u.mode);return()=>{first=false}},unavailable:()=>{failures++}});
  t.after(()=>poller.stop());poller.start();await tick();fail=true;poller.reconnect();await tick();assert.equal(failures,1);assert.equal(poller.revision,rev(1));fail=false;poller.reconnect();await tick();assert.deepEqual(modes,['reset','reset']);assert.deepEqual(requested,[undefined,rev(1),rev(1)]);
 });
+test('adopting an already rendered revision polls without a recovery reset',async(t)=>{
+ let prepares=0;const requested:(string|undefined)[]=[];
+ const poller=createSnapshotPoller({chainId:4663,fetchUpdate:async(since)=>{requested.push(since);return {...update(),mode:'unchanged',invalidated:[]};},prepare:async()=>{prepares++;return()=>{}},unavailable:()=>assert.fail('unexpected failure')});
+ t.after(()=>poller.stop());poller.adoptRevision(rev(1));await tick();
+ assert.deepEqual(requested,[rev(1)]);assert.equal(prepares,0);assert.equal(poller.revision,rev(1));
+});
+test('a new revision with unchanged publication digests advances without refetching caches',async(t)=>{
+ let prepares=0;
+ const poller=createSnapshotPoller({chainId:4663,fetchUpdate:async()=>({...update(2),mode:'changed',invalidated:[]}),prepare:async()=>{prepares++;return()=>{}},unavailable:()=>assert.fail('unexpected failure')});
+ t.after(()=>poller.stop());poller.adoptRevision(rev(1));await tick();
+ assert.equal(prepares,0);assert.equal(poller.revision,rev(2));
+});
 test('timeout aborts an uncooperative fetch without committing',async(t)=>{
  let failures=0;
  const poller=createSnapshotPoller({chainId:4663,timeoutMs:5,fetchUpdate:()=>new Promise(()=>{}),prepare:async()=>()=>assert.fail('commit'),unavailable:()=>{failures++}});

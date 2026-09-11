@@ -113,7 +113,8 @@ export async function readTokenDetail(input: { readonly pool: Pool; readonly dep
     let statistics: { price: string | null; volume24h: string | null; volumeFrom: number; volumeTo: number; volumeBasis: 'EXTERNAL_EXECUTIONS_CURVE_EXCLUDING_FEE_TAX_OR_POOL_CORE' } | null = null;
     let trades: { timestamp: number; side: 'buy' | 'sell'; price: string; memeRaw: string; quoteRaw: string; actor: Address | null; txHash: Hex32; eventKey: string; classification: TradeActivity['classification'] }[] | null = null;
     try {
-      const context = await analyticsContext(client, input.deployment, input.marketId, from, to, input.schemaName);
+      const volumeFrom = to - 86_400;
+      await analyticsCoverage(client, schema, input.deployment, checkpoint, from, to);
       const rows = await client.query<{ payload: TradeActivity }>(
         `SELECT t.payload FROM ${schema}.market_trades t JOIN ${schema}.chain_blocks b ON b.environment=t.environment AND b.chain_id=t.chain_id AND b.deployment_digest=t.deployment_digest AND b.hash=t.block_hash
          WHERE t.environment=$1 AND t.chain_id=$2 AND t.deployment_digest=$3 AND t.market_id=$4 AND b.canonical AND b.finalized
@@ -123,15 +124,17 @@ export async function readTokenDetail(input: { readonly pool: Pool; readonly dep
       );
       if (rows.rows.length > 100_000) throw new Error('detail trade input exceeds bound');
       const values = rows.rows.map((row) => row.payload);
-      const series = buildCandles({ chainId: input.deployment.chainId, marketId: input.marketId, memeAsset: context.market.memeToken,
-        quoteAsset: context.market.quoteAsset, quoteDecimals: context.quoteDecimals, from, to, interval, trades: values });
+      const series = buildCandles({ chainId: input.deployment.chainId, marketId: input.marketId, memeAsset: market.memeToken,
+        quoteAsset: market.quoteAsset, quoteDecimals, from, to, interval, trades: values });
       chart = { from, to, interval, points: series.candles.map((candle) => ({ timestamp: candle.timestamp, price: candle.close ? rationalDecimal(candle.close) : null })) };
       trades = [...values].sort((left, right) => compareTradeDescending(left, right)).slice(0, 100).map((trade) => ({ timestamp: Number(trade.timestamp),
         side: trade.side, price: rationalDecimal(trade.price), memeRaw: trade.memeRaw, quoteRaw: trade.quoteRaw, actor: trade.actor,
         txHash: trade.source.transactionHash, eventKey: trade.source.eventKey, classification: trade.classification }));
-      const volumeFrom = to - 86_400;
       try {
-        await analyticsContext(client, input.deployment, input.marketId, volumeFrom, to, input.schemaName);
+        // A short-period chart can remain available before a complete 24-hour
+        // volume window exists. Reuse the pinned checkpoint and identity while
+        // validating the wider interval independently.
+        await analyticsCoverage(client, schema, input.deployment, checkpoint, volumeFrom, to);
         const volume = await client.query<{ volume: string | null }>(
           `SELECT sum(quote_raw)::text AS volume FROM ${schema}.market_trades t JOIN ${schema}.chain_blocks b ON b.environment=t.environment AND b.chain_id=t.chain_id AND b.deployment_digest=t.deployment_digest AND b.hash=t.block_hash
            WHERE t.environment=$1 AND t.chain_id=$2 AND t.deployment_digest=$3 AND t.market_id=$4 AND b.canonical AND b.finalized
@@ -149,31 +152,28 @@ export async function readTokenDetail(input: { readonly pool: Pool; readonly dep
       if (!(error instanceof PublicationUnavailableError)) throw error;
       reasons.chart = error.message; reasons.statistics ??= error.message; reasons.trades = error.message;
     }
-    const holderRows = await client.query<{ account: Address; balance_raw: string }>(
-      `SELECT account,balance_raw::text,payload FROM ${schema}.holder_balances WHERE environment=$1 AND chain_id=$2 AND deployment_digest=$3 AND market_id=$4 AND NOT excluded ORDER BY balance_raw DESC,account LIMIT 100`,
-      [...identity(input.deployment), input.marketId],
-    );
-    const holderTotals = await client.query<{ circulating: string | null; count: string }>(
-      `SELECT sum(balance_raw)::text AS circulating,count(*)::text AS count FROM ${schema}.holder_balances
-       WHERE environment=$1 AND chain_id=$2 AND deployment_digest=$3 AND market_id=$4 AND NOT excluded`,
-      [...identity(input.deployment), input.marketId],
-    );
-    const holderMetadata = await client.query<{ total_supply_raw: string }>(
-      `SELECT total_supply_raw::text FROM ${schema}.holder_snapshots WHERE environment=$1 AND chain_id=$2 AND deployment_digest=$3 AND market_id=$4 AND block_hash=$5 AND block_number=$6`,
+    const detailRows = await client.query<{ total_supply_raw: string | null; circulating: string | null; holder_count: string; holders: { account: Address; balanceRaw: string }[]; fees: { recipient: 'creator' | 'stakers' | 'platform' | 'holders'; asset: Address; amountRaw: string }[] }>(
+      `WITH included AS (
+         SELECT account,balance_raw FROM ${schema}.holder_balances WHERE environment=$1 AND chain_id=$2 AND deployment_digest=$3 AND market_id=$4 AND NOT excluded
+       ), top_holders AS (
+         SELECT account,balance_raw FROM included ORDER BY balance_raw DESC,account LIMIT 100
+       )
+       SELECT
+         (SELECT total_supply_raw::text FROM ${schema}.holder_snapshots WHERE environment=$1 AND chain_id=$2 AND deployment_digest=$3 AND market_id=$4 AND block_hash=$5 AND block_number=$6) AS total_supply_raw,
+         (SELECT sum(balance_raw)::text FROM included) AS circulating,
+         (SELECT count(*)::text FROM included) AS holder_count,
+         COALESCE((SELECT jsonb_agg(jsonb_build_object('account',account,'balanceRaw',balance_raw::text) ORDER BY balance_raw DESC,account) FROM top_holders),'[]'::jsonb) AS holders,
+         COALESCE((SELECT jsonb_agg(jsonb_build_object('recipient',recipient,'asset',asset,'amountRaw',amount_raw::text) ORDER BY recipient,asset)
+           FROM ${schema}.detail_fee_totals WHERE environment=$1 AND chain_id=$2 AND deployment_digest=$3 AND market_id=$4),'[]'::jsonb) AS fees`,
       [...identity(input.deployment), input.marketId, checkpoint.blockHash, checkpoint.blockNumber.toString()],
     );
-    const holderMeta = holderMetadata.rows[0]; const totals = holderTotals.rows[0];
-    const holderCount = safeInteger(totals?.count ?? '0', 'holder count');
-    const holders = holderMeta ? { totalSupplyRaw: holderMeta.total_supply_raw, circulatingSupplyRaw: totals?.circulating ?? '0',
+    const detailRow = detailRows.rows[0];
+    const holderCount = safeInteger(detailRow?.holder_count ?? '0', 'holder count');
+    const holders = detailRow?.total_supply_raw ? { totalSupplyRaw: detailRow.total_supply_raw, circulatingSupplyRaw: detailRow.circulating ?? '0',
       count: holderCount, basis: 'TOTAL_MINUS_KNOWN_PROTOCOL_BALANCES_V1' as const,
-      items: holderRows.rows.map((row) => ({ account: row.account, balanceRaw: row.balance_raw })) } : null;
+      items: detailRow.holders } : null;
     if (!holders) reasons.holders = 'Finalized holder projection is not available';
-    const feeRows = await client.query<{ recipient: 'creator' | 'stakers' | 'platform' | 'holders'; asset: Address; amount_raw: string }>(
-      `SELECT recipient,asset,amount_raw::text FROM ${schema}.detail_fee_totals
-       WHERE environment=$1 AND chain_id=$2 AND deployment_digest=$3 AND market_id=$4 ORDER BY recipient,asset`,
-      [...identity(input.deployment), input.marketId],
-    );
-    const fees = feeRows.rows.map((row) => ({ recipient: row.recipient, asset: row.asset, amountRaw: row.amount_raw }));
+    const fees = detailRow?.fees ?? [];
     const sources: Record<string, typeof source> = {};
     if (statistics) sources.statistics = source; if (chart) sources.chart = source; if (trades) sources.trades = source; if (holders) sources.holders = source;
     sources.fees = source;
@@ -187,6 +187,10 @@ async function analyticsContext(client: PoolClient, deployment: DeploymentIdenti
   const schema = identifier(schemaName ?? 'tickergarden_serverless'); const checkpoint = await checkpointContext(client, schema, deployment);
   const market = await marketAt(client, schema, deployment, checkpoint.revision, marketId);
   const quoteDecimals = await quoteDecimalsAt(client, schema, deployment, checkpoint.revision, market.quoteAssetConfigId);
+  const coverage = await analyticsCoverage(client, schema, deployment, checkpoint, from, to);
+  return { revision: checkpoint.revision, market, quoteDecimals, coverage };
+}
+async function analyticsCoverage(client: PoolClient, schema: string, deployment: DeploymentIdentity, checkpoint: Awaited<ReturnType<typeof checkpointContext>>, from: number, to: number): Promise<RangeCoverage> {
   const bounds = await client.query<{ anchor_number: string; anchor_hash: Hex32; through_number: string; through_hash: Hex32 }>(
     `SELECT left_block.number AS anchor_number,left_block.hash AS anchor_hash,right_block.number AS through_number,right_block.hash AS through_hash
      FROM LATERAL (SELECT number,hash FROM ${schema}.chain_blocks WHERE environment=$1 AND chain_id=$2 AND deployment_digest=$3 AND canonical AND finalized AND number<=$4 AND source_timestamp<to_timestamp($5) ORDER BY number DESC LIMIT 1) left_block,
@@ -202,9 +206,9 @@ async function analyticsContext(client: PoolClient, deployment: DeploymentIdenti
   );
   const expected = BigInt(bound.through_number) - BigInt(bound.anchor_number) + 1n;
   if (BigInt(continuous.rows[0]?.count ?? '0') !== expected || !continuous.rows[0]?.linked) throw new PublicationUnavailableError('analytics interval has a chain coverage gap');
-  return { revision: checkpoint.revision, market, quoteDecimals, coverage: { from, to, anchorNumber: safeInteger(bound.anchor_number, 'coverage anchor'), anchorHash: bound.anchor_hash,
+  return { from, to, anchorNumber: safeInteger(bound.anchor_number, 'coverage anchor'), anchorHash: bound.anchor_hash,
     throughNumber: safeInteger(bound.through_number, 'coverage through block'), throughHash: bound.through_hash,
-    projectionNumber: safeInteger(checkpoint.blockNumber.toString(), 'projection block'), projectionHash: checkpoint.blockHash } satisfies RangeCoverage };
+    projectionNumber: safeInteger(checkpoint.blockNumber.toString(), 'projection block'), projectionHash: checkpoint.blockHash };
 }
 async function checkpointContext(client: PoolClient, schema: string, deployment: DeploymentIdentity) {
   const row = (await client.query<{ last_revision: string; block_number: string; block_hash: Hex32; as_of: string }>(

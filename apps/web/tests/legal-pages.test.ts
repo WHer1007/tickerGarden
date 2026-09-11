@@ -67,8 +67,8 @@ test("shared navigation exposes Explore and keeps Home out of the primary links"
   assert.match(footerShell, /<\/i>Robinhood Chain<\/span>/);
 });
 
-test("Vite builds both legal pages and legal routes avoid runtime loading", () => {
+test("Vite keeps legal pages in the SPA while allowing route chunking", () => {
   assert.match(vite, /appType:\s*['"]spa['"]/);
-  assert.doesNotMatch(vite, /rollupOptions|resolve\([^\n]+\.html/);
+  assert.doesNotMatch(vite, /input\s*:|resolve\([^\n]+\.html/);
   assert.match(app, /page === "privacy" \|\| page === "terms"/);
 });

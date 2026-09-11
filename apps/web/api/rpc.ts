@@ -16,6 +16,7 @@ const ALLOWED_METHODS = new Set([
 
 const MAX_REQUEST_BYTES = 64 * 1024;
 const MAX_RESPONSE_BYTES = 2 * 1024 * 1024;
+const MAX_BATCH_SIZE = 20;
 
 type RpcEnvironment = Readonly<Record<string, string | undefined>>;
 
@@ -37,8 +38,11 @@ export async function proxyReadRpc(
   if (new TextEncoder().encode(raw).byteLength > MAX_REQUEST_BYTES) return json({ error: 'request_too_large' }, 413, headers);
   let payload: unknown;
   try { payload = JSON.parse(raw); } catch { return json({ error: 'invalid_json_rpc' }, 400, headers); }
-  if (!validPayload(payload)) return json({ error: 'invalid_json_rpc' }, 400, headers);
-  if (!ALLOWED_METHODS.has(payload.method)) return json({ error: 'rpc_method_not_allowed' }, 403, headers);
+  const calls = Array.isArray(payload) ? payload : [payload];
+  if (!calls.length || calls.length > MAX_BATCH_SIZE || !calls.every(validPayload) || !uniqueIds(calls)) {
+    return json({ error: 'invalid_json_rpc' }, 400, headers);
+  }
+  if (calls.some(call => !ALLOWED_METHODS.has(call.method))) return json({ error: 'rpc_method_not_allowed' }, 403, headers);
 
   const upstream = rpcUrl(environment.TG_WEB_RPC_URL);
   if (!upstream) return json({ error: 'rpc_upstream_unavailable' }, 503, headers);
@@ -68,6 +72,17 @@ function validPayload(value: unknown): value is { readonly jsonrpc: '2.0'; reado
     && typeof item.method === 'string'
     && Array.isArray(item.params)
     && (id === null || typeof id === 'string' || (typeof id === 'number' && Number.isSafeInteger(id)));
+}
+
+function uniqueIds(calls: readonly { readonly id: string | number | null }[]): boolean {
+  const ids = new Set<string>();
+  for (const call of calls) {
+    if (call.id === null) return false;
+    const key = `${typeof call.id}:${String(call.id)}`;
+    if (ids.has(key)) return false;
+    ids.add(key);
+  }
+  return true;
 }
 
 function sameOrigin(request: Request): boolean {

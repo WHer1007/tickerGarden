@@ -6,6 +6,10 @@ const profile=process.env.TG_PROFILE||currentBranch();
 if(fs.existsSync(`${root}/.env.${profile.startsWith('codex/')?'test':profile}.local`))Object.assign(process.env,serviceEnvironment(readProjectEnv(profile),'web'));
 export default defineConfig(({command})=>({
  appType:'spa',envDir:false,
+ build:{rollupOptions:{output:{manualChunks(id){
+  if(id.includes('/node_modules/viem/')||id.includes('/node_modules/@noble/')||id.includes('/node_modules/abitype/'))return 'chain';
+  if(id.includes('/node_modules/@phosphor-icons/'))return 'icons';
+ }}}},
  server:{headers:securityHeaders(process.env,true)},
  preview:{headers:securityHeaders(process.env,false)},
  plugins:[{name:'production-security-headers',generateBundle(){this.emitFile({type:'asset',fileName:'_headers',source:'/*\n'+Object.entries(securityHeaders(process.env,false)).map(([k,v])=>`  ${k}: ${v}`).join('\n')+'\n'});}}],

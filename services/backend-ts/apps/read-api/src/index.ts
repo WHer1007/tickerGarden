@@ -37,7 +37,14 @@ export function createReadApiApp(options: ReadApiOptions = {}) {
   app.use('/v1/*', async (context, next) => {
     await next(); const path = context.req.path;
     const privateRead = path.includes('/users/') || path.includes('reward-history') || path.includes('/wallet-holder-markets') || path.includes('/transactions/');
-    context.header('cache-control', privateRead ? 'no-store' : 'public, max-age=5, s-maxage=15, stale-while-revalidate=30');
+    const revision = context.req.query('revision');
+    const immutableRevision = context.res.status >= 200 && context.res.status < 300
+      && typeof revision === 'string' && /^(0|[1-9][0-9]*):0x[0-9a-f]{64}$/.test(revision);
+    context.header('cache-control', context.res.status < 200 || context.res.status >= 300 || privateRead || path.endsWith('/updates')
+      ? 'no-store'
+      : immutableRevision
+        ? 'public, max-age=300, s-maxage=31536000, immutable'
+        : 'public, max-age=5, s-maxage=15, stale-while-revalidate=30');
   });
 
   app.get('/health', async (context) => {
@@ -45,6 +52,7 @@ export function createReadApiApp(options: ReadApiOptions = {}) {
     try { sync = await readPublishedSync({ pool: pool(), deployment, scope: 'markets', ...(schemaName ? { schemaName } : {}) }); } catch (error) {
       if (!(error instanceof PublicationUnavailableError)) throw error;
     }
+    context.header('cache-control', 'public, max-age=2, s-maxage=5, stale-while-revalidate=10');
     return context.json({ executionSpecId: 'V1-EXEC-11' as const, status: 'read-api' as const, readApiImplemented: true as const,
       productRuntimeImplemented: true as const, custody: false as const, transactionSubmission: false as const, sync });
   });

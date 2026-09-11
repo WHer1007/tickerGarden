@@ -54,8 +54,9 @@ export function createSnapshotPoller(options: {
    failureCount=0;unchangedCount=update.mode==='unchanged'?Math.min(4,unchangedCount+1):0;nextDelay=Math.min(60000,update.pollAfterMs*(2**unchangedCount));
    if(stopped||attempt!==generation||request.signal.aborted)return;
    if(!permitted()){recovering=true;return;}
-   // Recovery reloads all scopes even if the retained revision is unchanged.
-   if(update.mode!=='unchanged'||recovering){
+   // A changed block with identical publication digests advances the revision
+   // without reloading every cache. Recovery still rebuilds cleared views.
+   if(update.mode==='reset'||update.invalidated.length>0||recovering){
     const next=recovering?{...update,mode:'reset' as const,invalidated:['markets','configs','positions','accounts'] as const}:update;
     const commit=await abortable(options.prepare(next,request.signal),request.signal);
     if(stopped||attempt!==generation||request.signal.aborted)return;
@@ -72,6 +73,10 @@ export function createSnapshotPoller(options: {
  }
  return {
   start(){if(!stopped)return;stopped=false;void poll();},
+  adoptRevision(value:string){
+   if(!/^(0|[1-9][0-9]*):0x[0-9a-f]{64}$/.test(value))throw new Error('Invalid adopted snapshot revision');
+   cancel();revision=value;stopped=false;recovering=false;unchangedCount=0;failureCount=0;void poll();
+  },
   reconnect(){cancel();stopped=false;recovering=true;unchangedCount=0;failureCount=0;void poll();},
   stop(){stopped=true;recovering=true;unchangedCount=0;failureCount=0;cancel();},
   get revision(){return revision;},

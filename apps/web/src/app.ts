@@ -10,11 +10,11 @@ import {searchHolderMarkets, type HolderMarket} from './v1/holderMarkets.ts';
 import {loadCreatorMarkets} from './v1/creatorMarkets.ts';
 import {ownsCreatorRewards} from './v1/creatorOwnership.ts';
 import {stakeProgress,stakeLockLabel} from './ui/stake-progress.ts';
-import {explorerStakeStatistics,explorerFeeDistribution} from './v1/stakeStatistics.ts';
+import {explorerStakeStatistics} from './v1/stakeStatistics.ts';
 import {bindStakeAmountInput} from './ui/stake-amount-input.ts';
 import {decodeRecentTrade,explorerRecentTrades,explorerCurveVolume24h} from './v1/recentTrades.ts';
 import {encodeAbiParameters,keccak256,parseUnits} from 'viem';
-import {overviewJson,explorerHolders,nativeUsd,poolSpotPrice,type MarketOverview} from './v1/marketOverview.ts';
+import {overviewJson,nativeUsd,poolSpotPrice,type MarketOverview} from './v1/marketOverview.ts';
 import {displayPriceView} from './v1/displayPrices.ts';
 import {createTradeTransactionStatus} from './ui/trade-transaction-status.ts';
 import {createGlobalNotice, type GlobalNoticeTone} from './ui/global-notice.ts';
@@ -51,7 +51,7 @@ import { readDetailMetadata } from './v1/tokenMetadata.ts';
 import { feeDistribution } from './v1/marketDetail.ts';
 import { authorizedWalletAccount } from "./ui/wallet-session.ts";
 import { createRouter } from "./routing/router.ts";
-import { pages } from "./routing/pages.ts";
+import { loadPageTemplate } from "./routing/pages.ts";
 import { mountPageVisuals } from "./routing/visuals.ts";
 import type { PageName, Route } from "./routing/routes.ts";
 import { loadWalletAccounts } from "./v1/accounts.ts";
@@ -233,7 +233,7 @@ async function runPageAction(action: () => Promise<void>): Promise<void> {
   }
 }
 
-const brandMarkUrl = new URL("../assets/tickergarden-mark.png", import.meta.url).href;
+const brandMarkUrl = new URL("../assets/tickergarden-mark-128.webp", import.meta.url).href;
 const brandWordmark = `<span class="wordmark" aria-hidden="true"><span>Ticker</span><span>Garden</span></span>`;
 const runtimeConfig = parseV1RuntimeConfig(import.meta.env);
 const runtimeRpcUrl = import.meta.env.PROD && typeof window !== 'undefined'
@@ -241,7 +241,7 @@ const runtimeRpcUrl = import.meta.env.PROD && typeof window !== 'undefined'
   : import.meta.env.VITE_V1_RPC_URL || robinhoodChain.rpcUrls.default.http[0];
 const publicClient = createPublicClient({
   chain: robinhoodChain,
-  transport: http(runtimeRpcUrl),
+  transport: http(runtimeRpcUrl, { batch: { batchSize: 20, wait: 8 } }),
 });
 const readApi = runtimeConfig.readApi.available
   ? new TickerGardenV1Client(runtimeConfig.readApi.value)
@@ -607,6 +607,8 @@ async function ensureCanonicalAsset(config: ConfigReadModel, bindings: ReturnTyp
 
 const verifiedMarketRuntime = new Map<string, ReturnType<typeof assertCanonicalFactoryBindings>>();
 const verifiedMarketReleases = new Map<string, MarketRelease>();
+type VerifiedMarketFeeConfig = Readonly<{ stakingEnabled: boolean; creatorFeesToHolders: boolean; creatorTaxBps: number; creatorRevenueBeneficiaryAtCreation: Address }>;
+const verifiedMarketFeeConfigs = new Map<string, VerifiedMarketFeeConfig>();
 function marketRelease(id: string): MarketRelease {
   const value = verifiedMarketReleases.get(id);
   if (!value) throw new Error("Market release has not been verified");
@@ -648,6 +650,12 @@ async function ensureCanonicalMarket(market: MarketReadModel): Promise<void> {
   const bindings = assertCanonicalFactoryBindings(runtime, {launchRouter: release.launchRouter, allocationManager: release.allocationManager, protocolFeeVault: release.feeVault});
   if (bindings.marketRegistry !== release.marketRegistry || creator.toLowerCase() !== release.creatorRegistry || holders.toLowerCase() !== release.holderDistributor) throw new Error("Factory runtime does not match market release");
   assertCanonicalMarketBinding(market, rawMarket, rawRoute);
+  verifiedMarketFeeConfigs.set(market.marketId, {
+    stakingEnabled: rawMarket.config.stakingEnabled,
+    creatorFeesToHolders: rawMarket.config.creatorFeesToHolders,
+    creatorTaxBps: rawMarket.config.creatorTaxBps,
+    creatorRevenueBeneficiaryAtCreation: canonicalAddress(rawMarket.config.creatorRevenueBeneficiaryAtCreation, "Creator beneficiary"),
+  });
   verifiedMarketRuntime.set(market.marketId, bindings);
   verifiedMarketReleases.set(market.marketId, release);
 }
@@ -1051,14 +1059,11 @@ async function marketMetadata(market: MarketReadModel): Promise<MarketMetadata> 
     ]);
     if (market.quoteAsset === ZERO_ADDRESS) return Object.freeze({ name, symbol, metadataURI, deployedAt, quoteSymbol: "ETH", quoteDecimals: 18 });
     const quoteAsset = canonicalAddress(market.quoteAsset, "Quote token");
-    const [quoteSymbol, quoteDecimals] = await Promise.all([
-      publicClient.readContract({ abi: erc20Abi, address: quoteAsset, functionName: "symbol" }),
-      publicClient.readContract({ abi: erc20Abi, address: quoteAsset, functionName: "decimals" }),
-    ]);
-    const expectedDecimals = quoteConfig.values.quoteDecimals;
-    if (typeof expectedDecimals === "number" && expectedDecimals !== quoteDecimals) {
-      throw new Error("Quote decimals drifted from the approved configuration");
-    }
+    if (quoteConfig.values.quoteAsset !== quoteAsset) throw new Error("Quote asset drifted from the finalized configuration");
+    const quoteSymbol = quoteConfig.values.symbol;
+    const quoteDecimals = quoteConfig.values.quoteDecimals;
+    if (typeof quoteSymbol !== "string" || !/^[A-Z0-9][A-Z0-9._-]{0,15}$/.test(quoteSymbol)) throw new Error("Quote symbol is unavailable");
+    if (typeof quoteDecimals !== "number" || !Number.isInteger(quoteDecimals)) throw new Error("Quote decimals are unavailable");
     if (quoteDecimals < 6 || quoteDecimals > 18) throw new Error("Quote decimals are outside the approved 6–18 range");
     return Object.freeze({ name, symbol, metadataURI, deployedAt, quoteSymbol, quoteDecimals });
   })();
@@ -1568,6 +1573,7 @@ type TradeQuote = Readonly<{
 
 let tradeMarket: MarketDetailResponse | null = null;
 let tradeMetadata: MarketMetadata | null = null;
+let tradeMarketVerified = false;
 let tradeSide: "buy" | "sell" = "buy";
 let tradeQuote: TradeQuote | null = null;
 type CurvePricing={marketId:string;blockNumber:bigint;timestamp:bigint;quoteReserve:bigint;tokenReserve:bigint;baseBps:bigint;taxBps:bigint;at:number};
@@ -1707,14 +1713,6 @@ function setupTrade(): void {
   else updateTradeAvailability();
 }
 
-async function readMarketVolume(marketId:string):Promise<string>{
- if(!runtimeConfig.readApi.available)throw Error('Volume Unavailable');
- const r=await fetch(`${runtimeConfig.readApi.value}/v1/market-statistics?markets=${encodeURIComponent(marketId)}`,{signal:AbortSignal.timeout(8000)});
- if(!r.ok)throw Error('Volume Unavailable');
- const payload=await r.json(),item=payload.items?.[marketId];
- if(payload.chainId!==robinhoodChain.id||payload.displayOnly!==true||item?.marketId!==marketId||!statisticsFresh(item.volumeObservedAt,Date.now())||typeof item.volume24hQuote!=='string'||!/^\d+(?:\.\d+)?$/.test(item.volume24hQuote))throw Error('Volume Pending');
- return item.volume24hQuote;
-}
 const overviewLoads=new Map<string,number>();
 async function refreshMarketOverview(preserve=false):Promise<void>{
  const detail=tradeMarket,metadata=tradeMetadata;
@@ -1726,7 +1724,6 @@ async function refreshMarketOverview(preserve=false):Promise<void>{
  overviewLoads.set(key,Date.now());
  if(!preserve&&firstLoad)tokenDetailWidget?.setOverview({supply:undefined,maximum:undefined,price:undefined,usd:undefined,volume24h:undefined,holders:undefined});
  const generation=tradeLoadGeneration;
- if(runtimeConfig.contracts.available&&runtimeConfig.readApi.available)void explorerFeeDistribution({apiBase:runtimeConfig.readApi.value,market,decimals:metadata.quoteDecimals,feeVault:runtimeConfig.contracts.value.protocolFeeVaultAddress}).then(rows=>{if(tradeMarket===detail&&generation===tradeLoadGeneration)tokenDetailWidget?.setFeeTotals(rows);}).catch(()=>{});
  const update=(value:MarketOverview)=>{if(tradeMarket===detail&&generation===tradeLoadGeneration)tokenDetailWidget?.setOverview(value);};
  let incomplete=false;
  const report=async<T>(promise:Promise<T>,map:(value:T)=>MarketOverview)=>{try{update(map(await promise));}catch{incomplete=true;/* Independent display sources never block trading. */}};
@@ -1750,9 +1747,7 @@ async function refreshMarketOverview(preserve=false):Promise<void>{
    if(view.status!=='available')throw Error('USD Reference Missing');
    const reference=payload.references.find((r:any)=>r.token===market.quoteAsset.toLowerCase());
    return formatUnits((parseUnits(reference.bidUsd,18)+parseUnits(reference.askUsd,18))/2n,18);
-  })(),usd=>({usd})),
-  report(explorerHolders(robinhoodChain.blockExplorers.default.url,market.memeToken),holders=>({holders})),
-  report(readMarketVolume(market.marketId),volume24h=>({volume24h}))
+  })(),usd=>({usd}))
  ]);
  if(incomplete&&tradeMarket===detail&&generation===tradeLoadGeneration)overviewLoads.set(key,Date.now()-540000);
 }
@@ -1819,6 +1814,7 @@ function clearTradeMarketState(): void {
   renderDetailStakingSymbol('-');
   const quoteLogo=query<HTMLImageElement>('[data-detail-quote-logo]');if(quoteLogo){quoteLogo.hidden=true;quoteLogo.removeAttribute('src');quoteLogo.alt='';}
   tradeMarket = null;
+  tradeMarketVerified = false;
   curvePricing=null;
   query<HTMLElement>('.ref-hero')?.setAttribute('aria-busy','true');
   query<HTMLElement>('[data-detail-phase]')?.classList.remove('is-bloomed');
@@ -1848,6 +1844,44 @@ function clearTradeMarketState(): void {
   text("[data-trade-market-note]", "");
   text("[data-trade-route-status]", "Load a market to determine whether its route is available.");
   renderTradeQuote();
+}
+
+function renderVerifiedTradeRoute(market: MarketReadModel): void {
+  const route = market.canonicalRoute;
+  text("[data-trade-route-status]", route.curveTradingEnabled
+    ? `Curve route verified at ${shortHex(market.curve, 9, 7)}. Quotes expire after 30 seconds.`
+    : route.poolTradingEnabled
+      ? `Canonical Uniswap v4 pool ${shortHex(market.poolId)}. Quotes expire after 30 seconds.`
+      : `No user trading route is enabled during ${phaseLabel(market.launchPhase)}.`);
+}
+
+async function verifyTradeMarket(detail: MarketDetailResponse, generation: number): Promise<void> {
+  if (!foundation?.bindings) {
+    if (generation === tradeLoadGeneration && tradeMarket?.market.marketId === detail.market.marketId) {
+      text("[data-trade-route-status]", "The canonical route configuration is unavailable; trading remains locked.");
+      updateTradeAvailability();
+    }
+    return;
+  }
+  try {
+    await ensureCanonicalMarket(detail.market);
+    if (generation !== tradeLoadGeneration || tradeMarket?.market.marketId !== detail.market.marketId
+      || tradeMarket.market.sourceVersion !== detail.market.sourceVersion || tradeMarket.market.launchPhase !== detail.market.launchPhase) return;
+    tradeMarketVerified = true;
+    renderVerifiedTradeRoute(detail.market);
+    void renderTradeFeeDetails(detail.market, generation);
+    if (detail.market.launchPhase === 0) void loadCurvePricing(detail.market).then(() => {
+      if (generation === tradeLoadGeneration && tradeMarketVerified && !tradeQuote) renderTradeQuote();
+    }).catch(() => {});
+    updateTradeAvailability();
+    if (query<HTMLInputElement>("[data-trade-amount]")?.value.trim()) scheduleTradeQuote();
+  } catch {
+    if (generation !== tradeLoadGeneration || tradeMarket?.market.marketId !== detail.market.marketId) return;
+    tradeMarketVerified = false;
+    text("[data-trade-route-status]", "The route could not be verified; trading remains locked while market data stays available.");
+    text("[data-detail-fee-note]", "Fee configuration is awaiting canonical route verification.");
+    updateTradeAvailability();
+  }
 }
 
 async function loadDetailContent(market:MarketReadModel,generation:number):Promise<void>{
@@ -1907,16 +1941,20 @@ async function loadTradeMarket(explicit?: string): Promise<void> {
   tradeQuote = null;
   displayPriceWidget?.setToken(null);
   try {
-    // Directory identity is already scoped to this deployment. Start immutable
-    // metadata while current trading state is read; never wait for it serially.
+    // The finalized directory already contains the complete display record. Use
+    // it immediately and refresh route state in the background.
     const known = foundation.markets.find(m => m.marketId === marketId);
     const earlyMetadata = known ? marketMetadata(known) : null;
     void earlyMetadata?.catch(()=>{});
-    const response = foundation.direct && directMarkets ? await directMarkets.market(marketId) : await readApi.getMarket({ marketId, revision: foundation.sync.revision });
+    const response: MarketDetailResponse = known && !foundation.direct
+      ? { market: known, sync: foundation.sync }
+      : foundation.direct && directMarkets
+        ? await directMarkets.market(marketId)
+        : await readApi.getMarket({ marketId, revision: foundation.sync.revision });
     if (generation !== tradeLoadGeneration) return;
     if (response.market.marketId !== marketId) throw new Error("Read API returned a different market identity");
     if (!foundation.direct) assertFinalizedSync(response.sync, foundation.sync.revision, "market detail");
-    const [metadata] = await Promise.all([earlyMetadata && known?.memeToken === response.market.memeToken && known.quoteAssetConfigId === response.market.quoteAssetConfigId ? earlyMetadata : marketMetadata(response.market),foundation.bindings ? ensureCanonicalMarket(response.market) : Promise.resolve()]);
+    const metadata = await (earlyMetadata && known?.memeToken === response.market.memeToken && known.quoteAssetConfigId === response.market.quoteAssetConfigId ? earlyMetadata : marketMetadata(response.market));
     const view = toCurveProgressViewModel(response);
     if (generation !== tradeLoadGeneration) return;
     tradeMarket = response;
@@ -1950,8 +1988,8 @@ async function loadTradeMarket(explicit?: string): Promise<void> {
     const explorer = query<HTMLAnchorElement>('[data-detail-explorer]');
     if (explorer) { explorer.href = `${robinhoodChain.blockExplorers.default.url}/token/${response.market.memeToken}`; explorer.hidden = false; }
     const copy = query<HTMLButtonElement>('[data-detail-copy]'); if (copy) copy.disabled = false;
-    void renderTradeFeeDetails(response.market, generation);
-    if(response.market.launchPhase===0)void loadCurvePricing(response.market).then(()=>{if(generation===tradeLoadGeneration&&!tradeQuote)renderTradeQuote();}).catch(()=>{});
+    text("[data-trade-route-status]", "Verifying the canonical trading route…");
+    void verifyTradeMarket(response, generation);
  candleWidget?.setMarket({marketId:response.market.marketId,memeAsset:response.market.memeToken,quoteAsset:response.market.quoteAsset,quoteDecimals:metadata.quoteDecimals});
  holderWidget?.setMarket({marketId:response.market.marketId,memeToken:response.market.memeToken});
  tradeHistoryWidget?.setMarket({marketId:response.market.marketId,memeAsset:response.market.memeToken,quoteAsset:response.market.quoteAsset,quoteDecimals:metadata.quoteDecimals});
@@ -1971,12 +2009,6 @@ async function loadTradeMarket(explicit?: string): Promise<void> {
     text("[data-trade-phase]", phaseLabel(response.market.launchPhase));
     text("[data-trade-summary-id]", marketId);
     text("[data-trade-market-note]", `Real Quote reserve ${formatTokenAmount(view.realQuoteReserve, metadata.quoteDecimals)} ${metadata.quoteSymbol}; sellable Meme ${formatTokenAmount(view.sellableTokens, 18)} ${metadata.symbol}.`);
-    const route = response.market.canonicalRoute;
-    text("[data-trade-route-status]", route.curveTradingEnabled
-      ? `Curve route verified at ${shortHex(response.market.curve, 9, 7)}. Quotes expire after 30 seconds.`
-      : route.poolTradingEnabled
-        ? `Canonical Uniswap v4 pool ${shortHex(response.market.poolId)}. Quotes expire after 30 seconds.`
-        : `No user trading route is enabled during ${phaseLabel(response.market.launchPhase)}.`);
     renderTradeQuote();
     updateTradeAvailability();
     if (query<HTMLInputElement>("[data-trade-amount]")?.value.trim()) scheduleTradeQuote();
@@ -2000,9 +2032,10 @@ async function renderTradeFeeDetails(market: MarketReadModel, generation: number
   try {
     const release = marketRelease(market.marketId);
     if (tradeMarket?.market.marketId !== market.marketId) return;
-    const raw = await publicClient.readContract({abi: v1Abis.MarketRegistryV1, address: release.marketRegistry, functionName: 'market', args: [market.marketId]});
+    const cached = verifiedMarketFeeConfigs.get(market.marketId);
+    const raw = cached ? null : await publicClient.readContract({abi: v1Abis.MarketRegistryV1, address: release.marketRegistry, functionName: 'market', args: [market.marketId]});
     if (generation !== tradeLoadGeneration || tradeMarket?.market.marketId !== market.marketId) return;
-    const config = raw.config;
+    const config = cached ?? raw!.config;
     const stakingBadge=query<HTMLElement>('[data-detail-staking-badge]');
     if(stakingBadge){stakingBadge.hidden=!config.stakingEnabled;stakingBadge.classList.toggle('is-pending',market.launchPhase!==1);}
     text('[data-detail-staking-status]',market.launchPhase===1?'Staking Enabled':'Stake Opens After Blooming');
@@ -2055,7 +2088,8 @@ document.addEventListener('visibilitychange',()=>{
 });
 
 async function quoteTrade(generation: number): Promise<void> {
-  if (!tradeMarket || !tradeMetadata || !wallet || !foundation) {
+  if (!tradeMarket || !tradeMetadata || !wallet || !foundation || !tradeMarketVerified) {
+    if (tradeMarket && !tradeMarketVerified) text('[data-trade-status]', 'Verifying Trading Route…');
     updateTradeAvailability();
     return;
   }
@@ -2260,7 +2294,7 @@ function updateTradeAvailability(): void {
     && tradeQuote.marketId === tradeMarket.market.marketId
     && tradeQuote.side === tradeSide,
   );
-  const routeReady = tradeMarket && tradingRoute(tradeMarket.market.launchPhase, tradeMarket.market.canonicalRoute);
+  const routeReady = tradeMarketVerified && tradeMarket && tradingRoute(tradeMarket.market.launchPhase, tradeMarket.market.canonicalRoute);
   const balance = detailBalanceAccount === wallet?.account ? (tradeSide === 'buy' ? detailBalances?.quote : detailBalances?.meme) : undefined;
   const insufficient = !!tradeQuote && balance !== undefined && tradeQuote.input > balance;
   const loading=tradeSubmitting||(tradeAwaitingConfirmation&&hasPendingTransaction());
@@ -2317,6 +2351,10 @@ async function refreshTradeFields(fresh?:MarketDetailResponse,background=false):
   if(own!==tradeFieldsGeneration||page!==routeGeneration||tradeMarket!==current||response.market.marketId!==current.market.marketId||response.market.memeToken!==current.market.memeToken)return;
   tradeMarket=response;
   const changed=response.market.launchPhase!==current.market.launchPhase || response.market.sourceVersion!==current.market.sourceVersion;
+  if(changed){
+    tradeMarketVerified=false;
+    text('[data-trade-route-status]','Verifying the updated canonical trading route…');
+  }
   const view=toCurveProgressViewModel(response),graduated=response.market.launchPhase===1;
   const baseline=foundation.baseline.find(c=>c.id===response.market.tickerGardenBaselineId),supply=baseline?.values.supply;
   renderTradePhase(graduated);
@@ -2330,8 +2368,8 @@ async function refreshTradeFields(fresh?:MarketDetailResponse,background=false):
   curvePricing=null;
   // Keep identity, metadata, chart selection and existing statistics mounted.
   void loadDetailBalances(true);
-  if(changed){void refreshTradeStake();void renderTradeFeeDetails(response.market,tradeLoadGeneration);}
-  if(!graduated){try{await loadCurvePricing(response.market);}catch{/* Keep the existing display while the RPC recovers. */}}
+  if(changed){void refreshTradeStake();void verifyTradeMarket(response,tradeLoadGeneration);}
+  if(!graduated&&tradeMarketVerified){try{await loadCurvePricing(response.market);}catch{/* Keep the existing display while the RPC recovers. */}}
   if(own!==tradeFieldsGeneration||page!==routeGeneration||tradeMarket!==response)return;
   if(!background || changed)overviewLoads.delete(response.market.marketId);
   void refreshMarketOverview(!background || changed);
@@ -2358,6 +2396,7 @@ async function submitTrade(): Promise<void> {
   tradeSubmitting=true;tradeSubmittingLabel='Preparing…';updateTradeAvailability();
   try {
     if (!foundation || !wallet || !tradeMarket || !tradeQuote) throw new Error("Connect a wallet, load a Curve market and request a fresh quote");
+    if (!tradeMarketVerified) throw new Error("The canonical trading route is still being verified");
     const activeWallet = wallet;
     const market = tradeMarket;
     const quote = tradeQuote;
@@ -5816,7 +5855,7 @@ function unmountPage(): void {
   ++launchImageGeneration; launchImageReading = false; launchImage = undefined;
   preparedMetadataURI = ""; preparedMetadataKey = "";
   launchSalt = randomSalt();
-  tradeMarket = null; tradeMetadata = null; tradeSide = "buy";
+  tradeMarket = null; tradeMetadata = null; tradeMarketVerified = false; tradeSide = "buy";
   marketPhaseFilter = "bloomed"; statsPeriod = "24h"; rewardDeepLinkApplied = false; syncRewardHash = undefined;
   userActivityWidget = null; globalHoldersWidget = null; seriesWidget = null;
   globalStatsWidgets = []; analyticsWidgets = [];
@@ -5828,36 +5867,38 @@ function unmountPage(): void {
 function mountRoute(route: Route): void {
   const generation = ++routeGeneration;
   unmountPage();
-  const page = pages[route.page];
   document.body.dataset.page = route.page;
-  document.title = page.title;
   const outlet = required<HTMLElement>("[data-route-outlet]");
-  outlet.innerHTML = page.html;
   setupShell();
   renderWallet();
-  mountPageWidgets();
-  disposeFieldValidation=mountFieldValidation(outlet,field=>{
-    if(field.matches('[data-reward-amount]'))return rewardPosition?.asset.tokenDecimals;
-    if(field.matches('[data-trade-amount]'))return tradeSide==='sell'?18:tradeMetadata?.quoteDecimals;
-    if(field.name==='firstBuyAmount'){const id=query<HTMLSelectElement>('[name=quoteAssetConfigId]')?.value;return Number(foundation?.quotes.find(q=>q.id===id)?.values.quoteDecimals??18);}
-    return undefined;
-  });
-  disposeVisuals = mountPageVisuals(outlet);
-  switch (route.page) {
-    case "markets": setupMarkets(); break;
-    case "trade": setupTrade(); break;
-    case "create": setupCreate(); break;
-    case "stats": setupStats(); break;
-    case "staking":
-    case "rewards": setupRewards(); break;
-    case "docs": setupDocs(); break;
-  }
-  if (isStaticPage()) { refreshActionAvailability(); return; }
+  outlet.replaceChildren();
   void (async () => {
+    const page = await loadPageTemplate(route.page);
+    if (generation !== routeGeneration) return;
+    document.title = page.title;
+    outlet.innerHTML = page.html;
+    mountPageWidgets();
+    disposeFieldValidation=mountFieldValidation(outlet,field=>{
+      if(field.matches('[data-reward-amount]'))return rewardPosition?.asset.tokenDecimals;
+      if(field.matches('[data-trade-amount]'))return tradeSide==='sell'?18:tradeMetadata?.quoteDecimals;
+      if(field.name==='firstBuyAmount'){const id=query<HTMLSelectElement>('[name=quoteAssetConfigId]')?.value;return Number(foundation?.quotes.find(q=>q.id===id)?.values.quoteDecimals??18);}
+      return undefined;
+    });
+    disposeVisuals = mountPageVisuals(outlet);
+    switch (route.page) {
+      case "markets": setupMarkets(); break;
+      case "trade": setupTrade(); break;
+      case "create": setupCreate(); break;
+      case "stats": setupStats(); break;
+      case "staking":
+      case "rewards": setupRewards(); break;
+      case "docs": setupDocs(); break;
+    }
+    if (isStaticPage()) { refreshActionAvailability(); return; }
     if (!foundation) await loadFoundation();
     if (generation !== routeGeneration) return;
     await refreshCurrentPage();
-    if (generation === routeGeneration) snapshotPoller?.reconnect();
+    if (generation === routeGeneration && foundation) snapshotPoller?.adoptRevision(foundation.sync.revision);
   })().catch(error => {
     if (generation !== routeGeneration) return;
     foundationError = errorText(error);
