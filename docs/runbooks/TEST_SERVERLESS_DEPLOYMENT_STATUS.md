@@ -13,7 +13,7 @@ This is test-environment evidence. It is not production readiness or permission 
 | Component | Endpoint | State |
 | --- | --- | --- |
 | Web | `https://tickergarden-web-test.vercel.app` | active; Preview deployment `dpl_7A42yArJZ81WAdrzYo1SzZTZfDPT` |
-| Read API | `https://tickergarden-read-api-test.vercel.app` | active; Preview deployment `dpl_AURBpLbsP21doJPgwGYimecEw5cz` |
+| Read API | `https://tickergarden-read-api-test.vercel.app` | active; Preview deployment `dpl_9kSRmW6Tso3bEoP7mBm2VehzzEkC` |
 | Content API | `https://tickergarden-content-test.vercel.app` | active |
 | Pipeline | `https://tickergarden-pipeline-test.vercel.app` | active; Preview deployment `dpl_36oA1Z5SQaiPdKPViNRj5syQjLyn` |
 | Chain event relay | VPS internal `chain-event-relay-test:8081` | healthy |
