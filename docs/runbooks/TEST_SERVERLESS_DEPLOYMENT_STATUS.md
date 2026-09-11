@@ -1,6 +1,6 @@
 # Test serverless deployment status
 
-Last verified: 2026-09-12 03:38 (Asia/Shanghai)
+Last verified: 2026-09-12 03:57 (Asia/Shanghai)
 
 ## Active scope
 
@@ -12,8 +12,8 @@ This is test-environment evidence. It is not production readiness or permission 
 
 | Component | Endpoint | State |
 | --- | --- | --- |
-| Web | `https://tickergarden-web-test.vercel.app` | active; Preview deployment `dpl_AiQ4A7Jc9WRU29u4uPhaRct2q7sH` |
-| Read API | `https://tickergarden-read-api-test.vercel.app` | active; Preview deployment `dpl_9kSRmW6Tso3bEoP7mBm2VehzzEkC` |
+| Web | `https://tickergarden-web-test.vercel.app` | active; Preview deployment `dpl_J8ivsGsLMB4iVyn7MpHAuoWtJUMR` |
+| Read API | `https://tickergarden-read-api-test.vercel.app` | active; Preview deployment `dpl_GgfH5Xt4Da3XnqQpnLqdWqpbqkAi` |
 | Content API | `https://tickergarden-content-test.vercel.app` | active |
 | Pipeline | `https://tickergarden-pipeline-test.vercel.app` | active; Preview deployment `dpl_36oA1Z5SQaiPdKPViNRj5syQjLyn` |
 | Chain event relay | VPS internal `chain-event-relay-test:8081` | healthy |
@@ -73,6 +73,8 @@ Token detail fee allocation reads use the current immutable market configuration
 The 24-hour volume fields remain `null` while the deployment is younger than a complete 24-hour window and time-aligned historical USD observations are unavailable. Protocol statistics that require complete historical price coverage remain fail-closed; the UI shows `Unavailable`, never fabricated `$0`.
 
 The 2026-09-12 UX pass corrected conflicting Explore states, added local error recovery, replaced internal terms with user-facing copy, restored visible keyboard focus, completed tab keyboard behavior, clarified balance actions, increased small touch targets, and identified testnet Stats data. The 324-test frontend suite and Vercel production build passed. Vercel inspection confirmed the aliased preview is `READY`; HTTP body checks from the workstation were blocked by the same intermittent TLS reset noted above, so this run does not add new screenshot evidence.
+
+The 2026-09-12 performance pass found that detail analytics incorrectly treated sparse relevant-block storage as incomplete chain coverage even though `covered_ranges` were complete. The Read API now validates the finalized ingestion checkpoint and its continuous complete ranges. Online acceptance returned statistics, charts, trades, holders, and fees for 1H, 12H, and 1D. The Read API was explicitly deployed to `sin1`; same-region warm reads were 60–90 ms and the sampled cold penalty was substantially lower than the earlier `iad1` deployment. The frontend now lazy-loads three pixel-identical lossless WebP step images, uses normal price-catalog caching, starts prices only on product routes, and stops deterministic Stats partial states from triggering repeated requests.
 
 ## Operational notes
 

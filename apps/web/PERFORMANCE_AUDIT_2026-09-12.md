@@ -4,7 +4,7 @@ Scope: Vercel web shell, Home, Explore, token detail/trade, Create, Stake, Claim
 
 Evidence was collected from the current checkout and from the Singapore VPS against the aliased test deployments. Timings are point-in-time samples, not an SLO or percentile study.
 
-## Baseline
+## Pre-fix baseline
 
 | Surface | Cold or first sample | Warm samples | Response size |
 | --- | ---: | ---: | ---: |
@@ -16,12 +16,14 @@ Evidence was collected from the current checkout and from the Singapore VPS agai
 
 The deployed HTML loads 186 KB compressed application JavaScript, 86 KB compressed chain JavaScript, about 26 KB compressed CSS, and a 147 KB WOFF2 icon font before route-specific content and data. Vercel returned `x-vercel-cache: HIT` for the HTML and immutable hashed assets after warm-up.
 
+The first Read API deployment in this run unexpectedly built in `iad1` despite the repository configuration. Redeploying with an explicit `--regions sin1` override put both handlers in Singapore. After the alias moved, same-region samples were 0.11–0.80 s on the first requests and 0.06–0.09 s warm; `/v1/protocol-statistics` fell from a 2.72 s cold sample to 0.11 s in the acceptance run.
+
 ## Findings and changes
 
 | Priority | Finding | Evidence and impact | Action |
 | --- | --- | --- | --- |
 | P0 | Token detail analytics rejected valid sparse block storage as a coverage gap. | All 12 markets returned `statistics`, `chart`, and `trades` as `null` for 1H and 12H. The database had complete `covered_ranges`, but the reader incorrectly required one `chain_blocks` row for every block. Live ingestion intentionally stores range evidence and relevant/boundary blocks. | Fixed in the serverless Read API: validate the ingestion checkpoint and continuous complete `covered_ranges`, matching the statistics reader. |
-| P0 | Read API cold starts dominate data load. | Same-region cold samples were 1.39–2.72 s while warm samples were 60–100 ms. Every dynamic page depends on the shared foundation load. | Keep functions in `sin1`; next reduce cold DB round trips with an aggregated foundation response and consider Vercel warm-instance or Fluid configuration after measuring cost. |
+| P0 | Read API cold starts dominated data load while the function ran outside the database region. | Initial samples were 1.39–2.72 s while warm samples were 60–100 ms. Vercel inspection showed the first build in `iad1` while PostgreSQL is in Singapore. | Fixed for the test deployment by explicitly building both handlers in `sin1`. Next reduce cold DB round trips with an aggregated foundation response and consider Vercel warm-instance configuration only after measuring cost. |
 | P1 | Route templates are split, but route behavior is still eager. | `src/app.ts` is 5,993 lines / 393 KB source and imports Create, Trade, Stake, Claim, Treasury, analytics and wallet logic before route selection. The main minified chunk remains about 668 KB, gzip 186 KB, plus the 292 KB chain chunk. | Split page controllers and write flows behind route-level dynamic imports. This is the largest remaining frontend code change and needs staged regression testing. |
 | P1 | Initial foundation loading fans out across services. | A cold dynamic page reads health, four config collections, a market page, Factory bindings/fees/registries and runtime code before all features become ready. Explore then requests two stage pages and market statistics. | Add a revision-bound `/v1/foundation` read model containing health, configs and the initial directory; keep direct contract checks only for transaction readiness and refresh them immediately before writes. |
 | P1 | Three below-the-fold Home images downloaded eagerly. | The PNG files totalled 3.14 MB and had no lazy loading or intrinsic dimensions. | Fixed: lossless WebP is pixel-identical, totals about 1.59 MB, reserves 1254×1254 layout space, decodes asynchronously, and is lazy-loaded. This saves about 1.55 MB of stored bytes and removes the images from initial page loading. |
@@ -41,7 +43,7 @@ At the audited revision, all 12 markets had identity, market cap and a last-buy 
 
 The 24-hour USD fields remain unavailable because the test deployment does not yet have complete historical USD coverage. Protocol `marketCapUsd` also remains unavailable because aggregate valuation is fail-closed when coverage is incomplete. These values must remain `Unavailable`; presenting partial totals as complete or replacing them with `$0` would be misleading.
 
-Before the Read API fix, 1H and 12H detail chart/trade data were also unavailable because of the incorrect block-row continuity check. The deployment acceptance step must confirm those shorter periods now return chart/trade objects while 1D remains unavailable until its full interval is covered.
+Before the Read API fix, 1H and 12H detail chart/trade data were also unavailable because of the incorrect block-row continuity check. Post-deployment acceptance confirmed that 1H, 12H, and 1D now return statistics, chart and trade objects with no coverage reason; holder and fee data remain present.
 
 ## Recommended implementation order
 
