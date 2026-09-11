@@ -1,6 +1,6 @@
 # Test serverless deployment status
 
-Last verified: 2026-09-12 01:33 (Asia/Shanghai)
+Last verified: 2026-09-12 02:32 (Asia/Shanghai)
 
 ## Active scope
 
@@ -12,8 +12,8 @@ This is test-environment evidence. It is not production readiness or permission 
 
 | Component | Endpoint | State |
 | --- | --- | --- |
-| Web | `https://tickergarden-web-test.vercel.app` | active; Preview deployment `dpl_3eRkHvE3tzDH6PeaVM9L1SfbhFGW` |
-| Read API | `https://tickergarden-read-api-test.vercel.app` | active; Preview deployment `dpl_55iDW8DQ6MJTvmZG84pSYApjj94V` |
+| Web | `https://tickergarden-web-test.vercel.app` | active; Preview deployment `dpl_3PAWthc3SEGdWAFzCpXKjXmy9yWk` |
+| Read API | `https://tickergarden-read-api-test.vercel.app` | active; Preview deployment `dpl_F7UkYZgvejRk4zgcaUp6wbYnQc4n` |
 | Content API | `https://tickergarden-content-test.vercel.app` | active |
 | Pipeline | `https://tickergarden-pipeline-test.vercel.app` | active; Preview deployment `dpl_6rumYGnby6NvP1pspLhnhDKh9xyh` |
 | Chain event relay | VPS internal `chain-event-relay-test:8081` | healthy |
@@ -53,6 +53,10 @@ The 2026-09-11 online checks passed for:
 - CSP, frame denial, MIME sniffing denial, no-cache `index.html`, and non-SPA 404 behavior for missing API paths.
 
 The browser made no legacy `/integration/` bootstrap request. The frontend reads the deployed Read API.
+
+The 2026-09-12 loading optimization moved the Web RPC function and Read API functions to `sin1`, matching the Singapore VPS. A cold browser trace rendered all 12 Explore cards in 2.8–4.1 seconds, compared with the earlier 7.3–13.6 second range; request count fell from 65–120 to 29–38. A cold token-detail trace rendered identity in 2.8–4.1 seconds and fee/analytics sections in 3.7–4.9 seconds, compared with 6.1, 12.6, and 10.0 seconds respectively in the pre-change trace. The detail route issued one `/detail` request and no separate `/market-statistics` or `/market-display-statistics` request. These measurements are test evidence from the current workstation/network path, not a production SLO.
+
+Revision-addressed public reads now receive immutable CDN caching. The snapshot poller adopts the already-rendered Foundation revision instead of forcing a second full reset. Browser RPC reads use bounded batches of at most 20 allowed calls; transaction submission methods remain blocked at the proxy. Market identity and historical analytics render independently while canonical route verification keeps quote and transaction controls locked.
 
 The online Stats check returned HTTP 200 for `/health`, `/v1/protocol-statistics`, `/v1/statistics-prices`, and `/v1/updates`. The page rendered 12 launches in the current 24-hour window, 3 Bloomed markets, 2 staking wallets, and `$13.41` of stock staking value. Metrics without complete historical USD coverage render `Unavailable` rather than a zero placeholder.
 
