@@ -518,7 +518,7 @@ test('TS-02/03/04/05/06 PostgreSQL, ingestion, publications and Hono read paths'
       pool: handle.pool,
       qstashClient,
       chainProcessor: async (lease) => {
-        assert.equal(lease.kind, 'alchemy-block-trigger');
+        assert.equal(lease.kind, 'alchemy-event-trigger');
         return 'chain-processed';
       },
       env: {

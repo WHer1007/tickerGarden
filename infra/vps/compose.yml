@@ -1,0 +1,114 @@
+name: tickergarden
+services:
+  postgres-test:
+    build: ./postgres
+    restart: unless-stopped
+    env_file: /etc/tickergarden/test.env
+    environment:
+      POSTGRES_DB: tickergarden
+      POSTGRES_USER: tg_admin
+    volumes:
+      - postgres_test:/var/lib/postgresql/data
+      - /etc/tickergarden/postgres.crt:/run/tickergarden/postgres.crt:ro
+      - /etc/tickergarden/postgres.key:/run/tickergarden/postgres.key:ro
+    ports: ["5433:5432"]
+    networks: [test]
+    healthcheck: { test: ["CMD-SHELL", "pg_isready -U tg_admin -d tickergarden"], interval: 10s, timeout: 5s, retries: 10 }
+    mem_limit: 768m
+  postgres-prod:
+    profiles: ["production"]
+    build: ./postgres
+    restart: unless-stopped
+    env_file: /etc/tickergarden/production.env
+    environment:
+      POSTGRES_DB: tickergarden
+      POSTGRES_USER: tg_admin
+    volumes:
+      - postgres_prod:/var/lib/postgresql/data
+      - /etc/tickergarden/postgres.crt:/run/tickergarden/postgres.crt:ro
+      - /etc/tickergarden/postgres.key:/run/tickergarden/postgres.key:ro
+    ports: ["5434:5432"]
+    networks: [production]
+    healthcheck: { test: ["CMD-SHELL", "pg_isready -U tg_admin -d tickergarden"], interval: 10s, timeout: 5s, retries: 10 }
+    mem_limit: 768m
+  queue-test:
+    build: ./queue-relay
+    restart: unless-stopped
+    env_file: /etc/tickergarden/test.env
+    depends_on: { postgres-test: { condition: service_healthy } }
+    networks: [test, edge]
+    mem_limit: 192m
+  queue-prod:
+    profiles: ["production"]
+    build: ./queue-relay
+    restart: unless-stopped
+    env_file: /etc/tickergarden/production.env
+    depends_on: { postgres-prod: { condition: service_healthy } }
+    networks: [production, edge]
+    mem_limit: 192m
+  minio-test:
+    image: minio/minio:latest
+    command: server /data
+    restart: unless-stopped
+    env_file: /etc/tickergarden/test.env
+    environment:
+      MINIO_API_CORS_ALLOW_ORIGIN: "https://tickergarden-web.vercel.app,https://*.vercel.app"
+    volumes: ["minio_test:/data"]
+    networks: [test, edge]
+    healthcheck: { test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"], interval: 10s, timeout: 5s, retries: 10 }
+    mem_limit: 384m
+  minio-prod:
+    profiles: ["production"]
+    image: minio/minio:latest
+    command: server /data
+    restart: unless-stopped
+    env_file: /etc/tickergarden/production.env
+    environment:
+      MINIO_API_CORS_ALLOW_ORIGIN: "https://tickergarden-web.vercel.app"
+    volumes: ["minio_prod:/data"]
+    networks: [production, edge]
+    healthcheck: { test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"], interval: 10s, timeout: 5s, retries: 10 }
+    mem_limit: 384m
+  minio-init-test:
+    image: minio/mc:latest
+    restart: "no"
+    env_file: /etc/tickergarden/test.env
+    environment: { MINIO_HOST: minio-test }
+    entrypoint: ["/bin/sh", "/config/init.sh"]
+    volumes:
+      - ./minio:/config:ro
+    depends_on: { minio-test: { condition: service_healthy } }
+    networks: [test]
+  minio-init-prod:
+    profiles: ["production"]
+    image: minio/mc:latest
+    restart: "no"
+    env_file: /etc/tickergarden/production.env
+    environment: { MINIO_HOST: minio-prod }
+    entrypoint: ["/bin/sh", "/config/init.sh"]
+    volumes:
+      - ./minio:/config:ro
+    depends_on: { minio-prod: { condition: service_healthy } }
+    networks: [production]
+  caddy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    ports: ["80:80", "443:443"]
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    networks: [edge]
+    depends_on: [queue-test, minio-test]
+    mem_limit: 128m
+networks:
+  test: {}
+  production: {}
+  edge: {}
+volumes:
+  postgres_test: {}
+  postgres_prod: {}
+  minio_test: {}
+  minio_prod: {}
+  caddy_data: {}
+  caddy_config: {}

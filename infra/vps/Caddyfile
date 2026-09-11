@@ -1,0 +1,16 @@
+{
+  email ops@tickergarden.com
+}
+
+queue-test.159-89-207-161.sslip.io {
+  reverse_proxy queue-test:8080
+}
+queue-prod.159-89-207-161.sslip.io {
+  reverse_proxy queue-prod:8080
+}
+s3-test.159-89-207-161.sslip.io {
+  reverse_proxy minio-test:9000
+}
+s3-prod.159-89-207-161.sslip.io {
+  reverse_proxy minio-prod:9000
+}

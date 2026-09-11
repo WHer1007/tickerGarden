@@ -1,0 +1,14 @@
+{
+  "schema": "tickergarden.alchemy-custom-webhook.v2",
+  "name": "TickerGarden current Robinhood Testnet event trigger",
+  "releaseId": "0x5c2c656b1b23e895ea268c34b187cd267e0f4fdcc1759c726cbca7fafb7c9c12",
+  "type": "GRAPHQL",
+  "networkEnvironmentKey": "TG_ALCHEMY_NETWORK",
+  "callbackEnvironmentKey": "TG_ALCHEMY_WEBHOOK_URL",
+  "queryFile": "config/alchemy/robinhood-event-trigger.graphql",
+  "querySha256": "0x9289a11770b327c08ee7e0dc0aba0fe04f186ca90a41091a4bff5531ab750a54",
+  "addressVariable": "tgCurrentSourceAddresses",
+  "topicVariable": "tgCurrentEventTopics",
+  "purpose": "Wake bounded RPC verification only when a frontend-required event is emitted by a trusted current-release source.",
+  "status": "inactive-test"
+}

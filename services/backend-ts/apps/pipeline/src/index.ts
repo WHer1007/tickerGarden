@@ -52,6 +52,7 @@ export function createPipelineApp(options: PipelineAppOptions = {}) {
       ...(env.TG_DATABASE_SCHEMA ? { schemaName: env.TG_DATABASE_SCHEMA } : {}),
       ...(env.V1_FINALITY_DELAY_BLOCKS ? { finalityDelayBlocks: BigInt(env.V1_FINALITY_DELAY_BLOCKS) } : {}),
       ...(env.V1_FINALITY_DELAY_SECONDS ? { finalityDelaySeconds: BigInt(env.V1_FINALITY_DELAY_SECONDS) } : {}),
+      ...(env.TG_EVENT_START_POLICY === 'latest-on-first-request' ? { latestOnFirstRequest: true } : {}),
     });
     return ownedProcessor;
   }
@@ -149,7 +150,7 @@ export function createPipelineApp(options: PipelineAppOptions = {}) {
     const enqueued = await enqueueReliableMessage(databasePool(), {
       queue: 'chain', externalId: `g${runtimeGeneration(env.TG_PIPELINE_GENERATION)}:${envelope.webhookId}:${envelope.id}`,
       operationId: `g${runtimeGeneration(env.TG_PIPELINE_GENERATION)}:alchemy:${envelope.id}`,
-      kind: 'alchemy-block-trigger', rawBody, payload: envelope, destinationKey: 'chain-worker', generation: runtimeGeneration(env.TG_PIPELINE_GENERATION),
+      kind: 'alchemy-event-trigger', rawBody, payload: envelope, destinationKey: 'chain-worker', generation: runtimeGeneration(env.TG_PIPELINE_GENERATION),
     }, env.TG_DATABASE_SCHEMA);
     const callback = env.TG_CHAIN_JOB_CALLBACK_URL;
     if (callback && env.QSTASH_CHAIN_TOKEN) {

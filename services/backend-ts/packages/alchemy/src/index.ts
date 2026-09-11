@@ -36,20 +36,21 @@ const AlchemyWebhookCreationResponse = z.object({
   data: z.object({
     id: z.string().regex(/^wh_[A-Za-z0-9]+$/).max(160),
     version: z.string().min(1).max(160),
-    is_active: z.literal(false),
+    is_active: z.boolean(),
     signing_key: z.string().min(1).max(512),
   }).passthrough(),
 }).passthrough();
 
 export type AlchemyWebhook = z.infer<typeof AlchemyWebhookEnvelope>;
-export type CreatedAlchemyWebhook = Readonly<{ webhookId: string; version: string; signingKey: string; active: false }>;
+export type CreatedAlchemyWebhook = Readonly<{ webhookId: string; version: string; signingKey: string; active: boolean }>;
 
 export function parseAlchemyWebhookCreationResponse(value: unknown): CreatedAlchemyWebhook {
   const parsed = AlchemyWebhookCreationResponse.parse(value).data;
-  return Object.freeze({ webhookId: parsed.id, version: parsed.version, signingKey: parsed.signing_key, active: false as const });
+  return Object.freeze({ webhookId: parsed.id, version: parsed.version, signingKey: parsed.signing_key, active: parsed.is_active });
 }
 
 export function updateAlchemyRuntimeSecrets(source: string, created: CreatedAlchemyWebhook): string {
+  if (created.active) throw new Error('Alchemy webhook must be inactive before storing runtime secrets');
   const updates = {
     TG_ALCHEMY_WEBHOOK_ID: created.webhookId,
     TG_ALCHEMY_WEBHOOK_SIGNING_KEY: created.signingKey,

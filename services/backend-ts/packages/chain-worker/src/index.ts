@@ -27,6 +27,8 @@ export interface ChainProcessorOptions {
   readonly schemaName?: string;
   readonly finalityDelayBlocks?: bigint;
   readonly finalityDelaySeconds?: bigint;
+  readonly initialBlock?: bigint;
+  readonly latestOnFirstRequest?: boolean;
 }
 
 export function createChainProcessor(options: ChainProcessorOptions): (lease: Lease) => Promise<string> {
@@ -38,11 +40,16 @@ export function createChainProcessor(options: ChainProcessorOptions): (lease: Le
       verifyChainIdentity(options.primary, 46630n, GENESIS_HASH),
       verifyChainIdentity(options.secondary, 46630n, GENESIS_HASH),
     ]);
-    await ensureBootstrap({ ...options, deployment });
     const head = await resolveHead(lease, options.primary, options.secondary);
-    const state = await loadIngestionState({ pool: options.pool, deployment, stream: STREAM, ...(options.schemaName ? { schemaName: options.schemaName } : {}) });
+    await ensureBootstrap({ ...options, deployment });
     const delayBlocks = options.finalityDelayBlocks ?? 2n;
     const delaySeconds = options.finalityDelaySeconds ?? 600n;
+    const initialBlock = options.latestOnFirstRequest
+      ? await latestFinalizedBlock(options.primary, options.secondary, deployment.activationBlock, head, delayBlocks, delaySeconds)
+      : options.initialBlock;
+    const state = await loadIngestionState({ pool: options.pool, deployment, stream: STREAM,
+      ...(initialBlock !== undefined ? { initialNextBlock: initialBlock } : {}),
+      ...(options.schemaName ? { schemaName: options.schemaName } : {}) });
     if (head.number < delayBlocks || state.nextBlock + delayBlocks > head.number) return `waiting:${state.nextBlock}`;
 
     const upperByBlocks = head.number - delayBlocks;
@@ -192,7 +199,7 @@ async function projectionBatchPending(pool: Pool, deployment: DeploymentIdentity
 async function resolveHead(lease: Lease, primary: RpcTransport, secondary: RpcTransport): Promise<RpcBlock> {
   let number: bigint;
   let expectedHash: string;
-  if (lease.kind === 'alchemy-block-trigger') {
+  if (lease.kind === 'alchemy-event-trigger' || lease.kind === 'alchemy-block-trigger') {
     const trigger = parseAlchemyBlockTrigger(lease.payload as AlchemyWebhook);
     number = trigger.number;
     expectedHash = trigger.hash;
@@ -219,12 +226,12 @@ async function ensureBootstrap(options: ChainProcessorOptions & { readonly deplo
   const activation = await consensusBlock(options.primary, options.secondary, CURRENT_ACTIVATION_BLOCK);
   if (activation.hash !== ACTIVATION_HASH) throw new Error('deployment activation hash mismatch');
   const sources = fixedF72Sources();
-  for (const source of sources) {
+  await Promise.all(sources.map(async (source) => {
     const [first, second] = await Promise.all([
       options.primary.codeHash(source.address, source.birthBlock), options.secondary.codeHash(source.address, source.birthBlock),
     ]);
     if (first !== source.runtimeCodeHash || second !== source.runtimeCodeHash) throw new Error(`runtime code identity mismatch for ${source.module}`);
-  }
+  }));
   await transaction(options.pool, async (client) => {
     await client.query(
       `INSERT INTO ${schema}.deployments(environment,chain_id,deployment_digest,genesis_hash,start_block,start_block_hash,abi_digest)
@@ -239,6 +246,22 @@ async function ensureBootstrap(options: ChainProcessorOptions & { readonly deplo
       );
     }
   });
+}
+
+async function latestFinalizedBlock(primary: RpcTransport, secondary: RpcTransport, activationBlock: bigint, head: RpcBlock,
+  delayBlocks: bigint, delaySeconds: bigint): Promise<bigint> {
+  if (head.number <= activationBlock + delayBlocks) return activationBlock;
+  const upper = head.number - delayBlocks;
+  const cutoff = head.timestamp > delaySeconds ? head.timestamp - delaySeconds : 0n;
+  let low = activationBlock;
+  let high = upper;
+  while (low < high) {
+    const middle = (low + high + 1n) / 2n;
+    const block = await consensusBlock(primary, secondary, middle);
+    if (block.timestamp <= cutoff) low = middle;
+    else high = middle - 1n;
+  }
+  return low;
 }
 
 async function enqueueContinuation(pool: Pool, head: RpcBlock, fromBlock: bigint, generation: bigint, schemaName?: string): Promise<void> {

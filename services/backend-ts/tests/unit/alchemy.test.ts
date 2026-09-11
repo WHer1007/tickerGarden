@@ -38,14 +38,14 @@ test('Alchemy webhook parser binds webhook identity and supports nanosecond time
   assert.throws(() => parseAlchemyWebhook('{', 'wh_unit123'), /must be JSON/);
 });
 
-test('Alchemy management response accepts only an inactive webhook', () => {
+test('Alchemy management response preserves active state for fail-closed disable', () => {
   const result = parseAlchemyWebhookCreationResponse({ data: {
     id: 'wh_Test123', version: 'v1', is_active: false, signing_key: 'synthetic-signing-key', network: 'ETH_MAINNET',
   } });
   assert.deepEqual(result, { webhookId: 'wh_Test123', version: 'v1', signingKey: 'synthetic-signing-key', active: false });
-  assert.throws(() => parseAlchemyWebhookCreationResponse({ data: {
+  assert.deepEqual(parseAlchemyWebhookCreationResponse({ data: {
     id: 'wh_Test123', version: 'v1', is_active: true, signing_key: 'synthetic-signing-key',
-  } }), /Invalid input/);
+  } }), { webhookId: 'wh_Test123', version: 'v1', signingKey: 'synthetic-signing-key', active: true });
 });
 
 test('Alchemy management secrets update one protected environment payload without duplication', () => {
@@ -53,4 +53,5 @@ test('Alchemy management secrets update one protected environment payload withou
   assert.equal(updateAlchemyRuntimeSecrets('ALCHEMY_AUTH_TOKEN="management-only"\nTG_ALCHEMY_WEBHOOK_ID=\'\'\n', created),
     'ALCHEMY_AUTH_TOKEN="management-only"\nTG_ALCHEMY_WEBHOOK_ID="wh_Test123"\nTG_ALCHEMY_WEBHOOK_SIGNING_KEY="synthetic-signing-key"\n');
   assert.throws(() => updateAlchemyRuntimeSecrets('TG_ALCHEMY_WEBHOOK_ID=a\nTG_ALCHEMY_WEBHOOK_ID=b\n', created), /Duplicate TG_ALCHEMY_WEBHOOK_ID/);
+  assert.throws(() => updateAlchemyRuntimeSecrets('', { ...created, active: true }), /must be inactive/);
 });

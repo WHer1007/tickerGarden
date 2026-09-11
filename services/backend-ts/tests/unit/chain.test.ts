@@ -47,6 +47,7 @@ test('finality requires both block and time delay', () => {
   assert.equal(isFinalized(block, { ...block, number: 101n, timestamp: 2_000n }, 2n, 600n), false);
   assert.equal(isFinalized(block, { ...block, number: 110n, timestamp: 1_599n }, 2n, 600n), false);
   assert.equal(hexQuantity('0x0'), 0n);
+  assert.equal(hexQuantity('0xB626'), 46630n);
   assert.equal(toHexQuantity(46630n), '0xb626');
   assert.throws(() => hexQuantity('0x00'), /invalid/);
 });

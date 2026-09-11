@@ -1,0 +1,16 @@
+query ($tgCurrentSourceAddresses: [Address!]!, $tgCurrentEventTopics: [Bytes32!]!) {
+  block {
+    hash
+    number
+    logs(filter: { addresses: $tgCurrentSourceAddresses, topics: [$tgCurrentEventTopics] }) {
+      account {
+        address
+      }
+      topics
+      data
+      transaction {
+        hash
+      }
+    }
+  }
+}

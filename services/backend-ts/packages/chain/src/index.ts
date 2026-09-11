@@ -8,7 +8,7 @@ const ALLOWED_METHODS = new Set([
 ]);
 const HASH = /^0x[0-9a-f]{64}$/;
 const ADDRESS = /^0x[0-9a-f]{40}$/;
-const QUANTITY = /^0x(?:0|[1-9a-f][0-9a-f]*)$/;
+const QUANTITY = /^0x(?:0|[1-9a-f][0-9a-f]*)$/i;
 const MAX_RESPONSE_BYTES = 5 * 1024 * 1024;
 
 export class RpcError extends Error {
@@ -274,6 +274,7 @@ export async function loadIngestionState(input: {
   readonly deployment: DeploymentIdentity;
   readonly stream: string;
   readonly schemaName?: string;
+  readonly initialNextBlock?: bigint;
 }): Promise<{ nextBlock: bigint; generation: bigint; sources: ContractSource[] }> {
   validateDeployment(input.deployment);
   if (!TOKEN_NAME.test(input.stream)) throw new Error('invalid ingestion stream');
@@ -290,7 +291,7 @@ export async function loadIngestionState(input: {
     ),
   ]);
   return {
-    nextBlock: BigInt(checkpoint.rows[0]?.next_block ?? input.deployment.activationBlock),
+    nextBlock: BigInt(checkpoint.rows[0]?.next_block ?? input.initialNextBlock ?? input.deployment.activationBlock),
     generation: BigInt(checkpoint.rows[0]?.generation ?? '0'),
     sources: sources.rows.map((row) => ({ module: row.module, address: row.address, birthBlock: BigInt(row.birth_block), runtimeCodeHash: row.runtime_code_hash })),
   };
@@ -363,7 +364,7 @@ export async function ingestCanonicalRange(input: IngestRangeInput): Promise<{ b
     await client.query(
       `INSERT INTO ${schema}.ingestion_checkpoints(environment,chain_id,deployment_digest,stream,next_block)
        VALUES ($1,$2,$3,$4,$5) ON CONFLICT DO NOTHING`,
-      [input.deployment.environment, input.deployment.chainId, input.deployment.deploymentDigest, input.stream, input.deployment.activationBlock.toString()],
+      [input.deployment.environment, input.deployment.chainId, input.deployment.deploymentDigest, input.stream, input.fromBlock.toString()],
     );
     const checkpoint = await client.query<{ next_block: string; last_block_hash: string | null; generation: string }>(
       `SELECT next_block,last_block_hash,generation FROM ${schema}.ingestion_checkpoints
