@@ -76,11 +76,11 @@ contract ProtocolFeeVaultV4CreditHarness is ProtocolFeeVaultV4Credit {
 
     function pending() external view returns (uint8 state, bytes32 feeId, uint256 amount) {
         PendingV4Credit memory value;
-        (state, value) = _pendingV4Credit();
+        (state, value) = (_creditState, _pendingCredit);
         return (state, value.feeId, value.amount);
     }
 
-    function _recordExactV4Credit(V4CreditRecord memory record) internal override {
+    function _recordExactV4Credit(V4CreditRecord memory record, MarketView memory) internal override {
         if (rejectRecord) revert("RECORD_REJECTED");
         if (attemptReentry) {
             (bool success,) = address(this)

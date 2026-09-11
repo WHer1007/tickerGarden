@@ -56,7 +56,7 @@ func (l *Ledger) ApplyTrace(ts uint64, b Binding, t chainrpc.CallTrace) (int, er
 		}
 		if n.To == b.Distributor && len(n.Input) >= 10 && len(n.Input) < 74 {
 			switch n.Input[:10] {
-			case selector("fundCreatorFees(bytes32,uint32,uint256)"), selector("checkpointTransfer(bytes32,address,address,uint256)"), selector("checkpoint(bytes32)"), selector("claim(bytes32)"):
+			case selector("fundQuoteRewards(bytes32,uint32,uint256)"), selector("fundCreatorFees(bytes32,uint32,uint256)"), selector("checkpointTransfer(bytes32,address,address,uint256)"), selector("checkpoint(bytes32)"), selector("claim(bytes32)"), selector("setFundingInterval(bytes32,uint256)"):
 				return ErrInput
 			}
 		}
@@ -67,7 +67,7 @@ func (l *Ledger) ApplyTrace(ts uint64, b Binding, t chainrpc.CallTrace) (int, er
 				action := Action{Timestamp: ts}
 				words := 0
 				switch sel {
-				case selector("fundCreatorFees(bytes32,uint32,uint256)"):
+				case selector("fundQuoteRewards(bytes32,uint32,uint256)"), selector("fundCreatorFees(bytes32,uint32,uint256)"):
 					if n.From != b.Vault {
 						return ErrInput
 					}
@@ -121,6 +121,22 @@ func (l *Ledger) ApplyTrace(ts uint64, b Binding, t chainrpc.CallTrace) (int, er
 					action.Account = n.From
 					action.Amount = v
 					words = 1
+				case selector("setFundingInterval(bytes32,uint256)"):
+					w, e := word(n.Input, 1)
+					if e != nil {
+						return e
+					}
+					v, e := decimal(w)
+					if e != nil {
+						return e
+					}
+					i, ok := new(big.Int).SetString(v, 10)
+					if !ok || !i.IsUint64() {
+						return ErrInput
+					}
+					action.Kind = "setFundingInterval"
+					action.Interval = i.Uint64()
+					words = 2
 				}
 				if words > 0 {
 					if n.Type != "CALL" || len(n.Input) != 10+64*words {

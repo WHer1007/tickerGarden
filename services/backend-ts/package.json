@@ -1,0 +1,53 @@
+{
+  "name": "@tickergarden/backend-ts",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": "24.x"
+  },
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "build": "tsc -p tsconfig.build.json",
+    "migrate": "node --experimental-strip-types scripts/migrate.ts",
+    "verify:rpc": "node --experimental-strip-types scripts/verify-rpc.ts",
+    "verify:current-events": "node --experimental-strip-types scripts/verify-f72-events.ts",
+    "alchemy:webhook:plan": "node --experimental-strip-types scripts/manage-alchemy-webhook.ts",
+    "alchemy:webhook:create": "node --experimental-strip-types scripts/manage-alchemy-webhook.ts --apply",
+    "accept:preview": "node scripts/accept-preview.mjs",
+    "generate:f72-events": "node --experimental-strip-types scripts/generate-f72-event-abis.ts",
+    "check:f72-events": "node --experimental-strip-types scripts/generate-f72-event-abis.ts --check",
+    "generate:f72-bootstrap": "node --experimental-strip-types scripts/generate-f72-bootstrap.ts",
+    "check:f72-bootstrap": "node --experimental-strip-types scripts/generate-f72-bootstrap.ts --check",
+    "verify:current-bootstrap": "node --experimental-strip-types scripts/verify-f72-bootstrap.ts",
+    "generate:openapi": "node scripts/generate-openapi.mjs",
+    "check:openapi": "node scripts/generate-openapi.mjs --check",
+    "check:contract-coverage": "node scripts/check-contract-coverage.mjs",
+    "check:vercel-packaging": "node scripts/check-vercel-packaging.mjs",
+    "check:generated": "node ../../tools/check-typescript-serverless-baseline.mjs",
+    "test:unit": "node --experimental-strip-types --test tests/unit/*.test.ts",
+    "test:integration": "node --experimental-strip-types --test tests/integration/*.test.ts",
+    "test:contract": "npm run check:openapi && npm run check:contract-coverage && node --experimental-strip-types --test tests/unit/http.test.ts tests/unit/read-api.test.ts",
+    "test:recovery": "node --experimental-strip-types --test tests/unit/jobs.test.ts tests/unit/chain.test.ts tests/unit/transaction-observer.test.ts tests/integration/db.test.ts tests/integration/content.test.ts",
+    "test": "npm run check:generated && npm run check:vercel-packaging && npm run test:contract && npm run typecheck && npm run test:unit"
+  },
+  "dependencies": {
+    "@hono/zod-openapi": "1.6.3",
+    "@upstash/qstash": "^2.11.3",
+    "@vercel/functions": "^3.9.7",
+    "drizzle-orm": "^0.45.2",
+    "hono": "4.13.7",
+    "pg": "^8.23.0",
+    "viem": "2.56.3",
+    "zod": "4.6.1"
+  },
+  "devDependencies": {
+    "@types/node": "24.3.0",
+    "@types/pg": "^8.23.1",
+    "typescript": "5.9.3"
+  }
+}

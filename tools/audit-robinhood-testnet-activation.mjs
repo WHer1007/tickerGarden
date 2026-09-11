@@ -35,7 +35,7 @@ const genesis = await client.getBlock({blockNumber: 0n});
 ensure(genesis.hash === plan.genesisHash, 'Genesis hash drift');
 ensure(await client.getTransactionCount({address: plan.deployer, blockTag: 'pending'}) === plan.transactions[0].nonce, 'Activation nonce drift');
 ensure((await client.getCode({address: plan.expected.fixture})) === undefined, 'Fixture address occupied');
-ensure((await client.readContract({address: deployment.components.ProtocolFeeVault, abi: vaultAbi, functionName: 'settlementOperator'})).toLowerCase() === plan.deployer.toLowerCase(), 'Settlement operator drift');
+ensure(await client.readContract({address: deployment.components.ProtocolFeeVault, abi: vaultAbi, functionName: 'userClaimMode'}) === keccak256(new TextEncoder().encode('TICKERGARDEN_USER_CLAIM_ASSET_SELECTION_V1')), 'Unsupported current claim mode');
 for (const contract of detailed.contracts) {
   ensure(keccak256(await client.getCode({address: contract.address})) === contract.runtimeCodeHash, `Runtime drift: ${contract.name}`);
 }
@@ -68,7 +68,7 @@ const audit = {
   auditBlock: {number: String(block.number), hash: block.hash, timestamp: String(block.timestamp)},
   startingNonce: plan.transactions[0].nonce,
   transactions: plan.transactions.map(({id, nonce, to, inputHash}) => ({id, nonce, to, inputHash})),
-  checks: {sourceInputsCurrent: true, runtimeCodeHashesCurrent: true, releaseBindingsCurrent: true, settlementOperatorConfigured: true, adminRolePresent: true, callsImmediate: true, calldataRoundTrip: true, identifiersUnused: true, fixtureAddressEmpty: true, budgetAvailable: true},
+  checks: {sourceInputsCurrent: true, runtimeCodeHashesCurrent: true, releaseBindingsCurrent: true, currentUserClaimMode: true, adminRolePresent: true, callsImmediate: true, calldataRoundTrip: true, identifiersUnused: true, fixtureAddressEmpty: true, budgetAvailable: true},
   exclusions: {roleHandoff: false, marketCreation: false, stockRegistration: false},
 };
 fs.writeFileSync(directory + '/activation-audit.json', JSON.stringify(audit, null, 2) + '\n');

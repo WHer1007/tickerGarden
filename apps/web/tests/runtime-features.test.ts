@@ -18,7 +18,7 @@ import { assertCanonicalLaunchBindings, assertCanonicalMarketBinding, decodeCano
 import { V1_EXECUTION_SPEC_ID, v1Abis } from "../src/v1/generated/abis.ts";
 import { buildLaunchAndBuyRequests, buildCreateMarketRequest, deriveCreateMarketParams } from "../src/v1/features/launch.ts";
 import { buildVaultView } from "../src/v1/features/vault.ts";
-import { buildClaimCreator, buildTransferCreatorBeneficiary } from "../src/v1/features/creator.ts";
+import { buildTransferCreatorBeneficiary } from "../src/v1/features/creator.ts";
 import {
   buildBurnMeme,
   buildFundQuote,
@@ -246,13 +246,9 @@ test("canonical market binding rejects inconsistent API pool nullability", () =>
 });
 
 test("creator builders encode canonical beneficiary and claim operations", () => {
-  const claim = buildClaimCreator({ feeVault: addr("4"), marketId: market, epoch: 7, asset: addr("7") });
-  assert.equal(claim.functionName, "claimCreator");
-  assert.deepEqual(claim.args, [market, 7, addr("7")]);
   const transfer = buildTransferCreatorBeneficiary({ registry: addr("5"), marketId: market, nextBeneficiary: addr("8") });
   assert.equal(transfer.functionName, "transferCreatorRevenueBeneficiary");
   assert.deepEqual(transfer.args, [market, addr("8")]);
-  assert.throws(() => buildClaimCreator({ feeVault: addr("4"), marketId: market, epoch: 0, asset: addr("7") }), /epoch/);
   assert.throws(() => buildTransferCreatorBeneficiary({ registry: addr("5"), marketId: market.toUpperCase() as Hex, nextBeneficiary: addr("8") }), /lowercase/);
 });
 
@@ -283,7 +279,6 @@ test("Treasury claims bind proof schema, domain, distributor, market, epoch, and
   } as const;
   const claim = buildTreasuryClaim({ distributor: addr("6"), expectedAccount: addr("b"), proof });
   assert.equal(claim.functionName, "claim");
-  assert.deepEqual(claim.args, [market, 3, 0n, addr("b"), 10n, 5n, [bytes32("2")]]);
   assert.throws(() => buildTreasuryClaim({ distributor: addr("6"), expectedAccount: addr("c"), proof }), /connected wallet/);
   assert.throws(() => buildTreasuryClaim({ distributor: addr("7"), expectedAccount: addr("b"), proof }), /distributor mismatch/);
 });

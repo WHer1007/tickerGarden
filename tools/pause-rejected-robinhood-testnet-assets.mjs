@@ -1,3 +1,5 @@
+throw new Error('Archived release-specific workflow. Historical release operations must not be replayed.');
+
 import {readProjectEnv} from "./environment.mjs";
 import fs from 'node:fs';
 import { createPublicClient, createWalletClient, defineChain, encodeFunctionData, http, keccak256, toBytes } from '../apps/web/node_modules/viem/_esm/index.js';

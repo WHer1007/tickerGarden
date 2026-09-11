@@ -1,5 +1,7 @@
 # Backend current tasks — 2026-09-07
 
+> 2026-09-10：本文已转为 Go 历史任务快照。当前开发入口为 [TypeScript + Node.js + Hono 前端服务任务](../v1/V1_TYPESCRIPT_SERVERLESS_DEVELOPMENT_TASKS.md)，只覆盖正式前端所需功能及必要数据生产；下文 D01–D08 不自动成为本轮移植范围。
+
 This is the current implementation map for the Go backend. It reconciles the read-only gap review in [`outputs/reviews/backend-development-gaps-2026-09-07/REPORT.md`](../../outputs/reviews/backend-development-gaps-2026-09-07/REPORT.md) with the repository code and the existing implementation record. It is a planning snapshot, not a release approval. This snapshot incorporates the parallel development delivery and its local validation; financial publication remains open.
 
 ## How to read this document

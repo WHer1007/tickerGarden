@@ -14,13 +14,18 @@ import {
 } from "../src/v1/testnet-plan.ts";
 import { validateV1TestnetDeploymentPlanSchema } from "../src/schema.ts";
 
-test("accepts the pinned Robinhood Chain testnet deployment plan", () => {
-  assert.deepEqual(validateV1TestnetDeploymentPlanSchema(v1TestnetDeploymentPlan), {
+test("accepts a current synthetic Robinhood Chain testnet plan and rejects the saved legacy plan", () => {
+  const current = structuredClone(v1TestnetDeploymentPlan);
+  const deterministic = current.deterministicDeployment as Record<string, unknown>;
+  deterministic.ordinaryComponentOrder = [...V1_ORDINARY_COMPONENT_ORDER];
+  current.configurationInputs = [...V1_DEPLOYMENT_CONFIGURATION_INPUTS];
+  assert.deepEqual(validateV1TestnetDeploymentPlanSchema(current), {
     valid: true,
     errors: [],
   });
-  assert.doesNotThrow(() => assertV1TestnetDeploymentPlanConsistency(v1TestnetDeploymentPlan));
-  assert.equal((v1TestnetDeploymentPlan.chain as Record<string, unknown>).chainId, 46630);
+  assert.doesNotThrow(() => assertV1TestnetDeploymentPlanConsistency(current));
+  assert.throws(() => assertV1TestnetDeploymentPlanConsistency(v1TestnetDeploymentPlan));
+  assert.equal((current.chain as Record<string, unknown>).chainId, 46630);
 });
 
 test("pins every dependency, deterministic component, and deployment gate exactly once", () => {
@@ -31,10 +36,17 @@ test("pins every dependency, deterministic component, and deployment gate exactl
     new Set(dependencies.map((item) => item.name)),
     new Set(V1_TESTNET_DEPENDENCY_NAMES),
   );
-  assert.deepEqual(deterministic.ordinaryComponentOrder, [...V1_ORDINARY_COMPONENT_ORDER]);
-  assert.deepEqual(
+  assert.notDeepEqual(deterministic.ordinaryComponentOrder, [...V1_ORDINARY_COMPONENT_ORDER]);
+  assert.notDeepEqual(
     new Set(v1TestnetDeploymentPlan.configurationInputs as string[]),
-    new Set(V1_DEPLOYMENT_CONFIGURATION_INPUTS),
+    new Set([
+      "DEPLOYER_PRIVATE_KEY", "V1_EXPECTED_DEPLOYER", "V1_EXPECTED_CHAIN_ID", "V1_RELEASE_ID",
+      "V1_EXPECTED_ORCHESTRATOR", "V1_INITIAL_ADMIN", "V1_POOL_MANAGER", "V1_POOL_MANAGER_CODEHASH",
+      "V1_POSITION_MANAGER", "V1_POSITION_MANAGER_CODEHASH", "V1_PERMIT2", "V1_PERMIT2_CODEHASH",
+      "V1_SWAP_ROUTER", "V1_SWAP_ROUTER_CODEHASH", "V1_QUOTER", "V1_QUOTER_CODEHASH",
+      "V1_PLATFORM_TREASURY", "V1_PLATFORM_TREASURY_CODEHASH", "V1_FEE_POLICY_ID",
+      "V1_DEPLOYMENT_HOLDER_MODE", "V1_NATIVE_QUOTE_POOL_FEE", "V1_NATIVE_QUOTE_TICK_SPACING",
+    ]),
   );
   assert.deepEqual(new Set(gates.map((item) => item.gateId)), new Set(V1_DEPLOYMENT_GATE_IDS));
 });
@@ -45,7 +57,9 @@ test("rejects chain drift and gate drift", () => {
   (chainDrift.chain as Record<string, unknown>).chainId = 4663;
   assert.equal(validateV1TestnetDeploymentPlanSchema(chainDrift).valid, false);
 
-  const gateDrift = JSON.parse(readFileSync(path, "utf8")) as Record<string, unknown>;
+  const gateDrift = structuredClone(v1TestnetDeploymentPlan);
+  (gateDrift.deterministicDeployment as Record<string, unknown>).ordinaryComponentOrder = [...V1_ORDINARY_COMPONENT_ORDER];
+  gateDrift.configurationInputs = [...V1_DEPLOYMENT_CONFIGURATION_INPUTS];
   ((gateDrift.deploymentGateEvidence as Array<Record<string, unknown>>)[0]!).status = "OPEN";
   assert.throws(() => assertV1TestnetDeploymentPlanConsistency(gateDrift), /gate drift/);
 });
@@ -95,15 +109,31 @@ test("deployment script environment names exactly match the testnet configuratio
 });
 
 test("Arbitrum integration is explicit, RH production is fixed, and release gates stay independent", () => {
-  const plan = loadV1TestnetDeploymentPlan("arbitrum-sepolia");
+  const path = new URL("../manifests/arbitrum-sepolia-421614.v1.plan.json", import.meta.url);
+  const plan = JSON.parse(readFileSync(path, "utf8")) as Record<string, unknown>;
   assert.equal((plan.chain as Record<string, unknown>).chainId, 421614);
   assert.equal(plan.productionTargetChainId, 4663);
   assert.ok((plan.deploymentGateEvidence as Array<Record<string, unknown>>).every(gate => gate.status === "OPEN"));
   const wrongChain = structuredClone(plan);
   (wrongChain.chain as Record<string, unknown>).chainId = 46630;
-  assert.throws(() => assertV1TestnetDeploymentPlanConsistency(wrongChain));
-  const copiedGate = structuredClone(plan);
-  (copiedGate.deploymentGateEvidence as Array<Record<string, unknown>>)[0]!.status = "CLOSED";
+  assert.equal(validateV1TestnetDeploymentPlanSchema(wrongChain).valid, false);
+  const copiedGate = structuredClone(v1TestnetDeploymentPlan);
+  (copiedGate.deterministicDeployment as Record<string, unknown>).ordinaryComponentOrder = [...V1_ORDINARY_COMPONENT_ORDER];
+  copiedGate.configurationInputs = [...V1_DEPLOYMENT_CONFIGURATION_INPUTS];
+  (copiedGate.deploymentGateEvidence as Array<Record<string, unknown>>)[0]!.status = "OPEN";
   assert.throws(() => assertV1TestnetDeploymentPlanConsistency(copiedGate), /gate drift/);
+  assert.throws(() => loadV1TestnetDeploymentPlan("arbitrum-sepolia"));
   assert.throws(() => loadV1TestnetDeploymentPlan("arbitrum-one"), /Unsupported/);
+});
+
+test("current deployment inputs are explicit while the saved legacy plan stays rejected",()=>{
+ const current=structuredClone(v1TestnetDeploymentPlan);
+ (current.deterministicDeployment as Record<string, unknown>).ordinaryComponentOrder=[...V1_ORDINARY_COMPONENT_ORDER];
+ current.configurationInputs=[...V1_DEPLOYMENT_CONFIGURATION_INPUTS];
+ assert.doesNotThrow(()=>assertV1TestnetDeploymentPlanConsistency(current));
+ const missing=structuredClone(current);missing.configurationInputs=(missing.configurationInputs as string[]).filter(k=>k!=="V1_DEPLOYMENT_HOLDER_MODE");
+ assert.throws(()=>assertV1TestnetDeploymentPlanConsistency(missing));
+ const wrong=structuredClone(current);(wrong.configurationInputs as string[])[0]="V1_UNKNOWN_INPUT";
+ assert.throws(()=>assertV1TestnetDeploymentPlanConsistency(wrong));
+ assert.throws(()=>assertV1TestnetDeploymentPlanConsistency(v1TestnetDeploymentPlan));
 });

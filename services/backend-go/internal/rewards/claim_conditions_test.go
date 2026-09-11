@@ -34,47 +34,14 @@ func TestBuildClaimConditions(t *testing.T) {
 		return v
 	}
 
-	t.Run("creator quote ignores raw exit", func(t *testing.T) {
-		rows := fixtureObservations()
-		for _, r := range rows {
-			if r.Kind == "creatorEpoch" {
-				r.Value["rawRewardExitAt"] = "0"
-				r.Value["rawRewardExitReady"] = false
-			}
-		}
-		got, err := Build(rows, nil)
+	t.Run("creator quote and meme are immediately claimable", func(t *testing.T) {
+		got, err := Build(fixtureObservations(), nil)
 		if err != nil {
 			t.Fatal(err)
 		}
 		assert(t, got, creatorQuote, "candidate", "10")
-		assert(t, got, creatorMeme, "raw_exit_required", "0")
+		assert(t, got, creatorMeme, "candidate", "20")
 	})
-
-	for _, tc := range []struct {
-		name, exit, ts string
-		ready          bool
-		status         string
-	}{
-		{"request", "0", "100", false, "raw_exit_required"},
-		{"wait", "100", "99", false, "raw_exit_waiting"},
-		{"reached", "100", "100", true, "candidate"},
-	} {
-		t.Run("meme "+tc.name, func(t *testing.T) {
-			rows := fixtureObservations()
-			for _, r := range rows {
-				if r.Kind == "creatorEpoch" || r.Kind == "gaugePosition" {
-					r.Value["rawRewardExitAt"] = tc.exit
-					r.Value["observedAtTimestamp"] = tc.ts
-					r.Value["rawRewardExitReady"] = tc.ready
-				}
-			}
-			got, err := Build(rows, nil)
-			if err != nil {
-				t.Fatal(err)
-			}
-			assert(t, got, creatorMeme, tc.status, map[string]string{"candidate": "20", "raw_exit_required": "0", "raw_exit_waiting": "0"}[tc.status])
-		})
-	}
 
 	for _, tc := range []struct{ name, active, pending, unlock, status string }{
 		{"active locked", "1", "0", "101", "position_locked"},
@@ -138,8 +105,6 @@ func TestBuildClaimConditions(t *testing.T) {
 		rows = fixtureObservations()
 		for _, r := range rows {
 			if r.Kind == "creatorEpoch" || r.Kind == "gaugePosition" {
-				r.Value["rawRewardExitAt"] = "101"
-				r.Value["rawRewardExitReady"] = false
 				r.Value["observedAtTimestamp"] = "100"
 			}
 			if r.Kind == "gaugePosition" {
@@ -152,7 +117,7 @@ func TestBuildClaimConditions(t *testing.T) {
 			t.Fatal(err)
 		}
 		v := assert(t, got, stakerMeme, "position_locked", "0")
-		if v["conversionCandidateAmount"] != "60" {
+		if v["conversionCandidateAmount"] != "0" || v["conversionStatus"] != "position_locked" {
 			t.Fatalf("conversion candidate=%v", v["conversionCandidateAmount"])
 		}
 	})

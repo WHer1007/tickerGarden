@@ -1,0 +1,19 @@
+{
+  "name": "@tickergarden/chain-worker",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": "./src/index.ts",
+  "dependencies": {
+    "@tickergarden/alchemy": "0.0.0",
+    "@tickergarden/analytics-projector": "0.0.0",
+    "@tickergarden/chain": "0.0.0",
+    "@tickergarden/db": "0.0.0",
+    "@tickergarden/events": "0.0.0",
+    "@tickergarden/history-projector": "0.0.0",
+    "@tickergarden/jobs": "0.0.0",
+    "@tickergarden/config-projector": "0.0.0",
+    "@tickergarden/market-projector": "0.0.0",
+    "pg": "^8.23.0"
+  }
+}

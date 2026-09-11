@@ -258,10 +258,11 @@ contract ApprovedQuoteRegistry is IApprovedQuoteRegistry, ImmutableAccessManaged
 
     function _validateConfigShape(bytes32 configId, QuoteAssetConfig calldata config) private view {
         if (
-            configId == bytes32(0) || config.tickerGardenBaselineId == bytes32(0) || config.status != QUOTE_STATUS_ACTIVE
-                || config.quoteDecimals < MIN_QUOTE_DECIMALS || config.quoteDecimals > MAX_QUOTE_DECIMALS
-                || config.phantomQuote == 0 || config.graduationThreshold == 0
-                || config.phantomQuote > MAX_GRADUATION_AMOUNT || config.graduationThreshold > MAX_GRADUATION_AMOUNT
+            configId == bytes32(0) || config.tickerGardenBaselineId == bytes32(0)
+                || config.status != QUOTE_STATUS_ACTIVE || config.quoteDecimals < MIN_QUOTE_DECIMALS
+                || config.quoteDecimals > MAX_QUOTE_DECIMALS || config.phantomQuote == 0
+                || config.graduationThreshold == 0 || config.phantomQuote > MAX_GRADUATION_AMOUNT
+                || config.graduationThreshold > MAX_GRADUATION_AMOUNT
                 || config.phantomQuote > type(uint256).max - config.graduationThreshold
         ) revert InvalidQuoteConfig(configId);
         if (_quoteConfigs[configId].status != QUOTE_STATUS_UNSET) revert QuoteConfigAlreadyExists(configId);

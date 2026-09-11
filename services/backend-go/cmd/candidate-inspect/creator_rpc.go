@@ -122,9 +122,7 @@ func verifyCandidateCreatorEpochs(ctx context.Context, rpc deployment.BindingObs
 			if !ok || expected.Beneficiary != beneficiary || expected.QuoteAsset != market.QuoteAsset || expected.MemeAsset != market.MemeToken {
 				return bad
 			}
-			exitAt, e := read(vault, "rawRewardExitAt(bytes32,address)", market.MarketID[2:]+strings.Repeat("0", 24)+beneficiary[2:], "uint256")
-			ready, readyErr := readmodel.CreatorExitReady(exitAt, observedAt)
-			if e != nil || readyErr != nil || expected.RawRewardExitAt != exitAt || expected.ObservedAtTimestamp != observedAt || expected.RawRewardExitReady != ready {
+			if expected.ObservedAtTimestamp != observedAt {
 				return bad
 			}
 			delete(entitlements, key)

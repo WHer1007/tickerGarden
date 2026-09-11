@@ -12,8 +12,6 @@ import (
 // CreatorEpochCandidate is current unpaid entitlement at CandidateSet.BlockHash,
 // not a claim-history record or a publishable rewards API response.
 type CreatorEpochCandidate struct {
-	RawRewardExitAt     string `json:"rawRewardExitAt"`
-	RawRewardExitReady  bool   `json:"rawRewardExitReady"`
 	ObservedAtTimestamp string `json:"observedAtTimestamp"`
 	MarketID            string `json:"marketId"`
 	Epoch               string `json:"epoch"`
@@ -29,30 +27,21 @@ func buildCreatorCandidates(batch deployment.ObservationBatch, markets map[strin
 	out := []CreatorEpochCandidate{}
 	seen := map[string]bool{}
 	observedAt := ""
-	exits := map[string]string{}
 	for _, o := range batch.Observations {
 		if o.Kind != "creatorEpoch" {
 			continue
 		}
 		get := func(key string) string { s, _ := o.Value[key].(string); return s }
 		c := CreatorEpochCandidate{MarketID: get("marketId"), Epoch: get("epoch"), Beneficiary: get("beneficiary"), QuoteAsset: get("quoteAsset"), MemeAsset: get("memeAsset"), QuoteLiability: get("quoteLiability"), MemeLiability: get("memeLiability")}
-		c.RawRewardExitAt = get("rawRewardExitAt")
 		c.ObservedAtTimestamp = get("observedAtTimestamp")
-		ready, ok := o.Value["rawRewardExitReady"].(bool)
-		calculated, e := CreatorExitReady(c.RawRewardExitAt, c.ObservedAtTimestamp)
-		if !ok || e != nil || ready != calculated {
+		timestamp, e := strconv.ParseUint(c.ObservedAtTimestamp, 10, 64)
+		if e != nil || strconv.FormatUint(timestamp, 10) != c.ObservedAtTimestamp {
 			return nil, bad
 		}
-		c.RawRewardExitReady = ready
 		if observedAt != "" && observedAt != c.ObservedAtTimestamp {
 			return nil, bad
 		}
 		observedAt = c.ObservedAtTimestamp
-		exitKey := c.MarketID + ":" + c.Beneficiary
-		if previous, ok := exits[exitKey]; ok && previous != c.RawRewardExitAt {
-			return nil, bad
-		}
-		exits[exitKey] = c.RawRewardExitAt
 		m, ok := markets[c.MarketID]
 		n, e := strconv.ParseUint(c.Epoch, 10, 32)
 		if !ok || e != nil || n == 0 || strconv.FormatUint(n, 10) != c.Epoch || o.Key != c.MarketID+":"+c.Epoch || seen[o.Key] || !candidateAddress.MatchString(c.Beneficiary) || c.Beneficiary == "0x0000000000000000000000000000000000000000" || c.QuoteAsset != m.QuoteAsset || c.MemeAsset != m.MemeToken {
@@ -138,20 +127,6 @@ func buildCreatorCandidates(batch deployment.ObservationBatch, markets map[strin
 	return out, nil
 }
 
-// CreatorExitReady uses the observed block time, never the API server clock.
-func CreatorExitReady(exitAt, observedAt string) (bool, error) {
-	bad := errors.New("invalid Creator exit timestamp")
-	exit, e := raw(exitAt)
-	if e != nil || exit.String() != exitAt {
-		return false, bad
-	}
-	observed, e := strconv.ParseUint(observedAt, 10, 64)
-	if e != nil || strconv.FormatUint(observed, 10) != observedAt {
-		return false, bad
-	}
-	return exit.Sign() > 0 && exit.Cmp(new(big.Int).SetUint64(observed)) <= 0, nil
-}
-
 // Called inside the candidate store's read-only repeatable-read transaction.
 func verifyCreatorCandidateTime(epochs []CreatorEpochCandidate, timestamp uint64) error {
 	expected := strconv.FormatUint(timestamp, 10)
@@ -159,10 +134,7 @@ func verifyCreatorCandidateTime(epochs []CreatorEpochCandidate, timestamp uint64
 		if epoch.ObservedAtTimestamp != expected {
 			return errors.New("Creator observation time differs from canonical block")
 		}
-		ready, e := CreatorExitReady(epoch.RawRewardExitAt, expected)
-		if e != nil || ready != epoch.RawRewardExitReady {
-			return errors.New("Creator exit readiness differs from canonical block")
-		}
+
 	}
 	return nil
 }

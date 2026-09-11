@@ -70,7 +70,7 @@ function treasuryBindingResult(manifest: JsonRecord, label: unknown): string | u
   if (label === "treasury-access-manager-authority") {
     return result([addressWord(String((manifest.accessManager as JsonRecord).address))]);
   }
-  if (label === "treasury-market-registry") {
+  if (label === "holder-market-registry") {
     const modules = manifest.protocolModules as JsonRecord;
     return result([addressWord(String((modules.MarketRegistryV1 as JsonRecord).deployedAddress))]);
   }
@@ -509,10 +509,10 @@ test("verifies complete live state at one finalized block using read-only RPC on
   const rpc = new MockRpc(manifest);
   const report = await verifyV1LiveState(manifest, rpc);
   assert.equal(report.chainId, 4663);
-  assert.equal(report.permissionChecks, 102);
+  assert.equal(report.permissionChecks, 83);
   assert.equal(report.administrativePermissionChecks, 6);
-  assert.equal(report.roleMembershipChecks, 5);
-  assert.equal(report.revokedMembershipChecks, 5);
+  assert.equal(report.roleMembershipChecks, 3);
+  assert.equal(report.revokedMembershipChecks, 3);
   assert.ok(report.codeHashesChecked >= 30);
   assert.ok(report.getterChecks >= 12);
   assert.equal(report.transactionReceiptsChecked, 2);
@@ -640,17 +640,12 @@ test("rejects Gauge clone implementation and immutable-identity drift before RPC
   assert.deepEqual(resolverRpc.methods, []);
 });
 
-test("rejects missing or drifted Treasury AccessManager and MarketRegistry bindings before RPC", async () => {
+test("rejects missing or drifted Holder MarketRegistry bindings before RPC", async () => {
   const cases: Array<[string, RegExp, RegExp]> = [
     [
-      "treasury-access-manager-authority",
-      /TreasuryDistributorV1 lacks authority\(\) evidence/,
-      /TreasuryDistributorV1\.authority\(\)/,
-    ],
-    [
-      "treasury-market-registry",
-      /TreasuryDistributorV1 lacks marketRegistry\(\) evidence/,
-      /TreasuryDistributorV1\.marketRegistry\(\)/,
+      "holder-market-registry",
+      /HolderRewardsDistributorV1 lacks marketRegistry\(\) evidence/,
+      /HolderRewardsDistributorV1\.marketRegistry\(\)/,
     ],
   ];
   for (const [label, missingError, driftError] of cases) {
@@ -855,9 +850,6 @@ test("rejects every canonical permission semantic and role-handoff drift before 
     ["recipient", (manifest) => { (((manifest.accessManager as JsonRecord).protocolPermissions as JsonRecord[])[0]!).recipient = "arbitrary"; }],
     ["precondition", (manifest) => { (((manifest.accessManager as JsonRecord).protocolPermissions as JsonRecord[])[0]!).precondition = "BYPASS"; }],
     ["deployer alias", (manifest) => { (manifest.roleHandoff as JsonRecord).deployer = (manifest.roleHandoff as JsonRecord).governanceSafe; }],
-    ["Root actors alias each other", (manifest) => { (manifest.roleHandoff as JsonRecord).rootReviewerSafe = (manifest.roleHandoff as JsonRecord).rootPublisherSafe; }],
-    ["Root publisher aliases governance", (manifest) => { (manifest.roleHandoff as JsonRecord).rootPublisherSafe = (manifest.roleHandoff as JsonRecord).governanceSafe; }],
-    ["Root reviewer aliases guardian", (manifest) => { (manifest.roleHandoff as JsonRecord).rootReviewerSafe = (manifest.roleHandoff as JsonRecord).guardianSafe; }],
     ["module alias", (manifest) => { ((manifest.protocolModules as JsonRecord).OfficialStockRegistryV1 as JsonRecord).deployedAddress = (manifest.roleHandoff as JsonRecord).guardianSafe; }],
   ];
   for (const [label, mutate] of cases) {

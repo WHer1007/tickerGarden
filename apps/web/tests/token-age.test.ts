@@ -1,0 +1,2 @@
+import test from 'node:test';import assert from 'node:assert/strict';import {tokenAge} from '../src/ui/token-age.ts';
+test('token age uses creation time and never fabricates missing dates',()=>{const now=1000000;assert.equal(tokenAge(undefined,now*1000),'-');assert.equal(tokenAge('0',now*1000),'-');assert.equal(tokenAge(String(now-30),now*1000),'Just now');assert.equal(tokenAge(String(now-86400),now*1000),'1 day ago');assert.equal(tokenAge(String(now-172800),now*1000),'2 days ago');});

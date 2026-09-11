@@ -39,7 +39,7 @@ abstract contract ProtocolFeeVaultCurveCredit is ProtocolFeeVaultV4Credit {
     uint8 private constant LAUNCH_PHASE_NOT_GRADUATED = 0;
 
     ICreatorRevenueRegistry internal immutable _feeCreatorRevenueRegistry;
-    mapping(bytes32 marketId => uint64 nonce) private _lastCurveSweepNonces;
+    mapping(bytes32 marketId => uint64 nonce) internal _lastCurveSweepNonces;
     PendingCurveCredit private _pendingCurveCredit;
 
     error InvalidCreatorRevenueRegistry(address registry);
@@ -84,7 +84,7 @@ abstract contract ProtocolFeeVaultCurveCredit is ProtocolFeeVaultV4Credit {
             feeId: feeId,
             source: msg.sender
         });
-        pending.creatorEpoch = _validateCurveCredit(pending);
+        (pending.creatorEpoch,) = _validateCurveCredit(pending);
         pending.balanceBefore = _assetBalance(quoteAsset);
         _pendingCurveCredit = pending;
     }
@@ -107,7 +107,7 @@ abstract contract ProtocolFeeVaultCurveCredit is ProtocolFeeVaultV4Credit {
                 || pending.source != msg.sender
         ) revert FeeCreditNotPrepared(feeId);
 
-        uint32 currentCreatorEpoch = _validateCurveCredit(pending);
+        (uint32 currentCreatorEpoch, MarketView memory value) = _validateCurveCredit(pending);
         if (currentCreatorEpoch != pending.creatorEpoch) revert FeeCreditNotPrepared(feeId);
         if (quoteAsset == address(0)) {
             if (msg.value != amount) revert FeeBalanceDeltaMismatch(quoteAsset, amount, msg.value);
@@ -136,13 +136,17 @@ abstract contract ProtocolFeeVaultCurveCredit is ProtocolFeeVaultV4Credit {
         record.sourceVersion = sourceVersion;
         record.sweepNonce = sweepNonce;
         record.feeId = feeId;
-        _recordExactCurveCredit(record);
+        _recordExactCurveCredit(record, value);
         delete _pendingCurveCredit;
         _consumeAndExitStandaloneCredit(feeId);
     }
 
-    function _validateCurveCredit(PendingCurveCredit memory pending) private view returns (uint32 creatorEpoch) {
-        MarketView memory value = _feeMarketRegistry.market(pending.marketId);
+    function _validateCurveCredit(PendingCurveCredit memory pending)
+        private
+        view
+        returns (uint32 creatorEpoch, MarketView memory value)
+    {
+        value = _feeMarketRegistry.market(pending.marketId);
         if (value.config.curve != pending.source) {
             revert UnauthorizedMarketCurve(pending.source, value.config.curve);
         }
@@ -179,9 +183,5 @@ abstract contract ProtocolFeeVaultCurveCredit is ProtocolFeeVaultV4Credit {
         ) revert CreatorEpochUnavailable(pending.marketId, creatorEpoch);
     }
 
-    function _lastCurveSweepNonce(bytes32 marketId) internal view returns (uint64) {
-        return _lastCurveSweepNonces[marketId];
-    }
-
-    function _recordExactCurveCredit(CurveCreditRecord memory record) internal virtual;
+    function _recordExactCurveCredit(CurveCreditRecord memory record, MarketView memory value) internal virtual;
 }

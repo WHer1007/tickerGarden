@@ -1,0 +1,29 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "framework": "vite",
+  "headers": [
+    { "source": "/(.*)", "headers": [
+      { "key": "Content-Security-Policy", "value": "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https:; font-src 'self'; connect-src 'self' https:; object-src 'none'; base-uri 'none'; frame-ancestors 'none'; form-action 'self'; frame-src 'none'; worker-src 'self' blob:" },
+      { "key": "X-Frame-Options", "value": "DENY" }, { "key": "X-Content-Type-Options", "value": "nosniff" },
+      { "key": "Referrer-Policy", "value": "strict-origin-when-cross-origin" },
+      { "key": "Permissions-Policy", "value": "camera=(), microphone=(), geolocation=(), payment=(), usb=()" },
+      { "key": "Strict-Transport-Security", "value": "max-age=31536000" }
+    ] },
+    { "source": "/assets/(.*)", "headers": [{ "key": "Cache-Control", "value": "public, max-age=31536000, immutable" }] },
+    { "source": "/index.html", "headers": [{ "key": "Cache-Control", "value": "no-cache" }] }
+  ],
+  "rewrites": [
+    { "source": "/explore", "destination": "/index.html" },
+    { "source": "/trade", "destination": "/index.html" },
+    { "source": "/create", "destination": "/index.html" },
+    { "source": "/stats", "destination": "/index.html" },
+    { "source": "/claim", "destination": "/index.html" },
+    { "source": "/stake", "destination": "/index.html" },
+    { "source": "/docs", "destination": "/index.html" },
+    { "source": "/privacy", "destination": "/index.html" },
+    { "source": "/terms", "destination": "/index.html" },
+    { "source": "/risks", "destination": "/index.html" },
+    { "source": "/rewards", "destination": "/index.html" },
+    { "source": "/markets", "destination": "/index.html" }
+  ]
+}

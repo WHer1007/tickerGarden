@@ -28,8 +28,9 @@ library V1GraduationEconomicDomain {
 
         (uint256 sweptTokens,) =
             TickerGardenSupplyMath.supplyPartition(baseline.supply, quote.phantomQuote, quote.graduationThreshold);
-        uint256 canonicalPoolQuote =
-            TickerGardenSupplyMath.canonicalGraduationQuote(baseline.supply, quote.phantomQuote, quote.graduationThreshold);
+        uint256 canonicalPoolQuote = TickerGardenSupplyMath.canonicalGraduationQuote(
+            baseline.supply, quote.phantomQuote, quote.graduationThreshold
+        );
         if (canonicalPoolQuote > MAX_V4_SIGNED_AMOUNT) {
             revert TerminalQuoteOutsideGraduationDomain(canonicalPoolQuote, MAX_V4_SIGNED_AMOUNT);
         }

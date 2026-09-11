@@ -8,6 +8,7 @@ import (
 	"math/big"
 	"sort"
 	"strconv"
+	"strings"
 	"time"
 
 	"tickergarden/backend/internal/chainrpc"
@@ -97,6 +98,9 @@ func (l *Ledger) Reconcile(ctx context.Context, rpc ReconcileRPC, c ReconcileCon
 	}
 	read := func(a, sig, args string, fields []events.Input) (map[string]any, error) {
 		b, e := rpc.CallAt(ctx, a, selector(sig)+args, block.Hash)
+		if e != nil && sig == "treasuryDistributor()" && strings.Contains(strings.ToLower(e.Error()), "execution reverted") {
+			b, e = rpc.CallAt(ctx, a, selector("holderRewardsDistributor()")+args, block.Hash)
+		}
 		if e != nil {
 			return nil, ErrReconciliation
 		}
@@ -113,14 +117,36 @@ func (l *Ledger) Reconcile(ctx context.Context, rpc ReconcileRPC, c ReconcileCon
 		}
 		return s, nil
 	}
+	mode := deployment.LegacyContinuousHolderMode
+	if l.Batched {
+		mode = deployment.BatchedContinuousHolderMode
+		if l.ConfigurableInterval {
+			mode = ConfigurableBatchedHolderMode
+		}
+	}
 	for _, v := range []struct{ a, sig, args, typ, want string }{
 		{l.Token, "treasuryDistributor()", "", "address", c.Binding.Distributor},
 		{l.Token, "marketId()", "", "bytes32", l.MarketID},
-		{c.Binding.Distributor, "rewardMode()", "", "bytes32", deployment.Hash([]byte("TICKERGARDEN_HOLDER_STREAM_24H_V1"))},
+		{c.Binding.Distributor, "rewardMode()", "", "bytes32", deployment.Hash([]byte(mode))},
 		{c.Binding.Distributor, "STREAM_DURATION()", "", "uint256", "86400"},
 	} {
 		got, e := one(v.a, v.sig, v.args, v.typ)
 		if e != nil || got != v.want {
+			return fail()
+		}
+	}
+	if l.Batched {
+		last, e := one(c.Binding.Distributor, "lastStreamStartedAt(bytes32)", l.MarketID[2:], "uint64")
+		if e != nil || last != strconv.FormatUint(l.LastStreamStartedAt, 10) {
+			return fail()
+		}
+		var interval string
+		if l.ConfigurableInterval {
+			interval, e = one(c.Binding.Distributor, "fundingInterval(bytes32)", l.MarketID[2:], "uint256")
+		} else {
+			interval, e = one(c.Binding.Distributor, "FUNDING_INTERVAL()", "", "uint256")
+		}
+		if e != nil || interval != strconv.FormatUint(l.interval(), 10) {
 			return fail()
 		}
 	}

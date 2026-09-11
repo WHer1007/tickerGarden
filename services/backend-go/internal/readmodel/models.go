@@ -62,6 +62,13 @@ type MarketIdentityReadModel struct {
 	RuntimeCodeHash string `json:"runtimeCodeHash"`
 }
 
+type LastBuyReadModel struct {
+	BlockNumber      string `json:"blockNumber"`
+	TransactionIndex string `json:"transactionIndex"`
+	LogIndex         string `json:"logIndex"`
+	Timestamp        string `json:"timestamp"`
+}
+
 type MarketMetricsReadModel struct {
 	Status              string  `json:"status"`
 	Reason              string  `json:"reason"`
@@ -94,6 +101,7 @@ type MarketReadModel struct {
 	Source                 SourceBlock              `json:"source"`
 	Identity               *MarketIdentityReadModel `json:"identity,omitempty"`
 	Metrics                *MarketMetricsReadModel  `json:"metrics,omitempty"`
+	LastBuy                *LastBuyReadModel        `json:"lastBuy,omitempty"`
 }
 
 type ConfigReadModel struct {

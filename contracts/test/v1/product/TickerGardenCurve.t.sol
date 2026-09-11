@@ -200,8 +200,7 @@ contract MockCurveFactory is ICurveInitializationSource {
     }
 
     function predictCurve(bytes32 salt) external view returns (address) {
-        bytes32 initCodeHash =
-            keccak256(bytes.concat(type(TickerGardenCurve).creationCode, abi.encode(address(this))));
+        bytes32 initCodeHash = keccak256(bytes.concat(type(TickerGardenCurve).creationCode, abi.encode(address(this))));
         return address(uint160(uint256(keccak256(abi.encodePacked(bytes1(0xff), address(this), salt, initCodeHash)))));
     }
 

@@ -137,3 +137,43 @@ func TestObserveHolderBlockRoutesContinuousManifest(t *testing.T) {
 		t.Fatal("continuous routing did not return expected observations")
 	}
 }
+
+func TestObserveBatchedHoldersPinsModeAndCodeWithoutLegacyCalls(t *testing.T) {
+	f, b, markets, roots, distributor, _ := continuousSetup(t, true)
+	mode := Hash([]byte(BatchedContinuousHolderMode))
+	f.calls[distributor+Hash([]byte("rewardMode()"))[:10]] = bytesWord(mode)
+	batch, err := observeContinuousHolders(context.Background(), f, f.manifest, b, markets, roots, distributor, f.code[distributor])
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, row := range batch.Observations {
+		if row.Kind == "holderMarket" && row.Value["rewardModeHash"] != mode {
+			t.Fatal("missing version identity")
+		}
+	}
+	f.manifest.Contracts[len(f.manifest.Contracts)-1].RuntimeCodeHash = Hash([]byte{99})
+	if _, err = observeContinuousHolders(context.Background(), f, f.manifest, b, markets, roots, distributor, f.code[distributor]); err == nil {
+		t.Fatal("accepted changed code for supported mode")
+	}
+}
+
+func TestObserveDualHolderChecksBothAssetLiabilities(t *testing.T) {
+	f, b, markets, roots, d, id := continuousSetup(t, false)
+	token := markets[id].State["memeToken"].(string)
+	f.calls[d+Hash([]byte("rewardMode()"))[:10]] = bytesWord(Hash([]byte(DualAssetContinuousHolderMode)))
+	state := append(addrWord(token), addrWord(token)...)
+	state = append(state, addrWord(roots["ProtocolFeeVault"])...)
+	for _, v := range []string{"100", "1", "2", "3", "4", "5", "6", "7", "3", "0"} {
+		state = append(state, bytesWord(v)...)
+	}
+	f.calls[d+Hash([]byte("memeMarketState(bytes32)"))[:10]+id[2:]] = state
+	f.calls[d+Hash([]byte("totalLiability(address)"))[:10]+addressArgument(token)] = bytesWord("3")
+	f.calls[token+Hash([]byte("balanceOf(address)"))[:10]+addressArgument(d)] = bytesWord("3")
+	batch, err := observeContinuousHolders(context.Background(), f, f.manifest, b, markets, roots, d, f.code[d])
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(batch.Observations) != 3 || batch.Observations[0].Value["memeRewards"] == nil {
+		t.Fatal(batch)
+	}
+}

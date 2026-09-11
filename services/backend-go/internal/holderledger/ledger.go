@@ -14,6 +14,10 @@ import (
 
 const Duration uint64 = 86400
 const MaxStreams = 64
+const FundingInterval uint64 = 4 * 3600
+const MinFundingInterval uint64 = 3600
+const MaxFundingInterval uint64 = 86400
+const ConfigurableBatchedHolderMode = "TICKERGARDEN_HOLDER_CONFIGURABLE_24H_V3"
 
 var ErrInput = errors.New("invalid or incomplete continuous holder action")
 var precision = new(big.Int).Exp(big.NewInt(10), big.NewInt(27), nil)
@@ -28,6 +32,12 @@ type Stream struct {
 }
 type Account struct{ Balance, Index, Earned *big.Int }
 type Ledger struct {
+	Batched bool `json:",omitempty"`
+	// ConfigurableInterval identifies the V3 batched mode. Zero FundingInterval
+	// is the omitted field used by legacy checkpoints and means the default.
+	ConfigurableInterval                                    bool   `json:",omitempty"`
+	FundingInterval                                         uint64 `json:",omitempty"`
+	LastStreamStartedAt                                     uint64 `json:",omitempty"`
 	Head                                                    uint8
 	LastFundingAt                                           uint64
 	MarketID                                                string
@@ -42,6 +52,8 @@ type Ledger struct {
 // Registration is state at enableContinuousRewards, before any subsequent
 // transfer. It must enumerate all token balances including excluded addresses.
 type Registration struct {
+	Batched                      bool
+	ConfigurableInterval         bool
 	MarketID, Token, TotalSupply string
 	Timestamp                    uint64
 	Excluded                     []string
@@ -51,6 +63,7 @@ type Action struct {
 	Kind                      string
 	Timestamp                 uint64
 	From, To, Account, Amount string
+	Interval                  uint64
 }
 type AccountView struct {
 	Balance      string `json:"balance"`
@@ -97,6 +110,11 @@ func New(r Registration) (*Ledger, error) {
 		return nil, e
 	}
 	l := &Ledger{MarketID: r.MarketID, Token: r.Token, Excluded: map[string]bool{}, Accounts: map[string]*Account{}, UpdatedAt: r.Timestamp, Supply: cp(supply), Index: z(), IndexRemainder: z(), Rate: z(), Idle: z(), Funded: z(), Paid: z(), Streams: []Stream{}}
+	l.Batched = r.Batched
+	l.ConfigurableInterval = r.ConfigurableInterval
+	if l.ConfigurableInterval {
+		l.FundingInterval = FundingInterval
+	}
 	for _, a := range r.Excluded {
 		if !address.MatchString(a) || l.Excluded[a] {
 			return nil, ErrInput
@@ -170,7 +188,7 @@ func (l *Ledger) checkpoint(ts uint64) {
 		l.UpdatedAt = s.End
 		l.Rate.Sub(l.Rate, s.Rate)
 		l.Streams = l.Streams[1:]
-		l.Head = (l.Head + 1) % MaxStreams
+		l.Head = (l.Head + 1) % uint8(l.maxStreams())
 	}
 	released.Add(released, new(big.Int).Mul(l.Rate, new(big.Int).SetUint64(ts-l.UpdatedAt)))
 	l.UpdatedAt = ts
@@ -190,7 +208,7 @@ func (l *Ledger) appendStream(amount *big.Int, end uint64) error {
 		s.Rate.Add(s.Rate, rate)
 		s.Remainder.Add(s.Remainder, tail)
 	} else {
-		if n == MaxStreams {
+		if n == l.maxStreams() {
 			return ErrInput
 		}
 		l.Streams = append(l.Streams, Stream{end, rate, tail})
@@ -199,12 +217,46 @@ func (l *Ledger) appendStream(amount *big.Int, end uint64) error {
 	return nil
 }
 func (l *Ledger) restart(ts uint64) error {
-	if l.Idle.Sign() == 0 || l.Supply.Sign() == 0 || len(l.Streams) == MaxStreams {
+	if l.Idle.Sign() == 0 || l.Supply.Sign() == 0 {
+		return nil
+	}
+	if l.Batched && ts < l.nextStreamStartAt() && ts != l.LastStreamStartedAt {
+		return nil
+	}
+	if !l.Batched && len(l.Streams) == MaxStreams {
 		return nil
 	}
 	amount := cp(l.Idle)
 	l.Idle.SetInt64(0)
-	return l.appendStream(amount, ts+Duration)
+	if err := l.appendStream(amount, ts+Duration); err != nil {
+		return err
+	}
+	if l.Batched {
+		l.LastStreamStartedAt = ts
+	}
+	return nil
+}
+
+func (l *Ledger) interval() uint64 {
+	if l.FundingInterval == 0 {
+		return FundingInterval
+	}
+	return l.FundingInterval
+}
+func (l *Ledger) maxStreams() int {
+	if l.Batched {
+		if l.ConfigurableInterval {
+			return 24
+		}
+		return int(Duration / FundingInterval)
+	}
+	return MaxStreams
+}
+func (l *Ledger) nextStreamStartAt() uint64 {
+	if l.LastStreamStartedAt == 0 && len(l.Streams) == 0 {
+		return 0
+	}
+	return l.LastStreamStartedAt + l.interval()
 }
 
 // Apply is atomic. Claim Amount is the actual transfer amount, including "0"
@@ -214,8 +266,17 @@ func (l *Ledger) Apply(a Action) error {
 		return ErrInput
 	}
 	c := l.clone()
-	c.checkpoint(a.Timestamp)
+	// Governance interval updates are configuration-only calls and do not
+	// checkpoint or alter accrued accounting state.
+	if a.Kind != "setFundingInterval" {
+		c.checkpoint(a.Timestamp)
+	}
 	switch a.Kind {
+	case "setFundingInterval":
+		if !c.Batched || !c.ConfigurableInterval || a.Interval < MinFundingInterval || a.Interval > MaxFundingInterval {
+			return ErrInput
+		}
+		c.FundingInterval = a.Interval
 	case "fund":
 		n, e := integer(a.Amount)
 		if e != nil || n.Sign() == 0 {
@@ -226,7 +287,13 @@ func (l *Ledger) Apply(a Action) error {
 		if c.Funded.BitLen() > 128 {
 			return ErrInput
 		}
-		if e = c.appendStream(new(big.Int).Mul(n, precision), a.Timestamp+Duration); e != nil {
+		if c.Batched {
+			c.Idle.Add(c.Idle, new(big.Int).Mul(n, precision))
+			e = c.restart(a.Timestamp)
+		} else {
+			e = c.appendStream(new(big.Int).Mul(n, precision), a.Timestamp+Duration)
+		}
+		if e != nil {
 			return e
 		}
 	case "checkpoint":

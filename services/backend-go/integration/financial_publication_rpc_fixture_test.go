@@ -250,7 +250,6 @@ func augmentFinancialPublicationRPCResponses(m deployment.Manifest, c readmodel.
 	for _, epoch := range c.CreatorEpochs {
 		args := epoch.MarketID[2:] + number(epoch.Epoch)
 		put(creator, "creatorBeneficiaryAt(bytes32,uint32)", args, word(epoch.Beneficiary))
-		put(vault, "rawRewardExitAt(bytes32,address)", epoch.MarketID[2:]+word(epoch.Beneficiary), number(epoch.RawRewardExitAt))
 		put(vault, "creatorLiability(bytes32,uint32,address)", args+word(epoch.QuoteAsset), number(epoch.QuoteLiability))
 		put(vault, "creatorLiability(bytes32,uint32,address)", args+word(epoch.MemeAsset), number(epoch.MemeLiability))
 	}

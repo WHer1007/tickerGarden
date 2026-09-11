@@ -34,8 +34,12 @@ contract TickerGardenBaselineRegistryTest is Test {
     TickerGardenBaselineRegistry internal registry;
     TickerGardenFactoryFixture internal factory;
 
-    event TickerGardenBaselineAdded(bytes32 indexed baselineId, bytes32 indexed behaviorVectorRoot, bytes32 factoryCodeHash);
-    event TickerGardenBaselineStatusChanged(bytes32 indexed baselineId, uint8 oldStatus, uint8 newStatus, bytes32 reasonHash);
+    event TickerGardenBaselineAdded(
+        bytes32 indexed baselineId, bytes32 indexed behaviorVectorRoot, bytes32 factoryCodeHash
+    );
+    event TickerGardenBaselineStatusChanged(
+        bytes32 indexed baselineId, uint8 oldStatus, uint8 newStatus, bytes32 reasonHash
+    );
 
     function setUp() public {
         vm.chainId(TARGET_CHAIN_ID);
@@ -74,9 +78,16 @@ contract TickerGardenBaselineRegistryTest is Test {
 
     function test_selectorsMatchCanonicalInterface() public pure {
         assertEq(TickerGardenBaselineRegistry.addBaseline.selector, ITickerGardenBaselineRegistry.addBaseline.selector);
-        assertEq(TickerGardenBaselineRegistry.pauseBaseline.selector, ITickerGardenBaselineRegistry.pauseBaseline.selector);
-        assertEq(TickerGardenBaselineRegistry.unpauseBaseline.selector, ITickerGardenBaselineRegistry.unpauseBaseline.selector);
-        assertEq(TickerGardenBaselineRegistry.retireBaseline.selector, ITickerGardenBaselineRegistry.retireBaseline.selector);
+        assertEq(
+            TickerGardenBaselineRegistry.pauseBaseline.selector, ITickerGardenBaselineRegistry.pauseBaseline.selector
+        );
+        assertEq(
+            TickerGardenBaselineRegistry.unpauseBaseline.selector,
+            ITickerGardenBaselineRegistry.unpauseBaseline.selector
+        );
+        assertEq(
+            TickerGardenBaselineRegistry.retireBaseline.selector, ITickerGardenBaselineRegistry.retireBaseline.selector
+        );
         assertEq(TickerGardenBaselineRegistry.baseline.selector, ITickerGardenBaselineRegistry.baseline.selector);
     }
 

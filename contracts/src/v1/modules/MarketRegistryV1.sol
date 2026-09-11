@@ -145,7 +145,8 @@ contract MarketRegistryV1 is IMarketRegistryV1 {
     function canonicalPoolKey(bytes32 marketId) public view override returns (PoolKey memory key) {
         _requireRegistered(marketId);
         MarketConfig storage config = _marketConfigs[marketId];
-        TickerGardenBaseline memory baseline = ITickerGardenBaselineRegistry(tickerGardenBaselineRegistry).baseline(config.tickerGardenBaselineId);
+        TickerGardenBaseline memory baseline =
+            ITickerGardenBaselineRegistry(tickerGardenBaselineRegistry).baseline(config.tickerGardenBaselineId);
         _validatePoolBaseline(config.tickerGardenBaselineId, config.launchConfigId, baseline);
 
         (address currency0, address currency1) = config.quoteAsset < config.memeToken
@@ -223,11 +224,11 @@ contract MarketRegistryV1 is IMarketRegistryV1 {
 
     function _validateConfig(bytes32 marketId, MarketConfig calldata config) private view {
         if (
-            marketId == bytes32(0) || config.tickerGardenBaselineId == bytes32(0) || config.quoteAssetConfigId == bytes32(0)
-                || config.launchTemplateId == bytes32(0) || config.feePolicyId == bytes32(0)
-                || config.expectedEconomics == bytes32(0) || config.creatorRevenueBeneficiaryAtCreation == address(0)
-                || config.memeToken == address(0) || config.curve == address(0) || config.graduatedHook == address(0)
-                || config.creatorTaxBps > 500
+            marketId == bytes32(0) || config.tickerGardenBaselineId == bytes32(0)
+                || config.quoteAssetConfigId == bytes32(0) || config.launchTemplateId == bytes32(0)
+                || config.feePolicyId == bytes32(0) || config.expectedEconomics == bytes32(0)
+                || config.creatorRevenueBeneficiaryAtCreation == address(0) || config.memeToken == address(0)
+                || config.curve == address(0) || config.graduatedHook == address(0) || config.creatorTaxBps > 500
         ) revert InvalidMarketConfig();
         if (config.executionSpecId != EXECUTION_SPEC_ID) {
             revert InvalidExecutionSpecId(config.executionSpecId);
@@ -257,7 +258,8 @@ contract MarketRegistryV1 is IMarketRegistryV1 {
                 || !IApprovedQuoteRegistry(approvedQuoteRegistry).quoteIdentityCurrent(config.quoteAssetConfigId)
         ) revert InvalidMarketConfig();
 
-        TickerGardenBaseline memory baseline = ITickerGardenBaselineRegistry(tickerGardenBaselineRegistry).baseline(config.tickerGardenBaselineId);
+        TickerGardenBaseline memory baseline =
+            ITickerGardenBaselineRegistry(tickerGardenBaselineRegistry).baseline(config.tickerGardenBaselineId);
         _validatePoolBaseline(config.tickerGardenBaselineId, config.launchConfigId, baseline);
         if (baseline.status != CONFIG_STATUS_ACTIVE) revert InvalidTickerGardenBaseline(config.tickerGardenBaselineId);
 

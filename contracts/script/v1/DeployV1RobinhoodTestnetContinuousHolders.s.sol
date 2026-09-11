@@ -2,11 +2,8 @@
 pragma solidity 0.8.26;
 
 import {VmSafe} from "forge-std/Vm.sol";
-import {
-    DeployV1RobinhoodTestnetStaged,
-    V1BootstrapContext
-} from "./DeployV1RobinhoodTestnetStaged.s.sol";
-import {V1DeploymentPlan} from "./V1DeterministicDeploymentBuilder.sol";
+import {DeployV1RobinhoodTestnetStaged, V1BootstrapContext} from "./DeployV1RobinhoodTestnetStaged.s.sol";
+import {V1DeploymentPlan} from "./V4DeterministicDeploymentBuilder.sol";
 import {V1DeploymentPayload} from "./V1DeterministicDeploymentOrchestrator.sol";
 import {V1RobinhoodTestnetDeploymentOrchestrator} from "./V1RobinhoodTestnetDeploymentOrchestrator.sol";
 
@@ -14,9 +11,6 @@ import {V1RobinhoodTestnetDeploymentOrchestrator} from "./V1RobinhoodTestnetDepl
 contract DeployV1RobinhoodTestnetContinuousHolders is DeployV1RobinhoodTestnetStaged {
     error SimulationOnly();
 
-    function _continuousHolderRewards() internal pure override returns (bool) {
-        return true;
-    }
 
     function _releaseInput(string memory path) internal view override returns (string memory) {
         if (keccak256(bytes(path)) == keccak256("../deployments/evidence/v1-current-release.json")) {

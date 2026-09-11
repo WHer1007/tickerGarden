@@ -32,6 +32,12 @@ type viewReader func(string, string, string, []events.Input) (map[string]any, er
 func businessReader(ctx context.Context, rpc BindingObserver, block chainrpc.Header) viewReader {
 	return func(address, signature, args string, fields []events.Input) (map[string]any, error) {
 		raw, err := rpc.CallAt(ctx, address, Hash([]byte(signature))[:10]+args, block.Hash)
+		if err != nil && (strings.Contains(strings.ToLower(err.Error()), "execution reverted") || strings.Contains(strings.ToLower(err.Error()), "function selector")) {
+			alias := map[string]string{"treasuryDistributor()": "holderRewardsDistributor()", "currentEpochId(bytes32)": "rewardBucket(bytes32)"}[signature]
+			if alias != "" {
+				raw, err = rpc.CallAt(ctx, address, Hash([]byte(alias))[:10]+args, block.Hash)
+			}
+		}
 		if err != nil {
 			return nil, fmt.Errorf("Vault/asset observation failed: %s", signature)
 		}

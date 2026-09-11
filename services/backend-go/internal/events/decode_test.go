@@ -43,8 +43,8 @@ func testLog(d Definition, module string) chainrpc.Log {
 
 func TestDecodeEveryCatalogDefinitionAndModule(t *testing.T) {
 	c := testCatalog(t)
-	if len(c.Events) != 83 {
-		t.Fatalf("catalog has %d events, want 83", len(c.Events))
+	if len(c.Events) != 69 {
+		t.Fatalf("catalog has %d events, want 69", len(c.Events))
 	}
 	for _, d := range c.Events {
 		for _, module := range d.Modules {

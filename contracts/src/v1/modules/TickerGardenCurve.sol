@@ -302,7 +302,8 @@ contract TickerGardenCurve is ITickerGardenCurve, ReentrancyGuard {
         uint256 poolQuoteAmount =
             TickerGardenSupplyMath.canonicalGraduationQuote(_initialSupply, _phantomQuote, _graduationThreshold);
         if (sweptTokens != reserved || sweptQuote < poolQuoteAmount) revert InvalidInitialization();
-        (uint256 poolMemeAmount,) = TickerGardenSupplyMath.graduationPartition(sweptTokens, poolQuoteAmount, _phantomQuote);
+        (uint256 poolMemeAmount,) =
+            TickerGardenSupplyMath.graduationPartition(sweptTokens, poolQuoteAmount, _phantomQuote);
         PoolKey memory key = _marketRegistry.canonicalPoolKey(_marketId);
         GraduationPoolMath.derive(key, _quoteAsset, address(_memeToken), poolQuoteAmount, poolMemeAmount);
     }
@@ -376,10 +377,14 @@ contract TickerGardenCurve is ITickerGardenCurve, ReentrancyGuard {
         quote.exempt = TickerGardenAntiSnipe.isExempt(
             recipient,
             caller,
-            TickerGardenAntiSnipe.ExemptionContext(_creator, _beneficiaryAtCreation, _launchRouter, atomicFirstBuyRecipient)
+            TickerGardenAntiSnipe.ExemptionContext(
+                _creator, _beneficiaryAtCreation, _launchRouter, atomicFirstBuyRecipient
+            )
         );
         (quote.rawSnipeBps, quote.effectiveSnipeBps) = TickerGardenAntiSnipe.effectiveSnipeBps(
-            TickerGardenAntiSnipe.elapsedSince(block.timestamp, _launchTimestamp), quote.exempt, _curveFeeBps + _creatorTaxBps
+            TickerGardenAntiSnipe.elapsedSince(block.timestamp, _launchTimestamp),
+            quote.exempt,
+            _curveFeeBps + _creatorTaxBps
         );
         quote.curveQuote = TickerGardenCurveMath.quoteBuyWithCreatorTax(
             quoteIn,
@@ -394,9 +399,15 @@ contract TickerGardenCurve is ITickerGardenCurve, ReentrancyGuard {
         return quote;
     }
 
-    function _sellQuote(uint256 tokensIn, uint256 minQuoteOut) private view returns (TickerGardenCurveMath.SellQuote memory) {
+    function _sellQuote(uint256 tokensIn, uint256 minQuoteOut)
+        private
+        view
+        returns (TickerGardenCurveMath.SellQuote memory)
+    {
         (uint256 quoteReserve, uint256 tokenReserve) = TickerGardenSupplyMath.pricingReserves(_reserves, _phantomQuote);
-        return TickerGardenCurveMath.quoteSell(tokensIn, tokenReserve, quoteReserve, _curveFeeBps, _creatorTaxBps, minQuoteOut);
+        return TickerGardenCurveMath.quoteSell(
+            tokensIn, tokenReserve, quoteReserve, _curveFeeBps, _creatorTaxBps, minQuoteOut
+        );
     }
 
     function _requireTradable() private view {
@@ -410,7 +421,8 @@ contract TickerGardenCurve is ITickerGardenCurve, ReentrancyGuard {
         marketView = _marketRegistry.market(_marketId);
         if (
             marketView.config.curve != address(this) || marketView.config.memeToken != address(_memeToken)
-                || marketView.config.quoteAsset != _quoteAsset || marketView.config.tickerGardenBaselineId != _tickerGardenBaselineId
+                || marketView.config.quoteAsset != _quoteAsset
+                || marketView.config.tickerGardenBaselineId != _tickerGardenBaselineId
                 || marketView.config.quoteAssetConfigId != _quoteAssetConfigId
                 || marketView.config.creatorTaxBps != _creatorTaxBps
                 || marketView.config.creatorRevenueBeneficiaryAtCreation != _beneficiaryAtCreation
@@ -471,12 +483,12 @@ contract TickerGardenCurve is ITickerGardenCurve, ReentrancyGuard {
 
     function _validateInitialization(CurveInitialization memory init, address factory_) private view {
         if (
-            init.marketId == bytes32(0) || init.tickerGardenBaselineId == bytes32(0) || init.quoteAssetConfigId == bytes32(0)
-                || init.marketRegistry.code.length == 0 || init.protocolFeeVault.code.length == 0
-                || init.graduationExecutor.code.length == 0 || init.launchRouter.code.length == 0
-                || init.creator == address(0) || init.beneficiaryAtCreation == address(0)
-                || init.memeToken.code.length == 0 || init.phantomQuote == 0 || init.graduationThreshold == 0
-                || init.initialSupply == 0 || init.creatorTaxBps > 500
+            init.marketId == bytes32(0) || init.tickerGardenBaselineId == bytes32(0)
+                || init.quoteAssetConfigId == bytes32(0) || init.marketRegistry.code.length == 0
+                || init.protocolFeeVault.code.length == 0 || init.graduationExecutor.code.length == 0
+                || init.launchRouter.code.length == 0 || init.creator == address(0)
+                || init.beneficiaryAtCreation == address(0) || init.memeToken.code.length == 0 || init.phantomQuote == 0
+                || init.graduationThreshold == 0 || init.initialSupply == 0 || init.creatorTaxBps > 500
                 || init.curveFeeBps + uint256(init.creatorTaxBps) > 9_900
                 || (init.quoteAsset != address(0) && init.quoteAsset.code.length == 0)
         ) revert InvalidInitialization();

@@ -14,8 +14,8 @@ test('pool staking rules state both outcomes without assuming active stake', () 
  assert.throws(() => feeDistribution(2, true, false, 0));
 });
 test('USD formatting preserves large integers and unavailable vs real zero', () => {
- assert.equal(detailUsd(null), 'Unavailable');
- assert.equal(detailUsd('NaN'), 'Unavailable');
+ assert.equal(detailUsd(null), '-');
+ assert.equal(detailUsd('NaN'), '-');
  assert.equal(detailUsd('0'), '$0.00');
  assert.equal(detailUsd('9007199254740993.25'), '$9,007,199,254,740,993.25');
 });

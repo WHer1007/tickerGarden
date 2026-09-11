@@ -48,14 +48,12 @@ var participantFields = map[string][]string{
 	"CurveBuyRefunded": {"buyer"}, "Swap": {"sender"}, "Donate": {"sender"},
 	"FeeClaimed": {"beneficiary"}, "ForfeitureRecordDeferred": {"user"},
 	"ForfeitureReserved": {"user"}, "GaugeRageQuit": {"user"},
-	"MemeTreasuryBurned": {"funder"}, "QuoteTreasuryFunded": {"funder"},
 	"PendingMaterialized": {"user"}, "PendingRescheduled": {"user"}, "PendingScheduled": {"user"},
 	"RageQuitRewardSettlementCompleted": {"user"}, "RageQuitRewardSettlementDeferred": {"user"},
 	"RageQuitRewardSettlementFinalized": {"user"}, "RageQuitRewardSettlementQueued": {"user"},
-	"RawRewardExitCancelled": {"user"}, "RawRewardExitRequested": {"user"}, "RewardConverted": {"user"},
-	"RootRequestExpired": {"requester"}, "RootRequested": {"requester"},
-	"ServiceCreditWithdrawn": {"beneficiary"}, "StockDeposited": {"user"},
-	"StockWithdrawn": {"user"}, "TreasuryClaimed": {"account"},
+	"RewardConverted": {"user"}, "StockDeposited": {"user"}, "StockWithdrawn": {"user"},
+	"HolderMemeRestored": {"account"}, "HolderStreamClaimed": {"account"},
+	"UserRewardsClaimed": {"user"},
 }
 
 // FromEvent requires the exact persisted log to occur in a successful receipt.

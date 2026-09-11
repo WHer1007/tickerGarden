@@ -5,10 +5,10 @@ GO ?= go
 FORGE ?= $(shell command -v forge 2>/dev/null || printf '%s' "$(HOME)/.foundry/bin/forge")
 export
 
-.PHONY: help run index-once index-run discover-once discover-run project-once project-run activity-backfill-once activity-backfill-run holder-scope-plan holder-scopes holder-seed-request holder-scope-public-check holder-replay-public-check holder-seed holder-replay-once holder-replay-run holder-replay-audit holder-checkpoint-check build test integration smoke smoke-chain smoke-gauge smoke-vault smoke-holder treasury-solidity-check contract-check vet fmt fmt-check verify migrate-status migrate-up db-up db-down
+.PHONY: help run index-once index-run discover-once discover-run project-once project-run activity-backfill-once activity-backfill-run holder-scope-plan holder-scopes holder-seed-request holder-scope-public-check holder-replay-public-check holder-seed holder-replay-once holder-replay-run holder-replay-audit holder-checkpoint-check build test integration smoke smoke-chain smoke-gauge smoke-vault smoke-holder contract-check vet fmt fmt-check verify migrate-status migrate-up db-up db-down
 
 help:
-	@printf '%s\n' 'run index-once index-run discover-once discover-run project-once project-run activity-backfill-once activity-backfill-run holder-scope-plan holder-scopes holder-seed-request holder-scope-public-check holder-replay-public-check holder-seed holder-replay-once holder-replay-run holder-checkpoint-check build test integration smoke smoke-chain smoke-gauge smoke-vault smoke-holder treasury-solidity-check contract-check vet fmt verify migrate-status migrate-up db-up db-down monitoring-check monitoring-integration-check monitoring-probe-check monitoring-stack-check'
+	@printf '%s\n' 'run index-once index-run discover-once discover-run project-once project-run activity-backfill-once activity-backfill-run holder-scope-plan holder-scopes holder-seed-request holder-scope-public-check holder-replay-public-check holder-seed holder-replay-once holder-replay-run holder-checkpoint-check build test integration smoke smoke-chain smoke-gauge smoke-vault smoke-holder contract-check vet fmt verify migrate-status migrate-up db-up db-down monitoring-check monitoring-integration-check monitoring-probe-check monitoring-stack-check'
 
 holder-scope-plan:
 	$(GO) run ./cmd/holder-scope-plan --once
@@ -78,6 +78,7 @@ run:
 
 build:
 	@mkdir -p bin
+	rm -f bin/settlement-worker bin/settlement-executor bin/treasury-worker bin/treasury-lifecycle bin/treasury-jobs bin/treasury-review
 	$(GO) build -trimpath -o ./bin/ ./cmd/...
 
 test:
@@ -115,17 +116,11 @@ contract-check:
 	node scripts/generate-openapi.mjs --check
 	node scripts/generate-v1-events.mjs --check
 	node --experimental-strip-types --test testsupport/*.test.ts testsupport/*.test.mjs
-	python3 scripts/generate_gauge_storage.py --check
-	python3 scripts/generate_settlement_storage.py --check
 	python3 scripts/generate_events.py --check
 	python3 scripts/generate_models.py --check
 	node --experimental-strip-types scripts/generate_api_golden.mjs --check
 	node --experimental-strip-types scripts/generate_projection_golden.mjs --check
-	node --experimental-strip-types scripts/generate_treasury_golden.mjs --check
-	node --experimental-strip-types scripts/generate_settlement_golden.mjs --check
 
-treasury-solidity-check:
-	python3 scripts/verify_treasury_solidity.py
 
 .PHONY: holder-ledger-solidity-check
 holder-ledger-solidity-check:
@@ -133,7 +128,6 @@ holder-ledger-solidity-check:
 
 .PHONY: gauge-solidity-check
 gauge-solidity-check:
-	python3 scripts/verify_gauge_position_solidity.py
 
 verify: fmt-check vet test build
 
@@ -153,9 +147,6 @@ db-up:
 db-down:
 	docker compose stop postgres
 
-.PHONY: smoke-settlement
-smoke-settlement: build
-	python3 scripts/smoke_settlement.py
 
 .PHONY: conversion-solidity-check
 conversion-solidity-check:
@@ -163,12 +154,6 @@ conversion-solidity-check:
 
 .PHONY: smoke-execution-evidence
 smoke-execution-evidence:
-	python3 scripts/smoke_execution_evidence.py
-	python3 scripts/smoke_execution_evidence.py --native
-	python3 scripts/smoke_execution_evidence.py --staker
-	python3 scripts/smoke_execution_evidence.py --staker --native
-	python3 scripts/smoke_execution_evidence.py --staker --mature
-	python3 scripts/smoke_execution_evidence.py --staker --mature --native
 
 .PHONY: candidate-inspect
 candidate-inspect:

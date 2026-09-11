@@ -136,10 +136,10 @@ contract UserStockVault is IUserStockVault, UserStockVaultExits {
         external
         view
         override
-        returns (uint256 principal, uint256 quoteAccumulator, uint256 memeAccumulator, bool forfeitureRedistributable)
+        returns (uint256 principal, uint256 quoteAccumulator, uint256 memeAccumulator)
     {
         principal = _rageQuitSettlementPrincipal(assetUid, user, marketId);
-        (quoteAccumulator, memeAccumulator, forfeitureRedistributable) = _rageQuitRewardCutoff(assetUid, user, marketId);
+        (quoteAccumulator, memeAccumulator) = _rageQuitRewardCutoff(assetUid, user, marketId);
     }
 
     function freeBalanceOf(bytes32 assetUid, address user) external view override returns (uint256) {

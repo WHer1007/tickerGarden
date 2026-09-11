@@ -22,7 +22,7 @@ func (f *conversionSolvencyFixture) BalanceAt(_ context.Context, address, hash s
 
 func solvencySetup(t *testing.T, native bool) (*conversionSolvencyFixture, string, map[string]string) {
 	t.Helper()
-	f, id, _, _, roots := conversionSetup(t, true)
+	f, id, roots := conversionSetup(t, true)
 	fixture := &conversionSolvencyFixture{rewardHeaderFixture: f, balances: map[string]string{}}
 	vault, meme, quote := roots["ProtocolFeeVault"], roots["TickerMemeTokenV1"], "0x"+strings.Repeat("d", 40)
 	if native {

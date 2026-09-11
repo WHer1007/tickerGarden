@@ -1,10 +1,6 @@
-name: TickerGarden Go Backend
+name: Historical Go Backend Reference
 
 on:
-  push:
-    paths: ["services/backend-go/**", "apps/web/**", "tools/check-v1-boundary.mjs", "package.json", "spec/**", "contracts/src/v1/**", "docs/v1/**", ".github/workflows/backend-go.yml"]
-  pull_request:
-    paths: ["services/backend-go/**", "apps/web/**", "tools/check-v1-boundary.mjs", "package.json", "spec/**", "contracts/src/v1/**", "docs/v1/**", ".github/workflows/backend-go.yml"]
   workflow_dispatch:
 
 permissions:

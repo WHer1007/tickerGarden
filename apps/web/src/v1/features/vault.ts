@@ -102,9 +102,7 @@ export function buildRageQuit(manager: Address, marketId: `0x${string}`) { addre
 export function buildDirectRageQuit(vault: Address, assetUid: `0x${string}`, marketId: `0x${string}`) { address(vault); bytes32(assetUid); bytes32(marketId); return request(v1Abis.UserStockVault, vault, "rageQuit", [assetUid, marketId]); }
 export function buildSettleRageQuitRewards(manager: Address, marketId: `0x${string}`, user: Address) { address(manager); bytes32(marketId); address(user); return request(v1Abis.AllocationManager, manager, "settleRageQuitRewards", [marketId, user]); }
 export function buildDepositAndAllocate(manager: Address, marketId: `0x${string}`, deposit: bigint, allocation: bigint) { address(manager); bytes32(marketId); positive(deposit); positive(allocation); return request(v1Abis.AllocationManager, manager, "depositAndAllocate", [marketId, deposit, allocation]); }
-export function buildClaimStaker(feeVault: Address, marketId: `0x${string}`, asset: Address) { address(feeVault); bytes32(marketId); quoteAddress(asset); return request(v1Abis.ProtocolFeeVault, feeVault, "claimStaker", [marketId, asset]); }
-export const buildClaimQuote = buildClaimStaker;
-export const buildClaimMeme = buildClaimStaker;
+
 
 /** Wallet-funded market entry; no reuse of free Vault principal. */
 export function buildStake(manager: Address, marketId: `0x${string}`, amount_: bigint) { address(manager); bytes32(marketId); positive(amount_); return request(v1Abis.AllocationManager, manager, "stake", [marketId, amount_]); }

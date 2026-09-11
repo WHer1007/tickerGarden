@@ -89,8 +89,8 @@ func TestProjectionGolden(t *testing.T) {
 	for _, event := range catalog.Events {
 		catalogSignatures[event.Signature] = true
 	}
-	if len(catalogSignatures) != 83 {
-		t.Fatalf("catalog signature count = %d, want 83", len(catalogSignatures))
+	if len(catalogSignatures) != 69 {
+		t.Fatalf("catalog signature count = %d, want 69", len(catalogSignatures))
 	}
 	if !reflect.DeepEqual(seen, catalogSignatures) {
 		t.Fatalf("fixture signature coverage mismatch: fixture=%d catalog=%d", len(seen), len(catalogSignatures))

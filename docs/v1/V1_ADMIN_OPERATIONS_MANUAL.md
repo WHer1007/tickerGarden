@@ -1,5 +1,8 @@
 > 2026-09-06 更新：R3 测试链版本已部署，使用 7 天持有人周期与 0.42 ETH 测试毕业门槛。此前重命名候选的 NOT_BROADCAST / 阻塞记录属于历史阶段；当前验证范围和时间限制以 [R3 测试报告](../../outputs/reviews/arbitrum-r3-scenarios/REPORT.md) 为准。RH 生产就绪仍未确认。
 
+> 新源码领取路径已切换为用户选择兑换/原币，Holder 双资产分别释放，取消该路径额外 7 天等待。minimumQuote 继续为 0，保留有效期。新版本不支持 operator 集体兑换；以下旧阶段的批量兑换/等待期开关说明仅适用于旧部署。完整行为见 `docs/v1/V1_REWARD_CONVERSION.md`。本次未部署。
+
+
 # TickerGarden 合约管理员人工操作手册
 
 版本：2026-09-06，适用当前 `contracts/src/v1` 与 Arbitrum Sepolia R2。读者：协议管理员、收益接收器负责人、兑换执行者、持有人分配 Root 发布与复核人员。
@@ -473,18 +476,18 @@ TARGET="$RECEIVER"
 | creatorEpoch=0 | 质押者，市场必须开启质押，先核对 Gauge 中该用户可转换的奖励 |
 | creatorEpoch>0 | 创作者收益 epoch；必须与该 epoch 的历史 beneficiary 匹配，不能只取当前 beneficiary |
 | maximumMeme | 用户该项最多转换的 MEME raw 数量，>0；合约实际取不超过现有权益的数量 |
-| minimumQuote | 本批最少收到的 Quote raw 数量，必须 >0；来自当前路由报价及批准的滑点策略 |
+| minimumQuote | 项目统一填 0，不设置价格下限；池子报价只展示预计到账 |
 | deadline | Unix 秒，不是毫秒；当前块时间至未来最多 300 秒 |
 
 同批 `(user,creatorEpoch)` 不可重复；任一项可转换量为零、用户原币退出等待已经成熟、输出约束失败，都可能使整批回滚。先剔除无效项再重新报价，不能盲目重试同一批。
 
 步骤：读取市场与权益→确认已毕业和 operator→核对原币退出申请时间→从实际池报价并限制批量冲击→生成不超过5分钟的 deadline→模拟→签名→检查 `RewardBatchConverted`、逐项 `RewardConverted`、conversionNonce 和原/配对资产负债变动。签名拖延就重新报价和生成 deadline，不能为方便审批把有效期改成一天。
 
-转换后的 Quote 仍按原用户/创作者 epoch 记账，不是直接付给 operator；`claimCreator` 或 `claimStakerFor` 才按固定受益人付款。minimumQuote 不能机械填 1 来让交易通过，合约非零下限不等于合理价格保护。
+转换后的 Quote 仍按原用户/创作者 epoch 记账，不是直接付给 operator；`claimCreator` 或 `claimStakerFor` 才按固定受益人付款。项目不自动设置最低到账，按池子实际输出结算。
 
 ### 10.3 持有人集体奖励兑换
 
-`settleHolderRewards(bytes32 marketId,uint32 epochId,uint256 maximumMeme,uint256 minimumQuote,uint256 deadline)` 只允许相同 operator。市场必须开启持有人分配并已毕业，maximumMeme、minimumQuote 均 >0，deadline 同样最多未来5分钟。
+`settleHolderRewards(bytes32 marketId,uint32 epochId,uint256 maximumMeme,uint256 minimumQuote,uint256 deadline)` 只允许相同 operator。市场必须开启持有人分配并已毕业，maximumMeme >0，项目 minimumQuote=0，deadline 同样最多未来5分钟。
 
 先读 `holderLiability(marketId,epochId,memeToken)`，只兑换对应 epoch 的余额；输出仍记回同一 epoch。然后调用无需 operator 权限的 `fundHolderRewards(marketId,epochId)`，把该 epoch 的 Quote 转入固定 Distributor。回读 MEME/Quote holderLiability 和 Distributor 的 epochQuoteAmount，不能把旧收益放进新 epoch 来简化记账。
 

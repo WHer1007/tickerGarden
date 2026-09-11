@@ -83,10 +83,9 @@ contract AllocationManagerExitsHarness is AllocationManagerExits {
     }
 
     function rageQuit(bytes32 marketId) external {
-        (uint256 principal, uint256 quoteForfeited, uint256 memeForfeited, bool redistributed) =
-            _rageQuitAllocation(msg.sender, marketId);
+        (uint256 principal, uint256 quoteForfeited, uint256 memeForfeited) = _rageQuitAllocation(msg.sender, marketId);
         emit IAllocationManager.AllocationRageQuitExecuted(
-            msg.sender, marketId, principal, quoteForfeited, memeForfeited, redistributed
+            msg.sender, marketId, principal, quoteForfeited, memeForfeited
         );
     }
 }
@@ -178,13 +177,15 @@ contract MockExitGauge {
 
     function rageQuit(address user)
         external
-        returns (uint256 principal, uint256 quoteForfeited, uint256 memeForfeited, bool redistributed)
+        returns (uint256 principal, uint256 quoteForfeited, uint256 memeForfeited)
     {
-        if (msg.sender != manager) revert InvalidManager(msg.sender);
+        if (msg.sender != manager) {
+            revert InvalidManager(msg.sender);
+        }
         PositionView storage p = _positions[user];
         principal = p.activeAmount + p.pendingAmount;
         if (failureMode == FAIL_REMOVE) revert InjectedGaugeFailure(FAIL_REMOVE);
-        if (failureMode == NOOP_REMOVE) return (principal, 0, 0, false);
+        if (failureMode == NOOP_REMOVE) return (principal, 0, 0);
         p.activeAmount = 0;
         p.pendingAmount = 0;
         p.pendingGeneration = 0;
@@ -262,7 +263,7 @@ contract AllocationManagerExitsTest is Test {
     function test_rageQuitWithdrawsFullPrincipalAndEmitsOutcome() public {
         _depositAndAllocate(ALICE, 2 ether, 1 ether);
         vm.expectEmit(true, true, false, true, address(manager));
-        emit IAllocationManager.AllocationRageQuitExecuted(ALICE, MARKET_ID, 1 ether, 0, 0, false);
+        emit IAllocationManager.AllocationRageQuitExecuted(ALICE, MARKET_ID, 1 ether, 0, 0);
         vm.prank(ALICE);
         manager.rageQuit(MARKET_ID);
         assertEq(vault.allocation(ASSET_UID, ALICE, MARKET_ID), 0);

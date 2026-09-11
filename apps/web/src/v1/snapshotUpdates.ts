@@ -36,7 +36,7 @@ export function createSnapshotPoller(options: {
  timeoutMs?:number;
 }) {
  let revision:string|undefined;
- let stopped=true, generation=0, recovering=true;
+ let stopped=true, generation=0, recovering=true, unchangedCount=0, failureCount=0;
  let controller:AbortController|undefined;
  let timer:ReturnType<typeof setTimeout>|undefined;
  const permitted=()=>!options.canPoll || options.canPoll();
@@ -47,9 +47,11 @@ export function createSnapshotPoller(options: {
   const attempt=++generation;
   const request=new AbortController();controller=request;
   let timedOut=false;
-  const deadline=setTimeout(()=>{timedOut=true;request.abort();if(attempt===generation&&!stopped){recovering=true;if(permitted())options.unavailable(new Error('Snapshot update timed out'));}},options.timeoutMs??15000);
+  let nextDelay=5000;
+  const deadline=setTimeout(()=>{timedOut=true;request.abort();if(attempt===generation&&!stopped){recovering=true;failureCount=Math.min(4,failureCount+1);nextDelay=Math.min(60000,5000*(2**failureCount));if(permitted())options.unavailable(new Error('Snapshot update timed out'));}},options.timeoutMs??15000);
   try {
    const update=validateSnapshotUpdate(await abortable(options.fetchUpdate(revision,request.signal),request.signal),options.chainId,revision);
+   failureCount=0;unchangedCount=update.mode==='unchanged'?Math.min(4,unchangedCount+1):0;nextDelay=Math.min(60000,update.pollAfterMs*(2**unchangedCount));
    if(stopped||attempt!==generation||request.signal.aborted)return;
    if(!permitted()){recovering=true;return;}
    // Recovery reloads all scopes even if the retained revision is unchanged.
@@ -62,16 +64,16 @@ export function createSnapshotPoller(options: {
    }
    revision=update.sync.revision;recovering=false;
   } catch(error) {
-   if(!stopped&&attempt===generation&&!timedOut){recovering=true;if(permitted() && !(error instanceof SnapshotRefreshSuperseded))options.unavailable(error);}
+   if(!stopped&&attempt===generation&&!timedOut){recovering=true;if(!(error instanceof SnapshotRefreshSuperseded))failureCount=Math.min(4,failureCount+1);nextDelay=Math.min(60000,5000*(2**failureCount));if(permitted() && !(error instanceof SnapshotRefreshSuperseded))options.unavailable(error);}
   } finally {
    clearTimeout(deadline);
-   if(!stopped&&attempt===generation){controller=undefined;timer=setTimeout(()=>void poll(),5000);}
+   if(!stopped&&attempt===generation){controller=undefined;timer=setTimeout(()=>void poll(),nextDelay);}
   }
  }
  return {
   start(){if(!stopped)return;stopped=false;void poll();},
-  reconnect(){cancel();stopped=false;recovering=true;void poll();},
-  stop(){stopped=true;recovering=true;cancel();},
+  reconnect(){cancel();stopped=false;recovering=true;unchangedCount=0;failureCount=0;void poll();},
+  stop(){stopped=true;recovering=true;unchangedCount=0;failureCount=0;cancel();},
   get revision(){return revision;},
  };
 }

@@ -75,7 +75,7 @@ func TestSolidityConformance(t *testing.T) {
 			for _, name := range []string{"alice", "bob", "curve", "token", "distributor"} {
 				balances[text(m, name)] = text(m, name+"Balance")
 			}
-			ledger, err = New(Registration{MarketID: text(m, "marketId"), Token: text(m, "token"), TotalSupply: text(m, "totalSupply"), Timestamp: number(m, "timestamp"), Excluded: exclusions, Balances: balances})
+			ledger, err = New(Registration{Batched: text(m, "batched") == "true", ConfigurableInterval: text(m, "configurableInterval") == "true", MarketID: text(m, "marketId"), Token: text(m, "token"), TotalSupply: text(m, "totalSupply"), Timestamp: number(m, "timestamp"), Excluded: exclusions, Balances: balances})
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -113,6 +113,7 @@ func TestSolidityConformance(t *testing.T) {
 			got[name+"Balance"] = a.Balance
 			got[name+"Claimable"] = a.Claimable
 		}
+		got["lastStreamStartedAt"] = strconv.FormatUint(ledger.LastStreamStartedAt, 10)
 		for key, value := range got {
 			if value != text(m, key) {
 				t.Fatalf("action %d %+v, %s: Go %s Solidity %s", steps, action, key, value, text(m, key))

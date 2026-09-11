@@ -11,12 +11,15 @@ interface ICanonicalArbSys {
 /// Known Nitro chains fail closed if their required precompile is unavailable.
 library CanonicalBlockClock {
     ICanonicalArbSys internal constant ARB_SYS = ICanonicalArbSys(address(100));
+
     function isNitro() internal view returns (bool) {
         return block.chainid == 421614 || block.chainid == 42161 || block.chainid == 4663 || block.chainid == 46630;
     }
+
     function number() internal view returns (uint256) {
         return isNitro() ? ARB_SYS.arbBlockNumber() : block.number;
     }
+
     function hash(uint256 height) internal view returns (bytes32) {
         return isNitro() ? ARB_SYS.arbBlockHash(height) : blockhash(height);
     }

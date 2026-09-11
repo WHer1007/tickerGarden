@@ -1,9 +1,11 @@
 package httpapi
 
 import (
+	"crypto/sha256"
 	"encoding/base64"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"net/http"
 	"net/url"
 	"regexp"
@@ -30,6 +32,7 @@ type cursor struct {
 	Filter   string `json:"filter"`
 	Snapshot string `json:"snapshot"`
 	After    string `json:"after"`
+	Ranking  string `json:"ranking,omitempty"`
 }
 type page[T any] struct {
 	Items      []T                  `json:"items"`
@@ -98,16 +101,14 @@ func readError(w http.ResponseWriter, status int, code, message string, sync rea
 }
 func reads(opts Options) http.HandlerFunc {
 	var metricsMu sync.Mutex
-	var metricsRevision string
-	var metricsMarkets []readmodel.MarketReadModel
+	type rankingEntry struct {
+		markets []readmodel.MarketReadModel
+		at      time.Time
+	}
+	rankings := map[string]rankingEntry{}
 	enrichMetrics := func(r *http.Request, snap readmodel.Snapshot) ([]readmodel.MarketReadModel, error) {
 		if opts.MarketMetrics == nil {
 			return snap.Markets, errors.New("market ranking metrics are not configured")
-		}
-		metricsMu.Lock()
-		defer metricsMu.Unlock()
-		if metricsRevision == snap.Sync.Revision && metricsMarkets != nil {
-			return append([]readmodel.MarketReadModel{}, metricsMarkets...), nil
 		}
 		refs := []displayprice.Reference{}
 		if opts.DisplayPrices != nil {
@@ -125,8 +126,13 @@ func reads(opts Options) http.HandlerFunc {
 			}
 			items[i].Metrics = metric
 		}
-		metricsRevision, metricsMarkets = snap.Sync.Revision, items
-		return append([]readmodel.MarketReadModel{}, items...), nil
+		if opts.MarketStatistics != nil {
+			cached := opts.MarketStatistics.Snapshot()
+			for i := range items {
+				items[i].LastBuy = cached[items[i].MarketID].LastBuy
+			}
+		}
+		return items, nil
 	}
 	return func(w http.ResponseWriter, r *http.Request) {
 		empty := readmodel.Empty(opts.ChainID)
@@ -173,24 +179,65 @@ func reads(opts Options) http.HandlerFunc {
 		if r.URL.Path == "/v1/markets" {
 			marketItems := snap.Markets
 			metricSort := q.Get("sort") == "volume24hUsd_desc" || q.Get("sort") == "marketCapUsd_desc"
-			if enriched, metricErr := enrichMetrics(r, snap); metricErr == nil {
-				marketItems = enriched
-				if metricSort {
-					available := false
-					for _, market := range marketItems {
-						if market.Metrics != nil && (q.Get("sort") == "volume24hUsd_desc" && market.Metrics.Volume24hUSD != nil || q.Get("sort") == "marketCapUsd_desc" && market.Metrics.MarketCapUSD != nil) {
-							available = true
-							break
+			if !(opts.MarketStatistics != nil && q.Get("cursor") != "") {
+				if enriched, metricErr := enrichMetrics(r, snap); metricErr == nil {
+					marketItems = enriched
+					if metricSort {
+						available := false
+						for _, market := range marketItems {
+							if market.Metrics != nil && (q.Get("sort") == "volume24hUsd_desc" && market.Metrics.Volume24hUSD != nil || q.Get("sort") == "marketCapUsd_desc" && market.Metrics.MarketCapUSD != nil) {
+								available = true
+								break
+							}
+						}
+						if !available {
+							readError(w, 503, "market_metrics_unavailable", "no comparable USD market metrics are available", snap.Sync)
+							return
 						}
 					}
-					if !available {
-						readError(w, 503, "market_metrics_unavailable", "no comparable USD market metrics are available", snap.Sync)
-						return
+				} else if metricSort {
+					readError(w, 503, "market_metrics_unavailable", metricErr.Error(), snap.Sync)
+					return
+				}
+			}
+			ranking := ""
+			if opts.MarketStatistics != nil {
+				metricsMu.Lock()
+				now := time.Now()
+				for key, entry := range rankings {
+					if now.Sub(entry.at) > 30*time.Minute {
+						delete(rankings, key)
 					}
 				}
-			} else if metricSort {
-				readError(w, 503, "market_metrics_unavailable", metricErr.Error(), snap.Sync)
-				return
+				if encoded := q.Get("cursor"); encoded != "" {
+					raw, _ := base64.RawURLEncoding.DecodeString(encoded)
+					var c cursor
+					json.Unmarshal(raw, &c)
+					ranking = c.Ranking
+					entry, ok := rankings[ranking]
+					if !ok {
+						metricsMu.Unlock()
+						fail(errors.New("ranking snapshot expired; restart pagination"))
+						return
+					}
+					marketItems = entry.markets
+				} else {
+					raw, _ := json.Marshal(marketItems)
+					ranking = fmt.Sprintf("%x", sha256.Sum256(raw))
+					if len(rankings) >= 128 {
+						var oldest string
+						var at time.Time
+						for k, v := range rankings {
+							if oldest == "" || v.at.Before(at) {
+								oldest = k
+								at = v.at
+							}
+						}
+						delete(rankings, oldest)
+					}
+					rankings[ranking] = rankingEntry{marketItems, now}
+				}
+				metricsMu.Unlock()
 			}
 			items, filter, identity, e := queryMarkets(marketItems, q)
 			if errors.Is(e, ErrMarketIdentityUnavailable) {
@@ -205,6 +252,15 @@ func reads(opts Options) http.HandlerFunc {
 			if e != nil {
 				fail(e)
 				return
+			}
+			if ranking != "" && p.NextCursor != nil {
+				raw, _ := base64.RawURLEncoding.DecodeString(*p.NextCursor)
+				var c cursor
+				json.Unmarshal(raw, &c)
+				c.Ranking = ranking
+				raw, _ = json.Marshal(c)
+				encoded := base64.RawURLEncoding.EncodeToString(raw)
+				p.NextCursor = &encoded
 			}
 			writeJSON(w, 200, p)
 			return

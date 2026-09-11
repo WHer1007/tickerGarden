@@ -98,8 +98,8 @@ func TestEventCoveragePostgres(t *testing.T) {
 		defer tx.Rollback(ctx)
 		return journal.VerifyStoredReceiptHistory(ctx, tx, chain, 1, 2, h1.Hash, h2.Hash)
 	}
-	if ok, err := check(); err != nil || ok {
-		t.Fatalf("receipt history = %v, %v; expected false,nil", ok, err)
+	if ok, err := check(); err == nil || ok {
+		t.Fatalf("unverified receipt history accepted: %v, %v", ok, err)
 	}
 	tx, err := readConn.Begin(ctx)
 	if err != nil {

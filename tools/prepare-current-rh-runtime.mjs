@@ -1,0 +1,81 @@
+// Current-release-only integration artifacts. Never merge historical markets.
+import fs from 'node:fs';
+import {execFileSync} from 'node:child_process';
+import {readProjectEnv} from './environment.mjs';
+import {createPublicClient,http,decodeEventLog} from '../apps/web/node_modules/viem/_esm/index.js';
+const run=process.env.TG_RH_DEPLOYMENT_RUN;
+if(!run||!/^[a-z0-9-]+$/.test(run))throw Error('Explicit deployment run required');
+const mode=process.argv[2],out=`outputs/reviews/${run}`,json=(_k,v)=>typeof v==='bigint'?String(v):v;
+const read=p=>JSON.parse(fs.readFileSync(p));
+const write=(p,v)=>{fs.writeFileSync(p+'.tmp',JSON.stringify(v,json,2)+'\n',{mode:0o600});fs.renameSync(p+'.tmp',p);};
+const preview=read(out+'/candidate.preview.json'),dir=`deployments/releases/${preview.releaseId}`;
+const d=read(dir+'/robinhood-testnet-46630.v1.deployed.json'),env=readProjectEnv('test');
+if(d.chainId!==46630||!d.status.startsWith('DEPLOYED_VERIFIED'))throw Error('Unverified test release');
+const setEnv=updates=>{let text=fs.readFileSync('.env.test.local','utf8');for(const [k,v]of Object.entries(updates)){const re=new RegExp('^'+k+'=.*$','m');const line=k+'='+v;text=re.test(text)?text.replace(re,()=>line):text+'\n'+line;}fs.writeFileSync('.env.test.local.tmp',text,{mode:0o600});fs.renameSync('.env.test.local.tmp','.env.test.local');};
+const addr=n=>{const row=d.contracts.find(c=>c.name===n);if(!row)throw Error('Missing component '+n);return row.address.toLowerCase();};
+if(mode==='gateway'){
+ const start=Number(d.startBlock),deps=read(out+'/chain-preflight.json').dependencies;
+ const contracts=d.contracts.map(c=>({address:c.address.toLowerCase(),module:c.name,fromBlock:start,reason:'Verified current test deployment'}));
+ for(const dep of deps)contracts.push({address:dep.address.toLowerCase(),module:dep.name==='POOL_MANAGER'?'UniswapV4PoolManager':dep.name,fromBlock:start,reason:'Pinned external dependency',logs:dep.name==='POOL_MANAGER',...(dep.name==='POOL_MANAGER'?{shared:true,poolIds:[]}: {})});
+ const stocks=read('deployments/manifests/robinhood-testnet-46630.stock-assets.json').assets;
+ for(const a of stocks)for(const address of [a.tokenAddress,a.fingerprint.beacon,a.fingerprint.implementation])if(!contracts.some(c=>c.address===address.toLowerCase()))contracts.push({address:address.toLowerCase(),fromBlock:start,logs:false,reason:'Saved official Stock identity; activation revalidates code'});
+ const routes=read('deployments/manifests/robinhood-testnet-46630.stock-swap-routes.json');
+ if(routes.chainId!==46630)throw Error('Wrong Stock route chain');
+ for(const address of [routes.wrappedNative,...routes.routes.map(r=>r.pool)])if(!contracts.some(c=>c.address===address.toLowerCase()))contracts.push({address:address.toLowerCase(),fromBlock:start,logs:false,reason:'Saved current Stock pricing pool'});
+ const scope={startBlock:start,maxLogRange:512,headerEventProofs:true,wallets:[d.deployer.toLowerCase()],contracts};
+ write(out+'/project-scope.json',scope);
+ const cfg={chainId:46630,host:'127.0.0.1',port:18570,startBlock:start,cacheDir:out+'/rpc-cache',timeoutMs:20000,concurrency:8,prefetch:false,cuPerSecond:9000,scopeFile:out+'/project-scope.json',discoveryFile:out+'/rpc-market-discoveries.json',approvedScenarios:out+'-matrix/capability.json',approvedAssets:{plan:dir+'/canonical-asset-activation-plan.json',audit:dir+'/canonical-asset-activation-audit.json'}};
+ if(!fs.existsSync(cfg.approvedScenarios))delete cfg.approvedScenarios;
+ if(!fs.existsSync(cfg.approvedAssets.plan)||!fs.existsSync(cfg.approvedAssets.audit))delete cfg.approvedAssets;
+ setEnv({TG_GATEWAY_CONFIG_JSON:JSON.stringify(cfg),TG_RPC_CU_PER_SECOND:"9000"});console.log('CURRENT_RELEASE_GATEWAY_CONFIGURED');
+}else if(mode==='bootstrap'){
+ if(d.status!=='DEPLOYED_VERIFIED_ACTIVE_TEST_ONLY')throw Error('Activate core first');
+ const a=read(dir+'/activation.json'),p=read(dir+'/activation-plan.json'),s=read(dir+'/canonical-asset-activation.json'),sp=read(dir+'/canonical-asset-activation-plan.json');
+ if(a.status!=='ACTIVE_TEST_ONLY'||s.status!=='ACTIVE_TEST_ONLY')throw Error('Incomplete activation');
+ const c=createPublicClient({transport:http('http://127.0.0.1:18570',{retryCount:0,timeout:30000})});
+ const abi=n=>read(`contracts/out-v1/${n}.sol/${n}.json`).abi;
+ const configs=[],assets=[];
+ const bindingNames={officialStockRegistry:'OfficialStockRegistryV1',approvedQuoteRegistry:'ApprovedQuoteRegistry',tickerGardenBaselineRegistry:'TickerGardenBaselineRegistry',launchTemplateRegistry:'LaunchTemplateRegistry',marketRegistry:'MarketRegistryV1',protocolFeeVault:'ProtocolFeeVault',allocationManager:'AllocationManager',launchRouter:'LaunchAndBuyRouter'};
+ const bindings=Object.fromEntries(Object.entries(bindingNames).map(([k,n])=>[k,addr(n)]));
+ async function entry(kind,id,n,fn,record,extra={}){
+  const receipt=await c.getTransactionReceipt({hash:record.transactionHash});if(receipt.status!=='success')throw Error('Activation receipt failed');
+  const log=receipt.logs.find(l=>l.address.toLowerCase()===addr(n)&&(()=>{try{const e=decodeEventLog({abi:abi(n),data:l.data,topics:l.topics});return Object.values(e.args).includes(id);}catch{return false;}})());
+  if(!log)throw Error('Missing activation event '+kind);
+  const values=await c.readContract({address:addr(n),abi:abi(n),functionName:fn,args:[id]});
+  if(values.status!==1)throw Error('Inactive config');const {status,...rest}=values;
+  return {kind,id,status,values:{...rest,...extra},source:{chainId:46630,blockNumber:String(receipt.blockNumber),blockHash:receipt.blockHash,transactionHash:receipt.transactionHash,transactionIndex:receipt.transactionIndex,logIndex:log.logIndex}};
+ }
+ const record=id=>a.transactions.find(t=>t.id===id);
+ configs.push(await entry('quote',a.quoteId,'ApprovedQuoteRegistry','quoteConfig',record('add-native-eth-quote'),{symbol:'ETH'}));
+ configs.push(await entry('baseline',a.baselineId,'TickerGardenBaselineRegistry','baseline',record('add-baseline')));
+ configs.push(await entry('template',a.templateId??a.launchTemplateId,'LaunchTemplateRegistry','launchTemplate',record('add-launch-template')));
+ for(const stock of sp.stocks){assets.push(await entry('asset',stock.uid,'OfficialStockRegistryV1','asset',s.transactions.find(t=>t.id===`register-${stock.symbol.toLowerCase()}-staking`),{tokenSymbol:stock.symbol,tokenName:stock.name}));configs.push(await entry('quote',stock.configId,'ApprovedQuoteRegistry','quoteConfig',s.transactions.find(t=>t.id===`add-${stock.symbol.toLowerCase()}-quote`),{symbol:stock.symbol}));}
+ const block=await c.getBlock();const launchFee=await c.readContract({address:d.factory,abi:abi('TickerGardenFactoryV1'),functionName:'launchFee'});
+ const b={version:1,chainId:46630,releaseId:d.releaseId,status:d.status,factory:d.factory.toLowerCase(),bindings,configs,assets,initialMarkets:[],activationBlock:{number:String(block.number),hash:block.hash},limitations:{startupConfigOnly:true,financialSnapshot:false},launchFee:String(launchFee)};
+ const bootstrap=`/integration/rh-${d.releaseId.slice(2,10)}.json`;write('apps/web/public'+bootstrap,b);write(dir+'/frontend-bootstrap.json',b);
+ const names=[...Object.values(bindingNames),'LaunchConfigResolver','MemeStockGauge','CreatorRevenueRegistry','UserStockVault','HolderRewardsDistributorV1','TickerGardenMemeHook','GraduationExecutor','TickerGardenFactoryV1'];
+ const contracts=[...new Set(names)].map(n=>({module:n,address:addr(n),runtimeCodeHash:d.contracts.find(x=>x.name===n).runtimeCodeHash}));
+ const pm=read(out+'/chain-preflight.json').dependencies.find(x=>x.name==='POOL_MANAGER');contracts.push({module:'UniswapV4PoolManager',address:pm.address.toLowerCase(),runtimeCodeHash:pm.codeHash});
+ write(dir+'/backend-deployment-manifest.json',{executionSpecId:'V1-EXEC-11',chainId:46630,genesisHash:p.genesisHash,contracts});
+ write(out+'/runtime-prepared.json',{releaseId:d.releaseId,bootstrap,manifest:dir+'/backend-deployment-manifest.json',startBlock:a.transactions[0].blockNumber});
+ console.log(JSON.stringify({status:'CURRENT_BOOTSTRAP_PREPARED',releaseId:d.releaseId,configs:configs.length,assets:assets.length,bootstrap}));
+}else if(mode==='switch'){
+ const prepared=read(out+'/runtime-prepared.json');if(prepared.releaseId!==d.releaseId)throw Error('Runtime identity drift');
+ const b=read('apps/web/public'+prepared.bootstrap),url=new URL(env.TG_DATABASE_URL),database='tickergarden_rh_'+d.releaseId.slice(2,10);
+ const pgEnv={...process.env,PGHOST:url.hostname,PGPORT:url.port,PGUSER:decodeURIComponent(url.username),PGPASSWORD:decodeURIComponent(url.password),PGDATABASE:'postgres'};
+ const pg='/opt/homebrew/opt/postgresql@14/bin/';
+ const exists=execFileSync(pg+'psql',['-Atqc',`SELECT 1 FROM pg_database WHERE datname='${database}'`],{env:pgEnv,encoding:'utf8'}).trim();
+ if(!exists)execFileSync(pg+'createdb',[database],{env:pgEnv,stdio:'pipe'});
+ url.pathname='/'+database;
+ execFileSync(process.execPath,['--experimental-strip-types','scripts/migrate.ts'],{cwd:'services/backend-ts',env:{...process.env,TG_MIGRATION_DATABASE_URL:url.toString()},stdio:'pipe'});
+ const catalog=[{releaseId:'rh-current-'+d.releaseId.slice(2,14),chainId:46630,factory:b.factory,marketRegistry:addr('MarketRegistryV1'),hook:addr('TickerGardenMemeHook'),feeVault:addr('ProtocolFeeVault'),creatorRegistry:addr('CreatorRevenueRegistry'),holderDistributor:addr('HolderRewardsDistributorV1'),launchRouter:addr('LaunchAndBuyRouter'),allocationManager:addr('AllocationManager')}];
+ const updates={V1_RELEASE_ID:d.releaseId,VITE_INTEGRATION_BOOTSTRAP:prepared.bootstrap,VITE_MARKET_RELEASE_CATALOG:JSON.stringify(catalog),TG_DATABASE_URL:url.toString(),TG_DEPLOYMENT_BOOTSTRAP_FILE:''};
+ for(const key of Object.keys(env))if(key.endsWith('_DATABASE_URL'))updates[key]=url.toString();
+ for(const key of ['TG_DEPLOYMENT_MANIFEST','TG_ANALYTICS_MANIFEST','TG_TRANSACTION_STATUS_MANIFEST'])updates[key]=prepared.manifest;
+ for(const key of Object.keys(env))if(key.endsWith('_START_BLOCK'))updates[key]=prepared.startBlock;
+ for(const [key,n]of Object.entries({VITE_V1_FACTORY_ADDRESS:'TickerGardenFactoryV1',VITE_V1_LAUNCH_ROUTER_ADDRESS:'LaunchAndBuyRouter',VITE_V1_ALLOCATION_MANAGER_ADDRESS:'AllocationManager',VITE_V1_PROTOCOL_FEE_VAULT_ADDRESS:'ProtocolFeeVault',VITE_V1_CREATOR_REVENUE_REGISTRY_ADDRESS:'CreatorRevenueRegistry',VITE_V1_TREASURY_DISTRIBUTOR_ADDRESS:'HolderRewardsDistributorV1'}))updates[key]=addr(n);
+ setEnv(updates);
+ for(const [from,to]of [['paired-assets.json','robinhood-testnet-46630.paired-assets.json'],['stock-assets.json','robinhood-testnet-46630.stock-assets.json']])fs.copyFileSync(dir+'/'+from,'deployments/manifests/'+to);
+ write(out+'/runtime-switch.json',{status:'CURRENT_RELEASE_ONLY',releaseId:d.releaseId,database,bootstrap:prepared.bootstrap,manifest:prepared.manifest,oldDataIncluded:false});
+ console.log(JSON.stringify({status:'CURRENT_RELEASE_ONLY',releaseId:d.releaseId,database}));
+}else throw Error('Use gateway, bootstrap or switch');

@@ -115,7 +115,8 @@ abstract contract GraduationExecutorAssetAccounting is GraduationExecutorEntry {
         uint256 memeAmount
     ) internal view returns (GraduationAssetPlan memory plan) {
         QuoteAssetConfig memory quote = _graduationQuoteRegistry.quoteConfig(marketView.config.quoteAssetConfigId);
-        TickerGardenBaseline memory baseline = _graduationTickerGardenBaselineRegistry.baseline(marketView.config.tickerGardenBaselineId);
+        TickerGardenBaseline memory baseline =
+            _graduationTickerGardenBaselineRegistry.baseline(marketView.config.tickerGardenBaselineId);
         if (
             quoteAmount == 0 || memeAmount == 0 || marketView.config.memeToken.code.length == 0
                 || marketView.config.memeToken == marketView.config.quoteAsset
@@ -129,8 +130,9 @@ abstract contract GraduationExecutorAssetAccounting is GraduationExecutorEntry {
         plan.sweptTokens = memeAmount;
         (uint256 reservedTokens,) =
             TickerGardenSupplyMath.supplyPartition(baseline.supply, quote.phantomQuote, quote.graduationThreshold);
-        plan.poolQuoteAmount =
-            TickerGardenSupplyMath.canonicalGraduationQuote(baseline.supply, quote.phantomQuote, quote.graduationThreshold);
+        plan.poolQuoteAmount = TickerGardenSupplyMath.canonicalGraduationQuote(
+            baseline.supply, quote.phantomQuote, quote.graduationThreshold
+        );
         if (memeAmount != reservedTokens || quoteAmount < plan.poolQuoteAmount) {
             revert GraduationMarketAssetMismatch(marketId);
         }

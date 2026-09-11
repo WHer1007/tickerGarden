@@ -25,6 +25,7 @@ abstract contract MemeStockGaugeActivationWheel {
         internal
         returns (uint256 activatedAmount, uint256 processedBuckets)
     {
+        if (_totalPendingStock == 0) return (0, 0);
         for (uint8 i; i < ACTIVATION_WHEEL_SIZE; ++i) {
             ActivationSlot memory slot = _activationWheel[i];
             if (slot.generation == 0 || slot.generation > block.timestamp) continue;
@@ -96,14 +97,6 @@ abstract contract MemeStockGaugeActivationWheel {
     function _activationSlot(uint8 slotIndex) internal view returns (ActivationSlot memory) {
         if (slotIndex >= ACTIVATION_WHEEL_SIZE) revert InvalidActivationSlotIndex(slotIndex);
         return _activationWheel[slotIndex];
-    }
-
-    function _effectiveTotalActiveStock() internal view returns (uint256 total) {
-        total = _storedTotalActiveStock;
-        for (uint8 i; i < ACTIVATION_WHEEL_SIZE; ++i) {
-            ActivationSlot memory slot = _activationWheel[i];
-            if (slot.generation != 0 && slot.generation <= block.timestamp) total += slot.amount;
-        }
     }
 
     function _recordActivationSnapshot(

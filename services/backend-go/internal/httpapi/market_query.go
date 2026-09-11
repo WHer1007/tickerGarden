@@ -55,7 +55,7 @@ func queryMarkets(items []readmodel.MarketReadModel, q url.Values) ([]readmodel.
 	order := "marketId_asc"
 	if q.Has("sort") {
 		order = q.Get("sort")
-		if order != "marketId_asc" && order != "marketId_desc" && order != "createdAt_asc" && order != "createdAt_desc" && order != "name_asc" && order != "launchPhase_asc" && order != "volume24hUsd_desc" && order != "marketCapUsd_desc" {
+		if order != "marketId_asc" && order != "marketId_desc" && order != "createdAt_asc" && order != "createdAt_desc" && order != "name_asc" && order != "launchPhase_asc" && order != "volume24hUsd_desc" && order != "marketCapUsd_desc" && order != "recentBuy_desc" {
 			return fail("unsupported market sort")
 		}
 	}
@@ -176,7 +176,33 @@ func queryMarkets(items []readmodel.MarketReadModel, q url.Values) ([]readmodel.
 			return "0:" + descendingUSDKey(*m.Metrics.MarketCapUSD) + ":" + m.MarketID
 		}
 	}
+	if order == "recentBuy_desc" {
+		identity = func(m readmodel.MarketReadModel) string {
+			if m.LastBuy == nil {
+				return "1:" + m.MarketID
+			}
+			return "0:" + descendingUintKey(m.LastBuy.BlockNumber) + ":" + descendingUintKey(m.LastBuy.TransactionIndex) + ":" + descendingUintKey(m.LastBuy.LogIndex) + ":" + m.MarketID
+		}
+	}
 	return out, filter, identity, nil
+}
+
+func descendingUintKey(value string) string {
+	value = strings.TrimLeft(value, "0")
+	if value == "" {
+		value = "0"
+	}
+	if len(value) > 78 {
+		return strings.Repeat("9", 78)
+	}
+	raw := []byte(strings.Repeat("0", 78-len(value)) + value)
+	for i, digit := range raw {
+		if digit < '0' || digit > '9' {
+			return strings.Repeat("9", 78)
+		}
+		raw[i] = '9' - (digit - '0')
+	}
+	return string(raw)
 }
 
 func descendingUSDKey(value string) string {

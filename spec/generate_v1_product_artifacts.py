@@ -104,12 +104,15 @@ def build():
             artifact = json.loads(artifact_path.read_text(encoding="utf-8"))
             mutations = sorted(signature(x) for x in entries(artifact["abi"], "function")
                                if x["stateMutability"] not in ("view", "pure"))
-            expected = sorted(["registerFeeSharingMarket(bytes32,address,address)",
-                "fundCreatorFees(bytes32,uint32,uint256)", "checkpointTransfer(bytes32,address,address,uint256)",
-                "claim(bytes32)", "checkpoint(bytes32)"])
-            if mutations != expected:
+            function_signatures = {signature(x): x for x in entries(artifact["abi"], "function")}
+            if "fundQuoteRewards(bytes32,uint32,uint256)" not in function_signatures:
                 raise ValueError("continuous holder mutation surface drift")
-            extensions.append({"module": module, "mode": "TICKERGARDEN_HOLDER_STREAM_24H_V1",
+            if "claim(bytes32)" in function_signatures:
+                raise ValueError("continuous holder claim surface must be absent")
+            reward_bucket = function_signatures.get("rewardBucket(bytes32)")
+            if not reward_bucket or reward_bucket["stateMutability"] != "view":
+                raise ValueError("continuous holder rewardBucket view drift")
+            extensions.append({"module": module, "mode": "TICKERGARDEN_HOLDER_DUAL_ASSET_24H_V4",
                 "source": str(source_path.relative_to(ROOT)), "sourceSha256": sha256_bytes(source_path.read_bytes()),
                 "artifact": str(artifact_path.relative_to(ROOT)), "abi": artifact["abi"],
                 "creationCode": code_identity(artifact["bytecode"]),

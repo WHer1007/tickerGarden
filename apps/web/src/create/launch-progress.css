@@ -31,3 +31,15 @@
 .launch-progress-dialog__explorer { color: #176d39; font-weight: 700; }
 .launch-progress-dialog__dismiss { justify-self: start; color: #285337; background: #e3f2e7; }
 @media (max-width: 35rem) { .launch-progress-dialog__content { padding: 1.1rem; } }
+
+.launch-progress-dialog--outcome{width:100vw;max-width:none;height:100dvh;max-height:none;margin:0;border:0;border-radius:0;background:var(--paper,#fafbf5);box-shadow:none;overflow:auto;box-sizing:border-box}
+.launch-progress-dialog--outcome .launch-progress-dialog__content{width:min(100%,460px);margin: max(32px,10vh) auto;padding:28px;box-sizing:border-box;text-align:center;gap:18px}
+.launch-progress-dialog__outcome-icon{font-size:48px;color:var(--green,#233e2c)}
+.launch-progress-dialog--outcome .launch-progress-dialog__title{font-size:22px;letter-spacing:-.4px}
+.launch-progress-dialog__token{margin:0;font-size:15px;font-weight:600;overflow-wrap:anywhere}
+.launch-progress-dialog--outcome .launch-progress-dialog__status{padding:18px;border:1px solid var(--line,#dce3d8);border-radius:12px;background:var(--soft,#f0f4e9);font-size:13px;line-height:1.6}
+.launch-progress-dialog--outcome .launch-progress-dialog__progress-label{text-align:left;font-size:11px}
+.launch-progress-dialog--outcome .launch-progress-dialog__hash{font-size:11px;color:var(--muted,#66806d)}
+.launch-progress-dialog--outcome .launch-progress-dialog__explorer{font-size:12px}
+.launch-progress-dialog .launch-progress-dialog__view{background:var(--green,#233e2c);color:white;border-radius:10px;min-height:44px;font-size:13px}
+.launch-progress-dialog__view:focus-visible{outline:2px solid var(--green,#233e2c);outline-offset:3px}

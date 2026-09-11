@@ -68,7 +68,7 @@ test("shared navigation exposes Explore and keeps Home out of the primary links"
 });
 
 test("Vite builds both legal pages and legal routes avoid runtime loading", () => {
-  assert.match(vite, /appType:\s*"spa"/);
+  assert.match(vite, /appType:\s*['"]spa['"]/);
   assert.doesNotMatch(vite, /rollupOptions|resolve\([^\n]+\.html/);
   assert.match(app, /page === "privacy" \|\| page === "terms"/);
 });

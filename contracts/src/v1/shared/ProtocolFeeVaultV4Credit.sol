@@ -37,8 +37,8 @@ abstract contract ProtocolFeeVaultV4Credit {
     IMarketRegistryV1 internal immutable _feeMarketRegistry;
     address internal immutable _feePoolManager;
 
-    uint8 private _creditState;
-    PendingV4Credit private _pendingCredit;
+    uint8 internal _creditState;
+    PendingV4Credit internal _pendingCredit;
     mapping(bytes32 feeId => bool consumed) internal _consumedFeeIds;
 
     error InvalidFeeVaultCreditDependency(address dependency);
@@ -96,7 +96,8 @@ abstract contract ProtocolFeeVaultV4Credit {
             revert FeeCreditNotPrepared(feeId);
         }
         if (_consumedFeeIds[feeId]) revert FeeIdAlreadyConsumed(feeId);
-        _requireActiveV4Source(marketId, feeAsset, pending.sourceVersion, msg.sender);
+        // Revalidate after the external transfer, then reuse this view only within finalization.
+        MarketView memory value = _requireActiveV4Source(marketId, feeAsset, pending.sourceVersion, msg.sender);
 
         uint256 currentBalance = _assetBalance(feeAsset);
         uint256 actualDelta = currentBalance >= pending.balanceBefore ? currentBalance - pending.balanceBefore : 0;
@@ -116,7 +117,7 @@ abstract contract ProtocolFeeVaultV4Credit {
         record.sourceVersion = pending.sourceVersion;
         record.feeNonce = feeNonce;
         record.feeId = feeId;
-        _recordExactV4Credit(record);
+        _recordExactV4Credit(record, value);
         delete _pendingCredit;
         _creditState = CREDIT_IDLE;
     }
@@ -136,11 +137,7 @@ abstract contract ProtocolFeeVaultV4Credit {
         }
     }
 
-    function _recordExactV4Credit(V4CreditRecord memory record) internal virtual;
-
-    function _pendingV4Credit() internal view returns (uint8 state, PendingV4Credit memory pending) {
-        return (_creditState, _pendingCredit);
-    }
+    function _recordExactV4Credit(V4CreditRecord memory record, MarketView memory value) internal virtual;
 
     function _enterStandaloneCredit(bytes32 feeId) internal {
         if (feeId == bytes32(0)) revert FeeCreditNotPrepared(feeId);
@@ -165,8 +162,9 @@ abstract contract ProtocolFeeVaultV4Credit {
     function _requireActiveV4Source(bytes32 marketId, address feeAsset, uint32 sourceVersion, address source)
         private
         view
+        returns (MarketView memory value)
     {
-        MarketView memory value = _feeMarketRegistry.market(marketId);
+        value = _feeMarketRegistry.market(marketId);
         if (
             value.runtime.launchPhase != LAUNCH_PHASE_POOL_CREATED || value.runtime.poolId == bytes32(0)
                 || value.runtime.sourceVersion != sourceVersion || value.config.graduatedHook != source

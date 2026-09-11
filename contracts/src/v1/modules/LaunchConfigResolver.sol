@@ -22,7 +22,11 @@ contract LaunchConfigResolver is ILaunchConfigResolver {
     error InvalidRegistry(address registry);
     error AliasedRegistries(address first, address second);
 
-    constructor(address approvedQuoteRegistry_, address tickerGardenBaselineRegistry_, address launchTemplateRegistry_) {
+    constructor(
+        address approvedQuoteRegistry_,
+        address tickerGardenBaselineRegistry_,
+        address launchTemplateRegistry_
+    ) {
         _requireRegistry(approvedQuoteRegistry_);
         _requireRegistry(tickerGardenBaselineRegistry_);
         _requireRegistry(launchTemplateRegistry_);

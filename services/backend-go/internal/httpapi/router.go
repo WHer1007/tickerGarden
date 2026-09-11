@@ -7,6 +7,7 @@ import (
 	"log/slog"
 	"net/http"
 	"tickergarden/backend/internal/eventfeed"
+	"tickergarden/backend/internal/marketstats"
 	"tickergarden/backend/internal/readmodel"
 	"tickergarden/backend/internal/rewards"
 	"time"
@@ -20,6 +21,7 @@ type Pinger interface {
 }
 
 type Options struct {
+	MarketStatistics *marketstats.Service
 	EventFeed        eventfeed.Reader
 	TokenDetail      TokenDetailReader
 	Activities       ActivityReader
@@ -34,7 +36,6 @@ type Options struct {
 	DisplayPrices    DisplayPriceReader
 	MarketMetrics    MarketMetricsReader
 	Rewards          rewards.Reader
-	TreasuryProofs   TreasuryProofReader
 	Logger           *slog.Logger
 	Database         Pinger
 	ReadModels       readmodel.Reader
@@ -58,6 +59,10 @@ func New(opts Options) http.Handler {
 	r.Use(recoverPanic(opts.Logger))
 	r.Use(cors(opts.AllowedOrigin))
 	r.Get("/metrics", metrics.ServeHTTP)
+	if opts.MarketStatistics != nil {
+		r.Handle("/v1/market-statistics", opts.MarketStatistics)
+		r.HandleFunc("/v1/statistics-prices", opts.MarketStatistics.PriceHandler)
+	}
 	r.Get("/livez", func(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusOK, map[string]string{"status": "alive"})
 	})
@@ -91,6 +96,36 @@ func New(opts Options) http.Handler {
 			"database": database, "read_model": model, "publication": "trusted_snapshot",
 		}})
 	}))
+	if creator, ok := opts.EventFeed.(eventfeed.CreatorReader); ok {
+		r.Handle("/v1/creator-markets", eventfeed.CreatorHandler(creator))
+	}
+	if holder, ok := opts.EventFeed.(eventfeed.HolderReader); ok {
+		r.Handle("/v1/holder-markets", eventfeed.HolderHandler(holder))
+	}
+	if protocol, ok := opts.EventFeed.(interface{ ProtocolHandler() http.Handler }); ok {
+		r.Handle("/v1/protocol-statistics", protocol.ProtocolHandler())
+	}
+	if history, ok := opts.EventFeed.(interface{ HolderRewardHistoryHandler() http.Handler }); ok {
+		r.Handle("/v1/holder-reward-history", history.HolderRewardHistoryHandler())
+	}
+	if display, ok := opts.EventFeed.(interface{ MarketDisplayHandler() http.Handler }); ok {
+		r.Handle("/v1/market-display-statistics", display.MarketDisplayHandler())
+	}
+	if recovery, ok := opts.EventFeed.(interface{ LaunchRecoveryHandler() http.Handler }); ok {
+		r.Handle("/v1/launch-recovery", recovery.LaunchRecoveryHandler())
+	}
+	if history, ok := opts.EventFeed.(interface{ WalletHolderHandler() http.Handler }); ok {
+		r.Handle("/v1/wallet-holder-markets", history.WalletHolderHandler())
+	}
+	if maintenance, ok := opts.EventFeed.(interface{ HolderMaintenanceHandler() http.Handler }); ok {
+		r.Handle("/v1/holder-maintenance-markets", maintenance.HolderMaintenanceHandler())
+	}
+	if history, ok := opts.EventFeed.(interface{ StakerRewardHistoryHandler() http.Handler }); ok {
+		r.Handle("/v1/staker-reward-history", history.StakerRewardHistoryHandler())
+	}
+	if directory, ok := opts.EventFeed.(eventfeed.DirectoryReader); ok {
+		r.Handle("/v1/market-directory", eventfeed.DirectoryHandler(directory))
+	}
 	if opts.EventFeed != nil {
 		r.Handle("/v1/events", http.StripPrefix("/v1", eventfeed.Handler(opts.EventFeed)))
 	}
@@ -109,7 +144,6 @@ func New(opts Options) http.Handler {
 	r.HandleFunc("/v1/updates", snapshotGate(updates(opts)))
 	r.HandleFunc("/v1/prices/references", displayPrices(opts))
 	r.HandleFunc("/v1/users/{address}/rewards", rewardReads(opts))
-	r.HandleFunc("/v1/treasury/*", treasuryProofs(opts))
 	r.HandleFunc("/v1", snapshotGate(reads(opts)))
 	r.HandleFunc("/v1/*", snapshotGate(reads(opts)))
 	r.NotFound(func(w http.ResponseWriter, r *http.Request) {

@@ -20,7 +20,7 @@ export function phaseLabel(phase: number): string {
 }
 
 export function shortHex(value: string | null | undefined, left = 6, right = 4): string {
-  if (!value) return "—";
+  if (!value) return "-";
   if (value.length <= left + right + 2) return value;
   return `${value.slice(0, left + 2)}…${value.slice(-right)}`;
 }
@@ -133,7 +133,7 @@ export function formatTokenAmount(value: bigint | string, decimals: number, prec
     const trimmed = fraction.slice(0, precision).replace(/0+$/, "");
     return trimmed ? `${whole}.${trimmed}` : whole ?? "0";
   } catch {
-    return "—";
+    return "-";
   }
 }
 
@@ -165,6 +165,8 @@ export function tupleString(value: unknown, name: string, index: number): string
 }
 
 export interface MarketMetadata {
+  readonly metadataURI?: string;
+  readonly deployedAt?: string;
   readonly name: string;
   readonly symbol: string;
   readonly quoteSymbol: string;

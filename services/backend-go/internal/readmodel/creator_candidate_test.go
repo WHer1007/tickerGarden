@@ -14,7 +14,7 @@ func TestCreatorCandidateEntitlements(t *testing.T) {
 				t.Fatal(e)
 			}
 			m := base.Markets[0]
-			v := map[string]any{"marketId": m.MarketID, "epoch": "1", "beneficiary": m.MemeToken, "quoteAsset": m.QuoteAsset, "memeAsset": m.MemeToken, "quoteLiability": "900719925474099312345", "memeLiability": "0", "rawRewardExitAt": "0", "observedAtTimestamp": "100", "rawRewardExitReady": false}
+			v := map[string]any{"marketId": m.MarketID, "epoch": "1", "beneficiary": m.MemeToken, "quoteAsset": m.QuoteAsset, "memeAsset": m.MemeToken, "quoteLiability": "900719925474099312345", "memeLiability": "0", "observedAtTimestamp": "100"}
 			switch mode {
 			case "beneficiary":
 				v["beneficiary"] = "0x0000000000000000000000000000000000000000"
@@ -47,30 +47,15 @@ func TestCreatorCandidateEntitlements(t *testing.T) {
 	}
 }
 
-func TestCreatorExitReady(t *testing.T) {
-	for _, tc := range []struct {
-		exit, now    string
-		ready, valid bool
-	}{
-		{"0", "100", false, true}, {"101", "100", false, true}, {"100", "100", true, true}, {"99", "100", true, true},
-		{"01", "100", false, false}, {"1", "0100", false, false}, {"-1", "100", false, false}, {"1", "18446744073709551616", false, false},
-	} {
-		got, e := CreatorExitReady(tc.exit, tc.now)
-		if (e == nil) != tc.valid || (e == nil && got != tc.ready) {
-			t.Fatal(tc, got, e)
-		}
-	}
-}
-
 func TestCreatorCandidateLedgerConsistency(t *testing.T) {
-	for _, mode := range []string{"valid", "reversed", "missing first", "missing last", "missing all", "missing bucket", "count", "sum", "timestamp", "exit conflict"} {
+	for _, mode := range []string{"valid", "reversed", "missing first", "missing last", "missing all", "missing bucket", "count", "sum", "timestamp", "observed malformed"} {
 		t.Run(mode, func(t *testing.T) {
 			id := "0x1111111111111111111111111111111111111111111111111111111111111111"
 			quote := "0x2222222222222222222222222222222222222222"
 			meme := "0x3333333333333333333333333333333333333333"
 			b := deployment.ObservationBatch{}
 			for _, epoch := range []string{"1", "2"} {
-				b.Observations = append(b.Observations, deployment.StateObservation{Kind: "creatorEpoch", Key: id + ":" + epoch, Value: map[string]any{"marketId": id, "epoch": epoch, "beneficiary": meme, "quoteAsset": quote, "memeAsset": meme, "quoteLiability": epoch, "memeLiability": "0", "rawRewardExitAt": "0", "rawRewardExitReady": false, "observedAtTimestamp": "100"}})
+				b.Observations = append(b.Observations, deployment.StateObservation{Kind: "creatorEpoch", Key: id + ":" + epoch, Value: map[string]any{"marketId": id, "epoch": epoch, "beneficiary": meme, "quoteAsset": quote, "memeAsset": meme, "quoteLiability": epoch, "memeLiability": "0", "observedAtTimestamp": "100"}})
 			}
 			for _, a := range []struct{ asset, total string }{{quote, "3"}, {meme, "0"}} {
 				b.Observations = append(b.Observations, deployment.StateObservation{Kind: "feeLiability", Key: id + ":" + a.asset, Value: map[string]any{"marketId": id, "feeAsset": a.asset, "creatorEpochCount": "2", "creator": a.total}})
@@ -92,8 +77,8 @@ func TestCreatorCandidateLedgerConsistency(t *testing.T) {
 				b.Observations[2].Value["creator"] = "4"
 			case "timestamp":
 				b.Observations[1].Value["observedAtTimestamp"] = "101"
-			case "exit conflict":
-				b.Observations[1].Value["rawRewardExitAt"] = "101"
+			case "observed malformed":
+				b.Observations[1].Value["observedAtTimestamp"] = "0100"
 			}
 			got, e := buildCreatorCandidates(b, map[string]MarketReadModel{id: {MarketID: id, QuoteAsset: quote, MemeToken: meme}})
 			valid := mode == "valid" || mode == "reversed"
@@ -108,24 +93,17 @@ func TestCreatorCandidateLedgerConsistency(t *testing.T) {
 }
 
 func TestCreatorCandidateCanonicalTime(t *testing.T) {
-	for _, mode := range []string{"valid", "wrong time", "ready mismatch", "expired", "unrequested", "malformed"} {
+	for _, mode := range []string{"valid", "mismatch", "malformed"} {
 		t.Run(mode, func(t *testing.T) {
-			c := CreatorEpochCandidate{ObservedAtTimestamp: "100", RawRewardExitAt: "100", RawRewardExitReady: true}
+			c := CreatorEpochCandidate{ObservedAtTimestamp: "100"}
 			switch mode {
-			case "wrong time":
+			case "mismatch":
 				c.ObservedAtTimestamp = "101"
-			case "ready mismatch":
-				c.RawRewardExitReady = false
-			case "expired":
-				c.RawRewardExitAt = "99"
-			case "unrequested":
-				c.RawRewardExitAt = "0"
-				c.RawRewardExitReady = false
 			case "malformed":
-				c.RawRewardExitAt = "0100"
+				c.ObservedAtTimestamp = "0100"
 			}
 			e := verifyCreatorCandidateTime([]CreatorEpochCandidate{c}, 100)
-			valid := mode == "valid" || mode == "expired" || mode == "unrequested"
+			valid := mode == "valid"
 			if (e == nil) != valid {
 				t.Fatal(mode, e)
 			}

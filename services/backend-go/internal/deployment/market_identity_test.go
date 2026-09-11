@@ -5,7 +5,26 @@ import (
 	"encoding/binary"
 	"fmt"
 	"testing"
+
+	"tickergarden/backend/internal/chainrpc"
 )
+
+func marketIdentitySetup(t *testing.T) (*requestFixture, chainrpc.Header, string) {
+	base, b, markets, _ := holderSetup(t)
+	var id string
+	for key := range markets {
+		id = key
+	}
+	f := &requestFixture{feeFixture: base, now: 605100, sourceTime: 604950}
+	for _, c := range f.manifest.Contracts {
+		if c.Module == "MarketRegistryV1" {
+			row := f.calls[c.Address+Hash([]byte("market(bytes32)"))[:10]+id[2:]]
+			copy(row[12*32:13*32], addrWord(zero20))
+		}
+	}
+	b.Timestamp = fmt.Sprintf("0x%x", f.now)
+	return f, b, id
+}
 
 func identityString(s string) []byte {
 	raw := make([]byte, 64+((len(s)+31)/32)*32)
@@ -31,7 +50,7 @@ func (f *identityReorgRPC) CallAt(ctx context.Context, address, data, block stri
 func TestMarketIdentityPinnedAndFailClosed(t *testing.T) {
 	for _, name := range []string{"valid", "reverse", "market binding", "factory binding", "runtime", "name ABI", "URI ABI", "future timestamp", "late reorg"} {
 		t.Run(name, func(t *testing.T) {
-			f, b, id, _, _ := requestSetup(t)
+			f, b, id := marketIdentitySetup(t)
 			var registry, factory string
 			for _, c := range f.manifest.Contracts {
 				if c.Module == "MarketRegistryV1" {

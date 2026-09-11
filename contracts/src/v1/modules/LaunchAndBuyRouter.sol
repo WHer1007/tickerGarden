@@ -14,11 +14,7 @@ contract LaunchAndBuyRouter is LaunchAndBuyRouterV4Fallback {
         int24 nativeQuoteTickSpacing_
     )
         LaunchAndBuyRouterV4Fallback(
-            predictedFactory,
-            approvedQuoteRegistry_,
-            poolManager_,
-            nativeQuotePoolFee_,
-            nativeQuoteTickSpacing_
+            predictedFactory, approvedQuoteRegistry_, poolManager_, nativeQuotePoolFee_, nativeQuoteTickSpacing_
         )
     {}
 

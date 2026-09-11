@@ -65,12 +65,12 @@ contract ProtocolFeeVaultCurveCreditHarness is ProtocolFeeVaultCurveCredit {
     }
 
     function lastNonce(bytes32 marketId) external view returns (uint64) {
-        return _lastCurveSweepNonce(marketId);
+        return _lastCurveSweepNonces[marketId];
     }
 
-    function _recordExactV4Credit(V4CreditRecord memory) internal pure override {}
+    function _recordExactV4Credit(V4CreditRecord memory, MarketView memory) internal pure override {}
 
-    function _recordExactCurveCredit(CurveCreditRecord memory record) internal override {
+    function _recordExactCurveCredit(CurveCreditRecord memory record, MarketView memory) internal override {
         if (rejectRecord) revert("CURVE_RECORD_REJECTED");
         ++recordCount;
         creatorCredits[record.marketId][record.creatorEpoch] += record.creatorAmount;

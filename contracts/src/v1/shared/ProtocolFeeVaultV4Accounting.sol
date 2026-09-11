@@ -25,7 +25,7 @@ abstract contract ProtocolFeeVaultV4Accounting is ProtocolFeeVaultLiabilities {
 
     bytes32 private immutable _feePolicyId;
     bytes32 private immutable _feePolicyHash;
-    mapping(bytes32 poolId => uint64 nonce) private _lastV4FeeNonces;
+    mapping(bytes32 poolId => uint64 nonce) internal _lastV4FeeNonces;
 
     error InvalidV4FeePolicy(bytes32 feePolicyId);
     error InvalidV4FeeAmounts(uint256 base, uint256 totalFee, uint256 expectedTotalFee);
@@ -55,10 +55,9 @@ abstract contract ProtocolFeeVaultV4Accounting is ProtocolFeeVaultLiabilities {
         );
     }
 
-    function _recordExactV4Credit(V4CreditRecord memory record) internal virtual override {
-        MarketView memory value = _feeMarketRegistry.market(record.marketId);
+    function _recordExactV4Credit(V4CreditRecord memory record, MarketView memory value) internal virtual override {
         _validateV4Record(record, value);
-        _settleV4Attribution(record, value.config.gauge);
+        _settleV4Attribution(record, value);
         _lastV4FeeNonces[value.runtime.poolId] = record.feeNonce;
     }
 
@@ -80,14 +79,13 @@ abstract contract ProtocolFeeVaultV4Accounting is ProtocolFeeVaultLiabilities {
         }
     }
 
-    function _settleV4Attribution(V4CreditRecord memory record, address gaugeAddress) private {
-        IMemeStockGauge gauge = IMemeStockGauge(gaugeAddress);
+    function _settleV4Attribution(V4CreditRecord memory record, MarketView memory value) private {
+        IMemeStockGauge gauge = IMemeStockGauge(value.config.gauge);
         uint256 activeStock;
-        if (_feeMarketRegistry.market(record.marketId).config.stakingEnabled) {
-            gauge.checkpointActivations();
+        if (value.config.stakingEnabled) {
             activeStock = gauge.effectiveTotalActiveStock();
         }
-        uint256 tax = CreatorTax.amount(record.base, _feeMarketRegistry.market(record.marketId).config.creatorTaxBps);
+        uint256 tax = CreatorTax.amount(record.base, value.config.creatorTaxBps);
         MarketFeeAccounting.V4Buckets memory buckets =
             MarketFeeAccounting.splitV4(record.totalFee - tax, record.lpAmount, record.nonLpAmount - tax, activeStock);
         buckets.creatorAmount += tax;
@@ -111,7 +109,8 @@ abstract contract ProtocolFeeVaultV4Accounting is ProtocolFeeVaultLiabilities {
             buckets.creatorAmount,
             buckets.stakerAmount,
             buckets.platformAmount,
-            tax
+            tax,
+            value
         );
 
         emit FeeBucketsCredited(
@@ -152,9 +151,5 @@ abstract contract ProtocolFeeVaultV4Accounting is ProtocolFeeVaultLiabilities {
 
     function _feePolicyIdValue() internal view returns (bytes32) {
         return _feePolicyId;
-    }
-
-    function _lastV4FeeNonce(bytes32 poolId) internal view returns (uint64) {
-        return _lastV4FeeNonces[poolId];
     }
 }

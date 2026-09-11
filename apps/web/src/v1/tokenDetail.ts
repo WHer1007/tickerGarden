@@ -9,7 +9,7 @@ const num=(v:unknown):v is number=>Number.isSafeInteger(v)&&Number(v)>=0;
 const addr=(v:unknown):v is string=>typeof v==='string'&&/^0x[0-9a-f]{40}$/.test(v);
 const hash=(v:unknown):v is string=>typeof v==='string'&&/^0x[0-9a-f]{64}$/.test(v);
 export function scaledDecimal(s:string,places=36):bigint{const [a,b='']=s.split('.');return BigInt(a!)*10n**BigInt(places)+BigInt(b.padEnd(places,'0').slice(0,places)||'0');}
-export function displayDecimal(value:string|null|undefined,places=8):string{if(!value||!dec(value))return 'Unavailable';const [a,b='']=value.split('.');const fraction=b.slice(0,places).replace(/0+$/,'');if(a==='0'&&!fraction&&scaledDecimal(value)>0n)return `<${places?`0.${'0'.repeat(places-1)}1`:'1'}`;return `${a!.replace(/\B(?=(\d{3})+(?!\d))/g,',')}${fraction?'.'+fraction:''}`;}
+export function displayDecimal(value:string|null|undefined,places=8):string{if(!value||!dec(value))return '-';const [a,b='']=value.split('.');const fraction=b.slice(0,places).replace(/0+$/,'');if(a==='0'&&!fraction&&scaledDecimal(value)>0n)return `<${places?`0.${'0'.repeat(places-1)}1`:'1'}`;return `${a!.replace(/\B(?=(\d{3})+(?!\d))/g,',')}${fraction?'.'+fraction:''}`;}
 export function circulatingCap(price:string|null|undefined,supply:string|null|undefined):string|null{if(!price||!dec(price)||!supply||!uint(supply))return null;const n=scaledDecimal(price)*BigInt(supply)/10n**18n;return `${n/10n**36n}.${(n%10n**36n).toString().padStart(36,'0')}`;}
 export function validateTokenDetail(v:unknown,chain:number,id:DetailIdentity,period:DetailPeriod,now=Date.now()):TokenDetailResponse{
  const fail=():never=>{throw new Error('Detail analytics unavailable or inconsistent');};
@@ -29,6 +29,6 @@ export function feeRows(config:FeeConfig):Array<{key:string;label:string;percent
  const creator=active===null?null:active?40:70;
  const rows=[{key:'creator',label:'Creator',percent:creator===null?null:config.holders?creator/2:creator,note:'Creator revenue'}];
  if(config.holders)rows.push({key:'holders',label:'Holders',percent:creator===null?null:creator/2,note:'Token holder rewards'});
- rows.push({key:'stakers',label:'Stakers',percent:active===null?null:active?30:0,note:config.stakingEnabled?'STOCK staking rewards':'Staking disabled'});
+ if(config.phase===1)rows.push({key:'stakers',label:'Stakers',percent:active===null?null:active?30:0,note:config.stakingEnabled?'STOCK staking rewards':'Staking disabled'});
  rows.push({key:'platform',label:'Platform',percent:30,note:'Supports TickerGarden'});return rows;
 }

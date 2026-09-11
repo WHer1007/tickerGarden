@@ -71,21 +71,17 @@ contract MemeStockGauge is MemeStockGaugeForfeitures {
 
     function rageQuit(address user)
         external
-        returns (uint256 principal, uint256 quoteForfeited, uint256 memeForfeited, bool redistributed)
+        returns (uint256 principal, uint256 quoteForfeited, uint256 memeForfeited)
     {
         GaugeIdentity memory identity = MemeStockGaugeClone.read(address(this));
         if (msg.sender != identity.allocationManager) {
             revert UnauthorizedAllocationModule(msg.sender, identity.allocationManager);
         }
-        (
-            uint256 expectedPrincipal,
-            uint256 quoteAccumulatorCutoff,
-            uint256 memeAccumulatorCutoff,
-            /* forfeitureRedistributable */
-        ) = IAllocationManager(identity.allocationManager).rageQuitRewardCutoff(identity.marketId, user);
+        (uint256 expectedPrincipal, uint256 quoteAccumulatorCutoff, uint256 memeAccumulatorCutoff) =
+            IAllocationManager(identity.allocationManager).rageQuitRewardCutoff(identity.marketId, user);
         uint256 priorDeferredQuote = _deferredQuoteForfeiture;
         uint256 priorDeferredMeme = _deferredMemeForfeiture;
-        (principal, quoteForfeited, memeForfeited, redistributed) = _rageQuitPosition(
+        (principal, quoteForfeited, memeForfeited) = _rageQuitPosition(
             user,
             RageQuitContext({
                 marketId: identity.marketId,
@@ -152,30 +148,27 @@ contract MemeStockGauge is MemeStockGaugeForfeitures {
         return _applyStakerFee(rewardIndex, feeAsset, amount, feeId, identity.marketId);
     }
 
-    /// @notice Vault-only denomination change preserves the user, fractional carry, and lock.
-    function consumeForConversion(address user, uint256 maximum) external returns (uint256 amount) {
-        GaugeIdentity memory identity = MemeStockGaugeClone.read(address(this));
-        if (msg.sender != identity.protocolFeeVault) {
-            revert UnauthorizedFeeVault(msg.sender, identity.protocolFeeVault);
-        }
-        _requireNoRageQuitSettlement(identity, user);
-        _settlePosition(user, identity.marketId);
-        GaugeUserReward storage reward = _gaugePositions[user].rewards[MEME_REWARD_INDEX];
-        amount = reward.pendingFee < maximum ? reward.pendingFee : maximum;
-        reward.pendingFee -= amount;
-    }
+    /// @notice Vault-only restoration of the same user's retained Meme rewards.
 
-    function creditConversion(address user, uint256 memeRefund, uint256 quoteAmount) external {
+    function restoreUserMemeRewards(address user, uint256 memeRefund) external {
         GaugeIdentity memory identity = MemeStockGaugeClone.read(address(this));
         if (msg.sender != identity.protocolFeeVault) {
             revert UnauthorizedFeeVault(msg.sender, identity.protocolFeeVault);
         }
         _requireNoRageQuitSettlement(identity, user);
         _gaugePositions[user].rewards[MEME_REWARD_INDEX].pendingFee += memeRefund;
-        _gaugePositions[user].rewards[QUOTE_REWARD_INDEX].pendingFee += quoteAmount;
     }
 
-    function consumeClaimable(address user, address feeAsset) external returns (uint256 amount) {
+    function consumeClaimable(address user) external returns (uint256 quote, uint256 meme) {
+        return _consumeClaimableAssets(user, 3);
+    }
+
+    function consumeClaimableAssets(address user, uint8 assets) external returns (uint256 quote, uint256 meme) {
+        return _consumeClaimableAssets(user, assets);
+    }
+
+    function _consumeClaimableAssets(address user, uint8 assets) private returns (uint256 quote, uint256 meme) {
+        if (assets == 0 || assets > 3) revert InvalidRewardIndex(assets);
         GaugeIdentity memory identity = MemeStockGaugeClone.read(address(this));
         if (msg.sender != identity.protocolFeeVault) {
             revert UnauthorizedFeeVault(msg.sender, identity.protocolFeeVault);
@@ -187,7 +180,8 @@ contract MemeStockGauge is MemeStockGaugeForfeitures {
             if (block.timestamp < position.unlockAt) revert PositionLockedUntil(position.unlockAt);
         }
         _settlePosition(user, identity.marketId);
-        return _consumeClaimable(user, _rewardIndex(feeAsset, identity));
+        if (assets & 1 != 0) quote = _consumeClaimable(user, QUOTE_REWARD_INDEX);
+        if (assets & 2 != 0) meme = _consumeClaimable(user, MEME_REWARD_INDEX);
     }
 
     function _requireNoRageQuitSettlement(GaugeIdentity memory identity, address user) private view {
@@ -203,7 +197,7 @@ contract MemeStockGauge is MemeStockGaugeForfeitures {
     function positionOf(address user) external view returns (PositionView memory position) {
         GaugeIdentity memory identity = MemeStockGaugeClone.read(address(this));
         GaugePosition storage stored = _gaugePositions[user];
-        (uint256 rageQuitPrincipal, uint256 quoteAccumulatorCutoff, uint256 memeAccumulatorCutoff,) =
+        (uint256 rageQuitPrincipal, uint256 quoteAccumulatorCutoff, uint256 memeAccumulatorCutoff) =
             IAllocationManager(identity.allocationManager).rageQuitRewardCutoff(identity.marketId, user);
         uint256 quoteClaimable = rageQuitPrincipal == 0
             ? _previewClaimable(user, QUOTE_REWARD_INDEX)

@@ -31,7 +31,13 @@ export function createWalletPicker(actions: { connect(provider: InjectedProvider
   // Accessing localStorage itself may throw in privacy-restricted contexts.
   let storage: Pick<Storage, "getItem" | "setItem" | "removeItem">;
   try { storage = window.localStorage; } catch { storage = { getItem: () => null, setItem: () => {}, removeItem: () => {} }; }
-  const session = createWalletSession(storage, actions.restore);
+  const session = createWalletSession(storage, async (provider, current) => {
+    await actions.restore(provider, current);
+    // A silent restore may resolve without connecting (for example while the
+    // wallet is locked or exposes no accounts). Treat that as a failed
+    // attempt so a later provider announce can retry it.
+    if (current() && !actions.account()) throw new Error("Wallet account is not available");
+  });
   const discovered: Discovered[] = [];
   let pending = false;
   const dialog = document.createElement("dialog");
@@ -39,7 +45,7 @@ export function createWalletPicker(actions: { connect(provider: InjectedProvider
   dialog.setAttribute("aria-labelledby", "wallet-dialog-title");
   dialog.innerHTML = `<div class="wallet-dialog-head"><span class="wallet-dialog-kicker">YOUR GARDEN STARTS HERE</span><button type="button" class="wallet-close" aria-label="Close wallet chooser">×</button></div>
     <h2 id="wallet-dialog-title">Connect a wallet</h2>
-    <div class="wallet-current" hidden><span></span><button type="button">Disconnect</button></div>
+    <div class="wallet-current" hidden><div class="wallet-current-address"><span data-wallet-address></span><button type="button" class="wallet-copy" data-wallet-copy aria-label="Copy Wallet Address" title="Copy Wallet Address"><i class="ph ph-copy" aria-hidden="true"></i></button></div><button type="button" data-wallet-disconnect>Disconnect</button></div>
     <div class="wallet-options"></div><p class="wallet-picker-status" role="status" aria-live="polite"></p>
     <p class="wallet-dialog-foot">Use an installed browser wallet or open this site in your wallet’s browser. Connecting does not submit a transaction.</p>`;
   document.body.append(dialog);
@@ -47,11 +53,29 @@ export function createWalletPicker(actions: { connect(provider: InjectedProvider
   const status = dialog.querySelector<HTMLElement>(".wallet-picker-status")!;
   dialog.querySelector(".wallet-close")!.addEventListener("click", () => dialog.close());
   dialog.addEventListener("click", (event) => { if (event.target === dialog) { const r = dialog.getBoundingClientRect(); if (event.clientX < r.left || event.clientX > r.right || event.clientY < r.top || event.clientY > r.bottom) dialog.close(); } });
-  dialog.querySelector(".wallet-current button")!.addEventListener("click", () => { if (!pending) { actions.disconnect(); dialog.close(); } });
+  dialog.querySelector("[data-wallet-disconnect]")!.addEventListener("click", () => { if (!pending) { actions.disconnect(); dialog.close(); } });
+
+  dialog.querySelector<HTMLButtonElement>('[data-wallet-copy]')!.addEventListener('click',async(event)=>{
+    const account=actions.account();if(!account)return;
+    const button=event.currentTarget as HTMLButtonElement;button.disabled=true;
+    try{
+      await navigator.clipboard.writeText(account);
+      button.querySelector('i')?.classList.replace('ph-copy','ph-check');
+      status.textContent='Wallet Address Copied';
+      button.title='Address Copied';button.setAttribute('aria-label','Address Copied');
+      window.setTimeout(()=>{button.querySelector('i')?.classList.replace('ph-check','ph-copy');button.title='Copy Wallet Address';button.setAttribute('aria-label','Copy Wallet Address');button.disabled=false;},1800);
+    }catch{status.textContent='Unable To Copy Address';button.disabled=false;}
+  });
 
   function addWallet(entry: Discovered) {
     if (entry.rdns === "io.rabby") return;
-    if (discovered.some((item) => item.provider === entry.provider || item.uuid === entry.uuid)) return;
+    const existing = discovered.some((item) => item.provider === entry.provider || item.uuid === entry.uuid);
+    if (existing) {
+      // Providers may announce again after unlocking or switching chains.
+      // Re-run the guarded restore attempt without duplicating the row.
+      void session.discovered(entry.rdns, entry.provider);
+      return;
+    }
     discovered.push(entry);
     void session.discovered(entry.rdns, entry.provider);
     if (dialog.open && !pending) render();
@@ -114,8 +138,9 @@ export function createWalletPicker(actions: { connect(provider: InjectedProvider
     const account = actions.account();
     const current = dialog.querySelector<HTMLElement>(".wallet-current")!;
     current.hidden = !account;
-    current.querySelector("span")!.textContent = account ? `${account.slice(0, 6)}…${account.slice(-4)}` : "";
-    (current.querySelector("button") as HTMLButtonElement).disabled = pending;
+    current.querySelector("[data-wallet-address]")!.textContent = account ? `${account.slice(0, 12)}…${account.slice(-8)}` : "";
+    current.querySelector<HTMLElement>("[data-wallet-address]")!.title=account??"";
+    (current.querySelector("[data-wallet-disconnect]") as HTMLButtonElement).disabled = pending;
   }
   // Extensions may inject after the application has mounted.
   window.addEventListener("ethereum#initialized", legacyWallets);
@@ -123,6 +148,7 @@ export function createWalletPicker(actions: { connect(provider: InjectedProvider
   legacyWallets();
   return {
     forget() { session.forget(); },
+    refresh() { if(dialog.open) render(); },
     open() {
       status.textContent = pending ? "Continue in your wallet…" : "";
       window.dispatchEvent(new Event("eip6963:requestProvider"));

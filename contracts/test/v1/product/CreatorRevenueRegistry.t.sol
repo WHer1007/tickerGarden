@@ -248,7 +248,9 @@ contract CreatorRevenueRegistryTest is Test {
         assertEq(registry.pendingCreatorRevenueBeneficiary(MARKET_ID), THIRD_BENEFICIARY);
         vm.prank(NEW_BENEFICIARY);
         vm.expectRevert(
-            abi.encodeWithSelector(CreatorRevenueRegistry.UnauthorizedPendingBeneficiary.selector, NEW_BENEFICIARY, THIRD_BENEFICIARY)
+            abi.encodeWithSelector(
+                CreatorRevenueRegistry.UnauthorizedPendingBeneficiary.selector, NEW_BENEFICIARY, THIRD_BENEFICIARY
+            )
         );
         registry.acceptCreatorRevenueBeneficiary(MARKET_ID);
         assertEq(registry.currentCreatorEpoch(MARKET_ID), 1);
@@ -256,7 +258,9 @@ contract CreatorRevenueRegistryTest is Test {
 
         vm.prank(STRANGER);
         vm.expectRevert(
-            abi.encodeWithSelector(CreatorRevenueRegistry.UnauthorizedCurrentBeneficiary.selector, STRANGER, BENEFICIARY)
+            abi.encodeWithSelector(
+                CreatorRevenueRegistry.UnauthorizedCurrentBeneficiary.selector, STRANGER, BENEFICIARY
+            )
         );
         registry.cancelCreatorRevenueBeneficiaryTransfer(MARKET_ID);
         vm.prank(BENEFICIARY);

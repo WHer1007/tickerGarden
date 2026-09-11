@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"strconv"
-	"strings"
 	"testing"
 	"time"
 
@@ -35,27 +34,12 @@ func poststateBase(t *testing.T, op string) (*maintenanceFixture, chainrpc.Heade
 			}
 		}
 	}
-	if op == "treasury-activate" {
-		target = "0x" + strings.Repeat("8", 40)
-		var registry, factory string
-		for _, c := range base.manifest.Contracts {
-			if c.Module == "MarketRegistryV1" {
-				registry = c.Address
-			}
-			if c.Module == "TickerGardenFactoryV1" {
-				factory = c.Address
-			}
-		}
-		base.manifest.Contracts = append(base.manifest.Contracts, Contract{Module: "TreasuryDistributorV1", Address: target, RuntimeCodeHash: Hash([]byte{0})})
-		base.calls[factory+Hash([]byte("treasuryDistributor()"))[:10]] = addrWord(target)
-		base.calls[target+Hash([]byte("marketRegistry()"))[:10]] = addrWord(registry)
-	}
 	b.Timestamp = "0x" + strconv.FormatInt(time.Now().Unix(), 16)
 	return &maintenanceFixture{discoveryFixture: base, timestamp: b.Timestamp}, b, r, target
 }
 
 func TestObserveMaintenancePoststateOperations(t *testing.T) {
-	for _, op := range []string{"sweep", "flush-forfeiture", "settle-rage-quit", "treasury-activate"} {
+	for _, op := range []string{"sweep", "flush-forfeiture", "settle-rage-quit"} {
 		t.Run(op, func(t *testing.T) {
 			f, b, r, target := poststateBase(t, op)
 			key := func(sig, args string) string { return target + Hash([]byte(sig))[:10] + args }
@@ -66,8 +50,6 @@ func TestObserveMaintenancePoststateOperations(t *testing.T) {
 				f.calls[key("deferredForfeiture()", "")] = append(bytesWord("0"), bytesWord("0")...)
 			case "settle-rage-quit":
 				f.calls[key("rageQuitSettlementPending(bytes32,address)", r.MarketID[2:]+addressArgument(r.User))] = append(bytesWord("0"), bytesWord("0")...)
-			case "treasury-activate":
-				f.calls[key("market(bytes32)", r.MarketID[2:])] = append(append(append(addrWord("0x"+strings.Repeat("a", 40)), addrWord("0x"+strings.Repeat("d", 40))...), bytesWord("0")...), bytesWord("1")...)
 			}
 			got, err := ObserveMaintenancePoststate(context.Background(), f, f.manifest, b, r, target)
 			if err != nil || !got.Satisfied || got.Target != target {
@@ -108,7 +90,7 @@ func TestObserveMaintenancePoststateCheckpointAndFailures(t *testing.T) {
 }
 
 func TestMaintenancePoststateUnmetAndInvalidState(t *testing.T) {
-	for _, op := range []string{"flush-forfeiture", "settle-rage-quit", "treasury-activate"} {
+	for _, op := range []string{"flush-forfeiture", "settle-rage-quit"} {
 		f, b, r, target := poststateBase(t, op)
 		var sig, args string
 		var raw []byte
@@ -120,29 +102,12 @@ func TestMaintenancePoststateUnmetAndInvalidState(t *testing.T) {
 			sig = "rageQuitSettlementPending(bytes32,address)"
 			args = r.MarketID[2:] + addressArgument(r.User)
 			raw = append(bytesWord("1"), bytesWord("1")...)
-		case "treasury-activate":
-			sig = "market(bytes32)"
-			args = r.MarketID[2:]
-			raw = append(append(append(addrWord("0x"+strings.Repeat("a", 40)), addrWord("0x"+strings.Repeat("d", 40))...), bytesWord("0")...), bytesWord("0")...)
 		}
 		call := target + Hash([]byte(sig))[:10] + args
 		f.calls[call] = raw
 		got, e := ObserveMaintenancePoststate(context.Background(), f, f.manifest, b, r, target)
 		if e != nil || got.Satisfied {
 			t.Fatalf("%s unmet: %#v %v", op, got, e)
-		}
-		if op == "treasury-activate" {
-			timestamp, _ := b.Time()
-			f.calls[call] = append(append([]byte{}, raw[:96]...), bytesWord(strconv.FormatUint(timestamp+1, 16))...)
-			if _, e = ObserveMaintenancePoststate(context.Background(), f, f.manifest, b, r, target); e == nil {
-				t.Fatal("future activation accepted")
-			}
-			wrong := append([]byte{}, raw...)
-			wrong[31] ^= 1
-			f.calls[call] = wrong
-			if _, e = ObserveMaintenancePoststate(context.Background(), f, f.manifest, b, r, target); e == nil {
-				t.Fatal("wrong treasury token accepted")
-			}
 		}
 	}
 }

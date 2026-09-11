@@ -1,0 +1,7 @@
+<!doctype html><html><head><meta name="viewport" content="width=device-width,initial-scale=1"><link rel="stylesheet" href="/fonts.css"><link rel="stylesheet" href="/subpages.css"><link rel="stylesheet" href="/node_modules/@phosphor-icons/web/src/regular/style.css"></head><body><main style="padding:32px"><h1>Transaction Status Test Fixture</h1><p>Synthetic UI states only. No wallet or RPC requests.</p><button id="pending">Pending</button><button id="confirmed">Confirmed</button><button id="failed">Failed</button></main><script type="module">
+
+import {createTradeTransactionStatus} from '/src/ui/trade-transaction-status.ts';
+const status=createTradeTransactionStatus('https://example.invalid');
+for(const stage of ['pending','confirmed','failed'])document.getElementById(stage).onclick=()=>status.update({operationKey:'fixture-trade',stage,hash:'0x'+'1'.repeat(64)});
+document.getElementById('pending').click();
+</script></body></html>

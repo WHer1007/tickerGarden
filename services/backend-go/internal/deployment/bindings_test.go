@@ -58,6 +58,12 @@ func (f *bindingFixture) CallAt(ctx context.Context, a, data, h string) ([]byte,
 	if h != blockHash {
 		return nil, errors.New("unpinned call")
 	}
+	if strings.HasPrefix(data, Hash([]byte("userClaimMode()"))[:10]) {
+		if value, ok := f.calls[a+data]; ok {
+			return value, nil
+		}
+		return bytesWord(strings.TrimPrefix(userClaimModeV1, "0x")), nil
+	}
 	value, ok := f.calls[a+data]
 	if !ok {
 		return nil, errors.New("unexpected ABI call")

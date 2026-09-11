@@ -3,7 +3,8 @@ pragma solidity 0.8.26;
 
 import {Test} from "forge-std/Test.sol";
 
-import {IProtocolFeeVault, MarketConfig, MarketRuntime, MarketView} from "../../../src/v1/interfaces/IV1Protocol.sol";
+import {MarketConfig, MarketRuntime, MarketView} from "../../../src/v1/interfaces/IV1Protocol.sol";
+import {IProtocolFeeVault} from "../../../src/v1/interfaces/IV1Protocol.sol";
 import {ProtocolFeeVaultLiabilities} from "../../../src/v1/shared/ProtocolFeeVaultLiabilities.sol";
 import {ProtocolFeeVaultV4Credit} from "../../../src/v1/shared/ProtocolFeeVaultV4Credit.sol";
 import {
@@ -15,10 +16,7 @@ import {
 } from "../mocks/MockV1QuoteAssets.sol";
 
 interface ILiabilityClaimVault {
-    function claimCreator(bytes32, uint32, address) external returns (uint256);
     function claimPlatform(bytes32, address) external returns (uint256);
-    function claimStaker(bytes32, address) external returns (uint256);
-    function claimStakerFor(address, bytes32, address) external returns (uint256);
 }
 
 interface ILiabilityCurveCreditVault {
@@ -198,7 +196,7 @@ contract ProtocolFeeVaultLiabilitiesHarness is ProtocolFeeVaultLiabilities {
         _creditFeeLiabilities(marketId, creatorEpoch, feeAsset, amount, creatorAmount, stakerAmount, platformAmount);
     }
 
-    function _recordExactV4Credit(V4CreditRecord memory) internal pure override {}
+    function _recordExactV4Credit(V4CreditRecord memory, MarketView memory) internal pure override {}
 }
 
 contract ProtocolFeeVaultLiabilitiesTest is Test {
@@ -268,17 +266,6 @@ contract ProtocolFeeVaultLiabilitiesTest is Test {
         assertEq(meme.balanceOf(address(vault)), 75);
     }
 
-    function test_claimAndLiabilitySelectorsMatchCanonicalInterface() public pure {
-        assertEq(ProtocolFeeVaultLiabilities.claimCreator.selector, IProtocolFeeVault.claimCreator.selector);
-        assertEq(ProtocolFeeVaultLiabilities.claimPlatform.selector, IProtocolFeeVault.claimPlatform.selector);
-        assertEq(ProtocolFeeVaultLiabilities.claimStaker.selector, IProtocolFeeVault.claimStaker.selector);
-        assertEq(ProtocolFeeVaultLiabilities.claimStakerFor.selector, IProtocolFeeVault.claimStakerFor.selector);
-        assertEq(ProtocolFeeVaultLiabilities.liability.selector, IProtocolFeeVault.liability.selector);
-        assertEq(ProtocolFeeVaultLiabilities.creatorLiability.selector, IProtocolFeeVault.creatorLiability.selector);
-        assertEq(ProtocolFeeVaultLiabilities.totalLiability.selector, IProtocolFeeVault.totalLiability.selector);
-        assertEq(ProtocolFeeVaultLiabilities.consumedFeeId.selector, IProtocolFeeVault.consumedFeeId.selector);
-    }
-
     function test_curveCreditWritesEpochLiabilitiesAndConsumesCanonicalFeeId() public {
         uint32 sourceVersion = 7;
         LiabilityCurveSourceMock curve = new LiabilityCurveSourceMock();
@@ -311,70 +298,6 @@ contract ProtocolFeeVaultLiabilitiesTest is Test {
         assertEq(vault.liability(MARKET_ID, address(quote), 2), 24);
         assertEq(vault.totalLiability(address(quote)), 81);
         assertTrue(vault.consumedFeeId(feeId));
-    }
-
-    function test_disabledStakingCreatorAndPlatformCanClaimBothAssetsWithoutGauge() public {
-        registry.disableStaking(MARKET_ID);
-        address[2] memory assets = [address(quote), address(meme)];
-        for (uint256 i; i < assets.length; ++i) {
-            _fundAndCredit(assets[i], 100, 70, 0, 30, 1);
-            vm.prank(BOB);
-            assertEq(vault.claimCreator(MARKET_ID, 1, assets[i]), 70);
-            vm.prank(ALICE);
-            assertEq(vault.claimPlatform(MARKET_ID, assets[i]), 30);
-            assertEq(MockExactQuoteToken(assets[i]).balanceOf(CREATOR_ONE), 70);
-            assertEq(MockExactQuoteToken(assets[i]).balanceOf(address(treasury)), 30);
-            assertEq(vault.totalLiability(assets[i]), 0);
-            assertEq(vault.claimCreator(MARKET_ID, 1, assets[i]), 0);
-            assertEq(vault.claimPlatform(MARKET_ID, assets[i]), 0);
-            assertEq(MockExactQuoteToken(assets[i]).balanceOf(address(vault)), 0);
-        }
-    }
-
-    function test_disabledStakingNativeClaimsPayRecipientsAndClearLiabilities() public {
-        registry.configure(MARKET_ID, address(0), address(meme), address(0));
-        registry.disableStaking(MARKET_ID);
-        vm.deal(address(vault), 100);
-        vault.creditBuckets(MARKET_ID, 1, address(0), 100, 70, 0, 30);
-        uint256 creatorBefore = CREATOR_ONE.balance;
-        uint256 treasuryBefore = address(treasury).balance;
-        assertEq(vault.claimCreator(MARKET_ID, 1, address(0)), 70);
-        assertEq(vault.claimPlatform(MARKET_ID, address(0)), 30);
-        assertEq(CREATOR_ONE.balance, creatorBefore + 70);
-        assertEq(address(treasury).balance, treasuryBefore + 30);
-        assertEq(vault.totalLiability(address(0)), 0);
-        assertEq(vault.claimCreator(MARKET_ID, 1, address(0)), 0);
-        assertEq(vault.claimPlatform(MARKET_ID, address(0)), 0);
-    }
-
-    function test_disabledStakingRejectsBothStakerClaimEntrypoints() public {
-        registry.disableStaking(MARKET_ID);
-        vm.expectRevert(abi.encodeWithSelector(ProtocolFeeVaultLiabilities.InvalidFeeMarket.selector, MARKET_ID));
-        vault.claimStaker(MARKET_ID, address(quote));
-        vm.expectRevert(abi.encodeWithSelector(ProtocolFeeVaultLiabilities.InvalidFeeMarket.selector, MARKET_ID));
-        vault.claimStakerFor(ALICE, MARKET_ID, address(quote));
-    }
-
-    function test_enabledStakingWithoutGaugeStillRejectsFeeClaims() public {
-        registry.configure(MARKET_ID, address(quote), address(meme), address(0));
-        vm.expectRevert(abi.encodeWithSelector(ProtocolFeeVaultLiabilities.InvalidFeeMarket.selector, MARKET_ID));
-        vault.claimCreator(MARKET_ID, 1, address(quote));
-    }
-
-    function test_creatorClaimIsPermissionlessButPaysHistoricalEpochBeneficiary() public {
-        _fundAndCredit(address(quote), 80, 40, 0, 40, 1);
-        vm.expectEmit(true, true, true, true, address(vault));
-        emit FeeClaimed(0, CREATOR_ONE, MARKET_ID, 1, address(quote), 40);
-        vm.prank(BOB);
-        uint256 amount = vault.claimCreator(MARKET_ID, 1, address(quote));
-
-        assertEq(amount, 40);
-        assertEq(quote.balanceOf(CREATOR_ONE), 40);
-        assertEq(quote.balanceOf(BOB), 0);
-        assertEq(quote.balanceOf(CREATOR_TWO), 0);
-        assertEq(vault.creatorLiability(MARKET_ID, 1, address(quote)), 0);
-        assertEq(vault.liability(MARKET_ID, address(quote), 0), 0);
-        assertEq(vault.totalLiability(address(quote)), 40);
     }
 
     function test_platformClaimAlwaysPaysImmutableTreasury() public {
@@ -411,49 +334,6 @@ contract ProtocolFeeVaultLiabilitiesTest is Test {
         assertEq(meme.balanceOf(address(treasury)), 11);
     }
 
-    function test_stakerClaimsConsumeOnlySelectedAssetAndAlwaysPayFixedUser() public {
-        _fundAndCredit(address(quote), 60, 20, 20, 20, 1);
-        _fundAndCredit(address(meme), 60, 20, 20, 20, 1);
-        gauge.setClaimable(ALICE, address(quote), 13);
-        gauge.setClaimable(ALICE, address(meme), 17);
-
-        vm.prank(BOB);
-        uint256 quoteAmount = vault.claimStakerFor(ALICE, MARKET_ID, address(quote));
-        assertEq(quoteAmount, 13);
-        assertEq(quote.balanceOf(ALICE), 13);
-        assertEq(quote.balanceOf(BOB), 0);
-        assertEq(gauge.claimable(ALICE, address(meme)), 17);
-        assertEq(vault.liability(MARKET_ID, address(quote), 1), 7);
-        assertEq(vault.liability(MARKET_ID, address(meme), 1), 20);
-
-        vm.prank(ALICE);
-        uint256 memeAmount = vault.claimStaker(MARKET_ID, address(meme));
-        assertEq(memeAmount, 17);
-        assertEq(meme.balanceOf(ALICE), 17);
-        assertEq(vault.liability(MARKET_ID, address(meme), 1), 3);
-    }
-
-    function test_lockedClaimAndClaimForAreRejectedByGauge() public {
-        _fundAndCredit(address(quote), 20, 0, 20, 0, 1);
-        gauge.setClaimable(ALICE, address(quote), 7);
-        gauge.setUnlockAt(ALICE, uint64(block.timestamp + 1 days));
-
-        vm.expectRevert(bytes("POSITION_LOCKED"));
-        vm.prank(ALICE);
-        vault.claimStaker(MARKET_ID, address(quote));
-        vm.expectRevert(bytes("POSITION_LOCKED"));
-        vault.claimStakerFor(ALICE, MARKET_ID, address(quote));
-        assertEq(vault.liability(MARKET_ID, address(quote), 1), 20);
-        assertEq(gauge.claimable(ALICE, address(quote)), 7);
-    }
-
-    function test_zeroClaimsReturnWithoutMovingOtherBuckets() public {
-        _fundAndCredit(address(quote), 80, 40, 0, 40, 1);
-        assertEq(vault.claimStakerFor(ALICE, MARKET_ID, address(quote)), 0);
-        assertEq(vault.claimCreator(MARKET_ID, 2, address(quote)), 0);
-        assertEq(vault.totalLiability(address(quote)), 80);
-    }
-
     function test_pendingV4CreditBlocksClaimsUntilTheAtomicCreditFinishes() public {
         registry.configureV4(MARKET_ID, address(quote), address(meme), address(gauge), address(this), 1);
         bytes32 feeId = keccak256("pending-v4");
@@ -463,20 +343,6 @@ contract ProtocolFeeVaultLiabilitiesTest is Test {
             abi.encodeWithSelector(ProtocolFeeVaultV4Credit.FeeCreditNotPrepared.selector, bytes32("CLAIM_PLATFORM"))
         );
         vault.claimPlatform(MARKET_ID, address(quote));
-    }
-
-    function test_invalidMarketAssetBucketEpochAndUserFailClosed() public {
-        MockExactQuoteToken third = new MockExactQuoteToken(8);
-        vm.expectRevert(abi.encodeWithSelector(ProtocolFeeVaultLiabilities.InvalidFeeMarket.selector, OTHER_MARKET_ID));
-        vault.claimPlatform(OTHER_MARKET_ID, address(0));
-        vm.expectRevert(abi.encodeWithSelector(ProtocolFeeVaultV4Credit.FeeAssetNotCanonical.selector, address(third)));
-        vault.claimPlatform(MARKET_ID, address(third));
-        vm.expectRevert(abi.encodeWithSelector(ProtocolFeeVaultLiabilities.InvalidBucketType.selector, uint8(4)));
-        vault.liability(MARKET_ID, address(quote), 4);
-        vm.expectRevert(abi.encodeWithSelector(ProtocolFeeVaultLiabilities.InvalidFeeBeneficiary.selector, address(0)));
-        vault.claimCreator(MARKET_ID, 0, address(quote));
-        vm.expectRevert(abi.encodeWithSelector(ProtocolFeeVaultLiabilities.InvalidFeeBeneficiary.selector, address(0)));
-        vault.claimStakerFor(address(0), MARKET_ID, address(quote));
     }
 
     function test_creditRejectsNonConservationAndInsolvencyWithoutPartialLiability() public {
@@ -505,55 +371,6 @@ contract ProtocolFeeVaultLiabilitiesTest is Test {
         assertEq(vault.totalLiability(address(rebasing)), 80);
     }
 
-    function test_gaugeOverconsumeOrFailureRollsBackGaugeAndLiability() public {
-        _fundAndCredit(address(quote), 20, 0, 20, 0, 1);
-        gauge.setClaimable(ALICE, address(quote), 21);
-        vm.expectRevert(
-            abi.encodeWithSelector(
-                ProtocolFeeVaultLiabilities.InsufficientStakerLiability.selector, MARKET_ID, address(quote), 20, 21
-            )
-        );
-        vault.claimStakerFor(ALICE, MARKET_ID, address(quote));
-        assertEq(gauge.claimable(ALICE, address(quote)), 21);
-        assertEq(vault.liability(MARKET_ID, address(quote), 1), 20);
-
-        gauge.setRejectConsume(true);
-        vm.expectRevert("GAUGE_REJECTED");
-        vault.claimStakerFor(ALICE, MARKET_ID, address(quote));
-        assertEq(vault.liability(MARKET_ID, address(quote), 1), 20);
-    }
-
-    function test_erc20TransferFailureRollsBackClaimAndLiabilities() public {
-        LiabilityFalseTransferToken failing = new LiabilityFalseTransferToken();
-        registry.configure(MARKET_ID, address(failing), address(meme), address(gauge));
-        failing.mint(address(vault), 80);
-        vault.creditBuckets(MARKET_ID, 1, address(failing), 80, 40, 0, 40);
-
-        vm.expectRevert();
-        vault.claimCreator(MARKET_ID, 1, address(failing));
-        assertEq(vault.creatorLiability(MARKET_ID, 1, address(failing)), 40);
-        assertEq(vault.totalLiability(address(failing)), 80);
-        assertEq(failing.balanceOf(address(vault)), 80);
-    }
-
-    function test_feeOnTransferCreatorPaymentRevertsAndRollsBackEveryStateChange() public {
-        MockFeeOnTransferQuoteToken feeToken = new MockFeeOnTransferQuoteToken(18, 1_000);
-        registry.configure(MARKET_ID, address(feeToken), address(meme), address(gauge));
-        feeToken.mint(address(vault), 100);
-        vault.creditBuckets(MARKET_ID, 1, address(feeToken), 100, 40, 20, 40);
-
-        vm.expectRevert();
-        vault.claimCreator(MARKET_ID, 1, address(feeToken));
-
-        assertEq(feeToken.balanceOf(address(vault)), 100);
-        assertEq(feeToken.balanceOf(CREATOR_ONE), 0);
-        assertEq(vault.creatorLiability(MARKET_ID, 1, address(feeToken)), 40);
-        assertEq(vault.liability(MARKET_ID, address(feeToken), 0), 40);
-        assertEq(vault.liability(MARKET_ID, address(feeToken), 1), 20);
-        assertEq(vault.liability(MARKET_ID, address(feeToken), 2), 40);
-        assertEq(vault.totalLiability(address(feeToken)), 100);
-    }
-
     function test_feeOnTransferPlatformPaymentRevertsAndRollsBackEveryStateChange() public {
         MockFeeOnTransferQuoteToken feeToken = new MockFeeOnTransferQuoteToken(18, 1_000);
         registry.configure(MARKET_ID, address(feeToken), address(meme), address(gauge));
@@ -570,102 +387,6 @@ contract ProtocolFeeVaultLiabilitiesTest is Test {
         assertEq(vault.liability(MARKET_ID, address(feeToken), 1), 20);
         assertEq(vault.liability(MARKET_ID, address(feeToken), 2), 40);
         assertEq(vault.totalLiability(address(feeToken)), 100);
-    }
-
-    function test_feeOnTransferStakerPaymentRevertsAndRollsBackGaugeAndLiabilities() public {
-        MockFeeOnTransferQuoteToken feeToken = new MockFeeOnTransferQuoteToken(18, 1_000);
-        registry.configure(MARKET_ID, address(feeToken), address(meme), address(gauge));
-        feeToken.mint(address(vault), 100);
-        vault.creditBuckets(MARKET_ID, 1, address(feeToken), 100, 40, 20, 40);
-        gauge.setClaimable(ALICE, address(feeToken), 20);
-
-        vm.expectRevert();
-        vault.claimStakerFor(ALICE, MARKET_ID, address(feeToken));
-
-        assertEq(feeToken.balanceOf(address(vault)), 100);
-        assertEq(feeToken.balanceOf(ALICE), 0);
-        assertEq(gauge.claimable(ALICE, address(feeToken)), 20);
-        assertEq(vault.creatorLiability(MARKET_ID, 1, address(feeToken)), 40);
-        assertEq(vault.liability(MARKET_ID, address(feeToken), 0), 40);
-        assertEq(vault.liability(MARKET_ID, address(feeToken), 1), 20);
-        assertEq(vault.liability(MARKET_ID, address(feeToken), 2), 40);
-        assertEq(vault.totalLiability(address(feeToken)), 100);
-    }
-
-    function test_exactErc20PaymentsDecreaseVaultAndIncreaseBeneficiaryByClaimedAmount() public {
-        uint256 creatorAmount = 20;
-        uint256 platformAmount = 30;
-        uint256 stakerAmount = 50;
-        MockExactQuoteToken exactToken = new MockExactQuoteToken(18);
-        registry.configure(MARKET_ID, address(exactToken), address(meme), address(gauge));
-        exactToken.mint(address(vault), creatorAmount + platformAmount + stakerAmount);
-        vault.creditBuckets(
-            MARKET_ID,
-            1,
-            address(exactToken),
-            creatorAmount + platformAmount + stakerAmount,
-            creatorAmount,
-            stakerAmount,
-            platformAmount
-        );
-        gauge.setClaimable(ALICE, address(exactToken), stakerAmount);
-
-        uint256 vaultBefore = exactToken.balanceOf(address(vault));
-        uint256 creatorBefore = exactToken.balanceOf(CREATOR_ONE);
-        assertEq(vault.claimCreator(MARKET_ID, 1, address(exactToken)), creatorAmount);
-        assertEq(vaultBefore - exactToken.balanceOf(address(vault)), creatorAmount);
-        assertEq(exactToken.balanceOf(CREATOR_ONE) - creatorBefore, creatorAmount);
-
-        vaultBefore = exactToken.balanceOf(address(vault));
-        uint256 treasuryBefore = exactToken.balanceOf(address(treasury));
-        assertEq(vault.claimPlatform(MARKET_ID, address(exactToken)), platformAmount);
-        assertEq(vaultBefore - exactToken.balanceOf(address(vault)), platformAmount);
-        assertEq(exactToken.balanceOf(address(treasury)) - treasuryBefore, platformAmount);
-
-        vaultBefore = exactToken.balanceOf(address(vault));
-        uint256 stakerBefore = exactToken.balanceOf(ALICE);
-        assertEq(vault.claimStakerFor(ALICE, MARKET_ID, address(exactToken)), stakerAmount);
-        assertEq(vaultBefore - exactToken.balanceOf(address(vault)), stakerAmount);
-        assertEq(exactToken.balanceOf(ALICE) - stakerBefore, stakerAmount);
-        assertEq(vault.totalLiability(address(exactToken)), 0);
-    }
-
-    function test_rejectedNativeClaimDoesNotBlockSameEpochErc20Claim() public {
-        LiabilityRejectingBeneficiary rejecting = new LiabilityRejectingBeneficiary();
-        creatorRegistry.setEpoch(MARKET_ID, 1, address(rejecting));
-        registry.configure(MARKET_ID, address(0), address(meme), address(gauge));
-        vm.deal(address(vault), 80);
-        vault.creditBuckets(MARKET_ID, 1, address(0), 80, 40, 0, 40);
-        meme.mint(address(vault), 80);
-        vault.creditBuckets(MARKET_ID, 1, address(meme), 80, 40, 0, 40);
-
-        vm.expectRevert(
-            abi.encodeWithSelector(
-                ProtocolFeeVaultLiabilities.NativeFeeClaimFailed.selector, address(rejecting), uint256(40)
-            )
-        );
-        vault.claimCreator(MARKET_ID, 1, address(0));
-        assertEq(vault.creatorLiability(MARKET_ID, 1, address(0)), 40);
-
-        assertEq(vault.claimCreator(MARKET_ID, 1, address(meme)), 40);
-        assertEq(meme.balanceOf(address(rejecting)), 40);
-        assertEq(vault.creatorLiability(MARKET_ID, 1, address(meme)), 0);
-    }
-
-    function test_transferCallbackCannotReenterAnotherBucketClaim() public {
-        MockCallbackQuoteToken callbackToken = new MockCallbackQuoteToken(18);
-        registry.configure(MARKET_ID, address(callbackToken), address(meme), address(gauge));
-        LiabilityReentrantBeneficiary beneficiary =
-            new LiabilityReentrantBeneficiary(ILiabilityClaimVault(address(vault)), MARKET_ID, address(callbackToken));
-        creatorRegistry.setEpoch(MARKET_ID, 1, address(beneficiary));
-        callbackToken.mint(address(vault), 80);
-        vault.creditBuckets(MARKET_ID, 1, address(callbackToken), 80, 40, 0, 40);
-        callbackToken.setCallbackEnabled(true);
-
-        assertEq(vault.claimCreator(MARKET_ID, 1, address(callbackToken)), 40);
-        assertTrue(beneficiary.reentryBlocked());
-        assertEq(vault.liability(MARKET_ID, address(callbackToken), 2), 40);
-        assertEq(callbackToken.balanceOf(address(treasury)), 0);
     }
 
     function test_constructorRejectsInvalidTreasuryAliases() public {

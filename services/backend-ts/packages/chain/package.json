@@ -1,0 +1,12 @@
+{
+  "name": "@tickergarden/chain",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": "./src/index.ts",
+  "dependencies": {
+    "@tickergarden/db": "0.0.0",
+    "pg": "^8.23.0",
+    "viem": "2.56.3"
+  }
+}

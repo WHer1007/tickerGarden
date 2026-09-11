@@ -69,3 +69,21 @@ test("provider rejection and unavailable storage are nonfatal", async () => {
   await session.discovered("io.metamask", provider());
   session.forget();
 });
+
+test("a failed restore can retry after the provider announces again without duplicate in-flight restores", async () => {
+  let attempts = 0;
+  const session = createWalletSession(storage(), async () => {
+    attempts++;
+    await Promise.resolve();
+    if (attempts === 1) throw Error("temporarily locked");
+  });
+  session.remember("io.metamask");
+  const p = provider();
+  const first = session.discovered("io.metamask", p);
+  const duplicate = session.discovered("io.metamask", p);
+  await Promise.all([first, duplicate]);
+  assert.equal(attempts, 1);
+  await session.discovered("io.metamask", p);
+  await session.discovered("io.metamask", p);
+  assert.equal(attempts, 2);
+});

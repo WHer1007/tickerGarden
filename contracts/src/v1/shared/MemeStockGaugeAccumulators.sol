@@ -163,16 +163,6 @@ abstract contract MemeStockGaugeAccumulators is MemeStockGaugeLockedPositions {
         reward.pendingFee = 0;
     }
 
-    function _rewardState(uint8 rewardIndex) internal view returns (GaugeRewardState memory) {
-        _requireRewardIndex(rewardIndex);
-        return _rewardStates[rewardIndex];
-    }
-
-    function _claimable(address user, uint8 rewardIndex) internal view returns (uint256) {
-        _requireRewardIndex(rewardIndex);
-        return _gaugePositions[user].rewards[rewardIndex].pendingFee;
-    }
-
     function _requireRewardIndex(uint8 rewardIndex) private pure {
         if (rewardIndex >= REWARD_ASSET_COUNT) revert InvalidRewardIndex(rewardIndex);
     }

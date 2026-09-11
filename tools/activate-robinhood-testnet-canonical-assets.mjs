@@ -1,4 +1,5 @@
 import fs from 'node:fs';
+import {requireAssetRiskReview} from './asset-risk-review.mjs';
 import { createHash } from 'node:crypto';
 import {
   createPublicClient, createWalletClient, defineChain, encodeAbiParameters, encodeFunctionData,
@@ -11,6 +12,7 @@ if (!['plan', 'audit', 'execute', 'verify'].includes(mode)) throw Error('usage: 
 const root = new URL('../', import.meta.url).pathname;
 const releaseId = process.env.TG_RH_RELEASE_ID ?? '0x7b2614a529d1d3a06e8826cf38329e211f134c69200acda3b9ced5d4791b4df0';
 const dir = `${root}deployments/releases/${releaseId}`;
+const reviewPath = `${root}config/asset-risk-reviews.json`;
 const paths = {
   plan: `${dir}/canonical-asset-activation-plan.json`, audit: `${dir}/canonical-asset-activation-audit.json`,
   activation: `${dir}/canonical-asset-activation.json`, evidence: `${dir}/canonical-test-assets.json`,
@@ -104,8 +106,18 @@ const erc20ConfigId = quote => keccak256(encodeAbiParameters([
   { type: 'bytes32' }, { type: 'uint256' }, { type: 'uint256' }, { type: 'bytes32' }, { type: 'address' }, { type: 'uint8' }, { type: 'uint256' }, { type: 'uint256' },
 ], [hashText('TICKERGARDEN_V1_QUOTE_ECONOMICS'), 1n, 46630n, coreActivation.baselineId, quote.address, quote.decimals, quote.phantomQuote, quote.graduationThreshold]));
 
+function reviewedAssets(observed) {
+  const reviews=JSON.parse(fs.readFileSync(reviewPath));
+  const stocks=observed.stocks.map(stock=>{
+    const review=requireAssetRiskReview(reviews,{...stock,chainId:46630,roles:['staking','quote']});
+    return {...stock,minimumAllocation:BigInt(review.minimumAllocationRaw)};
+  });
+  if (!stocksOnly) requireAssetRiskReview(reviews,{...observed.usdG,chainId:46630,roles:['quote']});
+  return {...observed,stocks};
+}
+
 async function buildPlan() {
-  const observed = await observe();
+  const observed = reviewedAssets(await observe());
   const nonce = await client.getTransactionCount({ address: release.deployer, blockTag: 'pending' });
   const referenceEvidenceHash = keccak256(encodeAbiParameters([{ type: 'bytes32' }, { type: 'uint256' }, { type: 'address' }, { type: 'bytes32' }], [hashText('TICKERGARDEN_RH_TESTNET_CANONICAL_FAUCET_EVIDENCE'), 46630n, faucet, observed.block.hash]));
   const generatorPolicyId = hashText('TICKERGARDEN_RH_TESTNET_CANONICAL_ASSET_CONFIG_V1');
@@ -113,8 +125,8 @@ async function buildPlan() {
   const stocks = observed.stocks.map(stock => {
     const binding = { assetUid: stock.uid, stockTokenFingerprintHash: fingerprintHash(stock), referenceEvidenceHash, generatorPolicyId };
     const configId = stockConfigId(stock, binding);
-    transactions.push({ id: `register-${stock.symbol.toLowerCase()}-staking`, to: components.OfficialStockRegistryV1, data: encodeFunctionData({ abi: stockAbi, functionName: 'registerAsset', args: [stock.uid, stock.address, stock.decimals, components.UserStockVault, 10n ** 18n, stock.fingerprint] }), value: '0' });
-    return { ...stock, minimumAllocation: 10n ** 18n, binding, configId };
+    transactions.push({ id: `register-${stock.symbol.toLowerCase()}-staking`, to: components.OfficialStockRegistryV1, data: encodeFunctionData({ abi: stockAbi, functionName: 'registerAsset', args: [stock.uid, stock.address, stock.decimals, components.UserStockVault, stock.minimumAllocation, stock.fingerprint] }), value: '0' });
+    return { ...stock, minimumAllocation: stock.minimumAllocation, binding, configId };
   });
   const usdConfigId = stocksOnly ? null : erc20ConfigId(observed.usdG);
   if (!stocksOnly) transactions.push({ id: 'add-usdg-quote', to: components.ApprovedQuoteRegistry, data: encodeFunctionData({ abi: quoteAbi, functionName: 'addQuoteConfig', args: [usdConfigId, { tickerGardenBaselineId: coreActivation.baselineId, quoteAsset: observed.usdG.address, quoteDecimals: observed.usdG.decimals, phantomQuote: observed.usdG.phantomQuote, graduationThreshold: observed.usdG.graduationThreshold, economicsHash: usdConfigId, status: 1 }] }), value: '0' });
@@ -122,13 +134,15 @@ async function buildPlan() {
   transactions.forEach((tx, i) => { tx.nonce = nonce + i; tx.inputHash = keccak256(tx.data); });
   const evidence = { schemaVersion: 1, status: 'OBSERVED_CANONICAL_TEST_ASSETS', chainId: 46630, auditBlock: observed.block, wallet: release.deployer, walletBalances: { officialUsdG: observed.usdG?.deployerBalance, officialStocks: stocks.map(stock => ({ symbol: stock.symbol, address: stock.address, balanceRaw: stock.deployerBalance })) }, sources: { paxosUsdG: 'https://docs.paxos.com/guides/stablecoin/usdg/testnet', robinhoodExplorer: 'https://explorer.testnet.chain.robinhood.com', canonicalFaucet: faucet }, faucetTokenList: observed.faucetList, usdG: observed.usdG, stocks };
   write(paths.evidence, evidence);
-  const plan = { schemaVersion: 1, status: 'PLANNED_FOR_REVIEW', scope: 'ROBINHOOD_TESTNET_CANONICAL_ASSETS', chainId: 46630, releaseId, deployer: release.deployer, auditBlock: observed.block, expiresAtUnix: Number(observed.block.timestamp) + 86_400, baselineId: coreActivation.baselineId, usdG: { ...observed.usdG, configId: usdConfigId }, stocks, transactions, sourceHashes: { evidence: sha256(paths.evidence), releaseStatus: sha256(`${dir}/release-status.json`) }, limits: { perTransactionMaximumWei: '5000000000000000', totalMaximumWei: '30000000000000000' }, limitations: ['Canonical testnet addresses are pinned to the Paxos USDG documentation and the onchain RH testnet faucet list.', 'The deployer currently has zero canonical USDG balance; quote admission does not mint or transfer USDG.', 'NVDA and AAPL are absent from the canonical faucet list observed at the audit block and are excluded.'] };
+  const plan = { schemaVersion: 1, status: 'PLANNED_FOR_REVIEW', scope: 'ROBINHOOD_TESTNET_CANONICAL_ASSETS', chainId: 46630, releaseId, deployer: release.deployer, auditBlock: observed.block, expiresAtUnix: Number(observed.block.timestamp) + 86_400, baselineId: coreActivation.baselineId, usdG: { ...observed.usdG, configId: usdConfigId }, stocks, transactions, sourceHashes: { assetRiskReviews: sha256(reviewPath), evidence: sha256(paths.evidence), releaseStatus: sha256(`${dir}/release-status.json`) }, limits: { perTransactionMaximumWei: '5000000000000000', totalMaximumWei: '30000000000000000' }, limitations: ['Canonical testnet addresses are pinned to the Paxos USDG documentation and the onchain RH testnet faucet list.', 'The deployer currently has zero canonical USDG balance; quote admission does not mint or transfer USDG.', 'NVDA and AAPL are absent from the canonical faucet list observed at the audit block and are excluded.'] };
   write(paths.plan, plan);
   console.log(JSON.stringify({ status: plan.status, assets: [...(stocksOnly ? [] : ['USDG']), ...stocks.map(row => row.symbol)], transactions: transactions.length, officialUsdGBalance: observed.usdG?.deployerBalance }));
 }
 
 async function auditPlan() {
   const plan = JSON.parse(fs.readFileSync(paths.plan));
+  ensure(plan.sourceHashes.assetRiskReviews === sha256(reviewPath), 'Asset reviews changed; regenerate the admission plan');
+  reviewedAssets(plan);
   ensure(plan.status === 'PLANNED_FOR_REVIEW' && plan.scope === 'ROBINHOOD_TESTNET_CANONICAL_ASSETS' && plan.sourceHashes.evidence === sha256(paths.evidence), 'Invalid or changed plan');
   ensure(Date.now() / 1000 <= plan.expiresAtUnix && plan.transactions.length === (stocksOnly ? 10 : 11) && plan.stocks.length === 5, 'Plan expired or wrong scope');
   for (const stock of plan.stocks) {
@@ -157,6 +171,8 @@ async function auditPlan() {
 async function executePlan() {
   const plan = JSON.parse(fs.readFileSync(paths.plan)); const audit = JSON.parse(fs.readFileSync(paths.audit));
   ensure(audit.status === 'APPROVED_FOR_CANONICAL_TEST_ASSET_ACTIVATION' && audit.planSha256 === sha256(paths.plan) && Date.now() / 1000 <= audit.expiresAtUnix, 'Plan is not approved or expired');
+  ensure(plan.sourceHashes.assetRiskReviews === sha256(reviewPath), 'Asset reviews changed; regenerate the admission plan');
+  reviewedAssets(plan);
   const walletPath = '/Users/dear/.config/tickergarden/testnet-wallets/arbitrum-sepolia.json'; const stat = fs.lstatSync(walletPath); ensure(!stat.isSymbolicLink() && (stat.mode & 0o077) === 0, 'Wallet file permissions are unsafe');
   const account = privateKeyToAccount(JSON.parse(fs.readFileSync(walletPath)).privateKey); ensure(same(account.address, release.deployer), 'Wrong signer');
   const wallet = createWalletClient({ account, chain, transport: http(rpc, { timeout: 30_000 }) });

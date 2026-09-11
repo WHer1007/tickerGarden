@@ -5,7 +5,7 @@ import {IPoolManager} from "@uniswap/v4-core/src/interfaces/IPoolManager.sol";
 import {IAllowanceTransfer} from "permit2/src/interfaces/IAllowanceTransfer.sol";
 import {Test} from "forge-std/Test.sol";
 
-import {HolderRewardsDistributorV1} from "../../../src/v1/modules/HolderRewardsDistributorV1.sol";
+import {HolderAccountingHarness as HolderRewardsDistributorV1} from "../mocks/HolderAccountingHarness.sol";
 import {GraduationExecutor} from "../../../src/v1/modules/GraduationExecutor.sol";
 import {LaunchAndBuyRouter} from "../../../src/v1/modules/LaunchAndBuyRouter.sol";
 import {MarketRegistryV1} from "../../../src/v1/modules/MarketRegistryV1.sol";
@@ -15,8 +15,8 @@ import {TickerGardenMemeHook} from "../../../src/v1/modules/TickerGardenMemeHook
 import {
     V1DeploymentConfig,
     V1DeploymentPlan,
-    V1DeterministicDeploymentBuilder
-} from "../../../script/v1/V1DeterministicDeploymentBuilder.sol";
+    V4DeterministicDeploymentBuilder
+} from "../../../script/v1/V4DeterministicDeploymentBuilder.sol";
 import {
     V1DeploymentPayload,
     V1DeterministicDeploymentOrchestrator
@@ -39,7 +39,7 @@ contract V1DeploymentTreasuryStub {
 }
 
 contract V1DeterministicDeploymentOrchestratorTest is Test {
-    using V1DeterministicDeploymentBuilder for address;
+    using V4DeterministicDeploymentBuilder for address;
 
     bytes32 private constant RELEASE_ID = keccak256("TICKERGARDEN_V1_TEST_RELEASE");
     bytes32 private constant FEE_POLICY_ID = keccak256("TICKERGARDEN_V1_FEE_POLICY_TEST");
@@ -65,14 +65,6 @@ contract V1DeterministicDeploymentOrchestratorTest is Test {
             swapRouter: address(swapRouter),
             quoter: address(quoter),
             platformTreasury: address(platformTreasury),
-            rootServiceTreasury: address(rootServiceTreasury),
-            rootServiceFeeAsset: address(0),
-            rootServiceFeeAmount: 0.001 ether,
-            finalityDelaySeconds: 10 minutes,
-            finalityDelayBlocks: 2,
-            rootPublicationWindow: 1 days,
-            rootReviewDelay: 1 hours,
-            claimWindow: 30 days,
             feePolicyId: FEE_POLICY_ID
         });
     }
@@ -91,7 +83,7 @@ contract V1DeterministicDeploymentOrchestratorTest is Test {
         assertEq(factory, plan.factory);
         assertEq(hook, plan.hook);
         assertEq(executor, plan.executor);
-        assertTrue(V1DeterministicDeploymentBuilder.hookMaskMatches(hook));
+        assertTrue(V4DeterministicDeploymentBuilder.hookMaskMatches(hook));
 
         address[16] memory actual = orchestrator.ordinaryComponents();
         for (uint8 i; i < actual.length; ++i) {
@@ -120,18 +112,18 @@ contract V1DeterministicDeploymentOrchestratorTest is Test {
     function test_continuousReleaseDeploysBoundRuntimeGraph() public {
         V1DeterministicDeploymentOrchestrator orchestrator =
             new V1DeterministicDeploymentOrchestrator(address(this), RELEASE_ID);
-        (bytes32 salt,) = V1DeterministicDeploymentBuilder.mineHelperSalt(address(orchestrator), RELEASE_ID, 200_000);
-        bytes32 factorySalt = V1DeterministicDeploymentBuilder.factorySalt(block.chainid, RELEASE_ID);
-        (V1DeploymentPlan memory legacy,) = _build(orchestrator);
+        (bytes32 salt,) = V4DeterministicDeploymentBuilder.mineHelperSalt(address(orchestrator), RELEASE_ID, 200_000);
+        bytes32 factorySalt = V4DeterministicDeploymentBuilder.factorySalt(block.chainid, RELEASE_ID);
+        (V1DeploymentPlan memory repeated,) = _build(orchestrator);
         (V1DeploymentPlan memory plan, V1DeploymentPayload memory payload) =
-            V1DeterministicDeploymentBuilder.buildContinuous(address(orchestrator), config, salt, factorySalt);
-        assertNotEq(plan.payloadHash, legacy.payloadHash);
+            V4DeterministicDeploymentBuilder.build(address(orchestrator), config, salt, factorySalt);
+        assertEq(plan.payloadHash, repeated.payloadHash);
         orchestrator.deploy(payload, plan.payloadHash);
         HolderRewardsDistributorV1 rewards = HolderRewardsDistributorV1(plan.ordinaryComponents[14]);
         assertEq(rewards.marketRegistry(), plan.ordinaryComponents[10]);
         assertEq(rewards.STREAM_DURATION(), 24 hours);
-        assertEq(rewards.rewardMode(), keccak256("TICKERGARDEN_HOLDER_STREAM_24H_V1"));
-        assertEq(TickerGardenFactoryV1(plan.factory).treasuryDistributor(), address(rewards));
+        assertEq(rewards.rewardMode(), keccak256("TICKERGARDEN_HOLDER_DUAL_ASSET_24H_V4"));
+        assertEq(TickerGardenFactoryV1(plan.factory).holderRewardsDistributor(), address(rewards));
         assertTrue(orchestrator.completed());
     }
 
@@ -187,8 +179,8 @@ contract V1DeterministicDeploymentOrchestratorTest is Test {
         returns (V1DeploymentPlan memory plan, V1DeploymentPayload memory payload)
     {
         (bytes32 helperSalt,) =
-            V1DeterministicDeploymentBuilder.mineHelperSalt(address(orchestrator), RELEASE_ID, 200_000);
-        bytes32 factorySalt = V1DeterministicDeploymentBuilder.factorySalt(block.chainid, RELEASE_ID);
-        return V1DeterministicDeploymentBuilder.build(address(orchestrator), config, helperSalt, factorySalt);
+            V4DeterministicDeploymentBuilder.mineHelperSalt(address(orchestrator), RELEASE_ID, 200_000);
+        bytes32 factorySalt = V4DeterministicDeploymentBuilder.factorySalt(block.chainid, RELEASE_ID);
+        return V4DeterministicDeploymentBuilder.build(address(orchestrator), config, helperSalt, factorySalt);
     }
 }

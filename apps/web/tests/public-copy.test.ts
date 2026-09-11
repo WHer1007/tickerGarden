@@ -16,3 +16,10 @@ test("market phase diagnostics use Growing and Bloomed without changing protocol
   const internal = "graduationThreshold readyToGraduate NOT_GRADUATED GraduationExecutor";
   assert.equal(publicMessage(internal), internal);
 });
+
+test("transport failures hide RPC URLs and calldata without hiding contract errors", () => {
+  const raw='HTTP request failed. URL: https://rpc.example/private-key Request body: {"method":"eth_call"} Raw Call Arguments: 0x1234 Details: Failed to fetch';
+  assert.equal(publicMessage(raw), 'Network connection unavailable. Please try again shortly.');
+  assert.equal(publicMessage('Failed to fetch'), 'Network connection unavailable. Please try again shortly.');
+  assert.equal(publicMessage('Contract reverted: InsufficientBalance'), 'Contract reverted: InsufficientBalance');
+});

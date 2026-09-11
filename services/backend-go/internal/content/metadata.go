@@ -191,7 +191,7 @@ func Build(raw []byte, origin string) (Bundle, error) {
 	if e != nil {
 		return fail(e)
 	}
-	if !validText(in.Name, 64, false) || !symbolRE.MatchString(in.Symbol) || !validText(in.Description, 1000, true) || in.CreatorTaxBps < 0 || in.CreatorTaxBps > 500 {
+	if !validText(in.Name, 64, false) || !symbolRE.MatchString(in.Symbol) || !validText(in.Description, 300, true) || in.CreatorTaxBps < 0 || in.CreatorTaxBps > 500 {
 		return fail(errors.New("invalid launch metadata fields"))
 	}
 	x, e := link(in.X, true)

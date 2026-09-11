@@ -1,4 +1,4 @@
-import {encodeAbiParameters,keccak256,parseAbi,parseAbiParameters,type Address} from 'viem';
+import {encodeAbiParameters,keccak256,parseAbi,parseAbiParameters,type Address,type Hex} from 'viem';
 import type {MarketReadModel} from './generated/read-api.ts';
 import type {ContractWriteRequest} from './transaction.ts';
 import {ZERO_ADDRESS} from '../runtime/model.ts';
@@ -27,7 +27,7 @@ export function poolTradeRoute(market:MarketReadModel,side:'buy'|'sell'){
 }
 export function poolAmount(amount:bigint){if(amount<=0n||amount>=(1n<<128n))throw Error('Pool amount is outside the supported range');return amount;}
 export function buildPoolTrade(market:MarketReadModel,side:'buy'|'sell',amount:bigint,minimum:bigint,deadline:bigint):ContractWriteRequest{
- const route=poolTradeRoute(market,side);poolAmount(amount);poolAmount(minimum);
+ const route=poolTradeRoute(market,side);poolAmount(amount);if(minimum<0n||minimum>=(1n<<128n))throw Error('Pool minimum is outside the supported range');
  const swap=encodeAbiParameters(parseAbiParameters(`(${keyType} poolKey,bool zeroForOne,uint128 amountIn,uint128 amountOutMinimum,uint256 minHopPriceX36,bytes hookData)`),[{poolKey:route.poolKey,zeroForOne:route.zeroForOne,amountIn:amount,amountOutMinimum:minimum,minHopPriceX36:0n,hookData:'0x'}]);
  const settle=encodeAbiParameters(parseAbiParameters('address,uint256'),[route.input,amount]);
  const take=encodeAbiParameters(parseAbiParameters('address,uint256'),[route.output,minimum]);
@@ -35,4 +35,20 @@ export function buildPoolTrade(market:MarketReadModel,side:'buy'|'sell',amount:b
  // Sweep unspent native input on a partial fill back to the caller. No allow-revert commands.
  const sweep=encodeAbiParameters(parseAbiParameters('address,address,uint256'),[ZERO_ADDRESS,'0x0000000000000000000000000000000000000001',0n]);
  return {abi:poolRouterAbi,address:route.router,functionName:'execute',args:[route.input===ZERO_ADDRESS?'0x1004':'0x10',route.input===ZERO_ADDRESS?[input,sweep]:[input],deadline],value:route.input===ZERO_ADDRESS?amount:0n};
+}
+
+// Pinned v4 StateLibrary slot0: price[0:160], tick[160:184], protocol[184:208], LP[208:232].
+export function poolSlot0(poolId:Hex):Hex {
+ return keccak256(encodeAbiParameters([{type:'bytes32'},{type:'uint256'}],[poolId,6n]));
+}
+export const poolStateAbi=parseAbi(['function extsload(bytes32 slot) view returns (bytes32)']);
+export function poolProtocolFee(raw:Hex,zeroForOne:boolean):number {
+ if(!/^0x[0-9a-fA-F]{64}$/.test(raw))throw Error('Invalid pool state');
+ const packed=BigInt(raw),protocol=Number((packed>>184n)&0xffffffn);
+ if(packed>>232n || ((packed>>208n)&0xffffffn)!==0n || (protocol&0xfff)>1000 || (protocol>>12)>1000)throw Error('Unsupported pool fees');
+ return zeroForOne?protocol&0xfff:protocol>>12;
+}
+export function formatPoolProtocolFee(pips:number):string {
+ if(!Number.isInteger(pips)||pips<0||pips>1000)throw Error('Invalid protocol fee');
+ return `${pips/10000}%`;
 }

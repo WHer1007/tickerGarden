@@ -61,9 +61,9 @@ abstract contract AllocationManagerExits is AllocationManagerIncreases {
     function _rageQuitAllocation(address user, bytes32 marketId)
         internal
         nonReentrant
-        returns (uint256 principal, uint256 quoteForfeited, uint256 memeForfeited, bool redistributed)
+        returns (uint256 principal, uint256 quoteForfeited, uint256 memeForfeited)
     {
-        (principal, quoteForfeited, memeForfeited, redistributed,,) = _rageQuitAllocationWithSettlement(user, marketId);
+        (principal, quoteForfeited, memeForfeited,,) = _rageQuitAllocationWithSettlement(user, marketId);
     }
 
     function _rageQuitAllocationWithSettlement(address user, bytes32 marketId)
@@ -72,12 +72,13 @@ abstract contract AllocationManagerExits is AllocationManagerIncreases {
             uint256 principal,
             uint256 quoteForfeited,
             uint256 memeForfeited,
-            bool redistributed,
             bool rewardSettlementCompleted,
             address gaugeAddress
         )
     {
-        if (user == address(0) || user == address(this)) revert InvalidAllocationUser(user);
+        if (user == address(0) || user == address(this)) {
+            revert InvalidAllocationUser(user);
+        }
 
         // The Vault is the authoritative principal ledger. It clears the user's allocation, records a reward
         // forfeiture tombstone and transfers the complete STOCK principal before any Gauge interaction.
@@ -93,14 +94,14 @@ abstract contract AllocationManagerExits is AllocationManagerIncreases {
 
         // Reward cleanup is best-effort and gas-bounded. Any Gauge failure leaves the Vault tombstone in place,
         // which blocks stale claims and same-market re-entry but can never roll back the completed principal exit.
-        (quoteForfeited, memeForfeited, redistributed, rewardSettlementCompleted) =
+        (quoteForfeited, memeForfeited, rewardSettlementCompleted) =
             _tryCompleteRageQuitRewards(context, user, marketId, principal);
     }
 
     function _settleRageQuitRewards(address user, bytes32 marketId)
         internal
         nonReentrant
-        returns (uint256 principal, uint256 quoteForfeited, uint256 memeForfeited, bool redistributed)
+        returns (uint256 principal, uint256 quoteForfeited, uint256 memeForfeited)
     {
         if (user == address(0) || user == address(this)) revert InvalidAllocationUser(user);
 
@@ -117,7 +118,7 @@ abstract contract AllocationManagerExits is AllocationManagerIncreases {
         } else {
             if (gaugePrincipal != principal) revert AllocationLedgerMismatch();
             uint256 forfeitedPrincipal;
-            (forfeitedPrincipal, quoteForfeited, memeForfeited,) = context.gauge.rageQuit(user);
+            (forfeitedPrincipal, quoteForfeited, memeForfeited) = context.gauge.rageQuit(user);
             if (forfeitedPrincipal != principal) revert AllocationLedgerMismatch();
 
             PositionView memory afterPosition = context.gauge.positionOf(user);
@@ -127,9 +128,6 @@ abstract contract AllocationManagerExits is AllocationManagerIncreases {
             ) {
                 revert AllocationLedgerMismatch();
             }
-            // RageQuit forfeitures are platform-owned; retain the legacy return slot but never report a
-            // redistributable outcome from an escape settlement.
-            redistributed = false;
         }
 
         uint256 completedPrincipal = context.vault.completeRageQuitRewardSettlement(context.assetUid, user, marketId);
@@ -149,7 +147,7 @@ abstract contract AllocationManagerExits is AllocationManagerIncreases {
     function _rageQuitRewardCutoff(address user, bytes32 marketId)
         internal
         view
-        returns (uint256 principal, uint256 quoteAccumulator, uint256 memeAccumulator, bool forfeitureRedistributable)
+        returns (uint256 principal, uint256 quoteAccumulator, uint256 memeAccumulator)
     {
         ExitContext memory context = _rageQuitContext(marketId);
         return context.vault.rageQuitRewardCutoff(context.assetUid, user, marketId);
@@ -201,22 +199,19 @@ abstract contract AllocationManagerExits is AllocationManagerIncreases {
 
     function _tryCompleteRageQuitRewards(ExitContext memory context, address user, bytes32 marketId, uint256 principal)
         private
-        returns (uint256 quoteForfeited, uint256 memeForfeited, bool redistributed, bool completed)
+        returns (uint256 quoteForfeited, uint256 memeForfeited, bool completed)
     {
         if (
             address(context.gauge).code.length == 0
                 || gasleft() <= RAGE_QUIT_GAUGE_GAS_LIMIT + RAGE_QUIT_COMPLETION_GAS_RESERVE
         ) {
-            return (0, 0, false, false);
+            return (0, 0, false);
         }
 
         try context.gauge.rageQuit{gas: RAGE_QUIT_GAUGE_GAS_LIMIT}(user) returns (
-            uint256 forfeitedPrincipal,
-            uint256 forfeitedQuote,
-            uint256 forfeitedMeme,
-            bool /* didRedistribute */
+            uint256 forfeitedPrincipal, uint256 forfeitedQuote, uint256 forfeitedMeme
         ) {
-            if (forfeitedPrincipal != principal) return (0, 0, false, false);
+            if (forfeitedPrincipal != principal) return (0, 0, false);
 
             try context.gauge.positionOf{gas: RAGE_QUIT_GAUGE_VIEW_GAS_LIMIT}(user) returns (
                 PositionView memory position
@@ -225,22 +220,22 @@ abstract contract AllocationManagerExits is AllocationManagerIncreases {
                     position.activeAmount != 0 || position.pendingAmount != 0 || position.quoteClaimable != 0
                         || position.memeClaimable != 0
                 ) {
-                    return (0, 0, false, false);
+                    return (0, 0, false);
                 }
 
                 try context.vault.completeRageQuitRewardSettlement(context.assetUid, user, marketId) returns (
                     uint256 completedPrincipal
                 ) {
-                    if (completedPrincipal != principal) return (0, 0, false, false);
-                    return (forfeitedQuote, forfeitedMeme, false, true);
+                    if (completedPrincipal != principal) return (0, 0, false);
+                    return (forfeitedQuote, forfeitedMeme, true);
                 } catch {
-                    return (0, 0, false, false);
+                    return (0, 0, false);
                 }
             } catch {
-                return (0, 0, false, false);
+                return (0, 0, false);
             }
         } catch {
-            return (0, 0, false, false);
+            return (0, 0, false);
         }
     }
 

@@ -1,0 +1,93 @@
+{
+  "schemaVersion": 1,
+  "status": "ACTIVE_TEST_ONLY",
+  "scope": "ROBINHOOD_TESTNET_ONLY",
+  "chainId": 46630,
+  "releaseId": "0x5c2c656b1b23e895ea268c34b187cd267e0f4fdcc1759c726cbca7fafb7c9c12",
+  "planSha256": "0x26e9ef859aa4834a6740a74590e1593e41e5953449e502801934656fdd2cf1a3",
+  "auditBlock": {
+    "number": "117030207",
+    "hash": "0x9e53054570aadbaba8e075b4385235800d45161c3bb4f521bd4e4dc121a07940",
+    "timestamp": "1789068206"
+  },
+  "transactions": [
+    {
+      "id": "deploy-baseline-fixture",
+      "nonce": 248,
+      "to": null,
+      "inputHash": "0x905173923a55750c8783d011eed5cd60c85cfa98a0614746d227a7882f90029e",
+      "transactionHash": "0x1c3c8dda4c2048b8e61db4d46ceeb413a31ff3e9ae533c0a76c4f53b18a81a73",
+      "status": "CONFIRMED",
+      "estimatedGas": "115547",
+      "gasLimit": "345120",
+      "maxFeePerGas": "12000000",
+      "blockNumber": "117030498",
+      "blockHash": "0xb9774118b041aac9ebcf9184717c282dc676975b2d0b0ad8c42d37a464732f43",
+      "gasUsed": "111322",
+      "effectiveGasPrice": "10000000",
+      "feeWei": "1113220000000"
+    },
+    {
+      "id": "add-baseline",
+      "nonce": 249,
+      "to": "0x78C1526860e0Da4acDc6f32A4F4F8d45bbDE0933",
+      "inputHash": "0xc0571e33fa4b48ac7ff20a1529b5b9bd9ae4e33f7759376a73bc9f215576dad1",
+      "transactionHash": "0x8f778b5bdab8a75dc07a79e95f337e095e65e1d4add51c69e36ae69f44421ba1",
+      "status": "CONFIRMED",
+      "estimatedGas": "244795",
+      "gasLimit": "318233",
+      "maxFeePerGas": "12000000",
+      "blockNumber": "117030520",
+      "blockHash": "0xf0c46e4a3750f2f18871df94581bd052f3c41a7ce83232255ea8e1a393cc1def",
+      "gasUsed": "238193",
+      "effectiveGasPrice": "10000000",
+      "feeWei": "2381930000000"
+    },
+    {
+      "id": "add-native-eth-quote",
+      "nonce": 250,
+      "to": "0x93c8Ce0e44C2eD39399ff12821454D681C0b5353",
+      "inputHash": "0x076d6d7cb5b38df3063c381c5a92a4592a32c14b76967c404545c0daef326019",
+      "transactionHash": "0xccf8713615cd6ebd16caac0600c90e238908080c7e66778b54e0828466d2dc7e",
+      "status": "CONFIRMED",
+      "estimatedGas": "197037",
+      "gasLimit": "256148",
+      "maxFeePerGas": "12000000",
+      "blockNumber": "117030529",
+      "blockHash": "0x374ae82231628e69803d965650aec21ce617ef6f1be87d10db35812839fc6ca0",
+      "gasUsed": "190811",
+      "effectiveGasPrice": "10000000",
+      "feeWei": "1908110000000"
+    },
+    {
+      "id": "add-launch-template",
+      "nonce": 251,
+      "to": "0x7b0Be869B940c61CBB1Cb90655dC34aac329fc63",
+      "inputHash": "0x48a3fe59058bdce08864965a677cf30fb3100aa2e9cf2daa2a1987dd108a9fcf",
+      "transactionHash": "0x1e1fa4422efda627547d31569250228b636dbe4debd3ac9b7d2a646a065af02e",
+      "status": "CONFIRMED",
+      "estimatedGas": "7976214",
+      "gasLimit": "10369078",
+      "maxFeePerGas": "12000000",
+      "blockNumber": "117030546",
+      "blockHash": "0x3756ed731cedd812744d8fb9febf3e65c840daa213f23a09c58d94c42da18da3",
+      "gasUsed": "7908187",
+      "effectiveGasPrice": "10000000",
+      "feeWei": "79081870000000"
+    }
+  ],
+  "baselineId": "0x28d9469a2acb5e0f4de9482e25ffa445b0228a000372c204314f95be663265fd",
+  "quoteId": "0xb68b91965e03bd5e87f49b34cd51e37bdd543de83b5c18c0394c29cbc4292056",
+  "templateId": "0x0cbe3e15031a7611067cf5bbbd8b4f4b61648a5dc52045f9692b5da0d4aa5267",
+  "baselineFixture": "0x4C586A9865AF202c60d1793CC8C506f9B59bEE6f",
+  "phantomQuote": "168000000000000000",
+  "graduationThreshold": "420000000000000000",
+  "launchAndBuySimulation": "PASSED_READ_ONLY_NO_MARKET_CREATED",
+  "totalFeeWei": "84485130000000",
+  "activationBlock": {
+    "number": "117030563",
+    "hash": "0x29906dc7f4cf716abd61f679fd9afc0428b6d7bd7b397e3db5c42bb3ab9fb62b",
+    "timestamp": "1789068266"
+  },
+  "observedAt": "2026-09-10T19:24:26.518Z"
+}

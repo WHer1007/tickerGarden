@@ -695,12 +695,6 @@ func (w *Worker) step(ctx context.Context, activityOnly bool) (Result, error) {
 	}
 	batch.Expected += len(rewardRows)
 	batch.Observations = append(batch.Observations, rewardRows...)
-	conversionRows, err := conversionObservations(ctx, tx, uint64(chain), header.Hash, batch.Observations)
-	if err != nil {
-		return fail(err)
-	}
-	batch.Expected += len(conversionRows)
-	batch.Observations = append(batch.Observations, conversionRows...)
 	markStage("routesAndReconciliation")
 	batch.Scope = ObservationScope
 	data, err := json.Marshal(batch)

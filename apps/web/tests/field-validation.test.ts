@@ -42,3 +42,9 @@ test('integer, slippage and creator tax boundaries', () => {
   assert.notEqual(e('5001', {kind: 'integer', allowZero: true, max: 5000}), '');
   assert.equal(e('5.00', {kind: 'tax'}), ''); assert.notEqual(e('5.01', {kind: 'tax'}), ''); assert.notEqual(e('6', {kind: 'tax'}), '');
 });
+
+test('description accepts 300 characters and rejects longer restored values',()=>{
+  assert.equal(e('',{kind:'description'}),'');
+  assert.equal(e('文'.repeat(300),{kind:'description'}),'');
+  assert.equal(e('文'.repeat(301),{kind:'description'}),'Use at most 300 characters.');
+});

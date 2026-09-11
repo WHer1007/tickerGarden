@@ -37,15 +37,12 @@ contract AllocationManager is IAllocationManager, AllocationManagerDeposits {
             uint256 principal,
             uint256 quoteForfeited,
             uint256 memeForfeited,
-            bool redistributed,
             bool rewardSettlementCompleted,
             address gauge
         ) = _rageQuitAllocationWithSettlement(msg.sender, marketId);
-        emit AllocationRageQuitExecuted(msg.sender, marketId, principal, quoteForfeited, memeForfeited, redistributed);
+        emit AllocationRageQuitExecuted(msg.sender, marketId, principal, quoteForfeited, memeForfeited);
         if (rewardSettlementCompleted) {
-            emit RageQuitRewardSettlementFinalized(
-                msg.sender, marketId, principal, quoteForfeited, memeForfeited, redistributed
-            );
+            emit RageQuitRewardSettlementFinalized(msg.sender, marketId, principal, quoteForfeited, memeForfeited);
         } else {
             emit RageQuitRewardSettlementDeferred(msg.sender, marketId, principal, gauge);
         }
@@ -54,11 +51,11 @@ contract AllocationManager is IAllocationManager, AllocationManagerDeposits {
     function settleRageQuitRewards(bytes32 marketId, address user)
         external
         override
-        returns (uint256 quoteForfeited, uint256 memeForfeited, bool redistributed)
+        returns (uint256 quoteForfeited, uint256 memeForfeited)
     {
         uint256 principal;
-        (principal, quoteForfeited, memeForfeited, redistributed) = _settleRageQuitRewards(user, marketId);
-        emit RageQuitRewardSettlementFinalized(user, marketId, principal, quoteForfeited, memeForfeited, redistributed);
+        (principal, quoteForfeited, memeForfeited) = _settleRageQuitRewards(user, marketId);
+        emit RageQuitRewardSettlementFinalized(user, marketId, principal, quoteForfeited, memeForfeited);
     }
 
     function rageQuitSettlementPending(bytes32 marketId, address user)
@@ -74,7 +71,7 @@ contract AllocationManager is IAllocationManager, AllocationManagerDeposits {
         external
         view
         override
-        returns (uint256 principal, uint256 quoteAccumulator, uint256 memeAccumulator, bool forfeitureRedistributable)
+        returns (uint256 principal, uint256 quoteAccumulator, uint256 memeAccumulator)
     {
         return _rageQuitRewardCutoff(user, marketId);
     }

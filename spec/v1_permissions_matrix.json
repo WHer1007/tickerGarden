@@ -51,78 +51,21 @@
     "FIXED_PLATFORM_BENEFICIARY": {
       "delaySeconds": 0
     },
-    "TREASURY_DISTRIBUTOR_MODULE": {
-      "delaySeconds": 0,
-      "member": "IMMUTABLE_TREASURY_DISTRIBUTOR"
-    },
     "CURRENT_MEME_HOLDER": {
       "delaySeconds": 0
-    },
-    "ROOT_PUBLISHER_ROLE": {
-      "delaySeconds": 0,
-      "member": "PLATFORM_ROOT_PUBLISHER"
-    },
-    "ROOT_REVIEW_ROLE": {
-      "delaySeconds": 0,
-      "member": "INDEPENDENT_ROOT_REVIEWER"
     },
     "SERVICE_BENEFICIARY": {
       "delaySeconds": 0
     },
     "PENDING_CREATOR_REVENUE_BENEFICIARY": {
       "delaySeconds": 0
+    },
+    "HOLDER_REWARDS_DISTRIBUTOR_MODULE": {
+      "delaySeconds": 0,
+      "member": "IMMUTABLE_HOLDER_REWARDS_DISTRIBUTOR"
     }
   },
   "functions": [
-    {
-      "module": "ProtocolFeeVault",
-      "signature": "settleRewards(bytes32,ConversionItem[],uint256,uint256)",
-      "caller": "SETTLEMENT_OPERATOR",
-      "delaySeconds": 0,
-      "recipient": "fixed_reward_beneficiary_or_canonical_pool"
-    },
-    {
-      "module": "ProtocolFeeVault",
-      "signature": "setSettlementOperator(address)",
-      "caller": "FIXED_PLATFORM_BENEFICIARY",
-      "delaySeconds": 0,
-      "recipient": "fixed_reward_beneficiary_or_canonical_pool"
-    },
-    {
-      "module": "ProtocolFeeVault",
-      "signature": "requestRawRewardExit(bytes32)",
-      "caller": "PUBLIC",
-      "delaySeconds": 0,
-      "recipient": "fixed_reward_beneficiary_or_canonical_pool"
-    },
-    {
-      "module": "ProtocolFeeVault",
-      "signature": "cancelRawRewardExit(bytes32)",
-      "caller": "PUBLIC",
-      "delaySeconds": 0,
-      "recipient": "fixed_reward_beneficiary_or_canonical_pool"
-    },
-    {
-      "module": "MemeStockGauge",
-      "signature": "consumeForConversion(address,uint256)",
-      "caller": "FEE_VAULT",
-      "delaySeconds": 0,
-      "recipient": "fixed_reward_beneficiary_or_canonical_pool"
-    },
-    {
-      "module": "MemeStockGauge",
-      "signature": "creditConversion(address,uint256,uint256)",
-      "caller": "FEE_VAULT",
-      "delaySeconds": 0,
-      "recipient": "fixed_reward_beneficiary_or_canonical_pool"
-    },
-    {
-      "module": "TickerGardenMemeHook",
-      "signature": "convertRewards(bytes32,uint256,uint256,uint256)",
-      "caller": "FEE_VAULT",
-      "delaySeconds": 0,
-      "recipient": "fixed_reward_beneficiary_or_canonical_pool"
-    },
     {
       "module": "TickerGardenMemeHook",
       "signature": "unlockCallback(bytes)",
@@ -359,14 +302,6 @@
       "caller": "PUBLIC",
       "delaySeconds": 0,
       "recipient": "specified_token_recipient"
-    },
-    {
-      "module": "TickerMemeTokenV1",
-      "signature": "burnTreasury(uint256)",
-      "caller": "TREASURY_DISTRIBUTOR_MODULE",
-      "delaySeconds": 0,
-      "recipient": "burn_address",
-      "precondition": "CALLER_EQUALS_IMMUTABLE_TREASURY_DISTRIBUTOR_AND_BURNS_ONLY_ITS_OWN_BALANCE"
     },
     {
       "module": "MarketRegistryV1",
@@ -645,7 +580,14 @@
     },
     {
       "module": "MemeStockGauge",
-      "signature": "consumeClaimable(address,address)",
+      "signature": "consumeClaimable(address)",
+      "caller": "FEE_VAULT",
+      "delaySeconds": 0,
+      "recipient": "fixed_user"
+    },
+    {
+      "module": "MemeStockGauge",
+      "signature": "consumeClaimableAssets(address,uint8)",
       "caller": "FEE_VAULT",
       "delaySeconds": 0,
       "recipient": "fixed_user"
@@ -684,31 +626,10 @@
     },
     {
       "module": "ProtocolFeeVault",
-      "signature": "claimCreator(bytes32,uint32,address)",
-      "caller": "PUBLIC",
-      "delaySeconds": 0,
-      "recipient": "stored_creator_epoch_beneficiary"
-    },
-    {
-      "module": "ProtocolFeeVault",
       "signature": "claimPlatform(bytes32,address)",
       "caller": "PUBLIC",
       "delaySeconds": 0,
       "recipient": "stored_platform_treasury"
-    },
-    {
-      "module": "ProtocolFeeVault",
-      "signature": "claimStaker(bytes32,address)",
-      "caller": "PUBLIC",
-      "delaySeconds": 0,
-      "recipient": "caller"
-    },
-    {
-      "module": "ProtocolFeeVault",
-      "signature": "claimStakerFor(address,bytes32,address)",
-      "caller": "PUBLIC",
-      "delaySeconds": 0,
-      "recipient": "fixed_user"
     },
     {
       "module": "ProtocolFeeVault",
@@ -735,143 +656,11 @@
       "precondition": "PROPOSE_ONLY_CURRENT_BENEFICIARY_NO_EPOCH_CHANGE"
     },
     {
-      "module": "TreasuryDistributorV1",
-      "signature": "registerMarket(bytes32,address,address,bytes32)",
-      "caller": "PROTOCOL_ADMIN_ROLE",
-      "delaySeconds": 172800,
-      "recipient": "none",
-      "precondition": "MARKET_AND_ASSETS_MATCH_CANONICAL_MARKET_REGISTRY"
-    },
-    {
-      "module": "TreasuryDistributorV1",
-      "signature": "activateMarket(bytes32)",
-      "caller": "PUBLIC",
-      "delaySeconds": 0,
-      "recipient": "none",
-      "precondition": "CANONICAL_MARKET_LAUNCH_PHASE_EQUALS_POOL_CREATED"
-    },
-    {
-      "module": "TreasuryDistributorV1",
-      "signature": "setRootServiceFee(address,uint128)",
-      "caller": "PROTOCOL_ADMIN_ROLE",
-      "delaySeconds": 172800,
-      "recipient": "none"
-    },
-    {
-      "module": "TreasuryDistributorV1",
-      "signature": "fundQuoteTreasury(bytes32,uint256,bytes32)",
-      "caller": "PUBLIC",
-      "delaySeconds": 0,
-      "recipient": "market_epoch_quote_liability",
-      "precondition": "ACTIVE_MARKET_AND_EXACT_NATIVE_VALUE_OR_ERC20_BALANCE_DELTA"
-    },
-    {
-      "module": "TreasuryDistributorV1",
-      "signature": "burnMeme(bytes32,uint256,bytes32)",
-      "caller": "PUBLIC",
-      "delaySeconds": 0,
-      "recipient": "burn_address",
-      "precondition": "ACTIVE_MARKET_AND_EXACT_MEME_TRANSFER_AND_SUPPLY_DECREASE"
-    },
-    {
-      "module": "TreasuryDistributorV1",
-      "signature": "requestRoot(bytes32,uint32)",
-      "caller": "CURRENT_MEME_HOLDER",
-      "delaySeconds": 0,
-      "recipient": "service_fee_escrow",
-      "precondition": "CLOSED_FINALIZED_NONEMPTY_EPOCH_AND_CURRENT_MEME_BALANCE_GT_ZERO"
-    },
-    {
-      "module": "TreasuryDistributorV1",
-      "signature": "publishRoot(bytes32,uint32,bytes32,bytes32,uint256,uint32,uint256)",
-      "caller": "ROOT_PUBLISHER_ROLE",
-      "delaySeconds": 0,
-      "recipient": "none",
-      "precondition": "REQUESTED_EPOCH_AND_EXACT_EPOCH_ALLOCATION"
-    },
-    {
-      "module": "TreasuryDistributorV1",
-      "signature": "cancelPendingRoot(bytes32,uint32,bytes32)",
-      "caller": "ROOT_REVIEW_ROLE",
-      "delaySeconds": 0,
-      "recipient": "fixed_requester_service_credit",
-      "precondition": "ROOT_PENDING_AND_NONZERO_REASON"
-    },
-    {
-      "module": "TreasuryDistributorV1",
-      "signature": "finalizeRoot(bytes32,uint32)",
-      "caller": "PUBLIC",
-      "delaySeconds": 0,
-      "recipient": "fixed_root_service_treasury_credit",
-      "precondition": "ROOT_PENDING_AND_REVIEW_DELAY_ELAPSED"
-    },
-    {
-      "module": "TreasuryDistributorV1",
-      "signature": "expireRootRequest(bytes32,uint32)",
-      "caller": "PUBLIC",
-      "delaySeconds": 0,
-      "recipient": "fixed_requester_service_credit",
-      "precondition": "REQUESTED_AND_PUBLICATION_WINDOW_EXPIRED"
-    },
-    {
-      "module": "TreasuryDistributorV1",
-      "signature": "claim(bytes32,uint32,uint256,address,uint256,uint256,bytes32[])",
-      "caller": "PUBLIC",
-      "delaySeconds": 0,
-      "recipient": "merkle_leaf_account",
-      "precondition": "FINALIZED_ROOT_VALID_PROOF_UNCLAIMED_INDEX_AND_ACCOUNT"
-    },
-    {
-      "module": "TreasuryDistributorV1",
-      "signature": "rolloverExpiredEpoch(bytes32,uint32)",
-      "caller": "PUBLIC",
-      "delaySeconds": 0,
-      "recipient": "current_market_epoch",
-      "precondition": "CLAIM_WINDOW_EXPIRED"
-    },
-    {
-      "module": "TreasuryDistributorV1",
-      "signature": "withdrawServiceCredit(address)",
-      "caller": "SERVICE_BENEFICIARY",
-      "delaySeconds": 0,
-      "recipient": "caller",
-      "precondition": "NONZERO_CALLER_SERVICE_CREDIT"
-    },
-    {
       "module": "ProtocolFeeVault",
       "signature": "fundHolderRewards(bytes32,uint32)",
       "caller": "PUBLIC",
       "delaySeconds": 0,
       "recipient": "fixed_holder_distribution_market_and_epoch"
-    },
-    {
-      "module": "ProtocolFeeVault",
-      "signature": "settleHolderRewards(bytes32,uint32,uint256,uint256,uint256)",
-      "caller": "SETTLEMENT_OPERATOR",
-      "delaySeconds": 0,
-      "recipient": "fixed_holder_distribution_market_and_epoch"
-    },
-    {
-      "module": "TreasuryDistributorV1",
-      "signature": "registerFeeSharingMarket(bytes32,address,address)",
-      "caller": "FACTORY_MODULE",
-      "delaySeconds": 0,
-      "recipient": "fixed_holder_distribution_market_and_epoch"
-    },
-    {
-      "module": "TreasuryDistributorV1",
-      "signature": "fundCreatorFees(bytes32,uint32,uint256)",
-      "caller": "FEE_VAULT",
-      "delaySeconds": 0,
-      "recipient": "fixed_holder_distribution_market_and_epoch"
-    },
-    {
-      "module": "TickerMemeTokenV1",
-      "signature": "enableContinuousRewards()",
-      "caller": "TREASURY_DISTRIBUTOR_MODULE",
-      "delaySeconds": 0,
-      "recipient": "none",
-      "precondition": "ONCE_ONLY_BY_IMMUTABLE_DISTRIBUTOR_AFTER_CANONICAL_REGISTRATION"
     },
     {
       "module": "CreatorRevenueRegistry",
@@ -888,6 +677,60 @@
       "delaySeconds": 0,
       "recipient": "none",
       "precondition": "CURRENT_BENEFICIARY_CANCELS_PENDING_NOMINATION"
+    },
+    {
+      "module": "ProtocolFeeVault",
+      "signature": "claimUserRewards(bytes32,uint8,uint32,bool,bool,uint256)",
+      "caller": "PUBLIC",
+      "delaySeconds": 0,
+      "recipient": "fixed_reward_beneficiary_or_canonical_pool",
+      "precondition": "CALLER_OWNED_UNLOCKED_REWARDS_ONLY"
+    },
+    {
+      "module": "ProtocolFeeVault",
+      "signature": "claimUserRewardAssets(bytes32,uint8,uint32,uint8,bool,bool,uint256)",
+      "caller": "PUBLIC",
+      "delaySeconds": 0,
+      "recipient": "fixed_reward_beneficiary_or_canonical_pool",
+      "precondition": "CALLER_OWNED_UNLOCKED_REWARDS_ONLY"
+    },
+    {
+      "module": "ProtocolFeeVault",
+      "signature": "convertUserClaim(bytes32,MarketView,uint256,uint256)",
+      "caller": "FEE_VAULT",
+      "delaySeconds": 0,
+      "recipient": "fixed_reward_beneficiary_or_canonical_pool",
+      "precondition": "MSG_SENDER_EQUALS_THIS_AND_ACTIVE_USER_CLAIM"
+    },
+    {
+      "module": "ProtocolFeeVault",
+      "signature": "fundHolderMemeRewards(bytes32)",
+      "caller": "PUBLIC",
+      "delaySeconds": 0,
+      "recipient": "fixed_reward_beneficiary_or_canonical_pool",
+      "precondition": "FIXED_DISTRIBUTOR_CANONICAL_MEME"
+    },
+    {
+      "module": "MemeStockGauge",
+      "signature": "restoreUserMemeRewards(address,uint256)",
+      "caller": "FEE_VAULT",
+      "delaySeconds": 0,
+      "recipient": "fixed_reward_beneficiary_or_canonical_pool"
+    },
+    {
+      "module": "TickerGardenMemeHook",
+      "signature": "convertRewards(bytes32,uint256,uint256)",
+      "caller": "FEE_VAULT",
+      "delaySeconds": 0,
+      "recipient": "fixed_reward_beneficiary_or_canonical_pool"
+    },
+    {
+      "module": "TickerMemeTokenV1",
+      "signature": "enableContinuousRewards()",
+      "caller": "HOLDER_REWARDS_DISTRIBUTOR_MODULE",
+      "delaySeconds": 0,
+      "recipient": "none",
+      "precondition": "ONCE_ONLY_BY_IMMUTABLE_DISTRIBUTOR_AFTER_CANONICAL_REGISTRATION"
     }
   ],
   "forbiddenCapabilities": [

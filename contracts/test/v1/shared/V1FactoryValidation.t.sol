@@ -284,9 +284,13 @@ contract V1FactoryValidationTest is Test {
             behaviorVectorRoot: 0xc87156b19251bf73752ecba2d385efb695b0ed4735dcbd7cde6c42adb3632e65,
             status: 77
         });
-        assertEq(harness.hashTickerGardenBaseline(value), 0x82e4d2fc20474a7058ed18d917d441a5f665510b83471eb38e0203dc5c91c64c);
+        assertEq(
+            harness.hashTickerGardenBaseline(value), 0x82e4d2fc20474a7058ed18d917d441a5f665510b83471eb38e0203dc5c91c64c
+        );
         value.status = 1;
-        assertEq(harness.hashTickerGardenBaseline(value), 0x82e4d2fc20474a7058ed18d917d441a5f665510b83471eb38e0203dc5c91c64c);
+        assertEq(
+            harness.hashTickerGardenBaseline(value), 0x82e4d2fc20474a7058ed18d917d441a5f665510b83471eb38e0203dc5c91c64c
+        );
     }
 
     function test_hashExpectedEconomicsMatchesFrozenMachineVector() public view {

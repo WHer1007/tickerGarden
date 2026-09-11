@@ -1,9 +1,15 @@
 # TickerGarden V1 可验证执行规范
 
-> 版本：`V1-EXEC-11`  | 状态：`DEPLOYMENT_ELIGIBLE / NOT_PRODUCTION_READY / NOT_BROADCAST`
+> 新源码领取路径已切换为用户选择兑换/原币，Holder 双资产分别释放，取消该路径额外 7 天等待。minimumQuote 继续为 0，保留有效期。新版本不支持 operator 集体兑换；以下旧阶段的批量兑换/等待期开关说明仅适用于旧部署。完整行为见 `docs/v1/V1_REWARD_CONVERSION.md`。本次未部署。
+
+
+> 2026-09-10 兑换策略更新：项目奖励兑换不设置价格保护，minimumQuote=0，池子模拟仅提供预计到账；20 分钟参考窗口、价格偏离和参考输出折扣不再作为成交门槛。Go 独立参考签名只验证来源和请求身份，不作价格否决。下文历史阶段中关于非零最低到账、滑点下限或参考价价格否决的描述已由本说明取代。未部署，旧合约行为不变。
+
+
+> 版本：`V1-EXEC-11` | 当前源码：`NOT_PRODUCTION_READY / NOT_BROADCAST`；历史部署资格不适用于 2026-09-10 修订，须以新发布的验证证据为准。
 > 2026-09-05：本版允许市场从管理员批准的任意 `ACTIVE` Quote 白名单配置中选择资产，并加固 Registry/组件绑定、Vault 代码身份及原子毕业金额；原生 ETH 不是唯一 Quote。新增并本地验证官方 Robinhood Stock Token 的 BeaconProxy 专用 Quote 准入、指纹钉死、身份漂移 fail-closed 与部署 preflight；普通 direct immutable ERC-20 门禁不变。旧 V1-EXEC-10 已 superseded。
 
-本版手续费规则：毕业后总协议手续费维持 1%，LP 协议手续费为 0%。存在 Active staker 时按 Creator 40% / Staker 30% / Platform 30% 分配；不存在 Active staker 时按 Creator 70% / Staker 0% / Platform 30% 分配。Staker 与 Platform 份额向下取整，整数余数归 Creator。Hook 不再调用 `PoolManager.donate`，LaunchLocker 不再 collect/compound；canonical LP 仍永久锁定但不获得协议 LP 手续费。该调整消除了基于即时池价的复投/捐赠路径及其 JIT 经济风险，并减少链上 gas 与 keeper 运维面；全部手续费统一进入 FeeVault 记账。
+本版手续费规则：TickerGarden 毕业后基础费按核心 Swap 实际 delta 收取 1%，Creator tax 使用相同基数并单独向下取整。下述 Core protocol fee 的基数或收费资产可能不同，须单列展示，不将不同基数的费率相加冒称实际总费。存在 Active staker 时，TickerGarden 基础费按 Creator 40% / Staker 30% / Platform 30% 分配；不存在 Active staker 时按 Creator 70% / Staker 0% / Platform 30% 分配。Staker 与 Platform 份额向下取整，整数余数归 Creator。PoolKey.fee 与 LP fee 为 0；pinned v4 Core protocol fee 可按方向独立存在，单方向最高 1000 pips（0.1%），由 PoolManager 独立收取，不进入 FeeVault。Hook 不再调用 `PoolManager.donate`，LaunchLocker 不再 collect/compound；canonical LP 仍永久锁定但不获得协议 LP 手续费。自动奖励兑换不递归收取 TickerGarden 自身费用，但 Core protocol fee 仍影响实际输出并参与 98% 参考输出校验。
 
 ## 1. 市场永久自治
 

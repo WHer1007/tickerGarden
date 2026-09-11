@@ -65,7 +65,7 @@ func (l *HolderLedger) ApplyTransaction(inputs []Input) (bool, error) {
 			if name != "HolderFeesAccrued" && name != "HolderRewardsConverted" {
 				continue
 			}
-		} else if name != "QuoteTreasuryFunded" && name != "HolderStreamFunded" {
+		} else if name != "QuoteTreasuryFunded" && name != "HolderStreamFunded" && name != "HolderAssetFunded" {
 			continue
 		}
 		binding, ok := l.distributors[get("marketId")]
@@ -80,7 +80,7 @@ func (l *HolderLedger) ApplyTransaction(inputs []Input) (bool, error) {
 			if name == "QuoteTreasuryFunded" && get("funder") != l.vault {
 				continue
 			}
-			if name == "HolderStreamFunded" {
+			if name == "HolderStreamFunded" || name == "HolderAssetFunded" {
 				epoch = "1"
 			}
 		}
@@ -123,6 +123,11 @@ func (l *HolderLedger) ApplyTransaction(inputs []Input) (bool, error) {
 				return false, ErrLedger
 			}
 			err = change(e.Quote, "amount", true)
+		case "HolderAssetFunded":
+			if get("asset") != e.Quote && get("asset") != e.Meme {
+				return false, ErrLedger
+			}
+			err = change(get("asset"), "amount", true)
 		case "HolderStreamFunded":
 			err = change(e.Quote, "amount", true)
 		}

@@ -55,7 +55,8 @@ func TestDecodeConversionPoolRejectsInvalidPackedState(t *testing.T) {
 		name   string
 		mutate func([]byte, []byte)
 	}{
-		{name: "protocol fee nonzero", mutate: func(p, _ []byte) { p[6] = 1 }},
+		{name: "zero for one fee too large", mutate: func(p, _ []byte) { p[7], p[8] = 3, 233 }},
+		{name: "one for zero fee too large", mutate: func(p, _ []byte) { p[6], p[7] = 62, 144 }},
 		{name: "fee bits nonzero", mutate: func(p, _ []byte) { p[3] = 1 }},
 		{name: "packed short", mutate: func(p, l []byte) { _ = p; _ = l }},
 		{name: "packed high padding", mutate: func(p, _ []byte) { p[0] = 1 }},
@@ -92,5 +93,16 @@ func TestConversionPoolExactMinimumAndLengths(t *testing.T) {
 	}
 	if _, e := decodeConversionPool(append(append([]byte{}, p...), 0), l); e == nil {
 		t.Fatal("trailing slot0 accepted")
+	}
+}
+
+func TestDecodeConversionPoolDirectionalFees(t *testing.T) {
+	for _, fee := range []uint32{0, 1, 1000, 1000 << 12, 1000 | 500<<12} {
+		p, l := conversionPoolFixture(0, "79228162514264337593543950336", "1000")
+		p[6], p[7], p[8] = byte(fee>>16), byte(fee>>8), byte(fee)
+		got, err := decodeConversionPool(p, l)
+		if err != nil || got.ProtocolFee != fee || got.LPFee != 0 {
+			t.Fatalf("fee %d: %+v %v", fee, got, err)
+		}
 	}
 }

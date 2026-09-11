@@ -1,5 +1,10 @@
 /** Translate implementation diagnostics at the presentation boundary only. */
 export function publicMessage(value: string): string {
+  // Transport diagnostics can contain provider URLs, request bodies and calldata.
+  // Keep them out of the UI; these failures do not mean the contract reverted.
+  if (/HTTP request failed|Failed to fetch|fetch failed|Network request failed|HTTP request took too long/i.test(value)) {
+    return "Network connection unavailable. Please try again shortly.";
+  }
   return value
     // Keep protocol names and identifiers internal; translate readable diagnostics only.
     .replace(/\b(?:not[- ]graduated|ungraduated)\b/gi, "Growing")

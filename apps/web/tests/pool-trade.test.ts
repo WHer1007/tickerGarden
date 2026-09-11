@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { decodeAbiParameters, encodeAbiParameters, keccak256, parseAbiParameters, zeroAddress } from "viem";
-import { buildPoolTrade, poolAmount, poolTradeRoute } from "../src/v1/poolTrade.ts";
+import { buildPoolTrade, poolAmount, poolTradeRoute, poolProtocolFee, formatPoolProtocolFee } from "../src/v1/poolTrade.ts";
 
 const quote = "0x0000000000000000000000000000000000000000" as const;
 const token = "0x1111111111111111111111111111111111111111" as const;
@@ -62,4 +62,27 @@ test("adds native refund sweep for native input", () => {
   assert.equal(request.args[0], "0x1004"); assert.equal(request.value, 7n); assert.equal(request.args[1].length, 2);
   const [asset, recipient, amount] = decodeAbiParameters(parseAbiParameters("address,address,uint256"), request.args[1][1]);
   assert.equal(asset, zeroAddress); assert.equal(recipient, "0x0000000000000000000000000000000000000001"); assert.equal(amount, 0n);
+});
+
+test('zero output minimum is encoded for both trade directions without a hidden price limit',()=>{
+ for(const side of ['buy','sell'] as const){
+  const request=buildPoolTrade(market(),side,7n,0n,99n) as any;
+  const [,inputs]=decodeAbiParameters(parseAbiParameters('bytes,bytes[]'),request.args[1][0]);
+  const [swap]=decodeAbiParameters(parseAbiParameters('((address,address,uint24,int24,address),bool,uint128,uint128,uint256,bytes)'),inputs[0]!);
+  const [,minimum]=decodeAbiParameters(parseAbiParameters('address,uint256'),inputs[2]!);
+  assert.equal(swap[3],0n);assert.equal(swap[4],0n);assert.equal(minimum,0n);
+ }
+ assert.throws(()=>buildPoolTrade(market(),'buy',7n,-1n,99n),/outside/);
+});
+
+test('reads both protocol fee directions without mixing price, tick or LP bits',()=>{
+ const state=(protocol:bigint,lp=0n)=>`0x${((1n<<96n)|(0xffffffn<<160n)|(protocol<<184n)|(lp<<208n)).toString(16).padStart(64,'0')}` as `0x${string}`;
+ assert.equal(poolProtocolFee(state(1000n|(500n<<12n)),true),1000);
+ assert.equal(poolProtocolFee(state(1000n|(500n<<12n)),false),500);
+ assert.equal(formatPoolProtocolFee(1000),'0.1%');assert.equal(formatPoolProtocolFee(1),'0.0001%');
+ assert.equal(poolProtocolFee(state(0n),true),0);
+ assert.throws(()=>poolProtocolFee(state(1001n),true),/Unsupported/);
+ assert.throws(()=>poolProtocolFee(state(1001n<<12n),true),/Unsupported/);
+ assert.throws(()=>poolProtocolFee(state(0n,3000n),true),/Unsupported/);
+ assert.throws(()=>poolProtocolFee('0x00',true),/Invalid/);
 });

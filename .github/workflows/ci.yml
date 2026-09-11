@@ -66,7 +66,7 @@ jobs:
       - name: Verify generated interfaces and compiled ABI manifest
         run: npm run check:interfaces
 
-  v1-treasury:
+  v1-holder-rewards:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -84,24 +84,21 @@ jobs:
       - name: Install pinned test encoder dependencies
         working-directory: apps/web
         run: npm ci
-      - name: Check V1 Treasury formatting
+      - name: Check V1 Holder rewards formatting
         working-directory: contracts
         run: forge fmt --profile v1-ci --check src/v1 test/v1/treasury
-      - name: Build V1 Treasury namespace
+      - name: Build V1 Holder rewards namespace
         working-directory: contracts
         run: forge build --profile v1-ci
-      - name: Test V1 Treasury subsystem
+      - name: Test V1 Holder rewards subsystem
         working-directory: contracts
         run: forge test --profile v1-ci --match-path 'test/v1/treasury/**'
-      - name: Verify V1 Treasury invariant without cache
+      - name: Verify V1 Holder rewards invariant without cache
         working-directory: contracts
-        run: forge test --profile v1-ci --no-cache --match-path 'test/v1/treasury/product/TreasuryDistributorV1Invariant.t.sol'
-      - uses: actions/setup-go@v5
-        with:
-          go-version-file: services/backend-go/go.mod
-          cache-dependency-path: services/backend-go/go.sum
-      - name: Test and build Go Treasury root worker and independent vectors
-        run: npm run test:v1-root-generator && npm run build:v1-root-generator
+        run: forge test --profile v1-ci --no-cache --match-path 'test/v1/treasury/product/HolderBatchedInvariant.t.sol'
+      - name: Check current reward paths and worker policy
+        run: npm run test:current-rewards && npm run test:holder-worker
+
 
   contracts-product:
     runs-on: ubuntu-latest
@@ -161,17 +158,40 @@ jobs:
       - name: Report V1 deployment-track status
         run: npm run check:deployment-track
 
-  go-backend:
+  typescript-serverless-backend:
     runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: tickergarden
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-go@v5
+      - uses: actions/setup-node@v4
         with:
-          go-version-file: services/backend-go/go.mod
-          cache-dependency-path: services/backend-go/go.sum
-      - name: Verify Go backend
-        working-directory: services/backend-go
-        run: make verify
+          node-version: "24"
+          cache: npm
+          cache-dependency-path: services/backend-ts/package-lock.json
+      - name: Install TypeScript backend
+        working-directory: services/backend-ts
+        run: npm ci
+      - name: Verify generated contracts, types, unit tests and build
+        working-directory: services/backend-ts
+        run: npm test && npm run build
+      - name: Run PostgreSQL integration tests
+        working-directory: services/backend-ts
+        env:
+          TG_MIGRATION_DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:5432/tickergarden
+        run: npm run test:integration && npm run test:recovery
 
   website:
     runs-on: ubuntu-latest

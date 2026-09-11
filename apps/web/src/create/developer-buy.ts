@@ -21,7 +21,8 @@ export function developerBuyNotice(input: {
   amount: bigint; balance: bigint; symbol: string; displayAmount: string; native: boolean; autoBuy: boolean;
 }): string {
   if (input.amount <= input.balance) return '';
-  if (input.native) return 'Insufficient ETH. Add ETH for your buy, launch fee and gas.';
-  if (!input.autoBuy) return `Insufficient ${input.symbol}. Automatic purchase is unavailable for this asset.`;
-  return `Insufficient ${input.symbol}. At launch, we’ll use ETH to buy the full ${input.displayAmount} ${input.symbol}. Keep enough ETH for the purchase, launch fee and gas.`;
+  // The launch blocker reports the total ETH shortfall, including fees and gas.
+  if (input.native) return '';
+  if (!input.autoBuy) return `Add ${input.symbol}. Auto-buy unavailable.`;
+  return `ETH will buy the full ${input.displayAmount} ${input.symbol} at launch. Allow ETH for the buy, launch fee and gas.`;
 }

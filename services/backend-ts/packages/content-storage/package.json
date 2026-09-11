@@ -1,0 +1,12 @@
+{
+  "name": "@tickergarden/content-storage",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": "./src/index.ts",
+  "dependencies": {
+    "@tickergarden/content-core": "0.0.0",
+    "@tickergarden/jobs": "0.0.0",
+    "pg": "^8.23.0"
+  }
+}

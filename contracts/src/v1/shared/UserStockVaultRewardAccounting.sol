@@ -135,6 +135,7 @@ abstract contract UserStockVaultRewardAccounting is UserStockVaultDeposits {
 
     function _marketRewardEligible(bytes32 assetUid, bytes32 marketId) internal view returns (uint256 total) {
         total = _storedRewardActive[assetUid][marketId];
+        if (_rewardPending[assetUid][marketId] == 0) return total;
         RewardActivationSlot[REWARD_ACTIVATION_WHEEL_SIZE] storage wheel = _rewardActivationWheels[assetUid][marketId];
         for (uint8 i; i < REWARD_ACTIVATION_WHEEL_SIZE; ++i) {
             RewardActivationSlot storage slot = wheel[i];
@@ -145,16 +146,15 @@ abstract contract UserStockVaultRewardAccounting is UserStockVaultDeposits {
     function _rageQuitRewardCutoff(bytes32 assetUid, address user, bytes32 marketId)
         internal
         view
-        returns (uint256 quoteAccumulator, uint256 memeAccumulator, bool forfeitureRedistributable)
+        returns (uint256 quoteAccumulator, uint256 memeAccumulator)
     {
         RageQuitRewardSnapshot storage cutoff = _rageQuitRewardCutoffs[assetUid][user][marketId];
         quoteAccumulator = cutoff.quoteAccumulator;
         memeAccumulator = cutoff.memeAccumulator;
-        // Keep the return slot for source/ABI compatibility, but V1 escape forfeitures are always platform-owned.
-        forfeitureRedistributable = false;
     }
 
     function _checkpointRewardEligibility(bytes32 assetUid, bytes32 marketId) private {
+        if (_rewardPending[assetUid][marketId] == 0) return;
         RewardActivationSlot[REWARD_ACTIVATION_WHEEL_SIZE] storage wheel = _rewardActivationWheels[assetUid][marketId];
         for (uint8 i; i < REWARD_ACTIVATION_WHEEL_SIZE; ++i) {
             RewardActivationSlot memory slot = wheel[i];

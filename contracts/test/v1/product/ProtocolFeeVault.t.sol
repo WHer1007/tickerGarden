@@ -37,10 +37,7 @@ contract ProtocolFeeVaultProductTest is Test {
         assertEq(
             ProtocolFeeVaultCurveCredit.finalizeCurveCredit.selector, IProtocolFeeVault.finalizeCurveCredit.selector
         );
-        assertEq(ProtocolFeeVaultLiabilities.claimCreator.selector, IProtocolFeeVault.claimCreator.selector);
         assertEq(ProtocolFeeVaultLiabilities.claimPlatform.selector, IProtocolFeeVault.claimPlatform.selector);
-        assertEq(ProtocolFeeVaultLiabilities.claimStaker.selector, IProtocolFeeVault.claimStaker.selector);
-        assertEq(ProtocolFeeVaultLiabilities.claimStakerFor.selector, IProtocolFeeVault.claimStakerFor.selector);
         assertEq(ProtocolFeeVaultLiabilities.liability.selector, IProtocolFeeVault.liability.selector);
         assertEq(ProtocolFeeVaultLiabilities.totalLiability.selector, IProtocolFeeVault.totalLiability.selector);
     }

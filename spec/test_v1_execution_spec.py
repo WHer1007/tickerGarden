@@ -105,7 +105,6 @@ class V1ExecutionSpecTest(unittest.TestCase):
         cls.pons_runtime_evidence = load("v1_pons_runtime_evidence.json")
         cls.initial_quote_configs = load("v1_initial_quote_configs.json")
         cls.numeric_bounds = load("v1_numeric_bounds.json")
-        cls.treasury_manifest = load("v1_treasury_execution_manifest.json")
         cls.official_stock_catalog = load("v1_rh_official_stock_catalog.snapshot.json")
         cls.official_stock_catalog_raw = (ROOT / "v1_rh_official_stock_catalog.source.json").read_bytes()
 
@@ -116,73 +115,13 @@ class V1ExecutionSpecTest(unittest.TestCase):
         self.assertEqual(self.abi["executionSpecId"], expected)
         self.assertEqual(self.canonical_abi["executionSpecId"], expected)
 
-    def test_treasury_access_manager_surface_is_explicit_and_matches_permissions(self):
-        treasury = self.treasury_manifest
-        access = treasury["accessManager"]
-        self.assertEqual(treasury["runtimeStatus"], "COMPLETE")
-        self.assertEqual(
-            treasury["deploymentStatus"],
-            f"{self.manifest['readiness']['state']}_NOT_BROADCAST",
-        )
-        self.assertEqual(
-            treasury["openProductInputScope"],
-            "ACTIVATION_AND_PRODUCTION_ONLY_NOT_RUNTIME_COMPLETENESS",
-        )
-        self.assertNotIn("FINAL_FEE_SPLITS", treasury["openProductInputs"])
-        self.assertTrue(treasury["v1Compatibility"]["changesV1Contracts"])
-        self.assertTrue(treasury["v1Compatibility"]["changesV1Abi"])
-        self.assertEqual(
-            access["bindings"],
-            {
-                "authority": "IMMUTABLE_SHARED_V1_ACCESS_MANAGER",
-                "marketRegistry": "IMMUTABLE_CANONICAL_MARKET_REGISTRY_V1",
-                "livePreflightRequired": True,
-            },
-        )
-        self.assertEqual(
-            {
-                role["roleName"]: (
-                    role["roleId"],
-                    role["executionDelaySeconds"],
-                )
-                for role in access["roles"]
-            },
-            {
-                "PROTOCOL_ADMIN_ROLE": ("1", 172800),
-                "PAUSE_GUARDIAN_ROLE": ("2", 0),
-                "ROOT_PUBLISHER_ROLE": ("4", 0),
-                "ROOT_REVIEW_ROLE": ("5", 0),
-            },
-        )
-
-        declared = {
-            row["signature"]: (
-                row["caller"],
-                row.get("executionDelaySeconds", 0),
-            )
-            for row in access["restrictedFunctions"] + access["directFunctions"]
-        }
-        permissions = {
-            row["signature"]: (row["caller"], row["delaySeconds"])
-            for row in self.permissions["functions"]
-            if row["module"] == "TreasuryDistributorV1"
-        }
-        self.assertEqual(declared, permissions)
-        self.assertEqual(
-            {row["signature"] for row in access["restrictedFunctions"]},
-            {
-                "registerMarket(bytes32,address,address,bytes32)",
-                "setRootServiceFee(address,uint128)",
-                "publishRoot(bytes32,uint32,bytes32,bytes32,uint256,uint32,uint256)",
-                "cancelPendingRoot(bytes32,uint32,bytes32)",
-            },
-        )
-        direct = {row["signature"]: row["caller"] for row in access["directFunctions"]}
-        self.assertEqual(direct["activateMarket(bytes32)"], "PUBLIC")
-        self.assertTrue(access["handoff"]["dedicatedRootSafesRequired"])
-        self.assertTrue(access["handoff"]["rootSafesMustNotAliasCoreSafes"])
-        self.assertTrue(access["handoff"]["selectorAssignmentsFrozenBeforeProduction"])
-        self.assertTrue(access["handoff"]["bootstrapAdminRenouncedLast"])
+    def test_current_business_surface_excludes_legacy_treasury(self):
+        modules = {entry["module"]: entry for entry in self.abi["modules"]}
+        self.assertNotIn("TreasuryDistributorV1", modules)
+        vault_functions = {entry["signature"] for entry in modules["ProtocolFeeVault"]["functions"]}
+        self.assertIn("claimUserRewards(bytes32,uint8,uint32,bool,bool,uint256)", vault_functions)
+        self.assertNotIn("claimCreator(bytes32,uint32,address)", vault_functions)
+        self.assertNotIn("claimCreator(bytes32,address)", vault_functions)
 
     def test_approved_five_second_policy_is_separate_from_historical_observations(self):
         from spec.v1_reference_model import current_snipe_tax_bps as production_snipe
@@ -1015,7 +954,8 @@ class V1ExecutionSpecTest(unittest.TestCase):
             "FEE_VAULT",
             "CURRENT_CREATOR_BENEFICIARY",
             "PENDING_CREATOR_REVENUE_BENEFICIARY",
-            "TREASURY_DISTRIBUTOR_MODULE",
+                "TREASURY_DISTRIBUTOR_MODULE",
+                "HOLDER_REWARDS_DISTRIBUTOR_MODULE",
             "CURRENT_MEME_HOLDER",
             "ROOT_PUBLISHER_ROLE",
             "ROOT_REVIEW_ROLE",
@@ -1168,8 +1108,8 @@ class V1ExecutionSpecTest(unittest.TestCase):
         vault_functions = {
             entry["signature"] for entry in modules["ProtocolFeeVault"]["functions"]
         }
-        self.assertIn("claimCreator(bytes32,uint32,address)", vault_functions)
-        self.assertIn("creatorLiability(bytes32,uint32,address)", vault_functions)
+        self.assertIn("claimUserRewards(bytes32,uint8,uint32,bool,bool,uint256)", vault_functions)
+        self.assertNotIn("claimCreator(bytes32,uint32,address)", vault_functions)
         self.assertNotIn("claimCreator(bytes32,address)", vault_functions)
 
         permissions = {
@@ -1184,10 +1124,8 @@ class V1ExecutionSpecTest(unittest.TestCase):
         accept = permissions[("CreatorRevenueRegistry", "acceptCreatorRevenueBeneficiary(bytes32)")]
         self.assertEqual(accept["caller"], "PENDING_CREATOR_REVENUE_BENEFICIARY")
         self.assertIn("ATOMIC_OLD_EPOCH_SWEEP", accept["precondition"])
-        claim = permissions[
-            ("ProtocolFeeVault", "claimCreator(bytes32,uint32,address)")
-        ]
-        self.assertEqual(claim["recipient"], "stored_creator_epoch_beneficiary")
+        claim = permissions[("ProtocolFeeVault", "claimUserRewards(bytes32,uint8,uint32,bool,bool,uint256)")]
+        self.assertEqual(claim["caller"], "PUBLIC")
 
     def test_market_autonomy_keeps_rage_quit_and_removes_reward_migration(self):
         autonomy = self.manifest["marketAutonomy"]

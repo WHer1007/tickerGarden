@@ -19,6 +19,7 @@ contracts/broadcast/
 .env.*.local
 **/.env.local
 **/.env.*.local
+**/.env.*.local.*.tmp
 **/.env.staged
 **/.state/
 **/bin/

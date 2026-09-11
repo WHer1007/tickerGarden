@@ -46,20 +46,13 @@ const product = fs.readFileSync(root + 'spec/v1_product_artifact_manifest.json')
 const releaseId = keccak256(toHex(`TickerGarden:RobinhoodTestnet:atomicNativeBuy:continuous24h:antisnipe5s:20260908:${keccak256(product)}:${block.hash}`));
 const feePolicyId = keccak256(toHex('TICKERGARDEN_V1_FEE_POLICY_40_30_30'));
 const values = {
+  V1_DEPLOYMENT_HOLDER_MODE: 'dual-asset-24h-v4',
   V1_EXPECTED_CHAIN_ID: '46630',
   V1_EXPECTED_DEPLOYER: deployer,
   V1_INITIAL_ADMIN: deployer,
   V1_PLATFORM_TREASURY: treasury.address,
   V1_PLATFORM_TREASURY_CODEHASH: treasury.runtimeCodeHash,
-  V1_ROOT_SERVICE_TREASURY: deployer,
   V1_RELEASE_ID: releaseId,
-  V1_ROOT_SERVICE_FEE_ASSET: '0x0000000000000000000000000000000000000000',
-  V1_ROOT_SERVICE_FEE_AMOUNT: '1000000000000000',
-  V1_FINALITY_DELAY_SECONDS: envFile.V1_FINALITY_DELAY_SECONDS,
-  V1_FINALITY_DELAY_BLOCKS: envFile.V1_FINALITY_DELAY_BLOCKS,
-  V1_ROOT_PUBLICATION_WINDOW: envFile.V1_ROOT_PUBLICATION_WINDOW,
-  V1_ROOT_REVIEW_DELAY: envFile.V1_ROOT_REVIEW_DELAY,
-  V1_CLAIM_WINDOW: envFile.V1_CLAIM_WINDOW,
   V1_FEE_POLICY_ID: feePolicyId,
   V1_POOL_MANAGER: dependency('POOL_MANAGER').address,
   V1_POOL_MANAGER_CODEHASH: dependency('POOL_MANAGER').runtimeCodeHash,

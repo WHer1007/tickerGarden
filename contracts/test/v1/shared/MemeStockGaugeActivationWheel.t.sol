@@ -66,8 +66,12 @@ contract MemeStockGaugeActivationWheelHarness is MemeStockGaugeActivationWheel {
         return _storedTotalActiveStock;
     }
 
-    function effectiveActive() external view returns (uint256) {
-        return _effectiveTotalActiveStock();
+    function effectiveActive() external view returns (uint256 total) {
+        total = _storedTotalActiveStock;
+        for (uint8 i; i < ACTIVATION_WHEEL_SIZE; ++i) {
+            ActivationSlot memory slot = _activationWheel[i];
+            if (slot.generation != 0 && slot.generation <= block.timestamp) total += slot.amount;
+        }
     }
 
     function pending() external view returns (uint256) {

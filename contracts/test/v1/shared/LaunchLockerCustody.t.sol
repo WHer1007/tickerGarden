@@ -42,7 +42,8 @@ contract LaunchLockerCustodyTest is Test {
         quote = new PoolExecutionToken("QUOTE");
         meme = new PoolExecutionToken("MEME");
         PoolExecutionQuoteRegistryMock quoteRegistry = new PoolExecutionQuoteRegistryMock();
-        PoolExecutionTickerGardenBaselineRegistryMock baselineRegistry = new PoolExecutionTickerGardenBaselineRegistryMock();
+        PoolExecutionTickerGardenBaselineRegistryMock baselineRegistry =
+            new PoolExecutionTickerGardenBaselineRegistryMock();
         registry = new PoolExecutionRegistryMock(address(quoteRegistry), address(baselineRegistry));
         positionManager = new LaunchLockerPositionManagerMock();
         registry.configure(MARKET_ID, QUOTE_ID, address(quote), address(meme), address(0xC0A7), HOOK);

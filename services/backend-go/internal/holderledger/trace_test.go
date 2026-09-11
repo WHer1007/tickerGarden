@@ -108,3 +108,20 @@ func TestApplyTraceMalformedOrMismatchedClaimRollsBackEarlierActions(t *testing.
 		}
 	}
 }
+
+func TestConfigurableIntervalTraceDoesNotCheckpointAndSkipsReverts(t *testing.T) {
+	l := traceLedger(t)
+	l.Batched = true
+	l.ConfigurableInterval = true
+	input := selector("setFundingInterval(bytes32,uint256)") + market[2:] + traceWord("e10")
+	count, err := l.ApplyTrace(1800, traceBinding(), traceRoot(traceCall(a, distributor, input, "0x")))
+	if err != nil || count != 1 || l.interval() != 3600 || l.UpdatedAt != 0 {
+		t.Fatalf("count=%d err=%v interval=%d updated=%d", count, err, l.interval(), l.UpdatedAt)
+	}
+	failed := traceCall(a, distributor, selector("setFundingInterval(bytes32,uint256)")+market[2:]+traceWord("15180"), "0x")
+	failed.Error = "execution reverted"
+	count, err = l.ApplyTrace(2000, traceBinding(), traceRoot(failed))
+	if err != nil || count != 0 || l.interval() != 3600 {
+		t.Fatalf("reverted update applied: %d %v", count, err)
+	}
+}

@@ -32,19 +32,20 @@ type Scope struct {
 }
 type Handler func(context.Context, pgx.Tx, Scope, []chainrpc.Log) error
 type Service struct {
-	Pool     *pgxpool.Pool
-	Source   Source
-	Default  Scope
-	TTL      time.Duration
-	Process  Handler
-	ctx      context.Context
-	mu       sync.Mutex
-	fetching map[string]bool
-	slots    chan struct{}
-	wake     chan struct{}
-	headMu   sync.Mutex
-	head     chainrpc.Header
-	headAt   time.Time
+	creatorMu sync.Mutex
+	Pool      *pgxpool.Pool
+	Source    Source
+	Default   Scope
+	TTL       time.Duration
+	Process   Handler
+	ctx       context.Context
+	mu        sync.Mutex
+	fetching  map[string]bool
+	slots     chan struct{}
+	wake      chan struct{}
+	headMu    sync.Mutex
+	head      chainrpc.Header
+	headAt    time.Time
 }
 
 func New(ctx context.Context, pool *pgxpool.Pool, source Source, scope Scope, handlers ...Handler) (*Service, error) {
@@ -239,6 +240,9 @@ func (s *Service) Fetch(ctx context.Context, scope Scope) error {
 		_, e = tx.Exec(ctx, `SELECT pg_advisory_xact_lock(hashtextextended($1,0))`, "demand-process:"+scope.ID)
 		if e == nil {
 			_, e = tx.Exec(ctx, `DELETE FROM tickergarden.demand_event_records WHERE scope_id=$1`, scope.ID)
+		}
+		if e == nil {
+			_, e = tx.Exec(ctx, `DELETE FROM tickergarden.display_snapshots WHERE scope_id=$1`, scope.ID)
 		}
 		if e == nil {
 			_, e = tx.Exec(ctx, `DELETE FROM tickergarden.demand_event_jobs WHERE scope_id=$1`, scope.ID)

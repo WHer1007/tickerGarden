@@ -26,7 +26,6 @@ func TestMaintenanceActionABI(t *testing.T) {
 		{"checkpoint", "", "MemeStockGauge", "checkpointActivations()", "", []events.Input{{Name: "activatedAmount", Type: "uint256"}, {Name: "processedBuckets", Type: "uint256"}}},
 		{"flush-forfeiture", "", "MemeStockGauge", "flushDeferredForfeiture()", "", nil},
 		{"settle-rage-quit", user, "AllocationManager", "settleRageQuitRewards(bytes32,address)", addressedMarket + addressedUser, []events.Input{{Name: "quoteForfeited", Type: "uint256"}, {Name: "memeForfeited", Type: "uint256"}, {Name: "redistributed", Type: "bool"}}},
-		{"treasury-activate", "", "TreasuryDistributorV1", "activateMarket(bytes32)", addressedMarket, nil},
 	}
 	for _, tc := range tests {
 		t.Run(tc.operation, func(t *testing.T) {

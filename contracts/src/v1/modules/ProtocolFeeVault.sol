@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.26;
 
-import {ProtocolFeeVaultRewardSettlement} from "../shared/ProtocolFeeVaultRewardSettlement.sol";
+import {ProtocolFeeVaultUserClaims} from "../shared/ProtocolFeeVaultUserClaims.sol";
 
 struct ProtocolFeeVaultInit {
     address marketRegistry;
@@ -12,9 +12,9 @@ struct ProtocolFeeVaultInit {
 }
 
 /// @notice Canonical V1 fee-accounting and liability vault.
-contract ProtocolFeeVault is ProtocolFeeVaultRewardSettlement {
+contract ProtocolFeeVault is ProtocolFeeVaultUserClaims {
     constructor(ProtocolFeeVaultInit memory init)
-        ProtocolFeeVaultRewardSettlement(
+        ProtocolFeeVaultUserClaims(
             init.marketRegistry, init.poolManager, init.creatorRevenueRegistry, init.platformTreasury, init.feePolicyId
         )
     {}

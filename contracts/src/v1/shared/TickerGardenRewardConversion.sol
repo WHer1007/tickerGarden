@@ -18,7 +18,6 @@ import {TickerGardenMemeHookFeeExecution} from "./TickerGardenMemeHookFeeExecuti
 /// @notice Only the FeeVault may exchange owned rewards, in this Hook's own canonical pool.
 abstract contract TickerGardenRewardConversion is TickerGardenMemeHookFeeExecution {
     using SafeERC20 for IERC20;
-    uint256 public constant MAX_SQRT_PRICE_MOVE_BPS = 100;
     bytes32 private _conversionContext;
     bool private _callbackUsed;
     error InvalidRewardConversion();
@@ -28,14 +27,15 @@ abstract contract TickerGardenRewardConversion is TickerGardenMemeHookFeeExecuti
         TickerGardenMemeHookFeeExecution(registry, manager, vault, graduation)
     {}
 
-    function convertRewards(bytes32 marketId, uint256 amount, uint256 minimumQuote, uint256 deadline)
+    /// @dev Only the claiming Vault may convert; no price floor is imposed.
+    function convertRewards(bytes32 marketId, uint256 amount, uint256 deadline)
         external
         override
         returns (uint256 spent, uint256 received)
     {
         if (
             msg.sender != _hookProtocolFeeVault || _conversionContext != bytes32(0) || amount == 0
-                || amount > uint256(uint128(type(int128).max)) || minimumQuote == 0 || deadline < block.timestamp
+                || amount > uint256(uint128(type(int128).max)) || deadline < block.timestamp
         ) {
             revert InvalidRewardConversion();
         }
@@ -62,7 +62,7 @@ abstract contract TickerGardenRewardConversion is TickerGardenMemeHookFeeExecuti
         _conversionContext = keccak256(data);
         _callbackUsed = false;
         (spent, received) = abi.decode(IPoolManager(_hookPoolManager).unlock(data), (uint256, uint256));
-        if (!_callbackUsed || spent == 0 || spent > amount || received < minimumQuote) {
+        if (!_callbackUsed || spent == 0 || spent > amount) {
             revert InvalidRewardConversion();
         }
         _conversionContext = bytes32(0);
@@ -87,12 +87,10 @@ abstract contract TickerGardenRewardConversion is TickerGardenMemeHookFeeExecuti
         _callbackUsed = true;
         (PoolKey memory key, bool zeroForOne, uint256 amount) = abi.decode(data, (PoolKey, bool, uint256));
         IPoolManager manager = IPoolManager(_hookPoolManager);
-        (uint160 current,, uint24 protocolFee, uint24 lpFee) =
-            StateLibrary.getSlot0(manager, PoolId.wrap(keccak256(abi.encode(key))));
-        if (protocolFee != 0 || lpFee != 0) revert InvalidRewardConversion();
-        uint256 limit = zeroForOne ? uint256(current) * 9900 / 10000 : uint256(current) * 10000 / 9900;
-        if (limit <= TickMath.MIN_SQRT_PRICE) limit = TickMath.MIN_SQRT_PRICE + 1;
-        if (limit >= TickMath.MAX_SQRT_PRICE) limit = TickMath.MAX_SQRT_PRICE - 1;
+        (,,, uint24 lpFee) = StateLibrary.getSlot0(manager, PoolId.wrap(keccak256(abi.encode(key))));
+        if (lpFee != 0) revert InvalidRewardConversion();
+        // Pool bounds only: no preset impact or slippage restriction.
+        uint160 limit = zeroForOne ? TickMath.MIN_SQRT_PRICE + 1 : TickMath.MAX_SQRT_PRICE - 1;
         BalanceDelta delta = manager.swap(
             V4PoolKey(
                 Currency.wrap(key.currency0), Currency.wrap(key.currency1), key.fee, key.tickSpacing, IHooks(key.hooks)

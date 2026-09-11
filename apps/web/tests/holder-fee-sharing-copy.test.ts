@@ -12,8 +12,8 @@ test("holder fee sharing uses the approved feature label and creation semantics"
   const label = "Holder fee sharing";
   for (const page of [create, docs, terms]) assert.ok(page.includes(label));
   assert.match(rewards, /Holder rewards/);
-  assert.match(create, /Share 50% of your base fee earnings/i);
-  assert.match(create, /Fixed at launch; creator tax stays yours/i);
+  assert.match(create, /Share 50% of base fees with holders/i);
+  assert.match(create, /Creator tax stays yours. Permanent at launch/i);
   assert.match(create, /claim rewards after settlement/i);
   assert.match(create, /Payouts may be delayed/i);
   assert.doesNotMatch(create, /Request a treasury|Registration and funding happen separately|no fees are automatically redirected/i);

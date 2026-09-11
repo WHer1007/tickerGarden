@@ -25,32 +25,21 @@ func conversionFixture(phase string) []deployment.StateObservation {
 
 func TestBuildConversionStatuses(t *testing.T) {
 	q, m := "0x"+strings.Repeat("2", 40), "0x"+strings.Repeat("3", 40)
-	u := "0x" + strings.Repeat("4", 40)
 	for _, tc := range []struct {
-		name, phase, exit string
-		ready             bool
-		pending           bool
-		want              string
-		candidate         string
+		name, phase     string
+		pending         bool
+		want, candidate string
 	}{
-		{"quote not applicable", "1", "0", false, false, "not_applicable", "0"},
-		{"meme no rewards", "1", "0", false, false, "no_rewards", "0"},
-		{"not graduated", "0", "0", false, false, "not_graduated", "0"},
-		{"rage quit pending", "1", "0", false, true, "rage_quit_pending", "0"},
-		{"raw exit ready", "1", "100", true, false, "raw_exit_ready", "0"},
-		{"candidate", "1", "101", false, false, "candidate", "60"},
-		{"candidate without exit", "1", "0", false, false, "candidate", "60"},
+		{"quote not applicable", "1", false, "not_applicable", "0"},
+		{"meme no rewards", "1", false, "no_rewards", "0"},
+		{"not graduated", "0", false, "not_graduated", "0"},
+		{"rage quit pending", "1", true, "rage_quit_pending", "0"},
+		{"unlocked meme candidate", "1", false, "candidate", "60"},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			rows := conversionFixture(tc.phase)
 			for _, r := range rows {
-				if r.Kind == "creatorEpoch" && r.Value["beneficiary"] == u {
-					r.Value["rawRewardExitAt"] = tc.exit
-					r.Value["rawRewardExitReady"] = tc.ready
-				}
 				if r.Kind == "gaugePosition" {
-					r.Value["rawRewardExitAt"] = tc.exit
-					r.Value["rawRewardExitReady"] = tc.ready
 					r.Value["rageQuitSettlementPending"] = tc.pending
 				}
 			}
@@ -110,10 +99,6 @@ func TestBuildConversionRequiresCanonicalRouteAndStakerState(t *testing.T) {
 func TestCreatorConversionKeepsEpochOwnership(t *testing.T) {
 	rows := conversionFixture("1")
 	for _, r := range rows {
-		if r.Kind == "creatorEpoch" && r.Value["epoch"] == "1" {
-			r.Value["rawRewardExitAt"] = "101"
-			r.Value["rawRewardExitReady"] = false
-		}
 		if r.Kind == "gaugePosition" {
 			r.Value["rageQuitSettlementPending"] = true
 		}
@@ -128,13 +113,14 @@ func TestCreatorConversionKeepsEpochOwnership(t *testing.T) {
 			continue
 		}
 		seen++
-		if r.Value["beneficiaryEpoch"] == "1" {
-			if r.Value["conversionStatus"] != "candidate" || r.Value["conversionCandidateAmount"] != "20" {
-				t.Fatal(r)
-			}
-		} else if r.Value["conversionStatus"] != "raw_exit_ready" || r.Value["conversionCandidateAmount"] != "0" {
+		want := "20"
+		if r.Value["beneficiaryEpoch"] == "2" {
+			want = "40"
+		}
+		if r.Value["conversionStatus"] != "candidate" || r.Value["conversionCandidateAmount"] != want {
 			t.Fatal(r)
 		}
+
 	}
 	if seen != 2 {
 		t.Fatal("missing creator epochs")

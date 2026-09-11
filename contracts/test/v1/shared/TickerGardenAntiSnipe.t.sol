@@ -21,7 +21,9 @@ contract TickerGardenAntiSnipeHarness {
         return TickerGardenAntiSnipe.isExempt(
             recipient,
             caller,
-            TickerGardenAntiSnipe.ExemptionContext(creator, beneficiaryAtCreation, launchRouter, atomicFirstBuyRecipient)
+            TickerGardenAntiSnipe.ExemptionContext(
+                creator, beneficiaryAtCreation, launchRouter, atomicFirstBuyRecipient
+            )
         );
     }
 
@@ -77,7 +79,8 @@ contract TickerGardenAntiSnipeTest is Test {
     }
 
     function test_elapsedZeroMatchesClippedRuntimeVector() public view {
-        TickerGardenAntiSnipe.AntiSnipeBuyQuote memory quote = _quote(0, ORDINARY_RECIPIENT, ORDINARY_CALLER, address(0));
+        TickerGardenAntiSnipe.AntiSnipeBuyQuote memory quote =
+            _quote(0, ORDINARY_RECIPIENT, ORDINARY_CALLER, address(0));
         assertEq(quote.rawSnipeBps, 9_900);
         assertEq(quote.effectiveSnipeBps, 9_800);
         assertEq(quote.curveQuote.fee, 10);
@@ -87,7 +90,8 @@ contract TickerGardenAntiSnipeTest is Test {
     }
 
     function test_elapsedOneMatchesFiveSecondPolicy() public view {
-        TickerGardenAntiSnipe.AntiSnipeBuyQuote memory quote = _quote(1, ORDINARY_RECIPIENT, ORDINARY_CALLER, address(0));
+        TickerGardenAntiSnipe.AntiSnipeBuyQuote memory quote =
+            _quote(1, ORDINARY_RECIPIENT, ORDINARY_CALLER, address(0));
         assertEq(quote.rawSnipeBps, 2475);
         assertEq(quote.effectiveSnipeBps, 2475);
         assertEq(quote.curveQuote.fee, 10);
@@ -97,7 +101,8 @@ contract TickerGardenAntiSnipeTest is Test {
     }
 
     function test_elapsedTwoMatchesFiveSecondPolicy() public view {
-        TickerGardenAntiSnipe.AntiSnipeBuyQuote memory quote = _quote(2, ORDINARY_RECIPIENT, ORDINARY_CALLER, address(0));
+        TickerGardenAntiSnipe.AntiSnipeBuyQuote memory quote =
+            _quote(2, ORDINARY_RECIPIENT, ORDINARY_CALLER, address(0));
         assertEq(quote.rawSnipeBps, 309);
         assertEq(quote.effectiveSnipeBps, 309);
         assertEq(quote.curveQuote.fee, 10);
@@ -156,7 +161,9 @@ contract TickerGardenAntiSnipeTest is Test {
 
     function test_feeCannotConsumeFrozenMinimumNet() public {
         vm.expectRevert(
-            abi.encodeWithSelector(TickerGardenAntiSnipe.FeeLeavesLessThanMinimumNet.selector, uint256(9_901), uint256(100))
+            abi.encodeWithSelector(
+                TickerGardenAntiSnipe.FeeLeavesLessThanMinimumNet.selector, uint256(9_901), uint256(100)
+            )
         );
         harness.effectiveSnipeBps(0, false, 9_901);
     }
@@ -165,10 +172,14 @@ contract TickerGardenAntiSnipeTest is Test {
         vm.expectRevert(abi.encodeWithSelector(TickerGardenAntiSnipe.InvalidRecipient.selector, address(0)));
         harness.isExempt(address(0), ORDINARY_CALLER, CREATOR, BENEFICIARY, LAUNCH_ROUTER, address(0));
 
-        vm.expectRevert(abi.encodeWithSelector(TickerGardenAntiSnipe.InvalidFrozenIdentity.selector, address(0), BENEFICIARY));
+        vm.expectRevert(
+            abi.encodeWithSelector(TickerGardenAntiSnipe.InvalidFrozenIdentity.selector, address(0), BENEFICIARY)
+        );
         harness.isExempt(ORDINARY_RECIPIENT, ORDINARY_CALLER, address(0), BENEFICIARY, LAUNCH_ROUTER, address(0));
 
-        vm.expectRevert(abi.encodeWithSelector(TickerGardenAntiSnipe.InvalidFrozenIdentity.selector, CREATOR, address(0)));
+        vm.expectRevert(
+            abi.encodeWithSelector(TickerGardenAntiSnipe.InvalidFrozenIdentity.selector, CREATOR, address(0))
+        );
         harness.isExempt(ORDINARY_RECIPIENT, ORDINARY_CALLER, CREATOR, address(0), LAUNCH_ROUTER, address(0));
 
         vm.expectRevert(abi.encodeWithSelector(TickerGardenAntiSnipe.InvalidLaunchRouter.selector, address(0)));

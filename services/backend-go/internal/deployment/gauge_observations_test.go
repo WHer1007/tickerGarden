@@ -173,7 +173,7 @@ func TestGaugeSharedActivationSnapshotReadOnce(t *testing.T) {
 	otherLog.Topics[1] = wordHex(other[2:])
 	before := f.reads
 	batch, err := ObserveBusinessBlock(context.Background(), f, f.manifest, b, map[string]MarketDiscovery{market.MarketID: market}, []chainrpc.Log{log, otherLog})
-	if err != nil || batch.Expected != 4 || f.reads-before != 23 {
+	if err != nil || batch.Expected != 4 || f.reads-before != 22 {
 		t.Fatalf("snapshot dedupe: %+v, reads=%d err=%v", batch, f.reads-before, err)
 	}
 }

@@ -1,5 +1,8 @@
-export type FieldRule = {kind:'name'|'ticker'|'website'|'social'|'address'|'bytes32'|'amount'|'integer'|'tax';required?:boolean;allowZero?:boolean;decimals?:number;max?:number};
+import {slippagePercentToBps} from '../v1/slippage.ts';
+export type FieldRule = {kind:'slippage'|'description'|'name'|'ticker'|'website'|'social'|'address'|'bytes32'|'amount'|'integer'|'tax';required?:boolean;allowZero?:boolean;decimals?:number;max?:number};
 export function fieldError(raw:string,rule:FieldRule):string {
+ if(rule.kind==='slippage'){try{slippagePercentToBps(raw);return '';}catch(error){return (error as Error).message;}}
+ if(rule.kind==='description')return raw.length>300?'Use at most 300 characters.':'';
  const v=raw.trim();if(!v)return rule.required?'This field is required.':'';
  if(rule.kind==='name')return v.length>64?'Use at most 64 characters.':'';
  if(rule.kind==='ticker')return /^[A-Z0-9]{1,16}$/.test(v)?'':'Use 1–16 letters A–Z or digits 0–9.';
@@ -34,11 +37,13 @@ export function mountFieldValidation(root:HTMLElement,decimalsFor:(field:Field)=
  const touched=new WeakSet<Field>();let sequence=0;
  const ruleFor=(f:Field):FieldRule|undefined=>{
   const required=f.required;
+  if(f.name==='description')return {kind:'description'};
   if(f.name==='name')return {kind:'name',required};if(f.name==='symbol')return {kind:'ticker',required};
   if(f.name==='website')return {kind:'website'};if(f.name==='x')return {kind:'social'};
   if(['beneficiary','newBeneficiary','user','serviceCreditAsset'].includes(f.name))return {kind:'address',required,allowZero:f.name==='serviceCreditAsset'};
   if(f.name==='marketId'||f.matches('[data-market-id],[data-direct-vault-market]'))return {kind:'bytes32',required};
   if(f.name==='epoch')return {kind:'integer',required};
+  if(f.name==='slippagePercent')return {kind:'slippage',required:true};
   if(f.name==='slippageBps')return {kind:'integer',required:true,allowZero:true,max:5000};
   if(f.name==='creatorTax')return {kind:'tax'};
   if(f.matches('[data-trade-amount],[data-reward-amount]')||f.name==='firstBuyAmount')return {kind:'amount',required,allowZero:f.name==='firstBuyAmount',decimals:decimalsFor(f)??18};
@@ -47,13 +52,14 @@ export function mountFieldValidation(root:HTMLElement,decimalsFor:(field:Field)=
  const validate=(f:Field,show:boolean)=>{
   if(f instanceof HTMLInputElement&&f.name==='creatorTax'&&f.valueAsNumber>5)f.value='5';
   const rule=ruleFor(f);if(rule)f.setCustomValidity(fieldError(f.value,rule));
-  const error=show&&!f.validity.valid?(f.validationMessage||'Check this field.') : '';
+  const quietRequired=f.validationMessage==='This field is required.';
+  const error=show&&!f.validity.valid&&!quietRequired?(f.validationMessage||'Check this field.') : '';
   let hint=f.dataset.validationHint?root.querySelector<HTMLElement>('#'+f.dataset.validationHint):null;
   if(!hint&&error){hint=document.createElement('small');hint.id=`field-validation-${++sequence}`;hint.className='field-error';hint.setAttribute('role','status');f.dataset.validationHint=hint.id;const holder=f.closest('.field');if(holder)holder.append(hint);else (f.closest('.ref-input-box')??f).insertAdjacentElement('afterend',hint);}
   if(hint){hint.textContent=error;hint.hidden=!error;const ids=(f.getAttribute('aria-describedby')??'').split(/\s+/).filter(id=>id&&id!==hint!.id);if(error)ids.push(hint.id);if(ids.length)f.setAttribute('aria-describedby',ids.join(' '));else f.removeAttribute('aria-describedby');}
-  if(error)f.setAttribute('aria-invalid','true');else f.removeAttribute('aria-invalid');return !error;
+  if(show&&!f.validity.valid)f.setAttribute('aria-invalid','true');else f.removeAttribute('aria-invalid');return f.validity.valid;
  };
- const update=(e:Event)=>{if(!(e.target instanceof Element)||!eligible(e.target))return;const f=e.target;touched.add(f);if(f.name==='symbol')f.value=f.value.toUpperCase();validate(f,true);if(e.type==='change')for(const other of root.querySelectorAll('input,select,textarea'))if(other!==f&&eligible(other)&&touched.has(other))validate(other,true);};
+ const update=(e:Event)=>{if(!(e.target instanceof Element)||!eligible(e.target))return;const f=e.target;touched.add(f);if(f.name==='symbol')f.value=f.value.toUpperCase();validate(f,true);if(e.type==='invalid'&&f.validationMessage==='This field is required.')e.preventDefault();if(e.type==='change')for(const other of root.querySelectorAll('input,select,textarea'))if(other!==f&&eligible(other)&&touched.has(other))validate(other,true);};
  const submit=(e:Event)=>{if(!(e.target instanceof HTMLFormElement))return;let first:Field|undefined;for(const f of e.target.querySelectorAll('input,select,textarea'))if(eligible(f)){touched.add(f);validate(f,true);if(!f.validity.valid)first??=f;}if(first){e.preventDefault();e.stopImmediatePropagation();first.focus();}};
  for(const event of ['input','change','focusout','invalid'])root.addEventListener(event,update,true);
  root.addEventListener('submit',submit,true);

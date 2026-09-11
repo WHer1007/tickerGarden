@@ -17,11 +17,11 @@ func fixtureObservations() []deployment.StateObservation {
 	}
 	rows := []deployment.StateObservation{{Kind: "gauge", Key: marketID, Value: map[string]any{"identity": map[string]any{"marketId": marketID, "quoteAsset": q, "memeToken": m}}}}
 	for _, x := range []struct{ u, e, qa, ma string }{{u1, "1", "10", "20"}, {u2, "2", "30", "40"}} {
-		r := base(map[string]any{"marketId": marketID, "epoch": x.e, "beneficiary": x.u, "quoteAsset": q, "memeAsset": m, "quoteLiability": x.qa, "memeLiability": x.ma, "rawRewardExitAt": "100", "rawRewardExitReady": true, "observedAtTimestamp": "100"})
+		r := base(map[string]any{"marketId": marketID, "epoch": x.e, "beneficiary": x.u, "quoteAsset": q, "memeAsset": m, "quoteLiability": x.qa, "memeLiability": x.ma, "observedAtTimestamp": "100"})
 		r.Key = marketID + ":" + x.e
 		rows = append(rows, r)
 	}
-	rows = append(rows, deployment.StateObservation{Kind: "gaugePosition", Key: u1 + ":" + marketID, Value: map[string]any{"marketId": marketID, "user": u1, "quoteClaimable": "50", "memeClaimable": "60", "rawRewardExitAt": "100", "rawRewardExitReady": true, "observedAtTimestamp": "100"}})
+	rows = append(rows, deployment.StateObservation{Kind: "gaugePosition", Key: u1 + ":" + marketID, Value: map[string]any{"marketId": marketID, "user": u1, "quoteClaimable": "50", "memeClaimable": "60", "observedAtTimestamp": "100"}})
 	rows[len(rows)-1].Value["activeAmount"] = "1"
 	rows[len(rows)-1].Value["pendingAmount"] = "0"
 	rows[len(rows)-1].Value["unlockAt"] = "100"
@@ -83,9 +83,9 @@ func TestBuildRejectsInconsistentClaimsAndReady(t *testing.T) {
 		})
 	}
 	bad := base
-	bad[1].Value["rawRewardExitReady"] = false
+	bad[1].Value["observedAtTimestamp"] = "invalid"
 	if _, err := Build(bad, nil); err == nil {
-		t.Fatal("accepted mismatched ready")
+		t.Fatal("accepted invalid timestamp")
 	}
 }
 

@@ -23,7 +23,12 @@ export function createWalletSession(storage: Pick<Storage, "getItem" | "setItem"
       attempted.add(provider);
       const version = generation;
       try { await restore(provider, () => generation === version && selected === rdns); }
-      catch { /* Locked, unavailable, or revoked wallets remain disconnected. */ }
+      catch {
+        // A transiently locked or unavailable provider may become restorable
+        // after its next announce. Keep the in-flight guard until this attempt
+        // settles, then allow that later announce to retry.
+        attempted.delete(provider);
+      }
     },
   };
 }

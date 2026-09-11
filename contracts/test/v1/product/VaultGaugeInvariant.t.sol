@@ -326,9 +326,9 @@ contract VaultGaugeInvariantTest is StdInvariant, Test {
         vm.prank(ALICE);
         manager.unstakeAndWithdraw(MARKET_A);
         vm.prank(address(feeVault));
-        assertEq(gaugeA.consumeClaimable(ALICE, address(quote)), 400);
-        vm.prank(address(feeVault));
-        assertEq(gaugeA.consumeClaimable(ALICE, address(memeA)), 600);
+        (uint256 q, uint256 m) = gaugeA.consumeClaimable(ALICE);
+        assertEq(q, 400);
+        assertEq(m, 600);
         assertEq(stock.balanceOf(ALICE), 2 ether);
     }
 

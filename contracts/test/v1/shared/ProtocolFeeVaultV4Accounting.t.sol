@@ -97,7 +97,7 @@ contract V4AccountingGaugeMock {
         rejectCredit = credit;
     }
 
-    function checkpointActivations() external returns (uint256 activatedAmount, uint256 processedBuckets) {
+    function checkpointActivations() public returns (uint256 activatedAmount, uint256 processedBuckets) {
         if (rejectCheckpoint) revert("CHECKPOINT_REJECTED");
         ++checkpointCalls;
         activatedAmount = maturingStock;
@@ -109,7 +109,7 @@ contract V4AccountingGaugeMock {
     }
 
     function effectiveTotalActiveStock() external view returns (uint256) {
-        return storedTotalActiveStock;
+        return storedTotalActiveStock + maturingStock;
     }
 
     function creditStakerFee(address feeAsset, uint256 amount, bytes32 feeId)
@@ -117,6 +117,7 @@ contract V4AccountingGaugeMock {
         returns (uint256 accumulatorDelta, uint256 indexRemainder)
     {
         if (rejectCredit) revert("CREDIT_REJECTED");
+        checkpointActivations();
         ++creditCalls;
         lastFeeAsset = feeAsset;
         lastAmount = amount;
@@ -170,9 +171,9 @@ contract V4AccountingAllocationManagerMock {
     function rageQuitRewardCutoff(bytes32, address)
         external
         view
-        returns (uint256 principal, uint256 quoteAccumulator, uint256 memeAccumulator, bool forfeitureRedistributable)
+        returns (uint256 principal, uint256 quoteAccumulator, uint256 memeAccumulator)
     {
-        return (0, _quoteAccumulator, _memeAccumulator, false);
+        return (0, _quoteAccumulator, _memeAccumulator);
     }
 }
 
@@ -229,7 +230,7 @@ contract ProtocolFeeVaultV4AccountingHarness is ProtocolFeeVaultV4Accounting {
     }
 
     function lastNonce(bytes32 poolId) external view returns (uint64) {
-        return _lastV4FeeNonce(poolId);
+        return _lastV4FeeNonces[poolId];
     }
 }
 
@@ -302,7 +303,7 @@ contract ProtocolFeeVaultV4AccountingTest is Test {
         assertEq(vault.liability(MARKET_ID, address(quote), 0), 70);
         assertEq(vault.liability(MARKET_ID, address(quote), 1), 0);
         assertEq(vault.liability(MARKET_ID, address(quote), 2), 30);
-        assertEq(gauge.checkpointCalls(), 1);
+        assertEq(gauge.checkpointCalls(), 0);
         assertEq(gauge.creditCalls(), 0);
     }
 
@@ -330,6 +331,7 @@ contract ProtocolFeeVaultV4AccountingTest is Test {
         _creditErc20(quote, 10_000, 100, 0, 100, 1, feeId);
 
         assertEq(gauge.storedTotalActiveStock(), B / 2);
+        assertEq(gauge.checkpointCalls(), 1);
         assertEq(gauge.creditCalls(), 1);
         assertEq(gauge.lastAmount(), 30);
         assertEq(gauge.lastFeeId(), feeId);
@@ -461,58 +463,6 @@ contract ProtocolFeeVaultV4AccountingTest is Test {
         assertEq(address(vault).balance, 100);
         assertEq(vault.totalLiability(address(0)), 100);
         assertEq(vault.liability(MARKET_ID, address(0), 1), 30);
-    }
-
-    function test_realGaugeDistributesStakerBucketByActiveRawStockAndClaimsThroughVault() public {
-        vm.warp(1_000_000);
-        V4AccountingAllocationManagerMock manager = new V4AccountingAllocationManagerMock();
-        MemeStockGauge implementation = new MemeStockGauge();
-        MemeStockGauge realGauge = MemeStockGauge(
-            MemeStockGaugeClone.deployDeterministic(
-                address(implementation),
-                MARKET_ID,
-                GaugeIdentity({
-                    marketId: MARKET_ID,
-                    assetUid: keccak256("v4-accounting-stock"),
-                    quoteAssetConfigId: keccak256("v4-accounting-quote"),
-                    allocationManager: address(manager),
-                    protocolFeeVault: address(vault),
-                    quoteAsset: address(quote),
-                    memeToken: address(meme)
-                })
-            )
-        );
-        registry.configure(
-            MARKET_ID,
-            address(source),
-            address(quote),
-            address(meme),
-            address(realGauge),
-            FEE_POLICY_ID,
-            EXECUTION_SPEC_ID,
-            SOURCE_VERSION,
-            POOL_ID
-        );
-
-        uint64 activationAt = uint64(block.timestamp + 30 seconds);
-        uint64 unlockAt = uint64(block.timestamp + 24 hours);
-        manager.add(realGauge, ALICE, B / 2, activationAt, unlockAt);
-        manager.add(realGauge, BOB, B / 2, activationAt, unlockAt);
-        vm.warp(activationAt);
-
-        quote.mint(address(source), 100);
-        bytes32 feeId = _feeId(address(quote), 10_000, 100, 1);
-        _creditErc20(quote, 10_000, 100, 0, 100, 1, feeId);
-
-        assertEq(realGauge.storedTotalActiveStock(), B);
-        vm.warp(unlockAt);
-        assertEq(vault.liability(MARKET_ID, address(quote), 1), 30);
-        assertEq(vault.claimStakerFor(ALICE, MARKET_ID, address(quote)), 15);
-        assertEq(vault.claimStakerFor(BOB, MARKET_ID, address(quote)), 15);
-        assertEq(quote.balanceOf(ALICE), 15);
-        assertEq(quote.balanceOf(BOB), 15);
-        assertEq(vault.liability(MARKET_ID, address(quote), 1), 0);
-        assertEq(vault.totalLiability(address(quote)), 70);
     }
 
     function test_feeIdAndNonceMustMatchEveryCanonicalFieldAndSequence() public {

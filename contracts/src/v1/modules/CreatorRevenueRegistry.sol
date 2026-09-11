@@ -86,7 +86,12 @@ contract CreatorRevenueRegistry is ICreatorRevenueRegistry, ReentrancyGuard {
         emit CreatorRevenueBeneficiaryTransferCancelled(marketId, epoch);
     }
 
-    function acceptCreatorRevenueBeneficiary(bytes32 marketId) external override nonReentrant returns (uint32 newEpoch) {
+    function acceptCreatorRevenueBeneficiary(bytes32 marketId)
+        external
+        override
+        nonReentrant
+        returns (uint32 newEpoch)
+    {
         uint32 oldEpoch = _currentCreatorEpoch[marketId];
         address oldBeneficiary = _creatorBeneficiaries[marketId][oldEpoch];
         address newBeneficiary = pendingCreatorRevenueBeneficiary[marketId];

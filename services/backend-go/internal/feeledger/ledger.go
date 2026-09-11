@@ -78,10 +78,10 @@ func (l *Ledger) apply(module, emitter, name string, a map[string]any) (bool, er
 	}
 	if module == "ProtocolFeeVault" {
 		switch name {
-		case "RawRewardExitCancelled", "RawRewardExitRequested", "RewardBatchConverted", "SettlementOperatorUpdated":
+		case "UserRewardsClaimed", "RawRewardExitCancelled", "RawRewardExitRequested", "RewardBatchConverted", "SettlementOperatorUpdated":
 			return false, nil
 		}
-	} else if name != "QuoteTreasuryFunded" && name != "HolderStreamFunded" {
+	} else if name != "QuoteTreasuryFunded" && name != "HolderStreamFunded" && name != "HolderAssetFunded" {
 		return false, nil
 	}
 	id, _ := a["marketId"].(string)
@@ -208,6 +208,12 @@ func (l *Ledger) apply(module, emitter, name string, a map[string]any) (bool, er
 			return false, ErrLedger
 		}
 		e = change(m.Quote, 3, "amount", true)
+	case "HolderAssetFunded":
+		fundedAsset, _ := a["asset"].(string)
+		if fundedAsset != m.Quote && fundedAsset != m.Meme {
+			return false, ErrLedger
+		}
+		e = change(fundedAsset, 3, "amount", true)
 	case "HolderStreamFunded":
 		e = change(m.Quote, 3, "amount", true)
 	default:

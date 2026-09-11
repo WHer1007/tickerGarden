@@ -169,7 +169,9 @@ contract TickerGardenSupplyMathTest is Test {
         harness.initialize(SUPPLY, 1.68 ether, 4.2 ether);
         harness.setTrackedQuote(99, 100);
         vm.expectRevert(
-            abi.encodeWithSelector(TickerGardenSupplyMath.AccruedFeesExceedTrackedQuote.selector, uint256(99), uint256(100))
+            abi.encodeWithSelector(
+                TickerGardenSupplyMath.AccruedFeesExceedTrackedQuote.selector, uint256(99), uint256(100)
+            )
         );
         harness.pricingReserves(1.68 ether);
     }
@@ -201,7 +203,9 @@ contract TickerGardenSupplyMathTest is Test {
 
     function _expectInvalidGraduation(uint256 sweptTokens, uint256 sweptQuote, uint256 phantom) private {
         vm.expectRevert(
-            abi.encodeWithSelector(TickerGardenSupplyMath.InvalidGraduationPartition.selector, sweptTokens, sweptQuote, phantom)
+            abi.encodeWithSelector(
+                TickerGardenSupplyMath.InvalidGraduationPartition.selector, sweptTokens, sweptQuote, phantom
+            )
         );
         harness.graduationPartition(sweptTokens, sweptQuote, phantom);
     }

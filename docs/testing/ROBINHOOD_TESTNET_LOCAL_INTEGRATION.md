@@ -1,51 +1,54 @@
-# Robinhood 测试网本地联调
+# Robinhood 测试网 TypeScript Serverless 本地联调
 
-本环境固定到 release `0xf7024d03f3844c5b40abfeda80cb4e8c6edc307ba60a17c8c6d2bc9296e26e41`，chain ID 为 `46630`。该 release 已完成 21 个合约的运行时代码验证，并激活测试专用 Baseline、原生 ETH Quote 和 Launch Template。生产目标仍为 Robinhood Chain Mainnet `4663`。
+当前前端服务范围固定到 chain ID `46630`、release `0xf72a2cdf41ec88936213a0325a396df1a286a7a0254f649263f8ec624cb9c0bf` 和 activation block `115580290`。权威身份、ABI 与 bootstrap 由 `docs/backend/typescript-serverless-baseline.json` 及 `services/backend-ts` 的生成检查锁定。旧 Go release、Go `.env`、`make index-run/discover-run/project-run` 和 `go run ./cmd/content-worker` 不属于当前联调链。
 
-## 已生成配置
+## 准备
 
-- 后端链身份清单：release 目录内的 `backend-deployment-manifest.json`。清单包含 16 个协议运行时与测试网 PoolManager，固定创世块和运行时代码哈希。
-- 后端模板：`services/backend-go/.env.robinhood-testnet.example`。
-- 前端模板：`apps/web/.env.robinhood-testnet.example`。
-- 本机实际配置：`services/backend-go/.env` 和 `apps/web/.env.local`。两者被 Git 忽略且权限为 `0600`；Alchemy key 只写入后端配置，不会暴露给 Vite。
-- 索引起点：`115020097`，即首笔激活交易所在区块。它覆盖 Baseline、Quote、Template 的全部激活事件及后续业务交易；不能直接从最后一笔激活交易开始，否则本地投影会缺少此前的有效配置。
-
-如果 release、合约源码或地址发生变化，重新运行：
+1. 使用 Node 24.x，并在仓库根安装前端依赖、在 `services/backend-ts` 安装后端锁定依赖。
+2. 从 `config/test.env.example` 创建根 `.env.test.local`，权限设为 `0600`。凭据不得使用 `VITE_*`；Alchemy 管理 Auth Token 只允许进入 `tooling`，不进入三个运行服务。
+3. 准备 PostgreSQL，并为 migration、read-api、pipeline、content 使用文档要求的独立连接或角色。应用启动不会自动迁移。
+4. 本地仅需验证数据库实现时，使用仓库隔离数据库运行器执行集成和恢复测试，无需连接 Alchemy/QStash/S3。
 
 ```sh
-node tools/prepare-robinhood-testnet-local-integration.mjs
+node --version
+npm --prefix services/backend-ts ci
+node tools/environment.mjs run test tooling npm --prefix services/backend-ts run migrate
+node tools/environment.mjs run test tooling npm --prefix services/backend-ts run test:integration
+node tools/environment.mjs run test tooling npm --prefix services/backend-ts run test:recovery
 ```
 
-## 启动顺序
+## 启动
 
-本机 Docker Compose 当前不可用，可使用已安装的 PostgreSQL 14：
+每个长期服务使用独立终端：
 
 ```sh
-tools/local-integration-db.sh start
-make -C services/backend-go migrate-up
-make -C services/backend-go index-run
+npm run api:test
+npm run pipeline:test
+npm run content:test
+npm run dev:test
 ```
 
-Indexer 追到目标业务块后，在独立终端依次运行：
+旧的 `api:test` 与 `content:test` 命令名只作兼容入口，实际分别启动 TypeScript `read-api` 与 `content`。三个后端进程统一由 `services/backend-ts/scripts/serve.ts` 将 Hono Fetch handler 接到本机 Node HTTP；非 Node 24 直接拒绝。
+
+默认端口：Web `5178`、Read API `8787`、pipeline `8788`、content `8789`。对应环境变量为 `TG_WEB_PORT`、`TG_READ_API_PORT`、`TG_PIPELINE_PORT`、`TG_CONTENT_PORT`。
 
 ```sh
-make -C services/backend-go discover-run
-make -C services/backend-go project-run
-cd services/backend-go && go run ./cmd/content-worker --run
-make -C services/backend-go run
-cd apps/web && npm run dev -- --host 127.0.0.1 --port 5176
+curl -i http://127.0.0.1:8787/internal/live
+curl -i http://127.0.0.1:8787/internal/ready
+curl -i http://127.0.0.1:8788/internal/live
+curl -i http://127.0.0.1:8789/internal/live
 ```
 
-本机端口为：前端 `5176`、Read API `8790`、内容上传 `8791`、PostgreSQL `54329`。`GET /livez` 应立即返回 200；`GET /readyz` 在首个可信快照发布前应返回 503，这是财务数据 fail-closed 的预期行为。
+`/internal/live` 只证明进程可响应。`/internal/ready` 只有在该服务的全部环境配置存在时返回 200；缺数据库、签名 key、队列或存储配置必须返回 503 并列出缺项。
 
-Discovery 的空区块回放使用最多 8 路有界 RPC 并发，但仍按区块顺序与 receipt-verified journal 核对并一次性提交 checkpoint。任何 RPC、回执、日志、父块或边界运行时校验失败都不会留下部分进度。
+## 数据推进边界
 
-## 当前功能门
+真实链推进必须由已验签的 Alchemy Custom Webhook 或已验证的 QStash job 进入事务 inbox/job/outbox。不得为方便本地联调新增无认证的“开始索引”入口。没有真实外部凭据时，只运行 PostgreSQL fixture；不能把 fixture 标为测试网追平。
 
-前端已配置 Factory、Launch Router、Allocation Manager、Fee Vault、Creator Revenue Registry 和 Holder Rewards Distributor。持有人持续奖励写入和 Treasury proof 写入仍保持关闭，直到对应的公开测试链 E2E 完成并记录 approval token。当前激活只执行了只读 `launchAndBuy` 模拟，没有创建市场或转移 AccessManager 权限。
+pipeline 每个任务最多处理 10 个区块，并用主备 RPC 对固定块身份、日志和运行时代码进行一致性检查。空块、动态地址出生块补采、重组 rewind、publication 和 generation fencing 都由相同持久化路径处理。
 
-停止本地数据库：
+## 前端
 
-```sh
-tools/local-integration-db.sh stop
-```
+前端正式数据来源由 `VITE_V1_READ_API_URL` 和 `VITE_LAUNCH_METADATA_ORIGIN` 指向本地 read-api/content。保留 `VITE_INTEGRATION_BOOTSTRAP` 时只能视为测试 fixture；正式验收需要关闭它，并确认 Home、Explore、Trade、Create、Stake、Claim、Stats 从同一 finalized revision 工作。缺 publication、价格或覆盖必须显示 `Unavailable`，不能伪装为 `$0`。
+
+真实 Preview、Alchemy/QStash 重投、对象存储、冷启动和浏览器流程的验收步骤见 [`V1_TYPESCRIPT_SERVERLESS_OPERATIONS.md`](../v1/V1_TYPESCRIPT_SERVERLESS_OPERATIONS.md)。

@@ -231,7 +231,11 @@ contract V1TickerGardenDifferentialTest is Test {
 
     // Archived external runtime evidence predates the approved five-second product policy.
     // Current production boundaries are covered independently by TickerGardenAntiSnipeTest.
-    function _historicalSnipe(uint256 elapsed, bool exempt, uint256 feeBps) private pure returns(uint256 raw, uint256 effective) {
+    function _historicalSnipe(uint256 elapsed, bool exempt, uint256 feeBps)
+        private
+        pure
+        returns (uint256 raw, uint256 effective)
+    {
         raw = exempt || elapsed >= 3 ? 0 : elapsed == 0 ? 9900 : elapsed == 1 ? 618 : 19;
         effective = raw < 9900 - feeBps ? raw : 9900 - feeBps;
     }

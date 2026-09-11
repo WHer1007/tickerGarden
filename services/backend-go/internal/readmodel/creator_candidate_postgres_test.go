@@ -128,7 +128,7 @@ func TestCreatorCandidatePostgres(t *testing.T) {
 		t.Fatal(e)
 	}
 	got, e := BuildCandidateSet(loaded, sources)
-	if e != nil || len(got.CreatorEpochs) != 2 || got.CreatorEpochs[0].QuoteLiability != "900719925474099312345" || !got.CreatorEpochs[0].RawRewardExitReady {
+	if e != nil || len(got.CreatorEpochs) != 2 || got.CreatorEpochs[0].QuoteLiability != "900719925474099312345" {
 		t.Fatal(got, e)
 	}
 	if e := verifyStoredFeeCoverage(got, loaded); e != nil {

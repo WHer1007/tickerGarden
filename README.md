@@ -34,7 +34,8 @@ The repository intentionally has no compatibility alias for the former developme
 | --- | --- |
 | `apps/web/` | Formal V1 user-facing frontend; markets, trade, create, stats, FAQ, and the `Rewards` page |
 | `contracts/src/v1/` | Isolated Foundry namespace; generated interfaces, nineteen artifact-checked product modules, reusable implementation layers, and a compile marker |
-| `services/backend-go/` | 唯一后端：Go API、内容服务、索引、维护、结算与 Treasury；OpenAPI 契约归该模块所有 |
+| `services/backend-go/` | 历史后端和行为对照参考；不属于新前端服务的构建、运行或契约生成链 |
+| `services/backend-ts/` | [TypeScript + Node.js + Hono 前端服务](docs/v1/V1_TYPESCRIPT_SERVERLESS_DEVELOPMENT_TASKS.md)；当前唯一 Read/Content API 契约来源，本地实现已完成，外部 Preview 与生产切换尚未执行 |
 | `deployments/` | Deployment schemas, testnet plan, gate evidence, AccessManager plan and fixed-block read-only preflight; the Solidity broadcast entry point remains operator-controlled |
 | `spec/` | V1 execution manifests, reference model, vectors, generators, and compiled-product artifact manifest |
 | `docs/v1/` | Canonical human-readable V1 architecture, product rules, audit decisions, and readiness gates |

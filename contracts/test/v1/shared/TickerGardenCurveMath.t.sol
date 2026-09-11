@@ -44,7 +44,9 @@ contract TickerGardenCurveMathHarness {
         uint256 additionalQuoteFeeBps,
         uint256 minQuoteOut
     ) external pure returns (TickerGardenCurveMath.SellQuote memory) {
-        return TickerGardenCurveMath.quoteSell(tokensIn, tokenReserve, quoteReserve, feeBps, additionalQuoteFeeBps, minQuoteOut);
+        return TickerGardenCurveMath.quoteSell(
+            tokensIn, tokenReserve, quoteReserve, feeBps, additionalQuoteFeeBps, minQuoteOut
+        );
     }
 
     function proportionalSlippagePass(uint256 a, uint256 b, uint256 c, uint256 d) external pure returns (bool) {
@@ -159,7 +161,9 @@ contract TickerGardenCurveMathTest is Test {
         harness.amountOut(1, type(uint128).max, 1, 0);
 
         vm.expectRevert(
-            abi.encodeWithSelector(TickerGardenCurveMath.InsufficientSellableLiquidity.selector, uint256(100), uint256(100))
+            abi.encodeWithSelector(
+                TickerGardenCurveMath.InsufficientSellableLiquidity.selector, uint256(100), uint256(100)
+            )
         );
         harness.quoteBuy(1, 1, 100, 100, 0, 0, 0);
     }

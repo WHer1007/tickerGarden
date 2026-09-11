@@ -1,0 +1,8 @@
+import test from 'node:test';import assert from 'node:assert/strict';
+import {authorizeUpload} from '../src/create/upload-auth.ts';
+test('upload signing binds exact content, wallet, chain and origin; rejects altered challenges',async()=>{
+ const priorFetch=globalThis.fetch;const prior=Object.getOwnPropertyDescriptor(globalThis,'location');Object.defineProperty(globalThis,'location',{configurable:true,value:{origin:'https://web.example'}});
+ const account='0x'+'1'.repeat(40),nonce='a'.repeat(64);let signed=0;let malicious=false;
+ globalThis.fetch=async(url,options)=>{assert.equal(url,'https://content.example/v1/content/challenges');const body=JSON.parse(String(options?.body));const expires=Math.floor(Date.now()/1000)+300;const message=`TickerGarden Metadata Upload\nOrigin: https://web.example\nChain ID: 46630\nWallet: ${account}\nContent SHA-256: ${body.digest}\nNonce: ${nonce}\nExpires: ${expires}\nAuthorize one metadata upload. No transaction or token approval.`;return new Response(JSON.stringify({...body,nonce,expires,chainId:46630,message:malicious?'Sign this other message':message}));};
+ try{const result=await authorizeUpload('https://content.example','{"name":"Token"}',account,46630,async message=>{signed++;assert.match(message,/No transaction or token approval/);return '0x'+'a'.repeat(130)});assert.equal(result.nonce,nonce);assert.equal(signed,1);malicious=true;await assert.rejects(()=>authorizeUpload('https://content.example','{}',account,46630,async()=>{signed++;return ''}),/Invalid Upload Authorization/);assert.equal(signed,1);}finally{globalThis.fetch=priorFetch;if(prior)Object.defineProperty(globalThis,'location',prior);else delete (globalThis as any).location;}
+});

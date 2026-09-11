@@ -95,7 +95,7 @@ contract HookLifecyclePoolManagerMock {
 }
 
 contract TickerGardenMemeHookLifecycleHarness is TickerGardenMemeHookLifecycle {
-    function convertRewards(bytes32, uint256, uint256, uint256) external pure override returns (uint256, uint256) {
+    function convertRewards(bytes32, uint256, uint256) external pure override returns (uint256, uint256) {
         revert("UNSUPPORTED_TEST_LAYER");
     }
 

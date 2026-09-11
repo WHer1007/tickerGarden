@@ -21,7 +21,7 @@ func (f creatorObserver) Header(_ context.Context, tag string) (chainrpc.Header,
 	return chainrpc.Header{Number: tag, Hash: f.hash, ParentHash: f.hash, Timestamp: "0x64"}, nil
 }
 func TestCandidateCreatorEpochRPC(t *testing.T) {
-	for _, mode := range []string{"valid", "same beneficiary", "zero beneficiary", "wrong registry", "wrong factory", "manifest mismatch", "zero epochs", "budget", "quote mismatch", "meme mismatch", "missing epoch", "bad ABI", "candidate missing", "candidate beneficiary", "candidate redistribution", "candidate extra", "exit ready", "exit pending", "exit mismatch", "exit time mismatch", "exit ready mismatch"} {
+	for _, mode := range []string{"valid", "same beneficiary", "zero beneficiary", "wrong registry", "wrong factory", "manifest mismatch", "zero epochs", "budget", "quote mismatch", "meme mismatch", "missing epoch", "bad ABI", "candidate missing", "candidate beneficiary", "candidate redistribution", "candidate extra", "observed mismatch", "observed malformed"} {
 		t.Run(mode, func(t *testing.T) {
 			addr := func(s string) string { return "0x" + strings.Repeat(s, 40) }
 			h := "0x" + strings.Repeat("1", 64)
@@ -93,16 +93,7 @@ func TestCandidateCreatorEpochRPC(t *testing.T) {
 					beneficiary = addr("9")
 				}
 				amount, _ := new(big.Int).SetString(fmt.Sprintf("2000000000000%d", epoch), 16)
-				exit, ready := "0", false
-				if mode == "exit ready" {
-					exit, ready = "100", true
-				}
-				if mode == "exit pending" {
-					exit = "101"
-				}
-				exitNum, _ := new(big.Int).SetString(exit, 10)
-				put(vault, "rawRewardExitAt(bytes32,address)", h[2:]+strings.Repeat("0", 24)+beneficiary[2:], exitNum.Text(16))
-				c.CreatorEpochs = append(c.CreatorEpochs, readmodel.CreatorEpochCandidate{RawRewardExitAt: exit, RawRewardExitReady: ready, ObservedAtTimestamp: "100", MarketID: h, Epoch: fmt.Sprint(epoch), Beneficiary: beneficiary, QuoteAsset: quote, MemeAsset: meme, QuoteLiability: amount.String(), MemeLiability: amount.String()})
+				c.CreatorEpochs = append(c.CreatorEpochs, readmodel.CreatorEpochCandidate{ObservedAtTimestamp: "100", MarketID: h, Epoch: fmt.Sprint(epoch), Beneficiary: beneficiary, QuoteAsset: quote, MemeAsset: meme, QuoteLiability: amount.String(), MemeLiability: amount.String()})
 			}
 			if mode == "candidate missing" {
 				c.CreatorEpochs = c.CreatorEpochs[:1]
@@ -118,17 +109,14 @@ func TestCandidateCreatorEpochRPC(t *testing.T) {
 				extra.Epoch = "3"
 				c.CreatorEpochs = append(c.CreatorEpochs, extra)
 			}
-			if mode == "exit mismatch" {
-				c.CreatorEpochs[0].RawRewardExitAt = "1"
-			}
-			if mode == "exit time mismatch" {
+			if mode == "observed mismatch" {
 				c.CreatorEpochs[0].ObservedAtTimestamp = "101"
 			}
-			if mode == "exit ready mismatch" {
-				c.CreatorEpochs[0].RawRewardExitReady = true
+			if mode == "observed malformed" {
+				c.CreatorEpochs[0].ObservedAtTimestamp = "0100"
 			}
 			f := creatorObserver{gaugeObserver{hash: h, calls: calls}}
-			valid := mode == "valid" || mode == "same beneficiary" || mode == "exit ready" || mode == "exit pending"
+			valid := mode == "valid" || mode == "same beneficiary"
 			if e := verifyCandidateCreatorEpochs(context.Background(), f, m, c); (e == nil) != valid {
 				t.Fatal(mode, e)
 			}
@@ -136,7 +124,7 @@ func TestCandidateCreatorEpochRPC(t *testing.T) {
 			if e := verifyCandidateCreatorEpochs(context.Background(), client, m, c); (e == nil) != valid {
 				t.Fatal("HTTP", mode, e)
 			}
-			if valid && countReads.Load() != 17 {
+			if valid && countReads.Load() != 15 {
 				t.Fatal("incomplete reads", countReads.Load())
 			}
 		})

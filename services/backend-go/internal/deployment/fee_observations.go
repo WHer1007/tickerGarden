@@ -78,6 +78,10 @@ func ObserveFeeBlock(ctx context.Context, rpc BindingObserver, m Manifest, block
 	if err != nil {
 		return fail(err)
 	}
+	userClaims, err := feeVaultUsesUserClaims(ctx, rpc, vault, block)
+	if err != nil || !userClaims {
+		return fail(errors.New("current user claim mode required"))
+	}
 	ids := map[string]bool{}
 	for id := range markets {
 		ids[id] = true
@@ -133,7 +137,6 @@ func ObserveFeeBlock(ctx context.Context, rpc BindingObserver, m Manifest, block
 		if quote == meme || meme == zero20 {
 			return fail(errors.New("invalid dual fee assets"))
 		}
-		exitTimes := map[string]string{}
 		creatorSums := map[string]*big.Int{quote: new(big.Int), meme: new(big.Int)}
 		for epoch := uint64(1); epoch <= epochCounts[id]; epoch++ {
 			word := fmt.Sprintf("%064x", epoch)
@@ -144,18 +147,7 @@ func ObserveFeeBlock(ctx context.Context, rpc BindingObserver, m Manifest, block
 			if beneficiary == zero20 || (epoch == 1 && beneficiary != market["creatorRevenueBeneficiaryAtCreation"]) {
 				return fail(errors.New("Creator epoch beneficiary mismatch"))
 			}
-			// The exit request is scoped to market/beneficiary, shared across that
-			// beneficiary's epochs. Read it at the same pinned block as liabilities.
-			exitAt, cached := exitTimes[beneficiary.(string)]
-			if !cached {
-				exitAt, e = amount("rawRewardExitAt(bytes32,address)", id[2:]+addressArgument(beneficiary.(string)))
-				if e != nil {
-					return fail(e)
-				}
-				exitTimes[beneficiary.(string)] = exitAt
-			}
-			exitNumber := number(exitAt)
-			values := map[string]any{"marketId": id, "epoch": strconv.FormatUint(epoch, 10), "beneficiary": beneficiary, "creatorRegistry": creatorAddress, "creatorRegistryRuntimeCodeHash": Hash(code), "quoteAsset": quote, "memeAsset": meme, "rawRewardExitAt": exitAt, "rawRewardExitReady": exitNumber.Sign() > 0 && exitNumber.Cmp(new(big.Int).SetUint64(timestamp)) <= 0, "observedAtTimestamp": strconv.FormatUint(timestamp, 10)}
+			values := map[string]any{"marketId": id, "epoch": strconv.FormatUint(epoch, 10), "beneficiary": beneficiary, "creatorRegistry": creatorAddress, "creatorRegistryRuntimeCodeHash": Hash(code), "quoteAsset": quote, "memeAsset": meme, "observedAtTimestamp": strconv.FormatUint(timestamp, 10)}
 			for _, entry := range []struct{ asset, name string }{{quote, "quoteLiability"}, {meme, "memeLiability"}} {
 				raw, e := amount("creatorLiability(bytes32,uint32,address)", id[2:]+word+addressArgument(entry.asset))
 				if e != nil {

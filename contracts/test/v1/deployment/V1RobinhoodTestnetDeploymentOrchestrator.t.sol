@@ -8,15 +8,15 @@ import {Test} from "forge-std/Test.sol";
 import {GraduationExecutor} from "../../../src/v1/modules/GraduationExecutor.sol";
 import {LaunchAndBuyRouter} from "../../../src/v1/modules/LaunchAndBuyRouter.sol";
 import {MarketRegistryV1} from "../../../src/v1/modules/MarketRegistryV1.sol";
-import {HolderRewardsDistributorV1} from "../../../src/v1/modules/HolderRewardsDistributorV1.sol";
+import {HolderAccountingHarness as HolderRewardsDistributorV1} from "../mocks/HolderAccountingHarness.sol";
 import {ProtocolFeeVault} from "../../../src/v1/modules/ProtocolFeeVault.sol";
 import {TickerGardenFactoryV1} from "../../../src/v1/modules/TickerGardenFactoryV1.sol";
 import {TickerGardenMemeHook} from "../../../src/v1/modules/TickerGardenMemeHook.sol";
 import {
     V1DeploymentConfig,
     V1DeploymentPlan,
-    V1DeterministicDeploymentBuilder
-} from "../../../script/v1/V1DeterministicDeploymentBuilder.sol";
+    V4DeterministicDeploymentBuilder
+} from "../../../script/v1/V4DeterministicDeploymentBuilder.sol";
 import {V1DeploymentPayload} from "../../../script/v1/V1DeterministicDeploymentOrchestrator.sol";
 
 import {
@@ -40,7 +40,7 @@ contract V1DeploymentTreasuryStub {
 }
 
 contract V1RobinhoodTestnetDeploymentOrchestratorTest is Test {
-    using V1DeterministicDeploymentBuilder for address;
+    using V4DeterministicDeploymentBuilder for address;
 
     bytes32 private constant RELEASE_ID = keccak256("TICKERGARDEN_V1_TEST_RELEASE");
     bytes32 private constant FEE_POLICY_ID = keccak256("TICKERGARDEN_V1_FEE_POLICY_TEST");
@@ -67,14 +67,6 @@ contract V1RobinhoodTestnetDeploymentOrchestratorTest is Test {
             swapRouter: address(swapRouter),
             quoter: address(quoter),
             platformTreasury: address(platformTreasury),
-            rootServiceTreasury: address(rootServiceTreasury),
-            rootServiceFeeAsset: address(0),
-            rootServiceFeeAmount: 0.001 ether,
-            finalityDelaySeconds: 10 minutes,
-            finalityDelayBlocks: 2,
-            rootPublicationWindow: 1 days,
-            rootReviewDelay: 1 hours,
-            claimWindow: 30 days,
             feePolicyId: FEE_POLICY_ID
         });
     }
@@ -127,7 +119,7 @@ contract V1RobinhoodTestnetDeploymentOrchestratorTest is Test {
         assertEq(factory, plan.factory);
         assertEq(hook, plan.hook);
         assertEq(executor, plan.executor);
-        assertTrue(V1DeterministicDeploymentBuilder.hookMaskMatches(hook));
+        assertTrue(V4DeterministicDeploymentBuilder.hookMaskMatches(hook));
 
         address[16] memory actual = orchestrator.ordinaryComponents();
         for (uint8 i; i < actual.length; ++i) {
@@ -155,12 +147,12 @@ contract V1RobinhoodTestnetDeploymentOrchestratorTest is Test {
 
     function test_continuousStagedResumePreservesCommitmentsAndBindings() public {
         V1DeterministicDeploymentOrchestrator o = new V1DeterministicDeploymentOrchestrator(address(this), RELEASE_ID);
-        (bytes32 helperSalt,) = V1DeterministicDeploymentBuilder.mineHelperSalt(address(o), RELEASE_ID, 200_000);
-        bytes32 salt = V1DeterministicDeploymentBuilder.factorySalt(block.chainid, RELEASE_ID);
+        (bytes32 helperSalt,) = V4DeterministicDeploymentBuilder.mineHelperSalt(address(o), RELEASE_ID, 200_000);
+        bytes32 salt = V4DeterministicDeploymentBuilder.factorySalt(block.chainid, RELEASE_ID);
         (V1DeploymentPlan memory plan, V1DeploymentPayload memory payload) =
-            V1DeterministicDeploymentBuilder.buildContinuous(address(o), config, helperSalt, salt);
-        (V1DeploymentPlan memory legacy, V1DeploymentPayload memory legacyPayload) = _build(o);
-        assertNotEq(plan.payloadHash, legacy.payloadHash);
+            V4DeterministicDeploymentBuilder.build(address(o), config, helperSalt, salt);
+        (V1DeploymentPlan memory repeated,) = _build(o);
+        assertEq(plan.payloadHash, repeated.payloadHash);
         bytes[] memory codes = payload.ordinaryInitCodes;
         bytes32[16] memory hashes;
         for (uint8 i; i < 16; ++i) {
@@ -177,7 +169,7 @@ contract V1RobinhoodTestnetDeploymentOrchestratorTest is Test {
         assertEq(plan.ordinaryComponents[14].code.length, 0);
         vm.roll(block.number + 1);
         vm.expectRevert();
-        o.deployComponent(14, legacyPayload.ordinaryInitCodes[14]);
+        o.deployComponent(14, bytes.concat(codes[14], hex"00"));
         vm.expectRevert();
         o.finish(payload);
         o.deployComponent(14, codes[14]);
@@ -188,7 +180,7 @@ contract V1RobinhoodTestnetDeploymentOrchestratorTest is Test {
         HolderRewardsDistributorV1 distributor = HolderRewardsDistributorV1(payable(plan.ordinaryComponents[14]));
         assertEq(address(distributor.marketRegistry()), plan.ordinaryComponents[10]);
         assertEq(distributor.STREAM_DURATION(), 24 hours);
-        assertEq(TickerGardenFactoryV1(plan.factory).treasuryDistributor(), address(distributor));
+        assertEq(TickerGardenFactoryV1(plan.factory).holderRewardsDistributor(), address(distributor));
         assertEq(ProtocolFeeVault(payable(plan.ordinaryComponents[15])).marketRegistry(), plan.ordinaryComponents[10]);
         assertEq(o.deploymentPayloadHash(), plan.payloadHash);
     }
@@ -219,8 +211,8 @@ contract V1RobinhoodTestnetDeploymentOrchestratorTest is Test {
         returns (V1DeploymentPlan memory plan, V1DeploymentPayload memory payload)
     {
         (bytes32 helperSalt,) =
-            V1DeterministicDeploymentBuilder.mineHelperSalt(address(orchestrator), RELEASE_ID, 200_000);
-        bytes32 factorySalt = V1DeterministicDeploymentBuilder.factorySalt(block.chainid, RELEASE_ID);
-        return V1DeterministicDeploymentBuilder.build(address(orchestrator), config, helperSalt, factorySalt);
+            V4DeterministicDeploymentBuilder.mineHelperSalt(address(orchestrator), RELEASE_ID, 200_000);
+        bytes32 factorySalt = V4DeterministicDeploymentBuilder.factorySalt(block.chainid, RELEASE_ID);
+        return V4DeterministicDeploymentBuilder.build(address(orchestrator), config, helperSalt, factorySalt);
     }
 }

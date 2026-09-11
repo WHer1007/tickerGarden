@@ -122,7 +122,10 @@ contract ApprovedQuoteRegistryTest is Test {
     address internal stockVault;
 
     event QuoteAssetConfigAdded(
-        bytes32 indexed configId, address indexed quoteAsset, bytes32 indexed tickerGardenBaselineId, bytes32 economicsHash
+        bytes32 indexed configId,
+        address indexed quoteAsset,
+        bytes32 indexed tickerGardenBaselineId,
+        bytes32 economicsHash
     );
     event QuoteAssetIdentityPinned(bytes32 indexed configId, address indexed quoteAsset, bytes32 runtimeCodeHash);
     event StockQuoteConfigBound(

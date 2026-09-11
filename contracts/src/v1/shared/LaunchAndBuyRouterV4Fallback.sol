@@ -67,9 +67,7 @@ abstract contract LaunchAndBuyRouterV4Fallback is LaunchAndBuyRouterERC20, V4Rou
         if (msg.value <= state.fee) revert InvalidLaunchAndBuyValue(state.fee + 1, msg.value);
         state.maxNativeIn = msg.value - state.fee;
         if (firstBuyAmount > type(uint128).max || state.maxNativeIn > type(uint128).max) {
-            revert NativeFallbackAmountTooLarge(
-                firstBuyAmount > state.maxNativeIn ? firstBuyAmount : state.maxNativeIn
-            );
+            revert NativeFallbackAmountTooLarge(firstBuyAmount > state.maxNativeIn ? firstBuyAmount : state.maxNativeIn);
         }
 
         state.nativeBalanceBefore = address(this).balance - msg.value;
@@ -80,8 +78,7 @@ abstract contract LaunchAndBuyRouterV4Fallback is LaunchAndBuyRouterERC20, V4Rou
         (marketId, memeToken, state.curve,) = _launchFactory.createMarketFor{value: state.fee}(creator, params);
         _requireCreatedMarket(marketId, memeToken, state.curve);
         _approveCurveExact(state.quoteAsset, state.curve, firstBuyAmount);
-        (tokensOut, state.quoteSpent) =
-            ITickerGardenCurve(state.curve).buy(firstBuyAmount, minTokensOut, recipient);
+        (tokensOut, state.quoteSpent) = ITickerGardenCurve(state.curve).buy(firstBuyAmount, minTokensOut, recipient);
         if (state.quoteSpent > firstBuyAmount) revert InvalidQuoteSpent(firstBuyAmount, state.quoteSpent);
         uint256 quoteRefund = firstBuyAmount - state.quoteSpent;
         _requireAllowance(state.quoteAsset, state.curve, 0);

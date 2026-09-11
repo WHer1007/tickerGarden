@@ -11,6 +11,8 @@ import (
 	"strings"
 	"testing"
 
+	"tickergarden/backend/internal/displayprice"
+	"tickergarden/backend/internal/marketstats"
 	"tickergarden/backend/internal/readmodel"
 )
 
@@ -125,5 +127,77 @@ func TestMarketQueryRejectsInvalidDuplicateAndUnknownQueries(t *testing.T) {
 	h := marketQueryHandler(marketQuerySnapshot(t))
 	for _, path := range []string{"/v1/markets?limit=0", "/v1/markets?limit=101", "/v1/markets?limit=1&limit=2", "/v1/markets?foo=bar", "/v1/markets?sort=nope", "/v1/markets?launchPhase=2", "/v1/markets?marketId=bad", "/v1/markets?memeToken=bad", "/v1/markets?assetUid=bad", "/v1/markets?cursor=garbage"} {
 		marketPage(t, h, path, 400)
+	}
+}
+
+func TestMarketQueryRecentBuyNumericOrderAndCursorBinding(t *testing.T) {
+	s := marketQuerySnapshot(t)
+	s.Markets = s.Markets[:6]
+	// Deliberately use values whose numeric and lexical orders differ.
+	s.Markets[0].LastBuy = &readmodel.LastBuyReadModel{BlockNumber: "10", TransactionIndex: "1", LogIndex: "2", Timestamp: "100"}
+	s.Markets[1].LastBuy = &readmodel.LastBuyReadModel{BlockNumber: "2", TransactionIndex: "99", LogIndex: "99", Timestamp: "99"}
+	s.Markets[2].LastBuy = &readmodel.LastBuyReadModel{BlockNumber: "10", TransactionIndex: "2", LogIndex: "1", Timestamp: "101"}
+	s.Markets[3].LastBuy = &readmodel.LastBuyReadModel{BlockNumber: "10", TransactionIndex: "2", LogIndex: "1", Timestamp: "101"}
+	s.Markets[4].LastBuy = &readmodel.LastBuyReadModel{BlockNumber: "10", TransactionIndex: "2", LogIndex: "0", Timestamp: "102"}
+	s.Markets[5].LastBuy = nil
+	h := marketQueryHandler(s)
+	want := []string{s.Markets[2].MarketID, s.Markets[3].MarketID, s.Markets[4].MarketID, s.Markets[0].MarketID, s.Markets[1].MarketID, s.Markets[5].MarketID}
+	var got []string
+	var cursor string
+	for {
+		path := "/v1/markets?limit=2&sort=recentBuy_desc"
+		if cursor != "" {
+			path += "&cursor=" + cursor
+		}
+		page := marketPage(t, h, path, 200)
+		for _, m := range page.Items {
+			got = append(got, m.MarketID)
+		}
+		if page.NextCursor == nil {
+			break
+		}
+		cursor = *page.NextCursor
+	}
+	if len(got) != len(want) {
+		t.Fatalf("got %d items, want %d", len(got), len(want))
+	}
+	for i := range want {
+		if got[i] != want[i] {
+			t.Fatalf("position %d: got %s want %s", i, got[i], want[i])
+		}
+	}
+	// Reusing the cursor with a different sort is rejected because the cursor
+	// remains bound to the original ranking definition.
+	first := marketPage(t, h, "/v1/markets?limit=2&sort=recentBuy_desc", 200)
+	marketPage(t, h, "/v1/markets?limit=2&sort=marketId_asc&cursor="+*first.NextCursor, 400)
+}
+
+type changingMarketMetrics struct{ calls int }
+
+func (m *changingMarketMetrics) MarketMetrics(context.Context, readmodel.Snapshot, []displayprice.Reference) (map[string]*readmodel.MarketMetricsReadModel, error) {
+	m.calls++
+	values := []string{"300", "200", "100"}
+	if m.calls > 1 {
+		values = []string{"400", "100", "200"}
+	}
+	out := map[string]*readmodel.MarketMetricsReadModel{}
+	for i, value := range values {
+		out[fmt.Sprintf("0x%064x", i+1)] = &readmodel.MarketMetricsReadModel{Status: "available", MarketCapUSD: &value, Volume24hUSD: &value}
+	}
+	return out, nil
+}
+
+func TestMarketQueryCursorFreezesRankingAcrossMetricRefresh(t *testing.T) {
+	s := marketQuerySnapshot(t)
+	s.Markets = s.Markets[:3]
+	metrics := &changingMarketMetrics{}
+	h := New(Options{ChainID: 46630, ReadModels: fixtureReader{s}, MarketMetrics: metrics, MarketStatistics: &marketstats.Service{}, Logger: slog.New(slog.NewTextHandler(io.Discard, nil))})
+	first := marketPage(t, h, "/v1/markets?limit=1&sort=marketCapUsd_desc", 200)
+	if len(first.Items) != 1 || first.Items[0].MarketID != s.Markets[0].MarketID || first.NextCursor == nil {
+		t.Fatalf("unexpected first page: %+v", first)
+	}
+	second := marketPage(t, h, "/v1/markets?limit=1&sort=marketCapUsd_desc&cursor="+*first.NextCursor, 200)
+	if len(second.Items) != 1 || second.Items[0].MarketID != s.Markets[1].MarketID {
+		t.Fatalf("ranking was refreshed instead of frozen: %+v", second.Items)
 	}
 }

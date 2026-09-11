@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { metadataOrigin,publishLaunchMetadata } from '../src/create/metadata.ts';
+const authorization={nonce:'a'.repeat(64),signature:'0x'+'b'.repeat(130)} as const;
 test('metadata service origin boundaries',()=>{
  assert.equal(metadataOrigin(undefined),null);
  assert.equal(metadataOrigin('https://metadata.example'),'https://metadata.example');
@@ -12,20 +13,18 @@ test('publication maps safe retryable and validation errors without exposing ser
  const details={name:'Garden',symbol:'GDN',description:'Hello',x:'garden',website:'https://garden.example',creatorFeesToHolders:true,creatorTaxBps:0};
  try {
   for (const [body,status,message] of [
-   [{code:'content_busy'},200,'busy'],
-   [{code:'content_store_unavailable'},503,'temporarily unavailable'],
-   [{code:'content_quota_exhausted'},200,'quota is exhausted'],
-   [{code:'content_quota_exhausted'},429,'quota is exhausted'],
-   [{code:'metadata_publication_failed'},503,'publication failed'],
-   [{code:'invalid_request',message:'secret internal detail'},400,'details are invalid'],
-   [{message:'secret internal detail'},429,'try again shortly'],
+   [{error:'content_busy'},503,'Storage unavailable'],
+   [{error:'content_store_unavailable'},503,'Storage unavailable'],
+   [{error:'content_quota_exhausted'},429,'limit reached'],
+   [{error:'invalid_request',message:'secret internal detail'},400,'Check your token details'],
+   [{message:'secret internal detail'},429,'limit reached'],
   ] as const) {
    globalThis.fetch=async()=>new Response(JSON.stringify(body),{status});
-   await assert.rejects(publishLaunchMetadata('https://metadata.example',details),error=>error instanceof Error && error.message.includes(message) && !error.message.includes('secret'));
+   await assert.rejects(publishLaunchMetadata('https://metadata.example',details,authorization),error=>error instanceof Error && error.message.includes(message) && !error.message.includes('secret'));
   }
   for (const body of ['null','[]']) {
    globalThis.fetch=async()=>new Response(body,{status:503});
-   await assert.rejects(publishLaunchMetadata('https://metadata.example',details),/temporarily unavailable/);
+   await assert.rejects(publishLaunchMetadata('https://metadata.example',details,authorization),/Storage unavailable/);
   }
  } finally { globalThis.fetch=original; }
 });
@@ -34,20 +33,25 @@ test('publication reports timeout and network errors without retrying the POST',
  const details={name:'Garden',symbol:'GDN',description:'Hello',x:'garden',website:'https://garden.example',creatorFeesToHolders:true,creatorTaxBps:0};
  try {
   globalThis.fetch=async()=>{ calls++; throw new DOMException('timed out','TimeoutError'); };
-  await assert.rejects(publishLaunchMetadata('https://metadata.example',details),/timed out/);
+  await assert.rejects(publishLaunchMetadata('https://metadata.example',details,authorization),/timed out/);
   globalThis.fetch=async()=>{ calls++; throw new TypeError('network failed'); };
-  await assert.rejects(publishLaunchMetadata('https://metadata.example',details),/Could not reach metadata service/);
+  await assert.rejects(publishLaunchMetadata('https://metadata.example',details,authorization),/Cannot connect to publishing service/);
   assert.equal(calls,2);
  } finally { globalThis.fetch=original; }
 });
-test('publication sends details and rejects service redirects in the returned metadata URI',async()=>{
+test('publication sends details and accepts only a ready IPFS result',async()=>{
  const original=globalThis.fetch;let sent='';
  try{
-  globalThis.fetch=async(_url,init)=>{sent=String(init?.body);return new Response(JSON.stringify({metadataURI:`https://metadata.example/launch-metadata/${'a'.repeat(64)}.json`}),{status:201});};
+  let calls=0;const uri='ipfs://Qm'+'a'.repeat(44);const metadata={name:'Garden'};
+  globalThis.fetch=async(_url,init)=>{calls++;if(calls===1){sent=String(init?.body);return new Response(JSON.stringify({uploadId:'11111111-1111-4111-8111-111111111111',accessToken:'a'.repeat(43),imageUpload:null}),{status:201});}
+   if(calls===2)return new Response(JSON.stringify({status:'uploaded'}),{status:202});return new Response(JSON.stringify({status:'ready',metadataURI:uri,metadata}));};
   const details={name:'Garden',symbol:'GDN',description:'Hello',x:'garden',website:'https://garden.example',creatorFeesToHolders:true,creatorTaxBps:0};
-  assert.match(await publishLaunchMetadata('https://metadata.example',details),/\.json$/);
+  assert.equal(await publishLaunchMetadata('https://metadata.example',details,authorization),uri);
   assert.deepEqual(JSON.parse(sent),details);
-  globalThis.fetch=async()=>new Response(JSON.stringify({metadataURI:'https://unexpected.example/details.json'}));
-  await assert.rejects(publishLaunchMetadata('https://metadata.example',details),/unexpected/);
+  calls=0;globalThis.fetch=async()=>++calls===1
+   ?new Response(JSON.stringify({uploadId:'11111111-1111-4111-8111-111111111111',accessToken:'a'.repeat(43),imageUpload:null}),{status:201})
+   :calls===2?new Response(JSON.stringify({status:'uploaded'}),{status:202})
+   :new Response(JSON.stringify({status:'ready',metadataURI:'https://unexpected.example/details.json',metadata}));
+  await assert.rejects(publishLaunchMetadata('https://metadata.example',details,authorization),/Invalid publishing response/);
  }finally{globalThis.fetch=original;}
 });

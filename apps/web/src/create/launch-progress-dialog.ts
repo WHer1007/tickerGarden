@@ -9,11 +9,15 @@ export type LaunchProgressState = {
   explorer: string;
   needsHash?: boolean;
   canDismiss?: boolean;
+  outcome?: boolean;
+  complete?: boolean;
+  tokenName?: string;
 };
 
 export type LaunchProgressActions = {
   onHash?: (hash: string) => void;
   onDismiss?: () => void;
+  onViewToken?: () => void;
 };
 
 const STAGES = [
@@ -56,12 +60,17 @@ export function renderLaunchProgress(state: LaunchProgressState, actions: Launch
   const previousSelectionStart = previousInput?.selectionStart;
   const previousSelectionEnd = previousInput?.selectionEnd;
   modal.replaceChildren();
+  modal.classList.toggle('launch-progress-dialog--outcome',Boolean(state.outcome));
 
   const content = element('div', 'launch-progress-dialog__content');
   const heading = element('h2', 'launch-progress-dialog__title');
   heading.id = 'launch-progress-title';
   heading.textContent = state.title;
+  if(state.outcome){
+    const icon=element('i','ph ph-check-circle launch-progress-dialog__outcome-icon');icon.setAttribute('aria-hidden','true');content.append(icon);
+  }
   content.append(heading);
+  if(state.outcome&&state.tokenName){const name=element('p','launch-progress-dialog__token');name.textContent=state.tokenName;content.append(name);}
 
   const status = element('div', 'launch-progress-dialog__status');
   status.setAttribute('role', 'status');
@@ -98,7 +107,7 @@ export function renderLaunchProgress(state: LaunchProgressState, actions: Launch
     }
     stages.append(item);
   });
-  content.append(stages);
+  if(!state.outcome)content.append(stages);
 
   if (state.hash) {
     const hashText = element('p', 'launch-progress-dialog__hash');
@@ -150,6 +159,11 @@ export function renderLaunchProgress(state: LaunchProgressState, actions: Launch
     link.target = '_blank';
     link.rel = 'noopener noreferrer';
     content.append(link);
+  }
+
+  if(state.complete&&actions.onViewToken){
+    const view=element('button','launch-progress-dialog__view');view.type='button';view.textContent='View Token';
+    view.addEventListener('click',()=>actions.onViewToken?.());content.append(view);
   }
 
   if (state.canDismiss) {

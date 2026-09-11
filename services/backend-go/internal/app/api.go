@@ -14,9 +14,9 @@ import (
 	"tickergarden/backend/internal/analytics"
 	"tickergarden/backend/internal/chainrpc"
 	"tickergarden/backend/internal/deployment"
+	"tickergarden/backend/internal/marketstats"
 	"tickergarden/backend/internal/tokendetail"
 	"tickergarden/backend/internal/transactions"
-	"tickergarden/backend/internal/treasury"
 	"tickergarden/backend/internal/useractivity"
 	"time"
 
@@ -31,30 +31,28 @@ import (
 	"tickergarden/backend/internal/rewards"
 )
 
-type marketMetricsAdapter struct{ store *analytics.CandleStore }
+type marketMetricsAdapter struct {
+	store *analytics.CandleStore
+	cache *marketstats.Service
+}
 
 func (a marketMetricsAdapter) MarketMetrics(ctx context.Context, snap readmodel.Snapshot, refs []displayprice.Reference) (map[string]*readmodel.MarketMetricsReadModel, error) {
-	input := analytics.MarketMetricSnapshot{Revision: snap.Sync.Revision}
-	if snap.Sync.BlockNumber != nil {
-		input.BlockNumber = *snap.Sync.BlockNumber
+	if a.cache == nil {
+		return nil, errors.New("statistics cache unavailable")
 	}
-	if snap.Sync.BlockHash != nil {
-		input.BlockHash = *snap.Sync.BlockHash
+	ids := []string{}
+	for _, m := range snap.Markets {
+		ids = append(ids, m.MarketID)
 	}
-	for _, market := range snap.Markets {
-		input.Markets = append(input.Markets, analytics.MarketMetricMarket{MarketID: market.MarketID, QuoteAsset: market.QuoteAsset, TickerGardenBaselineID: market.TickerGardenBaselineID})
-	}
-	for _, config := range snap.Configs {
-		supply, _ := config.Values["supply"].(string)
-		input.Configs = append(input.Configs, analytics.MarketMetricConfig{Kind: config.Kind, ID: config.ID, Supply: supply})
-	}
-	metrics, err := a.store.MarketMetrics(ctx, input, refs)
-	if err != nil {
-		return nil, err
-	}
-	out := make(map[string]*readmodel.MarketMetricsReadModel, len(metrics))
-	for marketID, metric := range metrics {
-		out[marketID] = &readmodel.MarketMetricsReadModel{Status: metric.Status, Reason: metric.Reason, Volume24hUSD: metric.Volume24hUSD, MarketCapUSD: metric.MarketCapUSD, QuoteUSDMidpoint: metric.QuoteUSDMidpoint, WindowFromTimestamp: metric.WindowFromTimestamp, AsOfTimestamp: metric.AsOfTimestamp, USDPriceAsOf: metric.USDPriceAsOf, USDPriceSource: metric.USDPriceSource, VolumeBasis: metric.VolumeBasis, MarketCapBasis: metric.MarketCapBasis}
+	a.cache.Touch(ids)
+	cached := a.cache.Snapshot()
+	out := map[string]*readmodel.MarketMetricsReadModel{}
+	for _, m := range snap.Markets {
+		if v, ok := cached[m.MarketID]; ok && v.Metrics != nil {
+			out[m.MarketID] = v.Metrics
+		} else {
+			out[m.MarketID] = &readmodel.MarketMetricsReadModel{Status: "unavailable", Reason: "statistics_pending", MarketCapBasis: marketstats.Basis, VolumeBasis: "EXTERNAL_EXECUTIONS_CURVE_EXCLUDING_FEE_TAX_OR_POOL_CORE", AsOfTimestamp: "0", WindowFromTimestamp: "0"}
+		}
 	}
 	return out, nil
 }
@@ -80,7 +78,6 @@ func RunAPI(ctx context.Context) error {
 	var database httpapi.Pinger
 	var reader readmodel.Reader
 	var rewardReader rewards.Reader
-	var proofs httpapi.TreasuryProofReader
 	var activityReader httpapi.ActivityReader
 	activityPath := os.Getenv("TG_USER_ACTIVITY_MANIFEST")
 	if activityPath != "" && cfg.DatabaseURL == "" {
@@ -92,13 +89,10 @@ func RunAPI(ctx context.Context) error {
 		return errors.New("transaction API requires TG_DATABASE_URL")
 	}
 	var candles *analytics.CandleStore
+	var statistics *marketstats.Service
 	analyticsPath := os.Getenv("TG_ANALYTICS_MANIFEST")
 	if analyticsPath != "" && cfg.DatabaseURL == "" {
 		return errors.New("analytics API requires TG_DATABASE_URL")
-	}
-	manifestPath := os.Getenv("TG_TREASURY_PROOF_MANIFEST")
-	if manifestPath != "" && cfg.DatabaseURL == "" {
-		return errors.New("Treasury proof API requires TG_DATABASE_URL")
 	}
 	if cfg.DatabaseURL != "" {
 		pool, err := postgres.Open(ctx, cfg.DatabaseURL, cfg.DBMaxConns)
@@ -179,6 +173,30 @@ func RunAPI(ctx context.Context) error {
 			if e != nil || m.ChainID != cfg.ChainID {
 				return errors.New("invalid analytics manifest or chain mismatch")
 			}
+			registry := ""
+			for _, c := range m.Contracts {
+				if c.Module == "MarketRegistryV1" {
+					registry = c.Address
+				}
+			}
+			if registry != "" {
+				rpc, e := chainrpc.New(os.Getenv("TG_RPC_URL"))
+				if e != nil {
+					return e
+				}
+				priceService := marketstats.NewPrices(cfg.ChainID, displayReader)
+				if path := os.Getenv("TG_STATISTICS_STOCK_ROUTES"); path != "" {
+					if e = priceService.LoadStockRoutes(path, rpc); e != nil {
+						return e
+					}
+				}
+				priceService.EnableCache(ctx, pool, registry)
+				go priceService.Run(ctx)
+				statistics, e = marketstats.New(ctx, pool, rpc, cfg.ChainID, registry, priceService)
+				if e != nil {
+					return e
+				}
+			}
 			candles, e = analytics.NewCandleStore(pool, m)
 			if e != nil {
 				return e
@@ -217,38 +235,6 @@ func RunAPI(ctx context.Context) error {
 		database = pool
 		reader = &readmodel.Store{Pool: pool, ChainID: cfg.ChainID}
 		rewardReader = &rewards.Store{Pool: pool, ChainID: cfg.ChainID, Version: projector.Version, Scope: projector.ObservationScope}
-		if manifestPath != "" {
-			f, err := os.Open(manifestPath)
-			if err != nil {
-				return errors.New("cannot open Treasury proof manifest")
-			}
-			data, err := io.ReadAll(io.LimitReader(f, (1<<20)+1))
-			f.Close()
-			if err != nil {
-				return errors.New("cannot read Treasury proof manifest")
-			}
-			manifest, err := deployment.Parse(data)
-			if err != nil {
-				return err
-			}
-			if manifest.ChainID != cfg.ChainID {
-				return errors.New("Treasury proof manifest chain mismatch")
-			}
-			pinned := false
-			for _, contract := range manifest.Contracts {
-				if contract.Module == "TreasuryDistributorV1" {
-					pinned = true
-				}
-			}
-			if !pinned {
-				return errors.New("Treasury proof manifest must pin TreasuryDistributorV1")
-			}
-			rpc, err := chainrpc.New(os.Getenv("TG_RPC_URL"))
-			if err != nil {
-				return err
-			}
-			proofs = treasury.NewProofService(rpc, manifest, treasury.CandidateStore{Pool: pool})
-		}
 	}
 	var candleReader httpapi.CandleReader
 	var tradeReader httpapi.TradeReader
@@ -266,7 +252,7 @@ func RunAPI(ctx context.Context) error {
 		seriesReader = candles
 		globalHolderReader = candles
 		assetStatisticsReader = candles
-		marketMetricsReader = marketMetricsAdapter{store: candles}
+		marketMetricsReader = marketMetricsAdapter{store: candles, cache: statistics}
 	}
 	detailReader := &tokendetail.Service{ChainID: cfg.ChainID, Models: reader}
 	if candles != nil {
@@ -281,7 +267,7 @@ func RunAPI(ctx context.Context) error {
 	}
 	server := &http.Server{
 		Addr: cfg.HTTPAddr,
-		Handler: httpapi.New(httpapi.Options{EventFeed: demandReader, TokenDetail: detailReader, Activities: activityReader, Transactions: transactionReader, GlobalHolders: globalHolderReader, GlobalSeries: seriesReader, GlobalStatistics: globalReader, Holders: holderReader, AssetStatistics: assetStatisticsReader, Candles: candleReader, Trades: tradeReader, DisplayPrices: displayReader, MarketMetrics: marketMetricsReader, Logger: logger, TreasuryProofs: proofs, Database: database, ReadModels: reader, Rewards: rewardReader, ChainID: cfg.ChainID,
+		Handler: httpapi.New(httpapi.Options{MarketStatistics: statistics, EventFeed: demandReader, TokenDetail: detailReader, Activities: activityReader, Transactions: transactionReader, GlobalHolders: globalHolderReader, GlobalSeries: seriesReader, GlobalStatistics: globalReader, Holders: holderReader, AssetStatistics: assetStatisticsReader, Candles: candleReader, Trades: tradeReader, DisplayPrices: displayReader, MarketMetrics: marketMetricsReader, Logger: logger, Database: database, ReadModels: reader, Rewards: rewardReader, ChainID: cfg.ChainID,
 			AllowedOrigin: cfg.AllowedOrigin, ProbeTimeout: cfg.ProbeTimeout}),
 		ReadHeaderTimeout: 5 * time.Second, ReadTimeout: 10 * time.Second,
 		WriteTimeout: 15 * time.Second, IdleTimeout: time.Minute, MaxHeaderBytes: 16 << 10,

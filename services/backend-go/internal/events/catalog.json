@@ -1,9 +1,9 @@
 {
   "executionSpecId": "V1-EXEC-11",
   "sources": {
-    "contracts/out-v1/HolderRewardsDistributorV1.sol/HolderRewardsDistributorV1.json#abi": "3c2baf6778ae240f814964f2d503929e4103ea01cf8e511ffa8783b7cfe1dbd5",
+    "contracts/out-v1/HolderRewardsDistributorV1.sol/HolderRewardsDistributorV1.json#abi": "d540e65f57b49c18072348ec69417930f0da4de9f61f64888f6898566e91d09f",
     "contracts/out-v1/IPoolManager.sol/IPoolManager.json#abi": "58cf2b7452d1671f0a08ebf1fda7977a918984524d9b12a3367d05fdf3952cad",
-    "contracts/out-v1/IV1Protocol.sol/IAllocationManager.json#abi": "41f61bfea360d9a1519cde3a64f970c64984bd8b854231731134bfabe484e9e5",
+    "contracts/out-v1/IV1Protocol.sol/IAllocationManager.json#abi": "50919145a91037ee80286a220a2d6dd9125afdca6fff9ae58aec431844b6d071",
     "contracts/out-v1/IV1Protocol.sol/IApprovedQuoteRegistry.json#abi": "5a8ad4bd799ddb45772515ae2b86e7f1d6cb5af95c61e7f7378190de071edf64",
     "contracts/out-v1/IV1Protocol.sol/ICreatorRevenueRegistry.json#abi": "8d7d791c847da9f69b4c6b4325e956434dc7127b29f3dc500e2c847071729c86",
     "contracts/out-v1/IV1Protocol.sol/IGraduationExecutor.json#abi": "51d126781e9a1142f35267fb8712470e8fa0fa94f1fec5b72e9c0d78a53b9d90",
@@ -12,93 +12,91 @@
     "contracts/out-v1/IV1Protocol.sol/ILaunchLocker.json#abi": "22d976b51b272728ce27d7da5ce22fdca4b431a9856b12331e4bb0380d6da5c7",
     "contracts/out-v1/IV1Protocol.sol/ILaunchTemplateRegistry.json#abi": "2f02b97bece6d9d75fe702c61dafe0fc3a36185a708a04b8d7514c117a5954af",
     "contracts/out-v1/IV1Protocol.sol/IMarketRegistryV1.json#abi": "6de515eef358955533e56b54d93a146fd93b1240d907f2ab9085cd81b3e8a8cf",
-    "contracts/out-v1/IV1Protocol.sol/IMemeStockGauge.json#abi": "1cc19e9b12a69acce2be7f111c89cc66da3f2eec3990b937616743fd8aaa786a",
+    "contracts/out-v1/IV1Protocol.sol/IMemeStockGauge.json#abi": "e475e82307dae41452ce6734a8e1a7cd30fc88ff82e55dd13d5810af81416242",
     "contracts/out-v1/IV1Protocol.sol/IOfficialStockRegistryV1.json#abi": "e37391b576760cea5a5fbc6aff3db414f9afa1919075f059d6394c2de9b6f7af",
-    "contracts/out-v1/IV1Protocol.sol/IProtocolFeeVault.json#abi": "15d7a57b53d70c1d359da9a20763a39e4b5c05b0b8ecabbcd87d7eb2b84e51ff",
+    "contracts/out-v1/IV1Protocol.sol/IProtocolFeeVault.json#abi": "6caea60b97a5f9c20eeb5b7157baa716983566500858c6b498a31a73115f7e97",
     "contracts/out-v1/IV1Protocol.sol/ITickerGardenBaselineRegistry.json#abi": "3db3d7349d9f0e66fa9951033b61627296f76f541f533620d1f02757018c27ea",
     "contracts/out-v1/IV1Protocol.sol/ITickerGardenCurve.json#abi": "0b97d2171888e6d5072ed2b7616503a170f14f263f0349cf4a821e35f6920006",
-    "contracts/out-v1/IV1Protocol.sol/ITickerGardenFactoryV1.json#abi": "77b4c58b929c6ee476a09b8d514ad0e9279c17f10ac44e0c5566170f635eb0fd",
-    "contracts/out-v1/IV1Protocol.sol/ITickerGardenMemeHook.json#abi": "6c68a157ac2ec0263bbf2c4a919e5711dd0de4dc16d98ad06cde243174a09f94",
-    "contracts/out-v1/IV1Protocol.sol/ITickerMemeTokenV1.json#abi": "c818b015ad04e978d5986ffda83ee04eee746de809d6f19f11c35efa395e6ea6",
-    "contracts/out-v1/IV1Protocol.sol/ITreasuryDistributorV1.json#abi": "5d39f9112ae116c0250ff85006eeec12d2d3b78c091f8bd19d94c5cfd1a66a39",
-    "contracts/out-v1/IV1Protocol.sol/IUserStockVault.json#abi": "0d3c322559e71d2c0b5babb1ff69240755c78d00f4e6767a73e173f84057af8d",
+    "contracts/out-v1/IV1Protocol.sol/ITickerGardenFactoryV1.json#abi": "bca678f012f4b6ed45a7acbbe5d53d0bc77e018252a45f13bf33d54f326db3b1",
+    "contracts/out-v1/IV1Protocol.sol/ITickerGardenMemeHook.json#abi": "6d572e595d5f95cd2d8d60f3184f72924c66d380b61565cc557394d47e9c3fbc",
+    "contracts/out-v1/IV1Protocol.sol/ITickerMemeTokenV1.json#abi": "15371107fb029ebeac7ad3b2544e121003b4611b7da5fe17f0fdfa5fb35e7dca",
+    "contracts/out-v1/IV1Protocol.sol/IUserStockVault.json#abi": "01ce65b36c51742eb599199219093763c79900c8d959354bfc1949de064ae265",
     "contracts/src/v1/interfaces/IContinuousHolderRewards.sol": "cc348352e78bc04a41e679d8de17b5549f212fcf06cdf74c52c950ee4a64d52c",
-    "contracts/src/v1/interfaces/IV1Protocol.sol": "b9c0acd8e897ae5e89c3be5ec4d0bc77e2645a1313e3dbc2e1ecd48c80ca6d6a",
-    "contracts/src/v1/libraries/CanonicalBlockClock.sol": "192bda76e282087ee5d1f27e2529396390bfb5a8b1e6753ec5f066655fe78dbf",
+    "contracts/src/v1/interfaces/IV1Protocol.sol": "c3906d8c58bf1c40aa3a1d0f096c6581111247a57e571b09a1e0da7820f61f9d",
+    "contracts/src/v1/libraries/CanonicalBlockClock.sol": "9ce98e4f6e5a51b2c83e12037f7ef540425b983507461716f618b2cca3f889d5",
     "contracts/src/v1/libraries/CreatorTax.sol": "62216ffb14cf4bc72d6872e7df378678c75fc25a8c9bd9cd99a8aefa020c6b7c",
     "contracts/src/v1/libraries/GraduationPoolMath.sol": "5e577fc91159f54db8320e6503495a6b4e0dad80512a5f3ec1fba1e198c0d23b",
     "contracts/src/v1/libraries/MarketFeeAccounting.sol": "9e9b288433c52df9bdb1dea7928ead18e7037e3d86e2bb1bf2a81db6496b0262",
     "contracts/src/v1/libraries/TickerGardenAntiSnipe.sol": "7f2d716d71825bdf0399108a2865de5e4db6333fd4719199208d642e7ec57c50",
     "contracts/src/v1/libraries/TickerGardenCurveMath.sol": "080340935b4a7e1b0b23b8ad3cfbd28f6235360c0f72c05b5492d09b203dc1fb",
     "contracts/src/v1/libraries/TickerGardenSupplyMath.sol": "b46c4d96f1f90db3362ca9c690be240529b8c576636e7e745b9e324852668e79",
-    "contracts/src/v1/libraries/TreasuryClaimLeafV1.sol": "01dc042684ab5e9b36437b23238ff119a97d62f43de3e4eab5cc1a635dd4ccff",
-    "contracts/src/v1/libraries/V1GraduationEconomicDomain.sol": "adc7f0fb89ef999b8e9a7692a42d527c126c56a0bcf622788387a3576c13c916",
-    "contracts/src/v1/modules/AllocationManager.sol": "ee2dd1668d36dd0b3f83cb66bb91a3bcb7c98d222f8b55d5bdfe3b7f68683d2b",
-    "contracts/src/v1/modules/ApprovedQuoteRegistry.sol": "1f7d4d06e488fffece452ca37a3e94bc40f37614b7fcc6544683debe68b8c87f",
-    "contracts/src/v1/modules/CreatorRevenueRegistry.sol": "ec4761bb7e8f35daf9a5a76debf2c72f7302a7fecaccd1c13b65561381901711",
+    "contracts/src/v1/libraries/V1GraduationEconomicDomain.sol": "9263f2dc11ef1d0cc873f4d7ad59f93ec8bbb379f71e541b581d6e07b1ddb452",
+    "contracts/src/v1/modules/AllocationManager.sol": "66fecf4bb4976d2b7751468bab9db249ff0a5cc76731e5f8e653f85af3796425",
+    "contracts/src/v1/modules/ApprovedQuoteRegistry.sol": "5c4d34d48161a4dcd931588c32313127e7225837d5c1ae588bcc0e190972cdb7",
+    "contracts/src/v1/modules/CreatorRevenueRegistry.sol": "45d804614c43b004c28e0bdac4de104fb35bfe9a9f2702ec15d92f33fe667755",
     "contracts/src/v1/modules/GraduationExecutor.sol": "47ecab8dc7c5bdaa3bc8545e2e3ec3bd43de119900dfc598d0bf6896a46eee3e",
-    "contracts/src/v1/modules/HolderRewardsDistributorV1.sol": "bdb7e9d1c8aa390211fdb74fd8d83f7b17181a215550f38ec9d2a35ae2f13c90",
-    "contracts/src/v1/modules/LaunchAndBuyRouter.sol": "84089856eb1c494aa1ac32bddf6b30c8bbf756afa08b38613bf223d8349da4a5",
-    "contracts/src/v1/modules/LaunchConfigResolver.sol": "e6efff3fe33fa13ec8c87f01bfe6074b31f0c107fafb97db2c4d3d60584dc8e2",
+    "contracts/src/v1/modules/HolderRewardsDistributorV1.sol": "f74b3486f0d057f5abea422649621a4b0db80c12045b3718dff1eace5cebf7cf",
+    "contracts/src/v1/modules/LaunchAndBuyRouter.sol": "744d1caa2155c6ded396cc9d9bbc661847571dbc5526a2f0dd456ce5407a62ef",
+    "contracts/src/v1/modules/LaunchConfigResolver.sol": "f1f72e12308d86ba73012296b9900bd665a501f592b8500c6eccbba47e6aa276",
     "contracts/src/v1/modules/LaunchLocker.sol": "e53613f277bec70565c3a089eae5389dd4e332610cad576006b5a0a38a84b294",
     "contracts/src/v1/modules/LaunchTemplateRegistry.sol": "d807af70bad585de148959c65c5bb0d4473e060feac64e5f408c1cdc7ee7de88",
-    "contracts/src/v1/modules/MarketRegistryV1.sol": "681bde6fad68edc6a86d6d2238400ab5b1b6fb888c252b33a8193b0244dac6ef",
-    "contracts/src/v1/modules/MemeStockGauge.sol": "dbff9b6cf4e061c433721d6e596d37523b05c2097f932791670450829460f319",
+    "contracts/src/v1/modules/MarketRegistryV1.sol": "d0f8bd43da0945d20600bd373bb7b81090aa738534b2cdcc74196e733e24bb25",
+    "contracts/src/v1/modules/MemeStockGauge.sol": "14aa9de04479387c5342e51d329b56297c56508895b00f32ac3d944b5271b9c6",
     "contracts/src/v1/modules/OfficialStockRegistryV1.sol": "586e952983cb4d25eeb8f8ac4116948325d1e5bbe9c77dfdd702dcd3bab2f89b",
-    "contracts/src/v1/modules/ProtocolFeeVault.sol": "1e354f7cc34f8b40254bd9ee1b50538ff14a815d5e510764674ea97de3654ceb",
-    "contracts/src/v1/modules/TickerGardenBaselineRegistry.sol": "ca29144f5c523c61b1decb9fe18567326d65889a39e86057bf03b52b05470eaa",
-    "contracts/src/v1/modules/TickerGardenCurve.sol": "df02b11fc101cb85dca524a820be43c9d75eb4f97474b4afd1a09fa0331b6cdc",
-    "contracts/src/v1/modules/TickerGardenFactoryV1.sol": "95a61db44a4edeb803c7d12e3e67ecc3f8f8e09adc6ffb48ef8b583bf11f321f",
+    "contracts/src/v1/modules/ProtocolFeeVault.sol": "b3463119e6a103141db8cda8c1bd83e902985b64fd324911093976b275719d73",
+    "contracts/src/v1/modules/TickerGardenBaselineRegistry.sol": "269ca73b65ffd0d2a8615d1d9ecaf5b57869594890b996c161de8fadd2c8a631",
+    "contracts/src/v1/modules/TickerGardenCurve.sol": "9b950514f13d5186003401be2268a49a765149e5f28c5d22a1fc10f38c2ea6a0",
+    "contracts/src/v1/modules/TickerGardenFactoryV1.sol": "b067c046197ac115879570e34ef8a7ae23b96026dd88e41142e2a89f86677034",
     "contracts/src/v1/modules/TickerGardenMemeHook.sol": "d10d6778b5d5bbf944895390c778e6e945ad7594c90c899f78fef67d9beed1af",
-    "contracts/src/v1/modules/TickerMemeTokenV1.sol": "b5bacd895abea5425b6d4c2d8a57fa0e888e33c99bf3f41b12d9b22d1cb68d62",
-    "contracts/src/v1/modules/TreasuryDistributorV1.sol": "80923c830b61ef41ccc5618363424107a2d6abbe7307629f21bef59e7d0dc7fe",
-    "contracts/src/v1/modules/UserStockVault.sol": "a92170a9908acdae176e258a4fa1fcf681d710a45d0ece322ab84014948c9b18",
+    "contracts/src/v1/modules/TickerMemeTokenV1.sol": "06c5b2a10715144ee8ea6582388b795776409cd434df7e84cc63d08f91396bb5",
+    "contracts/src/v1/modules/UserStockVault.sol": "c9fb25f78a1170e71801215204e0e9cb41f69a6c79204c029fca2827accc5507",
     "contracts/src/v1/shared/AllocationManagerDeposits.sol": "b730dc67661f13f3d3801290f600953affcfb6d002d5f2791ec77b64f7a69f6d",
-    "contracts/src/v1/shared/AllocationManagerExits.sol": "1f1e665b153eade31927be154dbb41ab3bbb44b6d63ff85dda31fc84e9e8f859",
+    "contracts/src/v1/shared/AllocationManagerExits.sol": "4d674ad349fd6205d71e1bc1ae840da78d4137d47361edc1bd055dd6ec65d439",
     "contracts/src/v1/shared/AllocationManagerIncreases.sol": "cabc8e7f31e771d70bb9fc3c3f1daf4a7f98f2861f0d3fa506cba8e5ed7d3d39",
     "contracts/src/v1/shared/DelayedUnpause.sol": "f26807178227c5c01f0544387698f4cfbddcf756740e4e77dddc2a739126ce89",
-    "contracts/src/v1/shared/GraduationExecutorAssetAccounting.sol": "e08759e15e6c3f251391e469fd5a223c8fa8d76d6c35735bfc2348399abf51ba",
+    "contracts/src/v1/shared/GraduationExecutorAssetAccounting.sol": "df55ad985615fe2f684a1d2bc7d21cfc8d666d8705ccbd5a2760065b4045d30f",
     "contracts/src/v1/shared/GraduationExecutorEntry.sol": "6edb7f87a5d4fb34699669bad44e70dfac347c0638048ab6076b7d65c7496c61",
     "contracts/src/v1/shared/GraduationExecutorPoolExecution.sol": "5ef21de0b2fe19d19b85629e7f70452e9da58d2796b3b9224fec5687f1c04f17",
     "contracts/src/v1/shared/ImmutableAccessManaged.sol": "e7c881d6188b84ebc9f1d71c326399a6698444ccf43294930625bd0dee1a1e13",
-    "contracts/src/v1/shared/ImmutableBeaconProxyRuntime.sol": "a3efa9ebab473ccd04470112b985bfe630511f4fefab352eb73796b1fbf16594",
+    "contracts/src/v1/shared/ImmutableBeaconProxyRuntime.sol": "1d50129c8d18b74840f1721c195b8b6699ce47e9a375091437c27dcda512f898",
     "contracts/src/v1/shared/LaunchAndBuyRouterERC20.sol": "fc90adddd256b7796e79f677e5b532c7dad45e345daa632648833c5aacddb726",
     "contracts/src/v1/shared/LaunchAndBuyRouterNative.sol": "22f85a14c1d0f4ff959714e32848cfc89961c230089613c3d0aa8c421aa39d1e",
-    "contracts/src/v1/shared/LaunchAndBuyRouterV4Fallback.sol": "ffdc39541cf9d6c3e015c93f267563fb990b9645b864eb1c93f2dae4030a26af",
+    "contracts/src/v1/shared/LaunchAndBuyRouterV4Fallback.sol": "64f03c840b37c6170adb730d921d4b4ddb11202790fdaafccb2938eb5c4c497a",
     "contracts/src/v1/shared/LaunchLockerBinding.sol": "5467c17f457f3e666db66b2fcd5e4a3fa5182e1cd964cea615d9314925b695b7",
     "contracts/src/v1/shared/LaunchLockerCustody.sol": "f9f5b89c649e17e98b153ce926d05167596c191c21b4abe7824ab346233ce33b",
-    "contracts/src/v1/shared/MemeStockGaugeAccumulators.sol": "ec4ecff2db0bcbacf96a4ba81cb0c0c98faea8b4d5d2ded5e6c2433238f018ab",
+    "contracts/src/v1/shared/MemeStockGaugeAccumulators.sol": "771f10d7d54fd9f451bd611506508975072d9de12d453c674245a1fb0e8f0050",
     "contracts/src/v1/shared/MemeStockGaugeActivationSnapshots.sol": "f8c2581926c3b30245b4a431d9bc2f67779795ac15e772ee8863714318bc5b0e",
-    "contracts/src/v1/shared/MemeStockGaugeActivationWheel.sol": "3a30de52a3baaea6da90a44dbdccb27ad90274ca2620a08476e6ead8024dcd94",
+    "contracts/src/v1/shared/MemeStockGaugeActivationWheel.sol": "f674fe911eb07db1b0da492f3b0d128a9f695f96b30aba60c3aca1cc4b4584a7",
     "contracts/src/v1/shared/MemeStockGaugeClone.sol": "c662f077c01bbaa01d09a467734e685e5439a0454432b80c17768b7b451ff8cb",
-    "contracts/src/v1/shared/MemeStockGaugeForfeitures.sol": "cb1769fa2732fc29b46caf212775b22edef89b6b745a1f17c5f7b1a6c18d8123",
+    "contracts/src/v1/shared/MemeStockGaugeForfeitures.sol": "51e068e13926725a3cfbe6054f64f6a263ddac6bccf31a4bd63dc4adb3446b09",
     "contracts/src/v1/shared/MemeStockGaugeLockedPositions.sol": "2a639382b7ce8238dda860c449066207bfb3cdb3cbc5765e99027fd92fbbda6a",
     "contracts/src/v1/shared/MemeStockGaugePendingPositions.sol": "8113b236cf2bf1631652243cbbb4d196e128f1a4a88df98b97bc402b25a07e56",
     "contracts/src/v1/shared/MemeStockGaugeSettlements.sol": "70a0b491ad574454ff016faf437f49075335f49ae41abfa947030cdfeea9b500",
-    "contracts/src/v1/shared/ProtocolFeeVaultCurveCredit.sol": "202294fe4e7cd8cfc66e68b8afc9f4ebf85f9d84c9eb3cc5313bda63aa438dda",
-    "contracts/src/v1/shared/ProtocolFeeVaultLiabilities.sol": "2aefab79116d47b9d4cc41ad730e138c94622745712513220a50011ea0332494",
-    "contracts/src/v1/shared/ProtocolFeeVaultRewardSettlement.sol": "68159e8c3b08b15177c4d196fd5e47c9c03360bc7db7b174b2462c8160fe6f7c",
-    "contracts/src/v1/shared/ProtocolFeeVaultV4Accounting.sol": "aef0e4f18eab6a877f8ecc1b8851aac41faa1e3e3c704afa7ac9690f19da580b",
-    "contracts/src/v1/shared/ProtocolFeeVaultV4Credit.sol": "a2a3c493a8c0f3fad5832b8ee28d17bb42e7de8860f785a2762fbb0d6b525b0c",
+    "contracts/src/v1/shared/ProtocolFeeVaultCurveCredit.sol": "f7e5197a003792c20cd68e209b37f0f899eca3e1bf7d32ed4d1f92b749601860",
+    "contracts/src/v1/shared/ProtocolFeeVaultLiabilities.sol": "a369d2bf255b5b9965cfce7dfbc1d65f9c3384e63eefa61c3ae05fcc081c3572",
+    "contracts/src/v1/shared/ProtocolFeeVaultUserClaims.sol": "38bf779831eba8c1b51ae98f29e30034c799de9dcbf18c0fb245c19c0060cdb0",
+    "contracts/src/v1/shared/ProtocolFeeVaultUserConversion.sol": "be381d287dfa12762b1c8ac0792d58c763f3c7009825304167bef72bb054997e",
+    "contracts/src/v1/shared/ProtocolFeeVaultV4Accounting.sol": "22d08834c7aaec3d246b9b97757dce7d0777447ad77f1f6bded15e62433d0d34",
+    "contracts/src/v1/shared/ProtocolFeeVaultV4Credit.sol": "16bd67a4848a5f93fa064477440a1801a4fe4a30af092ade40f8242870c0b85b",
     "contracts/src/v1/shared/TickerGardenMemeHookBinding.sol": "f93e0bde0d4497b6079ed67dd025dea16b84aa8655e4ea7b03b059e2c9d537a7",
     "contracts/src/v1/shared/TickerGardenMemeHookFeeCalculation.sol": "463656a8815c6f840fa72797275baa0ebe6ac4e7285f74bd8c61c8ae21aaccd4",
-    "contracts/src/v1/shared/TickerGardenMemeHookFeeExecution.sol": "34a81a584935dbd9bc22be840df0bef6162f9dfa65872f5f9591b917afa51b08",
+    "contracts/src/v1/shared/TickerGardenMemeHookFeeExecution.sol": "5428e38edfcb86c0d521a9f5b85bbac040f4fb72c9a16b15f64784dd4a64dc17",
     "contracts/src/v1/shared/TickerGardenMemeHookLifecycle.sol": "f35c4ce81f23cc4376d0320b4a4b262cbf1ad057ebb86b7b682df29f3cb8171a",
-    "contracts/src/v1/shared/TickerGardenRewardConversion.sol": "095d9021c44d70c79936fa4621eb67f5ab5b04e825f02e87990e0ed6d9c1551f",
+    "contracts/src/v1/shared/TickerGardenRewardConversion.sol": "1c4bf38a1adcdd0e489638b922c806115aa581eca133816b1fc28ef76cff49ce",
     "contracts/src/v1/shared/UserStockVaultDeposits.sol": "21806d586129313eac2f4371df59676df658414848c13a36fe52282429798095",
     "contracts/src/v1/shared/UserStockVaultExits.sol": "1a8ea3506b963d34c628b43245d9b80c6bba34c7f10600d71d24d2716b69295a",
     "contracts/src/v1/shared/UserStockVaultIdentity.sol": "c8b2b8df61345f9760c2233c4217587f87db5e5b4670aed56f3909502db35889",
     "contracts/src/v1/shared/UserStockVaultLedger.sol": "f57ff57c744b007436a508ad32a9e0fe1790d9069bba22a93497edf0a147dd7c",
-    "contracts/src/v1/shared/UserStockVaultRewardAccounting.sol": "6d17a1ea42c80b1b382707521e46887e1198ee3feae00b3419a82c5748e357f3",
+    "contracts/src/v1/shared/UserStockVaultRewardAccounting.sol": "73ddaf62af411ab902c9893fcf193f8c16494bf4974fdb300738c8a3a5d4f6da",
     "contracts/src/v1/shared/V1Create2.sol": "0c5424d19911aa239022010254da0b04290d94215a432d17f1e177d4a5fc5aa2",
     "contracts/src/v1/shared/V1FactoryValidation.sol": "a64505940be89408e9db1f9ea5ecdba1b5fa9f65d336f8c3c1831367287b3d63",
     "contracts/src/v1/shared/V1Identifiers.sol": "f9a78093bd738022a0709a6caec82f4e2470a8c2839d3f68a4df865f31c822b9",
     "contracts/src/v1/shared/V1MarketEconomics.sol": "7ced7c967249daf76857812eb794a2aca339e22eb85cc7ac5ceb3dc7831c353c",
     "contracts/src/v1/shared/V1Scaffold.sol": "7aef3f79a100a697fa2c05143013398ddd0aed354adff27e3bf050c0f28f8ca8",
-    "docs/v1/README.md": "ab19804975998c478780d151091738c59a20f98d90d0f20b073c5165c8f87e05",
+    "docs/v1/README.md": "72211fc2c16b713d7f6c7af19c8563acff7959375ecc2e780d1433453f938a8b",
     "docs/v1/V1_ACCUMULATOR_NUMERIC_REPORT.md": "5b90fb51812062196bd89411210840bd0284057e74f5ed4c9fad85bcd4977103",
     "docs/v1/V1_ACTIVATION_WHEEL_GAS_REPORT.md": "805ba0b026af264ac0dfb03e49978f68fcf3e2b94fe0f5e65f70e73dc2177732",
-    "docs/v1/V1_ADMIN_OPERATIONS_MANUAL.md": "76667aa1e89c1c7dfcac34c2c5b9e845cea1c432409dac86560b05ec13de72de",
+    "docs/v1/V1_ADMIN_OPERATIONS_MANUAL.md": "44e0b7fb7028512fb899e49a1d963ea9b9d38bc013be418c65f5788c23a4b148",
     "docs/v1/V1_BEACON_PROXY_ADMISSION.md": "50e246d6cac13b5549245f64a00b6b07c4dad1241eb10cb76d4de469fbd73824",
     "docs/v1/V1_BRAND_RENAME.md": "667b90776fad8d44fcba82b4681948671ae92d32a5f709c361c178c975ac3690",
     "docs/v1/V1_BUSINESS_LOGIC_REMEDIATION.md": "3fee878e634c4ae85e2b7ba24ad3031c9e03a5b0934cfe6b2f59a9258e7050c4",
@@ -109,9 +107,10 @@
     "docs/v1/V1_CREATOR_REVENUE_EPOCH.md": "cce44576f4f8031018ba282be10da9f30c62c08b763c2d50fcc9f283d2c6c46d",
     "docs/v1/V1_CREATOR_TAX.md": "dc26634f1b83a97c3cacfc9b0e6bbec39e9a3c931fe8c89b27bdf4ad3f3eb2bd",
     "docs/v1/V1_DEVELOPMENT_PLAN.md": "92075d81348e7e894a5fa7eefb595366f6a88fd5b7e802035c52b882dd7ea7e6",
-    "docs/v1/V1_EXECUTION_SPEC.md": "444a6dc8fc4d9f6fe68170cf26e8f1829d377d81521673c5205d05eac1ec3b87",
+    "docs/v1/V1_EXECUTION_SPEC.md": "868585814e766815372dd493960df1f26cba7a3841daf08aaf4cef1df7caa6a0",
     "docs/v1/V1_G0_EXTERNAL_EVIDENCE.md": "bddb251524a981f413e22061e0944349711ae58eaba415c357487f646f970c09",
     "docs/v1/V1_G0_RECOMMENDATIONS.md": "a77be4d54332ebcc9111b2298a57664bb881338417a3abf0b92a8139aba34785",
+    "docs/v1/V1_HOLDER_FUNDING_INTERVAL.md": "42ebd6e800b620adf70360473563a712edd692140841216a038b8b7efa3ae3a2",
     "docs/v1/V1_M0_BLOCKER_AUDIT.md": "5fadd8b27170c3c3e9215b14f070c27ceb190c105a476fa523c88cddda518be2",
     "docs/v1/V1_MARKET_AUTONOMY_AND_RAGE_QUIT.md": "3a713dca57471762bfa31d34128543798a7f7fd85df99c968bb5a90a9c9f150a",
     "docs/v1/V1_MARKET_REGISTRY_STATE_MODEL.md": "975e95a47007a68c3f0cb792cffaf6ddf1c01ac2973334339db324a24f32cc1f",
@@ -121,10 +120,10 @@
     "docs/v1/V1_OPTIONAL_STOCK_STAKING.md": "af27a97dd5eaacf6cf5735f0fbee39582236838afbd20d3c4bc4980cd1effe05",
     "docs/v1/V1_PONS_BEHAVIOR_BASELINE.md": "cb82d434dd6c0325ee1fa0fd3627c4a9656941831a989d8bd67e9ff427cc5ec2",
     "docs/v1/V1_PONS_IPFS_UPLOAD_RESEARCH.md": "3a63966fc69f60a38a38f7082cbe7b11214e908682c3253929c615038fa09259",
-    "docs/v1/V1_PROTOCOL_PARAMETERS.md": "38f00c3fb0defa1bbf147e1505636c09195455a1b82c638241f50b1560809bf9",
+    "docs/v1/V1_PROTOCOL_PARAMETERS.md": "daeed05db319c72dbc9c53623f39c50af0262b6a36adecfaa3adeb49936c661e",
     "docs/v1/V1_QUOTE_WHITELIST_POLICY.md": "1ddaf913b278fa58c68ec6c77606175e231c7e288a18fb648d742356335dbf85",
     "docs/v1/V1_READINESS_AND_DEPLOYMENT_GATES.md": "62927dbe97e7db0ed2e7a70d4502ba7b59bb20d226b5dd85a50feb07199aee5e",
-    "docs/v1/V1_REWARD_CONVERSION.md": "912eaf1fa42feef76485fd9e5234dfd7c5b26472cd275f4602ba70ad653decbf",
+    "docs/v1/V1_REWARD_CONVERSION.md": "06c4f973aea5f02a5555a2bc3d8635e63117db83053c658d2fc102ea76ed7766",
     "docs/v1/V1_ROBINHOOD_TESTNET_REFERENCE.md": "dd09542948ebc3ee9eb01cf3d5aee8c871613589983bf97ee05a31ca12478394",
     "docs/v1/V1_STOCK_QUOTE_PRICE_REFERENCE.md": "82624cfb378329cca7884d2b1f887db0e5ebd31e37d25350f4d35212e9699283",
     "docs/v1/V1_TECHNICAL_ARCHITECTURE.md": "ffedff823adba6fab9f70dde06558a5fbdb96e09fdc0c63748c7b52a3eae2bd6",
@@ -132,13 +131,14 @@
     "docs/v1/V1_TESTNET_ROLLBACK_CHECKLIST.md": "dcc854c79af2a0cc4bd165331e39ebd725cd4ac6b784d660a96c8ab307e614c3",
     "docs/v1/V1_TREASURY_ARCHITECTURE.md": "7841edb5769e5d7d5f0382fa8cbf5edba51af3b17b8d699b5fb4cc13e0a87ab0",
     "docs/v1/V1_TYPED_IDENTIFIERS.md": "055144fa78a0f33db878c3508da40d0cc01be10c316401a21cbe3287984ab9b9",
+    "docs/v1/V1_TYPESCRIPT_SERVERLESS_DEVELOPMENT_TASKS.md": "344fc05a6370ea03587f9b79e11d4987f46a98a307e14521b9fa45eea1b9adb3",
     "docs/v1/V1_USER_EMERGENCY_ESCAPE_FLOW.md": "5e20c6472649aa60592d79bbd159270ec41c2a5c4be9d358a221ccd757d96519",
-    "services/backend-go/testsupport/projection/generated/v1-events.ts": "3b8059800b030984196dd9445b0d34dfc498152d083af53b4274437135a0cc95",
+    "services/backend-go/testsupport/projection/generated/v1-events.ts": "237d46fc58a58f60c961814acf78040295efc77b1938657f2a4b10e1d7a74846",
     "spec/generate_v1_hash_vectors.py": "5ab9ef0fa5f941cfe801c4a1aeef7d0f98400b970bb9c793c287d50215aa9c77",
-    "spec/v1_abi_surface.json": "f53ee5295bee536d168997a032286c51a35fc025f7e32137d89ee5538417d2ab",
-    "spec/v1_canonical_abi.json": "0f9ca2894e2dea97fbe5a248c81773ca8c9ff27033ace11ac610c067ac98d282",
-    "spec/v1_permissions_matrix.json": "3b768e8a6d24d8c90f6ff7b208f6ba0b27d10ee307de747506855adca530ae53",
-    "spec/v1_product_artifact_manifest.json": "5d945a7eb53284afc565f1a3a78ea3d4969694695304d2661b702b8f80d458c1"
+    "spec/v1_abi_surface.json": "cec55e8cb0badc9288601d66dbd0d1078dda25a23a5a060d9a3fae5a017b668a",
+    "spec/v1_canonical_abi.json": "212e344d5287ee5de13243d476e9d855c6e920d1c6f265aa73ef5d0e7f906da4",
+    "spec/v1_permissions_matrix.json": "7e2b32e2603aa4e84fc9a5aff50a16559e4a25660d74c9dde0dcd76c00cdfd99",
+    "spec/v1_product_artifact_manifest.json": "ac1e6f2d802c0849c18e73a431efc42a688c188564d09914cfa94381ab721eae"
   },
   "modules": [
     "AllocationManager",
@@ -159,7 +159,6 @@
     "TickerGardenFactoryV1",
     "TickerGardenMemeHook",
     "TickerMemeTokenV1",
-    "TreasuryDistributorV1",
     "UniswapV4PoolManager",
     "UserStockVault"
   ],
@@ -275,7 +274,7 @@
       "topic0": "0x40ac6fde3a82680ca4f73fdeadb8b266f5289dda745355813731fb2735a28d4f"
     },
     {
-      "signature": "AllocationRageQuitExecuted(address,bytes32,uint256,uint256,uint256,bool)",
+      "signature": "AllocationRageQuitExecuted(address,bytes32,uint256,uint256,uint256)",
       "name": "AllocationRageQuitExecuted",
       "modules": [
         "AllocationManager"
@@ -305,14 +304,9 @@
           "name": "memeForfeited",
           "type": "uint256",
           "indexed": false
-        },
-        {
-          "name": "redistributed",
-          "type": "bool",
-          "indexed": false
         }
       ],
-      "topic0": "0x896daa04b6d9dd8d2f2f6c4d549b43db44b2576a271a92d841a9f353ae5e1415"
+      "topic0": "0x5936f697fb8e67966c173cfc7bcd55fd6befbaf1df402eacade034c641464cfa"
     },
     {
       "signature": "AllocationReleased(bytes32,address,bytes32,uint256,uint256,uint256)",
@@ -845,36 +839,6 @@
       "topic0": "0x29ef05caaff9404b7cb6d1c0e9bbae9eaa7ab2541feba1a9c4248594c08156cb"
     },
     {
-      "signature": "EpochRemainderRolledOver(bytes32,uint32,uint32,uint256)",
-      "name": "EpochRemainderRolledOver",
-      "modules": [
-        "TreasuryDistributorV1"
-      ],
-      "inputs": [
-        {
-          "name": "marketId",
-          "type": "bytes32",
-          "indexed": true
-        },
-        {
-          "name": "fromEpochId",
-          "type": "uint32",
-          "indexed": true
-        },
-        {
-          "name": "toEpochId",
-          "type": "uint32",
-          "indexed": true
-        },
-        {
-          "name": "amount",
-          "type": "uint256",
-          "indexed": false
-        }
-      ],
-      "topic0": "0xbe760a4213def5ba61c385aac00dac0e3737542522431c12239ac048209b01b8"
-    },
-    {
       "signature": "ExpectedPoolRegistered(bytes32,bytes32,bytes32,uint32)",
       "name": "ExpectedPoolRegistered",
       "modules": [
@@ -1120,7 +1084,7 @@
       "topic0": "0xa55925df36b56bcb0445e5eca4f0a42356a8313f96815d29cc92f07c20d083c3"
     },
     {
-      "signature": "GaugeRageQuit(address,bytes32,uint256,uint256,uint256,bool)",
+      "signature": "GaugeRageQuit(address,bytes32,uint256,uint256,uint256)",
       "name": "GaugeRageQuit",
       "modules": [
         "MemeStockGauge"
@@ -1150,14 +1114,34 @@
           "name": "memeForfeited",
           "type": "uint256",
           "indexed": false
+        }
+      ],
+      "topic0": "0xeb493fc779755f52ff327dda421c3eaee357de47f6fd8b458e50d8707bfd57d4"
+    },
+    {
+      "signature": "HolderAssetFunded(bytes32,address,uint256)",
+      "name": "HolderAssetFunded",
+      "modules": [
+        "HolderRewardsDistributorV1"
+      ],
+      "inputs": [
+        {
+          "name": "marketId",
+          "type": "bytes32",
+          "indexed": true
         },
         {
-          "name": "redistributed",
-          "type": "bool",
+          "name": "asset",
+          "type": "address",
+          "indexed": true
+        },
+        {
+          "name": "amount",
+          "type": "uint256",
           "indexed": false
         }
       ],
-      "topic0": "0x3513f56ba0f9c5368e47d68d309bbed39c99c93212df932575fc3a62bf584dbd"
+      "topic0": "0xf8c3072007d8923340a72ab135ac7ea5399961f50af84769885b2117c5e0f8d9"
     },
     {
       "signature": "HolderFeesAccrued(bytes32,uint32,address,uint256)",
@@ -1190,10 +1174,10 @@
       "topic0": "0xff2e873256e8b94ff57ab6a55118e0ea49f9a2457166d4937fff41c4e87e7800"
     },
     {
-      "signature": "HolderRewardsConverted(bytes32,uint32,address,address,uint256,uint256)",
-      "name": "HolderRewardsConverted",
+      "signature": "HolderFundingIntervalUpdated(bytes32,uint256,uint256)",
+      "name": "HolderFundingIntervalUpdated",
       "modules": [
-        "ProtocolFeeVault"
+        "HolderRewardsDistributorV1"
       ],
       "inputs": [
         {
@@ -1202,32 +1186,62 @@
           "indexed": true
         },
         {
-          "name": "epochId",
-          "type": "uint32",
-          "indexed": true
-        },
-        {
-          "name": "memeAsset",
-          "type": "address",
-          "indexed": false
-        },
-        {
-          "name": "quoteAsset",
-          "type": "address",
-          "indexed": false
-        },
-        {
-          "name": "memeSpent",
+          "name": "previousInterval",
           "type": "uint256",
           "indexed": false
         },
         {
-          "name": "quoteReceived",
+          "name": "newInterval",
           "type": "uint256",
           "indexed": false
         }
       ],
-      "topic0": "0x7ae99036b2006836a52c075b523224285c33d2adc620071e0dca6ef481d67fa3"
+      "topic0": "0x236ae1f4a25cf938fc4c090c484259adff3fc4f2b43117591768edd26f20f4f6"
+    },
+    {
+      "signature": "HolderMemeRestored(bytes32,address,uint256)",
+      "name": "HolderMemeRestored",
+      "modules": [
+        "HolderRewardsDistributorV1"
+      ],
+      "inputs": [
+        {
+          "name": "marketId",
+          "type": "bytes32",
+          "indexed": true
+        },
+        {
+          "name": "account",
+          "type": "address",
+          "indexed": true
+        },
+        {
+          "name": "amount",
+          "type": "uint256",
+          "indexed": false
+        }
+      ],
+      "topic0": "0x8f675759368adbebcdbc0216b656c57af51ee1e34d59314c4c326af8d682a7dc"
+    },
+    {
+      "signature": "HolderRewardsQueued(bytes32,uint256)",
+      "name": "HolderRewardsQueued",
+      "modules": [
+        "HolderRewardsDistributorV1"
+      ],
+      "inputs": [
+        {
+          "name": "marketId",
+          "type": "bytes32",
+          "indexed": true
+        },
+        {
+          "name": "amount",
+          "type": "uint256",
+          "indexed": false
+        }
+      ],
+      "topic0": "0xab0c5baff3525ed9f0a01926b03d8be47f16fffe7f87359086af4f9019913803"
     },
     {
       "signature": "HolderStreamClaimed(bytes32,address,address,uint256)",
@@ -1525,46 +1539,6 @@
       "topic0": "0xf5a17aec72961f0cea164745a33be97d2939e3215767c14a909fb4a0284f3486"
     },
     {
-      "signature": "MemeTreasuryBurned(bytes32,address,address,bytes32,uint256,uint256)",
-      "name": "MemeTreasuryBurned",
-      "modules": [
-        "TreasuryDistributorV1"
-      ],
-      "inputs": [
-        {
-          "name": "marketId",
-          "type": "bytes32",
-          "indexed": true
-        },
-        {
-          "name": "funder",
-          "type": "address",
-          "indexed": true
-        },
-        {
-          "name": "memeToken",
-          "type": "address",
-          "indexed": true
-        },
-        {
-          "name": "burnId",
-          "type": "bytes32",
-          "indexed": false
-        },
-        {
-          "name": "amount",
-          "type": "uint256",
-          "indexed": false
-        },
-        {
-          "name": "totalSupplyAfter",
-          "type": "uint256",
-          "indexed": false
-        }
-      ],
-      "topic0": "0xc822202552d636e39b726a84051eb3d41e6d6fc50aff69cc0fb9458b5c3de107"
-    },
-    {
       "signature": "PendingMaterialized(address,bytes32,uint64,uint256)",
       "name": "PendingMaterialized",
       "modules": [
@@ -1633,31 +1607,6 @@
         }
       ],
       "topic0": "0x436741ffad0c74c9dc64fd4de92b5d902d5f88b2478c46af12f5b9f25245f2fa"
-    },
-    {
-      "signature": "PendingRootCancelled(bytes32,uint32,bytes32)",
-      "name": "PendingRootCancelled",
-      "modules": [
-        "TreasuryDistributorV1"
-      ],
-      "inputs": [
-        {
-          "name": "marketId",
-          "type": "bytes32",
-          "indexed": true
-        },
-        {
-          "name": "epochId",
-          "type": "uint32",
-          "indexed": true
-        },
-        {
-          "name": "reasonHash",
-          "type": "bytes32",
-          "indexed": true
-        }
-      ],
-      "topic0": "0x66f0c0ae3b9a0a3e293ec8441891fc258090ddd528f1dee50b78d974a07253d5"
     },
     {
       "signature": "PendingScheduled(address,bytes32,uint256,uint64,uint64)",
@@ -1865,46 +1814,6 @@
       "topic0": "0x80af1665440e10f4ab09a88bf0fc7a45a994da5c825d9a824059e93bf93f236b"
     },
     {
-      "signature": "QuoteTreasuryFunded(bytes32,uint32,address,address,bytes32,uint256)",
-      "name": "QuoteTreasuryFunded",
-      "modules": [
-        "TreasuryDistributorV1"
-      ],
-      "inputs": [
-        {
-          "name": "marketId",
-          "type": "bytes32",
-          "indexed": true
-        },
-        {
-          "name": "epochId",
-          "type": "uint32",
-          "indexed": true
-        },
-        {
-          "name": "funder",
-          "type": "address",
-          "indexed": true
-        },
-        {
-          "name": "quoteToken",
-          "type": "address",
-          "indexed": false
-        },
-        {
-          "name": "fundingId",
-          "type": "bytes32",
-          "indexed": false
-        },
-        {
-          "name": "amount",
-          "type": "uint256",
-          "indexed": false
-        }
-      ],
-      "topic0": "0x3bb6f4155cbd7f3aec450088967dee5727ed30b22cdb72dfaff3305203a5a3ad"
-    },
-    {
       "signature": "RageQuitRewardSettlementCompleted(bytes32,address,bytes32,uint256)",
       "name": "RageQuitRewardSettlementCompleted",
       "modules": [
@@ -1965,7 +1874,7 @@
       "topic0": "0x9cdc6407bd4d7cb721e86f5b9996acaa22808d6ac3f43ad48bdf3daa53688b42"
     },
     {
-      "signature": "RageQuitRewardSettlementFinalized(address,bytes32,uint256,uint256,uint256,bool)",
+      "signature": "RageQuitRewardSettlementFinalized(address,bytes32,uint256,uint256,uint256)",
       "name": "RageQuitRewardSettlementFinalized",
       "modules": [
         "AllocationManager"
@@ -1995,14 +1904,9 @@
           "name": "memeForfeited",
           "type": "uint256",
           "indexed": false
-        },
-        {
-          "name": "redistributed",
-          "type": "bool",
-          "indexed": false
         }
       ],
-      "topic0": "0x621a3f94a20d58746920687b933aa9ccf80d909b5d37bcc88d904f270cbd9947"
+      "topic0": "0x4219f1043945ebd2fcd2958e53b3229fc004595f3d4594310f2e3bd1a5810592"
     },
     {
       "signature": "RageQuitRewardSettlementQueued(bytes32,address,bytes32,uint256)",
@@ -2033,91 +1937,6 @@
         }
       ],
       "topic0": "0xf65ed2f82a51d2e3d6f8ff8713153f91ee1d04a8830f6f6a781c003f9bb5ef6a"
-    },
-    {
-      "signature": "RawRewardExitCancelled(bytes32,address)",
-      "name": "RawRewardExitCancelled",
-      "modules": [
-        "ProtocolFeeVault"
-      ],
-      "inputs": [
-        {
-          "name": "marketId",
-          "type": "bytes32",
-          "indexed": true
-        },
-        {
-          "name": "user",
-          "type": "address",
-          "indexed": true
-        }
-      ],
-      "topic0": "0x94117f2aca070fee3f4ccab97b123099ba4711430e93c5ba6e9fbdd09686c3c2"
-    },
-    {
-      "signature": "RawRewardExitRequested(bytes32,address,uint256)",
-      "name": "RawRewardExitRequested",
-      "modules": [
-        "ProtocolFeeVault"
-      ],
-      "inputs": [
-        {
-          "name": "marketId",
-          "type": "bytes32",
-          "indexed": true
-        },
-        {
-          "name": "user",
-          "type": "address",
-          "indexed": true
-        },
-        {
-          "name": "availableAt",
-          "type": "uint256",
-          "indexed": false
-        }
-      ],
-      "topic0": "0xec7a98316b23b2bedcf3762c9472c2345e9334ca78524ce273e4fd0d091f0449"
-    },
-    {
-      "signature": "RewardBatchConverted(bytes32,uint256,address,address,uint256,uint256)",
-      "name": "RewardBatchConverted",
-      "modules": [
-        "ProtocolFeeVault"
-      ],
-      "inputs": [
-        {
-          "name": "marketId",
-          "type": "bytes32",
-          "indexed": true
-        },
-        {
-          "name": "nonce",
-          "type": "uint256",
-          "indexed": true
-        },
-        {
-          "name": "memeAsset",
-          "type": "address",
-          "indexed": false
-        },
-        {
-          "name": "quoteAsset",
-          "type": "address",
-          "indexed": false
-        },
-        {
-          "name": "memeSpent",
-          "type": "uint256",
-          "indexed": false
-        },
-        {
-          "name": "quoteReceived",
-          "type": "uint256",
-          "indexed": false
-        }
-      ],
-      "topic0": "0x426c15483c6ec6406a71c28295cfba9e4798dc18360d4c6f13cf7cf4ba6ee811"
     },
     {
       "signature": "RewardConverted(bytes32,address,uint32,uint256,uint256)",
@@ -2153,231 +1972,6 @@
         }
       ],
       "topic0": "0x536d8aaaf2bd3a634add9a0cbb15879e5cd81e4ef97a16fe231d48974e4c49d2"
-    },
-    {
-      "signature": "RootFinalized(bytes32,uint32,bytes32,uint64)",
-      "name": "RootFinalized",
-      "modules": [
-        "TreasuryDistributorV1"
-      ],
-      "inputs": [
-        {
-          "name": "marketId",
-          "type": "bytes32",
-          "indexed": true
-        },
-        {
-          "name": "epochId",
-          "type": "uint32",
-          "indexed": true
-        },
-        {
-          "name": "merkleRoot",
-          "type": "bytes32",
-          "indexed": true
-        },
-        {
-          "name": "claimUntil",
-          "type": "uint64",
-          "indexed": false
-        }
-      ],
-      "topic0": "0x54fe2e840f4eb664a627470b2265dce82d78dad8d377b661a54a04982dcab132"
-    },
-    {
-      "signature": "RootPublished(bytes32,uint32,bytes32,bytes32,uint256,uint32,uint64)",
-      "name": "RootPublished",
-      "modules": [
-        "TreasuryDistributorV1"
-      ],
-      "inputs": [
-        {
-          "name": "marketId",
-          "type": "bytes32",
-          "indexed": true
-        },
-        {
-          "name": "epochId",
-          "type": "uint32",
-          "indexed": true
-        },
-        {
-          "name": "merkleRoot",
-          "type": "bytes32",
-          "indexed": true
-        },
-        {
-          "name": "datasetHash",
-          "type": "bytes32",
-          "indexed": false
-        },
-        {
-          "name": "totalTwab",
-          "type": "uint256",
-          "indexed": false
-        },
-        {
-          "name": "leafCount",
-          "type": "uint32",
-          "indexed": false
-        },
-        {
-          "name": "finalizeAfter",
-          "type": "uint64",
-          "indexed": false
-        }
-      ],
-      "topic0": "0x0134a28f99f30891680063b98ad973215a1b3185bdbe8f37b87df712a6ac8f87"
-    },
-    {
-      "signature": "RootRequestExpired(bytes32,uint32,address)",
-      "name": "RootRequestExpired",
-      "modules": [
-        "TreasuryDistributorV1"
-      ],
-      "inputs": [
-        {
-          "name": "marketId",
-          "type": "bytes32",
-          "indexed": true
-        },
-        {
-          "name": "epochId",
-          "type": "uint32",
-          "indexed": true
-        },
-        {
-          "name": "requester",
-          "type": "address",
-          "indexed": true
-        }
-      ],
-      "topic0": "0x6705ad2e7bfc54db01dff19e6d3410df6d01e68277747d6cf02f1515eecc8e63"
-    },
-    {
-      "signature": "RootRequested(bytes32,uint32,address,uint64,uint64,uint64,bytes32,uint256,address,uint128,uint64)",
-      "name": "RootRequested",
-      "modules": [
-        "TreasuryDistributorV1"
-      ],
-      "inputs": [
-        {
-          "name": "marketId",
-          "type": "bytes32",
-          "indexed": true
-        },
-        {
-          "name": "epochId",
-          "type": "uint32",
-          "indexed": true
-        },
-        {
-          "name": "requester",
-          "type": "address",
-          "indexed": true
-        },
-        {
-          "name": "windowStart",
-          "type": "uint64",
-          "indexed": false
-        },
-        {
-          "name": "windowEnd",
-          "type": "uint64",
-          "indexed": false
-        },
-        {
-          "name": "sourceBlockNumber",
-          "type": "uint64",
-          "indexed": false
-        },
-        {
-          "name": "sourceBlockHash",
-          "type": "bytes32",
-          "indexed": false
-        },
-        {
-          "name": "quoteAmount",
-          "type": "uint256",
-          "indexed": false
-        },
-        {
-          "name": "serviceFeeAsset",
-          "type": "address",
-          "indexed": false
-        },
-        {
-          "name": "serviceFeeAmount",
-          "type": "uint128",
-          "indexed": false
-        },
-        {
-          "name": "publishBy",
-          "type": "uint64",
-          "indexed": false
-        }
-      ],
-      "topic0": "0x99e37bcb9537ca8e9d016eef3be035c5930aa9964144dd1b1cd5a798919470a6"
-    },
-    {
-      "signature": "RootServiceFeeUpdated(address,uint128)",
-      "name": "RootServiceFeeUpdated",
-      "modules": [
-        "TreasuryDistributorV1"
-      ],
-      "inputs": [
-        {
-          "name": "asset",
-          "type": "address",
-          "indexed": true
-        },
-        {
-          "name": "amount",
-          "type": "uint128",
-          "indexed": false
-        }
-      ],
-      "topic0": "0x8492b2e179f660af80d50c39838a42e7f8d3857f49d42398090cfcda19f0c07c"
-    },
-    {
-      "signature": "ServiceCreditWithdrawn(address,address,uint256)",
-      "name": "ServiceCreditWithdrawn",
-      "modules": [
-        "TreasuryDistributorV1"
-      ],
-      "inputs": [
-        {
-          "name": "asset",
-          "type": "address",
-          "indexed": true
-        },
-        {
-          "name": "beneficiary",
-          "type": "address",
-          "indexed": true
-        },
-        {
-          "name": "amount",
-          "type": "uint256",
-          "indexed": false
-        }
-      ],
-      "topic0": "0xbfe99d77a1dabfc7ec542c313dbe9b1b0230f2fe9e29f53f6eea18edb9525bbd"
-    },
-    {
-      "signature": "SettlementOperatorUpdated(address)",
-      "name": "SettlementOperatorUpdated",
-      "modules": [
-        "ProtocolFeeVault"
-      ],
-      "inputs": [
-        {
-          "name": "operator",
-          "type": "address",
-          "indexed": true
-        }
-      ],
-      "topic0": "0xb35cbbe58db4d37ac8a1acf0fb9de201f04ed1629dcb371e39abd30f2889e4a8"
     },
     {
       "signature": "StakerFeeCredited(bytes32,address,bytes32,uint256,uint256,uint256)",
@@ -2730,35 +2324,10 @@
       "topic0": "0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef"
     },
     {
-      "signature": "TreasuryBurn(address,uint256,uint256)",
-      "name": "TreasuryBurn",
+      "signature": "UserRewardsClaimed(bytes32,address,uint8,uint32,uint256,uint256,uint256,uint256,bool)",
+      "name": "UserRewardsClaimed",
       "modules": [
-        "TickerMemeTokenV1"
-      ],
-      "inputs": [
-        {
-          "name": "treasuryDistributor",
-          "type": "address",
-          "indexed": true
-        },
-        {
-          "name": "amount",
-          "type": "uint256",
-          "indexed": false
-        },
-        {
-          "name": "totalSupplyAfter",
-          "type": "uint256",
-          "indexed": false
-        }
-      ],
-      "topic0": "0x30bf3b3d2274938937a55be5ac6242eda933beaa7d7646e41086e0163f911603"
-    },
-    {
-      "signature": "TreasuryClaimed(bytes32,uint32,uint256,address,uint256,uint256)",
-      "name": "TreasuryClaimed",
-      "modules": [
-        "TreasuryDistributorV1"
+        "ProtocolFeeVault"
       ],
       "inputs": [
         {
@@ -2767,82 +2336,47 @@
           "indexed": true
         },
         {
-          "name": "epochId",
+          "name": "user",
+          "type": "address",
+          "indexed": true
+        },
+        {
+          "name": "role",
+          "type": "uint8",
+          "indexed": true
+        },
+        {
+          "name": "creatorEpoch",
           "type": "uint32",
-          "indexed": true
-        },
-        {
-          "name": "leafIndex",
-          "type": "uint256",
-          "indexed": true
-        },
-        {
-          "name": "account",
-          "type": "address",
           "indexed": false
         },
         {
-          "name": "twab",
+          "name": "quotePaid",
           "type": "uint256",
           "indexed": false
         },
         {
-          "name": "amount",
+          "name": "memePaid",
           "type": "uint256",
           "indexed": false
-        }
-      ],
-      "topic0": "0x8e3babe8594742276b7f9d990d4611505ee0c46ba8da61b166229d1c58c5da0d"
-    },
-    {
-      "signature": "TreasuryMarketActivated(bytes32,uint64)",
-      "name": "TreasuryMarketActivated",
-      "modules": [
-        "TreasuryDistributorV1"
-      ],
-      "inputs": [
-        {
-          "name": "marketId",
-          "type": "bytes32",
-          "indexed": true
         },
         {
-          "name": "activatedAt",
-          "type": "uint64",
+          "name": "memeRetained",
+          "type": "uint256",
+          "indexed": false
+        },
+        {
+          "name": "memeConverted",
+          "type": "uint256",
+          "indexed": false
+        },
+        {
+          "name": "conversionFailed",
+          "type": "bool",
           "indexed": false
         }
       ],
-      "topic0": "0x4010788c0a152425ea3ea98735595545ea3246c3ac598e482a26d92dcd424ce8"
-    },
-    {
-      "signature": "TreasuryMarketRegistered(bytes32,address,address,bytes32)",
-      "name": "TreasuryMarketRegistered",
-      "modules": [
-        "TreasuryDistributorV1"
-      ],
-      "inputs": [
-        {
-          "name": "marketId",
-          "type": "bytes32",
-          "indexed": true
-        },
-        {
-          "name": "memeToken",
-          "type": "address",
-          "indexed": true
-        },
-        {
-          "name": "quoteToken",
-          "type": "address",
-          "indexed": true
-        },
-        {
-          "name": "eligibilityPolicyHash",
-          "type": "bytes32",
-          "indexed": false
-        }
-      ],
-      "topic0": "0x02f08f347269a2792d45b1317a3d4606ff292e9ac06a654bc2f96a83f8cccd4f"
+      "topic0": "0xdab043398c3fce7edda2e69d9b73831be66a52a2502a333034a629ad892c042d"
     },
     {
       "signature": "V4FeeAccrued(bytes32,bytes32,address,uint64,bytes32,uint256,uint256,uint256,uint256)",

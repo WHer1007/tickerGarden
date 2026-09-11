@@ -7,6 +7,7 @@ import (
 	"net"
 	"net/http"
 	"os"
+	"strconv"
 	"time"
 
 	"tickergarden/backend/internal/content"
@@ -52,14 +53,19 @@ func RunContent(ctx context.Context) error {
 		addr = "127.0.0.1:8791"
 	}
 	mux := http.NewServeMux()
-	mux.Handle("/launch-metadata", handler)
-	mux.Handle("/launch-metadata/", handler)
+	chainID, err := strconv.ParseUint(os.Getenv("TG_CHAIN_ID"), 10, 64)
+	if err != nil || chainID == 0 {
+		return errors.New("TG_CHAIN_ID is required for upload authorization")
+	}
+	secured := (content.UploadAuthorizer{Pool: pool, Origin: os.Getenv("TG_CONTENT_WEB_ORIGIN"), ChainID: chainID}).Wrap(handler)
+	mux.Handle("/launch-metadata", secured)
+	mux.Handle("/launch-metadata/", secured)
 	mux.HandleFunc("GET /livez", func(w http.ResponseWriter, r *http.Request) { w.WriteHeader(200) })
 	mux.HandleFunc("GET /readyz", func(w http.ResponseWriter, r *http.Request) {
 		c, cancel := context.WithTimeout(r.Context(), 2*time.Second)
 		defer cancel()
 		var ready bool
-		if e := pool.QueryRow(c, `SELECT EXISTS(SELECT 1 FROM tickergarden.content_quota WHERE id) AND to_regclass('tickergarden.content_objects') IS NOT NULL`).Scan(&ready); e != nil || !ready {
+		if e := pool.QueryRow(c, `SELECT EXISTS(SELECT 1 FROM tickergarden.content_quota WHERE id) AND to_regclass('tickergarden.content_objects') IS NOT NULL AND to_regclass('tickergarden.content_upload_challenges') IS NOT NULL AND to_regclass('tickergarden.content_upload_limits') IS NOT NULL`).Scan(&ready); e != nil || !ready {
 			http.Error(w, "not ready", 503)
 			return
 		}

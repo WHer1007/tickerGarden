@@ -58,6 +58,10 @@ func observeGauge(ctx context.Context, rpc BindingObserver, manifest Manifest, b
 	if err != nil {
 		return nil, err
 	}
+	userClaims, err := feeVaultUsesUserClaims(ctx, rpc, identity["protocolFeeVault"].(string), block)
+	if err != nil || !userClaims {
+		return nil, errors.New("current user claim mode required")
+	}
 	expected := map[string]any{"marketId": discovered.MarketID, "assetUid": market["assetUid"], "quoteAssetConfigId": market["quoteAssetConfigId"], "quoteAsset": market["quoteAsset"], "memeToken": market["memeToken"]}
 	for _, c := range manifest.Contracts {
 		if c.Module == "AllocationManager" {
@@ -109,19 +113,12 @@ func observeGauge(ctx context.Context, rpc BindingObserver, manifest Manifest, b
 		if e != nil {
 			return nil, e
 		}
-		exit, e := businessReader(ctx, rpc, block)(identity["protocolFeeVault"].(string), "rawRewardExitAt(bytes32,address)", discovered.MarketID[2:]+addressArgument(user), []events.Input{{Name: "rawRewardExitAt", Type: "uint256"}})
-		if e != nil {
-			return nil, e
-		}
 		settlement, e := businessReader(ctx, rpc, block)(identity["allocationManager"].(string), "rageQuitSettlementPending(bytes32,address)", discovered.MarketID[2:]+addressArgument(user), []events.Input{{Name: "pending", Type: "bool"}, {Name: "principal", Type: "uint256"}})
 		if e != nil {
 			return nil, e
 		}
 		position["rageQuitSettlementPending"] = settlement["pending"]
 		position["rageQuitSettlementPrincipal"] = settlement["principal"]
-		exitNumber := integer(exit["rawRewardExitAt"])
-		position["rawRewardExitAt"] = exit["rawRewardExitAt"]
-		position["rawRewardExitReady"] = exitNumber.Sign() > 0 && exitNumber.Cmp(new(big.Int).SetUint64(timestamp)) <= 0
 		position["observedAtTimestamp"] = strconv.FormatUint(timestamp, 10)
 		knownActive.Add(knownActive, integer(position["activeAmount"]))
 		position["marketId"] = discovered.MarketID

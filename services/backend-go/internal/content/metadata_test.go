@@ -142,3 +142,13 @@ func TestBuildWebPCompleteDecode(t *testing.T) {
 		t.Fatal("truncated WebP accepted")
 	}
 }
+
+func TestBuildDescriptionLimit(t *testing.T) {
+	for _, n := range []int{300, 301} {
+		raw := []byte(strings.Replace(string(metadataJSON("")), "A token", strings.Repeat("文", n), 1))
+		_, err := Build(raw, "https://example.com")
+		if (err != nil) != (n > 300) {
+			t.Fatalf("description length %d: %v", n, err)
+		}
+	}
+}

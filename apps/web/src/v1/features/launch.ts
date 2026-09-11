@@ -360,7 +360,7 @@ export function buildCurveBuyRequest(input: Readonly<{
   recipient: Address;
 }>): Readonly<{ request: ContractWriteRequest; approval?: ContractWriteRequest; view: CurveViewModel }> {
   const view = toCurveViewModel(input.marketResponse);
-  positive(input.quoteIn, "quoteIn"); positive(input.minTokensOut, "minTokensOut");
+  positive(input.quoteIn, "quoteIn"); uint256(input.minTokensOut, "minTokensOut");
   const baseRequest = {
     abi: v1Abis.TickerGardenCurve, address: view.curve, functionName: "buy",
     args: [input.quoteIn, input.minTokensOut, contractAddress(input.recipient, "recipient")],
@@ -382,7 +382,7 @@ export function buildCurveSellRequest(input: Readonly<{
   recipient: Address;
 }>): Readonly<{ request: ContractWriteRequest; approval: ContractWriteRequest; view: CurveViewModel }> {
   const view = toCurveViewModel(input.marketResponse);
-  positive(input.tokensIn, "tokensIn"); positive(input.minQuoteOut, "minQuoteOut");
+  positive(input.tokensIn, "tokensIn"); uint256(input.minQuoteOut, "minQuoteOut");
   const request = createContractWriteRequest({
     abi: v1Abis.TickerGardenCurve, address: view.curve, functionName: "sell",
     args: [input.tokensIn, input.minQuoteOut, contractAddress(input.recipient, "recipient")],

@@ -5,6 +5,7 @@ export type QuotePickerOption = Readonly<{
   symbol: string;
   name: string;
   pending: boolean;
+  logoUrl?: string;
 }>;
 
 type PickerController = {
@@ -18,7 +19,7 @@ function selectionContent(option: QuotePickerOption, compact = false): DocumentF
   const fragment = document.createDocumentFragment();
   const icon = document.createElement("img");
   icon.className = "quote-picker-icon";
-  icon.src = quoteIconUrl(option.symbol) ?? "";
+  icon.src = option.logoUrl ?? quoteIconUrl(option.symbol) ?? "";
   icon.alt = "";
   icon.setAttribute("aria-hidden", "true");
   const copy = document.createElement("span");

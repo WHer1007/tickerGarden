@@ -1,39 +1,57 @@
-# 持有人 24 小时连续收益操作说明
+# Holder Rewards Operations
 
-状态：已实现源码与前端领取路径；尚未广播，尚未完成测试网验证。操作人员不得据此宣称生产已完成。
+This document describes the holder-reward modes in the current source tree. Source and local tests do not prove deployment readiness, target-chain state, or production operation.
 
-## 规则
+## Modes and immutable boundaries
 
-新连续收益市场由 `HolderRewardsDistributorV1` 管理。每次 `fundCreatorFees(id, 1, amount)` 将已核验到账的 Quote 独立放入一条 24 小时 stream。bucket `1` 是永久兼容性编号，不是 epoch，也不是时间周期。每条 stream 有独立 deadline，追加 funding 不会延长已有 stream。
+- **Legacy Merkle:** Treasury Merkle distributions use seven-day epochs. A market already deployed with this distributor keeps that behavior.
+- **Legacy continuous (`STREAM_24H_V1`):** each funded stream releases for 24 hours and at most 64 streams can coexist. Funding in the same second can coalesce; adding funding does not extend an existing stream. A full capacity defers new funding while preserving the FeeVault liability.
+- **Batched continuous (`BATCHED_24H_V2`):** the fixed-interval mode merges public funding into pending state, starts at most one batch per market every four hours, and each batch releases for 24 hours. At most six batches are retained. Same-second funding can merge; existing releases are never extended. `idle` includes pending amounts waiting for a batch and amounts held while eligible supply is zero. A permissionless checkpoint can activate due pending state even when no new trade has occurred.
 
-创建者基础手续费在扣除 Creator tax 后，固定 50% 进入持有人收益；Creator tax 仍归创建者。其他平台、质押者和创建者账本不因连续模式改变。
+- **Dual-asset configurable (`TICKERGARDEN_HOLDER_DUAL_ASSET_24H_V4`):** current source releases Quote and Meme separately for 24 hours. Funding defaults to one admission per market every four hours and is configurable through AccessManager from 1–24 hours. The ring has a fixed capacity of 24. Existing streams retain their end times. Read `fundingInterval(marketId)` for the live value; `FUNDING_INTERVAL()` is only the default. See [configuration and deployment wiring](../v1/V1_HOLDER_FUNDING_INTERVAL.md).
 
-最多同时保留 64 条 stream。达到容量时，FeeVault 的 funding 调用会回退；资金不会被静默吞掉，后续应重新触发 funding。容量回退不阻塞 Token 转账，也不阻塞已有收益的 checkpoint 或 claim。
+V2 enforces the four-hour admission interval on chain. The worker also defaults to a four-hour schedule; neither clock executes a transaction by itself. The amount threshold is an operational dust setting; the public funding entry is not protected by that minimum. Amounts below the configured operational threshold remain in the FeeVault. Legacy and V2 distributor state is immutable per deployed market; an old market is not converted by changing frontend configuration or an ABI.
 
-## 持有人行为
+## Holder accounting
 
-用户可随时调用分配器 `claim(marketId)` 领取已累计的 Quote，不需要等待 24 小时。`claimable` 是只读估算入口。用户卖出或转出 Token 后，转出前已经累计的收益仍留在该账户，不会随 Token 转给买家。
+Holder rewards use the eligible balance during each 24-hour release and do not require staking. Selling or transferring after earning does not remove rewards already attributed to the account. Pool, curve, locker, vault, distributor, and graduated-hook inventory is excluded from ordinary holder supply according to the deployed distributor rules.
 
-Curve、PoolManager、Locker、分配器、vault、graduated hook 等协议地址在注册时排除，不作为普通持有人参与有效供应。有效供应为零时，释放资金进入 `idle`；恢复有效供应且 stream 尚未达到 64 条时，idle 会重新开启一条新的 24 小时 stream，不会追溯奖励首个买家。
+The worker is compatible with legacy continuous, fixed batched, and configurable batched modes by reading the distributor mode before selecting the path. It checks markets every four hours and processes the maintenance result returned for that cycle. This is a bounded scheduled check; it does not imply that an unchanged market never causes an RPC read.
 
-## 部署与识别
+## Reward conversion protections
 
-连续模式必须使用新 release 的 `V1DeterministicDeploymentBuilder.buildContinuous`。该路径只替换 Treasury distributor init code 为 `HolderRewardsDistributorV1`，并通过 Token 一次性启用连续检查点。既有部署使用旧 builder 和旧 distributor，行为不变；不能通过前端或 ABI 更新把旧 Token 改成连续模式。
+Creator, Staker and Holder reward conversions use the canonical pool estimate for display only. Project callers pass minimumQuote=0; no reference-window readiness, price deviation, output discount or preset price-impact gate applies. Actual positive output and ownership accounting are still verified. Existing immutable deployments retain their previous behavior.
 
-## 当前限制与值班检查
+These protections apply to reward conversion only. They add no slippage rule to ordinary user buys or sells. The seven-day `rawExit` request belongs to legacy releases. V4 disables that entrypoint and lets the beneficiary choose conversion or immediate original-asset payment in `claimUserRewards`; the normal reward-release, stake-lock and ownership conditions still apply.
 
-本实现尚未广播，也没有测试网验证记录。广播前必须完成部署产物、地址/代码哈希、链 ID、权限和 funding/claim/转账边界验证。若 funding 因 `StreamCapacity` 回退，应保留待处理 liability 并在容量释放后重试；不要重复扣账或手工转账绕过 FeeVault。
+## Worker and journal handling
 
-相关源码：`contracts/src/v1/modules/HolderRewardsDistributorV1.sol`、`contracts/src/v1/modules/TickerMemeTokenV1.sol`、`contracts/script/v1/V1DeterministicDeploymentBuilder.sol`。
+The worker reads deployment artifacts and chain state before preparing an operation. It persists signed intents before submission, recovers the same signed bytes, and never deletes the journal or automatically replaces a nonce. Receipt failures, missing expected events, consumed pending nonces, and `needs_attention` states require manual reconciliation. Market failures remain retryable on the next four-hour cycle.
 
-## 发布开关与发布前边界
+The local test worker uses the configured gas caps and dust settings from the test environment. Those settings are operational limits, not protocol economics. Do not run the test signer against another environment or treat a local preview as a broadcast or deployment result.
 
-新模式使用独立脚本 `contracts/script/v1/DeployV1ContinuousHolders.s.sol`；旧 `DeployV1Deterministic` 不会因环境变量误切换。两者继承同一 release certificate、链 ID、依赖代码哈希和 payload 校验。新模式需要生成新的发布证据，不能复用 R5 证书。
+## Release selection
 
-前端只有在新 release 部署、链上 E2E 批准后才设置 `VITE_CONTINUOUS_HOLDER_RELEASE_APPROVAL=HOLDER_STREAM_24H_V1:DEPLOYED_E2E_APPROVED`。旧 `VITE_V1_TREASURY_RELEASE_APPROVAL` 只开放旧 Merkle 模式，不开放连续模式。前端以链上 `rewardMode()` 识别模式，以链上读取计算可领余额；每 30 秒刷新一次。
+A new deployment must set:
 
-目前旧 release manifest/preflight 的 Treasury 项仍校验旧分配器的 `authority()`。新分配器没有管理员提款或改收益参数能力，不能伪造此 getter 来套用旧证据。新 release 的模式专用 manifest、实时 Fork、链上转账/毕业/兑换/领取及浏览器签名联调，必须在广播前另行完成；本次不会改写历史部署记录。
+```text
+V1_DEPLOYMENT_HOLDER_MODE=dual-asset-24h-v4
+```
 
-持续释放仍使用 `block.timestamp`。链时间停滞会延迟新增收益，已累计收益在链可处理交易时可领取。24 小时是链上时间，不保证墙钟时间。该规则不等于永久累积持仓年龄：每段释放按该段有效持仓比例分配。
+The legacy deployment script must explicitly select:
 
-建议归集服务每市场每小时执行一次；超过 64 条未到期资金流时，等待早期 stream 到期后重试，24 小时并发上限应纳入监控。不要通过持续提交微额注入占满容量。
+```text
+legacy-merkle-7d-v1
+```
+
+The batched mode requires a new release, mode-specific artifacts, and fresh deployment, Fork, conversion, claim, and receipt evidence. Existing legacy addresses remain unchanged. Neither mode is production-ready merely because local source tests pass.
+
+The selected source policy accepts a pinned v4 Core protocol fee up to 1000 pips (0.1%) per direction, with direction-specific values allowed. PoolKey.fee and LP fee remain zero. Core protocol fee is collected independently by PoolManager, does not enter FeeVault or TickerGarden distributions, and is shown separately from the TickerGarden 1% base fee and Creator tax. Reward conversion does not recursively charge TickerGarden fees, but Core fee remains in the actual output.
+
+Frontend write approval is version-specific. The V4 contracts are deployed and registry-active on Robinhood testnet in release `0x6e743e8bf90c0e91cd7de52711a1a68976401c494187f1e015fc66ef17310f95`, but the release remains `ACTIVE_TEST_ONLY` and has not passed its public market E2E gate. The configured frontend therefore remains on the prior verified release until that separate gate passes.
+
+## V4 user-choice release
+
+`TICKERGARDEN_HOLDER_DUAL_ASSET_24H_V4` releases Quote and Meme separately against the same eligible balances. The worker skips operator conversions when FeeVault reports `TICKERGARDEN_USER_CLAIM_V1`; it funds Meme using `fundHolderMemeRewards` and Quote using `fundHolderRewards`. Asset minima remain funding/dust admission thresholds, never execution price floors. `TG_HOLDER_MINIMUM_QUOTE_JSON` (the existing per-asset map, also accepting Meme addresses) can also specify a Meme token minimum; the fallback is 1 whole Meme, with existing gas budgets retained.
+
+Use the new user claim path for conversion or direct original-asset payment. Refunds restore the same holder's earned Meme immediately, without another stream. Existing single-asset history replay is not V4-compatible and must not be used to grant claim eligibility. On-chain `claimableAssets` and asset-specific market state are authoritative. Deployments and frontend write approvals are separate gates; no prior V3 approval enables V4 writes.

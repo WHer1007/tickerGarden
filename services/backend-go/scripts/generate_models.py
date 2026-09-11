@@ -7,7 +7,7 @@ from pathlib import Path
 import subprocess
 
 NAMES = ['SourceBlock', 'SyncStatus', 'PoolKeyReadModel', 'CanonicalRoute', 'CurveProgress',
-         'MarketIdentityReadModel', 'MarketMetricsReadModel', 'MarketReadModel', 'ConfigReadModel', 'QuoteClaimable', 'MemeClaimable', 'UserPositionReadModel', 'UserAccountReadModel']
+         'MarketIdentityReadModel', 'LastBuyReadModel', 'MarketMetricsReadModel', 'MarketReadModel', 'ConfigReadModel', 'QuoteClaimable', 'MemeClaimable', 'UserPositionReadModel', 'UserAccountReadModel']
 ACRONYMS = {'id':'ID', 'chainId':'ChainID', 'marketId':'MarketID', 'assetUid':'AssetUID', 'poolId':'PoolID',
             'quoteAssetConfigId':'QuoteAssetConfigID', 'tickerGardenBaselineId':'TickerGardenBaselineID',
             'volume24hUsd':'Volume24hUSD', 'marketCapUsd':'MarketCapUSD', 'quoteUsdMidpoint':'QuoteUSDMidpoint',
@@ -49,7 +49,7 @@ def render(document):
         schema = document['components']['schemas'][name]
         props = schema['properties']
         optional = set(props) - set(schema['required'])
-        if optional and not (name == 'MarketReadModel' and optional == {'identity', 'metrics'}):
+        if optional and not (name == 'MarketReadModel' and optional == {'identity', 'metrics', 'lastBuy'}):
             raise ValueError(f'optional field representation must be reviewed: {name}')
         fields = []
         for k,v in props.items():

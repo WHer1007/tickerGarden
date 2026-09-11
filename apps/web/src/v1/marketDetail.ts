@@ -13,7 +13,7 @@ export function feeDistribution(phase: number, staking: boolean, holders: boolea
   };
 }
 export function detailUsd(value: unknown): string {
-  if (typeof value !== 'string' || !/^(0|[1-9]\d*)(\.\d+)?$/.test(value)) return 'Unavailable';
+  if (typeof value !== 'string' || !/^(0|[1-9]\d*)(\.\d+)?$/.test(value)) return '-';
   const [whole = '', fraction = ''] = value.split('.');
   return `$${whole.replace(/\B(?=(\d{3})+(?!\d))/g, ',')}.${fraction.padEnd(2, '0').slice(0, 2)}`;
 }

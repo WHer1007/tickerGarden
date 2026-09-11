@@ -1,5 +1,13 @@
 # TickerGarden Go 后端
 
+> 2026-09-10：当前前端服务开发方向已切换为 [TypeScript + Node.js + Hono Serverless](../../docs/v1/V1_TYPESCRIPT_SERVERLESS_DEVELOPMENT_TASKS.md)。本模块继续保留作为改写参考与切换前运行来源；下文 Go-only 描述的是本模块现状，不再限制新服务选型，也不要求移植全部后台命令。新 TypeScript 服务尚未实现。
+
+> 新源码领取路径已切换为用户选择兑换/原币，Holder 双资产分别释放，取消该路径额外 7 天等待。minimumQuote 继续为 0，保留有效期。新版本不支持 operator 集体兑换；以下旧阶段的批量兑换/等待期开关说明仅适用于旧部署。完整行为见 `docs/v1/V1_REWARD_CONVERSION.md`。本次未部署。
+
+
+> 2026-09-10 兑换策略更新：项目奖励兑换不设置价格保护，minimumQuote=0，池子模拟仅提供预计到账；20 分钟参考窗口、价格偏离和参考输出折扣不再作为成交门槛。Go 独立参考签名只验证来源和请求身份，不作价格否决。下文历史阶段中关于非零最低到账、滑点下限或参考价价格否决的描述已由本说明取代。未部署，旧合约行为不变。
+
+
 独立 Go module `tickergarden/backend`，前后端分离。使用 Go 1.27.1、Chi、pgx、Goose、`log/slog` 和 JSON Schema 校验库。API 与索引器运行不需要 Node.js；开发时的 TypeScript 兼容性检查需要 Node.js 22.13+。
 
 当前已实现原始链日志索引、finalized 市场发现、已对账快照的发布与持久化、五类 V1 GET 接口。已实现业务事实投影及市场、Gauge、Vault、FeeVault、Holder/Treasury 的部分区块补读；**完整独立对账与自动财务快照发布仍未完成**。快照发布者是受信任的生产者；空的 `reconciliationAlerts` 仅是其声明，不能独立证明余额正确。前端通过统一 Read API 契约对接本模块；旧 TypeScript 服务已移除。生产运行不依赖 Node，OpenAPI 和测试参考算法由本模块维护。
@@ -2072,3 +2080,5 @@ Missing, stale, duplicate, or address-mismatched USD references produce nullable
 `GET /v1/markets/{marketId}/detail?period=1D` returns the frozen frontend statistics, chart, trades, holders and cumulative fee credits. It reads fresh scheduled Dune results first, then fills missing sections from verified finalized analytics; unavailable sections remain null. Testnet defaults to `TG_TOKEN_DETAIL_SOURCE=indexer`, which never initializes Dune even if credentials are present. Explicitly set `TG_TOKEN_DETAIL_SOURCE=dune-first` and configure `TG_DUNE_DETAIL_QUERY_ID` and `TG_DUNE_API_KEY` together on the server to enable the five-minute cache refresh. Requests never execute Dune SQL. The API also requires a published synchronized read model and the existing analytics manifest/history coverage.
 
 See [data contract](../../docs/planning/TOKEN_DETAIL_DATA_CONTRACT.md), [testnet configuration](../../docs/planning/DUNE_TESTNET_SETUP.md), and [SQL/upload workflow](../../docs/dune/README.md). Dune credentials, upload jobs and a saved deployment-specific native query are operational configuration, not supplied by local tests.
+
+Reward conversion update (OpenAPI 2.29.0): a future raw exit request produces `raw_exit_requested` with conversion candidate amount zero immediately; raw token claims still wait until the exit time. Mature exits remain `raw_exit_ready` in reward records and `raw_exit_matured` in conversion observations. This conservative worker policy also skips requested exits on older FeeVault releases.

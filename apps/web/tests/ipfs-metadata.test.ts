@@ -13,8 +13,11 @@ test('IPFS only resolves bare CIDs using an explicit HTTPS gateway',()=>{
 test('publisher returns canonical metadata and detail reader handles IPFS without any RPC',async()=>{
  const fetchBefore=globalThis.fetch;const metadata={name:'Token',image:uri,properties:{x:'https://x.com/token',website:'https://token.example'},description:'Test'};
  try{
- globalThis.fetch=async()=>new Response(JSON.stringify({metadataURI:uri,metadata}));
- const published=await publishLaunchDetails('https://metadata.example',{name:'Token',symbol:'TOK',description:'Test',x:'token',website:'https://token.example',creatorFeesToHolders:false,creatorTaxBps:0});
+ let publicationRequests=0;globalThis.fetch=async()=>{publicationRequests++;return publicationRequests===1
+  ?new Response(JSON.stringify({uploadId:'11111111-1111-4111-8111-111111111111',accessToken:'a'.repeat(43),imageUpload:null}),{status:201})
+  :publicationRequests===2?new Response(JSON.stringify({status:'uploaded'}),{status:202})
+  :new Response(JSON.stringify({status:'ready',metadataURI:uri,metadata}));};
+ const published=await publishLaunchDetails('https://metadata.example',{name:'Token',symbol:'TOK',description:'Test',x:'token',website:'https://token.example',creatorFeesToHolders:false,creatorTaxBps:0},{nonce:'a'.repeat(64),signature:'0x'+'b'.repeat(130)});
  assert.deepEqual(published,{metadataURI:uri,metadata});
  let requests=0;globalThis.fetch=async(input)=>{requests++;assert.match(String(input),/^https:\/\/gateway.example\/ipfs\//);return new Response(JSON.stringify(metadata));};
  assert.equal(await readDetailMetadata(uri,null,new AbortController().signal),null);assert.equal(requests,0);

@@ -53,27 +53,4 @@ contract RobinhoodTestnetTreasuryTest is Test {
         vm.expectRevert(RobinhoodTestnetTreasury.InvalidDeployment.selector);
         new RobinhoodTestnetTreasury(address(0));
     }
-
-    function test_configuresAndRotatesSettlementOperator() public {
-        address owner = makeAddr("owner");
-        RobinhoodTestnetTreasury treasury = new RobinhoodTestnetTreasury(owner);
-        RobinhoodSettlementVault vault = new RobinhoodSettlementVault(address(treasury));
-        vm.prank(owner);
-        treasury.configureSettlementOperator(address(vault), makeAddr("operatorA"));
-        address operatorB = makeAddr("operatorB");
-        vm.prank(owner);
-        treasury.configureSettlementOperator(address(vault), operatorB);
-        assertEq(vault.settlementOperator(), operatorB);
-    }
-
-    function test_rejectsUnauthorizedAndWrongVault() public {
-        address owner = makeAddr("owner");
-        RobinhoodTestnetTreasury treasury = new RobinhoodTestnetTreasury(owner);
-        RobinhoodSettlementVault wrong = new RobinhoodSettlementVault(makeAddr("wrong"));
-        vm.expectRevert(RobinhoodTestnetTreasury.Unauthorized.selector);
-        treasury.configureSettlementOperator(address(wrong), makeAddr("operator"));
-        vm.prank(owner);
-        vm.expectRevert(RobinhoodTestnetTreasury.InvalidSettlementConfiguration.selector);
-        treasury.configureSettlementOperator(address(wrong), makeAddr("operator"));
-    }
 }

@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import fs from 'node:fs';
-import { encodeAbiParameters, encodeEventTopics, parseAbiParameters, type Hex } from 'viem';
+import { encodeAbiParameters, encodeEventTopics, encodeFunctionData, parseAbiParameters, type Hex } from 'viem';
 import { DirectMarkets } from '../src/v1/directMarkets.ts';
 import { v1Abis } from '../src/v1/generated/abis.ts';
 import { parseIntegrationBootstrap } from '../src/v1/integrationBootstrap.ts';
@@ -23,9 +23,9 @@ const gauge = '0x3333333333333333333333333333333333333333' as `0x${string}`;
 const quote = '0x0000000000000000000000000000000000000000' as `0x${string}`;
 const hash = `0x${'a'.repeat(64)}` as Hex;
 
-function createdLog(address = factory) {
+function createdLog(address = factory, marketId = id) {
   const args = {
-    marketId: id, assetUid: `0x${'2'.repeat(64)}` as Hex, memeToken: meme, curve, gauge, quoteAsset: quote,
+    marketId, assetUid: `0x${'2'.repeat(64)}` as Hex, memeToken: meme, curve, gauge, quoteAsset: quote,
     tickerGardenBaselineId: b.configs.find(c => c.kind === 'baseline')!.id as Hex,
     quoteAssetConfigId: b.configs.find(c => c.kind === 'quote')!.id as Hex,
     expectedEconomics: `0x${'3'.repeat(64)}` as Hex,
@@ -37,6 +37,8 @@ function createdLog(address = factory) {
 
 function reader(counter: { calls: number }) {
   return async (_address: any, _abi: any, name: string, _args: readonly unknown[], block: bigint) => {
+    encodeFunctionData({abi:_abi,functionName:name,args:_args});
+    if(name==='graduationExecutor')assert.equal(_address,b.bindings.marketRegistry);
     counter.calls++;
     assert.equal(block, 120n);
     if (name === 'market') return { config: { assetUid: `0x${'2'.repeat(64)}`, curve, memeToken: meme, gauge, quoteAsset: quote, quoteAssetConfigId: b.configs.find(c => c.kind === 'quote')!.id, tickerGardenBaselineId: b.configs.find(c => c.kind === 'baseline')!.id }, runtime: { sourceVersion: 1, launchPhase: 0, poolId: `0x${'0'.repeat(64)}` } };
@@ -68,3 +70,50 @@ test('DirectMarkets rejects unknown markets and non-Factory same-name events', a
   await assert.rejects(() => dm.market(`0x${'4'.repeat(64)}` as Hex));
 });
 
+
+test('cold market discovery is coalesced and remembered for later reads', async () => {
+  let discoveries=0;const counter={calls:0};
+  const dm=new DirectMarkets(b,reader(counter),async()=>({number:120n,hash}),undefined,async requested=>{discoveries++;assert.equal(requested,id);dm.observe(createdLog());});
+  const [first,second]=await Promise.all([dm.market(id),dm.market(id)]);
+  assert.equal(first.market.marketId,id);assert.equal(second,first);assert.equal(discoveries,1);
+  dm.cache.clear();await dm.market(id);assert.equal(discoveries,1);
+});
+
+test('concurrent distinct markets share one head read', async () => {
+  const secondId = `0x${'5'.repeat(64)}` as Hex;
+  const counter = { calls: 0, heads: 0 };
+  let release!: (value: { number: bigint; hash: Hex }) => void;
+  const head = new Promise<{ number: bigint; hash: Hex }>(resolve => { release = resolve; });
+  const dm = new DirectMarkets(b, reader(counter), async () => { counter.heads++; return head; });
+  dm.observe(createdLog(factory, id));
+  dm.observe(createdLog(factory, secondId));
+  const first = dm.market(id);
+  const second = dm.market(secondId);
+  release({ number: 120n, hash });
+  await Promise.all([first, second]);
+  assert.equal(counter.heads, 1);
+});
+
+test('failed head reads are not cached and retry', async () => {
+  let heads = 0;
+  const dm = new DirectMarkets(b, reader({ calls: 0 }), async () => {
+    heads++;
+    if (heads === 1) throw new Error('temporary head failure');
+    return { number: 120n, hash };
+  });
+  dm.observe(createdLog());
+  await assert.rejects(() => dm.market(id), /temporary head failure/);
+  const result = await dm.market(id);
+  assert.equal(result.market.marketId, id);
+  assert.equal(heads, 2);
+});
+
+test('a confirmed receipt invalidates the shared head before the next state read', async () => {
+  let heads=0;
+  const dm=new DirectMarkets(b,reader({calls:0}),async()=>{heads++;return {number:120n,hash};});
+  dm.observe(createdLog());
+  await dm.market(id);
+  dm.receipt({logs:[]} as unknown as Parameters<DirectMarkets['receipt']>[0]);
+  await dm.market(id);
+  assert.equal(heads,2);
+});

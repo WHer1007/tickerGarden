@@ -38,7 +38,7 @@ function moduleDeployment(name: string): JsonRecord {
   };
 }
 
-const ROLE_BY_CALLER: Readonly<Record<string, string>> = { PROTOCOL_ADMIN_ROLE: "1", PAUSE_GUARDIAN_ROLE: "2", UNPAUSE_ROLE: "3", ROOT_PUBLISHER_ROLE: "4", ROOT_REVIEW_ROLE: "5" };
+const ROLE_BY_CALLER: Readonly<Record<string, string>> = { PROTOCOL_ADMIN_ROLE: "1", PAUSE_GUARDIAN_ROLE: "2", UNPAUSE_ROLE: "3" };
 
 function permission(row: Record<string, unknown>, index: number): JsonRecord {
   const target = String(row.target ?? row.module);
@@ -64,6 +64,7 @@ function create2Component(kind: string, protocolModules: JsonRecord): JsonRecord
 
 export function validManifest(): JsonRecord {
   const protocolModules = Object.fromEntries(compiled.modules.map(({ target }) => [target, moduleDeployment(target)]));
+  protocolModules.HolderRewardsDistributorV1 = moduleDeployment("HolderRewardsDistributorV1");
   const protocolPermissions = compiled.mutations.map(permission);
   const administrativePermissions = permissions.functions.filter((row) => row.module === "AccessManager").map(permission);
   const gateIds = ["V1-DEPLOY-CHAIN-SNAPSHOT-01", "V1-DEPLOY-ARTIFACT-CODEHASH-01", "V1-DEPLOY-CREATE2-VECTORS-01", "V1-DEPLOY-HOOK-MASK-01", "V1-DEPLOY-PERMISSIONS-01", "V1-DEPLOY-ABI-DIFF-01", "V1-DEPLOY-PRODUCT-FORK-E2E-01"];
@@ -86,7 +87,7 @@ export function validManifest(): JsonRecord {
     hook: { address: hook, runtimeCodeHash: hash("hook-runtime"), permissionMaskHex: "0x2044", permissionMaskDecimal: 8260, addressLow14BitsHex: "0x2044", poolKeyFee: 0, requiredSlot0LpFee: 0, requiredPackedProtocolFee: 0, proofHash: hash("hook-proof"), maskVerified: true },
     accessManager: {
       address: address("access-manager"), runtimeCodeHash: hash("access-manager-runtime"), framework: "OPENZEPPELIN_ACCESS_MANAGER_5_7_0", protocolPermissions, administrativePermissions,
-      roles: [["PROTOCOL_ADMIN_ROLE", "1", "governance-safe", 172800], ["PAUSE_GUARDIAN_ROLE", "2", "guardian-safe", 0], ["UNPAUSE_ROLE", "3", "security-safe", 86400], ["ROOT_PUBLISHER_ROLE", "4", "root-publisher-safe", 0], ["ROOT_REVIEW_ROLE", "5", "root-reviewer-safe", 0]].map(([roleName, roleId, member, executionDelaySeconds]) => ({ roleName, roleId, members: [address(String(member))], executionDelaySeconds })),
+      roles: [["PROTOCOL_ADMIN_ROLE", "1", "governance-safe", 172800], ["PAUSE_GUARDIAN_ROLE", "2", "guardian-safe", 0], ["UNPAUSE_ROLE", "3", "security-safe", 86400]].map(([roleName, roleId, member, executionDelaySeconds]) => ({ roleName, roleId, members: [address(String(member))], executionDelaySeconds })),
       exactDiffHash: hash("permission-diff"), exactDiffVerified: true,
     },
     livePreflight: {
@@ -103,8 +104,7 @@ export function validManifest(): JsonRecord {
         { label: "approved-quote-registry-official-stock-registry", category: "IMMUTABLE_BINDING", target: String((protocolModules.ApprovedQuoteRegistry as JsonRecord).deployedAddress), callData: functionSelector("officialStockRegistry()"), expectedReturnDataHash: addressReturnHash(String((protocolModules.OfficialStockRegistryV1 as JsonRecord).deployedAddress)) },
         { label: "tickergarden-baseline-registry-access-manager-authority", category: "IMMUTABLE_BINDING", target: String((protocolModules.TickerGardenBaselineRegistry as JsonRecord).deployedAddress), callData: functionSelector("authority()"), expectedReturnDataHash: addressReturnHash(address("access-manager")) },
         { label: "launch-template-registry-access-manager-authority", category: "IMMUTABLE_BINDING", target: String((protocolModules.LaunchTemplateRegistry as JsonRecord).deployedAddress), callData: functionSelector("authority()"), expectedReturnDataHash: addressReturnHash(address("access-manager")) },
-        { label: "treasury-access-manager-authority", category: "IMMUTABLE_BINDING", target: String((protocolModules.TreasuryDistributorV1 as JsonRecord).deployedAddress), callData: functionSelector("authority()"), expectedReturnDataHash: addressReturnHash(address("access-manager")) },
-        { label: "treasury-market-registry", category: "IMMUTABLE_BINDING", target: String((protocolModules.TreasuryDistributorV1 as JsonRecord).deployedAddress), callData: functionSelector("marketRegistry()"), expectedReturnDataHash: addressReturnHash(String((protocolModules.MarketRegistryV1 as JsonRecord).deployedAddress)) },
+        { label: "holder-market-registry", category: "IMMUTABLE_BINDING", target: String((protocolModules.HolderRewardsDistributorV1 as JsonRecord).deployedAddress), callData: functionSelector("marketRegistry()"), expectedReturnDataHash: addressReturnHash(String((protocolModules.MarketRegistryV1 as JsonRecord).deployedAddress)) },
         { label: "stock-uid", category: "EXTERNAL_IDENTITY", target: address("stock-token"), callData: functionSelector("uid()"), expectedReturnDataHash: hash("stock-uid-return") },
         { label: "stock-decimals", category: "EXTERNAL_IDENTITY", target: address("stock-token"), callData: functionSelector("decimals()"), expectedReturnDataHash: hash("stock-decimals-return") },
         { label: "stock-beacon-implementation", category: "PROXY_OR_BEACON_LINKAGE", target: address("stock-beacon"), callData: "0x5c60da1b", expectedReturnDataHash: hash("stock-beacon-implementation-return") },
@@ -114,7 +114,7 @@ export function validManifest(): JsonRecord {
       revokedAccounts: [address("release-deployer")],
     },
     tests: { unit: report("unit"), fuzz: report("fuzz"), invariant: report("invariant"), fork: report("fork"), e2e: report("e2e") },
-    roleHandoff: { deployer: address("release-deployer"), governanceSafe: address("governance-safe"), guardianSafe: address("guardian-safe"), securityOrGovernanceSafe: address("security-safe"), rootPublisherSafe: address("root-publisher-safe"), rootReviewerSafe: address("root-reviewer-safe"), platformTreasury: address("platform-treasury"), handoffTransactions: [{ transactionHash: hash("handoff-tx"), blockNumber: "123457", action: "GRANT_AND_REVOKE" }], deployerRevocationTransactionHash: hash("deployer-revocation"), deployerRevocationBlock: "123458", deployerRolesRevoked: true, safeRolesVerified: true },
+    roleHandoff: { deployer: address("release-deployer"), governanceSafe: address("governance-safe"), guardianSafe: address("guardian-safe"), securityOrGovernanceSafe: address("security-safe"), platformTreasury: address("platform-treasury"), handoffTransactions: [{ transactionHash: hash("handoff-tx"), blockNumber: "123457", action: "GRANT_AND_REVOKE" }], deployerRevocationTransactionHash: hash("deployer-revocation"), deployerRevocationBlock: "123458", deployerRolesRevoked: true, safeRolesVerified: true },
     evidence: gateIds.map((gateId) => ({ gateId, evidencePath: `evidence/${gateId}.json`, contentHash: hash(`${gateId}:evidence`) })),
   };
 }

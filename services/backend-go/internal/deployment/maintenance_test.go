@@ -113,7 +113,7 @@ func TestMaintenancePreviewAuthenticatesAndSimulates(t *testing.T) {
 }
 
 func TestMaintenancePreviewResolvesTargets(t *testing.T) {
-	for _, op := range []string{"checkpoint", "flush-forfeiture", "settle-rage-quit", "treasury-activate"} {
+	for _, op := range []string{"checkpoint", "flush-forfeiture", "settle-rage-quit"} {
 		t.Run(op, func(t *testing.T) {
 			base, b, market, user, _ := gaugeFixture(t)
 			b.Timestamp = "0x" + strconv.FormatInt(time.Now().Unix(), 16)
@@ -132,12 +132,6 @@ func TestMaintenancePreviewResolvesTargets(t *testing.T) {
 				r.User = user
 				raw = append(append(bytesWord("7"), bytesWord("9")...), bytesWord("1")...)
 			}
-			if op == "treasury-activate" {
-				target = "0x" + strings.Repeat("8", 40)
-				base.manifest.Contracts = append(base.manifest.Contracts, Contract{Module: "TreasuryDistributorV1", Address: target, RuntimeCodeHash: Hash([]byte{0})})
-				base.calls[roots["TickerGardenFactoryV1"]+Hash([]byte("treasuryDistributor()"))[:10]] = addrWord(target)
-				base.calls[target+Hash([]byte("marketRegistry()"))[:10]] = addrWord(roots["MarketRegistryV1"])
-			}
 			_, signature, args, _, err := maintenanceAction(r)
 			if err != nil {
 				t.Fatal(err)
@@ -146,13 +140,6 @@ func TestMaintenancePreviewResolvesTargets(t *testing.T) {
 			got, err := PreviewMaintenance(context.Background(), f, f.manifest, b, user, r)
 			if err != nil || got.To != target || !f.simulated {
 				t.Fatal(got, err)
-			}
-			if op == "treasury-activate" {
-				base.calls[target+Hash([]byte("marketRegistry()"))[:10]] = addrWord(target)
-				f.simulated = false
-				if _, err := PreviewMaintenance(context.Background(), f, f.manifest, b, user, r); err == nil || f.simulated {
-					t.Fatal("treasury reciprocal mismatch accepted")
-				}
 			}
 		})
 	}

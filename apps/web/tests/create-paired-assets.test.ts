@@ -44,11 +44,10 @@ test('Arbitrum Sepolia selection exposes only its native ETH release row', () =>
 });
 test('Robinhood testnet selection exposes only its activated canonical assets', () => {
   const testnet = pairedAssetsForChain(46630);
-  assert.deepEqual(testnet.map(asset => asset.symbol), ['ETH','USDG','TSLA','AMZN','PLTR','NFLX','AMD']);
+  assert.deepEqual(testnet.map(asset => asset.symbol), ['ETH','TSLA','AMZN','PLTR','NFLX','AMD']);
   assert.equal(testnet.every(asset => asset.chainId === 46630 && asset.activationStatus === 'REGISTRY_ACTIVE'), true);
   assert.deepEqual(Object.fromEntries(testnet.map(asset => [asset.symbol, asset.tokenAddress])), {
     ETH: '0x0000000000000000000000000000000000000000',
-    USDG: '0x7e955252e15c84f5768b83c41a71f9eba181802f',
     TSLA: '0xc9f9c86933092bbbfff3ccb4b105a4a94bf3bd4e',
     AMZN: '0x5884ad2f920c162cfbbacc88c9c51aa75ec09e02',
     PLTR: '0x1fbe1a0e43594b3455993b5de5fd0a7a266298d0',

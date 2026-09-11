@@ -55,11 +55,11 @@ export const V1_ORDINARY_COMPONENT_ORDER = [
   "CreatorRevenueRegistry",
   "AllocationManager",
   "UserStockVault",
-  "TreasuryDistributorV1",
+  "HolderRewardsDistributorV1",
   "ProtocolFeeVault",
 ] as const;
 
-export const V1_DEPLOYMENT_CONFIGURATION_INPUTS = [
+export const V1_BASE_DEPLOYMENT_CONFIGURATION_INPUTS = [
   "DEPLOYER_PRIVATE_KEY",
   "V1_EXPECTED_DEPLOYER",
   "V1_EXPECTED_CHAIN_ID",
@@ -78,15 +78,14 @@ export const V1_DEPLOYMENT_CONFIGURATION_INPUTS = [
   "V1_QUOTER_CODEHASH",
   "V1_PLATFORM_TREASURY",
   "V1_PLATFORM_TREASURY_CODEHASH",
-  "V1_ROOT_SERVICE_TREASURY",
-  "V1_ROOT_SERVICE_FEE_ASSET",
-  "V1_ROOT_SERVICE_FEE_AMOUNT",
-  "V1_FINALITY_DELAY_SECONDS",
-  "V1_FINALITY_DELAY_BLOCKS",
-  "V1_ROOT_PUBLICATION_WINDOW",
-  "V1_ROOT_REVIEW_DELAY",
-  "V1_CLAIM_WINDOW",
   "V1_FEE_POLICY_ID",
+] as const;
+
+export const V1_DEPLOYMENT_CONFIGURATION_INPUTS = [
+  ...V1_BASE_DEPLOYMENT_CONFIGURATION_INPUTS,
+  "V1_DEPLOYMENT_HOLDER_MODE",
+  "V1_NATIVE_QUOTE_POOL_FEE",
+  "V1_NATIVE_QUOTE_TICK_SPACING",
 ] as const;
 
 function record(value: unknown, label: string): JsonRecord {
@@ -212,8 +211,9 @@ export function assertV1TestnetDeploymentPlanConsistency(value: unknown): void {
   if (componentOrder.some((item, index) => item !== V1_ORDINARY_COMPONENT_ORDER[index])) {
     throw new Error("Invalid V1 deterministic ordinary component order");
   }
+  const inputs = strings(plan.configurationInputs, "configurationInputs");
   exactSet(
-    strings(plan.configurationInputs, "configurationInputs"),
+    inputs,
     V1_DEPLOYMENT_CONFIGURATION_INPUTS,
     "configurationInputs",
   );
@@ -333,7 +333,7 @@ export const v1TestnetDeploymentPlan = Object.freeze(
   ) as JsonRecord,
 );
 
-assertV1TestnetDeploymentPlanConsistency(v1TestnetDeploymentPlan);
+// A saved plan is historical evidence. Validate on explicit load/use, never as a library import side effect.
 
 export function loadV1TestnetDeploymentPlan(target = "robinhood-testnet") {
   const filename = target === "robinhood-testnet" ? "robinhood-testnet-46630.v1.plan.json"

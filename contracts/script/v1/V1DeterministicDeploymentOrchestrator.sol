@@ -4,7 +4,7 @@ pragma solidity 0.8.26;
 import {V1HookExecutorDeployer} from "./V1HookExecutorDeployer.sol";
 
 /// @notice Calldata-only deployment recipe for one immutable V1 runtime graph.
-/// @dev The ordinary component order is frozen by V1DeterministicDeploymentBuilder. Every deployment happens in
+/// @dev The ordinary component order is frozen by V4DeterministicDeploymentBuilder. Every deployment happens in
 ///      one call, so a failed constructor, address check, Hook/Executor binding, or Factory graph validation rolls
 ///      the complete runtime back. The authorizer may then retry the exact same addresses with corrected calldata.
 struct V1DeploymentPayload {

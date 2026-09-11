@@ -1,9 +1,9 @@
 # TickerGarden V1 协议参数与产品规则
 
-> **当前架构边界（2026-09-05）：** `V1-EXEC-11` 已实现市场永久自治、管理员准入的多 Quote 白名单与最终买入内原子毕业；`launchPhase` 只允许 `NotGraduated -> PoolCreated`。资产与配置对象的 pause/retire 参数仍保留。确定性部署与固定区块 Fork 证据已经闭合，但尚未广播测试网交易，外部审计和生产 E2E 尚未完成。
+> **历史发布基线（2026-09-05）：** `V1-EXEC-11` 已实现市场永久自治、管理员准入的多 Quote 白名单与最终买入内原子毕业；`launchPhase` 只允许 `NotGraduated -> PoolCreated`。资产与配置对象的 pause/retire 参数仍保留。确定性部署与固定区块 Fork 证据已经闭合，但尚未广播测试网交易，外部审计和生产 E2E 尚未完成。
 
-> 文档状态：`DEPLOYMENT_ELIGIBLE / NOT_PRODUCTION_READY / NOT_BROADCAST`
-> 更新时间：2026-09-05
+> 本轮源码变更状态：`NOT_PRODUCTION_READY / NOT_BROADCAST`；历史基线的发布资格不适用于修改后的源码。
+> 更新时间：2026-09-10
 > 适用范围：TickerGarden V1；不覆盖、修改或废止任何 Test Prototype 文档
 > 发行兼容基线：[Pons V2 官方文档](https://docs.ponsfamily.com/v2)
 > 对比参考：[Pump.fun 费用](https://pump.fun/docs/fees) 与 [Pump.fun Bonding Curve](https://pump.fun/docs/bonding-curve)（仅借鉴原则，不复制其点时参数）
@@ -13,7 +13,7 @@
 > Stock Vault 架构决策：参见 [V1_MULTI_ASSET_STOCK_VAULT.md](./V1_MULTI_ASSET_STOCK_VAULT.md)
 > 品牌文化与用户语言：参见 [brand/BRAND_CULTURE_AND_ECOSYSTEM.md](../../brand/BRAND_CULTURE_AND_ECOSYSTEM.md)
 
-本文把用户已经确认的产品规则写入“已冻结”章节。Pons runtime 行为、管理员风险审查后的 Quote 白名单集合、通用数值域，以及 Robinhood 官方目录当前观测到的194种 STOCK 全量可选 Base 规则已经形成机器证据。当前已实现的 STOCK 路径只作为质押 Base 和分配权重，不使用价格、USD 名义目标或 backing target；Stock Token 作为 Quote 可走通用 `addQuoteConfig`，并可选提交显式指纹承诺。194 个 Base 不自动成为 Quote，Stock Quote 为 `NO_ACTIVE_CONFIG`；确定性价格配置生成器和产品参数/首批 allowlist 属于 `PENDING_PRODUCT_ACTIVATION`。当前 readiness 是 `DEPLOYMENT_ELIGIBLE`，但并未实际部署，也不等于生产就绪。
+本文把用户已经确认的产品规则写入“已冻结”章节。Pons runtime 行为、管理员风险审查后的 Quote 白名单集合、通用数值域，以及 Robinhood 官方目录当前观测到的194种 STOCK 全量可选 Base 规则已经形成机器证据。当前已实现的 STOCK 路径只作为质押 Base 和分配权重，不使用价格、USD 名义目标或 backing target；Stock Token 作为 Quote 可走通用 `addQuoteConfig`，并可选提交显式指纹承诺。194 个 Base 不自动成为 Quote，Stock Quote 为 `NO_ACTIVE_CONFIG`；确定性价格配置生成器和产品参数/首批 allowlist 属于 `PENDING_PRODUCT_ACTIVATION`。上述为 2026-09-05 基线记录。2026-09-10 的批处理 Holder 和奖励兑换保护属于新候选版本，尚未部署，不能继承历史发布资格；规则见 [连续收益说明](../operations/HOLDER_CONTINUOUS_REWARDS.md)。
 
 ## 1. 版本边界
 
@@ -30,7 +30,7 @@ Pons V2 兼容发行基线
 + 每个市场创建时选择一种获批 Quote Asset
 + 按池、按实际收费资产原样分配 Quote 或 Ticker Meme 手续费
 + 只有完成毕业并进入 PoolCreated 的市场才开放 STOCK 质押
-+ 毕业后固定按 afterSwap unspecified currency 收取 1%，全部进入 FeeVault 统一记账，LP 协议手续费为0
++ 毕业后固定按 afterSwap unspecified currency 收取 TickerGarden 基础费 1%，进入 FeeVault 统一记账，PoolKey.fee 与 LP fee 为0；pinned v4 Core protocol fee 由 PoolManager 独立收取并单独展示
 + 毕业后启用固定 Meme Gauge 和手续费分配规则
 ```
 
@@ -48,18 +48,18 @@ Ticker Meme 是文化与社区用途的 meme token，不代表对应股票的所
 8. 用户只需把同一种 STOCK 按 Asset UID 存入一次 canonical `UserStockVault`，之后可以自由决定向该 STOCK 下任意多个已经进入 `PoolCreated` 的 Meme Gauge 分配多少 STOCK。
 9. 合约层不设置一个钱包参与 Meme 的固定数量上限。每钱包一个 Meme 或最多五个 Meme 的规则均不进入 V1 协议；用户实际可参与数量仍受其 STOCK 本金、每仓位最低值与 Gas 成本限制。
 10. 每个非零 Meme 质押仓位必须达到对应 Asset UID 当前配置的 `minimumAllocation`；该值使用 Stock Token raw units，由治理/管理员通过延迟权限更新。它不是 Vault deposit 的门槛；普通存入可为任意正数量。minimum 的可配置范围受 canonical numeric bounds 约束，不要求是固定数量或整数倍。
-    `minimumAllocation` 的协议安全下限为 `414` raw units；该下限用于满足每市场/feeAsset lifetime fee-credit 的 `uint48` 累加器边界，管理员可以按市场动态提高但不得降低。
+    `minimumAllocation` 的协议安全下限为 `414` raw units；该下限用于满足每市场/feeAsset lifetime fee-credit 的 `uint48` 累加器边界。管理员可按资产动态提高或降低，但新值不得低于 `414`；该参数按 Asset UID 保存，不是全局统一值。
 11. 用户对所有 Meme 的 STOCK 分配总和不得超过其在对应 `UserStockVault` 中的本金余额；同一份 STOCK 不能在多个 Meme 中重复计数。
 12. V1 不再从零质押手续费购买 STOCK，也不设置 `STOCK_PURCHASE` Bucket、`FeeExecutor` 或 `ProtocolStockTreasury`。用户 STOCK 本金只存在于 `UserStockVault`，平台和创建者不能使用它制造“协议自我背书”。
-13. 每个 Meme 的手续费独立记账。某 Meme 的质押者只能分享该 Meme 实际产生的质押者手续费，不能分享同 STOCK 下其他 Meme 的手续费。手续费收到 Quote 就分 Quote，收到该市场 Ticker Meme Token 就分 Meme Token，协议不执行 Token→Quote 转换。
-14. 新市场可以选择 `ApprovedQuoteRegistry` 中任意经管理员风险审查、已批准且身份仍有效的 `ACTIVE` Quote；Quote 可以是原生资产或任意 Token，包括可升级 ERC-20、Stock proxy、USDG 与 cbBTC。每个 Meme 创建时只选择一种 Quote，发行后不可更改；曲线买卖、毕业门槛和毕业池以该 Quote 计价。暂停或退休某配置只阻止后续市场，不改变既有市场。毕业池 non-LP 手续费按 Swap 实际收费资产在固定的 Quote/Meme 两种资产中分桶和领取，不强制转换成 USDC 或另一种资产。
+13. 每个 Meme 的手续费独立记账。某 Meme 的质押者只能分享该 Meme 实际产生的质押者手续费，不能分享同 STOCK 下其他 Meme 的手续费。基础手续费按实际收到的资产原样分桶；连续 Holder/奖励结算路径可将已记入负债的 Meme 奖励兑换为该市场 Quote，不改变普通手续费的原资产记账规则。
+14. 新市场可以选择 `ApprovedQuoteRegistry` 中任意经管理员风险审查、已批准且身份仍有效的 `ACTIVE` Quote；Quote 可以是原生资产或任意 Token，包括可升级 ERC-20、Stock proxy、USDG 与 cbBTC。每个 Meme 创建时只选择一种 Quote，发行后不可更改；曲线买卖、毕业门槛和毕业池以该 Quote 计价。暂停或退休某配置只阻止后续市场，不改变既有市场。毕业池 non-LP 手续费按 Swap 实际收费资产在固定的 Quote/Meme 两种资产中分桶和领取；仅已明确的奖励结算路径可将 Meme 负债兑换为 Quote。
 15. 所有质押者奖励按费用发生时的有效 STOCK 数量比例分配，不按钱包数量平均，不使用一钱包一票，也不设置可由拆钱包绕过的地址级收益上限。LP 协议手续费固定为0；存在 Active stake 时按 Creator40%/Staker30%/Platform30%，无 Active stake 时按 Creator70%/Staker0%/Platform30%，Staker 与 Platform 向下取整、余数归 Creator。取消10 STOCK 饱和与线性释放。
 16. 只有 `launchPhase == PoolCreated` 且市场处于允许新增仓位的 ACTIVE 状态时，`allocate`、`increaseAllocation` 或 `depositAndAllocate` 才可成功。新增部分先进入 `pendingAmount`，在分配交易时间后满 `30 seconds` 才成为有效份额并开始计奖；等待期间旧 `activeAmount` 继续正常计奖。allocation 不支持 partial decrease 或跨市场迁移。
 17. 同一用户在同一 Gauge 最多保存一个 pending 增量；激活前再次增仓时，新数量与原 pending 合并，并把 pending 的 `activationAt` 重置为本次分配时间加 `30 seconds`。已 active 的旧份额不因 pending 重置而停止计奖。
 18. 每次新仓位或增仓成功时，整个合并仓位的 `unlockAt` 重置为该笔分配交易时间加 `24 hours`。`unlockAt` 从分配交易而不是激活时点起算；未达到该时间不得正常 claim 或整仓 close。用户级 `rageQuit` 是例外：可绕过24小时，但放弃全部未领取双资产收益并整仓取回本金。
 19. 领取、激活和整仓 close 必须先结算旧有效份额的两种手续费权益，再改变有效份额。rageQuit 是本金优先的例外：Vault 先返还本金并留下奖励弃权 tombstone，Gauge 清理可在同笔交易中尽力完成，也可随后重试；待结算用户不能领取旧奖励或重新进入同一仓位。新份额不得领取 `activationAt` 之前产生的历史手续费，零质押期间产生的手续费不得追溯分给未来质押者。
 20. Ticker Meme 创建时可以登记固定 Gauge，但该 Gauge 在毕业完成前保持不可分配、无有效仓位状态。`NotGraduated` 禁止新增或增加 STOCK 分配；只有最终买入原子成功并进入 `PoolCreated` 才开放质押。毕业不改变 `marketId`、Asset UID 或 Gauge 身份，曲线期费用不追溯给毕业后质押者。
-21. V1 不设置 LP 质押挖矿或 Ticker Meme 排放。毕业后固定以 Uniswap v4 核心 Swap 的 unspecified currency 实际 delta 为基数收取 `1%`，全部由 Hook 转入 FeeVault；LP 协议手续费为0，canonical LP 仍永久锁定但不获得协议 LP 手续费。
+21. V1 不设置 LP 质押挖矿或 Ticker Meme 排放。毕业后 TickerGarden 基础费固定按 Uniswap v4 核心 Swap 的 unspecified currency 实际 delta 收取 `1%`，Creator tax 依原基数取整并单独展示；PoolKey.fee 与 LP fee 为0。pinned v4 Core protocol fee 可按方向独立存在，单方向最高 1000 pips（0.1%），由 PoolManager 收取且不进入 FeeVault；canonical LP 仍永久锁定但不获得协议 LP 手续费。
 22. 所有市场、Gauge、费用、国库和毕业池使用 `marketId`、`Asset UID` 与 canonical 合约地址关联；Symbol、名称和 Logo 不是身份主键。
 23. 协议假设同一实际用户可以控制任意数量的钱包。钱包级限制不得被描述为一人级限制，平台指标不得把钱包数量等同于独立用户数量。
 
@@ -123,15 +123,15 @@ TickerGarden 不把任一平台整体照搬，而是冻结以下组合：
 | Pons V2 | Pull 式费用领取 | 某个收款地址失败不能阻塞全市场分配 |
 | Pump.fun | 极简默认发行模板 | 普通创建者只看到一个推荐曲线模板和 Quote 选择；底层参数不开放随意填写 |
 | Pons V2 | 原子 `launch-and-buy` | 创建和创建者首买可在一笔交易完成，不允许交易插入其间 |
-| Pump.fun | 毕业后向 LP 分配交易手续费 | 不采纳该收益路径；`PoolKey.fee = 0`，Hook 收取的1%全部进入 FeeVault |
-| Pump.fun | 动态市值/成熟度费率档 | 不采纳；毕业后总协议费率固定为1% |
+| Pump.fun | 毕业后向 LP 分配交易手续费 | 不采纳该收益路径；`PoolKey.fee = 0`，Hook 收取的 TickerGarden 基础费1%进入 FeeVault，Core protocol fee 由 PoolManager 独立收取 |
+| Pump.fun | 动态市值/成熟度费率档 | 不采纳；TickerGarden 基础费固定为1%，Core protocol fee 另按 pinned v4 Core 配置收取 |
 | Pump.fun | 创建者团队分账 | 协议仍只认一个 `creatorRevenueBeneficiary`；该地址可使用固定、可审计的外部分账合约 |
 
 明确不采纳：零成本无限创建、基于即时现货市值的二十多个费率档位、全局修改已发行项目 economics、没有明确反狙击保护，以及 Mayhem、返现或新的代币排放玩法。创建费参考 Pons 活跃部署：当前 Factory 永久固定为 `0.0005` 原生资产、严格匹配 `msg.value`、直接进入平台收入；不再另设 `5 USDG`、可退保证金、STOCK 创建资格或地址级限速，也不存在原地调价 setter。
 
 Pons 的开盘反狙击定价和原子 `launch-and-buy` 行为作为参考。首买不设置“毕业门槛1%”这一额外上限；最大成交量由剩余 `sellableTokens`、尾单部分成交、退款和 `minTokensOut` 决定。作为 TickerGarden 自有 ABI 的安全收窄，不暴露 Pons 的任意团队豁免数组，只自动豁免真实 creator/beneficiary 和原子首买 recipient。当前新 release 使用用户于 2026-09-07 批准的 5 秒窗口：elapsed `0/1/2/3/4/≥5s` 为 raw `9900/2475/309/19/1/0 bps`，仍应用基础手续费、Creator tax 与最低净 Quote 保护。历史外部 runtime 的 `9900/618/19/0` 三秒表仅作为存档证据，不代表新版本。详细操作见 [协议优化指南](../planning/PROTOCOL_OPTIMIZATION_2026-09-07.md)。
 
-Pump 的 LP 手续费与动态费率档均不进入 V1-EXEC-11。毕业池总协议费率固定为 `1%`，不存在 TWAP、流动性、滚动量、现货市值或治理触发的升降档；`PoolKey.fee = 0`，Hook 收取的手续费全部进入 FeeVault。精确 PoolKey、Hook、取整和原子结算见 [V1_EXECUTION_SPEC.md](./V1_EXECUTION_SPEC.md)。
+Pump 的 LP 手续费与动态费率档均不进入 V1-EXEC-11。TickerGarden 基础费固定为 `1%`，不存在 TWAP、流动性、滚动量、现货市值或治理触发的升降档；`PoolKey.fee = 0`，TickerGarden 自身费用进入 FeeVault。pinned v4 Core protocol fee 是独立的 PoolManager 费用，需单独展示，不能并入 TickerGarden 分成或与不同基数的费率简单相加。精确 PoolKey、Hook、取整和原子结算见 [V1_EXECUTION_SPEC.md](./V1_EXECUTION_SPEC.md)。
 
 ### 3.3 已确认的 TickerGarden 差异
 
@@ -148,7 +148,7 @@ Pump 的 LP 手续费与动态费率档均不进入 V1-EXEC-11。毕业池总协
 | 创建费与首买 | 精确原生创建费；可通过可信 Router 原子 launch-and-buy | 初始创建费和付款语义兼容；保留 TickerGarden creator/marketId 身份和自有 CREATE2 domain |
 | 地址与 ABI | Pons 自有部署栈，公开源码与活跃 runtime 存在漂移 | 不复制地址或不完整源码；按确认行为建立 TickerGarden ABI、数学不变量、地址预测和固定向量 |
 
-Pons V2 的曲线基础费率、开盘反狙击税及其衰减规则随 `tickerGardenBaselineId` 冻结。TickerGarden 不额外叠加“质押手续费”；曲线期只替换 non-LP 费用受益人路由。`PoolCreated` 后采用不可变 `V1-EXEC-11` fee policy：`PoolKey.fee = 0`，Hook 对核心 Swap 的 unspecified currency 实际 delta 固定收取1%，全部实际转入 FeeVault。Staker 是否取得 non-LP 的固定30%（无 Active 时为0）仅由该笔费用发生时是否存在 active stake 决定，不再读取 saturation 或 release 参数。反狙击税只属于曲线阶段，按 Pons 规则并入曲线标准手续费后，以该市场 Quote 进入同一 TickerGarden 分配流程。
+Pons V2 的曲线基础费率、开盘反狙击税及其衰减规则随 `tickerGardenBaselineId` 冻结。TickerGarden 不额外叠加“质押手续费”；曲线期只替换 non-LP 费用受益人路由。`PoolCreated` 后采用不可变 `V1-EXEC-11` fee policy：`PoolKey.fee = 0`，Hook 对核心 Swap 的 unspecified currency 实际 delta 固定收取 TickerGarden 基础费1%，实际进入 FeeVault；pinned v4 Core protocol fee 由 PoolManager 独立收取，不进入 FeeVault。Staker 是否取得 non-LP 的固定30%（无 Active 时为0）仅由该笔费用发生时是否存在 active stake 决定，不再读取 saturation 或 release 参数。反狙击税只属于曲线阶段，按 Pons 规则并入曲线标准手续费后，以该市场 Quote 进入同一 TickerGarden 分配流程。
 
 CREATE2 使用 TickerGarden 自有 domain 和可离线验证的标准 EIP-1014 公式；创建者收益身份沿用已冻结 epoch 模型，community takeover/管理员任意 override 不继承。TickerGarden 仅继承 Pons 的最终买入自动触发与永久锁仓原则，不继承两阶段 `Swept`、permissionless retry 或 owner/terminal rescue；本项目采用全原子失败回滚。`launch-and-buy`、多 Quote 和公式化毕业池数量均已确定采纳。精确矩阵见 [V1_PONS_BEHAVIOR_BASELINE.md](./V1_PONS_BEHAVIOR_BASELINE.md)。
 
@@ -207,7 +207,7 @@ USDG 与 cbBTC 的可升级性、codehash 和 proxy-slot 观测记录属于风�
 = 该笔 Swap 实际收取的 Quote Asset 或 Ticker Meme Token
 ```
 
-协议不把任何手续费强制换成 USDC，也不把 Ticker Meme Token 手续费转换成 Quote。每个 Meme Gauge 的奖励资产集合在创建时固定且有界，恰好是该市场的 canonical Quote Asset 与 Ticker Meme Token；不得加入第三种资产或动态奖励列表。两种资产分别使用原始最小单位记账、分桶和领取，不能按美元估值相互净额结算。前端可以显示统一美元估值作为参考，但链上会计不依赖价格。
+协议不把普通手续费强制换成 USDC，也不在普通分桶阶段转换 Ticker Meme Token；已记入负债的 Meme 奖励可由受约束的奖励结算路径兑换为该市场 Quote。每个 Meme Gauge 的奖励资产集合在创建时固定且有界，恰好是该市场的 canonical Quote Asset 与 Ticker Meme Token；不得加入第三种资产或动态奖励列表。两种资产分别使用原始最小单位记账、分桶和领取，不能按美元估值相互净额结算。前端可以显示统一美元估值作为参考，但链上会计不依赖价格。
 
 若创建者选择的 Quote 恰好是该 Meme 绑定的 canonical Stock Token，Quote 侧手续费仍以该 Stock Token 原始单位直接分配，Meme Token 侧手续费仍分 Meme Token。FeeVault 中作为手续费负债持有的 Stock Token 与 `UserStockVault` 中的用户质押本金必须位于不同合约，不能互相冲抵。
 
@@ -415,7 +415,7 @@ allocation 不允许减仓，也不允许从市场 A 迁移到市场 B。达到 
 
 ### 6.1 手续费基数
 
-曲线基础费率和开盘反狙击税随 `tickerGardenBaselineId` 冻结。毕业池不采用动态档位：所有 `PoolCreated` 市场固定 `PoolKey.fee = 0`，由 Hook 的 `afterSwap` 对 Uniswap 核心 Swap 的 unspecified currency 实际 delta 收取1%。exact-input 的收费资产是 output，exact-output 的收费资产是 input。定义：
+曲线基础费率和开盘反狙击税随 `tickerGardenBaselineId` 冻结。毕业池不采用动态档位：所有 `PoolCreated` 市场固定 `PoolKey.fee = 0`，由 Hook 的 `afterSwap` 对 Uniswap 核心 Swap 的 unspecified currency 实际 delta 收取 TickerGarden 基础费1%；Core protocol fee 独立由 PoolManager 收取。exact-input 的收费资产是 output，exact-output 的收费资产是 input。定义：
 
 ```text
 D_curve = 曲线期以 Market Quote 实际收取并划给创建者/平台的费用
@@ -435,9 +435,9 @@ L_asset = 0
 D_asset = T_asset
 ```
 
-比例直接在该 Swap 实际收费的同一种资产中切分。`D_asset` 由 `PoolManager.take` 实际转入 FeeVault，经精确余额增量验证后才可记账；Hook 不调用 `PoolManager.donate`。若资产是 Quote，三方获得 Quote；若是 Ticker Meme Token，三方获得 Meme Token。协议不得转换、估值替代、跨资产净额结算或把 Token 侧费用延迟到另一质押快照。
+比例直接在该 Swap 实际收费的同一种资产中切分。`D_asset` 由 `PoolManager.take` 实际转入 FeeVault，经精确余额增量验证后才可记账；Hook 不调用 `PoolManager.donate`。若资产是 Quote，三方获得 Quote；若是 Ticker Meme Token，三方获得 Meme Token。本次分桶不得转换、用估值替代或跨资产净额结算，也不得把 Token 侧费用延迟归属到另一质押快照。已分桶的 Meme 负债可在独立奖励结算交易中兑换为 Quote，并仍归原收益人。
 
-`D_curve/D_asset/L_asset/T_asset` 均不包括 Gas。毕业池不使用请求交易额或指定资产名义值，而使用核心实际成交后的 unspecified delta，所以部分成交不会被按未成交数量过收。`PoolCreated` 后的 STOCK 质押不会额外叠加收费，只改变 `D_asset` 的受益人。Hook 每笔都必须确认 v4 `lpFee == 0` 且 packed `protocolFee == 0`；否则整笔 Swap 回滚，防止用户在1%之外被核心重复收费。
+`D_curve/D_asset/L_asset/T_asset` 均不包括 Gas。毕业池不使用请求交易额或指定资产名义值，而使用核心实际成交后的 unspecified delta，所以部分成交不会被按未成交数量过收。`PoolCreated` 后的 STOCK 质押不会额外叠加收费，只改变 `D_asset` 的受益人。Hook 每笔都必须确认 v4 `lpFee == 0`；pinned v4 Core `protocolFee` 可按方向存在且最高为 1000 pips（0.1%），由 PoolManager 独立收取，不进入 FeeVault，并在报价中单独展示。
 
 ### 6.2 固定毕业池分配（V1-EXEC-11）
 
@@ -522,7 +522,7 @@ CreatorPortion = D_curve - PlatformPortion
 
 每周优秀 Meme 的评选综合市场表现、真实交易活跃度、参与用户、流动性和社区增长等因素。评选结果、回购金额和销毁记录应公开展示；若当周没有符合条件的项目，对应预算保留至后续周期，不转作平台开销。完整用户说明见 [`PLATFORM_REVENUE_USE.md`](../PLATFORM_REVENUE_USE.md)。
 
-创建者、质押者和平台领取该笔手续费实际使用的资产，因此同一市场可能分别累积 Quote 与 Ticker Meme Token。平台若希望把已领取资产汇总成 USDC 或其他国库资产，只能在平台收入负债形成并完成领取之后执行独立国库策略；不得替用户或创建者转换结算资产。
+创建者、质押者和平台领取该笔手续费实际使用的资产，因此同一市场可能分别累积 Quote 与 Ticker Meme Token。平台若希望把已领取资产汇总成 USDC 或其他国库资产，只能在平台收入负债形成并完成领取之后执行独立国库策略；平台国库策略不得擅自改动用户或创建者负债。协议奖励结算路径另行受操作员权限、原收益人归属、链上价格保护及原币退出规则约束。
 
 ## 7. 质押者手续费会计
 
@@ -602,14 +602,14 @@ UserAccumulatorPaid = CurrentAccumulator
 TickerGarden 保持 Pons 的 canonical pool 与永久锁仓安全边界，但协议 LP 手续费为零：
 
 - 曲线阶段 `LP fee = 0`，因为此时没有 Uniswap LP；
-- `PoolCreated` 后，Hook 不调用 `PoolManager.donate`，全部 1% 协议手续费转入 FeeVault；
+- `PoolCreated` 后，Hook 不调用 `PoolManager.donate`，TickerGarden 基础费1%转入 FeeVault；Core protocol fee 由 PoolManager 独立收取；
 - 不部署 LP Gauge，不要求 LP NFT 质押，不发放 Ticker Meme 或平台币奖励；
 - 外部 LP 可以按标准 Uniswap v4 规则增加或移除自己的流动性，但该 canonical pool 的核心费率为0，协议交易不会为其产生 LP feeGrowth；
 - 毕业时的 canonical 全范围仓位仍永久锁定，但不获得协议 LP 手续费。
 
 每个毕业市场部署一个绑定该 `marketId` 的不可变 `LaunchLocker`，仅负责永久持有 canonical Position NFT 与相关余额，不提供手续费 collect/compound 路径。取消即时池价复投路径可降低价格操纵与 JIT 经济风险，并减少 keeper 运维。
 
-Uniswap v4 核心 swap fee 固定为零，TickerGarden Hook 总费率固定为1%。实现不能在其上机械叠加 LP fee 或 protocol fee。每笔只需证明：
+Uniswap v4 PoolKey 的 LP fee 固定为零，TickerGarden Hook 基础费固定为1%。pinned v4 Core protocol fee 可按方向独立存在，最高1000 pips，由 PoolManager 收取；实现不得把不同基数费率机械相加冒称实际总费。每笔只需证明：
 
 ```text
 L_asset = 0
@@ -699,7 +699,7 @@ V1 可以复用 Test Prototype 中已经验证的 canonical 资产身份、固�
 
 | ID | 已冻结结论 |
 |---|---|
-| V1-FROZEN-V4-FEE-01 | `PoolKey.fee = 0`、Hook mask `0x2044`、afterSwap unspecified currency 固定1%、no donate、take full fee、核心 protocol/lp fee 必须为零、失败全回滚 |
+| V1-FROZEN-V4-FEE-01 | `PoolKey.fee = 0`、Hook mask `0x2044`、afterSwap unspecified currency 固定1%、no donate、take full fee、核心 LP fee 必须为零；Core protocol fee 可按方向存在且最高1000 pips、失败全回滚 |
 | V1-FROZEN-VAULT-01 | 每 schema 一个共享 MultiAsset Vault；权威 `allocation[assetUid][user][marketId]` 与资产内三层聚合；Gauge 不托管 STOCK；用户在任意 `launchPhase` 均可先于奖励清理立即取回完整本金 |
 | V1-FROZEN-ACTIVATION-01 | `1s/30s/32-slot` 绝对 generation 时间轮、双指数 snapshot/refcount、`INDEX_PRECISION=1e27`、固定边界与 remainder 公式 |
 | V1-FROZEN-STATE-ABI-01 | Asset/Quote/Pons/Template 保留对象级准入状态；市场仅有单向 `launchPhase` 事实；不存在部署后市场管理或管理员恢复 selector；核心 ABI、事件与权限由机器清单生成 |
@@ -724,7 +724,7 @@ V1 可以复用 Test Prototype 中已经验证的 canonical 资产身份、固�
 | V1-G0-OFFICIAL-STOCK-BASE-01 | 当前观测194项 ACTIVE 官方 STOCK 全部可由创建者选择为市场唯一质押 Base；STOCK 只作 raw-unit 质押分配，不使用价格、Feed 或 backing target |
 | [历史] V1-FROZEN-STAKER-SATURATION-01 | 旧 `V1-EXEC-3` 曾冻结 `stakeSaturationWholeTokens = 10`；每市场 `B = 10 × 10^stockDecimals`，质押者 Bucket 按 `min(S,B)/B` 线性释放。该历史决策已被当前 `V1-EXEC-11` 的动态 `minimumAllocation` 与 active Creator40/Staker30/Platform30 取代，不再生效。 |
 
-实现、artifact、生成 ABI、测试网依赖快照与 fixed-block Fork/E2E 已形成证据，readiness 为 `DEPLOYMENT_ELIGIBLE`；实际广播、部署后 finalized 身份/实现复核和外部签字仍必须按测试网 runbook 与 production gates 完成。
+2026-09-05 基线的实现、artifact、生成 ABI、测试网依赖快照与 fixed-block Fork/E2E 曾形成 `DEPLOYMENT_ELIGIBLE` 证据；修改后的源码须重新生成候选证据，实际广播、部署后 finalized 身份/实现复核和外部签字仍必须按测试网 runbook 与 production gates 完成。
 
 ### 13.2 尚未冻结的产品参数与外部签字
 
@@ -737,3 +737,22 @@ V1 可以复用 Test Prototype 中已经验证的 canonical 资产身份、固�
 | V1-G0-RH-STOCK-QUOTE-PARAMS-01 | 冻结首批 Stock Quote 清单、目标 USD 参考规模、取价侧、最大时效、REST/Chainlink 偏差阈值及公司行动策略 | Stock Quote config generator、机器 manifest、前端与部署批准 |
 
 `V1-P-010` 与 `V1-T-001` 已随当前 `V1-EXEC-11` 的无价格 STOCK Base 规则闭合，implementation 与 technical deployment gate 当前均为空。Pons security、独立审计、Legal、生产角色移交、源码验证、监控与 soak 属于后续 production gates；`DEPLOYMENT_ELIGIBLE` 只允许受控部署验证，不得被表述为已部署或生产可用。
+
+
+### 统一领取的结算与有效期（2026-09-11）
+
+一次 `claimUserRewards` 使用本次已验证的市场信息。Staker 通过仅 FeeVault 可调用的 `consumeClaimableAssets(address,uint8)` 一次检查锁和退出状态、一次结算，只消费所选资产的权益。两套资产负债与用户归属保持独立。
+
+`deadline` 只约束实际 Meme 兑换：必须位于执行时刻至之后 5 分钟内。直接领取原币，或只有 Quote 可领取时，不检查该参数。兑换有效期失效与其他兑换子调用失败一样处理：已归属 Quote 正常发放；Meme 按用户授权发原币，否则保留。不会恢复预设滑点或最低到账保护。
+
+Holder 转账检查点仅在账户有新增指数需要结算时读取转账前余额，并将同一份余额复用于两套奖励；领取时在任何付款回调前完成所有被选账本的结算。奖励指数、释放批次、应计权益和 Quote/Meme 负债不合并。
+
+### 单市场资产选择（2026-09-11）
+
+`claimUserRewardAssets(marketId,role,epoch,assets,convert,rawFallback,deadline)` 支持 `assets=1` 仅 Quote、`2` 仅 Meme、`3` 两者；0 和其他值回滚。`claimUserRewards` 是选择两者的便利入口，两者共用同一实现。此选择不是跨市场批量领取。
+
+未选资产不消费、不付款，也不执行其独立的 FeeVault 余额/偿付校验。Meme 选择兑换时仍依赖 Quote 的可用性，但该检查在可捕获的兑换子调用内；用户可选择 Meme 原币领取避开异常 Quote。兑换出的 Quote 不会扣减原有未选 Quote 权益。Holder 的 Meme 余额仍是持有人权重来源，不能省略有历史指数差时的余额结算。
+
+前端、后端观察器和官方任务使用 `TICKERGARDEN_USER_CLAIM_ASSET_SELECTION_V1` 识别当前 FeeVault，不将旧部署识别为支持新入口。事件的 paid/retained 字段描述本次所选权益，不表示用户剩余全部资产。
+
+Gauge/Vault 的 pending 计数为零时直接跳过 32 槽激活扫描；有 pending 时保留完整到期处理、奖励截止和队列一致性校验。Holder 在指数未变化时跳过无效账户写入，在流处理函数中复用账本 key，不改变释放规则。

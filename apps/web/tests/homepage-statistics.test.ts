@@ -3,7 +3,10 @@ import { test } from "node:test";
 import home from "../src/pages/home.ts";
 import stats from "../src/pages/stats.ts";
 
-test("global execution statistics are available only on the Stats page", () => {
-  assert.doesNotMatch(home.html, /data-global-statistics|Global execution statistics/);
-  assert.match(stats.html, /data-global-statistics/);
+test("Stats exposes the current summary, staking, and fee panels", () => {
+  assert.doesNotMatch(home.html, /data-stats-summary|Stats/);
+  assert.match(stats.html, /data-stats-summary/);
+  assert.match(stats.html, /data-stats-staking-values/);
+  assert.match(stats.html, /Allocated In 24H/);
+  assert.match(stats.html, /data-stat-fee-(?:creator|staker|holder|platform)/);
 });

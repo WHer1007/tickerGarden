@@ -137,9 +137,9 @@ export function applyV1Event(state: V1IndexerState, event: DecodedV1Event): "app
   }
   if (
     (
-      event.signature === "AllocationRageQuitExecuted(address,bytes32,uint256,uint256,uint256,bool)" ||
-      event.signature === "RageQuitRewardSettlementFinalized(address,bytes32,uint256,uint256,uint256,bool)" ||
-      event.signature === "GaugeRageQuit(address,bytes32,uint256,uint256,uint256,bool)"
+      event.signature === "AllocationRageQuitExecuted(address,bytes32,uint256,uint256,uint256)" ||
+      event.signature === "RageQuitRewardSettlementFinalized(address,bytes32,uint256,uint256,uint256)" ||
+      event.signature === "GaugeRageQuit(address,bytes32,uint256,uint256,uint256)"
     ) && event.args.redistributed
   ) {
     throw new Error(`${event.signature} redistributed=true violates the platform forfeiture policy`);
@@ -289,7 +289,7 @@ export function applyV1Event(state: V1IndexerState, event: DecodedV1Event): "app
     case "AllocationReleased(bytes32,address,bytes32,uint256,uint256,uint256)":
     case "AllocationRageQuit(bytes32,address,bytes32,uint256)":
       mergePosition(state.allocations, key(event.args.assetUid, event.args.user, event.args.marketId), { ...event.args, lastEvent: event.signature }, at); break;
-    case "AllocationRageQuitExecuted(address,bytes32,uint256,uint256,uint256,bool)":
+    case "AllocationRageQuitExecuted(address,bytes32,uint256,uint256,uint256)":
       mergePosition(state.gaugePositions, key(event.args.user, event.args.marketId), {
         ...event.args,
         redistributed: false,
@@ -341,7 +341,7 @@ export function applyV1Event(state: V1IndexerState, event: DecodedV1Event): "app
       mergeRageQuitAllocationByMarket(state, event.args.user, event.args.marketId, patch, at);
       break;
     }
-    case "RageQuitRewardSettlementFinalized(address,bytes32,uint256,uint256,uint256,bool)": {
+    case "RageQuitRewardSettlementFinalized(address,bytes32,uint256,uint256,uint256)": {
       const patch = {
         ...event.args,
         rageQuitSettlementPending: false,
@@ -392,7 +392,7 @@ export function applyV1Event(state: V1IndexerState, event: DecodedV1Event): "app
         lastEvent: event.signature,
       }, at);
       break;
-    case "GaugeRageQuit(address,bytes32,uint256,uint256,uint256,bool)":
+    case "GaugeRageQuit(address,bytes32,uint256,uint256,uint256)":
       mergePosition(state.gaugePositions, key(event.args.user, event.args.marketId), {
         ...event.args,
         redistributed: false,

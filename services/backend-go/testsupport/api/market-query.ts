@@ -17,7 +17,7 @@ export function queryMarkets(items: readonly MarketReadModel[], query: URLSearch
   const phase = query.get("launchPhase") ?? "";
   if (query.has("launchPhase") && phase !== "0" && phase !== "1") throw new Error("launchPhase must be 0 or 1");
   const order = query.get("sort") ?? "marketId_asc";
-  if (!["marketId_asc","marketId_desc","createdAt_asc","createdAt_desc","name_asc","launchPhase_asc","volume24hUsd_desc","marketCapUsd_desc"].includes(order)) throw new Error("unsupported market sort");
+  if (!["marketId_asc","marketId_desc","createdAt_asc","createdAt_desc","name_asc","launchPhase_asc","volume24hUsd_desc","marketCapUsd_desc","recentBuy_desc"].includes(order)) throw new Error("unsupported market sort");
   const search=asciiLower(query.get("search") ?? ""), from=query.get("createdFrom") ?? "", to=query.get("createdTo") ?? "";
   if(query.has("search") && (!search || new TextEncoder().encode(search).length>128)) throw new Error("search must contain 1..128 UTF-8 bytes");
   for(const key of ["createdFrom","createdTo"]){if(query.has(key)){const value=query.get(key)!;if(!/^(0|[1-9][0-9]*)$/.test(value) || value.length>19 || BigInt(value)>9223372036854775807n) throw new Error("invalid creation time bound");}}
@@ -31,6 +31,12 @@ export function queryMarkets(items: readonly MarketReadModel[], query: URLSearch
     if(order.startsWith("createdAt_")){let time=m.identity!.deployedAt.padStart(19,"0");if(order==="createdAt_desc") time=time.replace(/[0-9]/g,c=>String(9-Number(c)));return `${time}:${m.marketId}`;}
     if(order==="name_asc")return `${Buffer.from(asciiLower(m.identity!.name),"utf8").toString("hex")}/${m.marketId}`;
     if(order==="launchPhase_asc")return `${String(m.launchPhase).padStart(20,"0")}:${m.marketId}`;
+    if(order==="recentBuy_desc") {
+      const buy=m.lastBuy;
+      if(!buy)return `1:${m.marketId}`;
+      const key=(value:string)=>{const normalized=value.replace(/^0+(?=\d)/,"");return ("0".repeat(Math.max(0,78-normalized.length))+normalized).replace(/\d/g,c=>String(9-Number(c)));};
+      return `0:${key(buy.blockNumber)}:${key(buy.transactionIndex)}:${key(buy.logIndex)}:${m.marketId}`;
+    }
     return order === "marketId_asc" ? m.marketId : `0x${m.marketId.slice(2).replace(/[0-9a-f]/g, digit => (15 - parseInt(digit, 16)).toString(16))}`;
   };
   return { items: filtered, filter, identity };

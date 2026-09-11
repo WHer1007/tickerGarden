@@ -50,7 +50,7 @@
 .home-hero h1 {
   margin: 15px 0 18px;
   color: var(--ink);
-  font: 700 clamp(54px, 5.1vw, 68px)/.96 "Fraunces", serif;
+  font: 700 clamp(54px, 5.1vw, 68px)/.96 "Inter Variable", serif;
   letter-spacing: -.048em;
 }
 
@@ -130,7 +130,7 @@
 
 .hero-proof strong {
   color: var(--ink);
-  font: 600 18px "Fraunces", serif;
+  font: 600 18px "Inter Variable", serif;
 }
 
 .tree-stage {
@@ -219,7 +219,7 @@
 .how-heading h2,
 .creation-banner h2 {
   margin: 5px 0 0;
-  font: 700 32px/1.05 "Fraunces", serif;
+  font: 700 32px/1.05 "Inter Variable", serif;
   letter-spacing: -.035em;
 }
 
@@ -619,7 +619,7 @@
 .runtime-recovery button:disabled { opacity: .5; cursor: wait; }
 .runtime-recovery input { min-width: 0; max-width: 100%; flex: 1 1 260px; padding: 8px; border: 1px solid #a9b9a3; border-radius: 8px; }
 .runtime-recovery span { flex-basis: 100%; }
-.runtime-recovery button:focus-visible, .runtime-recovery input:focus-visible { outline: 3px solid #627c43; outline-offset: 2px; }
+.runtime-recovery button:focus-visible { outline: 3px solid #627c43; outline-offset: 2px; }
 
 /* A real 3D sculpture progressively replaces the original illustrated tree. */
 /* A standalone, fully round orchard sculpture. */

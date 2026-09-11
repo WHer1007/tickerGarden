@@ -35,7 +35,8 @@ contract MemeStockGaugeAccumulatorsHarness is MemeStockGaugeAccumulators {
     }
 
     function rewardState(uint8 rewardIndex) external view returns (uint256 accumulator, uint256 remainder) {
-        GaugeRewardState memory state = _rewardState(rewardIndex);
+        if (rewardIndex >= REWARD_ASSET_COUNT) revert InvalidRewardIndex(rewardIndex);
+        GaugeRewardState memory state = _rewardStates[rewardIndex];
         return (state.accFeePerShare, state.indexRemainder);
     }
 
@@ -49,7 +50,8 @@ contract MemeStockGaugeAccumulatorsHarness is MemeStockGaugeAccumulators {
     }
 
     function claimable(address user, uint8 rewardIndex) external view returns (uint256) {
-        return _claimable(user, rewardIndex);
+        if (rewardIndex >= REWARD_ASSET_COUNT) revert InvalidRewardIndex(rewardIndex);
+        return _gaugePositions[user].rewards[rewardIndex].pendingFee;
     }
 
     function consumeClaimable(address user, uint8 rewardIndex) external returns (uint256) {

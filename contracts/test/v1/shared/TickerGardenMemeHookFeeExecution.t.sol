@@ -61,10 +61,10 @@ contract HookFeeExecutionVault is ProtocolFeeVaultV4Credit {
     }
 
     function creditState() external view returns (uint8 state) {
-        (state,) = _pendingV4Credit();
+        (state,) = (_creditState, _pendingCredit);
     }
 
-    function _recordExactV4Credit(V4CreditRecord memory record) internal override {
+    function _recordExactV4Credit(V4CreditRecord memory record, MarketView memory) internal override {
         if (failRecord) revert ForcedRecordFailure();
         _lastRecord = record;
         recordCount += 1;
@@ -194,7 +194,7 @@ contract HookFeeExecutionCreate2Deployer {
 }
 
 contract TickerGardenMemeHookFeeExecutionHarness is TickerGardenMemeHookFeeExecution {
-    function convertRewards(bytes32, uint256, uint256, uint256) external pure override returns (uint256, uint256) {
+    function convertRewards(bytes32, uint256, uint256) external pure override returns (uint256, uint256) {
         revert("UNSUPPORTED_TEST_LAYER");
     }
 
@@ -384,24 +384,17 @@ contract TickerGardenMemeHookFeeExecutionTest is Test {
         assertEq(hook.poolBinding(poolId).feeNonce, 1);
     }
 
-    function test_eitherPackedProtocolFeeDirectionFailsClosedIncludingZeroTotalFee() public {
-        poolManager.setCoreFees(poolId, 1, 0);
-        vm.expectRevert(
-            abi.encodeWithSelector(
-                TickerGardenMemeHookFeeExecution.NonzeroCorePoolFee.selector, poolId, uint24(1), uint24(0)
-            )
-        );
-        poolManager.swap(hook, key, _params(true, -1), _delta(-1, 99), "zero-total-fee");
-        _assertNoEffects(address(meme));
-
-        poolManager.setCoreFees(poolId, uint24(1 << 12), 0);
-        vm.expectRevert(
-            abi.encodeWithSelector(
-                TickerGardenMemeHookFeeExecution.NonzeroCorePoolFee.selector, poolId, uint24(1 << 12), uint24(0)
-            )
-        );
-        poolManager.swap(hook, key, _params(true, -1), _delta(-1, 10_000), "other-direction");
-        _assertNoEffects(address(meme));
+    function test_eitherPackedProtocolFeeDirectionPreservesOwnFeeAccounting() public {
+        poolManager.setCoreFees(poolId, 1000, 0);
+        (, int128 zeroFee) = poolManager.swap(hook, key, _params(true, -1), _delta(-1, 99), "zero-total-fee");
+        assertEq(zeroFee, 0);
+        assertEq(hook.poolBinding(poolId).feeNonce, 0);
+        assertEq(feeVault.recordCount(), 0);
+        poolManager.setCoreFees(poolId, uint24(1000 << 12), 0);
+        (, int128 ownFee) = poolManager.swap(hook, key, _params(true, -1), _delta(-1, 10_000), "other-direction");
+        assertEq(ownFee, 100);
+        assertEq(meme.balanceOf(address(feeVault)), 100);
+        assertEq(hook.poolBinding(poolId).feeNonce, 1);
     }
 
     function test_nonzeroPoolKeyFeeCannotReachCoreOrConsumeNonce() public {

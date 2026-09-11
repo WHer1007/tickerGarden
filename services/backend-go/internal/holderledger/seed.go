@@ -8,6 +8,7 @@ import (
 	"errors"
 	"fmt"
 	"math/big"
+	"strings"
 	"time"
 
 	"tickergarden/backend/internal/analytics"
@@ -152,6 +153,9 @@ func authenticatePristineSeed(ctx context.Context, rpc SeedRPC, c SeedConfig, bl
 	}
 	read := func(target, signature, args string, fields []events.Input) (map[string]any, error) {
 		raw, readErr := rpc.CallAt(ctx, target, selector(signature)+args, block.Hash)
+		if readErr != nil && signature == "treasuryDistributor()" && strings.Contains(strings.ToLower(readErr.Error()), "execution reverted") {
+			raw, readErr = rpc.CallAt(ctx, target, selector("holderRewardsDistributor()")+args, block.Hash)
+		}
 		if readErr != nil {
 			return nil, ErrSeedAuthentication
 		}
@@ -255,7 +259,12 @@ func authenticatePristineSeed(ctx context.Context, rpc SeedRPC, c SeedConfig, bl
 			return fail()
 		}
 	}
-	ledger, err := New(Registration{MarketID: c.Scope.MarketID, Token: c.Scope.Token, TotalSupply: totalSupply, Timestamp: ts, Excluded: exclusions, Balances: balances})
+	modeValue, modeErr := one(c.Scope.Config.Binding.Distributor, "rewardMode()", "", "bytes32")
+	mode, modeOK := modeValue.(string)
+	if modeErr != nil || !modeOK || (mode != deployment.Hash([]byte(deployment.LegacyContinuousHolderMode)) && mode != deployment.Hash([]byte(deployment.BatchedContinuousHolderMode)) && mode != deployment.Hash([]byte(ConfigurableBatchedHolderMode))) {
+		return fail()
+	}
+	ledger, err := New(Registration{Batched: mode == deployment.Hash([]byte(deployment.BatchedContinuousHolderMode)) || mode == deployment.Hash([]byte(ConfigurableBatchedHolderMode)), ConfigurableInterval: mode == deployment.Hash([]byte(ConfigurableBatchedHolderMode)), MarketID: c.Scope.MarketID, Token: c.Scope.Token, TotalSupply: totalSupply, Timestamp: ts, Excluded: exclusions, Balances: balances})
 	if err != nil {
 		return fail()
 	}

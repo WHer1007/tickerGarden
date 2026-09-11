@@ -1,0 +1,11 @@
+{
+  "name": "@tickergarden/jobs",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": "./src/index.ts",
+  "dependencies": {
+    "@upstash/qstash": "^2.11.3",
+    "pg": "^8.23.0"
+  }
+}

@@ -82,8 +82,9 @@ func decodeConversionPool(packed, liquidity []byte) (ConversionPoolState, error)
 		return fail()
 	}
 	protocol, lp := uint24(packed[6:9]), uint24(packed[3:6])
-	// The deployed reward-conversion callback requires both fees to be zero.
-	if protocol != 0 || lp != 0 {
+	// Accept the pinned v4 directional protocol-fee range. LP fees remain disabled.
+	// A successful simulation is still required: older immutable Hooks reject protocol fees.
+	if protocol&0xfff > 1000 || protocol>>12 > 1000 || lp != 0 {
 		return fail()
 	}
 	return ConversionPoolState{SqrtPriceX96: price.String(), Tick: tick, ProtocolFee: protocol, LPFee: lp, ActiveLiquidity: new(big.Int).SetBytes(liquidity).String()}, nil

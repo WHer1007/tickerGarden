@@ -1,13 +1,14 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.26;
+import {V1HolderModeSelection} from "./V1HolderModeSelection.sol";
 
 import {console2} from "forge-std/Script.sol";
 
 import {
     V1DeploymentConfig,
     V1DeploymentPlan,
-    V1DeterministicDeploymentBuilder
-} from "./V1DeterministicDeploymentBuilder.sol";
+    V4DeterministicDeploymentBuilder
+} from "./V4DeterministicDeploymentBuilder.sol";
 import {V1DeploymentPayload} from "./V1DeterministicDeploymentOrchestrator.sol";
 import {
     V1ArbitrumDeploymentOrchestrator as V1DeterministicDeploymentOrchestrator
@@ -83,6 +84,7 @@ contract DeployV1ArbitrumStaged is V1ReleaseGate {
         view
         returns (V1BootstrapContext memory context, V1DeploymentPlan memory plan, V1DeploymentPayload memory payload)
     {
+        V1HolderModeSelection.validate(vm.envOr("V1_DEPLOYMENT_HOLDER_MODE", string("")), true);
         if (deployer == address(0)) revert InvalidConfiguration("V1_EXPECTED_DEPLOYER");
         context.deployer = deployer;
         uint256 expectedChainId = vm.envUint("V1_EXPECTED_CHAIN_ID");
@@ -99,30 +101,23 @@ contract DeployV1ArbitrumStaged is V1ReleaseGate {
         context.orchestratorInitCode = bytes.concat(
             type(V1DeterministicDeploymentOrchestrator).creationCode, abi.encode(context.deployer, context.releaseId)
         );
-        context.orchestratorSalt = V1DeterministicDeploymentBuilder.orchestratorSalt(block.chainid, context.releaseId);
-        context.orchestrator = V1DeterministicDeploymentBuilder.predictCreate2(
+        context.orchestratorSalt = V4DeterministicDeploymentBuilder.orchestratorSalt(block.chainid, context.releaseId);
+        context.orchestrator = V4DeterministicDeploymentBuilder.predictCreate2(
             CANONICAL_CREATE2_DEPLOYER, context.orchestratorSalt, keccak256(context.orchestratorInitCode)
         );
 
-        (context.helperSalt, context.helperSaltAttempts) = V1DeterministicDeploymentBuilder.mineHelperSalt(
+        (context.helperSalt, context.helperSaltAttempts) = V4DeterministicDeploymentBuilder.mineHelperSalt(
             context.orchestrator, context.releaseId, MAXIMUM_HOOK_SALT_ATTEMPTS
         );
-        context.factorySalt = V1DeterministicDeploymentBuilder.factorySalt(block.chainid, context.releaseId);
-        if (_continuousHolderRewards()) {
-            (plan, payload) = V1DeterministicDeploymentBuilder.buildContinuous(
-                context.orchestrator, config, context.helperSalt, context.factorySalt
-            );
-        } else {
-            (plan, payload) = V1DeterministicDeploymentBuilder.build(
-                context.orchestrator, config, context.helperSalt, context.factorySalt
-            );
-        }
-        if (!V1DeterministicDeploymentBuilder.hookMaskMatches(plan.hook)) {
+        context.factorySalt = V4DeterministicDeploymentBuilder.factorySalt(block.chainid, context.releaseId);
+        (plan, payload) = V4DeterministicDeploymentBuilder.build(
+            context.orchestrator, config, context.helperSalt, context.factorySalt
+        );
+        if (!V4DeterministicDeploymentBuilder.hookMaskMatches(plan.hook)) {
             revert InvalidConfiguration("HOOK_PERMISSION_MASK");
         }
     }
 
-    function _continuousHolderRewards() internal pure virtual returns (bool) { return false; }
 
     function _broadcast(
         V1BootstrapContext memory context,
@@ -135,10 +130,15 @@ contract DeployV1ArbitrumStaged is V1ReleaseGate {
         _assertCompletedDeployment(V1DeterministicDeploymentOrchestrator(context.orchestrator), plan);
     }
 
-    function _executeStaged(V1BootstrapContext memory context, V1DeploymentPayload memory payload, V1DeploymentPlan memory plan) internal {
+    function _executeStaged(
+        V1BootstrapContext memory context,
+        V1DeploymentPayload memory payload,
+        V1DeploymentPlan memory plan
+    ) internal {
         if (context.orchestrator.code.length == 0) {
-            (bool success,) =
-                CANONICAL_CREATE2_DEPLOYER.call(bytes.concat(context.orchestratorSalt, context.orchestratorInitCode));
+            (bool success,) = CANONICAL_CREATE2_DEPLOYER.call(
+                bytes.concat(context.orchestratorSalt, context.orchestratorInitCode)
+            );
             if (!success || context.orchestrator.code.length == 0) {
                 revert CanonicalDeploymentFailed(context.orchestrator);
             }
@@ -168,7 +168,6 @@ contract DeployV1ArbitrumStaged is V1ReleaseGate {
             }
             orchestrator.finish(payload);
         }
-
     }
 
     function _loadConfiguration() private view returns (V1DeploymentConfig memory config) {
@@ -181,20 +180,11 @@ contract DeployV1ArbitrumStaged is V1ReleaseGate {
             swapRouter: vm.envAddress("V1_SWAP_ROUTER"),
             quoter: vm.envAddress("V1_QUOTER"),
             platformTreasury: vm.envAddress("V1_PLATFORM_TREASURY"),
-            rootServiceTreasury: vm.envAddress("V1_ROOT_SERVICE_TREASURY"),
-            rootServiceFeeAsset: vm.envAddress("V1_ROOT_SERVICE_FEE_ASSET"),
-            rootServiceFeeAmount: _toUint128("V1_ROOT_SERVICE_FEE_AMOUNT", vm.envUint("V1_ROOT_SERVICE_FEE_AMOUNT")),
-            finalityDelaySeconds: _toUint32("V1_FINALITY_DELAY_SECONDS", vm.envUint("V1_FINALITY_DELAY_SECONDS")),
-            finalityDelayBlocks: _toUint16("V1_FINALITY_DELAY_BLOCKS", vm.envUint("V1_FINALITY_DELAY_BLOCKS")),
-            rootPublicationWindow: _toUint32("V1_ROOT_PUBLICATION_WINDOW", vm.envUint("V1_ROOT_PUBLICATION_WINDOW")),
-            rootReviewDelay: _toUint32("V1_ROOT_REVIEW_DELAY", vm.envUint("V1_ROOT_REVIEW_DELAY")),
-            claimWindow: _toUint32("V1_CLAIM_WINDOW", vm.envUint("V1_CLAIM_WINDOW")),
             feePolicyId: vm.envBytes32("V1_FEE_POLICY_ID")
         });
 
         if (config.initialAdmin == address(0)) revert InvalidConfiguration("V1_INITIAL_ADMIN");
         if (config.platformTreasury == address(0)) revert InvalidConfiguration("V1_PLATFORM_TREASURY");
-        if (config.rootServiceTreasury == address(0)) revert InvalidConfiguration("V1_ROOT_SERVICE_TREASURY");
         if (config.feePolicyId == bytes32(0)) revert InvalidConfiguration("V1_FEE_POLICY_ID");
     }
 

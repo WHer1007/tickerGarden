@@ -1,14 +1,27 @@
 package rewards
 
 import (
+	"fmt"
 	"strings"
 	"testing"
+	"tickergarden/backend/internal/chainrpc"
 	"tickergarden/backend/internal/deployment"
 	"tickergarden/backend/internal/projection"
 )
 
+func convWord(s string) string {
+	s = strings.TrimPrefix(s, "0x")
+	return strings.Repeat("0", 64-len(s)) + s
+}
+func convLog(index uint64, topic0, market, user, epoch, spent, received string) projection.Input {
+	return projection.Input{ChainID: 1, Module: "ProtocolFeeVault", Log: chainrpc.Log{
+		Address: "0x" + strings.Repeat("9", 40), BlockHash: "0x" + strings.Repeat("a", 64), BlockNumber: "0x10", TransactionHash: "0x" + strings.Repeat("b", 64), LogIndex: fmt.Sprintf("0x%x", index),
+		Topics: []string{topic0, "0x" + convWord(market), "0x" + convWord(user), "0x" + convWord(epoch)}, Data: "0x" + convWord(spent) + convWord(received),
+	}}
+}
+
 func claimInput(index uint64, epoch, amount string) projection.Input {
-	in := convLog(index, "", strings.Repeat("1", 64), strings.Repeat("4", 40), epoch, amount, "0", false)
+	in := convLog(index, "", strings.Repeat("1", 64), strings.Repeat("4", 40), epoch, amount, "0")
 	in.Log.Topics = []string{deployment.Hash([]byte("FeeClaimed(uint8,address,bytes32,uint32,address,uint256)")), "0x" + convWord("0"), "0x" + convWord(strings.Repeat("4", 40)), "0x" + strings.Repeat("1", 64)}
 	in.Log.Data = "0x" + convWord(epoch) + convWord(strings.Repeat("2", 40)) + convWord(amount)
 	return in
@@ -35,7 +48,7 @@ func TestClaimsReplayUnboundedAndConversionExcluded(t *testing.T) {
 	if e != nil || totals[0].Amount != "115792089237316195423570985008687907853269984665640564039457584007913129639936" {
 		t.Fatal(totals, e)
 	}
-	in := convLog(1, "0x536d8aaaf2bd3a634add9a0cbb15879e5cd81e4ef97a16fe231d48974e4c49d2", strings.Repeat("1", 64), strings.Repeat("4", 40), "1", "5", "3", false)
+	in := convLog(1, "0x536d8aaaf2bd3a634add9a0cbb15879e5cd81e4ef97a16fe231d48974e4c49d2", strings.Repeat("1", 64), strings.Repeat("4", 40), "1", "5", "3")
 	totals, e = ClaimsFromInputs([]projection.Input{in})
 	if e != nil || len(totals) != 0 {
 		t.Fatal(totals, e)
@@ -108,7 +121,7 @@ func TestClaimAccumulatorRejectedLateInputsPreserveTotals(t *testing.T) {
 func TestClaimAccumulatorConversionsRetainNoState(t *testing.T) {
 	a := newClaimAccumulator()
 	for i := uint64(1); i <= 1000; i++ {
-		if err := a.add(convLog(i, "0x536d8aaaf2bd3a634add9a0cbb15879e5cd81e4ef97a16fe231d48974e4c49d2", strings.Repeat("1", 64), strings.Repeat("4", 40), "1", "5", "3", false)); err != nil {
+		if err := a.add(convLog(i, "0x536d8aaaf2bd3a634add9a0cbb15879e5cd81e4ef97a16fe231d48974e4c49d2", strings.Repeat("1", 64), strings.Repeat("4", 40), "1", "5", "3")); err != nil {
 			t.Fatal(err)
 		}
 	}

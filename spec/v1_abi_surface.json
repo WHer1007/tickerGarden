@@ -420,7 +420,7 @@
           "returns": "(uint256)"
         },
         {
-          "signature": "treasuryDistributor()",
+          "signature": "holderRewardsDistributor()",
           "mutability": "view",
           "caller": "PUBLIC",
           "returns": "(address)"
@@ -705,7 +705,7 @@
           "returns": "(address)"
         },
         {
-          "signature": "treasuryDistributor()",
+          "signature": "holderRewardsDistributor()",
           "mutability": "view",
           "caller": "PUBLIC",
           "returns": "(address)"
@@ -729,12 +729,6 @@
           "returns": "(uint64)"
         },
         {
-          "signature": "burnTreasury(uint256)",
-          "mutability": "nonpayable",
-          "caller": "TREASURY_DISTRIBUTOR_MODULE",
-          "returns": "()"
-        },
-        {
           "signature": "continuousRewardsEnabled()",
           "mutability": "view",
           "caller": "PUBLIC",
@@ -743,14 +737,13 @@
         {
           "signature": "enableContinuousRewards()",
           "mutability": "nonpayable",
-          "caller": "TREASURY_DISTRIBUTOR_MODULE",
+          "caller": "HOLDER_REWARDS_DISTRIBUTOR_MODULE",
           "returns": "()"
         }
       ],
       "events": [
         "Transfer(address indexed from,address indexed to,uint256 value)",
-        "Approval(address indexed owner,address indexed spender,uint256 value)",
-        "TreasuryBurn(address indexed treasuryDistributor,uint256 amount,uint256 totalSupplyAfter)"
+        "Approval(address indexed owner,address indexed spender,uint256 value)"
       ]
     },
     {
@@ -946,7 +939,7 @@
           "signature": "rageQuitRewardCutoff(bytes32,address,bytes32)",
           "mutability": "view",
           "caller": "PUBLIC",
-          "returns": "(uint256,uint256,uint256,bool)"
+          "returns": "(uint256,uint256,uint256)"
         },
         {
           "signature": "freeBalanceOf(bytes32,address)",
@@ -1044,7 +1037,7 @@
           "signature": "settleRageQuitRewards(bytes32,address)",
           "mutability": "nonpayable",
           "caller": "PUBLIC",
-          "returns": "(uint256,uint256,bool)"
+          "returns": "(uint256,uint256)"
         },
         {
           "signature": "rageQuitSettlementPending(bytes32,address)",
@@ -1056,7 +1049,7 @@
           "signature": "rageQuitRewardCutoff(bytes32,address)",
           "mutability": "view",
           "caller": "PUBLIC",
-          "returns": "(uint256,uint256,uint256,bool)"
+          "returns": "(uint256,uint256,uint256)"
         },
         {
           "signature": "rewardEligibleActiveStock(bytes32)",
@@ -1096,9 +1089,9 @@
         }
       ],
       "events": [
-        "AllocationRageQuitExecuted(address indexed user,bytes32 indexed marketId,uint256 principal,uint256 quoteForfeited,uint256 memeForfeited,bool redistributed)",
+        "AllocationRageQuitExecuted(address indexed user,bytes32 indexed marketId,uint256 principal,uint256 quoteForfeited,uint256 memeForfeited)",
         "RageQuitRewardSettlementDeferred(address indexed user,bytes32 indexed marketId,uint256 principal,address gauge)",
-        "RageQuitRewardSettlementFinalized(address indexed user,bytes32 indexed marketId,uint256 principal,uint256 quoteForfeited,uint256 memeForfeited,bool redistributed)"
+        "RageQuitRewardSettlementFinalized(address indexed user,bytes32 indexed marketId,uint256 principal,uint256 quoteForfeited,uint256 memeForfeited)"
       ]
     },
     {
@@ -1139,18 +1132,6 @@
       },
       "functions": [
         {
-          "signature": "consumeForConversion(address,uint256)",
-          "mutability": "nonpayable",
-          "caller": "FEE_VAULT",
-          "returns": "(uint256)"
-        },
-        {
-          "signature": "creditConversion(address,uint256,uint256)",
-          "mutability": "nonpayable",
-          "caller": "FEE_VAULT",
-          "returns": "()"
-        },
-        {
           "signature": "gaugeIdentity()",
           "mutability": "view",
           "caller": "PUBLIC",
@@ -1172,7 +1153,7 @@
           "signature": "rageQuit(address)",
           "mutability": "nonpayable",
           "caller": "ALLOCATION_MODULE",
-          "returns": "(uint256,uint256,uint256,bool)"
+          "returns": "(uint256,uint256,uint256)"
         },
         {
           "signature": "checkpointActivations()",
@@ -1199,10 +1180,16 @@
           "returns": "(uint256,uint256)"
         },
         {
-          "signature": "consumeClaimable(address,address)",
+          "signature": "consumeClaimable(address)",
           "mutability": "nonpayable",
           "caller": "FEE_VAULT",
-          "returns": "(uint256)"
+          "returns": "(uint256,uint256)"
+        },
+        {
+          "signature": "consumeClaimableAssets(address,uint8)",
+          "mutability": "nonpayable",
+          "caller": "FEE_VAULT",
+          "returns": "(uint256,uint256)"
         },
         {
           "signature": "positionOf(address)",
@@ -1251,6 +1238,12 @@
           "mutability": "view",
           "caller": "PUBLIC",
           "returns": "(uint256,uint256)"
+        },
+        {
+          "signature": "restoreUserMemeRewards(address,uint256)",
+          "mutability": "nonpayable",
+          "caller": "FEE_VAULT",
+          "returns": "()"
         }
       ],
       "events": [
@@ -1259,7 +1252,7 @@
         "ActivationBucketProcessed(bytes32 indexed marketId,uint64 indexed generation,uint256 amount,uint256 quoteAccumulator,uint256 memeAccumulator,uint256 refs)",
         "PendingMaterialized(address indexed user,bytes32 indexed marketId,uint64 indexed generation,uint256 amount)",
         "StakerFeeCredited(bytes32 indexed marketId,address indexed feeAsset,bytes32 indexed feeId,uint256 amount,uint256 accumulatorDelta,uint256 indexRemainder)",
-        "GaugeRageQuit(address indexed user,bytes32 indexed marketId,uint256 principal,uint256 quoteForfeited,uint256 memeForfeited,bool redistributed)",
+        "GaugeRageQuit(address indexed user,bytes32 indexed marketId,uint256 principal,uint256 quoteForfeited,uint256 memeForfeited)",
         "ForfeitureRecordDeferred(bytes32 indexed marketId,address indexed user,uint256 quoteAmount,uint256 memeAmount,uint256 totalDeferredQuote,uint256 totalDeferredMeme)",
         "ForfeitureRecordFlushed(bytes32 indexed marketId,uint256 quoteAmount,uint256 memeAmount)"
       ]
@@ -1277,7 +1270,7 @@
       },
       "functions": [
         {
-          "signature": "convertRewards(bytes32,uint256,uint256,uint256)",
+          "signature": "convertRewards(bytes32,uint256,uint256)",
           "mutability": "nonpayable",
           "caller": "FEE_VAULT",
           "returns": "(uint256,uint256)"
@@ -1363,13 +1356,7 @@
     },
     {
       "module": "ProtocolFeeVault",
-      "structs": {
-        "ConversionItem": [
-          "address user",
-          "uint32 creatorEpoch",
-          "uint256 maximumMeme"
-        ]
-      },
+      "structs": {},
       "enums": {
         "BucketType": [
           "CREATOR_REVENUE",
@@ -1378,48 +1365,6 @@
         ]
       },
       "functions": [
-        {
-          "signature": "settleRewards(bytes32,ConversionItem[],uint256,uint256)",
-          "mutability": "nonpayable",
-          "caller": "SETTLEMENT_OPERATOR",
-          "returns": "(uint256,uint256)"
-        },
-        {
-          "signature": "setSettlementOperator(address)",
-          "mutability": "nonpayable",
-          "caller": "FIXED_PLATFORM_BENEFICIARY",
-          "returns": "()"
-        },
-        {
-          "signature": "requestRawRewardExit(bytes32)",
-          "mutability": "nonpayable",
-          "caller": "PUBLIC",
-          "returns": "()"
-        },
-        {
-          "signature": "cancelRawRewardExit(bytes32)",
-          "mutability": "nonpayable",
-          "caller": "PUBLIC",
-          "returns": "()"
-        },
-        {
-          "signature": "rawRewardExitAt(bytes32,address)",
-          "mutability": "view",
-          "caller": "PUBLIC",
-          "returns": "(uint256)"
-        },
-        {
-          "signature": "settlementOperator()",
-          "mutability": "view",
-          "caller": "PUBLIC",
-          "returns": "(address)"
-        },
-        {
-          "signature": "conversionNonce(bytes32)",
-          "mutability": "view",
-          "caller": "PUBLIC",
-          "returns": "(uint256)"
-        },
         {
           "signature": "beginV4Credit(bytes32,address,uint256,uint32,bytes32)",
           "mutability": "nonpayable",
@@ -1445,25 +1390,7 @@
           "returns": "()"
         },
         {
-          "signature": "claimCreator(bytes32,uint32,address)",
-          "mutability": "nonpayable",
-          "caller": "PUBLIC",
-          "returns": "(uint256)"
-        },
-        {
           "signature": "claimPlatform(bytes32,address)",
-          "mutability": "nonpayable",
-          "caller": "PUBLIC",
-          "returns": "(uint256)"
-        },
-        {
-          "signature": "claimStaker(bytes32,address)",
-          "mutability": "nonpayable",
-          "caller": "PUBLIC",
-          "returns": "(uint256)"
-        },
-        {
-          "signature": "claimStakerFor(address,bytes32,address)",
           "mutability": "nonpayable",
           "caller": "PUBLIC",
           "returns": "(uint256)"
@@ -1553,10 +1480,34 @@
           "returns": "(uint256)"
         },
         {
-          "signature": "settleHolderRewards(bytes32,uint32,uint256,uint256,uint256)",
+          "signature": "claimUserRewards(bytes32,uint8,uint32,bool,bool,uint256)",
+          "returns": "(uint256,uint256,uint256)",
           "mutability": "nonpayable",
-          "caller": "SETTLEMENT_OPERATOR",
-          "returns": "(uint256,uint256)"
+          "caller": "PUBLIC"
+        },
+        {
+          "signature": "claimUserRewardAssets(bytes32,uint8,uint32,uint8,bool,bool,uint256)",
+          "returns": "(uint256,uint256,uint256)",
+          "mutability": "nonpayable",
+          "caller": "PUBLIC"
+        },
+        {
+          "signature": "userClaimMode()",
+          "returns": "(bytes32)",
+          "mutability": "pure",
+          "caller": "PUBLIC"
+        },
+        {
+          "signature": "convertUserClaim(bytes32,MarketView,uint256,uint256)",
+          "returns": "(uint256,uint256)",
+          "mutability": "nonpayable",
+          "caller": "FEE_VAULT"
+        },
+        {
+          "signature": "fundHolderMemeRewards(bytes32)",
+          "returns": "(uint256)",
+          "mutability": "nonpayable",
+          "caller": "PUBLIC"
         }
       ],
       "events": [
@@ -1565,13 +1516,9 @@
         "FeeClaimed(uint8 indexed beneficiaryType,address indexed beneficiary,bytes32 indexed marketId,uint32 beneficiaryEpoch,address feeAsset,uint256 amount)",
         "ForfeitureReserved(bytes32 indexed marketId,address indexed user,address indexed feeAsset,uint256 amount,uint256 reserveBalance)",
         "ForfeitureReserveConverted(bytes32 indexed marketId,address indexed feeAsset,uint256 amount)",
-        "SettlementOperatorUpdated(address indexed operator)",
-        "RawRewardExitRequested(bytes32 indexed marketId,address indexed user,uint256 availableAt)",
-        "RawRewardExitCancelled(bytes32 indexed marketId,address indexed user)",
         "RewardConverted(bytes32 indexed marketId,address indexed user,uint32 indexed creatorEpoch,uint256 memeSpent,uint256 quoteReceived)",
-        "RewardBatchConverted(bytes32 indexed marketId,uint256 indexed nonce,address memeAsset,address quoteAsset,uint256 memeSpent,uint256 quoteReceived)",
         "HolderFeesAccrued(bytes32 indexed marketId,uint32 indexed epochId,address indexed feeAsset,uint256 amount)",
-        "HolderRewardsConverted(bytes32 indexed marketId,uint32 indexed epochId,address memeAsset,address quoteAsset,uint256 memeSpent,uint256 quoteReceived)"
+        "UserRewardsClaimed(bytes32 indexed marketId,address indexed user,uint8 indexed role,uint32 creatorEpoch,uint256 quotePaid,uint256 memePaid,uint256 memeRetained,uint256 memeConverted,bool conversionFailed)"
       ]
     },
     {
@@ -1729,251 +1676,6 @@
         "CreatorRevenueBeneficiaryUpdated(bytes32 indexed marketId,uint32 indexed oldEpoch,uint32 indexed newEpoch,address oldBeneficiary,address newBeneficiary)",
         "CreatorRevenueBeneficiaryProposed(bytes32 indexed marketId,uint32 indexed epoch,address indexed currentBeneficiary,address pendingBeneficiary)",
         "CreatorRevenueBeneficiaryTransferCancelled(bytes32 indexed marketId,uint32 indexed epoch)"
-      ]
-    },
-    {
-      "module": "TreasuryDistributorV1",
-      "enums": {
-        "TreasuryEpochStatusV1": [
-          "UNREQUESTED",
-          "REQUESTED",
-          "ROOT_PENDING",
-          "CLAIMING",
-          "ROLLED_OVER"
-        ]
-      },
-      "structs": {
-        "TreasuryMarketV1": [
-          "address memeToken",
-          "address quoteToken",
-          "bytes32 eligibilityPolicyHash",
-          "uint64 activatedAt"
-        ],
-        "RootServiceFeeV1": [
-          "address asset",
-          "uint128 amount"
-        ],
-        "TreasuryEpochV1": [
-          "uint64 requestedAt",
-          "uint64 publishBy",
-          "uint64 finalizeAfter",
-          "uint64 claimUntil",
-          "uint64 sourceBlockNumber",
-          "uint32 leafCount",
-          "TreasuryEpochStatusV1 status",
-          "address requester",
-          "address serviceFeeAsset",
-          "uint128 serviceFeeAmount",
-          "bytes32 sourceBlockHash",
-          "bytes32 merkleRoot",
-          "bytes32 datasetHash",
-          "uint256 quoteAmount",
-          "uint256 claimedAmount",
-          "uint256 totalTwab"
-        ]
-      },
-      "functions": [
-        {
-          "signature": "registerMarket(bytes32,address,address,bytes32)",
-          "mutability": "nonpayable",
-          "caller": "PROTOCOL_ADMIN_ROLE",
-          "returns": "()"
-        },
-        {
-          "signature": "activateMarket(bytes32)",
-          "mutability": "nonpayable",
-          "caller": "PUBLIC",
-          "returns": "()"
-        },
-        {
-          "signature": "setRootServiceFee(address,uint128)",
-          "mutability": "nonpayable",
-          "caller": "PROTOCOL_ADMIN_ROLE",
-          "returns": "()"
-        },
-        {
-          "signature": "fundQuoteTreasury(bytes32,uint256,bytes32)",
-          "mutability": "payable",
-          "caller": "PUBLIC",
-          "returns": "(uint32)"
-        },
-        {
-          "signature": "burnMeme(bytes32,uint256,bytes32)",
-          "mutability": "nonpayable",
-          "caller": "PUBLIC",
-          "returns": "()"
-        },
-        {
-          "signature": "requestRoot(bytes32,uint32)",
-          "mutability": "payable",
-          "caller": "CURRENT_MEME_HOLDER",
-          "returns": "()"
-        },
-        {
-          "signature": "publishRoot(bytes32,uint32,bytes32,bytes32,uint256,uint32,uint256)",
-          "mutability": "nonpayable",
-          "caller": "ROOT_PUBLISHER_ROLE",
-          "returns": "()"
-        },
-        {
-          "signature": "cancelPendingRoot(bytes32,uint32,bytes32)",
-          "mutability": "nonpayable",
-          "caller": "ROOT_REVIEW_ROLE",
-          "returns": "()"
-        },
-        {
-          "signature": "finalizeRoot(bytes32,uint32)",
-          "mutability": "nonpayable",
-          "caller": "PUBLIC",
-          "returns": "()"
-        },
-        {
-          "signature": "expireRootRequest(bytes32,uint32)",
-          "mutability": "nonpayable",
-          "caller": "PUBLIC",
-          "returns": "()"
-        },
-        {
-          "signature": "claim(bytes32,uint32,uint256,address,uint256,uint256,bytes32[])",
-          "mutability": "nonpayable",
-          "caller": "PUBLIC",
-          "returns": "()"
-        },
-        {
-          "signature": "rolloverExpiredEpoch(bytes32,uint32)",
-          "mutability": "nonpayable",
-          "caller": "PUBLIC",
-          "returns": "(uint32,uint256)"
-        },
-        {
-          "signature": "withdrawServiceCredit(address)",
-          "mutability": "nonpayable",
-          "caller": "SERVICE_BENEFICIARY",
-          "returns": "(uint256)"
-        },
-        {
-          "signature": "marketRegistry()",
-          "mutability": "view",
-          "caller": "PUBLIC",
-          "returns": "(address)"
-        },
-        {
-          "signature": "market(bytes32)",
-          "mutability": "view",
-          "caller": "PUBLIC",
-          "returns": "(TreasuryMarketV1)"
-        },
-        {
-          "signature": "epoch(bytes32,uint32)",
-          "mutability": "view",
-          "caller": "PUBLIC",
-          "returns": "(TreasuryEpochV1)"
-        },
-        {
-          "signature": "rootServiceFee()",
-          "mutability": "view",
-          "caller": "PUBLIC",
-          "returns": "(RootServiceFeeV1)"
-        },
-        {
-          "signature": "epochWindow(bytes32,uint32)",
-          "mutability": "view",
-          "caller": "PUBLIC",
-          "returns": "(uint64,uint64)"
-        },
-        {
-          "signature": "currentEpochId(bytes32)",
-          "mutability": "view",
-          "caller": "PUBLIC",
-          "returns": "(uint32)"
-        },
-        {
-          "signature": "epochQuoteAmount(bytes32,uint32)",
-          "mutability": "view",
-          "caller": "PUBLIC",
-          "returns": "(uint256)"
-        },
-        {
-          "signature": "serviceCredit(address,address)",
-          "mutability": "view",
-          "caller": "PUBLIC",
-          "returns": "(uint256)"
-        },
-        {
-          "signature": "totalQuoteLiability(address)",
-          "mutability": "view",
-          "caller": "PUBLIC",
-          "returns": "(uint256)"
-        },
-        {
-          "signature": "totalServiceLiability(address)",
-          "mutability": "view",
-          "caller": "PUBLIC",
-          "returns": "(uint256)"
-        },
-        {
-          "signature": "isClaimed(bytes32,uint32,uint256)",
-          "mutability": "view",
-          "caller": "PUBLIC",
-          "returns": "(bool)"
-        },
-        {
-          "signature": "accountClaimed(bytes32,uint32,address)",
-          "mutability": "view",
-          "caller": "PUBLIC",
-          "returns": "(bool)"
-        },
-        {
-          "signature": "operationConsumed(address,bool,bytes32)",
-          "mutability": "view",
-          "caller": "PUBLIC",
-          "returns": "(bool)"
-        },
-        {
-          "signature": "claimLeaf(bytes32,uint32,uint256,address,uint256,uint256)",
-          "mutability": "view",
-          "caller": "PUBLIC",
-          "returns": "(bytes32)"
-        },
-        {
-          "signature": "registerFeeSharingMarket(bytes32,address,address)",
-          "mutability": "nonpayable",
-          "caller": "FACTORY_MODULE",
-          "returns": "()"
-        },
-        {
-          "signature": "fundCreatorFees(bytes32,uint32,uint256)",
-          "mutability": "payable",
-          "caller": "FEE_VAULT",
-          "returns": "()"
-        },
-        {
-          "signature": "feeSharingVault(bytes32)",
-          "mutability": "view",
-          "caller": "PUBLIC",
-          "returns": "(address)"
-        },
-        {
-          "signature": "feeSharingExcludedAccounts(bytes32)",
-          "mutability": "view",
-          "caller": "PUBLIC",
-          "returns": "(address[])"
-        }
-      ],
-      "events": [
-        "TreasuryMarketRegistered(bytes32 indexed marketId,address indexed memeToken,address indexed quoteToken,bytes32 eligibilityPolicyHash)",
-        "TreasuryMarketActivated(bytes32 indexed marketId,uint64 activatedAt)",
-        "RootServiceFeeUpdated(address indexed asset,uint128 amount)",
-        "QuoteTreasuryFunded(bytes32 indexed marketId,uint32 indexed epochId,address indexed funder,address quoteToken,bytes32 fundingId,uint256 amount)",
-        "MemeTreasuryBurned(bytes32 indexed marketId,address indexed funder,address indexed memeToken,bytes32 burnId,uint256 amount,uint256 totalSupplyAfter)",
-        "RootRequested(bytes32 indexed marketId,uint32 indexed epochId,address indexed requester,uint64 windowStart,uint64 windowEnd,uint64 sourceBlockNumber,bytes32 sourceBlockHash,uint256 quoteAmount,address serviceFeeAsset,uint128 serviceFeeAmount,uint64 publishBy)",
-        "RootPublished(bytes32 indexed marketId,uint32 indexed epochId,bytes32 indexed merkleRoot,bytes32 datasetHash,uint256 totalTwab,uint32 leafCount,uint64 finalizeAfter)",
-        "PendingRootCancelled(bytes32 indexed marketId,uint32 indexed epochId,bytes32 indexed reasonHash)",
-        "RootFinalized(bytes32 indexed marketId,uint32 indexed epochId,bytes32 indexed merkleRoot,uint64 claimUntil)",
-        "RootRequestExpired(bytes32 indexed marketId,uint32 indexed epochId,address indexed requester)",
-        "TreasuryClaimed(bytes32 indexed marketId,uint32 indexed epochId,uint256 indexed leafIndex,address account,uint256 twab,uint256 amount)",
-        "EpochRemainderRolledOver(bytes32 indexed marketId,uint32 indexed fromEpochId,uint32 indexed toEpochId,uint256 amount)",
-        "ServiceCreditWithdrawn(address indexed asset,address indexed beneficiary,uint256 amount)"
       ]
     }
   ],

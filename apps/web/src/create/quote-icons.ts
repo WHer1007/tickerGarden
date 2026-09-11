@@ -13,3 +13,7 @@ const icons = new Map(
 export function quoteIconUrl(symbol: string): string | undefined {
   return icons.get(quoteIconFilename(symbol));
 }
+
+export function assetLogoUrl(filename: string): string | undefined {
+  return icons.get(filename);
+}

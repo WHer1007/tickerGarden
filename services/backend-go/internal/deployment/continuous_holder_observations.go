@@ -41,7 +41,7 @@ func observeContinuousHolders(ctx context.Context, rpc BindingObserver, m Manife
 	if e != nil {
 		return fail(e)
 	}
-	if mode != Hash([]byte("TICKERGARDEN_HOLDER_STREAM_24H_V1")) {
+	if !SupportedContinuousHolderMode(mode) {
 		return fail(errors.New("unknown continuous Holder mode"))
 	}
 	duration, e := single(distributor, "STREAM_DURATION()", "", "uint256")
@@ -112,8 +112,27 @@ func observeContinuousHolders(ctx context.Context, rpc BindingObserver, m Manife
 		if e != nil {
 			return fail(e)
 		}
+		if mode == Hash([]byte(DualAssetContinuousHolderMode)) {
+			memeState, err := read(distributor, "memeMarketState(bytes32)", id[2:], continuousMarketFields)
+			if err != nil {
+				return fail(err)
+			}
+			if memeState["token"] != token || memeState["quote"] != token || memeState["vault"] != roots["ProtocolFeeVault"] || memeState["supply"] != v["supply"] {
+				return fail(errors.New("dual Holder binding or supply mismatch"))
+			}
+			mf, mp := number(memeState["funded"].(string)), number(memeState["paid"].(string))
+			if mp.Cmp(mf) > 0 {
+				return fail(errors.New("dual Holder Meme paid exceeds funding"))
+			}
+			if sums[token] == nil {
+				sums[token] = new(big.Int)
+			}
+			sums[token].Add(sums[token], new(big.Int).Sub(mf, mp))
+			v["memeRewards"] = memeState
+		}
 		v["marketId"] = id
 		v["rewardMode"] = "continuous-24h"
+		v["rewardModeHash"] = mode
 		v["treasuryDistributor"] = distributor
 		v["treasuryRuntimeCodeHash"] = Hash(code)
 		v["streamDuration"] = duration

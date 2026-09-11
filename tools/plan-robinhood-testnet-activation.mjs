@@ -117,7 +117,7 @@ const plan = {
   releaseId,
   deployer: deployment.deployer,
   auditBlock: {number: String(block.number), hash: block.hash, timestamp: String(block.timestamp)},
-  preconditions: {runtimeDeploymentVerified: true, settlementOperatorConfigured: true, adminRole: '0', adminExecutionDelaySeconds: 0, registryCallsImmediate: true, candidateIdsUnused: true, fixtureAddressEmpty: true},
+  preconditions: {runtimeDeploymentVerified: true, currentUserClaimModeRequired: true, adminRole: '0', adminExecutionDelaySeconds: 0, registryCallsImmediate: true, candidateIdsUnused: true, fixtureAddressEmpty: true},
   economics: {supplyRaw: String(supply), curveFeeBps: 100, phantomQuoteRaw: String(phantomQuote), graduationThresholdRaw: String(graduationThreshold), graduationThresholdEth: '0.42', pairedAsset: 'NATIVE_ETH'},
   identifiers: {baselineId, quoteId, templateId},
   expected: {fixture, baseline, quote, template},

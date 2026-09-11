@@ -4,7 +4,7 @@ import {fileURLToPath} from 'node:url';
 import {keccak256, decodeFunctionData} from '../apps/web/node_modules/viem/_esm/index.js';
 
 const root=fileURLToPath(new URL('../',import.meta.url));
-export const ordinaryArtifactNames=['AccessManager','OfficialStockRegistryV1','ApprovedQuoteRegistry','TickerGardenBaselineRegistry','LaunchTemplateRegistry','LaunchConfigResolver','TickerMemeTokenV1Implementation','TickerGardenCurveImplementation','MemeStockGauge','LaunchAndBuyRouter','MarketRegistryV1','CreatorRevenueRegistry','AllocationManager','UserStockVault','TreasuryDistributorV1','ProtocolFeeVault'];
+export const ordinaryArtifactNames=['AccessManager','OfficialStockRegistryV1','ApprovedQuoteRegistry','TickerGardenBaselineRegistry','LaunchTemplateRegistry','LaunchConfigResolver','TickerMemeTokenV1Implementation','TickerGardenCurveImplementation','MemeStockGauge','LaunchAndBuyRouter','MarketRegistryV1','CreatorRevenueRegistry','AllocationManager','UserStockVault','HolderRewardsDistributorV1','ProtocolFeeVault'];
 const fileName=n=>['TickerMemeTokenV1Implementation','TickerGardenCurveImplementation'].includes(n)?'TickerGardenFactoryV1':n;
 export function assertArtifactSourcesCurrent(artifact, contractsRoot, label='artifact') {
  const metadata=typeof artifact.metadata==='string'?JSON.parse(artifact.metadata):artifact.metadata;

@@ -127,20 +127,15 @@ func Build(observations []deployment.StateObservation, claims []ClaimTotal) ([]d
 			return fail()
 		}
 		assets[market] = pair
-		exitAt, ts := text(v, "rawRewardExitAt"), text(v, "observedAtTimestamp")
-		ready, ok := v["rawRewardExitReady"].(bool)
-		if !ok || !number(exitAt, 256) || !number(ts, 64) {
+		ts := text(v, "observedAtTimestamp")
+		if !number(ts, 64) {
 			return fail()
 		}
 		if observedTimestamp != "" && observedTimestamp != ts {
 			return fail()
 		}
 		observedTimestamp = ts
-		exitNum, _ := new(big.Int).SetString(exitAt, 10)
 		timeNum, _ := new(big.Int).SetString(ts, 10)
-		if ready != (exitNum.Sign() > 0 && exitNum.Cmp(timeNum) <= 0) {
-			return fail()
-		}
 		phase, exists := phases[market]
 		if !exists {
 			return fail()
@@ -195,8 +190,8 @@ func Build(observations []deployment.StateObservation, claims []ClaimTotal) ([]d
 					conversionStatus = "not_graduated"
 				case pending:
 					conversionStatus = "rage_quit_pending"
-				case ready:
-					conversionStatus = "raw_exit_ready"
+				case !lockSatisfied:
+					conversionStatus = "position_locked"
 				default:
 					conversionStatus, candidate = "candidate", amounts[i]
 				}
@@ -209,10 +204,6 @@ func Build(observations []deployment.StateObservation, claims []ClaimTotal) ([]d
 				claimStatus = "rage_quit_pending"
 			case !lockSatisfied:
 				claimStatus = "position_locked"
-			case i == 1 && exitAt == "0":
-				claimStatus = "raw_exit_required"
-			case i == 1 && !ready:
-				claimStatus = "raw_exit_waiting"
 			}
 			claimCandidate := "0"
 			if claimStatus == "candidate" {
@@ -221,8 +212,8 @@ func Build(observations []deployment.StateObservation, claims []ClaimTotal) ([]d
 			out[key] = deployment.StateObservation{Kind: "rewardPosition", Key: key, Value: map[string]any{
 				"marketId": market, "feeAsset": asset, "assetKind": kind, "beneficiaryType": role, "beneficiary": user, "beneficiaryEpoch": epoch,
 				"unpaidAmount": amounts[i], "observedClaimedAmount": amount, "observedClaimCount": count, "firstClaimEventKey": first,
-				"rawRewardExitAt": exitAt, "rawRewardExitReady": ready, "observedAtTimestamp": ts,
-				"historyComplete": false, "publicationEligible": false,
+				"observedAtTimestamp": ts,
+				"historyComplete":     false, "publicationEligible": false,
 				"claimStatus": claimStatus, "claimCandidateAmount": claimCandidate,
 				"positionUnlockAt": unlockAt, "positionLockSatisfied": lockSatisfied,
 				"conversionStatus": conversionStatus, "conversionCandidateAmount": candidate,

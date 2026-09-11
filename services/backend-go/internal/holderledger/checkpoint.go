@@ -40,7 +40,14 @@ func DecodeCheckpoint(raw []byte) (*Ledger, error) {
 	return &l, nil
 }
 func checkpointValid(l *Ledger) bool {
-	if l == nil || !hash.MatchString(l.MarketID) || l.MarketID == "0x"+string(bytes.Repeat([]byte("0"), 64)) || !address.MatchString(l.Token) || l.Token == zero || l.Head >= MaxStreams || len(l.Streams) > MaxStreams || l.Streams == nil || l.Accounts == nil || len(l.Accounts) > 10000 || len(l.Excluded) > 9 || !l.Excluded[zero] || !l.Excluded[l.Token] || l.UpdatedAt > ^uint64(0)-Duration || l.LastFundingAt > l.UpdatedAt {
+	if l == nil {
+		return false
+	}
+	interval := l.FundingInterval
+	if interval == 0 {
+		interval = FundingInterval
+	}
+	if !hash.MatchString(l.MarketID) || l.MarketID == "0x"+string(bytes.Repeat([]byte("0"), 64)) || !address.MatchString(l.Token) || l.Token == zero || (l.ConfigurableInterval && (!l.Batched || interval < MinFundingInterval || interval > MaxFundingInterval)) || (!l.ConfigurableInterval && interval != FundingInterval) || int(l.Head) >= l.maxStreams() || len(l.Streams) > l.maxStreams() || l.Streams == nil || l.Accounts == nil || len(l.Accounts) > 10000 || len(l.Excluded) > 9 || !l.Excluded[zero] || !l.Excluded[l.Token] || l.UpdatedAt > ^uint64(0)-Duration || l.LastFundingAt > l.UpdatedAt || l.LastStreamStartedAt > l.UpdatedAt || (!l.Batched && l.LastStreamStartedAt != 0) {
 		return false
 	}
 	validInt := func(n *big.Int) bool { return n != nil && n.Sign() >= 0 && n.BitLen() <= 256 }

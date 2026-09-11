@@ -32,7 +32,9 @@ contract TickerGardenBaselineRegistry is ITickerGardenBaselineRegistry, Immutabl
                 || value.tickSpacing < 1 || value.tickSpacing > 32_767 || value.behaviorVectorRoot == bytes32(0)
                 || value.status != BASELINE_STATUS_ACTIVE
         ) revert InvalidTickerGardenBaseline(baselineId);
-        if (_baselines[baselineId].status != BASELINE_STATUS_UNSET) revert TickerGardenBaselineAlreadyExists(baselineId);
+        if (_baselines[baselineId].status != BASELINE_STATUS_UNSET) {
+            revert TickerGardenBaselineAlreadyExists(baselineId);
+        }
 
         address referenceFactory = value.referenceFactory;
         bytes32 observedHash = referenceFactory.codehash;

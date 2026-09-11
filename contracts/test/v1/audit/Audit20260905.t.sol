@@ -82,7 +82,8 @@ contract Audit20260905ScannerTest is Test {
 
 contract Audit20260905AdmissionTest is Test {
     function test_audit_baselineRejectsFeeAboveCurveLimit() public {
-        TickerGardenBaselineRegistry registry = new TickerGardenBaselineRegistry(address(new AccessManager(address(this))));
+        TickerGardenBaselineRegistry registry =
+            new TickerGardenBaselineRegistry(address(new AccessManager(address(this))));
         address referenceFactory = address(new EmptyV1Contract());
         TickerGardenBaseline memory baseline = TickerGardenBaseline({
             referenceChainId: block.chainid,
@@ -162,7 +163,9 @@ contract Audit20260905RewardsTest is Test {
         assertEq(feeVault.recordedQuoteForfeiture(), 999);
         vm.warp(gaugeA.positionOf(BOB).unlockAt);
         vm.prank(address(feeVault));
-        assertEq(gaugeA.consumeClaimable(BOB, address(quote)), 1);
+        (uint256 q, uint256 m) = gaugeA.consumeClaimable(BOB);
+        assertEq(q, 1);
+        assertEq(m, 0);
     }
 
     function _auditStake(address user, uint256 amount) private {

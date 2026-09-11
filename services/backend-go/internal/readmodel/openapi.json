@@ -2,7 +2,7 @@
   "openapi": "3.1.0",
   "info": {
     "title": "TickerGarden V1 Read API",
-    "version": "2.26.0",
+    "version": "3.0.0",
     "description": "Non-custodial read API with published snapshots and explicitly incomplete finalized reward observations."
   },
   "x-execution-spec-id": "V1-EXEC-11",
@@ -651,11 +651,8 @@
               "type": "string",
               "enum": [
                 "1H",
-                "6H",
-                "1D",
-                "1W",
-                "1M",
-                "ALL"
+                "12H",
+                "1D"
               ]
             }
           }
@@ -1020,6 +1017,41 @@
         }
       }
     },
+    "/v1/market-statistics": {
+      "get": {
+        "operationId": "getMarketStatistics",
+        "description": "Display-only cached market cap and last observed buy, independent of financial snapshot synchronization. Queues at most 100 registry-bound market IDs; never performs RPC in the request. Unknown historical buys remain null.",
+        "parameters": [
+          {
+            "name": "markets",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "maxLength": 6699
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MarketStatisticsResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid market list"
+          },
+          "405": {
+            "description": "Read only"
+          }
+        }
+      }
+    },
     "/v1/markets": {
       "get": {
         "operationId": "listMarkets",
@@ -1108,7 +1140,8 @@
                 "name_asc",
                 "launchPhase_asc",
                 "volume24hUsd_desc",
-                "marketCapUsd_desc"
+                "marketCapUsd_desc",
+                "recentBuy_desc"
               ]
             },
             "description": "ID, deployment-time, name, lifecycle-phase, 24-hour USD volume or USD market-cap order, with ascending marketId as tie-breaker. USD sorts use one revision-cached complete directory and place unavailable values last. Filters apply to the full revision-pinned catalog before pagination. Cursors are bound to normalized filters and sort."
@@ -3330,11 +3363,8 @@
             "type": "string",
             "enum": [
               "1H",
-              "6H",
-              "1D",
-              "1W",
-              "1M",
-              "ALL"
+              "12H",
+              "1D"
             ]
           },
           "statistics": {
@@ -3920,9 +3950,7 @@
               "candidate",
               "no_rewards",
               "rage_quit_pending",
-              "position_locked",
-              "raw_exit_required",
-              "raw_exit_waiting"
+              "position_locked"
             ]
           },
           "claimCandidateAmount": {
@@ -3945,7 +3973,7 @@
               "no_rewards",
               "not_graduated",
               "rage_quit_pending",
-              "raw_exit_ready",
+              "position_locked",
               "candidate"
             ]
           },
@@ -4005,13 +4033,6 @@
               }
             ]
           },
-          "rawRewardExitAt": {
-            "type": "string",
-            "pattern": "^(0|[1-9][0-9]*)$"
-          },
-          "rawRewardExitReady": {
-            "type": "boolean"
-          },
           "observedAtTimestamp": {
             "type": "string",
             "pattern": "^(0|[1-9][0-9]*)$"
@@ -4042,8 +4063,6 @@
           "observedClaimedAmount",
           "observedClaimCount",
           "firstClaimEventKey",
-          "rawRewardExitAt",
-          "rawRewardExitReady",
           "observedAtTimestamp",
           "historyComplete",
           "publicationEligible"
@@ -4436,6 +4455,81 @@
           "readyToGraduate"
         ]
       },
+      "MarketStatisticsResponse": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "chainId": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "registry": {
+            "type": "string",
+            "pattern": "^0x[0-9a-f]{40}$"
+          },
+          "displayOnly": {
+            "type": "boolean",
+            "const": true
+          },
+          "items": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "marketId": {
+                  "type": "string",
+                  "pattern": "^0x[0-9a-f]{64}$"
+                },
+                "metrics": {
+                  "oneOf": [
+                    {
+                      "$ref": "#/components/schemas/MarketMetricsReadModel"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "lastBuy": {
+                  "oneOf": [
+                    {
+                      "$ref": "#/components/schemas/LastBuyReadModel"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "observedAt": {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "launchPhase": {
+                  "type": "string",
+                  "enum": [
+                    "0",
+                    "1"
+                  ]
+                }
+              },
+              "required": [
+                "marketId",
+                "metrics",
+                "lastBuy",
+                "observedAt",
+                "launchPhase"
+              ]
+            }
+          }
+        },
+        "required": [
+          "chainId",
+          "registry",
+          "displayOnly",
+          "items"
+        ]
+      },
       "MarketReadModel": {
         "type": "object",
         "additionalProperties": false,
@@ -4518,6 +4612,9 @@
           },
           "metrics": {
             "$ref": "#/components/schemas/MarketMetricsReadModel"
+          },
+          "lastBuy": {
+            "$ref": "#/components/schemas/LastBuyReadModel"
           }
         },
         "required": [
@@ -4580,6 +4677,34 @@
           "blockNumber",
           "blockHash",
           "runtimeCodeHash"
+        ]
+      },
+      "LastBuyReadModel": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "blockNumber": {
+            "type": "string",
+            "pattern": "^(0|[1-9][0-9]*)$"
+          },
+          "transactionIndex": {
+            "type": "string",
+            "pattern": "^(0|[1-9][0-9]*)$"
+          },
+          "logIndex": {
+            "type": "string",
+            "pattern": "^(0|[1-9][0-9]*)$"
+          },
+          "timestamp": {
+            "type": "string",
+            "pattern": "^(0|[1-9][0-9]*)$"
+          }
+        },
+        "required": [
+          "blockNumber",
+          "transactionIndex",
+          "logIndex",
+          "timestamp"
         ]
       },
       "MarketMetricsReadModel": {
@@ -4653,7 +4778,9 @@
               {
                 "type": "string",
                 "enum": [
-                  "robinhood_rest"
+                  "robinhood_rest",
+                  "coinbase_spot",
+                  "testnet_pool_spot"
                 ]
               },
               {
@@ -4667,7 +4794,10 @@
           },
           "marketCapBasis": {
             "type": "string",
-            "const": "BASELINE_TOTAL_SUPPLY_X_LATEST_FINALIZED_24H_EXECUTION_PRICE"
+            "enum": [
+              "BASELINE_TOTAL_SUPPLY_X_LATEST_FINALIZED_24H_EXECUTION_PRICE",
+              "TOTAL_SUPPLY_X_POOL_SPOT_X_QUOTE_USD"
+            ]
           }
         },
         "required": [

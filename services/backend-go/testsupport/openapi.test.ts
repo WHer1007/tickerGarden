@@ -12,14 +12,15 @@ const id = (value: string): `0x${string}` => `0x${value.padStart(64, "0")}`;
 const address = (value: string): `0x${string}` => `0x${value.padStart(40, "0")}`;
 const spec = JSON.parse(await readFile(new URL("../openapi/v1.json", import.meta.url), "utf8"));
 
-test("OpenAPI publishes the nineteen read endpoints and no write operation", () => {
+test("OpenAPI publishes the twenty read endpoints and no write operation", () => {
   assert.equal(spec.openapi, "3.1.0");
-  assert.equal(spec.info.version, "2.26.0");
+  assert.equal(spec.info.version, "3.0.0");
   assert.equal(spec["x-execution-spec-id"], "V1-EXEC-11");
   assert.deepEqual(Object.keys(spec.paths).sort(), [
     "/health",
     "/v1/assets/{assetUid}/statistics",
     "/v1/config/{kind}",
+    "/v1/market-statistics",
     "/v1/markets",
     "/v1/markets/{marketId}",
     "/v1/markets/{marketId}/candles",

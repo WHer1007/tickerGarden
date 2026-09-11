@@ -70,7 +70,8 @@ contract LaunchConfigResolverTest is Test {
     function test_resolveForwardsTypedSnapshotsFromEachRegistry() public {
         QuoteAssetConfig memory quote =
             _quote(bytes32(uint256(0x1111)), address(0x1001), 6, 11, 22, bytes32(uint256(0xaaaa)), 1);
-        TickerGardenBaseline memory baseline = _baseline(4663, address(0x2001), 33, 44, 55, 66, bytes32(uint256(0xbbbb)), 1);
+        TickerGardenBaseline memory baseline =
+            _baseline(4663, address(0x2001), 33, 44, 55, 66, bytes32(uint256(0xbbbb)), 1);
         LaunchTemplate memory template = _template(1);
         quotes.setQuoteConfig(QUOTE_ID_A, quote);
         baselines.setBaseline(BASELINE_ID_A, baseline);
@@ -93,7 +94,8 @@ contract LaunchConfigResolverTest is Test {
         QuoteAssetConfig memory quoteB =
             _quote(bytes32(uint256(0xbbbb)), address(0x1002), 18, 3, 4, bytes32(uint256(0x2222)), 2);
         TickerGardenBaseline memory baselineA = _baseline(1, address(0x2001), 5, 6, 7, 8, bytes32(uint256(0x3333)), 1);
-        TickerGardenBaseline memory baselineB = _baseline(2, address(0x2002), 9, 10, 11, 12, bytes32(uint256(0x4444)), 2);
+        TickerGardenBaseline memory baselineB =
+            _baseline(2, address(0x2002), 9, 10, 11, 12, bytes32(uint256(0x4444)), 2);
         LaunchTemplate memory templateA = _templateWithSeed(bytes32(uint256(0x5555)), 1);
         LaunchTemplate memory templateB = _templateWithSeed(bytes32(uint256(0x6666)), 2);
 

@@ -192,8 +192,8 @@ contract FactoryDependencyMock {
         return (_vaultRegistry, _vaultMarketRegistry, _vaultAllocationManager, _vaultSchemaId);
     }
 
-    function rageQuitRewardCutoff(bytes32, address) external pure returns (uint256, uint256, uint256, bool) {
-        return (0, 0, 0, false);
+    function rageQuitRewardCutoff(bytes32, address) external pure returns (uint256, uint256, uint256) {
+        return (0, 0, 0);
     }
 }
 
@@ -423,40 +423,65 @@ contract FactoryV4PoolManagerMock {
     mapping(bytes32 => bytes32) private transientValues;
     uint256 public nativeCost;
 
-    function configure(address quote_, uint256 nativeCost_) external { quote = quote_; nativeCost = nativeCost_; }
+    function configure(address quote_, uint256 nativeCost_) external {
+        quote = quote_;
+        nativeCost = nativeCost_;
+    }
+
     function unlock(bytes calldata data) external returns (bytes memory result) {
         locker = msg.sender;
         result = IFactoryUnlockCallback(msg.sender).unlockCallback(data);
         require(_delta(msg.sender, address(0)) == 0 && _delta(msg.sender, quote) == 0, "OPEN_DELTA");
         locker = address(0);
     }
+
     function swap(PoolKey calldata key, SwapParams calldata params, bytes calldata) external returns (BalanceDelta) {
-        require(msg.sender == locker && Currency.unwrap(key.currency0) == address(0) && Currency.unwrap(key.currency1) == quote, "BAD_POOL");
+        require(
+            msg.sender == locker && Currency.unwrap(key.currency0) == address(0)
+                && Currency.unwrap(key.currency1) == quote,
+            "BAD_POOL"
+        );
         uint256 output = uint256(params.amountSpecified);
-        require(output <= uint256(uint128(type(int128).max)) && nativeCost <= uint256(uint128(type(int128).max)), "RANGE");
+        require(
+            output <= uint256(uint128(type(int128).max)) && nativeCost <= uint256(uint128(type(int128).max)), "RANGE"
+        );
         _setDelta(msg.sender, address(0), -int256(nativeCost));
         _setDelta(msg.sender, quote, int256(output));
         return toBalanceDelta(-int128(int256(nativeCost)), int128(int256(output)));
     }
     function sync(Currency) external {}
+
     function settle() external payable returns (uint256 paid) {
         require(msg.sender == locker && msg.value == uint256(-_delta(msg.sender, address(0))), "BAD_SETTLE");
         _setDelta(msg.sender, address(0), 0);
         return msg.value;
     }
+
     function take(Currency currency, address to, uint256 amount) external {
         address token = Currency.unwrap(currency);
         require(msg.sender == locker && _delta(msg.sender, token) == int256(amount), "BAD_TAKE");
         _setDelta(msg.sender, token, 0);
         require(FactoryToggleApproveQuoteToken(token).transfer(to, amount), "TRANSFER");
     }
-    function exttload(bytes32 slot) external view returns (bytes32) { return transientValues[slot]; }
+
+    function exttload(bytes32 slot) external view returns (bytes32) {
+        return transientValues[slot];
+    }
+
     function exttload(bytes32[] calldata slots) external view returns (bytes32[] memory values) {
         values = new bytes32[](slots.length);
-        for (uint256 i; i < slots.length; ++i) values[i] = transientValues[slots[i]];
+        for (uint256 i; i < slots.length; ++i) {
+            values[i] = transientValues[slots[i]];
+        }
     }
-    function _setDelta(address target, address token, int256 value) private { transientValues[keccak256(abi.encode(target, token))] = bytes32(uint256(value)); }
-    function _delta(address target, address token) private view returns (int256) { return int256(uint256(transientValues[keccak256(abi.encode(target, token))])); }
+
+    function _setDelta(address target, address token, int256 value) private {
+        transientValues[keccak256(abi.encode(target, token))] = bytes32(uint256(value));
+    }
+
+    function _delta(address target, address token) private view returns (int256) {
+        return int256(uint256(transientValues[keccak256(abi.encode(target, token))]));
+    }
     receive() external payable {}
 }
 
@@ -528,7 +553,8 @@ contract TickerGardenFactoryV1Test is Test {
         FactoryAddressDeployer deployer = new FactoryAddressDeployer();
         address predictedFactory = vm.computeCreateAddress(address(deployer), 1);
         fallbackPoolManager = new FactoryV4PoolManagerMock();
-        router = new LaunchAndBuyRouter(predictedFactory, address(quoteConfigs), address(fallbackPoolManager), 10_000, 200);
+        router =
+            new LaunchAndBuyRouter(predictedFactory, address(quoteConfigs), address(fallbackPoolManager), 10_000, 200);
         tokenImplementation = new TickerMemeTokenV1Implementation();
         curveImplementation = new TickerGardenCurveImplementation();
         gaugeImplementation = new MemeStockGauge();
@@ -603,7 +629,7 @@ contract TickerGardenFactoryV1Test is Test {
         assertEq(address(factory.marketRegistry()), address(marketRegistry));
         assertEq(address(factory.creatorRevenueRegistry()), address(revenueRegistry));
         assertEq(factory.platformTreasury(), address(treasury));
-        assertEq(factory.treasuryDistributor(), address(treasury));
+        assertEq(factory.holderRewardsDistributor(), address(treasury));
     }
 
     function test_eachConfigRegistryMustShareOneCodeBearingAccessManager() public {
@@ -757,7 +783,7 @@ contract TickerGardenFactoryV1Test is Test {
                     marketId: marketId,
                     creator: CREATOR,
                     predictedCurve: predictedCurve,
-                    treasuryDistributor: address(treasury),
+                    holderRewardsDistributor: address(treasury),
                     name: params.name,
                     symbol: params.symbol,
                     metadataURI: params.metadataURI,
@@ -886,7 +912,7 @@ contract TickerGardenFactoryV1Test is Test {
                 marketId: marketId,
                 creator: CREATOR,
                 predictedCurve: wrongCurve,
-                treasuryDistributor: address(treasury),
+                holderRewardsDistributor: address(treasury),
                 name: params.name,
                 symbol: params.symbol,
                 metadataURI: params.metadataURI,
@@ -1071,7 +1097,8 @@ contract TickerGardenFactoryV1Test is Test {
         baseline.status = 2;
         baselineConfigs.setBaseline(BASELINE_ID, baseline);
         _expectFactoryCreateRevert(
-            params, abi.encodeWithSelector(V1FactoryValidation.InactiveTickerGardenBaseline.selector, BASELINE_ID, uint8(2))
+            params,
+            abi.encodeWithSelector(V1FactoryValidation.InactiveTickerGardenBaseline.selector, BASELINE_ID, uint8(2))
         );
         _setValidConfiguration(address(quote));
 
@@ -1531,9 +1558,8 @@ contract TickerGardenFactoryV1Test is Test {
         assertEq(quote.allowance(CREATOR, address(router)), 0);
 
         vm.prank(CREATOR);
-        (bytes32 marketId, address token, uint256 tokensOut, uint256 nativeRefund) = router.launchAndBuy{
-            value: LAUNCH_FEE + maxNativeInput
-        }(params, firstBuyAmount, 1, CREATOR);
+        (bytes32 marketId, address token, uint256 tokensOut, uint256 nativeRefund) =
+            router.launchAndBuy{value: LAUNCH_FEE + maxNativeInput}(params, firstBuyAmount, 1, CREATOR);
 
         assertGt(tokensOut, 0);
         assertEq(TickerMemeTokenV1(token).balanceOf(CREATOR), tokensOut);
@@ -1912,8 +1938,9 @@ contract TickerGardenFactoryV1Test is Test {
 
     function test_launchAndBuyRouterRejectsFactoryRegistryBindingDrift() public {
         FactoryConfigRegistryMock wrongRegistry = new FactoryConfigRegistryMock();
-        LaunchAndBuyRouter wrongRouter =
-            new LaunchAndBuyRouter(address(factory), address(wrongRegistry), address(lockerImplementation), 10_000, 200);
+        LaunchAndBuyRouter wrongRouter = new LaunchAndBuyRouter(
+            address(factory), address(wrongRegistry), address(lockerImplementation), 10_000, 200
+        );
         CreateMarketParams memory params = _validParams(CREATOR, bytes32("ROUTER-BINDING"));
 
         vm.prank(CREATOR);
@@ -1969,7 +1996,7 @@ contract TickerGardenFactoryV1Test is Test {
             allocationManager: address(allocationManager),
             launchRouter: address(router),
             platformTreasury: address(treasury),
-            treasuryDistributor: address(treasury),
+            holderRewardsDistributor: address(treasury),
             memeTokenImplementation: address(tokenImplementation),
             curveImplementation: address(curveImplementation),
             gaugeImplementation: address(gaugeImplementation),

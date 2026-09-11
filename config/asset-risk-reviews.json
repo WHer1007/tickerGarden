@@ -1,0 +1,206 @@
+{
+  "schemaVersion": 1,
+  "note": "Public review inventory. Imported identities and minimums are historical release records, not a fresh chain verification. Pending records block future admission scripts only; existing markets and withdrawals are unaffected.",
+  "assets": [
+    {
+      "symbol": "TSLA",
+      "name": "Tesla",
+      "assetUid": "0x00000000000000000000000000000000aa1fee9afa45465cbc65157b4edf63f5",
+      "tokenAddress": "0xc9f9c86933092bbbfff3ccb4b105a4a94bf3bd4e",
+      "decimals": 18,
+      "fingerprint": {
+        "tokenRuntimeCodeHash": "0x2f367e6a678e7b30ab613d5963e541e6f4d3ca586de76e2f441fbfeb1a27c440",
+        "beacon": "0x1df3ca0fd30ed5eeb09eb01938f4e9c5196e6ca5",
+        "beaconRuntimeCodeHash": "0x404e8188c4b1d0c9804205e0da253d11570e9d48d03964962cb689072b1735d2",
+        "implementation": "0xBd14156E05c6AF28ad39aA53a2AB8eB9CDf657DA",
+        "implementationRuntimeCodeHash": "0x137f26aacb7b1675d89017cebbf5018515c7bf4b87ae1848984494a56f3e1912"
+      },
+      "chainId": 46630,
+      "roles": [
+        "staking",
+        "quote"
+      ],
+      "logo": "tsla.svg",
+      "minimumAllocationRaw": "1000000000000000000",
+      "minimumRationale": "One whole Stock token is the testnet economic minimum; it prevents mathematically valid dust positions from receiving staker fees.",
+      "checkMode": "stock-fingerprint",
+      "status": "approved",
+      "acceptedIssuerRisk": true,
+      "issuerControl": "Robinhood testnet issuer can pause globally or per token, block addresses, upgrade the shared Beacon implementation, admin-burn balances, and update the UI multiplier.",
+      "reviewer": "TickerGarden automated source and onchain identity review",
+      "reviewedAt": "2026-09-10T00:00:00.000Z",
+      "validUntil": "2026-10-10T00:00:00.000Z",
+      "evidence": [
+        "deployments/releases/0x5c2c656b1b23e895ea268c34b187cd267e0f4fdcc1759c726cbca7fafb7c9c12/stock-assets.json",
+        "https://explorer.testnet.chain.robinhood.com/api/v2/smart-contracts/0xBd14156E05c6AF28ad39aA53a2AB8eB9CDf657DA"
+      ],
+      "capabilities": {
+        "pause": "present",
+        "blacklist": "present",
+        "upgrade": "present",
+        "feeOnTransfer": "absent",
+        "rebasing": "absent"
+      }
+    },
+    {
+      "symbol": "AMZN",
+      "name": "Amazon",
+      "assetUid": "0x0000000000000000000000000000000099c33a4e234448e99d6c8a5e5dddeda0",
+      "tokenAddress": "0x5884ad2f920c162cfbbacc88c9c51aa75ec09e02",
+      "decimals": 18,
+      "fingerprint": {
+        "tokenRuntimeCodeHash": "0x2f367e6a678e7b30ab613d5963e541e6f4d3ca586de76e2f441fbfeb1a27c440",
+        "beacon": "0x1df3ca0fd30ed5eeb09eb01938f4e9c5196e6ca5",
+        "beaconRuntimeCodeHash": "0x404e8188c4b1d0c9804205e0da253d11570e9d48d03964962cb689072b1735d2",
+        "implementation": "0xBd14156E05c6AF28ad39aA53a2AB8eB9CDf657DA",
+        "implementationRuntimeCodeHash": "0x137f26aacb7b1675d89017cebbf5018515c7bf4b87ae1848984494a56f3e1912"
+      },
+      "chainId": 46630,
+      "roles": [
+        "staking",
+        "quote"
+      ],
+      "logo": "amzn.svg",
+      "minimumAllocationRaw": "1000000000000000000",
+      "minimumRationale": "One whole Stock token is the testnet economic minimum; it prevents mathematically valid dust positions from receiving staker fees.",
+      "checkMode": "stock-fingerprint",
+      "status": "approved",
+      "acceptedIssuerRisk": true,
+      "issuerControl": "Robinhood testnet issuer can pause globally or per token, block addresses, upgrade the shared Beacon implementation, admin-burn balances, and update the UI multiplier.",
+      "reviewer": "TickerGarden automated source and onchain identity review",
+      "reviewedAt": "2026-09-10T00:00:00.000Z",
+      "validUntil": "2026-10-10T00:00:00.000Z",
+      "evidence": [
+        "deployments/releases/0x5c2c656b1b23e895ea268c34b187cd267e0f4fdcc1759c726cbca7fafb7c9c12/stock-assets.json",
+        "https://explorer.testnet.chain.robinhood.com/api/v2/smart-contracts/0xBd14156E05c6AF28ad39aA53a2AB8eB9CDf657DA"
+      ],
+      "capabilities": {
+        "pause": "present",
+        "blacklist": "present",
+        "upgrade": "present",
+        "feeOnTransfer": "absent",
+        "rebasing": "absent"
+      }
+    },
+    {
+      "symbol": "PLTR",
+      "name": "Palantir Technologies",
+      "assetUid": "0x0000000000000000000000000000000052cd6b007b15456ba5fbc3aa605765e0",
+      "tokenAddress": "0x1fbe1a0e43594b3455993b5de5fd0a7a266298d0",
+      "decimals": 18,
+      "fingerprint": {
+        "tokenRuntimeCodeHash": "0x2f367e6a678e7b30ab613d5963e541e6f4d3ca586de76e2f441fbfeb1a27c440",
+        "beacon": "0x1df3ca0fd30ed5eeb09eb01938f4e9c5196e6ca5",
+        "beaconRuntimeCodeHash": "0x404e8188c4b1d0c9804205e0da253d11570e9d48d03964962cb689072b1735d2",
+        "implementation": "0xBd14156E05c6AF28ad39aA53a2AB8eB9CDf657DA",
+        "implementationRuntimeCodeHash": "0x137f26aacb7b1675d89017cebbf5018515c7bf4b87ae1848984494a56f3e1912"
+      },
+      "chainId": 46630,
+      "roles": [
+        "staking",
+        "quote"
+      ],
+      "logo": "pltr.svg",
+      "minimumAllocationRaw": "1000000000000000000",
+      "minimumRationale": "One whole Stock token is the testnet economic minimum; it prevents mathematically valid dust positions from receiving staker fees.",
+      "checkMode": "stock-fingerprint",
+      "status": "approved",
+      "acceptedIssuerRisk": true,
+      "issuerControl": "Robinhood testnet issuer can pause globally or per token, block addresses, upgrade the shared Beacon implementation, admin-burn balances, and update the UI multiplier.",
+      "reviewer": "TickerGarden automated source and onchain identity review",
+      "reviewedAt": "2026-09-10T00:00:00.000Z",
+      "validUntil": "2026-10-10T00:00:00.000Z",
+      "evidence": [
+        "deployments/releases/0x5c2c656b1b23e895ea268c34b187cd267e0f4fdcc1759c726cbca7fafb7c9c12/stock-assets.json",
+        "https://explorer.testnet.chain.robinhood.com/api/v2/smart-contracts/0xBd14156E05c6AF28ad39aA53a2AB8eB9CDf657DA"
+      ],
+      "capabilities": {
+        "pause": "present",
+        "blacklist": "present",
+        "upgrade": "present",
+        "feeOnTransfer": "absent",
+        "rebasing": "absent"
+      }
+    },
+    {
+      "symbol": "NFLX",
+      "name": "Netflix",
+      "assetUid": "0x0000000000000000000000000000000041de1e6ae0f4cd3825f77b5a4a3cc784",
+      "tokenAddress": "0x3b8262a63d25f0477c4dde23f83cfe22cb768c93",
+      "decimals": 18,
+      "fingerprint": {
+        "tokenRuntimeCodeHash": "0x2f367e6a678e7b30ab613d5963e541e6f4d3ca586de76e2f441fbfeb1a27c440",
+        "beacon": "0x1df3ca0fd30ed5eeb09eb01938f4e9c5196e6ca5",
+        "beaconRuntimeCodeHash": "0x404e8188c4b1d0c9804205e0da253d11570e9d48d03964962cb689072b1735d2",
+        "implementation": "0xBd14156E05c6AF28ad39aA53a2AB8eB9CDf657DA",
+        "implementationRuntimeCodeHash": "0x137f26aacb7b1675d89017cebbf5018515c7bf4b87ae1848984494a56f3e1912"
+      },
+      "chainId": 46630,
+      "roles": [
+        "staking",
+        "quote"
+      ],
+      "logo": "nflx.svg",
+      "minimumAllocationRaw": "1000000000000000000",
+      "minimumRationale": "One whole Stock token is the testnet economic minimum; it prevents mathematically valid dust positions from receiving staker fees.",
+      "checkMode": "stock-fingerprint",
+      "status": "approved",
+      "acceptedIssuerRisk": true,
+      "issuerControl": "Robinhood testnet issuer can pause globally or per token, block addresses, upgrade the shared Beacon implementation, admin-burn balances, and update the UI multiplier.",
+      "reviewer": "TickerGarden automated source and onchain identity review",
+      "reviewedAt": "2026-09-10T00:00:00.000Z",
+      "validUntil": "2026-10-10T00:00:00.000Z",
+      "evidence": [
+        "deployments/releases/0x5c2c656b1b23e895ea268c34b187cd267e0f4fdcc1759c726cbca7fafb7c9c12/stock-assets.json",
+        "https://explorer.testnet.chain.robinhood.com/api/v2/smart-contracts/0xBd14156E05c6AF28ad39aA53a2AB8eB9CDf657DA"
+      ],
+      "capabilities": {
+        "pause": "present",
+        "blacklist": "present",
+        "upgrade": "present",
+        "feeOnTransfer": "absent",
+        "rebasing": "absent"
+      }
+    },
+    {
+      "symbol": "AMD",
+      "name": "AMD",
+      "assetUid": "0x00000000000000000000000000000000958cc238f7a04144bf5eb07da3d3734e",
+      "tokenAddress": "0x71178bac73cbeb415514eb542a8995b82669778d",
+      "decimals": 18,
+      "fingerprint": {
+        "tokenRuntimeCodeHash": "0x2f367e6a678e7b30ab613d5963e541e6f4d3ca586de76e2f441fbfeb1a27c440",
+        "beacon": "0x1df3ca0fd30ed5eeb09eb01938f4e9c5196e6ca5",
+        "beaconRuntimeCodeHash": "0x404e8188c4b1d0c9804205e0da253d11570e9d48d03964962cb689072b1735d2",
+        "implementation": "0xBd14156E05c6AF28ad39aA53a2AB8eB9CDf657DA",
+        "implementationRuntimeCodeHash": "0x137f26aacb7b1675d89017cebbf5018515c7bf4b87ae1848984494a56f3e1912"
+      },
+      "chainId": 46630,
+      "roles": [
+        "staking",
+        "quote"
+      ],
+      "logo": "amd.svg",
+      "minimumAllocationRaw": "1000000000000000000",
+      "minimumRationale": "One whole Stock token is the testnet economic minimum; it prevents mathematically valid dust positions from receiving staker fees.",
+      "checkMode": "stock-fingerprint",
+      "status": "approved",
+      "acceptedIssuerRisk": true,
+      "issuerControl": "Robinhood testnet issuer can pause globally or per token, block addresses, upgrade the shared Beacon implementation, admin-burn balances, and update the UI multiplier.",
+      "reviewer": "TickerGarden automated source and onchain identity review",
+      "reviewedAt": "2026-09-10T00:00:00.000Z",
+      "validUntil": "2026-10-10T00:00:00.000Z",
+      "evidence": [
+        "deployments/releases/0x5c2c656b1b23e895ea268c34b187cd267e0f4fdcc1759c726cbca7fafb7c9c12/stock-assets.json",
+        "https://explorer.testnet.chain.robinhood.com/api/v2/smart-contracts/0xBd14156E05c6AF28ad39aA53a2AB8eB9CDf657DA"
+      ],
+      "capabilities": {
+        "pause": "present",
+        "blacklist": "present",
+        "upgrade": "present",
+        "feeOnTransfer": "absent",
+        "rebasing": "absent"
+      }
+    }
+  ]
+}

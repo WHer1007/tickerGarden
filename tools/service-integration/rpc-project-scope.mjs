@@ -2,6 +2,8 @@ import {keccak256,decodeEventLog,parseAbi} from '../../apps/web/node_modules/vie
 // Enforce project scope before cache lookup as well as before upstream traffic.
 const CREATED_ABI=parseAbi(['event MarketCreated(bytes32 indexed marketId, bytes32 indexed assetUid, address indexed memeToken, address curve, address gauge, address quoteAsset, bytes32 tickerGardenBaselineId, bytes32 quoteAssetConfigId, bytes32 expectedEconomics)']);
 const CREATED_TOPIC=keccak256(new TextEncoder().encode('MarketCreated(bytes32,bytes32,address,address,address,address,bytes32,bytes32,bytes32)'));
+const BINDING_ABI=parseAbi(['event PoolBindingActivated(bytes32 indexed marketId, bytes32 indexed poolId, uint32 sourceVersion)']);
+const BINDING_TOPIC=keccak256(new TextEncoder().encode('PoolBindingActivated(bytes32,bytes32,uint32)'));
 const ADDRESS=/^0x[0-9a-f]{40}$/;
 const HASH=/^0x[0-9a-f]{64}$/;
 const number=x=>typeof x==='string'&&/^0x[0-9a-f]+$/.test(x)?Number(BigInt(x)):NaN;
@@ -16,6 +18,18 @@ export class ProjectScope {
   for(const c of config.contracts){if(!ADDRESS.test(c.address)||!Number.isSafeInteger(c.fromBlock)||c.fromBlock<this.start||!c.reason)throw Error('Invalid contract scope');if(c.shared&&(!Array.isArray(c.poolIds)||c.poolIds.some(x=>!HASH.test(x))))throw Error('Shared contract pool scope required');this.contracts.set(c.address,c);}
  }
  discover(log){
+  const emitter=this.contracts.get(log.address?.toLowerCase());
+  if(emitter?.module==='TickerGardenMemeHook'&&log.topics?.[0]===BINDING_TOPIC){
+   const n=number(log.blockNumber);if(!Number.isSafeInteger(n)||n<emitter.fromBlock||log.removed)throw Error('Invalid pool binding scope');
+   const {args}=decodeEventLog({abi:BINDING_ABI,data:log.data,topics:log.topics,strict:true});
+   if(![...this.contracts.values()].some(c=>c.marketId===args.marketId))throw Error('Pool binding requires a discovered market');
+   const managers=[...this.contracts.values()].filter(c=>c.shared&&c.module==='UniswapV4PoolManager');
+   if(managers.length!==1||args.poolId==='0x'+'0'.repeat(64))throw Error('Ambiguous pool manager scope');
+   const key=log.transactionHash+':'+log.logIndex;
+   if(!this.discoveries.has(key)){if(this.discoveries.size>=4096)throw Error('Market scope limit exceeded');this.discoveries.set(key,log);this.discoveryRevision++;}
+   if(!managers[0].poolIds.includes(args.poolId))managers[0].poolIds.push(args.poolId);
+   return;
+  }
   const factory=this.contracts.get(log.address?.toLowerCase());
   if(factory?.module!=='TickerGardenFactoryV1'||log.topics?.[0]!==CREATED_TOPIC)return;
   const n=number(log.blockNumber);if(!Number.isSafeInteger(n)||n<factory.fromBlock||log.removed)throw Error('Invalid market creation scope');
@@ -32,7 +46,7 @@ export class ProjectScope {
  restoreDiscoveries(logs){if(!Array.isArray(logs)||logs.length>4096)throw Error('Invalid market scope journal');for(const log of logs)this.discover(log);}
 
  check(method,params){
-  if(method==='eth_chainId'||method==='eth_gasPrice'||method==='eth_maxPriorityFeePerGas')return;
+  if(method==='eth_blockNumber'||method==='eth_chainId'||method==='eth_gasPrice'||method==='eth_maxPriorityFeePerGas')return;
   if(method==='eth_getTransactionCount'&&this.wallets.has(params[0]?.toLowerCase())&&['latest','pending'].includes(params[1]))return;
   if(method==='eth_getBalance'&&ADDRESS.test(params[0]?.toLowerCase()??'')&&['latest','pending'].includes(params[1]))return;
   if(method==='eth_estimateGas'){if(!this.contracts.has(params[0]?.to?.toLowerCase()))throw Error('Simulation outside project scope');return;}
@@ -40,7 +54,7 @@ export class ProjectScope {
    const n=number(params[0]);if(params[1]!==false||(!['latest','finalized'].includes(params[0])&&n!==0&&n!==this.origin?.parentBlock&&!(n>=this.start)))throw Error('Block outside project scope');return;
   }
   if(method==='eth_getBlockByHash'){if(params[1]!==false||!this.headers.has(params[0]))throw Error('Unrequested block hash');return;}
-  if(method==='eth_getTransactionReceipt'){if(!HASH.test(params[0]))throw Error('Invalid transaction hash');return;}
+  if(method==='eth_getTransactionReceipt'||method==='eth_getTransactionByHash'){if(!HASH.test(params[0]))throw Error('Invalid transaction hash');return;}
   if(method==='eth_getBlockReceipts'){if(!this.proofBlocks.has(params[0]))throw Error('Full receipts require a project event block');return;}
   if(['eth_call','eth_getCode','eth_getBalance','eth_getStorageAt','eth_getTransactionCount'].includes(method)){
    const a=(method==='eth_call'?params[0]?.to:params[0])?.toLowerCase();const c=this.contracts.get(a);if(!c)throw Error('State target outside project scope');
@@ -54,10 +68,12 @@ export class ProjectScope {
   for(const a of addresses){const c=this.contracts.get(a.toLowerCase());if(!c||c.logs===false||from<c.fromBlock)throw Error('Log history outside contract scope');if(c.shared){const ids=Array.isArray(f.topics?.[1])?f.topics[1]:[f.topics?.[1]];if(!ids.length||ids.some(id=>!c.poolIds.includes(id)))throw Error('Shared PoolManager requires project pool IDs');}}
  }
  observe(method,params,result){
+  if(method==='eth_getTransactionByHash'&&result){if(result.hash!==params[0]||!this.contracts.has(result.to?.toLowerCase()))throw Error('Transaction target outside project scope');}
+
   if(method==='eth_getTransactionReceipt'&&result){
    if(result.transactionHash!==params[0]||!this.contracts.has(result.to?.toLowerCase()))throw Error('Receipt target outside project scope');
    this.transactions.add(params[0]);
-   for(const l of result.logs??[])if(this.contracts.get(l.address?.toLowerCase())?.module==='TickerGardenFactoryV1')this.discover(l);
+   for(const l of result.logs??[])if(this.contracts.has(l.address?.toLowerCase()))this.discover(l);
   }
   if(['eth_getBlockByNumber','eth_getBlockByHash'].includes(method)&&result&&HASH.test(result.hash)){
    const n=number(result.number);if(n>=this.start||n===this.origin?.parentBlock)this.headers.set(result.hash,n);
