@@ -1428,7 +1428,7 @@ async function renderExploreStage(phase:0|1,direction:'current'|'next'|'previous
 }
 
 function clearStatsSnapshotView(_message: string): void {
-  for(const selector of ['[data-stat-market-cap]','[data-stat-volume]','[data-stat-launches]','[data-stat-bloomed]','[data-stat-total-markets]'])text(selector,'-');
+  for(const selector of ['[data-stat-market-cap]','[data-stat-volume]','[data-stat-launches]','[data-stat-bloomed]','[data-stat-total-markets]'])text(selector,'Unavailable');
   for(const selector of ['[data-stats-phase-list]','[data-stats-stock-list]','[data-stats-quote-list]']){
     const container=query<HTMLElement>(selector);if(container){const empty=document.createElement('p');empty.className='stats-empty';empty.textContent='Data Is Not Available Yet';container.replaceChildren(empty);}
   }
@@ -1479,39 +1479,41 @@ async function renderStockStatistics(current:()=>boolean,valuations:any,summary:
   return {...info,value,amount,decimals};
  });
  if(!current())return false;
- text('[data-stat-stock-value]',formatMarketUSD(sumStatisticsUSD(rows.map(row=>row.value)),true));
+ const total=sumStatisticsUSD(rows.map(row=>row.value));text('[data-stat-stock-value]',total===null?'Unavailable':formatMarketUSD(total,true));
  const list=query<HTMLElement>('[data-stats-staking-values]');if(!list)return false;
- const elements=rows.map(item=>{const row=document.createElement('div');row.className='stats-fee-row';const label=document.createElement('span');label.className='stats-asset-label';if(item.icon){const icon=document.createElement('img');icon.src=item.icon;icon.alt='';icon.addEventListener('error',()=>icon.remove(),{once:true});label.append(icon);}label.append(document.createTextNode(item.label));const value=document.createElement('strong');value.textContent=formatMarketUSD(item.value,true);if(item.amount!==null)value.title=`${formatUnits(item.amount,item.decimals)} ${item.label}`;row.append(label,value);return row;});
+ const elements=rows.map(item=>{const row=document.createElement('div');row.className='stats-fee-row';const label=document.createElement('span');label.className='stats-asset-label';if(item.icon){const icon=document.createElement('img');icon.src=item.icon;icon.alt='';icon.addEventListener('error',()=>icon.remove(),{once:true});label.append(icon);}label.append(document.createTextNode(item.label));const value=document.createElement('strong');value.textContent=item.value===null?'Unavailable':formatMarketUSD(item.value,true);if(item.amount!==null)value.title=`${formatUnits(item.amount,item.decimals)} ${item.label}`;row.append(label,value);return row;});
  list.replaceChildren(...elements);
  return rows.every(row=>row.value!==null);
 }
-async function renderProtocolStatistics(current:()=>boolean,attempt=0):Promise<void>{
- if(!runtimeConfig.readApi.available)return;const base=runtimeConfig.readApi.value;
+async function renderProtocolStatistics(current:()=>boolean,attempt=0):Promise<boolean>{
+ if(!runtimeConfig.readApi.available)return false;const base=runtimeConfig.readApi.value;
  try{const [summary,prices]=await Promise.all([fetch(`${base}/v1/protocol-statistics`,{signal:AbortSignal.timeout(5000)}).then(r=>{if(!r.ok)throw Error('Statistics Missing');return r.json();}),fetch(`${base}/v1/statistics-prices`,{signal:AbortSignal.timeout(5000)}).then(r=>{if(!r.ok)throw Error('Prices Missing');return r.json();}).catch(()=>({chainId:robinhoodChain.id,displayOnly:true,prices:{},expiresAt:{}}))]);
- if(!current()||summary.chainId!==robinhoodChain.id||summary.displayOnly!==true||prices.chainId!==robinhoodChain.id||prices.displayOnly!==true)return;
+ if(!current()||summary.chainId!==robinhoodChain.id||summary.displayOnly!==true||prices.chainId!==robinhoodChain.id||prices.displayOnly!==true)return false;
  const pending=summary.reason==='statistics_pending'||summary.feeCoverage!==true||!statisticsFresh(summary.observedAt,Date.now())||!statisticsFresh(summary.stakingObservedAt,Date.now());
  const fresh=statisticsFresh(summary.observedAt,Date.now());
- text('[data-stat-market-cap]',fresh&&summary.valuationCoverage===true&&typeof summary.marketCapUsd==='string'?formatMarketUSD(summary.marketCapUsd,true):'-');
- text('[data-stat-volume]',fresh&&summary.historicalUsdCoverage===true&&typeof summary.volume24hUsd==='string'?formatMarketUSD(summary.volume24hUsd,true):'-');
- text('[data-stat-launches]',fresh&&Number.isSafeInteger(summary.launches24h)&&summary.launches24h>=0?summary.launches24h.toLocaleString():'-');
- text('[data-stat-total-markets]',fresh&&Number.isSafeInteger(summary.marketCount)&&summary.marketCount>=0?String(summary.marketCount):'-');
- text('[data-stat-bloomed]',fresh&&Number.isSafeInteger(summary.bloomedMarketCount)&&summary.bloomedMarketCount>=0?String(summary.bloomedMarketCount):'-');
- text('[data-stat-staking-wallets]',statisticsFresh(summary.stakingObservedAt,Date.now())&&Number.isSafeInteger(summary.stakingWallets)&&summary.stakingWallets>=0?String(summary.stakingWallets):'-');
+ text('[data-stat-market-cap]',fresh&&summary.valuationCoverage===true&&typeof summary.marketCapUsd==='string'?formatMarketUSD(summary.marketCapUsd,true):'Unavailable');
+ text('[data-stat-volume]',fresh&&summary.historicalUsdCoverage===true&&typeof summary.volume24hUsd==='string'?formatMarketUSD(summary.volume24hUsd,true):'Unavailable');
+ text('[data-stat-launches]',fresh&&Number.isSafeInteger(summary.launches24h)&&summary.launches24h>=0?summary.launches24h.toLocaleString():'Unavailable');
+ text('[data-stat-total-markets]',fresh&&Number.isSafeInteger(summary.marketCount)&&summary.marketCount>=0?String(summary.marketCount):'Unavailable');
+ text('[data-stat-bloomed]',fresh&&Number.isSafeInteger(summary.bloomedMarketCount)&&summary.bloomedMarketCount>=0?String(summary.bloomedMarketCount):'Unavailable');
+ text('[data-stat-staking-wallets]',statisticsFresh(summary.stakingObservedAt,Date.now())&&Number.isSafeInteger(summary.stakingWallets)&&summary.stakingWallets>=0?String(summary.stakingWallets):'Unavailable');
  const totals:Record<string,string[]>=Object.fromEntries(['creator','staker','holder','platform'].map(k=>[k,[]]));let valid=fresh&&summary.feeCoverage===true;
  for(const [asset,buckets]of Object.entries(summary.feeAssets??{})){for(const bucket of Object.keys(totals)){
   const value=statisticsUSD((buckets as Record<string,string>)[bucket],summary.feeDecimals?.[asset],prices.prices?.[asset],prices.expiresAt?.[asset],Date.now());
   if(value===null)valid=false;else totals[bucket]!.push(value);
  }}
- for(const bucket of Object.keys(totals))text(`[data-stat-fee-${bucket}]`,valid?formatMarketUSD(sumStatisticsUSD(totals[bucket]!),true):'-');
+ for(const bucket of Object.keys(totals))text(`[data-stat-fee-${bucket}]`,valid?formatMarketUSD(sumStatisticsUSD(totals[bucket]!),true):'Unavailable');
  const feeTotals = summary.feeTotals as Record<string,string> | undefined;
  const revenue = fresh && summary.feeCoverage===true && summary.feeBasis==='TRADE_TIME' && feeTotals ? sumStatisticsUSD(Object.entries(feeTotals).map(([asset,amount])=>statisticsUSD(amount,summary.feeDecimals?.[asset],prices.prices?.[asset],prices.expiresAt?.[asset],Date.now()))) : null;
- text('[data-stat-fee-revenue]',formatMarketUSD(revenue,true));
+ text('[data-stat-fee-revenue]',revenue===null?'Unavailable':formatMarketUSD(revenue,true));
  const stocksReady=await renderStockStatistics(current,prices,summary);
  if((pending||!valid||!stocksReady)&&attempt<18)setTimeout(()=>{if(current()&&currentPage()==='stats')void renderProtocolStatistics(current,attempt+1);},attempt<6?5000:10000);
+ return true;
  }catch{
-  if(!current())return;
-  for(const key of ['staking-wallets','stock-value','fee-revenue','fee-creator','fee-staker','fee-holder','fee-platform'])text(`[data-stat-${key}]`,'-');
+  if(!current())return false;
+  for(const key of ['volume','launches','bloomed','staking-wallets','stock-value','fee-revenue','fee-creator','fee-staker','fee-holder','fee-platform'])text(`[data-stat-${key}]`,'Unavailable');
   if(attempt<6)setTimeout(()=>{if(current()&&currentPage()==='stats')void renderProtocolStatistics(current,attempt+1);},10000);
+  return false;
  }
 }
 async function renderStats():Promise<void>{
@@ -1521,9 +1523,9 @@ async function renderStats():Promise<void>{
  if(!foundation){clearStatsSnapshotView('');setPageStatus('Unable To Load Statistics','error');return;}
  try{
   if(!render.isCurrent())return;
-  await renderProtocolStatistics(()=>render.isCurrent());
+  const available=await renderProtocolStatistics(()=>render.isCurrent());
   if(!render.isCurrent())return;
-  query<HTMLElement>('[data-stats-summary]')?.setAttribute('aria-busy','false');setPageStatus('','success');
+  query<HTMLElement>('[data-stats-summary]')?.setAttribute('aria-busy','false');setPageStatus(available?'':'Statistics Are Still Syncing. Verified Values Will Appear Automatically.',available?'success':'warning');
  }catch{if(render.isCurrent()){clearStatsSnapshotView('');setPageStatus('Unable To Load Statistics','error');}}
 }
 

@@ -23,4 +23,6 @@ The queue relay implements the subset of the QStash publish and callback-signatu
 
 The test host runs `tickergarden-price-refresh-test.timer` once per minute. Its root-only service reads `TG_PRICE_REFRESH_TOKEN` from `/etc/tickergarden/test.env` and invokes the test pipeline's display-price refresh endpoint. This is required because Vercel Cron runs only for production deployments, while the active test services intentionally use Preview aliases.
 
+`tickergarden-chain-refresh-test.timer` advances finalized filtered-event coverage every five minutes through the pipeline bootstrap endpoint. `tickergarden-chain-dispatch-test.timer` repairs and dispatches due continuation jobs once per minute so a large catch-up does not wait for the next bootstrap. Sparse ingestion compares filtered logs from two RPC providers and stores only event blocks plus range boundaries; it does not poll or persist every block. These timers keep the finalized observation inside the frontend's 20-minute freshness window during quiet periods without returning to per-block webhook traffic.
+
 Kafka or Redpanda can replace the relay storage when traffic requires partitioned, multi-node streaming. On the current 2 vCPU / 4 GB single host, PostgreSQL-backed delivery keeps message durability while avoiding a second clustered storage system with no high-availability benefit.

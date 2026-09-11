@@ -29,6 +29,7 @@ GRANT SELECT ON
   ${schema}.contract_sources,
   ${schema}.chain_blocks,
   ${schema}.covered_ranges,
+  ${schema}.ingestion_checkpoints,
   ${schema}.publications,
   ${schema}.publication_pointers,
   ${schema}.projection_records,
