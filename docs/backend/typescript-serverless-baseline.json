@@ -30,8 +30,8 @@
     }
   },
   "sourceLocks": {
-    "services/backend-ts/openapi/v1.json": "c122d0d9ecc89e91c5ec4f044539a7010af29dd37a27ee3b7558dfdc267d7acb",
-    "services/backend-ts/openapi/v1.lock.json": "89003c93f565113fbb5dbd23c9d39e88ec6e5839051bc0ea48bdb1ad9eb8b731",
+    "services/backend-ts/openapi/v1.json": "289e6d1d8afe05bb93cd14fe27637da9a0fe10c7b1911a6cf6dc6cae4fb18033",
+    "services/backend-ts/openapi/v1.lock.json": "5727bdf25b19e6f725b5ad2ee24eeaa8b88b9a453f7c4362a94f00f9c94c3246",
     "services/backend-ts/packages/events/src/index.ts": "e8092d243fd000c58f75df3b1cf489729b4da87053af53b1b38f2adf8b78228f",
     "services/backend-ts/packages/events/src/f72-abis.generated.ts": "6f225dac1855c36724ae4687250a01f3dc3bb60705e62dfc7bc04fbd4f472f2c",
     "services/backend-ts/packages/config-projector/src/f72-bootstrap.generated.ts": "b19c5faa29c8607b215e3a1f80f3220cf5a466b7ad88a787ec4c78643fa4691e",

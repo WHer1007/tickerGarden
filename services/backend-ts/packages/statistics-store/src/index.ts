@@ -11,8 +11,8 @@ interface Market { readonly marketId: Hex32; readonly assetUid: Hex32; readonly 
   readonly quoteAssetConfigId: Hex32; readonly tickerGardenBaselineId: Hex32; readonly launchPhase: 0 | 1 }
 
 export async function readDisplayPrices(input: { readonly pool: Pool; readonly deployment: DeploymentIdentity; readonly now?: Date; readonly schemaName?: string }) {
-  const targets = f72PriceTargets(); const rows = await latestPrices(input.pool, input.deployment, input.schemaName); const now = input.now ?? new Date();
-  const byToken = new Map(rows.map((row) => [row.asset, publicPrice(viewPrice(row.payload, now))]));
+  const targets = f72PriceTargets(); const now = input.now ?? new Date(); const rows = await latestPrices(input.pool, input.deployment, now, input.schemaName);
+  const byToken = preferredPrices(rows, now);
   return { chainId: input.deployment.chainId, displayOnly: true as const, confidence: 'provider_reported' as const, status: 'configured' as const,
     references: targets.map((target) => byToken.get(target.token) ?? { ...target, source: 'robinhood_rest' as const, unit: 'USD_PER_WHOLE_TOKEN' as const,
       status: 'unavailable' as const, reason: 'not_refreshed', bidUsd: null, askUsd: null, multiplier: null, asOf: null, expiresAt: null, retrievedAt: now.toISOString() }) };
@@ -28,24 +28,25 @@ export async function readStatisticsPrices(input: { readonly pool: Pool; readonl
 
 export async function readMarketStatistics(input: { readonly pool: Pool; readonly deployment: DeploymentIdentity; readonly marketIds?: readonly Hex32[]; readonly now?: Date; readonly schemaName?: string }) {
   const schema=identifier(input.schemaName??'tickergarden_serverless'); const point=await checkpoint(input.pool,schema,input.deployment);
-  const markets=await currentMarkets(input.pool,schema,input.deployment,point.revision,input.marketIds); const displayPrices=await readDisplayPrices(input);
-  const prices=new Map(displayPrices.references.filter(item=>item.status==='available'&&item.bidUsd&&item.askUsd).map(item=>[item.token,item]));
-  const now=point.asOf; const from=now-86_400; await assertCoverage(input.pool,schema,input.deployment,point.number,from,now); const items: Record<string,unknown>={};
+  const markets=await currentMarkets(input.pool,schema,input.deployment,point.revision,input.marketIds);
+  const priceNow=input.now??new Date();const prices=preferredPrices(await latestPrices(input.pool,input.deployment,priceNow,input.schemaName),priceNow);
+  const now=point.asOf; const from=now-86_400; const items: Record<string,unknown>={};
+  let volumeCovered=true;try{await assertCoverage(input.pool,schema,input.deployment,point.number,from,now)}catch(error){if(!(error instanceof PublicationUnavailableError))throw error;volumeCovered=false}
   for(const market of markets){
     const trades=await input.pool.query<{payload:TradeActivity}>(`SELECT t.payload FROM ${schema}.market_trades t JOIN ${schema}.chain_blocks b ON b.environment=t.environment AND b.chain_id=t.chain_id AND b.deployment_digest=t.deployment_digest AND b.hash=t.block_hash WHERE t.environment=$1 AND t.chain_id=$2 AND t.deployment_digest=$3 AND t.market_id=$4 AND b.canonical AND b.finalized AND t.occurred_at>=to_timestamp($5) AND t.occurred_at<to_timestamp($6) ORDER BY b.number DESC,(t.payload->'source'->>'transactionIndex')::bigint DESC,t.log_index DESC LIMIT 1`,[...identity(input.deployment),market.marketId,from,now]);
     const last=trades.rows[0]?.payload; const lastBuy=last?.side==='buy'?sourcePosition(last):await lastBuyFor(input.pool,schema,input.deployment,market.marketId);
-    const volume=await input.pool.query<{raw:string|null}>(`SELECT sum(quote_raw)::text raw FROM ${schema}.market_trades t JOIN ${schema}.chain_blocks b ON b.environment=t.environment AND b.chain_id=t.chain_id AND b.deployment_digest=t.deployment_digest AND b.hash=t.block_hash WHERE t.environment=$1 AND t.chain_id=$2 AND t.deployment_digest=$3 AND t.market_id=$4 AND t.classification='unclassified' AND b.canonical AND b.finalized AND t.occurred_at>=to_timestamp($5) AND t.occurred_at<to_timestamp($6)`,[...identity(input.deployment),market.marketId,from,now]);
-    const decimals=quoteDecimals(market.quoteAssetConfigId); const volumeRaw=volume.rows[0]?.raw??'0';
+    const volume=volumeCovered?await input.pool.query<{raw:string|null}>(`SELECT sum(quote_raw)::text raw FROM ${schema}.market_trades t JOIN ${schema}.chain_blocks b ON b.environment=t.environment AND b.chain_id=t.chain_id AND b.deployment_digest=t.deployment_digest AND b.hash=t.block_hash WHERE t.environment=$1 AND t.chain_id=$2 AND t.deployment_digest=$3 AND t.market_id=$4 AND t.classification='unclassified' AND b.canonical AND b.finalized AND t.occurred_at>=to_timestamp($5) AND t.occurred_at<to_timestamp($6)`,[...identity(input.deployment),market.marketId,from,now]):null;
+    const decimals=quoteDecimals(market.quoteAssetConfigId); const volumeRaw=volume?.rows[0]?.raw??(volumeCovered?'0':null);
     let metrics: Record<string,unknown> | null=null; const quoteReference=prices.get(market.quoteAsset);const quoteUsd=quoteReference?.bidUsd&&quoteReference.askUsd?midpoint(quoteReference.bidUsd,quoteReference.askUsd):null;
     if(quoteUsd&&quoteReference){
       const price=last?decimalFromRational(last.price.numerator,last.price.denominator):null; const supply=baselineSupply(market.tickerGardenBaselineId);
       const cap=price?decimalProductRaw(supply,18,decimalProduct(price,quoteUsd)):null;
       metrics={status:cap?'available':'unavailable',reason:cap?'historical_usd_coverage_unavailable':'execution_price_unavailable',volume24hUsd:null,marketCapUsd:cap,quoteUsdMidpoint:quoteUsd,
-        windowFromTimestamp:String(from),asOfTimestamp:String(now),usdPriceAsOf:quoteReference.asOf,usdPriceSource:'robinhood_rest',
+        windowFromTimestamp:String(from),asOfTimestamp:String(now),usdPriceAsOf:quoteReference.asOf,usdPriceSource:quoteReference.source,
         volumeBasis:'EXTERNAL_EXECUTIONS_CURVE_EXCLUDING_FEE_TAX_OR_POOL_CORE',marketCapBasis:'BASELINE_TOTAL_SUPPLY_X_LATEST_FINALIZED_24H_EXECUTION_PRICE'};
     }
     items[market.marketId]={marketId:market.marketId,metrics,lastBuy,observedAt:point.asOf,launchPhase:String(market.launchPhase),
-      volumeObservedAt:point.asOf,volume24hQuote:decimalFromRaw(volumeRaw,decimals)};
+      volumeObservedAt:point.asOf,volume24hQuote:volumeRaw===null?null:decimalFromRaw(volumeRaw,decimals)};
   }
   return {chainId:input.deployment.chainId,registry:f72EventCatalog.MarketRegistryV1.address,displayOnly:true as const,items};
 }
@@ -115,7 +116,9 @@ async function globalFlow(input:{readonly pool:Pool;readonly deployment:Deployme
   return{chainId:input.deployment.chainId,displayOnly:true as const,coverage,marketCount:markets.length,registeredStockCount:stocks.length,boundMarketCount:markets.length,unboundMarketCount:0,stocks,groups:output};
 }
 
-async function latestPrices(pool:Pool,deployment:DeploymentIdentity,schemaName?:string){const schema=identifier(schemaName??'tickergarden_serverless');return (await pool.query<{asset:Address;payload:PriceReference}>(`SELECT DISTINCT ON (asset,source) asset,payload FROM ${schema}.price_references WHERE environment=$1 AND chain_id=$2 AND deployment_digest=$3 ORDER BY asset,source,as_of DESC`,identity(deployment))).rows}
+async function latestPrices(pool:Pool,deployment:DeploymentIdentity,now:Date,schemaName?:string){const schema=identifier(schemaName??'tickergarden_serverless');return (await pool.query<{asset:Address;payload:PriceReference}>(`SELECT DISTINCT ON (asset,source) asset,payload FROM ${schema}.price_references WHERE environment=$1 AND chain_id=$2 AND deployment_digest=$3 ORDER BY asset,source,(status='available' AND expires_at>$4) DESC,as_of DESC`,[...identity(deployment),now])).rows}
+function preferredPrices(rows:readonly {asset:Address;payload:PriceReference}[],now:Date){const output=new Map<Address,PriceReference>();for(const row of rows){const candidate=publicPrice(viewPrice(row.payload,now));const current=output.get(row.asset);if(!current||priceRank(candidate)>priceRank(current))output.set(row.asset,candidate)}return output}
+function priceRank(value:PriceReference){return value.status==='available'&&value.bidUsd&&value.askUsd?2:value.status==='stale'?1:0}
 function viewPrice(value:PriceReference,now:Date):PriceReference{if(value.status==='available'&&value.expiresAt&&new Date(value.expiresAt)<=now)return{...value,status:'stale',reason:'price_expired',bidUsd:null,askUsd:null};return value}
 function publicPrice(value:PriceReference):PriceReference{const{rawBidUsd:_rawBid,rawAskUsd:_rawAsk,...visible}=value;return visible}
 async function checkpoint(pool:Pool,schema:string,deployment:DeploymentIdentity){const row=(await pool.query<{last_revision:string;number:string;hash:Hex32;as_of:string}>(`SELECT c.last_revision,b.number::text,b.hash,extract(epoch from b.source_timestamp)::bigint::text as as_of FROM ${schema}.projection_checkpoints c JOIN ${schema}.chain_blocks b ON b.environment=c.environment AND b.chain_id=c.chain_id AND b.deployment_digest=c.deployment_digest AND b.number=c.next_block-1 WHERE c.environment=$1 AND c.chain_id=$2 AND c.deployment_digest=$3 AND c.scope='analytics' AND b.canonical AND b.finalized AND c.last_revision=b.number::text||':'||b.hash`,identity(deployment))).rows[0];if(!row)throw new PublicationUnavailableError('statistics projection is unavailable');return{revision:row.last_revision,number:row.number,hash:row.hash,asOf:Number(row.as_of)}}

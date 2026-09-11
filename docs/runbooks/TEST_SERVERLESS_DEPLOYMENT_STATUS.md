@@ -1,6 +1,6 @@
 # Test serverless deployment status
 
-Last verified: 2026-09-11 22:41 (Asia/Shanghai)
+Last verified: 2026-09-12 00:11 (Asia/Shanghai)
 
 ## Active scope
 
@@ -12,10 +12,10 @@ This is test-environment evidence. It is not production readiness or permission 
 
 | Component | Endpoint | State |
 | --- | --- | --- |
-| Web | `https://tickergarden-web-test.vercel.app` | active; Preview deployment `dpl_5Zb6hPi6LW99RRqohZQn7ety1XVe` |
-| Read API | `https://tickergarden-read-api-test.vercel.app` | active |
+| Web | `https://tickergarden-web-test.vercel.app` | active; Preview deployment `dpl_FaCckGKQ42ah8agnJBie7HvTD3K1` |
+| Read API | `https://tickergarden-read-api-test.vercel.app` | active; Preview deployment `dpl_3qjNCFFouEEnKPrMKToBWt7rhy1f` |
 | Content API | `https://tickergarden-content-test.vercel.app` | active |
-| Pipeline | `https://tickergarden-pipeline-test.vercel.app` | active; Preview deployment `dpl_2o7sUUV5Z7hMWaCoXHm6jbuWhMTp` |
+| Pipeline | `https://tickergarden-pipeline-test.vercel.app` | active; Preview deployment `dpl_2HZFTLkoCxkngmBvtQViDCBKcQw3` |
 | Chain event relay | VPS internal `chain-event-relay-test:8081` | healthy |
 | Queue relay | `https://queue-test.159-89-207-161.sslip.io` | active |
 | S3-compatible storage | `https://s3-test.159-89-207-161.sslip.io` | active |
@@ -54,7 +54,9 @@ The 2026-09-11 online checks passed for:
 
 The browser made no legacy `/integration/` bootstrap request. The frontend reads the deployed Read API.
 
-The 24-hour market/protocol statistics endpoints currently return `analytics_unavailable` because the activation-to-finalized test history is less than a complete 24-hour window. This is the required fail-closed result; the UI must show `Unavailable`, never fabricated `$0`. The price refresh records five configured references as unavailable because the upstream reference provider returned no usable quote.
+Market-cap reads are available independently of complete 24-hour historical coverage. The test price worker combines Coinbase ETH/USD with identity-verified Synthra V3 testnet pool spots for the five configured stock tokens; the VPS runs `tickergarden-price-refresh-test.timer` every minute. Explore merges `/v1/market-statistics` into Read API directory rows and displays current MC values. A transient failed quote refresh does not replace an unexpired successful reference.
+
+The 24-hour volume fields remain `null` while activation-to-finalized history covers less than a complete 24-hour window. Protocol statistics that require complete interval coverage remain fail-closed; the UI must show `Unavailable`, never fabricated `$0`.
 
 ## Operational notes
 

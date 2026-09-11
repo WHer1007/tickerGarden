@@ -1164,7 +1164,7 @@ async function refreshExploreStatistics():Promise<boolean>{
   let merged:Record<string,ExploreStat>={};
   for(let i=0;i<Math.max(markets.length,1);i+=100){
    const url=new URL('/v1/market-statistics',statisticsBase);url.searchParams.set('markets',markets.slice(i,i+100).join(','));
-   const response=await fetch(url,{signal:AbortSignal.timeout(5000)});if(!response.ok)return false;
+   const response=await fetch(url,{signal:AbortSignal.timeout(15_000)});if(!response.ok)return false;
    const data=await response.json();if(data.chainId!==robinhoodChain.id||data.displayOnly!==true||!data.items||typeof data.items!=='object')return false;
    for(const [id,raw]of Object.entries(data.items)){
     const value=raw as ExploreStat;if(value.marketId!==id||!/^0x[0-9a-f]{64}$/.test(id))continue;
@@ -1186,7 +1186,10 @@ async function fetchExplorePage(params:DirectoryQuery,cursor:string|undefined,li
   const page=await new TickerGardenV1Client(runtimeConfig.readApi.value,(input,init)=>fetch(input,{...init,signal})).listMarkets({...params,limit,...(cursor?{cursor}:{})});
   assertFinalizedSync(page.sync,params.revision,'explore page');
   if(page.items.some(m=>m.launchPhase!==params.launchPhase))throw Error('Unexpected Market Stage');
-  return page;
+  return {...page,items:page.items.map(market=>{
+   const statistics=exploreStatistics[market.marketId];
+   return statistics?{...market,metrics:statistics.metrics,lastBuy:statistics.lastBuy}:market;
+  })};
  }
  const search=(params.search??'').toLowerCase();
  const frozenKey=JSON.stringify(params);

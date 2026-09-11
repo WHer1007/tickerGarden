@@ -21,4 +21,6 @@ The original block-only and filtered Alchemy Custom Webhooks were deleted after 
 
 The queue relay implements the subset of the QStash publish and callback-signature protocol used by the TypeScript backend. Messages, deduplication keys, attempts, leases, checkpoints, and dead-letter state are persisted in PostgreSQL. This durable inbox is also the handoff boundary for the WebSocket event relay; Vercel is invoked only after a matching log has been committed.
 
+The test host runs `tickergarden-price-refresh-test.timer` once per minute. Its root-only service reads `TG_PRICE_REFRESH_TOKEN` from `/etc/tickergarden/test.env` and invokes the test pipeline's display-price refresh endpoint. This is required because Vercel Cron runs only for production deployments, while the active test services intentionally use Preview aliases.
+
 Kafka or Redpanda can replace the relay storage when traffic requires partitioned, multi-node streaming. On the current 2 vCPU / 4 GB single host, PostgreSQL-backed delivery keeps message durability while avoiding a second clustered storage system with no high-availability benefit.

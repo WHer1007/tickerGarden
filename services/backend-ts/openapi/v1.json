@@ -2,7 +2,7 @@
   "openapi": "3.1.0",
   "info": {
     "title": "TickerGarden V1 Read API",
-    "version": "4.0.0",
+    "version": "4.1.0",
     "description": "Non-custodial TypeScript Serverless read API for the routes consumed by the current frontend."
   },
   "x-execution-spec-id": "V1-EXEC-11",
@@ -779,7 +779,7 @@
     "/v1/prices/references": {
       "get": {
         "operationId": "listDisplayPriceReferences",
-        "description": "TypeScript Serverless backend. Cached provider-reported display estimates only, never a chain snapshot, execution price or creation authorization. No query parameters. Stale/unavailable prices are null.",
+        "description": "Cached display estimates only, never an execution price or creation authorization. Testnet stock references may use a verified on-chain pool spot combined with native USD. No query parameters. Stale/unavailable prices are null.",
         "responses": {
           "200": {
             "description": "Success",
@@ -3910,7 +3910,11 @@
           },
           "source": {
             "type": "string",
-            "const": "robinhood_rest"
+            "enum": [
+              "robinhood_rest",
+              "coinbase_spot",
+              "testnet_pool_spot"
+            ]
           },
           "unit": {
             "type": "string",

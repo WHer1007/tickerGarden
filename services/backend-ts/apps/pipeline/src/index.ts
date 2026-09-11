@@ -11,7 +11,7 @@ import {
 import { ALCHEMY_EVM_COMPUTE_UNIT_SCHEDULE, alchemyNominalComputeUnits } from '../../../packages/alchemy/src/index.ts';
 import { consensusBlock, parseChainLogTrigger, RpcTransport } from '../../../packages/chain/src/index.ts';
 import { createChainProcessor } from '../../../packages/chain-worker/src/index.ts';
-import { f72PriceTargets, fetchPriceReferences, storePriceReferences } from '../../../packages/display-price/src/index.ts';
+import { f72PriceTargets, fetchTestnetPriceReferences, storePriceReferences } from '../../../packages/display-price/src/index.ts';
 import { CURRENT_ACTIVATION_BLOCK, CURRENT_RELEASE_ID } from '../../../packages/events/src/index.ts';
 
 interface PipelineAppOptions {
@@ -29,7 +29,7 @@ export function createPipelineApp(options: PipelineAppOptions = {}) {
     requiredEnvironmentKeys: [
       'TG_PIPELINE_DATABASE_URL', 'TG_PIPELINE_GENERATION',
       'QSTASH_CURRENT_SIGNING_KEY', 'QSTASH_NEXT_SIGNING_KEY', 'QSTASH_CHAIN_TOKEN',
-      'TG_CHAIN_JOB_CALLBACK_URL', 'TG_RPC_URL', 'TG_SECONDARY_RPC_URL', 'TG_REPAIR_TOKEN', 'CRON_SECRET',
+      'TG_CHAIN_JOB_CALLBACK_URL', 'TG_RPC_URL', 'TG_SECONDARY_RPC_URL', 'TG_REPAIR_TOKEN', 'TG_PRICE_REFRESH_TOKEN', 'CRON_SECRET',
     ],
   });
   if (!(app instanceof Hono)) throw new Error('pipeline service factory must return a Hono application');
@@ -65,6 +65,10 @@ export function createPipelineApp(options: PipelineAppOptions = {}) {
   function operatorAuthorized(header: string | undefined): boolean {
     const provided = header?.startsWith('Bearer ') ? header.slice(7) : null;
     return verifyRepairToken(provided, env.TG_REPAIR_TOKEN ?? '');
+  }
+  function priceRefreshAuthorized(header: string | undefined): boolean {
+    const provided = header?.startsWith('Bearer ') ? header.slice(7) : null;
+    return verifyRepairToken(provided, env.CRON_SECRET ?? '') || verifyRepairToken(provided, env.TG_PRICE_REFRESH_TOKEN ?? '');
   }
 
   app.post('/internal/repair', async (context) => {
@@ -160,10 +164,12 @@ export function createPipelineApp(options: PipelineAppOptions = {}) {
   });
 
   app.on(['GET', 'POST'], '/internal/prices/refresh', async (context) => {
-    if (!authorized(context.req.header('authorization'))) return context.json({ error: 'unauthorized', requestId: context.get('requestId') }, 401);
+    if (!priceRefreshAuthorized(context.req.header('authorization'))) return context.json({ error: 'unauthorized', requestId: context.get('requestId') }, 401);
     const deployment = { environment: environmentName(env.TG_ENVIRONMENT), chainId: 46630 as const,
       deploymentDigest: CURRENT_RELEASE_ID, activationBlock: CURRENT_ACTIVATION_BLOCK };
-    const references = await fetchPriceReferences(f72PriceTargets());
+    const references = await fetchTestnetPriceReferences(f72PriceTargets(), { rpc: new RpcTransport({
+      url: env.TG_SECONDARY_RPC_URL ?? '', provider: 'display-price-secondary', observe: (metric) => emitMetric(env, metric),
+    }) });
     await storePriceReferences(databasePool(), deployment, references, env.TG_DATABASE_SCHEMA);
     emitMetric(env, { event: 'price_refresh', targets: references.length, available: references.filter((item) => item.status === 'available').length });
     return context.json({ refreshed: references.length, available: references.filter((item) => item.status === 'available').length });
