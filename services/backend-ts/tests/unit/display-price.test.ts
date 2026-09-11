@@ -2,6 +2,8 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import { f72PriceTargets, fetchPriceReferences, fetchTestnetPriceReferences, multiplyDecimal } from '../../packages/display-price/src/index.ts';
 import { robinhoodTestnetStockRoutes } from '../../packages/display-price/src/testnet-routes.ts';
+import { readDisplayPrices } from '../../packages/statistics-store/src/index.ts';
+import type { Pool } from 'pg';
 
 test('display price applies the current multiplier exactly once and preserves decimal precision', async () => {
   const target=f72PriceTargets()[0]!;const now=new Date('2026-09-11T00:00:30.000Z');
@@ -39,4 +41,12 @@ test('testnet pool identity mismatch remains unavailable', async () => {
   const fetcher:typeof fetch=async()=>new Response(JSON.stringify({data:{base:'ETH',currency:'USD',amount:'2500'}}),{status:200});
   const references=await fetchTestnetPriceReferences([target],{rpc,fetcher,now:new Date('2026-09-11T00:00:00Z')});
   assert.equal(references[1]?.status,'unavailable');assert.equal(references[1]?.reason,'pool_identity_mismatch');
+});
+
+test('display catalog publishes the cached native reference with stock references', async () => {
+  const now=new Date('2026-09-11T00:00:00Z');const native={chainId:46630 as const,token:`0x${'0'.repeat(40)}` as const,assetUid:`0x${'0'.repeat(64)}` as const,symbol:'ETH',
+    source:'coinbase_spot' as const,unit:'USD_PER_WHOLE_TOKEN' as const,status:'available' as const,bidUsd:'2500',askUsd:'2500',multiplier:'1',asOf:now.toISOString(),expiresAt:new Date(now.getTime()+600000).toISOString(),retrievedAt:now.toISOString()};
+  const pool={query:async()=>({rows:[{asset:native.token,payload:native}]})} as unknown as Pool;
+  const response=await readDisplayPrices({pool,deployment:{environment:'test',chainId:46630,deploymentDigest:`0x${'1'.repeat(64)}`,activationBlock:1n},now});
+  assert.equal(response.references[0]?.symbol,'ETH');assert.equal(response.references[0]?.bidUsd,'2500');assert.equal(response.references.length,f72PriceTargets().length+1);
 });

@@ -13,9 +13,10 @@ interface Market { readonly marketId: Hex32; readonly assetUid: Hex32; readonly 
 export async function readDisplayPrices(input: { readonly pool: Pool; readonly deployment: DeploymentIdentity; readonly now?: Date; readonly schemaName?: string }) {
   const targets = f72PriceTargets(); const now = input.now ?? new Date(); const rows = await latestPrices(input.pool, input.deployment, now, input.schemaName);
   const byToken = preferredPrices(rows, now);
+  const native = byToken.get('0x0000000000000000000000000000000000000000');
   return { chainId: input.deployment.chainId, displayOnly: true as const, confidence: 'provider_reported' as const, status: 'configured' as const,
-    references: targets.map((target) => byToken.get(target.token) ?? { ...target, source: 'robinhood_rest' as const, unit: 'USD_PER_WHOLE_TOKEN' as const,
-      status: 'unavailable' as const, reason: 'not_refreshed', bidUsd: null, askUsd: null, multiplier: null, asOf: null, expiresAt: null, retrievedAt: now.toISOString() }) };
+    references: [...(native ? [native] : []), ...targets.map((target) => byToken.get(target.token) ?? { ...target, source: 'robinhood_rest' as const, unit: 'USD_PER_WHOLE_TOKEN' as const,
+      status: 'unavailable' as const, reason: 'not_refreshed', bidUsd: null, askUsd: null, multiplier: null, asOf: null, expiresAt: null, retrievedAt: now.toISOString() })] };
 }
 
 export async function readStatisticsPrices(input: { readonly pool: Pool; readonly deployment: DeploymentIdentity; readonly now?: Date; readonly schemaName?: string }) {

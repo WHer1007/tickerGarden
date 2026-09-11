@@ -14,8 +14,7 @@ import {explorerStakeStatistics} from './v1/stakeStatistics.ts';
 import {bindStakeAmountInput} from './ui/stake-amount-input.ts';
 import {decodeRecentTrade,explorerRecentTrades,explorerCurveVolume24h} from './v1/recentTrades.ts';
 import {encodeAbiParameters,keccak256,parseUnits} from 'viem';
-import {overviewJson,nativeUsd,poolSpotPrice,type MarketOverview} from './v1/marketOverview.ts';
-import {displayPriceView} from './v1/displayPrices.ts';
+import {poolSpotPrice,type MarketOverview} from './v1/marketOverview.ts';
 import {createTradeTransactionStatus} from './ui/trade-transaction-status.ts';
 import {createGlobalNotice, type GlobalNoticeTone} from './ui/global-notice.ts';
 import {watchWalletAccount} from './ui/wallet-account-sync.ts';
@@ -71,6 +70,7 @@ import { mountCandles } from "./v1/candleWidget.ts";
 import { createRenderGeneration } from "./runtime/renderGeneration.ts";
 import { createSnapshotPoller, SnapshotRefreshSuperseded } from "./v1/snapshotUpdates.ts";
 import { mountDisplayPrice } from "./v1/displayPrices.ts";
+import { createAssetPriceStore } from './v1/assetPrices.ts';
 import { creatorTaxBps, assertCreatorTaxSupported, DEVELOPER_BUY_SLIPPAGE_BPS } from "./create/options.ts";
 import { activePairedConfig, RELEASE_PAIRED_ASSETS, RELEASE_OBSERVED_AT, RELEASE_SUPPLY, releasePairForSelection } from "./create/paired-assets.ts";
 import { developerBuyMode, graduationAmount, graduationEconomics } from "./create/economics.ts";
@@ -246,6 +246,7 @@ const publicClient = createPublicClient({
 const readApi = runtimeConfig.readApi.available
   ? new TickerGardenV1Client(runtimeConfig.readApi.value)
   : null;
+const assetPrices = createAssetPriceStore({ baseUrl: runtimeConfig.readApi.available ? runtimeConfig.readApi.value : null, chainId: robinhoodChain.id });
 
 let userActivityWidget: ReturnType<typeof mountUserActivity> | null = null;
 let globalHoldersWidget: ReturnType<typeof mountGlobalHolders> | null = null;
@@ -294,7 +295,7 @@ function mountPageWidgets(): void {
   const candles = query<HTMLElement>("[data-market-candles]");
   candleWidget = candles ? mountCandles(candles, base, robinhoodChain.id) : null;
   const prices = query<HTMLElement>("[data-display-price]");
-  displayPriceWidget = prices ? mountDisplayPrice(prices, base, robinhoodChain.id) : null;
+  displayPriceWidget = prices ? mountDisplayPrice(prices, assetPrices, robinhoodChain.id) : null;
 }
 function pauseAnalytics(): void {
   analyticsRefresh.cancel();
@@ -1245,15 +1246,9 @@ let statsPeriod: "24h" | "all" = "24h";
 async function loadMarketStockSymbols(): Promise<void> {
   if (!runtimeConfig.readApi.available) return;
   try {
-    const response = await new TickerGardenV1Client(runtimeConfig.readApi.value).listDisplayPriceReferences();
-    if (response.chainId !== robinhoodChain.id || !Array.isArray(response.references)) return;
+    await assetPrices.refresh(); const response = assetPrices.snapshot();
     const next = new Map<string, string>();
-    const duplicates = new Set<string>();
-    for (const reference of response.references) {
-      if (!ADDRESS_PATTERN.test(reference.token) || !/^[A-Z][A-Z0-9.\-]{0,15}$/.test(reference.symbol) || duplicates.has(reference.token)) continue;
-      if (next.has(reference.token)) { next.delete(reference.token); duplicates.add(reference.token); }
-      else next.set(reference.token, reference.symbol);
-    }
+    for (const reference of Object.values(response.prices)) next.set(reference.token, reference.symbol);
     marketStockSymbols = next;
     if (currentPage() === "markets") void renderMarkets();
   } catch { /* The address-based STOCK catalog remains usable without display metadata. */ }
@@ -1492,8 +1487,11 @@ async function renderStockStatistics(current:()=>boolean,valuations:any,summary:
 }
 async function renderProtocolStatistics(current:()=>boolean,attempt=0):Promise<boolean>{
  if(!runtimeConfig.readApi.available)return false;const base=runtimeConfig.readApi.value;
- try{const [summary,prices]=await Promise.all([fetch(`${base}/v1/protocol-statistics`,{signal:AbortSignal.timeout(5000)}).then(r=>{if(!r.ok)throw Error('Statistics Missing');return r.json();}),fetch(`${base}/v1/statistics-prices`,{signal:AbortSignal.timeout(5000)}).then(r=>{if(!r.ok)throw Error('Prices Missing');return r.json();}).catch(()=>({chainId:robinhoodChain.id,displayOnly:true,prices:{},expiresAt:{}}))]);
- if(!current()||summary.chainId!==robinhoodChain.id||summary.displayOnly!==true||prices.chainId!==robinhoodChain.id||prices.displayOnly!==true)return false;
+ try{const summary=await fetch(`${base}/v1/protocol-statistics`,{signal:AbortSignal.timeout(5000)}).then(r=>{if(!r.ok)throw Error('Statistics Missing');return r.json();});
+ const priceSnapshot=assetPrices.snapshot();
+ const availablePrices=Object.values(priceSnapshot.prices).filter(price=>price.status==='available'&&price.midpointUsd!==null&&price.expiresAt!==null);
+ const prices={chainId:priceSnapshot.chainId,prices:Object.fromEntries(availablePrices.map(price=>[price.token,price.midpointUsd])),expiresAt:Object.fromEntries(availablePrices.map(price=>[price.token,Math.floor(price.expiresAt!/1000)]))};
+ if(!current()||summary.chainId!==robinhoodChain.id||summary.displayOnly!==true||prices.chainId!==robinhoodChain.id)return false;
  const pending=summary.reason==='statistics_pending'||summary.feeCoverage!==true||!statisticsFresh(summary.observedAt,Date.now())||!statisticsFresh(summary.stakingObservedAt,Date.now());
  const fresh=statisticsFresh(summary.observedAt,Date.now());
  text('[data-stat-market-cap]',fresh&&summary.valuationCoverage===true&&typeof summary.marketCapUsd==='string'?formatMarketUSD(summary.marketCapUsd,true):'Unavailable');
@@ -1740,13 +1738,7 @@ async function refreshMarketOverview(preserve=false):Promise<void>{
    return poolSpotPrice(BigInt(raw)&((1n<<160n)-1n),market.memeToken.toLowerCase()===route.poolKey.currency0,metadata.quoteDecimals);
   })(),price=>({price})),
   report((async()=>{
-   if(market.quoteAsset===ZERO_ADDRESS)return nativeUsd();
-   if(!runtimeConfig.readApi.available)throw Error('USD Reference Missing');
-   const payload=await overviewJson(`${runtimeConfig.readApi.value.replace(/\/$/,'')}/v1/prices/references`);
-   const view=displayPriceView(payload,robinhoodChain.id,market.quoteAsset.toLowerCase(),Date.now());
-   if(view.status!=='available')throw Error('USD Reference Missing');
-   const reference=payload.references.find((r:any)=>r.token===market.quoteAsset.toLowerCase());
-   return formatUnits((parseUnits(reference.bidUsd,18)+parseUnits(reference.askUsd,18))/2n,18);
+   const value=assetPrices.midpointUsd(market.quoteAsset);if(value===null)throw Error('USD Reference Missing');return value;
   })(),usd=>({usd}))
  ]);
  if(incomplete&&tradeMarket===detail&&generation===tradeLoadGeneration)overviewLoads.set(key,Date.now()-540000);
@@ -5915,9 +5907,20 @@ const router = createRouter({
   hashChanged: () => { if (isRewardsPage()) syncRewardHash?.(); },
 });
 router.start();
+let assetPriceFingerprint = '';
+const unsubscribeAssetPrices = assetPrices.subscribe(snapshot => {
+  const fingerprint = JSON.stringify(snapshot); if (fingerprint === assetPriceFingerprint) return; assetPriceFingerprint = fingerprint;
+  marketStockSymbols = new Map(Object.values(snapshot.prices).map(price => [price.token, price.symbol]));
+  if (tradeMarket) tokenDetailWidget?.setOverview({ usd: assetPrices.midpointUsd(tradeMarket.market.quoteAsset) ?? undefined });
+  if (currentPage() === 'markets' && foundation) {
+    exploreStatisticsAt = 0; resetExplorePages();
+    void refreshExploreStatistics().then(() => { if (currentPage() === 'markets') void renderMarkets(); });
+  } else if (currentPage() === 'stats' && foundation) void renderStats();
+});
+assetPrices.start();
 void restoreLaunchProgress();
 startSnapshotUpdates();
-if (import.meta.hot) import.meta.hot.dispose(() => { if(launchRecoveryTimer)clearTimeout(launchRecoveryTimer);closeLaunchProgress();router.stop(); unmountPage(); });
+if (import.meta.hot) import.meta.hot.dispose(() => { if(launchRecoveryTimer)clearTimeout(launchRecoveryTimer);closeLaunchProgress();unsubscribeAssetPrices();assetPrices.stop();router.stop(); unmountPage(); });
 
 let directDirectoryBusy=false;
 let directDirectoryReadAt=0;

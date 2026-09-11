@@ -30,9 +30,3 @@ export async function explorerHolders(explorer:string,token:string){
  }catch{/* Count remains useful independently of the holder list. */}
  return {count,items};
 }
-export async function nativeUsd():Promise<string>{
- // Display-only public spot reference; never used for transaction execution.
- const result=await overviewJson('https://api.coinbase.com/v2/prices/ETH-USD/spot');
- if(result.data?.base!=='ETH'||result.data?.currency!=='USD'||!/^\d+(\.\d+)?$/.test(result.data?.amount)||Number(result.data.amount)<=0)throw Error('Invalid ETH Price');
- return result.data.amount;
-}
