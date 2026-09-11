@@ -235,9 +235,12 @@ async function runPageAction(action: () => Promise<void>): Promise<void> {
 const brandMarkUrl = new URL("../assets/tickergarden-mark.png", import.meta.url).href;
 const brandWordmark = `<span class="wordmark" aria-hidden="true"><span>Ticker</span><span>Garden</span></span>`;
 const runtimeConfig = parseV1RuntimeConfig(import.meta.env);
+const runtimeRpcUrl = import.meta.env.PROD && typeof window !== 'undefined'
+  ? new URL('/api/rpc', window.location.origin).toString()
+  : import.meta.env.VITE_V1_RPC_URL || robinhoodChain.rpcUrls.default.http[0];
 const publicClient = createPublicClient({
   chain: robinhoodChain,
-  transport: http(import.meta.env.VITE_V1_RPC_URL || robinhoodChain.rpcUrls.default.http[0]),
+  transport: http(runtimeRpcUrl),
 });
 const readApi = runtimeConfig.readApi.available
   ? new TickerGardenV1Client(runtimeConfig.readApi.value)
