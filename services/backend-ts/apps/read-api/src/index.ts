@@ -37,6 +37,7 @@ export function createReadApiApp(options: ReadApiOptions = {}) {
   app.use('/v1/*', async (context, next) => {
     await next(); const path = context.req.path;
     const privateRead = path.includes('/users/') || path.includes('reward-history') || path.includes('/wallet-holder-markets') || path.includes('/transactions/');
+    const priceCatalog = path.endsWith('/prices/references') || path.endsWith('/statistics-prices');
     const revision = context.req.query('revision');
     const immutableRevision = context.res.status >= 200 && context.res.status < 300
       && typeof revision === 'string' && /^(0|[1-9][0-9]*):0x[0-9a-f]{64}$/.test(revision);
@@ -44,6 +45,8 @@ export function createReadApiApp(options: ReadApiOptions = {}) {
       ? 'no-store'
       : immutableRevision
         ? 'public, max-age=300, s-maxage=31536000, immutable'
+        : priceCatalog
+          ? 'public, max-age=60, s-maxage=300, stale-while-revalidate=60'
         : 'public, max-age=5, s-maxage=15, stale-while-revalidate=30');
   });
 

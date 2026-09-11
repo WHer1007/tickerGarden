@@ -281,7 +281,7 @@ QuickNode 不再是默认主 RPC 或必选事件入口；可作为独立备用 R
 
 Pipeline 新增每五分钟独立价格刷新：冻结当前 release 的 STOCK target，核对 Robinhood REST 的 chain/address/assetUid/symbol、active/pending multiplier、corporate action、halt、bid/ask 和时间，内部保留 raw bid/ask，公开 adjusted bid/ask、`currentMultiplier`、来源、单位、asOf/expiresAt/retrievedAt；乘数只应用一次。失败、过期或未刷新均返回 unavailable/stale，价格表和接口只用于展示。当前页面没有必须由 Dune 才能生成的字段，因此未引入同步 Dune 调用；任何可选历史 USD/Dune 数据缺失都沿同一 coverage 分支返回 null。34 项后端单测、3 项真实 PostgreSQL 集成测试、后端 typecheck/build、313 项前端测试通过，覆盖有效/过期价格、乘数精度、完整/缺口窗口、零流量、不同资产分组、费用累计、当前价存在但历史 USD 缺失，以及 Stats 不扫描目录。
 
-价格刷新与前端消费在 2026-09-12 收敛为单一路径：Pipeline 每五分钟获取一次测试网 ETH/USD 与身份绑定的 Stock Token/USD 展示参考并写入 `price_references`；Read API 的 `/v1/prices/references` 返回完整资产目录。前端 `assetPrices` 单例每分钟检查这个缓存目录，在内存中保存按链和 Token 地址索引的精确定点 bid、ask、midpoint、来源与过期时间，并向所有订阅页面广播变化。Create、Trade、Explore 和 Stats 共享该状态；价格变化会重算或重新读取对应展示统计。前端不再直接访问 Coinbase，也不再由 Stats 独立读取 `/v1/statistics-prices`。该状态严格用于展示估值，不能进入交易报价、滑点、结算、创建参数或写链授权。
+价格刷新与前端消费在 2026-09-12 收敛为单一路径：Pipeline 每五分钟获取一次测试网 ETH/USD 与身份绑定的 Stock Token/USD 展示参考并写入 `price_references`；Read API 的 `/v1/prices/references` 返回完整资产目录，并通过五分钟共享 CDN 缓存减少 PostgreSQL 读取。前端 `assetPrices` 单例每分钟检查这个缓存目录，在内存中保存按链和 Token 地址索引的精确定点 bid、ask、midpoint、来源与过期时间，并向所有订阅页面广播变化。Create、Trade、Explore 和 Stats 共享该状态；价格变化会重算或重新读取对应展示统计。前端不再直接访问 Coinbase，也不再由 Stats 独立读取 `/v1/statistics-prices`。该状态严格用于展示估值，不能进入交易报价、滑点、结算、创建参数或写链授权。
 
 依赖：TS-04、05、06；可与 TS-07 并行。参考：Go `marketstats/`、`displayprice/`、`analytics/`、`demandevents/protocol.go`、`display_time.go`、`market_display.go`；前端 `statsSummary.ts`、`statisticsValue.ts`、`stakeStatistics.ts`。
 

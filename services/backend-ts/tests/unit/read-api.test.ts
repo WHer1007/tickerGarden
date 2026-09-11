@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { createReadApiApp } from '../../apps/read-api/src/index.ts';
+import type { Pool } from 'pg';
 
 test('Read API rejects malformed market queries before opening a database connection', async () => {
   const app = createReadApiApp({ env: {
@@ -20,5 +21,13 @@ test('Read API rejects malformed market queries before opening a database connec
     const analytics = await app.request(path);
     assert.equal(analytics.status, 400);
     assert.equal((await analytics.json()).error, 'invalid_query');
+  }
+});
+
+test('display price catalogs use the five-minute shared CDN cache', async () => {
+  const pool={query:async()=>({rows:[]})} as unknown as Pool;
+  const app=createReadApiApp({env:{NODE_ENV:'test',TG_READ_DATABASE_URL:'postgres://unused',TG_CURSOR_SECRET:'read-api-test-secret-that-is-at-least-32-bytes'},pool});
+  for(const path of ['/v1/prices/references','/v1/statistics-prices']){
+    const response=await app.request(path);assert.equal(response.status,200);assert.equal(response.headers.get('cache-control'),'public, max-age=60, s-maxage=300, stale-while-revalidate=60');
   }
 });
