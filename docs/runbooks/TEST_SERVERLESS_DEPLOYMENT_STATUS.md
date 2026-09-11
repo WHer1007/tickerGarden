@@ -1,6 +1,6 @@
 # Test serverless deployment status
 
-Last verified: 2026-09-12 02:32 (Asia/Shanghai)
+Last verified: 2026-09-12 03:01 (Asia/Shanghai)
 
 ## Active scope
 
@@ -12,10 +12,10 @@ This is test-environment evidence. It is not production readiness or permission 
 
 | Component | Endpoint | State |
 | --- | --- | --- |
-| Web | `https://tickergarden-web-test.vercel.app` | active; Preview deployment `dpl_3PAWthc3SEGdWAFzCpXKjXmy9yWk` |
-| Read API | `https://tickergarden-read-api-test.vercel.app` | active; Preview deployment `dpl_F7UkYZgvejRk4zgcaUp6wbYnQc4n` |
+| Web | `https://tickergarden-web-test.vercel.app` | active; Preview deployment `dpl_7A42yArJZ81WAdrzYo1SzZTZfDPT` |
+| Read API | `https://tickergarden-read-api-test.vercel.app` | active; Preview deployment `dpl_8QJYFqtXqUnczqR9TgqGw4kpZFhJ` |
 | Content API | `https://tickergarden-content-test.vercel.app` | active |
-| Pipeline | `https://tickergarden-pipeline-test.vercel.app` | active; Preview deployment `dpl_6rumYGnby6NvP1pspLhnhDKh9xyh` |
+| Pipeline | `https://tickergarden-pipeline-test.vercel.app` | active; Preview deployment `dpl_36oA1Z5SQaiPdKPViNRj5syQjLyn` |
 | Chain event relay | VPS internal `chain-event-relay-test:8081` | healthy |
 | Queue relay | `https://queue-test.159-89-207-161.sslip.io` | active |
 | S3-compatible storage | `https://s3-test.159-89-207-161.sslip.io` | active |
@@ -61,6 +61,10 @@ Revision-addressed public reads now receive immutable CDN caching. The snapshot 
 The online Stats check returned HTTP 200 for `/health`, `/v1/protocol-statistics`, `/v1/statistics-prices`, and `/v1/updates`. The page rendered 12 launches in the current 24-hour window, 3 Bloomed markets, 2 staking wallets, and `$13.41` of stock staking value. Metrics without complete historical USD coverage render `Unavailable` rather than a zero placeholder.
 
 Market-cap reads are available independently of complete 24-hour historical coverage. The test price worker combines Coinbase ETH/USD with identity-verified Synthra V3 testnet pool spots for the five configured stock tokens; the VPS runs `tickergarden-price-refresh-test.timer` every five minutes. References are persisted in PostgreSQL and the Read API publishes native ETH plus the configured Stock Token catalog. The frontend keeps one application-wide observable price store, polls the cached catalog once per minute, and updates Create, Trade, Explore and Stats consumers when its version changes. A transient failed quote refresh does not replace an unexpired successful reference. Explore merges `/v1/market-statistics` into Read API directory rows and displays current MC values.
+
+The 2026-09-12 price-cache acceptance manually ran the VPS refresh service with a successful exit and then read six available references from the aliased Read API: ETH from Coinbase plus NFLX, PLTR, AMD, AMZN and TSLA from identity-verified testnet pools. The active systemd timer reported a five-minute next trigger.
+
+A cold Chrome check of the aliased Create page rendered the cached ETH reference as available, made exactly one `/v1/prices/references` request, made no `/v1/statistics-prices` request, made no direct Coinbase request, and reported no browser or request failures. The broader acceptance rendered all 18 desktop/mobile route checks and submitted no transactions; its final platform-only Node fetch was affected by the workstation's intermittent TLS reset, while the same endpoint checks passed from the VPS.
 
 Token detail fee allocation reads use the current immutable market configuration and cumulative finalized allocation rows. Curve and Bloomed markets display each recipient percentage and exact asset-separated Quote/Meme amounts; the snapshot label distinguishes these totals from live settlement authority.
 
