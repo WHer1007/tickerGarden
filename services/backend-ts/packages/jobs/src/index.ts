@@ -141,7 +141,7 @@ export async function enqueueReliableMessage(pool: Pool, message: EnqueueMessage
 export async function claimJobByOperation(pool: Pool, queue: QueueName, operationId: string, owner: string, leaseMs = 20_000, schemaName = 'tickergarden_serverless', expectedGeneration = 0n): Promise<Lease | null> {
   assertToken(operationId, 'operationId');
   assertToken(owner, 'owner');
-  if (!Number.isInteger(leaseMs) || leaseMs < 1_000 || leaseMs > 120_000) throw new Error('leaseMs must be between 1000 and 120000');
+  if (!Number.isInteger(leaseMs) || leaseMs < 1_000 || leaseMs > 300_000) throw new Error('leaseMs must be between 1000 and 300000');
   const schema = schemaIdentifier(schemaName);
   return transaction(pool, async (client) => {
     await assertActiveGeneration(client, schema, queue, expectedGeneration);
@@ -172,7 +172,7 @@ export async function claimJobByOperation(pool: Pool, queue: QueueName, operatio
 export async function claimJobs(pool: Pool, queue: QueueName, owner: string, limit = 1, leaseMs = 20_000, schemaName = 'tickergarden_serverless', expectedGeneration = 0n): Promise<Lease[]> {
   assertToken(owner, 'owner');
   if (!Number.isInteger(limit) || limit < 1 || limit > 20) throw new Error('limit must be between 1 and 20');
-  if (!Number.isInteger(leaseMs) || leaseMs < 1_000 || leaseMs > 120_000) throw new Error('leaseMs must be between 1000 and 120000');
+  if (!Number.isInteger(leaseMs) || leaseMs < 1_000 || leaseMs > 300_000) throw new Error('leaseMs must be between 1000 and 300000');
   const schema = schemaIdentifier(schemaName);
   return transaction(pool, async (client) => {
     await assertActiveGeneration(client, schema, queue, expectedGeneration);

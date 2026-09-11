@@ -122,7 +122,7 @@ for (const appName of expectedApps) {
   }
 
   const config = readJson(join(appDirectory, 'vercel.json'));
-  const expectedMaxDuration = appName === 'pipeline' ? 60 : 20;
+  const expectedMaxDuration = appName === 'pipeline' ? 300 : 20;
   if (config.functions?.['api/index.ts']?.maxDuration !== expectedMaxDuration) {
     fail(`apps/${appName}/vercel.json must configure api/index.ts maxDuration=${expectedMaxDuration}`);
   }

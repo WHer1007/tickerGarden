@@ -154,7 +154,8 @@ async function advanceHolders(client: PoolClient, schema: string, deployment: De
   const transfers = observations.map((item) => transferFromObservation(item, deployment.chainId));
   const exclusions = uniqueAddresses([market.record.curve, market.record.gauge, market.record.memeToken,
     f72EventCatalog.HolderRewardsDistributorV1.address, f72EventCatalog.ProtocolFeeVault.address,
-    f72EventCatalog.UniswapV4PoolManager.address, f72EventCatalog.TickerGardenFactoryV1.address, market.binding.hook]);
+    f72EventCatalog.UniswapV4PoolManager.address, f72EventCatalog.TickerGardenFactoryV1.address, market.binding.hook]
+    .filter((account) => account !== ZERO_ADDRESS));
   const current = (await client.query<{ total_supply_raw: string; positive_address_count: string; included_address_count: string; excluded_accounts: Address[] }>(
     `SELECT total_supply_raw::text,positive_address_count::text,included_address_count::text,excluded_accounts FROM ${schema}.holder_snapshots
      WHERE environment=$1 AND chain_id=$2 AND deployment_digest=$3 AND market_id=$4 FOR UPDATE`,

@@ -323,7 +323,14 @@ function reducePrice(value: CandlePrice): CandlePrice { const n = uint256(value.
 function gcd(a: bigint, b: bigint): bigint { let x = a; let y = b; while (y) [x, y] = [y, x % y]; return x; }
 function comparePrice(left: CandlePrice, right: CandlePrice): number { const value = BigInt(left.numerator) * BigInt(right.denominator) - BigInt(right.numerator) * BigInt(left.denominator); return value < 0n ? -1 : value > 0n ? 1 : 0; }
 function addUint(left: string, right: string): string { return (uint256(left, 'aggregate') + uint256(right, 'amount')).toString(); }
-function uint256(value: unknown, label: string): bigint { if ((typeof value !== 'string' && typeof value !== 'bigint') || !/^(0|[1-9][0-9]*)$/.test(String(value))) throw new Error(`${label} is not uint256`); const result = BigInt(value); if (result >= UINT256_MAX) throw new Error(`${label} exceeds uint256`); return result; }
+function uint256(value: unknown, label: string): bigint {
+  const supported = typeof value === 'string' || typeof value === 'bigint'
+    || (typeof value === 'number' && Number.isSafeInteger(value) && value >= 0);
+  if (!supported || !/^(0|[1-9][0-9]*)$/.test(String(value))) throw new Error(`${label} is not uint256`);
+  const result = BigInt(value as string | number | bigint);
+  if (result >= UINT256_MAX) throw new Error(`${label} exceeds uint256`);
+  return result;
+}
 function int128(value: unknown, label: string): bigint { if ((typeof value !== 'string' && typeof value !== 'bigint') || !/^(0|-?[1-9][0-9]*)$/.test(String(value))) throw new Error(`${label} is not int128`); const result = BigInt(value); if (result < INT128_MIN || result > INT128_MAX) throw new Error(`${label} exceeds int128`); return result; }
 function address(value: unknown, label: string): Address { if (typeof value !== 'string' || !/^0x[0-9a-fA-F]{40}$/.test(value)) throw new Error(`${label} is not an address`); return value.toLowerCase() as Address; }
 function hex32(value: unknown, label: string): Hex32 { if (typeof value !== 'string' || !/^0x[0-9a-fA-F]{64}$/.test(value)) throw new Error(`${label} is not bytes32`); return value.toLowerCase() as Hex32; }

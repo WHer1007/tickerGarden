@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import type { RpcLog } from '../../packages/chain/src/index.ts';
 import { fixedF72Sources, type DecodedProtocolEvent } from '../../packages/events/src/index.ts';
-import { normalizeGaugePrincipal, replayPrincipal } from '../../packages/principal-projector/src/index.ts';
+import { normalizeGaugePrincipal, replayPrincipal, validatePrincipalMarket } from '../../packages/principal-projector/src/index.ts';
 
 const asset = `0x${'1'.repeat(64)}` as const;
 const market = `0x${'2'.repeat(64)}` as const;
@@ -37,6 +37,21 @@ test('principal replay rejects event checkpoint mismatches and conservation fail
     event('AllocationLocked', 1n, { marketId: market, amount: 40n, userMarketAllocation: 39n, userTotalAllocated: 40n }),
   ], 46630, new Map([[asset, vault]])), /checkpoint mismatch/);
   assert.throws(() => replayPrincipal([event('StockWithdrawn', 0n, { amount: 1n })], 46630, new Map([[asset, vault]])), /conservation/);
+});
+
+test('principal replay normalizes checksummed event addresses', () => {
+  const checksummedUser = `0x${'A'.repeat(40)}` as const;
+  const result = replayPrincipal([event('StockDeposited', 0n, { user: checksummedUser, amount: 1n })], 46630, new Map([[asset, vault]]));
+  assert.equal(result.accounts.get(`${asset}:${checksummedUser.toLowerCase()}`)?.deposited, 1n);
+});
+
+test('principal market permits a zero gauge until staking is enabled', () => {
+  const base = {
+    marketId: `0x${'6'.repeat(64)}` as const, assetUid: `0x${'7'.repeat(64)}` as const,
+    gauge: `0x${'0'.repeat(40)}` as const, quoteAsset: `0x${'8'.repeat(40)}` as const, memeToken: `0x${'9'.repeat(40)}` as const,
+  } as const;
+  assert.equal(validatePrincipalMarket({ ...base, stakingEnabled: false }).gauge, base.gauge);
+  assert.throws(() => validatePrincipalMarket({ ...base, stakingEnabled: true }), /gauge is zero/);
 });
 
 test('Gauge normalization distinguishes pending and processed activation without adding allocated twice', () => {

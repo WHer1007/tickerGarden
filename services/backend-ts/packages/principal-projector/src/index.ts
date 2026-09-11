@@ -28,7 +28,7 @@ export async function projectF72Principal(input: {
   );
   const markets = new Map<string, Market>();
   for (const row of marketRows.rows) {
-    const market = validateMarket(row.payload);
+    const market = validatePrincipalMarket(row.payload);
     if (markets.has(market.marketId)) throw new Error('duplicate principal market');
     markets.set(market.marketId, market);
   }
@@ -177,9 +177,13 @@ function parseStoredLog(value: Record<string, unknown>): RpcLog { return { addre
   logIndex: bigint(value.logIndex, 'logIndex'), data: hex(value.data, 'data'), topics: array(value.topics, 'topics').map((item) => hash(item, 'topic')), removed: value.removed === true }; }
 function accountSort(a: Account, b: Account) { return a.user.localeCompare(b.user) || a.assetUid.localeCompare(b.assetUid); }
 function allocationSort(a: Allocation, b: Allocation) { return a.user.localeCompare(b.user) || a.assetUid.localeCompare(b.assetUid) || a.marketId.localeCompare(b.marketId); }
-function validateMarket(value: Market): Market { return { marketId: hash(value.marketId, 'marketId'), assetUid: hash(value.assetUid, 'assetUid'),
-  gauge: nonzeroAddress(value.gauge, 'gauge'), quoteAsset: address(value.quoteAsset, 'quoteAsset'), memeToken: nonzeroAddress(value.memeToken, 'memeToken'),
-  stakingEnabled: boolean(value.stakingEnabled, 'stakingEnabled') }; }
+export function validatePrincipalMarket(value: Market): Market {
+  const stakingEnabled = boolean(value.stakingEnabled, 'stakingEnabled');
+  const gauge = address(value.gauge, 'gauge');
+  if (stakingEnabled && gauge === ZERO_ADDRESS) throw new Error('gauge is zero');
+  return { marketId: hash(value.marketId, 'marketId'), assetUid: hash(value.assetUid, 'assetUid'), gauge,
+    quoteAsset: address(value.quoteAsset, 'quoteAsset'), memeToken: nonzeroAddress(value.memeToken, 'memeToken'), stakingEnabled };
+}
 function identity(deployment: DeploymentIdentity): readonly unknown[] { return [deployment.environment, deployment.chainId, deployment.deploymentDigest]; }
 function fixedAddress(module: string): Address { const source = fixedF72Sources().find((item) => item.module === module); if (!source) throw new Error(`missing fixed ${module} address`); return source.address as Address; }
 function scalar(value: unknown): bigint { return bigint(value, 'contract scalar'); }
@@ -188,7 +192,10 @@ function tuple(value: unknown, label: string): readonly unknown[] { if (!Array.i
 function bigint(value: unknown, label: string): bigint { const result = typeof value === 'bigint' ? value : typeof value === 'string' && /^(0|[1-9][0-9]*)$/.test(value) ? BigInt(value) : -1n;
   if (result < 0n || result >= 2n ** 256n) throw new Error(`${label} is invalid`); return result; }
 function boolean(value: unknown, label: string): boolean { if (typeof value !== 'boolean') throw new Error(`${label} is invalid`); return value; }
-function address(value: unknown, label: string): Address { if (typeof value !== 'string' || !/^0x[0-9a-f]{40}$/.test(value)) throw new Error(`${label} is invalid`); return value as Address; }
+function address(value: unknown, label: string): Address {
+  if (typeof value !== 'string' || !/^0x[0-9a-fA-F]{40}$/.test(value)) throw new Error(`${label} is invalid`);
+  return value.toLowerCase() as Address;
+}
 function nonzeroAddress(value: unknown, label: string): Address { const result = address(value, label); if (result === ZERO_ADDRESS) throw new Error(`${label} is zero`); return result; }
 function hash(value: unknown, label: string): Hex { if (typeof value !== 'string' || !/^0x[0-9a-f]{64}$/.test(value)) throw new Error(`${label} is invalid`); return value as Hex; }
 function hex(value: unknown, label: string): Hex { if (typeof value !== 'string' || !/^0x(?:[0-9a-f]{2})*$/.test(value)) throw new Error(`${label} is invalid`); return value as Hex; }

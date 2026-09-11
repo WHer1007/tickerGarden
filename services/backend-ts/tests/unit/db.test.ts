@@ -25,6 +25,7 @@ test('migration and grants accept only bounded PostgreSQL identifiers', () => {
     pipeline: 'tg_pipeline',
   });
   assert.match(grants, /GRANT SELECT ON[\s\S]+TO "tg_read"/);
+  assert.match(grants, /projection_checkpoints,[\s\S]+TO "tg_read"/);
   assert.match(grants, /GRANT SELECT, INSERT ON "tg_test_1"\.publications TO "tg_pipeline"/);
   assert.doesNotMatch(grants, /UPDATE[^;]+publications/);
   assert.throws(() => permissionsSql('tg_test_1', { readApi: 'bad-role', content: 'tg_content', pipeline: 'tg_pipeline' }), /invalid/);

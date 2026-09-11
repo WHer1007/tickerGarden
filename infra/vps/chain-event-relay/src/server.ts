@@ -230,9 +230,12 @@ async function loadRouting(pool: Pool, eventFilter: EventFilter): Promise<Routin
     [eventFilter.chainId, eventFilter.releaseId],
   );
   const pools = await pool.query<{ pool_id: string; birth_block: string }>(
-    `SELECT lower(payload->>'poolId') AS pool_id,creation_block::text AS birth_block FROM ${schema}.markets
-     WHERE environment='test' AND chain_id=$1 AND deployment_digest=$2
-       AND payload->>'poolId' ~ '^0x[0-9a-fA-F]{64}$' AND payload->>'poolId' <> $3 ORDER BY pool_id`,
+    `SELECT lower(r.payload->>'poolId') AS pool_id,r.payload->'source'->>'blockNumber' AS birth_block
+     FROM ${schema}.projection_records r
+     JOIN ${schema}.publication_pointers p USING(environment,chain_id,deployment_digest,scope,revision)
+     WHERE r.environment='test' AND r.chain_id=$1 AND r.deployment_digest=$2 AND r.scope='markets'
+       AND r.payload->>'poolId' ~ '^0x[0-9a-fA-F]{64}$' AND r.payload->>'poolId' <> $3
+       AND r.payload->'source'->>'blockNumber' ~ '^[0-9]+$' ORDER BY pool_id`,
     [eventFilter.chainId, eventFilter.releaseId, `0x${'0'.repeat(64)}`],
   );
   return {

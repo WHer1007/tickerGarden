@@ -9,7 +9,7 @@ import {
   StaleQueueGenerationError, verifyQStashRequest, verifyRepairToken, type Lease,
 } from '../../../packages/jobs/src/index.ts';
 import { ALCHEMY_EVM_COMPUTE_UNIT_SCHEDULE, alchemyNominalComputeUnits } from '../../../packages/alchemy/src/index.ts';
-import { parseChainLogTrigger, RpcTransport } from '../../../packages/chain/src/index.ts';
+import { consensusBlock, parseChainLogTrigger, RpcTransport } from '../../../packages/chain/src/index.ts';
 import { createChainProcessor } from '../../../packages/chain-worker/src/index.ts';
 import { f72PriceTargets, fetchPriceReferences, storePriceReferences } from '../../../packages/display-price/src/index.ts';
 import { CURRENT_ACTIVATION_BLOCK, CURRENT_RELEASE_ID } from '../../../packages/events/src/index.ts';
@@ -47,11 +47,13 @@ export function createPipelineApp(options: PipelineAppOptions = {}) {
         computeUnitSchedule: ALCHEMY_EVM_COMPUTE_UNIT_SCHEDULE.id, observe: (metric) => emitMetric(env, metric),
       }),
       secondary: new RpcTransport({ url: env.TG_SECONDARY_RPC_URL ?? '', provider: 'independent-secondary', observe: (metric) => emitMetric(env, metric) }),
+      ...(env.TG_LOGS_SECONDARY_RPC_URL ? { logsSecondary: new RpcTransport({
+        url: env.TG_LOGS_SECONDARY_RPC_URL, provider: 'independent-logs-secondary', observe: (metric) => emitMetric(env, metric),
+      }) } : {}),
       environment: environmentName(env.TG_ENVIRONMENT),
       ...(env.TG_DATABASE_SCHEMA ? { schemaName: env.TG_DATABASE_SCHEMA } : {}),
       ...(env.V1_FINALITY_DELAY_BLOCKS ? { finalityDelayBlocks: BigInt(env.V1_FINALITY_DELAY_BLOCKS) } : {}),
       ...(env.V1_FINALITY_DELAY_SECONDS ? { finalityDelaySeconds: BigInt(env.V1_FINALITY_DELAY_SECONDS) } : {}),
-      ...(env.TG_EVENT_START_POLICY === 'latest-on-first-request' ? { latestOnFirstRequest: true } : {}),
     });
     return ownedProcessor;
   }
@@ -68,6 +70,38 @@ export function createPipelineApp(options: PipelineAppOptions = {}) {
   app.post('/internal/repair', async (context) => {
     if (!authorized(context.req.header('authorization'))) return context.json({ error: 'unauthorized', requestId: context.get('requestId') }, 401);
     return context.json(await repairQueue(databasePool(), 'chain', env.TG_DATABASE_SCHEMA, runtimeGeneration(env.TG_PIPELINE_GENERATION)));
+  });
+  app.post('/internal/bootstrap', async (context) => {
+    if (!operatorAuthorized(context.req.header('authorization'))) return context.json({ error: 'unauthorized', requestId: context.get('requestId') }, 401);
+    try {
+      const primary = new RpcTransport({
+        url: env.TG_RPC_URL ?? '', provider: 'alchemy-primary', nominalComputeUnits: alchemyNominalComputeUnits,
+        computeUnitSchedule: ALCHEMY_EVM_COMPUTE_UNIT_SCHEDULE.id, observe: (metric) => emitMetric(env, metric),
+      });
+      const secondary = new RpcTransport({ url: env.TG_SECONDARY_RPC_URL ?? '', provider: 'independent-secondary', observe: (metric) => emitMetric(env, metric) });
+      const [primaryHead, secondaryHead] = await Promise.all([primary.latestBlock(), secondary.latestBlock()]);
+      const number = primaryHead.number < secondaryHead.number ? primaryHead.number : secondaryHead.number;
+      const head = await consensusBlock(primary, secondary, number);
+      const generation = runtimeGeneration(env.TG_PIPELINE_GENERATION);
+      const suffix = `g${generation}-${head.number}-${head.hash.slice(2, 14)}`;
+      const payload = { headBlock: head.number.toString(), headHash: head.hash, fromBlock: 'activation-backfill' } as const;
+      const rawBody = JSON.stringify(payload);
+      const enqueued = await enqueueReliableMessage(databasePool(), {
+        queue: 'chain', externalId: `bootstrap-${suffix}`, operationId: `bootstrap:${suffix}`, kind: 'chain-backfill',
+        rawBody, payload, destinationKey: 'chain-worker', maxAttempts: 16, generation,
+      }, env.TG_DATABASE_SCHEMA);
+      const callback = env.TG_CHAIN_JOB_CALLBACK_URL;
+      if (!callback || !env.QSTASH_CHAIN_TOKEN) return context.json({ error: 'not_ready', requestId: context.get('requestId') }, 503);
+      const dispatched = await dispatchDueOutbox({
+        pool: databasePool(), queue: 'chain', owner: `bootstrap-${randomUUID()}`,
+        client: options.qstashClient ?? createQStashClient(env.QSTASH_CHAIN_TOKEN), destinations: { 'chain-worker': callback },
+        expectedGeneration: generation,
+        ...(env.TG_DATABASE_SCHEMA ? { schemaName: env.TG_DATABASE_SCHEMA } : {}),
+      });
+      return context.json({ accepted: true, duplicate: enqueued.duplicate, headBlock: head.number.toString(), dispatched });
+    } catch (error) {
+      return context.json({ error: 'bootstrap_failed', message: error instanceof Error ? error.message : 'bootstrap failed', requestId: context.get('requestId') }, 503);
+    }
   });
   app.post('/internal/generation/advance', async (context) => {
     if (!operatorAuthorized(context.req.header('authorization'))) return context.json({ error: 'unauthorized', requestId: context.get('requestId') }, 401);
@@ -185,7 +219,7 @@ export function createPipelineApp(options: PipelineAppOptions = {}) {
     try {
       outcome = await processSignedJob({
         pool: databasePool(), queue: 'chain', owner: `worker-${randomUUID()}`, body, signature, url: context.req.url,
-        currentSigningKey, nextSigningKey, leaseMs: 120_000, process: chainProcessor(),
+        currentSigningKey, nextSigningKey, leaseMs: 290_000, process: chainProcessor(),
         expectedGeneration: runtimeGeneration(env.TG_PIPELINE_GENERATION),
         ...(context.req.header('upstash-region') ? { upstashRegion: context.req.header('upstash-region')! } : {}),
         ...(env.TG_DATABASE_SCHEMA ? { schemaName: env.TG_DATABASE_SCHEMA } : {}),

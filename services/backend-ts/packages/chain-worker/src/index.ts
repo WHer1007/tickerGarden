@@ -1,10 +1,14 @@
 import type { Pool } from 'pg';
 import { transaction } from '../../db/src/index.ts';
 import {
-  consensusBlock, findCommonAncestor, ingestCanonicalRange, loadIngestionState, ReorgDetectedError, rewindCanonicalChain,
-  parseChainLogTrigger, RpcTransport, verifyChainIdentity, type DeploymentIdentity, type RpcBlock,
+  consensusBlock, deserializeRpcLog, findCommonAncestor, ingestCanonicalRange, ingestFinalizedSparseRange, loadIngestionState,
+  ReorgDetectedError, rewindCanonicalChain, parseChainLogTrigger, RpcTransport, verifyChainIdentity,
+  type DeploymentIdentity, type RpcBlock, type RpcLog,
 } from '../../chain/src/index.ts';
-import { discoverF72MarketSources, eventTopic, CURRENT_ACTIVATION_BLOCK, CURRENT_RELEASE_ID, fixedF72Sources } from '../../events/src/index.ts';
+import {
+  decodeF72Event, discoverF72MarketSources, eventTopic, eventTopicsForModules,
+  CURRENT_ACTIVATION_BLOCK, CURRENT_RELEASE_ID, fixedF72Sources,
+} from '../../events/src/index.ts';
 import { enqueueReliableMessage, type Lease } from '../../jobs/src/index.ts';
 import { invalidateOrphanedPublications } from '../../projection/src/index.ts';
 import { projectF72Markets } from '../../market-projector/src/index.ts';
@@ -22,12 +26,12 @@ export interface ChainProcessorOptions {
   readonly pool: Pool;
   readonly primary: RpcTransport;
   readonly secondary: RpcTransport;
+  readonly logsSecondary?: RpcTransport;
   readonly environment?: DeploymentIdentity['environment'];
   readonly schemaName?: string;
   readonly finalityDelayBlocks?: bigint;
   readonly finalityDelaySeconds?: bigint;
   readonly initialBlock?: bigint;
-  readonly latestOnFirstRequest?: boolean;
 }
 
 export function createChainProcessor(options: ChainProcessorOptions): (lease: Lease) => Promise<string> {
@@ -43,32 +47,45 @@ export function createChainProcessor(options: ChainProcessorOptions): (lease: Le
     await ensureBootstrap({ ...options, deployment });
     const delayBlocks = options.finalityDelayBlocks ?? 2n;
     const delaySeconds = options.finalityDelaySeconds ?? 600n;
-    const initialBlock = options.latestOnFirstRequest
-      ? await latestFinalizedBlock(options.primary, options.secondary, deployment.activationBlock, head, delayBlocks, delaySeconds)
-      : options.initialBlock;
+    const initialBlock = options.initialBlock ?? deployment.activationBlock;
     const state = await loadIngestionState({ pool: options.pool, deployment, stream: STREAM,
       ...(initialBlock !== undefined ? { initialNextBlock: initialBlock } : {}),
       ...(options.schemaName ? { schemaName: options.schemaName } : {}) });
-    if (head.number < delayBlocks || state.nextBlock + delayBlocks > head.number) return `waiting:${state.nextBlock}`;
+    if (head.number < delayBlocks) return `waiting:${state.nextBlock}`;
 
-    const upperByBlocks = head.number - delayBlocks;
-    let toBlock = state.nextBlock + 9n < upperByBlocks ? state.nextBlock + 9n : upperByBlocks;
-    while (toBlock >= state.nextBlock) {
-      const candidate = await consensusBlock(options.primary, options.secondary, toBlock);
-      if (candidate.timestamp + delaySeconds <= head.timestamp) break;
-      toBlock -= 1n;
+    const finalizedUpper = await latestFinalizedBlock(options.primary, options.secondary, deployment.activationBlock,
+      head, delayBlocks, delaySeconds);
+    if (state.nextBlock > finalizedUpper) {
+      const anchorNumber = state.nextBlock - 1n;
+      if (await projectionBatchPending(options.pool, deployment, anchorNumber, options.schemaName)) {
+        await projectBatch(options, deployment, anchorNumber, state.generation);
+        return `projected:${anchorNumber}`;
+      }
+      return `waiting:${state.nextBlock}`;
     }
-    if (toBlock < state.nextBlock) return `waiting:${state.nextBlock}`;
+    const sparse = finalizedUpper - state.nextBlock >= 10n;
+    const toBlock = sparse
+      ? (state.nextBlock + 49_999n < finalizedUpper ? state.nextBlock + 49_999n : finalizedUpper)
+      : (state.nextBlock + 9n < finalizedUpper ? state.nextBlock + 9n : finalizedUpper);
 
     let result;
     try {
-      result = await ingestCanonicalRange({
+      const common = {
         pool: options.pool, deployment, stream: STREAM, fromBlock: state.nextBlock, toBlock, observedHead: head,
         finalityDelayBlocks: delayBlocks, finalityDelaySeconds: delaySeconds, primary: options.primary, secondary: options.secondary,
         sources: state.sources.length ? state.sources : fixedF72Sources(),
-        discover: (logs, block) => discoverF72MarketSources(logs, block.number, options.primary, options.secondary),
+        discover: (logs: readonly RpcLog[], block: RpcBlock) => discoverF72MarketSources(logs, block.number, options.primary, options.secondary),
         ...(options.schemaName ? { schemaName: options.schemaName } : {}),
-      });
+      } as const;
+      if (sparse) {
+        const poolManager = fixedF72Sources().find((source) => source.module === 'UniswapV4PoolManager')!;
+        const protocolSources = common.sources.filter((source) => source.address !== poolManager.address);
+        const eventTopics = eventTopicsForModules([...new Set([...protocolSources.map((source) => source.module), 'TickerMemeTokenV1', 'TickerGardenCurve'])]);
+        result = await ingestFinalizedSparseRange({ ...common, secondary: options.logsSecondary ?? options.secondary, sources: protocolSources, eventTopics,
+          excludedAddresses: [poolManager.address],
+          additionalQueries: async (currentLogs) => poolManagerQueries(options.pool, deployment, common.sources, currentLogs, poolManager.address, options.schemaName),
+        });
+      } else result = await ingestCanonicalRange(common);
     } catch (error) {
       if (!(error instanceof ReorgDetectedError) || state.nextBlock <= deployment.activationBlock) throw error;
       const maximumDepth = state.nextBlock - 1n - deployment.activationBlock < 1_000n
@@ -86,35 +103,45 @@ export function createChainProcessor(options: ChainProcessorOptions): (lease: Le
       await enqueueContinuation(options.pool, head, ancestor.number + 1n, BigInt(lease.generation), options.schemaName);
       return JSON.stringify({ reorg: true, ancestor: ancestor.number.toString(), generation: generation.toString() });
     }
-    if (toBlock < upperByBlocks) await enqueueContinuation(options.pool, head, toBlock + 1n, BigInt(lease.generation), options.schemaName);
-    else if (await projectionBatchPending(options.pool, deployment, toBlock, options.schemaName)) {
-      const anchor = await consensusBlock(options.primary, options.secondary, toBlock);
-      await projectF72Configs({
-        pool: options.pool, deployment, blockNumber: anchor.number, blockHash: anchor.hash,
-        generation: BigInt(result.generation), primary: options.primary, secondary: options.secondary,
-        ...(options.schemaName ? { schemaName: options.schemaName } : {}),
-      });
-      await projectF72Markets({
-        pool: options.pool, deployment, blockNumber: anchor.number, blockHash: anchor.hash, blockTimestamp: anchor.timestamp,
-        generation: BigInt(result.generation), primary: options.primary, secondary: options.secondary,
-        ...(options.schemaName ? { schemaName: options.schemaName } : {}),
-      });
-      await projectF72Principal({
-        pool: options.pool, deployment, blockNumber: anchor.number, blockHash: anchor.hash,
-        generation: BigInt(result.generation), primary: options.primary, secondary: options.secondary,
-        ...(options.schemaName ? { schemaName: options.schemaName } : {}),
-      });
-      await projectF72History({
-        pool: options.pool, deployment, blockNumber: anchor.number, blockHash: anchor.hash, generation: BigInt(result.generation),
-        ...(options.schemaName ? { schemaName: options.schemaName } : {}),
-      });
-      await projectF72Analytics({
-        pool: options.pool, deployment, blockNumber: anchor.number, blockHash: anchor.hash, generation: BigInt(result.generation),
-        ...(options.schemaName ? { schemaName: options.schemaName } : {}),
-      });
-    }
+    if (toBlock < finalizedUpper) await enqueueContinuation(options.pool, head, toBlock + 1n, BigInt(lease.generation), options.schemaName);
+    else if (await projectionBatchPending(options.pool, deployment, toBlock, options.schemaName))
+      await projectBatch(options, deployment, toBlock, BigInt(result.generation));
     return JSON.stringify({ fromBlock: state.nextBlock.toString(), toBlock: toBlock.toString(), logs: result.logs, generation: result.generation });
   };
+}
+
+async function projectBatch(options: ChainProcessorOptions, deployment: DeploymentIdentity, blockNumber: bigint, generation: bigint): Promise<void> {
+  const anchor = await consensusBlock(options.primary, options.secondary, blockNumber);
+  const schema = options.schemaName ? { schemaName: options.schemaName } : {};
+  await projectF72Configs({ pool: options.pool, deployment, blockNumber, blockHash: anchor.hash, generation,
+    primary: options.primary, secondary: options.secondary, ...schema });
+  await projectF72Markets({ pool: options.pool, deployment, blockNumber, blockHash: anchor.hash, blockTimestamp: anchor.timestamp,
+    generation, primary: options.primary, secondary: options.secondary, ...schema });
+  await projectF72Principal({ pool: options.pool, deployment, blockNumber, blockHash: anchor.hash, generation,
+    primary: options.primary, secondary: options.secondary, ...schema });
+  await projectF72History({ pool: options.pool, deployment, blockNumber, blockHash: anchor.hash, generation, ...schema });
+  await projectF72Analytics({ pool: options.pool, deployment, blockNumber, blockHash: anchor.hash, generation, ...schema });
+}
+
+async function poolManagerQueries(pool: Pool, deployment: DeploymentIdentity, sources: readonly { module: string; address: `0x${string}` }[],
+  currentLogs: readonly RpcLog[], poolManager: `0x${string}`, schemaName?: string) {
+  const schema = identifier(schemaName ?? 'tickergarden_serverless');
+  const stored = await pool.query<{ payload: Record<string, unknown> }>(
+    `SELECT l.payload FROM ${schema}.chain_logs l WHERE l.environment=$1 AND l.chain_id=$2 AND l.deployment_digest=$3 AND l.canonical`,
+    [deployment.environment, deployment.chainId, deployment.deploymentDigest],
+  );
+  const sourceByAddress = new Map(sources.map((source) => [source.address, source.module]));
+  const poolIds = new Set<`0x${string}`>();
+  for (const log of [...stored.rows.map((row) => deserializeRpcLog(row.payload)), ...currentLogs]) {
+    const module = sourceByAddress.get(log.address);
+    if (!module) continue;
+    try {
+      const decoded = decodeF72Event(module as Parameters<typeof decodeF72Event>[0], log);
+      const poolId = decoded?.args.poolId;
+      if (typeof poolId === 'string' && /^0x[0-9a-f]{64}$/.test(poolId) && !/^0x0{64}$/.test(poolId)) poolIds.add(poolId as `0x${string}`);
+    } catch { /* unrelated frozen modules do not contribute pool IDs */ }
+  }
+  return poolIds.size ? [{ addresses: [poolManager], topics: [eventTopic('UniswapV4PoolManager', 'Swap'), [...poolIds].sort()] }] : [];
 }
 
 const MARKET_PROJECTION_TOPICS = [

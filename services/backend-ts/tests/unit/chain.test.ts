@@ -28,7 +28,7 @@ test('RPC transport allows only bounded fixed-block methods', async () => {
   assert.equal(await transport.callAt(`0x${'a'.repeat(40)}`, '0x1234', 7n), '0x1234');
   assert.equal(calls.length, 4);
   await assert.rejects(transport.call('debug_traceBlock', []), /not allowed/);
-  await assert.rejects(transport.logs({ fromBlock: 1n, toBlock: 11n, addresses: [`0x${'a'.repeat(40)}`] }), /1 to 10/);
+  await assert.rejects(transport.logs({ fromBlock: 1n, toBlock: 10_001n, addresses: [`0x${'a'.repeat(40)}`] }), /1 to 10000/);
 });
 
 test('RPC identity and provider consensus fail closed', async () => {

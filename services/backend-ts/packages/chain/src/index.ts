@@ -189,7 +189,7 @@ export class RpcTransport {
   }
 
   async logs(input: { readonly fromBlock: bigint; readonly toBlock: bigint; readonly addresses: readonly string[]; readonly topics?: readonly (string | readonly string[] | null)[] }): Promise<RpcLog[]> {
-    if (input.toBlock < input.fromBlock || input.toBlock - input.fromBlock >= 10n) throw new Error('RPC log range must contain 1 to 10 blocks');
+    if (input.toBlock < input.fromBlock || input.toBlock - input.fromBlock >= 10_000n) throw new Error('RPC log range must contain 1 to 10000 blocks');
     if (input.addresses.length < 1 || input.addresses.length > 100 || input.addresses.some((value) => !ADDRESS.test(value))) throw new Error('RPC log addresses are invalid');
     const raw = await this.call<Record<string, unknown>[]>('eth_getLogs', [{
       fromBlock: toHexQuantity(input.fromBlock), toBlock: toHexQuantity(input.toBlock), address: input.addresses,
@@ -276,6 +276,23 @@ function parseLog(raw: Record<string, unknown>): RpcLog {
   };
 }
 
+export function deserializeRpcLog(raw: Record<string, unknown>): RpcLog {
+  const blockNumber = String(raw.blockNumber);
+  const transactionIndex = String(raw.transactionIndex);
+  const logIndex = String(raw.logIndex);
+  if (typeof raw.address !== 'string' || !ADDRESS.test(raw.address) || typeof raw.blockHash !== 'string' || !HASH.test(raw.blockHash)
+    || typeof raw.transactionHash !== 'string' || !HASH.test(raw.transactionHash) || typeof raw.data !== 'string' || !/^0x(?:[0-9a-f]{2})*$/.test(raw.data)
+    || !/^(0|[1-9][0-9]*)$/.test(blockNumber) || !/^(0|[1-9][0-9]*)$/.test(transactionIndex) || !/^(0|[1-9][0-9]*)$/.test(logIndex)
+    || !Array.isArray(raw.topics) || raw.topics.some((topic) => typeof topic !== 'string' || !HASH.test(topic))) {
+    throw new RpcError('stored RPC log shape is invalid');
+  }
+  return {
+    address: raw.address as `0x${string}`, blockHash: raw.blockHash as `0x${string}`, blockNumber: BigInt(blockNumber),
+    transactionHash: raw.transactionHash as `0x${string}`, transactionIndex: BigInt(transactionIndex), logIndex: BigInt(logIndex),
+    data: raw.data as `0x${string}`, topics: raw.topics as `0x${string}`[], removed: raw.removed === true,
+  };
+}
+
 export interface DeploymentIdentity {
   readonly environment: 'preview' | 'test' | 'production';
   readonly chainId: 4663 | 46630;
@@ -304,6 +321,17 @@ export interface IngestRangeInput {
   readonly sources: readonly ContractSource[];
   readonly discover?: (logs: readonly RpcLog[], block: RpcBlock) => readonly ContractSource[] | Promise<readonly ContractSource[]>;
   readonly schemaName?: string;
+}
+
+export interface SparseLogQuery {
+  readonly addresses: readonly string[];
+  readonly topics: readonly (string | readonly string[] | null)[];
+}
+
+export interface SparseIngestRangeInput extends IngestRangeInput {
+  readonly eventTopics: readonly `0x${string}`[];
+  readonly excludedAddresses?: readonly `0x${string}`[];
+  readonly additionalQueries?: (logs: readonly RpcLog[]) => readonly SparseLogQuery[] | Promise<readonly SparseLogQuery[]>;
 }
 
 export async function loadIngestionState(input: {
@@ -462,6 +490,151 @@ export async function ingestCanonicalRange(input: IngestRangeInput): Promise<{ b
     return generation.toString();
   });
   return { blocks: blocks.length, logs: logs.length, sources: known.size, generation: result, filterDigest };
+}
+
+/**
+ * Backfills a finalized historical range without fetching every empty block.
+ * Both providers must return the exact same filtered log set. Every block that
+ * contains a matched log, plus both range boundaries, is then checked by block
+ * header consensus before the range is committed as complete.
+ */
+export async function ingestFinalizedSparseRange(input: SparseIngestRangeInput): Promise<{ blocks: number; logs: number; sources: number; generation: string; filterDigest: string }> {
+  if (input.toBlock < input.fromBlock || input.toBlock - input.fromBlock >= 50_000n) throw new Error('sparse ingestion range must contain 1 to 50000 blocks');
+  if (!input.secondary) throw new Error('sparse ingestion requires two RPC providers');
+  if (!input.eventTopics.length || input.eventTopics.some((topic) => !HASH.test(topic))) throw new Error('sparse ingestion event topics are invalid');
+  if (!TOKEN_NAME.test(input.stream)) throw new Error('invalid ingestion stream');
+  validateDeployment(input.deployment);
+  const schema = sqlIdentifier(input.schemaName ?? 'tickergarden_serverless');
+  const excluded = new Set(input.excludedAddresses ?? []);
+  const known = new Map(input.sources.map((source) => { validateSource(source); return [source.address, source] as const; }));
+  const logs = new Map<string, RpcLog>();
+  const queried = new Set<string>();
+
+  const fetchQuery = async (fromBlock: bigint, toBlock: bigint, query: SparseLogQuery) => {
+    for (let cursor = fromBlock; cursor <= toBlock; cursor += 10_000n) {
+      const requestTo = cursor + 9_999n < toBlock ? cursor + 9_999n : toBlock;
+      for (const addressBatch of chunks(query.addresses, 100)) {
+        if (!addressBatch.length) continue;
+        const request = { fromBlock: cursor, toBlock: requestTo, addresses: addressBatch, topics: query.topics } as const;
+        const [primaryLogs, secondaryLogs] = await Promise.all([input.primary.logs(request), input.secondary!.logs(request)]);
+        if (logSetDigest(primaryLogs) !== logSetDigest(secondaryLogs)) throw new RpcError('RPC providers disagree on sparse range logs');
+        for (const log of primaryLogs) {
+          if (log.blockNumber < cursor || log.blockNumber > requestTo || log.removed) throw new RpcError('RPC returned an invalid sparse range log');
+          logs.set(logIdentity(log), log);
+        }
+      }
+    }
+  };
+  const querySources = async (sources: readonly ContractSource[]) => {
+    const groups = new Map<bigint, string[]>();
+    for (const source of sources) {
+      if (excluded.has(source.address) || source.birthBlock > input.toBlock || queried.has(source.address)) continue;
+      queried.add(source.address);
+      const start = source.birthBlock > input.fromBlock ? source.birthBlock : input.fromBlock;
+      groups.set(start, [...(groups.get(start) ?? []), source.address]);
+    }
+    for (const [start, addresses] of groups) await fetchQuery(start, input.toBlock, { addresses, topics: [input.eventTopics] });
+  };
+  await querySources([...known.values()]);
+
+  const blockHeaders = new Map<bigint, RpcBlock>();
+  const loadHeaders = async (numbers: readonly bigint[]) => {
+    const missing = [...new Set(numbers)].filter((number) => !blockHeaders.has(number));
+    for (const batch of chunks(missing, 16)) {
+      const resolved = await Promise.all(batch.map((number) => consensusBlock(input.primary, input.secondary, number)));
+      resolved.forEach((block) => blockHeaders.set(block.number, block));
+    }
+  };
+  for (let round = 0; round < 8; round += 1) {
+    await loadHeaders([...logs.values()].map((log) => log.blockNumber));
+    const discovered: ContractSource[] = [];
+    const orderedDiscoveryBlocks = [...blockHeaders.values()].sort((a, b) => a.number < b.number ? -1 : 1);
+    for (const batch of chunks(orderedDiscoveryBlocks, 8)) {
+      const batches = await Promise.all(batch.map(async (block) => input.discover?.(
+        [...logs.values()].filter((log) => log.blockNumber === block.number), block,
+      ) ?? []));
+      for (const source of batches.flat()) {
+        validateSource(source);
+        const existing = known.get(source.address);
+        if (existing && (existing.module !== source.module || existing.runtimeCodeHash !== source.runtimeCodeHash || existing.birthBlock > source.birthBlock)) {
+          throw new Error('contract source identity conflict');
+        }
+        if (!existing) { known.set(source.address, source); discovered.push(source); }
+      }
+    }
+    if (!discovered.length) break;
+    await querySources(discovered);
+  }
+  const additionalQueries = await input.additionalQueries?.([...logs.values()]) ?? [];
+  for (const query of additionalQueries) {
+    if (!query.addresses.length) continue;
+    await fetchQuery(input.fromBlock, input.toBlock, query);
+  }
+  await loadHeaders([input.fromBlock, input.toBlock, ...[...logs.values()].map((log) => log.blockNumber)]);
+  for (const block of blockHeaders.values()) {
+    if (!isFinalized(block, input.observedHead, input.finalityDelayBlocks, input.finalityDelaySeconds)) throw new RpcError('sparse range includes a non-finalized block');
+  }
+  for (const log of logs.values()) {
+    if (blockHeaders.get(log.blockNumber)?.hash !== log.blockHash) throw new RpcError('RPC log is not canonical for sparse range');
+  }
+  const orderedBlocks = [...blockHeaders.values()].sort((a, b) => a.number < b.number ? -1 : 1);
+  const orderedLogs = [...logs.values()].sort((left, right) => left.blockNumber === right.blockNumber ? Number(left.logIndex - right.logIndex) : Number(left.blockNumber - right.blockNumber));
+  const filterDigest = digest({
+    sources: [...known.values()].filter((source) => source.birthBlock <= input.toBlock).sort((a, b) => a.address.localeCompare(b.address)).map((source) => ({ address: source.address, birthBlock: source.birthBlock.toString(), runtimeCodeHash: source.runtimeCodeHash })),
+    eventTopics: [...input.eventTopics].sort(), additionalQueries,
+  });
+
+  const generation = await transaction(input.pool, async (client) => {
+    await client.query(
+      `INSERT INTO ${schema}.ingestion_checkpoints(environment,chain_id,deployment_digest,stream,next_block)
+       VALUES ($1,$2,$3,$4,$5) ON CONFLICT DO NOTHING`,
+      [input.deployment.environment, input.deployment.chainId, input.deployment.deploymentDigest, input.stream, input.fromBlock.toString()],
+    );
+    const checkpoint = await client.query<{ next_block: string; last_block_hash: string | null; generation: string }>(
+      `SELECT next_block,last_block_hash,generation FROM ${schema}.ingestion_checkpoints
+       WHERE environment=$1 AND chain_id=$2 AND deployment_digest=$3 AND stream=$4 FOR UPDATE`,
+      [input.deployment.environment, input.deployment.chainId, input.deployment.deploymentDigest, input.stream],
+    );
+    const current = checkpoint.rows[0];
+    if (!current || BigInt(current.next_block) !== input.fromBlock) throw new Error('ingestion checkpoint does not match requested sparse range');
+    if (current.last_block_hash && blockHeaders.get(input.fromBlock)?.parentHash !== current.last_block_hash) throw new ReorgDetectedError('stored checkpoint parent hash mismatch');
+    const currentGeneration = BigInt(current.generation);
+    for (const block of orderedBlocks) {
+      const conflict = await client.query(`SELECT 1 FROM ${schema}.chain_blocks WHERE environment=$1 AND chain_id=$2 AND deployment_digest=$3 AND number=$4 AND canonical AND hash<>$5`,
+        [input.deployment.environment, input.deployment.chainId, input.deployment.deploymentDigest, block.number.toString(), block.hash]);
+      if (conflict.rowCount) throw new ReorgDetectedError('sparse range conflicts with stored canonical block');
+      await client.query(
+        `INSERT INTO ${schema}.chain_blocks(environment,chain_id,deployment_digest,number,hash,parent_hash,canonical,finalized,source_timestamp)
+         VALUES ($1,$2,$3,$4,$5,$6,true,true,to_timestamp($7))
+         ON CONFLICT (environment,chain_id,deployment_digest,hash) DO UPDATE SET canonical=true,finalized=true,source_timestamp=excluded.source_timestamp`,
+        [input.deployment.environment, input.deployment.chainId, input.deployment.deploymentDigest, block.number.toString(), block.hash, block.parentHash, block.timestamp.toString()],
+      );
+    }
+    for (const source of known.values()) await client.query(
+      `INSERT INTO ${schema}.contract_sources(environment,chain_id,deployment_digest,module,address,birth_block,runtime_code_hash,active)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,true) ON CONFLICT DO NOTHING`,
+      [input.deployment.environment, input.deployment.chainId, input.deployment.deploymentDigest, source.module, source.address, source.birthBlock.toString(), source.runtimeCodeHash],
+    );
+    for (const log of orderedLogs) await client.query(
+      `INSERT INTO ${schema}.chain_logs(environment,chain_id,deployment_digest,block_hash,transaction_hash,transaction_index,log_index,address,topic0,payload,canonical)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,true)
+       ON CONFLICT (environment,chain_id,deployment_digest,block_hash,transaction_hash,log_index) DO UPDATE SET canonical=true,payload=excluded.payload`,
+      [input.deployment.environment, input.deployment.chainId, input.deployment.deploymentDigest, log.blockHash, log.transactionHash,
+        log.transactionIndex.toString(), log.logIndex.toString(), log.address, log.topics[0] ?? null, serializeLog(log)],
+    );
+    await client.query(
+      `INSERT INTO ${schema}.covered_ranges(environment,chain_id,deployment_digest,from_block,to_block,generation,filter_digest,complete,verified_at)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,true,now())`,
+      [input.deployment.environment, input.deployment.chainId, input.deployment.deploymentDigest, input.fromBlock.toString(), input.toBlock.toString(), currentGeneration.toString(), filterDigest],
+    );
+    await client.query(
+      `UPDATE ${schema}.ingestion_checkpoints SET next_block=$1,last_block_hash=$2,updated_at=now()
+       WHERE environment=$3 AND chain_id=$4 AND deployment_digest=$5 AND stream=$6`,
+      [(input.toBlock + 1n).toString(), blockHeaders.get(input.toBlock)!.hash, input.deployment.environment, input.deployment.chainId, input.deployment.deploymentDigest, input.stream],
+    );
+    return currentGeneration.toString();
+  });
+  return { blocks: orderedBlocks.length, logs: orderedLogs.length, sources: known.size, generation, filterDigest };
 }
 
 export async function rewindCanonicalChain(input: {

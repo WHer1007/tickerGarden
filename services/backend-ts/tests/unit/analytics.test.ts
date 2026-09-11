@@ -25,7 +25,7 @@ test('normalizes Curve cash flow without fee and tax in price consideration', ()
 test('normalizes a graduated Pool execution and binds its fee across same-transaction events', () => {
   const trades = normalizeTransaction([
     observation('UniswapV4PoolManager', 'Swap', f72EventCatalog.UniswapV4PoolManager.address, 1n,
-      { id: market.poolId, sender: address('8'), amount0: 2n * 10n ** 18n, amount1: -1_000_000n, fee: 0n }),
+      { id: market.poolId, sender: address('8'), amount0: 2n * 10n ** 18n, amount1: -1_000_000n, fee: 0 }),
     observation('TickerMemeTokenV1', 'Transfer', market.memeAsset, 2n,
       { from: address('8'), to: address('9'), value: 1n }),
     observation('TickerGardenMemeHook', 'V4FeeAccrued', market.hook, 3n,

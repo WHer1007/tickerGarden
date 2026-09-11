@@ -126,6 +126,20 @@ export function eventTopic(module: keyof typeof f72EventAbis, eventName: string)
   return keccak256(toBytes(`${item.name}(${types})`));
 }
 
+export function eventTopicsForModules(modules: readonly string[]): `0x${string}`[] {
+  const topics = new Set<`0x${string}`>();
+  for (const module of modules) {
+    const abi = (f72EventAbis as Readonly<Record<string, Abi | undefined>>)[module];
+    if (!abi) continue;
+    for (const item of abi) {
+      if (item.type !== 'event') continue;
+      const types = item.inputs.map((input) => input.type).join(',');
+      topics.add(keccak256(toBytes(`${item.name}(${types})`)));
+    }
+  }
+  return [...topics].sort();
+}
+
 const F72_FIXED_IDENTITIES = [
   ['UniswapV4PoolManager', '0x8366a39cc670b4001a1121b8f6a443a643e40951', '0xbd3881180b547f5fe817545743cfb4343e96b1bc6640dcd70c106b0066e95626'],
   ['OfficialStockRegistryV1', '0xb214ffa2d11f6b0bd117bc41d6d51800c52ef928', '0x4ad8a16533cb665d9c0061621dff8534b8071d4c052e92303669cc41d1171454'],

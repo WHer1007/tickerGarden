@@ -64,7 +64,7 @@ test('retry and repair authentication are bounded', () => {
 });
 
 test('repair, dispatch and signature probes fail closed before touching dependencies', async () => {
-  for (const path of ['/internal/repair', '/internal/dispatch', '/internal/qstash-probe', '/internal/prices/refresh', '/internal/generation/advance']) {
+  for (const path of ['/internal/repair', '/internal/bootstrap', '/internal/dispatch', '/internal/qstash-probe', '/internal/prices/refresh', '/internal/generation/advance']) {
     const response = await pipelineApp.request(path, { method: 'POST', body: '{}' });
     assert.equal(response.status, 401);
     assert.equal((await response.json()).error, 'unauthorized');

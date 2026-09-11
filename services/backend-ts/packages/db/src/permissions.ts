@@ -32,6 +32,7 @@ GRANT SELECT ON
   ${schema}.publications,
   ${schema}.publication_pointers,
   ${schema}.projection_records,
+  ${schema}.projection_checkpoints,
   ${schema}.markets,
   ${schema}.account_facts,
   ${schema}.display_records,
