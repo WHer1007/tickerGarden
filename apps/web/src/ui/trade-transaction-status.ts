@@ -1,4 +1,5 @@
 import type {TransactionUpdate} from '../v1/transaction.ts';
+import {globalNoticeRegion} from './global-notice.ts';
 
 export type TradeStatusContext={side:'buy'|'sell';symbol:string;inputSymbol:string};
 export function tradeStatusLabel(stage:TransactionUpdate['stage'],approval:boolean,context?:TradeStatusContext):string{
@@ -23,7 +24,7 @@ export function createTradeTransactionStatus(explorer:string){
    const stage=approvalConfirmed&&['simulating','awaiting_signature'].includes(update.stage)?'approval_confirmed':update.stage;
    if(!hash)return;
    clearTimeout(dismissTimer);dismissTimer=undefined;
-   if(!panel){panel=document.createElement('section');panel.className='trade-tx-status';panel.setAttribute('role','status');panel.setAttribute('aria-live','polite');document.body.append(panel);}
+   if(!panel){panel=document.createElement('section');panel.className='status-notice trade-tx-status';panel.setAttribute('role','status');panel.setAttribute('aria-live','polite');globalNoticeRegion().append(panel);}
    panel.replaceChildren();panel.dataset.state=stage;
    const confirmed=stage==='confirmed'||stage==='approval_confirmed';
    const terminal=confirmed||stage==='failed';
@@ -35,7 +36,7 @@ export function createTradeTransactionStatus(explorer:string){
    address.onclick=async()=>{try{await navigator.clipboard.writeText(shownHash);address.textContent='Copied';}catch{address.textContent='Could Not Copy';}};
    const view=document.createElement('button');view.type='button';view.className='trade-tx-status__view';view.setAttribute('aria-label','View Transaction');view.title='View Transaction';view.innerHTML='<i class="ph ph-arrow-up-right" aria-hidden="true"></i>';view.onclick=()=>window.open(`${explorer}/tx/${shownHash}`,'_blank','noopener,noreferrer');
    row.append(address,view);content.append(title,row);panel.append(icon,content);
-   if(terminal){const close=document.createElement('button');close.type='button';close.className='trade-tx-status__close';close.setAttribute('aria-label','Dismiss Transaction Status');close.textContent='×';close.onclick=dismiss;panel.append(close);dismissTimer=setTimeout(dismiss,30000);}
+   if(terminal){const close=document.createElement('button');close.type='button';close.className='status-notice__close';close.setAttribute('aria-label','Dismiss Transaction Status');close.innerHTML='<i class="ph ph-x" aria-hidden="true"></i>';close.onclick=dismiss;panel.append(close);dismissTimer=setTimeout(dismiss,30000);}
   },
  };
 }

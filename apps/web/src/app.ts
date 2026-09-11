@@ -17,6 +17,7 @@ import {encodeAbiParameters,keccak256,parseUnits} from 'viem';
 import {overviewJson,explorerHolders,nativeUsd,poolSpotPrice,type MarketOverview} from './v1/marketOverview.ts';
 import {displayPriceView} from './v1/displayPrices.ts';
 import {createTradeTransactionStatus} from './ui/trade-transaction-status.ts';
+import {createGlobalNotice, type GlobalNoticeTone} from './ui/global-notice.ts';
 import {watchWalletAccount} from './ui/wallet-account-sync.ts';
 import {curveTradeMetrics, curveBuyFee, antiSnipeBps, formatTradePrice} from './v1/tradePricing.ts';
 import {confirmLaunch} from './create/confirm-launch.ts';
@@ -384,16 +385,9 @@ function randomSalt(): Hex {
   return toHex(bytes);
 }
 
-function toast(message: string, tone: "neutral" | "success" | "warning" | "error" = "neutral"): void {
-  const node = query<HTMLElement>("[data-toast]");
-  if (!node) return;
-  node.textContent = publicMessage(message);
-  node.dataset.state = tone;
-  node.setAttribute("role", tone === "error" ? "alert" : "status");
-  node.setAttribute("aria-live", tone === "error" ? "assertive" : "polite");
-  node.setAttribute("aria-atomic", "true");
-  node.classList.add("show");
-  window.setTimeout(() => node.classList.remove("show"), 4_000);
+const globalNotice = createGlobalNotice();
+function notify(message: string, tone: GlobalNoticeTone = "neutral"): void {
+  globalNotice.show(publicMessage(message), tone);
 }
 
 function setPageStatus(message: string, tone: "neutral" | "success" | "warning" | "error" = "neutral"): void {
@@ -747,7 +741,7 @@ async function executeTransaction<T>(input: Readonly<{
         showTransactionUpdate(update);
         if(tradeSubmitting||stakeSubmitting)return;
         const detail = update.error ? `${update.error.code}: ${update.error.message}` : update.hash ? shortHex(update.hash, 9, 7) : "";
-        toast(`${transactionStageLabels[update.stage]}${detail ? ` — ${detail}` : ""}`, update.stage === "failed" ? "error" : update.stage === "confirmed" ? "success" : "neutral");
+        notify(`${transactionStageLabels[update.stage]}${detail ? ` — ${detail}` : ""}`, update.stage === "failed" ? "error" : update.stage === "confirmed" ? "success" : "neutral");
       },
     });
   } finally {
@@ -886,7 +880,7 @@ function setupShell(): void {
 
   walletPicker ??= createWalletPicker({ connect: connectWallet, restore: restoreWallet, disconnect: disconnectWallet, account: () => wallet?.account ?? null });
   required<HTMLButtonElement>("[data-wallet]").addEventListener("click", () => {
-    if (busyOperation) { toast("Wait for the current transaction before changing wallets.", "warning"); return; }
+    if (busyOperation) { notify("Wait for the current transaction before changing wallets.", "warning"); return; }
     walletPicker!.open();
   });
   required<HTMLButtonElement>("[data-menu]").addEventListener("click", (event) => {
@@ -925,7 +919,7 @@ function invalidateWallet(): void {
   invalidateWalletReads();
   renderWallet();
   refreshCurrentPage();
-  toast("Wallet account or chain changed. Reconnect before signing.", "warning");
+  notify("Wallet account or chain changed. Reconnect before signing.", "warning");
 }
 
 function installWallet(provider: InjectedProvider, account: Address): void {
@@ -961,9 +955,9 @@ async function connectWallet(provider: InjectedProvider, reportStatus: (message:
     const rawAccounts = await provider.request({ method: "eth_requestAccounts" });
     const account = canonicalAddress(String(Array.isArray(rawAccounts) ? rawAccounts[0] ?? "" : ""), "Wallet account");
     installWallet(provider, account);
-    toast(`Wallet connected — ${shortHex(account)}`, "success");
+    notify(`Wallet connected — ${shortHex(account)}`, "success");
   } catch (error) {
-    toast(`Wallet connection failed — ${errorText(error)}`, "error");
+    notify(`Wallet connection failed — ${errorText(error)}`, "error");
     throw error;
   } finally {
     walletConnecting = false;
@@ -979,7 +973,7 @@ function disconnectWallet(): void {
   invalidateWalletReads();
   renderWallet();
   refreshCurrentPage();
-  toast("Wallet disconnected locally", "neutral");
+  notify("Wallet disconnected locally", "neutral");
 }
 
 function refreshActionAvailability(): void {
@@ -2423,7 +2417,7 @@ async function submitTrade(): Promise<void> {
     });
     completeTradeDisplay(market);
   } catch (error) {
-    toast(`Trade requires attention — ${errorText(error)}`, "warning");
+    notify(`Trade requires attention — ${errorText(error)}`, "warning");
   } finally {tradeSubmitting=false;updateTradeAvailability();}
 }
 
@@ -3396,7 +3390,7 @@ async function performLaunch(): Promise<void> {
     clearCreateDraft(localStorage, robinhoodChain.id); pendingCreateDraft = null;
     launchSalt = randomSalt();
     launchPreview = null;
-    toast(`Market created and verified — ${shortHex(created.marketId, 9, 7)}`, "success");
+    notify(`Market created and verified — ${shortHex(created.marketId, 9, 7)}`, "success");
     const props = submittedMetadata?.properties as Record<string,unknown> | undefined;
     latestListing = {marketId:created.marketId,snapshot:{chainId:robinhoodChain.id,chainName:robinhoodChain.name,tokenAddress:created.memeToken,
       name:submittedDetails.name,symbol:submittedDetails.symbol,logo:typeof submittedMetadata?.image==='string'?submittedMetadata.image:'',
@@ -3413,7 +3407,7 @@ async function performLaunch(): Promise<void> {
        setTimeout(()=>void restoreLaunchProgress(),0);
       } else updateLaunchProgress('failed',errorText(error));
     }
-    toast(launchProgress?.phase==='paused'?'Launch is still being tracked. Do not publish again.':`Launch stopped — ${errorText(error)}`,launchProgress?.phase==='paused'?'warning':'error');
+    notify(launchProgress?.phase==='paused'?'Launch is still being tracked. Do not publish again.':`Launch stopped — ${errorText(error)}`,launchProgress?.phase==='paused'?'warning':'error');
     scheduleLaunchPreview();
   } finally {
     fields.forEach((field, index) => { field.disabled = disabledBefore[index]!; });
@@ -3866,8 +3860,8 @@ function setupRewards(): void {
   }
   query<HTMLButtonElement>('[data-copy-beneficiary]')?.addEventListener('click', async () => {
     if (!creatorReward) return;
-    try { await navigator.clipboard.writeText(creatorReward.beneficiary); toast('Recipient address copied', 'success'); }
-    catch { toast('Unable to copy. Select the recipient address instead.', 'warning'); }
+    try { await navigator.clipboard.writeText(creatorReward.beneficiary); notify('Recipient address copied', 'success'); }
+    catch { notify('Unable to copy. Select the recipient address instead.', 'warning'); }
   });
   queryAll<HTMLButtonElement>("[data-rewards-connect]").forEach(button=>button.addEventListener("click", () => query<HTMLButtonElement>("[data-wallet]")?.click()));
   query<HTMLDetailsElement>("[data-emergency-recovery]")?.addEventListener("toggle", event => { if ((event.currentTarget as HTMLDetailsElement).open) void refreshDirectEscape(); });
@@ -5025,7 +5019,7 @@ async function executePositionAction(action: string, button: HTMLButtonElement):
 
   stakeStatsCache.delete(marketId);
   stakeDirectoryAt=0;
-  if(action!=="stake")toast(action === "rageQuit" ? "Principal returned immediately; reward cleanup state refreshed" : "Position Updated", "success");
+  if(action!=="stake")notify(action === "rageQuit" ? "Principal returned immediately; reward cleanup state refreshed" : "Position Updated", "success");
   tradeStakeTotals.clear();
   await refreshRewardPosition();
   if(action==='stake'){
@@ -5098,10 +5092,10 @@ async function executeDirectVaultRageQuit(): Promise<void> {
         const detail = update.error ? `${update.error.code}: ${update.error.message}` : update.hash ? shortHex(update.hash, 9, 7) : "";
         const message = `${transactionStageLabels[update.stage]}${detail ? ` — ${detail}` : ""}`;
         text("[data-direct-vault-status]", message);
-        toast(message, update.stage === "failed" ? "error" : update.stage === "confirmed" ? "success" : "neutral");
+        notify(message, update.stage === "failed" ? "error" : update.stage === "confirmed" ? "success" : "neutral");
       },
     });
-    toast("Full allocated STOCK principal returned through the independent Vault escape", "success");
+    notify("Full allocated STOCK principal returned through the independent Vault escape", "success");
   } finally {
     busyOperation = "";
     refreshActionAvailability();
@@ -5134,7 +5128,7 @@ async function executeSettlement(): Promise<void> {
       return after;
     },
   });
-  toast("Forfeited rewards settled; principal was not transferred twice", "success");
+  notify("Forfeited rewards settled; principal was not transferred twice", "success");
   tradeStakeTotals.clear();
   await refreshRewardPosition();
 }
@@ -5218,7 +5212,7 @@ async function executeCreatorAction(action: string): Promise<void> {
       },
     });
     if (accept) required<HTMLInputElement>("[data-creator-epoch]").value = String(state.currentEpoch + 1);
-    toast(accept ? "Future revenue handoff accepted" : cancel ? "Handoff cancelled" : "Recipient nominated; new wallet must accept", "success");
+    notify(accept ? "Future revenue handoff accepted" : cancel ? "Handoff cancelled" : "Recipient nominated; new wallet must accept", "success");
   }
 
   await refreshCreatorReward();
@@ -5379,7 +5373,7 @@ async function executeTreasuryAction(action: string): Promise<void> {
       return args;
     },
   });
-  toast(`Holder fee-sharing ${action} confirmed from its canonical event`, "success");
+  notify(`Holder fee-sharing ${action} confirmed from its canonical event`, "success");
   await refreshTreasuryReward(false);
 }
 
@@ -5402,7 +5396,7 @@ async function runRewardAction(button: HTMLButtonElement): Promise<void> {
     }
     const form = button.closest<HTMLFormElement>("form");
     if (form && !form.reportValidity()) {
-      toast("Complete the highlighted Rewards fields before continuing", "error");
+      notify("Complete the highlighted Rewards fields before continuing", "error");
       return;
     }
     if (["fundQuote", "burnMeme"].includes(action)) throw new Error("Protocol integration actions are not exposed to users");
@@ -5433,7 +5427,7 @@ async function runRewardAction(button: HTMLButtonElement): Promise<void> {
       const status=query<HTMLElement>('[data-stake-transaction-status]');if(status)status.dataset.state='error';
     }else{
       text('[data-rewards-action-status]',`Action stopped — ${errorText(error)}`);
-      toast(`Rewards action stopped — ${errorText(error)}`,'error');
+      notify(`Rewards action stopped — ${errorText(error)}`,'error');
     }
   }finally{
     if(action==='stake')stakeSubmitting=false;
@@ -5610,7 +5604,7 @@ function renderRecoveryControls(): void {
     more.onclick = async () => {
       more.disabled = true;
       try { await appendMarketPage(); if (generation === routeGeneration) await refreshCurrentPage(true); }
-      catch (error) { if (generation === routeGeneration) toast(`${errorText(error)}. Reload the page to restart the market list.`, "warning"); more.disabled = false; }
+      catch (error) { if (generation === routeGeneration) notify(`${errorText(error)}. Reload the page to restart the market list.`, "warning"); more.disabled = false; }
     };
     panel.append(more);
   }
@@ -5632,13 +5626,13 @@ function renderRecoveryControls(): void {
           const succeeded = result?.receipt.status === "success" && !result.cancelled;
           const recoveredTrade=currentPage()==='trade'&&!!result;
           if((tradeAwaitingConfirmation||recoveredTrade)&&result){tradeAwaitingConfirmation=false;tradeTxStatus.update({operationKey:result.approval?'recovered-approval':'recovered-trade',hash:result.receipt.transactionHash,stage:succeeded?'confirmed':'failed'});updateTradeAvailability();}
-          if(!recoveredTrade)toast(result?.cancelled ? "Existing transaction was cancelled." : succeeded
+          if(!recoveredTrade)notify(result?.cancelled ? "Existing transaction was cancelled." : succeeded
             ? result.approval ? "Approval confirmed. The business transaction has not been resubmitted; request a fresh quote." : "Existing transaction succeeded. Review refreshed balances before creating another order."
             : "Existing transaction reverted; no replacement was submitted.", succeeded ? "success" : "warning");
           if(recoveredTrade){if(tradeMarket)completeTradeDisplay(tradeMarket);}
           else if(currentPage()==='staking'){if(rewardPosition)stakeStatsCache.delete(rewardPosition.detail.market.marketId);await refreshRewardPosition();void refreshStakeDirectory(false,true);}
           else{await loadFoundation();await refreshCurrentPage();}
-        } catch (error) { toast(`Still unconfirmed — ${errorText(error)}`, "warning"); recover.disabled = false; }
+        } catch (error) { notify(`Still unconfirmed — ${errorText(error)}`, "warning"); recover.disabled = false; }
       }); };
       panel.append(description, recover);
       if (runtimeConfig.readApi.available) {
@@ -5874,7 +5868,7 @@ function mountRoute(route: Route): void {
 const router = createRouter({
   render: mountRoute,
   canNavigate: () => !pageActionPending && !busyOperation && !walletConnecting && !launchSubmitting,
-  blocked: () => toast("Finish the current wallet operation before leaving this page.", "warning"),
+  blocked: () => notify("Finish the current wallet operation before leaving this page.", "warning"),
   hashChanged: () => { if (isRewardsPage()) syncRewardHash?.(); },
 });
 router.start();
