@@ -12,3 +12,9 @@ test('Stats summary uses the aggregate endpoint without paging the market direct
  const body=source.slice(source.indexOf('async function renderStats()'),source.indexOf('\nfunction setupDocs'));
  assert.match(body,/renderProtocolStatistics/);assert.doesNotMatch(body,/appendMarketPage|refreshExploreStatistics|readContract/);
 });
+test('Stats retries only snapshots that can still become ready without a catalog update',()=>{
+ const source=fs.readFileSync(new URL('../src/app.ts',import.meta.url),'utf8');
+ const body=source.slice(source.indexOf('async function renderProtocolStatistics'),source.indexOf('\nasync function renderStats'));
+ assert.match(body,/if\(pending&&attempt<18\)/);
+ assert.doesNotMatch(body,/pending\|\|!valid\|\|!stocksReady/);
+});

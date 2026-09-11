@@ -1508,8 +1508,8 @@ async function renderProtocolStatistics(current:()=>boolean,attempt=0):Promise<b
  const feeTotals = summary.feeTotals as Record<string,string> | undefined;
  const revenue = fresh && summary.feeCoverage===true && summary.feeBasis==='TRADE_TIME' && feeTotals ? sumStatisticsUSD(Object.entries(feeTotals).map(([asset,amount])=>statisticsUSD(amount,summary.feeDecimals?.[asset],prices.prices?.[asset],prices.expiresAt?.[asset],Date.now()))) : null;
  text('[data-stat-fee-revenue]',revenue===null?'Unavailable':formatMarketUSD(revenue,true));
- const stocksReady=await renderStockStatistics(current,prices,summary);
- if((pending||!valid||!stocksReady)&&attempt<18)setTimeout(()=>{if(current()&&currentPage()==='stats')void renderProtocolStatistics(current,attempt+1);},attempt<6?5000:10000);
+ await renderStockStatistics(current,prices,summary);
+ if(pending&&attempt<18)setTimeout(()=>{if(current()&&currentPage()==='stats')void renderProtocolStatistics(current,attempt+1);},attempt<6?5000:10000);
  return true;
  }catch{
   if(!current())return false;
@@ -5899,6 +5899,7 @@ function mountRoute(route: Route): void {
       case "docs": setupDocs(); break;
     }
     if (isStaticPage()) { refreshActionAvailability(); return; }
+    assetPrices.start();
     if (!foundation) await loadFoundation();
     if (generation !== routeGeneration) return;
     await refreshCurrentPage();
@@ -5929,7 +5930,6 @@ const unsubscribeAssetPrices = assetPrices.subscribe(snapshot => {
     void refreshExploreStatistics().then(() => { if (currentPage() === 'markets') void renderMarkets(); });
   } else if (currentPage() === 'stats' && foundation) void renderStats();
 });
-assetPrices.start();
 void restoreLaunchProgress();
 startSnapshotUpdates();
 if (import.meta.hot) import.meta.hot.dispose(() => { if(launchRecoveryTimer)clearTimeout(launchRecoveryTimer);closeLaunchProgress();unsubscribeAssetPrices();assetPrices.stop();router.stop(); unmountPage(); });

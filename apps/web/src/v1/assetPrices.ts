@@ -96,7 +96,7 @@ export function createAssetPriceStore(options: { baseUrl: string | null; chainId
   };
   const refresh = (): Promise<void> => {
     if (stopped || !options.baseUrl) return Promise.resolve(); if (pending) return pending;
-    const client = new TickerGardenV1Client(options.baseUrl, (input, init) => fetcher(input, { ...init, cache: 'no-cache', signal: AbortSignal.timeout(8_000) }));
+    const client = new TickerGardenV1Client(options.baseUrl, (input, init) => fetcher(input, { ...init, signal: AbortSignal.timeout(8_000) }));
     pending = client.listDisplayPriceReferences().then(value => { if (stopped) return;
       if (!value || value.chainId !== options.chainId || value.displayOnly !== true || value.confidence !== 'provider_reported' || value.status !== 'configured' || !Array.isArray(value.references)) throw new Error('invalid asset price catalog');
       const next = parseAssetPriceSnapshot(value, options.chainId); if (value.references.length > 0 && Object.keys(next.prices).length === 0) throw new Error('empty asset price catalog');

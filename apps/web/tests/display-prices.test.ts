@@ -36,7 +36,7 @@ test('full catalog remains readable and oversized responses are rejected',()=>{
 
 test('global store publishes changed prices and keeps an unexpired value across a failed refresh',async()=>{
  let response=fixture(Date.now()),fail=false,calls=0;
- const store=createAssetPriceStore({baseUrl:'https://api.example',chainId:4663,fetcher:async(_input,init)=>{calls++;assert.equal(init?.cache,'no-cache');if(fail)throw Error('offline');return new Response(JSON.stringify(response));}});
+ const store=createAssetPriceStore({baseUrl:'https://api.example',chainId:4663,fetcher:async(_input,init)=>{calls++;assert.equal(init?.cache,undefined);if(fail)throw Error('offline');return new Response(JSON.stringify(response));}});
  const element={textContent:'',dataset:{}} as unknown as HTMLElement;
  const widget=mountDisplayPrice(element,store,4663);widget.setToken(token);await store.refresh();assert.match(element.textContent??'',/26\.68125/);
  response=fixture(Date.now());response.references[0]!.bidUsd='99';response.references[0]!.askUsd='100';await store.refresh();assert.match(element.textContent??'',/\$99–\$100/);
