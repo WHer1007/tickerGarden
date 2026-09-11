@@ -104,8 +104,7 @@ export function createChainProcessor(options: ChainProcessorOptions): (lease: Le
       return JSON.stringify({ reorg: true, ancestor: ancestor.number.toString(), generation: generation.toString() });
     }
     if (toBlock < finalizedUpper) await enqueueContinuation(options.pool, head, toBlock + 1n, BigInt(lease.generation), options.schemaName);
-    else if (await projectionBatchPending(options.pool, deployment, toBlock, options.schemaName))
-      await projectBatch(options, deployment, toBlock, BigInt(result.generation));
+    else await projectBatch(options, deployment, toBlock, BigInt(result.generation));
     return JSON.stringify({ fromBlock: state.nextBlock.toString(), toBlock: toBlock.toString(), logs: result.logs, generation: result.generation });
   };
 }
