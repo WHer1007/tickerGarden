@@ -36,7 +36,7 @@ test('fee coverage false withholds incomplete fees and null volume stays unavail
  }finally{globalThis.fetch=original;}
 });
 
-test('fee and volume freshness expire independently and concurrent requests merge',async()=>{
+test('rolling volume expires while cumulative finalized fee allocations remain visible',async()=>{
  const original=globalThis.fetch;let count=0;const now=Math.floor(Date.now()/1000);
  const market={marketId} as MarketReadModel;
  const base={chainId:46630,displayOnly:true,marketId,feeCoverage:true,feeDistribution:[{recipient:'holders',asset:meme,amountRaw:'7'}]};
@@ -46,6 +46,6 @@ test('fee and volume freshness expire independently and concurrent requests merg
   const [a,b]=await Promise.all([explorerStakeStatistics(context),explorerStakeStatistics(context)]);
   assert.equal(count,1);assert.equal(a.volume,'');assert.equal(a.fees?.get(meme),7n);assert.deepEqual(a,b);
   globalThis.fetch=async()=>new Response(JSON.stringify({...base,observedAt:now-1300,volumeAt:now,volumeRaw:'1000000000000000000'}));
-  const c=await explorerStakeStatistics({...context,apiBase:'https://oldfees.test'});assert.equal(c.volume,'1');assert.equal(c.fees,null);
+  const c=await explorerStakeStatistics({...context,apiBase:'https://oldfees.test'});assert.equal(c.volume,'1');assert.equal(c.fees?.get(meme),7n);
  }finally{globalThis.fetch=original;}
 });

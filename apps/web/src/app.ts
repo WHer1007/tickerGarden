@@ -2003,9 +2003,8 @@ async function loadTradeMarket(explicit?: string): Promise<void> {
 async function renderTradeFeeDetails(market: MarketReadModel, generation: number): Promise<void> {
   try {
     const release = marketRelease(market.marketId);
-    if (tradeMarket?.market.marketId !== market.marketId || !tradeMarket.sync.blockNumber) return;
-    const observedBlock = BigInt(tradeMarket.sync.blockNumber);
-    const raw = await publicClient.readContract({abi: v1Abis.MarketRegistryV1, address: release.marketRegistry, functionName: 'market', args: [market.marketId],blockNumber:observedBlock});
+    if (tradeMarket?.market.marketId !== market.marketId) return;
+    const raw = await publicClient.readContract({abi: v1Abis.MarketRegistryV1, address: release.marketRegistry, functionName: 'market', args: [market.marketId]});
     if (generation !== tradeLoadGeneration || tradeMarket?.market.marketId !== market.marketId) return;
     const config = raw.config;
     const stakingBadge=query<HTMLElement>('[data-detail-staking-badge]');
@@ -2013,7 +2012,7 @@ async function renderTradeFeeDetails(market: MarketReadModel, generation: number
     text('[data-detail-staking-status]',market.launchPhase===1?'Staking Enabled':'Stake Opens After Blooming');
     const fees = feeDistribution(market.launchPhase, config.stakingEnabled, config.creatorFeesToHolders, config.creatorTaxBps);
     let active:boolean|null=false;
-    if(market.launchPhase===1&&config.stakingEnabled){try{active=(await publicClient.readContract({abi:v1Abis.MemeStockGauge,address:canonicalAddress(market.gauge,'Gauge'),functionName:'effectiveTotalActiveStock',blockNumber:observedBlock}))>0n;}catch{active=null;}}
+    if(market.launchPhase===1&&config.stakingEnabled){try{active=(await publicClient.readContract({abi:v1Abis.MemeStockGauge,address:canonicalAddress(market.gauge,'Gauge'),functionName:'effectiveTotalActiveStock'}))>0n;}catch{active=null;}}
     if(generation!==tradeLoadGeneration)return;
     tokenDetailWidget?.setFeeConfig({phase:market.launchPhase,stakingEnabled:config.stakingEnabled,holders:config.creatorFeesToHolders,active,taxBps:config.creatorTaxBps});
     text('[data-detail-fees]', fees.summary);

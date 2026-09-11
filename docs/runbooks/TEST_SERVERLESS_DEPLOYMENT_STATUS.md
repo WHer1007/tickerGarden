@@ -1,6 +1,6 @@
 # Test serverless deployment status
 
-Last verified: 2026-09-12 00:11 (Asia/Shanghai)
+Last verified: 2026-09-12 00:26 (Asia/Shanghai)
 
 ## Active scope
 
@@ -12,7 +12,7 @@ This is test-environment evidence. It is not production readiness or permission 
 
 | Component | Endpoint | State |
 | --- | --- | --- |
-| Web | `https://tickergarden-web-test.vercel.app` | active; Preview deployment `dpl_FaCckGKQ42ah8agnJBie7HvTD3K1` |
+| Web | `https://tickergarden-web-test.vercel.app` | active; Preview deployment `dpl_4QDFDVaQ1jyTWRhkMGeNCEFvuRmC` |
 | Read API | `https://tickergarden-read-api-test.vercel.app` | active; Preview deployment `dpl_3qjNCFFouEEnKPrMKToBWt7rhy1f` |
 | Content API | `https://tickergarden-content-test.vercel.app` | active |
 | Pipeline | `https://tickergarden-pipeline-test.vercel.app` | active; Preview deployment `dpl_2HZFTLkoCxkngmBvtQViDCBKcQw3` |
@@ -55,6 +55,8 @@ The 2026-09-11 online checks passed for:
 The browser made no legacy `/integration/` bootstrap request. The frontend reads the deployed Read API.
 
 Market-cap reads are available independently of complete 24-hour historical coverage. The test price worker combines Coinbase ETH/USD with identity-verified Synthra V3 testnet pool spots for the five configured stock tokens; the VPS runs `tickergarden-price-refresh-test.timer` every minute. Explore merges `/v1/market-statistics` into Read API directory rows and displays current MC values. A transient failed quote refresh does not replace an unexpired successful reference.
+
+Token detail fee allocation reads use the current immutable market configuration and cumulative finalized allocation rows. Curve and Bloomed markets display each recipient percentage and exact asset-separated Quote/Meme amounts; the snapshot label distinguishes these totals from live settlement authority.
 
 The 24-hour volume fields remain `null` while activation-to-finalized history covers less than a complete 24-hour window. Protocol statistics that require complete interval coverage remain fail-closed; the UI must show `Unavailable`, never fabricated `$0`.
 

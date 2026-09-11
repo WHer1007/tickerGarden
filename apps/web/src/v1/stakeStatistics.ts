@@ -45,7 +45,9 @@ function parseResponse(raw: any, context: Context) {
     fees.set(asset, (fees.get(asset) ?? 0n) + BigInt(row.amountRaw));
     distribution.push({recipient:row.recipient,asset,amountRaw:row.amountRaw});
   }
-  const covered=raw.feeCoverage&&fresh(raw.observedAt);
+  // Allocations are cumulative finalized facts. An older snapshot remains
+  // displayable with its explicit observation point; only rolling volume expires.
+  const covered=raw.feeCoverage;
   return { volume: raw.volumeRaw === null || !fresh(raw.volumeAt) ? '' : formatUnits(BigInt(raw.volumeRaw), context.decimals), fees: covered ? fees : null, distribution:covered?distribution:null, observedAt: raw.observedAt, volumeAt: raw.volumeAt };
 }
 async function read(context: Context): Promise<Stats> {
@@ -59,7 +61,7 @@ async function read(context: Context): Promise<Stats> {
 export async function explorerStakeStatistics(context: Context): Promise<Stats> {
   const key = `${context.apiBase}:${context.market.marketId}`;
   const saved = cache.get(key); const now = Math.floor(Date.now() / 1000);
-  if (saved && now - saved.volumeAt < 1200 && now - saved.feeAt < 1200) return saved.value;
+  if (saved && Date.now() - saved.requestedAt < 600_000) return saved.value;
   const active = pending.get(key); if (active) return active;
   const request = read(context); pending.set(key, request); try { return await request; } finally { pending.delete(key); }
 }
