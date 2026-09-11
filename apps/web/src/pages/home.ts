@@ -36,11 +36,12 @@ export default {
             <a class="home-button primary" href="/explore">Explore markets <i class="ph ph-arrow-up-right" aria-hidden="true"></i></a>
             <a class="home-button secondary" href="/create">Create a market <i class="ph ph-sprout" aria-hidden="true"></i></a>
           </div>
-          <div class="hero-proof" aria-label="Protocol boundaries">
-            <span><strong>On-chain</strong> market state</span>
-            <span><strong>Open</strong> community creation</span>
-            <span><strong>Signal</strong> not stock ownership</span>
+          <div class="hero-proof" aria-label="TickerGarden principles">
+            <span><strong>Rooted</strong> onchain</span>
+            <span><strong>Grown</strong> by communities</span>
+            <span><strong>Inspired</strong> by ticker culture</span>
           </div>
+          <p class="hero-boundary">Ticker Memes are community signal tokens, not stock ownership, equity, dividends, or redemption rights. <a href="/risks">Review risks</a>.</p>
         </div>
 
         <div class="tree-stage signal-arbor" data-signal-arbor role="group" aria-label="Interactive stock fruit tree">
