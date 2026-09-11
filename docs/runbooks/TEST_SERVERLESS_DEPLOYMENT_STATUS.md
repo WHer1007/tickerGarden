@@ -1,6 +1,6 @@
 # Test serverless deployment status
 
-Last verified: 2026-09-12 03:05 (Asia/Shanghai)
+Last verified: 2026-09-12 03:38 (Asia/Shanghai)
 
 ## Active scope
 
@@ -12,7 +12,7 @@ This is test-environment evidence. It is not production readiness or permission 
 
 | Component | Endpoint | State |
 | --- | --- | --- |
-| Web | `https://tickergarden-web-test.vercel.app` | active; Preview deployment `dpl_7A42yArJZ81WAdrzYo1SzZTZfDPT` |
+| Web | `https://tickergarden-web-test.vercel.app` | active; Preview deployment `dpl_AiQ4A7Jc9WRU29u4uPhaRct2q7sH` |
 | Read API | `https://tickergarden-read-api-test.vercel.app` | active; Preview deployment `dpl_9kSRmW6Tso3bEoP7mBm2VehzzEkC` |
 | Content API | `https://tickergarden-content-test.vercel.app` | active |
 | Pipeline | `https://tickergarden-pipeline-test.vercel.app` | active; Preview deployment `dpl_36oA1Z5SQaiPdKPViNRj5syQjLyn` |
@@ -71,6 +71,8 @@ Two consecutive VPS reads of the final price-catalog deployment returned `x-verc
 Token detail fee allocation reads use the current immutable market configuration and cumulative finalized allocation rows. Curve and Bloomed markets display each recipient percentage and exact asset-separated Quote/Meme amounts; the snapshot label distinguishes these totals from live settlement authority.
 
 The 24-hour volume fields remain `null` while the deployment is younger than a complete 24-hour window and time-aligned historical USD observations are unavailable. Protocol statistics that require complete historical price coverage remain fail-closed; the UI shows `Unavailable`, never fabricated `$0`.
+
+The 2026-09-12 UX pass corrected conflicting Explore states, added local error recovery, replaced internal terms with user-facing copy, restored visible keyboard focus, completed tab keyboard behavior, clarified balance actions, increased small touch targets, and identified testnet Stats data. The 324-test frontend suite and Vercel production build passed. Vercel inspection confirmed the aliased preview is `READY`; HTTP body checks from the workstation were blocked by the same intermittent TLS reset noted above, so this run does not add new screenshot evidence.
 
 ## Operational notes
 
