@@ -24,7 +24,7 @@ Current Arbitrum Sepolia R2 status: `DEPLOYED_VERIFIED_ACTIVE_TEST_ONLY`; see th
 ## Contract architecture and accounting
 
 - [`V1_TECHNICAL_ARCHITECTURE.md`](./V1_TECHNICAL_ARCHITECTURE.md)
-- [`V1_TYPESCRIPT_SERVERLESS_DEVELOPMENT_TASKS.md`](./V1_TYPESCRIPT_SERVERLESS_DEVELOPMENT_TASKS.md) — 当前 Serverless 开发入口：TypeScript + Node.js 24 + Hono，Alchemy RPC + Custom Webhook；仅覆盖正式前端所需 API、内容及必要数据流水线，含 TS-00～17 任务、Go 参考、依赖和验收。取代此前两份 Serverless 方案，尚未实施。
+- [`V1_TYPESCRIPT_SERVERLESS_DEVELOPMENT_TASKS.md`](./V1_TYPESCRIPT_SERVERLESS_DEVELOPMENT_TASKS.md) — 当前 Serverless 开发入口：TypeScript + Node.js 24 + Hono，VPS Alchemy WebSocket `eth_subscribe("logs")` relay + RPC；两个 Custom Webhook 已因逐块投递实测删除。仅覆盖正式前端所需 API、内容及必要数据流水线，含 TS-00～17 任务、Go 参考、依赖和验收；测试 relay 与 Pipeline Preview 已部署，真实匹配事件及恢复场景仍待验收。
 - [`V1_CONTRACT_ARCHITECTURE_DECISION.md`](./V1_CONTRACT_ARCHITECTURE_DECISION.md)
 - [`V1_MULTI_ASSET_STOCK_VAULT.md`](./V1_MULTI_ASSET_STOCK_VAULT.md)
 - [`V1_MARKET_REGISTRY_STATE_MODEL.md`](./V1_MARKET_REGISTRY_STATE_MODEL.md)

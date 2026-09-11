@@ -46,6 +46,20 @@ services:
     depends_on: { postgres-prod: { condition: service_healthy } }
     networks: [production, edge]
     mem_limit: 192m
+  chain-event-relay-test:
+    build: ./chain-event-relay
+    restart: unless-stopped
+    env_file: /etc/tickergarden/test.env
+    depends_on:
+      postgres-test: { condition: service_healthy }
+      queue-test: { condition: service_started }
+    networks: [test]
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:8081/healthz').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))"]
+      interval: 15s
+      timeout: 5s
+      retries: 10
+    mem_limit: 192m
   minio-test:
     image: minio/minio:latest
     command: server /data

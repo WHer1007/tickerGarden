@@ -85,9 +85,9 @@ const denied = await request('read-api:cors-denied', `${targets['read-api']}/hea
 if (denied?.headers.has('access-control-allow-origin')) failures.push('read-api:cors-denied exposed an allow-origin header');
 
 await request('read-api:mutation-denied', `${targets['read-api']}/internal/live`, { method: 'POST' }, 405);
-await request('pipeline:forged-webhook-denied', `${targets.pipeline}/v1/webhooks/alchemy`, {
+await request('pipeline:forged-chain-relay-denied', `${targets.pipeline}/v1/webhooks/chain-relay`, {
   method: 'POST',
-  headers: { 'content-type': 'application/json', 'x-alchemy-signature': '0'.repeat(64) },
+  headers: { 'content-type': 'application/json', 'upstash-signature': 'invalid' },
   body: '{}',
 }, 401);
 

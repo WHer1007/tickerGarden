@@ -13,7 +13,7 @@ The user-facing explanation of how the Platform uses its share of protocol-fee r
 
 Machine-readable protocol truth remains under [`spec/`](../spec/). Research evidence, brand assets, generated analysis outputs, and retired application code remain in their dedicated top-level directories.
 
-V1 当前 Serverless 开发任务见 [`v1/V1_TYPESCRIPT_SERVERLESS_DEVELOPMENT_TASKS.md`](./v1/V1_TYPESCRIPT_SERVERLESS_DEVELOPMENT_TASKS.md)：采用 TypeScript + Node.js 24 + Hono、Neon PostgreSQL、QStash、Alchemy RPC + Custom Webhook，只实现 `apps/web` 所需功能；此前两份 Serverless 方案已移除。Go 代码和历史验收记录仅作改写参考，技术方向已确认，开发与部署尚未完成。
+V1 当前 Serverless 开发任务见 [`v1/V1_TYPESCRIPT_SERVERLESS_DEVELOPMENT_TASKS.md`](./v1/V1_TYPESCRIPT_SERVERLESS_DEVELOPMENT_TASKS.md)：采用 TypeScript + Node.js 24 + Hono、PostgreSQL、持久队列，以及 VPS 上的 Alchemy WebSocket `eth_subscribe("logs")` relay；两个 Custom Webhook 已因逐块投递实测删除。只实现 `apps/web` 所需功能；测试 relay 与 Pipeline Preview 已部署，真实匹配事件及重组恢复仍待验收，生产链读取保持关闭。
 
 后续开发研究参考：[BNB Chain bStocks 质押发射台可行性](../research/BNB_BSTOCKS_INTEGRATION_FEASIBILITY.md)。该文档不属于已冻结的 V1 执行规格，不改变当前部署目标或生产准入状态。
 

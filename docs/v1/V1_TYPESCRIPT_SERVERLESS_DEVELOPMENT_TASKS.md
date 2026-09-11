@@ -1,12 +1,12 @@
 # TickerGarden V1 TypeScript Serverless 开发任务
 
-> 日期：2026-09-10。依据：用户确认采用 TypeScript + Node.js + Hono，以及 Alchemy RPC + Custom Webhook；当前只实现正式前端所需功能，Go 后端作为改写参考。
+> 日期：2026-09-11。依据：用户确认采用 TypeScript + Node.js + Hono，以及 VPS 上的 Alchemy WebSocket `eth_subscribe("logs")` relay + RPC；当前只实现正式前端所需功能，Go 后端作为改写参考。
 >
 > 状态：`LOCAL_IMPLEMENTATION_COMPLETE / EXTERNAL_VALIDATION_PENDING / NOT_PRODUCTION_READY`。
 >
 > 本文是本轮后端开发的唯一任务入口，包含技术方案、范围、依赖与验收。此前两份 Serverless 方案已移除；历史 Go 开发记录仅作参考，其全后端任务清单不自动进入本轮。
 >
-> 代码依据为当日包含未提交修改的工作树；不是某个 commit 的部署证明。TypeScript 服务、迁移和本地验证已实现；Preview 与外部资源尚未部署或验收。
+> 代码依据为当日工作树与下列测试部署记录。TypeScript 服务、迁移和本地验证已实现；测试 VPS relay 与 Pipeline Preview 已部署，其他 Preview 及真实链恢复验收仍以各任务状态为准。
 
 ## 1. 范围与交付原则
 
@@ -36,7 +36,7 @@
 | API 契约 | Zod + OpenAPI，生成 TypeScript client | 迁移前冻结当前 Go OpenAPI 和手写请求；目标由新服务维护唯一契约；Hono 类型推导不替代运行时校验 |
 | 数据库 | Neon PostgreSQL + Drizzle ORM + `pg` | schema/migration 统一管理；复杂聚合可写参数化 SQL；连接池、查询超时、事务与最小权限必须实测 |
 | 链访问 | `viem`，编译产物生成的 ABI，Alchemy 主 RPC + 独立供应商备用 RPC | 同块读取、部署/地址身份绑定、方法预算；服务端 RPC 密钥不进入浏览器包 |
-| 链入口 | Alchemy Custom Webhook，以 GraphQL 过滤项目合约事件 | 入口只是提示；历史补采和完整性由 RPC 区间核验保证。目标网络订阅、过滤和投递能力在 TS-04 实测 |
+| 链入口 | VPS 常驻 Alchemy WebSocket `eth_subscribe("logs")` relay | 只接收匹配地址/topic 的日志；PostgreSQL durable inbox/checkpoint 是交付边界；断线用有界 `eth_getLogs` 补采，`removed` 触发 rewind/reingest。生产链读取保持关闭 |
 | 可靠任务 | QStash `publish` + Flow Control；PostgreSQL inbox/outbox/jobs | 至少一次投递，业务提交幂等；不增加第二套队列框架 |
 | 内容 | S3 上传暂存与不可变发布 + Pinata/IPFS | 图片直传、服务端验证后发布；数据库保存版本、摘要、CID 与状态 |
 | 展示分析 | PostgreSQL 聚合与价格缓存；需要时接 Dune | Dune 只用于当前页面已需要的延迟历史统计；不作为资金、交易或领取资格来源 |
@@ -61,7 +61,9 @@ flowchart LR
   Browser[现有 Vite 页面] --> Read[Hono Read API]
   Browser --> Content[Hono Content]
   Browser --> Wallet[viem / 用户钱包 / RPC]
-  Provider[Alchemy Custom Webhook] --> Pipeline[Hono Pipeline]
+  Provider[Alchemy WebSocket eth_subscribe logs] --> Relay[VPS Event Relay]
+  Relay --> Inbox[(PostgreSQL durable inbox)]
+  Inbox --> Pipeline[Hono Pipeline]
   Pipeline --> RPC[Alchemy RPC / 独立备用 RPC]
   Cron[修复调度] --> Pipeline
   Pipeline --> DB[(PostgreSQL)]
@@ -94,20 +96,20 @@ apps/web/                            # 现有前端；同步契约与接入配�
 
 ### 2.2 Alchemy 接入与事件范围
 
-选型已确认，账户配置与目标网络实测尚未完成。Alchemy Custom Webhook 支持用 GraphQL 过滤自定义合约活动，适合本项目的事件入口；普通 Address Activity 转账通知不能独立覆盖业务事件。每份订阅绑定一个 chain/network，具体开通能力在 TS-04 留存证据。[Alchemy Custom Webhook](https://www.alchemy.com/docs/reference/custom-webhook)。
+选型已确认：测试链入口为 VPS 上的 Alchemy WebSocket `eth_subscribe("logs")` relay。Custom Webhook 的实测显示，即使配置地址与 topic 过滤，仍会按最新 canonical block 投递空结果，因此两个试验 Webhook 均已删除。WebSocket logs 订阅只在出现匹配日志时唤醒 relay；共享 PoolManager 还必须用 topic1 限定已登记项目 poolId。普通 Address Activity 转账通知不能独立覆盖业务事件。测试 relay 已部署，真实匹配事件和恢复能力仍需在 TS-04 留存证据。[Alchemy logs subscription](https://www.alchemy.com/docs/reference/logs)。
 
 | 环节 | 本轮实现要求 |
 | --- | --- |
 | RPC 适配 | 继续通过 `viem` 标准 HTTP transport 接入，不强制引入 Alchemy SDK。按目标 chain 验证历史读取、日志/回执、finalized 与同块读取；保留独立备用来源的配置和冲突处理 |
 | 事件过滤 | 从受信任 Factory/Registry 和已发现实例出发，只订阅页面需要的创建、交易、Transfer、仓位、领取及配置事件；事件签名和 indexed 布局来自编译 ABI。不要订阅全链全部事件 |
 | 动态地址 | 保存发现记录、出生块、过滤配置版本与生效范围；新地址自出生块补采，覆盖创建、mint、首买同块以及配置更新期间的空窗。只接受能绑定到受信任部署的日志 |
-| 通知接收 | Hono 以原始请求体验签，校验订阅身份、环境与 payload schema，持久提交 inbox/job/outbox 后才确认。供应商事件 ID 用于接收去重，业务日志仍按第 4.1 节身份去重 |
-| 完整性与恢复 | Webhook 用于提示待处理区间；RPC 按持久游标核验并推进覆盖。定时调度在没有推送时也检查链进度；通知的 sequenceNumber、最新块或空结果都不能代替覆盖与最终性证明 |
+| 通知接收 | VPS relay 校验 WebSocket 订阅、chain、地址/topic 与日志 schema，按 blockHash/transactionHash/logIndex 去重，并先提交 PostgreSQL durable inbox/checkpoint，再唤醒 Vercel pipeline；Vercel 只在匹配事件存在时被调用 |
+| 完整性与恢复 | 断线或地址集变化后，以持久 checkpoint 对有界区间执行 `eth_getLogs` 补采；`removed: true` 进入 reorg rewind/reingest；固定与动态地址均从出生块补采。RPC 区间覆盖和 finalized 证明不能由 WebSocket 推送取代 |
 | 凭据 | 服务端 RPC key、每份 Webhook 的签名密钥和 QStash 签名密钥分开管理。若配置订阅需要 Alchemy 管理凭据，仅部署工具使用，不放入公共 API、前端或普通 worker |
 
 历史回填使用有界 `eth_getLogs`、所需回执和固定块状态读取；Custom Webhook 的历史块测试不作为回填服务。按目标网络和套餐设置区块范围、响应体和 CU 预算，遇到超限拆分续跑。Alchemy 当前 Free 档 `eth_getLogs` 单次范围仅 10 块，不能仅根据月免费额度判断是否适合持续索引。[日志查询限制](https://www.alchemy.com/docs/chains/robinhood-chain/robinhood-chain-api-endpoints/eth-get-logs)。
 
-QuickNode 不再是默认主 RPC 或必选事件入口；可作为独立备用 RPC 的候选。本轮不开发两套生产 Webhook 接收链路，也不依赖 Streams 完成历史恢复。
+QuickNode 不再是默认主 RPC 或必选事件入口；可作为独立备用 RPC 的候选。本轮不开发第二套 Webhook 接收链路，也不依赖 Streams 完成历史恢复。
 
 ## 3. 页面消费者与接口范围
 
@@ -225,13 +227,15 @@ QuickNode 不再是默认主 RPC 或必选事件入口；可作为独立备用 R
 
 ### TS-04 — 前端数据所需的链采集与恢复
 
-- [x] 交付：Alchemy RPC transport、Custom Webhook GraphQL 过滤配置及版本记录、原始请求体验签与持久接收；管理凭据和运行凭据按第 2.2 节隔离。
-- [x] 交付：目标部署的 Factory/Registry 发现、动态地址出生块补采、项目事件/区块覆盖、固定块 observations；Alchemy Webhook 提示和 RPC 区间补采统一一条路径，不依赖通知包含全部数据。
+- [x] 交付：VPS Alchemy WebSocket `eth_subscribe("logs")` relay，固定与动态地址、前端 topics、PoolManager poolId topic1、PostgreSQL durable inbox/checkpoint、匹配事件唤醒 pipeline；生产链读取保持关闭。
+- [x] 交付：目标部署的 Factory/Registry 发现、动态地址出生块补采、项目事件/区块覆盖、固定块 observations；WebSocket 提示和 RPC 区间补采统一一条路径，不依赖推送包含全部数据。
 - [x] 交付：连续游标、parent/hash 校验、finalized policy、主备来源冲突处理、有界 backfill；共享区块获取，避免按用户/市场重复扫描。
 - [x] 验收：空块、创建+mint+首买同块、同块新地址再发现、Curve→Pool、内部兑换归属、重复/缺失日志、断点续跑和重组均有 fixture；不以过滤后空 payload 证明完整覆盖。
-- [ ] 验收：目标环境逐项验证 Custom Webhook 可创建、项目自定义事件过滤、真实签名投递与重投、订阅配置更新空窗恢复；伪造签名和未绑定来源不能入队。RPC 固定块读取、日志范围/响应限制、备用来源与停推后追赶留存证据；文档中的逐块通知能力不等于目标环境已验收。
+- [ ] 验收：在测试 VPS 验证 WebSocket `eth_subscribe("logs")` 仅推送匹配地址/topic，固定与动态地址更新、PostgreSQL durable inbox、断线有界 `eth_getLogs` 补采、重复/乱序、`removed`/reorg rewind/reingest；真实匹配事件才唤醒 Vercel。RPC 固定块读取、日志范围/响应限制、备用来源与停推后追赶留存证据；Custom Webhook 保持停用/删除，生产链读取保持关闭。
 
-进度记录（2026-09-11）：`packages/alchemy`、`chain`、`events`、`chain-worker` 与 pipeline 已形成验签 webhook → 事务 inbox/job/outbox → QStash 签名 worker → 双 RPC 有界采集路径。采集每次最多 10 块，批量读取日志，在创建块补读新 Token/Curve/Gauge，固定块核验代码哈希、parent/finality、覆盖摘要、checkpoint/generation，并支持有界共同祖先查找与 rewind；失败任务由 Cron 重新投递。事件 ABI 从冻结生成源生成并锁定摘要，内部 `f72` 文件/函数名只作兼容标识，不决定运行 release。真实 PostgreSQL fixture 已覆盖 block 5 空块、Factory 提示后从同一 birth block 补读 Token/Curve 的 mint/buy 类日志、主备缺失日志冲突、checkpoint 断点拒绝、rewind/reingest 与 generation 推进；analytics fixtures 覆盖 Curve、Pool、两类内部兑换、重复与异常 mint。当前 source-locked bootstrap 和运行代码一致绑定 activation block `117032526` / `0x36065fb09f78a00f75c528cad0e81e2f1a7b9f59bea9577488f26f4fb611f806`；此前 12 条 `MarketCreated` 和 32 个动态地址的双源结果属于历史 F72 QA，不能作为当前 release 的真实链验收。2026-09-11 使用 Node 24.19.0 重新执行当前 release 双源只读验证：chain/genesis/activation 一致，17 个固定合约代码哈希和 13 个 bootstrap 来源区块均通过；当前 baseline 没有冻结 QA 市场范围，事件验证明确记录 `deployment-and-bootstrap-only`、0 个 MarketCreated/动态源。证据见 [`typescript-serverless-current-release-verification.json`](../backend/typescript-serverless-current-release-verification.json)。42 项单测、build/typecheck 与 7 项 PostgreSQL 集成测试通过。测试环境曾短时启用只返回 block hash/number 的错误查询，约 20 秒产生 179 个任务；该 webhook 已关闭并删除，积压已清理。替代 Custom Webhook 使用 release-bound 地址变量与 27 个前端所需 topic0 的交集过滤，创建脚本从冻结 catalog 和数据库 `contract_sources` 同步地址；Alchemy 若返回意外 active 状态，脚本会立即调用管理 API 关闭并复核后才保存密钥。新 webhook、Vercel Preview signing key 和公开回调已配置，但 webhook 保持 inactive，尚需一笔真实匹配事件、动态地址登记与非匹配区块零推送的有界验收，因此本任务保持未关闭。生产环境未配置 Alchemy ingestion。
+进度记录（2026-09-11）：`chain`、`events`、`chain-worker` 与 pipeline 已形成 relay 签名 → 事务 inbox/job/outbox → 队列签名 worker → 双 RPC 有界采集路径。采集每次最多 10 块，批量读取日志，在创建块补读新 Token/Curve/Gauge，固定块核验代码哈希、parent/finality、覆盖摘要、checkpoint/generation，并支持有界共同祖先查找与 rewind；失败任务由 Cron 重新投递。事件 ABI 从冻结生成源生成并锁定摘要，内部 `f72` 文件/函数名只作兼容标识，不决定运行 release。真实 PostgreSQL fixture 已覆盖 block 5 空块、Factory 提示后从同一 birth block 补读 Token/Curve 的 mint/buy 类日志、主备缺失日志冲突、checkpoint 断点拒绝、rewind/reingest 与 generation 推进；analytics fixtures 覆盖 Curve、Pool、两类内部兑换、重复与异常 mint。当前 source-locked bootstrap 和运行代码一致绑定 activation block `117032526` / `0x36065fb09f78a00f75c528cad0e81e2f1a7b9f59bea9577488f26f4fb611f806`；此前 12 条 `MarketCreated` 和 32 个动态地址的双源结果属于历史 F72 QA，不能作为当前 release 的真实链验收。2026-09-11 使用 Node 24.19.0 重新执行当前 release 双源只读验证：chain/genesis/activation 一致，17 个固定合约代码哈希和 13 个 bootstrap 来源区块均通过；当前 baseline 没有冻结 QA 市场范围，事件验证明确记录 `deployment-and-bootstrap-only`、0 个 MarketCreated/动态源。证据见 [`typescript-serverless-current-release-verification.json`](../backend/typescript-serverless-current-release-verification.json)。42 项单测、build/typecheck 与 7 项 PostgreSQL 集成测试通过。
+
+同日测试部署中，两个 Custom Webhook 已删除。初版 WebSocket 地址+topic0 订阅又暴露共享 PoolManager 的跨项目 Swap 噪声，共产生 48 条 relay/queue 记录和 27 个派生 job；这些记录已清理。relay 随后拆为普通合约地址+topic0 与 PoolManager `Swap topic0 + 项目 poolId topic1` 两类订阅，poolId 从当前 release 的 `markets` 读取；无已登记项目 pool 时不创建 PoolManager 订阅。VPS 健康检查记录 17 个 active source、0 个 active pool、1 个订阅、0 reconnect/pending/dead，连续 20 秒 durable event 数保持 0。断线补采改为 1,000-block chunk，并受 10,000-block 总上限约束。Pipeline Preview `dpl_CXm88n4i6HLcwqhHLYzmWpAefUYZ` 已就绪，新入口拒绝无签名请求（401），旧入口不存在（404）。真实匹配交易、动态地址/pool 登记、强制断线和 removed/reorg 仍待验收，因此 TS-04 不关闭。生产环境未配置 Alchemy ingestion。
 
 依赖：TS-00、02、03。参考：Go `chainrpc/`、`journal/`、`discovery/`、`deployment/`、编译 ABI 与 `CanonicalBlockClock`。仅实现所选数据契约需要的解码/核验，遇到不支持的 Nitro 证据不能静默跳过。
 
@@ -336,7 +340,7 @@ Pipeline 新增每分钟独立价格刷新：冻结当前 release 的 STOCK targ
 - [x] 交付：Vercel 有效的安全头、CSP connect-src、CORS、静态资源与 HTML 缓存、SPA deep link；API 404 不落入 index.html。当前 origin parser 只接受完整 origin，不直接填 `/api` 前缀。
 - [ ] 验收：首页→Explore→Trade、Create→恢复、Stake、Claim、Stats 全流程；移动端、换钱包/链、刷新深链及旧 `/rewards#positions|#staker|#activity` 到 `/stake` 兼容。hash 在客户端处理；当前 Vite `_headers` 不能代替 Vercel 配置验收。
 
-进度记录（2026-09-11）：正式 caller 已统一使用 TypeScript OpenAPI 生成客户端或同一运行时配置，Creator/Holder、奖励历史、wallet-holder 和 launch recovery 均已接入；`apps/web/vercel.json` 固定 CSP、安全头、HTML/静态缓存和 SPA/API rewrite 边界。新增基于固定版本 `playwright-core` 和本机受信 Chrome 的 fail-closed 浏览器验收器 `npm --prefix apps/web run accept:preview:browser`。Node 24 本地 production Preview smoke 已覆盖桌面 1440×1024、移动 390×844 的 Home/Explore/Trade/Create/Stake/Claim/Stats，无横向溢出或首方请求失败；Create 草稿恢复、钱包连接、换账户、错链失效通过，未提交交易；旧 `/rewards#positions|#staker|#activity` 均保留 `marketId` 进入 `/stake`，Stake 单面板将旧 hash 规范化为 `#positions`。证据见 [`typescript-serverless-local-browser-verification.json`](../backend/typescript-serverless-local-browser-verification.json)。`check:client`、typecheck、315 项前端测试和 Vite production build 均通过。尚未部署 Preview，因此真实 API 市场发现、跨 origin、Vercel rewrite/响应头和部署环境深链刷新仍未验收，本项保持未完成。
+进度记录（2026-09-11）：正式 caller 已统一使用 TypeScript OpenAPI 生成客户端或同一运行时配置，Creator/Holder、奖励历史、wallet-holder 和 launch recovery 均已接入；`apps/web/vercel.json` 固定 CSP、安全头、HTML/静态缓存和 SPA/API rewrite 边界。新增基于固定版本 `playwright-core` 和本机受信 Chrome 的 fail-closed 浏览器验收器 `npm --prefix apps/web run accept:preview:browser`。Node 24 本地 production Preview smoke 已覆盖桌面 1440×1024、移动 390×844 的 Home/Explore/Trade/Create/Stake/Claim/Stats，无横向溢出或首方请求失败；Create 草稿恢复、钱包连接、换账户、错链失效通过，未提交交易；旧 `/rewards#positions|#staker|#activity` 均保留 `marketId` 进入 `/stake`，Stake 单面板将旧 hash 规范化为 `#positions`。证据见 [`typescript-serverless-local-browser-verification.json`](../backend/typescript-serverless-local-browser-verification.json)。`check:client`、typecheck、315 项前端测试和 Vite production build 均通过。测试 Preview 已部署，但当前 release 尚无可供真实市场发现的 QA market；完整跨 origin、Vercel rewrite/响应头和部署环境深链浏览器证据仍待留存，本项保持未完成。
 
 依赖：TS-06～13。参考：`runtimeConfig.ts`、`routing/routes.ts`、`vite.config.js`、`security/headers.mjs`。
 
@@ -359,7 +363,7 @@ Pipeline 新增每分钟独立价格刷新：冻结当前 release 的 STOCK targ
 
 依赖：TS-03～15。成本和验收建议值见第 7 节；不是未测的容量承诺。
 
-进展记录（2026-09-11）：所有 Hono 请求已输出脱敏结构化耗时/状态/请求字节指标；RPC 逐 attempt 记录 provider label、method、请求/响应字节、耗时、结果和 retryable，不记录 endpoint/参数/响应；`alchemy-primary` 同时按带日期的官方 EVM 方法表记录 nominal CU 及表版本，备用供应商不误套 Alchemy 计价，错误调用和最终账单以 Dashboard 为准。Alchemy callback 记录已验签 webhook ID、载荷字节与 duplicate，chain/content job、QStash dispatch 和价格刷新记录结果与耗时。chain/content 的受保护 `/internal/metrics` 返回 job/outbox 状态、最老待投递年龄和 PostgreSQL pool；pipeline 还返回 ingestion/projection generation、checkpoint age/lag、未解决 source conflict、价格年龄/过期，content 返回 upload 状态/年龄/失败数。42 项单测、7 项真实 PostgreSQL 集成测试和 13 项 `test:recovery` 已通过。恢复、告警阈值、容量采样项和 2026-09-11 官方价格快照见 [`V1_TYPESCRIPT_SERVERLESS_OPERATIONS.md`](./V1_TYPESCRIPT_SERVERLESS_OPERATIONS.md)。真实 Preview 冷启动、Alchemy 账单 CU、Neon 连接峰值、CDN HIT 与预测账单仍需部署后采样，因此 TS-16 不关闭。
+进展记录（2026-09-11）：所有 Hono 请求已输出脱敏结构化耗时/状态/请求字节指标；RPC 逐 attempt 记录 provider label、method、请求/响应字节、耗时、结果和 retryable，不记录 endpoint/参数/响应；`alchemy-primary` 同时按带日期的官方 EVM 方法表记录 nominal CU 及表版本，备用供应商不误套 Alchemy 计价，错误调用和最终账单以 Dashboard 为准。chain relay callback 记录载荷字节、removed 与 duplicate，chain/content job、队列 dispatch 和价格刷新记录结果与耗时。chain/content 的受保护 `/internal/metrics` 返回 job/outbox 状态、最老待投递年龄和 PostgreSQL pool；pipeline 还返回 ingestion/projection generation、checkpoint age/lag、未解决 source conflict、价格年龄/过期，content 返回 upload 状态/年龄/失败数。42 项单测、7 项真实 PostgreSQL 集成测试和 13 项 `test:recovery` 已通过。恢复、告警阈值、容量采样项和 2026-09-11 官方价格快照见 [`V1_TYPESCRIPT_SERVERLESS_OPERATIONS.md`](./V1_TYPESCRIPT_SERVERLESS_OPERATIONS.md)。真实 Preview 冷启动、Alchemy 账单 CU、数据库连接峰值、CDN HIT 与预测账单仍需完整采样，因此 TS-16 不关闭。
 
 ### TS-17 — 可回滚切换与最终页面验收
 

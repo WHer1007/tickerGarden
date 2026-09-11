@@ -94,7 +94,7 @@ test("service environments isolate credentials and shell profile pollution", () 
   const pipeline = serviceEnvironment(values, "pipeline", inherited);
   assert.equal(pipeline.QSTASH_CHAIN_TOKEN, "chain-qstash");
   assert.equal(pipeline.QSTASH_CONTENT_TOKEN, undefined);
-  assert.equal(pipeline.TG_ALCHEMY_WEBHOOK_SIGNING_KEY, "alchemy-signing");
+  assert.equal(pipeline.TG_ALCHEMY_WEBHOOK_SIGNING_KEY, undefined);
   assert.equal(pipeline.PINATA_JWT, undefined);
   assert.equal(pipeline.TG_CONTENT_SECRET_ACCESS_KEY, undefined);
   const gateway = serviceEnvironment({ ...values, RH46630_API_KEY: "gateway-secret", TG_GATEWAY_CONFIG_JSON: "gateway-config", TG_RPC_CU_PER_SECOND: "100" }, "gateway", inherited);

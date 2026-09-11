@@ -13,6 +13,7 @@ import { createReadApiApp } from '../../apps/read-api/src/index.ts';
 import { ingestCanonicalRange, rewindCanonicalChain, RpcTransport, type ContractSource, type RpcBlock } from '../../packages/chain/src/index.ts';
 import { invalidateOrphanedPublications, publishProjection } from '../../packages/projection/src/index.ts';
 import { readPublishedConfigPage, readPublishedMarketPage, readPublishedPage, readPublishedUserPage } from '../../packages/read-store/src/index.ts';
+import { CURRENT_ACTIVATION_BLOCK, CURRENT_RELEASE_ID } from '../../packages/events/src/index.ts';
 
 const connectionString = process.env.TG_MIGRATION_DATABASE_URL ?? process.env.TG_DATABASE_URL;
 
@@ -90,7 +91,7 @@ async function rejectsQuery(operation: () => Promise<unknown>, pattern: RegExp):
   await assert.rejects(operation, pattern);
 }
 
-test('TS-02/03/04/05/06 PostgreSQL, ingestion, publications and Hono read paths', { timeout: 45_000 }, async (context) => {
+test('TS-02/03/04/05/06 PostgreSQL, ingestion, publications and Hono read paths', { timeout: 60_000 }, async (context) => {
   if (!connectionString) {
     context.skip('TG_MIGRATION_DATABASE_URL or TG_DATABASE_URL is required');
     return;
@@ -104,7 +105,7 @@ test('TS-02/03/04/05/06 PostgreSQL, ingestion, publications and Hono read paths'
     content: `tg_content_${suffix}`,
     pipeline: `tg_pipeline_${suffix}`,
   } as const;
-  const handle = createDatabasePool(connectionString, { max: 4 });
+  const handle = createDatabasePool(connectionString, { max: 4, connectionTimeoutMillis: 15_000 });
   const createdRoles: string[] = [];
 
   try {
@@ -502,10 +503,13 @@ test('TS-02/03/04/05/06 PostgreSQL, ingestion, publications and Hono read paths'
     assert.equal((await handle.pool.query(`SELECT count(*)::int AS count FROM ${schema}.outbox_messages WHERE operation_id='retry-requeue' AND state='pending'`)).rows[0]?.count, 1);
 
     await handle.pool.query(`UPDATE ${schema}.outbox_messages SET state='sent',lease_owner=NULL,lease_expires_at=NULL WHERE state IN ('pending','retry')`);
-    const alchemySigningKey = 'integration-alchemy-signing-key';
-    const alchemyBody = JSON.stringify({
-      webhookId: 'wh_integration123', id: 'whevt_integration123', createdAt: '2026-09-11T00:00:00.123456789Z',
-      type: 'GRAPHQL', event: { data: { block: { hash: hash('e'), number: 4 } }, sequenceNumber: '1002' },
+    const chainRelayBody = JSON.stringify({
+      schema: 'tickergarden.chain-log-trigger.v1', environment: 'test', chainId: 46630, releaseId: CURRENT_RELEASE_ID,
+      head: { number: CURRENT_ACTIVATION_BLOCK.toString(), hash: hash('e') },
+      log: {
+        address: address('a'), blockHash: hash('e'), blockNumber: CURRENT_ACTIVATION_BLOCK.toString(), transactionHash: hash('d'),
+        transactionIndex: '0', logIndex: '1', data: '0x', topics: [hash('c')], removed: false,
+      },
     });
     const published: unknown[] = [];
     const qstashClient = {
@@ -518,34 +522,35 @@ test('TS-02/03/04/05/06 PostgreSQL, ingestion, publications and Hono read paths'
       pool: handle.pool,
       qstashClient,
       chainProcessor: async (lease) => {
-        assert.equal(lease.kind, 'alchemy-event-trigger');
+        assert.equal(lease.kind, 'chain-log-trigger');
         return 'chain-processed';
       },
       env: {
         NODE_ENV: 'test', TG_PIPELINE_DATABASE_URL: 'configured', TG_DATABASE_SCHEMA: schemaName,
         TG_PIPELINE_GENERATION: '0',
-        TG_ALCHEMY_WEBHOOK_SIGNING_KEY: alchemySigningKey, TG_ALCHEMY_WEBHOOK_ID: 'wh_integration123',
         QSTASH_CURRENT_SIGNING_KEY: signingKey, QSTASH_NEXT_SIGNING_KEY: 'integration-next-signing-key', QSTASH_CHAIN_TOKEN: 'configured',
         TG_CHAIN_JOB_CALLBACK_URL: 'https://pipeline.example/v1/jobs/chain', TG_REPAIR_TOKEN: 'repair', CRON_SECRET: 'cron',
         TG_RPC_URL: 'https://primary.example', TG_SECONDARY_RPC_URL: 'https://secondary.example',
       },
     });
-    const alchemyUrl = 'https://pipeline.example/v1/webhooks/alchemy';
-    const alchemySignature = createHmac('sha256', alchemySigningKey).update(alchemyBody).digest('hex');
-    const acceptedWebhook = await pipeline.request(alchemyUrl, {
-      method: 'POST', body: alchemyBody, headers: { 'content-type': 'application/json', 'x-alchemy-signature': alchemySignature },
+    const chainRelayUrl = 'https://pipeline.example/v1/webhooks/chain-relay';
+    const acceptedWebhook = await pipeline.request(chainRelayUrl, {
+      method: 'POST', body: chainRelayBody,
+      headers: { 'content-type': 'application/json', 'upstash-signature': qstashSignature(chainRelayBody, chainRelayUrl, signingKey) },
     });
     assert.equal(acceptedWebhook.status, 200);
     assert.deepEqual(await acceptedWebhook.json(), { accepted: true, duplicate: false });
     assert.equal(published.length, 1);
-    const duplicateWebhook = await pipeline.request(alchemyUrl, {
-      method: 'POST', body: alchemyBody, headers: { 'content-type': 'application/json', 'x-alchemy-signature': alchemySignature },
+    const duplicateWebhook = await pipeline.request(chainRelayUrl, {
+      method: 'POST', body: chainRelayBody,
+      headers: { 'content-type': 'application/json', 'upstash-signature': qstashSignature(chainRelayBody, chainRelayUrl, signingKey) },
     });
     assert.equal(duplicateWebhook.status, 200);
     assert.equal((await duplicateWebhook.json()).duplicate, true);
     assert.equal(published.length, 1);
-    const forgedWebhook = await pipeline.request(alchemyUrl, {
-      method: 'POST', body: `${alchemyBody} `, headers: { 'content-type': 'application/json', 'x-alchemy-signature': alchemySignature },
+    const forgedWebhook = await pipeline.request(chainRelayUrl, {
+      method: 'POST', body: `${chainRelayBody} `,
+      headers: { 'content-type': 'application/json', 'upstash-signature': qstashSignature(chainRelayBody, chainRelayUrl, signingKey) },
     });
     assert.equal(forgedWebhook.status, 401);
 

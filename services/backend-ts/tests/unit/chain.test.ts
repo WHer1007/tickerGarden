@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { consensusBlock, hexQuantity, isFinalized, RpcTransport, toHexQuantity, verifyChainIdentity } from '../../packages/chain/src/index.ts';
+import { consensusBlock, hexQuantity, isFinalized, parseChainLogTrigger, RpcTransport, toHexQuantity, verifyChainIdentity } from '../../packages/chain/src/index.ts';
 
 function hash(character: string): `0x${string}` {
   return `0x${character.repeat(64)}`;
@@ -50,6 +50,22 @@ test('finality requires both block and time delay', () => {
   assert.equal(hexQuantity('0xB626'), 46630n);
   assert.equal(toHexQuantity(46630n), '0xb626');
   assert.throws(() => hexQuantity('0x00'), /invalid/);
+});
+
+test('chain relay trigger binds environment, chain and release identity', () => {
+  const deployment = { environment: 'test' as const, chainId: 46630 as const, deploymentDigest: hash('a'), activationBlock: 1n };
+  const payload = {
+    schema: 'tickergarden.chain-log-trigger.v1', environment: 'test', chainId: 46630, releaseId: hash('a'),
+    head: { number: '42', hash: hash('b') },
+    log: { address: `0x${'1'.repeat(40)}`, blockHash: hash('b'), blockNumber: '42', transactionHash: hash('d'),
+      transactionIndex: '0', logIndex: '7', data: '0x', topics: [hash('c')], removed: false },
+  };
+  assert.deepEqual(parseChainLogTrigger(payload, deployment), {
+    number: 42n, hash: hash('b'), removed: false, eventKey: `${hash('b')}:${hash('d')}:7:canonical`,
+  });
+  assert.throws(() => parseChainLogTrigger({ ...payload, chainId: 4663 }, deployment), /identity mismatch/);
+  assert.throws(() => parseChainLogTrigger({ ...payload, releaseId: hash('e') }, deployment), /identity mismatch/);
+  assert.throws(() => parseChainLogTrigger({ ...payload, log: { ...payload.log, blockNumber: '0' } }, deployment), /inconsistent/);
 });
 
 test('RPC telemetry records provider, bytes, retry and final outcome without endpoint data', async () => {

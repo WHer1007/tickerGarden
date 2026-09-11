@@ -12,13 +12,13 @@ Only the test environment is active. Production services are assigned to the Com
 Secrets live only in `/etc/tickergarden/{test,production}.env` on the server. Starting the test stack uses the default profile:
 
 ```bash
-docker compose -f /opt/tickergarden/infra/vps/compose.yml up -d
+docker compose -f /opt/tickergarden/compose.yml up -d
 ```
 
 The `production` profile must not be enabled while the project is test-only. A future production release requires an explicit operational decision and a separate validation pass before running `docker compose --profile production up -d` or configuring production Vercel/Alchemy resources.
 
-The original block-only Alchemy webhook was deleted after a live test observed roughly eight notifications per second and an immediate queue backlog. Its replacement uses Custom Webhook variables to require both a trusted current-release source address and one of 27 frontend-required event topics. The replacement remains inactive while test transactions and dynamic source registration are prepared. RPC reads remain a bounded verification and recovery layer after a matching event; they are not a per-block poller.
+The original block-only and filtered Alchemy Custom Webhooks were deleted after live tests showed per-block delivery and immediate queue growth. The test-chain entry is an Alchemy WebSocket `eth_subscribe("logs")` relay running on this VPS. Ordinary contracts use release-bound and discovered dynamic addresses plus the frontend-required topic0 allowlist. The shared Uniswap v4 PoolManager is isolated into a `Swap topic0 + project poolId topic1` subscription; when no project pool is registered, that subscription is omitted. Matches are durably written to the PostgreSQL inbox; reconnects use bounded 1,000-block `eth_getLogs` chunks within the configured 10,000-block ceiling, and `removed` logs enter reorg rewind/reingest. The relay wakes the Vercel pipeline only after a matching event is committed. Production-chain reads and ingestion remain disabled.
 
-The queue relay implements the subset of the QStash publish and callback-signature protocol used by the TypeScript backend. Messages, deduplication keys, attempts, leases, and dead-letter state are persisted in PostgreSQL. This avoids running a development-only QStash emulator in production.
+The queue relay implements the subset of the QStash publish and callback-signature protocol used by the TypeScript backend. Messages, deduplication keys, attempts, leases, checkpoints, and dead-letter state are persisted in PostgreSQL. This durable inbox is also the handoff boundary for the WebSocket event relay; Vercel is invoked only after a matching log has been committed.
 
 Kafka or Redpanda can replace the relay storage when traffic requires partitioned, multi-node streaming. On the current 2 vCPU / 4 GB single host, PostgreSQL-backed delivery keeps message durability while avoiding a second clustered storage system with no high-availability benefit.

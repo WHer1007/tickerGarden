@@ -2,9 +2,8 @@ import type { Pool } from 'pg';
 import { transaction } from '../../db/src/index.ts';
 import {
   consensusBlock, findCommonAncestor, ingestCanonicalRange, loadIngestionState, ReorgDetectedError, rewindCanonicalChain,
-  RpcTransport, verifyChainIdentity, type DeploymentIdentity, type RpcBlock,
+  parseChainLogTrigger, RpcTransport, verifyChainIdentity, type DeploymentIdentity, type RpcBlock,
 } from '../../chain/src/index.ts';
-import { parseAlchemyBlockTrigger, type AlchemyWebhook } from '../../alchemy/src/index.ts';
 import { discoverF72MarketSources, eventTopic, CURRENT_ACTIVATION_BLOCK, CURRENT_RELEASE_ID, fixedF72Sources } from '../../events/src/index.ts';
 import { enqueueReliableMessage, type Lease } from '../../jobs/src/index.ts';
 import { invalidateOrphanedPublications } from '../../projection/src/index.ts';
@@ -40,7 +39,7 @@ export function createChainProcessor(options: ChainProcessorOptions): (lease: Le
       verifyChainIdentity(options.primary, 46630n, GENESIS_HASH),
       verifyChainIdentity(options.secondary, 46630n, GENESIS_HASH),
     ]);
-    const head = await resolveHead(lease, options.primary, options.secondary);
+    const head = await resolveHead(lease, options.primary, options.secondary, deployment);
     await ensureBootstrap({ ...options, deployment });
     const delayBlocks = options.finalityDelayBlocks ?? 2n;
     const delaySeconds = options.finalityDelaySeconds ?? 600n;
@@ -196,11 +195,11 @@ async function projectionBatchPending(pool: Pool, deployment: DeploymentIdentity
   return history.rows[0]?.pending === true;
 }
 
-async function resolveHead(lease: Lease, primary: RpcTransport, secondary: RpcTransport): Promise<RpcBlock> {
+async function resolveHead(lease: Lease, primary: RpcTransport, secondary: RpcTransport, deployment: DeploymentIdentity): Promise<RpcBlock> {
   let number: bigint;
   let expectedHash: string;
-  if (lease.kind === 'alchemy-event-trigger' || lease.kind === 'alchemy-block-trigger') {
-    const trigger = parseAlchemyBlockTrigger(lease.payload as AlchemyWebhook);
+  if (lease.kind === 'chain-log-trigger') {
+    const trigger = parseChainLogTrigger(lease.payload, deployment);
     number = trigger.number;
     expectedHash = trigger.hash;
   } else if (lease.kind === 'chain-backfill') {

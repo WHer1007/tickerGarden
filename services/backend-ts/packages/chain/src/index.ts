@@ -39,6 +39,43 @@ export interface RpcLog {
   readonly removed: boolean;
 }
 
+export interface ChainLogTrigger {
+  readonly number: bigint;
+  readonly hash: `0x${string}`;
+  readonly removed: boolean;
+  readonly eventKey: string;
+}
+
+export function parseChainLogTrigger(value: unknown, expected: DeploymentIdentity): ChainLogTrigger {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) throw new TypeError('invalid chain log trigger');
+  const item = value as Record<string, unknown>;
+  if (item.schema !== 'tickergarden.chain-log-trigger.v1' || item.environment !== expected.environment
+    || item.chainId !== expected.chainId || item.releaseId !== expected.deploymentDigest) throw new TypeError('chain log trigger identity mismatch');
+  if (!item.head || typeof item.head !== 'object' || Array.isArray(item.head)
+    || !item.log || typeof item.log !== 'object' || Array.isArray(item.log)) throw new TypeError('invalid chain log trigger payload');
+  const head = item.head as Record<string, unknown>;
+  const log = item.log as Record<string, unknown>;
+  const topics = log.topics;
+  if (typeof head.number !== 'string' || !/^[0-9]+$/.test(head.number) || typeof head.hash !== 'string' || !HASH.test(head.hash)
+    || typeof log.address !== 'string' || !ADDRESS.test(log.address)
+    || typeof log.blockHash !== 'string' || !HASH.test(log.blockHash)
+    || typeof log.blockNumber !== 'string' || !/^[0-9]+$/.test(log.blockNumber)
+    || typeof log.transactionHash !== 'string' || !HASH.test(log.transactionHash)
+    || typeof log.transactionIndex !== 'string' || !/^[0-9]+$/.test(log.transactionIndex)
+    || typeof log.logIndex !== 'string' || !/^[0-9]+$/.test(log.logIndex)
+    || typeof log.data !== 'string' || !/^0x(?:[0-9a-f]{2})*$/.test(log.data)
+    || !Array.isArray(topics) || topics.length < 1 || topics.length > 4 || topics.some((topic) => typeof topic !== 'string' || !HASH.test(topic))
+    || typeof log.removed !== 'boolean') throw new TypeError('invalid chain log trigger fields');
+  const headNumber = BigInt(head.number);
+  const logNumber = BigInt(log.blockNumber);
+  if (logNumber < expected.activationBlock || headNumber < logNumber
+    || (!log.removed && (headNumber !== logNumber || head.hash !== log.blockHash))) throw new TypeError('inconsistent chain log trigger head');
+  return {
+    number: headNumber, hash: head.hash as `0x${string}`, removed: log.removed,
+    eventKey: `${log.blockHash}:${log.transactionHash}:${log.logIndex}:${log.removed ? 'removed' : 'canonical'}`,
+  };
+}
+
 export interface RpcTransportOptions {
   readonly url: string;
   readonly fetch?: typeof fetch;

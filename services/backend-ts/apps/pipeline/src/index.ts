@@ -1,16 +1,15 @@
 import { randomUUID } from 'node:crypto';
 import type { Pool } from 'pg';
 import type { Client } from '@upstash/qstash';
+import { Hono } from 'hono';
 import { createServiceApp } from '../../../packages/http/src/index.ts';
 import { createDatabasePool } from '../../../packages/db/src/index.ts';
 import {
   advanceQueueGeneration, createQStashClient, dispatchDueOutbox, enqueueReliableMessage, processSignedJob, readQueueMetrics, repairQueue,
   StaleQueueGenerationError, verifyQStashRequest, verifyRepairToken, type Lease,
 } from '../../../packages/jobs/src/index.ts';
-import {
-  ALCHEMY_EVM_COMPUTE_UNIT_SCHEDULE, alchemyNominalComputeUnits, parseAlchemyWebhook, verifyAlchemySignature,
-} from '../../../packages/alchemy/src/index.ts';
-import { RpcTransport } from '../../../packages/chain/src/index.ts';
+import { ALCHEMY_EVM_COMPUTE_UNIT_SCHEDULE, alchemyNominalComputeUnits } from '../../../packages/alchemy/src/index.ts';
+import { parseChainLogTrigger, RpcTransport } from '../../../packages/chain/src/index.ts';
 import { createChainProcessor } from '../../../packages/chain-worker/src/index.ts';
 import { f72PriceTargets, fetchPriceReferences, storePriceReferences } from '../../../packages/display-price/src/index.ts';
 import { CURRENT_ACTIVATION_BLOCK, CURRENT_RELEASE_ID } from '../../../packages/events/src/index.ts';
@@ -28,12 +27,12 @@ export function createPipelineApp(options: PipelineAppOptions = {}) {
     kind: 'pipeline', env,
     maxBodyBytes: 1024 * 1024,
     requiredEnvironmentKeys: [
-      'TG_PIPELINE_DATABASE_URL', 'TG_ALCHEMY_WEBHOOK_SIGNING_KEY', 'TG_ALCHEMY_WEBHOOK_ID',
-      'TG_PIPELINE_GENERATION',
+      'TG_PIPELINE_DATABASE_URL', 'TG_PIPELINE_GENERATION',
       'QSTASH_CURRENT_SIGNING_KEY', 'QSTASH_NEXT_SIGNING_KEY', 'QSTASH_CHAIN_TOKEN',
       'TG_CHAIN_JOB_CALLBACK_URL', 'TG_RPC_URL', 'TG_SECONDARY_RPC_URL', 'TG_REPAIR_TOKEN', 'CRON_SECRET',
     ],
   });
+  if (!(app instanceof Hono)) throw new Error('pipeline service factory must return a Hono application');
 
   let ownedPool: Pool | undefined;
   let ownedProcessor: ((lease: Lease) => Promise<string | Buffer>) | undefined;
@@ -136,21 +135,31 @@ export function createPipelineApp(options: PipelineAppOptions = {}) {
     return context.json({ refreshed: references.length, available: references.filter((item) => item.status === 'available').length });
   });
 
-  app.post('/v1/webhooks/alchemy', async (context) => {
+  app.post('/v1/webhooks/chain-relay', async (context) => {
     const rawBody = await context.req.text();
-    if (!verifyAlchemySignature(rawBody, context.req.header('x-alchemy-signature'), env.TG_ALCHEMY_WEBHOOK_SIGNING_KEY ?? '')) {
-      return context.json({ error: 'unauthorized', requestId: context.get('requestId') }, 401);
-    }
-    let envelope;
+    const signature = context.req.header('upstash-signature');
+    const currentSigningKey = env.QSTASH_CURRENT_SIGNING_KEY;
+    const nextSigningKey = env.QSTASH_NEXT_SIGNING_KEY;
+    if (!signature || !currentSigningKey || !nextSigningKey) return context.json({ error: 'unauthorized', requestId: context.get('requestId') }, 401);
+    let payload: Readonly<Record<string, unknown>>;
+    let trigger;
     try {
-      envelope = parseAlchemyWebhook(rawBody, env.TG_ALCHEMY_WEBHOOK_ID ?? '');
+      await verifyQStashRequest({
+        body: rawBody, signature, url: context.req.url, currentSigningKey, nextSigningKey,
+        ...(context.req.header('upstash-region') ? { upstashRegion: context.req.header('upstash-region')! } : {}),
+      });
+      payload = JSON.parse(rawBody) as Readonly<Record<string, unknown>>;
+      trigger = parseChainLogTrigger(payload, {
+        environment: environmentName(env.TG_ENVIRONMENT), chainId: 46630,
+        deploymentDigest: CURRENT_RELEASE_ID, activationBlock: CURRENT_ACTIVATION_BLOCK,
+      });
     } catch {
-      return context.json({ error: 'invalid_webhook', requestId: context.get('requestId') }, 400);
+      return context.json({ error: 'invalid_chain_relay', requestId: context.get('requestId') }, 401);
     }
     const enqueued = await enqueueReliableMessage(databasePool(), {
-      queue: 'chain', externalId: `g${runtimeGeneration(env.TG_PIPELINE_GENERATION)}:${envelope.webhookId}:${envelope.id}`,
-      operationId: `g${runtimeGeneration(env.TG_PIPELINE_GENERATION)}:alchemy:${envelope.id}`,
-      kind: 'alchemy-event-trigger', rawBody, payload: envelope, destinationKey: 'chain-worker', generation: runtimeGeneration(env.TG_PIPELINE_GENERATION),
+      queue: 'chain', externalId: `g${runtimeGeneration(env.TG_PIPELINE_GENERATION)}:ws:${trigger.eventKey}`,
+      operationId: `g${runtimeGeneration(env.TG_PIPELINE_GENERATION)}:ws:${trigger.eventKey}`,
+      kind: 'chain-log-trigger', rawBody, payload, destinationKey: 'chain-worker', generation: runtimeGeneration(env.TG_PIPELINE_GENERATION),
     }, env.TG_DATABASE_SCHEMA);
     const callback = env.TG_CHAIN_JOB_CALLBACK_URL;
     if (callback && env.QSTASH_CHAIN_TOKEN) {
@@ -161,7 +170,7 @@ export function createPipelineApp(options: PipelineAppOptions = {}) {
         ...(env.TG_DATABASE_SCHEMA ? { schemaName: env.TG_DATABASE_SCHEMA } : {}),
       });
     }
-    emitMetric(env, { event: 'alchemy_webhook_delivery', webhookId: envelope.webhookId, payloadBytes: Buffer.byteLength(rawBody), duplicate: enqueued.duplicate });
+    emitMetric(env, { event: 'chain_relay_delivery', payloadBytes: Buffer.byteLength(rawBody), removed: trigger.removed, duplicate: enqueued.duplicate });
     return context.json({ accepted: true, duplicate: enqueued.duplicate }, 200);
   });
 
