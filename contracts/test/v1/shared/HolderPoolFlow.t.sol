@@ -353,14 +353,12 @@ contract HolderPoolFlowTest is Test {
         vm.warp(block.timestamp + 24 hours);
         (, uint256 earned) = d.claimableAssets(ID, ALICE);
         assertGt(earned, 0);
-        uint256 before = quote.balanceOf(ALICE);
+        uint256 before = meme.balanceOf(ALICE);
         vm.prank(ALICE);
-        (uint256 paid, uint256 raw, uint256 retained) =
-            vault.claimUserRewards(ID, 2, 0, true, false, block.timestamp + 240);
-        assertGt(paid, 0);
-        assertEq(raw, 0);
-        assertEq(retained, 0);
-        assertEq(quote.balanceOf(ALICE), before + paid);
+        (uint256 paid, uint256 raw) = vault.claimUserRewards(ID, 2, 0);
+        assertEq(paid, 0);
+        assertEq(raw, earned);
+        assertEq(meme.balanceOf(ALICE), before + raw);
         (, earned) = d.claimableAssets(ID, ALICE);
         assertEq(earned, 0);
     }
@@ -373,7 +371,7 @@ contract HolderPoolFlowTest is Test {
         assertGt(earned, 0);
         uint256 before = meme.balanceOf(ALICE);
         vm.prank(ALICE);
-        (, uint256 paid,) = vault.claimUserRewards(ID, 2, 0, false, false, block.timestamp + 240);
+        (, uint256 paid) = vault.claimUserRewards(ID, 2, 0);
         assertEq(paid, earned);
         assertEq(meme.balanceOf(ALICE), before + paid);
         assertEq(d.marketState(ID).supply, d.memeMarketState(ID).supply);

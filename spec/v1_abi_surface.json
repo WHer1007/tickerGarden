@@ -476,8 +476,6 @@
         "CanonicalRoute": [
           "PoolKey poolKey",
           "bytes32 poolId",
-          "address swapRouter",
-          "address quoter",
           "address hook",
           "address quoteAsset",
           "address memeToken",
@@ -571,18 +569,6 @@
         },
         {
           "signature": "graduationExecutor()",
-          "mutability": "view",
-          "caller": "PUBLIC",
-          "returns": "(address)"
-        },
-        {
-          "signature": "swapRouter()",
-          "mutability": "view",
-          "caller": "PUBLIC",
-          "returns": "(address)"
-        },
-        {
-          "signature": "quoter()",
           "mutability": "view",
           "caller": "PUBLIC",
           "returns": "(address)"
@@ -1226,12 +1212,6 @@
           "mutability": "view",
           "caller": "PUBLIC",
           "returns": "(uint256,uint256)"
-        },
-        {
-          "signature": "restoreUserMemeRewards(address,uint256)",
-          "mutability": "nonpayable",
-          "caller": "FEE_VAULT",
-          "returns": "()"
         }
       ],
       "events": [
@@ -1257,18 +1237,6 @@
         ]
       },
       "functions": [
-        {
-          "signature": "convertRewards(bytes32,uint256,uint256)",
-          "mutability": "nonpayable",
-          "caller": "FEE_VAULT",
-          "returns": "(uint256,uint256)"
-        },
-        {
-          "signature": "unlockCallback(bytes)",
-          "mutability": "nonpayable",
-          "caller": "POOL_MANAGER",
-          "returns": "(bytes)"
-        },
         {
           "signature": "registerExpectedPool(bytes32,PoolKey,uint32)",
           "mutability": "nonpayable",
@@ -1468,14 +1436,14 @@
           "returns": "(uint256)"
         },
         {
-          "signature": "claimUserRewards(bytes32,uint8,uint32,bool,bool,uint256)",
-          "returns": "(uint256,uint256,uint256)",
+          "signature": "claimUserRewards(bytes32,uint8,uint32)",
+          "returns": "(uint256,uint256)",
           "mutability": "nonpayable",
           "caller": "PUBLIC"
         },
         {
-          "signature": "claimUserRewardAssets(bytes32,uint8,uint32,uint8,bool,bool,uint256)",
-          "returns": "(uint256,uint256,uint256)",
+          "signature": "claimUserRewardAssets(bytes32,uint8,uint32,uint8)",
+          "returns": "(uint256,uint256)",
           "mutability": "nonpayable",
           "caller": "PUBLIC"
         },
@@ -1484,12 +1452,6 @@
           "returns": "(bytes32)",
           "mutability": "pure",
           "caller": "PUBLIC"
-        },
-        {
-          "signature": "convertUserClaim(bytes32,MarketView,uint256,uint256)",
-          "returns": "(uint256,uint256)",
-          "mutability": "nonpayable",
-          "caller": "FEE_VAULT"
         },
         {
           "signature": "fundHolderMemeRewards(bytes32)",
@@ -1576,9 +1538,8 @@
         "FeeClaimed(uint8 indexed beneficiaryType,address indexed beneficiary,bytes32 indexed marketId,uint32 beneficiaryEpoch,address feeAsset,uint256 amount)",
         "ForfeitureReserved(bytes32 indexed marketId,address indexed user,address indexed feeAsset,uint256 amount,uint256 reserveBalance)",
         "ForfeitureReserveConverted(bytes32 indexed marketId,address indexed feeAsset,uint256 amount)",
-        "RewardConverted(bytes32 indexed marketId,address indexed user,uint32 indexed creatorEpoch,uint256 memeSpent,uint256 quoteReceived)",
         "HolderFeesAccrued(bytes32 indexed marketId,uint32 indexed epochId,address indexed feeAsset,uint256 amount)",
-        "UserRewardsClaimed(bytes32 indexed marketId,address indexed user,uint8 indexed role,uint32 creatorEpoch,uint256 quotePaid,uint256 memePaid,uint256 memeRetained,uint256 memeConverted,bool conversionFailed)",
+        "UserRewardsClaimed(bytes32 indexed marketId,address indexed user,uint8 indexed role,uint32 creatorEpoch,uint256 quotePaid,uint256 memePaid)",
         "PlatformTreasuryProposed(uint256 indexed nonce,address indexed oldTreasury,address indexed newTreasury,address proposer,uint256 readyAt,bytes32 codeHash)",
         "PlatformTreasuryAccepted(uint256 indexed nonce,address indexed newTreasury)",
         "PlatformTreasuryCancelled(uint256 indexed nonce,address indexed caller)",

@@ -52,7 +52,7 @@ function canonicalMarketFixture() {
     config: [api.assetUid, api.tickerGardenBaselineId, api.quoteAssetConfigId, bytes32("c"), bytes32("d"), bytes32("e"), bytes32("f"), 0n, addr("c"), memeToken, api.curve, api.gauge, quoteAsset, hook, 0, false, true],
     runtime: { poolId: bytes32("0"), sourceVersion: 1, launchPhase: 0 },
   } as const;
-  const rawRoute = [key, poolId, api.canonicalRoute.router, api.canonicalRoute.quoter, hook, quoteAsset, memeToken, api.gauge, api.curve, api.canonicalRoute.launchLocker, 1, 0, 0, true, false] as const;
+  const rawRoute = [key, poolId, api.canonicalRoute.router, api.canonicalRoute.quoter, hook, quoteAsset, memeToken, api.gauge, api.curve, api.canonicalRoute.launchLocker, 1, 0, true, false] as const;
   return { api, rawMarket, rawRoute, poolId, key };
 }
 
@@ -316,4 +316,11 @@ test("launch template status follows compiled tuple layout", () => {
     assert.throws(() => assertCanonicalLaunchBindings(selected, { ...raw, template: changed }), /launch template status drifted/);
   }
   assert.throws(() => assertCanonicalLaunchBindings(selected, { ...raw, template: template.slice(0, statusIndex) }));
+});
+
+test("current Registry route binds core pool facts without any external service fields",()=>{
+ const f=canonicalMarketFixture();
+ const current=[...f.rawRoute.slice(0,2),...f.rawRoute.slice(4)];
+ const api={...f.api,canonicalRoute:{...f.api.canonicalRoute,router:addr('0'),quoter:addr('0')}};
+ assert.doesNotThrow(()=>assertCanonicalMarketBinding(api as never,f.rawMarket,current));
 });

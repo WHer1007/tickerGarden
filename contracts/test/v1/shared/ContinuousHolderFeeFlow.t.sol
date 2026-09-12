@@ -86,7 +86,7 @@ contract ContinuousHolderFeeFlowTest is Test {
         assertEq(vault.holderLiability(ID, 1, address(quote)), 0);
         assertEq(rewards.claimable(ID, ALICE), 0);
         vm.prank(CREATOR);
-        (uint256 paid,,) = vault.claimUserRewards(ID, 0, 1, false, false, block.timestamp + 240);
+        (uint256 paid,) = vault.claimUserRewards(ID, 0, 1);
         assertEq(paid, creator);
         vm.warp(block.timestamp + 24 hours);
         vm.prank(ALICE);

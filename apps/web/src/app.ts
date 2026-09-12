@@ -1,5 +1,6 @@
+import { coreMarketRouteAbi, decodeCoreMarketRoute } from '../../../services/backend-ts/packages/chain/src/market-route.ts';
 import { rewardClaimDialog } from './ui/reward-claim-dialog.ts';
-import { userClaimsAbi, USER_CLAIM_MODE, DUAL_HOLDER_MODE, userClaimOutcome } from './v1/features/userClaims.ts';
+import { userClaimsAbi, USER_CLAIM_MODE, LEGACY_USER_CLAIM_MODE, rawUserClaimRequest, DUAL_HOLDER_MODE, userClaimOutcome } from './v1/features/userClaims.ts';
 import {statisticsUSD, statisticsFresh} from "./v1/statisticsValue.ts";
 import {cachedStatistics} from './v1/statisticsCache.ts';
 import {createExplorePager} from './v1/explorePaging.ts';
@@ -647,7 +648,7 @@ async function ensureCanonicalMarket(market: MarketReadModel): Promise<void> {
   if (distributor.toLowerCase() !== release.holderDistributor) throw new Error("Token reward distributor does not match release");
   const [rawMarket, rawRoute, registryFactory, distributorRegistry, hookVault] = await Promise.all([
     publicClient.readContract({ abi: v1Abis.MarketRegistryV1, address: release.marketRegistry, functionName: "market", args: [market.marketId] }),
-    publicClient.readContract({ abi: v1Abis.MarketRegistryV1, address: release.marketRegistry, functionName: "canonicalRoute", args: [market.marketId] }),
+    publicClient.call({to:release.marketRegistry,data:encodeFunctionData({abi:coreMarketRouteAbi,functionName:"canonicalRoute",args:[market.marketId]})}).then(result=>decodeCoreMarketRoute(result.data??"0x")),
     publicClient.readContract({ abi: v1Abis.MarketRegistryV1, address: release.marketRegistry, functionName: "factory" }),
     publicClient.readContract({ abi: v1Abis.TreasuryDistributorV1, address: release.holderDistributor, functionName: "marketRegistry" }),
     publicClient.readContract({ abi: v1Abis.TickerGardenMemeHook, address: release.hook, functionName: "protocolFeeVault" }),
@@ -1597,11 +1598,12 @@ async function loadPoolQuoteBindings(market:MarketReadModel,blockNumber:bigint){
  const cacheKey=`${route.router}:${route.quoter}:${market.curve}`;
  const previous=poolQuoteBindings.get(cacheKey);if(previous)return previous;
  const pending=(async()=>{
-  const [manager,quoterManager,taxBps]=await Promise.all([
+  const [manager,quoterManager,taxBps,vaultManager]=await Promise.all([
    publicClient.readContract({abi:poolRouterAbi,address:route.router,functionName:'poolManager',blockNumber}),
    publicClient.readContract({abi:poolQuoterAbi,address:route.quoter,functionName:'poolManager',blockNumber}),
-   publicClient.readContract({abi:v1Abis.TickerGardenCurve,address:canonicalAddress(market.curve,'Curve'),functionName:'creatorTaxBps',blockNumber})]);
-  if(manager.toLowerCase()!==quoterManager.toLowerCase()||manager===ZERO_ADDRESS||taxBps>500)throw Error('Invalid pool quote binding');
+   publicClient.readContract({abi:v1Abis.TickerGardenCurve,address:canonicalAddress(market.curve,'Curve'),functionName:'creatorTaxBps',blockNumber}),
+   publicClient.readContract({abi:v1Abis.ProtocolFeeVault,address:marketRelease(market.marketId).feeVault,functionName:'poolManager',blockNumber})]);
+  if(manager.toLowerCase()!==quoterManager.toLowerCase()||manager.toLowerCase()!==vaultManager.toLowerCase()||manager===ZERO_ADDRESS||taxBps>500)throw Error('Invalid pool quote binding');
   return {manager,taxBps};
  })();
  if(poolQuoteBindings.size>=32)poolQuoteBindings.delete(poolQuoteBindings.keys().next().value!);
@@ -2127,7 +2129,7 @@ async function quoteTrade(generation: number): Promise<void> {
     if(market.market.launchPhase===0)pricing=await loadCurvePricing(market.market);
     let quote: TradeQuote;
     if (market.market.launchPhase===1) {
-      assertPoolRouterProfile(robinhoodChain.id,market.market.canonicalRoute.router);
+      assertPoolRouterProfile(robinhoodChain.id,poolTradeRoute(market.market,'buy').router);
       const route=poolTradeRoute(market.market,side);
       poolAmount(amount);
       const blockNumber=await publicClient.getBlockNumber({cacheTime:0});
@@ -2461,14 +2463,15 @@ async function submitTrade(): Promise<void> {
 }
 
 async function submitPoolTrade(market:MarketDetailResponse,initial:TradeQuote,activeWallet:WalletState):Promise<void>{
-  assertPoolRouterProfile(robinhoodChain.id,market.market.canonicalRoute.router);
+  assertPoolRouterProfile(robinhoodChain.id,poolTradeRoute(market.market,'buy').router);
   const route=poolTradeRoute(market.market,initial.side),account=activeWallet.account;
   const verify=()=>ensureCanonicalMarket(market.market);
-  const [manager,quoterManager]=await Promise.all([
+  const [manager,quoterManager,vaultManager]=await Promise.all([
     publicClient.readContract({abi:poolRouterAbi,address:route.router,functionName:'poolManager'}),
     publicClient.readContract({abi:poolQuoterAbi,address:route.quoter,functionName:'poolManager'}),
+    publicClient.readContract({abi:v1Abis.ProtocolFeeVault,address:marketRelease(market.market.marketId).feeVault,functionName:'poolManager'}),
   ]);
-  if(manager.toLowerCase()!==quoterManager.toLowerCase()||manager===ZERO_ADDRESS)throw Error('Pool router and quoter do not share a PoolManager');
+  if(manager.toLowerCase()!==quoterManager.toLowerCase()||manager.toLowerCase()!==vaultManager.toLowerCase()||manager===ZERO_ADDRESS)throw Error('External trading services do not match the protocol PoolManager');
   if(route.input!==ZERO_ADDRESS){
     await ensureStandaloneApproval({abi:erc20Abi,address:route.input,functionName:'approve',args:[PERMIT2,initial.input]},route.input,PERMIT2,initial.input,market.sync,verify,activeWallet);
     const [allowance,expiration]=await publicClient.readContract({abi:permit2Abi,address:PERMIT2,functionName:'allowance',args:[account,route.input,route.router]});
@@ -4329,12 +4332,12 @@ async function getRewardMarketDetail(market: MarketReadModel): Promise<MarketDet
 }
 
 // Claim mode is immutable for each verified release vault; share the probe across reward panels.
-const rewardModes = new Map<Address, Promise<boolean>>();
-function usesUserClaims(feeVault: Address, blockNumber?: bigint): Promise<boolean> {
+const rewardModes = new Map<Address, Promise<Hex>>();
+function usesUserClaims(feeVault: Address, blockNumber?: bigint): Promise<Hex> {
   const known = rewardModes.get(feeVault);
   if (known) return known;
   const pending = publicClient.readContract({abi:userClaimsAbi,address:feeVault,functionName:'userClaimMode',blockNumber})
-    .then(mode => { if (mode !== USER_CLAIM_MODE) throw Error('Unsupported Reward Claim Mode'); return true; });
+    .then(mode => { if (mode !== USER_CLAIM_MODE && mode !== LEGACY_USER_CLAIM_MODE) throw Error('Unsupported Reward Claim Mode'); return mode as Hex; });
   rewardModes.set(feeVault, pending);
   void pending.catch(() => rewardModes.delete(feeVault));
   return pending;
@@ -5165,27 +5168,23 @@ async function executeUserClaim(market: Parameters<typeof marketMetadata>[0],rol
   try {
   if(!foundation||!wallet)throw Error('Connect Wallet');
   const activeWallet=wallet, feeVault=marketRelease(market.marketId).feeVault;
-  await usesUserClaims(feeVault);
+  const claimMode=await usesUserClaims(feeVault);
   const metadata=await marketMetadata(market);
   const balances=role===0?[creatorReward?.liability??0n,creatorReward?.memeLiability??0n]:role===1?[rewardPosition?.quoteClaimable??0n,rewardPosition?.memeClaimable??0n]:[continuousReward?.claimable??0n,continuousReward?.memeClaimable??0n];
   const rawLabel=(assets: 1|2|3)=>[
     assets & 1 ? `${formatTokenAmount(balances[0]!,metadata.quoteDecimals)} ${metadata.quoteSymbol}` : '',
     assets & 2 ? `${formatTokenAmount(balances[1]!,18)} ${metadata.symbol}` : '',
   ].filter(Boolean).join(' + ');
-  const choice=await rewardClaimDialog(async(assets)=>{
-    const block=await publicClient.getBlock();
-    const preview=await publicClient.simulateContract({abi:userClaimsAbi,address:feeVault,functionName:'claimUserRewardAssets',account:activeWallet.account,args:[market.marketId,role,epoch,assets,true,false,block.timestamp+240n]});
-    return `Estimated: ${formatTokenAmount(preview.result[0],metadata.quoteDecimals)} ${metadata.quoteSymbol}${preview.result[2]>0n?' · Remaining Meme Will Be Retained':''}`;
-  },rawLabel,{quote:metadata.quoteSymbol,meme:metadata.symbol});
+  const choice=await rewardClaimDialog(rawLabel,{quote:metadata.quoteSymbol,meme:metadata.symbol});
   if(!choice){rewardClaimOutcomeMessage='Claim Cancelled';return;}
   await verifyLiveWalletContext(activeWallet);
-  const block=await publicClient.getBlock();
+  const claimRequest=rawUserClaimRequest(claimMode,feeVault,market.marketId,role,epoch,choice);
   const outcome=await executeTransaction({
     operationKey:`reward:user-claim:${market.marketId}:${role}:${epoch}:${activeWallet.account}:${foundation.sync.revision}`,
     sync:foundation.sync,walletContext:activeWallet,
-    request:createContractWriteRequest({abi:userClaimsAbi,address:feeVault,functionName:'claimUserRewardAssets',args:[market.marketId,role,epoch,choice.assets,choice.convert,choice.rawFallback,block.timestamp+240n]}),
+    request:createContractWriteRequest(claimRequest),
     verifyChain:()=>ensureCanonicalMarket(market),
-    confirm:async receipt=>receiptEvent(receipt,feeVault,userClaimsAbi,'UserRewardsClaimed',args=>args.marketId===market.marketId&&String(args.user).toLowerCase()===activeWallet.account&&Number(args.role)===role&&Number(args.creatorEpoch)===epoch),
+    confirm:async receipt=>receiptEvent(receipt,feeVault,claimRequest.abi,'UserRewardsClaimed',args=>args.marketId===market.marketId&&String(args.user).toLowerCase()===activeWallet.account&&Number(args.role)===role&&Number(args.creatorEpoch)===epoch),
   });
   tradeStakeTotals.clear();
   rewardClaimOutcomeMessage=userClaimOutcome(outcome);

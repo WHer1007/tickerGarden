@@ -1142,8 +1142,8 @@
         },
         "protocolPermissions": {
           "type": "array",
-          "minItems": 86,
-          "maxItems": 86,
+          "minItems": 82,
+          "maxItems": 82,
           "uniqueItems": true,
           "items": {
             "$ref": "#/$defs/permission"

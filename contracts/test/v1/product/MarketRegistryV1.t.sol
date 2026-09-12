@@ -139,14 +139,7 @@ contract MarketRegistryV1Test is Test {
         vm.etch(SWAP_ROUTER, hex"00");
         vm.etch(QUOTER, hex"00");
         registry = new MarketRegistryV1(
-            FACTORY,
-            address(assets),
-            address(quotes),
-            address(baselines),
-            address(templates),
-            GRADUATION,
-            SWAP_ROUTER,
-            QUOTER
+            FACTORY, address(assets), address(quotes), address(baselines), address(templates), GRADUATION
         );
     }
 
@@ -163,14 +156,7 @@ contract MarketRegistryV1Test is Test {
             )
         );
         new MarketRegistryV1(
-            FACTORY,
-            address(assets),
-            address(quotes),
-            address(baselines),
-            address(templates),
-            GRADUATION,
-            SWAP_ROUTER,
-            QUOTER
+            FACTORY, address(assets), address(quotes), address(baselines), address(templates), GRADUATION
         );
     }
 
@@ -193,7 +179,9 @@ contract MarketRegistryV1Test is Test {
     function test_canonicalSelectorsAndOldInterventionSelectorsAreAbsent() public {
         assertEq(MarketRegistryV1.registerMarket.selector, IMarketRegistryV1.registerMarket.selector);
         assertEq(MarketRegistryV1.commitPoolCreated.selector, IMarketRegistryV1.commitPoolCreated.selector);
-        bytes4[6] memory removed = [
+        bytes4[8] memory removed = [
+            bytes4(keccak256("swapRouter()")),
+            bytes4(keccak256("quoter()")),
             bytes4(keccak256("setMarketPaused(bytes32,bytes32)")),
             bytes4(keccak256("setMarketActive(bytes32)")),
             bytes4(keccak256("setMarketRetired(bytes32,bytes32)")),

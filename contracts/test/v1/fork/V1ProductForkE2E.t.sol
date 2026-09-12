@@ -158,7 +158,7 @@ contract V1ProductForkE2ETest is Test {
     ///      the forked PoolManager; the one-holder TWAB is an explicitly synthetic test attestation.
 
     /// @dev Current streaming release against real v4 contracts; no root or ArbSys hash adapter.
-    function test_continuousReleaseRealV4ConversionAnytimeClaimAndCreatorHandoff() public {
+    function test_continuousReleaseRealV4RawAnytimeClaimAndCreatorHandoff() public {
         _deployRuntimeGraph(true);
         _activateConfiguration();
         vm.deal(CREATOR, 30 ether);
@@ -196,8 +196,7 @@ contract V1ProductForkE2ETest is Test {
         assertGt(earned, 0);
         uint256 beforeBalance = HOLDER.balance;
         vm.prank(HOLDER);
-        (uint256 quotePaid,,) =
-            ICurrentFeeVault(address(vault)).claimUserRewards(id, 2, 0, false, false, block.timestamp + 5 minutes);
+        (uint256 quotePaid,) = ICurrentFeeVault(address(vault)).claimUserRewards(id, 2, 0);
         assertEq(quotePaid, earned);
         assertEq(HOLDER.balance, beforeBalance + earned);
         // Earnings remain the seller's; a recipient cannot inherit previously earned rewards.
@@ -209,7 +208,7 @@ contract V1ProductForkE2ETest is Test {
         assertEq(distributor.claimable(id, HOLDER), 0);
         assertGt(distributor.claimable(id, STAKER), 0);
         vm.prank(STAKER);
-        ICurrentFeeVault(address(vault)).claimUserRewards(id, 2, 0, false, false, block.timestamp + 5 minutes);
+        ICurrentFeeVault(address(vault)).claimUserRewards(id, 2, 0);
         CreatorRevenueRegistry revenue = CreatorRevenueRegistry(factory.creatorRevenueRegistry());
         vm.prank(CREATOR);
         revenue.transferCreatorRevenueBeneficiary(id, STAKER);
@@ -220,8 +219,7 @@ contract V1ProductForkE2ETest is Test {
         assertEq(revenue.creatorBeneficiaryAt(id, 1), CREATOR, "historical beneficiary remains");
         assertEq(revenue.creatorBeneficiaryAt(id, 2), STAKER);
         vm.prank(CREATOR);
-        (, uint256 creatorPaid,) =
-            ICurrentFeeVault(address(vault)).claimUserRewards(id, 0, 1, false, false, block.timestamp + 240);
+        (, uint256 creatorPaid) = ICurrentFeeVault(address(vault)).claimUserRewards(id, 0, 1);
         assertEq(creatorPaid, creatorMeme);
         _claimPlatformFees(vault, id, token);
     }
@@ -373,8 +371,6 @@ contract V1ProductForkE2ETest is Test {
             initialAdmin: address(this),
             poolManager: POOL_MANAGER,
             positionManager: POSITION_MANAGER,
-            swapRouter: UNIVERSAL_ROUTER,
-            quoter: V4_QUOTER,
             platformTreasury: address(this),
             feePolicyId: FEE_POLICY_ID
         });

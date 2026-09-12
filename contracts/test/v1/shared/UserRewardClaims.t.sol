@@ -114,9 +114,9 @@ contract UserRewardClaimsTest is Test {
         v.seed(ID, 2, address(q), 30, true);
     }
 
-    function claim(bool convert, bool fallback_) private returns (uint256, uint256, uint256) {
+    function claim(bool, bool) private returns (uint256, uint256) {
         vm.prank(ALICE);
-        return v.claimUserRewards(ID, 0, 1, convert, fallback_, block.timestamp + 240);
+        return v.claimUserRewards(ID, 0, 1);
     }
 
     function test_legacyEntrypointsCannotConsumeUserRewards() public {
@@ -148,105 +148,44 @@ contract UserRewardClaimsTest is Test {
         assertEq(v.creatorLiability(ID, 2, address(m)), 100);
         assertEq(m.balanceOf(address(v)), 100);
         vm.prank(BOB);
-        v.claimUserRewards(ID, 0, 2, true, false, block.timestamp + 240);
-        assertEq(q.balanceOf(BOB), 230);
-    }
-
-    function test_swapFailureRetainsMemeAndPaysExistingQuote() public {
-        h.configure(100, true, false);
-        (uint256 paid, uint256 raw, uint256 kept) = claim(true, false);
-        assertEq(paid, 30);
-        assertEq(raw, 0);
-        assertEq(kept, 100);
-        assertEq(v.creatorLiability(ID, 1, address(m)), 100);
-    }
-
-    function test_failureWithAuthorizedFallbackPaysBoth() public {
-        h.configure(100, true, false);
-        claim(true, true);
-        assertEq(m.balanceOf(ALICE), 100);
-        assertEq(q.balanceOf(ALICE), 30);
-    }
-
-    function test_partialFillRetainsOnlyRemainder() public {
-        h.configure(40, false, false);
-        (uint256 paid, uint256 raw, uint256 kept) = claim(true, false);
-        assertEq(paid, 110);
-        assertEq(raw, 0);
-        assertEq(kept, 60);
-        assertEq(v.creatorLiability(ID, 1, address(m)), 60);
-        assertEq(m.allowance(address(v), address(h)), 0);
-    }
-
-    function test_partialFillAuthorizedFallback() public {
-        h.configure(40, false, false);
-        claim(true, true);
-        assertEq(q.balanceOf(ALICE), 110);
-        assertEq(m.balanceOf(ALICE), 60);
-    }
-
-    function test_badHookAccountingRollsBackChildAndPreservesClaim() public {
-        h.configure(100, false, true);
-        claim(true, false);
-        assertEq(m.balanceOf(address(h)), 0);
-        assertEq(q.balanceOf(ALICE), 30);
-        assertEq(v.creatorLiability(ID, 1, address(m)), 100);
-        assertEq(m.allowance(address(v), address(h)), 0);
+        v.claimUserRewards(ID, 0, 2);
+        assertEq(q.balanceOf(BOB), 30);
+        assertEq(m.balanceOf(BOB), 100);
     }
 
     function test_cannotClaimOtherCreatorOrInvokeConversionChild() public {
         vm.prank(BOB);
         vm.expectRevert();
-        v.claimUserRewards(ID, 0, 1, false, false, block.timestamp + 240);
+        v.claimUserRewards(ID, 0, 1);
         MarketView memory value = r.market(ID);
-        vm.expectRevert();
-        v.convertUserClaim(ID, value, 100, block.timestamp + 240);
+        (bool ok,) = address(v)
+            .call(
+                abi.encodeWithSignature(
+                    "convertUserClaim(bytes32,((bytes32,bytes32,bytes32,bytes32,bytes32,bytes32,bytes32,uint256,address,address,address,address,address,address,uint16,bool,bool),(bytes32,uint32,uint8)),uint256,uint256)",
+                    ID,
+                    value,
+                    100,
+                    block.timestamp + 240
+                )
+            );
+        assertFalse(ok);
     }
 
-    function test_deadlineAndRoleValidation() public {
+    function test_claimRoleValidation() public {
         vm.prank(ALICE);
-        v.claimUserRewards(ID, 0, 1, false, false, 0);
+        v.claimUserRewards(ID, 0, 1);
         assertEq(q.balanceOf(ALICE), 30);
         assertEq(m.balanceOf(ALICE), 100);
         vm.expectRevert();
-        v.claimUserRewards(ID, 3, 0, false, false, block.timestamp + 240);
+        v.claimUserRewards(ID, 3, 0);
     }
 
-    function test_rawClaimIgnoresDistantDeadline() public {
+    function test_rawClaimKeepsRightsAfterLongIdle() public {
+        vm.warp(block.timestamp + 365 days);
         vm.prank(ALICE);
-        v.claimUserRewards(ID, 0, 1, false, false, type(uint256).max);
+        v.claimUserRewards(ID, 0, 1);
         assertEq(q.balanceOf(ALICE), 30);
         assertEq(m.balanceOf(ALICE), 100);
-    }
-
-    function test_expiredConversionRetainsMemeAndPaysQuote() public {
-        vm.warp(1000);
-        vm.prank(ALICE);
-        (uint256 paid, uint256 raw, uint256 retained) = v.claimUserRewards(ID, 0, 1, true, false, 999);
-        assertEq(paid, 30);
-        assertEq(raw, 0);
-        assertEq(retained, 100);
-        assertEq(m.balanceOf(address(h)), 0);
-        assertEq(v.creatorLiability(ID, 2, address(m)), 100);
-    }
-
-    function test_distantConversionDeadlineUsesAuthorizedFallback() public {
-        vm.prank(ALICE);
-        (uint256 paid, uint256 raw, uint256 retained) = v.claimUserRewards(ID, 0, 1, true, true, block.timestamp + 301);
-        assertEq(paid, 30);
-        assertEq(raw, 100);
-        assertEq(retained, 0);
-        assertEq(m.balanceOf(address(h)), 0);
-    }
-
-    function test_quoteOnlyClaimIgnoresExpiredConversionDeadline() public {
-        claim(false, false);
-        q.mint(address(v), 10);
-        v.seed(ID, 1, address(q), 10, true);
-        vm.prank(ALICE);
-        (uint256 paid,, uint256 retained) = v.claimUserRewards(ID, 0, 1, true, false, 0);
-        assertEq(paid, 10);
-        assertEq(retained, 0);
     }
 
     function test_claimReadsMarketOnce() public {
@@ -263,7 +202,7 @@ contract UserRewardClaimsTest is Test {
         g.set(ALICE, address(m), 51);
         vm.prank(ALICE);
         vm.expectRevert();
-        v.claimUserRewards(ID, 1, 0, false, false, 0);
+        v.claimUserRewards(ID, 1, 0);
         assertEq(g.pending(ALICE, address(q)), 10);
         assertEq(g.pending(ALICE, address(m)), 51);
         assertEq(q.balanceOf(ALICE), 0);
@@ -281,14 +220,44 @@ contract UserRewardClaimsTest is Test {
         g.setLock(true);
         vm.prank(ALICE);
         vm.expectRevert("LOCKED");
-        v.claimUserRewards(ID, 1, 0, false, false, block.timestamp + 240);
+        v.claimUserRewards(ID, 1, 0);
         g.setLock(false);
         h.configure(40, false, false);
         vm.expectCall(address(g), abi.encodeWithSelector(g.consumeClaimableAssets.selector, ALICE, uint8(3)), uint64(1));
         vm.prank(ALICE);
-        v.claimUserRewards(ID, 1, 0, true, false, block.timestamp + 240);
-        assertEq(g.pending(ALICE, address(m)), 30);
+        v.claimUserRewards(ID, 1, 0);
+        assertEq(g.pending(ALICE, address(m)), 0);
         assertEq(g.pending(BOB, address(m)), 0);
-        assertEq(q.balanceOf(ALICE), 50);
+        assertEq(q.balanceOf(ALICE), 10);
+        assertEq(m.balanceOf(ALICE), 50);
+    }
+
+    function test_rawClaimNeverApprovesOrCallsFailingSwapService() public {
+        h.configure(100, true, true);
+        (uint256 paid, uint256 memePaid) = claim(false, false);
+        assertEq(paid, 30);
+        assertEq(memePaid, 100);
+        assertEq(m.allowance(address(v), address(h)), 0);
+        assertEq(m.balanceOf(address(h)), 0);
+        assertEq(v.creatorLiability(ID, 2, address(m)), 100);
+    }
+
+    function test_oldConversionClaimSelectorsAreAbsent() public {
+        vm.prank(ALICE);
+        (bool ok,) = address(v)
+            .call(
+                abi.encodeWithSignature(
+                    "claimUserRewards(bytes32,uint8,uint32,bool,bool,uint256)",
+                    ID,
+                    uint8(0),
+                    uint32(1),
+                    true,
+                    true,
+                    block.timestamp + 60
+                )
+            );
+        assertFalse(ok);
+        assertEq(v.creatorLiability(ID, 1, address(m)), 100);
+        assertEq(v.creatorLiability(ID, 1, address(q)), 30);
     }
 }

@@ -511,7 +511,7 @@ contract MemeStockGaugeTest is Test {
         gauge.consumeClaimableAssets(ALICE, 1);
     }
 
-    function test_retainedMemeRestorationIsVaultOnlyAndUserIsolated() public {
+    function test_removedRestorationCannotRecreditConsumedRewards() public {
         (uint64 generation, uint64 unlockAt) = _schedule(ALICE, 100);
         vm.warp(generation);
         feeVault.credit(gauge, address(meme), 200, keccak256("user-meme"));
@@ -520,14 +520,10 @@ contract MemeStockGaugeTest is Test {
         assertEq(q, 0);
         assertEq(m, 200);
         vm.prank(address(feeVault));
-        gauge.restoreUserMemeRewards(ALICE, 80);
-        assertEq(gauge.positionOf(ALICE).memeClaimable, 80);
-        assertEq(gauge.positionOf(ALICE).quoteClaimable, 0);
+        (bool ok,) = address(gauge).call(abi.encodeWithSignature("restoreUserMemeRewards(address,uint256)", ALICE, 80));
+        assertFalse(ok);
+        assertEq(gauge.positionOf(ALICE).memeClaimable, 0);
         assertEq(gauge.positionOf(BOB).memeClaimable, 0);
-        vm.expectRevert(
-            abi.encodeWithSelector(MemeStockGauge.UnauthorizedFeeVault.selector, address(this), address(feeVault))
-        );
-        gauge.restoreUserMemeRewards(ALICE, 1);
     }
 
     function test_claimBeforeUnlockRevertsForBothRewardAssetsAndPreservesClaimable() public {

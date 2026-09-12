@@ -16,30 +16,26 @@ contract ClaimAvailabilityAuditTest is UserRewardClaimsTest {
         vm.mockCallRevert(address(q), abi.encodeCall(IERC20.transfer, (ALICE, 30)), bytes("QUOTE_PAUSED"));
         vm.prank(ALICE);
         vm.expectRevert();
-        v.claimUserRewards(ID, 0, 1, false, false, 0);
+        v.claimUserRewards(ID, 0, 1);
         assertEq(m.balanceOf(ALICE), 0);
         assertEq(v.creatorLiability(ID, 1, address(m)), 100);
         assertEq(v.creatorLiability(ID, 1, address(q)), 30);
         vm.clearMockedCalls();
         vm.prank(ALICE);
-        v.claimUserRewards(ID, 0, 1, false, false, 0);
+        v.claimUserRewards(ID, 0, 1);
         assertEq(m.balanceOf(ALICE), 100);
     }
 
-    function test_auditGasExhaustionPreservesAuthorizedFallback() public {
+    function test_auditGasExhaustingHookCannotAffectRawClaim() public {
         r.configure(ID, address(new AuditGasExhaustingHook()), address(q), address(m), address(g));
         vm.prank(ALICE);
-        (bool converted,) = address(v).call{gas: 500_000}(
-            abi.encodeCall(v.claimUserRewards, (ID, uint8(0), uint32(1), true, true, block.timestamp + 240))
-        );
-        assertTrue(converted, "Conversion cannot consume the completion reserve");
+        (bool converted,) = address(v).call{gas: 500_000}(abi.encodeCall(v.claimUserRewards, (ID, uint8(0), uint32(1))));
+        assertTrue(converted, "Raw claim never invokes the external swap hook");
         assertEq(v.creatorLiability(ID, 1, address(m)), 0);
         assertEq(v.creatorLiability(ID, 1, address(q)), 0);
         assertEq(q.balanceOf(ALICE), 30);
         vm.prank(ALICE);
-        (bool raw,) = address(v).call{gas: 500_000}(
-            abi.encodeCall(v.claimUserRewards, (ID, uint8(0), uint32(1), false, false, uint256(0)))
-        );
+        (bool raw,) = address(v).call{gas: 500_000}(abi.encodeCall(v.claimUserRewards, (ID, uint8(0), uint32(1))));
         assertTrue(raw, "Same budget supports ordinary raw claim");
         assertEq(m.balanceOf(ALICE), 100);
     }

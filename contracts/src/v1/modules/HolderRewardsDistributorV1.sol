@@ -82,7 +82,6 @@ contract HolderRewardsDistributorV1 is ReentrancyGuard {
     error InvalidFundingInterval();
     event HolderStreamMarketRegistered(bytes32 indexed marketId, address indexed token, address quote, address vault);
     event HolderAssetFunded(bytes32 indexed marketId, address indexed asset, uint256 amount);
-    event HolderMemeRestored(bytes32 indexed marketId, address indexed account, uint256 amount);
     event HolderRewardsQueued(bytes32 indexed marketId, uint256 amount);
     event HolderStreamFunded(bytes32 indexed marketId, uint256 amount, uint64 end);
     event HolderStreamClaimed(bytes32 indexed marketId, address indexed account, address asset, uint256 amount);
@@ -315,19 +314,6 @@ contract HolderRewardsDistributorV1 is ReentrancyGuard {
             needsBalance = _accounts[_ledgerKey(id, mm)][user].index != mm.index;
         }
         return needsBalance ? IERC20(m.token).balanceOf(user) : 0;
-    }
-
-    function restoreUserMeme(bytes32 id, address user, uint256 amount) external nonReentrant {
-        Market storage m = _memeMarkets[id];
-        _market(id);
-        if (msg.sender != m.vault || amount == 0 || amount > m.paid) revert Unauthorized();
-        _receiveToken(m.quote, amount);
-        // Refund only the consumed user's earned balance; never starts another release stream.
-        _accounts[_ledgerKey(id, m)][user].earnedScaled += amount * PRECISION;
-        m.paid -= amount;
-        totalLiability[m.quote] += amount;
-        _solvent(m.quote);
-        emit HolderMemeRestored(id, user, amount);
     }
 
     function fundMemeFees(bytes32 id, uint256 amount) external nonReentrant {

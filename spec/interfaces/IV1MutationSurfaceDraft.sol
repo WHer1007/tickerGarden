@@ -56,11 +56,6 @@ struct MarketConfig {
     bool stakingEnabled;
 }
 
-struct MarketView {
-    MarketConfig config;
-    MarketRuntime runtime;
-}
-
 struct PoolKey {
     address currency0;
     address currency1;
@@ -265,15 +260,9 @@ interface IMemeStockGaugeMutationDraft {
     function consumeClaimable(address) external returns (uint256, uint256);
     // caller=FEE_VAULT; executionDelay=0; stateDelay=0
     function consumeClaimableAssets(address, uint8) external returns (uint256, uint256);
-    // caller=FEE_VAULT; executionDelay=0; stateDelay=0
-    function restoreUserMemeRewards(address, uint256) external;
 }
 
 interface ITickerGardenMemeHookMutationDraft {
-    // caller=FEE_VAULT; executionDelay=0; stateDelay=0
-    function convertRewards(bytes32, uint256, uint256) external returns (uint256, uint256);
-    // caller=POOL_MANAGER; executionDelay=0; stateDelay=0
-    function unlockCallback(bytes calldata) external returns (bytes);
     // caller=GRADUATION_MODULE; executionDelay=0; stateDelay=0
     function registerExpectedPool(bytes32, PoolKey calldata, uint32) external returns (bytes32);
     // caller=GRADUATION_MODULE; executionDelay=0; stateDelay=0
@@ -300,11 +289,9 @@ interface IProtocolFeeVaultMutationDraft {
     // caller=PUBLIC; executionDelay=0; stateDelay=0
     function fundHolderRewards(bytes32, uint32) external returns (uint256);
     // caller=PUBLIC; executionDelay=0; stateDelay=0
-    function claimUserRewards(bytes32, uint8, uint32, bool, bool, uint256) external returns (uint256, uint256, uint256);
+    function claimUserRewards(bytes32, uint8, uint32) external returns (uint256, uint256);
     // caller=PUBLIC; executionDelay=0; stateDelay=0
-    function claimUserRewardAssets(bytes32, uint8, uint32, uint8, bool, bool, uint256) external returns (uint256, uint256, uint256);
-    // caller=FEE_VAULT; executionDelay=0; stateDelay=0
-    function convertUserClaim(bytes32, MarketView calldata, uint256, uint256) external returns (uint256, uint256);
+    function claimUserRewardAssets(bytes32, uint8, uint32, uint8) external returns (uint256, uint256);
     // caller=PUBLIC; executionDelay=0; stateDelay=0
     function fundHolderMemeRewards(bytes32) external returns (uint256);
     // caller=PROTOCOL_ADMIN_MEMBER; executionDelay=0; stateDelay=0

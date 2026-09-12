@@ -119,8 +119,6 @@ function assertAddressPair(market: MarketReadModel): void {
   contractAddress(market.curve, "market.curve");
   canonicalAddress(market.quoteAsset, "market.quoteAsset");
   contractAddress(market.memeToken, "market.memeToken");
-  contractAddress(market.canonicalRoute.router, "canonicalRoute.router");
-  contractAddress(market.canonicalRoute.quoter, "canonicalRoute.quoter");
   contractAddress(market.canonicalRoute.hook, "canonicalRoute.hook");
   contractAddress(market.canonicalRoute.launchLocker, "canonicalRoute.launchLocker");
   contractAddress(market.canonicalRoute.graduationExecutor, "canonicalRoute.graduationExecutor");

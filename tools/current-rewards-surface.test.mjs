@@ -59,6 +59,7 @@ test("Go reward positions have no raw reward exit fields", () => {
 test("retired reward observer and activation scripts cannot be invoked", () => {
   for (const path of [
     "services/backend-go/internal/deployment/reward_conversion_state.go",
+    "services/backend-go/internal/deployment/reward_conversion_route.go",
     "services/backend-go/internal/settlement",
     "services/backend-go/cmd/settlement-worker",
     "services/backend-go/cmd/settlement-executor",

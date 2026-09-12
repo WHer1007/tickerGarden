@@ -33,6 +33,12 @@ class CurrentContractSurfaceTest(unittest.TestCase):
             "burnTreasury(",
             "recordRewardPrice(",
             "rewardPriceWindow",
+            "function convertRewards(",
+            "function convertUserClaim(",
+            "function restoreUserMeme(",
+            "function restoreUserMemeRewards(",
+            "address swapRouter",
+            "address quoter",
         ):
             self.assertNotIn(token, source, token)
 
@@ -50,15 +56,15 @@ class CurrentContractSurfaceTest(unittest.TestCase):
         hook = {self._signature(entry): entry for entry in self._abi("TickerGardenMemeHook") if entry.get("type") == "function"}
         token = {self._signature(entry): entry for entry in self._abi("TickerMemeTokenV1") if entry.get("type") == "function"}
 
-        self.assertIn("claimUserRewards(bytes32,uint8,uint32,bool,bool,uint256)", fee)
-        self.assertIn("claimUserRewardAssets(bytes32,uint8,uint32,uint8,bool,bool,uint256)", fee)
+        self.assertIn("claimUserRewards(bytes32,uint8,uint32)", fee)
+        self.assertIn("claimUserRewardAssets(bytes32,uint8,uint32,uint8)", fee)
         self.assertIn("consumeClaimableAssets(address,uint8)", gauge)
         self.assertIn("consumeUserRewardAssets(bytes32,address,uint8)", holder)
-        self.assertIn("restoreUserMemeRewards(address,uint256)", gauge)
+        self.assertNotIn("restoreUserMemeRewards(address,uint256)", gauge)
         self.assertIn("consumeClaimable(address)", gauge)
         self.assertEqual(len(gauge["consumeClaimable(address)"]["outputs"]), 2)
         self.assertNotIn("consumeClaimable(address,address)", gauge)
-        self.assertIn("convertRewards(bytes32,uint256,uint256)", hook)
+        self.assertNotIn("convertRewards(bytes32,uint256,uint256)", hook)
         self.assertIn("platformTreasury()", fee)
         for signature in fee | holder | gauge | allocation | vault | hook | token:
             self.assertNotIn("claimCreator", signature)

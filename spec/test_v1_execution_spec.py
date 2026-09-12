@@ -119,7 +119,7 @@ class V1ExecutionSpecTest(unittest.TestCase):
         modules = {entry["module"]: entry for entry in self.abi["modules"]}
         self.assertNotIn("TreasuryDistributorV1", modules)
         vault_functions = {entry["signature"] for entry in modules["ProtocolFeeVault"]["functions"]}
-        self.assertIn("claimUserRewards(bytes32,uint8,uint32,bool,bool,uint256)", vault_functions)
+        self.assertIn("claimUserRewards(bytes32,uint8,uint32)", vault_functions)
         self.assertNotIn("claimCreator(bytes32,uint32,address)", vault_functions)
         self.assertNotIn("claimCreator(bytes32,address)", vault_functions)
 
@@ -1113,7 +1113,7 @@ class V1ExecutionSpecTest(unittest.TestCase):
         vault_functions = {
             entry["signature"] for entry in modules["ProtocolFeeVault"]["functions"]
         }
-        self.assertIn("claimUserRewards(bytes32,uint8,uint32,bool,bool,uint256)", vault_functions)
+        self.assertIn("claimUserRewards(bytes32,uint8,uint32)", vault_functions)
         self.assertNotIn("claimCreator(bytes32,uint32,address)", vault_functions)
         self.assertNotIn("claimCreator(bytes32,address)", vault_functions)
 
@@ -1129,7 +1129,7 @@ class V1ExecutionSpecTest(unittest.TestCase):
         accept = permissions[("CreatorRevenueRegistry", "acceptCreatorRevenueBeneficiary(bytes32)")]
         self.assertEqual(accept["caller"], "PENDING_CREATOR_REVENUE_BENEFICIARY")
         self.assertIn("ATOMIC_OLD_EPOCH_SWEEP", accept["precondition"])
-        claim = permissions[("ProtocolFeeVault", "claimUserRewards(bytes32,uint8,uint32,bool,bool,uint256)")]
+        claim = permissions[("ProtocolFeeVault", "claimUserRewards(bytes32,uint8,uint32)")]
         self.assertEqual(claim["caller"], "PUBLIC")
 
     def test_market_autonomy_keeps_rage_quit_and_removes_reward_migration(self):

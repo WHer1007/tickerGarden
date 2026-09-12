@@ -177,9 +177,7 @@ library V4DeterministicDeploymentBuilder {
                 components[APPROVED_QUOTE_REGISTRY],
                 components[LAUNCH_BASELINE_REGISTRY],
                 components[LAUNCH_TEMPLATE_REGISTRY],
-                plan.executor,
-                config.swapRouter,
-                config.quoter
+                plan.executor
             )
         );
         initCodes[CREATOR_REVENUE_REGISTRY] = bytes.concat(

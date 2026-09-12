@@ -35,7 +35,7 @@ contract ExhaustClaimConversionGas {
 
 contract RejectNativeClaimRecipient {
     function claim(UserClaimHarness vault, bytes32 id, uint8 assets) external {
-        vault.claimUserRewardAssets(id, 0, 1, assets, false, false, 0);
+        vault.claimUserRewardAssets(id, 0, 1, assets);
     }
     // No receive or payable fallback: native payment cannot succeed.
 }
@@ -49,17 +49,13 @@ contract ReenterNativeClaimRecipient {
     function claim(UserClaimHarness vault_, bytes32 id_) external {
         vault = vault_;
         id = id_;
-        vault.claimUserRewards(id, 0, 1, false, false, 0);
+        vault.claimUserRewards(id, 0, 1);
     }
 
     receive() external payable {
         payments++;
-        (nestedSuccess,) = address(vault)
-            .call(
-                abi.encodeWithSelector(
-                    vault.claimUserRewards.selector, id, uint8(0), uint32(1), false, false, uint256(0)
-                )
-            );
+        (nestedSuccess,) =
+            address(vault).call(abi.encodeWithSelector(vault.claimUserRewards.selector, id, uint8(0), uint32(1)));
     }
 }
 
@@ -83,62 +79,16 @@ contract FeeClaimSafetyBoundaryTest is UserRewardClaimsTest {
 
     function testAudit_repeatUnifiedClaimCannotConsumeOtherEpoch() public {
         vm.startPrank(ALICE);
-        v.claimUserRewardAssets(ID, 0, 1, 2, false, false, 0);
-        (uint256 quotePaid, uint256 memePaid,) = v.claimUserRewards(ID, 0, 1, false, false, 0);
+        v.claimUserRewardAssets(ID, 0, 1, 2);
+        (uint256 quotePaid, uint256 memePaid) = v.claimUserRewards(ID, 0, 1);
         assertEq(quotePaid, 30);
         assertEq(memePaid, 0);
-        (quotePaid, memePaid,) = v.claimUserRewards(ID, 0, 1, false, false, 0);
+        (quotePaid, memePaid) = v.claimUserRewards(ID, 0, 1);
         vm.stopPrank();
         assertEq(quotePaid, 0);
         assertEq(memePaid, 0);
         assertEq(v.creatorLiability(ID, 2, address(m)), 100);
         assertEq(v.creatorLiability(ID, 2, address(q)), 30);
-    }
-
-    function testAudit_conversionGasExhaustionPaysQuoteInBothFallbackModes() public {
-        r.configure(ID, address(new ExhaustClaimConversionGas()), address(q), address(m), address(g));
-        for (uint256 i; i < 2; ++i) {
-            uint256 snapshot = vm.snapshotState();
-            vm.prank(ALICE);
-            (bool success, bytes memory result) = address(v).call{gas: 500_000}(
-                abi.encodeWithSelector(
-                    v.claimUserRewards.selector, ID, uint8(0), uint32(1), true, i == 1, block.timestamp + 240
-                )
-            );
-            assertTrue(success, "completion gas survives conversion failure");
-            (uint256 quotePaid, uint256 memePaid, uint256 retained) = abi.decode(result, (uint256, uint256, uint256));
-            assertEq(quotePaid, 30);
-            assertEq(memePaid, i == 1 ? 100 : 0);
-            assertEq(retained, i == 1 ? 0 : 100);
-            assertEq(v.creatorLiability(ID, 1, address(q)), 0);
-            assertEq(v.creatorLiability(ID, 1, address(m)), retained);
-            assertEq(q.balanceOf(ALICE), 30);
-            assertEq(m.balanceOf(ALICE), memePaid);
-            assertEq(m.allowance(address(v), r.market(ID).config.graduatedHook), 0);
-            assertTrue(vm.revertToState(snapshot));
-        }
-    }
-
-    function testAudit_lowConversionBudgetSkipsSwapAndPaysAuthorizedFallback() public {
-        vm.expectCall(
-            address(h),
-            abi.encodeWithSignature("convertRewards(bytes32,uint256,uint256)", ID, 100, block.timestamp + 240),
-            uint64(0)
-        );
-        for (uint256 i; i < 2; ++i) {
-            uint256 snapshot = vm.snapshotState();
-            vm.prank(ALICE);
-            (bool success, bytes memory result) = address(v).call{gas: 300_000}(
-                abi.encodeCall(v.claimUserRewards, (ID, uint8(0), uint32(1), true, i == 1, block.timestamp + 240))
-            );
-            assertTrue(success);
-            (uint256 paid, uint256 raw, uint256 retained) = abi.decode(result, (uint256, uint256, uint256));
-            assertEq(paid, 30);
-            assertEq(raw, i == 1 ? 100 : 0);
-            assertEq(retained, i == 1 ? 0 : 100);
-            assertEq(m.allowance(address(v), address(h)), 0);
-            assertTrue(vm.revertToState(snapshot));
-        }
     }
 
     function testAudit_finalSolvencyCheckDetectsCrossAssetLossDuringSecondPayment() public {
@@ -156,7 +106,7 @@ contract FeeClaimSafetyBoundaryTest is UserRewardClaimsTest {
         vm.expectRevert(
             abi.encodeWithSelector(ProtocolFeeVaultLiabilities.FeeVaultInsolvent.selector, address(quote), 0, 30)
         );
-        v.claimUserRewards(ID, 0, 1, false, false, 0);
+        v.claimUserRewards(ID, 0, 1);
         assertEq(quote.balanceOf(ALICE), 0);
         assertEq(meme.balanceOf(ALICE), 0);
         assertEq(quote.balanceOf(address(v)), 60);
@@ -182,7 +132,7 @@ contract FeeClaimSafetyBoundaryTest is UserRewardClaimsTest {
         creators.setEpoch(ID, 2, ALICE);
         vm.prank(ALICE);
         vm.expectRevert();
-        nativeVault.claimUserRewardAssets(ID, 0, 1, 1, false, false, 0);
+        nativeVault.claimUserRewardAssets(ID, 0, 1, 1);
         recipient.claim(nativeVault, ID, 2);
         assertEq(m.balanceOf(address(recipient)), 100);
         assertEq(nativeVault.creatorLiability(ID, 1, address(0)), 1 ether);
@@ -193,10 +143,10 @@ contract FeeClaimSafetyBoundaryTest is UserRewardClaimsTest {
         deal(address(q), address(v), 59);
         vm.prank(ALICE);
         vm.expectRevert();
-        v.claimUserRewardAssets(ID, 0, 1, 1, false, false, 0);
+        v.claimUserRewardAssets(ID, 0, 1, 1);
         assertEq(v.creatorLiability(ID, 1, address(q)), 30);
         vm.prank(ALICE);
-        v.claimUserRewardAssets(ID, 0, 1, 2, false, false, 0);
+        v.claimUserRewardAssets(ID, 0, 1, 2);
         assertEq(m.balanceOf(ALICE), 100);
         assertEq(v.creatorLiability(ID, 2, address(m)), 100);
     }
@@ -206,7 +156,7 @@ contract FeeClaimSafetyBoundaryTest is UserRewardClaimsTest {
         vm.expectCall(address(m), abi.encodeWithSignature("balanceOf(address)", address(v)), uint64(4));
         vm.prank(ALICE);
         uint256 before = gasleft();
-        v.claimUserRewards(ID, 0, 1, false, false, 0);
+        v.claimUserRewards(ID, 0, 1);
         emit log_named_uint("raw dual-asset creator claim gas", before - gasleft());
     }
 }

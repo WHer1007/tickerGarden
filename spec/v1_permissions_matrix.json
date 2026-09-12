@@ -80,13 +80,6 @@
   },
   "functions": [
     {
-      "module": "TickerGardenMemeHook",
-      "signature": "unlockCallback(bytes)",
-      "caller": "POOL_MANAGER",
-      "delaySeconds": 0,
-      "recipient": "fixed_reward_beneficiary_or_canonical_pool"
-    },
-    {
       "module": "AccessManager",
       "signature": "schedule(address,bytes,uint48)",
       "caller": "ROLE_MEMBER_WITH_EXECUTION_DELAY",
@@ -686,7 +679,7 @@
     },
     {
       "module": "ProtocolFeeVault",
-      "signature": "claimUserRewards(bytes32,uint8,uint32,bool,bool,uint256)",
+      "signature": "claimUserRewards(bytes32,uint8,uint32)",
       "caller": "PUBLIC",
       "delaySeconds": 0,
       "recipient": "fixed_reward_beneficiary_or_canonical_pool",
@@ -694,19 +687,11 @@
     },
     {
       "module": "ProtocolFeeVault",
-      "signature": "claimUserRewardAssets(bytes32,uint8,uint32,uint8,bool,bool,uint256)",
+      "signature": "claimUserRewardAssets(bytes32,uint8,uint32,uint8)",
       "caller": "PUBLIC",
       "delaySeconds": 0,
       "recipient": "fixed_reward_beneficiary_or_canonical_pool",
       "precondition": "CALLER_OWNED_UNLOCKED_REWARDS_ONLY"
-    },
-    {
-      "module": "ProtocolFeeVault",
-      "signature": "convertUserClaim(bytes32,MarketView,uint256,uint256)",
-      "caller": "FEE_VAULT",
-      "delaySeconds": 0,
-      "recipient": "fixed_reward_beneficiary_or_canonical_pool",
-      "precondition": "MSG_SENDER_EQUALS_THIS_AND_ACTIVE_USER_CLAIM"
     },
     {
       "module": "ProtocolFeeVault",
@@ -715,20 +700,6 @@
       "delaySeconds": 0,
       "recipient": "fixed_reward_beneficiary_or_canonical_pool",
       "precondition": "FIXED_DISTRIBUTOR_CANONICAL_MEME"
-    },
-    {
-      "module": "MemeStockGauge",
-      "signature": "restoreUserMemeRewards(address,uint256)",
-      "caller": "FEE_VAULT",
-      "delaySeconds": 0,
-      "recipient": "fixed_reward_beneficiary_or_canonical_pool"
-    },
-    {
-      "module": "TickerGardenMemeHook",
-      "signature": "convertRewards(bytes32,uint256,uint256)",
-      "caller": "FEE_VAULT",
-      "delaySeconds": 0,
-      "recipient": "fixed_reward_beneficiary_or_canonical_pool"
     },
     {
       "module": "TickerMemeTokenV1",

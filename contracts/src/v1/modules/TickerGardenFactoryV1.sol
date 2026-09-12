@@ -199,7 +199,7 @@ contract TickerGardenFactoryV1 is ITickerGardenFactoryV1, ICurveInitializationSo
     bytes32 private constant CURVE_IMPLEMENTATION_CODEHASH =
         0xe79b429ffdbcbb186632f2f3ea3361239edca7cdeba794c1ee661e5b8bf2f839;
     bytes32 private constant GAUGE_IMPLEMENTATION_CODEHASH =
-        0x699e74280e4c14847f5a3b71b37b8e9aeb4db7d8aab13a0463cc15f3c34c81b0;
+        0x3e3f1fcd99cab3ed17310a7197535514f590eff63ce17fb8e158e732351bce52;
 
     error InvalidFactoryDependency(address dependency);
     error InvalidComponentImplementation(address implementation, bytes32 expectedHash, bytes32 actualHash);

@@ -774,45 +774,6 @@
       "recipient": "fixed_user"
     },
     {
-      "module": "MemeStockGauge",
-      "displaySignature": "restoreUserMemeRewards(address,uint256)",
-      "canonicalSignature": "restoreUserMemeRewards(address,uint256)",
-      "selector": "0xcb2da179",
-      "selectorHash": "FIRST_4_BYTES_OF_KECCAK256_CANONICAL_SIGNATURE",
-      "caller": "FEE_VAULT",
-      "executionDelaySeconds": 0,
-      "stateDelaySeconds": 0,
-      "stateDelayAnchor": "NONE",
-      "precondition": "NONE",
-      "recipient": "fixed_reward_beneficiary_or_canonical_pool"
-    },
-    {
-      "module": "TickerGardenMemeHook",
-      "displaySignature": "convertRewards(bytes32,uint256,uint256)",
-      "canonicalSignature": "convertRewards(bytes32,uint256,uint256)",
-      "selector": "0xc5fb6b3f",
-      "selectorHash": "FIRST_4_BYTES_OF_KECCAK256_CANONICAL_SIGNATURE",
-      "caller": "FEE_VAULT",
-      "executionDelaySeconds": 0,
-      "stateDelaySeconds": 0,
-      "stateDelayAnchor": "NONE",
-      "precondition": "NONE",
-      "recipient": "fixed_reward_beneficiary_or_canonical_pool"
-    },
-    {
-      "module": "TickerGardenMemeHook",
-      "displaySignature": "unlockCallback(bytes)",
-      "canonicalSignature": "unlockCallback(bytes)",
-      "selector": "0x91dd7346",
-      "selectorHash": "FIRST_4_BYTES_OF_KECCAK256_CANONICAL_SIGNATURE",
-      "caller": "POOL_MANAGER",
-      "executionDelaySeconds": 0,
-      "stateDelaySeconds": 0,
-      "stateDelayAnchor": "NONE",
-      "precondition": "NONE",
-      "recipient": "fixed_reward_beneficiary_or_canonical_pool"
-    },
-    {
       "module": "TickerGardenMemeHook",
       "displaySignature": "registerExpectedPool(bytes32,PoolKey,uint32)",
       "canonicalSignature": "registerExpectedPool(bytes32,(address,address,uint24,int24,address),uint32)",
@@ -957,9 +918,9 @@
     },
     {
       "module": "ProtocolFeeVault",
-      "displaySignature": "claimUserRewards(bytes32,uint8,uint32,bool,bool,uint256)",
-      "canonicalSignature": "claimUserRewards(bytes32,uint8,uint32,bool,bool,uint256)",
-      "selector": "0x124be34c",
+      "displaySignature": "claimUserRewards(bytes32,uint8,uint32)",
+      "canonicalSignature": "claimUserRewards(bytes32,uint8,uint32)",
+      "selector": "0x1dc236a8",
       "selectorHash": "FIRST_4_BYTES_OF_KECCAK256_CANONICAL_SIGNATURE",
       "caller": "PUBLIC",
       "executionDelaySeconds": 0,
@@ -970,28 +931,15 @@
     },
     {
       "module": "ProtocolFeeVault",
-      "displaySignature": "claimUserRewardAssets(bytes32,uint8,uint32,uint8,bool,bool,uint256)",
-      "canonicalSignature": "claimUserRewardAssets(bytes32,uint8,uint32,uint8,bool,bool,uint256)",
-      "selector": "0x7a0c3040",
+      "displaySignature": "claimUserRewardAssets(bytes32,uint8,uint32,uint8)",
+      "canonicalSignature": "claimUserRewardAssets(bytes32,uint8,uint32,uint8)",
+      "selector": "0x13db54e5",
       "selectorHash": "FIRST_4_BYTES_OF_KECCAK256_CANONICAL_SIGNATURE",
       "caller": "PUBLIC",
       "executionDelaySeconds": 0,
       "stateDelaySeconds": 0,
       "stateDelayAnchor": "NONE",
       "precondition": "CALLER_OWNED_UNLOCKED_REWARDS_ONLY",
-      "recipient": "fixed_reward_beneficiary_or_canonical_pool"
-    },
-    {
-      "module": "ProtocolFeeVault",
-      "displaySignature": "convertUserClaim(bytes32,MarketView,uint256,uint256)",
-      "canonicalSignature": "convertUserClaim(bytes32,((bytes32,bytes32,bytes32,bytes32,bytes32,bytes32,bytes32,uint256,address,address,address,address,address,address,uint16,bool,bool),(bytes32,uint32,uint8)),uint256,uint256)",
-      "selector": "0x6a60891e",
-      "selectorHash": "FIRST_4_BYTES_OF_KECCAK256_CANONICAL_SIGNATURE",
-      "caller": "FEE_VAULT",
-      "executionDelaySeconds": 0,
-      "stateDelaySeconds": 0,
-      "stateDelayAnchor": "NONE",
-      "precondition": "MSG_SENDER_EQUALS_THIS_AND_ACTIVE_USER_CLAIM",
       "recipient": "fixed_reward_beneficiary_or_canonical_pool"
     },
     {
@@ -1434,21 +1382,15 @@
     },
     {
       "module": "ProtocolFeeVault",
-      "displayEvent": "RewardConverted(bytes32 indexed marketId,address indexed user,uint32 indexed creatorEpoch,uint256 memeSpent,uint256 quoteReceived)",
-      "canonicalSignature": "RewardConverted(bytes32,address,uint32,uint256,uint256)",
-      "topic0": "0x536d8aaaf2bd3a634add9a0cbb15879e5cd81e4ef97a16fe231d48974e4c49d2"
-    },
-    {
-      "module": "ProtocolFeeVault",
       "displayEvent": "HolderFeesAccrued(bytes32 indexed marketId,uint32 indexed epochId,address indexed feeAsset,uint256 amount)",
       "canonicalSignature": "HolderFeesAccrued(bytes32,uint32,address,uint256)",
       "topic0": "0xff2e873256e8b94ff57ab6a55118e0ea49f9a2457166d4937fff41c4e87e7800"
     },
     {
       "module": "ProtocolFeeVault",
-      "displayEvent": "UserRewardsClaimed(bytes32 indexed marketId,address indexed user,uint8 indexed role,uint32 creatorEpoch,uint256 quotePaid,uint256 memePaid,uint256 memeRetained,uint256 memeConverted,bool conversionFailed)",
-      "canonicalSignature": "UserRewardsClaimed(bytes32,address,uint8,uint32,uint256,uint256,uint256,uint256,bool)",
-      "topic0": "0xdab043398c3fce7edda2e69d9b73831be66a52a2502a333034a629ad892c042d"
+      "displayEvent": "UserRewardsClaimed(bytes32 indexed marketId,address indexed user,uint8 indexed role,uint32 creatorEpoch,uint256 quotePaid,uint256 memePaid)",
+      "canonicalSignature": "UserRewardsClaimed(bytes32,address,uint8,uint32,uint256,uint256)",
+      "topic0": "0xac8f2122e08fb57c19e178b2157d708e2b08ef0c7f4fa7477772fe1c863acb71"
     },
     {
       "module": "ProtocolFeeVault",

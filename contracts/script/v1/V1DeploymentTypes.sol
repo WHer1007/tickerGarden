@@ -6,8 +6,6 @@ struct V1DeploymentConfig {
     address initialAdmin;
     address poolManager;
     address positionManager;
-    address swapRouter;
-    address quoter;
     address platformTreasury;
     bytes32 feePolicyId;
 }

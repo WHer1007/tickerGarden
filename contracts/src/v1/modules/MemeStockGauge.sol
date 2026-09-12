@@ -148,17 +148,6 @@ contract MemeStockGauge is MemeStockGaugeForfeitures {
         return _applyStakerFee(rewardIndex, feeAsset, amount, feeId, identity.marketId);
     }
 
-    /// @notice Vault-only restoration of the same user's retained Meme rewards.
-
-    function restoreUserMemeRewards(address user, uint256 memeRefund) external {
-        GaugeIdentity memory identity = MemeStockGaugeClone.read(address(this));
-        if (msg.sender != identity.protocolFeeVault) {
-            revert UnauthorizedFeeVault(msg.sender, identity.protocolFeeVault);
-        }
-        _requireNoRageQuitSettlement(identity, user);
-        _gaugePositions[user].rewards[MEME_REWARD_INDEX].pendingFee += memeRefund;
-    }
-
     function consumeClaimable(address user) external returns (uint256 quote, uint256 meme) {
         return _consumeClaimableAssets(user, 3);
     }

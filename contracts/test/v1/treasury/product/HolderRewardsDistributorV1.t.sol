@@ -471,7 +471,7 @@ contract DualHolderRewardsTest is HolderRewardsDistributorV1Test {
         d.fundMemeFees(ID, amount);
     }
 
-    function test_dualAssetsFollowSameWeightsAndRestoreOnlyOwner() public {
+    function test_dualAssetsFollowSameWeightsWithoutRestoration() public {
         _send(CURVE, ALICE, 100 ether);
         _send(CURVE, BOB, 100 ether);
         _fund(24 ether);
@@ -487,14 +487,16 @@ contract DualHolderRewardsTest is HolderRewardsDistributorV1Test {
         vm.prank(address(vault));
         token.approve(address(d), 60 ether);
         vm.prank(address(vault));
-        d.restoreUserMeme(ID, ALICE, 60 ether);
+        (bool ok,) =
+            address(d).call(abi.encodeWithSignature("restoreUserMeme(bytes32,address,uint256)", ID, ALICE, 60 ether));
+        assertFalse(ok);
         (aq, am) = d.claimableAssets(ID, ALICE);
         assertEq(aq, 0);
-        assertEq(am, 60 ether);
+        assertEq(am, 0);
         (uint256 bq, uint256 bm) = d.claimableAssets(ID, BOB);
         assertEq(bq, 12 ether);
         assertEq(bm, 120 ether);
-        assertEq(d.totalLiability(address(token)), 180 ether);
+        assertEq(d.totalLiability(address(token)), 120 ether);
     }
 
     function test_memeReleaseNotAssignedToBuyerOfOldBalance() public {
@@ -516,7 +518,7 @@ contract DualHolderRewardsTest is HolderRewardsDistributorV1Test {
         d.fundMemeFees(ID, 1);
         vm.expectRevert();
         d.consumeUserRewards(ID, ALICE);
-        vm.expectRevert();
-        d.restoreUserMeme(ID, ALICE, 1);
+        (bool ok,) = address(d).call(abi.encodeWithSignature("restoreUserMeme(bytes32,address,uint256)", ID, ALICE, 1));
+        assertFalse(ok);
     }
 }

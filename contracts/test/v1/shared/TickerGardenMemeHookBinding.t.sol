@@ -80,11 +80,11 @@ contract HookPoolManagerMock {
 }
 
 contract TickerGardenMemeHookBindingHarness is TickerGardenMemeHookBinding {
-    function convertRewards(bytes32, uint256, uint256) external pure override returns (uint256, uint256) {
+    function convertRewards(bytes32, uint256, uint256) external pure returns (uint256, uint256) {
         revert("UNSUPPORTED_TEST_LAYER");
     }
 
-    function unlockCallback(bytes calldata) external pure override returns (bytes memory) {
+    function unlockCallback(bytes calldata) external pure returns (bytes memory) {
         revert("UNSUPPORTED_TEST_LAYER");
     }
 

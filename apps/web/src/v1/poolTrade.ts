@@ -1,3 +1,4 @@
+import { requireExternalTradingService } from '../../../../services/backend-ts/packages/chain/src/external-trading.ts';
 import {encodeAbiParameters,keccak256,parseAbi,parseAbiParameters,type Address,type Hex} from 'viem';
 import type {MarketReadModel} from './generated/read-api.ts';
 import type {ContractWriteRequest} from './transaction.ts';
@@ -12,18 +13,19 @@ const keyType='(address currency0,address currency1,uint24 fee,int24 tickSpacing
 // Existing deployment evidence pins this router, whose decoder includes minHopPriceX36.
 // Never guess a new router's calldata layout from its address alone.
 export function assertPoolRouterProfile(chain:number,router:string){
- if(chain!==46630||router.toLowerCase()!=='0x8876789976decbfcbbbe364623c63652db8c0904')throw Error('Pool trading is not configured for this router on this network');
+ if(router.toLowerCase()!==requireExternalTradingService(chain).router)throw Error('Pool trading is not configured for this router on this network');
 }
 export function poolTradeRoute(market:MarketReadModel,side:'buy'|'sell'){
  const r=market.canonicalRoute,k=market.poolKey;
+ const service=requireExternalTradingService(market.source.chainId);
  if(market.launchPhase!==1||!r.poolTradingEnabled||r.curveTradingEnabled||!k||!market.poolId)throw Error('The graduated pool is not ready for trading');
  const currency0=k.currency0.toLowerCase() as Address,currency1=k.currency1.toLowerCase() as Address;
  const input=(side==='buy'?market.quoteAsset:market.memeToken).toLowerCase() as Address;
  const output=(side==='buy'?market.memeToken:market.quoteAsset).toLowerCase() as Address;
- if(currency0>=currency1||![currency0,currency1].includes(input)||![currency0,currency1].includes(output)||input===output||k.hooks.toLowerCase()!==r.hook.toLowerCase()||r.router===ZERO_ADDRESS||r.quoter===ZERO_ADDRESS)throw Error('Invalid canonical pool binding');
+ if(currency0>=currency1||![currency0,currency1].includes(input)||![currency0,currency1].includes(output)||input===output||k.hooks.toLowerCase()!==r.hook.toLowerCase())throw Error('Invalid canonical pool binding');
  const poolKey={...k,currency0,currency1,hooks:k.hooks as Address};
  if(keccak256(encodeAbiParameters(parseAbiParameters(keyType),[poolKey]))!==market.poolId.toLowerCase())throw Error('Canonical pool ID does not match its key');
- return {poolKey,input,output,zeroForOne:input===currency0,router:r.router as Address,quoter:r.quoter as Address};
+ return {poolKey,input,output,zeroForOne:input===currency0,router:service.router,quoter:service.quoter};
 }
 export function poolAmount(amount:bigint){if(amount<=0n||amount>=(1n<<128n))throw Error('Pool amount is outside the supported range');return amount;}
 export function buildPoolTrade(market:MarketReadModel,side:'buy'|'sell',amount:bigint,minimum:bigint,deadline:bigint):ContractWriteRequest{

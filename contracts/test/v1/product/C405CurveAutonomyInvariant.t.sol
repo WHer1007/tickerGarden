@@ -109,14 +109,7 @@ contract C405CurveAutonomyInvariantTest is Test {
         vm.etch(SWAP_ROUTER, hex"00");
         vm.etch(QUOTER, hex"00");
         registry = new MarketRegistryV1(
-            FACTORY,
-            address(assets),
-            address(quotes),
-            address(baselines),
-            address(templates),
-            address(graduation),
-            SWAP_ROUTER,
-            QUOTER
+            FACTORY, address(assets), address(quotes), address(baselines), address(templates), address(graduation)
         );
     }
 

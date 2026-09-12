@@ -203,20 +203,21 @@ export function assertCanonicalMarketBinding(
   const runtimePoolId = bytes32(field(runtime, "poolId", 0), "Market.poolId");
   same(runtimePoolId, api.poolId === null ? ZERO_HEX32 as Hex : bytes32(api.poolId, "API poolId", false), "market runtime poolId");
 
-  same(address(field(rawRoute, "swapRouter", 2), "Route.swapRouter"), address(api.canonicalRoute.router, "API route.router"), "route router");
-  same(address(field(rawRoute, "quoter", 3), "Route.quoter"), address(api.canonicalRoute.quoter, "API route.quoter"), "route quoter");
-  const routeHook = address(field(rawRoute, "hook", 4), "Route.hook");
+  // Older deployed releases include two service fields. They are not protocol invariants.
+  const legacyRoute = Array.isArray(rawRoute) ? rawRoute.length === 14 : Object.hasOwn(rawRoute as object, 'swapRouter');
+  const routeOffset = legacyRoute ? 2 : 0;
+  const routeHook = address(field(rawRoute, "hook", 2 + routeOffset), "Route.hook");
   same(routeHook, address(api.canonicalRoute.hook, "API route.hook"), "route hook");
   same(routeHook, address(field(config, "graduatedHook", 13), "Market.graduatedHook"), "market graduated hook");
-  same(address(field(rawRoute, "quoteAsset", 5), "Route.quoteAsset", true), address(api.quoteAsset, "API quoteAsset", true), "route Quote asset");
-  same(address(field(rawRoute, "memeToken", 6), "Route.memeToken"), address(api.memeToken, "API memeToken"), "route Meme token");
-  same(address(field(rawRoute, "gauge", 7), "Route.gauge", disabledStaking), address(api.gauge, "API gauge", disabledStaking), "route Gauge");
-  same(address(field(rawRoute, "curve", 8), "Route.curve"), address(api.curve, "API curve"), "route Curve");
-  same(address(field(rawRoute, "launchLocker", 9), "Route.launchLocker"), address(api.canonicalRoute.launchLocker, "API route.launchLocker"), "route LaunchLocker");
-  same(integer(field(rawRoute, "sourceVersion", 10), "Route.sourceVersion"), api.sourceVersion, "route sourceVersion");
-  same(integer(field(rawRoute, "launchPhase", 11), "Route.launchPhase"), api.launchPhase, "route launch phase");
-  same(boolean(field(rawRoute, "curveTradingEnabled", 13), "Route.curveTradingEnabled"), api.canonicalRoute.curveTradingEnabled, "route Curve flag");
-  same(boolean(field(rawRoute, "poolTradingEnabled", 14), "Route.poolTradingEnabled"), api.canonicalRoute.poolTradingEnabled, "route pool flag");
+  same(address(field(rawRoute, "quoteAsset", 3 + routeOffset), "Route.quoteAsset", true), address(api.quoteAsset, "API quoteAsset", true), "route Quote asset");
+  same(address(field(rawRoute, "memeToken", 4 + routeOffset), "Route.memeToken"), address(api.memeToken, "API memeToken"), "route Meme token");
+  same(address(field(rawRoute, "gauge", 5 + routeOffset), "Route.gauge", disabledStaking), address(api.gauge, "API gauge", disabledStaking), "route Gauge");
+  same(address(field(rawRoute, "curve", 6 + routeOffset), "Route.curve"), address(api.curve, "API curve"), "route Curve");
+  same(address(field(rawRoute, "launchLocker", 7 + routeOffset), "Route.launchLocker"), address(api.canonicalRoute.launchLocker, "API route.launchLocker"), "route LaunchLocker");
+  same(integer(field(rawRoute, "sourceVersion", 8 + routeOffset), "Route.sourceVersion"), api.sourceVersion, "route sourceVersion");
+  same(integer(field(rawRoute, "launchPhase", 9 + routeOffset), "Route.launchPhase"), api.launchPhase, "route launch phase");
+  same(boolean(field(rawRoute, "curveTradingEnabled", 10 + routeOffset), "Route.curveTradingEnabled"), api.canonicalRoute.curveTradingEnabled, "route Curve flag");
+  same(boolean(field(rawRoute, "poolTradingEnabled", 11 + routeOffset), "Route.poolTradingEnabled"), api.canonicalRoute.poolTradingEnabled, "route pool flag");
 
   const routePoolId = bytes32(field(rawRoute, "poolId", 1), "Route.poolId", false);
   const key = field(rawRoute, "poolKey", 0);

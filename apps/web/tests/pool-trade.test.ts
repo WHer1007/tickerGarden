@@ -15,7 +15,7 @@ const keyParams = parseAbiParameters("(address currency0,address currency1,uint2
 function market(overrides: Record<string, unknown> = {}) {
   const boundKey = (overrides.poolKey ?? key) as typeof key;
   return {
-    launchPhase: 1, poolId: keccak256(encodeAbiParameters(keyParams, [boundKey])), poolKey: boundKey,
+    source:{chainId:46630}, launchPhase: 1, poolId: keccak256(encodeAbiParameters(keyParams, [boundKey])), poolKey: boundKey,
     memeToken: token, quoteAsset: quote,
     canonicalRoute: { router, quoter, hook, curveTradingEnabled: false, poolTradingEnabled: true },
     ...overrides,
@@ -86,3 +86,9 @@ test('reads both protocol fee directions without mixing price, tick or LP bits',
  assert.throws(()=>poolProtocolFee(state(0n,3000n),true),/Unsupported/);
  assert.throws(()=>poolProtocolFee('0x00',true),/Invalid/);
 });
+
+ test("database service addresses cannot redirect wallet trades",()=>{
+ const m=market();m.canonicalRoute.router=token;m.canonicalRoute.quoter=token;
+ const r=poolTradeRoute(m,'buy');assert.equal(r.router,router);assert.equal(r.quoter,'0x8dc178efb8111bb0973dd9d722ebeff267c98f94');
+ assert.throws(()=>poolTradeRoute(market({source:{chainId:999}}),'buy'),/not configured/);
+ });

@@ -3,7 +3,7 @@
   "executionSpecId": "V1-EXEC-11",
   "source": "COMPILED_SOLC_0_8_26_INTERFACE_ARTIFACTS",
   "compilerVersion": "0.8.26+commit.8a97fa7a",
-  "interfaceSourceKeccak256": "0xe1c5afdab63411b386b68b3cb668eb00b69de79bb901e4ad28ce56a3b8d45018",
+  "interfaceSourceKeccak256": "0x13b70020524838195746d7b44e3512fb4e7cd3d5b9f05c9494c02ebd702f4c7b",
   "compiledSourceTypes": {
     "aliases": {
       "BalanceDelta": "int256"
@@ -122,8 +122,6 @@
       "CanonicalRoute": [
         "PoolKey poolKey",
         "bytes32 poolId",
-        "address swapRouter",
-        "address quoter",
         "address hook",
         "address quoteAsset",
         "address memeToken",
@@ -223,7 +221,7 @@
     {
       "target": "MarketRegistryV1",
       "artifact": "contracts/out-v1/IV1Protocol.sol/IMarketRegistryV1.json",
-      "functionCount": 16,
+      "functionCount": 14,
       "eventCount": 2
     },
     {
@@ -259,20 +257,20 @@
     {
       "target": "MemeStockGauge",
       "artifact": "contracts/out-v1/IV1Protocol.sol/IMemeStockGauge.json",
-      "functionCount": 19,
+      "functionCount": 18,
       "eventCount": 8
     },
     {
       "target": "TickerGardenMemeHook",
       "artifact": "contracts/out-v1/IV1Protocol.sol/ITickerGardenMemeHook.json",
-      "functionCount": 13,
+      "functionCount": 11,
       "eventCount": 3
     },
     {
       "target": "ProtocolFeeVault",
       "artifact": "contracts/out-v1/IV1Protocol.sol/IProtocolFeeVault.json",
-      "functionCount": 36,
-      "eventCount": 12
+      "functionCount": 35,
+      "eventCount": 11
     },
     {
       "target": "GraduationExecutor",
@@ -1043,42 +1041,6 @@
       "recipient": "fixed_user"
     },
     {
-      "target": "MemeStockGauge",
-      "displaySignature": "restoreUserMemeRewards(address,uint256)",
-      "canonicalSignature": "restoreUserMemeRewards(address,uint256)",
-      "selector": "0xcb2da179",
-      "caller": "FEE_VAULT",
-      "executionDelaySeconds": 0,
-      "stateDelaySeconds": 0,
-      "stateDelayAnchor": "NONE",
-      "precondition": "NONE",
-      "recipient": "fixed_reward_beneficiary_or_canonical_pool"
-    },
-    {
-      "target": "TickerGardenMemeHook",
-      "displaySignature": "convertRewards(bytes32,uint256,uint256)",
-      "canonicalSignature": "convertRewards(bytes32,uint256,uint256)",
-      "selector": "0xc5fb6b3f",
-      "caller": "FEE_VAULT",
-      "executionDelaySeconds": 0,
-      "stateDelaySeconds": 0,
-      "stateDelayAnchor": "NONE",
-      "precondition": "NONE",
-      "recipient": "fixed_reward_beneficiary_or_canonical_pool"
-    },
-    {
-      "target": "TickerGardenMemeHook",
-      "displaySignature": "unlockCallback(bytes)",
-      "canonicalSignature": "unlockCallback(bytes)",
-      "selector": "0x91dd7346",
-      "caller": "POOL_MANAGER",
-      "executionDelaySeconds": 0,
-      "stateDelaySeconds": 0,
-      "stateDelayAnchor": "NONE",
-      "precondition": "NONE",
-      "recipient": "fixed_reward_beneficiary_or_canonical_pool"
-    },
-    {
       "target": "TickerGardenMemeHook",
       "displaySignature": "registerExpectedPool(bytes32,PoolKey,uint32)",
       "canonicalSignature": "registerExpectedPool(bytes32,(address,address,uint24,int24,address),uint32)",
@@ -1212,9 +1174,9 @@
     },
     {
       "target": "ProtocolFeeVault",
-      "displaySignature": "claimUserRewards(bytes32,uint8,uint32,bool,bool,uint256)",
-      "canonicalSignature": "claimUserRewards(bytes32,uint8,uint32,bool,bool,uint256)",
-      "selector": "0x124be34c",
+      "displaySignature": "claimUserRewards(bytes32,uint8,uint32)",
+      "canonicalSignature": "claimUserRewards(bytes32,uint8,uint32)",
+      "selector": "0x1dc236a8",
       "caller": "PUBLIC",
       "executionDelaySeconds": 0,
       "stateDelaySeconds": 0,
@@ -1224,26 +1186,14 @@
     },
     {
       "target": "ProtocolFeeVault",
-      "displaySignature": "claimUserRewardAssets(bytes32,uint8,uint32,uint8,bool,bool,uint256)",
-      "canonicalSignature": "claimUserRewardAssets(bytes32,uint8,uint32,uint8,bool,bool,uint256)",
-      "selector": "0x7a0c3040",
+      "displaySignature": "claimUserRewardAssets(bytes32,uint8,uint32,uint8)",
+      "canonicalSignature": "claimUserRewardAssets(bytes32,uint8,uint32,uint8)",
+      "selector": "0x13db54e5",
       "caller": "PUBLIC",
       "executionDelaySeconds": 0,
       "stateDelaySeconds": 0,
       "stateDelayAnchor": "NONE",
       "precondition": "CALLER_OWNED_UNLOCKED_REWARDS_ONLY",
-      "recipient": "fixed_reward_beneficiary_or_canonical_pool"
-    },
-    {
-      "target": "ProtocolFeeVault",
-      "displaySignature": "convertUserClaim(bytes32,MarketView,uint256,uint256)",
-      "canonicalSignature": "convertUserClaim(bytes32,((bytes32,bytes32,bytes32,bytes32,bytes32,bytes32,bytes32,uint256,address,address,address,address,address,address,uint16,bool,bool),(bytes32,uint32,uint8)),uint256,uint256)",
-      "selector": "0x6a60891e",
-      "caller": "FEE_VAULT",
-      "executionDelaySeconds": 0,
-      "stateDelaySeconds": 0,
-      "stateDelayAnchor": "NONE",
-      "precondition": "MSG_SENDER_EQUALS_THIS_AND_ACTIVE_USER_CLAIM",
       "recipient": "fixed_reward_beneficiary_or_canonical_pool"
     },
     {
@@ -1625,18 +1575,13 @@
     },
     {
       "target": "ProtocolFeeVault",
-      "canonicalSignature": "RewardConverted(bytes32,address,uint32,uint256,uint256)",
-      "topic0": "0x536d8aaaf2bd3a634add9a0cbb15879e5cd81e4ef97a16fe231d48974e4c49d2"
-    },
-    {
-      "target": "ProtocolFeeVault",
       "canonicalSignature": "HolderFeesAccrued(bytes32,uint32,address,uint256)",
       "topic0": "0xff2e873256e8b94ff57ab6a55118e0ea49f9a2457166d4937fff41c4e87e7800"
     },
     {
       "target": "ProtocolFeeVault",
-      "canonicalSignature": "UserRewardsClaimed(bytes32,address,uint8,uint32,uint256,uint256,uint256,uint256,bool)",
-      "topic0": "0xdab043398c3fce7edda2e69d9b73831be66a52a2502a333034a629ad892c042d"
+      "canonicalSignature": "UserRewardsClaimed(bytes32,address,uint8,uint32,uint256,uint256)",
+      "topic0": "0xac8f2122e08fb57c19e178b2157d708e2b08ef0c7f4fa7477772fe1c863acb71"
     },
     {
       "target": "ProtocolFeeVault",

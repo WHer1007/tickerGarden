@@ -271,8 +271,7 @@ contract MultiAssetSettlementHandler is Test {
         uint256 index = assetSeed % 2;
         address user = _users[userSeed % 2];
         vm.prank(user);
-        try feeVault.claimUserRewards(keccak256("multi-asset-fee-market"), 1, 0, false, false, block.timestamp + 240) {}
-            catch {}
+        try feeVault.claimUserRewards(keccak256("multi-asset-fee-market"), 1, 0) {} catch {}
     }
 
     function userAt(uint256 index) external view returns (address) {
@@ -399,8 +398,7 @@ contract MultiAssetMaliciousSettlementInvariantTest is StdInvariant, Test {
         feeAsset[0].setMode(MultiAssetMaliciousToken.Mode.FEE_ON_TRANSFER);
 
         vm.prank(ALICE);
-        try feeVault.claimUserRewards(keccak256("multi-asset-fee-market"), 1, 0, false, false, block.timestamp + 240) {}
-            catch {}
+        try feeVault.claimUserRewards(keccak256("multi-asset-fee-market"), 1, 0) {} catch {}
         assertEq(feeVault.totalLiability(address(feeAsset[0])), amount);
         assertEq(feeAsset[0].balanceOf(address(feeVault)), amount);
         assertEq(feeGauge.claimable(ALICE, address(feeAsset[0])), amount);
@@ -408,7 +406,7 @@ contract MultiAssetMaliciousSettlementInvariantTest is StdInvariant, Test {
         feeAsset[0].setMode(MultiAssetMaliciousToken.Mode.EXACT);
         uint256 beforeUser = feeAsset[0].balanceOf(ALICE);
         vm.prank(ALICE);
-        feeVault.claimUserRewards(keccak256("multi-asset-fee-market"), 1, 0, false, false, block.timestamp + 240);
+        feeVault.claimUserRewards(keccak256("multi-asset-fee-market"), 1, 0);
         assertEq(feeVault.totalLiability(address(feeAsset[0])), 0);
         assertEq(feeAsset[0].balanceOf(address(feeVault)), 0);
         assertEq(feeAsset[0].balanceOf(ALICE) - beforeUser, amount);

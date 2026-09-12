@@ -34,8 +34,6 @@ contract MarketRegistryV1 is IMarketRegistryV1 {
     address public immutable override tickerGardenBaselineRegistry;
     address public immutable override launchTemplateRegistry;
     address public immutable override graduationExecutor;
-    address public immutable override swapRouter;
-    address public immutable override quoter;
 
     mapping(bytes32 marketId => MarketConfig config) private _marketConfigs;
     mapping(bytes32 marketId => MarketRuntime runtime) private _marketRuntimes;
@@ -55,7 +53,6 @@ contract MarketRegistryV1 is IMarketRegistryV1 {
     error InvalidStateTransition(uint8 currentState, uint8 requestedState);
     error InactiveFeeSource(bytes32 marketId, uint32 sourceVersion);
     error PoolNotExpected(bytes32 poolId);
-    error InvalidRoutingDependencies(address swapRouter, address quoter);
     error InvalidQuoteRegistryBinding(
         address quoteRegistry, address expectedStockRegistry, address observedStockRegistry
     );
@@ -67,9 +64,7 @@ contract MarketRegistryV1 is IMarketRegistryV1 {
         address approvedQuoteRegistry_,
         address tickerGardenBaselineRegistry_,
         address launchTemplateRegistry_,
-        address graduationExecutor_,
-        address swapRouter_,
-        address quoter_
+        address graduationExecutor_
     ) {
         if (
             factory_ == address(0) || officialStockRegistry_ == address(0) || approvedQuoteRegistry_ == address(0)
@@ -82,10 +77,6 @@ contract MarketRegistryV1 is IMarketRegistryV1 {
             officialStockRegistry_.code.length == 0 || approvedQuoteRegistry_.code.length == 0
                 || tickerGardenBaselineRegistry_.code.length == 0 || launchTemplateRegistry_.code.length == 0
         ) revert ZeroConstructorAddress();
-        if (
-            swapRouter_.code.length == 0 || quoter_.code.length == 0 || swapRouter_ == quoter_
-                || swapRouter_ == graduationExecutor_ || quoter_ == graduationExecutor_
-        ) revert InvalidRoutingDependencies(swapRouter_, quoter_);
         address quoteStockRegistry = IApprovedQuoteRegistry(approvedQuoteRegistry_).officialStockRegistry();
         if (quoteStockRegistry != officialStockRegistry_) {
             revert InvalidQuoteRegistryBinding(approvedQuoteRegistry_, officialStockRegistry_, quoteStockRegistry);
@@ -96,8 +87,6 @@ contract MarketRegistryV1 is IMarketRegistryV1 {
         tickerGardenBaselineRegistry = tickerGardenBaselineRegistry_;
         launchTemplateRegistry = launchTemplateRegistry_;
         graduationExecutor = graduationExecutor_;
-        swapRouter = swapRouter_;
-        quoter = quoter_;
     }
 
     function registerMarket(bytes32 marketId, MarketConfig calldata config) external override {
@@ -195,8 +184,6 @@ contract MarketRegistryV1 is IMarketRegistryV1 {
         route = CanonicalRoute({
             poolKey: key,
             poolId: poolId,
-            swapRouter: swapRouter,
-            quoter: quoter,
             hook: config.graduatedHook,
             quoteAsset: config.quoteAsset,
             memeToken: config.memeToken,

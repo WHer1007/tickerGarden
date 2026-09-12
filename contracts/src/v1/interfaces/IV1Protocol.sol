@@ -131,8 +131,6 @@ struct MarketView {
 struct CanonicalRoute {
     PoolKey poolKey;
     bytes32 poolId;
-    address swapRouter;
-    address quoter;
     address hook;
     address quoteAsset;
     address memeToken;
@@ -341,8 +339,6 @@ interface IMarketRegistryV1 {
     function tickerGardenBaselineRegistry() external view returns (address output0);
     function launchTemplateRegistry() external view returns (address output0);
     function graduationExecutor() external view returns (address output0);
-    function swapRouter() external view returns (address output0);
-    function quoter() external view returns (address output0);
 }
 
 interface ILaunchAndBuyRouter {
@@ -482,7 +478,6 @@ interface IMemeStockGauge {
     function activationSlot(uint8 arg0) external view returns (ActivationSlot memory output0);
     function activationSnapshot(uint64 arg0) external view returns (ActivationSnapshot memory output0);
     function deferredForfeiture() external view returns (uint256 output0, uint256 output1);
-    function restoreUserMemeRewards(address arg0, uint256 arg1) external;
 }
 
 interface ITickerGardenMemeHook {
@@ -490,8 +485,6 @@ interface ITickerGardenMemeHook {
     event PoolBindingActivated(bytes32 indexed marketId, bytes32 indexed poolId, uint32 sourceVersion);
     event V4FeeAccrued(bytes32 indexed marketId, bytes32 indexed poolId, address indexed feeAsset, uint64 feeNonce, bytes32 feeId, uint256 base, uint256 totalFee, uint256 lpAmount, uint256 nonLpAmount);
 
-    function convertRewards(bytes32 arg0, uint256 arg1, uint256 arg2) external returns (uint256 output0, uint256 output1);
-    function unlockCallback(bytes calldata arg0) external returns (bytes memory output0);
     function registerExpectedPool(bytes32 arg0, PoolKey calldata arg1, uint32 arg2) external returns (bytes32 output0);
     function activatePool(bytes32 arg0) external;
     function beforeInitialize(address arg0, PoolKey calldata arg1, uint160 arg2) external returns (bytes4 output0);
@@ -511,9 +504,8 @@ interface IProtocolFeeVault {
     event FeeClaimed(uint8 indexed beneficiaryType, address indexed beneficiary, bytes32 indexed marketId, uint32 beneficiaryEpoch, address feeAsset, uint256 amount);
     event ForfeitureReserved(bytes32 indexed marketId, address indexed user, address indexed feeAsset, uint256 amount, uint256 reserveBalance);
     event ForfeitureReserveConverted(bytes32 indexed marketId, address indexed feeAsset, uint256 amount);
-    event RewardConverted(bytes32 indexed marketId, address indexed user, uint32 indexed creatorEpoch, uint256 memeSpent, uint256 quoteReceived);
     event HolderFeesAccrued(bytes32 indexed marketId, uint32 indexed epochId, address indexed feeAsset, uint256 amount);
-    event UserRewardsClaimed(bytes32 indexed marketId, address indexed user, uint8 indexed role, uint32 creatorEpoch, uint256 quotePaid, uint256 memePaid, uint256 memeRetained, uint256 memeConverted, bool conversionFailed);
+    event UserRewardsClaimed(bytes32 indexed marketId, address indexed user, uint8 indexed role, uint32 creatorEpoch, uint256 quotePaid, uint256 memePaid);
     event PlatformTreasuryProposed(uint256 indexed nonce, address indexed oldTreasury, address indexed newTreasury, address proposer, uint256 readyAt, bytes32 codeHash);
     event PlatformTreasuryAccepted(uint256 indexed nonce, address indexed newTreasury);
     event PlatformTreasuryCancelled(uint256 indexed nonce, address indexed caller);
@@ -538,10 +530,9 @@ interface IProtocolFeeVault {
     function feePolicyHash() external view returns (bytes32 output0);
     function holderLiability(bytes32 arg0, uint32 arg1, address arg2) external view returns (uint256 output0);
     function fundHolderRewards(bytes32 arg0, uint32 arg1) external returns (uint256 output0);
-    function claimUserRewards(bytes32 arg0, uint8 arg1, uint32 arg2, bool arg3, bool arg4, uint256 arg5) external returns (uint256 output0, uint256 output1, uint256 output2);
-    function claimUserRewardAssets(bytes32 arg0, uint8 arg1, uint32 arg2, uint8 arg3, bool arg4, bool arg5, uint256 arg6) external returns (uint256 output0, uint256 output1, uint256 output2);
+    function claimUserRewards(bytes32 arg0, uint8 arg1, uint32 arg2) external returns (uint256 output0, uint256 output1);
+    function claimUserRewardAssets(bytes32 arg0, uint8 arg1, uint32 arg2, uint8 arg3) external returns (uint256 output0, uint256 output1);
     function userClaimMode() external pure returns (bytes32 output0);
-    function convertUserClaim(bytes32 arg0, MarketView calldata arg1, uint256 arg2, uint256 arg3) external returns (uint256 output0, uint256 output1);
     function fundHolderMemeRewards(bytes32 arg0) external returns (uint256 output0);
     function proposePlatformTreasury(address arg0) external;
     function acceptPlatformTreasury(uint256 arg0) external;

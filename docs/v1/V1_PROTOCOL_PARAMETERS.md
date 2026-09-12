@@ -741,19 +741,19 @@ V1 可以复用 Test Prototype 中已经验证的 canonical 资产身份、固�
 
 ### 统一领取的结算与有效期（2026-09-11）
 
-一次 `claimUserRewards` 使用本次已验证的市场信息。Staker 通过仅 FeeVault 可调用的 `consumeClaimableAssets(address,uint8)` 一次检查锁和退出状态、一次结算，只消费所选资产的权益。两套资产负债与用户归属保持独立。
+当前候选的 `MarketRegistry` 没有 router/quoter getter 或字段。`FeeVault.claimUserRewards(marketId,role,epoch)` 以及 `claimUserRewardAssets(marketId,role,epoch,assets)` 均只领取原始资产；后者返回本次 `quotePaid,memePaid`。Staker 通过仅 FeeVault 可调用的结算路径一次检查锁和退出状态、一次结算，只消费所选资产的权益。两套资产负债与用户归属保持独立。
 
-`deadline` 只约束实际 Meme 兑换：必须位于执行时刻至之后 5 分钟内。直接领取原币，或只有 Quote 可领取时，不检查该参数。兑换有效期失效与其他兑换子调用失败一样处理：已归属 Quote 正常发放；Meme 按用户授权发原币，否则保留。不会恢复预设滑点或最低到账保护。
+当前 raw-only 领取没有 conversion、deadline、fallback 或 restore API。Quote 与 Meme 按原始资产分别支付。
 
 Holder 转账检查点仅在账户有新增指数需要结算时读取转账前余额，并将同一份余额复用于两套奖励；领取时在任何付款回调前完成所有被选账本的结算。奖励指数、释放批次、应计权益和 Quote/Meme 负债不合并。
 
 ### 单市场资产选择（2026-09-11）
 
-`claimUserRewardAssets(marketId,role,epoch,assets,convert,rawFallback,deadline)` 支持 `assets=1` 仅 Quote、`2` 仅 Meme、`3` 两者；0 和其他值回滚。`claimUserRewards` 是选择两者的便利入口，两者共用同一实现。此选择不是跨市场批量领取。
+`claimUserRewardAssets(marketId,role,epoch,assets)` 支持 `assets=1` 仅 Quote、`2` 仅 Meme、`3` 两者；0 和其他值回滚。`claimUserRewards(marketId,role,epoch)` 是选择两者的便利入口，两者共用同一实现。此选择不是跨市场批量领取。
 
-未选资产不消费、不付款，也不执行其独立的 FeeVault 余额/偿付校验。Meme 选择兑换时仍依赖 Quote 的可用性，但该检查在可捕获的兑换子调用内；用户可选择 Meme 原币领取避开异常 Quote。兑换出的 Quote 不会扣减原有未选 Quote 权益。Holder 的 Meme 余额仍是持有人权重来源，不能省略有历史指数差时的余额结算。
+未选资产不消费、不付款，也不执行其独立的 FeeVault 余额/偿付校验。Holder 的 Meme 余额仍是持有人权重来源，不能省略有历史指数差时的余额结算。
 
-前端、后端观察器和官方任务使用 `TICKERGARDEN_USER_CLAIM_ASSET_SELECTION_V1` 识别当前 FeeVault，不将旧部署识别为支持新入口。事件的 paid/retained 字段描述本次所选权益，不表示用户剩余全部资产。
+前端、后端观察器和官方任务使用 `TICKERGARDEN_USER_CLAIM_RAW_ASSETS_V1` 识别当前 FeeVault，不将旧部署识别为支持新入口。事件的 paid 字段描述本次所选原始资产权益，不表示用户剩余全部资产。
 
 Gauge/Vault 的 pending 计数为零时直接跳过 32 槽激活扫描；有 pending 时保留完整到期处理、奖励截止和队列一致性校验。Holder 在指数未变化时跳过无效账户写入，在流处理函数中复用账本 key，不改变释放规则。
 

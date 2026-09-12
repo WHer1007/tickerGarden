@@ -16,11 +16,11 @@
     "pauseGuardian": 0
   },
   "forkPin": {
-    "blockNumber": "61345999",
-    "blockHash": "0xe416d591f281f163e44650ad438b91734e22e03867bcd7522000267a5f5080d9",
-    "l1BlockNumber": "25963364"
+    "blockNumber": "61361538",
+    "blockHash": "0xb934dc407b452ecba77ea28f4187f223a3de508d7211f74ec62a983c26ca92ce",
+    "l1BlockNumber": "25963496"
   },
-  "safeEvidence": "../../docs/reviews/evidence/quote-only-launch-2026-09-13/accounts.json",
+  "safeEvidence": "../../docs/reviews/evidence/raw-claims-offchain-services-2026-09-13/accounts.json",
   "quoteManifest": "robinhood-mainnet-4663.paired-assets.json",
   "stakeManifest": "robinhood-mainnet-4663.staking-assets.json",
   "openGates": [
@@ -29,19 +29,22 @@
     "all-asset-activation-plan",
     "unsigned-transaction-pack",
     "safe-signature-ownership-and-execution-drill",
-    "release-security-signoff"
+    "release-security-signoff",
+    "production-release-catalog-and-abi-binding"
   ],
   "broadcastAuthorized": false,
   "passedChecks": [
     "safe-pinned-read-only-configuration",
-    "staged-orchestrator-local-4-tests",
     "external-dependency-codehashes-and-position-manager-bindings",
-    "quote-only-candidate-fork-2-tests",
-    "quote-only-staged-runtime-simulation"
+    "raw-claims-local-963-tests",
+    "raw-claims-candidate-fork-2-tests",
+    "raw-claims-staged-runtime-simulation"
   ],
   "firstBuyFunding": "CALLER_WALLET_QUOTE_ONLY",
-  "priorRuntimePlan": "../../docs/reviews/evidence/rh-mainnet-preparation-2026-09-13/runtime-plan.json",
-  "priorRuntimePlanStatus": "SUPERSEDED_BY_QUOTE_ONLY_ROUTER_CONSTRUCTOR",
-  "evidenceDirectory": "docs/reviews/evidence/quote-only-launch-2026-09-13/",
-  "runtimePlan": "../../docs/reviews/evidence/quote-only-launch-2026-09-13/runtime-plan.json"
+  "priorRuntimePlan": "../../docs/reviews/evidence/quote-only-launch-2026-09-13/runtime-plan.json",
+  "priorRuntimePlanStatus": "SUPERSEDED_BY_RAW_CLAIMS_AND_REGISTRY_SERVICE_REMOVAL",
+  "evidenceDirectory": "docs/reviews/evidence/raw-claims-offchain-services-2026-09-13/",
+  "runtimePlan": "../../docs/reviews/evidence/raw-claims-offchain-services-2026-09-13/runtime-plan.json",
+  "rewardClaims": "ORIGINAL_ASSETS_ONLY",
+  "tradingServices": "OFFCHAIN_CONFIGURATION"
 }

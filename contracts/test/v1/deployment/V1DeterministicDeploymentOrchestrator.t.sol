@@ -60,8 +60,6 @@ contract V1DeterministicDeploymentOrchestratorTest is Test {
             initialAdmin: address(this),
             poolManager: address(poolManager),
             positionManager: address(positionManager),
-            swapRouter: address(swapRouter),
-            quoter: address(quoter),
             platformTreasury: address(platformTreasury),
             feePolicyId: FEE_POLICY_ID
         });

@@ -1,3 +1,5 @@
+import { decodeCoreMarketRoute } from '../../chain/src/market-route.ts';
+import { externalTradingService } from '../../chain/src/external-trading.ts';
 import type { Pool } from 'pg';
 import {
   decodeFunctionResult, encodeFunctionData, keccak256, type Abi, type Address, type Hex,
@@ -82,14 +84,12 @@ export async function observeF72Market(input: ObserveF72MarketInput): Promise<Js
   const reverse = hex32(await readFunction(input, REGISTRY, f72ReadAbis.MarketRegistryV1 as Abi, 'marketIdByToken', [memeToken]), 'market reverse identity');
   if (reverse !== input.creation.marketId) throw new Error('market reverse identity mismatch');
 
-  const [routeValue, keyValue, canonicalPoolIdValue, swapRouterValue, quoterValue, executorValue,
+  const [routeValue, keyValue, canonicalPoolIdValue, executorValue,
     quoteAssetValue, creatorTaxValue, realQuoteReserveValue, sellableTokensValue, reservedTokensValue, readyValue, feesValue,
     tokenMarketValue, tokenFactoryValue, nameValue, symbolValue, metadataValue, deployedAtValue, tokenCodeHash] = await Promise.all([
     readFunction(input, REGISTRY, f72ReadAbis.MarketRegistryV1 as Abi, 'canonicalRoute', [input.creation.marketId]),
     readFunction(input, REGISTRY, f72ReadAbis.MarketRegistryV1 as Abi, 'canonicalPoolKey', [input.creation.marketId]),
     readFunction(input, REGISTRY, f72ReadAbis.MarketRegistryV1 as Abi, 'canonicalPoolId', [input.creation.marketId]),
-    readFunction(input, REGISTRY, f72ReadAbis.MarketRegistryV1 as Abi, 'swapRouter', []),
-    readFunction(input, REGISTRY, f72ReadAbis.MarketRegistryV1 as Abi, 'quoter', []),
     readFunction(input, REGISTRY, f72ReadAbis.MarketRegistryV1 as Abi, 'graduationExecutor', []),
     readFunction(input, curve, f72ReadAbis.TickerGardenCurve as Abi, 'quoteAsset', []),
     readFunction(input, curve, f72ReadAbis.TickerGardenCurve as Abi, 'creatorTaxBps', []),
@@ -128,9 +128,7 @@ export async function observeF72Market(input: ObserveF72MarketInput): Promise<Js
     || address(route.quoteAsset, 'route quoteAsset') !== quoteAsset || address(route.memeToken, 'route memeToken') !== memeToken
     || address(route.curve, 'route curve') !== curve || address(route.gauge, 'route gauge') !== gauge
     || safeNumber(route.sourceVersion, 32, 'route sourceVersion') !== sourceVersion
-    || safeNumber(route.launchPhase, 8, 'route launchPhase') !== launchPhase
-    || address(route.swapRouter, 'route router') !== address(swapRouterValue, 'registry router')
-    || address(route.quoter, 'route quoter') !== address(quoterValue, 'registry quoter')) throw new Error('canonical route binding mismatch');
+    || safeNumber(route.launchPhase, 8, 'route launchPhase') !== launchPhase) throw new Error('canonical route binding mismatch');
   const graduated = launchPhase === 1;
   if (Boolean(route.curveTradingEnabled) !== !graduated || Boolean(route.poolTradingEnabled) !== graduated
     || (graduated && poolId !== canonicalPoolId)) throw new Error('canonical route lifecycle mismatch');
@@ -153,7 +151,7 @@ export async function observeF72Market(input: ObserveF72MarketInput): Promise<Js
     poolId: graduated ? poolId : null,
     poolKey: graduated ? jsonPoolKey(key) : null,
     canonicalRoute: {
-      router: address(route.swapRouter, 'route router'), quoter: address(route.quoter, 'route quoter'),
+      router: externalTradingService(input.creation.source.chainId)?.router ?? ZERO_ADDRESS, quoter: externalTradingService(input.creation.source.chainId)?.quoter ?? ZERO_ADDRESS,
       hook: address(route.hook, 'route hook'), launchLocker: address(route.launchLocker, 'launchLocker'),
       graduationExecutor: address(executorValue, 'graduationExecutor'),
       curveTradingEnabled: Boolean(route.curveTradingEnabled), poolTradingEnabled: Boolean(route.poolTradingEnabled), sourceVersion, launchPhase,
@@ -192,7 +190,7 @@ export async function projectF72Markets(input: {
 
 async function readFunction(input: ObserveF72MarketInput, target: Address, abi: Abi, functionName: string, args: readonly unknown[]): Promise<unknown> {
   const raw = await consensusRawCall(input, target, abi, functionName, args);
-  return decodeFunctionResult({ abi, functionName, data: raw });
+  return functionName === 'canonicalRoute' ? decodeCoreMarketRoute(raw) : decodeFunctionResult({ abi, functionName, data: raw });
 }
 
 async function consensusRawCall(input: ObserveF72MarketInput, target: Address, abi: Abi, functionName: string, args: readonly unknown[]): Promise<Hex> {

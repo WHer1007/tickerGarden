@@ -142,8 +142,6 @@ contract DeployV1Deterministic is V1ReleaseGate {
             initialAdmin: vm.envAddress("V1_INITIAL_ADMIN"),
             poolManager: vm.envAddress("V1_POOL_MANAGER"),
             positionManager: vm.envAddress("V1_POSITION_MANAGER"),
-            swapRouter: vm.envAddress("V1_SWAP_ROUTER"),
-            quoter: vm.envAddress("V1_QUOTER"),
             platformTreasury: vm.envAddress("V1_PLATFORM_TREASURY"),
             feePolicyId: vm.envBytes32("V1_FEE_POLICY_ID")
         });
@@ -159,8 +157,7 @@ contract DeployV1Deterministic is V1ReleaseGate {
         _assertConfiguredCodeHash(
             "V1_PERMIT2", IV1PositionManagerBinding(config.positionManager).permit2(), "V1_PERMIT2_CODEHASH"
         );
-        _assertConfiguredCodeHash("V1_SWAP_ROUTER", config.swapRouter, "V1_SWAP_ROUTER_CODEHASH");
-        _assertConfiguredCodeHash("V1_QUOTER", config.quoter, "V1_QUOTER_CODEHASH");
+
         _validatePlatformTreasury(
             config.platformTreasury, config.initialAdmin, vm.envBytes32("V1_PLATFORM_TREASURY_CODEHASH")
         );
@@ -173,7 +170,6 @@ contract DeployV1Deterministic is V1ReleaseGate {
         _assertAddress(
             "V1_PERMIT2", vm.envAddress("V1_PERMIT2"), IV1PositionManagerBinding(config.positionManager).permit2()
         );
-        if (config.swapRouter == config.quoter) revert InvalidConfiguration("ROUTER_QUOTER_ALIAS");
     }
 
     function _assertExistingOrchestrator(

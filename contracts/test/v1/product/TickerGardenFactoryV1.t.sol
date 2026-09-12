@@ -493,9 +493,7 @@ contract TickerGardenFactoryV1Test is Test {
             address(quoteConfigs),
             address(baselineConfigs),
             address(templateConfigs),
-            address(graduation),
-            address(stockVault),
-            address(allocationManager)
+            address(graduation)
         );
         graduation.setMarketRegistry(marketRegistry);
         revenueRegistry = new CreatorRevenueRegistry(predictedFactory, address(marketRegistry));
