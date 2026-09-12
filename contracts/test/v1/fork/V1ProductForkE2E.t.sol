@@ -119,10 +119,22 @@ contract V1ProductForkE2ETest is Test {
 
     receive() external payable {}
 
+    function _forkBlockNumber() internal view virtual returns (uint256) {
+        return FORK_BLOCK_NUMBER;
+    }
+
+    function _forkBlockHash() internal view virtual returns (bytes32) {
+        return FORK_BLOCK_HASH;
+    }
+
+    function _forkL1BlockNumber() internal view virtual returns (uint256) {
+        return FORK_L1_BLOCK_NUMBER;
+    }
+
     function setUp() public {
         assertEq(block.chainid, 4663, "fork chain");
-        assertEq(IArbSys(address(100)).arbBlockNumber(), FORK_BLOCK_NUMBER, "fork L2 block");
-        assertEq(block.number, FORK_L1_BLOCK_NUMBER, "fork L1 block");
+        assertEq(IArbSys(address(100)).arbBlockNumber(), _forkBlockNumber(), "fork L2 block");
+        assertEq(block.number, _forkL1BlockNumber(), "fork L1 block");
         _assertExternalState();
         _deployRuntimeGraph();
         _activateConfiguration();
@@ -133,9 +145,9 @@ contract V1ProductForkE2ETest is Test {
         CanonicalRoute memory route = _graduateMarket(marketId, curve);
         _exercisePrincipalFirstRageQuit(marketId, gauge);
 
-        console2.log("fork block", FORK_BLOCK_NUMBER);
+        console2.log("fork block", _forkBlockNumber());
         console2.log("fork block hash");
-        console2.logBytes32(FORK_BLOCK_HASH);
+        console2.logBytes32(_forkBlockHash());
         console2.log("market", uint256(marketId));
         console2.log("factory", address(factory));
         console2.log("hook", plan.hook);

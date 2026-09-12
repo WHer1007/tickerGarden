@@ -40,6 +40,9 @@
     "holder:run:test": "node tools/holder-rewards/worker.mjs --execute --run",
     "test:holder-worker": "node --test tools/holder-rewards/*.test.mjs",
     "test:holder-contracts": "node tools/run-forge.mjs test --match-path 'test/v1/treasury/**'",
-    "test:current-rewards": "node --test tools/current-rewards-surface.test.mjs"
+    "test:current-rewards": "node --test tools/current-rewards-surface.test.mjs",
+    "check:fork-track:mainnet": "node tools/check-rh-mainnet-candidate-fork.mjs",
+    "check:mainnet-staged-simulation": "node tools/simulate-rh-mainnet-staged.mjs",
+    "check:mainnet-accounts": "node tools/verify-rh-mainnet-accounts.mjs"
   }
 }

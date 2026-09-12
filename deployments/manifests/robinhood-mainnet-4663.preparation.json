@@ -1,0 +1,44 @@
+{
+  "status": "CONFIGURED_NOT_DEPLOYMENT_ELIGIBLE_NOT_BROADCAST",
+  "chainId": 4663,
+  "publicRpc": "https://rpc.mainnet.chain.robinhood.com",
+  "addresses": {
+    "platformTreasury": "0xB993fD249D997EfB3F4E2f7F2948FcC247e4BC7b",
+    "governance": "0x9d24c6D24CaCCF9C5Fc03d566D3f2c4C42b77248",
+    "deployer": "0xaF8D8Ac7F359135f19aE6b6f63FC0e7053C7BA31",
+    "initialAdmin": "0xaF8D8Ac7F359135f19aE6b6f63FC0e7053C7BA31",
+    "pauseGuardian": "0xB993fD249D997EfB3F4E2f7F2948FcC247e4BC7b",
+    "unpause": "0x9d24c6D24CaCCF9C5Fc03d566D3f2c4C42b77248"
+  },
+  "roleDelaysSeconds": {
+    "governance": 172800,
+    "unpause": 86400,
+    "pauseGuardian": 0
+  },
+  "forkPin": {
+    "blockNumber": "61326136",
+    "blockHash": "0x6f97ce05b0e6e33c7343b17a9c815124ced2a035e26a8c52b30358827b6db4e0",
+    "l1BlockNumber": "25963196"
+  },
+  "safeEvidence": "../../docs/reviews/evidence/rh-mainnet-preparation-2026-09-13/accounts.json",
+  "quoteManifest": "robinhood-mainnet-4663.paired-assets.json",
+  "stakeManifest": "robinhood-mainnet-4663.staking-assets.json",
+  "openGates": [
+    "independent-staged-deployer-security-review",
+    "per-transaction-gas-and-calldata-verification",
+    "all-stock-native-route-coverage",
+    "all-asset-activation-plan",
+    "unsigned-transaction-pack",
+    "safe-signature-ownership-and-execution-drill",
+    "release-security-signoff"
+  ],
+  "broadcastAuthorized": false,
+  "passedChecks": [
+    "safe-pinned-read-only-configuration",
+    "recent-fixed-block-business-fork-2-tests",
+    "staged-orchestrator-local-4-tests",
+    "actual-address-staged-runtime-simulation",
+    "external-dependency-codehashes-and-position-manager-bindings"
+  ],
+  "runtimePlan": "../../docs/reviews/evidence/rh-mainnet-preparation-2026-09-13/runtime-plan.json"
+}
