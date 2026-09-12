@@ -118,7 +118,6 @@ contract DeployV1RobinhoodTestnetStaged is V1ReleaseGate {
         }
     }
 
-
     function _broadcast(
         V1BootstrapContext memory context,
         V1DeploymentPayload memory payload,
@@ -174,8 +173,6 @@ contract DeployV1RobinhoodTestnetStaged is V1ReleaseGate {
         config = V1DeploymentConfig({
             initialAdmin: vm.envAddress("V1_INITIAL_ADMIN"),
             poolManager: vm.envAddress("V1_POOL_MANAGER"),
-            nativeQuotePoolFee: _toUint24("V1_NATIVE_QUOTE_POOL_FEE", vm.envUint("V1_NATIVE_QUOTE_POOL_FEE")),
-            nativeQuoteTickSpacing: _toInt24("V1_NATIVE_QUOTE_TICK_SPACING", vm.envInt("V1_NATIVE_QUOTE_TICK_SPACING")),
             positionManager: vm.envAddress("V1_POSITION_MANAGER"),
             swapRouter: vm.envAddress("V1_SWAP_ROUTER"),
             quoter: vm.envAddress("V1_QUOTER"),

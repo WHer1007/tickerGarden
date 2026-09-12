@@ -1,52 +1,20 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { addBpsCeil, resolveLaunchFunding } from "../src/v1/launchFunding.ts";
-
+import { resolveLaunchFunding } from "../src/v1/launchFunding.ts";
+import { ZERO_ADDRESS } from "../src/runtime/model.ts";
 const account = "0x1111111111111111111111111111111111111111" as const;
 const quote = "0x2222222222222222222222222222222222222222" as const;
-const quoter = "0x3333333333333333333333333333333333333333" as const;
-
-test("slippage ceiling never rounds the ETH cap below its exact basis-point value", () => {
-  assert.equal(addBpsCeil(1n, 100n), 2n);
-  assert.equal(addBpsCeil(10_000n, 100n), 10_100n);
+function client(balance: bigint) { return { getBalance: async()=>1000n, readContract: async()=>balance, simulateContract: async()=>{ throw Error("External swaps must not be requested"); } } as never; }
+test("wallet Quote is the sole source for ERC20 first buy", async()=>{
+ const r=await resolveLaunchFunding({client:client(100n),account,quoteAsset:quote,quoteAmount:100n});
+ assert.equal(r.mode,"quote");assert.equal(r.quotedNativeInput,0n);
 });
-
-test("sufficient Quote selects the direct path without consulting the v4 quoter", async () => {
-  let simulations = 0;
-  const result = await resolveLaunchFunding({
-    client: {
-      getBalance: async () => 5n,
-      readContract: async () => 100n,
-      simulateContract: async () => { simulations += 1; throw new Error("unexpected"); },
-    } as never,
-    account, quoteAsset: quote, quoteAmount: 100n, quoter, poolFee: 10_000, tickSpacing: 200,
-  });
-  assert.equal(result.mode, "quote");
-  assert.equal(simulations, 0);
+test("ETH cannot substitute for insufficient Quote",async()=>{
+ await assert.rejects(resolveLaunchFunding({client:client(99n),account,quoteAsset:quote,quoteAmount:100n}),/Insufficient paired asset/);
 });
-
-test("zero or insufficient Quote automatically quotes full exact output from ETH", async () => {
-  const result = await resolveLaunchFunding({
-    client: {
-      getBalance: async () => 10_000n,
-      readContract: async () => 25n,
-      simulateContract: async () => ({ result: [1_000n, 80_000n] }),
-    } as never,
-    account, quoteAsset: quote, quoteAmount: 100n, quoter, poolFee: 10_000, tickSpacing: 200,
-  });
-  assert.equal(result.mode, "native-fallback");
-  assert.equal(result.quoteBalance, 25n);
-  assert.equal(result.quotedNativeInput, 1_000n);
-  assert.equal(result.maxNativeQuoteInput, 1_010n);
+test("native first buy uses its exact supplied amount",async()=>{
+ const r=await resolveLaunchFunding({client:client(0n),account,quoteAsset:ZERO_ADDRESS,quoteAmount:20n});assert.equal(r.quotedNativeInput,20n);
 });
-
-test("invalid or unavailable fallback quotes fail closed", async () => {
-  await assert.rejects(resolveLaunchFunding({
-    client: {
-      getBalance: async () => 10_000n,
-      readContract: async () => 0n,
-      simulateContract: async () => ({ result: [0n, 0n] }),
-    } as never,
-    account, quoteAsset: quote, quoteAmount: 100n, quoter, poolFee: 10_000, tickSpacing: 200,
-  }), /invalid quote/);
+test("create without buy needs no ERC20 balance read",async()=>{
+ const r=await resolveLaunchFunding({client:{getBalance:async()=>1000n,readContract:async()=>{throw Error("unused balance");}} as never,account,quoteAsset:quote,quoteAmount:0n});assert.equal(r.mode,"quote");assert.equal(r.quoteBalance,null);
 });

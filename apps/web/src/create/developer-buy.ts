@@ -18,11 +18,10 @@ export class DeveloperBuyBalanceCache {
 }
 
 export function developerBuyNotice(input: {
-  amount: bigint; balance: bigint; symbol: string; displayAmount: string; native: boolean; autoBuy: boolean;
+  amount: bigint; balance: bigint; symbol: string; displayAmount: string; native: boolean;
 }): string {
   if (input.amount <= input.balance) return '';
   // The launch blocker reports the total ETH shortfall, including fees and gas.
   if (input.native) return '';
-  if (!input.autoBuy) return `Add ${input.symbol}. Auto-buy unavailable.`;
-  return `ETH will buy the full ${input.displayAmount} ${input.symbol} at launch. Allow ETH for the buy, launch fee and gas.`;
+  return `Add ${input.symbol} to your wallet before the developer buy.`;
 }

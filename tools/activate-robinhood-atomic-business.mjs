@@ -24,7 +24,6 @@ const backup=`${dir}/pre-business-activation`;fs.mkdirSync(backup,{recursive:tru
 const snapshot=p=>{const base=p.includes('.env')?`/Users/dear/.config/tickergarden/backups/${releaseId}`:backup;fs.mkdirSync(base,{recursive:true,mode:0o700});const target=`${base}/${p.replaceAll('/','__')}`;if(fs.existsSync(p)&&!fs.existsSync(target)){fs.copyFileSync(p,target);fs.chmodSync(target,0o600)}};
 const write=(p,v)=>fs.writeFileSync(p,JSON.stringify(v,null,2)+'\n');
 const paired=read(`${dir}/paired-assets.json`),stocks=read(`${dir}/stock-assets.json`);
-for(const a of paired.assets)if(a.assetKind==='OFFICIAL_STOCK'){a.nativeQuotePoolFee=10000;a.nativeQuoteTickSpacing=200;}
 write(`${dir}/paired-assets.json`,paired);
 for(const [p,value] of [['deployments/manifests/robinhood-testnet-46630.paired-assets.json',paired],['deployments/manifests/robinhood-testnet-46630.stock-assets.json',stocks]]){snapshot(p);write(p,value);}
 const components=Object.fromEntries(deployment.contracts.map(x=>[x.name,x.address.toLowerCase()]));

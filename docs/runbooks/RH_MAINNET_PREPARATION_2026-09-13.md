@@ -1,5 +1,7 @@
 # RH 主网地址确认与分阶段准备
 
+> 历史候选记录：本报告中的首买兑换参数和运行时地址计划已被后续 Quote-only Router 修改取代。最新状态见[首买职责边界与外部依赖审查](../reviews/QUOTE_ONLY_LAUNCH_AND_EXTERNALITY_REVIEW_2026-09-13.md)。
+
 日期：2026-09-13。状态：**NOT_PRODUCTION_READY / NOT_BROADCAST**。已完成地址登记、只读链上配置核验、近期主网 Fork 和分阶段运行时模拟。未生成可签名交易包，未修改主网状态。
 
 ## 地址与用户确认的角色

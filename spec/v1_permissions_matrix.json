@@ -289,13 +289,6 @@
       "recipient": "specified_first_buy_recipient"
     },
     {
-      "module": "LaunchAndBuyRouter",
-      "signature": "unlockCallback(bytes)",
-      "caller": "POOL_MANAGER",
-      "delaySeconds": 0,
-      "recipient": "canonical_native_quote_pool_and_launch_router"
-    },
-    {
       "module": "TickerMemeTokenV1",
       "signature": "transfer(address,uint256)",
       "caller": "PUBLIC",

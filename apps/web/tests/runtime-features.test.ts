@@ -187,27 +187,6 @@ test("creator tax 500 bps survives the current createMarket ABI encoding", async
   });
   assert.equal(directErc20.request.value, 1n);
   assert.equal(directErc20.approval?.functionName, "approve");
-  const fallback = await buildLaunchAndBuyRequests({
-    router: addr("9"), launchFee: 1n, quoteIn: 10n, maxNativeQuoteInput: 25n, minTokensOut: 1n,
-    recipient: addr("5"), config: erc20Config, previewMarketEconomics: async () => expectedEconomics,
-  });
-  assert.equal(fallback.request.value, 26n);
-  assert.equal(fallback.approval, undefined);
-  await assert.rejects(
-    () => buildLaunchAndBuyRequests({
-      router: addr("9"), launchFee: 1n, quoteIn: 10n, maxNativeQuoteInput: 0n, minTokensOut: 1n,
-      recipient: addr("5"), config: erc20Config, previewMarketEconomics: async () => expectedEconomics,
-    }),
-    /maxNativeQuoteInput must be a positive uint256/,
-  );
-  await assert.rejects(
-    () => buildLaunchAndBuyRequests({
-      router: addr("9"), launchFee: 1n, quoteIn: 10n, maxNativeQuoteInput: (1n << 256n) - 1n, minTokensOut: 1n,
-      recipient: addr("5"), config: erc20Config, previewMarketEconomics: async () => expectedEconomics,
-    }),
-    /native fallback launch value exceeds uint256/,
-  );
-
   assert.throws(() => deriveCreateMarketParams({ ...config, creatorTaxBps: 501 }), /between 0 and 500 bps/);
 });
 

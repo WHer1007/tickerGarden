@@ -3,7 +3,7 @@
   "executionSpecId": "V1-EXEC-11",
   "source": "COMPILED_SOLC_0_8_26_INTERFACE_ARTIFACTS",
   "compilerVersion": "0.8.26+commit.8a97fa7a",
-  "interfaceSourceKeccak256": "0x3394fc9c2a0dd9ce9cb75e2bfcd0dd1deadce43a5e90098a5470aa4179fca19d",
+  "interfaceSourceKeccak256": "0xe1c5afdab63411b386b68b3cb668eb00b69de79bb901e4ad28ce56a3b8d45018",
   "compiledSourceTypes": {
     "aliases": {
       "BalanceDelta": "int256"
@@ -229,7 +229,7 @@
     {
       "target": "LaunchAndBuyRouter",
       "artifact": "contracts/out-v1/IV1Protocol.sol/ILaunchAndBuyRouter.json",
-      "functionCount": 5,
+      "functionCount": 3,
       "eventCount": 0
     },
     {
@@ -621,18 +621,6 @@
       "stateDelayAnchor": "NONE",
       "precondition": "NONE",
       "recipient": "specified_first_buy_recipient"
-    },
-    {
-      "target": "LaunchAndBuyRouter",
-      "displaySignature": "unlockCallback(bytes)",
-      "canonicalSignature": "unlockCallback(bytes)",
-      "selector": "0x91dd7346",
-      "caller": "POOL_MANAGER",
-      "executionDelaySeconds": 0,
-      "stateDelaySeconds": 0,
-      "stateDelayAnchor": "NONE",
-      "precondition": "NONE",
-      "recipient": "canonical_native_quote_pool_and_launch_router"
     },
     {
       "target": "TickerMemeTokenV1",

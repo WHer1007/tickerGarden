@@ -2660,7 +2660,6 @@ function renderDeveloperBuyBalance(): void {
       const amount = raw ? parseTokenAmount(raw, asset.decimals, "Developer buy") : 0n;
       notice.textContent = developerBuyNotice({ amount, balance, symbol: asset.symbol,
         displayAmount: formatTokenAmount(amount, asset.decimals), native,
-        autoBuy: Boolean(asset.nativeQuotePoolFee && asset.nativeQuoteTickSpacing && activePairedConfig(asset, foundation?.quotes ?? [], robinhoodChain.id)),
       });
       notice.hidden = !notice.textContent;
     } catch { /* Field validation explains invalid amounts. */ }
@@ -3165,31 +3164,17 @@ async function calculateLaunchFunding(preview: LaunchPreview): Promise<LaunchFun
   const decimals = await quoteDecimalsFor(preview.selected);
   const amountText = query<HTMLInputElement>("[name=firstBuyAmount]")?.value.trim() ?? "";
   const quoteAmount = developerBuyMode(amountText) === "create-buy" ? parseTokenAmount(amountText, decimals, "First buy amount") : 0n;
-  const releaseAsset = releasePairForSelection(preview.selected.quote.configId, foundation.quotes);
-  const quoter = canonicalAddress(await publicClient.readContract({ abi: v1Abis.MarketRegistryV1, address: foundation.bindings.marketRegistry, functionName: "quoter" }), "V4 Quoter");
-  if (preview.selected.quote.quoteAsset !== ZERO_ADDRESS && quoteAmount > 0n && (!releaseAsset?.nativeQuotePoolFee || !releaseAsset.nativeQuoteTickSpacing) ) {
-    const quoteBalance = await publicClient.readContract({ abi: erc20Abi, address: preview.selected.quote.quoteAsset, functionName: "balanceOf", args: [preview.creator] });
-    if (quoteBalance < quoteAmount) throw new Error(`${releaseAsset?.symbol ?? "This Quote"} has no approved direct ETH route on this network`);
-  }
   const funding = await resolveLaunchFunding({
     client: publicClient as never,
     account: preview.creator,
     quoteAsset: preview.selected.quote.quoteAsset,
     quoteAmount,
-    quoter,
-    poolFee: releaseAsset?.nativeQuotePoolFee ?? 10_000,
-    tickSpacing: releaseAsset?.nativeQuoteTickSpacing ?? 200,
   });
-  if (funding.mode === "native-fallback") {
-    const routerManager = await publicClient.readContract({ address: foundation.bindings.launchRouter, abi: v1Abis.LaunchAndBuyRouter, functionName: "poolManager" });
-    const quoterManager = await publicClient.readContract({ address: quoter, abi: [{ type: "function", name: "poolManager", stateMutability: "view", inputs: [], outputs: [{ type: "address" }] }], functionName: "poolManager" });
-    if (routerManager.toLowerCase() !== quoterManager.toLowerCase() || routerManager === ZERO_ADDRESS) throw new Error("Native first-buy router and quoter bindings do not match");
-  }
   const fees = await publicClient.estimateFeesPerGas();
   const feePerGas = fees.maxFeePerGas ?? fees.gasPrice;
   if (feePerGas === undefined) throw new Error("Network gas price is unavailable");
   const gasCost = CONSERVATIVE_LAUNCH_GAS * feePerGas;
-  const transactionValue = foundation.launchFee + (funding.mode === "native" ? quoteAmount : funding.maxNativeQuoteInput ?? 0n);
+  const transactionValue = foundation.launchFee + (funding.mode === "native" ? quoteAmount : 0n);
   return Object.freeze({ ...funding, gasCost, totalRequired: transactionValue + gasCost, quoteDecimals: decimals });
 }
 
@@ -3197,14 +3182,14 @@ function renderLaunchFunding(funding: LaunchFunding & Readonly<{ gasCost: bigint
   const panel = query<HTMLElement>("[data-launch-funding]");
   if (panel) panel.hidden = false;
   const symbol = releasePairForSelection(query<HTMLSelectElement>("[name=quoteAssetConfigId]")?.value ?? "", foundation?.quotes ?? [])?.symbol ?? "Quote";
-  // The sidebar already shows the pair and developer-buy amount. Only call out a conversion here.
-  const conversion=funding.mode==='native-fallback';
+  // The first buy uses the selected asset already held by the wallet.
+  const conversion=false;
   for(const selector of ['[data-funding-route]','[data-funding-swap]']){
     const row=query<HTMLElement>(selector)?.parentElement;if(row)row.hidden=!conversion;
   }
-  text("[data-funding-route]", funding.mode === "native-fallback" ? `Automatic ETH → ${symbol}` : funding.mode === "quote" ? `Wallet ${symbol}` : "ETH");
-  text("[data-funding-quote-balance]", funding.mode === "native" ? "ETH" : `${formatTokenAmount(funding.quoteBalance, funding.quoteDecimals)} ${symbol}`);
-  text("[data-funding-swap]", funding.mode === "native-fallback" ? `${formatTokenAmount(funding.maxNativeQuoteInput ?? 0n, 18)} ETH max` : funding.mode === "native" ? `${formatTokenAmount(funding.quotedNativeInput, 18)} ETH` : "0 ETH");
+  text("[data-funding-route]", funding.mode === "quote" ? `Wallet ${symbol}` : "ETH");
+  text("[data-funding-quote-balance]", funding.mode === "native" ? "ETH" : `${funding.quoteBalance === null ? "—" : formatTokenAmount(funding.quoteBalance, funding.quoteDecimals)} ${symbol}`);
+  text("[data-funding-swap]", funding.mode === "native" ? `${formatTokenAmount(funding.quotedNativeInput, 18)} ETH` : "0 ETH");
   text("[data-funding-gas]", `${formatTokenAmount(funding.gasCost, 18)} ETH allowance`);
   text("[data-funding-total]", `${formatTokenAmount(funding.totalRequired, 18)} ETH`);
   text("[data-funding-balance]", `${formatTokenAmount(funding.ethBalance, 18)} ETH`);
@@ -3349,7 +3334,6 @@ async function performLaunch(): Promise<void> {
         recipient: preview.creator,
         config: preview.selected,
         previewMarketEconomics: previewEconomics,
-        maxNativeQuoteInput: freshFunding.mode === "native-fallback" ? freshFunding.maxNativeQuoteInput : undefined,
       });
       if (probe.approval) {
         await ensureStandaloneApproval(probe.approval, preview.selected.quote.quoteAsset, foundation.bindings!.launchRouter, quoteIn, foundation.sync, verifyChain, activeWallet);
@@ -3360,8 +3344,8 @@ async function performLaunch(): Promise<void> {
       const simulated = await publicClient.simulateContract({ ...probe.request, account: preview.creator } as never) as { result: unknown };
       const tokensOut = simulationTuple(simulated.result, 2, "first-buy output");
       const refund = simulationTuple(simulated.result, 3, "first-buy refund");
-      if (tokensOut <= 0n || refund > (freshFunding.mode === "native-fallback" ? freshFunding.maxNativeQuoteInput! : quoteIn)) throw new Error("Launch simulation returned an invalid first-buy result");
-      expectedSpent = freshFunding.mode === "native-fallback" ? null : quoteIn - refund;
+      if (tokensOut <= 0n || refund > quoteIn) throw new Error("Launch simulation returned an invalid first-buy result");
+      expectedSpent = quoteIn - refund;
       expectedMinimum = minimumAfterSlippage(tokensOut, slippageBps);
       const built = await buildLaunchAndBuyRequests({
         router: foundation.bindings!.launchRouter,
@@ -3371,7 +3355,6 @@ async function performLaunch(): Promise<void> {
         recipient: preview.creator,
         config: preview.selected,
         previewMarketEconomics: previewEconomics,
-        maxNativeQuoteInput: freshFunding.mode === "native-fallback" ? freshFunding.maxNativeQuoteInput : undefined,
       });
       request = built.request;
     }

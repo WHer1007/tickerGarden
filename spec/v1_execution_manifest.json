@@ -838,5 +838,18 @@
     "otherUserLiabilities": "UNCHANGED",
     "alreadyPaidFunds": "CANNOT_BE_RECOVERED_BY_ROTATION",
     "proxyStateMonitoring": "RUNTIME_HASH_DOES_NOT_PIN_SAFE_OWNERS_MODULES_GUARD_OR_IMPLEMENTATION"
+  },
+  "launchFundingBoundary": {
+    "quoteSource": "CALLER_WALLET",
+    "nativeValue": "LAUNCH_FEE_PLUS_FIRST_BUY",
+    "erc20NativeValue": "EXACT_LAUNCH_FEE",
+    "externalSwapInRouter": false,
+    "poolManagerDependencyInRouter": false,
+    "quoteRefundRecipient": "CALLER",
+    "atomicScope": [
+      "CREATE_MARKET",
+      "FIRST_BUY"
+    ],
+    "externalAcquisitionAtomicWithLaunch": false
   }
 }

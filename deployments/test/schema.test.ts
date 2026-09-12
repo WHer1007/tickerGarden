@@ -137,7 +137,7 @@ test("accepts a complete OFFICIAL_STOCK Quote and rejects incomplete or non-Beac
   assert.equal(validateV1DeploymentManifestSchema(wrongProxy).valid, false);
 });
 
-test("requires exactly 87 protocol and 6 AccessManager permissions", () => {
+test("requires exactly 86 protocol and 6 AccessManager permissions", () => {
   const candidate = clone(validManifest());
   const manager = candidate.accessManager as JsonRecord;
   manager.protocolPermissions = (manager.protocolPermissions as unknown[]).slice(1);

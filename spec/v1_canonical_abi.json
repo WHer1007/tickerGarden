@@ -319,19 +319,6 @@
       "recipient": "specified_first_buy_recipient"
     },
     {
-      "module": "LaunchAndBuyRouter",
-      "displaySignature": "unlockCallback(bytes)",
-      "canonicalSignature": "unlockCallback(bytes)",
-      "selector": "0x91dd7346",
-      "selectorHash": "FIRST_4_BYTES_OF_KECCAK256_CANONICAL_SIGNATURE",
-      "caller": "POOL_MANAGER",
-      "executionDelaySeconds": 0,
-      "stateDelaySeconds": 0,
-      "stateDelayAnchor": "NONE",
-      "precondition": "NONE",
-      "recipient": "canonical_native_quote_pool_and_launch_router"
-    },
-    {
       "module": "TickerMemeTokenV1",
       "displaySignature": "transfer(address,uint256)",
       "canonicalSignature": "transfer(address,uint256)",

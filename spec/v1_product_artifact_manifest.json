@@ -178,31 +178,27 @@
     {
       "module": "LaunchAndBuyRouter",
       "source": "contracts/src/v1/modules/LaunchAndBuyRouter.sol",
-      "sourceSha256": "0x744d1caa2155c6ded396cc9d9bbc661847571dbc5526a2f0dd456ce5407a62ef",
+      "sourceSha256": "0x497f0c84551b6f32e273be2c6b2ea661148d6d8e0f5925ab2d6c3b45ad04b667",
       "artifact": "contracts/out-v1/LaunchAndBuyRouter.sol/LaunchAndBuyRouter.json",
       "interfaceArtifact": "contracts/out-v1/IV1Protocol.sol/ILaunchAndBuyRouter.json",
       "compilerVersion": "0.8.26+commit.8a97fa7a",
       "creationCode": {
-        "bytes": 16110,
-        "keccak256": "0xc6ce6d04cd3502fe013f1aa99ae2537e7061493ec295e797bbea4f48d4e4aad8"
+        "bytes": 6596,
+        "keccak256": "0x9ea596b8b548fe756ecbd76d4045557b8d1686c553af9ceeeb586301ee45cf17"
       },
       "runtimeTemplate": {
-        "bytes": 15297,
-        "keccak256": "0x896d3f55b57fec87aa03360bb86681bfddb8ca52130bf76d34e73df58a5caf1b",
-        "immutableReferenceGroups": 5,
+        "bytes": 6136,
+        "keccak256": "0x46c191a9c495f4a6e969fa8dc6e0ddeaa13dd2c73ad9e69ff1b5451bc8ff769a",
+        "immutableReferenceGroups": 2,
         "isFinalDeploymentCodeHash": false
       },
       "functions": [
         "approvedQuoteRegistry()",
         "factory()",
-        "launchAndBuy((bytes32,bytes32,bytes32,bytes32,bytes32,address,string,string,string,bytes32,uint16,bool,bool),uint256,uint256,address)",
-        "msgSender()",
-        "poolManager()",
-        "unlockCallback(bytes)"
+        "launchAndBuy((bytes32,bytes32,bytes32,bytes32,bytes32,address,string,string,string,bytes32,uint16,bool,bool),uint256,uint256,address)"
       ],
       "mutations": [
-        "launchAndBuy((bytes32,bytes32,bytes32,bytes32,bytes32,address,string,string,string,bytes32,uint16,bool,bool),uint256,uint256,address)",
-        "unlockCallback(bytes)"
+        "launchAndBuy((bytes32,bytes32,bytes32,bytes32,bytes32,address,string,string,string,bytes32,uint16,bool,bool),uint256,uint256,address)"
       ],
       "events": []
     },
@@ -1914,5 +1910,5 @@
       ]
     }
   ],
-  "manifestHash": "0xb2992a604c9a2140d3b66a91a9930c19c3e27e3b183d7f9ebfb1177e479a205d"
+  "manifestHash": "0x27154eb17be6dd4de43d0c9b58c0122c9fce05c79965faf494e9357bf47b4905"
 }

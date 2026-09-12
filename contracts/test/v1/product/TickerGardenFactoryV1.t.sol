@@ -4,14 +4,6 @@ pragma solidity 0.8.26;
 import {Test} from "forge-std/Test.sol";
 import {Vm} from "forge-std/Vm.sol";
 import {Errors} from "@openzeppelin/contracts/utils/Errors.sol";
-import {Currency} from "@uniswap/v4-core/src/types/Currency.sol";
-import {PoolKey} from "@uniswap/v4-core/src/types/PoolKey.sol";
-import {SwapParams} from "@uniswap/v4-core/src/types/PoolOperation.sol";
-import {BalanceDelta, toBalanceDelta} from "@uniswap/v4-core/src/types/BalanceDelta.sol";
-
-interface IFactoryUnlockCallback {
-    function unlockCallback(bytes calldata data) external returns (bytes memory);
-}
 
 import {
     AssetView,
@@ -422,74 +414,6 @@ contract FactoryRouterCaller {
     }
 }
 
-contract FactoryV4PoolManagerMock {
-    address public quote;
-    address private locker;
-    mapping(bytes32 => bytes32) private transientValues;
-    uint256 public nativeCost;
-
-    function configure(address quote_, uint256 nativeCost_) external {
-        quote = quote_;
-        nativeCost = nativeCost_;
-    }
-
-    function unlock(bytes calldata data) external returns (bytes memory result) {
-        locker = msg.sender;
-        result = IFactoryUnlockCallback(msg.sender).unlockCallback(data);
-        require(_delta(msg.sender, address(0)) == 0 && _delta(msg.sender, quote) == 0, "OPEN_DELTA");
-        locker = address(0);
-    }
-
-    function swap(PoolKey calldata key, SwapParams calldata params, bytes calldata) external returns (BalanceDelta) {
-        require(
-            msg.sender == locker && Currency.unwrap(key.currency0) == address(0)
-                && Currency.unwrap(key.currency1) == quote,
-            "BAD_POOL"
-        );
-        uint256 output = uint256(params.amountSpecified);
-        require(
-            output <= uint256(uint128(type(int128).max)) && nativeCost <= uint256(uint128(type(int128).max)), "RANGE"
-        );
-        _setDelta(msg.sender, address(0), -int256(nativeCost));
-        _setDelta(msg.sender, quote, int256(output));
-        return toBalanceDelta(-int128(int256(nativeCost)), int128(int256(output)));
-    }
-    function sync(Currency) external {}
-
-    function settle() external payable returns (uint256 paid) {
-        require(msg.sender == locker && msg.value == uint256(-_delta(msg.sender, address(0))), "BAD_SETTLE");
-        _setDelta(msg.sender, address(0), 0);
-        return msg.value;
-    }
-
-    function take(Currency currency, address to, uint256 amount) external {
-        address token = Currency.unwrap(currency);
-        require(msg.sender == locker && _delta(msg.sender, token) == int256(amount), "BAD_TAKE");
-        _setDelta(msg.sender, token, 0);
-        require(FactoryToggleApproveQuoteToken(token).transfer(to, amount), "TRANSFER");
-    }
-
-    function exttload(bytes32 slot) external view returns (bytes32) {
-        return transientValues[slot];
-    }
-
-    function exttload(bytes32[] calldata slots) external view returns (bytes32[] memory values) {
-        values = new bytes32[](slots.length);
-        for (uint256 i; i < slots.length; ++i) {
-            values[i] = transientValues[slots[i]];
-        }
-    }
-
-    function _setDelta(address target, address token, int256 value) private {
-        transientValues[keccak256(abi.encode(target, token))] = bytes32(uint256(value));
-    }
-
-    function _delta(address target, address token) private view returns (int256) {
-        return int256(uint256(transientValues[keccak256(abi.encode(target, token))]));
-    }
-    receive() external payable {}
-}
-
 contract FactoryAddressDeployer {
     function deploy(TickerGardenFactoryInit memory init) external returns (TickerGardenFactoryV1) {
         return new TickerGardenFactoryV1(init);
@@ -521,7 +445,6 @@ contract TickerGardenFactoryV1Test is Test {
     FactoryCurveFeeVaultMock internal feeVault;
     FactoryDependencyMock internal allocationManager;
     FactoryDependencyMock internal lockerImplementation;
-    FactoryV4PoolManagerMock internal fallbackPoolManager;
     FactoryGraduationExecutorMock internal graduation;
     FactoryTreasuryMock internal treasury;
     LaunchAndBuyRouter internal router;
@@ -558,16 +481,12 @@ contract TickerGardenFactoryV1Test is Test {
         hook = FactoryHookMock(CANONICAL_HOOK);
         FactoryAddressDeployer deployer = new FactoryAddressDeployer();
         address predictedFactory = vm.computeCreateAddress(address(deployer), 1);
-        fallbackPoolManager = new FactoryV4PoolManagerMock();
-        router =
-            new LaunchAndBuyRouter(predictedFactory, address(quoteConfigs), address(fallbackPoolManager), 10_000, 200);
+        router = new LaunchAndBuyRouter(predictedFactory, address(quoteConfigs));
         tokenImplementation = new TickerMemeTokenV1Implementation();
         curveImplementation = new TickerGardenCurveImplementation();
         gaugeImplementation = new MemeStockGauge();
         stock = new MockExactQuoteToken(18);
         quote = new MockExactQuoteToken(6);
-        fallbackPoolManager.configure(address(quote), 0.002 ether);
-        quote.mint(address(fallbackPoolManager), 1_000_000_000_000);
         marketRegistry = new MarketRegistryV1(
             predictedFactory,
             address(configs),
@@ -1577,28 +1496,22 @@ contract TickerGardenFactoryV1Test is Test {
         assertEq(address(router).balance, 0);
     }
 
-    function test_launchAndBuyERC20WithZeroQuoteAutomaticallyUsesNativeExactOutput() public {
-        CreateMarketParams memory params = _validParams(CREATOR, bytes32("ROUTER-ERC20-NATIVE-FALLBACK"));
-        uint256 firstBuyAmount = 1_000_000;
-        uint256 maxNativeInput = 0.003 ether;
-        uint256 creatorBefore = CREATOR.balance;
-        assertEq(quote.balanceOf(CREATOR), 0);
-        assertEq(quote.allowance(CREATOR, address(router)), 0);
-
+    function test_launchAndBuyERC20RejectsExtraETHInsteadOfExternalSwap() public {
+        CreateMarketParams memory params = _validParams(CREATOR, bytes32("NO-EXTERNAL-SWAP"));
+        (, address token, address curve, address gauge,) = factory.predictMarketAddresses(CREATOR, params);
         vm.prank(CREATOR);
-        (bytes32 marketId, address token, uint256 tokensOut, uint256 nativeRefund) =
-            router.launchAndBuy{value: LAUNCH_FEE + maxNativeInput}(params, firstBuyAmount, 1, CREATOR);
-
-        assertGt(tokensOut, 0);
-        assertEq(TickerMemeTokenV1(token).balanceOf(CREATOR), tokensOut);
-        assertEq(nativeRefund, 0.001 ether);
-        assertEq(CREATOR.balance, creatorBefore - LAUNCH_FEE - 0.002 ether);
-        assertEq(address(router).balance, 0);
-        assertEq(quote.balanceOf(address(router)), 0);
-        assertEq(marketRegistry.market(marketId).config.quoteAsset, address(quote));
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                LaunchAndBuyRouterNative.InvalidLaunchAndBuyValue.selector, LAUNCH_FEE, LAUNCH_FEE + 1 ether
+            )
+        );
+        router.launchAndBuy{value: LAUNCH_FEE + 1 ether}(params, 1_000_000, 1, CREATOR);
+        assertEq(token.code.length, 0);
+        assertEq(curve.code.length, 0);
+        assertEq(gauge.code.length, 0);
     }
 
-    function test_launchAndBuyERC20NativeFallbackRollsBackWhenMaximumIsTooLow() public {
+    function test_launchAndBuyERC20ExtraETHRollsBackWithoutCreatingMarket() public {
         CreateMarketParams memory params = _validParams(CREATOR, bytes32("ROUTER-ERC20-NATIVE-LIMIT"));
         (, address token, address curve, address gauge,) = factory.predictMarketAddresses(CREATOR, params);
         vm.prank(CREATOR);
@@ -1946,7 +1859,7 @@ contract TickerGardenFactoryV1Test is Test {
     }
 
     function test_launchAndBuyRouterHasNoIdentityOverrideOrArbitraryExecutionSurface() public {
-        bytes4[6] memory forbidden = [
+        bytes4[8] memory forbidden = [
             bytes4(
                 keccak256(
                     "launchAndBuyFor(address,(bytes32,bytes32,bytes32,bytes32,bytes32,address,string,string,string,bytes32),uint256,uint256,address)"
@@ -1956,7 +1869,9 @@ contract TickerGardenFactoryV1Test is Test {
             bytes4(keccak256("execute(address,bytes)")),
             bytes4(keccak256("multicall(bytes[])")),
             bytes4(keccak256("initialize()")),
-            bytes4(keccak256("setFactory(address)"))
+            bytes4(keccak256("setFactory(address)")),
+            bytes4(keccak256("unlockCallback(bytes)")),
+            bytes4(keccak256("poolManager()"))
         ];
         for (uint256 i; i < forbidden.length; ++i) {
             (bool success,) = address(router).call(abi.encodePacked(forbidden[i]));
@@ -1966,9 +1881,7 @@ contract TickerGardenFactoryV1Test is Test {
 
     function test_launchAndBuyRouterRejectsFactoryRegistryBindingDrift() public {
         FactoryConfigRegistryMock wrongRegistry = new FactoryConfigRegistryMock();
-        LaunchAndBuyRouter wrongRouter = new LaunchAndBuyRouter(
-            address(factory), address(wrongRegistry), address(lockerImplementation), 10_000, 200
-        );
+        LaunchAndBuyRouter wrongRouter = new LaunchAndBuyRouter(address(factory), address(wrongRegistry));
         CreateMarketParams memory params = _validParams(CREATOR, bytes32("ROUTER-BINDING"));
 
         vm.prank(CREATOR);
@@ -1986,14 +1899,14 @@ contract TickerGardenFactoryV1Test is Test {
         vm.expectRevert(
             abi.encodeWithSelector(LaunchAndBuyRouterNative.InvalidLaunchRouterDependency.selector, address(0))
         );
-        new LaunchAndBuyRouter(address(0), address(quoteConfigs), address(lockerImplementation), 10_000, 200);
+        new LaunchAndBuyRouter(address(0), address(quoteConfigs));
         vm.expectRevert(
             abi.encodeWithSelector(LaunchAndBuyRouterNative.InvalidLaunchRouterDependency.selector, address(0))
         );
-        new LaunchAndBuyRouter(address(factory), address(0), address(lockerImplementation), 10_000, 200);
+        new LaunchAndBuyRouter(address(factory), address(0));
         address noCode = address(0x123456);
         vm.expectRevert(abi.encodeWithSelector(LaunchAndBuyRouterNative.InvalidLaunchRouterDependency.selector, noCode));
-        new LaunchAndBuyRouter(address(factory), noCode, address(lockerImplementation), 10_000, 200);
+        new LaunchAndBuyRouter(address(factory), noCode);
     }
 
     function test_factorySelectorsMatchCanonicalInterfaceAndNoInitializerExists() public {

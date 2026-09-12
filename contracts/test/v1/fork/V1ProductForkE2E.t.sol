@@ -372,8 +372,6 @@ contract V1ProductForkE2ETest is Test {
         V1DeploymentConfig memory config = V1DeploymentConfig({
             initialAdmin: address(this),
             poolManager: POOL_MANAGER,
-            nativeQuotePoolFee: 10_000,
-            nativeQuoteTickSpacing: 200,
             positionManager: POSITION_MANAGER,
             swapRouter: UNIVERSAL_ROUTER,
             quoter: V4_QUOTER,

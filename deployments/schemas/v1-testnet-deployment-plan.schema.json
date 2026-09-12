@@ -53,8 +53,8 @@
     },
     "configurationInputs": {
       "type": "array",
-      "minItems": 22,
-      "maxItems": 27,
+      "minItems": 20,
+      "maxItems": 25,
       "uniqueItems": true,
       "items": {
         "type": "string",

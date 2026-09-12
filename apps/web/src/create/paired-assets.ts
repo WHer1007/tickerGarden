@@ -15,8 +15,6 @@ export type ReleasePairedAsset = {
   readonly activationStatus: string;
   readonly admissionPath: string;
   readonly assetKind?: string;
-  readonly nativeQuotePoolFee?: number;
-  readonly nativeQuoteTickSpacing?: number;
 };
 type PairedAssetRelease = { readonly chainId: number; readonly observedAt: string; readonly supplyReferenceRaw: string; readonly assets: readonly ReleasePairedAsset[] };
 const releases = new Map<number, PairedAssetRelease>([

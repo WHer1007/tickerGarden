@@ -62,8 +62,6 @@ const values = {
   V1_PERMIT2_CODEHASH: dependency('PERMIT2').runtimeCodeHash,
   V1_SWAP_ROUTER: dependency('UNIVERSAL_ROUTER').address,
   V1_SWAP_ROUTER_CODEHASH: dependency('UNIVERSAL_ROUTER').runtimeCodeHash,
-  V1_NATIVE_QUOTE_POOL_FEE: '10000',
-  V1_NATIVE_QUOTE_TICK_SPACING: '200',
   V1_QUOTER: dependency('V4_QUOTER').address,
   V1_QUOTER_CODEHASH: dependency('V4_QUOTER').runtimeCodeHash,
 };

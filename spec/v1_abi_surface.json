@@ -603,12 +603,6 @@
           "returns": "(bytes32,address,uint256,uint256)"
         },
         {
-          "signature": "unlockCallback(bytes)",
-          "mutability": "nonpayable",
-          "caller": "POOL_MANAGER",
-          "returns": "(bytes)"
-        },
-        {
           "signature": "factory()",
           "mutability": "view",
           "caller": "PUBLIC",
@@ -616,12 +610,6 @@
         },
         {
           "signature": "approvedQuoteRegistry()",
-          "mutability": "view",
-          "caller": "PUBLIC",
-          "returns": "(address)"
-        },
-        {
-          "signature": "poolManager()",
           "mutability": "view",
           "caller": "PUBLIC",
           "returns": "(address)"

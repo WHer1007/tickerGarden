@@ -180,8 +180,6 @@ interface IMarketRegistryV1MutationDraft {
 interface ILaunchAndBuyRouterMutationDraft {
     // caller=PUBLIC; executionDelay=0; stateDelay=0
     function launchAndBuy(CreateMarketParams calldata, uint256, uint256, address) external payable returns (bytes32, address, uint256, uint256);
-    // caller=POOL_MANAGER; executionDelay=0; stateDelay=0
-    function unlockCallback(bytes calldata) external returns (bytes);
 }
 
 interface ITickerMemeTokenV1MutationDraft {

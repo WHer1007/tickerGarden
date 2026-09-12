@@ -227,7 +227,7 @@ USDG 与 cbBTC 的可升级性、codehash 和 proxy-slot 观测记录属于风�
 
 一个 Ticker Meme 只能登记一次，一个 `marketId` 只能绑定一个 Meme、一个 `Asset UID` 和一个 Gauge。创建者或管理员不能在发行后把 Meme 改绑到另一种 STOCK。
 
-V1 当前 Factory 的创建费参考 Pons 活跃部署，immutable 为 `500000000000000 wei`（`0.0005` 原生资产）。普通创建要求 `msg.value == launchFee`。原子 `launchAndBuy` 在 native Quote 时要求 `msg.value == launchFee + firstBuyAmount`。ERC-20 Quote 有两条由交易金额自动判定的路径：仅附 `launchFee` 时，从 creator 拉取已授权的 Quote；附带额外原生资产时，通过 release 绑定的 Uniswap v4 PoolManager 和原生资产/Quote 池执行 exact-output 兑换，再在同一交易中创建市场并首买。调用者提交的是原生资产最大输入，未使用部分退回 creator；任一兑换、创建或首买步骤失败会使整笔交易回滚。首买不设置独立的毕业门槛百分比上限，未使用 Quote 按尾单 partial-fill 规则退回 creator。池费率与 tick spacing 由 `V1_NATIVE_QUOTE_POOL_FEE` 和 `V1_NATIVE_QUOTE_TICK_SPACING` 写入新 release 的 Router immutable，不能在已部署 Router 上修改。若未来改费或路由池形状，必须部署新 Factory/Router、登记新 LaunchTemplate 并升级 `executionSpecId`；旧 Factory 的费用和既有市场均不改变。
+V1 当前 Factory 的创建费为 `500000000000000 wei`（`0.0005` 原生资产）。普通创建要求 `msg.value == launchFee`。原子 `launchAndBuy` 在 native Quote 时要求 `msg.value == launchFee + firstBuyAmount`；ERC-20 Quote 时严格要求 `msg.value == launchFee`，从调用者钱包拉取已授权且足额的指定 Quote。合约不兑换外部资产、不选择外部交易池，也不接受额外 ETH 代替 Quote。获取 Quote 由用户或外部流程提前完成。创建和首买任一步失败均回滚；首买数量按所选 Quote 的 raw units 计量，最低 Meme 到账保护不变，尾单未使用的 Quote 退回调用者。外部兑换若是另一笔交易，不会随创建失败回滚。新 Router 构造参数仅包含 Factory 与 ApprovedQuoteRegistry；已删除外部 PoolManager、pool fee、tick spacing 和 unlock callback 依赖。旧 release 不会自动改变；此次构造字节码变化必须重新生成生产预测地址与部署计划。
 
 ### 3.6 曲线阶段
 

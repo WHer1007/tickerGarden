@@ -55,24 +55,24 @@ test('preserves a zero balance as zero', async () => {
 });
 
 test('developer buy notice is empty when balance is sufficient or equal', () => {
-  const input = { amount: 10n, balance: 10n, symbol: 'USDC', displayAmount: '10', native: false, autoBuy: true };
+  const input = { amount: 10n, balance: 10n, symbol: 'USDC', displayAmount: '10', native: false };
   assert.equal(developerBuyNotice(input), '');
   assert.equal(developerBuyNotice({ ...input, balance: 11n }), '');
 });
 
 test('native deficit leaves the ETH warning to the launch blocker', () => {
-  const notice = developerBuyNotice({ amount: 2n, balance: 1n, symbol: 'ETH', displayAmount: '2', native: true, autoBuy: true });
+  const notice = developerBuyNotice({ amount: 2n, balance: 1n, symbol: 'ETH', displayAmount: '2', native: true });
   assert.equal(notice, '');
 });
 
-test('token deficit without a route is unavailable', () => {
-  const notice = developerBuyNotice({ amount: 10n, balance: 1n, symbol: 'USDC', displayAmount: '10', native: false, autoBuy: false });
+test('token deficit requires acquiring the paired asset', () => {
+  const notice = developerBuyNotice({ amount: 10n, balance: 1n, symbol: 'USDC', displayAmount: '10', native: false });
   assert.match(notice, /Add USDC/);
-  assert.match(notice, /Auto-buy unavailable/);
+  assert.match(notice, /before the developer buy/);
 });
 
-test('token deficit with a route states the full ETH funded purchase', () => {
-  const notice = developerBuyNotice({ amount: 10n, balance: 1n, symbol: 'USDC', displayAmount: '10.00', native: false, autoBuy: true });
-  assert.match(notice, /ETH will buy the full 10\.00 USDC/);
-  assert.match(notice, /launch fee and gas/);
+test('token deficit never promises automatic ETH conversion', () => {
+  const notice = developerBuyNotice({ amount: 10n, balance: 1n, symbol: 'USDC', displayAmount: '10.00', native: false });
+  assert.match(notice, /Add USDC/);
+  assert.match(notice, /before the developer buy/);
 });

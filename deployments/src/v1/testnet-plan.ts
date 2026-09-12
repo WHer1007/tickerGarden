@@ -84,8 +84,6 @@ export const V1_BASE_DEPLOYMENT_CONFIGURATION_INPUTS = [
 export const V1_DEPLOYMENT_CONFIGURATION_INPUTS = [
   ...V1_BASE_DEPLOYMENT_CONFIGURATION_INPUTS,
   "V1_DEPLOYMENT_HOLDER_MODE",
-  "V1_NATIVE_QUOTE_POOL_FEE",
-  "V1_NATIVE_QUOTE_TICK_SPACING",
 ] as const;
 
 function record(value: unknown, label: string): JsonRecord {

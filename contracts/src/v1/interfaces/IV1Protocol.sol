@@ -347,10 +347,8 @@ interface IMarketRegistryV1 {
 
 interface ILaunchAndBuyRouter {
     function launchAndBuy(CreateMarketParams calldata arg0, uint256 arg1, uint256 arg2, address arg3) external payable returns (bytes32 output0, address output1, uint256 output2, uint256 output3);
-    function unlockCallback(bytes calldata arg0) external returns (bytes memory output0);
     function factory() external view returns (address output0);
     function approvedQuoteRegistry() external view returns (address output0);
-    function poolManager() external view returns (address output0);
 }
 
 interface ITickerMemeTokenV1 {

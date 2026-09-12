@@ -213,12 +213,6 @@ export async function buildLaunchAndBuyRequests(input: Readonly<{
   router: Address;
   launchFee: bigint;
   quoteIn: bigint;
-  /**
-   * Optional native currency budget for an ERC-20 Quote fallback route.
-   * The launch ABI remains unchanged; the receiving router must support this
-   * value-bearing fallback before this option is enabled in production.
-   */
-  maxNativeQuoteInput?: bigint;
   minTokensOut: bigint;
   recipient: Address;
   config: SelectedLaunchConfig;
@@ -232,25 +226,14 @@ export async function buildLaunchAndBuyRequests(input: Readonly<{
   contractAddress(input.recipient, "recipient");
   const native = input.config.quote.quoteAsset === ZERO_ADDRESS;
   if (native && input.launchFee > MAX_UINT256 - input.quoteIn) throw new RangeError("native launch value exceeds uint256");
-  const nativeQuoteFallback = !native && input.maxNativeQuoteInput !== undefined;
-  if (nativeQuoteFallback) {
-    positive(input.maxNativeQuoteInput!, "maxNativeQuoteInput");
-    if (input.launchFee > MAX_UINT256 - input.maxNativeQuoteInput!) {
-      throw new RangeError("native fallback launch value exceeds uint256");
-    }
-  }
   const request = createContractWriteRequest({
     abi: v1Abis.LaunchAndBuyRouter,
     address: input.router,
     functionName: "launchAndBuy",
     args: [params, input.quoteIn, input.minTokensOut, input.recipient],
-    value: native
-      ? input.launchFee + input.quoteIn
-      : nativeQuoteFallback
-        ? input.launchFee + input.maxNativeQuoteInput!
-        : input.launchFee,
+    value: native ? input.launchFee + input.quoteIn : input.launchFee,
   });
-  if (native || nativeQuoteFallback) return Object.freeze({ params, request });
+  if (native) return Object.freeze({ params, request });
   const approval = createContractWriteRequest({
     abi: v1Abis.TickerMemeTokenV1,
     address: input.config.quote.quoteAsset,

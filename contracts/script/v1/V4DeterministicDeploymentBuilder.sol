@@ -167,14 +167,7 @@ library V4DeterministicDeploymentBuilder {
         initCodes[CURVE_IMPLEMENTATION] = type(TickerGardenCurveImplementation).creationCode;
         initCodes[GAUGE_IMPLEMENTATION] = type(MemeStockGauge).creationCode;
         initCodes[LAUNCH_ROUTER] = bytes.concat(
-            type(LaunchAndBuyRouter).creationCode,
-            abi.encode(
-                plan.factory,
-                components[APPROVED_QUOTE_REGISTRY],
-                config.poolManager,
-                config.nativeQuotePoolFee,
-                config.nativeQuoteTickSpacing
-            )
+            type(LaunchAndBuyRouter).creationCode, abi.encode(plan.factory, components[APPROVED_QUOTE_REGISTRY])
         );
         initCodes[MARKET_REGISTRY] = bytes.concat(
             type(MarketRegistryV1).creationCode,

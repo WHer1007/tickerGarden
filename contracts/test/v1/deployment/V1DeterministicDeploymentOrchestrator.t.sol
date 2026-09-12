@@ -59,8 +59,6 @@ contract V1DeterministicDeploymentOrchestratorTest is Test {
         config = V1DeploymentConfig({
             initialAdmin: address(this),
             poolManager: address(poolManager),
-            nativeQuotePoolFee: 10_000,
-            nativeQuoteTickSpacing: 200,
             positionManager: address(positionManager),
             swapRouter: address(swapRouter),
             quoter: address(quoter),

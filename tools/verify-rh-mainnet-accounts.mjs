@@ -50,6 +50,7 @@ for(const [role,address]of Object.entries(addresses)){
 if(output.accounts.treasury.owners.some(a=>output.accounts.governance.owners.includes(a)))throw Error('Safe owner overlap');
 const lastBlock=await rpc('eth_getBlockByNumber',[block.number,false]);
 if(lastBlock.hash!==block.hash)throw Error('Pinned block changed during verification');
-fs.mkdirSync('docs/reviews/evidence/rh-mainnet-preparation-2026-09-13',{recursive:true});
-fs.writeFileSync('docs/reviews/evidence/rh-mainnet-preparation-2026-09-13/accounts.json',JSON.stringify(output,null,2)+'\n');
+const evidenceDirectory=preparation.evidenceDirectory??'docs/reviews/evidence/rh-mainnet-preparation-2026-09-13/';
+fs.mkdirSync(evidenceDirectory,{recursive:true});
+fs.writeFileSync(evidenceDirectory+'accounts.json',JSON.stringify(output,null,2)+'\n');
 console.log('PIN',block.number,block.hash);

@@ -16,17 +16,16 @@
     "pauseGuardian": 0
   },
   "forkPin": {
-    "blockNumber": "61326136",
-    "blockHash": "0x6f97ce05b0e6e33c7343b17a9c815124ced2a035e26a8c52b30358827b6db4e0",
-    "l1BlockNumber": "25963196"
+    "blockNumber": "61345999",
+    "blockHash": "0xe416d591f281f163e44650ad438b91734e22e03867bcd7522000267a5f5080d9",
+    "l1BlockNumber": "25963364"
   },
-  "safeEvidence": "../../docs/reviews/evidence/rh-mainnet-preparation-2026-09-13/accounts.json",
+  "safeEvidence": "../../docs/reviews/evidence/quote-only-launch-2026-09-13/accounts.json",
   "quoteManifest": "robinhood-mainnet-4663.paired-assets.json",
   "stakeManifest": "robinhood-mainnet-4663.staking-assets.json",
   "openGates": [
     "independent-staged-deployer-security-review",
     "per-transaction-gas-and-calldata-verification",
-    "all-stock-native-route-coverage",
     "all-asset-activation-plan",
     "unsigned-transaction-pack",
     "safe-signature-ownership-and-execution-drill",
@@ -35,10 +34,14 @@
   "broadcastAuthorized": false,
   "passedChecks": [
     "safe-pinned-read-only-configuration",
-    "recent-fixed-block-business-fork-2-tests",
     "staged-orchestrator-local-4-tests",
-    "actual-address-staged-runtime-simulation",
-    "external-dependency-codehashes-and-position-manager-bindings"
+    "external-dependency-codehashes-and-position-manager-bindings",
+    "quote-only-candidate-fork-2-tests",
+    "quote-only-staged-runtime-simulation"
   ],
-  "runtimePlan": "../../docs/reviews/evidence/rh-mainnet-preparation-2026-09-13/runtime-plan.json"
+  "firstBuyFunding": "CALLER_WALLET_QUOTE_ONLY",
+  "priorRuntimePlan": "../../docs/reviews/evidence/rh-mainnet-preparation-2026-09-13/runtime-plan.json",
+  "priorRuntimePlanStatus": "SUPERSEDED_BY_QUOTE_ONLY_ROUTER_CONSTRUCTOR",
+  "evidenceDirectory": "docs/reviews/evidence/quote-only-launch-2026-09-13/",
+  "runtimePlan": "../../docs/reviews/evidence/quote-only-launch-2026-09-13/runtime-plan.json"
 }
