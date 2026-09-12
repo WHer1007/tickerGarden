@@ -17,6 +17,12 @@ interface IUserHolderRewards {
 /// @notice Only the beneficiary chooses how their already-earned assets are paid.
 abstract contract ProtocolFeeVaultUserClaims is ProtocolFeeVaultUserConversion {
     using SafeERC20 for IERC20;
+    // Budget for restoring earned rights, paying both assets and final checks.
+    // This bounds conversion failure, not arbitrary token/recipient execution.
+    uint256 private constant CLAIM_COMPLETION_GAS_RESERVE = 300_000;
+    uint256 private constant CONVERSION_CALL_OVERHEAD = 30_000;
+    uint256 private constant MIN_CONVERSION_GAS = 100_000;
+
     bool private _userClaimActive;
     address private _claimHolderDistributor;
 
@@ -50,7 +56,7 @@ abstract contract ProtocolFeeVaultUserClaims is ProtocolFeeVaultUserConversion {
         return keccak256("TICKERGARDEN_USER_CLAIM_ASSET_SELECTION_V1");
     }
 
-    /// @param role 0 creator, 1 staker, 2 holder. Quote already earned is paid regardless of a failed swap.
+    /// @param role 0 creator, 1 staker, 2 holder. Failed swaps retain a budget for authorized fallback and Quote payment.
     function claimUserRewards(bytes32 id, uint8 role, uint32 epoch, bool convert, bool rawFallback, uint256 deadline)
         external
         returns (uint256 quotePaid, uint256 memePaid, uint256 memeRetained)
@@ -92,12 +98,7 @@ abstract contract ProtocolFeeVaultUserClaims is ProtocolFeeVaultUserConversion {
         ClaimResult memory r;
         (r.q, r.m) = _consumeUserRewards(id, v, role, epoch, assets);
         if (convert && r.m != 0) {
-            try this.convertUserClaim(id, v, r.m, deadline) returns (uint256 used, uint256 output) {
-                r.spent = used;
-                r.received = output;
-            } catch {
-                r.failed = true;
-            }
+            (r.spent, r.received, r.failed) = _attemptUserConversion(id, v, r.m, deadline);
         }
         uint256 remaining = r.m - r.spent;
         r.quotePaid = r.q + r.received;
@@ -120,6 +121,25 @@ abstract contract ProtocolFeeVaultUserClaims is ProtocolFeeVaultUserConversion {
         _userClaimActive = false;
         _exitStandaloneOperation();
         return (r.quotePaid, r.memePaid, r.retained);
+    }
+
+    function _attemptUserConversion(bytes32 id, MarketView memory v, uint256 amount, uint256 deadline)
+        private
+        returns (uint256 spent, uint256 received, bool failed)
+    {
+        uint256 available = gasleft();
+        if (available <= CLAIM_COMPLETION_GAS_RESERVE + CONVERSION_CALL_OVERHEAD + MIN_CONVERSION_GAS) {
+            // Do not spend completion gas on a swap unlikely to finish.
+            return (0, 0, true);
+        }
+        // EIP-150 can only reduce this allowance. Account separately for
+        // ABI encoding/CALL overhead so the completion reserve survives.
+        uint256 conversionGas = available - CLAIM_COMPLETION_GAS_RESERVE - CONVERSION_CALL_OVERHEAD;
+        try this.convertUserClaim{gas: conversionGas}(id, v, amount, deadline) returns (uint256 used, uint256 output) {
+            return (used, output, false);
+        } catch {
+            return (0, 0, true);
+        }
     }
 
     function convertUserClaim(bytes32 id, MarketView calldata v, uint256 amount, uint256 deadline)

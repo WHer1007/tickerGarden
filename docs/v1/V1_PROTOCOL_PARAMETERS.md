@@ -756,3 +756,14 @@ Holder 转账检查点仅在账户有新增指数需要结算时读取转账前�
 前端、后端观察器和官方任务使用 `TICKERGARDEN_USER_CLAIM_ASSET_SELECTION_V1` 识别当前 FeeVault，不将旧部署识别为支持新入口。事件的 paid/retained 字段描述本次所选权益，不表示用户剩余全部资产。
 
 Gauge/Vault 的 pending 计数为零时直接跳过 32 槽激活扫描；有 pending 时保留完整到期处理、奖励截止和队列一致性校验。Holder 在指数未变化时跳过无效账户写入，在流处理函数中复用账本 key，不改变释放规则。
+
+
+## 生产候选补充：Treasury 延迟迁移（2026-09-13）
+
+`ProtocolFeeVault.platformTreasury()` 为唯一收款地址来源，Factory 同名 getter 与创建费付款读取 FeeVault；不再有两个独立 immutable 收款地址。初始地址仍由 `V1_PLATFORM_TREASURY` 提供，部署时必须与 Factory 配置一致；FeeVault 的 `authority` 固定为同一 AccessManager。
+
+治理 Safe 以 AccessManager 活跃角色 1 成员身份**直接**调用 `proposePlatformTreasury(address)`，合约开始不可缩短的 172800 秒等待期。此操作不通过 AccessManager.schedule/execute，不叠加第二个 48 小时。新地址必须是有代码的合约，并自身调用 `acceptPlatformTreasury(uint256 nonce)`；任意人到期后可执行 `executePlatformTreasury(nonce)`，但提议者此时仍须是活跃角色 1 成员。治理或独立 Guardian（角色 2）可立即调用 `cancelPlatformTreasury(nonce)`。待执行提议不可覆盖，先取消再发起会增加 nonce，旧确认不能复用。角色 0 部署者、旧 Treasury 及其他人没有隐含提议/取消权限。
+
+切换时不搬移资金、不遍历市场：FeeVault 内所有尚未支付的平台权益，包括切换前累计部分，之后都支付给新 Treasury；已支付旧地址的资金不能因此追回。Creator、Staker、Holder 的资产与账目不变。全部迁移操作共享 FeeVault credit/claim 锁，禁止结算回调期间切换。候选外层 runtime codehash 变化会阻止生效，但 Safe owners、threshold、modules、guard 或代理实现变化仍须监控。
+
+此功能仅存在于新编译的候选合约，既有部署不能通过更新配置获得它。操作见 `docs/runbooks/PLATFORM_TREASURY_ROTATION.md`。

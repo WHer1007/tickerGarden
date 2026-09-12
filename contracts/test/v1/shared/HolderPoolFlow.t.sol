@@ -62,7 +62,12 @@ contract HolderPoolFlowTest is Test {
         creators.setEpoch(ID, 1, address(this));
         vault = new ProtocolFeeVault(
             ProtocolFeeVaultInit(
-                address(registry), address(manager), address(creators), address(this), keccak256("policy")
+                address(registry),
+                address(registry),
+                address(manager),
+                address(creators),
+                address(this),
+                keccak256("policy")
             )
         );
         deployCodeTo(

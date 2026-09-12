@@ -404,17 +404,17 @@
     {
       "module": "OfficialStockRegistryV1",
       "source": "contracts/src/v1/modules/OfficialStockRegistryV1.sol",
-      "sourceSha256": "0x586e952983cb4d25eeb8f8ac4116948325d1e5bbe9c77dfdd702dcd3bab2f89b",
+      "sourceSha256": "0x918f9da04c942de3d2a1f93b25ad84a4548fa23a71bcb3b80807797cd5ba414d",
       "artifact": "contracts/out-v1/OfficialStockRegistryV1.sol/OfficialStockRegistryV1.json",
       "interfaceArtifact": "contracts/out-v1/IV1Protocol.sol/IOfficialStockRegistryV1.json",
       "compilerVersion": "0.8.26+commit.8a97fa7a",
       "creationCode": {
-        "bytes": 9698,
-        "keccak256": "0x12145749062576b0ff1b70257f58f7fee09909b778fa1796bc1baba6e946fcac"
+        "bytes": 9683,
+        "keccak256": "0xd4982bf5daba8e190811b487f7f9eda87408f9ca1f9dbd78bdc8dd5549d0479b"
       },
       "runtimeTemplate": {
-        "bytes": 9490,
-        "keccak256": "0x72128615ec697e32a80928a56bc00a7a2a92e96ca7dbd5798f7440a1ba9190ab",
+        "bytes": 9475,
+        "keccak256": "0x5bcab693c870d53efe96e2d20f7d4b1560ade4674c5d592f3710ac33d5ae3cb8",
         "immutableReferenceGroups": 1,
         "isFinalDeploymentCodeHash": false
       },
@@ -456,23 +456,27 @@
     {
       "module": "ProtocolFeeVault",
       "source": "contracts/src/v1/modules/ProtocolFeeVault.sol",
-      "sourceSha256": "0xb3463119e6a103141db8cda8c1bd83e902985b64fd324911093976b275719d73",
+      "sourceSha256": "0xa5fc4517dfef2e58835901216a47133ab9b5a5b335b2fe8d82d230749d6acab5",
       "artifact": "contracts/out-v1/ProtocolFeeVault.sol/ProtocolFeeVault.json",
       "interfaceArtifact": "contracts/out-v1/IV1Protocol.sol/IProtocolFeeVault.json",
       "compilerVersion": "0.8.26+commit.8a97fa7a",
       "creationCode": {
-        "bytes": 21729,
-        "keccak256": "0x7c8f66ba44563ef1a97382f7919407b073c1cd0a76d90047475c69f912e6274c"
+        "bytes": 24253,
+        "keccak256": "0x16afb05310d58f259de135df17e753056e804f348161cde2e03b8c1a64a982ba"
       },
       "runtimeTemplate": {
-        "bytes": 20492,
-        "keccak256": "0x616f0de7333ae4fd3fc6af91112414c21521a4b41578810af3195fcd5720a2f1",
+        "bytes": 22850,
+        "keccak256": "0x4fca21c7526b0fba7d44b7d5e0aec60063aae2825fe54c4aad7bea66081b4dee",
         "immutableReferenceGroups": 6,
         "isFinalDeploymentCodeHash": false
       },
       "functions": [
+        "TREASURY_CHANGE_DELAY()",
+        "acceptPlatformTreasury(uint256)",
+        "authority()",
         "beginCurveCredit(bytes32,address,uint256,uint256,uint32,uint64,bytes32)",
         "beginV4Credit(bytes32,address,uint256,uint32,bytes32)",
+        "cancelPlatformTreasury(uint256)",
         "claimPlatform(bytes32,address)",
         "claimUserRewardAssets(bytes32,uint8,uint32,uint8,bool,bool,uint256)",
         "claimUserRewards(bytes32,uint8,uint32,bool,bool,uint256)",
@@ -480,6 +484,7 @@
         "convertUserClaim(bytes32,((bytes32,bytes32,bytes32,bytes32,bytes32,bytes32,bytes32,uint256,address,address,address,address,address,address,uint16,bool,bool),(bytes32,uint32,uint8)),uint256,uint256)",
         "creatorLiability(bytes32,uint32,address)",
         "creatorRevenueRegistry()",
+        "executePlatformTreasury(uint256)",
         "feePolicyHash()",
         "feePolicyId()",
         "finalizeCurveCredit(bytes32,address,uint256,uint256,uint32,uint64,bytes32)",
@@ -490,23 +495,34 @@
         "holderLiability(bytes32,uint32,address)",
         "liability(bytes32,address,uint8)",
         "marketRegistry()",
+        "pendingPlatformTreasury()",
+        "pendingTreasuryCodeHash()",
         "platformTreasury()",
         "poolManager()",
+        "proposePlatformTreasury(address)",
         "recordForfeiture(bytes32,address,uint256,uint256)",
         "totalLiability(address)",
+        "treasuryChangeAccepted()",
+        "treasuryChangeReadyAt()",
+        "treasuryProposalNonce()",
+        "treasuryProposer()",
         "userClaimMode()"
       ],
       "mutations": [
+        "acceptPlatformTreasury(uint256)",
         "beginCurveCredit(bytes32,address,uint256,uint256,uint32,uint64,bytes32)",
         "beginV4Credit(bytes32,address,uint256,uint32,bytes32)",
+        "cancelPlatformTreasury(uint256)",
         "claimPlatform(bytes32,address)",
         "claimUserRewardAssets(bytes32,uint8,uint32,uint8,bool,bool,uint256)",
         "claimUserRewards(bytes32,uint8,uint32,bool,bool,uint256)",
         "convertUserClaim(bytes32,((bytes32,bytes32,bytes32,bytes32,bytes32,bytes32,bytes32,uint256,address,address,address,address,address,address,uint16,bool,bool),(bytes32,uint32,uint8)),uint256,uint256)",
+        "executePlatformTreasury(uint256)",
         "finalizeCurveCredit(bytes32,address,uint256,uint256,uint32,uint64,bytes32)",
         "finalizeV4Credit(bytes32,address,uint256,uint256,uint256,uint256,uint64,bytes32)",
         "fundHolderMemeRewards(bytes32)",
         "fundHolderRewards(bytes32,uint32)",
+        "proposePlatformTreasury(address)",
         "recordForfeiture(bytes32,address,uint256,uint256)"
       ],
       "events": [
@@ -516,6 +532,10 @@
         "ForfeitureReserveConverted(bytes32,address,uint256)",
         "ForfeitureReserved(bytes32,address,address,uint256,uint256)",
         "HolderFeesAccrued(bytes32,uint32,address,uint256)",
+        "PlatformTreasuryAccepted(uint256,address)",
+        "PlatformTreasuryCancelled(uint256,address)",
+        "PlatformTreasuryChanged(uint256,address,address)",
+        "PlatformTreasuryProposed(uint256,address,address,address,uint256,bytes32)",
         "RewardConverted(bytes32,address,uint32,uint256,uint256)",
         "UserRewardsClaimed(bytes32,address,uint8,uint32,uint256,uint256,uint256,uint256,bool)"
       ]
@@ -606,18 +626,18 @@
     {
       "module": "TickerGardenFactoryV1",
       "source": "contracts/src/v1/modules/TickerGardenFactoryV1.sol",
-      "sourceSha256": "0xb067c046197ac115879570e34ef8a7ae23b96026dd88e41142e2a89f86677034",
+      "sourceSha256": "0x7537f75575f08862c7d75871c83ae070cea4fbbd27ae7d79c424bc93fc147657",
       "artifact": "contracts/out-v1/TickerGardenFactoryV1.sol/TickerGardenFactoryV1.json",
       "interfaceArtifact": "contracts/out-v1/IV1Protocol.sol/ITickerGardenFactoryV1.json",
       "compilerVersion": "0.8.26+commit.8a97fa7a",
       "creationCode": {
-        "bytes": 30560,
-        "keccak256": "0x8a11116c94b7ef750617f48cfe3834379289a0a494c7edb3d31e6a7ff5615b17"
+        "bytes": 30707,
+        "keccak256": "0xf1a63ed7c2fcdb8dab66141dfde575d29a8892fe93d6d4386ae34ff4a85bdaeb"
       },
       "runtimeTemplate": {
-        "bytes": 23830,
-        "keccak256": "0xf3f8a387f39a7acbec44ed1c658080091214e1b3cb8933aa964e37fdd3a893a9",
-        "immutableReferenceGroups": 16,
+        "bytes": 23880,
+        "keccak256": "0xf26c1e0f16aea051cc1e818c07904b25235f8540b0704c99cf0425d7e1cba433",
+        "immutableReferenceGroups": 15,
         "isFinalDeploymentCodeHash": false
       },
       "functions": [
@@ -754,12 +774,12 @@
       "interfaceArtifact": "contracts/out-v1/IV1Protocol.sol/IUserStockVault.json",
       "compilerVersion": "0.8.26+commit.8a97fa7a",
       "creationCode": {
-        "bytes": 12760,
-        "keccak256": "0xf73a4e7ee6c13b53f58857f393d40f2ff62016b41587381f7c0ebdf3649b5974"
+        "bytes": 12824,
+        "keccak256": "0x4aadb7b5cfd7c2749ecc53779e3f89d493e0f3ed07e6a0b75274f92db4907e13"
       },
       "runtimeTemplate": {
-        "bytes": 12171,
-        "keccak256": "0xe59cd16b3721b57557e7cfacac73f507a1553ed32402039fb58e658775f0c3b8",
+        "bytes": 12235,
+        "keccak256": "0xe985768b6b6a156ab8055b7f09db9c4423d812d447151b50a66d8c0ae7cc8c46",
         "immutableReferenceGroups": 3,
         "isFinalDeploymentCodeHash": false
       },
@@ -1894,5 +1914,5 @@
       ]
     }
   ],
-  "manifestHash": "0x602827a484051ca88373079734e107c78a397cc60889ae192ade722ea7ca6797"
+  "manifestHash": "0xb2992a604c9a2140d3b66a91a9930c19c3e27e3b183d7f9ebfb1177e479a205d"
 }

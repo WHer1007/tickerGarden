@@ -1508,6 +1508,78 @@
           "returns": "(uint256)",
           "mutability": "nonpayable",
           "caller": "PUBLIC"
+        },
+        {
+          "signature": "proposePlatformTreasury(address)",
+          "mutability": "nonpayable",
+          "caller": "PROTOCOL_ADMIN_MEMBER",
+          "returns": "()"
+        },
+        {
+          "signature": "acceptPlatformTreasury(uint256)",
+          "mutability": "nonpayable",
+          "caller": "PENDING_PLATFORM_TREASURY",
+          "returns": "()"
+        },
+        {
+          "signature": "cancelPlatformTreasury(uint256)",
+          "mutability": "nonpayable",
+          "caller": "PROTOCOL_ADMIN_OR_GUARDIAN_MEMBER",
+          "returns": "()"
+        },
+        {
+          "signature": "executePlatformTreasury(uint256)",
+          "mutability": "nonpayable",
+          "caller": "PUBLIC",
+          "returns": "()"
+        },
+        {
+          "signature": "authority()",
+          "mutability": "view",
+          "caller": "PUBLIC",
+          "returns": "(address)"
+        },
+        {
+          "signature": "TREASURY_CHANGE_DELAY()",
+          "mutability": "view",
+          "caller": "PUBLIC",
+          "returns": "(uint256)"
+        },
+        {
+          "signature": "treasuryProposalNonce()",
+          "mutability": "view",
+          "caller": "PUBLIC",
+          "returns": "(uint256)"
+        },
+        {
+          "signature": "pendingPlatformTreasury()",
+          "mutability": "view",
+          "caller": "PUBLIC",
+          "returns": "(address)"
+        },
+        {
+          "signature": "treasuryProposer()",
+          "mutability": "view",
+          "caller": "PUBLIC",
+          "returns": "(address)"
+        },
+        {
+          "signature": "treasuryChangeReadyAt()",
+          "mutability": "view",
+          "caller": "PUBLIC",
+          "returns": "(uint256)"
+        },
+        {
+          "signature": "treasuryChangeAccepted()",
+          "mutability": "view",
+          "caller": "PUBLIC",
+          "returns": "(bool)"
+        },
+        {
+          "signature": "pendingTreasuryCodeHash()",
+          "mutability": "view",
+          "caller": "PUBLIC",
+          "returns": "(bytes32)"
         }
       ],
       "events": [
@@ -1518,7 +1590,11 @@
         "ForfeitureReserveConverted(bytes32 indexed marketId,address indexed feeAsset,uint256 amount)",
         "RewardConverted(bytes32 indexed marketId,address indexed user,uint32 indexed creatorEpoch,uint256 memeSpent,uint256 quoteReceived)",
         "HolderFeesAccrued(bytes32 indexed marketId,uint32 indexed epochId,address indexed feeAsset,uint256 amount)",
-        "UserRewardsClaimed(bytes32 indexed marketId,address indexed user,uint8 indexed role,uint32 creatorEpoch,uint256 quotePaid,uint256 memePaid,uint256 memeRetained,uint256 memeConverted,bool conversionFailed)"
+        "UserRewardsClaimed(bytes32 indexed marketId,address indexed user,uint8 indexed role,uint32 creatorEpoch,uint256 quotePaid,uint256 memePaid,uint256 memeRetained,uint256 memeConverted,bool conversionFailed)",
+        "PlatformTreasuryProposed(uint256 indexed nonce,address indexed oldTreasury,address indexed newTreasury,address proposer,uint256 readyAt,bytes32 codeHash)",
+        "PlatformTreasuryAccepted(uint256 indexed nonce,address indexed newTreasury)",
+        "PlatformTreasuryCancelled(uint256 indexed nonce,address indexed caller)",
+        "PlatformTreasuryChanged(uint256 indexed nonce,address indexed oldTreasury,address indexed newTreasury)"
       ]
     },
     {

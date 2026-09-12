@@ -461,10 +461,12 @@ contract OfficialStockRegistryV1 is IOfficialStockRegistryV1, ImmutableAccessMan
     function _vaultIdentityCurrent(address userStockVault) private view returns (bool) {
         bytes32 schemaId = _vaultSchemaIds[userStockVault];
         bytes32 runtimeCodeHash = _vaultRuntimeCodeHashes[userStockVault];
+        // Registration scans the runtime before pinning its hash. An identical
+        // hash preserves that opcode result; mutable identity bindings still
+        // require the checks below on every use.
         if (
             schemaId == bytes32(0) || runtimeCodeHash == bytes32(0) || userStockVault.code.length == 0
                 || userStockVault.codehash != runtimeCodeHash || _vaultBySchemaIds[schemaId] != userStockVault
-                || _containsForbiddenVaultOpcode(userStockVault)
         ) return false;
 
         try IUserStockVault(userStockVault).vaultIdentity() returns (

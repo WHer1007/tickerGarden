@@ -1,4 +1,4 @@
-import { assertReleasePairedAssets } from "./release-paired-assets.ts";
+import { assertReleaseAssetCoverage } from "./release-paired-assets.ts";
 import { verifiedImmutableBeacon } from "./immutable-beacon.ts";
 import { keccak_256 } from "@noble/hashes/sha3.js";
 import { readFileSync } from "node:fs";
@@ -381,6 +381,7 @@ function verifyRegistryAuthorityEvidence(manifest: Manifest): void {
     ["ApprovedQuoteRegistry", "approved-quote-registry-access-manager-authority"],
     ["TickerGardenBaselineRegistry", "tickergarden-baseline-registry-access-manager-authority"],
     ["LaunchTemplateRegistry", "launch-template-registry-access-manager-authority"],
+    ["ProtocolFeeVault", "protocol-fee-vault-access-manager-authority"],
   ] as const;
   for (const [registryName, label] of bindings) {
     const registry = manifest.protocolModules[registryName]!;
@@ -399,6 +400,28 @@ function verifyRegistryAuthorityEvidence(manifest: Manifest): void {
       expectedHash,
       stringField(check, "expectedReturnDataHash"),
     );
+  }
+}
+
+// Treasury is mutable only through FeeVault's nonce-bound, accepted 48-hour proposal.
+// A release must start at its reviewed recipient with no latent rotation proposal.
+function verifyTreasuryConfigurationEvidence(manifest: Manifest): void {
+  const expectedTreasury = stringField(manifest.roleHandoff, "platformTreasury");
+  const requirements = [
+    ["TickerGardenFactoryV1", "factory-platform-treasury", "platformTreasury()", addressWord(expectedTreasury)],
+    ["ProtocolFeeVault", "fee-vault-platform-treasury", "platformTreasury()", addressWord(expectedTreasury)],
+    ["ProtocolFeeVault", "treasury-change-delay", "TREASURY_CHANGE_DELAY()", uintWord(172800n)],
+    ["ProtocolFeeVault", "treasury-pending-recipient", "pendingPlatformTreasury()", uintWord(0n)],
+    ["ProtocolFeeVault", "treasury-proposal-nonce", "treasuryProposalNonce()", uintWord(0n)],
+  ] as const;
+  for (const [module, label, signature, expectedWord] of requirements) {
+    const target = stringField(manifest.protocolModules[module]!, "deployedAddress");
+    const check = manifest.livePreflight.keyGetterChecks.find((candidate) =>
+      candidate.label === label && candidate.category === "CONFIG_IDENTITY"
+      && stringField(candidate, "target").toLowerCase() === target.toLowerCase()
+      && stringField(candidate, "callData").toLowerCase() === callData(signature).toLowerCase());
+    if (!check) throw new Error(`V1 live preflight lacks Treasury configuration evidence: ${label}`);
+    same(label, keccakHex(`0x${expectedWord}`), stringField(check, "expectedReturnDataHash"));
   }
 }
 
@@ -929,6 +952,7 @@ export async function verifyV1LiveState(candidate: unknown, rpc: V1ReadOnlyRpc):
   verifyLaunchConfigResolverEvidence(manifest);
   verifyHolderBindingEvidence(manifest);
   verifyRegistryAuthorityEvidence(manifest);
+  verifyTreasuryConfigurationEvidence(manifest);
   verifyQuoteRegistryStockBindingEvidence(manifest);
   verifyProxyEvidence(manifest);
   comparePermissionSemantics(manifest);
@@ -1066,6 +1090,6 @@ export async function preflightV1Deployment(candidate: unknown, rpc: V1ReadOnlyR
 export async function preflightProductionManifest(candidate: unknown, rpc: V1ReadOnlyRpc): Promise<V1LivePreflightReport> {
   assertV1Deployable();
   assertV1ProductionReady();
-  assertReleasePairedAssets(candidate);
+  assertReleaseAssetCoverage(candidate);
   return verifyV1LiveState(candidate, rpc);
 }

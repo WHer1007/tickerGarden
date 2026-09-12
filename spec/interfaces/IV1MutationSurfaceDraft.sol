@@ -309,6 +309,14 @@ interface IProtocolFeeVaultMutationDraft {
     function convertUserClaim(bytes32, MarketView calldata, uint256, uint256) external returns (uint256, uint256);
     // caller=PUBLIC; executionDelay=0; stateDelay=0
     function fundHolderMemeRewards(bytes32) external returns (uint256);
+    // caller=PROTOCOL_ADMIN_MEMBER; executionDelay=0; stateDelay=0
+    function proposePlatformTreasury(address) external;
+    // caller=PENDING_PLATFORM_TREASURY; executionDelay=0; stateDelay=0
+    function acceptPlatformTreasury(uint256) external;
+    // caller=PROTOCOL_ADMIN_OR_GUARDIAN_MEMBER; executionDelay=0; stateDelay=0
+    function cancelPlatformTreasury(uint256) external;
+    // caller=PUBLIC; executionDelay=0; stateDelay=172800
+    function executePlatformTreasury(uint256) external;
 }
 
 interface IGraduationExecutorMutationDraft {

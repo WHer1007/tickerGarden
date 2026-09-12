@@ -200,13 +200,13 @@ library V4DeterministicDeploymentBuilder {
             type(UserStockVault).creationCode,
             abi.encode(components[OFFICIAL_STOCK_REGISTRY], components[MARKET_REGISTRY], components[ALLOCATION_MANAGER])
         );
-        initCodes[HOLDER_REWARDS_DISTRIBUTOR] = bytes.concat(
-            type(HolderRewardsDistributorV1).creationCode, abi.encode(components[MARKET_REGISTRY])
-        );
+        initCodes[HOLDER_REWARDS_DISTRIBUTOR] =
+            bytes.concat(type(HolderRewardsDistributorV1).creationCode, abi.encode(components[MARKET_REGISTRY]));
         initCodes[PROTOCOL_FEE_VAULT] = bytes.concat(
             type(ProtocolFeeVault).creationCode,
             abi.encode(
                 ProtocolFeeVaultInit({
+                    authority: components[ACCESS_MANAGER],
                     marketRegistry: components[MARKET_REGISTRY],
                     poolManager: config.poolManager,
                     creatorRevenueRegistry: components[CREATOR_REVENUE_REGISTRY],

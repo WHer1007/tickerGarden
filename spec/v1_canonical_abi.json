@@ -1021,6 +1021,58 @@
       "recipient": "fixed_reward_beneficiary_or_canonical_pool"
     },
     {
+      "module": "ProtocolFeeVault",
+      "displaySignature": "proposePlatformTreasury(address)",
+      "canonicalSignature": "proposePlatformTreasury(address)",
+      "selector": "0xe33f462d",
+      "selectorHash": "FIRST_4_BYTES_OF_KECCAK256_CANONICAL_SIGNATURE",
+      "caller": "PROTOCOL_ADMIN_MEMBER",
+      "executionDelaySeconds": 0,
+      "stateDelaySeconds": 0,
+      "stateDelayAnchor": "NONE",
+      "precondition": "ACTIVE_ROLE_1_MEMBER_DIRECT_CALL; FIXED_48H_STATE_TIMELOCK_STARTS; NO_PENDING_PROPOSAL; CONTRACT_RECIPIENT",
+      "recipient": "none"
+    },
+    {
+      "module": "ProtocolFeeVault",
+      "displaySignature": "acceptPlatformTreasury(uint256)",
+      "canonicalSignature": "acceptPlatformTreasury(uint256)",
+      "selector": "0x61145250",
+      "selectorHash": "FIRST_4_BYTES_OF_KECCAK256_CANONICAL_SIGNATURE",
+      "caller": "PENDING_PLATFORM_TREASURY",
+      "executionDelaySeconds": 0,
+      "stateDelaySeconds": 0,
+      "stateDelayAnchor": "NONE",
+      "precondition": "EXACT_PENDING_CONTRACT_DIRECT_CALL; MATCHING_PROPOSAL_NONCE_AND_CODEHASH",
+      "recipient": "none"
+    },
+    {
+      "module": "ProtocolFeeVault",
+      "displaySignature": "cancelPlatformTreasury(uint256)",
+      "canonicalSignature": "cancelPlatformTreasury(uint256)",
+      "selector": "0x7d33ec07",
+      "selectorHash": "FIRST_4_BYTES_OF_KECCAK256_CANONICAL_SIGNATURE",
+      "caller": "PROTOCOL_ADMIN_OR_GUARDIAN_MEMBER",
+      "executionDelaySeconds": 0,
+      "stateDelaySeconds": 0,
+      "stateDelayAnchor": "NONE",
+      "precondition": "ACTIVE_ROLE_1_OR_ROLE_2_MEMBER_DIRECT_CALL; MATCHING_PROPOSAL_NONCE; IMMEDIATE_CANCEL",
+      "recipient": "none"
+    },
+    {
+      "module": "ProtocolFeeVault",
+      "displaySignature": "executePlatformTreasury(uint256)",
+      "canonicalSignature": "executePlatformTreasury(uint256)",
+      "selector": "0x02221fbb",
+      "selectorHash": "FIRST_4_BYTES_OF_KECCAK256_CANONICAL_SIGNATURE",
+      "caller": "PUBLIC",
+      "executionDelaySeconds": 0,
+      "stateDelaySeconds": 172800,
+      "stateDelayAnchor": "TREASURY_PROPOSAL_TIMESTAMP",
+      "precondition": "MATCHING_NONCE; NEW_TREASURY_ACCEPTED; 48H_ELAPSED; PROPOSER_STILL_ROLE_1; CODEHASH_UNCHANGED; ALL_UNPAID_PLATFORM_FEES_FOLLOW_CURRENT_TREASURY",
+      "recipient": "none"
+    },
+    {
       "module": "GraduationExecutor",
       "displaySignature": "graduateFromCurve(bytes32,uint256,uint256)",
       "canonicalSignature": "graduateFromCurve(bytes32,uint256,uint256)",
@@ -1410,6 +1462,30 @@
       "displayEvent": "UserRewardsClaimed(bytes32 indexed marketId,address indexed user,uint8 indexed role,uint32 creatorEpoch,uint256 quotePaid,uint256 memePaid,uint256 memeRetained,uint256 memeConverted,bool conversionFailed)",
       "canonicalSignature": "UserRewardsClaimed(bytes32,address,uint8,uint32,uint256,uint256,uint256,uint256,bool)",
       "topic0": "0xdab043398c3fce7edda2e69d9b73831be66a52a2502a333034a629ad892c042d"
+    },
+    {
+      "module": "ProtocolFeeVault",
+      "displayEvent": "PlatformTreasuryProposed(uint256 indexed nonce,address indexed oldTreasury,address indexed newTreasury,address proposer,uint256 readyAt,bytes32 codeHash)",
+      "canonicalSignature": "PlatformTreasuryProposed(uint256,address,address,address,uint256,bytes32)",
+      "topic0": "0xff13922d8ac067dca266b8535666e1a68065b14d40616f2cde6f804e31605b09"
+    },
+    {
+      "module": "ProtocolFeeVault",
+      "displayEvent": "PlatformTreasuryAccepted(uint256 indexed nonce,address indexed newTreasury)",
+      "canonicalSignature": "PlatformTreasuryAccepted(uint256,address)",
+      "topic0": "0xcf392bdf0bad111d922775f06023cb61e80559d3b3b70e00a71f1d92a159e929"
+    },
+    {
+      "module": "ProtocolFeeVault",
+      "displayEvent": "PlatformTreasuryCancelled(uint256 indexed nonce,address indexed caller)",
+      "canonicalSignature": "PlatformTreasuryCancelled(uint256,address)",
+      "topic0": "0x3ce42497d3b4ae5bc74c3bf17ce82af9d8f39db2e051c5a36588e4dfc72c14a5"
+    },
+    {
+      "module": "ProtocolFeeVault",
+      "displayEvent": "PlatformTreasuryChanged(uint256 indexed nonce,address indexed oldTreasury,address indexed newTreasury)",
+      "canonicalSignature": "PlatformTreasuryChanged(uint256,address,address)",
+      "topic0": "0x470884a1f71e91b9ae0d014b54b65d762678ffff8eb9101b53633917751523a0"
     },
     {
       "module": "GraduationExecutor",

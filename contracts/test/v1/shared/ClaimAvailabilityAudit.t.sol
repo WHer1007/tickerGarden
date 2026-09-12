@@ -26,15 +26,16 @@ contract ClaimAvailabilityAuditTest is UserRewardClaimsTest {
         assertEq(m.balanceOf(ALICE), 100);
     }
 
-    function test_auditGasExhaustionCanPreventAuthorizedFallback() public {
+    function test_auditGasExhaustionPreservesAuthorizedFallback() public {
         r.configure(ID, address(new AuditGasExhaustingHook()), address(q), address(m), address(g));
         vm.prank(ALICE);
         (bool converted,) = address(v).call{gas: 500_000}(
             abi.encodeCall(v.claimUserRewards, (ID, uint8(0), uint32(1), true, true, block.timestamp + 240))
         );
-        assertFalse(converted, "Fault model should exhaust fallback reserve");
-        assertEq(v.creatorLiability(ID, 1, address(m)), 100);
-        assertEq(v.creatorLiability(ID, 1, address(q)), 30);
+        assertTrue(converted, "Conversion cannot consume the completion reserve");
+        assertEq(v.creatorLiability(ID, 1, address(m)), 0);
+        assertEq(v.creatorLiability(ID, 1, address(q)), 0);
+        assertEq(q.balanceOf(ALICE), 30);
         vm.prank(ALICE);
         (bool raw,) = address(v).call{gas: 500_000}(
             abi.encodeCall(v.claimUserRewards, (ID, uint8(0), uint32(1), false, false, uint256(0)))

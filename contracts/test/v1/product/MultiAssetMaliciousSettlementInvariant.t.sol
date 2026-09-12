@@ -156,6 +156,7 @@ contract MultiAssetFeeVaultHarness is ProtocolFeeVault {
 
     constructor(address marketRegistry_, address gauge_, address quoteAsset_, address memeAsset_)
         ProtocolFeeVault(ProtocolFeeVaultInit({
+                authority: marketRegistry_,
                 marketRegistry: marketRegistry_,
                 poolManager: address(new MockExactQuoteToken(18)),
                 creatorRevenueRegistry: address(new MockExactQuoteToken(18)),

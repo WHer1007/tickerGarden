@@ -21,7 +21,7 @@ abstract contract ProtocolFeeVaultLiabilities is ProtocolFeeVaultCurveCredit {
     uint8 internal constant BUCKET_HOLDER_REWARD = 3;
     uint8 private constant BUCKET_TYPE_COUNT = 4;
 
-    address internal immutable _feePlatformTreasury;
+    address internal _feePlatformTreasury;
 
     mapping(bytes32 marketId => mapping(address feeAsset => uint256[4] amounts)) internal _bucketLiabilities;
     mapping(bytes32 marketId => mapping(uint32 creatorEpoch => mapping(address feeAsset => uint256 amount))) internal
@@ -104,8 +104,9 @@ abstract contract ProtocolFeeVaultLiabilities is ProtocolFeeVaultCurveCredit {
         amount = _bucketLiabilities[marketId][feeAsset][BUCKET_PLATFORM_REVENUE];
         if (amount != 0) {
             _debitLiability(marketId, feeAsset, BUCKET_PLATFORM_REVENUE, amount);
-            _payFeeAsset(feeAsset, _feePlatformTreasury, amount);
-            emit FeeClaimed(BUCKET_PLATFORM_REVENUE, _feePlatformTreasury, marketId, 0, feeAsset, amount);
+            address recipient = _feePlatformTreasury;
+            _payFeeAsset(feeAsset, recipient, amount);
+            emit FeeClaimed(BUCKET_PLATFORM_REVENUE, recipient, marketId, 0, feeAsset, amount);
         }
         _exitStandaloneOperation();
     }
@@ -328,15 +329,18 @@ abstract contract ProtocolFeeVaultLiabilities is ProtocolFeeVaultCurveCredit {
     }
 
     function _payFeeAsset(address feeAsset, address beneficiary, uint256 amount) internal {
+        uint256 balanceAfter;
         if (feeAsset == address(0)) {
             (bool success,) = payable(beneficiary).call{value: amount}("");
             if (!success) revert NativeFeeClaimFailed(beneficiary, amount);
+            balanceAfter = address(this).balance;
         } else {
             IERC20 token = IERC20(feeAsset);
             uint256 vaultBalanceBefore = token.balanceOf(address(this));
             uint256 beneficiaryBalanceBefore = token.balanceOf(beneficiary);
             token.safeTransfer(beneficiary, amount);
             uint256 vaultBalanceAfter = token.balanceOf(address(this));
+            balanceAfter = vaultBalanceAfter;
             uint256 beneficiaryBalanceAfter = token.balanceOf(beneficiary);
             uint256 vaultDecrease =
                 vaultBalanceBefore >= vaultBalanceAfter ? vaultBalanceBefore - vaultBalanceAfter : type(uint256).max;
@@ -347,7 +351,10 @@ abstract contract ProtocolFeeVaultLiabilities is ProtocolFeeVaultCurveCredit {
                 revert InexactFeePayment(feeAsset, beneficiary, amount, vaultDecrease, beneficiaryIncrease);
             }
         }
-        _requireSolvent(feeAsset, _totalLiabilities[feeAsset]);
+        // No state-changing call follows the observed balance. Keep the caller
+        // final check: another asset payment may change this asset balance.
+        uint256 required = _totalLiabilities[feeAsset];
+        if (balanceAfter < required) revert FeeVaultInsolvent(feeAsset, balanceAfter, required);
     }
 
     function _requireAssetSolvent(address feeAsset) internal view {

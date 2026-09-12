@@ -93,6 +93,11 @@ contract MockMutableUserStockVaultIdentity {
         allocationManager = allocationManager_;
     }
 
+    function setIdentity(address registry_, bytes32 schemaId_) external {
+        registry = registry_;
+        schemaId = schemaId_;
+    }
+
     function vaultIdentity() external view returns (address, address, address, bytes32) {
         return (registry, marketRegistry, allocationManager, schemaId);
     }
@@ -347,6 +352,24 @@ contract OfficialStockRegistryV1Test is Test {
         assertTrue(registry.vaultIdentityCurrent(address(mutableVault)));
 
         mutableVault.setBindings(address(new EmptyV1Contract()), allocationManager);
+        assertFalse(registry.vaultIdentityCurrent(address(mutableVault)));
+        assertFalse(registry.assetIdentityCurrent(ASSET_UID));
+    }
+
+    function testFuzz_vaultPinnedCodeStillChecksMutableIdentityAndDependencies(uint8 seed) public {
+        MockMutableUserStockVaultIdentity mutableVault = new MockMutableUserStockVaultIdentity(
+            address(registry), marketRegistry, allocationManager, VAULT_SCHEMA_ID
+        );
+        _registerFast(ASSET_UID, stockToken, 18, address(mutableVault));
+        bytes32 pinned = address(mutableVault).codehash;
+        uint256 variant = bound(uint256(seed), 0, 5);
+        if (variant == 0) mutableVault.setIdentity(address(0xBAD), VAULT_SCHEMA_ID);
+        else if (variant == 1) mutableVault.setIdentity(address(registry), keccak256("changed-schema"));
+        else if (variant == 2) mutableVault.setBindings(marketRegistry, address(new EmptyV1Contract()));
+        else if (variant == 3) mutableVault.setBindings(address(new EmptyV1Contract()), allocationManager);
+        else if (variant == 4) vm.etch(marketRegistry, hex"");
+        else vm.etch(allocationManager, hex"");
+        assertEq(address(mutableVault).codehash, pinned, "vault runtime is unchanged");
         assertFalse(registry.vaultIdentityCurrent(address(mutableVault)));
         assertFalse(registry.assetIdentityCurrent(ASSET_UID));
     }

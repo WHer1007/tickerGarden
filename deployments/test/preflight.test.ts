@@ -67,6 +67,12 @@ function resolverBindingResult(manifest: JsonRecord, label: unknown): string | u
 }
 
 function treasuryBindingResult(manifest: JsonRecord, label: unknown): string | undefined {
+  if (label === "factory-platform-treasury" || label === "fee-vault-platform-treasury") {
+    return result([addressWord(String((manifest.roleHandoff as JsonRecord).platformTreasury))]);
+  }
+  if (label === "treasury-change-delay") return result([word(172800n)]);
+  if (label === "treasury-pending-recipient" || label === "treasury-proposal-nonce") return result([word(0n)]);
+
   if (label === "treasury-access-manager-authority") {
     return result([addressWord(String((manifest.accessManager as JsonRecord).address))]);
   }
@@ -83,6 +89,7 @@ function registryAuthorityResult(manifest: JsonRecord, label: unknown): string |
     "approved-quote-registry-access-manager-authority",
     "tickergarden-baseline-registry-access-manager-authority",
     "launch-template-registry-access-manager-authority",
+    "protocol-fee-vault-access-manager-authority",
   ]);
   if (!registryLabels.has(String(label))) return undefined;
   return result([addressWord(String((manifest.accessManager as JsonRecord).address))]);
@@ -509,7 +516,7 @@ test("verifies complete live state at one finalized block using read-only RPC on
   const rpc = new MockRpc(manifest);
   const report = await verifyV1LiveState(manifest, rpc);
   assert.equal(report.chainId, 4663);
-  assert.equal(report.permissionChecks, 83);
+  assert.equal(report.permissionChecks, 87);
   assert.equal(report.administrativePermissionChecks, 6);
   assert.equal(report.roleMembershipChecks, 3);
   assert.equal(report.revokedMembershipChecks, 3);
@@ -672,6 +679,7 @@ test("rejects missing or drifted Registry AccessManager bindings before RPC", as
     ["ApprovedQuoteRegistry", "approved-quote-registry-access-manager-authority"],
     ["TickerGardenBaselineRegistry", "tickergarden-baseline-registry-access-manager-authority"],
     ["LaunchTemplateRegistry", "launch-template-registry-access-manager-authority"],
+    ["ProtocolFeeVault", "protocol-fee-vault-access-manager-authority"],
   ] as const;
   for (const [registryName, label] of registries) {
     const missing = prepareManifest();
@@ -864,4 +872,22 @@ test("rejects every canonical permission semantic and role-handoff drift before 
 test("HTTP transport rejects write RPC methods before network access", async () => {
   const rpc = new HttpV1ReadOnlyRpc("https://rpc.release.invalid");
   await assert.rejects(rpc.request("eth_sendRawTransaction", ["0x00"]), /non-read-only RPC method/);
+});
+
+
+test("Treasury release preflight requires recipient agreement, fixed delay and pristine proposal state", async () => {
+  for (const label of ["factory-platform-treasury", "fee-vault-platform-treasury", "treasury-change-delay", "treasury-pending-recipient", "treasury-proposal-nonce"]) {
+    const missing = prepareManifest();
+    const live = missing.livePreflight as JsonRecord;
+    live.keyGetterChecks = (live.keyGetterChecks as JsonRecord[]).filter((entry) => entry.label !== label);
+    const missingRpc = new MockRpc(missing);
+    await assert.rejects(verifyV1LiveState(missing, missingRpc), /lacks Treasury configuration evidence/);
+    assert.deepEqual(missingRpc.methods, []);
+    const drifted = prepareManifest();
+    const check = ((drifted.livePreflight as JsonRecord).keyGetterChecks as JsonRecord[]).find((entry) => entry.label === label)!;
+    check.expectedReturnDataHash = keccakHex(result([word(42n)]));
+    const driftedRpc = new MockRpc(drifted);
+    await assert.rejects(verifyV1LiveState(drifted, driftedRpc), new RegExp(label));
+    assert.deepEqual(driftedRpc.methods, []);
+  }
 });

@@ -63,6 +63,19 @@
     "HOLDER_REWARDS_DISTRIBUTOR_MODULE": {
       "delaySeconds": 0,
       "member": "IMMUTABLE_HOLDER_REWARDS_DISTRIBUTOR"
+    },
+    "PROTOCOL_ADMIN_MEMBER": {
+      "delaySeconds": 0,
+      "member": "ACTIVE_ACCESS_MANAGER_ROLE_1_MEMBER",
+      "stateDelayEnforcedBy": "ProtocolFeeVault.TREASURY_CHANGE_DELAY"
+    },
+    "PROTOCOL_ADMIN_OR_GUARDIAN_MEMBER": {
+      "delaySeconds": 0,
+      "member": "ACTIVE_ACCESS_MANAGER_ROLE_1_OR_2_MEMBER"
+    },
+    "PENDING_PLATFORM_TREASURY": {
+      "delaySeconds": 0,
+      "member": "EXACT_PENDING_CONTRACT"
     }
   },
   "functions": [
@@ -731,6 +744,43 @@
       "delaySeconds": 0,
       "recipient": "none",
       "precondition": "ONCE_ONLY_BY_IMMUTABLE_DISTRIBUTOR_AFTER_CANONICAL_REGISTRATION"
+    },
+    {
+      "module": "ProtocolFeeVault",
+      "signature": "proposePlatformTreasury(address)",
+      "caller": "PROTOCOL_ADMIN_MEMBER",
+      "delaySeconds": 0,
+      "stateDelaySeconds": 0,
+      "recipient": "none",
+      "precondition": "ACTIVE_ROLE_1_MEMBER_DIRECT_CALL; FIXED_48H_STATE_TIMELOCK_STARTS; NO_PENDING_PROPOSAL; CONTRACT_RECIPIENT"
+    },
+    {
+      "module": "ProtocolFeeVault",
+      "signature": "acceptPlatformTreasury(uint256)",
+      "caller": "PENDING_PLATFORM_TREASURY",
+      "delaySeconds": 0,
+      "stateDelaySeconds": 0,
+      "recipient": "none",
+      "precondition": "EXACT_PENDING_CONTRACT_DIRECT_CALL; MATCHING_PROPOSAL_NONCE_AND_CODEHASH"
+    },
+    {
+      "module": "ProtocolFeeVault",
+      "signature": "cancelPlatformTreasury(uint256)",
+      "caller": "PROTOCOL_ADMIN_OR_GUARDIAN_MEMBER",
+      "delaySeconds": 0,
+      "stateDelaySeconds": 0,
+      "recipient": "none",
+      "precondition": "ACTIVE_ROLE_1_OR_ROLE_2_MEMBER_DIRECT_CALL; MATCHING_PROPOSAL_NONCE; IMMEDIATE_CANCEL"
+    },
+    {
+      "module": "ProtocolFeeVault",
+      "signature": "executePlatformTreasury(uint256)",
+      "caller": "PUBLIC",
+      "delaySeconds": 0,
+      "stateDelaySeconds": 172800,
+      "recipient": "none",
+      "precondition": "MATCHING_NONCE; NEW_TREASURY_ACCEPTED; 48H_ELAPSED; PROPOSER_STILL_ROLE_1; CODEHASH_UNCHANGED; ALL_UNPAID_PLATFORM_FEES_FOLLOW_CURRENT_TREASURY",
+      "stateDelayAnchor": "TREASURY_PROPOSAL_TIMESTAMP"
     }
   ],
   "forbiddenCapabilities": [

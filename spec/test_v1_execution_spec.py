@@ -962,6 +962,9 @@ class V1ExecutionSpecTest(unittest.TestCase):
             "SERVICE_BENEFICIARY",
             "SETTLEMENT_OPERATOR",
             "FIXED_PLATFORM_BENEFICIARY",
+            "PROTOCOL_ADMIN_MEMBER",
+            "PROTOCOL_ADMIN_OR_GUARDIAN_MEMBER",
+            "PENDING_PLATFORM_TREASURY",
         }
         for module in self.abi["modules"]:
             for function in module.get("functions", []):
@@ -988,7 +991,9 @@ class V1ExecutionSpecTest(unittest.TestCase):
         self.assertNotIn(("GraduationExecutor", "rescueSweptLaunch(bytes32)"), rows)
         self.assertNotIn(("MarketRegistryV1", "markSwept(bytes32)"), rows)
         self.assertNotIn(("MarketRegistryV1", "markRescued(bytes32)"), rows)
-        self.assertTrue(all(entry["stateDelaySeconds"] == 0 for entry in rows.values()))
+        self.assertTrue(all(entry["stateDelaySeconds"] == 0 for key, entry in rows.items() if key[0] == "GraduationExecutor"))
+        delayed = {key: entry["stateDelaySeconds"] for key, entry in rows.items() if entry["stateDelaySeconds"]}
+        self.assertEqual(delayed, {("ProtocolFeeVault", "executePlatformTreasury(uint256)"): 172800})
 
     def test_struct_aliases_expand_to_canonical_tuples(self):
         rows = {

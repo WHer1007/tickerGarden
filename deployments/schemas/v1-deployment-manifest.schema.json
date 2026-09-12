@@ -757,6 +757,11 @@
         },
         "exactBalanceDeltaEvidenceHash": {
           "$ref": "#/$defs/bytes32"
+        },
+        "minimumAllocation": {
+          "type": "string",
+          "pattern": "^[1-9][0-9]*$",
+          "description": "Raw-token minimum total stake; mandatory in the RH production release preflight."
         }
       }
     },
@@ -811,6 +816,11 @@
         },
         "exactBalanceDeltaEvidenceHash": {
           "$ref": "#/$defs/bytes32"
+        },
+        "minimumAllocation": {
+          "type": "string",
+          "pattern": "^[1-9][0-9]*$",
+          "description": "Raw-token minimum total stake; mandatory in the RH production release preflight."
         }
       }
     },
@@ -1059,7 +1069,11 @@
           "maximum": 172800
         },
         "stateDelaySeconds": {
-          "const": 0
+          "type": "integer",
+          "enum": [
+            0,
+            172800
+          ]
         },
         "stateDelayAnchor": {
           "$ref": "#/$defs/nonEmptyString"
@@ -1128,8 +1142,8 @@
         },
         "protocolPermissions": {
           "type": "array",
-          "minItems": 83,
-          "maxItems": 83,
+          "minItems": 87,
+          "maxItems": 87,
           "uniqueItems": true,
           "items": {
             "$ref": "#/$defs/permission"

@@ -821,5 +821,22 @@
     },
     "holderSharingIndependent": true,
     "creatorTaxIndependent": true
+  },
+  "platformTreasuryRotation": {
+    "authority": "ProtocolFeeVault is the sole Treasury address source; Factory reads it at payment time",
+    "governanceRoleId": 1,
+    "guardianRoleId": 2,
+    "proposalAuthorization": "DIRECT_ACTIVE_ACCESS_MANAGER_ROLE_MEMBERSHIP",
+    "stateDelaySeconds": 172800,
+    "stateDelayAnchor": "SUCCESSFUL_PROPOSAL_BLOCK_TIMESTAMP",
+    "newRecipient": "CODE_BEARING_CONTRACT_WITH_EXPLICIT_NONCE_BOUND_ACCEPTANCE",
+    "cancelAuthorization": "ROLE_1_OR_ROLE_2_IMMEDIATE",
+    "executeAuthorization": "PUBLIC_AFTER_DELAY_AND_ACCEPTANCE_AND_PROPOSER_STILL_ACTIVE",
+    "proposalReplacement": "CANCEL_THEN_NEW_MONOTONIC_NONCE",
+    "oldRecipientConsentRequired": false,
+    "unpaidPlatformLiabilities": "PAY_CURRENT_TREASURY_AT_CLAIM_TIME",
+    "otherUserLiabilities": "UNCHANGED",
+    "alreadyPaidFunds": "CANNOT_BE_RECOVERED_BY_ROTATION",
+    "proxyStateMonitoring": "RUNTIME_HASH_DOES_NOT_PIN_SAFE_OWNERS_MODULES_GUARD_OR_IMPLEMENTATION"
   }
 }

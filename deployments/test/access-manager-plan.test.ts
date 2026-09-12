@@ -27,12 +27,12 @@ function input(overrides: Partial<V1AccessManagerPlanInput> = {}): V1AccessManag
   };
 }
 
-test("derives 19 protocol role selectors and 64 immutable direct selectors from the current manifest", () => {
+test("derives 19 protocol role selectors and 68 immutable direct selectors from the current manifest", () => {
   const plan = deriveV1AccessManagerPlan(input());
   assert.equal(compiled.modules.length, 18);
-  assert.equal(compiled.mutations.length, 83);
+  assert.equal(compiled.mutations.length, 87);
   assert.equal(plan.configuredProtocolSelectorCount, 19);
-  assert.equal(plan.immutableDirectSelectorCount, 64);
+  assert.equal(plan.immutableDirectSelectorCount, 68);
   assert.equal(plan.roles.length, 3);
   assert.deepEqual(plan.roles.map((role) => [role.name, role.roleId, role.executionDelaySeconds]), [
     ["PROTOCOL_ADMIN_ROLE", V1_ACCESS_ROLES.PROTOCOL_ADMIN_ROLE.toString(), 172800],
@@ -50,7 +50,9 @@ test("binds all five roles to the intended Safe members and exposes no delayed t
     fixtureAddress("guardian-safe").toLowerCase(),
     fixtureAddress("security-safe").toLowerCase(),
   ]);
-  assert.ok(compiled.mutations.every((row) => row.stateDelaySeconds === 0));
+  assert.deepEqual(compiled.mutations.filter((row) => row.stateDelaySeconds !== 0).map((row) => [row.target, row.displaySignature, row.stateDelaySeconds]), [
+    ["ProtocolFeeVault", "executePlatformTreasury(uint256)", 172800],
+  ]);
   for (const removedSignature of [
     "retryGraduation(bytes32)",
     "rescueSweptLaunch(bytes32)",
@@ -69,6 +71,10 @@ test("configures only current privileged selectors and leaves lifecycle operatio
   const configured = protocolActions.flatMap((action) => configuredSelectors(action.data));
   assert.equal(configured.length, plan.configuredProtocolSelectorCount);
   for (const directSignature of [
+    "proposePlatformTreasury(address)",
+    "cancelPlatformTreasury(uint256)",
+    "executePlatformTreasury(uint256)",
+    "acceptPlatformTreasury(uint256)",
     "activateMarket(bytes32)",
     "fundQuoteTreasury(bytes32,uint256,bytes32)",
     "burnMeme(bytes32,uint256,bytes32)",

@@ -198,6 +198,11 @@ contract FactoryDependencyMock {
 }
 
 contract FactoryCurveFeeVaultMock {
+    address public authority;
+
+    function setAuthority(address value) external {
+        authority = value;
+    }
     uint256 public credited;
     address public marketRegistry;
     address public poolManager;
@@ -543,6 +548,7 @@ contract TickerGardenFactoryV1Test is Test {
         templateConfigs.setAuthority(address(accessManager));
         stockVault = new FactoryDependencyMock();
         feeVault = new FactoryCurveFeeVaultMock();
+        feeVault.setAuthority(address(accessManager));
         allocationManager = new FactoryDependencyMock();
         lockerImplementation = new FactoryDependencyMock();
         graduation = new FactoryGraduationExecutorMock();
@@ -641,6 +647,10 @@ contract TickerGardenFactoryV1Test is Test {
             _expectConstructorBindingFailure();
             registries[i].setAuthority(address(accessManager));
         }
+
+        feeVault.setAuthority(mismatchedAuthority);
+        _expectConstructorBindingFailure();
+        feeVault.setAuthority(address(accessManager));
 
         address noCodeAuthority = address(0xA11CE);
         for (uint256 i; i < registries.length; ++i) {
@@ -952,6 +962,24 @@ contract TickerGardenFactoryV1Test is Test {
         assertFalse(success);
         assertEq(token.totalSupply(), supplyBefore);
         assertEq(token.balanceOf(legacyMinter), 0);
+    }
+
+    function test_launchFeeFollowsCanonicalFeeVaultTreasury() public {
+        FactoryTreasuryMock nextTreasury = new FactoryTreasuryMock();
+        feeVault.setBindings(
+            address(marketRegistry),
+            feeVault.poolManager(),
+            address(revenueRegistry),
+            address(nextTreasury),
+            feeVault.feePolicyId()
+        );
+        assertEq(factory.platformTreasury(), address(nextTreasury));
+        CreateMarketParams memory params = _validParams(CREATOR, bytes32("ROTATED-TREASURY"));
+        uint256 beforeOld = address(treasury).balance;
+        vm.prank(CREATOR);
+        factory.createMarket{value: LAUNCH_FEE}(params);
+        assertEq(address(nextTreasury).balance, LAUNCH_FEE);
+        assertEq(address(treasury).balance, beforeOld);
     }
 
     function test_launchFeeMustBeExact() public {

@@ -54,7 +54,7 @@
     "configurationInputs": {
       "type": "array",
       "minItems": 22,
-      "maxItems": 22,
+      "maxItems": 27,
       "uniqueItems": true,
       "items": {
         "type": "string",

@@ -19,6 +19,10 @@ function functionSelector(signature: string): string {
   return `0x${Buffer.from(keccak_256(new TextEncoder().encode(signature))).subarray(0, 4).toString("hex")}`;
 }
 
+function keccakHex(value: string): string {
+  return `0x${Buffer.from(keccak_256(Buffer.from(value.slice(2), "hex"))).toString("hex")}`;
+}
+
 function addressReturnHash(value: string): string {
   const encoded = Uint8Array.from(value.slice(2).padStart(64, "0").match(/../g) ?? [], (byte) => Number.parseInt(byte, 16));
   return `0x${Buffer.from(keccak_256(encoded)).toString("hex")}`;
@@ -94,6 +98,11 @@ export function validManifest(): JsonRecord {
       accessManagerDeploymentBlockNumber: "123400",
       keyGetterChecks: [
         { label: "launch-template-hash", category: "CONFIG_IDENTITY", target: String((protocolModules.LaunchTemplateRegistry as JsonRecord).deployedAddress), callData: `0x12345678${hash("template-id").slice(2)}`, expectedReturnDataHash: hash("template-return-data") },
+        { label: "factory-platform-treasury", category: "CONFIG_IDENTITY", target: String((protocolModules.TickerGardenFactoryV1 as JsonRecord).deployedAddress), callData: functionSelector("platformTreasury()"), expectedReturnDataHash: addressReturnHash(address("platform-treasury")) },
+        { label: "fee-vault-platform-treasury", category: "CONFIG_IDENTITY", target: String((protocolModules.ProtocolFeeVault as JsonRecord).deployedAddress), callData: functionSelector("platformTreasury()"), expectedReturnDataHash: addressReturnHash(address("platform-treasury")) },
+        { label: "treasury-change-delay", category: "CONFIG_IDENTITY", target: String((protocolModules.ProtocolFeeVault as JsonRecord).deployedAddress), callData: functionSelector("TREASURY_CHANGE_DELAY()"), expectedReturnDataHash: keccakHex(`0x${BigInt(172800).toString(16).padStart(64, "0")}`) },
+        { label: "treasury-pending-recipient", category: "CONFIG_IDENTITY", target: String((protocolModules.ProtocolFeeVault as JsonRecord).deployedAddress), callData: functionSelector("pendingPlatformTreasury()"), expectedReturnDataHash: keccakHex(`0x${"0".repeat(64)}`) },
+        { label: "treasury-proposal-nonce", category: "CONFIG_IDENTITY", target: String((protocolModules.ProtocolFeeVault as JsonRecord).deployedAddress), callData: functionSelector("treasuryProposalNonce()"), expectedReturnDataHash: keccakHex(`0x${"0".repeat(64)}`) },
         { label: "factory-market-registry", category: "IMMUTABLE_BINDING", target: String((protocolModules.TickerGardenFactoryV1 as JsonRecord).deployedAddress), callData: "0x87654321", expectedReturnDataHash: hash("factory-registry-return-data") },
         { label: "gauge-clone-identity", category: "IMMUTABLE_BINDING", target: String(gaugeComponent.actualAddress), callData: functionSelector("gaugeIdentity()"), expectedReturnDataHash: String(gaugeComponent.immutableArgsHash) },
         { label: "resolver-approved-quote-registry", category: "IMMUTABLE_BINDING", target: String(resolver.deployedAddress), callData: functionSelector("approvedQuoteRegistry()"), expectedReturnDataHash: addressReturnHash(String((protocolModules.ApprovedQuoteRegistry as JsonRecord).deployedAddress)) },
@@ -104,6 +113,7 @@ export function validManifest(): JsonRecord {
         { label: "approved-quote-registry-official-stock-registry", category: "IMMUTABLE_BINDING", target: String((protocolModules.ApprovedQuoteRegistry as JsonRecord).deployedAddress), callData: functionSelector("officialStockRegistry()"), expectedReturnDataHash: addressReturnHash(String((protocolModules.OfficialStockRegistryV1 as JsonRecord).deployedAddress)) },
         { label: "tickergarden-baseline-registry-access-manager-authority", category: "IMMUTABLE_BINDING", target: String((protocolModules.TickerGardenBaselineRegistry as JsonRecord).deployedAddress), callData: functionSelector("authority()"), expectedReturnDataHash: addressReturnHash(address("access-manager")) },
         { label: "launch-template-registry-access-manager-authority", category: "IMMUTABLE_BINDING", target: String((protocolModules.LaunchTemplateRegistry as JsonRecord).deployedAddress), callData: functionSelector("authority()"), expectedReturnDataHash: addressReturnHash(address("access-manager")) },
+        { label: "protocol-fee-vault-access-manager-authority", category: "IMMUTABLE_BINDING", target: String((protocolModules.ProtocolFeeVault as JsonRecord).deployedAddress), callData: functionSelector("authority()"), expectedReturnDataHash: addressReturnHash(address("access-manager")) },
         { label: "holder-market-registry", category: "IMMUTABLE_BINDING", target: String((protocolModules.HolderRewardsDistributorV1 as JsonRecord).deployedAddress), callData: functionSelector("marketRegistry()"), expectedReturnDataHash: addressReturnHash(String((protocolModules.MarketRegistryV1 as JsonRecord).deployedAddress)) },
         { label: "stock-uid", category: "EXTERNAL_IDENTITY", target: address("stock-token"), callData: functionSelector("uid()"), expectedReturnDataHash: hash("stock-uid-return") },
         { label: "stock-decimals", category: "EXTERNAL_IDENTITY", target: address("stock-token"), callData: functionSelector("decimals()"), expectedReturnDataHash: hash("stock-decimals-return") },

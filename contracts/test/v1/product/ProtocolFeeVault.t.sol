@@ -48,6 +48,7 @@ contract ProtocolFeeVaultProductTest is Test {
 
     function _init() private view returns (ProtocolFeeVaultInit memory init) {
         init = ProtocolFeeVaultInit({
+            authority: address(registry),
             marketRegistry: address(registry),
             poolManager: address(poolManager),
             creatorRevenueRegistry: address(creatorRegistry),

@@ -14,6 +14,7 @@ abstract contract UserStockVaultDeposits is UserStockVaultIdentity, ReentrancyGu
 
     error InvalidDepositAccount(address user);
     error InvalidDepositAmount(uint256 amount);
+    error StockPrincipalDeficit(bytes32 assetUid, uint256 balance, uint256 required);
     error StockTransferCallFailed(address stockToken);
     error InvalidStockTransferReturn(address stockToken);
     error InexactStockBalanceDelta(address stockToken, uint256 expected, uint256 actual);
@@ -29,6 +30,9 @@ abstract contract UserStockVaultDeposits is UserStockVaultIdentity, ReentrancyGu
         IERC20 stockToken = IERC20(assetView.stockToken);
 
         uint256 beforeBalance = stockToken.balanceOf(address(this));
+        // Do not let fresh deposits fund a pre-existing loss of custody assets.
+        uint256 required = _totalDeposited[assetUid];
+        if (beforeBalance < required) revert StockPrincipalDeficit(assetUid, beforeBalance, required);
         (bool success, bytes memory result) =
             address(stockToken).call(abi.encodeCall(IERC20.transferFrom, (user, address(this), amount)));
         if (!success) revert StockTransferCallFailed(address(stockToken));

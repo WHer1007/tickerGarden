@@ -498,6 +498,27 @@ contract ApprovedQuoteRegistryTest is Test {
         registry.addStockQuoteConfig(config.economicsHash, config, binding);
     }
 
+    function test_auditGenericProxyQuoteDoesNotDetectImplementationUpgrade() public {
+        QuoteAssetConfig memory genericConfig = _erc20Config(stockToken, 18, 1 ether, 2 ether);
+        vm.prank(FAST_ADMIN);
+        registry.addQuoteConfig(genericConfig.economicsHash, genericConfig);
+        StockQuoteBinding memory binding = _stockBinding();
+        QuoteAssetConfig memory boundConfig = _stockConfig(binding, 2 ether, 5 ether);
+        _addStockFast(boundConfig.economicsHash, boundConfig, binding);
+        bytes32 pinnedProxyCode = stockToken.codehash;
+
+        stockBeacon.upgradeTo(address(new QuoteRegistryBeaconStockLogicV2()));
+
+        assertEq(stockToken.codehash, pinnedProxyCode, "proxy runtime did not change");
+        assertTrue(
+            registry.quoteIdentityCurrent(genericConfig.economicsHash), "generic admission trusts proxy upgrades"
+        );
+        assertFalse(
+            registry.quoteIdentityCurrent(boundConfig.economicsHash), "explicit fingerprint binding detects upgrade"
+        );
+        assertFalse(stockRegistry.assetIdentityCurrent(ASSET_UID));
+    }
+
     function test_assetPauseAndBeaconUpgradeInvalidateStockQuoteForFutureMarkets() public {
         StockQuoteBinding memory binding = _stockBinding();
         QuoteAssetConfig memory config = _stockConfig(binding, 2 ether, 5 ether);

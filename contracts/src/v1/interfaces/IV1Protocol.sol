@@ -516,6 +516,10 @@ interface IProtocolFeeVault {
     event RewardConverted(bytes32 indexed marketId, address indexed user, uint32 indexed creatorEpoch, uint256 memeSpent, uint256 quoteReceived);
     event HolderFeesAccrued(bytes32 indexed marketId, uint32 indexed epochId, address indexed feeAsset, uint256 amount);
     event UserRewardsClaimed(bytes32 indexed marketId, address indexed user, uint8 indexed role, uint32 creatorEpoch, uint256 quotePaid, uint256 memePaid, uint256 memeRetained, uint256 memeConverted, bool conversionFailed);
+    event PlatformTreasuryProposed(uint256 indexed nonce, address indexed oldTreasury, address indexed newTreasury, address proposer, uint256 readyAt, bytes32 codeHash);
+    event PlatformTreasuryAccepted(uint256 indexed nonce, address indexed newTreasury);
+    event PlatformTreasuryCancelled(uint256 indexed nonce, address indexed caller);
+    event PlatformTreasuryChanged(uint256 indexed nonce, address indexed oldTreasury, address indexed newTreasury);
 
     function beginV4Credit(bytes32 arg0, address arg1, uint256 arg2, uint32 arg3, bytes32 arg4) external;
     function finalizeV4Credit(bytes32 arg0, address arg1, uint256 arg2, uint256 arg3, uint256 arg4, uint256 arg5, uint64 arg6, bytes32 arg7) external;
@@ -541,6 +545,18 @@ interface IProtocolFeeVault {
     function userClaimMode() external pure returns (bytes32 output0);
     function convertUserClaim(bytes32 arg0, MarketView calldata arg1, uint256 arg2, uint256 arg3) external returns (uint256 output0, uint256 output1);
     function fundHolderMemeRewards(bytes32 arg0) external returns (uint256 output0);
+    function proposePlatformTreasury(address arg0) external;
+    function acceptPlatformTreasury(uint256 arg0) external;
+    function cancelPlatformTreasury(uint256 arg0) external;
+    function executePlatformTreasury(uint256 arg0) external;
+    function authority() external view returns (address output0);
+    function TREASURY_CHANGE_DELAY() external view returns (uint256 output0);
+    function treasuryProposalNonce() external view returns (uint256 output0);
+    function pendingPlatformTreasury() external view returns (address output0);
+    function treasuryProposer() external view returns (address output0);
+    function treasuryChangeReadyAt() external view returns (uint256 output0);
+    function treasuryChangeAccepted() external view returns (bool output0);
+    function pendingTreasuryCodeHash() external view returns (bytes32 output0);
 }
 
 interface IGraduationExecutor {

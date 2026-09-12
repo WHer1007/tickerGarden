@@ -180,7 +180,6 @@ contract TickerGardenFactoryV1 is ITickerGardenFactoryV1, ICurveInitializationSo
     address public immutable protocolFeeVault;
     address public immutable allocationManager;
     address public immutable launchRouter;
-    address public immutable platformTreasury;
     address public immutable override holderRewardsDistributor;
     bytes32 public immutable feePolicyId;
 
@@ -227,7 +226,6 @@ contract TickerGardenFactoryV1 is ITickerGardenFactoryV1, ICurveInitializationSo
         protocolFeeVault = init.protocolFeeVault;
         allocationManager = init.allocationManager;
         launchRouter = init.launchRouter;
-        platformTreasury = init.platformTreasury;
         holderRewardsDistributor = init.holderRewardsDistributor;
         feePolicyId = init.feePolicyId;
         launchFee = LAUNCH_FEE;
@@ -619,9 +617,15 @@ contract TickerGardenFactoryV1 is ITickerGardenFactoryV1, ICurveInitializationSo
         if (actualHash != expectedHash) revert GaugeIdentityMismatch(gauge, expectedHash, actualHash);
     }
 
+    /// @notice Shared with FeeVault: no independent Factory Treasury configuration can drift.
+    function platformTreasury() public view returns (address) {
+        return IFactoryFeeVaultDependencies(protocolFeeVault).platformTreasury();
+    }
+
     function _transferLaunchFee() private {
-        (bool success,) = payable(platformTreasury).call{value: launchFee}("");
-        if (!success) revert LaunchFeeTransferFailed(platformTreasury, launchFee);
+        address recipient = platformTreasury();
+        (bool success,) = payable(recipient).call{value: launchFee}("");
+        if (!success) revert LaunchFeeTransferFailed(recipient, launchFee);
     }
 
     function _validateDependencies(TickerGardenFactoryInit memory init) private view {
@@ -680,6 +684,7 @@ contract TickerGardenFactoryV1 is ITickerGardenFactoryV1, ICurveInitializationSo
                 || IFactoryAuthorityDependency(init.approvedQuoteRegistry).authority() != authority_
                 || IFactoryAuthorityDependency(init.tickerGardenBaselineRegistry).authority() != authority_
                 || IFactoryAuthorityDependency(init.launchTemplateRegistry).authority() != authority_
+                || IFactoryAuthorityDependency(init.protocolFeeVault).authority() != authority_
                 || IApprovedQuoteRegistry(init.approvedQuoteRegistry).officialStockRegistry()
                     != init.officialStockRegistry
         ) revert InvalidFactoryBinding();

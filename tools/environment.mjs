@@ -6,7 +6,7 @@ import {fileURLToPath} from 'node:url';
 export const root=path.resolve(path.dirname(fileURLToPath(import.meta.url)),'..');
 export const policies={
  test:{chain:'46630',snipe:'5',phantom:'168000000000000000',graduation:'420000000000000000'},
- master:{chain:'4663',snipe:'5',phantom:'1680000000000000000',graduation:'4200000000000000000'},
+ master:{chain:'4663',snipe:'5',phantom:'1200000000000000000',graduation:'3000000000000000000'},
 };
 export function currentBranch(cwd=root){return execFileSync('git',['branch','--show-current'],{cwd,encoding:'utf8'}).trim();}
 export function validateEnvironment(profile,env,branch){
