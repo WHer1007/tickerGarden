@@ -1,48 +1,48 @@
 {
   "schema": "tickergarden.typescript-serverless-baseline.v1",
-  "capturedAt": "2026-09-11",
+  "capturedAt": "2026-09-13",
   "status": "TEST_ONLY_NOT_PRODUCTION_READY",
   "executionSpecId": "V1-EXEC-11",
   "target": {
     "chainId": 46630,
     "genesisHash": "0x829a42e6d68c872aafcef3abb2123fe371138fc415dd8b44381bbbf23049dd32",
-    "releaseId": "0x5c2c656b1b23e895ea268c34b187cd267e0f4fdcc1759c726cbca7fafb7c9c12",
-    "bootstrap": "apps/web/public/integration/rh-5c2c656b.json",
-    "activationBlockNumber": "117032526",
-    "activationBlockHash": "0x36065fb09f78a00f75c528cad0e81e2f1a7b9f59bea9577488f26f4fb611f806",
-    "factory": "0x496a3cb9fd8a045c590f311e948b2b4382f17904",
-    "officialStockRegistry": "0xb214ffa2d11f6b0bd117bc41d6d51800c52ef928",
-    "approvedQuoteRegistry": "0x93c8ce0e44c2ed39399ff12821454d681c0b5353",
-    "tickerGardenBaselineRegistry": "0x78c1526860e0da4acdc6f32a4f4f8d45bbde0933",
-    "launchTemplateRegistry": "0x7b0be869b940c61cbb1cb90655dc34aac329fc63",
-    "marketRegistry": "0x03f8a6e75ce7bf707076d7339968f8fdf5703b16",
-    "protocolFeeVault": "0x9cba4929745077198393f09ad2f409db43c90da9",
-    "allocationManager": "0xe737f06bffa94f4bd9eb233ca344fdea4d796452",
-    "launchRouter": "0x0923719faaf02f1e512fb62f69bda312447cbd60",
-    "holderRewardsDistributor": "0x88dfa615583abfbffed04a40e902d41cc550c992",
+    "releaseId": "0x685b5c20e826f4ddd076b61216c7529a967322082925c4741469b0fda837a7f2",
+    "bootstrap": "apps/web/public/integration/rh-685b5c20.json",
+    "activationBlockNumber": "118689839",
+    "activationBlockHash": "0x9b368b4107601d7abc1de430d89b30ac21bc3688a76ca83035bbce3bca56a63d",
+    "factory": "0xf11839c3566c8b3345ed81e4a0e26cc38aa2866a",
+    "officialStockRegistry": "0x01564750928a97faddc94c69306e6a8598cd2a03",
+    "approvedQuoteRegistry": "0x14697017390ee72157b0f294764673e36a6a614d",
+    "tickerGardenBaselineRegistry": "0xdab7eba06f8fbecad13ae622d6993c6f645d099a",
+    "launchTemplateRegistry": "0x3bd049845131ba86fcbf17685acedb203afe7e8c",
+    "marketRegistry": "0xab37f78d3a41c8f510f5a95a74f1ff1144e14660",
+    "protocolFeeVault": "0x8c4ce2bb409b68697024afc28d26138d621035e2",
+    "allocationManager": "0x6eac1c710edf540bbacfc3b5da2ad427e916741f",
+    "launchRouter": "0xdce9a656eb611a7ee34651ead17f3b76e2155756",
+    "holderRewardsDistributor": "0xc2716b960bd675fa7f605ce8d191b6e247cf61e8",
     "holderRewardMode": {
-      "name": "TICKERGARDEN_HOLDER_DUAL_ASSET_24H_V4",
-      "hash": "0x458d54500696dc39b16c6ab10d3d910a7a417254f23c706ae72d75037d8fd0fc",
-      "evidence": "compiled deployed HolderRewardsDistributorV1 runtime bound by release manifest; live RPC revalidation remains required"
+      "name": "TICKERGARDEN_HOLDER_WALLET_SNAPSHOT_V1",
+      "hash": "0xf8a4b02f9761e5649a1cbddc56862d77792624aceac62d909b21c5544fceec4d",
+      "evidence": "verified RH testnet Locker release"
     },
     "qaMarketRange": {
       "count": 0
     }
   },
   "sourceLocks": {
-    "services/backend-ts/openapi/v1.json": "289e6d1d8afe05bb93cd14fe27637da9a0fe10c7b1911a6cf6dc6cae4fb18033",
-    "services/backend-ts/openapi/v1.lock.json": "5727bdf25b19e6f725b5ad2ee24eeaa8b88b9a453f7c4362a94f00f9c94c3246",
-    "services/backend-ts/packages/events/src/index.ts": "e8092d243fd000c58f75df3b1cf489729b4da87053af53b1b38f2adf8b78228f",
-    "services/backend-ts/packages/events/src/f72-abis.generated.ts": "6f225dac1855c36724ae4687250a01f3dc3bb60705e62dfc7bc04fbd4f472f2c",
-    "services/backend-ts/packages/config-projector/src/f72-bootstrap.generated.ts": "b19c5faa29c8607b215e3a1f80f3220cf5a466b7ad88a787ec4c78643fa4691e",
-    "deployments/releases/0x5c2c656b1b23e895ea268c34b187cd267e0f4fdcc1759c726cbca7fafb7c9c12/backend-deployment-manifest.json": "89a97c9c852b1622535f9e1be75b1bbc86490f4a310801c60765c179088b2e67",
-    "apps/web/public/integration/rh-5c2c656b.json": "a085104ad89d0cc905b00d076bfa617ceb8a122f008e123f375cafa7dae9e936"
+    "services/backend-ts/openapi/v1.json": "6938e24749e14ff8562bc8062f8a80f39338eddf75c41d590d48c94d7fe47b74",
+    "services/backend-ts/openapi/v1.lock.json": "da1052bd771d0ddf0f950405bb23894e91b45ad052b9493e0fb20f27892c4e83",
+    "services/backend-ts/packages/events/src/index.ts": "a20e33da683ea066c4782e7a26e6f698b5a5a567da4b2edee14c2b90dbe725c8",
+    "services/backend-ts/packages/events/src/f72-abis.generated.ts": "ec44859aca7d473743b1027c27390693ebe737207e73cc9356bcb8dfce63790d",
+    "services/backend-ts/packages/config-projector/src/f72-bootstrap.generated.ts": "ebcbb3447daa60efcb6eb494f0d20b79346b6f6de80014198653fbae12724aa2",
+    "deployments/releases/0x685b5c20e826f4ddd076b61216c7529a967322082925c4741469b0fda837a7f2/backend-deployment-manifest.json": "8c5568e25cfd82a07270a79817f76d20233e17f80bad1a28ac19081725833922",
+    "apps/web/public/integration/rh-685b5c20.json": "25d203474936db0849d31c65c56f8a6894af4466b4f68cf4a509b5ecf7e6a082"
   },
   "capabilities": {
-    "continuousHolderRead": false,
-    "continuousHolderWriteApprovalConfigured": false,
+    "snapshotHolderRead": false,
+    "snapshotHolderWriteApprovalConfigured": false,
     "legacyTreasuryProofOriginConfigured": false,
     "legacyTreasuryWriteApprovalConfigured": false,
-    "dualAssetHolderModeDeployed": true
+    "walletSnapshotModeDeployed": true
   }
 }

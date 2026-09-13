@@ -6,12 +6,13 @@ import type { ConfigReadModel } from '../v1/readApi.ts';
 
 export type ReleasePairedAsset = {
   readonly symbol: string;
+  readonly logoUrl?: string | null;
   readonly name: string;
   readonly chainId: number;
   readonly tokenAddress: string;
   readonly decimals: number;
-  readonly phantomQuote: string;
-  readonly graduationThreshold: string;
+  readonly phantomQuote: string | null;
+  readonly graduationThreshold: string | null;
   readonly activationStatus: string;
   readonly admissionPath: string;
   readonly assetKind?: string;
@@ -36,7 +37,7 @@ export function pairedAssetsForChain(chainId: number): readonly ReleasePairedAss
 
 /** A release selection is not a chain activation. Only matching own-registry configs can sign. */
 export function activePairedConfig(asset: ReleasePairedAsset, configs: readonly ConfigReadModel[], chainId: number): ConfigReadModel | undefined {
-  if (chainId !== asset.chainId) return undefined;
+  if (chainId !== asset.chainId || asset.graduationThreshold === null || asset.phantomQuote === null) return undefined;
   return configs.find(config => config.kind === 'quote' && config.status === 1
     && String(config.values.quoteAsset).toLowerCase() === asset.tokenAddress
     && config.values.quoteDecimals === asset.decimals

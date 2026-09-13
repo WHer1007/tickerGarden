@@ -203,7 +203,7 @@ export function buildCandles(input: {
 }
 
 export function rebuildHolderSnapshot(input: {
-  readonly chainId: 4663 | 46630; readonly token: Address; readonly initialHolder: Address; readonly burnAuthority: Address | null; readonly initialSupplyRaw: string;
+  readonly chainId: 4663 | 46630; readonly token: Address; readonly initialHolder: Address; readonly burnAuthority: Address | null; readonly allowSelfBurn?: boolean; readonly initialSupplyRaw: string;
   readonly transfers: readonly HolderTransfer[]; readonly excludedAccounts: readonly Address[];
 }): HolderSnapshot {
   const supplyInitial = uint256(input.initialSupplyRaw, 'initial supply');
@@ -232,7 +232,7 @@ export function rebuildHolderSnapshot(input: {
     if (fromBalance < value) throw new Error('holder balance underflow');
     balances.set(from, fromBalance - value);
     if (to === ZERO_ADDRESS) {
-      if (input.burnAuthority === null || from !== input.burnAuthority || value === 0n) throw new Error('unauthorized holder burn');
+      if (!input.allowSelfBurn && (input.burnAuthority === null || from !== input.burnAuthority || value === 0n)) throw new Error('unauthorized holder burn');
       supply -= value;
     }
     else balances.set(to, (balances.get(to) ?? 0n) + value);

@@ -18,8 +18,8 @@ import { projectF72Principal } from '../../principal-projector/src/index.ts';
 import { projectF72History } from '../../history-projector/src/index.ts';
 
 const GENESIS_HASH = '0x829a42e6d68c872aafcef3abb2123fe371138fc415dd8b44381bbbf23049dd32' as const;
-const ACTIVATION_HASH = '0x36065fb09f78a00f75c528cad0e81e2f1a7b9f59bea9577488f26f4fb611f806' as const;
-const ABI_DIGEST = '0xd80208c1ac00e7e2ab31fa7ce94bee6ed4159a802519b9d0fdbdf5a300a81b41' as const;
+const ACTIVATION_HASH = '0x9b368b4107601d7abc1de430d89b30ac21bc3688a76ca83035bbce3bca56a63d' as const;
+const ABI_DIGEST = '0xec44859aca7d473743b1027c27390693ebe737207e73cc9356bcb8dfce63790d' as const;
 const STREAM = 'frontend-events';
 
 export interface ChainProcessorOptions {

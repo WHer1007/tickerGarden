@@ -5,7 +5,7 @@ import { createDatabasePool } from '../../../packages/db/src/index.ts';
 import { CURRENT_ACTIVATION_BLOCK, CURRENT_RELEASE_ID } from '../../../packages/events/src/index.ts';
 import {
   PublicationChangedError, PublicationUnavailableError, readCreatorMarkets, readHolderMarkets, readPublishedConfigPage, readPublishedMarketPage, readPublishedRecord,
-  readPublishedSync, readPublishedUserPage, readLaunchRecovery, readRewardHistory, readSnapshotUpdates, readUserActivity, readWalletHolderMarkets, unavailableSync,
+  readRecentMarketVersion, readPublishedSync, readPublishedUserPage, readLaunchRecovery, readMemeFeeBurns, readRewardHistory, readSnapshotUpdates, readUserActivity, readWalletHolderMarkets, unavailableSync,
   type MarketPageFilter,
 } from '../../../packages/read-store/src/index.ts';
 import { RpcTransport, type DeploymentIdentity } from '../../../packages/chain/src/index.ts';
@@ -37,11 +37,12 @@ export function createReadApiApp(options: ReadApiOptions = {}) {
   app.use('/v1/*', async (context, next) => {
     await next(); const path = context.req.path;
     const privateRead = path.includes('/users/') || path.includes('reward-history') || path.includes('/wallet-holder-markets') || path.includes('/transactions/');
+    const activity = path.endsWith('/detail') && context.req.query('section')==='activity';
     const priceCatalog = path.endsWith('/prices/references') || path.endsWith('/statistics-prices');
     const revision = context.req.query('revision');
     const immutableRevision = context.res.status >= 200 && context.res.status < 300
       && typeof revision === 'string' && /^(0|[1-9][0-9]*):0x[0-9a-f]{64}$/.test(revision);
-    context.header('cache-control', context.res.status < 200 || context.res.status >= 300 || privateRead || path.endsWith('/updates')
+    context.header('cache-control', context.res.status < 200 || context.res.status >= 300 || privateRead || activity || context.req.query('includeRecent')==='true' || path.endsWith('/updates')
       ? 'no-store'
       : immutableRevision
         ? 'public, max-age=300, s-maxage=31536000, immutable'
@@ -63,7 +64,7 @@ export function createReadApiApp(options: ReadApiOptions = {}) {
   app.get('/v1/markets', async (context) => {
     try {
       const query = context.req.query();
-      rejectUnknown(query, ['assetUid', 'marketId', 'memeToken', 'launchPhase', 'search', 'createdFrom', 'createdTo', 'sort', 'revision', 'limit', 'cursor']);
+      rejectUnknown(query, ['assetUid', 'marketId', 'memeToken', 'launchPhase', 'search', 'createdFrom', 'createdTo', 'sort', 'revision', 'limit', 'cursor', 'includeRecent']);
       const filter: MarketPageFilter = {
         ...(query.assetUid ? { assetUid: query.assetUid.toLowerCase() as `0x${string}` } : {}),
         ...(query.marketId ? { marketId: query.marketId.toLowerCase() as `0x${string}` } : {}),
@@ -73,7 +74,7 @@ export function createReadApiApp(options: ReadApiOptions = {}) {
         ...(query.createdTo ? { createdTo: query.createdTo } : {}), ...(query.sort ? { sort: parseSort(query.sort) } : {}),
       };
       const page = await readPublishedMarketPage({
-        pool: pool(), deployment, filter, secret: cursorSecret,
+        pool: pool(), deployment, filter, secret: cursorSecret, includeRecent:parseIncludeRecent(query.includeRecent),
         ...(query.revision ? { revision: query.revision } : {}), ...(query.cursor ? { cursor: query.cursor } : {}),
         ...(query.limit ? { limit: parseLimit(query.limit) } : {}), ...(schemaName ? { schemaName } : {}),
       });
@@ -83,18 +84,19 @@ export function createReadApiApp(options: ReadApiOptions = {}) {
 
   app.get('/v1/updates', async (context) => {
     try { const query = context.req.query(); rejectUnknown(query, ['since']);
-      return context.json(await readSnapshotUpdates({ pool: pool(), deployment, ...(query.since ? { since: query.since } : {}), ...(schemaName ? { schemaName } : {}) }));
+      const [update,recentVersion]=await Promise.all([readSnapshotUpdates({ pool: pool(), deployment, ...(query.since ? { since: query.since } : {}), ...(schemaName ? { schemaName } : {}) }),readRecentMarketVersion({pool:pool(),deployment,...(schemaName?{schemaName}:{})})]);
+      return context.json({...update,recentVersion});
     } catch (error) { return readError(context, error, deployment); }
   });
 
   app.get('/v1/markets/:marketId', async (context) => {
     try {
       const query = context.req.query();
-      rejectUnknown(query, ['revision']);
+      rejectUnknown(query, ['revision','includeRecent']);
       const marketId = context.req.param('marketId').toLowerCase();
       if (!/^0x[0-9a-f]{64}$/.test(marketId)) throw new Error('invalid marketId');
       const result = await readPublishedRecord({
-        pool: pool(), deployment, scope: 'markets', identity: marketId,
+        pool: pool(), deployment, scope: 'markets', identity: marketId, includeRecent:parseIncludeRecent(query.includeRecent),
         ...(query.revision ? { revision: query.revision } : {}), ...(schemaName ? { schemaName } : {}),
       });
       if (!result.item) return context.json({ error: 'market_not_found', message: 'Market is not present in this complete publication', sync: result.sync }, 404);
@@ -169,6 +171,12 @@ export function createReadApiApp(options: ReadApiOptions = {}) {
     } catch (error) { return historyError(context, error); }
   });
 
+  app.get('/v1/meme-fee-burns', async context => {
+    try { const query=context.req.query();rejectUnknown(query,['marketId']);if(!query.marketId)throw new Error('invalid market id');
+      return context.json(await readMemeFeeBurns({pool:pool(),deployment,marketId:parseMarketId(query.marketId),...(schemaName?{schemaName}:{})}));
+    } catch(error) {return historyError(context,error);}
+  });
+
   app.get('/v1/launch-recovery', async (context) => {
     try { const query = context.req.query(); rejectUnknown(query, ['marketId']); if (!query.marketId) throw new Error('invalid market id');
       context.header('cache-control', 'no-store'); return context.json(await readLaunchRecovery({ pool: pool(), deployment, marketId: parseMarketId(query.marketId), ...(schemaName ? { schemaName } : {}) }));
@@ -216,9 +224,11 @@ export function createReadApiApp(options: ReadApiOptions = {}) {
 
   app.get('/v1/markets/:marketId/detail', async (context) => {
     try {
-      const query = context.req.query(); rejectUnknown(query, ['period']);
+      const query = context.req.query(); rejectUnknown(query, ['period','section']);
+      if(query.section!==undefined&&query.section!=='activity')throw new Error('invalid detail section');
       const period = query.period ?? '1D'; if (period !== '1H' && period !== '12H' && period !== '1D') throw new Error('invalid detail period');
       return context.json(await readTokenDetail({ pool: pool(), deployment, marketId: parseMarketId(context.req.param('marketId')), period,
+        ...(query.section==='activity'?{section:'activity' as const}:{}),
         ...(schemaName ? { schemaName } : {}) }));
     } catch (error) { return analyticsError(context, error, 'candle'); }
   });
@@ -331,3 +341,5 @@ function parseInterval(value: string): 60 | 300 | 900 | 3600 | 14400 | 86400 {
 function environmentName(value: string | undefined): 'preview' | 'test' | 'production' { return value === 'preview' || value === 'production' ? value : 'test'; }
 
 export default createReadApiApp();
+
+function parseIncludeRecent(value:string|undefined):boolean{if(value===undefined||value==='false')return false;if(value==='true')return true;throw Error('invalid includeRecent');}

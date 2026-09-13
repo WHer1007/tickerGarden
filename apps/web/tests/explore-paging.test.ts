@@ -110,3 +110,31 @@ test("fetch failure retains the prior page", async () => {
   await assert.rejects(() => pager.load({}, "next"), /network/);
   assert.deepEqual(await pager.load({}), first);
 });
+
+test('background revisions preserve the current cursor publication; filters still reset',async()=>{
+ const calls:Array<{revision:string;cursor?:string}>=[];
+ const pager=createExplorePager<Item>(1,async(query,cursor)=>{calls.push({revision:query.revision,cursor});return {items:[{marketId:cursor??'first'}],nextCursor:cursor==='third'?null:cursor?'third':'second'};});
+ await pager.load({revision:'old',sort:'price'});
+ await pager.load({revision:'old',sort:'price'},'next');
+ assert.equal((await pager.load({revision:'new',sort:'price'}))?.page,2);
+ await pager.load({revision:'new',sort:'price'},'next');
+ assert.deepEqual(calls.map(v=>v.revision),['old','old','old']);
+ assert.equal((await pager.load({revision:'new',sort:'name'}))?.page,1);
+ assert.equal(calls.at(-1)?.revision,'new');
+});
+
+test('an interrupted background request preserves the loaded cursor page and ignores late results',async()=>{
+ const requests:Array<{cursor:string|undefined;signal:AbortSignal;resolve:(value:ReturnType<typeof page>)=>void}>=[];
+ const pager=createExplorePager<Item>(1,(_query,cursor,_limit,signal)=>new Promise(resolve=>requests.push({cursor,signal,resolve})));
+ const first=pager.load({revision:'one'});requests[0]!.resolve(page(['first'],'second'));await first;
+ const second=pager.load({revision:'one'},'next');requests[1]!.resolve(page(['second'],'third'));await second;
+ const pending=pager.load({revision:'one'},'next');
+ pager.pause();assert.equal(requests[2]!.signal.aborted,true);
+ assert.equal((await pager.load({revision:'two'}))?.page,2);
+ assert.equal(requests.length,3,'recovery retains the current page without a duplicate request');
+ const retry=pager.load({revision:'two'},'next');
+ requests[2]!.resolve(page(['late-old-third']));assert.equal(await pending,null);
+ requests[3]!.resolve(page(['third']));
+ assert.deepEqual((await retry)?.items,[{marketId:'third'}]);
+ assert.equal((await pager.load({revision:'two'},'previous'))?.page,2);
+});

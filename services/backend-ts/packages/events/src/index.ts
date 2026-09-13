@@ -1,10 +1,10 @@
-import { decodeEventLog, getAbiItem, keccak256, toBytes, type Abi, type Log } from 'viem';
+import { decodeEventLog, parseAbi, getAbiItem, keccak256, toBytes, type Abi, type Log } from 'viem';
 import type { ContractSource, RpcLog, RpcTransport } from '../../chain/src/index.ts';
-import { f72EventAbis, f72ReadAbis } from './f72-abis.generated.ts';
+import { f72EventAbis, f72ReadAbis, currentEventAbis } from './f72-abis.generated.ts';
 export { f72ReadAbis } from './f72-abis.generated.ts';
 
-export const CURRENT_RELEASE_ID = '0x5c2c656b1b23e895ea268c34b187cd267e0f4fdcc1759c726cbca7fafb7c9c12' as const;
-export const CURRENT_ACTIVATION_BLOCK = 117032526n;
+export const CURRENT_RELEASE_ID = '0x685b5c20e826f4ddd076b61216c7529a967322082925c4741469b0fda837a7f2' as const;
+export const CURRENT_ACTIVATION_BLOCK = 118689839n;
 // Compatibility aliases for the frozen projector modules. Runtime identity is the current release above.
 export const F72_RELEASE_ID = CURRENT_RELEASE_ID;
 export const F72_ACTIVATION_BLOCK = CURRENT_ACTIVATION_BLOCK;
@@ -34,7 +34,7 @@ export const f72EventCatalog = {
     ])],
   },
   TickerGardenFactoryV1: {
-    module: 'TickerGardenFactoryV1', address: '0x496a3cb9fd8a045c590f311e948b2b4382f17904', runtimeCodeHash: '0xeb1bfed084ffe0480e218009629f48676dc591de3d666bf1227ba80ea2404a9b',
+    module: 'TickerGardenFactoryV1', address: '0xf11839c3566c8b3345ed81e4a0e26cc38aa2866a', runtimeCodeHash: '0x1e6a01d66b1c6cce16242e8d5a908c2c5300e6392af0f16e2c7618630f7fb19f',
     abi: [event('MarketCreated', [
       { name: 'marketId', type: 'bytes32', indexed: true }, { name: 'assetUid', type: 'bytes32', indexed: true },
       { name: 'memeToken', type: 'address', indexed: true }, { name: 'curve', type: 'address' }, { name: 'gauge', type: 'address' },
@@ -43,7 +43,7 @@ export const f72EventCatalog = {
     ])],
   },
   MarketRegistryV1: {
-    module: 'MarketRegistryV1', address: '0x03f8a6e75ce7bf707076d7339968f8fdf5703b16', runtimeCodeHash: '0x2944d48b578c583511c37f71f6ddc811201b3dfb25b4fa920173c70f443d43fb',
+    module: 'MarketRegistryV1', address: '0xab37f78d3a41c8f510f5a95a74f1ff1144e14660', runtimeCodeHash: '0xfc62631faca6e2a25ff2076c63b2eed8165d79a4fc05cc0b3813c78e6f3a6ee1',
     abi: [
       event('MarketRegistered', [{ name: 'marketId', type: 'bytes32', indexed: true }, { name: 'assetUid', type: 'bytes32', indexed: true }, { name: 'memeToken', type: 'address', indexed: true }, { name: 'curve', type: 'address' }, { name: 'gauge', type: 'address' }, { name: 'sourceVersion', type: 'uint32' }]),
       event('LaunchPhaseChanged', [{ name: 'marketId', type: 'bytes32', indexed: true }, { name: 'oldPhase', type: 'uint8' }, { name: 'newPhase', type: 'uint8' }, { name: 'poolId', type: 'bytes32' }, { name: 'sourceVersion', type: 'uint32' }]),
@@ -74,7 +74,7 @@ export const f72EventCatalog = {
     ],
   },
   TickerGardenMemeHook: {
-    module: 'TickerGardenMemeHook', address: '0xf5e89af0949745fe497b22d1214fea3daa75a044', runtimeCodeHash: '0x3046cd98e4e8850911bfb3b1781548dbd866ac67224315cae08c5a30e48b5b06',
+    module: 'TickerGardenMemeHook', address: '0x3d10b2891730dc11f352087b0703a93772d56044', runtimeCodeHash: '0x164368eb2fb934a34e1504cfdf91b419590f9b1aba9a2ce337f54a8db2e42ed4',
     abi: [
       event('ExpectedPoolRegistered', [{ name: 'marketId', type: 'bytes32', indexed: true }, { name: 'poolId', type: 'bytes32', indexed: true }, { name: 'keyHash', type: 'bytes32' }, { name: 'sourceVersion', type: 'uint32' }]),
       event('PoolBindingActivated', [{ name: 'marketId', type: 'bytes32', indexed: true }, { name: 'poolId', type: 'bytes32', indexed: true }, { name: 'sourceVersion', type: 'uint32' }]),
@@ -82,8 +82,9 @@ export const f72EventCatalog = {
     ],
   },
   ProtocolFeeVault: {
-    module: 'ProtocolFeeVault', address: '0x9cba4929745077198393f09ad2f409db43c90da9', runtimeCodeHash: '0x901c78e4746305d5aae770f8b600ef083b151fa855faa5dc7e7c68708846afc6',
+    module: 'ProtocolFeeVault', address: '0x8c4ce2bb409b68697024afc28d26138d621035e2', runtimeCodeHash: '0x5f6abae71d47548c743da95d60e043110559162758d8013e959d553ed883f863',
     abi: [
+      event('MemeFeesBurned', [{ name: 'marketId', type: 'bytes32', indexed: true }, { name: 'beneficiary', type: 'address', indexed: true }, { name: 'role', type: 'uint8', indexed: true }, { name: 'creatorEpoch', type: 'uint32' }, { name: 'token', type: 'address' }, { name: 'amount', type: 'uint256' }]),
       event('CurveFeesSwept', [{ name: 'marketId', type: 'bytes32', indexed: true }, { name: 'creatorEpoch', type: 'uint32', indexed: true }, { name: 'quoteAsset', type: 'address', indexed: true }, { name: 'sweepNonce', type: 'uint64' }, { name: 'feeId', type: 'bytes32' }, { name: 'amount', type: 'uint256' }, { name: 'creatorAmount', type: 'uint256' }, { name: 'platformAmount', type: 'uint256' }]),
       event('FeeBucketsCredited', [{ name: 'marketId', type: 'bytes32', indexed: true }, { name: 'creatorEpoch', type: 'uint32', indexed: true }, { name: 'feeAsset', type: 'address', indexed: true }, { name: 'feeId', type: 'bytes32' }, { name: 'creatorAmount', type: 'uint256' }, { name: 'stakerAmount', type: 'uint256' }, { name: 'platformAmount', type: 'uint256' }, { name: 'activeStock', type: 'uint256' }]),
       event('FeeClaimed', [{ name: 'beneficiaryType', type: 'uint8', indexed: true }, { name: 'beneficiary', type: 'address', indexed: true }, { name: 'marketId', type: 'bytes32', indexed: true }, { name: 'beneficiaryEpoch', type: 'uint32' }, { name: 'feeAsset', type: 'address' }, { name: 'amount', type: 'uint256' }]),
@@ -91,7 +92,7 @@ export const f72EventCatalog = {
     ],
   },
   HolderRewardsDistributorV1: {
-    module: 'HolderRewardsDistributorV1', address: '0x88dfa615583abfbffed04a40e902d41cc550c992', runtimeCodeHash: '0x5fdcb2fad4292f8f0920b8b8d9eb31418fbe3fc74b2baec8256ebe3434fe6ce5',
+    module: 'HolderRewardsDistributorV1', address: '0xc2716b960bd675fa7f605ce8d191b6e247cf61e8', runtimeCodeHash: '0xbb7526295c01043903896f54d7dc294c5d76b41266508160c5a327a5574f2cdb',
     abi: [
       event('HolderStreamMarketRegistered', [{ name: 'marketId', type: 'bytes32', indexed: true }, { name: 'token', type: 'address', indexed: true }, { name: 'quote', type: 'address' }, { name: 'vault', type: 'address' }]),
       event('HolderAssetFunded', [{ name: 'marketId', type: 'bytes32', indexed: true }, { name: 'asset', type: 'address', indexed: true }, { name: 'amount', type: 'uint256' }]),
@@ -109,9 +110,27 @@ export type DecodedProtocolEvent = {
   readonly log: RpcLog;
 };
 
+export function protocolEventAbi(module: keyof typeof f72EventAbis): Abi {
+  const current = currentEventAbis[module as keyof typeof currentEventAbis] as Abi | undefined;
+  if (current) {
+    const entries = [...f72EventAbis[module], ...current];
+    return [...new Map(entries.filter(item => item.type === 'event').map(item => [
+      `${item.name}(${item.inputs.map(input => input.type).join(',')})`, item,
+    ])).values()];
+  }
+  const legacy=f72EventAbis[module] as Abi;
+  if(module==='HolderRewardsDistributorV1')return [...legacy,...parseAbi([
+    'event SnapshotPublisherChanged(address indexed previousPublisher,address indexed newPublisher)',
+    'event HolderSnapshotMarketRegistered(bytes32 indexed marketId,address indexed token,address quote,address vault)',
+    'event HolderSnapshotPublished(bytes32 indexed marketId,uint64 indexed round,uint64 snapshotBlock,bytes32 snapshotBlockHash,bytes32 root,bytes32 dataHash,uint256 quoteBudget,uint256 memeBudget)',
+    'event HolderSnapshotClaimed(bytes32 indexed marketId,uint64 indexed round,address indexed account,uint8 assets,uint256 quotePaid,uint256 memePaid)',
+  ])];
+  return module==='ProtocolFeeVault' ? [...legacy,...f72EventCatalog.ProtocolFeeVault.abi.filter(e=>e.name==='MemeFeesBurned'),...parseAbi(['event UserRewardsClaimed(bytes32 indexed marketId,address indexed user,uint8 indexed role,uint32 creatorEpoch,uint256 quotePaid,uint256 memePaid)'])] : legacy;
+}
+
 export function decodeF72Event(module: keyof typeof f72EventAbis, log: RpcLog): DecodedProtocolEvent | null {
   try {
-    const decoded = decodeEventLog({ abi: f72EventAbis[module] as Abi, data: log.data, topics: log.topics as Log['topics'], strict: true });
+    const decoded = decodeEventLog({ abi: protocolEventAbi(module), data: log.data, topics: log.topics as Log['topics'], strict: true });
     if (typeof decoded.eventName !== 'string' || !decoded.args || Array.isArray(decoded.args)) return null;
     return { module, eventName: decoded.eventName, args: decoded.args as unknown as Readonly<Record<string, unknown>>, log };
   } catch {
@@ -120,7 +139,7 @@ export function decodeF72Event(module: keyof typeof f72EventAbis, log: RpcLog): 
 }
 
 export function eventTopic(module: keyof typeof f72EventAbis, eventName: string): `0x${string}` {
-  const item = getAbiItem({ abi: f72EventAbis[module] as Abi, name: eventName });
+  const item = getAbiItem({ abi: protocolEventAbi(module), name: eventName });
   if (!item || item.type !== 'event') throw new Error('catalog item is not an event');
   const types = item.inputs.map((input) => input.type).join(',');
   return keccak256(toBytes(`${item.name}(${types})`));
@@ -129,7 +148,7 @@ export function eventTopic(module: keyof typeof f72EventAbis, eventName: string)
 export function eventTopicsForModules(modules: readonly string[]): `0x${string}`[] {
   const topics = new Set<`0x${string}`>();
   for (const module of modules) {
-    const abi = (f72EventAbis as Readonly<Record<string, Abi | undefined>>)[module];
+    const abi = module in f72EventAbis ? protocolEventAbi(module as keyof typeof f72EventAbis) : undefined;
     if (!abi) continue;
     for (const item of abi) {
       if (item.type !== 'event') continue;
@@ -142,22 +161,22 @@ export function eventTopicsForModules(modules: readonly string[]): `0x${string}`
 
 const F72_FIXED_IDENTITIES = [
   ['UniswapV4PoolManager', '0x8366a39cc670b4001a1121b8f6a443a643e40951', '0xbd3881180b547f5fe817545743cfb4343e96b1bc6640dcd70c106b0066e95626'],
-  ['OfficialStockRegistryV1', '0xb214ffa2d11f6b0bd117bc41d6d51800c52ef928', '0x4ad8a16533cb665d9c0061621dff8534b8071d4c052e92303669cc41d1171454'],
-  ['ApprovedQuoteRegistry', '0x93c8ce0e44c2ed39399ff12821454d681c0b5353', '0x649ffc57f244a8b2fd723f49113613898c8196849304a74af48cf4e5dcce1ce7'],
-  ['TickerGardenBaselineRegistry', '0x78c1526860e0da4acdc6f32a4f4f8d45bbde0933', '0xa50be2ddbb1c9539ae0ae7f781f539362978aa51119841120b655cf2f7129a3a'],
-  ['LaunchTemplateRegistry', '0x7b0be869b940c61cbb1cb90655dc34aac329fc63', '0xe31e9bbd7949e9a748688ba11ec9691c1c780da74fc9b390be39d35456e42944'],
-  ['LaunchConfigResolver', '0xec83f932b08f8cb6120b2e38eba5b9cea9c9a4ad', '0xab75613e4c942e7106f5201ef620e55114709f8b81f213cb78880148935c9f8d'],
-  ['MemeStockGauge', '0x576a9311ae4c142269ed3d9047893682a3350037', '0x699e74280e4c14847f5a3b71b37b8e9aeb4db7d8aab13a0463cc15f3c34c81b0'],
-  ['LaunchAndBuyRouter', '0x0923719faaf02f1e512fb62f69bda312447cbd60', '0x0224620ebfad503ac0ea04f36a7e0d9c9f1d85eb1466090b2f49728ff6e516e3'],
-  ['MarketRegistryV1', '0x03f8a6e75ce7bf707076d7339968f8fdf5703b16', '0x2944d48b578c583511c37f71f6ddc811201b3dfb25b4fa920173c70f443d43fb'],
-  ['CreatorRevenueRegistry', '0x789aeed3c72e58cf09ad0f325ec62148a958a0af', '0x5db192de5e3adbc9c618a68611c4059b2071ff8da8ecf5f3f1f0b950d8ed88e4'],
-  ['AllocationManager', '0xe737f06bffa94f4bd9eb233ca344fdea4d796452', '0xfc242b0e30cd42d219cee0f50c0092b162ba112131276b90824cc31dae894c30'],
-  ['UserStockVault', '0xa608276c7273373a7961cdb01e7505c385744eaa', '0xa939e2b5b8f2eada3b6421d4937bf5c59b6e4d54282eea0bb6933e03f8cc4282'],
-  ['HolderRewardsDistributorV1', '0x88dfa615583abfbffed04a40e902d41cc550c992', '0x5fdcb2fad4292f8f0920b8b8d9eb31418fbe3fc74b2baec8256ebe3434fe6ce5'],
-  ['ProtocolFeeVault', '0x9cba4929745077198393f09ad2f409db43c90da9', '0x901c78e4746305d5aae770f8b600ef083b151fa855faa5dc7e7c68708846afc6'],
-  ['TickerGardenMemeHook', '0xf5e89af0949745fe497b22d1214fea3daa75a044', '0x3046cd98e4e8850911bfb3b1781548dbd866ac67224315cae08c5a30e48b5b06'],
-  ['GraduationExecutor', '0xed1e7c1256e848d520677a017263d75f5377706c', '0xf82170cfd71aadb74f88a3e606f3c7a52f91006b9f4cdf3777532466ad51c7f8'],
-  ['TickerGardenFactoryV1', '0x496a3cb9fd8a045c590f311e948b2b4382f17904', '0xeb1bfed084ffe0480e218009629f48676dc591de3d666bf1227ba80ea2404a9b'],
+  ['OfficialStockRegistryV1', '0x01564750928a97faddc94c69306e6a8598cd2a03', '0xd337f661c880e81ebc21428bff151065ccc9a351a280dbc63b1befa7115342d5'],
+  ['ApprovedQuoteRegistry', '0x14697017390ee72157b0f294764673e36a6a614d', '0xdb701f708bcb23f781c919c65616e915219ac3b1512010f3417c660c337926d5'],
+  ['TickerGardenBaselineRegistry', '0xdab7eba06f8fbecad13ae622d6993c6f645d099a', '0x1208c97e82b8143e8cc07b28c83f4597f5fa85085f12f2cb3627c20a58482503'],
+  ['LaunchTemplateRegistry', '0x3bd049845131ba86fcbf17685acedb203afe7e8c', '0xa8a0bbe1f2c605016b904c9ddae35077ff81fe7176750605419691ef8b9f3b31'],
+  ['LaunchConfigResolver', '0x04a1ab04a0cc3f27afa7a1c24bb23fb540a81c40', '0x4995a01fe5525baff9266dc75294fa6bae67d64674de247364199075f43fa59f'],
+  ['MemeStockGauge', '0x97f033be7243123a4bf86026560809b8cd03eee3', '0x3e3f1fcd99cab3ed17310a7197535514f590eff63ce17fb8e158e732351bce52'],
+  ['LaunchAndBuyRouter', '0xdce9a656eb611a7ee34651ead17f3b76e2155756', '0xd0ab3206826a1c15ccc4290b1729402d085f2395a0c39feb542388e30c7d6804'],
+  ['MarketRegistryV1', '0xab37f78d3a41c8f510f5a95a74f1ff1144e14660', '0xfc62631faca6e2a25ff2076c63b2eed8165d79a4fc05cc0b3813c78e6f3a6ee1'],
+  ['CreatorRevenueRegistry', '0x02d2700ce866c2e88bb21819df07f8b894ec7d73', '0xef5abaf94e1684f56c3fed0c228dc78cc50cb26b9256ccf9bf11999002e0ccaf'],
+  ['AllocationManager', '0x6eac1c710edf540bbacfc3b5da2ad427e916741f', '0x3a7627b643d0bf185311d8d45a911d6e48216d69c037e8b4c85a7ca5f56ba47b'],
+  ['UserStockVault', '0x6910d8eeecd8589bed39830ea854ae250584e59e', '0x6b8ed73c261035ba23eec89c0b8f5ac79e130c983cb45327a91d7c85277fbab4'],
+  ['HolderRewardsDistributorV1', '0xc2716b960bd675fa7f605ce8d191b6e247cf61e8', '0xbb7526295c01043903896f54d7dc294c5d76b41266508160c5a327a5574f2cdb'],
+  ['ProtocolFeeVault', '0x8c4ce2bb409b68697024afc28d26138d621035e2', '0x5f6abae71d47548c743da95d60e043110559162758d8013e959d553ed883f863'],
+  ['TickerGardenMemeHook', '0x3d10b2891730dc11f352087b0703a93772d56044', '0x164368eb2fb934a34e1504cfdf91b419590f9b1aba9a2ce337f54a8db2e42ed4'],
+  ['GraduationExecutor', '0xbc20f5659fb44fb1471901ca8fdba9f068a464e9', '0x2bfb6e9f5e81bc5b58708f5b21b863e79139f6e46f57bdc65e81577e52cfa492'],
+  ['TickerGardenFactoryV1', '0xf11839c3566c8b3345ed81e4a0e26cc38aa2866a', '0x1e6a01d66b1c6cce16242e8d5a908c2c5300e6392af0f16e2c7618630f7fb19f'],
 ] as const;
 
 export function fixedF72Sources(): ContractSource[] {
@@ -182,4 +201,11 @@ export async function discoverF72MarketSources(logs: readonly RpcLog[], blockNum
     }
   }
   return [...discovered.values()];
+}
+
+export function protocolEventSignature(event: DecodedProtocolEvent): string {
+  const entries = protocolEventAbi(event.module) as readonly { readonly type: string; readonly name?: string; readonly inputs?: readonly { readonly type: string }[] }[];
+  const item = entries.find((entry) => entry.type === 'event' && entry.name === event.eventName && keccak256(toBytes(`${entry.name}(${entry.inputs?.map(input=>input.type).join(',')})`))===event.log.topics[0]);
+  if (!item?.inputs) throw new Error('event signature is absent from supported ABI');
+  return `${event.eventName}(${item.inputs.map((input) => input.type).join(',')})`;
 }

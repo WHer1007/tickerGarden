@@ -9,8 +9,8 @@ const hash = (character: string): `0x${string}` => `0x${character.repeat(64)}`;
 test('versioned filter is narrow and test-only', () => {
   assert.equal(filter.chainId, 46630);
   assert.equal(filter.environment, 'test');
-  assert.equal(filter.fixedAddresses.length, 6);
-  assert.equal(filter.eventTopics.length, 27);
+  assert.equal(filter.fixedAddresses.length, 17);
+  assert.equal(filter.eventTopics.length, 92);
   const parameters = subscriptionParameters(filter.fixedAddresses, filter.eventTopics) as [string, { address: string[]; topics: string[][] }];
   assert.equal(parameters[0], 'logs');
   assert.deepEqual(parameters[1].topics, [[...filter.eventTopics].sort()]);

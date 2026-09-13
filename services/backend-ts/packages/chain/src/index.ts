@@ -262,7 +262,7 @@ function parseBlock(raw: Record<string, unknown>, expectedNumber: bigint): RpcBl
   return { number, hash: raw.hash as `0x${string}`, parentHash: raw.parentHash as `0x${string}`, timestamp: hexQuantity(raw.timestamp) };
 }
 
-function parseLog(raw: Record<string, unknown>): RpcLog {
+export function parseLog(raw: Record<string, unknown>): RpcLog {
   if (typeof raw.address !== 'string' || !ADDRESS.test(raw.address) || typeof raw.blockHash !== 'string' || !HASH.test(raw.blockHash)
     || typeof raw.transactionHash !== 'string' || !HASH.test(raw.transactionHash) || typeof raw.data !== 'string' || !/^0x[0-9a-f]*$/.test(raw.data)
     || !Array.isArray(raw.topics) || raw.topics.some((topic) => typeof topic !== 'string' || !HASH.test(topic))) {

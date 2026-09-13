@@ -106,7 +106,8 @@ body:has(.trade-live){background:#faf9f4}.trade-live .ref-token-symbol{color:#11
 .trade-live .ref-periods button{min-width:34px;height:26px;padding:0 8px;border-radius:6px;font-size:11px;line-height:26px}
 
 .trade-live .ref-input-box{min-width:0;max-width:100%;border-color:#e0e4de;overflow:hidden}
-.trade-live .ref-input-box .ref-token{flex:0 1 auto;max-width:42%;min-width:0;overflow:hidden;text-overflow:ellipsis;display:block;font-size:13px!important}
+.trade-live .ref-input-box .ref-token{flex:0 1 auto;max-width:42%;min-width:0;display:flex;align-items:center;font-size:13px!important;line-height:1.3}
+.trade-live .ref-input-box .ref-token>span{display:block;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .trade-live .ref-input-box .ref-amount{flex:1 1 0;min-width:0;max-width:100%;display:block}
 .trade-live .ref-input-box .ref-amount input{display:block;width:100%;min-width:0;max-width:100%;font-size:22px;line-height:1.3;border:0;box-shadow:none;border-radius:0}
 .trade-live .ref-input-box input:focus,.trade-live .ref-input-box input:focus-visible{outline:0!important;border:0;box-shadow:none}
@@ -203,6 +204,5 @@ body:has(.trade-live){background:#faf9f4}.trade-live .ref-token-symbol{color:#11
 
 .trade-live .ref-fee-rows p{min-width:0;max-width:100%;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;text-align:right;font-variant-numeric:tabular-nums}
 
-.trade-live .trade-verification-status{min-height:18px;margin:-8px 0 12px;color:var(--muted,#66806d);font-size:10px;line-height:1.5}
 .trade-live .ref-meta [data-detail-copy]{width:36px;height:36px;flex-basis:36px}
 .trade-live .trade-balance-fill{min-height:32px;min-width:44px}

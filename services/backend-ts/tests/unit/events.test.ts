@@ -3,6 +3,10 @@ import test from 'node:test';
 import { encodeAbiParameters, encodeEventTopics } from 'viem';
 import { CURRENT_ACTIVATION_BLOCK, CURRENT_RELEASE_ID, decodeF72Event, eventTopic, f72EventCatalog, fixedF72Sources } from '../../packages/events/src/index.ts';
 import type { RpcLog } from '../../packages/chain/src/index.ts';
+import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
+const deploymentEvidence = JSON.parse(readFileSync(resolve(import.meta.dirname, '../../../../deployments/releases/0x685b5c20e826f4ddd076b61216c7529a967322082925c4741469b0fda837a7f2/robinhood-testnet-46630.v1.deployed.json'), 'utf8')) as { releaseId: string; factory: string };
+const releaseStatus = JSON.parse(readFileSync(resolve(import.meta.dirname, '../../../../deployments/releases/0x685b5c20e826f4ddd076b61216c7529a967322082925c4741469b0fda837a7f2/release-status.json'), 'utf8')) as { activation: { activationBlock: string } };
 
 test('current release event catalog decodes MarketCreated and binds fixed deployment identities', () => {
   const topics = encodeEventTopics({
@@ -33,10 +37,10 @@ test('current release event catalog decodes MarketCreated and binds fixed deploy
   assert.equal(decoded?.eventName, 'MarketCreated');
   assert.equal(decoded?.args.curve, `0x${'4'.repeat(40)}`);
   assert.equal(topics[0], eventTopic('TickerGardenFactoryV1', 'MarketCreated'));
-  assert.equal(CURRENT_RELEASE_ID, '0x5c2c656b1b23e895ea268c34b187cd267e0f4fdcc1759c726cbca7fafb7c9c12');
-  assert.equal(CURRENT_ACTIVATION_BLOCK, 117032526n);
+  assert.equal(CURRENT_RELEASE_ID, deploymentEvidence.releaseId);
+  assert.equal(CURRENT_ACTIVATION_BLOCK, BigInt(releaseStatus.activation.activationBlock));
   const factory = fixedF72Sources().find((source) => source.module === 'TickerGardenFactoryV1');
-  assert.equal(factory?.address, '0x496a3cb9fd8a045c590f311e948b2b4382f17904');
+  assert.equal(factory?.address, deploymentEvidence.factory.toLowerCase());
   assert.equal(factory?.birthBlock, CURRENT_ACTIVATION_BLOCK);
 });
 

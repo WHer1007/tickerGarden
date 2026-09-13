@@ -1,11 +1,12 @@
+import { decodeMarketRecord } from "../../chain/src/market-record.ts";
 import { decodeCoreMarketRoute } from '../../chain/src/market-route.ts';
 import { externalTradingService } from '../../chain/src/external-trading.ts';
 import type { Pool } from 'pg';
 import {
-  decodeFunctionResult, encodeFunctionData, keccak256, type Abi, type Address, type Hex,
+  decodeFunctionResult, encodeFunctionData, encodeAbiParameters, formatUnits, parseAbi, keccak256, type Abi, type Address, type Hex,
 } from 'viem';
 import type { DeploymentIdentity, RpcLog, RpcTransport } from '../../chain/src/index.ts';
-import { decodeF72Event, eventTopic, f72EventCatalog, f72ReadAbis } from '../../events/src/index.ts';
+import { decodeF72Event, eventTopic, fixedF72Sources, f72EventCatalog, f72ReadAbis } from '../../events/src/index.ts';
 import { publishProjection, type Json, type ProjectionRecord } from '../../projection/src/index.ts';
 
 const ZERO_ADDRESS = `0x${'0'.repeat(40)}` as Address;
@@ -133,7 +134,9 @@ export async function observeF72Market(input: ObserveF72MarketInput): Promise<Js
   if (Boolean(route.curveTradingEnabled) !== !graduated || Boolean(route.poolTradingEnabled) !== graduated
     || (graduated && poolId !== canonicalPoolId)) throw new Error('canonical route lifecycle mismatch');
 
+  const display = await observeMarketDisplay(input, { memeToken, quoteAsset, curve, gauge, poolId, launchPhase, creatorTaxBps: safeNumber(config.creatorTaxBps, 16, 'creatorTaxBps') }).catch(() => undefined);
   const result = {
+    ...(display ? {display} : {}),
     marketId: input.creation.marketId,
     assetUid: hex32(config.assetUid, 'assetUid'), memeToken, curve, gauge, quoteAsset,
     quoteAssetConfigId: hex32(config.quoteAssetConfigId, 'quoteAssetConfigId'),
@@ -142,6 +145,7 @@ export async function observeF72Market(input: ObserveF72MarketInput): Promise<Js
     creator: address(config.creatorRevenueBeneficiaryAtCreation, 'creator'),
     creatorFeesToHolders: boolean(config.creatorFeesToHolders, 'creatorFeesToHolders'),
     stakingEnabled: boolean(config.stakingEnabled, 'stakingEnabled'),
+    burnMemeFees: boolean(config.burnMemeFees, 'burnMemeFees'),
     curveProgress: {
       realQuoteReserve: bigint(realQuoteReserveValue, 'realQuoteReserve').toString(),
       sellableTokens: bigint(sellableTokensValue, 'sellableTokens').toString(),
@@ -166,6 +170,47 @@ export async function observeF72Market(input: ObserveF72MarketInput): Promise<Js
   return result;
 }
 
+// These reads run in the asynchronous projector at one finalized block. HTTP
+// display handlers only read the resulting published database record.
+async function observeMarketDisplay(input: ObserveF72MarketInput, market: {
+  memeToken: Address; quoteAsset: Address; curve: Address; gauge: Address; poolId: Hex; launchPhase: number; creatorTaxBps: number;
+}): Promise<Json> {
+  const abi = parseAbi([
+    'function totalSupply() view returns (uint256)', 'function decimals() view returns (uint8)',
+    'function getReserves() view returns (uint256 quoteReserve, uint256 tokenReserve)',
+    'function effectiveTotalActiveStock() view returns (uint256)',
+    'function marketAllocated(bytes32 assetUid, bytes32 marketId) view returns (uint256)',
+    'function extsload(bytes32 slot) view returns (bytes32)',
+  ]);
+  const [supply, decimals, active, allocated] = await Promise.all([
+    readFunction(input, market.memeToken, abi, 'totalSupply', []),
+    market.quoteAsset === ZERO_ADDRESS ? 18 : readFunction(input, market.quoteAsset, abi, 'decimals', []),
+    market.gauge === ZERO_ADDRESS ? 0n : readFunction(input, market.gauge, abi, 'effectiveTotalActiveStock', []),
+    market.gauge === ZERO_ADDRESS ? 0n : readFunction(input, fixedF72Sources().find(source => source.module === 'UserStockVault')!.address, abi, 'marketAllocated', [input.creation.assetUid, input.creation.marketId]),
+  ]);
+  const quoteDecimals = safeNumber(decimals, 8, 'quoteDecimals');
+  if (quoteDecimals > 18) throw new Error('unsupported quote decimals');
+  let priceQuote: string | null;
+  if (market.launchPhase === 0) {
+    const reserves = await readFunction(input, market.curve, abi, 'getReserves', []) as readonly bigint[];
+    priceQuote = reserves[1]! > 0n ? formatUnits(reserves[0]! * 10n ** 54n / reserves[1]! / 10n ** BigInt(quoteDecimals), 36) : null;
+  } else {
+    const slot = keccak256(encodeAbiParameters([{ type: 'bytes32' }, { type: 'uint256' }], [market.poolId, 6n]));
+    const raw = await readFunction(input, f72EventCatalog.UniswapV4PoolManager.address, abi, 'extsload', [slot]);
+    priceQuote = displayPoolPrice(BigInt(String(raw)) & ((1n << 160n) - 1n), market.memeToken < market.quoteAsset, quoteDecimals);
+  }
+  return { priceQuote, totalSupplyRaw: bigint(supply, 'totalSupply').toString(),
+    totalStakedRaw: bigint(allocated, 'marketAllocated').toString(), activeStakeRaw: bigint(active, 'activeStake').toString(),
+    creatorTaxBps: market.creatorTaxBps, asOfTimestamp: input.blockTimestamp.toString(),
+    blockNumber: input.blockNumber.toString(), blockHash: input.blockHash };
+}
+
+export function displayPoolPrice(sqrt: bigint, memeIsCurrency0: boolean, quoteDecimals: number): string | null {
+  if (sqrt <= 0n) return null;
+  const squared = sqrt * sqrt, q192 = 1n << 192n;
+  return formatUnits((memeIsCurrency0 ? squared * 10n ** 54n / q192 : q192 * 10n ** 54n / squared) / 10n ** BigInt(quoteDecimals), 36);
+}
+
 export async function projectF72Markets(input: {
   readonly pool: Pool; readonly deployment: DeploymentIdentity; readonly blockNumber: bigint; readonly blockHash: Hex;
   readonly blockTimestamp: bigint; readonly generation: bigint; readonly primary: RpcTransport; readonly secondary: RpcTransport;
@@ -182,7 +227,7 @@ export async function projectF72Markets(input: {
     return { identity: creation.marketId, sortKey: `${creation.source.blockNumber.padStart(20, '0')}:${creation.marketId}`, payload };
   });
   return publishProjection({
-    pool: input.pool, deployment: input.deployment, scope: 'markets', algorithmVersion: 'f72-markets-v1',
+    pool: input.pool, deployment: input.deployment, scope: 'markets', algorithmVersion: 'f72-markets-v2',
     blockNumber: input.blockNumber, blockHash: input.blockHash, generation: input.generation, records,
     ...(input.schemaName ? { schemaName: input.schemaName } : {}),
   });
@@ -190,7 +235,7 @@ export async function projectF72Markets(input: {
 
 async function readFunction(input: ObserveF72MarketInput, target: Address, abi: Abi, functionName: string, args: readonly unknown[]): Promise<unknown> {
   const raw = await consensusRawCall(input, target, abi, functionName, args);
-  return functionName === 'canonicalRoute' ? decodeCoreMarketRoute(raw) : decodeFunctionResult({ abi, functionName, data: raw });
+  return functionName === 'market' ? decodeMarketRecord(raw) : functionName === 'canonicalRoute' ? decodeCoreMarketRoute(raw) : decodeFunctionResult({ abi, functionName, data: raw });
 }
 
 async function consensusRawCall(input: ObserveF72MarketInput, target: Address, abi: Abi, functionName: string, args: readonly unknown[]): Promise<Hex> {
@@ -206,7 +251,7 @@ async function consensusCodeHash(input: ObserveF72MarketInput, target: Address):
   return first;
 }
 
-function creationFromEvent(args: Readonly<Record<string, unknown>>, log: RpcLog, chainId: 4663 | 46630): MarketCreation {
+export function creationFromEvent(args: Readonly<Record<string, unknown>>, log: RpcLog, chainId: 4663 | 46630): MarketCreation {
   return {
     marketId: hex32(args.marketId, 'marketId'), assetUid: hex32(args.assetUid, 'assetUid'), memeToken: address(args.memeToken, 'memeToken'),
     curve: address(args.curve, 'curve'), gauge: address(args.gauge, 'gauge'), quoteAsset: address(args.quoteAsset, 'quoteAsset'),

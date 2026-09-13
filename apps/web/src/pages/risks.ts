@@ -41,6 +41,9 @@ export default {
               <li>Blockchain wallet transactions can be irreversible, including transactions sent to the wrong contract or network.</li>
               <li>Volatile Meme markets may be illiquid, manipulated, or have no buyers; they do not convey ownership of the referenced stock.</li>
               <li>Smart contracts and token issuers may have bugs, exploits, unexpected behavior, upgrade risk, or other controls and failures.</li>
+              <li>Holder snapshots rely on a trusted publisher’s historical balance calculation; LP and indirect holdings are excluded, and a published round may be delayed, unavailable, or wrong.</li>
+              <li>Stock deficits or external asset loss can block new deposits; existing withdrawal rules still apply, but recovery of all funds is not guaranteed after an external loss.</li>
+              <li>If Meme fee burn mode is enabled at creation, Meme rewards for Creator, Staker and Holder paths may be destroyed during settlement and cannot be claimed; Quote and Meme settlement timing can differ.</li>
               <li>Review the current market, route, contract, and wallet transaction yourself before signing, and use only amounts you can afford to lose.</li>
             </ul>
           </section>

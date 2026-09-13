@@ -13,6 +13,7 @@ import { consensusBlock, parseChainLogTrigger, RpcTransport } from '../../../pac
 import { createChainProcessor } from '../../../packages/chain-worker/src/index.ts';
 import { f72PriceTargets, fetchTestnetPriceReferences, storePriceReferences } from '../../../packages/display-price/src/index.ts';
 import { CURRENT_ACTIVATION_BLOCK, CURRENT_RELEASE_ID } from '../../../packages/events/src/index.ts';
+import {recordRecentLaunch,recordRecentLaunchTrigger} from '../../../packages/market-projector/src/recent.ts';
 
 interface PipelineAppOptions {
   readonly env?: Readonly<Record<string, string | undefined>>;
@@ -62,6 +63,17 @@ export function createPipelineApp(options: PipelineAppOptions = {}) {
     const provided = header?.startsWith('Bearer ') ? header.slice(7) : null;
     return verifyRepairToken(provided, env.CRON_SECRET ?? '') || verifyRepairToken(provided, env.TG_REPAIR_TOKEN ?? '');
   }
+  function recentLaunchInput(){return {pool:databasePool(),deployment:{environment:environmentName(env.TG_ENVIRONMENT),chainId:46630 as const,deploymentDigest:CURRENT_RELEASE_ID,activationBlock:CURRENT_ACTIVATION_BLOCK},
+    primary:new RpcTransport({url:env.TG_RPC_URL??''}),secondary:new RpcTransport({url:env.TG_SECONDARY_RPC_URL??''}),...(env.TG_DATABASE_SCHEMA?{schemaName:env.TG_DATABASE_SCHEMA}:{})};}
+
+  app.post('/v1/launches',async context=>{
+    context.header('cache-control','no-store');
+    let body:Record<string,unknown>;
+    try{body=await context.req.json();if(!body||Object.keys(body).length!==1||typeof body.transactionHash!=='string'||!/^0x[0-9a-f]{64}$/.test(body.transactionHash))throw Error('invalid');}
+    catch{return context.json({error:'invalid_request'},400);}
+    try{return context.json(await recordRecentLaunch(recentLaunchInput(),body.transactionHash as `0x${string}`));}
+    catch{return context.json({error:'launch_observation_unavailable',message:'Creation could not yet be independently verified. Retry with the same transaction hash.'},503);}
+  });
   function operatorAuthorized(header: string | undefined): boolean {
     const provided = header?.startsWith('Bearer ') ? header.slice(7) : null;
     return verifyRepairToken(provided, env.TG_REPAIR_TOKEN ?? '');
@@ -201,6 +213,9 @@ export function createPipelineApp(options: PipelineAppOptions = {}) {
       operationId: `g${runtimeGeneration(env.TG_PIPELINE_GENERATION)}:ws:${trigger.eventKey}`,
       kind: 'chain-log-trigger', rawBody, payload, destinationKey: 'chain-worker', generation: runtimeGeneration(env.TG_PIPELINE_GENERATION),
     }, env.TG_DATABASE_SCHEMA);
+    // Publish verified creation data immediately. The durable relay retries a
+    // failed observation; finalized jobs keep their separate confirmation fence.
+    await recordRecentLaunchTrigger(recentLaunchInput(),payload);
     const callback = env.TG_CHAIN_JOB_CALLBACK_URL;
     if (callback && env.QSTASH_CHAIN_TOKEN) {
       await dispatchDueOutbox({

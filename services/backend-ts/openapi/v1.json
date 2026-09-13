@@ -2,7 +2,7 @@
   "openapi": "3.1.0",
   "info": {
     "title": "TickerGarden V1 Read API",
-    "version": "4.1.0",
+    "version": "4.5.0",
     "description": "Non-custodial TypeScript Serverless read API for the routes consumed by the current frontend."
   },
   "x-execution-spec-id": "V1-EXEC-11",
@@ -555,7 +555,7 @@
     "/v1/markets/{marketId}/detail": {
       "get": {
         "operationId": "getTokenDetail",
-        "description": "Display-only approved token detail analytics. Prefers cached scheduled Dune results and falls back per section to finalized indexer coverage. Null means unavailable, never zero. Amounts are decimal strings; price and cap are Quote denominated. Protocol-balance exclusions define circulating supply. No execution or settlement authority.",
+        "description": "Display-only approved token detail analytics. Prefers cached scheduled Dune results and falls back per section to finalized indexer coverage. Null means unavailable, never zero. Amounts are decimal strings; price and cap are Quote denominated. Protocol-balance exclusions define circulating supply. No execution or settlement authority. New launches may return a confirmed creation-transaction seed from the database; confirmation marks this provisional scope. Subsequent history comes from the independent indexer.",
         "parameters": [
           {
             "name": "marketId",
@@ -578,6 +578,18 @@
                 "1D"
               ]
             }
+          },
+          {
+            "name": "section",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "activity"
+              ]
+            },
+            "description": "Only finalized recent trades and fee totals; skips chart, volume and holders. Omit for full summary."
           }
         ],
         "responses": {
@@ -891,6 +903,15 @@
         "operationId": "listMarkets",
         "parameters": [
           {
+            "name": "includeRecent",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean"
+            },
+            "description": "Display only: merge independently verified creation records from the database before finalization. Per-market confirmation identifies these records; sync describes the finalized base only. Responses are not immutable and cursors expire when the recent set changes. Never use for settlement."
+          },
+          {
             "name": "assetUid",
             "in": "query",
             "required": false,
@@ -1059,6 +1080,15 @@
       "get": {
         "operationId": "getMarket",
         "parameters": [
+          {
+            "name": "includeRecent",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean"
+            },
+            "description": "Display only: merge independently verified creation records from the database before finalization. Per-market confirmation identifies these records; sync describes the finalized base only. Responses are not immutable and cursors expire when the recent set changes. Never use for settlement."
+          },
           {
             "name": "marketId",
             "in": "path",
@@ -1639,6 +1669,54 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/RewardHistoryResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ActivityError"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ActivityError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/meme-fee-burns": {
+      "get": {
+        "operationId": "getMemeFeeBurns",
+        "parameters": [
+          {
+            "name": "marketId",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^0x[0-9a-f]{64}$"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MemeFeeBurnsResponse"
                 }
               }
             }
@@ -3612,6 +3690,10 @@
             "additionalProperties": {
               "type": "string"
             }
+          },
+          "confirmation": {
+            "type": "string",
+            "const": "confirmed"
           }
         },
         "required": [
@@ -3850,6 +3932,10 @@
           "pollAfterMs": {
             "type": "integer",
             "const": 5000
+          },
+          "recentVersion": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{32}$"
           }
         },
         "required": [
@@ -4787,6 +4873,103 @@
           "source": {
             "$ref": "#/components/schemas/SourceBlock"
           },
+          "confirmation": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "status": {
+                "type": "string",
+                "const": "confirmed"
+              },
+              "blockNumber": {
+                "type": "string",
+                "pattern": "^(0|[1-9][0-9]*)$"
+              },
+              "blockHash": {
+                "type": "string",
+                "pattern": "^0x[0-9a-f]{64}$"
+              },
+              "observedAt": {
+                "type": "string",
+                "format": "date-time"
+              }
+            },
+            "required": [
+              "status",
+              "blockNumber",
+              "blockHash",
+              "observedAt"
+            ]
+          },
+          "creator": {
+            "type": "string",
+            "pattern": "^0x[0-9a-f]{40}$"
+          },
+          "creatorFeesToHolders": {
+            "type": "boolean"
+          },
+          "burnMemeFees": {
+            "type": "boolean"
+          },
+          "stakingEnabled": {
+            "type": "boolean"
+          },
+          "display": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "priceQuote": {
+                "oneOf": [
+                  {
+                    "type": "string",
+                    "pattern": "^(0|[1-9][0-9]*)(\\.[0-9]{1,36})?$"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "totalSupplyRaw": {
+                "type": "string",
+                "pattern": "^(0|[1-9][0-9]*)$"
+              },
+              "totalStakedRaw": {
+                "type": "string",
+                "pattern": "^(0|[1-9][0-9]*)$"
+              },
+              "activeStakeRaw": {
+                "type": "string",
+                "pattern": "^(0|[1-9][0-9]*)$"
+              },
+              "creatorTaxBps": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 500
+              },
+              "asOfTimestamp": {
+                "type": "string",
+                "pattern": "^(0|[1-9][0-9]*)$"
+              },
+              "blockNumber": {
+                "type": "string",
+                "pattern": "^(0|[1-9][0-9]*)$"
+              },
+              "blockHash": {
+                "type": "string",
+                "pattern": "^0x[0-9a-f]{64}$"
+              }
+            },
+            "required": [
+              "priceQuote",
+              "totalSupplyRaw",
+              "totalStakedRaw",
+              "activeStakeRaw",
+              "creatorTaxBps",
+              "asOfTimestamp",
+              "blockNumber",
+              "blockHash"
+            ]
+          },
           "identity": {
             "$ref": "#/components/schemas/MarketIdentityReadModel"
           },
@@ -4976,7 +5159,8 @@
             "type": "string",
             "enum": [
               "BASELINE_TOTAL_SUPPLY_X_LATEST_FINALIZED_24H_EXECUTION_PRICE",
-              "TOTAL_SUPPLY_X_POOL_SPOT_X_QUOTE_USD"
+              "TOTAL_SUPPLY_X_POOL_SPOT_X_QUOTE_USD",
+              "TOTAL_SUPPLY_X_FINALIZED_SPOT_X_QUOTE_USD"
             ]
           }
         },
@@ -5703,6 +5887,84 @@
           "blockNumber",
           "blockHash",
           "finality"
+        ]
+      },
+      "MemeFeeBurnsResponse": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "chainId": {
+            "type": "integer",
+            "enum": [
+              4663,
+              46630
+            ]
+          },
+          "displayOnly": {
+            "type": "boolean",
+            "const": true
+          },
+          "finality": {
+            "type": "string",
+            "const": "finalized"
+          },
+          "revision": {
+            "type": "string"
+          },
+          "throughBlock": {
+            "type": "string",
+            "pattern": "^(0|[1-9][0-9]*)$"
+          },
+          "burns": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "marketId": {
+                "type": "string",
+                "pattern": "^0x[0-9a-f]{64}$"
+              },
+              "token": {
+                "type": "string",
+                "pattern": "^0x[0-9a-f]{40}$"
+              },
+              "enabled": {
+                "type": "boolean"
+              },
+              "creatorRaw": {
+                "type": "string",
+                "pattern": "^(0|[1-9][0-9]*)$"
+              },
+              "stakerRaw": {
+                "type": "string",
+                "pattern": "^(0|[1-9][0-9]*)$"
+              },
+              "holderRaw": {
+                "type": "string",
+                "pattern": "^(0|[1-9][0-9]*)$"
+              },
+              "totalRaw": {
+                "type": "string",
+                "pattern": "^(0|[1-9][0-9]*)$"
+              }
+            },
+            "required": [
+              "marketId",
+              "token",
+              "enabled",
+              "creatorRaw",
+              "stakerRaw",
+              "holderRaw",
+              "totalRaw"
+            ]
+          }
+        },
+        "required": [
+          "chainId",
+          "displayOnly",
+          "finality",
+          "revision",
+          "throughBlock",
+          "burns"
         ]
       },
       "GlobalTradeGroup": {

@@ -36,3 +36,39 @@ test('immutable metadata reuses successful reads; aborted reads do not return ca
   const aborted=new AbortController();aborted.abort();assert.equal(await readDetailMetadata(cid,null,aborted.signal,'https://cache.example'),null);
  }finally{globalThis.fetch=prior;}
 });
+
+test('concurrent reads share one request while aborting only that consumer',async()=>{
+ const original=globalThis.fetch;let requests=0;let release!:()=>void;
+ const cid='ipfs://Qm'+'c'.repeat(44);
+ try{
+  globalThis.fetch=async()=>{requests++;await new Promise<void>(resolve=>{release=resolve;});return new Response(JSON.stringify({description:'Shared',properties:{}}));};
+  const aborted=new AbortController();
+  const first=readDetailMetadata(cid,null,aborted.signal,'https://shared.example');
+  const second=readDetailMetadata(cid,null,new AbortController().signal,'https://shared.example');
+  await new Promise(resolve=>setTimeout(resolve,0));
+  aborted.abort();release();
+  assert.equal(await first,null);
+  assert.equal((await second)?.description,'Shared');
+  assert.equal(requests,1);
+ }finally{globalThis.fetch=original;}
+});
+
+test('hung shared reads time out, retry, and ignore a late response',async(t)=>{
+ t.mock.timers.enable();
+ const original=globalThis.fetch;let requests=0;let release!:()=>void;
+ const cid='ipfs://Qm'+'d'.repeat(44);
+ try{
+  globalThis.fetch=async()=>{requests++;if(requests===1)return new Promise<Response>(resolve=>{release=()=>resolve(new Response(JSON.stringify({description:'Late',properties:{}})));});return new Response(JSON.stringify({description:'Retry',properties:{}}));};
+  const controller=new AbortController();
+  const first=readDetailMetadata(cid,null,controller.signal,'https://timeout.example');
+  controller.abort();
+  t.mock.timers.tick(8000);
+  assert.equal(await first,null);
+  const retry=readDetailMetadata(cid,null,new AbortController().signal,'https://timeout.example');
+  assert.equal((await retry)?.description,'Retry');
+  release();
+  await Promise.resolve();
+  assert.equal((await readDetailMetadata(cid,null,new AbortController().signal,'https://timeout.example'))?.description,'Retry');
+  assert.equal(requests,2);
+ }finally{globalThis.fetch=original;t.mock.timers.reset();}
+});

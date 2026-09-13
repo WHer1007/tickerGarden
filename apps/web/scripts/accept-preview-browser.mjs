@@ -36,7 +36,7 @@ const evidence = {
 const failures = evidence.failures;
 const firstPartyOrigins = new Set([webOrigin, ...(readOrigin ? [readOrigin] : [])]);
 const marketId = await resolveMarketId();
-const browser = await chromium.launch({ executablePath, headless: true });
+const browser = await chromium.launch({ executablePath, headless: true, ...(process.env.TG_BROWSER_PROXY_SERVER ? { proxy: { server: process.env.TG_BROWSER_PROXY_SERVER } } : {}) });
 try {
   for (const viewport of [
     { name: 'desktop', width: 1440, height: 1024, isMobile: false },
@@ -62,7 +62,7 @@ try {
     }
     await context.close();
   }
-  await checkPlatformResponses();
+  await checkPlatformResponses(browser);
 } finally {
   await browser.close();
 }
@@ -145,6 +145,7 @@ async function checkRoute(page, viewport, name, route, selector) {
   const onPageError = error => errors.push(`pageerror:${error.message}`);
   const onRequestFailed = request => {
     try {
+      if (request.failure()?.errorText === 'net::ERR_ABORTED') return;
       const url = new URL(request.url());
       if (firstPartyOrigins.has(url.origin)) errors.push(`requestfailed:${url.hostname}${url.pathname}`);
     } catch { /* ignore malformed third-party URLs */ }
@@ -164,19 +165,39 @@ async function checkRoute(page, viewport, name, route, selector) {
     const response = await page.goto(new URL(route, webOrigin).href, { waitUntil: 'domcontentloaded', timeout: 20_000 });
     if (!response || !response.ok()) throw new Error(`document returned ${response?.status() ?? 'no response'}`);
     await page.waitForSelector(selector, { state: 'attached', timeout: 15_000 });
-    await page.waitForTimeout(250);
+    await page.waitForLoadState('networkidle', { timeout: 3_000 }).catch(() => undefined);
+    await page.waitForTimeout(100);
+    if (name === 'trade') {
+      await page.waitForFunction(() => {
+        const value = selector => document.querySelector(selector)?.textContent?.trim();
+        const chart = document.querySelector('[data-detail-chart] canvas')?.getAttribute('aria-label') ?? '';
+        return value('[data-detail-price]') !== '-'
+          && value('[data-detail-cap]') !== '-'
+          && document.querySelectorAll('[data-detail-fee-rows] > div').length > 0
+          && !/Could Not Load|Loading Data/i.test(chart);
+      }, undefined, { timeout: 15_000 });
+    }
     const view = await page.evaluate(expectedSelector => ({
       title: document.title,
       selectorPresent: !!document.querySelector(expectedSelector),
       horizontalOverflow: document.documentElement.scrollWidth > window.innerWidth + 1,
       pathname: location.pathname,
       integrationBootstrap: document.documentElement.innerHTML.includes('/integration/rh-'),
+      ...(expectedSelector === '.trade-live' ? {
+        detail: {
+          price: document.querySelector('[data-detail-price]')?.textContent?.trim(),
+          marketCap: document.querySelector('[data-detail-cap]')?.textContent?.trim(),
+          feeRows: document.querySelectorAll('[data-detail-fee-rows] > div').length,
+          chart: document.querySelector('[data-detail-chart] canvas')?.getAttribute('aria-label'),
+        },
+      } : {}),
     }), selector);
     if (!view.title.includes('TickerGarden')) throw new Error('document title is not a TickerGarden page');
     if (!view.selectorPresent) throw new Error(`missing ${selector}`);
     if (view.horizontalOverflow) throw new Error('page has horizontal viewport overflow');
     if (!localMode && view.integrationBootstrap) throw new Error('Preview page contains an integration bootstrap reference');
-    evidence.routes.push({ viewport, name, route, status: response.status(), durationMs: Math.round((performance.now() - started) * 100) / 100, title: view.title });
+    evidence.routes.push({ viewport, name, route, status: response.status(), durationMs: Math.round((performance.now() - started) * 100) / 100, title: view.title,
+      ...(view.detail ? { detail: view.detail } : {}) });
   } catch (error) {
     failures.push(`${viewport}:${name}:${error instanceof Error ? error.message : String(error)}`);
   } finally {
@@ -241,22 +262,29 @@ async function checkWalletLifecycle(page) {
   }
 }
 
-async function checkPlatformResponses() {
+async function checkPlatformResponses(browser) {
   if (localMode) {
     evidence.platform = { status: 'skipped-local', reason: 'Vercel rewrite and cache headers require Preview' };
     return;
   }
   try {
-    const index = await fetch(new URL('/index.html', webOrigin), { signal: AbortSignal.timeout(10_000), redirect: 'error' });
-    if (!index.ok) throw new Error(`index returned ${index.status}`);
-    const csp = index.headers.get('content-security-policy') ?? '';
+    const context = await browser.newContext();
+    const page = await context.newPage();
+    const index = await page.goto(new URL('/index.html', webOrigin).href, { waitUntil: 'commit', timeout: 10_000 });
+    if (!index?.ok()) throw new Error(`index returned ${index?.status() ?? 'no response'}`);
+    const headers = await index.allHeaders();
+    const csp = headers['content-security-policy'] ?? '';
     if (!csp.includes("default-src 'self'") || !csp.includes('connect-src')) throw new Error('CSP is missing required directives');
-    if (index.headers.get('x-frame-options') !== 'DENY') throw new Error('X-Frame-Options is not DENY');
-    if (index.headers.get('x-content-type-options') !== 'nosniff') throw new Error('X-Content-Type-Options is not nosniff');
-    const cache = index.headers.get('cache-control') ?? '';
+    if (headers['x-frame-options'] !== 'DENY') throw new Error('X-Frame-Options is not DENY');
+    if (headers['x-content-type-options'] !== 'nosniff') throw new Error('X-Content-Type-Options is not nosniff');
+    const cache = headers['cache-control'] ?? '';
     if (!cache.includes('no-cache')) throw new Error('index.html is not no-cache');
-    const missingApi = await fetch(new URL('/api/__tickergarden_acceptance_missing__', webOrigin), { signal: AbortSignal.timeout(10_000), redirect: 'error' });
-    if (missingApi.status !== 404 || (missingApi.headers.get('content-type') ?? '').includes('text/html')) throw new Error('missing API path fell through to the SPA');
+    const missingApi = await page.evaluate(async url => {
+      const response = await fetch(url, { redirect: 'error' });
+      return { status: response.status, contentType: response.headers.get('content-type') ?? '' };
+    }, new URL('/api/__tickergarden_acceptance_missing__', webOrigin).href);
+    if (missingApi.status !== 404 || missingApi.contentType.includes('text/html')) throw new Error('missing API path fell through to the SPA');
     evidence.platform = { status: 'passed', indexCache: cache, missingApiStatus: missingApi.status };
+    await context.close();
   } catch (error) { failures.push(`platform:${error instanceof Error ? error.message : String(error)}`); }
 }

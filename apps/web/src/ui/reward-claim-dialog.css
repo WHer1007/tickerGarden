@@ -1,0 +1,22 @@
+.reward-claim-dialog{width:min(440px,calc(100vw - 32px));padding:24px;border:1px solid #e3e5df;border-radius:18px;background:#fffef9;color:#33382f;box-shadow:0 24px 90px #19251528}
+.reward-claim-dialog::backdrop{background:#17241766;backdrop-filter:blur(3px)}
+.reward-claim-dialog header,.reward-claim-dialog footer{display:flex;align-items:center;justify-content:space-between;gap:12px}
+.reward-claim-dialog h3{font-size:19px;margin:0 0 20px}.reward-claim-dialog header button{border:0;background:none;font-size:24px;cursor:pointer}
+.reward-claim-option{display:flex;gap:12px;align-items:flex-start;border:1px solid #e5e7e0;border-radius:10px;padding:14px;margin:10px 0;font-size:14px;cursor:pointer}
+.reward-claim-option small{display:block;font-size:12px;color:#858a80;margin-top:5px}.reward-claim-estimate{padding:14px 0;font-size:13px;overflow-wrap:anywhere}
+.reward-claim-fallback{display:flex;align-items:flex-start;gap:10px;font-size:12px;line-height:1.5}.reward-claim-note{font-size:11px;color:#989b93;margin:14px 0 22px}.reward-claim-dialog footer button{flex:1}
+[data-reward-action^="claim"][aria-busy="true"]::before{content:"";display:inline-block;width:12px;height:12px;margin-right:8px;border:2px solid currentColor;border-right-color:transparent;border-radius:50%;animation:reward-claim-spin .8s linear infinite}
+@keyframes reward-claim-spin{to{transform:rotate(360deg)}}
+@media(prefers-reduced-motion:reduce){[data-reward-action^="claim"][aria-busy="true"]::before{animation:none}}
+
+.reward-claim-dialog fieldset{border:0;padding:0;margin:0 0 16px;display:flex;gap:8px;flex-wrap:wrap}.reward-claim-dialog legend{font-size:12px;color:#858a80;margin-bottom:8px}.reward-claim-dialog fieldset label{display:flex;align-items:center;gap:6px;font-size:12px;padding:8px 10px;border:1px solid #e5e7e0;border-radius:8px;cursor:pointer;max-width:100%;overflow-wrap:anywhere}.reward-claim-dialog fieldset label:has(input:checked){background:#f2f3ee;border-color:#b6bcaf}
+
+.reward-claim-dialog input { accent-color: #084b37; }
+.reward-claim-dialog footer button {
+  min-height: 44px; padding: 10px 18px; border-radius: 10px; font: inherit; font-weight: 600;
+  border: 1px solid #cad4c9; background: #f5f7f2; color: #084b37; cursor: pointer;
+}
+.reward-claim-dialog footer button[value="claim"] { background: #084b37; color: white; border-color: #084b37; }
+
+.reward-claim-dialog [hidden]{display:none}
+.reward-claim-note{font-size:13px;line-height:1.6;color:#596252}

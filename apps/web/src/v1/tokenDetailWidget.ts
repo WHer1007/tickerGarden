@@ -1,17 +1,19 @@
-import {feeQuoteValue} from './feeQuoteValue.ts';
+import {createDetailActivity} from './detailActivity.ts';
+import {feeUsdValue,formatFeeUsd} from './feeQuoteValue.ts';
 import {compactPrice} from "../ui/compact-price.ts";
-import {chartFromTrades} from './tradeChart.ts';
+import {detailChartWindow,loadDetailChart} from './detailChart.ts';
 import {formatTradePrice} from './tradePricing.ts';
 import {mergeRecentTrades} from './recentTrades.ts';
 import type {TokenDetailTrade,TokenDetailFee} from './generated/read-api.ts';
 import {marketCapUsd,type MarketOverview} from './marketOverview.ts';
-import {TickerGardenV1Client,TickerGardenApiError,type TokenDetailResponse} from './generated/read-api.ts';
+import {TickerGardenV1Client,TickerGardenApiError,type TokenDetailResponse,type TokenDetailChart} from './generated/read-api.ts';
 import {validateTokenDetail,displayDecimal,scaledDecimal,feeRows,type DetailIdentity,type DetailPeriod,type FeeConfig} from './tokenDetail.ts';
 import {candleVolume} from './candleTable.ts';
 export function mountTokenDetail(root:HTMLElement,base:string|null,chain:number,explorer:string){
  const q=<T extends HTMLElement=HTMLElement>(s:string)=>root.querySelector<T>(s)!;
- const text=(s:string,v:string)=>root.querySelectorAll<HTMLElement>(s).forEach(e=>e.textContent=v);
+ const text=(s:string,v:string)=>root.querySelectorAll<HTMLElement>(s).forEach(e=>{if(e.textContent!==v)e.textContent=v;});
  let id:DetailIdentity|null=null,period:DetailPeriod='1H',data:TokenDetailResponse|null=null,fees:FeeConfig|null=null,controller:AbortController|null=null,generation=0,expiry:ReturnType<typeof setTimeout>|undefined,tradeLimit=20,holderLimit=20;
+ let activity:TokenDetailResponse|null=null,activityLoader:ReturnType<typeof createDetailActivity>|null=null;
  let state:'loading'|'ready'|'pending'|'error'='loading';
  let activeKey='';
  let overview:MarketOverview={};
@@ -19,17 +21,24 @@ export function mountTokenDetail(root:HTMLElement,base:string|null,chain:number,
  let feeTotals:readonly TokenDetailFee[]|null=null,feeTotalsAt=0;
  let recentTrades:TokenDetailTrade[]=[];
  let chartTrades:TokenDetailTrade[]=[];
- const currentChart=()=>{const local=chartFromTrades([...chartTrades,...recentTrades],period);return local.points.some(p=>p.price!==null)?local:data?.chart??local;};
+ let chartData:TokenDetailChart|null=null,chartState:'loading'|'ready'|'error'|'pending'='loading',chartGeneration=0,chartRequest:AbortController|null=null,chartKey='';
+ const chartCache=new Map<string,{value:TokenDetailChart;until:number}>();
+ const currentChart=()=>chartData;
+ const chartKeyFor=(identity:DetailIdentity,chosen:DetailPeriod,asOf:number)=>`${identity.marketId}:${chosen}:${detailChartWindow(chosen,asOf).to}`;
+ const chartTime=()=>overview.asOf??(data?Math.max(0,...Object.values(data.sources).map(source=>source.asOf)):0);
+ const chartStateText=()=>chartState==='pending'?'Waiting for market data':chartState==='loading'?'Loading Chart…':'Could Not Load Chart. Try Again.';
  const cache=new Map<string,{data:TokenDetailResponse;until:number;refreshAt:number}>();
  const stateText=()=>state==='loading'?'Loading Data…':state==='pending'?'Statistics Not Ready':state==='error'?'Could Not Load Data. Try Refresh.':'Some Statistics Are Not Ready';
  const amount=(raw:string,d:number)=>displayDecimal(candleVolume(raw,d),6);
  const empty=(tbody:HTMLTableSectionElement,message:string,cols:number)=>{tbody.replaceChildren();const td=tbody.insertRow().insertCell();td.colSpan=cols;td.className='detail-empty-cell';const box=document.createElement('div');box.className='detail-activity-empty';box.setAttribute('role','status');const icon=document.createElement('i');icon.className=cols===6?'ph ph-arrows-left-right':'ph ph-users';icon.setAttribute('aria-hidden','true');const label=document.createElement('span');label.textContent=message;box.append(icon,label);td.append(box);};
- const sourceLabel=()=>{if(chartTrades.length||recentTrades.length)return '';if(!data)return stateText();const entries=Object.entries(data.sources).filter(([k])=>['statistics','chart','trades','holders','fees'].includes(k));if(!entries.length)return 'Statistics Not Ready';const providers=[...new Set(entries.map(([,s])=>s.provider==='dune'?'Dune':'Indexer'))];const oldest=Math.min(...entries.map(([,s])=>s.asOf));q('[data-detail-source]').title=entries.map(([k,s])=>`${k}: ${s.provider} · ${new Date(s.asOf*1000).toLocaleString()} · block ${s.blockNumber}`).join(' | ');return `${state==='loading'?'Refreshing · ':state==='error'||state==='pending'?'Refresh Failed · Showing Cached Data · ':''}${providers.join(' + ')} · Updated ${new Date(oldest*1000).toLocaleTimeString()} · Historical data`;};
- const draw=()=>{
+ const sourceLabel=()=>{if(!data)return stateText();if(data.confirmation==='confirmed')return 'Creation transaction · Final confirmation pending';const entries=Object.entries({...data.sources,...activity?.sources}).filter(([k])=>['statistics','chart','trades','holders','fees'].includes(k));if(!entries.length)return 'Statistics Not Ready';const providers=[...new Set(entries.map(([,s])=>s.provider==='dune'?'Dune':'Indexer'))];const oldest=Math.min(...entries.map(([,s])=>s.asOf));q('[data-detail-source]').title=entries.map(([k,s])=>`${k}: ${s.provider} · ${new Date(s.asOf*1000).toLocaleString()} · block ${s.blockNumber}`).join(' | ');return `${state==='loading'?'Refreshing · ':state==='error'||state==='pending'?'Refresh Failed · Showing Cached Data · ':''}${providers.join(' + ')} · Updated ${new Date(oldest*1000).toLocaleTimeString()} · Historical data`;};
+ let drawnChartKey='';
+ const draw=(force=false)=>{
   const canvas=q<HTMLCanvasElement>('[data-detail-chart] canvas'),ctx=canvas.getContext('2d');if(!ctx)return;
-  const box=canvas.parentElement!.getBoundingClientRect(),w=Math.max(250,box.width),h=Math.max(180,box.height),dpr=window.devicePixelRatio||1;canvas.width=Math.round(w*dpr);canvas.height=Math.round(h*dpr);canvas.style.width=`${w}px`;canvas.style.height=`${h}px`;ctx.scale(dpr,dpr);ctx.clearRect(0,0,w,h);
+  const box=canvas.parentElement!.getBoundingClientRect(),w=Math.max(250,box.width),h=Math.max(180,box.height),dpr=window.devicePixelRatio||1;
+  const key=JSON.stringify([id?.marketId,id?.quoteSymbol,period,chartState,chartData,w,h,dpr]);if(!force&&key===drawnChartKey)return;drawnChartKey=key;canvas.width=Math.round(w*dpr);canvas.height=Math.round(h*dpr);canvas.style.width=`${w}px`;canvas.style.height=`${h}px`;ctx.scale(dpr,dpr);ctx.clearRect(0,0,w,h);
   const chart=currentChart(),active=chart?.points.filter(p=>p.price!==null)??[];ctx.font='12px "Inter Variable"' ;ctx.fillStyle='#718092';
-  if(!chart||!active.length){ctx.textAlign='center';ctx.fillText(chart?'No Trades In This Period':stateText(),w/2,h/2);canvas.setAttribute('aria-label',chart?'No Trades In This Period':stateText());return;}
+  if(!chart||!active.length){ctx.textAlign='center';ctx.fillText(chart?'No Trades In This Period':chartStateText(),w/2,h/2);canvas.setAttribute('aria-label',chart?'No Trades In This Period':chartStateText());return;}
   const prices=active.map(p=>scaledDecimal(p.price!)),min=prices.reduce((a,b)=>a<b?a:b),max=prices.reduce((a,b)=>a>b?a:b),padding=min===max?(min/20n||1n):(max-min)/10n,low=min>padding?min-padding:0n,high=max+padding,left=76,right=w-8,top=12,bottom=h-30;
   const x=(ts:number)=>left+(ts-chart.from)/(chart.to-chart.from)*(right-left);
   const y=(p:string)=>high===low?(top+bottom)/2:bottom-Number((scaledDecimal(p)-low)*10000n/(high-low))/10000*(bottom-top);
@@ -41,64 +50,118 @@ export function mountTokenDetail(root:HTMLElement,base:string|null,chain:number,
   for(const p of chart.points){if(p.price!==null)segment.push({timestamp:p.timestamp,price:p.price});}paint();
   ctx.fillStyle='#718092';ctx.textAlign='left';const label=(ts:number)=>new Date(ts*1000).toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit',hourCycle:'h23'});ctx.fillText(label(chart.from),left,h-8);ctx.textAlign='right';ctx.fillText(label(chart.to),right,h-8);canvas.setAttribute('aria-label',`${period} ${id?.quoteSymbol} price history; ${active.length} observed intervals. Lines connect recorded trades.`);
  };
+ let renderedFeesKey='',renderedTradesKey='',renderedHoldersKey='';
  const renderFees=()=>{
-  const feeData=data?.fees??(Date.now()-feeTotalsAt<1200000?feeTotals:null);
+  const key=JSON.stringify([id?.marketId,fees,activity?.fees??data?.fees,overview.usd,overview.price,data?.statistics?.price,activity?.sources.fees??data?.sources.fees,fees?null:state]);if(key===renderedFeesKey)return;renderedFeesKey=key;
+  const feeData=activity?.fees??data?.fees??null;
   const metrics=q('[data-detail-fee-metrics]'),bar=q('[data-detail-fee-bar]'),rows=q('[data-detail-fee-rows]');metrics.replaceChildren();bar.replaceChildren();rows.replaceChildren();
   if(!fees){metrics.textContent='-';rows.textContent=state==='loading'?'Loading Fee Settings…':'Fee Settings Not Ready';text('[data-detail-fee-status]','-');return;}
   const values=feeRows(fees);metrics.style.gridTemplateColumns=`repeat(${values.filter(row=>row.key!=='holders').length},minmax(0,1fr))`;bar.style.gridTemplateColumns=values.map(r=>`${r.percent??1}fr`).join(' ');
   for(const v of values){const cell=document.createElement('div'),strong=document.createElement('strong'),pct=document.createElement('span'),label=document.createElement('small');strong.textContent=v.percent===null?'-':String(v.percent);pct.textContent='%';strong.append(pct);label.textContent=v.label;cell.append(strong,label);cell.dataset.feeRecipient=v.key;cell.classList.toggle('is-zero',v.percent===0);if(v.key==='holders'){const creator=metrics.querySelector('[data-fee-recipient="creator"]');if(creator){const share=document.createElement('span');share.className='fee-holder-share';share.textContent=`Holders ${v.percent===null?'-':`${v.percent}%`}`;creator.append(share);}}else{metrics.append(cell);}const part=document.createElement('span');part.title=`${v.label} ${v.percent??'-'}%`;part.hidden=v.percent===0;bar.append(part);
-   const row=document.createElement('div'),percent=document.createElement('strong'),name=document.createElement('b'),note=document.createElement('span'),total=document.createElement('p');percent.textContent=v.percent===null?'-':`${v.percent}%`;name.textContent=v.label;note.textContent=v.note;const amounts=feeData?.filter(f=>f.recipient===v.key)??[];const exact=id?amounts.filter(f=>f.amountRaw!=='0').map(f=>f.asset===id!.quoteAsset?`${amount(f.amountRaw,id!.quoteDecimals)} ${id!.quoteSymbol}`:f.asset===id!.memeToken?`${amount(f.amountRaw,18)} ${id!.symbol}`:'').filter(Boolean):[];const quoteValue=feeData&&id?feeQuoteValue(amounts,id.quoteAsset,id.memeToken,id.quoteDecimals,tradePrice??overview.price??data?.statistics?.price):null;total.textContent=exact.length?exact.join(' + '):'-';if(quoteValue!==null&&quoteValue!=='0')total.title=`${quoteValue} ${id!.quoteSymbol} · Estimated At Current Price`;row.append(percent,name,note,total);row.classList.toggle('is-zero',v.percent===0);rows.append(row);
+   const row=document.createElement('div'),percent=document.createElement('strong'),name=document.createElement('b'),note=document.createElement('span'),total=document.createElement('p');percent.textContent=v.percent===null?'-':`${v.percent}%`;name.textContent=v.label;note.textContent=v.note;const amounts=feeData?.filter(f=>f.recipient===v.key)??[];const usdValue=feeData&&id?feeUsdValue(amounts,id.quoteAsset,id.memeToken,id.quoteDecimals,overview.price??data?.statistics?.price,overview.usd):null;total.textContent=formatFeeUsd(usdValue);total.title=usdValue===null?'USD valuation unavailable':`$${usdValue} · Estimated at current prices`;row.append(percent,name,note,total);row.classList.toggle('is-zero',v.percent===0);rows.append(row);
   }
   rows.querySelectorAll('.is-zero').forEach(row=>rows.append(row));
   text('[data-detail-fee-status]',`${fees.phase===0?'Curve':fees.active===null?'Stake status unavailable':fees.active?'Staking active':'No active stake'} · Holder sharing ${fees.holders?'on':'off'}`);
   text('[data-detail-fee-note]','');
-  text('[data-detail-fee-rules]',[fees.taxBps>0?`Additional Creator Tax: ${fees.taxBps/100}%`:'',data?.sources.fees?`Updated ${new Date(data.sources.fees.asOf*1000).toLocaleString()}`:feeData?`Cumulative Allocations · Finalized Snapshot · Estimated ${id?.quoteSymbol??'Quote'} Value`:'Earnings Data Pending'].filter(Boolean).join(' · '));
+  text('[data-detail-fee-rules]',[fees.taxBps>0?`Additional Creator Tax: ${fees.taxBps/100}%`:'',data?.sources.fees?`Updated ${new Date((activity?.sources.fees??data.sources.fees).asOf*1000).toLocaleString()}`:feeData?`Cumulative Allocations · Finalized Snapshot`:'Earnings Data Pending',feeData?'Estimated USD value at current prices':''].filter(Boolean).join(' · '));
+ };
+ const renderChartChange=()=>{
+  const active=currentChart()?.points.filter(p=>p.price!==null)??[];let change='-';if(active.length>1){const first=scaledDecimal(active[0]!.price!),last=scaledDecimal(active.at(-1)!.price!);const bps=(last-first)*10000n/first;change=`${bps>=0n?'+':'−'}${(bps<0n?-bps:bps)/100n}.${((bps<0n?-bps:bps)%100n).toString().padStart(2,'0')}% (${period})`;q('[data-detail-change]').classList.toggle('ref-negative',bps<0n);}text('[data-detail-change]',change);
  };
  const render=()=>{
   const stats=data?.statistics,h=overview.holders?{...overview.holders,totalSupplyRaw:overview.supply??'0'}:data?.holders;
-  const exactPrice=tradePrice??overview.price??stats?.price; text('[data-detail-price]',compactPrice(exactPrice));q('[data-detail-price]').title=exactPrice??'';text('[data-detail-price-unit]',id?`Price (${id.quoteSymbol})`:'Price');
+  const exactPrice=overview.price??stats?.price; text('[data-detail-price]',compactPrice(exactPrice));q('[data-detail-price]').title=exactPrice??'';text('[data-detail-price-unit]',id?`Price (${id.quoteSymbol})`:'Price');
   const volume=overview.volume24h??stats?.volume24h;
   text('[data-detail-volume]',volume!==null&&volume!==undefined&&id?`${displayDecimal(volume,6)} ${id.quoteSymbol}`:'-');
-  text('[data-detail-holders]',h?h.count.toLocaleString():'-');text('[data-detail-circulating]',overview.supply!==undefined?amount(overview.supply,18):'-');
+  text('[data-detail-holders]',h?h.count.toLocaleString():'-');text('[data-detail-circulating]',h?amount(data?.holders?.circulatingSupplyRaw??h.totalSupplyRaw,18):overview.supply!==undefined?amount(overview.supply,18):'-');
   if(overview.maximum!==undefined)text('[data-detail-supply]',amount(overview.maximum,18));
-  const cap=marketCapUsd(overview.supply,overview.price,overview.usd);text('[data-detail-cap]',cap!==null?`$${displayDecimal(cap,2)}`:'-');
-  const active=currentChart().points.filter(p=>p.price!==null)??[];let change='-';if(active.length>1){const first=scaledDecimal(active[0]!.price!),last=scaledDecimal(active.at(-1)!.price!);const bps=(last-first)*10000n/first;change=`${bps>=0n?'+':'−'}${(bps<0n?-bps:bps)/100n}.${((bps<0n?-bps:bps)%100n).toString().padStart(2,'0')}% (${period})`;q('[data-detail-change]').classList.toggle('ref-negative',bps<0n);}text('[data-detail-change]',change);
-  const visibleTrades=mergeRecentTrades(data?.trades??[],recentTrades);
-  const trades=q<HTMLTableSectionElement>('[data-detail-trades-body]');empty(trades,data?.trades?'No Trades Yet':state==='loading'?'Loading Trades…':state==='error'?'Could Not Load Trades':'No Trade Data Yet',6);
+  const cap=marketCapUsd(data?.holders?.circulatingSupplyRaw??overview.supply,overview.price??stats?.price??undefined,overview.usd);text('[data-detail-cap]',cap!==null?`$${displayDecimal(cap,2)}`:'-');
+  renderChartChange();
+  const visibleTrades=activity?.trades??data?.trades??[];
+  const tradesKey=JSON.stringify([id?.marketId,activity?.trades??data?.trades,tradeLimit,activity?.trades||data?.trades?null:state]);
+  if(tradesKey!==renderedTradesKey){renderedTradesKey=tradesKey;
+  const trades=q<HTMLTableSectionElement>('[data-detail-trades-body]');empty(trades,activity?.trades||data?.trades?'No Trades Yet':state==='loading'?'Loading Trades…':state==='error'?'Could Not Load Trades':'No Trade Data Yet',6);
   if(visibleTrades.length){trades.replaceChildren();for(const t of visibleTrades.slice(0,tradeLimit)){const row=trades.insertRow();row.title=t.classification==='unclassified'?'Contract caller; wallet identity unverified':'Internal reward conversion';const values=[new Date(t.timestamp*1000).toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit',second:'2-digit',hourCycle:'h23'}),t.side==='buy'?'Buy':'Sell',formatTradePrice(t.price),amount(t.memeRaw,18),amount(t.quoteRaw,id!.quoteDecimals),t.actor?`${t.actor.slice(0,6)}…${t.actor.slice(-4)}`:'-'];values.forEach((v,i)=>{const c=row.insertCell();c.textContent=v;if(i===1)c.className=t.side;if(i===0){const link=document.createElement('a');link.href=`${explorer}/tx/${t.txHash}`;link.target='_blank';link.rel='noopener noreferrer';link.textContent=v;c.replaceChildren(link);}});}}
+  }
+  const holdersKey=JSON.stringify([id?.marketId,h,holderLimit,h?null:state]);
+  if(holdersKey!==renderedHoldersKey){renderedHoldersKey=holdersKey;
   const holders=q<HTMLTableSectionElement>('[data-detail-holders-body]');empty(holders,h?'No Holders To Show':state==='loading'?'Loading Holders…':state==='error'?'Could Not Load Holders':'No Holder Data Yet',3);if(h?.items.length){holders.replaceChildren();for(const v of h.items.slice(0,holderLimit)){const row=holders.insertRow(),bp=BigInt(h.totalSupplyRaw)?BigInt(v.balanceRaw)*10000n/BigInt(h.totalSupplyRaw):0n;for(const s of [`${v.account.slice(0,6)}…${v.account.slice(-4)}`,amount(v.balanceRaw,18),`${bp/100n}.${(bp%100n).toString().padStart(2,'0')}%`])row.insertCell().textContent=s;row.title=v.account;}}
+  }
   q('[data-detail-more-trades]').hidden=!id;q('[data-detail-more-holders]').hidden=!id;text('[data-detail-source]',sourceLabel());renderFees();
   for(const el of root.querySelectorAll<HTMLElement>('[data-detail-price],[data-detail-volume],[data-detail-holders],[data-detail-circulating],[data-detail-cap],[data-detail-change]')){el.classList.toggle('detail-loading',state==='loading'&&el.textContent==='-');el.title=el.textContent==='-'?stateText():'';}
   q('[data-detail-source]').setAttribute('role','status');
   draw();
  };
+ const refreshChart=async(force=false)=>{
+  if(!id||!base)return;
+  const identity=id,chosen=period,asOf=chartTime();
+  if(!asOf){chartState='loading';chartData=null;draw();return;}
+  if(Date.now()/1000-asOf>1200||asOf>Date.now()/1000+30){chartState='error';chartData=null;renderChartChange();draw();return;}
+  const key=chartKeyFor(identity,chosen,asOf);
+  if(chartRequest&&chartKey===key&&!chartRequest.signal.aborted)return;
+  const own=++chartGeneration;chartRequest?.abort();chartRequest=null;chartKey=key;
+  const cached=chartCache.get(key);
+  if(!force&&cached&&cached.until>Date.now()){chartData=cached.value;chartState='ready';renderChartChange();draw();return;}
+  chartData=cached&&cached.until>Date.now()?cached.value:null;chartState='loading';renderChartChange();draw();
+  const abort=new AbortController();chartRequest=abort;const timer=setTimeout(()=>abort.abort(),12000);
+  try{
+   const next=await loadDetailChart(base,chain,identity,chosen,asOf,abort.signal);
+   if(own!==chartGeneration||abort.signal.aborted||id!==identity||period!==chosen)return;
+   chartCache.set(key,{value:next,until:(asOf+1200)*1000});
+   if(chartCache.size>12)chartCache.delete(chartCache.keys().next().value!);
+   chartData=next;chartState='ready';renderChartChange();draw();
+  }catch{if(own===chartGeneration){chartState=data?.confirmation==='confirmed'?'pending':'error';renderChartChange();draw();}}
+  finally{clearTimeout(timer);if(own===chartGeneration)chartRequest=null;}
+ };
+ // Fetch analytics while the finalized market/configuration bootstrap is in flight.
+ // Rendering still waits for the independently validated market identity.
+ let prefetchRequest:{marketId:string;abort:AbortController;result:Promise<{value:TokenDetailResponse}|{error:unknown}>}|null=null;
+ const prefetch=(marketId:string)=>{
+  if(!base||!/^0x[0-9a-f]{64}$/.test(marketId)||prefetchRequest?.marketId===marketId)return;
+  prefetchRequest?.abort.abort();
+  const abort=new AbortController(),timer=setTimeout(()=>abort.abort(),12000);
+  const api=new TickerGardenV1Client(base,(input,init)=>fetch(input,{...init,signal:abort.signal}));
+  const result=api.getTokenDetail({marketId:marketId as `0x${string}`,period:'1H'}).then(value=>({value}),error=>({error})).finally(()=>clearTimeout(timer));
+  prefetchRequest={marketId,abort,result};
+ };
  const refresh=async(force=false)=>{
-  const requestedKey=id?`${id.marketId}:${period}`:'';
+  const requestedKey=id?`${id.marketId}:summary`:'';
   if(controller&&activeKey===requestedKey&&!controller.signal.aborted)return;
-  const own=++generation;controller?.abort();controller=null;clearTimeout(expiry);
   if(!id||!base){data=null;state=id?'error':'loading';render();return;}
-  const identity=id,chosen=period,key=`${identity.marketId}:${chosen}`,cached=cache.get(key);
-  if(!force&&cached&&Date.now()<cached.refreshAt){data=cached.data;state='ready';render();return;}
-  // Keep usable results visible during a refresh, but never carry another period's data.
-  data=cached&&Date.now()<cached.until?cached.data:null;state='loading';render();
+  const identity=id,chosen='1H' as const,key=`${identity.marketId}:summary`,cached=cache.get(key);
+  if(!force&&cached&&Date.now()<cached.refreshAt)return;
+  const own=++generation;controller?.abort();controller=null;clearTimeout(expiry);
+  // Summary data is market-scoped; chart selection never invalidates it.
+  data=cached&&Date.now()<cached.until?cached.data:null;state='loading';if(!data)render();else text('[data-detail-source]',sourceLabel());
   const abort=new AbortController();controller=abort;activeKey=key;const timer=setTimeout(()=>abort.abort(),12000);
   try{
    const api=new TickerGardenV1Client(base,(input,init)=>fetch(input,{...init,signal:abort.signal}));
-   const raw=await api.getTokenDetail({marketId:identity.marketId,period:chosen});
+   const pending=prefetchRequest?.marketId===identity.marketId?prefetchRequest:null;
+   prefetchRequest=null;
+   const cancel=()=>pending?.abort.abort();abort.signal.addEventListener('abort',cancel,{once:true});
+   let raw:TokenDetailResponse;
+   try{if(pending){const result=await pending.result;if('error' in result)throw result.error;raw=result.value;}else raw=await api.getTokenDetail({marketId:identity.marketId,period:chosen});}
+   finally{abort.signal.removeEventListener('abort',cancel);}
+
    const next=validateTokenDetail(raw,chain,identity,chosen);if(own!==generation||abort.signal.aborted)return;
-   data=next;state='ready';const times=Object.values(next.sources).map(s=>s.asOf);
+   const changed=JSON.stringify(data)!==JSON.stringify(next);data=next;state='ready';const times=Object.values(next.sources).map(s=>s.asOf);
    const until=times.length?(Math.min(...times)+1200)*1000:Date.now()+30000;
-   cache.set(key,{data:next,until,refreshAt:Math.min(Date.now()+600000,until)});render();
+   activityLoader?.seed();
+   if(activity&&next.sources.trades&&BigInt(next.sources.trades.blockNumber)>=BigInt(activity.sources.trades!.blockNumber))activity=null;
+   cache.set(key,{data:next,until,refreshAt:Math.min(Date.now()+(next.confirmation==='confirmed'?5000:600000),until)});
+   if(next.chart&&next.sources.chart){chartCache.set(chartKeyFor(identity,chosen,next.sources.chart.asOf),{value:next.chart,until:(next.sources.chart.asOf+1200)*1000});}
+   if(changed)render();else text('[data-detail-source]',sourceLabel());
+   void refreshChart();
    expiry=setTimeout(()=>{if(own===generation){data=null;state='pending';render();}},Math.max(0,(times.length?Math.min(...times)*1000+1200000:until)-Date.now()));
   }catch(error){if(own===generation){state=error instanceof TickerGardenApiError&&error.status===503&&error.body.error==='analytics_unavailable'?'pending':'error';render();}}
   finally{clearTimeout(timer);if(own===generation)controller=null;}
  };
- for(const b of root.querySelectorAll<HTMLButtonElement>('[data-detail-period]'))b.onclick=()=>{period=b.dataset.detailPeriod as DetailPeriod;root.querySelectorAll('[data-detail-period]').forEach(v=>{v.classList.toggle('active',v===b);v.setAttribute('aria-pressed',String(v===b));});void refresh();};
+ for(const b of root.querySelectorAll<HTMLButtonElement>('[data-detail-period]'))b.onclick=()=>{if(period===b.dataset.detailPeriod&&chartState!=='error')return;period=b.dataset.detailPeriod as DetailPeriod;root.querySelectorAll('[data-detail-period]').forEach(v=>{v.classList.toggle('active',v===b);v.setAttribute('aria-pressed',String(v===b));});void refreshChart();};
  q('[data-detail-more-trades]').onclick=()=>{if(id)window.open(`${explorer}/token/${id.memeToken}?tab=token_transfers`,'_blank','noopener,noreferrer');};q('[data-detail-more-holders]').onclick=()=>{if(id)window.open(`${explorer}/token/${id.memeToken}?tab=holders`,'_blank','noopener,noreferrer');};
  // Statistical analytics are intentionally refreshed every 10 minutes; this is
  // independent from live transaction, position, reward, and pricing refreshes.
- const observer=new ResizeObserver(draw);observer.observe(q('[data-detail-chart]'));const timer=setInterval(()=>{if(id&&document.visibilityState==='visible'&&navigator.onLine)void refresh();},600000);
- const visibility=()=>{if(document.visibilityState==='visible'&&navigator.onLine)void refresh();else{generation++;controller?.abort();controller=null;}};
+ const observer=new ResizeObserver(()=>draw());observer.observe(q('[data-detail-chart]'));const timer=setInterval(()=>{if(activity&&Date.now()/1000-(activity.sources.trades?.asOf??0)>1200){activity=null;render();}if(id&&document.visibilityState==='visible'&&navigator.onLine){void refresh();void activityLoader?.refresh();void refreshChart();}},30000);
+ const visibility=()=>{if(document.visibilityState==='visible'&&navigator.onLine){void refresh();void activityLoader?.refresh();void refreshChart();}else{generation++;controller?.abort();controller=null;chartGeneration++;chartRequest?.abort();chartRequest=null;}};
  document.addEventListener('visibilitychange',visibility);window.addEventListener('online',visibility);window.addEventListener('offline',visibility);
- render();return{setMarket(value:DetailIdentity|null){if(id?.marketId!==value?.marketId){cache.clear();data=null;recentTrades=[];chartTrades=[];feeTotals=null;feeTotalsAt=0;}overview={};tradePrice=null;id=value;fees=null;tradeLimit=20;holderLimit=20;void refresh();},setChartTrades(value:readonly TokenDetailTrade[]){chartTrades=[...value];render();},addRecentTrades(value:readonly TokenDetailTrade[]){recentTrades=mergeRecentTrades(recentTrades,value);render();},setTradePrice(value:string|null){tradePrice=value;const exact=tradePrice??overview.price??data?.statistics?.price;text('[data-detail-price]',compactPrice(exact));q('[data-detail-price]').title=exact??'';renderFees();},setOverview(value:MarketOverview){overview={...overview,...value};render();},setUnavailable(){generation++;controller?.abort();controller=null;data=null;state='error';render();},setFeeTotals(value:readonly TokenDetailFee[]){feeTotals=value;feeTotalsAt=Date.now();renderFees();},setFeeConfig(value:FeeConfig|null){fees=value;renderFees();},stop(){generation++;controller?.abort();clearInterval(timer);clearTimeout(expiry);document.removeEventListener('visibilitychange',visibility);window.removeEventListener('online',visibility);window.removeEventListener('offline',visibility);observer.disconnect();id=null;data=null;}};
+ render();return{refresh,prefetch,receipt(hash:string){activityLoader?.receipt(hash);},setMarket(value:DetailIdentity|null){if(id?.marketId!==value?.marketId){activityLoader?.stop();activityLoader=null;activity=null;generation++;controller?.abort();controller=null;clearTimeout(expiry);if(value&&prefetchRequest?.marketId!==value.marketId){prefetchRequest?.abort.abort();prefetchRequest=null;}cache.clear();chartCache.clear();chartGeneration++;chartRequest?.abort();chartRequest=null;chartData=null;chartState='loading';data=null;recentTrades=[];chartTrades=[];feeTotals=null;feeTotalsAt=0;}overview={};tradePrice=null;id=value;if(id&&base&&!activityLoader)activityLoader=createDetailActivity(base,chain,id,value=>{activity=value;render();});fees=null;tradeLimit=20;holderLimit=20;void refresh();},setChartTrades(_value:readonly TokenDetailTrade[]){/* Database chart only. */},addRecentTrades(_value:readonly TokenDetailTrade[]){/* Database activity only. */},setTradePrice(_value:string|null){/* Quotes belong only to the transaction form. */},setOverview(value:MarketOverview){const next={...overview,...value};if(JSON.stringify(next)===JSON.stringify(overview))return;const chartTimeChanged=next.asOf!==overview.asOf;overview=next;render();if(chartTimeChanged)void refreshChart();},setUnavailable(publicationPending=false){activityLoader?.stop();activityLoader=null;activity=null;prefetchRequest?.abort.abort();prefetchRequest=null;generation++;controller?.abort();controller=null;chartGeneration++;chartRequest?.abort();chartRequest=null;chartData=null;chartState=publicationPending?'pending':'error';data=null;state=publicationPending?'pending':'error';clearTimeout(expiry);render();},setFeeTotals(value:readonly TokenDetailFee[]){feeTotals=value;feeTotalsAt=Date.now();renderFees();},setFeeConfig(value:FeeConfig|null){if(JSON.stringify(fees)===JSON.stringify(value))return;fees=value;renderFees();},stop(){activityLoader?.stop();prefetchRequest?.abort.abort();prefetchRequest=null;generation++;controller?.abort();chartGeneration++;chartRequest?.abort();clearInterval(timer);clearTimeout(expiry);document.removeEventListener('visibilitychange',visibility);window.removeEventListener('online',visibility);window.removeEventListener('offline',visibility);observer.disconnect();id=null;data=null;}};
 }

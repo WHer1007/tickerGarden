@@ -3,6 +3,10 @@ import { test } from "node:test";
 import { rewardClaimDialog } from "../src/ui/reward-claim-dialog.ts";
 
 class El {
+  disabled = false; checked = false; hidden = false;
+  label: El | undefined;
+  closest(_selector:string) { return this.label ??= new El(); }
+  querySelectorAll(_selector:string) { return [...this.nodes.values()].filter(el=>el.selector === "radio"); }
   textContent = ""; value = ""; returnValue = ""; isConnected = true;
   listeners = new Map<string, (event?: unknown) => void>();
   selector: string;
@@ -11,11 +15,12 @@ class El {
   remove() { this.isConnected = false; }
   showModal() {}
   dispatch(name: string, event?: unknown) { this.listeners.get(name)?.(event); }
-  querySelector<T extends El>(selector: string): T { return (this.nodes.get(selector) ?? new El(selector)) as T; }
+  querySelector<T extends El>(selector: string): T { return (selector==='input[name="assets"]:checked' ? [...this.nodes.values()].find(el=>el.selector==="radio"&&el.checked)! : this.nodes.get(selector) ?? new El(selector)) as T; }
   nodes = new Map<string, El>();
   set innerHTML(_value: string) {
     for (const selector of ['input[name="assets"]:checked','.reward-claim-note','.quote-label','.meme-label']) this.nodes.set(selector, new El(selector));
-    this.nodes.get('input[name="assets"]:checked')!.value = "3";
+    const selected=this.nodes.get('input[name="assets"]:checked')!;selected.value="3";selected.selector="radio";selected.checked=true;
+    for(const value of ['1','2']) { const radio=new El('radio');radio.value=value;this.nodes.set(value,radio); }
   }
 }
 
@@ -55,4 +60,15 @@ test("asset label updates with selection", async () => {
     assert.equal(dialog.nodes.get('.reward-claim-note')!.textContent, '2 raw');
     dialog.returnValue = "cancel"; dialog.dispatch("close"); assert.equal(await promise, null);
   } finally { restore(); }
+});
+
+test('only the still-unclaimed asset is selectable and selected by default', async () => {
+  const {dialog,restore}=setup();
+  try {
+    const promise=rewardClaimDialog(()=> '7 Meme',{quote:'ETH',meme:'Meme'},2);
+    assert.equal(dialog.nodes.get('1')!.disabled,true);
+    assert.equal(dialog.nodes.get('input[name="assets"]:checked')!.disabled,true);
+    assert.equal(dialog.nodes.get('2')!.checked,true);
+    dialog.returnValue='claim';dialog.dispatch('close');assert.equal(await promise,2);
+  } finally {restore();}
 });

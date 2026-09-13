@@ -1,3 +1,5 @@
+> 当前测试站（2026-09-13）已切换 RH 46630 release `685b5c20`，ETH 配对、0.42 ETH 毕业目标、原资产领取。Stock 准入与 Holder 快照发布尚未启用。见 [最新发布验收](../../docs/reviews/FRONTEND_LATEST_RH_RELEASE_2026-09-13.md)。下文早期版本状态与部署记录为历史资料。
+
 > R3 测试链更新（2026-09-06）：7 天持有人周期，0.42 ETH 测试毕业门槛，当前链上地址和测试边界见 [R3 报告](../../outputs/reviews/arbitrum-r3-scenarios/REPORT.md)。下文 R2 和未部署候选记录保留为历史说明。
 
 > Historical 2026-09-05 reward conversion checkpoint: that revision was `IMPLEMENTATION_ALLOWED`, not deployment eligible. Previous deployment evidence is historical (`STALE`); all seven deployment gates must be refreshed for the changed runtime. No broadcast performed.

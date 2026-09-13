@@ -20,6 +20,8 @@ function selectionContent(option: QuotePickerOption, compact = false): DocumentF
   const icon = document.createElement("img");
   icon.className = "quote-picker-icon";
   icon.src = option.logoUrl ?? quoteIconUrl(option.symbol) ?? "";
+  icon.loading = "lazy";
+  icon.onerror = () => { icon.hidden = true; };
   icon.alt = "";
   icon.setAttribute("aria-hidden", "true");
   const copy = document.createElement("span");
@@ -38,23 +40,27 @@ function createController(select: HTMLSelectElement): PickerController | undefin
   const trigger = picker?.querySelector<HTMLButtonElement>("[data-quote-trigger], .quote-picker-trigger");
   const current = picker?.querySelector<HTMLElement>("[data-quote-current]");
   const list = picker?.querySelector<HTMLElement>("[data-quote-options]");
-  if (!picker || !trigger || !current || !list) return undefined;
+  const panel = picker?.querySelector<HTMLElement>("[data-quote-panel]");
+  const search = picker?.querySelector<HTMLInputElement>("[data-quote-search]");
+  const empty = picker?.querySelector<HTMLElement>("[data-quote-empty]");
+  if (!picker || !trigger || !current || !list || !panel || !search || !empty) return undefined;
 
   let options: readonly QuotePickerOption[] = [];
   const close = () => {
-    list.hidden = true;
+    panel.hidden = true;
     trigger.setAttribute("aria-expanded", "false");
   };
-  const activeIndex = () => Math.max(0, options.findIndex(option => option.value === select.value));
   const focusOption = (index: number) => {
     const buttons = [...list.querySelectorAll<HTMLButtonElement>("[role=option]")];
     buttons[(index + buttons.length) % buttons.length]?.focus();
   };
-  const open = (focusSelected = false) => {
+  const open = () => {
     if (select.disabled || !options.length) return;
-    list.hidden = false;
+    search.value = "";
+    renderOptions();
+    panel.hidden = false;
     trigger.setAttribute("aria-expanded", "true");
-    if (focusSelected) requestAnimationFrame(() => focusOption(activeIndex()));
+    search.focus();
   };
   const renderCurrent = () => {
     const option = options.find(item => item.value === select.value) ?? options[0];
@@ -71,7 +77,10 @@ function createController(select: HTMLSelectElement): PickerController | undefin
   };
   const renderOptions = () => {
     list.replaceChildren();
-    options.forEach((option, index) => {
+    const query = search.value.trim().toLowerCase();
+    const filtered = options.filter(option => `${option.symbol} ${option.name}`.toLowerCase().includes(query));
+    empty.hidden = filtered.length !== 0;
+    filtered.forEach((option, index) => {
       const button = document.createElement("button");
       button.type = "button";
       button.className = "quote-picker-option";
@@ -86,8 +95,8 @@ function createController(select: HTMLSelectElement): PickerController | undefin
           focusOption(index + (event.key === "ArrowDown" ? 1 : -1));
         } else if (event.key === "Home" || event.key === "End") {
           event.preventDefault();
-          focusOption(event.key === "Home" ? 0 : options.length - 1);
-        } else if (event.key === "Escape" || event.key === "Tab") {
+          focusOption(event.key === "Home" ? 0 : filtered.length - 1);
+        } else if (event.key === "Escape") {
           close();
           if (event.key === "Escape") {
             event.preventDefault();
@@ -99,11 +108,28 @@ function createController(select: HTMLSelectElement): PickerController | undefin
     });
   };
 
-  trigger.addEventListener("click", () => list.hidden ? open() : close());
+  search.addEventListener("input", renderOptions);
+  search.addEventListener("keydown", event => {
+    if (event.key === "ArrowDown" || event.key === "ArrowUp") {
+      event.preventDefault();
+      focusOption(event.key === "ArrowDown" ? 0 : -1);
+    } else if (event.key === "Enter") {
+      event.preventDefault();
+      list.querySelector<HTMLButtonElement>("[role=option]")?.click();
+    } else if (event.key === "Escape") {
+      event.preventDefault();
+      close();
+      trigger.focus();
+    }
+  });
+  picker.addEventListener("focusout", event => {
+    if (!picker.contains(event.relatedTarget as Node | null)) close();
+  });
+  trigger.addEventListener("click", () => panel.hidden ? open() : close());
   trigger.addEventListener("keydown", event => {
     if (event.key === "ArrowDown" || event.key === "ArrowUp") {
       event.preventDefault();
-      open(true);
+      open();
     } else if (event.key === "Escape") close();
   });
   select.addEventListener("change", () => {

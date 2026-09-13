@@ -6,7 +6,7 @@ import type { Pool, PoolClient } from 'pg';
 
 const IDENTIFIER = /^[a-z][a-z0-9_]{0,62}$/;
 
-const MIGRATIONS = ['0001_core', '0002_queue_generation_fence'] as const;
+const MIGRATIONS = ['0001_core', '0002_queue_generation_fence', '0003_recent_markets'] as const;
 type MigrationVersion = typeof MIGRATIONS[number];
 
 function migrationPath(version: MigrationVersion = MIGRATIONS[0]): string {

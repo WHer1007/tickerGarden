@@ -11,6 +11,7 @@ export function validateSnapshotUpdate(value: unknown, chainId: number, since?: 
  if (value.mode==='unchanged' && (s.revision!==since || value.invalidated.length!==0)) throw new Error('Invalid unchanged revision');
  if (value.mode==='changed' && (!since || since===s.revision)) throw new Error('Invalid changed revision');
  if (value.mode==='reset' && value.invalidated.length!==scopes.length) throw new Error('Incomplete cache reset');
+ if(value.recentVersion!==undefined&&(typeof value.recentVersion!=='string'||!/^[0-9a-f]{32}$/.test(value.recentVersion)))throw new Error('Invalid recent market version');
  return value as Update;
 }
 
@@ -35,7 +36,7 @@ export function createSnapshotPoller(options: {
  canPoll?:()=>boolean;
  timeoutMs?:number;
 }) {
- let revision:string|undefined;
+ let revision:string|undefined,recentVersion:string|undefined;
  let stopped=true, generation=0, recovering=true, unchangedCount=0, failureCount=0;
  let controller:AbortController|undefined;
  let timer:ReturnType<typeof setTimeout>|undefined;
@@ -56,14 +57,16 @@ export function createSnapshotPoller(options: {
    if(!permitted()){recovering=true;return;}
    // A changed block with identical publication digests advances the revision
    // without reloading every cache. Recovery still rebuilds cleared views.
-   if(update.mode==='reset'||update.invalidated.length>0||recovering){
+   const recentChanged=update.recentVersion!==undefined&&update.recentVersion!==recentVersion;
+   if(update.recentVersion!==undefined)nextDelay=5000;
+   if(update.mode==='reset'||update.invalidated.length>0||recovering||recentChanged){
     const next=recovering?{...update,mode:'reset' as const,invalidated:['markets','configs','positions','accounts'] as const}:update;
     const commit=await abortable(options.prepare(next,request.signal),request.signal);
     if(stopped||attempt!==generation||request.signal.aborted)return;
    if(!permitted()){recovering=true;return;}
     commit();
    }
-   revision=update.sync.revision;recovering=false;
+   revision=update.sync.revision;recentVersion=update.recentVersion;recovering=false;
   } catch(error) {
    if(!stopped&&attempt===generation&&!timedOut){recovering=true;if(!(error instanceof SnapshotRefreshSuperseded))failureCount=Math.min(4,failureCount+1);nextDelay=Math.min(60000,5000*(2**failureCount));if(permitted() && !(error instanceof SnapshotRefreshSuperseded))options.unavailable(error);}
   } finally {

@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import {test} from 'node:test';
-import {curveBuyFee,curveTradeMetrics,antiSnipeBps,formatTradePrice} from '../src/v1/tradePricing.ts';
+import {curveBuyFee,curveTradeMetrics,antiSnipeBps,formatTradePrice,estimatedPoolTradingFee,poolTradeImpactBps} from '../src/v1/tradePricing.ts';
 test('curve pricing matches the pinned live market quote and keeps tiny prices',()=>{
  const input=1000000000000000n,output=5226157142739982562508148n;
  const fee=curveBuyFee(input,100n,0n);
@@ -29,4 +29,41 @@ test('long decimal prices use compact scientific notation',()=>{
  assert.equal(formatTradePrice('0.000001'),'0.000001');
  assert.equal(formatTradePrice('1.23456789'),'1.235e+0');
  assert.equal(formatTradePrice('0'),'0');
+});
+
+test('pool trading fee reverses net output and respects output asset raw units',()=>{
+ assert.equal(estimatedPoolTradingFee(990n*10n**18n,0),10n*10n**18n);
+ assert.equal(estimatedPoolTradingFee(980000n,100),20000n);
+ assert.equal(estimatedPoolTradingFee(940000n,500),60000n);
+ assert.equal(estimatedPoolTradingFee(0n,0),0n);
+ assert.throws(()=>estimatedPoolTradingFee(-1n,0));
+ assert.throws(()=>estimatedPoolTradingFee(1n,501));
+ // Separate on-chain flooring can make the reverse estimate differ by at
+ // most two raw units; never claim the reverse calculation is exact.
+ for(const tax of [0,1,100,333,500])for(let gross=1n;gross<2000n;gross++){
+  const actual=gross/100n+gross*BigInt(tax)/10000n;
+  const estimate=estimatedPoolTradingFee(gross-actual,tax);
+  assert.ok(estimate>=actual&&estimate-actual<=2n);
+ }
+});
+
+test('pool price impact excludes hook and protocol fees in both currency directions',()=>{
+ const q96=1n<<96n;
+ // 4 currency1 raw units per currency0, with 1% hook fee on output.
+ assert.equal(poolTradeImpactBps(10000n,39600n,2n*q96,true,0,0),0n);
+ assert.equal(poolTradeImpactBps(10000n,35640n,2n*q96,true,0,0),1000n);
+ assert.equal(poolTradeImpactBps(40000n,8910n,2n*q96,false,0,0),1000n);
+ // Additional 1% creator tax, plus 0.1% pool protocol fee on input.
+ assert.equal(poolTradeImpactBps(1000000n,979020n,q96,true,100,1000),0n);
+ assert.equal(poolTradeImpactBps(1000000n,881118n,q96,false,100,1000),1000n);
+});
+test('pool impact uses raw-unit spot ratios for differing token decimals and tiny quotes',()=>{
+ const q96=1n<<96n;
+ const net=990000000000000000n;
+ assert.equal(poolTradeImpactBps(1000000n,net,1000000n*q96,true,0,0),0n);
+ assert.equal(poolTradeImpactBps(1000000000000000000n,990000n,1000000n*q96,false,0,0),0n);
+ assert.equal(poolTradeImpactBps(1n,1n,q96,true,0,0),0n);
+ assert.throws(()=>poolTradeImpactBps(0n,1n,q96,true,0,0));
+ assert.throws(()=>poolTradeImpactBps(1n,1n,0n,true,0,0));
+ assert.throws(()=>poolTradeImpactBps(1n,1n,q96,true,0,1001));
 });

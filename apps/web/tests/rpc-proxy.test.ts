@@ -23,8 +23,10 @@ test('read RPC proxy forwards an allowed same-origin request without exposing it
 
 test('read RPC proxy forwards a bounded batch of allowed reads', async () => {
   const batch = [
-    { jsonrpc: '2.0', id: 1, method: 'eth_chainId', params: [] },
-    { jsonrpc: '2.0', id: 2, method: 'eth_blockNumber', params: [] },
+    // Viem omits params for parameterless methods. These are valid JSON-RPC
+    // requests and must survive the production same-origin proxy unchanged.
+    { jsonrpc: '2.0', id: 1, method: 'eth_chainId' },
+    { jsonrpc: '2.0', id: 2, method: 'eth_blockNumber' },
   ];
   let forwarded: unknown;
   const response = await proxyReadRpc(new Request(endpoint, {
@@ -35,6 +37,24 @@ test('read RPC proxy forwards a bounded batch of allowed reads', async () => {
   });
   assert.equal(response.status, 200);
   assert.deepEqual(forwarded, batch);
+});
+
+test('read RPC proxy permits bounded log reads used by live detail charts', async () => {
+  const call = { jsonrpc: '2.0', id: 1, method: 'eth_getLogs', params: [{ address: '0x0000000000000000000000000000000000000001', fromBlock: '0x100', toBlock: '0x8d0' }] };
+  let forwarded: unknown;
+  const response = await proxyReadRpc(new Request(endpoint, {
+    method: 'POST', headers: { origin, 'content-type': 'application/json' }, body: JSON.stringify(call),
+  }), { TG_WEB_RPC_URL: 'https://rpc.example/private' }, async (_input, init) => {
+    forwarded = JSON.parse(String(init?.body));
+    return new Response(JSON.stringify({ jsonrpc: '2.0', id: 1, result: [] }));
+  });
+  assert.equal(response.status, 200);
+  assert.deepEqual(forwarded, call);
+
+  const unbounded = { ...call, params: [{ ...call.params[0], fromBlock: '0x1', toBlock: '0x10000' }] };
+  assert.equal((await proxyReadRpc(new Request(endpoint, {
+    method: 'POST', headers: { origin, 'content-type': 'application/json' }, body: JSON.stringify(unbounded),
+  }), { TG_WEB_RPC_URL: 'https://rpc.example/private' }, async () => { throw new Error('unbounded logs must not reach upstream'); })).status, 400);
 });
 
 test('read RPC proxy rejects cross-origin, malformed, oversized, duplicate, and write requests', async () => {

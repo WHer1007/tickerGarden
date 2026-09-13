@@ -12,10 +12,26 @@ test("holder fee sharing uses the approved feature label and creation semantics"
   const label = "Holder fee sharing";
   for (const page of [create, docs, terms]) assert.ok(page.includes(label));
   assert.match(rewards, /Holder rewards/);
-  assert.match(create, /Share 50% of base fees with holders/i);
-  assert.match(create, /Creator tax stays yours. Permanent at launch/i);
-  assert.match(create, /claim rewards after settlement/i);
-  assert.match(create, /Payouts may be delayed/i);
+  assert.match(create, /50% of the creator base-fee share/i);
+  assert.match(create, /excluding creator tax/i);
+  assert.match(create, /claim the original Quote and Meme assets after publication/i);
+  assert.match(create, /no fixed payout schedule/i);
   assert.doesNotMatch(create, /Request a treasury|Registration and funding happen separately|no fees are automatically redirected/i);
   assert.doesNotMatch(create, /give up all creator base fee share|all creator base fee share and creator tax/i);
+});
+
+test("docs separate holder eligibility, release timing and asset choices", () => {
+  for (const heading of ["Who Earns Holder Rewards?", "When Can I Claim Holder Rewards?", "Which Reward Assets Can I Claim?"]) {
+    assert.ok(docs.includes(heading));
+  }
+  assert.doesNotMatch(docs, /How Does Holder Fee Sharing Work\?/);
+  assert.match(docs, /planned Stock minimum is 0\.5/i);
+  assert.match(docs, /trusted snapshot publisher posts a funded wallet-balance root/i);
+  assert.match(docs, /LP and other indirect holdings are excluded/i);
+  assert.match(docs, /no on-chain conversion or fallback/i);
+  assert.doesNotMatch(docs, /10–20 minutes/);
+  assert.match(docs, /signature does not launch the token or approve asset spending/i);
+  assert.match(docs, /rageQuit path that can return the full allocated Stock Token principal without waiting/i);
+  assert.match(docs, /permanently forfeits every unclaimed Quote and Meme reward/i);
+  assert.match(docs, /current Stake page does not expose this contract-level path/i);
 });

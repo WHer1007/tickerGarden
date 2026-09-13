@@ -8,6 +8,7 @@ const ALLOWED_METHODS = new Set([
   'eth_getBalance',
   'eth_getBlockByNumber',
   'eth_getCode',
+  'eth_getLogs',
   'eth_getTransactionByHash',
   'eth_getTransactionCount',
   'eth_getTransactionReceipt',
@@ -43,6 +44,7 @@ export async function proxyReadRpc(
     return json({ error: 'invalid_json_rpc' }, 400, headers);
   }
   if (calls.some(call => !ALLOWED_METHODS.has(call.method))) return json({ error: 'rpc_method_not_allowed' }, 403, headers);
+  if (calls.some(call => !validReadScope(call))) return json({ error: 'invalid_json_rpc' }, 400, headers);
 
   const upstream = rpcUrl(environment.TG_WEB_RPC_URL);
   if (!upstream) return json({ error: 'rpc_upstream_unavailable' }, 503, headers);
@@ -64,13 +66,27 @@ export async function proxyReadRpc(
   }
 }
 
-function validPayload(value: unknown): value is { readonly jsonrpc: '2.0'; readonly id: string | number | null; readonly method: string; readonly params: readonly unknown[] } {
+function validReadScope(call: { readonly method: string; readonly params?: readonly unknown[] }): boolean {
+  if (call.method !== 'eth_getLogs') return true;
+  const filter = call.params?.[0];
+  if (call.params?.length !== 1 || !filter || typeof filter !== 'object' || Array.isArray(filter)) return false;
+  const { address, fromBlock, toBlock, blockHash } = filter as Record<string, unknown>;
+  if (blockHash !== undefined || typeof address !== 'string' || !/^0x[0-9a-fA-F]{40}$/.test(address)) return false;
+  if (fromBlock === 'latest' && toBlock === 'latest') return true;
+  if (typeof fromBlock !== 'string' || typeof toBlock !== 'string' || !/^0x[0-9a-fA-F]+$/.test(fromBlock) || !/^0x[0-9a-fA-F]+$/.test(toBlock)) return false;
+  const from = BigInt(fromBlock), to = BigInt(toBlock);
+  return to >= from && to - from <= 2_000n;
+}
+
+function validPayload(value: unknown): value is { readonly jsonrpc: '2.0'; readonly id: string | number | null; readonly method: string; readonly params?: readonly unknown[] } {
   if (!value || typeof value !== 'object' || Array.isArray(value)) return false;
   const item = value as Record<string, unknown>;
   const id = item.id;
   return item.jsonrpc === '2.0'
     && typeof item.method === 'string'
-    && Array.isArray(item.params)
+    // JSON-RPC 2.0 permits params to be omitted. Viem does this for reads such
+    // as eth_blockNumber and eth_chainId, including inside HTTP batches.
+    && (item.params === undefined || Array.isArray(item.params))
     && (id === null || typeof id === 'string' || (typeof id === 'number' && Number.isSafeInteger(id)));
 }
 

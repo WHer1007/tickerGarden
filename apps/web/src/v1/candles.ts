@@ -10,13 +10,14 @@ export const comparePrice = (a: CandlePrice, b: CandlePrice) => {
  const x = BigInt(a.numerator)*BigInt(b.denominator)-BigInt(b.numerator)*BigInt(a.denominator);
  return x<0n?-1:x>0n?1:0;
 };
-export function validateCandles(v: unknown, chain: number, id: CandleIdentity, from: number, to: number): MarketCandlesResponse {
+export function validateCandles(v: unknown, chain: number, id: CandleIdentity, from: number, to: number, interval = 3600): MarketCandlesResponse {
  const fail = (): never => { throw new Error('Candle data is unavailable or inconsistent'); };
- if (!obj(v) || v.chainId!==chain || v.displayOnly!==true || v.marketId!==id.marketId || v.memeAsset!==id.memeAsset || v.quoteAsset!==id.quoteAsset || v.quoteDecimals!==id.quoteDecimals || v.interval!==3600 || !obj(v.coverage) || !obj(v.series)) return fail();
+ if (![60,300,900,3600].includes(interval) || !Number.isSafeInteger(from) || !Number.isSafeInteger(to) || to<=from || (to-from)%interval!==0) return fail();
+ if (!obj(v) || v.chainId!==chain || v.displayOnly!==true || v.marketId!==id.marketId || v.memeAsset!==id.memeAsset || v.quoteAsset!==id.quoteAsset || v.quoteDecimals!==id.quoteDecimals || v.interval!==interval || !obj(v.coverage) || !obj(v.series)) return fail();
  const c=v.coverage,s=v.series;
- if (c.from!==from || c.to!==to || !integer(c.anchorNumber) || !integer(c.throughNumber) || !integer(c.projectionNumber) || c.anchorNumber>=c.throughNumber || c.throughNumber>c.projectionNumber || !hash(c.anchorHash) || !hash(c.throughHash) || !hash(c.projectionHash) || s.priceUnit!=='QUOTE_PER_WHOLE_MEME' || s.volumeBasis!=='CURVE_EXCLUDING_FEE_TAX_OR_POOL_CORE' || s.pricePopulation!=='ALL_EXECUTIONS_INCLUDING_INTERNAL_CONVERSIONS' || s.emptyPolicy!=='NULL_OHLC_ZERO_VOLUME' || !Array.isArray(s.candles) || s.candles.length!==(to-from)/3600 || s.candles.length>48) return fail();
+ if (c.from!==from || c.to!==to || !integer(c.anchorNumber) || !integer(c.throughNumber) || !integer(c.projectionNumber) || c.anchorNumber>=c.throughNumber || c.throughNumber>c.projectionNumber || !hash(c.anchorHash) || !hash(c.throughHash) || !hash(c.projectionHash) || s.priceUnit!=='QUOTE_PER_WHOLE_MEME' || s.volumeBasis!=='CURVE_EXCLUDING_FEE_TAX_OR_POOL_CORE' || s.pricePopulation!=='ALL_EXECUTIONS_INCLUDING_INTERNAL_CONVERSIONS' || s.emptyPolicy!=='NULL_OHLC_ZERO_VOLUME' || !Array.isArray(s.candles) || s.candles.length!==(to-from)/interval || s.candles.length>2000) return fail();
  for (const [i,x] of s.candles.entries()) {
-  if (!obj(x) || x.timestamp!==from+i*3600 || !integer(x.tradeCount) || !integer(x.internalTradeCount) || !integer(x.unclassifiedTradeCount) || x.tradeCount!==x.internalTradeCount+x.unclassifiedTradeCount) return fail();
+  if (!obj(x) || x.timestamp!==from+i*interval || !integer(x.tradeCount) || !integer(x.internalTradeCount) || !integer(x.unclassifiedTradeCount) || x.tradeCount!==x.internalTradeCount+x.unclassifiedTradeCount) return fail();
   if (!uint(x.memeVolumeRaw) || !uint(x.quoteVolumeRaw) || !uint(x.internalMemeVolumeRaw) || !uint(x.internalQuoteVolumeRaw) || BigInt(x.internalMemeVolumeRaw)>BigInt(x.memeVolumeRaw) || BigInt(x.internalQuoteVolumeRaw)>BigInt(x.quoteVolumeRaw)) return fail();
   if (x.internalTradeCount===0 && (x.internalMemeVolumeRaw!=='0' || x.internalQuoteVolumeRaw!=='0')) return fail();
   if (x.tradeCount===0) { if ([x.open,x.high,x.low,x.close].some(p=>p!==null) || x.memeVolumeRaw!=='0' || x.quoteVolumeRaw!=='0') return fail(); }

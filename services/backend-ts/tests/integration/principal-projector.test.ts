@@ -3,11 +3,11 @@ import { randomBytes } from 'node:crypto';
 import test from 'node:test';
 import { decodeFunctionData, encodeAbiParameters, encodeEventTopics, encodeFunctionResult, getAbiItem, type Abi, type AbiEvent, type Address, type Hex } from 'viem';
 import { applyCoreMigration, createDatabasePool } from '../../packages/db/src/index.ts';
-import { f72BootstrapConfigs } from '../../packages/config-projector/src/f72-bootstrap.generated.ts';
 import { f72EventAbis, f72ReadAbis } from '../../packages/events/src/f72-abis.generated.ts';
 import { F72_RELEASE_ID, fixedF72Sources } from '../../packages/events/src/index.ts';
 import { projectF72Principal } from '../../packages/principal-projector/src/index.ts';
 import { createReadApiApp } from '../../apps/read-api/src/index.ts';
+import { f72BootstrapConfigs } from '../../packages/config-projector/src/f72-bootstrap.generated.ts';
 
 const connectionString = process.env.TG_MIGRATION_DATABASE_URL ?? process.env.TG_DATABASE_URL;
 const hash = (character: string): Hex => `0x${character.repeat(64)}`;
@@ -18,9 +18,10 @@ test('TS-09 principal projector reconciles one finalized Vault/Gauge block and p
   if (!connectionString) { context.skip('TG_MIGRATION_DATABASE_URL or TG_DATABASE_URL is required'); return; }
   const schemaName = `tg_ts09_project_${process.pid}_${randomBytes(4).toString('hex')}`; const schema = ident(schemaName);
   const handle = createDatabasePool(connectionString, { max: 2 });
+  const bootstrap = f72BootstrapConfigs as unknown as Array<any>; const bootstrapLength = bootstrap.length;
   const deployment = { environment: 'test' as const, chainId: 46630 as const, deploymentDigest: F72_RELEASE_ID, activationBlock: 1n };
-  const asset = f72BootstrapConfigs.find((item) => item.kind === 'asset')!;
-  const assetUid = asset.id; const vault = asset.values.userStockVault as Address;
+  const assetUid = hash('8'); const vault = fixedF72Sources().find((item) => item.module === 'UserStockVault')!.address as Address;
+  bootstrap.push({ id: assetUid, kind: 'asset', status: 1, values: { stockToken: address('4'), tokenSymbol: 'TST', userStockVault: vault } });
   const user = address('1'); const marketId = hash('2'); const gauge = address('3'); const meme = address('4'); const quote = address('5');
   try {
     await applyCoreMigration(handle.pool, schemaName);
@@ -68,7 +69,7 @@ test('TS-09 principal projector reconciles one finalized Vault/Gauge block and p
     const positionPage = await positionResponse.json() as { items: Array<{ allocated: string; active: string; pending: string; activationAt: string }> };
     assert.deepEqual(positionPage.items.map((item) => ({ allocated: item.allocated, active: item.active, pending: item.pending, activationAt: item.activationAt })),
       [{ allocated: '40', active: '30', pending: '10', activationAt: '7' }]);
-  } finally { await handle.pool.query(`DROP SCHEMA IF EXISTS ${schema} CASCADE`).catch(() => undefined); await handle.pool.end(); }
+  } finally { bootstrap.length = bootstrapLength; await handle.pool.query(`DROP SCHEMA IF EXISTS ${schema} CASCADE`).catch(() => undefined); await handle.pool.end(); }
 });
 
 async function saveVaultLog(pool: ReturnType<typeof createDatabasePool>['pool'], schema: string, deploymentDigest: string, eventName: string,

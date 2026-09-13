@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { RpcTransport } from '../../packages/chain/src/index.ts';
-import { observeF72Market, type MarketCreation } from '../../packages/market-projector/src/index.ts';
+import { displayPoolPrice, observeF72Market, type MarketCreation } from '../../packages/market-projector/src/index.ts';
 
 const hash = (character: string): `0x${string}` => `0x${character.repeat(64)}`;
 const address = (character: string): `0x${string}` => `0x${character.repeat(40)}`;
@@ -24,4 +24,14 @@ test('market observation rejects provider disagreement before decoding state', a
     primary: new RpcTransport({ url: 'https://primary.example', fetch: fixedResult('0x') }),
     secondary: new RpcTransport({ url: 'https://secondary.example', fetch: fixedResult('0x00') }),
   }), /providers disagree on market/);
+});
+
+
+test('display pool price normalizes orientation and token decimals without floating point', () => {
+  const q96 = 1n << 96n;
+  assert.equal(displayPoolPrice(q96, true, 18), '1');
+  assert.equal(displayPoolPrice(2n*q96, true, 18), '4');
+  assert.equal(displayPoolPrice(2n*q96, false, 18), '0.25');
+  assert.equal(displayPoolPrice(q96, true, 6), '1000000000000');
+  assert.equal(displayPoolPrice(0n, true, 18), null);
 });

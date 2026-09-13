@@ -16,7 +16,7 @@ if (baseline.executionSpecId !== 'V1-EXEC-11') fail('execution spec drift');
 if (baseline.target?.chainId !== 46630) fail('target chain drift');
 if (!/^0x[0-9a-f]{64}$/.test(baseline.target.releaseId)) fail('invalid release ID');
 if (!/^0x[0-9a-f]{40}$/.test(baseline.target.factory)) fail('invalid Factory');
-if (baseline.target.holderRewardMode?.name !== 'TICKERGARDEN_HOLDER_DUAL_ASSET_24H_V4') fail('reward mode drift');
+if (baseline.target.holderRewardMode?.name !== 'TICKERGARDEN_HOLDER_WALLET_SNAPSHOT_V1') fail('reward mode drift');
 
 for (const [relative, expected] of Object.entries(baseline.sourceLocks ?? {})) {
   const absolute = path.join(root, relative);

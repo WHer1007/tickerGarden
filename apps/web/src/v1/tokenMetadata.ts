@@ -25,12 +25,40 @@ async function fetchDetailMetadata(uri:string,origin:string|null,signal:AbortSig
 // Immutable content: retain successful reads, never failed or cancelled requests.
 type Detail = NonNullable<Awaited<ReturnType<typeof fetchDetailMetadata>>>;
 const contentCache = new Map<string,Detail>();
+const inFlight = new Map<string,Promise<Detail|null>>();
+const DETAIL_REQUEST_TIMEOUT_MS=8000;
+
+function forConsumer<T>(request:Promise<T>,signal:AbortSignal):Promise<T|null>{
+ if(signal.aborted)return Promise.resolve(null);
+ return new Promise<T|null>(resolve=>{
+  const done=()=>{signal.removeEventListener('abort',aborted);resolve(null);};
+  const aborted=()=>done();
+  signal.addEventListener('abort',aborted,{once:true});
+  request.then(value=>{signal.removeEventListener('abort',aborted);if(!signal.aborted)resolve(value);},()=>{signal.removeEventListener('abort',aborted);if(!signal.aborted)resolve(null);});
+ });
+}
 export async function readDetailMetadata(uri:string,origin:string|null,signal:AbortSignal,gateway?:string):Promise<Detail|null>{
  if(signal.aborted)return null;
  const key=JSON.stringify([uri,origin,gateway]);const cached=contentCache.get(key);
  if(cached)return {...cached};
- const result=await fetchDetailMetadata(uri,origin,signal,gateway);
- if(!result||signal.aborted)return null;
- if(contentCache.size>=128)contentCache.delete(contentCache.keys().next().value!);
- contentCache.set(key,{...result});return result;
+ let request=inFlight.get(key);
+  if(!request){
+   const controller=new AbortController();
+   let timedOut=false;
+   const fetchRequest=fetchDetailMetadata(uri,origin,controller.signal,gateway).catch(()=>null);
+   request=new Promise<Detail|null>(resolve=>{
+    const cacheAndResolve=(result:Detail|null)=>{
+     if(!timedOut&&result){
+      if(contentCache.size>=128)contentCache.delete(contentCache.keys().next().value!);
+      contentCache.set(key,{...result});
+     }
+     resolve(timedOut?null:result);
+    };
+    const timer=setTimeout(()=>{timedOut=true;controller.abort();resolve(null);},DETAIL_REQUEST_TIMEOUT_MS);
+    fetchRequest.then(result=>{clearTimeout(timer);cacheAndResolve(result);});
+   }).finally(()=>{if(inFlight.get(key)===request)inFlight.delete(key);});
+   inFlight.set(key,request);
+  }
+ const result=await forConsumer(request,signal);
+ return result?{...result}:null;
 }

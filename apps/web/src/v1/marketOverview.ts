@@ -1,5 +1,5 @@
 import {formatUnits,parseUnits} from 'viem';
-export type MarketOverview = {supply?:string;maximum?:string;price?:string;usd?:string;volume24h?:string;holders?:{count:number;items:Array<{account:string;balanceRaw:string}>};};
+export type MarketOverview = {asOf?:number;supply?:string;maximum?:string;price?:string;usd?:string;volume24h?:string;holders?:{count:number;items:Array<{account:string;balanceRaw:string}>};display?:{priceQuote:string|null;totalSupplyRaw:string;totalStakedRaw:string;activeStakeRaw:string;creatorTaxBps:number;asOfTimestamp:string;blockNumber:string;blockHash:`0x${string}`};};
 const scale=10n**36n;
 export function marketCapUsd(supply:string|undefined,price:string|undefined,usd:string|undefined):string|null{
  if(supply===undefined||price===undefined||usd===undefined)return null;

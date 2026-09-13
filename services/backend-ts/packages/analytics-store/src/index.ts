@@ -1,3 +1,5 @@
+import type {TokenDetailResponse} from '../../../openapi/generated/v1-client.ts';
+import { coverageFor } from '../../statistics-store/src/index.ts';
 import { createHash } from 'node:crypto';
 import type { Pool, PoolClient } from 'pg';
 import type { DeploymentIdentity } from '../../chain/src/index.ts';
@@ -98,16 +100,36 @@ export async function readMarketHolders(input: { readonly pool: Pool; readonly d
 }
 
 export async function readTokenDetail(input: { readonly pool: Pool; readonly deployment: DeploymentIdentity; readonly marketId: Hex32;
-  readonly period: '1H' | '12H' | '1D'; readonly schemaName?: string }) {
+  readonly period: '1H' | '12H' | '1D'; readonly section?: 'activity'; readonly schemaName?: string }) {
   const periodConfig = { '1H': [3_600, 60], '12H': [43_200, 300], '1D': [86_400, 900] } as const;
   const [duration, interval] = periodConfig[input.period];
   return transaction(input.pool, async (client) => {
+    await client.query('SET TRANSACTION ISOLATION LEVEL REPEATABLE READ READ ONLY');
     const schema = identifier(input.schemaName ?? 'tickergarden_serverless');
+    const recent=await client.query<{initial_detail:TokenDetailResponse}>(`SELECT initial_detail FROM ${schema}.recent_markets
+      WHERE environment=$1 AND chain_id=$2 AND deployment_digest=$3 AND market_id=$4 AND canonical AND expires_at>now() AND initial_detail IS NOT NULL
+      AND block_number>coalesce((SELECT next_block-1 FROM ${schema}.projection_checkpoints WHERE environment=$1 AND chain_id=$2 AND deployment_digest=$3 AND scope='analytics'),-1)`,[...identity(input.deployment),input.marketId]);
+    if(recent.rows[0])return {...recent.rows[0].initial_detail,period:input.period};
     const checkpoint = await checkpointContext(client, schema, input.deployment);
     const market = await marketAt(client, schema, input.deployment, checkpoint.revision, input.marketId);
     const quoteDecimals = await quoteDecimalsAt(client, schema, input.deployment, checkpoint.revision, market.quoteAssetConfigId);
     const to = Math.floor(checkpoint.asOf / interval) * interval; const from = to - duration;
     const source = { provider: 'indexer' as const, asOf: checkpoint.asOf, blockNumber: checkpoint.blockNumber.toString(), blockHash: checkpoint.blockHash };
+    if(input.section==='activity') {
+      const history=await client.query<{payload:TradeActivity}>(
+        `SELECT t.payload FROM ${schema}.market_trades t JOIN ${schema}.chain_blocks b ON b.environment=t.environment AND b.chain_id=t.chain_id AND b.deployment_digest=t.deployment_digest AND b.hash=t.block_hash
+         WHERE t.environment=$1 AND t.chain_id=$2 AND t.deployment_digest=$3 AND t.market_id=$4 AND b.canonical AND b.finalized AND b.number<=$5
+         ORDER BY b.number DESC,(t.payload->'source'->>'transactionIndex')::bigint DESC,t.log_index DESC LIMIT 100`,
+        [...identity(input.deployment),input.marketId,checkpoint.blockNumber.toString()]);
+      const totals=await client.query<{recipient:'creator'|'stakers'|'platform'|'holders';asset:Address;amountRaw:string}>(
+        `SELECT recipient,asset,amount_raw::text AS "amountRaw" FROM ${schema}.detail_fee_totals
+         WHERE environment=$1 AND chain_id=$2 AND deployment_digest=$3 AND market_id=$4 ORDER BY recipient,asset`,[...identity(input.deployment),input.marketId]);
+      return {version:1 as const,chainId:input.deployment.chainId,displayOnly:true as const,marketId:input.marketId,
+        memeToken:market.memeToken,quoteAsset:market.quoteAsset,quoteDecimals,period:input.period,
+        statistics:null,chart:null,holders:null,
+        trades:history.rows.map(({payload:t})=>({timestamp:Number(t.timestamp),side:t.side,price:rationalDecimal(t.price),memeRaw:t.memeRaw,quoteRaw:t.quoteRaw,actor:t.actor,txHash:t.source.transactionHash,eventKey:t.source.eventKey,classification:t.classification})),
+        fees:totals.rows,sources:{trades:source,fees:source},reasons:{}};
+    }
     const reasons: Record<string, string> = {};
     let chart: { from: number; to: number; interval: typeof interval; points: { timestamp: number; price: string | null }[] } | null = null;
     let statistics: { price: string | null; volume24h: string | null; volumeFrom: number; volumeTo: number; volumeBasis: 'EXTERNAL_EXECUTIONS_CURVE_EXCLUDING_FEE_TAX_OR_POOL_CORE' } | null = null;
@@ -127,7 +149,17 @@ export async function readTokenDetail(input: { readonly pool: Pool; readonly dep
       const series = buildCandles({ chainId: input.deployment.chainId, marketId: input.marketId, memeAsset: market.memeToken,
         quoteAsset: market.quoteAsset, quoteDecimals, from, to, interval, trades: values });
       chart = { from, to, interval, points: series.candles.map((candle) => ({ timestamp: candle.timestamp, price: candle.close ? rationalDecimal(candle.close) : null })) };
-      trades = [...values].sort((left, right) => compareTradeDescending(left, right)).slice(0, 100).map((trade) => ({ timestamp: Number(trade.timestamp),
+      // The chart is intentionally interval-scoped, while the detail feed and
+      // headline price remain useful for quiet markets by reading the full
+      // finalized history at this pinned checkpoint.
+      const historyRows = await client.query<{ payload: TradeActivity }>(
+        `SELECT t.payload FROM ${schema}.market_trades t JOIN ${schema}.chain_blocks b ON b.environment=t.environment AND b.chain_id=t.chain_id AND b.deployment_digest=t.deployment_digest AND b.hash=t.block_hash
+         WHERE t.environment=$1 AND t.chain_id=$2 AND t.deployment_digest=$3 AND t.market_id=$4 AND b.canonical AND b.finalized AND b.number<=$5
+         ORDER BY b.number DESC,(t.payload->'source'->>'transactionIndex')::bigint DESC,t.log_index DESC LIMIT 100`,
+        [...identity(input.deployment), input.marketId, checkpoint.blockNumber.toString()],
+      );
+      const historicalValues = historyRows.rows.map((row) => row.payload);
+      trades = historicalValues.map((trade) => ({ timestamp: Number(trade.timestamp),
         side: trade.side, price: rationalDecimal(trade.price), memeRaw: trade.memeRaw, quoteRaw: trade.quoteRaw, actor: trade.actor,
         txHash: trade.source.transactionHash, eventKey: trade.source.eventKey, classification: trade.classification }));
       try {
@@ -136,12 +168,12 @@ export async function readTokenDetail(input: { readonly pool: Pool; readonly dep
         // validating the wider interval independently.
         await analyticsCoverage(client, schema, input.deployment, checkpoint, volumeFrom, to);
         const volume = await client.query<{ volume: string | null }>(
-          `SELECT sum(quote_raw)::text AS volume FROM ${schema}.market_trades t JOIN ${schema}.chain_blocks b ON b.environment=t.environment AND b.chain_id=t.chain_id AND b.deployment_digest=t.deployment_digest AND b.hash=t.block_hash
+          `SELECT (sum(quote_raw)::numeric / power(10::numeric,$7))::text AS volume FROM ${schema}.market_trades t JOIN ${schema}.chain_blocks b ON b.environment=t.environment AND b.chain_id=t.chain_id AND b.deployment_digest=t.deployment_digest AND b.hash=t.block_hash
            WHERE t.environment=$1 AND t.chain_id=$2 AND t.deployment_digest=$3 AND t.market_id=$4 AND b.canonical AND b.finalized
            AND t.classification='unclassified' AND t.occurred_at>=to_timestamp($5) AND t.occurred_at<to_timestamp($6)`,
-          [...identity(input.deployment), input.marketId, volumeFrom, to],
+          [...identity(input.deployment), input.marketId, volumeFrom, to, quoteDecimals],
         );
-        const latest = [...values].sort((left, right) => compareTradeDescending(left, right))[0];
+        const latest = historicalValues[0];
         statistics = { price: latest ? rationalDecimal(latest.price) : null, volume24h: volume.rows[0]?.volume ?? '0', volumeFrom, volumeTo: to,
           volumeBasis: 'EXTERNAL_EXECUTIONS_CURVE_EXCLUDING_FEE_TAX_OR_POOL_CORE' };
       } catch (error) {
@@ -191,24 +223,7 @@ async function analyticsContext(client: PoolClient, deployment: DeploymentIdenti
   return { revision: checkpoint.revision, market, quoteDecimals, coverage };
 }
 async function analyticsCoverage(client: PoolClient, schema: string, deployment: DeploymentIdentity, checkpoint: Awaited<ReturnType<typeof checkpointContext>>, from: number, to: number): Promise<RangeCoverage> {
-  const bounds = await client.query<{ anchor_number: string; anchor_hash: Hex32; through_number: string; through_hash: Hex32 }>(
-    `SELECT left_block.number AS anchor_number,left_block.hash AS anchor_hash,right_block.number AS through_number,right_block.hash AS through_hash
-     FROM LATERAL (SELECT number,hash FROM ${schema}.chain_blocks WHERE environment=$1 AND chain_id=$2 AND deployment_digest=$3 AND canonical AND finalized AND number<=$4 AND source_timestamp<to_timestamp($5) ORDER BY number DESC LIMIT 1) left_block,
-          LATERAL (SELECT number,hash FROM ${schema}.chain_blocks WHERE environment=$1 AND chain_id=$2 AND deployment_digest=$3 AND canonical AND finalized AND number<=$4 AND source_timestamp>=to_timestamp($6) ORDER BY number LIMIT 1) right_block`,
-    [...identity(deployment), checkpoint.blockNumber.toString(), from, to],
-  );
-  const bound = bounds.rows[0]; if (!bound) throw new PublicationUnavailableError('analytics interval is not completely covered');
-  const continuous = await client.query<{ count: string; linked: boolean }>(
-    `WITH ordered AS (SELECT number,hash,parent_hash,lag(number) OVER (ORDER BY number) previous_number,lag(hash) OVER (ORDER BY number) previous_hash
-      FROM ${schema}.chain_blocks WHERE environment=$1 AND chain_id=$2 AND deployment_digest=$3 AND canonical AND finalized AND number BETWEEN $4 AND $5)
-     SELECT count(*)::text,COALESCE(bool_and(number=$4 OR (number=previous_number+1 AND parent_hash=previous_hash)),false) AS linked FROM ordered`,
-    [...identity(deployment), bound.anchor_number, bound.through_number],
-  );
-  const expected = BigInt(bound.through_number) - BigInt(bound.anchor_number) + 1n;
-  if (BigInt(continuous.rows[0]?.count ?? '0') !== expected || !continuous.rows[0]?.linked) throw new PublicationUnavailableError('analytics interval has a chain coverage gap');
-  return { from, to, anchorNumber: safeInteger(bound.anchor_number, 'coverage anchor'), anchorHash: bound.anchor_hash,
-    throughNumber: safeInteger(bound.through_number, 'coverage through block'), throughHash: bound.through_hash,
-    projectionNumber: safeInteger(checkpoint.blockNumber.toString(), 'projection block'), projectionHash: checkpoint.blockHash };
+  return coverageFor(client, schema, deployment, {number:checkpoint.blockNumber.toString(),hash:checkpoint.blockHash,asOf:checkpoint.asOf}, from, to);
 }
 async function checkpointContext(client: PoolClient, schema: string, deployment: DeploymentIdentity) {
   const row = (await client.query<{ last_revision: string; block_number: string; block_hash: Hex32; as_of: string }>(

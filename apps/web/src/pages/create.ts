@@ -29,12 +29,12 @@ export default {
                     <span id="quote-asset-current" class="quote-picker-current" data-quote-current>Loading paired assets…</span>
                     <i class="ph ph-caret-down" aria-hidden="true"></i>
                   </button>
-                  <div id="quote-asset-options" class="quote-picker-options" data-quote-options role="listbox" aria-labelledby="quote-asset-label" hidden></div>
+                  <div class="quote-picker-options" data-quote-panel hidden><div class="quote-picker-search"><input type="search" data-quote-search placeholder="Search by name or symbol" aria-label="Search paired assets" aria-controls="quote-asset-options" autocomplete="off" /></div><div id="quote-asset-options" data-quote-options role="listbox" aria-labelledby="quote-asset-label"></div><p class="quote-picker-empty" data-quote-empty role="status" hidden>No matching assets.</p></div>
                   <select id="quote-asset-config" class="quote-native-select" name="quoteAssetConfigId" tabindex="-1" aria-hidden="true" required><option value="" selected disabled>Loading paired assets…</option></select>
                 </div>
               </div>
-              <div class="graduation-note field full"><i class="ph ph-trend-up" aria-hidden="true"></i><div><strong data-graduation-caption>Loading bloom target…</strong><details class="graduation-details"><summary>Details</summary><small>Net funds raised, excluding fees and virtual reserves.</small><small data-graduation-exact></small><p class="muted display-price-reference" data-display-price>USD reference unavailable.</p></details></div></div>
-              <div class="field full launch-treasury"><div class="treasury-heading"><i class="ph ph-plant" aria-hidden="true"></i><label for="staking-enabled"><strong>Enable staking rewards</strong></label><a class="staking-docs-link" href="/docs#staking-rewards" target="_blank" rel="noopener noreferrer" aria-label="Staking rewards docs (opens in a new tab)">Docs <i class="ph ph-arrow-up-right" aria-hidden="true"></i></a><input id="staking-enabled" type="checkbox" role="switch" name="stakingEnabled" aria-controls="staking-stock-field" /></div><small>Cannot be changed after launch.</small></div>
+              <div class="graduation-note field full"><i class="ph ph-trend-up" aria-hidden="true"></i><div><strong data-graduation-caption>Loading bloom target…</strong><details class="graduation-details"><summary>Details</summary><small>Net funds raised, excluding fees and virtual reserves.</small><small data-graduation-exact></small></details></div></div>
+              <div class="field full launch-treasury"><div class="treasury-heading"><i class="ph ph-plant" aria-hidden="true"></i><label for="staking-enabled"><strong>Enable staking rewards</strong></label><a class="staking-docs-link" href="/docs#staking-rewards" target="_blank" rel="noopener noreferrer" aria-label="Staking rewards docs (opens in a new tab)">Docs <i class="ph ph-arrow-up-right" aria-hidden="true"></i></a><input id="staking-enabled" type="checkbox" role="switch" name="stakingEnabled" aria-controls="staking-stock-field" /></div><small>Let users stake Stock to earn a share of trading fees after Bloom. Staking uses a separate 24-hour lock.</small></div>
               <div class="field full" id="staking-stock-field" data-staking-stock-field hidden>
                 <label id="rewards-stock-label" for="rewards-stock-trigger">Staking asset</label>
                 <div class="quote-picker" data-quote-picker>
@@ -42,7 +42,7 @@ export default {
                     <span id="rewards-stock-current" class="quote-picker-current" data-quote-current>Loading staking assets…</span>
                     <i class="ph ph-caret-down" aria-hidden="true"></i>
                   </button>
-                  <div id="rewards-stock-options" class="quote-picker-options" data-quote-options role="listbox" aria-labelledby="rewards-stock-label" hidden></div>
+                  <div class="quote-picker-options" data-quote-panel hidden><div class="quote-picker-search"><input type="search" data-quote-search placeholder="Search by name or symbol" aria-label="Search staking assets" aria-controls="rewards-stock-options" autocomplete="off" /></div><div id="rewards-stock-options" data-quote-options role="listbox" aria-labelledby="rewards-stock-label"></div><p class="quote-picker-empty" data-quote-empty role="status" hidden>No matching assets.</p></div>
                   <select id="asset-uid" class="quote-native-select" name="assetUid" tabindex="-1" aria-hidden="true" disabled><option value="" selected disabled>Loading staking assets…</option></select>
                 </div>
                 <small id="rewards-stock-help">Stake this asset to earn trading fees.</small>
@@ -54,8 +54,9 @@ export default {
             <summary>Advanced <i class="ph ph-caret-down" aria-hidden="true"></i></summary>
             <div class="fields">
               <label class="field full" for="beneficiary"><span>Creator wallet</span><input id="beneficiary" name="beneficiary" autocomplete="off" placeholder="Connected wallet" /><small>Receives your fees. Defaults to your connected wallet.</small></label>
-              <label class="field full" for="creator-tax"><span>Creator tax</span><span class="launch-amount"><input id="creator-tax" name="creatorTax" type="number" min="0" max="5" step="0.01" value="0" inputmode="decimal" /><strong>%</strong></span><small>Extra trading fee (0–5%), entirely yours. Fixed at launch.</small><small data-creator-fee-note></small></label>
-              <div class="field full launch-treasury"><div class="treasury-heading"><i class="ph ph-vault" aria-hidden="true"></i><label for="treasury-enabled"><strong>Share creator fees with holders</strong></label><input id="treasury-enabled" name="treasuryEnabled" type="checkbox" role="switch" aria-controls="treasury-details" /></div><small data-treasury-option-status>Share 50% of base fees with holders. Creator tax stays yours. Permanent at launch.</small><div id="treasury-details" hidden><p>Eligible holders can claim rewards after settlement. Payouts may be delayed.</p><a href="/claim">View holder rewards <i class="ph ph-arrow-up-right" aria-hidden="true"></i></a></div></div>
+              <label class="field full" for="creator-tax"><span>Creator tax</span><span class="launch-amount"><input id="creator-tax" name="creatorTax" type="number" min="0" max="5" step="0.01" value="0" inputmode="decimal" /><strong>%</strong></span><small data-creator-tax-help>Extra trading fee (0–5%), allocated to you. Fixed at launch.</small><small data-creator-fee-note></small></label>
+              <div class="field full launch-treasury"><div class="treasury-heading"><i class="ph ph-fire" aria-hidden="true"></i><label for="meme-fee-burn"><strong>Burn Meme fee rewards</strong></label><input id="meme-fee-burn" name="burnMemeFees" type="checkbox" role="switch" aria-describedby="meme-fee-burn-help" /></div><small id="meme-fee-burn-help">Creator and staker Meme fees are burned when rewards are claimed. Holder Meme fees are burned when rewards are funded. Quote rewards and platform fees are unaffected. Permanent at launch.</small></div>
+              <div class="field full launch-treasury"><div class="treasury-heading"><i class="ph ph-vault" aria-hidden="true"></i><label for="treasury-enabled"><strong>Share creator fees with holders</strong></label><input id="treasury-enabled" name="treasuryEnabled" type="checkbox" role="switch" aria-controls="treasury-details" /></div><small data-treasury-option-status>Share exactly 50% of the creator base-fee share with holders, excluding creator tax. Creator keeps the other 50% and all creator tax. Permanent at launch.</small><div id="treasury-details" hidden><p data-holder-sharing-help>Rewards use wallet balances at published snapshots. Eligible holders can claim the original Quote and Meme assets after publication. There is no fixed payout schedule.</p><a href="/claim">View holder rewards <i class="ph ph-arrow-up-right" aria-hidden="true"></i></a></div></div>
             </div>
           </details>
           <div hidden><select name="tickerGardenBaselineId" aria-label="Automatic baseline"></select><select name="launchTemplateId" aria-label="Automatic launch template"></select><select name="launchMode" aria-label="Automatic launch mode"><option value="create">Create</option><option value="create-buy">Create and buy</option></select></div>
@@ -64,7 +65,7 @@ export default {
           <div class="launch-funding" data-launch-funding hidden aria-live="polite">
             <div><span>Payment route</span><strong data-funding-route>-</strong></div>
             <div><span>Paired asset balance</span><strong data-funding-quote-balance>-</strong></div>
-            <div><span>ETH for asset purchase</span><strong data-funding-swap>-</strong></div>
+            <div><span>ETH for paired asset purchase</span><strong data-funding-swap>-</strong></div>
             <div><span>Estimated gas</span><strong data-funding-gas>-</strong></div>
             <div><span>Total ETH required</span><strong data-funding-total>-</strong></div>
             <div><span>Wallet ETH balance</span><strong data-funding-balance>-</strong></div>
@@ -74,14 +75,14 @@ export default {
         <aside class="panel token-preview" aria-labelledby="preview-heading">
           <div class="preview-orbit" data-preview-image-frame><i class="ph ph-image-square" data-token-placeholder role="img" aria-label="Your token image"></i><img data-token-image alt="Token preview" hidden /></div>
           <small id="preview-heading">YOUR TOKEN</small><h2 data-token-symbol>ticker</h2><p data-token-name>Your next big idea</p><p class="token-description" data-token-description></p>
-          <div class="preview-list"><div><span>Launch fee</span><strong data-preview-launch-fee>-</strong></div><div><span>Paired with</span><strong data-preview-quote>-</strong></div><div><span>Base trade fee</span><strong data-preview-trade-fee>-</strong></div><div><span>Bloom target</span><strong data-preview-graduation>-</strong></div><div><span>Liquidity</span><strong>Locked when Bloomed</strong></div><div><span>Staking asset</span><strong data-preview-asset>-</strong></div><div><span>Developer buy</span><strong data-preview-mode>-</strong></div><div><span>Creator tax</span><strong data-preview-creator-tax>0%</strong></div><div><span>Holder fee sharing</span><strong data-preview-treasury>Off</strong></div></div>
+          <div class="preview-list"><div><span>Launch fee</span><strong data-preview-launch-fee>-</strong></div><div><span>Paired with</span><strong data-preview-quote>-</strong></div><div><span>Base trade fee</span><strong data-preview-trade-fee>-</strong></div><div><span>Bloom target</span><strong data-preview-graduation>-</strong></div><div><span>Liquidity</span><strong>Locked when Bloomed</strong></div><div><span>Staking asset</span><strong data-preview-asset>-</strong></div><div><span>Developer buy</span><strong data-preview-mode>-</strong></div><div><span>Burn Meme fee rewards</span><strong data-preview-meme-burn>Off</strong></div><div><span>Creator tax</span><strong data-preview-creator-tax>0%</strong></div><div><span>Holder fee sharing</span><strong data-preview-treasury>Off</strong></div></div>
           <section class="fee-preview" aria-labelledby="fee-preview-heading">
             <h2 id="fee-preview-heading">Your fee earnings</h2>
             <p>Share of trading fees.</p>
             <section class="fee-scenario is-current" data-fee-current-table>${feePreviewTable(false, false)}</section>
             <div class="creator-tax-summary"><span>Creator tax <strong data-fee-tax>0%</strong></span><strong data-creator-tax-recipient hidden>100% to you</strong></div>
             <p class="fee-preview-note" data-fee-staking-note>Staking rewards are off.</p>
-            <small>Creator tax is separate. Excludes LP fees; rounding applies.</small>
+            <small>Creator tax is separate and excluded from holder sharing. LP fees are excluded; rounding applies.</small><p data-fee-burn-note hidden>Meme fee rewards are burned at settlement; only Quote rewards are paid out. Platform fees are unaffected.</p>
           </section>
         </aside>
       </div>

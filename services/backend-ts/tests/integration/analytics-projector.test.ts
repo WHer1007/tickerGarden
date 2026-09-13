@@ -6,7 +6,7 @@ import { applyCoreMigration, createDatabasePool } from '../../packages/db/src/in
 import { projectF72Analytics } from '../../packages/analytics-projector/src/index.ts';
 import { f72EventAbis } from '../../packages/events/src/f72-abis.generated.ts';
 import { F72_RELEASE_ID, f72EventCatalog } from '../../packages/events/src/index.ts';
-import { f72BootstrapConfigs } from '../../packages/config-projector/src/f72-bootstrap.generated.ts';
+import { f72BootstrapConfigs, type BootstrapConfig } from '../../packages/config-projector/src/f72-bootstrap.generated.ts';
 
 const connectionString = process.env.TG_MIGRATION_DATABASE_URL ?? process.env.TG_DATABASE_URL;
 const hash = (character: string): `0x${string}` => `0x${character.repeat(64)}`;
@@ -20,8 +20,8 @@ test('TS-07 analytics projector advances trades and holder balances incrementall
   const deployment = { environment: 'test' as const, chainId: 46630 as const, deploymentDigest: F72_RELEASE_ID, activationBlock: 1n };
   const marketId = hash('1'); const token = address('2'); const curve = address('3'); const gauge = address('4');
   const quote = f72BootstrapConfigs.find((item) => item.kind === 'quote' && 'quoteAsset' in item.values
-    && item.values.quoteAsset === '0x0000000000000000000000000000000000000000') as { id: `0x${string}`; values: { quoteAsset: `0x${string}` } };
-  const baseline = f72BootstrapConfigs.find((item) => item.kind === 'baseline') as { id: `0x${string}`; values: { supply: string } };
+    && item.values.quoteAsset === '0x0000000000000000000000000000000000000000') as BootstrapConfig & { kind: 'quote'; values: { quoteAsset: `0x${string}` } };
+  const baseline = f72BootstrapConfigs.find((item) => item.kind === 'baseline') as BootstrapConfig & { kind: 'baseline'; values: { supply: string } };
   try {
     await applyCoreMigration(handle.pool, schemaName);
     await handle.pool.query(`INSERT INTO ${schema}.deployments(environment,chain_id,deployment_digest,genesis_hash,start_block,start_block_hash,abi_digest) VALUES ('test',46630,$1,$2,1,$3,$4)`, [deployment.deploymentDigest, hash('a'), hash('b'), hash('c')]);
@@ -44,6 +44,8 @@ test('TS-07 analytics projector advances trades and holder balances incrementall
 
     await saveLog(handle.pool, schema, deployment.deploymentDigest, 'TickerMemeTokenV1', 'Transfer', token, 3, hash('d'), hash('9'), 0,
       { from: curve, to: address('9'), value: 250n });
+    await saveLog(handle.pool, schema, deployment.deploymentDigest, 'TickerMemeTokenV1', 'Transfer', token, 3, hash('d'), hash('9'), 3,
+      { from: address('9'), to: address('0'), value: 25n });
     await saveLog(handle.pool, schema, deployment.deploymentDigest, 'TickerGardenCurve', 'CurveSell', curve, 3, hash('d'), hash('9'), 1,
       { seller: address('9'), recipient: address('9'), tokensIn: 10n, quoteOut: 8n, fee: 1n, tax: 1n });
     await saveLog(handle.pool, schema, deployment.deploymentDigest, 'ProtocolFeeVault', 'FeeBucketsCredited',
@@ -53,14 +55,15 @@ test('TS-07 analytics projector advances trades and holder balances incrementall
     await publishMarket(handle.pool, schema, deployment.deploymentDigest, 3, hash('d'), { marketId, memeToken: token, curve, gauge,
       quoteAsset: quote.values.quoteAsset, quoteAssetConfigId: quote.id, tickerGardenBaselineId: baseline.id, poolId: null, poolKey: null, source: { blockNumber: '1' } });
     assert.deepEqual(await projectF72Analytics({ pool: handle.pool, deployment, blockNumber: 3n, blockHash: hash('d'), generation: 0n, schemaName }), { trades: 1, holders: 2 });
-    const counts = await handle.pool.query<{ trades: string; user_balance: string; positive: string; next_block: string; fee_total: string; fee_events:string }>(
+    const counts = await handle.pool.query<{ trades: string; user_balance: string; total_supply: string; positive: string; next_block: string; fee_total: string; fee_events:string }>(
       `SELECT (SELECT count(*)::text FROM ${schema}.market_trades) trades,
        (SELECT balance_raw::text FROM ${schema}.holder_balances WHERE market_id=$1 AND account=$2) user_balance,
+       (SELECT total_supply_raw::text FROM ${schema}.holder_snapshots WHERE market_id=$1) total_supply,
        (SELECT positive_address_count::text FROM ${schema}.holder_snapshots WHERE market_id=$1) positive,
        (SELECT next_block::text FROM ${schema}.projection_checkpoints WHERE scope='analytics') next_block,
        (SELECT sum(amount_raw)::text FROM ${schema}.detail_fee_totals WHERE market_id=$1) fee_total,
        (SELECT count(*)::text FROM ${schema}.detail_fee_events WHERE market_id=$1) fee_events`, [marketId, address('9')]);
-    assert.deepEqual(counts.rows[0], { trades: '2', user_balance: '250', positive: '2', next_block: '4', fee_total: '15', fee_events:'3' });
+    assert.deepEqual(counts.rows[0], { trades: '2', user_balance: '225', total_supply: (BigInt(baseline.values.supply) - 25n).toString(), positive: '2', next_block: '4', fee_total: '15', fee_events:'3' });
   } finally {
     await handle.pool.query(`DROP SCHEMA IF EXISTS ${schema} CASCADE`).catch(() => undefined); await handle.pool.end();
   }

@@ -22,11 +22,11 @@ export default { title: 'Stake — TickerGarden', html: `
     <article class="position-card"><p data-rewards-action-status role="status"></p>
       <div class="section-heading"><div><h2>Your stake</h2><p>Stake Stock to earn a share of trading fees.</p></div><button type="button" class="primary-button" data-open-stake><i class="ph ph-plus" aria-hidden="true"></i> Add stake</button></div>
       <div class="position-stats"><div><span>Wallet available</span><strong data-stake-wallet>-</strong></div><div><span>Staked principal</span><strong data-stake-allocated>-</strong><small class="stake-share">Share of total <b data-stake-share>-</b></small><small data-stake-active-breakdown>Active + pending stake</small></div><div><span>Status</span><strong data-stake-unlock>-</strong><small data-stake-unlock-at></small></div></div>
-      <div class="rewards-card">
-        <h2>Staking rewards</h2>
-        <div class="reward-values"><div><span>Available to claim</span><strong data-staker-claimable="quote">-</strong><small data-staker-locked-note></small></div><div><span>Awaiting conversion</span><strong data-staker-claimable="meme">-</strong></div><div><span>Total earned</span><strong data-staker-earned>-</strong><small title="Claimed and unclaimed rewards. Excludes forfeited rewards.">Claimed + Unclaimed</small></div><div><span>Total claimed</span><strong data-staker-claimed>-</strong></div></div>
+    <div class="rewards-card">
+        <h2>Staking rewards</h2><p>Rewards are paid in the original Quote and Meme assets; conversion is never automatic.</p>
+        <div class="reward-values"><div><span>Available to claim</span><strong data-staker-claimable="quote">-</strong><small data-staker-locked-note></small></div><div><span>Meme rewards</span><strong data-staker-claimable="meme">-</strong></div><div><span>Total earned</span><strong data-staker-earned>-</strong><small title="Claimed and unclaimed rewards. Excludes forfeited rewards.">Claimed + Unclaimed</small></div><div><span>Total claimed</span><strong data-staker-claimed>-</strong></div></div>
         <div class="reward-actions"><button type="button" disabled class="primary-button" data-reward-action="claimStaker" data-action="claimStaker" data-reward-asset="quote">Claim rewards</button><button type="button" disabled class="link-button" data-reward-action="unstakeAndWithdraw" data-action="unstakeAndWithdraw">Unstake all</button></div>
-        <p data-staker-action-help aria-live="polite">Connect a wallet and choose a market.</p>
+        <p data-staker-action-help aria-live="polite">Connect a wallet and choose a market. Staking rewards use the separate 24-hour lock.</p>
         <p data-unstake-preview aria-live="polite">Full withdrawals only. Earned rewards remain claimable.</p>
       </div>
     </article>

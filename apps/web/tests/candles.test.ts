@@ -12,6 +12,19 @@ test('candle chart preserves large rational ordering and bounded coordinates',()
  assert.equal(candlePriceLabel({numerator:'1',denominator:'1000000000'}),'<0.00000001');
 });
 import {validateCandles} from '../src/v1/candles.ts';
+const candleIdentity={marketId:`0x${'1'.repeat(64)}` as `0x${string}`,memeAsset:`0x${'2'.repeat(40)}`,quoteAsset:`0x${'3'.repeat(40)}`,quoteDecimals:18};
+const makeCandles=(interval:number, count:number)=>Array.from({length:count},(_,i)=>({timestamp:3600+i*interval,open:null,high:null,low:null,close:null,tradeCount:0,internalTradeCount:0,unclassifiedTradeCount:0,memeVolumeRaw:'0',quoteVolumeRaw:'0',internalMemeVolumeRaw:'0',internalQuoteVolumeRaw:'0'}));
+const makeWindow=(interval:number, count:number)=>({chainId:4663,displayOnly:true,...candleIdentity,interval,coverage:{from:3600,to:3600+interval*count,anchorNumber:1,throughNumber:2,projectionNumber:2,anchorHash:candleIdentity.marketId,throughHash:candleIdentity.marketId,projectionHash:candleIdentity.marketId},series:{priceUnit:'QUOTE_PER_WHOLE_MEME',volumeBasis:'CURVE_EXCLUDING_FEE_TAX_OR_POOL_CORE',pricePopulation:'ALL_EXECUTIONS_INCLUDING_INTERNAL_CONVERSIONS',emptyPolicy:'NULL_OHLC_ZERO_VOLUME',candles:makeCandles(interval,count)}});
+test('candle validation accepts requested 60, 300, and 900 second windows',()=>{
+ for (const interval of [60,300,900]) {
+  const count=2; const v=makeWindow(interval,count);
+  assert.equal(validateCandles(v,4663,candleIdentity,3600,3600+interval*count,interval).series.candles.length,count);
+ }
+});
+test('candle validation rejects a raw interval different from the requested interval',()=>{
+ const v=makeWindow(300,2);
+ assert.throws(()=>validateCandles(v,4663,candleIdentity,3600,4200,60));
+});
 test('candle validation rejects false empty bars and identity mismatches',()=>{
  const id={marketId:`0x${'1'.repeat(64)}` as `0x${string}`,memeAsset:`0x${'2'.repeat(40)}`,quoteAsset:`0x${'3'.repeat(40)}`,quoteDecimals:18};
  const v={chainId:4663,displayOnly:true,...id,interval:3600,coverage:{from:3600,to:7200,anchorNumber:1,throughNumber:2,projectionNumber:2,anchorHash:id.marketId,throughHash:id.marketId,projectionHash:id.marketId},series:{priceUnit:'QUOTE_PER_WHOLE_MEME',volumeBasis:'CURVE_EXCLUDING_FEE_TAX_OR_POOL_CORE',pricePopulation:'ALL_EXECUTIONS_INCLUDING_INTERNAL_CONVERSIONS',emptyPolicy:'NULL_OHLC_ZERO_VOLUME',candles:[{timestamp:3600,open:null,high:null,low:null,close:null,tradeCount:0,internalTradeCount:0,unclassifiedTradeCount:0,memeVolumeRaw:'0',quoteVolumeRaw:'0',internalMemeVolumeRaw:'0',internalQuoteVolumeRaw:'0'}]}};

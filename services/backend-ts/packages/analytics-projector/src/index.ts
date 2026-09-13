@@ -132,7 +132,7 @@ export async function projectF72Analytics(input: {
   return { trades: trades.length, holders: changedHolders };
 }
 
-function feeCredits(event: DecodedProtocolEvent): FeeTotal[] {
+export function feeCredits(event: DecodedProtocolEvent): FeeTotal[] {
   if (event.module !== 'ProtocolFeeVault') return [];
   if (event.eventName === 'CurveFeesSwept') {
     const marketId = hex32(event.args.marketId); const asset = address(event.args.quoteAsset);
@@ -164,14 +164,14 @@ async function advanceHolders(client: PoolClient, schema: string, deployment: De
   if (!current) {
     if (!transfers.length) throw new Error('new market token history has no initial mint');
     const snapshot = rebuildHolderSnapshot({ chainId: deployment.chainId, token: market.record.memeToken, initialHolder: market.record.curve,
-      burnAuthority: null, initialSupplyRaw: market.initialSupply, transfers, excludedAccounts: exclusions });
+      burnAuthority: null, allowSelfBurn: true, initialSupplyRaw: market.initialSupply, transfers, excludedAccounts: exclusions });
     for (const balance of snapshot.balances) await saveBalance(client, schema, deployment, market.record.marketId, balance.account,
       balance.balanceRaw, balance.excluded, blockHash);
     await saveSnapshot(client, schema, deployment, market.record.marketId, market.record.source.blockNumber, snapshot.totalSupplyRaw,
       snapshot.positiveAddressCount, snapshot.includedAddressCount, exclusions, blockNumber, blockHash);
     return snapshot.balances.length;
   }
-  if (JSON.stringify(current.excluded_accounts) !== JSON.stringify(exclusions) || current.total_supply_raw !== market.initialSupply) {
+  if (JSON.stringify(current.excluded_accounts) !== JSON.stringify(exclusions) || BigInt(current.total_supply_raw) > BigInt(market.initialSupply)) {
     throw new Error('holder snapshot identity or exclusion policy changed');
   }
   const touched = uniqueAddresses(transfers.flatMap((item) => [item.from, item.to]).filter((item) => item !== ZERO_ADDRESS));
@@ -182,13 +182,15 @@ async function advanceHolders(client: PoolClient, schema: string, deployment: De
   const before = new Map<Address, bigint>(touched.map((account) => [account, 0n]));
   for (const row of loaded.rows) before.set(row.account, BigInt(row.balance_raw));
   const after = new Map(before);
+  let supply = BigInt(current.total_supply_raw);
   for (const transfer of transfers) {
-    if (transfer.from === ZERO_ADDRESS || transfer.to === ZERO_ADDRESS) throw new Error('unexpected mint or burn in incremental holder history');
+    if (transfer.from === ZERO_ADDRESS) throw new Error('unexpected mint in incremental holder history');
     const balance = after.get(transfer.from) ?? 0n; const amount = BigInt(transfer.value);
     if (balance < amount) throw new Error('incremental holder balance underflow');
     if (transfer.from !== transfer.to) {
       after.set(transfer.from, balance - amount);
-      after.set(transfer.to, (after.get(transfer.to) ?? 0n) + amount);
+      if (transfer.to === ZERO_ADDRESS) { if (amount > supply) throw new Error("burn exceeds supply"); supply -= amount; }
+      else after.set(transfer.to, (after.get(transfer.to) ?? 0n) + amount);
     }
   }
   let positive = BigInt(current.positive_address_count); let included = BigInt(current.included_address_count);
@@ -198,7 +200,7 @@ async function advanceHolders(client: PoolClient, schema: string, deployment: De
     if (now) await saveBalance(client, schema, deployment, market.record.marketId, account, (after.get(account) ?? 0n).toString(), excluded, blockHash);
     else await client.query(`DELETE FROM ${schema}.holder_balances WHERE environment=$1 AND chain_id=$2 AND deployment_digest=$3 AND market_id=$4 AND account=$5`, [...identity(deployment), market.record.marketId, account]);
   }
-  await saveSnapshot(client, schema, deployment, market.record.marketId, market.record.source.blockNumber, current.total_supply_raw,
+  await saveSnapshot(client, schema, deployment, market.record.marketId, market.record.source.blockNumber, supply.toString(),
     Number(positive), Number(included), exclusions, blockNumber, blockHash);
   return touched.length;
 }
@@ -220,7 +222,7 @@ async function saveSnapshot(client: PoolClient, schema: string, deployment: Depl
   [...identity(deployment), marketId, creationBlock, supply, positive, included, JSON.stringify(exclusions), blockNumber.toString(), blockHash]);
 }
 
-function validateMarket(record: MarketRecord, chainId: 4663 | 46630): { record: MarketRecord; binding: MarketBinding; initialSupply: string } {
+export function validateMarket(record: MarketRecord, chainId: 4663 | 46630): { record: MarketRecord; binding: MarketBinding; initialSupply: string } {
   const quote = f72BootstrapConfigs.find((item) => item.kind === 'quote' && item.id === record.quoteAssetConfigId) as
     | { readonly values: { readonly quoteAsset: string; readonly quoteDecimals: number } } | undefined;
   const baseline = f72BootstrapConfigs.find((item) => item.kind === 'baseline' && item.id === record.tickerGardenBaselineId) as

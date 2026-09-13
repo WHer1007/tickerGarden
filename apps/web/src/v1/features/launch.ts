@@ -1,7 +1,7 @@
 import { ROBINHOOD_CHAIN_ID } from "../chain.ts";
-import { decodeEventLog, type Address, type Hex, type TransactionReceipt } from "viem";
+import { decodeEventLog, keccak256, stringToHex, type Address, type Hex, type TransactionReceipt } from "viem";
 import type { MarketDetailResponse, MarketReadModel, SyncStatus } from "../readApi.ts";
-import { v1Abis } from "../generated/abis.ts";
+import { currentV4Abis, v1Abis } from "../generated/abis.ts";
 import { createContractWriteRequest, type ContractWriteRequest } from "../transaction.ts";
 
 const ZERO_ADDRESS = "0x0000000000000000000000000000000000000000" as Address;
@@ -26,6 +26,7 @@ export type CreateMarketParams = Readonly<{
   creatorTaxBps: number;
   creatorFeesToHolders: boolean;
   stakingEnabled: boolean;
+  burnMemeFees?: boolean;
 }>;
 
 export type SelectedLaunchConfig = Readonly<{
@@ -41,6 +42,7 @@ export type SelectedLaunchConfig = Readonly<{
   creatorTaxBps?: number;
   creatorFeesToHolders?: boolean;
   stakingEnabled?: boolean;
+  burnMemeFees?: boolean;
 }>;
 
 export type LaunchRequestSet = Readonly<{
@@ -165,7 +167,9 @@ export function deriveCreateMarketParams(config: SelectedLaunchConfig): CreateMa
   if (config.creatorFeesToHolders !== undefined && typeof config.creatorFeesToHolders !== "boolean") throw new TypeError("Holder fee sharing must be boolean");
   const tax = config.creatorTaxBps ?? 0;
   if (!Number.isInteger(tax) || tax < 0 || tax > 500) throw new RangeError("Creator tax must be between 0 and 500 bps");
+  if (config.burnMemeFees !== undefined && typeof config.burnMemeFees !== "boolean") throw new RangeError("Invalid Meme fee burn choice");
   return Object.freeze({
+    ...(config.burnMemeFees === undefined ? {} : { burnMemeFees: config.burnMemeFees }),
     creatorTaxBps: tax,
     creatorFeesToHolders: config.creatorFeesToHolders ?? false,
     stakingEnabled,
@@ -198,7 +202,7 @@ export async function buildCreateMarketRequest(input: Readonly<{
   contractAddress(input.factory, "factory");
   uint256(input.launchFee, "launchFee");
   const request = createContractWriteRequest({
-    abi: v1Abis.TickerGardenFactoryV1,
+    abi: launchAbis(input.config).TickerGardenFactoryV1,
     address: input.factory,
     functionName: "createMarket",
     args: [params],
@@ -225,7 +229,7 @@ export async function buildLaunchAndBuyRequests(input: Readonly<{
   const native = input.config.quote.quoteAsset === ZERO_ADDRESS;
   if (native && input.launchFee > MAX_UINT256 - input.quoteIn) throw new RangeError("native launch value exceeds uint256");
   const request = createContractWriteRequest({
-    abi: v1Abis.LaunchAndBuyRouter,
+    abi: launchAbis(input.config).LaunchAndBuyRouter,
     address: input.router,
     functionName: "launchAndBuy",
     args: [params, input.quoteIn, input.minTokensOut, input.recipient],
@@ -372,4 +376,18 @@ export function buildCurveSellRequest(input: Readonly<{
     abi: v1Abis.TickerMemeTokenV1, address: view.memeToken, functionName: "approve", args: [view.curve, input.tokensIn],
   });
   return Object.freeze({ request, approval, view });
+}
+
+export const MEME_FEE_BURN_MODE = keccak256(stringToHex("TICKERGARDEN_MEME_FEE_BURN_ON_SETTLEMENT_V1"));
+export function launchAbis(config: Pick<SelectedLaunchConfig, "burnMemeFees">) {
+  return config.burnMemeFees === undefined ? v1Abis : currentV4Abis;
+}
+/** Called only while preparing a wallet launch. Never silently drop an enabled burn choice on an older Factory. */
+export async function resolveBurnLaunchConfig(config: SelectedLaunchConfig, probe: () => Promise<Hex>): Promise<SelectedLaunchConfig> {
+  let mode: Hex | undefined;
+  try { mode = await probe(); } catch { /* The legacy preview below still has to succeed. */ }
+  if (mode === MEME_FEE_BURN_MODE) return Object.freeze({ ...config, burnMemeFees: config.burnMemeFees ?? false });
+  if (config.burnMemeFees === true) throw new Error("This deployment does not support the Meme fee burning yet");
+  const { burnMemeFees: _fee, ...legacy } = config;
+  return Object.freeze(legacy);
 }

@@ -2,7 +2,7 @@ import type { Pool, PoolClient } from 'pg';
 import type { DeploymentIdentity, RpcLog } from '../../chain/src/index.ts';
 import { transaction } from '../../db/src/index.ts';
 import { decodeF72Event, type DecodedProtocolEvent } from '../../events/src/index.ts';
-import { f72EventAbis } from '../../events/src/f72-abis.generated.ts';
+import { protocolEventSignature as eventSignature } from '../../events/src/index.ts';
 
 type Address = `0x${string}`;
 type Hash = `0x${string}`;
@@ -10,7 +10,7 @@ const ZERO_ADDRESS = `0x${'0'.repeat(40)}` as Address;
 
 interface MarketRecord {
   readonly marketId: Hash; readonly memeToken: Address; readonly quoteAsset: Address; readonly creator: Address;
-  readonly creatorFeesToHolders: boolean; readonly source: { readonly blockNumber: string };
+  readonly creatorFeesToHolders: boolean; readonly burnMemeFees?: boolean; readonly source: { readonly blockNumber: string };
   readonly identity: { readonly name: string; readonly symbol: string };
 }
 interface StoredEvent { readonly event: DecodedProtocolEvent; readonly occurredAt: Date }
@@ -45,13 +45,14 @@ export async function projectF72History(input: {
   });
 
   const registered = new Set<Hash>();
-  for (const { event } of events) if (event.module === 'HolderRewardsDistributorV1' && event.eventName === 'HolderStreamMarketRegistered') {
+  for (const { event } of events) if (event.module === 'HolderRewardsDistributorV1' && ['HolderStreamMarketRegistered','HolderSnapshotMarketRegistered'].includes(event.eventName)) {
     const marketId = hash(event.args.marketId); const market = requiredMarket(marketById, marketId);
     if (!market.creatorFeesToHolders || address(event.args.token) !== market.memeToken || address(event.args.quote) !== market.quoteAsset) {
       throw new Error('holder market registration disagrees with market publication');
     }
     registered.add(marketId);
   }
+  const burns = aggregateMemeFeeBurns(events, markets);
   const rewards = normalizeRewards(events, marketById);
   const walletMarkets = walletHolderMarkets(events, marketByToken, registered);
   const creatorMarkets = creatorBeneficiaries(events, markets, marketById);
@@ -66,7 +67,8 @@ export async function projectF72History(input: {
     await client.query(`DELETE FROM ${schema}.reward_history WHERE environment=$1 AND chain_id=$2 AND deployment_digest=$3`, identity(input.deployment));
     await client.query(`DELETE FROM ${schema}.user_activity WHERE environment=$1 AND chain_id=$2 AND deployment_digest=$3`, identity(input.deployment));
     await client.query(`DELETE FROM ${schema}.aggregate_records WHERE environment=$1 AND chain_id=$2 AND deployment_digest=$3 AND scope=ANY($4::text[])`,
-      [...identity(input.deployment), ['creator-market', 'holder-market', 'wallet-holder-market', 'launch-recovery']]);
+      [...identity(input.deployment), ['creator-market', 'holder-market', 'wallet-holder-market', 'launch-recovery', 'meme-fee-burn']]);
+    for (const burn of burns) await saveAggregate(client, schema, input.deployment, "meme-fee-burn", burn.marketId, input.blockHash, burn);
     for (const reward of rewards) await saveReward(client, schema, input.deployment, reward);
     let activities = 0;
     for (const stored of events) for (const reference of activityReferences(stored.event)) {
@@ -132,6 +134,12 @@ function normalizeRewards(events: readonly StoredEvent[], markets: ReadonlyMap<H
       const quote = integer(event.args.quotePaid), meme = integer(event.args.memePaid);
       if (quote > 0n) result.push(reward('holder', marketId, address(event.args.user), market.quoteAsset, quote, event));
       if (meme > 0n) result.push(reward('holder', marketId, address(event.args.user), market.memeToken, meme, event));
+    } else if (event.module === 'HolderRewardsDistributorV1' && event.eventName === 'HolderSnapshotClaimed') {
+      const marketId=hash(event.args.marketId),market=requiredMarket(markets,marketId);
+      const quote=integer(event.args.quotePaid),meme=integer(event.args.memePaid);
+      if(market.burnMemeFees && meme!==0n)throw new Error('Burn-mode holder claim paid Meme');
+      if(quote>0n)result.push(reward('holder',marketId,address(event.args.account),market.quoteAsset,quote,event));
+      if(meme>0n)result.push(reward('holder',marketId,address(event.args.account),market.memeToken,meme,event));
     } else if (event.module === 'HolderRewardsDistributorV1' && event.eventName === 'HolderStreamClaimed'
       && !preferred.has(event.log.transactionHash)) {
       const marketId = hash(event.args.marketId); requiredMarket(markets, marketId);
@@ -222,11 +230,23 @@ function integer(value: unknown): bigint { if ((typeof value !== 'string' && typ
 function list(value: unknown): unknown[] { if (!Array.isArray(value)) throw new Error('invalid array'); return value }
 function jsonValue(value: unknown): unknown { if (typeof value === 'bigint') return value.toString(); if (Array.isArray(value)) return value.map(jsonValue);
   if (value && typeof value === 'object') return Object.fromEntries(Object.entries(value).map(([key, item]) => [key, jsonValue(item)])); return value }
-function eventSignature(event: DecodedProtocolEvent): string {
-  const entries = f72EventAbis[event.module] as readonly { readonly type: string; readonly name?: string; readonly inputs?: readonly { readonly type: string }[] }[];
-  const item = entries.find((entry) => entry.type === 'event' && entry.name === event.eventName);
-  if (!item?.inputs) throw new Error('event signature is absent from frozen ABI');
-  return `${event.eventName}(${item.inputs.map((input) => input.type).join(',')})`;
-}
+
 function identity(deployment: DeploymentIdentity): [string, number, string] { return [deployment.environment, deployment.chainId, deployment.deploymentDigest] }
 function identifier(value: string): string { if (!/^[a-z][a-z0-9_]{0,62}$/.test(value)) throw new Error('invalid database schema name'); return `"${value}"` }
+
+/** Full canonical replay; a reorg replaces the aggregate instead of double-counting. */
+export function aggregateMemeFeeBurns(events: readonly StoredEvent[], markets: readonly Pick<MarketRecord, 'marketId'|'memeToken'|'burnMemeFees'>[]) {
+  const rows = new Map(markets.map(m => [m.marketId, {marketId:m.marketId,token:m.memeToken,enabled:m.burnMemeFees===true,creatorRaw:0n,stakerRaw:0n,holderRaw:0n}]));
+  const seen=new Set<string>();
+  for(const {event} of events) {
+    if(event.module!=='ProtocolFeeVault'||event.eventName!=='MemeFeesBurned')continue;
+    const id=hash(event.args.marketId),row=rows.get(id),role=Number(event.args.role),amount=BigInt(String(event.args.amount));
+    const key=`${event.log.blockHash}:${event.log.transactionHash}:${event.log.logIndex}`;
+    if(!row?.enabled||address(event.args.token)!==row.token||![0,1,2].includes(role)||amount<=0n||seen.has(key))throw new Error('Invalid Meme fee burn event');
+    const beneficiary=address(event.args.beneficiary),epoch=BigInt(String(event.args.creatorEpoch));
+    if((role===2)!==(beneficiary===ZERO_ADDRESS)||(role===0?epoch<=0n:epoch!==0n))throw new Error('Invalid Meme fee burn beneficiary');
+    seen.add(key);
+    if(role===0)row.creatorRaw+=amount;else if(role===1)row.stakerRaw+=amount;else row.holderRaw+=amount;
+  }
+  return [...rows.values()].map(r=>({...r,creatorRaw:String(r.creatorRaw),stakerRaw:String(r.stakerRaw),holderRaw:String(r.holderRaw),totalRaw:String(r.creatorRaw+r.stakerRaw+r.holderRaw)}));
+}

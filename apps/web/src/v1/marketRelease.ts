@@ -2,6 +2,7 @@ import type { Address } from "viem";
 
 export type MarketRelease = {
   releaseId: string;
+  holderRewardMode?: "wallet-snapshot-v1";
   chainId: number;
   factory: Address;
   marketRegistry: Address;
@@ -38,6 +39,7 @@ function normalizeAddress(value: Address, field: string): string {
 }
 
 function normalizeRelease(release: MarketRelease): MarketRelease {
+  if (release.holderRewardMode !== undefined && release.holderRewardMode !== "wallet-snapshot-v1") throw new Error("Unknown holder reward mode");
   const result = { ...release } as Record<string, unknown>;
   for (const field of ["factory", "marketRegistry", "hook", "feeVault", "creatorRegistry", "holderDistributor", "launchRouter", "allocationManager"]) {
     result[field] = normalizeAddress(release[field as keyof MarketRelease] as Address, `release.${field}`);
@@ -77,4 +79,11 @@ export function resolveMarketRelease(catalog: readonly MarketRelease[], observed
     assertMatch(binding.feeVault, release.feeVault, `${name}.feeVault`);
   }
   return { release, normalizedFactory: release.factory };
+}
+
+/** Display routing from reviewed config and DB identity; never probe RPC to select a reward UI. */
+export function snapshotReleaseForMarket(catalog: readonly MarketRelease[], chainId: number, hook: Address): MarketRelease | null {
+  const matches=catalog.map(normalizeRelease).filter(release=>release.chainId===chainId&&release.hook===hook.toLowerCase());
+  if(matches.length>1)throw Error('Ambiguous market release Hook');
+  return matches[0]?.holderRewardMode==='wallet-snapshot-v1'?matches[0]:null;
 }

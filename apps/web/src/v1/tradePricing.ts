@@ -28,3 +28,25 @@ export function formatTradePrice(decimal:string):string{
  const [mantissa,exponent]=Number(decimal).toExponential(3).split('e');
  return `${mantissa!.replace(/\.?0+$/,'')}e${exponent}`;
 }
+
+/** Exact-input v4 Hook fees are deducted from the output currency. The quoter
+ * returns net output, so reversing the aggregate rate is an estimate: the
+ * contract floors its 1% base fee and creator tax separately. Never use this
+ * display estimate for settlement or minimum-output calculations. */
+export function estimatedPoolTradingFee(netOutput:bigint,creatorTaxBps:number):bigint{
+ if(netOutput<0n||!Number.isInteger(creatorTaxBps)||creatorTaxBps<0||creatorTaxBps>500)throw Error('Invalid pool fee inputs');
+ const bps=100n+BigInt(creatorTaxBps);
+ return netOutput*bps/(10000n-bps);
+}
+
+/** Compare the fee-adjusted execution against the pre-swap v4 spot ratio.
+ * Raw currency ratios handle either direction and token decimals implicitly.
+ * Hook fee reversal is estimated; this value never controls settlement. */
+export function poolTradeImpactBps(input:bigint,netOutput:bigint,sqrtPriceX96:bigint,zeroForOne:boolean,creatorTaxBps:number,protocolFeePips:number):bigint{
+ if(input<=0n||netOutput<=0n||sqrtPriceX96<=0n||sqrtPriceX96>=1n<<160n||!Number.isInteger(protocolFeePips)||protocolFeePips<0||protocolFeePips>1000)throw Error('Invalid pool impact inputs');
+ const squared=sqrtPriceX96*sqrtPriceX96,q192=1n<<192n;
+ const grossOutput=netOutput+estimatedPoolTradingFee(netOutput,creatorTaxBps);
+ const ideal=input*(zeroForOne?squared:q192)*(1000000n-BigInt(protocolFeePips));
+ const actual=grossOutput*(zeroForOne?q192:squared)*1000000n;
+ return actual>=ideal?0n:(ideal-actual)*10000n/ideal;
+}

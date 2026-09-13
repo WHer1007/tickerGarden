@@ -94,7 +94,7 @@ export interface MarketPageFilter {
 
 export async function readPublishedMarketPage(input: {
   readonly pool: Pool; readonly deployment: DeploymentIdentity; readonly filter: MarketPageFilter; readonly secret: string;
-  readonly revision?: string; readonly cursor?: string; readonly limit?: number; readonly schemaName?: string;
+  readonly includeRecent?: boolean; readonly revision?: string; readonly cursor?: string; readonly limit?: number; readonly schemaName?: string;
 }): Promise<{ items: Json[]; nextCursor: string | null; sync: SyncStatus }> {
   const limit = input.limit ?? 50;
   if (!Number.isSafeInteger(limit) || limit < 1 || limit > 100) throw new Error('limit must be between 1 and 100');
@@ -102,7 +102,8 @@ export async function readPublishedMarketPage(input: {
   const schema = identifier(input.schemaName ?? 'tickergarden_serverless');
   const publication = await resolvePublication(input.pool, schema, input.deployment, 'markets', input.revision);
   const canonicalFilter = marketFilterJson(input.filter);
-  const filterDigest = digest(canonicalFilter);
+  const recentVersion = input.includeRecent ? await readRecentMarketVersion(input) : undefined;
+  const filterDigest = digest(input.includeRecent ? {filter:canonicalFilter,recentVersion:recentVersion??''} : canonicalFilter);
   const after = input.cursor ? decodeCursor(input.cursor, { scope: 'markets', revision: publication.revision, filterDigest }, input.secret) : undefined;
   const sort = marketSort(input.filter.sort ?? 'marketId_asc');
   if (after && after.sortKey !== 'n:' && !after.sortKey.startsWith('v:')) throw new PublicationChangedError('market cursor sort value is invalid');
@@ -119,12 +120,17 @@ export async function readPublishedMarketPage(input: {
     OR (NOT $16::boolean AND ((order_value IS NOT NULL AND (order_value ${sort.direction === 'ASC' ? '>' : '<'} $14::${sort.cast}
       OR (order_value=$14::${sort.cast} AND identity>$13))) OR order_value IS NULL)))`;
   const records = await input.pool.query<{ identity: string; payload: Json; order_text: string | null }>(
-    `WITH candidates AS (
-       SELECT r.identity,r.payload,${sort.expression} AS order_value
-       FROM ${schema}.projection_records r
+    `WITH market_rows AS (
+       SELECT r.identity,r.payload FROM ${schema}.projection_records r
        JOIN ${schema}.chain_blocks b ON b.environment=r.environment AND b.chain_id=r.chain_id AND b.deployment_digest=r.deployment_digest AND b.hash=$4
-       WHERE r.environment=$1 AND r.chain_id=$2 AND r.deployment_digest=$3 AND r.scope='markets' AND r.revision=$5
-         AND b.canonical AND b.finalized
+       WHERE r.environment=$1 AND r.chain_id=$2 AND r.deployment_digest=$3 AND r.scope='markets' AND r.revision=$5 AND b.canonical AND b.finalized
+       ${input.includeRecent ? `UNION ALL SELECT recent.market_id AS identity,recent.payload FROM ${schema}.recent_markets recent
+       WHERE recent.environment=$1 AND recent.chain_id=$2 AND recent.deployment_digest=$3 AND recent.canonical AND recent.expires_at>now()
+         AND recent.block_number>${publication.blockNumber}
+         AND NOT EXISTS(SELECT 1 FROM ${schema}.projection_records existing WHERE existing.environment=$1 AND existing.chain_id=$2 AND existing.deployment_digest=$3 AND existing.scope='markets' AND existing.revision=$5 AND existing.identity=recent.market_id)` : ''}
+     ), candidates AS (
+       SELECT r.identity,r.payload,${sort.expression} AS order_value
+       FROM market_rows r WHERE true
          AND ($6::text IS NULL OR r.payload->>'assetUid'=$6)
          AND ($7::text IS NULL OR r.payload->>'marketId'=$7)
          AND ($8::text IS NULL OR r.payload->>'memeToken'=$8)
@@ -147,7 +153,7 @@ export async function readPublishedMarketPage(input: {
 
 export async function readPublishedRecord(input: {
   readonly pool: Pool; readonly deployment: DeploymentIdentity; readonly scope: string; readonly identity: string;
-  readonly revision?: string; readonly schemaName?: string;
+  readonly includeRecent?: boolean; readonly revision?: string; readonly schemaName?: string;
 }): Promise<{ item: Json | null; sync: SyncStatus }> {
   const schema = identifier(input.schemaName ?? 'tickergarden_serverless');
   const publication = await resolvePublication(input.pool, schema, input.deployment, input.scope, input.revision);
@@ -159,7 +165,12 @@ export async function readPublishedRecord(input: {
     [input.deployment.environment, input.deployment.chainId, input.deployment.deploymentDigest, input.scope,
       publication.blockHash, publication.revision, input.identity],
   );
-  return { item: record.rows[0]?.payload ?? null, sync: await syncForPublication(input.pool, schema, input.deployment, publication) };
+  let item=record.rows[0]?.payload??null;
+  if(!item&&input.includeRecent&&input.scope==='markets'){
+    const recent=await input.pool.query<{payload:Json}>(`SELECT payload FROM ${schema}.recent_markets WHERE environment=$1 AND chain_id=$2 AND deployment_digest=$3 AND market_id=$4 AND canonical AND expires_at>now() AND block_number>$5`,[input.deployment.environment,input.deployment.chainId,input.deployment.deploymentDigest,input.identity,publication.blockNumber.toString()]);
+    item=recent.rows[0]?.payload??null;
+  }
+  return { item, sync: await syncForPublication(input.pool, schema, input.deployment, publication) };
 }
 
 export async function readPublishedUserPage(input: {
@@ -447,4 +458,25 @@ function marketSort(value: NonNullable<MarketPageFilter['sort']>): { expression:
     case 'recentBuy_desc': return { expression: `(r.payload->'lastBuy'->>'blockNumber')::numeric`, cast: 'numeric', direction: 'DESC' };
     default: throw new Error('invalid market sort');
   }
+}
+
+// Version only concerns immediately observed launches, not finalized accounting.
+export async function readRecentMarketVersion(input:{pool:Pool;deployment:DeploymentIdentity;schemaName?:string}):Promise<string>{
+ const schema=identifier(input.schemaName??'tickergarden_serverless');
+ const result=await input.pool.query<{version:string}>(`SELECT md5(coalesce(string_agg(r.market_id||r.block_hash,',' ORDER BY r.market_id),'')) AS version
+ FROM ${schema}.recent_markets r WHERE r.environment=$1 AND r.chain_id=$2 AND r.deployment_digest=$3 AND r.canonical AND r.expires_at>now()
+ AND r.block_number>coalesce((SELECT p.block_number FROM ${schema}.publication_pointers pointer JOIN ${schema}.publications p USING(environment,chain_id,deployment_digest,scope,revision)
+ WHERE pointer.environment=$1 AND pointer.chain_id=$2 AND pointer.deployment_digest=$3 AND pointer.scope='markets'),-1)`,[input.deployment.environment,input.deployment.chainId,input.deployment.deploymentDigest]);
+ return result.rows[0]!.version;
+}
+
+/** DB-only settlement-burn totals. Missing publication is unavailable, never a fabricated zero. */
+export async function readMemeFeeBurns(input: {readonly pool:Pool;readonly deployment:DeploymentIdentity;readonly marketId:`0x${string}`;readonly schemaName?:string}) {
+  if(!/^0x[0-9a-f]{64}$/.test(input.marketId))throw new Error('invalid market id');
+  const schema=identifier(input.schemaName??'tickergarden_serverless');
+  const checkpoint=await resolveHistoryCheckpoint(input.pool,schema,input.deployment);
+  const rows=await input.pool.query<{payload:Json;block_hash:string}>(`SELECT payload,block_hash FROM ${schema}.aggregate_records WHERE environment=$1 AND chain_id=$2 AND deployment_digest=$3 AND scope='meme-fee-burn' AND identity=$4 AND complete`,[...deploymentIdentity(input.deployment),input.marketId]);
+  const row=rows.rows[0];
+  if(!row||checkpoint.revision!==`${checkpoint.blockNumber}:${row.block_hash}`)throw new PublicationUnavailableError('Meme fee burn history is unavailable');
+  return {chainId:input.deployment.chainId,displayOnly:true,finality:'finalized',revision:checkpoint.revision,throughBlock:String(checkpoint.blockNumber),burns:row.payload};
 }

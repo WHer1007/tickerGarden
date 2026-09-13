@@ -40,7 +40,7 @@ test("continuous release approval cannot reuse the legacy Merkle approval", asyn
   assert.equal(next.treasuryWrites.available, false);
 });
 
-test("frontend reward calls and decoded tuple match compiled extension ABI", async () => {
+test("snapshot calls match the current extension; legacy stream mode stays separate", async () => {
   const { readFile } = await import("node:fs/promises");
   const manifest = JSON.parse(await readFile(new URL("../../../spec/v1_product_artifact_manifest.json", import.meta.url), "utf8"));
   const extension = manifest.extensionModules.find((value: { module: string }) => value.module === "HolderRewardsDistributorV1");
@@ -50,7 +50,11 @@ test("frontend reward calls and decoded tuple match compiled extension ABI", asy
     if (value && typeof value === "object") return Object.fromEntries(Object.entries(value).filter(([key]) => key !== "internalType" && key !== "name").map(([key, item]) => [key, clean(item)]));
     return value;
   };
-  for (const item of HOLDER_REWARDS_DISTRIBUTOR_V1_ABI) {
+  const {currentV4Abis}=await import('../src/v1/generated/abis.ts');
+  const {WALLET_SNAPSHOT_MODE}=await import('../src/v1/features/holderSnapshots.ts');
+  assert.equal(isContinuousHolderRewardMode(WALLET_SNAPSHOT_MODE),false);
+  for (const item of currentV4Abis.HolderRewardsDistributorV1) {
+    if (!("name" in item)) continue;
     const compiled = extension.abi.find((candidate: { name: string; type: string }) => candidate.name === item.name && candidate.type === item.type);
     assert.deepEqual(clean(item), clean(compiled), item.name);
   }

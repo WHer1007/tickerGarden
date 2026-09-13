@@ -40,13 +40,17 @@ export function createExplorePager<T extends { marketId: string }>(
     availablePages: Math.max(...pages.keys()) + (pages.get(Math.max(...pages.keys()))?.nextCursor ? 1 : 0),
   });
 
-  const resetState = () => {
+  const pause = () => {
     controller?.abort();
     controller = undefined;
     inFlight = undefined;
+    generation += 1;
+  };
+
+  const resetState = () => {
+    pause();
     pages = new Map();
     currentPage = 0;
-    generation += 1;
   };
 
   const validate = (items: readonly T[], nextCursor: string | null) => {
@@ -76,6 +80,10 @@ export function createExplorePager<T extends { marketId: string }>(
     query: object,
     direction: "current" | "next" | "previous" | number = "current",
   ): Promise<ExplorePage<T> | null> => {
+    // Cursor pages belong to a pinned publication. A background revision must
+    // not jump the reader back to page 1 or combine old cursors with new data.
+    const filters=(value:object)=>{const {revision:_,...rest}=value as Record<string,unknown>;return JSON.stringify(rest);};
+    if(queryValue&&currentPage>1&&filters(queryValue)===filters(query))query=queryValue;
     const nextKey = JSON.stringify(query);
     if (queryKey !== nextKey) {
       resetState();
@@ -138,5 +146,5 @@ export function createExplorePager<T extends { marketId: string }>(
     queryValue = undefined;
   };
 
-  return { reset, load };
+  return { reset, pause, load };
 }

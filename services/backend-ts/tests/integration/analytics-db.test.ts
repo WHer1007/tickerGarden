@@ -15,11 +15,16 @@ test('TS-07 database-only trades, candles, holders and detail paths preserve cov
   if (!connectionString) { context.skip('TG_MIGRATION_DATABASE_URL or TG_DATABASE_URL is required'); return; }
   const schemaName = `tg_ts07_${process.pid}_${randomBytes(4).toString('hex')}`; const schema = ident(schemaName);
   const handle = createDatabasePool(connectionString, { max: 3 });
+  const bootstrap = f72BootstrapConfigs as unknown as Array<any>; const bootstrapLength = bootstrap.length;
+  const fixtureQuote = { id: hash('a'), kind: 'quote', status: 1, values: { quoteAsset: address('5'), quoteDecimals: 18, symbol: 'TST' } };
+  const fixtureAsset = { id: hash('b'), kind: 'asset', status: 1, values: { stockToken: address('5'), tokenSymbol: 'TST', userStockVault: address('6') } };
+  const fixtureBaseline = { id: hash('c'), kind: 'baseline', status: 1, values: { supply: '1000000000000000000000' } };
+  bootstrap.push(fixtureQuote, fixtureAsset, fixtureBaseline);
   const deployment = { environment: 'test' as const, chainId: 46630 as const, deploymentDigest: hash('1'), activationBlock: 1n };
-  const quote=f72BootstrapConfigs.find(item=>item.kind==='quote'&&String(item.values.quoteAsset)!==address('0')) as unknown as {id:`0x${string}`;values:{quoteAsset:`0x${string}`;quoteDecimals:number;symbol:string}};
-  const quoteAssetRecord=f72BootstrapConfigs.find(item=>item.kind==='asset'&&String(item.values.stockToken).toLowerCase()===quote.values.quoteAsset.toLowerCase()) as unknown as {id:`0x${string}`;values:{stockToken:`0x${string}`;tokenSymbol:string}};
-  const asset=f72BootstrapConfigs.find(item=>item.kind==='asset'&&item.id!==quoteAssetRecord.id) as {id:`0x${string}`};
-  const baseline=f72BootstrapConfigs.find(item=>item.kind==='baseline') as {id:`0x${string}`};
+  const quote=fixtureQuote;
+  const quoteAssetRecord=fixtureAsset;
+  const asset=fixtureAsset;
+  const baseline={id:hash('b')};
   const marketId = hash('2'); const memeToken = address('3'); const quoteAsset = quote.values.quoteAsset; const configId = quote.id;
   const now = Math.floor(Date.now() / 1_000); const detailTo = Math.floor((now - 10) / 900) * 900; const detailFrom = detailTo - 86_400;
   const candleTo = Math.floor(detailTo / 3_600) * 3_600;
@@ -80,10 +85,32 @@ test('TS-07 database-only trades, candles, holders and detail paths preserve cov
     const holderPage = await holders.json() as { balances: unknown[]; nextCursor: string | null; totalSupplyRaw: string }; assert.equal(holderPage.totalSupplyRaw, '1000'); assert.ok(holderPage.nextCursor);
     const detail = await app.request(`/v1/markets/${marketId}/detail?period=1D`); assert.equal(detail.status, 200);
     const detailBody = await detail.json() as { chart: { points: unknown[] } | null; holders: { circulatingSupplyRaw: string } | null;
+      statistics: { price: string | null; volume24h: string | null } | null; trades: Array<{ side: string; price: string }> | null;
       fees: Array<{ recipient: string; asset: string; amountRaw: string }>; sources: Record<string, unknown>; reasons: Record<string, string> };
     assert.equal(detailBody.chart?.points.length, 96); assert.equal(detailBody.holders?.circulatingSupplyRaw, '300');
+    assert.equal(detailBody.statistics?.price, '0.500000000000000000000000000000000000');
+    assert.equal(Number(detailBody.statistics?.volume24h), 2);
+    assert.ok((detailBody.statistics?.volume24h?.split('.')[1]?.length ?? 0) <= 36);
+    assert.equal(detailBody.trades?.length, 2);
     assert.deepEqual(detailBody.fees, [{ recipient: 'creator', asset: quoteAsset, amountRaw: '7' }, { recipient: 'holders', asset: memeToken, amountRaw: '3' }]);
     assert.ok(detailBody.sources.fees); assert.equal(detailBody.reasons.fees, undefined);
+    const activityResponse=await app.request(`/v1/markets/${marketId}/detail?period=1H&section=activity`);
+    assert.equal(activityResponse.status,200);assert.equal(activityResponse.headers.get('cache-control'),'no-store');
+    const activity=await activityResponse.json() as typeof detailBody;
+    assert.equal(activity.statistics,null);assert.equal(activity.chart,null);assert.equal(activity.holders,null);
+    assert.deepEqual(activity.trades,detailBody.trades);assert.deepEqual(activity.fees,detailBody.fees);
+    assert.deepEqual(Object.keys(activity.sources).sort(),['fees','trades']);
+    assert.equal((await app.request(`/v1/markets/${marketId}/detail?section=bogus`)).status,400);
+
+    // Move both executions outside the 1H chart window while retaining them
+    // in finalized DB history. The detail feed and latest price must survive.
+    await handle.pool.query(`UPDATE ${schema}.market_trades SET occurred_at=to_timestamp($1), payload=jsonb_set(payload,'{timestamp}',to_jsonb($1::text))`, [candleTo - 7_200]);
+    const quietDetail = await app.request(`/v1/markets/${marketId}/detail?period=1H`); assert.equal(quietDetail.status, 200);
+    const quietBody = await quietDetail.json() as { chart: { points: Array<{ price: string | null }> } | null;
+      statistics: { price: string | null } | null; trades: Array<{ side: string }> | null };
+    assert.ok(quietBody.chart?.points.every(point => point.price === null));
+    assert.equal(quietBody.statistics?.price, '0.500000000000000000000000000000000000');
+    assert.equal(quietBody.trades?.length, 2);
     const globalHolders=await app.request('/v1/stats/holders');assert.equal(globalHolders.status,200);const globalHolderBody=await globalHolders.json() as {marketCount:number;positiveAddressCount:number;includedAddressCount:number;groups:unknown[]};
     assert.deepEqual({marketCount:globalHolderBody.marketCount,positive:globalHolderBody.positiveAddressCount,included:globalHolderBody.includedAddressCount,groups:globalHolderBody.groups.length},{marketCount:1,positive:2,included:1,groups:1});
     const overview=await app.request(`/v1/stats/overview?from=${detailFrom}&to=${detailTo}`);assert.equal(overview.status,200);const overviewBody=await overview.json() as {marketCount:number;groups:Array<{tradeCount:number;quoteVolumeRaw:string}>};assert.equal(overviewBody.marketCount,1);assert.deepEqual(overviewBody.groups.map(g=>[g.tradeCount,g.quoteVolumeRaw]),[[2,'2000000000000000000']]);
@@ -93,7 +120,15 @@ test('TS-07 database-only trades, candles, holders and detail paths preserve cov
     const display=await app.request(`/v1/market-display-statistics?marketId=${marketId}`);assert.equal(display.status,200);assert.equal(((await display.json()) as {feeDistribution:unknown[]}).feeDistribution.length,2);
     const prices=await app.request('/v1/prices/references');assert.equal(prices.status,200);const priceBody=await prices.json() as {status:string;references:Array<{status:string;token:string}>};assert.equal(priceBody.status,'configured');assert.equal(priceBody.references.find(row=>row.token===quoteAsset)?.status,'available');
     const protocol=await app.request('/v1/protocol-statistics');assert.equal(protocol.status,200);const protocolBody=await protocol.json() as {feeCoverage:boolean;feeTotals:Record<string,string>;feeBasis:string;stockAmounts:Record<string,string>;stakingWallets:number;stakingObservedAt:number};assert.equal(protocolBody.feeCoverage,true);assert.equal(protocolBody.feeTotals[quoteAsset],'7');assert.equal(protocolBody.feeTotals[memeToken],'3');assert.equal(protocolBody.feeBasis,'ALLOCATION_TIME');assert.equal(protocolBody.stockAmounts[asset.id],'1000000000000000000');assert.equal(protocolBody.stakingWallets,1);assert.equal(protocolBody.stakingObservedAt,detailTo);
+    // Stored event blocks can be sparse; verified covered ranges establish
+    // completeness. A missing range must still make display data unavailable.
+    await handle.pool.query(`UPDATE ${schema}.covered_ranges SET complete=false`);
+    const gap=await app.request(`/v1/markets/${marketId}/detail?period=1D`);
+    assert.equal(gap.status,200);
+    const missing=await gap.json() as {chart:unknown;statistics:unknown;trades:unknown};
+    assert.equal(missing.chart,null);assert.equal(missing.statistics,null);assert.equal(missing.trades,null);
   } finally {
+    bootstrap.length = bootstrapLength;
     await handle.pool.query(`DROP SCHEMA IF EXISTS ${schema} CASCADE`).catch(() => undefined); await handle.pool.end();
   }
 });

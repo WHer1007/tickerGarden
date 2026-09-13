@@ -390,3 +390,9 @@ export const jobAttempts = databaseSchema.table('job_attempts', {
   uniqueIndex('job_attempts_identity').on(table.jobId, table.fencing, table.outcome),
   index('job_attempts_job').on(table.queue, table.jobId, table.fencing),
 ]);
+
+export const recentMarkets = databaseSchema.table('recent_markets', {
+ environment:text('environment').notNull(),chainId:bigint('chain_id',{mode:'number'}).notNull(),deploymentDigest:text('deployment_digest').notNull(),
+ marketId:text('market_id').notNull(),transactionHash:text('transaction_hash').notNull(),blockNumber:bigint('block_number',{mode:'bigint'}).notNull(),blockHash:text('block_hash').notNull(),
+ canonical:boolean('canonical').default(true).notNull(),payload:jsonb('payload').notNull(),initialDetail:jsonb('initial_detail'),observedAt:timestamp('observed_at',{withTimezone:true}).defaultNow().notNull(),expiresAt:timestamp('expires_at',{withTimezone:true}).notNull(),
+},table=>[primaryKey({columns:[table.environment,table.chainId,table.deploymentDigest,table.marketId]}),index('recent_markets_transaction').on(table.environment,table.chainId,table.deploymentDigest,table.transactionHash)]);

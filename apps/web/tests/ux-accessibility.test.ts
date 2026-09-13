@@ -24,10 +24,24 @@ test('Explore starts with one loading message and keeps error recovery in its li
   assert.match(app, /Try loading .* markets again/);
 });
 
+test('Explore uses the finalized paged directory without starting a full direct-chain scan', () => {
+  assert.match(app, /listMarkets\(\{\.\.\.query,includeRecent:true,limit,\.\.\.\(cursor\?\{cursor\}:\{\}\)\}\)/);
+  assert.match(app, /assertFinalizedSync\(page\.sync,foundation\.direct\?undefined:params\.revision,'explore page'\)/);
+  assert.match(app, /if\(markets\.length===0\)return false/);
+  assert.match(app, /if \(foundation\?\.direct && currentPage\(\) !== 'markets'\) void refreshDirectDirectory\(\)/);
+  const refresh = app.slice(app.indexOf('async function refreshDirectDirectory('), app.indexOf('let directDirectoryTimer:'));
+  assert.doesNotMatch(refresh, /publicClient|directMarkets|integrationMarketDirectory/);
+  const directory=app.slice(app.indexOf('async function fetchExplorePage'),app.indexOf('function applyExploreStatistics'));
+  assert.doesNotMatch(directory,/foundation.markets|publicClient/);assert.match(directory,/throw new ExploreResponseError/);
+});
+
 test('trade controls describe their behavior and tab panels support keyboard navigation', () => {
   assert.doesNotMatch(trade, /<button[^>]+data-trade-(?:input|output)-asset/);
   assert.match(trade, /View token on explorer \(opens in a new tab\)/);
   assert.match(trade, /data-detail-tab="holders" aria-selected="false" tabindex="-1"/);
   assert.match(app, /\['ArrowLeft', 'ArrowRight', 'Home', 'End'\]/);
   assert.match(app, /Switch direction and use full/);
+  assert.doesNotMatch(trade, /data-trade-route-status/);
+  assert.doesNotMatch(app, /Enter an amount to check a live trading quote/);
+  assert.doesNotMatch(app, /market route could not be checked/);
 });

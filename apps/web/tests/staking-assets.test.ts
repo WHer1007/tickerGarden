@@ -16,15 +16,21 @@ test('staking catalog matches chain, address and UID, not a reused symbol', () =
   assert.equal(isListedStakingAsset(46630,config({values:{stockToken:`0x${'1'.repeat(40)}`,tokenSymbol:'TSLA'}})),false);
 });
 
-test('staking catalog identities are unique and local logos exist', async () => {
+test('staking catalog identities are unique and local or official logos exist', async () => {
   const keys=new Set<string>();
   for(const entry of STAKING_ASSETS){
     const key=`${entry.chainId}:${entry.tokenAddress.toLowerCase()}`;
     assert.equal(keys.has(key),false);keys.add(key);
     assert.match(entry.tokenAddress,/^0x[0-9a-f]{40}$/);
     assert.match(entry.assetUid,/^0x[0-9a-f]{64}$/);
-    assert.match(entry.logo,/^[a-z0-9-]+\.(svg|png)$/);
+    if(entry.logo) assert.match(entry.logo,/^[a-z0-9-]+\.(svg|png)$/);
+    else assert.equal(new URL(entry.logoUrl!).hostname,'cdn.robinhood.com');
     assert.ok(Number.isInteger(entry.decimals)&&entry.decimals>=0&&entry.decimals<=255);
-    await access(new URL(`../assets/quotes/${entry.logo}`,import.meta.url));
+    if(entry.logo) await access(new URL(`../assets/quotes/${entry.logo}`,import.meta.url));
   }
+});
+
+test('production lists all 194 official assets with 0.5 minimum total stake',()=>{
+ const mainnet=STAKING_ASSETS.filter(a=>a.chainId===4663);assert.equal(mainnet.length,194);assert.equal(STAKING_ASSETS.filter(a=>a.chainId===46630).length,5);
+ for(const a of mainnet){assert.equal(a.minimumAllocation,'500000000000000000');assert.equal(a.enabled,true);const c=config({id:a.assetUid,values:{stockToken:a.tokenAddress}});assert.equal(isListedStakingAsset(4663,c),true);assert.equal(isListedStakingAsset(4663,{...c,status:2}),false);}
 });

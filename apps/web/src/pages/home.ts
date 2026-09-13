@@ -60,9 +60,9 @@ export default {
       <section class="how" aria-labelledby="how-heading">
         <div class="how-heading"><p class="section-kicker">Simple mechanics</p><h2 id="how-heading">How it grows</h2><p>From an eligible Stock Token to a living onchain community.</p></div>
         <div class="steps">
-          <article><img src="${asset1}" width="1254" height="1254" loading="lazy" decoding="async" alt="Candlesticks growing from soil" /><div><span>01</span><h3>Launch a Ticker Meme</h3><p>Bind a fixed-supply market to one official Stock Token.</p></div></article>
+          <article><img src="${asset1}" width="1254" height="1254" loading="lazy" decoding="async" alt="Candlesticks growing from soil" /><div><span>01</span><h3>Launch a Ticker Meme</h3><p>Launch a fixed-supply token with your chosen paired asset.</p></div></article>
           <article><img src="${asset2}" width="1254" height="1254" loading="lazy" decoding="async" alt="A sprouting ticker chart" /><div><span>02</span><h3>Bloom the Market</h3><p>Curve trading moves into permanently locked liquidity.</p></div></article>
-          <article><img src="${asset3}" width="1254" height="1254" loading="lazy" decoding="async" alt="A healthy liquidity garden" /><div><span>03</span><h3>Allocate STOCK, Earn Fees</h3><p>After blooming, matching STOCK can share actual market fees.</p></div></article>
+          <article><img src="${asset3}" width="1254" height="1254" loading="lazy" decoding="async" alt="A healthy liquidity garden" /><div><span>03</span><h3>Allocate STOCK, Earn Fees</h3><p>After blooming, staked STOCK earns fees under its separate 24-hour lock; eligible holder rewards use wallet balance snapshots.</p></div></article>
         </div>
       </section>
     </main>
