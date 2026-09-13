@@ -165,6 +165,7 @@ try {
     creatorTaxBps: 500,
     creatorFeesToHolders: true,
     stakingEnabled: false,
+    burnMemeFees: false,
   };
   params.expectedEconomics = await client.readContract({account: account.address, address: releaseStatus.factory, abi: factoryAbi, functionName: 'previewMarketEconomics', args: [params]});
   await client.simulateContract({account: account.address, address: releaseStatus.components.LaunchAndBuyRouter, abi: routerAbi, functionName: 'launchAndBuy', args: [params, 1_000_000_000_000_000n, 1n, account.address], value: 1_500_000_000_000_000n});
