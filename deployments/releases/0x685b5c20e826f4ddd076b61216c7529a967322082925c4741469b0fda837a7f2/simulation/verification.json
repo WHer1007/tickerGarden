@@ -1,0 +1,232 @@
+{
+  "gasLimitsApproved": false,
+  "gasUnderestimates": [
+    {
+      "component": "AccessManager",
+      "rpcGasLimit": 578414,
+      "runtimeCodeDepositGasMinimum": 2089000
+    },
+    {
+      "component": "OfficialStockRegistryV1",
+      "rpcGasLimit": 473495,
+      "runtimeCodeDepositGasMinimum": 1895000
+    },
+    {
+      "component": "ApprovedQuoteRegistry",
+      "rpcGasLimit": 400409,
+      "runtimeCodeDepositGasMinimum": 1444600
+    },
+    {
+      "component": "TickerGardenBaselineRegistry",
+      "rpcGasLimit": 190720,
+      "runtimeCodeDepositGasMinimum": 595200
+    },
+    {
+      "component": "LaunchTemplateRegistry",
+      "rpcGasLimit": 315910,
+      "runtimeCodeDepositGasMinimum": 1258200
+    },
+    {
+      "component": "LaunchConfigResolver",
+      "rpcGasLimit": 152561,
+      "runtimeCodeDepositGasMinimum": 433000
+    },
+    {
+      "component": "TickerMemeTokenV1Implementation",
+      "rpcGasLimit": 276971,
+      "runtimeCodeDepositGasMinimum": 1057600
+    },
+    {
+      "component": "TickerGardenCurveImplementation",
+      "rpcGasLimit": 937860,
+      "runtimeCodeDepositGasMinimum": 4376000
+    },
+    {
+      "component": "MemeStockGauge",
+      "rpcGasLimit": 632764,
+      "runtimeCodeDepositGasMinimum": 2599400
+    },
+    {
+      "component": "LaunchAndBuyRouter",
+      "rpcGasLimit": 308932,
+      "runtimeCodeDepositGasMinimum": 1175000
+    },
+    {
+      "component": "MarketRegistryV1",
+      "rpcGasLimit": 447653,
+      "runtimeCodeDepositGasMinimum": 1740600
+    },
+    {
+      "component": "CreatorRevenueRegistry",
+      "rpcGasLimit": 209430,
+      "runtimeCodeDepositGasMinimum": 683800
+    },
+    {
+      "component": "AllocationManager",
+      "rpcGasLimit": 484157,
+      "runtimeCodeDepositGasMinimum": 2091200
+    },
+    {
+      "component": "UserStockVault",
+      "rpcGasLimit": 561956,
+      "runtimeCodeDepositGasMinimum": 2452400
+    },
+    {
+      "component": "HolderRewardsDistributorV1",
+      "rpcGasLimit": 580764,
+      "runtimeCodeDepositGasMinimum": 2490800
+    },
+    {
+      "component": "ProtocolFeeVault",
+      "rpcGasLimit": 1111532,
+      "runtimeCodeDepositGasMinimum": 4611800
+    }
+  ],
+  "status": "VERIFIED_UNSIGNED_NOT_BROADCAST",
+  "chainId": 46630,
+  "releaseId": "0x685b5c20e826f4ddd076b61216c7529a967322082925c4741469b0fda837a7f2",
+  "payloadHash": "0x9c47100e76c4c62bad065dc0121ee868fc7602f3954f79bd813645e7f325d929",
+  "transactions": 19,
+  "components": 16,
+  "component14": "HolderRewardsDistributorV1",
+  "firstNonce": 303,
+  "lastNonce": 321,
+  "helper": "0x724c3B3e31bCAd54eAdc755Fc48dbBeE63E5C5e8",
+  "transactionGasLimitSum": "12210350",
+  "maxCalldataBytes": 77316,
+  "rows": [
+    {
+      "index": 0,
+      "action": "create orchestrator",
+      "nonce": 303,
+      "gasLimit": "1495574",
+      "calldataBytes": 4899
+    },
+    {
+      "index": 1,
+      "action": "begin",
+      "nonce": 304,
+      "gasLimit": "73608",
+      "calldataBytes": 580
+    },
+    {
+      "index": 2,
+      "action": "AccessManager",
+      "nonce": 305,
+      "gasLimit": "578414",
+      "calldataBytes": 11812
+    },
+    {
+      "index": 3,
+      "action": "OfficialStockRegistryV1",
+      "nonce": 306,
+      "gasLimit": "473495",
+      "calldataBytes": 9828
+    },
+    {
+      "index": 4,
+      "action": "ApprovedQuoteRegistry",
+      "nonce": 307,
+      "gasLimit": "400409",
+      "calldataBytes": 8068
+    },
+    {
+      "index": 5,
+      "action": "TickerGardenBaselineRegistry",
+      "nonce": 308,
+      "gasLimit": "190720",
+      "calldataBytes": 3332
+    },
+    {
+      "index": 6,
+      "action": "LaunchTemplateRegistry",
+      "nonce": 309,
+      "gasLimit": "315910",
+      "calldataBytes": 6660
+    },
+    {
+      "index": 7,
+      "action": "LaunchConfigResolver",
+      "nonce": 310,
+      "gasLimit": "152561",
+      "calldataBytes": 2820
+    },
+    {
+      "index": 8,
+      "action": "TickerMemeTokenV1Implementation",
+      "nonce": 311,
+      "gasLimit": "276971",
+      "calldataBytes": 5444
+    },
+    {
+      "index": 9,
+      "action": "TickerGardenCurveImplementation",
+      "nonce": 312,
+      "gasLimit": "937860",
+      "calldataBytes": 22020
+    },
+    {
+      "index": 10,
+      "action": "MemeStockGauge",
+      "nonce": 313,
+      "gasLimit": "632764",
+      "calldataBytes": 13156
+    },
+    {
+      "index": 11,
+      "action": "LaunchAndBuyRouter",
+      "nonce": 314,
+      "gasLimit": "308932",
+      "calldataBytes": 6500
+    },
+    {
+      "index": 12,
+      "action": "MarketRegistryV1",
+      "nonce": 315,
+      "gasLimit": "447653",
+      "calldataBytes": 9828
+    },
+    {
+      "index": 13,
+      "action": "CreatorRevenueRegistry",
+      "nonce": 316,
+      "gasLimit": "209430",
+      "calldataBytes": 3908
+    },
+    {
+      "index": 14,
+      "action": "AllocationManager",
+      "nonce": 317,
+      "gasLimit": "484157",
+      "calldataBytes": 11012
+    },
+    {
+      "index": 15,
+      "action": "UserStockVault",
+      "nonce": 318,
+      "gasLimit": "561956",
+      "calldataBytes": 13060
+    },
+    {
+      "index": 16,
+      "action": "HolderRewardsDistributorV1",
+      "nonce": 319,
+      "gasLimit": "580764",
+      "calldataBytes": 12836
+    },
+    {
+      "index": 17,
+      "action": "ProtocolFeeVault",
+      "nonce": 320,
+      "gasLimit": "1111532",
+      "calldataBytes": 24740
+    },
+    {
+      "index": 18,
+      "action": "finish",
+      "nonce": 321,
+      "gasLimit": "2977640",
+      "calldataBytes": 77316
+    }
+  ]
+}
