@@ -30,16 +30,16 @@
     }
   },
   "sourceLocks": {
-    "services/backend-ts/openapi/v1.json": "6938e24749e14ff8562bc8062f8a80f39338eddf75c41d590d48c94d7fe47b74",
-    "services/backend-ts/openapi/v1.lock.json": "da1052bd771d0ddf0f950405bb23894e91b45ad052b9493e0fb20f27892c4e83",
+    "services/backend-ts/openapi/v1.json": "0c493d85c021a7b5826046a7560f1b6208a6e3c1bdbf22a91fa41447205334a0",
+    "services/backend-ts/openapi/v1.lock.json": "aafac1f9ac5f36c2bcf38c476f94dc8ef2d8f0be2e6fa4308a9473ec2b8f061d",
     "services/backend-ts/packages/events/src/index.ts": "a20e33da683ea066c4782e7a26e6f698b5a5a567da4b2edee14c2b90dbe725c8",
-    "services/backend-ts/packages/events/src/f72-abis.generated.ts": "ec44859aca7d473743b1027c27390693ebe737207e73cc9356bcb8dfce63790d",
+    "services/backend-ts/packages/events/src/f72-abis.generated.ts": "36125edf261162a5fb1db0547df88ea0737a12254e8f296302a7b32c7c51451c",
     "services/backend-ts/packages/config-projector/src/f72-bootstrap.generated.ts": "ebcbb3447daa60efcb6eb494f0d20b79346b6f6de80014198653fbae12724aa2",
     "deployments/releases/0x685b5c20e826f4ddd076b61216c7529a967322082925c4741469b0fda837a7f2/backend-deployment-manifest.json": "8c5568e25cfd82a07270a79817f76d20233e17f80bad1a28ac19081725833922",
     "apps/web/public/integration/rh-685b5c20.json": "25d203474936db0849d31c65c56f8a6894af4466b4f68cf4a509b5ecf7e6a082"
   },
   "capabilities": {
-    "snapshotHolderRead": false,
+    "snapshotHolderRead": true,
     "snapshotHolderWriteApprovalConfigured": false,
     "legacyTreasuryProofOriginConfigured": false,
     "legacyTreasuryWriteApprovalConfigured": false,

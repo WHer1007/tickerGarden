@@ -1,3 +1,4 @@
+import { projectHolderRewards } from './holder-snapshots.ts';
 import type { Pool } from 'pg';
 import { transaction } from '../../db/src/index.ts';
 import {
@@ -19,7 +20,7 @@ import { projectF72History } from '../../history-projector/src/index.ts';
 
 const GENESIS_HASH = '0x829a42e6d68c872aafcef3abb2123fe371138fc415dd8b44381bbbf23049dd32' as const;
 const ACTIVATION_HASH = '0x9b368b4107601d7abc1de430d89b30ac21bc3688a76ca83035bbce3bca56a63d' as const;
-const ABI_DIGEST = '0xec44859aca7d473743b1027c27390693ebe737207e73cc9356bcb8dfce63790d' as const;
+const ABI_DIGEST = '0x36125edf261162a5fb1db0547df88ea0737a12254e8f296302a7b32c7c51451c' as const;
 const STREAM = 'frontend-events';
 
 export interface ChainProcessorOptions {
@@ -120,6 +121,7 @@ async function projectBatch(options: ChainProcessorOptions, deployment: Deployme
     primary: options.primary, secondary: options.secondary, ...schema });
   await projectF72History({ pool: options.pool, deployment, blockNumber, blockHash: anchor.hash, generation, ...schema });
   await projectF72Analytics({ pool: options.pool, deployment, blockNumber, blockHash: anchor.hash, generation, ...schema });
+  await projectHolderRewards({pool:options.pool,deployment,blockNumber,blockHash:anchor.hash,generation,primary:options.primary,secondary:options.secondary,...schema});
 }
 
 async function poolManagerQueries(pool: Pool, deployment: DeploymentIdentity, sources: readonly { module: string; address: `0x${string}` }[],
@@ -218,7 +220,9 @@ async function projectionBatchPending(pool: Pool, deployment: DeploymentIdentity
      ) AS pending`,
     [deployment.environment, deployment.chainId, deployment.deploymentDigest, throughBlock.toString(), deployment.activationBlock.toString()],
   );
-  return history.rows[0]?.pending === true;
+  if(history.rows[0]?.pending === true)return true;
+  const holder=await pool.query(`SELECT 1 FROM ${schema}.projection_checkpoints WHERE environment=$1 AND chain_id=$2 AND deployment_digest=$3 AND scope='holder-rewards' AND next_block>$4`,[deployment.environment,deployment.chainId,deployment.deploymentDigest,throughBlock.toString()]);
+  return holder.rowCount===0;
 }
 
 async function resolveHead(lease: Lease, primary: RpcTransport, secondary: RpcTransport, deployment: DeploymentIdentity): Promise<RpcBlock> {

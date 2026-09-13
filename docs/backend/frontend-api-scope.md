@@ -68,3 +68,7 @@
 2. 所有正式后台请求均归入 TS-01、05～13、15；测试路由、无 caller 路由和 TS-L01 已明确归类。
 3. 当前链上 reward mode 已通过只读 RPC 核验；生产主网身份仍未配置，本清单只证明 test release 范围。
 4. 响应字段由锁定 OpenAPI 或列明的 caller 校验冻结；TS-15 完成前 Go 仍是生成 DTO 的临时来源。
+
+## Wallet snapshot rewards
+
+`GET /v1/holder-snapshots?chainId&distributor&marketId&account&cursor` supplies finalized, display-only published round proofs and independent claimed-asset masks. It is generated in OpenAPI 4.6.0, uses no-store, and returns 503 for missing or corrupt proof archives. See [backend operations](../operations/HOLDER_SNAPSHOT_BACKEND.md).

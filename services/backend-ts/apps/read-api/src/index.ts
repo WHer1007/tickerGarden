@@ -1,3 +1,4 @@
+import { readHolderSnapshots } from '../../../packages/read-store/src/holder-snapshots.ts';
 import type { Pool } from 'pg';
 import type { Context } from 'hono';
 import { createServiceApp } from '../../../packages/http/src/index.ts';
@@ -36,7 +37,7 @@ export function createReadApiApp(options: ReadApiOptions = {}) {
 
   app.use('/v1/*', async (context, next) => {
     await next(); const path = context.req.path;
-    const privateRead = path.includes('/users/') || path.includes('reward-history') || path.includes('/wallet-holder-markets') || path.includes('/transactions/');
+    const privateRead = path.includes('/users/') || path.includes('holder-snapshots') || path.includes('reward-history') || path.includes('/wallet-holder-markets') || path.includes('/transactions/');
     const activity = path.endsWith('/detail') && context.req.query('section')==='activity';
     const priceCatalog = path.endsWith('/prices/references') || path.endsWith('/statistics-prices');
     const revision = context.req.query('revision');
@@ -60,6 +61,21 @@ export function createReadApiApp(options: ReadApiOptions = {}) {
     return context.json({ executionSpecId: 'V1-EXEC-11' as const, status: 'read-api' as const, readApiImplemented: true as const,
       productRuntimeImplemented: true as const, custody: false as const, transactionSubmission: false as const, sync });
   });
+
+  app.get('/v1/holder-snapshots', async context => {
+    try {
+      const q=context.req.query();rejectUnknown(q,['chainId','distributor','marketId','account','cursor']);
+      if(q.chainId!==String(deployment.chainId)||!/^0x[0-9a-f]{64}$/.test(q.marketId??''))throw Error('invalid snapshot identity');
+      return context.json(await readHolderSnapshots({pool:pool(),deployment,distributor:parseAddress(q.distributor??''),account:parseAddress(q.account??''),marketId:q.marketId as `0x${string}`,secret:cursorSecret,...(q.cursor?{cursor:q.cursor}:{}),...(schemaName?{schemaName}:{})}));
+    }catch(error){
+      const requestId=context.get('requestId');
+      if(error instanceof PublicationChangedError)return context.json({error:'snapshot_page_changed',message:error.message,requestId},409);
+      if(error instanceof PublicationUnavailableError)return context.json({error:'snapshot_unavailable',message:error.message,requestId},503);
+      if(error instanceof Error&&/invalid|cursor|query/.test(error.message))return context.json({error:'invalid_query',message:error.message,requestId},400);
+      throw error;
+    }
+  });
+  app.all('/v1/holder-snapshots',context=>context.json({error:'method_not_allowed',message:'Use GET',requestId:context.get('requestId')},405));
 
   app.get('/v1/markets', async (context) => {
     try {

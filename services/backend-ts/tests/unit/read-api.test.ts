@@ -31,3 +31,13 @@ test('display price catalogs use the five-minute shared CDN cache', async () => 
     const response=await app.request(path);assert.equal(response.status,200);assert.equal(response.headers.get('cache-control'),'public, max-age=60, s-maxage=300, stale-while-revalidate=60');
   }
 });
+
+test('holder snapshots use the documented error schema and private cache policy',async()=>{
+ const pool={connect:async()=>({query:async()=>({rows:[],rowCount:0}),release(){}})} as unknown as Pool;
+ const app=createReadApiApp({env:{NODE_ENV:'test',TG_READ_DATABASE_URL:'postgres://unused',TG_CURSOR_SECRET:'x'.repeat(32)},pool});
+ const malformed=await app.request('/v1/holder-snapshots?chainId=1');assert.equal(malformed.status,400);assert.equal((await malformed.json()).error,'invalid_query');
+ const response=await app.request(`/v1/holder-snapshots?chainId=46630&distributor=0x${'1'.repeat(40)}&marketId=0x${'2'.repeat(64)}&account=0x${'3'.repeat(40)}`);
+ assert.equal(response.status,503);assert.equal(response.headers.get('cache-control'),'no-store');
+ const body=await response.json();assert.equal(body.error,'snapshot_unavailable');assert.equal(typeof body.requestId,'string');
+ const method=await app.request('/v1/holder-snapshots',{method:'POST'});assert.equal(method.status,405);assert.equal((await method.json()).error,'method_not_allowed');
+});

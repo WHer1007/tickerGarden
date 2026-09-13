@@ -43,6 +43,10 @@ GRANT SELECT ON
   ${schema}.market_candles,
   ${schema}.holder_balances,
   ${schema}.holder_snapshots,
+  ${schema}.holder_reward_markets,
+  ${schema}.holder_reward_datasets,
+  ${schema}.holder_reward_rounds,
+  ${schema}.holder_reward_claims,
   ${schema}.detail_fee_totals,
   ${schema}.detail_fee_events,
   ${schema}.user_activity,
@@ -85,6 +89,9 @@ GRANT SELECT, INSERT, UPDATE, DELETE ON
   ${schema}.market_candles,
   ${schema}.holder_balances,
   ${schema}.holder_snapshots,
+  ${schema}.holder_reward_markets,
+  ${schema}.holder_reward_rounds,
+  ${schema}.holder_reward_claims,
   ${schema}.detail_fee_totals,
   ${schema}.detail_fee_events,
   ${schema}.user_activity,
@@ -95,6 +102,8 @@ GRANT SELECT, INSERT, UPDATE, DELETE ON
   ${schema}.invalidations
 TO ${pipeline};
 GRANT SELECT, INSERT ON ${schema}.publications TO ${pipeline};
+GRANT SELECT, INSERT ON ${schema}.holder_reward_datasets TO ${pipeline};
+REVOKE UPDATE, DELETE ON ${schema}.holder_reward_datasets FROM ${pipeline};
 GRANT SELECT, UPDATE ON ${schema}.queue_generations TO ${pipeline};
 GRANT SELECT, INSERT, UPDATE ON
   ${schema}.inbox_messages,

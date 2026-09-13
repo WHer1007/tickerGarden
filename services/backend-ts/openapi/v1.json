@@ -2,7 +2,7 @@
   "openapi": "3.1.0",
   "info": {
     "title": "TickerGarden V1 Read API",
-    "version": "4.5.0",
+    "version": "4.6.0",
     "description": "Non-custodial TypeScript Serverless read API for the routes consumed by the current frontend."
   },
   "x-execution-spec-id": "V1-EXEC-11",
@@ -437,6 +437,116 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/HolderError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/holder-snapshots": {
+      "get": {
+        "operationId": "getHolderSnapshots",
+        "description": "Display-only finalized Holder wallet snapshot entitlements and Merkle proofs. Proof datasets are integrity-checked against their committed root and data hash. The opaque cursor is bound to the publication revision; a changed revision returns 409 and pagination must restart. Missing, incomplete, or corrupt proof data returns 503. This endpoint is cache disabled and never submits transactions.",
+        "parameters": [
+          {
+            "name": "chainId",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "enum": [
+                4663,
+                46630,
+                421614
+              ]
+            }
+          },
+          {
+            "name": "distributor",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^0x[0-9a-f]{40}$"
+            }
+          },
+          {
+            "name": "marketId",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^0x[0-9a-f]{64}$"
+            }
+          },
+          {
+            "name": "account",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^0x[0-9a-f]{40}$"
+            }
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 2048
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HolderSnapshotPage"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HolderSnapshotError"
+                }
+              }
+            }
+          },
+          "405": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HolderSnapshotError"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HolderSnapshotError"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HolderSnapshotError"
                 }
               }
             }
@@ -2185,6 +2295,178 @@
           "journalObservedAt",
           "rpcObservedAt",
           "displayOnly"
+        ]
+      },
+      "HolderSnapshotRound": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "round": {
+            "type": "string",
+            "pattern": "^(0|[1-9][0-9]*)$"
+          },
+          "snapshotBlock": {
+            "type": "string",
+            "pattern": "^(0|[1-9][0-9]*)$"
+          },
+          "root": {
+            "type": "string",
+            "pattern": "^0x[0-9a-f]{64}$"
+          },
+          "quoteAmount": {
+            "type": "string",
+            "pattern": "^(0|[1-9][0-9]*)$"
+          },
+          "memeAmount": {
+            "type": "string",
+            "pattern": "^(0|[1-9][0-9]*)$"
+          },
+          "claimedAssets": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 3
+          },
+          "proof": {
+            "type": "array",
+            "maxItems": 64,
+            "items": {
+              "type": "string",
+              "pattern": "^0x[0-9a-f]{64}$"
+            }
+          }
+        },
+        "required": [
+          "round",
+          "snapshotBlock",
+          "root",
+          "quoteAmount",
+          "memeAmount",
+          "claimedAssets",
+          "proof"
+        ]
+      },
+      "HolderSnapshotPage": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "schema": {
+            "type": "string",
+            "const": "TICKERGARDEN_HOLDER_WALLET_SNAPSHOTS_V1"
+          },
+          "chainId": {
+            "type": "integer",
+            "enum": [
+              4663,
+              46630,
+              421614
+            ]
+          },
+          "displayOnly": {
+            "type": "boolean",
+            "const": true
+          },
+          "finality": {
+            "type": "string",
+            "const": "finalized"
+          },
+          "distributor": {
+            "type": "string",
+            "pattern": "^0x[0-9a-f]{40}$"
+          },
+          "marketId": {
+            "type": "string",
+            "pattern": "^0x[0-9a-f]{64}$"
+          },
+          "account": {
+            "type": "string",
+            "pattern": "^0x[0-9a-f]{40}$"
+          },
+          "quote": {
+            "type": "string",
+            "pattern": "^0x[0-9a-f]{40}$"
+          },
+          "meme": {
+            "type": "string",
+            "pattern": "^0x[0-9a-f]{40}$"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "ready",
+              "awaiting_funding",
+              "awaiting_publication",
+              "publisher_unconfigured"
+            ]
+          },
+          "sourceBlockNumber": {
+            "type": "string",
+            "pattern": "^(0|[1-9][0-9]*)$"
+          },
+          "sourceBlockHash": {
+            "type": "string",
+            "pattern": "^0x[0-9a-f]{64}$"
+          },
+          "rounds": {
+            "type": "array",
+            "maxItems": 10,
+            "items": {
+              "$ref": "#/components/schemas/HolderSnapshotRound"
+            }
+          },
+          "nextCursor": {
+            "oneOf": [
+              {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 2048
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "schema",
+          "chainId",
+          "displayOnly",
+          "finality",
+          "distributor",
+          "marketId",
+          "account",
+          "quote",
+          "meme",
+          "status",
+          "sourceBlockNumber",
+          "sourceBlockHash",
+          "rounds",
+          "nextCursor"
+        ]
+      },
+      "HolderSnapshotError": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "error": {
+            "type": "string",
+            "enum": [
+              "invalid_query",
+              "method_not_allowed",
+              "snapshot_unavailable",
+              "snapshot_page_changed"
+            ]
+          },
+          "message": {
+            "type": "string"
+          },
+          "requestId": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "error",
+          "message",
+          "requestId"
         ]
       },
       "TransactionError": {

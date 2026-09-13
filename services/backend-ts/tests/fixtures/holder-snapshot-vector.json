@@ -1,0 +1,76 @@
+{
+  "schema": "TICKERGARDEN_HOLDER_DATASET_V1",
+  "policy": "DIRECT_BALANCE_PRO_RATA_FLOOR_V1",
+  "input": {
+    "chainId": 31337,
+    "deploymentDigest": "0x0000000000000000000000000000000000000000000000000000000000000001",
+    "distributor": "0x0000000000000000000000000000000000001111",
+    "marketId": "0x0000000000000000000000000000000000000000000000000000000000000002",
+    "token": "0x0000000000000000000000000000000000002222",
+    "quote": "0x0000000000000000000000000000000000000000",
+    "round": "1",
+    "snapshotBlock": "1000",
+    "snapshotBlockHash": "0x0000000000000000000000000000000000000000000000000000000000000003",
+    "registeredBlock": "1000",
+    "lastSnapshotBlock": "0",
+    "totalSupply": "6",
+    "quoteAvailable": "101",
+    "memeAvailable": "0",
+    "burnMemeFees": false,
+    "exclusions": [
+      "0x0000000000000000000000000000000000000000",
+      "0x0000000000000000000000000000000000001111",
+      "0x0000000000000000000000000000000000002222"
+    ],
+    "balances": [
+      {
+        "account": "0x00000000000000000000000000000000000000a1",
+        "balance": "1"
+      },
+      {
+        "account": "0x00000000000000000000000000000000000000a2",
+        "balance": "2"
+      },
+      {
+        "account": "0x00000000000000000000000000000000000000a3",
+        "balance": "3"
+      }
+    ]
+  },
+  "root": "0xeee5b88cd7c79d10e6df446994e357bccfcab596618f1a504a508e7792568fcf",
+  "quoteBudget": "99",
+  "memeBudget": "0",
+  "eligibleSupply": "6",
+  "entries": [
+    {
+      "account": "0x00000000000000000000000000000000000000a1",
+      "balance": "1",
+      "quoteAmount": "16",
+      "memeAmount": "0",
+      "proof": [
+        "0xe13187cbfe6902f702a10e9aa9208cef20bb0a562e03ff866463775bca6d8373",
+        "0xc9ee5afa42e05521f7b16848f24bde581193d83168251d1cdce53ce733df8013"
+      ]
+    },
+    {
+      "account": "0x00000000000000000000000000000000000000a2",
+      "balance": "2",
+      "quoteAmount": "33",
+      "memeAmount": "0",
+      "proof": [
+        "0x3154b23488971f70c3b97945819420d22e58477dfc8926331641f41119738688",
+        "0xc9ee5afa42e05521f7b16848f24bde581193d83168251d1cdce53ce733df8013"
+      ]
+    },
+    {
+      "account": "0x00000000000000000000000000000000000000a3",
+      "balance": "3",
+      "quoteAmount": "50",
+      "memeAmount": "0",
+      "proof": [
+        "0x4e9e869fea791d6d9afafd577eb286f7f16bec60a75f6d4c06b0ec791bb0ef03"
+      ]
+    }
+  ],
+  "dataHash": "0xa6d4d1698d9ec5690b23b2a56105388d90582dc740dcd8f410fc3b57d3256f5c"
+}

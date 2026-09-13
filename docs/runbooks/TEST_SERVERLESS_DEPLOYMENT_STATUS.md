@@ -4,6 +4,8 @@ Last verified: 2026-09-13 (Asia/Shanghai)
 
 Current RH release: `0x685b5c20e826f4ddd076b61216c7529a967322082925c4741469b0fda837a7f2`. [Latest test publication evidence](../reviews/FRONTEND_LATEST_RH_RELEASE_2026-09-13.md). Historical measurements below remain dated evidence, not current release certification.
 
+Holder snapshot backend update (2026-09-13): finalized reward projection and proof API deployed; `0004_holder_rewards` migrated. Periodic publication and signing remain disabled. [Backend report](../reviews/HOLDER_SNAPSHOT_BACKEND_2026-09-13.md).
+
 ## Active scope
 
 Only the Robinhood testnet environment is active. The production Compose profile has no running containers, no production Alchemy webhook is registered, and no production Vercel chain-ingestion environment is enabled. Test and production can share the VPS only through separate databases, credentials, storage buckets, queues, networks, and Compose profiles.
@@ -15,9 +17,9 @@ This is test-environment evidence. It is not production readiness or permission 
 | Component | Endpoint | State |
 | --- | --- | --- |
 | Web | `https://tickergarden-web-test.vercel.app` | active; Preview deployment `dpl_7Z25DQphyNPpvzu9QNU8cAkYYteU`; function verified `sin1` |
-| Read API | `https://tickergarden-read-api-test.vercel.app` | active; Preview deployment `dpl_EAfAQJ9xQXRp1ycoLVp8RXCTSVMu`; both functions verified `sin1` |
+| Read API | `https://tickergarden-read-api-test.vercel.app` | active; Preview deployment `dpl_3hcn7LGN7fggbmRnT4Fy6V2wgNF2`; both functions verified `sin1` |
 | Content API | `https://tickergarden-content-test.vercel.app` | active |
-| Pipeline | `https://tickergarden-pipeline-test.vercel.app` | active; Preview deployment `dpl_8q2iMhpKsMubgHHShrm9X9VQoPYv` |
+| Pipeline | `https://tickergarden-pipeline-test.vercel.app` | active; Preview deployment `dpl_FzFBzZ8b17xFzFejJy1YHztDfFq1` |
 | Chain event relay | VPS internal `chain-event-relay-test:8081` | healthy |
 | Queue relay | `https://queue-test.159-89-207-161.sslip.io` | active |
 | S3-compatible storage | `https://s3-test.159-89-207-161.sslip.io` | active |
