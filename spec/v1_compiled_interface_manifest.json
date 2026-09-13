@@ -3,7 +3,7 @@
   "executionSpecId": "V1-EXEC-11",
   "source": "COMPILED_SOLC_0_8_26_INTERFACE_ARTIFACTS",
   "compilerVersion": "0.8.26+commit.8a97fa7a",
-  "interfaceSourceKeccak256": "0x13b70020524838195746d7b44e3512fb4e7cd3d5b9f05c9494c02ebd702f4c7b",
+  "interfaceSourceKeccak256": "0x159c5747ff2dd059aedabb3964a1e08963256a2d1c8676db4af4e8f831f54f97",
   "compiledSourceTypes": {
     "aliases": {
       "BalanceDelta": "int256"
@@ -89,7 +89,8 @@
         "bytes32 salt",
         "uint16 creatorTaxBps",
         "bool creatorFeesToHolders",
-        "bool stakingEnabled"
+        "bool stakingEnabled",
+        "bool burnMemeFees"
       ],
       "MarketConfig": [
         "bytes32 assetUid",
@@ -108,7 +109,8 @@
         "address graduatedHook",
         "uint16 creatorTaxBps",
         "bool creatorFeesToHolders",
-        "bool stakingEnabled"
+        "bool stakingEnabled",
+        "bool burnMemeFees"
       ],
       "MarketRuntime": [
         "bytes32 poolId",
@@ -215,7 +217,7 @@
     {
       "target": "TickerGardenFactoryV1",
       "artifact": "contracts/out-v1/IV1Protocol.sol/ITickerGardenFactoryV1.json",
-      "functionCount": 8,
+      "functionCount": 9,
       "eventCount": 1
     },
     {
@@ -233,7 +235,7 @@
     {
       "target": "TickerMemeTokenV1",
       "artifact": "contracts/out-v1/IV1Protocol.sol/ITickerMemeTokenV1.json",
-      "functionCount": 18,
+      "functionCount": 17,
       "eventCount": 2
     },
     {
@@ -269,20 +271,20 @@
     {
       "target": "ProtocolFeeVault",
       "artifact": "contracts/out-v1/IV1Protocol.sol/IProtocolFeeVault.json",
-      "functionCount": 35,
-      "eventCount": 11
+      "functionCount": 45,
+      "eventCount": 16
     },
     {
       "target": "GraduationExecutor",
       "artifact": "contracts/out-v1/IV1Protocol.sol/IGraduationExecutor.json",
-      "functionCount": 10,
-      "eventCount": 1
+      "functionCount": 12,
+      "eventCount": 2
     },
     {
       "target": "LaunchLocker",
       "artifact": "contracts/out-v1/IV1Protocol.sol/ILaunchLocker.json",
-      "functionCount": 3,
-      "eventCount": 0
+      "functionCount": 6,
+      "eventCount": 2
     },
     {
       "target": "CreatorRevenueRegistry",
@@ -563,8 +565,8 @@
     {
       "target": "TickerGardenFactoryV1",
       "displaySignature": "createMarket(CreateMarketParams)",
-      "canonicalSignature": "createMarket((bytes32,bytes32,bytes32,bytes32,bytes32,address,string,string,string,bytes32,uint16,bool,bool))",
-      "selector": "0x4d16039b",
+      "canonicalSignature": "createMarket((bytes32,bytes32,bytes32,bytes32,bytes32,address,string,string,string,bytes32,uint16,bool,bool,bool))",
+      "selector": "0x8da44134",
       "caller": "PUBLIC",
       "executionDelaySeconds": 0,
       "stateDelaySeconds": 0,
@@ -575,8 +577,8 @@
     {
       "target": "TickerGardenFactoryV1",
       "displaySignature": "createMarketFor(address,CreateMarketParams)",
-      "canonicalSignature": "createMarketFor(address,(bytes32,bytes32,bytes32,bytes32,bytes32,address,string,string,string,bytes32,uint16,bool,bool))",
-      "selector": "0x3551dd44",
+      "canonicalSignature": "createMarketFor(address,(bytes32,bytes32,bytes32,bytes32,bytes32,address,string,string,string,bytes32,uint16,bool,bool,bool))",
+      "selector": "0x4a17d1e1",
       "caller": "LAUNCH_ROUTER_MODULE",
       "executionDelaySeconds": 0,
       "stateDelaySeconds": 0,
@@ -587,8 +589,8 @@
     {
       "target": "MarketRegistryV1",
       "displaySignature": "registerMarket(bytes32,MarketConfig)",
-      "canonicalSignature": "registerMarket(bytes32,(bytes32,bytes32,bytes32,bytes32,bytes32,bytes32,bytes32,uint256,address,address,address,address,address,address,uint16,bool,bool))",
-      "selector": "0x534619e7",
+      "canonicalSignature": "registerMarket(bytes32,(bytes32,bytes32,bytes32,bytes32,bytes32,bytes32,bytes32,uint256,address,address,address,address,address,address,uint16,bool,bool,bool))",
+      "selector": "0xda20394c",
       "caller": "FACTORY_MODULE",
       "executionDelaySeconds": 0,
       "stateDelaySeconds": 0,
@@ -611,8 +613,8 @@
     {
       "target": "LaunchAndBuyRouter",
       "displaySignature": "launchAndBuy(CreateMarketParams,uint256,uint256,address)",
-      "canonicalSignature": "launchAndBuy((bytes32,bytes32,bytes32,bytes32,bytes32,address,string,string,string,bytes32,uint16,bool,bool),uint256,uint256,address)",
-      "selector": "0x75199371",
+      "canonicalSignature": "launchAndBuy((bytes32,bytes32,bytes32,bytes32,bytes32,address,string,string,string,bytes32,uint16,bool,bool,bool),uint256,uint256,address)",
+      "selector": "0x2248922b",
       "caller": "PUBLIC",
       "executionDelaySeconds": 0,
       "stateDelaySeconds": 0,
@@ -658,15 +660,15 @@
     },
     {
       "target": "TickerMemeTokenV1",
-      "displaySignature": "enableContinuousRewards()",
-      "canonicalSignature": "enableContinuousRewards()",
-      "selector": "0x2fded928",
-      "caller": "HOLDER_REWARDS_DISTRIBUTOR_MODULE",
+      "displaySignature": "burn(uint256)",
+      "canonicalSignature": "burn(uint256)",
+      "selector": "0x42966c68",
+      "caller": "CURRENT_MEME_HOLDER",
       "executionDelaySeconds": 0,
       "stateDelaySeconds": 0,
       "stateDelayAnchor": "NONE",
-      "precondition": "ONCE_ONLY_BY_IMMUTABLE_DISTRIBUTOR_AFTER_CANONICAL_REGISTRATION",
-      "recipient": "none"
+      "precondition": "NONE",
+      "recipient": "none; destroys only caller balance"
     },
     {
       "target": "TickerGardenCurve",
@@ -1257,6 +1259,42 @@
       "recipient": "none"
     },
     {
+      "target": "ProtocolFeeVault",
+      "displaySignature": "fundHolderRewardsBatch(bytes32[],uint8,uint256)",
+      "canonicalSignature": "fundHolderRewardsBatch(bytes32[],uint8,uint256)",
+      "selector": "0x9d7042a2",
+      "caller": "PUBLIC",
+      "executionDelaySeconds": 0,
+      "stateDelaySeconds": 0,
+      "stateDelayAnchor": "NONE",
+      "precondition": "BOUNDED_MARKETS_ASSET_MASK_AND_GAS; EACH_CHILD_USES_CANONICAL_FUNDING_AND_OPERATION_GUARD",
+      "recipient": "fixed_holder_distributor_per_market_and_asset"
+    },
+    {
+      "target": "ProtocolFeeVault",
+      "displaySignature": "settleV4StakerFee(address,address,uint256,bytes32)",
+      "canonicalSignature": "settleV4StakerFee(address,address,uint256,bytes32)",
+      "selector": "0x092e1a64",
+      "caller": "FEE_VAULT",
+      "executionDelaySeconds": 0,
+      "stateDelaySeconds": 0,
+      "stateDelayAnchor": "NONE",
+      "precondition": "SELF_ONLY_AND_CREDIT_FINALIZING; FIXED_GAS_ROLLBACK_BOUNDARY; FAILURE_NEW_STAKER_FEES_FORFEITED_TO_PLATFORM",
+      "recipient": "none"
+    },
+    {
+      "target": "ProtocolFeeVault",
+      "displaySignature": "coverAssetDeficit(address,uint256)",
+      "canonicalSignature": "coverAssetDeficit(address,uint256)",
+      "selector": "0xe112f9da",
+      "caller": "PUBLIC",
+      "executionDelaySeconds": 0,
+      "stateDelaySeconds": 0,
+      "stateDelayAnchor": "NONE",
+      "precondition": "EXISTING_DEFICIT; EXACT_ASSET_RECEIPT; AMOUNT_NOT_ABOVE_DEFICIT; NO_NEW_LIABILITY",
+      "recipient": "fixed_fee_vault"
+    },
+    {
       "target": "GraduationExecutor",
       "displaySignature": "graduateFromCurve(bytes32,uint256,uint256)",
       "canonicalSignature": "graduateFromCurve(bytes32,uint256,uint256)",
@@ -1267,6 +1305,42 @@
       "stateDelayAnchor": "NONE",
       "precondition": "NotGraduated_AND_CALLER_MATCHES_MARKET_CURVE_AND_EXACT_ASSETS_RECEIVED_IN_SAME_TRANSACTION",
       "recipient": "canonical_per_market_launch_locker"
+    },
+    {
+      "target": "GraduationExecutor",
+      "displaySignature": "setCompoundKeeper(address)",
+      "canonicalSignature": "setCompoundKeeper(address)",
+      "selector": "0x3a5f247b",
+      "caller": "PROTOCOL_ADMIN_ROLE",
+      "executionDelaySeconds": 172800,
+      "stateDelaySeconds": 0,
+      "stateDelayAnchor": "NONE",
+      "precondition": "ZERO_DISABLES_COMPOUNDING_ONLY; NO_DEPLOYER_DEFAULT",
+      "recipient": "none"
+    },
+    {
+      "target": "LaunchLocker",
+      "displaySignature": "collectLockedFees()",
+      "canonicalSignature": "collectLockedFees()",
+      "selector": "0x24eb5a92",
+      "caller": "PUBLIC",
+      "executionDelaySeconds": 0,
+      "stateDelaySeconds": 0,
+      "stateDelayAnchor": "NONE",
+      "precondition": "FIXED_POSITION_ZERO_LIQUIDITY_DECREASE; ONLY_FEES_TO_LOCKER",
+      "recipient": "fixed_locked_position"
+    },
+    {
+      "target": "LaunchLocker",
+      "displaySignature": "compoundLockedFees(uint128,uint128,uint128,uint256)",
+      "canonicalSignature": "compoundLockedFees(uint128,uint128,uint128,uint256)",
+      "selector": "0x830a740b",
+      "caller": "COMPOUND_KEEPER",
+      "executionDelaySeconds": 0,
+      "stateDelaySeconds": 0,
+      "stateDelayAnchor": "NONE",
+      "precondition": "ONLY_COLLECTED_FEES; SAME_POSITION_POOL_RANGE; EXACT_LIQUIDITY_INCREASE; MAX_INPUTS; DEADLINE_WITHIN_300_SECONDS",
+      "recipient": "fixed_locked_position"
     },
     {
       "target": "CreatorRevenueRegistry",
@@ -1604,9 +1678,49 @@
       "topic0": "0x470884a1f71e91b9ae0d014b54b65d762678ffff8eb9101b53633917751523a0"
     },
     {
+      "target": "ProtocolFeeVault",
+      "canonicalSignature": "HolderFundingResult(bytes32,uint8,uint8,uint256,bytes4)",
+      "topic0": "0x6aaa7abb72dd98edcffe475225a853bf63bcfdc374ed2420302c541e070d63ad"
+    },
+    {
+      "target": "ProtocolFeeVault",
+      "canonicalSignature": "HolderFundingBatchStopped(uint256,uint8)",
+      "topic0": "0x17727eb3b5a2507cc675e78540f3489f77b319332e0f4407062552aa543f5208"
+    },
+    {
+      "target": "ProtocolFeeVault",
+      "canonicalSignature": "StakerFeeAbandoned(bytes32,bytes32,address,uint256,bytes4)",
+      "topic0": "0x14aff5568c06eaedaa343c6dfbcadb98c7ca3e1b4fbe04faa63061e4f49cb7a6"
+    },
+    {
+      "target": "ProtocolFeeVault",
+      "canonicalSignature": "FeeAssetDeficitCovered(address,address,uint256,uint256)",
+      "topic0": "0xec9472a1d0e12a0e55d9a7d15cf9a3bdc73fd4b3db14142b1cf4e33fd93e9a0a"
+    },
+    {
+      "target": "ProtocolFeeVault",
+      "canonicalSignature": "MemeFeesBurned(bytes32,address,uint8,uint32,address,uint256)",
+      "topic0": "0xf2da893a777f29acb6de4ae803a95498b36502f771bc676905ef9ec3b65b491f"
+    },
+    {
       "target": "GraduationExecutor",
       "canonicalSignature": "PoolGraduated(bytes32,bytes32,address,uint256,uint256,uint256,uint256,uint256,uint256,uint32)",
       "topic0": "0x40a0877811468a71acbff54ef6c83948c23306787d6c38a4f084adbb56963489"
+    },
+    {
+      "target": "GraduationExecutor",
+      "canonicalSignature": "CompoundKeeperChanged(address,address)",
+      "topic0": "0x5d0c16b1ddf7d1f80a106f806aa2fdf37b9bc6b6ab2e7c67f2c5e0353af20ad0"
+    },
+    {
+      "target": "LaunchLocker",
+      "canonicalSignature": "LockedFeesCollected(bytes32,uint256,uint256,uint256)",
+      "topic0": "0x48462c2071caf542b50dad1673cc1bf8fc9ac2557b7aa158dbff8eb84c6cce96"
+    },
+    {
+      "target": "LaunchLocker",
+      "canonicalSignature": "LockedFeesCompounded(bytes32,uint256,uint128,uint256,uint256,uint256,uint256)",
+      "topic0": "0x2a4f53e7b24f6546e18db2e9720d3fa59debcb1dbf1f0466ce1b90a0b8befe61"
     },
     {
       "target": "CreatorRevenueRegistry",

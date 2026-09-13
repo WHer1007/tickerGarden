@@ -95,6 +95,7 @@ struct CreateMarketParams {
     uint16 creatorTaxBps;
     bool creatorFeesToHolders;
     bool stakingEnabled;
+    bool burnMemeFees;
 }
 
 struct MarketConfig {
@@ -115,6 +116,7 @@ struct MarketConfig {
     uint16 creatorTaxBps;
     bool creatorFeesToHolders;
     bool stakingEnabled;
+    bool burnMemeFees;
 }
 
 struct MarketRuntime {
@@ -319,6 +321,7 @@ interface ITickerGardenFactoryV1 {
     function holderRewardsDistributor() external view returns (address output0);
     function creatorRevenueRegistry() external view returns (address output0);
     function runtimeBindings() external view returns (address output0, address output1, address output2, address output3, address output4, address output5, address output6, address output7);
+    function memeFeeBurnMode() external pure returns (bytes32 output0);
 }
 
 interface IMarketRegistryV1 {
@@ -367,8 +370,7 @@ interface ITickerMemeTokenV1 {
     function metadataURI() external view returns (string memory output0);
     function initialSupply() external view returns (uint256 output0);
     function deployedAt() external view returns (uint64 output0);
-    function continuousRewardsEnabled() external view returns (bool output0);
-    function enableContinuousRewards() external;
+    function burn(uint256 arg0) external;
 }
 
 interface ITickerGardenCurve {
@@ -510,6 +512,11 @@ interface IProtocolFeeVault {
     event PlatformTreasuryAccepted(uint256 indexed nonce, address indexed newTreasury);
     event PlatformTreasuryCancelled(uint256 indexed nonce, address indexed caller);
     event PlatformTreasuryChanged(uint256 indexed nonce, address indexed oldTreasury, address indexed newTreasury);
+    event HolderFundingResult(bytes32 indexed marketId, uint8 indexed asset, uint8 status, uint256 amount, bytes4 errorSelector);
+    event HolderFundingBatchStopped(uint256 nextMarket, uint8 nextAsset);
+    event StakerFeeAbandoned(bytes32 indexed marketId, bytes32 indexed feeId, address indexed feeAsset, uint256 amount, bytes4 errorSelector);
+    event FeeAssetDeficitCovered(address indexed asset, address indexed contributor, uint256 amount, uint256 remainingDeficit);
+    event MemeFeesBurned(bytes32 indexed marketId, address indexed beneficiary, uint8 indexed role, uint32 creatorEpoch, address token, uint256 amount);
 
     function beginV4Credit(bytes32 arg0, address arg1, uint256 arg2, uint32 arg3, bytes32 arg4) external;
     function finalizeV4Credit(bytes32 arg0, address arg1, uint256 arg2, uint256 arg3, uint256 arg4, uint256 arg5, uint64 arg6, bytes32 arg7) external;
@@ -546,10 +553,21 @@ interface IProtocolFeeVault {
     function treasuryChangeReadyAt() external view returns (uint256 output0);
     function treasuryChangeAccepted() external view returns (bool output0);
     function pendingTreasuryCodeHash() external view returns (bytes32 output0);
+    function fundHolderRewardsBatch(bytes32[] calldata arg0, uint8 arg1, uint256 arg2) external returns (uint256 output0, uint8 output1);
+    function MAX_HOLDER_FUNDING_BATCH() external view returns (uint256 output0);
+    function MIN_HOLDER_FUNDING_GAS() external view returns (uint256 output0);
+    function MAX_HOLDER_FUNDING_GAS() external view returns (uint256 output0);
+    function HOLDER_FUNDING_GAS_RESERVE() external view returns (uint256 output0);
+    function settleV4StakerFee(address arg0, address arg1, uint256 arg2, bytes32 arg3) external returns (uint256 output0);
+    function coverAssetDeficit(address arg0, uint256 arg1) external payable;
+    function assetCoverage(address arg0) external view returns (uint256 output0, uint256 output1, uint256 output2);
+    function STAKER_SETTLEMENT_GAS() external view returns (uint256 output0);
+    function STAKER_SETTLEMENT_RESERVE() external view returns (uint256 output0);
 }
 
 interface IGraduationExecutor {
     event PoolGraduated(bytes32 indexed marketId, bytes32 indexed poolId, address indexed launchLocker, uint256 sweptQuote, uint256 sweptTokens, uint256 poolQuoteAmount, uint256 poolMemeAmount, uint256 lockedExcessQuote, uint256 lockedExcessMeme, uint32 sourceVersion);
+    event CompoundKeeperChanged(address indexed previousKeeper, address indexed newKeeper);
 
     function graduateFromCurve(bytes32 arg0, uint256 arg1, uint256 arg2) external payable;
     function predictLaunchLocker(bytes32 arg0) external view returns (address output0);
@@ -561,12 +579,20 @@ interface IGraduationExecutor {
     function permit2() external view returns (address output0);
     function hook() external view returns (address output0);
     function launchLockerCreationCodeHash() external view returns (bytes32 output0);
+    function compoundKeeper() external view returns (address output0);
+    function setCompoundKeeper(address arg0) external;
 }
 
 interface ILaunchLocker {
+    event LockedFeesCollected(bytes32 indexed marketId, uint256 indexed tokenId, uint256 amount0, uint256 amount1);
+    event LockedFeesCompounded(bytes32 indexed marketId, uint256 indexed tokenId, uint128 liquidity, uint256 amount0, uint256 amount1, uint256 remaining0, uint256 remaining1);
+
     function marketId() external view returns (bytes32 output0);
     function lockedPosition() external view returns (uint256 output0, bytes32 output1);
     function unpairedLockedBalance(address arg0) external view returns (uint256 output0);
+    function pendingCompoundFees() external view returns (uint256 output0, uint256 output1);
+    function collectLockedFees() external returns (uint256 output0, uint256 output1);
+    function compoundLockedFees(uint128 arg0, uint128 arg1, uint128 arg2, uint256 arg3) external returns (uint256 output0, uint256 output1);
 }
 
 interface ICreatorRevenueRegistry {

@@ -181,7 +181,8 @@ library V1FactoryValidation {
                 executionSpecId: policy.fields.executionSpecId,
                 creatorTaxBps: params.creatorTaxBps,
                 creatorFeesToHolders: params.creatorFeesToHolders,
-                stakingEnabled: params.stakingEnabled
+                stakingEnabled: params.stakingEnabled,
+                burnMemeFees: params.burnMemeFees
             })
         );
     }

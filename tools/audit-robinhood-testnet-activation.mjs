@@ -35,7 +35,7 @@ const genesis = await client.getBlock({blockNumber: 0n});
 ensure(genesis.hash === plan.genesisHash, 'Genesis hash drift');
 ensure(await client.getTransactionCount({address: plan.deployer, blockTag: 'pending'}) === plan.transactions[0].nonce, 'Activation nonce drift');
 ensure((await client.getCode({address: plan.expected.fixture})) === undefined, 'Fixture address occupied');
-ensure(await client.readContract({address: deployment.components.ProtocolFeeVault, abi: vaultAbi, functionName: 'userClaimMode'}) === keccak256(new TextEncoder().encode('TICKERGARDEN_USER_CLAIM_ASSET_SELECTION_V1')), 'Unsupported current claim mode');
+ensure(await client.readContract({address: deployment.components.ProtocolFeeVault, abi: vaultAbi, functionName: 'userClaimMode'}) === keccak256(new TextEncoder().encode('TICKERGARDEN_USER_CLAIM_RAW_ASSETS_V1')), 'Unsupported current claim mode');
 for (const contract of detailed.contracts) {
   ensure(keccak256(await client.getCode({address: contract.address})) === contract.runtimeCodeHash, `Runtime drift: ${contract.name}`);
 }

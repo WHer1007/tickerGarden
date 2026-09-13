@@ -5,7 +5,7 @@
 
 ## 1. 组件边界
 
-毕业后 Hook 对每笔 1% 协议手续费均将全额转入 FeeVault；LP 协议手续费为 0，canonical LP 仍永久锁定但不获得协议 LP 手续费。FeeVault 按 Active 状态记账为 Creator40/Staker30/Platform30 或 Creator70/Staker0/Platform30，向下取整余数归 Creator。Hook 不调用 `PoolManager.donate`，LaunchLocker 不执行 collect/compound，从而避免即时池价复投/JIT 路径并减少 gas 与 keeper 运维。
+毕业后 Hook 对每笔 1% 协议手续费均将全额转入 FeeVault；LP 协议手续费为 0，canonical LP 仍永久锁定但不获得协议 LP 手续费。FeeVault 按 Active 状态记账为 Creator40/Staker30/Platform30 或 Creator70/Staker0/Platform30，向下取整余数归 Creator。Hook 不调用 `PoolManager.donate`。新版 LaunchLocker 允许任何人归集 LP 手续费到自身，仅治理指定 Keeper 能以固定增量、最大投入和截止时间复投回原仓位；不使用无保护的即时池价自动复投。定价仍属于 Keeper 的信任边界，详见 `LOCKER_FEE_COMPOUNDING.md`。
 
 系统由 Factory、配置 Registries、Launch Router、Meme Token、Curve、Vault、Allocation、Gauge、FeeVault、Hook、GraduationExecutor 和 LaunchLocker 组成。已部署市场没有 MarketController、市场级状态管理或管理型 Recovery 组件。
 

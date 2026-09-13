@@ -66,7 +66,7 @@ const timestamp = Number(BigInt(block.timestamp));
 const certificate = {
   schemaVersion: 1,
   status: 'VERIFIED',
-  scope: 'ROBINHOOD_TESTNET_CONTINUOUS_HOLDER_DEPLOYMENT_ONLY',
+  scope: 'ROBINHOOD_TESTNET_WALLET_SNAPSHOT_DEPLOYMENT_ONLY',
   broadcastStatus: 'NOT_BROADCAST',
   productionStatus: 'NOT_PRODUCTION_READY',
   executionSpecId: execution.executionSpecId,

@@ -2,9 +2,8 @@
 pragma solidity 0.8.26;
 
 import {ERC20} from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
-import {IContinuousHolderRewards} from "../interfaces/IContinuousHolderRewards.sol";
 
-/// @notice Fixed-supply ERC-20 with holder reward checkpoints before balance changes.
+/// @notice Non-mintable ERC-20 with voluntary own-balance burning. Holder snapshots never participate in token transfers.
 contract TickerMemeTokenV1 is ERC20 {
     bytes32 private immutable _marketId;
     address private immutable _creator;
@@ -14,26 +13,9 @@ contract TickerMemeTokenV1 is ERC20 {
     uint64 private immutable _deployedAt;
 
     string private _metadataURI;
-    bool public continuousRewardsEnabled;
 
     error InvalidTokenIdentity();
-    error UnauthorizedHolderDistributor(address caller);
     error BlockTimestampOverflow(uint256 timestamp);
-    error RewardsAlreadyEnabled();
-
-    /// @notice One-time opt-in by the immutable distributor after canonical market registration.
-    function enableContinuousRewards() external {
-        if (msg.sender != _holderRewardsDistributor) revert UnauthorizedHolderDistributor(msg.sender);
-        if (continuousRewardsEnabled) revert RewardsAlreadyEnabled();
-        continuousRewardsEnabled = true;
-    }
-
-    function _update(address from, address to, uint256 amount) internal override {
-        if (continuousRewardsEnabled) {
-            IContinuousHolderRewards(_holderRewardsDistributor).checkpointTransfer(_marketId, from, to, amount);
-        }
-        super._update(from, to, amount);
-    }
 
     constructor(
         bytes32 marketId_,
@@ -62,6 +44,9 @@ contract TickerMemeTokenV1 is ERC20 {
 
         _mint(predictedCurve_, initialSupply_);
     }
+
+    /// @notice Destroy only the caller's own tokens; transfers never invoke reward settlement.
+    function burn(uint256 amount) external { _burn(msg.sender, amount); }
 
     function marketId() external view returns (bytes32) {
         return _marketId;

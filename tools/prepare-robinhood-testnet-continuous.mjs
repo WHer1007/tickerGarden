@@ -43,10 +43,10 @@ if (pmPoolManager.toLowerCase() !== dependency('POOL_MANAGER').address.toLowerCa
 if (pmPermit2.toLowerCase() !== dependency('PERMIT2').address.toLowerCase()) throw Error('PositionManager Permit2 mismatch');
 
 const product = fs.readFileSync(root + 'spec/v1_product_artifact_manifest.json');
-const releaseId = keccak256(toHex(`TickerGarden:RobinhoodTestnet:atomicNativeBuy:continuous24h:antisnipe5s:20260908:${keccak256(product)}:${block.hash}`));
+const releaseId = keccak256(toHex(`TickerGarden:RobinhoodTestnet:walletSnapshot:isolatedStaker:20260913:${keccak256(product)}:${block.hash}`));
 const feePolicyId = keccak256(toHex('TICKERGARDEN_V1_FEE_POLICY_40_30_30'));
 const values = {
-  V1_DEPLOYMENT_HOLDER_MODE: 'dual-asset-24h-v4',
+  V1_DEPLOYMENT_HOLDER_MODE: 'wallet-snapshot-v1',
   V1_EXPECTED_CHAIN_ID: '46630',
   V1_EXPECTED_DEPLOYER: deployer,
   V1_INITIAL_ADMIN: deployer,

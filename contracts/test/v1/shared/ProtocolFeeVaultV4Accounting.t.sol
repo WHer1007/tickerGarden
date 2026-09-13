@@ -465,6 +465,25 @@ contract ProtocolFeeVaultV4AccountingTest is Test {
         assertEq(vault.liability(MARKET_ID, address(0), 1), 30);
     }
 
+    function test_nativeDeficitContributionPreservesEveryBeneficiaryLiability() public {
+        test_nativeCreditUsesTheSameSnapshotAndLiabilityRules();
+        vm.deal(address(vault), 90);
+        vm.deal(address(this), 20);
+        vm.expectRevert();
+        vault.coverAssetDeficit{value: 11}(address(0), 11);
+        vm.expectRevert();
+        vault.coverAssetDeficit{value: 5}(address(0), 4);
+        vault.coverAssetDeficit{value: 4}(address(0), 4);
+        (,, uint256 deficit) = vault.assetCoverage(address(0));
+        assertEq(deficit, 6);
+        vault.coverAssetDeficit{value: 6}(address(0), 6);
+        assertEq(address(vault).balance, 100);
+        assertEq(vault.totalLiability(address(0)), 100);
+        assertEq(vault.liability(MARKET_ID, address(0), 0), 40);
+        assertEq(vault.liability(MARKET_ID, address(0), 1), 30);
+        assertEq(vault.liability(MARKET_ID, address(0), 2), 30);
+    }
+
     function test_feeIdAndNonceMustMatchEveryCanonicalFieldAndSequence() public {
         gauge.setActive(B);
         quote.mint(address(source), 300);
@@ -522,22 +541,33 @@ contract ProtocolFeeVaultV4AccountingTest is Test {
         assertFalse(vault.consumedFeeId(feeId));
     }
 
-    function test_gaugeCheckpointOrCreditFailureRollsBackTransferFeeIdAndNonce() public {
+    function test_gaugeFailureKeepsFeesAndNonceButAbandonsOnlyFailedReward() public {
         gauge.setActive(B);
-        quote.mint(address(source), 100);
+        quote.mint(address(source), 300);
         bytes32 feeId = _feeId(address(quote), 10_000, 100, 1);
         gauge.setFailures(true, false);
-        vm.expectRevert("CHECKPOINT_REJECTED");
         _creditErc20(quote, 10_000, 100, 0, 100, 1, feeId);
         assertEq(gauge.checkpointCalls(), 0);
+        assertTrue(vault.consumedFeeId(feeId));
+        assertEq(vault.lastNonce(POOL_ID), 1);
+        assertEq(vault.forfeitureReserve(MARKET_ID, address(quote)), 30);
+        assertEq(vault.liability(MARKET_ID, address(quote), 1), 0);
 
         gauge.setFailures(false, true);
-        vm.expectRevert("CREDIT_REJECTED");
-        _creditErc20(quote, 10_000, 100, 0, 100, 1, feeId);
+        bytes32 second = _feeId(address(quote), 10_000, 100, 2);
+        _creditErc20(quote, 10_000, 100, 0, 100, 2, second);
         assertEq(quote.balanceOf(address(source)), 100);
-        assertEq(vault.totalLiability(address(quote)), 0);
-        assertEq(vault.lastNonce(POOL_ID), 0);
-        assertFalse(vault.consumedFeeId(feeId));
+        assertEq(vault.totalLiability(address(quote)), 200);
+        assertEq(vault.lastNonce(POOL_ID), 2);
+        assertTrue(vault.consumedFeeId(second));
+        assertEq(vault.forfeitureReserve(MARKET_ID, address(quote)), 60);
+        assertEq(vault.liability(MARKET_ID, address(quote), 1), 0);
+        vm.expectRevert();
+        _creditErc20(quote, 10_000, 100, 0, 100, 1, feeId);
+        gauge.setFailures(false, false);
+        _creditErc20(quote, 10_000, 100, 0, 100, 3, _feeId(address(quote), 10_000, 100, 3));
+        assertEq(vault.liability(MARKET_ID, address(quote), 1), 30);
+        assertEq(vault.forfeitureReserve(MARKET_ID, address(quote)), 60);
     }
 
     function test_constructorRejectsZeroFeePolicyId() public {

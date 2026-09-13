@@ -10,7 +10,7 @@
     "check:boundary": "node tools/check-v1-boundary.mjs",
     "check:typescript-serverless-baseline": "node tools/check-typescript-serverless-baseline.mjs",
     "test:spec": "python3 -m unittest spec/test_v1_execution_spec.py",
-    "build:contracts": "node tools/run-forge.mjs build",
+    "build:contracts": "node tools/run-forge.mjs build && node tools/check-contract-runtime-size.mjs",
     "test:contracts": "node tools/run-forge.mjs test --no-match-path 'test/v1/fork/**'",
     "check:fixtures": "python3 spec/generate_v1_test_fixtures.py --check",
     "check:product-artifacts": "python3 spec/generate_v1_product_artifacts.py --check && python3 -m unittest spec.test_current_contract_surface",
@@ -43,6 +43,7 @@
     "test:current-rewards": "node --test tools/current-rewards-surface.test.mjs",
     "check:fork-track:mainnet": "node tools/check-rh-mainnet-candidate-fork.mjs",
     "check:mainnet-staged-simulation": "node tools/simulate-rh-mainnet-staged.mjs",
-    "check:mainnet-accounts": "node tools/verify-rh-mainnet-accounts.mjs"
+    "check:mainnet-accounts": "node tools/verify-rh-mainnet-accounts.mjs",
+    "test:contract-optimizations": "node --test tools/check-contract-runtime-size.test.mjs tools/contract-review/*.test.mjs"
   }
 }

@@ -218,9 +218,16 @@
     "productionManifestAdmissionCheckRequired": true
   },
   "batchOperations": {
-    "initialReleaseScope": false,
-    "batchAbiAllowed": false,
-    "singleMarketEntryPointsPermanent": true
+    "initialReleaseScope": true,
+    "batchAbiAllowed": true,
+    "singleMarketEntryPointsPermanent": true,
+    "scope": "HOLDER_FUNDING_ONLY",
+    "allowedMutations": [
+      "ProtocolFeeVault.fundHolderRewardsBatch(bytes32[],uint8,uint256)"
+    ],
+    "allowedBatchNamedViews": [
+      "ProtocolFeeVault.MAX_HOLDER_FUNDING_BATCH()"
+    ]
   },
   "templateDeployment": {
     "sharedImmutableModules": [
@@ -356,7 +363,7 @@
     "requiredPackedProtocolFee": 0,
     "lpDistribution": "NONE",
     "hookFeeDestination": "PROTOCOL_FEE_VAULT_FULL_AMOUNT",
-    "failureMode": "REVERT_ENTIRE_SWAP"
+    "failureMode": "REVERT_ENTIRE_SWAP_EXCEPT_ISOLATED_STAKER_ACCOUNTING_FAILURE"
   },
   "feeIdentity": {
     "domain": "TICKERGARDEN_V1_V4_FEE",
@@ -851,5 +858,15 @@
       "FIRST_BUY"
     ],
     "externalAcquisitionAtomicWithLaunch": false
+  },
+  "stakerAccountingFailurePolicy": {
+    "gasPerAttempt": 4000000,
+    "postAttemptGasReserve": 300000,
+    "insufficientParentGas": "REVERT_NO_INTENTIONAL_REWARD_SKIP",
+    "failureMode": "ROLLBACK_GAUGE_SUBCALL_CONTINUE_SWAP",
+    "failedFeeDisposition": "NEW_STAKER_SHARE_ONLY_TO_EXISTING_PLATFORM_FORFEITURE_RESERVE",
+    "weightReadFailure": "ASSUME_STAKER_SHARE_FOR_FORFEITURE_ONLY_DO_NOT_INCREASE_CREATOR_SHARE",
+    "retryFailedFee": false,
+    "futureCreditsRemainEnabled": true
   }
 }

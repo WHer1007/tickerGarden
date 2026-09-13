@@ -112,15 +112,17 @@ async function rewards(){
  }
  check('current-claim-mode',await read('ProtocolFeeVault',feeVault,'userClaimMode')===keccak256(toBytes('TICKERGARDEN_USER_CLAIM_ASSET_SELECTION_V1')),'asset selection V1');
  for(const m of state.markets){
-  m.creatorQuoteBefore??=String(await read('ProtocolFeeVault',feeVault,'creatorLiability',[m.id,1,m.quote]));
-  m.creatorMemeBefore??=String(await read('ProtocolFeeVault',feeVault,'creatorLiability',[m.id,1,m.token]));save();
+ m.creatorQuoteBefore??=String(await read('ProtocolFeeVault',feeVault,'creatorLiability',[m.id,1,m.quote]));
+ m.creatorMemeBefore??=String(await read('ProtocolFeeVault',feeVault,'creatorLiability',[m.id,1,m.token]));save();
+  const creatorMemeClaimId=`claim-creator-meme-${m.index}`;
+  const creatorMemeAlreadyClaimed=state.transactions.some(t=>t.id===creatorMemeClaimId&&t.status==='success');
   const receipt=await call(`claim-creator-quote-${m.index}`,m.role,'ProtocolFeeVault',feeVault,'claimUserRewardAssets',[m.id,0,1,1,false,false,0n]);
   const claimed=receipt.logs.map(l=>{try{return decodeEventLog({abi:abi('ProtocolFeeVault'),data:l.data,topics:l.topics})}catch{return null}}).find(l=>l?.eventName==='UserRewardsClaimed');
   check(`creator-payment-${m.index}`,claimed?.args.user.toLowerCase()===accounts[m.role].address.toLowerCase()&&claimed.args.quotePaid===BigInt(m.creatorQuoteBefore)&&claimed.args.memePaid===0n,{quotePaid:String(claimed?.args.quotePaid??0n)});
   check(`creator-cleared-${m.index}`,await read('ProtocolFeeVault',feeVault,'creatorLiability',[m.id,1,m.quote])===0n,'zero remaining selected Quote');
-  check(`creator-meme-preserved-${m.index}`,await read('ProtocolFeeVault',feeVault,'creatorLiability',[m.id,1,m.token])===BigInt(m.creatorMemeBefore),'unselected Meme preserved');
+  if(!creatorMemeAlreadyClaimed)check(`creator-meme-preserved-${m.index}`,await read('ProtocolFeeVault',feeVault,'creatorLiability',[m.id,1,m.token])===BigInt(m.creatorMemeBefore),'unselected Meme preserved');
   if(BigInt(m.creatorMemeBefore)>0n){
-   const id=`claim-creator-meme-${m.index}`,convert=m.index%2===1;
+   const id=creatorMemeClaimId,convert=m.index%2===1;
    state.deadlines??={};if(!state.transactions.some(t=>t.id===id))state.deadlines[id]=String((await c.getBlock()).timestamp+240n);save();
    const r=await call(id,m.role,'ProtocolFeeVault',feeVault,'claimUserRewardAssets',[m.id,0,1,2,convert,false,convert?BigInt(state.deadlines[id]):0n]);
    const evt=r.logs.map(l=>{try{return decodeEventLog({abi:abi('ProtocolFeeVault'),data:l.data,topics:l.topics})}catch{return null}}).find(l=>l?.eventName==='UserRewardsClaimed');
@@ -154,6 +156,38 @@ async function poolSells(){
  }
  state.status='POOL_SELLS_VERIFIED';save();
 }
+async function exits(){
+ const manager=b.bindings.allocationManager;
+ const exitCheck=(id,ok,details)=>{if(!ok)throw Error(id);state.checks=state.checks.filter(x=>x.id!==id);state.checks.push({id,status:'PASS',details});save();};
+ for(const m of state.markets.slice(0,3).filter(m=>m.params.stakingEnabled)){
+  const stock=b.assets.find(a=>a.id===m.params.assetUid);if(!stock)throw Error('Missing market Stock asset');
+  for(const role of ['bob','dave']){
+   const action=role==='bob'?'unstakeAndWithdraw':'rageQuit',id=`${action}-${m.index}-${role}`;
+   state.exitSnapshots??={};
+   if(!state.exitSnapshots[id]){
+    const principal=await read('UserStockVault',stock.values.userStockVault,'allocation',[stock.id,accounts[role].address,m.id]);
+    const stockBefore=await balance(stock.values.stockToken,accounts[role].address);
+    if(principal===0n)throw Error('Missing exit principal '+id);
+    state.exitSnapshots[id]={principal:String(principal),stockBefore:String(stockBefore)};save();
+   }
+   const before=state.exitSnapshots[id];
+   await call(id,role,'AllocationManager',manager,action,[m.id]);
+   const principalAfter=await read('UserStockVault',stock.values.userStockVault,'allocation',[stock.id,accounts[role].address,m.id]);
+   const stockAfter=await balance(stock.values.stockToken,accounts[role].address);
+   if(action==='rageQuit'){
+    const settlementAlreadyConfirmed=state.transactions.some(t=>t.id===`settle-rage-${m.index}-${role}`&&t.status==='success');
+    if(!settlementAlreadyConfirmed){const pending=await read('AllocationManager',manager,'rageQuitSettlementPending',[m.id,accounts[role].address]);
+    exitCheck(`rage-principal-${m.index}-${role}`,principalAfter===0n&&stockAfter===BigInt(before.stockBefore)+BigInt(before.principal)&&pending[0]&&pending[1]===BigInt(before.principal),{action,principal:before.principal,stockAfter:String(stockAfter),settlementPending:true});}
+    await call(`settle-rage-${m.index}-${role}`,role,'AllocationManager',manager,'settleRageQuitRewards',[m.id,accounts[role].address]);
+   }
+   const position=await read('MemeStockGauge',m.gauge,'positionOf',[accounts[role].address]);
+   const pendingAfter=action==='rageQuit'?await read('AllocationManager',manager,'rageQuitSettlementPending',[m.id,accounts[role].address]):[false,0n];
+   exitCheck(`exit-${m.index}-${role}`,principalAfter===0n&&stockAfter===BigInt(before.stockBefore)+BigInt(before.principal)&&position.activeAmount===0n&&position.pendingAmount===0n&&!pendingAfter[0],{action,principal:before.principal,stockAfter:String(stockAfter),settlementPending:false});
+   state.deferred=(state.deferred??[]).filter(item=>item.marketId!==m.id||item.role!==role);save();
+  }
+ }
+ state.status='STAKE_EXITS_VERIFIED';delete state.error;save();
+}
 async function negative(){
  const tests=[['buy-zero','alice','TickerGardenCurve',state.markets[3].curve,'buy',[0n,0n,accounts.alice.address],0n],['graduated-curve-buy','alice','TickerGardenCurve',state.markets[0].curve,'buy',[parseEther('0.001'),0n,accounts.alice.address],parseEther('0.001')],['excess-creator-tax','alice','TickerGardenFactoryV1',b.factory,'previewMarketEconomics',[{...state.markets[0].params,creatorTaxBps:501}],0n],['invalid-asset-mask','dave','ProtocolFeeVault',b.bindings.protocolFeeVault,'claimUserRewardAssets',[state.markets[0].id,0,1,0,false,false,0n],0n],['unauthorized-creator','dave','ProtocolFeeVault',b.bindings.protocolFeeVault,'claimUserRewardAssets',[state.markets[0].id,0,1,1,false,false,0n],0n]];
  for(const m of state.markets.slice(0,3).filter(m=>m.params.stakingEnabled))for(const role of ['bob','dave'])tests.push([`locked-claim-${m.index}-${role}`,role,'ProtocolFeeVault',b.bindings.protocolFeeVault,'claimUserRewardAssets',[m.id,1,0,1,false,false,0n],0n]);
@@ -161,4 +195,4 @@ async function negative(){
  if(!decoded)throw Error('No decoded EVM rejection: '+id);state.checks=state.checks.filter(x=>x.id!==id);state.checks.push({id,status:'PASS',type:'ETH_CALL_REVERT',error:decoded});save();console.log(JSON.stringify({id,revert:decoded}));}
  state.status='IMMEDIATE_CASES_VERIFIED_TIME_LOCKS_PENDING';save();
 }
-try{const mode=process.argv[2]??'prepare';if(mode==='prepare')await prepare();else if(mode==='launch'){capability();await launch();}else if(mode==='trades')await trades();else if(mode==='graduate')await graduate();else if(mode==='staking')await staking();else if(mode==='rewards')await rewards();else if(mode==='pool-sells')await poolSells();else if(mode==='negative')await negative();else throw Error('Unknown mode');}catch(error){state.status='INCOMPLETE';state.error=String(error.shortMessage??error.message).slice(0,600);state.errorDetails=[];for(let cause=error;cause;cause=cause.cause){if(cause.data?.errorName)state.errorDetails.push(cause.data);if(typeof cause.data==='string'&&cause.data.startsWith('0x')){try{state.errorDetails.push(decodeErrorResult({abi:[...abi('ProtocolFeeVault'),...abi('MemeStockGauge'),...abi('AllocationManager'),...abi('HolderRewardsDistributorV1')],data:cause.data}));}catch{state.errorDetails.push({data:cause.data})}}}save();console.error(state.error);process.exitCode=1;}
+try{const mode=process.argv[2]??'prepare';if(mode!=='prepare')capability();if(mode==='prepare')await prepare();else if(mode==='launch')await launch();else if(mode==='trades')await trades();else if(mode==='graduate')await graduate();else if(mode==='staking')await staking();else if(mode==='rewards')await rewards();else if(mode==='pool-sells')await poolSells();else if(mode==='exits')await exits();else if(mode==='negative')await negative();else throw Error('Unknown mode');}catch(error){state.status='INCOMPLETE';state.error=String(error.shortMessage??error.message).slice(0,600);state.errorDetails=[];for(let cause=error;cause;cause=cause.cause){if(cause.data?.errorName)state.errorDetails.push(cause.data);if(typeof cause.data==='string'&&cause.data.startsWith('0x')){try{state.errorDetails.push(decodeErrorResult({abi:[...abi('ProtocolFeeVault'),...abi('MemeStockGauge'),...abi('AllocationManager'),...abi('HolderRewardsDistributorV1')],data:cause.data}));}catch{state.errorDetails.push({data:cause.data})}}}save();console.error(state.error);process.exitCode=1;}

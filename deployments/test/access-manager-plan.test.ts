@@ -27,12 +27,12 @@ function input(overrides: Partial<V1AccessManagerPlanInput> = {}): V1AccessManag
   };
 }
 
-test("derives 19 protocol role selectors and 63 immutable direct selectors from the current manifest", () => {
+test("derives 20 protocol role selectors and 68 immutable direct selectors from the current manifest", () => {
   const plan = deriveV1AccessManagerPlan(input());
   assert.equal(compiled.modules.length, 18);
-  assert.equal(compiled.mutations.length, 82);
-  assert.equal(plan.configuredProtocolSelectorCount, 19);
-  assert.equal(plan.immutableDirectSelectorCount, 63);
+  assert.equal(compiled.mutations.length, 88);
+  assert.equal(plan.configuredProtocolSelectorCount, 20);
+  assert.equal(plan.immutableDirectSelectorCount, 68);
   assert.equal(plan.roles.length, 3);
   assert.deepEqual(plan.roles.map((role) => [role.name, role.roleId, role.executionDelaySeconds]), [
     ["PROTOCOL_ADMIN_ROLE", V1_ACCESS_ROLES.PROTOCOL_ADMIN_ROLE.toString(), 172800],
@@ -61,7 +61,7 @@ test("binds all five roles to the intended Safe members and exposes no delayed t
   ]) {
     assert.equal(compiled.mutations.some((row) => row.displaySignature === removedSignature), false);
   }
-  assert.equal(plan.actions.filter((action) => action.phase === "PROTOCOL_SELECTORS").reduce((n, action) => n + Number(action.description.match(/\((\d+) selector/)?.[1] ?? 0), 0), 19);
+  assert.equal(plan.actions.filter((action) => action.phase === "PROTOCOL_SELECTORS").reduce((n, action) => n + Number(action.description.match(/\((\d+) selector/)?.[1] ?? 0), 0), 20);
   assert.equal(plan.actions.filter((action) => action.phase === "BOOTSTRAP_GUARDIANS").length, 2);
 });
 
@@ -78,7 +78,7 @@ test("configures only current privileged selectors and leaves lifecycle operatio
     "activateMarket(bytes32)",
     "fundQuoteTreasury(bytes32,uint256,bytes32)",
     "burnMeme(bytes32,uint256,bytes32)",
-    "setFundingInterval(bytes32,uint256)",
+    "setSnapshotPublisher(address)",
     "fundCreatorFees(bytes32,uint32,uint256)",
     "claim(bytes32)",
   ]) {
@@ -124,13 +124,27 @@ test("fails closed for missing, extra, aliased, and zero deployment addresses", 
   assert.throws(() => deriveV1AccessManagerPlan({ ...base, moduleAddresses: { ...base.moduleAddresses, [compiled.modules[0]!.target]: "0x0000000000000000000000000000000000000000" } }), /Invalid moduleAddresses/);
 });
 
-test("configurable Holder interval uses delayed protocol admin before bootstrap closure", () => {
+test("Holder publisher rotation uses delayed protocol admin before bootstrap closure", () => {
   const base = deriveV1AccessManagerPlan(input());
   const plan = deriveV1AccessManagerPlan(input({holderRewardsDistributor: fixtureAddress("holder-v3")}));
   assert.equal(plan.configuredProtocolSelectorCount, base.configuredProtocolSelectorCount + 1);
-  const index = plan.actions.findIndex(a => a.phase === "PROTOCOL_SELECTORS" && configuredSelectors(a.data).includes(selector("setFundingInterval(bytes32,uint256)")));
+  const index = plan.actions.findIndex(a => a.phase === "PROTOCOL_SELECTORS" && configuredSelectors(a.data).includes(selector("setSnapshotPublisher(address)")));
   assert.ok(index >= 0);
   assert.ok(index < plan.actions.findIndex(a => a.phase === "RENOUNCE_DEPLOYER"));
   assert.equal(plan.roles.find(r => r.name === "PROTOCOL_ADMIN_ROLE")?.executionDelaySeconds, 172800);
+  assert.equal(plan.roles.find(r => r.name === "PAUSE_GUARDIAN_ROLE")?.executionDelaySeconds, 0);
+  assert.ok(!plan.actions.filter(a => a.phase === "PROTOCOL_SELECTORS").some(a =>
+    configuredSelectors(a.data).includes(selector("revokeSnapshotPublisher(address)"))));
   assert.throws(() => deriveV1AccessManagerPlan(input({holderRewardsDistributor: fixtureAddress("governance-safe")})), /Aliased/);
+});
+
+test("Keeper rotation is governed while collection and Keeper execution stay direct", () => {
+  const plan=deriveV1AccessManagerPlan(input());
+  const actions=plan.actions.filter(action=>action.phase==='PROTOCOL_SELECTORS');
+  const setter=actions.find(action=>configuredSelectors(action.data).includes(selector('setCompoundKeeper(address)')));
+  assert.ok(setter);assert.match(setter.description,/PROTOCOL_ADMIN_ROLE/);
+  for(const signature of ['collectLockedFees()','compoundLockedFees(uint128,uint128,uint128,uint256)']) {
+    assert.ok(!actions.some(action=>configuredSelectors(action.data).includes(selector(signature))));
+  }
+  assert.equal(plan.roles.find(role=>role.name==='PROTOCOL_ADMIN_ROLE')?.executionDelaySeconds,172800);
 });

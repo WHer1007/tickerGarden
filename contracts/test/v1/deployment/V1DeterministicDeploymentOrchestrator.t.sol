@@ -5,7 +5,7 @@ import {IPoolManager} from "@uniswap/v4-core/src/interfaces/IPoolManager.sol";
 import {IAllowanceTransfer} from "permit2/src/interfaces/IAllowanceTransfer.sol";
 import {Test} from "forge-std/Test.sol";
 
-import {HolderAccountingHarness as HolderRewardsDistributorV1} from "../mocks/HolderAccountingHarness.sol";
+import {HolderRewardsDistributorV1} from "../../../src/v1/modules/HolderRewardsDistributorV1.sol";
 import {GraduationExecutor} from "../../../src/v1/modules/GraduationExecutor.sol";
 import {LaunchAndBuyRouter} from "../../../src/v1/modules/LaunchAndBuyRouter.sol";
 import {MarketRegistryV1} from "../../../src/v1/modules/MarketRegistryV1.sol";
@@ -105,7 +105,7 @@ contract V1DeterministicDeploymentOrchestratorTest is Test {
         assertEq(deployedFactory.protocolFeeVault(), address(feeVault));
     }
 
-    function test_continuousReleaseDeploysBoundRuntimeGraph() public {
+    function test_walletSnapshotReleaseDeploysBoundRuntimeGraph() public {
         V1DeterministicDeploymentOrchestrator orchestrator =
             new V1DeterministicDeploymentOrchestrator(address(this), RELEASE_ID);
         (bytes32 salt,) = V4DeterministicDeploymentBuilder.mineHelperSalt(address(orchestrator), RELEASE_ID, 200_000);
@@ -117,8 +117,8 @@ contract V1DeterministicDeploymentOrchestratorTest is Test {
         orchestrator.deploy(payload, plan.payloadHash);
         HolderRewardsDistributorV1 rewards = HolderRewardsDistributorV1(plan.ordinaryComponents[14]);
         assertEq(rewards.marketRegistry(), plan.ordinaryComponents[10]);
-        assertEq(rewards.STREAM_DURATION(), 24 hours);
-        assertEq(rewards.rewardMode(), keccak256("TICKERGARDEN_HOLDER_DUAL_ASSET_24H_V4"));
+        assertEq(rewards.rewardMode(), keccak256("TICKERGARDEN_HOLDER_WALLET_SNAPSHOT_V1"));
+        assertEq(rewards.snapshotPublisher(), address(0));
         assertEq(TickerGardenFactoryV1(plan.factory).holderRewardsDistributor(), address(rewards));
         assertTrue(orchestrator.completed());
     }

@@ -12,14 +12,14 @@ contract HolderModeSelectionHarness {
 contract V1HolderModeSelectionTest is Test {
     function test_onlyCurrentModeAccepted() public {
         HolderModeSelectionHarness h = new HolderModeSelectionHarness();
-        h.validate("dual-asset-24h-v4", true);
+        h.validate("wallet-snapshot-v1", true);
         bytes memory expected =
-            abi.encodeWithSelector(V1HolderModeSelection.HolderModeSelectionRequired.selector, "dual-asset-24h-v4");
+            abi.encodeWithSelector(V1HolderModeSelection.HolderModeSelectionRequired.selector, "wallet-snapshot-v1");
         vm.expectRevert(expected);
         h.validate("", true);
         vm.expectRevert(expected);
         h.validate("legacy-merkle-7d-v1", true);
         vm.expectRevert(expected);
-        h.validate("dual-asset-24h-v4", false);
+        h.validate("wallet-snapshot-v1", false);
     }
 }

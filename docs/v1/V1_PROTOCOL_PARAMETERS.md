@@ -607,7 +607,7 @@ TickerGarden 保持 Pons 的 canonical pool 与永久锁仓安全边界，但协
 - 外部 LP 可以按标准 Uniswap v4 规则增加或移除自己的流动性，但该 canonical pool 的核心费率为0，协议交易不会为其产生 LP feeGrowth；
 - 毕业时的 canonical 全范围仓位仍永久锁定，但不获得协议 LP 手续费。
 
-每个毕业市场部署一个绑定该 `marketId` 的不可变 `LaunchLocker`，仅负责永久持有 canonical Position NFT 与相关余额，不提供手续费 collect/compound 路径。取消即时池价复投路径可降低价格操纵与 JIT 经济风险，并减少 keeper 运维。
+每个毕业市场部署一个绑定该 `marketId` 的不可变 `LaunchLocker`，永久持有 canonical Position NFT 与相关余额。新版支持公开 `collectLockedFees()` 及仅 Keeper 可调用的有界 `compoundLockedFees`。只使用独立记账的 LP 手续费及其余量；毕业剩余资产、直接转入资产和仓位本金不可被复投消耗。Keeper 由治理通过现有 48 小时权限延迟更换，默认零地址；单笔复投截止时间最多为执行时刻后 5 分钟。详见 `LOCKER_FEE_COMPOUNDING.md`。
 
 Uniswap v4 PoolKey 的 LP fee 固定为零，TickerGarden Hook 基础费固定为1%。pinned v4 Core protocol fee 可按方向独立存在，最高1000 pips，由 PoolManager 收取；实现不得把不同基数费率机械相加冒称实际总费。每笔只需证明：
 
@@ -703,7 +703,7 @@ V1 可以复用 Test Prototype 中已经验证的 canonical 资产身份、固�
 | V1-FROZEN-VAULT-01 | 每 schema 一个共享 MultiAsset Vault；权威 `allocation[assetUid][user][marketId]` 与资产内三层聚合；Gauge 不托管 STOCK；用户在任意 `launchPhase` 均可先于奖励清理立即取回完整本金 |
 | V1-FROZEN-ACTIVATION-01 | `1s/30s/32-slot` 绝对 generation 时间轮、双指数 snapshot/refcount、`INDEX_PRECISION=1e27`、固定边界与 remainder 公式 |
 | V1-FROZEN-STATE-ABI-01 | Asset/Quote/Pons/Template 保留对象级准入状态；市场仅有单向 `launchPhase` 事实；不存在部署后市场管理或管理员恢复 selector；核心 ABI、事件与权限由机器清单生成 |
-| V1-FROZEN-LOCKED-LP-01 | canonical locked position 永久持有；协议 LP 手续费为0，LaunchLocker 无 collect/compound 或提款路径 |
+| V1-FROZEN-LOCKED-LP-01 | canonical locked position 永久持有；协议 LP 手续费为0，LaunchLocker 仅公开归集、Keeper 有界复投，无提款路径 |
 | V1-G0-PONS-RUNTIME-VECTORS-01 | 活跃 runtime 的3秒反狙击整数表与 native/ERC-20 完整毕业 receipt 已固定，并由独立整数模型逐值复核 |
 | V1-G0-PRODUCTION-QUOTES-01 | 新市场可选择任意管理员风险审查、批准且 `ACTIVE` 的 Quote；`NATIVE_ETH_V1` 只是 bootstrap 示例；任意 Token（含可升级 USDG、cbBTC 与 Stock proxy）均可进入 `REGISTRY_ACTIVATION_REQUIRED`；`addQuoteConfig` 为通用路径，`addStockQuoteConfig` 的显式指纹承诺可选；当前无激活或广播，价格生成器与首批 allowlist 是 `PENDING_PRODUCT_ACTIVATION` |
 | V1-FROZEN-NUMERIC-01 | 6–18 decimals admission、int128/uint256/uint64 上限、full-precision mulDiv 与 accumulator 生命周期证明见 `spec/v1_numeric_bounds.json` |

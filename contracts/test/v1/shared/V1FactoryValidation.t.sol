@@ -312,10 +312,11 @@ contract V1FactoryValidationTest is Test {
             executionSpecId: 0x6d778d9fac5729e6943b9bef3a61d68f916469af230e2a521826a553ea0b5bad,
             creatorTaxBps: 18162,
             creatorFeesToHolders: true,
-            stakingEnabled: true
-        });
+            stakingEnabled: true,
+                burnMemeFees: false
+            });
         assertEq(
-            harness.hashExpectedEconomics(input), 0xe6fe5f9c165aab630ef76a8c78b8abc1a1339208c2f3d52a08cbc3a3cba18938
+            harness.hashExpectedEconomics(input), 0xd08d0c65a63c5e5bdb3cd75bb65b615231003f30b1f0891ca5c1b900965dc2d6
         );
     }
 
@@ -556,7 +557,8 @@ contract V1FactoryValidationTest is Test {
             salt: salt,
             creatorTaxBps: 0,
             creatorFeesToHolders: false,
-            stakingEnabled: true
-        });
+            stakingEnabled: true,
+                burnMemeFees: false
+            });
     }
 }

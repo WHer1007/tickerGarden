@@ -20,9 +20,9 @@
 | `TickerGardenMemeHook` | Binds the canonical v4 pool and atomically accounts post-graduation fees. |
 | `ProtocolFeeVault` | Exact-arrival fee liabilities, fixed-recipient claims, and forfeiture reserve accounting. |
 | `GraduationExecutor` | Exact-Curve-only atomic pool creation, permanent LP/dust locking, Hook activation, and Registry commit. |
-| `LaunchLocker` | Permanently locks the canonical full-range v4 position; it has no fee collection or compounding path. |
+| `LaunchLocker` | Permanently locks the canonical full-range v4 position; publicly collects LP fees into itself and permits only a governance-designated Keeper to compound accounted fees with explicit bounds. |
 | `CreatorRevenueRegistry` | Immutable creator-beneficiary epochs with pre-graduation fee sweep on transfer. |
-| `HolderRewardsDistributorV1` | Dual-asset holder accounting, configurable batch admission, 24-hour release, transfer checkpoints, and FeeVault-only consumption of earned rewards. |
+| `HolderRewardsDistributorV1` | Fully funded wallet snapshot roots, restricted batch publication, and proof-based Quote/Meme claims with no token transfer callbacks. |
 
 For the current flow-to-code mapping, callers, boundaries, tests, and integration checklist, see [the business-contract map](../../../../docs/reviews/CURRENT_BUSINESS_CONTRACT_MAP_2026-09-11.md).
 
@@ -34,7 +34,7 @@ Asset and launch-configuration registries retain object-scoped pause/unpause/ret
 
 `UserStockVault.rageQuit` returns the caller's full principal immediately and writes a reward-settlement tombstone before the exact STOCK transfer. Gauge cleanup and platform-forfeiture reserve recording are asynchronous and permissionless; any Quote/Meme reward forfeited by rageQuit is recorded in `ProtocolFeeVault`'s platform reserve, never redistributed to other stakers. Failure cannot roll back principal already returned.
 
-`minimumAllocation` is stored per Asset UID, uses raw Stock units, and may move up or down through the delayed registry permission while remaining at or above the `414` raw-unit safety floor. Stock allocation has a 30-second pending activation and a 24-hour whole-position lock. The HolderRewardsDistributor extension releases Quote and Meme rewards independently over 24 hours, with a 4-hour default funding batch interval configurable from 1 to 24 hours; neither path changes the immutable rules of an already deployed market.
+`minimumAllocation` is stored per Asset UID, uses raw Stock units, and may move up or down through the delayed registry permission while remaining at or above the `414` raw-unit safety floor. Stock allocation has a 30-second pending activation and a 24-hour whole-position lock. The HolderRewardsDistributor extension reserves funded Quote and Meme budgets per wallet snapshot round. Publication cadence is an off-chain policy, still to be configured. Existing immutable deployments require a new release; see `docs/v1/V1_HOLDER_SNAPSHOTS.md`.
 
 Creator, staker, and holder rewards use the unified user claim flow: each claim pays earned Quote and lets the caller choose to receive earned Meme directly or convert it. Failed or partial conversion returns the remaining Meme only with the caller's fallback authorization; otherwise that Meme remains claimable by the same caller. The FeeVault's `platformTreasury` remains the fixed economic recipient for platform revenue and forfeiture reserves; it is distinct from the retired Treasury distributor surface.
 

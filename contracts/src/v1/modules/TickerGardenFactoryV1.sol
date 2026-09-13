@@ -195,9 +195,9 @@ contract TickerGardenFactoryV1 is ITickerGardenFactoryV1, ICurveInitializationSo
     uint256 private constant LAUNCH_FEE = 500_000_000_000_000;
     bytes32 private constant EXECUTION_SPEC_ID = keccak256("V1-EXEC-11");
     bytes32 private constant TOKEN_IMPLEMENTATION_CODEHASH =
-        0xeb74e6163b9003abf375493deabb66663b5f77619cad1e0056dde4eed125a32f;
+        0x8769f48d2addb30fb0b990e53fb6bd0f82017e3d3ea75b92ddeda4b4c40a915c;
     bytes32 private constant CURVE_IMPLEMENTATION_CODEHASH =
-        0xe79b429ffdbcbb186632f2f3ea3361239edca7cdeba794c1ee661e5b8bf2f839;
+        0xc298461fa2fe37c4d252d7befe97a5ef0321c050524fba059bb794bc37fdbdd9;
     bytes32 private constant GAUGE_IMPLEMENTATION_CODEHASH =
         0x3e3f1fcd99cab3ed17310a7197535514f590eff63ce17fb8e158e732351bce52;
 
@@ -213,6 +213,8 @@ contract TickerGardenFactoryV1 is ITickerGardenFactoryV1, ICurveInitializationSo
     error GaugeIdentityMismatch(address gauge, bytes32 expectedHash, bytes32 actualHash);
     error CurveInitializationUnavailable(address curve);
     error LaunchFeeTransferFailed(address treasury, uint256 amount);
+
+    function memeFeeBurnMode() external pure returns (bytes32) { return keccak256("TICKERGARDEN_MEME_FEE_BURN_ON_SETTLEMENT_V1"); }
 
     constructor(TickerGardenFactoryInit memory init) {
         _validateDependencies(init);
@@ -376,7 +378,8 @@ contract TickerGardenFactoryV1 is ITickerGardenFactoryV1, ICurveInitializationSo
             graduatedHook: snapshot.template.graduatedHook,
             creatorTaxBps: params.creatorTaxBps,
             creatorFeesToHolders: params.creatorFeesToHolders,
-            stakingEnabled: params.stakingEnabled
+            stakingEnabled: params.stakingEnabled,
+            burnMemeFees: params.burnMemeFees
         });
         marketRegistry.registerMarket(marketId, config);
         ICreatorRevenueRegistry(creatorRevenueRegistry)

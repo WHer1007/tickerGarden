@@ -3,6 +3,7 @@ pragma solidity 0.8.26;
 import {Vm} from "forge-std/Vm.sol";
 import {BalanceDelta, BalanceDeltaLibrary} from "@uniswap/v4-core/src/types/BalanceDelta.sol";
 import {Test} from "forge-std/Test.sol";
+import {AccessManager} from "@openzeppelin/contracts/access/manager/AccessManager.sol";
 import {PoolManager} from "@uniswap/v4-core/src/PoolManager.sol";
 import {IPoolManager} from "@uniswap/v4-core/src/interfaces/IPoolManager.sol";
 import {IHooks} from "@uniswap/v4-core/src/interfaces/IHooks.sol";
@@ -14,7 +15,7 @@ import {PoolSwapTest} from "@uniswap/v4-core/src/test/PoolSwapTest.sol";
 import {TickMath} from "@uniswap/v4-core/src/libraries/TickMath.sol";
 import {TickerGardenMemeHook} from "../../../src/v1/modules/TickerGardenMemeHook.sol";
 import {ProtocolFeeVault, ProtocolFeeVaultInit} from "../../../src/v1/modules/ProtocolFeeVault.sol";
-import {HolderAccountingHarness as HolderRewardsDistributorV1} from "../mocks/HolderAccountingHarness.sol";
+import {HolderRewardsDistributorV1} from "../../../src/v1/modules/HolderRewardsDistributorV1.sol";
 import {TickerMemeTokenV1} from "../../../src/v1/modules/TickerMemeTokenV1.sol";
 import {MarketView, PoolKey} from "../../../src/v1/interfaces/IV1Protocol.sol";
 import {MockExactQuoteToken} from "../mocks/MockV1QuoteAssets.sol";
@@ -25,6 +26,11 @@ contract HolderPoolRegistry {
     address public graduationExecutor = msg.sender;
     MarketView v;
     PoolKey k;
+    address public officialStockRegistry;
+
+    function setOfficialStockRegistry(address value) external {
+        officialStockRegistry = value;
+    }
 
     function set(MarketView memory value, PoolKey memory key) external {
         v = value;
@@ -40,6 +46,14 @@ contract HolderPoolRegistry {
     }
 }
 
+contract HolderPoolOfficialStockRegistry {
+    address public immutable authority;
+
+    constructor(address authority_) {
+        authority = authority_;
+    }
+}
+
 /// Local real Token -> PoolManager -> Hook -> FeeVault -> Distributor flow. Only configuration is mocked.
 contract HolderPoolFlowTest is Test {
     bytes32 constant ID = keccak256("holder pool flow");
@@ -51,12 +65,15 @@ contract HolderPoolFlowTest is Test {
     ProtocolFeeVault vault;
     PoolSwapTest router;
     PoolManager manager;
+    AccessManager access;
     HolderPoolRegistry registry;
     V4Key key;
 
     function setUp() public {
         vm.warp(1_800_000_000);
         registry = new HolderPoolRegistry();
+        access = new AccessManager(address(this));
+        registry.setOfficialStockRegistry(address(new HolderPoolOfficialStockRegistry(address(access))));
         manager = new PoolManager(address(this));
         HolderFeeCreatorMock creators = new HolderFeeCreatorMock();
         creators.setEpoch(ID, 1, address(this));
@@ -76,6 +93,10 @@ contract HolderPoolFlowTest is Test {
             HOOK
         );
         d = new HolderRewardsDistributorV1(address(registry));
+        bytes4[] memory publisherSelectors = new bytes4[](1);
+        publisherSelectors[0] = d.setSnapshotPublisher.selector;
+        access.setTargetFunctionRole(address(d), publisherSelectors, 1);
+        access.grantRole(1, address(this), 0);
         meme = new TickerMemeTokenV1(ID, address(this), address(this), address(d), "Flow", "FLOW", "", 1000 ether);
         quote = new MockExactQuoteToken(18);
         quote.mint(address(this), 100 ether);
@@ -97,6 +118,7 @@ contract HolderPoolFlowTest is Test {
         );
         registry.set(v, k);
         d.registerFeeSharingMarket(ID, address(vault), address(0xC002));
+        d.setSnapshotPublisher(address(this));
         TickerGardenMemeHook hook = TickerGardenMemeHook(payable(HOOK));
         hook.registerExpectedPool(ID, k, 2);
         key = V4Key(Currency.wrap(k.currency0), Currency.wrap(k.currency1), 0, 60, IHooks(HOOK));
@@ -318,62 +340,25 @@ contract HolderPoolFlowTest is Test {
         assertEq(MockExactQuoteToken(asset).balanceOf(address(vault)), vault.totalLiability(asset));
     }
 
-    function test_realPoolSwapFundsSixBatchesAndExpiresWithoutBlockingTrading() public {
-        uint256 funded;
-        for (uint256 i; i < 6; ++i) {
-            _sell();
-            funded += vault.fundHolderRewards(ID, 1);
-            vm.warp(block.timestamp + 4 hours);
-        }
-        assertEq(d.marketState(ID).count, 6);
-        assertEq(d.totalLiability(address(quote)), funded);
-        vm.warp(block.timestamp + 24 hours);
-        uint256 snapshot = vm.snapshotState();
-        d.checkpoint(ID);
-        uint256 baseline = _sell();
-        vm.revertToState(snapshot);
-        uint256 expired = _sell();
-        emit log_named_uint("real router swap gas after checkpoint", baseline);
-        emit log_named_uint("real router swap gas with six expired Holder batches", expired);
-        assertLe(expired, 800_000);
-        assertLe(expired, baseline + 300_000);
-        assertEq(d.marketState(ID).count, 0);
-        assertGt(vault.holderLiability(ID, 1, address(quote)), 0);
+    function test_snapshotClaimAndPendingDistributorDoNotBlockRealPoolSwap() public {
+        _sell();
+        uint256 funded = vault.fundHolderRewards(ID, 1);
+        vm.roll(block.number + 2);
+        uint64 snapshotBlock = uint64(block.number - 1);
+        vm.setBlockhash(snapshotBlock, keccak256("unit-pool-snapshot-block"));
+        bytes32 leaf = d.claimLeaf(ID, 1, ALICE, funded, 0);
+        HolderRewardsDistributorV1.Publication[] memory pubs = new HolderRewardsDistributorV1.Publication[](1);
+        pubs[0] = HolderRewardsDistributorV1.Publication(
+            ID, 1, snapshotBlock, blockhash(snapshotBlock), leaf, keccak256("snapshot"), funded, 0
+        );
+        d.publishSnapshots(pubs);
+        vm.mockCallRevert(address(d), bytes(""), bytes("REWARDS_UNAVAILABLE"));
+        assertGt(_sell(), 0);
+        vm.clearMockedCalls();
+        uint256 before = quote.balanceOf(ALICE);
         vm.prank(ALICE);
-        uint256 claimed = d.claim(ID);
-        assertApproxEqAbs(claimed, funded, 1);
-        assertEq(d.totalLiability(address(quote)), funded - claimed);
-        assertEq(quote.balanceOf(address(vault)), vault.totalLiability(address(quote)));
-    }
-
-    function test_holderClaimsOwnMemeThroughRealPoolAndVault() public {
-        _protocolFeeTrade(false, true);
-        uint256 funded = vault.fundHolderMemeRewards(ID);
-        assertGt(funded, 0);
-        vm.warp(block.timestamp + 24 hours);
-        (, uint256 earned) = d.claimableAssets(ID, ALICE);
-        assertGt(earned, 0);
-        uint256 before = meme.balanceOf(ALICE);
-        vm.prank(ALICE);
-        (uint256 paid, uint256 raw) = vault.claimUserRewards(ID, 2, 0);
-        assertEq(paid, 0);
-        assertEq(raw, earned);
-        assertEq(meme.balanceOf(ALICE), before + raw);
-        (, earned) = d.claimableAssets(ID, ALICE);
-        assertEq(earned, 0);
-    }
-
-    function test_holderRawClaimImmediatelyAfterRelease() public {
-        _protocolFeeTrade(false, true);
-        vault.fundHolderMemeRewards(ID);
-        vm.warp(block.timestamp + 1 hours);
-        (, uint256 earned) = d.claimableAssets(ID, ALICE);
-        assertGt(earned, 0);
-        uint256 before = meme.balanceOf(ALICE);
-        vm.prank(ALICE);
-        (, uint256 paid) = vault.claimUserRewards(ID, 2, 0);
-        assertEq(paid, earned);
-        assertEq(meme.balanceOf(ALICE), before + paid);
-        assertEq(d.marketState(ID).supply, d.memeMarketState(ID).supply);
+        (uint256 paid,) = d.claimSnapshot(ID, 1, funded, 0, 1, new bytes32[](0));
+        assertEq(paid, funded);
+        assertEq(quote.balanceOf(ALICE), before + funded);
     }
 }

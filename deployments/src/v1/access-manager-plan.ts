@@ -178,9 +178,11 @@ export function deriveV1AccessManagerPlan(unchecked: V1AccessManagerPlanInput): 
     if (reservedAddresses.has(target) || [...moduleAddresses.values()].includes(target)) {
       throw new Error("Aliased Holder rewards distributor");
     }
+    // Emergency revokeSnapshotPublisher(expected) checks existing PAUSE_GUARDIAN_ROLE membership
+    // directly, including while targetClosed. It must not be assigned a scheduled execution role.
     grouped.set(`${target}:PROTOCOL_ADMIN_ROLE`, {
       target, roleName: "PROTOCOL_ADMIN_ROLE",
-      selectors: [`0x${selector("setFundingInterval(bytes32,uint256)")}`],
+      selectors: [`0x${selector("setSnapshotPublisher(address)")}`],
     });
   }
   for (const group of grouped.values()) {

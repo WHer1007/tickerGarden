@@ -96,6 +96,36 @@ abstract contract ProtocolFeeVaultLiabilities is ProtocolFeeVaultCurveCredit {
         _feePlatformTreasury = platformTreasury_;
     }
 
+    event FeeAssetDeficitCovered(
+        address indexed asset, address indexed contributor, uint256 amount, uint256 remainingDeficit
+    );
+    error InvalidDeficitContribution();
+
+    function assetCoverage(address asset) public view returns (uint256 balance, uint256 required, uint256 deficit) {
+        balance = _assetBalance(asset);
+        required = _totalLiabilities[asset];
+        deficit = required > balance ? required - balance : 0;
+    }
+
+    /// @notice Voluntary exact-asset donation against an existing deficit. Creates no claim or fee liability.
+    function coverAssetDeficit(address asset, uint256 amount) external payable {
+        _enterStandaloneOperation(bytes32("COVER_DEFICIT"));
+        if (amount == 0 || msg.value != (asset == address(0) ? amount : 0)) revert InvalidDeficitContribution();
+        uint256 beforeBalance = _assetBalance(asset) - msg.value;
+        uint256 required = _totalLiabilities[asset];
+        if (beforeBalance >= required || amount > required - beforeBalance) revert InvalidDeficitContribution();
+        if (asset != address(0)) {
+            IERC20 token = IERC20(asset);
+            uint256 beforeFrom = token.balanceOf(msg.sender);
+            token.safeTransferFrom(msg.sender, address(this), amount);
+            if (_assetBalance(asset) != beforeBalance + amount || token.balanceOf(msg.sender) + amount != beforeFrom) {
+                revert InvalidDeficitContribution();
+            }
+        }
+        emit FeeAssetDeficitCovered(asset, msg.sender, amount, required - beforeBalance - amount);
+        _exitStandaloneOperation();
+    }
+
     function claimPlatform(bytes32 marketId, address feeAsset) external returns (uint256 amount) {
         _enterStandaloneOperation(bytes32("CLAIM_PLATFORM"));
         _canonicalFeeMarket(marketId, feeAsset);
@@ -233,10 +263,11 @@ abstract contract ProtocolFeeVaultLiabilities is ProtocolFeeVaultCurveCredit {
         _enterStandaloneOperation(bytes32("FUND_HOLDER_REWARDS"));
         MarketView memory value = _feeMarketRegistry.market(marketId);
         address distributor = _holderDistributor(value);
+        _settleHolderMemeBurn(marketId, value);
         address quote = value.config.quoteAsset;
-        _requireAssetSolvent(quote);
         amount = holderLiability[marketId][epochId][quote];
         if (amount != 0) {
+            _requireAssetSolvent(quote);
             uint256 beforeBalance = _assetBalance(quote);
             _debitHolderFee(marketId, epochId, quote, amount);
             if (quote != address(0)) IERC20(quote).forceApprove(distributor, amount);
@@ -247,8 +278,11 @@ abstract contract ProtocolFeeVaultLiabilities is ProtocolFeeVaultCurveCredit {
             }
             _requireAssetSolvent(quote);
         }
+        if (value.config.burnMemeFees) _requireAssetSolvent(value.config.memeToken);
         _exitStandaloneOperation();
     }
+
+    function _settleHolderMemeBurn(bytes32, MarketView memory) internal virtual returns (uint256) { return 0; }
 
     function _fundHolderQuote(address distributor, bytes32 id, uint32 bucket, address quote, uint256 amount)
         internal
@@ -257,7 +291,7 @@ abstract contract ProtocolFeeVaultLiabilities is ProtocolFeeVaultCurveCredit {
         IHolderDistribution(distributor).fundQuoteRewards{value: quote == address(0) ? amount : 0}(id, bucket, amount);
     }
 
-    function _reserveForfeiture(bytes32 marketId, address user, address feeAsset, uint256 amount) private {
+    function _reserveForfeiture(bytes32 marketId, address user, address feeAsset, uint256 amount) internal {
         if (amount == 0) return;
         uint256 available = _bucketLiabilities[marketId][feeAsset][BUCKET_STAKER_REWARD];
         if (amount > available) {

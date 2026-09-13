@@ -385,7 +385,8 @@
           "bytes32 salt",
           "uint16 creatorTaxBps",
           "bool creatorFeesToHolders",
-          "bool stakingEnabled"
+          "bool stakingEnabled",
+          "bool burnMemeFees"
         ]
       },
       "functions": [
@@ -436,6 +437,12 @@
           "mutability": "view",
           "caller": "PUBLIC",
           "returns": "(address,address,address,address,address,address,address,address)"
+        },
+        {
+          "signature": "memeFeeBurnMode()",
+          "mutability": "pure",
+          "caller": "ANY",
+          "returns": "(bytes32)"
         }
       ],
       "events": [
@@ -462,7 +469,8 @@
           "address graduatedHook",
           "uint16 creatorTaxBps",
           "bool creatorFeesToHolders",
-          "bool stakingEnabled"
+          "bool stakingEnabled",
+          "bool burnMemeFees"
         ],
         "MarketRuntime": [
           "bytes32 poolId",
@@ -703,15 +711,9 @@
           "returns": "(uint64)"
         },
         {
-          "signature": "continuousRewardsEnabled()",
-          "mutability": "view",
-          "caller": "PUBLIC",
-          "returns": "(bool)"
-        },
-        {
-          "signature": "enableContinuousRewards()",
+          "signature": "burn(uint256)",
           "mutability": "nonpayable",
-          "caller": "HOLDER_REWARDS_DISTRIBUTOR_MODULE",
+          "caller": "CURRENT_MEME_HOLDER",
           "returns": "()"
         }
       ],
@@ -1530,6 +1532,66 @@
           "mutability": "view",
           "caller": "PUBLIC",
           "returns": "(bytes32)"
+        },
+        {
+          "signature": "fundHolderRewardsBatch(bytes32[],uint8,uint256)",
+          "mutability": "nonpayable",
+          "caller": "PUBLIC",
+          "returns": "(uint256,uint8)"
+        },
+        {
+          "signature": "MAX_HOLDER_FUNDING_BATCH()",
+          "mutability": "view",
+          "caller": "PUBLIC",
+          "returns": "(uint256)"
+        },
+        {
+          "signature": "MIN_HOLDER_FUNDING_GAS()",
+          "mutability": "view",
+          "caller": "PUBLIC",
+          "returns": "(uint256)"
+        },
+        {
+          "signature": "MAX_HOLDER_FUNDING_GAS()",
+          "mutability": "view",
+          "caller": "PUBLIC",
+          "returns": "(uint256)"
+        },
+        {
+          "signature": "HOLDER_FUNDING_GAS_RESERVE()",
+          "mutability": "view",
+          "caller": "PUBLIC",
+          "returns": "(uint256)"
+        },
+        {
+          "signature": "settleV4StakerFee(address,address,uint256,bytes32)",
+          "mutability": "nonpayable",
+          "caller": "FEE_VAULT",
+          "returns": "(uint256)"
+        },
+        {
+          "signature": "coverAssetDeficit(address,uint256)",
+          "mutability": "payable",
+          "caller": "PUBLIC",
+          "returns": "()"
+        },
+        {
+          "signature": "assetCoverage(address)",
+          "mutability": "view",
+          "caller": "PUBLIC",
+          "returns": "(uint256,uint256,uint256)"
+        },
+        {
+          "signature": "STAKER_SETTLEMENT_GAS()",
+          "mutability": "view",
+          "caller": "PUBLIC",
+          "returns": "(uint256)"
+        },
+        {
+          "signature": "STAKER_SETTLEMENT_RESERVE()",
+          "mutability": "view",
+          "caller": "PUBLIC",
+          "returns": "(uint256)"
         }
       ],
       "events": [
@@ -1543,7 +1605,12 @@
         "PlatformTreasuryProposed(uint256 indexed nonce,address indexed oldTreasury,address indexed newTreasury,address proposer,uint256 readyAt,bytes32 codeHash)",
         "PlatformTreasuryAccepted(uint256 indexed nonce,address indexed newTreasury)",
         "PlatformTreasuryCancelled(uint256 indexed nonce,address indexed caller)",
-        "PlatformTreasuryChanged(uint256 indexed nonce,address indexed oldTreasury,address indexed newTreasury)"
+        "PlatformTreasuryChanged(uint256 indexed nonce,address indexed oldTreasury,address indexed newTreasury)",
+        "HolderFundingResult(bytes32 indexed marketId,uint8 indexed asset,uint8 status,uint256 amount,bytes4 errorSelector)",
+        "HolderFundingBatchStopped(uint256 nextMarket,uint8 nextAsset)",
+        "StakerFeeAbandoned(bytes32 indexed marketId,bytes32 indexed feeId,address indexed feeAsset,uint256 amount,bytes4 errorSelector)",
+        "FeeAssetDeficitCovered(address indexed asset,address indexed contributor,uint256 amount,uint256 remainingDeficit)",
+        "MemeFeesBurned(bytes32 indexed marketId,address indexed beneficiary,uint8 indexed role,uint32 creatorEpoch,address token,uint256 amount)"
       ]
     },
     {
@@ -1608,10 +1675,23 @@
           "mutability": "view",
           "caller": "PUBLIC",
           "returns": "(bytes32)"
+        },
+        {
+          "signature": "compoundKeeper()",
+          "mutability": "view",
+          "caller": "PUBLIC",
+          "returns": "(address)"
+        },
+        {
+          "signature": "setCompoundKeeper(address)",
+          "mutability": "nonpayable",
+          "caller": "PROTOCOL_ADMIN_ROLE",
+          "returns": "()"
         }
       ],
       "events": [
-        "PoolGraduated(bytes32 indexed marketId,bytes32 indexed poolId,address indexed launchLocker,uint256 sweptQuote,uint256 sweptTokens,uint256 poolQuoteAmount,uint256 poolMemeAmount,uint256 lockedExcessQuote,uint256 lockedExcessMeme,uint32 sourceVersion)"
+        "PoolGraduated(bytes32 indexed marketId,bytes32 indexed poolId,address indexed launchLocker,uint256 sweptQuote,uint256 sweptTokens,uint256 poolQuoteAmount,uint256 poolMemeAmount,uint256 lockedExcessQuote,uint256 lockedExcessMeme,uint32 sourceVersion)",
+        "CompoundKeeperChanged(address indexed previousKeeper,address indexed newKeeper)"
       ]
     },
     {
@@ -1634,9 +1714,30 @@
           "mutability": "view",
           "caller": "PUBLIC",
           "returns": "(uint256)"
+        },
+        {
+          "signature": "pendingCompoundFees()",
+          "mutability": "view",
+          "caller": "PUBLIC",
+          "returns": "(uint256,uint256)"
+        },
+        {
+          "signature": "collectLockedFees()",
+          "mutability": "nonpayable",
+          "caller": "PUBLIC",
+          "returns": "(uint256,uint256)"
+        },
+        {
+          "signature": "compoundLockedFees(uint128,uint128,uint128,uint256)",
+          "mutability": "nonpayable",
+          "caller": "COMPOUND_KEEPER",
+          "returns": "(uint256,uint256)"
         }
       ],
-      "events": []
+      "events": [
+        "LockedFeesCollected(bytes32 indexed marketId,uint256 indexed tokenId,uint256 amount0,uint256 amount1)",
+        "LockedFeesCompounded(bytes32 indexed marketId,uint256 indexed tokenId,uint128 liquidity,uint256 amount0,uint256 amount1,uint256 remaining0,uint256 remaining1)"
+      ]
     },
     {
       "module": "CreatorRevenueRegistry",

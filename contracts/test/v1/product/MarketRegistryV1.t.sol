@@ -333,8 +333,9 @@ contract MarketRegistryV1Test is Test {
             graduatedHook: HOOK,
             creatorTaxBps: 0,
             creatorFeesToHolders: false,
-            stakingEnabled: true
-        });
+            stakingEnabled: true,
+                burnMemeFees: false
+            });
     }
 
     function _quote(address quoteAsset) private pure returns (QuoteAssetConfig memory) {

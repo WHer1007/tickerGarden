@@ -8,7 +8,7 @@ import {Test} from "forge-std/Test.sol";
 import {GraduationExecutor} from "../../../src/v1/modules/GraduationExecutor.sol";
 import {LaunchAndBuyRouter} from "../../../src/v1/modules/LaunchAndBuyRouter.sol";
 import {MarketRegistryV1} from "../../../src/v1/modules/MarketRegistryV1.sol";
-import {HolderAccountingHarness as HolderRewardsDistributorV1} from "../mocks/HolderAccountingHarness.sol";
+import {HolderRewardsDistributorV1} from "../../../src/v1/modules/HolderRewardsDistributorV1.sol";
 import {ProtocolFeeVault} from "../../../src/v1/modules/ProtocolFeeVault.sol";
 import {TickerGardenFactoryV1} from "../../../src/v1/modules/TickerGardenFactoryV1.sol";
 import {TickerGardenMemeHook} from "../../../src/v1/modules/TickerGardenMemeHook.sol";
@@ -141,7 +141,7 @@ contract V1RobinhoodTestnetDeploymentOrchestratorTest is Test {
         assertEq(deployedFactory.protocolFeeVault(), address(feeVault));
     }
 
-    function test_continuousStagedResumePreservesCommitmentsAndBindings() public {
+    function test_walletSnapshotStagedResumePreservesCommitmentsAndBindings() public {
         V1DeterministicDeploymentOrchestrator o = new V1DeterministicDeploymentOrchestrator(address(this), RELEASE_ID);
         (bytes32 helperSalt,) = V4DeterministicDeploymentBuilder.mineHelperSalt(address(o), RELEASE_ID, 200_000);
         bytes32 salt = V4DeterministicDeploymentBuilder.factorySalt(block.chainid, RELEASE_ID);
@@ -175,7 +175,8 @@ contract V1RobinhoodTestnetDeploymentOrchestratorTest is Test {
         assertTrue(o.completed());
         HolderRewardsDistributorV1 distributor = HolderRewardsDistributorV1(payable(plan.ordinaryComponents[14]));
         assertEq(address(distributor.marketRegistry()), plan.ordinaryComponents[10]);
-        assertEq(distributor.STREAM_DURATION(), 24 hours);
+        assertEq(distributor.rewardMode(), keccak256("TICKERGARDEN_HOLDER_WALLET_SNAPSHOT_V1"));
+        assertEq(distributor.snapshotPublisher(), address(0));
         assertEq(TickerGardenFactoryV1(plan.factory).holderRewardsDistributor(), address(distributor));
         assertEq(ProtocolFeeVault(payable(plan.ordinaryComponents[15])).marketRegistry(), plan.ordinaryComponents[10]);
         assertEq(o.deploymentPayloadHash(), plan.payloadHash);

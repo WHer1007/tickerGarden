@@ -10,7 +10,6 @@ import {V1ArbitrumDeploymentOrchestrator} from "./V1ArbitrumDeploymentOrchestrat
 contract DeployV1ArbitrumContinuousHolders is DeployV1ArbitrumStaged {
     error SimulationOnly();
 
-
     function _releaseInput(string memory path) internal view override returns (string memory) {
         if (keccak256(bytes(path)) == keccak256("../deployments/evidence/v1-current-release.json")) {
             return vm.readFile("../deployments/evidence/v1-continuous-candidate-release.json");

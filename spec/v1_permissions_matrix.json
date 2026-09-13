@@ -702,14 +702,6 @@
       "precondition": "FIXED_DISTRIBUTOR_CANONICAL_MEME"
     },
     {
-      "module": "TickerMemeTokenV1",
-      "signature": "enableContinuousRewards()",
-      "caller": "HOLDER_REWARDS_DISTRIBUTOR_MODULE",
-      "delaySeconds": 0,
-      "recipient": "none",
-      "precondition": "ONCE_ONLY_BY_IMMUTABLE_DISTRIBUTOR_AFTER_CANONICAL_REGISTRATION"
-    },
-    {
       "module": "ProtocolFeeVault",
       "signature": "proposePlatformTreasury(address)",
       "caller": "PROTOCOL_ADMIN_MEMBER",
@@ -745,6 +737,61 @@
       "recipient": "none",
       "precondition": "MATCHING_NONCE; NEW_TREASURY_ACCEPTED; 48H_ELAPSED; PROPOSER_STILL_ROLE_1; CODEHASH_UNCHANGED; ALL_UNPAID_PLATFORM_FEES_FOLLOW_CURRENT_TREASURY",
       "stateDelayAnchor": "TREASURY_PROPOSAL_TIMESTAMP"
+    },
+    {
+      "module": "ProtocolFeeVault",
+      "signature": "fundHolderRewardsBatch(bytes32[],uint8,uint256)",
+      "caller": "PUBLIC",
+      "delaySeconds": 0,
+      "recipient": "fixed_holder_distributor_per_market_and_asset",
+      "precondition": "BOUNDED_MARKETS_ASSET_MASK_AND_GAS; EACH_CHILD_USES_CANONICAL_FUNDING_AND_OPERATION_GUARD"
+    },
+    {
+      "module": "ProtocolFeeVault",
+      "signature": "settleV4StakerFee(address,address,uint256,bytes32)",
+      "caller": "FEE_VAULT",
+      "delaySeconds": 0,
+      "recipient": "none",
+      "precondition": "SELF_ONLY_AND_CREDIT_FINALIZING; FIXED_GAS_ROLLBACK_BOUNDARY; FAILURE_NEW_STAKER_FEES_FORFEITED_TO_PLATFORM"
+    },
+    {
+      "module": "ProtocolFeeVault",
+      "signature": "coverAssetDeficit(address,uint256)",
+      "caller": "PUBLIC",
+      "delaySeconds": 0,
+      "recipient": "fixed_fee_vault",
+      "precondition": "EXISTING_DEFICIT; EXACT_ASSET_RECEIPT; AMOUNT_NOT_ABOVE_DEFICIT; NO_NEW_LIABILITY"
+    },
+    {
+      "module": "TickerMemeTokenV1",
+      "signature": "burn(uint256)",
+      "caller": "CURRENT_MEME_HOLDER",
+      "delaySeconds": 0,
+      "recipient": "none; destroys only caller balance"
+    },
+    {
+      "module": "LaunchLocker",
+      "signature": "collectLockedFees()",
+      "caller": "PUBLIC",
+      "delaySeconds": 0,
+      "recipient": "fixed_locked_position",
+      "precondition": "FIXED_POSITION_ZERO_LIQUIDITY_DECREASE; ONLY_FEES_TO_LOCKER"
+    },
+    {
+      "module": "LaunchLocker",
+      "signature": "compoundLockedFees(uint128,uint128,uint128,uint256)",
+      "caller": "COMPOUND_KEEPER",
+      "delaySeconds": 0,
+      "recipient": "fixed_locked_position",
+      "precondition": "ONLY_COLLECTED_FEES; SAME_POSITION_POOL_RANGE; EXACT_LIQUIDITY_INCREASE; MAX_INPUTS; DEADLINE_WITHIN_300_SECONDS"
+    },
+    {
+      "module": "GraduationExecutor",
+      "signature": "setCompoundKeeper(address)",
+      "caller": "PROTOCOL_ADMIN_ROLE",
+      "delaySeconds": 172800,
+      "recipient": "none",
+      "precondition": "ZERO_DISABLES_COMPOUNDING_ONLY; NO_DEPLOYER_DEFAULT"
     }
   ],
   "forbiddenCapabilities": [

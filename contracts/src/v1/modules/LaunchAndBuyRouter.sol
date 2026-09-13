@@ -18,9 +18,9 @@ contract LaunchAndBuyRouter is LaunchAndBuyRouterERC20 {
     ) external payable nonReentrant returns (bytes32, address, uint256, uint256) {
         QuoteAssetConfig memory quoteConfig = _approvedQuoteRegistry.quoteConfig(params.quoteAssetConfigId);
         if (quoteConfig.quoteAsset == address(0)) {
-            return _launchAndBuyNative(msg.sender, params, firstBuyAmount, minTokensOut, recipient);
+            return _launchAndBuyNative(msg.sender, params, firstBuyAmount, minTokensOut, recipient, quoteConfig);
         }
-        return _launchAndBuyERC20(msg.sender, params, firstBuyAmount, minTokensOut, recipient);
+        return _launchAndBuyERC20(msg.sender, params, firstBuyAmount, minTokensOut, recipient, quoteConfig);
     }
 
     function factory() external view returns (address) {

@@ -11,12 +11,12 @@
       "interfaceArtifact": "contracts/out-v1/IV1Protocol.sol/IAllocationManager.json",
       "compilerVersion": "0.8.26+commit.8a97fa7a",
       "creationCode": {
-        "bytes": 10810,
-        "keccak256": "0xe766d9e5ae4ae4f62ab5685d042c1f5cff754b9572305df4d7f1499d8aec1d6e"
+        "bytes": 10837,
+        "keccak256": "0xc3a5d89cfa0e17392b6a503097ff0584af1e446f9079264d8012b4106d1c0864"
       },
       "runtimeTemplate": {
-        "bytes": 10429,
-        "keccak256": "0xf7767e171cb58ecb186c7223cad12bb3f5081ab9f68d7fc85f82b2e8828655b6",
+        "bytes": 10456,
+        "keccak256": "0x80869412d916426031bc750b3aa9adb41ada3357ba037780ad1df3801d26bc4e",
         "immutableReferenceGroups": 2,
         "isFinalDeploymentCodeHash": false
       },
@@ -106,12 +106,12 @@
       "interfaceArtifact": "contracts/out-v1/IV1Protocol.sol/ICreatorRevenueRegistry.json",
       "compilerVersion": "0.8.26+commit.8a97fa7a",
       "creationCode": {
-        "bytes": 3722,
-        "keccak256": "0xa44bc27d8798e7377f3f5411e56bfc4579221af2505c76cd1f44072446a598b6"
+        "bytes": 3741,
+        "keccak256": "0x2d13db5f3abcce261f51426122a60d87cfa1ad1f16cf61041a55fb4525af3982"
       },
       "runtimeTemplate": {
-        "bytes": 3400,
-        "keccak256": "0x0df913808f97daf9eabc89a90c25a3ae0c00d35bd8fa01bc6ae54c0f36c2afc1",
+        "bytes": 3419,
+        "keccak256": "0x1281b12d86f46880cbaa1e6eaeea36f676c935c5bba31e064ceafca0c60fe9e7",
         "immutableReferenceGroups": 2,
         "isFinalDeploymentCodeHash": false
       },
@@ -142,22 +142,23 @@
     {
       "module": "GraduationExecutor",
       "source": "contracts/src/v1/modules/GraduationExecutor.sol",
-      "sourceSha256": "0x47ecab8dc7c5bdaa3bc8545e2e3ec3bd43de119900dfc598d0bf6896a46eee3e",
+      "sourceSha256": "0x11a623ae625602fbfb5984e2eb0b1fba78c81c78558bfa191e797f7181f3e7ba",
       "artifact": "contracts/out-v1/GraduationExecutor.sol/GraduationExecutor.json",
       "interfaceArtifact": "contracts/out-v1/IV1Protocol.sol/IGraduationExecutor.json",
       "compilerVersion": "0.8.26+commit.8a97fa7a",
       "creationCode": {
-        "bytes": 23541,
-        "keccak256": "0xdc5bb65890095793faeae819162eb0bcb9e880933dd08d53596e3ff5ced272dd"
+        "bytes": 32557,
+        "keccak256": "0x42fb7720b8c6161f95004bbe2e668b8be75ca676caf3cc076ef17e15983626af"
       },
       "runtimeTemplate": {
-        "bytes": 17312,
-        "keccak256": "0x12a521eab0602a6545b0e1f246965b4ff9f93714eeb5eb527716956a8317bb26",
+        "bytes": 17967,
+        "keccak256": "0x26f0c137330cec0429cbbc7cbe4512498bc527c7240d33ac4c4e40245b315231",
         "immutableReferenceGroups": 10,
         "isFinalDeploymentCodeHash": false
       },
       "functions": [
         "approvedQuoteRegistry()",
+        "compoundKeeper()",
         "factory()",
         "graduateFromCurve(bytes32,uint256,uint256)",
         "hook()",
@@ -166,39 +167,42 @@
         "permit2()",
         "poolManager()",
         "positionManager()",
-        "predictLaunchLocker(bytes32)"
+        "predictLaunchLocker(bytes32)",
+        "setCompoundKeeper(address)"
       ],
       "mutations": [
-        "graduateFromCurve(bytes32,uint256,uint256)"
+        "graduateFromCurve(bytes32,uint256,uint256)",
+        "setCompoundKeeper(address)"
       ],
       "events": [
+        "CompoundKeeperChanged(address,address)",
         "PoolGraduated(bytes32,bytes32,address,uint256,uint256,uint256,uint256,uint256,uint256,uint32)"
       ]
     },
     {
       "module": "LaunchAndBuyRouter",
       "source": "contracts/src/v1/modules/LaunchAndBuyRouter.sol",
-      "sourceSha256": "0x497f0c84551b6f32e273be2c6b2ea661148d6d8e0f5925ab2d6c3b45ad04b667",
+      "sourceSha256": "0xfeb0faad13643f7f9239b78d9b30f8a34c716d8b72cac0a9bc8e10e16ef57e4e",
       "artifact": "contracts/out-v1/LaunchAndBuyRouter.sol/LaunchAndBuyRouter.json",
       "interfaceArtifact": "contracts/out-v1/IV1Protocol.sol/ILaunchAndBuyRouter.json",
       "compilerVersion": "0.8.26+commit.8a97fa7a",
       "creationCode": {
-        "bytes": 6596,
-        "keccak256": "0x9ea596b8b548fe756ecbd76d4045557b8d1686c553af9ceeeb586301ee45cf17"
+        "bytes": 6321,
+        "keccak256": "0x4155d2285426d91e49f689e7fe2e0d89e46a61ff173a8cf3a74cdcddbacb16e0"
       },
       "runtimeTemplate": {
-        "bytes": 6136,
-        "keccak256": "0x46c191a9c495f4a6e969fa8dc6e0ddeaa13dd2c73ad9e69ff1b5451bc8ff769a",
+        "bytes": 5875,
+        "keccak256": "0xdad690bd96b9ae8c6d5da322c49d2fce4429de94b2fd968c004e9e6a3dee2054",
         "immutableReferenceGroups": 2,
         "isFinalDeploymentCodeHash": false
       },
       "functions": [
         "approvedQuoteRegistry()",
         "factory()",
-        "launchAndBuy((bytes32,bytes32,bytes32,bytes32,bytes32,address,string,string,string,bytes32,uint16,bool,bool),uint256,uint256,address)"
+        "launchAndBuy((bytes32,bytes32,bytes32,bytes32,bytes32,address,string,string,string,bytes32,uint16,bool,bool,bool),uint256,uint256,address)"
       ],
       "mutations": [
-        "launchAndBuy((bytes32,bytes32,bytes32,bytes32,bytes32,address,string,string,string,bytes32,uint16,bool,bool),uint256,uint256,address)"
+        "launchAndBuy((bytes32,bytes32,bytes32,bytes32,bytes32,address,string,string,string,bytes32,uint16,bool,bool,bool),uint256,uint256,address)"
       ],
       "events": []
     },
@@ -231,27 +235,36 @@
     {
       "module": "LaunchLocker",
       "source": "contracts/src/v1/modules/LaunchLocker.sol",
-      "sourceSha256": "0xe53613f277bec70565c3a089eae5389dd4e332610cad576006b5a0a38a84b294",
+      "sourceSha256": "0xfd7611ef1f0b1b3eb1400c3512253bff42126116435896f208e68f94765a50c8",
       "artifact": "contracts/out-v1/LaunchLocker.sol/LaunchLocker.json",
       "interfaceArtifact": "contracts/out-v1/IV1Protocol.sol/ILaunchLocker.json",
       "compilerVersion": "0.8.26+commit.8a97fa7a",
       "creationCode": {
-        "bytes": 3241,
-        "keccak256": "0xf5f947ab239d4f73c526012da2ab4fcdfad57d495643719e4177369333d6c7a1"
+        "bytes": 11595,
+        "keccak256": "0x22cc92e93fb627fd18124f040f1b407afeab706d21dc8e3ad3bb179c86c8a9d3"
       },
       "runtimeTemplate": {
-        "bytes": 744,
-        "keccak256": "0xa408c98b9b66edd49a4c43abf62b019ac316c8ef2192e178f9e685e669fdb7de",
-        "immutableReferenceGroups": 5,
+        "bytes": 8742,
+        "keccak256": "0x49aa62a1a32de630c7530155b0dbecb50d11a3e8073a8cbc607c99c40e55cac4",
+        "immutableReferenceGroups": 7,
         "isFinalDeploymentCodeHash": false
       },
       "functions": [
+        "collectLockedFees()",
+        "compoundLockedFees(uint128,uint128,uint128,uint256)",
         "lockedPosition()",
         "marketId()",
+        "pendingCompoundFees()",
         "unpairedLockedBalance(address)"
       ],
-      "mutations": [],
-      "events": []
+      "mutations": [
+        "collectLockedFees()",
+        "compoundLockedFees(uint128,uint128,uint128,uint256)"
+      ],
+      "events": [
+        "LockedFeesCollected(bytes32,uint256,uint256,uint256)",
+        "LockedFeesCompounded(bytes32,uint256,uint128,uint256,uint256,uint256,uint256)"
+      ]
     },
     {
       "module": "LaunchTemplateRegistry",
@@ -299,12 +312,12 @@
       "interfaceArtifact": "contracts/out-v1/IV1Protocol.sol/IMarketRegistryV1.json",
       "compilerVersion": "0.8.26+commit.8a97fa7a",
       "creationCode": {
-        "bytes": 9441,
-        "keccak256": "0xf5348fadeb828b213563dc8bfa24333a8e5fc0ead5b96d70ea78c2fe22cbd706"
+        "bytes": 9534,
+        "keccak256": "0x3448163110071bbf05890955beb81b3896d0fc05d0583a50d2020d6b04b7e6fd"
       },
       "runtimeTemplate": {
-        "bytes": 8610,
-        "keccak256": "0x239c04865b75be59494adc0eec2b4a2b223b68fefea362e67fd278c0bff4ef84",
+        "bytes": 8703,
+        "keccak256": "0xa190c1dc4d0eb6a7a767046b38e7e4a88fed2496814e70da8004c13285591ed6",
         "immutableReferenceGroups": 6,
         "isFinalDeploymentCodeHash": false
       },
@@ -322,12 +335,12 @@
         "market(bytes32)",
         "marketIdByToken(address)",
         "officialStockRegistry()",
-        "registerMarket(bytes32,(bytes32,bytes32,bytes32,bytes32,bytes32,bytes32,bytes32,uint256,address,address,address,address,address,address,uint16,bool,bool))",
+        "registerMarket(bytes32,(bytes32,bytes32,bytes32,bytes32,bytes32,bytes32,bytes32,uint256,address,address,address,address,address,address,uint16,bool,bool,bool))",
         "tickerGardenBaselineRegistry()"
       ],
       "mutations": [
         "commitPoolCreated(bytes32,bytes32)",
-        "registerMarket(bytes32,(bytes32,bytes32,bytes32,bytes32,bytes32,bytes32,bytes32,uint256,address,address,address,address,address,address,uint16,bool,bool))"
+        "registerMarket(bytes32,(bytes32,bytes32,bytes32,bytes32,bytes32,bytes32,bytes32,uint256,address,address,address,address,address,address,uint16,bool,bool,bool))"
       ],
       "events": [
         "LaunchPhaseChanged(bytes32,uint8,uint8,bytes32,uint32)",
@@ -453,18 +466,25 @@
       "interfaceArtifact": "contracts/out-v1/IV1Protocol.sol/IProtocolFeeVault.json",
       "compilerVersion": "0.8.26+commit.8a97fa7a",
       "creationCode": {
-        "bytes": 21271,
-        "keccak256": "0x9aed728f5626a4eee2abeb706f00811b9cec6bfefbc89d09a91170c3cd0f0b17"
+        "bytes": 24445,
+        "keccak256": "0x7fd38a87467ad5720f9229becb5d32950db8e29254fa738107eb249125ce66f5"
       },
       "runtimeTemplate": {
-        "bytes": 19885,
-        "keccak256": "0x57cc9bf111c8e76f238b0e4af716a947163b1fef6be52305873b43d2d835a8cf",
+        "bytes": 23059,
+        "keccak256": "0x8befdf652db6f910594929cfcbeac63d4198fa7b22de0689b03ecd278f4c892f",
         "immutableReferenceGroups": 6,
         "isFinalDeploymentCodeHash": false
       },
       "functions": [
+        "HOLDER_FUNDING_GAS_RESERVE()",
+        "MAX_HOLDER_FUNDING_BATCH()",
+        "MAX_HOLDER_FUNDING_GAS()",
+        "MIN_HOLDER_FUNDING_GAS()",
+        "STAKER_SETTLEMENT_GAS()",
+        "STAKER_SETTLEMENT_RESERVE()",
         "TREASURY_CHANGE_DELAY()",
         "acceptPlatformTreasury(uint256)",
+        "assetCoverage(address)",
         "authority()",
         "beginCurveCredit(bytes32,address,uint256,uint256,uint32,uint64,bytes32)",
         "beginV4Credit(bytes32,address,uint256,uint32,bytes32)",
@@ -473,6 +493,7 @@
         "claimUserRewardAssets(bytes32,uint8,uint32,uint8)",
         "claimUserRewards(bytes32,uint8,uint32)",
         "consumedFeeId(bytes32)",
+        "coverAssetDeficit(address,uint256)",
         "creatorLiability(bytes32,uint32,address)",
         "creatorRevenueRegistry()",
         "executePlatformTreasury(uint256)",
@@ -483,6 +504,7 @@
         "forfeitureReserve(bytes32,address)",
         "fundHolderMemeRewards(bytes32)",
         "fundHolderRewards(bytes32,uint32)",
+        "fundHolderRewardsBatch(bytes32[],uint8,uint256)",
         "holderLiability(bytes32,uint32,address)",
         "liability(bytes32,address,uint8)",
         "marketRegistry()",
@@ -492,6 +514,7 @@
         "poolManager()",
         "proposePlatformTreasury(address)",
         "recordForfeiture(bytes32,address,uint256,uint256)",
+        "settleV4StakerFee(address,address,uint256,bytes32)",
         "totalLiability(address)",
         "treasuryChangeAccepted()",
         "treasuryChangeReadyAt()",
@@ -507,25 +530,33 @@
         "claimPlatform(bytes32,address)",
         "claimUserRewardAssets(bytes32,uint8,uint32,uint8)",
         "claimUserRewards(bytes32,uint8,uint32)",
+        "coverAssetDeficit(address,uint256)",
         "executePlatformTreasury(uint256)",
         "finalizeCurveCredit(bytes32,address,uint256,uint256,uint32,uint64,bytes32)",
         "finalizeV4Credit(bytes32,address,uint256,uint256,uint256,uint256,uint64,bytes32)",
         "fundHolderMemeRewards(bytes32)",
         "fundHolderRewards(bytes32,uint32)",
+        "fundHolderRewardsBatch(bytes32[],uint8,uint256)",
         "proposePlatformTreasury(address)",
-        "recordForfeiture(bytes32,address,uint256,uint256)"
+        "recordForfeiture(bytes32,address,uint256,uint256)",
+        "settleV4StakerFee(address,address,uint256,bytes32)"
       ],
       "events": [
         "CurveFeesSwept(bytes32,uint32,address,uint64,bytes32,uint256,uint256,uint256)",
+        "FeeAssetDeficitCovered(address,address,uint256,uint256)",
         "FeeBucketsCredited(bytes32,uint32,address,bytes32,uint256,uint256,uint256,uint256)",
         "FeeClaimed(uint8,address,bytes32,uint32,address,uint256)",
         "ForfeitureReserveConverted(bytes32,address,uint256)",
         "ForfeitureReserved(bytes32,address,address,uint256,uint256)",
         "HolderFeesAccrued(bytes32,uint32,address,uint256)",
+        "HolderFundingBatchStopped(uint256,uint8)",
+        "HolderFundingResult(bytes32,uint8,uint8,uint256,bytes4)",
+        "MemeFeesBurned(bytes32,address,uint8,uint32,address,uint256)",
         "PlatformTreasuryAccepted(uint256,address)",
         "PlatformTreasuryCancelled(uint256,address)",
         "PlatformTreasuryChanged(uint256,address,address)",
         "PlatformTreasuryProposed(uint256,address,address,address,uint256,bytes32)",
+        "StakerFeeAbandoned(bytes32,bytes32,address,uint256,bytes4)",
         "UserRewardsClaimed(bytes32,address,uint8,uint32,uint256,uint256)"
       ]
     },
@@ -573,12 +604,12 @@
       "interfaceArtifact": "contracts/out-v1/IV1Protocol.sol/ITickerGardenCurve.json",
       "compilerVersion": "0.8.26+commit.8a97fa7a",
       "creationCode": {
-        "bytes": 21065,
-        "keccak256": "0x0796a42118dd89bde17a4b59f1775ab953f8246decde14dcea6c4669140c095f"
+        "bytes": 21092,
+        "keccak256": "0x2d6c5b196656cd5afd7757762c5a0985de11c002e941c2e067d9c56a89fcb649"
       },
       "runtimeTemplate": {
-        "bytes": 17707,
-        "keccak256": "0x01aeddcb89603c51ad7a84d990fbc71b02aad0906b449b831f8d12aa59c4798f",
+        "bytes": 17734,
+        "keccak256": "0x28f33c338305c7ed8c4a717acf4172591a7f8bc290ff8641f2e98862be8b1339",
         "immutableReferenceGroups": 17,
         "isFinalDeploymentCodeHash": false
       },
@@ -615,25 +646,25 @@
     {
       "module": "TickerGardenFactoryV1",
       "source": "contracts/src/v1/modules/TickerGardenFactoryV1.sol",
-      "sourceSha256": "0xfbb7576f63d37c55d8e0aa2875e0bc62db1bd2f565f15e19866abd01bb8a38b8",
+      "sourceSha256": "0x0f5712794a80a02a0b789cf0ab1643b2898bab4a9c5991b33e1cf689bf40af94",
       "artifact": "contracts/out-v1/TickerGardenFactoryV1.sol/TickerGardenFactoryV1.json",
       "interfaceArtifact": "contracts/out-v1/IV1Protocol.sol/ITickerGardenFactoryV1.json",
       "compilerVersion": "0.8.26+commit.8a97fa7a",
       "creationCode": {
-        "bytes": 30707,
-        "keccak256": "0x1d6683f63262007c6b6d21c19b92bfdc2637ac5681a50ecf2a311c1856ec0d4e"
+        "bytes": 30768,
+        "keccak256": "0x486221e962755244a45e0f7d97d41347edc21c1417f741aca784927cc72a3cf3"
       },
       "runtimeTemplate": {
-        "bytes": 23880,
-        "keccak256": "0xf26c1e0f16aea051cc1e818c07904b25235f8540b0704c99cf0425d7e1cba433",
+        "bytes": 23941,
+        "keccak256": "0x4e348557f01135f19a895314d8010235d63f4052109d94fce3fb28e93fa65b88",
         "immutableReferenceGroups": 15,
         "isFinalDeploymentCodeHash": false
       },
       "functions": [
         "allocationManager()",
         "approvedQuoteRegistry()",
-        "createMarket((bytes32,bytes32,bytes32,bytes32,bytes32,address,string,string,string,bytes32,uint16,bool,bool))",
-        "createMarketFor(address,(bytes32,bytes32,bytes32,bytes32,bytes32,address,string,string,string,bytes32,uint16,bool,bool))",
+        "createMarket((bytes32,bytes32,bytes32,bytes32,bytes32,address,string,string,string,bytes32,uint16,bool,bool,bool))",
+        "createMarketFor(address,(bytes32,bytes32,bytes32,bytes32,bytes32,address,string,string,string,bytes32,uint16,bool,bool,bool))",
         "creatorRevenueRegistry()",
         "curveImplementation()",
         "curveInitialization(address)",
@@ -644,18 +675,19 @@
         "launchRouter()",
         "launchTemplateRegistry()",
         "marketRegistry()",
+        "memeFeeBurnMode()",
         "memeTokenImplementation()",
         "officialStockRegistry()",
         "platformTreasury()",
-        "predictMarketAddresses(address,(bytes32,bytes32,bytes32,bytes32,bytes32,address,string,string,string,bytes32,uint16,bool,bool))",
-        "previewMarketEconomics((bytes32,bytes32,bytes32,bytes32,bytes32,address,string,string,string,bytes32,uint16,bool,bool))",
+        "predictMarketAddresses(address,(bytes32,bytes32,bytes32,bytes32,bytes32,address,string,string,string,bytes32,uint16,bool,bool,bool))",
+        "previewMarketEconomics((bytes32,bytes32,bytes32,bytes32,bytes32,address,string,string,string,bytes32,uint16,bool,bool,bool))",
         "protocolFeeVault()",
         "runtimeBindings()",
         "tickerGardenBaselineRegistry()"
       ],
       "mutations": [
-        "createMarket((bytes32,bytes32,bytes32,bytes32,bytes32,address,string,string,string,bytes32,uint16,bool,bool))",
-        "createMarketFor(address,(bytes32,bytes32,bytes32,bytes32,bytes32,address,string,string,string,bytes32,uint16,bool,bool))"
+        "createMarket((bytes32,bytes32,bytes32,bytes32,bytes32,address,string,string,string,bytes32,uint16,bool,bool,bool))",
+        "createMarketFor(address,(bytes32,bytes32,bytes32,bytes32,bytes32,address,string,string,string,bytes32,uint16,bool,bool,bool))"
       ],
       "events": [
         "MarketCreated(bytes32,bytes32,address,address,address,address,bytes32,bytes32,bytes32)"
@@ -669,12 +701,12 @@
       "interfaceArtifact": "contracts/out-v1/IV1Protocol.sol/ITickerGardenMemeHook.json",
       "compilerVersion": "0.8.26+commit.8a97fa7a",
       "creationCode": {
-        "bytes": 10004,
-        "keccak256": "0x9737501e317d1a8d3700e44dade6580b1ada407c01f0b1618c19debdc1849fe1"
+        "bytes": 10031,
+        "keccak256": "0xea0052dae8a3530a1743db1c03d6395c7f0677b1676495283d48bd135a8ea622"
       },
       "runtimeTemplate": {
-        "bytes": 8632,
-        "keccak256": "0xf4977aa51a6a6d4ba9d8279764673f8d014041b2670e54485375188ed0a4c70c",
+        "bytes": 8659,
+        "keccak256": "0xef1765581ce3bdf499802f02166e5060042ea48f300b52c482ada6711de367e7",
         "immutableReferenceGroups": 7,
         "isFinalDeploymentCodeHash": false
       },
@@ -706,17 +738,17 @@
     {
       "module": "TickerMemeTokenV1",
       "source": "contracts/src/v1/modules/TickerMemeTokenV1.sol",
-      "sourceSha256": "0x0dfa91b2aef542631e4ec0f6d4c36db35a066a5b2f265888865543bef7169d46",
+      "sourceSha256": "0xcdbcef14ecc88ea30ddc128040b24fe260e428d34881f9e5d7d521507f942de7",
       "artifact": "contracts/out-v1/TickerMemeTokenV1.sol/TickerMemeTokenV1.json",
       "interfaceArtifact": "contracts/out-v1/IV1Protocol.sol/ITickerMemeTokenV1.json",
       "compilerVersion": "0.8.26+commit.8a97fa7a",
       "creationCode": {
-        "bytes": 4123,
-        "keccak256": "0xfda188c3fc7b6c1a2bcecf31e586d2a59f4ea904340c4b73dbed5ee9111c5116"
+        "bytes": 3723,
+        "keccak256": "0x70d10d210ff95b199adc06c41b7e0b6405d7fbe2eab4cd6ae126fd3c956ab73f"
       },
       "runtimeTemplate": {
-        "bytes": 2462,
-        "keccak256": "0xd15e7f390a185b30c382dbe35d1a8091b36ea4c2ab544230d3b217d4c6b917f4",
+        "bytes": 2226,
+        "keccak256": "0x32bdc4fc82523c976372db5a467378988c83865d5ddbde419ef9db5f8ab8cda3",
         "immutableReferenceGroups": 6,
         "isFinalDeploymentCodeHash": false
       },
@@ -724,11 +756,10 @@
         "allowance(address,address)",
         "approve(address,uint256)",
         "balanceOf(address)",
-        "continuousRewardsEnabled()",
+        "burn(uint256)",
         "creator()",
         "decimals()",
         "deployedAt()",
-        "enableContinuousRewards()",
         "factory()",
         "holderRewardsDistributor()",
         "initialSupply()",
@@ -742,7 +773,7 @@
       ],
       "mutations": [
         "approve(address,uint256)",
-        "enableContinuousRewards()",
+        "burn(uint256)",
         "transfer(address,uint256)",
         "transferFrom(address,address,uint256)"
       ],
@@ -759,12 +790,12 @@
       "interfaceArtifact": "contracts/out-v1/IV1Protocol.sol/IUserStockVault.json",
       "compilerVersion": "0.8.26+commit.8a97fa7a",
       "creationCode": {
-        "bytes": 12824,
-        "keccak256": "0x4aadb7b5cfd7c2749ecc53779e3f89d493e0f3ed07e6a0b75274f92db4907e13"
+        "bytes": 12851,
+        "keccak256": "0x7bd7ae47d7f300c03384829923d79355a602d987802e030e3e6907fe8b53c2d1"
       },
       "runtimeTemplate": {
-        "bytes": 12235,
-        "keccak256": "0xe985768b6b6a156ab8055b7f09db9c4423d812d447151b50a66d8c0ae7cc8c46",
+        "bytes": 12262,
+        "keccak256": "0x3e4cb5d3da8f9a68638bac39a26f36968deb81fb738251cd282971a465d8400a",
         "immutableReferenceGroups": 3,
         "isFinalDeploymentCodeHash": false
       },
@@ -818,9 +849,9 @@
   "extensionModules": [
     {
       "module": "HolderRewardsDistributorV1",
-      "mode": "TICKERGARDEN_HOLDER_DUAL_ASSET_24H_V4",
+      "mode": "TICKERGARDEN_HOLDER_WALLET_SNAPSHOT_V1",
       "source": "contracts/src/v1/modules/HolderRewardsDistributorV1.sol",
-      "sourceSha256": "0x78a8001518e3149fde03a1b77f111327f382ce418fbc3d94c88a329e70e69a84",
+      "sourceSha256": "0x36b87fca4e32ef0718d0330b41e9b7af04adfafcdb4e5dda890344adbeb1b0b1",
       "artifact": "contracts/out-v1/HolderRewardsDistributorV1.sol/HolderRewardsDistributorV1.json",
       "abi": [
         {
@@ -836,59 +867,20 @@
         },
         {
           "type": "function",
-          "name": "FUNDING_INTERVAL",
+          "name": "LEAF_DOMAIN",
           "inputs": [],
           "outputs": [
             {
               "name": "",
-              "type": "uint256",
-              "internalType": "uint256"
+              "type": "bytes32",
+              "internalType": "bytes32"
             }
           ],
           "stateMutability": "view"
         },
         {
           "type": "function",
-          "name": "MAX_FUNDING_INTERVAL",
-          "inputs": [],
-          "outputs": [
-            {
-              "name": "",
-              "type": "uint256",
-              "internalType": "uint256"
-            }
-          ],
-          "stateMutability": "view"
-        },
-        {
-          "type": "function",
-          "name": "MAX_STREAMS",
-          "inputs": [],
-          "outputs": [
-            {
-              "name": "",
-              "type": "uint256",
-              "internalType": "uint256"
-            }
-          ],
-          "stateMutability": "view"
-        },
-        {
-          "type": "function",
-          "name": "MIN_FUNDING_INTERVAL",
-          "inputs": [],
-          "outputs": [
-            {
-              "name": "",
-              "type": "uint256",
-              "internalType": "uint256"
-            }
-          ],
-          "stateMutability": "view"
-        },
-        {
-          "type": "function",
-          "name": "PRECISION",
+          "name": "MAX_PUBLISH_BATCH",
           "inputs": [],
           "outputs": [
             {
@@ -914,85 +906,46 @@
         },
         {
           "type": "function",
-          "name": "STREAM_DURATION",
-          "inputs": [],
-          "outputs": [
+          "name": "claimLeaf",
+          "inputs": [
             {
-              "name": "",
+              "name": "id",
+              "type": "bytes32",
+              "internalType": "bytes32"
+            },
+            {
+              "name": "round",
+              "type": "uint64",
+              "internalType": "uint64"
+            },
+            {
+              "name": "account",
+              "type": "address",
+              "internalType": "address"
+            },
+            {
+              "name": "quoteAmount",
               "type": "uint256",
               "internalType": "uint256"
-            }
-          ],
-          "stateMutability": "view"
-        },
-        {
-          "type": "function",
-          "name": "checkpoint",
-          "inputs": [
-            {
-              "name": "id",
-              "type": "bytes32",
-              "internalType": "bytes32"
-            }
-          ],
-          "outputs": [],
-          "stateMutability": "nonpayable"
-        },
-        {
-          "type": "function",
-          "name": "checkpointTransfer",
-          "inputs": [
-            {
-              "name": "id",
-              "type": "bytes32",
-              "internalType": "bytes32"
             },
             {
-              "name": "from",
-              "type": "address",
-              "internalType": "address"
-            },
-            {
-              "name": "to",
-              "type": "address",
-              "internalType": "address"
-            },
-            {
-              "name": "amount",
+              "name": "memeAmount",
               "type": "uint256",
               "internalType": "uint256"
-            }
-          ],
-          "outputs": [],
-          "stateMutability": "nonpayable"
-        },
-        {
-          "type": "function",
-          "name": "claimable",
-          "inputs": [
-            {
-              "name": "id",
-              "type": "bytes32",
-              "internalType": "bytes32"
-            },
-            {
-              "name": "user",
-              "type": "address",
-              "internalType": "address"
             }
           ],
           "outputs": [
             {
               "name": "",
-              "type": "uint256",
-              "internalType": "uint256"
+              "type": "bytes32",
+              "internalType": "bytes32"
             }
           ],
           "stateMutability": "view"
         },
         {
           "type": "function",
-          "name": "claimableAssets",
+          "name": "claimSnapshot",
           "inputs": [
             {
               "name": "id",
@@ -1000,53 +953,39 @@
               "internalType": "bytes32"
             },
             {
-              "name": "user",
-              "type": "address",
-              "internalType": "address"
-            }
-          ],
-          "outputs": [
+              "name": "round",
+              "type": "uint64",
+              "internalType": "uint64"
+            },
             {
-              "name": "quote",
+              "name": "quoteAmount",
               "type": "uint256",
               "internalType": "uint256"
             },
             {
-              "name": "meme",
+              "name": "memeAmount",
               "type": "uint256",
               "internalType": "uint256"
-            }
-          ],
-          "stateMutability": "view"
-        },
-        {
-          "type": "function",
-          "name": "consumeUserRewardAssets",
-          "inputs": [
-            {
-              "name": "id",
-              "type": "bytes32",
-              "internalType": "bytes32"
-            },
-            {
-              "name": "user",
-              "type": "address",
-              "internalType": "address"
             },
             {
               "name": "assets",
               "type": "uint8",
               "internalType": "uint8"
+            },
+            {
+              "name": "proof",
+              "type": "bytes32[]",
+              "internalType": "bytes32[]"
             }
           ],
           "outputs": [
             {
-              "name": "quote",
+              "name": "quotePaid",
               "type": "uint256",
               "internalType": "uint256"
             },
             {
-              "name": "meme",
+              "name": "memePaid",
               "type": "uint256",
               "internalType": "uint256"
             }
@@ -1055,32 +994,32 @@
         },
         {
           "type": "function",
-          "name": "consumeUserRewards",
+          "name": "claimedAssets",
           "inputs": [
             {
-              "name": "id",
+              "name": "",
               "type": "bytes32",
               "internalType": "bytes32"
             },
             {
-              "name": "user",
+              "name": "",
+              "type": "uint64",
+              "internalType": "uint64"
+            },
+            {
+              "name": "",
               "type": "address",
               "internalType": "address"
             }
           ],
           "outputs": [
             {
-              "name": "quote",
-              "type": "uint256",
-              "internalType": "uint256"
-            },
-            {
-              "name": "meme",
-              "type": "uint256",
-              "internalType": "uint256"
+              "name": "",
+              "type": "uint8",
+              "internalType": "uint8"
             }
           ],
-          "stateMutability": "nonpayable"
+          "stateMutability": "view"
         },
         {
           "type": "function",
@@ -1187,63 +1126,6 @@
         },
         {
           "type": "function",
-          "name": "fundingInterval",
-          "inputs": [
-            {
-              "name": "id",
-              "type": "bytes32",
-              "internalType": "bytes32"
-            }
-          ],
-          "outputs": [
-            {
-              "name": "",
-              "type": "uint256",
-              "internalType": "uint256"
-            }
-          ],
-          "stateMutability": "view"
-        },
-        {
-          "type": "function",
-          "name": "lastFundingAt",
-          "inputs": [
-            {
-              "name": "",
-              "type": "bytes32",
-              "internalType": "bytes32"
-            }
-          ],
-          "outputs": [
-            {
-              "name": "",
-              "type": "uint64",
-              "internalType": "uint64"
-            }
-          ],
-          "stateMutability": "view"
-        },
-        {
-          "type": "function",
-          "name": "lastStreamStartedAt",
-          "inputs": [
-            {
-              "name": "",
-              "type": "bytes32",
-              "internalType": "bytes32"
-            }
-          ],
-          "outputs": [
-            {
-              "name": "",
-              "type": "uint64",
-              "internalType": "uint64"
-            }
-          ],
-          "stateMutability": "view"
-        },
-        {
-          "type": "function",
           "name": "marketRegistry",
           "inputs": [],
           "outputs": [
@@ -1287,54 +1169,34 @@
                   "internalType": "address"
                 },
                 {
-                  "name": "updatedAt",
+                  "name": "registeredBlock",
                   "type": "uint64",
                   "internalType": "uint64"
                 },
                 {
-                  "name": "head",
-                  "type": "uint8",
-                  "internalType": "uint8"
+                  "name": "lastRound",
+                  "type": "uint64",
+                  "internalType": "uint64"
                 },
                 {
-                  "name": "count",
-                  "type": "uint8",
-                  "internalType": "uint8"
+                  "name": "lastSnapshotBlock",
+                  "type": "uint64",
+                  "internalType": "uint64"
                 },
                 {
-                  "name": "supply",
+                  "name": "unallocatedQuote",
                   "type": "uint256",
                   "internalType": "uint256"
                 },
                 {
-                  "name": "index",
+                  "name": "unallocatedMeme",
                   "type": "uint256",
                   "internalType": "uint256"
                 },
                 {
-                  "name": "indexRemainder",
-                  "type": "uint256",
-                  "internalType": "uint256"
-                },
-                {
-                  "name": "rate",
-                  "type": "uint256",
-                  "internalType": "uint256"
-                },
-                {
-                  "name": "idle",
-                  "type": "uint256",
-                  "internalType": "uint256"
-                },
-                {
-                  "name": "funded",
-                  "type": "uint256",
-                  "internalType": "uint256"
-                },
-                {
-                  "name": "paid",
-                  "type": "uint256",
-                  "internalType": "uint256"
+                  "name": "burnMemeFees",
+                  "type": "bool",
+                  "internalType": "bool"
                 }
               ]
             }
@@ -1343,127 +1205,58 @@
         },
         {
           "type": "function",
-          "name": "memeMarketState",
+          "name": "publishSnapshots",
           "inputs": [
             {
-              "name": "id",
-              "type": "bytes32",
-              "internalType": "bytes32"
-            }
-          ],
-          "outputs": [
-            {
-              "name": "",
-              "type": "tuple",
-              "internalType": "struct HolderRewardsDistributorV1.Market",
+              "name": "publications",
+              "type": "tuple[]",
+              "internalType": "struct HolderRewardsDistributorV1.Publication[]",
               "components": [
                 {
-                  "name": "token",
-                  "type": "address",
-                  "internalType": "address"
+                  "name": "marketId",
+                  "type": "bytes32",
+                  "internalType": "bytes32"
                 },
                 {
-                  "name": "quote",
-                  "type": "address",
-                  "internalType": "address"
-                },
-                {
-                  "name": "vault",
-                  "type": "address",
-                  "internalType": "address"
-                },
-                {
-                  "name": "updatedAt",
+                  "name": "round",
                   "type": "uint64",
                   "internalType": "uint64"
                 },
                 {
-                  "name": "head",
-                  "type": "uint8",
-                  "internalType": "uint8"
+                  "name": "snapshotBlock",
+                  "type": "uint64",
+                  "internalType": "uint64"
                 },
                 {
-                  "name": "count",
-                  "type": "uint8",
-                  "internalType": "uint8"
+                  "name": "snapshotBlockHash",
+                  "type": "bytes32",
+                  "internalType": "bytes32"
                 },
                 {
-                  "name": "supply",
+                  "name": "root",
+                  "type": "bytes32",
+                  "internalType": "bytes32"
+                },
+                {
+                  "name": "dataHash",
+                  "type": "bytes32",
+                  "internalType": "bytes32"
+                },
+                {
+                  "name": "quoteBudget",
                   "type": "uint256",
                   "internalType": "uint256"
                 },
                 {
-                  "name": "index",
-                  "type": "uint256",
-                  "internalType": "uint256"
-                },
-                {
-                  "name": "indexRemainder",
-                  "type": "uint256",
-                  "internalType": "uint256"
-                },
-                {
-                  "name": "rate",
-                  "type": "uint256",
-                  "internalType": "uint256"
-                },
-                {
-                  "name": "idle",
-                  "type": "uint256",
-                  "internalType": "uint256"
-                },
-                {
-                  "name": "funded",
-                  "type": "uint256",
-                  "internalType": "uint256"
-                },
-                {
-                  "name": "paid",
+                  "name": "memeBudget",
                   "type": "uint256",
                   "internalType": "uint256"
                 }
               ]
             }
           ],
-          "stateMutability": "view"
-        },
-        {
-          "type": "function",
-          "name": "memeNextStreamStartAt",
-          "inputs": [
-            {
-              "name": "id",
-              "type": "bytes32",
-              "internalType": "bytes32"
-            }
-          ],
-          "outputs": [
-            {
-              "name": "",
-              "type": "uint64",
-              "internalType": "uint64"
-            }
-          ],
-          "stateMutability": "view"
-        },
-        {
-          "type": "function",
-          "name": "nextStreamStartAt",
-          "inputs": [
-            {
-              "name": "id",
-              "type": "bytes32",
-              "internalType": "bytes32"
-            }
-          ],
-          "outputs": [
-            {
-              "name": "",
-              "type": "uint64",
-              "internalType": "uint64"
-            }
-          ],
-          "stateMutability": "view"
+          "outputs": [],
+          "stateMutability": "nonpayable"
         },
         {
           "type": "function",
@@ -1490,37 +1283,16 @@
         },
         {
           "type": "function",
-          "name": "releaseState",
+          "name": "revokeSnapshotPublisher",
           "inputs": [
             {
-              "name": "id",
-              "type": "bytes32",
-              "internalType": "bytes32"
+              "name": "expectedPublisher",
+              "type": "address",
+              "internalType": "address"
             }
           ],
-          "outputs": [
-            {
-              "name": "unreleased",
-              "type": "uint256",
-              "internalType": "uint256"
-            },
-            {
-              "name": "idleQuote",
-              "type": "uint256",
-              "internalType": "uint256"
-            },
-            {
-              "name": "nextEnd",
-              "type": "uint64",
-              "internalType": "uint64"
-            },
-            {
-              "name": "activeStreams",
-              "type": "uint256",
-              "internalType": "uint256"
-            }
-          ],
-          "stateMutability": "view"
+          "outputs": [],
+          "stateMutability": "nonpayable"
         },
         {
           "type": "function",
@@ -1556,7 +1328,7 @@
         },
         {
           "type": "function",
-          "name": "setFundingInterval",
+          "name": "roundState",
           "inputs": [
             {
               "name": "id",
@@ -1564,13 +1336,87 @@
               "internalType": "bytes32"
             },
             {
-              "name": "interval",
-              "type": "uint256",
-              "internalType": "uint256"
+              "name": "round",
+              "type": "uint64",
+              "internalType": "uint64"
+            }
+          ],
+          "outputs": [
+            {
+              "name": "",
+              "type": "tuple",
+              "internalType": "struct HolderRewardsDistributorV1.Round",
+              "components": [
+                {
+                  "name": "root",
+                  "type": "bytes32",
+                  "internalType": "bytes32"
+                },
+                {
+                  "name": "snapshotBlockHash",
+                  "type": "bytes32",
+                  "internalType": "bytes32"
+                },
+                {
+                  "name": "dataHash",
+                  "type": "bytes32",
+                  "internalType": "bytes32"
+                },
+                {
+                  "name": "snapshotBlock",
+                  "type": "uint64",
+                  "internalType": "uint64"
+                },
+                {
+                  "name": "quoteBudget",
+                  "type": "uint256",
+                  "internalType": "uint256"
+                },
+                {
+                  "name": "memeBudget",
+                  "type": "uint256",
+                  "internalType": "uint256"
+                },
+                {
+                  "name": "quoteRemaining",
+                  "type": "uint256",
+                  "internalType": "uint256"
+                },
+                {
+                  "name": "memeRemaining",
+                  "type": "uint256",
+                  "internalType": "uint256"
+                }
+              ]
+            }
+          ],
+          "stateMutability": "view"
+        },
+        {
+          "type": "function",
+          "name": "setSnapshotPublisher",
+          "inputs": [
+            {
+              "name": "publisher",
+              "type": "address",
+              "internalType": "address"
             }
           ],
           "outputs": [],
           "stateMutability": "nonpayable"
+        },
+        {
+          "type": "function",
+          "name": "snapshotPublisher",
+          "inputs": [],
+          "outputs": [
+            {
+              "name": "",
+              "type": "address",
+              "internalType": "address"
+            }
+          ],
+          "stateMutability": "view"
         },
         {
           "type": "function",
@@ -1618,7 +1464,7 @@
         },
         {
           "type": "event",
-          "name": "HolderFundingIntervalUpdated",
+          "name": "HolderSnapshotClaimed",
           "inputs": [
             {
               "name": "marketId",
@@ -1627,48 +1473,10 @@
               "internalType": "bytes32"
             },
             {
-              "name": "previousInterval",
-              "type": "uint256",
-              "indexed": false,
-              "internalType": "uint256"
-            },
-            {
-              "name": "newInterval",
-              "type": "uint256",
-              "indexed": false,
-              "internalType": "uint256"
-            }
-          ],
-          "anonymous": false
-        },
-        {
-          "type": "event",
-          "name": "HolderRewardsQueued",
-          "inputs": [
-            {
-              "name": "marketId",
-              "type": "bytes32",
+              "name": "round",
+              "type": "uint64",
               "indexed": true,
-              "internalType": "bytes32"
-            },
-            {
-              "name": "amount",
-              "type": "uint256",
-              "indexed": false,
-              "internalType": "uint256"
-            }
-          ],
-          "anonymous": false
-        },
-        {
-          "type": "event",
-          "name": "HolderStreamClaimed",
-          "inputs": [
-            {
-              "name": "marketId",
-              "type": "bytes32",
-              "indexed": true,
-              "internalType": "bytes32"
+              "internalType": "uint64"
             },
             {
               "name": "account",
@@ -1677,13 +1485,19 @@
               "internalType": "address"
             },
             {
-              "name": "asset",
-              "type": "address",
+              "name": "assets",
+              "type": "uint8",
               "indexed": false,
-              "internalType": "address"
+              "internalType": "uint8"
             },
             {
-              "name": "amount",
+              "name": "quotePaid",
+              "type": "uint256",
+              "indexed": false,
+              "internalType": "uint256"
+            },
+            {
+              "name": "memePaid",
               "type": "uint256",
               "indexed": false,
               "internalType": "uint256"
@@ -1693,32 +1507,7 @@
         },
         {
           "type": "event",
-          "name": "HolderStreamFunded",
-          "inputs": [
-            {
-              "name": "marketId",
-              "type": "bytes32",
-              "indexed": true,
-              "internalType": "bytes32"
-            },
-            {
-              "name": "amount",
-              "type": "uint256",
-              "indexed": false,
-              "internalType": "uint256"
-            },
-            {
-              "name": "end",
-              "type": "uint64",
-              "indexed": false,
-              "internalType": "uint64"
-            }
-          ],
-          "anonymous": false
-        },
-        {
-          "type": "event",
-          "name": "HolderStreamMarketRegistered",
+          "name": "HolderSnapshotMarketRegistered",
           "inputs": [
             {
               "name": "marketId",
@@ -1749,7 +1538,7 @@
         },
         {
           "type": "event",
-          "name": "IdleRewardsRestarted",
+          "name": "HolderSnapshotPublished",
           "inputs": [
             {
               "name": "marketId",
@@ -1758,19 +1547,78 @@
               "internalType": "bytes32"
             },
             {
-              "name": "scaledAmount",
+              "name": "round",
+              "type": "uint64",
+              "indexed": true,
+              "internalType": "uint64"
+            },
+            {
+              "name": "snapshotBlock",
+              "type": "uint64",
+              "indexed": false,
+              "internalType": "uint64"
+            },
+            {
+              "name": "snapshotBlockHash",
+              "type": "bytes32",
+              "indexed": false,
+              "internalType": "bytes32"
+            },
+            {
+              "name": "root",
+              "type": "bytes32",
+              "indexed": false,
+              "internalType": "bytes32"
+            },
+            {
+              "name": "dataHash",
+              "type": "bytes32",
+              "indexed": false,
+              "internalType": "bytes32"
+            },
+            {
+              "name": "quoteBudget",
               "type": "uint256",
               "indexed": false,
               "internalType": "uint256"
             },
             {
-              "name": "end",
-              "type": "uint64",
+              "name": "memeBudget",
+              "type": "uint256",
               "indexed": false,
-              "internalType": "uint64"
+              "internalType": "uint256"
             }
           ],
           "anonymous": false
+        },
+        {
+          "type": "event",
+          "name": "SnapshotPublisherChanged",
+          "inputs": [
+            {
+              "name": "previousPublisher",
+              "type": "address",
+              "indexed": true,
+              "internalType": "address"
+            },
+            {
+              "name": "newPublisher",
+              "type": "address",
+              "indexed": true,
+              "internalType": "address"
+            }
+          ],
+          "anonymous": false
+        },
+        {
+          "type": "error",
+          "name": "AlreadyClaimed",
+          "inputs": []
+        },
+        {
+          "type": "error",
+          "name": "BudgetExceeded",
+          "inputs": []
         },
         {
           "type": "error",
@@ -1784,17 +1632,27 @@
         },
         {
           "type": "error",
+          "name": "InvalidClaim",
+          "inputs": []
+        },
+        {
+          "type": "error",
           "name": "InvalidFunding",
           "inputs": []
         },
         {
           "type": "error",
-          "name": "InvalidFundingInterval",
+          "name": "InvalidMarket",
           "inputs": []
         },
         {
           "type": "error",
-          "name": "InvalidMarket",
+          "name": "InvalidPublication",
+          "inputs": []
+        },
+        {
+          "type": "error",
+          "name": "InvalidPublisher",
           "inputs": []
         },
         {
@@ -1815,11 +1673,6 @@
         },
         {
           "type": "error",
-          "name": "StreamCapacity",
-          "inputs": []
-        },
-        {
-          "type": "error",
           "name": "TransferFailed",
           "inputs": []
         },
@@ -1830,25 +1683,24 @@
         }
       ],
       "creationCode": {
-        "bytes": 15611,
-        "keccak256": "0xfbd64285364908ebf0262964c88ae17be94aacd3d2df926b8c9ce08c154da571"
+        "bytes": 12692,
+        "keccak256": "0x8c8ca8aa2da1baf65bffe537dedef34b2ddf1bdd79ae3675a6678815648901d5"
       },
       "runtimeTemplate": {
-        "bytes": 15380,
-        "keccak256": "0xbbef105339b2c6cf2077faa5ff875be4d9e2be9ea362d298f6d8223adba2a2c0",
+        "bytes": 12454,
+        "keccak256": "0x362d37988f68c4d035ea02193dc739a9c2f856557d24f64391d8076c4c70809a",
         "isFinalDeploymentCodeHash": false
       },
       "mutations": [
-        "checkpoint(bytes32)",
-        "checkpointTransfer(bytes32,address,address,uint256)",
-        "consumeUserRewardAssets(bytes32,address,uint8)",
-        "consumeUserRewards(bytes32,address)",
+        "claimSnapshot(bytes32,uint64,uint256,uint256,uint8,bytes32[])",
         "fundMemeFees(bytes32,uint256)",
         "fundQuoteRewards(bytes32,uint32,uint256)",
+        "publishSnapshots((bytes32,uint64,uint64,bytes32,bytes32,bytes32,uint256,uint256)[])",
         "registerFeeSharingMarket(bytes32,address,address)",
-        "setFundingInterval(bytes32,uint256)"
+        "revokeSnapshotPublisher(address)",
+        "setSnapshotPublisher(address)"
       ]
     }
   ],
-  "manifestHash": "0xbc546f1cf08625e10064d7f8f2c19d1ce503132fca0946c04b49ce951fbf35db"
+  "manifestHash": "0x7245b3eccb9106e8f112bb3d3583c98da1e396fb1f7b1b80922e7f45df5719d1"
 }

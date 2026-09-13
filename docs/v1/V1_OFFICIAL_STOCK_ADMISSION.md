@@ -57,7 +57,7 @@ STOCK 在 V1 中只承担质押 Base、分配权重和社区背书作用，不�
 
 ## 4. 毕业后手续费分配
 
-毕业后总协议手续费维持 1%，LP 协议手续费为 0%，Hook 将全部手续费统一转入 FeeVault。存在 Active staker 时按 Creator 40% / Staker 30% / Platform 30% 分配；不存在 Active staker 时按 Creator 70% / Staker 0% / Platform 30% 分配。Staker 与 Platform 份额向下取整，整数余数归 Creator。canonical LP 仍永久锁定，但不获得协议 LP 手续费。取消 donate 与 LaunchLocker collect/compound 路径，可消除即时池价复投/JIT 风险并降低 gas 与 keeper 运维成本。
+毕业后总协议手续费维持 1%，LP 协议手续费为 0%，Hook 将全部手续费统一转入 FeeVault。存在 Active staker 时按 Creator 40% / Staker 30% / Platform 30% 分配；不存在 Active staker 时按 Creator 70% / Staker 0% / Platform 30% 分配。Staker 与 Platform 份额向下取整，整数余数归 Creator。canonical LP 仍永久锁定，但不获得协议 LP 手续费。Hook 不执行 donate。新版 Locker 支持公开归集手续费与治理指定 Keeper 的有界复投；仅使用独立记账的 LP 手续费，不动用本金或毕业余量。参见 `LOCKER_FEE_COMPOUNDING.md`。
 
 每笔交易的1%协议手续费全部进入 FeeVault。令 `T` 为实际手续费，`S` 为本次费用入账前、已处理30秒成熟队列后的 `totalActiveStock`：
 

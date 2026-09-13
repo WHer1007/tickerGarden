@@ -18,6 +18,7 @@ struct CreateMarketParams {
     uint16 creatorTaxBps;
     bool creatorFeesToHolders;
     bool stakingEnabled;
+    bool burnMemeFees;
 }
 
 struct LaunchTemplate {
@@ -54,6 +55,7 @@ struct MarketConfig {
     uint16 creatorTaxBps;
     bool creatorFeesToHolders;
     bool stakingEnabled;
+    bool burnMemeFees;
 }
 
 struct PoolKey {
@@ -184,8 +186,8 @@ interface ITickerMemeTokenV1MutationDraft {
     function approve(address, uint256) external returns (bool);
     // caller=PUBLIC; executionDelay=0; stateDelay=0
     function transferFrom(address, address, uint256) external returns (bool);
-    // caller=HOLDER_REWARDS_DISTRIBUTOR_MODULE; executionDelay=0; stateDelay=0
-    function enableContinuousRewards() external;
+    // caller=CURRENT_MEME_HOLDER; executionDelay=0; stateDelay=0
+    function burn(uint256) external;
 }
 
 interface ITickerGardenCurveMutationDraft {
@@ -302,11 +304,26 @@ interface IProtocolFeeVaultMutationDraft {
     function cancelPlatformTreasury(uint256) external;
     // caller=PUBLIC; executionDelay=0; stateDelay=172800
     function executePlatformTreasury(uint256) external;
+    // caller=PUBLIC; executionDelay=0; stateDelay=0
+    function fundHolderRewardsBatch(bytes32[] calldata, uint8, uint256) external returns (uint256, uint8);
+    // caller=FEE_VAULT; executionDelay=0; stateDelay=0
+    function settleV4StakerFee(address, address, uint256, bytes32) external returns (uint256);
+    // caller=PUBLIC; executionDelay=0; stateDelay=0
+    function coverAssetDeficit(address, uint256) external payable;
 }
 
 interface IGraduationExecutorMutationDraft {
     // caller=EXACT_REGISTERED_CURVE; executionDelay=0; stateDelay=0
     function graduateFromCurve(bytes32, uint256, uint256) external payable;
+    // caller=PROTOCOL_ADMIN_ROLE; executionDelay=172800; stateDelay=0
+    function setCompoundKeeper(address) external;
+}
+
+interface ILaunchLockerMutationDraft {
+    // caller=PUBLIC; executionDelay=0; stateDelay=0
+    function collectLockedFees() external returns (uint256, uint256);
+    // caller=COMPOUND_KEEPER; executionDelay=0; stateDelay=0
+    function compoundLockedFees(uint128, uint128, uint128, uint256) external returns (uint256, uint256);
 }
 
 interface ICreatorRevenueRegistryMutationDraft {

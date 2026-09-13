@@ -100,7 +100,8 @@ contract PoolExecutionRegistryMock {
                 graduatedHook: hook,
                 creatorTaxBps: 0,
                 creatorFeesToHolders: false,
-                stakingEnabled: true
+                stakingEnabled: true,
+                burnMemeFees: false
             }),
             runtime: MarketRuntime({poolId: bytes32(0), sourceVersion: 1, launchPhase: 0})
         });

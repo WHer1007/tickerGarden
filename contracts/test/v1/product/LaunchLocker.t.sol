@@ -47,7 +47,8 @@ contract LaunchLockerRegistryMock {
                 graduatedHook: hook,
                 creatorTaxBps: 0,
                 creatorFeesToHolders: false,
-                stakingEnabled: true
+                stakingEnabled: true,
+                burnMemeFees: false
             }),
             runtime: MarketRuntime({poolId: bytes32(0), sourceVersion: 1, launchPhase: 0})
         });
@@ -139,7 +140,7 @@ contract LaunchLockerTest is Test {
         new LaunchLocker(MARKET_ID, address(wrongRegistry), address(positionManager));
     }
 
-    function test_locksPositionNFTAndExposesNoWithdrawalOrCompoundSurface() public view {
+    function test_locksPositionNFTAndExposesNoWithdrawalOrUnboundedCompoundSurface() public view {
         bytes4[9] memory forbidden = [
             bytes4(keccak256("withdraw(address,uint256)")),
             bytes4(keccak256("withdrawFees(address)")),
@@ -158,7 +159,7 @@ contract LaunchLockerTest is Test {
         assertEq(positionManager.ownerOf(1), address(locker));
     }
 
-    function test_compoundLockedFeesSelectorDoesNotExist() public view {
+    function test_unboundedCompoundSelectorDoesNotExist() public view {
         (bool success,) = address(locker).staticcall(abi.encodeWithSignature("compoundLockedFees()"));
         assertFalse(success);
     }

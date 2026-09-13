@@ -36,6 +36,6 @@
 ## Graduation and permanent liquidity
 
 - `GraduationExecutorEntry`, `GraduationExecutorAssetAccounting`, and `GraduationExecutorPoolExecution` authenticate the exact Curve, consume only the exact assets delivered by the final buy, deploy/bind the Locker, initialize and mint the canonical v4 pool, permanently lock both-currency dust, activate the Hook, and commit `PoolCreated` atomically.
-- `LaunchLockerBinding` and `LaunchLockerCustody` permanently isolate the full-range Position NFT and balances per market. Fee collection and compounding are intentionally absent.
+- `LaunchLockerBinding` and `LaunchLockerCustody` permanently isolate the full-range Position NFT and balances per market. `LaunchLockerCompounding` adds public fee collection and Keeper-bounded reinvestment of separately accounted fees; position principal and observed unrelated balances remain isolated.
 
 Configuration controls can stop new admission or new STOCK exposure, but cannot alter existing Curve/v4 trading or block principal exit. Target-chain identities, production deployment manifest, independent audit, and live E2E remain external gates.

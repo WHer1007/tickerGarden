@@ -145,8 +145,12 @@ abstract contract ProtocolFeeVaultV4Credit {
         _enterStandaloneOperation(feeId);
     }
 
-    function _enterStandaloneOperation(bytes32 operationId) internal {
+    function _requireCreditIdle(bytes32 operationId) internal view {
         if (_creditState != CREDIT_IDLE) revert FeeCreditNotPrepared(operationId);
+    }
+
+    function _enterStandaloneOperation(bytes32 operationId) internal {
+        _requireCreditIdle(operationId);
         _creditState = CREDIT_FINALIZING;
     }
 

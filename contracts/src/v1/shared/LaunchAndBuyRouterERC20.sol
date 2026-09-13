@@ -35,12 +35,13 @@ abstract contract LaunchAndBuyRouterERC20 is LaunchAndBuyRouterNative {
         CreateMarketParams calldata params,
         uint256 firstBuyAmount,
         uint256 minTokensOut,
-        address recipient
+        address recipient,
+        QuoteAssetConfig memory quoteConfig
     ) internal returns (bytes32 marketId, address memeToken, uint256 tokensOut, uint256 refund) {
         _requireLaunchInput(creator, firstBuyAmount, recipient);
         _requireFactoryBinding();
         ERC20LaunchState memory state;
-        state.quoteAsset = _requireERC20Quote(params.quoteAssetConfigId);
+        state.quoteAsset = _requireERC20Quote(params.quoteAssetConfigId, quoteConfig);
 
         uint256 fee = _launchFactory.launchFee();
         if (msg.value != fee) revert InvalidLaunchAndBuyValue(fee, msg.value);
@@ -65,8 +66,11 @@ abstract contract LaunchAndBuyRouterERC20 is LaunchAndBuyRouterNative {
         }
     }
 
-    function _requireERC20Quote(bytes32 quoteAssetConfigId) internal view returns (address quoteAsset) {
-        QuoteAssetConfig memory quote = _approvedQuoteRegistry.quoteConfig(quoteAssetConfigId);
+    function _requireERC20Quote(bytes32 quoteAssetConfigId, QuoteAssetConfig memory quote)
+        internal
+        view
+        returns (address quoteAsset)
+    {
         if (quote.status != CONFIG_STATUS_ACTIVE) {
             revert QuoteConfigNotActive(quoteAssetConfigId, quote.status);
         }

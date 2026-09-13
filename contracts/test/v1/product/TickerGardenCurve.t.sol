@@ -746,8 +746,9 @@ contract TickerGardenCurveTest is Test {
             graduatedHook: address(0x2044),
             creatorTaxBps: testTaxBps,
             creatorFeesToHolders: false,
-            stakingEnabled: true
-        });
+            stakingEnabled: true,
+                burnMemeFees: false
+            });
     }
 
     function _assertInitialState(TickerGardenCurve target, TickerMemeTokenV1 token) private view {

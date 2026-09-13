@@ -256,8 +256,8 @@
     {
       "module": "TickerGardenFactoryV1",
       "displaySignature": "createMarket(CreateMarketParams)",
-      "canonicalSignature": "createMarket((bytes32,bytes32,bytes32,bytes32,bytes32,address,string,string,string,bytes32,uint16,bool,bool))",
-      "selector": "0x4d16039b",
+      "canonicalSignature": "createMarket((bytes32,bytes32,bytes32,bytes32,bytes32,address,string,string,string,bytes32,uint16,bool,bool,bool))",
+      "selector": "0x8da44134",
       "selectorHash": "FIRST_4_BYTES_OF_KECCAK256_CANONICAL_SIGNATURE",
       "caller": "PUBLIC",
       "executionDelaySeconds": 0,
@@ -269,8 +269,8 @@
     {
       "module": "TickerGardenFactoryV1",
       "displaySignature": "createMarketFor(address,CreateMarketParams)",
-      "canonicalSignature": "createMarketFor(address,(bytes32,bytes32,bytes32,bytes32,bytes32,address,string,string,string,bytes32,uint16,bool,bool))",
-      "selector": "0x3551dd44",
+      "canonicalSignature": "createMarketFor(address,(bytes32,bytes32,bytes32,bytes32,bytes32,address,string,string,string,bytes32,uint16,bool,bool,bool))",
+      "selector": "0x4a17d1e1",
       "selectorHash": "FIRST_4_BYTES_OF_KECCAK256_CANONICAL_SIGNATURE",
       "caller": "LAUNCH_ROUTER_MODULE",
       "executionDelaySeconds": 0,
@@ -282,8 +282,8 @@
     {
       "module": "MarketRegistryV1",
       "displaySignature": "registerMarket(bytes32,MarketConfig)",
-      "canonicalSignature": "registerMarket(bytes32,(bytes32,bytes32,bytes32,bytes32,bytes32,bytes32,bytes32,uint256,address,address,address,address,address,address,uint16,bool,bool))",
-      "selector": "0x534619e7",
+      "canonicalSignature": "registerMarket(bytes32,(bytes32,bytes32,bytes32,bytes32,bytes32,bytes32,bytes32,uint256,address,address,address,address,address,address,uint16,bool,bool,bool))",
+      "selector": "0xda20394c",
       "selectorHash": "FIRST_4_BYTES_OF_KECCAK256_CANONICAL_SIGNATURE",
       "caller": "FACTORY_MODULE",
       "executionDelaySeconds": 0,
@@ -308,8 +308,8 @@
     {
       "module": "LaunchAndBuyRouter",
       "displaySignature": "launchAndBuy(CreateMarketParams,uint256,uint256,address)",
-      "canonicalSignature": "launchAndBuy((bytes32,bytes32,bytes32,bytes32,bytes32,address,string,string,string,bytes32,uint16,bool,bool),uint256,uint256,address)",
-      "selector": "0x75199371",
+      "canonicalSignature": "launchAndBuy((bytes32,bytes32,bytes32,bytes32,bytes32,address,string,string,string,bytes32,uint16,bool,bool,bool),uint256,uint256,address)",
+      "selector": "0x2248922b",
       "selectorHash": "FIRST_4_BYTES_OF_KECCAK256_CANONICAL_SIGNATURE",
       "caller": "PUBLIC",
       "executionDelaySeconds": 0,
@@ -359,16 +359,16 @@
     },
     {
       "module": "TickerMemeTokenV1",
-      "displaySignature": "enableContinuousRewards()",
-      "canonicalSignature": "enableContinuousRewards()",
-      "selector": "0x2fded928",
+      "displaySignature": "burn(uint256)",
+      "canonicalSignature": "burn(uint256)",
+      "selector": "0x42966c68",
       "selectorHash": "FIRST_4_BYTES_OF_KECCAK256_CANONICAL_SIGNATURE",
-      "caller": "HOLDER_REWARDS_DISTRIBUTOR_MODULE",
+      "caller": "CURRENT_MEME_HOLDER",
       "executionDelaySeconds": 0,
       "stateDelaySeconds": 0,
       "stateDelayAnchor": "NONE",
-      "precondition": "ONCE_ONLY_BY_IMMUTABLE_DISTRIBUTOR_AFTER_CANONICAL_REGISTRATION",
-      "recipient": "none"
+      "precondition": "NONE",
+      "recipient": "none; destroys only caller balance"
     },
     {
       "module": "TickerGardenCurve",
@@ -1008,6 +1008,45 @@
       "recipient": "none"
     },
     {
+      "module": "ProtocolFeeVault",
+      "displaySignature": "fundHolderRewardsBatch(bytes32[],uint8,uint256)",
+      "canonicalSignature": "fundHolderRewardsBatch(bytes32[],uint8,uint256)",
+      "selector": "0x9d7042a2",
+      "selectorHash": "FIRST_4_BYTES_OF_KECCAK256_CANONICAL_SIGNATURE",
+      "caller": "PUBLIC",
+      "executionDelaySeconds": 0,
+      "stateDelaySeconds": 0,
+      "stateDelayAnchor": "NONE",
+      "precondition": "BOUNDED_MARKETS_ASSET_MASK_AND_GAS; EACH_CHILD_USES_CANONICAL_FUNDING_AND_OPERATION_GUARD",
+      "recipient": "fixed_holder_distributor_per_market_and_asset"
+    },
+    {
+      "module": "ProtocolFeeVault",
+      "displaySignature": "settleV4StakerFee(address,address,uint256,bytes32)",
+      "canonicalSignature": "settleV4StakerFee(address,address,uint256,bytes32)",
+      "selector": "0x092e1a64",
+      "selectorHash": "FIRST_4_BYTES_OF_KECCAK256_CANONICAL_SIGNATURE",
+      "caller": "FEE_VAULT",
+      "executionDelaySeconds": 0,
+      "stateDelaySeconds": 0,
+      "stateDelayAnchor": "NONE",
+      "precondition": "SELF_ONLY_AND_CREDIT_FINALIZING; FIXED_GAS_ROLLBACK_BOUNDARY; FAILURE_NEW_STAKER_FEES_FORFEITED_TO_PLATFORM",
+      "recipient": "none"
+    },
+    {
+      "module": "ProtocolFeeVault",
+      "displaySignature": "coverAssetDeficit(address,uint256)",
+      "canonicalSignature": "coverAssetDeficit(address,uint256)",
+      "selector": "0xe112f9da",
+      "selectorHash": "FIRST_4_BYTES_OF_KECCAK256_CANONICAL_SIGNATURE",
+      "caller": "PUBLIC",
+      "executionDelaySeconds": 0,
+      "stateDelaySeconds": 0,
+      "stateDelayAnchor": "NONE",
+      "precondition": "EXISTING_DEFICIT; EXACT_ASSET_RECEIPT; AMOUNT_NOT_ABOVE_DEFICIT; NO_NEW_LIABILITY",
+      "recipient": "fixed_fee_vault"
+    },
+    {
       "module": "GraduationExecutor",
       "displaySignature": "graduateFromCurve(bytes32,uint256,uint256)",
       "canonicalSignature": "graduateFromCurve(bytes32,uint256,uint256)",
@@ -1019,6 +1058,45 @@
       "stateDelayAnchor": "NONE",
       "precondition": "NotGraduated_AND_CALLER_MATCHES_MARKET_CURVE_AND_EXACT_ASSETS_RECEIVED_IN_SAME_TRANSACTION",
       "recipient": "canonical_per_market_launch_locker"
+    },
+    {
+      "module": "GraduationExecutor",
+      "displaySignature": "setCompoundKeeper(address)",
+      "canonicalSignature": "setCompoundKeeper(address)",
+      "selector": "0x3a5f247b",
+      "selectorHash": "FIRST_4_BYTES_OF_KECCAK256_CANONICAL_SIGNATURE",
+      "caller": "PROTOCOL_ADMIN_ROLE",
+      "executionDelaySeconds": 172800,
+      "stateDelaySeconds": 0,
+      "stateDelayAnchor": "NONE",
+      "precondition": "ZERO_DISABLES_COMPOUNDING_ONLY; NO_DEPLOYER_DEFAULT",
+      "recipient": "none"
+    },
+    {
+      "module": "LaunchLocker",
+      "displaySignature": "collectLockedFees()",
+      "canonicalSignature": "collectLockedFees()",
+      "selector": "0x24eb5a92",
+      "selectorHash": "FIRST_4_BYTES_OF_KECCAK256_CANONICAL_SIGNATURE",
+      "caller": "PUBLIC",
+      "executionDelaySeconds": 0,
+      "stateDelaySeconds": 0,
+      "stateDelayAnchor": "NONE",
+      "precondition": "FIXED_POSITION_ZERO_LIQUIDITY_DECREASE; ONLY_FEES_TO_LOCKER",
+      "recipient": "fixed_locked_position"
+    },
+    {
+      "module": "LaunchLocker",
+      "displaySignature": "compoundLockedFees(uint128,uint128,uint128,uint256)",
+      "canonicalSignature": "compoundLockedFees(uint128,uint128,uint128,uint256)",
+      "selector": "0x830a740b",
+      "selectorHash": "FIRST_4_BYTES_OF_KECCAK256_CANONICAL_SIGNATURE",
+      "caller": "COMPOUND_KEEPER",
+      "executionDelaySeconds": 0,
+      "stateDelaySeconds": 0,
+      "stateDelayAnchor": "NONE",
+      "precondition": "ONLY_COLLECTED_FEES; SAME_POSITION_POOL_RANGE; EXACT_LIQUIDITY_INCREASE; MAX_INPUTS; DEADLINE_WITHIN_300_SECONDS",
+      "recipient": "fixed_locked_position"
     },
     {
       "module": "CreatorRevenueRegistry",
@@ -1417,10 +1495,58 @@
       "topic0": "0x470884a1f71e91b9ae0d014b54b65d762678ffff8eb9101b53633917751523a0"
     },
     {
+      "module": "ProtocolFeeVault",
+      "displayEvent": "HolderFundingResult(bytes32 indexed marketId,uint8 indexed asset,uint8 status,uint256 amount,bytes4 errorSelector)",
+      "canonicalSignature": "HolderFundingResult(bytes32,uint8,uint8,uint256,bytes4)",
+      "topic0": "0x6aaa7abb72dd98edcffe475225a853bf63bcfdc374ed2420302c541e070d63ad"
+    },
+    {
+      "module": "ProtocolFeeVault",
+      "displayEvent": "HolderFundingBatchStopped(uint256 nextMarket,uint8 nextAsset)",
+      "canonicalSignature": "HolderFundingBatchStopped(uint256,uint8)",
+      "topic0": "0x17727eb3b5a2507cc675e78540f3489f77b319332e0f4407062552aa543f5208"
+    },
+    {
+      "module": "ProtocolFeeVault",
+      "displayEvent": "StakerFeeAbandoned(bytes32 indexed marketId,bytes32 indexed feeId,address indexed feeAsset,uint256 amount,bytes4 errorSelector)",
+      "canonicalSignature": "StakerFeeAbandoned(bytes32,bytes32,address,uint256,bytes4)",
+      "topic0": "0x14aff5568c06eaedaa343c6dfbcadb98c7ca3e1b4fbe04faa63061e4f49cb7a6"
+    },
+    {
+      "module": "ProtocolFeeVault",
+      "displayEvent": "FeeAssetDeficitCovered(address indexed asset,address indexed contributor,uint256 amount,uint256 remainingDeficit)",
+      "canonicalSignature": "FeeAssetDeficitCovered(address,address,uint256,uint256)",
+      "topic0": "0xec9472a1d0e12a0e55d9a7d15cf9a3bdc73fd4b3db14142b1cf4e33fd93e9a0a"
+    },
+    {
+      "module": "ProtocolFeeVault",
+      "displayEvent": "MemeFeesBurned(bytes32 indexed marketId,address indexed beneficiary,uint8 indexed role,uint32 creatorEpoch,address token,uint256 amount)",
+      "canonicalSignature": "MemeFeesBurned(bytes32,address,uint8,uint32,address,uint256)",
+      "topic0": "0xf2da893a777f29acb6de4ae803a95498b36502f771bc676905ef9ec3b65b491f"
+    },
+    {
       "module": "GraduationExecutor",
       "displayEvent": "PoolGraduated(bytes32 indexed marketId,bytes32 indexed poolId,address indexed launchLocker,uint256 sweptQuote,uint256 sweptTokens,uint256 poolQuoteAmount,uint256 poolMemeAmount,uint256 lockedExcessQuote,uint256 lockedExcessMeme,uint32 sourceVersion)",
       "canonicalSignature": "PoolGraduated(bytes32,bytes32,address,uint256,uint256,uint256,uint256,uint256,uint256,uint32)",
       "topic0": "0x40a0877811468a71acbff54ef6c83948c23306787d6c38a4f084adbb56963489"
+    },
+    {
+      "module": "GraduationExecutor",
+      "displayEvent": "CompoundKeeperChanged(address indexed previousKeeper,address indexed newKeeper)",
+      "canonicalSignature": "CompoundKeeperChanged(address,address)",
+      "topic0": "0x5d0c16b1ddf7d1f80a106f806aa2fdf37b9bc6b6ab2e7c67f2c5e0353af20ad0"
+    },
+    {
+      "module": "LaunchLocker",
+      "displayEvent": "LockedFeesCollected(bytes32 indexed marketId,uint256 indexed tokenId,uint256 amount0,uint256 amount1)",
+      "canonicalSignature": "LockedFeesCollected(bytes32,uint256,uint256,uint256)",
+      "topic0": "0x48462c2071caf542b50dad1673cc1bf8fc9ac2557b7aa158dbff8eb84c6cce96"
+    },
+    {
+      "module": "LaunchLocker",
+      "displayEvent": "LockedFeesCompounded(bytes32 indexed marketId,uint256 indexed tokenId,uint128 liquidity,uint256 amount0,uint256 amount1,uint256 remaining0,uint256 remaining1)",
+      "canonicalSignature": "LockedFeesCompounded(bytes32,uint256,uint128,uint256,uint256,uint256,uint256)",
+      "topic0": "0x2a4f53e7b24f6546e18db2e9720d3fa59debcb1dbf1f0466ce1b90a0b8befe61"
     },
     {
       "module": "CreatorRevenueRegistry",

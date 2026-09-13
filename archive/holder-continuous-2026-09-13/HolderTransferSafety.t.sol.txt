@@ -1,0 +1,183 @@
+// SPDX-License-Identifier: MIT
+pragma solidity 0.8.26;
+
+import {HolderFundingIntervalTest} from "./HolderFundingInterval.t.sol";
+import {HolderRewardsDistributorV1} from "../../../../src/v1/modules/HolderRewardsDistributorV1.sol";
+import {MockExactQuoteToken} from "../../mocks/MockV1QuoteAssets.sol";
+
+/// @notice Canonical token transfers must remain independent of reward asset payments.
+contract HolderTransferSafetyTest is HolderFundingIntervalTest {
+    function _fundMeme(uint256 amount) internal {
+        _send(CURVE, address(vault), amount);
+        vm.startPrank(address(vault));
+        token.approve(address(d), amount);
+        d.fundMemeFees(ID, amount);
+        vm.stopPrank();
+    }
+
+    function _dualFund() internal {
+        _send(CURVE, ALICE, 100 ether);
+        _fund(24 ether);
+        _fundMeme(24 ether);
+    }
+
+    function testSafety_coldDualTwentyFourExpiredStreamsStayWithinTransferBudget() public {
+        _send(CURVE, ALICE, 100 ether);
+        d.setFundingInterval(ID, 1 hours);
+        for (uint256 i; i < 24; ++i) {
+            _fund(1 ether);
+            _fundMeme(1 ether);
+            vm.warp(block.timestamp + 1 hours);
+        }
+        assertEq(d.marketState(ID).count, 24);
+        assertEq(d.memeMarketState(ID).count, 24);
+        vm.warp(block.timestamp + 365 days);
+        // Reset account and storage warmth after setup; do not rely on transaction refunds.
+        vm.cool(address(d));
+        vm.cool(address(token));
+        vm.prank(ALICE);
+        uint256 beforeGas = gasleft();
+        token.transfer(BOB, 1 ether);
+        uint256 used = beforeGas - gasleft();
+        emit log_named_uint("cold dual 48-stream transfer gas", used);
+        assertLt(used, 1_500_000);
+        assertEq(d.marketState(ID).count, 0);
+        assertEq(d.memeMarketState(ID).count, 0);
+        assertEq(d.marketState(ID).supply, 100 ether);
+        assertEq(d.memeMarketState(ID).supply, 100 ether);
+        (uint256 q, uint256 m) = d.claimableAssets(ID, ALICE);
+        assertEq(q, 24 ether);
+        assertEq(m, 24 ether);
+        (q, m) = d.claimableAssets(ID, BOB);
+        assertEq(q, 0);
+        assertEq(m, 0);
+        vm.prank(address(vault));
+        (q, m) = d.consumeUserRewardAssets(ID, ALICE, 3);
+        assertEq(q, 24 ether);
+        assertEq(m, 24 ether);
+        assertEq(d.totalLiability(address(0)), 0);
+        assertEq(d.totalLiability(address(token)), 0);
+    }
+
+    function testSafety_coldOrdinaryTransferKeepsEligibleSupplyAndEarnedRewards() public {
+        _dualFund();
+        vm.warp(block.timestamp + 12 hours);
+        vm.cool(address(d));
+        vm.cool(address(token));
+        vm.prank(ALICE);
+        uint256 beforeGas = gasleft();
+        token.transfer(BOB, 10 ether);
+        uint256 used = beforeGas - gasleft();
+        emit log_named_uint("cold ordinary dual transfer gas", used);
+        assertLt(used, 350_000);
+        assertEq(d.marketState(ID).supply, 100 ether);
+        assertEq(d.memeMarketState(ID).supply, 100 ether);
+        vm.warp(block.timestamp + 12 hours);
+        (uint256 qa, uint256 ma) = d.claimableAssets(ID, ALICE);
+        (uint256 qb, uint256 mb) = d.claimableAssets(ID, BOB);
+        assertApproxEqAbs(qa, 22.8 ether, 1);
+        assertApproxEqAbs(ma, 22.8 ether, 1);
+        assertApproxEqAbs(qb, 1.2 ether, 1);
+        assertApproxEqAbs(mb, 1.2 ether, 1);
+        assertLe(qa + qb, 24 ether);
+        assertLe(ma + mb, 24 ether);
+    }
+
+    function testSafety_zeroAndSelfTransfersDoNotReassignEitherReward() public {
+        _dualFund();
+        vm.warp(block.timestamp + 12 hours);
+        _send(ALICE, BOB, 0);
+        _send(ALICE, ALICE, 100 ether);
+        _send(BOB, BOB, 0);
+        assertEq(token.balanceOf(ALICE), 100 ether);
+        assertEq(d.marketState(ID).supply, 100 ether);
+        assertEq(d.memeMarketState(ID).supply, 100 ether);
+        (uint256 q, uint256 m) = d.claimableAssets(ID, ALICE);
+        assertApproxEqAbs(q, 12 ether, 1);
+        assertApproxEqAbs(m, 12 ether, 1);
+        (q, m) = d.claimableAssets(ID, BOB);
+        assertEq(q, 0);
+        assertEq(m, 0);
+    }
+
+    function testSafety_invalidTransferRollsBackBothLedgerCheckpoints() public {
+        _dualFund();
+        bytes32 qBefore = keccak256(abi.encode(d.marketState(ID)));
+        bytes32 mBefore = keccak256(abi.encode(d.memeMarketState(ID)));
+        vm.warp(block.timestamp + 24 hours);
+        vm.expectRevert();
+        vm.prank(ALICE);
+        token.transfer(BOB, 101 ether);
+        assertEq(keccak256(abi.encode(d.marketState(ID))), qBefore);
+        assertEq(keccak256(abi.encode(d.memeMarketState(ID))), mBefore);
+        assertEq(token.balanceOf(ALICE), 100 ether);
+        assertEq(token.balanceOf(BOB), 0);
+        _send(ALICE, BOB, 100 ether);
+        (uint256 q, uint256 m) = d.claimableAssets(ID, ALICE);
+        assertEq(q, 24 ether);
+        assertEq(m, 24 ether);
+    }
+
+    function testSafety_quoteDeficitBlocksPaymentButNotTransfersOrSelectedMeme() public {
+        _dualFund();
+        vm.warp(block.timestamp + 24 hours);
+        vm.deal(address(d), 0); // Conditional external loss, not caused by a user action.
+        vm.expectRevert(HolderRewardsDistributorV1.Insolvent.selector);
+        vm.prank(address(vault));
+        d.consumeUserRewardAssets(ID, ALICE, 3);
+        _send(ALICE, BOB, 10 ether);
+        vm.prank(address(vault));
+        (uint256 q, uint256 m) = d.consumeUserRewardAssets(ID, ALICE, 2);
+        assertEq(q, 0);
+        assertEq(m, 24 ether);
+        assertEq(d.totalLiability(address(0)), 24 ether);
+        assertEq(d.totalLiability(address(token)), 0);
+        (q, m) = d.claimableAssets(ID, ALICE);
+        assertEq(q, 24 ether);
+        assertEq(m, 0);
+        vm.deal(address(d), 24 ether);
+        vm.prank(address(vault));
+        (q, m) = d.consumeUserRewardAssets(ID, ALICE, 1);
+        assertEq(q, 24 ether);
+        assertEq(m, 0);
+    }
+
+    function testSafety_brokenQuoteCallsDoNotEnterTokenTransferPath() public {
+        MockExactQuoteToken quote = new MockExactQuoteToken(18);
+        _deploy(address(quote));
+        _send(CURVE, ALICE, 100 ether);
+        quote.mint(address(vault), 24 ether);
+        vault.fundToken(d, ID, quote, 24 ether);
+        _fundMeme(24 ether);
+        vm.warp(block.timestamp + 24 hours);
+        vm.mockCallRevert(address(quote), bytes(""), bytes("QUOTE_UNAVAILABLE"));
+        _send(ALICE, BOB, 10 ether);
+        (uint256 q, uint256 m) = d.claimableAssets(ID, ALICE);
+        assertEq(q, 24 ether);
+        assertEq(m, 24 ether);
+        vm.prank(address(vault));
+        (q, m) = d.consumeUserRewardAssets(ID, ALICE, 2);
+        assertEq(q, 0);
+        assertEq(m, 24 ether);
+        vm.clearMockedCalls();
+    }
+
+    function testSafety_actualCheckpointFailureCannotSilentlyMoveBalances() public {
+        _dualFund();
+        vm.warp(block.timestamp + 12 hours);
+        vm.mockCallRevert(
+            address(d), abi.encodeWithSelector(d.checkpointTransfer.selector), bytes("CHECKPOINT_FAILURE")
+        );
+        vm.expectRevert(bytes("CHECKPOINT_FAILURE"));
+        vm.prank(ALICE);
+        token.transfer(BOB, 10 ether);
+        vm.clearMockedCalls();
+        assertEq(token.balanceOf(ALICE), 100 ether);
+        assertEq(token.balanceOf(BOB), 0);
+        (uint256 q, uint256 m) = d.claimableAssets(ID, ALICE);
+        assertApproxEqAbs(q, 12 ether, 1);
+        assertApproxEqAbs(m, 12 ether, 1);
+        _send(ALICE, BOB, 10 ether);
+        assertEq(token.balanceOf(BOB), 10 ether);
+    }
+}

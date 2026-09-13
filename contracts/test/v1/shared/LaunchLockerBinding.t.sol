@@ -32,7 +32,8 @@ contract LaunchLockerRegistryMock {
                 graduatedHook: address(0x2044),
                 creatorTaxBps: 0,
                 creatorFeesToHolders: false,
-                stakingEnabled: true
+                stakingEnabled: true,
+                burnMemeFees: false
             }),
             runtime: MarketRuntime({poolId: existingPool, sourceVersion: 1, launchPhase: phase})
         });

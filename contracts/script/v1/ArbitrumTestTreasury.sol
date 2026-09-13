@@ -4,7 +4,6 @@ pragma solidity 0.8.26;
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 
-
 /// @notice Single-owner revenue receiver exclusively for Arbitrum Sepolia testing.
 contract ArbitrumTestTreasury {
     using SafeERC20 for IERC20;
@@ -14,7 +13,6 @@ contract ArbitrumTestTreasury {
     error TransferFailed();
 
     /// @notice Configure only a vault whose immutable revenue receiver is this contract.
-
 
     constructor(address owner_) {
         if (block.chainid != 421614 || owner_ == address(0)) revert InvalidDeployment();

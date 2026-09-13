@@ -9,7 +9,7 @@ library V1MarketEconomics {
     bytes32 internal constant EXPECTED_ECONOMICS_DOMAIN = keccak256("TICKERGARDEN_V1_EXPECTED_ECONOMICS");
     bytes32 internal constant FEE_POLICY_DOMAIN = keccak256("TICKERGARDEN_V1_FEE_POLICY");
     uint256 internal constant LAUNCH_BASELINE_SCHEMA_VERSION = 1;
-    uint256 internal constant EXPECTED_ECONOMICS_SCHEMA_VERSION = 6;
+    uint256 internal constant EXPECTED_ECONOMICS_SCHEMA_VERSION = 7;
     uint256 internal constant FEE_POLICY_SCHEMA_VERSION = 4;
 
     struct FeePolicyInput {
@@ -42,6 +42,7 @@ library V1MarketEconomics {
         uint16 creatorTaxBps;
         bool creatorFeesToHolders;
         bool stakingEnabled;
+        bool burnMemeFees;
     }
 
     function hashTickerGardenBaseline(TickerGardenBaseline memory value) internal pure returns (bytes32) {
@@ -79,33 +80,8 @@ library V1MarketEconomics {
         );
     }
 
-    /// @dev All encoded values are static ABI words. Splitting avoids legacy-codegen stack limits while bytes.concat
-    ///      remains byte-for-byte identical to one abi.encode call.
+    /// @dev The all-static tuple encodes inline, byte-for-byte equal to flattened ABI words.
     function hashExpectedEconomics(ExpectedEconomicsInput memory value) internal pure returns (bytes32) {
-        bytes memory first = abi.encode(
-            EXPECTED_ECONOMICS_DOMAIN,
-            EXPECTED_ECONOMICS_SCHEMA_VERSION,
-            value.chainId,
-            value.factory,
-            value.assetUid,
-            value.stockToken,
-            value.stockDecimals,
-            value.tickerGardenBaselineId
-        );
-        bytes memory second = abi.encode(
-            value.tickerGardenBaselineHash,
-            value.quoteAssetConfigId,
-            value.quoteEconomicsHash,
-            value.launchTemplateId,
-            value.launchTemplateHash,
-            value.launchConfigId,
-            value.feePolicyId,
-            value.feePolicyHash,
-            value.executionSpecId,
-            value.creatorTaxBps,
-            value.creatorFeesToHolders,
-            value.stakingEnabled
-        );
-        return keccak256(bytes.concat(first, second));
+        return keccak256(abi.encode(EXPECTED_ECONOMICS_DOMAIN, EXPECTED_ECONOMICS_SCHEMA_VERSION, value));
     }
 }

@@ -40,7 +40,6 @@ for(const [name,address,fn,expected] of [
  ['GraduationExecutor',plan.executor,'hook',plan.hook],
  ['ProtocolFeeVault',plan.ordinaryComponents[15],'marketRegistry',plan.ordinaryComponents[10]],
  ['TickerGardenFactoryV1',plan.factory,'protocolFeeVault',plan.ordinaryComponents[15]]])eq(await read(name,address,fn),expected,fn);
-eq(await read('LaunchAndBuyRouter',plan.ordinaryComponents[9],'poolManager'),'0x8366a39cc670b4001a1121b8f6a443a643e40951','Native fallback PoolManager');
 const treasury=JSON.parse(fs.readFileSync('deployments/manifests/robinhood-testnet-46630.test-treasury.json'));
 eq(await read('TickerGardenFactoryV1',plan.factory,'platformTreasury'),treasury.address,'platformTreasury');
 // This receiver is an already-deployed dependency: validate its recorded bytecode, not a new build.
@@ -51,20 +50,25 @@ eq(await read('RobinhoodTestnetTreasury',treasury.address,'owner'),plan.deployer
 const admin=await read('AccessManager',plan.ordinaryComponents[0],'hasRole',[0n,plan.deployer]);
 if(!admin[0])throw Error('Admin role missing');
 if((BigInt(plan.hook)&0x3fffn)!==0x2044n)throw Error('Hook mask mismatch');
-eq(await read('HolderRewardsDistributorV1',plan.ordinaryComponents[14],'STREAM_DURATION'),86400,'Stream duration');
-eq(await read('HolderRewardsDistributorV1',plan.ordinaryComponents[14],'FUNDING_INTERVAL'),14400,'Default funding interval');
 eq(
  await read('HolderRewardsDistributorV1',plan.ordinaryComponents[14],'rewardMode'),
- keccak256(toHex('TICKERGARDEN_HOLDER_DUAL_ASSET_24H_V4')),
+ keccak256(toHex('TICKERGARDEN_HOLDER_WALLET_SNAPSHOT_V1')),
  'Holder reward mode'
 );
 eq(await read('HolderRewardsDistributorV1',plan.ordinaryComponents[14],'marketRegistry'),plan.ordinaryComponents[10],'Distributor registry');
 eq(await read('TickerGardenFactoryV1',plan.factory,'holderRewardsDistributor'),plan.ordinaryComponents[14],'Factory distributor');
 eq(
  await read('ProtocolFeeVault',plan.ordinaryComponents[15],'userClaimMode'),
- keccak256(toHex('TICKERGARDEN_USER_CLAIM_ASSET_SELECTION_V1')),
+ keccak256(toHex('TICKERGARDEN_USER_CLAIM_RAW_ASSETS_V1')),
  'User claim mode'
 );
+eq(await read('HolderRewardsDistributorV1',plan.ordinaryComponents[14],'snapshotPublisher'),'0x0000000000000000000000000000000000000000','Unconfigured publisher');
+eq(await read('ProtocolFeeVault',plan.ordinaryComponents[15],'STAKER_SETTLEMENT_GAS'),4000000,'Staker fault boundary gas');
+eq(await read('ProtocolFeeVault',plan.ordinaryComponents[15],'authority'),plan.ordinaryComponents[0],'FeeVault authority');
+eq(await read('ProtocolFeeVault',plan.ordinaryComponents[15],'platformTreasury'),treasury.address,'FeeVault treasury');
+eq(await read('GraduationExecutor',plan.executor,'compoundKeeper'),'0x0000000000000000000000000000000000000000','Unconfigured compound keeper');
+eq(await read('GraduationExecutor',plan.executor,'launchLockerCreationCodeHash'),keccak256(artifact('LaunchLocker').bytecode.object),'Current Locker creation code');
+eq(await read('TickerGardenFactoryV1',plan.factory,'memeFeeBurnMode'),keccak256(toHex('TICKERGARDEN_MEME_FEE_BURN_ON_SETTLEMENT_V1')),'Meme settlement burn mode');
 const txs=JSON.parse(fs.readFileSync(directory+'/robinhood-testnet-continuous-transactions.json'));
 if(!txs.length||txs.some(t=>t.status!=='CONFIRMED'))throw Error('Unconfirmed transactions');
 for(const t of txs){const r=await client.getTransactionReceipt({hash:t.hash});if(r.status!=='success')throw Error('Receipt failed');}

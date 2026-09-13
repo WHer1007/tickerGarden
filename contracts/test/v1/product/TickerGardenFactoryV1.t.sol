@@ -747,6 +747,24 @@ contract TickerGardenFactoryV1Test is Test {
         );
     }
 
+    function test_burnChoiceIsBoundToCreationEconomicsAndImmutableMarket() public {
+        CreateMarketParams memory params = _validParams(CREATOR, bytes32("BURN_MODE"));
+        bytes32 previous = params.expectedEconomics;
+        params.burnMemeFees = true;
+        vm.prank(CREATOR);
+        vm.expectRevert();
+        factory.createMarket{value: LAUNCH_FEE}(params);
+        vm.prank(CREATOR);
+        params.expectedEconomics = factory.previewMarketEconomics(params);
+        assertNotEq(params.expectedEconomics, previous);
+        vm.prank(CREATOR);
+        (bytes32 id,,,) = factory.createMarket{value: LAUNCH_FEE}(params);
+        assertTrue(marketRegistry.market(id).config.burnMemeFees);
+        (bool changed,) = address(marketRegistry).call(abi.encodeWithSignature("setBurnMemeFees(bytes32,bool)", id, false));
+        assertFalse(changed);
+        assertTrue(marketRegistry.market(id).config.burnMemeFees);
+    }
+
     function test_tokenCurveAndGaugeFreezeThePredictedIdentityWithoutInitializer() public {
         CreateMarketParams memory params = _validParams(CREATOR, bytes32("IDENTITY"));
         vm.prank(CREATOR);
@@ -2189,8 +2207,9 @@ contract TickerGardenFactoryV1Test is Test {
             salt: salt,
             creatorTaxBps: 0,
             creatorFeesToHolders: false,
-            stakingEnabled: true
-        });
+            stakingEnabled: true,
+                burnMemeFees: false
+            });
         vm.prank(creator);
         params.expectedEconomics = factory.previewMarketEconomics(params);
     }

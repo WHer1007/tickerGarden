@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.26;
 
+import {AccessManager} from "@openzeppelin/contracts/access/manager/AccessManager.sol";
 import {Test} from "forge-std/Test.sol";
 
 import {TickerGardenBaseline, QuoteAssetConfig} from "../../../src/v1/interfaces/IV1Protocol.sol";
@@ -90,6 +91,33 @@ contract GraduationExecutorTest is Test {
         executor = new GraduationExecutor(
             address(registry), address(quoteRegistry), address(poolManager), address(positionManager), address(hook)
         );
+    }
+
+    function test_keeperGovernanceDelayRotationAndDisable() public {
+        AccessManager access = new AccessManager(address(this));
+        address stocks = address(0x510C);
+        vm.mockCall(address(registry), abi.encodeWithSignature("officialStockRegistry()"), abi.encode(stocks));
+        vm.mockCall(stocks, abi.encodeWithSignature("authority()"), abi.encode(address(access)));
+        bytes4[] memory selectors = new bytes4[](1);
+        selectors[0] = executor.setCompoundKeeper.selector;
+        access.setTargetFunctionRole(address(executor), selectors, 1);
+        access.grantRole(1, address(this), uint32(2 days));
+        assertEq(executor.compoundKeeper(), address(0));
+        vm.prank(address(0xBAD));
+        vm.expectRevert(GraduationExecutor.UnauthorizedCompoundGovernance.selector);
+        executor.setCompoundKeeper(address(0xBEEF));
+        bytes memory plan = abi.encodeCall(executor.setCompoundKeeper, (address(0xBEEF)));
+        access.schedule(address(executor), plan, 0);
+        vm.expectRevert();
+        access.execute(address(executor), plan);
+        vm.warp(block.timestamp + 2 days);
+        access.execute(address(executor), plan);
+        assertEq(executor.compoundKeeper(), address(0xBEEF));
+        plan = abi.encodeCall(executor.setCompoundKeeper, (address(0)));
+        access.schedule(address(executor), plan, 0);
+        vm.warp(block.timestamp + 2 days);
+        access.execute(address(executor), plan);
+        assertEq(executor.compoundKeeper(), address(0));
     }
 
     function test_realLockerCreationCodeSaltPredictionAndActualDeploymentMatchManifest() public {

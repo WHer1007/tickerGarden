@@ -2,7 +2,6 @@
 pragma solidity 0.8.26;
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {UserRewardClaimsTest} from "./UserRewardClaims.t.sol";
-import {ContinuousHolderFeeFlowTest} from "./ContinuousHolderFeeFlow.t.sol";
 
 contract SelectedRewardClaimsTest is UserRewardClaimsTest {
     function test_creatorMemeOnlyIgnoresBrokenQuoteBalanceAndTransfer() public {
@@ -79,51 +78,5 @@ contract SelectedRewardClaimsTest is UserRewardClaimsTest {
         vm.prank(ALICE);
         vm.expectRevert();
         v.claimUserRewardAssets(ID, 0, 1, 4);
-    }
-}
-
-contract SelectedHolderClaimsTest is ContinuousHolderFeeFlowTest {
-    function _fundBoth() private {
-        _credit(100_000_000, 10_000_000);
-        vault.fundHolderRewards(ID, 1);
-        meme.transfer(address(vault), 10 ether);
-        vm.startPrank(address(vault));
-        meme.approve(address(rewards), 10 ether);
-        rewards.fundMemeFees(ID, 10 ether);
-        vm.stopPrank();
-        vm.warp(block.timestamp + 24 hours);
-    }
-
-    function test_holderMemeOnlyThroughRealVaultIgnoresFailedQuote() public {
-        _fundBoth();
-        (uint256 expectedQ, uint256 expectedM) = rewards.claimableAssets(ID, ALICE);
-        vm.mockCallRevert(address(quote), abi.encodeWithSelector(IERC20.balanceOf.selector), bytes("PAUSED"));
-        vm.prank(ALICE);
-        (uint256 paid, uint256 raw) = vault.claimUserRewardAssets(ID, 2, 0, 2);
-        assertEq(paid, 0);
-        assertEq(raw, expectedM);
-        vm.clearMockedCalls();
-        (uint256 remainingQ, uint256 remainingM) = rewards.claimableAssets(ID, ALICE);
-        assertEq(remainingQ, expectedQ);
-        assertEq(remainingM, 0);
-        vm.prank(ALICE);
-        vault.claimUserRewardAssets(ID, 2, 0, 1);
-        assertEq(quote.balanceOf(ALICE), expectedQ);
-    }
-
-    function test_holderQuoteOnlyNeverTransfersMemeOrDebitsMemeRights() public {
-        _fundBoth();
-        (uint256 expectedQ, uint256 expectedM) = rewards.claimableAssets(ID, ALICE);
-        vm.mockCallRevert(address(meme), abi.encodeWithSelector(IERC20.transfer.selector), bytes("PAUSED"));
-        vm.prank(ALICE);
-        (uint256 paid, uint256 raw) = vault.claimUserRewardAssets(ID, 2, 0, 1);
-        assertEq(paid, expectedQ);
-        assertEq(raw, 0);
-        (uint256 remainingQ, uint256 remainingM) = rewards.claimableAssets(ID, ALICE);
-        assertEq(remainingQ, 0);
-        assertEq(remainingM, expectedM);
-        vm.prank(ALICE);
-        (paid,) = vault.claimUserRewardAssets(ID, 2, 0, 1);
-        assertEq(paid, 0);
     }
 }

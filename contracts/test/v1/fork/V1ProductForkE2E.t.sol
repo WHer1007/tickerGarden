@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.26;
+import {CanonicalBlockClock, ICanonicalArbSys} from "../../../src/v1/libraries/CanonicalBlockClock.sol";
 import {IProtocolFeeVault as ICurrentFeeVault} from "../../../src/v1/interfaces/IV1Protocol.sol";
 
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
@@ -56,7 +57,6 @@ interface IArbSys {
 interface IProtocolFeeVaultFork {
     function creatorLiability(bytes32, uint32, address) external view returns (uint256);
     function holderLiability(bytes32, uint32, address) external view returns (uint256);
-    function fundHolderRewards(bytes32, uint32) external returns (uint256);
     function claimPlatform(bytes32, address) external returns (uint256);
     function liability(bytes32, address, uint8) external view returns (uint256);
     function platformTreasury() external view returns (address);
@@ -158,8 +158,8 @@ contract V1ProductForkE2ETest is Test {
     ///      the forked PoolManager; the one-holder TWAB is an explicitly synthetic test attestation.
 
     /// @dev Current streaming release against real v4 contracts; no root or ArbSys hash adapter.
-    function test_continuousReleaseRealV4RawAnytimeClaimAndCreatorHandoff() public {
-        _deployRuntimeGraph(true);
+    function test_walletSnapshotReleaseRealV4ClaimAndCreatorHandoff() public {
+        _deployRuntimeGraph();
         _activateConfiguration();
         vm.deal(CREATOR, 30 ether);
         CreateMarketParams memory params = _marketParams(true, 500, keccak256("CONTINUOUS_RH_FORK"));
@@ -176,39 +176,45 @@ contract V1ProductForkE2ETest is Test {
         TickerGardenCurve(payable(market.config.curve)).buy{value: 10 ether}(10 ether, 0, CREATOR);
         assertEq(marketRegistry.market(id).runtime.launchPhase, 1);
         _swapNativeForMeme(id);
-        _verifyContinuousClaim(id, token);
+        _verifySnapshotClaim(id, token);
     }
 
-    function _verifyContinuousClaim(bytes32 id, address token) private {
+    function _verifySnapshotClaim(bytes32 id, address token) private {
         IProtocolFeeVaultFork vault = IProtocolFeeVaultFork(plan.ordinaryComponents[15]);
         HolderRewardsDistributorV1 distributor = HolderRewardsDistributorV1(payable(plan.ordinaryComponents[14]));
         uint256 creatorMeme = vault.creatorLiability(id, 1, token);
-        uint256 pendingMeme = vault.holderLiability(id, 1, token);
-        assertGt(pendingMeme, 0);
+        uint256 holderMeme = vault.holderLiability(id, 1, token);
+        assertGt(holderMeme, 0);
         ICurrentFeeVault(address(vault)).fundHolderMemeRewards(id);
         assertEq(vault.holderLiability(id, 1, token), 0);
-        assertEq(vault.creatorLiability(id, 1, token), creatorMeme, "separate creator balance");
-        vault.fundHolderRewards(id, 1);
-        assertEq(distributor.lastFundingAt(id), block.timestamp);
-        assertEq(distributor.claimable(id, HOLDER), 0, "no instant reward on funding");
-        vm.warp(block.timestamp + 12 hours);
-        uint256 earned = distributor.claimable(id, HOLDER);
-        assertGt(earned, 0);
-        uint256 beforeBalance = HOLDER.balance;
+        uint256 holderQuote = ICurrentFeeVault(address(vault)).fundHolderRewards(id, 1);
+        distributor.setSnapshotPublisher(address(this));
+        // Synthetic epoch advancement tests claims, not historical snapshot reconstruction.
+        uint256 height = CanonicalBlockClock.number();
+        if (CanonicalBlockClock.isNitro()) {
+            vm.mockCall(address(100), abi.encodeCall(ICanonicalArbSys.arbBlockNumber, ()), abi.encode(height + 2));
+            vm.mockCall(
+                address(100),
+                abi.encodeCall(ICanonicalArbSys.arbBlockHash, (height + 1)),
+                abi.encode(keccak256("synthetic-fork-snapshot-block"))
+            );
+        } else {
+            vm.roll(height + 2);
+            vm.setBlockhash(height + 1, keccak256("synthetic-fork-snapshot-block"));
+        }
+        bytes32 leaf = distributor.claimLeaf(id, 1, HOLDER, holderQuote, holderMeme);
+        distributor.publishSnapshots(_onePublication(id, leaf, holderQuote, holderMeme));
         vm.prank(HOLDER);
-        (uint256 quotePaid,) = ICurrentFeeVault(address(vault)).claimUserRewards(id, 2, 0);
-        assertEq(quotePaid, earned);
-        assertEq(HOLDER.balance, beforeBalance + earned);
-        // Earnings remain the seller's; a recipient cannot inherit previously earned rewards.
+        (uint256 paidQuote, uint256 paidMeme) =
+            distributor.claimSnapshot(id, 1, holderQuote, holderMeme, 3, new bytes32[](0));
+        assertEq(paidQuote, holderQuote);
+        assertEq(paidMeme, holderMeme);
         uint256 holderTokens = IERC20(token).balanceOf(HOLDER);
         vm.prank(HOLDER);
         IERC20(token).transfer(STAKER, holderTokens);
-        assertEq(distributor.claimable(id, STAKER), 0);
-        vm.warp(block.timestamp + 12 hours);
-        assertEq(distributor.claimable(id, HOLDER), 0);
-        assertGt(distributor.claimable(id, STAKER), 0);
+        vm.expectRevert();
         vm.prank(STAKER);
-        ICurrentFeeVault(address(vault)).claimUserRewards(id, 2, 0);
+        distributor.claimSnapshot(id, 1, holderQuote, holderMeme, 3, new bytes32[](0));
         CreatorRevenueRegistry revenue = CreatorRevenueRegistry(factory.creatorRevenueRegistry());
         vm.prank(CREATOR);
         revenue.transferCreatorRevenueBeneficiary(id, STAKER);
@@ -222,6 +228,24 @@ contract V1ProductForkE2ETest is Test {
         (, uint256 creatorPaid) = ICurrentFeeVault(address(vault)).claimUserRewards(id, 0, 1);
         assertEq(creatorPaid, creatorMeme);
         _claimPlatformFees(vault, id, token);
+    }
+
+    function _onePublication(bytes32 id, bytes32 root, uint256 quoteBudget, uint256 memeBudget)
+        private
+        view
+        returns (HolderRewardsDistributorV1.Publication[] memory out)
+    {
+        out = new HolderRewardsDistributorV1.Publication[](1);
+        out[0] = HolderRewardsDistributorV1.Publication(
+            id,
+            1,
+            uint64(CanonicalBlockClock.number() - 1),
+            CanonicalBlockClock.hash(CanonicalBlockClock.number() - 1),
+            root,
+            keccak256("fork-snapshot"),
+            quoteBudget,
+            memeBudget
+        );
     }
 
     function _swapNativeForMeme(bytes32 marketId) private {
@@ -294,8 +318,9 @@ contract V1ProductForkE2ETest is Test {
             salt: salt,
             creatorTaxBps: taxBps,
             creatorFeesToHolders: holderFees,
-            stakingEnabled: true
-        });
+            stakingEnabled: true,
+                burnMemeFees: false
+            });
     }
 
     function _graduateMarket(bytes32 marketId, address curve) private returns (CanonicalRoute memory route) {

@@ -7,10 +7,9 @@ import {V1DeploymentPlan} from "./V4DeterministicDeploymentBuilder.sol";
 import {V1DeploymentPayload} from "./V1DeterministicDeploymentOrchestrator.sol";
 import {V1RobinhoodTestnetDeploymentOrchestrator} from "./V1RobinhoodTestnetDeploymentOrchestrator.sol";
 
-/// @notice Robinhood testnet release with 24-hour continuous holder reward streaming.
+/// @notice Historical script name retained for tooling compatibility; requires wallet-snapshot-v1 and a fresh certificate.
 contract DeployV1RobinhoodTestnetContinuousHolders is DeployV1RobinhoodTestnetStaged {
     error SimulationOnly();
-
 
     function _releaseInput(string memory path) internal view override returns (string memory) {
         if (keccak256(bytes(path)) == keccak256("../deployments/evidence/v1-current-release.json")) {

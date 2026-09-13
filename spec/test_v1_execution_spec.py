@@ -610,6 +610,8 @@ class V1ExecutionSpecTest(unittest.TestCase):
             {
                 "graduateFromCurve(bytes32,uint256,uint256)",
                 "predictLaunchLocker(bytes32)",
+                "compoundKeeper()",
+                "setCompoundKeeper(address)",
                 "marketRegistry()",
                 "approvedQuoteRegistry()",
                 "factory()",
@@ -660,6 +662,8 @@ class V1ExecutionSpecTest(unittest.TestCase):
             "(address,address,address,address,address,address,address,address)",
         )
         locker = {entry["signature"] for entry in modules["LaunchLocker"]["functions"]}
+        self.assertIn("compoundLockedFees(uint128,uint128,uint128,uint256)", locker)
+        self.assertIn("collectLockedFees()", locker)
         self.assertNotIn("compoundLockedFees()", locker)
         self.assertNotIn("compoundLockedFees(bytes32)", locker)
         required_errors = set(self.abi["requiredErrors"])
@@ -938,6 +942,7 @@ class V1ExecutionSpecTest(unittest.TestCase):
             for entry in self.canonical_abi["mutations"]
         }
         allowed_callers = {
+            "COMPOUND_KEEPER",
             "PUBLIC",
             "PROTOCOL_ADMIN_ROLE",
             "PAUSE_GUARDIAN_ROLE",
@@ -1176,7 +1181,7 @@ class V1ExecutionSpecTest(unittest.TestCase):
         vectors = {entry["schema"]: entry for entry in self.hash_schemas["vectors"]}
         self.assertEqual(set(vectors), expected_names)
         self.assertTrue(all(len(entry["result"]) == 66 for entry in vectors.values()))
-        self.assertEqual(vectors["expectedEconomics"]["inputs"]["schemaVersion"], "6")
+        self.assertEqual(vectors["expectedEconomics"]["inputs"]["schemaVersion"], "7")
         self.assertEqual(vectors["tickerGardenBaselineHash"]["inputs"]["schemaVersion"], "1")
         self.assertEqual(vectors["feePolicyHash"]["inputs"]["schemaVersion"], "4")
         self.assertEqual(vectors["quoteEconomicsHash"]["inputs"]["schemaVersion"], "1")
@@ -2025,23 +2030,29 @@ class V1ExecutionSpecTest(unittest.TestCase):
             ]
         )
 
-    def test_batch_operations_are_absent_from_initial_release_abi(self):
+    def test_batch_operations_are_limited_to_holder_funding(self):
         batch = self.manifest["batchOperations"]
-        self.assertFalse(batch["initialReleaseScope"])
-        self.assertFalse(batch["batchAbiAllowed"])
+        self.assertTrue(batch["initialReleaseScope"])
+        self.assertTrue(batch["batchAbiAllowed"])
+        self.assertEqual(batch["scope"], "HOLDER_FUNDING_ONLY")
         self.assertTrue(batch["singleMarketEntryPointsPermanent"])
-        signatures = [
-            entry["signature"]
+        expected_mutations = {"ProtocolFeeVault.fundHolderRewardsBatch(bytes32[],uint8,uint256)"}
+        expected_views = {"ProtocolFeeVault.MAX_HOLDER_FUNDING_BATCH()"}
+        self.assertEqual(set(batch["allowedMutations"]), expected_mutations)
+        self.assertEqual(set(batch["allowedBatchNamedViews"]), expected_views)
+        actual = {
+            module["module"] + "." + entry["signature"]
             for module in self.abi["modules"]
             for entry in module.get("functions", [])
-        ]
-        canonical_mutations = [
-            entry["canonicalSignature"]
+            if "batch" in entry["signature"].lower()
+        }
+        self.assertEqual(actual, expected_mutations | expected_views)
+        canonical = {
+            entry["module"] + "." + entry["canonicalSignature"]
             for entry in self.canonical_abi["mutations"]
-        ]
-        self.assertFalse(
-            [signature for signature in signatures + canonical_mutations if "batch" in signature.lower()]
-        )
+            if "batch" in entry["canonicalSignature"].lower()
+        }
+        self.assertEqual(canonical, expected_mutations)
 
     def test_curve_exact_output_rounding_and_invalid_zero_output(self):
         self.assertEqual(curve_amount_in(66_667, 1_000, 400_000), 201)

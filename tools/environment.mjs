@@ -73,7 +73,11 @@ export function checkSource(values,directory=root){
  const holderSource=fs.readFileSync(holder,'utf8');
  const holderClocks=[['TG_EXPECTED_HOLDER_STREAM_SECONDS','STREAM_DURATION'],['TG_EXPECTED_HOLDER_FUNDING_INTERVAL_SECONDS','FUNDING_INTERVAL'],['TG_EXPECTED_HOLDER_MIN_FUNDING_INTERVAL_SECONDS','MIN_FUNDING_INTERVAL'],['TG_EXPECTED_HOLDER_MAX_FUNDING_INTERVAL_SECONDS','MAX_FUNDING_INTERVAL']];
  const duration=(seconds)=>{const n=Number(seconds);if(n%3600===0)return `${n/3600} hours`;if(n%60===0)return `${n/60} minutes`;return `${n} seconds`;};
- for(const [key,name]of holderClocks)if(!holderSource.includes(`${name} = ${duration(values[key])}`))throw Error(`Holder rewards policy differs from the selected branch: ${key}`);
+ if(holderSource.includes('TICKERGARDEN_HOLDER_WALLET_SNAPSHOT_V1')) {
+  if(holderClocks.some(([,name])=>new RegExp(`\\b${name}\\s*=`).test(holderSource)))throw Error('Wallet snapshot source must not define a release clock');
+ } else {
+  for(const [key,name]of holderClocks)if(!holderSource.includes(`${name} = ${duration(values[key])}`))throw Error(`Holder rewards policy differs from the selected branch: ${key}`);
+ }
  const anti=fs.existsSync(path.join(directory,'contracts/src/v1/libraries/TickerGardenAntiSnipe.sol'))?'TickerGardenAntiSnipe.sol':'PonsAntiSnipe.sol';
  if(!fs.readFileSync(path.join(directory,'contracts/src/v1/libraries',anti),'utf8').includes(`SNIPE_TAX_SECONDS = ${values.TG_EXPECTED_ANTI_SNIPE_SECONDS}`))throw Error('Anti-snipe policy differs from the selected branch');
  const clocks=[['shared/AllocationManagerIncreases.sol','MINIMUM_LOCK = 24 hours'],['shared/MemeStockGaugePendingPositions.sol','MINIMUM_POSITION_LOCK = 24 hours'],['shared/DelayedUnpause.sol','UNPAUSE_STATE_DELAY = 1 days']];
