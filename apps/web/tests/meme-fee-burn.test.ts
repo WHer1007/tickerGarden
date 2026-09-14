@@ -18,7 +18,7 @@ const storage = (): DraftStorage => { const m = new Map<string, string>(); retur
 test("derive preserves explicit burn true and false and rejects invalid values", () => {
   assert.equal(deriveCreateMarketParams(base(true)).burnMemeFees, true);
   assert.equal(deriveCreateMarketParams(base(false)).burnMemeFees, false);
-  assert.throws(() => deriveCreateMarketParams({ ...base(), burnMemeFees: "yes" as never }), /Invalid Meme fee burn choice/);
+  assert.throws(() => deriveCreateMarketParams({ ...base(), burnMemeFees: "yes" as never }), /Invalid token fee burn choice/);
 });
 
 test("burn config resolves on current mode and fails closed on legacy mode", async () => {
@@ -43,10 +43,37 @@ test("draft persistence keeps the burn flag", () => {
   assert.equal(readCreateDraft(s, 4663)?.burnMemeFees, false);
 });
 
-test("Create has exactly one burn switch inside Advanced and no LP fee switch", () => {
+test("Create has exactly one burn switch inside Advanced and a separate LP fee choice", () => {
   const source = readFileSync(new URL("../src/pages/create.ts", import.meta.url), "utf8");
+  const app = readFileSync(new URL("../src/app.ts", import.meta.url), "utf8");
   assert.equal((source.match(/name="burnMemeFees"/g) ?? []).length, 1);
   const advanced = source.slice(source.indexOf('<details class="launch-advanced">'), source.indexOf('</details>', source.indexOf('<details class="launch-advanced">')));
   assert.match(advanced, /name="burnMemeFees"/);
-  assert.doesNotMatch(source, /name="(?:lpFee|liquidityFee|poolFee)"/i);
+  assert.match(advanced, /name="lpFeeEnabled"/);
+  assert.match(advanced, /name="lpFeePips"/);
+  assert.doesNotMatch(source, /creator and staker fees on claim, holder fees on funding/);
+  assert.doesNotMatch(app, /creator and staker fees on claim, holder fees on funding/);
+  assert.match(source, /Pool fee after Bloom\. Fixed at launch; 0% when off\./);
+});
+
+test('Create fee summaries stay concise at review time', () => {
+  const app = readFileSync(new URL('../src/app.ts', import.meta.url), 'utf8');
+  assert.doesNotMatch(app, /ETH allowance/);
+  const review = app.slice(app.indexOf('async function submitLaunch'), app.indexOf('async function performLaunch'));
+  assert.match(review, /\['LP Fee',`\$\{[^\n]+\}%`\]/);
+  assert.doesNotMatch(review, /after Bloom/);
+});
+
+test('LP tiers survive preview and ABI encoding, while older deployments reject enabled choice', async () => {
+  const {LP_FEE_MODE,resolveLpLaunchConfig}=await import('../src/v1/features/launch.ts');
+  for(const lpFeePips of [0,1000,2000,3000]) {
+    const config=await resolveLpLaunchConfig({...base(true),lpFeePips},async()=>LP_FEE_MODE);
+    const built=await buildCreateMarketRequest({factory:a('7'),launchFee:1n,config,previewMarketEconomics:async draft=>{assert.equal(draft.lpFeePips,lpFeePips);return h('e');}});
+    const decoded=decodeFunctionData({abi:built.request.abi,data:encodeFunctionData({abi:built.request.abi,functionName:built.request.functionName,args:built.request.args})});
+    assert.equal((decoded.args[0] as {lpFeePips:number}).lpFeePips,lpFeePips);
+  }
+  for(const fee of [-1,1,500,1001,4000,8388608,NaN])assert.throws(()=>deriveCreateMarketParams({...base(),lpFeePips:fee}),/Invalid LP fee tier/);
+  await assert.rejects(()=>resolveLpLaunchConfig({...base(),lpFeePips:1000},async()=>h('f')),/does not support/);
+  const old=await resolveLpLaunchConfig({...base(true),lpFeePips:0},async()=>h('f'));
+  assert.equal(old.lpFeePips,undefined);assert.equal(old.burnMemeFees,true);
 });

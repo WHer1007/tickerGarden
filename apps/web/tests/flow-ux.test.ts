@@ -16,7 +16,7 @@ test('staker help distinguishes locks, cleanup, conversion, empty and claimable'
   assert.match(stakerClaimHelp({...state,settlementPrincipal:10n}),/cleanup/);
   assert.match(stakerClaimHelp({...state,now:200n}),/ready to claim/);
   assert.match(stakerClaimHelp({...state,allocated:0n}),/ready to claim/);
-  assert.match(stakerClaimHelp({...state,now:200n,quoteClaimable:0n,memeClaimable:1n}),/Choose original assets or conversion/);
+  assert.equal(stakerClaimHelp({...state,now:200n,quoteClaimable:0n,memeClaimable:1n}),'Created-token rewards are available to claim.');
   assert.match(stakerClaimHelp({...state,now:200n,quoteClaimable:0n}),/No rewards/);
 });
 

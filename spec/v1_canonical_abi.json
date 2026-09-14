@@ -256,8 +256,8 @@
     {
       "module": "TickerGardenFactoryV1",
       "displaySignature": "createMarket(CreateMarketParams)",
-      "canonicalSignature": "createMarket((bytes32,bytes32,bytes32,bytes32,bytes32,address,string,string,string,bytes32,uint16,bool,bool,bool))",
-      "selector": "0x8da44134",
+      "canonicalSignature": "createMarket((bytes32,bytes32,bytes32,bytes32,bytes32,address,string,string,string,bytes32,uint16,bool,bool,bool,uint24))",
+      "selector": "0x2ec590e9",
       "selectorHash": "FIRST_4_BYTES_OF_KECCAK256_CANONICAL_SIGNATURE",
       "caller": "PUBLIC",
       "executionDelaySeconds": 0,
@@ -269,8 +269,8 @@
     {
       "module": "TickerGardenFactoryV1",
       "displaySignature": "createMarketFor(address,CreateMarketParams)",
-      "canonicalSignature": "createMarketFor(address,(bytes32,bytes32,bytes32,bytes32,bytes32,address,string,string,string,bytes32,uint16,bool,bool,bool))",
-      "selector": "0x4a17d1e1",
+      "canonicalSignature": "createMarketFor(address,(bytes32,bytes32,bytes32,bytes32,bytes32,address,string,string,string,bytes32,uint16,bool,bool,bool,uint24))",
+      "selector": "0xba4728aa",
       "selectorHash": "FIRST_4_BYTES_OF_KECCAK256_CANONICAL_SIGNATURE",
       "caller": "LAUNCH_ROUTER_MODULE",
       "executionDelaySeconds": 0,
@@ -282,8 +282,8 @@
     {
       "module": "MarketRegistryV1",
       "displaySignature": "registerMarket(bytes32,MarketConfig)",
-      "canonicalSignature": "registerMarket(bytes32,(bytes32,bytes32,bytes32,bytes32,bytes32,bytes32,bytes32,uint256,address,address,address,address,address,address,uint16,bool,bool,bool))",
-      "selector": "0xda20394c",
+      "canonicalSignature": "registerMarket(bytes32,(bytes32,bytes32,bytes32,bytes32,bytes32,bytes32,bytes32,uint256,address,address,address,address,address,address,uint16,bool,bool,bool,uint24))",
+      "selector": "0x7dbafbb7",
       "selectorHash": "FIRST_4_BYTES_OF_KECCAK256_CANONICAL_SIGNATURE",
       "caller": "FACTORY_MODULE",
       "executionDelaySeconds": 0,
@@ -308,8 +308,8 @@
     {
       "module": "LaunchAndBuyRouter",
       "displaySignature": "launchAndBuy(CreateMarketParams,uint256,uint256,address)",
-      "canonicalSignature": "launchAndBuy((bytes32,bytes32,bytes32,bytes32,bytes32,address,string,string,string,bytes32,uint16,bool,bool,bool),uint256,uint256,address)",
-      "selector": "0x2248922b",
+      "canonicalSignature": "launchAndBuy((bytes32,bytes32,bytes32,bytes32,bytes32,address,string,string,string,bytes32,uint16,bool,bool,bool,uint24),uint256,uint256,address)",
+      "selector": "0x3f6a78f5",
       "selectorHash": "FIRST_4_BYTES_OF_KECCAK256_CANONICAL_SIGNATURE",
       "caller": "PUBLIC",
       "executionDelaySeconds": 0,

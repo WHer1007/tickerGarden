@@ -7,7 +7,7 @@
     "chainId": 46630,
     "genesisHash": "0x829a42e6d68c872aafcef3abb2123fe371138fc415dd8b44381bbbf23049dd32",
     "releaseId": "0x5c2c656b1b23e895ea268c34b187cd267e0f4fdcc1759c726cbca7fafb7c9c12",
-    "bootstrap": "apps/web/public/integration/rh-5c2c656b.json",
+    "bootstrap": "apps/web/tests/fixtures/integration/rh-5c2c656b.json",
     "activationBlockNumber": "117032526",
     "activationBlockHash": "0x36065fb09f78a00f75c528cad0e81e2f1a7b9f59bea9577488f26f4fb611f806",
     "factory": "0x496a3cb9fd8a045c590f311e948b2b4382f17904",
@@ -36,7 +36,7 @@
     "services/backend-ts/packages/events/src/f72-abis.generated.ts": "6f225dac1855c36724ae4687250a01f3dc3bb60705e62dfc7bc04fbd4f472f2c",
     "services/backend-ts/packages/config-projector/src/f72-bootstrap.generated.ts": "b19c5faa29c8607b215e3a1f80f3220cf5a466b7ad88a787ec4c78643fa4691e",
     "deployments/releases/0x5c2c656b1b23e895ea268c34b187cd267e0f4fdcc1759c726cbca7fafb7c9c12/backend-deployment-manifest.json": "89a97c9c852b1622535f9e1be75b1bbc86490f4a310801c60765c179088b2e67",
-    "apps/web/public/integration/rh-5c2c656b.json": "a085104ad89d0cc905b00d076bfa617ceb8a122f008e123f375cafa7dae9e936"
+    "apps/web/tests/fixtures/integration/rh-5c2c656b.json": "a085104ad89d0cc905b00d076bfa617ceb8a122f008e123f375cafa7dae9e936"
   },
   "capabilities": {
     "continuousHolderRead": false,

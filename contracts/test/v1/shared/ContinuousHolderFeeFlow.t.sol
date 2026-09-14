@@ -63,6 +63,11 @@ contract ContinuousHolderFeeFlowTest is Test {
     }
 
     function _credit(uint256 total, uint256 tax) internal {
+        this.atomicCurveCredit(total, tax);
+    }
+
+    // Model the canonical Curve's atomic begin/transfer/finalize under Forge isolation.
+    function atomicCurveCredit(uint256 total, uint256 tax) external {
         ++nonce;
         bytes32 feeId = keccak256(
             abi.encode(

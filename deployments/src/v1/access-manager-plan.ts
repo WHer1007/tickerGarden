@@ -120,10 +120,19 @@ export function deriveV1AccessManagerPlan(unchecked: V1AccessManagerPlanInput): 
     throw new Error("Guardian role requires an independent Safe member");
   }
   const reservedAddresses = new Set([input.accessManager, input.deployer, ...roleMembers]);
+  // Per-market, direct-only contracts (for example LaunchLocker) do not exist
+  // during bootstrap. Require addresses only for targets whose selectors this
+  // plan actually configures; still validate every optional supplied address.
+  const requiredTargets = new Set(compiled.mutations
+    .filter((mutation) => Object.hasOwn(V1_ACCESS_ROLES, String(mutation.caller)))
+    .map((mutation) => String(mutation.target)));
   const moduleAddresses = new Map<string, string>();
   for (const { target } of compiled.modules) {
     const candidate = unchecked.moduleAddresses[target];
-    if (candidate === undefined) throw new Error(`Missing V1 module address: ${target}`);
+    if (candidate === undefined) {
+      if (requiredTargets.has(target)) throw new Error(`Missing V1 module address: ${target}`);
+      continue;
+    }
     const normalized = address(candidate, `moduleAddresses.${target}`);
     if (reservedAddresses.has(normalized) || [...moduleAddresses.values()].includes(normalized)) {
       throw new Error(`Aliased V1 deployment address: ${target}`);

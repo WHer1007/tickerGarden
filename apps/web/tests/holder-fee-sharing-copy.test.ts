@@ -14,7 +14,7 @@ test("holder fee sharing uses the approved feature label and creation semantics"
   assert.match(rewards, /Holder rewards/);
   assert.match(create, /50% of the creator base-fee share/i);
   assert.match(create, /excluding creator tax/i);
-  assert.match(create, /claim the original Quote and Meme assets after publication/i);
+  assert.match(create, /claim the original paired asset and created token after publication/i);
   assert.match(create, /no fixed payout schedule/i);
   assert.doesNotMatch(create, /Request a treasury|Registration and funding happen separately|no fees are automatically redirected/i);
   assert.doesNotMatch(create, /give up all creator base fee share|all creator base fee share and creator tax/i);
@@ -32,6 +32,6 @@ test("docs separate holder eligibility, release timing and asset choices", () =>
   assert.doesNotMatch(docs, /10–20 minutes/);
   assert.match(docs, /signature does not launch the token or approve asset spending/i);
   assert.match(docs, /rageQuit path that can return the full allocated Stock Token principal without waiting/i);
-  assert.match(docs, /permanently forfeits every unclaimed Quote and Meme reward/i);
-  assert.match(docs, /current Stake page does not expose this contract-level path/i);
+  assert.match(docs, /permanently forfeits every unclaimed paired-asset and created-token reward/i);
+  assert.match(docs, /no rageQuit button in the frontend/i);
 });

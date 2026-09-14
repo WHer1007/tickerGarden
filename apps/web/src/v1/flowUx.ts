@@ -12,7 +12,7 @@ export function stakerClaimHelp(state: {allocated: bigint; unlockAt: bigint; now
       : `Reward claims unlock ${new Date(Number(state.unlockAt) * 1000).toLocaleString()}. Adding stake restarts the lock for the entire position.`;
   }
   if (state.quoteClaimable > 0n) return 'Settled rewards are ready to claim to your connected wallet. Your stake stays in place.';
-  if (state.memeClaimable > 0n) return 'Meme rewards are available. Choose original assets or conversion when claiming.';
+  if (state.memeClaimable > 0n) return 'Created-token rewards are available to claim.';
   return 'No rewards to claim yet. Rewards accrue from eligible trading fees while your stake is active.';
 }
 

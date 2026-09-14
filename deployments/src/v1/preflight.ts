@@ -737,13 +737,20 @@ async function verifyMarketProbe(manifest: Manifest, rpc: V1ReadOnlyRpc, blockTa
   const keyWords = words(await rpcCall(rpc, registry, callData("canonicalPoolKey(bytes32)", [marketId.slice(2)]), blockTag, "canonicalPoolKey"), "canonicalPoolKey", 5);
   same("canonicalPoolKey.currency0", stringField(poolKey, "currency0"), wordAddress(keyWords[0] as string));
   same("canonicalPoolKey.currency1", stringField(poolKey, "currency1"), wordAddress(keyWords[1] as string));
-  if (wordUint(keyWords[2] as string) !== 0n) fail("canonicalPoolKey.fee", 0, wordUint(keyWords[2] as string));
+  const lpFee = BigInt(numberField(poolKey, "fee"));
+  if (BigInt(numberField(manifest.hook,"poolKeyFee")) !== lpFee || BigInt(numberField(manifest.hook,"requiredSlot0LpFee")) !== lpFee) fail("hook LP fee proof",lpFee,"inconsistent probe fee");
+  if (![0n,1000n,2000n,3000n].includes(lpFee)) fail("poolKey.fee", "supported static LP fee", lpFee);
+  if (wordUint(keyWords[2] as string) !== lpFee) fail("canonicalPoolKey.fee", lpFee, wordUint(keyWords[2] as string));
   if (wordSigned24(keyWords[3] as string) !== numberField(poolKey, "tickSpacing")) fail("canonicalPoolKey.tickSpacing", numberField(poolKey, "tickSpacing"), wordSigned24(keyWords[3] as string));
   same("canonicalPoolKey.hooks", hook, wordAddress(keyWords[4] as string));
 
-  const market = words(await rpcCall(rpc, registry, callData("market(bytes32)", [marketId.slice(2)]), blockTag, "market"), "market", 24);
-  same("market.runtime.poolId", poolId, `0x${market[16]}`);
-  if (wordUint(market[17] as string) !== sourceVersion) fail("market.runtime.sourceVersion", sourceVersion, wordUint(market[17] as string));
+  const market = words(await rpcCall(rpc, registry, callData("market(bytes32)", [marketId.slice(2)]), blockTag, "market"), "market", 20);
+  if (![20,21,22].includes(market.length)) fail("market encoding", "20, 21 or 22 words", market.length);
+  const runtimeOffset = market.length - 3;
+  const configuredLpFee = market.length === 22 ? wordUint(market[18] as string) : 0n;
+  if (configuredLpFee !== lpFee) fail("market.lpFeePips", lpFee, configuredLpFee);
+  same("market.runtime.poolId", poolId, `0x${market[runtimeOffset]}`);
+  if (wordUint(market[runtimeOffset + 1] as string) !== sourceVersion) fail("market.runtime.sourceVersion", sourceVersion, wordUint(market[runtimeOffset + 1] as string));
 
   const mask = words(await rpcCall(rpc, hook, callData("hookPermissionMask()"), blockTag, "hookPermissionMask"), "hookPermissionMask", 1);
   if (wordUint(mask[0] as string) !== 8260n) fail("hookPermissionMask", 8260, wordUint(mask[0] as string));
@@ -760,7 +767,7 @@ async function verifyMarketProbe(manifest: Manifest, rpc: V1ReadOnlyRpc, blockTa
   const stateView = stringField(manifest.externalDependencies.stateView!, "address");
   const slot0 = words(await rpcCall(rpc, stateView, callData("getSlot0(bytes32)", [poolId.slice(2)]), blockTag, "StateView.getSlot0"), "StateView.getSlot0", 4);
   if (wordUint(slot0[2] as string) !== 0n) fail("StateView.protocolFee", 0, wordUint(slot0[2] as string));
-  if (wordUint(slot0[3] as string) !== 0n) fail("StateView.lpFee", 0, wordUint(slot0[3] as string));
+  if (wordUint(slot0[3] as string) !== lpFee) fail("StateView.lpFee", lpFee, wordUint(slot0[3] as string));
 
   const tokenId = BigInt(stringField(probe, "positionTokenId"));
   const positionManager = stringField(manifest.externalDependencies.positionManager!, "address");

@@ -26,7 +26,7 @@ for (const [relative, expected] of Object.entries(baseline.sourceLocks ?? {})) {
 }
 
 const bootstrapPath = baseline.target.bootstrap;
-if (typeof bootstrapPath !== 'string' || !bootstrapPath.startsWith('apps/web/public/integration/')) fail('invalid bootstrap path');
+if (typeof bootstrapPath !== 'string' || !bootstrapPath.startsWith('apps/web/tests/fixtures/integration/')) fail('invalid test fixture bootstrap path');
 const bootstrap = JSON.parse(fs.readFileSync(path.join(root, bootstrapPath), 'utf8'));
 if (bootstrap.chainId !== baseline.target.chainId) fail('bootstrap chain differs');
 if (bootstrap.releaseId !== baseline.target.releaseId) fail('bootstrap release differs');

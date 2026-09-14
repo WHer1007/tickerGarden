@@ -1,0 +1,21 @@
+{
+  "status": "DEPLOYED_VERIFIED_ACTIVE_TEST_ONLY",
+  "chainId": 46630,
+  "releaseId": "0xc3fe24f129cdb1a7084d57a1b2c0fcc14bc6aae9c045d7e9519ee0aa96715d44",
+  "contractCount": 21,
+  "activationFixtureCount": 1,
+  "confirmedTransactions": 23,
+  "deploymentFeeWei": "538148950000000",
+  "activationFeeWei": "71531190000000",
+  "totalFeeWei": "609680140000000",
+  "certificateInputsUnchanged": true,
+  "sourceArchiveSha256": "0x8fa7f7500c939348700a7f6fe69818fbef726c2fc3cfe0279f8405dc7eebfc36",
+  "nonForkTestsPassed": 933,
+  "freshMainnetForkTestsPassed": 2,
+  "launchAndBuy": "PASSED_READ_ONLY_NO_MARKET_CREATED",
+  "stockAssetsActivated": false,
+  "snapshotPublisher": "0x0000000000000000000000000000000000000000",
+  "applicationCutover": false,
+  "productionBroadcast": false,
+  "review": "docs/reviews/RH_TESTNET_SNAPSHOT_RELEASE_REVIEW_2026-09-13.md"
+}

@@ -747,8 +747,9 @@ contract TickerGardenCurveTest is Test {
             creatorTaxBps: testTaxBps,
             creatorFeesToHolders: false,
             stakingEnabled: true,
-                burnMemeFees: false
-            });
+                burnMemeFees: false,
+            lpFeePips: 0
+        });
     }
 
     function _assertInitialState(TickerGardenCurve target, TickerMemeTokenV1 token) private view {

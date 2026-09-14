@@ -89,11 +89,12 @@ export function subscriptionFilters(filter: EventFilter, sources: readonly Sourc
   const ordinaryTopics = filter.eventTopics.filter((topic) => topic !== filter.sharedPoolManager.swapTopic);
   const result: Record<string, unknown>[] = [];
   if (ordinaryAddresses.length > 0 && ordinaryTopics.length > 0) {
-    result.push({ address: [...ordinaryAddresses].sort(), topics: [[...ordinaryTopics].sort()] });
+    const sorted = [...new Set(ordinaryAddresses)].sort();
+    for (let offset = 0; offset < sorted.length; offset += 500) result.push({ address: sorted.slice(offset, offset + 500), topics: [[...ordinaryTopics].sort()] });
   }
   const poolIds = [...new Set(pools.map((pool) => pool.poolId))].sort();
   if (poolIds.length > 0) {
-    result.push({ address: filter.sharedPoolManager.address, topics: [[filter.sharedPoolManager.swapTopic], poolIds] });
+    for (let offset = 0; offset < poolIds.length; offset += 500) result.push({ address: filter.sharedPoolManager.address, topics: [[filter.sharedPoolManager.swapTopic], poolIds.slice(offset, offset + 500)] });
   }
   return result;
 }

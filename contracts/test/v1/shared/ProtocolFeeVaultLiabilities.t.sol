@@ -335,6 +335,11 @@ contract ProtocolFeeVaultLiabilitiesTest is Test {
     }
 
     function test_pendingV4CreditBlocksClaimsUntilTheAtomicCreditFinishes() public {
+        // Under Forge transaction isolation, put begin and the attempted claim in one outer call.
+        this.atomicPendingCreditClaim();
+    }
+
+    function atomicPendingCreditClaim() external {
         registry.configureV4(MARKET_ID, address(quote), address(meme), address(gauge), address(this), 1);
         bytes32 feeId = keccak256("pending-v4");
         vault.beginV4Credit(MARKET_ID, address(quote), 1, 1, feeId);

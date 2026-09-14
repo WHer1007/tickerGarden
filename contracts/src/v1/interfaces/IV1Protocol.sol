@@ -96,6 +96,7 @@ struct CreateMarketParams {
     bool creatorFeesToHolders;
     bool stakingEnabled;
     bool burnMemeFees;
+    uint24 lpFeePips;
 }
 
 struct MarketConfig {
@@ -117,6 +118,7 @@ struct MarketConfig {
     bool creatorFeesToHolders;
     bool stakingEnabled;
     bool burnMemeFees;
+    uint24 lpFeePips;
 }
 
 struct MarketRuntime {
@@ -322,6 +324,7 @@ interface ITickerGardenFactoryV1 {
     function creatorRevenueRegistry() external view returns (address output0);
     function runtimeBindings() external view returns (address output0, address output1, address output2, address output3, address output4, address output5, address output6, address output7);
     function memeFeeBurnMode() external pure returns (bytes32 output0);
+    function lpFeeMode() external pure returns (bytes32 output0);
 }
 
 interface IMarketRegistryV1 {

@@ -87,7 +87,7 @@ contract MemeStockGaugeLockedPositionsHarness is MemeStockGaugeLockedPositions {
     function injectSnapshot(uint64 generation, uint256 quoteAccumulator_, uint256 memeAccumulator_, uint256 refs)
         external
     {
-        _activationSnapshots[generation] = ActivationSnapshot(quoteAccumulator_, memeAccumulator_, refs, true);
+        _activationSnapshots[generation] = StoredActivationSnapshot(quoteAccumulator_, memeAccumulator_, refs);
     }
 
     function snapshot(uint64 generation) external view returns (ActivationSnapshot memory) {

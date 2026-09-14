@@ -620,6 +620,11 @@
 .runtime-recovery input { min-width: 0; max-width: 100%; flex: 1 1 260px; padding: 8px; border: 1px solid #a9b9a3; border-radius: 8px; }
 .runtime-recovery span { flex-basis: 100%; }
 .runtime-recovery button:focus-visible { outline: 3px solid #627c43; outline-offset: 2px; }
+.runtime-recovery-item { display: grid; grid-template-columns: minmax(160px, 1fr) auto auto; gap: 8px 12px; align-items: center; width: 100%; padding: 10px 0; }
+.runtime-recovery-item + .runtime-recovery-item { border-top: 1px solid #d6dfd3; }
+.runtime-recovery-item span { min-width: 0; overflow-wrap: anywhere; }
+.runtime-recovery-nonce { flex-basis: 100%; color: #68726a; }
+@media (max-width: 680px) { .runtime-recovery-item { grid-template-columns: 1fr; } }
 
 /* A real 3D sculpture progressively replaces the original illustrated tree. */
 /* A standalone, fully round orchard sculpture. */
@@ -642,6 +647,8 @@
 @media(max-width:520px) { .tree-stage[data-garden].garden-ready { width:100%; height:440px; } .garden-fruit-label { font-size:8px; min-width:36px; min-height:36px; } }
 
 /* Field validation shared by create, trade and rewards. */
+:where(input,textarea,select):focus,
+:where(input,textarea,select):focus-visible { outline:none!important; box-shadow:none!important; }
 .field-error { display:block; color:#b42318; font-size:0.8125rem; line-height:1.5; margin:0.25rem 0 0.6rem; }
 .field-error[hidden] { display:none; }
 [aria-invalid="true"] { outline:2px solid #b42318; outline-offset:2px; }
@@ -649,7 +656,12 @@
 /* In-page confirmations keep consequences readable on desktop and mobile. */
 .flow-confirm{width:min(460px,calc(100vw - 32px));padding:24px;border:1px solid #e3e5df;border-radius:18px;background:#fff;color:#242b27;box-shadow:0 20px 80px #18231b33}
 .flow-confirm::backdrop{background:#18231b66}
-.flow-confirm h2{margin:0 0 12px;font-size:20px}.flow-confirm p{line-height:1.6}.flow-confirm>div{display:flex;justify-content:flex-end;gap:12px;margin-top:20px}.flow-confirm button{min-height:44px;padding:10px 20px;border:1px solid #bdc7bd;border-radius:10px;background:#fff;cursor:pointer}.flow-confirm button:last-child{background:#233e2c;color:#fff}
+.flow-confirm h2{margin:0 0 12px;font-size:20px}.flow-confirm p{line-height:1.6}.flow-confirm>.flow-confirm-controls{display:flex;justify-content:flex-end;gap:12px;margin-top:20px}.flow-confirm button{min-height:44px;padding:10px 20px;border:1px solid #bdc7bd;border-radius:10px;background:#fff;cursor:pointer}.flow-confirm button:last-child{background:#233e2c;color:#fff}
+.flow-confirm.unstake-confirm{width:min(500px,calc(100vw - 32px));padding:26px;border-color:#dce3da;border-radius:20px;box-shadow:0 28px 90px #17241738}
+.unstake-confirm .unstake-confirm-content{display:block;margin-top:6px}.unstake-confirm-intro{margin:0;color:#566159;font-size:14px}
+.unstake-confirm-effects{display:grid;gap:10px;margin:20px 0 0;padding:0;list-style:none}.unstake-confirm-effects li{display:grid;grid-template-columns:36px minmax(0,1fr);align-items:center;gap:12px;padding:12px 14px;border:1px solid #e3e8e1;border-radius:12px;background:#f8faf6;color:#344039;font-size:13px;line-height:1.5}.unstake-confirm-effects i{display:grid;place-items:center;width:34px;height:34px;border-radius:10px;background:#e8f1e9;color:#24533d;font-size:17px}
+.unstake-confirm-note{margin:14px 0 0;padding:0 2px;color:#737c75;font-size:12px;line-height:1.55}.unstake-confirm>.flow-confirm-controls{padding-top:2px}.unstake-confirm>.flow-confirm-controls button{flex:1;font-weight:650}
+@media(max-width:520px){.flow-confirm.unstake-confirm{padding:22px}.unstake-confirm-effects li{grid-template-columns:32px minmax(0,1fr);padding:11px 12px}.unstake-confirm-effects i{width:32px;height:32px}}
 
 [data-clear-create-draft],[data-skip-draft-image],[data-creator-current]{width:fit-content;min-height:40px;padding:8px 14px;border:1px solid #bdc7bd;border-radius:10px;background:#fff;color:#233e2c;font:inherit;font-size:12px;cursor:pointer}
 [data-create-draft-status]{font-size:12px;color:#647367;line-height:1.5}

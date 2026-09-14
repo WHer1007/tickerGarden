@@ -8,7 +8,7 @@ import { normalizeTransaction, rebuildHolderSnapshot, transferFromObservation, t
 interface MarketRecord {
   readonly marketId: `0x${string}`; readonly memeToken: Address; readonly curve: Address; readonly gauge: Address;
   readonly quoteAsset: Address; readonly quoteAssetConfigId: `0x${string}`; readonly tickerGardenBaselineId: `0x${string}`;
-  readonly poolId: `0x${string}` | null; readonly poolKey: { readonly currency0: Address; readonly currency1: Address; readonly hooks: Address } | null;
+  readonly poolId: `0x${string}` | null; readonly poolKey: { readonly currency0: Address; readonly currency1: Address; readonly hooks: Address; readonly fee?: number } | null;
   readonly source: { readonly blockNumber: string };
 }
 const ZERO_ADDRESS = `0x${'0'.repeat(40)}` as Address;
@@ -22,7 +22,7 @@ export async function projectF72Analytics(input: {
   const schema = identifier(input.schemaName ?? 'tickergarden_serverless');
   const revision = `${input.blockNumber}:${input.blockHash}`;
   const marketRows = await input.pool.query<{ payload: MarketRecord }>(
-    `SELECT r.payload FROM ${schema}.projection_records r
+    `SELECT jsonb_build_object('marketId',r.payload->'marketId','memeToken',r.payload->'memeToken','curve',r.payload->'curve','gauge',r.payload->'gauge','quoteAsset',r.payload->'quoteAsset','quoteAssetConfigId',r.payload->'quoteAssetConfigId','tickerGardenBaselineId',r.payload->'tickerGardenBaselineId','poolId',r.payload->'poolId','poolKey',r.payload->'poolKey','source',jsonb_build_object('blockNumber',r.payload->'source'->'blockNumber')) payload FROM ${schema}.projection_read_records r
      JOIN ${schema}.publication_pointers pointer USING(environment,chain_id,deployment_digest,scope,revision)
      WHERE r.environment=$1 AND r.chain_id=$2 AND r.deployment_digest=$3 AND r.scope='markets' AND r.revision=$4
      ORDER BY r.identity`,
@@ -32,6 +32,9 @@ export async function projectF72Analytics(input: {
   const marketByCurve = new Map(markets.map((item) => [item.binding.curve, item]));
   const marketByToken = new Map(markets.map((item) => [item.record.memeToken, item]));
   const marketById = new Map(markets.map((item) => [item.record.marketId, item]));
+  const pooled=markets.filter(item=>item.binding.poolId!==null);
+  const marketByPool=new Map(pooled.map(item=>[item.binding.poolId!,item]));
+  if(marketByPool.size!==pooled.length)throw new Error('duplicate analytics pool identity');
   if (marketByCurve.size !== markets.length || marketByToken.size !== markets.length) throw new Error('duplicate analytics market address');
 
   const previous = (await input.pool.query<{ next_block: string; generation: string }>(
@@ -79,9 +82,17 @@ export async function projectF72Analytics(input: {
       feeEvents.push(fee);
     }
   }
-  const bindings = markets.map((market) => market.binding);
   const trades: TradeActivity[] = [];
-  for (const observations of transactions.values()) trades.push(...normalizeTransaction(observations, bindings));
+  for (const observations of transactions.values()) {
+    // Authenticate only the markets referenced by this transaction. Passing the
+    // entire population both repeated O(markets) work and hit the per-tx bound.
+    const relevant=new Map<string,MarketBinding>();
+    for(const {event} of observations){
+      const candidates=[marketByCurve.get(event.log.address),marketByToken.get(event.log.address),marketById.get(String(event.args.marketId) as `0x${string}`),marketByPool.get(String(event.args.poolId??event.args.id) as `0x${string}`)];
+      for(const candidate of candidates)if(candidate)relevant.set(candidate.record.marketId,candidate.binding);
+    }
+    trades.push(...normalizeTransaction(observations,[...relevant.values()]));
+  }
   let changedHolders = 0;
   await transaction(input.pool, async (client) => {
     const lockKey = `${input.deployment.environment}:${input.deployment.chainId}:${input.deployment.deploymentDigest}:analytics`;
@@ -99,28 +110,35 @@ export async function projectF72Analytics(input: {
     );
     if (!anchor.rows[0]?.canonical || !anchor.rows[0]?.finalized) throw new Error('analytics anchor is not canonical and finalized');
     if (reset) {
-      await client.query(`DELETE FROM ${schema}.market_trades WHERE environment=$1 AND chain_id=$2 AND deployment_digest=$3`, identity(input.deployment));
-      await client.query(`DELETE FROM ${schema}.holder_balances WHERE environment=$1 AND chain_id=$2 AND deployment_digest=$3`, identity(input.deployment));
-      await client.query(`DELETE FROM ${schema}.holder_snapshots WHERE environment=$1 AND chain_id=$2 AND deployment_digest=$3`, identity(input.deployment));
-      await client.query(`DELETE FROM ${schema}.detail_fee_totals WHERE environment=$1 AND chain_id=$2 AND deployment_digest=$3`, identity(input.deployment));
-      await client.query(`DELETE FROM ${schema}.detail_fee_events WHERE environment=$1 AND chain_id=$2 AND deployment_digest=$3`, identity(input.deployment));
+      // Keep each statement within the SQL deadline while the outer transaction
+      // preserves an atomic reset of every derived table and its trigger counters.
+      for(const table of ['market_trades','holder_balances','holder_snapshots','detail_fee_totals','detail_fee_events']){
+        for(;;){const removed=await client.query(`DELETE FROM ${schema}.${table} WHERE ctid IN (SELECT ctid FROM ${schema}.${table} WHERE environment=$1 AND chain_id=$2 AND deployment_digest=$3 LIMIT 1000)`,identity(input.deployment));if((removed.rowCount??0)<1000)break;}
+      }
     }
-    for (const trade of trades) await client.query(
-      `INSERT INTO ${schema}.market_trades(environment,chain_id,deployment_digest,market_id,block_hash,transaction_hash,log_index,occurred_at,classification,base_raw,quote_raw,payload)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,to_timestamp($8),$9,$10,$11,$12) ON CONFLICT DO NOTHING`,
-      [...identity(input.deployment), trade.marketId, trade.source.blockHash, trade.source.transactionHash, trade.source.logIndex,
-        trade.timestamp, trade.classification, trade.memeRaw, trade.quoteRaw, trade],
-    );
-    for (const fee of feeTotals.values()) await client.query(
-      `INSERT INTO ${schema}.detail_fee_totals(environment,chain_id,deployment_digest,market_id,recipient,asset,amount_raw,block_hash)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8)
-       ON CONFLICT (environment,chain_id,deployment_digest,market_id,recipient,asset) DO UPDATE SET
-       amount_raw=${schema}.detail_fee_totals.amount_raw+excluded.amount_raw,block_hash=excluded.block_hash`,
-      [...identity(input.deployment), fee.marketId, fee.recipient, fee.asset, fee.amountRaw.toString(), fee.blockHash],
-    );
-    for (const fee of feeEvents) await client.query(`INSERT INTO ${schema}.detail_fee_events(environment,chain_id,deployment_digest,market_id,recipient,asset,amount_raw,block_hash,transaction_hash,log_index) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10) ON CONFLICT DO NOTHING`,[...identity(input.deployment),fee.marketId,fee.recipient,fee.asset,fee.amountRaw.toString(),fee.blockHash,fee.transactionHash,fee.logIndex.toString()]);
-    for (const market of markets) changedHolders += await advanceHolders(client, schema, input.deployment, market,
-      transfers.get(market.record.memeToken) ?? [], input.blockNumber, input.blockHash);
+    await writeBatches(client,`INSERT INTO ${schema}.market_trades(environment,chain_id,deployment_digest,market_id,block_hash,transaction_hash,log_index,occurred_at,classification,base_raw,quote_raw,payload)
+      SELECT $1,$2,$3,x->>'marketId',x->'source'->>'blockHash',x->'source'->>'transactionHash',(x->'source'->>'logIndex')::bigint,to_timestamp((x->>'timestamp')::bigint),x->>'classification',(x->>'memeRaw')::numeric,(x->>'quoteRaw')::numeric,x FROM jsonb_array_elements($4::jsonb) x ON CONFLICT DO NOTHING`,identity(input.deployment),trades);
+    await writeBatches(client,`INSERT INTO ${schema}.detail_fee_totals(environment,chain_id,deployment_digest,market_id,recipient,asset,amount_raw,block_hash)
+      SELECT $1,$2,$3,r.market_id,r.recipient,r.asset,r.amount_raw,r.block_hash FROM jsonb_to_recordset($4::jsonb) AS r(market_id text,recipient text,asset text,amount_raw numeric,block_hash text)
+      ON CONFLICT(environment,chain_id,deployment_digest,market_id,recipient,asset) DO UPDATE SET amount_raw=${schema}.detail_fee_totals.amount_raw+excluded.amount_raw,block_hash=excluded.block_hash`,identity(input.deployment),[...feeTotals.values()].map(fee=>({market_id:fee.marketId,recipient:fee.recipient,asset:fee.asset,amount_raw:fee.amountRaw.toString(),block_hash:fee.blockHash})));
+    await writeBatches(client,`INSERT INTO ${schema}.detail_fee_events(environment,chain_id,deployment_digest,market_id,recipient,asset,amount_raw,block_hash,transaction_hash,log_index)
+      SELECT $1,$2,$3,r.market_id,r.recipient,r.asset,r.amount_raw,r.block_hash,r.transaction_hash,r.log_index FROM jsonb_to_recordset($4::jsonb) AS r(market_id text,recipient text,asset text,amount_raw numeric,block_hash text,transaction_hash text,log_index bigint) ON CONFLICT DO NOTHING`,identity(input.deployment),feeEvents.map(fee=>({market_id:fee.marketId,recipient:fee.recipient,asset:fee.asset,amount_raw:fee.amountRaw.toString(),block_hash:fee.blockHash,transaction_hash:fee.transactionHash,log_index:fee.logIndex.toString()})));
+    const existingSnapshots=await client.query<HolderState&{market_id:string}>(`SELECT market_id,total_supply_raw::text,positive_address_count::text,included_address_count::text,excluded_accounts FROM ${schema}.holder_snapshots WHERE environment=$1 AND chain_id=$2 AND deployment_digest=$3 FOR UPDATE`,identity(input.deployment));
+    const snapshotById=new Map(existingSnapshots.rows.map(row=>[row.market_id,row]));
+    const buffers:HolderWrites={balances:[],snapshots:[]};
+    for (const market of markets) {
+      const observations=transfers.get(market.record.memeToken)??[];
+      const current=snapshotById.get(market.record.marketId);
+      if(current&&!observations.length){
+        if(JSON.stringify(current.excluded_accounts)!==JSON.stringify(marketExclusions(market))||BigInt(current.total_supply_raw)>BigInt(market.initialSupply))throw Error('holder snapshot identity or exclusion policy changed');
+        continue;
+      }
+      changedHolders+=await advanceHolders(client,schema,input.deployment,market,observations,input.blockNumber,input.blockHash,current,buffers);
+      if(buffers.balances.length+buffers.snapshots.length>=500)await flushHolderWrites(client,schema,input.deployment,input.blockNumber,input.blockHash,buffers);
+    }
+    await flushHolderWrites(client,schema,input.deployment,input.blockNumber,input.blockHash,buffers);
+    // The checkpoint below advances shared coverage atomically with changed balances.
+    // Unchanged snapshots retain their last mutation anchor.
     await client.query(
       `INSERT INTO ${schema}.projection_checkpoints(environment,chain_id,deployment_digest,scope,algorithm_version,next_block,generation,last_revision)
        VALUES ($1,$2,$3,'analytics','f72-analytics-v1',$4,$5,$6)
@@ -150,25 +168,17 @@ export function feeCredits(event: DecodedProtocolEvent): FeeTotal[] {
 }
 
 async function advanceHolders(client: PoolClient, schema: string, deployment: DeploymentIdentity,
-  market: ReturnType<typeof validateMarket>, observations: readonly EventObservation[], blockNumber: bigint, blockHash: `0x${string}`): Promise<number> {
+  market: ReturnType<typeof validateMarket>, observations: readonly EventObservation[], blockNumber: bigint, blockHash: `0x${string}`,current:HolderState|undefined,buffers:HolderWrites): Promise<number> {
   const transfers = observations.map((item) => transferFromObservation(item, deployment.chainId));
-  const exclusions = uniqueAddresses([market.record.curve, market.record.gauge, market.record.memeToken,
-    f72EventCatalog.HolderRewardsDistributorV1.address, f72EventCatalog.ProtocolFeeVault.address,
-    f72EventCatalog.UniswapV4PoolManager.address, f72EventCatalog.TickerGardenFactoryV1.address, market.binding.hook]
-    .filter((account) => account !== ZERO_ADDRESS));
-  const current = (await client.query<{ total_supply_raw: string; positive_address_count: string; included_address_count: string; excluded_accounts: Address[] }>(
-    `SELECT total_supply_raw::text,positive_address_count::text,included_address_count::text,excluded_accounts FROM ${schema}.holder_snapshots
-     WHERE environment=$1 AND chain_id=$2 AND deployment_digest=$3 AND market_id=$4 FOR UPDATE`,
-    [...identity(deployment), market.record.marketId],
-  )).rows[0];
+  const exclusions = marketExclusions(market);
   if (!current) {
     if (!transfers.length) throw new Error('new market token history has no initial mint');
     const snapshot = rebuildHolderSnapshot({ chainId: deployment.chainId, token: market.record.memeToken, initialHolder: market.record.curve,
       burnAuthority: null, allowSelfBurn: true, initialSupplyRaw: market.initialSupply, transfers, excludedAccounts: exclusions });
     for (const balance of snapshot.balances) await saveBalance(client, schema, deployment, market.record.marketId, balance.account,
-      balance.balanceRaw, balance.excluded, blockHash);
+      balance.balanceRaw, balance.excluded, blockHash,buffers);
     await saveSnapshot(client, schema, deployment, market.record.marketId, market.record.source.blockNumber, snapshot.totalSupplyRaw,
-      snapshot.positiveAddressCount, snapshot.includedAddressCount, exclusions, blockNumber, blockHash);
+      snapshot.positiveAddressCount, snapshot.includedAddressCount, exclusions, blockNumber, blockHash,buffers);
     return snapshot.balances.length;
   }
   if (JSON.stringify(current.excluded_accounts) !== JSON.stringify(exclusions) || BigInt(current.total_supply_raw) > BigInt(market.initialSupply)) {
@@ -197,29 +207,24 @@ async function advanceHolders(client: PoolClient, schema: string, deployment: De
   for (const account of touched) {
     const was = (before.get(account) ?? 0n) > 0n; const now = (after.get(account) ?? 0n) > 0n; const excluded = exclusions.includes(account);
     if (was !== now) { positive += now ? 1n : -1n; if (!excluded) included += now ? 1n : -1n; }
-    if (now) await saveBalance(client, schema, deployment, market.record.marketId, account, (after.get(account) ?? 0n).toString(), excluded, blockHash);
+    if (now) await saveBalance(client, schema, deployment, market.record.marketId, account, (after.get(account) ?? 0n).toString(), excluded, blockHash,buffers);
     else await client.query(`DELETE FROM ${schema}.holder_balances WHERE environment=$1 AND chain_id=$2 AND deployment_digest=$3 AND market_id=$4 AND account=$5`, [...identity(deployment), market.record.marketId, account]);
   }
   await saveSnapshot(client, schema, deployment, market.record.marketId, market.record.source.blockNumber, supply.toString(),
-    Number(positive), Number(included), exclusions, blockNumber, blockHash);
+    Number(positive), Number(included), exclusions, blockNumber, blockHash,buffers);
   return touched.length;
 }
 
 async function saveBalance(client: PoolClient, schema: string, deployment: DeploymentIdentity, marketId: `0x${string}`,
-  account: Address, balanceRaw: string, excluded: boolean, blockHash: `0x${string}`): Promise<void> {
-  await client.query(`INSERT INTO ${schema}.holder_balances(environment,chain_id,deployment_digest,market_id,account,balance_raw,excluded,block_hash,payload)
-    VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9) ON CONFLICT (environment,chain_id,deployment_digest,market_id,account) DO UPDATE SET
-    balance_raw=excluded.balance_raw,excluded=excluded.excluded,block_hash=excluded.block_hash,payload=excluded.payload`,
-  [...identity(deployment), marketId, account, balanceRaw, excluded, blockHash, { account, balanceRaw, excluded }]);
+  account: Address, balanceRaw: string, excluded: boolean, blockHash: `0x${string}`,buffers:HolderWrites): Promise<void> {
+  buffers.balances.push({market_id:marketId,account,balance_raw:balanceRaw,excluded,payload:{account,balanceRaw,excluded}});return;
+
 }
 async function saveSnapshot(client: PoolClient, schema: string, deployment: DeploymentIdentity, marketId: `0x${string}`, creationBlock: string,
-  supply: string, positive: number, included: number, exclusions: readonly Address[], blockNumber: bigint, blockHash: `0x${string}`): Promise<void> {
+  supply: string, positive: number, included: number, exclusions: readonly Address[], blockNumber: bigint, blockHash: `0x${string}`,buffers:HolderWrites): Promise<void> {
   if (!Number.isSafeInteger(positive) || !Number.isSafeInteger(included) || positive < 0 || included < 0 || included > positive) throw new Error('holder count exceeds safe range');
-  await client.query(`INSERT INTO ${schema}.holder_snapshots(environment,chain_id,deployment_digest,market_id,creation_block,total_supply_raw,positive_address_count,included_address_count,excluded_accounts,block_number,block_hash)
-    VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11) ON CONFLICT (environment,chain_id,deployment_digest,market_id) DO UPDATE SET
-    total_supply_raw=excluded.total_supply_raw,positive_address_count=excluded.positive_address_count,included_address_count=excluded.included_address_count,
-    excluded_accounts=excluded.excluded_accounts,block_number=excluded.block_number,block_hash=excluded.block_hash`,
-  [...identity(deployment), marketId, creationBlock, supply, positive, included, JSON.stringify(exclusions), blockNumber.toString(), blockHash]);
+  buffers.snapshots.push({market_id:marketId,creation_block:creationBlock,total_supply_raw:supply,positive_address_count:positive,included_address_count:included,excluded_accounts:exclusions});
+
 }
 
 export function validateMarket(record: MarketRecord, chainId: 4663 | 46630): { record: MarketRecord; binding: MarketBinding; initialSupply: string } {
@@ -232,7 +237,7 @@ export function validateMarket(record: MarketRecord, chainId: 4663 | 46630): { r
   const hook = record.poolKey?.hooks ?? f72EventCatalog.TickerGardenMemeHook.address;
   return { record, initialSupply: baseline.values.supply, binding: { chainId, marketId: record.marketId, memeAsset: record.memeToken,
     quoteAsset: record.quoteAsset, quoteDecimals: quote.values.quoteDecimals, curve: record.curve, hook,
-    poolId: record.poolId, currency0: record.poolKey?.currency0 ?? null, currency1: record.poolKey?.currency1 ?? null } };
+    poolId: record.poolId, lpFeePips: record.poolKey?.fee ?? 0, currency0: record.poolKey?.currency0 ?? null, currency1: record.poolKey?.currency1 ?? null } };
 }
 function parseStoredLog(value: Record<string, unknown>): RpcLog { return { address: address(value.address), blockHash: hex32(value.blockHash),
   blockNumber: bigint(value.blockNumber), transactionHash: hex32(value.transactionHash), transactionIndex: bigint(value.transactionIndex),
@@ -245,3 +250,18 @@ function array(value: unknown): unknown[] { if (!Array.isArray(value)) throw new
 function uniqueAddresses(values: readonly Address[]): Address[] { return [...new Set(values)].sort() }
 function identity(deployment: DeploymentIdentity): [string, number, string] { return [deployment.environment, deployment.chainId, deployment.deploymentDigest] }
 function identifier(value: string): string { if (!/^[a-z][a-z0-9_]{0,62}$/.test(value)) throw new Error('invalid database schema name'); return `"${value}"` }
+
+interface HolderState{total_supply_raw:string;positive_address_count:string;included_address_count:string;excluded_accounts:Address[]}
+interface HolderWrites{balances:Array<Record<string,unknown>>;snapshots:Array<Record<string,unknown>>}
+function marketExclusions(market:ReturnType<typeof validateMarket>){return uniqueAddresses([market.record.curve,market.record.gauge,market.record.memeToken,f72EventCatalog.HolderRewardsDistributorV1.address,f72EventCatalog.ProtocolFeeVault.address,f72EventCatalog.UniswapV4PoolManager.address,f72EventCatalog.TickerGardenFactoryV1.address,market.binding.hook].filter(account=>account!==ZERO_ADDRESS));}
+async function flushHolderWrites(client:PoolClient,schema:string,deployment:DeploymentIdentity,block:bigint,hash:string,buffers:HolderWrites){
+ for(let offset=0;offset<buffers.balances.length;offset+=250)await client.query(`INSERT INTO ${schema}.holder_balances(environment,chain_id,deployment_digest,market_id,account,balance_raw,excluded,block_hash,payload)
+ SELECT $1,$2,$3,r.market_id,r.account,r.balance_raw,r.excluded,$4,r.payload FROM jsonb_to_recordset($5::jsonb) AS r(market_id text,account text,balance_raw numeric,excluded boolean,payload jsonb)
+ ON CONFLICT(environment,chain_id,deployment_digest,market_id,account) DO UPDATE SET balance_raw=EXCLUDED.balance_raw,excluded=EXCLUDED.excluded,block_hash=EXCLUDED.block_hash,payload=EXCLUDED.payload`,[...identity(deployment),hash,JSON.stringify(buffers.balances.slice(offset,offset+250))]);
+ for(let offset=0;offset<buffers.snapshots.length;offset+=250)await client.query(`INSERT INTO ${schema}.holder_snapshots(environment,chain_id,deployment_digest,market_id,creation_block,total_supply_raw,positive_address_count,included_address_count,excluded_accounts,block_number,block_hash)
+ SELECT $1,$2,$3,r.market_id,r.creation_block,r.total_supply_raw,r.positive_address_count,r.included_address_count,r.excluded_accounts,$4,$5 FROM jsonb_to_recordset($6::jsonb) AS r(market_id text,creation_block bigint,total_supply_raw numeric,positive_address_count bigint,included_address_count bigint,excluded_accounts jsonb)
+ ON CONFLICT(environment,chain_id,deployment_digest,market_id) DO UPDATE SET total_supply_raw=EXCLUDED.total_supply_raw,positive_address_count=EXCLUDED.positive_address_count,included_address_count=EXCLUDED.included_address_count,excluded_accounts=EXCLUDED.excluded_accounts,block_number=EXCLUDED.block_number,block_hash=EXCLUDED.block_hash`,[...identity(deployment),block.toString(),hash,JSON.stringify(buffers.snapshots.slice(offset,offset+250))]);
+ buffers.balances.length=0;buffers.snapshots.length=0;
+}
+
+async function writeBatches(client:PoolClient,sql:string,id:readonly unknown[],rows:readonly unknown[]){for(let offset=0;offset<rows.length;offset+=250)await client.query(sql,[...id,JSON.stringify(rows.slice(offset,offset+250))]);}

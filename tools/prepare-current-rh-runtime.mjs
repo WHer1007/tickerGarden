@@ -52,16 +52,17 @@ if(mode==='gateway'){
  for(const stock of sp.stocks){assets.push(await entry('asset',stock.uid,'OfficialStockRegistryV1','asset',s.transactions.find(t=>t.id===`register-${stock.symbol.toLowerCase()}-staking`),{tokenSymbol:stock.symbol,tokenName:stock.name}));configs.push(await entry('quote',stock.configId,'ApprovedQuoteRegistry','quoteConfig',s.transactions.find(t=>t.id===`add-${stock.symbol.toLowerCase()}-quote`),{symbol:stock.symbol}));}
  const block=await c.getBlock();const launchFee=await c.readContract({address:d.factory,abi:abi('TickerGardenFactoryV1'),functionName:'launchFee'});
  const b={version:1,chainId:46630,releaseId:d.releaseId,status:d.status,factory:d.factory.toLowerCase(),bindings,configs,assets,initialMarkets:[],activationBlock:{number:String(block.number),hash:block.hash},limitations:{startupConfigOnly:true,financialSnapshot:false},launchFee:String(launchFee)};
- const bootstrap=`/integration/rh-${d.releaseId.slice(2,10)}.json`;write('apps/web/public'+bootstrap,b);write(dir+'/frontend-bootstrap.json',b);
+ const bootstrapFile=dir+'/frontend-bootstrap.json';write(bootstrapFile,b);
  const names=[...Object.values(bindingNames),'LaunchConfigResolver','MemeStockGauge','CreatorRevenueRegistry','UserStockVault','HolderRewardsDistributorV1','TickerGardenMemeHook','GraduationExecutor','TickerGardenFactoryV1'];
  const contracts=[...new Set(names)].map(n=>({module:n,address:addr(n),runtimeCodeHash:d.contracts.find(x=>x.name===n).runtimeCodeHash}));
  const pm=read(out+'/chain-preflight.json').dependencies.find(x=>x.name==='POOL_MANAGER');contracts.push({module:'UniswapV4PoolManager',address:pm.address.toLowerCase(),runtimeCodeHash:pm.codeHash});
  write(dir+'/backend-deployment-manifest.json',{executionSpecId:'V1-EXEC-11',chainId:46630,genesisHash:p.genesisHash,contracts});
- write(out+'/runtime-prepared.json',{releaseId:d.releaseId,bootstrap,manifest:dir+'/backend-deployment-manifest.json',startBlock:a.transactions[0].blockNumber});
- console.log(JSON.stringify({status:'CURRENT_BOOTSTRAP_PREPARED',releaseId:d.releaseId,configs:configs.length,assets:assets.length,bootstrap}));
+ write(out+'/runtime-prepared.json',{releaseId:d.releaseId,bootstrapFile,manifest:dir+'/backend-deployment-manifest.json',startBlock:a.transactions[0].blockNumber});
+ console.log(JSON.stringify({status:'CURRENT_BOOTSTRAP_PREPARED',releaseId:d.releaseId,configs:configs.length,assets:assets.length,bootstrapFile}));
 }else if(mode==='switch'){
  const prepared=read(out+'/runtime-prepared.json');if(prepared.releaseId!==d.releaseId)throw Error('Runtime identity drift');
- const b=read('apps/web/public'+prepared.bootstrap),url=new URL(env.TG_DATABASE_URL),database='tickergarden_rh_'+d.releaseId.slice(2,10);
+ const bootstrapFile=prepared.bootstrapFile||dir+'/frontend-bootstrap.json';
+ const b=read(bootstrapFile),url=new URL(env.TG_DATABASE_URL),database='tickergarden_rh_'+d.releaseId.slice(2,10);
  const pgEnv={...process.env,PGHOST:url.hostname,PGPORT:url.port,PGUSER:decodeURIComponent(url.username),PGPASSWORD:decodeURIComponent(url.password),PGDATABASE:'postgres'};
  const pg='/opt/homebrew/opt/postgresql@14/bin/';
  const exists=execFileSync(pg+'psql',['-Atqc',`SELECT 1 FROM pg_database WHERE datname='${database}'`],{env:pgEnv,encoding:'utf8'}).trim();
@@ -69,13 +70,13 @@ if(mode==='gateway'){
  url.pathname='/'+database;
  execFileSync(process.execPath,['--experimental-strip-types','scripts/migrate.ts'],{cwd:'services/backend-ts',env:{...process.env,TG_MIGRATION_DATABASE_URL:url.toString()},stdio:'pipe'});
  const catalog=[{releaseId:'rh-current-'+d.releaseId.slice(2,14),chainId:46630,factory:b.factory,marketRegistry:addr('MarketRegistryV1'),hook:addr('TickerGardenMemeHook'),feeVault:addr('ProtocolFeeVault'),creatorRegistry:addr('CreatorRevenueRegistry'),holderDistributor:addr('HolderRewardsDistributorV1'),launchRouter:addr('LaunchAndBuyRouter'),allocationManager:addr('AllocationManager')}];
- const updates={V1_RELEASE_ID:d.releaseId,VITE_INTEGRATION_BOOTSTRAP:prepared.bootstrap,VITE_MARKET_RELEASE_CATALOG:JSON.stringify(catalog),TG_DATABASE_URL:url.toString(),TG_DEPLOYMENT_BOOTSTRAP_FILE:''};
+ const updates={V1_RELEASE_ID:d.releaseId,VITE_INTEGRATION_BOOTSTRAP:'',VITE_MARKET_RELEASE_CATALOG:JSON.stringify(catalog),TG_DATABASE_URL:url.toString(),TG_DEPLOYMENT_BOOTSTRAP_FILE:bootstrapFile};
  for(const key of Object.keys(env))if(key.endsWith('_DATABASE_URL'))updates[key]=url.toString();
  for(const key of ['TG_DEPLOYMENT_MANIFEST','TG_ANALYTICS_MANIFEST','TG_TRANSACTION_STATUS_MANIFEST'])updates[key]=prepared.manifest;
  for(const key of Object.keys(env))if(key.endsWith('_START_BLOCK'))updates[key]=prepared.startBlock;
  for(const [key,n]of Object.entries({VITE_V1_FACTORY_ADDRESS:'TickerGardenFactoryV1',VITE_V1_LAUNCH_ROUTER_ADDRESS:'LaunchAndBuyRouter',VITE_V1_ALLOCATION_MANAGER_ADDRESS:'AllocationManager',VITE_V1_PROTOCOL_FEE_VAULT_ADDRESS:'ProtocolFeeVault',VITE_V1_CREATOR_REVENUE_REGISTRY_ADDRESS:'CreatorRevenueRegistry',VITE_V1_TREASURY_DISTRIBUTOR_ADDRESS:'HolderRewardsDistributorV1'}))updates[key]=addr(n);
  setEnv(updates);
  for(const [from,to]of [['paired-assets.json','robinhood-testnet-46630.paired-assets.json'],['stock-assets.json','robinhood-testnet-46630.stock-assets.json']])fs.copyFileSync(dir+'/'+from,'deployments/manifests/'+to);
- write(out+'/runtime-switch.json',{status:'CURRENT_RELEASE_ONLY',releaseId:d.releaseId,database,bootstrap:prepared.bootstrap,manifest:prepared.manifest,oldDataIncluded:false});
+ write(out+'/runtime-switch.json',{status:'CURRENT_RELEASE_ONLY',releaseId:d.releaseId,database,bootstrapFile,manifest:prepared.manifest,oldDataIncluded:false});
  console.log(JSON.stringify({status:'CURRENT_RELEASE_ONLY',releaseId:d.releaseId,database}));
 }else throw Error('Use gateway, bootstrap or switch');

@@ -19,6 +19,7 @@ struct CreateMarketParams {
     bool creatorFeesToHolders;
     bool stakingEnabled;
     bool burnMemeFees;
+    uint24 lpFeePips;
 }
 
 struct LaunchTemplate {
@@ -56,6 +57,7 @@ struct MarketConfig {
     bool creatorFeesToHolders;
     bool stakingEnabled;
     bool burnMemeFees;
+    uint24 lpFeePips;
 }
 
 struct PoolKey {

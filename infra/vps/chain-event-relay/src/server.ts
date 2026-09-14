@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto';
 import { createServer } from 'node:http';
 import { readFile } from 'node:fs/promises';
 import pg, { type Pool } from 'pg';
@@ -17,6 +18,7 @@ if (process.env.TG_ENVIRONMENT !== 'test') throw new Error('chain event relay is
 const filter = parseEventFilter(JSON.parse(await readFile(new URL('../filter.json', import.meta.url), 'utf8')));
 const relayPool = new PgPool({ connectionString: process.env.CHAIN_RELAY_DATABASE_URL, max: 4, connectionTimeoutMillis: 5_000 });
 const sourcePool = new PgPool({ connectionString: process.env.CHAIN_SOURCE_DATABASE_URL, max: 2, connectionTimeoutMillis: 5_000 });
+for(const pool of [relayPool,sourcePool])pool.on('error',(error:Error&{code?:string})=>console.error(JSON.stringify({event:'chain_relay_idle_database_error',code:error.code??'unknown'})));
 const queueUrl = cleanUrl(process.env.CHAIN_RELAY_QUEUE_URL!);
 const destination = new URL(process.env.CHAIN_RELAY_DESTINATION!);
 if (destination.protocol !== 'https:' || destination.username || destination.password || destination.hash
@@ -24,6 +26,8 @@ if (destination.protocol !== 'https:' || destination.username || destination.pas
 const maxBackfillBlocks = positiveInteger(process.env.CHAIN_RELAY_MAX_BACKFILL_BLOCKS ?? '10000', 1, 100_000);
 const backfillChunkBlocks = BigInt(positiveInteger(process.env.CHAIN_RELAY_BACKFILL_CHUNK_BLOCKS ?? '1000', 1, 10_000));
 const sourceRefreshMs = positiveInteger(process.env.CHAIN_RELAY_SOURCE_REFRESH_MS ?? '30000', 5_000, 300_000);
+const publishConcurrency = positiveInteger(process.env.CHAIN_RELAY_PUBLISH_CONCURRENCY ?? '8', 1, 32);
+const recoveryOverlap = BigInt(positiveInteger(process.env.CHAIN_RELAY_RECOVERY_OVERLAP_BLOCKS ?? '12', 1, 1000));
 const port = positiveInteger(process.env.PORT ?? '8081', 1, 65_535);
 
 await initialize(relayPool);
@@ -40,21 +44,21 @@ let allowedPoolIds = new Set<string>();
 const healthServer = createServer(async (request, response) => {
   if (request.url !== '/healthz') { response.writeHead(404).end(); return; }
   try {
-    const counts = await relayPool.query<{ pending: number; dead: number }>(
+    const counts = await relayPool.query<{ pending: number; dead: number; oldest_pending_seconds:number }>(
       `SELECT count(*) FILTER (WHERE state IN ('pending','leased'))::int AS pending,
-              count(*) FILTER (WHERE state='dead')::int AS dead FROM chain_relay_events`,
+              count(*) FILTER (WHERE state='dead')::int AS dead, coalesce(extract(epoch FROM now()-min(created_at) FILTER(WHERE state IN ('pending','leased'))),0)::float8 AS oldest_pending_seconds FROM chain_relay_events`,
     );
-    const healthy = ready && lastError === null;
+    const healthy = ready && lastError === null && (counts.rows[0]?.dead??0)===0 && (counts.rows[0]?.oldest_pending_seconds??0)<300;
     response.writeHead(healthy ? 200 : 503, { 'content-type': 'application/json', 'cache-control': 'no-store' });
     response.end(JSON.stringify({ ok: healthy, mode: 'filtered-logs', activeSources, activePools, subscriptions: subscriptionIds.length, reconnects,
-      pending: counts.rows[0]?.pending ?? 0, dead: counts.rows[0]?.dead ?? 0, lastError }));
+      pending: counts.rows[0]?.pending ?? 0, dead: counts.rows[0]?.dead ?? 0, oldestPendingSeconds:counts.rows[0]?.oldest_pending_seconds??0,publishConcurrency,lastError }));
   } catch {
     response.writeHead(503, { 'content-type': 'application/json' }).end(JSON.stringify({ ok: false }));
   }
 });
 healthServer.listen(port);
 
-void publishLoop();
+for (let worker = 0; worker < publishConcurrency; worker++) void publishLoop();
 void connectionLoop();
 
 for (const signal of ['SIGTERM', 'SIGINT'] as const) process.on(signal, () => {
@@ -85,14 +89,16 @@ async function connectionLoop(): Promise<void> {
         await delay(sourceRefreshMs);
         if (stopping || client.closed) break;
         const nextRouting = await loadRouting(sourcePool, filter);
-        if (routingFingerprint(nextRouting) === routingFingerprint(currentRouting)) continue;
-        const addedSources = nextRouting.sources.filter((source) => !currentRouting.sources.some((current) => current.address === source.address));
-        const addedPools = nextRouting.pools.filter((pool) => !currentRouting.pools.some((current) => current.poolId === pool.poolId));
+        if (routingFingerprint(nextRouting) === routingFingerprint(currentRouting)) { await reconcile(client, currentRouting); continue; }
+        const currentAddresses = new Set(currentRouting.sources.map(source => source.address));
+        const currentPools = new Set(currentRouting.pools.map(pool => pool.poolId));
+        const addedSources = nextRouting.sources.filter(source => !currentAddresses.has(source.address));
+        const addedPools = nextRouting.pools.filter(pool => !currentPools.has(pool.poolId));
         setAllowed(mergeRouting(currentRouting, nextRouting));
         const nextSubscriptions = await subscribe(client, nextRouting);
         const head = await latestHead(client);
         const additions = [...addedSources, ...addedPools];
-        if (additions.length > 0) await backfill(nextRouting, minimumBirthBlock(additions), head.number);
+        if (additions.length > 0) await backfill({ sources: addedSources, pools: addedPools }, minimumBirthBlock(additions), head.number, false);
         for (const id of subscriptionIds) await client.request<boolean>('eth_unsubscribe', [id]);
         subscriptionIds = nextSubscriptions;
         currentRouting = nextRouting;
@@ -130,16 +136,14 @@ async function subscribe(client: WsRpcClient, routing: Routing): Promise<string[
 async function reconcile(client: WsRpcClient, routing: Routing): Promise<void> {
   const head = await latestHead(client);
   const state = await relayPool.query<{ last_block: string }>('SELECT last_block::text FROM chain_relay_state WHERE id=1');
-  if (!state.rows[0]) {
-    await relayPool.query('INSERT INTO chain_relay_state(id,last_block,last_block_hash) VALUES(1,$1,$2)', [head.number.toString(), head.hash]);
-    return;
-  }
-  const fromBlock = BigInt(state.rows[0].last_block) + 1n;
+  // last_block means a complete HTTP scan, never a single observed WS log.
+  // Rescan the boundary (and recent reorg window), including on first connection.
+  const fromBlock = state.rows[0] ? BigInt(state.rows[0].last_block) - recoveryOverlap + 1n : head.number - recoveryOverlap + 1n;
   if (fromBlock <= head.number) await backfill(routing, fromBlock, head.number);
   await advanceState(head.number, head.hash);
 }
 
-async function backfill(routing: Routing, requestedFrom: bigint, toBlock: bigint): Promise<void> {
+async function backfill(routing: Routing, requestedFrom: bigint, toBlock: bigint, advanceCheckpoint = true): Promise<void> {
   const fromBlock = requestedFrom < filter.activationBlock ? filter.activationBlock : requestedFrom;
   if (fromBlock > toBlock) return;
   const span = toBlock - fromBlock + 1n;
@@ -150,7 +154,7 @@ async function backfill(routing: Routing, requestedFrom: bigint, toBlock: bigint
       const logs = await httpRpc<unknown[]>('eth_getLogs', [{ fromBlock: hexQuantity(start), toBlock: hexQuantity(end), ...logFilter }]);
       for (const value of logs) await handleSubscriptionLog(value);
     }
-    await advanceState(end, null);
+    if (advanceCheckpoint) await advanceState(end, null);
   }
 }
 
@@ -163,13 +167,13 @@ async function handleSubscriptionLog(value: unknown): Promise<void> {
     `INSERT INTO chain_relay_events(event_key,payload) VALUES($1,$2) ON CONFLICT(event_key) DO NOTHING`,
     [eventKey(log), payload],
   );
-  await advanceState(head.number, head.hash);
 }
 
 async function publishLoop(): Promise<void> {
   while (!stopping) {
+    let event: { event_key: string; payload: string; attempt: number } | undefined;
     try {
-      const event = await claimEvent(relayPool);
+      event = await claimEvent(relayPool);
       if (!event) { await delay(500); continue; }
       const endpoint = `${queueUrl}/v2/publish/${encodeURIComponent(destination.toString())}`;
       const response = await fetch(endpoint, {
@@ -180,33 +184,49 @@ async function publishLoop(): Promise<void> {
         },
       });
       if (!response.ok) throw new Error(`queue publish returned HTTP ${response.status}`);
-      await relayPool.query("UPDATE chain_relay_events SET state='queued',lease_expires_at=NULL,last_error=NULL,updated_at=now() WHERE event_key=$1", [event.event_key]);
-      claimedKey = null;
+      await settleBatch(event);
     } catch (error) {
-      await releaseClaim(error instanceof Error ? error.message : 'publish failure');
+      if (event) await releaseClaim(event, error instanceof Error ? error.message : 'publish failure').catch(()=>undefined);
       await delay(1_000);
     }
   }
 }
 
-let claimedKey: string | null = null;
-async function claimEvent(pool: Pool): Promise<{ event_key: string; payload: string } | undefined> {
-  const result = await pool.query<{ event_key: string; payload: string }>(`WITH picked AS (
-    SELECT event_key FROM chain_relay_events
-    WHERE (state='pending' OR (state='leased' AND lease_expires_at<=now())) AND next_attempt_at<=now()
-    ORDER BY next_attempt_at,event_key FOR UPDATE SKIP LOCKED LIMIT 1
-  ) UPDATE chain_relay_events e SET state='leased',attempt=e.attempt+1,lease_expires_at=now()+interval '30 seconds',updated_at=now()
-    FROM picked WHERE e.event_key=picked.event_key RETURNING e.event_key,e.payload`);
-  claimedKey = result.rows[0]?.event_key ?? null;
-  return result.rows[0];
+// Every raw event stays in the inbox. A sealed batch sends one head/range wake-up;
+// downstream still independently retrieves and verifies the complete finalized range.
+async function claimEvent(pool:Pool):Promise<{event_key:string;payload:string;attempt:number}|undefined>{
+  const client=await pool.connect();
+  try{
+    await client.query('BEGIN');
+    let batch=(await client.query<{event_key:string;payload:string;attempt:number}>(`WITH picked AS (SELECT batch_key FROM chain_relay_batches WHERE (state='pending' OR (state='leased' AND lease_expires_at<=now())) AND next_attempt_at<=now() ORDER BY next_attempt_at,batch_key FOR UPDATE SKIP LOCKED LIMIT 1) UPDATE chain_relay_batches b SET state='leased',attempt=b.attempt+1,lease_expires_at=now()+interval '30 seconds' FROM picked WHERE b.batch_key=picked.batch_key RETURNING b.batch_key event_key,b.payload,b.attempt`)).rows[0];
+    if(!batch){
+      const seed=(await client.query<{group_key:string}>(`SELECT group_key FROM chain_relay_events WHERE batch_key IS NULL AND (state='pending' OR (state='leased' AND lease_expires_at<=now())) AND next_attempt_at<=now() ORDER BY next_attempt_at,event_key FOR UPDATE SKIP LOCKED LIMIT 1`)).rows[0];
+      if(seed){
+        const events=(await client.query<{event_key:string;payload:string}>(`SELECT event_key,payload FROM chain_relay_events WHERE batch_key IS NULL AND group_key=$1 AND (state='pending' OR (state='leased' AND lease_expires_at<=now())) AND next_attempt_at<=now() ORDER BY event_key FOR UPDATE SKIP LOCKED LIMIT 256`,[seed.group_key])).rows;
+        const keys=events.map(e=>e.event_key),key=createHash('sha256').update(JSON.stringify(keys)).digest('hex');
+        if(!events.length)throw Error('empty relay batch');
+        await client.query(`INSERT INTO chain_relay_batches(batch_key,payload,event_count,state,attempt,lease_expires_at) VALUES($1,$2,$3,'leased',1,now()+interval '30 seconds')`,[key,events[0]!.payload,events.length]);
+        await client.query(`UPDATE chain_relay_events SET batch_key=$1 WHERE event_key=ANY($2::text[])`,[key,keys]);
+        batch={event_key:key,payload:events[0]!.payload,attempt:1};
+      }
+    }
+    if(batch)await client.query(`UPDATE chain_relay_events SET state='leased',attempt=$2,lease_expires_at=now()+interval '30 seconds',updated_at=now() WHERE batch_key=$1`,[batch.event_key,batch.attempt]);
+    await client.query('COMMIT');return batch;
+  }catch(error){await client.query('ROLLBACK').catch(()=>{});throw error;}finally{client.release();}
 }
-
-async function releaseClaim(error: string): Promise<void> {
-  if (!claimedKey) return;
-  await relayPool.query(`UPDATE chain_relay_events SET state=CASE WHEN attempt>=8 THEN 'dead' ELSE 'pending' END,
-    lease_expires_at=NULL,last_error=$2,next_attempt_at=now()+(least(300,power(2,attempt)) * interval '1 second'),updated_at=now()
-    WHERE event_key=$1`, [claimedKey, error.slice(0, 200)]).catch(() => undefined);
-  claimedKey = null;
+async function settleBatch(event:{event_key:string;attempt:number}){
+  const client=await relayPool.connect();try{await client.query('BEGIN');
+    const saved=await client.query(`UPDATE chain_relay_batches SET state='queued',lease_expires_at=NULL,last_error=NULL WHERE batch_key=$1 AND state='leased' AND attempt=$2`,[event.event_key,event.attempt]);
+    if(saved.rowCount)await client.query(`UPDATE chain_relay_events SET state='queued',lease_expires_at=NULL,last_error=NULL,updated_at=now() WHERE batch_key=$1 AND state='leased' AND attempt=$2`,[event.event_key,event.attempt]);
+    await client.query('COMMIT');
+  }catch(error){await client.query('ROLLBACK').catch(()=>{});throw error;}finally{client.release();}
+}
+async function releaseClaim(event:{event_key:string;attempt:number},error:string){
+  const client=await relayPool.connect();try{await client.query('BEGIN');
+    const row=(await client.query<{state:string;next_attempt_at:Date}>(`UPDATE chain_relay_batches SET state=CASE WHEN attempt>=8 THEN 'dead' ELSE 'pending' END,lease_expires_at=NULL,last_error=$2,next_attempt_at=now()+(least(300,power(2,attempt))*interval '1 second') WHERE batch_key=$1 AND state='leased' AND attempt=$3 RETURNING state,next_attempt_at`,[event.event_key,error.slice(0,200),event.attempt])).rows[0];
+    if(row)await client.query(`UPDATE chain_relay_events SET state=$2,lease_expires_at=NULL,last_error=$3,next_attempt_at=$4,updated_at=now() WHERE batch_key=$1 AND state='leased' AND attempt=$5`,[event.event_key,row.state,error.slice(0,200),row.next_attempt_at,event.attempt]);
+    await client.query('COMMIT');
+  }catch{await client.query('ROLLBACK').catch(()=>{});}finally{client.release();}
 }
 
 async function initialize(pool: Pool): Promise<void> {
@@ -216,6 +236,11 @@ async function initialize(pool: Pool): Promise<void> {
     attempt integer NOT NULL DEFAULT 0, next_attempt_at timestamptz NOT NULL DEFAULT now(), lease_expires_at timestamptz,
     last_error text, created_at timestamptz NOT NULL DEFAULT now(), updated_at timestamptz NOT NULL DEFAULT now()
   )`);
+  await pool.query(`ALTER TABLE chain_relay_events ADD COLUMN IF NOT EXISTS batch_key text`);
+  await pool.query(`ALTER TABLE chain_relay_events ADD COLUMN IF NOT EXISTS group_key text GENERATED ALWAYS AS ((payload::jsonb->'log'->>'blockHash')||':'||(payload::jsonb->'log'->>'removed')||':'||(payload::jsonb->'head'->>'hash')) STORED`);
+  await pool.query(`CREATE TABLE IF NOT EXISTS chain_relay_batches(batch_key text PRIMARY KEY,payload text NOT NULL,event_count integer NOT NULL,state text NOT NULL,attempt integer NOT NULL DEFAULT 0,lease_expires_at timestamptz,next_attempt_at timestamptz NOT NULL DEFAULT now(),last_error text)`);
+  await pool.query(`CREATE INDEX IF NOT EXISTS chain_relay_unbatched ON chain_relay_events(group_key,next_attempt_at,event_key) WHERE batch_key IS NULL AND state IN ('pending','leased')`);
+  await pool.query(`CREATE INDEX IF NOT EXISTS chain_relay_batch_members ON chain_relay_events(batch_key)`);
   await pool.query("CREATE INDEX IF NOT EXISTS chain_relay_events_due_idx ON chain_relay_events(state,next_attempt_at)");
   await pool.query(`CREATE TABLE IF NOT EXISTS chain_relay_state (
     id smallint PRIMARY KEY CHECK(id=1), last_block numeric(78,0) NOT NULL, last_block_hash text, updated_at timestamptz NOT NULL DEFAULT now()
@@ -231,7 +256,7 @@ async function loadRouting(pool: Pool, eventFilter: EventFilter): Promise<Routin
   );
   const pools = await pool.query<{ pool_id: string; birth_block: string }>(
     `SELECT lower(r.payload->>'poolId') AS pool_id,r.payload->'source'->>'blockNumber' AS birth_block
-     FROM ${schema}.projection_records r
+     FROM ${schema}.projection_read_records r
      JOIN ${schema}.publication_pointers p USING(environment,chain_id,deployment_digest,scope,revision)
      WHERE r.environment='test' AND r.chain_id=$1 AND r.deployment_digest=$2 AND r.scope='markets'
        AND r.payload->>'poolId' ~ '^0x[0-9a-fA-F]{64}$' AND r.payload->>'poolId' <> $3

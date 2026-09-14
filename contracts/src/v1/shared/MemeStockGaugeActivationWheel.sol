@@ -27,8 +27,10 @@ abstract contract MemeStockGaugeActivationWheel {
     {
         if (_totalPendingStock == 0) return (0, 0);
         for (uint8 i; i < ACTIVATION_WHEEL_SIZE; ++i) {
-            ActivationSlot memory slot = _activationWheel[i];
-            if (slot.generation == 0 || slot.generation > block.timestamp) continue;
+            ActivationSlot storage stored = _activationWheel[i];
+            uint64 generation = stored.generation;
+            if (generation == 0 || generation > block.timestamp) continue;
+            ActivationSlot memory slot = stored;
             if (slot.amount == 0 || slot.refs == 0) {
                 revert InvalidActivationSlotState(i, slot.generation, slot.amount, slot.refs);
             }

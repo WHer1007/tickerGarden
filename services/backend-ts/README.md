@@ -48,3 +48,10 @@ Chain and content use distinct QStash publish tokens and fixed callback URLs. Bo
 Principal projection replays authenticated `UserStockVault` events from the deployment boundary and verifies every discovered account and allocation against both RPC providers at one finalized block. Gauge active/pending principal, activation state, claimable assets and rage-quit settlement are read at that same block. `/v1/users/{address}/accounts` and `/v1/users/{address}/positions` are database-only, revision-bound and user-filtered; `allocated` remains the total and always equals the published active plus pending components. A pending rage-quit settlement is withheld from the normal position view, and fully cleared positions are removed. Wallet writes, simulation and the direct Vault rage-quit escape remain frontend-to-chain operations.
 
 `/internal/live` proves that the function executes. `/internal/ready` proves only that required configuration is present; later tasks add database and provider checks. Neither endpoint claims that frontend business data is ready.
+
+
+## 常驻链索引运行选项
+
+链队列现支持 `qstash` / `resident` 两种互斥执行模式，默认保持 qstash。常驻 Node 24 Worker 复用当前 TypeScript 链处理器和 PostgreSQL 任务、租约、最终性机制；配置与切换说明见 `docs/operations/RESIDENT_INDEXER.md`。运行入口为 `services/backend-ts/scripts/resident-worker.ts`，不会自动启用 Holder 周期签名。
+
+Read API OpenAPI 5.1.0 要求 `/v1/market-statistics` 显式提供 1–100 个市场，前端按可见市场分批请求。Holder 展示覆盖读取 `holder_snapshots_covered` 视图，基表保留最后变化区块。

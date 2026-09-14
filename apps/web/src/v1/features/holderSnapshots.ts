@@ -17,7 +17,7 @@ export function snapshotRoot(leaf:Hex,proof:readonly Hex[]):Hex {return proof.re
 export function parseHolderSnapshots(value:unknown,id:SnapshotIdentity):HolderSnapshotPage {
  const p=record(value);
  if(p.schema!=='TICKERGARDEN_HOLDER_WALLET_SNAPSHOTS_V1'||p.chainId!==id.chainId||p.displayOnly!==true||p.finality!=='finalized')throw Error('Wrong snapshot scope');
- for(const k of ['distributor','marketId','account','quote','meme'] as const)if(p[k]!==id[k].toLowerCase())throw Error(`Snapshot ${k} mismatch`);
+ for(const k of ['distributor','marketId','account','quote','meme'] as const)if(p[k]!==id[k].toLowerCase())throw Error(`Snapshot ${k==='meme'?'created-token asset':k} mismatch`);
  hash(p.sourceBlockHash);const sourceBlock=integer(p.sourceBlockNumber,64);
  if(!['ready','awaiting_funding','awaiting_publication','publisher_unconfigured'].includes(String(p.status)))throw Error('Unknown snapshot status');
  if(!Array.isArray(p.rounds)||p.rounds.length>50)throw Error('Invalid snapshot rounds');
@@ -33,6 +33,19 @@ export function parseHolderSnapshots(value:unknown,id:SnapshotIdentity):HolderSn
 }
 export function claimableSnapshotAssets(r:HolderRound):number {return (r.quoteAmount>0n?1:0) | (r.memeAmount>0n?2:0);}
 export function remainingSnapshotAssets(r:HolderRound):number {return claimableSnapshotAssets(r)&~r.claimedAssets;}
+export function holderSnapshotStatus(status:HolderSnapshotPage['status'],round:HolderRound|undefined,writesAvailable:boolean):Readonly<{message:string;tone:'neutral'|'error'}>{
+ if(round){
+  if(remainingSnapshotAssets(round)===0)return {message:'Rewards from this distribution have already been claimed.',tone:'neutral'};
+  return writesAvailable?{message:'',tone:'neutral'}:{message:'Claiming is temporarily unavailable.',tone:'error'};
+ }
+ const messages:Record<HolderSnapshotPage['status'],string>={
+  ready:'No rewards available for this wallet.',
+  awaiting_funding:'Your rewards are being prepared.',
+  awaiting_publication:'The next reward distribution is being prepared.',
+  publisher_unconfigured:'New reward distributions are temporarily unavailable.',
+ };
+ return {message:messages[status],tone:'neutral'};
+}
 export function buildSnapshotClaim(id:SnapshotIdentity,r:HolderRound,assets:number) {
  if(id.burnMemeFees && r.memeAmount!==0n)throw Error('Burn-mode holder snapshots must be Quote-only');
  if(![1,2,3].includes(assets)||(assets&remainingSnapshotAssets(r))!==assets)throw Error('Selected snapshot assets are unavailable');

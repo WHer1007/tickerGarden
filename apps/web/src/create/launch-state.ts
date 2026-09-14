@@ -12,5 +12,5 @@ export function readLaunchState(storage:Pick<Storage,'getItem'>,chainId:number):
 }
 export function saveLaunchState(storage:Pick<Storage,'setItem'>,state:LaunchState):void{storage.setItem(launchStateKey(state.chainId),JSON.stringify(state));}
 export const launchPhaseDisplay:Record<LaunchPhase,{step:string;percent:number}>={
- publishing:{step:'Publish details',percent:10},preparing:{step:'Prepare launch',percent:30},approval:{step:'Approve asset',percent:45},wallet:{step:'Confirm in wallet',percent:60},pending:{step:'Confirm on chain',percent:80},confirming:{step:'Confirm on chain',percent:95},complete:{step:'Complete',percent:100},paused:{step:'Check transaction',percent:80},failed:{step:'Launch stopped',percent:0},
+ publishing:{step:'Publish details',percent:10},preparing:{step:'Prepare launch',percent:30},approval:{step:'Approve asset',percent:45},wallet:{step:'Confirm in wallet',percent:60},pending:{step:'Confirm on chain',percent:80},confirming:{step:'Confirm on chain',percent:95},complete:{step:'Launch complete',percent:100},paused:{step:'Check transaction',percent:80},failed:{step:'Launch stopped',percent:0},
 };

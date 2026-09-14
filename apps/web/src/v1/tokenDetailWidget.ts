@@ -61,9 +61,9 @@ export function mountTokenDetail(root:HTMLElement,base:string|null,chain:number,
    const row=document.createElement('div'),percent=document.createElement('strong'),name=document.createElement('b'),note=document.createElement('span'),total=document.createElement('p');percent.textContent=v.percent===null?'-':`${v.percent}%`;name.textContent=v.label;note.textContent=v.note;const amounts=feeData?.filter(f=>f.recipient===v.key)??[];const usdValue=feeData&&id?feeUsdValue(amounts,id.quoteAsset,id.memeToken,id.quoteDecimals,overview.price??data?.statistics?.price,overview.usd):null;total.textContent=formatFeeUsd(usdValue);total.title=usdValue===null?'USD valuation unavailable':`$${usdValue} · Estimated at current prices`;row.append(percent,name,note,total);row.classList.toggle('is-zero',v.percent===0);rows.append(row);
   }
   rows.querySelectorAll('.is-zero').forEach(row=>rows.append(row));
-  text('[data-detail-fee-status]',`${fees.phase===0?'Curve':fees.active===null?'Stake status unavailable':fees.active?'Staking active':'No active stake'} · Holder sharing ${fees.holders?'on':'off'}`);
+  text('[data-detail-fee-status]',`${fees.phase===0?'Curve':!fees.stakingEnabled?'Pool':fees.active===null?'Stake status unavailable':fees.active?'Staking active':'No active stake'} · Holder sharing ${fees.holders?'on':'off'}`);
   text('[data-detail-fee-note]','');
-  text('[data-detail-fee-rules]',[fees.taxBps>0?`Additional Creator Tax: ${fees.taxBps/100}%`:'',data?.sources.fees?`Updated ${new Date((activity?.sources.fees??data.sources.fees).asOf*1000).toLocaleString()}`:feeData?`Cumulative Allocations · Finalized Snapshot`:'Earnings Data Pending',feeData?'Estimated USD value at current prices':''].filter(Boolean).join(' · '));
+  text('[data-detail-fee-rules]',[fees.baseFeeBps===undefined?'':`Base Trading Fee: ${fees.baseFeeBps/100}%`,fees.taxBps>0?`Additional Creator Tax: ${fees.taxBps/100}%`:'',fees.lpFeePips===undefined?'':`LP Fee: ${fees.lpFeePips/10000}%`,data?.sources.fees?`Updated ${new Date((activity?.sources.fees??data.sources.fees).asOf*1000).toLocaleString()}`:feeData?`Cumulative Allocations · Finalized Snapshot`:'Earnings Data Pending',feeData?'Estimated USD value at current prices':''].filter(Boolean).join(' · '));
  };
  const renderChartChange=()=>{
   const active=currentChart()?.points.filter(p=>p.price!==null)??[];let change='-';if(active.length>1){const first=scaledDecimal(active[0]!.price!),last=scaledDecimal(active.at(-1)!.price!);const bps=(last-first)*10000n/first;change=`${bps>=0n?'+':'−'}${(bps<0n?-bps:bps)/100n}.${((bps<0n?-bps:bps)%100n).toString().padStart(2,'0')}% (${period})`;q('[data-detail-change]').classList.toggle('ref-negative',bps<0n);}text('[data-detail-change]',change);
@@ -127,7 +127,7 @@ export function mountTokenDetail(root:HTMLElement,base:string|null,chain:number,
  const refresh=async(force=false)=>{
   const requestedKey=id?`${id.marketId}:summary`:'';
   if(controller&&activeKey===requestedKey&&!controller.signal.aborted)return;
-  if(!id||!base){data=null;state=id?'error':'loading';render();return;}
+  if(!id||!base){data=null;state=id?'error':'loading';if(id&&!base){chartData=null;chartState='error';renderChartChange();}render();return;}
   const identity=id,chosen='1H' as const,key=`${identity.marketId}:summary`,cached=cache.get(key);
   if(!force&&cached&&Date.now()<cached.refreshAt)return;
   const own=++generation;controller?.abort();controller=null;clearTimeout(expiry);

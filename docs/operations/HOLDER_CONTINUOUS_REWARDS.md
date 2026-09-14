@@ -46,7 +46,7 @@ legacy-merkle-7d-v1
 
 The batched mode requires a new release, mode-specific artifacts, and fresh deployment, Fork, conversion, claim, and receipt evidence. Existing legacy addresses remain unchanged. Neither mode is production-ready merely because local source tests pass.
 
-The selected source policy accepts a pinned v4 Core protocol fee up to 1000 pips (0.1%) per direction, with direction-specific values allowed. PoolKey.fee and LP fee remain zero. Core protocol fee is collected independently by PoolManager, does not enter FeeVault or TickerGarden distributions, and is shown separately from the TickerGarden 1% base fee and Creator tax. Reward conversion does not recursively charge TickerGarden fees, but Core fee remains in the actual output.
+The selected source policy accepts a pinned v4 Core protocol fee up to 1000 pips (0.1%) per direction, with direction-specific values allowed. The source candidate supports immutable creator-selected PoolKey.fee of 0/1000/2000/3000 pips. Existing deployed zero-fee pools remain unchanged. Core protocol fee is collected independently by PoolManager, does not enter FeeVault or TickerGarden distributions, and is shown separately from the TickerGarden 1% base fee and Creator tax. Reward conversion does not recursively charge TickerGarden fees, but native LP and Core fees remain in the actual output.
 
 Frontend write approval is version-specific. The V4 contracts are deployed and registry-active on Robinhood testnet in release `0x6e743e8bf90c0e91cd7de52711a1a68976401c494187f1e015fc66ef17310f95`, but the release remains `ACTIVE_TEST_ONLY` and has not passed its public market E2E gate. The configured frontend therefore remains on the prior verified release until that separate gate passes.
 

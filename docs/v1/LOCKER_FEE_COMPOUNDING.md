@@ -3,6 +3,26 @@
 Status: implemented in the candidate contracts; deployment is pending. The backend does not currently run an automatic trigger, and this
 document is not live-chain evidence.
 
+RH mainnet launch clarification (2026-09-15): configure on-chain compounding
+permission during deployment initialization; leave off-chain automatic scheduling
+disabled and invoke compounding on demand later. This replaces the earlier
+incorrect interpretation that the launch Keeper should remain zero.
+
+Set `compoundKeeper` to `0x2cFb6cAa2042690fc928CE0ccE40F3828336dE44`, shared with
+the Holder snapshot publisher, during bootstrap before assigning the setter to
+the delayed governance role and before the deployer renounces ADMIN_ROLE. Read
+back the configured address as part of complete deployment acceptance. Preserve
+the governance selector binding for later Keeper rotation or revocation. The
+[mainnet preparation manifest](../../deployments/manifests/robinhood-mainnet-4663.preparation.json)
+records the required launch Keeper and separates on-chain readiness from
+off-chain scheduling. These are planned settings, not a deployment receipt.
+
+Once configured, the Keeper can submit bounded compounding calls on demand without
+another governance activation or contract deployment. No separate contract enable
+switch exists. Serialize signing and nonce/pending recovery by chain and wallet
+across Holder and compounding tasks, including manual calls; the tools' separate
+journals do not currently provide that shared coordination.
+
 `LaunchLocker` remains the permanent owner of the original v4 position. LP
 fees are separate from FeeVault accounting and from Meme fee burn: they are
 fees accrued by that locked position in the pool.
@@ -86,6 +106,9 @@ Before execution, the backend must verify the canonical Locker and deployed code
 read current fee balances and pool price, choose explicit liquidity and input limits,
 simulate from the Keeper address, and submit within the deadline. It should skip small
 balances, serialize transactions per Keeper, and reconcile receipts before retrying.
-Scheduling and production signer integration remain an operational TODO, not an
-enabled job. Existing zero-LP-fee pools do not generate swap LP fees merely because
-this entry point exists; enabling optional LP fees is a separate release change.
+The repository now includes a manual backend executor with preview, durable signed
+intent recovery, receipt verification, and status commands. See
+[`tools/locker-compounding/README.md`](../../tools/locker-compounding/README.md).
+Scheduling and live signer configuration remain disabled; the local single-signer
+journal must not be treated as a distributed worker. Existing zero-LP-fee pools do not generate swap LP fees merely because
+this entry point exists; the current source candidate adds creator-selected 0/1000/2000/3000 pips for newly created markets, as described in `CREATOR_SELECTED_LP_FEE.md`. Existing deployments do not change.

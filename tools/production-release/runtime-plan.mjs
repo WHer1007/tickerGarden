@@ -1,0 +1,36 @@
+import assert from 'node:assert/strict';
+import {encodeDeployData} from '../../apps/web/node_modules/viem/_esm/index.js';
+import {artifact,equal,keccak256,encodeAbiParameters,decodeAbiParameters,encodeFunctionData,getContractAddress,parseAbiParameters,toBytes} from './common.mjs';
+export const COMPONENTS=['AccessManager','OfficialStockRegistryV1','ApprovedQuoteRegistry','TickerGardenBaselineRegistry','LaunchTemplateRegistry','LaunchConfigResolver','TickerMemeTokenV1Implementation','TickerGardenCurveImplementation','MemeStockGauge','LaunchAndBuyRouter','MarketRegistryV1','CreatorRevenueRegistry','AllocationManager','UserStockVault','HolderRewardsDistributorV1','ProtocolFeeVault'];
+export const CREATE2='0x4e59b44847b379578588920cA78FbF26c0B4956C';
+export const EXPORT_TYPES=parseAbiParameters('(address deployer,bytes32 releaseId,bytes orchestratorInitCode,bytes32 orchestratorSalt,address orchestrator,bytes32 helperSalt,uint256 helperSaltAttempts,bytes32 factorySalt) context,(address[16] ordinaryComponents,address helper,address hook,address executor,address factory,bytes32 payloadHash) plan,(bytes[] ordinaryInitCodes,bytes32 helperSalt,bytes helperInitCode,bytes hookInitCode,bytes executorInitCode,bytes32 factorySalt,bytes factoryInitCode) payload');
+const hashText=x=>keccak256(toBytes(x));
+const deploy=(name,args)=>{const a=artifact(name);return encodeDeployData({abi:a.abi,bytecode:a.bytecode.object,args});};
+export function verifyAndBuildRuntime(encoded,configuration,releaseId,startingNonce){
+ assert.equal(configuration.chainId,4663,'production chain');
+ assert.ok(Number.isSafeInteger(startingNonce)&&startingNonce>=0,'valid deployer nonce');
+ equal(configuration.addresses.initialAdmin,configuration.addresses.deployer,'bootstrap admin');
+ const [context,plan,payload]=decodeAbiParameters(EXPORT_TYPES,encoded);equal(encodeAbiParameters(EXPORT_TYPES,[context,plan,payload]),encoded,'export round trip');
+ equal(context.deployer,configuration.addresses.deployer,'export deployer');equal(context.releaseId,releaseId,'export release');equal(context.orchestratorInitCode,deploy('V1RobinhoodMainnetDeploymentOrchestrator',[context.deployer,releaseId]),'orchestrator initcode');
+ equal(context.orchestratorSalt,keccak256(encodeAbiParameters(parseAbiParameters('bytes32,uint256,uint256,bytes32'),[hashText('TICKERGARDEN_V1_ORCHESTRATOR_SALT'),1n,4663n,releaseId])),'orchestrator salt');
+ equal(context.orchestrator,getContractAddress({opcode:'CREATE2',from:CREATE2,salt:context.orchestratorSalt,bytecode:context.orchestratorInitCode}),'orchestrator address');
+ assert.equal(payload.ordinaryInitCodes.length,16);const c=plan.ordinaryComponents;
+ c.forEach((a,i)=>equal(a,getContractAddress({from:context.orchestrator,nonce:BigInt(i+1)}),'component address '+i));
+ equal(payload.helperSalt,context.helperSalt,'helper salt');equal(payload.factorySalt,context.factorySalt,'factory salt');
+ equal(context.factorySalt,keccak256(encodeAbiParameters(parseAbiParameters('bytes32,uint256,uint256,bytes32'),[hashText('TICKERGARDEN_V1_FACTORY_SALT'),1n,4663n,releaseId])),'factory salt domain');
+ equal(payload.helperInitCode,deploy('V1HookExecutorDeployer',[context.orchestrator]),'helper initcode');equal(plan.helper,getContractAddress({opcode:'CREATE2',from:context.orchestrator,salt:payload.helperSalt,bytecode:payload.helperInitCode}),'helper address');
+ equal(plan.hook,getContractAddress({from:plan.helper,nonce:1n}),'hook address');equal(plan.executor,getContractAddress({from:plan.helper,nonce:2n}),'executor address');assert.equal(BigInt(plan.hook)&0x3fffn,0x2044n,'hook permission mask');
+ const pool=configuration.dependencies.POOL_MANAGER.address,position=configuration.dependencies.POSITION_MANAGER.address;
+ const args=[[configuration.addresses.initialAdmin],[c[0]],[c[0],c[1]],[c[0]],[c[0]],[c[2],c[3],c[4]],[],[],[],[plan.factory,c[2]],[plan.factory,c[1],c[2],c[3],c[4],plan.executor],[plan.factory,c[10]],[c[1],c[10]],[c[1],c[10],c[12]],[c[10]],[{authority:c[0],marketRegistry:c[10],poolManager:pool,creatorRevenueRegistry:c[11],platformTreasury:configuration.addresses.platformTreasury,feePolicyId:configuration.feePolicyId}]];
+ for(let i=0;i<16;i++)equal(payload.ordinaryInitCodes[i],deploy(COMPONENTS[i],args[i]),'component initcode '+COMPONENTS[i]);
+ equal(payload.hookInitCode,deploy('TickerGardenMemeHook',[c[10],pool,c[15],plan.executor]),'hook initcode');
+ equal(payload.executorInitCode,deploy('GraduationExecutor',[c[10],c[2],pool,position,plan.hook]),'executor initcode');
+ equal(payload.factoryInitCode,deploy('TickerGardenFactoryV1',[{officialStockRegistry:c[1],approvedQuoteRegistry:c[2],tickerGardenBaselineRegistry:c[3],launchTemplateRegistry:c[4],marketRegistry:c[10],creatorRevenueRegistry:c[11],protocolFeeVault:c[15],allocationManager:c[12],launchRouter:c[9],platformTreasury:configuration.addresses.platformTreasury,holderRewardsDistributor:c[14],memeTokenImplementation:c[6],curveImplementation:c[7],gaugeImplementation:c[8],feePolicyId:configuration.feePolicyId}]),'factory initcode');
+ equal(plan.factory,getContractAddress({opcode:'CREATE2',from:context.orchestrator,salt:payload.factorySalt,bytecode:payload.factoryInitCode}),'factory address');
+ const orchestratorAbi=artifact('V1RobinhoodMainnetDeploymentOrchestrator').abi;const payloadType=orchestratorAbi.find(x=>x.type==='function'&&x.name==='finish').inputs;
+ equal(plan.payloadHash,keccak256(encodeAbiParameters(payloadType,[payload])),'full payload commitment');
+ const finalPayload={...payload,ordinaryInitCodes:[]};const finalHash=keccak256(encodeAbiParameters(payloadType,[finalPayload]));
+ const tx=(id,to,data)=>({id,phase:'RUNTIME',chainId:4663,from:context.deployer,to,value:'0',nonce:startingNonce++,data,inputHash:keccak256(data)});
+ const transactions=[tx('deploy-orchestrator',CREATE2,context.orchestratorSalt+context.orchestratorInitCode.slice(2)),tx('commit-runtime',context.orchestrator,encodeFunctionData({abi:orchestratorAbi,functionName:'begin',args:[plan.payloadHash,payload.ordinaryInitCodes.map(code=>keccak256(code)),finalHash]})),...payload.ordinaryInitCodes.map((code,i)=>tx('deploy-'+COMPONENTS[i],context.orchestrator,encodeFunctionData({abi:orchestratorAbi,functionName:'deployComponent',args:[i,code]}))),tx('finish-runtime',context.orchestrator,encodeFunctionData({abi:orchestratorAbi,functionName:'finish',args:[finalPayload]}))];
+ return {schemaVersion:1,status:'UNSIGNED_CANDIDATE_REQUIRES_SIMULATION_AND_REVIEW_NOT_BROADCAST',chainId:4663,releaseId,deployer:context.deployer,orchestrator:context.orchestrator,factory:plan.factory,hook:plan.hook,graduationExecutor:plan.executor,helper:plan.helper,components:Object.fromEntries(COMPONENTS.map((name,i)=>[name,c[i]])),payloadHash:plan.payloadHash,finalHash,helperSaltAttempts:context.helperSaltAttempts,configuration,transactions};
+}

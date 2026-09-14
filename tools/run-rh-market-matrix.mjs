@@ -5,7 +5,8 @@ import {generatePrivateKey,privateKeyToAccount} from '../apps/web/node_modules/v
 const run=process.env.TG_RH_MATRIX_RUN;if(!run||!/^[a-z0-9-]+$/.test(run))throw Error('Explicit isolated matrix run required');
 const e=readProjectEnv('test'),out='outputs/reviews/'+run,file=out+'/results.json',cap=out+'/capability.json',z='0x'+'0'.repeat(40),z32='0x'+'0'.repeat(64),rpc='http://127.0.0.1:18570';
 fs.mkdirSync(out,{recursive:true});
-const b=JSON.parse(fs.readFileSync(process.env.TG_RH_MATRIX_BOOTSTRAP||'apps/web/public/'+e.VITE_INTEGRATION_BOOTSTRAP));
+const bootstrapFile=process.env.TG_RH_MATRIX_BOOTSTRAP||e.TG_DEPLOYMENT_BOOTSTRAP_FILE;if(!bootstrapFile)throw Error('Server-side matrix bootstrap required');
+const b=JSON.parse(fs.readFileSync(bootstrapFile));
 const secret=p=>{const s=fs.lstatSync(p);if(s.isSymbolicLink()||(s.mode&0o077))throw Error('Unsafe secret permissions');return JSON.parse(fs.readFileSync(p));};
 const keypath='/Users/dear/.config/tickergarden/testnet-wallets/'+run+'.json';
 if(!fs.existsSync(keypath))fs.writeFileSync(keypath,JSON.stringify({chainId:46630,roles:Object.fromEntries(['alice','bob','carol','dave'].map(k=>[k,{privateKey:generatePrivateKey()}]))}),{flag:'wx',mode:0o600});

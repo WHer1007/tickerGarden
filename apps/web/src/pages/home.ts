@@ -31,7 +31,7 @@ export default {
         <div class="hero-copy">
           <p class="hero-kicker"><i class="ph ph-plant" aria-hidden="true"></i>Community signal markets</p>
           <h1>Stake the ticker.<span>Grow the culture.</span></h1>
-          <p class="hero-lede">TickerGarden is where stock communities and meme culture meet—creating an open, expressive layer for every ticker story.</p>
+          <p class="hero-lede">TickerGarden is where stock communities create and trade their own onchain tokens—an open, expressive layer for every ticker story.</p>
           <div class="hero-actions">
             <a class="home-button primary" href="/explore">Explore markets <i class="ph ph-arrow-up-right" aria-hidden="true"></i></a>
             <a class="home-button secondary" href="/create">Create a market <i class="ph ph-sprout" aria-hidden="true"></i></a>
@@ -52,7 +52,7 @@ export default {
       </section>
 
       <section class="creation-banner">
-        <div><p class="section-kicker">One STOCK. Many cultures.</p><h2>Grow the next <em>Ticker Meme.</em></h2></div>
+        <div><p class="section-kicker">One STOCK. Many cultures.</p><h2>Grow the next <em>community token.</em></h2></div>
         <p>Every stock carries more than one story. Give the next culture room to take root.</p>
         <a class="home-button banner-button" href="/create">Create a market <i class="ph ph-arrow-right" aria-hidden="true"></i></a>
       </section>
@@ -60,9 +60,9 @@ export default {
       <section class="how" aria-labelledby="how-heading">
         <div class="how-heading"><p class="section-kicker">Simple mechanics</p><h2 id="how-heading">How it grows</h2><p>From an eligible Stock Token to a living onchain community.</p></div>
         <div class="steps">
-          <article><img src="${asset1}" width="1254" height="1254" loading="lazy" decoding="async" alt="Candlesticks growing from soil" /><div><span>01</span><h3>Launch a Ticker Meme</h3><p>Launch a fixed-supply token with your chosen paired asset.</p></div></article>
+          <article><img src="${asset1}" width="1254" height="1254" loading="lazy" decoding="async" alt="Candlesticks growing from soil" /><div><span>01</span><h3>Launch a community token</h3><p>Launch a fixed-supply token with your chosen paired asset.</p></div></article>
           <article><img src="${asset2}" width="1254" height="1254" loading="lazy" decoding="async" alt="A sprouting ticker chart" /><div><span>02</span><h3>Bloom the Market</h3><p>Curve trading moves into permanently locked liquidity.</p></div></article>
-          <article><img src="${asset3}" width="1254" height="1254" loading="lazy" decoding="async" alt="A healthy liquidity garden" /><div><span>03</span><h3>Allocate STOCK, Earn Fees</h3><p>After blooming, staked STOCK earns fees under its separate 24-hour lock; eligible holder rewards use wallet balance snapshots.</p></div></article>
+          <article><img src="${asset3}" width="1254" height="1254" loading="lazy" decoding="async" alt="A healthy liquidity garden" /><div><span>03</span><h3>Allocate STOCK, Earn Fees</h3><p>After Bloom, stake STOCK to earn trading fees. Eligible holders can also earn rewards through wallet balance snapshots.</p></div></article>
         </div>
       </section>
     </main>

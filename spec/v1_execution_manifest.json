@@ -359,11 +359,18 @@
       "AFTER_SWAP",
       "AFTER_SWAP_RETURNS_DELTA"
     ],
-    "requiredSlot0LpFee": 0,
+    "requiredSlot0LpFee": "MATCH_CANONICAL_POOL_KEY",
     "requiredPackedProtocolFee": 0,
-    "lpDistribution": "NONE",
+    "lpDistribution": "V4_NATIVE_ACTIVE_LIQUIDITY",
     "hookFeeDestination": "PROTOCOL_FEE_VAULT_FULL_AMOUNT",
-    "failureMode": "REVERT_ENTIRE_SWAP_EXCEPT_ISOLATED_STAKER_ACCOUNTING_FAILURE"
+    "failureMode": "REVERT_ENTIRE_SWAP_EXCEPT_ISOLATED_STAKER_ACCOUNTING_FAILURE",
+    "poolKeyFeeSource": "IMMUTABLE_MARKET_LP_FEE_PIPS",
+    "allowedPoolKeyFees": [
+      0,
+      1000,
+      2000,
+      3000
+    ]
   },
   "feeIdentity": {
     "domain": "TICKERGARDEN_V1_V4_FEE",
@@ -815,7 +822,7 @@
   "optionalStockStaking": {
     "creationField": "stakingEnabled",
     "immutable": true,
-    "expectedEconomicsSchemaVersion": 6,
+    "expectedEconomicsSchemaVersion": 8,
     "enabledRequires": "ACTIVE_STOCK_CURRENT_FINGERPRINT_AND_CANONICAL_VAULT",
     "disabledAssetUid": "ZERO_BYTES32",
     "disabledGauge": "ZERO_ADDRESS_NOT_DEPLOYED",
@@ -868,5 +875,20 @@
     "weightReadFailure": "ASSUME_STAKER_SHARE_FOR_FORFEITURE_ONLY_DO_NOT_INCREASE_CREATOR_SHARE",
     "retryFailedFee": false,
     "futureCreditsRemainEnabled": true
+  },
+  "creatorSelectedLPFee": {
+    "creationField": "lpFeePips",
+    "allowedPips": [
+      0,
+      1000,
+      2000,
+      3000
+    ],
+    "defaultPips": 0,
+    "immutable": true,
+    "phase": "POST_GRADUATION",
+    "accounting": "V4_NATIVE_LP_SEPARATE_FROM_FEEVAULT",
+    "expectedEconomicsSchemaVersion": 8,
+    "feePolicySchemaVersion": 5
   }
 }

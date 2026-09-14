@@ -40,12 +40,53 @@ test('period selection requests only the chart and preserves independent summary
 
 test('detail bootstrap and background display refresh do not wait for wallet RPC',()=>{
  const load=section('async function loadTradeMarket','async function renderTradeFeeDetails');
+ assert.match(load,/\(!readApi && !foundation\.direct\)/);
+ assert.match(load,/foundation\.direct && directMarkets/);
  assert.doesNotMatch(load,/await loadDetailBalances|await verifyTradeMarket|await refreshRecentTrades|await loadDetailContent/);
  const verify=section('async function verifyTradeMarket','async function loadDetailContent');
  assert.doesNotMatch(verify,/renderTradeFeeDetails|refreshRecentTrades|refreshMarketOverview/);
  const fields=section('async function refreshTradeFields','function completeTradeDisplay');
+ assert.match(fields,/\(!readApi&&!\(foundation\.direct&&directMarkets\)\)/);
  assert.match(fields,/if\(!background\)void loadDetailBalances\(true\)/);
+ const complete=section('function completeTradeDisplay','async function submitTrade');
+ assert.match(complete,/tradeMarket\.market\.marketId!==market\.market\.marketId/);
+ assert.doesNotMatch(complete,/tradeMarket!==market/);
+ assert.match(complete,/void loadDetailBalances\(false\)/);
  assert.match(app,/await refreshCurrentPage\(needsFoundation\)/);
  assert.match(app,/directoryMarketId\s*\? readPublishedMarket/);
  assert.match(app,/foundation.directoryMarketId && route.page !== "trade"/);
+});
+
+test('local direct detail converges unavailable historical widgets instead of loading forever',()=>{
+ assert.match(widget,/if\(id&&!base\)\{chartData=null;chartState='error';renderChartChange\(\);\}/);
+});
+
+test('local Creator rewards read the verified direct market without a Read API',()=>{
+ const detail=section('async function getRewardMarketDetail','// Claim mode is immutable');
+ assert.match(detail,/\(!readApi && !foundation\.direct\)/);
+ assert.match(detail,/foundation\.direct[\s\S]*directMarkets\?\.market/);
+ const creator=section('async function refreshCreatorReward','function clearTreasuryProof');
+ assert.doesNotMatch(creator,/Locked —/);
+ assert.match(creator,/Creator rewards could not be loaded\. Refresh and try again\./);
+});
+
+test('Claim token options keep the complete token address in their label and title',()=>{
+ const label=section('function rewardMarketOptionLabel','const holderHistoryCache');
+ assert.match(label,/currentPage\(\)==='rewards'[^\n]+market\.memeToken/);
+ assert.doesNotMatch(label,/currentPage\(\)==='rewards'[^\n]+shortHex/);
+ const populate=section('function populateRewardMarkets','function syncRewardMarketSelections');
+ assert.match(populate,/metadata\.symbol} · \$\{market\.memeToken}/);
+ assert.match(populate,/option\.title=market\.memeToken/);
+});
+
+test('Holder rewards uses one token-selection prompt',()=>{
+ const availability=section('function updateRewardsAvailability','function updateRewardCountdowns');
+ assert.doesNotMatch(availability,/Select A Token To View Rewards/);
+ assert.match(app,/Select a token to view its reward distribution\./);
+});
+
+test('Creator reward assets use the requested vertical separator',()=>{
+ const creator=section('async function refreshCreatorReward','function clearTreasuryProof');
+ assert.match(creator,/metadata\.quoteSymbol} ｜ \$\{metadata\.symbol}/);
+ assert.doesNotMatch(creator,/metadata\.quoteSymbol} \/ \$\{metadata\.symbol}/);
 });

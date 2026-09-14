@@ -477,9 +477,9 @@ class MockRpc implements V1ReadOnlyRpc {
     if (signature === selector("canonicalPoolId(bytes32)")) return result([(probe.poolId as string).slice(2)]);
     if (signature === selector("canonicalPoolKey(bytes32)")) return result([addressWord(poolKey.currency0 as string), addressWord(poolKey.currency1 as string), word(0), signedWord(poolKey.tickSpacing as number), addressWord(poolKey.hooks as string)]);
     if (signature === selector("market(bytes32)")) {
-      const output = Array.from({ length: 24 }, () => word(0));
-      output[16] = (probe.poolId as string).slice(2);
-      output[17] = word(sourceVersion);
+      const output = Array.from({ length: 22 }, () => word(0));
+      output[19] = (probe.poolId as string).slice(2);
+      output[20] = word(sourceVersion);
       return result(output);
     }
     if (signature === selector("hookPermissionMask()")) return result([word(8260)]);

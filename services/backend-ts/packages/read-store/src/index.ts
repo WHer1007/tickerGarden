@@ -59,7 +59,7 @@ export async function readPublishedPage(input: {
   const filterDigest = digest(input.filter);
   const after = input.cursor ? decodeCursor(input.cursor, { scope: input.scope, revision: publication.revision, filterDigest }, input.secret) : undefined;
   const records = await input.pool.query<{ identity: string; sort_key: string; payload: Json }>(
-    `SELECT r.identity,r.sort_key,r.payload FROM ${schema}.projection_records r
+    `SELECT r.identity,r.sort_key,r.payload FROM ${schema}.projection_read_records r
      JOIN ${schema}.chain_blocks b ON b.environment=r.environment AND b.chain_id=r.chain_id AND b.deployment_digest=r.deployment_digest AND b.hash=$5
      WHERE r.environment=$1 AND r.chain_id=$2 AND r.deployment_digest=$3 AND r.scope=$4 AND r.revision=$6
        AND b.canonical AND b.finalized
@@ -77,7 +77,7 @@ export async function readPublishedPage(input: {
   const nextCursor = records.rows.length > limit && last ? encodeCursor({
     scope: input.scope, revision: publication.revision, filterDigest, sortKey: last.sort_key, identity: last.identity,
   }, input.secret) : null;
-  return { items: visible.map((row) => row.payload), nextCursor, sync: await syncForPublication(input.pool, schema, input.deployment, publication) };
+  return { items: visible.map((row) => displayAtPublication(row.payload,publication)), nextCursor, sync: await syncForPublication(input.pool, schema, input.deployment, publication) };
 }
 
 export interface MarketPageFilter {
@@ -121,13 +121,13 @@ export async function readPublishedMarketPage(input: {
       OR (order_value=$14::${sort.cast} AND identity>$13))) OR order_value IS NULL)))`;
   const records = await input.pool.query<{ identity: string; payload: Json; order_text: string | null }>(
     `WITH market_rows AS (
-       SELECT r.identity,r.payload FROM ${schema}.projection_records r
+       SELECT r.identity,r.payload FROM ${schema}.projection_read_records r
        JOIN ${schema}.chain_blocks b ON b.environment=r.environment AND b.chain_id=r.chain_id AND b.deployment_digest=r.deployment_digest AND b.hash=$4
        WHERE r.environment=$1 AND r.chain_id=$2 AND r.deployment_digest=$3 AND r.scope='markets' AND r.revision=$5 AND b.canonical AND b.finalized
        ${input.includeRecent ? `UNION ALL SELECT recent.market_id AS identity,recent.payload FROM ${schema}.recent_markets recent
        WHERE recent.environment=$1 AND recent.chain_id=$2 AND recent.deployment_digest=$3 AND recent.canonical AND recent.expires_at>now()
          AND recent.block_number>${publication.blockNumber}
-         AND NOT EXISTS(SELECT 1 FROM ${schema}.projection_records existing WHERE existing.environment=$1 AND existing.chain_id=$2 AND existing.deployment_digest=$3 AND existing.scope='markets' AND existing.revision=$5 AND existing.identity=recent.market_id)` : ''}
+         AND NOT EXISTS(SELECT 1 FROM ${schema}.projection_read_records existing WHERE existing.environment=$1 AND existing.chain_id=$2 AND existing.deployment_digest=$3 AND existing.scope='markets' AND existing.revision=$5 AND existing.identity=recent.market_id)` : ''}
      ), candidates AS (
        SELECT r.identity,r.payload,${sort.expression} AS order_value
        FROM market_rows r WHERE true
@@ -135,7 +135,7 @@ export async function readPublishedMarketPage(input: {
          AND ($7::text IS NULL OR r.payload->>'marketId'=$7)
          AND ($8::text IS NULL OR r.payload->>'memeToken'=$8)
          AND ($9::int IS NULL OR (r.payload->>'launchPhase')::int=$9)
-         AND ($10::text IS NULL OR lower(concat_ws(' ',r.payload->>'marketId',r.payload->'identity'->>'name',r.payload->'identity'->>'symbol',r.payload->>'memeToken')) LIKE '%' || $10 || '%')
+         AND ($10::text IS NULL OR ${schema}.market_search_text(r.payload) LIKE '%' || $10 || '%')
          AND ($11::numeric IS NULL OR (r.payload->'identity'->>'deployedAt')::numeric >= $11)
          AND ($12::numeric IS NULL OR (r.payload->'identity'->>'deployedAt')::numeric <= $12)
      ) SELECT identity,payload,order_value::text AS order_text FROM candidates WHERE true ${afterClause}
@@ -148,7 +148,7 @@ export async function readPublishedMarketPage(input: {
     scope: 'markets', revision: publication.revision, filterDigest,
     sortKey: last.order_text === null ? 'n:' : `v:${last.order_text}`, identity: last.identity,
   }, input.secret) : null;
-  return { items: visible.map((row) => row.payload), nextCursor, sync: await syncForPublication(input.pool, schema, input.deployment, publication) };
+  return { items: visible.map((row) => displayAtPublication(row.payload,publication)), nextCursor, sync: await syncForPublication(input.pool, schema, input.deployment, publication) };
 }
 
 export async function readPublishedRecord(input: {
@@ -158,7 +158,7 @@ export async function readPublishedRecord(input: {
   const schema = identifier(input.schemaName ?? 'tickergarden_serverless');
   const publication = await resolvePublication(input.pool, schema, input.deployment, input.scope, input.revision);
   const record = await input.pool.query<{ payload: Json }>(
-    `SELECT r.payload FROM ${schema}.projection_records r
+    `SELECT r.payload FROM ${schema}.projection_read_records r
      JOIN ${schema}.chain_blocks b ON b.environment=r.environment AND b.chain_id=r.chain_id AND b.deployment_digest=r.deployment_digest AND b.hash=$5
      WHERE r.environment=$1 AND r.chain_id=$2 AND r.deployment_digest=$3 AND r.scope=$4 AND r.revision=$6 AND r.identity=$7
        AND b.canonical AND b.finalized`,
@@ -170,7 +170,7 @@ export async function readPublishedRecord(input: {
     const recent=await input.pool.query<{payload:Json}>(`SELECT payload FROM ${schema}.recent_markets WHERE environment=$1 AND chain_id=$2 AND deployment_digest=$3 AND market_id=$4 AND canonical AND expires_at>now() AND block_number>$5`,[input.deployment.environment,input.deployment.chainId,input.deployment.deploymentDigest,input.identity,publication.blockNumber.toString()]);
     item=recent.rows[0]?.payload??null;
   }
-  return { item, sync: await syncForPublication(input.pool, schema, input.deployment, publication) };
+  return { item:item===null?null:displayAtPublication(item,publication), sync: await syncForPublication(input.pool, schema, input.deployment, publication) };
 }
 
 export async function readPublishedUserPage(input: {
@@ -185,7 +185,7 @@ export async function readPublishedUserPage(input: {
   const filterDigest = digest({ user: input.user });
   const after = input.cursor ? decodeCursor(input.cursor, { scope: input.kind, revision: publication.revision, filterDigest }, input.secret) : undefined;
   const records = await input.pool.query<{ identity: string; sort_key: string; payload: Json }>(
-    `SELECT r.identity,r.sort_key,r.payload FROM ${schema}.projection_records r
+    `SELECT r.identity,r.sort_key,r.payload FROM ${schema}.projection_read_records r
      JOIN ${schema}.chain_blocks b ON b.environment=r.environment AND b.chain_id=r.chain_id AND b.deployment_digest=r.deployment_digest AND b.hash=$4
      WHERE r.environment=$1 AND r.chain_id=$2 AND r.deployment_digest=$3 AND r.scope=$5 AND r.revision=$6
        AND b.canonical AND b.finalized AND r.payload->>'user'=$7
@@ -196,7 +196,7 @@ export async function readPublishedUserPage(input: {
   const visible = records.rows.slice(0, limit); const last = visible.at(-1);
   const nextCursor = records.rows.length > limit && last ? encodeCursor({ scope: input.kind, revision: publication.revision,
     filterDigest, sortKey: last.sort_key, identity: last.identity }, input.secret) : null;
-  return { items: visible.map((row) => row.payload), nextCursor, sync: await syncForPublication(input.pool, schema, input.deployment, publication) };
+  return { items: visible.map((row) => displayAtPublication(row.payload,publication)), nextCursor, sync: await syncForPublication(input.pool, schema, input.deployment, publication) };
 }
 
 export async function readCreatorMarkets(input: {
@@ -346,7 +346,7 @@ export async function readPublishedConfigPage(input: {
   const filterDigest = digest({ kind: input.kind });
   const after = input.cursor ? decodeCursor(input.cursor, { scope: 'configs', revision: publication.revision, filterDigest }, input.secret) : undefined;
   const records = await input.pool.query<{ identity: string; sort_key: string; payload: Json }>(
-    `SELECT r.identity,r.sort_key,r.payload FROM ${schema}.projection_records r
+    `SELECT r.identity,r.sort_key,r.payload FROM ${schema}.projection_read_records r
      JOIN ${schema}.chain_blocks b ON b.environment=r.environment AND b.chain_id=r.chain_id AND b.deployment_digest=r.deployment_digest AND b.hash=$4
      WHERE r.environment=$1 AND r.chain_id=$2 AND r.deployment_digest=$3 AND r.scope='configs' AND r.revision=$5
        AND b.canonical AND b.finalized AND r.payload->>'kind'=$6
@@ -358,7 +358,7 @@ export async function readPublishedConfigPage(input: {
   const last = visible.at(-1);
   const nextCursor = records.rows.length > limit && last ? encodeCursor({ scope: 'configs', revision: publication.revision,
     filterDigest, sortKey: last.sort_key, identity: last.identity }, input.secret) : null;
-  return { items: visible.map((row) => row.payload), nextCursor, sync: await syncForPublication(input.pool, schema, input.deployment, publication) };
+  return { items: visible.map((row) => displayAtPublication(row.payload,publication)), nextCursor, sync: await syncForPublication(input.pool, schema, input.deployment, publication) };
 }
 
 export async function unavailableSync(deployment: DeploymentIdentity): Promise<SyncStatus> {
@@ -373,17 +373,17 @@ export async function readPublishedSync(input: {
   return syncForPublication(input.pool, schema, input.deployment, publication);
 }
 
-async function resolvePublication(pool: Pool, schema: string, deployment: DeploymentIdentity, scope: string, requested?: string): Promise<{ revision: string; blockNumber: bigint; blockHash: `0x${string}` }> {
+async function resolvePublication(pool: Pool, schema: string, deployment: DeploymentIdentity, scope: string, requested?: string): Promise<{ revision: string; blockNumber: bigint; blockHash: `0x${string}`;storage?:string;asOf?:string }> {
   if (requested && !/^[0-9]+:0x[0-9a-f]{64}$/.test(requested)) throw new PublicationChangedError('requested revision is invalid');
-  const result = await pool.query<{ revision: string; block_number: string; block_hash: `0x${string}` }>(
+  const result = await pool.query<{ revision: string; block_number: string; block_hash: `0x${string}`;storage:string;as_of:string }>(
     requested
-      ? `SELECT p.revision,p.block_number,p.block_hash FROM ${schema}.publications p JOIN ${schema}.chain_blocks b ON b.environment=p.environment AND b.chain_id=p.chain_id AND b.deployment_digest=p.deployment_digest AND b.hash=p.block_hash WHERE p.environment=$1 AND p.chain_id=$2 AND p.deployment_digest=$3 AND p.scope=$4 AND p.revision=$5 AND b.canonical AND b.finalized`
-      : `SELECT p.revision,p.block_number,p.block_hash FROM ${schema}.publication_pointers pointer JOIN ${schema}.publications p USING(environment,chain_id,deployment_digest,scope,revision) JOIN ${schema}.chain_blocks b ON b.environment=p.environment AND b.chain_id=p.chain_id AND b.deployment_digest=p.deployment_digest AND b.hash=p.block_hash WHERE pointer.environment=$1 AND pointer.chain_id=$2 AND pointer.deployment_digest=$3 AND pointer.scope=$4 AND b.canonical AND b.finalized`,
+      ? `SELECT p.revision,p.block_number,p.block_hash,p.payload->>'storage' storage,extract(epoch FROM b.source_timestamp)::bigint::text as_of FROM ${schema}.publications p JOIN ${schema}.chain_blocks b ON b.environment=p.environment AND b.chain_id=p.chain_id AND b.deployment_digest=p.deployment_digest AND b.hash=p.block_hash WHERE p.environment=$1 AND p.chain_id=$2 AND p.deployment_digest=$3 AND p.scope=$4 AND p.revision=$5 AND b.canonical AND b.finalized`
+      : `SELECT p.revision,p.block_number,p.block_hash,p.payload->>'storage' storage,extract(epoch FROM b.source_timestamp)::bigint::text as_of FROM ${schema}.publication_pointers pointer JOIN ${schema}.publications p USING(environment,chain_id,deployment_digest,scope,revision) JOIN ${schema}.chain_blocks b ON b.environment=p.environment AND b.chain_id=p.chain_id AND b.deployment_digest=p.deployment_digest AND b.hash=p.block_hash WHERE pointer.environment=$1 AND pointer.chain_id=$2 AND pointer.deployment_digest=$3 AND pointer.scope=$4 AND b.canonical AND b.finalized`,
     requested ? [deployment.environment, deployment.chainId, deployment.deploymentDigest, scope, requested] : [deployment.environment, deployment.chainId, deployment.deploymentDigest, scope],
   );
   const row = result.rows[0];
   if (!row) throw requested ? new PublicationChangedError('requested publication is unavailable') : new PublicationUnavailableError('publication is unavailable');
-  return { revision: row.revision, blockNumber: BigInt(row.block_number), blockHash: row.block_hash };
+  return { revision: row.revision, blockNumber: BigInt(row.block_number), blockHash: row.block_hash,storage:row.storage,asOf:row.as_of };
 }
 
 async function isPublicationCanonical(pool: Pool, schema: string, deployment: DeploymentIdentity, scope: string, revision: string): Promise<boolean> {
@@ -479,4 +479,15 @@ export async function readMemeFeeBurns(input: {readonly pool:Pool;readonly deplo
   const row=rows.rows[0];
   if(!row||checkpoint.revision!==`${checkpoint.blockNumber}:${row.block_hash}`)throw new PublicationUnavailableError('Meme fee burn history is unavailable');
   return {chainId:input.deployment.chainId,displayOnly:true,finality:'finalized',revision:checkpoint.revision,throughBlock:String(checkpoint.blockNumber),burns:row.payload};
+}
+
+// A temporal publication proves unchanged state through its finalized anchor.
+// Rebase only the display envelope; immutable version data retains RPC provenance.
+function displayAtPublication(payload:Json,publication:{blockNumber:bigint;blockHash:string;storage?:string;asOf?:string}):Json{
+ if(publication.storage!=='market-versions-v1'||!publication.asOf||!payload||typeof payload!=='object'||Array.isArray(payload))return payload;
+ const record=payload as Record<string,Json>,display=record.display;
+ if(!display||typeof display!=='object'||Array.isArray(display))return payload;
+ const data=display as Record<string,Json>;
+ if(typeof data.blockNumber!=='string'||BigInt(data.blockNumber)>publication.blockNumber)return payload;
+ return{...record,display:{...data,blockNumber:publication.blockNumber.toString(),blockHash:publication.blockHash,asOfTimestamp:publication.asOf}};
 }

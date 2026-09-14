@@ -29,6 +29,8 @@ test('fee allocation represents actual curve / active pool and holder sharing',(
  assert.deepEqual(feeRows({phase:0,stakingEnabled:true,active:true,holders:false,taxBps:0}).map(r=>r.percent),[70,30]);
  assert.deepEqual(feeRows({phase:1,stakingEnabled:true,active:true,holders:true,taxBps:100}).map(r=>r.percent),[20,20,30,30]);
  assert.deepEqual(feeRows({phase:1,stakingEnabled:true,active:null,holders:false,taxBps:0}).map(r=>r.percent),[null,null,30]);
+ assert.deepEqual(feeRows({phase:1,stakingEnabled:false,active:false,holders:false,taxBps:0}).map(r=>r.key),['creator','platform']);
+ assert.deepEqual(feeRows({phase:1,stakingEnabled:false,active:false,holders:true,taxBps:0}).map(r=>r.key),['creator','holders','platform']);
 });
 test('external metadata links never execute script and images remain content-addressed',async()=>{
  assert.equal(safeDetailLink('javascript:alert(1)'),null);assert.equal(safeDetailLink('https://evil.example/x',true),null);assert.equal(safeDetailLink('https://x.com/test',true),'https://x.com/test');

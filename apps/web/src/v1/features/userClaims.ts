@@ -26,6 +26,6 @@ export function rawUserClaimRequest(mode: Hex, address: Address, id: Hex, role: 
 }
 export function userClaimOutcome(args: Record<string, unknown>): string {
   const n=(key:string)=>typeof args[key]==='bigint'?args[key] as bigint:0n;
-  if(n('memePaid')>0n) return n('quotePaid')>0n?'Quote And Original Meme Claimed':'Original Meme Claimed';
+  if(n('memePaid')>0n) return n('quotePaid')>0n?'Paired Asset And Created Token Claimed':'Created Token Claimed';
   return n('quotePaid')>0n?'Quote Claimed':'No Rewards Available';
 }

@@ -9,11 +9,11 @@ export function mountHolders(element:HTMLElement,baseUrl:string|null,chain:numbe
  const render=()=>{
   list.replaceChildren();if(!page)return;onSummary?.(page);
   const table=document.createElement('table');const caption=table.createCaption();caption.textContent=`Finalized block ${page.sourceBlockNumber} · ${page.sourceBlockHash}`;
-  const head=table.createTHead().insertRow();for(const name of ['Address','Meme balance','Address classification']){const th=document.createElement('th');th.scope='col';th.textContent=name;head.append(th);}
+  const head=table.createTHead().insertRow();for(const name of ['Address','Token balance','Address classification']){const th=document.createElement('th');th.scope='col';th.textContent=name;head.append(th);}
   const body=table.createTBody();for(const b of page.balances){const row=body.insertRow();for(const text of [b.account,candleVolume(b.balanceRaw,18),b.excluded?'Known protocol address · excluded from adjusted count':'Included address · user identity unverified'])row.insertCell().textContent=text;}
   for(const cell of table.querySelectorAll('th,td')){(cell as HTMLElement).style.padding='8px';(cell as HTMLElement).style.whiteSpace='nowrap';}
   const exclusions=document.createElement('details');const summary=document.createElement('summary');summary.textContent='Excluded protocol addresses';const names=document.createElement('p');names.style.overflowWrap='anywhere';names.textContent=page.excludedAccounts.join(' · ')||'None';exclusions.append(summary,names);
-  list.append(table,exclusions);more.hidden=page.nextCursor===null;status.textContent=`${page.balances.length} of ${page.positiveAddressCount} positive-balance addresses loaded · ${page.includedAddressCount} after protocol exclusions · Supply: ${candleVolume(page.totalSupplyRaw,18)} Meme. Address counts are not user counts or reward eligibility.`;
+  list.append(table,exclusions);more.hidden=page.nextCursor===null;status.textContent=`${page.balances.length} of ${page.positiveAddressCount} positive-balance addresses loaded · ${page.includedAddressCount} after protocol exclusions · Token supply: ${candleVolume(page.totalSupplyRaw,18)}. Address counts are not user counts or reward eligibility.`;
  };
  const load=async(reset:boolean)=>{
   if(!reset&&controller)return;

@@ -83,7 +83,7 @@ export function createExplorePager<T extends { marketId: string }>(
     // Cursor pages belong to a pinned publication. A background revision must
     // not jump the reader back to page 1 or combine old cursors with new data.
     const filters=(value:object)=>{const {revision:_,...rest}=value as Record<string,unknown>;return JSON.stringify(rest);};
-    if(queryValue&&currentPage>1&&filters(queryValue)===filters(query))query=queryValue;
+    if(queryValue&&(currentPage>1||inFlight||(direction!=='current'&&currentPage>0))&&filters(queryValue)===filters(query))query=queryValue;
     const nextKey = JSON.stringify(query);
     if (queryKey !== nextKey) {
       resetState();
@@ -146,5 +146,11 @@ export function createExplorePager<T extends { marketId: string }>(
     queryValue = undefined;
   };
 
-  return { reset, pause, load };
+  // Background directory hints must not abort an explicit navigation.
+  const refreshFirstPage = () => {
+    if (currentPage > 1 || inFlight) return false;
+    reset();
+    return true;
+  };
+  return { reset, pause, load, refreshFirstPage };
 }

@@ -7,6 +7,18 @@
     "node": ">=22.13"
   },
   "scripts": {
+    "local:creator:web": "node tools/local-creator-claim/start-web.mjs",
+    "local:creator:metadata": "node tools/local-creator-claim/metadata-server.mjs",
+    "local:creator:status": "node tools/local-creator-claim/runtime.mjs status",
+    "local:creator:accrue": "node tools/local-creator-claim/runtime.mjs accrue",
+    "local:staker:prepare": "node tools/local-creator-claim/runtime.mjs prepare-staker",
+    "local:holder:prepare": "node tools/local-creator-claim/runtime.mjs prepare-holder",
+    "local:creator:smoke": "node tools/local-creator-claim/runtime.mjs smoke",
+    "holder:snapshot": "node --env-file-if-exists=.env.test.local --experimental-strip-types services/backend-ts/scripts/holder-snapshot.ts",
+    "locker:preview": "node --env-file-if-exists=.env.test.local tools/locker-compounding/worker.mjs preview",
+    "locker:execute": "node --env-file-if-exists=.env.test.local tools/locker-compounding/worker.mjs execute",
+    "locker:status": "node --env-file-if-exists=.env.test.local tools/locker-compounding/worker.mjs status",
+    "test:locker-worker": "node --test tools/locker-compounding/*.test.mjs",
     "check:boundary": "node tools/check-v1-boundary.mjs",
     "check:typescript-serverless-baseline": "node tools/check-typescript-serverless-baseline.mjs",
     "test:spec": "python3 -m unittest spec/test_v1_execution_spec.py",
@@ -34,7 +46,7 @@
     "content:test": "node tools/environment.mjs run test content-worker",
     "pipeline:test": "node tools/environment.mjs run test pipeline",
     "dev:master": "node tools/environment.mjs run master web",
-    "test:environment": "node --test tools/environment.test.mjs",
+    "test:environment": "node --test tools/environment.test.mjs tools/deployment-boundary.test.mjs",
     "rpc:test": "node tools/environment.mjs run test gateway",
     "holder:preview:test": "node tools/holder-rewards/worker.mjs",
     "holder:run:test": "node tools/holder-rewards/worker.mjs --execute --run",
@@ -44,6 +56,8 @@
     "check:fork-track:mainnet": "node tools/check-rh-mainnet-candidate-fork.mjs",
     "check:mainnet-staged-simulation": "node tools/simulate-rh-mainnet-staged.mjs",
     "check:mainnet-accounts": "node tools/verify-rh-mainnet-accounts.mjs",
-    "test:contract-optimizations": "node --test tools/check-contract-runtime-size.test.mjs tools/contract-review/*.test.mjs"
+    "test:contract-optimizations": "node --test tools/check-contract-runtime-size.test.mjs tools/contract-review/*.test.mjs",
+    "check:production-release": "node tools/production-release/check.mjs",
+    "test:production-release": "node --test tools/production-release/*test.mjs"
   }
 }

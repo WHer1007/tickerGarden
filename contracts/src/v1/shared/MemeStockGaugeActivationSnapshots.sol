@@ -21,7 +21,15 @@ abstract contract MemeStockGaugeActivationSnapshots is MemeStockGaugeActivationW
         GaugeUserReward[2] rewards;
     }
 
-    mapping(uint64 generation => ActivationSnapshot snapshot) internal _activationSnapshots;
+    // A retained snapshot always has refs > 0. Last-reference materialization deletes all
+    // three words, so processed is derived from refs without narrowing its uint256 range.
+    struct StoredActivationSnapshot {
+        uint256 quoteAccumulator;
+        uint256 memeAccumulator;
+        uint256 refs;
+    }
+
+    mapping(uint64 generation => StoredActivationSnapshot snapshot) internal _activationSnapshots;
     mapping(address user => GaugePosition position) internal _gaugePositions;
 
     event ActivationBucketProcessed(
@@ -48,14 +56,15 @@ abstract contract MemeStockGaugeActivationSnapshots is MemeStockGaugeActivationW
         uint256 memeAccumulator,
         uint256 refs
     ) internal virtual override {
-        ActivationSnapshot storage existing = _activationSnapshots[generation];
-        if (existing.processed || existing.quoteAccumulator != 0 || existing.memeAccumulator != 0 || existing.refs != 0)
+        if (refs == 0) revert InvalidActivationSnapshot(generation, 0, false);
+        StoredActivationSnapshot storage existing = _activationSnapshots[generation];
+        if (existing.quoteAccumulator != 0 || existing.memeAccumulator != 0 || existing.refs != 0)
         {
             revert ActivationSnapshotAlreadyProcessed(generation);
         }
 
-        _activationSnapshots[generation] = ActivationSnapshot({
-            quoteAccumulator: quoteAccumulator, memeAccumulator: memeAccumulator, refs: refs, processed: true
+        _activationSnapshots[generation] = StoredActivationSnapshot({
+            quoteAccumulator: quoteAccumulator, memeAccumulator: memeAccumulator, refs: refs
         });
         emit ActivationBucketProcessed(marketId, generation, amount, quoteAccumulator, memeAccumulator, refs);
     }
@@ -76,7 +85,7 @@ abstract contract MemeStockGaugeActivationSnapshots is MemeStockGaugeActivationW
         }
         if (generation == 0) revert InvalidGaugePosition(user, amount, generation);
 
-        ActivationSnapshot memory snapshot = _activationSnapshots[generation];
+        ActivationSnapshot memory snapshot = _activationSnapshot(generation);
         if (!snapshot.processed) {
             if (generation <= block.timestamp) revert PendingGenerationNotFound(generation);
             return (amount, generation, false);
@@ -102,13 +111,14 @@ abstract contract MemeStockGaugeActivationSnapshots is MemeStockGaugeActivationW
     }
 
     function _activationSnapshot(uint64 generation) internal view returns (ActivationSnapshot memory) {
-        return _activationSnapshots[generation];
+        StoredActivationSnapshot storage snapshot = _activationSnapshots[generation];
+        return ActivationSnapshot(snapshot.quoteAccumulator, snapshot.memeAccumulator, snapshot.refs, snapshot.refs != 0);
     }
 
     function _effectiveUserActiveStock(address user) internal view returns (uint256 amount) {
         GaugePosition storage position = _gaugePositions[user];
         amount = position.activeAmount;
-        if (position.pendingAmount != 0 && _activationSnapshots[position.pendingGeneration].processed) {
+        if (position.pendingAmount != 0 && _activationSnapshots[position.pendingGeneration].refs != 0) {
             amount += position.pendingAmount;
         }
     }

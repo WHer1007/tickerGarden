@@ -1,4 +1,4 @@
-/** Explicit operator CLI. It cannot sign, broadcast, schedule, or change publisher permissions. */
+/** Explicit operator CLI. Only publish signs/sends; no scheduling or permission changes. */
 import {readFile,writeFile} from 'node:fs/promises';
 import {createDatabasePool} from '../packages/db/src/index.ts';
 import {RpcTransport} from '../packages/chain/src/index.ts';
@@ -6,8 +6,11 @@ import {CURRENT_RELEASE_ID,CURRENT_ACTIVATION_BLOCK} from '../packages/events/sr
 import {prepareHolderSnapshot,previewSnapshotPublication,previewHolderFunding} from '../packages/chain-worker/src/holder-snapshots.ts';
 import {verifySnapshot,type SnapshotDataset} from '../packages/chain/src/holder-snapshot.ts';
 const [command,...args]=process.argv.slice(2);
-const usage='Usage: holder-snapshot.ts prepare <marketId> <finalized-block> <output.json> | preview <dataset.json> | verify <dataset.json> | funding <sender> <marketId,...>';
-if(command==='verify') {
+const usage='Usage: holder-snapshot.ts prepare <marketId> <finalized-block> <output.json> | preview|verify|publish|reconcile <dataset.json> | funding <sender> <marketId,...> | status';
+if(['publish','reconcile','status'].includes(command??'')) {
+ const {runHolderPublicationCommand}=await import('./holder-publication-cli.ts');
+ await runHolderPublicationCommand(command!,args);
+} else if(command==='verify') {
  if(args.length!==1)throw Error(usage);
  const dataset=verifySnapshot(JSON.parse(await readFile(args[0]!,'utf8')) as SnapshotDataset);
  console.log(JSON.stringify({status:'verified',root:dataset.root,dataHash:dataset.dataHash,accounts:dataset.entries.length}));

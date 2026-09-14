@@ -67,3 +67,13 @@ test('pool impact uses raw-unit spot ratios for differing token decimals and tin
  assert.throws(()=>poolTradeImpactBps(1n,1n,0n,true,0,0));
  assert.throws(()=>poolTradeImpactBps(1n,1n,q96,true,0,1001));
 });
+
+test('native LP fee is removed from estimated price impact rather than counted as slippage',()=>{
+ for(const lp of [0,1000,2000,3000]) {
+  const input=1_000_000_000_000n;
+  const core=BigInt(lp+1000-Math.floor(lp/1000));
+  const gross=input*(1_000_000n-core)/1_000_000n;
+  const net=gross-gross/100n;
+  assert.equal(poolTradeImpactBps(input,net,1n<<96n,true,0,1000,lp),0n);
+ }
+});

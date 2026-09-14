@@ -7,12 +7,12 @@ export default { title: 'Claim — TickerGarden', html: `
 </nav>
 <div class="claim-content">
 <section class="rewards-panel" role="tabpanel" id="rewards-panel-creator" aria-labelledby="rewards-tab-creator" data-rewards-panel="creator">
-<header class="claim-card-heading"><div><h2>Creator rewards</h2><p>Trading fees earned by your tokens.</p></div></header>
+<header class="claim-card-heading"><div><h2>Creator rewards</h2></div></header>
 <div class="field"><label for="creator-market">Select token</label><div class="claim-token-select"><i class="ph ph-coins" aria-hidden="true"></i><select id="creator-market" data-creator-market><option value="">Select a token</option></select></div></div>
-<div class="claim-amounts"><div><span>Available to claim</span><strong data-creator-quote-asset>-</strong></div><div><span>Meme rewards</span><strong data-creator-pending-meme>-</strong><small>Claim Quote, Meme, or both in their original form.</small></div></div>
-<dl class="claim-facts"><div><dt>Receive in</dt><dd data-creator-receive-asset>-</dd></div><div><dt>Recipient</dt><dd><span data-creator-beneficiary>-</span><button type="button" data-copy-beneficiary aria-label="Copy recipient address" disabled><i class="ph ph-copy" aria-hidden="true"></i></button></dd></div><div><dt>Creator share</dt><dd>Includes base fees and creator tax.</dd></div></dl>
+<div class="claim-amounts"><div><span>Available to claim</span><strong data-creator-quote-asset>-</strong></div><div><span>Token rewards</span><strong data-creator-pending-meme>-</strong></div></div>
+<dl class="claim-facts"><div><dt>Receive in</dt><dd data-creator-receive-asset>-</dd></div><div><dt>Recipient</dt><dd><span data-creator-beneficiary>-</span><button type="button" data-copy-beneficiary aria-label="Copy recipient address" disabled><i class="ph ph-copy" aria-hidden="true"></i></button></dd></div></dl>
 <input type="hidden" data-creator-fee-asset>
-<div class="claim-action"><button type="button" class="action-button" data-rewards-connect><i class="ph ph-wallet" aria-hidden="true"></i> Connect wallet</button><button type="button" disabled class="action-button" data-reward-action="claimCreator">Claim creator rewards</button><p data-creator-action-help role="status">Connect your wallet to continue.</p></div><small class="claim-gas-note">Network fee applies.</small>
+<div class="claim-action"><button type="button" class="action-button" data-rewards-connect><i class="ph ph-wallet" aria-hidden="true"></i> Connect wallet</button><button type="button" disabled class="action-button" data-reward-action="claimCreator">Claim creator rewards</button></div>
 <p class="claim-result" data-creator-status role="status"></p>
 <input type="hidden" data-creator-epoch>
 
@@ -20,30 +20,26 @@ export default { title: 'Claim — TickerGarden', html: `
       <section class="rewards-panel" role="tabpanel" id="rewards-panel-treasury" aria-labelledby="rewards-tab-treasury" data-rewards-panel="treasury" hidden>
         <div class="holder-content">
           <div class="rewards-panel-head">
-              <div><h2>Holder rewards</h2><p data-holder-reward-summary>Select a token to view your holder rewards.</p></div>
+              <div><h2>Holder rewards</h2><p data-holder-reward-summary>Select a token to view your available rewards.</p></div>
             </div>
-            <p class="role-copy tab-action-help" data-holder-action-help aria-live="polite">Connect your wallet and select a token.</p>
+            <p class="role-copy tab-action-help" data-holder-action-help aria-live="polite"></p>
             <button type="button" class="action-button" data-rewards-connect><i class="ph ph-wallet" aria-hidden="true"></i> Connect wallet</button>
-            <div data-holder-recent class="holder-recent" aria-label="Previously selected tokens"></div>
+            <div data-holder-recent hidden aria-hidden="true"></div>
             <div class="fields">
-              <div class="field holder-token-search"><label for="holder-search">Search token</label><input id="holder-search" data-holder-search type="search" placeholder="Search by name, symbol or address" autocomplete="off" spellcheck="false"><div class="holder-search-results" data-holder-search-results role="listbox" aria-label="Token search results"></div><select id="treasury-market" name="marketId" data-treasury-market hidden aria-hidden="true"><option value="">Select a token</option></select></div>
+              <div class="field holder-token-search"><label for="holder-search">Token</label><div class="holder-token-search-control"><i class="ph ph-magnifying-glass" aria-hidden="true"></i><input id="holder-search" data-holder-search type="search" role="combobox" aria-autocomplete="list" aria-expanded="false" aria-controls="holder-search-results" placeholder="Search name, symbol, or address" autocomplete="off" spellcheck="false"><i class="ph ph-caret-down" aria-hidden="true"></i></div><div id="holder-search-results" class="holder-search-results" data-holder-search-results role="listbox" aria-label="Token search results" hidden></div><select id="treasury-market" name="marketId" data-treasury-market hidden aria-hidden="true"><option value="">Select a token</option></select></div>
               <input type="hidden" id="treasury-epoch" name="epoch" data-treasury-epoch>
             </div>
-            <div data-snapshot-rewards hidden>
-              <p class="role-copy">Rewards use wallet balances at published snapshot blocks. LP positions are not included.</p>
-              <p data-snapshot-status role="status" aria-live="polite">Loading snapshot rewards…</p>
-              <label class="field" for="holder-round">Reward round<select id="holder-round" data-snapshot-round disabled><option value="">No round loaded</option></select></label>
-              <div class="claim-amounts"><div><span>Quote available</span><strong data-snapshot-quote>—</strong></div><div><span>Meme available</span><strong data-snapshot-meme>—</strong></div></div>
-              <dl class="claim-facts"><div><dt>Snapshot block</dt><dd data-snapshot-block>—</dd></div><div><dt>Payment</dt><dd>Original assets to your connected wallet</dd></div></dl>
-              <button type="button" disabled class="action-button" data-reward-action="claimSnapshot">Claim this round</button>
-              <button type="button" class="secondary-button" data-snapshot-refresh>Refresh rewards</button>
-              <button type="button" class="secondary-button" data-snapshot-more hidden>Load more rounds</button>
-              <small class="claim-gas-note">No fixed release countdown. Each asset can be claimed once per round.</small>
+            <div class="holder-reward-card" data-snapshot-rewards hidden>
+              <label class="field holder-round-field" for="holder-round" data-holder-round-field hidden>Distribution<select id="holder-round" data-snapshot-round disabled><option value="">No rewards available</option></select></label>
+              <div class="claim-amounts"><div><span>Available to claim</span><strong data-snapshot-quote>—</strong></div><div><span>Token rewards</span><strong data-snapshot-meme>—</strong></div></div>
+              <dl class="claim-facts"><div><dt>Receive in</dt><dd data-snapshot-assets>—</dd></div><div><dt>Recipient</dt><dd data-snapshot-recipient>—</dd></div></dl>
+              <div class="claim-action holder-reward-actions"><button type="button" disabled class="action-button" data-reward-action="claimSnapshot"><i class="ph ph-gift" aria-hidden="true"></i> Claim rewards</button><button type="button" class="secondary-button" data-snapshot-more hidden>View older rounds</button></div>
+              <p class="claim-result" data-snapshot-status role="status" aria-live="polite">Loading rewards…</p>
             </div>
             <div data-continuous-treasury hidden>
               <div class="claim-amounts"><div><span>Available to claim</span><strong data-continuous-claimable aria-live="polite">-</strong></div><div><span>Total earned</span><strong data-continuous-earned>-</strong><small>Claimed and unclaimed</small></div></div>
-              <dl class="claim-facts"><div><dt>Meme available</dt><dd data-continuous-meme>-</dd></div><div><dt>Total claimed</dt><dd data-continuous-claimed>-</dd></div><div><dt>Receive in</dt><dd data-continuous-asset>-</dd></div></dl>
-              <details class="holder-pool-details"><summary>Market reward pool</summary><dl class="claim-facts"><div><dt>Awaiting collection</dt><dd data-continuous-unswept>-</dd></div><div><dt>Meme awaiting funding</dt><dd data-continuous-conversion>-</dd></div><div><dt>Awaiting funding</dt><dd data-continuous-pending>-</dd></div><div><dt>Releasing</dt><dd data-continuous-release>-</dd></div><div><dt>Pending release</dt><dd data-continuous-idle>-</dd></div><div><dt>Last injection</dt><dd data-continuous-funding>-</dd></div></dl><small>Legacy market totals, not your personal rewards. This older release uses 24-hour batches.</small></details>
+              <dl class="claim-facts"><div><dt>Token available</dt><dd data-continuous-meme>-</dd></div><div><dt>Total claimed</dt><dd data-continuous-claimed>-</dd></div><div><dt>Receive in</dt><dd data-continuous-asset>-</dd></div></dl>
+              <details class="holder-pool-details"><summary>Market reward pool</summary><dl class="claim-facts"><div><dt>Awaiting collection</dt><dd data-continuous-unswept>-</dd></div><div><dt>Token fees awaiting funding</dt><dd data-continuous-conversion>-</dd></div><div><dt>Awaiting funding</dt><dd data-continuous-pending>-</dd></div><div><dt>Releasing</dt><dd data-continuous-release>-</dd></div><div><dt>Pending release</dt><dd data-continuous-idle>-</dd></div><div><dt>Last injection</dt><dd data-continuous-funding>-</dd></div></dl><small>Legacy market totals, not your personal rewards. This older release uses 24-hour batches.</small></details>
               <p class="role-copy" data-continuous-status></p>
               <button type="button" disabled class="action-button" data-reward-action="claimContinuous">Claim rewards</button>
             </div>
@@ -67,5 +63,4 @@ export default { title: 'Claim — TickerGarden', html: `
         </div>
       </section>
 
-<p data-rewards-action-status role="status"></p>
 </div></div></main>`};

@@ -1,4 +1,6 @@
-# 用户选择收益领取方式
+# 历史版本：用户选择收益领取方式
+
+> 本文保留2026-09-10兑换版本及所列 testnet release 的历史行为，不是当前源码验收规则。当前 `TICKERGARDEN_USER_CLAIM_RAW_ASSETS_V1` 只领取原资产，没有内部兑换、兑换 deadline 或原币兜底；Staker24小时锁与 `burnMemeFees` 规则仍有效。当前规则见 [执行规范](./V1_EXECUTION_SPEC.md) 和 [参数说明](./V1_PROTOCOL_PARAMETERS.md)。
 
 更新：2026-09-10。适用于 `TICKERGARDEN_USER_CLAIM_V1` 与 Holder `TICKERGARDEN_HOLDER_DUAL_ASSET_24H_V4`。该版本已部署到 Robinhood testnet release `0x6e743e8bf90c0e91cd7de52711a1a68976401c494187f1e015fc66ef17310f95`，状态为 `ACTIVE_TEST_ONLY`；旧合约继续沿用旧规则，不能混用版本，前端切换仍受该 release 的公开市场 E2E gate 约束。
 
@@ -16,7 +18,7 @@ Holder 的两种权益按相同有效持仓权重分别记账，每批分别释�
 
 用户最新确认：不恢复最低到账保护。项目调用 Hook 时 minimumQuote=0，不限制价格冲击，不使用参考价偏差、最低输出折扣或 20 分钟窗口门槛。20 分钟参考窗口常量、历史价格存储及更新调用已移除，交易和兑换不再维护这套记录。池子模拟仅展示预计到账。交易有效期不超过 5 分钟，前端使用 4 分钟。
 
-价格很差但执行成功，不属于兑换失败，不触发兜底。PoolManager 仍使用合法 TickMath 价格边界；LP fee 保持零，可兼容既定 Core protocol fee，内部兑换不重复收本项目手续费。
+价格很差但执行成功，不属于兑换失败，不触发兜底。PoolManager 仍使用合法 TickMath 价格边界；LP fee 使用创建时确定的档位，可兼容既定 Core protocol fee，内部兑换不重复收本项目手续费。
 
 ## 原子性与资产隔离
 

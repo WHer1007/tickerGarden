@@ -62,7 +62,7 @@ export default {
             <h3>Wallet and blockchain information</h3>
             <p>Public wallet addresses, requested signatures, transaction hashes, token balances, contract interactions, market creation records, Curve and Pool activity, STOCK deposits and allocations, fee claims, holder fee sharing claims, and other public onchain records associated with your use of the interface.</p>
             <h3>Content and market metadata</h3>
-            <p>Names, symbols, metadata URIs, images, descriptions, links, beneficiary addresses, and other information you choose to submit or publish when creating or participating in a Ticker Meme market. Public metadata should not contain information you expect to keep private.</p>
+            <p>Names, symbols, metadata URIs, images, descriptions, links, beneficiary addresses, and other information you choose to submit or publish when creating or participating in a token market. Public metadata should not contain information you expect to keep private.</p>
             <h3>Device, network, and usage information</h3>
             <p>Hosting, security, RPC, API, content-delivery, and font providers may receive IP address, browser and device type, operating system, requested URL, referring page, request time, approximate location inferred from IP, error details, and performance or security events. The current interface also requests resources from Google Fonts and communicates with configured TickerGarden APIs and Robinhood Chain RPC services.</p>
             <h3>Communications</h3>
@@ -97,7 +97,7 @@ export default {
           <section id="privacy-chain">
             <h2>7. Public blockchain and distributed records</h2>
             <div class="legal-callout"><strong>Onchain activity is public by design.</strong><p>A wallet address or transaction can become personal information when it is linked to an identifiable person.</p></div>
-            <p>Transactions, signatures submitted to contracts, token transfers, Ticker Meme metadata references, market events, UserStockVault balances and allocations, fee activity, and claim records may be permanently available through Robinhood Chain, nodes, explorers, indexers, analytics tools, and other independent services.</p>
+            <p>Transactions, signatures submitted to contracts, token transfers, created-token metadata references, market events, UserStockVault balances and allocations, fee activity, and claim records may be permanently available through Robinhood Chain, nodes, explorers, indexers, analytics tools, and other independent services.</p>
             <p>The interface operator cannot edit, reverse, conceal, or delete records confirmed on a public blockchain. Disconnecting a wallet, clearing browser data, or making an offchain privacy request does not remove historical blockchain activity or copies stored by independent systems.</p>
           </section>
 

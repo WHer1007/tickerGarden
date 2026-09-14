@@ -66,6 +66,65 @@ def load(name):
 
 
 class V1ExecutionSpecTest(unittest.TestCase):
+    def _doc_section(self, name, heading, next_heading):
+        text = (PROJECT_ROOT / "docs/v1" / name).read_text(encoding="utf-8")
+        self.assertIn(heading, text)
+        section = text.split(heading, 1)[1]
+        self.assertIn(next_heading, section)
+        return section.split(next_heading, 1)[0]
+
+    def test_current_docs_quote_admission_distinguishes_proxy_guarantees(self):
+        lifecycle = self._doc_section("V1_EXECUTION_SPEC.md", "## 3. 交易与生命周期", "## 4.")
+        self.assertIn("通用 Quote 可为管理员评审的可升级 ERC-20", lifecycle)
+        self.assertIn("代理外壳检查不等于实现不可升级", lifecycle)
+        self.assertIn("addQuoteConfig", lifecycle)
+        self.assertIn("addStockQuoteConfig", lifecycle)
+        for obsolete in ("direct immutable ERC-20", "固定 runtime、非代理", "不能借通用 direct ERC-20 路径绕过"):
+            self.assertNotIn(obsolete, lifecycle)
+
+    def test_current_docs_fee_sections_keep_tax_and_lp_fee_separate(self):
+        parameters = (PROJECT_ROOT / "docs/v1/V1_PROTOCOL_PARAMETERS.md").read_text(encoding="utf-8")
+        comparison = self._doc_section("V1_PROTOCOL_PARAMETERS.md", "### 3.3", "### 3.4")
+        fee = self._doc_section("V1_PROTOCOL_PARAMETERS.md", "## 6. 手续费分配", "## 7.")
+        frozen = self._doc_section("V1_PROTOCOL_PARAMETERS.md", "### 6.2", "### 6.3")
+        conservation = self._doc_section("V1_PROTOCOL_PARAMETERS.md", "### 6.5", "### 6.6")
+        self.assertIn("0–500 bps", comparison)
+        self.assertIn("lpFee == MarketConfig.lpFeePips", fee)
+        self.assertIn("0/1000/2000/3000", fee)
+        self.assertIn("T_asset = B_asset + C_asset", frozen)
+        self.assertIn("floor(B_asset × 30 / 100)", frozen)
+        self.assertIn("Creator = CreatorBase + C_asset", frozen)
+        self.assertIn("Holder = floor(CreatorBase / 2)", frozen)
+        self.assertIn("B_asset = D_asset - C_asset", conservation)
+        self.assertIn("floor((D_curve - C_curve) × 30 / 100)", conservation)
+        for obsolete in (r"PoolKey\.fee\s*=\s*0(?:`|，)", r"lpFee\s*==\s*0", r"附加税[^。\n]*固定为零"):
+            self.assertNotRegex(parameters, obsolete)
+        self.assertNotIn("floor(T_asset × 30", fee)
+
+    def test_current_docs_raw_claims_do_not_reinstate_conversion(self):
+        current = (PROJECT_ROOT / "docs/v1/V1_EXECUTION_SPEC.md").read_text(encoding="utf-8").split("## 1.", 1)[0]
+        rewards = self._doc_section("V1_PROTOCOL_PARAMETERS.md", "### 6.1", "## 7.")
+        lp_binding = (PROJECT_ROOT / "docs/v1/CREATOR_SELECTED_LP_FEE.md").read_text(encoding="utf-8").split("## Contract binding", 1)[1]
+        legacy = (PROJECT_ROOT / "docs/v1/V1_REWARD_CONVERSION.md").read_text(encoding="utf-8")
+        self.assertIn("没有内部兑换、minimumQuote、deadline", current)
+        self.assertIn("Staker 的24小时锁", current)
+        self.assertIn("burnMemeFees", current)
+        self.assertNotIn("minimumQuote 继续", current)
+        self.assertNotIn("已分桶的 Meme 负债可在独立奖励结算交易中兑换", rewards)
+        self.assertIn("does not perform internal reward conversion or apply a 98% output rule", lp_binding)
+        self.assertTrue(legacy.startswith("# 历史版本："))
+        self.assertIn("不是当前源码验收规则", legacy.split("## 领取", 1)[0])
+
+    def test_current_docs_acceptance_is_bound_to_current_artifacts(self):
+        acceptance = (PROJECT_ROOT / "docs/v1/V1_EXECUTION_SPEC.md").read_text(encoding="utf-8").split("## 6. 验收边界", 1)[1]
+        for artifact in ("v1_abi_surface.json", "v1_permissions_matrix.json", "v1_execution_manifest.json"):
+            self.assertIn(artifact, acceptance)
+        self.assertIn("runtime 体积", acceptance)
+        self.assertIn("legacy plan", acceptance)
+        self.assertIn("同一候选版本", acceptance)
+        self.assertNotIn("当前 19 个模块共有 84", acceptance)
+        self.assertNotIn("固定区块合约 Fork/E2E 已作为 deployment evidence 通过", acceptance)
+
     def test_beacon_runtime_templates_bind_complete_programs_across_languages(self):
         from spec.generate_v1_rh_stock_catalog import _immutable_beacon
 
@@ -681,10 +740,10 @@ class V1ExecutionSpecTest(unittest.TestCase):
         pool = self.manifest["canonicalPool"]
         self.assertEqual(fee["feePips"] * 100, fee["pipsDenominator"])
         self.assertEqual(fee["lpShareBps"], 0)
-        self.assertEqual(pool["lpDistribution"], "NONE")
+        self.assertEqual(pool["lpDistribution"], "V4_NATIVE_ACTIVE_LIQUIDITY")
         self.assertEqual(pool["hookFeeDestination"], "PROTOCOL_FEE_VAULT_FULL_AMOUNT")
         self.assertEqual(pool["poolKeyFee"], 0)
-        self.assertEqual(pool["requiredSlot0LpFee"], 0)
+        self.assertEqual(pool["requiredSlot0LpFee"], "MATCH_CANONICAL_POOL_KEY")
         self.assertEqual(pool["requiredPackedProtocolFee"], 0)
         self.assertEqual(pool["hookPermissionMaskDecimal"], 0x2044)
         self.assertEqual(
@@ -1181,9 +1240,9 @@ class V1ExecutionSpecTest(unittest.TestCase):
         vectors = {entry["schema"]: entry for entry in self.hash_schemas["vectors"]}
         self.assertEqual(set(vectors), expected_names)
         self.assertTrue(all(len(entry["result"]) == 66 for entry in vectors.values()))
-        self.assertEqual(vectors["expectedEconomics"]["inputs"]["schemaVersion"], "7")
+        self.assertEqual(vectors["expectedEconomics"]["inputs"]["schemaVersion"], "8")
         self.assertEqual(vectors["tickerGardenBaselineHash"]["inputs"]["schemaVersion"], "1")
-        self.assertEqual(vectors["feePolicyHash"]["inputs"]["schemaVersion"], "4")
+        self.assertEqual(vectors["feePolicyHash"]["inputs"]["schemaVersion"], "5")
         self.assertEqual(vectors["quoteEconomicsHash"]["inputs"]["schemaVersion"], "1")
         self.assertEqual(vectors["stockQuoteFingerprintHash"]["inputs"]["schemaVersion"], "1")
         self.assertEqual(vectors["stockQuoteEconomicsHash"]["inputs"]["schemaVersion"], "1")

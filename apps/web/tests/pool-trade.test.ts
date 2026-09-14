@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { decodeAbiParameters, encodeAbiParameters, keccak256, parseAbiParameters, zeroAddress } from "viem";
-import { buildPoolTrade, poolAmount, poolTradeRoute, poolProtocolFee, formatPoolProtocolFee } from "../src/v1/poolTrade.ts";
+import { buildPoolTrade, poolAmount, poolTradeRoute, poolProtocolFee, formatPoolProtocolFee, formatPoolFeeSummary, poolTransactionDeadline, poolPermit2Expiration, poolPermit2AllowanceFresh, STAKING_POOL_TRADE_GAS_LIMIT } from "../src/v1/poolTrade.ts";
 
 const quote = "0x0000000000000000000000000000000000000000" as const;
 const token = "0x1111111111111111111111111111111111111111" as const;
@@ -29,12 +29,43 @@ test("binds buy and sell directions to the canonical pool", () => {
   assert.deepEqual({ input: sell.input, output: sell.output, zeroForOne: sell.zeroForOne }, { input: token, output: quote, zeroForOne: false });
 });
 
+test("normalizes a checksummed hook before matching receipt addresses", () => {
+  const checksummedHook = "0xF54CEBD275AcDdf5820aB5Be79313Deab059E044" as const;
+  const route = poolTradeRoute(market({
+    poolKey: { ...key, hooks: checksummedHook },
+    canonicalRoute: { router, quoter, hook: checksummedHook.toLowerCase(), curveTradingEnabled: false, poolTradingEnabled: true },
+  }), "sell");
+  assert.equal(route.poolKey.hooks, checksummedHook.toLowerCase());
+});
+
 test("rejects invalid pool binding and amount limits", () => {
   assert.throws(() => poolTradeRoute(market({ poolId: `0x${"00".repeat(32)}` }), "buy"), /pool ID/);
   assert.throws(() => poolTradeRoute(market({ poolKey: { ...key, hooks: quoter } }), "buy"), /canonical pool binding/);
   assert.throws(() => poolAmount(0n), /outside/);
   assert.throws(() => poolAmount(1n << 128n), /outside/);
   assert.throws(() => buildPoolTrade(market(), "buy", 1n, 1n << 128n, 99n), /outside/);
+});
+
+test("pool transaction and Permit2 deadlines follow the chain clock", () => {
+  const wallTimestamp = 1_700_000_000n;
+  const chainTimestamp = wallTimestamp + 86_401n;
+  assert.equal(poolTransactionDeadline(chainTimestamp), chainTimestamp + 3600n);
+  const expiration = poolPermit2Expiration(chainTimestamp);
+  assert.equal(expiration, Number(chainTimestamp + 600n));
+  assert.equal(poolPermit2AllowanceFresh(expiration, chainTimestamp), true);
+  assert.equal(poolPermit2AllowanceFresh(Number(chainTimestamp + 119n), chainTimestamp), false);
+});
+
+test("pool deadline helpers reject invalid clocks and overflow", () => {
+  assert.throws(() => poolTransactionDeadline(-1n), /clock/);
+  assert.throws(() => poolTransactionDeadline((1n << 256n) - 1n), /range/);
+  assert.throws(() => poolPermit2Expiration((1n << 48n) - 1n), /range/);
+  assert.throws(() => poolPermit2AllowanceFresh(-1, 1n), /clock/);
+});
+
+test("staking pool trades reserve the FeeVault settlement gas budget", () => {
+  assert.equal((buildPoolTrade(market({ stakingEnabled: true }), "buy", 7n, 0n, 99n) as any).gas, STAKING_POOL_TRADE_GAS_LIMIT);
+  assert.equal((buildPoolTrade(market({ stakingEnabled: false }), "buy", 7n, 0n, 99n) as any).gas, undefined);
 });
 
 test("encodes token UniversalRouter V4_SWAP with minimums and hop price", () => {
@@ -92,3 +123,21 @@ test('reads both protocol fee directions without mixing price, tick or LP bits',
  const r=poolTradeRoute(m,'buy');assert.equal(r.router,router);assert.equal(r.quoter,'0x8dc178efb8111bb0973dd9d722ebeff267c98f94');
  assert.throws(()=>poolTradeRoute(market({source:{chainId:999}}),'buy'),/not configured/);
  });
+
+test('slot0 accepts only the exact configured static LP tier with bounded Core protocol fee',()=>{
+ const state=(lp:number,protocol=500)=>`0x${((BigInt(lp)<<208n)|(BigInt(protocol)<<184n)).toString(16).padStart(64,'0')}` as `0x${string}`;
+ for(const fee of [0,1000,2000,3000]) {
+  assert.equal(poolProtocolFee(state(fee),true,fee),500);
+  assert.throws(()=>poolProtocolFee(state((fee+1000)%4000),true,fee),/Unsupported/);
+  assert.throws(()=>poolProtocolFee(state(fee,1001),true,fee),/Unsupported/);
+ }
+ assert.throws(()=>poolProtocolFee(state(500),true,500),/Unsupported/);
+});
+
+test('pool fee summary omits zero-value fee categories',()=>{
+ assert.equal(formatPoolFeeSummary(3000,0),'Quote includes a 0.3% LP fee.');
+ assert.equal(formatPoolFeeSummary(3000,500),'Quote includes a 0.3% LP fee and a 0.05% pool protocol fee.');
+ assert.equal(formatPoolFeeSummary(0,500),'Quote includes a 0.05% pool protocol fee.');
+ assert.equal(formatPoolFeeSummary(0,0),'No pool fee is added to this quote.');
+ assert.throws(()=>formatPoolFeeSummary(500,0),/Invalid LP fee/);
+});

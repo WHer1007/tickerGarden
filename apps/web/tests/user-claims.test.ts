@@ -17,8 +17,8 @@ test('historical deployment compatibility never enables conversion',()=>{
  assert.throws(()=>rawUserClaimRequest(id,vault,id,1,0,3),/Unsupported/);
 });
 test('claim receipts display only paid original assets',()=>{
- assert.equal(userClaimOutcome({quotePaid:20n,memePaid:30n}),'Quote And Original Meme Claimed');
+ assert.equal(userClaimOutcome({quotePaid:20n,memePaid:30n}),'Paired Asset And Created Token Claimed');
  assert.equal(userClaimOutcome({quotePaid:20n}),'Quote Claimed');
- assert.equal(userClaimOutcome({memePaid:30n}),'Original Meme Claimed');
+ assert.equal(userClaimOutcome({memePaid:30n}),'Created Token Claimed');
  assert.equal(userClaimOutcome({}),'No Rewards Available');
 });

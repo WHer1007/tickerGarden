@@ -3,7 +3,7 @@ import { readFile, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { CURRENT_RELEASE_ID } from '../packages/events/src/index.ts';
 
-const sourcePath = path.resolve(process.cwd(), '../../apps/web/public/integration/rh-685b5c20.json');
+const sourcePath = path.resolve(process.cwd(), '../../apps/web/tests/fixtures/integration/rh-685b5c20.json');
 const bytes = await readFile(sourcePath);
 const source = JSON.parse(bytes.toString('utf8')) as { chainId: number; releaseId: string; configs: unknown[]; assets: unknown[] };
 if (source.chainId !== 46630 || source.releaseId !== CURRENT_RELEASE_ID || !Array.isArray(source.configs) || !Array.isArray(source.assets)) {

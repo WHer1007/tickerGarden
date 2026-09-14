@@ -54,17 +54,20 @@ test("rejects secret-looking public VITE variables and oversized gateway CU budg
   }
 });
 
-test("rejects test bootstrap in master configuration", () => {
-  const values = environment("master");
-  values.VITE_INTEGRATION_BOOTSTRAP = "synthetic-bootstrap.json";
-  assert.throws(() => validateEnvironment("master", values, "master"), /Master cannot use test integration bootstrap/);
+test("rejects local integration bootstrap in every deployed configuration", () => {
+  for (const profile of ["test", "master"]) {
+    const values = environment(profile);
+    values.VITE_INTEGRATION_BOOTSTRAP = "synthetic-bootstrap.json";
+    assert.throws(() => validateEnvironment(profile, values, profile), /Deployed environments cannot use the local integration bootstrap/);
+  }
 });
 
 test("service environments isolate credentials and shell profile pollution", () => {
   const values = { ...environment(), VITE_PUBLIC_FLAG: "yes", TG_CONTENT_ONLY: "content", TG_CONTENT_SECRET_ACCESS_KEY: "s3-secret",
     TG_ALCHEMY_WEBHOOK_SIGNING_KEY: "alchemy-signing", QSTASH_CHAIN_TOKEN: "chain-qstash", QSTASH_CONTENT_TOKEN: "content-qstash",
     QSTASH_CURRENT_SIGNING_KEY: "qstash-current", QSTASH_NEXT_SIGNING_KEY: "qstash-next", CRON_SECRET: "cron-secret",
-    PINATA_API_KEY: "file-secret", PINATA_JWT: "pinata-secret", API_KEY: "server-secret" };
+    PINATA_API_KEY: "file-secret", PINATA_JWT: "pinata-secret", API_KEY: "server-secret",
+    TG_ALLOWED_ORIGINS: "https://test.example", TG_WEB_PORT: "5178", TG_PRICE_REFRESH_TOKEN: "price-refresh" };
   const inherited = { PATH: "/synthetic/bin", TG_PROFILE: "master", TG_EVIL: "shell-tg", VITE_EVIL: "shell-vite", PINATA_API_KEY: "shell-secret", API_KEY: "shell-api" };
   const web = serviceEnvironment(values, "web", inherited);
   assert.equal(web.VITE_PUBLIC_FLAG, "yes");
@@ -81,6 +84,7 @@ test("service environments isolate credentials and shell profile pollution", () 
   assert.equal(api.TG_ALCHEMY_WEBHOOK_SIGNING_KEY, undefined);
   assert.equal(api.VITE_PUBLIC_FLAG, undefined);
   assert.equal(api.TG_PROFILE, "test");
+  assert.equal(api.TG_ALLOWED_ORIGINS, "https://test.example");
   const content = serviceEnvironment(values, "content", inherited);
   assert.equal(content.PINATA_API_KEY, "file-secret");
   assert.equal(content.PINATA_JWT, "pinata-secret");
@@ -97,6 +101,8 @@ test("service environments isolate credentials and shell profile pollution", () 
   assert.equal(pipeline.TG_ALCHEMY_WEBHOOK_SIGNING_KEY, undefined);
   assert.equal(pipeline.PINATA_JWT, undefined);
   assert.equal(pipeline.TG_CONTENT_SECRET_ACCESS_KEY, undefined);
+  assert.equal(pipeline.TG_PRICE_REFRESH_TOKEN, "price-refresh");
+  assert.equal(pipeline.TG_ALLOWED_ORIGINS, "https://test.example");
   const gateway = serviceEnvironment({ ...values, RH46630_API_KEY: "gateway-secret", TG_GATEWAY_CONFIG_JSON: "gateway-config", TG_RPC_CU_PER_SECOND: "100" }, "gateway", inherited);
   assert.equal(gateway.RH46630_API_KEY, "gateway-secret");
   assert.equal(gateway.TG_GATEWAY_CONFIG_JSON, "gateway-config");

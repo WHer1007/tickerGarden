@@ -38,7 +38,7 @@ export function createPipelineApp(options: PipelineAppOptions = {}) {
   let ownedPool: Pool | undefined;
   let ownedProcessor: ((lease: Lease) => Promise<string | Buffer>) | undefined;
   function databasePool(): Pool {
-    ownedPool ??= options.pool ?? createDatabasePool(env.TG_PIPELINE_DATABASE_URL ?? '').pool;
+    ownedPool ??= options.pool ?? createDatabasePool(env.TG_PIPELINE_DATABASE_URL ?? '', {}, {role:'pipeline',env}).pool;
     return ownedPool;
   }
   function chainProcessor(): (lease: Lease) => Promise<string | Buffer> {

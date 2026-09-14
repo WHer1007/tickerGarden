@@ -106,6 +106,8 @@ interface Replacement {
 export interface V1TransactionClients {
   readonly publicClient: {
     simulateContract(request: ContractWriteRequest & { readonly account: Address }): Promise<SimulatedRequest>;
+    getTransactionReceipt?(options: { readonly hash: Hash }): Promise<TransactionReceipt>;
+    getTransaction?(options: { readonly hash: Hash }): Promise<{ readonly nonce: number }>;
     waitForTransactionReceipt(options: {
       readonly hash: Hash;
       readonly confirmations?: number;
@@ -123,6 +125,7 @@ export interface V1TransactionClients {
 
 export interface ExecuteV1Transaction<T> {
   readonly operationKey: string;
+  readonly scope?: TransactionScope;
   readonly expectedAccount: Address;
   readonly snapshot: ReconciledSnapshot;
   readonly request: ContractWriteRequest;
@@ -159,7 +162,37 @@ export interface PendingTransaction {
   readonly intent: string;
   readonly hash: Hash;
   readonly approval: boolean;
+  readonly operationKey: string;
+  readonly businessType: TransactionBusinessType;
+  readonly marketId?: string;
+  readonly conflictKey: string;
+  readonly createdAt: number;
+  readonly updatedAt: number;
+  readonly nonce?: number;
+  readonly stage?: "pending" | "replaced" | "unknown";
+  readonly replacementReason?: "repriced" | "replaced" | "cancelled";
   readonly cancelled?: boolean;
+}
+
+export type TransactionBusinessType = "trade" | "claim" | "stake" | "launch" | "approval" | "settlement" | "handoff" | "treasury" | "other";
+
+export interface TransactionScope {
+  readonly businessType: TransactionBusinessType;
+  readonly marketId?: string;
+  /** Operations sharing this key depend on the same mutable state and must run serially. */
+  readonly conflictKey: string;
+}
+
+interface PendingTransactionJournalV2 {
+  readonly version: 2;
+  readonly records: readonly PendingTransaction[];
+}
+
+export interface ReconciledPendingTransaction {
+  readonly pending: PendingTransaction;
+  readonly receipt: TransactionReceipt;
+  readonly approval: boolean;
+  readonly cancelled: boolean;
 }
 
 export interface TransactionJournal {
@@ -184,8 +217,36 @@ function transactionIntent(request: ContractWriteRequest): string {
     (_key, value: unknown) => typeof value === "bigint" ? value.toString() : value);
 }
 
+export function transactionScopeForOperation(operationKey: string): TransactionScope {
+  const parts = operationKey.split(":");
+  if (parts[0] === "trade" && parts[2]) return { businessType: "trade", marketId: parts[2], conflictKey: `trade:${parts[2]}` };
+  if ((parts[0] === "pool-trade" || parts[0] === "pool-approval") && parts[1 + (parts[0] === "pool-trade" ? 1 : 0)]) {
+    const marketId = parts[0] === "pool-trade" ? parts[2] : parts[1];
+    return { businessType: parts[0] === "pool-trade" ? "trade" : "approval", marketId, conflictKey: `trade:${marketId}` };
+  }
+  if (parts[0] === "launch" && parts[2]) return { businessType: "launch", marketId: parts[2], conflictKey: `launch:${parts[2]}` };
+  if (parts[0] === "approval") return { businessType: "approval", conflictKey: operationKey };
+  if (parts[0] === "reward") {
+    const action = parts[1] ?? "other";
+    const marketId = parts[2] || undefined;
+    if (action === "snapshot") return { businessType: "claim", marketId, conflictKey: `claim:${marketId}:${parts[3] ?? ""}:${parts[4] ?? ""}` };
+    if (action === "user-claim") return { businessType: "claim", marketId, conflictKey: `claim:${marketId}:${parts[3] ?? ""}:${parts[4] ?? ""}:${parts[5] ?? ""}` };
+    if (["stake", "unstake", "unstakeAndWithdraw", "rageQuit", "rage-quit", "direct-vault-rage-quit"].includes(action)) return { businessType: "stake", marketId, conflictKey: `stake:${marketId ?? operationKey}` };
+    if (action === "settle") return { businessType: "settlement", marketId, conflictKey: `settlement:${marketId ?? operationKey}` };
+    if (action === "creator-handoff") return { businessType: "handoff", marketId, conflictKey: `handoff:${marketId ?? operationKey}` };
+    if (action === "treasury") return { businessType: "treasury", marketId: parts[3] || undefined, conflictKey: operationKey };
+  }
+  return { businessType: "other", conflictKey: operationKey };
+}
+
+function validScope(scope: TransactionScope): boolean {
+  return ["trade", "claim", "stake", "launch", "approval", "settlement", "handoff", "treasury", "other"].includes(scope.businessType)
+    && typeof scope.conflictKey === "string" && scope.conflictKey.length > 0 && scope.conflictKey.length <= 512
+    && (scope.marketId === undefined || (typeof scope.marketId === "string" && scope.marketId.length > 0 && scope.marketId.length <= 256));
+}
+
 export class V1TransactionExecutor {
-  readonly #inflight = new Map<string, Promise<unknown>>();
+  readonly #inflight = new Map<string, { readonly promise: Promise<unknown>; readonly scope: TransactionScope }>();
   readonly clients: V1TransactionClients;
 
   readonly journal: TransactionJournal;
@@ -196,25 +257,97 @@ export class V1TransactionExecutor {
   }
 
   #journalKey(account: Address): string {
+    return `tickergarden:pending:v2:${this.clients.walletClient.chain?.id}:${account.toLowerCase()}`;
+  }
+
+  #legacyJournalKey(account: Address): string {
     return `tickergarden:pending:${this.clients.walletClient.chain?.id}:${account.toLowerCase()}`;
   }
 
-  pending(account: Address): PendingTransaction | null {
-    const raw = this.journal.getItem(this.#journalKey(account));
-    if (!raw) return null;
-    let parsed: PendingTransaction;
-    try { parsed = JSON.parse(raw) as PendingTransaction; }
-    catch { throw new V1TransactionError("pending_transaction", "Saved transaction record cannot be read; check wallet history before continuing"); }
-    if (!parsed || typeof parsed !== 'object') throw new V1TransactionError("pending_transaction", "Saved transaction record is invalid; check wallet history before continuing");
-    if (!/^0x[0-9a-fA-F]{64}$/.test(parsed.hash) || typeof parsed.intent !== "string" || typeof parsed.approval !== "boolean") {
+  #validatePending(value: unknown): PendingTransaction {
+    if (!value || typeof value !== "object" || Array.isArray(value)) throw new V1TransactionError("pending_transaction", "Saved transaction record is invalid; check wallet history before continuing");
+    const parsed = value as Partial<PendingTransaction>;
+    const scope = { businessType: parsed.businessType, marketId: parsed.marketId, conflictKey: parsed.conflictKey } as TransactionScope;
+    if (!/^0x[0-9a-fA-F]{64}$/.test(parsed.hash ?? "") || typeof parsed.intent !== "string" || typeof parsed.approval !== "boolean"
+      || typeof parsed.operationKey !== "string" || !parsed.operationKey || parsed.operationKey.length > 512 || !validScope(scope)
+      || typeof parsed.createdAt !== "number" || !Number.isFinite(parsed.createdAt) || typeof parsed.updatedAt !== "number" || !Number.isFinite(parsed.updatedAt)
+      || (parsed.nonce !== undefined && (!Number.isSafeInteger(parsed.nonce) || parsed.nonce < 0))
+      || (parsed.stage !== undefined && !["pending", "replaced", "unknown"].includes(parsed.stage))
+      || (parsed.replacementReason !== undefined && !["repriced", "replaced", "cancelled"].includes(parsed.replacementReason))
+      || (parsed.cancelled !== undefined && typeof parsed.cancelled !== "boolean")) {
       throw new V1TransactionError("pending_transaction", "Pending transaction journal is invalid; reconcile wallet history before continuing");
     }
-    return parsed;
+    return parsed as PendingTransaction;
+  }
+
+  #writePending(account: Address, records: readonly PendingTransaction[]): void {
+    const key = this.#journalKey(account);
+    if (!records.length) { this.journal.removeItem(key); return; }
+    this.journal.setItem(key, JSON.stringify({ version: 2, records } satisfies PendingTransactionJournalV2));
+  }
+
+  pending(account: Address): readonly PendingTransaction[] {
+    const raw = this.journal.getItem(this.#journalKey(account));
+    if (!raw) {
+      const legacyRaw = this.journal.getItem(this.#legacyJournalKey(account));
+      if (!legacyRaw) return [];
+      let legacy: { intent?: unknown; hash?: unknown; approval?: unknown; operationKey?: unknown; cancelled?: unknown };
+      try { legacy = JSON.parse(legacyRaw) as typeof legacy; }
+      catch { throw new V1TransactionError("pending_transaction", "Saved transaction record cannot be read; check wallet history before continuing"); }
+      if (!legacy || typeof legacy !== "object" || Array.isArray(legacy) || typeof legacy.operationKey !== "string" || !legacy.operationKey) {
+        throw new V1TransactionError("pending_transaction", "Saved transaction record is invalid; check wallet history before continuing");
+      }
+      const scope = transactionScopeForOperation(legacy.operationKey);
+      const now = Date.now();
+      const migrated = this.#validatePending({ ...legacy, ...scope, operationKey: legacy.operationKey, createdAt: now, updatedAt: now, stage: "unknown" });
+      this.#writePending(account, [migrated]);
+      this.journal.removeItem(this.#legacyJournalKey(account));
+      return [migrated];
+    }
+    let parsed: PendingTransactionJournalV2;
+    try { parsed = JSON.parse(raw) as PendingTransactionJournalV2; }
+    catch { throw new V1TransactionError("pending_transaction", "Saved transaction record cannot be read; check wallet history before continuing"); }
+    if (!parsed || typeof parsed !== "object" || parsed.version !== 2 || !Array.isArray(parsed.records)) throw new V1TransactionError("pending_transaction", "Saved transaction record is invalid; check wallet history before continuing");
+    const records = parsed.records.map(record => this.#validatePending(record));
+    if (new Set(records.map(record => record.operationKey)).size !== records.length) throw new V1TransactionError("pending_transaction", "Pending transaction journal contains duplicate operations; reconcile wallet history before continuing");
+    return records;
+  }
+
+  #replacePending(account: Address, record: PendingTransaction): void {
+    const records = this.pending(account);
+    this.#writePending(account, [...records.filter(item => item.operationKey !== record.operationKey), record]);
+  }
+
+  #removePending(account: Address, operationKey: string): void {
+    this.#writePending(account, this.pending(account).filter(item => item.operationKey !== operationKey));
+  }
+
+  /** Batch-checks every saved hash and clears only records that already have a receipt. */
+  async reconcileSettledPending(account: Address): Promise<readonly ReconciledPendingTransaction[]> {
+    const records = this.pending(account);
+    if (!records.length || !this.clients.publicClient.getTransactionReceipt) return [];
+    const results = await Promise.all(records.map(async pending => {
+      try {
+        const receipt = await this.clients.publicClient.getTransactionReceipt!({ hash: pending.hash });
+        return { pending, receipt, approval: pending.approval, cancelled: pending.cancelled ?? false } satisfies ReconciledPendingTransaction;
+      } catch (error) {
+        if (error instanceof Error && error.name === "TransactionReceiptNotFoundError") return null;
+        // A transient failure for one hash must not prevent other mined records
+        // from being reconciled during wallet restore.
+        return null;
+      }
+    }));
+    const settled = results.filter((result): result is ReconciledPendingTransaction => result !== null);
+    if (settled.length) {
+      const settledKeys = new Set(settled.map(result => result.pending.operationKey));
+      this.#writePending(account, records.filter(record => !settledKeys.has(record.operationKey)));
+    }
+    return settled;
   }
 
   /** Explicit receipt recovery never creates a new wallet transaction. */
-  async reconcilePending(account: Address): Promise<{ receipt: TransactionReceipt; approval: boolean; cancelled: boolean } | null> {
-    const pending = this.pending(account);
+  async reconcilePending(account: Address, operationKey: string): Promise<ReconciledPendingTransaction | null> {
+    const pending = this.pending(account).find(record => record.operationKey === operationKey);
     if (!pending) return null;
     let cancelled = pending.cancelled ?? false;
     const receipt = await this.clients.publicClient.waitForTransactionReceipt({
@@ -223,19 +356,21 @@ export class V1TransactionExecutor {
       timeout: 30_000,
       onReplaced: (replacement) => {
         cancelled = replacement.reason === "cancelled";
-        this.journal.setItem(this.#journalKey(account), JSON.stringify({ ...pending, hash: replacement.transaction.hash, cancelled }));
+        this.#replacePending(account, { ...pending, hash: replacement.transaction.hash, cancelled, stage: "replaced", replacementReason: replacement.reason, updatedAt: Date.now() });
       },
     });
-    this.journal.removeItem(this.#journalKey(account));
-    return { receipt, approval: pending.approval, cancelled };
+    this.#removePending(account, operationKey);
+    return { pending, receipt, approval: pending.approval, cancelled };
   }
 
   execute<T>(input: ExecuteV1Transaction<T>): Promise<T> {
-    const existing = this.#inflight.get(input.operationKey) as Promise<T> | undefined;
+    const existing = this.#inflight.get(input.operationKey)?.promise as Promise<T> | undefined;
     if (existing) return existing;
-    if (this.#inflight.size) return Promise.reject(new V1TransactionError("pending_transaction", "Another wallet operation is already running"));
+    const scope = input.scope ?? transactionScopeForOperation(input.operationKey);
+    const activeConflict = [...this.#inflight.values()].find(item => item.scope.conflictKey === scope.conflictKey);
+    if (activeConflict) return Promise.reject(new V1TransactionError("pending_transaction", "A dependent transaction for this market is already running"));
     const pending = this.#execute(input).finally(() => this.#inflight.delete(input.operationKey));
-    this.#inflight.set(input.operationKey, pending);
+    this.#inflight.set(input.operationKey, { promise: pending, scope });
     return pending;
   }
 
@@ -243,10 +378,14 @@ export class V1TransactionExecutor {
     const emit = (update: Omit<TransactionUpdate, "operationKey">) => input.onUpdate?.({ operationKey: input.operationKey, ...update });
     try {
       emit({ stage: "preflight" });
-      const unresolved = this.pending(input.expectedAccount);
-      if (unresolved && unresolved.intent !== transactionIntent(input.request)) {
-        throw new V1TransactionError("pending_transaction", `Check the existing transaction before signing another: ${unresolved.hash}`);
-      }
+      const scope = input.scope ?? transactionScopeForOperation(input.operationKey);
+      const records = this.pending(input.expectedAccount);
+      const intent=transactionIntent(input.request);
+      const exact=records.find(record => record.operationKey === input.operationKey);
+      if(exact&&exact.intent!==intent)throw new V1TransactionError("pending_transaction",`The saved operation does not match this transaction request: ${exact.hash}`);
+      const unresolved = exact ?? records.find(record => record.intent === intent);
+      const conflict = records.find(record => record.conflictKey === scope.conflictKey && record.operationKey !== unresolved?.operationKey);
+      if (conflict) throw new V1TransactionError("pending_transaction", `A dependent transaction for this market is still pending: ${conflict.hash}`);
       if (unresolved) {
         const connected = accountAddress(this.clients.walletClient.account);
         if (!connected || !sameAddress(connected, input.expectedAccount)) throw new V1TransactionError("wrong_account", "Reconnect the original account to recover its transaction");
@@ -264,7 +403,7 @@ export class V1TransactionExecutor {
       emit({ stage: "confirming", hash });
       try {
         const confirmed = await input.confirm(receipt, hash);
-        this.journal.removeItem(this.#journalKey(input.expectedAccount));
+        this.#removePending(input.expectedAccount, unresolved?.operationKey ?? input.operationKey);
         emit({ stage: "confirmed", hash });
         return confirmed;
       } catch (error) {
@@ -322,7 +461,10 @@ export class V1TransactionExecutor {
   ): Promise<{ readonly receipt: TransactionReceipt; readonly hash: Hash }> {
     const account = accountAddress(this.clients.walletClient.account)!;
     const key = this.#journalKey(input.expectedAccount);
-    const pending = this.pending(input.expectedAccount);
+    const scope = input.scope ?? transactionScopeForOperation(input.operationKey);
+    const pending = this.pending(input.expectedAccount).find(record => record.operationKey === input.operationKey)
+      ?? this.pending(input.expectedAccount).find(record => record.intent === transactionIntent(input.request));
+    const recordOperationKey = pending?.operationKey ?? input.operationKey;
     let hash: Hash;
     if (pending) {
       hash = pending.hash;
@@ -345,7 +487,15 @@ export class V1TransactionExecutor {
         if (isUserRejected(error)) throw new V1TransactionError("user_rejected", "wallet signature was rejected", error);
         throw new V1TransactionError("submission_failed", approval ? "approval submission failed" : "transaction submission failed", error);
       }
-      this.journal.setItem(key, JSON.stringify({ intent: transactionIntent(input.request), hash, approval } satisfies PendingTransaction));
+      const now = (input.now ?? Date.now)();
+      const record: PendingTransaction = { intent: transactionIntent(input.request), hash, approval, operationKey: input.operationKey, ...scope, createdAt: now, updatedAt: now, stage: "pending" };
+      this.#replacePending(input.expectedAccount, record);
+      if (this.clients.publicClient.getTransaction) {
+        try {
+          const transaction = await this.clients.publicClient.getTransaction({ hash });
+          this.#replacePending(input.expectedAccount, { ...record, nonce: transaction.nonce, updatedAt: (input.now ?? Date.now)() });
+        } catch { /* A nonce hint is optional; the hash remains recoverable. */ }
+      }
     }
     emit({ stage: approval ? "approval_submitted" : "submitted", hash });
     if (!approval) emit({ stage: "pending", hash });
@@ -359,15 +509,19 @@ export class V1TransactionExecutor {
         onReplaced: (replacement) => {
           finalHash = replacement.transaction.hash;
           cancelled = replacement.reason === "cancelled";
-          this.journal.setItem(key, JSON.stringify({ intent: transactionIntent(input.request), hash: finalHash, approval, cancelled } satisfies PendingTransaction));
+          const existing = this.pending(input.expectedAccount).find(record => record.operationKey === recordOperationKey);
+          const now = (input.now ?? Date.now)();
+          this.#replacePending(input.expectedAccount, { ...(existing ?? { intent: transactionIntent(input.request), approval, operationKey: recordOperationKey, ...scope, createdAt: now }), hash: finalHash, cancelled, stage: "replaced", replacementReason: replacement.reason, updatedAt: now });
           emit({ stage: "replaced", hash: finalHash, replacementReason: replacement.reason });
         },
       });
     } catch (error) {
+      const existing=this.pending(input.expectedAccount).find(record=>record.operationKey===recordOperationKey);
+      if(existing&&existing.stage!=="replaced")this.#replacePending(input.expectedAccount,{...existing,stage:"unknown",updatedAt:(input.now??Date.now)()});
       if (isReceiptTimeout(error)) throw new V1TransactionError("receipt_timeout", "timed out waiting for a canonical receipt", error);
       throw new V1TransactionError("pending_transaction", `Transaction outcome is unknown; check ${finalHash} before retrying`, error);
     }
-    if (cancelled || receipt.status !== "success" || approval) this.journal.removeItem(key);
+    if (cancelled || receipt.status !== "success" || approval) this.#removePending(input.expectedAccount, recordOperationKey);
     if (cancelled) throw new V1TransactionError("replacement_cancelled", "transaction was replaced by a cancellation");
     if (receipt.status !== "success") {
       throw new V1TransactionError(approval ? "approval_reverted" : "transaction_reverted", approval ? "approval reverted" : "transaction reverted");

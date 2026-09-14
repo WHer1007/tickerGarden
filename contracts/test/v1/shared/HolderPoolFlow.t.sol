@@ -44,6 +44,10 @@ contract HolderPoolRegistry {
     function canonicalPoolKey(bytes32) external view returns (PoolKey memory) {
         return k;
     }
+
+    function canonicalPoolId(bytes32) external view returns (bytes32) {
+        return keccak256(abi.encode(k));
+    }
 }
 
 contract HolderPoolOfficialStockRegistry {

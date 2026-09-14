@@ -25,6 +25,13 @@ contracts/broadcast/
 **/bin/
 .codex_tmp/
 outputs/
+brand/
+apps/web/qa-captures/
+
+# Large generated audit evidence and chain-data exports stay in local or CI
+# artifact storage. Commit the corresponding reports and reproduction scripts.
+docs/reviews/evidence/
+docs/references/data/
 /-
 # Examples and explicitly committed historical evidence remain in Git.
 /services/backend-go/api

@@ -5,6 +5,10 @@ import {Test} from "forge-std/Test.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {PoolManager} from "@uniswap/v4-core/src/PoolManager.sol";
 import {PoolDonateTest} from "@uniswap/v4-core/src/test/PoolDonateTest.sol";
+import {PoolSwapTest} from "@uniswap/v4-core/src/test/PoolSwapTest.sol";
+import {IPoolManager} from "@uniswap/v4-core/src/interfaces/IPoolManager.sol";
+import {SwapParams} from "@uniswap/v4-core/src/types/PoolOperation.sol";
+import {TickMath} from "@uniswap/v4-core/src/libraries/TickMath.sol";
 import {PoolKey as V4Key} from "@uniswap/v4-core/src/types/PoolKey.sol";
 import {Currency} from "@uniswap/v4-core/src/types/Currency.sol";
 import {IHooks} from "@uniswap/v4-core/src/interfaces/IHooks.sol";
@@ -39,11 +43,12 @@ contract CompoundRegistry {
     MarketView private v;
     PoolKey private k;
 
-    constructor(address executor, address c0, address c1) {
+    constructor(address executor, address c0, address c1, uint24 fee) {
         graduationExecutor = executor;
-        k = PoolKey(c0, c1, 0, 200, address(0));
+        k = PoolKey(c0, c1, fee, 200, address(0));
         v.config.quoteAsset = c0;
         v.config.memeToken = c1;
+        v.config.lpFeePips = fee;
     }
 
     function market(bytes32) external view returns (MarketView memory) {
@@ -80,6 +85,10 @@ contract LaunchLockerCompoundingTest is Test {
     receive() external payable {}
 
     function _setup(bool nativeQuote) internal {
+        _setup(nativeQuote, 0);
+    }
+
+    function _setup(bool nativeQuote, uint24 feePips) internal {
         vm.warp(1_800_000_000);
         vm.deal(address(this), 10000 ether);
         address a = address(new LaunchLockerToken("A"));
@@ -92,9 +101,9 @@ contract LaunchLockerCompoundingTest is Test {
             pool, IAllowanceTransfer(address(permit)), 100000, IPositionDescriptor(address(1)), IWETH9(address(2))
         );
         donor = new PoolDonateTest(pool);
-        registry = new CompoundRegistry(address(this), c0, c1);
+        registry = new CompoundRegistry(address(this), c0, c1, feePips);
         locker = new LaunchLocker(ID, address(registry), address(positions));
-        key = V4Key(Currency.wrap(c0), Currency.wrap(c1), 0, 200, IHooks(address(0)));
+        key = V4Key(Currency.wrap(c0), Currency.wrap(c1), feePips, 200, IHooks(address(0)));
         pool.initialize(key, uint160(1 << 96));
         _fund(c0);
         _fund(c1);
@@ -111,6 +120,54 @@ contract LaunchLockerCompoundingTest is Test {
             block.timestamp
         );
         registry.graduated();
+    }
+
+    function _swapForLpFee(uint256 amount) internal {
+        PoolSwapTest swapper = new PoolSwapTest(IPoolManager(address(pool)));
+        if (c0 == address(0)) {
+            swapper.swap{value: amount}(
+                key,
+                SwapParams(true, -int256(amount), TickMath.MIN_SQRT_PRICE + 1),
+                PoolSwapTest.TestSettings(false, false), ""
+            );
+        } else {
+            LaunchLockerToken(c0).mint(address(this), amount);
+            IERC20(c0).approve(address(swapper), type(uint256).max);
+            swapper.swap(
+                key,
+                SwapParams(true, -int256(amount), TickMath.MIN_SQRT_PRICE + 1),
+                PoolSwapTest.TestSettings(false, false), ""
+            );
+        }
+    }
+
+    function test_realV4StaticLpFeeTiersAccrueToLockerAndCompound() public { _checkTiers(false); }
+    function test_realV4NativeStaticLpFeeTiersAccrueToLockerAndCompound() public { _checkTiers(true); }
+
+    function _checkTiers(bool nativeQuote) private {
+        uint24[4] memory tiers = [uint24(0), 1000, 2000, 3000];
+        for (uint256 i; i < tiers.length; ++i) {
+            _setup(nativeQuote, tiers[i]);
+            _swapForLpFee(1 ether);
+            LaunchLockerToken(c1).mint(address(this), 1 ether);
+            PoolSwapTest reverse = new PoolSwapTest(IPoolManager(address(pool)));
+            IERC20(c1).approve(address(reverse), type(uint256).max);
+            reverse.swap(
+                key,
+                SwapParams(false, -int256(1 ether), TickMath.MAX_SQRT_PRICE - 1),
+                PoolSwapTest.TestSettings(false, false), ""
+            );
+            (uint256 collected0, uint256 collected1) = locker.collectLockedFees();
+            if (tiers[i] == 0) {
+                assertEq(collected0, 0);
+                assertEq(collected1, 0);
+            } else {
+                assertGt(collected0 + collected1, 0);
+                vm.prank(compoundKeeper);
+                locker.compoundLockedFees(1, uint128(collected0), uint128(collected1), block.timestamp + 60);
+                assertEq(positions.getPositionLiquidity(1), INITIAL + 1);
+            }
+        }
     }
 
     function _deployPermit2() internal virtual returns (address) {

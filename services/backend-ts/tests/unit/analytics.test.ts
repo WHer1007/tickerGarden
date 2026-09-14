@@ -92,3 +92,15 @@ test('rejects extra mint and ambiguous conversion evidence', () => {
     excludedAccounts: [], transfers: [{ source, from: address('0'), to: market.curve, value: '1000' },
       { source: { ...source, logIndex: 2, eventKey: `46630:${hash('7')}:2` }, from: address('0'), to: address('8'), value: '1' }] }), /unexpected mint/);
 });
+
+test('nonzero static LP fees and bounded Core fees preserve trade history',()=>{
+ for(const lpFeePips of [0,1000,2000,3000]) {
+  const binding={...market,lpFeePips};
+  const swap=(fee:number)=>observation('UniswapV4PoolManager','Swap',f72EventCatalog.UniswapV4PoolManager.address,1n,{id:market.poolId,sender:address('8'),amount0:2n*10n**18n,amount1:-1_000_000n,fee});
+  const max=lpFeePips+1000-Math.floor(lpFeePips/1000);
+  assert.equal(normalizeTransaction([swap(lpFeePips)],[binding]).length,1);
+  assert.equal(normalizeTransaction([swap(max)],[binding]).length,1);
+  assert.throws(()=>normalizeTransaction([swap(max+1)],[binding]),/invalid pool fee/);
+  if(lpFeePips)assert.throws(()=>normalizeTransaction([swap(0)],[binding]),/invalid pool fee/);
+ }
+});

@@ -94,6 +94,7 @@ test("rejects an invalid transaction hash or launch identity", () => {
 
 test("marks complete progress at 100 percent and every earlier phase below 100", () => {
   assert.equal(launchPhaseDisplay.complete.percent, 100);
+  assert.equal(launchPhaseDisplay.complete.step, "Launch complete");
   for (const [phase, display] of Object.entries(launchPhaseDisplay)) {
     if (phase !== "complete") assert.ok(display.percent < 100, `${phase} should not be complete`);
   }

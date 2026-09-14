@@ -249,7 +249,7 @@ REVOKE_DATA=$(cast calldata 'revokeRole(uint64,address)' 0 "$OLD_ADMIN")
 | 曲线总供应量 | 当前激活基线 `10^27` raw = 10 亿枚（18 decimals） | 新基线，再配套 Quote 与创建验证 | 不增发既有市场代币 |
 | 曲线基础手续费 | 当前基线 100 bps = 1%；基线编码上限 9900 bps | 新基线；还必须通过创建、Creator tax、毕业联合验证 | 不能覆盖旧基线、旧市场 |
 | 毕业后基础手续费 | 固定 10000 pips / 1000000 = 1% | 无 setter，改代码、新 release | 不影响旧市场 |
-| PoolKey fee / LP 基础手续费份额 | 当前 0 / 0 | 固定策略，新 release | 不可用注册模板绕过策略绑定 |
+| 原生 PoolKey fee / 协议 LP 分成 | 创建时选择 0/1000/2000/3000 pips / 0 | 创建后不可修改；新 release 生效 | 不可用注册模板绕过市场费率绑定 |
 | 创建市场费 | 固定 `500000000000000` wei = 0.0005 ETH | 无 setter，新 Factory/release | 原生币支付，和配对资产不是一回事 |
 | Creator tax | 创建时 0–500 bps，即 0–5% | 创建者在新市场选择 | 既有市场不可改，全部归创作者 |
 | 创建者手续费分配给持有人 | 创建时 bool；开启固定分出创作者**基础份额**的 50% | 创建新市场选择 | 不包含 Creator tax，不可自定义比例 |

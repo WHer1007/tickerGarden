@@ -227,14 +227,14 @@ contract HolderRewardsDistributorV1 is ReentrancyGuard {
     function publishSnapshots(Publication[] calldata publications) external nonReentrant {
         if (msg.sender != snapshotPublisher || snapshotPublisher == address(0)) revert Unauthorized();
         if (publications.length == 0 || publications.length > MAX_PUBLISH_BATCH) revert InvalidPublication();
+        uint256 height = CanonicalBlockClock.number();
         for (uint256 i; i < publications.length; ++i) {
-            _publish(publications[i]);
+            _publish(publications[i], height);
         }
     }
 
-    function _publish(Publication calldata p) private {
+    function _publish(Publication calldata p, uint256 height) private {
         Market storage m = _market(p.marketId);
-        uint256 height = CanonicalBlockClock.number();
         if (m.burnMemeFees && p.memeBudget != 0) revert InvalidPublication();
         if (
             p.round == 0 || uint256(p.round) != uint256(m.lastRound) + 1 || p.snapshotBlock < m.registeredBlock

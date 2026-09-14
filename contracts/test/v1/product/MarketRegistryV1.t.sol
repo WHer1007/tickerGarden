@@ -12,6 +12,7 @@ import {
     LaunchTemplate,
     MarketConfig,
     MarketView,
+    PoolKey,
     TickerGardenBaseline,
     QuoteAssetConfig
 } from "../../../src/v1/interfaces/IV1Protocol.sol";
@@ -299,6 +300,24 @@ contract MarketRegistryV1Test is Test {
         assertEq(version, 2);
     }
 
+    function test_selectedLpFeeBindsCanonicalPoolAndCannotBeOverwritten() public {
+        for (uint24 fee; fee <= 3000; fee += 1000) {
+            bytes32 id = bytes32(uint256(fee + 1));
+            MarketConfig memory c = _config(QUOTE_ASSET, address(uint160(MEME_TOKEN) + fee));
+            c.lpFeePips = fee;
+            _register(id, c);
+            PoolKey memory key = registry.canonicalPoolKey(id);
+            assertEq(key.fee, fee);
+            assertEq(registry.canonicalPoolId(id), keccak256(abi.encode(key)));
+            vm.prank(FACTORY);
+            vm.expectRevert();
+            registry.registerMarket(id, c);
+            vm.prank(GRADUATION);
+            registry.commitPoolCreated(id, keccak256(abi.encode(key)));
+            assertEq(registry.market(id).config.lpFeePips, fee);
+        }
+    }
+
     function _register(bytes32 marketId, MarketConfig memory config) private {
         vm.prank(FACTORY);
         registry.registerMarket(marketId, config);
@@ -334,8 +353,9 @@ contract MarketRegistryV1Test is Test {
             creatorTaxBps: 0,
             creatorFeesToHolders: false,
             stakingEnabled: true,
-                burnMemeFees: false
-            });
+                burnMemeFees: false,
+            lpFeePips: 0
+        });
     }
 
     function _quote(address quoteAsset) private pure returns (QuoteAssetConfig memory) {

@@ -352,8 +352,13 @@ details[data-treasury-advanced] .advanced-actions{padding-bottom:16px}
 .footer-risk strong{color:var(--lime);font-size:12px;letter-spacing:.06em;text-transform:uppercase}
 .footer-risk p{margin:0;max-width:none;font-size:12px;line-height:1.6;color:#c7d7cf}
 .footer-meta{grid-column:1/-1;display:grid!important;grid-template-columns:1fr auto;align-items:center;gap:18px!important;text-align:left!important;color:#9fb8ac;font-size:11px}
-.footer-meta>span:last-child{justify-self:end;text-align:right}
-.footer-meta .chain-tag{height:26px;border-color:#3a6b59;background:#0a4937;color:#dce9e2;padding:0 9px;font-size:9px;box-shadow:none}
+.footer-meta-links{justify-self:end;display:flex;align-items:center;gap:10px}
+.footer-meta .chain-tag{height:30px;border-color:#3a6b59;background:#0a4937;color:#dce9e2;padding:0 9px 0 5px;font-size:9px;box-shadow:none}
+.footer-meta .chain-tag img{display:block;width:20px;height:20px;object-fit:contain;flex:0 0 auto}
+.footer-social-link{display:inline-flex;align-items:center;gap:6px;height:30px;padding:0 10px;border:1px solid #3a6b59;border-radius:999px;color:#dce9e2!important;font-size:10px;font-weight:700;text-decoration:none;transition:border-color .18s ease,color .18s ease,background .18s ease}
+.footer-social-link i{font-size:14px}
+.footer-social-link:hover{border-color:#789889;background:#0a4937;color:#fff!important}
+.footer-social-link:focus-visible{outline:2px solid var(--lime);outline-offset:3px}
 
 /* Compact header actions and persistent network identity in the footer. */
 .header-actions{display:flex;align-items:center;gap:10px;flex:0 0 auto}
@@ -376,7 +381,7 @@ details[data-treasury-advanced] .advanced-actions{padding-bottom:16px}
   .footer-navigation{grid-template-columns:1fr 1fr;gap:28px 22px}
   .footer-risk{grid-template-columns:1fr;gap:7px;padding:16px}
   .footer-meta{grid-template-columns:1fr auto;gap:8px!important;text-align:left!important}
-  .footer-meta>span:last-child{justify-self:end;text-align:right}
+  .footer-meta-links{justify-self:end}
 }
 
 @media(prefers-reduced-motion:reduce){
@@ -496,6 +501,19 @@ button.wallet-option .wallet-option-state{color:#32723c;background:#edf5e4;paddi
 .global-notice[data-tone="success"]>i{color:#4f8f39}
 .global-notice[data-tone="warning"]>i{color:#a46b16}
 .global-notice[data-tone="error"]>i{color:#c6413c}
+.transaction-progress-list,.transaction-recovery-list{display:grid;gap:10px;width:100%}
+.transaction-progress-item__content,.transaction-recovery-item__content{display:grid;min-width:0;flex:1;gap:3px}
+.transaction-progress-item__content strong{font-size:12px;font-weight:700}
+.transaction-progress-item__content span,.transaction-recovery-item__content>span{color:#617064;overflow-wrap:anywhere}
+.transaction-progress-item__content a,.transaction-recovery-item__actions a{width:max-content;color:#47674e;text-decoration:underline;text-decoration-color:#b8c7b7;text-underline-offset:2px}
+.transaction-progress-item[data-state="confirmed"]>i{color:#4f8f39}
+.transaction-progress-item[data-state="failed"]>i{color:#c6413c}
+.transaction-recovery-item{align-items:flex-start}
+.transaction-recovery-item__actions{display:flex;flex-wrap:wrap;align-items:center;gap:8px 12px;margin-top:5px}
+.transaction-recovery-item__actions button{border:0;background:transparent;padding:0;color:#47674e;font:inherit;font-weight:650;cursor:pointer}
+.transaction-recovery-item__actions button:disabled{opacity:.5;cursor:wait}
+.transaction-recovery-item .transaction-observation{margin-top:5px;color:#768078;font-size:11px}
+.transaction-recovery-nonce{display:block;padding:1px 4px;color:#68726a;font-size:11px;line-height:1.45;pointer-events:auto}
 .trade-tx-status strong{font-size:12px;font-weight:600}
 .trade-tx-status__hash{display:flex;align-items:center;gap:5px;margin-top:4px}
 .trade-tx-status button{border:0;background:transparent;padding:0;color:#6d7b69;font:inherit;cursor:pointer;text-decoration:none}
@@ -510,7 +528,7 @@ button.wallet-option .wallet-option-state{color:#32723c;background:#edf5e4;paddi
 
 /* Inputs use their existing border and caret instead of an outer focus ring. */
 input:focus,textarea:focus,select:focus{outline:none;box-shadow:none}
-input[aria-invalid="true"]:focus,textarea[aria-invalid="true"]:focus,select[aria-invalid="true"]:focus{outline:2px solid #b42318!important;outline-offset:2px}
+input[aria-invalid="true"]:focus,textarea[aria-invalid="true"]:focus,select[aria-invalid="true"]:focus{border-color:#b42318!important;outline:none!important;box-shadow:none!important}
 
 /* Docs: expanded, sectioned reading layout; search is isolated from trading/list filters. */
 .docs-page{max-width:1200px}
@@ -547,7 +565,8 @@ input[aria-invalid="true"]:focus,textarea[aria-invalid="true"]:focus,select[aria
 /* Keyboard navigation and recoverable page states. */
 .skip-link{position:fixed;left:16px;top:12px;z-index:1000;transform:translateY(-160%);padding:10px 14px;border-radius:8px;background:#063f2e;color:#fff;font-weight:700;text-decoration:none;box-shadow:0 8px 24px rgba(6,63,46,.24)}
 .skip-link:focus{transform:translateY(0)}
-:where(a,button,input,select,textarea,summary):focus-visible{outline:2px solid #315f46!important;outline-offset:3px!important}
+:where(a,button,summary):focus-visible{outline:2px solid #315f46!important;outline-offset:3px!important}
+:where(input,textarea,select):focus,:where(input,textarea,select):focus-visible{outline:none!important;box-shadow:none!important}
 [data-route-outlet] main:focus{outline:none}
 .page-retry{display:inline-flex;align-items:center;justify-content:center;min-height:36px;margin:0 0 14px;padding:7px 13px;border:1px solid #b9c8b8;border-radius:8px;background:#fffefa;color:#31553c;font-weight:650;cursor:pointer}
 .page-retry:hover{background:#edf3e8}

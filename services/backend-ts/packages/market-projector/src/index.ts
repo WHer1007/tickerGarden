@@ -1,3 +1,4 @@
+import { transaction } from '../../db/src/index.ts';
 import { decodeMarketRecord } from "../../chain/src/market-record.ts";
 import { decodeCoreMarketRoute } from '../../chain/src/market-route.ts';
 import { externalTradingService } from '../../chain/src/external-trading.ts';
@@ -7,7 +8,8 @@ import {
 } from 'viem';
 import type { DeploymentIdentity, RpcLog, RpcTransport } from '../../chain/src/index.ts';
 import { decodeF72Event, eventTopic, fixedF72Sources, f72EventCatalog, f72ReadAbis } from '../../events/src/index.ts';
-import { publishProjection, type Json, type ProjectionRecord } from '../../projection/src/index.ts';
+import { consensusBlock } from '../../chain/src/index.ts';
+import { publishProjection, publishMarketDelta, acknowledgeMarketPublication, ProjectionPending, type Json, type ProjectionRecord } from '../../projection/src/index.ts';
 
 const ZERO_ADDRESS = `0x${'0'.repeat(40)}` as Address;
 const ZERO_HASH = `0x${'0'.repeat(64)}` as Hex;
@@ -44,7 +46,7 @@ export interface ObserveF72MarketInput {
 }
 
 export async function loadF72MarketCreations(input: {
-  readonly pool: Pool; readonly deployment: DeploymentIdentity; readonly throughBlock: bigint; readonly schemaName?: string;
+  readonly pool: Pool; readonly deployment: DeploymentIdentity; readonly throughBlock: bigint; readonly schemaName?: string; readonly marketIds?: readonly string[];
 }): Promise<MarketCreation[]> {
   const schema = identifier(input.schemaName ?? 'tickergarden_serverless');
   const rows = await input.pool.query<{ payload: Record<string, unknown> }>(
@@ -52,6 +54,7 @@ export async function loadF72MarketCreations(input: {
      JOIN ${schema}.chain_blocks b ON b.environment=l.environment AND b.chain_id=l.chain_id AND b.deployment_digest=l.deployment_digest AND b.hash=l.block_hash
      WHERE l.environment=$1 AND l.chain_id=$2 AND l.deployment_digest=$3 AND l.address=$4 AND l.topic0=$5
        AND l.canonical AND b.canonical AND b.finalized AND b.number<=$6
+       AND NOT EXISTS(SELECT 1 FROM ${schema}.market_creation_directory d WHERE d.environment=l.environment AND d.chain_id=l.chain_id AND d.deployment_digest=l.deployment_digest AND d.block_hash=l.block_hash AND d.transaction_hash=l.transaction_hash AND d.log_index=l.log_index)
      ORDER BY b.number,l.transaction_index,l.log_index`,
     [input.deployment.environment, input.deployment.chainId, input.deployment.deploymentDigest, FACTORY, MARKET_CREATED_TOPIC, input.throughBlock.toString()],
   );
@@ -64,7 +67,11 @@ export async function loadF72MarketCreations(input: {
     if (creations.has(creation.marketId)) throw new Error('duplicate canonical MarketCreated identity');
     creations.set(creation.marketId, creation);
   }
-  return [...creations.values()];
+  const values=[...creations.values()];
+  for(let offset=0;offset<values.length;offset+=250)await input.pool.query(`INSERT INTO ${schema}.market_creation_directory(environment,chain_id,deployment_digest,block_hash,transaction_hash,log_index,market_id,payload) SELECT $1,$2,$3,r.payload->'source'->>'blockHash',r.payload->'source'->>'transactionHash',(r.payload->'source'->>'logIndex')::bigint,r.payload->>'marketId',r.payload FROM jsonb_to_recordset($4::jsonb) r(payload jsonb) ON CONFLICT DO NOTHING`,[input.deployment.environment,input.deployment.chainId,input.deployment.deploymentDigest,JSON.stringify(values.slice(offset,offset+250).map(payload=>({payload})))]);
+  const saved=(await input.pool.query<{payload:MarketCreation}>(`SELECT d.payload FROM ${schema}.market_creation_directory d JOIN ${schema}.chain_blocks b ON b.environment=d.environment AND b.chain_id=d.chain_id AND b.deployment_digest=d.deployment_digest AND b.hash=d.block_hash WHERE d.environment=$1 AND d.chain_id=$2 AND d.deployment_digest=$3 AND b.canonical AND b.finalized AND b.number<=$4 AND ($5::text[] IS NULL OR d.market_id=ANY($5::text[])) ORDER BY b.number,d.log_index`,[input.deployment.environment,input.deployment.chainId,input.deployment.deploymentDigest,input.throughBlock.toString(),input.marketIds??null])).rows.map(r=>r.payload);
+  if(new Set(saved.map(r=>r.marketId)).size!==saved.length)throw Error('duplicate canonical MarketCreated identity');
+  return saved;
 }
 
 export async function observeF72Market(input: ObserveF72MarketInput): Promise<Json> {
@@ -124,7 +131,7 @@ export async function observeF72Market(input: ObserveF72MarketInput): Promise<Js
   const canonicalPoolId = hex32(canonicalPoolIdValue, 'canonicalPoolId');
   const encodedKey = await consensusRawCall(input, REGISTRY, f72ReadAbis.MarketRegistryV1 as Abi, 'canonicalPoolKey', [input.creation.marketId]);
   if (canonicalPoolId !== keccak256(encodedKey)) throw new Error('canonical PoolId mismatch');
-  assertPoolKey(key, routeKey, quoteAsset, memeToken, address(config.graduatedHook, 'graduatedHook'));
+  assertPoolKey(key, routeKey, quoteAsset, memeToken, address(config.graduatedHook, 'graduatedHook'), safeNumber(config.lpFeePips,24,'lpFeePips'));
   if (hex32(route.poolId, 'route poolId') !== canonicalPoolId
     || address(route.quoteAsset, 'route quoteAsset') !== quoteAsset || address(route.memeToken, 'route memeToken') !== memeToken
     || address(route.curve, 'route curve') !== curve || address(route.gauge, 'route gauge') !== gauge
@@ -146,6 +153,7 @@ export async function observeF72Market(input: ObserveF72MarketInput): Promise<Js
     creatorFeesToHolders: boolean(config.creatorFeesToHolders, 'creatorFeesToHolders'),
     stakingEnabled: boolean(config.stakingEnabled, 'stakingEnabled'),
     burnMemeFees: boolean(config.burnMemeFees, 'burnMemeFees'),
+    lpFeePips: safeNumber(config.lpFeePips,24,'lpFeePips'),
     curveProgress: {
       realQuoteReserve: bigint(realQuoteReserveValue, 'realQuoteReserve').toString(),
       sellableTokens: bigint(sellableTokensValue, 'sellableTokens').toString(),
@@ -212,25 +220,83 @@ export function displayPoolPrice(sqrt: bigint, memeIsCurrency0: boolean, quoteDe
 }
 
 export async function projectF72Markets(input: {
-  readonly pool: Pool; readonly deployment: DeploymentIdentity; readonly blockNumber: bigint; readonly blockHash: Hex;
-  readonly blockTimestamp: bigint; readonly generation: bigint; readonly primary: RpcTransport; readonly secondary: RpcTransport;
-  readonly schemaName?: string;
-}): Promise<{ revision: string; duplicate: boolean; records: number }> {
-  const creations = await loadF72MarketCreations({ pool: input.pool, deployment: input.deployment, throughBlock: input.blockNumber, ...(input.schemaName ? { schemaName: input.schemaName } : {}) });
-  if (creations.length > 10_000) throw new Error('market projection exceeds bounded release scope');
-  const observed = await mapBounded(creations, 8, (creation) => observeF72Market({
-    creation, blockNumber: input.blockNumber, blockHash: input.blockHash, blockTimestamp: input.blockTimestamp,
-    primary: input.primary, secondary: input.secondary,
-  }));
-  const records: ProjectionRecord[] = observed.map((payload, index) => {
-    const creation = creations[index]!;
-    return { identity: creation.marketId, sortKey: `${creation.source.blockNumber.padStart(20, '0')}:${creation.marketId}`, payload };
-  });
-  return publishProjection({
-    pool: input.pool, deployment: input.deployment, scope: 'markets', algorithmVersion: 'f72-markets-v2',
-    blockNumber: input.blockNumber, blockHash: input.blockHash, generation: input.generation, records,
-    ...(input.schemaName ? { schemaName: input.schemaName } : {}),
-  });
+  readonly pool:Pool;readonly deployment:DeploymentIdentity;readonly blockNumber:bigint;readonly blockHash:Hex;
+  readonly blockTimestamp:bigint;readonly generation:bigint;readonly primary:RpcTransport;readonly secondary:RpcTransport;readonly schemaName?:string;
+}):Promise<{revision:string;duplicate:boolean;records:number}>{
+  const schema=identifier(input.schemaName??'tickergarden_serverless'),id=[input.deployment.environment,input.deployment.chainId,input.deployment.deploymentDigest];
+  const algorithmVersion='f72-markets-v4-delta',args=[...id,input.blockHash,input.generation.toString(),algorithmVersion];
+  const previous=(await input.pool.query<{revision:string;block_number:string;generation:string;payload:{algorithmVersion:string;recordCount:number;deltaDepth?:number}}>(`SELECT p.revision,p.block_number,p.generation,p.payload FROM ${schema}.publication_pointers pointer JOIN ${schema}.publications p USING(environment,chain_id,deployment_digest,scope,revision) JOIN ${schema}.chain_blocks b ON b.environment=p.environment AND b.chain_id=p.chain_id AND b.deployment_digest=p.deployment_digest AND b.hash=p.block_hash WHERE p.environment=$1 AND p.chain_id=$2 AND p.deployment_digest=$3 AND p.scope='markets' AND b.canonical AND b.finalized`,id)).rows[0];
+  const publish={pool:input.pool,deployment:input.deployment,scope:'markets',algorithmVersion,incrementalMarketVersions:true,blockNumber:input.blockNumber,blockHash:input.blockHash,generation:input.generation,...(input.schemaName?{schemaName:input.schemaName}:{})};
+  if(previous&&previous.payload.algorithmVersion===algorithmVersion&&BigInt(previous.generation)===input.generation&&BigInt(previous.block_number)===input.blockNumber){
+    if(previous.revision!==`${input.blockNumber}:${input.blockHash}`||(await consensusBlock(input.primary,input.secondary,input.blockNumber)).hash!==input.blockHash)throw Error('market retry anchor changed');
+    return acknowledgeMarketPublication({...publish,records:[]});
+  }
+  type Candidate={base_revision:string|null;expected_population:number;work_count:number};
+  let candidate=(await input.pool.query<Candidate>(`SELECT base_revision,expected_population,work_count FROM ${schema}.market_work_candidates WHERE environment=$1 AND chain_id=$2 AND deployment_digest=$3 AND block_hash=$4 AND generation=$5 AND algorithm_version=$6`,args)).rows[0];
+  if(!candidate){
+    const reusable=previous&&previous.payload.algorithmVersion===algorithmVersion&&BigInt(previous.generation)===input.generation&&BigInt(previous.block_number)<input.blockNumber;
+    const logs=reusable?(await input.pool.query<{payload:Record<string,unknown>}>(`SELECT l.payload FROM ${schema}.chain_logs l JOIN ${schema}.chain_blocks b ON b.environment=l.environment AND b.chain_id=l.chain_id AND b.deployment_digest=l.deployment_digest AND b.hash=l.block_hash WHERE l.environment=$1 AND l.chain_id=$2 AND l.deployment_digest=$3 AND l.canonical AND b.canonical AND b.finalized AND b.number>$4 AND b.number<=$5`,[...id,previous.block_number,input.blockNumber.toString()])).rows:[];
+    const dirty=marketDirtyKeys(logs.map(r=>r.payload));
+    // Persist newly discovered creations without materializing every historical payload.
+    await loadF72MarketCreations({pool:input.pool,deployment:input.deployment,throughBlock:input.blockNumber,marketIds:[],...(input.schemaName?{schemaName:input.schemaName}:{})});
+    const directory=`FROM ${schema}.market_creation_directory d JOIN ${schema}.chain_blocks b ON b.environment=d.environment AND b.chain_id=d.chain_id AND b.deployment_digest=d.deployment_digest AND b.hash=d.block_hash`;
+    const canonical=`d.environment=$1 AND d.chain_id=$2 AND d.deployment_digest=$3 AND b.canonical AND b.finalized AND b.number<=$4`;
+    const population=(await input.pool.query<{n:number;distinct_n:number}>(`SELECT count(*)::int n,count(DISTINCT d.market_id)::int distinct_n ${directory} WHERE ${canonical}`,[...id,input.blockNumber.toString()])).rows[0]!;
+    if(population.n!==population.distinct_n)throw Error('duplicate canonical MarketCreated identity');
+    const governance= fixedF72Sources().filter(source=>/Registry|Config|AccessManager/.test(source.module)).some(source=>dirty.has(source.address));
+    const pending=(await input.pool.query<{payload:MarketCreation}>(`SELECT d.payload ${directory}
+      LEFT JOIN ${schema}.market_record_versions v ON v.environment=d.environment AND v.chain_id=d.chain_id AND v.deployment_digest=d.deployment_digest AND v.identity=d.market_id AND v.generation=$5 AND v.valid_from<=$6 AND (v.valid_to IS NULL OR v.valid_to>$6)
+      LEFT JOIN ${schema}.market_time_refresh t ON t.environment=d.environment AND t.chain_id=d.chain_id AND t.deployment_digest=d.deployment_digest AND t.market_id=d.market_id AND t.generation=$5
+      WHERE ${canonical} AND ($7 OR v.identity IS NULL OR v.payload->'display' IS NULL OR
+        ARRAY[v.payload->>'marketId',v.payload->>'assetUid',v.payload->>'memeToken',v.payload->>'curve',v.payload->>'gauge',v.payload->>'poolId',v.payload->>'quoteAsset',v.payload->>'quoteAssetConfigId',v.payload->>'tickerGardenBaselineId'] && $8::text[] OR
+        ((v.payload->'display'->>'totalStakedRaw')::numeric>0 AND (t.observed_block_hash IS DISTINCT FROM v.payload->'display'->>'blockHash' OR t.next_at<=$9::numeric))) ORDER BY d.market_id`,[...id,input.blockNumber.toString(),input.generation.toString(),reusable?previous.block_number:'-1',!reusable||governance,[...dirty],input.blockTimestamp.toString()])).rows.map(r=>r.payload);
+    candidate={base_revision:reusable?previous.revision:null,expected_population:population.n,work_count:pending.length};
+    await transaction(input.pool,async client=>{
+      await client.query('SELECT pg_advisory_xact_lock(hashtextextended($1,0))',[`market-work:${args.join(':')}`]);
+      const exists=(await client.query<Candidate>(`SELECT base_revision,expected_population,work_count FROM ${schema}.market_work_candidates WHERE environment=$1 AND chain_id=$2 AND deployment_digest=$3 AND block_hash=$4 AND generation=$5 AND algorithm_version=$6`,args)).rows[0];
+      if(exists){if(JSON.stringify(exists)!==JSON.stringify(candidate))throw Error('market work candidate conflict');return;}
+      for(let offset=0;offset<pending.length;offset+=250)await client.query(`INSERT INTO ${schema}.market_observation_work SELECT $1,$2,$3,$4,$5,$6,r.creation->>'marketId',r.creation FROM jsonb_to_recordset($7::jsonb) r(creation jsonb)`,[...args,JSON.stringify(pending.slice(offset,offset+250).map(creation=>({creation})))]);
+      await client.query(`INSERT INTO ${schema}.market_work_candidates VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9)`,[...args,candidate!.base_revision,candidate!.expected_population,candidate!.work_count]);
+    });
+  }
+  const pending=(await input.pool.query<{creation:MarketCreation}>(`SELECT w.creation FROM ${schema}.market_observation_work w WHERE environment=$1 AND chain_id=$2 AND deployment_digest=$3 AND block_hash=$4 AND generation=$5 AND algorithm_version=$6 AND NOT EXISTS(SELECT 1 FROM ${schema}.projection_observations s WHERE s.environment=w.environment AND s.chain_id=w.chain_id AND s.deployment_digest=w.deployment_digest AND s.scope='markets' AND s.block_hash=w.block_hash AND s.generation=w.generation AND s.algorithm_version=w.algorithm_version AND s.identity=w.market_id) ORDER BY market_id LIMIT 129`,args)).rows.map(r=>r.creation);
+  for(let offset=0;offset<Math.min(pending.length,128);offset+=8){
+    const batch=pending.slice(offset,Math.min(offset+8,128)),values=await mapBounded(batch,8,creation=>observeF72Market({creation,blockNumber:input.blockNumber,blockHash:input.blockHash,blockTimestamp:input.blockTimestamp,primary:input.primary,secondary:input.secondary}));
+    if((await consensusBlock(input.primary,input.secondary,input.blockNumber)).hash!==input.blockHash)throw Error('market observation anchor changed');
+    const schedules=await mapBounded(batch,8,(creation)=>nextMarketActivation({creation,blockNumber:input.blockNumber,blockHash:input.blockHash,blockTimestamp:input.blockTimestamp,primary:input.primary,secondary:input.secondary},values[batch.indexOf(creation)]!).catch(()=>input.blockTimestamp.toString()));
+    if((await consensusBlock(input.primary,input.secondary,input.blockNumber)).hash!==input.blockHash)throw Error('market schedule anchor changed');
+    const records=batch.map((c,i)=>({identity:c.marketId,payload:values[i]!}));
+    const written=await input.pool.query(`INSERT INTO ${schema}.projection_observations AS current(environment,chain_id,deployment_digest,scope,block_number,block_hash,generation,algorithm_version,identity,payload) SELECT $1,$2,$3,'markets',$7,$4,$5,$6,r.identity,r.payload FROM jsonb_to_recordset($8::jsonb) r(identity text,payload jsonb) ON CONFLICT(environment,chain_id,deployment_digest,scope,block_hash,generation,algorithm_version,identity) DO UPDATE SET payload=current.payload WHERE current.payload=EXCLUDED.payload RETURNING identity`,[...args,input.blockNumber.toString(),JSON.stringify(records)]);
+    if(written.rowCount!==records.length)throw Error('conflicting market observation at finalized anchor');
+    await input.pool.query(`INSERT INTO ${schema}.market_time_refresh SELECT $1,$2,$3,$5,r.identity,$4,r.next_at FROM jsonb_to_recordset($6::jsonb) r(identity text,next_at bigint) ON CONFLICT(environment,chain_id,deployment_digest,generation,market_id) DO UPDATE SET observed_block_hash=excluded.observed_block_hash,next_at=excluded.next_at`,[...id,input.blockHash,input.generation.toString(),JSON.stringify(batch.map((c,i)=>({identity:c.marketId,next_at:schedules[i]})))]);
+  }
+  if(pending.length>128){const count=(await input.pool.query<{n:string}>(`SELECT count(*)::text n FROM ${schema}.projection_observations WHERE environment=$1 AND chain_id=$2 AND deployment_digest=$3 AND block_hash=$4 AND generation=$5 AND algorithm_version=$6 AND scope='markets'`,args)).rows[0];throw new ProjectionPending('markets',input.blockNumber,Number(count?.n));}
+  const staged=(await input.pool.query<{identity:string;payload:Json}>(`SELECT identity,payload FROM ${schema}.projection_observations WHERE environment=$1 AND chain_id=$2 AND deployment_digest=$3 AND block_hash=$4 AND generation=$5 AND algorithm_version=$6 AND scope='markets'`,args)).rows;
+  if(staged.length!==candidate.work_count)throw Error('market work coverage mismatch');
+  const records=staged.map(r=>({identity:r.identity,sortKey:`${String((r.payload as any).source.blockNumber).padStart(20,'0')}:${r.identity}`,payload:r.payload}));
+  if(candidate.base_revision&&(previous?.payload.deltaDepth??0)>=255){
+    const base=(await input.pool.query<{identity:string;sort_key:string;payload:Json}>(`SELECT identity,sort_key,payload FROM ${schema}.projection_read_records WHERE environment=$1 AND chain_id=$2 AND deployment_digest=$3 AND scope='markets' AND revision=$4`,[...id,candidate.base_revision])).rows;
+    const complete=new Map(base.map(r=>[r.identity,{identity:r.identity,sortKey:r.sort_key,payload:r.payload}]));for(const r of records)complete.set(r.identity,r);
+    if(complete.size!==candidate.expected_population)throw Error('full checkpoint population mismatch');
+    return publishProjection({...publish,records:[...complete.values()]});
+  }
+  if(candidate.base_revision)return publishMarketDelta({...publish,records,baseRevision:candidate.base_revision,expectedPopulation:candidate.expected_population});
+  return publishProjection({...publish,records});
+}
+
+async function nextMarketActivation(input:ObserveF72MarketInput,payload:Json):Promise<string|null>{
+  const display=(payload as any).display;
+  if(!display)return input.blockTimestamp.toString();
+  const total=BigInt(display.totalStakedRaw),active=BigInt(display.activeStakeRaw);
+  if(active>total)throw Error('active stake exceeds allocated stake');
+  if(total===active)return null;
+  const abi=parseAbi(['function activationSlot(uint8 index) view returns ((uint64 generation,uint256 amount,uint256 refs))']);
+  let next:bigint|null=null,pending=0n;
+  for(let offset=0;offset<32;offset+=8){const slots=await Promise.all(Array.from({length:8},(_,i)=>readFunction(input,input.creation.gauge,abi,'activationSlot',[offset+i])));
+    for(const raw of slots){const slot=objectResult(raw),generation=bigint(slot.generation,'activation generation'),amount=bigint(slot.amount,'activation amount');if(generation>input.blockTimestamp&&amount>0n){pending+=amount;if(next===null||generation<next)next=generation;}}
+  }
+  if(pending!==total-active||next===null)throw Error('activation schedule does not reconcile pending stake');
+  return next.toString();
 }
 
 async function readFunction(input: ObserveF72MarketInput, target: Address, abi: Abi, functionName: string, args: readonly unknown[]): Promise<unknown> {
@@ -275,14 +341,14 @@ function assertCreationMatches(creation: MarketCreation, config: Record<string, 
   if (safeNumber(config.creatorTaxBps, 16, 'creatorTaxBps') > 500) throw new Error('market creator tax exceeds protocol bound');
 }
 
-function assertPoolKey(key: Record<string, unknown>, routeKey: Record<string, unknown>, quote: Address, meme: Address, hook: Address): void {
+function assertPoolKey(key: Record<string, unknown>, routeKey: Record<string, unknown>, quote: Address, meme: Address, hook: Address, lpFeePips: number): void {
   for (const field of ['currency0', 'currency1', 'fee', 'tickSpacing', 'hooks']) {
     if (String(key[field]).toLowerCase() !== String(routeKey[field]).toLowerCase()) throw new Error(`route PoolKey mismatch: ${field}`);
   }
   const currencies = [quote, meme].sort();
   const spacing = safeSignedNumber(key.tickSpacing, 24, 'tickSpacing');
   if (address(key.currency0, 'currency0') !== currencies[0] || address(key.currency1, 'currency1') !== currencies[1]
-    || address(key.hooks, 'hooks') !== hook || safeNumber(key.fee, 24, 'fee') !== 0 || spacing < 1 || spacing > 32767) {
+    || address(key.hooks, 'hooks') !== hook || (![0,1000,2000,3000].includes(lpFeePips) || safeNumber(key.fee, 24, 'fee') !== lpFeePips) || spacing < 1 || spacing > 32767) {
     throw new Error('canonical PoolKey identity mismatch');
   }
 }
@@ -324,4 +390,27 @@ async function mapBounded<T, R>(values: readonly T[], concurrency: number, fn: (
     while (cursor < values.length) { const index = cursor++; output[index] = await fn(values[index]!); }
   }));
   return output;
+}
+
+export function marketDirtyKeys(logs:readonly Record<string,unknown>[]):Set<string>{
+  const keys=new Set<string>();
+  for(const log of logs){
+    if(typeof log.address==='string')keys.add(log.address.toLowerCase());
+    const words=[...(Array.isArray(log.topics)?log.topics:[]),...(typeof log.data==='string'?log.data.slice(2).match(/.{64}/g)?.map(x=>'0x'+x)??[]:[])];
+    for(const word of words)if(typeof word==='string'&&!/^0x0+$/i.test(word)){keys.add(word.toLowerCase());if(/^0x0{24}[0-9a-f]{40}$/i.test(word))keys.add('0x'+word.slice(-40).toLowerCase());}
+  }
+  return keys;
+}
+export function marketNeedsObservation(record:Record<string,any>,keys:ReadonlySet<string>,at?:bigint):boolean{
+  // Staking activation evolves with block time even without a new market log.
+  if(!record.display)return true;
+  if(BigInt(record.display.totalStakedRaw??'0')>0n){
+    const schedule=record.observationSchedule;
+    if(at===undefined||!schedule||schedule.hash!==record.display.blockHash)return true;
+    if(schedule.nextAt!==null&&BigInt(schedule.nextAt)<=at)return true;
+  }
+  const candidates=[record.marketId,record.assetUid,record.memeToken,record.curve,record.gauge,record.poolId,record.quoteAsset,record.quoteAssetConfigId,record.tickerGardenBaselineId];
+  if(candidates.some(key=>typeof key==='string'&&keys.has(key.toLowerCase())))return true;
+  // Governance/config changes can affect arbitrary markets: refresh conservatively.
+  return fixedF72Sources().filter(source=>/Registry|Config|AccessManager/.test(source.module)).some(source=>keys.has(source.address));
 }

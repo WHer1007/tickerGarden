@@ -637,6 +637,70 @@ contract OfficialStockRegistryV1Test is Test {
         assertEq(registry.asset(ASSET_UID).status, 2);
     }
 
+    function test_sameBeaconImplementationCanRegisterTwoDifferentAssetUids() public {
+        MockBeaconStockTokenLogic implementation = new MockBeaconStockTokenLogic();
+        UpgradeableBeacon beacon = new UpgradeableBeacon(address(implementation), address(this));
+        BeaconProxy first = new BeaconProxy(address(beacon), abi.encodeCall(MockBeaconStockTokenLogic.initialize, (ASSET_UID, uint8(18))));
+        BeaconProxy second = new BeaconProxy(address(beacon), abi.encodeCall(MockBeaconStockTokenLogic.initialize, (OTHER_ASSET_UID, uint8(18))));
+        vm.prank(FAST_ADMIN);
+        registry.registerAsset(ASSET_UID, address(first), 18, vault, 0.5 ether, StockTokenFingerprintTestLib.beacon(address(first), address(beacon), address(implementation)));
+        vm.prank(FAST_ADMIN);
+        registry.registerAsset(OTHER_ASSET_UID, address(second), 18, vault, 0.5 ether, StockTokenFingerprintTestLib.beacon(address(second), address(beacon), address(implementation)));
+        assertTrue(registry.assetIdentityCurrent(ASSET_UID));
+        assertTrue(registry.assetIdentityCurrent(OTHER_ASSET_UID));
+    }
+
+    function test_cachedCodeHashDoesNotSkipTokenIdentityOrFingerprintChecks() public {
+        MockBeaconStockTokenLogic implementation = new MockBeaconStockTokenLogic();
+        UpgradeableBeacon beacon = new UpgradeableBeacon(address(implementation), address(this));
+        BeaconProxy first = new BeaconProxy(address(beacon), abi.encodeCall(MockBeaconStockTokenLogic.initialize, (ASSET_UID, uint8(18))));
+        BeaconProxy second = new BeaconProxy(address(beacon), abi.encodeCall(MockBeaconStockTokenLogic.initialize, (OTHER_ASSET_UID, uint8(18))));
+        vm.prank(FAST_ADMIN);
+        registry.registerAsset(ASSET_UID, address(first), 18, vault, 0.5 ether, StockTokenFingerprintTestLib.beacon(address(first), address(beacon), address(implementation)));
+        StockTokenFingerprint memory fingerprint = StockTokenFingerprintTestLib.beacon(address(second), address(beacon), address(implementation));
+        bytes32 incorrectUid = keccak256("incorrect-uid");
+        vm.expectRevert(abi.encodeWithSelector(OfficialStockRegistryV1.StockTokenUidMismatch.selector, address(second), incorrectUid, OTHER_ASSET_UID));
+        vm.prank(FAST_ADMIN);
+        registry.registerAsset(incorrectUid, address(second), 18, vault, 0.5 ether, fingerprint);
+        vm.expectRevert(abi.encodeWithSelector(OfficialStockRegistryV1.StockTokenDecimalsMismatch.selector, address(second), uint8(6), uint256(18)));
+        vm.prank(FAST_ADMIN);
+        registry.registerAsset(OTHER_ASSET_UID, address(second), 6, vault, 0.5 ether, fingerprint);
+        bytes32 correctHash = keccak256(abi.encode(fingerprint));
+        fingerprint.tokenRuntimeCodeHash = bytes32(uint256(1));
+        vm.expectRevert(abi.encodeWithSelector(OfficialStockRegistryV1.StockTokenFingerprintMismatch.selector, OTHER_ASSET_UID, keccak256(abi.encode(fingerprint)), correctHash));
+        vm.prank(FAST_ADMIN);
+        registry.registerAsset(OTHER_ASSET_UID, address(second), 18, vault, 0.5 ether, fingerprint);
+        assertEq(registry.asset(OTHER_ASSET_UID).status, 0);
+    }
+
+    function test_newBeaconTokenRejectsExecutableDelegateImplementationEvenAfterSafeCacheHit() public {
+        MockBeaconStockTokenLogic implementation = new MockBeaconStockTokenLogic();
+        UpgradeableBeacon beacon = new UpgradeableBeacon(address(implementation), address(this));
+        BeaconProxy first = new BeaconProxy(address(beacon), abi.encodeCall(MockBeaconStockTokenLogic.initialize, (ASSET_UID, uint8(18))));
+        vm.prank(FAST_ADMIN);
+        registry.registerAsset(ASSET_UID, address(first), 18, vault, 0.5 ether, StockTokenFingerprintTestLib.beacon(address(first), address(beacon), address(implementation)));
+        MockNestedDelegateStockTokenLogic unsafe = new MockNestedDelegateStockTokenLogic();
+        beacon.upgradeTo(address(unsafe));
+        BeaconProxy second = new BeaconProxy(address(beacon), abi.encodeCall(MockBeaconStockTokenLogic.initialize, (OTHER_ASSET_UID, uint8(18))));
+        vm.expectRevert(abi.encodeWithSelector(OfficialStockRegistryV1.UnmonitoredDelegateProxy.selector, address(unsafe)));
+        vm.prank(FAST_ADMIN);
+        registry.registerAsset(OTHER_ASSET_UID, address(second), 18, vault, 0.5 ether, StockTokenFingerprintTestLib.beacon(address(second), address(beacon), address(unsafe)));
+    }
+
+    function test_changedCodeAtCachedAddressIsRescannedAndRejected() public {
+        MockBeaconStockTokenLogic implementation = new MockBeaconStockTokenLogic();
+        UpgradeableBeacon beacon = new UpgradeableBeacon(address(implementation), address(this));
+        BeaconProxy first = new BeaconProxy(address(beacon), abi.encodeCall(MockBeaconStockTokenLogic.initialize, (ASSET_UID, uint8(18))));
+        vm.prank(FAST_ADMIN);
+        registry.registerAsset(ASSET_UID, address(first), 18, vault, 0.5 ether, StockTokenFingerprintTestLib.beacon(address(first), address(beacon), address(implementation)));
+        BeaconProxy second = new BeaconProxy(address(beacon), abi.encodeCall(MockBeaconStockTokenLogic.initialize, (OTHER_ASSET_UID, uint8(18))));
+        MockNestedDelegateStockTokenLogic unsafe = new MockNestedDelegateStockTokenLogic();
+        vm.etch(address(implementation), address(unsafe).code);
+        vm.expectRevert(abi.encodeWithSelector(OfficialStockRegistryV1.UnmonitoredDelegateProxy.selector, address(implementation)));
+        vm.prank(FAST_ADMIN);
+        registry.registerAsset(OTHER_ASSET_UID, address(second), 18, vault, 0.5 ether, StockTokenFingerprintTestLib.beacon(address(second), address(beacon), address(implementation)));
+    }
+
     function test_acceptRejectsNestedDelegateImplementationThatWouldEscapeMonitoring() public {
         MockBeaconStockTokenLogic firstImplementation = new MockBeaconStockTokenLogic();
         UpgradeableBeacon beacon = new UpgradeableBeacon(address(firstImplementation), address(this));

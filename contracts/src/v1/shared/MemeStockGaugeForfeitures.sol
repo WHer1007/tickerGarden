@@ -62,8 +62,8 @@ abstract contract MemeStockGaugeForfeitures is MemeStockGaugeSettlements {
         if (pendingAmount == 0) return;
 
         uint64 generation = position.pendingGeneration;
-        ActivationSnapshot storage snapshot = _activationSnapshots[generation];
-        if (snapshot.processed) {
+        StoredActivationSnapshot storage snapshot = _activationSnapshots[generation];
+        if (snapshot.refs != 0) {
             if (
                 snapshot.quoteAccumulator <= quoteAccumulatorCutoff && snapshot.memeAccumulator <= memeAccumulatorCutoff
             ) {

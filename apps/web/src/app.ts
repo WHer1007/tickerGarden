@@ -1,5 +1,5 @@
 import { decodeMarketRecord, legacyMarketRecordAbi } from "../../../services/backend-ts/packages/chain/src/market-record.ts";
-import { launchAbis, resolveBurnLaunchConfig } from "./v1/features/launch.ts";
+import { launchAbis, resolveBurnLaunchConfig, resolveLpLaunchConfig } from "./v1/features/launch.ts";
 import { coreMarketRouteAbi, decodeCoreMarketRoute } from '../../../services/backend-ts/packages/chain/src/market-route.ts';
 import {tradeContextKey} from './v1/tradeContext.ts';
 import {createTradeBalanceLoader} from './v1/tradeBalances.ts';
@@ -8,6 +8,7 @@ import { userClaimsAbi, USER_CLAIM_MODE, LEGACY_USER_CLAIM_MODE, rawUserClaimReq
 import {statisticsUSD, statisticsFresh} from "./v1/statisticsValue.ts";
 import {cachedStatistics} from './v1/statisticsCache.ts';
 import {createExplorePager} from './v1/explorePaging.ts';
+import {pageDirectExplore} from './v1/directExploreDirectory.ts';
 import {tokenAge} from './ui/token-age.ts';
 import {setupExploreStockPicker} from './ui/explore-stock-picker.ts';
 import {authorizeUpload} from './create/upload-auth.ts';
@@ -21,20 +22,21 @@ import {decodeRecentTrade,explorerRecentTrades,explorerCurveVolume24h} from './v
 import {encodeAbiParameters,keccak256,parseUnits} from 'viem';
 import {poolSpotPrice,type MarketOverview} from './v1/marketOverview.ts';
 import {createTradeTransactionStatus} from './ui/trade-transaction-status.ts';
-import {createGlobalNotice, type GlobalNoticeTone} from './ui/global-notice.ts';
+import {createGlobalNotice, globalNoticeRegion, type GlobalNoticeTone} from './ui/global-notice.ts';
+import {pendingTransactionPage} from './v1/pending-transaction-page.ts';
 import {watchWalletAccount} from './ui/wallet-account-sync.ts';
 import {curveTradeMetrics, curveBuyFee, antiSnipeBps, formatTradePrice, estimatedPoolTradingFee, poolTradeImpactBps} from './v1/tradePricing.ts';
 import {confirmLaunch} from './create/confirm-launch.ts';
 import {quoteIconUrl, assetLogoUrl} from './create/quote-icons.ts';
 import {stakingAssetForConfig, isListedStakingAsset} from './create/staking-assets.ts';
-import {allocatedFeeTotals, validateStakePositions, stakeHistoryEvent, stakeAfter, stakeShare} from './v1/stakingView.ts';
+import {allocatedFeeTotals, validateStakePositions, stakeHistoryEvent, stakeAfter, stakeShare, stakeDirectorySource, stakePortfolioMode, stakeMarketIsOpen, firstActiveStakeMarket, summarizeDirectStakeAllocations, unstakeConfirmationCopy} from './v1/stakingView.ts';
 import {validateTokenDetail, displayDecimal} from './v1/tokenDetail.ts';
 import {validateUserActivity} from './v1/userActivity.ts';
 import type {PositionPage, UserActivityPage} from './v1/generated/read-api.ts';
-import { tradingRoute, stakerClaimHelp, rewardTab } from "./v1/flowUx.ts";
+import { tradingRoute, rewardTab } from "./v1/flowUx.ts";
 import { readCreateDraft, writeCreateDraft, clearCreateDraft, type CreateDraft } from "./create/draft.ts";
 import {graduationProgress} from "./v1/graduationProgress.ts";
-import {PERMIT2,poolSlot0,poolStateAbi,poolProtocolFee,poolRouterAbi,poolQuoterAbi,permit2Abi,poolSwapAbi,assertPoolRouterProfile,poolTradeRoute,poolAmount,buildPoolTrade} from "./v1/poolTrade.ts";
+import {PERMIT2,poolSlot0,poolStateAbi,poolProtocolFee,poolRouterAbi,poolQuoterAbi,permit2Abi,poolSwapAbi,assertPoolRouterProfile,poolTradeRoute,poolAmount,buildPoolTrade,formatPoolFeeSummary,poolTransactionDeadline,poolPermit2Expiration,poolPermit2AllowanceFresh} from "./v1/poolTrade.ts";
 import { assertRecoveredLaunchReceipt } from "./create/launch-confirmation.ts";
 import { renderLaunchProgress, closeLaunchProgress } from "./create/launch-progress-dialog.ts";
 import { readLaunchState, saveLaunchState, launchStateKey, launchPhaseDisplay, type LaunchState, type LaunchPhase } from "./create/launch-state.ts";
@@ -51,7 +53,7 @@ import {directReceipt} from "./v1/directReceipt.ts";
 import {DirectMarkets} from "./v1/directMarkets.ts";
 import {parseIntegrationBootstrap,bootstrapSync,type IntegrationBootstrap} from "./v1/integrationBootstrap.ts";
 import type { mountTokenDetail } from './v1/tokenDetailWidget.ts';
-import { readDetailMetadata } from './v1/tokenMetadata.ts';
+import { readDetailMetadata, rememberDetailMetadata } from './v1/tokenMetadata.ts';
 import { feeDistribution } from './v1/marketDetail.ts';
 import { authorizedWalletAccount } from "./ui/wallet-session.ts";
 import { createRouter } from "./routing/router.ts";
@@ -60,7 +62,7 @@ import { mountPageVisuals } from "./routing/visuals.ts";
 import type { PageName, Route } from "./routing/routes.ts";
 import { loadWalletAccounts } from "./v1/accounts.ts";
 import type { mountUserActivity } from "./v1/userActivityWidget.ts";
-import { WALLET_SNAPSHOT_MODE, fetchHolderSnapshots, remainingSnapshotAssets, buildSnapshotClaim, type HolderSnapshotPage, type HolderRound, type SnapshotIdentity } from "./v1/features/holderSnapshots.ts";
+import { WALLET_SNAPSHOT_MODE, fetchHolderSnapshots, remainingSnapshotAssets, holderSnapshotStatus, buildSnapshotClaim, type HolderSnapshotPage, type HolderRound, type SnapshotIdentity } from "./v1/features/holderSnapshots.ts";
 import { stakeErrorMessage } from "./ui/stake-error.ts";
 import { resolveMarketRelease, snapshotReleaseForMarket, type MarketRelease } from "./v1/marketRelease.ts";
 import { mountTransactionObservation } from "./v1/transactionObservation.ts";
@@ -162,10 +164,12 @@ import {
 import { parseV1RuntimeConfig } from "./v1/runtimeConfig.ts";
 import {
   createContractWriteRequest,
+  transactionScopeForOperation,
   V1TransactionError,
   V1TransactionExecutor,
   type ContractWriteRequest,
   type ReconciledSnapshot,
+  type TransactionScope,
   type TransactionUpdate,
   type V1TransactionClients,
 } from "./v1/transaction.ts";
@@ -221,6 +225,8 @@ interface WalletState {
 }
 
 let routeGeneration = 0;
+let readyRouteGeneration = 0;
+let pageActionCount = 0;
 let pageActionPending = false;
 let deferredRoute: string | null = null;
 let rewardRefreshTimer = 0;
@@ -231,12 +237,14 @@ let recentMarketVersion:string|undefined;
 let syncRewardHash: (() => void) | undefined;
 
 async function runPageAction(action: () => Promise<void>): Promise<void> {
-  if (pageActionPending || busyOperation || walletConnecting) return;
+  if (walletConnecting) return;
+  pageActionCount += 1;
   pageActionPending = true;
   try { await action(); }
   finally {
-    pageActionPending = false;
-    if (deferredRoute) { const next = deferredRoute; deferredRoute = null; const navigated=router.navigate(next);
+    pageActionCount = Math.max(0, pageActionCount - 1);
+    pageActionPending = pageActionCount > 0;
+    if (!pageActionPending && deferredRoute) { const next = deferredRoute; deferredRoute = null; const navigated=router.navigate(next);
       if(!navigated)setTimeout(()=>void restoreLaunchProgress(),1000);
       if(navigated&&launchProgress?.phase==='complete'){localStorage.removeItem(launchStateKey(robinhoodChain.id));launchProgress=null;}
     }
@@ -244,6 +252,7 @@ async function runPageAction(action: () => Promise<void>): Promise<void> {
 }
 
 const brandMarkUrl = new URL("../assets/tickergarden-mark-128.webp", import.meta.url).href;
+const robinhoodFeatherUrl = new URL("../assets/robinhood-chain/robinhood-feather-symbol.jpg", import.meta.url).href;
 const brandWordmark = `<span class="wordmark" aria-hidden="true"><span>Ticker</span><span>Garden</span></span>`;
 const runtimeConfig = parseV1RuntimeConfig(import.meta.env);
 const runtimeRpcUrl = import.meta.env.PROD && typeof window !== 'undefined'
@@ -353,7 +362,8 @@ let foundation: Foundation | null = null;
 let foundationError = "";
 let wallet: WalletState | null = null;
 let walletConnecting = false;
-let busyOperation = "";
+const activeOperations = new Map<string,TransactionScope>();
+function hasActiveOperations(): boolean { return activeOperations.size > 0; }
 const metadataCache = new Map<string, Promise<MarketMetadata>>();
 
 const transactionStageLabels: Record<TransactionUpdate["stage"], string> = {
@@ -455,10 +465,22 @@ function runtimeReasons(): readonly string[] {
 function isRewardsPage(): boolean { return currentPage() === 'rewards' || currentPage() === 'staking'; }
 function hasPendingTransaction(): boolean {
   if (!wallet) return false;
-  try { return !!wallet.executor.pending(wallet.account); } catch { return true; }
+  try { return wallet.executor.pending(wallet.account).length > 0; } catch { return true; }
 }
 function writeReady(): boolean {
-  return Boolean(foundation?.writeReady && wallet && !busyOperation && !walletConnecting && !hasPendingTransaction());
+  return Boolean(foundation?.writeReady && wallet && !walletConnecting);
+}
+
+function transactionScopeBusy(scope: TransactionScope): boolean {
+  if ([...activeOperations.values()].some(activeScope => activeScope.conflictKey === scope.conflictKey)) return true;
+  if (!wallet) return false;
+  try { return wallet.executor.pending(wallet.account).some(record => record.conflictKey === scope.conflictKey); }
+  catch { return true; }
+}
+
+function currentStakeOperationBusy(): boolean {
+  const marketId=rewardPosition?.detail.market.marketId;
+  return marketId ? transactionScopeBusy({businessType:'stake',marketId,conflictKey:`stake:${marketId}`}) : false;
 }
 
 function treasuryWritesReady(): boolean {
@@ -508,7 +530,7 @@ async function loadFoundation(): Promise<void> {
 
 async function loadFoundationAttempt(): Promise<void> {
   const generation = ++foundationGeneration;
-  if (!readApi) { foundationError = "V1 read API is unavailable"; return; }
+  if (!readApi && !integrationBootstrapPath) { foundationError = "V1 read API is unavailable"; return; }
   try {
     const next = await prepareFoundation(readApi);
     if (generation !== foundationGeneration) return;
@@ -523,7 +545,30 @@ async function loadFoundationAttempt(): Promise<void> {
   }
 }
 
-async function prepareFoundation(api: TickerGardenV1Client, expectedSync?: SyncStatus): Promise<Foundation> {
+async function prepareLocalIntegrationFoundation():Promise<Foundation>{
+  if (integrationBootstrapPath) {
+    if (!runtimeConfig.contracts.available) throw Error("Integration contracts missing");
+    if (!integrationBootstrap) {
+      if (!integrationBootstrapPath.startsWith("/integration/") || integrationBootstrapPath.includes("..")) throw Error("Invalid integration configuration path");
+      const response=await fetch(integrationBootstrapPath);if(!response.ok)throw Error("Integration deployment file unavailable");
+      integrationBootstrap=parseIntegrationBootstrap(await response.json(),robinhoodChain.id,runtimeConfig.contracts.value);
+    }
+    const b=integrationBootstrap,sync=bootstrapSync(b);
+    directMarkets ??= new DirectMarkets(
+      b,
+      (address,abi,functionName,args,blockNumber)=>publicClient.readContract({address,abi,functionName,args,blockNumber}),
+      async()=>{const h=await publicClient.getBlock({blockTag:"latest"});return {number:h.number,hash:h.hash};},
+      localStorage,
+      async()=>{await discoverDirectMarketSources(b.factory);},
+    );
+    return Object.freeze({direct:true,health:({executionSpecId:V1_EXECUTION_SPEC_ID,status:"read-api",readApiImplemented:true,productRuntimeImplemented:true,custody:false,transactionSubmission:false,sync} as HealthResponse),sync,assets:b.assets,quotes:b.configs.filter(c=>c.kind==="quote"),baseline:b.configs.filter(c=>c.kind==="baseline"),templates:b.configs.filter(c=>c.kind==="template"),markets:foundation?.direct ? foundation.markets : [],bindings:b.bindings,launchFee:BigInt(b.launchFee),writeReady:true,writeReasons:[]});
+  }
+  throw Error("Integration configuration is unavailable");
+}
+
+async function prepareFoundation(api: TickerGardenV1Client | null, expectedSync?: SyncStatus): Promise<Foundation> {
+  if (integrationBootstrapPath) return prepareLocalIntegrationFoundation();
+  if (!api) throw Error("V1 read API is unavailable");
   let health = await api.getHealth();
   if (health.executionSpecId !== V1_EXECUTION_SPEC_ID || health.status !== "read-api" || !health.readApiImplemented) {
     throw new Error("Read API does not advertise this V1 execution contract");
@@ -629,7 +674,7 @@ async function ensureCurrentRevision(expected: string): Promise<string> {
       (await publicClient.getBlock({ blockNumber })).hash);
   } catch (error) {
     await loadFoundation();
-    window.setTimeout(() => { if (!busyOperation) void refreshCurrentPage(); }, 0);
+    window.setTimeout(() => { if (!hasActiveOperations()) void refreshCurrentPage(); }, 0);
     throw new V1TransactionError("stale_snapshot", "The snapshot was refreshed. Review a new quote before signing; any completed approval remains onchain", error);
   }
   if (
@@ -701,7 +746,7 @@ async function ensureCanonicalMarket(market: MarketReadModel): Promise<void> {
   const bindings = assertCanonicalFactoryBindings(runtime, {launchRouter: release.launchRouter, allocationManager: release.allocationManager, protocolFeeVault: release.feeVault});
   if (bindings.marketRegistry !== release.marketRegistry || creator.toLowerCase() !== release.creatorRegistry || holders.toLowerCase() !== release.holderDistributor) throw new Error("Factory runtime does not match market release");
   assertCanonicalMarketBinding(market, rawMarket, rawRoute);
-  if ((market.burnMemeFees ?? false) !== rawMarket.config.burnMemeFees) throw Error("Market Meme fee burn setting differs from the displayed setting");
+  if ((market.burnMemeFees ?? false) !== rawMarket.config.burnMemeFees) throw Error("Market token fee burn setting differs from the displayed setting");
   verifiedMarketFeeConfigs.set(market.marketId, {
     burnMemeFees: rawMarket.config.burnMemeFees,
     stakingEnabled: rawMarket.config.stakingEnabled,
@@ -768,6 +813,7 @@ async function verifyLiveWalletContext(expected: WalletState): Promise<void> {
 
 async function executeTransaction<T>(input: Readonly<{
   operationKey: string;
+  scope?: TransactionScope;
   onUpdate?: (update:TransactionUpdate)=>void;
   sync: SyncStatus;
   request: ContractWriteRequest;
@@ -780,11 +826,12 @@ async function executeTransaction<T>(input: Readonly<{
   const activeWallet = input.walletContext ?? wallet;
   if (!foundation?.writeReady || !activeWallet || wallet !== activeWallet) throw new Error(runtimeReasons().join("; ") || "Connect a wallet first");
   if (foundation.direct && !input.verifyChain) throw Error("Direct operation requires a current contract check");
-  busyOperation = input.operationKey;
+  activeOperations.set(input.operationKey,input.scope??transactionScopeForOperation(input.operationKey));
   refreshActionAvailability();
   try {
     return await activeWallet.executor.execute({
       operationKey: input.operationKey,
+      ...(input.scope ? { scope: input.scope } : {}),
       expectedAccount: activeWallet.account,
       snapshot: snapshot(input.sync),
       request: input.request,
@@ -801,26 +848,23 @@ async function executeTransaction<T>(input: Readonly<{
       onUpdate: (update) => {
         input.onUpdate?.(update);
         showTransactionUpdate(update);
-        if(tradeSubmitting||stakeSubmitting)return;
-        const detail = update.error ? `${update.error.code}: ${update.error.message}` : update.hash ? shortHex(update.hash, 9, 7) : "";
-        notify(`${transactionStageLabels[update.stage]}${detail ? ` — ${detail}` : ""}`, update.stage === "failed" ? "error" : update.stage === "confirmed" ? "success" : "neutral");
       },
     });
   } finally {
-    busyOperation = "";
+    activeOperations.delete(input.operationKey);
     renderRecoveryControls();
     refreshActionAvailability();
   }
 }
 
-function confirmFlowAction(message: string, options:{title?:string;confirmLabel?:string;content?:HTMLElement}={}): Promise<boolean> {
+function confirmFlowAction(message: string, options:{title?:string;confirmLabel?:string;content?:HTMLElement;className?:string}={}): Promise<boolean> {
   return new Promise(resolve => {
     const dialog = document.createElement('dialog'); dialog.className = 'flow-confirm';
     dialog.setAttribute('aria-label', options.title ?? 'Confirm action');
     const heading = document.createElement('h2'); heading.textContent = options.title ?? 'Confirm action';
     const description = options.content ?? document.createElement('p');
     if (!options.content) { description.textContent = message; description.style.whiteSpace='pre-line'; }
-    else dialog.classList.add('launch-confirm');
+    else dialog.classList.add(options.className ?? 'launch-confirm');
     description.id = 'flow-confirm-description';
     dialog.setAttribute('aria-describedby', description.id);
     const controls = document.createElement('div'); controls.className = 'flow-confirm-controls';
@@ -835,12 +879,59 @@ function confirmFlowAction(message: string, options:{title?:string;confirmLabel?
   });
 }
 
+function unstakeConfirmationContent(state:RewardPositionState):HTMLElement {
+  const copy=unstakeConfirmationCopy({
+    principal:formatTokenAmount(state.allocated,state.asset.tokenDecimals),
+    assetSymbol:stockSymbol(state.assetConfig),
+    marketSymbol:state.metadata.symbol,
+  });
+  const content=document.createElement('div');content.className='unstake-confirm-content';
+  const intro=document.createElement('p');intro.className='unstake-confirm-intro';intro.textContent=copy.intro;
+  const effects=document.createElement('ul');effects.className='unstake-confirm-effects';
+  const icons=['ph-wallet','ph-chart-line-down','ph-gift'];
+  copy.effects.forEach((effect,index)=>{const item=document.createElement('li');const icon=document.createElement('i');icon.className=`ph ${icons[index]}`;icon.setAttribute('aria-hidden','true');const label=document.createElement('span');label.textContent=effect;item.append(icon,label);effects.append(item);});
+  const note=document.createElement('p');note.className='unstake-confirm-note';note.textContent=copy.note;
+  content.append(intro,effects,note);return content;
+}
+
 const tradeTxStatus=createTradeTransactionStatus(robinhoodChain.blockExplorers.default.url);
 let tradeSubmitting=false;
+let tradeSubmittingMarketId:string|undefined;
 let tradeSubmittingLabel='Preparing…';
 let tradeAwaitingConfirmation=false;
 let stakeSubmitting=false;
 let stakeSubmittingLabel='Preparing Stake…';
+const transactionUpdates=new Map<string,TransactionUpdate>();
+const transactionUpdateDismissals=new Map<string,ReturnType<typeof setTimeout>>();
+function dismissTransactionUpdate(operationKey:string):void{
+  const timer=transactionUpdateDismissals.get(operationKey);if(timer)clearTimeout(timer);
+  transactionUpdateDismissals.delete(operationKey);transactionUpdates.delete(operationKey);renderTransactionUpdates();
+}
+function renderTransactionUpdates():void{
+  let panel=query<HTMLElement>('[data-transaction-progress]');
+  const page=currentPage();
+  const visible=[...transactionUpdates.values()].filter(update=>{
+    const scope=transactionScopeForOperation(update.operationKey);
+    return pendingTransactionPage(update.operationKey)===page&&scope.businessType!=='trade'&&page!=='create';
+  }).slice(-4);
+  if(!visible.length){panel?.remove();return;}
+  const noticeRegion=globalNoticeRegion();
+  if(!panel){panel=document.createElement('section');panel.dataset.transactionProgress='';panel.className='transaction-progress-list';panel.setAttribute('aria-label','Transaction updates');}
+  if(panel.parentElement!==noticeRegion)noticeRegion.append(panel);
+  panel.replaceChildren();
+  for(const update of visible){
+    const row=document.createElement('article');row.className='status-notice transaction-progress-item';row.dataset.operationKey=update.operationKey;row.dataset.state=update.stage;row.setAttribute('role','status');row.setAttribute('aria-live',update.stage==='failed'?'assertive':'polite');
+    const icon=document.createElement('i');icon.className=`ph ${update.stage==='confirmed'?'ph-check-circle':update.stage==='failed'?'ph-warning-circle':['submitted','pending','replaced','confirming','approval_submitted'].includes(update.stage)?'ph-spinner-gap trade-tx-spinner':'ph-info'}`;icon.setAttribute('aria-hidden','true');
+    const content=document.createElement('div');content.className='transaction-progress-item__content';
+    const status=document.createElement('strong');status.textContent=transactionStageLabels[update.stage];
+    const note=document.createElement('span');note.textContent=update.error?errorText(update.error):update.replacementReason?`Replacement: ${update.replacementReason}.`:update.stage==='confirmed'?'Balances are refreshing.':update.hash?'Waiting for confirmation.':'Review the request in your wallet.';
+    content.append(status,note);
+    if(update.hash){const link=document.createElement('a');link.href=`${robinhoodChain.blockExplorers.default.url}/tx/${update.hash}`;link.target='_blank';link.rel='noopener noreferrer';link.textContent='View transaction';content.append(link);}
+    const close=document.createElement('button');close.type='button';close.className='status-notice__close';close.setAttribute('aria-label','Dismiss transaction update');close.innerHTML='<i class="ph ph-x" aria-hidden="true"></i>';close.onclick=()=>dismissTransactionUpdate(update.operationKey);
+    row.append(icon,content,close);
+    panel.append(row);
+  }
+}
 function renderStakeSubmit():void {
   const button=query<HTMLButtonElement>('[data-reward-action="stake"]');if(!button)return;
   const label=stakeSubmitting?stakeSubmittingLabel:'Stake';
@@ -851,36 +942,24 @@ function renderStakeSubmit():void {
   button.append(document.createTextNode(label));
 }
 function showTransactionUpdate(update: TransactionUpdate): void {
-  if(stakeSubmitting){
+  transactionUpdates.delete(update.operationKey);transactionUpdates.set(update.operationKey,update);
+  const previousTimer=transactionUpdateDismissals.get(update.operationKey);if(previousTimer)clearTimeout(previousTimer);
+  transactionUpdateDismissals.delete(update.operationKey);
+  if(['confirmed','failed'].includes(update.stage))transactionUpdateDismissals.set(update.operationKey,setTimeout(()=>dismissTransactionUpdate(update.operationKey),30_000));
+  renderTransactionUpdates();
+  const scope=transactionScopeForOperation(update.operationKey);
+  if(stakeSubmitting&&scope.businessType==='stake'&&scope.marketId===rewardPosition?.detail.market.marketId){
     const progress=stakeProgress(update.stage);stakeSubmittingLabel=progress.label;
-    text('[data-stake-transaction-status]',progress.message);
-    const status=query<HTMLElement>('[data-stake-transaction-status]');if(status)status.dataset.state=update.stage==='failed'?'error':'pending';
     renderStakeSubmit();return;
   }
-  if(currentPage()==='staking'){
-    text('[data-rewards-action-status]',update.stage==='confirmed'?'Transaction Confirmed':transactionStageLabels[update.stage]);
-    return;
-  }
-  if(tradeSubmitting){
+  if(currentPage()==='staking'&&pendingTransactionPage(update.operationKey)==='staking')return;
+  if(scope.businessType==='trade'&&scope.marketId===tradeMarket?.market.marketId){
     tradeSubmittingLabel=['awaiting_signature','awaiting_approval_signature'].includes(update.stage)?'Confirm In Wallet…':['submitted','pending','replaced','approval_submitted'].includes(update.stage)?'Confirming…':update.stage==='confirmed'?'Confirmed':'Processing…';
     if(update.hash&&['submitted','pending','replaced','approval_submitted'].includes(update.stage))tradeAwaitingConfirmation=true;
     if(['confirmed','failed'].includes(update.stage))tradeAwaitingConfirmation=false;
     tradeTxStatus.update(update,tradeMetadata?{side:tradeSide,symbol:tradeMetadata.symbol,inputSymbol:tradeSide==='buy'?tradeMetadata.quoteSymbol:tradeMetadata.symbol}:undefined);updateTradeAvailability();return;
   }
   if (launchProgress) return;
-  text('[data-stake-transaction-status]',`${transactionStageLabels[update.stage]}${update.error ? ': '+errorText(update.error) : ''}`);
-  let panel = query<HTMLElement>('[data-transaction-progress]');
-  if (!panel) {
-    panel = document.createElement('section'); panel.dataset.transactionProgress = ''; panel.className = 'runtime-recovery';
-    panel.setAttribute('role', 'status'); panel.setAttribute('aria-live', 'polite');
-    (query<HTMLElement>('main') ?? document.body).prepend(panel);
-  }
-  panel.replaceChildren();
-  const status = document.createElement('strong'); status.textContent = transactionStageLabels[update.stage]; panel.append(status);
-  const note = document.createElement('span');
-  note.textContent = update.error ? errorText(update.error) : update.stage === 'confirmed' ? 'Confirmed. Your balances are being refreshed.' : update.hash ? 'You can refresh this page. Check the existing transaction before submitting again.' : 'Review the request in your wallet. No transaction has been confirmed yet.';
-  panel.append(note);
-  if (update.hash) { const link = document.createElement('a'); link.href = `${robinhoodChain.blockExplorers.default.url}/tx/${update.hash}`; link.target = '_blank'; link.rel = 'noopener noreferrer'; link.textContent = 'View transaction'; panel.append(link); }
 }
 
 function receiptEvent(
@@ -890,8 +969,9 @@ function receiptEvent(
   eventName: string,
   predicate: (args: Record<string, unknown>) => boolean,
 ): Record<string, unknown> {
+  const expectedAddress=address.toLowerCase();
   for (const log of receipt.logs) {
-    if (log.address.toLowerCase() !== address) continue;
+    if (log.address.toLowerCase() !== expectedAddress) continue;
     try {
       const decoded = decodeEventLog({ abi, data: log.data, topics: log.topics });
       if (decoded.eventName === eventName && predicate(decoded.args as Record<string, unknown>)) return decoded.args as Record<string, unknown>;
@@ -928,7 +1008,7 @@ function setupShell(): void {
   required<HTMLElement>("[data-shell-footer]").innerHTML = `
     <div class="footer-intro">
       <a class="brand" href="/" aria-label="TickerGarden home"><img src="${brandMarkUrl}" alt="">${brandWordmark}</a>
-      <p>Where stock communities meet meme culture—and new onchain possibilities take root.</p>
+      <p>Where stock communities meet onchain culture—and new possibilities take root.</p>
     </div>
     <nav class="footer-navigation" aria-label="Footer navigation">
       <section><strong>Garden</strong>${footerLink("markets", "Explore", "/explore")}${footerLink("create", "Create", "/create")}</section>
@@ -937,12 +1017,15 @@ function setupShell(): void {
     </nav>
     <div class="footer-meta">
       <span>© 2026 TickerGarden</span>
-      <span class="chain-tag" title="${robinhoodChain.name}"><i class="ph ph-link" aria-hidden="true"></i>Robinhood Chain</span>
+      <div class="footer-meta-links">
+        <a class="footer-social-link" href="https://x.com/TickerGarden" target="_blank" rel="noopener noreferrer" aria-label="Visit TickerGarden on X"><i class="ph ph-x-logo" aria-hidden="true"></i><span>X</span></a>
+        <span class="chain-tag" title="${robinhoodChain.name}"><img src="${robinhoodFeatherUrl}" width="20" height="20" alt="">Robinhood Chain</span>
+      </div>
     </div>`;
 
   walletPicker ??= createWalletPicker({ connect: connectWallet, restore: restoreWallet, disconnect: disconnectWallet, account: () => wallet?.account ?? null });
   required<HTMLButtonElement>("[data-wallet]").addEventListener("click", () => {
-    if (busyOperation) { notify("Wait for the current transaction before changing wallets.", "warning"); return; }
+    if (hasActiveOperations()) { notify("Wait for the current transaction before changing wallets.", "warning"); return; }
     walletPicker!.open();
   });
   required<HTMLButtonElement>("[data-menu]").addEventListener("click", (event) => {
@@ -992,6 +1075,7 @@ function installWallet(provider: InjectedProvider, account: Address): void {
   });
   stopWalletAccountSync?.();stopWalletAccountSync=undefined;
   wallet = { account, provider, executor };
+  const installed = wallet;
   invalidateWalletReads();
   stopWalletAccountSync=watchWalletAccount(provider,robinhoodChain.id,{
     invalidate(){wallet=null;stopTransactionObservation?.();invalidateWalletReads();renderWallet();},
@@ -1000,16 +1084,27 @@ function installWallet(provider: InjectedProvider, account: Address): void {
   });
   renderWallet();
   refreshCurrentPage();
+  void (async()=>{
+    try {
+      const settled=await installed.executor.reconcileSettledPending(installed.account);
+      if(!settled.length||wallet!==installed)return;
+      settled.forEach(result=>{
+        directMarkets?.receipt(result.receipt);
+        showTransactionUpdate({operationKey:result.pending.operationKey,hash:result.receipt.transactionHash,stage:result.receipt.status==='success'&&!result.cancelled?'confirmed':'failed'});
+      });
+      await refreshCurrentPage(true);
+    } catch { /* A failed receipt probe keeps the journal lock for explicit recovery. */ }
+  })();
 }
 
 async function restoreWallet(provider: InjectedProvider, current: () => boolean): Promise<void> {
   const raw = await authorizedWalletAccount(provider, robinhoodChain.id);
-  if (!raw || !current() || wallet || walletConnecting || busyOperation) return;
+  if (!raw || !current() || wallet || walletConnecting || hasActiveOperations()) return;
   installWallet(provider, canonicalAddress(raw, "Wallet account"));
 }
 
 async function connectWallet(provider: InjectedProvider, reportStatus: (message: string) => void = () => {}): Promise<void> {
-  if (walletConnecting || busyOperation) throw new Error("Finish the current wallet operation first.");
+  if (walletConnecting || hasActiveOperations()) throw new Error("Finish the current wallet operation first.");
   walletConnecting = true;
   refreshActionAvailability();
   try {
@@ -1234,12 +1329,19 @@ async function refreshExploreStatistics():Promise<boolean>{
 
 class ExploreResponseError extends Error {}
 async function fetchExplorePage(params:DirectoryQuery,cursor:string|undefined,limit:number,signal:AbortSignal){
- if(!foundation||!runtimeConfig.readApi.available)throw Error('Market Directory Unavailable');
+ if(!foundation)throw Error('Market Directory Unavailable');
  const {revision:_,...unversioned}=params;
- const query=foundation.direct?unversioned:params;
- const page=await new TickerGardenV1Client(runtimeConfig.readApi.value,(input,init)=>fetch(input,{...init,signal})).listMarkets({...query,includeRecent:true,limit,...(cursor?{cursor}:{})});
+ let page;
+ if(foundation.direct){
+  await refreshDirectDirectory(false);
+  if(signal.aborted||!foundation?.direct)throw Error('Market Directory Unavailable');
+  page={...pageDirectExplore(foundation.markets,unversioned,cursor,limit),sync:foundation.sync};
+ }else{
+  if(!runtimeConfig.readApi.available)throw Error('Market Directory Unavailable');
+  page=await new TickerGardenV1Client(runtimeConfig.readApi.value,(input,init)=>fetch(input,{...init,signal})).listMarkets({...params,includeRecent:true,limit,...(cursor?{cursor}:{})});
+ }
  try{
-  assertFinalizedSync(page.sync,foundation.direct?undefined:params.revision,'explore page');
+  if(!foundation.direct)assertFinalizedSync(page.sync,params.revision,'explore page');
   if(!Array.isArray(page.items)||page.items.some(m=>m.launchPhase!==params.launchPhase))throw Error('Unexpected Market Stage');
  }catch{throw new ExploreResponseError('Market response failed verification');}
  return page;
@@ -1331,7 +1433,7 @@ async function renderMarkets(phases:readonly (0|1)[]=[1,0]):Promise<void>{
  // Refresh only the first page; later cursor pages retain their publication.
  if(foundation?.direct&&exploreDirectorySnapshot!==foundation.markets){
   exploreDirectorySnapshot=foundation.markets;
-  for(const phase of [0,1] as const)if(exploreVisiblePage[phase]===1)explorePagers[phase].reset();
+  for(const phase of [0,1] as const)if(exploreVisiblePage[phase]===1)explorePagers[phase].refreshFirstPage();
  }
 
  const list=query<HTMLElement>('[data-market-list]');if(!list)return;
@@ -1597,10 +1699,13 @@ type TradeQuote = Readonly<{
   minimum: bigint;
   revision: string;
   expiresAtMs: number;
+  transactionDeadline?: bigint;
 }>;
 
 let tradeMarket: MarketDetailResponse | null = null;
 let tradeMetadata: MarketMetadata | null = null;
+const tradeTokenLogoFallback = new URL('../assets/token-placeholder.svg',import.meta.url).href;
+let tradeMemeLogoUrl = tradeTokenLogoFallback;
 let tradeMarketVerified = false;
 let tradeSide: "buy" | "sell" = "buy";
 let tradeQuote: TradeQuote | null = null;
@@ -1661,7 +1766,7 @@ function setupTrade(): void {
     const current = tradeMarket;
     void refreshMarketOverview();
     void refreshRecentTrades();
-    if (document.hidden || busyOperation || pageActionPending || tradePhaseLoading || !current || !foundation || !readApi) return;
+    if (document.hidden || tradePhaseLoading || !current || !foundation || !readApi) return;
     tradePhaseLoading = true;
     try {
       const fresh = foundation.direct && directMarkets ? await directMarkets.market(current.market.marketId) : await readApi.getMarket({marketId:current.market.marketId,revision:foundation.sync.revision,includeRecent:true});
@@ -1672,7 +1777,7 @@ function setupTrade(): void {
   }, 30_000);
 
   queryAll<HTMLButtonElement>('[data-fill-trade-balance]').forEach(button=>button.addEventListener('click',()=>{
-    if(!wallet||!tradeMetadata||detailBalanceAccount!==wallet.account||busyOperation||pageActionPending)return;
+    if(!wallet||!tradeMetadata||detailBalanceAccount!==wallet.account)return;
     const side=button.dataset.fillTradeBalance==='receive'?(tradeSide==='buy'?'sell':'buy'):tradeSide;
     const balance=side==='buy'?detailBalances?.quote:detailBalances?.meme;
     if(balance===undefined||balance<=0n)return;
@@ -1711,8 +1816,6 @@ function setupTrade(): void {
     if (!tradeMarket) return;
     window.open(`${robinhoodChain.blockExplorers.default.url}/token/${tradeMarket.market.memeToken}`, '_blank', 'noopener,noreferrer');
   });
-  const params = new URLSearchParams(window.location.search);
-  const marketId = params.get("marketId")?.toLowerCase() ?? "";
   queryAll<HTMLButtonElement>("[data-trade-side]").forEach((button) => button.addEventListener("click", () => {
     tradeSide = button.dataset.tradeSide === "sell" ? "sell" : "buy";
     queryAll<HTMLButtonElement>("[data-trade-side]").forEach((item) => {item.classList.toggle("active", item === button);item.setAttribute("aria-pressed",String(item===button));});
@@ -1747,8 +1850,10 @@ function setupTrade(): void {
     if(!tradeMarket)return;
     router.navigate(`/stake?marketId=${encodeURIComponent(tradeMarket.market.marketId)}&action=${button.dataset.tradeStakeAction}#positions`);
   }));
-  if (marketId) void loadTradeMarket(marketId);
-  else updateTradeAvailability();
+  // refreshCurrentPage owns the initial market load. Starting a second load
+  // here races the route refresh, which can clear and cancel the detail/chart
+  // request after it has already accepted the same market identity.
+  updateTradeAvailability();
 }
 
 const overviewLoads=new Map<string,number>();
@@ -1809,6 +1914,18 @@ function renderDetailStakingSymbol(symbol: string, logoUrl?: string): void {
   }
 }
 
+function renderTradeAssetLogo(selector:string,url:string|undefined,symbol:string):void{
+  const image=query<HTMLImageElement>(selector);if(!image)return;
+  image.hidden=!tradeMetadata;
+  image.alt=tradeMetadata?`${symbol} Logo`:'';
+  if(!tradeMetadata){image.removeAttribute('src');delete image.dataset.logoSource;return;}
+  const source=url??tradeTokenLogoFallback;
+  if(image.dataset.logoSource===source&&image.hasAttribute('src'))return;
+  image.dataset.logoSource=source;
+  image.onerror=()=>{image.onerror=null;image.src=tradeTokenLogoFallback;};
+  image.src=source;
+}
+
 function clearTradeMarketState(): void {
   ++tradeStakeGeneration;
   if(tradeMarket)overviewLoads.delete(tradeMarket.market.marketId);
@@ -1838,6 +1955,7 @@ function clearTradeMarketState(): void {
   if (explorer) { explorer.hidden = true; explorer.removeAttribute('href'); }
   const copy = query<HTMLButtonElement>('[data-detail-copy]'); if (copy) copy.disabled = true;
   tradeMetadata = null;
+  tradeMemeLogoUrl = tradeTokenLogoFallback;
   tradeQuote = null;
   displayPriceWidget?.setToken(null);
   candleWidget?.setMarket(null);
@@ -1871,8 +1989,9 @@ async function verifyTradeMarket(detail: MarketDetailResponse, generation: numbe
 
 async function loadDetailContent(market:MarketReadModel,generation:number):Promise<void>{
   const abort=new AbortController();detailContentAbort?.abort();detailContentAbort=abort;const timeout=setTimeout(()=>abort.abort(),10000);
-  try{const value=await readDetailMetadata(market.identity?.metadataURI??tradeMetadata?.metadataURI??'',launchMetadataOrigin,abort.signal,import.meta.env.VITE_IPFS_GATEWAY);if(generation!==tradeLoadGeneration||abort.signal.aborted)return;if(!value){text('[data-detail-description]','No description added.');return;}
-    text('[data-detail-description]',value.description||'No description available.');const image=query<HTMLImageElement>('[data-detail-image]');if(image&&value.image)image.src=value.image;
+  try{const value=await readDetailMetadata(market.identity?.metadataURI??tradeMetadata?.metadataURI??'',launchMetadataOrigin,abort.signal,import.meta.env.VITE_IPFS_GATEWAY);if(generation!==tradeLoadGeneration||abort.signal.aborted)return;if(!value){text('[data-detail-description]','Description could not be loaded.');return;}
+    text('[data-detail-description]',value.description||'No description added.');const image=query<HTMLImageElement>('[data-detail-image]');if(image&&value.image)image.src=value.image;
+    tradeMemeLogoUrl=value.image||tradeTokenLogoFallback;renderTradeQuote();
     for(const key of ['website','x'] as const){const link=query<HTMLButtonElement>(`[data-detail-${key}]`);if(link&&value[key]){link.dataset.externalUrl=value[key];link.title=value[key];link.hidden=false;link.disabled=false;}}
   }catch{if(generation===tradeLoadGeneration){text('[data-detail-description]','Description could not be loaded.');}}finally{clearTimeout(timeout);}
 }
@@ -1923,7 +2042,7 @@ async function loadTradeMarket(explicit?: string): Promise<void> {
   let marketId: Hex;
   try { marketId = canonicalBytes32(raw.trim().toLowerCase(), "marketId"); }
   catch (error) { text("[data-detail-phase]", "Choose a market"); text("[data-detail-phase-note]", "Open a token from Explore to view its trading pool."); setPageStatus(errorText(error), "error"); return; }
-  if (!foundation || !readApi) {
+  if (!foundation || (!readApi && !foundation.direct)) {
     setPageStatus(`Market data unavailable — ${runtimeReasons().join("; ")}`, "error");
     return;
   }
@@ -2007,7 +2126,7 @@ async function loadTradeMarket(explicit?: string): Promise<void> {
     text("[data-trade-quote]", metadata.quoteSymbol);
     text("[data-trade-phase]", phaseLabel(response.market.launchPhase));
     text("[data-trade-summary-id]", marketId);
-    text("[data-trade-market-note]", `Real Quote reserve ${formatTokenAmount(view.realQuoteReserve, metadata.quoteDecimals)} ${metadata.quoteSymbol}; sellable Meme ${formatTokenAmount(view.sellableTokens, 18)} ${metadata.symbol}.`);
+    text("[data-trade-market-note]", `Real paired-asset reserve ${formatTokenAmount(view.realQuoteReserve, metadata.quoteDecimals)} ${metadata.quoteSymbol}; sellable token amount ${formatTokenAmount(view.sellableTokens, 18)} ${metadata.symbol}.`);
     renderTradeQuote();
     updateTradeAvailability();
     if (query<HTMLInputElement>("[data-trade-amount]")?.value.trim()) scheduleTradeQuote();
@@ -2028,9 +2147,13 @@ async function loadTradeMarket(explicit?: string): Promise<void> {
 
 async function renderTradeFeeDetails(market: MarketReadModel, generation: number): Promise<void> {
   if(generation!==tradeLoadGeneration)return;
+  const direct=(market as MarketReadModel&{directFeeConfig?:{creatorTaxBps:number;activeStakeRaw:string}}).directFeeConfig;
   const display=market.display;
-  if(!display||market.stakingEnabled===undefined||market.creatorFeesToHolders===undefined||Date.now()/1000-Number(display.asOfTimestamp)>1200){tokenDetailWidget?.setFeeConfig(null);return;}
-  tokenDetailWidget?.setFeeConfig({phase:market.launchPhase,stakingEnabled:market.stakingEnabled,holders:market.creatorFeesToHolders,active:BigInt(display.activeStakeRaw)>0n,taxBps:display.creatorTaxBps});
+  const snapshot=direct??(display&&Date.now()/1000-Number(display.asOfTimestamp)<=1200?{creatorTaxBps:display.creatorTaxBps,activeStakeRaw:display.activeStakeRaw}:null);
+  if(!snapshot||market.stakingEnabled===undefined||market.creatorFeesToHolders===undefined||market.lpFeePips===undefined){tokenDetailWidget?.setFeeConfig(null);return;}
+  const baseline=foundation?.baseline.find(config=>config.id===market.tickerGardenBaselineId);
+  if(!baseline){tokenDetailWidget?.setFeeConfig(null);return;}
+  tokenDetailWidget?.setFeeConfig({phase:market.launchPhase,stakingEnabled:market.stakingEnabled,holders:market.creatorFeesToHolders,active:BigInt(snapshot.activeStakeRaw)>0n,taxBps:snapshot.creatorTaxBps,baseFeeBps:Number(configBigInt(baseline,'curveFeeBps')),lpFeePips:market.lpFeePips});
   const badge=query<HTMLElement>('[data-detail-staking-badge]');if(badge)badge.hidden=!market.stakingEnabled;
   text('[data-detail-staking-status]',market.launchPhase===1?'Staking Enabled':'Stake Opens After Blooming');
   text('[data-detail-creator]',market.creator?shortHex(market.creator):'-');
@@ -2050,7 +2173,7 @@ async function refreshTradeQuote():Promise<void>{
   window.clearTimeout(tradeQuoteExpiryTimer);
   if(currentPage()!=='trade'||!tradeQuote||!wallet||document.hidden||tradeAutoRefreshPending)return;
   updateTradeAvailability();
-  if(pageActionPending||busyOperation){tradeQuoteExpiryTimer=window.setTimeout(()=>{void refreshTradeQuote();},30000);return;}
+  if(tradeSubmitting){tradeQuoteExpiryTimer=window.setTimeout(()=>{void refreshTradeQuote();},30000);return;}
   const previous=tradeQuote;
   tradeAutoRefreshPending=true;
   const generation=++tradeQuoteGeneration;
@@ -2106,7 +2229,7 @@ async function quoteTrade(generation: number): Promise<void> {
   try {
     const amountInput = required<HTMLInputElement>("[data-trade-amount]").value;
     const inputDecimals = side === "buy" ? metadata.quoteDecimals : 18;
-    const amount = parseTokenAmount(amountInput, inputDecimals, side === "buy" ? "Quote input" : "Meme input");
+    const amount = parseTokenAmount(amountInput, inputDecimals, side === "buy" ? "Paired-asset input" : "Token input");
     // Read-only quotes do not need the transaction submission preflight.
     let pricing:CurvePricing|undefined;
     if(market.market.launchPhase===0)pricing=await loadCurvePricing(market.market);
@@ -2115,15 +2238,16 @@ async function quoteTrade(generation: number): Promise<void> {
       assertPoolRouterProfile(robinhoodChain.id,poolTradeRoute(market.market,'buy').router);
       const route=poolTradeRoute(market.market,side);
       poolAmount(amount);
-      const blockNumber=await publicClient.getBlockNumber({cacheTime:0});
+      const block=await publicClient.getBlock({blockTag:'latest'});
+      const blockNumber=block.number;
       const binding=await loadPoolQuoteBindings(market.market,blockNumber);
       // The fee shown and the executable quote use the same block, refreshed together every 30 seconds.
       const [result,slot0]=await Promise.all([
        publicClient.simulateContract({abi:poolQuoterAbi,address:route.quoter,functionName:'quoteExactInputSingle',args:[{poolKey:route.poolKey,zeroForOne:route.zeroForOne,exactAmount:amount,hookData:'0x'}],account:activeWallet.account,blockNumber}),
        publicClient.readContract({abi:poolStateAbi,address:binding.manager,functionName:'extsload',args:[poolSlot0(market.market.poolId!)],blockNumber})]);
-      const poolProtocolPips=poolProtocolFee(slot0,route.zeroForOne);
+      const poolProtocolPips=poolProtocolFee(slot0, route.zeroForOne, market.market.poolKey?.fee ?? 0);
       const output=poolAmount(result.result[0]);
-      quote=Object.freeze({side,marketId:market.market.marketId,input:amount,output,spent:side==='buy'?amount:null,refund:null,fee:estimatedPoolTradingFee(output,binding.taxBps),poolProtocolPips,feeInMeme:side==='buy',feeEstimated:true,impactBps:poolTradeImpactBps(amount,output,BigInt(slot0)&((1n<<160n)-1n),route.zeroForOne,binding.taxBps,poolProtocolPips),impactEstimated:true,minimum:0n,revision:market.sync.revision,expiresAtMs:Date.now()+30_000});
+      quote=Object.freeze({side,marketId:market.market.marketId,input:amount,output,spent:side==='buy'?amount:null,refund:null,fee:estimatedPoolTradingFee(output,binding.taxBps),poolProtocolPips,feeInMeme:side==='buy',feeEstimated:true,impactBps:poolTradeImpactBps(amount,output,BigInt(slot0)&((1n<<160n)-1n),route.zeroForOne,binding.taxBps,poolProtocolPips,route.poolKey.fee),impactEstimated:true,minimum:0n,revision:market.sync.revision,expiresAtMs:Date.now()+30_000,transactionDeadline:poolTransactionDeadline(block.timestamp)});
     } else if (side === "buy") {
       const [tokensOut, quoteSpent, refund] = await publicClient.readContract({
         abi: v1Abis.TickerGardenCurve,
@@ -2133,7 +2257,7 @@ async function quoteTrade(generation: number): Promise<void> {
         args: [amount, activeWallet.account],
         account: activeWallet.account,
       });
-      if (tokensOut <= 0n) throw new Error("Curve returned zero Meme output");
+      if (tokensOut <= 0n) throw new Error("Curve returned zero token output");
       if(!metadata.deployedAt)throw Error('Launch time missing');
       const elapsed=pricing!.timestamp-BigInt(metadata.deployedAt);
       let exempt=false;
@@ -2231,8 +2355,11 @@ function renderTradeQuote(): void {
   renderDetailBalances();
   const inputAsset = query<HTMLElement>("[data-trade-input-asset]");
   const outputAsset = query<HTMLElement>("[data-trade-output-asset]");
-  if (inputAsset) inputAsset.textContent = tradeSide === "buy" ? tradeMetadata?.quoteSymbol ?? "Quote" : tradeMetadata?.symbol ?? "Meme";
-  if (outputAsset) outputAsset.textContent = tradeSide === "buy" ? tradeMetadata?.symbol ?? "Meme" : tradeMetadata?.quoteSymbol ?? "Quote";
+  if (inputAsset) inputAsset.textContent = tradeSide === "buy" ? tradeMetadata?.quoteSymbol ?? "Paired asset" : tradeMetadata?.symbol ?? "Token";
+  if (outputAsset) outputAsset.textContent = tradeSide === "buy" ? tradeMetadata?.symbol ?? "Token" : tradeMetadata?.quoteSymbol ?? "Paired asset";
+  const quoteLogo=tradeMetadata?quoteIconUrl(tradeMetadata.quoteSymbol):undefined;
+  renderTradeAssetLogo('[data-trade-input-logo]',tradeSide==='buy'?quoteLogo:tradeMemeLogoUrl,tradeSide==='buy'?(tradeMetadata?.quoteSymbol??'Paired asset'):(tradeMetadata?.symbol??'Token'));
+  renderTradeAssetLogo('[data-trade-output-logo]',tradeSide==='buy'?tradeMemeLogoUrl:quoteLogo,tradeSide==='buy'?(tradeMetadata?.symbol??'Token'):(tradeMetadata?.quoteSymbol??'Paired asset'));
   const submit = query<HTMLButtonElement>("[data-trade-submit]");
   if (submit) {
     submit.className = `action-button ${tradeSide}`;
@@ -2240,6 +2367,7 @@ function renderTradeQuote(): void {
     submit.textContent = `${tradeSide === "buy" ? "Buy" : "Sell"}${tradeMetadata?.symbol ? ` ${tradeMetadata.symbol}` : ""}`;
   }
   if (!tradeQuote || !tradeMetadata) {
+    const poolFees=query<HTMLElement>("[data-trade-pool-fees]");if(poolFees)poolFees.hidden=true;
     text("[data-trade-output]", "-");
     query<HTMLOutputElement>('[data-trade-output]')?.removeAttribute('title');
     const pricing=curvePricing?.marketId===tradeMarket?.market.marketId?curvePricing:null;
@@ -2261,6 +2389,9 @@ function renderTradeQuote(): void {
   const feeDecimals=tradeQuote.feeInMeme?18:tradeMetadata.quoteDecimals;
   const feeSymbol=tradeQuote.feeInMeme?tradeMetadata.symbol:tradeMetadata.quoteSymbol;
   text("[data-trade-fee]", tradeQuote.fee===null?"-":`${tradeQuote.feeEstimated?'≈ ':''}${formatUnits(tradeQuote.fee,feeDecimals)} ${feeSymbol}`);
+  const poolFees=query<HTMLElement>("[data-trade-pool-fees]");
+  if(poolFees){poolFees.hidden=tradeQuote.poolProtocolPips===undefined;poolFees.textContent=tradeQuote.poolProtocolPips===undefined?'':formatPoolFeeSummary(tradeMarket?.market.poolKey?.fee??0,tradeQuote.poolProtocolPips);}
+
   renderTradeImpact(tradeQuote.impactBps,tradeQuote.impactEstimated);
   text("[data-trade-minimum]", `${formatTokenAmount(tradeQuote.minimum, outputDecimals)} ${outputSymbol}`);
   text("[data-trade-status]", "");
@@ -2280,7 +2411,9 @@ function updateTradeAvailability(): void {
   const routeReady = tradeMarketVerified && tradeMarket && tradingRoute(tradeMarket.market.launchPhase, tradeMarket.market.canonicalRoute);
   const balance = detailBalanceAccount === wallet?.account ? (tradeSide === 'buy' ? detailBalances?.quote : detailBalances?.meme) : undefined;
   const insufficient = !!tradeQuote && balance !== undefined && tradeQuote.input > balance;
-  const loading=tradeSubmitting||(tradeAwaitingConfirmation&&hasPendingTransaction());
+  const marketId=tradeMarket?.market.marketId;
+  const blocked=marketId?transactionScopeBusy({businessType:'trade',marketId,conflictKey:`trade:${marketId}`}):false;
+  const loading=(tradeSubmitting&&tradeSubmittingMarketId===marketId)||blocked;
   submit.classList.toggle('is-loading',loading);submit.setAttribute('aria-busy',String(loading));
   if(loading){submit.replaceChildren();const spinner=document.createElement('i');spinner.className='ph ph-spinner-gap trade-tx-spinner';spinner.setAttribute('aria-hidden','true');submit.append(spinner,document.createTextNode(tradeSubmittingLabel));}
   else submit.textContent=`${tradeSide==='buy'?'Buy':'Sell'}${tradeMetadata?.symbol?` ${tradeMetadata.symbol}`:''}`;
@@ -2303,9 +2436,9 @@ function showReceiptTrades(_receipt:TransactionReceipt,_market:MarketReadModel,_
 let tradeFieldsGeneration=0;
 async function refreshTradeFields(fresh?:MarketDetailResponse,background=false):Promise<void>{
  const current=tradeMarket,own=++tradeFieldsGeneration,page=routeGeneration;
- if(!current||!foundation||!readApi)return;
+ if(!current||!foundation||(!readApi&&!(foundation.direct&&directMarkets)))return;
  try{
-  const response=fresh??(foundation.direct&&directMarkets?await directMarkets.market(current.market.marketId):await readApi.getMarket({marketId:current.market.marketId,revision:foundation.sync.revision,includeRecent:true}));
+  const response=fresh??(foundation.direct&&directMarkets?await directMarkets.market(current.market.marketId):await readApi!.getMarket({marketId:current.market.marketId,revision:foundation.sync.revision,includeRecent:true}));
   if(own!==tradeFieldsGeneration||page!==routeGeneration||tradeMarket!==current||response.market.marketId!==current.market.marketId||response.market.memeToken!==current.market.memeToken)return;
   tradeMarket=response;
   const changed=tradeContextKey(response.market)!==tradeContextKey(current.market);
@@ -2345,17 +2478,20 @@ async function refreshTradeFields(fresh?:MarketDetailResponse,background=false):
  }catch{/* A display refresh must never turn a confirmed trade into an error. */}
 }
 function completeTradeDisplay(market:MarketDetailResponse):void{
- if(tradeMarket!==market)return;
+ if(!tradeMarket||tradeMarket.market.marketId!==market.market.marketId||tradeMarket.market.memeToken!==market.market.memeToken||tradeMarket.market.quoteAsset!==market.market.quoteAsset)return;
  directMarkets?.cache.delete(market.market.marketId);
  window.clearTimeout(tradeQuoteExpiryTimer);window.clearTimeout(tradeQuoteTimer);++tradeQuoteGeneration;
  const input=query<HTMLInputElement>('[data-trade-amount]');if(input)input.value='';
  tradeQuote=null;renderTradeQuote();
+ // The receipt changed both wallet assets. Cancel any pre-receipt reads and
+ // refresh balances independently of the market-data service.
+ void loadDetailBalances(false);
  void refreshTradeFields();
 }
 
 async function submitTrade(): Promise<void> {
   if(tradeSubmitting)return;
-  tradeSubmitting=true;tradeSubmittingLabel='Preparing…';updateTradeAvailability();
+  tradeSubmitting=true;tradeSubmittingMarketId=tradeMarket?.market.marketId;tradeSubmittingLabel='Preparing…';updateTradeAvailability();
   try {
     if (!foundation || !wallet || !tradeMarket || !tradeQuote) throw new Error("Connect a wallet, load a Curve market and request a fresh quote");
     if (!tradeMarketVerified) throw new Error("The canonical trading route is still being verified");
@@ -2372,7 +2508,7 @@ async function submitTrade(): Promise<void> {
     const currentInput = parseTokenAmount(
       required<HTMLInputElement>("[data-trade-amount]").value,
       side === "buy" ? metadata.quoteDecimals : 18,
-      side === "buy" ? "Quote input" : "Meme input",
+      side === "buy" ? "Paired-asset input" : "Token input",
     );
     if (currentInput !== quote.input) {
       throw new Error("The trade form changed after quoting; request a fresh quote");
@@ -2421,7 +2557,7 @@ async function submitTrade(): Promise<void> {
     completeTradeDisplay(market);
   } catch (error) {
     notify(`Trade requires attention — ${errorText(error)}`, "warning");
-  } finally {tradeSubmitting=false;updateTradeAvailability();}
+  } finally {tradeSubmitting=false;tradeSubmittingMarketId=undefined;updateTradeAvailability();}
 }
 
 async function submitPoolTrade(market:MarketDetailResponse,initial:TradeQuote,activeWallet:WalletState):Promise<void>{
@@ -2435,10 +2571,13 @@ async function submitPoolTrade(market:MarketDetailResponse,initial:TradeQuote,ac
   ]);
   if(manager.toLowerCase()!==quoterManager.toLowerCase()||manager.toLowerCase()!==vaultManager.toLowerCase()||manager===ZERO_ADDRESS)throw Error('External trading services do not match the protocol PoolManager');
   if(route.input!==ZERO_ADDRESS){
-    await ensureStandaloneApproval({abi:erc20Abi,address:route.input,functionName:'approve',args:[PERMIT2,initial.input]},route.input,PERMIT2,initial.input,market.sync,verify,activeWallet);
-    const [allowance,expiration]=await publicClient.readContract({abi:permit2Abi,address:PERMIT2,functionName:'allowance',args:[account,route.input,route.router]});
-    if(allowance<initial.input||expiration<Math.floor(Date.now()/1000)+120){
-      const expiry=Math.floor(Date.now()/1000)+600;
+    await ensureStandaloneApproval({abi:erc20Abi,address:route.input,functionName:'approve',args:[PERMIT2,initial.input]},route.input,PERMIT2,initial.input,market.sync,verify,activeWallet,{businessType:'approval',marketId:market.market.marketId,conflictKey:`trade:${market.market.marketId}`});
+    const [allowanceBlock,[allowance,expiration]]=await Promise.all([
+      publicClient.getBlock({blockTag:'latest'}),
+      publicClient.readContract({abi:permit2Abi,address:PERMIT2,functionName:'allowance',args:[account,route.input,route.router]}),
+    ]);
+    if(allowance<initial.input||!poolPermit2AllowanceFresh(expiration,allowanceBlock.timestamp)){
+      const expiry=poolPermit2Expiration(allowanceBlock.timestamp);
       await executeTransaction({operationKey:`pool-approval:${market.market.marketId}:${initial.input}:${expiry}`,sync:market.sync,request:{abi:permit2Abi,address:PERMIT2,functionName:'approve',args:[route.input,route.router,initial.input,expiry]},walletContext:activeWallet,verifyChain:verify,confirm:async receipt=>{
         const [amount,until]=await publicClient.readContract({abi:permit2Abi,address:PERMIT2,functionName:'allowance',args:[account,route.input,route.router],blockNumber:receipt.blockNumber});
         if(amount<initial.input||until!==expiry)throw Error('Pool spending approval was not confirmed');return true;
@@ -2449,9 +2588,17 @@ async function submitPoolTrade(market:MarketDetailResponse,initial:TradeQuote,ac
   await quoteTrade(++tradeQuoteGeneration);
   const quote=tradeQuote;
   if(wallet!==activeWallet||tradeMarket!==market||!quote||quote.input!==initial.input||quote.side!==initial.side||quote.minimum!==initial.minimum)throw Error('Trade changed during approval. Review the new quote.');
-  const request=buildPoolTrade(market.market,quote.side,quote.input,quote.minimum,BigInt(Math.floor(quote.expiresAtMs/1000)));
+  if(quote.transactionDeadline===undefined)throw Error('Pool transaction deadline is unavailable. Refresh the quote.');
+  const request=buildPoolTrade(market.market,quote.side,quote.input,quote.minimum,quote.transactionDeadline);
   await executeTransaction({operationKey:`pool-trade:${quote.side}:${quote.marketId}:${quote.input}:${quote.expiresAtMs}`,sync:market.sync,request,quoteExpiresAtMs:quote.expiresAtMs,walletContext:activeWallet,verifyChain:verify,confirm:async receipt=>{
-    receiptEvent(receipt,canonicalAddress(manager,'PoolManager'),poolSwapAbi,'Swap',args=>String(args.id).toLowerCase()===market.market.poolId&&String(args.sender).toLowerCase()===route.router.toLowerCase()&&typeof args.amount0==='bigint'&&typeof args.amount1==='bigint'&&(route.zeroForOne?args.amount0<0n&&args.amount1>0n:args.amount1<0n&&args.amount0>0n));
+    try {
+      receiptEvent(receipt,canonicalAddress(manager,'PoolManager'),poolSwapAbi,'Swap',args=>String(args.id).toLowerCase()===market.market.poolId&&String(args.sender).toLowerCase()===route.router.toLowerCase()&&typeof args.amount0==='bigint'&&typeof args.amount1==='bigint'&&(route.zeroForOne?args.amount0<0n&&args.amount1>0n:args.amount1<0n&&args.amount0>0n));
+    } catch (error) {
+      if(!foundation?.direct)throw error;
+      // The local deterministic PoolManager boundary emits the protocol hook's
+      // fully-accounted fee event instead of a production Uniswap Swap event.
+      receiptEvent(receipt,route.poolKey.hooks,v1Abis.TickerGardenMemeHook,'V4FeeAccrued',args=>args.marketId===market.market.marketId&&args.poolId===market.market.poolId&&String(args.feeAsset).toLowerCase()===route.output&&typeof args.totalFee==='bigint'&&args.totalFee>0n&&typeof args.lpAmount==='bigint'&&typeof args.nonLpAmount==='bigint'&&args.lpAmount+args.nonLpAmount===args.totalFee);
+    }
     showReceiptTrades(receipt,market.market,tradeMetadata?.quoteDecimals??18,manager);
     directMarkets?.receipt(receipt);return true;
   }});
@@ -2476,9 +2623,12 @@ let launchRecoveryTimer:ReturnType<typeof setTimeout>|undefined;
 function drawLaunchProgress():void{
  if(!launchProgress)return;
  const display=launchProgress.phase==='paused'&&!launchProgress.hash?{step:'Confirm in wallet',percent:60}:launchPhaseDisplay[launchProgress.phase];
+ const rawLogo=launchProgress.listing?.logo??'';
+ const logo=ipfsGatewayURL(rawLogo,import.meta.env.VITE_IPFS_GATEWAY)??(/^data:image\/(?:png|jpeg|webp);base64,/i.test(rawLogo)?rawLogo:undefined);
  renderLaunchProgress({title:launchProgress.phase==='complete'?'Launch Successful':launchProgress.phase==='confirming'?'Token Created':launchProgress.phase==='pending'?'Launch Submitted':launchProgress.phase==='failed'?'Launch Stopped':'Launching Your Token',...display,detail:launchProgress.detail,hash:launchProgress.hash,
-  explorer:launchProgress.hash?`${robinhoodChain.blockExplorers.default.url}/tx/${launchProgress.hash}`:'',needsHash:launchProgress.phase==='paused'||(launchProgress.phase==='wallet'&&!launchSubmitting),canDismiss:launchProgress.phase==='failed',outcome:['pending','confirming','complete'].includes(launchProgress.phase),complete:launchProgress.phase==='complete',tokenName:launchProgress.listing?.name},
+  explorer:launchProgress.hash?`${robinhoodChain.blockExplorers.default.url}/tx/${launchProgress.hash}`:'',needsHash:launchProgress.phase==='paused'||(launchProgress.phase==='wallet'&&!launchSubmitting),canDismiss:launchProgress.phase==='failed',outcome:launchProgress.phase==='complete',complete:launchProgress.phase==='complete',tokenName:launchProgress.listing?.name,tokenSymbol:launchProgress.listing?.symbol,tokenLogo:logo},
  {onViewToken:()=>{if(launchProgress?.phase==='complete')navigateCompletedLaunch(launchProgress);},onHash:hash=>{if(!launchProgress||launchSubmitting)return;launchProgress.hash=hash;updateLaunchProgress('pending','Checking the transaction you provided…');void restoreLaunchProgress();},
+ onCreateNew:()=>{if(launchProgress?.phase!=='complete')return;const chainId=launchProgress.chainId;try{localStorage.removeItem(launchStateKey(chainId));localStorage.removeItem(`tg-listing:${chainId}`);}catch{}launchProgress=null;latestListing=null;closeLaunchProgress();window.location.assign('/create');},
  onDismiss:()=>{if(launchProgress?.phase!=='failed')return;localStorage.removeItem(launchStateKey(robinhoodChain.id));launchProgress=null;closeLaunchProgress();updateCreateAvailability();}});
 }
 function updateLaunchProgress(phase:LaunchPhase,detail:string):void{
@@ -2498,7 +2648,7 @@ function handleLaunchTransactionUpdate(update:TransactionUpdate):void{
 }
 function navigateCompletedLaunch(state:LaunchState):void{
  if(!state.expected)return;
- if(pageActionPending||busyOperation||walletConnecting||launchSubmitting){drawLaunchProgress();return;}
+ if(walletConnecting||launchSubmitting){drawLaunchProgress();return;}
  if(router.navigate(`/trade?marketId=${encodeURIComponent(state.expected.marketId)}`)){
   closeLaunchProgress();const saved=readLaunchState(localStorage,state.chainId);
   if(saved?.id===state.id)localStorage.removeItem(launchStateKey(state.chainId));launchProgress=null;
@@ -2665,6 +2815,7 @@ async function prepareLaunchMetadata(): Promise<void> {
   preparedMetadataKey = key;
   preparedMetadataURI = published.metadataURI;
   preparedMetadata = published.metadata;
+  rememberDetailMetadata(published.metadataURI,published.metadata,launchMetadataOrigin,import.meta.env.VITE_IPFS_GATEWAY);
 }
 
 
@@ -2700,7 +2851,7 @@ function showLatestListing(): void {
  if(host&&latestListing){
   renderListingPanel(host,latestListing.snapshot,latestListing.marketId,robinhoodChain.blockExplorers.default.url,robinhoodChain.testnet,import.meta.env.VITE_IPFS_GATEWAY,url=>{router.navigate(url);});
   const layout=query<HTMLElement>(".create-layout");if(layout)layout.hidden=true;
-  const again=document.createElement('button');again.type='button';again.textContent='Create New Token';again.className='listing-create-another';host.append(again);
+  const again=document.createElement('button');again.type='button';again.textContent='Create new one';again.className='listing-create-another';host.append(again);
   again.onclick=()=>{latestListing=null;try{localStorage.removeItem(`tg-listing:${robinhoodChain.id}`);}catch{}host.hidden=true;if(layout)layout.hidden=false;};
  }
 }
@@ -2882,6 +3033,11 @@ function updateLaunchMode(): void {
   catch (error) { amount?.setCustomValidity(errorText(error)); }
   const select = query<HTMLSelectElement>("[name=launchMode]");
   if (select) select.value = mode;
+  const lpEnabled=query<HTMLInputElement>("[name=lpFeeEnabled]")?.checked ?? false;
+  const lpSelect=query<HTMLSelectElement>("[name=lpFeePips]");
+  if(lpSelect)lpSelect.disabled=!lpEnabled;
+  const lpOptions=query<HTMLElement>("#lp-fee-options");if(lpOptions)lpOptions.hidden=!lpEnabled;
+  text("[data-preview-lp-fee]", `${lpEnabled ? Number(lpSelect?.value ?? 1000)/10000 : 0}% · after Bloom`);
   text("[data-preview-meme-burn]", query<HTMLInputElement>("[name=burnMemeFees]")?.checked ? "On · permanent" : "Off");
   const tax = query<HTMLInputElement>("[name=creatorTax]");
   if (tax) {
@@ -2894,13 +3050,18 @@ function renderCreateIdentity(): void {
   renderDeveloperBuyBalance();
   const details = launchDetails();
   const burn=query<HTMLInputElement>("[name=burnMemeFees]")?.checked??false;
-  text("[data-creator-tax-help]",burn?"Extra trading fee (0–5%). Quote is paid to you; Meme is burned when you claim. Fixed at launch.":"Extra trading fee (0–5%), allocated to you. Fixed at launch.");
-  text("[data-holder-sharing-help]",burn?"Holder rewards use wallet snapshots and pay Quote only. Holder Meme fees are burned during funding settlement.":"Rewards use wallet balances at published snapshots. Eligible holders can claim the original Quote and Meme assets after publication. There is no fixed payout schedule.");
+  const burnToken = details.symbol.trim() || details.name.trim() || "your token";
+  text("[data-burn-token-label]", `Burn ${burnToken}`);
+  text("[data-preview-burn-label]", `Burn ${burnToken}`);
+  text("#meme-fee-burn-help", `Burn fees earned in ${burnToken}. Paired-asset rewards and platform fees are unaffected. Permanent at launch.`);
+  text("[data-fee-burn-note]", `Fees earned in ${burnToken} are burned at settlement; paired-asset rewards are paid out. Platform fees are unaffected.`);
+  text("[data-creator-tax-help]",burn?`Extra trading fee (0–5%). The paired asset is paid to you; ${burnToken} is burned when you claim. Fixed at launch.`:"Extra trading fee (0–5%), allocated to you. Fixed at launch.");
+  text("[data-holder-sharing-help]",burn?`Holder rewards use wallet snapshots and pay the paired asset only. Holder ${burnToken} fees are burned during funding settlement.`:"Rewards use wallet balances at published snapshots. Eligible holders can claim the original paired asset and created token after publication. There is no fixed payout schedule.");
   const burnNote=query<HTMLElement>("[data-fee-burn-note]");if(burnNote)burnNote.hidden=!burn;
-  text("[data-creator-tax-recipient]",burn?"Quote to you · Meme burned":"100% to you");
+  text("[data-creator-tax-recipient]",burn?`Paired asset to you · ${burnToken} burned`:"100% to you");
   text("[data-preview-creator-tax]", `${formatTokenAmount(BigInt(details.creatorTaxBps), 2)}%`);
   text("[data-preview-treasury]", details.creatorFeesToHolders ? "50% of creator base fees" : "Off");
-  text("[data-treasury-option-status]", burn?"Allocate 50% of your creator base-fee share to holders. Meme portions are burned; Quote rewards are paid normally. Fixed at launch.":"Share 50% of your creator base-fee share with holders. Creator tax stays yours. Fixed at launch.");
+  text("[data-treasury-option-status]", burn?`Allocate 50% of your creator base-fee share to holders. ${burnToken} portions are burned; paired-asset rewards are paid normally. Fixed at launch.`:"Share 50% of your creator base-fee share with holders. Creator tax stays yours. Fixed at launch.");
   const treasuryDetails = query<HTMLElement>("#treasury-details");
   if (treasuryDetails) treasuryDetails.hidden = !details.creatorFeesToHolders;
   text("[data-token-name]", details.name || "Your next big idea");
@@ -2997,7 +3158,7 @@ function selectedLaunchConfig(allowPendingMetadata = false): SelectedLaunchConfi
   const symbol = required<HTMLInputElement>("[name=symbol]", form).value.trim();
   assertCreatorTaxSupported(creatorTaxBps(required<HTMLInputElement>("[name=creatorTax]", form).value));
   const metadataURI = currentMetadataURI() || (allowPendingMetadata ? "ipfs://pending-launch-preview" : "");
-  if (!name || name.length > 64) throw new Error("Meme name must contain 1–64 characters");
+  if (!name || name.length > 64) throw new Error("Token name must contain 1–64 characters");
   if (!/^[A-Z0-9]{1,16}$/.test(symbol)) throw new Error("Symbol must contain 1–16 uppercase letters or digits");
   if (!metadataURI) throw new Error("Token details will be saved when you launch");
   return Object.freeze({
@@ -3018,6 +3179,7 @@ function selectedLaunchConfig(allowPendingMetadata = false): SelectedLaunchConfi
     metadataURI,
     salt: launchSalt,
     burnMemeFees: query<HTMLInputElement>("[name=burnMemeFees]", form)?.checked ?? false,
+    lpFeePips: query<HTMLInputElement>("[name=lpFeeEnabled]", form)?.checked ? Number(query<HTMLSelectElement>("[name=lpFeePips]", form)?.value) : 0,
     creatorTaxBps: creatorTaxBps(required<HTMLInputElement>("[name=creatorTax]", form).value),
     creatorFeesToHolders: query<HTMLInputElement>("[name=treasuryEnabled]", form)?.checked ?? false,
   });
@@ -3028,9 +3190,10 @@ async function previewLaunch(walletContext?: WalletState, allowPendingMetadata =
   if (!foundation?.writeReady || !runtimeConfig.contracts.available || !activeWallet || wallet !== activeWallet) throw new Error(runtimeReasons().join("; ") || "Connect a wallet first");
   await verifyLiveWalletContext(activeWallet);
   const launchFactoryAddress=runtimeConfig.contracts.value.factoryAddress;
-  const selected = await resolveBurnLaunchConfig(selectedLaunchConfig(allowPendingMetadata), () => publicClient.readContract({
+  const burnSelected = await resolveBurnLaunchConfig(selectedLaunchConfig(allowPendingMetadata), () => publicClient.readContract({
     abi: currentV4Abis.TickerGardenFactoryV1, address: launchFactoryAddress, functionName: "memeFeeBurnMode",
   }));
+  const selected = await resolveLpLaunchConfig(burnSelected, () => publicClient.readContract({abi:currentV4Abis.TickerGardenFactoryV1,address:launchFactoryAddress,functionName:"lpFeeMode"}));
   await ensureCurrentRevision(foundation.sync.revision);
   await ensureCanonicalLaunch(selected);
   const draft = deriveCreateMarketParams(selected);
@@ -3055,7 +3218,7 @@ async function previewLaunch(walletContext?: WalletState, allowPendingMetadata =
     selected,
     params,
     marketId: canonicalBytes32(predicted[0], "Predicted marketId"),
-    memeToken: canonicalAddress(predicted[1], "Predicted Meme token"),
+    memeToken: canonicalAddress(predicted[1], "Predicted token"),
     curve: canonicalAddress(predicted[2], "Predicted Curve"),
     gauge: canonicalAddress(predicted[3], "Predicted Gauge", !params.stakingEnabled),
     launchLocker: canonicalAddress(predicted[4], "Predicted LaunchLocker"),
@@ -3120,7 +3283,7 @@ function updateCreateAvailability(): void {
     (e instanceof HTMLInputElement || e instanceof HTMLSelectElement || e instanceof HTMLTextAreaElement) && !e.disabled && !e.validity.valid);
   const labels: Record<string,string> = {name:"Name",symbol:"Ticker",description:"Description",assetUid:"Staking asset",quoteAssetConfigId:"Paired asset",website:"Website",x:"X profile",firstBuyAmount:"Developer buy",creatorTax:"Creator tax",beneficiary:"Creator beneficiary",tickerGardenBaselineId:"Market pricing",launchTemplateId:"Launch settings",tokenImage:"Token image"};
   const availability:CreateAvailability={submitting:launchSubmitting||Boolean(launchProgress&&launchProgress.phase!=="complete"),imageReading:launchImageReading,imageReady:Boolean(launchImage),
-    runtimeReady:Boolean(foundation?.writeReady),runtimeReason:runtimeReasons().join("; "),walletConnected:Boolean(wallet),busy:Boolean(busyOperation||walletConnecting||hasPendingTransaction()),
+    runtimeReady:Boolean(foundation?.writeReady),runtimeReason:runtimeReasons().join("; "),walletConnected:Boolean(wallet),busy:Boolean(launchSubmitting||walletConnecting),
     pendingQuote:query<HTMLSelectElement>("[name=quoteAssetConfigId]")?.value.startsWith("pending:")===true,
     invalidField:invalid ? labels[invalid.name] ?? invalid.name : undefined,metadataReady:Boolean(launchMetadataOrigin),buyMode,
     fundingReady:Boolean(launchFunding),insufficientEth:Boolean(launchFunding&&launchFunding.ethBalance<launchFunding.totalRequired)};
@@ -3169,7 +3332,7 @@ function renderLaunchFunding(funding: LaunchFunding & Readonly<{ gasCost: bigint
   text("[data-funding-route]", funding.mode === "quote" ? `Wallet ${symbol}` : "ETH");
   text("[data-funding-quote-balance]", funding.mode === "native" ? "ETH" : `${funding.quoteBalance === null ? "—" : formatTokenAmount(funding.quoteBalance, funding.quoteDecimals)} ${symbol}`);
   text("[data-funding-swap]", funding.mode === "native" ? `${formatTokenAmount(funding.quotedNativeInput, 18)} ETH` : "0 ETH");
-  text("[data-funding-gas]", `${formatTokenAmount(funding.gasCost, 18)} ETH allowance`);
+  text("[data-funding-gas]", `${formatTokenAmount(funding.gasCost, 18)} ETH`);
   text("[data-funding-total]", `${formatTokenAmount(funding.totalRequired, 18)} ETH`);
   text("[data-funding-balance]", `${formatTokenAmount(funding.ethBalance, 18)} ETH`);
 }
@@ -3194,13 +3357,20 @@ async function ensureStandaloneApproval(
   sync: SyncStatus,
   verifyChain: () => Promise<unknown>,
   activeWallet: WalletState,
+  scope?: TransactionScope,
 ): Promise<void> {
   if (wallet !== activeWallet) throw new Error("Wallet changed before approval");
   const requiredApproval = await allowanceApproval(approval, token, spender, amount, activeWallet.account);
   if (!requiredApproval) return;
   if(launchSubmitting)updateLaunchProgress("approval","Approve the paired asset in your wallet. This is not the token launch.");
+  const operationKey=scope?.marketId&&scope.conflictKey===`trade:${scope.marketId}`
+    ? `pool-approval:${scope.marketId}:${token}:${spender}:${amount}:${sync.revision}`
+    : scope?.marketId&&scope.conflictKey===`launch:${scope.marketId}`
+      ? `launch:approval:${scope.marketId}:${token}:${spender}:${amount}:${sync.revision}`
+      : `approval:${token}:${spender}:${amount}:${sync.revision}`;
   await executeTransaction({
-    operationKey: `approval:${token}:${spender}:${amount}:${sync.revision}`,
+    operationKey,
+    ...(scope ? { scope } : {}),
     sync,
     request: requiredApproval,
     walletContext: activeWallet,
@@ -3241,7 +3411,7 @@ async function submitLaunch(): Promise<void> {
     content.append(list);
   };
   addRows([['Network',robinhoodChain.name],['Wallet',wallet.account]]);
-  addRows([['Paired Asset',pair],['Developer Buy',buy],['Staking Rewards',staking ? stock : 'Disabled'],['Burn Meme Fee Rewards',query<HTMLInputElement>('[name=burnMemeFees]')?.checked ? 'On · permanent' : 'Off'],['Creator Tax',`${details.creatorTaxBps/100}%`],['Holder Fee Sharing',details.creatorFeesToHolders ? 'Enabled' : 'Disabled']]);
+  addRows([['Paired Asset',pair],['Developer Buy',buy],['Staking Rewards',staking ? stock : 'Disabled'],[`Burn ${details.symbol.trim() || details.name.trim() || 'your token'}`,query<HTMLInputElement>('[name=burnMemeFees]')?.checked ? 'On · permanent' : 'Off'],['LP Fee',`${query<HTMLInputElement>('[name=lpFeeEnabled]')?.checked ? Number(query<HTMLSelectElement>('[name=lpFeePips]')?.value)/10000 : 0}%`],['Creator Tax',`${details.creatorTaxBps/100}%`],['Holder Fee Sharing',details.creatorFeesToHolders ? 'Enabled' : 'Disabled']]);
   if(launchFunding)addRows([['Estimated Total',`${formatTokenAmount(launchFunding.totalRequired,18)} ETH`]],'launch-confirm-total');
   try {
     await confirmLaunch(snapshot,()=>confirmFlowAction('',{title:'Confirm Launch',confirmLabel:'Confirm And Launch',content}),performLaunch);
@@ -3316,7 +3486,7 @@ async function performLaunch(): Promise<void> {
         previewMarketEconomics: previewEconomics,
       });
       if (probe.approval) {
-        await ensureStandaloneApproval(probe.approval, preview.selected.quote.quoteAsset, foundation.bindings!.launchRouter, quoteIn, foundation.sync, verifyChain, activeWallet);
+        await ensureStandaloneApproval(probe.approval, preview.selected.quote.quoteAsset, foundation.bindings!.launchRouter, quoteIn, foundation.sync, verifyChain, activeWallet,{businessType:'approval',marketId:preview.marketId,conflictKey:`launch:${preview.marketId}`});
       }
       await ensureCurrentRevision(foundation.sync.revision);
       await verifyChain();
@@ -3384,7 +3554,8 @@ async function performLaunch(): Promise<void> {
         if (!code || code === "0x" || quoteAsset.toLowerCase() !== preview.selected.quote.quoteAsset) throw new Error("Fresh Curve deployment does not match the selected Quote");
         if (tupleField(tupleField(createdMarket, "config", 0), "stakingEnabled", 16) !== preview.params.stakingEnabled) throw new Error("Created staking mode differs from the signed choice");
         if (tupleField(tupleField(createdMarket, "config", 0), "creatorFeesToHolders", 15) !== preview.params.creatorFeesToHolders) throw new Error("Created holder fee sharing differs from the signed choice");
-        if (preview.params.burnMemeFees !== undefined && tupleField(tupleField(createdMarket, "config", 0), "burnMemeFees", 17) !== preview.params.burnMemeFees) throw new Error("Created Meme fee burn choice differs from the signed choice");
+        if (preview.params.lpFeePips !== undefined && tupleField(tupleField(createdMarket, "config", 0), "lpFeePips", 18) !== preview.params.lpFeePips) throw new Error("Created LP fee differs from the signed choice");
+        if (preview.params.burnMemeFees !== undefined && tupleField(tupleField(createdMarket, "config", 0), "burnMemeFees", 17) !== preview.params.burnMemeFees) throw new Error("Created token fee burn choice differs from the signed choice");
         directMarkets?.receipt(receipt);
         confirmedHash = receipt.transactionHash;
         return result;
@@ -3563,7 +3734,7 @@ async function refreshStakeStatistics():Promise<void>{
     stakeText('[data-stake-modal-stock]','-');
     if(stockIcon){stockIcon.hidden=true;stockIcon.removeAttribute('src');}
     for(const key of ['volume','fees','total'])stakeText(`[data-stake-${key}]`,'-');
-    stakeText('[data-stake-stats-status]',market?'Loading market statistics…':'Search or select a market');
+    stakeText('[data-stake-stats-status]',market?'Loading market activity…':'Select a market to view activity.');
   }
   stakeText('[data-stake-phase]',market?phaseLabel(market.launchPhase):'-');
   renderSelectedStakeLogo();
@@ -3574,7 +3745,7 @@ async function refreshStakeStatistics():Promise<void>{
   const iconUrl=config?stockLogo(config):null;if(stockIcon&&iconUrl){if(stockIcon.getAttribute('src')!==iconUrl)stockIcon.src=iconUrl;stockIcon.hidden=false;}
   const load=async():Promise<StakeStats>=>{
     const metadata=await marketMetadata(market);
-    const data:StakeStats={title:metadata.symbol,description:metadata.name,quoteSymbol:metadata.quoteSymbol,phase:phaseLabel(market.launchPhase),volume:'-',fees:'-',total:'-',totalRaw:null,status:'Statistics unavailable. Your position can still load independently.',expiresAt:Date.now()+600000};
+    const data:StakeStats={title:metadata.symbol,description:metadata.name,quoteSymbol:metadata.quoteSymbol,phase:phaseLabel(market.launchPhase),volume:'-',fees:'-',total:'-',totalRaw:null,status:'Market activity is unavailable. Your position is still available.',expiresAt:Date.now()+600000};
     const results=await Promise.allSettled([
       (async()=>{
         if(!runtimeConfig.readApi.available)throw Error('Analytics unavailable');
@@ -3599,7 +3770,7 @@ async function refreshStakeStatistics():Promise<void>{
         if(asset!==market.quoteAsset.toLowerCase()&&asset!==market.memeToken.toLowerCase())throw Error('Unexpected fee asset');
         return `${formatTokenAmount(amount,asset===market.quoteAsset.toLowerCase()?metadata.quoteDecimals:18)} ${asset===market.quoteAsset.toLowerCase()?metadata.quoteSymbol:metadata.symbol}`;
       }).join('\n'):`0 ${metadata.quoteSymbol}`;
-      data.status='Updated Every 10–20 Minutes';
+      data.status='Market activity updates every 10–20 minutes.';
     }
     if(results[1].status==='fulfilled'){data.total=results[1].value.label;data.totalRaw=results[1].value.raw;}
     return data;
@@ -3623,20 +3794,45 @@ async function refreshStakeStatistics():Promise<void>{
     if(quoteIcon){quoteIcon.hidden=!quoteUrl;if(quoteUrl&&quoteIcon.getAttribute('src')!==quoteUrl)quoteIcon.src=quoteUrl;}
     for(const key of ['volume','fees','status'] as const)stakeText(key==='status'?'[data-stake-stats-status]':`[data-stake-${key}]`,data[key]);
     if(config){const suffix=` ${stockSymbol(config)}`;stakeAssetAmount('[data-stake-total]',data.total.endsWith(suffix)?data.total.slice(0,-suffix.length):data.total,config);}else stakeText('[data-stake-total]',data.total);
-  }catch{if(generation===stakeStatsGeneration)stakeText('[data-stake-stats-status]','Market statistics unavailable. Refresh to retry.');}
+  }catch{if(generation===stakeStatsGeneration)stakeText('[data-stake-stats-status]','Market activity is unavailable. Try again.');}
 }
 
-type StakeDirectoryRow={marketId:string;assetUid:string;label:string};
+type StakeDirectoryRow={marketId:string;assetUid:string;label:string;active:boolean};
 let stakeDirectoryAccount='';
 let stakeDirectoryAt=0;
 let stakeDirectoryGeneration=0;
 let stakeDirectoryBusy=false;
+let stakeDirectPortfolioVerified=false;
+let stakeDirectoryFailed=false;
+let stakeMarketOpened=false;
 let stakePositionsPage:PositionPage|undefined;
 let stakeActivityPage:UserActivityPage|undefined;
 const stakePositionIds=new Set<string>();
 const stakeDirectoryRows=new Map<string,StakeDirectoryRow>();
 const stakeMarketIcons=new Map<string,string>();
 const stakeMarketIconRequests=new Set<string>();
+function renderStakePortfolioEmpty():void{
+  const empty=query<HTMLElement>('[data-stake-portfolio-empty]');if(!empty)return;
+  const marketOpen=stakeMarketIsOpen(!!query<HTMLSelectElement>('[data-position-market]')?.value,stakeMarketOpened);
+  const hasActive=[...stakeDirectoryRows.values()].some(row=>row.active);
+  const verified=(!!stakePositionsPage&&!stakePositionsPage.nextCursor)||(!!foundation?.direct&&stakeDirectPortfolioVerified);
+  const mode=stakePortfolioMode({walletConnected:!!wallet,busy:stakeDirectoryBusy,verified,failed:stakeDirectoryFailed,hasActive,marketOpen});
+  const show=mode!=='content';
+  empty.dataset.state=mode;empty.hidden=!show;empty.toggleAttribute('aria-busy',mode==='checking');
+  query<HTMLElement>('.staking-page .market-card')?.toggleAttribute('hidden',show);
+  query<HTMLElement>('.staking-page .position-card')?.toggleAttribute('hidden',show);
+  const copy={
+    connect:{eyebrow:'Your staking portfolio',title:'Connect your wallet',body:'Connect your wallet to view your stakes and available rewards.',icon:'ph-wallet',action:'Connect wallet'},
+    checking:{eyebrow:'Your staking portfolio',title:'Checking your stakes…',body:'Reading your current staking positions.',icon:'ph-circle-notch',action:''},
+    unavailable:{eyebrow:'Your staking portfolio',title:'Unable to load your stakes',body:'Your staking positions could not be verified. Try again.',icon:'ph-warning-circle',action:'Try again'},
+    empty:{eyebrow:'Your staking portfolio',title:'No active stakes yet',body:'Choose a market and stake its paired Stock asset to start earning a share of trading fees.',icon:'ph-plant',action:'Find a market'},
+    content:{eyebrow:'',title:'',body:'',icon:'ph-plant',action:''},
+  }[mode];
+  stakeText('[data-stake-empty-eyebrow]',copy.eyebrow);stakeText('[data-stake-empty-title]',copy.title);stakeText('[data-stake-empty-copy]',copy.body);
+  const icon=query<HTMLElement>('[data-stake-empty-icon]');if(icon)icon.className=`ph ${copy.icon}`;
+  const steps=query<HTMLElement>('[data-stake-empty-steps]');if(steps)steps.hidden=mode!=='empty';
+  const action=query<HTMLButtonElement>('[data-stake-empty-action]');if(action){action.hidden=!copy.action;const label=action.querySelector('span');if(label)label.textContent=copy.action;const actionIcon=action.querySelector('i');if(actionIcon)actionIcon.className=`ph ${mode==='connect'?'ph-wallet':mode==='unavailable'?'ph-arrow-clockwise':'ph-magnifying-glass'}`;}
+}
 function renderSelectedStakeLogo():void {
   const id=query<HTMLSelectElement>('[data-position-market]')?.value;
   const fallback=new URL('../assets/token-placeholder.svg',import.meta.url).href;
@@ -3648,6 +3844,20 @@ function renderSelectedStakeLogo():void {
     image.onerror=()=>{image.onerror=null;image.src=fallback;};
     image.src=url;
   }
+}
+function focusFirstActiveStakeMarket():boolean{
+  if(currentPage()!=='staking'||!wallet)return false;
+  const select=query<HTMLSelectElement>('[data-position-market]');
+  if(!select)return false;
+  const marketId=firstActiveStakeMarket([...stakeDirectoryRows.values()],select.value);
+  if(!marketId)return false;
+  if(![...select.options].some(option=>option.value===marketId)){
+    router.navigate(`/stake?marketId=${encodeURIComponent(marketId)}#positions`);
+    return true;
+  }
+  select.value=marketId;
+  select.dispatchEvent(new Event('change'));
+  return true;
 }
 function loadStakeMarketIcon(market:MarketReadModel):void {
   if(stakeMarketIconRequests.has(market.marketId))return;
@@ -3663,8 +3873,8 @@ function loadStakeMarketIcon(market:MarketReadModel):void {
 }
 function renderStakeDirectory():void{
   const target=query<HTMLElement>('[data-stake-my-markets]');if(!target)return;
-  const signature=JSON.stringify({account:stakeDirectoryAccount,busy:stakeDirectoryBusy,positionCursor:stakePositionsPage?.nextCursor,activityCursor:stakeActivityPage?.nextCursor,selected:query<HTMLSelectElement>('[data-position-market]')?.value,rows:[...stakeDirectoryRows.values()].map(row=>[row.marketId,row.assetUid,rewardMarketLabels.get(row.marketId)?.symbol,stakeMarketIcons.get(row.marketId)])});
-  if(target.dataset.rendered===signature)return;
+  const signature=JSON.stringify({account:stakeDirectoryAccount,busy:stakeDirectoryBusy,positionCursor:stakePositionsPage?.nextCursor,activityCursor:stakeActivityPage?.nextCursor,selected:query<HTMLSelectElement>('[data-position-market]')?.value,rows:[...stakeDirectoryRows.values()].map(row=>[row.marketId,row.assetUid,row.active,rewardMarketLabels.get(row.marketId)?.symbol,stakeMarketIcons.get(row.marketId)])});
+  if(target.dataset.rendered===signature){renderStakePortfolioEmpty();return;}
   target.dataset.rendered=signature;target.replaceChildren();
   const search=currentPage()==='staking'?'':query<HTMLInputElement>('[data-position-search]')?.value.toLowerCase().trim()??'';
   for(const row of stakeDirectoryRows.values()){
@@ -3682,6 +3892,7 @@ function renderStakeDirectory():void{
     const note=document.createElement('small');note.textContent=asset?stockSymbol(asset):'Stock';copy.append(name,note);button.append(mark,copy);
     if(market)loadStakeMarketIcon(market);
     button.addEventListener('click',()=>{
+      stakeMarketOpened=true;
       const select=query<HTMLSelectElement>('[data-position-market]');
       if(select && [...select.options].some(o=>o.value===row.marketId)){select.value=row.marketId;select.dispatchEvent(new Event('change'));renderStakeDirectory();}
       else router.navigate(`/stake?marketId=${encodeURIComponent(row.marketId)}#positions`);
@@ -3702,16 +3913,61 @@ function renderStakeDirectory():void{
   }
 
   const more=query<HTMLButtonElement>('[data-stake-history-more]');if(more){more.hidden=!stakePositionsPage?.nextCursor&&!stakeActivityPage?.nextCursor;more.disabled=stakeDirectoryBusy;}
+  renderStakePortfolioEmpty();
 }
 async function refreshStakeDirectory(more=false,force=false):Promise<void>{
   if(currentPage()!=='staking')return;
   const account=wallet?.account.toLowerCase()??'';
-  if(account!==stakeDirectoryAccount){stakeDirectoryAccount=account;stakeDirectoryRows.clear();stakePositionIds.clear();stakePositionsPage=undefined;stakeActivityPage=undefined;stakeDirectoryAt=0;stakeDirectoryBusy=false;++stakeDirectoryGeneration;}
+  if(account!==stakeDirectoryAccount){
+    const previousAccount=stakeDirectoryAccount;
+    stakeDirectoryAccount=account;stakeDirectoryRows.clear();stakePositionIds.clear();stakePositionsPage=undefined;stakeActivityPage=undefined;stakeDirectoryAt=0;stakeDirectoryBusy=false;stakeDirectPortfolioVerified=false;stakeDirectoryFailed=false;stakeMarketOpened=new URLSearchParams(location.search).get('action')==='add';++stakeDirectoryGeneration;
+    if(previousAccount){const select=query<HTMLSelectElement>('[data-position-market]');if(select){select.value='';syncRewardMarketSelections('', 'position');}}
+  }
   renderStakeDirectory();
+  focusFirstActiveStakeMarket();
   if(!account){stakeText('[data-stake-history-status]','');return;}
   if(stakeDirectoryBusy||(!more&&!force&&Date.now()-stakeDirectoryAt<600000))return;
-  if(!runtimeConfig.readApi.available){stakeText('[data-stake-history-status]','Recorded history unavailable. You can select a market directly.');return;}
-  stakeDirectoryBusy=true;const generation=++stakeDirectoryGeneration;renderStakeDirectory();
+  const directorySource=stakeDirectorySource({direct:!!foundation?.direct,readApiAvailable:runtimeConfig.readApi.available});
+  if(directorySource==='direct'){
+    stakeDirectoryBusy=true;stakeDirectoryFailed=false;const generation=++stakeDirectoryGeneration;renderStakeDirectory();
+    stakeText('[data-stake-history-status]','Checking local positions…');
+    try{
+      await refreshDirectDirectory(false);
+      if(!foundation?.bindings)await verifyTransactionFoundation();
+      const current=foundation;
+      const bindings=current?.bindings;
+      if(!current||!bindings)throw Error('Canonical staking bindings are unavailable');
+      const blockNumber=await publicClient.getBlockNumber();
+      const canonicalAssets=new Map<string,Promise<CanonicalAssetBinding>>();
+      const assetFor=(assetUid:string)=>{
+        let pending=canonicalAssets.get(assetUid);
+        if(!pending){pending=ensureCanonicalAsset(findAsset(assetUid),bindings);canonicalAssets.set(assetUid,pending);}
+        return pending;
+      };
+      const rows=await mapConcurrent(current.markets.filter(market=>market.gauge!==ZERO_ADDRESS),async market=>{
+        try{
+          // Vault allocation is the canonical principal ledger. Portfolio discovery
+          // must not depend on optional metadata, wallet balances, or reward previews.
+          const asset=await assetFor(market.assetUid);
+          const allocated=await publicClient.readContract({blockNumber,abi:v1Abis.UserStockVault,address:asset.userStockVault,functionName:'allocation',args:[asset.assetUid,account as Address,market.marketId]});
+          return {marketId:market.marketId,assetUid:market.assetUid,allocated};
+        }
+        catch{return null;}
+      },4);
+      if(generation!==stakeDirectoryGeneration||wallet?.account.toLowerCase()!==account||currentPage()!=='staking')return;
+      const summary=summarizeDirectStakeAllocations(rows);
+      stakeDirectoryRows.clear();
+      for(const row of summary.active)stakeDirectoryRows.set(row.marketId,{marketId:row.marketId,assetUid:row.assetUid,label:'Staked · live position',active:true});
+      stakeDirectPortfolioVerified=summary.verified;
+      stakeDirectoryFailed=!summary.verified;
+      stakeDirectoryAt=Date.now();
+      stakeText('[data-stake-history-status]',stakeDirectPortfolioVerified?'Local positions checked.':'Some local positions could not be verified.');
+    }catch{if(generation===stakeDirectoryGeneration){stakeDirectPortfolioVerified=false;stakeDirectoryFailed=true;stakeDirectoryAt=Date.now();}}
+    finally{if(generation===stakeDirectoryGeneration){stakeDirectoryBusy=false;renderStakeDirectory();focusFirstActiveStakeMarket();}}
+    return;
+  }
+  if(directorySource==='unavailable'||!runtimeConfig.readApi.available){stakeDirectoryFailed=true;stakeText('[data-stake-history-status]','Recorded history unavailable. You can select a market directly.');renderStakeDirectory();return;}
+  stakeDirectoryBusy=true;stakeDirectoryFailed=false;const generation=++stakeDirectoryGeneration;renderStakeDirectory();
   stakeText('[data-stake-history-status]','Loading recorded positions…');
   const api=new TickerGardenV1Client(runtimeConfig.readApi.value,(input,init)=>fetch(input,{...init,signal:AbortSignal.timeout(12000)}));
   try{
@@ -3727,20 +3983,22 @@ async function refreshStakeDirectory(more=false,force=false):Promise<void>{
       validateStakePositions(page.items,account,robinhoodChain.id,more?stakePositionIds:undefined,{blockNumber:page.sync.blockNumber!,blockHash:page.sync.blockHash!});
       if(page.nextCursor!==null&&(typeof page.nextCursor!=='string'||!page.nextCursor||(more&&page.nextCursor===stakePositionsPage?.nextCursor)))throw Error('Invalid continuation');
       if(!more){stakeDirectoryRows.clear();stakePositionIds.clear();}
-      for(const p of page.items){stakePositionIds.add(p.marketId);stakeDirectoryRows.set(p.marketId,{marketId:p.marketId,assetUid:p.assetUid,label:BigInt(p.allocated)>0n ? 'Staked · indexed position' : 'No active stake · indexed position'});}
+      for(const p of page.items){const active=BigInt(p.allocated)>0n;stakePositionIds.add(p.marketId);stakeDirectoryRows.set(p.marketId,{marketId:p.marketId,assetUid:p.assetUid,label:active ? 'Staked · indexed position' : 'No active stake · indexed position',active});}
       stakePositionsPage=page;
     }catch{errors.push('Positions unavailable');}}else if(positions.status==='rejected')errors.push('Positions unavailable');
     const activity=results[1];
     if(activity.status==='fulfilled'&&activity.value){try{
       const page=validateUserActivity(activity.value,robinhoodChain.id,account,100,more ? stakeActivityPage : undefined);
-      for(const event of page.items){const row=stakeHistoryEvent(event,account);if(row&&!stakeDirectoryRows.has(row.marketId))stakeDirectoryRows.set(row.marketId,{...row,label:row.exited?'Exited · recorded history':'Staked before · recorded history'});}
+      for(const event of page.items){const row=stakeHistoryEvent(event,account);if(row&&!stakeDirectoryRows.has(row.marketId))stakeDirectoryRows.set(row.marketId,{...row,label:row.exited?'Exited · recorded history':'Staked before · recorded history',active:false});}
       stakeActivityPage=page;
     }catch{errors.push('History unavailable');}}else if(activity.status==='rejected')errors.push('History unavailable');
     stakeDirectoryAt=Date.now();
     const coverage=stakeActivityPage ? `Recorded blocks ${stakeActivityPage.indexedFrom}–${stakeActivityPage.sourceBlockNumber}.` : 'Historical coverage unavailable.';
     stakeText('[data-stake-history-status]',[...errors,coverage,(stakeActivityPage?.nextCursor||stakePositionsPage?.nextCursor)?'More records available below.':''].filter(Boolean).join(' '));
     if(rewardPosition)recordLiveStake(rewardPosition);
-  }finally{if(generation===stakeDirectoryGeneration){stakeDirectoryBusy=false;renderStakeDirectory();}}
+    stakeDirectoryFailed=errors.length>0&&!stakePositionsPage;
+  }catch{if(generation===stakeDirectoryGeneration)stakeDirectoryFailed=true;}
+  finally{if(generation===stakeDirectoryGeneration){stakeDirectoryBusy=false;renderStakeDirectory();focusFirstActiveStakeMarket();}}
 }
 function recordLiveStake(_state:RewardPositionState):void{
   // Live transaction-preparation state must not replace the database directory.
@@ -3777,7 +4035,7 @@ function filterStakeMarkets(): void {
       else stock.textContent='Stock';
       button.append(icon,symbol,address,stock);
       if(!results.hidden)loadStakeMarketIcon(market);
-      button.onclick=()=>{select.value=market.marketId;select.dispatchEvent(new Event('change'));if(input){input.value='';input.setAttribute('aria-expanded','false');input.focus();}results.hidden=true;};
+      button.onclick=()=>{stakeMarketOpened=true;select.value=market.marketId;select.dispatchEvent(new Event('change'));if(input){input.value='';input.setAttribute('aria-expanded','false');input.focus();}results.hidden=true;};
       results.append(button);
     }
     if(!matches.length){const empty=document.createElement('p');empty.textContent='No matching markets';results.append(empty);}
@@ -3805,12 +4063,12 @@ function updateStakePreview(): void {
   const relock = query<HTMLElement>('[data-stake-modal-relock]');
   if (relock) relock.hidden = !rewardPosition || rewardPosition.allocated === 0n;
   stakeText('[data-stake-modal-unlock]', rewardPosition
-    ? `Expected Unlock: ${new Date(Date.now() + 24 * 3600_000).toLocaleString(undefined, {month:'short',day:'numeric',hour:'2-digit',minute:'2-digit',hour12:false})}`
-    : 'Expected Unlock: —');
+    ? `Expected unlock: ${new Date(Date.now() + 24 * 3600_000).toLocaleString('en-US', {year:'numeric',month:'short',day:'numeric',hour:'2-digit',minute:'2-digit',hour12:false})}`
+    : 'Expected unlock: —');
   const after=rewardPosition ? stakeAfter(rewardPosition.allocated,validStakeAmount()) : null;
   stakeText('[data-stake-modal-after]',after===null ? '-' : `${formatTokenAmount(after,rewardPosition!.asset.tokenDecimals)} ${stockSymbol(rewardPosition!.assetConfig)}`);
   const amountField=query<HTMLInputElement>('#stake-amount');
-  if(amountField){amountField.disabled=!rewardPosition||!!busyOperation||stakeSubmitting;amountField.setCustomValidity('');amountField.removeAttribute('aria-invalid');}
+  if(amountField){amountField.disabled=!rewardPosition||currentStakeOperationBusy()||stakeSubmitting;amountField.setCustomValidity('');amountField.removeAttribute('aria-invalid');}
   query<HTMLElement>('[data-stake-preview]')?.classList.remove('is-error');
   if (!rewardPosition) {
     text("[data-stake-preview]", "Connect a wallet and select a market to preview your stake.");
@@ -3843,15 +4101,22 @@ function setupRewards(): void {
     const id=query<HTMLSelectElement>('[data-position-market]')?.value;
     if(id&&foundation?.markets.some(m=>m.marketId===id))router.navigate(`/trade?marketId=${encodeURIComponent(id)}`);
   });
+  query<HTMLButtonElement>('[data-stake-empty-action]')?.addEventListener('click',()=>{
+    const mode=query<HTMLElement>('[data-stake-portfolio-empty]')?.dataset.state;
+    if(mode==='connect'){query<HTMLButtonElement>('[data-wallet]')?.click();return;}
+    if(mode==='unavailable'){void refreshStakeDirectory(false,true);return;}
+    const search=query<HTMLInputElement>('[data-position-search]');
+    search?.focus();search?.dispatchEvent(new Event('input',{bubbles:true}));
+  });
   if(currentPage()==='staking'){
     stakePageListeners=new AbortController();
     stakeStatisticsTimer=window.setInterval(()=>{if(!document.hidden)void refreshStakeStatistics();},60000);
     document.addEventListener('visibilitychange',()=>{if(!document.hidden){void refreshStakeStatistics();void refreshActiveReward();void refreshStakeDirectory();}},{signal:stakePageListeners.signal});
   }
   const dialog=query<HTMLDialogElement>('[data-stake-dialog]');
-  query<HTMLButtonElement>('[data-open-stake]')?.addEventListener('click',()=>{if(!wallet){query<HTMLButtonElement>('[data-wallet]')?.click();return;}if(!rewardPosition)return;text('[data-stake-transaction-status]','');updateStakePreview();updateRewardsAvailability();dialog?.showModal();});
-  queryAll<HTMLButtonElement>('[data-close-stake]').forEach(button=>button.addEventListener('click',()=>{if(!busyOperation&&!stakeSubmitting)dialog?.close();}));
-  dialog?.addEventListener('cancel',event=>{if(busyOperation||stakeSubmitting)event.preventDefault();});
+  query<HTMLButtonElement>('[data-open-stake]')?.addEventListener('click',()=>{if(!wallet){query<HTMLButtonElement>('[data-wallet]')?.click();return;}if(!rewardPosition)return;updateStakePreview();updateRewardsAvailability();dialog?.showModal();});
+  queryAll<HTMLButtonElement>('[data-close-stake]').forEach(button=>button.addEventListener('click',()=>{if(!currentStakeOperationBusy()&&!stakeSubmitting)dialog?.close();}));
+  dialog?.addEventListener('cancel',event=>{if(currentStakeOperationBusy()||stakeSubmitting)event.preventDefault();});
   query<HTMLButtonElement>('[data-stake-max]')?.addEventListener('click',()=>{const field=query<HTMLInputElement>('#stake-amount');if(field&&rewardPosition){field.value=formatUnits(rewardPosition.walletBalance,rewardPosition.asset.tokenDecimals);field.dispatchEvent(new Event('input',{bubbles:true}));}});
   query<HTMLButtonElement>('[data-stake-history-more]')?.addEventListener('click',()=>void refreshStakeDirectory(true));
   const marketSearch=query<HTMLInputElement>('[data-position-search]');
@@ -3887,7 +4152,7 @@ function setupRewards(): void {
     if (button && !button.disabled) void runPageAction(() => runRewardAction(button));
   }));
   rewardRefreshTimer = window.setInterval(() => {
-    if (isRewardsPage() && document.visibilityState === "visible" && wallet && foundation && !busyOperation) {
+    if (isRewardsPage() && document.visibilityState === "visible" && wallet && foundation) {
       void refreshActiveReward();
     }
   }, 30_000);
@@ -3939,6 +4204,7 @@ function setupRewards(): void {
         position.value = select.value;
         syncRewardMarketSelections(select.value, "position");
       }
+      renderStakeDirectory();
       void refreshRewardPosition();
     });
   });
@@ -3967,15 +4233,20 @@ function setupRewards(): void {
   query<HTMLInputElement>("[data-creator-epoch]")?.addEventListener("change", () => { void refreshCreatorReward(); });
   query<HTMLInputElement>("[data-creator-fee-asset]")?.addEventListener("change", () => { void refreshCreatorReward(); });
   query<HTMLSelectElement>('[data-snapshot-round]')?.addEventListener('change', renderSnapshotRound);
-  query<HTMLButtonElement>('[data-snapshot-refresh]')?.addEventListener('click', () => { void refreshTreasuryReward(false); });
   query<HTMLButtonElement>('[data-snapshot-more]')?.addEventListener('click', () => {
     const state=snapshotReward;
     if(state?.page.nextCursor&&!snapshotRewardRequest) void loadSnapshotReward(state.market,state.page.identity.distributor,treasuryLoadGeneration,state);
   });
   const holderSearch=query<HTMLInputElement>('[data-holder-search]');
+  const holderResults=query<HTMLElement>('[data-holder-search-results]');
   let holderSearchTimer:number|undefined;
   holderSearch?.addEventListener('input',()=>{window.clearTimeout(holderSearchTimer);holderSearchRequest?.abort();holderSearchTimer=window.setTimeout(()=>{void renderHolderSearch();},300);});
   holderSearch?.addEventListener('focus',()=>{void renderHolderSearch();});
+  holderSearch?.addEventListener('keydown',event=>{
+    if(event.key==='Escape'){holderResults?.setAttribute('hidden','');holderSearch.setAttribute('aria-expanded','false');}
+    if(event.key==='ArrowDown'){event.preventDefault();holderResults?.querySelector<HTMLButtonElement>('button')?.focus();}
+  });
+  query<HTMLElement>('.holder-token-search')?.addEventListener('focusout',event=>{if(!(event.currentTarget as HTMLElement).contains(event.relatedTarget as Node|null)){holderResults?.setAttribute('hidden','');holderSearch?.setAttribute('aria-expanded','false');}});
   query<HTMLSelectElement>("[data-treasury-market]")?.addEventListener("change", (event) => {
     syncRewardMarketSelections((event.currentTarget as HTMLSelectElement).value, "treasury");
     void refreshTreasuryReward(true);
@@ -3992,7 +4263,7 @@ function setupRewards(): void {
 }
 
 function rewardMarketOptionLabel(market: MarketReadModel): string {
-  if(currentPage()==='rewards')return `${rewardMarketLabels.get(market.marketId)?.symbol??'Token'} · ${shortHex(market.marketId)}`;
+  if(currentPage()==='rewards')return `${rewardMarketLabels.get(market.marketId)?.symbol??'Token'} · ${market.memeToken}`;
   return `${shortHex(market.marketId, 8, 6)} · ${phaseLabel(market.launchPhase)} · ${market.gauge === ZERO_ADDRESS ? "No stock staking" : `STOCK ${shortHex(market.assetUid)}`}`;
 }
 
@@ -4036,7 +4307,12 @@ function renderRecentHolderMarkets():void{
  if(account&&runtimeConfig.readApi.available&&!walletHolderPending.has(key)&&(!saved||Date.now()-saved.at>600000)){
   walletHolderPending.add(key);
   void new TickerGardenV1Client(runtimeConfig.readApi.value,(input,init)=>fetch(input,{...init,signal:AbortSignal.timeout(5000)})).listWalletHolderMarkets({account:account as Address}).then(data=>{if(data.chainId!==robinhoodChain.id||data.displayOnly!==true||data.account!==account||!Array.isArray(data.items))throw Error('Invalid reward history');
-   const items=data.items.filter((x:any)=>/^0x[0-9a-f]{64}$/.test(x.marketId)&&/^0x[0-9a-f]{40}$/.test(x.memeToken)&&typeof x.name==='string'&&typeof x.symbol==='string');walletHolderCandidates.set(key,{at:Date.now(),items});if(wallet?.account.toLowerCase()===account)renderRecentHolderMarkets();
+   const items=data.items.filter((x:any)=>/^0x[0-9a-f]{64}$/.test(x.marketId)&&/^0x[0-9a-f]{40}$/.test(x.memeToken)&&typeof x.name==='string'&&typeof x.symbol==='string');walletHolderCandidates.set(key,{at:Date.now(),items});
+   if(wallet?.account.toLowerCase()===account){
+    renderRecentHolderMarkets();
+    const select=query<HTMLSelectElement>('[data-treasury-market]'),input=query<HTMLInputElement>('[data-holder-search]'),results=query<HTMLElement>('[data-holder-search-results]');
+    if(!select?.value&&items[0]&&input&&results)void selectHolderSearchResult(items[0],input,results);
+   }
   }).catch(()=>{walletHolderCandidates.set(key,{at:Date.now(),items:saved?.items??[]});}).finally(()=>walletHolderPending.delete(key));
  }
  const candidates=[...new Map([...recentHolderMarkets(),...(saved?.items??[])].map(x=>[x.marketId,x])).values()];
@@ -4048,12 +4324,12 @@ async function renderHolderSearch():Promise<void>{
  const input=query<HTMLInputElement>('[data-holder-search]');const results=query<HTMLElement>('[data-holder-search-results]');
  if(!input||!results||!runtimeConfig.readApi.available)return;
  holderSearchRequest?.abort();const request=new AbortController();holderSearchRequest=request;
- results.textContent='Searching…';
+ results.hidden=false;input.setAttribute('aria-expanded','true');results.textContent='Searching…';
  try{
   const items=await searchHolderMarkets(runtimeConfig.readApi.value,robinhoodChain.id,input.value,request.signal);
   if(request.signal.aborted||!results.isConnected)return;
   results.replaceChildren();
-  if(!items.length){results.textContent='No Tokens Found';return;}
+  if(!items.length){results.textContent='No tokens found';return;}
   for(const item of items){
    const button=document.createElement('button');button.type='button';button.setAttribute('role','option');
    const label=document.createElement('span');label.textContent=`${item.symbol} · ${item.name}`;
@@ -4077,7 +4353,7 @@ async function selectHolderSearchResult(item:HolderMarket,input:HTMLInputElement
   if(routeGeneration!==generation||!input.isConnected)return;
   const select=query<HTMLSelectElement>('[data-treasury-market]');if(!select)return;
   select.replaceChildren(new Option(item.symbol,item.marketId));select.value=item.marketId;
-  input.value=item.symbol;results.replaceChildren();
+  input.value=item.symbol;results.replaceChildren();results.hidden=true;input.setAttribute('aria-expanded','false');
   const epoch=query<HTMLInputElement>('[data-treasury-epoch]');if(epoch)epoch.value='';
   rememberHolderMarket(item);
   await refreshTreasuryReward(true);
@@ -4094,13 +4370,29 @@ function clearCreatorDirectory():void {
   const select=query<HTMLSelectElement>('[data-creator-market]');if(select){select.replaceChildren(new Option('Select a token',''));select.disabled=true;}
 }
 async function refreshCreatorDirectory():Promise<void>{
-  if(currentPage()!=='rewards'||!wallet||!foundation||!runtimeConfig.readApi.available)return;
+  if(currentPage()!=='rewards'||!wallet||!foundation||(!foundation.direct&&!runtimeConfig.readApi.available))return;
   const account=wallet.account.toLowerCase();
   if(creatorDirectoryAccount===account&&Date.now()-creatorDirectoryAt<600000)return;
   if(creatorDirectoryRequest&&creatorDirectoryAccount===account)return;
   clearCreatorDirectory();creatorDirectoryAccount=account;
   const request=new AbortController();creatorDirectoryRequest=request;
   try{
+    if(foundation.direct){
+      await refreshDirectDirectory(false);
+      const current=foundation;
+      if(!current||!current.direct)throw Error('Local market directory unavailable');
+      const registry=runtimeConfig.contracts.available?runtimeConfig.contracts.value.creatorRevenueRegistryAddress:null;
+      if(!registry)throw Error('Creator registry unavailable');
+      await mapConcurrent(current.markets,async market=>{
+        const epoch=await publicClient.readContract({abi:v1Abis.CreatorRevenueRegistry,address:registry,functionName:'currentCreatorEpoch',args:[market.marketId]});
+        if(epoch<=0)return;
+        const beneficiary=await publicClient.readContract({abi:v1Abis.CreatorRevenueRegistry,address:registry,functionName:'creatorBeneficiaryAt',args:[market.marketId,epoch]});
+        if(String(beneficiary).toLowerCase()===account)creatorMarketIds.add(market.marketId);
+      },4);
+      creatorDirectoryAt=Date.now();
+      return;
+    }
+    if(!runtimeConfig.readApi.available)throw Error('Creator directory unavailable');
     const rows=await loadCreatorMarkets(runtimeConfig.readApi.value,robinhoodChain.id,account,request.signal);
     if(request.signal.aborted||wallet?.account.toLowerCase()!==account||currentPage()!=='rewards')return;
     for(const row of rows){
@@ -4121,7 +4413,7 @@ function populateRewardMarkets(): void {
     if(select.matches('[data-creator-market]')){
       const markets=creatorDirectoryAccount===wallet?.account.toLowerCase()?foundation!.markets.filter(m=>creatorMarketIds.has(m.marketId)):[];
       select.replaceChildren(new Option('Select a token',''));
-      markets.forEach(m=>select.add(new Option(rewardMarketOptionLabel(m),m.marketId)));
+      markets.forEach(m=>{const option=new Option(rewardMarketOptionLabel(m),m.marketId);option.title=m.memeToken;select.add(option);});
       select.disabled=!markets.length;
       const requested=new URLSearchParams(location.search).get('marketId');
       select.value=markets.some(m=>m.marketId===prior)?prior:markets.some(m=>m.marketId===requested)?requested!:markets[0]?.marketId??'';
@@ -4129,7 +4421,7 @@ function populateRewardMarkets(): void {
     }
     const placeholder = select.matches("[data-direct-vault-market],[data-settle-market]") ? "Use selected market" : currentPage() === "rewards" ? "Select a token" : "Select a configured market";
     select.replaceChildren(new Option(placeholder, ""));
-    foundation!.markets.filter((market) => !select.matches("[data-position-market],[data-staker-market],[data-settle-market]") || market.gauge !== ZERO_ADDRESS).forEach((market) => select.add(new Option(rewardMarketOptionLabel(market), market.marketId)));
+    foundation!.markets.filter((market) => !select.matches("[data-position-market],[data-staker-market],[data-settle-market]") || market.gauge !== ZERO_ADDRESS).forEach((market) => {const option=new Option(rewardMarketOptionLabel(market),market.marketId);if(currentPage()==='rewards')option.title=market.memeToken;select.add(option);});
     if (foundation!.markets.some((market) => market.marketId === prior)) select.value = prior;
   });
   filterStakeMarkets();
@@ -4146,7 +4438,10 @@ function populateRewardMarkets(): void {
       });
       selects.forEach((select) => {
         const option = [...select.options].find((item) => item.value === market.marketId);
-        if (option) option.textContent = currentPage()==='rewards' ? `${metadata.symbol} · ${shortHex(market.marketId)}` : `${metadata.symbol} · ${phaseLabel(market.launchPhase)} · ${shortHex(market.marketId)}`;
+        if (option) {
+          option.textContent = currentPage()==='rewards' ? `${metadata.symbol} · ${market.memeToken}` : `${metadata.symbol} · ${phaseLabel(market.launchPhase)} · ${shortHex(market.marketId)}`;
+          if(currentPage()==='rewards')option.title=market.memeToken;
+        }
       });
       filterStakeMarkets();
     } catch {
@@ -4311,8 +4606,10 @@ function selectedRewardMarket(selector: string): MarketReadModel {
 }
 
 async function getRewardMarketDetail(market: MarketReadModel): Promise<MarketDetailResponse> {
-  if (!foundation || !readApi) throw new Error("V1 read runtime is unavailable");
-  const detail = foundation.direct && directMarkets ? await directMarkets.market(market.marketId) : await readApi.getMarket({ marketId: market.marketId, revision: foundation.sync.revision });
+  if (!foundation || (!readApi && !foundation.direct)) throw new Error("Market data is unavailable");
+  const detail = foundation.direct
+    ? await (directMarkets?.market(market.marketId) ?? Promise.reject(new Error("Local market data is unavailable")))
+    : await readApi!.getMarket({ marketId: market.marketId, revision: foundation.sync.revision });
   if (!foundation.direct) assertFinalizedSync(detail.sync, foundation.sync.revision, "reward market detail");
   if (detail.market.marketId !== market.marketId) throw new Error("Read API returned a different reward market");
   await ensureCanonicalMarket(detail.market);
@@ -4417,13 +4714,13 @@ async function loadStakeRewardHistory(state:RewardPositionState):Promise<void>{
  finally{stakeRewardHistoryPending.delete(key);}
 }
 function renderRewardPosition(state: RewardPositionState): void {
+  // Remove the legacy absolute unlock date if this view survived a hot update.
+  query<HTMLElement>('[data-stake-unlock-at]')?.remove();
   renderStakeShare();
   const unit=stockSymbol(state.assetConfig);
   stakeAssetAmount('[data-stake-wallet]',formatTokenAmount(state.walletBalance,state.asset.tokenDecimals),state.assetConfig);
   stakeText('[data-stake-modal-wallet]',`${formatTokenAmount(state.walletBalance,state.asset.tokenDecimals)} ${unit}`);
   stakeAssetAmount('[data-stake-allocated]',formatTokenAmount(state.allocated,state.asset.tokenDecimals),state.assetConfig);
-  stakeText('[data-stake-active-breakdown]',`${formatTokenAmount(state.active,state.asset.tokenDecimals)} Active · ${formatTokenAmount(state.pending,state.asset.tokenDecimals)} Pending`);
-  stakeText('[data-stake-unlock-at]',state.allocated>0n&&state.unlockAt>0n?new Date(Number(state.unlockAt)*1000).toLocaleString(undefined,{year:'numeric',month:'short',day:'numeric',hour:'2-digit',minute:'2-digit',hour12:false}):'');
   stakeText('[data-stake-modal-current]',`${formatTokenAmount(state.allocated,state.asset.tokenDecimals)} ${unit}`);
   stakeText('[data-stake-modal-stock]',unit);
   renderStakeCountdown();
@@ -4434,7 +4731,6 @@ function renderRewardPosition(state: RewardPositionState): void {
     ? ` Reward cleanup pending for ${stock(state.settlementPrincipal)}; principal has already been returned.`
     : "";
   iconText("[data-position-summary]", "ph-check-circle", `Wallet ${stock(state.walletBalance)} STOCK · staked ${stock(state.allocated)} (active ${stock(state.active)}, pending ${stock(state.pending)}) · minimum non-zero position ${stock(state.asset.minimumAllocation)} · normal unlock ${unlock}.${settlement}`);
-  text("[data-unstake-preview]", state.allocated === 0n ? "No staked principal in this market." : `Full return: ${stock(state.allocated)} STOCK. ${state.now >= state.unlockAt ? "Unlocked — ready to return to wallet." : `Unlocks ${unlock}.`}`);
   updateStakePreview();
   const claimableNow=state.settlementPrincipal===0n&&(state.allocated===0n||(state.unlockAt>0n&&state.now>=state.unlockAt));
   text('[data-staker-locked-note]',!claimableNow&&state.quoteClaimable>0n&&state.settlementPrincipal===0n?`${formatTokenAmount(state.quoteClaimable,state.metadata.quoteDecimals)} ${state.metadata.quoteSymbol} Locked`: '');
@@ -4453,14 +4749,22 @@ let stakeCountdownTimer=0;
 let stakeClockReadAt=0;
 function renderStakeCountdown():void {
  const target=query<HTMLElement>('[data-stake-unlock]');if(!target)return;
+ target.removeAttribute('data-state');
+ target.classList.remove('stake-unlock-is-ready');
  const state=rewardPosition;
  if(!state||!wallet||rewardPositionOwner!==wallet.account||state.detail.market.marketId!==query<HTMLSelectElement>('[data-position-market]')?.value){stakeText('[data-stake-unlock]','-');return;}
  const elapsed=BigInt(Math.max(0,Math.floor((performance.now()-stakeClockReadAt)/1000)));
  const label=stakeLockLabel(state.allocated,state.now+elapsed,state.unlockAt);
- if(!label.startsWith('Unlocks In ')){stakeText('[data-stake-unlock]',label);return;}
+ target.classList.toggle('stake-unlock-is-ready',label==='Ready to unstake');
+ if(label==='Ready to unstake'){
+  const badge=document.createElement('span');badge.className='stake-unlock-ready';
+  badge.textContent=label;target.replaceChildren(badge);return;
+ }
+ const locked=/^Locked · (.+) remaining$/.exec(label);
+ if(!locked){stakeText('[data-stake-unlock]',label);return;}
  let value=target.querySelector<HTMLElement>('[data-stake-countdown]');
- if(!value){const caption=document.createElement('small');caption.className='stake-unlock-caption';caption.textContent='Unlocks In';value=document.createElement('span');value.dataset.stakeCountdown='';target.replaceChildren(caption,value);}
- const duration=label.slice('Unlocks In '.length);if(value.textContent!==duration)value.textContent=duration;
+ if(!value){const prefix=document.createElement('small');prefix.className='stake-unlock-caption';prefix.textContent='Locked ·';value=document.createElement('span');value.dataset.stakeCountdown='';const suffix=document.createElement('small');suffix.className='stake-unlock-suffix';suffix.textContent='remaining';target.replaceChildren(prefix,value,suffix);}
+ if(value.textContent!==locked[1])value.textContent=locked[1]!;
 }
 let rewardPositionOwner='';
 let rewardPositionReadAt=0;
@@ -4472,11 +4776,10 @@ async function refreshRewardPosition(force=true): Promise<void> {
   if(!force&&samePosition&&(query<HTMLDialogElement>('[data-stake-dialog]')?.open||Date.now()-rewardPositionReadAt<30_000))return;
   const generation=++rewardLoadGeneration;
   if(!samePosition){
-  for(const key of ['wallet','allocated','unlock','modal-wallet','modal-current','unlock-at','active-breakdown'])stakeText(`[data-stake-${key}]`,'-');
+  for(const key of ['wallet','allocated','unlock','modal-wallet','modal-current'])stakeText(`[data-stake-${key}]`,'-');
   rewardPosition = null;
   renderStakeShare();
   updateStakePreview();
-  text("[data-unstake-preview]", "Select a market to load your staked balance and unlock time.");
   text("[data-ragequit-estimate]", "Load a verified position to see principal and estimated forfeited rewards.");
   text("[data-staker-claimable=quote]", "-");
   text("[data-staker-claimable=meme]", "-");
@@ -4528,10 +4831,8 @@ function configuredCreatorFeeAsset(market: MarketReadModel): Address {
   return canonicalAddress(input.value.trim(), "Creator fee asset", true);
 }
 
-let creatorRewardNotOwned=false;
 function clearCreatorRewardView():void {
   creatorReward = null;
-  creatorRewardNotOwned=false;
   text("[data-creator-receive-asset]", "-");
   text("[data-creator-status]", "");
   text("[data-creator-beneficiary]", "-");
@@ -4539,7 +4840,7 @@ function clearCreatorRewardView():void {
   text("[data-creator-current-beneficiary]", "-");
   text("[data-creator-market-summary]", "-");
   text("[data-creator-epoch-summary]", "-");
-  text("[data-creator-status-summary]", "Locked");
+  text("[data-creator-status-summary]", "Choose a market");
   text("[data-creator-quote-asset]", "-");
   text("[data-creator-pending-meme]", "-");
   text("[data-creator-conversion-status]", "Load creator rewards to view original assets.");
@@ -4580,11 +4881,10 @@ async function refreshCreatorReward(): Promise<void> {
     const canonicalCurrentBeneficiary = canonicalAddress(currentBeneficiary, "Current creator beneficiary");
     if(generation!==creatorLoadGeneration||wallet!==activeWallet||select.value!==market.marketId)return;
     if(!ownsCreatorRewards(activeWallet.account,canonicalBeneficiary)){
-      creatorRewardNotOwned=true;
       updateRewardsAvailability();
       return;
     }
-    const memeAsset = canonicalAddress(market.memeToken, "Meme asset");
+    const memeAsset = canonicalAddress(market.memeToken, "Created-token asset");
     const [memeLiability, metadata,liability,rawMarket] = await Promise.all([
       publicClient.readContract({ blockNumber, abi: v1Abis.ProtocolFeeVault, address: marketRelease(market.marketId).feeVault, functionName: "creatorLiability", args: [market.marketId, epoch, memeAsset] }),
       marketMetadata(market),
@@ -4599,18 +4899,18 @@ async function refreshCreatorReward(): Promise<void> {
     creatorReward = Object.freeze({ pendingBeneficiary, creatorFeesToHolders, marketId: market.marketId, epoch, beneficiary: canonicalBeneficiary, currentEpoch, currentBeneficiary: canonicalCurrentBeneficiary, feeAsset, liability, memeAsset, memeLiability, now: block.timestamp });
     text("[data-creator-quote-asset]", `${formatTokenAmount(liability, metadata.quoteDecimals)} ${metadata.quoteSymbol}`);
     text("[data-creator-pending-meme]", `${formatTokenAmount(memeLiability, 18)} ${metadata.symbol}${market.burnMemeFees ? " · pending burn" : ""}`);
-    text("[data-creator-receive-asset]", `${metadata.quoteSymbol} / ${metadata.symbol}`);
+    text("[data-creator-receive-asset]", `${metadata.quoteSymbol} ｜ ${metadata.symbol}`);
     text("[data-creator-beneficiary]", canonicalBeneficiary);
     text("[data-creator-current-beneficiary]", canonicalCurrentBeneficiary);
     text("[data-creator-market-summary]", shortHex(market.marketId, 9, 7));
     text("[data-creator-epoch-summary]", String(epoch));
-    text("[data-creator-status]", `${formatTokenAmount(liability, metadata.quoteDecimals)} ${metadata.quoteSymbol} available; payment goes to ${shortHex(canonicalBeneficiary)}.${creatorFeesToHolders ? " Holder fee sharing is enabled: this amount covers only the creator's retained base fee share and all creator tax; holder rewards are claimed separately." : ""}`);
+    text("[data-creator-status]", "");
     text("[data-creator-status-summary]", wallet.account === canonicalCurrentBeneficiary ? "Current future-revenue controller" : wallet.account === canonicalBeneficiary ? "Selected historical-epoch beneficiary" : "Read / permissionless claim only");
     updateRewardsAvailability();
   } catch (error) {
     if (generation !== creatorLoadGeneration || wallet!==activeWallet) return;
-    text("[data-creator-status]", `Locked — ${errorText(error)}`);
-    text("[data-creator-status-summary]", "Locked");
+    text("[data-creator-status]", "Creator rewards could not be loaded. Refresh and try again.");
+    text("[data-creator-status-summary]", "Unavailable");
     updateRewardsAvailability();
   }
 }
@@ -4690,9 +4990,12 @@ function selectedSnapshotRound(): HolderRound | undefined {
 function renderSnapshotRound(): void {
   const state=snapshotReward, round=selectedSnapshotRound();
   const assets=round?remainingSnapshotAssets(round):0;
-  text('[data-snapshot-quote]',state&&round?`${formatTokenAmount(assets&1?round.quoteAmount:0n,state.metadata.quoteDecimals)} ${state.metadata.quoteSymbol}`:'—');
-  text('[data-snapshot-meme]',state&&round?`${formatTokenAmount(assets&2?round.memeAmount:0n,18)} ${state.metadata.symbol}`:'—');
-  text('[data-snapshot-block]',round?String(round.snapshotBlock):'—');
+  text('[data-snapshot-quote]',state?`${formatTokenAmount(round&&(assets&1)?round.quoteAmount:0n,state.metadata.quoteDecimals)} ${state.metadata.quoteSymbol}`:'—');
+  text('[data-snapshot-meme]',state?`${formatTokenAmount(round&&(assets&2)?round.memeAmount:0n,18)} ${state.metadata.symbol}`:'—');
+  text('[data-snapshot-assets]',state&&round?[...(assets&1?[state.metadata.quoteSymbol]:[]),...(assets&2?[state.metadata.symbol]:[])].join(' ｜ ')||'Claimed':'—');
+  const recipient=query<HTMLElement>('[data-snapshot-recipient]');
+  if(recipient){recipient.textContent=state?state.page.identity.account:'—';recipient.title=state?state.page.identity.account:'';}
+  if(state){const status=holderSnapshotStatus(state.page.status,round,runtimeConfig.snapshotHolderWrites.available);snapshotRewardStatus=status.message;text('[data-snapshot-status]',status.message);query<HTMLElement>('[data-snapshot-status]')?.setAttribute('data-tone',status.tone);}
   updateRewardsAvailability();
 }
 async function loadSnapshotReward(market:MarketReadModel,distributor:Address,generation:number,prior:typeof snapshotReward=null):Promise<void> {
@@ -4701,18 +5004,18 @@ async function loadSnapshotReward(market:MarketReadModel,distributor:Address,gen
   setContinuousRewardsView(false);
   query<HTMLElement>('[data-legacy-treasury]')?.setAttribute('hidden','');
   panel.hidden=false;
-  text("[data-holder-reward-summary]","Claim published wallet snapshots, including eligible rounds before you sold.");
+  text("[data-holder-reward-summary]","Claim rewards earned from eligible token holdings.");
   const account=wallet.account, request=new AbortController();
   snapshotRewardRequest?.abort();snapshotRewardRequest=request;
   const timeout=setTimeout(()=>request.abort(),10000);
   const current=()=>generation===treasuryLoadGeneration&&snapshotRewardRequest===request&&wallet?.account===account&&currentPage()==='rewards'&&query<HTMLSelectElement>('[data-treasury-market]')?.value===market.marketId;
-  snapshotRewardStatus='Loading snapshot rewards…';text('[data-snapshot-status]',snapshotRewardStatus);updateRewardsAvailability();
+  snapshotRewardStatus='Loading rewards…';text('[data-snapshot-status]',snapshotRewardStatus);query<HTMLElement>('[data-snapshot-status]')?.setAttribute('data-tone','loading');updateRewardsAvailability();
   try {
     if(!runtimeConfig.readApi.available)throw Error('Snapshot rewards are unavailable. Try again later.');
     const identity:SnapshotIdentity={chainId:robinhoodChain.id,distributor,marketId:market.marketId,account,quote:market.quoteAsset,meme:market.memeToken,burnMemeFees:market.burnMemeFees};
     const [page,metadata]=await Promise.all([fetchHolderSnapshots(runtimeConfig.readApi.value,identity,request.signal,prior?.page.nextCursor??undefined),marketMetadata(market)]);
     if(!current())return;
-    if(prior&&(page.sourceBlock!==prior.page.sourceBlock||page.sourceHash!==prior.page.sourceHash||page.nextCursor===prior.page.nextCursor||page.rounds.some(r=>r.round<=(prior.page.rounds.at(-1)?.round??0n))))throw Error('Snapshot data changed. Refresh rewards to reload rounds.');
+    if(prior&&(page.sourceBlock!==prior.page.sourceBlock||page.sourceHash!==prior.page.sourceHash||page.nextCursor===prior.page.nextCursor||page.rounds.some(r=>r.round<=(prior.page.rounds.at(-1)?.round??0n))))throw Error('Snapshot data changed. Reload the page to update rounds.');
     const loaded=page.rounds.map(round=>{
       const key=snapshotReceiptKey(identity,round.round),receipt=snapshotReceiptClaims.get(key);
       if(!receipt)return round;
@@ -4723,20 +5026,20 @@ async function loadSnapshotReward(market:MarketReadModel,distributor:Address,gen
     snapshotReward={page:{...page,rounds},market,metadata};
     const select=query<HTMLSelectElement>('[data-snapshot-round]')!, selected=select.value;
     select.replaceChildren();
-    for(const r of rounds){const option=document.createElement('option');option.value=String(r.round);option.textContent=`Round ${r.round}${remainingSnapshotAssets(r)===0?' · Claimed':''}`;select.append(option);}
+    for(const r of rounds){const option=document.createElement('option');option.value=String(r.round);option.textContent=`Distribution ${r.round}${remainingSnapshotAssets(r)===0?' · Claimed':''}`;select.append(option);}
     select.disabled=rounds.length===0;
     if(rounds.some(r=>String(r.round)===selected))select.value=selected;
     else if(rounds.some(r=>remainingSnapshotAssets(r)>0))select.value=String(rounds.find(r=>remainingSnapshotAssets(r)>0)!.round);
-    if(!rounds.length)select.add(new Option('No published reward for this wallet',''));
-    const messages={ready:rounds.length?'Published wallet rewards. Choose a round to claim.':'No eligible published rewards for this wallet.',awaiting_funding:'Fees are awaiting collection into the reward pool.',awaiting_publication:'Funds are available; the next wallet snapshot has not been published.',publisher_unconfigured:'New snapshots are not enabled yet. Previously published rewards remain claimable.'};
-    snapshotRewardStatus=messages[page.status];
-    if(rounds.some(r=>remainingSnapshotAssets(r)>0)&&!runtimeConfig.snapshotHolderWrites.available) snapshotRewardStatus += " Claiming is not enabled for this release yet.";
+    if(!rounds.length)select.add(new Option('No rewards available',''));
+    const roundField=query<HTMLElement>('[data-holder-round-field]');if(roundField)roundField.hidden=rounds.length<=1;
     const more=query<HTMLButtonElement>('[data-snapshot-more]');if(more)more.hidden=page.nextCursor===null;
   } catch(error) {
     if(!current())return;
     snapshotReward=null;
-    snapshotRewardStatus=request.signal.aborted?'Snapshot request timed out. Refresh to try again.':errorText(error);
+    snapshotRewardStatus=request.signal.aborted?'Rewards took too long to load. Reload the page to try again.':errorText(error);
+    query<HTMLElement>('[data-snapshot-status]')?.setAttribute('data-tone','error');
     const select=query<HTMLSelectElement>('[data-snapshot-round]');if(select)select.disabled=true;
+    const roundField=query<HTMLElement>('[data-holder-round-field]');if(roundField)roundField.hidden=true;
     const more=query<HTMLButtonElement>('[data-snapshot-more]');if(more)more.hidden=true;
   } finally {
     clearTimeout(timeout);
@@ -4746,17 +5049,14 @@ async function loadSnapshotReward(market:MarketReadModel,distributor:Address,gen
 async function executeSnapshotClaim():Promise<void> {
   if(!foundation||!wallet||!snapshotReward||rewardChoicePending||!runtimeConfig.snapshotHolderWrites.available)throw Error('Load a published reward round first');
   const state=snapshotReward,round=selectedSnapshotRound(),activeWallet=wallet;
-  if(state.page.identity.account.toLowerCase()!==activeWallet.account.toLowerCase())throw Error("Wallet changed. Refresh rewards before claiming.");
+  if(state.page.identity.account.toLowerCase()!==activeWallet.account.toLowerCase())throw Error("Wallet changed. Reload the page before claiming.");
   if(!round||remainingSnapshotAssets(round)===0)throw Error('No unclaimed assets in this round');
   rewardChoicePending=true;updateRewardsAvailability();
   try {
     const available=remainingSnapshotAssets(round) as 1|2|3;
     await import('./ui/reward-claim-dialog.css');
-    const assets=await rewardClaimDialog(mask=>[
-      mask&1?`${formatTokenAmount(round.quoteAmount,state.metadata.quoteDecimals)} ${state.metadata.quoteSymbol}`:'',
-      mask&2?`${formatTokenAmount(round.memeAmount,18)} ${state.metadata.symbol}`:'',
-    ].filter(Boolean).join(' + '),{quote:state.metadata.quoteSymbol,meme:state.metadata.symbol},available);
-    if(!assets){rewardClaimOutcomeMessage='Claim cancelled';return;}
+    const assets=await rewardClaimDialog({quote:state.metadata.quoteSymbol,meme:state.metadata.symbol},available);
+    if(!assets){rewardChoiceCancelled=true;return;}
     const id=state.page.identity;
     const verify=async()=>{
       if(snapshotReward!==state||selectedSnapshotRound()!==round||wallet!==activeWallet)throw Error('Wallet or reward selection changed. Review the round again.');
@@ -4783,7 +5083,7 @@ async function executeSnapshotClaim():Promise<void> {
     });
     // Receipt confirmation prevents a delayed DB response from offering the same assets twice.
     if(snapshotReward===state){snapshotReward={...state,page:{...state.page,rounds:state.page.rounds.map(r=>r.round===round.round?{...r,claimedAssets:r.claimedAssets|assets}:r)}};renderSnapshotRound();}
-    rewardClaimOutcomeMessage='Snapshot rewards claimed';
+    rewardClaimOutcomeMessage='Rewards claimed';
   } finally {rewardChoicePending=false;updateRewardsAvailability();}
 }
 
@@ -4866,7 +5166,7 @@ async function refreshTreasuryReward(resetEpoch: boolean): Promise<void> {
     setContinuousRewardsView(false);
     const rawTreasuryMarket = await publicClient.readContract({ abi: v1Abis.TreasuryDistributorV1, address: distributor, functionName: "market", args: [detail.market.marketId] });
     if (generation !== treasuryLoadGeneration) return;
-    const memeToken = canonicalAddress(tupleString(rawTreasuryMarket, "memeToken", 0), "holder fee-sharing Meme token");
+    const memeToken = canonicalAddress(tupleString(rawTreasuryMarket, "memeToken", 0), "holder fee-sharing created token");
     const quoteToken = canonicalAddress(tupleString(rawTreasuryMarket, "quoteToken", 1), "holder fee-sharing Quote token", true);
     const activatedAt = tupleBigInt(rawTreasuryMarket, "activatedAt", 3);
     if (memeToken !== detail.market.memeToken || quoteToken !== detail.market.quoteAsset || activatedAt <= 0n) {
@@ -4982,17 +5282,17 @@ function setContinuousRewardsView(enabled: boolean): void {
 
 function updateRewardsAvailability(): void {
   renderStakeSubmit();
-  const stakeInput=query<HTMLInputElement>('#stake-amount');if(stakeInput)stakeInput.disabled=!rewardPosition||!!busyOperation||stakeSubmitting;
-  const max=query<HTMLButtonElement>('[data-stake-max]');if(max)max.disabled=!rewardPosition||!!busyOperation||stakeSubmitting;
-  const open=query<HTMLButtonElement>('[data-open-stake]');if(open){open.disabled=!!busyOperation||stakeSubmitting||!!wallet&&!rewardPosition;open.innerHTML=wallet?'<i class="ph ph-plus" aria-hidden="true"></i> Add Stake':'<i class="ph ph-wallet" aria-hidden="true"></i> Connect Wallet';}
-  queryAll<HTMLButtonElement>('[data-close-stake]').forEach(button=>{button.disabled=!!busyOperation||stakeSubmitting;});
+  const stakeBusy=currentStakeOperationBusy();
+  const stakeInput=query<HTMLInputElement>('#stake-amount');if(stakeInput)stakeInput.disabled=!rewardPosition||stakeBusy||stakeSubmitting;
+  const max=query<HTMLButtonElement>('[data-stake-max]');if(max)max.disabled=!rewardPosition||stakeBusy||stakeSubmitting;
+  const open=query<HTMLButtonElement>('[data-open-stake]');if(open){open.disabled=stakeBusy||stakeSubmitting||!!wallet&&!rewardPosition;open.innerHTML=wallet?'<i class="ph ph-plus" aria-hidden="true"></i> Add Stake':'<i class="ph ph-wallet" aria-hidden="true"></i> Connect Wallet';}
+  queryAll<HTMLButtonElement>('[data-close-stake]').forEach(button=>{button.disabled=stakeBusy||stakeSubmitting;});
   const copy = query<HTMLButtonElement>("[data-copy-beneficiary]"); if (copy) copy.disabled = !creatorReward;
   queryAll<HTMLButtonElement>("[data-rewards-connect]").forEach(button=>button.hidden=!!wallet);
   if(!wallet)queryAll<HTMLElement>("[data-legacy-treasury],[data-continuous-treasury],[data-snapshot-rewards]").forEach(panel=>panel.hidden=true);
-  const prerequisite = !wallet ? 'Connect your wallet.' : busyOperation ? 'A transaction is in progress. Check its status above.' : hasPendingTransaction() ? 'Check the existing transaction above before submitting another.' : !foundation?.writeReady ? 'Transactions are unavailable until the market connection is restored.' : '';
-  text('[data-staker-action-help]', prerequisite || (rewardPosition ? stakerClaimHelp(rewardPosition) : 'Choose a market to view your stake and rewards.'));
-  text('[data-creator-action-help]', prerequisite || (creatorDirectoryError||(!creatorMarketIds.size?'No tokens were created by this wallet.':creatorRewardNotOwned?'No creator rewards are available for this wallet.':!creatorReward ? 'Choose a market to view creator rewards.' : creatorReward.liability > 0n ? `Ready to claim. Funds go to ${shortHex(creatorReward.beneficiary)}, the beneficiary for this version.` : creatorReward.memeLiability > 0n ? 'Choose Quote, Meme, or both.' : 'No creator revenue to claim for this beneficiary version yet.')));
-  text('[data-holder-action-help]', prerequisite || (snapshotRewardStatus ? snapshotRewardStatus : continuousReward ? continuousReward.claimable > 0n ? '' : 'No rewards available yet.' : treasuryReward ? treasuryReward.accountClaimed ? 'You have already claimed this reward cycle.' : treasuryReward.status === 3 && treasuryReward.proof ? treasuryReward.now > treasuryReward.claimUntil ? 'This reward cycle has expired.' : 'Your verified reward is ready to claim.' : 'Rewards will be available after this cycle closes and its distribution is ready. See cycle status below.' : 'Select A Token To View Rewards.'));
+  const prerequisite = !wallet ? 'Connect your wallet.' : !foundation?.writeReady ? 'Transactions are unavailable until the market connection is restored.' : '';
+  if(creatorDirectoryError)text('[data-creator-status]',creatorDirectoryError);
+  text('[data-holder-action-help]', prerequisite || (snapshotRewardStatus ? '' : continuousReward ? continuousReward.claimable > 0n ? '' : 'No rewards available yet.' : treasuryReward ? treasuryReward.accountClaimed ? 'You have already claimed this reward cycle.' : treasuryReward.status === 3 && treasuryReward.proof ? treasuryReward.now > treasuryReward.claimUntil ? 'This reward cycle has expired.' : 'Your verified reward is ready to claim.' : 'Rewards will be available after this cycle closes and its distribution is ready. See cycle status below.' : ''));
 
   queryAll<HTMLButtonElement>("[data-reward-action]").forEach((button) => {setDisabled(button, true);if(currentPage()==='rewards')button.hidden=!wallet;});
   const direct = rewardActionButton("directVaultRageQuit");
@@ -5000,7 +5300,7 @@ function updateRewardsAvailability(): void {
     setDisabled(
       direct,
       !wallet
-        || Boolean(busyOperation)
+        || (directEscape ? transactionScopeBusy({businessType:'stake',marketId:directEscape.marketId,conflictKey:`stake:${directEscape.marketId}`}) : false)
         || !runtimeConfig.rageQuitFactory.available
         || !directEscape
         || directEscape.allocated <= 0n
@@ -5020,9 +5320,9 @@ function updateRewardsAvailability(): void {
   if (rewardPosition) {
     const normalClaimReady = rewardPosition.allocated === 0n || (rewardPosition.unlockAt > 0n && rewardPosition.now >= rewardPosition.unlockAt);
     const allocationOpen = rewardPosition.asset.status === 1 && rewardPosition.detail.market.launchPhase === 1 && rewardPosition.settlementPrincipal === 0n;
-    setDisabled(rewardActionButton("stake")!, !allocationOpen || !validStakeAmount());
-    setDisabled(rewardActionButton("unstakeAndWithdraw")!, rewardPosition.allocated <= 0n || rewardPosition.detail.market.launchPhase !== 1 || rewardPosition.unlockAt === 0n || rewardPosition.now < rewardPosition.unlockAt);
-    const rageQuit=rewardActionButton("rageQuit", "allocation-manager");if(rageQuit)setDisabled(rageQuit,rewardPosition.allocated<=0n);
+    setDisabled(rewardActionButton("stake")!, stakeBusy || !allocationOpen || !validStakeAmount());
+    setDisabled(rewardActionButton("unstakeAndWithdraw")!, stakeBusy || rewardPosition.allocated <= 0n || rewardPosition.detail.market.launchPhase !== 1 || rewardPosition.unlockAt === 0n || rewardPosition.now < rewardPosition.unlockAt);
+    const rageQuit=rewardActionButton("rageQuit", "allocation-manager");if(rageQuit)setDisabled(rageQuit,stakeBusy||rewardPosition.allocated<=0n);
     queryAll<HTMLButtonElement>("[data-reward-action=claimStaker]").forEach((button) => {
       const amount = rewardPosition!.memeClaimable + rewardPosition!.quoteClaimable;
       setDisabled(button, amount <= 0n || !normalClaimReady || rewardPosition!.settlementPrincipal > 0n);
@@ -5156,7 +5456,6 @@ async function executePositionAction(action: string, button: HTMLButtonElement):
   if(action==='stake'){
     const input=query<HTMLInputElement>('#stake-amount');if(input)input.value='';
     updateStakePreview();query<HTMLDialogElement>('[data-stake-dialog]')?.close();
-    text('[data-rewards-action-status]','Stake Added');
   }
 }
 
@@ -5175,11 +5474,13 @@ async function executeDirectVaultRageQuit(): Promise<void> {
     functionName: "balanceOf",
     args: [activeWallet.account],
   });
-  busyOperation = `reward:direct-vault-rage-quit:${marketId}:${activeWallet.account}:${state.allocated}`;
+  const operationKey = `reward:direct-vault-rage-quit:${marketId}:${activeWallet.account}:${state.allocated}`;
+  activeOperations.set(operationKey,{businessType:'stake',marketId,conflictKey:`stake:${marketId}`});
   refreshActionAvailability();
   try {
     await activeWallet.executor.execute({
-      operationKey: busyOperation,
+      operationKey,
+      scope:{businessType:'stake',marketId,conflictKey:`stake:${marketId}`},
       expectedAccount: activeWallet.account,
       snapshot: { executionSpecId: V1_EXECUTION_SPEC_ID, revision: state.revision, syncStatus: "synced" },
       request: buildDirectRageQuit(state.vault, state.assetUid, state.marketId),
@@ -5219,16 +5520,11 @@ async function executeDirectVaultRageQuit(): Promise<void> {
         }
         return state.allocated;
       },
-      onUpdate: (update) => {
-        const detail = update.error ? `${update.error.code}: ${update.error.message}` : update.hash ? shortHex(update.hash, 9, 7) : "";
-        const message = `${transactionStageLabels[update.stage]}${detail ? ` — ${detail}` : ""}`;
-        text("[data-direct-vault-status]", message);
-        notify(message, update.stage === "failed" ? "error" : update.stage === "confirmed" ? "success" : "neutral");
-      },
+      onUpdate: showTransactionUpdate,
     });
     notify("Full allocated STOCK principal returned through the independent Vault escape", "success");
   } finally {
-    busyOperation = "";
+    activeOperations.delete(operationKey);
     refreshActionAvailability();
   }
   await refreshDirectEscape();
@@ -5266,6 +5562,7 @@ async function executeSettlement(): Promise<void> {
 
 let rewardClaimOutcomeMessage='';
 let rewardChoicePending=false;
+let rewardChoiceCancelled=false;
 async function executeUserClaim(market: Parameters<typeof marketMetadata>[0],role: 0|1|2,epoch=0): Promise<void> {
   if(rewardChoicePending)throw Error('A Claim Is Already In Progress');
   rewardChoicePending=true;
@@ -5278,14 +5575,10 @@ async function executeUserClaim(market: Parameters<typeof marketMetadata>[0],rol
   const metadata=await marketMetadata(market);
   const balances=role===0?[creatorReward?.liability??0n,creatorReward?.memeLiability??0n]:role===1?[rewardPosition?.quoteClaimable??0n,rewardPosition?.memeClaimable??0n]:[continuousReward?.claimable??0n,continuousReward?.memeClaimable??0n];
   const burn=market.burnMemeFees===true;
-  const rawLabel=(assets: 1|2|3)=>[
-    assets & 1 ? `${formatTokenAmount(balances[0]!,metadata.quoteDecimals)} ${metadata.quoteSymbol}` : '',
-    burn ? `${formatTokenAmount(balances[1]!,18)} ${metadata.symbol} will be permanently burned (not paid to you)` : assets & 2 ? `${formatTokenAmount(balances[1]!,18)} ${metadata.symbol}` : '',
-  ].filter(Boolean).join(' + ');
   if(balances.every(amount=>amount===0n))throw Error("No rewards available to claim");
   await import('./ui/reward-claim-dialog.css');
-  const choice=await rewardClaimDialog(rawLabel,{quote:metadata.quoteSymbol,meme:metadata.symbol}, (burn ? (balances[0]! > 0n ? 1 : 2) : ((balances[0]! > 0n ? 1 : 0) | (balances[1]! > 0n ? 2 : 0))) as 1|2|3, burn);
-  if(!choice){rewardClaimOutcomeMessage='Claim Cancelled';return;}
+  const choice=await rewardClaimDialog({quote:metadata.quoteSymbol,meme:metadata.symbol}, (burn ? (balances[0]! > 0n ? 1 : 2) : ((balances[0]! > 0n ? 1 : 0) | (balances[1]! > 0n ? 2 : 0))) as 1|2|3, burn);
+  if(!choice){rewardChoiceCancelled=true;return;}
   await verifyLiveWalletContext(activeWallet);
   const claimRequest=rawUserClaimRequest(claimMode,feeVault,market.marketId,role,epoch,choice);
   const outcome=await executeTransaction({
@@ -5301,14 +5594,13 @@ async function executeUserClaim(market: Parameters<typeof marketMetadata>[0],rol
           if(e.eventName==='MemeFeesBurned'&&e.args.marketId===market.marketId&&e.args.beneficiary.toLowerCase()===activeWallet.account&&Number(e.args.role)===role&&Number(e.args.creatorEpoch)===epoch&&e.args.token.toLowerCase()===market.memeToken.toLowerCase())memeBurned+=e.args.amount;
         }catch{/* Other vault events have unrelated shapes. */}
       }
-      if(burn&&paid.memePaid!==0n)throw Error('Burn-mode claim unexpectedly paid Meme');
-      if(!burn&&memeBurned!==0n)throw Error('Unexpected Meme reward burn');
+      if(burn&&paid.memePaid!==0n)throw Error('Burn-mode claim unexpectedly paid the created token');
+      if(!burn&&memeBurned!==0n)throw Error('Unexpected created-token reward burn');
       return {...paid,quotePaid:paid.quotePaid,memeBurned};
     },
   });
   tradeStakeTotals.clear();
   rewardClaimOutcomeMessage=outcome.memeBurned>0n ? `${outcome.quotePaid && outcome.quotePaid!==0n ? "Quote claimed. " : ""}${formatTokenAmount(outcome.memeBurned,18)} ${metadata.symbol} permanently burned.` : userClaimOutcome(outcome);
-  text('[data-rewards-action-status]',rewardClaimOutcomeMessage);
   await refreshActiveReward();
   } finally { rewardChoicePending=false;queryAll<HTMLButtonElement>('[data-reward-action^=claim]').forEach(button=>button.removeAttribute('aria-busy'));updateRewardsAvailability(); }
 }
@@ -5375,7 +5667,7 @@ async function ensureTreasuryActionState(state: TreasuryRewardState, action: str
     publicClient.readContract({ abi: v1Abis.TreasuryDistributorV1, address: distributor, functionName: "epoch", args: [state.detail.market.marketId, state.epochId] }),
   ]);
   if (
-    canonicalAddress(tupleString(rawMarket, "memeToken", 0), "holder fee-sharing Meme token") !== state.detail.market.memeToken
+    canonicalAddress(tupleString(rawMarket, "memeToken", 0), "holder fee-sharing created token") !== state.detail.market.memeToken
     || canonicalAddress(tupleString(rawMarket, "quoteToken", 1), "holder fee-sharing Quote token", true) !== state.detail.market.quoteAsset
     || tupleBigInt(rawMarket, "activatedAt", 3) <= 0n
   ) throw new Error("Holder fee-sharing market binding changed; refresh before signing");
@@ -5429,7 +5721,7 @@ async function executeTreasuryAction(action: string): Promise<void> {
   let eventName: string;
   let serviceAssetBalanceBefore: bigint | null = null;
   if (action === "requestRoot") {
-    if (state.holderBalance <= 0n) throw new Error("The connected wallet is not a current Meme holder");
+    if (state.holderBalance <= 0n) throw new Error("The connected wallet does not currently hold this token");
     const built = buildRequestRoot({ distributor, marketId, epochId: state.epochId, serviceFeeAsset: state.serviceFeeAsset, serviceFeeAmount: state.serviceFeeAmount });
     request = built.request;
     approval = await allowanceApproval(built.approval, state.serviceFeeAsset, distributor, state.serviceFeeAmount, account);
@@ -5527,13 +5819,15 @@ async function runRewardAction(button: HTMLButtonElement): Promise<void> {
     if(stakeSubmitting)return;
     const form=button.closest<HTMLFormElement>('form');if(form&&!form.reportValidity())return;
     stakeSubmitting=true;stakeSubmittingLabel='Preparing Stake…';
-    text('[data-stake-transaction-status]','Preparing Your Stake…');
-    const status=query<HTMLElement>('[data-stake-transaction-status]');if(status)status.dataset.state='pending';
     updateRewardsAvailability();
-  }else text('[data-rewards-action-status]','Preparing Your Transaction…');
+  }else{rewardChoiceCancelled=false;}
   try {
     if(action==='stake'&&rewardPosition&&rewardPosition.allocated>0n){
-      if(!await confirmFlowAction('Adding stake restarts the 24-hour lock for your entire position and reward claims.',{title:'Confirm Stake',confirmLabel:'Stake'})){text('[data-stake-transaction-status]','');return;}
+      if(!await confirmFlowAction('Adding stake restarts the 24-hour lock for your entire position and reward claims.',{title:'Confirm Stake',confirmLabel:'Stake'}))return;
+    }
+    if(action==='unstakeAndWithdraw'){
+      if(!rewardPosition)throw Error('Load a reward position first');
+      if(!await confirmFlowAction('',{title:'Unstake all?',confirmLabel:'Unstake all',content:unstakeConfirmationContent(rewardPosition),className:'unstake-confirm'}))return;
     }
     const form = button.closest<HTMLFormElement>("form");
     if (form && !form.reportValidity()) {
@@ -5561,15 +5855,14 @@ async function runRewardAction(button: HTMLButtonElement): Promise<void> {
     } else {
       throw new Error("Unknown Rewards action");
     }
-    if(action!=='stake')text('[data-rewards-action-status]',rewardClaimOutcomeMessage||'Transaction Confirmed');
+    if(action!=='stake'&&!rewardChoiceCancelled&&rewardClaimOutcomeMessage)notify(rewardClaimOutcomeMessage,'success');
     rewardClaimOutcomeMessage='';
+    rewardChoiceCancelled=false;
   } catch (error) {
     if(action==='stake'){
       const message=stakeErrorMessage(errorText(error),hasPendingTransaction());
-      text('[data-stake-transaction-status]',message);
-      const status=query<HTMLElement>('[data-stake-transaction-status]');if(status)status.dataset.state='error';
+      notify(message,'error');
     }else{
-      text('[data-rewards-action-status]',`Action stopped — ${errorText(error)}`);
       notify(`Rewards action stopped — ${errorText(error)}`,'error');
     }
   }finally{
@@ -5583,7 +5876,7 @@ let rewardTabLoading = false;
 let rewardRefreshQueued = false;
 async function refreshActiveReward(): Promise<void> {
   if (rewardTabLoading) { rewardRefreshQueued = true; return; }
-  if (busyOperation || rewardChoicePending || document.hidden || !isRewardsPage()) return;
+  if (rewardChoicePending || document.hidden || !isRewardsPage()) return;
   rewardTabLoading = true;
   const generation = routeGeneration;
   const button = query<HTMLButtonElement>('[data-rewards-refresh]');
@@ -5641,16 +5934,17 @@ async function refreshAccountBalances(): Promise<void> {
 
 async function renderRewards(): Promise<void> {
   const pageGeneration = routeGeneration;
+  if(currentPage()==='staking'&&new URLSearchParams(window.location.search).get('action')==='add')stakeMarketOpened=true;
   if(currentPage()==='rewards')await refreshCreatorDirectory();
   if(pageGeneration!==routeGeneration)return;
   if (rewardTab(window.location.hash) === "positions") void refreshAccountBalances();
   const requestedMarket = new URLSearchParams(window.location.search).get("marketId")?.toLowerCase();
-  if (foundation && readApi && requestedMarket && !rewardDeepLinkApplied) {
+  if (foundation && (readApi || (foundation.direct && directMarkets)) && requestedMarket && !rewardDeepLinkApplied) {
     try {
       const marketId = canonicalBytes32(requestedMarket, "Linked marketId");
       if (!foundation.markets.some((market) => market.marketId === marketId)) {
         const current = foundation;
-        const detail = current.direct && directMarkets ? await directMarkets.market(marketId) : await readApi.getMarket({ marketId, revision: current.sync.revision });
+        const detail = current.direct && directMarkets ? await directMarkets.market(marketId) : await readApi!.getMarket({ marketId, revision: current.sync.revision });
         if (!current.direct) assertFinalizedSync(detail.sync, current.sync.revision, "linked staking market");
         if (pageGeneration !== routeGeneration) return;
         if (foundation !== current || detail.market.marketId !== marketId) throw new Error("Linked market snapshot changed");
@@ -5701,7 +5995,10 @@ async function renderRewards(): Promise<void> {
     updateRewardsAvailability();
     return;
   }
-  const defaultMarket = foundation.markets.find((market) => market.marketId === requestedMarket)?.marketId ?? foundation.markets.find((market) => market.launchPhase === 1)?.marketId ?? foundation.markets[0]?.marketId ?? "";
+  const requestedDefaultMarket = foundation.markets.find((market) => market.marketId === requestedMarket)?.marketId ?? "";
+  const defaultMarket = currentPage()==='staking'
+    ? requestedDefaultMarket
+    : requestedDefaultMarket || foundation.markets.find((market) => market.launchPhase === 1)?.marketId || foundation.markets[0]?.marketId || "";
   queryAll<HTMLSelectElement>("[data-position-market],[data-staker-market],[data-settle-market],[data-creator-market]").forEach((select) => {
     if(!select.matches('[data-creator-market]')&&!select.value&&defaultMarket)select.value=defaultMarket;
   });
@@ -5733,15 +6030,15 @@ function renderRecoveryControls(): void {
   const generation = routeGeneration;
   stopTransactionObservation?.();
   stopTransactionObservation = undefined;
-  let panel = query<HTMLElement>("[data-runtime-recovery]");
-  if (!panel) {
-    panel = document.createElement("div");
-    panel.dataset.runtimeRecovery = "";
-    panel.className = "runtime-recovery";
-    (query<HTMLElement>(".staking-page .stake-content") ?? query<HTMLElement>("main") ?? document.body).prepend(panel);
-  }
-  panel.replaceChildren();
+  let pageControls = query<HTMLElement>("[data-runtime-recovery]");
   if (foundation?.marketNextCursor && isRewardsPage()) {
+    if (!pageControls) {
+      pageControls = document.createElement("div");
+      pageControls.dataset.runtimeRecovery = "";
+      pageControls.className = "runtime-recovery market-pagination-controls";
+      (query<HTMLElement>(".staking-page .stake-content") ?? query<HTMLElement>("main") ?? document.body).prepend(pageControls);
+    }
+    pageControls.replaceChildren();
     const more = document.createElement("button");
     more.textContent = "Load More Tokens";
     more.onclick = async () => {
@@ -5749,23 +6046,39 @@ function renderRecoveryControls(): void {
       try { await appendMarketPage(); if (generation === routeGeneration) await refreshCurrentPage(true); }
       catch (error) { if (generation === routeGeneration) notify(`${errorText(error)}. Reload the page to restart the market list.`, "warning"); more.disabled = false; }
     };
-    panel.append(more);
-  }
+    pageControls.append(more);
+  } else pageControls?.remove();
+
+  let recoveryPanel = query<HTMLElement>("[data-transaction-recovery]");
   if (wallet) {
     const active = wallet;
-    let pending: ReturnType<typeof active.executor.pending> = null;
+    let pending: ReturnType<typeof active.executor.pending> = [];
     try { pending = active.executor.pending(active.account); }
-    catch { const note = document.createElement('p'); note.textContent = 'Your saved transaction record cannot be read. Check wallet history before trying another transaction; no transaction has been resent.'; panel.append(note); }
-    if (pending && !launchProgress) {
+    catch { /* Invalid legacy recovery data must not leak into unrelated product pages. */ }
+    const visible=pending.filter(record=>!launchProgress&&pendingTransactionPage(record.operationKey)===currentPage());
+    for(const record of visible){
+      transactionUpdates.delete(record.operationKey);
+      const timer=transactionUpdateDismissals.get(record.operationKey);if(timer)clearTimeout(timer);
+      transactionUpdateDismissals.delete(record.operationKey);
+    }
+    renderTransactionUpdates();
+    if(visible.length&&!recoveryPanel){recoveryPanel=document.createElement('section');recoveryPanel.dataset.transactionRecovery='';recoveryPanel.className='transaction-recovery-list';recoveryPanel.setAttribute('aria-label','Pending transactions');globalNoticeRegion().append(recoveryPanel);}
+    recoveryPanel?.replaceChildren();
+    const observers:(()=>void)[]=[];
+    for(const record of visible){
+      const row=document.createElement('section');row.className='status-notice transaction-recovery-item';row.dataset.operationKey=record.operationKey;row.setAttribute('role','status');row.setAttribute('aria-live','polite');
+      const icon=document.createElement('i');icon.className='ph ph-spinner-gap trade-tx-spinner';icon.setAttribute('aria-hidden','true');
+      const content=document.createElement('div');content.className='transaction-recovery-item__content';
       const description = document.createElement("span");
-      description.textContent = `${pending.approval ? 'Token approval' : 'Transaction'} awaiting confirmation. `;
-      const explorer = document.createElement('a'); explorer.textContent = 'View transaction'; explorer.href = `${robinhoodChain.blockExplorers.default.url}/tx/${pending.hash}`; explorer.target = '_blank'; explorer.rel = 'noopener noreferrer'; panel.append(explorer);
+      const replacement=record.stage==='replaced'?record.cancelled?'Cancellation replacement is confirming.':'Replacement transaction is confirming.':'';
+      description.textContent = replacement||`${record.approval ? 'Token approval' : 'Transaction'} is still confirming.`;
+      const explorer = document.createElement('a'); explorer.textContent = 'View transaction'; explorer.href = `${robinhoodChain.blockExplorers.default.url}/tx/${record.hash}`; explorer.target = '_blank'; explorer.rel = 'noopener noreferrer';
       const recover = document.createElement("button");
       recover.textContent = "Check existing transaction";
       recover.onclick = () => { void runPageAction(async () => {
         recover.disabled = true;
         try {
-          const result = await active.executor.reconcilePending(active.account);
+          const result = await active.executor.reconcilePending(active.account,record.operationKey);
           const succeeded = result?.receipt.status === "success" && !result.cancelled;
           const recoveredTrade=currentPage()==='trade'&&!!result;
           if((tradeAwaitingConfirmation||recoveredTrade)&&result){tradeAwaitingConfirmation=false;tradeTxStatus.update({operationKey:result.approval?'recovered-approval':'recovered-trade',hash:result.receipt.transactionHash,stage:succeeded?'confirmed':'failed'});updateTradeAvailability();}
@@ -5777,20 +6090,27 @@ function renderRecoveryControls(): void {
           else{await loadFoundation();await refreshCurrentPage();}
         } catch (error) { notify(`Still unconfirmed — ${errorText(error)}`, "warning"); recover.disabled = false; }
       }); };
-      panel.append(description, recover);
+      const actions=document.createElement('div');actions.className='transaction-recovery-item__actions';actions.append(explorer,recover);
+      content.append(description,actions);row.append(icon,content);recoveryPanel?.append(row);
       if (runtimeConfig.readApi.available) {
-        stopTransactionObservation = mountTransactionObservation(panel, runtimeConfig.readApi.value, robinhoodChain.id, pending.hash);
+        observers.push(mountTransactionObservation(content, runtimeConfig.readApi.value, robinhoodChain.id, record.hash));
       }
     }
-  }
-  panel.hidden = panel.childElementCount === 0;
+    if(visible.length&&pending.some(record=>record.nonce!==undefined)){
+      const ordered=[...pending].filter((record):record is typeof record & {nonce:number}=>record.nonce!==undefined).sort((a,b)=>a.nonce-b.nonce);
+      const visibleKeys=new Set(visible.map(record=>record.operationKey));
+      if(ordered.length>1&&ordered.slice(1).some(record=>visibleKeys.has(record.operationKey)&&record.nonce>ordered[0]!.nonce)){const hint=document.createElement('small');hint.className='transaction-recovery-nonce';hint.textContent='This transaction may remain queued until the earlier wallet nonce confirms.';recoveryPanel?.append(hint);}
+    }
+    if(observers.length)stopTransactionObservation=()=>observers.forEach(stop=>stop());
+    if(!visible.length)recoveryPanel?.remove();
+  } else recoveryPanel?.remove();
 }
 
 async function refreshCurrentPage(preserveSnapshot = false): Promise<void> {
   const generation = routeGeneration;
   if (isStaticPage()) { renderWallet(); return; }
   if (integrationBootstrapPath && !foundation) await loadFoundation();
-  if (!integrationBootstrapPath && readApi && !busyOperation && !preserveSnapshot) {
+  if (!integrationBootstrapPath && readApi && !preserveSnapshot) {
     try {
       const health = await readApi.getHealth();
       if (generation !== routeGeneration) return;
@@ -5803,6 +6123,7 @@ async function refreshCurrentPage(preserveSnapshot = false): Promise<void> {
   if (generation !== routeGeneration) return;
   renderWallet();
   renderRecoveryControls();
+  renderTransactionUpdates();
   switch (currentPage()) {
     case "home": await renderHome(); break;
     case "markets": await renderMarkets(); break;
@@ -5879,7 +6200,7 @@ function startSnapshotUpdates(): void {
   const baseUrl = runtimeConfig.readApi.value;
   const poller = createSnapshotPoller({
     chainId: robinhoodChain.id,
-    canPoll: () => !isStaticPage() && !pageActionPending && !busyOperation && !walletConnecting && !loadingFoundation && !document.hidden,
+    canPoll: () => readyRouteGeneration === routeGeneration && !isStaticPage() && !walletConnecting && !loadingFoundation && !document.hidden,
     fetchUpdate: (since, signal) => new TickerGardenV1Client(baseUrl, (input, init) => fetch(input, { ...init, signal })).getSnapshotUpdates(since && foundation ? { since } : {}),
     prepare: async (update, signal) => {
       const generation = ++foundationGeneration;
@@ -5887,11 +6208,11 @@ function startSnapshotUpdates(): void {
       const api = new TickerGardenV1Client(baseUrl, (input, init) => fetch(input, { ...init, signal }));
       const next = await prepareFoundation(api, update.sync);
       return () => {
-        if (generation !== foundationGeneration || busyOperation || activeWallet !== wallet) throw new SnapshotRefreshSuperseded("Snapshot refresh superseded");
+        if (generation !== foundationGeneration || activeWallet !== wallet) throw new SnapshotRefreshSuperseded("Snapshot refresh superseded");
         invalidateSnapshotReads(currentPage() === 'trade',currentPage() === 'markets');
         const recentChanged=update.recentVersion!==undefined&&update.recentVersion!==recentMarketVersion;
         recentMarketVersion=update.recentVersion;
-        if(recentChanged&&currentPage()==='markets')for(const phase of [0,1] as const)if(exploreVisiblePage[phase]===1)explorePagers[phase].reset();
+        if(recentChanged&&currentPage()==='markets')for(const phase of [0,1] as const)if(exploreVisiblePage[phase]===1)explorePagers[phase].refreshFirstPage();
         foundation = next;
         foundationError = "";
         analyticsRefresh.request();
@@ -5908,7 +6229,6 @@ function startSnapshotUpdates(): void {
       };
     },
     unavailable: error => {
-      if (busyOperation) return;
       ++foundationGeneration;
       foundation = null;
       foundationError = errorText(error);
@@ -5921,7 +6241,6 @@ function startSnapshotUpdates(): void {
   window.addEventListener("online", () => poller.reconnect());
   window.addEventListener("offline", () => {
     poller.stop();
-    if (busyOperation) return;
     ++foundationGeneration;
     foundation = null;
     foundationError = "Network unavailable";
@@ -5966,7 +6285,7 @@ function unmountPage(): void {
   preparedMetadataURI = ""; preparedMetadataKey = "";
   launchSalt = randomSalt();
   tradeMarket = null; tradeMetadata = null; tradeMarketVerified = false; tradeSide = "buy";
-  marketPhaseFilter = "bloomed"; rewardDeepLinkApplied = false; syncRewardHash = undefined;
+  marketPhaseFilter = "bloomed"; rewardDeepLinkApplied = false; stakeMarketOpened = false; syncRewardHash = undefined;
   userActivityWidget = null; globalHoldersWidget = null; seriesWidget = null;
   globalStatsWidgets = []; analyticsWidgets = [];
   setTradePageLoading(false);
@@ -5977,6 +6296,7 @@ function unmountPage(): void {
 
 function mountRoute(route: Route): void {
   const generation = ++routeGeneration;
+  readyRouteGeneration = 0;
   unmountPage();
   document.body.dataset.page = route.page;
   const outlet = required<HTMLElement>("[data-route-outlet]");
@@ -6021,7 +6341,10 @@ function mountRoute(route: Route): void {
     if (foundation?.directoryMarketId && route.page !== "trade") await loadFoundation();
     if (generation !== routeGeneration) return;
     await refreshCurrentPage(needsFoundation);
-    if (generation === routeGeneration && foundation) snapshotPoller?.adoptRevision(foundation.sync.revision);
+    if (generation === routeGeneration) {
+      readyRouteGeneration = generation;
+      if (foundation) snapshotPoller?.adoptRevision(foundation.sync.revision);
+    }
   })().catch(error => {
     if (generation !== routeGeneration) return;
     foundationError = errorText(error);
@@ -6033,7 +6356,7 @@ function mountRoute(route: Route): void {
 
 const router = createRouter({
   render: mountRoute,
-  canNavigate: () => !pageActionPending && !busyOperation && !walletConnecting && !launchSubmitting,
+  canNavigate: () => !walletConnecting && !launchSubmitting,
   blocked: () => notify("Finish the current wallet operation before leaving this page.", "warning"),
   hashChanged: () => { if (isRewardsPage()) syncRewardHash?.(); },
 });
@@ -6056,11 +6379,42 @@ startSnapshotUpdates();
 if (import.meta.hot) import.meta.hot.dispose(() => { if(launchRecoveryTimer)clearTimeout(launchRecoveryTimer);closeLaunchProgress();unsubscribeAssetPrices();assetPrices.stop();router.stop(); unmountPage(); });
 
 let directDirectoryBusy=false;
+let directDirectoryRequest:Promise<void>|null=null;
 let directDirectoryReadAt=0;
 let statsDirectoryReady=false;
 let statsDirectoryReadAt=0;
+async function discoverDirectMarketSources(factory:Address):Promise<void>{
+ if(!directMarkets)return;
+ const head=await publicClient.getBlockNumber();
+ const logs=await publicClient.getLogs({address:factory,fromBlock:0n,toBlock:head});
+ for(const log of logs){
+  if(log.blockNumber===null||!log.blockHash||!log.transactionHash||log.transactionIndex===null||log.logIndex===null)continue;
+  directMarkets.observe({address:log.address,topics:log.topics,data:log.data,blockNumber:log.blockNumber,blockHash:log.blockHash,transactionHash:log.transactionHash,transactionIndex:log.transactionIndex,logIndex:log.logIndex});
+ }
+}
+async function loadLocalIntegrationMarketDirectory():Promise<MarketReadModel[]>{
+ if(!directMarkets||!foundation?.direct)return [];
+ await discoverDirectMarketSources(directMarkets.deployment.factory);
+ const previous=new Map(foundation.markets.map(m=>[m.marketId,m]));
+ const records=await mapConcurrent([...directMarkets.sources.keys()],async id=>previous.get(id)??await directMarkets!.market(id).then(x=>x.market).catch(()=>null),4);
+ return records.filter((x):x is MarketReadModel=>x!==null);
+}
 async function refreshDirectDirectory(_renderAfter=true):Promise<void>{
- // Market discovery and refresh are backend jobs. Pages only use Read API.
+ if(!foundation?.direct||document.hidden||isStaticPage())return;
+ if(directDirectoryRequest)return directDirectoryRequest;
+ const current=foundation;
+ directDirectoryBusy=true;
+ const request=(async()=>{
+  const markets=await loadLocalIntegrationMarketDirectory();
+  if(foundation!==current)return;
+  if(JSON.stringify(current.markets)!==JSON.stringify(markets)){
+   foundation=Object.freeze({...current,markets});
+   if(currentPage()==='staking')stakeDirectPortfolioVerified=false;
+   if(_renderAfter){if(currentPage()==='stats')await renderStats();else if(currentPage()==='home')await renderHome();else if(isRewardsPage()){populateRewardMarkets();if(currentPage()==='staking')void refreshStakeDirectory(false,true);}else if(currentPage()==='markets')await renderMarkets();}
+  }
+ })();
+ directDirectoryRequest=request;
+ try{await request;}finally{if(directDirectoryRequest===request)directDirectoryRequest=null;directDirectoryBusy=false;}
 }
 
 let directDirectoryTimer: ReturnType<typeof setInterval>|undefined;

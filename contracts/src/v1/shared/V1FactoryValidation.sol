@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.26;
 
+import {StaticLPFee} from "../libraries/StaticLPFee.sol";
+
 import {
     AssetView,
     CreateMarketParams,
@@ -97,7 +99,7 @@ library V1FactoryValidation {
         address marketRegistry,
         address allocationManager,
         address creator,
-        CreateMarketParams memory params
+        CreateMarketParams calldata params
     ) internal view returns (Snapshot memory snapshot) {
         if (creator == address(0)) revert InvalidCreator(creator);
         if (params.creatorRevenueBeneficiary == address(0)) {
@@ -105,6 +107,7 @@ library V1FactoryValidation {
         }
         _validatePolicy(policy);
         CreatorTax.validate(params.creatorTaxBps);
+        StaticLPFee.validate(params.lpFeePips);
 
         if (params.stakingEnabled) {
             if (params.assetUid == bytes32(0)) revert InvalidStakingConfiguration();
@@ -182,7 +185,8 @@ library V1FactoryValidation {
                 creatorTaxBps: params.creatorTaxBps,
                 creatorFeesToHolders: params.creatorFeesToHolders,
                 stakingEnabled: params.stakingEnabled,
-                burnMemeFees: params.burnMemeFees
+                burnMemeFees: params.burnMemeFees,
+                lpFeePips: params.lpFeePips
             })
         );
     }
@@ -205,8 +209,12 @@ library V1FactoryValidation {
         if (schemaId != REQUIRED_VAULT_SCHEMA_ID || registeredVault != vault) {
             revert InvalidVaultSchema(assetUid, vault, schemaId, registeredVault);
         }
-        if (!officialStock.vaultIdentityCurrent(vault)) {
-            revert VaultIdentityDrift(assetUid, vault, officialStock.vaultRuntimeCodeHash(vault));
+        // assetIdentityCurrent already checked the registered Vault identity. Keep
+        // the explicit runtime commitment and factory-specific bindings here without
+        // repeating the Registry's full Vault lookup and vaultIdentity() call graph.
+        bytes32 expectedRuntimeCodeHash = officialStock.vaultRuntimeCodeHash(vault);
+        if (vault.code.length == 0 || vault.codehash != expectedRuntimeCodeHash) {
+            revert VaultIdentityDrift(assetUid, vault, expectedRuntimeCodeHash);
         }
 
         try IUserStockVault(vault).vaultIdentity() returns (

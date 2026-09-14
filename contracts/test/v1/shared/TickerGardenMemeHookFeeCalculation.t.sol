@@ -44,6 +44,10 @@ contract HookFeeCalculationRegistryMock {
     function canonicalPoolKey(bytes32 marketId) external view returns (PoolKey memory) {
         return _keys[marketId];
     }
+
+    function canonicalPoolId(bytes32 marketId) external view returns (bytes32) {
+        return keccak256(abi.encode(_keys[marketId]));
+    }
 }
 
 contract HookFeeCalculationCreate2Deployer {

@@ -148,3 +148,40 @@ test("Keeper rotation is governed while collection and Keeper execution stay dir
   }
   assert.equal(plan.roles.find(role=>role.name==='PROTOCOL_ADMIN_ROLE')?.executionDelaySeconds,172800);
 });
+
+test("omits direct-only market targets without changing privileged actions", () => {
+  const base = input();
+  const directOnly = compiled.modules
+    .map(({ target }) => target)
+    .filter((target) => !compiled.mutations.some((mutation) =>
+      ["PROTOCOL_ADMIN_ROLE", "PAUSE_GUARDIAN_ROLE", "UNPAUSE_ROLE"].includes(String(mutation.caller)) && mutation.target === target));
+  const moduleAddresses = { ...base.moduleAddresses };
+  for (const target of directOnly) delete moduleAddresses[target];
+  const complete = deriveV1AccessManagerPlan(base);
+  const omitted = deriveV1AccessManagerPlan({ ...base, moduleAddresses });
+  assert.deepEqual(omitted.actions, complete.actions);
+  assert.equal(omitted.configuredProtocolSelectorCount, complete.configuredProtocolSelectorCount);
+  assert.equal(omitted.immutableDirectSelectorCount, complete.immutableDirectSelectorCount);
+});
+
+test("requires every target used by a V1 access role", () => {
+  const roleCallers = new Set(["PROTOCOL_ADMIN_ROLE", "PAUSE_GUARDIAN_ROLE", "UNPAUSE_ROLE"]);
+  const required = [...new Set(compiled.mutations.filter((mutation) => roleCallers.has(String(mutation.caller))).map((mutation) => String(mutation.target)))];
+  for (const target of required) {
+    const moduleAddresses = { ...input().moduleAddresses };
+    delete moduleAddresses[target];
+    assert.throws(() => deriveV1AccessManagerPlan(input({ moduleAddresses })), new RegExp(`Missing V1 module address: ${target}`));
+  }
+});
+
+test("still rejects supplied direct-only zero or aliased addresses and unknown keys", () => {
+  const base = input();
+  const directOnly = compiled.modules.map(({ target }) => target).find((target) =>
+    !compiled.mutations.some((mutation) => ["PROTOCOL_ADMIN_ROLE", "PAUSE_GUARDIAN_ROLE", "UNPAUSE_ROLE"].includes(String(mutation.caller)) && mutation.target === target));
+  assert.ok(directOnly);
+  const withoutDirect = { ...base.moduleAddresses };
+  delete withoutDirect[directOnly!];
+  assert.throws(() => deriveV1AccessManagerPlan({ ...base, moduleAddresses: { ...withoutDirect, [directOnly!]: "0x0000000000000000000000000000000000000000" } }), /Invalid moduleAddresses/);
+  assert.throws(() => deriveV1AccessManagerPlan({ ...base, moduleAddresses: { ...withoutDirect, [directOnly!]: base.guardianSafe } }), /Aliased V1 deployment address/);
+  assert.throws(() => deriveV1AccessManagerPlan({ ...base, moduleAddresses: { ...withoutDirect, UnknownDirectOnly: fixtureAddress("unknown") } }), /Unexpected V1 module address/);
+});

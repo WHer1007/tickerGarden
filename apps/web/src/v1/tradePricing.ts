@@ -42,11 +42,12 @@ export function estimatedPoolTradingFee(netOutput:bigint,creatorTaxBps:number):b
 /** Compare the fee-adjusted execution against the pre-swap v4 spot ratio.
  * Raw currency ratios handle either direction and token decimals implicitly.
  * Hook fee reversal is estimated; this value never controls settlement. */
-export function poolTradeImpactBps(input:bigint,netOutput:bigint,sqrtPriceX96:bigint,zeroForOne:boolean,creatorTaxBps:number,protocolFeePips:number):bigint{
- if(input<=0n||netOutput<=0n||sqrtPriceX96<=0n||sqrtPriceX96>=1n<<160n||!Number.isInteger(protocolFeePips)||protocolFeePips<0||protocolFeePips>1000)throw Error('Invalid pool impact inputs');
+export function poolTradeImpactBps(input:bigint,netOutput:bigint,sqrtPriceX96:bigint,zeroForOne:boolean,creatorTaxBps:number,protocolFeePips:number,lpFeePips=0):bigint{
+ if(input<=0n||netOutput<=0n||sqrtPriceX96<=0n||sqrtPriceX96>=1n<<160n||!Number.isInteger(protocolFeePips)||protocolFeePips<0||protocolFeePips>1000||![0,1000,2000,3000].includes(lpFeePips))throw Error('Invalid pool impact inputs');
  const squared=sqrtPriceX96*sqrtPriceX96,q192=1n<<192n;
  const grossOutput=netOutput+estimatedPoolTradingFee(netOutput,creatorTaxBps);
- const ideal=input*(zeroForOne?squared:q192)*(1000000n-BigInt(protocolFeePips));
+ const coreFee=BigInt(protocolFeePips+lpFeePips)-BigInt(protocolFeePips)*BigInt(lpFeePips)/1000000n;
+ const ideal=input*(zeroForOne?squared:q192)*(1000000n-coreFee);
  const actual=grossOutput*(zeroForOne?q192:squared)*1000000n;
  return actual>=ideal?0n:(ideal-actual)*10000n/ideal;
 }

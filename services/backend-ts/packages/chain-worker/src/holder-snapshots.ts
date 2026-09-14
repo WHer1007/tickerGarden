@@ -1,3 +1,4 @@
+import { ProjectionPending } from '../../projection/src/index.ts';
 import type { Pool } from 'pg';
 import { toHex, encodeFunctionData, decodeFunctionResult, type Abi, type Address, type Hex } from 'viem';
 import { transaction } from '../../db/src/index.ts';
@@ -31,21 +32,59 @@ export interface SnapshotMarket { token:Address;quote:Address;vault:Address;regi
 /** Rebuild event-derived round/claim state atomically, including on reorg. Datasets remain immutable. */
 export async function projectHolderRewards(o:SnapshotOptions & {blockNumber:bigint;blockHash:Hex;generation:bigint}) {
  const schema=snapshotSchema(o.schemaName), id=snapshotIdentity(o.deployment), distributor=snapshotDistributor();
- const rows=await o.pool.query<{payload:Record<string,unknown>}>(`SELECT l.payload FROM ${schema}.chain_logs l JOIN ${schema}.chain_blocks b ON b.environment=l.environment AND b.chain_id=l.chain_id AND b.deployment_digest=l.deployment_digest AND b.hash=l.block_hash WHERE l.environment=$1 AND l.chain_id=$2 AND l.deployment_digest=$3 AND l.address=$4 AND l.canonical AND b.canonical AND b.finalized AND b.number<=$5 ORDER BY b.number,l.transaction_index,l.log_index LIMIT 100001`,[...id,distributor,o.blockNumber.toString()]);
- if(rows.rows.length>100000)throw Error('holder event replay bound');
- const events=rows.rows.map(r=>decodeF72Event('HolderRewardsDistributorV1',deserializeRpcLog(r.payload))).filter(e=>e!==null);
- const marketIds=[...new Set(events.filter(e=>e.eventName==='HolderSnapshotMarketRegistered').map(e=>String(e.args.marketId)))];
- if(marketIds.length>1000)throw Error('holder market bound');
- const states=new Map<string,SnapshotMarket>();
- if(marketIds.length){
-  const mode=await snapshotRead(o,o.blockNumber,distributor,abi,'rewardMode');if(mode!==SNAPSHOT_MODE)throw Error('wrong holder reward mode');
-  const publisher=String(await snapshotRead(o,o.blockNumber,distributor,abi,'snapshotPublisher')).toLowerCase() as Address;
-  for(const marketId of marketIds){
-   const state=json<SnapshotMarket>(await snapshotRead(o,o.blockNumber,distributor,abi,'marketState',[marketId]));
-   const exclusions=(await snapshotRead(o,o.blockNumber,distributor,abi,'feeSharingExcludedAccounts',[marketId]) as Address[]).map(a=>a.toLowerCase() as Address);
-   states.set(marketId,{...state,token:state.token.toLowerCase() as Address,quote:state.quote.toLowerCase() as Address,vault:state.vault.toLowerCase() as Address,publisher,exclusions});
+ const prior=(await o.pool.query<{next_block:string;generation:string}>(`SELECT next_block,generation FROM ${schema}.projection_checkpoints WHERE environment=$1 AND chain_id=$2 AND deployment_digest=$3 AND scope='holder-rewards'`,id)).rows[0];
+ const incremental=prior&&BigInt(prior.generation)===o.generation&&BigInt(prior.next_block)<=o.blockNumber+1n;
+ const from=incremental?BigInt(prior.next_block):o.deployment.activationBlock;
+ const stageArgs=[...id,o.blockHash,o.generation.toString()];
+ type WorkEvent={eventName:string;args:Record<string,unknown>;log:{blockNumber:string;blockHash:string}};
+ type Work={from_block:string;event_count:number;market_count:number};
+ let work:Work|undefined;
+ if(from<=o.blockNumber){
+  work=(await o.pool.query<Work>(`SELECT from_block,event_count,market_count FROM ${schema}.holder_work_candidates WHERE environment=$1 AND chain_id=$2 AND deployment_digest=$3 AND block_hash=$4 AND generation=$5`,stageArgs)).rows[0];
+  if(work&&BigInt(work.from_block)!==from)throw Error('holder work checkpoint conflict');
+  if(!work){
+   const rows=await o.pool.query<{payload:Record<string,unknown>}>(`SELECT l.payload FROM ${schema}.chain_logs l JOIN ${schema}.chain_blocks b ON b.environment=l.environment AND b.chain_id=l.chain_id AND b.deployment_digest=l.deployment_digest AND b.hash=l.block_hash WHERE l.environment=$1 AND l.chain_id=$2 AND l.deployment_digest=$3 AND l.address=$4 AND l.canonical AND b.canonical AND b.finalized AND b.number<=$5 AND b.number>=$6 ORDER BY b.number,l.transaction_index,l.log_index`,[...id,distributor,o.blockNumber.toString(),from.toString()]);
+   const decoded=json<WorkEvent[]>(rows.rows.map(r=>decodeF72Event('HolderRewardsDistributorV1',deserializeRpcLog(r.payload))).filter(e=>e!==null));
+   const ids=[...new Set(decoded.filter(e=>typeof e.args.marketId==='string').map(e=>String(e.args.marketId)))];
+   work={from_block:from.toString(),event_count:decoded.length,market_count:ids.length};
+   await transaction(o.pool,async client=>{
+    await client.query('SELECT pg_advisory_xact_lock(hashtextextended($1,0))',[`holder-work:${stageArgs.join(':')}`]);
+    const exists=(await client.query<Work>(`SELECT from_block,event_count,market_count FROM ${schema}.holder_work_candidates WHERE environment=$1 AND chain_id=$2 AND deployment_digest=$3 AND block_hash=$4 AND generation=$5`,stageArgs)).rows[0];
+    if(exists){if(JSON.stringify(exists)!==JSON.stringify(work))throw Error('holder work evidence conflict');return;}
+    for(let offset=0;offset<decoded.length;offset+=250)await client.query(`INSERT INTO ${schema}.holder_work_events SELECT $1,$2,$3,$4,$5,r.ordinal,r.payload FROM jsonb_to_recordset($6::jsonb) r(ordinal integer,payload jsonb)`,[...stageArgs,JSON.stringify(decoded.slice(offset,offset+250).map((payload,i)=>({ordinal:offset+i,payload})))]);
+    for(let offset=0;offset<ids.length;offset+=250)await client.query(`INSERT INTO ${schema}.holder_market_work SELECT $1,$2,$3,$4,$5,unnest($6::text[])`,[...stageArgs,ids.slice(offset,offset+250)]);
+    await client.query(`INSERT INTO ${schema}.holder_work_candidates VALUES($1,$2,$3,$4,$5,$6,$7,$8)`,[...stageArgs,from.toString(),decoded.length,ids.length]);
+   });
   }
  }
+ const marketIds=work?(await o.pool.query<{market_id:string}>(`SELECT w.market_id FROM ${schema}.holder_market_work w WHERE w.environment=$1 AND w.chain_id=$2 AND w.deployment_digest=$3 AND w.block_hash=$4 AND w.generation=$5 AND NOT EXISTS(SELECT 1 FROM ${schema}.projection_observations s WHERE s.environment=w.environment AND s.chain_id=w.chain_id AND s.deployment_digest=w.deployment_digest AND s.scope='holder-rewards' AND s.block_hash=w.block_hash AND s.generation=w.generation AND s.algorithm_version='holder-incremental-v3' AND s.identity=w.market_id) ORDER BY w.market_id LIMIT 129`,stageArgs)).rows.map(r=>r.market_id):[];
+ const states=new Map<string,SnapshotMarket>();
+ let publisher:Address|undefined;
+ if(marketIds.length){
+  const mode=await snapshotRead(o,o.blockNumber,distributor,abi,'rewardMode');if(mode!==SNAPSHOT_MODE)throw Error('wrong holder reward mode');
+  publisher=String(await snapshotRead(o,o.blockNumber,distributor,abi,'snapshotPublisher')).toLowerCase() as Address;
+  const pending=marketIds.filter(marketId=>!states.has(marketId));
+  for(let offset=0;offset<Math.min(pending.length,128);offset+=8){
+   await Promise.all(pending.slice(offset,Math.min(offset+8,128)).map(async marketId=>{
+   const state=json<SnapshotMarket>(await snapshotRead(o,o.blockNumber,distributor,abi,'marketState',[marketId]));
+   const exclusions=(await snapshotRead(o,o.blockNumber,distributor,abi,'feeSharingExcludedAccounts',[marketId]) as Address[]).map(a=>a.toLowerCase() as Address);
+   states.set(marketId,{...state,token:state.token.toLowerCase() as Address,quote:state.quote.toLowerCase() as Address,vault:state.vault.toLowerCase() as Address,publisher:publisher!,exclusions});
+   }));
+   const batch=pending.slice(offset,Math.min(offset+8,128)).map(identity=>({identity,payload:states.get(identity)}));
+   if((await consensusBlock(o.primary,o.secondary,o.blockNumber)).hash!==o.blockHash)throw Error('holder observation anchor changed');
+   const persisted=await o.pool.query(`INSERT INTO ${schema}.projection_observations AS current(environment,chain_id,deployment_digest,scope,block_number,block_hash,generation,algorithm_version,identity,payload)
+    SELECT $1,$2,$3,'holder-rewards',$6,$4,$5,'holder-incremental-v3',r.identity,r.payload FROM jsonb_to_recordset($7::jsonb) AS r(identity text,payload jsonb) ON CONFLICT(environment,chain_id,deployment_digest,scope,block_hash,generation,algorithm_version,identity) DO UPDATE SET payload=current.payload WHERE current.payload=EXCLUDED.payload RETURNING identity`,[...stageArgs,o.blockNumber.toString(),JSON.stringify(batch)]);
+   if(persisted.rowCount!==batch.length)throw Error('conflicting Holder observation at finalized anchor');
+  }
+  if(pending.length>128){const done=(await o.pool.query<{n:string}>(`SELECT count(*)::text n FROM ${schema}.projection_observations WHERE environment=$1 AND chain_id=$2 AND deployment_digest=$3 AND scope='holder-rewards' AND block_hash=$4 AND generation=$5 AND algorithm_version='holder-incremental-v3'`,stageArgs)).rows[0];throw new ProjectionPending('holder-rewards',o.blockNumber,Number(done?.n));}
+ }
+ const events=work?(await o.pool.query<{payload:WorkEvent}>(`SELECT payload FROM ${schema}.holder_work_events WHERE environment=$1 AND chain_id=$2 AND deployment_digest=$3 AND block_hash=$4 AND generation=$5 ORDER BY ordinal`,stageArgs)).rows.map(r=>r.payload):[];
+ if(work){
+  const saved=(await o.pool.query<{identity:string;payload:SnapshotMarket}>(`SELECT identity,payload FROM ${schema}.projection_observations WHERE environment=$1 AND chain_id=$2 AND deployment_digest=$3 AND scope='holder-rewards' AND block_hash=$4 AND generation=$5 AND algorithm_version='holder-incremental-v3'`,stageArgs)).rows;
+  for(const row of saved)states.set(row.identity,row.payload);
+  if(events.length!==work.event_count||states.size!==work.market_count)throw Error('holder work coverage mismatch');
+ }
+ if(events.some(e=>e.eventName==='SnapshotPublisherChanged')&&!publisher)publisher=String(await snapshotRead(o,o.blockNumber,distributor,abi,'snapshotPublisher')).toLowerCase() as Address;
  if((await consensusBlock(o.primary,o.secondary,o.blockNumber)).hash!==o.blockHash)throw Error('holder anchor changed');
  await transaction(o.pool,async client=>{
   await client.query('SELECT pg_advisory_xact_lock(hashtextextended($1,0))',[`${id.join(':')}:holder-rewards`]);
@@ -54,13 +93,20 @@ export async function projectHolderRewards(o:SnapshotOptions & {blockNumber:bigi
   const previous=await client.query<{next_block:string;generation:string}>(`SELECT next_block,generation FROM ${schema}.projection_checkpoints WHERE environment=$1 AND chain_id=$2 AND deployment_digest=$3 AND scope='holder-rewards'`,id);
   if(previous.rows[0]&&BigInt(previous.rows[0].generation)>o.generation)throw Error('holder generation changed');
   if(previous.rows[0]&&BigInt(previous.rows[0].generation)===o.generation&&BigInt(previous.rows[0].next_block)>o.blockNumber+1n)throw Error('holder projection advanced');
-  for(const table of ['holder_reward_claims','holder_reward_rounds','holder_reward_markets'])await client.query(`DELETE FROM ${schema}.${table} WHERE environment=$1 AND chain_id=$2 AND deployment_digest=$3`,id);
-  for(const [marketId,state]of states)await client.query(`INSERT INTO ${schema}.holder_reward_markets VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9)`,[...id,marketId,distributor,o.blockNumber.toString(),o.blockHash,o.generation.toString(),state]);
+  if(incremental&&previous.rows[0]?.next_block!==prior.next_block)throw Error('holder checkpoint advanced during observation');
+  if(!incremental)for(const table of ['holder_reward_claims','holder_reward_rounds','holder_reward_markets'])await client.query(`DELETE FROM ${schema}.${table} WHERE environment=$1 AND chain_id=$2 AND deployment_digest=$3`,id);
+  for(let offset=0;offset<states.size;offset+=250){
+   const batch=[...states].slice(offset,offset+250).map(([market_id,payload])=>({market_id,payload}));
+   await client.query(`INSERT INTO ${schema}.holder_reward_markets SELECT $1,$2,$3,r.market_id,$4,$5,$6,$7,r.payload FROM jsonb_to_recordset($8::jsonb) AS r(market_id text,payload jsonb)
+    ON CONFLICT(environment,chain_id,deployment_digest,market_id) DO UPDATE SET block_number=EXCLUDED.block_number,block_hash=EXCLUDED.block_hash,generation=EXCLUDED.generation,payload=EXCLUDED.payload`,[...id,distributor,o.blockNumber.toString(),o.blockHash,o.generation.toString(),JSON.stringify(batch)]);
+  }
+  if(publisher)await client.query(`UPDATE ${schema}.holder_reward_markets SET payload=jsonb_set(payload,'{publisher}',to_jsonb($4::text)) WHERE environment=$1 AND chain_id=$2 AND deployment_digest=$3 AND payload->>'publisher' IS DISTINCT FROM $4`,[...id,publisher]);
   for(const e of events){const a=e.args;
    if(e.eventName==='HolderSnapshotPublished')await client.query(`INSERT INTO ${schema}.holder_reward_rounds VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13)`,[...id,a.marketId,String(a.round),e.log.blockNumber.toString(),e.log.blockHash,a.root,a.dataHash,String(a.snapshotBlock),a.snapshotBlockHash,String(a.quoteBudget),String(a.memeBudget)]);
    if(e.eventName==='HolderSnapshotClaimed')await client.query(`INSERT INTO ${schema}.holder_reward_claims VALUES($1,$2,$3,$4,$5,$6,$7) ON CONFLICT(environment,chain_id,deployment_digest,market_id,round,account) DO UPDATE SET assets=${schema}.holder_reward_claims.assets | EXCLUDED.assets`,[...id,a.marketId,String(a.round),String(a.account).toLowerCase(),Number(a.assets)]);
   }
-  await client.query(`INSERT INTO ${schema}.projection_checkpoints(environment,chain_id,deployment_digest,scope,algorithm_version,next_block,generation) VALUES($1,$2,$3,'holder-rewards','wallet-snapshot-v1',$4,$5) ON CONFLICT(environment,chain_id,deployment_digest,scope) DO UPDATE SET next_block=EXCLUDED.next_block,generation=EXCLUDED.generation`,[...id,(o.blockNumber+1n).toString(),o.generation.toString()]);
+  await client.query(`INSERT INTO ${schema}.projection_checkpoints(environment,chain_id,deployment_digest,scope,algorithm_version,next_block,generation) VALUES($1,$2,$3,'holder-rewards','holder-incremental-v3',$4,$5) ON CONFLICT(environment,chain_id,deployment_digest,scope) DO UPDATE SET next_block=EXCLUDED.next_block,generation=EXCLUDED.generation,algorithm_version=EXCLUDED.algorithm_version`,[...id,(o.blockNumber+1n).toString(),o.generation.toString()]);
+  for(const table of ['holder_work_events','holder_market_work','holder_work_candidates'])await client.query(`DELETE FROM ${schema}.${table} WHERE environment=$1 AND chain_id=$2 AND deployment_digest=$3 AND block_hash=$4 AND generation=$5`,stageArgs);
  });
  return {markets:states.size,events:events.length};
 }

@@ -38,7 +38,7 @@ contract RotationVault is ProtocolFeeVault {
     }
 
     function setBusy(bool busy) external {
-        _creditState = busy ? 1 : 0;
+        _setCreditState(busy ? 1 : 0);
     }
 }
 
@@ -215,6 +215,10 @@ contract PlatformTreasuryRotationTest is Test {
     }
 
     function test_pendingCreditBlocksTreasuryMutation() public {
+        this.atomicBusyTreasuryMutation();
+    }
+
+    function atomicBusyTreasuryMutation() external {
         vault.setBusy(true);
         vm.prank(GOV);
         vm.expectRevert();

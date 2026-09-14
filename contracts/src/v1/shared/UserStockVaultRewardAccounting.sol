@@ -157,8 +157,10 @@ abstract contract UserStockVaultRewardAccounting is UserStockVaultDeposits {
         if (_rewardPending[assetUid][marketId] == 0) return;
         RewardActivationSlot[REWARD_ACTIVATION_WHEEL_SIZE] storage wheel = _rewardActivationWheels[assetUid][marketId];
         for (uint8 i; i < REWARD_ACTIVATION_WHEEL_SIZE; ++i) {
-            RewardActivationSlot memory slot = wheel[i];
-            if (slot.generation == 0 || slot.generation > block.timestamp) continue;
+            RewardActivationSlot storage stored = wheel[i];
+            uint64 generation = stored.generation;
+            if (generation == 0 || generation > block.timestamp) continue;
+            RewardActivationSlot memory slot = stored;
             if (slot.amount == 0 || slot.refs == 0) {
                 revert InvalidRewardActivationSlot(i, slot.generation, slot.amount, slot.refs);
             }

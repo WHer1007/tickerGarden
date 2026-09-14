@@ -16,7 +16,7 @@ jobs:
         with:
           node-version: "22.13"
       - name: Check environment isolation
-        run: node --test tools/environment.test.mjs
+        run: npm run test:environment
       - name: Verify V1 source boundary
         run: npm run check:boundary
       - name: Verify V1 machine specification

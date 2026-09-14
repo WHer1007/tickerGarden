@@ -74,7 +74,7 @@ Token 与 Curve 的构造过程本身承担安全职责：固定供应直接铸�
 
 ## 5. 为什么 LaunchLocker 保持每市场完整独立
 
-LaunchLocker 与 Gauge 的风险性质不同。Locker 仅永久持有具体市场的 Position NFT 以及意外直接转入的 Quote/Meme 余额；核心 LP fee 与协议 LP 分成都固定为0，也不存在 collect、Permit2 授权或同仓复投。继续按市场隔离 Locker，主要是为了让 tokenId、PoolKey、资产归属和永久托管边界保持一一对应，避免共享合约把多个市场集中到同一托管故障域。
+LaunchLocker 与 Gauge 的风险性质不同。Locker 仅永久持有具体市场的 Position NFT 以及意外直接转入的 Quote/Meme 余额；原生 LP fee 在创建时选择 0/1000/2000/3000 pips，协议 LP 分成固定为0；新版支持公开手续费归集和仅 Keeper 可调用的同仓复投，临时 Permit2 授权在操作结束后清零。继续按市场隔离 Locker，主要是为了让 tokenId、PoolKey、资产归属和永久托管边界保持一一对应，避免共享合约把多个市场集中到同一托管故障域。
 
 每市场完整 Locker 虽然增加毕业交易 Gas 和地址数量，但换来：
 

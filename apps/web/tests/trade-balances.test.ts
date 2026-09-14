@@ -32,3 +32,19 @@ test('clearing a context settles hung balance waits and cancels retries',async()
  const pending=loader.load(context);await flush();loader.clear();await pending;
  assert.equal(calls,2);
 });
+
+test('a receipt refresh rejects late pre-trade balances for the same wallet and market',async()=>{
+ let phase:'before'|'after'='before',last:TradeBalances|null=null;
+ const releases:Array<(value:bigint)=>void>=[];
+ const loader=createTradeBalanceLoader({
+  read:async asset=>phase==='before'?new Promise<bigint>(resolve=>releases.push(resolve)):asset==='quote'?90n:210n,
+  changed:value=>{last=value;},
+ });
+ const before=loader.load(context);await flush();
+ loader.clear();phase='after';await loader.load(context);
+ assert.deepEqual(last,{quote:90n,meme:210n});
+ for(const release of releases)release(1n);
+ await before;
+ assert.deepEqual(last,{quote:90n,meme:210n});
+ loader.clear();
+});

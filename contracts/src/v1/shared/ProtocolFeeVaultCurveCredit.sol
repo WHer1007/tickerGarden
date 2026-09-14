@@ -40,7 +40,7 @@ abstract contract ProtocolFeeVaultCurveCredit is ProtocolFeeVaultV4Credit {
 
     ICreatorRevenueRegistry internal immutable _feeCreatorRevenueRegistry;
     mapping(bytes32 marketId => uint64 nonce) internal _lastCurveSweepNonces;
-    PendingCurveCredit private _pendingCurveCredit;
+    bytes32 private constant CURVE_PENDING_SLOT = keccak256("tickergarden.fee-vault.curve-pending.v1");
 
     error InvalidCreatorRevenueRegistry(address registry);
     error UnauthorizedMarketCurve(address caller, address expected);
@@ -86,7 +86,7 @@ abstract contract ProtocolFeeVaultCurveCredit is ProtocolFeeVaultV4Credit {
         });
         (pending.creatorEpoch,) = _validateCurveCredit(pending);
         pending.balanceBefore = _assetBalance(quoteAsset);
-        _pendingCurveCredit = pending;
+        _storePendingCurveCredit(pending);
     }
 
     /// @notice Finalizes a registered Curve sweep only when exactly `amount` arrived after `beginCurveCredit`.
@@ -99,7 +99,7 @@ abstract contract ProtocolFeeVaultCurveCredit is ProtocolFeeVaultV4Credit {
         uint64 sweepNonce,
         bytes32 feeId
     ) external payable {
-        PendingCurveCredit memory pending = _pendingCurveCredit;
+        PendingCurveCredit memory pending = _pendingCurveCredit();
         if (
             pending.creatorTaxAmount != creatorTaxAmount || pending.marketId != marketId
                 || pending.quoteAsset != quoteAsset || pending.amount != amount
@@ -137,8 +137,35 @@ abstract contract ProtocolFeeVaultCurveCredit is ProtocolFeeVaultV4Credit {
         record.sweepNonce = sweepNonce;
         record.feeId = feeId;
         _recordExactCurveCredit(record, value);
-        delete _pendingCurveCredit;
+        _clearPendingCurveCredit();
         _consumeAndExitStandaloneCredit(feeId);
+    }
+
+    // PendingCurveCredit has ten static memory words. Explicit clearing permits sequential
+    // credits in one transaction; reverted children restore both context and lock atomically.
+    function _storePendingCurveCredit(PendingCurveCredit memory pending) private {
+        bytes32 slot = CURVE_PENDING_SLOT;
+        assembly ("memory-safe") {
+            for { let i := 0 } lt(i, 10) { i := add(i, 1) } {
+                tstore(add(slot, i), mload(add(pending, mul(i, 32))))
+            }
+        }
+    }
+
+    function _pendingCurveCredit() private view returns (PendingCurveCredit memory pending) {
+        bytes32 slot = CURVE_PENDING_SLOT;
+        assembly ("memory-safe") {
+            for { let i := 0 } lt(i, 10) { i := add(i, 1) } {
+                mstore(add(pending, mul(i, 32)), tload(add(slot, i)))
+            }
+        }
+    }
+
+    function _clearPendingCurveCredit() private {
+        bytes32 slot = CURVE_PENDING_SLOT;
+        assembly ("memory-safe") {
+            for { let i := 0 } lt(i, 10) { i := add(i, 1) } { tstore(add(slot, i), 0) }
+        }
     }
 
     function _validateCurveCredit(PendingCurveCredit memory pending)

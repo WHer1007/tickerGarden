@@ -7,7 +7,7 @@ import { currentV4Abis } from '../src/v1/generated/abis.ts';
 
 const root = fileURLToPath(new URL('../../../', import.meta.url));
 const release = JSON.parse(readFileSync(`${root}deployments/releases/0x685b5c20e826f4ddd076b61216c7529a967322082925c4741469b0fda837a7f2/frontend-bootstrap.json`, 'utf8'));
-const integration = JSON.parse(readFileSync(`${root}apps/web/public/integration/rh-685b5c20.json`, 'utf8'));
+const integration = JSON.parse(readFileSync(`${root}apps/web/tests/fixtures/integration/rh-685b5c20.json`, 'utf8'));
 
 test('latest RH testnet release matches frontend integration catalog', () => {
   assert.equal(release.chainId, 46630);
@@ -38,7 +38,7 @@ test('current burnMemeFees creation path encodes with V4 ABI', () => {
   const params = {
     assetUid: `0x${'11'.repeat(32)}`, tickerGardenBaselineId: `0x${'22'.repeat(32)}`, quoteAssetConfigId: `0x${'33'.repeat(32)}`,
     launchTemplateId: `0x${'44'.repeat(32)}`, expectedEconomics: `0x${'55'.repeat(32)}`, creatorRevenueBeneficiary: '0x0000000000000000000000000000000000000001',
-    name: 'Name', symbol: 'MEME', metadataURI: 'ipfs://metadata', salt: `0x${'66'.repeat(32)}`, creatorTaxBps: 25, creatorFeesToHolders: true, stakingEnabled: true, burnMemeFees: true,
+    name: 'Name', symbol: 'MEME', metadataURI: 'ipfs://metadata', salt: `0x${'66'.repeat(32)}`, creatorTaxBps: 25, creatorFeesToHolders: true, stakingEnabled: true, burnMemeFees: true, lpFeePips: 2000,
   } as const;
   const data = encodeFunctionData({ abi, functionName: 'launchAndBuy', args: [params, 1n, 1n, '0x0000000000000000000000000000000000000001'] });
   assert.match(data, /^0x[0-9a-f]+$/);

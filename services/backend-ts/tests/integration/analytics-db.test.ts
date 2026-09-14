@@ -120,6 +120,16 @@ test('TS-07 database-only trades, candles, holders and detail paths preserve cov
     const display=await app.request(`/v1/market-display-statistics?marketId=${marketId}`);assert.equal(display.status,200);assert.equal(((await display.json()) as {feeDistribution:unknown[]}).feeDistribution.length,2);
     const prices=await app.request('/v1/prices/references');assert.equal(prices.status,200);const priceBody=await prices.json() as {status:string;references:Array<{status:string;token:string}>};assert.equal(priceBody.status,'configured');assert.equal(priceBody.references.find(row=>row.token===quoteAsset)?.status,'available');
     const protocol=await app.request('/v1/protocol-statistics');assert.equal(protocol.status,200);const protocolBody=await protocol.json() as {feeCoverage:boolean;feeTotals:Record<string,string>;feeBasis:string;stockAmounts:Record<string,string>;stakingWallets:number;stakingObservedAt:number};assert.equal(protocolBody.feeCoverage,true);assert.equal(protocolBody.feeTotals[quoteAsset],'7');assert.equal(protocolBody.feeTotals[memeToken],'3');assert.equal(protocolBody.feeBasis,'ALLOCATION_TIME');assert.equal(protocolBody.stockAmounts[asset.id],'1000000000000000000');assert.equal(protocolBody.stakingWallets,1);assert.equal(protocolBody.stakingObservedAt,detailTo);
+    // Incremental holder references must match full positive-balance truth across zero crossings.
+    for(const balance of ['0','300','301']){
+      await handle.pool.query(`UPDATE ${schema}.holder_balances SET balance_raw=$1 WHERE account=$2`,[balance,address('7')]);
+      const full=(await handle.pool.query(`SELECT count(DISTINCT account)::int n FROM ${schema}.holder_balances WHERE balance_raw>0`)).rows[0].n;
+      const response=await app.request('/v1/stats/holders');assert.equal(response.status,200);
+      assert.equal((await response.json() as {positiveAddressCount:number}).positiveAddressCount,full);
+    }
+    await handle.pool.query(`UPDATE ${schema}.holder_snapshots SET excluded_accounts='[]'`);
+    assert.equal((await (await app.request('/v1/stats/holders')).json() as {includedAddressCount:number}).includedAddressCount,2);
+    await handle.pool.query(`UPDATE ${schema}.holder_snapshots SET excluded_accounts=$1`,[JSON.stringify(excludedAccounts)]);
     // Stored event blocks can be sparse; verified covered ranges establish
     // completeness. A missing range must still make display data unavailable.
     await handle.pool.query(`UPDATE ${schema}.covered_ranges SET complete=false`);

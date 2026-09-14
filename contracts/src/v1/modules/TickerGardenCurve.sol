@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.26;
 
-import {ReentrancyGuard} from "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
+import {ReentrancyGuardTransient} from "@openzeppelin/contracts/utils/ReentrancyGuardTransient.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
 import {
@@ -48,7 +48,7 @@ interface ICurveMarketRegistryDependencies {
 /// @notice Per-market tracked-reserve TickerGarden curve with exact native/ERC-20 settlement.
 /// @dev The Factory exposes a transient read-only initialization snapshot so CREATE2 init code does not depend on
 ///      the Meme token address and create a circular address prediction.
-contract TickerGardenCurve is ITickerGardenCurve, ReentrancyGuard {
+contract TickerGardenCurve is ITickerGardenCurve, ReentrancyGuardTransient {
     uint8 private constant LAUNCH_PHASE_NOT_GRADUATED = 0;
     uint8 private constant LAUNCH_PHASE_POOL_CREATED = 1;
     bytes32 private constant CURVE_SWEEP_DOMAIN = keccak256("TICKERGARDEN_V1_CURVE_SWEEP");

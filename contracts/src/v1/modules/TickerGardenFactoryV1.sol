@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.26;
 
-import {ReentrancyGuard} from "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
+import {ReentrancyGuardTransient} from "@openzeppelin/contracts/utils/ReentrancyGuardTransient.sol";
 
 import {
     CreateMarketParams,
@@ -168,7 +168,7 @@ contract TickerGardenCurveImplementation {
 }
 
 /// @notice Canonical V1 launch Factory with atomic CREATE2 component deployment and Registry admission.
-contract TickerGardenFactoryV1 is ITickerGardenFactoryV1, ICurveInitializationSource, ReentrancyGuard {
+contract TickerGardenFactoryV1 is ITickerGardenFactoryV1, ICurveInitializationSource, ReentrancyGuardTransient {
     uint256 public immutable override launchFee;
 
     IOfficialStockRegistryV1 public immutable officialStockRegistry;
@@ -188,8 +188,8 @@ contract TickerGardenFactoryV1 is ITickerGardenFactoryV1, ICurveInitializationSo
     address public immutable gaugeImplementation;
 
     V1FactoryValidation.Policy private _policy;
-    address private _initializingCurve;
-    CurveInitialization private _curveInitialization;
+    bytes32 private constant INITIALIZING_CURVE_SLOT = keccak256("tickergarden.factory.initializing-curve.v1");
+    bytes32 private constant CURVE_INITIALIZATION_SLOT = keccak256("tickergarden.factory.curve-initialization.v1");
     mapping(bytes32 marketId => bool reserved) private _reservedMarketIds;
 
     uint256 private constant LAUNCH_FEE = 500_000_000_000_000;
@@ -197,9 +197,9 @@ contract TickerGardenFactoryV1 is ITickerGardenFactoryV1, ICurveInitializationSo
     bytes32 private constant TOKEN_IMPLEMENTATION_CODEHASH =
         0x8769f48d2addb30fb0b990e53fb6bd0f82017e3d3ea75b92ddeda4b4c40a915c;
     bytes32 private constant CURVE_IMPLEMENTATION_CODEHASH =
-        0xc298461fa2fe37c4d252d7befe97a5ef0321c050524fba059bb794bc37fdbdd9;
+        0x4fc48da2c00686d2677b4856dfdc6faee0b3332373db84e66b11f9cc62511703;
     bytes32 private constant GAUGE_IMPLEMENTATION_CODEHASH =
-        0x3e3f1fcd99cab3ed17310a7197535514f590eff63ce17fb8e158e732351bce52;
+        0x563e780a00e4898d32f6bf13ef12d0dc8618742e6ac2abb161f43d776c2e70ec;
 
     error InvalidFactoryDependency(address dependency);
     error InvalidComponentImplementation(address implementation, bytes32 expectedHash, bytes32 actualHash);
@@ -213,6 +213,8 @@ contract TickerGardenFactoryV1 is ITickerGardenFactoryV1, ICurveInitializationSo
     error GaugeIdentityMismatch(address gauge, bytes32 expectedHash, bytes32 actualHash);
     error CurveInitializationUnavailable(address curve);
     error LaunchFeeTransferFailed(address treasury, uint256 amount);
+
+    function lpFeeMode() external pure override returns (bytes32) { return keccak256("TICKERGARDEN_CREATOR_STATIC_LP_FEE_V1"); }
 
     function memeFeeBurnMode() external pure returns (bytes32) { return keccak256("TICKERGARDEN_MEME_FEE_BURN_ON_SETTLEMENT_V1"); }
 
@@ -317,8 +319,11 @@ contract TickerGardenFactoryV1 is ITickerGardenFactoryV1, ICurveInitializationSo
     }
 
     function curveInitialization(address curve) external view override returns (CurveInitialization memory) {
-        if (msg.sender != curve || curve != _initializingCurve) revert CurveInitializationUnavailable(curve);
-        return _curveInitialization;
+        bytes32 slot = INITIALIZING_CURVE_SLOT;
+        address expected;
+        assembly ("memory-safe") { expected := tload(slot) }
+        if (msg.sender != curve || curve != expected) revert CurveInitializationUnavailable(curve);
+        return _loadCurveInitialization();
     }
 
     function _createMarket(address creator, CreateMarketParams calldata params)
@@ -345,8 +350,7 @@ contract TickerGardenFactoryV1 is ITickerGardenFactoryV1, ICurveInitializationSo
                 )
             )
         );
-        delete _curveInitialization;
-        _initializingCurve = address(0);
+        _clearCurveInitialization();
 
         if (params.stakingEnabled) _deployGauge(marketId, memeToken, gauge, params, snapshot.quote.quoteAsset);
 
@@ -379,7 +383,8 @@ contract TickerGardenFactoryV1 is ITickerGardenFactoryV1, ICurveInitializationSo
             creatorTaxBps: params.creatorTaxBps,
             creatorFeesToHolders: params.creatorFeesToHolders,
             stakingEnabled: params.stakingEnabled,
-            burnMemeFees: params.burnMemeFees
+            burnMemeFees: params.burnMemeFees,
+            lpFeePips: params.lpFeePips
         });
         marketRegistry.registerMarket(marketId, config);
         ICreatorRevenueRegistry(creatorRevenueRegistry)
@@ -426,8 +431,9 @@ contract TickerGardenFactoryV1 is ITickerGardenFactoryV1, ICurveInitializationSo
         CreateMarketParams calldata params,
         V1FactoryValidation.Snapshot memory snapshot
     ) private {
-        _initializingCurve = curve;
-        _curveInitialization = CurveInitialization({
+        bytes32 slot = INITIALIZING_CURVE_SLOT;
+        assembly ("memory-safe") { tstore(slot, curve) }
+        _storeCurveInitialization(CurveInitialization({
             marketId: marketId,
             tickerGardenBaselineId: params.tickerGardenBaselineId,
             quoteAssetConfigId: params.quoteAssetConfigId,
@@ -444,7 +450,36 @@ contract TickerGardenFactoryV1 is ITickerGardenFactoryV1, ICurveInitializationSo
             initialSupply: snapshot.baseline.supply,
             curveFeeBps: snapshot.baseline.curveFeeBps,
             creatorTaxBps: params.creatorTaxBps
-        });
+        }));
+    }
+
+    // Constructor callback context has sixteen static memory words. The fixed deployment
+    // delegate target shares Factory transient storage; namespaces must remain disjoint.
+    function _storeCurveInitialization(CurveInitialization memory init) private {
+        bytes32 slot = CURVE_INITIALIZATION_SLOT;
+        assembly ("memory-safe") {
+            for { let i := 0 } lt(i, 16) { i := add(i, 1) } {
+                tstore(add(slot, i), mload(add(init, mul(i, 32))))
+            }
+        }
+    }
+
+    function _loadCurveInitialization() private view returns (CurveInitialization memory init) {
+        bytes32 slot = CURVE_INITIALIZATION_SLOT;
+        assembly ("memory-safe") {
+            for { let i := 0 } lt(i, 16) { i := add(i, 1) } {
+                mstore(add(init, mul(i, 32)), tload(add(slot, i)))
+            }
+        }
+    }
+
+    function _clearCurveInitialization() private {
+        bytes32 slot = CURVE_INITIALIZATION_SLOT;
+        bytes32 callerSlot = INITIALIZING_CURVE_SLOT;
+        assembly ("memory-safe") {
+            tstore(callerSlot, 0)
+            for { let i := 0 } lt(i, 16) { i := add(i, 1) } { tstore(add(slot, i), 0) }
+        }
     }
 
     function _deployGauge(

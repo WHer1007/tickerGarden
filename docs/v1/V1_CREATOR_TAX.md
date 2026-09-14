@@ -6,7 +6,7 @@ Updated 2026-09-05. Implemented for the development release; no deployment perfo
 
 The creator selects 0–5% in 0.01% increments (0–500 integer basis points), default 0.
 The Factory validates the cap and freezes the rate in MarketConfig and the curve.
-The rate is part of expectedEconomics schema 4, so changing it invalidates a prior
+The rate is part of the current expectedEconomics commitment, so changing it invalidates a prior
 creation preview. There is no post-launch tax-rate setter.
 
 Creator tax is an additional fee, not a share of the existing fixed trading fee.
@@ -51,12 +51,13 @@ and [Hook source](https://github.com/ponsdotdev/ponsfamily/blob/845bd546b3751562
 
 Pons caps creator tax at 1000 bps; TickerGarden uses an immutable 500 bps maximum.
 Both independently floor base fee and tax, and pay all creator tax to the creator.
-Pons can convert meme-denominated Hook receipts to quote internally. TickerGarden now retains original-asset accrual ownership, then converts creator and
-staker Meme rewards to the market Quote in separate batches. Default claims use Quote;
-a delayed original-token exit remains available. See [reward conversion](V1_REWARD_CONVERSION.md).
-The immutable holder-sharing preference is carried in the creation snapshot; it
-does not change creator tax accounting or the existing creator claim, conversion,
-or beneficiary-transfer flows.
+Pons can convert meme-denominated Hook receipts to quote internally. Current TickerGarden
+UserClaims pays the selected original Quote/Meme assets without internal conversion,
+a conversion deadline, or a delayed original-token fallback. Staker locks still apply;
+markets with `burnMemeFees` burn Meme fees according to their frozen configuration.
+The holder-sharing preference affects only the creator's base-fee share and never
+creator tax or historical beneficiary ownership. The [older reward conversion document](V1_REWARD_CONVERSION.md)
+is retained only as evidence of its named historical release.
 The reference is a source-code comparison, not verification of live deployed values.
 
 ## Integration
@@ -69,7 +70,7 @@ Metadata mirrors the choice for presentation, while the on-chain snapshot is aut
 These changed tuples and code hashes require a coordinated new development deployment;
 old deployments must not be used with the new ABI. This document is not release evidence.
 
-## Creator-tax validation before reward conversion
+## Historical creator-tax validation before reward conversion
 
 - Product/shared/deployment contract regression: 688 passed, zero failures.
 - Final Factory suite after the additional taxed ERC20 rollback test: 59 passed.

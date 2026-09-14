@@ -11,7 +11,7 @@ test("pages describe current holder snapshots and fee sharing", () => {
   assert.match(create.html, /no fixed payout schedule/i);
   assert.match(create.html, /paired asset purchase/);
   assert.match(home.html, /wallet balance snapshots/);
-  assert.match(staking.html, /original Quote and Meme assets/);
-  assert.match(staking.html, /conversion is never automatic/);
-  assert.match(staking.html, /separate 24-hour lock/);
+  assert.match(staking.html, /Rewards are paid in the original Quote and created token assets/);
+  assert.doesNotMatch(staking.html, /conversion is never automatic/);
+  assert.match(staking.html, /full 24-hour lock/);
 });

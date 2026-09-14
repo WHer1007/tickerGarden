@@ -2,15 +2,14 @@ export type ClaimAssets = 1 | 2 | 3;
 type ClaimSymbols = Readonly<{ quote: string; meme: string }>;
 
 /** Present a confirmation for claiming the selected original reward assets. */
-export function rewardClaimDialog(rawLabel: (assets: ClaimAssets) => string, symbols: ClaimSymbols, availableAssets: ClaimAssets = 3, burnMemeFees = false): Promise<ClaimAssets | null> {
+export function rewardClaimDialog(symbols: ClaimSymbols, availableAssets: ClaimAssets = 3, burnMemeFees = false): Promise<ClaimAssets | null> {
   return new Promise(resolve => {
-    const dialog=document.createElement('dialog');dialog.className='reward-claim-dialog';
-    dialog.innerHTML=`<form method="dialog"><header><h3>Claim rewards</h3><button value="cancel" aria-label="Close">×</button></header>
-      <fieldset><legend>Choose assets</legend><label><input type="radio" name="assets" value="3" checked><span>All assets</span></label><label><input type="radio" name="assets" value="1"><span class="quote-label"></span></label><label><input type="radio" name="assets" value="2"><span class="meme-label"></span></label></fieldset>
-      <p class="reward-claim-note"></p>
+    const dialog=document.createElement('dialog');dialog.className='reward-claim-dialog';dialog.setAttribute('aria-labelledby','reward-claim-title');
+    dialog.innerHTML=`<form method="dialog"><header><div class="reward-claim-heading"><span class="reward-claim-mark" aria-hidden="true">✓</span><div><small>REWARD PAYOUT</small><h3 id="reward-claim-title">Claim rewards</h3></div></div><button value="cancel" aria-label="Close"><span aria-hidden="true">×</span></button></header>
+      <fieldset><legend>Choose what to receive</legend><label><input type="radio" name="assets" value="3" checked><span><strong>All assets</strong><small>Receive both rewards</small></span></label><label><input type="radio" name="assets" value="1"><span><strong class="quote-label"></strong><small>Paired asset only</small></span></label><label><input type="radio" name="assets" value="2"><span><strong class="meme-label"></strong><small>Created token only</small></span></label></fieldset>
       <footer><button value="cancel" class="secondary-button">Cancel</button><button value="claim" class="primary-button">Claim</button></footer></form>`;
-    dialog.querySelector<HTMLElement>('.quote-label')!.textContent=`${symbols.quote} only`;
-    dialog.querySelector<HTMLElement>('.meme-label')!.textContent=`${symbols.meme} only`;
+    dialog.querySelector<HTMLElement>('.quote-label')!.textContent=symbols.quote;
+    dialog.querySelector<HTMLElement>('.meme-label')!.textContent=symbols.meme;
     for (const input of dialog.querySelectorAll<HTMLInputElement>('input[name="assets"]')) {
       const mask=Number(input.value); input.disabled=(mask & availableAssets)!==mask;
       input.checked=mask===availableAssets;
@@ -18,15 +17,12 @@ export function rewardClaimDialog(rawLabel: (assets: ClaimAssets) => string, sym
     }
     if (burnMemeFees) {
       dialog.querySelector('fieldset')!.hidden=true;
-      dialog.querySelector('h3')!.textContent=availableAssets===2?'Burn fee rewards':'Claim Quote & burn Meme fees';
+      dialog.querySelector('h3')!.textContent=availableAssets===2?'Burn fee rewards':`Claim ${symbols.quote} & burn ${symbols.meme} fees`;
       dialog.querySelector<HTMLButtonElement>('button[value="claim"]')!.textContent=availableAssets===2?'Burn fees':'Claim & burn';
     }
     document.body.append(dialog);
     const assets=()=>Number(dialog.querySelector<HTMLInputElement>('input[name="assets"]:checked')!.value) as ClaimAssets;
-    const render=()=>{dialog.querySelector<HTMLElement>('.reward-claim-note')!.textContent=rawLabel(assets());};
-    dialog.addEventListener('change',event=>{if((event.target as HTMLInputElement).name==='assets')render();});
     dialog.addEventListener('close',()=>{const result=dialog.returnValue==='claim'?assets():null;dialog.remove();resolve(result);},{once:true});
     dialog.showModal();
-    render();
   });
 }

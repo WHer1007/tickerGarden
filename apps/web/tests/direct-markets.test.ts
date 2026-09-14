@@ -3,10 +3,10 @@ import test from 'node:test';
 import fs from 'node:fs';
 import { encodeAbiParameters, encodeEventTopics, encodeFunctionData, parseAbiParameters, type Hex } from 'viem';
 import { DirectMarkets } from '../src/v1/directMarkets.ts';
-import { v1Abis } from '../src/v1/generated/abis.ts';
+import { currentV4Abis as directAbis } from '../src/v1/generated/abis.ts';
 import { parseIntegrationBootstrap } from '../src/v1/integrationBootstrap.ts';
 
-const raw = JSON.parse(fs.readFileSync(new URL('../public/integration/rh-f72a2cdf.json', import.meta.url), 'utf8')) as any;
+const raw = JSON.parse(fs.readFileSync(new URL('./fixtures/integration/rh-f72a2cdf.json', import.meta.url), 'utf8')) as any;
 const b = parseIntegrationBootstrap(raw, 46630, {
   factoryAddress: raw.factory,
   launchRouterAddress: raw.bindings.launchRouter,
@@ -30,21 +30,27 @@ function createdLog(address = factory, marketId = id) {
     quoteAssetConfigId: b.configs.find(c => c.kind === 'quote')!.id as Hex,
     expectedEconomics: `0x${'3'.repeat(64)}` as Hex,
   };
-  const topics = encodeEventTopics({ abi: v1Abis.TickerGardenFactoryV1, eventName: 'MarketCreated', args });
+  const topics = encodeEventTopics({ abi: directAbis.TickerGardenFactoryV1, eventName: 'MarketCreated', args });
   const data = encodeAbiParameters(parseAbiParameters('address,address,address,bytes32,bytes32,bytes32'), [curve, gauge, quote, args.tickerGardenBaselineId, args.quoteAssetConfigId, args.expectedEconomics]);
   return { address, topics: topics as Hex[], data: data as Hex, blockNumber: 100n, blockHash: hash, transactionHash: `0x${'b'.repeat(64)}` as Hex, transactionIndex: 0, logIndex: 0 };
 }
 
-function reader(counter: { calls: number }) {
+function reader(counter: { calls: number },options:Readonly<{stakingEnabled?:boolean;activeStake?:bigint}>={}) {
   return async (_address: any, _abi: any, name: string, _args: readonly unknown[], block: bigint) => {
     encodeFunctionData({abi:_abi,functionName:name,args:_args});
     if(name==='graduationExecutor')assert.equal(_address,b.bindings.marketRegistry);
     counter.calls++;
     assert.equal(block, 120n);
-    if (name === 'market') return { config: { assetUid: `0x${'2'.repeat(64)}`, curve, memeToken: meme, gauge, quoteAsset: quote, quoteAssetConfigId: b.configs.find(c => c.kind === 'quote')!.id, tickerGardenBaselineId: b.configs.find(c => c.kind === 'baseline')!.id }, runtime: { sourceVersion: 1, launchPhase: 0, poolId: `0x${'0'.repeat(64)}` } };
+    if (name === 'market') return { config: { assetUid: `0x${'2'.repeat(64)}`, curve, memeToken: meme, gauge, quoteAsset: quote, quoteAssetConfigId: b.configs.find(c => c.kind === 'quote')!.id, tickerGardenBaselineId: b.configs.find(c => c.kind === 'baseline')!.id, launchTemplateId: b.configs.find(c => c.kind === 'template')!.id, creatorTaxBps: 250, creatorFeesToHolders: false, burnMemeFees: false, lpFeePips: 2000, stakingEnabled: options.stakingEnabled??false }, runtime: { sourceVersion: 1, launchPhase: 0, poolId: `0x${'0'.repeat(64)}` } };
     if (name === 'canonicalRoute') return { poolKey: null, swapRouter: raw.bindings.launchRouter, quoter: raw.bindings.launchRouter, hook: raw.bindings.launchRouter, launchLocker: raw.bindings.launchRouter, curveTradingEnabled: true, poolTradingEnabled: false, sourceVersion: 1 };
     if (name === 'graduationExecutor') return raw.bindings.launchRouter;
     if (name === 'readyToGraduate') return false;
+    if (name === 'name') return 'Local Garden';
+    if (name === 'symbol') return 'LGDN';
+    if (name === 'metadataURI') return `ipfs://b${'a'.repeat(58)}`;
+    if (name === 'deployedAt') return 1_700_000_000n;
+    if (name === 'creator') return '0x4444444444444444444444444444444444444444';
+    if (name === 'effectiveTotalActiveStock') return options.activeStake??0n;
     return 0n;
   };
 }
@@ -58,9 +64,21 @@ test('DirectMarkets observes Factory MarketCreated and reads current head state'
   assert.equal(result.sync.finality, 'head');
   assert.equal(result.sync.blockNumber, '120');
   assert.equal(result.market.marketId, id);
+  assert.deepEqual(result.market.identity?.name, 'Local Garden');
+  assert.equal(result.market.identity?.symbol, 'LGDN');
+  assert.equal(result.market.creator, '0x4444444444444444444444444444444444444444');
+  assert.deepEqual(result.market.directFeeConfig,{creatorTaxBps:250,activeStakeRaw:'0'});
+  assert.equal(result.market.lpFeePips,2000);
   const once = counter.calls;
   await dm.market(id);
   assert.equal(counter.calls, once, '15 second cache should avoid repeated reads');
+});
+
+test('DirectMarkets pins the active staking amount used by fee allocation to the same head',async()=>{
+  const dm=new DirectMarkets(b,reader({calls:0},{stakingEnabled:true,activeStake:42n}),async()=>({number:120n,hash}));
+  dm.observe(createdLog());
+  const result=await dm.market(id);
+  assert.equal(result.market.directFeeConfig.activeStakeRaw,'42');
 });
 
 test('DirectMarkets rejects unknown markets and non-Factory same-name events', async () => {

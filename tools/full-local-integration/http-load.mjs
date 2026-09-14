@@ -1,0 +1,9 @@
+// Isolated follow-up over real local HTTP; no production or public endpoint accepted.
+import {performance} from 'node:perf_hooks';
+import {readFileSync,writeFileSync} from 'node:fs';
+const dir=new URL(process.env.TG_CAPACITY_EVIDENCE_DIR??'../../docs/reviews/evidence/full-local-integration-2026-09-13/',import.meta.url),config=JSON.parse(readFileSync(new URL(process.env.TG_CAPACITY_API_META??'local-api.json',dir)));if(!['http://127.0.0.1:18770','http://127.0.0.1:18772'].includes(config.origin))throw Error('local only');
+const h=n=>'0x'+BigInt(n).toString(16).padStart(64,'0');
+const routes=['/v1/markets?limit=50&sort=name_asc','/v1/updates','/v1/market-statistics?markets='+Array.from({length:50},(_,i)=>h(i+1)).join(','),`/v1/markets/${h(1)}/detail?period=1D`];
+const report={scope:'real HTTP local Hono/PostgreSQL, retained local market fixture, no CDN cache; in-flight request coalescing enabled',runtime:process.version,runs:[]};
+for(const concurrency of [1,4,16,64]){let next=0,latency=[],status={},errors={},bytes=0;const start=performance.now();await Promise.all(Array.from({length:concurrency},async()=>{for(;;){const n=next++;if(n>=128)break;const t=performance.now();try{const r=await fetch(config.origin+routes[n%4],{signal:AbortSignal.timeout(30000)});const body=await r.text();bytes+=Buffer.byteLength(body);status[r.status]=(status[r.status]??0)+1;if(!r.ok){const m=JSON.parse(body).message??body;errors[m]=(errors[m]??0)+1}}catch(e){errors[e.message]=(errors[e.message]??0)+1}latency.push(performance.now()-t)}}));latency.sort((a,b)=>a-b);const ms=performance.now()-start;report.runs.push({concurrency,requests:128,totalMs:ms,rps:128000/ms,p50Ms:latency[64],p95Ms:latency[121],status,errors,bytes});console.log('http concurrency',concurrency,'done')}
+writeFileSync(new URL('http-load.json',dir),JSON.stringify(report,null,2)+'\n');

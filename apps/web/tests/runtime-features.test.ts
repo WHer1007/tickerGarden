@@ -214,7 +214,7 @@ test("canonical market binding rejects pool key hash and key invariant drift", (
   assert.throws(() => assertCanonicalMarketBinding(fixture.api as never, fixture.rawMarket, [fixture.rawRoute[0], bytes32("f"), ...fixture.rawRoute.slice(2)]), /keccak256/);
   const wrongKey = [fixture.key[1], fixture.key[0], fixture.key[2], fixture.key[3], fixture.key[4]] as const;
   const wrongKeyRoute = [wrongKey, fixture.poolId, ...fixture.rawRoute.slice(2)] as const;
-  assert.throws(() => assertCanonicalMarketBinding(fixture.api as never, fixture.rawMarket, wrongKeyRoute), /currency0 Quote\/Meme ordering/);
+  assert.throws(() => assertCanonicalMarketBinding(fixture.api as never, fixture.rawMarket, wrongKeyRoute), /currency0 paired-asset\/token ordering/);
 });
 
 test("canonical market binding rejects inconsistent API pool nullability", () => {
@@ -323,4 +323,16 @@ test("current Registry route binds core pool facts without any external service 
  const current=[...f.rawRoute.slice(0,2),...f.rawRoute.slice(4)];
  const api={...f.api,canonicalRoute:{...f.api.canonicalRoute,router:addr('0'),quoter:addr('0')}};
  assert.doesNotThrow(()=>assertCanonicalMarketBinding(api as never,f.rawMarket,current));
+});
+
+test('canonical route is bound to immutable LP fee, with legacy zero-fee object compatibility',()=>{
+ const f=canonicalMarketFixture();
+ for(const fee of [0,1000,2000,3000]) {
+  const key: (string|number)[]=[...f.key];key[2]=fee;
+  const id=keccak256(encodeAbiParameters([{type:'address'},{type:'address'},{type:'uint24'},{type:'int24'},{type:'address'}],key as never));
+  const route=[key,id,...f.rawRoute.slice(2)];
+  const raw={...f.rawMarket,config:[...f.rawMarket.config,false,fee]};
+  assert.doesNotThrow(()=>assertCanonicalMarketBinding(f.api as never,raw,route));
+  assert.throws(()=>assertCanonicalMarketBinding(f.api as never,{...raw,config:[...f.rawMarket.config,false,(fee+1000)%4000]},route),/pool fee/);
+ }
 });

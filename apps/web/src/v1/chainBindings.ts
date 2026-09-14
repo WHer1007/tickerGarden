@@ -191,7 +191,7 @@ export function assertCanonicalMarketBinding(
   same(bytes32(field(config, "assetUid", 0), "Market.assetUid", disabledStaking), bytes32(api.assetUid, "API assetUid", disabledStaking), "market assetUid");
   same(bytes32(field(config, "tickerGardenBaselineId", 1), "Market.tickerGardenBaselineId", false), bytes32(api.tickerGardenBaselineId, "API tickerGardenBaselineId", false), "market TickerGarden baseline");
   same(bytes32(field(config, "quoteAssetConfigId", 2), "Market.quoteAssetConfigId", false), bytes32(api.quoteAssetConfigId, "API quoteAssetConfigId", false), "market Quote config");
-  same(address(field(config, "memeToken", 9), "Market.memeToken"), address(api.memeToken, "API memeToken"), "market Meme token");
+  same(address(field(config, "memeToken", 9), "Market.memeToken"), address(api.memeToken, "API memeToken"), "market created token");
   same(address(field(config, "curve", 10), "Market.curve"), address(api.curve, "API curve"), "market Curve");
   same(address(field(config, "gauge", 11), "Market.gauge", disabledStaking), address(api.gauge, "API gauge", disabledStaking), "market Gauge");
   same(address(field(config, "quoteAsset", 12), "Market.quoteAsset", true), address(api.quoteAsset, "API quoteAsset", true), "market Quote asset");
@@ -210,7 +210,7 @@ export function assertCanonicalMarketBinding(
   same(routeHook, address(api.canonicalRoute.hook, "API route.hook"), "route hook");
   same(routeHook, address(field(config, "graduatedHook", 13), "Market.graduatedHook"), "market graduated hook");
   same(address(field(rawRoute, "quoteAsset", 3 + routeOffset), "Route.quoteAsset", true), address(api.quoteAsset, "API quoteAsset", true), "route Quote asset");
-  same(address(field(rawRoute, "memeToken", 4 + routeOffset), "Route.memeToken"), address(api.memeToken, "API memeToken"), "route Meme token");
+  same(address(field(rawRoute, "memeToken", 4 + routeOffset), "Route.memeToken"), address(api.memeToken, "API memeToken"), "route created token");
   same(address(field(rawRoute, "gauge", 5 + routeOffset), "Route.gauge", disabledStaking), address(api.gauge, "API gauge", disabledStaking), "route Gauge");
   same(address(field(rawRoute, "curve", 6 + routeOffset), "Route.curve"), address(api.curve, "API curve"), "route Curve");
   same(address(field(rawRoute, "launchLocker", 7 + routeOffset), "Route.launchLocker"), address(api.canonicalRoute.launchLocker, "API route.launchLocker"), "route LaunchLocker");
@@ -230,9 +230,11 @@ export function assertCanonicalMarketBinding(
   const memeToken = address(api.memeToken, "API memeToken");
   const expectedCurrency0 = quoteAsset < memeToken ? quoteAsset : memeToken;
   const expectedCurrency1 = quoteAsset < memeToken ? memeToken : quoteAsset;
-  same(routeCurrency0, expectedCurrency0, "pool currency0 Quote/Meme ordering");
-  same(routeCurrency1, expectedCurrency1, "pool currency1 Quote/Meme ordering");
-  same(routeFee, 0, "pool fee");
+  same(routeCurrency0, expectedCurrency0, "pool currency0 paired-asset/token ordering");
+  same(routeCurrency1, expectedCurrency1, "pool currency1 paired-asset/token ordering");
+  const configuredLpFee = Array.isArray(config) ? config[18] : (config as Record<string,unknown>).lpFeePips;
+  const expectedLpFee = configuredLpFee === undefined ? 0 : integer(configuredLpFee, "Market.lpFeePips");
+  if (![0, 1000, 2000, 3000].includes(expectedLpFee) || routeFee !== expectedLpFee) throw new Error("pool fee does not match market config");
   same(routeKeyHook, routeHook, "pool key hook");
   const encodedPoolKey = encodeAbiParameters(
     [

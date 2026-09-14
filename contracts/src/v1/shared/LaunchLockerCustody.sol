@@ -29,7 +29,7 @@ abstract contract LaunchLockerCustody is LaunchLockerBinding {
         bytes32 suppliedPoolId = keccak256(abi.encode(key));
         if (
             boundMarketId != marketId_ || key.currency0 != expectedCurrency0 || key.currency1 != expectedCurrency1
-                || key.currency0 >= key.currency1 || key.fee != 0 || key.hooks != marketView.config.graduatedHook
+                || key.currency0 >= key.currency1 || key.fee != marketView.config.lpFeePips || key.hooks != marketView.config.graduatedHook
                 || suppliedPoolId != boundPoolId
         ) revert InvalidLaunchLockerPoolKey(marketId_, suppliedPoolId, boundPoolId);
 

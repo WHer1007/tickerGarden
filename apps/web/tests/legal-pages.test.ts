@@ -25,7 +25,7 @@ test("privacy and terms pages expose complete legal-page structure", () => {
   assert.match(privacy, /Pre-launch legal draft/);
   assert.match(terms, /Pre-launch legal draft/);
   assert.match(privacy, /Public blockchain and distributed records/);
-  assert.match(terms, /Ticker Meme and STOCK relationship/);
+  assert.match(terms, /Created-token and STOCK relationship/);
   assert.match(terms, /UserStockVault/);
   assert.match(terms, /Bloomed/);
   assert.match(terms, /rageQuit/);
@@ -64,7 +64,10 @@ test("shared navigation exposes Explore and keeps Home out of the primary links"
   assert.match(communityLinks, /footerLink\("stats", "Stats", "\/stats"\).*footerLink\("docs", "Docs", "\/docs"\)/);
   assert.doesNotMatch(headerShell, /class="chain-tag"/);
   assert.match(footerShell, /class="chain-tag" title="\$\{robinhoodChain\.name\}"/);
-  assert.match(footerShell, /<\/i>Robinhood Chain<\/span>/);
+  assert.match(footerShell, /robinhoodFeatherUrl/);
+  assert.match(footerShell, />Robinhood Chain<\/span>/);
+  assert.match(footerShell, /href="https:\/\/x\.com\/TickerGarden" target="_blank" rel="noopener noreferrer"/);
+  assert.match(footerShell, /aria-label="Visit TickerGarden on X"/);
 });
 
 test("Vite keeps legal pages in the SPA while allowing route chunking", () => {

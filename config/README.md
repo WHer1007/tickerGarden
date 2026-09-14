@@ -1,9 +1,11 @@
 # 分支与集中环境配置
 
-日常只维护仓库根目录的两份文件：
+仓库根目录的两份忽略文件只用于本机运维和验证，不能作为 Vercel 的测试或生产环境来源：
 
-- `.env.test.local`：当前独立联调，Robinhood Testnet 46630。RPC、数据库、前端地址、合约发布标识、IPFS/Dune 凭证均在这里。
-- `.env.master.local`：正式环境，Robinhood 4663。当前没有正式部署配置，`TG_RUNTIME_CONFIGURED=false`，启动器会拒绝启动；不能复制测试地址填充。
+- `.env.test.local`：本机控制 Robinhood Testnet 46630 工具与本地服务时使用。文件可以含 loopback 网关、本机数据库和工作目录，因此部署构建明确拒绝读取它。
+- `.env.master.local`：Robinhood Mainnet 4663 的本机只读验证与发布准备。它不是生产 Vercel 配置，不能复制测试地址填充。
+
+部署测试环境以 Vercel Preview 作用域为准；部署生产环境以 Vercel Production 作用域为准。四个服务分别维护环境变量，不从根目录 `.env.*.local` 上传、复制或推断。完整矩阵见 [`docs/operations/ENVIRONMENT_AND_BRANCH_POLICY.md`](../docs/operations/ENVIRONMENT_AND_BRANCH_POLICY.md)。
 
 文件权限必须为 `0600`，均被 Git 忽略。`test.env.example` / `master.env.example` 是无凭证模板，不是第二套运行配置。旧的 `.env`、前后端局部配置和 IPFS 文件已归档到本机 `.codex_tmp/config-backup-2026-09-09/`，不再自动读取，也不需要继续维护。历史发布目录的 `*.public.env`、JSON、R6 overlay 是证据，不是当前启动入口。
 
@@ -11,8 +13,9 @@
 
 ## 当前分支职责
 
-- `test`：保存目前完整的开发与独立联调源码。本轮以 Git checkpoint 固化此前的未提交工作，不等于正式发布批准。
-- `master`：保留既有业务源码；只增加集中配置入口和防误用规则。没有把开发分支的合约经济策略自动合入正式分支。
+- `codex/*`：功能开发、本地联调和审查分支，禁止部署或绑定任何 Vercel 别名。
+- `test`：唯一测试发布分支。功能分支经审查合入后，才可从这里发布 Robinhood Testnet 与 Vercel Preview 测试别名。
+- `master`：唯一生产发布分支。只能晋级已经在 `test` 验收的同一产品源码；生产部署仍需明确批准。
 - `codex/v1-testnet-release-candidate`：保留原开发起点，供回溯；不再作为日常开发入口。
 - `archive/master-before-env-2026-09-09` 标签：整理前的 master 恢复点。
 
@@ -33,7 +36,7 @@
 
 **24h Holder stream、4h 默认 funding interval 与 1h–24h 可配置范围属于当前 V4 policy。** 5s anti-snipe 与 test/master 经济参数仍按各分支源码和已保存部署断言校验；旧 Treasury epoch、raw-exit 和 root-window 环境键即使出现在遗留本地文件中，也不再参与当前 V4 判断。
 
-金额按配对资产原始单位存储，不可把所有 Stock 的门槛当成 ETH 门槛。本次当前发布中 TSLA 为 2.6 TSLA；其余资产分别使用 `apps/web/public/integration/rh-5c2c656b.json` 中绑定的 quote 配置，公开地址/池信息保留在 `deployments/manifests/`。未为 master 杜撰或复制 Stock 的正式报价配置。
+金额按配对资产原始单位存储，不可把所有 Stock 的门槛当成 ETH 门槛。本次当前发布中 TSLA 为 2.6 TSLA；其余资产分别使用 `apps/web/tests/fixtures/integration/rh-5c2c656b.json` 中绑定的 quote 配置，公开地址/池信息保留在 `deployments/manifests/`。未为 master 杜撰或复制 Stock 的正式报价配置。
 
 ## 启动与检查
 
@@ -57,7 +60,7 @@ node tools/environment.mjs check master
 node tools/environment.mjs run master web
 ```
 
-测试打包需带测试配置时：`node tools/environment.mjs run test web build`。普通 `npm --prefix apps/web run build` 是无环境的编译检查，不加载任何局部 `.env`。
+普通 `npm --prefix apps/web run build` 是无环境的编译检查，不加载任何局部 `.env`。部署构建只能使用目标 Vercel 项目的 Preview 或 Production 作用域变量；不得通过 `environment.mjs run ... web build` 注入本机配置。
 
 启动器先检查分支、chain ID、HolderRewardsDistributor V4 的 24h/4h/1h–24h policy、源码锁定时长/anti-snipe，并核对测试 bootstrap 的 release/factory/ETH economics。拒绝跨分支、旧 R6 短周期、测试主网混用和公开 VITE 凭证变量。Web 仅接收 `VITE_*`；read-api、pipeline、content 分别获得自己的数据库角色与运行凭据，Pinata/S3 凭证只交给 content，Alchemy Webhook/QStash chain 凭证只交给 pipeline；网关仅接收网关配置与 RPC 上游。`api` 和 `content-worker` 仅作为旧命令别名，实际分别启动 TypeScript `read-api` 和 `content`，不再调用 Go。Shell 中旧的 TG/VITE/凭证变量不会覆盖选定文件。
 

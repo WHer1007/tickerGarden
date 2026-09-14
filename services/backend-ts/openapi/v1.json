@@ -2,7 +2,7 @@
   "openapi": "3.1.0",
   "info": {
     "title": "TickerGarden V1 Read API",
-    "version": "4.6.0",
+    "version": "5.1.0",
     "description": "Non-custodial TypeScript Serverless read API for the routes consumed by the current frontend."
   },
   "x-execution-spec-id": "V1-EXEC-11",
@@ -157,7 +157,7 @@
     "/v1/stats/holders": {
       "get": {
         "operationId": "getGlobalHolderCounts",
-        "description": "TypeScript Serverless backend. Full finalized market histories in one snapshot. Global and per-STOCK positive addresses are deduplicated; market-address pairs are separate. Adjusted counts exclude the union of known protocol addresses across all markets. These are addresses, not people or reward eligibility. At most 1000 markets and 1000000 positive market-address pairs; complete-history budgets and 10-second timeout apply. Missing or oversized histories return 503. These nine history/transaction observation routes share a limit of four active requests per API instance. Excess requests return 503 analytics_unavailable with Retry-After: 5, without queueing.",
+        "description": "TypeScript backend. Incremental exact global and per-STOCK positive-address counts at a finalized shared coverage anchor. Adjusted counts exclude the union of known protocol addresses. Counts are addresses, not people or reward eligibility. Missing coverage returns 503. These nine history/transaction observation routes share a limit of four active requests per API instance. Excess requests return 503 analytics_unavailable with Retry-After: 5, without queueing.",
         "responses": {
           "200": {
             "description": "Success",
@@ -976,12 +976,12 @@
     "/v1/market-statistics": {
       "get": {
         "operationId": "getMarketStatistics",
-        "description": "Display-only cached market cap and last observed buy, independent of financial snapshot synchronization. Queues at most 100 registry-bound market IDs; never performs RPC in the request. Unknown historical buys remain null.",
+        "description": "Display-only statistics for 1 to 100 explicit market IDs. Enumerate markets with the paginated market list; unbounded requests are rejected. Never performs RPC in the request. Unknown historical buys remain null.",
         "parameters": [
           {
             "name": "markets",
             "in": "query",
-            "required": false,
+            "required": true,
             "schema": {
               "type": "string",
               "maxLength": 6699
@@ -2526,12 +2526,12 @@
           "marketCount": {
             "type": "integer",
             "minimum": 0,
-            "maximum": 1000
+            "maximum": 9007199254740991
           },
           "positiveMarketAddressPairs": {
             "type": "integer",
             "minimum": 0,
-            "maximum": 1000000
+            "maximum": 9007199254740991
           },
           "positiveAddressCount": {
             "type": "integer",
@@ -5192,6 +5192,15 @@
           },
           "burnMemeFees": {
             "type": "boolean"
+          },
+          "lpFeePips": {
+            "type": "integer",
+            "enum": [
+              0,
+              1000,
+              2000,
+              3000
+            ]
           },
           "stakingEnabled": {
             "type": "boolean"

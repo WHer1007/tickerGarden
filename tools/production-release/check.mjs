@@ -1,0 +1,53 @@
+import fs from 'node:fs';
+import path from 'node:path';
+import assert from 'node:assert/strict';
+import {read,sha,json,equal,keccak256,toBytes,sourceSnapshot} from './common.mjs';
+import {verifyAndBuildRuntime} from './runtime-plan.mjs';
+import {buildActivation} from './activation-plan.mjs';
+export function checkCandidate(output){
+ const runtime=read(path.join(output,'runtime-plan.json')),activation=read(path.join(output,'activation-plan.json'));
+ const pack=read(path.join(output,'transactions.unsigned.json')),snapshot=read(path.join(output,'mainnet-snapshot.json'));
+ const provenance=read(path.join(output,'runtime-build-provenance.json')),lock=read(path.join(output,'input-lock.json'));
+ const prep=read('deployments/manifests/robinhood-mainnet-4663.preparation.json');
+ assert.equal(pack.chainId,4663);assert.equal(pack.broadcastAuthorized,false);assert.equal(pack.productionReady,false);
+ assert.equal(prep.broadcastAuthorized,false);assert.equal(snapshot.failures.length,0);assert.equal(snapshot.chainId,4663);assert.equal(prep.chainId,4663);
+ for(const [key,value] of Object.entries(prep.forkPin))equal(value,snapshot.pin[key],'preparation fork pin '+key);
+ for(const key of ['addresses','holderSnapshots','lpCompounding','operatorWalletPolicy'])equal(json(runtime.configuration[key]),json(prep[key]),'approved configuration '+key);
+ equal(keccak256(toBytes(json({domain:'TICKERGARDEN_MAINNET_PRODUCTION_RELEASE_V1',configuration:runtime.configuration,codeHashes:provenance.codeHashes}))),runtime.releaseId,'release source/configuration commitment');
+ equal(json(lock.files),json(sourceSnapshot()),'complete current input lock');
+ assert.equal(pack.sourceBundleStatus,'CONTRACT_RELEASE_INPUTS_ARCHIVED_AND_HASHED');
+ for(const [file,hash] of Object.entries(lock.files))equal(sha(path.join(output,'source-archive/repository',file)),hash,'archived release input '+file);
+ for(const [file,hash] of Object.entries(provenance.codeHashes))equal(sha(file),hash,'deployed code source '+file);
+ equal(json(verifyAndBuildRuntime(read(path.join(output,'runtime-export.json')).returns.encoded.value,runtime.configuration,runtime.releaseId,snapshot.accounts.deployer.nonce)),json(runtime),'full runtime regeneration');
+ equal(json(buildActivation(runtime,read(path.join(output,'runtime-code.json')))),json(activation),'full activation regeneration');
+ const intended=[...runtime.transactions,...activation.transactions];
+ const receipts=fs.readFileSync(path.join(output,'simulation-receipts.jsonl'),'utf8').trim().split('\n').map(JSON.parse);
+ const native=read(path.join(output,'native-fee-quotes.json'));assert.equal(intended.length,34);assert.equal(pack.transactions.length,intended.length);assert.equal(receipts.length,intended.length);assert.equal(native.quotes.length,intended.length);
+ assert.equal(native.chainId,4663);equal(json(native.pin),json(snapshot.pin),'native fee pin');equal(json(pack.pin),json(snapshot.pin),'transaction pack pin');
+ const price=BigInt(snapshot.network.gasPriceWei);let expectedFee=0n,maximumFee=0n,totalGas=0n;
+ for(let i=0;i<intended.length;i++){
+  const tx=pack.transactions[i],original=intended[i],receipt=receipts[i],l1=native.quotes[i];
+  for(const [key,value] of Object.entries(original))equal(json(tx[key]),json(value),'transaction field '+i+' '+key);
+  equal(tx.nonce,pack.startingNonce+i,'sequential nonce');equal(tx.chainId,4663,'transaction chain');equal(tx.from,runtime.deployer,'transaction sender');equal(tx.value,0,'transaction value');
+  equal(keccak256(tx.data),tx.inputHash,'transaction data hash');equal(receipt.inputHash,tx.inputHash,'simulated calldata');equal(l1.inputHash,tx.inputHash,'native fee calldata');
+  equal(BigInt(tx.gasLimit),(BigInt(receipt.estimatedEvmGas)+BigInt(l1.gasEstimateForL1))*125n/100n+25000n,'gas limit');
+  assert.ok(BigInt(tx.gasLimit)<BigInt(snapshot.network.maxTxGas),'gas budget');equal(tx.maxFeePerGas,price*2n,'proposed max fee');equal(tx.maxPriorityFeePerGas,1000000,'proposed priority');
+  equal(tx.feeCeilingWei,BigInt(tx.gasLimit)*BigInt(tx.maxFeePerGas),'transaction fee ceiling');
+  equal(tx.estimatedEvmGas,receipt.estimatedEvmGas,'EVM estimate');equal(tx.simulatedEvmGasUsed,receipt.evmGasUsed,'EVM gas used');equal(tx.nativeL1GasEstimate,l1.gasEstimateForL1,'native L1 gas');
+  assert.ok(BigInt(receipt.evmGasUsed)<=BigInt(tx.gasLimit),'receipt within gas cap');
+  const used=BigInt(receipt.evmGasUsed)+BigInt(l1.gasEstimateForL1);totalGas+=used;expectedFee+=used*price;maximumFee+=BigInt(tx.feeCeilingWei);
+  for(const key of ['signature','r','s','v','rawTransaction','serializedTransaction'])assert.ok(!Object.hasOwn(tx,key),'unsigned only');
+ }
+ const funding=read(path.join(output,'fee-budget.json')),balance=BigInt(snapshot.accounts.deployer.balanceWei);
+ equal(funding.totalGas,totalGas,'fee budget gas');equal(funding.totalExpectedWei,expectedFee,'expected total fee');equal(funding.totalMaximumWei,maximumFee,'maximum total fee');equal(funding.currentDeployerBalanceWei,balance,'observed balance');equal(funding.shortfallToCeilingWei,maximumFee>balance?maximumFee-balance:0n,'funding shortfall');
+ assert.equal(funding.status,maximumFee>balance?'DEPLOYER_TOP_UP_REQUIRED':'BALANCE_COVERS_PROPOSED_CEILING');
+ const simulation=read(path.join(output,'simulation-summary.json')),drills=read(path.join(output,'release-drills.json')),build=read(path.join(output,'reproducible-build.json'));
+ assert.equal(simulation.status,'LOCAL_FORK_INITIALIZATION_PASSED_NOT_BROADCAST');assert.equal(simulation.totalTransactions,34);
+ assert.equal(drills.status,'LOCAL_FORK_DRILLS_PASSED_NOT_MAINNET_CONTROL_PROOF');assert.equal(drills.transferResults.length,194);assert.equal(drills.marketPreviews.length,196);assert.equal(drills.marketPreviews.filter(x=>x.creationGas).length,3);
+ equal(simulation.releaseId,runtime.releaseId,'simulation release');equal(drills.releaseId,runtime.releaseId,'drill release');
+ equal(json(drills.transferResults.map(x=>x.assetUid)),json(activation.stakes.map(x=>x.assetUid)),'every approved Stock exercised');assert.ok(drills.transferResults.every(x=>x.exactDepositAndWithdrawal===true));
+ equal(json(drills.marketPreviews.map(x=>x.quoteConfigId)),json(activation.quoteConfigs.map(x=>x.configId)),'every approved Quote exercised');
+ assert.equal(build.status,'REPRODUCTION_PASSED');assert.equal(build.artifactCount,23);assert.equal(build.failures.length,0);assert.ok(build.artifacts.every(x=>x.abi&&x.creation&&x.deployed));
+ return {status:'PRODUCTION_CANDIDATE_TECHNICAL_CHECK_PASSED_NOT_BROADCAST',releaseId:runtime.releaseId,transactions:34,registrationOperations:417,stocks:194,quotes:196,sourceFiles:Object.keys(lock.files).length,externallyPending:['final independent security and legal/license signoffs','two Safe signature control evidence','explicit broadcast authorization','fresh live nonce/gas/codehash recheck'],postBroadcastPending:['canonical receipts and source verification','production runtime activation and monitoring/soak']};
+}
+if(process.argv[1]===new URL(import.meta.url).pathname)console.log(json(checkCandidate(path.resolve(process.argv[2]??'docs/reviews/evidence/production-release-2026-09-15'))));

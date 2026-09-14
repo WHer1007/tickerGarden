@@ -1,6 +1,6 @@
 # TickerGarden VPS runtime
 
-This stack hosts the stateful services that cannot run in Vercel Functions. Test and production share one VPS while remaining isolated by Docker networks, PostgreSQL instances and volumes, MinIO instances and buckets, queue databases, credentials, ports, and public hostnames.
+This stack hosts the stateful services and persistent chain connections used alongside Vercel Functions. Test and production share one VPS while remaining isolated by Docker networks, PostgreSQL instances and volumes, MinIO instances and buckets, queue databases, credentials, ports, and public hostnames.
 
 Only the test environment is active. Production services are assigned to the Compose `production` profile, so the default `docker compose up -d` cannot start them. Production volumes and configuration are retained for a later release, but production PostgreSQL, queue, MinIO, Vercel runtime variables, and Alchemy ingestion remain inactive.
 
@@ -26,3 +26,6 @@ The test host runs `tickergarden-price-refresh-test.timer` once per minute. Its 
 `tickergarden-chain-refresh-test.timer` advances finalized filtered-event coverage every five minutes through the pipeline bootstrap endpoint. `tickergarden-chain-dispatch-test.timer` repairs and dispatches due continuation jobs once per minute so a large catch-up does not wait for the next bootstrap. Sparse ingestion compares filtered logs from two RPC providers and stores only event blocks plus range boundaries; it does not poll or persist every block. These timers keep the finalized observation inside the frontend's 20-minute freshness window during quiet periods without returning to per-block webhook traffic.
 
 Kafka or Redpanda can replace the relay storage when traffic requires partitioned, multi-node streaming. On the current 2 vCPU / 4 GB single host, PostgreSQL-backed delivery keeps message durability while avoiding a second clustered storage system with no high-availability benefit.
+
+
+Optional resident chain processing uses the separately enabled `systemd/tickergarden-resident-worker-test.service`; it is not started by Compose by default. See `docs/operations/RESIDENT_INDEXER.md` for queue-mode cutover, rollback, connection budgets, and region verification. The control connection must be direct or session pooled. Templates do not establish that the service is deployed or the VPS region has been freshly verified.

@@ -182,3 +182,14 @@ test("Arbitrum Sepolia can only be a test deployment candidate, never the produc
   candidate.releaseStatus = "PRODUCTION_CANDIDATE";
   assert.equal(validateV1DeploymentManifestSchema(candidate).valid, false);
 });
+
+test('deployment schema permits exactly the creator static LP fee tiers',()=>{
+ for(const fee of [0,1000,2000,3000,500,4000,8388608]) {
+  const candidate=clone(validManifest());
+  const hook=candidate.hook as JsonRecord;
+  hook.poolKeyFee=fee;hook.requiredSlot0LpFee=fee;
+  const probe=(candidate.livePreflight as JsonRecord).marketProbe as JsonRecord;
+  (probe.poolKey as JsonRecord).fee=fee;
+  assert.equal(validateV1DeploymentManifestSchema(candidate).valid,[0,1000,2000,3000].includes(fee));
+ }
+});

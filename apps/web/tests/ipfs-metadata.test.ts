@@ -2,13 +2,23 @@ import assert from 'node:assert/strict';
 import {test} from 'node:test';
 import {isIPFSFileURI,ipfsGatewayURL} from '../src/create/ipfs.ts';
 import {publishLaunchDetails} from '../src/create/metadata.ts';
-import {readDetailMetadata} from '../src/v1/tokenMetadata.ts';
+import {readDetailMetadata,rememberDetailMetadata} from '../src/v1/tokenMetadata.ts';
 const uri='ipfs://Qm'+'a'.repeat(44);
 test('IPFS only resolves bare CIDs using an explicit HTTPS gateway',()=>{
  assert.equal(isIPFSFileURI(uri),true);
  assert.equal(ipfsGatewayURL(uri,'https://gateway.example'),`https://gateway.example/ipfs/${uri.slice(7)}`);
  for(const invalid of [uri+'/../secret',uri+'?x=1','ipfs://pending-launch-preview','ipfs://evil.example'])assert.equal(isIPFSFileURI(invalid),false);
+ assert.equal(ipfsGatewayURL(uri,'http://127.0.0.1:8797'),`http://127.0.0.1:8797/ipfs/${uri.slice(7)}`);
  for(const gateway of [undefined,'http://gateway.example','https://user:secret@gateway.example','https://gateway.example/path'])assert.equal(ipfsGatewayURL(uri,gateway),null);
+});
+test('publisher response primes detail content before an IPFS gateway has indexed it',async()=>{
+ const cid='ipfs://Qm'+'e'.repeat(44);let requests=0;const prior=globalThis.fetch;
+ try{
+  globalThis.fetch=async()=>{requests++;throw new Error('gateway should not be called');};
+  rememberDetailMetadata(cid,{description:'Published description',properties:{website:'https://token.example'}},'https://metadata.example','https://gateway.example');
+  const detail=await readDetailMetadata(cid,'https://metadata.example',new AbortController().signal,'https://gateway.example');
+  assert.equal(detail?.description,'Published description');assert.equal(detail?.website,'https://token.example/');assert.equal(requests,0);
+ }finally{globalThis.fetch=prior;}
 });
 test('publisher returns canonical metadata and detail reader handles IPFS without any RPC',async()=>{
  const fetchBefore=globalThis.fetch;const metadata={name:'Token',image:uri,properties:{x:'https://x.com/token',website:'https://token.example'},description:'Test'};

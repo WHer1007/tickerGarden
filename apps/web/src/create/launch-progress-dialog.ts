@@ -12,12 +12,15 @@ export type LaunchProgressState = {
   outcome?: boolean;
   complete?: boolean;
   tokenName?: string;
+  tokenSymbol?: string;
+  tokenLogo?: string;
 };
 
 export type LaunchProgressActions = {
   onHash?: (hash: string) => void;
   onDismiss?: () => void;
   onViewToken?: () => void;
+  onCreateNew?: () => void;
 };
 
 const STAGES = [
@@ -70,7 +73,20 @@ export function renderLaunchProgress(state: LaunchProgressState, actions: Launch
     const icon=element('i','ph ph-check-circle launch-progress-dialog__outcome-icon');icon.setAttribute('aria-hidden','true');content.append(icon);
   }
   content.append(heading);
-  if(state.outcome&&state.tokenName){const name=element('p','launch-progress-dialog__token');name.textContent=state.tokenName;content.append(name);}
+  if(state.outcome&&(state.tokenName||state.tokenSymbol)){
+    const identity=element('div','launch-progress-dialog__identity');
+    const image=element('span','launch-progress-dialog__token-image');
+    const placeholder=element('i','ph ph-plant');placeholder.setAttribute('aria-hidden','true');image.append(placeholder);
+    if(state.tokenLogo){
+      const logo=element('img');logo.src=state.tokenLogo;logo.alt='';logo.addEventListener('load',()=>image.classList.add('has-image'));
+      logo.addEventListener('error',()=>logo.remove());image.append(logo);
+    }
+    const copy=element('div');
+    const name=element('strong');name.textContent=state.tokenName||'Your token';
+    const symbol=element('span');symbol.textContent=state.tokenSymbol?`$${state.tokenSymbol}`:'';
+    copy.append(name);if(state.tokenSymbol)copy.append(symbol);
+    identity.append(image,copy);content.append(identity);
+  }
 
   const status = element('div', 'launch-progress-dialog__status');
   status.setAttribute('role', 'status');
@@ -98,13 +114,19 @@ export function renderLaunchProgress(state: LaunchProgressState, actions: Launch
     : STAGES.findIndex((stageName) => stageName === state.step || (state.step === 'Approve asset' && stageName === 'Approve asset (if needed)'));
   STAGES.forEach((stageName, index) => {
     const item = element('li');
-    item.textContent = stageName;
+    const stageIcon=element('i');stageIcon.setAttribute('aria-hidden','true');
+    const label=element('span');label.textContent=stageName;
     if (index < activeIndex || (activeIndex === STAGES.length - 1 && index === activeIndex)) {
       item.dataset.state = 'complete';
+      stageIcon.className='ph ph-check-circle';
     } else if (index === activeIndex) {
       item.dataset.state = 'current';
       item.setAttribute('aria-current', 'step');
+      stageIcon.className='ph ph-circle-notch';
+    } else {
+      stageIcon.className='ph ph-circle';
     }
+    item.append(stageIcon,label);
     stages.append(item);
   });
   if(!state.outcome)content.append(stages);
@@ -161,9 +183,17 @@ export function renderLaunchProgress(state: LaunchProgressState, actions: Launch
     content.append(link);
   }
 
-  if(state.complete&&actions.onViewToken){
-    const view=element('button','launch-progress-dialog__view');view.type='button';view.textContent='View Token';
-    view.addEventListener('click',()=>actions.onViewToken?.());content.append(view);
+  if(state.complete&&(actions.onViewToken||actions.onCreateNew)){
+    const controls=element('div','launch-progress-dialog__complete-actions');
+    if(actions.onViewToken){
+      const view=element('button','launch-progress-dialog__view');view.type='button';view.textContent='View Token';
+      view.addEventListener('click',()=>actions.onViewToken?.());controls.append(view);
+    }
+    if(actions.onCreateNew){
+      const create=element('button','launch-progress-dialog__create-new');create.type='button';create.textContent='Create new one';
+      create.addEventListener('click',()=>actions.onCreateNew?.());controls.append(create);
+    }
+    content.append(controls);
   }
 
   if (state.canDismiss) {

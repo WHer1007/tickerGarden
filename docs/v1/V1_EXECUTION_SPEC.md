@@ -1,15 +1,12 @@
 # TickerGarden V1 可验证执行规范
 
-> 新源码领取路径已切换为用户选择兑换/原币，Holder 双资产分别释放，取消该路径额外 7 天等待。minimumQuote 继续为 0，保留有效期。新版本不支持 operator 集体兑换；以下旧阶段的批量兑换/等待期开关说明仅适用于旧部署。完整行为见 `docs/v1/V1_REWARD_CONVERSION.md`。本次未部署。
+更新：2026-09-14。版本：`V1-EXEC-11`。本文描述当前源码；`NOT_PRODUCTION_READY / NOT_BROADCAST`，历史部署与测试结果不自动赋予新源码发布资格。
 
+当前 UserClaims 支持选择 Quote、Meme 或同时领取两种原资产，没有内部兑换、minimumQuote、deadline 或兑换额外等待期。Staker 的24小时锁与退出结算条件继续有效；`burnMemeFees` 市场按冻结配置销毁 Meme 收益。旧兑换版本说明见 [历史领取版本](./V1_REWARD_CONVERSION.md)。
 
-> 2026-09-10 兑换策略更新：项目奖励兑换不设置价格保护，minimumQuote=0，池子模拟仅提供预计到账；20 分钟参考窗口、价格偏离和参考输出折扣不再作为成交门槛。Go 独立参考签名只验证来源和请求身份，不作价格否决。下文历史阶段中关于非零最低到账、滑点下限或参考价价格否决的描述已由本说明取代。未部署，旧合约行为不变。
+TickerGarden 毕业后基础费按核心 Swap 实际 unspecified delta 收取1%；Creator tax 使用相同基数独立向下取整，创建时在0–500 bps内选择并冻结。基础费在有 Active staker 时按 Creator40% / Staker30% / Platform30% 分配，无 Active staker 时按 Creator70% / Staker0% / Platform30% 分配；Staker、Platform 向下取整，整数余数归 Creator。全部 Creator tax 另归 Creator，不参与上述比例，也不参与 Holder 对 Creator 基础费份额的分成。
 
-
-> 版本：`V1-EXEC-11` | 当前源码：`NOT_PRODUCTION_READY / NOT_BROADCAST`；历史部署资格不适用于 2026-09-10 修订，须以新发布的验证证据为准。
-> 2026-09-05：本版允许市场从管理员批准的任意 `ACTIVE` Quote 白名单配置中选择资产，并加固 Registry/组件绑定、Vault 代码身份及原子毕业金额；原生 ETH 不是唯一 Quote。新增并本地验证官方 Robinhood Stock Token 的 BeaconProxy 专用 Quote 准入、指纹钉死、身份漂移 fail-closed 与部署 preflight；普通 direct immutable ERC-20 门禁不变。旧 V1-EXEC-10 已 superseded。
-
-本版手续费规则：TickerGarden 毕业后基础费按核心 Swap 实际 delta 收取 1%，Creator tax 使用相同基数并单独向下取整。下述 Core protocol fee 的基数或收费资产可能不同，须单列展示，不将不同基数的费率相加冒称实际总费。存在 Active staker 时，TickerGarden 基础费按 Creator 40% / Staker 30% / Platform 30% 分配；不存在 Active staker 时按 Creator 70% / Staker 0% / Platform 30% 分配。Staker 与 Platform 份额向下取整，整数余数归 Creator。PoolKey.fee 与 LP fee 为 0；pinned v4 Core protocol fee 可按方向独立存在，单方向最高 1000 pips（0.1%），由 PoolManager 独立收取，不进入 FeeVault。Hook 不再调用 `PoolManager.donate`，LaunchLocker 不再 collect/compound；canonical LP 仍永久锁定但不获得协议 LP 手续费。自动奖励兑换不递归收取 TickerGarden 自身费用，但 Core protocol fee 仍影响实际输出并参与 98% 参考输出校验。
+PoolKey.fee 使用创建时冻结的 lpFeePips（0/1000/2000/3000）；协议 LP 分成为0，canonical fee-policy 的 poolKeyFee=0 仅为策略占位，不覆盖实际 PoolKey。原生 LP fee 与 Core protocol fee 均由 PoolManager 独立计费，不进入 FeeVault；Core protocol fee 可按方向存在，单方向最高1000 pips。不同计费基数的费率不得相加冒称实际总费。Hook 不调用 `PoolManager.donate`；LaunchLocker 支持公开 `collectLockedFees` 和仅指定 Keeper 可调用的有界 `compoundLockedFees`，canonical LP 继续永久锁定。
 
 ## 1. 市场永久自治
 
@@ -31,9 +28,9 @@ ABI 中 `redistributed` legacy 返回值/事件字段暂时保留以兼容旧消
 
 `launchPhase` 是唯一市场生命周期维度。Curve 交易只允许 `NotGraduated`，毕业池交易只允许 `PoolCreated` 且绑定事实完整。最终买入、最后一次曲线手续费入账、真实资产移交、Locker 部署、Pool 注册与初始化、LP mint、剩余双资产永久锁定、Hook 激活和 Registry 提交必须属于同一笔交易；任一环节失败，全部状态和资产转移回滚，市场仍为 `NotGraduated`。所有资金写入口必须读取链上 Registry、Factory 和组件绑定，不得从 API、Indexer 或本地缓存推断额外市场状态。
 
-`ApprovedQuoteRegistry` 是新市场唯一的 Quote 准入来源。管理员可经延迟权限追加多种 native 或 direct immutable ERC-20 config；创建者可选择任意已登记、身份仍有效且处于 `ACTIVE` 的配置。ETH 只是 bootstrap 示例，不是协议硬编码的唯一 Quote；暂停或退休某个配置只阻止后续市场使用，不迁移或终止既有市场。每个 config 冻结 Quote 地址、decimals、Pons baseline、raw `phantomQuote` 与 `graduationThreshold`，Factory 在预览和创建时复核内容 hash、代码身份与联合毕业经济域。普通 ERC-20 还必须通过固定 runtime、非代理和精确余额变化门禁。
+`ApprovedQuoteRegistry` 是新市场唯一的 Quote 准入来源。管理员可经延迟权限追加 native 或经风险审查的 ERC-20 config；通用 Quote 可为管理员评审的可升级 ERC-20；创建者可选择任意已登记、身份仍有效且处于 `ACTIVE` 的配置。ETH 只是 bootstrap 示例，不是协议硬编码的唯一 Quote；暂停或退休某个配置只阻止后续市场使用，不迁移或终止既有市场。每个 config 冻结 Quote 地址、decimals、Pons baseline、raw `phantomQuote` 与 `graduationThreshold`，Factory 在预览和创建时复核内容 hash、代码身份与联合毕业经济域。通用路径复核已登记的 runtime codehash 与 decimals，交易继续执行精确余额变化校验；代理外壳检查不等于实现不可升级。需要实现指纹承诺的资产应使用相应 Stock Quote 准入路径。
 
-Robinhood 官方链下 `/rhj/prices/{symbol}` 可供受约束的配置生成器和创建页面读取 Stock Quote 的 USD 参考价，但不改变上述信任边界。REST 返回底层股票价格，须乘一次 `/rhj/assets` 的 `currentMultiplier`；RH Chain Chainlink Feed 已包含 multiplier，不得重复相乘。官方 Stock Token 的 BeaconProxy 专用 Quote admission、官方 Asset UID/canonical Token/Beacon/implementation 指纹绑定、身份漂移 fail-closed、部署 preflight 与固定区块真实代理 Fork 均已验证。当前激活状态为 `NO_ACTIVE_CONFIG`；确定性价格配置生成器和产品参数/首批 allowlist 是 `PENDING_PRODUCT_ACTIVATION`。不能借通用 direct ERC-20 路径绕过。完整规格见 [`V1_STOCK_QUOTE_PRICE_REFERENCE.md`](./V1_STOCK_QUOTE_PRICE_REFERENCE.md)。
+Robinhood 官方链下 `/rhj/prices/{symbol}` 可供受约束的配置生成器和创建页面读取 Stock Quote 的 USD 参考价，但不改变上述信任边界。REST 返回底层股票价格，须乘一次 `/rhj/assets` 的 `currentMultiplier`；RH Chain Chainlink Feed 已包含 multiplier，不得重复相乘。Stock Token 可经管理员风险审查走通用 `addQuoteConfig`，也可选择 `addStockQuoteConfig` 提交 Asset UID、canonical Token、Beacon/implementation 指纹承诺；后者在身份漂移时拒绝准入。两种路径的信任保证不同，Base 资格不会自动赋予 Quote 资格。配置激活状态必须以目标链当前 Registry 和发布证据为准。完整规格见 [`V1_STOCK_QUOTE_PRICE_REFERENCE.md`](./V1_STOCK_QUOTE_PRICE_REFERENCE.md)。
 
 ## 4. 毕业经济域准入
 
@@ -45,4 +42,12 @@ Robinhood 官方链下 `/rhj/prices/{symbol}` 可供受约束的配置生成器�
 
 ## 6. 验收边界
 
-手续费域、BL-01 reward cutoff、BL-03 联合经济域准入、原子毕业、机器 manifest、生成 ABI 与直接消费者按 `V1-EXEC-11` 同步后，必须共同通过规范、合约、构建和专项门禁。Treasury V1 的 `ROOT_PUBLISHER_ROLE` 与 `ROOT_REVIEW_ROLE` 已进入本地 AccessManager 计划、deployment schema、manifest 语义校验和固定数量门禁：当前 19 个模块共有 84 个协议 mutation，其中 23 个由 5 类角色门控、61 个为 immutable direct/public/module caller；所有 `stateDelaySeconds` 均为0，不存在隐藏的七日救援时钟。Root publisher 与 independent reviewer 使用两个独立 Safe 成员。Treasury 的生产式集成测试还必须证明 Protocol Admin 的48小时 schedule/execute、Guardian 取消、四个特权 selector 的精确隔离、bootstrap `ADMIN_ROLE` 最终撤销；只读 preflight 必须分别证明四个配置 Registry 与 Treasury 的 `authority()` 均指向 canonical AccessManager，并证明 Quote Registry 的 `officialStockRegistry()`、Treasury 的 `marketRegistry()` 指向 canonical 依赖。该技术闭环允许受控测试网部署验证，但不等于已经部署或生产就绪：目标 Safe/参数签字、receipt-bound manifest、目标链源码验证、独立审计、浏览器 E2E 与上线批准仍未完成；固定区块合约 Fork/E2E 已作为 deployment evidence 通过。
+手续费域、reward cutoff、联合经济域准入、原子毕业与所有直接消费者必须共同通过规范、完整非 Fork 合约测试、固定区块 Fork、构建、runtime 体积、接口和生成产物检查。规范正文必须与当前源码行为一致：通用 Quote 准入范围、原资产领取、创建时冻结 LP 档位、Creator tax 的独立计算和归属，不能仅以文件中出现关键词作为验收。
+
+模块、函数、事件和权限以当前 `spec/v1_abi_surface.json`、`spec/v1_permissions_matrix.json`、`spec/v1_execution_manifest.json` 及编译生成的产物为准；不得复用旧 Treasury 的 root reviewer、mutation 数量或七日等待规则描述当前 Holder 快照发布。preflight 必须核验当前 AccessManager、各 Registry 和 runtime 组件绑定，覆盖延迟权限、Guardian 边界与 bootstrap 管理权处置。
+
+源码、编译产物和验证记录必须对应同一候选版本。历史 legacy plan 被当前 schema 拒绝时，保留历史证据并生成或显式选择当前候选计划，不能放宽校验或把部分通过视为全发布门禁通过。Fork 证据须记录 chain ID、固定区块号及 hash。目标账户/参数确认、receipt-bound manifest、目标链源码验证、独立审计、产品 E2E 和上线批准仍须分别完成；本规范和本地测试均不授权广播。
+
+生产初始化可以使用既有 `AccessManager.multicall` 封装多个 `execute(target,data)`；内部仍逐项调用原 Registry 方法，并保留原调用者的权限检查。`PER_ASSET_TIMELOCKED_REGISTRY_CALLS_NO_BATCH_ABI` 表示不新增 Registry 批量业务 ABI，后续治理登记仍逐项受延迟权限约束；它不要求 bootstrap 阶段每项必须单独发送交易。本次 4663 候选每批最多 32 项 Stock 或 Quote，这是按目标链 Gas 演练选定的发布批次大小，不是协议资产数量上限。模板、Holder 发布者、Keeper 和权限交接在最后一批原子完成，Keeper 初始化先于 selector 绑定和部署者退权。
+
+Stock 身份验证可以复用由当前 runtime codehash 唯一确定的字节码扫描结论；UID、decimals、当前 implementation、实际 codehash、预期 fingerprint 和 Vault 绑定仍逐资产验证。不得按 token 地址缓存不再复核的身份，或以共用实现为由跳过升级后的代码检查。

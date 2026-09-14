@@ -48,8 +48,9 @@ contract LaunchLockerRegistryMock {
                 creatorTaxBps: 0,
                 creatorFeesToHolders: false,
                 stakingEnabled: true,
-                burnMemeFees: false
-            }),
+                burnMemeFees: false,
+            lpFeePips: 0
+        }),
             runtime: MarketRuntime({poolId: bytes32(0), sourceVersion: 1, launchPhase: 0})
         });
     }

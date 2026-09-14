@@ -3,7 +3,7 @@ pragma solidity 0.8.26;
 
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
-import {ReentrancyGuard} from "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
+import {ReentrancyGuardTransient} from "@openzeppelin/contracts/utils/ReentrancyGuardTransient.sol";
 import {IAllowanceTransfer} from "permit2/src/interfaces/IAllowanceTransfer.sol";
 import {PoolKey as V4PoolKey} from "@uniswap/v4-core/src/types/PoolKey.sol";
 import {Currency} from "@uniswap/v4-core/src/types/Currency.sol";
@@ -21,7 +21,7 @@ interface ILockerPermit2 {
 }
 
 /// @notice Fees can only increase the permanently bound position; principal and donations cannot be spent.
-abstract contract LaunchLockerCompounding is LaunchLockerCustody, ReentrancyGuard {
+abstract contract LaunchLockerCompounding is LaunchLockerCustody, ReentrancyGuardTransient {
     using SafeERC20 for IERC20;
     uint256 private _compoundFees0;
     uint256 private _compoundFees1;

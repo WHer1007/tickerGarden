@@ -4,7 +4,7 @@ import fs from 'node:fs';
 import { parseIntegrationBootstrap, bootstrapSync } from '../src/v1/integrationBootstrap.ts';
 import { directReceipt } from '../src/v1/directReceipt.ts';
 
-const raw = JSON.parse(fs.readFileSync(new URL('../public/integration/rh-f72a2cdf.json', import.meta.url), 'utf8')) as Record<string, unknown>;
+const raw = JSON.parse(fs.readFileSync(new URL('./fixtures/integration/rh-f72a2cdf.json', import.meta.url), 'utf8')) as Record<string, unknown>;
 const address = (n: string) => `0x${n.repeat(40)}` as `0x${string}`;
 const contracts = {
   factoryAddress: raw.factory as `0x${string}`,

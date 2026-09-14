@@ -6,6 +6,7 @@ import markets from '../src/pages/markets.ts';
 const index = fs.readFileSync(new URL('../index.html', import.meta.url), 'utf8');
 const app = fs.readFileSync(new URL('../src/app.ts', import.meta.url), 'utf8');
 const styles = fs.readFileSync(new URL('../subpages.css', import.meta.url), 'utf8');
+const globalStyles = fs.readFileSync(new URL('../styles.css', import.meta.url), 'utf8');
 const trade = fs.readFileSync(new URL('../src/pages/trade.ts', import.meta.url), 'utf8');
 
 test('single-page navigation exposes a skip target and moves focus to each new main view', () => {
@@ -14,6 +15,10 @@ test('single-page navigation exposes a skip target and moves focus to each new m
   assert.match(app, /main\.focus\(\{ preventScroll: true \}\)/);
   assert.match(styles, /:focus-visible\{outline:2px solid/);
   assert.doesNotMatch(styles, /input:focus,input:focus-visible/);
+  assert.match(globalStyles, /:where\(input,textarea,select\):focus,[\s\S]*:where\(input,textarea,select\):focus-visible\s*\{\s*outline:none!important;\s*box-shadow:none!important/);
+  assert.match(styles, /:where\(a,button,summary\):focus-visible/);
+  assert.doesNotMatch(styles, /:where\(a,button,input,select,textarea,summary\):focus-visible/);
+  assert.match(styles, /:where\(input,textarea,select\):focus,:where\(input,textarea,select\):focus-visible\{outline:none!important;box-shadow:none!important\}/);
 });
 
 test('Explore starts with one loading message and keeps error recovery in its live status', () => {
@@ -24,15 +29,15 @@ test('Explore starts with one loading message and keeps error recovery in its li
   assert.match(app, /Try loading .* markets again/);
 });
 
-test('Explore uses the finalized paged directory without starting a full direct-chain scan', () => {
-  assert.match(app, /listMarkets\(\{\.\.\.query,includeRecent:true,limit,\.\.\.\(cursor\?\{cursor\}:\{\}\)\}\)/);
-  assert.match(app, /assertFinalizedSync\(page\.sync,foundation\.direct\?undefined:params\.revision,'explore page'\)/);
+test('Explore uses the finalized paged directory in production and an explicit local integration adapter', () => {
+  assert.match(app, /listMarkets\(\{\.\.\.params,includeRecent:true,limit,\.\.\.\(cursor\?\{cursor\}:\{\}\)\}\)/);
+  assert.match(app, /if\(!foundation\.direct\)assertFinalizedSync\(page\.sync,params\.revision,'explore page'\)/);
   assert.match(app, /if\(markets\.length===0\)return false/);
-  assert.match(app, /if \(foundation\?\.direct && currentPage\(\) !== 'markets'\) void refreshDirectDirectory\(\)/);
+  assert.match(app, /pageDirectExplore\(foundation\.markets,unversioned,cursor,limit\)/);
   const refresh = app.slice(app.indexOf('async function refreshDirectDirectory('), app.indexOf('let directDirectoryTimer:'));
   assert.doesNotMatch(refresh, /publicClient|directMarkets|integrationMarketDirectory/);
   const directory=app.slice(app.indexOf('async function fetchExplorePage'),app.indexOf('function applyExploreStatistics'));
-  assert.doesNotMatch(directory,/foundation.markets|publicClient/);assert.match(directory,/throw new ExploreResponseError/);
+  assert.doesNotMatch(directory,/publicClient/);assert.match(directory,/if\(foundation\.direct\)/);assert.match(directory,/pageDirectExplore\(foundation\.markets/);assert.match(directory,/throw new ExploreResponseError/);
 });
 
 test('trade controls describe their behavior and tab panels support keyboard navigation', () => {

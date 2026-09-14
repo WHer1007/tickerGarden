@@ -16,3 +16,10 @@ test('global holders accept empty markets and fully burned supply as verified ze
  const p=fixture();p.groups=[];p.marketCount=0;p.positiveMarketAddressPairs=0;p.positiveAddressCount=0;p.includedAddressCount=0;p.excludedAccounts=[];assert.equal(validateGlobalHolders(p,4663).marketCount,0);
  p.marketCount=1;p.groups=[{assetUid:hash(1),binding:'registered_stock',marketCount:1,positiveMarketAddressPairs:0,positiveAddressCount:0,includedAddressCount:0}];p.excludedAccounts=[address(3)];assert.equal(validateGlobalHolders(p,4663).positiveAddressCount,0);
 });
+
+test('global holders accept the daily 21500-market population without the obsolete 1000-market cap',()=>{
+ const p=fixture();p.marketCount=21500;p.positiveMarketAddressPairs=43000;p.positiveAddressCount=21600;p.includedAddressCount=21599;
+ p.groups=[{assetUid:hash(1),binding:'registered_stock',marketCount:21500,positiveMarketAddressPairs:43000,positiveAddressCount:21600,includedAddressCount:21599}];
+ assert.equal(validateGlobalHolders(p,4663).marketCount,21500);
+ p.marketCount=Number.MAX_SAFE_INTEGER+1;assert.throws(()=>validateGlobalHolders(p,4663));
+});

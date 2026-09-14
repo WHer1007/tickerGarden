@@ -1,7 +1,7 @@
 import { ROBINHOOD_CHAIN_ID } from "../chain.ts";
 import { decodeEventLog, keccak256, stringToHex, type Address, type Hex, type TransactionReceipt } from "viem";
 import type { MarketDetailResponse, MarketReadModel, SyncStatus } from "../readApi.ts";
-import { currentV4Abis, v1Abis } from "../generated/abis.ts";
+import { currentV4Abis, burnV4Abis, v1Abis } from "../generated/abis.ts";
 import { createContractWriteRequest, type ContractWriteRequest } from "../transaction.ts";
 
 const ZERO_ADDRESS = "0x0000000000000000000000000000000000000000" as Address;
@@ -27,6 +27,7 @@ export type CreateMarketParams = Readonly<{
   creatorFeesToHolders: boolean;
   stakingEnabled: boolean;
   burnMemeFees?: boolean;
+  lpFeePips?: number;
 }>;
 
 export type SelectedLaunchConfig = Readonly<{
@@ -43,6 +44,7 @@ export type SelectedLaunchConfig = Readonly<{
   creatorFeesToHolders?: boolean;
   stakingEnabled?: boolean;
   burnMemeFees?: boolean;
+  lpFeePips?: number;
 }>;
 
 export type LaunchRequestSet = Readonly<{
@@ -167,8 +169,10 @@ export function deriveCreateMarketParams(config: SelectedLaunchConfig): CreateMa
   if (config.creatorFeesToHolders !== undefined && typeof config.creatorFeesToHolders !== "boolean") throw new TypeError("Holder fee sharing must be boolean");
   const tax = config.creatorTaxBps ?? 0;
   if (!Number.isInteger(tax) || tax < 0 || tax > 500) throw new RangeError("Creator tax must be between 0 and 500 bps");
-  if (config.burnMemeFees !== undefined && typeof config.burnMemeFees !== "boolean") throw new RangeError("Invalid Meme fee burn choice");
+  if (config.burnMemeFees !== undefined && typeof config.burnMemeFees !== "boolean") throw new RangeError("Invalid token fee burn choice");
+  if (config.lpFeePips !== undefined && ![0,1000,2000,3000].includes(config.lpFeePips)) throw new RangeError("Invalid LP fee tier");
   return Object.freeze({
+    ...(config.lpFeePips === undefined ? {} : {lpFeePips:config.lpFeePips}),
     ...(config.burnMemeFees === undefined ? {} : { burnMemeFees: config.burnMemeFees }),
     creatorTaxBps: tax,
     creatorFeesToHolders: config.creatorFeesToHolders ?? false,
@@ -379,15 +383,25 @@ export function buildCurveSellRequest(input: Readonly<{
 }
 
 export const MEME_FEE_BURN_MODE = keccak256(stringToHex("TICKERGARDEN_MEME_FEE_BURN_ON_SETTLEMENT_V1"));
-export function launchAbis(config: Pick<SelectedLaunchConfig, "burnMemeFees">) {
-  return config.burnMemeFees === undefined ? v1Abis : currentV4Abis;
+export function launchAbis(config: Pick<SelectedLaunchConfig, "burnMemeFees" | "lpFeePips">) {
+  return config.lpFeePips !== undefined ? currentV4Abis : config.burnMemeFees === undefined ? v1Abis : burnV4Abis;
 }
 /** Called only while preparing a wallet launch. Never silently drop an enabled burn choice on an older Factory. */
 export async function resolveBurnLaunchConfig(config: SelectedLaunchConfig, probe: () => Promise<Hex>): Promise<SelectedLaunchConfig> {
   let mode: Hex | undefined;
   try { mode = await probe(); } catch { /* The legacy preview below still has to succeed. */ }
   if (mode === MEME_FEE_BURN_MODE) return Object.freeze({ ...config, burnMemeFees: config.burnMemeFees ?? false });
-  if (config.burnMemeFees === true) throw new Error("This deployment does not support the Meme fee burning yet");
+  if (config.burnMemeFees === true) throw new Error("This deployment does not support token fee burning yet");
   const { burnMemeFees: _fee, ...legacy } = config;
   return Object.freeze(legacy);
+}
+
+export const LP_FEE_MODE = keccak256(stringToHex("TICKERGARDEN_CREATOR_STATIC_LP_FEE_V1"));
+export async function resolveLpLaunchConfig(config: SelectedLaunchConfig, probe: () => Promise<Hex>): Promise<SelectedLaunchConfig> {
+  let mode: Hex | undefined;
+  try { mode = await probe(); } catch { /* Older deployments use their exact legacy tuple. */ }
+  if (mode === LP_FEE_MODE) return Object.freeze({...config,lpFeePips:config.lpFeePips ?? 0,burnMemeFees:config.burnMemeFees ?? false});
+  if ((config.lpFeePips ?? 0) !== 0) throw new Error("This deployment does not support configurable LP fees yet");
+  const {lpFeePips: _fee,...older}=config;
+  return Object.freeze(older);
 }

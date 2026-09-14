@@ -26,7 +26,7 @@ export function mountCandles(element: HTMLElement, baseUrl: string | null, chain
    const active=data.series.candles.filter(c=>c.low!==null && c.high!==null);
    if(!active.length){clear('No trades in this verified time range.');chart.append(candleTable(data));return;}
    const prices=active.flatMap(c=>[c.low!,c.high!]).sort(comparePrice),low=prices[0]!,high=prices.at(-1)!;
-   const ns='http://www.w3.org/2000/svg';const svg=document.createElementNS(ns,'svg');svg.setAttribute('viewBox','0 0 720 250');svg.style.width='100%';svg.style.minWidth='600px';svg.setAttribute('role','img');svg.setAttribute('aria-label','24 completed hourly candles, Quote per Meme. Empty hours have no candle.');
+   const ns='http://www.w3.org/2000/svg';const svg=document.createElementNS(ns,'svg');svg.setAttribute('viewBox','0 0 720 250');svg.style.width='100%';svg.style.minWidth='600px';svg.setAttribute('role','img');svg.setAttribute('aria-label','24 completed hourly candles, paired asset per created token. Empty hours have no candle.');
    const text=(x:number,y:number,label:string)=>{const t=document.createElementNS(ns,'text');t.setAttribute('x',String(x));t.setAttribute('y',String(y));t.setAttribute('fill','currentColor');t.setAttribute('font-size','12');t.textContent=label;svg.append(t);};
    data.series.candles.forEach((c,i)=>{
     if(!c.open || !c.close || !c.high || !c.low)return;
@@ -36,7 +36,7 @@ export function mountCandles(element: HTMLElement, baseUrl: string | null, chain
     const title=document.createElementNS(ns,'title');title.textContent=`${new Date(c.timestamp*1000).toISOString()} · O ${candlePriceLabel(c.open)} H ${candlePriceLabel(c.high)} L ${candlePriceLabel(c.low)} C ${candlePriceLabel(c.close)} · ${c.tradeCount} executions (${c.internalTradeCount} internal)`;rect.append(title);svg.append(rect);
    });
    text(0,20,candlePriceLabel(high));text(0,210,candlePriceLabel(low));text(80,240,new Date(from*1000).toISOString().slice(5,16)+' UTC');text(480,240,new Date(to*1000).toISOString().slice(5,16)+' UTC');const viewport=document.createElement('div');viewport.style.overflowX='auto';viewport.tabIndex=0;viewport.setAttribute('role','region');viewport.setAttribute('aria-label','Hourly price chart, scroll horizontally on small screens');viewport.append(svg);chart.replaceChildren(viewport,candleTable(data));
-   status.textContent='Quote per Meme · Core execution prices · Internal conversions included · Display only. Open the hourly data table for prices and volumes.';
+   status.textContent='Paired asset per created token · Core execution prices · Internal conversions included · Display only. Open the hourly data table for prices and volumes.';
   } catch {if(own===generation)clear('Price history unavailable or not yet fully indexed. Try refreshing later.');}
   finally{clearTimeout(timeout);if(own===generation)controller=null;}
  };

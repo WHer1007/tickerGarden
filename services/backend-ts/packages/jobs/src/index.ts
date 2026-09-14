@@ -145,6 +145,7 @@ export async function claimJobByOperation(pool: Pool, queue: QueueName, operatio
   const schema = schemaIdentifier(schemaName);
   return transaction(pool, async (client) => {
     await assertActiveGeneration(client, schema, queue, expectedGeneration);
+    if (!await queueModeMatches(client,schema,queue,'qstash')) return null;
     const claimed = await client.query<{
       id: string; operation_id: string; queue: QueueName; kind: string; payload: Readonly<Record<string, unknown>>; payload_digest: string;
       generation: string; fencing: string; attempt: number; max_attempts: number; lease_expires_at: Date;
@@ -169,13 +170,14 @@ export async function claimJobByOperation(pool: Pool, queue: QueueName, operatio
   });
 }
 
-export async function claimJobs(pool: Pool, queue: QueueName, owner: string, limit = 1, leaseMs = 20_000, schemaName = 'tickergarden_serverless', expectedGeneration = 0n): Promise<Lease[]> {
+export async function claimJobs(pool: Pool, queue: QueueName, owner: string, limit = 1, leaseMs = 20_000, schemaName = 'tickergarden_serverless', expectedGeneration = 0n, executionMode: 'qstash' | 'resident' = 'qstash'): Promise<Lease[]> {
   assertToken(owner, 'owner');
   if (!Number.isInteger(limit) || limit < 1 || limit > 20) throw new Error('limit must be between 1 and 20');
   if (!Number.isInteger(leaseMs) || leaseMs < 1_000 || leaseMs > 300_000) throw new Error('leaseMs must be between 1000 and 300000');
   const schema = schemaIdentifier(schemaName);
   return transaction(pool, async (client) => {
     await assertActiveGeneration(client, schema, queue, expectedGeneration);
+    if (!await queueModeMatches(client,schema,queue,executionMode)) return [];
     const claimed = await client.query<{
       id: string; operation_id: string; queue: QueueName; kind: string; payload: Readonly<Record<string, unknown>>; payload_digest: string;
       generation: string; fencing: string; attempt: number; max_attempts: number; lease_expires_at: Date;
@@ -284,6 +286,7 @@ export async function claimOutbox(pool: Pool, queue: QueueName, owner: string, l
   const schema = schemaIdentifier(schemaName);
   return transaction(pool, async (client) => {
     await assertActiveGeneration(client, schema, queue, expectedGeneration);
+    if (!await queueModeMatches(client,schema,queue,'qstash')) return [];
     const claimed = await client.query<{
       id: string; operation_id: string; queue: QueueName; destination_key: string; payload: Readonly<Record<string, unknown>>;
       payload_digest: string; fencing: string; attempt: number; max_attempts: number; lease_expires_at: Date;
@@ -516,4 +519,20 @@ async function assertActiveGeneration(client: PoolClient, schema: string, queue:
     `SELECT active_generation FROM ${schema}.queue_generations WHERE queue=$1 FOR ${lock === 'update' ? 'UPDATE' : 'SHARE'}`, [queue],
   );
   if (!result.rows[0] || BigInt(result.rows[0].active_generation) !== expectedGeneration) throw new StaleQueueGenerationError('runtime queue generation is stale');
+}
+
+async function queueModeMatches(client: PoolClient, schema: string, queue: QueueName, mode: 'qstash' | 'resident'): Promise<boolean> {
+  return (await client.query<{execution_mode:string}>(`SELECT execution_mode FROM ${schema}.queue_generations WHERE queue=$1`,[queue])).rows[0]?.execution_mode===mode;
+}
+
+// Explicit, drain-safe cutover. Pending durable jobs remain available to either runtime.
+export async function setQueueExecutionMode(pool:Pool, mode:'qstash'|'resident', expectedGeneration:bigint, schemaName='tickergarden_serverless'):Promise<void>{
+ if(mode!=='qstash'&&mode!=='resident')throw Error('invalid execution mode');
+ const schema=schemaIdentifier(schemaName);
+ await transaction(pool,async client=>{
+  await assertActiveGeneration(client,schema,'chain',expectedGeneration,'update');
+  const busy=await client.query(`SELECT 1 FROM ${schema}.jobs WHERE queue='chain' AND state='leased' UNION ALL SELECT 1 FROM ${schema}.outbox_messages WHERE queue='chain' AND state='leased' LIMIT 1`);
+  if(busy.rowCount)throw Error('execution mode switch requires drained leases');
+  await client.query(`UPDATE ${schema}.queue_generations SET execution_mode=$1,updated_at=now() WHERE queue='chain'`,[mode]);
+ });
 }

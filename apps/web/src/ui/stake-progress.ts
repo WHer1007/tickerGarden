@@ -13,8 +13,8 @@ export function stakeProgress(stage:TransactionStage):{label:string;message:stri
  }
 }
 export function stakeLockLabel(allocated:bigint,now:bigint,unlockAt:bigint):string {
- if(allocated===0n)return 'No active stake';
- if(now>=unlockAt)return 'Available to withdraw';
+ if(allocated===0n)return 'No stake';
+ if(now>=unlockAt)return 'Ready to unstake';
  const remaining=unlockAt-now,hours=remaining/3600n,minutes=(remaining%3600n)/60n,seconds=remaining%60n;
- return `Unlocks in ${hours.toString().padStart(2,'0')}:${minutes.toString().padStart(2,'0')}:${seconds.toString().padStart(2,'0')}`;
+ return `Locked · ${hours.toString().padStart(2,'0')}:${minutes.toString().padStart(2,'0')}:${seconds.toString().padStart(2,'0')} remaining`;
 }

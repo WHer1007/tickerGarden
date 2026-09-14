@@ -57,3 +57,31 @@ test('shared PoolManager swaps require a project pool id in topic1', () => {
   assert.equal(matchesFilter(filter, parseSubscriptionLog({ ...base, topics: [filter.sharedPoolManager.swapTopic, poolId] }), allowed, new Set([poolId])), true);
   assert.equal(matchesFilter(filter, parseSubscriptionLog({ ...base, topics: [filter.sharedPoolManager.swapTopic, otherPoolId] }), allowed, new Set([poolId])), false);
 });
+
+test('subscription filters shard large source and project-pool populations without gaps', () => {
+  const sources = Array.from({ length: 43_000 }, (_, index) => ({
+    address: `0x${(index + 1).toString(16).padStart(40, '0')}` as `0x${string}`,
+    birthBlock: filter.activationBlock,
+  }));
+  const pools = Array.from({ length: 1_500 }, (_, index) => ({ poolId: `0x${(index + 1).toString(16).padStart(64, '0')}` as `0x${string}`, birthBlock: filter.activationBlock }));
+  const filters = subscriptionFilters(filter, sources, pools);
+  const sourceFilters = filters.filter((item) => Array.isArray(item.address));
+  const poolFilters = filters.filter((item) => item.address === filter.sharedPoolManager.address);
+
+  assert.equal(sourceFilters.length, Math.ceil(sources.length / 500));
+  assert.equal(poolFilters.length, Math.ceil(pools.length / 500));
+  assert.ok(filters.every((item) => {
+    if (Array.isArray(item.address)) return item.address.length <= 500;
+    return item.address === filter.sharedPoolManager.address
+      && JSON.stringify(item.topics?.[0]) === JSON.stringify([filter.sharedPoolManager.swapTopic]);
+  }));
+
+  const sourceAddresses = sourceFilters.flatMap((item) => item.address as string[]);
+  assert.deepEqual(new Set(sourceAddresses), new Set(sources.map((source) => source.address)));
+  assert.equal(sourceAddresses.length, sources.length);
+
+  const poolIds = poolFilters.flatMap((item) => item.topics?.[1] as string[]);
+  assert.deepEqual(new Set(poolIds), new Set(pools.map((pool) => pool.poolId)));
+  assert.equal(poolIds.length, pools.length);
+  assert.ok(poolFilters.every((item) => (item.topics?.length ?? 0) === 2));
+});

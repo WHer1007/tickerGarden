@@ -634,6 +634,27 @@ contract TickerGardenFactoryV1Test is Test {
         assertEq(revenueRegistry.creatorBeneficiaryAt(marketId, 1), BENEFICIARY);
     }
 
+    function test_sequentialCreationsUseSeparateConstructorContextsInOneTransaction() public {
+        this.atomicSequentialCreations();
+    }
+
+    function atomicSequentialCreations() external {
+        CreateMarketParams memory first = _validParams(CREATOR, keccak256("transient-create-first"));
+        CreateMarketParams memory second = _validParams(CREATOR, keccak256("transient-create-second"));
+        vm.prank(CREATOR);
+        (bytes32 id1, address token1, address curve1,) = factory.createMarket{value: LAUNCH_FEE}(first);
+        vm.prank(CREATOR);
+        (bytes32 id2, address token2, address curve2,) = factory.createMarket{value: LAUNCH_FEE}(second);
+        assertTrue(id1 != id2 && token1 != token2 && curve1 != curve2);
+        assertEq(marketRegistry.market(id1).config.memeToken, token1);
+        assertEq(marketRegistry.market(id2).config.memeToken, token2);
+        assertEq(marketRegistry.market(id1).config.curve, curve1);
+        assertEq(marketRegistry.market(id2).config.curve, curve2);
+        vm.prank(curve2);
+        vm.expectRevert();
+        factory.curveInitialization(curve2);
+    }
+
     function test_realArtifactInitCodeSaltPredictionAndActualAddressMatchManifest() public {
         string memory manifest =
             vm.readFile(string.concat(vm.projectRoot(), "/../spec/v1_product_artifact_manifest.json"));
@@ -745,6 +766,34 @@ contract TickerGardenFactoryV1Test is Test {
                 address(gaugeImplementation), salt, identity, address(factory)
             )
         );
+    }
+
+    function test_lpFeeChoiceBoundToEconomicsAndFrozenAtCreation() public {
+        for (uint24 fee; fee <= 3_000; fee += 1_000) {
+            CreateMarketParams memory params = _validParams(CREATOR, bytes32(uint256(fee + 9000)));
+            bytes32 previous = params.expectedEconomics;
+            params.lpFeePips = fee;
+            if (fee != 0) {
+                vm.prank(CREATOR);
+                vm.expectRevert();
+                factory.createMarket{value: LAUNCH_FEE}(params);
+            }
+            vm.prank(CREATOR);
+            params.expectedEconomics = factory.previewMarketEconomics(params);
+            if (fee != 0) assertNotEq(params.expectedEconomics, previous);
+            vm.prank(CREATOR);
+            (bytes32 id,,,) = factory.createMarket{value: LAUNCH_FEE}(params);
+            assertEq(marketRegistry.market(id).config.lpFeePips, fee);
+        }
+    }
+
+    function testFuzz_rejectsUnsupportedStaticLpFee(uint24 fee) public {
+        vm.assume(fee != 0 && fee != 1000 && fee != 2000 && fee != 3000);
+        CreateMarketParams memory params = _validParams(CREATOR, bytes32("INVALID_LP"));
+        params.lpFeePips = fee;
+        vm.prank(CREATOR);
+        vm.expectRevert(abi.encodeWithSignature("InvalidLPFee(uint24)", fee));
+        factory.createMarket{value: LAUNCH_FEE}(params);
     }
 
     function test_burnChoiceIsBoundToCreationEconomicsAndImmutableMarket() public {
@@ -2208,8 +2257,9 @@ contract TickerGardenFactoryV1Test is Test {
             creatorTaxBps: 0,
             creatorFeesToHolders: false,
             stakingEnabled: true,
-                burnMemeFees: false
-            });
+                burnMemeFees: false,
+            lpFeePips: 0
+        });
         vm.prank(creator);
         params.expectedEconomics = factory.previewMarketEconomics(params);
     }

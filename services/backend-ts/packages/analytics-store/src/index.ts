@@ -72,7 +72,7 @@ export async function readMarketHolders(input: { readonly pool: Pool; readonly d
     const market = await marketAt(client, schema, input.deployment, checkpoint.revision, input.marketId);
     const quoteDecimals = await quoteDecimalsAt(client, schema, input.deployment, checkpoint.revision, market.quoteAssetConfigId); void quoteDecimals;
     const metadata = await client.query<{ total_supply_raw: string; positive_address_count: string; included_address_count: string; excluded_accounts: Address[]; creation_block: string }>(
-      `SELECT h.total_supply_raw::text,h.positive_address_count::text,h.included_address_count::text,h.excluded_accounts,h.creation_block::text FROM ${schema}.holder_snapshots h
+      `SELECT h.total_supply_raw::text,h.positive_address_count::text,h.included_address_count::text,h.excluded_accounts,h.creation_block::text FROM ${schema}.holder_snapshots_covered h
        JOIN ${schema}.chain_blocks b ON b.environment=h.environment AND b.chain_id=h.chain_id AND b.deployment_digest=h.deployment_digest AND b.hash=h.block_hash
        WHERE h.environment=$1 AND h.chain_id=$2 AND h.deployment_digest=$3 AND h.market_id=$4 AND h.block_hash=$5 AND h.block_number=$6 AND b.canonical AND b.finalized`,
       [...identity(input.deployment), input.marketId, checkpoint.blockHash, checkpoint.blockNumber.toString()],
@@ -191,7 +191,7 @@ export async function readTokenDetail(input: { readonly pool: Pool; readonly dep
          SELECT account,balance_raw FROM included ORDER BY balance_raw DESC,account LIMIT 100
        )
        SELECT
-         (SELECT total_supply_raw::text FROM ${schema}.holder_snapshots WHERE environment=$1 AND chain_id=$2 AND deployment_digest=$3 AND market_id=$4 AND block_hash=$5 AND block_number=$6) AS total_supply_raw,
+         (SELECT total_supply_raw::text FROM ${schema}.holder_snapshots_covered WHERE environment=$1 AND chain_id=$2 AND deployment_digest=$3 AND market_id=$4 AND block_hash=$5 AND block_number=$6) AS total_supply_raw,
          (SELECT sum(balance_raw)::text FROM included) AS circulating,
          (SELECT count(*)::text FROM included) AS holder_count,
          COALESCE((SELECT jsonb_agg(jsonb_build_object('account',account,'balanceRaw',balance_raw::text) ORDER BY balance_raw DESC,account) FROM top_holders),'[]'::jsonb) AS holders,
@@ -235,11 +235,11 @@ async function checkpointContext(client: PoolClient, schema: string, deployment:
   return { revision: row.last_revision, blockNumber: BigInt(row.block_number), blockHash: row.block_hash, asOf };
 }
 async function marketAt(client: PoolClient, schema: string, deployment: DeploymentIdentity, revision: string, marketId: Hex32): Promise<MarketIdentity> {
-  const row = (await client.query<{ payload: MarketIdentity }>(`SELECT payload FROM ${schema}.projection_records WHERE environment=$1 AND chain_id=$2 AND deployment_digest=$3 AND scope='markets' AND revision=$4 AND identity=$5`, [...identity(deployment), revision, marketId])).rows[0];
+  const row = (await client.query<{ payload: MarketIdentity }>(`SELECT payload FROM ${schema}.projection_read_records WHERE environment=$1 AND chain_id=$2 AND deployment_digest=$3 AND scope='markets' AND revision=$4 AND identity=$5`, [...identity(deployment), revision, marketId])).rows[0];
   if (!row) throw new PublicationUnavailableError('market analytics identity is unavailable'); return row.payload;
 }
 async function quoteDecimalsAt(client: PoolClient, schema: string, deployment: DeploymentIdentity, revision: string, configId: Hex32): Promise<number> {
-  const row = (await client.query<{ decimals: string }>(`SELECT payload->'values'->>'quoteDecimals' AS decimals FROM ${schema}.projection_records WHERE environment=$1 AND chain_id=$2 AND deployment_digest=$3 AND scope='configs' AND revision=$4 AND identity='quote:'||$5`, [...identity(deployment), revision, configId])).rows[0];
+  const row = (await client.query<{ decimals: string }>(`SELECT payload->'values'->>'quoteDecimals' AS decimals FROM ${schema}.projection_read_records WHERE environment=$1 AND chain_id=$2 AND deployment_digest=$3 AND scope='configs' AND revision=$4 AND identity='quote:'||$5`, [...identity(deployment), revision, configId])).rows[0];
   const value = Number(row?.decimals); if (!Number.isSafeInteger(value) || value < 6 || value > 18) throw new PublicationUnavailableError('quote decimals are unavailable'); return value;
 }
 function validateWindow(from: number, to: number): void { if (!Number.isSafeInteger(from) || !Number.isSafeInteger(to) || from < 0 || to <= from) throw new Error('invalid analytics window') }

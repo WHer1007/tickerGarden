@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {decodeFunctionData,keccak256,toHex,type Hex} from 'viem';
 import {currentV4Abis} from '../src/v1/generated/abis.ts';
-import {parseHolderSnapshots,snapshotLeaf,snapshotRoot,remainingSnapshotAssets,buildSnapshotClaim,type SnapshotIdentity} from '../src/v1/features/holderSnapshots.ts';
+import {parseHolderSnapshots,snapshotLeaf,snapshotRoot,remainingSnapshotAssets,holderSnapshotStatus,buildSnapshotClaim,type SnapshotIdentity} from '../src/v1/features/holderSnapshots.ts';
 const id:SnapshotIdentity={chainId:46630,distributor:`0x${'11'.repeat(20)}`,marketId:`0x${'22'.repeat(32)}`,account:`0x${'33'.repeat(20)}`,quote:`0x${'00'.repeat(20)}`,meme:`0x${'44'.repeat(20)}`};
 function fixture() {
  const r={round:1n,quoteAmount:7n,memeAmount:9n};
@@ -18,6 +18,13 @@ test('wallet proof binds chain, distributor, market, account, round and both ass
 test('partial claims keep the other original asset available and reject repeated claims',()=>{
  const f=fixture();f.rounds[0]!.claimedAssets=1;const r=parseHolderSnapshots(f,id).rounds[0]!;
  assert.equal(remainingSnapshotAssets(r),2);assert.doesNotThrow(()=>buildSnapshotClaim(id,r,2));assert.throws(()=>buildSnapshotClaim(id,r,1));assert.throws(()=>buildSnapshotClaim(id,r,3));
+});
+test('claim status appears only when it helps the holder decide what to do',()=>{
+ const available=parseHolderSnapshots(fixture(),id).rounds[0]!;
+ assert.deepEqual(holderSnapshotStatus('ready',available,true),{message:'',tone:'neutral'});
+ assert.deepEqual(holderSnapshotStatus('ready',{...available,claimedAssets:3},true),{message:'Rewards from this distribution have already been claimed.',tone:'neutral'});
+ assert.deepEqual(holderSnapshotStatus('ready',undefined,true),{message:'No rewards available for this wallet.',tone:'neutral'});
+ assert.deepEqual(holderSnapshotStatus('ready',available,false),{message:'Claiming is temporarily unavailable.',tone:'error'});
 });
 test('strict integers, finality, source identity, duplicates and future snapshots fail closed',()=>{
  for(const modify of [(f:any)=>f.rounds[0].quoteAmount='1e18',(f:any)=>f.rounds[0].round='18446744073709551616',(f:any)=>f.rounds[0].snapshotBlock='100',(f:any)=>f.rounds.push(f.rounds[0]),(f:any)=>f.finality='head',(f:any)=>f.status='unknown',(f:any)=>f.rounds[0].claimedAssets=4,(f:any)=>f.sourceBlockHash='0x0']){const f=fixture();modify(f);assert.throws(()=>parseHolderSnapshots(f,id));}
@@ -42,13 +49,14 @@ test('snapshot write approval is separate from every legacy stream approval',asy
  assert.equal(parseV1RuntimeConfig({VITE_HOLDER_SNAPSHOT_RELEASE_APPROVAL:SNAPSHOT_HOLDER_RELEASE_APPROVAL}).snapshotHolderWrites.available,true);
 });
 
-test('new Holder loading is API-only and preempts legacy RPC paths; dialog pauses periodic refresh',async()=>{
+test('new Holder loading is API-only and preempts legacy RPC paths; only the Holder dialog pauses its refresh',async()=>{
  const {readFileSync}=await import('node:fs');const app=readFileSync(new URL('../src/app.ts',import.meta.url),'utf8');
  const load=app.slice(app.indexOf('async function loadSnapshotReward('),app.indexOf('async function executeSnapshotClaim('));
  assert.ok(load.includes('fetchHolderSnapshots'));assert.ok(!load.includes('publicClient.'));
  const refresh=app.slice(app.indexOf('async function refreshTreasuryReward('),app.indexOf('function rewardActionButton('));
  assert.ok(refresh.indexOf('loadSnapshotReward')<refresh.indexOf('getRewardMarketDetail'));
- assert.match(app,/busyOperation \|\| rewardChoicePending \|\| document.hidden/);
+ assert.match(app,/rewardChoicePending \|\| document.hidden \|\| !isRewardsPage/);
+ assert.doesNotMatch(app,/hasActiveOperations\(\) \|\| rewardChoicePending/);
 });
 
 test('reviewed snapshot display routing rejects ambiguous and cross-chain releases',async()=>{

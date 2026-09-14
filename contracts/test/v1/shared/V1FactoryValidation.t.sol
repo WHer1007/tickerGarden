@@ -185,7 +185,7 @@ contract V1FactoryValidationHarness {
         return V1FactoryValidation.routedCreator(msg.sender, launchRouter, creator);
     }
 
-    function preview(address creator, CreateMarketParams memory params)
+    function preview(address creator, CreateMarketParams calldata params)
         external
         view
         returns (bytes32 expectedEconomics, bytes32 marketId)
@@ -197,7 +197,10 @@ contract V1FactoryValidationHarness {
         marketId = _marketId(creator, params, expectedEconomics);
     }
 
-    function validateAndReserve(address creator, CreateMarketParams memory params) external returns (bytes32 marketId) {
+    function validateAndReserve(address creator, CreateMarketParams calldata params)
+        external
+        returns (bytes32 marketId)
+    {
         V1FactoryValidation.Snapshot memory snapshot = V1FactoryValidation.resolve(
             _registries, _policy, address(this), marketRegistry, allocationManager, creator, params
         );
@@ -300,8 +303,8 @@ contract V1FactoryValidationTest is Test {
             assetUid: 0x5c4a029b7275e5230fd48512a07abde18983f60d7bef8648c280978d4ec500ed,
             stockToken: 0x10b4Fa177304452De91f0a2f0946E30898c90492,
             stockDecimals: 255,
-            tickerGardenBaselineId: 0x835edd49b4ce47edf6c0d4d310823b69161ee152cce114c266375244f58da915,
-            tickerGardenBaselineHash: 0xd87da152306d48fce2176e0124394a9b727fc9f0a7e5a01adf3202c46850c560,
+            tickerGardenBaselineId: 0x08e4013c50a4744855027d966294b1bf470325b7667cc68071802db07e1db4d3,
+            tickerGardenBaselineHash: 0xca6e689dc0517fcf51f9dd389cd5ef47a6f79e588a749830b739101b6d49db4b,
             quoteAssetConfigId: 0x616f1a3de420a964cbefc678fc8cd8e58a1c8ca8057a9494712657d44e0f35a9,
             quoteEconomicsHash: 0x4608d8b85db48ec7199507737df8e1ebcf477f517420e3f051630e19c4672557,
             launchTemplateId: 0x68c59175f786b6b27be325d6d9b7d076ab8b60f41ab561edcfbc13489f1fb4a8,
@@ -313,10 +316,11 @@ contract V1FactoryValidationTest is Test {
             creatorTaxBps: 18162,
             creatorFeesToHolders: true,
             stakingEnabled: true,
-                burnMemeFees: false
-            });
+            burnMemeFees: true,
+            lpFeePips: 22198
+        });
         assertEq(
-            harness.hashExpectedEconomics(input), 0xd08d0c65a63c5e5bdb3cd75bb65b615231003f30b1f0891ca5c1b900965dc2d6
+            harness.hashExpectedEconomics(input), 0x0c627a866220c06e1a3c72d6c01204e4c1419bc009a66235edf403938ba612b6
         );
     }
 
@@ -406,6 +410,45 @@ contract V1FactoryValidationTest is Test {
         fixtures.setAssetIdentityCurrent(false);
         vm.expectRevert(abi.encodeWithSelector(V1FactoryValidation.AssetIdentityDrift.selector, ASSET_UID));
         harness.preview(CREATOR, params);
+    }
+
+    function test_vaultRuntimeCommitmentStillCheckedWhenRegistryReportsCurrent() public {
+        bytes32 expectedHash = bytes32(uint256(123));
+        fixtures.setVaultRuntimeCodeHash(address(vault), expectedHash);
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                V1FactoryValidation.VaultIdentityDrift.selector, ASSET_UID, address(vault), expectedHash
+            )
+        );
+        harness.preview(CREATOR, _params(bytes32(uint256(1))));
+    }
+
+    function test_emptyVaultStillRejectedWhenRegistryReportsCurrent() public {
+        bytes32 expectedHash = address(vault).codehash;
+        vm.etch(address(vault), "");
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                V1FactoryValidation.VaultIdentityDrift.selector, ASSET_UID, address(vault), expectedHash
+            )
+        );
+        harness.preview(CREATOR, _params(bytes32(uint256(1))));
+    }
+
+    function test_vaultBindingsStillCheckedWhenRegistryReportsCurrent() public {
+        address wrongManager = address(0xBAD);
+        vault.setVaultIdentity(address(fixtures), address(marketRegistry), wrongManager, VAULT_SCHEMA_ID);
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                V1FactoryValidation.InvalidVaultIdentity.selector,
+                ASSET_UID,
+                address(vault),
+                address(fixtures),
+                address(marketRegistry),
+                wrongManager,
+                VAULT_SCHEMA_ID
+            )
+        );
+        harness.preview(CREATOR, _params(bytes32(uint256(1))));
     }
 
     function test_quoteIdentityDriftBlocksPreviewBeforeMarketIdentityReservation() public {
@@ -558,7 +601,8 @@ contract V1FactoryValidationTest is Test {
             creatorTaxBps: 0,
             creatorFeesToHolders: false,
             stakingEnabled: true,
-                burnMemeFees: false
-            });
+            burnMemeFees: false,
+            lpFeePips: 0
+        });
     }
 }

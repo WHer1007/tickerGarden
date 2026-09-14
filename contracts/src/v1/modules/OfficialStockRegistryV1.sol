@@ -34,6 +34,9 @@ contract OfficialStockRegistryV1 is IOfficialStockRegistryV1, ImmutableAccessMan
     mapping(address userStockVault => bytes32 runtimeCodeHash) private _vaultRuntimeCodeHashes;
     mapping(address userStockVault => address marketRegistry) private _vaultMarketRegistries;
     mapping(address userStockVault => address allocationManager) private _vaultAllocationManagers;
+    // The opcode property depends only on runtime bytes. Assets sharing the same
+    // verified Beacon or implementation can reuse it without caching identity.
+    mapping(bytes32 runtimeCodeHash => bool) private _nonDelegatingRuntimeHashes;
 
     error InvalidAssetIdentity(bytes32 assetUid, address stockToken, uint8 tokenDecimals, address userStockVault);
     error AssetAlreadyRegistered(bytes32 assetUid);
@@ -157,9 +160,7 @@ contract OfficialStockRegistryV1 is IOfficialStockRegistryV1, ImmutableAccessMan
                 observedCodeHash
             );
         }
-        if (_containsDelegateExecution(expectedImplementation)) {
-            revert UnmonitoredDelegateProxy(expectedImplementation);
-        }
+        _requireNonDelegatingRuntime(expectedImplementation);
 
         address oldImplementation = fingerprint.implementation;
         bytes32 oldImplementationRuntimeCodeHash = fingerprint.implementationRuntimeCodeHash;
@@ -301,7 +302,6 @@ contract OfficialStockRegistryV1 is IOfficialStockRegistryV1, ImmutableAccessMan
 
     function _observeFingerprint(bytes32 assetUid, address stockToken, address expectedBeacon)
         private
-        view
         returns (StockTokenFingerprint memory observed)
     {
         observed.tokenRuntimeCodeHash = stockToken.codehash;
@@ -314,9 +314,7 @@ contract OfficialStockRegistryV1 is IOfficialStockRegistryV1, ImmutableAccessMan
             // A token admitted as direct must not be an unmonitored proxy. Runtime code-hash
             // pinning cannot detect implementation-slot upgrades when DELEGATECALL/CALLCODE
             // remains in otherwise unchanged proxy bytecode.
-            if (_containsDelegateExecution(stockToken)) {
-                revert UnmonitoredDelegateProxy(stockToken);
-            }
+            _requireNonDelegatingRuntime(stockToken);
             observed.implementation = stockToken;
             observed.implementationRuntimeCodeHash = observed.tokenRuntimeCodeHash;
             return observed;
@@ -324,7 +322,7 @@ contract OfficialStockRegistryV1 is IOfficialStockRegistryV1, ImmutableAccessMan
         if (expectedBeacon.code.length == 0) {
             revert UnsupportedStockTokenProxy(stockToken, expectedBeacon, embeddedBeacon);
         }
-        if (_containsDelegateExecution(expectedBeacon)) revert UnmonitoredDelegateProxy(expectedBeacon);
+        _requireNonDelegatingRuntime(expectedBeacon);
 
         observed.beacon = expectedBeacon;
         observed.beaconRuntimeCodeHash = expectedBeacon.codehash;
@@ -332,9 +330,16 @@ contract OfficialStockRegistryV1 is IOfficialStockRegistryV1, ImmutableAccessMan
         if (!implementationOk || implementation.code.length == 0) {
             revert InvalidAssetImplementation(assetUid, address(0), bytes32(0), implementation, implementation.codehash);
         }
-        if (_containsDelegateExecution(implementation)) revert UnmonitoredDelegateProxy(implementation);
+        _requireNonDelegatingRuntime(implementation);
         observed.implementation = implementation;
         observed.implementationRuntimeCodeHash = implementation.codehash;
+    }
+
+    function _requireNonDelegatingRuntime(address component) private {
+        bytes32 runtimeCodeHash = component.codehash;
+        if (_nonDelegatingRuntimeHashes[runtimeCodeHash]) return;
+        if (_containsDelegateExecution(component)) revert UnmonitoredDelegateProxy(component);
+        _nonDelegatingRuntimeHashes[runtimeCodeHash] = true;
     }
 
     function _embeddedImmutableBeacon(address stockToken) private view returns (address candidate, bool unambiguous) {

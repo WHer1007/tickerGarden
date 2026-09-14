@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.26;
 
+import {StaticLPFee} from "../libraries/StaticLPFee.sol";
+
 import {
     AssetView,
     CanonicalRoute,
@@ -93,6 +95,7 @@ contract MarketRegistryV1 is IMarketRegistryV1 {
         if (msg.sender != factory) revert UnauthorizedFactory(msg.sender);
         if (_registeredMarkets[marketId]) revert MarketAlreadyRegistered(marketId);
         _validateConfig(marketId, config);
+        StaticLPFee.validate(config.lpFeePips);
 
         bytes32 tokenMarketId = _marketIdsByToken[config.memeToken];
         if (tokenMarketId != bytes32(0)) {
@@ -144,7 +147,7 @@ contract MarketRegistryV1 is IMarketRegistryV1 {
         key = PoolKey({
             currency0: currency0,
             currency1: currency1,
-            fee: 0,
+            fee: config.lpFeePips,
             tickSpacing: baseline.tickSpacing,
             hooks: config.graduatedHook
         });

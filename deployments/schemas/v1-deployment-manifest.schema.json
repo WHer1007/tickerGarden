@@ -1016,10 +1016,22 @@
           "const": "0x2044"
         },
         "poolKeyFee": {
-          "const": 0
+          "type": "integer",
+          "enum": [
+            0,
+            1000,
+            2000,
+            3000
+          ]
         },
         "requiredSlot0LpFee": {
-          "const": 0
+          "type": "integer",
+          "enum": [
+            0,
+            1000,
+            2000,
+            3000
+          ]
         },
         "requiredPackedProtocolFee": {
           "const": 0
@@ -1297,7 +1309,13 @@
           "$ref": "#/$defs/nonZeroAddress"
         },
         "fee": {
-          "const": 0
+          "type": "integer",
+          "enum": [
+            0,
+            1000,
+            2000,
+            3000
+          ]
         },
         "tickSpacing": {
           "type": "integer",

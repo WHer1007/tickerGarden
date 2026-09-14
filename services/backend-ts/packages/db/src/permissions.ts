@@ -33,6 +33,11 @@ GRANT SELECT ON
   ${schema}.publications,
   ${schema}.publication_pointers,
   ${schema}.projection_records,
+  ${schema}.projection_read_records,
+  ${schema}.market_record_versions,
+  ${schema}.trade_flow_rollups,
+  ${schema}.trade_time_buckets,
+  ${schema}.statistics_cache_versions,
   ${schema}.projection_checkpoints,
   ${schema}.markets,
   ${schema}.recent_markets,
@@ -42,6 +47,10 @@ GRANT SELECT ON
   ${schema}.market_trades,
   ${schema}.market_candles,
   ${schema}.holder_balances,
+  ${schema}.holder_market_assets,
+  ${schema}.holder_account_refs,
+  ${schema}.holder_exclusion_refs,
+  ${schema}.holder_market_counts,
   ${schema}.holder_snapshots,
   ${schema}.holder_reward_markets,
   ${schema}.holder_reward_datasets,
@@ -79,6 +88,19 @@ GRANT SELECT, INSERT, UPDATE, DELETE ON
   ${schema}.source_conflicts,
   ${schema}.publication_pointers,
   ${schema}.projection_records,
+  ${schema}.projection_read_records,
+  ${schema}.market_record_versions,
+  ${schema}.trade_flow_rollups,
+  ${schema}.trade_time_buckets,
+  ${schema}.statistics_cache_versions,
+  ${schema}.projection_observations,
+  ${schema}.market_work_candidates,
+  ${schema}.holder_work_candidates,
+  ${schema}.holder_work_events,
+  ${schema}.holder_market_work,
+  ${schema}.market_time_refresh,
+  ${schema}.market_observation_work,
+  ${schema}.market_creation_directory,
   ${schema}.projection_checkpoints,
   ${schema}.markets,
   ${schema}.recent_markets,
@@ -88,6 +110,10 @@ GRANT SELECT, INSERT, UPDATE, DELETE ON
   ${schema}.market_trades,
   ${schema}.market_candles,
   ${schema}.holder_balances,
+  ${schema}.holder_market_assets,
+  ${schema}.holder_account_refs,
+  ${schema}.holder_exclusion_refs,
+  ${schema}.holder_market_counts,
   ${schema}.holder_snapshots,
   ${schema}.holder_reward_markets,
   ${schema}.holder_reward_rounds,
@@ -101,6 +127,7 @@ GRANT SELECT, INSERT, UPDATE, DELETE ON
   ${schema}.reward_history,
   ${schema}.invalidations
 TO ${pipeline};
+GRANT SELECT ON ${schema}.holder_snapshots_covered TO ${readApi}, ${pipeline};
 GRANT SELECT, INSERT ON ${schema}.publications TO ${pipeline};
 GRANT SELECT, INSERT ON ${schema}.holder_reward_datasets TO ${pipeline};
 REVOKE UPDATE, DELETE ON ${schema}.holder_reward_datasets FROM ${pipeline};
@@ -112,6 +139,8 @@ GRANT SELECT, INSERT, UPDATE ON
   ${schema}.job_attempts
 TO ${pipeline};
 GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA ${schema} TO ${pipeline};
+-- Only disposable display statistics get Read API write permission.
+GRANT SELECT,INSERT,UPDATE,DELETE ON ${schema}.statistics_result_cache TO ${readApi},${pipeline};
 
 ALTER TABLE ${schema}.inbox_messages ENABLE ROW LEVEL SECURITY;
 ALTER TABLE ${schema}.inbox_messages FORCE ROW LEVEL SECURITY;

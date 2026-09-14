@@ -11,12 +11,12 @@
       "interfaceArtifact": "contracts/out-v1/IV1Protocol.sol/IAllocationManager.json",
       "compilerVersion": "0.8.26+commit.8a97fa7a",
       "creationCode": {
-        "bytes": 10837,
-        "keccak256": "0xc3a5d89cfa0e17392b6a503097ff0584af1e446f9079264d8012b4106d1c0864"
+        "bytes": 10882,
+        "keccak256": "0x9ca728d4660083bc255ea09aaa6bf9f38dfe4a5524f3180ecae17ac23db2a289"
       },
       "runtimeTemplate": {
-        "bytes": 10456,
-        "keccak256": "0x80869412d916426031bc750b3aa9adb41ada3357ba037780ad1df3801d26bc4e",
+        "bytes": 10501,
+        "keccak256": "0x50cfb45b14cd4d70d7da841ea83a48d6ccf7e66574391aa1c71bc0e4073be1c5",
         "immutableReferenceGroups": 2,
         "isFinalDeploymentCodeHash": false
       },
@@ -106,12 +106,12 @@
       "interfaceArtifact": "contracts/out-v1/IV1Protocol.sol/ICreatorRevenueRegistry.json",
       "compilerVersion": "0.8.26+commit.8a97fa7a",
       "creationCode": {
-        "bytes": 3741,
-        "keccak256": "0x2d13db5f3abcce261f51426122a60d87cfa1ad1f16cf61041a55fb4525af3982"
+        "bytes": 3778,
+        "keccak256": "0x9be9c921e5540cfb48cf6e081648d8b8c60cf8cb82975786ca324ce42f29674a"
       },
       "runtimeTemplate": {
-        "bytes": 3419,
-        "keccak256": "0x1281b12d86f46880cbaa1e6eaeea36f676c935c5bba31e064ceafca0c60fe9e7",
+        "bytes": 3456,
+        "keccak256": "0x6d841ae796430c886af22dfc2362a62a589c3121e31634585a79a31569267d8e",
         "immutableReferenceGroups": 2,
         "isFinalDeploymentCodeHash": false
       },
@@ -147,12 +147,12 @@
       "interfaceArtifact": "contracts/out-v1/IV1Protocol.sol/IGraduationExecutor.json",
       "compilerVersion": "0.8.26+commit.8a97fa7a",
       "creationCode": {
-        "bytes": 32557,
-        "keccak256": "0x42fb7720b8c6161f95004bbe2e668b8be75ca676caf3cc076ef17e15983626af"
+        "bytes": 32678,
+        "keccak256": "0x2c9612638d7fd4a291ce5745bf8ffde88f523ec713e34848c2ea34de1a64ccbc"
       },
       "runtimeTemplate": {
-        "bytes": 17967,
-        "keccak256": "0x26f0c137330cec0429cbbc7cbe4512498bc527c7240d33ac4c4e40245b315231",
+        "bytes": 18049,
+        "keccak256": "0x5864c6df745174276e4f199f22ac6604093b6d6072d7a2eb15ad59d1f117411f",
         "immutableReferenceGroups": 10,
         "isFinalDeploymentCodeHash": false
       },
@@ -187,22 +187,22 @@
       "interfaceArtifact": "contracts/out-v1/IV1Protocol.sol/ILaunchAndBuyRouter.json",
       "compilerVersion": "0.8.26+commit.8a97fa7a",
       "creationCode": {
-        "bytes": 6321,
-        "keccak256": "0x4155d2285426d91e49f689e7fe2e0d89e46a61ff173a8cf3a74cdcddbacb16e0"
+        "bytes": 6363,
+        "keccak256": "0x0cb5a353de706a01ad7e0bd37ce86ddd8dc6d999828d43b93f023d3384bf5274"
       },
       "runtimeTemplate": {
-        "bytes": 5875,
-        "keccak256": "0xdad690bd96b9ae8c6d5da322c49d2fce4429de94b2fd968c004e9e6a3dee2054",
+        "bytes": 5917,
+        "keccak256": "0x5039b11c28d4f9437acf1878620fecbba4a464c02086ca8e351ef49087591e8f",
         "immutableReferenceGroups": 2,
         "isFinalDeploymentCodeHash": false
       },
       "functions": [
         "approvedQuoteRegistry()",
         "factory()",
-        "launchAndBuy((bytes32,bytes32,bytes32,bytes32,bytes32,address,string,string,string,bytes32,uint16,bool,bool,bool),uint256,uint256,address)"
+        "launchAndBuy((bytes32,bytes32,bytes32,bytes32,bytes32,address,string,string,string,bytes32,uint16,bool,bool,bool,uint24),uint256,uint256,address)"
       ],
       "mutations": [
-        "launchAndBuy((bytes32,bytes32,bytes32,bytes32,bytes32,address,string,string,string,bytes32,uint16,bool,bool,bool),uint256,uint256,address)"
+        "launchAndBuy((bytes32,bytes32,bytes32,bytes32,bytes32,address,string,string,string,bytes32,uint16,bool,bool,bool,uint24),uint256,uint256,address)"
       ],
       "events": []
     },
@@ -240,12 +240,12 @@
       "interfaceArtifact": "contracts/out-v1/IV1Protocol.sol/ILaunchLocker.json",
       "compilerVersion": "0.8.26+commit.8a97fa7a",
       "creationCode": {
-        "bytes": 11595,
-        "keccak256": "0x22cc92e93fb627fd18124f040f1b407afeab706d21dc8e3ad3bb179c86c8a9d3"
+        "bytes": 11634,
+        "keccak256": "0xf668c1ed184538be22f9aee413d70302f3097414326af1844250a0a45a2b4cb5"
       },
       "runtimeTemplate": {
-        "bytes": 8742,
-        "keccak256": "0x49aa62a1a32de630c7530155b0dbecb50d11a3e8073a8cbc607c99c40e55cac4",
+        "bytes": 8802,
+        "keccak256": "0xc8932366630c4f338ced75e4e55c305322eb471348fa17b3666151afab3b9595",
         "immutableReferenceGroups": 7,
         "isFinalDeploymentCodeHash": false
       },
@@ -307,17 +307,17 @@
     {
       "module": "MarketRegistryV1",
       "source": "contracts/src/v1/modules/MarketRegistryV1.sol",
-      "sourceSha256": "0x9df51790d2261b2a8d67b5b688994a4fcf67806c6b86ce088f99da6920462962",
+      "sourceSha256": "0xe5a5a452147ad92b30914c0eb53f26758e211ca5d8b11a2d921b5006796d90ec",
       "artifact": "contracts/out-v1/MarketRegistryV1.sol/MarketRegistryV1.json",
       "interfaceArtifact": "contracts/out-v1/IV1Protocol.sol/IMarketRegistryV1.json",
       "compilerVersion": "0.8.26+commit.8a97fa7a",
       "creationCode": {
-        "bytes": 9534,
-        "keccak256": "0x3448163110071bbf05890955beb81b3896d0fc05d0583a50d2020d6b04b7e6fd"
+        "bytes": 9831,
+        "keccak256": "0x0708d3e375c97f0610137ceeb7b3d4117b70aabce3c78df3669db6bb31b49f20"
       },
       "runtimeTemplate": {
-        "bytes": 8703,
-        "keccak256": "0xa190c1dc4d0eb6a7a767046b38e7e4a88fed2496814e70da8004c13285591ed6",
+        "bytes": 9000,
+        "keccak256": "0xf3e7575ccd59031eadb1faf38030d9ccd226f434de2928d305761da4c9f71312",
         "immutableReferenceGroups": 6,
         "isFinalDeploymentCodeHash": false
       },
@@ -335,12 +335,12 @@
         "market(bytes32)",
         "marketIdByToken(address)",
         "officialStockRegistry()",
-        "registerMarket(bytes32,(bytes32,bytes32,bytes32,bytes32,bytes32,bytes32,bytes32,uint256,address,address,address,address,address,address,uint16,bool,bool,bool))",
+        "registerMarket(bytes32,(bytes32,bytes32,bytes32,bytes32,bytes32,bytes32,bytes32,uint256,address,address,address,address,address,address,uint16,bool,bool,bool,uint24))",
         "tickerGardenBaselineRegistry()"
       ],
       "mutations": [
         "commitPoolCreated(bytes32,bytes32)",
-        "registerMarket(bytes32,(bytes32,bytes32,bytes32,bytes32,bytes32,bytes32,bytes32,uint256,address,address,address,address,address,address,uint16,bool,bool,bool))"
+        "registerMarket(bytes32,(bytes32,bytes32,bytes32,bytes32,bytes32,bytes32,bytes32,uint256,address,address,address,address,address,address,uint16,bool,bool,bool,uint24))"
       ],
       "events": [
         "LaunchPhaseChanged(bytes32,uint8,uint8,bytes32,uint32)",
@@ -355,12 +355,12 @@
       "interfaceArtifact": "contracts/out-v1/IV1Protocol.sol/IMemeStockGauge.json",
       "compilerVersion": "0.8.26+commit.8a97fa7a",
       "creationCode": {
-        "bytes": 13025,
-        "keccak256": "0x747c5d49987a61e33fe8e6bb585c32b3183a63febcc90f800e0da9e685b278eb"
+        "bytes": 12933,
+        "keccak256": "0x7ca70d7ad23e9b72f375c41c07d41976134b513bd1bc7652d50cbd9a670327f5"
       },
       "runtimeTemplate": {
-        "bytes": 12997,
-        "keccak256": "0x3e3f1fcd99cab3ed17310a7197535514f590eff63ce17fb8e158e732351bce52",
+        "bytes": 12905,
+        "keccak256": "0x563e780a00e4898d32f6bf13ef12d0dc8618742e6ac2abb161f43d776c2e70ec",
         "immutableReferenceGroups": 0,
         "isFinalDeploymentCodeHash": false
       },
@@ -409,17 +409,17 @@
     {
       "module": "OfficialStockRegistryV1",
       "source": "contracts/src/v1/modules/OfficialStockRegistryV1.sol",
-      "sourceSha256": "0x918f9da04c942de3d2a1f93b25ad84a4548fa23a71bcb3b80807797cd5ba414d",
+      "sourceSha256": "0xd448875f812c15617b23a99539e52e2e0b77e7d0cacf450d4b35594736ce7cd1",
       "artifact": "contracts/out-v1/OfficialStockRegistryV1.sol/OfficialStockRegistryV1.json",
       "interfaceArtifact": "contracts/out-v1/IV1Protocol.sol/IOfficialStockRegistryV1.json",
       "compilerVersion": "0.8.26+commit.8a97fa7a",
       "creationCode": {
-        "bytes": 9683,
-        "keccak256": "0xd4982bf5daba8e190811b487f7f9eda87408f9ca1f9dbd78bdc8dd5549d0479b"
+        "bytes": 9633,
+        "keccak256": "0xf1e7f1659df71541b7ef8b1464425027690aa8aef9f3799b3c89f3c806613dc2"
       },
       "runtimeTemplate": {
-        "bytes": 9475,
-        "keccak256": "0x5bcab693c870d53efe96e2d20f7d4b1560ade4674c5d592f3710ac33d5ae3cb8",
+        "bytes": 9425,
+        "keccak256": "0xb87c086fb7b71c26be463a73120596ce63531e87497661924cfed075021ef6ec",
         "immutableReferenceGroups": 1,
         "isFinalDeploymentCodeHash": false
       },
@@ -466,12 +466,12 @@
       "interfaceArtifact": "contracts/out-v1/IV1Protocol.sol/IProtocolFeeVault.json",
       "compilerVersion": "0.8.26+commit.8a97fa7a",
       "creationCode": {
-        "bytes": 24445,
-        "keccak256": "0x7fd38a87467ad5720f9229becb5d32950db8e29254fa738107eb249125ce66f5"
+        "bytes": 24493,
+        "keccak256": "0x69419cbadb4fc70d8cf2056ba06d56efa990eef6557527baa062b35f339ebe3e"
       },
       "runtimeTemplate": {
-        "bytes": 23059,
-        "keccak256": "0x8befdf652db6f910594929cfcbeac63d4198fa7b22de0689b03ecd278f4c892f",
+        "bytes": 23107,
+        "keccak256": "0x6928ed8455dde2d2d89da0201475cf33266e4f2eac4a6999555ef420961fe93b",
         "immutableReferenceGroups": 6,
         "isFinalDeploymentCodeHash": false
       },
@@ -599,17 +599,17 @@
     {
       "module": "TickerGardenCurve",
       "source": "contracts/src/v1/modules/TickerGardenCurve.sol",
-      "sourceSha256": "0x9b950514f13d5186003401be2268a49a765149e5f28c5d22a1fc10f38c2ea6a0",
+      "sourceSha256": "0x1d0df9916729e51f7ec0e89bda5231663476bde9edb031489d6cfc83ace6ebe5",
       "artifact": "contracts/out-v1/TickerGardenCurve.sol/TickerGardenCurve.json",
       "interfaceArtifact": "contracts/out-v1/IV1Protocol.sol/ITickerGardenCurve.json",
       "compilerVersion": "0.8.26+commit.8a97fa7a",
       "creationCode": {
-        "bytes": 21092,
-        "keccak256": "0x2d6c5b196656cd5afd7757762c5a0985de11c002e941c2e067d9c56a89fcb649"
+        "bytes": 21160,
+        "keccak256": "0xa8622ea92474b504ee1057042f6faeac9de6902a8246a1f542334e7e912d5b79"
       },
       "runtimeTemplate": {
-        "bytes": 17734,
-        "keccak256": "0x28f33c338305c7ed8c4a717acf4172591a7f8bc290ff8641f2e98862be8b1339",
+        "bytes": 17838,
+        "keccak256": "0xf515aef4e8e79c0724ca8794e364aea5a49c439139e7032ffced9c84fb2d83a3",
         "immutableReferenceGroups": 17,
         "isFinalDeploymentCodeHash": false
       },
@@ -646,25 +646,25 @@
     {
       "module": "TickerGardenFactoryV1",
       "source": "contracts/src/v1/modules/TickerGardenFactoryV1.sol",
-      "sourceSha256": "0x0f5712794a80a02a0b789cf0ab1643b2898bab4a9c5991b33e1cf689bf40af94",
+      "sourceSha256": "0xb859f3de0695d547c8428165f532644fe2c678dbb2f21fd0b78b1b6ee89b4c81",
       "artifact": "contracts/out-v1/TickerGardenFactoryV1.sol/TickerGardenFactoryV1.json",
       "interfaceArtifact": "contracts/out-v1/IV1Protocol.sol/ITickerGardenFactoryV1.json",
       "compilerVersion": "0.8.26+commit.8a97fa7a",
       "creationCode": {
-        "bytes": 30768,
-        "keccak256": "0x486221e962755244a45e0f7d97d41347edc21c1417f741aca784927cc72a3cf3"
+        "bytes": 30306,
+        "keccak256": "0xcc8fb85acfef1ee6aa5e6ff61e0c58a08b2793383d6348db0c7ec77fb786ee7b"
       },
       "runtimeTemplate": {
-        "bytes": 23941,
-        "keccak256": "0x4e348557f01135f19a895314d8010235d63f4052109d94fce3fb28e93fa65b88",
+        "bytes": 23515,
+        "keccak256": "0x797007476c13bb3cd048a5250b4b4cd5865e7fc40b5e90489723b04005277dae",
         "immutableReferenceGroups": 15,
         "isFinalDeploymentCodeHash": false
       },
       "functions": [
         "allocationManager()",
         "approvedQuoteRegistry()",
-        "createMarket((bytes32,bytes32,bytes32,bytes32,bytes32,address,string,string,string,bytes32,uint16,bool,bool,bool))",
-        "createMarketFor(address,(bytes32,bytes32,bytes32,bytes32,bytes32,address,string,string,string,bytes32,uint16,bool,bool,bool))",
+        "createMarket((bytes32,bytes32,bytes32,bytes32,bytes32,address,string,string,string,bytes32,uint16,bool,bool,bool,uint24))",
+        "createMarketFor(address,(bytes32,bytes32,bytes32,bytes32,bytes32,address,string,string,string,bytes32,uint16,bool,bool,bool,uint24))",
         "creatorRevenueRegistry()",
         "curveImplementation()",
         "curveInitialization(address)",
@@ -674,20 +674,21 @@
         "launchFee()",
         "launchRouter()",
         "launchTemplateRegistry()",
+        "lpFeeMode()",
         "marketRegistry()",
         "memeFeeBurnMode()",
         "memeTokenImplementation()",
         "officialStockRegistry()",
         "platformTreasury()",
-        "predictMarketAddresses(address,(bytes32,bytes32,bytes32,bytes32,bytes32,address,string,string,string,bytes32,uint16,bool,bool,bool))",
-        "previewMarketEconomics((bytes32,bytes32,bytes32,bytes32,bytes32,address,string,string,string,bytes32,uint16,bool,bool,bool))",
+        "predictMarketAddresses(address,(bytes32,bytes32,bytes32,bytes32,bytes32,address,string,string,string,bytes32,uint16,bool,bool,bool,uint24))",
+        "previewMarketEconomics((bytes32,bytes32,bytes32,bytes32,bytes32,address,string,string,string,bytes32,uint16,bool,bool,bool,uint24))",
         "protocolFeeVault()",
         "runtimeBindings()",
         "tickerGardenBaselineRegistry()"
       ],
       "mutations": [
-        "createMarket((bytes32,bytes32,bytes32,bytes32,bytes32,address,string,string,string,bytes32,uint16,bool,bool,bool))",
-        "createMarketFor(address,(bytes32,bytes32,bytes32,bytes32,bytes32,address,string,string,string,bytes32,uint16,bool,bool,bool))"
+        "createMarket((bytes32,bytes32,bytes32,bytes32,bytes32,address,string,string,string,bytes32,uint16,bool,bool,bool,uint24))",
+        "createMarketFor(address,(bytes32,bytes32,bytes32,bytes32,bytes32,address,string,string,string,bytes32,uint16,bool,bool,bool,uint24))"
       ],
       "events": [
         "MarketCreated(bytes32,bytes32,address,address,address,address,bytes32,bytes32,bytes32)"
@@ -701,12 +702,12 @@
       "interfaceArtifact": "contracts/out-v1/IV1Protocol.sol/ITickerGardenMemeHook.json",
       "compilerVersion": "0.8.26+commit.8a97fa7a",
       "creationCode": {
-        "bytes": 10031,
-        "keccak256": "0xea0052dae8a3530a1743db1c03d6395c7f0677b1676495283d48bd135a8ea622"
+        "bytes": 10029,
+        "keccak256": "0x471e8c6222e1ca8d5f0d3f467716f7b14fcc86981736a30e44cb4fa7e3364065"
       },
       "runtimeTemplate": {
-        "bytes": 8659,
-        "keccak256": "0xef1765581ce3bdf499802f02166e5060042ea48f300b52c482ada6711de367e7",
+        "bytes": 8657,
+        "keccak256": "0xe4ab339c994c19489320bf5f0e14ab693e31bca5c796a9a0c0ebb80332cafa27",
         "immutableReferenceGroups": 7,
         "isFinalDeploymentCodeHash": false
       },
@@ -790,12 +791,12 @@
       "interfaceArtifact": "contracts/out-v1/IV1Protocol.sol/IUserStockVault.json",
       "compilerVersion": "0.8.26+commit.8a97fa7a",
       "creationCode": {
-        "bytes": 12851,
-        "keccak256": "0x7bd7ae47d7f300c03384829923d79355a602d987802e030e3e6907fe8b53c2d1"
+        "bytes": 12899,
+        "keccak256": "0x0e76eaff7b7420732fb5295e20b398f956b26a433606cd1597a392e6864092fb"
       },
       "runtimeTemplate": {
-        "bytes": 12262,
-        "keccak256": "0x3e4cb5d3da8f9a68638bac39a26f36968deb81fb738251cd282971a465d8400a",
+        "bytes": 12310,
+        "keccak256": "0x01e76ad0d896028541d281b8c2afa2441bb1b418e705a2036951919affb1ab09",
         "immutableReferenceGroups": 3,
         "isFinalDeploymentCodeHash": false
       },
@@ -851,7 +852,7 @@
       "module": "HolderRewardsDistributorV1",
       "mode": "TICKERGARDEN_HOLDER_WALLET_SNAPSHOT_V1",
       "source": "contracts/src/v1/modules/HolderRewardsDistributorV1.sol",
-      "sourceSha256": "0x36b87fca4e32ef0718d0330b41e9b7af04adfafcdb4e5dda890344adbeb1b0b1",
+      "sourceSha256": "0xd0e42f664317072da2657b65c8ef73e3bcff4e3612b53da540118aa36c296e4a",
       "artifact": "contracts/out-v1/HolderRewardsDistributorV1.sol/HolderRewardsDistributorV1.json",
       "abi": [
         {
@@ -1683,12 +1684,12 @@
         }
       ],
       "creationCode": {
-        "bytes": 12692,
-        "keccak256": "0x8c8ca8aa2da1baf65bffe537dedef34b2ddf1bdd79ae3675a6678815648901d5"
+        "bytes": 12731,
+        "keccak256": "0xd33f919e648df513125943a435f334500ef19637b7906131027fb85fb27d2795"
       },
       "runtimeTemplate": {
-        "bytes": 12454,
-        "keccak256": "0x362d37988f68c4d035ea02193dc739a9c2f856557d24f64391d8076c4c70809a",
+        "bytes": 12493,
+        "keccak256": "0x181b11027ed24da2071b505f2fa1f6bf48d7683db8251651e28f22b4d8cf99bb",
         "isFinalDeploymentCodeHash": false
       },
       "mutations": [
@@ -1702,5 +1703,5 @@
       ]
     }
   ],
-  "manifestHash": "0x7245b3eccb9106e8f112bb3d3583c98da1e396fb1f7b1b80922e7f45df5719d1"
+  "manifestHash": "0xe570f5f6676491eccfc327f7330fbf69d456f34b4f8ac95e747590ce4f6eacee"
 }

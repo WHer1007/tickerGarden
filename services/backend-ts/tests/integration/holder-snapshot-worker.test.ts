@@ -49,7 +49,11 @@ test('snapshot worker replays retained transfers, reconciles RPC, persists idemp
   await event('HolderSnapshotPublished',11,tip,h(4),{marketId:h(2),round:1n,snapshotBlock:height,snapshotBlockHash:h(3),root:ds.root,dataHash:ds.dataHash,quoteBudget:99n,memeBudget:0n});
   await event('HolderSnapshotClaimed',12,tip,h(4),{marketId:h(2),round:1n,account:a(11),assets:1,quotePaid:16n,memePaid:0n});
   primary.lastRound=secondary.lastRound=1n;
-  await projectHolderRewards({...o,blockNumber:tip,blockHash:h(4),generation:1n});
+  assert.deepEqual(await projectHolderRewards({...o,blockNumber:tip,blockHash:h(4),generation:1n}),{markets:1,events:2});
+  const beforeRetry=await db.pool.query(`SELECT (SELECT count(*) FROM ${schema}.holder_reward_rounds)::int rounds,(SELECT count(*) FROM ${schema}.holder_reward_claims)::int claims`);
+  assert.deepEqual(await projectHolderRewards({...o,blockNumber:tip,blockHash:h(4),generation:1n}),{markets:0,events:0});
+  const afterRetry=await db.pool.query(`SELECT (SELECT count(*) FROM ${schema}.holder_reward_rounds)::int rounds,(SELECT count(*) FROM ${schema}.holder_reward_claims)::int claims`);
+  assert.deepEqual(afterRetry.rows[0],beforeRetry.rows[0]);
   const page=await readHolderSnapshots({pool:db.pool,deployment,distributor:snapshotDistributor(),marketId:h(2),account:a(11),secret:'x'.repeat(32),schemaName});
   assert.equal(page.rounds[0]?.claimedAssets,1);assert.equal(page.rounds[0]?.quoteAmount,'16');
   // Canonical rewind invalidates on-chain observations but never deletes proof archives.

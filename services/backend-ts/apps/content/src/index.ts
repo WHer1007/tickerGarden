@@ -18,7 +18,7 @@ export function createContentApp(options: ContentAppOptions = {}) {
     'TG_CONTENT_SESSION_SECRET', 'TG_CONTENT_WEB_ORIGIN', 'PINATA_JWT', 'QSTASH_CURRENT_SIGNING_KEY', 'QSTASH_NEXT_SIGNING_KEY',
     'QSTASH_CONTENT_TOKEN', 'TG_CONTENT_JOB_CALLBACK_URL', 'TG_CONTENT_GENERATION', 'TG_REPAIR_TOKEN', 'CRON_SECRET',
   ] });
-  let ownedPool: Pool | undefined; const pool = () => ownedPool ??= options.pool ?? createDatabasePool(env.TG_CONTENT_DATABASE_URL ?? '').pool;
+  let ownedPool: Pool | undefined; const pool = () => ownedPool ??= options.pool ?? createDatabasePool(env.TG_CONTENT_DATABASE_URL ?? '', {}, {role:'content',env}).pool;
   const schemaName = env.TG_DATABASE_SCHEMA; const storage = (): S3Config => ({ bucket: env.TG_CONTENT_BUCKET ?? '', region: env.TG_CONTENT_REGION ?? '',
     accessKeyId: env.TG_CONTENT_ACCESS_KEY_ID ?? '', secretAccessKey: env.TG_CONTENT_SECRET_ACCESS_KEY ?? '',
     ...(env.TG_CONTENT_ENDPOINT ? { endpoint: env.TG_CONTENT_ENDPOINT } : {}), ...(env.TG_CONTENT_SESSION_TOKEN ? { sessionToken: env.TG_CONTENT_SESSION_TOKEN } : {}) });

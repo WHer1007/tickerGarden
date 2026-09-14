@@ -222,8 +222,9 @@ contract C405CurveAutonomyInvariantTest is Test {
             creatorTaxBps: 0,
             creatorFeesToHolders: false,
             stakingEnabled: true,
-                burnMemeFees: false
-            });
+                burnMemeFees: false,
+            lpFeePips: 0
+        });
     }
 
     function _asset() internal pure returns (AssetView memory) {

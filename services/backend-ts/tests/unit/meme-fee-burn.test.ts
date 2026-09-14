@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import {encodeFunctionResult,encodeAbiParameters,encodeEventTopics,type Hex} from 'viem';
-import {legacyMarketRecordAbi,burnMarketRecordAbi,decodeMarketRecord} from '../../packages/chain/src/market-record.ts';
+import {legacyMarketRecordAbi,burnMarketRecordAbi,lpMarketRecordAbi,decodeMarketRecord} from '../../packages/chain/src/market-record.ts';
 import {aggregateMemeFeeBurns} from '../../packages/history-projector/src/index.ts';
 import {protocolEventAbi,decodeF72Event,eventTopicsForModules,eventTopic} from '../../packages/events/src/index.ts';
 import {rebuildHolderSnapshot} from '../../packages/analytics/src/index.ts';
@@ -11,8 +11,12 @@ const runtime={poolId:h('8'),sourceVersion:2,launchPhase:1};
 test('market return decoding preserves runtime offsets for old and burn-enabled versions',()=>{
  const old=encodeFunctionResult({abi:legacyMarketRecordAbi,functionName:'market',result:{config,runtime}});
  const next=encodeFunctionResult({abi:burnMarketRecordAbi,functionName:'market',result:{config:{...config,burnMemeFees:true},runtime}});
- assert.deepEqual(decodeMarketRecord(old),{config:{...config,burnMemeFees:false},runtime});
- assert.deepEqual(decodeMarketRecord(next),{config:{...config,burnMemeFees:true},runtime});
+ assert.deepEqual(decodeMarketRecord(old),{config:{...config,burnMemeFees:false,lpFeePips:0},runtime});
+ assert.deepEqual(decodeMarketRecord(next),{config:{...config,burnMemeFees:true,lpFeePips:0},runtime});
+ for(const lpFeePips of [0,1000,2000,3000]) {
+  const result={config:{...config,burnMemeFees:true,lpFeePips},runtime};
+  assert.deepEqual(decodeMarketRecord(encodeFunctionResult({abi:lpMarketRecordAbi,functionName:"market",result})),result);
+ }
  assert.throws(()=>decodeMarketRecord(`${next}00`));assert.throws(()=>decodeMarketRecord('0x'));
 });
 function burn(role:number,index=role,amount=10n) {

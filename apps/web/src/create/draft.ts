@@ -16,6 +16,8 @@ export interface CreateDraft {
   firstBuyAmount?: string;
   creatorTax?: string;
   burnMemeFees?: boolean;
+  lpFeeEnabled?: boolean;
+  lpFeePips?: string;
   quoteAssetConfigId?: string;
   assetUid?: string;
   tickerGardenBaselineId?: string;
@@ -28,9 +30,9 @@ export interface CreateDraft {
 
 const VERSION = 1 as const;
 const MAX_BYTES = 16 * 1024;
-const TEXT_FIELDS = ["name", "symbol", "description", "x", "website", "firstBuyAmount", "creatorTax",
+const TEXT_FIELDS = ["name", "symbol", "description", "x", "website", "firstBuyAmount", "creatorTax", "lpFeePips",
   "quoteAssetConfigId", "assetUid", "tickerGardenBaselineId", "launchTemplateId", "launchMode"] as const;
-const BOOL_FIELDS = ["stakingEnabled", "treasuryEnabled", "burnMemeFees"] as const;
+const BOOL_FIELDS = ["stakingEnabled", "treasuryEnabled", "burnMemeFees", "lpFeeEnabled"] as const;
 type TextField = typeof TEXT_FIELDS[number];
 type BoolField = typeof BOOL_FIELDS[number];
 

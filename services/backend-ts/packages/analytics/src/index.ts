@@ -49,6 +49,7 @@ export interface MarketBinding {
   readonly curve: Address;
   readonly hook: Address;
   readonly poolId: Hex32 | null;
+  readonly lpFeePips?: number;
   readonly currency0: Address | null;
   readonly currency1: Address | null;
 }
@@ -271,7 +272,12 @@ function normalizePool(observation: EventObservation, binding: MarketBinding, fe
   if (!binding.poolId || !binding.currency0 || !binding.currency1 || binding.currency0 >= binding.currency1) throw new Error('invalid pool binding');
   const amount0 = int128(observation.event.args.amount0, 'amount0');
   const amount1 = int128(observation.event.args.amount1, 'amount1');
-  if ((amount0 < 0n) === (amount1 < 0n) || amount0 === 0n || amount1 === 0n || uint256(observation.event.args.fee, 'pool fee') !== 0n) throw new Error('invalid pool core deltas');
+  if ((amount0 < 0n) === (amount1 < 0n) || amount0 === 0n || amount1 === 0n) throw new Error('invalid pool core deltas');
+  const lpFee = binding.lpFeePips ?? 0;
+  const actualFee = uint256(observation.event.args.fee, 'pool fee');
+  // v4 Swap reports the combined input fee: protocol + LP - floor(protocol * LP / 1e6).
+  if (![0,1000,2000,3000].includes(lpFee) || actualFee < BigInt(lpFee)
+      || actualFee > BigInt(lpFee + 1000 - Math.floor(lpFee * 1000 / 1_000_000))) throw new Error('invalid pool fee');
   const memeDelta = binding.memeAsset === binding.currency0 ? amount0 : binding.memeAsset === binding.currency1 ? amount1 : null;
   const quoteDelta = binding.quoteAsset === binding.currency0 ? amount0 : binding.quoteAsset === binding.currency1 ? amount1 : null;
   if (memeDelta === null || quoteDelta === null || (memeDelta < 0n) === (quoteDelta < 0n)) throw new Error('pool assets do not match binding');

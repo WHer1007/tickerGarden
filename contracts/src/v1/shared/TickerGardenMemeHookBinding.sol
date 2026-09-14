@@ -144,7 +144,7 @@ abstract contract TickerGardenMemeHookBinding is ITickerGardenMemeHook {
         if (
             value.runtime.launchPhase != LAUNCH_PHASE_POOL_CREATED || value.runtime.poolId != poolId
                 || value.runtime.sourceVersion != binding.sourceVersion || value.config.graduatedHook != address(this)
-                || keccak256(abi.encode(_hookMarketRegistry.canonicalPoolKey(binding.marketId))) != binding.keyHash
+                || _hookMarketRegistry.canonicalPoolId(binding.marketId) != binding.keyHash
         ) {
             revert InactiveFeeSource(binding.marketId, binding.sourceVersion);
         }
@@ -156,7 +156,7 @@ abstract contract TickerGardenMemeHookBinding is ITickerGardenMemeHook {
         returns (bytes32 keyHash)
     {
         if (
-            key.currency0 >= key.currency1 || key.fee != 0 || key.tickSpacing < 1 || key.tickSpacing > 32_767
+            key.currency0 >= key.currency1 || key.fee != value.config.lpFeePips || key.tickSpacing < 1 || key.tickSpacing > 32_767
                 || key.hooks != address(this) || value.config.graduatedHook != address(this)
         ) revert InvalidCanonicalPoolKey();
 
@@ -168,7 +168,7 @@ abstract contract TickerGardenMemeHookBinding is ITickerGardenMemeHook {
         }
 
         keyHash = keccak256(abi.encode(key));
-        if (keyHash != keccak256(abi.encode(_hookMarketRegistry.canonicalPoolKey(marketId)))) {
+        if (keyHash != _hookMarketRegistry.canonicalPoolId(marketId)) {
             revert InvalidCanonicalPoolKey();
         }
     }

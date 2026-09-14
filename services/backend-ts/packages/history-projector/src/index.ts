@@ -177,7 +177,7 @@ function activityReferences(event: DecodedProtocolEvent): Array<{ account: Addre
 
 async function loadMarkets(pool: Pool, schema: string, deployment: DeploymentIdentity, revision: string): Promise<MarketRecord[]> {
   const rows = await pool.query<{ payload: MarketRecord }>(
-    `SELECT r.payload FROM ${schema}.projection_records r JOIN ${schema}.publication_pointers p USING(environment,chain_id,deployment_digest,scope,revision)
+    `SELECT r.payload FROM ${schema}.projection_read_records r JOIN ${schema}.publication_pointers p USING(environment,chain_id,deployment_digest,scope,revision)
      WHERE r.environment=$1 AND r.chain_id=$2 AND r.deployment_digest=$3 AND r.scope='markets' AND r.revision=$4 ORDER BY r.identity`,
     [...identity(deployment), revision],
   );

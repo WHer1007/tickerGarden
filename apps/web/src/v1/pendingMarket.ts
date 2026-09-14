@@ -20,7 +20,7 @@ export async function readPublishedMarket(
 }
 
 export const MARKET_PUBLICATION_PENDING = 'This market is not in the published data yet. The backend is verifying the creation transaction. This page updates automatically.';
-export const LAUNCH_CONFIRMED_COPY = 'Created on chain. Your market is being added to the database and will appear automatically. You do not need to launch again.';
+export const LAUNCH_CONFIRMED_COPY = 'Your token is live on-chain. Market data is syncing and will appear automatically once indexing is complete.';
 
 // This only requests backend verification. It never sends market fields or
 // copies receipt-derived statistics into the page.

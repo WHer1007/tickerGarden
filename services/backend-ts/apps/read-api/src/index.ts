@@ -1,3 +1,5 @@
+import { sharedStatistics } from './statistics-cache.ts';
+import { createReadAdmission } from './read-admission.ts';
 import { readHolderSnapshots } from '../../../packages/read-store/src/holder-snapshots.ts';
 import type { Pool } from 'pg';
 import type { Context } from 'hono';
@@ -29,8 +31,18 @@ export function createReadApiApp(options: ReadApiOptions = {}) {
     environment: environmentName(env.TG_ENVIRONMENT), chainId: 46630, deploymentDigest: CURRENT_RELEASE_ID, activationBlock: CURRENT_ACTIVATION_BLOCK,
   };
   let ownedPool: Pool | undefined;
-  const pool = () => ownedPool ??= options.pool ?? createDatabasePool(env.TG_READ_DATABASE_URL ?? '').pool;
+  const pool = () => ownedPool ??= options.pool ?? createDatabasePool(env.TG_READ_DATABASE_URL ?? '', {}, {role:'read-api',env}).pool;
   const schemaName = env.TG_DATABASE_SCHEMA;
+  // Share only in-flight public version reads. Never cache finality decisions.
+  const updateReads = new Map<string,Promise<unknown>>();
+  const shareRead = createReadAdmission({ concurrency: 8, maxPending: 128,
+    unavailable: () => new PublicationUnavailableError('Public read capacity is busy; retry shortly') });
+  // Global scans share one bounded lane so competing chart/Holder scans cannot exhaust the pool.
+  const shareGlobalRead = createReadAdmission({ concurrency: 1, maxPending: 8,
+    unavailable: () => new PublicationUnavailableError('Global statistics capacity is busy; retry shortly') });
+
+  const cachedGlobalRead=<T>(key:string,build:(readPool:Pool)=>Promise<T>)=>shareGlobalRead(key,()=>sharedStatistics({pool:pool(),deployment,...(schemaName?{schemaName}:{})},key,build));
+
   const cursorSecret = env.TG_CURSOR_SECRET ?? '';
   const primary = options.primary ?? (env.TG_RPC_URL ? new RpcTransport({ url: env.TG_RPC_URL }) : undefined);
   const secondary = options.secondary ?? (env.TG_SECONDARY_RPC_URL ? new RpcTransport({ url: env.TG_SECONDARY_RPC_URL }) : undefined);
@@ -100,8 +112,13 @@ export function createReadApiApp(options: ReadApiOptions = {}) {
 
   app.get('/v1/updates', async (context) => {
     try { const query = context.req.query(); rejectUnknown(query, ['since']);
-      const [update,recentVersion]=await Promise.all([readSnapshotUpdates({ pool: pool(), deployment, ...(query.since ? { since: query.since } : {}), ...(schemaName ? { schemaName } : {}) }),readRecentMarketVersion({pool:pool(),deployment,...(schemaName?{schemaName}:{})})]);
-      return context.json({...update,recentVersion});
+      const key=query.since??'';
+      let pending=updateReads.get(key);
+      if(!pending){
+        pending=Promise.all([readSnapshotUpdates({pool:pool(),deployment,...(query.since?{since:query.since}:{}),...(schemaName?{schemaName}:{})}),readRecentMarketVersion({pool:pool(),deployment,...(schemaName?{schemaName}:{})})]).then(([update,recentVersion])=>({...update,recentVersion}));
+        if(updateReads.size<128){updateReads.set(key,pending);const current=pending;void pending.finally(()=>{if(updateReads.get(key)===current)updateReads.delete(key);}).catch(()=>{});}
+      }
+      return context.json(await pending);
     } catch (error) { return readError(context, error, deployment); }
   });
 
@@ -262,8 +279,9 @@ export function createReadApiApp(options: ReadApiOptions = {}) {
   app.get('/v1/market-statistics', async (context) => {
     try {
       const query = context.req.query(); rejectUnknown(query, ['markets']);
-      const marketIds = query.markets === undefined ? undefined : parseMarketIds(query.markets);
-      return context.json(await readMarketStatistics({ pool: pool(), deployment, ...(marketIds ? { marketIds } : {}), ...(schemaName ? { schemaName } : {}) }));
+      if (!query.markets) throw new Error('invalid markets: request 1 to 100 explicit market IDs');
+      const marketIds = parseMarketIds(query.markets);
+      return context.json(await shareRead('market-statistics:'+JSON.stringify(marketIds),()=>readMarketStatistics({ pool: pool(), deployment, marketIds, ...(schemaName ? { schemaName } : {}) })));
     } catch (error) { return analyticsError(context, error, 'candle'); }
   });
 
@@ -275,24 +293,24 @@ export function createReadApiApp(options: ReadApiOptions = {}) {
   });
 
   app.get('/v1/stats/holders', async (context) => {
-    try { rejectUnknown(context.req.query(), []); return context.json(await readGlobalHolders({pool:pool(),deployment,...(schemaName?{schemaName}:{})})); }
+    try { rejectUnknown(context.req.query(), []); return context.json(await cachedGlobalRead('holders',readPool=>readGlobalHolders({pool:readPool,deployment,...(schemaName?{schemaName}:{})}))); }
     catch(error){return analyticsError(context,error,'holder');}
   });
 
   app.get('/v1/stats/overview', async (context) => {
     try { const query=context.req.query();rejectUnknown(query,['from','to']);if(query.from===undefined||query.to===undefined)throw new Error('invalid statistics window');
-      return context.json(await readGlobalStatistics({pool:pool(),deployment,from:parseTimestamp(query.from),to:parseTimestamp(query.to),...(schemaName?{schemaName}:{})})); }
+      const from=parseTimestamp(query.from!),to=parseTimestamp(query.to!);if(from>=to)throw Error('invalid statistics window');return context.json(await cachedGlobalRead('overview:'+JSON.stringify([from,to]),readPool=>readGlobalStatistics({pool:readPool,deployment,from,to,...(schemaName?{schemaName}:{})}))); }
     catch(error){return analyticsError(context,error,'candle');}
   });
 
   app.get('/v1/stats/series', async (context) => {
     try { const query=context.req.query();rejectUnknown(query,['interval','from','to']);if(query.interval===undefined||query.from===undefined||query.to===undefined)throw new Error('invalid series query');
-      return context.json(await readGlobalSeries({pool:pool(),deployment,interval:parseInterval(query.interval),from:parseTimestamp(query.from),to:parseTimestamp(query.to),...(schemaName?{schemaName}:{})})); }
+      const interval=parseInterval(query.interval!),from=parseTimestamp(query.from!),to=parseTimestamp(query.to!);if(from>=to||from%interval||to%interval||(to-from)/interval>2000)throw Error('invalid series interval');return context.json(await cachedGlobalRead('series:'+JSON.stringify([interval,from,to]),readPool=>readGlobalSeries({pool:readPool,deployment,interval,from,to,...(schemaName?{schemaName}:{})}))); }
     catch(error){return analyticsError(context,error,'candle');}
   });
 
   app.get('/v1/protocol-statistics', async (context) => {
-    try { rejectUnknown(context.req.query(),[]);return context.json(await readProtocolStatistics({pool:pool(),deployment,...(schemaName?{schemaName}:{})})); }
+    try { rejectUnknown(context.req.query(),[]);return context.json(await cachedGlobalRead('protocol',readPool=>readProtocolStatistics({pool:readPool,deployment,...(schemaName?{schemaName}:{})}))); }
     catch(error){return analyticsError(context,error,'candle');}
   });
 

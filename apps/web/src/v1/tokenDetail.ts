@@ -23,12 +23,12 @@ export function validateTokenDetail(v:unknown,chain:number,id:DetailIdentity,per
  if(v.fees!==null){source('fees');if(!Array.isArray(v.fees)||v.fees.length>8)return fail();const seen=new Set();for(const f of v.fees){if(!obj(f)||!['creator','stakers','platform','holders'].includes(String(f.recipient))||![id.memeToken,id.quoteAsset].includes(String(f.asset))||!uint(f.amountRaw)||seen.has(String(f.recipient)+f.asset))return fail();seen.add(String(f.recipient)+f.asset);}}
  return v as unknown as TokenDetailResponse;
 }
-export type FeeConfig={phase:number;stakingEnabled:boolean;holders:boolean;active:boolean|null;taxBps:number};
+export type FeeConfig={phase:number;stakingEnabled:boolean;holders:boolean;active:boolean|null;taxBps:number;baseFeeBps?:number;lpFeePips?:number};
 export function feeRows(config:FeeConfig):Array<{key:string;label:string;percent:number|null;note:string}>{
  const active=config.phase===1&&config.stakingEnabled?config.active:false;
  const creator=active===null?null:active?40:70;
  const rows=[{key:'creator',label:'Creator',percent:creator===null?null:config.holders?creator/2:creator,note:'Creator revenue'}];
  if(config.holders)rows.push({key:'holders',label:'Holders',percent:creator===null?null:creator/2,note:'Token holder rewards'});
- if(config.phase===1)rows.push({key:'stakers',label:'Stakers',percent:active===null?null:active?30:0,note:config.stakingEnabled?'STOCK staking rewards':'Staking disabled'});
+ if(config.phase===1&&config.stakingEnabled)rows.push({key:'stakers',label:'Stakers',percent:active===null?null:active?30:0,note:'STOCK staking rewards'});
  rows.push({key:'platform',label:'Platform',percent:30,note:'Supports TickerGarden'});return rows;
 }

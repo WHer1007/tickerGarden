@@ -11,7 +11,7 @@ import {
   CURRENT_ACTIVATION_BLOCK, CURRENT_RELEASE_ID, fixedF72Sources,
 } from '../../events/src/index.ts';
 import { enqueueReliableMessage, type Lease } from '../../jobs/src/index.ts';
-import { invalidateOrphanedPublications } from '../../projection/src/index.ts';
+import { invalidateOrphanedPublications, ProjectionPending } from '../../projection/src/index.ts';
 import { projectF72Markets } from '../../market-projector/src/index.ts';
 import { projectF72Configs } from '../../config-projector/src/index.ts';
 import { projectF72Analytics } from '../../analytics-projector/src/index.ts';
@@ -52,6 +52,20 @@ export function createChainProcessor(options: ChainProcessorOptions): (lease: Le
     const state = await loadIngestionState({ pool: options.pool, deployment, stream: STREAM,
       ...(initialBlock !== undefined ? { initialNextBlock: initialBlock } : {}),
       ...(options.schemaName ? { schemaName: options.schemaName } : {}) });
+    // Continuations must detect rewinds too: they can run before ingestion.
+    if (state.nextBlock > deployment.activationBlock) {
+      const priorAnchor = await options.pool.query<{hash:string}>(`SELECT hash FROM ${identifier(options.schemaName??'tickergarden_serverless')}.chain_blocks WHERE environment=$1 AND chain_id=$2 AND deployment_digest=$3 AND number=$4 AND canonical`,[deployment.environment,deployment.chainId,deployment.deploymentDigest,(state.nextBlock-1n).toString()]);
+      if (priorAnchor.rows[0] && (await consensusBlock(options.primary,options.secondary,state.nextBlock-1n)).hash!==priorAnchor.rows[0].hash) return recoverReorg();
+    }
+    // Finish the oldest durable candidate before observing a later head. This
+    // prevents a busy chain from starving a multi-job bootstrap indefinitely.
+    const projectionSchema=identifier(options.schemaName??'tickergarden_serverless');
+    const candidate=(await options.pool.query<{block_number:string}>(`SELECT min(o.block_number)::text block_number FROM ${projectionSchema}.projection_observations o
+      JOIN ${projectionSchema}.chain_blocks b ON b.environment=o.environment AND b.chain_id=o.chain_id AND b.deployment_digest=o.deployment_digest AND b.hash=o.block_hash
+      WHERE o.environment=$1 AND o.chain_id=$2 AND o.deployment_digest=$3 AND o.generation=$4 AND b.canonical AND b.finalized
+      AND o.block_number>=coalesce((SELECT next_block FROM ${projectionSchema}.projection_checkpoints WHERE environment=$1 AND chain_id=$2 AND deployment_digest=$3 AND scope='holder-rewards' AND generation=$4),$5)`,[deployment.environment,deployment.chainId,deployment.deploymentDigest,state.generation.toString(),deployment.activationBlock.toString()])).rows[0];
+    if(candidate?.block_number){await runProjection(BigInt(candidate.block_number),state.generation);return `projection:${candidate.block_number}`;}
+    if(lease.kind==='projection-continuation')return 'projection:already-complete-or-obsolete';
     if (head.number < delayBlocks) return `waiting:${state.nextBlock}`;
 
     const finalizedUpper = await latestFinalizedBlock(options.primary, options.secondary, deployment.activationBlock,
@@ -59,7 +73,7 @@ export function createChainProcessor(options: ChainProcessorOptions): (lease: Le
     if (state.nextBlock > finalizedUpper) {
       const anchorNumber = state.nextBlock - 1n;
       if (await projectionBatchPending(options.pool, deployment, anchorNumber, options.schemaName)) {
-        await projectBatch(options, deployment, anchorNumber, state.generation);
+        await runProjection(anchorNumber, state.generation);
         return `projected:${anchorNumber}`;
       }
       return `waiting:${state.nextBlock}`;
@@ -89,6 +103,12 @@ export function createChainProcessor(options: ChainProcessorOptions): (lease: Le
       } else result = await ingestCanonicalRange(common);
     } catch (error) {
       if (!(error instanceof ReorgDetectedError) || state.nextBlock <= deployment.activationBlock) throw error;
+      return recoverReorg();
+    }
+    if (toBlock < finalizedUpper) await enqueueContinuation(options.pool, head, toBlock + 1n, BigInt(lease.generation), options.schemaName);
+    else await runProjection(toBlock, BigInt(result.generation));
+    return JSON.stringify({ fromBlock: state.nextBlock.toString(), toBlock: toBlock.toString(), logs: result.logs, generation: result.generation });
+    async function recoverReorg():Promise<string>{
       const maximumDepth = state.nextBlock - 1n - deployment.activationBlock < 1_000n
         ? state.nextBlock - 1n - deployment.activationBlock : 1_000n;
       const ancestor = await findCommonAncestor({
@@ -104,32 +124,44 @@ export function createChainProcessor(options: ChainProcessorOptions): (lease: Le
       await enqueueContinuation(options.pool, head, ancestor.number + 1n, BigInt(lease.generation), options.schemaName);
       return JSON.stringify({ reorg: true, ancestor: ancestor.number.toString(), generation: generation.toString() });
     }
-    if (toBlock < finalizedUpper) await enqueueContinuation(options.pool, head, toBlock + 1n, BigInt(lease.generation), options.schemaName);
-    else await projectBatch(options, deployment, toBlock, BigInt(result.generation));
-    return JSON.stringify({ fromBlock: state.nextBlock.toString(), toBlock: toBlock.toString(), logs: result.logs, generation: result.generation });
+    async function runProjection(block:bigint,generation:bigint):Promise<void>{
+      try { await projectBatch(options,deployment,block,generation); }
+      catch(error){
+        if(!(error instanceof ProjectionPending))throw error;
+        const payload={headBlock:head.number.toString(),headHash:head.hash,projectionBlock:block.toString(),ingestionGeneration:generation.toString()};
+        const key=`projection:${generation}:${block}:${head.hash}:${error.scope}:${error.completed}`;
+        await enqueueReliableMessage(options.pool,{queue:'chain',externalId:key,operationId:key,kind:'projection-continuation',rawBody:JSON.stringify(payload),payload,destinationKey:'chain-worker',maxAttempts:16,generation:BigInt(lease.generation)},options.schemaName);
+      }
+    }
   };
 }
 
 async function projectBatch(options: ChainProcessorOptions, deployment: DeploymentIdentity, blockNumber: bigint, generation: bigint): Promise<void> {
   const anchor = await consensusBlock(options.primary, options.secondary, blockNumber);
   const schema = options.schemaName ? { schemaName: options.schemaName } : {};
-  await projectF72Configs({ pool: options.pool, deployment, blockNumber, blockHash: anchor.hash, generation,
+  const completed=(await options.pool.query<{scope:string;next_block:string;generation:string}>(`SELECT scope,next_block,generation FROM ${identifier(options.schemaName??'tickergarden_serverless')}.projection_checkpoints WHERE environment=$1 AND chain_id=$2 AND deployment_digest=$3`,[deployment.environment,deployment.chainId,deployment.deploymentDigest])).rows;
+  const done=(scope:string)=>completed.some(row=>row.scope===scope&&BigInt(row.generation)===generation&&BigInt(row.next_block)>blockNumber);
+
+  if(!(done('configs')))await projectF72Configs({ pool: options.pool, deployment, blockNumber, blockHash: anchor.hash, generation,
     primary: options.primary, secondary: options.secondary, ...schema });
-  await projectF72Markets({ pool: options.pool, deployment, blockNumber, blockHash: anchor.hash, blockTimestamp: anchor.timestamp,
+  if(!(done('markets')))await projectF72Markets({ pool: options.pool, deployment, blockNumber, blockHash: anchor.hash, blockTimestamp: anchor.timestamp,
     generation, primary: options.primary, secondary: options.secondary, ...schema });
-  await projectF72Principal({ pool: options.pool, deployment, blockNumber, blockHash: anchor.hash, generation,
+  if(!(done('accounts')&&done('positions')))await projectF72Principal({ pool: options.pool, deployment, blockNumber, blockHash: anchor.hash, generation,
     primary: options.primary, secondary: options.secondary, ...schema });
-  await projectF72History({ pool: options.pool, deployment, blockNumber, blockHash: anchor.hash, generation, ...schema });
-  await projectF72Analytics({ pool: options.pool, deployment, blockNumber, blockHash: anchor.hash, generation, ...schema });
-  await projectHolderRewards({pool:options.pool,deployment,blockNumber,blockHash:anchor.hash,generation,primary:options.primary,secondary:options.secondary,...schema});
+  if(!(done('history')))await projectF72History({ pool: options.pool, deployment, blockNumber, blockHash: anchor.hash, generation, ...schema });
+  if(!(done('analytics')))await projectF72Analytics({ pool: options.pool, deployment, blockNumber, blockHash: anchor.hash, generation, ...schema });
+  if(!(done('holder-rewards')))await projectHolderRewards({pool:options.pool,deployment,blockNumber,blockHash:anchor.hash,generation,primary:options.primary,secondary:options.secondary,...schema});
+  await options.pool.query(`DELETE FROM ${identifier(options.schemaName??'tickergarden_serverless')}.projection_observations WHERE environment=$1 AND chain_id=$2 AND deployment_digest=$3 AND (generation<$4 OR (generation=$4 AND block_number<=$5))`,[deployment.environment,deployment.chainId,deployment.deploymentDigest,generation.toString(),blockNumber.toString()]);
+  for(const table of ['market_observation_work','market_work_candidates','holder_market_work','holder_work_candidates','holder_work_events'])await options.pool.query(`DELETE FROM ${identifier(options.schemaName??'tickergarden_serverless')}.${table} w USING ${identifier(options.schemaName??'tickergarden_serverless')}.chain_blocks b WHERE w.environment=$1 AND w.chain_id=$2 AND w.deployment_digest=$3 AND w.generation<=$4 AND b.environment=w.environment AND b.chain_id=w.chain_id AND b.deployment_digest=w.deployment_digest AND b.hash=w.block_hash AND (w.generation<$4 OR b.number<=$5)`,[deployment.environment,deployment.chainId,deployment.deploymentDigest,generation.toString(),blockNumber.toString()]);
+  await options.pool.query(`DELETE FROM ${identifier(options.schemaName??'tickergarden_serverless')}.market_time_refresh WHERE environment=$1 AND chain_id=$2 AND deployment_digest=$3 AND generation<$4`,[deployment.environment,deployment.chainId,deployment.deploymentDigest,generation.toString()]);
 }
 
 async function poolManagerQueries(pool: Pool, deployment: DeploymentIdentity, sources: readonly { module: string; address: `0x${string}` }[],
   currentLogs: readonly RpcLog[], poolManager: `0x${string}`, schemaName?: string) {
   const schema = identifier(schemaName ?? 'tickergarden_serverless');
   const stored = await pool.query<{ payload: Record<string, unknown> }>(
-    `SELECT l.payload FROM ${schema}.chain_logs l WHERE l.environment=$1 AND l.chain_id=$2 AND l.deployment_digest=$3 AND l.canonical`,
-    [deployment.environment, deployment.chainId, deployment.deploymentDigest],
+    `SELECT l.payload FROM ${schema}.chain_logs l WHERE l.environment=$1 AND l.chain_id=$2 AND l.deployment_digest=$3 AND l.canonical AND l.topic0=ANY($4::text[])`,
+    [deployment.environment, deployment.chainId, deployment.deploymentDigest, [eventTopic('MarketRegistryV1','LaunchPhaseChanged'),eventTopic('TickerGardenMemeHook','ExpectedPoolRegistered'),eventTopic('TickerGardenMemeHook','PoolBindingActivated')]],
   );
   const sourceByAddress = new Map(sources.map((source) => [source.address, source.module]));
   const poolIds = new Set<`0x${string}`>();
@@ -232,7 +264,7 @@ async function resolveHead(lease: Lease, primary: RpcTransport, secondary: RpcTr
     const trigger = parseChainLogTrigger(lease.payload, deployment);
     number = trigger.number;
     expectedHash = trigger.hash;
-  } else if (lease.kind === 'chain-backfill') {
+  } else if (lease.kind === 'chain-backfill' || lease.kind === 'projection-continuation') {
     if (typeof lease.payload.headBlock !== 'string' || !/^[0-9]+$/.test(lease.payload.headBlock)
       || typeof lease.payload.headHash !== 'string' || !/^0x[0-9a-f]{64}$/.test(lease.payload.headHash)) throw new Error('invalid backfill target');
     number = BigInt(lease.payload.headBlock);
@@ -241,7 +273,7 @@ async function resolveHead(lease: Lease, primary: RpcTransport, secondary: RpcTr
     throw new Error('unsupported chain job kind');
   }
   const head = await consensusBlock(primary, secondary, number);
-  if (head.hash !== expectedHash) throw new Error('webhook or backfill head is no longer canonical');
+  if (head.hash !== expectedHash && lease.kind !== 'projection-continuation') throw new Error('webhook or backfill head is no longer canonical');
   return head;
 }
 

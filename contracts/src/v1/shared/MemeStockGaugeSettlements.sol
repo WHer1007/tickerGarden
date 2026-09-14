@@ -97,8 +97,8 @@ abstract contract MemeStockGaugeSettlements is MemeStockGaugeAccumulators {
             _previewTerm(claimable, remainder, position.activeAmount, reward.accumulatorPaid, accumulatorCutoff);
 
         if (position.pendingAmount != 0) {
-            ActivationSnapshot storage snapshot = _activationSnapshots[position.pendingGeneration];
-            if (snapshot.processed) {
+            StoredActivationSnapshot storage snapshot = _activationSnapshots[position.pendingGeneration];
+            if (snapshot.refs != 0) {
                 uint256 snapshotAccumulator =
                     rewardIndex == QUOTE_REWARD_INDEX ? snapshot.quoteAccumulator : snapshot.memeAccumulator;
                 // A principal-first exit can leave a not-yet-active Gauge entry behind. If its bucket is only

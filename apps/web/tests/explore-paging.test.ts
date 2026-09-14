@@ -138,3 +138,54 @@ test('an interrupted background request preserves the loaded cursor page and ign
  assert.deepEqual((await retry)?.items,[{marketId:'third'}]);
  assert.equal((await pager.load({revision:'two'},'previous'))?.page,2);
 });
+
+test('background revision change cannot cancel an in-flight next page', async () => {
+  let finish!: (value: ReturnType<typeof page>) => void;
+  const pending = new Promise<ReturnType<typeof page>>(resolve => { finish = resolve; });
+  const calls: string[] = [];
+  const pager = createExplorePager<Item>(10, async (query, cursor, _limit, signal) => {
+    calls.push(query.revision);
+    if (!cursor) return page(['first'], 'next');
+    const result = await pending;
+    assert.equal(signal.aborted, false);
+    return result;
+  });
+  await pager.load({ revision: 'old', sort: 'name' });
+  const next = pager.load({ revision: 'old', sort: 'name' }, 'next');
+  const refresh = pager.load({ revision: 'new', sort: 'name' });
+  finish(page(['second']));
+  assert.equal((await next)?.page, 2);
+  assert.equal((await refresh)?.page, 2);
+  assert.deepEqual(calls, ['old', 'old']);
+});
+
+
+test("next from visible first page keeps its revision when a newer bootstrap arrived", async () => {
+  const seen: object[] = [];
+  const pager = createExplorePager<Item>(10, async (query, cursor) => {
+    seen.push(query);
+    return cursor ? page(["second"]) : page(["first"], "cursor");
+  });
+  await pager.load({ revision: "old", sort: "created" });
+  const next = await pager.load({ revision: "new", sort: "created" }, "next");
+  assert.equal(next?.page, 2);
+  assert.deepEqual(next?.items, [{marketId: "second"}]);
+  assert.deepEqual(seen, [{ revision: "old", sort: "created" }, { revision: "old", sort: "created" }]);
+});
+
+
+test("a recent-market hint cannot cancel an in-flight next page", async () => {
+  let finish!: (value: ReturnType<typeof page>) => void;
+  const pending = new Promise<ReturnType<typeof page>>(resolve => {finish=resolve;});
+  const pager = createExplorePager<Item>(10, async (_query, cursor) => cursor ? pending : page(["first"],"cursor"));
+  await pager.load({revision:"r"});
+  const next = pager.load({revision:"r"},"next");
+  assert.equal(pager.refreshFirstPage(),false);
+  const refresh = pager.load({revision:"r"});
+  finish(page(["second"]));
+  assert.equal((await next)?.page,2);
+  assert.equal((await refresh)?.page,2);
+  assert.equal(pager.refreshFirstPage(),false);
+  await pager.load({revision:"r"},"previous");
+  assert.equal(pager.refreshFirstPage(),true);
+});

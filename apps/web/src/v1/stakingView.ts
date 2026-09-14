@@ -29,10 +29,65 @@ export function stakeHistoryEvent(event:UserActivityRecord,account:string):{mark
 }
 export function stakeAfter(current:bigint,amount:bigint|null):bigint|null{return amount===null?null:current+amount;}
 
+export function stakeMarketIsOpen(selected:boolean,explicitlyOpened:boolean):boolean{return selected&&explicitlyOpened;}
+
+export type DirectStakeAllocation=Readonly<{marketId:string;assetUid:string;allocated:bigint}>;
+export function summarizeDirectStakeAllocations(rows:readonly (DirectStakeAllocation|null)[]):Readonly<{verified:boolean;active:readonly DirectStakeAllocation[]}>{
+  const active:DirectStakeAllocation[]=[];
+  for(const row of rows){
+    if(!row)continue;
+    if(row.allocated<0n)throw Error('Stake allocation cannot be negative');
+    if(row.allocated>0n)active.push(row);
+  }
+  return Object.freeze({verified:rows.every(row=>row!==null),active:Object.freeze(active)});
+}
+
+export function showStakePortfolioEmpty(input:Readonly<{walletConnected:boolean;busy:boolean;indexedComplete:boolean;directVerified:boolean;hasActive:boolean;marketOpen:boolean}>):boolean{
+  return input.walletConnected&&!input.busy&&(input.indexedComplete||input.directVerified)&&!input.hasActive&&!input.marketOpen;
+}
+
+export type StakePortfolioMode='connect'|'checking'|'unavailable'|'empty'|'content';
+export type StakeDirectorySource='direct'|'indexed'|'unavailable';
+export function stakeDirectorySource(input:Readonly<{direct:boolean;readApiAvailable:boolean}>):StakeDirectorySource{
+  if(input.direct)return 'direct';
+  return input.readApiAvailable?'indexed':'unavailable';
+}
+export function stakePortfolioMode(input:Readonly<{walletConnected:boolean;busy:boolean;verified:boolean;failed:boolean;hasActive:boolean;marketOpen:boolean}>):StakePortfolioMode{
+  if(!input.walletConnected)return 'connect';
+  if(input.hasActive||input.marketOpen)return 'content';
+  if(input.busy)return 'checking';
+  if(input.verified)return 'empty';
+  return input.failed?'unavailable':'checking';
+}
+
+export function firstActiveStakeMarket(
+  rows:ReadonlyArray<Readonly<{marketId:string;active:boolean}>>,
+  selectedMarketId:string,
+):string|null{
+  if(selectedMarketId)return null;
+  return rows.find(row=>row.active)?.marketId??null;
+}
+
 export function stakeShare(allocated:bigint,total:bigint|null):string {
   if(total===null||allocated<0n||total<0n||allocated>total)return '-';
   if(allocated===0n)return '0%';
   const hundredths=allocated*10000n/total;
   if(hundredths===0n)return '<0.01%';
   return `${hundredths/100n}.${(hundredths%100n).toString().padStart(2,'0')}%`;
+}
+
+export function unstakeConfirmationCopy(input:Readonly<{principal:string;assetSymbol:string;marketSymbol:string}>):Readonly<{
+  intro:string;
+  effects:readonly string[];
+  note:string;
+}>{
+  return Object.freeze({
+    intro:`You are closing your entire ${input.marketSymbol} staking position.`,
+    effects:Object.freeze([
+      `${input.principal} ${input.assetSymbol} will be returned to your connected wallet.`,
+      'All active and pending stake will be withdrawn. This position will no longer earn rewards.',
+      'Previously earned rewards will remain available and must be claimed separately.',
+    ]),
+    note:'Partial withdrawal is not supported. You can stake again later, which starts a new 24-hour lock.',
+  });
 }

@@ -61,6 +61,14 @@ contract DeployV1RobinhoodMainnetStaged is V1ReleaseGate {
         _logPlan(context, plan);
     }
 
+    /// @notice Export the exact unsigned runtime inputs for independent transaction simulation.
+    /// @dev Read-only; does not load a signer, broadcast, configure roles, or activate assets.
+    function exportPlan() external view returns (bytes memory encoded) {
+        (V1BootstrapContext memory context, V1DeploymentPlan memory plan, V1DeploymentPayload memory payload) =
+            _prepare(vm.envAddress("V1_EXPECTED_DEPLOYER"));
+        return abi.encode(context, plan, payload);
+    }
+
     function _prepare(address deployer)
         internal
         view

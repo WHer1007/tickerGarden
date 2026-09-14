@@ -16,6 +16,7 @@ import {Test, console2} from "forge-std/Test.sol";
 
 import {
     AssetView,
+    ILaunchLocker,
     CanonicalRoute,
     CreateMarketParams,
     LaunchTemplate,
@@ -140,6 +141,25 @@ contract V1ProductForkE2ETest is Test {
         _activateConfiguration();
     }
 
+    function test_creatorLpFeeTiersCreateGraduateSwapAndCollectRealV4Fees() public {
+        for (uint24 fee; fee <= 3000; fee += 1000) {
+            vm.deal(CREATOR, 20 ether);
+            CreateMarketParams memory params = _marketParams(false, 0, bytes32(uint256(fee + 5000)));
+            params.lpFeePips = fee;
+            vm.prank(CREATOR);
+            params.expectedEconomics = factory.previewMarketEconomics(params);
+            vm.prank(CREATOR);
+            (bytes32 id,, address curve,) = factory.createMarket{value: LAUNCH_FEE}(params);
+            CanonicalRoute memory route = _graduateMarket(id, curve);
+            assertEq(route.poolKey.fee, fee);
+            assertEq(marketRegistry.market(id).config.lpFeePips, fee);
+            _swapNativeForMeme(id);
+            (uint256 amount0, uint256 amount1) = ILaunchLocker(route.launchLocker).collectLockedFees();
+            if (fee == 0) assertEq(amount0 + amount1, 0);
+            else assertGt(amount0 + amount1, 0, "actual swap LP fees accrue to canonical Locker");
+        }
+    }
+
     function test_realStockIdentityAtomicGraduationAndPrincipalFirstRageQuit() public {
         (bytes32 marketId,, address curve, address gauge) = _createMarket(false, 0, "TICKERGARDEN_V1_CRM_FORK_MARKET");
         CanonicalRoute memory route = _graduateMarket(marketId, curve);
@@ -152,6 +172,70 @@ contract V1ProductForkE2ETest is Test {
         console2.log("factory", address(factory));
         console2.log("hook", plan.hook);
         console2.log("locker", route.launchLocker);
+    }
+
+    function test_thirtyFutureBucketsUseLightweightSettlementWithRealRegistries() public {
+        (bytes32 marketId, address memeToken, address curve, address gauge) =
+            _createMarket(false, 0, "TICKERGARDEN_V1_FUTURE_BUCKETS_GAS");
+        CanonicalRoute memory route = _graduateMarket(marketId, curve);
+        uint256 origin = block.timestamp;
+        for (uint256 i; i < 30; ++i) {
+            vm.warp(origin + i);
+            address user = address(uint160(0x9000 + i));
+            // Synthetic local funding; all subsequent token and protocol calls execute real code.
+            deal(CRM_STOCK_TOKEN, user, 1 ether, true);
+            vm.startPrank(user);
+            IERC20(CRM_STOCK_TOKEN).approve(address(stockVault), 1 ether);
+            allocationManager.stake(marketId, 1 ether);
+            vm.stopPrank();
+        }
+        assertEq(MemeStockGauge(gauge).effectiveTotalActiveStock(), 0);
+        _coolRewardReadGraph(gauge);
+        uint256 beforeGas = gasleft();
+        (bool readable, bytes memory weight) =
+            gauge.staticcall{gas: 250_000}(abi.encodeCall(MemeStockGauge.effectiveTotalActiveStock, ()));
+        console2.log("cold real-registry weight probe gas", beforeGas - gasleft());
+        assertTrue(readable, "full cold read graph retains margin below the 300k production probe budget");
+        assertEq(abi.decode(weight, (uint256)), 0);
+
+        PoolSwapTest swapper = new PoolSwapTest(IPoolManager(POOL_MANAGER));
+        V4PoolKey memory key = V4PoolKey(
+            Currency.wrap(route.poolKey.currency0),
+            Currency.wrap(route.poolKey.currency1),
+            route.poolKey.fee,
+            route.poolKey.tickSpacing,
+            IHooks(route.poolKey.hooks)
+        );
+        V4SwapParams memory swapParams = V4SwapParams(
+            route.poolKey.currency0 == address(0),
+            -int256(0.001 ether),
+            route.poolKey.currency0 == address(0) ? 4295128740 + 1 : type(uint160).max - 1
+        );
+        _coolRewardReadGraph(gauge);
+        vm.cool(POOL_MANAGER);
+        vm.cool(plan.hook);
+        vm.cool(plan.ordinaryComponents[15]);
+        vm.cool(memeToken);
+        vm.cool(address(swapper));
+        vm.deal(address(this), 1 ether);
+        beforeGas = gasleft();
+        swapper.swap{gas: 1_000_000, value: 0.001 ether}(key, swapParams, PoolSwapTest.TestSettings(false, false), "");
+        console2.log("real-registry future-bucket swap gas", beforeGas - gasleft());
+        assertEq(MemeStockGauge(gauge).totalPendingStock(), 30 ether);
+        ICurrentFeeVault feeVault = ICurrentFeeVault(plan.ordinaryComponents[15]);
+        assertEq(feeVault.liability(marketId, memeToken, 1), 0);
+        assertEq(feeVault.forfeitureReserve(marketId, memeToken), 0);
+        assertGt(feeVault.totalLiability(memeToken), 0);
+    }
+
+    function _coolRewardReadGraph(address gauge) private {
+        vm.cool(address(stockRegistry));
+        vm.cool(address(marketRegistry));
+        vm.cool(address(allocationManager));
+        vm.cool(address(stockVault));
+        vm.cool(CRM_STOCK_TOKEN);
+        vm.cool(gauge);
+        vm.cool(plan.ordinaryComponents[8]);
     }
 
     /// @dev Fork-only proof of the holder-fee branch. The pool swap uses the real v4 PoolSwapTest helper against
@@ -319,8 +403,9 @@ contract V1ProductForkE2ETest is Test {
             creatorTaxBps: taxBps,
             creatorFeesToHolders: holderFees,
             stakingEnabled: true,
-                burnMemeFees: false
-            });
+            burnMemeFees: false,
+            lpFeePips: 0
+        });
     }
 
     function _graduateMarket(bytes32 marketId, address curve) private returns (CanonicalRoute memory route) {
@@ -340,7 +425,7 @@ contract V1ProductForkE2ETest is Test {
         (uint160 sqrtPriceX96,, uint24 protocolFee, uint24 lpFee) = STATE_VIEW.getSlot0(PoolId.wrap(route.poolId));
         assertGt(sqrtPriceX96, 0, "v4 pool initialized");
         assertEq(protocolFee, 0, "v4 protocol fee");
-        assertEq(lpFee, 0, "v4 LP fee");
+        assertEq(lpFee, graduated.config.lpFeePips, "v4 LP fee");
     }
 
     function _exercisePrincipalFirstRageQuit(bytes32 marketId, address gauge) private {

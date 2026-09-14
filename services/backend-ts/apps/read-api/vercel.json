@@ -1,1 +1,1 @@
-{"$schema":"https://openapi.vercel.sh/vercel.json","regions":["sin1"],"functions":{"api/index.ts":{"maxDuration":20}},"rewrites":[{"source":"/(.*)","destination":"/api"}]}
+{"$schema":"https://openapi.vercel.sh/vercel.json","regions":["sin1"],"buildCommand":"node ../../../../tools/deployment-boundary.mjs auto read-api && npm run build --prefix ../..","functions":{"api/index.ts":{"maxDuration":20}},"rewrites":[{"source":"/(.*)","destination":"/api"}]}

@@ -258,6 +258,10 @@ contract ProtocolFeeVaultCurveCreditTest is Test {
     }
 
     function test_successiveSweepsBindTheEpochAtEachCredit() public {
+        this.atomicSuccessiveSweeps();
+    }
+
+    function atomicSuccessiveSweeps() external {
         quote.mint(address(curve), 160);
         bytes32 first = _feeId(address(quote), 80, SOURCE_VERSION, 1);
         curve.creditErc20(creditVault, quote, MARKET_ID, 80, SOURCE_VERSION, 1, first);

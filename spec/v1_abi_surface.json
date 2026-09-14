@@ -386,7 +386,8 @@
           "uint16 creatorTaxBps",
           "bool creatorFeesToHolders",
           "bool stakingEnabled",
-          "bool burnMemeFees"
+          "bool burnMemeFees",
+          "uint24 lpFeePips"
         ]
       },
       "functions": [
@@ -443,6 +444,12 @@
           "mutability": "pure",
           "caller": "ANY",
           "returns": "(bytes32)"
+        },
+        {
+          "signature": "lpFeeMode()",
+          "mutability": "pure",
+          "caller": "PUBLIC",
+          "returns": "(bytes32)"
         }
       ],
       "events": [
@@ -470,7 +477,8 @@
           "uint16 creatorTaxBps",
           "bool creatorFeesToHolders",
           "bool stakingEnabled",
-          "bool burnMemeFees"
+          "bool burnMemeFees",
+          "uint24 lpFeePips"
         ],
         "MarketRuntime": [
           "bytes32 poolId",
