@@ -571,3 +571,19 @@ input[aria-invalid="true"]:focus,textarea[aria-invalid="true"]:focus,select[aria
 .page-retry{display:inline-flex;align-items:center;justify-content:center;min-height:36px;margin:0 0 14px;padding:7px 13px;border:1px solid #b9c8b8;border-radius:8px;background:#fffefa;color:#31553c;font-weight:650;cursor:pointer}
 .page-retry:hover{background:#edf3e8}
 @media(prefers-reduced-motion:reduce){html{scroll-behavior:auto}.skip-link{transition:none}}
+
+/* Product documentation: readable tables and complete production addresses. */
+.docs-article p+p{margin-top:12px}
+.docs-article ul,.docs-article ol{color:#6a7265;font-size:14px;line-height:1.85;padding-left:22px;margin:12px 0}
+.docs-article li+li{margin-top:6px}
+.docs-table-wrap{max-width:100%;overflow-x:auto;margin:14px 0 18px;border:1px solid var(--line);border-radius:10px}
+.docs-table-wrap table{width:100%;border-collapse:collapse;text-align:left;font-size:13px;line-height:1.6}
+.docs-table-wrap caption{text-align:left;padding:12px 14px;font-weight:600;background:var(--soft);color:var(--ink)}
+.docs-table-wrap th,.docs-table-wrap td{padding:12px 14px;vertical-align:top;border-top:1px solid var(--line)}
+.docs-table-wrap th{font-size:12px;font-weight:600;color:var(--ink)}
+.docs-table-wrap td{color:#6a7265}
+.docs-journey{display:grid;gap:12px}
+.docs-journey strong{display:block;color:var(--ink)}
+.docs-contract-address{display:inline-block;max-width:100%;margin-top:9px;font-family:ui-monospace,monospace;font-size:13px;line-height:1.8;overflow-wrap:anywhere;word-break:break-word}
+.docs-toc{max-height:calc(100dvh - 135px);overflow-y:auto}
+@media(max-width:800px){.docs-toc{max-height:none;overflow:visible}.docs-table-wrap th,.docs-table-wrap td{padding:10px 8px}.docs-table-wrap table{font-size:12px}.docs-contract-address{font-size:12px}}
