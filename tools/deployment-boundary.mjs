@@ -48,7 +48,9 @@ export function assertDeploymentBoundary(target, service, env, branch) {
   if (service === 'web') {
     if (required(env, 'TG_PROFILE') !== policy.profile) throw Error('Web profile does not match deployment target');
     if (required(env, 'VITE_V1_CHAIN_ID') !== policy.chainId) throw Error('Web chain does not match deployment target');
-    for (const key of ['VITE_V1_READ_API_URL', 'VITE_LAUNCH_METADATA_ORIGIN', 'VITE_V1_RPC_URL']) remoteUrl(env, key);
+    for (const key of ['VITE_V1_READ_API_URL', 'VITE_LAUNCH_METADATA_ORIGIN']) remoteUrl(env, key);
+    if (env.VITE_V1_RPC_URL === '/api/rpc') remoteUrl(env, 'TG_WEB_RPC_URL');
+    else remoteUrl(env, 'VITE_V1_RPC_URL');
   } else {
     if (required(env, 'TG_ENVIRONMENT') !== policy.profile) throw Error(`${service} environment does not match deployment target`);
     if (env.TG_CHAIN_ID && env.TG_CHAIN_ID !== policy.chainId) throw Error(`${service} chain does not match deployment target`);

@@ -34,6 +34,14 @@ test('manual web deployment accepts source identity without allowing conflicting
   assert.throws(() => assertDeploymentBoundary('test', 'web', { ...web('test'), TG_SOURCE_BRANCH: 'test' }, 'codex/feature'), /requires branch test/);
 });
 
+test('same-origin RPC proxy requires a remote HTTPS server upstream', () => {
+  const env = { ...web('test'), VITE_V1_RPC_URL: '/api/rpc', TG_WEB_RPC_URL: 'https://rpc.test.example' };
+  assert.doesNotThrow(() => assertDeploymentBoundary('test', 'web', env, 'test'));
+  assert.throws(() => assertDeploymentBoundary('test', 'web', { ...env, TG_WEB_RPC_URL: '' }, 'test'), /Missing deployment variable/);
+  assert.throws(() => assertDeploymentBoundary('test', 'web', { ...env, TG_WEB_RPC_URL: 'http://remote.example' }, 'test'), /remote https/);
+  assert.throws(() => assertDeploymentBoundary('test', 'web', { ...env, VITE_V1_RPC_URL: '/other-proxy' }, 'test'), /Invalid deployment URL/);
+});
+
 test('backend services require remote service-specific data sources', () => {
   const base = { TG_ENVIRONMENT: 'test', VERCEL_ENV: 'preview', VERCEL_TARGET_ENV: 'preview' };
   assert.doesNotThrow(() => assertDeploymentBoundary('test', 'read-api', { ...base, TG_READ_DATABASE_URL: 'postgresql://db.example/read', TG_ALLOWED_ORIGINS: 'https://web.example' }, 'test'));

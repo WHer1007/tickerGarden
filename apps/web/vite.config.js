@@ -11,7 +11,7 @@ export default defineConfig(({command})=>{
  if(command==='build'){
   if(process.env.VITE_INTEGRATION_BOOTSTRAP)throw Error('Deployment builds cannot use the local integration bootstrap');
   for(const key of ['VITE_V1_READ_API_URL','VITE_LAUNCH_METADATA_ORIGIN','VITE_V1_RPC_URL']){
-   const value=process.env[key];if(!value)continue;
+   const value=process.env[key];if(!value||(key==='VITE_V1_RPC_URL'&&value==='/api/rpc'))continue;
    let url;try{url=new URL(value);}catch{throw Error(`Deployment build has an invalid ${key}`);}
    if(['localhost','127.0.0.1','[::1]'].includes(url.hostname))throw Error(`Deployment build cannot use a local ${key}`);
   }
