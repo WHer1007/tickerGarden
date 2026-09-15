@@ -166,3 +166,13 @@ node tools/full-local-integration/daily-capacity.mjs --serve
 待 `LOCAL_API_READY` 后，在另一终端依次执行 `daily-incremental.mjs`、`daily-refresh-quiet.mjs`、`daily-read-retest.mjs`。新断言要求单市场变化只写一条 Holder snapshot、安静区块所有 snapshot xmin 不变，并验证 covered view 覆盖 21,500 市场。`runtime-holder-browser.mjs` 使用 18771 的本地 Vite 和 18772 的实际 Read API 验证组件；它不加载钱包或公开 RPC。该目录中的历史超时和浏览器夹具失败保留，不覆盖成成功。
 
 Worker 的 SQL 故障/租约/模式切换及批量计数回归位于 backend-ts 的 `resident-worker.test.ts`、`holder-shared-coverage.test.ts`、`holder-balance-batches.test.ts`；使用独立本地 schema，串行执行。
+
+## Explore 定向验收
+
+使用 Node 24 和专用本机 PostgreSQL，运行：
+
+```sh
+TG_TEST_DATABASE_URL='<专用 loopback PostgreSQL URL>' node --experimental-strip-types tools/full-local-integration/explore.mjs
+```
+
+脚本创建并清理独立 schema，构造 120 个合成市场，通过真实 Read API 验证桌面与移动端的双阶段 Stock 筛选、筹资比例、全量市值/最近买入排序、独立分页、409 恢复、搜索、数据延迟提示、Bloom 阶段转换和配置复用。输出位于 `outputs/explore-browser.json` 与 `outputs/explore-browser/`。这项验收没有链上交易，不能替代测试链真实资金流程验证。

@@ -53,3 +53,7 @@
 .explore-bloom-progress span{font:500 10px/1.5 "Inter Variable",sans-serif;color:#828774;font-variant-numeric:tabular-nums;white-space:nowrap}
 .explore-page [data-stage-retry]{display:block;min-height:36px;margin:12px auto 0;padding:7px 14px}
 .explore-pagination button{min-width:36px;min-height:36px}
+
+.explore-page .explore-card-freshness{margin:4px 0 8px;font-size:10px;line-height:1.4;color:#886d32;overflow-wrap:anywhere}
+
+@media(max-width:480px){.explore-page .garden-stats{flex-wrap:wrap;gap:5px}.explore-page .garden-stats .explore-card-age{flex-basis:100%;text-align:left;align-items:flex-start}}

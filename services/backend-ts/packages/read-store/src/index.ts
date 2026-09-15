@@ -1,3 +1,4 @@
+import { latestPrices, preferredPrices } from '../../display-price/src/read.ts';
 import { createHash, createHmac, timingSafeEqual } from 'node:crypto';
 import type { Pool } from 'pg';
 import type { DeploymentIdentity } from '../../chain/src/index.ts';
@@ -103,7 +104,21 @@ export async function readPublishedMarketPage(input: {
   const publication = await resolvePublication(input.pool, schema, input.deployment, 'markets', input.revision);
   const canonicalFilter = marketFilterJson(input.filter);
   const recentVersion = input.includeRecent ? await readRecentMarketVersion(input) : undefined;
-  const filterDigest = digest(input.includeRecent ? {filter:canonicalFilter,recentVersion:recentVersion??''} : canonicalFilter);
+  // Rank before pagination using observed values, never optional fields in the
+  // market payload. Bind changing display inputs to the signed cursor as well.
+  const capSort = input.filter.sort === 'marketCapUsd_desc';
+  const buySort = input.filter.sort === 'recentBuy_desc';
+  const priceNow = new Date();
+  const prices = capSort ? [...preferredPrices(await latestPrices(input.pool,input.deployment,priceNow,input.schemaName),priceNow).values()]
+    .filter(p=>p.status==='available'&&p.bidUsd&&p.askUsd)
+    .map(p=>({asset:p.token,bid:p.bidUsd!,ask:p.askUsd!,asOf:p.asOf,expiresAt:p.expiresAt,source:p.source})) : [];
+  const analytics = buySort ? (await input.pool.query<{revision:string;number:string}>(`SELECT c.last_revision revision,b.number::text number
+    FROM ${schema}.projection_checkpoints c JOIN ${schema}.chain_blocks b ON b.environment=c.environment AND b.chain_id=c.chain_id AND b.deployment_digest=c.deployment_digest
+    AND b.number=c.next_block-1 AND c.last_revision=b.number::text||':'||b.hash
+    WHERE c.environment=$1 AND c.chain_id=$2 AND c.deployment_digest=$3 AND c.scope='analytics' AND b.canonical AND b.finalized`,
+    [input.deployment.environment,input.deployment.chainId,input.deployment.deploymentDigest])).rows[0] : undefined;
+  const filterDigest = digest({filter:canonicalFilter,...(input.includeRecent?{recentVersion:recentVersion??''}:{}),
+    ...(capSort?{prices}:{}),...(buySort?{analytics:analytics?.revision??null}:{})});
   const after = input.cursor ? decodeCursor(input.cursor, { scope: 'markets', revision: publication.revision, filterDigest }, input.secret) : undefined;
   const sort = marketSort(input.filter.sort ?? 'marketId_asc');
   if (after && after.sortKey !== 'n:' && !after.sortKey.startsWith('v:')) throw new PublicationChangedError('market cursor sort value is invalid');
@@ -114,13 +129,21 @@ export async function readPublishedMarketPage(input: {
     input.filter.assetUid ?? null, input.filter.marketId ?? null, input.filter.memeToken ?? null, input.filter.launchPhase ?? null,
     input.filter.search?.toLocaleLowerCase() ?? null, input.filter.createdFrom ?? null, input.filter.createdTo ?? null,
     after?.identity ?? null, cursorValue, limit + 1, cursorMissing,
+    JSON.stringify(prices),analytics ? (BigInt(analytics.number)<publication.blockNumber?analytics.number:publication.blockNumber.toString()) : null,
   ];
   const afterClause = `AND ($13::text IS NULL
     OR ($16::boolean AND order_value IS NULL AND identity>$13)
     OR (NOT $16::boolean AND ((order_value IS NOT NULL AND (order_value ${sort.direction === 'ASC' ? '>' : '<'} $14::${sort.cast}
       OR (order_value=$14::${sort.cast} AND identity>$13))) OR order_value IS NULL)))`;
+  const pricedPayload = `r.payload || jsonb_build_object('metrics',jsonb_build_object('quoteUsdMidpoint',((p.bid+p.ask)/2)::text,'marketCapUsd',
+    CASE WHEN (r.payload->'display'->>'priceQuote') ~ '^(0|[1-9][0-9]*)(\\.[0-9]+)?$'
+      AND (r.payload->'display'->>'totalSupplyRaw') ~ '^[0-9]+$' AND p.bid IS NOT NULL
+      THEN ((r.payload->'display'->>'totalSupplyRaw')::numeric / 1000000000000000000::numeric
+        * (r.payload->'display'->>'priceQuote')::numeric * (p.bid+p.ask)/2)::text ELSE NULL END))`;
+  const rowsPayload = capSort ? pricedPayload : buySort ? `CASE WHEN buy.position IS NULL THEN r.payload-'lastBuy' ELSE r.payload || jsonb_build_object('lastBuy',buy.position) END` : 'r.payload';
   const records = await input.pool.query<{ identity: string; payload: Json; order_text: string | null }>(
-    `WITH market_rows AS (
+    `WITH price_inputs AS (SELECT * FROM jsonb_to_recordset($17::jsonb) p(asset text,bid numeric,ask numeric)),
+     market_rows AS (
        SELECT r.identity,r.payload FROM ${schema}.projection_read_records r
        JOIN ${schema}.chain_blocks b ON b.environment=r.environment AND b.chain_id=r.chain_id AND b.deployment_digest=r.deployment_digest AND b.hash=$4
        WHERE r.environment=$1 AND r.chain_id=$2 AND r.deployment_digest=$3 AND r.scope='markets' AND r.revision=$5 AND b.canonical AND b.finalized
@@ -128,9 +151,19 @@ export async function readPublishedMarketPage(input: {
        WHERE recent.environment=$1 AND recent.chain_id=$2 AND recent.deployment_digest=$3 AND recent.canonical AND recent.expires_at>now()
          AND recent.block_number>${publication.blockNumber}
          AND NOT EXISTS(SELECT 1 FROM ${schema}.projection_read_records existing WHERE existing.environment=$1 AND existing.chain_id=$2 AND existing.deployment_digest=$3 AND existing.scope='markets' AND existing.revision=$5 AND existing.identity=recent.market_id)` : ''}
+     ), ranked_rows AS (
+       SELECT r.identity,${rowsPayload} payload FROM market_rows r
+       LEFT JOIN price_inputs p ON p.asset=r.payload->>'quoteAsset'
+       ${buySort ? `LEFT JOIN LATERAL (
+         SELECT jsonb_build_object('blockNumber',b.number::text,'transactionIndex',t.payload->'source'->>'transactionIndex','logIndex',t.log_index::text,'timestamp',t.payload->>'timestamp') position
+         FROM ${schema}.market_trades t JOIN ${schema}.chain_blocks b ON b.environment=t.environment AND b.chain_id=t.chain_id AND b.deployment_digest=t.deployment_digest AND b.hash=t.block_hash
+         WHERE t.environment=$1 AND t.chain_id=$2 AND t.deployment_digest=$3 AND t.market_id=r.identity AND t.payload->>'side'='buy'
+           AND b.canonical AND b.finalized AND b.number<=$18::bigint
+         ORDER BY b.number DESC,(t.payload->'source'->>'transactionIndex')::bigint DESC,t.log_index DESC LIMIT 1
+       ) buy ON true` : `LEFT JOIN (SELECT $18::bigint unused) bound ON true`}
      ), candidates AS (
        SELECT r.identity,r.payload,${sort.expression} AS order_value
-       FROM market_rows r WHERE true
+       FROM ranked_rows r WHERE true
          AND ($6::text IS NULL OR r.payload->>'assetUid'=$6)
          AND ($7::text IS NULL OR r.payload->>'marketId'=$7)
          AND ($8::text IS NULL OR r.payload->>'memeToken'=$8)
@@ -148,7 +181,19 @@ export async function readPublishedMarketPage(input: {
     scope: 'markets', revision: publication.revision, filterDigest,
     sortKey: last.order_text === null ? 'n:' : `v:${last.order_text}`, identity: last.identity,
   }, input.secret) : null;
-  return { items: visible.map((row) => displayAtPublication(row.payload,publication)), nextCursor, sync: await syncForPublication(input.pool, schema, input.deployment, publication) };
+  const priceByAsset=new Map(prices.map(p=>[p.asset,p]));
+  const items=visible.map(row=>{
+    const payload=displayAtPublication(row.payload,publication) as Record<string,Json>;
+    if(!capSort)return payload;
+    const computed=payload.metrics as Record<string,Json>,price=priceByAsset.get(String(payload.quoteAsset) as `0x${string}`);
+    const asOf=publication.asOf??'0';
+    return {...payload,metrics:{...computed,status:computed.marketCapUsd===null?'unavailable':'available',
+      reason:computed.marketCapUsd===null?'valuation_inputs_unavailable':'historical_usd_coverage_unavailable',volume24hUsd:null,
+      windowFromTimestamp:String(BigInt(asOf)>86400n?BigInt(asOf)-86400n:0n),asOfTimestamp:asOf,
+      usdPriceAsOf:price?.asOf??null,usdPriceSource:price?.source??null,
+      volumeBasis:'EXTERNAL_EXECUTIONS_CURVE_EXCLUDING_FEE_TAX_OR_POOL_CORE',marketCapBasis:'TOTAL_SUPPLY_X_FINALIZED_SPOT_X_QUOTE_USD'}};
+  });
+  return { items, nextCursor, sync: await syncForPublication(input.pool, schema, input.deployment, publication) };
 }
 
 export async function readPublishedRecord(input: {
@@ -455,7 +500,7 @@ function marketSort(value: NonNullable<MarketPageFilter['sort']>): { expression:
     case 'launchPhase_asc': return { expression: `(r.payload->>'launchPhase')::integer`, cast: 'integer', direction: 'ASC' };
     case 'volume24hUsd_desc': return { expression: `(r.payload->'metrics'->>'volume24hUsd')::numeric`, cast: 'numeric', direction: 'DESC' };
     case 'marketCapUsd_desc': return { expression: `(r.payload->'metrics'->>'marketCapUsd')::numeric`, cast: 'numeric', direction: 'DESC' };
-    case 'recentBuy_desc': return { expression: `(r.payload->'lastBuy'->>'blockNumber')::numeric`, cast: 'numeric', direction: 'DESC' };
+    case 'recentBuy_desc': return { expression: `((r.payload->'lastBuy'->>'blockNumber')::numeric*18446744073709551616::numeric + (r.payload->'lastBuy'->>'transactionIndex')::numeric*4294967296::numeric + (r.payload->'lastBuy'->>'logIndex')::numeric)`, cast: 'numeric', direction: 'DESC' };
     default: throw new Error('invalid market sort');
   }
 }

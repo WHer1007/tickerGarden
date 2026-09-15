@@ -566,7 +566,7 @@ async function prepareLocalIntegrationFoundation():Promise<Foundation>{
   throw Error("Integration configuration is unavailable");
 }
 
-async function prepareFoundation(api: TickerGardenV1Client | null, expectedSync?: SyncStatus): Promise<Foundation> {
+async function prepareFoundation(api: TickerGardenV1Client | null, expectedSync?: SyncStatus, reuseConfigs=false): Promise<Foundation> {
   if (integrationBootstrapPath) return prepareLocalIntegrationFoundation();
   if (!api) throw Error("V1 read API is unavailable");
   let health = await api.getHealth();
@@ -580,14 +580,14 @@ async function prepareFoundation(api: TickerGardenV1Client | null, expectedSync?
   const requestedMarket = currentPage() === "trade" ? new URL(window.location.href).searchParams.get("marketId")?.trim().toLowerCase() : undefined;
   const directoryMarketId = requestedMarket && BYTES32_PATTERN.test(requestedMarket) ? requestedMarket as Hex : undefined;
   const [assets, quotes, baseline, templates, marketPage] = await Promise.all([
-    readAllConfig("asset", revision, api),
-    readAllConfig("quote", revision, api),
-    readAllConfig("baseline", revision, api),
-    directoryMarketId ? Promise.resolve([]) : readAllConfig("template", revision, api),
+    reuseConfigs&&foundation?Promise.resolve(foundation.assets):readAllConfig("asset", revision, api),
+    reuseConfigs&&foundation?Promise.resolve(foundation.quotes):readAllConfig("quote", revision, api),
+    reuseConfigs&&foundation?Promise.resolve(foundation.baseline):readAllConfig("baseline", revision, api),
+    directoryMarketId ? Promise.resolve([]) : reuseConfigs&&foundation?Promise.resolve(foundation.templates):readAllConfig("template", revision, api),
     directoryMarketId
       ? readPublishedMarket(()=>api.getMarket({marketId:directoryMarketId,revision,includeRecent:true}),directoryMarketId,revision)
         .then(detail=>({items:detail?[detail.market]:[],nextCursor:undefined}))
-      : readMarketPage(revision, undefined, api),
+      : currentPage() === "markets" ? Promise.resolve({items:[] as MarketReadModel[],nextCursor:undefined}) : readMarketPage(revision, undefined, api),
   ]);
 
   const reasons: string[] = [];
@@ -1299,6 +1299,7 @@ let exploreStatisticsAt=0;
 let exploreStatisticsKey="";
 const exploreVisibleRows:{0:readonly MarketReadModel[];1:readonly MarketReadModel[]}={0:[],1:[]};
 let exploreStatisticsRequest:Promise<boolean>|null=null;
+let exploreStatisticsFailed=false;
 const exploreVisiblePage:{0:number;1:number}={0:1,1:1};
 const exploreFrozenRows=new Map<string,MarketReadModel[]>();
 async function refreshExploreStatistics():Promise<boolean>{
@@ -1312,8 +1313,8 @@ async function refreshExploreStatistics():Promise<boolean>{
   let merged:Record<string,ExploreStat>={};
   for(let i=0;i<Math.max(markets.length,1);i+=100){
    const url=new URL('/v1/market-statistics',statisticsBase);url.searchParams.set('markets',markets.slice(i,i+100).join(','));
-   const response=await fetch(url,{signal:AbortSignal.timeout(15_000)});if(!response.ok)return false;
-   const data=await response.json();if(data.chainId!==robinhoodChain.id||data.displayOnly!==true||!data.items||typeof data.items!=='object')return false;
+   const response=await fetch(url,{signal:AbortSignal.timeout(15_000)});if(!response.ok)throw Error('Statistics unavailable');
+   const data=await response.json();if(data.chainId!==robinhoodChain.id||data.displayOnly!==true||!data.items||typeof data.items!=='object')throw Error('Invalid statistics response');
    for(const [id,raw]of Object.entries(data.items)){
     const value=raw as ExploreStat;if(value.marketId!==id||!/^0x[0-9a-f]{64}$/.test(id))continue;
     if(value.metrics?.marketCapUsd!=null&&!/^(0|[1-9][0-9]*)(\.[0-9]+)?$/.test(value.metrics.marketCapUsd))continue;
@@ -1322,8 +1323,10 @@ async function refreshExploreStatistics():Promise<boolean>{
    }
   }
   const ranking=(items:Record<string,ExploreStat>)=>JSON.stringify(Object.keys(items).sort().map(id=>[id,items[id]!.metrics,items[id]!.observedAt,items[id]!.sourceVersion,items[id]!.lastBuy]));
+  if(currentPage()!=='markets'||requestKey!==[...new Set([...exploreVisibleRows[0],...exploreVisibleRows[1]].map(m=>m.marketId))].sort().join(','))return false;
+  exploreStatisticsFailed=false;
   const changed=ranking(merged)!==ranking(exploreStatistics);exploreStatistics=merged;exploreStatisticsAt=Date.now();exploreStatisticsKey=requestKey;return changed;
- })().catch(()=>false).finally(()=>{exploreStatisticsRequest=null;const visibleKey=[...new Set([...exploreVisibleRows[0],...exploreVisibleRows[1]].map(m=>m.marketId))].sort().join(',');if(currentPage()==='markets'&&visibleKey&&visibleKey!==requestKey)void refreshExploreStatistics().then(()=>applyExploreStatistics());});
+ })().catch(()=>{exploreStatisticsFailed=true;return false;}).finally(()=>{exploreStatisticsRequest=null;const visibleKey=[...new Set([...exploreVisibleRows[0],...exploreVisibleRows[1]].map(m=>m.marketId))].sort().join(',');if(currentPage()==='markets'&&visibleKey&&visibleKey!==requestKey)void refreshExploreStatistics().then(()=>applyExploreStatistics());});
  return exploreStatisticsRequest;
 }
 
@@ -1346,12 +1349,20 @@ async function fetchExplorePage(params:DirectoryQuery,cursor:string|undefined,li
  }catch{throw new ExploreResponseError('Market response failed verification');}
  return page;
 }
+function marketBloomProgress(market:MarketReadModel):number|null {
+ const target=foundation?.quotes.find(config=>config.id===market.quoteAssetConfigId)?.values.graduationThreshold;
+ const raised=market.curveProgress.realQuoteReserve;
+ return typeof target==='string'&&/^[0-9]+$/.test(target)&&/^[0-9]+$/.test(raised)
+  ? graduationProgress(BigInt(raised),BigInt(target)) : null;
+}
 function applyExploreStatistics():void {
  for(const market of [...exploreVisibleRows[0],...exploreVisibleRows[1]]){
   const stat=exploreStatistics[market.marketId];
-  if(!stat||stat.memeToken!==market.memeToken||stat.quoteAsset!==market.quoteAsset||stat.sourceVersion!==market.sourceVersion||stat.launchPhase!==String(market.launchPhase)||!Number.isSafeInteger(stat.observedAt)||Date.now()/1000-stat.observedAt>1200||stat.observedAt>Date.now()/1000+30)continue;
-  if(market.display&&stat.observedAt<Number(market.display.asOfTimestamp))continue;
   const card=query<HTMLElement>(`[data-runtime-market="${market.marketId}"]`);if(!card)continue;
+  const valid=stat&&stat.memeToken===market.memeToken&&stat.quoteAsset===market.quoteAsset&&stat.sourceVersion===market.sourceVersion&&stat.launchPhase===String(market.launchPhase)&&Number.isSafeInteger(stat.observedAt)&&Date.now()/1000-stat.observedAt<=1200&&stat.observedAt<=Date.now()/1000+30&&(!market.display||stat.observedAt>=Number(market.display.asOfTimestamp));
+  const freshness=query<HTMLElement>('[data-market-freshness]',card);
+  if(freshness){freshness.hidden=!exploreStatisticsFailed&&Boolean(valid);freshness.textContent=exploreStatisticsFailed?'Updates delayed':valid?'':'Updating…';}
+  if(!valid)continue;
   text('[data-market-cap]',formatMarketUSD(stat.metrics?.marketCapUsd,true,2),card);
   text('[data-market-volume]',formatMarketUSD(stat.metrics?.volume24hUsd),card);
   const cap=query<HTMLElement>('[data-market-cap]',card);if(cap)cap.title=`USD estimate · Updated ${new Date(stat.observedAt*1000).toLocaleString()}`;
@@ -1413,12 +1424,11 @@ function setupMarkets(): void {
   for(const selector of ['[data-market-search]','[data-market-stock-search]'])query<HTMLInputElement>(selector)?.addEventListener('input',()=>{window.clearTimeout(searchTimer);searchTimer=window.setTimeout(()=>{if(currentPage()==='markets')void renderMarkets();},250);});
   query<HTMLButtonElement>('[data-market-reset]')?.addEventListener('click',()=>{
     window.clearTimeout(searchTimer);
-    const resetTokenSearch=Boolean(query<HTMLInputElement>('[data-market-search]')?.value.trim());
     for(const selector of ['[data-market-search]','[data-market-stock-search]','[data-market-asset]']){const input=query<HTMLInputElement|HTMLSelectElement>(selector);if(input)input.value='';}
     const sort=query<HTMLSelectElement>('[data-market-sort]');if(sort)sort.value='recent';
-    void renderMarkets(resetTokenSearch?[1,0]:[1]);
+    void renderMarkets();
   });
-  query<HTMLSelectElement>("[data-market-asset]")?.addEventListener("change", () => { void renderMarkets([1]); });
+  query<HTMLSelectElement>("[data-market-asset]")?.addEventListener("change", () => { void renderMarkets(); });
   queryAll<HTMLButtonElement>('[data-growing-sort]').forEach(button=>button.addEventListener('click',()=>{
    if(button.getAttribute('aria-pressed')==='true')return;
    queryAll<HTMLButtonElement>('[data-growing-sort]').forEach(option=>option.setAttribute('aria-pressed',String(option===button)));
@@ -1454,7 +1464,7 @@ async function renderExploreStage(phase:0|1,direction:'current'|'next'|'previous
  if(!foundation||!list||!grid)return;
  const generation=++explorePageGeneration[phase];const current=foundation;
  const search=query<HTMLInputElement>('[data-market-search]')?.value.trim()??'';
- const asset=phase===1?(query<HTMLSelectElement>('[data-market-asset]')?.value??''):'';
+ const asset=query<HTMLSelectElement>('[data-market-asset]')?.value??'';
  const selectedSort=query<HTMLButtonElement>('[data-growing-sort][aria-pressed="true"]')?.dataset.growingSort;
  const sort=phase===1||selectedSort==='marketCapUsd_desc'?'marketCapUsd_desc':selectedSort==='createdAt_asc'?'createdAt_asc':selectedSort==='recentBuy_desc'?'recentBuy_desc':'createdAt_desc';
  const params:DirectoryQuery={revision:current.sync.revision,launchPhase:phase,sort:sort as DirectoryQuery['sort'],...(search?{search}:{}),...(asset?{assetUid:canonicalBytes32(asset,'Stock')}:{})};
@@ -1466,6 +1476,7 @@ async function renderExploreStage(phase:0|1,direction:'current'|'next'|'previous
   const page=await explorePagers[phase].load(params,direction);
   if(!page||generation!==explorePageGeneration[phase]||!grid.isConnected)return;
   exploreVisiblePage[phase]=page.page;
+  if(page.recovered)setPageStatus('The market list has updated. Showing the first page.');
   const filtered=page.items;
   exploreVisibleRows[phase]=filtered;
   const renderedKey=JSON.stringify(page);
@@ -1534,10 +1545,7 @@ async function renderExploreStage(phase:0|1,direction:'current'|'next'|'previous
       addressLink.hidden = true;
       const progressArea = required<HTMLElement>('[data-market-progress]', card);
       progressArea.hidden = false;
-      const supply = foundation.baseline.find(config => config.kind === 'baseline' && config.id === market.tickerGardenBaselineId)?.values.supply;
-      const curve = market.curveProgress;
-      const progress = typeof supply === 'string' && /^\d+$/.test(supply) && /^\d+$/.test(curve.reservedTokens) && /^\d+$/.test(curve.sellableTokens)
-        ? graduationProgress(BigInt(supply), BigInt(curve.reservedTokens), BigInt(curve.sellableTokens)) : null;
+      const progress = marketBloomProgress(market);
       const bar = required<HTMLProgressElement>('progress', progressArea);
       bar.value = progress ?? 0;
       bar.hidden = progress === null;
@@ -2091,7 +2099,7 @@ async function loadTradeMarket(explicit?: string): Promise<void> {
     const progressLabel=query<HTMLElement>('[data-detail-progress-label]');if(progressLabel)progressLabel.hidden=graduated;
     text('[data-detail-phase-note]',response.market.confirmation?'Created on chain · Final confirmation pending':'');
     const graduation=query<HTMLElement>('[data-detail-graduation]');if(graduation)graduation.hidden=graduated;
-    const progress=typeof supply==='string'?graduationProgress(BigInt(supply),view.reservedTokens,view.sellableTokens):null;
+    const progress=marketBloomProgress(response.market);
     text('[data-detail-progress-label]',progress===null?'-':`${progress.toFixed(2)}%`);
     const bar=query<HTMLProgressElement>('[data-detail-progress]');if(bar){if(progress===null)bar.removeAttribute('value');else bar.value=progress;}
     renderTradePoolAddress(response.market);
@@ -2451,7 +2459,7 @@ async function refreshTradeFields(fresh?:MarketDetailResponse,background=false):
   const baseline=foundation.baseline.find(c=>c.id===response.market.tickerGardenBaselineId),supply=baseline?.values.supply;
   renderTradePhase(graduated);
   for(const selector of ['[data-detail-progress-label]','[data-detail-graduation]']){const node=query<HTMLElement>(selector);if(node)node.hidden=graduated;}
-  const progress=typeof supply==='string'?graduationProgress(BigInt(supply),view.reservedTokens,view.sellableTokens):null;
+  const progress=marketBloomProgress(response.market);
   text('[data-detail-progress-label]',progress===null?'-':`${progress.toFixed(2)}%`);
   const bar=query<HTMLProgressElement>('[data-detail-progress]');if(bar){if(progress===null)bar.removeAttribute('value');else bar.value=progress;}
   renderTradePoolAddress(response.market);
@@ -6206,7 +6214,7 @@ function startSnapshotUpdates(): void {
       const generation = ++foundationGeneration;
       const activeWallet = wallet;
       const api = new TickerGardenV1Client(baseUrl, (input, init) => fetch(input, { ...init, signal }));
-      const next = await prepareFoundation(api, update.sync);
+      const next = await prepareFoundation(api, update.sync, currentPage()==='markets'&&update.mode!=='reset'&&!update.invalidated.includes('configs'));
       return () => {
         if (generation !== foundationGeneration || activeWallet !== wallet) throw new SnapshotRefreshSuperseded("Snapshot refresh superseded");
         invalidateSnapshotReads(currentPage() === 'trade',currentPage() === 'markets');
@@ -6369,7 +6377,7 @@ const unsubscribeAssetPrices = assetPrices.subscribe(snapshot => {
   if (currentPage() === 'markets' && foundation) {
     exploreStatisticsAt = 0;
     void refreshExploreStatistics().then(changed => {
-      if(!changed||currentPage()!=='markets')return;
+      if(currentPage()!=='markets')return;
       applyExploreStatistics();
     });
   } else if (currentPage() === 'stats' && foundation) void renderStats();
@@ -6424,7 +6432,7 @@ if(import.meta.hot)import.meta.hot.dispose(()=>{if(directDirectoryTimer)clearInt
 const exploreStatisticsTimer=setInterval(()=>{
  if(currentPage()!=='markets'||document.hidden)return;
  void refreshExploreStatistics().then(changed=>{
-  if(!changed||currentPage()!=='markets')return;
+  if(currentPage()!=='markets')return;
   applyExploreStatistics();
  });
 },20_000);

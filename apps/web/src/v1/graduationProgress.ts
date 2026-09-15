@@ -1,6 +1,6 @@
-/** Display-only sold curve inventory; no floating point enters a transaction. */
-export function graduationProgress(supply:bigint,reserved:bigint,remaining:bigint):number|null {
- const initial=supply-reserved;
- if(initial<=0n||remaining<0n||remaining>initial)return null;
- return Number((initial-remaining)*10000n/initial)/100;
+/** Display-only collected quote progress; no floating point enters a transaction. */
+export function graduationProgress(collected:bigint,target:bigint):number|null {
+ if(collected<0n||target<=0n)return null;
+ const capped=collected>=target?10000n:collected*10000n/target;
+ return Number(capped)/100;
 }

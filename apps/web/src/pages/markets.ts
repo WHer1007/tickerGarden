@@ -21,7 +21,7 @@ export default {
     <a class="explore-card-link" data-market-link href="/trade" aria-label="View token"></a>
     <div class="explore-card-image" aria-busy="true"><span class="token-mark" data-market-tone aria-hidden="true"></span><span class="explore-image-loading" data-market-image-loading role="status" aria-label="Loading token image"><span aria-hidden="true"></span></span><span class="explore-phase" data-market-phase></span></div>
     <div class="explore-card-body"><h3 data-market-name></h3><div class="explore-symbol-row"><p class="explore-card-symbol" data-market-symbol></p><span class="explore-card-stock"><img data-market-asset-icon hidden alt=""><span data-market-asset-label></span></span></div>
-    <div class="garden-stats"><span class="explore-card-cap" aria-label="Market cap"><strong data-market-cap></strong> <small>Market cap</small></span><span class="explore-card-age"><time data-market-age>-</time></span></div>
+    <div class="garden-stats"><span class="explore-card-cap" aria-label="Market cap"><strong data-market-cap></strong> <small>Market cap</small></span><span class="explore-card-age"><time data-market-age>-</time></span></div><p class="explore-card-freshness" data-market-freshness hidden role="status"></p>
     <div class="explore-card-footer"><a class="explore-card-address" data-market-address target="_blank" rel="noopener noreferrer"></a><div class="explore-bloom-progress" data-market-progress hidden><progress max="100" value="0" aria-label="Bloom progress"></progress><span data-market-progress-label>-</span></div><span data-market-stock hidden></span></div></div>
    </article>
   </template>

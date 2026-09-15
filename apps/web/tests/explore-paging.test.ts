@@ -189,3 +189,93 @@ test("a recent-market hint cannot cancel an in-flight next page", async () => {
   await pager.load({revision:"r"},"previous");
   assert.equal(pager.refreshFirstPage(),true);
 });
+
+test("recovers an initial page once with the latest query after a 409", async () => {
+  const seen: Array<{ revision: string; cursor: string | undefined }> = [];
+  let first = true;
+  const pager = createExplorePager<Item>(10, async (query, cursor) => {
+    seen.push({ revision: query.revision, cursor });
+    if (first) { first = false; throw Object.assign(new Error("stale"), { status: 409 }); }
+    return page(["fresh"]);
+  });
+  const recovered = await pager.load({ revision: "new" });
+  assert.equal(recovered?.recovered, true);
+  assert.deepEqual(seen, [{ revision: "new", cursor: undefined }, { revision: "new", cursor: undefined }]);
+});
+
+test("recovers a later page by restarting from page one", async () => {
+  let calls = 0;
+  const pager = createExplorePager<Item>(10, async (_query, cursor) => {
+    calls++;
+    if (calls === 2) throw Object.assign(new Error("stale"), { status: 409 });
+    return cursor ? page(["fresh-two"]) : page(["fresh-one"], "fresh-cursor");
+  });
+  await pager.load({ revision: "new" });
+  const recovered = await pager.load({ revision: "new" }, "next");
+  assert.equal(recovered?.page, 1);
+  assert.equal(recovered?.recovered, true);
+  assert.deepEqual(recovered?.items, [{ marketId: "fresh-one" }]);
+  assert.equal(calls, 3);
+});
+
+test("recovery failure restores the prior cursor cache", async () => {
+  let calls = 0;
+  const seen: Array<{ revision: string; cursor: string | undefined }> = [];
+  const pager = createExplorePager<Item>(10, async (query, cursor) => {
+    calls++;
+    seen.push({ revision: query.revision, cursor });
+    if (calls === 2 || calls === 3) throw Object.assign(new Error("stale"), { status: 409 });
+    return cursor ? page(["two"]) : page(["one"], "cursor");
+  });
+  const first = await pager.load({ revision: "same" });
+  await assert.rejects(() => pager.load({ revision: "same" }, "next"), /stale/);
+  assert.deepEqual(await pager.load({ revision: "same" }), first);
+  assert.equal(calls, 3);
+  await pager.load({ revision: "same" }, "next");
+  assert.deepEqual(seen[3], { revision: "same", cursor: "cursor" });
+});
+
+test("ordinary errors do not trigger recovery", async () => {
+  let calls = 0;
+  const pager = createExplorePager<Item>(10, async () => { calls++; throw new Error("network"); });
+  await assert.rejects(() => pager.load({}), /network/);
+  assert.equal(calls, 1);
+});
+
+test("a superseded 409 request cannot recover or overwrite the newer query", async () => {
+  let rejectOld!: (error: unknown) => void;
+  const oldRequest = new Promise<never>((_resolve, reject) => { rejectOld = reject; });
+  let calls = 0;
+  const pager = createExplorePager<Item>(10, async (query) => {
+    calls++;
+    if (query.id === "old") return oldRequest;
+    return page(["new"]);
+  });
+  const oldLoad = pager.load({ id: "old" });
+  const newLoad = pager.load({ id: "new" });
+  assert.deepEqual((await newLoad)?.items, [{ marketId: "new" }]);
+  rejectOld(Object.assign(new Error("stale"), { status: 409 }));
+  assert.equal(await oldLoad, null);
+  assert.equal(calls, 2);
+});
+
+test("superseding during recovery prevents rollback into the newer query", async () => {
+  let rejectRecovery!: (error: unknown) => void;
+  let oldCalls = 0;
+  const recovery = new Promise<never>((_resolve, reject) => { rejectRecovery = reject; });
+  const pager = createExplorePager<Item>(10, async (query) => {
+    if (query.id === "old") {
+      oldCalls++;
+      if (oldCalls === 1) throw Object.assign(new Error("stale"), { status: 409 });
+      return recovery;
+    }
+    return page(["new"]);
+  });
+  const oldLoad = pager.load({ id: "old" });
+  await new Promise(resolve => setImmediate(resolve));
+  const newLoad = pager.load({ id: "new" });
+  assert.deepEqual((await newLoad)?.items, [{ marketId: "new" }]);
+  rejectRecovery(new Error("recovery failed"));
+  assert.equal(await oldLoad, null);
+  assert.deepEqual((await pager.load({ id: "new" }))?.items, [{ marketId: "new" }]);
+});

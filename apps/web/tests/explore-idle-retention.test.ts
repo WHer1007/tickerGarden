@@ -43,7 +43,7 @@ test('statistics only query visible rows and patch values without reloading list
  assert.match(refresh,/exploreVisibleRows\[0\],\.\.\.exploreVisibleRows\[1\]/);
  assert.doesNotMatch(refresh,/foundation.markets/);
  const patch=section('function applyExploreStatistics()', 'const explorePagers=');
- assert.match(patch,/stat.sourceVersion!==market.sourceVersion/);
+ assert.match(patch,/stat.sourceVersion===market.sourceVersion/);
  assert.doesNotMatch(patch,/renderExploreStage|\.reset\(|listMarkets|replaceChildren|\.remove\(/);
  const timer=section('const exploreStatisticsTimer=', 'if(import.meta.hot)import.meta.hot.dispose(()=>clearInterval(exploreStatisticsTimer))');
  assert.match(timer,/applyExploreStatistics/);assert.doesNotMatch(timer,/renderExploreStage|\.reset\(/);

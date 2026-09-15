@@ -4,6 +4,7 @@ export type ExplorePage<T> = {
   hasPrevious: boolean;
   hasNext: boolean;
   availablePages: number;
+  recovered?: boolean;
 };
 
 type StoredPage<T> = {
@@ -32,12 +33,13 @@ export function createExplorePager<T extends { marketId: string }>(
   let controller: AbortController | undefined;
   let inFlight: Promise<ExplorePage<T> | null> | undefined;
 
-  const result = (page: number, stored: StoredPage<T>): ExplorePage<T> => ({
+  const result = (page: number, stored: StoredPage<T>, recovered = false): ExplorePage<T> => ({
     items: stored.items,
     page,
     hasPrevious: page > 1,
     hasNext: stored.nextCursor !== null,
     availablePages: Math.max(...pages.keys()) + (pages.get(Math.max(...pages.keys()))?.nextCursor ? 1 : 0),
+    ...(recovered ? { recovered: true } : {}),
   });
 
   const pause = () => {
@@ -80,6 +82,7 @@ export function createExplorePager<T extends { marketId: string }>(
     query: object,
     direction: "current" | "next" | "previous" | number = "current",
   ): Promise<ExplorePage<T> | null> => {
+    const suppliedQuery = query;
     // Cursor pages belong to a pinned publication. A background revision must
     // not jump the reader back to page 1 or combine old cursors with new data.
     const filters=(value:object)=>{const {revision:_,...rest}=value as Record<string,unknown>;return JSON.stringify(rest);};
@@ -109,25 +112,67 @@ export function createExplorePager<T extends { marketId: string }>(
     if (direction === "previous") return null;
     const cursor = target === 1 ? undefined : pages.get(target - 1)?.nextCursor ?? undefined;
     if (target > 1 && !cursor) throw new Error("missing cursor for requested page");
-    const seenCursors = new Set<string>();
+    let seenCursors = new Set<string>();
     for (const page of pages.values()) if (page.nextCursor !== null) seenCursors.add(page.nextCursor);
     const localGeneration = generation;
     const localController = new AbortController();
     controller = localController;
     const timer=setTimeout(()=>localController.abort(),10000);
-    const request = fetchPage(queryValue, cursor, pageSize, localController.signal)
-      .then((response) => {
-        if (localGeneration !== generation) return null;
-        if(localController.signal.aborted)throw new Error("Directory query timed out");
+    const isConflict = (error: unknown) => {
+      const value = error as { status?: unknown; statusCode?: unknown; response?: { status?: unknown } };
+      return value?.status === 409 || value?.statusCode === 409 || value?.response?.status === 409;
+    };
+    const savedPages = pages;
+    const savedCurrentPage = currentPage;
+    const savedQueryKey = queryKey;
+    const savedQueryValue = queryValue;
+    const restoreSavedState = () => {
+      if (localGeneration !== generation) return;
+      pages = savedPages;
+      currentPage = savedCurrentPage;
+      queryKey = savedQueryKey;
+      queryValue = savedQueryValue;
+    };
+    const request = (async () => {
+      let response: { items: readonly T[]; nextCursor: string | null };
+      let responsePage = target;
+      let responseCursor = cursor;
+      let recovered = false;
+      try {
+        response = await fetchPage(queryValue, responseCursor, pageSize, localController.signal);
+      } catch (error) {
+        if (!isConflict(error) || localGeneration !== generation) throw error;
+        pages = new Map();
+        currentPage = 0;
+        seenCursors = new Set();
+        queryValue = suppliedQuery;
+        queryKey = JSON.stringify(suppliedQuery);
+        responsePage = 1;
+        responseCursor = undefined;
+        recovered = true;
+        try {
+          response = await fetchPage(suppliedQuery, responseCursor, pageSize, localController.signal);
+        } catch (recoveryError) {
+          restoreSavedState();
+          throw recoveryError;
+        }
+      }
+      if (localGeneration !== generation) return null;
+      if(localController.signal.aborted){if(recovered)restoreSavedState();throw new Error("Directory query timed out");}
+      try {
         validate(response.items, response.nextCursor);
         if (response.nextCursor !== null && seenCursors.has(response.nextCursor)) {
           throw new Error("repeated cursor");
         }
-        const stored = { items: response.items, nextCursor: response.nextCursor };
-        pages.set(target, stored);
-        currentPage = target;
-        return result(target, stored);
-      })
+      } catch (validationError) {
+        if (recovered) restoreSavedState();
+        throw validationError;
+      }
+      const stored = { items: response.items, nextCursor: response.nextCursor };
+      pages.set(responsePage, stored);
+      currentPage = responsePage;
+      return result(responsePage, stored, recovered);
+    })()
       .catch(error=>{if(localGeneration!==generation)return null;throw error;})
       .finally(() => {
         clearTimeout(timer);
