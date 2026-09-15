@@ -19,6 +19,10 @@ Current brand-renamed candidate: `IMPLEMENTATION_ALLOWED / NOT_BROADCAST`. Gate 
 - 本地运行：`npm run dev` 启动 Vite 开发服务器；`npm run build` 生成生产产物；`npm run preview` 预览 `dist/`。Vite dev/preview 支持 SPA History API deep-link 回退。
 - 生产托管必须为站点路由配置 deep-link fallback：支持该格式的平台可使用 `dist/_redirects`；Nginx 可参考 `try_files $uri $uri/ /index.html`（仅站点路由，不覆写独立 API）；其他平台配置等价 rewrite。生产托管规则尚未部署验证。
 
+自动浏览器回归：`npm run test:browser:lifecycle` 启动独立本地 Vite 和 Chrome，运行下面三项 lifecycle fixture；不加载保存的环境变量，不签名或广播。可通过 `TG_BROWSER_EXECUTABLE` 指定 Chrome 路径。
+
+部署构建：先编译合约并执行 `npm run check:generated`；ABI 生成器同时核对 `build-inputs/v1-abis.json` 与真实编译产物。上传前的 `deployment-boundary ... --source-only` 对 Web 强制执行该检查。Vercel 使用 `npm run build:vercel`，校验已提交 ABI 输入与接口源码、产品 manifest 及生成客户端的一致性，不依赖部署机的 Foundry 缓存。更新 ABI 时必须从编译产物运行 `npm run generate:abis`。
+
 路由回归：`npm test` 包含路由解析与旧链接兼容测试。Vite dev 下打开 `/tests/browser/router-lifecycle.html`，验证真实 History API、返回/前进、页面内 URL 更新及导航阻止。打开 `/tests/browser/app-routing-lifecycle.html` 验证真实应用切页、单实例钱包、轮询清理和深链接；此 fixture 要求 `VITE_V1_READ_API_URL` 与 `VITE_V1_FACTORY_ADDRESS` 为空，使用仅支持连接的内存钱包并禁用网络，不能签名或广播。两者须显示 PASS，且不进入正式构建。
 
 Privacy 与 Terms 已按正式页面接入全站页脚，但在运营主体、法定联系邮箱、适用法律、争议解决机制和地区准入规则经律师确认前，必须保持 `Pre-launch legal draft` 标识，不能作为已经生效的最终法律文本发布。

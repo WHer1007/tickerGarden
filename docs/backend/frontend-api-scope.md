@@ -1,19 +1,20 @@
 # TypeScript Serverless 前端 API 冻结清单
 
-> 状态：`TS-00 CONTRACT FROZEN / TEST TARGET ONLY / NOT_PRODUCTION_READY`
+> 状态：`CURRENT TEST CONTRACT / NOT_PRODUCTION_READY`
 >
-> 本清单按 2026-09-10 当前工作树的真实 caller 冻结。精确生成 DTO 由锁定的 `services/backend-ts/openapi/v1.json` 定义，身份与摘要见 [typescript-serverless-baseline.json](./typescript-serverless-baseline.json)。
+> 2026-09-15 按本地测试候选 `apps/web` 更新。生成 DTO 以 `services/backend-ts/openapi/v1.json`（5.1.0）为准；历史 TS-00 锁定过程见本文末尾。
 
 ## 目标 release
 
-- Robinhood Testnet `46630`，`V1-EXEC-11`，当前前端 release `0x5c2c656b1b23e895ea268c34b187cd267e0f4fdcc1759c726cbca7fafb7c9c12`。
-- 可信 Factory 为 `0xf36e6af97dde5ecc7fd7d9817c5c2f9fea2f1fe7`；注册表、FeeVault、AllocationManager 和 LaunchRouter 地址锁在 baseline JSON。
-- 索引起点为当前前端 release 的 activation block `117032526` / `0x36065fb09f78a00f75c528cad0e81e2f1a7b9f59bea9577488f26f4fb611f806`。该 release 的 bootstrap 不含初始市场；新市场必须从各自出生块动态发现并补采。
-- 当前前端仍指向本节记录的旧 release，其只读 RPC 实测 `HolderRewardsDistributorV1.rewardMode()` 为 `TICKERGARDEN_HOLDER_STREAM_24H_V1`。V4 已另行部署为 Robinhood testnet release `0x6e743e8bf90c0e91cd7de52711a1a68976401c494187f1e015fc66ef17310f95` 并完成 Registry 激活，但尚未通过公开市场 E2E，因此不能把其 ABI 或领取入口混入当前前端 release。
+- Robinhood Testnet `46630`，`V1-EXEC-11`，当前前后端 release `0x685b5c20e826f4ddd076b61216c7529a967322082925c4741469b0fda837a7f2`。
+- 可信 Factory 为 `0xf11839c3566c8b3345ed81e4a0e26cc38aa2866a`。完整前端绑定来自该 release 的 `frontend-bootstrap.json`，后端事件地址来自 `services/backend-ts/packages/events/src/index.ts`。
+- 索引起点为 activation block `118689839`。新市场从各自出生块发现并补采；页面数据需通过 finalized publication 校验。
+- 当前 Holder 功能采用钱包快照领取路径；前端按目标 distributor 的 reward mode 校验后开放相应操作。旧版 24 小时 stream 与 position 模式不能作为当前钱包快照的验收依据。
+- 本清单仅覆盖测试网运行时；已经部署的主网合约需要独立的主网目录、索引起点和环境配置，不能直接复用此测试 release。
 
 ## 正式 Read API caller
 
-所有接口只允许 `GET`。生成契约的正常响应为下表 schema；错误码和完整字段以 baseline 锁定的 OpenAPI 为准。分页的 `revision`、`cursor`、`limit` 与筛选条件不可跨 publication 混用。
+本节 Read API 只允许 `GET`；Content 上传和 Pipeline 创建交易通知的 `POST` 调用在下一节单独列出。生成契约的正常响应为下表 schema；错误码和完整字段以 baseline 锁定的 OpenAPI 为准。分页的 `revision`、`cursor`、`limit` 与筛选条件不可跨 publication 混用。
 
 | 路径与 query | 响应 schema / 关键约束 | caller 与页面 | 任务 |
 | --- | --- | --- | --- |
@@ -49,6 +50,7 @@
 | `GET /v1/creator-markets?address&limit&cursor` | `chainId/address/displayOnly/complete/items/nextCursor`；每项 creator 必须等于 address | `v1/creatorMarkets.ts`，Claim/Creator | TS-10/15 |
 | `GET /v1/holder-markets?q` | `chainId/complete/items`，最多 20 项，marketId/memeToken 唯一 | `v1/holderMarkets.ts`，Claim/Holder 搜索 | TS-10/15 |
 | `GET /v1/wallet-holder-markets?account` | `chainId/account/displayOnly/items` | `app.ts`，Claim/Holder 最近市场 | TS-10/15 |
+| `POST /v1/launches` | Pipeline；body 仅为 `{transactionHash}`，后端独立核验创建交易；成功返回 `status=confirmed/marketId`，失败可用同一 hash 重试；不提交或重发链上交易 | `v1/pendingMarket.ts:notifyLaunchDatabase`，Create/交易恢复 | 当前版本 |
 | `POST /v1/content/challenges` | body=`account,digest`；响应绑定 origin/chain/account/digest/nonce/expires/message | `create/upload-auth.ts`，Create | TS-12/15 |
 | `POST /v1/content/uploads` | 签名 metadata JSON；返回幂等 session 与可选 S3 PUT | `create/metadata.ts`，Create | TS-12/15 |
 | `POST /v1/content/uploads/{uploadId}/complete` | 固定对象 version 并入队；返回 202 | `create/metadata.ts`，Create | TS-12/15 |
@@ -58,11 +60,12 @@
 
 - `GET /v1/treasury/markets/{marketId}/epochs/{epochId}/claims/{account}` 仅在目标环境配置 proof origin 且旧 Treasury 市场确实开放时执行 TS-L01。当前 release 未配置该 origin或写入批准，因此不能将 DOM 或遗留 caller 当成已启用能力。
 - `GET /v1/events`、`GET /v1/market-directory` 和 `/market-creation/{id}` 仅属于 `VITE_INTEGRATION_BOOTSTRAP` 测试模式，不进入正式 TypeScript Read API。
+- `/v1/meme-fee-burns` 已由后端及生成客户端支持，但目前没有正式前端 caller；保留作为后端能力，不计作已展示的页面功能。
 - `GET /v1/assets/{assetUid}/statistics` 与 `GET /v1/users/{address}/rewards` 只有生成方法，没有当前正式 caller，本轮排除。
 - `getMarketStatistics()` 生成方法没有 caller，但相同 `/v1/market-statistics` 路径有正式手写 caller，所以该路由保留并在 TS-15 统一。
 - Blockscout、Coinbase 等浏览器外部展示请求不属于本后端契约；TS-08/14 应由持久 Read API 替代页面关键统计依赖，链上交易和钱包 fresh read 仍由浏览器 `viem` 执行。
 
-## TS-00 完成证据
+## 历史 TS-00 完成证据（2026-09-10，非当前运行时身份）
 
 1. baseline JSON 中的 source locks 固定当前 Go OpenAPI、规范 ABI、产品 artifact、部署 manifest 和前端 bootstrap；后续契约变化必须显式更新并说明原因。
 2. 所有正式后台请求均归入 TS-01、05～13、15；测试路由、无 caller 路由和 TS-L01 已明确归类。
@@ -71,4 +74,4 @@
 
 ## Wallet snapshot rewards
 
-`GET /v1/holder-snapshots?chainId&distributor&marketId&account&cursor` supplies finalized, display-only published round proofs and independent claimed-asset masks. It is generated in OpenAPI 4.6.0, uses no-store, and returns 503 for missing or corrupt proof archives. See [backend operations](../operations/HOLDER_SNAPSHOT_BACKEND.md).
+`GET /v1/holder-snapshots?chainId&distributor&marketId&account&cursor` supplies finalized, display-only published round proofs and independent claimed-asset masks. It is included in the current OpenAPI 5.1.0, uses no-store, and returns 503 for missing or corrupt proof archives. See [backend operations](../operations/HOLDER_SNAPSHOT_BACKEND.md).

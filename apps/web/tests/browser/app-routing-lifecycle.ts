@@ -69,6 +69,12 @@ async function run() {
   history.replaceState(null, "", "/");
   await import("../../src/app.ts");
   check(document.body.dataset.page === "home", "real app mounts the home route");
+  // These application-wide pollers are created once at module scope. Route
+  // setup may add its own timers, but repeated transitions must not grow the
+  // persistent baseline.
+  await waitFor(() => intervals.size >= 3, "application-wide pollers initialize");
+  const persistentIntervalBaseline = intervals.size;
+  check(persistentIntervalBaseline === 3, `application keeps its three persistent pollers (${persistentIntervalBaseline} active intervals)`);
   button("[data-wallet]").click();
   button('[data-wallet-choice="routing-fixture"]').click();
   await waitFor(() => !!releaseAccounts, "mock wallet account prompt");
@@ -79,27 +85,34 @@ async function run() {
   check(button("[data-wallet]").textContent?.includes("0x111111…1111"), "connected wallet button shows the shortened address");
 
   const sequence = ["markets", "create", "stats", "rewards", "docs", "privacy", "terms", "risks", "home"];
-  for (const page of sequence) {
-    await navigate(page === "home" ? "/" : page === "markets" ? "/explore" : page === "rewards" ? "/claim" : `/${page}`, page);
-    check(button("[data-wallet]").dataset.state === "connected", `${page}: wallet survives same-document navigation`);
-    check(document.querySelectorAll(".wallet-dialog").length === 1, `${page}: only one wallet picker exists`);
-    check(intervals.size === (page === "rewards" ? 1 : page === "create" ? 2 : 0), `${page}: page polling is scoped to its route (${intervals.size} active intervals)`);
+  for (const pass of [1, 2]) {
+    for (const page of sequence) {
+      await navigate(page === "home" ? "/" : page === "markets" ? "/explore" : page === "rewards" ? "/claim" : `/${page}`, page);
+      check(button("[data-wallet]").dataset.state === "connected", `${page} pass ${pass}: wallet survives same-document navigation`);
+      check(document.querySelectorAll(".wallet-dialog").length === 1, `${page} pass ${pass}: only one wallet picker exists`);
+      const routeIntervals = page === "rewards" ? 1 : 0;
+      await waitFor(() => intervals.size >= persistentIntervalBaseline + routeIntervals, `${page} pass ${pass} timers initialize`);
+      check(intervals.size === persistentIntervalBaseline + routeIntervals, `${page} pass ${pass}: route timers are scoped and do not grow (${intervals.size} active intervals)`);
+    }
   }
   check(walletMethods.filter(method => method === "eth_requestAccounts").length === 1, "route changes do not reconnect the wallet");
   check([...providerListeners.values()].every(listeners => listeners.size === 1), "wallet listeners are not duplicated on route changes");
   await navigate(`/trade.html?marketId=0x${"ab".repeat(32)}`, "trade");
-  check(location.pathname === "/trade" && document.querySelector<HTMLInputElement>("[data-market-id]")!.value === `0x${"ab".repeat(32)}`, "legacy trade deep link keeps the selected market");
+  await waitFor(() => !!document.querySelector<HTMLInputElement>("[data-trade-amount]"), "trade deep link fields");
+  check(location.pathname === "/trade" && new URLSearchParams(location.search).get("marketId") === `0x${"ab".repeat(32)}`, "legacy trade deep link keeps the selected market");
   await navigate("/rewards.html?marketId=fixture#creator", "rewards");
   const rewardsRoot = document.querySelector("[data-route-outlet] main");
   check(location.search === "?marketId=fixture" && button("#rewards-tab-creator").getAttribute("aria-selected") === "true", "legacy Rewards deep link keeps query and active tab");
-  await navigate("/claim?marketId=fixture#activity", "rewards");
-  check(document.querySelector("[data-route-outlet] main") === rewardsRoot && button("#rewards-tab-activity").getAttribute("aria-selected") === "true", "hash navigation preserves the Rewards controller");
+  await navigate("/claim?marketId=fixture#treasury", "rewards");
+  check(document.querySelector("[data-route-outlet] main") === rewardsRoot && button("#rewards-tab-treasury").getAttribute("aria-selected") === "true", "hash navigation preserves the Claim controller");
   await navigate("/no-such-page", "not-found");
   check(document.querySelector("[data-route-outlet] h1")!.textContent === "Page not found", "unknown routes show the application 404");
   await navigate("/create", "create");
   check(button("[data-launch-submit]")?.disabled ?? document.querySelector<HTMLButtonElement>('[data-create-form] button[type="submit"]')!.disabled, "launch stays locked without runtime configuration");
   button("[data-wallet]").click();
-  button(".wallet-current button").click();
+  await waitFor(() => !!document.querySelector("[data-wallet-disconnect]"), "wallet dialog opens for disconnect");
+  button("[data-wallet-disconnect]").click();
+  await waitFor(() => button("[data-wallet]").dataset.state === "disconnected", "wallet disconnect completes");
   check(button("[data-wallet]").dataset.state === "disconnected", "disconnect works after repeated navigation");
   check([...providerListeners.values()].every(listeners => listeners.size === 0), "disconnect removes the mock provider listeners");
   await navigate("/docs", "docs");

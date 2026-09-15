@@ -24,7 +24,7 @@ function remoteUrl(env, key, protocols = ['https:']) {
 function assertServiceIsolation(service, env) {
   const keys = Object.keys(env).filter(key => ownedKey.test(key));
   const forbidden = service === 'web'
-    ? keys.filter(key => !key.startsWith('VITE_') && !['TG_PROFILE', 'TG_WEB_RPC_URL'].includes(key))
+    ? keys.filter(key => !key.startsWith('VITE_') && !['TG_PROFILE', 'TG_WEB_RPC_URL', 'TG_SOURCE_BRANCH'].includes(key))
     : service === 'read-api'
       ? keys.filter(key => key.startsWith('VITE_') || /^(?:TG_PIPELINE_|TG_CONTENT_|TG_CHAIN_JOB_|TG_RPC_|TG_SECONDARY_RPC_URL$|QSTASH_|PINATA_|CRON_SECRET$)/.test(key))
       : service === 'pipeline'
@@ -38,6 +38,7 @@ export function assertDeploymentBoundary(target, service, env, branch) {
   if (!services.has(service)) throw Error('Unknown deployment service');
   const policy = environmentPolicy[target];
   assertDeploymentSource(target, branch);
+  if (env.TG_SOURCE_BRANCH && env.TG_SOURCE_BRANCH !== branch) throw Error('CLI source branch disagrees with deployment branch');
   if (env.VERCEL_ENV && env.VERCEL_ENV !== policy.vercelEnvironment) throw Error(`${target} deployment requires Vercel ${policy.vercelEnvironment}`);
   if (env.VERCEL_TARGET_ENV && env.VERCEL_TARGET_ENV !== policy.vercelEnvironment) throw Error(`${target} deployment has the wrong Vercel target`);
   if (env.VITE_INTEGRATION_BOOTSTRAP) throw Error('Deployed environments cannot use the local integration bootstrap');
@@ -83,6 +84,10 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
     const target = requestedTarget === 'auto' ? (process.env.VERCEL_ENV === 'production' ? 'production' : process.env.VERCEL_ENV === 'preview' ? 'test' : '') : requestedTarget;
     const result = sourceOnly ? assertDeploymentSource(target, gitBranch()) : assertDeploymentBoundary(target, service, process.env, deploymentBranch());
     if (target === 'production' && sourceOnly) assertProductionPromotion();
+    if (sourceOnly && service === 'web') {
+      const abi = spawnSync(process.execPath, ['apps/web/scripts/generate-v1-abis.mjs', '--check'], { cwd: root, stdio: 'inherit' });
+      if (abi.status !== 0) throw Error('Web ABI inputs must match compiled artifacts before source upload');
+    }
     console.log(JSON.stringify({ status: sourceOnly ? 'DEPLOYMENT_SOURCE_OK' : 'DEPLOYMENT_BOUNDARY_OK', ...result }));
   } catch (error) {
     console.error(error instanceof Error ? error.message : 'Deployment boundary check failed');

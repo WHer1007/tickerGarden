@@ -36,3 +36,4 @@ docs/references/data/
 # Examples and explicitly committed historical evidence remain in Git.
 /services/backend-go/api
 /services/backend-go/candidate-inspect
+.vercel

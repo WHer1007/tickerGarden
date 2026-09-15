@@ -27,6 +27,13 @@ test('deployed frontend rejects local sources, integration bootstrap, and backen
   assert.throws(() => assertDeploymentBoundary('test', 'web', { ...web('test'), TG_DATABASE_URL: 'postgresql://remote.example/db' }, 'test'), /owned by another service/);
 });
 
+test('manual web deployment accepts source identity without allowing conflicting branches', () => {
+  assert.doesNotThrow(() => assertDeploymentBoundary('test', 'web', { ...web('test'), TG_SOURCE_BRANCH: 'test' }, 'test'));
+  assert.doesNotThrow(() => assertDeploymentBoundary('production', 'web', { ...web('production'), TG_SOURCE_BRANCH: 'master' }, 'master'));
+  assert.throws(() => assertDeploymentBoundary('test', 'web', { ...web('test'), TG_SOURCE_BRANCH: 'codex/feature' }, 'test'), /source branch disagrees/);
+  assert.throws(() => assertDeploymentBoundary('test', 'web', { ...web('test'), TG_SOURCE_BRANCH: 'test' }, 'codex/feature'), /requires branch test/);
+});
+
 test('backend services require remote service-specific data sources', () => {
   const base = { TG_ENVIRONMENT: 'test', VERCEL_ENV: 'preview', VERCEL_TARGET_ENV: 'preview' };
   assert.doesNotThrow(() => assertDeploymentBoundary('test', 'read-api', { ...base, TG_READ_DATABASE_URL: 'postgresql://db.example/read', TG_ALLOWED_ORIGINS: 'https://web.example' }, 'test'));

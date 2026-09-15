@@ -1,5 +1,5 @@
 import { createHash } from "node:crypto";
-import { readFile, writeFile } from "node:fs/promises";
+import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -8,7 +8,23 @@ const repoRoot = resolve(websiteRoot, "../..");
 const manifestPath = resolve(repoRoot, "spec/v1_product_artifact_manifest.json");
 const outputPath = resolve(websiteRoot, "src/v1/generated/abis.ts");
 const check = process.argv.includes("--check");
-const manifest = JSON.parse(await readFile(manifestPath, "utf8"));
+const sourceOnly = process.argv.includes("--source-only");
+if (sourceOnly && !check) throw new Error("source-only mode is verification only");
+const manifestText = await readFile(manifestPath, "utf8");
+const manifest = JSON.parse(manifestText);
+const sha256 = value => createHash("sha256").update(value).digest("hex");
+const inputsPath = resolve(websiteRoot, "build-inputs/v1-abis.json");
+const inputIdentity = {
+  schemaVersion: 1,
+  executionSpecId: manifest.executionSpecId,
+  manifestSha256: sha256(manifestText),
+  interfaceSourceSha256: sha256(await readFile(resolve(repoRoot, "contracts/src/v1/interfaces/IV1Protocol.sol"))),
+};
+const savedInputs = check ? JSON.parse(await readFile(inputsPath, "utf8")) : null;
+if (sourceOnly && Object.entries(inputIdentity).some(([key, value]) => savedInputs[key] !== value)) {
+  throw new Error("ABI build input source identity is stale; regenerate from compiled artifacts");
+}
+const compiledInputs = [];
 
 if (manifest.executionSpecId !== "V1-EXEC-11" || manifest.modules.length !== 18) {
   throw new Error("expected the current V1-EXEC-11 eighteen-module product manifest");
@@ -20,13 +36,25 @@ const burnModuleLines = [];
 const burnShape = value => Array.isArray(value) ? value.filter(x => x?.name !== "lpFeePips" && x?.name !== "lpFeeMode").map(burnShape) : value && typeof value === "object" ? Object.fromEntries(Object.entries(value).map(([k,v])=>[k,burnShape(v)])) : value;
 for (const module of [...manifest.modules].sort((a, b) => a.module.localeCompare(b.module))) {
   const artifactPath = resolve(repoRoot, module.interfaceArtifact);
-  const artifactText = await readFile(artifactPath, "utf8");
-  const artifact = JSON.parse(artifactText);
+  const saved = sourceOnly ? savedInputs.modules[compiledInputs.length] : null;
+  if (sourceOnly && (saved?.module !== module.module || saved?.artifact !== module.interfaceArtifact
+    || !/^[0-9a-f]{64}$/.test(saved?.artifactSha256 ?? ""))) throw new Error("invalid ABI build input module identity");
+  const artifactText = sourceOnly ? null : await readFile(artifactPath, "utf8");
+  const artifact = sourceOnly ? saved : JSON.parse(artifactText);
   if (!Array.isArray(artifact.abi)) throw new Error(`missing compiled ABI for ${module.module}`);
-  const artifactSha256 = createHash("sha256").update(artifactText).digest("hex");
+  const artifactSha256 = sourceOnly ? saved.artifactSha256 : sha256(artifactText);
+  compiledInputs.push({ module: module.module, artifact: module.interfaceArtifact, artifactSha256, abi: artifact.abi });
   artifactSources.push({ module: module.module, artifact: module.interfaceArtifact, artifactSha256 });
   moduleLines.push(`  ${JSON.stringify(module.module)}: ${JSON.stringify(artifact.abi)},`);
   burnModuleLines.push(`  ${JSON.stringify(module.module)}: ${JSON.stringify(burnShape(artifact.abi))},`);
+}
+
+const inputsText = JSON.stringify({ ...inputIdentity, modules: compiledInputs }, null, 2) + "\n";
+if (check) {
+  if (JSON.stringify(savedInputs) !== JSON.stringify(JSON.parse(inputsText))) throw new Error("ABI build inputs differ from compiled artifacts");
+} else {
+  await mkdir(dirname(inputsPath), { recursive: true });
+  await writeFile(inputsPath, inputsText);
 }
 
 for (const module of manifest.extensionModules ?? []) {
