@@ -1,3 +1,4 @@
+import { checkServerIdentity } from 'node:tls';
 import { attachDatabasePool } from '@vercel/functions';
 import { drizzle, type NodePgDatabase } from 'drizzle-orm/node-postgres';
 import { Pool, type PoolClient, type PoolConfig } from 'pg';
@@ -21,6 +22,10 @@ export function createDatabasePool(connectionString: string, overrides: PoolConf
     const allocation=budget.services.find(item=>item.name===(env.TG_DB_BUDGET_SERVICE_PREFIX?`${env.TG_DB_BUDGET_SERVICE_PREFIX}-${runtime.role}`:runtime.role));
     if(!allocation||Number(overrides.max??max)>allocation.poolMax)throw Error('service pool exceeds declared connection budget');
   }
+  const ca = env.TG_DB_CA_PEM;
+  if (ca && (!ca.includes('-----BEGIN CERTIFICATE-----') || [...new URL(connectionString).searchParams.keys()].some(key => key.startsWith('ssl')))) {
+    throw new Error('Explicit database CA requires a PEM certificate and no conflicting URL SSL options');
+  }
   const pool = new Pool({
     connectionString,
     max,
@@ -28,6 +33,10 @@ export function createDatabasePool(connectionString: string, overrides: PoolConf
     connectionTimeoutMillis: 5_000,
     options: '-c statement_timeout=5000 -c lock_timeout=2000 -c idle_in_transaction_session_timeout=5000',
     ...overrides,
+    ...(ca ? {ssl:{ca,rejectUnauthorized:true,
+      // pg omits SNI for IP endpoints; verify the configured host, not TLS's localhost default.
+      checkServerIdentity: (_hostname, certificate) => checkServerIdentity(new URL(connectionString).hostname, certificate),
+    }} : {}),
   });
   // pg removes failed idle clients itself. Without this listener EventEmitter
   // terminates the process; the next request should instead acquire a new client.

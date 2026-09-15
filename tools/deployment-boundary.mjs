@@ -53,7 +53,7 @@ export function assertDeploymentBoundary(target, service, env, branch) {
     if (env.VITE_V1_RPC_URL === '/api/rpc') remoteUrl(env, 'TG_WEB_RPC_URL');
     else remoteUrl(env, 'VITE_V1_RPC_URL');
   } else {
-    if (required(env, 'TG_ENVIRONMENT') !== policy.profile) throw Error(`${service} environment does not match deployment target`);
+    if (required(env, 'TG_ENVIRONMENT') !== target) throw Error(`${service} environment does not match deployment target`);
     if (env.TG_CHAIN_ID && env.TG_CHAIN_ID !== policy.chainId) throw Error(`${service} chain does not match deployment target`);
     remoteUrl(env, service === 'read-api' ? 'TG_READ_DATABASE_URL' : service === 'pipeline' ? 'TG_PIPELINE_DATABASE_URL' : 'TG_CONTENT_DATABASE_URL', ['postgres:', 'postgresql:']);
     if (service === 'pipeline') remoteUrl(env, 'TG_RPC_URL');

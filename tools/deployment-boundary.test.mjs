@@ -66,3 +66,9 @@ test('every Vercel project runs the boundary gate and stays in Singapore', () =>
     assert.match(config.buildCommand, new RegExp(`deployment-boundary\\.mjs auto ${service}`));
   }
 });
+
+test('production backend runtime uses production while its source branch remains master',()=>{
+ const env={TG_ENVIRONMENT:'production',TG_CHAIN_ID:'4663',VERCEL_ENV:'production',TG_PIPELINE_DATABASE_URL:'postgresql://user:pass@db.example/prod',TG_RPC_URL:'https://rpc.example'};
+ assert.doesNotThrow(()=>assertDeploymentBoundary('production','pipeline',env,'master'));
+ assert.throws(()=>assertDeploymentBoundary('production','pipeline',{...env,TG_ENVIRONMENT:'master'},'master'),/environment/);
+});
