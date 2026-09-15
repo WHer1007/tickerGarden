@@ -23,7 +23,7 @@ Documentation is separated by authority and lifecycle:
 | [`v1/`](./v1/README.md) | Canonical | Current V1 product, architecture, security decisions, and readiness gates |
 | [`test-prototype/`](./test-prototype/README.md) | Historical | Superseded pre-V1 prototype records retained for audit context |
 
-The user-facing explanation of how the Platform uses its share of protocol-fee revenue is available in [`PLATFORM_REVENUE_USE.md`](./PLATFORM_REVENUE_USE.md): 70% for a stock development reserve, 20% for a weekly Meme buyback and burn, and 10% for platform expenses. This is a use-of-revenue policy for the Platform share, not a change to contract fee allocation.
+The user-facing explanation of how the Platform uses its share of protocol-fee revenue is available in [`PLATFORM_REVENUE_USE.md`](./PLATFORM_REVENUE_USE.md): 70% for asset reserves and liquidity, 20% for weekly community-project market buybacks and burns, and 10% for platform operations. It also explains the planned future airdrop; no platform token has been launched. This is a use-of-revenue policy for the Platform share, not a change to contract fee allocation.
 
 Machine-readable protocol truth remains under [`spec/`](../spec/). Research evidence, brand assets, generated analysis outputs, and retired application code remain in their dedicated top-level directories.
 

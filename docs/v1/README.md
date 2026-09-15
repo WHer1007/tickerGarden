@@ -19,7 +19,7 @@ Current Arbitrum Sepolia R2 status: `DEPLOYED_VERIFIED_ACTIVE_TEST_ONLY`; see th
 - [`V1_TYPED_IDENTIFIERS.md`](./V1_TYPED_IDENTIFIERS.md) — typed IDs, hashes, and CREATE2 domains.
 - [`V1_PONS_BEHAVIOR_BASELINE.md`](./V1_PONS_BEHAVIOR_BASELINE.md) — adopted and rejected Pons behavior.
 - [`V1_DEVELOPMENT_PLAN.md`](./V1_DEVELOPMENT_PLAN.md) — implementation scope and acceptance gates.
-- [`../PLATFORM_REVENUE_USE.md`](../PLATFORM_REVENUE_USE.md) — user-facing explanation of how the Platform uses its protocol-fee share.
+- [`../PLATFORM_REVENUE_USE.md`](../PLATFORM_REVENUE_USE.md) — user-facing project economics, future airdrop plans and uses of the Platform fee share.
 
 ## Contract architecture and accounting
 
