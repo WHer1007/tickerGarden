@@ -33,7 +33,7 @@ export function feeUsdValue(rows:readonly TokenDetailFee[],quote:string,meme:str
  return formatUnits(scaled(value,54)*usd,90);
 }
 export function formatFeeUsd(value:string|null):string{
- if(value===null)return 'Unavailable';
+ if(value===null)return '-';
  const[whole,fraction='']=value.split('.');
  const base=BigInt(whole!)*100n+BigInt(fraction.padEnd(2,'0').slice(0,2));
  if(base===0n&&/[1-9]/.test(value))return '<$0.01';

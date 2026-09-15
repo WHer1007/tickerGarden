@@ -24,7 +24,7 @@ test('USD fee valuation aggregates Quote and Meme assets using database prices',
  assert.equal(feeUsdValue([fee(meme,'1')],quote,meme,18,null,'3000'),null);
 });
 test('USD fee labels retain zero, missing valuation, small amounts and exact rounding',()=>{
- assert.equal(formatFeeUsd(null),'Unavailable');
+ assert.equal(formatFeeUsd(null),'-');
  assert.equal(formatFeeUsd('0'),'$0.00');
  assert.equal(formatFeeUsd('0.0000001'),'<$0.01');
  assert.equal(formatFeeUsd('999.995'),'$1,000.00');
