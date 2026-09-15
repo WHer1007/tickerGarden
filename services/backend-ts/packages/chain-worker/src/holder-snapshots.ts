@@ -1,3 +1,4 @@
+import {CURRENT_CHAIN_ID} from '../../runtime-deployment/src/index.ts';
 import {MAX_SNAPSHOT_HOLDERS,compactSnapshotDataset} from '../../chain/src/holder-snapshot.ts';
 import {indexHolderDataset} from '../../chain/src/holder-proof-index.ts';
 import { ProjectionPending } from '../../projection/src/index.ts';
@@ -22,7 +23,7 @@ export async function snapshotRead(o:SnapshotOptions, block:bigint,target:Addres
 }
 const json = <T>(v:unknown):T => JSON.parse(JSON.stringify(v,(_,v)=>typeof v==='bigint'?v.toString():v));
 async function verifySnapshotContext(o:SnapshotOptions,block:bigint) {
- if(o.deployment.chainId!==46630||o.deployment.deploymentDigest!==CURRENT_RELEASE_ID)throw Error('unsupported snapshot deployment');
+ if(o.deployment.chainId!==CURRENT_CHAIN_ID||o.deployment.deploymentDigest!==CURRENT_RELEASE_ID)throw Error('unsupported snapshot deployment');
  const source=fixedF72Sources().find(s=>s.module==='HolderRewardsDistributorV1')!;
  for(const rpc of [o.primary,o.secondary]) {
   if(BigInt(await rpc.call<string>('eth_chainId',[]))!==BigInt(o.deployment.chainId))throw Error('snapshot RPC chain mismatch');

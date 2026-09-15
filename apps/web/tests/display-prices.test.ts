@@ -48,3 +48,9 @@ test('global snapshot exposes midpoint values without binary floating point',()=
  const data=fixture();data.references[0]!.bidUsd='9007199254740993.000000000000000001';data.references[0]!.askUsd='9007199254740994.000000000000000001';
  assert.equal(parseAssetPriceSnapshot(data,4663,now).prices[token]?.midpointUsd,'9007199254740993.500000000000000001');
 });
+
+test('USDG fixed valuation is labeled as an assumption and rejects non-dollar fixed values',()=>{
+ const data=fixture();data.references=[{...data.references[0]!,symbol:'USDG',source:'fixed_usd',bidUsd:'1',askUsd:'1',multiplier:'1'}];
+ const view=displayPriceView(data,4663,token,now);assert.equal(view.status,'available');assert.match(view.text,/fixed assumption/);assert.doesNotMatch(view.text,/Coinbase/);
+ data.references[0]!.bidUsd='0.99';assert.equal(displayPriceView(data,4663,token,now).status,'unavailable');
+});

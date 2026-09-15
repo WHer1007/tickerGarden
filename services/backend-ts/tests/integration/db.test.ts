@@ -351,7 +351,7 @@ test('TS-02/03/04/05/06 PostgreSQL, ingestion, publications and Hono read paths'
     assert.equal(snapshotUpdate.mode, 'reset'); assert.deepEqual(snapshotUpdate.invalidated, ['markets', 'configs', 'positions', 'accounts']);
     const unchangedResponse = await readApi.request(`/v1/updates?since=${encodeURIComponent(snapshotUpdate.sync.revision)}`);
     assert.equal(unchangedResponse.status, 200); assert.equal((await unchangedResponse.json() as { mode: string }).mode, 'unchanged');
-    assert.match(marketResponse.headers.get('cache-control') ?? '', /s-maxage=15/);
+    assert.equal(marketResponse.headers.get('cache-control'), 'no-store'); // Origin-less server reads cannot seed browser caches.
     assert.equal(accountsResponse.headers.get('cache-control'), 'no-store');
 
     const largeDigest = hash('e');

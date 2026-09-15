@@ -1,3 +1,4 @@
+import {rpcPolicy} from '../packages/chain/src/rpc-policy.ts';
 import {createServer} from 'node:http';
 import {randomUUID} from 'node:crypto';
 import {createDatabasePool} from '../packages/db/src/index.ts';
@@ -8,6 +9,7 @@ import {setQueueExecutionMode} from '../packages/jobs/src/index.ts';
 import {createWorkerState,runResidentWorker} from '../packages/chain-worker/src/resident.ts';
 
 const env=process.env;
+const rpc=rpcPolicy(env);
 function required(key:string):string{const value=env[key];if(!value)throw Error(`${key} is required`);return value;}
 const generationText=required('TG_PIPELINE_GENERATION');
 if(!/^(0|[1-9][0-9]*)$/.test(generationText))throw Error('invalid generation');
@@ -26,8 +28,8 @@ if(mode){
  const controlPool=createDatabasePool(required('TG_WORKER_CONTROL_DATABASE_URL'),{max:1},{role:'resident-control',env}).pool;
  const environment=required('TG_ENVIRONMENT');
  if(environment!=='test'&&environment!=='production')throw Error('invalid environment');
- const processor=createChainProcessor({pool,primary:new RpcTransport({url:required('TG_RPC_URL')}),secondary:new RpcTransport({url:required('TG_SECONDARY_RPC_URL')}),
-  ...(env.TG_LOGS_SECONDARY_RPC_URL?{logsSecondary:new RpcTransport({url:env.TG_LOGS_SECONDARY_RPC_URL})}:{}),environment,schemaName,
+ const processor=createChainProcessor({pool,primary:new RpcTransport({url:required('TG_RPC_URL')}),secondary:new RpcTransport({url:rpc.verificationUrl ?? ''}),
+  ...(rpc.logsUrl?{logsSecondary:new RpcTransport({url:rpc.logsUrl})}:{}),environment,schemaName,
   ...(env.V1_FINALITY_DELAY_BLOCKS?{finalityDelayBlocks:BigInt(env.V1_FINALITY_DELAY_BLOCKS)}:{}),
   ...(env.V1_FINALITY_DELAY_SECONDS?{finalityDelaySeconds:BigInt(env.V1_FINALITY_DELAY_SECONDS)}:{})});
  const abort=new AbortController(),state=createWorkerState();

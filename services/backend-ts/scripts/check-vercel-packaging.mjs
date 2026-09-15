@@ -10,7 +10,7 @@ const expectedApps = ['read-api', 'pipeline', 'content'];
 const failures = [];
 const environmentExamples = ['config/test.env.example', 'config/master.env.example'].map((path) => {
   const source = readFileSync(join(repositoryRoot, path), 'utf8');
-  return { path, keys: new Set(source.split(/\r?\n/).map((line) => line.match(/^([A-Z][A-Z0-9_]*)=/)?.[1]).filter(Boolean)) };
+  return { path, singleRpc: /^TG_RPC_VERIFICATION_MODE=['"]?single['"]?$/m.test(source), keys: new Set(source.split(/\r?\n/).map((line) => line.match(/^([A-Z][A-Z0-9_]*)=/)?.[1]).filter(Boolean)) };
 });
 
 function readJson(path) {
@@ -114,6 +114,10 @@ for (const appName of expectedApps) {
   const requiredBlock = appSource.match(/requiredEnvironmentKeys:\s*\[([\s\S]*?)\]/)?.[1];
   if (!requiredBlock) fail(`apps/${appName}/src/index.ts has no literal requiredEnvironmentKeys contract`);
   const requiredKeys = [...(requiredBlock ?? '').matchAll(/'([A-Z][A-Z0-9_]*)'/g)].map((match) => match[1]);
+  for (const example of environmentExamples) {
+    if (appName === 'pipeline' && !example.singleRpc && !example.keys.has('TG_SECONDARY_RPC_URL')) fail(`${example.path} requires a secondary RPC in dual mode`);
+    if (example.singleRpc && (example.keys.has('TG_SECONDARY_RPC_URL') || example.keys.has('TG_LOGS_SECONDARY_RPC_URL'))) fail(`${example.path} must not mix single mode and secondary endpoints`);
+  }
   for (const key of requiredKeys) {
     if (key === 'ALCHEMY_AUTH_TOKEN' || key.startsWith('VITE_')) fail(`apps/${appName} must not require management or public environment key ${key}`);
     for (const example of environmentExamples) {

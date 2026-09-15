@@ -7,7 +7,7 @@ export type CreateAvailability = {
 export function createDisabledReason(s: CreateAvailability): string | null {
  if(s.submitting)return 'Launching…';
  if(s.imageReading)return 'Loading image…';
- if(!s.runtimeReady)return s.runtimeReason || 'Launch unavailable. Reload to retry.';
+ if(!s.runtimeReady)return /expected finalized|read api|snapshot/i.test(s.runtimeReason) ? 'Market data is syncing. Please retry shortly.' : s.runtimeReason || 'Launch is not ready. Reload to retry.';
  if(!s.walletConnected)return 'Connect your wallet.';
  if(s.busy)return 'Complete the wallet request.';
  if(s.pendingQuote)return 'Select an active paired asset.';

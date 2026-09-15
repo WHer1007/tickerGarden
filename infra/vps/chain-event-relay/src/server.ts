@@ -13,9 +13,10 @@ const required = [
   'CHAIN_RELAY_QUEUE_URL', 'CHAIN_RELAY_DESTINATION', 'QUEUE_PUBLISH_TOKEN',
 ] as const;
 for (const key of required) if (!process.env[key]) throw new Error(`${key} is required`);
-if (process.env.TG_ENVIRONMENT !== 'test') throw new Error('chain event relay is test-only');
+if (!['test','production'].includes(process.env.TG_ENVIRONMENT??'')) throw new Error('chain relay environment required');
 
-const filter = parseEventFilter(JSON.parse(await readFile(new URL('../filter.json', import.meta.url), 'utf8')));
+const filter = parseEventFilter(JSON.parse(await readFile(new URL(process.env.TG_ENVIRONMENT==='production'?'../filter.production.json':'../filter.json', import.meta.url), 'utf8')));
+if(filter.environment!==process.env.TG_ENVIRONMENT)throw Error('chain relay filter environment mismatch');
 const relayPool = new PgPool({ connectionString: process.env.CHAIN_RELAY_DATABASE_URL, max: positiveInteger(process.env.TG_DB_POOL_MAX_CHAIN_RELAY??'4',1,10), connectionTimeoutMillis: 5_000 });
 const sourcePool = new PgPool({ connectionString: process.env.CHAIN_SOURCE_DATABASE_URL, max: positiveInteger(process.env.TG_DB_POOL_MAX_CHAIN_RELAY_SOURCE??'2',1,10), connectionTimeoutMillis: 5_000 });
 for(const pool of [relayPool,sourcePool])pool.on('error',(error:Error&{code?:string})=>console.error(JSON.stringify({event:'chain_relay_idle_database_error',code:error.code??'unknown'})));
@@ -251,17 +252,17 @@ async function loadRouting(pool: Pool, eventFilter: EventFilter): Promise<Routin
   const schema = sqlIdentifier(process.env.TG_DATABASE_SCHEMA ?? 'tickergarden_serverless');
   const result = await pool.query<{ address: string; birth_block: string }>(
     `SELECT address,birth_block::text FROM ${schema}.contract_sources
-     WHERE environment='test' AND chain_id=$1 AND deployment_digest=$2 AND active ORDER BY address`,
-    [eventFilter.chainId, eventFilter.releaseId],
+     WHERE environment=$3 AND chain_id=$1 AND deployment_digest=$2 AND active ORDER BY address`,
+    [eventFilter.chainId, eventFilter.releaseId,eventFilter.environment],
   );
   const pools = await pool.query<{ pool_id: string; birth_block: string }>(
     `SELECT lower(r.payload->>'poolId') AS pool_id,r.payload->'source'->>'blockNumber' AS birth_block
      FROM ${schema}.projection_read_records r
      JOIN ${schema}.publication_pointers p USING(environment,chain_id,deployment_digest,scope,revision)
-     WHERE r.environment='test' AND r.chain_id=$1 AND r.deployment_digest=$2 AND r.scope='markets'
+     WHERE r.environment=$4 AND r.chain_id=$1 AND r.deployment_digest=$2 AND r.scope='markets'
        AND r.payload->>'poolId' ~ '^0x[0-9a-fA-F]{64}$' AND r.payload->>'poolId' <> $3
        AND r.payload->'source'->>'blockNumber' ~ '^[0-9]+$' ORDER BY pool_id`,
-    [eventFilter.chainId, eventFilter.releaseId, `0x${'0'.repeat(64)}`],
+    [eventFilter.chainId, eventFilter.releaseId, `0x${'0'.repeat(64)}`,eventFilter.environment],
   );
   return {
     sources: mergeSources(eventFilter, result.rows.map((row) => ({ address: row.address.toLowerCase() as `0x${string}`, birthBlock: BigInt(row.birth_block) }))),

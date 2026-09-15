@@ -1,3 +1,5 @@
+import {rpcPolicy} from '../packages/chain/src/rpc-policy.ts';
+import {CURRENT_CHAIN_ID} from '../packages/runtime-deployment/src/index.ts';
 /** Explicit operator CLI. Only publish signs/sends; no scheduling or permission changes. */
 import {readFile,writeFile} from 'node:fs/promises';
 import {createDatabasePool} from '../packages/db/src/index.ts';
@@ -16,10 +18,10 @@ if(['publish','reconcile','status'].includes(command??'')) {
  console.log(JSON.stringify({status:'verified',root:dataset.root,dataHash:dataset.dataHash,accounts:dataset.entries.length}));
 } else {
  if(!['prepare','preview','funding'].includes(command??'')||(command==='prepare'?args.length!==3:command==='funding'?args.length!==2:args.length!==1))throw Error(usage);
- if(process.env.TG_ENVIRONMENT!=='test')throw Error('This operator CLI requires explicit TG_ENVIRONMENT=test');
+ if(!['test','production'].includes(process.env.TG_ENVIRONMENT??''))throw Error('This operator CLI requires an explicit runtime environment');
  const pool=createDatabasePool(process.env.TG_PIPELINE_DATABASE_URL??'').pool;
  try {
-  const options={pool,deployment:{environment:'test' as const,chainId:46630 as const,deploymentDigest:CURRENT_RELEASE_ID,activationBlock:CURRENT_ACTIVATION_BLOCK},primary:new RpcTransport({url:process.env.TG_RPC_URL??''}),secondary:new RpcTransport({url:process.env.TG_SECONDARY_RPC_URL??''}),...(process.env.TG_DATABASE_SCHEMA?{schemaName:process.env.TG_DATABASE_SCHEMA}:{})};
+  const options={pool,deployment:{environment:process.env.TG_ENVIRONMENT as 'test'|'production',chainId:CURRENT_CHAIN_ID,deploymentDigest:CURRENT_RELEASE_ID,activationBlock:CURRENT_ACTIVATION_BLOCK},primary:new RpcTransport({url:process.env.TG_RPC_URL??''}),secondary:new RpcTransport({url:rpcPolicy(process.env).verificationUrl??''}),...(process.env.TG_DATABASE_SCHEMA?{schemaName:process.env.TG_DATABASE_SCHEMA}:{})};
   if(command==='funding') {
    console.log(JSON.stringify(await previewHolderFunding(options,args[1]!.split(',') as `0x${string}`[],args[0] as `0x${string}`)));
   } else if(command==='prepare') {

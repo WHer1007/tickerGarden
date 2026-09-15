@@ -114,6 +114,7 @@ export function createServiceApp(options: ServiceOptions): ServiceApp {
   });
   app.use('*', async (context, next) => {
     const origin = context.req.header('origin');
+    context.header('vary', 'Origin');
     if (origin && config.allowedOrigins.includes(origin)) {
       context.header('access-control-allow-origin', origin);
       context.header('vary', 'Origin');
@@ -128,6 +129,10 @@ export function createServiceApp(options: ServiceOptions): ServiceApp {
       return context.body(null, 204);
     }
     await next();
+    // Origin-less reads must not seed shared caches with a response browsers cannot read.
+    if (!origin || !config.allowedOrigins.includes(origin)) {
+      context.header('cache-control', 'no-store');
+    }
   });
 
   app.openapi(createRoute({

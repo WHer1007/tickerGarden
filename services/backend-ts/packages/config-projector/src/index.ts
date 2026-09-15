@@ -3,11 +3,11 @@ import type { DeploymentIdentity, RpcLog, RpcTransport } from '../../chain/src/i
 import { consensusBlock } from '../../chain/src/index.ts';
 import { decodeF72Event, fixedF72Sources } from '../../events/src/index.ts';
 import { publishProjection, type Json, type ProjectionRecord } from '../../projection/src/index.ts';
-import { f72BootstrapConfigs } from './f72-bootstrap.generated.ts';
+import {runtimeConfigs as f72BootstrapConfigs,CURRENT_CHAIN_ID} from '../../runtime-deployment/src/index.ts';
 
 type Kind = 'asset' | 'quote' | 'baseline' | 'template';
 type Config = { kind: Kind; id: `0x${string}`; status: number; values: Record<string, Json>; source: Source };
-type Source = { chainId: 46630; blockNumber: string; blockHash: `0x${string}`; transactionHash: `0x${string}`; transactionIndex: number; logIndex: number };
+type Source = { chainId: 4663 | 46630; blockNumber: string; blockHash: `0x${string}`; transactionHash: `0x${string}`; transactionIndex: number; logIndex: number };
 const MODULE_KIND = {
   OfficialStockRegistryV1: 'asset', ApprovedQuoteRegistry: 'quote', TickerGardenBaselineRegistry: 'baseline', LaunchTemplateRegistry: 'template',
 } as const;
@@ -92,13 +92,14 @@ function validateConfig(raw: unknown): Config {
   const value = raw as Record<string, unknown>;
   if (!['asset', 'quote', 'baseline', 'template'].includes(String(value.kind)) || !value.values || typeof value.values !== 'object') throw new Error('bootstrap config shape is invalid');
   const sourceValue = value.source as Record<string, unknown>;
+  if(sourceValue.chainId!==CURRENT_CHAIN_ID)throw Error('bootstrap chain mismatch');
   return { kind: value.kind as Kind, id: hex32(value.id, 'config id'), status: safeStatus(value.status),
     values: value.values as Record<string, Json>, source: {
-      chainId: 46630, blockNumber: decimal(sourceValue.blockNumber, 'source block'), blockHash: hex32(sourceValue.blockHash, 'source block hash'),
+      chainId: CURRENT_CHAIN_ID, blockNumber: decimal(sourceValue.blockNumber, 'source block'), blockHash: hex32(sourceValue.blockHash, 'source block hash'),
       transactionHash: hex32(sourceValue.transactionHash, 'source transaction'), transactionIndex: safeIndex(sourceValue.transactionIndex), logIndex: safeIndex(sourceValue.logIndex),
     } };
 }
-function source(log: RpcLog): Source { return { chainId: 46630, blockNumber: log.blockNumber.toString(), blockHash: log.blockHash,
+function source(log: RpcLog): Source { return { chainId: CURRENT_CHAIN_ID, blockNumber: log.blockNumber.toString(), blockHash: log.blockHash,
   transactionHash: log.transactionHash, transactionIndex: safeIndex(log.transactionIndex), logIndex: safeIndex(log.logIndex) }; }
 function parseStoredLog(value: Record<string, unknown>): RpcLog { return { address: address(value.address), blockHash: hex32(value.blockHash, 'block hash'),
   blockNumber: BigInt(decimal(value.blockNumber, 'block number')), transactionHash: hex32(value.transactionHash, 'transaction hash'),

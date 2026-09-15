@@ -23,14 +23,14 @@ test('display statistics validates scope, freshness and fee coverage',async()=>{
  const original=globalThis.fetch;let calls=0;
  globalThis.fetch=async()=>{calls++;return new Response(JSON.stringify({chainId:46630,displayOnly:true,marketId,observedAt:Math.floor(Date.now()/1000),feeCoverage:true,volumeRaw:'12',volumeAt:Math.floor(Date.now()/1000),feeDistribution:[{recipient:'creator',asset:meme,amountRaw:'4'},{recipient:'stakers',asset:meme,amountRaw:'6'}]}));};
  const market={marketId,curve:meme,launchPhase:0,source:{blockNumber:'456'}} as MarketReadModel;
- const context={apiBase:'https://distribution.test',market,decimals:18,feeVault:quote};
+ const context={chainId:46630,apiBase:'https://distribution.test',market,decimals:18,feeVault:quote};
  try{const a=await explorerStakeStatistics(context);assert.equal(a.volume,'0.000000000000000012');assert.deepEqual([...a.fees!],[[meme,10n]]);assert.equal(calls,1);assert.deepEqual((await explorerFeeDistribution(context)).map(x=>[x.recipient,x.amountRaw]),[['creator','4'],['stakers','6']]);assert.equal(calls,1);await assert.rejects(explorerStakeStatistics({...context,market:{...market,marketId:`0x${'4'.repeat(64)}`} as MarketReadModel}),/Invalid/);}finally{globalThis.fetch=original;}
 });
 test('fee coverage false withholds incomplete fees and null volume stays unavailable',async()=>{
  const original=globalThis.fetch;const urls:URL[]=[];let truncated=false;
  globalThis.fetch=async(input)=>{urls.push(new URL(String(input)));return new Response(JSON.stringify({chainId:46630,displayOnly:true,marketId,observedAt:Math.floor(Date.now()/1000),feeCoverage:false,volumeRaw:null,volumeAt:Math.floor(Date.now()/1000),feeDistribution:[{recipient:'creator',asset:meme,amountRaw:'9'}]}));};
  const market={marketId,curve:meme,launchPhase:0,source:{blockNumber:'123'}} as MarketReadModel;
- const context={apiBase:'https://statistics.test',market,decimals:18,feeVault:quote};
+ const context={chainId:46630,apiBase:'https://statistics.test',market,decimals:18,feeVault:quote};
  try{
   const a=await explorerStakeStatistics({...context,apiBase:'https://incomplete.test'});assert.equal(a.volume,'');assert.equal(a.fees,null);assert.equal(urls.length,1);
  }finally{globalThis.fetch=original;}
@@ -40,7 +40,7 @@ test('rolling volume expires while cumulative finalized fee allocations remain v
  const original=globalThis.fetch;let count=0;const now=Math.floor(Date.now()/1000);
  const market={marketId} as MarketReadModel;
  const base={chainId:46630,displayOnly:true,marketId,feeCoverage:true,feeDistribution:[{recipient:'holders',asset:meme,amountRaw:'7'}]};
- const context={apiBase:'https://independent.test',market,decimals:18,feeVault:quote};
+ const context={chainId:46630,apiBase:'https://independent.test',market,decimals:18,feeVault:quote};
  try{
   globalThis.fetch=async()=>{count++;await new Promise(r=>setTimeout(r,5));return new Response(JSON.stringify({...base,observedAt:now,volumeAt:0,volumeRaw:null}));};
   const [a,b]=await Promise.all([explorerStakeStatistics(context),explorerStakeStatistics(context)]);
@@ -48,4 +48,17 @@ test('rolling volume expires while cumulative finalized fee allocations remain v
   globalThis.fetch=async()=>new Response(JSON.stringify({...base,observedAt:now-1300,volumeAt:now,volumeRaw:'1000000000000000000'}));
   const c=await explorerStakeStatistics({...context,apiBase:'https://oldfees.test'});assert.equal(c.volume,'1');assert.equal(c.fees?.get(meme),7n);
  }finally{globalThis.fetch=original;}
+});
+
+ test('mainnet statistics validate chain identity and do not reuse testnet cache', async () => {
+  const original = globalThis.fetch;
+  const now = Math.floor(Date.now() / 1000);
+  const context = {chainId:4663, apiBase:'https://mainnet-isolation.test', market:{marketId} as MarketReadModel, decimals:18, feeVault:quote};
+  let calls = 0;
+  globalThis.fetch = async () => { calls++; return new Response(JSON.stringify({chainId:4663,displayOnly:true,marketId,observedAt:now,volumeAt:now,feeCoverage:true,volumeRaw:'1000000000000000000',feeDistribution:[]})); };
+  try {
+    assert.equal((await explorerStakeStatistics(context)).volume, '1');
+    await assert.rejects(explorerStakeStatistics({...context, chainId:46630}), /Invalid/);
+    assert.equal(calls, 2);
+  } finally { globalThis.fetch = original; }
 });

@@ -52,3 +52,32 @@ test('display catalog publishes the cached native reference with stock reference
   const response=await readDisplayPrices({pool,deployment:{environment:'test',chainId:46630,deploymentDigest:`0x${'1'.repeat(64)}`,activationBlock:1n},now});
   assert.equal(response.references[0]?.symbol,'ETH');assert.equal(response.references[0]?.bidUsd,'2500');assert.equal(response.references.length,1);
 });
+
+async function stockReference(assetChanges:Record<string,unknown>={},quoteChanges:Record<string,unknown>={}) {
+ const deployments=[{chainId:fixture.chainId,contractAddress:fixture.token}];
+ const asset={id:fixture.assetUid,tokenSymbol:fixture.symbol,status:'ASSET_STATUS_ACTIVE',currentMultiplier:'1.000566080061092436',pendingMultiplier:'',deployments,...assetChanges};
+ const quote={tokenSymbol:fixture.symbol,bid:'329.87',ask:'329.89',currency:'USD',isTradingHalt:false,generatedAt:'2026-09-15T12:00:00Z',deployments,...quoteChanges};
+ const fetcher:typeof fetch=async input=>{
+  const path=new URL(String(input)).pathname;
+  // Historical/announced actions must not be an availability dependency.
+  if(path.endsWith('/corporate-actions'))throw Error('announcement feed must not block a healthy quote');
+  return Response.json(path.endsWith('/assets')?{assets:[asset]}:{quotes:[quote]});
+ };
+ return (await fetchPriceReferences([fixture],{fetcher,now:new Date('2026-09-15T12:00:10Z')}))[0]!;
+}
+test('Stock multiplier products retain up to 36 decimal places without invalidating healthy quotes',async()=>{
+ const r=await stockReference();assert.equal(r.status,'available');assert.equal(r.bidUsd,'330.05673282975256186332');
+ const tiny=await stockReference({currentMultiplier:'0.000000000000000001'},{bid:'0.000000000000000001',ask:'0.000000000000000002'});
+ assert.equal(tiny.status,'available');assert.equal(tiny.bidUsd,'0.'+'0'.repeat(35)+'1');
+});
+test('action announcements and future multiplier schedules do not suppress current healthy prices',async()=>{
+ assert.equal((await stockReference()).status,'available');
+ const r=await stockReference({pendingMultiplier:'2',pendingMultiplierEffectiveTime:'2026-09-16T00:00:00Z'});
+ assert.equal(r.status,'available');assert.equal(r.bidUsd,'330.05673282975256186332');
+ const soon=await stockReference({pendingMultiplier:'2',pendingMultiplierEffectiveTime:'2026-09-15T12:00:20Z'});
+ assert.equal(soon.expiresAt,'2026-09-15T12:00:20.000Z');
+});
+test('official inactive or halted assets and due or ambiguous multiplier transitions remain blocked',async()=>{
+ for(const changes of [{status:'ASSET_STATUS_INACTIVE'},{pendingMultiplier:'2'},{pendingMultiplier:'2',pendingMultiplierEffectiveTime:'2026-09-15T12:00:10Z'},{pendingMultiplier:'2',pendingMultiplierEffectiveTime:'invalid'},{pendingMultiplier:'0',pendingMultiplierEffectiveTime:'2026-09-16T00:00:00Z'}])assert.equal((await stockReference(changes)).status,'unavailable');
+ for(const changes of [{isTradingHalt:true},{bid:'0'},{bid:'400',ask:'399'},{currency:'EUR'},{bid:'1.'+'1'.repeat(19)}])assert.equal((await stockReference({},changes)).status,'unavailable');
+});

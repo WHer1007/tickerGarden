@@ -4,8 +4,8 @@ const QUANTITY = /^0x(?:0|[1-9a-f][0-9a-f]*)$/i;
 
 export interface EventFilter {
   readonly schema: 'tickergarden.chain-event-filter.v1';
-  readonly chainId: 46630;
-  readonly environment: 'test';
+  readonly chainId: 4663 | 46630;
+  readonly environment: 'test' | 'production';
   readonly releaseId: `0x${string}`;
   readonly activationBlock: bigint;
   readonly sharedPoolManager: { readonly address: `0x${string}`; readonly swapTopic: `0x${string}` };
@@ -38,7 +38,7 @@ export interface SubscriptionLog {
 export function parseEventFilter(value: unknown): EventFilter {
   const item = record(value);
   const shared = record(item.sharedPoolManager);
-  if (item.schema !== 'tickergarden.chain-event-filter.v1' || item.chainId !== 46630 || item.environment !== 'test'
+  if (item.schema !== 'tickergarden.chain-event-filter.v1' || !((item.chainId === 46630 && item.environment === 'test') || (item.chainId === 4663 && item.environment === 'production'))
     || typeof item.releaseId !== 'string' || !HASH.test(item.releaseId)
     || typeof item.activationBlock !== 'string' || !/^[0-9]+$/.test(item.activationBlock)
     || typeof shared.address !== 'string' || !ADDRESS.test(shared.address)

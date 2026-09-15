@@ -3,7 +3,7 @@ import type {Pool,PoolClient} from 'pg';
 import type {Address,Hex} from 'viem';
 import type {DeploymentIdentity,RpcTransport} from '../../chain/src/index.ts';
 import {transaction} from '../../db/src/index.ts';
-import {f72BootstrapConfigs} from '../../config-projector/src/f72-bootstrap.generated.ts';
+import {runtimeConfigs as f72BootstrapConfigs} from '../../runtime-deployment/src/index.ts';
 import {decodeF72Event, fixedF72Sources, type DecodedProtocolEvent} from '../../events/src/index.ts';
 import {assertPublishableAnchor,ProjectionPending,type ProjectionRecord} from '../../projection/src/index.ts';
 import {replayPrincipal,parseStoredLog,verifyAccount,verifyPosition,validatePrincipalMarket,type Account,type Allocation,type Market} from './index.ts';

@@ -28,9 +28,9 @@ test('Read API rejects malformed market queries before opening a database connec
 
 test('display price catalogs use the five-minute shared CDN cache', async () => {
   const pool={query:async()=>({rows:[]})} as unknown as Pool;
-  const app=createReadApiApp({env:{NODE_ENV:'test',TG_READ_DATABASE_URL:'postgres://unused',TG_CURSOR_SECRET:'read-api-test-secret-that-is-at-least-32-bytes'},pool});
+  const app=createReadApiApp({env:{NODE_ENV:'test',TG_ALLOWED_ORIGINS:'https://app.example',TG_READ_DATABASE_URL:'postgres://unused',TG_CURSOR_SECRET:'read-api-test-secret-that-is-at-least-32-bytes'},pool});
   for(const path of ['/v1/prices/references','/v1/statistics-prices']){
-    const response=await app.request(path);assert.equal(response.status,200);assert.equal(response.headers.get('cache-control'),'public, max-age=60, s-maxage=300, stale-while-revalidate=60');
+    const response=await app.request(path,{headers:{origin:'https://app.example'}});assert.equal(response.status,200);assert.equal(response.headers.get('cache-control'),'public, max-age=60, s-maxage=300, stale-while-revalidate=60');
   }
 });
 

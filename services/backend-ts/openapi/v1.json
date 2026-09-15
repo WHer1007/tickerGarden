@@ -2,7 +2,7 @@
   "openapi": "3.1.0",
   "info": {
     "title": "TickerGarden V1 Read API",
-    "version": "5.3.0",
+    "version": "5.4.0",
     "description": "Non-custodial TypeScript Serverless read API for the routes consumed by the current frontend."
   },
   "x-execution-spec-id": "V1-EXEC-11",
@@ -4289,7 +4289,8 @@
             "enum": [
               "robinhood_rest",
               "coinbase_spot",
-              "testnet_pool_spot"
+              "testnet_pool_spot",
+              "fixed_usd"
             ]
           },
           "unit": {
@@ -5442,7 +5443,8 @@
                 "enum": [
                   "robinhood_rest",
                   "coinbase_spot",
-                  "testnet_pool_spot"
+                  "testnet_pool_spot",
+                  "fixed_usd"
                 ]
               },
               {

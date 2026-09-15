@@ -43,9 +43,10 @@ function parseReference(raw: unknown, chainId: number, now: number): AssetPrice 
   if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return null;
   const value = raw as DisplayPriceReference;
   const token = String(value.token).toLowerCase();
+  if (value.source === 'fixed_usd' && (value.symbol !== 'USDG' || value.bidUsd !== '1' || value.askUsd !== '1' || value.multiplier !== '1')) return null;
   if (value.token !== token || value.chainId !== chainId || !ADDRESS.test(token) || !/^0x[0-9a-f]{64}$/.test(value.assetUid)
     || !/^[A-Z][A-Z0-9.\-]{0,15}$/.test(value.symbol) || value.unit !== 'USD_PER_WHOLE_TOKEN'
-    || !['robinhood_rest', 'coinbase_spot', 'testnet_pool_spot'].includes(value.source)
+    || !['robinhood_rest', 'coinbase_spot', 'testnet_pool_spot', 'fixed_usd'].includes(value.source)
     || !['available', 'stale', 'unavailable'].includes(value.status)) return null;
   if (value.status !== 'available') {
     const asOf = value.asOf ? Date.parse(value.asOf) : null; const expiresAt = value.expiresAt ? Date.parse(value.expiresAt) : null;

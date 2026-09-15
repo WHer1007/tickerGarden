@@ -1,7 +1,7 @@
 import { latestPrices, preferredPrices } from '../../display-price/src/read.ts';
 import type { Pool, PoolClient } from 'pg';
 import type { DeploymentIdentity } from '../../chain/src/index.ts';
-import { f72BootstrapConfigs } from '../../config-projector/src/f72-bootstrap.generated.ts';
+import {runtimeConfigs as f72BootstrapConfigs} from '../../runtime-deployment/src/index.ts';
 import { f72EventCatalog } from '../../events/src/index.ts';
 import { f72PriceTargets, type PriceReference } from '../../display-price/src/index.ts';
 import type { Address, TradeActivity } from '../../analytics/src/index.ts';

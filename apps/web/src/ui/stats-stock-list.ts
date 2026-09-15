@@ -46,6 +46,7 @@ export function mountStatsStockList(container: HTMLElement) {
   toggle.className = "stats-stock-toggle";
   let rows: readonly StatsStockRow[] = [];
   let expanded = false;
+  let failureMessage: string | null = null;
 
   container.replaceChildren(search, list, toggle);
 
@@ -66,12 +67,12 @@ export function mountStatsStockList(container: HTMLElement) {
       item.append(label, value);
       return item;
     }));
-    if(!visible.length){const empty=document.createElement("p");empty.className="stats-empty";empty.textContent=query?"No matching stocks":"No allocated Stock yet";list.append(empty);}
+    if(!visible.length){const empty=document.createElement("p");empty.className="stats-empty";empty.textContent=failureMessage??(query?"No matching stocks":"No allocated Stock yet");list.append(empty);}
     toggle.hidden = Boolean(query) || (!expanded && visible.length === ordered.length);
     toggle.textContent = expanded ? "Show less" : "Show all";
   }
   search.addEventListener("input", render);
   toggle.addEventListener("click", () => { expanded = !expanded; render(); });
   render();
-  return { update(next: readonly StatsStockRow[]) { rows = next; render(); }, destroy() { search.removeEventListener("input", render); toggle.replaceWith(); container.replaceChildren(); } };
+  return { update(next: readonly StatsStockRow[]) { rows = next; failureMessage = null; render(); }, setUnavailable(message = "Statistics syncing. Try again.") { rows = []; failureMessage = message; render(); }, destroy() { search.removeEventListener("input", render); toggle.replaceWith(); container.replaceChildren(); } };
 }

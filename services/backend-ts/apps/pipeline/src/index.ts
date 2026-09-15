@@ -1,3 +1,5 @@
+import {rpcPolicy} from '../../../packages/chain/src/rpc-policy.ts';
+import {CURRENT_CHAIN_ID,assertRuntimeEnvironment} from '../../../packages/runtime-deployment/src/index.ts';
 import {publishProtocolStatistics} from '../../../packages/statistics-store/src/snapshot.ts';
 import { publishMarketCapRanking } from '../../../packages/display-price/src/ranking.ts';
 import { randomUUID } from 'node:crypto';
@@ -13,7 +15,7 @@ import {
 import { ALCHEMY_EVM_COMPUTE_UNIT_SCHEDULE, alchemyNominalComputeUnits } from '../../../packages/alchemy/src/index.ts';
 import { consensusBlock, parseChainLogTrigger, RpcTransport } from '../../../packages/chain/src/index.ts';
 import { createChainProcessor } from '../../../packages/chain-worker/src/index.ts';
-import { f72PriceTargets, fetchTestnetPriceReferences, storePriceReferences } from '../../../packages/display-price/src/index.ts';
+import { f72PriceTargets, fetchRuntimePriceReferences, storePriceReferences } from '../../../packages/display-price/src/index.ts';
 import { CURRENT_ACTIVATION_BLOCK, CURRENT_RELEASE_ID } from '../../../packages/events/src/index.ts';
 import {recordRecentLaunch,recordRecentLaunchTrigger} from '../../../packages/market-projector/src/recent.ts';
 
@@ -26,14 +28,16 @@ interface PipelineAppOptions {
 
 export function createPipelineApp(options: PipelineAppOptions = {}) {
   const env = options.env ?? process.env;
+  assertRuntimeEnvironment(env);
+  const rpc = rpcPolicy(env);
   const app = createServiceApp({
     kind: 'pipeline', env,
     maxBodyBytes: 1024 * 1024,
     requiredEnvironmentKeys: [
       'TG_PIPELINE_DATABASE_URL', 'TG_PIPELINE_GENERATION',
       'QSTASH_CURRENT_SIGNING_KEY', 'QSTASH_NEXT_SIGNING_KEY', 'QSTASH_CHAIN_TOKEN',
-      'TG_CHAIN_JOB_CALLBACK_URL', 'TG_RPC_URL', 'TG_SECONDARY_RPC_URL', 'TG_REPAIR_TOKEN', 'TG_PRICE_REFRESH_TOKEN', 'CRON_SECRET',
-    ],
+      'TG_CHAIN_JOB_CALLBACK_URL', 'TG_RPC_URL', 'TG_REPAIR_TOKEN', 'TG_PRICE_REFRESH_TOKEN', 'CRON_SECRET',
+    ].concat(rpc.mode === 'dual' ? ['TG_SECONDARY_RPC_URL'] : []),
   });
   if (!(app instanceof Hono)) throw new Error('pipeline service factory must return a Hono application');
 
@@ -49,9 +53,9 @@ export function createPipelineApp(options: PipelineAppOptions = {}) {
         url: env.TG_RPC_URL ?? '', provider: 'alchemy-primary', nominalComputeUnits: alchemyNominalComputeUnits,
         computeUnitSchedule: ALCHEMY_EVM_COMPUTE_UNIT_SCHEDULE.id, observe: (metric) => emitMetric(env, metric),
       }),
-      secondary: new RpcTransport({ url: env.TG_SECONDARY_RPC_URL ?? '', provider: 'independent-secondary', observe: (metric) => emitMetric(env, metric) }),
-      ...(env.TG_LOGS_SECONDARY_RPC_URL ? { logsSecondary: new RpcTransport({
-        url: env.TG_LOGS_SECONDARY_RPC_URL, provider: 'independent-logs-secondary', observe: (metric) => emitMetric(env, metric),
+      secondary: new RpcTransport({ url: rpc.verificationUrl ?? '', provider: rpc.verificationProvider, observe: (metric) => emitMetric(env, metric) }),
+      ...(rpc.logsUrl ? { logsSecondary: new RpcTransport({
+        url: rpc.logsUrl, provider: 'independent-logs-secondary', observe: (metric) => emitMetric(env, metric),
       }) } : {}),
       environment: environmentName(env.TG_ENVIRONMENT),
       ...(env.TG_DATABASE_SCHEMA ? { schemaName: env.TG_DATABASE_SCHEMA } : {}),
@@ -65,8 +69,8 @@ export function createPipelineApp(options: PipelineAppOptions = {}) {
     const provided = header?.startsWith('Bearer ') ? header.slice(7) : null;
     return verifyRepairToken(provided, env.CRON_SECRET ?? '') || verifyRepairToken(provided, env.TG_REPAIR_TOKEN ?? '');
   }
-  function recentLaunchInput(){return {pool:databasePool(),deployment:{environment:environmentName(env.TG_ENVIRONMENT),chainId:46630 as const,deploymentDigest:CURRENT_RELEASE_ID,activationBlock:CURRENT_ACTIVATION_BLOCK},
-    primary:new RpcTransport({url:env.TG_RPC_URL??''}),secondary:new RpcTransport({url:env.TG_SECONDARY_RPC_URL??''}),...(env.TG_DATABASE_SCHEMA?{schemaName:env.TG_DATABASE_SCHEMA}:{})};}
+  function recentLaunchInput(){return {pool:databasePool(),deployment:{environment:environmentName(env.TG_ENVIRONMENT),chainId:CURRENT_CHAIN_ID,deploymentDigest:CURRENT_RELEASE_ID,activationBlock:CURRENT_ACTIVATION_BLOCK},
+    primary:new RpcTransport({url:env.TG_RPC_URL??''}),secondary:new RpcTransport({url:rpc.verificationUrl??''}),...(env.TG_DATABASE_SCHEMA?{schemaName:env.TG_DATABASE_SCHEMA}:{})};}
 
   app.post('/v1/launches',async context=>{
     context.header('cache-control','no-store');
@@ -74,7 +78,7 @@ export function createPipelineApp(options: PipelineAppOptions = {}) {
     try{body=await context.req.json();if(!body||Object.keys(body).length!==1||typeof body.transactionHash!=='string'||!/^0x[0-9a-f]{64}$/.test(body.transactionHash))throw Error('invalid');}
     catch{return context.json({error:'invalid_request'},400);}
     try{return context.json(await recordRecentLaunch(recentLaunchInput(),body.transactionHash as `0x${string}`));}
-    catch{return context.json({error:'launch_observation_unavailable',message:'Creation could not yet be independently verified. Retry with the same transaction hash.'},503);}
+    catch{return context.json({error:'launch_observation_unavailable',message:'Creation could not yet be verified. Retry with the same transaction hash.'},503);}
   });
   function operatorAuthorized(header: string | undefined): boolean {
     const provided = header?.startsWith('Bearer ') ? header.slice(7) : null;
@@ -96,7 +100,7 @@ export function createPipelineApp(options: PipelineAppOptions = {}) {
         url: env.TG_RPC_URL ?? '', provider: 'alchemy-primary', nominalComputeUnits: alchemyNominalComputeUnits,
         computeUnitSchedule: ALCHEMY_EVM_COMPUTE_UNIT_SCHEDULE.id, observe: (metric) => emitMetric(env, metric),
       });
-      const secondary = new RpcTransport({ url: env.TG_SECONDARY_RPC_URL ?? '', provider: 'independent-secondary', observe: (metric) => emitMetric(env, metric) });
+      const secondary = new RpcTransport({ url: rpc.verificationUrl ?? '', provider: rpc.verificationProvider, observe: (metric) => emitMetric(env, metric) });
       const [primaryHead, secondaryHead] = await Promise.all([primary.latestBlock(), secondary.latestBlock()]);
       const number = primaryHead.number < secondaryHead.number ? primaryHead.number : secondaryHead.number;
       const head = await consensusBlock(primary, secondary, number);
@@ -158,9 +162,9 @@ export function createPipelineApp(options: PipelineAppOptions = {}) {
     });
     // The existing minute scheduler also serves Preview, where Vercel cron is not active.
     // Snapshot work is idempotent per 20-minute bucket and cannot stop queue dispatch.
-    try { const ranking=await publishMarketCapRanking(databasePool(),{environment:environmentName(env.TG_ENVIRONMENT),chainId:46630,deploymentDigest:CURRENT_RELEASE_ID,activationBlock:CURRENT_ACTIVATION_BLOCK},env.TG_DATABASE_SCHEMA);emitMetric(env,{event:'market_cap_ranking',...ranking}); }
+    try { const ranking=await publishMarketCapRanking(databasePool(),{environment:environmentName(env.TG_ENVIRONMENT),chainId:CURRENT_CHAIN_ID,deploymentDigest:CURRENT_RELEASE_ID,activationBlock:CURRENT_ACTIVATION_BLOCK},env.TG_DATABASE_SCHEMA);emitMetric(env,{event:'market_cap_ranking',...ranking}); }
     catch { emitMetric(env,{event:'market_cap_ranking',published:false,reason:'refresh_failed'}); }
-    try { const statistics=await publishProtocolStatistics(databasePool(),{environment:environmentName(env.TG_ENVIRONMENT),chainId:46630,deploymentDigest:CURRENT_RELEASE_ID,activationBlock:CURRENT_ACTIVATION_BLOCK},env.TG_DATABASE_SCHEMA);emitMetric(env,{event:'protocol_statistics',...statistics}); }
+    try { const statistics=await publishProtocolStatistics(databasePool(),{environment:environmentName(env.TG_ENVIRONMENT),chainId:CURRENT_CHAIN_ID,deploymentDigest:CURRENT_RELEASE_ID,activationBlock:CURRENT_ACTIVATION_BLOCK},env.TG_DATABASE_SCHEMA);emitMetric(env,{event:'protocol_statistics',...statistics}); }
     catch { emitMetric(env,{event:'protocol_statistics',published:false,reason:'refresh_failed'}); }
     emitMetric(env, { event: 'queue_dispatch', queue: 'chain', ...dispatched });
     return context.json({ repaired, dispatched });
@@ -185,10 +189,10 @@ export function createPipelineApp(options: PipelineAppOptions = {}) {
 
   app.on(['GET', 'POST'], '/internal/prices/refresh', async (context) => {
     if (!priceRefreshAuthorized(context.req.header('authorization'))) return context.json({ error: 'unauthorized', requestId: context.get('requestId') }, 401);
-    const deployment = { environment: environmentName(env.TG_ENVIRONMENT), chainId: 46630 as const,
+    const deployment = { environment: environmentName(env.TG_ENVIRONMENT), chainId: CURRENT_CHAIN_ID,
       deploymentDigest: CURRENT_RELEASE_ID, activationBlock: CURRENT_ACTIVATION_BLOCK };
-    const references = await fetchTestnetPriceReferences(f72PriceTargets(), { rpc: new RpcTransport({
-      url: env.TG_SECONDARY_RPC_URL ?? '', provider: 'display-price-secondary', observe: (metric) => emitMetric(env, metric),
+    const references = await fetchRuntimePriceReferences(f72PriceTargets(), { rpc: new RpcTransport({
+      url: rpc.verificationUrl ?? '', provider: rpc.mode === 'single' ? 'display-price-primary' : 'display-price-secondary', observe: (metric) => emitMetric(env, metric),
     }) });
     await storePriceReferences(databasePool(), deployment, references, env.TG_DATABASE_SCHEMA);
     await publishMarketCapRanking(databasePool(), deployment, env.TG_DATABASE_SCHEMA);
@@ -211,7 +215,7 @@ export function createPipelineApp(options: PipelineAppOptions = {}) {
       });
       payload = JSON.parse(rawBody) as Readonly<Record<string, unknown>>;
       trigger = parseChainLogTrigger(payload, {
-        environment: environmentName(env.TG_ENVIRONMENT), chainId: 46630,
+        environment: environmentName(env.TG_ENVIRONMENT), chainId: CURRENT_CHAIN_ID,
         deploymentDigest: CURRENT_RELEASE_ID, activationBlock: CURRENT_ACTIVATION_BLOCK,
       });
     } catch {
@@ -268,7 +272,7 @@ export function createPipelineApp(options: PipelineAppOptions = {}) {
 
 async function readPipelineMetrics(pool: Pool, environment: 'preview' | 'test' | 'production', schemaName = 'tickergarden_serverless') {
   const schema = identifier(schemaName);
-  const identity = [environment, 46630, CURRENT_RELEASE_ID];
+  const identity = [environment, CURRENT_CHAIN_ID, CURRENT_RELEASE_ID];
   const [ingestion, projections, conflicts, prices, head] = await Promise.all([
     pool.query<{ stream: string; next_block: string; generation: string; age_seconds: string }>(
       `SELECT stream,next_block::text,generation::text,extract(epoch FROM now()-updated_at)::text age_seconds FROM ${schema}.ingestion_checkpoints WHERE environment=$1 AND chain_id=$2 AND deployment_digest=$3 ORDER BY stream`, identity),
@@ -281,7 +285,7 @@ async function readPipelineMetrics(pool: Pool, environment: 'preview' | 'test' |
   ]);
   const headNumber = head.rows[0]?.number === null || head.rows[0]?.number === undefined ? null : BigInt(head.rows[0].number);
   return {
-    environment, chainId: 46630, deploymentDigest: CURRENT_RELEASE_ID,
+    environment, chainId: CURRENT_CHAIN_ID, deploymentDigest: CURRENT_RELEASE_ID,
     headBlockNumber: headNumber?.toString() ?? null,
     unresolvedSourceConflicts: Number(conflicts.rows[0]?.count ?? 0),
     ingestion: ingestion.rows.map((row) => ({ stream: row.stream, nextBlock: row.next_block, generation: row.generation,
@@ -320,7 +324,7 @@ function decimalGeneration(value: unknown): bigint {
 }
 function emitMetric(env: Readonly<Record<string, string | undefined>>, fields: object) {
   console.info(JSON.stringify({ level: 'info', metric: true, service: 'pipeline', environment: environmentName(env.TG_ENVIRONMENT),
-    chainId: 46630, deploymentDigest: CURRENT_RELEASE_ID, ...fields }));
+    chainId: CURRENT_CHAIN_ID, deploymentDigest: CURRENT_RELEASE_ID, ...fields }));
 }
 
 function environmentName(value: string | undefined): 'preview' | 'test' | 'production' {

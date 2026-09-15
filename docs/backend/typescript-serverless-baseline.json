@@ -30,13 +30,16 @@
     }
   },
   "sourceLocks": {
-    "services/backend-ts/openapi/v1.json": "dcffeee6b5aec5ee8dfd666109de50412dbdf866f968c9a67a119d49b5e9ca32",
-    "services/backend-ts/openapi/v1.lock.json": "c51d46759029e0d7ef60904f335d73fe79d6d7c3ac160d6b2d73fdac7f24da59",
-    "services/backend-ts/packages/events/src/index.ts": "a20e33da683ea066c4782e7a26e6f698b5a5a567da4b2edee14c2b90dbe725c8",
+    "services/backend-ts/openapi/v1.json": "2bc71a3c9e6ea2e25137ea97486122c9d882bbab1b682e02a5c4410b6c5af588",
+    "services/backend-ts/openapi/v1.lock.json": "ba7810b86f027ad21849fa7425c4eab35b88f05b927043cd49b8549a0af0a701",
+    "services/backend-ts/packages/events/src/index.ts": "f23f22158f16f251d77953bc4273229d25409350b04cd29308f894c80a56c189",
     "services/backend-ts/packages/events/src/f72-abis.generated.ts": "36125edf261162a5fb1db0547df88ea0737a12254e8f296302a7b32c7c51451c",
     "services/backend-ts/packages/config-projector/src/f72-bootstrap.generated.ts": "ebcbb3447daa60efcb6eb494f0d20b79346b6f6de80014198653fbae12724aa2",
     "deployments/releases/0x685b5c20e826f4ddd076b61216c7529a967322082925c4741469b0fda837a7f2/backend-deployment-manifest.json": "8c5568e25cfd82a07270a79817f76d20233e17f80bad1a28ac19081725833922",
-    "apps/web/tests/fixtures/integration/rh-685b5c20.json": "25d203474936db0849d31c65c56f8a6894af4466b4f68cf4a509b5ecf7e6a082"
+    "apps/web/tests/fixtures/integration/rh-685b5c20.json": "25d203474936db0849d31c65c56f8a6894af4466b4f68cf4a509b5ecf7e6a082",
+    "services/backend-ts/packages/runtime-deployment/src/types.ts": "e86bb9d04659fe04c75160448872fc22c262b099d50cd11344227effd7e56adf",
+    "services/backend-ts/packages/runtime-deployment/src/production.generated.ts": "a57f69c7377c345f9c9bdfdc192a60c5ce38adae9236e6561352e3fb77dd6b3d",
+    "services/backend-ts/packages/runtime-deployment/src/index.ts": "b2b0c39caf976bce5cef95342a056339b37ed4847e1345a3c77110bbb65907b8"
   },
   "capabilities": {
     "snapshotHolderRead": true,

@@ -1,3 +1,4 @@
+import {CURRENT_CHAIN_ID,assertRuntimeEnvironment} from '../../../packages/runtime-deployment/src/index.ts';
 import { randomUUID } from 'node:crypto';
 import type { Pool } from 'pg';
 import type { Client } from '@upstash/qstash';
@@ -13,6 +14,7 @@ interface ContentAppOptions { readonly env?: Readonly<Record<string, string | un
 
 export function createContentApp(options: ContentAppOptions = {}) {
   const env = options.env ?? process.env;
+  assertRuntimeEnvironment(env);
   const app = createServiceApp({ kind: 'content', env, maxBodyBytes: 3 * 1024 * 1024, requiredEnvironmentKeys: [
     'TG_CONTENT_DATABASE_URL', 'TG_CONTENT_BUCKET', 'TG_CONTENT_REGION', 'TG_CONTENT_ACCESS_KEY_ID', 'TG_CONTENT_SECRET_ACCESS_KEY',
     'TG_CONTENT_SESSION_SECRET', 'TG_CONTENT_WEB_ORIGIN', 'PINATA_JWT', 'QSTASH_CURRENT_SIGNING_KEY', 'QSTASH_NEXT_SIGNING_KEY',
@@ -32,14 +34,14 @@ export function createContentApp(options: ContentAppOptions = {}) {
   app.post('/v1/content/challenges', async (context) => {
     try { const body = await context.req.json() as { account?: unknown; digest?: unknown };
       const result = await createContentChallenge({ pool: pool(), account: canonicalAddress(body.account), digest: string(body.digest), origin: requestOrigin(context.req.raw),
-        expectedOrigin: env.TG_CONTENT_WEB_ORIGIN ?? '', chainId: 46630, ...(schemaName ? { schemaName } : {}) });
+        expectedOrigin: env.TG_CONTENT_WEB_ORIGIN ?? '', chainId: CURRENT_CHAIN_ID, ...(schemaName ? { schemaName } : {}) });
       context.header('cache-control', 'no-store'); return context.json(result, 201); } catch (error) { return contentError(context, error); }
   });
   app.post('/v1/content/uploads', async (context) => {
     try { const rawBody = await context.req.text(); const signature = context.req.header('x-upload-signature');
       if (!signature || !/^0x[0-9a-fA-F]{130}$/.test(signature)) throw new ContentAuthorizationError();
       const result = await createContentUpload({ pool: pool(), rawBody, nonce: context.req.header('x-upload-nonce') ?? '', signature: signature as `0x${string}`,
-        origin: requestOrigin(context.req.raw), expectedOrigin: env.TG_CONTENT_WEB_ORIGIN ?? '', chainId: 46630, sessionSecret: env.TG_CONTENT_SESSION_SECRET ?? '',
+        origin: requestOrigin(context.req.raw), expectedOrigin: env.TG_CONTENT_WEB_ORIGIN ?? '', chainId: CURRENT_CHAIN_ID, sessionSecret: env.TG_CONTENT_SESSION_SECRET ?? '',
         ...(schemaName ? { schemaName } : {}) });
       const upload = result.image ? presignImagePut(storage(), result.image.objectKey, result.image) : null;
       context.header('cache-control', 'no-store'); return context.json({ uploadId: result.uploadId, accessToken: result.accessToken, status: result.status,

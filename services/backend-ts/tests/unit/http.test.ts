@@ -59,3 +59,19 @@ test('request IDs are preserved only when they use the accepted syntax', async (
   const replaced = await app.request('/internal/live', { headers: { 'x-request-id': 'bad request id' } });
   assert.match(replaced.headers.get('x-request-id') ?? '', /^[0-9a-f-]{36}$/);
 });
+
+
+test('origin-less and rejected-origin GETs cannot poison a public response cache', async () => {
+  const app = createServiceApp({kind:'read-api',env:{NODE_ENV:'test',TG_ALLOWED_ORIGINS:'https://app.tickergarden.example'}});
+  app.get('/cached',c=>{c.header('cache-control','public, max-age=60, s-maxage=300');return c.json({ok:true});});
+  for(const origin of [undefined,'https://attacker.example']){
+    const r=await app.request('/cached',{headers:origin?{origin}:{}});
+    assert.equal(r.headers.get('cache-control'),'no-store');
+    assert.equal(r.headers.get('vary'),'Origin');
+    assert.equal(r.headers.get('access-control-allow-origin'),null);
+  }
+  const r=await app.request('/cached',{headers:{origin:'https://app.tickergarden.example'}});
+  assert.equal(r.headers.get('access-control-allow-origin'),'https://app.tickergarden.example');
+  assert.equal(r.headers.get('vary'),'Origin');
+  assert.match(r.headers.get('cache-control')??'',/s-maxage=300/);
+});

@@ -18,3 +18,10 @@ test('Stats price updates reuse the snapshot without refetching',()=>{
  const body=source.slice(source.indexOf('const unsubscribeAssetPrices'),source.indexOf('void restoreLaunchProgress',source.indexOf('const unsubscribeAssetPrices')));
  assert.match(body,/applyStatsSnapshot/);assert.doesNotMatch(body,/renderStats/);
 });
+test('Stats Stock list keeps failure state separate from a verified empty result',()=>{
+ const source=fs.readFileSync(new URL('../src/ui/stats-stock-list.ts',import.meta.url),'utf8');
+ assert.match(source,/failureMessage/);
+ assert.match(source,/setUnavailable\(message = "Statistics syncing\. Try again\."\)/);
+ assert.match(source,/failureMessage\?\?/);
+ assert.match(source,/query\?"No matching stocks":"No allocated Stock yet"/);
+});

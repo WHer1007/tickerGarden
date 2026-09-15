@@ -1,3 +1,5 @@
+import {rpcPolicy} from '../packages/chain/src/rpc-policy.ts';
+import {CURRENT_CHAIN_ID} from '../packages/runtime-deployment/src/index.ts';
 import {readFileSync} from 'node:fs';
 import {privateKeyToAccount} from 'viem/accounts';
 import type {Address} from 'viem';
@@ -19,13 +21,13 @@ const safeErrors=new Set([
 ]);
 export const safePublicationError=(e:unknown)=>e instanceof Error&&safeErrors.has(e.message)?e.message:'Publication command failed; verify dataset, RPC, database and private journal before retrying';
 export async function runHolderPublicationCommand(command:string,args:string[]){
- if(process.env.TG_ENVIRONMENT!=='test')throw Error('Manual publication CLI requires TG_ENVIRONMENT=test');
+ if(!['test','production'].includes(process.env.TG_ENVIRONMENT??''))throw Error('Manual publication requires an explicit runtime environment');
  if(command==='status'?args.length!==0:args.length!==1)throw Error('Usage: holder-snapshot.ts publish|reconcile <dataset.json> | status');
  const publisher=process.env.TG_SNAPSHOT_PUBLISHER_ADDRESS;
  if(!publisher||!/^0x[0-9a-fA-F]{40}$/.test(publisher)||BigInt(publisher)===0n)throw Error('Configure TG_SNAPSHOT_PUBLISHER_ADDRESS');
  const directory=process.env.TG_SNAPSHOT_PUBLICATION_STATE_DIR;
  if(!directory)throw Error('Configure TG_SNAPSHOT_PUBLICATION_STATE_DIR');
- const identity={chainId:46630,releaseId:CURRENT_RELEASE_ID,publisher:publisher.toLowerCase() as Address};
+ const identity={chainId:CURRENT_CHAIN_ID,releaseId:CURRENT_RELEASE_ID,publisher:publisher.toLowerCase() as Address};
  await withPublicationJournal(directory,identity,async(journal,save)=>{
   if(command==='status'){console.log(JSON.stringify(publicationStatus(journal)));return;}
   try{
@@ -34,7 +36,7 @@ export async function runHolderPublicationCommand(command:string,args:string[]){
    const maxGas=process.env.TG_SNAPSHOT_MAX_TX_GAS_WEI;
    if(!maxGas||!/^[1-9][0-9]*$/.test(maxGas))throw Error('Configure positive TG_SNAPSHOT_MAX_TX_GAS_WEI');
    const finalitySeconds=Number(process.env.TG_SNAPSHOT_FINALITY_SECONDS??'600');
-   if(!Number.isSafeInteger(finalitySeconds)||finalitySeconds<600)throw Error('Snapshot receipt finality must be at least 600 seconds in this test release');
+   if(!Number.isSafeInteger(finalitySeconds)||finalitySeconds<600)throw Error('Snapshot receipt finality must be at least 600 seconds for this release');
    const policy:PublicationPolicy={publisher:identity.publisher,maxGasWei:BigInt(maxGas),confirmations:Number(process.env.TG_SNAPSHOT_CONFIRMATIONS??'2'),finalitySeconds,intentMaxAgeSeconds:300};
    let signer:PublicationSigner|undefined;
    if(command==='publish'){
@@ -43,7 +45,7 @@ export async function runHolderPublicationCommand(command:string,args:string[]){
    }
    const {pool}=createDatabasePool(process.env.TG_PIPELINE_DATABASE_URL??'');
    try{
-    const options={pool,deployment:{environment:'test' as const,chainId:46630 as const, deploymentDigest:CURRENT_RELEASE_ID,activationBlock:CURRENT_ACTIVATION_BLOCK},primary:new PublicationRpcTransport({url:process.env.TG_RPC_URL??''}),secondary:new PublicationRpcTransport({url:process.env.TG_SECONDARY_RPC_URL??''}),...(process.env.TG_DATABASE_SCHEMA?{schemaName:process.env.TG_DATABASE_SCHEMA}:{})};
+    const options={pool,deployment:{environment:process.env.TG_ENVIRONMENT as 'test'|'production',chainId:CURRENT_CHAIN_ID, deploymentDigest:CURRENT_RELEASE_ID,activationBlock:CURRENT_ACTIVATION_BLOCK},primary:new PublicationRpcTransport({url:process.env.TG_RPC_URL??''}),secondary:new PublicationRpcTransport({url:rpcPolicy(process.env).verificationUrl??''}),...(process.env.TG_DATABASE_SCHEMA?{schemaName:process.env.TG_DATABASE_SCHEMA}:{})};
     const d={options,policy,journal,save};
     const result=command==='publish'?await publishSnapshotOnce(d,dataset,signer!):await reconcilePublication(d,dataset);
     console.log(JSON.stringify(result));

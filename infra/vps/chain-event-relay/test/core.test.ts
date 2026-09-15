@@ -85,3 +85,10 @@ test('subscription filters shard large source and project-pool populations witho
   assert.equal(poolIds.length, pools.length);
   assert.ok(poolFilters.every((item) => (item.topics?.length ?? 0) === 2));
 });
+
+test('production filter binds mainnet identity and rejects crossed environments',async()=>{
+ const raw=JSON.parse(await readFile(new URL('../filter.production.json',import.meta.url),'utf8'));
+ const mainnet=parseEventFilter(raw);assert.equal(mainnet.chainId,4663);assert.equal(mainnet.environment,'production');assert.equal(mainnet.activationBlock,63094312n);
+ assert.ok(mainnet.fixedAddresses.includes('0x5ebc1c14dc10aac61a1d1e59b2618ab1f4c3de9c'));
+ assert.throws(()=>parseEventFilter({...raw,chainId:46630}));assert.throws(()=>parseEventFilter({...raw,environment:'test'}));
+});

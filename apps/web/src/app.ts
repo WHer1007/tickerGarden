@@ -1572,7 +1572,8 @@ async function renderExploreStage(phase:0|1,direction:'current'|'next'|'previous
 
 function clearStatsSnapshotView(_message: string): void {
   for(const selector of ['[data-stat-market-cap]','[data-stat-volume]','[data-stat-launches]','[data-stat-bloomed]','[data-stat-total-markets]'])text(selector,'-');
-  for(const selector of ['[data-stats-phase-list]','[data-stats-stock-list]','[data-stats-quote-list]']){
+  statsStockList?.setUnavailable();
+  for(const selector of ['[data-stats-phase-list]','[data-stats-quote-list]']){
     const container=query<HTMLElement>(selector);if(container){const empty=document.createElement('p');empty.className='stats-empty';empty.textContent='Data is not available yet';container.replaceChildren(empty);}
   }
   for(const selector of ['[data-stats-growing-bar]','[data-stats-bloomed-bar]']){const bar=query<HTMLElement>(selector);if(bar)bar.style.width='0%';}
@@ -1644,7 +1645,8 @@ function applyStatsSnapshot():void{
  });
  for(const [id,raw]of Object.entries(summary?.stockAmounts??{}))if(BigInt(raw)>0n&&!rows.some(row=>row.id===id))rows.push({id:id as Hex,label:shortHex(id),decimals:0,amount:BigInt(raw),value:null});
  const stockTotal=stakingFresh?sumStatisticsUSD(rows.map(r=>r.value)):null;
- text('[data-stat-stock-value]',stockTotal===null?'-':formatMarketUSD(stockTotal,true));statsStockList?.update(rows);
+ text('[data-stat-stock-value]',stockTotal===null?'-':formatMarketUSD(stockTotal,true));
+ if(stakingFresh)statsStockList?.update(rows);else statsStockList?.setUnavailable('Staking data is syncing. Try again.');
  const time=(at:number)=>new Date(at*1000).toLocaleString('en-US',{month:'short',day:'numeric',hour:'2-digit',minute:'2-digit'});
  text('[data-stats-updated]',summary?`Activity as of ${time(summary.observedAt)} · refreshed every 20 minutes`:'Statistics are syncing');
  text('[data-stats-staking-updated]',summary?.stakingObservedAt?`Staking as of ${time(summary.stakingObservedAt)}`:'Staking data is syncing');
@@ -2093,7 +2095,7 @@ async function refreshStakeStatistics():Promise<void>{
       (async()=>{
         if(!runtimeConfig.readApi.available)throw Error('Analytics unavailable');
         if(!runtimeConfig.contracts.available)throw Error('Market configuration unavailable');
-        return explorerStakeStatistics({apiBase:runtimeConfig.readApi.value,market,decimals:metadata.quoteDecimals,feeVault:runtimeConfig.contracts.value.protocolFeeVaultAddress});
+        return explorerStakeStatistics({chainId:robinhoodChain.id,apiBase:runtimeConfig.readApi.value,market,decimals:metadata.quoteDecimals,feeVault:runtimeConfig.contracts.value.protocolFeeVaultAddress});
       })(),
       (async()=>{
         // Display-only aggregate from the configured Vault; signing uses canonical bindings separately.
@@ -4657,7 +4659,7 @@ function startSnapshotUpdates(): void {
       pauseAnalytics();
       invalidateSnapshotReads();
       refreshActionAvailability();
-      if(currentPage()!=="markets")setPageStatus("Live data unavailable. Reconnecting…", "warning");
+      if(currentPage()!=="markets")setPageStatus("Live data is syncing. Reconnecting…", "warning");
     },
   });
   window.addEventListener("online", () => poller.reconnect());

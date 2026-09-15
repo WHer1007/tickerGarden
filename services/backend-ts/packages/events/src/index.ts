@@ -1,10 +1,11 @@
+import {runtimeReleaseId,runtimeActivationBlock,runtimeAddress,runtimeCodeHash,runtimeCodeHash as runtimeCodeHashForSource} from '../../runtime-deployment/src/index.ts';
 import { decodeEventLog, parseAbi, getAbiItem, keccak256, toBytes, type Abi, type Log } from 'viem';
 import type { ContractSource, RpcLog, RpcTransport } from '../../chain/src/index.ts';
 import { f72EventAbis, f72ReadAbis, currentEventAbis } from './f72-abis.generated.ts';
 export { f72ReadAbis } from './f72-abis.generated.ts';
 
-export const CURRENT_RELEASE_ID = '0x685b5c20e826f4ddd076b61216c7529a967322082925c4741469b0fda837a7f2' as const;
-export const CURRENT_ACTIVATION_BLOCK = 118689839n;
+export const CURRENT_RELEASE_ID = runtimeReleaseId;
+export const CURRENT_ACTIVATION_BLOCK = runtimeActivationBlock;
 // Compatibility aliases for the frozen projector modules. Runtime identity is the current release above.
 export const F72_RELEASE_ID = CURRENT_RELEASE_ID;
 export const F72_ACTIVATION_BLOCK = CURRENT_ACTIVATION_BLOCK;
@@ -26,7 +27,7 @@ const event = (name: string, inputs: readonly { readonly name: string; readonly 
 
 export const f72EventCatalog = {
   UniswapV4PoolManager: {
-    module: 'UniswapV4PoolManager', address: '0x8366a39cc670b4001a1121b8f6a443a643e40951', runtimeCodeHash: '0xbd3881180b547f5fe817545743cfb4343e96b1bc6640dcd70c106b0066e95626',
+    module: 'UniswapV4PoolManager', address: runtimeAddress('UniswapV4PoolManager', '0x8366a39cc670b4001a1121b8f6a443a643e40951'), runtimeCodeHash: runtimeCodeHash('UniswapV4PoolManager', '0xbd3881180b547f5fe817545743cfb4343e96b1bc6640dcd70c106b0066e95626'),
     abi: [event('Swap', [
       { name: 'id', type: 'bytes32', indexed: true }, { name: 'sender', type: 'address', indexed: true },
       { name: 'amount0', type: 'int128' }, { name: 'amount1', type: 'int128' }, { name: 'sqrtPriceX96', type: 'uint160' },
@@ -34,7 +35,7 @@ export const f72EventCatalog = {
     ])],
   },
   TickerGardenFactoryV1: {
-    module: 'TickerGardenFactoryV1', address: '0xf11839c3566c8b3345ed81e4a0e26cc38aa2866a', runtimeCodeHash: '0x1e6a01d66b1c6cce16242e8d5a908c2c5300e6392af0f16e2c7618630f7fb19f',
+    module: 'TickerGardenFactoryV1', address: runtimeAddress('TickerGardenFactoryV1', '0xf11839c3566c8b3345ed81e4a0e26cc38aa2866a'), runtimeCodeHash: runtimeCodeHash('TickerGardenFactoryV1', '0x1e6a01d66b1c6cce16242e8d5a908c2c5300e6392af0f16e2c7618630f7fb19f'),
     abi: [event('MarketCreated', [
       { name: 'marketId', type: 'bytes32', indexed: true }, { name: 'assetUid', type: 'bytes32', indexed: true },
       { name: 'memeToken', type: 'address', indexed: true }, { name: 'curve', type: 'address' }, { name: 'gauge', type: 'address' },
@@ -43,7 +44,7 @@ export const f72EventCatalog = {
     ])],
   },
   MarketRegistryV1: {
-    module: 'MarketRegistryV1', address: '0xab37f78d3a41c8f510f5a95a74f1ff1144e14660', runtimeCodeHash: '0xfc62631faca6e2a25ff2076c63b2eed8165d79a4fc05cc0b3813c78e6f3a6ee1',
+    module: 'MarketRegistryV1', address: runtimeAddress('MarketRegistryV1', '0xab37f78d3a41c8f510f5a95a74f1ff1144e14660'), runtimeCodeHash: runtimeCodeHash('MarketRegistryV1', '0xfc62631faca6e2a25ff2076c63b2eed8165d79a4fc05cc0b3813c78e6f3a6ee1'),
     abi: [
       event('MarketRegistered', [{ name: 'marketId', type: 'bytes32', indexed: true }, { name: 'assetUid', type: 'bytes32', indexed: true }, { name: 'memeToken', type: 'address', indexed: true }, { name: 'curve', type: 'address' }, { name: 'gauge', type: 'address' }, { name: 'sourceVersion', type: 'uint32' }]),
       event('LaunchPhaseChanged', [{ name: 'marketId', type: 'bytes32', indexed: true }, { name: 'oldPhase', type: 'uint8' }, { name: 'newPhase', type: 'uint8' }, { name: 'poolId', type: 'bytes32' }, { name: 'sourceVersion', type: 'uint32' }]),
@@ -74,7 +75,7 @@ export const f72EventCatalog = {
     ],
   },
   TickerGardenMemeHook: {
-    module: 'TickerGardenMemeHook', address: '0x3d10b2891730dc11f352087b0703a93772d56044', runtimeCodeHash: '0x164368eb2fb934a34e1504cfdf91b419590f9b1aba9a2ce337f54a8db2e42ed4',
+    module: 'TickerGardenMemeHook', address: runtimeAddress('TickerGardenMemeHook', '0x3d10b2891730dc11f352087b0703a93772d56044'), runtimeCodeHash: runtimeCodeHash('TickerGardenMemeHook', '0x164368eb2fb934a34e1504cfdf91b419590f9b1aba9a2ce337f54a8db2e42ed4'),
     abi: [
       event('ExpectedPoolRegistered', [{ name: 'marketId', type: 'bytes32', indexed: true }, { name: 'poolId', type: 'bytes32', indexed: true }, { name: 'keyHash', type: 'bytes32' }, { name: 'sourceVersion', type: 'uint32' }]),
       event('PoolBindingActivated', [{ name: 'marketId', type: 'bytes32', indexed: true }, { name: 'poolId', type: 'bytes32', indexed: true }, { name: 'sourceVersion', type: 'uint32' }]),
@@ -82,7 +83,7 @@ export const f72EventCatalog = {
     ],
   },
   ProtocolFeeVault: {
-    module: 'ProtocolFeeVault', address: '0x8c4ce2bb409b68697024afc28d26138d621035e2', runtimeCodeHash: '0x5f6abae71d47548c743da95d60e043110559162758d8013e959d553ed883f863',
+    module: 'ProtocolFeeVault', address: runtimeAddress('ProtocolFeeVault', '0x8c4ce2bb409b68697024afc28d26138d621035e2'), runtimeCodeHash: runtimeCodeHash('ProtocolFeeVault', '0x5f6abae71d47548c743da95d60e043110559162758d8013e959d553ed883f863'),
     abi: [
       event('MemeFeesBurned', [{ name: 'marketId', type: 'bytes32', indexed: true }, { name: 'beneficiary', type: 'address', indexed: true }, { name: 'role', type: 'uint8', indexed: true }, { name: 'creatorEpoch', type: 'uint32' }, { name: 'token', type: 'address' }, { name: 'amount', type: 'uint256' }]),
       event('CurveFeesSwept', [{ name: 'marketId', type: 'bytes32', indexed: true }, { name: 'creatorEpoch', type: 'uint32', indexed: true }, { name: 'quoteAsset', type: 'address', indexed: true }, { name: 'sweepNonce', type: 'uint64' }, { name: 'feeId', type: 'bytes32' }, { name: 'amount', type: 'uint256' }, { name: 'creatorAmount', type: 'uint256' }, { name: 'platformAmount', type: 'uint256' }]),
@@ -92,7 +93,7 @@ export const f72EventCatalog = {
     ],
   },
   HolderRewardsDistributorV1: {
-    module: 'HolderRewardsDistributorV1', address: '0xc2716b960bd675fa7f605ce8d191b6e247cf61e8', runtimeCodeHash: '0xbb7526295c01043903896f54d7dc294c5d76b41266508160c5a327a5574f2cdb',
+    module: 'HolderRewardsDistributorV1', address: runtimeAddress('HolderRewardsDistributorV1', '0xc2716b960bd675fa7f605ce8d191b6e247cf61e8'), runtimeCodeHash: runtimeCodeHash('HolderRewardsDistributorV1', '0xbb7526295c01043903896f54d7dc294c5d76b41266508160c5a327a5574f2cdb'),
     abi: [
       event('HolderStreamMarketRegistered', [{ name: 'marketId', type: 'bytes32', indexed: true }, { name: 'token', type: 'address', indexed: true }, { name: 'quote', type: 'address' }, { name: 'vault', type: 'address' }]),
       event('HolderAssetFunded', [{ name: 'marketId', type: 'bytes32', indexed: true }, { name: 'asset', type: 'address', indexed: true }, { name: 'amount', type: 'uint256' }]),
@@ -180,7 +181,7 @@ const F72_FIXED_IDENTITIES = [
 ] as const;
 
 export function fixedF72Sources(): ContractSource[] {
-  return F72_FIXED_IDENTITIES.map(([module, address, runtimeCodeHash]) => ({ module, address, birthBlock: F72_ACTIVATION_BLOCK, runtimeCodeHash }));
+  return F72_FIXED_IDENTITIES.map(([module, address, runtimeCodeHash]) => ({ module, address:runtimeAddress(module,address), birthBlock: F72_ACTIVATION_BLOCK, runtimeCodeHash:runtimeCodeHashForSource(module,runtimeCodeHash) }));
 }
 
 export async function discoverF72MarketSources(logs: readonly RpcLog[], blockNumber: bigint, primary: RpcTransport, secondary?: RpcTransport): Promise<ContractSource[]> {

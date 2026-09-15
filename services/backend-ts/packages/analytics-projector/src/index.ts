@@ -1,7 +1,7 @@
 import type { Pool, PoolClient } from 'pg';
 import type { DeploymentIdentity, RpcLog } from '../../chain/src/index.ts';
 import { transaction } from '../../db/src/index.ts';
-import { f72BootstrapConfigs } from '../../config-projector/src/f72-bootstrap.generated.ts';
+import {runtimeConfigs as f72BootstrapConfigs} from '../../runtime-deployment/src/index.ts';
 import { decodeF72Event, f72EventCatalog, type DecodedProtocolEvent } from '../../events/src/index.ts';
 import { normalizeTransaction, rebuildHolderSnapshot, transferFromObservation, type Address, type EventObservation, type MarketBinding, type TradeActivity } from '../../analytics/src/index.ts';
 

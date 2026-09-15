@@ -1,3 +1,4 @@
+import {CURRENT_CHAIN_ID,assertRuntimeEnvironment,runtimeGenesisHash,runtimeActivationHash} from '../../runtime-deployment/src/index.ts';
 import { projectHolderRewards } from './holder-snapshots.ts';
 import type { Pool } from 'pg';
 import { transaction } from '../../db/src/index.ts';
@@ -18,8 +19,8 @@ import { projectF72Analytics } from '../../analytics-projector/src/index.ts';
 import { projectF72Principal } from '../../principal-projector/src/index.ts';
 import { projectF72History } from '../../history-projector/src/index.ts';
 
-const GENESIS_HASH = '0x829a42e6d68c872aafcef3abb2123fe371138fc415dd8b44381bbbf23049dd32' as const;
-const ACTIVATION_HASH = '0x9b368b4107601d7abc1de430d89b30ac21bc3688a76ca83035bbce3bca56a63d' as const;
+const GENESIS_HASH = runtimeGenesisHash;
+const ACTIVATION_HASH = runtimeActivationHash;
 const ABI_DIGEST = '0x36125edf261162a5fb1db0547df88ea0737a12254e8f296302a7b32c7c51451c' as const;
 const STREAM = 'frontend-events';
 
@@ -36,13 +37,14 @@ export interface ChainProcessorOptions {
 }
 
 export function createChainProcessor(options: ChainProcessorOptions): (lease: Lease) => Promise<string> {
+  assertRuntimeEnvironment({TG_ENVIRONMENT:options.environment??(CURRENT_CHAIN_ID===4663?'production':'test')});
   const deployment: DeploymentIdentity = {
-    environment: options.environment ?? 'test', chainId: 46630, deploymentDigest: CURRENT_RELEASE_ID, activationBlock: CURRENT_ACTIVATION_BLOCK,
+    environment: options.environment ?? (CURRENT_CHAIN_ID===4663?'production':'test'), chainId: CURRENT_CHAIN_ID, deploymentDigest: CURRENT_RELEASE_ID, activationBlock: CURRENT_ACTIVATION_BLOCK,
   };
   return async (lease) => {
     await Promise.all([
-      verifyChainIdentity(options.primary, 46630n, GENESIS_HASH),
-      verifyChainIdentity(options.secondary, 46630n, GENESIS_HASH),
+      verifyChainIdentity(options.primary, BigInt(CURRENT_CHAIN_ID), GENESIS_HASH),
+      verifyChainIdentity(options.secondary, BigInt(CURRENT_CHAIN_ID), GENESIS_HASH),
     ]);
     const head = await resolveHead(lease, options.primary, options.secondary, deployment);
     await ensureBootstrap({ ...options, deployment });

@@ -1,3 +1,5 @@
+import {rpcPolicy} from '../../../packages/chain/src/rpc-policy.ts';
+import {CURRENT_CHAIN_ID,assertRuntimeEnvironment} from '../../../packages/runtime-deployment/src/index.ts';
 import {readProtocolStatistics} from '../../../packages/statistics-store/src/snapshot.ts';
 import { createHash } from 'node:crypto';
 import { sharedStatistics } from './statistics-cache.ts';
@@ -28,9 +30,11 @@ interface ReadApiOptions {
 
 export function createReadApiApp(options: ReadApiOptions = {}) {
   const env = options.env ?? process.env;
+  assertRuntimeEnvironment(env);
+  const rpc = rpcPolicy(env);
   const app = createServiceApp({ kind: 'read-api', env, requiredEnvironmentKeys: ['TG_READ_DATABASE_URL', 'TG_CURSOR_SECRET'] });
   const deployment: DeploymentIdentity = options.deployment ?? {
-    environment: environmentName(env.TG_ENVIRONMENT), chainId: 46630, deploymentDigest: CURRENT_RELEASE_ID, activationBlock: CURRENT_ACTIVATION_BLOCK,
+    environment: environmentName(env.TG_ENVIRONMENT), chainId: CURRENT_CHAIN_ID, deploymentDigest: CURRENT_RELEASE_ID, activationBlock: CURRENT_ACTIVATION_BLOCK,
   };
   let ownedPool: Pool | undefined;
   const pool = () => ownedPool ??= options.pool ?? createDatabasePool(env.TG_READ_DATABASE_URL ?? '', {}, {role:'read-api',env}).pool;
@@ -47,7 +51,7 @@ export function createReadApiApp(options: ReadApiOptions = {}) {
 
   const cursorSecret = env.TG_CURSOR_SECRET ?? '';
   const primary = options.primary ?? (env.TG_RPC_URL ? new RpcTransport({ url: env.TG_RPC_URL }) : undefined);
-  const secondary = options.secondary ?? (env.TG_SECONDARY_RPC_URL ? new RpcTransport({ url: env.TG_SECONDARY_RPC_URL }) : undefined);
+  const secondary = options.secondary ?? (rpc.verificationUrl ? new RpcTransport({ url: rpc.verificationUrl }) : undefined);
 
   app.use('/v1/*', async (context, next) => {
     await next(); const path = context.req.path;

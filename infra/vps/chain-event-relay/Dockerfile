@@ -5,7 +5,7 @@ ENV TG_RELEASE_COMMIT=$TG_RELEASE_COMMIT
 WORKDIR /app
 COPY package.json package-lock.json ./
 RUN npm ci --omit=dev
-COPY filter.json ./filter.json
+COPY filter.json filter.production.json ./
 COPY src ./src
 USER node
 ENV NODE_ENV=production PORT=8081
