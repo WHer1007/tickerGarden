@@ -128,8 +128,21 @@ export async function mountArbor(stage: HTMLElement): Promise<() => void> {
     if(preservedTip){
       const [px,py,pw,ph]=preservedTip as [number,number,number,number];
       const x=Math.round(px/1254*width),y=Math.round(py/1254*height),w=Math.round(pw/1254*width),h=Math.round(ph/1254*height);
-      context!.drawImage(artwork,x,y,w,h,x,y,w,h);
-      visual.getContext('2d')!.clearRect(x-Math.round(fruit.crop[0]*width),y-Math.round(fruit.crop[1]*height),w,h);
+      const vx=x-Math.round(fruit.crop[0]*width),vy=y-Math.round(fruit.crop[1]*height);
+      if(fruit.symbol==='GOOGL'){
+        // Only the neighboring leaf touches the left crop edge. The old rectangle
+        // also erased part of GOOGL's outline, opening its flood-fill boundary.
+        const tip=prepared.getImageData(x,y,w,h),keep=new Uint8Array(w*h),queue:number[]=[];
+        const visit=(px:number,py:number)=>{const i=py*w+px;if(keep[i]||!tip.data[i*4+3])return;keep[i]=1;queue.push(i);};
+        for(let py=0;py<h;py++)visit(0,py);
+        for(let n=0;n<queue.length;n++){const i=queue[n]!,px=i%w,py=Math.floor(i/w);for(let dy=-1;dy<=1;dy++)for(let dx=-1;dx<=1;dx++)if(px+dx>=0&&px+dx<w&&py+dy>=0&&py+dy<h)visit(px+dx,py+dy);}
+        const target=visual.getContext('2d')!,remaining=target.getImageData(vx,vy,w,h);
+        for(let i=0;i<w*h;i++){if(keep[i])remaining.data[i*4+3]=0;else tip.data[i*4+3]=0;}
+        context!.putImageData(tip,x,y);target.putImageData(remaining,vx,vy);
+      }else{
+        context!.drawImage(artwork,x,y,w,h,x,y,w,h);
+        visual.getContext('2d')!.clearRect(vx,vy,w,h);
+      }
     }
 
     const normal=document.createElement('canvas');normal.width=visual.width;normal.height=visual.height;
