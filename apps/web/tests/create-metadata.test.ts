@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { metadataOrigin,publishLaunchMetadata } from '../src/create/metadata.ts';
+import { metadataOrigin,publishLaunchMetadata,publishLaunchDetails } from '../src/create/metadata.ts';
 const authorization={nonce:'a'.repeat(64),signature:'0x'+'b'.repeat(130)} as const;
 test('metadata service origin boundaries',()=>{
  assert.equal(metadataOrigin(undefined),null);
@@ -52,6 +52,24 @@ test('publication sends details and accepts only a ready IPFS result',async()=>{
    ?new Response(JSON.stringify({uploadId:'11111111-1111-4111-8111-111111111111',accessToken:'a'.repeat(43),imageUpload:null}),{status:201})
    :calls===2?new Response(JSON.stringify({status:'uploaded'}),{status:202})
    :new Response(JSON.stringify({status:'ready',metadataURI:'https://unexpected.example/details.json',metadata}));
-  await assert.rejects(publishLaunchMetadata('https://metadata.example',details,authorization),/Invalid publishing response/);
+  await assert.rejects(publishLaunchMetadata('https://metadata.example',{...details,symbol:'GDN2'},authorization),/Invalid publishing response/);
  }finally{globalThis.fetch=original;}
+});
+
+test('resumes after transient status failure and reuses completed phases for the same owner',async()=>{
+ const original=globalThis.fetch; const details={name:'Resume',symbol:'RSM',description:'Hello',x:'resume',website:'https://garden.example',creatorFeesToHolders:true,creatorTaxBps:0};
+ const auth2={nonce:'c'.repeat(64),signature:'0x'+'d'.repeat(130)}; const uri='ipfs://Qm'+'b'.repeat(44); let calls:string[]=[]; let firstStatus=true;
+ try { globalThis.fetch=async(url,init)=>{calls.push(`${init?.method??'GET'} ${url}`); if(calls.length===1)return new Response(JSON.stringify({uploadId:'22222222-2222-4222-8222-222222222222',accessToken:'z'.repeat(43),imageUpload:null}),{status:201}); if(calls.length===2)return new Response(JSON.stringify({status:'uploaded'}),{status:202}); if(firstStatus){firstStatus=false;throw new TypeError('temporary');} return new Response(JSON.stringify({status:'ready',metadataURI:uri,metadata:{name:'Resume'}}));};
+  await assert.rejects(publishLaunchDetails('https://metadata.example',details,authorization,'4663:0xowner'),/Cannot connect|temporary/);
+  assert.equal(await publishLaunchMetadata('https://metadata.example',details,auth2,'4663:0xowner'),uri); assert.deepEqual(calls.map(x=>x.split(' ')[0]),['POST','POST','GET','GET']);
+ } finally {globalThis.fetch=original;}
+});
+
+test('owner separation and terminal status expiry discard resumable sessions',async()=>{
+ const original=globalThis.fetch; const details={name:'Owner',symbol:'OWN',description:'Hello',x:'owner',website:'https://garden.example',creatorFeesToHolders:true,creatorTaxBps:0}; let calls=0; const auth2={nonce:'e'.repeat(64),signature:'0x'+'f'.repeat(130)};
+ try { globalThis.fetch=async(url,init)=>{calls++; if(calls===1||calls===4)return new Response(JSON.stringify({uploadId:'33333333-3333-4333-8333-333333333333',accessToken:'q'.repeat(43),imageUpload:null}),{status:201}); if(calls===2||calls===5)return new Response(JSON.stringify({status:'uploaded'}),{status:202}); if(calls===3)return new Response('',{status:401}); return new Response(JSON.stringify({status:'ready',metadataURI:'ipfs://Qm'+'c'.repeat(44),metadata:{}}));};
+  await assert.rejects(publishLaunchDetails('https://metadata.example',details,authorization,'owner-a'));
+  assert.equal(await publishLaunchMetadata('https://metadata.example',details,auth2,'owner-a'),'ipfs://Qm'+'c'.repeat(44));
+  assert.equal(calls,6); // terminal expiry causes a fresh POST
+ } finally {globalThis.fetch=original;}
 });

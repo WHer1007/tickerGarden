@@ -1,3 +1,5 @@
+import {indexHolderDataset} from '../../packages/chain/src/holder-proof-index.ts';
+import {transaction} from '../../packages/db/src/index.ts';
 import {encodeCursor} from '../../packages/read-store/src/index.ts';
 import assert from 'node:assert/strict';
 import { randomBytes, createHash } from 'node:crypto';
@@ -32,11 +34,13 @@ test('holder rewards read path enforces publication identity, claims, and corrup
   await db.pool.query(`UPDATE ${schema}.holder_reward_markets SET payload=$1`,[JSON.stringify({token,quote,publisher:a('c'),lastRound:'1',unallocatedQuote:'0',unallocatedMeme:'0'})]);
   await db.pool.query(`INSERT INTO ${schema}.holder_reward_rounds(environment,chain_id,deployment_digest,market_id,round,block_number,block_hash,root,data_hash,snapshot_block,snapshot_block_hash,quote_budget,meme_budget) VALUES('test',$1,$2,$3,1,100,$4,$5,$6,90,$7,$8,0)`,[deployment.chainId,h('d'),marketId,h('b'),ds.root,ds.dataHash,h('9'),ds.quoteBudget]);
   await db.pool.query(`INSERT INTO ${schema}.holder_reward_datasets(environment,chain_id,deployment_digest,market_id,round,data_hash,snapshot_block,snapshot_block_hash,payload) VALUES('test',$1,$2,$3,1,$4,90,$5,$6)`,[deployment.chainId,h('d'),marketId,ds.dataHash,h('9'),JSON.stringify(ds)]);
+  await transaction(db.pool,client=>indexHolderDataset(client,schemaName,'test',ds));
   await db.pool.query(`INSERT INTO ${schema}.holder_reward_claims(environment,chain_id,deployment_digest,market_id,round,account,assets) VALUES('test',$1,$2,$3,1,$4,1)`,[deployment.chainId,h('d'),marketId,account]);
   page=await readHolderSnapshots({pool:db.pool,deployment,distributor,marketId,account,secret,schemaName}); assert.equal(page.status,'ready'); assert.equal(page.rounds[0]!.claimedAssets,1); assert.deepEqual(page.rounds[0]!.proof,ds.entries[0]!.proof);
   await db.pool.query(`DELETE FROM ${schema}.holder_reward_datasets`);
   await assert.rejects(()=>readHolderSnapshots({pool:db.pool,deployment,distributor,marketId,account,secret:'x'.repeat(32),schemaName}),/dataset unavailable/);
   await db.pool.query(`INSERT INTO ${schema}.holder_reward_datasets(environment,chain_id,deployment_digest,market_id,round,data_hash,snapshot_block,snapshot_block_hash,payload) VALUES('test',$1,$2,$3,1,$4,90,$5,$6)`,[deployment.chainId,h('d'),marketId,ds.dataHash,h('9'),JSON.stringify(ds)]);
+  await transaction(db.pool,client=>indexHolderDataset(client,schemaName,'test',ds));
   await db.pool.query(`UPDATE ${schema}.chain_blocks SET canonical=false`);
   await assert.rejects(()=>readHolderSnapshots({pool:db.pool,deployment,distributor,marketId,account,secret:'x'.repeat(32),schemaName}),/unavailable/);
   await db.pool.query(`UPDATE ${schema}.chain_blocks SET canonical=true`);

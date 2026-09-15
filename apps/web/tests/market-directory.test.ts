@@ -41,3 +41,11 @@ test('directory forwards Bloomed/Growing phases and USD ranking sorts',async()=>
   {launchPhase:0,sort:'marketCapUsd_desc'},
  ]);
 });
+test('directory uses configured page size and forwards staking filter',async()=>{
+ const seen:ListMarketsParams[]=[];const d=createMarketDirectory(async p=>{seen.push(p);return page(p.cursor?31:1,30,p.cursor?null:'next');},30);
+ const query={revision,search:'remote',stakingEnabled:true};
+ const result=await d.load(query);
+ assert.equal(result?.items.length,30);
+ assert.equal(seen[0]?.limit,30);assert.equal(seen[0]?.search,'remote');assert.equal(seen[0]?.stakingEnabled,true);
+ const next=await d.load(query,true);assert.equal(next?.items.length,60);assert.equal(seen[1]?.limit,30);assert.equal(seen[1]?.cursor,'next');
+});

@@ -79,7 +79,7 @@ export function createReadApiApp(options: ReadApiOptions = {}) {
     try {
       const q=context.req.query();rejectUnknown(q,['chainId','distributor','marketId','account','cursor']);
       if(q.chainId!==String(deployment.chainId)||!/^0x[0-9a-f]{64}$/.test(q.marketId??''))throw Error('invalid snapshot identity');
-      return context.json(await readHolderSnapshots({pool:pool(),deployment,distributor:parseAddress(q.distributor??''),account:parseAddress(q.account??''),marketId:q.marketId as `0x${string}`,secret:cursorSecret,...(q.cursor?{cursor:q.cursor}:{}),...(schemaName?{schemaName}:{})}));
+      return context.json(await shareRead('holder-snapshots:'+JSON.stringify(q),()=>readHolderSnapshots({pool:pool(),deployment,distributor:parseAddress(q.distributor??''),account:parseAddress(q.account??''),marketId:q.marketId as `0x${string}`,secret:cursorSecret,...(q.cursor?{cursor:q.cursor}:{}),...(schemaName?{schemaName}:{})})));
     }catch(error){
       const requestId=context.get('requestId');
       if(error instanceof PublicationChangedError)return context.json({error:'snapshot_page_changed',message:error.message,requestId},409);
@@ -93,8 +93,10 @@ export function createReadApiApp(options: ReadApiOptions = {}) {
   app.get('/v1/markets', async (context) => {
     try {
       const query = context.req.query();
-      rejectUnknown(query, ['assetUid', 'marketId', 'memeToken', 'launchPhase', 'search', 'createdFrom', 'createdTo', 'sort', 'revision', 'limit', 'cursor', 'includeRecent']);
+      rejectUnknown(query, ['assetUid', 'marketId', 'memeToken', 'launchPhase', 'search', 'createdFrom', 'createdTo', 'stakingEnabled', 'sort', 'revision', 'limit', 'cursor', 'includeRecent']);
+      if(query.stakingEnabled!==undefined&&!['true','false'].includes(query.stakingEnabled))throw Error('invalid staking filter');
       const filter: MarketPageFilter = {
+        ...(query.stakingEnabled!==undefined?{stakingEnabled:query.stakingEnabled==='true'}:{}),
         ...(query.assetUid ? { assetUid: query.assetUid.toLowerCase() as `0x${string}` } : {}),
         ...(query.marketId ? { marketId: query.marketId.toLowerCase() as `0x${string}` } : {}),
         ...(query.memeToken ? { memeToken: query.memeToken.toLowerCase() as `0x${string}` } : {}),

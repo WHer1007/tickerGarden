@@ -1,3 +1,5 @@
+import {MAX_SNAPSHOT_HOLDERS,compactSnapshotDataset} from '../../chain/src/holder-snapshot.ts';
+import {indexHolderDataset} from '../../chain/src/holder-proof-index.ts';
 import { ProjectionPending } from '../../projection/src/index.ts';
 import type { Pool } from 'pg';
 import { toHex, encodeFunctionData, decodeFunctionResult, type Abi, type Address, type Hex } from 'viem';
@@ -128,15 +130,19 @@ export async function prepareHolderSnapshot(o:SnapshotOptions & {marketId:Hex;bl
  const state=json<SnapshotMarket>(await snapshotRead(o,o.blockNumber,distributor,abi,'marketState',[o.marketId]));
  const token=state.token.toLowerCase() as Address;
  const exclusions=(await snapshotRead(o,o.blockNumber,distributor,abi,'feeSharingExcludedAccounts',[o.marketId]) as Address[]).map(a=>a.toLowerCase() as Address);
- const logs=await o.pool.query<{payload:Record<string,unknown>}>(`SELECT l.payload FROM ${schema}.chain_logs l JOIN ${schema}.chain_blocks b ON b.environment=l.environment AND b.chain_id=l.chain_id AND b.deployment_digest=l.deployment_digest AND b.hash=l.block_hash WHERE l.environment=$1 AND l.chain_id=$2 AND l.deployment_digest=$3 AND l.address=$4 AND l.canonical AND b.canonical AND b.finalized AND b.number<=$5 ORDER BY b.number,l.transaction_index,l.log_index LIMIT 1000001`,[...id,token,o.blockNumber.toString()]);
- if(logs.rows.length>1000000)throw Error('snapshot transfer replay bound');
  const balances=new Map<Address,bigint>();let minted=false;
- for(const row of logs.rows){const event=decodeF72Event('TickerMemeTokenV1',deserializeRpcLog(row.payload));if(!event)throw Error('unknown snapshot token event');if(event.eventName!=='Transfer')continue;
-  const from=String(event.args.from).toLowerCase() as Address,to=String(event.args.to).toLowerCase() as Address,value=BigInt(String(event.args.value));
-  if(/^0x0+$/.test(from)){if(minted)throw Error('unexpected snapshot mint');minted=true;}else{const balance=balances.get(from)??0n;if(balance<value)throw Error('snapshot transfer history underflow');balances.set(from,balance-value);}
-  if(!/^0x0+$/.test(to))balances.set(to,(balances.get(to)??0n)+value);
+ let after:{block:string;tx:string;log:string}|null=null;
+ for(;;){
+  const logs:import('pg').QueryResult<{payload:Record<string,unknown>;block:string;tx:string;log:string}>=await o.pool.query(`SELECT l.payload,b.number::text block,l.transaction_index::text tx,l.log_index::text log FROM ${schema}.chain_logs l JOIN ${schema}.chain_blocks b ON b.environment=l.environment AND b.chain_id=l.chain_id AND b.deployment_digest=l.deployment_digest AND b.hash=l.block_hash WHERE l.environment=$1 AND l.chain_id=$2 AND l.deployment_digest=$3 AND l.address=$4 AND l.canonical AND b.canonical AND b.finalized AND b.number<=$5 AND ($6::bigint IS NULL OR (b.number,l.transaction_index,l.log_index)>($6,$7::bigint,$8::bigint)) ORDER BY b.number,l.transaction_index,l.log_index LIMIT 10000`,[...id,token,o.blockNumber.toString(),after?.block??null,after?.tx??null,after?.log??null]);
+  for(const row of logs.rows){const event=decodeF72Event('TickerMemeTokenV1',deserializeRpcLog(row.payload));if(!event)throw Error('unknown snapshot token event');if(event.eventName!=='Transfer')continue;
+   const from=String(event.args.from).toLowerCase() as Address,to=String(event.args.to).toLowerCase() as Address,value=BigInt(String(event.args.value));
+   if(/^0x0+$/.test(from)){if(minted)throw Error('unexpected snapshot mint');minted=true;}else{const balance=balances.get(from)??0n;if(balance<value)throw Error('snapshot transfer history underflow');if(balance===value)balances.delete(from);else balances.set(from,balance-value);}
+   if(!/^0x0+$/.test(to)&&value>0n)balances.set(to,(balances.get(to)??0n)+value);
+   if(balances.size>MAX_SNAPSHOT_HOLDERS)throw Error('snapshot positive holder capacity exceeded');
+  }
+  if(logs.rows.length<10000)break;after=logs.rows.at(-1)!;
  }
- if(!minted||balances.size>10000)throw Error('snapshot holder history unavailable or oversized');
+ if(!minted)throw Error('snapshot holder history unavailable');
  const positive=[...balances].filter(([,balance])=>balance>0n).map(([account,balance])=>({account,balance:balance.toString()}));
  const tokenAbi=snapshotAbis.TickerMemeTokenV1 as Abi;
  const totalSupply=String(await snapshotRead(o,o.blockNumber,token,tokenAbi,'totalSupply'));
@@ -151,7 +157,8 @@ export async function prepareHolderSnapshot(o:SnapshotOptions & {marketId:Hex;bl
  await transaction(o.pool,async client=>{
   await client.query('SELECT pg_advisory_xact_lock(hashtextextended($1,0))',[`${id.join(':')}:holder-rewards`]);
   const valid=await client.query(`SELECT 1 FROM ${schema}.chain_blocks b JOIN ${schema}.ingestion_checkpoints c USING(environment,chain_id,deployment_digest) WHERE b.environment=$1 AND b.chain_id=$2 AND b.deployment_digest=$3 AND b.hash=$4 AND b.canonical AND b.finalized AND c.stream='frontend-events' AND c.generation=$5 FOR SHARE`,[...id,anchor.hash,captured.generation]);if(!valid.rowCount)throw Error('snapshot generation changed');
-  await client.query(`INSERT INTO ${schema}.holder_reward_datasets(environment,chain_id,deployment_digest,market_id,round,data_hash,snapshot_block,snapshot_block_hash,payload) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9) ON CONFLICT DO NOTHING`,[...id,o.marketId,dataset.input.round,dataset.dataHash,dataset.input.snapshotBlock,anchor.hash,dataset]);
+  await client.query(`INSERT INTO ${schema}.holder_reward_datasets(environment,chain_id,deployment_digest,market_id,round,data_hash,snapshot_block,snapshot_block_hash,payload) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9) ON CONFLICT DO NOTHING`,[...id,o.marketId,dataset.input.round,dataset.dataHash,dataset.input.snapshotBlock,anchor.hash,compactSnapshotDataset(dataset)]);
+  await indexHolderDataset(client,o.schemaName??'tickergarden_serverless',o.deployment.environment,dataset);
   const existing=(await client.query<{data_hash:string}>(`SELECT data_hash FROM ${schema}.holder_reward_datasets WHERE environment=$1 AND chain_id=$2 AND deployment_digest=$3 AND market_id=$4 AND round=$5 AND data_hash=$6`,[...id,o.marketId,dataset.input.round,dataset.dataHash])).rows[0];
   if(existing?.data_hash!==dataset.dataHash)throw Error('snapshot dataset persistence conflict');
  });

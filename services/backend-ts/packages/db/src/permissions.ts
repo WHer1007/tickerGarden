@@ -57,6 +57,7 @@ GRANT SELECT ON
   ${schema}.holder_snapshots,
   ${schema}.holder_reward_markets,
   ${schema}.holder_reward_datasets,
+  ${schema}.holder_reward_wallet_proofs,
   ${schema}.holder_reward_rounds,
   ${schema}.holder_reward_claims,
   ${schema}.detail_fee_totals,
@@ -81,6 +82,7 @@ TO ${content};
 GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA ${schema} TO ${content};
 
 GRANT SELECT, INSERT, UPDATE, DELETE ON
+  ${schema}.history_contributions,
   ${schema}.deployments,
   ${schema}.contract_sources,
   ${schema}.chain_blocks,
@@ -136,7 +138,9 @@ TO ${pipeline};
 GRANT SELECT ON ${schema}.holder_snapshots_covered TO ${readApi}, ${pipeline};
 GRANT SELECT, INSERT ON ${schema}.publications TO ${pipeline};
 GRANT SELECT, INSERT ON ${schema}.holder_reward_datasets TO ${pipeline};
+GRANT SELECT, INSERT, DELETE ON ${schema}.holder_reward_wallet_proofs TO ${pipeline};
 REVOKE UPDATE, DELETE ON ${schema}.holder_reward_datasets FROM ${pipeline};
+GRANT UPDATE(verified_header) ON ${schema}.holder_reward_datasets TO ${pipeline};
 GRANT SELECT, UPDATE ON ${schema}.queue_generations TO ${pipeline};
 GRANT SELECT, INSERT, UPDATE ON
   ${schema}.inbox_messages,

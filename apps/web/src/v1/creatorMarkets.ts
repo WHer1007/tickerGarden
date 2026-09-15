@@ -31,6 +31,13 @@ function validatePage(value: unknown, chainId: number, account: string, seen: Se
   return { items, nextCursor: page.nextCursor as string | null, complete: page.complete };
 }
 
+export async function loadCreatorMarketPage(baseUrl:string,chainId:number,account:string,signal?:AbortSignal,cursor?:string,seen:Iterable<string>=[]){
+ if(!Number.isInteger(chainId)||!ADDRESS.test(account))return invalid();
+ const normalized=account.toLowerCase();
+ const raw=await new TickerGardenV1Client(baseUrl,(input,init)=>fetch(input,{...init,signal})).listCreatorMarkets({address:normalized as `0x${string}`,limit:50,...(cursor?{cursor}:{})});
+ const page=validatePage(raw,chainId,normalized,new Set(seen));if(!page.complete)throw Error('Creator Directory Updating');
+ if(cursor&&page.nextCursor===cursor)throw Error('Invalid continuation');return page;
+}
 export async function loadCreatorMarkets(baseUrl: string, chainId: number, account: string, signal?: AbortSignal): Promise<CreatorMarket[]> {
   if (!Number.isInteger(chainId) || !ADDRESS.test(account)) return invalid();
   const normalized = account.toLowerCase();

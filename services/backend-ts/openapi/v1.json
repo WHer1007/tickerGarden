@@ -2,7 +2,7 @@
   "openapi": "3.1.0",
   "info": {
     "title": "TickerGarden V1 Read API",
-    "version": "5.2.0",
+    "version": "5.3.0",
     "description": "Non-custodial TypeScript Serverless read API for the routes consumed by the current frontend."
   },
   "x-execution-spec-id": "V1-EXEC-11",
@@ -1070,6 +1070,14 @@
               "maxLength": 128
             },
             "description": "Market name substring or complete canonical Meme Token contract address only. Name matching is ASCII case-insensitive with other Unicode exact. Symbol, marketId and assetUid are outside the V1 search contract."
+          },
+          {
+            "name": "stakingEnabled",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean"
+            }
           },
           {
             "name": "createdFrom",

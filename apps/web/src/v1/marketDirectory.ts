@@ -1,7 +1,7 @@
 import type {ListMarketsParams,MarketPage} from './generated/read-api.ts';
 import {assertFinalizedSync} from '../runtime/model.ts';
 export type DirectoryQuery=Omit<ListMarketsParams,'cursor'|'limit'> & {revision:string};
-export function createMarketDirectory(fetchPage:(params:ListMarketsParams,signal:AbortSignal)=>Promise<MarketPage>){
+export function createMarketDirectory(fetchPage:(params:ListMarketsParams,signal:AbortSignal)=>Promise<MarketPage>,pageSize=100){
  let generation=0,controller:AbortController|null=null,key='',state:MarketPage|null=null;
  const reset=()=>{generation++;controller?.abort();controller=null;key='';state=null;};
  return{reset,async load(query:DirectoryQuery,append=false):Promise<MarketPage|null>{
@@ -12,7 +12,7 @@ export function createMarketDirectory(fetchPage:(params:ListMarketsParams,signal
   const own=++generation;controller?.abort();const abort=new AbortController();controller=abort;
   const timer=setTimeout(()=>abort.abort(),10000);
   try{
-   const page=await fetchPage({...query,limit:100,...(append?{cursor:previous!.nextCursor!}:{})},abort.signal);
+   const page=await fetchPage({...query,limit:pageSize,...(append?{cursor:previous!.nextCursor!}:{})},abort.signal);
    if(own!==generation)return null;if(abort.signal.aborted)throw new Error('Directory query timed out');
    assertFinalizedSync(page.sync,query.revision,'market query');
    if(!Array.isArray(page.items)||page.items.length>100||(page.nextCursor!==null&&(typeof page.nextCursor!=='string'||page.nextCursor.length===0||page.nextCursor.length>8192||page.items.length===0||page.nextCursor===previous?.nextCursor)))throw new Error('Invalid market query page');

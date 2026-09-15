@@ -1,6 +1,7 @@
 import { concat, encodeAbiParameters, keccak256, toHex, type Address, type Hex } from 'viem';
 
 export const SNAPSHOT_MODE = keccak256(toHex('TICKERGARDEN_HOLDER_WALLET_SNAPSHOT_V1'));
+export const MAX_SNAPSHOT_HOLDERS=100_000;
 export const SNAPSHOT_POLICY = 'DIRECT_BALANCE_PRO_RATA_FLOOR_V1';
 const DOMAIN = keccak256(toHex('TICKERGARDEN_HOLDER_WALLET_SNAPSHOT_LEAF_V1'));
 export interface SnapshotInput {
@@ -31,7 +32,7 @@ export function buildSnapshot(input: SnapshotInput): SnapshotDataset {
   if (/^0x0+$/.test(input.distributor) || /^0x0+$/.test(input.token) || input.token === input.quote) throw Error('invalid snapshot assets');
   const height = uint(input.snapshotBlock,64);
   if (!uint(input.round,64) || height < uint(input.registeredBlock,64) || height <= uint(input.lastSnapshotBlock,64)) throw Error('invalid snapshot order');
-  if (input.balances.length > 10000 || input.exclusions.length > 1000 || new Set(input.exclusions).size !== input.exclusions.length) throw Error('snapshot input bound');
+  if (input.balances.length > MAX_SNAPSHOT_HOLDERS || input.exclusions.length > 1000 || new Set(input.exclusions).size !== input.exclusions.length) throw Error('snapshot input bound');
   const exclusions = new Set(input.exclusions);
   if (!exclusions.has('0x0000000000000000000000000000000000000000') || !exclusions.has(input.distributor) || !exclusions.has(input.token)) throw Error('missing protocol exclusions');
   const balances = [...input.balances].sort((a,b) => a.account.localeCompare(b.account));
@@ -73,3 +74,6 @@ export function verifySnapshot(dataset: SnapshotDataset): SnapshotDataset {
   if (canonicalSnapshotJson(expected)!==canonicalSnapshotJson(dataset)) throw Error('snapshot dataset integrity mismatch');
   return expected;
 }
+
+/** Store inputs and commitments once; per-wallet proofs live in the indexed table. */
+export function compactSnapshotDataset(dataset:SnapshotDataset){const {entries,...compact}=dataset;return compact;}

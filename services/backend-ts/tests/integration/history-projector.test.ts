@@ -84,7 +84,30 @@ for (const burnMode of [false,true]) test(`TS-10 history directories and payment
     await projectF72History({ pool: handle.pool, deployment, blockNumber: 1n, blockHash: hash('b'), generation: 0n, schemaName });
     assert.deepEqual((await (await app.request(`/v1/meme-fee-burns?marketId=${marketId}`)).json() as { burns: Record<string, string> }).burns,
       { marketId, token, enabled: true, creatorRaw: '11', stakerRaw: '0', holderRaw: '0', totalRaw: '11' });
-    await handle.pool.query(`UPDATE ${schema}.chain_blocks SET canonical=false,finalized=false WHERE number=1`);
+    const before=(await handle.pool.query(`SELECT xmin::text version FROM ${schema}.aggregate_records WHERE scope='creator-market'`)).rows[0].version;
+    const advance=async(nextHash:Hex)=>{
+      await handle.pool.query(`INSERT INTO ${schema}.chain_blocks(environment,chain_id,deployment_digest,number,hash,parent_hash,canonical,finalized,source_timestamp) VALUES('test',46630,$1,2,$2,$3,true,true,to_timestamp(1002))`,[deployment.deploymentDigest,nextHash,hash('b')]);
+      const nextRevision=`2:${nextHash}`;
+      await handle.pool.query(`INSERT INTO ${schema}.publications(environment,chain_id,deployment_digest,scope,revision,block_number,block_hash,generation,payload_digest,payload) VALUES('test',46630,$1,'markets',$2,2,$3,0,$4,'{}')`,[deployment.deploymentDigest,nextRevision,nextHash,hash('d')]);
+      await handle.pool.query(`INSERT INTO ${schema}.projection_records(environment,chain_id,deployment_digest,scope,revision,identity,sort_key,payload_digest,payload) SELECT environment,chain_id,deployment_digest,scope,$2,identity,sort_key,payload_digest,payload FROM ${schema}.projection_records WHERE deployment_digest=$1 AND scope='markets' AND revision=$3`,[deployment.deploymentDigest,nextRevision,revision]);
+      await handle.pool.query(`UPDATE ${schema}.publication_pointers SET revision=$2 WHERE deployment_digest=$1 AND scope='markets'`,[deployment.deploymentDigest,nextRevision]);
+      await handle.pool.query(`UPDATE ${schema}.ingestion_checkpoints SET next_block=3,last_block_hash=$2 WHERE deployment_digest=$1`,[deployment.deploymentDigest,nextHash]);
+    };
+    await advance(hash('6'));
+    await saveEvent(handle.pool,schema,deployment.deploymentDigest,'ProtocolFeeVault','FeeClaimed',f72EventCatalog.ProtocolFeeVault.address,hash('7'),0,{beneficiaryType:1,beneficiary:user,marketId,beneficiaryEpoch:0,feeAsset:quote,amount:9n},2n,hash('6'));
+    await projectF72History({pool:handle.pool,deployment,blockNumber:2n,blockHash:hash('6'),generation:0n,schemaName});
+    assert.equal((await handle.pool.query(`SELECT sum(amount_raw)::text amount FROM ${schema}.reward_history WHERE kind='staker'`)).rows[0].amount,'14');
+    assert.equal((await handle.pool.query(`SELECT xmin::text version FROM ${schema}.aggregate_records WHERE scope='creator-market'`)).rows[0].version,before,'unchanged creator aggregate is not rewritten');
+    assert.deepEqual(await projectF72History({pool:handle.pool,deployment,blockNumber:2n,blockHash:hash('6'),generation:0n,schemaName}),{rewards:0,activities:0,aggregates:0});
+    await handle.pool.query(`UPDATE ${schema}.chain_blocks SET canonical=false,finalized=false WHERE hash=$1`,[hash('6')]);
+    assert.equal((await handle.pool.query(`SELECT next_block::text n,last_revision FROM ${schema}.projection_checkpoints WHERE scope='history'`)).rows[0].n,'2');
+    assert.equal((await app.request(`/v1/creator-markets?address=${creator}`)).status,503,'orphan checkpoint cannot serve complete history');
+    await advance(hash('7'));
+    await saveEvent(handle.pool,schema,deployment.deploymentDigest,'ProtocolFeeVault','FeeClaimed',f72EventCatalog.ProtocolFeeVault.address,hash('9'),0,{beneficiaryType:1,beneficiary:user,marketId,beneficiaryEpoch:0,feeAsset:quote,amount:3n},2n,hash('7'));
+    await projectF72History({pool:handle.pool,deployment,blockNumber:2n,blockHash:hash('7'),generation:0n,schemaName});
+    assert.equal((await handle.pool.query(`SELECT sum(amount_raw)::text amount FROM ${schema}.reward_history WHERE kind='staker'`)).rows[0].amount,'8');
+    assert.equal((await handle.pool.query(`SELECT xmin::text version FROM ${schema}.aggregate_records WHERE scope='creator-market'`)).rows[0].version,before);
+    await handle.pool.query(`UPDATE ${schema}.chain_blocks SET canonical=false,finalized=false WHERE number>=1`);
     await handle.pool.query(`INSERT INTO ${schema}.chain_blocks(environment,chain_id,deployment_digest,number,hash,parent_hash,canonical,finalized,source_timestamp) VALUES ('test',46630,$1,2,$2,$3,true,true,to_timestamp(1002))`, [deployment.deploymentDigest, hash('c'), hash('b')]);
     const revision2 = `2:${hash('c')}`;
     await handle.pool.query(`INSERT INTO ${schema}.publications(environment,chain_id,deployment_digest,scope,revision,block_number,block_hash,generation,payload_digest,payload) VALUES ('test',46630,$1,'markets',$2,2,$3,0,$4,'{}')`, [deployment.deploymentDigest, revision2, hash('c'), hash('d')]);
@@ -95,17 +118,34 @@ for (const burnMode of [false,true]) test(`TS-10 history directories and payment
     assert.deepEqual((await (await app.request(`/v1/meme-fee-burns?marketId=${marketId}`)).json() as { burns: Record<string, string> }).burns,
       { marketId, token, enabled: true, creatorRaw: '0', stakerRaw: '0', holderRaw: '0', totalRaw: '0' });
     await assert.rejects(()=>projectF72History({pool:handle.pool,deployment,blockNumber:1n,blockHash:hash('b'),generation:0n,schemaName}));
+    const numbered=(n:number)=>('0x'+n.toString(16).padStart(64,'0')) as Hex;
+    for(let number=3;number<=259;number++){
+      await handle.pool.query(`INSERT INTO ${schema}.chain_blocks(environment,chain_id,deployment_digest,number,hash,parent_hash,canonical,finalized,source_timestamp) VALUES('test',46630,$1,$2,$3,$4,true,true,to_timestamp($5))`,[deployment.deploymentDigest,number,numbered(number),number===3?hash('c'):numbered(number-1),1000+number]);
+      await saveEvent(handle.pool,schema,deployment.deploymentDigest,'ProtocolFeeVault','FeeClaimed',f72EventCatalog.ProtocolFeeVault.address,numbered(1000+number),0,{beneficiaryType:1,beneficiary:user,marketId,beneficiaryEpoch:0,feeAsset:quote,amount:1n},BigInt(number),numbered(number));
+    }
+    const finalRevision=`259:${numbered(259)}`;
+    await handle.pool.query(`INSERT INTO ${schema}.publications(environment,chain_id,deployment_digest,scope,revision,block_number,block_hash,generation,payload_digest,payload) VALUES('test',46630,$1,'markets',$2,259,$3,0,$4,'{}')`,[deployment.deploymentDigest,finalRevision,numbered(259),hash('d')]);
+    await handle.pool.query(`INSERT INTO ${schema}.projection_records(environment,chain_id,deployment_digest,scope,revision,identity,sort_key,payload_digest,payload) SELECT environment,chain_id,deployment_digest,scope,$2,identity,sort_key,payload_digest,payload FROM ${schema}.projection_records WHERE deployment_digest=$1 AND scope='markets' AND revision=$3`,[deployment.deploymentDigest,finalRevision,revision]);
+    await handle.pool.query(`UPDATE ${schema}.publication_pointers SET revision=$2 WHERE deployment_digest=$1 AND scope='markets'`,[deployment.deploymentDigest,finalRevision]);
+    await handle.pool.query(`UPDATE ${schema}.ingestion_checkpoints SET next_block=260,last_block_hash=$2 WHERE deployment_digest=$1`,[deployment.deploymentDigest,numbered(259)]);
+    const job={pool:handle.pool,deployment,blockNumber:259n,blockHash:numbered(259),generation:0n,schemaName};
+    await assert.rejects(()=>projectF72History(job),/history projection continuation required/);
+    assert.equal((await handle.pool.query(`SELECT next_block::text n FROM ${schema}.projection_checkpoints WHERE scope='history'`)).rows[0].n,'259');
+    await projectF72History(job);
+    assert.equal((await handle.pool.query(`SELECT sum(amount_raw)::text amount FROM ${schema}.reward_history WHERE kind='staker'`)).rows[0].amount,'257');
+    assert.deepEqual(await projectF72History(job),{rewards:0,activities:0,aggregates:0});
+
 
   } finally { await handle.pool.query(`DROP SCHEMA IF EXISTS ${schema} CASCADE`).catch(() => undefined); await handle.pool.end(); }
 });
 
 async function saveEvent(pool: ReturnType<typeof createDatabasePool>['pool'], schema: string, deploymentDigest: string,
-  module: keyof typeof f72EventAbis, eventName: string, emitter: Address, transactionHash: Hex, logIndex: number, args: Record<string, unknown>): Promise<void> {
+  module: keyof typeof f72EventAbis, eventName: string, emitter: Address, transactionHash: Hex, logIndex: number, args: Record<string, unknown>,blockNumber=1n,blockHash=hash('b')): Promise<void> {
   const abi = eventName === 'MemeFeesBurned' ? parseAbi(['event MemeFeesBurned(bytes32 indexed marketId,address indexed beneficiary,uint8 indexed role,uint32 creatorEpoch,address token,uint256 amount)']) : eventName.startsWith('HolderSnapshot') ? protocolEventAbi(module) : f72EventAbis[module] as Abi;
   const item = getAbiItem({ abi, name: eventName }) as AbiEvent;
   const topics = encodeEventTopics({ abi, eventName, args }); const inputs = item.inputs.filter((input) => !input.indexed);
   const data = encodeAbiParameters(inputs, inputs.map((input) => args[input.name!] as never));
-  const payload = { address: emitter, blockNumber: '1', blockHash: hash('b'), transactionHash, transactionIndex: '0', logIndex: String(logIndex), data, topics, removed: false };
+  const payload = { address: emitter, blockNumber: String(blockNumber), blockHash, transactionHash, transactionIndex: '0', logIndex: String(logIndex), data, topics, removed: false };
   await pool.query(`INSERT INTO ${schema}.chain_logs(environment,chain_id,deployment_digest,block_hash,transaction_hash,transaction_index,log_index,address,topic0,payload)
-    VALUES ('test',46630,$1,$2,$3,0,$4,$5,$6,$7)`, [deploymentDigest, hash('b'), transactionHash, logIndex, emitter, topics[0], payload]);
+    VALUES ('test',46630,$1,$2,$3,0,$4,$5,$6,$7)`, [deploymentDigest, blockHash, transactionHash, logIndex, emitter, topics[0], payload]);
 }

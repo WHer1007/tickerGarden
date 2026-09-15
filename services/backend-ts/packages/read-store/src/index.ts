@@ -85,6 +85,7 @@ export interface MarketPageFilter {
   readonly marketId?: `0x${string}`;
   readonly memeToken?: `0x${string}`;
   readonly launchPhase?: 0 | 1;
+  readonly stakingEnabled?: boolean;
   readonly search?: string;
   readonly createdFrom?: string;
   readonly createdTo?: string;
@@ -114,7 +115,7 @@ export async function readPublishedMarketPage(input: {
     input.deployment.environment, input.deployment.chainId, input.deployment.deploymentDigest, publication.blockHash, publication.revision,
     input.filter.assetUid ?? null, input.filter.marketId ?? null, input.filter.memeToken ?? null, input.filter.launchPhase ?? null,
     input.filter.search?.toLocaleLowerCase() ?? null, input.filter.createdFrom ?? null, input.filter.createdTo ?? null,
-    after?.identity ?? null, cursorValue, limit + 1, cursorMissing,
+    after?.identity ?? null, cursorValue, limit + 1, cursorMissing, input.filter.stakingEnabled ?? null,
   ];
   const afterClause = `AND ($13::text IS NULL
     OR ($16::boolean AND order_value IS NULL AND identity>$13)
@@ -136,6 +137,7 @@ export async function readPublishedMarketPage(input: {
          AND ($7::text IS NULL OR r.payload->>'marketId'=$7)
          AND ($8::text IS NULL OR r.payload->>'memeToken'=$8)
          AND ($9::int IS NULL OR (r.payload->>'launchPhase')::int=$9)
+         AND ($17::boolean IS NULL OR (r.payload->>'gauge'<>'0x0000000000000000000000000000000000000000')=$17)
          AND ($10::text IS NULL OR ${schema}.market_search_text(r.payload) LIKE '%' || $10 || '%')
          AND ($11::numeric IS NULL OR (r.payload->'identity'->>'deployedAt')::numeric >= $11)
          AND ($12::numeric IS NULL OR (r.payload->'identity'->>'deployedAt')::numeric <= $12)
@@ -168,7 +170,7 @@ async function readRankedMarketPage(input:Parameters<typeof readPublishedMarketP
   version=snapshot.version;updatedAt=snapshot.created_at.toISOString();stale=Date.now()-snapshot.created_at.getTime()>25*60*1000;
  }
  const f=input.filter;
- const params=[...id,publication.revision,version,after?.sortKey??null,after?.identity??null,limit+1,f.assetUid??null,f.marketId??null,f.memeToken??null,f.launchPhase??null,f.search?.toLocaleLowerCase()??null,f.createdFrom??null,f.createdTo??null];
+ const params=[...id,publication.revision,version,after?.sortKey??null,after?.identity??null,limit+1,f.assetUid??null,f.marketId??null,f.memeToken??null,f.launchPhase??null,f.search?.toLocaleLowerCase()??null,f.createdFrom??null,f.createdTo??null,f.stakingEnabled??null];
  const order=cap?'b.rank':'b.position',direction=cap?'ASC':'DESC';
  const marketLookup=publication.storage==='market-versions-v1'
   ? `SELECT m.payload FROM ${schema}.market_record_versions m WHERE m.environment=$1 AND m.chain_id=$2 AND m.deployment_digest=$3 AND m.generation=${BigInt(publication.generation!)} AND m.identity=b.market_id AND m.valid_from<=${publication.blockNumber} AND (m.valid_to IS NULL OR m.valid_to>${publication.blockNumber}) AND $4::text IS NOT NULL LIMIT 1`
@@ -183,6 +185,7 @@ async function readRankedMarketPage(input:Parameters<typeof readPublishedMarketP
   AND ($9::text IS NULL OR ${cap?'b.asset_uid':"r.payload->>'assetUid'"}=$9)
   AND ($10::text IS NULL OR b.market_id=$10) AND ($11::text IS NULL OR r.payload->>'memeToken'=$11)
   AND ($12::int IS NULL OR (r.payload->>'launchPhase')::int=$12)
+  AND ($16::boolean IS NULL OR (r.payload->>'gauge'<>'0x0000000000000000000000000000000000000000')=$16)
   AND ($13::text IS NULL OR ${schema}.market_search_text(r.payload) LIKE '%'||$13||'%')
   AND ($14::numeric IS NULL OR (r.payload->'identity'->>'deployedAt')::numeric>=$14)
   AND ($15::numeric IS NULL OR (r.payload->'identity'->>'deployedAt')::numeric<=$15)
@@ -247,14 +250,14 @@ export async function readCreatorMarkets(input: {
   if (!/^0x[0-9a-f]{40}$/.test(input.address)) throw new Error('invalid address');
   const limit = input.limit ?? 100; if (!Number.isSafeInteger(limit) || limit < 1 || limit > 100) throw new Error('invalid limit');
   const schema = identifier(input.schemaName ?? 'tickergarden_serverless'); const checkpoint = await resolveHistoryCheckpoint(input.pool, schema, input.deployment);
-  const filterDigest = digest({ address: input.address });
-  const after = input.cursor ? decodeCursor(input.cursor, { scope: 'creator-markets', revision: checkpoint.revision, filterDigest }, input.secret) : undefined;
+  const filterDigest = digest({ address: input.address, deployment:deploymentIdentity(input.deployment) });
+  const after = input.cursor ? decodeCursor(input.cursor, { scope: 'creator-markets', revision: 'creator-directory-v2', filterDigest }, input.secret) : undefined;
   const rows = await input.pool.query<{ identity: string; payload: Json }>(`SELECT identity,payload FROM ${schema}.aggregate_records
     WHERE environment=$1 AND chain_id=$2 AND deployment_digest=$3 AND scope='creator-market' AND complete AND payload->>'creator'=$4
       AND ($5::text IS NULL OR identity>$5) ORDER BY identity LIMIT $6`,
     [input.deployment.environment, input.deployment.chainId, input.deployment.deploymentDigest, input.address, after?.identity ?? null, limit + 1]);
   const visible = rows.rows.slice(0, limit); const last = visible.at(-1);
-  const nextCursor = rows.rows.length > limit && last ? encodeCursor({ scope: 'creator-markets', revision: checkpoint.revision,
+  const nextCursor = rows.rows.length > limit && last ? encodeCursor({ scope: 'creator-markets', revision: 'creator-directory-v2',
     filterDigest, sortKey: last.identity, identity: last.identity }, input.secret) : null;
   return { chainId: input.deployment.chainId, address: input.address, displayOnly: true, complete: true, items: visible.map((row) => row.payload), nextCursor };
 }
@@ -470,6 +473,7 @@ function identifier(value: string): string {
 }
 
 function validateMarketFilter(filter: MarketPageFilter): void {
+  if(filter.stakingEnabled!==undefined&&typeof filter.stakingEnabled!=='boolean')throw Error('invalid staking filter');
   const hash = /^0x[0-9a-f]{64}$/;
   const address = /^0x[0-9a-f]{40}$/;
   if ((filter.assetUid && !hash.test(filter.assetUid)) || (filter.marketId && !hash.test(filter.marketId))
@@ -482,7 +486,7 @@ function validateMarketFilter(filter: MarketPageFilter): void {
 
 function marketFilterJson(filter: MarketPageFilter): Json {
   return { assetUid: filter.assetUid ?? null, marketId: filter.marketId ?? null, memeToken: filter.memeToken ?? null,
-    launchPhase: filter.launchPhase ?? null, search: filter.search?.toLocaleLowerCase() ?? null,
+    launchPhase: filter.launchPhase ?? null, stakingEnabled:filter.stakingEnabled??null, search: filter.search?.toLocaleLowerCase() ?? null,
     createdFrom: filter.createdFrom ?? null, createdTo: filter.createdTo ?? null, sort: filter.sort ?? 'marketId_asc' };
 }
 

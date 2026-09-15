@@ -1,3 +1,4 @@
+import {launchPreviewField} from './create/preview-dependencies.ts';
 import { decodeMarketRecord, legacyMarketRecordAbi } from "../../../services/backend-ts/packages/chain/src/market-record.ts";
 import { launchAbis, resolveBurnLaunchConfig, resolveLpLaunchConfig } from "./v1/features/launch.ts";
 import { coreMarketRouteAbi, decodeCoreMarketRoute } from '../../../services/backend-ts/packages/chain/src/market-route.ts';
@@ -13,7 +14,7 @@ import {tokenAge} from './ui/token-age.ts';
 import {setupExploreStockPicker} from './ui/explore-stock-picker.ts';
 import {authorizeUpload} from './create/upload-auth.ts';
 import {searchHolderMarkets, type HolderMarket} from './v1/holderMarkets.ts';
-import {loadCreatorMarkets} from './v1/creatorMarkets.ts';
+import {loadCreatorMarketPage} from './v1/creatorMarkets.ts';
 import {ownsCreatorRewards} from './v1/creatorOwnership.ts';
 import {stakeProgress,stakeLockLabel} from './ui/stake-progress.ts';
 import {explorerStakeStatistics} from './v1/stakeStatistics.ts';
@@ -84,7 +85,7 @@ import { createAssetPriceStore } from './v1/assetPrices.ts';
 import { creatorTaxBps, assertCreatorTaxSupported, DEVELOPER_BUY_SLIPPAGE_BPS } from "./create/options.ts";
 import { activePairedConfig, RELEASE_PAIRED_ASSETS, RELEASE_OBSERVED_AT, RELEASE_SUPPLY, releasePairForSelection } from "./create/paired-assets.ts";
 import { developerBuyMode, graduationAmount, graduationEconomics } from "./create/economics.ts";
-import { metadataOrigin, publishLaunchDetails, readTokenImage } from "./create/metadata.ts";
+import { metadataOrigin, publishLaunchDetails, readTokenImage, canResumeUpload } from "./create/metadata.ts";
 import { destroyQuotePicker, updateQuotePicker, type QuotePickerOption } from "./create/quote-picker.ts";
 import { publicMessage } from "./ui/public-copy.ts";
 import { createWalletPicker, type InjectedProvider } from "./ui/wallet-picker.ts";
@@ -587,7 +588,7 @@ async function prepareFoundation(api: TickerGardenV1Client | null, expectedSync?
     directoryMarketId
       ? readPublishedMarket(()=>api.getMarket({marketId:directoryMarketId,revision,includeRecent:true}),directoryMarketId,revision)
         .then(detail=>({items:detail?[detail.market]:[],nextCursor:undefined}))
-      : currentPage() === "markets" ? Promise.resolve({items:[] as MarketReadModel[],nextCursor:undefined}) : readMarketPage(revision, undefined, api),
+      : ["markets","create"].includes(currentPage()) ? Promise.resolve({items:[] as MarketReadModel[],nextCursor:undefined}) : readMarketPage(revision, undefined, api),
   ]);
 
   const reasons: string[] = [];
@@ -2854,7 +2855,7 @@ async function prepareLaunchMetadata(): Promise<void> {
   const activeWallet=wallet;if(!activeWallet)throw Error('Connect Your Wallet');
   await verifyLiveWalletContext(activeWallet);
   text('[data-create-preview]','Confirm Upload In Your Wallet…');
-  const authorization=await authorizeUpload(launchMetadataOrigin,JSON.stringify(details),activeWallet.account,robinhoodChain.id,async message=>{
+  const authorization=canResumeUpload(launchMetadataOrigin,details,`${robinhoodChain.id}:${activeWallet.account.toLowerCase()}`)?undefined:await authorizeUpload(launchMetadataOrigin,JSON.stringify(details),activeWallet.account,robinhoodChain.id,async message=>{
     await verifyLiveWalletContext(activeWallet);
     const encoded='0x'+[...new TextEncoder().encode(message)].map(b=>b.toString(16).padStart(2,'0')).join('');
     const signature=await activeWallet.provider.request({method:'personal_sign',params:[encoded,activeWallet.account]});
@@ -2862,7 +2863,7 @@ async function prepareLaunchMetadata(): Promise<void> {
   });
   if(key!==JSON.stringify(launchDetails()))throw Error('Details Changed. Review And Retry.');
   text('[data-create-preview]','Publishing Details And Image…');
-  const published = await publishLaunchDetails(launchMetadataOrigin, details,authorization);
+  const published = await publishLaunchDetails(launchMetadataOrigin, details,authorization,`${robinhoodChain.id}:${activeWallet.account.toLowerCase()}`);
   if (key !== JSON.stringify(launchDetails())) throw new Error("Details changed. Review and retry.");
   if (!published.metadata) throw new Error("Published details missing. Try again later.");
   if (isIPFSFileURI(published.metadataURI) && !ipfsGatewayURL(published.metadataURI,import.meta.env.VITE_IPFS_GATEWAY)) throw new Error("Image gateway unavailable. Try again later.");
@@ -2962,12 +2963,12 @@ function setupCreate(): void {
   form.addEventListener('input', saveCurrentCreateDraft);
   form.addEventListener('change', saveCurrentCreateDraft);
   query<HTMLInputElement>("[name=firstBuyAmount]", form)?.addEventListener("focus", renderDeveloperBuyBalance);
-  form.addEventListener("input", () => {
+  form.addEventListener("input", (event) => {
     updateLaunchMode();
     const symbol = query<HTMLInputElement>("[name=symbol]", form);
     if (symbol) symbol.value = symbol.value.toUpperCase();
     renderCreateIdentity();
-    scheduleLaunchPreview();
+    if(launchPreviewField((event.target as HTMLInputElement).name))scheduleLaunchPreview();else updateCreateAvailability();
   });
   query<HTMLInputElement>("[name=tokenImage]", form)?.addEventListener("change", async (event) => {
     const input = event.currentTarget as HTMLInputElement;
@@ -3005,7 +3006,7 @@ function setupCreate(): void {
     if (target.name === "quoteAssetConfigId") alignBaselineToQuote();
     updateLaunchMode();
     renderCreateIdentity();
-    scheduleLaunchPreview();
+    if(launchPreviewField(target.name))scheduleLaunchPreview();else updateCreateAvailability();
   });
   form.addEventListener("submit", (event) => {
     event.preventDefault();
@@ -4065,18 +4066,43 @@ function updateStakeSearchIdentity(id:string):void {
   const image=row.querySelector<HTMLImageElement>('[data-search-token-icon]');const url=stakeMarketIcons.get(id);
   if(image&&url&&image.getAttribute('src')!==url)image.src=url;
 }
+const stakeSearchDirectory=createMarketDirectory((params,signal)=>{
+ if(!runtimeConfig.readApi.available)throw Error('Market search is unavailable');
+ return new TickerGardenV1Client(runtimeConfig.readApi.value,(input,init)=>fetch(input,{...init,signal})).listMarkets(params);
+},30);
+let stakeSearchPage:import('./v1/generated/read-api.ts').MarketPage|null=null;
+let stakeSearchKey='';
+let stakeSearchTimer:ReturnType<typeof setTimeout>|undefined;
+let stakeSearchGeneration=0;
+async function searchStakeDirectory(append=false):Promise<void>{
+ const input=query<HTMLInputElement>('[data-position-search]'),results=query<HTMLElement>('[data-stake-search-results]');
+ if(!foundation||foundation.direct||!input||!results||results.hidden)return;
+ const current=foundation,search=input.value.trim().toLowerCase(),key=JSON.stringify([current.sync.revision,search]),own=++stakeSearchGeneration;
+ if(!append&&key===stakeSearchKey&&stakeSearchPage){filterStakeMarkets();return;}
+ if(!append){stakeSearchPage=null;stakeSearchKey='';results.textContent='Searching…';}
+ try{
+  const page=await stakeSearchDirectory.load({revision:current.sync.revision,stakingEnabled:true,sort:'createdAt_desc',...(search?{search}: {})},append);
+  if(!page||own!==stakeSearchGeneration||!input.isConnected||currentPage()!=='staking'||input.value.trim().toLowerCase()!==search||foundation?.sync.revision!==current.sync.revision)return;
+  if(page.items.some(m=>m.gauge===ZERO_ADDRESS))throw Error('Invalid staking results');
+  stakeSearchKey=key;stakeSearchPage=page;
+  foundation=Object.freeze({...foundation,markets:[...new Map([...foundation.markets,...page.items].map(m=>[m.marketId,m])).values()]});
+  filterStakeMarkets();
+ }catch{if(own===stakeSearchGeneration&&results.isConnected){results.textContent='Unable to search markets. ';const retry=document.createElement('button');retry.type='button';retry.textContent='Try again';retry.onclick=()=>void searchStakeDirectory(append);results.append(retry);}}
+}
 function filterStakeMarkets(): void {
   const select = query<HTMLSelectElement>("[data-position-market]");
   if (!select || !foundation) return;
   const search = query<HTMLInputElement>("[data-position-search]")?.value.trim().toLowerCase() ?? "";
   const previous = select.value;
-  const matches = foundation.markets.filter((market) => market.gauge !== ZERO_ADDRESS &&
-    `${rewardMarketLabels.get(market.marketId)?.search ?? ""} ${market.memeToken} ${market.marketId} ${market.assetUid} ${foundation?.assets.find(asset=>asset.id===market.assetUid)?stockSymbol(foundation.assets.find(asset=>asset.id===market.assetUid)!):''}`.toLowerCase().includes(search));
+  const remote=!foundation.direct;
+  const source=remote?(stakeSearchKey===JSON.stringify([foundation.sync.revision,search])?stakeSearchPage?.items??[]:[]):foundation.markets;
+  const matches = source.filter((market) => market.gauge !== ZERO_ADDRESS && (remote||
+    `${rewardMarketLabels.get(market.marketId)?.search ?? ""} ${market.memeToken} ${market.marketId} ${market.assetUid} ${foundation?.assets.find(asset=>asset.id===market.assetUid)?stockSymbol(foundation.assets.find(asset=>asset.id===market.assetUid)!):''}`.toLowerCase().includes(search)));
   const results=query<HTMLElement>('[data-stake-search-results]');
   if(results){
     results.replaceChildren();
     const input=query<HTMLInputElement>('[data-position-search]');
-    for(const market of matches.slice(0,30)){
+    for(const market of (remote?matches:matches.slice(0,30))){
       const button=document.createElement('button');button.type='button';button.setAttribute('role','option');button.setAttribute('aria-selected',String(select.value===market.marketId));
       button.dataset.stakeSearchMarket=market.marketId;
       const icon=document.createElement('img');icon.dataset.searchTokenIcon='';icon.alt='';icon.className='stake-search-token-icon';
@@ -4089,10 +4115,11 @@ function filterStakeMarkets(): void {
       else stock.textContent='Stock';
       button.append(icon,symbol,address,stock);
       if(!results.hidden)loadStakeMarketIcon(market);
-      button.onclick=()=>{stakeMarketOpened=true;select.value=market.marketId;select.dispatchEvent(new Event('change'));if(input){input.value='';input.setAttribute('aria-expanded','false');input.focus();}results.hidden=true;};
+      button.onclick=()=>{stakeMarketOpened=true;if(![...select.options].some(o=>o.value===market.marketId))select.add(new Option(rewardMarketOptionLabel(market),market.marketId));select.value=market.marketId;select.dispatchEvent(new Event('change'));if(input){input.value='';input.setAttribute('aria-expanded','false');input.focus();}results.hidden=true;};
       results.append(button);
     }
-    if(!matches.length){const empty=document.createElement('p');empty.textContent='No matching markets';results.append(empty);}
+    if(!matches.length){const empty=document.createElement('p');empty.textContent=remote&&!stakeSearchPage?'Search markets by name, symbol or address':'No matching markets';results.append(empty);}
+    if(remote&&stakeSearchPage?.nextCursor){const more=document.createElement('button');more.type='button';more.textContent='Load more markets';more.onclick=()=>{more.disabled=true;void searchStakeDirectory(true);};results.append(more);}
     return;
   }
   select.replaceChildren(new Option(matches.length ? "Select a market" : "No matching markets", ""));
@@ -4175,7 +4202,7 @@ function setupRewards(): void {
   query<HTMLButtonElement>('[data-stake-history-more]')?.addEventListener('click',()=>void refreshStakeDirectory(true));
   const marketSearch=query<HTMLInputElement>('[data-position-search]');
   const searchResults=query<HTMLElement>('[data-stake-search-results]');
-  const openSearch=()=>{if(searchResults)searchResults.hidden=false;filterStakeMarkets();marketSearch?.setAttribute('aria-expanded','true');};
+  const openSearch=()=>{if(searchResults)searchResults.hidden=false;filterStakeMarkets();marketSearch?.setAttribute('aria-expanded','true');clearTimeout(stakeSearchTimer);stakeSearchGeneration++;stakeSearchTimer=setTimeout(()=>void searchStakeDirectory(),250);};
   const closeSearch=()=>{if(searchResults)searchResults.hidden=true;marketSearch?.setAttribute('aria-expanded','false');};
   marketSearch?.addEventListener('input',searchResults?openSearch:filterStakeMarkets);
   if(searchResults){
@@ -4184,6 +4211,8 @@ function setupRewards(): void {
     searchResults.addEventListener('keydown',event=>{const buttons=[...searchResults.querySelectorAll<HTMLButtonElement>('button')],index=buttons.indexOf(document.activeElement as HTMLButtonElement);if(event.key==='ArrowDown'||event.key==='ArrowUp'){event.preventDefault();buttons[(index+(event.key==='ArrowDown'?1:buttons.length-1))%buttons.length]?.focus();}if(event.key==='Escape'){marketSearch?.focus();closeSearch();}});
     query<HTMLElement>('.stake-market-search')?.addEventListener('focusout',event=>{if(!event.currentTarget||!(event.currentTarget as HTMLElement).contains(event.relatedTarget as Node|null))closeSearch();});
   }
+  query<HTMLButtonElement>('[data-creator-more]')?.addEventListener('click',event=>{(event.currentTarget as HTMLButtonElement).disabled=true;void refreshCreatorDirectory(true);});
+  query<HTMLButtonElement>('[data-creator-older]')?.addEventListener('click',async event=>{const button=event.currentTarget as HTMLButtonElement;if(!wallet||!foundation)return;button.disabled=true;try{const market=selectedRewardMarket('[data-creator-market]'),registry=marketRelease(market.marketId).creatorRegistry,block=await publicClient.getBlock({blockTag:'latest'}),epoch=await publicClient.readContract({blockNumber:block.number,abi:v1Abis.CreatorRevenueRegistry,address:registry,functionName:'currentCreatorEpoch',args:[market.marketId]});await loadCreatorEpochs(market.marketId,registry,epoch,wallet.account,block.number,true);await refreshCreatorReward();}catch{text('[data-creator-status]','Unable to load earlier rewards. Try again.');}finally{button.disabled=false;}});
   query<HTMLButtonElement>('[data-copy-beneficiary]')?.addEventListener('click', async () => {
     if (!creatorReward) return;
     try { await navigator.clipboard.writeText(creatorReward.beneficiary); notify('Recipient address copied', 'success'); }
@@ -4276,15 +4305,15 @@ function setupRewards(): void {
   });
   query<HTMLSelectElement>("[data-creator-market]")?.addEventListener("change", (event) => {
     const marketId = (event.currentTarget as HTMLSelectElement).value;
-    const epoch = query<HTMLInputElement>("[data-creator-epoch]"); if (epoch) epoch.value = "";
+    creatorEpochKey='';creatorEpochChoices.clear();const epoch = query<HTMLSelectElement>("[data-creator-epoch]"); if (epoch) epoch.value = "";
     syncRewardMarketSelections(marketId, "creator");
     const market = foundation?.markets.find((entry) => entry.marketId === marketId);
     const feeAsset = query<HTMLInputElement>("[data-creator-fee-asset]");
     if (market && feeAsset) feeAsset.value = market.quoteAsset;
     void refreshCreatorReward();
   });
-  query<HTMLButtonElement>("[data-creator-current]")?.addEventListener("click", () => { const epoch = query<HTMLInputElement>("[data-creator-epoch]"); if (epoch) epoch.value = ""; void refreshCreatorReward(); });
-  query<HTMLInputElement>("[data-creator-epoch]")?.addEventListener("change", () => { void refreshCreatorReward(); });
+  query<HTMLButtonElement>("[data-creator-current]")?.addEventListener("click", () => { const epoch = query<HTMLSelectElement>("[data-creator-epoch]"); if (epoch) epoch.value = ""; void refreshCreatorReward(); });
+  query<HTMLSelectElement>("[data-creator-epoch]")?.addEventListener("change", () => { clearCreatorRewardView(); void refreshCreatorReward(); });
   query<HTMLInputElement>("[data-creator-fee-asset]")?.addEventListener("change", () => { void refreshCreatorReward(); });
   query<HTMLSelectElement>('[data-snapshot-round]')?.addEventListener('change', renderSnapshotRound);
   query<HTMLButtonElement>('[data-snapshot-more]')?.addEventListener('click', () => {
@@ -4418,18 +4447,20 @@ let creatorDirectoryAccount='';
 let creatorDirectoryAt=0;
 let creatorDirectoryRequest:AbortController|undefined;
 let creatorDirectoryError='';
+let creatorDirectoryCursor:string|null=null;
 function clearCreatorDirectory():void {
   creatorDirectoryRequest?.abort();creatorDirectoryRequest=undefined;
-  creatorDirectoryAccount='';creatorDirectoryAt=0;creatorDirectoryError='';creatorMarketIds.clear();
+  creatorDirectoryAccount='';creatorDirectoryAt=0;creatorDirectoryError='';creatorDirectoryCursor=null;creatorMarketIds.clear();
   const select=query<HTMLSelectElement>('[data-creator-market]');if(select){select.replaceChildren(new Option('Select a token',''));select.disabled=true;}
 }
-async function refreshCreatorDirectory():Promise<void>{
+async function refreshCreatorDirectory(more=false):Promise<void>{
   if(currentPage()!=='rewards'||!wallet||!foundation||(!foundation.direct&&!runtimeConfig.readApi.available))return;
   const account=wallet.account.toLowerCase();
-  if(creatorDirectoryAccount===account&&Date.now()-creatorDirectoryAt<600000)return;
+  if(!more&&creatorDirectoryAccount===account&&Date.now()-creatorDirectoryAt<600000)return;
+  if(more&&!creatorDirectoryCursor)return;
   if(creatorDirectoryRequest&&creatorDirectoryAccount===account)return;
-  clearCreatorDirectory();creatorDirectoryAccount=account;
-  const request=new AbortController();creatorDirectoryRequest=request;
+  if(!more)clearCreatorDirectory();creatorDirectoryAccount=account;
+  const request=new AbortController();creatorDirectoryRequest=request;const timer=setTimeout(()=>request.abort(),20000);
   try{
     if(foundation.direct){
       await refreshDirectDirectory(false);
@@ -4447,16 +4478,24 @@ async function refreshCreatorDirectory():Promise<void>{
       return;
     }
     if(!runtimeConfig.readApi.available)throw Error('Creator directory unavailable');
-    const rows=await loadCreatorMarkets(runtimeConfig.readApi.value,robinhoodChain.id,account,request.signal);
-    if(request.signal.aborted||wallet?.account.toLowerCase()!==account||currentPage()!=='rewards')return;
-    for(const row of rows){
-      let market:MarketReadModel|undefined=foundation?.markets.find(m=>m.marketId===row.marketId);
-      if(!market&&foundation?.direct&&directMarkets){const detail=await directMarkets.market(row.marketId as Hex);if(request.signal.aborted||wallet?.account.toLowerCase()!==account)return;market=detail.market;if(foundation)foundation=Object.freeze({...foundation,markets:[...foundation.markets,market]});}
-      if(market&&market.memeToken.toLowerCase()===row.memeToken.toLowerCase())creatorMarketIds.add(market.marketId);
-    }
+    const page=await loadCreatorMarketPage(runtimeConfig.readApi.value,robinhoodChain.id,account,request.signal,more?creatorDirectoryCursor??undefined:undefined,more?creatorMarketIds:[]);
+    if(request.signal.aborted||wallet?.account.toLowerCase()!==account||currentPage()!=='rewards'||!foundation)return;
+    const current:Foundation=foundation,baseUrl=runtimeConfig.readApi.value;
+    const loaded=await mapConcurrent(page.items,async row=>{
+      const existing=current.markets.find(m=>m.marketId===row.marketId);
+      if(existing&&existing.memeToken.toLowerCase()===row.memeToken.toLowerCase())return existing;
+      const detail=await new TickerGardenV1Client(baseUrl,(input,init)=>fetch(input,{...init,signal:request.signal})).getMarket({marketId:row.marketId as Hex,revision:current.sync.revision});
+      assertFinalizedSync(detail.sync,current.sync.revision,'creator market');
+      if(detail.market.marketId!==row.marketId||detail.market.memeToken.toLowerCase()!==row.memeToken.toLowerCase())throw Error('Creator market identity mismatch');
+      return detail.market;
+    },4);
+    if(request.signal.aborted||wallet?.account.toLowerCase()!==account||currentPage()!=='rewards'||foundation?.sync.revision!==current.sync.revision)return;
+    foundation=Object.freeze({...foundation,markets:[...new Map([...foundation.markets,...loaded].map(m=>[m.marketId,m])).values()]});
+    for(const market of loaded)creatorMarketIds.add(market.marketId);
+    creatorDirectoryCursor=page.nextCursor;
     creatorDirectoryAt=Date.now();
-  }catch(error){if(!request.signal.aborted){creatorDirectoryError='Unable to load your tokens. Try again.';creatorDirectoryAt=Date.now()-570000;}}
-  finally{if(creatorDirectoryRequest===request){creatorDirectoryRequest=undefined;populateRewardMarkets();}}
+  }catch(error){if(creatorDirectoryRequest===request&&wallet?.account.toLowerCase()===account&&currentPage()==='rewards'){creatorDirectoryError=request.signal.aborted?'Loading your tokens took too long. Try again.':'Unable to load your tokens. Try again.';creatorDirectoryAt=Date.now()-570000;}}
+  finally{clearTimeout(timer);if(creatorDirectoryRequest===request){creatorDirectoryRequest=undefined;populateRewardMarkets();const moreButton=query<HTMLButtonElement>('[data-creator-more]');if(moreButton){moreButton.hidden=!creatorDirectoryCursor;moreButton.disabled=false;}}}
 }
 function populateRewardMarkets(): void {
   if (!foundation) return;
@@ -4901,6 +4940,28 @@ function clearCreatorRewardView():void {
   const claim=rewardActionButton('claimCreator');if(claim)setDisabled(claim,true);
   const copy=query<HTMLButtonElement>('[data-copy-beneficiary]');if(copy)copy.disabled=true;
 }
+let creatorEpochKey='';
+let creatorEpochOwner='';
+let creatorEpochNext=0;
+const creatorEpochChoices=new Set<number>();
+async function loadCreatorEpochs(marketId:Hex,registry:Address,currentEpoch:number,account:Address,blockNumber:bigint,more=false):Promise<void>{
+ const key=`${marketId}:${account}:${currentEpoch}`,select=query<HTMLSelectElement>('[data-creator-epoch]');if(!select)return;
+ if(!more&&creatorEpochKey===key)return;
+ if(more&&creatorEpochKey!==key)more=false;
+ const generation=creatorLoadGeneration;
+ if(!more){const owner=`${marketId}:${account}`;if(creatorEpochOwner!==owner||!creatorEpochKey){creatorEpochChoices.clear();select.replaceChildren();}creatorEpochOwner=owner;creatorEpochKey=key;creatorEpochNext=currentEpoch;}
+ const start=creatorEpochNext,end=Math.max(1,start-19);
+ const values=await mapConcurrent(Array.from({length:Math.max(0,start-end+1)},(_,i)=>start-i),async epoch=>({epoch,beneficiary:await publicClient.readContract({blockNumber,abi:v1Abis.CreatorRevenueRegistry,address:registry,functionName:'creatorBeneficiaryAt',args:[marketId,epoch]})}),4);
+ if(generation!==creatorLoadGeneration||creatorEpochKey!==key||wallet?.account!==account||!select.isConnected)return;
+ const selected=select.value;
+ for(const row of values)if(ownsCreatorRewards(account,row.beneficiary))creatorEpochChoices.add(row.epoch);
+ select.replaceChildren(...[...creatorEpochChoices].sort((a,b)=>b-a).map(epoch=>new Option(`Distribution ${epoch}`,String(epoch))));
+ if(creatorEpochChoices.has(Number(selected)))select.value=selected;
+ creatorEpochNext=end-1;
+ const button=query<HTMLButtonElement>('[data-creator-older]');if(button){button.hidden=creatorEpochNext===0;button.disabled=false;}
+ select.disabled=!creatorEpochChoices.size;
+ if(!creatorEpochChoices.size){text('[data-creator-status]',creatorEpochNext?'No rewards for this wallet in these periods. Check earlier periods.':'No creator reward periods for this wallet.');}
+}
 async function refreshCreatorReward(): Promise<void> {
   const generation=++creatorLoadGeneration;
   updateRewardsAvailability();
@@ -4921,10 +4982,11 @@ async function refreshCreatorReward(): Promise<void> {
     const currentEpoch = await publicClient.readContract({ blockNumber, abi: v1Abis.CreatorRevenueRegistry, address: registry, functionName: "currentCreatorEpoch", args: [market.marketId] });
     if (generation !== creatorLoadGeneration || wallet!==activeWallet) return;
     if (currentEpoch <= 0) throw new Error("Creator revenue has not been initialized for this market");
-    const epochInput = required<HTMLInputElement>("[data-creator-epoch]");
-    if (!epochInput.value) epochInput.value = String(currentEpoch);
+    const epochInput = required<HTMLSelectElement>("[data-creator-epoch]");
+    await loadCreatorEpochs(market.marketId,registry,currentEpoch,activeWallet.account,blockNumber);
+    if(generation!==creatorLoadGeneration||wallet!==activeWallet||!epochInput.value)return;
     const epoch = parseUint32(epochInput.value, "Creator epoch");
-    epochInput.max = String(currentEpoch);
+
     if (epoch > currentEpoch) throw new Error("Creator epoch is newer than the on-chain current epoch");
     const feeAsset = configuredCreatorFeeAsset(market);
     const [beneficiary, currentBeneficiary] = await Promise.all([
@@ -4963,7 +5025,7 @@ async function refreshCreatorReward(): Promise<void> {
     updateRewardsAvailability();
   } catch (error) {
     if (generation !== creatorLoadGeneration || wallet!==activeWallet) return;
-    text("[data-creator-status]", "Creator rewards could not be loaded. Refresh and try again.");
+    creatorEpochKey='';text("[data-creator-status]", "Creator rewards could not be loaded. Refresh and try again.");
     text("[data-creator-status-summary]", "-");
     updateRewardsAvailability();
   }
@@ -5698,7 +5760,7 @@ async function executeCreatorAction(action: string): Promise<void> {
         return epoch;
       },
     });
-    if (accept) required<HTMLInputElement>("[data-creator-epoch]").value = String(state.currentEpoch + 1);
+    if (accept) required<HTMLSelectElement>("[data-creator-epoch]").value = String(state.currentEpoch + 1);
     notify(accept ? "Future revenue handoff accepted" : cancel ? "Handoff cancelled" : "Recipient nominated; new wallet must accept", "success");
   }
 
@@ -6320,6 +6382,7 @@ function unmountPage(): void {
   exploreStockPicker?.destroy();exploreStockPicker=undefined;
   window.clearInterval(stakeCountdownTimer);
   window.clearInterval(stakeStatisticsTimer);stakePageListeners?.abort();stakePageListeners=undefined;
+  clearTimeout(stakeSearchTimer);stakeSearchGeneration++;stakeSearchDirectory.reset();stakeSearchPage=null;stakeSearchKey='';
   ++stakeStatsGeneration; ++stakeDirectoryGeneration; stakeDirectoryBusy=false;
   disposeFieldValidation?.(); disposeFieldValidation=undefined;
   snapshotPoller?.stop();
