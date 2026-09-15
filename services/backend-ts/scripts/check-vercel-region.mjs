@@ -17,7 +17,8 @@ export function assertSingaporeFunctions(inspection) {
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
   const [deployment, scope = 'garden24'] = process.argv.slice(2);
   if (!deployment || deployment.startsWith('-')) throw new Error('Usage: node scripts/check-vercel-region.mjs <deployment-url-or-id> [scope]');
-  const result = spawnSync('npx', ['--no-install', 'vercel', 'inspect', deployment, '--scope', scope], { encoding: 'utf8', timeout: 60_000 });
+  const cli = process.env.TG_VERCEL_CLI;
+  const result = spawnSync(cli || 'npx', [...(cli ? [] : ['--no-install', 'vercel']), 'inspect', deployment, '--scope', scope], { encoding: 'utf8', timeout: 60_000 });
   if (result.error) throw result.error;
   if (result.status !== 0) throw new Error('Vercel inspect failed; do not promote or alias this deployment');
   const count = assertSingaporeFunctions(`${result.stdout}\n${result.stderr}`);
