@@ -5,7 +5,7 @@ export function statisticsFresh(at:unknown,now:number):boolean {
 export function statisticsUSD(raw:unknown,decimals:unknown,price:unknown,expires:unknown,now:number):string|null {
  if(typeof raw!=='string'||!/^(0|[1-9][0-9]*)$/.test(raw)||typeof decimals!=='number'||!Number.isInteger(decimals)||decimals<0||decimals>255)return null;
  if(raw==='0')return '0';
- if(typeof price!=='string'||!/^(0|[1-9][0-9]*)(\.[0-9]{1,36})?$/.test(price)||typeof expires!=='number'||!Number.isFinite(expires)||expires*1000<=now)return null;
+ if(typeof price!=='string'||!/^(0|[1-9][0-9]*)(\.[0-9]{1,72})?$/.test(price)||typeof expires!=='number'||!Number.isFinite(expires)||expires*1000<=now)return null;
  const [whole,fraction='']=price.split('.'),scale=10n**BigInt(fraction.length);
  const p=BigInt(whole!+fraction);if(p<=0n)return null;
  const usd=BigInt(raw)*p*10n**18n/(10n**BigInt(decimals)*scale);

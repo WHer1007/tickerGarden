@@ -1,3 +1,4 @@
+import {publishProtocolStatistics} from '../../../packages/statistics-store/src/snapshot.ts';
 import { publishMarketCapRanking } from '../../../packages/display-price/src/ranking.ts';
 import { randomUUID } from 'node:crypto';
 import type { Pool } from 'pg';
@@ -159,6 +160,8 @@ export function createPipelineApp(options: PipelineAppOptions = {}) {
     // Snapshot work is idempotent per 20-minute bucket and cannot stop queue dispatch.
     try { const ranking=await publishMarketCapRanking(databasePool(),{environment:environmentName(env.TG_ENVIRONMENT),chainId:46630,deploymentDigest:CURRENT_RELEASE_ID,activationBlock:CURRENT_ACTIVATION_BLOCK},env.TG_DATABASE_SCHEMA);emitMetric(env,{event:'market_cap_ranking',...ranking}); }
     catch { emitMetric(env,{event:'market_cap_ranking',published:false,reason:'refresh_failed'}); }
+    try { const statistics=await publishProtocolStatistics(databasePool(),{environment:environmentName(env.TG_ENVIRONMENT),chainId:46630,deploymentDigest:CURRENT_RELEASE_ID,activationBlock:CURRENT_ACTIVATION_BLOCK},env.TG_DATABASE_SCHEMA);emitMetric(env,{event:'protocol_statistics',...statistics}); }
+    catch { emitMetric(env,{event:'protocol_statistics',published:false,reason:'refresh_failed'}); }
     emitMetric(env, { event: 'queue_dispatch', queue: 'chain', ...dispatched });
     return context.json({ repaired, dispatched });
   });

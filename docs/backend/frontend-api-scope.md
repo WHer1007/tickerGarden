@@ -41,7 +41,7 @@
 
 | Method / 路径 | 请求与响应冻结点 | caller / 条件 | 任务 |
 | --- | --- | --- | --- |
-| `GET /v1/protocol-statistics` | `chainId/displayOnly/coverage/marketCount/groups`；缺覆盖不得回退为零 | `app.ts:refreshExplorePrices` | TS-08/15 |
+| `GET /v1/protocol-statistics` | 20-minute scheduled schemaVersion 3 snapshot; raw external volume, trade-time fees, allocation-time distributions and independently anchored staking; current-price USD estimates; missing coverage stays null | `app.ts:renderProtocolStatistics` | TS-08/15 |
 | `GET /v1/statistics-prices` | `chainId/displayOnly/prices/expiresAt`；缺价保持 unavailable | `app.ts:refreshExplorePrices` | TS-08/15 |
 | `GET /v1/market-display-statistics?marketId` | `chainId/marketId/displayOnly/complete/totalRaw/participants` | `v1/stakeStatistics.ts`，Stake | TS-08/09/15 |
 | `GET /v1/launch-recovery?marketId` | 必须绑定 marketId、交易/创建身份与恢复状态 | `app.ts`，Create 未决交易 | TS-11/15 |

@@ -1,3 +1,4 @@
+import {readProtocolStatistics} from '../../../packages/statistics-store/src/snapshot.ts';
 import { sharedStatistics } from './statistics-cache.ts';
 import { createReadAdmission } from './read-admission.ts';
 import { readHolderSnapshots } from '../../../packages/read-store/src/holder-snapshots.ts';
@@ -14,7 +15,7 @@ import {
 import { RpcTransport, type DeploymentIdentity } from '../../../packages/chain/src/index.ts';
 import { observeTransaction } from '../../../packages/transaction-observer/src/index.ts';
 import { readMarketCandles, readMarketHolders, readMarketTrades, readTokenDetail } from '../../../packages/analytics-store/src/index.ts';
-import { readDisplayPrices, readGlobalHolders, readGlobalSeries, readGlobalStatistics, readMarketDisplayStatistics, readMarketStatistics, readProtocolStatistics, readStatisticsPrices } from '../../../packages/statistics-store/src/index.ts';
+import { readDisplayPrices, readGlobalHolders, readGlobalSeries, readGlobalStatistics, readMarketDisplayStatistics, readMarketStatistics, readStatisticsPrices } from '../../../packages/statistics-store/src/index.ts';
 
 interface ReadApiOptions {
   readonly env?: Readonly<Record<string, string | undefined>>;
@@ -313,7 +314,7 @@ export function createReadApiApp(options: ReadApiOptions = {}) {
   });
 
   app.get('/v1/protocol-statistics', async (context) => {
-    try { rejectUnknown(context.req.query(),[]);return context.json(await cachedGlobalRead('protocol',readPool=>readProtocolStatistics({pool:readPool,deployment,...(schemaName?{schemaName}:{})}))); }
+    try { rejectUnknown(context.req.query(),[]);return context.json(await shareGlobalRead('protocol',()=>readProtocolStatistics({pool:pool(),deployment,...(schemaName?{schemaName}:{})}))); }
     catch(error){return analyticsError(context,error,'candle');}
   });
 

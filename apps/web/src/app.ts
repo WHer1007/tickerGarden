@@ -1,3 +1,5 @@
+import {parseProtocolStatistics,decimalProduct,type ProtocolStatistics} from './v1/protocolStatistics.ts';
+import {mountStatsStockList} from './ui/stats-stock-list.ts';
 import {launchPreviewField} from './create/preview-dependencies.ts';
 import { decodeMarketRecord, legacyMarketRecordAbi } from "../../../services/backend-ts/packages/chain/src/market-record.ts";
 import { launchAbis, resolveBurnLaunchConfig, resolveLpLaunchConfig } from "./v1/features/launch.ts";
@@ -588,7 +590,7 @@ async function prepareFoundation(api: TickerGardenV1Client | null, expectedSync?
     directoryMarketId
       ? readPublishedMarket(()=>api.getMarket({marketId:directoryMarketId,revision,includeRecent:true}),directoryMarketId,revision)
         .then(detail=>({items:detail?[detail.market]:[],nextCursor:undefined}))
-      : ["markets","create"].includes(currentPage()) ? Promise.resolve({items:[] as MarketReadModel[],nextCursor:undefined}) : readMarketPage(revision, undefined, api),
+      : ["markets","create","stats"].includes(currentPage()) ? Promise.resolve({items:[] as MarketReadModel[],nextCursor:undefined}) : readMarketPage(revision, undefined, api),
   ]);
 
   const reasons: string[] = [];
@@ -1631,15 +1633,16 @@ function clearStatsSnapshotView(_message: string): void {
   for(const selector of ['[data-stats-growing-bar]','[data-stats-bloomed-bar]']){const bar=query<HTMLElement>(selector);if(bar)bar.style.width='0%';}
   query<HTMLElement>('[data-stats-summary]')?.setAttribute('aria-busy','false');
 }
-let statsWarmupUntil=0;
 function setupStats(): void {
- statsWarmupUntil=Date.now()+180000;
+ const list=query<HTMLElement>('[data-stats-staking-values]');if(list)statsStockList=mountStatsStockList(list);
+ text('[data-stats-network]',robinhoodChain.id===46630?'Testnet data':'Robinhood Chain');
+ query<HTMLButtonElement>('[data-stats-refresh]')?.addEventListener('click',()=>void renderStats(true));
 }
 function statsAsset(address:string):{label:string;icon?:string}{
  if(address==='0x'+'0'.repeat(40))return{label:'ETH',icon:quoteIconUrl('ETH')};
  const asset=foundation?.assets.find(c=>stockToken(c)?.toLowerCase()===address.toLowerCase());
  const listed=asset?stakingAssetForConfig(robinhoodChain.id,asset):undefined;
- return{label:listed?.symbol??marketStockSymbols.get(address)??shortHex(address,6,4),icon:asset?stockLogo(asset):undefined};
+ return{label:listed?.symbol??(typeof asset?.values.tokenSymbol==='string'?asset.values.tokenSymbol:undefined)??marketStockSymbols.get(address)??shortHex(address,6,4),icon:asset?stockLogo(asset):undefined};
 }
 function renderStatsDistribution(selector:string,groups:Map<string,{label:string;icon?:string;count:number}>,total:number){
  const list=query<HTMLElement>(selector);if(!list)return;
@@ -1655,66 +1658,75 @@ function renderStatsDistribution(selector:string,groups:Map<string,{label:string
  }
  list.replaceChildren(fragment);
 }
-async function renderStockStatistics(current:()=>boolean,valuations:any,summary:any):Promise<boolean>{
- const assets=[...new Map((foundation?.assets??[]).map(asset=>[asset.id,asset])).values()];
- const fresh=statisticsFresh(summary.stakingObservedAt,Date.now());
- const rows=assets.map(asset=>{
-  const token=stockToken(asset),info=token?statsAsset(token):{label:shortHex(asset.id)},decimals=Number(asset.values.tokenDecimals);
-  const raw=summary.stockAmounts&&typeof summary.stockAmounts==='object'?(summary.stockAmounts[asset.id]??'0'):undefined;
-  const amount=fresh&&typeof raw==='string'&&/^(0|[1-9][0-9]*)$/.test(raw)?BigInt(raw):null;
-  const value=amount===null?null:statisticsUSD(raw,decimals,valuations.prices?.[token?.toLowerCase()??''],valuations.expiresAt?.[token?.toLowerCase()??''],Date.now());
-  return {...info,value,amount,decimals};
- });
- if(!current())return false;
- const total=sumStatisticsUSD(rows.map(row=>row.value));text('[data-stat-stock-value]',total===null?'-':formatMarketUSD(total,true));
- const list=query<HTMLElement>('[data-stats-staking-values]');if(!list)return false;
- const elements=rows.map(item=>{const row=document.createElement('div');row.className='stats-fee-row';const label=document.createElement('span');label.className='stats-asset-label';if(item.icon){const icon=document.createElement('img');icon.src=item.icon;icon.alt='';icon.addEventListener('error',()=>icon.remove(),{once:true});label.append(icon);}label.append(document.createTextNode(item.label));const value=document.createElement('strong');value.textContent=item.value===null?'-':formatMarketUSD(item.value,true);if(item.amount!==null)value.title=`${formatUnits(item.amount,item.decimals)} ${item.label}`;row.append(label,value);return row;});
- list.replaceChildren(...elements);
- return rows.every(row=>row.value!==null);
+let statsStockList:ReturnType<typeof mountStatsStockList>|undefined;
+let statsSnapshot:ProtocolStatistics|null=null,statsReadAt=0,statsRetryAt=0;
+let statsRequest:Promise<any>|null=null,statsAbort:AbortController|null=null;
+const statsFresh=(at:unknown)=>typeof at==='number'&&Number.isSafeInteger(at)&&at>0&&at<=Date.now()/1000+5&&Date.now()/1000-at<25*60;
+function statsPrices(){
+ const snapshot=assetPrices.snapshot();
+ const rows=Object.values(snapshot.prices).filter(p=>snapshot.chainId===robinhoodChain.id&&p.status==='available'&&p.midpointUsd!==null&&p.expiresAt!==null);
+ return {prices:Object.fromEntries(rows.map(p=>[p.token,p.midpointUsd])),expiresAt:Object.fromEntries(rows.map(p=>[p.token,Math.floor(p.expiresAt!/1000)]))};
 }
-async function renderProtocolStatistics(current:()=>boolean,attempt=0):Promise<boolean>{
- if(!runtimeConfig.readApi.available)return false;const base=runtimeConfig.readApi.value;
- try{const summary=await fetch(`${base}/v1/protocol-statistics`,{signal:AbortSignal.timeout(5000)}).then(r=>{if(!r.ok)throw Error('Statistics Missing');return r.json();});
- const priceSnapshot=assetPrices.snapshot();
- const availablePrices=Object.values(priceSnapshot.prices).filter(price=>price.status==='available'&&price.midpointUsd!==null&&price.expiresAt!==null);
- const prices={chainId:priceSnapshot.chainId,prices:Object.fromEntries(availablePrices.map(price=>[price.token,price.midpointUsd])),expiresAt:Object.fromEntries(availablePrices.map(price=>[price.token,Math.floor(price.expiresAt!/1000)]))};
- if(!current()||summary.chainId!==robinhoodChain.id||summary.displayOnly!==true||prices.chainId!==robinhoodChain.id)return false;
- const pending=summary.reason==='statistics_pending'||summary.feeCoverage!==true||!statisticsFresh(summary.observedAt,Date.now())||!statisticsFresh(summary.stakingObservedAt,Date.now());
- const fresh=statisticsFresh(summary.observedAt,Date.now());
- text('[data-stat-market-cap]',fresh&&summary.valuationCoverage===true&&typeof summary.marketCapUsd==='string'?formatMarketUSD(summary.marketCapUsd,true):'-');
- text('[data-stat-volume]',fresh&&summary.historicalUsdCoverage===true&&typeof summary.volume24hUsd==='string'?formatMarketUSD(summary.volume24hUsd,true):'-');
- text('[data-stat-launches]',fresh&&Number.isSafeInteger(summary.launches24h)&&summary.launches24h>=0?summary.launches24h.toLocaleString():'-');
- text('[data-stat-total-markets]',fresh&&Number.isSafeInteger(summary.marketCount)&&summary.marketCount>=0?String(summary.marketCount):'-');
- text('[data-stat-bloomed]',fresh&&Number.isSafeInteger(summary.bloomedMarketCount)&&summary.bloomedMarketCount>=0?String(summary.bloomedMarketCount):'-');
- text('[data-stat-staking-wallets]',statisticsFresh(summary.stakingObservedAt,Date.now())&&Number.isSafeInteger(summary.stakingWallets)&&summary.stakingWallets>=0?String(summary.stakingWallets):'-');
- const totals:Record<string,string[]>=Object.fromEntries(['creator','staker','holder','platform'].map(k=>[k,[]]));let valid=fresh&&summary.feeCoverage===true;
- for(const [asset,buckets]of Object.entries(summary.feeAssets??{})){for(const bucket of Object.keys(totals)){
-  const value=statisticsUSD((buckets as Record<string,string>)[bucket],summary.feeDecimals?.[asset],prices.prices?.[asset],prices.expiresAt?.[asset],Date.now());
-  if(value===null)valid=false;else totals[bucket]!.push(value);
- }}
- for(const bucket of Object.keys(totals))text(`[data-stat-fee-${bucket}]`,valid?formatMarketUSD(sumStatisticsUSD(totals[bucket]!),true):'-');
- const feeTotals = summary.feeTotals as Record<string,string> | undefined;
- const revenue = fresh && summary.feeCoverage===true && summary.feeBasis==='TRADE_TIME' && feeTotals ? sumStatisticsUSD(Object.entries(feeTotals).map(([asset,amount])=>statisticsUSD(amount,summary.feeDecimals?.[asset],prices.prices?.[asset],prices.expiresAt?.[asset],Date.now()))) : null;
+function applyStatsSnapshot():void{
+ if(currentPage()!=='stats')return;
+ const summary=statsSnapshot,prices=statsPrices(),fresh=summary&&statsFresh(summary.observedAt);
+ const value=(amount:unknown,asset:string)=>{
+  const reference=summary?.feePriceQuotes[asset];
+  const quotePrice=reference?prices.prices[reference.quoteAsset]:undefined;
+  const price=prices.prices[asset]??(reference&&quotePrice?decimalProduct(reference.priceQuote,quotePrice):undefined);
+  const expires=prices.prices[asset]?prices.expiresAt[asset]:reference?prices.expiresAt[reference.quoteAsset]:undefined;
+  return statisticsUSD(amount,summary?.feeDecimals?.[asset],price,expires,Date.now());
+ };
+ const sum=(amounts:Record<string,string>|undefined)=>amounts?sumStatisticsUSD(Object.entries(amounts).map(([asset,amount])=>value(amount,asset))):null;
+ const volume=fresh&&summary.volumeCoverage===true?sum(summary.volumeAmounts):null;
+ const revenue=fresh&&summary.feeCoverage===true&&summary.feeBasis==='TRADE_TIME'?sum(summary.feeTotals):null;
+ text('[data-stat-volume]',volume===null?'-':formatMarketUSD(volume,true));
  text('[data-stat-fee-revenue]',revenue===null?'-':formatMarketUSD(revenue,true));
- await renderStockStatistics(current,prices,summary);
- if(pending&&attempt<18)setTimeout(()=>{if(current()&&currentPage()==='stats')void renderProtocolStatistics(current,attempt+1);},attempt<6?5000:10000);
- return true;
- }catch{
-  if(!current())return false;
-  for(const key of ['volume','launches','bloomed','staking-wallets','stock-value','fee-revenue','fee-creator','fee-staker','fee-holder','fee-platform'])text(`[data-stat-${key}]`,'-');
-  if(attempt<6)setTimeout(()=>{if(current()&&currentPage()==='stats')void renderProtocolStatistics(current,attempt+1);},10000);
-  return false;
+ for(const [key,field]of [['launches','launches24h'],['bloomed','bloomedMarketCount']] as const)text(`[data-stat-${key}]`,fresh&&summary[field]!==null&&Number.isSafeInteger(summary[field])&&summary[field]!>=0?summary[field]!.toLocaleString():'-');
+ const stakingFresh=summary?.stakingCoverage===true&&statsFresh(summary.stakingObservedAt);
+ text('[data-stat-staking-wallets]',stakingFresh&&Number.isSafeInteger(summary.stakingWallets)?summary.stakingWallets!.toLocaleString():'-');
+ let allocationsReady=Boolean(fresh&&summary.allocationCoverage===true);
+ for(const bucket of ['creator','staker','holder','platform']){
+  const amounts=fresh&&summary.allocationCoverage===true?Object.entries(summary.feeAssets as Record<string,Record<string,string>>).map(([asset,buckets])=>value(buckets[bucket],asset)):null;
+  const total=amounts?sumStatisticsUSD(amounts):null;if(total===null)allocationsReady=false;
+  text(`[data-stat-fee-${bucket}]`,total===null?'-':formatMarketUSD(total,true));
  }
+ const rows=[...new Map((foundation?.assets??[]).map(asset=>[asset.id,asset])).values()].map(asset=>{
+  const token=stockToken(asset),info=token?statsAsset(token):{label:shortHex(asset.id)},decimals=Number(asset.values.tokenDecimals);
+  const raw=stakingFresh&&summary.stockAmounts?summary.stockAmounts[asset.id]??'0':undefined;
+  const amount=typeof raw==='string'&&/^(0|[1-9][0-9]*)$/.test(raw)?BigInt(raw):null;
+  return {id:asset.id,...info,decimals,amount,value:amount===null?null:statisticsUSD(raw,decimals,prices.prices[token?.toLowerCase()??''],prices.expiresAt[token?.toLowerCase()??''],Date.now())};
+ });
+ for(const [id,raw]of Object.entries(summary?.stockAmounts??{}))if(BigInt(raw)>0n&&!rows.some(row=>row.id===id))rows.push({id:id as Hex,label:shortHex(id),decimals:0,amount:BigInt(raw),value:null});
+ const stockTotal=stakingFresh?sumStatisticsUSD(rows.map(r=>r.value)):null;
+ text('[data-stat-stock-value]',stockTotal===null?'-':formatMarketUSD(stockTotal,true));statsStockList?.update(rows);
+ const time=(at:number)=>new Date(at*1000).toLocaleString('en-US',{month:'short',day:'numeric',hour:'2-digit',minute:'2-digit'});
+ text('[data-stats-updated]',summary?`Activity as of ${time(summary.observedAt)} · refreshed every 20 minutes`:'Statistics are syncing');
+ text('[data-stats-staking-updated]',summary?.stakingObservedAt?`Staking as of ${time(summary.stakingObservedAt)}`:'Staking data is syncing');
+ const complete=fresh&&volume!==null&&revenue!==null&&stockTotal!==null&&allocationsReady&&Number.isSafeInteger(summary.launches24h);
+ setPageStatus(complete?'':summary?'Some values are still syncing. Missing values are shown as “-”.':'Statistics could not be loaded. Try again.','warning');
+ query<HTMLElement>('[data-stats-summary]')?.setAttribute('aria-busy','false');
 }
-async function renderStats():Promise<void>{
+async function renderProtocolStatistics(force=false):Promise<any>{
+ if(!runtimeConfig.readApi.available)throw Error('Stats syncing');
+ if(statsRequest)return statsRequest;
+ if(!force&&statsSnapshot&&Date.now()<Math.min(statsReadAt+20*60_000,statsSnapshot.nextRefreshAt*1000))return statsSnapshot;
+ if(!force&&Date.now()<statsRetryAt)return statsSnapshot;
+ const request=new AbortController();statsAbort=request;
+ const timer=setTimeout(()=>request.abort(),15000);
+ const pending=fetch(`${runtimeConfig.readApi.value}/v1/protocol-statistics`,{signal:request.signal}).then(async response=>{
+  if(!response.ok)throw Error('Stats syncing');const summary=parseProtocolStatistics(await response.json(),robinhoodChain.id);
+  if(statsAbort!==request)return null;
+  statsSnapshot=summary;statsReadAt=Date.now();statsRetryAt=0;return summary;
+ }).catch(error=>{if(statsAbort===request){statsSnapshot=null;statsRetryAt=Date.now()+30000;}throw error;}).finally(()=>{clearTimeout(timer);if(statsAbort===request){statsRequest=null;statsAbort=null;}});
+ statsRequest=pending;return pending;
+}
+async function renderStats(force=false):Promise<void>{
  const render=statsRender.begin();
- if(!foundation){clearStatsSnapshotView('');setPageStatus('Stats are temporarily unavailable. Try again.','error');return;}
- try{
-  if(!render.isCurrent())return;
-  const available=await renderProtocolStatistics(()=>render.isCurrent());
-  if(!render.isCurrent())return;
-  query<HTMLElement>('[data-stats-summary]')?.setAttribute('aria-busy','false');setPageStatus(available?'':'Stats are still syncing. Verified values will appear automatically.',available?'success':'warning');
- }catch{if(render.isCurrent()){clearStatsSnapshotView('');setPageStatus('Stats are temporarily unavailable. Try again.','error');}}
+ const button=query<HTMLButtonElement>('[data-stats-refresh]');if(button)button.disabled=true;
+ try{await renderProtocolStatistics(force);}catch{ /* Render the cleared snapshot consistently, including Stock rows. */ }
+ if(!render.isCurrent())return;
+ applyStatsSnapshot();if(button)button.disabled=false;
 }
 
 function setupDocs(): void {
@@ -6378,6 +6390,8 @@ function isStaticPage(): boolean {
 
 let disposeFieldValidation: (() => void) | undefined;
 function unmountPage(): void {
+  statsStockList?.destroy();statsStockList=undefined;statsAbort?.abort();statsAbort=null;statsRequest=null;
+
   resetExplorePages();
   exploreStockPicker?.destroy();exploreStockPicker=undefined;
   window.clearInterval(stakeCountdownTimer);
@@ -6489,7 +6503,7 @@ const unsubscribeAssetPrices = assetPrices.subscribe(snapshot => {
       if(currentPage()!=='markets')return;
       applyExploreStatistics();
     });
-  } else if (currentPage() === 'stats' && foundation) void renderStats();
+  } else if (currentPage() === 'stats' && foundation) applyStatsSnapshot();
 });
 void restoreLaunchProgress();
 startSnapshotUpdates();
@@ -6498,8 +6512,6 @@ if (import.meta.hot) import.meta.hot.dispose(() => { if(launchRecoveryTimer)clea
 let directDirectoryBusy=false;
 let directDirectoryRequest:Promise<void>|null=null;
 let directDirectoryReadAt=0;
-let statsDirectoryReady=false;
-let statsDirectoryReadAt=0;
 async function discoverDirectMarketSources(factory:Address):Promise<void>{
  if(!directMarkets)return;
  const head=await publicClient.getBlockNumber();
@@ -6548,5 +6560,5 @@ const exploreStatisticsTimer=setInterval(()=>{
 },2_000);
 if(import.meta.hot)import.meta.hot.dispose(()=>clearInterval(exploreStatisticsTimer));
 
-const statsPageTimer=setInterval(()=>{if(currentPage()==="stats"&&!document.hidden){void renderStats();analyticsRefresh.request();}},20*60_000);
+const statsPageTimer=setInterval(()=>{if(currentPage()==="stats"&&!document.hidden)void renderStats();},60_000);
 if(import.meta.hot)import.meta.hot.dispose(()=>clearInterval(statsPageTimer));

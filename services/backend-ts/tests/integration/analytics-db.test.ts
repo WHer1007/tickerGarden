@@ -1,3 +1,4 @@
+import {publishProtocolStatistics,readProtocolStatistics} from '../../packages/statistics-store/src/snapshot.ts';
 import assert from 'node:assert/strict';
 import { randomBytes } from 'node:crypto';
 import test from 'node:test';
@@ -119,7 +120,25 @@ test('TS-07 database-only trades, candles, holders and detail paths preserve cov
     assert.equal((await app.request(`/v1/stats/overview?from=${candleTo-3_600}&to=${candleTo+3_600}`)).status,503);
     const display=await app.request(`/v1/market-display-statistics?marketId=${marketId}`);assert.equal(display.status,200);assert.equal(((await display.json()) as {feeDistribution:unknown[]}).feeDistribution.length,2);
     const prices=await app.request('/v1/prices/references');assert.equal(prices.status,200);const priceBody=await prices.json() as {status:string;references:Array<{status:string;token:string}>};assert.equal(priceBody.status,'configured');assert.equal(priceBody.references.find(row=>row.token===quoteAsset)?.status,'available');
-    const protocol=await app.request('/v1/protocol-statistics');assert.equal(protocol.status,200);const protocolBody=await protocol.json() as {feeCoverage:boolean;feeTotals:Record<string,string>;feeBasis:string;stockAmounts:Record<string,string>;stakingWallets:number;stakingObservedAt:number};assert.equal(protocolBody.feeCoverage,true);assert.equal(protocolBody.feeTotals[quoteAsset],'7');assert.equal(protocolBody.feeTotals[memeToken],'3');assert.equal(protocolBody.feeBasis,'ALLOCATION_TIME');assert.equal(protocolBody.stockAmounts[asset.id],'1000000000000000000');assert.equal(protocolBody.stakingWallets,1);assert.equal(protocolBody.stakingObservedAt,detailTo);
+    assert.equal((await app.request('/v1/protocol-statistics')).status,503);
+    assert.equal((await publishProtocolStatistics(handle.pool,deployment,schemaName)).published,true);
+    assert.equal((await publishProtocolStatistics(handle.pool,deployment,schemaName)).published,false);
+    const protocol=await app.request('/v1/protocol-statistics');assert.equal(protocol.status,200);const protocolBody=await protocol.json() as {feeCoverage:boolean;feeTotals:Record<string,string>;feeBasis:string;stockAmounts:Record<string,string>;stakingWallets:number;stakingObservedAt:number};assert.equal(protocolBody.feeCoverage,true);assert.equal(protocolBody.feeTotals[quoteAsset],'2');assert.equal(protocolBody.feeTotals[memeToken],undefined);assert.equal(protocolBody.feeBasis,'TRADE_TIME');assert.equal(protocolBody.stockAmounts[asset.id],'1000000000000000000');assert.equal(protocolBody.stakingWallets,1);assert.equal(protocolBody.stakingObservedAt,detailTo);
+    const snapshot=await readProtocolStatistics({pool:handle.pool,deployment,schemaName});
+    assert.equal(snapshot.volumeAmounts[quoteAsset],'2000000000000000000');
+    assert.equal(snapshot.feeAssets[quoteAsset]?.creator,'7');
+    // Rebuilding retains the real older position timestamp, not the analytics timestamp.
+    const olderRevision=`3:${hash('d')}`;
+    await handle.pool.query(`INSERT INTO ${schema}.publications(environment,chain_id,deployment_digest,scope,revision,block_number,block_hash,generation,payload_digest,payload) VALUES('test',46630,$1,'positions',$2,3,$3,0,$4,'{}')`,[deployment.deploymentDigest,olderRevision,hash('d'),hash('7')]);
+    await handle.pool.query(`INSERT INTO ${schema}.projection_records(environment,chain_id,deployment_digest,scope,revision,identity,sort_key,payload_digest,payload) SELECT environment,chain_id,deployment_digest,scope,$1,identity,sort_key,payload_digest,payload FROM ${schema}.projection_records WHERE scope='positions' AND revision=$2`,[olderRevision,revision]);
+    await handle.pool.query(`UPDATE ${schema}.publication_pointers SET revision=$1 WHERE scope='positions'`,[olderRevision]);
+    await handle.pool.query(`DELETE FROM ${schema}.protocol_statistics_snapshots`);
+    await publishProtocolStatistics(handle.pool,deployment,schemaName);
+    assert.equal((await readProtocolStatistics({pool:handle.pool,deployment,schemaName})).stakingObservedAt,candleTo-600);
+    // Reorg of that older position anchor invalidates the otherwise canonical snapshot.
+    await handle.pool.query(`UPDATE ${schema}.chain_blocks SET canonical=false WHERE hash=$1`,[hash('d')]);
+    await assert.rejects(readProtocolStatistics({pool:handle.pool,deployment,schemaName}));
+    await handle.pool.query(`UPDATE ${schema}.chain_blocks SET canonical=true WHERE hash=$1`,[hash('d')]);
     // Incremental holder references must match full positive-balance truth across zero crossings.
     for(const balance of ['0','300','301']){
       await handle.pool.query(`UPDATE ${schema}.holder_balances SET balance_raw=$1 WHERE account=$2`,[balance,address('7')]);
@@ -130,6 +149,26 @@ test('TS-07 database-only trades, candles, holders and detail paths preserve cov
     await handle.pool.query(`UPDATE ${schema}.holder_snapshots SET excluded_accounts='[]'`);
     assert.equal((await (await app.request('/v1/stats/holders')).json() as {includedAddressCount:number}).includedAddressCount,2);
     await handle.pool.query(`UPDATE ${schema}.holder_snapshots SET excluded_accounts=$1`,[JSON.stringify(excludedAccounts)]);
+    await handle.pool.query(`UPDATE ${schema}.market_trades SET classification='reward_conversion',payload=jsonb_set(payload,'{feeStatus}','"not_provided"') WHERE log_index=1`);
+    await handle.pool.query(`DELETE FROM ${schema}.protocol_statistics_snapshots`);
+    await publishProtocolStatistics(handle.pool,deployment,schemaName);
+    const incomplete=await readProtocolStatistics({pool:handle.pool,deployment,schemaName});
+    assert.equal(incomplete.feeCoverage,false);assert.equal(incomplete.allocationCoverage,true);
+    assert.equal(incomplete.volumeAmounts[quoteAsset],'1000000000000000000');
+    await handle.pool.query(`UPDATE ${schema}.market_trades SET classification='unclassified',payload=jsonb_set(payload,'{feeStatus}','"event_reported"') WHERE log_index=1`);
+    // 20k markets and 20k wallets stay inside the scheduled builder; GET stays small.
+    for(let offset=0;offset<20000;offset+=1000){
+      const rows=Array.from({length:1000},(_,n)=>{const key='0x'+(offset+n+100).toString(16).padStart(64,'0');return {identity:key,payload:{...market,marketId:key,identity:{deployedAt:String(detailTo-10)}}};});
+      await handle.pool.query(`INSERT INTO ${schema}.projection_records(environment,chain_id,deployment_digest,scope,revision,identity,sort_key,payload_digest,payload) SELECT 'test',46630,$1,'markets',$2,r.identity,r.identity,$3,r.payload FROM jsonb_to_recordset($4::jsonb) r(identity text,payload jsonb)`,[deployment.deploymentDigest,revision,hash('8'),JSON.stringify(rows)]);
+      const positions=rows.map((r,n)=>({identity:r.identity,payload:{user:'0x'+(offset+n+100).toString(16).padStart(40,'0'),assetUid:asset.id,allocated:'1'}}));
+      await handle.pool.query(`INSERT INTO ${schema}.projection_records(environment,chain_id,deployment_digest,scope,revision,identity,sort_key,payload_digest,payload) SELECT 'test',46630,$1,'positions',$2,r.identity,r.identity,$3,r.payload FROM jsonb_to_recordset($4::jsonb) r(identity text,payload jsonb)`,[deployment.deploymentDigest,olderRevision,hash('8'),JSON.stringify(positions)]);
+    }
+    await handle.pool.query(`DELETE FROM ${schema}.protocol_statistics_snapshots`);
+    const started=performance.now();await publishProtocolStatistics(handle.pool,deployment,schemaName);const built=performance.now();
+    const large=await readProtocolStatistics({pool:handle.pool,deployment,schemaName});
+    assert.equal(large.marketCount,20001);assert.equal(large.stakingWallets,20001);assert.ok(Buffer.byteLength(JSON.stringify(large))<16000);
+    console.log(JSON.stringify({scope:'local stats 20001 markets/wallets',buildMs:Math.round(built-started),readMs:Math.round(performance.now()-built),responseBytes:Buffer.byteLength(JSON.stringify(large))}));
+    assert.equal((await publishProtocolStatistics(handle.pool,deployment,schemaName)).published,false);
     // Stored event blocks can be sparse; verified covered ranges establish
     // completeness. A missing range must still make display data unavailable.
     await handle.pool.query(`UPDATE ${schema}.covered_ranges SET complete=false`);

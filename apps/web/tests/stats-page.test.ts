@@ -9,12 +9,11 @@ test('Stats contains the requested metrics without old analytics sections',()=>{
 });
 test('Stats summary uses the aggregate endpoint without paging the market directory',()=>{
  const source=fs.readFileSync(new URL('../src/app.ts',import.meta.url),'utf8');
- const body=source.slice(source.indexOf('async function renderStats()'),source.indexOf('\nfunction setupDocs'));
+ const body=source.slice(source.indexOf('async function renderStats('),source.indexOf('\nfunction setupDocs'));
  assert.match(body,/renderProtocolStatistics/);assert.doesNotMatch(body,/appendMarketPage|refreshExploreStatistics|readContract/);
 });
-test('Stats retries only snapshots that can still become ready without a catalog update',()=>{
+test('Stats price updates reuse the snapshot without refetching',()=>{
  const source=fs.readFileSync(new URL('../src/app.ts',import.meta.url),'utf8');
- const body=source.slice(source.indexOf('async function renderProtocolStatistics'),source.indexOf('\nasync function renderStats'));
- assert.match(body,/if\(pending&&attempt<18\)/);
- assert.doesNotMatch(body,/pending\|\|!valid\|\|!stocksReady/);
+ const body=source.slice(source.indexOf('const unsubscribeAssetPrices'),source.indexOf('void restoreLaunchProgress',source.indexOf('const unsubscribeAssetPrices')));
+ assert.match(body,/applyStatsSnapshot/);assert.doesNotMatch(body,/renderStats/);
 });
