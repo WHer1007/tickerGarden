@@ -353,8 +353,8 @@ details[data-treasury-advanced] .advanced-actions{padding-bottom:16px}
 .footer-risk p{margin:0;max-width:none;font-size:12px;line-height:1.6;color:#c7d7cf}
 .footer-meta{grid-column:1/-1;display:grid!important;grid-template-columns:1fr auto;align-items:center;gap:18px!important;text-align:left!important;color:#9fb8ac;font-size:11px}
 .footer-meta-links{justify-self:end;display:flex;align-items:center;gap:10px}
-.footer-meta .chain-tag{height:30px;border-color:#3a6b59;background:#0a4937;color:#dce9e2;padding:0 9px 0 5px;font-size:9px;box-shadow:none}
-.footer-meta .chain-tag img{display:block;width:20px;height:20px;object-fit:contain;flex:0 0 auto}
+.footer-meta .chain-tag{height:30px;border-color:#3a6b59;background:#0a4937;color:#dce9e2;padding:0 9px 0 5px;font-size:11px;box-shadow:none}
+.footer-meta .chain-tag img{display:block;width:20px;height:20px;object-fit:contain;border-radius:50%;flex:0 0 auto}
 .footer-social-link{display:inline-flex;align-items:center;gap:6px;height:30px;padding:0 10px;border:1px solid #3a6b59;border-radius:999px;color:#dce9e2!important;font-size:10px;font-weight:700;text-decoration:none;transition:border-color .18s ease,color .18s ease,background .18s ease}
 .footer-social-link i{font-size:14px}
 .footer-social-link:hover{border-color:#789889;background:#0a4937;color:#fff!important}

@@ -62,7 +62,7 @@ export default {
         <div class="steps">
           <article><img src="${asset1}" width="1254" height="1254" loading="lazy" decoding="async" alt="Candlesticks growing from soil" /><div><span>01</span><h3>Launch a community token</h3><p>Launch a fixed-supply token with your chosen paired asset.</p></div></article>
           <article><img src="${asset2}" width="1254" height="1254" loading="lazy" decoding="async" alt="A sprouting ticker chart" /><div><span>02</span><h3>Bloom the Market</h3><p>Curve trading moves into permanently locked liquidity.</p></div></article>
-          <article><img src="${asset3}" width="1254" height="1254" loading="lazy" decoding="async" alt="A healthy liquidity garden" /><div><span>03</span><h3>Allocate STOCK, Earn Fees</h3><p>After Bloom, stake STOCK to earn trading fees. Eligible holders can also earn rewards through wallet balance snapshots.</p></div></article>
+          <article><img src="${asset3}" width="1254" height="1254" loading="lazy" decoding="async" alt="A healthy liquidity garden" /><div><span>03</span><h3>Allocate STOCK, Earn Fees</h3><p>After Bloom, stake STOCK to earn trading fees.</p></div></article>
         </div>
       </section>
     </main>
