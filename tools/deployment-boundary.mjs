@@ -22,7 +22,8 @@ function remoteUrl(env, key, protocols = ['https:']) {
 }
 
 function assertServiceIsolation(service, env) {
-  const keys = Object.keys(env).filter(key => ownedKey.test(key));
+  // Vercel injects this public instrumentation setting into backend builds too.
+  const keys = Object.keys(env).filter(key => ownedKey.test(key) && key !== 'VITE_VERCEL_OBSERVABILITY_CLIENT_CONFIG');
   const forbidden = service === 'web'
     ? keys.filter(key => !key.startsWith('VITE_') && !['TG_PROFILE', 'TG_WEB_RPC_URL', 'TG_SOURCE_BRANCH'].includes(key))
     : service === 'read-api'
