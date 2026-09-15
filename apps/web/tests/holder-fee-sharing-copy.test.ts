@@ -25,13 +25,13 @@ test("docs separate holder eligibility, release timing and asset choices", () =>
     assert.ok(docs.includes(heading));
   }
   assert.doesNotMatch(docs, /How Does Holder Fee Sharing Work\?/);
-  assert.match(docs, /production starting minimum is 0\.5/i);
-  assert.match(docs, /trusted snapshot publisher records direct wallet balances for a funded distribution round/i);
+  assert.match(docs, /starting minimum is 0\.5/i);
+  assert.match(docs, /Holder rewards use periodic records of direct wallet balances/i);
   assert.match(docs, /LP and other indirect holdings are excluded/i);
-  assert.match(docs, /no on-chain conversion or fallback/i);
+  assert.match(docs, /without automatically exchanging one asset for another/i);
   assert.doesNotMatch(docs, /10–20 minutes/);
   assert.match(docs, /signature does not launch the token or approve asset spending/i);
   assert.match(docs, /emergency exit can return the full allocated Stock Token principal without waiting/i);
   assert.match(docs, /permanently forfeits every unclaimed paired-asset and created-token reward/i);
-  assert.match(docs, /no emergency exit button in the frontend/i);
+  assert.match(docs, /Emergency exit is not available through the app/i);
 });
