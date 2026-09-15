@@ -1,5 +1,6 @@
+import currentV4Abis_HolderRewardsDistributorV1 from '../generated/contracts/current/HolderRewardsDistributorV1.ts';
 import {encodeAbiParameters, keccak256, concat, toHex, type Address, type Hex} from 'viem';
-import {currentV4Abis} from '../generated/abis.ts';
+
 import {createContractWriteRequest} from '../transaction.ts';
 export const WALLET_SNAPSHOT_MODE = keccak256(toHex('TICKERGARDEN_HOLDER_WALLET_SNAPSHOT_V1'));
 const DOMAIN = keccak256(toHex('TICKERGARDEN_HOLDER_WALLET_SNAPSHOT_LEAF_V1'));
@@ -50,7 +51,7 @@ export function buildSnapshotClaim(id:SnapshotIdentity,r:HolderRound,assets:numb
  if(id.burnMemeFees && r.memeAmount!==0n)throw Error('Burn-mode holder snapshots must be Quote-only');
  if(![1,2,3].includes(assets)||(assets&remainingSnapshotAssets(r))!==assets)throw Error('Selected snapshot assets are unavailable');
  if(snapshotRoot(snapshotLeaf(id,r),r.proof)!==r.root)throw Error('Invalid snapshot proof');
- return createContractWriteRequest({abi:currentV4Abis.HolderRewardsDistributorV1,address:id.distributor,functionName:'claimSnapshot',args:[id.marketId,r.round,r.quoteAmount,r.memeAmount,assets,r.proof]});
+ return createContractWriteRequest({abi:currentV4Abis_HolderRewardsDistributorV1,address:id.distributor,functionName:'claimSnapshot',args:[id.marketId,r.round,r.quoteAmount,r.memeAmount,assets,r.proof]});
 }
 export async function fetchHolderSnapshots(baseUrl:string,id:SnapshotIdentity,signal:AbortSignal,cursor?:string):Promise<HolderSnapshotPage> {
  const url=new URL('/v1/holder-snapshots',baseUrl);for(const k of ['chainId','distributor','marketId','account'])url.searchParams.set(k,String(id[k as keyof SnapshotIdentity]).toLowerCase());if(cursor)url.searchParams.set('cursor',cursor);

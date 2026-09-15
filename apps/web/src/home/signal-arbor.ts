@@ -80,13 +80,23 @@ export async function mountArbor(stage: HTMLElement): Promise<() => void> {
   }
   // The highlight is an alpha stencil sampled from the actual branch pixels, not a redrawn tree.
   function branchLayer(points: readonly Point[]) {
-    const canvas = document.createElement('canvas'); canvas.width = width; canvas.height = height;
+    // Keep only the branch's raster bounds. Coordinates remain in the source artwork's
+    // space; the path is translated into the crop before the artwork is composited.
+    const strokePadding = width * 0.014 / 2 + 1;
+    const xs = points.map(([x]) => x * width), ys = points.map(([, y]) => y * height);
+    const x = Math.max(0, Math.floor(Math.min(...xs) - strokePadding));
+    const y = Math.max(0, Math.floor(Math.min(...ys) - strokePadding));
+    const right = Math.min(width, Math.ceil(Math.max(...xs) + strokePadding));
+    const bottom = Math.min(height, Math.ceil(Math.max(...ys) + strokePadding));
+    const w = right - x, h = bottom - y;
+    const canvas = document.createElement('canvas'); canvas.width = w; canvas.height = h;
     canvas.className = 'arbor-branch'; canvas.setAttribute('aria-hidden', 'true');
     const ctx = canvas.getContext('2d')!;
     ctx.lineWidth = width * 0.014; ctx.lineJoin = 'round'; ctx.lineCap = 'round';
-    ctx.beginPath(); points.forEach(([x,y],i) => i ? ctx.lineTo(x*width,y*height) : ctx.moveTo(x*width,y*height)); ctx.stroke();
-    ctx.globalCompositeOperation = 'source-in'; ctx.drawImage(artwork,0,0);
-    ctx.globalCompositeOperation = 'source-in'; ctx.fillStyle = getComputedStyle(stage).getPropertyValue('--lime').trim() || '#b9f31d'; ctx.fillRect(0,0,width,height);
+    ctx.beginPath(); points.forEach(([px,py],i) => i ? ctx.lineTo(px*width-x,py*height-y) : ctx.moveTo(px*width-x,py*height-y)); ctx.stroke();
+    ctx.globalCompositeOperation = 'source-in'; ctx.drawImage(artwork,x,y,w,h,0,0,w,h);
+    ctx.globalCompositeOperation = 'source-in'; ctx.fillStyle = getComputedStyle(stage).getPropertyValue('--lime').trim() || '#b9f31d'; ctx.fillRect(0,0,w,h);
+    Object.assign(canvas.style, { left: `${x / width * 100}%`, top: `${y / height * 100}%`, width: `${w / width * 100}%`, height: `${h / height * 100}%`, right: 'auto', bottom: 'auto' });
     art.append(canvas); nodes.push(canvas); return canvas;
   }
   const leaves = LEAVES.map(crop => {

@@ -1,6 +1,9 @@
+import v1Abis_TickerMemeTokenV1 from '../generated/contracts/legacy/TickerMemeTokenV1.ts';
+import v1Abis_UserStockVault from '../generated/contracts/legacy/UserStockVault.ts';
+import v1Abis_AllocationManager from '../generated/contracts/legacy/AllocationManager.ts';
 import { ROBINHOOD_CHAIN_ID } from "../chain.ts";
 import type { Address } from "viem";
-import { v1Abis } from "../generated/abis.ts";
+
 import { createContractWriteRequest, type ContractWriteRequest, type ReconciledSnapshot } from "../transaction.ts";
 import type { MarketReadModel, UserPositionReadModel } from "../generated/read-api.ts";
 
@@ -91,27 +94,21 @@ export function buildVaultView(market: MarketReadModel, position: UserPositionRe
 
 export function buildStockApproval(stockToken: Address, vault: Address, amount_: bigint): ContractWriteRequest {
   address(stockToken); address(vault); positive(amount_);
-  return createContractWriteRequest({ abi: v1Abis.TickerMemeTokenV1, address: stockToken, functionName: "approve", args: [vault, amount_] } as never);
+  return createContractWriteRequest({ abi: v1Abis_TickerMemeTokenV1, address: stockToken, functionName: "approve", args: [vault, amount_] } as never);
 }
-export function buildDeposit(vault: Address, assetUid: `0x${string}`, amount_: bigint) { address(vault); bytes32(assetUid); positive(amount_); return request(v1Abis.UserStockVault, vault, "depositStock", [assetUid, amount_]); }
-export function buildWithdraw(vault: Address, assetUid: `0x${string}`, amount_: bigint) { address(vault); bytes32(assetUid); positive(amount_); return request(v1Abis.UserStockVault, vault, "withdrawFreeStock", [assetUid, amount_]); }
-export function buildAllocate(manager: Address, marketId: `0x${string}`, amount_: bigint) { address(manager); bytes32(marketId); positive(amount_); return request(v1Abis.AllocationManager, manager, "allocate", [marketId, amount_]); }
+export function buildDeposit(vault: Address, assetUid: `0x${string}`, amount_: bigint) { address(vault); bytes32(assetUid); positive(amount_); return request(v1Abis_UserStockVault, vault, "depositStock", [assetUid, amount_]); }
+export function buildWithdraw(vault: Address, assetUid: `0x${string}`, amount_: bigint) { address(vault); bytes32(assetUid); positive(amount_); return request(v1Abis_UserStockVault, vault, "withdrawFreeStock", [assetUid, amount_]); }
+export function buildAllocate(manager: Address, marketId: `0x${string}`, amount_: bigint) { address(manager); bytes32(marketId); positive(amount_); return request(v1Abis_AllocationManager, manager, "allocate", [marketId, amount_]); }
 
-export function buildCloseAllocation(manager: Address, marketId: `0x${string}`) { address(manager); bytes32(marketId); return request(v1Abis.AllocationManager, manager, "closeAllocation", [marketId]); }
-export function buildRageQuit(manager: Address, marketId: `0x${string}`) { address(manager); bytes32(marketId); return request(v1Abis.AllocationManager, manager, "rageQuit", [marketId]); }
-export function buildDirectRageQuit(vault: Address, assetUid: `0x${string}`, marketId: `0x${string}`) { address(vault); bytes32(assetUid); bytes32(marketId); return request(v1Abis.UserStockVault, vault, "rageQuit", [assetUid, marketId]); }
-export function buildSettleRageQuitRewards(manager: Address, marketId: `0x${string}`, user: Address) { address(manager); bytes32(marketId); address(user); return request(v1Abis.AllocationManager, manager, "settleRageQuitRewards", [marketId, user]); }
-export function buildDepositAndAllocate(manager: Address, marketId: `0x${string}`, deposit: bigint, allocation: bigint) { address(manager); bytes32(marketId); positive(deposit); positive(allocation); return request(v1Abis.AllocationManager, manager, "depositAndAllocate", [marketId, deposit, allocation]); }
+export function buildCloseAllocation(manager: Address, marketId: `0x${string}`) { address(manager); bytes32(marketId); return request(v1Abis_AllocationManager, manager, "closeAllocation", [marketId]); }
+export function buildRageQuit(manager: Address, marketId: `0x${string}`) { address(manager); bytes32(marketId); return request(v1Abis_AllocationManager, manager, "rageQuit", [marketId]); }
+export function buildDirectRageQuit(vault: Address, assetUid: `0x${string}`, marketId: `0x${string}`) { address(vault); bytes32(assetUid); bytes32(marketId); return request(v1Abis_UserStockVault, vault, "rageQuit", [assetUid, marketId]); }
+export function buildSettleRageQuitRewards(manager: Address, marketId: `0x${string}`, user: Address) { address(manager); bytes32(marketId); address(user); return request(v1Abis_AllocationManager, manager, "settleRageQuitRewards", [marketId, user]); }
+export function buildDepositAndAllocate(manager: Address, marketId: `0x${string}`, deposit: bigint, allocation: bigint) { address(manager); bytes32(marketId); positive(deposit); positive(allocation); return request(v1Abis_AllocationManager, manager, "depositAndAllocate", [marketId, deposit, allocation]); }
 
 
 /** Wallet-funded market entry; no reuse of free Vault principal. */
-export function buildStake(manager: Address, marketId: `0x${string}`, amount_: bigint) { address(manager); bytes32(marketId); positive(amount_); return request(v1Abis.AllocationManager, manager, "stake", [marketId, amount_]); }
-export function buildUnstakeAndWithdraw(manager: Address, marketId: `0x${string}`) { address(manager); bytes32(marketId); return request(v1Abis.AllocationManager, manager, "unstakeAndWithdraw", [marketId]); }
+export function buildStake(manager: Address, marketId: `0x${string}`, amount_: bigint) { address(manager); bytes32(marketId); positive(amount_); return request(v1Abis_AllocationManager, manager, "stake", [marketId, amount_]); }
+export function buildUnstakeAndWithdraw(manager: Address, marketId: `0x${string}`) { address(manager); bytes32(marketId); return request(v1Abis_AllocationManager, manager, "unstakeAndWithdraw", [marketId]); }
 
-export function validateMarketStake(amount_: bigint, walletBalance: bigint, currentStake: bigint, minimum: bigint): void {
-  positive(amount_);
-  if (walletBalance < 0n || currentStake < 0n || minimum <= 0n) throw new TypeError("invalid staking state");
-  if (amount_ > walletBalance) throw new RangeError("Stake exceeds your wallet STOCK balance");
-  if (currentStake + amount_ > MAX_UINT256) throw new RangeError("Total stake exceeds uint256");
-  if (currentStake + amount_ < minimum) throw new RangeError("Resulting stake is below the market minimum");
-}
+export {validateMarketStake} from "./stake-validation.ts";

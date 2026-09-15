@@ -15,3 +15,22 @@
 .stats-stock-search{width:100%;padding:10px 12px;border:1px solid #c8d4c8;border-radius:8px;background:transparent;font:inherit;margin-bottom:12px}.stats-stock-toggle{margin-top:12px;padding:8px 14px;border:1px solid #c8d4c8;border-radius:8px;background:transparent;color:inherit;cursor:pointer}.stats-valuation-note,[data-stats-staking-updated]{font-size:12px;color:#577266;line-height:1.5}
 
 .stats-page [data-stats-refresh]{display:inline-flex;align-items:center;padding:8px 14px;border:1px solid #c8d4c8;border-radius:8px;background:transparent;color:var(--ink);font:inherit;font-size:12px;font-weight:600;cursor:pointer;margin:0 0 12px}.stats-page [data-stats-refresh]:disabled{opacity:.5;cursor:wait}
+
+.stats-page .stats-heading{align-items:flex-start;justify-content:space-between;gap:24px}
+.stats-refresh-area{max-width:620px;margin-left:auto;text-align:right}
+.stats-refresh-row{display:flex;justify-content:flex-end;align-items:center;gap:18px}
+.stats-page .stats-refresh-row p{font-size:var(--text-support);color:var(--muted);line-height:1.5;margin:0}
+.stats-page .stats-refresh-row [data-stats-refresh]{margin:0;min-height:var(--control-height);border-radius:var(--control-radius);font-size:14px;flex:none}
+.stats-refresh-area .page-status{font-size:var(--text-support);padding:8px 0;margin:6px 0 0;border:0;background:transparent;box-shadow:none}
+.stats-page .stats-grid{grid-template-columns:repeat(4,minmax(0,1fr));gap:16px}
+.stats-page .stat-card-primary{grid-column:span 2;padding:26px;background:var(--paper);border-top:3px solid var(--green)}
+.stats-page .stat-card-primary strong{font-size:36px}
+.stats-page .stat-card:not(.stat-card-primary){background:transparent;box-shadow:none}
+.stats-page .stat-card strong{font-variant-numeric:tabular-nums}
+.stats-page .stat-card>div span,.stats-page :is(.stats-unit,.stats-asset-label,.stats-fee-row,.stats-empty){font-size:var(--text-support);color:var(--muted)}
+.stats-page .stat-card i{color:var(--icon-readable)}
+.stats-page .stats-distribution-value strong{font-size:15px}
+.stats-page .stats-distribution-value small{font-size:12px;color:var(--muted)}
+@media(max-width:800px){.stats-page .stats-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.stats-page .stat-card-primary{grid-column:auto}.stats-page .stats-heading{flex-wrap:wrap}.stats-refresh-area{margin-left:0;text-align:left}.stats-refresh-row{justify-content:flex-start;flex-wrap:wrap}}
+@media(max-width:640px){.stats-page .stat-card-primary{padding:18px}.stats-page .stat-card-primary strong{font-size:28px}.stats-refresh-row{gap:12px}.stats-page .stats-heading{display:block}.stats-refresh-area{margin-top:16px}}
+.stats-page .stat-card>div i{color:var(--icon-readable)}

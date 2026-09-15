@@ -2,6 +2,7 @@ export type ConnectionBudgetService = {
   name: string;
   instances: number;
   poolMax: number;
+  rollingInstances?: number;
   extraConnections?: number;
 };
 
@@ -44,7 +45,8 @@ export function evaluateConnectionBudget(input: ConnectionBudgetInput): Connecti
     const poolMax = requireCount(service.poolMax, `${service.name}.poolMax`);
     const extra = requireCount(service.extraConnections ?? 0, `${service.name}.extraConnections`);
     if (instances < 1 || poolMax < 1) throw new Error(`${service.name} instances and poolMax must be at least 1`);
-    used += BigInt(instances) * (BigInt(poolMax) + BigInt(extra));
+    const rolling = requireCount(service.rollingInstances ?? 0, `${service.name}.rollingInstances`);
+    used += (BigInt(instances) + BigInt(rolling)) * (BigInt(poolMax) + BigInt(extra));
   }
   const available = BigInt(max - reserved);
   if (used > available) throw new Error(`connection budget exceeded: used ${used}, available ${available}`);
@@ -75,7 +77,7 @@ export function connectionRoleLimitsSql(input:ConnectionBudgetInput, roles:Reado
   for(const service of input.services){
     const role=roles[service.name];
     if(!role||!/^[a-z][a-z0-9_]{0,62}$/.test(role))throw Error(`missing or invalid database role for ${service.name}`);
-    totals.set(role,(totals.get(role)??0)+service.instances*(service.poolMax+(service.extraConnections??0)));
+    totals.set(role,(totals.get(role)??0)+(service.instances+(service.rollingInstances??0))*(service.poolMax+(service.extraConnections??0)));
   }
   return [...totals].sort(([a],[b])=>a.localeCompare(b)).map(([role,limit])=>`ALTER ROLE "${role}" CONNECTION LIMIT ${limit};`).join('\n');
 }

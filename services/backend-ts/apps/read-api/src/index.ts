@@ -1,4 +1,5 @@
 import {readProtocolStatistics} from '../../../packages/statistics-store/src/snapshot.ts';
+import { createHash } from 'node:crypto';
 import { sharedStatistics } from './statistics-cache.ts';
 import { createReadAdmission } from './read-admission.ts';
 import { readHolderSnapshots } from '../../../packages/read-store/src/holder-snapshots.ts';
@@ -234,9 +235,12 @@ export function createReadApiApp(options: ReadApiOptions = {}) {
       const query = context.req.query(); rejectUnknown(query, ['from', 'to', 'limit', 'cursor']);
       const marketId = parseMarketId(context.req.param('marketId'));
       if (query.from === undefined || query.to === undefined) throw new Error('invalid trade window');
-      return context.json(await readMarketTrades({ pool: pool(), deployment, marketId, from: parseTimestamp(query.from), to: parseTimestamp(query.to),
+      const from = parseTimestamp(query.from), to = parseTimestamp(query.to);
+      if (from >= to) throw new Error('invalid trade window');
+      const readKey = analyticsReadKey('trades', context, deployment, marketId);
+      return context.json(await shareRead(readKey, () => readMarketTrades({ pool: pool(), deployment, marketId, from, to,
         limit: query.limit ? parseLimit(query.limit) : 50, secret: cursorSecret, ...(query.cursor ? { cursor: query.cursor } : {}),
-        ...(schemaName ? { schemaName } : {}) }));
+        ...(schemaName ? { schemaName } : {}) })));
     } catch (error) { return analyticsError(context, error, 'trade'); }
   });
 
@@ -244,18 +248,22 @@ export function createReadApiApp(options: ReadApiOptions = {}) {
     try {
       const query = context.req.query(); rejectUnknown(query, ['interval', 'from', 'to']);
       if (query.interval === undefined || query.from === undefined || query.to === undefined) throw new Error('invalid candle query');
-      return context.json(await readMarketCandles({ pool: pool(), deployment, marketId: parseMarketId(context.req.param('marketId')),
-        interval: parseInterval(query.interval), from: parseTimestamp(query.from), to: parseTimestamp(query.to),
-        ...(schemaName ? { schemaName } : {}) }));
+      const marketId = parseMarketId(context.req.param('marketId'));
+      const interval = parseInterval(query.interval), from = parseTimestamp(query.from), to = parseTimestamp(query.to);
+      return context.json(await shareRead(analyticsReadKey('candles', context, deployment, marketId), () => readMarketCandles({ pool: pool(), deployment, marketId,
+        interval, from, to,
+        ...(schemaName ? { schemaName } : {}) })));
     } catch (error) { return analyticsError(context, error, 'candle'); }
   });
 
   app.get('/v1/markets/:marketId/holders', async (context) => {
     try {
       const query = context.req.query(); rejectUnknown(query, ['limit', 'cursor']);
-      return context.json(await readMarketHolders({ pool: pool(), deployment, marketId: parseMarketId(context.req.param('marketId')),
-        limit: query.limit ? parseLimit(query.limit) : 50, secret: cursorSecret, ...(query.cursor ? { cursor: query.cursor } : {}),
-        ...(schemaName ? { schemaName } : {}) }));
+      const marketId = parseMarketId(context.req.param('marketId'));
+      const limit = query.limit ? parseLimit(query.limit) : 50;
+      return context.json(await shareRead(analyticsReadKey('holders', context, deployment, marketId), () => readMarketHolders({ pool: pool(), deployment, marketId,
+        limit, secret: cursorSecret, ...(query.cursor ? { cursor: query.cursor } : {}),
+        ...(schemaName ? { schemaName } : {}) })));
     } catch (error) { return analyticsError(context, error, 'holder'); }
   });
 
@@ -264,9 +272,10 @@ export function createReadApiApp(options: ReadApiOptions = {}) {
       const query = context.req.query(); rejectUnknown(query, ['period','section']);
       if(query.section!==undefined&&query.section!=='activity')throw new Error('invalid detail section');
       const period = query.period ?? '1D'; if (period !== '1H' && period !== '12H' && period !== '1D') throw new Error('invalid detail period');
-      return context.json(await readTokenDetail({ pool: pool(), deployment, marketId: parseMarketId(context.req.param('marketId')), period,
+      const marketId = parseMarketId(context.req.param('marketId'));
+      return context.json(await shareRead(analyticsReadKey('detail', context, deployment, marketId), () => readTokenDetail({ pool: pool(), deployment, marketId, period,
         ...(query.section==='activity'?{section:'activity' as const}:{}),
-        ...(schemaName ? { schemaName } : {}) }));
+        ...(schemaName ? { schemaName } : {}) })));
     } catch (error) { return analyticsError(context, error, 'candle'); }
   });
 
@@ -356,8 +365,16 @@ async function transactionError(context: Context, error: unknown) {
 function rejectUnknown(query: Record<string, string>, allowed: readonly string[]): void {
   for (const key of Object.keys(query)) if (!allowed.includes(key)) throw new Error(`invalid query parameter: ${key}`);
 }
+export function analyticsReadKey(kind: string, context: Pick<Context, 'req'>, deployment: DeploymentIdentity, marketId: string): string {
+  const query = context.req.query();
+  const orderedQuery = Object.keys(query).sort().map(key => [key, query[key]]);
+  // Keep identity in the key even when the current route is public: deployments may
+  // add authenticated views later, and a request must never join another user's read.
+  const identity = createHash('sha256').update([context.req.header('authorization') ?? '', context.req.header('x-user-address') ?? ''].join('\0')).digest('hex');
+  return `analytics:${kind}:${JSON.stringify({ deployment: [deployment.environment, deployment.chainId, deployment.deploymentDigest, String(deployment.activationBlock)], marketId, query: orderedQuery, identity })}`;
+}
 function parsePhase(value: string): 0 | 1 { if (value === '0') return 0; if (value === '1') return 1; throw new Error('invalid launchPhase'); }
-function parseLimit(value: string): number { if (!/^[1-9][0-9]*$/.test(value)) throw new Error('invalid limit'); return Number(value); }
+function parseLimit(value: string): number { if (!/^[1-9][0-9]*$/.test(value)) throw new Error('invalid limit'); const result = Number(value); if (!Number.isSafeInteger(result) || result > 100) throw new Error('invalid limit'); return result; }
 function parseSort(value: string): NonNullable<MarketPageFilter['sort']> {
   const values: NonNullable<MarketPageFilter['sort']>[] = ['marketId_asc', 'marketId_desc', 'createdAt_asc', 'createdAt_desc', 'name_asc', 'launchPhase_asc', 'volume24hUsd_desc', 'marketCapUsd_desc', 'recentBuy_desc'];
   if (!values.includes(value as never)) throw new Error('invalid sort');

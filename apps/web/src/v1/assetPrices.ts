@@ -82,7 +82,7 @@ export function parseAssetPriceSnapshot(payload: unknown, chainId: number, now =
 
 export function createAssetPriceStore(options: { baseUrl: string | null; chainId: number; fetcher?: typeof fetch; pollIntervalMs?: number }) {
   const listeners = new Set<Listener>(); const fetcher = options.fetcher ?? fetch; const pollInterval = options.pollIntervalMs ?? 60_000;
-  let snapshot = parseAssetPriceSnapshot(null, options.chainId); let pending: Promise<void> | null = null; let stopped = false;
+  let snapshot = parseAssetPriceSnapshot(null, options.chainId); let pending: Promise<void> | null = null; let stopped = false; let active = false; let lastRequestAt = 0;
   let pollTimer: ReturnType<typeof setInterval> | undefined; let expiryTimer: ReturnType<typeof setTimeout> | undefined;
   const notify = () => listeners.forEach(listener => listener(snapshot));
   const scheduleExpiry = () => {
@@ -96,6 +96,7 @@ export function createAssetPriceStore(options: { baseUrl: string | null; chainId
   };
   const refresh = (): Promise<void> => {
     if (stopped || !options.baseUrl) return Promise.resolve(); if (pending) return pending;
+    lastRequestAt = Date.now();
     const client = new TickerGardenV1Client(options.baseUrl, (input, init) => fetcher(input, { ...init, signal: AbortSignal.timeout(8_000) }));
     pending = client.listDisplayPriceReferences().then(value => { if (stopped) return;
       if (!value || value.chainId !== options.chainId || value.displayOnly !== true || value.confidence !== 'provider_reported' || value.status !== 'configured' || !Array.isArray(value.references)) throw new Error('invalid asset price catalog');
@@ -103,16 +104,17 @@ export function createAssetPriceStore(options: { baseUrl: string | null; chainId
       if (JSON.stringify(next) !== JSON.stringify(snapshot)) { snapshot = next; notify(); scheduleExpiry(); } }).catch(() => { /* Keep unexpired cached values. */ }).finally(() => { pending = null; });
     return pending;
   };
-  const start = () => { if (stopped || pollTimer) return; void refresh(); pollTimer = setInterval(() => { if (typeof document === 'undefined' || document.visibilityState === 'visible') void refresh(); }, pollInterval); };
-  const resume = () => { if (typeof navigator === 'undefined' || navigator.onLine) void refresh(); };
-  if (typeof window !== 'undefined') { window.addEventListener('pageshow', resume); window.addEventListener('online', resume); }
+  const start = () => { if (stopped || pollTimer) return; active = true; void refresh(); pollTimer = setInterval(() => { if (typeof document === 'undefined' || document.visibilityState === 'visible') void refresh(); }, pollInterval); };
+  const resume = () => { if (active && Date.now() - lastRequestAt >= 1000 && (typeof document === 'undefined' || document.visibilityState === 'visible') && (typeof navigator === 'undefined' || navigator.onLine)) void refresh(); };
+  if (typeof window !== 'undefined') { window.addEventListener('pageshow', resume); window.addEventListener('online', resume); if(typeof document!=='undefined')document.addEventListener('visibilitychange',resume); }
   return {
     start, refresh,
+    pause() { active = false; clearInterval(pollTimer); pollTimer = undefined; },
     snapshot: () => snapshot,
     get(token: string | null | undefined): AssetPrice | null { const key = token?.toLowerCase(); return key && ADDRESS.test(key) ? snapshot.prices[key] ?? null : null; },
     midpointUsd(token: string | null | undefined): string | null { const key = token?.toLowerCase(); const price = key && ADDRESS.test(key) ? snapshot.prices[key] : null; return price?.status === 'available' ? price.midpointUsd : null; },
     subscribe(listener: Listener) { listeners.add(listener); listener(snapshot); return () => listeners.delete(listener); },
-    stop() { stopped = true; clearInterval(pollTimer); clearTimeout(expiryTimer); listeners.clear(); if (typeof window !== 'undefined') { window.removeEventListener('pageshow', resume); window.removeEventListener('online', resume); } },
+    stop() { stopped = true; clearInterval(pollTimer); clearTimeout(expiryTimer); listeners.clear(); if (typeof window !== 'undefined') { window.removeEventListener('pageshow', resume); window.removeEventListener('online', resume); if(typeof document!=='undefined')document.removeEventListener('visibilitychange',resume); } },
   };
 }
 

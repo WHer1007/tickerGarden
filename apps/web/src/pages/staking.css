@@ -191,3 +191,12 @@ main.staking-page,.staking-page .stake-content{border:0;outline:0;box-shadow:non
 .staking-page [data-stake-fees]{white-space:pre-line}
 
 .staking-page [data-staker-earned],.staking-page [data-staker-claimed]{white-space:pre-line;overflow-wrap:anywhere}
+
+.staking-page[data-wallet-connected=false] .stake-sidebar{background:transparent;border-color:transparent;box-shadow:none}
+.staking-page[data-wallet-connected=false] .stake-sidebar h1{font-size:15px;color:var(--muted)}
+.staking-page[data-wallet-connected=false] .stake-sidebar>:not(h1){display:none}
+.staking-page[data-wallet-connected=false] .stake-toolbar{display:none}
+.staking-page .stake-portfolio-empty__copy p{font-size:var(--text-body);color:var(--muted);line-height:1.6}
+.staking-page .stake-portfolio-empty__eyebrow{font-size:var(--text-support);color:var(--muted)}
+@media(max-width:640px){.staking-page[data-wallet-connected=false] .stake-sidebar{display:none}}
+.staking-page [data-stake-empty-action]{margin-top:20px}

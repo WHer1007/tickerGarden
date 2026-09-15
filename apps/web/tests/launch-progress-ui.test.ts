@@ -2,9 +2,9 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import test from 'node:test';
 
-const dialog = readFileSync(new URL('../src/create/launch-progress-dialog.ts', import.meta.url), 'utf8');
-const styles = readFileSync(new URL('../src/create/launch-progress.css', import.meta.url), 'utf8');
-const app = readFileSync(new URL('../src/app.ts', import.meta.url), 'utf8');
+const dialog = readFileSync(new URL('../src/create/launch-progress-dialog.ts', import.meta.url), 'utf8').replace(/\bctx\./g,'');
+const styles = readFileSync(new URL('../src/create/launch-progress.css', import.meta.url), 'utf8').replace(/\bctx\./g,'');
+const app = readFileSync(new URL('../src/controllers/create.ts', import.meta.url), 'utf8').replace(/\bctx\./g,'');
 
 test('launch progress gives completed and current stages distinct icons', () => {
   assert.match(dialog, /ph ph-check-circle/);

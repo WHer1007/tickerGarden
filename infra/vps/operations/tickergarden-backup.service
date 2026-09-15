@@ -1,0 +1,12 @@
+[Unit]
+Description=TickerGarden independent PostgreSQL backup
+After=network-online.target
+[Service]
+Type=oneshot
+User=tickergarden
+EnvironmentFile=/etc/tickergarden/backup.env
+ExecStart=/opt/tickergarden-source/infra/vps/operations/backup-postgres.sh
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true

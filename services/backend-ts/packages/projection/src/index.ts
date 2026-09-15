@@ -228,7 +228,7 @@ export async function invalidateOrphanedPublications(input: {
   });
 }
 
-async function assertPublishableAnchor(client: PoolClient, schema: string, input: PublishProjectionInput): Promise<void> {
+export async function assertPublishableAnchor(client: PoolClient, schema: string, input: PublishProjectionInput): Promise<void> {
   const anchor = await client.query<{ canonical: boolean; finalized: boolean }>(
     `SELECT canonical,finalized FROM ${schema}.chain_blocks WHERE environment=$1 AND chain_id=$2 AND deployment_digest=$3 AND number=$4 AND hash=$5`,
     [input.deployment.environment, input.deployment.chainId, input.deployment.deploymentDigest, input.blockNumber.toString(), input.blockHash],

@@ -1,5 +1,6 @@
+import v1Abis_TickerGardenCurve from './generated/contracts/legacy/TickerGardenCurve.ts';
 import {decodeEventLog,formatUnits,toEventSelector,type Hex} from 'viem';
-import {v1Abis} from './generated/abis.ts';
+
 import {poolSwapAbi} from './poolTrade.ts';
 import type {MarketReadModel,TokenDetailTrade} from './generated/read-api.ts';
 type TradeLog={address:string;topics:readonly Hex[];data:Hex;transactionHash:Hex;logIndex:number};
@@ -7,7 +8,7 @@ export function decodeRecentTrade(log:TradeLog,market:MarketReadModel,decimals:n
  try{
   let side:'buy'|'sell',meme:bigint,quote:bigint,actor:Hex;
   if(log.address.toLowerCase()===market.curve.toLowerCase()){
-   const event=decodeEventLog({abi:v1Abis.TickerGardenCurve,topics:log.topics as [Hex,...Hex[]],data:log.data});
+   const event=decodeEventLog({abi:v1Abis_TickerGardenCurve,topics:log.topics as [Hex,...Hex[]],data:log.data});
    if(event.eventName==='CurveBuy'){side='buy';meme=event.args.tokensOut;quote=event.args.quoteIn;actor=event.args.buyer;}
    else if(event.eventName==='CurveSell'){side='sell';meme=event.args.tokensIn;quote=event.args.quoteOut;actor=event.args.seller;}
    else return null;
@@ -67,7 +68,7 @@ export async function explorerRecentTrades(explorer:string,market:MarketReadMode
 
 export function curveVolumeAmount(log:{topics:readonly Hex[];data:Hex}):bigint|null{
  if(![toEventSelector('CurveBuy(address,address,uint256,uint256,uint256,uint256)'),toEventSelector('CurveSell(address,address,uint256,uint256,uint256,uint256)')].includes(log.topics[0]!))return null;
- const event=decodeEventLog({abi:v1Abis.TickerGardenCurve,topics:log.topics as [Hex,...Hex[]],data:log.data});
+ const event=decodeEventLog({abi:v1Abis_TickerGardenCurve,topics:log.topics as [Hex,...Hex[]],data:log.data});
  if(event.eventName==='CurveBuy')return event.args.quoteIn-event.args.fee-event.args.tax;
  if(event.eventName==='CurveSell')return event.args.quoteOut+event.args.fee+event.args.tax;
  return null;

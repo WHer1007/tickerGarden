@@ -16,8 +16,8 @@ for (const key of required) if (!process.env[key]) throw new Error(`${key} is re
 if (process.env.TG_ENVIRONMENT !== 'test') throw new Error('chain event relay is test-only');
 
 const filter = parseEventFilter(JSON.parse(await readFile(new URL('../filter.json', import.meta.url), 'utf8')));
-const relayPool = new PgPool({ connectionString: process.env.CHAIN_RELAY_DATABASE_URL, max: 4, connectionTimeoutMillis: 5_000 });
-const sourcePool = new PgPool({ connectionString: process.env.CHAIN_SOURCE_DATABASE_URL, max: 2, connectionTimeoutMillis: 5_000 });
+const relayPool = new PgPool({ connectionString: process.env.CHAIN_RELAY_DATABASE_URL, max: positiveInteger(process.env.TG_DB_POOL_MAX_CHAIN_RELAY??'4',1,10), connectionTimeoutMillis: 5_000 });
+const sourcePool = new PgPool({ connectionString: process.env.CHAIN_SOURCE_DATABASE_URL, max: positiveInteger(process.env.TG_DB_POOL_MAX_CHAIN_RELAY_SOURCE??'2',1,10), connectionTimeoutMillis: 5_000 });
 for(const pool of [relayPool,sourcePool])pool.on('error',(error:Error&{code?:string})=>console.error(JSON.stringify({event:'chain_relay_idle_database_error',code:error.code??'unknown'})));
 const queueUrl = cleanUrl(process.env.CHAIN_RELAY_QUEUE_URL!);
 const destination = new URL(process.env.CHAIN_RELAY_DESTINATION!);
@@ -50,7 +50,7 @@ const healthServer = createServer(async (request, response) => {
     );
     const healthy = ready && lastError === null && (counts.rows[0]?.dead??0)===0 && (counts.rows[0]?.oldest_pending_seconds??0)<300;
     response.writeHead(healthy ? 200 : 503, { 'content-type': 'application/json', 'cache-control': 'no-store' });
-    response.end(JSON.stringify({ ok: healthy, mode: 'filtered-logs', activeSources, activePools, subscriptions: subscriptionIds.length, reconnects,
+    response.end(JSON.stringify({ ok: healthy, release: await releaseIdentity(), mode: 'filtered-logs', activeSources, activePools, subscriptions: subscriptionIds.length, reconnects,
       pending: counts.rows[0]?.pending ?? 0, dead: counts.rows[0]?.dead ?? 0, oldestPendingSeconds:counts.rows[0]?.oldest_pending_seconds??0,publishConcurrency,lastError }));
   } catch {
     response.writeHead(503, { 'content-type': 'application/json' }).end(JSON.stringify({ ok: false }));
@@ -386,3 +386,8 @@ function sqlIdentifier(value: string): string { if (!/^[a-z][a-z0-9_]{0,62}$/.te
 function hexQuantity(value: bigint): `0x${string}` { return `0x${value.toString(16)}`; }
 function minimumBirthBlock(sources: readonly { readonly birthBlock: bigint }[]): bigint { return sources.reduce((minimum, source) => source.birthBlock < minimum ? source.birthBlock : minimum, sources[0]!.birthBlock); }
 function delay(ms: number): Promise<void> { return new Promise((resolve) => setTimeout(resolve, ms)); }
+
+async function releaseIdentity(){
+ const schema=(await relayPool.query<{digest:string;n:number}>(`SELECT md5(string_agg(table_name||':'||column_name||':'||data_type||':'||is_nullable,',' ORDER BY table_name,ordinal_position)) digest,count(DISTINCT table_name)::int n FROM information_schema.columns WHERE table_schema='public' AND table_name=ANY($1::text[])`,[["chain_relay_events", "chain_relay_batches", "chain_relay_state"]])).rows[0];
+ return {commit:/^[0-9a-f]{40}$/.test(process.env.TG_RELEASE_COMMIT??'')?process.env.TG_RELEASE_COMMIT:null,imageDigest:/^sha256:[0-9a-f]{64}$/.test(process.env.TG_IMAGE_DIGEST??'')?process.env.TG_IMAGE_DIGEST:null,schemaDigest:schema?.n===3?schema.digest:null};
+}

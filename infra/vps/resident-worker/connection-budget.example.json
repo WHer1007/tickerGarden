@@ -4,43 +4,51 @@
   "services": [
     {
       "name": "read-api",
-      "instances": 8,
-      "poolMax": 4
+      "instances": 4,
+      "poolMax": 3,
+      "rollingInstances": 4
     },
     {
       "name": "pipeline",
-      "instances": 2,
-      "poolMax": 4
+      "instances": 1,
+      "poolMax": 3,
+      "rollingInstances": 1
     },
     {
       "name": "content",
-      "instances": 2,
-      "poolMax": 4
+      "instances": 1,
+      "poolMax": 2,
+      "rollingInstances": 1
     },
     {
       "name": "resident-worker",
       "instances": 1,
-      "poolMax": 4
+      "poolMax": 3,
+      "rollingInstances": 1
     },
     {
       "name": "resident-control",
       "instances": 1,
-      "poolMax": 1
+      "poolMax": 1,
+      "rollingInstances": 1
     },
     {
       "name": "chain-relay",
       "instances": 1,
-      "poolMax": 4
+      "poolMax": 2,
+      "rollingInstances": 1
     },
     {
       "name": "chain-relay-source",
       "instances": 1,
-      "poolMax": 2
+      "poolMax": 1,
+      "rollingInstances": 1
     },
     {
       "name": "queue-relay",
       "instances": 1,
-      "poolMax": 4
+      "poolMax": 2,
+      "rollingInstances": 1
     }
   ]
 }

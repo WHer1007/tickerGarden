@@ -1,5 +1,6 @@
+import v1Abis_ProtocolFeeVault from './generated/contracts/legacy/ProtocolFeeVault.ts';
 import { decodeEventLog, formatUnits, toEventSelector, type Hex } from 'viem';
-import { v1Abis } from './generated/abis.ts';
+
 import type { MarketReadModel, TokenDetailFee } from './generated/read-api.ts';
 
 export type Context = { apiBase: string; market: MarketReadModel; decimals: number; feeVault: Hex; poolManager?: Hex };
@@ -18,7 +19,7 @@ function feeRows(logs: readonly { topics: Hex[]; data: Hex }[], id: Hex): TokenD
   const signatures = ['CurveFeesSwept(bytes32,uint32,address,uint64,bytes32,uint256,uint256,uint256)', 'FeeBucketsCredited(bytes32,uint32,address,bytes32,uint256,uint256,uint256,uint256)', 'HolderFeesAccrued(bytes32,uint32,address,uint256)'].map(toEventSelector);
   for (const log of logs) {
     if (!signatures.includes(log.topics[0]!)) continue;
-    const event = decodeEventLog({ abi: v1Abis.ProtocolFeeVault, topics: log.topics as [Hex, ...Hex[]], data: log.data });
+    const event = decodeEventLog({ abi: v1Abis_ProtocolFeeVault, topics: log.topics as [Hex, ...Hex[]], data: log.data });
     if (!('marketId' in event.args) || event.args.marketId.toLowerCase() !== id.toLowerCase()) throw Error('Wrong fee market');
     const add = (recipient: TokenDetailFee['recipient'], asset: Hex, amount: bigint) => {
       const key = `${recipient}:${asset.toLowerCase()}`;

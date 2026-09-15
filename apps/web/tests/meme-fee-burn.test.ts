@@ -44,8 +44,8 @@ test("draft persistence keeps the burn flag", () => {
 });
 
 test("Create has exactly one burn switch inside Advanced and a separate LP fee choice", () => {
-  const source = readFileSync(new URL("../src/pages/create.ts", import.meta.url), "utf8");
-  const app = readFileSync(new URL("../src/app.ts", import.meta.url), "utf8");
+  const source = readFileSync(new URL("../src/pages/create.ts", import.meta.url), "utf8").replace(/\bctx\./g,'');
+  const app = readFileSync(new URL("../src/controllers/create.ts", import.meta.url), "utf8").replace(/\bctx\./g,'');
   assert.equal((source.match(/name="burnMemeFees"/g) ?? []).length, 1);
   const advanced = source.slice(source.indexOf('<details class="launch-advanced">'), source.indexOf('</details>', source.indexOf('<details class="launch-advanced">')));
   assert.match(advanced, /name="burnMemeFees"/);
@@ -57,7 +57,7 @@ test("Create has exactly one burn switch inside Advanced and a separate LP fee c
 });
 
 test('Create fee summaries stay concise at review time', () => {
-  const app = readFileSync(new URL('../src/app.ts', import.meta.url), 'utf8');
+  const app = readFileSync(new URL('../src/controllers/create.ts', import.meta.url), 'utf8').replace(/\bctx\./g,'');
   assert.doesNotMatch(app, /ETH allowance/);
   const review = app.slice(app.indexOf('async function submitLaunch'), app.indexOf('async function performLaunch'));
   assert.match(review, /\['LP Fee',`\$\{[^\n]+\}%`\]/);

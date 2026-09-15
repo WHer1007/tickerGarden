@@ -3,7 +3,7 @@ import { feePreviewTable } from '../create/fee-preview.ts';
 export default {
   title: 'Launch a token — TickerGarden',
   html: `
-<main class="page">
+<main class="page create-page">
       <section class="panel listing-package" data-listing-package aria-label="Created token information" hidden></section>
       <div class="create-layout">
         <form class="panel launch-form" data-create-form>
@@ -12,14 +12,17 @@ export default {
             <div class="fields">
               <label class="field" for="market-name"><span>Name</span><input id="market-name" name="name" maxlength="64" placeholder="Token name" required /></label>
               <label class="field" for="market-symbol"><span>Ticker</span><input id="market-symbol" name="symbol" maxlength="16" pattern="[A-Za-z0-9]{1,16}" placeholder="SYMBOL" required /></label>
-              <label class="field full" for="description"><span>Description <small>Optional</small></span><textarea id="description" name="description" maxlength="300" aria-describedby="description-count" placeholder="Tell your community about your token." rows="3"></textarea><small id="description-count" data-description-count>0 / 300</small></label>
+
               <label class="field full upload-field" for="token-image"><span>Token image</span><span class="upload-surface"><i data-upload-icon class="ph ph-image-square" aria-hidden="true"></i><img data-upload-thumbnail alt="Selected token image" hidden /><span class="upload-copy"><strong data-upload-title>Choose an image</strong><small data-upload-info>PNG, JPG or WebP · up to 2 MB</small><small data-upload-action hidden>Click to replace image</small></span></span><input id="token-image" name="tokenImage" type="file" required accept="image/png,image/jpeg,image/webp" /><small data-image-status role="status"></small></label>
+              <details class="optional-token-details field full"><summary>Description & social links <span>Optional</span></summary><div class="fields">
+              <label class="field full" for="description"><span>Description <small>Optional</small></span><textarea id="description" name="description" maxlength="300" aria-describedby="description-count" placeholder="Tell your community about your token." rows="3"></textarea><small id="description-count" data-description-count>0 / 300</small></label>
               <label class="field" for="x-profile"><span>X profile <small>Optional</small></span><input id="x-profile" name="x" placeholder="x.com/handle" maxlength="100" /></label>
               <label class="field" for="website"><span>Website <small>Optional</small></span><input id="website" name="website" type="url" placeholder="https://yourwebsite.com" maxlength="512" /></label>
+</div></details>
             </div>
           </section>
           <section class="form-section">
-            <h2>Plant your market</h2>
+            <h2>Plant your market</h2><a class="mobile-summary-link" href="#create-summary">Review configuration <i class="ph ph-caret-down" aria-hidden="true"></i></a>
             <div class="fields">
               <div class="field full quote-asset-field">
                 <label id="quote-asset-label" for="quote-asset-trigger">Paired asset</label>
@@ -73,10 +76,10 @@ export default {
           </div>
           <button class="action-button" type="submit" data-create-submit disabled><i class="ph ph-plant" aria-hidden="true"></i>Launch token</button>
         </form>
-        <aside class="panel token-preview" aria-labelledby="preview-heading">
+        <aside class="panel token-preview" id="create-summary" tabindex="-1" aria-labelledby="preview-heading">
           <div class="preview-orbit" data-preview-image-frame><i class="ph ph-image-square" data-token-placeholder role="img" aria-label="Your token image"></i><img data-token-image alt="Token preview" hidden /></div>
           <small id="preview-heading">YOUR TOKEN</small><h2 data-token-symbol>ticker</h2><p data-token-name>Your next big idea</p><p class="token-description" data-token-description></p>
-          <div class="preview-list"><div><span>Launch fee</span><strong data-preview-launch-fee>-</strong></div><div><span>Paired with</span><strong data-preview-quote>-</strong></div><div><span>Base trade fee</span><strong data-preview-trade-fee>-</strong></div><div><span>LP fee</span><strong data-preview-lp-fee>0%</strong></div><div><span>Bloom target</span><strong data-preview-graduation>-</strong></div><div><span>Liquidity</span><strong>Locked when Bloomed</strong></div><div><span>Staking asset</span><strong data-preview-asset>-</strong></div><div><span>Developer buy</span><strong data-preview-mode>-</strong></div><div><span data-preview-burn-label>Burn your token</span><strong data-preview-meme-burn>Off</strong></div><div><span>Creator tax</span><strong data-preview-creator-tax>0%</strong></div><div><span>Holder fee sharing</span><strong data-preview-treasury>Off</strong></div></div>
+          <div class="preview-list preview-key-facts"><div><span>Paired with</span><strong data-preview-quote>-</strong></div><div><span>Bloom target</span><strong data-preview-graduation>-</strong></div><div><span>Launch fee</span><strong data-preview-launch-fee>-</strong></div><div><span>Base trade fee</span><strong data-preview-trade-fee>-</strong></div></div><details class="preview-settings"><summary>More settings <i class="ph ph-caret-down" aria-hidden="true"></i></summary><div class="preview-list"><div><span>LP fee</span><strong data-preview-lp-fee>0%</strong></div><div><span>Liquidity</span><strong>Locked when Bloomed</strong></div><div><span>Staking asset</span><strong data-preview-asset>-</strong></div><div><span>Developer buy</span><strong data-preview-mode>-</strong></div><div><span data-preview-burn-label>Burn your token</span><strong data-preview-meme-burn>Off</strong></div><div><span>Creator tax</span><strong data-preview-creator-tax>0%</strong></div><div><span>Holder fee sharing</span><strong data-preview-treasury>Off</strong></div></div></details>
           <section class="fee-preview" aria-labelledby="fee-preview-heading">
             <h2 id="fee-preview-heading">Your fee earnings</h2>
             <p>Share of the base trading fee. Native LP fees are separate.</p>

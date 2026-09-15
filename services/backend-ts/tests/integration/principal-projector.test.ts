@@ -5,6 +5,7 @@ import { decodeFunctionData, encodeAbiParameters, encodeEventTopics, encodeFunct
 import { applyCoreMigration, createDatabasePool } from '../../packages/db/src/index.ts';
 import { f72EventAbis, f72ReadAbis } from '../../packages/events/src/f72-abis.generated.ts';
 import { F72_RELEASE_ID, fixedF72Sources } from '../../packages/events/src/index.ts';
+import { ProjectionPending } from '../../packages/projection/src/index.ts';
 import { projectF72Principal } from '../../packages/principal-projector/src/index.ts';
 import { createReadApiApp } from '../../apps/read-api/src/index.ts';
 import { f72BootstrapConfigs } from '../../packages/config-projector/src/f72-bootstrap.generated.ts';
@@ -14,7 +15,7 @@ const hash = (character: string): Hex => `0x${character.repeat(64)}`;
 const address = (character: string): Address => `0x${character.repeat(40)}`;
 const ident = (value: string): string => { assert.match(value, /^[a-z][a-z0-9_]{0,62}$/); return `"${value}"`; };
 
-test('TS-09 principal projector reconciles one finalized Vault/Gauge block and publishes bounded user pages', { timeout: 30_000 }, async (context) => {
+test('TS-09 principal projector reconciles one finalized Vault/Gauge block and publishes bounded user pages', { timeout: 180_000 }, async (context) => {
   if (!connectionString) { context.skip('TG_MIGRATION_DATABASE_URL or TG_DATABASE_URL is required'); return; }
   const schemaName = `tg_ts09_project_${process.pid}_${randomBytes(4).toString('hex')}`; const schema = ident(schemaName);
   const handle = createDatabasePool(connectionString, { max: 2 });
@@ -58,6 +59,11 @@ test('TS-09 principal projector reconciles one finalized Vault/Gauge block and p
     } };
     assert.deepEqual(await projectF72Principal({ pool: handle.pool, deployment, blockNumber: 2n, blockHash: hash('c'), generation: 0n,
       primary: rpc, secondary: rpc, schemaName }), { accounts: 1, positions: 1 });
+    // Durable event pages publish neither scope until all verification is complete.
+    let calls = 0;
+    const counted = {callAt: async (target:Address,data:Hex) => {calls++; return rpc.callAt(target,data);}};
+    await projectF72Principal({pool:handle.pool,deployment,blockNumber:2n,blockHash:hash('c'),generation:0n,primary:counted,secondary:counted,schemaName});
+    assert.equal(calls,0,'published retry performs no RPC');
     const app = createReadApiApp({ pool: handle.pool, deployment, env: { NODE_ENV: 'test', TG_ENVIRONMENT: 'test', TG_READ_DATABASE_URL: connectionString,
       TG_CURSOR_SECRET: 'integration-cursor-secret-at-least-32-bytes', TG_DATABASE_SCHEMA: schemaName } });
     const accountResponse = await app.request(`/v1/users/${user}/accounts?revision=${encodeURIComponent(revision)}`);
@@ -69,6 +75,51 @@ test('TS-09 principal projector reconciles one finalized Vault/Gauge block and p
     const positionPage = await positionResponse.json() as { items: Array<{ allocated: string; active: string; pending: string; activationAt: string }> };
     assert.deepEqual(positionPage.items.map((item) => ({ allocated: item.allocated, active: item.active, pending: item.pending, activationAt: item.activationAt })),
       [{ allocated: '40', active: '30', pending: '10', activationAt: '7' }]);
+    async function advance(n:number,blockHash:Hex,parent:Hex){
+      await handle.pool.query(`INSERT INTO ${schema}.chain_blocks(environment,chain_id,deployment_digest,number,hash,parent_hash,canonical,finalized,source_timestamp) VALUES('test',46630,$1,$2,$3,$4,true,true,to_timestamp($5))`,[deployment.deploymentDigest,n,blockHash,parent,1000+n]);
+      await handle.pool.query(`UPDATE ${schema}.ingestion_checkpoints SET next_block=$1,last_block_hash=$2`,[n+1,blockHash]);
+      await handle.pool.query(`UPDATE ${schema}.covered_ranges SET to_block=$1`,[n]);
+      const nextRevision=`${n}:${blockHash}`;
+      await handle.pool.query(`INSERT INTO ${schema}.publications SELECT environment,chain_id,deployment_digest,scope,$1,$2,$3,generation,payload_digest,payload,now() FROM ${schema}.publications WHERE scope='markets' AND revision=$4`,[nextRevision,n,blockHash,revision]);
+      await handle.pool.query(`INSERT INTO ${schema}.projection_records SELECT environment,chain_id,deployment_digest,scope,$1,identity,sort_key,payload_digest,payload FROM ${schema}.projection_records WHERE scope='markets' AND revision=$2`,[nextRevision,revision]);
+      await handle.pool.query(`UPDATE ${schema}.publication_pointers SET revision=$1 WHERE scope='markets'`,[nextRevision]);
+    }
+    await advance(3,hash('d'),hash('c'));
+    calls=0;
+    const next={pool:handle.pool,deployment,blockNumber:3n,blockHash:hash('d'),generation:0n,primary:counted,secondary:counted,schemaName,maxPages:1,pageSize:1};
+    let continuations=0;
+    while(true){try{await projectF72Principal(next);break;}catch(e){if(!(e instanceof ProjectionPending))throw e;continuations++;assert.ok(continuations<12);const pointers=(await handle.pool.query(`SELECT DISTINCT revision FROM ${schema}.publication_pointers WHERE scope IN ('accounts','positions')`)).rows;assert.deepEqual(pointers,[{revision}]);}}
+    assert.ok(continuations>=3);
+    assert.equal(calls,8,'quiet block checks only the pending position, not the account');
+    assert.equal((await handle.pool.query(`SELECT count(*)::int n FROM ${schema}.principal_record_versions WHERE scope='accounts'`)).rows[0].n,1,'unchanged account version reused');
+    await advance(4,hash('e'),hash('d'));
+    await saveVaultLog(handle.pool,schema,deployment.deploymentDigest,'StockWithdrawn',vault,4,hash('e'),hash('f'),0,{assetUid,user,amount:10n});
+    const changed={callAt:async(target:Address,data:Hex)=>{if(target===vault){const d=decodeFunctionData({abi:f72ReadAbis.UserStockVault as Abi,data});if(d.functionName==='deposited'||d.functionName==='freeBalanceOf')return encodeFunctionResult({abi:f72ReadAbis.UserStockVault as Abi,functionName:d.functionName,result:d.functionName==='deposited'?90n:50n});}return rpc.callAt(target,data);}};
+    const fourth={...next,blockNumber:4n,blockHash:hash('e'),maxPages:20,primary:changed,secondary:rpc};
+    await assert.rejects(projectF72Principal(fourth),/RPC providers disagree/);
+    assert.deepEqual((await handle.pool.query(`SELECT DISTINCT revision FROM ${schema}.publication_pointers WHERE scope IN ('accounts','positions')`)).rows,[{revision:`3:${hash('d')}`}]);
+    await projectF72Principal({...fourth,secondary:changed});
+    const latest=(await handle.pool.query(`SELECT payload FROM ${schema}.projection_read_records WHERE scope='positions' AND revision=$1`,[`4:${hash('e')}`])).rows[0].payload;
+    assert.equal(latest.free,'50');assert.equal(latest.allocated,'40');
+    const historical=(await handle.pool.query(`SELECT payload FROM ${schema}.projection_read_records WHERE scope='positions' AND revision=$1`,[revision])).rows[0].payload;
+    assert.equal(historical.free,'60','historical immutable revision retained');
+    if(process.env.TG_TEST_PRINCIPAL_CAPACITY==='1'){
+      // More than the former hard cap in BOTH ledger populations; synthetic RPC
+      // isolates pagination/continuation correctness from network rate limits.
+      for(const kind of ['accounts','positions'])await handle.pool.query(`INSERT INTO ${schema}.principal_ledger SELECT environment,chain_id,deployment_digest,generation,kind,('0x'||lpad(to_hex(n),40,'0'))||':'||asset_uid||CASE WHEN kind='positions' THEN ':'||market_id ELSE '' END,('0x'||lpad(to_hex(n),40,'0')),asset_uid,market_id,payload||jsonb_build_object('user','0x'||lpad(to_hex(n),40,'0'))||CASE WHEN kind='accounts' THEN '{"deposited":"1","allocated":"1"}'::jsonb ELSE '{"amount":"1"}'::jsonb END FROM ${schema}.principal_ledger CROSS JOIN generate_series(1,10001) n WHERE kind=$1 AND user_address=$2`,[kind,user]);
+      await advance(5,hash('f'),hash('e'));
+      const capacityRpc={callAt:async(target:Address,data:Hex)=>{
+        const abi=target===vault?f72ReadAbis.UserStockVault:target===gauge?f72ReadAbis.MemeStockGauge:f72ReadAbis.AllocationManager;
+        const decoded=decodeFunctionData({abi:abi as Abi,data});
+        if(decoded.args?.some(a=>a===user)||decoded.functionName==='activationSnapshot')return changed.callAt(target,data);
+        const result=target===vault?(decoded.functionName==='freeBalanceOf'?0n:1n):target===gauge?{activeAmount:1n,pendingAmount:0n,pendingGeneration:0n,unlockAt:1100n,quoteClaimable:0n,memeClaimable:0n}:[false,0n];
+        return encodeFunctionResult({abi:abi as Abi,functionName:decoded.functionName,result});
+      }};
+      const result=await projectF72Principal({...fourth,blockNumber:5n,blockHash:hash('f'),primary:capacityRpc,secondary:capacityRpc,pageSize:250,maxPages:1000,budgetMs:180000,fullAuditIntervalBlocks:1n});
+      assert.equal(result.accounts,10002);assert.equal(result.positions,10002);
+      assert.equal((await handle.pool.query(`SELECT count(*)::int n FROM ${schema}.principal_work WHERE block_hash=$1`,[hash('f')])).rows[0].n,0,'completed transient work is reclaimed');
+      assert.deepEqual((await handle.pool.query(`SELECT (payload->>'verifiedRecordCount')::int n FROM ${schema}.publications WHERE revision=$1 AND scope IN ('accounts','positions') ORDER BY scope`,[`5:${hash('f')}`])).rows,[{n:10002},{n:10002}]);
+    }
   } finally { bootstrap.length = bootstrapLength; await handle.pool.query(`DROP SCHEMA IF EXISTS ${schema} CASCADE`).catch(() => undefined); await handle.pool.end(); }
 });
 

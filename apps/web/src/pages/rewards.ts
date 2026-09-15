@@ -1,5 +1,5 @@
 export default { title: 'Claim — TickerGarden', html: `
-<main class="page claim-page" aria-label="Claim rewards">
+<main class="page claim-page" data-wallet-connected="false" aria-label="Claim rewards">
 <div class="claim-workspace">
 <nav class="rewards-tabs claim-tabs" role="tablist" aria-label="Reward roles" aria-orientation="vertical">
 <button type="button" role="tab" id="rewards-tab-creator" aria-selected="true" aria-controls="rewards-panel-creator" data-rewards-tab="creator"><i class="ph ph-user" aria-hidden="true"></i>Creator</button>
@@ -7,15 +7,16 @@ export default { title: 'Claim — TickerGarden', html: `
 </nav>
 <div class="claim-content">
 <section class="rewards-panel" role="tabpanel" id="rewards-panel-creator" aria-labelledby="rewards-tab-creator" data-rewards-panel="creator">
-<header class="claim-card-heading"><div><h2>Creator rewards</h2></div></header>
+<header class="claim-card-heading"><div><h2>Creator rewards</h2><p class="claim-wallet-guide">Connect your wallet to view tokens and claim your rewards.</p></div></header>
 <div class="field"><label for="creator-market">Select token</label><div class="claim-token-select"><i class="ph ph-coins" aria-hidden="true"></i><select id="creator-market" data-creator-market><option value="">Select a token</option></select></div></div>
 <button type="button" class="secondary-button" data-creator-more hidden>Load more tokens</button>
+<label class="field">Reward period<select data-creator-epoch disabled><option value="">Select a period</option></select></label><button type="button" class="secondary-button" data-creator-older hidden>View earlier periods</button>
 <div class="claim-amounts"><div><span>Available to claim</span><strong data-creator-quote-asset>-</strong></div><div><span>Token rewards</span><strong data-creator-pending-meme>-</strong></div></div>
 <dl class="claim-facts"><div><dt>Receive in</dt><dd data-creator-receive-asset>-</dd></div><div><dt>Recipient</dt><dd><span data-creator-beneficiary>-</span><button type="button" data-copy-beneficiary aria-label="Copy recipient address" disabled><i class="ph ph-copy" aria-hidden="true"></i></button></dd></div></dl>
 <input type="hidden" data-creator-fee-asset>
 <div class="claim-action"><button type="button" class="action-button" data-rewards-connect><i class="ph ph-wallet" aria-hidden="true"></i> Connect wallet</button><button type="button" disabled class="action-button" data-reward-action="claimCreator">Claim creator rewards</button></div>
 <p class="claim-result" data-creator-status role="status"></p>
-<label class="field">Reward period<select data-creator-epoch disabled><option value="">Select a period</option></select></label><button type="button" class="secondary-button" data-creator-older hidden>View earlier periods</button>
+
 
 </section>
       <section class="rewards-panel" role="tabpanel" id="rewards-panel-treasury" aria-labelledby="rewards-tab-treasury" data-rewards-panel="treasury" hidden>

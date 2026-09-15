@@ -1,5 +1,6 @@
+import v1Abis_CreatorRevenueRegistry from '../generated/contracts/legacy/CreatorRevenueRegistry.ts';
 import type { Address, Hex } from "viem";
-import { v1Abis } from "../generated/abis.ts";
+
 import { createContractWriteRequest, type ContractWriteRequest } from "../transaction.ts";
 
 const ADDRESS = /^0x[0-9a-f]{40}$/;
@@ -22,7 +23,7 @@ export function buildTransferCreatorBeneficiary(input: Readonly<{
   marketId(input.marketId);
   address(input.nextBeneficiary, "nextBeneficiary");
   return createContractWriteRequest({
-    abi: v1Abis.CreatorRevenueRegistry,
+    abi: v1Abis_CreatorRevenueRegistry,
     address: input.registry,
     functionName: "transferCreatorRevenueBeneficiary",
     args: [input.marketId, input.nextBeneficiary],

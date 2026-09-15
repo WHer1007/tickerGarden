@@ -1,3 +1,4 @@
+import {controllerSources} from './controller-source.ts';
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import {readFileSync} from 'node:fs';
@@ -10,7 +11,7 @@ test('unrelated publication data preserves quotes while execution binding change
  for(const next of [{...market,launchPhase:1 as const},{...market,sourceVersion:2},{...market,poolId:'0xab' as const},{...market,canonicalRoute:{...market.canonicalRoute,router:'0xab' as const}},{...market,quoteAsset:'0xab' as const}])assert.notEqual(tradeContextKey(next),key);
 });
 test('background display invalidation retains quote state; submission still checks canonical route',()=>{
- const app=readFileSync(new URL('../src/app.ts',import.meta.url),'utf8');
+ const app=readFileSync(new URL('../src/app.ts',import.meta.url),'utf8')+'\n'+controllerSources.slice(0,2).join('\n');
  const invalidation=app.slice(app.indexOf('function invalidateSnapshotReads('),app.indexOf('function startSnapshotUpdates()'));
  const guarded=invalidation.slice(invalidation.indexOf('if(!preserveTradeDisplay){'),invalidation.indexOf('  ++launchPreviewGeneration'));
  for(const field of ['verifiedMarketReleases.clear()','verifiedMarketRuntime.clear()','tradeQuote=null','++tradeQuoteGeneration'])assert.ok(guarded.includes(field));

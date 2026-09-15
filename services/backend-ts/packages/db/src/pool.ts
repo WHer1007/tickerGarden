@@ -18,7 +18,7 @@ export function createDatabasePool(connectionString: string, overrides: PoolConf
   if(runtime&&env.TG_DB_BUDGET_JSON){
     const budget=JSON.parse(env.TG_DB_BUDGET_JSON) as ConnectionBudgetInput;
     evaluateConnectionBudget(budget);
-    const allocation=budget.services.find(item=>item.name===runtime.role);
+    const allocation=budget.services.find(item=>item.name===(env.TG_DB_BUDGET_SERVICE_PREFIX?`${env.TG_DB_BUDGET_SERVICE_PREFIX}-${runtime.role}`:runtime.role));
     if(!allocation||Number(overrides.max??max)>allocation.poolMax)throw Error('service pool exceeds declared connection budget');
   }
   const pool = new Pool({

@@ -70,3 +70,18 @@ test('resident worker enforces mode, leases, fencing, shutdown, and schema owner
     finally { release(); await first; }
   } finally { await db.pool.query(`DROP SCHEMA IF EXISTS ${schema} CASCADE`).catch(() => undefined); await db.pool.end(); await control.pool.end(); await secondControl.pool.end(); }
 });
+
+test('resident consumes a job longer than the HTTP callback budget without redelivery',{timeout:35000},async ctx=>{
+ if(!process.env.TG_TEST_DATABASE_URL){ctx.skip('TG_TEST_DATABASE_URL required');return;}
+ const schemaName=`tg_resident_long_${randomBytes(6).toString('hex')}`,schema=`"${schemaName}"`;
+ const db=createDatabasePool(url,{max:2}),control=createDatabasePool(url,{max:1});
+ try{
+  await applyCoreMigration(db.pool,schemaName);
+  await enqueueReliableMessage(db.pool,{queue:'chain',externalId:'long',operationId:'long',kind:'test-job',rawBody:'{}',payload:{},destinationKey:'chain-worker',maxAttempts:2,generation:0n},schemaName);
+  await setQueueExecutionMode(db.pool,'resident',0n,schemaName);
+  let executions=0;const state=createWorkerState(),started=Date.now();
+  await runResidentWorker({pool:db.pool,controlPool:control.pool,owner:'long-worker',generation:0n,schemaName,signal:new AbortController().signal,state,maxJobs:1,fatal:e=>{throw e;},process:async()=>{executions++;await new Promise(r=>setTimeout(r,21000));assert.equal(await claimJobByOperation(db.pool,'chain','long','old-http',20000,schemaName),null);return 'done';}});
+  assert.ok(Date.now()-started>=21000);assert.equal(executions,1);assert.equal(state.succeeded,1);
+  assert.equal((await db.pool.query(`SELECT state FROM ${schema}.jobs WHERE operation_id='long'`)).rows[0].state,'succeeded');
+ }finally{await db.pool.query(`DROP SCHEMA ${schema} CASCADE`);await db.pool.end();await control.pool.end();}
+});

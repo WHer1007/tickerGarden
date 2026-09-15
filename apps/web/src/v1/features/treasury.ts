@@ -1,6 +1,8 @@
+import v1Abis_TreasuryDistributorV1 from '../generated/contracts/legacy/TreasuryDistributorV1.ts';
+import v1Abis_TickerMemeTokenV1 from '../generated/contracts/legacy/TickerMemeTokenV1.ts';
 import { ROBINHOOD_CHAIN_ID } from "../chain.ts";
 import type { Address, Hex } from "viem";
-import { v1Abis } from "../generated/abis.ts";
+
 import { createContractWriteRequest, type ContractWriteRequest } from "../transaction.ts";
 
 const ADDRESS = /^0x[0-9a-f]{40}$/;
@@ -56,7 +58,7 @@ function epoch(value: unknown): number {
 function request(name: string, distributor: Address, args: readonly unknown[], value?: bigint): ContractWriteRequest {
   address(distributor, "TreasuryDistributor");
   return createContractWriteRequest({
-    abi: v1Abis.TreasuryDistributorV1,
+    abi: v1Abis_TreasuryDistributorV1,
     address: distributor,
     functionName: name as never,
     args: args as never,
@@ -69,7 +71,7 @@ function approval(token: Address, distributor: Address, amount: bigint): Contrac
   address(distributor, "TreasuryDistributor");
   uint(amount, "approval amount", true);
   return createContractWriteRequest({
-    abi: v1Abis.TickerMemeTokenV1,
+    abi: v1Abis_TickerMemeTokenV1,
     address: token,
     functionName: "approve",
     args: [distributor, amount],

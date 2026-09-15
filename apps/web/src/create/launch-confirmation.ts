@@ -1,5 +1,6 @@
+import v1Abis_TickerGardenFactoryV1 from '../v1/generated/contracts/legacy/TickerGardenFactoryV1.ts';
 import {decodeEventLog,type TransactionReceipt} from 'viem';
-import {v1Abis} from '../v1/generated/abis.ts';
+
 import type {LaunchState} from './launch-state.ts';
 /** Receipt-only confirmation: never scans blocks or sends a wallet request. */
 export function assertRecoveredLaunchReceipt(state:LaunchState,receipt:Pick<TransactionReceipt,'status'|'from'|'to'|'logs'>):void{
@@ -9,7 +10,7 @@ export function assertRecoveredLaunchReceipt(state:LaunchState,receipt:Pick<Tran
  for(const log of receipt.logs){
   if(log.address.toLowerCase()!==e.factory.toLowerCase())continue;
   try{
-   const decoded=decodeEventLog({abi:v1Abis.TickerGardenFactoryV1,data:log.data,topics:log.topics});
+   const decoded=decodeEventLog({abi:v1Abis_TickerGardenFactoryV1,data:log.data,topics:log.topics});
    if(decoded.eventName!=='MarketCreated')continue;
    const args=decoded.args as Record<string,unknown>;
    if(['marketId','curve','gauge'].every(k=>String(args[k]).toLowerCase()===e[k as 'marketId'].toLowerCase())&&String(args.memeToken).toLowerCase()===e.token.toLowerCase())return;

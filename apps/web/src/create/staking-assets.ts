@@ -1,4 +1,4 @@
-import production from '../../../../deployments/manifests/robinhood-mainnet-4663.staking-assets.json' with { type: 'json' };
+import production from './generated/robinhood-mainnet-4663.staking-assets.json' with { type: 'json' };
 import catalog from '../config/staking-assets.json' with { type: 'json' };
 import type { ConfigReadModel } from '../v1/readApi.ts';
 

@@ -18,7 +18,7 @@ async function fixture(context: TestContext) {
   await cp(resolve(repoRoot, "contracts/src/v1/interfaces/IV1Protocol.sol"), resolve(root, "contracts/src/v1/interfaces/IV1Protocol.sol"), { recursive: true });
   await cp(resolve(webRoot, "scripts/generate-v1-abis.mjs"), resolve(root, "apps/web/scripts/generate-v1-abis.mjs"), { recursive: true });
   await cp(resolve(webRoot, "build-inputs/v1-abis.json"), resolve(root, "apps/web/build-inputs/v1-abis.json"), { recursive: true });
-  await cp(resolve(webRoot, "src/v1/generated/abis.ts"), resolve(root, "apps/web/src/v1/generated/abis.ts"), { recursive: true });
+  await cp(resolve(webRoot, "src/v1/generated"), resolve(root, "apps/web/src/v1/generated"), { recursive: true });
   return root;
 }
 
@@ -37,7 +37,7 @@ test("source-only verification rejects a corrupted ABI snapshot", async (context
   const inputs = JSON.parse(await readFile(path, "utf8"));
   inputs.modules[0].abi = [];
   await writeFile(path, JSON.stringify(inputs));
-  await assert.rejects(generate(root, "--check", "--source-only"), /ABI build inputs differ from compiled artifacts|generated V1 ABI bridge is stale/);
+  await assert.rejects(generate(root, "--check", "--source-only"), /ABI build inputs differ from compiled artifacts|generated .*ABI.* is stale/);
 });
 
 test("source-only verification rejects stale interface or manifest sources", async (context) => {
@@ -56,4 +56,21 @@ test("source-only verification rejects stale interface or manifest sources", asy
 test("normal check refuses to pass when compiled artifacts are absent", async (context) => {
   const root = await fixture(context);
   await assert.rejects(generate(root, "--check"), /ENOENT/);
+});
+
+test('contract modules exactly preserve every frozen legacy ABI item', async () => {
+  const {legacyV1Abis: frozen} = await import('../src/v1/generated/legacy-abis.ts');
+  const {legacyV1Abis: split} = await import('../src/v1/generated/legacy-contract-abis.ts');
+  assert.deepEqual(split, frozen);
+});
+
+test('source-only check rejects modified and obsolete contract modules', async context => {
+  const root = await fixture(context);
+  const path = resolve(root, 'apps/web/src/v1/generated/contracts/current/Obsolete.ts');
+  await writeFile(path, 'export default [];');
+  await assert.rejects(generate(root, '--check', '--source-only'), /obsolete contract ABI module/);
+  await rm(path);
+  const inputs = JSON.parse(await readFile(resolve(webRoot, 'build-inputs/v1-abis.json'), 'utf8'));
+  await writeFile(resolve(root, `apps/web/src/v1/generated/contracts/current/${inputs.modules[0].module}.ts`), 'export default [];');
+  await assert.rejects(generate(root, '--check', '--source-only'), /contract ABI module is stale/);
 });

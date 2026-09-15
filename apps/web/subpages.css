@@ -587,3 +587,15 @@ input[aria-invalid="true"]:focus,textarea[aria-invalid="true"]:focus,select[aria
 .docs-contract-address{display:inline-block;max-width:100%;margin-top:9px;font-family:ui-monospace,monospace;font-size:13px;line-height:1.8;overflow-wrap:anywhere;word-break:break-word}
 .docs-toc{max-height:calc(100dvh - 135px);overflow-y:auto}
 @media(max-width:800px){.docs-toc{max-height:none;overflow:visible}.docs-table-wrap th,.docs-table-wrap td{padding:10px 8px}.docs-table-wrap table{font-size:12px}.docs-contract-address{font-size:12px}}
+
+/* Shared reading and control scales. Compact icon controls and switches retain their geometry. */
+:root{--text-body:15px;--text-support:13px;--text-metric:28px;--control-height:46px;--control-radius:10px;--muted:#52675c;--icon-readable:#47734c}
+.page{font-size:var(--text-body);line-height:1.55}
+.page :is(.field small,.panel-title p,.stat-label,.quote-lines,.role-copy){font-size:var(--text-support);color:var(--muted);line-height:1.55}
+.page :is(.kicker i,.rule i){color:var(--icon-readable)}
+.page :is(.action-button,.primary-button,.secondary-button,.page-retry){min-height:var(--control-height);border-radius:var(--control-radius);font-size:14px;line-height:1.3;padding:11px 16px}
+.page .secondary-button{background:transparent;color:var(--ink);border:1px solid #a8b9ac;box-shadow:none}
+.page .field :is(input:not([type=checkbox],[type=radio],[type=file],[type=hidden]),select){min-height:var(--control-height);border-radius:var(--control-radius);font-size:var(--text-body)}
+.page :is(input,textarea)::placeholder{color:#63756b;opacity:1}
+.page :is(.claim-amounts strong,.stat-card strong,.metric-value){font-variant-numeric:tabular-nums;letter-spacing:-.025em}
+.page-status:empty{display:none!important}

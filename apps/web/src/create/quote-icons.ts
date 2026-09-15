@@ -1,4 +1,4 @@
-import productionRelease from '../../../../deployments/manifests/robinhood-mainnet-4663.paired-assets.json' with { type: 'json' };
+import productionRelease from './generated/robinhood-mainnet-4663.paired-assets.json' with { type: 'json' };
 import { quoteIconFilename } from "./quote-icon-names.ts";
 
 const modules = import.meta.glob(["../../assets/quotes/*.svg", "../../assets/quotes/*.png"], {

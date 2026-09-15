@@ -8,7 +8,9 @@ const { Pool } = pg;
 const required = ['QUEUE_DATABASE_URL', 'QUEUE_PUBLISH_TOKEN', 'QUEUE_SIGNING_KEY'] as const;
 for (const key of required) if (!process.env[key]) throw new Error(`${key} is required`);
 
-const pool = new Pool({ connectionString: process.env.QUEUE_DATABASE_URL, max: 4, connectionTimeoutMillis: 5_000 });
+const poolMax=Number(process.env.TG_DB_POOL_MAX_QUEUE_RELAY??'4');
+if(!Number.isSafeInteger(poolMax)||poolMax<1||poolMax>10)throw Error('invalid queue pool limit');
+const pool = new Pool({ connectionString: process.env.QUEUE_DATABASE_URL, max: poolMax, connectionTimeoutMillis: 5_000 });
 const publishToken = process.env.QUEUE_PUBLISH_TOKEN!;
 const signingKey = process.env.QUEUE_SIGNING_KEY!;
 const port = Number(process.env.PORT ?? '8080');
@@ -32,7 +34,7 @@ await pool.query(`CREATE TABLE IF NOT EXISTS queue_messages (
 await pool.query('CREATE INDEX IF NOT EXISTS queue_messages_due_idx ON queue_messages(state,next_attempt_at)');
 
 app.get('/healthz', async (c) => {
-  try { await pool.query('SELECT 1'); return c.json({ ok: true }); }
+  try { await pool.query('SELECT 1'); return c.json({ ok: true, release: await releaseIdentity() }); }
   catch { return c.json({ ok: false }, 503); }
 });
 
@@ -122,3 +124,8 @@ for (const signal of ['SIGTERM', 'SIGINT'] as const) process.on(signal, () => {
   stopping = true;
   server.close(() => void pool.end().finally(() => process.exit(0)));
 });
+
+async function releaseIdentity(){
+ const schema=(await pool.query<{digest:string;n:number}>(`SELECT md5(string_agg(table_name||':'||column_name||':'||data_type||':'||is_nullable,',' ORDER BY table_name,ordinal_position)) digest,count(DISTINCT table_name)::int n FROM information_schema.columns WHERE table_schema='public' AND table_name=ANY($1::text[])`,[["queue_messages"]])).rows[0];
+ return {commit:/^[0-9a-f]{40}$/.test(process.env.TG_RELEASE_COMMIT??'')?process.env.TG_RELEASE_COMMIT:null,imageDigest:/^sha256:[0-9a-f]{64}$/.test(process.env.TG_IMAGE_DIGEST??'')?process.env.TG_IMAGE_DIGEST:null,schemaDigest:schema?.n===1?schema.digest:null};
+}

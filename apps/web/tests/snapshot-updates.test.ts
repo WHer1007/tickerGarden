@@ -104,3 +104,10 @@ test('accounts are required on reset and accepted as the only changed family',()
  assert.deepEqual(validateSnapshotUpdate({...update(2),mode:'changed',invalidated:['accounts']},4663,rev(1)).invalidated,['accounts']);
  assert.throws(()=>validateSnapshotUpdate({...update(),invalidated:['markets','configs','accounts','accounts']},4663));
 });
+
+test('first recent digest seeds the adopted snapshot without duplicate initialization',async(t)=>{
+ let prepares=0;
+ const poller=createSnapshotPoller({chainId:4663,fetchUpdate:async()=>({...update(),mode:'unchanged',invalidated:[],recentVersion:'a'.repeat(32)}),prepare:async()=>{prepares++;return()=>{}},unavailable:()=>assert.fail('unexpected failure')});
+ t.after(()=>poller.stop());poller.adoptRevision(rev(1));await tick();assert.equal(prepares,0);
+ poller.reconnect();await tick();assert.equal(prepares,1,'recovery still rebuilds the snapshot');
+});

@@ -59,3 +59,19 @@
 @media(max-width:480px){.explore-page .garden-stats{flex-wrap:wrap;gap:5px}.explore-page .garden-stats .explore-card-age{flex-basis:100%;text-align:left;align-items:flex-start}}
 
 .explore-page .ranking-note{font-size:12px;color:#708477;margin:0 0 12px}.explore-page [data-new-buys]{margin:0 0 12px;padding:8px 12px;border:1px solid #ccd8ce;border-radius:8px;background:#f1f5e9;color:#164e3a}
+
+.explore-page .explore-results-heading{display:flex;align-items:center;gap:12px;min-height:46px;margin:16px 0}
+.explore-page .explore-results-heading .page-status{flex:1;margin:0;padding:10px 0;border:0;border-radius:0;background:transparent;box-shadow:none;font-size:var(--text-support);line-height:1.5}
+.explore-page [data-market-list][data-status-active=true]:not(:has([data-runtime-market])) :is(.stage-empty,.ranking-note,.explore-pagination){display:none}
+.explore-page .stage-empty{padding:18px 0;min-height:0;background:transparent;border:0;border-radius:0;font-size:var(--text-support);color:var(--muted)}
+.explore-page .explore-stage{background:transparent;box-shadow:none}
+.explore-page .explore-stage>header p,.explore-page .ranking-note{font-size:var(--text-support);color:var(--muted)}
+.explore-page .explore-stage>header i{color:var(--icon-readable)}
+/* The result strip owns loading, failure and empty announcements for both stages. */
+.explore-page [data-stage-empty]{display:none}
+.explore-page .garden-grid:not(:has([data-runtime-market])){min-height:0}
+.explore-page .explore-stage{border:0;border-top:1px solid var(--line);border-radius:0;padding:22px 0}
+.explore-page .explore-sort-options button{min-height:36px;color:#645539}
+.explore-page .explore-stock-option small{color:var(--muted);font-size:12px}
+.explore-page .explore-create{display:inline-flex;align-items:center;justify-content:center;min-height:var(--control-height);border-radius:var(--control-radius);padding:11px 16px;background:var(--ink);border-color:var(--ink);color:white;font-size:14px}
+.explore-page .explore-search input,.explore-page .explore-stock-trigger{height:var(--control-height);border-radius:var(--control-radius)}

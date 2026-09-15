@@ -6,7 +6,7 @@ const read = (path: string): string => readFileSync(new URL(path, import.meta.ur
 const privacy = read("../src/pages/privacy.ts");
 const terms = read("../src/pages/terms.ts");
 const risks = read("../src/pages/risks.ts");
-const app = read("../src/app.ts");
+const app = read("../src/ui/shell.ts");
 const vite = read("../vite.config.js");
 const routes = read("../src/routing/routes.ts");
 const styles = read("../subpages.css");
@@ -63,7 +63,7 @@ test("shared navigation exposes Explore and keeps Home out of the primary links"
   assert.doesNotMatch(gardenLinks, /footerLink\("stats"/);
   assert.match(communityLinks, /footerLink\("stats", "Stats", "\/stats"\).*footerLink\("docs", "Docs", "\/docs"\)/);
   assert.doesNotMatch(headerShell, /class="chain-tag"/);
-  assert.match(footerShell, /class="chain-tag" title="\$\{robinhoodChain\.name\}"/);
+  assert.match(footerShell, /class="chain-tag" title="\$\{chainName\}"/);
   assert.match(footerShell, /robinhoodFeatherUrl/);
   assert.match(footerShell, />Robinhood Chain<\/span>/);
   assert.match(footerShell, /href="https:\/\/x\.com\/TickerGarden" target="_blank" rel="noopener noreferrer"/);
@@ -73,5 +73,5 @@ test("shared navigation exposes Explore and keeps Home out of the primary links"
 test("Vite keeps legal pages in the SPA while allowing route chunking", () => {
   assert.match(vite, /appType:\s*['"]spa['"]/);
   assert.doesNotMatch(vite, /input\s*:|resolve\([^\n]+\.html/);
-  assert.match(app, /page === "privacy" \|\| page === "terms"/);
+  assert.match(read("../src/app.ts"), /page === "privacy" \|\| page === "terms"/);
 });

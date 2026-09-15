@@ -1,60 +1,20 @@
-import type { Pool } from 'pg';
 import { decodeFunctionResult, encodeFunctionData, type Abi, type Address, type Hex } from 'viem';
-import type { DeploymentIdentity, RpcLog, RpcTransport } from '../../chain/src/index.ts';
-import { f72BootstrapConfigs } from '../../config-projector/src/f72-bootstrap.generated.ts';
-import { decodeF72Event, f72ReadAbis, fixedF72Sources, type DecodedProtocolEvent } from '../../events/src/index.ts';
-import { publishProjection, type Json, type ProjectionRecord } from '../../projection/src/index.ts';
+import type { RpcLog, RpcTransport } from '../../chain/src/index.ts';
+import { f72ReadAbis, fixedF72Sources, type DecodedProtocolEvent } from '../../events/src/index.ts';
+import { type Json, type ProjectionRecord } from '../../projection/src/index.ts';
 
 type SourceBlock = { readonly chainId: 4663 | 46630; readonly blockNumber: string; readonly blockHash: Hex; readonly transactionHash: Hex; readonly transactionIndex: number; readonly logIndex: number };
-type Account = { readonly user: Address; readonly assetUid: Hex; readonly vault: Address; deposited: bigint; allocated: bigint; source: SourceBlock };
-type Allocation = { readonly user: Address; readonly assetUid: Hex; readonly marketId: Hex; amount: bigint; source: SourceBlock };
-type Market = { readonly marketId: Hex; readonly assetUid: Hex; readonly gauge: Address; readonly quoteAsset: Address; readonly memeToken: Address; readonly stakingEnabled: boolean };
+export type Account = { readonly user: Address; readonly assetUid: Hex; readonly vault: Address; deposited: bigint; allocated: bigint; source: SourceBlock };
+export type Allocation = { readonly user: Address; readonly assetUid: Hex; readonly marketId: Hex; amount: bigint; source: SourceBlock };
+export type Market = { readonly marketId: Hex; readonly assetUid: Hex; readonly gauge: Address; readonly quoteAsset: Address; readonly memeToken: Address; readonly stakingEnabled: boolean };
 type Transport = Pick<RpcTransport, 'callAt'>;
 
 const ZERO_ADDRESS = `0x${'0'.repeat(40)}` as Address;
-const VAULT = fixedAddress('UserStockVault');
 const ALLOCATION_MANAGER = fixedAddress('AllocationManager');
 
-export async function projectF72Principal(input: {
-  readonly pool: Pool; readonly deployment: DeploymentIdentity; readonly blockNumber: bigint; readonly blockHash: Hex;
-  readonly generation: bigint; readonly primary: Transport; readonly secondary: Transport; readonly schemaName?: string;
-}): Promise<{ readonly accounts: number; readonly positions: number }> {
-  const schema = identifier(input.schemaName ?? 'tickergarden_serverless');
-  const revision = `${input.blockNumber}:${input.blockHash}`;
-  const marketRows = await input.pool.query<{ payload: Market }>(
-    `SELECT r.payload FROM ${schema}.projection_read_records r JOIN ${schema}.publication_pointers p USING(environment,chain_id,deployment_digest,scope,revision)
-     WHERE r.environment=$1 AND r.chain_id=$2 AND r.deployment_digest=$3 AND r.scope='markets' AND r.revision=$4 ORDER BY r.identity`,
-    [...identity(input.deployment), revision],
-  );
-  const markets = new Map<string, Market>();
-  for (const row of marketRows.rows) {
-    const market = validatePrincipalMarket(row.payload);
-    if (markets.has(market.marketId)) throw new Error('duplicate principal market');
-    markets.set(market.marketId, market);
-  }
-  const assetVaults = new Map<string, Address>();
-  for (const config of f72BootstrapConfigs) if (config.kind === 'asset') {
-    const vault = address(config.values.userStockVault, 'asset vault');
-    if (vault !== VAULT) throw new Error('f72 asset vault binding changed');
-    assetVaults.set(config.id, vault);
-  }
-  const logRows = await input.pool.query<{ payload: Record<string, unknown> }>(
-    `SELECT l.payload FROM ${schema}.chain_logs l JOIN ${schema}.chain_blocks b ON b.environment=l.environment AND b.chain_id=l.chain_id AND b.deployment_digest=l.deployment_digest AND b.hash=l.block_hash
-     JOIN ${schema}.contract_sources s ON s.environment=l.environment AND s.chain_id=l.chain_id AND s.deployment_digest=l.deployment_digest AND s.address=l.address
-     WHERE l.environment=$1 AND l.chain_id=$2 AND l.deployment_digest=$3 AND s.module='UserStockVault' AND l.canonical AND b.canonical AND b.finalized AND b.number<=$4
-     ORDER BY b.number,l.transaction_index,l.log_index`,
-    [...identity(input.deployment), input.blockNumber.toString()],
-  );
-  if (logRows.rows.length > 1_000_000) throw new Error('principal replay exceeds release bound');
-  const { accounts, allocations } = replayPrincipal(logRows.rows.map((row) => {
-    const log = parseStoredLog(row.payload);
-    const decoded = decodeF72Event('UserStockVault', log);
-    if (!decoded) throw new Error('stored Vault log cannot be decoded with frozen f72 ABI');
-    return decoded;
-  }), input.deployment.chainId, assetVaults);
-  if (accounts.size > 10_000 || allocations.size > 10_000) throw new Error('principal publication exceeds release bound');
+export { projectF72Principal } from './incremental.ts';
 
-  const accountRecords = await mapBounded([...accounts.values()].sort(accountSort), 8, async (account): Promise<ProjectionRecord> => {
+export async function verifyAccount(input: {primary:Transport;secondary:Transport;blockNumber:bigint}, account: Account):Promise<ProjectionRecord> {
     const [deposited, allocated, free] = await Promise.all([
       consensusRead(input, account.vault, f72ReadAbis.UserStockVault as Abi, 'deposited', [account.assetUid, account.user]),
       consensusRead(input, account.vault, f72ReadAbis.UserStockVault as Abi, 'allocated', [account.assetUid, account.user]),
@@ -66,11 +26,12 @@ export async function projectF72Principal(input: {
     const payload = { user: account.user, assetUid: account.assetUid, vault: account.vault, deposited: account.deposited.toString(),
       allocated: account.allocated.toString(), free: (account.deposited - account.allocated).toString(), source: account.source } satisfies Json;
     return { identity: `${account.user}:${account.assetUid}`, sortKey: `${account.user}:${account.assetUid}`, payload };
-  });
+}
 
-  const positionRecords = (await mapBounded([...allocations.values()].sort(allocationSort), 8, async (allocation): Promise<ProjectionRecord | null> => {
-    const market = markets.get(allocation.marketId);
-    const account = accounts.get(`${allocation.assetUid}:${allocation.user}`);
+export async function verifyPosition(input: {primary:Transport;secondary:Transport;blockNumber:bigint}, allocation:Allocation,
+ loadMarket:(id:string)=>Promise<Market|undefined>,loadAccount:(user:string,assetUid:string)=>Promise<Account|undefined>):Promise<ProjectionRecord|null>{
+    const market = await loadMarket(allocation.marketId);
+    const account = await loadAccount(allocation.user, allocation.assetUid);
     if (!market || market.assetUid !== allocation.assetUid || !account) throw new Error('allocation has no canonical market or account');
     if (!market.stakingEnabled) { if (allocation.amount !== 0n) throw new Error('staking-disabled market retains an allocation'); return null; }
     const [vaultAmount, rawPosition, rawSettlement] = await Promise.all([
@@ -108,19 +69,10 @@ export async function projectF72Principal(input: {
       ], source: allocation.source } satisfies Json;
     return { identity: `${allocation.user}:${allocation.assetUid}:${allocation.marketId}`,
       sortKey: `${allocation.user}:${allocation.assetUid}:${allocation.marketId}`, payload };
-  })).filter((record): record is ProjectionRecord => record !== null);
-
-  await publishProjection({ pool: input.pool, deployment: input.deployment, scope: 'accounts', algorithmVersion: 'f72-principal-v1',
-    blockNumber: input.blockNumber, blockHash: input.blockHash, generation: input.generation, records: accountRecords,
-    ...(input.schemaName ? { schemaName: input.schemaName } : {}) });
-  await publishProjection({ pool: input.pool, deployment: input.deployment, scope: 'positions', algorithmVersion: 'f72-positions-v1',
-    blockNumber: input.blockNumber, blockHash: input.blockHash, generation: input.generation, records: positionRecords,
-    ...(input.schemaName ? { schemaName: input.schemaName } : {}) });
-  return { accounts: accountRecords.length, positions: positionRecords.length };
 }
 
-export function replayPrincipal(events: readonly DecodedProtocolEvent[], chainId: 4663 | 46630, assetVaults: ReadonlyMap<string, Address>) {
-  const accounts = new Map<string, Account>(); const allocations = new Map<string, Allocation>();
+export function replayPrincipal(events: readonly DecodedProtocolEvent[], chainId: 4663 | 46630, assetVaults: ReadonlyMap<string, Address>, seed?: {accounts:Map<string,Account>;allocations:Map<string,Allocation>}) {
+  const accounts = seed?.accounts ?? new Map<string, Account>(); const allocations = seed?.allocations ?? new Map<string, Allocation>();
   for (const event of events) {
     if (event.module !== 'UserStockVault' || !['StockDeposited', 'StockWithdrawn', 'AllocationLocked', 'AllocationReleased'].includes(event.eventName)) continue;
     const assetUid = hash(event.args.assetUid, 'assetUid'); const user = address(event.args.user, 'user');
@@ -145,7 +97,7 @@ export function replayPrincipal(events: readonly DecodedProtocolEvent[], chainId
   }
   const sums = new Map<string, bigint>();
   for (const allocation of allocations.values()) { const key = `${allocation.assetUid}:${allocation.user}`; sums.set(key, (sums.get(key) ?? 0n) + allocation.amount); }
-  for (const [key, account] of accounts) if ((sums.get(key) ?? 0n) !== account.allocated) throw new Error('allocation components do not equal account allocated total');
+  if(!seed) for (const [key, account] of accounts) if ((sums.get(key) ?? 0n) !== account.allocated) throw new Error('allocation components do not equal account allocated total');
   return { accounts, allocations };
 }
 
@@ -172,11 +124,9 @@ async function consensusRead(input: { readonly primary: Transport; readonly seco
 }
 function sourceBlock(log: RpcLog, chainId: 4663 | 46630): SourceBlock { return { chainId, blockNumber: log.blockNumber.toString(), blockHash: log.blockHash,
   transactionHash: log.transactionHash, transactionIndex: safeNumber(log.transactionIndex, 'transaction index'), logIndex: safeNumber(log.logIndex, 'log index') }; }
-function parseStoredLog(value: Record<string, unknown>): RpcLog { return { address: address(value.address, 'log address'), blockHash: hash(value.blockHash, 'blockHash'),
+export function parseStoredLog(value: Record<string, unknown>): RpcLog { return { address: address(value.address, 'log address'), blockHash: hash(value.blockHash, 'blockHash'),
   blockNumber: bigint(value.blockNumber, 'blockNumber'), transactionHash: hash(value.transactionHash, 'transactionHash'), transactionIndex: bigint(value.transactionIndex, 'transactionIndex'),
   logIndex: bigint(value.logIndex, 'logIndex'), data: hex(value.data, 'data'), topics: array(value.topics, 'topics').map((item) => hash(item, 'topic')), removed: value.removed === true }; }
-function accountSort(a: Account, b: Account) { return a.user.localeCompare(b.user) || a.assetUid.localeCompare(b.assetUid); }
-function allocationSort(a: Allocation, b: Allocation) { return a.user.localeCompare(b.user) || a.assetUid.localeCompare(b.assetUid) || a.marketId.localeCompare(b.marketId); }
 export function validatePrincipalMarket(value: Market): Market {
   const stakingEnabled = boolean(value.stakingEnabled, 'stakingEnabled');
   const gauge = address(value.gauge, 'gauge');
@@ -184,7 +134,6 @@ export function validatePrincipalMarket(value: Market): Market {
   return { marketId: hash(value.marketId, 'marketId'), assetUid: hash(value.assetUid, 'assetUid'), gauge,
     quoteAsset: address(value.quoteAsset, 'quoteAsset'), memeToken: nonzeroAddress(value.memeToken, 'memeToken'), stakingEnabled };
 }
-function identity(deployment: DeploymentIdentity): readonly unknown[] { return [deployment.environment, deployment.chainId, deployment.deploymentDigest]; }
 function fixedAddress(module: string): Address { const source = fixedF72Sources().find((item) => item.module === module); if (!source) throw new Error(`missing fixed ${module} address`); return source.address as Address; }
 function scalar(value: unknown): bigint { return bigint(value, 'contract scalar'); }
 function object(value: unknown, label: string): Record<string, unknown> { if (!value || typeof value !== 'object' || Array.isArray(value)) throw new Error(`${label} is invalid`); return value as Record<string, unknown>; }
@@ -202,8 +151,3 @@ function hex(value: unknown, label: string): Hex { if (typeof value !== 'string'
 function array(value: unknown, label: string): unknown[] { if (!Array.isArray(value)) throw new Error(`${label} is invalid`); return value; }
 function safeNumber(value: bigint, label: string): number { const result = Number(value); if (!Number.isSafeInteger(result) || result < 0) throw new Error(`${label} exceeds safe range`); return result; }
 function identifier(value: string): string { if (!/^[a-z][a-z0-9_]{0,62}$/.test(value)) throw new Error('invalid database schema name'); return `"${value}"`; }
-async function mapBounded<T, R>(items: readonly T[], concurrency: number, run: (item: T) => Promise<R>): Promise<R[]> {
-  const output = new Array<R>(items.length); let cursor = 0;
-  await Promise.all(Array.from({ length: Math.min(concurrency, items.length) }, async () => { while (cursor < items.length) { const index = cursor++; output[index] = await run(items[index]!); } }));
-  return output;
-}

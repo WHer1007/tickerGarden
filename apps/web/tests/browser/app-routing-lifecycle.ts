@@ -90,8 +90,8 @@ async function run() {
       await navigate(page === "home" ? "/" : page === "markets" ? "/explore" : page === "rewards" ? "/claim" : `/${page}`, page);
       check(button("[data-wallet]").dataset.state === "connected", `${page} pass ${pass}: wallet survives same-document navigation`);
       check(document.querySelectorAll(".wallet-dialog").length === 1, `${page} pass ${pass}: only one wallet picker exists`);
-      const routeIntervals = page === "rewards" ? 1 : 0;
-      await waitFor(() => intervals.size >= persistentIntervalBaseline + routeIntervals, `${page} pass ${pass} timers initialize`);
+      const routeIntervals = page === "rewards" ? 1 : ["docs", "privacy", "terms", "risks"].includes(page) ? -1 : 0;
+      await waitFor(() => intervals.size === persistentIntervalBaseline + routeIntervals, `${page} pass ${pass} timers initialize`);
       check(intervals.size === persistentIntervalBaseline + routeIntervals, `${page} pass ${pass}: route timers are scoped and do not grow (${intervals.size} active intervals)`);
     }
   }
@@ -101,6 +101,7 @@ async function run() {
   await waitFor(() => !!document.querySelector<HTMLInputElement>("[data-trade-amount]"), "trade deep link fields");
   check(location.pathname === "/trade" && new URLSearchParams(location.search).get("marketId") === `0x${"ab".repeat(32)}`, "legacy trade deep link keeps the selected market");
   await navigate("/rewards.html?marketId=fixture#creator", "rewards");
+  await waitFor(() => !!document.querySelector("#rewards-tab-creator"), "claim deep link fields");
   const rewardsRoot = document.querySelector("[data-route-outlet] main");
   check(location.search === "?marketId=fixture" && button("#rewards-tab-creator").getAttribute("aria-selected") === "true", "legacy Rewards deep link keeps query and active tab");
   await navigate("/claim?marketId=fixture#treasury", "rewards");

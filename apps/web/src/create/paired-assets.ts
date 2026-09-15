@@ -1,6 +1,6 @@
-import productionRelease from '../../../../deployments/manifests/robinhood-mainnet-4663.paired-assets.json' with { type: 'json' };
-import robinhoodTestnetRelease from '../../../../deployments/manifests/robinhood-testnet-46630.paired-assets.json' with { type: 'json' };
-import arbitrumSepoliaRelease from '../../../../deployments/manifests/arbitrum-sepolia-421614.paired-assets.json' with { type: 'json' };
+import productionRelease from './generated/robinhood-mainnet-4663.paired-assets.json' with { type: 'json' };
+import robinhoodTestnetRelease from './generated/robinhood-testnet-46630.paired-assets.json' with { type: 'json' };
+import arbitrumSepoliaRelease from './generated/arbitrum-sepolia-421614.paired-assets.json' with { type: 'json' };
 import { ROBINHOOD_PRODUCTION_CHAIN_ID, ROBINHOOD_CHAIN_ID } from '../v1/chain.ts';
 import type { ConfigReadModel } from '../v1/readApi.ts';
 

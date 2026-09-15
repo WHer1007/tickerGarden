@@ -1,6 +1,11 @@
+import directAbis_TickerGardenFactoryV1 from './generated/contracts/current/TickerGardenFactoryV1.ts';
+import directAbis_MarketRegistryV1 from './generated/contracts/current/MarketRegistryV1.ts';
+import directAbis_TickerGardenCurve from './generated/contracts/current/TickerGardenCurve.ts';
+import directAbis_TickerMemeTokenV1 from './generated/contracts/current/TickerMemeTokenV1.ts';
+import directAbis_MemeStockGauge from './generated/contracts/current/MemeStockGauge.ts';
 import { externalTradingService } from '../../../../services/backend-ts/packages/chain/src/external-trading.ts';
 import {decodeEventLog,type Abi,type Address,type Hex,type TransactionReceipt} from 'viem';
-import {currentV4Abis as directAbis} from './generated/abis.ts';
+
 import type {MarketDetailResponse,MarketReadModel,SourceBlock} from './generated/read-api.ts';
 import type {IntegrationBootstrap} from './integrationBootstrap.ts';
 export type ReadState=(address:Address,abi:Abi,name:string,args:readonly unknown[],block:bigint)=>Promise<unknown>;
@@ -29,7 +34,7 @@ export class DirectMarkets {
  key(){return `tickergarden:direct:${this.deployment.releaseId}`;}
  observe(log:{address:string;topics:readonly Hex[];data:Hex;blockNumber:bigint;blockHash:Hex;transactionHash:Hex;transactionIndex:number;logIndex:number}){
   if(log.address.toLowerCase()!==this.deployment.factory)return;
-  try{const decoded=decodeEventLog({abi:directAbis.TickerGardenFactoryV1,topics:log.topics as [Hex,...Hex[]],data:log.data});if(decoded.eventName!=='MarketCreated')return;
+  try{const decoded=decodeEventLog({abi:directAbis_TickerGardenFactoryV1,topics:log.topics as [Hex,...Hex[]],data:log.data});if(decoded.eventName!=='MarketCreated')return;
    const id=decoded.args.marketId.toLowerCase() as Hex;
    this.sources.set(id,{chainId:this.deployment.chainId,blockNumber:log.blockNumber.toString(),blockHash:log.blockHash,transactionHash:log.transactionHash,transactionIndex:log.transactionIndex,logIndex:log.logIndex});
    try{this.storage?.setItem(this.key(),JSON.stringify([...this.sources]));}catch{}
@@ -55,15 +60,15 @@ export class DirectMarkets {
   const head=await this.currentHead(),registry=this.deployment.bindings.marketRegistry;
   if(!this.sources.has(id))await this.discover?.(id,head.number);
   const source=this.sources.get(id);if(!source)throw Error('Market creation has not been observed for this deployment');
-  const [record,route]=await Promise.all([this.read(registry,directAbis.MarketRegistryV1,'market',[id],head.number),this.read(registry,directAbis.MarketRegistryV1,'canonicalRoute',[id],head.number)]) as [any,any];
+  const [record,route]=await Promise.all([this.read(registry,directAbis_MarketRegistryV1,'market',[id],head.number),this.read(registry,directAbis_MarketRegistryV1,'canonicalRoute',[id],head.number)]) as [any,any];
   const c=record.config,r=record.runtime;if(!c||!r||addr(c.curve)===zero||addr(c.memeToken)===zero)throw Error('Market is not currently registered');
   const curve=addr(c.curve);
   const token=addr(c.memeToken);
   const [reserve,sellable,reserved,fees,ready,executor,name,symbol,metadataURI,deployedAt,creator,activeStake]=await Promise.all([
-   ...['realQuoteReserve','sellableTokens','reservedTokens','accruedCurveFees','readyToGraduate'].map(functionName=>this.read(curve,directAbis.TickerGardenCurve,functionName,[],head.number)),
-   this.read(registry,directAbis.MarketRegistryV1,'graduationExecutor',[],head.number),
-   ...['name','symbol','metadataURI','deployedAt','creator'].map(functionName=>this.read(token,directAbis.TickerMemeTokenV1,functionName,[],head.number)),
-   c.stakingEnabled?this.read(addr(c.gauge),directAbis.MemeStockGauge,'effectiveTotalActiveStock',[],head.number):Promise.resolve(0n),
+   ...['realQuoteReserve','sellableTokens','reservedTokens','accruedCurveFees','readyToGraduate'].map(functionName=>this.read(curve,directAbis_TickerGardenCurve,functionName,[],head.number)),
+   this.read(registry,directAbis_MarketRegistryV1,'graduationExecutor',[],head.number),
+   ...['name','symbol','metadataURI','deployedAt','creator'].map(functionName=>this.read(token,directAbis_TickerMemeTokenV1,functionName,[],head.number)),
+   c.stakingEnabled?this.read(addr(c.gauge),directAbis_MemeStockGauge,'effectiveTotalActiveStock',[],head.number):Promise.resolve(0n),
   ]);
   const phase=Number(r.launchPhase);if((phase!==0&&phase!==1)||typeof ready!=='boolean')throw Error('Invalid market phase');
   const tokenName=text(name,'token name',64),tokenSymbol=text(symbol,'token symbol',16),uri=text(metadataURI,'metadata URI',2048);

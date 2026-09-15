@@ -1,3 +1,4 @@
+import {V1_EXECUTION_SPEC_ID} from './generated/abi-identity.ts';
 import type {
   Abi,
   Account,
@@ -9,7 +10,7 @@ import type {
   TransactionReceipt,
 } from "viem";
 import { ROBINHOOD_CHAIN_ID } from "./chain.ts";
-import { V1_EXECUTION_SPEC_ID } from "./generated/abis.ts";
+
 
 export type TransactionFailureCode =
   | "pending_transaction"

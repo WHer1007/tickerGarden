@@ -57,7 +57,7 @@ export function createSnapshotPoller(options: {
    if(!permitted()){recovering=true;return;}
    // A changed block with identical publication digests advances the revision
    // without reloading every cache. Recovery still rebuilds cleared views.
-   const recentChanged=update.recentVersion!==undefined&&update.recentVersion!==recentVersion;
+   const recentChanged=recentVersion!==undefined&&update.recentVersion!==undefined&&update.recentVersion!==recentVersion;
    if(update.recentVersion!==undefined)nextDelay=5000;
    if(update.mode==='reset'||update.invalidated.length>0||recovering||recentChanged){
     const next=recovering?{...update,mode:'reset' as const,invalidated:['markets','configs','positions','accounts'] as const}:update;

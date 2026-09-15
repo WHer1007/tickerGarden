@@ -10,7 +10,7 @@ export default {
   </div>
  </section>
  <div class="explore-results-heading"><p class="page-status" data-page-status role="status" aria-live="polite">Loading markets…</p><button type="button" data-market-reset hidden><i class="ph ph-arrow-counter-clockwise" aria-hidden="true"></i>Reset filters</button></div>
- <section class="explore-sections" data-market-list aria-busy="false" aria-label="Explore markets">
+ <section class="explore-sections" data-market-list data-status-active="true" aria-busy="false" aria-label="Explore markets">
   <p class="explore-empty" data-market-loading role="status" aria-live="polite" hidden>Loading markets…</p>
   <p class="explore-empty" data-market-empty role="status" aria-live="polite" hidden>No tokens yet</p>
   <p class="explore-empty" data-market-locked role="status" aria-live="polite" hidden>Markets are temporarily unavailable.</p>

@@ -1,210 +1,179 @@
-import {parseProtocolStatistics,decimalProduct,type ProtocolStatistics} from './v1/protocolStatistics.ts';
-import {mountStatsStockList} from './ui/stats-stock-list.ts';
-import {launchPreviewField} from './create/preview-dependencies.ts';
-import { decodeMarketRecord, legacyMarketRecordAbi } from "../../../services/backend-ts/packages/chain/src/market-record.ts";
-import { launchAbis, resolveBurnLaunchConfig, resolveLpLaunchConfig } from "./v1/features/launch.ts";
-import { coreMarketRouteAbi, decodeCoreMarketRoute } from '../../../services/backend-ts/packages/chain/src/market-route.ts';
-import {tradeContextKey} from './v1/tradeContext.ts';
-import {createTradeBalanceLoader} from './v1/tradeBalances.ts';
-import { rewardClaimDialog } from './ui/reward-claim-dialog.ts';
-import { userClaimsAbi, USER_CLAIM_MODE, LEGACY_USER_CLAIM_MODE, rawUserClaimRequest, DUAL_HOLDER_MODE, userClaimOutcome } from './v1/features/userClaims.ts';
-import {statisticsUSD, statisticsFresh} from "./v1/statisticsValue.ts";
-import {cachedStatistics} from './v1/statisticsCache.ts';
-import {createExplorePager} from './v1/explorePaging.ts';
-import {pageDirectExplore} from './v1/directExploreDirectory.ts';
-import {tokenAge} from './ui/token-age.ts';
-import {setupExploreStockPicker} from './ui/explore-stock-picker.ts';
-import {authorizeUpload} from './create/upload-auth.ts';
-import {searchHolderMarkets, type HolderMarket} from './v1/holderMarkets.ts';
-import {loadCreatorMarketPage} from './v1/creatorMarkets.ts';
-import {ownsCreatorRewards} from './v1/creatorOwnership.ts';
-import {stakeProgress,stakeLockLabel} from './ui/stake-progress.ts';
-import {explorerStakeStatistics} from './v1/stakeStatistics.ts';
-import {bindStakeAmountInput} from './ui/stake-amount-input.ts';
-import {decodeRecentTrade,explorerRecentTrades,explorerCurveVolume24h} from './v1/recentTrades.ts';
-import {encodeAbiParameters,keccak256,parseUnits} from 'viem';
-import {poolSpotPrice,type MarketOverview} from './v1/marketOverview.ts';
-import {createTradeTransactionStatus} from './ui/trade-transaction-status.ts';
-import {createGlobalNotice, globalNoticeRegion, type GlobalNoticeTone} from './ui/global-notice.ts';
-import {pendingTransactionPage} from './v1/pending-transaction-page.ts';
-import {watchWalletAccount} from './ui/wallet-account-sync.ts';
-import {curveTradeMetrics, curveBuyFee, antiSnipeBps, formatTradePrice, estimatedPoolTradingFee, poolTradeImpactBps} from './v1/tradePricing.ts';
-import {confirmLaunch} from './create/confirm-launch.ts';
-import {quoteIconUrl, assetLogoUrl} from './create/quote-icons.ts';
-import {stakingAssetForConfig, isListedStakingAsset} from './create/staking-assets.ts';
-import {allocatedFeeTotals, validateStakePositions, stakeHistoryEvent, stakeAfter, stakeShare, stakeDirectorySource, stakePortfolioMode, stakeMarketIsOpen, firstActiveStakeMarket, summarizeDirectStakeAllocations, unstakeConfirmationCopy} from './v1/stakingView.ts';
-import {validateTokenDetail, displayDecimal} from './v1/tokenDetail.ts';
-import {validateUserActivity} from './v1/userActivity.ts';
-import type {PositionPage, UserActivityPage} from './v1/generated/read-api.ts';
-import { tradingRoute, rewardTab } from "./v1/flowUx.ts";
-import { readCreateDraft, writeCreateDraft, clearCreateDraft, type CreateDraft } from "./create/draft.ts";
-import {graduationProgress} from "./v1/graduationProgress.ts";
-import {PERMIT2,poolSlot0,poolStateAbi,poolProtocolFee,poolRouterAbi,poolQuoterAbi,permit2Abi,poolSwapAbi,assertPoolRouterProfile,poolTradeRoute,poolAmount,buildPoolTrade,formatPoolFeeSummary,poolTransactionDeadline,poolPermit2Expiration,poolPermit2AllowanceFresh} from "./v1/poolTrade.ts";
-import { assertRecoveredLaunchReceipt } from "./create/launch-confirmation.ts";
-import { renderLaunchProgress, closeLaunchProgress } from "./create/launch-progress-dialog.ts";
-import { readLaunchState, saveLaunchState, launchStateKey, launchPhaseDisplay, type LaunchState, type LaunchPhase } from "./create/launch-state.ts";
-import { ipfsGatewayURL, isIPFSFileURI } from "./create/ipfs.ts";
-import { renderListingPanel } from "./create/listing-panel.ts";
-import { parseSavedListing, type ListingPackageSnapshot } from "./create/listing-package.ts";
-import { DeveloperBuyBalanceCache, developerBuyNotice } from './create/developer-buy.ts';
-import { feePreviewTable } from './create/fee-preview.ts';
-import { mountFieldValidation, fieldError } from './ui/fieldValidation.ts';
-import { createDisabledReason, createDisabledLevel, type CreateAvailability, type CreateNoticeLevel } from './v1/createAvailability.ts';
-import {integrationFeed,integrationMarketDirectory} from "./v1/integrationFeed.ts";
-import type { mountDirectTrades } from "./v1/directTradeWidget.ts";
-import {directReceipt} from "./v1/directReceipt.ts";
-import {DirectMarkets} from "./v1/directMarkets.ts";
-import {parseIntegrationBootstrap,bootstrapSync,type IntegrationBootstrap} from "./v1/integrationBootstrap.ts";
-import type { mountTokenDetail } from './v1/tokenDetailWidget.ts';
-import { readDetailMetadata, rememberDetailMetadata } from './v1/tokenMetadata.ts';
-import { feeDistribution } from './v1/marketDetail.ts';
-import { authorizedWalletAccount } from "./ui/wallet-session.ts";
-import { createRouter } from "./routing/router.ts";
+import {V1_EXECUTION_SPEC_ID} from './v1/generated/abi-identity.ts';
+import v1Abis_TickerGardenFactoryV1 from './v1/generated/contracts/legacy/TickerGardenFactoryV1.ts';
+import v1Abis_TreasuryDistributorV1 from './v1/generated/contracts/legacy/TreasuryDistributorV1.ts';
+import v1Abis_OfficialStockRegistryV1 from './v1/generated/contracts/legacy/OfficialStockRegistryV1.ts';
+import v1Abis_TickerMemeTokenV1 from './v1/generated/contracts/legacy/TickerMemeTokenV1.ts';
+import v1Abis_MarketRegistryV1 from './v1/generated/contracts/legacy/MarketRegistryV1.ts';
+import v1Abis_TickerGardenMemeHook from './v1/generated/contracts/legacy/TickerGardenMemeHook.ts';
+import v1Abis_ApprovedQuoteRegistry from './v1/generated/contracts/legacy/ApprovedQuoteRegistry.ts';
+import v1Abis_TickerGardenBaselineRegistry from './v1/generated/contracts/legacy/TickerGardenBaselineRegistry.ts';
+import v1Abis_LaunchTemplateRegistry from './v1/generated/contracts/legacy/LaunchTemplateRegistry.ts';
+import v1Abis_UserStockVault from './v1/generated/contracts/legacy/UserStockVault.ts';
+import v1Abis_CreatorRevenueRegistry from './v1/generated/contracts/legacy/CreatorRevenueRegistry.ts';
+import v1Abis_MemeStockGauge from './v1/generated/contracts/legacy/MemeStockGauge.ts';
+import v1Abis_ProtocolFeeVault from './v1/generated/contracts/legacy/ProtocolFeeVault.ts';
+import currentV4Abis_HolderRewardsDistributorV1 from './v1/generated/contracts/current/HolderRewardsDistributorV1.ts';
+import v1Abis_TickerGardenCurve from './v1/generated/contracts/legacy/TickerGardenCurve.ts';
+import v1Abis_AllocationManager from './v1/generated/contracts/legacy/AllocationManager.ts';
+import currentV4Abis_ProtocolFeeVault from './v1/generated/contracts/current/ProtocolFeeVault.ts';
+import {
+createPublicClient,
+createWalletClient,
+custom,
+decodeEventLog,
+encodeFunctionData,
+erc20Abi,
+formatUnits,
+http,
+parseAbi,
+toHex,
+type Address,
+type Hash,
+type Hex,
+type TransactionReceipt,
+} from "viem";
+import { decodeMarketRecord,legacyMarketRecordAbi } from "../../../services/backend-ts/packages/chain/src/market-record.ts";
+import { coreMarketRouteAbi,decodeCoreMarketRoute } from '../../../services/backend-ts/packages/chain/src/market-route.ts';
+import { DeveloperBuyBalanceCache } from './create/developer-buy.ts';
+import { type CreateDraft } from "./create/draft.ts";
+import { closeLaunchProgress } from "./create/launch-progress-dialog.ts";
+import { launchStateKey,readLaunchState,type LaunchPhase,type LaunchState } from "./create/launch-state.ts";
+import { type ListingPackageSnapshot } from "./create/listing-package.ts";
+import { metadataOrigin } from "./create/metadata.ts";
+import { assetLogoUrl,quoteIconUrl } from './create/quote-icons.ts';
+import { destroyQuotePicker } from "./create/quote-picker.ts";
+import { stakingAssetForConfig } from './create/staking-assets.ts';
+import "./icons/regular.css";
 import { loadPageTemplate } from "./routing/pages.ts";
+import { createRouter } from "./routing/router.ts";
+import type { PageName,Route } from "./routing/routes.ts";
 import { mountPageVisuals } from "./routing/visuals.ts";
-import type { PageName, Route } from "./routing/routes.ts";
-import { loadWalletAccounts } from "./v1/accounts.ts";
-import type { mountUserActivity } from "./v1/userActivityWidget.ts";
-import { WALLET_SNAPSHOT_MODE, fetchHolderSnapshots, remainingSnapshotAssets, holderSnapshotStatus, buildSnapshotClaim, type HolderSnapshotPage, type HolderRound, type SnapshotIdentity } from "./v1/features/holderSnapshots.ts";
+import { createRenderGeneration } from "./runtime/renderGeneration.ts";
+import { assertCanonicalSnapshotContinuation,mapConcurrent } from "./runtime/snapshot.ts";
+import { setupDocs } from "./ui/docs-search.ts";
+import { setupExploreStockPicker } from './ui/explore-stock-picker.ts';
+import { mountFieldValidation } from './ui/fieldValidation.ts';
+import { createGlobalNotice,globalNoticeRegion,type GlobalNoticeTone } from './ui/global-notice.ts';
+import { ensureWalletChain } from "./ui/network-support.ts";
+import { publicMessage } from "./ui/public-copy.ts";
+import { rewardClaimDialog } from './ui/reward-claim-dialog.ts';
+import { renderShell } from "./ui/shell.ts";
+import { bindStakeAmountInput } from './ui/stake-amount-input.ts';
 import { stakeErrorMessage } from "./ui/stake-error.ts";
-import { resolveMarketRelease, snapshotReleaseForMarket, type MarketRelease } from "./v1/marketRelease.ts";
-import { mountTransactionObservation } from "./v1/transactionObservation.ts";
-import { createMarketDirectory, type DirectoryQuery } from "./v1/marketDirectory.ts";
-import { HOLDER_REWARDS_DISTRIBUTOR_V1_ABI as continuousRewardsAbi, isContinuousHolderRewardMode } from "./v1/features/continuousRewards.ts";
+import { stakeLockLabel,stakeProgress } from './ui/stake-progress.ts';
+import { mountStatsStockList } from './ui/stats-stock-list.ts';
+import { tokenAge } from './ui/token-age.ts';
+import { createTradeTransactionStatus } from './ui/trade-transaction-status.ts';
+import { watchWalletAccount } from './ui/wallet-account-sync.ts';
+import { createWalletPicker,type InjectedProvider } from "./ui/wallet-picker.ts";
+import { authorizedWalletAccount } from "./ui/wallet-session.ts";
+import { loadWalletAccounts } from "./v1/accounts.ts";
+import { createAssetPriceStore } from './v1/assetPrices.ts';
+import type { mountCandles } from "./v1/candleWidget.ts";
 import { createCoalescedRefresh } from "./v1/coalescedRefresh.ts";
-import { summarizeMarkets, sumStatisticsUSD } from "./v1/statsSummary.ts";
+import { loadCreatorMarketPage } from './v1/creatorMarkets.ts';
+import { ownsCreatorRewards } from './v1/creatorOwnership.ts';
+import { pageDirectExplore } from './v1/directExploreDirectory.ts';
+import type { DirectMarkets } from "./v1/directMarkets.ts";
+import { directReceipt } from "./v1/directReceipt.ts";
+import { mountDisplayPrice } from "./v1/displayPrices.ts";
+import { createExplorePager } from './v1/explorePaging.ts';
+import { HOLDER_REWARDS_DISTRIBUTOR_V1_ABI as continuousRewardsAbi,isContinuousHolderRewardMode } from "./v1/features/continuousRewards.ts";
+import { buildSnapshotClaim,fetchHolderSnapshots,holderSnapshotStatus,remainingSnapshotAssets,WALLET_SNAPSHOT_MODE,type HolderRound,type HolderSnapshotPage,type SnapshotIdentity } from "./v1/features/holderSnapshots.ts";
+import { validateMarketStake } from './v1/features/stake-validation.ts';
+import { DUAL_HOLDER_MODE,LEGACY_USER_CLAIM_MODE,rawUserClaimRequest,USER_CLAIM_MODE,userClaimOutcome,userClaimsAbi } from './v1/features/userClaims.ts';
+import { rewardTab } from "./v1/flowUx.ts";
+import type { PositionPage,UserActivityPage } from './v1/generated/read-api.ts';
 import type { mountGlobalHolders } from "./v1/globalHoldersWidget.ts";
 import type { mountGlobalSeries } from "./v1/globalSeriesWidget.ts";
 import type { mountGlobalStatistics } from "./v1/globalStatsWidget.ts";
+import { graduationProgress } from "./v1/graduationProgress.ts";
+import { searchHolderMarkets,type HolderMarket } from './v1/holderMarkets.ts';
 import type { mountHolders } from "./v1/holderWidget.ts";
+import { bootstrapSync,parseIntegrationBootstrap,type IntegrationBootstrap } from "./v1/integrationBootstrap.ts";
+import { type LaunchFunding } from "./v1/launchFunding.ts";
+import { createMarketDirectory,type DirectoryQuery } from "./v1/marketDirectory.ts";
+import { resolveMarketRelease,snapshotReleaseForMarket,type MarketRelease } from "./v1/marketRelease.ts";
+import { pendingTransactionPage } from './v1/pending-transaction-page.ts';
+import { readPublishedMarket } from './v1/pendingMarket.ts';
+import { decimalProduct,parseProtocolStatistics,type ProtocolStatistics } from './v1/protocolStatistics.ts';
+import { createSnapshotPoller,SnapshotRefreshSuperseded } from "./v1/snapshotUpdates.ts";
+import { explorerStakeStatistics } from './v1/stakeStatistics.ts';
+import { firstActiveStakeMarket,stakeAfter,stakeDirectorySource,stakeHistoryEvent,stakeMarketIsOpen,stakePortfolioMode,stakeShare,summarizeDirectStakeAllocations,unstakeConfirmationCopy,validateStakePositions } from './v1/stakingView.ts';
+import { statisticsUSD } from "./v1/statisticsValue.ts";
+import { sumStatisticsUSD } from "./v1/statsSummary.ts";
+import { displayDecimal } from './v1/tokenDetail.ts';
+import type { mountTokenDetail } from './v1/tokenDetailWidget.ts';
+import { readDetailMetadata } from './v1/tokenMetadata.ts';
+import { createTradeBalanceLoader } from './v1/tradeBalances.ts';
 import type { mountTrades } from "./v1/tradeWidget.ts";
-import type { mountCandles } from "./v1/candleWidget.ts";
-import { createRenderGeneration } from "./runtime/renderGeneration.ts";
-import { createSnapshotPoller, SnapshotRefreshSuperseded } from "./v1/snapshotUpdates.ts";
-import {notifyLaunchDatabase,readPublishedMarket,MARKET_PUBLICATION_PENDING,LAUNCH_CONFIRMED_COPY} from './v1/pendingMarket.ts';
-import { mountDisplayPrice } from "./v1/displayPrices.ts";
-import { createAssetPriceStore } from './v1/assetPrices.ts';
-import { creatorTaxBps, assertCreatorTaxSupported, DEVELOPER_BUY_SLIPPAGE_BPS } from "./create/options.ts";
-import { activePairedConfig, RELEASE_PAIRED_ASSETS, RELEASE_OBSERVED_AT, RELEASE_SUPPLY, releasePairForSelection } from "./create/paired-assets.ts";
-import { developerBuyMode, graduationAmount, graduationEconomics } from "./create/economics.ts";
-import { metadataOrigin, publishLaunchDetails, readTokenImage, canResumeUpload } from "./create/metadata.ts";
-import { destroyQuotePicker, updateQuotePicker, type QuotePickerOption } from "./create/quote-picker.ts";
-import { publicMessage } from "./ui/public-copy.ts";
-import { createWalletPicker, type InjectedProvider } from "./ui/wallet-picker.ts";
-import { ensureWalletChain } from "./ui/network-support.ts";
-import { resolveLaunchFunding, type LaunchFunding } from "./v1/launchFunding.ts";
-import { assertCanonicalSnapshotContinuation, mapConcurrent } from "./runtime/snapshot.ts";
-import "@phosphor-icons/web/regular";
-import {
-  createPublicClient,
-  createWalletClient,
-  custom,
-  decodeEventLog,
-  encodeFunctionData,
-  erc20Abi,
-  formatUnits,
-  http,
-  parseAbi,
-  toHex,
-  type Address,
-  type Hash,
-  type Hex,
-  type TransactionReceipt,
-} from "viem";
+import { mountTransactionObservation } from "./v1/transactionObservation.ts";
+import { validateUserActivity } from './v1/userActivity.ts';
+import type { mountUserActivity } from "./v1/userActivityWidget.ts";
 
 import { robinhoodChain } from "./v1/chain.ts";
 import {
-  assertCanonicalAssetBinding,
-  assertCanonicalFactoryBindings,
-  assertCanonicalLaunchBindings,
-  assertCanonicalMarketBinding,
-  decodeCanonicalFactoryBindings,
-  type CanonicalAssetBinding,
-  type CanonicalRuntimeBindings,
+assertCanonicalAssetBinding,
+assertCanonicalFactoryBindings,
+assertCanonicalLaunchBindings,
+assertCanonicalMarketBinding,
+decodeCanonicalFactoryBindings,
+type CanonicalAssetBinding,
+type CanonicalRuntimeBindings,
 } from "./v1/chainBindings.ts";
 import {
-  buildCreateMarketRequest,
-  buildCurveBuyRequest,
-  buildCurveSellRequest,
-  buildLaunchAndBuyRequests,
-  deriveCreateMarketParams,
-  findCanonicalMarketCreated,
-  toCurveProgressViewModel,
-  type CreateMarketParams,
-  type SelectedLaunchConfig,
+type CreateMarketParams,
+type SelectedLaunchConfig
 } from "./v1/features/launch.ts";
+
+import type { TreasuryClaimProof } from './v1/features/treasury.ts';
+
 import {
-  buildTransferCreatorBeneficiary,
-} from "./v1/features/creator.ts";
+ADDRESS_PATTERN,
+assertFinalizedSync,
+BYTES32_PATTERN,
+canonicalAddress,
+canonicalBytes32,
+foldSortedMerkleProof,
+formatTokenAmount,
+parseTokenAmount,
+parseUint32,
+phaseLabel,
+errorText as rawErrorText,
+shortHex,
+tupleBigInt,
+tupleField,
+tupleNumber,
+tupleString,
+ZERO_ADDRESS,
+type MarketMetadata
+} from "./runtime/model.ts";
+
 import {
-  buildFinalizeRoot,
-  buildExpireRoot,
-  buildRequestRoot,
-  buildRolloverEpoch,
-  buildTreasuryClaim,
-  buildWithdrawServiceCredit,
-  fetchTreasuryClaimProof,
-  type TreasuryClaimProof,
-} from "./v1/features/treasury.ts";
-import {
-  buildStake,
-  validateMarketStake,
-  buildUnstakeAndWithdraw,
-  buildDirectRageQuit,
-  buildRageQuit,
-  buildSettleRageQuitRewards,
-  buildStockApproval,
-} from "./v1/features/vault.ts";
-import { v1Abis, currentV4Abis, V1_EXECUTION_SPEC_ID } from "./v1/generated/abis.ts";
-import {
-  TickerGardenV1Client,
-  type ConfigReadModel,
-  type HealthResponse,
-  type MarketDetailResponse,
-  type MarketReadModel,
-  type SyncStatus,
+TickerGardenV1Client,
+type ConfigReadModel,
+type HealthResponse,
+type MarketDetailResponse,
+type MarketReadModel,
+type SyncStatus,
 } from "./v1/readApi.ts";
 import { parseV1RuntimeConfig } from "./v1/runtimeConfig.ts";
 import {
-  createContractWriteRequest,
-  transactionScopeForOperation,
-  V1TransactionError,
-  V1TransactionExecutor,
-  type ContractWriteRequest,
-  type ReconciledSnapshot,
-  type TransactionScope,
-  type TransactionUpdate,
-  type V1TransactionClients,
+createContractWriteRequest,
+transactionScopeForOperation,
+V1TransactionError,
+V1TransactionExecutor,
+type ContractWriteRequest,
+type ReconciledSnapshot,
+type TransactionScope,
+type TransactionUpdate,
+type V1TransactionClients,
 } from "./v1/transaction.ts";
-import {
-  ADDRESS_PATTERN,
-  BYTES32_PATTERN,
-  ZERO_ADDRESS,
-  assertFinalizedSync,
-  canonicalAddress,
-  canonicalBytes32,
-  configNumber,
-  configBigInt,
-  configString,
-  errorText as rawErrorText,
-  foldSortedMerkleProof,
-  formatTokenAmount,
-  minimumAfterSlippage,
-  parseTokenAmount,
-  parseUint32,
-  phaseLabel,
-  shortHex,
-  tupleField,
-  tupleBigInt,
-  tupleNumber,
-  tupleString,
-  type MarketMetadata,
-} from "./runtime/model.ts";
 
 let integrationBootstrap: IntegrationBootstrap | null = null;
 let directMarkets: DirectMarkets | null = null;
 const integrationBootstrapPath = import.meta.env.VITE_INTEGRATION_BOOTSTRAP as string | undefined;
-type Foundation = Readonly<{
+export type Foundation = Readonly<{
   direct?: true;
   health: HealthResponse;
   sync: SyncStatus;
@@ -221,7 +190,7 @@ type Foundation = Readonly<{
   writeReasons: readonly string[];
 }>;
 
-interface WalletState {
+export interface WalletState {
   readonly account: Address;
   readonly provider: InjectedProvider;
   readonly executor: V1TransactionExecutor;
@@ -254,9 +223,6 @@ async function runPageAction(action: () => Promise<void>): Promise<void> {
   }
 }
 
-const brandMarkUrl = new URL("../assets/tickergarden-mark-128.webp", import.meta.url).href;
-const robinhoodFeatherUrl = new URL("../assets/robinhood-chain/robinhood-feather-symbol.jpg", import.meta.url).href;
-const brandWordmark = `<span class="wordmark" aria-hidden="true"><span>Ticker</span><span>Garden</span></span>`;
 const runtimeConfig = parseV1RuntimeConfig(import.meta.env);
 const runtimeRpcUrl = import.meta.env.PROD && typeof window !== 'undefined'
   ? new URL('/api/rpc', window.location.origin).toString()
@@ -445,6 +411,7 @@ function setPageStatus(message: string, tone: "neutral" | "success" | "warning" 
   const target = query<HTMLElement>("[data-page-status]");
   if (!target) return;
   target.textContent = publicMessage(message);
+  if(currentPage()==="markets"){const list=query<HTMLElement>("[data-market-list]");if(list)list.dataset.statusActive=String(!!message);}
   target.dataset.state = tone;
   target.parentElement?.querySelector("[data-page-retry]")?.remove();
   if (tone === "error") {
@@ -557,6 +524,7 @@ async function prepareLocalIntegrationFoundation():Promise<Foundation>{
       integrationBootstrap=parseIntegrationBootstrap(await response.json(),robinhoodChain.id,runtimeConfig.contracts.value);
     }
     const b=integrationBootstrap,sync=bootstrapSync(b);
+    const {DirectMarkets} = await import('./v1/directMarkets.ts');
     directMarkets ??= new DirectMarkets(
       b,
       (address,abi,functionName,args,blockNumber)=>publicClient.readContract({address,abi,functionName,args,blockNumber}),
@@ -625,10 +593,10 @@ async function verifyTransactionFoundation(): Promise<void> {
     const configured = runtimeConfig.contracts.value;
     try {
       const [rawBindings, rawLaunchFee, treasury, creatorRegistry] = await Promise.all([
-        publicClient.readContract({ abi: v1Abis.TickerGardenFactoryV1, address: configured.factoryAddress, functionName: "runtimeBindings" }),
-        publicClient.readContract({ abi: v1Abis.TickerGardenFactoryV1, address: configured.factoryAddress, functionName: "launchFee" }),
+        publicClient.readContract({ abi: v1Abis_TickerGardenFactoryV1, address: configured.factoryAddress, functionName: "runtimeBindings" }),
+        publicClient.readContract({ abi: v1Abis_TickerGardenFactoryV1, address: configured.factoryAddress, functionName: "launchFee" }),
         readHolderDistributor(configured.factoryAddress),
-        publicClient.readContract({ abi: v1Abis.TickerGardenFactoryV1, address: configured.factoryAddress, functionName: "creatorRevenueRegistry" }),
+        publicClient.readContract({ abi: v1Abis_TickerGardenFactoryV1, address: configured.factoryAddress, functionName: "creatorRevenueRegistry" }),
       ]);
       bindings = assertCanonicalFactoryBindings(rawBindings, {
         launchRouter: configured.launchRouterAddress,
@@ -638,7 +606,7 @@ async function verifyTransactionFoundation(): Promise<void> {
       if (treasury.toLowerCase() !== configured.treasuryDistributorAddress) throw new Error("Configured TreasuryDistributor is not the Factory binding");
       if (creatorRegistry.toLowerCase() !== configured.creatorRevenueRegistryAddress) throw new Error("Configured CreatorRevenueRegistry is not the Factory binding");
       const treasuryRegistry = await publicClient.readContract({
-        abi: v1Abis.TreasuryDistributorV1,
+        abi: v1Abis_TreasuryDistributorV1,
         address: configured.treasuryDistributorAddress,
         functionName: "marketRegistry",
       });
@@ -692,8 +660,8 @@ async function ensureCurrentRevision(expected: string): Promise<string> {
 async function ensureCanonicalAsset(config: ConfigReadModel, bindings: ReturnType<typeof assertCanonicalFactoryBindings> | undefined): Promise<CanonicalAssetBinding> {
   if (!bindings) throw new Error("Canonical Factory bindings are unavailable");
   const [rawAsset, minimum] = await Promise.all([
-    publicClient.readContract({ abi: v1Abis.OfficialStockRegistryV1, address: bindings.officialStockRegistry, functionName: "asset", args: [config.id] }),
-    publicClient.readContract({ abi: v1Abis.OfficialStockRegistryV1, address: bindings.officialStockRegistry, functionName: "minimumAllocation", args: [config.id] }),
+    publicClient.readContract({ abi: v1Abis_OfficialStockRegistryV1, address: bindings.officialStockRegistry, functionName: "asset", args: [config.id] }),
+    publicClient.readContract({ abi: v1Abis_OfficialStockRegistryV1, address: bindings.officialStockRegistry, functionName: "minimumAllocation", args: [config.id] }),
   ]);
   return assertCanonicalAssetBinding(config, rawAsset, minimum);
 }
@@ -705,7 +673,7 @@ async function readWalletMarket(address: Address, marketId: Hex, blockNumber?: b
   if(!result.data)throw Error('Market record unavailable');return decodeMarketRecord(result.data);
 }
 
-type VerifiedMarketFeeConfig = Readonly<{ burnMemeFees: boolean; stakingEnabled: boolean; creatorFeesToHolders: boolean; creatorTaxBps: number; creatorRevenueBeneficiaryAtCreation: Address }>;
+export type VerifiedMarketFeeConfig = Readonly<{ burnMemeFees: boolean; stakingEnabled: boolean; creatorFeesToHolders: boolean; creatorTaxBps: number; creatorRevenueBeneficiaryAtCreation: Address }>;
 const verifiedMarketFeeConfigs = new Map<string, VerifiedMarketFeeConfig>();
 function marketRelease(id: string): MarketRelease {
   const value = verifiedMarketReleases.get(id);
@@ -718,7 +686,7 @@ async function ensureCanonicalMarket(market: MarketReadModel): Promise<void> {
   const c = runtimeConfig.contracts.value;
   const token = canonicalAddress(market.memeToken, "Market token");
   const [factory, distributor] = await Promise.all([
-    publicClient.readContract({ abi: v1Abis.TickerMemeTokenV1, address: token, functionName: "factory" }),
+    publicClient.readContract({ abi: v1Abis_TickerMemeTokenV1, address: token, functionName: "factory" }),
     readHolderDistributor(token),
   ]);
   const catalog = [...runtimeConfig.releaseCatalog];
@@ -735,15 +703,15 @@ async function ensureCanonicalMarket(market: MarketReadModel): Promise<void> {
   const [rawMarket, rawRoute, registryFactory, distributorRegistry, hookVault] = await Promise.all([
     readWalletMarket(release.marketRegistry, market.marketId),
     publicClient.call({to:release.marketRegistry,data:encodeFunctionData({abi:coreMarketRouteAbi,functionName:"canonicalRoute",args:[market.marketId]})}).then(result=>decodeCoreMarketRoute(result.data??"0x")),
-    publicClient.readContract({ abi: v1Abis.MarketRegistryV1, address: release.marketRegistry, functionName: "factory" }),
-    publicClient.readContract({ abi: v1Abis.TreasuryDistributorV1, address: release.holderDistributor, functionName: "marketRegistry" }),
-    publicClient.readContract({ abi: v1Abis.TickerGardenMemeHook, address: release.hook, functionName: "protocolFeeVault" }),
+    publicClient.readContract({ abi: v1Abis_MarketRegistryV1, address: release.marketRegistry, functionName: "factory" }),
+    publicClient.readContract({ abi: v1Abis_TreasuryDistributorV1, address: release.holderDistributor, functionName: "marketRegistry" }),
+    publicClient.readContract({ abi: v1Abis_TickerGardenMemeHook, address: release.hook, functionName: "protocolFeeVault" }),
   ]);
   resolveMarketRelease(catalog, { chainId: robinhoodChain.id, token: {factory, hook: canonicalAddress(tupleString(tupleField(rawMarket, "config", 0), "graduatedHook", 13), "Market hook")},
     marketRegistry: {factory: registryFactory}, distributor: {marketRegistry: distributorRegistry}, hook: {feeVault: hookVault} });
   const [runtime, creator, holders] = await Promise.all([
-    publicClient.readContract({abi: v1Abis.TickerGardenFactoryV1, address: release.factory, functionName: "runtimeBindings"}),
-    publicClient.readContract({abi: v1Abis.TickerGardenFactoryV1, address: release.factory, functionName: "creatorRevenueRegistry"}),
+    publicClient.readContract({abi: v1Abis_TickerGardenFactoryV1, address: release.factory, functionName: "runtimeBindings"}),
+    publicClient.readContract({abi: v1Abis_TickerGardenFactoryV1, address: release.factory, functionName: "creatorRevenueRegistry"}),
     readHolderDistributor(release.factory),
   ]);
   const bindings = assertCanonicalFactoryBindings(runtime, {launchRouter: release.launchRouter, allocationManager: release.allocationManager, protocolFeeVault: release.feeVault});
@@ -765,10 +733,10 @@ async function ensureCanonicalLaunch(selected: SelectedLaunchConfig): Promise<vo
   await verifyTransactionFoundation();
   if (!foundation?.bindings) throw new Error("Canonical Factory bindings are unavailable");
   const [asset, quote, baseline, template] = await Promise.all([
-    selected.stakingEnabled !== false ? publicClient.readContract({ abi: v1Abis.OfficialStockRegistryV1, address: foundation.bindings.officialStockRegistry, functionName: "asset", args: [selected.asset!.assetUid] }) : Promise.resolve(null),
-    publicClient.readContract({ abi: v1Abis.ApprovedQuoteRegistry, address: foundation.bindings.approvedQuoteRegistry, functionName: "quoteConfig", args: [selected.quote.configId] }),
-    publicClient.readContract({ abi: v1Abis.TickerGardenBaselineRegistry, address: foundation.bindings.tickerGardenBaselineRegistry, functionName: "baseline", args: [selected.baseline.baselineId] }),
-    publicClient.readContract({ abi: v1Abis.LaunchTemplateRegistry, address: foundation.bindings.launchTemplateRegistry, functionName: "launchTemplate", args: [selected.template.templateId] }),
+    selected.stakingEnabled !== false ? publicClient.readContract({ abi: v1Abis_OfficialStockRegistryV1, address: foundation.bindings.officialStockRegistry, functionName: "asset", args: [selected.asset!.assetUid] }) : Promise.resolve(null),
+    publicClient.readContract({ abi: v1Abis_ApprovedQuoteRegistry, address: foundation.bindings.approvedQuoteRegistry, functionName: "quoteConfig", args: [selected.quote.configId] }),
+    publicClient.readContract({ abi: v1Abis_TickerGardenBaselineRegistry, address: foundation.bindings.tickerGardenBaselineRegistry, functionName: "baseline", args: [selected.baseline.baselineId] }),
+    publicClient.readContract({ abi: v1Abis_LaunchTemplateRegistry, address: foundation.bindings.launchTemplateRegistry, functionName: "launchTemplate", args: [selected.template.templateId] }),
   ]);
   assertCanonicalLaunchBindings(selected, { asset, quote, baseline, template });
 }
@@ -986,46 +954,8 @@ function receiptEvent(
 }
 
 function setupShell(): void {
-  const page = currentPage();
-  const nav: readonly [PageName, string, string][] = [
-    ["markets", "Explore", "/explore"],
-    ["create", "Create", "/create"],
-    ["stats", "Stats", "/stats"],
-    ["rewards", "Claim", "/claim"],
-    ["staking", "Stake", "/stake"],
-    ["docs", "Docs", "/docs"],
-  ];
+  renderShell(currentPage(), robinhoodChain.name);
   const header = required<HTMLElement>("[data-shell-header]");
-  const footerLink = (id: PageName, label: string, url: string): string =>
-    `<a class="${page === id ? "active" : ""}" ${page === id ? "aria-current=\"page\"" : ""} href="${url}">${label}</a>`;
-  header.classList.remove("nav-open");
-  header.innerHTML = `
-    <a class="brand" href="/" aria-label="TickerGarden home">
-      <img src="${brandMarkUrl}" alt="">${brandWordmark}
-    </a>
-    <nav aria-label="Primary navigation">${nav.map(([id, label, url]) => `<a class="${page === id ? "active" : ""}" ${page === id ? "aria-current=\"page\"" : ""} ${(id === "rewards" || id === "staking") ? "data-wallet-only hidden" : ""} href="${url}">${label}</a>`).join("")}</nav>
-    <div class="header-actions">
-      <button class="wallet" type="button" data-wallet><i class="ph ph-wallet" aria-hidden="true"></i><span>Connect Wallet</span></button>
-      <button class="menu" type="button" data-menu aria-label="Open navigation" aria-expanded="false"><i class="ph ph-list" aria-hidden="true"></i></button>
-    </div>`;
-  required<HTMLElement>("[data-shell-footer]").innerHTML = `
-    <div class="footer-intro">
-      <a class="brand" href="/" aria-label="TickerGarden home"><img src="${brandMarkUrl}" alt="">${brandWordmark}</a>
-      <p>Where stock communities meet onchain culture—and new possibilities take root.</p>
-    </div>
-    <nav class="footer-navigation" aria-label="Footer navigation">
-      <section><strong>Garden</strong>${footerLink("markets", "Explore", "/explore")}${footerLink("create", "Create", "/create")}</section>
-      <section><strong>Community</strong><span data-wallet-only hidden>${footerLink("rewards", "Claim", "/claim")}</span>${footerLink("stats", "Stats", "/stats")}${footerLink("docs", "Docs", "/docs")}</section>
-      <section><strong>Legal</strong>${footerLink("privacy", "Privacy", "/privacy")}${footerLink("terms", "Terms", "/terms")}${footerLink("risks", "Risk", "/risks")}</section>
-    </nav>
-    <div class="footer-meta">
-      <span>© 2026 TickerGarden</span>
-      <div class="footer-meta-links">
-        <a class="footer-social-link" href="https://x.com/TickerGarden" target="_blank" rel="noopener noreferrer" aria-label="Visit TickerGarden on X"><i class="ph ph-x-logo" aria-hidden="true"></i><span>X</span></a>
-        <span class="chain-tag" title="${robinhoodChain.name}"><img src="${robinhoodFeatherUrl}" width="20" height="20" alt="">Robinhood Chain</span>
-      </div>
-    </div>`;
-
   walletPicker ??= createWalletPicker({ connect: connectWallet, restore: restoreWallet, disconnect: disconnectWallet, account: () => wallet?.account ?? null });
   required<HTMLButtonElement>("[data-wallet]").addEventListener("click", () => {
     if (hasActiveOperations()) { notify("Wait for the current transaction before changing wallets.", "warning"); return; }
@@ -1296,7 +1226,7 @@ const marketDirectory=createMarketDirectory((params,signal)=>{
  return new TickerGardenV1Client(runtimeConfig.readApi.value,(input,init)=>fetch(input,{...init,signal})).listMarkets({...params,includeRecent:true});
 });
 const exploreCreatedAt=new Map<string,string>();
-type ExploreStat={marketId:string;memeToken?:string;quoteAsset?:string;sourceVersion?:number;sourceBlockNumber?:string;sourceBlockHash?:string;metrics?:MarketReadModel['metrics'];lastBuy?:MarketReadModel['lastBuy'];observedAt:number;launchPhase?:string};
+export type ExploreStat={marketId:string;memeToken?:string;quoteAsset?:string;sourceVersion?:number;sourceBlockNumber?:string;sourceBlockHash?:string;metrics?:MarketReadModel['metrics'];lastBuy?:MarketReadModel['lastBuy'];observedAt:number;launchPhase?:string};
 let exploreStatistics:Record<string,ExploreStat>={};
 let exploreStatisticsAt=0;
 let exploreStatisticsKey="";
@@ -1372,7 +1302,7 @@ function applyExploreStatistics():void {
   const cap=query<HTMLElement>('[data-market-cap]',card);if(cap)cap.title=`USD estimate · Updated ${new Date(stat.observedAt*1000).toLocaleString()}`;
  }
 }
-type ExploreRanking=import('./v1/generated/read-api.ts').MarketPage['ranking'];
+export type ExploreRanking=import('./v1/generated/read-api.ts').MarketPage['ranking'];
 const exploreRankings:{0:ExploreRanking;1:ExploreRanking}={0:undefined,1:undefined};
 let exploreRecentHead='',exploreLiveGeneration=0,exploreLiveRequest:AbortController|null=null,exploreLastCapCheck=0;
 function exploreQuery(phase:0|1):DirectoryQuery{
@@ -1424,7 +1354,7 @@ function clearMarketDirectoryView(resetPages=true):void {
  list.querySelectorAll("[data-runtime-market]").forEach(item=>item.remove());
  list.setAttribute("aria-busy","false");
  for(const selector of ["[data-market-loading]","[data-market-empty]"]){const item=query<HTMLElement>(selector,list);if(item)item.hidden=true;}
- const locked=query<HTMLElement>("[data-market-locked]",list);if(locked){locked.hidden=false;locked.textContent="Markets are temporarily unavailable. We’ll keep trying in the background.";}
+ const locked=query<HTMLElement>("[data-market-locked]",list);if(locked){locked.hidden=true;locked.textContent="Markets are temporarily unavailable. We’ll keep trying in the background.";}
  const more=query<HTMLButtonElement>("[data-market-query-more]");if(more)more.hidden=true;
  const badge=query<HTMLElement>(".hero-badge span");if(badge)badge.textContent="Waiting for current market data";
 }
@@ -1453,7 +1383,7 @@ async function loadMarketStockSymbols(): Promise<void> {
   } catch { /* The address-based STOCK catalog remains usable without display metadata. */ }
 }
 
-type ExploreIdentity={name:string;symbol:string;metadataURI:string;deployedAt:string};
+export type ExploreIdentity={name:string;symbol:string;metadataURI:string;deployedAt:string};
 let exploreStockPicker:ReturnType<typeof setupExploreStockPicker>|undefined;
 let exploreDirectorySnapshot:readonly MarketReadModel[]|undefined;
 const exploreIdentities=new Map<string,ExploreIdentity>();
@@ -1504,6 +1434,21 @@ async function renderMarkets(phases:readonly (0|1)[]=[1,0]):Promise<void>{
  void refreshExploreStatistics().then(()=>{if(currentPage()==='markets')applyExploreStatistics();});
 
 }
+function syncExploreStatus():void {
+ const grids=queryAll<HTMLElement>('[data-stage-grid]');
+ const states=grids.map(grid=>grid.dataset.loadState??'loading');
+ const hasCards=grids.some(grid=>!!grid.querySelector('[data-runtime-market]'));
+ if(states.includes('loading')){setPageStatus(hasCards?'Updating markets…':'Loading markets…');return;}
+ if(states.includes('error')){
+  setPageStatus(hasCards?'Some markets could not be updated. Showing the last loaded list.':'Markets could not be loaded. Try again.','warning');
+  const target=query<HTMLElement>('[data-page-status]');
+  const retry=document.createElement('button');retry.type='button';retry.className='secondary-button';retry.dataset.pageRetry='';retry.textContent='Try again';
+  retry.onclick=()=>{for(const phase of [0,1] as const)if(query<HTMLElement>(`[data-stage-grid="${phase}"]`)?.dataset.loadState==='error')void renderExploreStage(phase);};
+  target?.insertAdjacentElement('afterend',retry);return;
+ }
+ const filtered=!!query<HTMLInputElement>('[data-market-search]')?.value.trim()||!!query<HTMLSelectElement>('[data-market-asset]')?.value;
+ setPageStatus(hasCards?'':filtered?'No matching tokens. Try another search or clear your filters.':'No tokens yet. New markets will appear here.');
+}
 async function renderExploreStage(phase:0|1,direction:'current'|'next'|'previous'|number='current',refreshMetrics=true):Promise<void>{
  const list=query<HTMLElement>('[data-market-list]'),grid=query<HTMLElement>(`[data-stage-grid="${phase}"]`);
  if(!foundation||!list||!grid)return;
@@ -1516,7 +1461,7 @@ async function renderExploreStage(phase:0|1,direction:'current'|'next'|'previous
  const previous=query<HTMLButtonElement>(`[data-stage-prev="${phase}"]`),next=query<HTMLButtonElement>(`[data-stage-next="${phase}"]`),empty=query<HTMLElement>(`[data-stage-empty="${phase}"]`);
  const wasPreviousDisabled=previous?.disabled??true,wasNextDisabled=next?.disabled??true;
  empty?.querySelector('[data-stage-retry]')?.remove();
- if(previous)previous.disabled=true;if(next)next.disabled=true;grid.setAttribute('aria-busy','true');
+ if(previous)previous.disabled=true;if(next)next.disabled=true;grid.setAttribute('aria-busy','true');grid.dataset.loadState='loading';syncExploreStatus();
  try{
   const page=await explorePagers[phase].load(params,direction);
   if(!page||generation!==explorePageGeneration[phase]||!grid.isConnected)return;
@@ -1526,7 +1471,7 @@ async function renderExploreStage(phase:0|1,direction:'current'|'next'|'previous
   const note=query<HTMLElement>(`[data-ranking-note="${phase}"]`);
   if(note){note.hidden=sort!=='marketCapUsd_desc';note.textContent='Ranking updates every 20 minutes'+(page.ranking?.updatedAt?` · ${page.ranking.stale?'Update delayed · ':''}Updated ${new Date(page.ranking.updatedAt).toLocaleTimeString()}`:'');}
   if(page.recovered)setPageStatus('The market list has updated. Showing the first page.');
-  const filtered=page.items;
+  const filtered=page.items;grid.dataset.loadState=filtered.length?'ready':'empty';
   exploreVisibleRows[phase]=filtered;
   const renderedKey=JSON.stringify(page);
   if(exploreRenderedPages[phase]===renderedKey&&grid.querySelector('[data-runtime-market]')){
@@ -1621,8 +1566,8 @@ async function renderExploreStage(phase:0|1,direction:'current'|'next'|'previous
   if(previous)previous.disabled=!page.hasPrevious;if(next)next.disabled=!page.hasNext;
   exploreRenderedPages[phase]=renderedKey;
   if(refreshMetrics)void refreshExploreStatistics().then(()=>{if(currentPage()==='markets')applyExploreStatistics();});
- }catch(error){if(generation===explorePageGeneration[phase]){if(empty){empty.hidden=false;empty.textContent=(error instanceof ExploreResponseError?'Market data could not be verified.':'We couldn’t load these markets.')+(grid.querySelector('[data-runtime-market]')?' Showing the last loaded list.':'');const retry=document.createElement('button');retry.type='button';retry.dataset.stageRetry=String(phase);retry.textContent='Try again';retry.setAttribute('aria-label',`Try loading ${phase===1?'Bloomed':'Growing'} markets again`);retry.onclick=()=>{void renderExploreStage(phase,direction);};empty.append(retry);}if(previous)previous.disabled=wasPreviousDisabled;if(next)next.disabled=wasNextDisabled;}}
- finally{if(generation===explorePageGeneration[phase])grid.setAttribute('aria-busy','false');}
+ }catch(error){if(generation===explorePageGeneration[phase]){grid.dataset.loadState='error';if(empty){empty.hidden=false;empty.textContent=(error instanceof ExploreResponseError?'Market data could not be verified.':'We couldn’t load these markets.')+(grid.querySelector('[data-runtime-market]')?' Showing the last loaded list.':'');const retry=document.createElement('button');retry.type='button';retry.dataset.stageRetry=String(phase);retry.textContent='Try again';retry.setAttribute('aria-label',`Try loading ${phase===1?'Bloomed':'Growing'} markets again`);retry.onclick=()=>{void renderExploreStage(phase,direction);};empty.append(retry);}if(previous)previous.disabled=wasPreviousDisabled;if(next)next.disabled=wasNextDisabled;}}
+ finally{if(generation===explorePageGeneration[phase]){grid.setAttribute('aria-busy','false');syncExploreStatus();}}
 }
 
 function clearStatsSnapshotView(_message: string): void {
@@ -1729,28 +1674,8 @@ async function renderStats(force=false):Promise<void>{
  applyStatsSnapshot();if(button)button.disabled=false;
 }
 
-function setupDocs(): void {
-  const search = query<HTMLInputElement>("[data-docs-search]");
-  const apply = () => {
-    const needle = (search?.value ?? "").trim().toLowerCase();
-    const articles = queryAll<HTMLElement>("[data-docs-article]");
-    articles.forEach((item) => {
-      item.hidden = Boolean(needle && !item.textContent?.toLowerCase().includes(needle));
-    });
-    queryAll<HTMLElement>("[data-docs-section]").forEach((section) => {
-      section.hidden = !Array.from(section.querySelectorAll<HTMLElement>("[data-docs-article]")).some(item => !item.hidden);
-    });
-    const empty = query<HTMLElement>("[data-docs-empty]");
-    if (empty) empty.hidden = articles.some((item) => !item.hidden);
-  };
-  search?.addEventListener("input", apply);
-  queryAll<HTMLAnchorElement>(".docs-toc a").forEach((link) => link.addEventListener("click", () => {
-    if (search) search.value = "";
-    apply();
-  }));
-}
 
-type TradeQuote = Readonly<{
+export type TradeQuote = Readonly<{
   side: "buy" | "sell";
   marketId: Hex;
   input: bigint;
@@ -1776,44 +1701,13 @@ let tradeMemeLogoUrl = tradeTokenLogoFallback;
 let tradeMarketVerified = false;
 let tradeSide: "buy" | "sell" = "buy";
 let tradeQuote: TradeQuote | null = null;
-type CurvePricing={marketId:string;blockNumber:bigint;timestamp:bigint;quoteReserve:bigint;tokenReserve:bigint;baseBps:bigint;taxBps:bigint;at:number};
+export type CurvePricing={marketId:string;blockNumber:bigint;timestamp:bigint;quoteReserve:bigint;tokenReserve:bigint;baseBps:bigint;taxBps:bigint;at:number};
 let curvePricing:CurvePricing|null=null;
 let curvePricingPending: {marketId:string;promise:Promise<CurvePricing>}|null=null;
-async function loadCurvePricing(market:MarketReadModel):Promise<CurvePricing>{
- if(curvePricing?.marketId===market.marketId&&Date.now()-curvePricing.at<15000)return curvePricing;
- if(curvePricingPending?.marketId===market.marketId)return curvePricingPending.promise;
- const promise=(async()=>{
-  const baseline=foundation?.baseline.find(c=>c.id===market.tickerGardenBaselineId);if(!baseline)throw Error('Fee configuration missing');
-  const baseBps=configBigInt(baseline,'curveFeeBps');
-  const block=await publicClient.getBlock({blockTag:'latest'});
-  const args={address:canonicalAddress(market.curve,'Curve'),abi:v1Abis.TickerGardenCurve,blockNumber:block.number};
-  const [reserves,tax]=await Promise.all([publicClient.readContract({...args,functionName:'getReserves'}),publicClient.readContract({...args,functionName:'creatorTaxBps'})]);
-  const result={marketId:market.marketId,blockNumber:block.number,timestamp:block.timestamp,quoteReserve:reserves[0],tokenReserve:reserves[1],baseBps,taxBps:BigInt(tax),at:Date.now()};
-  if(tradeMarket?.market===market)curvePricing=result;
-  return result;
- })();
- curvePricingPending={marketId:market.marketId,promise};
- try{return await promise;}finally{if(curvePricingPending?.promise===promise)curvePricingPending=null;}
-}
+
 
 const poolQuoteBindings=new Map<string,Promise<{manager:Address;taxBps:number}>>();
-async function loadPoolQuoteBindings(market:MarketReadModel,blockNumber:bigint){
- const route=poolTradeRoute(market,'buy');
- const cacheKey=`${route.router}:${route.quoter}:${market.curve}`;
- const previous=poolQuoteBindings.get(cacheKey);if(previous)return previous;
- const pending=(async()=>{
-  const [manager,quoterManager,taxBps,vaultManager]=await Promise.all([
-   publicClient.readContract({abi:poolRouterAbi,address:route.router,functionName:'poolManager',blockNumber}),
-   publicClient.readContract({abi:poolQuoterAbi,address:route.quoter,functionName:'poolManager',blockNumber}),
-   publicClient.readContract({abi:v1Abis.TickerGardenCurve,address:canonicalAddress(market.curve,'Curve'),functionName:'creatorTaxBps',blockNumber}),
-   publicClient.readContract({abi:v1Abis.ProtocolFeeVault,address:marketRelease(market.marketId).feeVault,functionName:'poolManager',blockNumber})]);
-  if(manager.toLowerCase()!==quoterManager.toLowerCase()||manager.toLowerCase()!==vaultManager.toLowerCase()||manager===ZERO_ADDRESS||taxBps>500)throw Error('Invalid pool quote binding');
-  return {manager,taxBps};
- })();
- if(poolQuoteBindings.size>=32)poolQuoteBindings.delete(poolQuoteBindings.keys().next().value!);
- poolQuoteBindings.set(cacheKey,pending);
- try{return await pending;}catch(error){if(poolQuoteBindings.get(cacheKey)===pending)poolQuoteBindings.delete(cacheKey);throw error;}
-}
+
 
 let tradeLoadGeneration = 0;
 let tradeQuoteGeneration = 0;
@@ -1822,435 +1716,42 @@ let tradeQuoteExpiryTimer = 0;
 let tradePhaseTimer = 0;
 let tradePhaseLoading = false;
 
-function setupTrade(): void {
-  query<HTMLElement>('.ref-links')?.addEventListener('click',event=>{
-    const button=event.target instanceof Element?event.target.closest<HTMLButtonElement>('button[data-external-url]'):null;
-    if(!button||button.hidden||button.disabled||!button.dataset.externalUrl)return;
-    try{const url=new URL(button.dataset.externalUrl);if(!['https:','http:'].includes(url.protocol))return;window.open(url.href,'_blank','noopener,noreferrer');}catch{/* Invalid metadata links stay inert. */}
-  },{capture:true});
-  tradePhaseTimer = window.setInterval(async () => {
-    if (document.hidden || currentPage() !== 'trade') return;
-    const current = tradeMarket;
-    void refreshMarketOverview();
-    void refreshRecentTrades();
-    if (document.hidden || tradePhaseLoading || !current || !foundation || !readApi) return;
-    tradePhaseLoading = true;
-    try {
-      const fresh = foundation.direct && directMarkets ? await directMarkets.market(current.market.marketId) : await readApi.getMarket({marketId:current.market.marketId,revision:foundation.sync.revision,includeRecent:true});
-      if (tradeMarket !== current || currentPage() !== 'trade') return;
-      await refreshTradeFields(fresh, true);
-    } catch { /* Keep current fields; the next background pass retries. */ }
-    finally { tradePhaseLoading = false; }
-  }, 30_000);
-
-  queryAll<HTMLButtonElement>('[data-fill-trade-balance]').forEach(button=>button.addEventListener('click',()=>{
-    if(!wallet||!tradeMetadata||detailBalanceAccount!==wallet.account)return;
-    const side=button.dataset.fillTradeBalance==='receive'?(tradeSide==='buy'?'sell':'buy'):tradeSide;
-    const balance=side==='buy'?detailBalances?.quote:detailBalances?.meme;
-    if(balance===undefined||balance<=0n)return;
-    const amount=query<HTMLInputElement>('[data-trade-amount]');if(!amount)return;
-    amount.value=formatUnits(balance,side==='buy'?tradeMetadata.quoteDecimals:18);
-    if(side!==tradeSide)query<HTMLButtonElement>(`[data-trade-side="${side}"]`)?.click();
-    else amount.dispatchEvent(new Event('input',{bubbles:true}));
-    amount.focus();
-  }));
-  query<HTMLButtonElement>('[data-detail-connect]')?.addEventListener('click',()=>query<HTMLButtonElement>('[data-wallet]')?.click());
-  query<HTMLButtonElement>('[data-detail-fee-details]')?.addEventListener('click',()=>{const node=query<HTMLElement>('[data-detail-fee-rows]')?.closest<HTMLElement>('section');node?.scrollIntoView({behavior:'smooth',block:'center'});node?.focus({preventScroll:true});});
-  let tradeReverseRotation=0;
-  query<HTMLButtonElement>('[data-trade-reverse]')?.addEventListener('click',event=>{
-    const button=event.currentTarget as HTMLButtonElement;
-    tradeReverseRotation+=180;
-    const icon=button.querySelector<HTMLElement>('.ph');if(icon)icon.style.transform=`rotate(${tradeReverseRotation}deg)`;
-    query<HTMLButtonElement>(`[data-trade-side="${tradeSide==='buy'?'sell':'buy'}"]`)?.click();
-  });
-  queryAll<HTMLButtonElement>('[data-detail-tab]').forEach(button => button.addEventListener('click', () => {
-    queryAll<HTMLButtonElement>('[data-detail-tab]').forEach(tab => {
-      tab.classList.toggle('active', tab === button);
-      tab.setAttribute('aria-selected', String(tab === button));
-      tab.tabIndex = tab === button ? 0 : -1;
-    });
-    queryAll<HTMLElement>('[data-detail-panel]').forEach(panel => { panel.hidden = panel.dataset.detailPanel !== button.dataset.detailTab; });
-  }));
-  queryAll<HTMLButtonElement>('[data-detail-tab]').forEach((button, _index, tabs) => button.addEventListener('keydown', event => {
-    if (!['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) return;
-    event.preventDefault();
-    const index = tabs.indexOf(button);
-    const next = event.key === 'Home' ? 0 : event.key === 'End' ? tabs.length - 1 : (index + (event.key === 'ArrowRight' ? 1 : -1) + tabs.length) % tabs.length;
-    tabs[next]?.focus();
-    tabs[next]?.click();
-  }));
-  query<HTMLButtonElement>('[data-detail-copy]')?.addEventListener('click', () => {
-    if (!tradeMarket) return;
-    window.open(`${robinhoodChain.blockExplorers.default.url}/token/${tradeMarket.market.memeToken}`, '_blank', 'noopener,noreferrer');
-  });
-  queryAll<HTMLButtonElement>("[data-trade-side]").forEach((button) => button.addEventListener("click", () => {
-    tradeSide = button.dataset.tradeSide === "sell" ? "sell" : "buy";
-    queryAll<HTMLButtonElement>("[data-trade-side]").forEach((item) => {item.classList.toggle("active", item === button);item.setAttribute("aria-pressed",String(item===button));});
-    tradeQuote = null;
-    renderTradeQuote();
-    scheduleTradeQuote();
-  }));
-  const tradeAmountInput=query<HTMLInputElement>('[data-trade-amount]');
-  if(tradeAmountInput){
-    let lastAmount=tradeAmountInput.value;
-    const decimal=/^[0-9]*(?:\.[0-9]*)?$/;
-    const accepts=(insert:string)=>{
-      const start=tradeAmountInput.selectionStart??tradeAmountInput.value.length,end=tradeAmountInput.selectionEnd??start;
-      return decimal.test(tradeAmountInput.value.slice(0,start)+insert+tradeAmountInput.value.slice(end));
-    };
-    tradeAmountInput.addEventListener('beforeinput',event=>{if(event.data!==null&&!accepts(event.data))event.preventDefault();});
-    tradeAmountInput.addEventListener('paste',event=>{const value=event.clipboardData?.getData('text');if(value!==undefined&&!accepts(value))event.preventDefault();});
-    tradeAmountInput.addEventListener('input',()=>{
-      if(!decimal.test(tradeAmountInput.value)){
-        tradeAmountInput.value=lastAmount;
-        tradeAmountInput.dispatchEvent(new Event('input',{bubbles:true}));return;
-      }
-      lastAmount=tradeAmountInput.value;
-      scheduleTradeQuote();
-    });
-  }
-  query<HTMLFormElement>("[data-trade-form]")?.addEventListener("submit", (event) => {
-    event.preventDefault();
-    void runPageAction(submitTrade);
-  });
-  queryAll<HTMLButtonElement>('[data-trade-stake-action]').forEach(button=>button.addEventListener('click',()=>{
-    if(!tradeMarket)return;
-    router.navigate(`/stake?marketId=${encodeURIComponent(tradeMarket.market.marketId)}&action=${button.dataset.tradeStakeAction}#positions`);
-  }));
-  // refreshCurrentPage owns the initial market load. Starting a second load
-  // here races the route refresh, which can clear and cancel the detail/chart
-  // request after it has already accepted the same market identity.
-  updateTradeAvailability();
-}
+function setupTrade(): void { if(!tradeController)return; return tradeController!.setupTrade(); }
 
 const overviewLoads=new Map<string,number>();
-async function refreshMarketOverview(_preserve=false):Promise<void>{
- const market=tradeMarket?.market;if(!market)return;
- const display=market.display;
- const fresh=display&&Date.now()/1000-Number(display.asOfTimestamp)<=1200&&Number(display.asOfTimestamp)<=Date.now()/1000+30;
- tokenDetailWidget?.setOverview({asOf:fresh?Number(display.asOfTimestamp):undefined,supply:fresh?display.totalSupplyRaw:undefined,price:fresh?display.priceQuote??undefined:undefined,usd:assetPrices.midpointUsd(market.quoteAsset)??undefined});
- void renderTradeFeeDetails(market,tradeLoadGeneration);
-}
+
 
 let tradeStakeAccount:Address|undefined;
 let tradeStakeGeneration=0;
 const tradeStakeTotals=new Map<string,{at:number;value:bigint}>();
 const tradeStakeTotalRequests=new Map<string,Promise<bigint>>();
-async function refreshTradeStake():Promise<void>{
-  const generation=++tradeStakeGeneration;
-  const detail=tradeMarket,account=wallet?.account;
-  tradeStakeAccount=account;
-  const panel=query<HTMLElement>('[data-trade-stake-summary]');
-  if(!panel)return;
-  panel.hidden=!detail||detail.market.gauge===ZERO_ADDRESS;
-  queryAll<HTMLElement>('[data-trade-stake-base]').forEach(element=>{element.hidden=panel.hidden;});
-  if(panel.hidden||!detail)return;
-  text('[data-trade-stake-total]','-');text('[data-trade-stake-user]','-');
-  const market=detail.market;
-  const add=query<HTMLButtonElement>('[data-trade-stake-action="add"]');
-  const withdraw=query<HTMLButtonElement>('[data-trade-stake-action="withdraw"]');
-  if(add)add.disabled=market.launchPhase!==1;
-  if(withdraw)withdraw.disabled=true;
-  text('[data-trade-stake-note]',market.launchPhase!==1?'Staking opens after Blooming':!account?'Connect your wallet to view your stake':'');
-  try{
-    const config=findAsset(market.assetUid);
-    const decimals=Number(config.values.tokenDecimals);
-    if(!Number.isInteger(decimals)||decimals<0||decimals>18)throw Error('Invalid Stock Decimals');
-    const current=()=>generation===tradeStakeGeneration&&tradeMarket===detail&&wallet?.account===account;
-    const display=(value:bigint)=>`${formatTokenAmount(value,decimals)} ${stockSymbol(config)}`;
-    if(market.display&&Date.now()/1000-Number(market.display.asOfTimestamp)<=1200)text('[data-trade-stake-total]',display(BigInt(market.display.totalStakedRaw)));
-    if(account&&readApi){
-      let cursor:string|undefined;let found=false;
-      do{
-        const page=await readApi.listUserPositions({address:account,revision:detail.sync.revision,...(cursor?{cursor}:{})});
-        assertFinalizedSync(page.sync,detail.sync.revision,'Stake position');
-        if(!current())return;
-        const position=page.items.find(p=>p.marketId===market.marketId);
-        if(position){text('[data-trade-stake-user]',display(BigInt(position.allocated)));if(withdraw)withdraw.disabled=BigInt(position.allocated)===0n;found=true;break;}
-        cursor=page.nextCursor??undefined;
-      }while(cursor);
-      if(!found&&current())text('[data-trade-stake-user]',display(0n));
-    }
-  }catch{/* Display-only reads never block trading. */}
-}
+async function refreshTradeStake():Promise<void>{ await ensureTradeController(); return tradeController!.refreshTradeStake(); }
 
-function renderDetailStakingSymbol(symbol: string, logoUrl?: string): void {
-  text('[data-detail-staking-symbol]',symbol);
-  for(const image of queryAll<HTMLImageElement>('[data-detail-staking-logo], [data-detail-stock-logo]')){
-    const url=logoUrl??quoteIconUrl(symbol);image.hidden=!url;image.alt=url?`${symbol} Logo`:'';image.onerror=()=>{image.hidden=true;};if(url)image.src=url;else image.removeAttribute('src');
-  }
-}
 
-function renderTradeAssetLogo(selector:string,url:string|undefined,symbol:string):void{
-  const image=query<HTMLImageElement>(selector);if(!image)return;
-  image.hidden=!tradeMetadata;
-  image.alt=tradeMetadata?`${symbol} Logo`:'';
-  if(!tradeMetadata){image.removeAttribute('src');delete image.dataset.logoSource;return;}
-  const source=url??tradeTokenLogoFallback;
-  if(image.dataset.logoSource===source&&image.hasAttribute('src'))return;
-  image.dataset.logoSource=source;
-  image.onerror=()=>{image.onerror=null;image.src=tradeTokenLogoFallback;};
-  image.src=source;
-}
 
-function clearTradeMarketState(): void {
-  ++tradeStakeGeneration;
-  if(tradeMarket)overviewLoads.delete(tradeMarket.market.marketId);
-  queryAll<HTMLElement>('[data-trade-stake-base]').forEach(element=>{element.hidden=true;});
-  const stakeSummary=query<HTMLElement>('[data-trade-stake-summary]');if(stakeSummary)stakeSummary.hidden=true;
-  const stakingBadge=query<HTMLElement>('[data-detail-staking-badge]');if(stakingBadge)stakingBadge.hidden=true;
-  renderDetailStakingSymbol('-');
-  const quoteLogo=query<HTMLImageElement>('[data-detail-quote-logo]');if(quoteLogo){quoteLogo.hidden=true;quoteLogo.removeAttribute('src');quoteLogo.alt='';}
-  tradeMarket = null;
-  tradeMarketVerified = false;
-  curvePricing=null;
-  query<HTMLElement>('.ref-hero')?.setAttribute('aria-busy','true');
-  query<HTMLElement>('[data-detail-phase]')?.classList.remove('is-bloomed');
-  text('[data-detail-phase]','Loading market');text('[data-detail-phase-note]','');text('[data-detail-trading-pool]','Loading trading route…');
-  const graduation=query<HTMLElement>('[data-detail-graduation]');if(graduation)graduation.hidden=true;
-  tokenDetailWidget?.setMarket(null);
-  detailContentAbort?.abort();detailContentAbort=null;
-  detailBalanceLoader.clear();detailBalanceAccount=undefined;detailBalances=null;
-  queryAll<HTMLElement>('[data-detail-symbol]').forEach(el=>el.textContent='-');
-  text('[data-detail-description]','Loading description…');
-  const avatar=query<HTMLImageElement>('[data-detail-image]');if(avatar){const fallback=new URL('../assets/token-placeholder.svg',import.meta.url).href;avatar.onerror=()=>{avatar.onerror=null;avatar.src=fallback;};avatar.src=fallback;}
-  for(const key of ['website','x']){const link=query<HTMLButtonElement>(`[data-detail-${key}]`);if(link){link.hidden=false;link.disabled=true;delete link.dataset.externalUrl;link.removeAttribute('title');}}
-  text('[data-detail-stock-label]','-');text('[data-detail-venue]','-');
-  for (const key of ['symbol', 'token', 'created', 'creator', 'supply', 'volume', 'cap', 'holders', 'fees', 'fee-rules']) text(`[data-detail-${key}]`, '-');
-  text('[data-detail-fee-note]', 'Load a verified market to view fee allocation rules.');
-  const explorer = query<HTMLAnchorElement>('[data-detail-explorer]');
-  if (explorer) { explorer.hidden = true; explorer.removeAttribute('href'); }
-  const copy = query<HTMLButtonElement>('[data-detail-copy]'); if (copy) copy.disabled = true;
-  tradeMetadata = null;
-  tradeMemeLogoUrl = tradeTokenLogoFallback;
-  tradeQuote = null;
-  displayPriceWidget?.setToken(null);
-  candleWidget?.setMarket(null);
-  tradeHistoryWidget?.setMarket(null);
-  holderWidget?.setMarket(null);
-  text("[data-trade-market-name]", "Market details");
-  for (const selector of ["[data-trade-stock]", "[data-trade-quote]", "[data-trade-phase]", "[data-trade-summary-id]"]) text(selector, "-");
-  text("[data-trade-market-note]", "");
-  renderTradeQuote();
-}
 
-async function verifyTradeMarket(detail: MarketDetailResponse, generation: number): Promise<void> {
-  try {
-    await ensureCanonicalMarket(detail.market);
-    if (generation !== tradeLoadGeneration || tradeMarket?.market.marketId !== detail.market.marketId
-      || tradeContextKey(tradeMarket.market)!==tradeContextKey(detail.market)) return;
-    tradeMarketVerified = true;
-    // Public fee allocation is rendered from the database independently of this RPC verification.
-    if (detail.market.launchPhase === 0) void loadCurvePricing(detail.market).then(() => {
-      if (generation === tradeLoadGeneration && tradeMarketVerified && !tradeQuote) renderTradeQuote();
-    }).catch(() => {});
-    updateTradeAvailability();
 
-  } catch {
-    if (generation !== tradeLoadGeneration || tradeMarket?.market.marketId !== detail.market.marketId) return;
-    tradeMarketVerified = false;
+function clearTradeMarketState(): void { if(!tradeController)return; return tradeController!.clearTradeMarketState(); }
 
-    updateTradeAvailability();
-  }
-}
 
-async function loadDetailContent(market:MarketReadModel,generation:number):Promise<void>{
-  const abort=new AbortController();detailContentAbort?.abort();detailContentAbort=abort;const timeout=setTimeout(()=>abort.abort(),10000);
-  try{const value=await readDetailMetadata(market.identity?.metadataURI??tradeMetadata?.metadataURI??'',launchMetadataOrigin,abort.signal,import.meta.env.VITE_IPFS_GATEWAY);if(generation!==tradeLoadGeneration||abort.signal.aborted)return;if(!value){text('[data-detail-description]','Description could not be loaded.');return;}
-    text('[data-detail-description]',value.description||'No description added.');const image=query<HTMLImageElement>('[data-detail-image]');if(image&&value.image)image.src=value.image;
-    tradeMemeLogoUrl=value.image||tradeTokenLogoFallback;renderTradeQuote();
-    for(const key of ['website','x'] as const){const link=query<HTMLButtonElement>(`[data-detail-${key}]`);if(link&&value[key]){link.dataset.externalUrl=value[key];link.title=value[key];link.hidden=false;link.disabled=false;}}
-  }catch{if(generation===tradeLoadGeneration){text('[data-detail-description]','Description could not be loaded.');}}finally{clearTimeout(timeout);}
-}
-function renderDetailBalances():void{
- if(detailBalanceAccount!==wallet?.account)detailBalances=null;
- const pay=tradeSide==='buy'?detailBalances?.quote:detailBalances?.meme,receive=tradeSide==='buy'?detailBalances?.meme:detailBalances?.quote;
- text('[data-detail-pay-balance]',pay===undefined||!tradeMetadata?'-':`${formatTokenAmount(pay,tradeSide==='buy'?tradeMetadata.quoteDecimals:18)} ${tradeSide==='buy'?tradeMetadata.quoteSymbol:tradeMetadata.symbol}`);
- text('[data-detail-receive-balance]',receive===undefined||!tradeMetadata?'-':`${formatTokenAmount(receive,tradeSide==='buy'?18:tradeMetadata.quoteDecimals)} ${tradeSide==='buy'?tradeMetadata.symbol:tradeMetadata.quoteSymbol}`);
- for(const [side,balance] of [['pay',pay],['receive',receive]] as const){const button=query<HTMLButtonElement>(`[data-fill-trade-balance="${side}"]`);if(button){button.disabled=!wallet||!tradeMetadata||balance===undefined||balance<=0n;const symbol=side==='pay'?(tradeSide==='buy'?tradeMetadata?.quoteSymbol:tradeMetadata?.symbol):(tradeSide==='buy'?tradeMetadata?.symbol:tradeMetadata?.quoteSymbol);const label=side==='pay'?`Use full ${symbol??'pay asset'} balance`:`Switch direction and use full ${symbol??'receive asset'} balance`;button.setAttribute('aria-label',label);button.title=label;}}
 
-}
-async function loadDetailBalances(preserve=true):Promise<void>{
- const market=tradeMarket?.market,account=wallet?.account;
- if(!preserve)detailBalanceLoader.clear();
- detailBalanceAccount=account;
- if(!market||!account){detailBalanceLoader.clear();return;}
- // Database snapshot objects change independently of wallet/asset identity.
- await detailBalanceLoader.load({key:`${robinhoodChain.id}:${market.marketId}:${account}:${market.quoteAsset}:${market.memeToken}`,account,quote:market.quoteAsset,meme:market.memeToken});
-}
-function retryMissingDetailBalances():void{
- if(currentPage()==='trade'&&wallet&&!document.hidden&&navigator.onLine&&(detailBalances?.quote===undefined||detailBalances?.meme===undefined))void loadDetailBalances();
-}
+
+function renderDetailBalances():void{ if(!tradeController)return; return tradeController!.renderDetailBalances(); }
+async function loadDetailBalances(preserve=true):Promise<void>{ await ensureTradeController(); return tradeController!.loadDetailBalances(preserve); }
+function retryMissingDetailBalances():void{ if(!tradeController)return; return tradeController!.retryMissingDetailBalances(); }
 window.addEventListener('online',retryMissingDetailBalances);
 document.addEventListener('visibilitychange',retryMissingDetailBalances);
 
 let tradeLoadingTimeout:ReturnType<typeof setTimeout>|undefined;
-function setTradePageLoading(loading:boolean):void{
- clearTimeout(tradeLoadingTimeout);
- const overlay=query<HTMLElement>('[data-trade-page-loading]');if(!overlay)return;
- overlay.hidden=!loading;
- overlay.parentElement?.setAttribute('aria-busy',String(loading));
- // Slow optional or failed services must not hold the whole page indefinitely.
- if(loading)tradeLoadingTimeout=setTimeout(()=>setTradePageLoading(false),10000);
-}
-async function loadTradeMarket(explicit?: string): Promise<void> {
-  const requested = explicit ?? new URL(window.location.href).searchParams.get('marketId') ?? '';
-  if (tradeMarket && tradeMarket.market.marketId === requested.trim().toLowerCase()) {
-    await refreshTradeFields(undefined, true);
-    return;
-  }
-  // Clear the old target before parsing or any prerequisite can fail.
-  setTradePageLoading(false);
-  clearTradeMarketState();
-  const generation = ++tradeLoadGeneration;
-  tradeQuoteGeneration += 1;
-  window.clearTimeout(tradeQuoteTimer);
-  const raw = explicit ?? new URL(window.location.href).searchParams.get("marketId") ?? "";
-  let marketId: Hex;
-  try { marketId = canonicalBytes32(raw.trim().toLowerCase(), "marketId"); }
-  catch (error) { text("[data-detail-phase]", "Choose a market"); text("[data-detail-phase-note]", "Open a token from Explore to view its trading pool."); setPageStatus(errorText(error), "error"); return; }
-  if (!foundation || (!readApi && !foundation.direct)) {
-    setPageStatus(`Market data unavailable — ${runtimeReasons().join("; ")}`, "error");
-    return;
-  }
-  setTradePageLoading(true);
-  setPageStatus("Loading the finalized market record…");
-  tradeQuote = null;
-  displayPriceWidget?.setToken(null);
-  try {
-    // The finalized directory already contains the complete display record. Use
-    // it immediately and refresh route state in the background.
-    const known = foundation.markets.find(m => m.marketId === marketId);
-    const earlyMetadata = known ? marketMetadata(known) : null;
-    void earlyMetadata?.catch(()=>{});
-    const response = known && !foundation.direct
-      ? { market: known, sync: foundation.sync }
-      : foundation.direct && directMarkets
-        ? await directMarkets.market(marketId)
-        : foundation.directoryMarketId===marketId ? null
-        : await readPublishedMarket(()=>readApi!.getMarket({marketId,revision:foundation!.sync.revision,includeRecent:true}),marketId,foundation.sync.revision);
-    if (generation !== tradeLoadGeneration) return;
-    if(!response){
-      text('[data-detail-phase]','Waiting for market data');
-      text('[data-detail-phase-note]',MARKET_PUBLICATION_PENDING);
-      text('[data-detail-description]','');
-      query<HTMLElement>('.ref-hero')?.setAttribute('aria-busy','false');
-      tokenDetailWidget?.setUnavailable(true);
-      setPageStatus(MARKET_PUBLICATION_PENDING,'warning');
-      updateTradeAvailability();
-      return;
-    }
-    if (response.market.marketId !== marketId) throw new Error("Read API returned a different market identity");
-    if (!foundation.direct) assertFinalizedSync(response.sync, foundation.sync.revision, "market detail");
-    const metadata = await (earlyMetadata && known?.memeToken === response.market.memeToken && known.quoteAssetConfigId === response.market.quoteAssetConfigId ? earlyMetadata : marketMetadata(response.market));
-    const view = toCurveProgressViewModel(response);
-    if (generation !== tradeLoadGeneration) return;
-    tradeMarket = response;
-    query<HTMLElement>('.ref-hero')?.setAttribute('aria-busy','false');
-    tradeMetadata = metadata;
-    const quoteLogo=query<HTMLImageElement>('[data-detail-quote-logo]');
-    if(quoteLogo){const url=quoteIconUrl(metadata.quoteSymbol);quoteLogo.hidden=!url;quoteLogo.alt=`${metadata.quoteSymbol} Logo`;quoteLogo.onerror=()=>{quoteLogo.hidden=true;};if(url)quoteLogo.src=url;else quoteLogo.removeAttribute('src');}
-    queryAll<HTMLElement>('[data-detail-symbol]').forEach(el=>el.textContent=metadata.symbol);
-    const baseline=foundation.baseline.find(c=>c.kind==='baseline'&&c.id===response.market.tickerGardenBaselineId);
-    const supply=baseline?.values.supply;
-    const graduated=response.market.launchPhase===1;
-    renderTradePhase(graduated);
-    const progressLabel=query<HTMLElement>('[data-detail-progress-label]');if(progressLabel)progressLabel.hidden=graduated;
-    text('[data-detail-phase-note]',response.market.confirmation?'Created on chain · Final confirmation pending':'');
-    const graduation=query<HTMLElement>('[data-detail-graduation]');if(graduation)graduation.hidden=graduated;
-    const progress=marketBloomProgress(response.market);
-    text('[data-detail-progress-label]',progress===null?'-':`${progress.toFixed(2)}%`);
-    const bar=query<HTMLProgressElement>('[data-detail-progress]');if(bar){if(progress===null)bar.removeAttribute('value');else bar.value=progress;}
-    renderTradePoolAddress(response.market);
-    text('[data-detail-supply]',typeof supply==='string'?formatTokenAmount(BigInt(supply),18):'-');
-    tokenDetailWidget?.setMarket({marketId:response.market.marketId,memeToken:response.market.memeToken,quoteAsset:response.market.quoteAsset,quoteDecimals:metadata.quoteDecimals,symbol:metadata.symbol,quoteSymbol:metadata.quoteSymbol,createdAt:Number(response.market.identity?.deployedAt??metadata.deployedAt)||undefined});
-    void refreshMarketOverview();
-    void loadDetailContent(response.market,generation);
-    void loadDetailBalances();
-    text('[data-detail-token]', shortHex(response.market.memeToken));
-    const deployed = response.market.identity?.deployedAt??metadata.deployedAt;
-    const date = deployed && /^\d+$/.test(deployed) ? new Date(Number(deployed) * 1000) : null;
-    text('[data-detail-created]', date && Number.isFinite(date.getTime()) ? date.toLocaleDateString('en-US', {year:'numeric', month:'short', day:'numeric'}) : '-');
-    // Detail analytics owns volume and circulating cap; directory metrics use FDV.
-    const explorer = query<HTMLAnchorElement>('[data-detail-explorer]');
-    if (explorer) { explorer.href = `${robinhoodChain.blockExplorers.default.url}/token/${response.market.memeToken}`; explorer.hidden = false; }
-    const copy = query<HTMLButtonElement>('[data-detail-copy]'); if (copy) copy.disabled = false;
- candleWidget?.setMarket({marketId:response.market.marketId,memeAsset:response.market.memeToken,quoteAsset:response.market.quoteAsset,quoteDecimals:metadata.quoteDecimals});
- holderWidget?.setMarket({marketId:response.market.marketId,memeToken:response.market.memeToken});
- tradeHistoryWidget?.setMarket({marketId:response.market.marketId,memeAsset:response.market.memeToken,quoteAsset:response.market.quoteAsset,quoteDecimals:metadata.quoteDecimals});
-    const nextUrl = new URL(window.location.href);
-    nextUrl.searchParams.set("marketId", marketId);
-    router.replaceLocation(nextUrl.href);
-    text("[data-trade-market-name]", metadata.name);
-    text("[data-trade-stock]", shortHex(response.market.assetUid, 9, 7));
-    text('[data-detail-venue]',response.market.launchPhase===0?'Bonding curve':'Uniswap v4');
-    void refreshTradeStake();
-    if(response.market.gauge===ZERO_ADDRESS)text('[data-detail-stock-label]','Staking disabled');
-    else {const asset=findAsset(response.market.assetUid);const token=stockToken(asset);text('[data-detail-stock-label]',token?shortHex(token):'-');renderDetailStakingSymbol(stockSymbol(asset),stockLogo(asset));
-      const listed=stakingAssetForConfig(robinhoodChain.id,asset);if(listed)text('[data-detail-stock-label]',listed.symbol);}
+function setTradePageLoading(loading:boolean):void{ if(!tradeController)return; return tradeController!.setTradePageLoading(loading); }
+async function loadTradeMarket(explicit?: string): Promise<void> { await ensureTradeController(); return tradeController!.loadTradeMarket(explicit); }
 
-    displayPriceWidget?.setToken(response.market.quoteAsset);
-    text("[data-trade-quote]", metadata.quoteSymbol);
-    text("[data-trade-phase]", phaseLabel(response.market.launchPhase));
-    text("[data-trade-summary-id]", marketId);
-    text("[data-trade-market-note]", `Real paired-asset reserve ${formatTokenAmount(view.realQuoteReserve, metadata.quoteDecimals)} ${metadata.quoteSymbol}; sellable token amount ${formatTokenAmount(view.sellableTokens, 18)} ${metadata.symbol}.`);
-    renderTradeQuote();
-    updateTradeAvailability();
-    if (query<HTMLInputElement>("[data-trade-amount]")?.value.trim()) scheduleTradeQuote();
-  } catch (error) {
-    if (generation !== tradeLoadGeneration) return;
-    clearTradeMarketState();
-    text("[data-detail-phase]", "Market unavailable");
-    query<HTMLElement>('.ref-hero')?.setAttribute('aria-busy','false');
-    tokenDetailWidget?.setUnavailable();
-    text('[data-detail-description]','Token details could not be loaded.');
-    text("[data-detail-phase-note]", errorText(error));
-    setPageStatus(`Market load failed — ${errorText(error)}`, "error");
-    updateTradeAvailability();
-  } finally {
-    if(generation===tradeLoadGeneration)setTradePageLoading(false);
-  }
-}
 
-async function renderTradeFeeDetails(market: MarketReadModel, generation: number): Promise<void> {
-  if(generation!==tradeLoadGeneration)return;
-  const direct=(market as MarketReadModel&{directFeeConfig?:{creatorTaxBps:number;activeStakeRaw:string}}).directFeeConfig;
-  const display=market.display;
-  const snapshot=direct??(display&&Date.now()/1000-Number(display.asOfTimestamp)<=1200?{creatorTaxBps:display.creatorTaxBps,activeStakeRaw:display.activeStakeRaw}:null);
-  if(!snapshot||market.stakingEnabled===undefined||market.creatorFeesToHolders===undefined||market.lpFeePips===undefined){tokenDetailWidget?.setFeeConfig(null);return;}
-  const baseline=foundation?.baseline.find(config=>config.id===market.tickerGardenBaselineId);
-  if(!baseline){tokenDetailWidget?.setFeeConfig(null);return;}
-  tokenDetailWidget?.setFeeConfig({phase:market.launchPhase,stakingEnabled:market.stakingEnabled,holders:market.creatorFeesToHolders,active:BigInt(snapshot.activeStakeRaw)>0n,taxBps:snapshot.creatorTaxBps,baseFeeBps:Number(configBigInt(baseline,'curveFeeBps')),lpFeePips:market.lpFeePips});
-  const badge=query<HTMLElement>('[data-detail-staking-badge]');if(badge)badge.hidden=!market.stakingEnabled;
-  text('[data-detail-staking-status]',market.launchPhase===1?'Staking Enabled':'Stake Opens After Blooming');
-  text('[data-detail-creator]',market.creator?shortHex(market.creator):'-');
-}
 
-function scheduleTradeQuote(): void {
-  window.clearTimeout(tradeQuoteExpiryTimer);
-  window.clearTimeout(tradeQuoteTimer);
-  const generation = ++tradeQuoteGeneration;
-  tradeQuote = null;
-  renderTradeQuote();
-  tradeQuoteTimer = window.setTimeout(() => { void quoteTrade(generation); }, 300);
-}
+
 
 let tradeAutoRefreshPending=false;
-async function refreshTradeQuote():Promise<void>{
-  window.clearTimeout(tradeQuoteExpiryTimer);
-  if(currentPage()!=='trade'||!tradeQuote||!wallet||document.hidden||tradeAutoRefreshPending)return;
-  updateTradeAvailability();
-  if(tradeSubmitting){tradeQuoteExpiryTimer=window.setTimeout(()=>{void refreshTradeQuote();},30000);return;}
-  const previous=tradeQuote;
-  tradeAutoRefreshPending=true;
-  const generation=++tradeQuoteGeneration;
-  try{await quoteTrade(generation);}finally{
-    tradeAutoRefreshPending=false;
-    if(generation===tradeQuoteGeneration&&tradeQuote===previous&&currentPage()==='trade'&&!document.hidden){
-      tradeQuoteExpiryTimer=window.setTimeout(()=>{void refreshTradeQuote();},30000);
-    }
-  }
-}
+async function refreshTradeQuote():Promise<void>{ await ensureTradeController(); return tradeController!.refreshTradeQuote(); }
 document.addEventListener('visibilitychange',()=>{
   if(document.hidden){window.clearTimeout(tradeQuoteExpiryTimer);return;}
   if(currentPage()==='trade'&&tradeQuote){
@@ -2259,421 +1760,35 @@ document.addEventListener('visibilitychange',()=>{
   }
 });
 
-async function quoteTrade(generation: number): Promise<void> {
-  if (!tradeMarket || !tradeMetadata || !wallet || !foundation) {
-    if (tradeMarket && !tradeMarketVerified) text('[data-trade-status]', 'Verifying Trading Route…');
-    updateTradeAvailability();
-    return;
-  }
-  const input = query<HTMLInputElement>('[data-trade-amount]')?.value.trim() ?? '';
-  if (!input) { text('[data-trade-status]', ''); return; }
-  const decimals = tradeSide === 'buy' ? tradeMetadata.quoteDecimals : 18;
-  if (!/^(?:0|[1-9][0-9]*)(?:\.[0-9]+)?$/.test(input) || !/[1-9]/.test(input)) {
-    text('[data-trade-status]', 'Enter a valid amount.'); return;
-  }
-  if ((input.split('.')[1]?.length ?? 0) > decimals) {
-    text('[data-trade-status]', `Use Up To ${decimals} Decimal Places`); return;
-  }
-  if(!tradeMarketVerified){await verifyTradeMarket(tradeMarket,tradeLoadGeneration);if(!tradeMarketVerified||generation!==tradeQuoteGeneration)return;}
-  if(foundation.direct&&directMarkets){
-    const current=tradeMarket;
-    try {
-      const fresh=await directMarkets.market(current.market.marketId);
-      if(generation!==tradeQuoteGeneration||!tradeMarket||tradeContextKey(tradeMarket.market)!==tradeContextKey(current.market))return;
-      if(fresh.market.launchPhase!==current.market.launchPhase||fresh.market.sourceVersion!==current.market.sourceVersion){await refreshTradeFields(fresh);return;}
-    } catch(error){if(generation===tradeQuoteGeneration)text('[data-trade-status]','Could Not Load Market. Try Again.');return;}
-  }
-  if(!tradeMarket||!tradeMetadata||!wallet)return;
-  const market = tradeMarket;
-  const metadata = tradeMetadata;
-  const activeWallet = wallet;
-  const side = tradeSide;
-  if (!tradingRoute(market.market.launchPhase, market.market.canonicalRoute)) {
-    text("[data-trade-status]", "Trading Is Temporarily Unavailable");
-    updateTradeAvailability();
-    return;
-  }
-  try {
-    const amountInput = required<HTMLInputElement>("[data-trade-amount]").value;
-    const inputDecimals = side === "buy" ? metadata.quoteDecimals : 18;
-    const amount = parseTokenAmount(amountInput, inputDecimals, side === "buy" ? "Paired-asset input" : "Token input");
-    // Read-only quotes do not need the transaction submission preflight.
-    let pricing:CurvePricing|undefined;
-    if(market.market.launchPhase===0)pricing=await loadCurvePricing(market.market);
-    let quote: TradeQuote;
-    if (market.market.launchPhase===1) {
-      assertPoolRouterProfile(robinhoodChain.id,poolTradeRoute(market.market,'buy').router);
-      const route=poolTradeRoute(market.market,side);
-      poolAmount(amount);
-      const block=await publicClient.getBlock({blockTag:'latest'});
-      const blockNumber=block.number;
-      const binding=await loadPoolQuoteBindings(market.market,blockNumber);
-      // The fee shown and the executable quote use the same block, refreshed together every 30 seconds.
-      const [result,slot0]=await Promise.all([
-       publicClient.simulateContract({abi:poolQuoterAbi,address:route.quoter,functionName:'quoteExactInputSingle',args:[{poolKey:route.poolKey,zeroForOne:route.zeroForOne,exactAmount:amount,hookData:'0x'}],account:activeWallet.account,blockNumber}),
-       publicClient.readContract({abi:poolStateAbi,address:binding.manager,functionName:'extsload',args:[poolSlot0(market.market.poolId!)],blockNumber})]);
-      const poolProtocolPips=poolProtocolFee(slot0, route.zeroForOne, market.market.poolKey?.fee ?? 0);
-      const output=poolAmount(result.result[0]);
-      quote=Object.freeze({side,marketId:market.market.marketId,input:amount,output,spent:side==='buy'?amount:null,refund:null,fee:estimatedPoolTradingFee(output,binding.taxBps),poolProtocolPips,feeInMeme:side==='buy',feeEstimated:true,impactBps:poolTradeImpactBps(amount,output,BigInt(slot0)&((1n<<160n)-1n),route.zeroForOne,binding.taxBps,poolProtocolPips,route.poolKey.fee),impactEstimated:true,minimum:0n,revision:market.sync.revision,expiresAtMs:Date.now()+30_000,transactionDeadline:poolTransactionDeadline(block.timestamp)});
-    } else if (side === "buy") {
-      const [tokensOut, quoteSpent, refund] = await publicClient.readContract({
-        abi: v1Abis.TickerGardenCurve,
-        address: canonicalAddress(market.market.curve, "Curve"),
-        functionName: "quoteBuy",
-        blockNumber: pricing!.blockNumber,
-        args: [amount, activeWallet.account],
-        account: activeWallet.account,
-      });
-      if (tokensOut <= 0n) throw new Error("Curve returned zero token output");
-      if(!metadata.deployedAt)throw Error('Launch time missing');
-      const elapsed=pricing!.timestamp-BigInt(metadata.deployedAt);
-      let exempt=false;
-      if(elapsed<5n){const release=marketRelease(market.market.marketId);const [creator,record]=await Promise.all([
-        publicClient.readContract({address:canonicalAddress(market.market.memeToken,'Token'),abi:v1Abis.TickerMemeTokenV1,functionName:'creator',blockNumber:pricing!.blockNumber}),
-        readWalletMarket(release.marketRegistry,market.market.marketId,pricing!.blockNumber)]);
-        exempt=[creator,record.config.creatorRevenueBeneficiaryAtCreation].some(a=>a.toLowerCase()===activeWallet.account.toLowerCase());}
-      const fee=curveBuyFee(quoteSpent,pricing!.baseBps,pricing!.taxBps,antiSnipeBps(elapsed,exempt,pricing!.baseBps,pricing!.taxBps));
-      const metrics=curveTradeMetrics('buy',amount,tokensOut,quoteSpent,pricing!.quoteReserve,pricing!.tokenReserve,fee);
-      quote = Object.freeze({
-        side: "buy", marketId: market.market.marketId, input: amount, output: tokensOut,
-        spent: quoteSpent, refund, fee, impactBps:metrics.impactBps, minimum: 0n,
-        revision: market.sync.revision, expiresAtMs: Date.now() + 30_000,
-      });
-    } else {
-      const [quoteOut, fee] = await publicClient.readContract({
-        abi: v1Abis.TickerGardenCurve,
-        address: canonicalAddress(market.market.curve, "Curve"),
-        functionName: "quoteSell",
-        blockNumber: pricing!.blockNumber,
-        args: [amount],
-        account: activeWallet.account,
-      });
-      if (quoteOut <= 0n) throw new Error("Curve returned zero Quote output");
-      quote = Object.freeze({
-        side: "sell", marketId: market.market.marketId, input: amount, output: quoteOut,
-        spent: null, refund: null, fee, impactBps:curveTradeMetrics('sell',amount,quoteOut,0n,pricing!.quoteReserve,pricing!.tokenReserve,fee).impactBps, minimum: 0n,
-        revision: market.sync.revision, expiresAtMs: Date.now() + 30_000,
-      });
-    }
-    if (
-      generation !== tradeQuoteGeneration
-      || wallet !== activeWallet
-      || !tradeMarket || tradeContextKey(tradeMarket.market)!==tradeContextKey(market.market)
-      || tradeMetadata !== metadata
-      || tradeSide !== side
-    ) return;
-    tradeQuote = quote;
-    window.clearTimeout(tradeQuoteExpiryTimer);
-    tradeQuoteExpiryTimer = window.setTimeout(() => { void refreshTradeQuote(); }, Math.max(0, quote.expiresAtMs - Date.now()));
-    renderTradeQuote();
-  } catch (error) {
-    if (generation !== tradeQuoteGeneration) return;
-    const message = errorText(error);
-    text("[data-trade-status]", /zero .*output/i.test(message) ? 'Amount Too Small' : /insufficient.*(balance|funds)/i.test(message) ? 'Insufficient Balance' : /revert/i.test(message) ? 'Quote Unavailable. Try A Different Amount.' : 'Could Not Load Quote. Try Again.');
-    updateTradeAvailability();
-  }
-}
 
-function renderTradeImpact(bps?:bigint,estimated=false):void{
-  const node=query<HTMLElement>('[data-trade-impact]');if(!node)return;
-  node.textContent=bps===undefined?'-':`${estimated?'≈ ':''}${bps/100n}.${(bps%100n).toString().padStart(2,'0')}%`;
-  node.title=bps===undefined?'':estimated?'Estimated price impact excluding trading fees':'Price impact excluding trading fees';
-  node.dataset.impactLevel=bps===undefined||bps<100n?'normal':bps<1000n?'warning':'danger';
-}
 
-function renderTradePhase(graduated:boolean):void{
-  const label=query<HTMLElement>('[data-detail-phase]');
-  if(!label)return;
-  label.classList.toggle('is-bloomed',graduated);
-  if(graduated)iconText('[data-detail-phase]','ph-flower','Bloomed');
-  else label.textContent='Growing';
-}
 
-function renderTradePoolAddress(market:MarketReadModel):void{
-  const node=query<HTMLElement>('[data-detail-trading-pool]');if(!node)return;
-  const value=market.launchPhase===1?market.poolId:market.curve;
-  node.replaceChildren(document.createTextNode(market.launchPhase===1?'Uniswap v4 Pool ID: ':'Bonding curve: '));
-  if(!value){node.append(document.createTextNode('-'));return;}
-  const address=document.createElement('em');address.textContent=shortHex(value);address.title=value;
-  const copy=document.createElement('button');copy.type='button';copy.className='trade-pool-copy';
-  const label=market.launchPhase===1?'Copy Pool ID':'Copy Curve Address';
-  copy.title=label;copy.setAttribute('aria-label',label);
-  const icon=document.createElement('i');icon.className='ph ph-copy';icon.setAttribute('aria-hidden','true');copy.append(icon);
-  copy.onclick=async()=>{
-    try{await navigator.clipboard.writeText(value);icon.className='ph ph-check';copy.title='Copied';copy.setAttribute('aria-label','Copied');}
-    catch{icon.className='ph ph-warning-circle';copy.title='Could Not Copy';copy.setAttribute('aria-label','Could Not Copy');}
-    window.setTimeout(()=>{icon.className='ph ph-copy';copy.title=label;copy.setAttribute('aria-label',label);},1800);
-  };
-  node.append(address,copy);
-}
 
-function renderTradePrice(value:string|null):void{
-  tokenDetailWidget?.setTradePrice(value);
-  const node=query<HTMLElement>('[data-trade-rate]');if(!node)return;
-  if(value===null||!tradeMetadata){node.textContent='-';node.removeAttribute('title');return;}
-  const unit=`${tradeMetadata.quoteSymbol} / ${tradeMetadata.symbol}`;
-  node.textContent=`${formatTradePrice(value)} ${unit}`;
-  node.title=`${value} ${unit}`;
-}
 
-function renderTradeQuote(): void {
-  const form=query<HTMLElement>('[data-trade-form]');if(form)form.dataset.refMode=tradeSide;
-  const connect=query<HTMLButtonElement>('[data-detail-connect]');if(connect)connect.hidden=!!wallet;
-  renderDetailBalances();
-  const inputAsset = query<HTMLElement>("[data-trade-input-asset]");
-  const outputAsset = query<HTMLElement>("[data-trade-output-asset]");
-  if (inputAsset) inputAsset.textContent = tradeSide === "buy" ? tradeMetadata?.quoteSymbol ?? "Paired asset" : tradeMetadata?.symbol ?? "Token";
-  if (outputAsset) outputAsset.textContent = tradeSide === "buy" ? tradeMetadata?.symbol ?? "Token" : tradeMetadata?.quoteSymbol ?? "Paired asset";
-  const quoteLogo=tradeMetadata?quoteIconUrl(tradeMetadata.quoteSymbol):undefined;
-  renderTradeAssetLogo('[data-trade-input-logo]',tradeSide==='buy'?quoteLogo:tradeMemeLogoUrl,tradeSide==='buy'?(tradeMetadata?.quoteSymbol??'Paired asset'):(tradeMetadata?.symbol??'Token'));
-  renderTradeAssetLogo('[data-trade-output-logo]',tradeSide==='buy'?tradeMemeLogoUrl:quoteLogo,tradeSide==='buy'?(tradeMetadata?.symbol??'Token'):(tradeMetadata?.quoteSymbol??'Paired asset'));
-  const submit = query<HTMLButtonElement>("[data-trade-submit]");
-  if (submit) {
-    submit.className = `action-button ${tradeSide}`;
-    submit.hidden=!wallet;
-    submit.textContent = `${tradeSide === "buy" ? "Buy" : "Sell"}${tradeMetadata?.symbol ? ` ${tradeMetadata.symbol}` : ""}`;
-  }
-  if (!tradeQuote || !tradeMetadata) {
-    const poolFees=query<HTMLElement>("[data-trade-pool-fees]");if(poolFees)poolFees.hidden=true;
-    text("[data-trade-output]", "-");
-    query<HTMLOutputElement>('[data-trade-output]')?.removeAttribute('title');
-    const pricing=curvePricing?.marketId===tradeMarket?.market.marketId?curvePricing:null;
-    renderTradePrice(pricing&&pricing.tokenReserve>0n&&tradeMetadata?formatUnits(pricing.quoteReserve*10n**18n/pricing.tokenReserve,tradeMetadata.quoteDecimals):null);
-    text("[data-trade-fee]", "-");
-    renderTradeImpact();
-    text("[data-trade-minimum]", "-");
-    text("[data-trade-status]", wallet ? "" : "Connect Your Wallet");
-    updateTradeAvailability();
-    return;
-  }
-  const outputDecimals = tradeQuote.side === "buy" ? 18 : tradeMetadata.quoteDecimals;
-  const outputSymbol = tradeQuote.side === "buy" ? tradeMetadata.symbol : tradeMetadata.quoteSymbol;
-  text("[data-trade-output]", formatTokenAmount(tradeQuote.output, outputDecimals));
-  const outputNode=query<HTMLOutputElement>('[data-trade-output]');if(outputNode)outputNode.title=formatUnits(tradeQuote.output,outputDecimals);
-  const meme=tradeQuote.side==='buy'?tradeQuote.output:tradeQuote.input;
-  const quoteAmount=tradeQuote.side==='buy'?(tradeQuote.spent??tradeQuote.input):tradeQuote.output;
-  renderTradePrice(formatUnits(quoteAmount*10n**18n/meme,tradeMetadata.quoteDecimals));
-  const feeDecimals=tradeQuote.feeInMeme?18:tradeMetadata.quoteDecimals;
-  const feeSymbol=tradeQuote.feeInMeme?tradeMetadata.symbol:tradeMetadata.quoteSymbol;
-  text("[data-trade-fee]", tradeQuote.fee===null?"-":`${tradeQuote.feeEstimated?'≈ ':''}${formatUnits(tradeQuote.fee,feeDecimals)} ${feeSymbol}`);
-  const poolFees=query<HTMLElement>("[data-trade-pool-fees]");
-  if(poolFees){poolFees.hidden=tradeQuote.poolProtocolPips===undefined;poolFees.textContent=tradeQuote.poolProtocolPips===undefined?'':formatPoolFeeSummary(tradeMarket?.market.poolKey?.fee??0,tradeQuote.poolProtocolPips);}
 
-  renderTradeImpact(tradeQuote.impactBps,tradeQuote.impactEstimated);
-  text("[data-trade-minimum]", `${formatTokenAmount(tradeQuote.minimum, outputDecimals)} ${outputSymbol}`);
-  text("[data-trade-status]", "");
-  updateTradeAvailability();
-}
 
-function updateTradeAvailability(): void {
-  const submit = query<HTMLButtonElement>("[data-trade-submit]");
-  if (!submit) return;
-  const quoteFresh = Boolean(
-    tradeQuote
-    && tradeQuote.expiresAtMs > Date.now()
-    && tradeMarket
-    && tradeQuote.marketId === tradeMarket.market.marketId
-    && tradeQuote.side === tradeSide,
-  );
-  const routeReady = tradeMarketVerified && tradeMarket && tradingRoute(tradeMarket.market.launchPhase, tradeMarket.market.canonicalRoute);
-  const balance = detailBalanceAccount === wallet?.account ? (tradeSide === 'buy' ? detailBalances?.quote : detailBalances?.meme) : undefined;
-  const insufficient = !!tradeQuote && balance !== undefined && tradeQuote.input > balance;
-  const marketId=tradeMarket?.market.marketId;
-  const blocked=marketId?transactionScopeBusy({businessType:'trade',marketId,conflictKey:`trade:${marketId}`}):false;
-  const loading=(tradeSubmitting&&tradeSubmittingMarketId===marketId)||blocked;
-  submit.classList.toggle('is-loading',loading);submit.setAttribute('aria-busy',String(loading));
-  if(loading){submit.replaceChildren();const spinner=document.createElement('i');spinner.className='ph ph-spinner-gap trade-tx-spinner';spinner.setAttribute('aria-hidden','true');submit.append(spinner,document.createTextNode(tradeSubmittingLabel));}
-  else submit.textContent=`${tradeSide==='buy'?'Buy':'Sell'}${tradeMetadata?.symbol?` ${tradeMetadata.symbol}`:''}`;
-  setDisabled(submit, loading || !writeReady() || !quoteFresh || !routeReady || insufficient);
-  if (insufficient) text('[data-trade-status]', `Insufficient ${tradeSide === 'buy' ? tradeMetadata?.quoteSymbol ?? 'Balance' : tradeMetadata?.symbol ?? 'Balance'}`);
-}
+
+
+
+
+
+function updateTradeAvailability(): void { if(!tradeController)return; return tradeController!.updateTradeAvailability(); }
 
 let recentTradeLoading=false;
 let recentTradeLoadedAt=0;
 const poolTradeCursors=new Map<string,bigint>();
-async function refreshRecentTrades(force=false):Promise<void>{
- await tokenDetailWidget?.refresh(force);
-}
-function showReceiptTrades(_receipt:TransactionReceipt,_market:MarketReadModel,_decimals:number,_poolManager?:string):void{
- // Receipt verification belongs to the wallet flow. Historical rows wait for
- // the backend indexer to publish the transaction to its database.
- tokenDetailWidget?.receipt(_receipt.transactionHash);
-}
+
+
 
 let tradeFieldsGeneration=0;
-async function refreshTradeFields(fresh?:MarketDetailResponse,background=false):Promise<void>{
- const current=tradeMarket,own=++tradeFieldsGeneration,page=routeGeneration;
- if(!current||!foundation||(!readApi&&!(foundation.direct&&directMarkets)))return;
- try{
-  const response=fresh??(foundation.direct&&directMarkets?await directMarkets.market(current.market.marketId):await readApi!.getMarket({marketId:current.market.marketId,revision:foundation.sync.revision,includeRecent:true}));
-  if(own!==tradeFieldsGeneration||page!==routeGeneration||tradeMarket!==current||response.market.marketId!==current.market.marketId||response.market.memeToken!==current.market.memeToken)return;
-  tradeMarket=response;
-  const changed=tradeContextKey(response.market)!==tradeContextKey(current.market);
-  if(changed){
-    ++tradeLoadGeneration; ++tradeQuoteGeneration;
-    verifiedMarketReleases.delete(current.market.marketId);verifiedMarketRuntime.delete(current.market.marketId);
-    tradeMarketVerified=false;
-  }
-  const view=toCurveProgressViewModel(response),graduated=response.market.launchPhase===1;
-  const baseline=foundation.baseline.find(c=>c.id===response.market.tickerGardenBaselineId),supply=baseline?.values.supply;
-  renderTradePhase(graduated);
-  for(const selector of ['[data-detail-progress-label]','[data-detail-graduation]']){const node=query<HTMLElement>(selector);if(node)node.hidden=graduated;}
-  const progress=marketBloomProgress(response.market);
-  text('[data-detail-progress-label]',progress===null?'-':`${progress.toFixed(2)}%`);
-  const bar=query<HTMLProgressElement>('[data-detail-progress]');if(bar){if(progress===null)bar.removeAttribute('value');else bar.value=progress;}
-  renderTradePoolAddress(response.market);
-  text('[data-detail-venue]',graduated?'Uniswap v4':'Bonding curve');
-  text('[data-detail-phase-note]','');
-  curvePricing=null;
-  // Keep identity, metadata, chart selection and existing statistics mounted.
-  if(!background)void loadDetailBalances(true);
-  if(changed)void refreshTradeStake();
-  // A transient RPC failure must recover even when the market revision stays
-  // unchanged. Trading remains locked until canonical verification succeeds.
+async function refreshTradeFields(fresh?:MarketDetailResponse,background=false):Promise<void>{ await ensureTradeController(); return tradeController!.refreshTradeFields(fresh,background); }
+function completeTradeDisplay(market:MarketDetailResponse):void{ if(!tradeController)return; return tradeController!.completeTradeDisplay(market); }
 
 
-  if(own!==tradeFieldsGeneration||page!==routeGeneration||tradeMarket!==response)return;
-  if(!background || changed)overviewLoads.delete(response.market.marketId);
-  void refreshMarketOverview(!background || changed);
-  if(!background || changed){
-    tradeQuote=null;renderTradeQuote();
-    if(query<HTMLInputElement>('[data-trade-amount]')?.value.trim())scheduleTradeQuote();
-  }else if(!tradeQuote){
-    renderTradeQuote();
-    if(query<HTMLInputElement>('[data-trade-amount]')?.value.trim())scheduleTradeQuote();
-  }
- }catch{/* A display refresh must never turn a confirmed trade into an error. */}
-}
-function completeTradeDisplay(market:MarketDetailResponse):void{
- if(!tradeMarket||tradeMarket.market.marketId!==market.market.marketId||tradeMarket.market.memeToken!==market.market.memeToken||tradeMarket.market.quoteAsset!==market.market.quoteAsset)return;
- directMarkets?.cache.delete(market.market.marketId);
- window.clearTimeout(tradeQuoteExpiryTimer);window.clearTimeout(tradeQuoteTimer);++tradeQuoteGeneration;
- const input=query<HTMLInputElement>('[data-trade-amount]');if(input)input.value='';
- tradeQuote=null;renderTradeQuote();
- // The receipt changed both wallet assets. Cancel any pre-receipt reads and
- // refresh balances independently of the market-data service.
- void loadDetailBalances(false);
- void refreshTradeFields();
-}
 
-async function submitTrade(): Promise<void> {
-  if(tradeSubmitting)return;
-  tradeSubmitting=true;tradeSubmittingMarketId=tradeMarket?.market.marketId;tradeSubmittingLabel='Preparing…';updateTradeAvailability();
-  try {
-    if (!foundation || !wallet || !tradeMarket || !tradeQuote) throw new Error("Connect a wallet, load a Curve market and request a fresh quote");
-    if (!tradeMarketVerified) throw new Error("The canonical trading route is still being verified");
-    const activeWallet = wallet;
-    const market = tradeMarket;
-    const quote = tradeQuote;
-    const side = tradeSide;
-    await verifyLiveWalletContext(activeWallet);
-    if (quote.expiresAtMs <= Date.now() || quote.side !== side || quote.marketId !== market.market.marketId) {
-      throw new Error("The quote expired or no longer matches the form");
-    }
-    const metadata = tradeMetadata;
-    if (!metadata) throw new Error("Trade metadata is unavailable");
-    const currentInput = parseTokenAmount(
-      required<HTMLInputElement>("[data-trade-amount]").value,
-      side === "buy" ? metadata.quoteDecimals : 18,
-      side === "buy" ? "Paired-asset input" : "Token input",
-    );
-    if (currentInput !== quote.input) {
-      throw new Error("The trade form changed after quoting; request a fresh quote");
-    }
-    if (!tradingRoute(market.market.launchPhase, market.market.canonicalRoute)) throw new Error("Trading route changed. Refresh the market and quote.");
-    if(market.market.launchPhase===1){await submitPoolTrade(market,quote,activeWallet);return;}
-    const curve = canonicalAddress(market.market.curve, "Curve");
-    const account = activeWallet.account;
-    const built = side === "buy"
-      ? buildCurveBuyRequest({ marketResponse: market, quoteIn: quote.input, minTokensOut: quote.minimum, recipient: account })
-      : buildCurveSellRequest({ marketResponse: market, tokensIn: quote.input, minQuoteOut: quote.minimum, recipient: account });
-    const inputToken = side === "buy" ? built.view.quoteAsset : built.view.memeToken;
-    const approval = await allowanceApproval(built.approval, inputToken, curve, quote.input, account);
-    await executeTransaction({
-      operationKey: `trade:${quote.side}:${quote.marketId}:${quote.input}:${quote.revision}`,
-      sync: market.sync,
-      request: built.request,
-      ...(approval ? { approval } : {}),
-      quoteExpiresAtMs: quote.expiresAtMs,
-      walletContext: activeWallet,
-      verifyChain: () => ensureCanonicalMarket(market.market),
-      confirm: async (receipt) => {
-        if (quote.side === "buy") {
-          receiptEvent(receipt, curve, v1Abis.TickerGardenCurve, "CurveBuy", (args) =>
-            String(args.buyer).toLowerCase() === account
-            && String(args.recipient).toLowerCase() === account
-            && typeof args.quoteIn === "bigint"
-            && args.quoteIn > 0n
-            && args.quoteIn <= quote.input
-            && typeof args.tokensOut === "bigint"
-            && args.tokensOut >= quote.minimum,
-          );
-        } else {
-          receiptEvent(receipt, curve, v1Abis.TickerGardenCurve, "CurveSell", (args) =>
-            String(args.seller).toLowerCase() === account
-            && String(args.recipient).toLowerCase() === account
-            && args.tokensIn === quote.input
-            && typeof args.quoteOut === "bigint"
-            && args.quoteOut >= quote.minimum,
-          );
-        }
-        showReceiptTrades(receipt,market.market,metadata.quoteDecimals);
-        return true;
-      },
-    });
-    completeTradeDisplay(market);
-  } catch (error) {
-    notify(`Trade requires attention — ${errorText(error)}`, "warning");
-  } finally {tradeSubmitting=false;tradeSubmittingMarketId=undefined;updateTradeAvailability();}
-}
 
-async function submitPoolTrade(market:MarketDetailResponse,initial:TradeQuote,activeWallet:WalletState):Promise<void>{
-  assertPoolRouterProfile(robinhoodChain.id,poolTradeRoute(market.market,'buy').router);
-  const route=poolTradeRoute(market.market,initial.side),account=activeWallet.account;
-  const verify=()=>ensureCanonicalMarket(market.market);
-  const [manager,quoterManager,vaultManager]=await Promise.all([
-    publicClient.readContract({abi:poolRouterAbi,address:route.router,functionName:'poolManager'}),
-    publicClient.readContract({abi:poolQuoterAbi,address:route.quoter,functionName:'poolManager'}),
-    publicClient.readContract({abi:v1Abis.ProtocolFeeVault,address:marketRelease(market.market.marketId).feeVault,functionName:'poolManager'}),
-  ]);
-  if(manager.toLowerCase()!==quoterManager.toLowerCase()||manager.toLowerCase()!==vaultManager.toLowerCase()||manager===ZERO_ADDRESS)throw Error('External trading services do not match the protocol PoolManager');
-  if(route.input!==ZERO_ADDRESS){
-    await ensureStandaloneApproval({abi:erc20Abi,address:route.input,functionName:'approve',args:[PERMIT2,initial.input]},route.input,PERMIT2,initial.input,market.sync,verify,activeWallet,{businessType:'approval',marketId:market.market.marketId,conflictKey:`trade:${market.market.marketId}`});
-    const [allowanceBlock,[allowance,expiration]]=await Promise.all([
-      publicClient.getBlock({blockTag:'latest'}),
-      publicClient.readContract({abi:permit2Abi,address:PERMIT2,functionName:'allowance',args:[account,route.input,route.router]}),
-    ]);
-    if(allowance<initial.input||!poolPermit2AllowanceFresh(expiration,allowanceBlock.timestamp)){
-      const expiry=poolPermit2Expiration(allowanceBlock.timestamp);
-      await executeTransaction({operationKey:`pool-approval:${market.market.marketId}:${initial.input}:${expiry}`,sync:market.sync,request:{abi:permit2Abi,address:PERMIT2,functionName:'approve',args:[route.input,route.router,initial.input,expiry]},walletContext:activeWallet,verifyChain:verify,confirm:async receipt=>{
-        const [amount,until]=await publicClient.readContract({abi:permit2Abi,address:PERMIT2,functionName:'allowance',args:[account,route.input,route.router],blockNumber:receipt.blockNumber});
-        if(amount<initial.input||until!==expiry)throw Error('Pool spending approval was not confirmed');return true;
-      }});
-    }
-  }
-  // Approvals may take longer than the quote window. Always refresh before signing the swap.
-  await quoteTrade(++tradeQuoteGeneration);
-  const quote=tradeQuote;
-  if(wallet!==activeWallet||tradeMarket!==market||!quote||quote.input!==initial.input||quote.side!==initial.side||quote.minimum!==initial.minimum)throw Error('Trade changed during approval. Review the new quote.');
-  if(quote.transactionDeadline===undefined)throw Error('Pool transaction deadline is unavailable. Refresh the quote.');
-  const request=buildPoolTrade(market.market,quote.side,quote.input,quote.minimum,quote.transactionDeadline);
-  await executeTransaction({operationKey:`pool-trade:${quote.side}:${quote.marketId}:${quote.input}:${quote.expiresAtMs}`,sync:market.sync,request,quoteExpiresAtMs:quote.expiresAtMs,walletContext:activeWallet,verifyChain:verify,confirm:async receipt=>{
-    try {
-      receiptEvent(receipt,canonicalAddress(manager,'PoolManager'),poolSwapAbi,'Swap',args=>String(args.id).toLowerCase()===market.market.poolId&&String(args.sender).toLowerCase()===route.router.toLowerCase()&&typeof args.amount0==='bigint'&&typeof args.amount1==='bigint'&&(route.zeroForOne?args.amount0<0n&&args.amount1>0n:args.amount1<0n&&args.amount0>0n));
-    } catch (error) {
-      if(!foundation?.direct)throw error;
-      // The local deterministic PoolManager boundary emits the protocol hook's
-      // fully-accounted fee event instead of a production Uniswap Swap event.
-      receiptEvent(receipt,route.poolKey.hooks,v1Abis.TickerGardenMemeHook,'V4FeeAccrued',args=>args.marketId===market.market.marketId&&args.poolId===market.market.poolId&&String(args.feeAsset).toLowerCase()===route.output&&typeof args.totalFee==='bigint'&&args.totalFee>0n&&typeof args.lpAmount==='bigint'&&typeof args.nonLpAmount==='bigint'&&args.lpAmount+args.nonLpAmount===args.totalFee);
-    }
-    showReceiptTrades(receipt,market.market,tradeMetadata?.quoteDecimals??18,manager);
-    directMarkets?.receipt(receipt);return true;
-  }});
-  const input=query<HTMLInputElement>('[data-trade-amount]');if(input)input.value='';
-  completeTradeDisplay(market);
-}
 
-type LaunchPreview = Readonly<{
+export type LaunchPreview = Readonly<{
   creator: Address;
   selected: SelectedLaunchConfig;
   params: CreateMarketParams;
@@ -2687,114 +1802,17 @@ type LaunchPreview = Readonly<{
 let launchProgress: LaunchState | null = null;
 let launchRecoveryBusy=false;
 let launchRecoveryTimer:ReturnType<typeof setTimeout>|undefined;
-function drawLaunchProgress():void{
- if(!launchProgress)return;
- const display=launchProgress.phase==='paused'&&!launchProgress.hash?{step:'Confirm in wallet',percent:60}:launchPhaseDisplay[launchProgress.phase];
- const rawLogo=launchProgress.listing?.logo??'';
- const logo=ipfsGatewayURL(rawLogo,import.meta.env.VITE_IPFS_GATEWAY)??(/^data:image\/(?:png|jpeg|webp);base64,/i.test(rawLogo)?rawLogo:undefined);
- renderLaunchProgress({title:launchProgress.phase==='complete'?'Launch Successful':launchProgress.phase==='confirming'?'Token Created':launchProgress.phase==='pending'?'Launch Submitted':launchProgress.phase==='failed'?'Launch Stopped':'Launching Your Token',...display,detail:launchProgress.detail,hash:launchProgress.hash,
-  explorer:launchProgress.hash?`${robinhoodChain.blockExplorers.default.url}/tx/${launchProgress.hash}`:'',needsHash:launchProgress.phase==='paused'||(launchProgress.phase==='wallet'&&!launchSubmitting),canDismiss:launchProgress.phase==='failed',outcome:launchProgress.phase==='complete',complete:launchProgress.phase==='complete',tokenName:launchProgress.listing?.name,tokenSymbol:launchProgress.listing?.symbol,tokenLogo:logo},
- {onViewToken:()=>{if(launchProgress?.phase==='complete')navigateCompletedLaunch(launchProgress);},onHash:hash=>{if(!launchProgress||launchSubmitting)return;launchProgress.hash=hash;updateLaunchProgress('pending','Checking the transaction you provided…');void restoreLaunchProgress();},
- onCreateNew:()=>{if(launchProgress?.phase!=='complete')return;const chainId=launchProgress.chainId;try{localStorage.removeItem(launchStateKey(chainId));localStorage.removeItem(`tg-listing:${chainId}`);}catch{}launchProgress=null;latestListing=null;closeLaunchProgress();window.location.assign('/create');},
- onDismiss:()=>{if(launchProgress?.phase!=='failed')return;localStorage.removeItem(launchStateKey(robinhoodChain.id));launchProgress=null;closeLaunchProgress();updateCreateAvailability();}});
-}
-function updateLaunchProgress(phase:LaunchPhase,detail:string):void{
- if(!launchProgress)return;launchProgress={...launchProgress,phase,detail};
- saveLaunchState(localStorage,launchProgress);drawLaunchProgress();
-}
-function handleLaunchTransactionUpdate(update:TransactionUpdate):void{
- if(!launchProgress)return;
- if(update.hash)launchProgress.hash=update.hash;
- if(update.replacementReason==='cancelled')launchProgress.cancelled=true;
- if(update.stage==='awaiting_signature')updateLaunchProgress('wallet','Confirm the launch transaction in your wallet. Do not submit a second launch.');
- else if(['submitted','pending','replaced'].includes(update.stage))updateLaunchProgress('pending','Transaction submitted. Waiting for chain confirmation. You may refresh this page.');
- else if(update.stage==='confirming')updateLaunchProgress('confirming','Transaction mined. Verifying your new token…');
- else if((update.stage==='simulating'||update.stage==='preflight')&&launchProgress.phase!=='approval')updateLaunchProgress('preparing','Preparing and checking your launch transaction…');
- else if(update.stage==='failed'&&['user_rejected','transaction_reverted','replacement_cancelled','simulation_failed'].includes(update.error?.code??''))updateLaunchProgress('failed',update.error?.message??'The transaction did not complete.');
- else if(update.stage==='unknown')updateLaunchProgress('paused','Confirmation is taking longer. Keep tracking this transaction; do not launch again.');
-}
-function navigateCompletedLaunch(state:LaunchState):void{
- if(!state.expected)return;
- if(walletConnecting||launchSubmitting){drawLaunchProgress();return;}
- if(router.navigate(`/trade?marketId=${encodeURIComponent(state.expected.marketId)}`)){
-  closeLaunchProgress();const saved=readLaunchState(localStorage,state.chainId);
-  if(saved?.id===state.id)localStorage.removeItem(launchStateKey(state.chainId));launchProgress=null;
- }
-}
-function finishRecoveredLaunch(state:LaunchState,receipt:TransactionReceipt):void{
- const expected=state.expected;if(!expected)throw Error('Saved launch identity is missing');
- assertRecoveredLaunchReceipt(state,receipt);
- directMarkets?.receipt(receipt);
- if(state.listing){latestListing={snapshot:{...state.listing,txHash:receipt.transactionHash},marketId:expected.marketId};localStorage.setItem(`tg-listing:${robinhoodChain.id}`,JSON.stringify(latestListing));}
- // Clear only a matching executor journal, never an unrelated approval/trade.
- const key=`tickergarden:pending:${state.chainId}:${state.account.toLowerCase()}`;
- try {
-  const pending=JSON.parse(localStorage.getItem(key)??'null');
-  if(pending?.intent===state.intent)localStorage.removeItem(key);
- } catch { /* Preserve unrelated or unreadable recovery data. */ }
- clearCreateDraft(localStorage, state.chainId); pendingCreateDraft = null;
- launchProgress={...state,phase:'complete',hash:receipt.transactionHash,detail:LAUNCH_CONFIRMED_COPY};
- void notifyLaunchDatabase(receipt.transactionHash,import.meta.env.VITE_V1_PIPELINE_URL).then(()=>snapshotPoller?.reconnect());
- saveLaunchState(localStorage,launchProgress);drawLaunchProgress();
-}
-async function restoreLaunchProgress():Promise<void>{
- if(launchSubmitting||launchRecoveryBusy)return;
- if(launchRecoveryTimer){clearTimeout(launchRecoveryTimer);launchRecoveryTimer=undefined;}
- try{launchProgress=readLaunchState(localStorage,robinhoodChain.id);}catch(error){
-  renderLaunchProgress({title:'Launch recovery needs attention',step:'Check saved launch',detail:errorText(error),percent:0,explorer:robinhoodChain.blockExplorers.default.url},{});return;
- }
- const state=launchProgress;if(!state){closeLaunchProgress();updateCreateAvailability();return;}
- if(state.phase==='complete'&&state.expected){
-  drawLaunchProgress();return;
- }
- // Recover the narrow gap between executor persistence and the UI callback.
- if(!state.hash&&state.intent){
-  try{const pending=JSON.parse(localStorage.getItem(`tickergarden:pending:${state.chainId}:${state.account.toLowerCase()}`)??'null');
-   if(pending?.intent===state.intent&&!pending.approval&&/^0x[\da-f]{64}$/i.test(pending.hash)){state.hash=pending.hash;state.cancelled=pending.cancelled;state.phase='pending';saveLaunchState(localStorage,state);}
-  }catch{/* Retain the launch guard when wallet history is uncertain. */}
- }
- if(state.phase==='failed'){drawLaunchProgress();return;}
- const lockSnapshot=await navigator.locks?.query();
- if(lockSnapshot?.held?.some(l=>l.name===`tg-launch:${state.chainId}`)){
-  drawLaunchProgress();launchRecoveryTimer=setTimeout(()=>void restoreLaunchProgress(),10000);return;
- }
- if(!state.hash&&state.expected&&runtimeConfig.readApi.available){
-  launchRecoveryBusy=true;
-  try{const recovered=await new TickerGardenV1Client(runtimeConfig.readApi.value,(input,init)=>fetch(input,{...init,signal:AbortSignal.timeout(5000)})).getLaunchRecovery({marketId:state.expected.marketId as Hex});
-   if(recovered.chainId===state.chainId&&recovered.displayOnly===true&&recovered.marketId===state.expected.marketId&&/^0x[0-9a-f]{64}$/.test(recovered.transactionHash)){state.hash=recovered.transactionHash;state.phase='pending';saveLaunchState(localStorage,state);}
-  }catch{/* Receipt recovery remains available; no launch is resubmitted. */}finally{launchRecoveryBusy=false;}
- }
- if(!state.hash){
-  // A tab holding the launch lock may still be uploading or waiting on its wallet.
-  if(state.phase==='wallet'||state.phase==='paused')updateLaunchProgress('paused','This page was refreshed before the wallet returned a transaction hash. Check wallet activity and enter the launch hash below. Do not publish again.');
-  else updateLaunchProgress('failed','Preparation was interrupted before the launch was sent. Return to the form to continue. Any asset approval is a separate transaction.');
-  return;
- }
- launchRecoveryBusy=true;drawLaunchProgress();
- let receiptFound=false;
- try{
-  const receipt=await publicClient.getTransactionReceipt({hash:state.hash as Hash});
-  receiptFound=true;
-  if(launchProgress?.hash!==state.hash)return;
-  const target=state.intent?JSON.parse(state.intent)[0]:null;
-  if(receipt.from.toLowerCase()!==state.account.toLowerCase()||!target||receipt.to?.toLowerCase()!==target)throw Error('Receipt does not match the saved launch sender and destination');
-  if(receipt.status==='reverted'||state.cancelled){
-   const transaction=await publicClient.getTransaction({hash:state.hash as Hash});
-   if(!state.data||transaction.input.toLowerCase()!==state.data.toLowerCase())throw Error('Reverted transaction calldata does not match this launch');
-   const key=`tickergarden:pending:${state.chainId}:${state.account.toLowerCase()}`;
-   const pending=JSON.parse(localStorage.getItem(key)??'null');if(pending?.intent===state.intent)localStorage.removeItem(key);
-   updateLaunchProgress('failed',state.cancelled?'The launch transaction was cancelled.':'The launch transaction reverted. No token was created.');return;}
-  finishRecoveredLaunch(state,receipt);
- }catch{
-  updateLaunchProgress('paused',receiptFound?'A receipt was found, but it could not be matched to this launch. Check the launch hash in your wallet.':'Still checking this launch transaction. We will check again shortly. If your wallet replaced it, enter the new hash.');
-  if(!receiptFound)launchRecoveryTimer=setTimeout(()=>void restoreLaunchProgress(),10000);
- }finally{launchRecoveryBusy=false;}
-}
+function drawLaunchProgress():void{ if(!createController)return; return createController!.drawLaunchProgress(); }
+function updateLaunchProgress(phase:LaunchPhase,detail:string):void{ if(!createController)return; return createController!.updateLaunchProgress(phase,detail); }
+
+
+
+async function restoreLaunchProgress():Promise<void>{ if(!createController){try{if(!localStorage.getItem(launchStateKey(robinhoodChain.id)))return;}catch{/* The controller renders the existing recovery error. */}} await ensureCreateController(); return createController!.restoreLaunchProgress(); }
 window.addEventListener('storage',event=>{
  if(event.key!==launchStateKey(robinhoodChain.id)||launchSubmitting)return;
  if(event.newValue){try{
   const completed=readLaunchState({getItem:()=>event.newValue},robinhoodChain.id);
-  if(completed?.phase==='complete'&&completed.expected){launchProgress=completed;drawLaunchProgress();return;}
+  if(completed?.phase==='complete'&&completed.expected){launchProgress=completed;void ensureCreateController().then(()=>drawLaunchProgress());return;}
  }catch{/* Restore displays a blocking recovery error. */}}
  void restoreLaunchProgress();
 });
@@ -2816,74 +1834,11 @@ const launchMetadataOrigin = (() => { try { return metadataOrigin(import.meta.en
 
 const developerBuyBalances = new DeveloperBuyBalanceCache();
 
-function renderDeveloperBuyBalance(): void {
-  const label = query<HTMLElement>("[data-developer-buy-balance]");
-  const notice = query<HTMLElement>("[data-developer-buy-notice]");
-  if (!label || !notice) return;
-  notice.hidden = true;
-  notice.textContent = "";
-  const account = wallet?.account;
-  if (!account) { label.textContent = "Connect wallet for balance"; return; }
-  const selection = query<HTMLSelectElement>("[name=quoteAssetConfigId]")?.value ?? "";
-  const asset = releasePairForSelection(selection, foundation?.quotes ?? []);
-  if (!asset) { label.textContent = "Balance unavailable"; return; }
-  const native = asset.tokenAddress === ZERO_ADDRESS;
-  const key = `${robinhoodChain.id}:${account}:${asset.tokenAddress}`;
-  const pageGeneration = routeGeneration;
-  label.textContent = `Balance: loading ${asset.symbol}…`;
-  void developerBuyBalances.read(key, () => native
-    ? publicClient.getBalance({ address: account })
-    : publicClient.readContract({ address: asset.tokenAddress as Address, abi: erc20Abi, functionName: "balanceOf", args: [account] })
-  ).then(balance => {
-    if (routeGeneration !== pageGeneration || wallet?.account !== account || query<HTMLSelectElement>("[name=quoteAssetConfigId]")?.value !== selection) return;
-    label.textContent = balance === null ? `Balance unavailable · ${asset.symbol}` : `Balance: ${formatTokenAmount(balance, asset.decimals)} ${asset.symbol}`;
-    if (balance === null) return;
-    try {
-      const raw = query<HTMLInputElement>("[name=firstBuyAmount]")?.value.trim() ?? "";
-      const amount = raw ? parseTokenAmount(raw, asset.decimals, "Developer buy") : 0n;
-      notice.textContent = developerBuyNotice({ amount, balance, symbol: asset.symbol,
-        displayAmount: formatTokenAmount(amount, asset.decimals), native,
-      });
-      notice.hidden = !notice.textContent;
-    } catch { /* Field validation explains invalid amounts. */ }
-  });
-}
+function renderDeveloperBuyBalance(): void { if(!createController)return; return createController!.renderDeveloperBuyBalance(); }
 
-function launchDetails() {
-  const value = (name: string) => query<HTMLInputElement | HTMLTextAreaElement>(`[name=${name}]`)?.value.trim() ?? "";
-  return { name: value("name"), symbol: value("symbol"), description: value("description"), x: value("x"), website: value("website"), creatorFeesToHolders: query<HTMLInputElement>("[name=treasuryEnabled]")?.checked ?? false, creatorTaxBps: (() => { try { return creatorTaxBps(value("creatorTax")); } catch { return 0; } })(), image: launchImage };
-}
-function currentMetadataURI(): string {
-  return preparedMetadataKey === JSON.stringify(launchDetails()) ? preparedMetadataURI : "";
-}
-async function prepareLaunchMetadata(): Promise<void> {
-  if(!launchImage||launchImageReading)throw new Error("Add a token image.");
-  if (currentMetadataURI()) return;
-  if (!launchMetadataOrigin) throw new Error("Publishing unavailable. Try again later.");
-  const details = launchDetails();
-  const key = JSON.stringify(details);
-  setCreateNoticeLevel("[data-create-preview]", "info");
-  text("[data-create-preview]", "Publishing details and image…");
-  const activeWallet=wallet;if(!activeWallet)throw Error('Connect Your Wallet');
-  await verifyLiveWalletContext(activeWallet);
-  text('[data-create-preview]','Confirm Upload In Your Wallet…');
-  const authorization=canResumeUpload(launchMetadataOrigin,details,`${robinhoodChain.id}:${activeWallet.account.toLowerCase()}`)?undefined:await authorizeUpload(launchMetadataOrigin,JSON.stringify(details),activeWallet.account,robinhoodChain.id,async message=>{
-    await verifyLiveWalletContext(activeWallet);
-    const encoded='0x'+[...new TextEncoder().encode(message)].map(b=>b.toString(16).padStart(2,'0')).join('');
-    const signature=await activeWallet.provider.request({method:'personal_sign',params:[encoded,activeWallet.account]});
-    await verifyLiveWalletContext(activeWallet);return String(signature);
-  });
-  if(key!==JSON.stringify(launchDetails()))throw Error('Details Changed. Review And Retry.');
-  text('[data-create-preview]','Publishing Details And Image…');
-  const published = await publishLaunchDetails(launchMetadataOrigin, details,authorization,`${robinhoodChain.id}:${activeWallet.account.toLowerCase()}`);
-  if (key !== JSON.stringify(launchDetails())) throw new Error("Details changed. Review and retry.");
-  if (!published.metadata) throw new Error("Published details missing. Try again later.");
-  if (isIPFSFileURI(published.metadataURI) && !ipfsGatewayURL(published.metadataURI,import.meta.env.VITE_IPFS_GATEWAY)) throw new Error("Image gateway unavailable. Try again later.");
-  preparedMetadataKey = key;
-  preparedMetadataURI = published.metadataURI;
-  preparedMetadata = published.metadata;
-  rememberDetailMetadata(published.metadataURI,published.metadata,launchMetadataOrigin,import.meta.env.VITE_IPFS_GATEWAY);
-}
+
+
+
 
 
 function populateSelect(select: HTMLSelectElement, items: readonly ConfigReadModel[], placeholder: string): void {
@@ -2895,521 +1850,46 @@ function populateSelect(select: HTMLSelectElement, items: readonly ConfigReadMod
   else if (items[0]) select.value = items[0].id;
 }
 
-function renderSelectedTokenImage(image?: string, file?: File, dimensions?: { width: number; height: number }): void {
-  const previewImage = required<HTMLImageElement>("[data-token-image]");
-  previewImage.hidden = !image;
-  if (image) previewImage.src = image; else previewImage.removeAttribute("src");
-  required<HTMLElement>("[data-token-placeholder]").hidden = Boolean(image);
-  required<HTMLElement>("[data-preview-image-frame]").classList.toggle("has-image", Boolean(image));
-  const thumbnail = required<HTMLImageElement>("[data-upload-thumbnail]");
-  thumbnail.hidden = !image;
-  if (image) thumbnail.src = image; else thumbnail.removeAttribute("src");
-  required<HTMLElement>("[data-upload-icon]").hidden = Boolean(image);
-  required<HTMLElement>("[data-upload-action]").hidden = !image;
-  text("[data-upload-title]", image && file ? file.name : "Choose an image");
-  text("[data-upload-info]", image && file && dimensions
-    ? `${file.type.replace("image/", "").toUpperCase()} · ${file.size >= 1048576 ? (file.size / 1048576).toFixed(2) + " MB" : Math.max(1, Math.round(file.size / 1024)) + " KB"} · ${dimensions.width} × ${dimensions.height} px`
-    : "PNG, JPG or WebP · up to 2 MB");
-  text("[data-image-status]", "");
-}
 
-function showLatestListing(): void {
- const host=query<HTMLElement>("[data-listing-package]");
- if(host&&latestListing){
-  renderListingPanel(host,latestListing.snapshot,latestListing.marketId,robinhoodChain.blockExplorers.default.url,robinhoodChain.testnet,import.meta.env.VITE_IPFS_GATEWAY,url=>{router.navigate(url);});
-  const layout=query<HTMLElement>(".create-layout");if(layout)layout.hidden=true;
-  const again=document.createElement('button');again.type='button';again.textContent='Create new one';again.className='listing-create-another';host.append(again);
-  again.onclick=()=>{latestListing=null;try{localStorage.removeItem(`tg-listing:${robinhoodChain.id}`);}catch{}host.hidden=true;if(layout)layout.hidden=false;};
- }
-}
+
+
 let pendingCreateDraft: CreateDraft | null = null;
 let draftImageMissing = false;
-function applyCreateDraft(configReady: boolean): void {
-  if (!pendingCreateDraft) return;
-  const form = query<HTMLFormElement>('[data-create-form]'); if (!form) return;
-  const unavailable: string[] = [];
-  for (const [key,value] of Object.entries(pendingCreateDraft)) {
-    if (['tickerGardenBaselineId', 'launchTemplateId', 'launchMode'].includes(key)) continue;
-    const field = form.elements.namedItem(key);
-    if (field instanceof HTMLSelectElement) { if (configReady && typeof value === 'string') {
-      if (value && !Array.from(field.options).some(option => option.value === value)) {
-        unavailable.push(key);
-      } else field.value = value;
-    } }
-    else if (field instanceof HTMLInputElement && field.type === 'checkbox' && typeof value === 'boolean') field.checked = value;
-    else if ((field instanceof HTMLInputElement || field instanceof HTMLTextAreaElement) && typeof value === 'string') field.value = value;
-  }
-  if (configReady) {
-    pendingCreateDraft = null;
-    const paired = query<HTMLSelectElement>('[name=quoteAssetConfigId]'); if (paired) populatePairedAssets();
-    const stock = query<HTMLSelectElement>('[name=assetUid]');
-    for (const name of unavailable) {
-      const field = form.elements.namedItem(name);
-      if (field instanceof HTMLSelectElement) {
-        const option = new Option('Asset unavailable — select another', '');
-        field.prepend(option); field.value = '';
-        field.setCustomValidity('Asset unavailable. Select another.');
-      }
-    }
-    if (stock && foundation) updateQuotePicker(stock, foundation.assets.filter(a=>isListedStakingAsset(robinhoodChain.id,a)).map(a=>({value:a.id,symbol:stockSymbol(a),name:stakingAssetForConfig(robinhoodChain.id,a)?.name??'Stock',logoUrl:stockLogo(a),pending:false})));
-  }
-}
-function saveCurrentCreateDraft(): void {
-  const form = query<HTMLFormElement>('[data-create-form]'); if (!form || launchSubmitting) return;
-  const values: Record<string,string|boolean> = {};
-  for (const field of Array.from(form.elements)) {
-    if (field instanceof HTMLInputElement && field.type === 'checkbox') values[field.name] = field.checked;
-    else if ((field instanceof HTMLInputElement && field.type !== 'file') || field instanceof HTMLSelectElement || field instanceof HTMLTextAreaElement) values[field.name] = field.value;
-  }
-  writeCreateDraft(localStorage, robinhoodChain.id, {...values,hadImage:draftImageMissing || !!launchImage || !!query<HTMLInputElement>('[name=tokenImage]')?.files?.length});
-}
 
-function setupCreate(): void {
- if(!latestListing){try{latestListing=parseSavedListing(localStorage.getItem(`tg-listing:${robinhoodChain.id}`),robinhoodChain.id);}catch{/* Browser storage may be disabled. */}}
- showLatestListing();
-  const form = query<HTMLFormElement>("[data-create-form]");
-  if (!form) return;
-  pendingCreateDraft = readCreateDraft(localStorage, robinhoodChain.id);
-  draftImageMissing = pendingCreateDraft?.hadImage === true;
-  applyCreateDraft(false);
-  form.addEventListener('input', saveCurrentCreateDraft);
-  form.addEventListener('change', saveCurrentCreateDraft);
-  query<HTMLInputElement>("[name=firstBuyAmount]", form)?.addEventListener("focus", renderDeveloperBuyBalance);
-  form.addEventListener("input", (event) => {
-    updateLaunchMode();
-    const symbol = query<HTMLInputElement>("[name=symbol]", form);
-    if (symbol) symbol.value = symbol.value.toUpperCase();
-    renderCreateIdentity();
-    if(launchPreviewField((event.target as HTMLInputElement).name))scheduleLaunchPreview();else updateCreateAvailability();
-  });
-  query<HTMLInputElement>("[name=tokenImage]", form)?.addEventListener("change", async (event) => {
-    const input = event.currentTarget as HTMLInputElement;
-    const generation = ++launchImageGeneration;
-    launchImageReading = true;
-    updateCreateAvailability();
-    input.setCustomValidity("");
-    input.dispatchEvent(new Event("invalid", { cancelable: true }));
-    launchImage = undefined;
-    renderSelectedTokenImage();
-    setCreateNoticeLevel("[data-image-status]", "info");
-    text("[data-image-status]", "Reading image…");
-    try {
-      const file = input.files?.[0];
-      const image = await readTokenImage(file);
-      let dimensions: { width: number; height: number } | undefined;
-      if (image) {
-        const decoded = new Image();
-        decoded.src = image;
-        await decoded.decode();
-        dimensions = { width: decoded.naturalWidth, height: decoded.naturalHeight };
-      }
-      if (generation !== launchImageGeneration) return;
-      launchImage = image;
-      draftImageMissing = false; saveCurrentCreateDraft();
-      renderSelectedTokenImage(image, file, dimensions);
-    } catch (error) { if (generation === launchImageGeneration) { input.setCustomValidity(errorText(error)); text("[data-image-status]", ""); input.dispatchEvent(new Event("invalid", { cancelable: true })); } }
-    if (generation !== launchImageGeneration) return;
-    launchImageReading = false;
-    scheduleLaunchPreview();
-  });
-  form.addEventListener("change", (event) => {
-    const target = event.target as HTMLInputElement | HTMLSelectElement;
-    if ((target.name === "quoteAssetConfigId" || target.name === "assetUid") && target.value) target.setCustomValidity("");
-    if (target.name === "quoteAssetConfigId") alignBaselineToQuote();
-    updateLaunchMode();
-    renderCreateIdentity();
-    if(launchPreviewField(target.name))scheduleLaunchPreview();else updateCreateAvailability();
-  });
-  form.addEventListener("submit", (event) => {
-    event.preventDefault();
-    void runPageAction(submitLaunch);
-  });
-  updateLaunchMode();
-  renderCreateIdentity();
-}
 
-function populatePairedAssets(): void {
-  const select = query<HTMLSelectElement>("[name=quoteAssetConfigId]");
-  if (!select) return;
-  const previous = releasePairForSelection(select.value, foundation?.quotes ?? []);
-  const priorValue = select.value;
-  const pickerOptions: QuotePickerOption[] = [];
-  select.replaceChildren();
-  for (const asset of RELEASE_PAIRED_ASSETS) {
-    const config = activePairedConfig(asset, foundation?.quotes ?? [], robinhoodChain.id);
-    const option = new Option(`${asset.symbol} — ${asset.name}${config ? "" : asset.graduationThreshold === null ? " · Parameters pending" : " · Pending activation"}`, config?.id ?? `pending:${asset.symbol}`);
-    select.add(option);
-    pickerOptions.push({ value: option.value, symbol: asset.symbol, name: asset.name, pending: !config });
-    if (previous?.symbol === asset.symbol || priorValue === option.value) select.value = option.value;
-  }
-  updateQuotePicker(select, pickerOptions);
-}
 
-function renderCreateConfig(): void {
-  const form = query<HTMLFormElement>("[data-create-form]");
-  if (!form) return;
-  populatePairedAssets();
-  if (foundation?.direct && foundation.assets.length===0) {const stock=query<HTMLInputElement>("[name=stakingEnabled]",form);if(stock){stock.checked=false;stock.disabled=true;}}
-  if (!foundation) {
-    const stockSelect = required<HTMLSelectElement>("[name=assetUid]", form);
-    stockSelect.replaceChildren(new Option("Staking assets unavailable", ""));
-    updateQuotePicker(stockSelect, []);
-    renderCreateIdentity();
-    text("[data-create-config-status]", "Launch unavailable.");
-    updateCreateAvailability();
-    return;
-  }
-  const stockSelect = required<HTMLSelectElement>("[name=assetUid]", form);
-  const activeStocks = foundation.assets.filter((item) => isListedStakingAsset(robinhoodChain.id, item));
-  populateSelect(stockSelect, activeStocks, "No eligible staking assets");
-  updateQuotePicker(stockSelect, activeStocks.map((stock) => ({
-    value: stock.id,
-    symbol: stockSymbol(stock),
-    logoUrl: stockLogo(stock),
-    name: stakingAssetForConfig(robinhoodChain.id,stock)?.name ?? String(stock.values.tokenName ?? "STOCK"),
-    pending: false,
-  })));
-  populateSelect(required<HTMLSelectElement>("[name=tickerGardenBaselineId]", form), foundation.baseline.filter((item) => item.status === 1), "Select an active TickerGarden baseline");
-  populateSelect(required<HTMLSelectElement>("[name=launchTemplateId]", form), foundation.templates.filter((item) => item.status === 1), "Select an active launch template");
-  applyCreateDraft(true);
-  alignBaselineToQuote();
-  text("[data-create-config-status]", foundation.writeReady
-    ? ""
-    : "Launch unavailable.");
-  updateLaunchMode();
-  renderCreateIdentity();
-  scheduleLaunchPreview();
-}
+function setupCreate(): void { if(!createController)return; return createController!.setupCreate(); }
 
-function alignBaselineToQuote(): void {
-  if (!foundation) return;
-  const quoteId = query<HTMLSelectElement>("[name=quoteAssetConfigId]")?.value;
-  const baselineSelect = query<HTMLSelectElement>("[name=tickerGardenBaselineId]");
-  const quote = foundation.quotes.find((item) => item.id === quoteId);
-  if (!quote || !baselineSelect) return;
-  try {
-    const baselineId = configString(quote, "tickerGardenBaselineId").toLowerCase();
-    if ([...baselineSelect.options].some((option) => option.value === baselineId)) baselineSelect.value = baselineId;
-  } catch { /* The launch validator reports the missing field. */ }
-}
 
-function updateLaunchMode(): void {
-  const amount = query<HTMLInputElement>("[name=firstBuyAmount]");
-  let mode: "create" | "create-buy" = "create";
-  try { mode = developerBuyMode(amount?.value ?? ""); amount?.setCustomValidity(""); }
-  catch (error) { amount?.setCustomValidity(errorText(error)); }
-  const select = query<HTMLSelectElement>("[name=launchMode]");
-  if (select) select.value = mode;
-  const lpEnabled=query<HTMLInputElement>("[name=lpFeeEnabled]")?.checked ?? false;
-  const lpSelect=query<HTMLSelectElement>("[name=lpFeePips]");
-  if(lpSelect)lpSelect.disabled=!lpEnabled;
-  const lpOptions=query<HTMLElement>("#lp-fee-options");if(lpOptions)lpOptions.hidden=!lpEnabled;
-  text("[data-preview-lp-fee]", `${lpEnabled ? Number(lpSelect?.value ?? 1000)/10000 : 0}% · after Bloom`);
-  text("[data-preview-meme-burn]", query<HTMLInputElement>("[name=burnMemeFees]")?.checked ? "On · permanent" : "Off");
-  const tax = query<HTMLInputElement>("[name=creatorTax]");
-  if (tax) {
-    try { const bps = creatorTaxBps(tax.value); assertCreatorTaxSupported(bps); tax.setCustomValidity(""); }
-    catch(error) { tax.setCustomValidity(errorText(error)); }
-  }
-}
 
-function renderCreateIdentity(): void {
-  renderDeveloperBuyBalance();
-  const details = launchDetails();
-  const burn=query<HTMLInputElement>("[name=burnMemeFees]")?.checked??false;
-  const burnToken = details.symbol.trim() || details.name.trim() || "your token";
-  text("[data-burn-token-label]", `Burn ${burnToken}`);
-  text("[data-preview-burn-label]", `Burn ${burnToken}`);
-  text("#meme-fee-burn-help", `Burn fees earned in ${burnToken}. Paired-asset rewards and platform fees are unaffected. Permanent at launch.`);
-  text("[data-fee-burn-note]", `Fees earned in ${burnToken} are burned at settlement; paired-asset rewards are paid out. Platform fees are unaffected.`);
-  text("[data-creator-tax-help]",burn?`Extra trading fee (0–5%). The paired asset is paid to you; ${burnToken} is burned when you claim. Fixed at launch.`:"Extra trading fee (0–5%), allocated to you. Fixed at launch.");
-  text("[data-holder-sharing-help]",burn?`Holder rewards use wallet snapshots and pay the paired asset only. Holder ${burnToken} fees are burned during funding settlement.`:"Rewards use wallet balances at published snapshots. Eligible holders can claim the original paired asset and created token after publication. There is no fixed payout schedule.");
-  const burnNote=query<HTMLElement>("[data-fee-burn-note]");if(burnNote)burnNote.hidden=!burn;
-  text("[data-creator-tax-recipient]",burn?`Paired asset to you · ${burnToken} burned`:"100% to you");
-  text("[data-preview-creator-tax]", `${formatTokenAmount(BigInt(details.creatorTaxBps), 2)}%`);
-  text("[data-preview-treasury]", details.creatorFeesToHolders ? "50% of creator base fees" : "Off");
-  text("[data-treasury-option-status]", burn?`Allocate 50% of your creator base-fee share to holders. ${burnToken} portions are burned; paired-asset rewards are paid normally. Fixed at launch.`:"Share 50% of your creator base-fee share with holders. Creator tax stays yours. Fixed at launch.");
-  const treasuryDetails = query<HTMLElement>("#treasury-details");
-  if (treasuryDetails) treasuryDetails.hidden = !details.creatorFeesToHolders;
-  text("[data-token-name]", details.name || "Your next big idea");
-  text("[data-token-symbol]", details.symbol || "ticker");
-  text("[data-token-description]", details.description);
-  const description=query<HTMLTextAreaElement>('[name=description]');
-  if(description){
-    const error=fieldError(description.value,{kind:'description'});
-    description.setCustomValidity(error);
-    if(error)description.setAttribute('aria-invalid','true');
-    text('[data-description-count]',`${description.value.length} / 300`);
-  }
-  const stakingEnabled = query<HTMLInputElement>("[name=stakingEnabled]")?.checked ?? false;
-  const stockSelect = query<HTMLSelectElement>("[name=assetUid]");
-  if (stockSelect) { stockSelect.required = stakingEnabled; stockSelect.disabled = !stakingEnabled; }
-  const stockField = query<HTMLElement>("[data-staking-stock-field]");
-  if (stockField) stockField.hidden = !stakingEnabled;
-  const feeTable = query<HTMLElement>("[data-fee-current-table]");
-  const feeSettings = `${details.creatorFeesToHolders}:${stakingEnabled}`;
-  if (feeTable && feeTable.dataset.settings !== feeSettings) {
-    feeTable.innerHTML = feePreviewTable(details.creatorFeesToHolders, stakingEnabled);
-    feeTable.dataset.settings = feeSettings;
-  }
-  try {
-    const tax = creatorTaxBps(query<HTMLInputElement>("[name=creatorTax]")?.value ?? "0");
-    assertCreatorTaxSupported(tax);
-    text("[data-fee-tax]", `${formatTokenAmount(BigInt(tax), 2)}%`);
-    const recipient=query<HTMLElement>("[data-creator-tax-recipient]");if(recipient)recipient.hidden=tax===0;
-  } catch { text("[data-fee-tax]", "Invalid rate");const recipient=query<HTMLElement>("[data-creator-tax-recipient]");if(recipient)recipient.hidden=true; }
-  text("[data-fee-staking-note]", stakingEnabled
-    ? "Staker fees apply after Bloomed, with active stake."
-    : "Staking is off. Fee split stays unchanged.");
-  text("[data-preview-asset]", !stakingEnabled ? "Staking disabled" : stockSelect?.value ? stockSelect.selectedOptions[0]?.textContent?.split(" · ")[0] ?? "-" : "-");
-  const selection = query<HTMLSelectElement>("[name=quoteAssetConfigId]")?.value ?? "";
-  const quote = foundation?.quotes.find(item => item.id === selection);
-  const releaseAsset = releasePairForSelection(selection, foundation?.quotes ?? []);
-  displayPriceWidget?.setToken(typeof quote?.values.quoteAsset === "string" ? quote.values.quoteAsset : null);
-  text("[data-preview-launch-fee]", foundation?.launchFee === undefined ? "-" : `${formatTokenAmount(foundation.launchFee, 18)} ETH`);
-  text("[data-preview-trade-fee]", "-");
-  text("[data-preview-graduation]", "-");
-  text("[data-graduation-caption]", "Loading bloom target…");
-  text("[data-graduation-exact]", "");
-  const symbol = releaseAsset?.symbol ?? "-";
-  text("[data-preview-quote]", symbol);
-  text("[data-buy-symbol]", symbol);
-  const amount = query<HTMLInputElement>("[name=firstBuyAmount]")?.value.trim() ?? "";
-  text("[data-preview-mode]", query<HTMLSelectElement>("[name=launchMode]")?.value === "create-buy" ? `${amount} ${symbol}` : "-");
-  if (!quote) {
-    if (releaseAsset?.graduationThreshold === null || releaseAsset?.phantomQuote === null) {
-      text("[data-graduation-caption]", "Bloom target pending confirmation");
-      text("[data-preview-graduation]", "Pending");
-    } else if (releaseAsset) {
-      const amount = graduationAmount(BigInt(releaseAsset.graduationThreshold), releaseAsset.decimals);
-      const economics = graduationEconomics(RELEASE_SUPPLY, BigInt(releaseAsset.phantomQuote), BigInt(releaseAsset.graduationThreshold));
-      text("[data-graduation-caption]", `Bloom target: ${amount.display} ${symbol}`);
-      text("[data-preview-graduation]", `${amount.display} ${symbol}`);
-      text("[data-graduation-exact]", `Release target · Pending activation on this network. Exact curve minimum: ${graduationAmount(economics.requiredNet, releaseAsset.decimals).exact} ${symbol}.`);
-    }
-    return;
-  }
-  try {
-    const baseline = foundation?.baseline.find(item => item.id === configString(quote, "tickerGardenBaselineId"));
-    if (!baseline) throw new Error("Launch economics are unavailable");
-    const decimals = configNumber(quote, "quoteDecimals");
-    const threshold = configBigInt(quote, "graduationThreshold");
-    const result = graduationEconomics(configBigInt(baseline, "supply"), configBigInt(quote, "phantomQuote"), threshold);
-    const formatted = graduationAmount(threshold, decimals);
-    text("[data-graduation-caption]", `Bloom target: ${formatted.display} ${symbol}`);
-    text("[data-preview-graduation]", `${formatted.display} ${symbol}`);
-    text("[data-graduation-exact]", `Exact minimum after curve rounding: ${graduationAmount(result.requiredNet, decimals).exact} ${symbol}.`);
-    const feeBps = configBigInt(baseline, "curveFeeBps");
-    text("[data-preview-trade-fee]", `${formatTokenAmount(feeBps, 2)}% base`);
-    text("[data-creator-fee-note]", `Base trading fee: ${formatTokenAmount(feeBps, 2)}%. Extra fees may apply to buys in the first 5 seconds; your developer buy is exempt.`);
-  } catch { text("[data-graduation-caption]", "Bloom target unavailable."); }
-}
+function renderCreateConfig(): void { if(!createController)return; return createController!.renderCreateConfig(); }
 
-function selectedLaunchConfig(allowPendingMetadata = false): SelectedLaunchConfig {
-  if (!foundation || !wallet) throw new Error("Connect a wallet and load the V1 registries");
-  const form = required<HTMLFormElement>("[data-create-form]");
-  const stakingEnabled = required<HTMLInputElement>("[name=stakingEnabled]", form).checked;
-  const assetUid = required<HTMLSelectElement>("[name=assetUid]", form).value;
-  const quoteId = required<HTMLSelectElement>("[name=quoteAssetConfigId]", form).value;
-  const baselineId = required<HTMLSelectElement>("[name=tickerGardenBaselineId]", form).value;
-  const templateId = required<HTMLSelectElement>("[name=launchTemplateId]", form).value;
-  const asset = foundation.assets.find((item) => item.id === assetUid && isListedStakingAsset(robinhoodChain.id,item));
-  const quote = foundation.quotes.find((item) => item.id === quoteId);
-  const baseline = foundation.baseline.find((item) => item.id === baselineId);
-  const template = foundation.templates.find((item) => item.id === templateId);
-  if ((stakingEnabled && !asset) || !quote || !baseline || !template) throw new Error("Selected launch settings are not active yet");
-  const releasedPair = releasePairForSelection(quoteId, foundation.quotes);
-  if (!releasedPair || activePairedConfig(releasedPair, [quote], robinhoodChain.id)?.id !== quoteId) throw new Error("Paired asset does not match the release whitelist on this network");
-  const beneficiary = canonicalAddress(required<HTMLInputElement>("[name=beneficiary]", form).value.trim() || wallet.account, "Creator beneficiary");
-  const name = required<HTMLInputElement>("[name=name]", form).value.trim();
-  const symbol = required<HTMLInputElement>("[name=symbol]", form).value.trim();
-  assertCreatorTaxSupported(creatorTaxBps(required<HTMLInputElement>("[name=creatorTax]", form).value));
-  const metadataURI = currentMetadataURI() || (allowPendingMetadata ? "ipfs://pending-launch-preview" : "");
-  if (!name || name.length > 64) throw new Error("Token name must contain 1–64 characters");
-  if (!/^[A-Z0-9]{1,16}$/.test(symbol)) throw new Error("Symbol must contain 1–16 uppercase letters or digits");
-  if (!metadataURI) throw new Error("Token details will be saved when you launch");
-  return Object.freeze({
-    stakingEnabled,
-    asset: stakingEnabled && asset ? { assetUid: asset.id, status: asset.status } : undefined,
-    quote: {
-      configId: quote.id,
-      economicsHash: canonicalBytes32(configString(quote, "economicsHash"), "Quote economicsHash"),
-      quoteAsset: canonicalAddress(configString(quote, "quoteAsset"), "Quote asset", true),
-      tickerGardenBaselineId: canonicalBytes32(configString(quote, "tickerGardenBaselineId"), "Quote TickerGarden baseline"),
-      status: quote.status,
-    },
-    baseline: { baselineId: baseline.id, status: baseline.status },
-    template: { templateId: template.id, status: template.status },
-    creatorRevenueBeneficiary: beneficiary,
-    name,
-    symbol,
-    metadataURI,
-    salt: launchSalt,
-    burnMemeFees: query<HTMLInputElement>("[name=burnMemeFees]", form)?.checked ?? false,
-    lpFeePips: query<HTMLInputElement>("[name=lpFeeEnabled]", form)?.checked ? Number(query<HTMLSelectElement>("[name=lpFeePips]", form)?.value) : 0,
-    creatorTaxBps: creatorTaxBps(required<HTMLInputElement>("[name=creatorTax]", form).value),
-    creatorFeesToHolders: query<HTMLInputElement>("[name=treasuryEnabled]", form)?.checked ?? false,
-  });
-}
 
-async function previewLaunch(walletContext?: WalletState, allowPendingMetadata = false): Promise<LaunchPreview> {
-  const activeWallet = walletContext ?? wallet;
-  if (!foundation?.writeReady || !runtimeConfig.contracts.available || !activeWallet || wallet !== activeWallet) throw new Error(runtimeReasons().join("; ") || "Connect a wallet first");
-  await verifyLiveWalletContext(activeWallet);
-  const launchFactoryAddress=runtimeConfig.contracts.value.factoryAddress;
-  const burnSelected = await resolveBurnLaunchConfig(selectedLaunchConfig(allowPendingMetadata), () => publicClient.readContract({
-    abi: currentV4Abis.TickerGardenFactoryV1, address: launchFactoryAddress, functionName: "memeFeeBurnMode",
-  }));
-  const selected = await resolveLpLaunchConfig(burnSelected, () => publicClient.readContract({abi:currentV4Abis.TickerGardenFactoryV1,address:launchFactoryAddress,functionName:"lpFeeMode"}));
-  await ensureCurrentRevision(foundation.sync.revision);
-  await ensureCanonicalLaunch(selected);
-  const draft = deriveCreateMarketParams(selected);
-  const expectedEconomics = await publicClient.readContract({
-    abi: launchAbis(selected).TickerGardenFactoryV1,
-    address: runtimeConfig.contracts.value.factoryAddress,
-    functionName: "previewMarketEconomics",
-    args: [draft],
-    account: activeWallet.account,
-  });
-  const params = Object.freeze({ ...draft, expectedEconomics: canonicalBytes32(expectedEconomics, "Expected economics") });
-  const predicted = await publicClient.readContract({
-    abi: launchAbis(selected).TickerGardenFactoryV1,
-    address: runtimeConfig.contracts.value.factoryAddress,
-    functionName: "predictMarketAddresses",
-    args: [activeWallet.account, params],
-    account: activeWallet.account,
-  });
-  await verifyLiveWalletContext(activeWallet);
-  return Object.freeze({
-    creator: activeWallet.account,
-    selected,
-    params,
-    marketId: canonicalBytes32(predicted[0], "Predicted marketId"),
-    memeToken: canonicalAddress(predicted[1], "Predicted token"),
-    curve: canonicalAddress(predicted[2], "Predicted Curve"),
-    gauge: canonicalAddress(predicted[3], "Predicted Gauge", !params.stakingEnabled),
-    launchLocker: canonicalAddress(predicted[4], "Predicted LaunchLocker"),
-  });
-}
 
-function scheduleLaunchPreview(): void {
-  window.clearTimeout(launchPreviewTimer);
-  const generation = ++launchPreviewGeneration;
-  launchPreview = null;
-  launchFunding = null;
-  text("[data-create-preview]", "");
-  updateCreateAvailability();
-  launchPreviewTimer = window.setTimeout(() => { void refreshLaunchPreview(generation); }, 350);
-}
 
-async function refreshLaunchPreview(generation: number): Promise<void> {
-  const form=query<HTMLFormElement>('[data-create-form]');
-  // An unfinished form is normal. Do not run RPC previews or report it as a failure.
-  if(!form||!wallet||!foundation?.writeReady||[...form.elements].some(field=>
-    (field instanceof HTMLInputElement||field instanceof HTMLSelectElement||field instanceof HTMLTextAreaElement)&&!field.disabled&&!field.validity.valid)){
-    if(generation===launchPreviewGeneration){text('[data-create-preview]','');const funding=query<HTMLElement>('[data-launch-funding]');if(funding)funding.hidden=true;}
-    return;
-  }
-  try {
-    const preview = await previewLaunch(undefined, true);
-    const funding = await calculateLaunchFunding(preview);
-    if (generation !== launchPreviewGeneration) return;
-    launchPreview = preview;
-    launchFunding = funding;
-    renderLaunchFunding(funding);
-    text("[data-create-preview]", "");
-    setCreateNoticeLevel("[data-create-preview]", "info");
-    renderCreateIdentity();
-    updateCreateAvailability();
-  } catch (error) {
-    if (generation !== launchPreviewGeneration) return;
-    launchPreview = null;
-    launchFunding = null;
-    const panel = query<HTMLElement>("[data-launch-funding]");
-    if (panel) panel.hidden = true;
-    text("[data-create-preview]", errorText(error));
-    setCreateNoticeLevel("[data-create-preview]", "error");
-    updateCreateAvailability();
-  }
-}
 
-function setCreateNoticeLevel(selector:string,level:CreateNoticeLevel):void {
-  const notice=query<HTMLElement>(selector);if(!notice)return;
-  notice.classList.add('create-notice');
-  notice.classList.toggle('create-notice-warning',level==='warning');
-  notice.classList.toggle('create-notice-error',level==='error');
-  notice.dataset.noticeLevel=level;
-}
 
-function updateCreateAvailability(): void {
-  const button = query<HTMLButtonElement>("[data-create-submit]");
-  const form = query<HTMLFormElement>("[data-create-form]");
-  if (!button || !form) return;
-  const buyMode = query<HTMLSelectElement>("[name=launchMode]")?.value === "create-buy";
-  const invalid = [...form.elements].find((e): e is HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement =>
-    (e instanceof HTMLInputElement || e instanceof HTMLSelectElement || e instanceof HTMLTextAreaElement) && !e.disabled && !e.validity.valid);
-  const labels: Record<string,string> = {name:"Name",symbol:"Ticker",description:"Description",assetUid:"Staking asset",quoteAssetConfigId:"Paired asset",website:"Website",x:"X profile",firstBuyAmount:"Developer buy",creatorTax:"Creator tax",beneficiary:"Creator beneficiary",tickerGardenBaselineId:"Market pricing",launchTemplateId:"Launch settings",tokenImage:"Token image"};
-  const availability:CreateAvailability={submitting:launchSubmitting||Boolean(launchProgress&&launchProgress.phase!=="complete"),imageReading:launchImageReading,imageReady:Boolean(launchImage),
-    runtimeReady:Boolean(foundation?.writeReady),runtimeReason:runtimeReasons().join("; "),walletConnected:Boolean(wallet),busy:Boolean(launchSubmitting||walletConnecting),
-    pendingQuote:query<HTMLSelectElement>("[name=quoteAssetConfigId]")?.value.startsWith("pending:")===true,
-    invalidField:invalid ? labels[invalid.name] ?? invalid.name : undefined,metadataReady:Boolean(launchMetadataOrigin),buyMode,
-    fundingReady:Boolean(launchFunding),insufficientEth:Boolean(launchFunding&&launchFunding.ethBalance<launchFunding.totalRequired)};
-  const reason=draftImageMissing ? "Reselect your image." : createDisabledReason(availability);
-  setDisabled(button, Boolean(reason));
-  let hint = query<HTMLElement>("[data-create-blocker]",form);
-  if(!hint){hint=document.createElement("p");hint.dataset.createBlocker="";hint.id="create-blocker";hint.setAttribute("role","status");button.insertAdjacentElement("beforebegin",hint);}
-  const fieldError=reason?.startsWith('Check ')===true;
-  const showReason=!!reason&&(!fieldError||invalid?.getAttribute('aria-invalid')==='true');
-  setCreateNoticeLevel('[data-create-blocker]',draftImageMissing ? 'error' : createDisabledLevel(availability));
-  hint.textContent=showReason ? reason! : '';hint.hidden=!showReason;
-  if(showReason)button.setAttribute("aria-describedby",hint.id);else button.removeAttribute("aria-describedby");
-}
+
+
+
+
+
+
+
+
+
+
+
+function updateCreateAvailability(): void { if(!createController)return; return createController!.updateCreateAvailability(); }
 
 // RH public replay: 8m fails while 16m succeeds for the complete atomic launch.
 const CONSERVATIVE_LAUNCH_GAS = robinhoodChain.id === 46630 ? 16_000_000n : 3_000_000n;
 
-async function calculateLaunchFunding(preview: LaunchPreview): Promise<LaunchFunding & Readonly<{ gasCost: bigint; totalRequired: bigint; quoteDecimals: number }>> {
-  if (!foundation?.bindings || foundation.launchFee === undefined) throw new Error("Launch funding bindings are unavailable");
-  const decimals = await quoteDecimalsFor(preview.selected);
-  const amountText = query<HTMLInputElement>("[name=firstBuyAmount]")?.value.trim() ?? "";
-  const quoteAmount = developerBuyMode(amountText) === "create-buy" ? parseTokenAmount(amountText, decimals, "First buy amount") : 0n;
-  const funding = await resolveLaunchFunding({
-    client: publicClient as never,
-    account: preview.creator,
-    quoteAsset: preview.selected.quote.quoteAsset,
-    quoteAmount,
-  });
-  const fees = await publicClient.estimateFeesPerGas();
-  const feePerGas = fees.maxFeePerGas ?? fees.gasPrice;
-  if (feePerGas === undefined) throw new Error("Network gas price is unavailable");
-  const gasCost = CONSERVATIVE_LAUNCH_GAS * feePerGas;
-  const transactionValue = foundation.launchFee + (funding.mode === "native" ? quoteAmount : 0n);
-  return Object.freeze({ ...funding, gasCost, totalRequired: transactionValue + gasCost, quoteDecimals: decimals });
-}
 
-function renderLaunchFunding(funding: LaunchFunding & Readonly<{ gasCost: bigint; totalRequired: bigint; quoteDecimals: number }>): void {
-  const panel = query<HTMLElement>("[data-launch-funding]");
-  if (panel) panel.hidden = false;
-  const symbol = releasePairForSelection(query<HTMLSelectElement>("[name=quoteAssetConfigId]")?.value ?? "", foundation?.quotes ?? [])?.symbol ?? "Quote";
-  // The first buy uses the selected asset already held by the wallet.
-  const conversion=false;
-  for(const selector of ['[data-funding-route]','[data-funding-swap]']){
-    const row=query<HTMLElement>(selector)?.parentElement;if(row)row.hidden=!conversion;
-  }
-  text("[data-funding-route]", funding.mode === "quote" ? `Wallet ${symbol}` : "ETH");
-  text("[data-funding-quote-balance]", funding.mode === "native" ? "ETH" : `${funding.quoteBalance === null ? "—" : formatTokenAmount(funding.quoteBalance, funding.quoteDecimals)} ${symbol}`);
-  text("[data-funding-swap]", funding.mode === "native" ? `${formatTokenAmount(funding.quotedNativeInput, 18)} ETH` : "0 ETH");
-  text("[data-funding-gas]", `${formatTokenAmount(funding.gasCost, 18)} ETH`);
-  text("[data-funding-total]", `${formatTokenAmount(funding.totalRequired, 18)} ETH`);
-  text("[data-funding-balance]", `${formatTokenAmount(funding.ethBalance, 18)} ETH`);
-}
 
-async function quoteDecimalsFor(selected: SelectedLaunchConfig): Promise<number> {
-  if (selected.quote.quoteAsset === ZERO_ADDRESS) return 18;
-  const result = await publicClient.readContract({ abi: erc20Abi, address: selected.quote.quoteAsset, functionName: "decimals" });
-  if (result < 6 || result > 18) throw new Error("Quote decimals are outside the approved 6–18 range");
-  return result;
-}
+
+
+
 
 function simulationTuple(result: unknown, index: number, label: string): bigint {
   if (!Array.isArray(result) || typeof result[index] !== "bigint") throw new Error(`Launch simulation did not return ${label}`);
@@ -3451,214 +1931,10 @@ async function ensureStandaloneApproval(
   });
 }
 
-async function submitLaunch(): Promise<void> {
- if(!navigator.locks)throw Error("This browser cannot protect against duplicate launches. Use an up-to-date browser.");
- await navigator.locks.request(`tg-launch:${robinhoodChain.id}`,{ifAvailable:true},async lock=>{
-  if(!lock){void restoreLaunchProgress();return;}
-  if(readLaunchState(localStorage,robinhoodChain.id)){void restoreLaunchProgress();return;}
-  const form=required<HTMLFormElement>('[data-create-form]');
-  if(!form.reportValidity())return;
-  if(!launchImage||launchImageReading||!wallet){updateCreateAvailability();return;}
-  const snapshot=()=>JSON.stringify({chainId:robinhoodChain.id,account:wallet?.account,details:launchDetails(),fields:[...new FormData(form).entries()].filter(([,value])=>typeof value==='string')});
-  const details=launchDetails();
-  const pair=query<HTMLElement>('[data-preview-quote]')?.textContent ?? '-';
-  const buy=query<HTMLElement>('[data-preview-mode]')?.textContent ?? '-';
-  const staking=query<HTMLInputElement>('[name=stakingEnabled]')?.checked;
-  const stock=query<HTMLElement>('[data-preview-asset]')?.textContent ?? '-';
-  const content=document.createElement('section');content.className='launch-confirm-content';
-  const identity=document.createElement('div');identity.className='launch-confirm-identity';
-  const image=document.createElement('img');image.src=launchImage;image.alt='';
-  const identityText=document.createElement('div');
-  const name=document.createElement('strong');name.textContent=details.name;
-  const ticker=document.createElement('span');ticker.textContent=`$${details.symbol}`;
-  identityText.append(name,ticker);identity.append(image,identityText);content.append(identity);
-  const addRows=(rows:readonly (readonly [string,string])[],className='')=>{
-    const list=document.createElement('dl');list.className=`launch-confirm-rows ${className}`;
-    for(const [label,value] of rows){const row=document.createElement('div');const term=document.createElement('dt');term.textContent=label;const definition=document.createElement('dd');definition.textContent=value;if(label==='Wallet'){definition.title=value;definition.textContent=shortHex(value,7,5);}row.append(term,definition);list.append(row);}
-    content.append(list);
-  };
-  addRows([['Network',robinhoodChain.name],['Wallet',wallet.account]]);
-  addRows([['Paired Asset',pair],['Developer Buy',buy],['Staking Rewards',staking ? stock : 'Disabled'],[`Burn ${details.symbol.trim() || details.name.trim() || 'your token'}`,query<HTMLInputElement>('[name=burnMemeFees]')?.checked ? 'On · permanent' : 'Off'],['LP Fee',`${query<HTMLInputElement>('[name=lpFeeEnabled]')?.checked ? Number(query<HTMLSelectElement>('[name=lpFeePips]')?.value)/10000 : 0}%`],['Creator Tax',`${details.creatorTaxBps/100}%`],['Holder Fee Sharing',details.creatorFeesToHolders ? 'Enabled' : 'Disabled']]);
-  if(launchFunding)addRows([['Estimated Total',`${formatTokenAmount(launchFunding.totalRequired,18)} ETH`]],'launch-confirm-total');
-  try {
-    await confirmLaunch(snapshot,()=>confirmFlowAction('',{title:'Confirm Launch',confirmLabel:'Confirm And Launch',content}),performLaunch);
-  } catch(error){text('[data-create-preview]',errorText(error));setCreateNoticeLevel('[data-create-preview]','error');updateCreateAvailability();}
- });
-}
-async function performLaunch(): Promise<void> {
-  if (launchSubmitting) return;
-  launchSubmitting = true;
-  updateCreateAvailability();
-  const form = required<HTMLFormElement>("[data-create-form]");
-  const fields = [...form.querySelectorAll<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>("input, select, textarea")];
-  const disabledBefore = fields.map(field => field.disabled);
-  try {
-    if (!required<HTMLFormElement>("[data-create-form]").reportValidity()) return;
-    await verifyTransactionFoundation();
-    if (!foundation?.writeReady || !runtimeConfig.contracts.available || !wallet || foundation.launchFee === undefined) {
-      throw new Error(runtimeReasons().join("; ") || "Connect a wallet first");
-    }
-    if (launchImageReading) throw new Error("Loading image…");
-    if (!launchImage) throw new Error("Add a token image.");
-    launchProgress={version:1,id:crypto.randomUUID(),chainId:robinhoodChain.id,account:wallet.account,phase:'publishing',detail:'Publishing your token details and image. Keep this page open.'};
-    saveLaunchState(localStorage,launchProgress);
-    drawLaunchProgress();
-    fields.forEach(field => { field.disabled = true; });
-    const activeWallet = wallet;
-    const contracts = runtimeConfig.contracts.value;
-    await prepareLaunchMetadata();
-    if (wallet !== activeWallet) throw new Error("Wallet changed while saving token details");
-    updateLaunchProgress("preparing","Checking the launch settings and preparing your transaction.");
-    const submittedDetails = launchDetails();
-    const submittedMetadata = preparedMetadata;
-    const preview = await previewLaunch(activeWallet);
-    launchPreview = preview;
-    const propsForProgress=submittedMetadata?.properties as Record<string,unknown>|undefined;
-    launchProgress!.expected={factory:contracts.factoryAddress,marketId:preview.marketId,token:preview.memeToken,curve:preview.curve,gauge:preview.gauge};
-    launchProgress!.listing={chainId:robinhoodChain.id,chainName:robinhoodChain.name,tokenAddress:preview.memeToken,name:submittedDetails.name,symbol:submittedDetails.symbol,
-      logo:typeof submittedMetadata?.image==='string'?submittedMetadata.image:'',website:typeof propsForProgress?.website==='string'?propsForProgress.website:submittedDetails.website,
-      x:typeof propsForProgress?.x==='string'?propsForProgress.x:submittedDetails.x,metadataURI:preview.params.metadataURI,txHash:''};
-    saveLaunchState(localStorage,launchProgress!);
-    const verifyChain = () => ensureCanonicalLaunch(preview.selected);
-    const previewEconomics = async () => preview.params.expectedEconomics;
-    const mode = required<HTMLSelectElement>("[name=launchMode]").value;
-    let request: ContractWriteRequest;
-    let expectedSpent: bigint | null = null;
-    let expectedMinimum: bigint | null = null;
-    let requestedQuote: bigint | null = null;
-    if (mode === "create") {
-      const built = await buildCreateMarketRequest({
-        factory: contracts.factoryAddress,
-        launchFee: foundation.launchFee,
-        config: preview.selected,
-        previewMarketEconomics: previewEconomics,
-      });
-      request = built.request;
-    } else {
-      const decimals = await quoteDecimalsFor(preview.selected);
-      const quoteIn = parseTokenAmount(required<HTMLInputElement>("[name=firstBuyAmount]").value, decimals, "First buy amount");
-      requestedQuote = quoteIn;
-      const slippageBps = DEVELOPER_BUY_SLIPPAGE_BPS;
-      const freshFunding = await calculateLaunchFunding(preview);
-      launchFunding = freshFunding;
-      renderLaunchFunding(freshFunding);
-      if (freshFunding.ethBalance < freshFunding.totalRequired) throw new Error("ETH balance is below the estimated total required");
-      const probe = await buildLaunchAndBuyRequests({
-        router: foundation.bindings!.launchRouter,
-        launchFee: foundation.launchFee,
-        quoteIn,
-        minTokensOut: 1n,
-        recipient: preview.creator,
-        config: preview.selected,
-        previewMarketEconomics: previewEconomics,
-      });
-      if (probe.approval) {
-        await ensureStandaloneApproval(probe.approval, preview.selected.quote.quoteAsset, foundation.bindings!.launchRouter, quoteIn, foundation.sync, verifyChain, activeWallet,{businessType:'approval',marketId:preview.marketId,conflictKey:`launch:${preview.marketId}`});
-      }
-      await ensureCurrentRevision(foundation.sync.revision);
-      await verifyChain();
-      await verifyLiveWalletContext(activeWallet);
-      const simulated = await publicClient.simulateContract({ ...probe.request, account: preview.creator } as never) as { result: unknown };
-      const tokensOut = simulationTuple(simulated.result, 2, "first-buy output");
-      const refund = simulationTuple(simulated.result, 3, "first-buy refund");
-      if (tokensOut <= 0n || refund > quoteIn) throw new Error("Launch simulation returned an invalid first-buy result");
-      expectedSpent = quoteIn - refund;
-      expectedMinimum = minimumAfterSlippage(tokensOut, slippageBps);
-      const built = await buildLaunchAndBuyRequests({
-        router: foundation.bindings!.launchRouter,
-        launchFee: foundation.launchFee,
-        quoteIn,
-        minTokensOut: expectedMinimum,
-        recipient: preview.creator,
-        config: preview.selected,
-        previewMarketEconomics: previewEconomics,
-      });
-      request = built.request;
-    }
-    const estimatedLaunchGas = await publicClient.estimateContractGas({ ...request, account: preview.creator } as never);
-    const paddedLaunchGas = (estimatedLaunchGas * 120n + 99n) / 100n;
-    const gas = paddedLaunchGas > CONSERVATIVE_LAUNCH_GAS ? paddedLaunchGas : CONSERVATIVE_LAUNCH_GAS;
-    const signingFees = await publicClient.estimateFeesPerGas();
-    const signingFeePerGas = signingFees.maxFeePerGas ?? signingFees.gasPrice;
-    if (signingFeePerGas === undefined) throw new Error("Network gas price is unavailable");
-    if (await publicClient.getBalance({ address: preview.creator }) < (request.value ?? 0n) + gas * signingFeePerGas) throw new Error("ETH balance is below the transaction value plus current Gas budget");
-    request = { ...request, gas };
-    launchProgress!.data=encodeFunctionData({abi:request.abi,functionName:request.functionName,args:request.args} as never);
-    launchProgress!.intent=JSON.stringify([request.address.toLowerCase(),request.functionName,request.args??[],request.value??0n],(_key,value)=>typeof value==='bigint'?value.toString():value);
-    saveLaunchState(localStorage,launchProgress!);
-    let confirmedHash = "";
-    const created = await executeTransaction({
-      operationKey: `launch:${mode}:${preview.marketId}:${foundation.sync.revision}`,
-      onUpdate:handleLaunchTransactionUpdate,
-      sync: foundation.sync,
-      request,
-      quoteExpiresAtMs: Date.now() + 90_000,
-      walletContext: activeWallet,
-      verifyChain,
-      confirm: async (receipt) => {
-        const result = findCanonicalMarketCreated(receipt, contracts.factoryAddress, {
-          params: preview.params,
-          quoteAsset: preview.selected.quote.quoteAsset,
-        });
-        if (result.marketId !== preview.marketId || result.memeToken !== preview.memeToken || result.curve !== preview.curve || result.gauge !== preview.gauge) {
-          throw new Error("Created addresses differ from the Factory prediction");
-        }
-        if (mode === "create-buy") {
-          receiptEvent(receipt, result.curve, v1Abis.TickerGardenCurve, "CurveBuy", (args) =>
-            String(args.buyer).toLowerCase() === foundation!.bindings!.launchRouter
-            && String(args.recipient).toLowerCase() === preview.creator
-            && (expectedSpent === null ? typeof args.quoteIn === "bigint" && args.quoteIn > 0n && requestedQuote !== null && args.quoteIn <= requestedQuote : args.quoteIn === expectedSpent)
-            && typeof args.tokensOut === "bigint"
-            && expectedMinimum !== null
-            && args.tokensOut >= expectedMinimum,
-          );
-        }
-        const [code, quoteAsset, createdMarket] = await Promise.all([
-          publicClient.getCode({ address: result.curve }),
-          publicClient.readContract({ abi: v1Abis.TickerGardenCurve, address: result.curve, functionName: "quoteAsset" }),
-          publicClient.readContract({ abi: launchAbis(preview.selected).MarketRegistryV1, address: foundation!.bindings!.marketRegistry, functionName: "market", args: [result.marketId], blockNumber: receipt.blockNumber }),
-        ]);
-        if (!code || code === "0x" || quoteAsset.toLowerCase() !== preview.selected.quote.quoteAsset) throw new Error("Fresh Curve deployment does not match the selected Quote");
-        if (tupleField(tupleField(createdMarket, "config", 0), "stakingEnabled", 16) !== preview.params.stakingEnabled) throw new Error("Created staking mode differs from the signed choice");
-        if (tupleField(tupleField(createdMarket, "config", 0), "creatorFeesToHolders", 15) !== preview.params.creatorFeesToHolders) throw new Error("Created holder fee sharing differs from the signed choice");
-        if (preview.params.lpFeePips !== undefined && tupleField(tupleField(createdMarket, "config", 0), "lpFeePips", 18) !== preview.params.lpFeePips) throw new Error("Created LP fee differs from the signed choice");
-        if (preview.params.burnMemeFees !== undefined && tupleField(tupleField(createdMarket, "config", 0), "burnMemeFees", 17) !== preview.params.burnMemeFees) throw new Error("Created token fee burn choice differs from the signed choice");
-        directMarkets?.receipt(receipt);
-        confirmedHash = receipt.transactionHash;
-        return result;
-      },
-    });
-    clearCreateDraft(localStorage, robinhoodChain.id); pendingCreateDraft = null;
-    launchSalt = randomSalt();
-    launchPreview = null;
-    notify(`Market created and verified — ${shortHex(created.marketId, 9, 7)}`, "success");
-    const props = submittedMetadata?.properties as Record<string,unknown> | undefined;
-    latestListing = {marketId:created.marketId,snapshot:{chainId:robinhoodChain.id,chainName:robinhoodChain.name,tokenAddress:created.memeToken,
-      name:submittedDetails.name,symbol:submittedDetails.symbol,logo:typeof submittedMetadata?.image==='string'?submittedMetadata.image:'',
-      website:typeof props?.website==='string'?props.website:submittedDetails.website,
-      x:typeof props?.x==='string'?props.x:submittedDetails.x,metadataURI:preview.params.metadataURI,txHash:confirmedHash}};
-    creatorDirectoryAt=0;
-    try { localStorage.setItem(`tg-listing:${robinhoodChain.id}`,JSON.stringify(latestListing)); } catch { /* Downloads still work without browser storage. */ }
-    if(launchProgress?.listing)launchProgress.listing.txHash=confirmedHash;
-    updateLaunchProgress('complete',LAUNCH_CONFIRMED_COPY);
-    void notifyLaunchDatabase(confirmedHash,import.meta.env.VITE_V1_PIPELINE_URL).then(()=>snapshotPoller?.reconnect());
-  } catch (error) {
-    if(launchProgress){
-      if(launchProgress.phase!=='failed'&&(launchProgress.hash||launchProgress.phase==='wallet'||launchProgress.phase==='pending'||launchProgress.phase==='confirming')){
-       updateLaunchProgress('paused','The transaction outcome is not confirmed yet. We will keep tracking it; do not launch again.');
-       setTimeout(()=>void restoreLaunchProgress(),0);
-      } else updateLaunchProgress('failed',errorText(error));
-    }
-    notify(launchProgress?.phase==='paused'?'Launch is still being tracked. Do not publish again.':`Launch stopped — ${errorText(error)}`,launchProgress?.phase==='paused'?'warning':'error');
-    scheduleLaunchPreview();
-  } finally {
-    fields.forEach((field, index) => { field.disabled = disabledBefore[index]!; });
-    launchSubmitting = false;
-    updateCreateAvailability();
-  }
-}
 
-type RewardPositionState = Readonly<{
+
+
+export type RewardPositionState = Readonly<{
   observedBlock: bigint;
   detail: MarketDetailResponse;
   metadata: MarketMetadata;
@@ -3676,7 +1952,7 @@ type RewardPositionState = Readonly<{
   now: bigint;
 }>;
 
-type CreatorRewardState = Readonly<{
+export type CreatorRewardState = Readonly<{
   marketId: Hex;
   epoch: number;
   beneficiary: Address;
@@ -3691,7 +1967,7 @@ type CreatorRewardState = Readonly<{
   now: bigint;
 }>;
 
-type TreasuryRewardState = Readonly<{
+export type TreasuryRewardState = Readonly<{
   detail: MarketDetailResponse;
   metadata: MarketMetadata;
   epochId: number;
@@ -3725,7 +2001,7 @@ type TreasuryRewardState = Readonly<{
   now: bigint;
 }>;
 
-type DirectEscapeState = Readonly<{
+export type DirectEscapeState = Readonly<{
   factory: Address;
   bindings: CanonicalRuntimeBindings;
   marketId: Hex;
@@ -3758,7 +2034,7 @@ const treasuryStatusLabels = ["Not requested", "Root requested", "Root under rev
 const rewardMarketLabels = new Map<string, { label: string; search: string; symbol?:string }>();
 
 // Statistics are display-only, cached for ten minutes, and never gate transactions.
-type StakeStats = {title:string;description:string;quoteSymbol:string;phase:string;volume:string;fees:string;total:string;totalRaw:bigint|null;status:string;expiresAt:number};
+export type StakeStats = {title:string;description:string;quoteSymbol:string;phase:string;volume:string;fees:string;total:string;totalRaw:bigint|null;status:string;expiresAt:number};
 const stakeStatsCache = new Map<string,{at:number;data:StakeStats}>();
 const stakeStatsRequests = new Map<string,Promise<StakeStats>>();
 let stakeStatsGeneration = 0;
@@ -3864,7 +2140,7 @@ async function refreshStakeStatistics():Promise<void>{
   }catch{if(generation===stakeStatsGeneration)stakeText('[data-stake-stats-status]','Market activity is unavailable. Try again.');}
 }
 
-type StakeDirectoryRow={marketId:string;assetUid:string;label:string;active:boolean};
+export type StakeDirectoryRow={marketId:string;assetUid:string;label:string;active:boolean};
 let stakeDirectoryAccount='';
 let stakeDirectoryAt=0;
 let stakeDirectoryGeneration=0;
@@ -3885,6 +2161,7 @@ function renderStakePortfolioEmpty():void{
   const verified=(!!stakePositionsPage&&!stakePositionsPage.nextCursor)||(!!foundation?.direct&&stakeDirectPortfolioVerified);
   const mode=stakePortfolioMode({walletConnected:!!wallet,busy:stakeDirectoryBusy,verified,failed:stakeDirectoryFailed,hasActive,marketOpen});
   const show=mode!=='content';
+  const stakePage=query<HTMLElement>(".staking-page");if(stakePage)stakePage.dataset.walletConnected=String(!!wallet);
   empty.dataset.state=mode;empty.hidden=!show;empty.toggleAttribute('aria-busy',mode==='checking');
   query<HTMLElement>('.staking-page .market-card')?.toggleAttribute('hidden',show);
   query<HTMLElement>('.staking-page .position-card')?.toggleAttribute('hidden',show);
@@ -4016,7 +2293,7 @@ async function refreshStakeDirectory(more=false,force=false):Promise<void>{
           // Vault allocation is the canonical principal ledger. Portfolio discovery
           // must not depend on optional metadata, wallet balances, or reward previews.
           const asset=await assetFor(market.assetUid);
-          const allocated=await publicClient.readContract({blockNumber,abi:v1Abis.UserStockVault,address:asset.userStockVault,functionName:'allocation',args:[asset.assetUid,account as Address,market.marketId]});
+          const allocated=await publicClient.readContract({blockNumber,abi:v1Abis_UserStockVault,address:asset.userStockVault,functionName:'allocation',args:[asset.assetUid,account as Address,market.marketId]});
           return {marketId:market.marketId,assetUid:market.assetUid,allocated};
         }
         catch{return null;}
@@ -4224,7 +2501,7 @@ function setupRewards(): void {
     query<HTMLElement>('.stake-market-search')?.addEventListener('focusout',event=>{if(!event.currentTarget||!(event.currentTarget as HTMLElement).contains(event.relatedTarget as Node|null))closeSearch();});
   }
   query<HTMLButtonElement>('[data-creator-more]')?.addEventListener('click',event=>{(event.currentTarget as HTMLButtonElement).disabled=true;void refreshCreatorDirectory(true);});
-  query<HTMLButtonElement>('[data-creator-older]')?.addEventListener('click',async event=>{const button=event.currentTarget as HTMLButtonElement;if(!wallet||!foundation)return;button.disabled=true;try{const market=selectedRewardMarket('[data-creator-market]'),registry=marketRelease(market.marketId).creatorRegistry,block=await publicClient.getBlock({blockTag:'latest'}),epoch=await publicClient.readContract({blockNumber:block.number,abi:v1Abis.CreatorRevenueRegistry,address:registry,functionName:'currentCreatorEpoch',args:[market.marketId]});await loadCreatorEpochs(market.marketId,registry,epoch,wallet.account,block.number,true);await refreshCreatorReward();}catch{text('[data-creator-status]','Unable to load earlier rewards. Try again.');}finally{button.disabled=false;}});
+  query<HTMLButtonElement>('[data-creator-older]')?.addEventListener('click',async event=>{const button=event.currentTarget as HTMLButtonElement;if(!wallet||!foundation)return;button.disabled=true;try{const market=selectedRewardMarket('[data-creator-market]'),registry=marketRelease(market.marketId).creatorRegistry,block=await publicClient.getBlock({blockTag:'latest'}),epoch=await publicClient.readContract({blockNumber:block.number,abi:v1Abis_CreatorRevenueRegistry,address:registry,functionName:'currentCreatorEpoch',args:[market.marketId]});await loadCreatorEpochs(market.marketId,registry,epoch,wallet.account,block.number,true);await refreshCreatorReward();}catch{text('[data-creator-status]','Unable to load earlier rewards. Try again.');}finally{button.disabled=false;}});
   query<HTMLButtonElement>('[data-copy-beneficiary]')?.addEventListener('click', async () => {
     if (!creatorReward) return;
     try { await navigator.clipboard.writeText(creatorReward.beneficiary); notify('Recipient address copied', 'success'); }
@@ -4481,9 +2758,9 @@ async function refreshCreatorDirectory(more=false):Promise<void>{
       const registry=runtimeConfig.contracts.available?runtimeConfig.contracts.value.creatorRevenueRegistryAddress:null;
       if(!registry)throw Error('Creator registry unavailable');
       await mapConcurrent(current.markets,async market=>{
-        const epoch=await publicClient.readContract({abi:v1Abis.CreatorRevenueRegistry,address:registry,functionName:'currentCreatorEpoch',args:[market.marketId]});
+        const epoch=await publicClient.readContract({abi:v1Abis_CreatorRevenueRegistry,address:registry,functionName:'currentCreatorEpoch',args:[market.marketId]});
         if(epoch<=0)return;
-        const beneficiary=await publicClient.readContract({abi:v1Abis.CreatorRevenueRegistry,address:registry,functionName:'creatorBeneficiaryAt',args:[market.marketId,epoch]});
+        const beneficiary=await publicClient.readContract({abi:v1Abis_CreatorRevenueRegistry,address:registry,functionName:'creatorBeneficiaryAt',args:[market.marketId,epoch]});
         if(String(beneficiary).toLowerCase()===account)creatorMarketIds.add(market.marketId);
       },4);
       creatorDirectoryAt=Date.now();
@@ -4599,7 +2876,7 @@ async function readDirectEscapeState(marketId: Hex, account: Address): Promise<D
   const factory = runtimeConfig.rageQuitFactory.value;
   const [factoryCode, rawBindings] = await Promise.all([
     publicClient.getCode({ address: factory }),
-    publicClient.readContract({ abi: v1Abis.TickerGardenFactoryV1, address: factory, functionName: "runtimeBindings" }),
+    publicClient.readContract({ abi: v1Abis_TickerGardenFactoryV1, address: factory, functionName: "runtimeBindings" }),
   ]);
   if (!factoryCode || factoryCode === "0x") throw new Error("Configured Factory has no runtime code");
   const bindings = decodeCanonicalFactoryBindings(rawBindings);
@@ -4618,7 +2895,7 @@ async function readDirectEscapeState(marketId: Hex, account: Address): Promise<D
   if (tupleField(marketConfig, "stakingEnabled", 16) !== true) throw new Error("Stock staking is not enabled for this market");
   const assetUid = canonicalBytes32(tupleString(marketConfig, "assetUid", 0), "Market assetUid");
   const rawAsset = await publicClient.readContract({
-    abi: v1Abis.OfficialStockRegistryV1,
+    abi: v1Abis_OfficialStockRegistryV1,
     address: bindings.officialStockRegistry,
     functionName: "asset",
     args: [assetUid],
@@ -4633,9 +2910,9 @@ async function readDirectEscapeState(marketId: Hex, account: Address): Promise<D
   const [stockCode, vaultCode, rawVaultIdentity, registeredSchema, allocated] = await Promise.all([
     publicClient.getCode({ address: stockToken }),
     publicClient.getCode({ address: vault }),
-    publicClient.readContract({ abi: v1Abis.UserStockVault, address: vault, functionName: "vaultIdentity" }),
-    publicClient.readContract({ abi: v1Abis.OfficialStockRegistryV1, address: bindings.officialStockRegistry, functionName: "vaultSchemaId", args: [vault] }),
-    publicClient.readContract({ abi: v1Abis.UserStockVault, address: vault, functionName: "allocation", args: [assetUid, account, marketId] }),
+    publicClient.readContract({ abi: v1Abis_UserStockVault, address: vault, functionName: "vaultIdentity" }),
+    publicClient.readContract({ abi: v1Abis_OfficialStockRegistryV1, address: bindings.officialStockRegistry, functionName: "vaultSchemaId", args: [vault] }),
+    publicClient.readContract({ abi: v1Abis_UserStockVault, address: vault, functionName: "allocation", args: [assetUid, account, marketId] }),
   ]);
   if (!stockCode || stockCode === "0x" || !vaultCode || vaultCode === "0x") {
     throw new Error("Canonical STOCK token or Vault has no runtime code");
@@ -4651,7 +2928,7 @@ async function readDirectEscapeState(marketId: Hex, account: Address): Promise<D
     || canonicalBytes32(registeredSchema, "Registered Vault schema") !== schemaId
   ) throw new Error("Vault immutable identity differs from the Factory registry graph");
   const vaultForSchema = await publicClient.readContract({
-    abi: v1Abis.OfficialStockRegistryV1,
+    abi: v1Abis_OfficialStockRegistryV1,
     address: bindings.officialStockRegistry,
     functionName: "vaultForSchema",
     args: [schemaId],
@@ -4745,10 +3022,10 @@ async function readRewardPositionState(detail: MarketDetailResponse): Promise<Re
   const block = await publicClient.getBlock({ blockTag: "latest" });
   const blockNumber = block.number;
   const [free, allocated, rawPosition, settlementPrincipal, walletBalance] = await Promise.all([
-    publicClient.readContract({ blockNumber, abi: v1Abis.UserStockVault, address: asset.userStockVault, functionName: "freeBalanceOf", args: [asset.assetUid, account] }),
-    publicClient.readContract({ blockNumber, abi: v1Abis.UserStockVault, address: asset.userStockVault, functionName: "allocation", args: [asset.assetUid, account, detail.market.marketId] }),
-    publicClient.readContract({ blockNumber, abi: v1Abis.MemeStockGauge, address: canonicalAddress(detail.market.gauge, "Gauge"), functionName: "positionOf", args: [account] }),
-    publicClient.readContract({ blockNumber, abi: v1Abis.UserStockVault, address: asset.userStockVault, functionName: "rageQuitSettlementPrincipal", args: [asset.assetUid, account, detail.market.marketId] }),
+    publicClient.readContract({ blockNumber, abi: v1Abis_UserStockVault, address: asset.userStockVault, functionName: "freeBalanceOf", args: [asset.assetUid, account] }),
+    publicClient.readContract({ blockNumber, abi: v1Abis_UserStockVault, address: asset.userStockVault, functionName: "allocation", args: [asset.assetUid, account, detail.market.marketId] }),
+    publicClient.readContract({ blockNumber, abi: v1Abis_MemeStockGauge, address: canonicalAddress(detail.market.gauge, "Gauge"), functionName: "positionOf", args: [account] }),
+    publicClient.readContract({ blockNumber, abi: v1Abis_UserStockVault, address: asset.userStockVault, functionName: "rageQuitSettlementPrincipal", args: [asset.assetUid, account, detail.market.marketId] }),
     publicClient.readContract({ blockNumber, abi: erc20Abi, address: asset.stockToken, functionName: "balanceOf", args: [account] }),
   ]);
   const active = tupleBigInt(rawPosition, "activeAmount", 0);
@@ -4963,7 +3240,7 @@ async function loadCreatorEpochs(marketId:Hex,registry:Address,currentEpoch:numb
  const generation=creatorLoadGeneration;
  if(!more){const owner=`${marketId}:${account}`;if(creatorEpochOwner!==owner||!creatorEpochKey){creatorEpochChoices.clear();select.replaceChildren();}creatorEpochOwner=owner;creatorEpochKey=key;creatorEpochNext=currentEpoch;}
  const start=creatorEpochNext,end=Math.max(1,start-19);
- const values=await mapConcurrent(Array.from({length:Math.max(0,start-end+1)},(_,i)=>start-i),async epoch=>({epoch,beneficiary:await publicClient.readContract({blockNumber,abi:v1Abis.CreatorRevenueRegistry,address:registry,functionName:'creatorBeneficiaryAt',args:[marketId,epoch]})}),4);
+ const values=await mapConcurrent(Array.from({length:Math.max(0,start-end+1)},(_,i)=>start-i),async epoch=>({epoch,beneficiary:await publicClient.readContract({blockNumber,abi:v1Abis_CreatorRevenueRegistry,address:registry,functionName:'creatorBeneficiaryAt',args:[marketId,epoch]})}),4);
  if(generation!==creatorLoadGeneration||creatorEpochKey!==key||wallet?.account!==account||!select.isConnected)return;
  const selected=select.value;
  for(const row of values)if(ownsCreatorRewards(account,row.beneficiary))creatorEpochChoices.add(row.epoch);
@@ -4991,7 +3268,7 @@ async function refreshCreatorReward(): Promise<void> {
     const registry = marketRelease(market.marketId).creatorRegistry;
     const block = await publicClient.getBlock({ blockTag: "latest" });
     const blockNumber = block.number;
-    const currentEpoch = await publicClient.readContract({ blockNumber, abi: v1Abis.CreatorRevenueRegistry, address: registry, functionName: "currentCreatorEpoch", args: [market.marketId] });
+    const currentEpoch = await publicClient.readContract({ blockNumber, abi: v1Abis_CreatorRevenueRegistry, address: registry, functionName: "currentCreatorEpoch", args: [market.marketId] });
     if (generation !== creatorLoadGeneration || wallet!==activeWallet) return;
     if (currentEpoch <= 0) throw new Error("Creator revenue has not been initialized for this market");
     const epochInput = required<HTMLSelectElement>("[data-creator-epoch]");
@@ -5002,8 +3279,8 @@ async function refreshCreatorReward(): Promise<void> {
     if (epoch > currentEpoch) throw new Error("Creator epoch is newer than the on-chain current epoch");
     const feeAsset = configuredCreatorFeeAsset(market);
     const [beneficiary, currentBeneficiary] = await Promise.all([
-      publicClient.readContract({ blockNumber, abi: v1Abis.CreatorRevenueRegistry, address: registry, functionName: "creatorBeneficiaryAt", args: [market.marketId, epoch] }),
-      publicClient.readContract({ blockNumber, abi: v1Abis.CreatorRevenueRegistry, address: registry, functionName: "creatorBeneficiaryAt", args: [market.marketId, currentEpoch] }),
+      publicClient.readContract({ blockNumber, abi: v1Abis_CreatorRevenueRegistry, address: registry, functionName: "creatorBeneficiaryAt", args: [market.marketId, epoch] }),
+      publicClient.readContract({ blockNumber, abi: v1Abis_CreatorRevenueRegistry, address: registry, functionName: "creatorBeneficiaryAt", args: [market.marketId, currentEpoch] }),
     ]);
     const canonicalBeneficiary = canonicalAddress(beneficiary, "Creator beneficiary");
     const canonicalCurrentBeneficiary = canonicalAddress(currentBeneficiary, "Current creator beneficiary");
@@ -5014,13 +3291,13 @@ async function refreshCreatorReward(): Promise<void> {
     }
     const memeAsset = canonicalAddress(market.memeToken, "Created-token asset");
     const [memeLiability, metadata,liability,rawMarket] = await Promise.all([
-      publicClient.readContract({ blockNumber, abi: v1Abis.ProtocolFeeVault, address: marketRelease(market.marketId).feeVault, functionName: "creatorLiability", args: [market.marketId, epoch, memeAsset] }),
+      publicClient.readContract({ blockNumber, abi: v1Abis_ProtocolFeeVault, address: marketRelease(market.marketId).feeVault, functionName: "creatorLiability", args: [market.marketId, epoch, memeAsset] }),
       marketMetadata(market),
-      publicClient.readContract({ blockNumber, abi: v1Abis.ProtocolFeeVault, address: marketRelease(market.marketId).feeVault, functionName: "creatorLiability", args: [market.marketId, epoch, feeAsset] }),
+      publicClient.readContract({ blockNumber, abi: v1Abis_ProtocolFeeVault, address: marketRelease(market.marketId).feeVault, functionName: "creatorLiability", args: [market.marketId, epoch, feeAsset] }),
       readWalletMarket(marketRelease(market.marketId).marketRegistry,market.marketId,blockNumber),
     ]);
     if (generation !== creatorLoadGeneration || wallet!==activeWallet) return;
-    const pendingBeneficiary = await publicClient.readContract({blockNumber, abi: v1Abis.CreatorRevenueRegistry, address: registry, functionName: "pendingCreatorRevenueBeneficiary", args: [market.marketId]}).catch(() => null);
+    const pendingBeneficiary = await publicClient.readContract({blockNumber, abi: v1Abis_CreatorRevenueRegistry, address: registry, functionName: "pendingCreatorRevenueBeneficiary", args: [market.marketId]}).catch(() => null);
     if (generation !== creatorLoadGeneration || wallet!==activeWallet || select.value!==market.marketId) return;
     text("[data-creator-pending-beneficiary]", pendingBeneficiary === null ? "Two-step handoff unavailable: unsupported release or RPC read failure" : pendingBeneficiary === ZERO_ADDRESS ? "No pending handoff" : pendingBeneficiary);
     const creatorFeesToHolders = tupleField(tupleField(rawMarket, "config", 0), "creatorFeesToHolders", 15) === true;
@@ -5059,6 +3336,7 @@ function clearTreasuryProof(): void {
 }
 
 async function verifiedTreasuryProof(state: Omit<TreasuryRewardState, "proof">): Promise<TreasuryClaimProof | null> {
+  const {fetchTreasuryClaimProof} = await import('./v1/features/treasury.ts');
   if (!runtimeConfig.treasuryProofApi.available || !wallet || state.status !== 3 || state.accountClaimed) return null;
   const proof = await fetchTreasuryClaimProof({
     baseUrl: runtimeConfig.treasuryProofApi.value,
@@ -5073,7 +3351,7 @@ async function verifiedTreasuryProof(state: Omit<TreasuryRewardState, "proof">):
     || proof.datasetHash !== state.datasetHash
   ) throw new Error("Proof commitments do not match the live holder fee-sharing epoch");
   const leaf = await publicClient.readContract({
-    abi: v1Abis.TreasuryDistributorV1,
+    abi: v1Abis_TreasuryDistributorV1,
     address: distributor,
     functionName: "claimLeaf",
     args: [proof.marketId, proof.epochId, proof.leafIndex, proof.account, proof.twab, proof.amount],
@@ -5192,9 +3470,9 @@ async function executeSnapshotClaim():Promise<void> {
       await ensureCanonicalMarket(state.market);
       if(marketRelease(id.marketId).holderDistributor.toLowerCase()!==id.distributor.toLowerCase())throw Error('Reward distributor binding changed');
       const [mode,live,claimed]=await Promise.all([
-        publicClient.readContract({abi:currentV4Abis.HolderRewardsDistributorV1,address:id.distributor,functionName:'rewardMode'}),
-        publicClient.readContract({abi:currentV4Abis.HolderRewardsDistributorV1,address:id.distributor,functionName:'roundState',args:[id.marketId,round.round]}),
-        publicClient.readContract({abi:currentV4Abis.HolderRewardsDistributorV1,address:id.distributor,functionName:'claimedAssets',args:[id.marketId,round.round,id.account]}),
+        publicClient.readContract({abi:currentV4Abis_HolderRewardsDistributorV1,address:id.distributor,functionName:'rewardMode'}),
+        publicClient.readContract({abi:currentV4Abis_HolderRewardsDistributorV1,address:id.distributor,functionName:'roundState',args:[id.marketId,round.round]}),
+        publicClient.readContract({abi:currentV4Abis_HolderRewardsDistributorV1,address:id.distributor,functionName:'claimedAssets',args:[id.marketId,round.round,id.account]}),
       ]);
       if(mode!==WALLET_SNAPSHOT_MODE||live.root!==round.root||live.snapshotBlock!==round.snapshotBlock||(Number(claimed)&assets)!==0
         ||(assets&1&&live.quoteRemaining<round.quoteAmount)||(assets&2&&live.memeRemaining<round.memeAmount))throw Error('Reward state changed. Refresh this round before claiming.');
@@ -5202,7 +3480,7 @@ async function executeSnapshotClaim():Promise<void> {
     await verify();
     await executeTransaction({operationKey:`reward:snapshot:${id.marketId}:${round.round}:${id.account}:${assets}`,sync:foundation!.sync,walletContext:activeWallet,
       request:buildSnapshotClaim(id,round,assets),verifyChain:verify,
-      confirm:async receipt=>{const event=receiptEvent(receipt,id.distributor,currentV4Abis.HolderRewardsDistributorV1,'HolderSnapshotClaimed',args=>args.marketId===id.marketId&&args.round===round.round&&String(args.account).toLowerCase()===id.account.toLowerCase()&&Number(args.assets)===assets
+      confirm:async receipt=>{const event=receiptEvent(receipt,id.distributor,currentV4Abis_HolderRewardsDistributorV1,'HolderSnapshotClaimed',args=>args.marketId===id.marketId&&args.round===round.round&&String(args.account).toLowerCase()===id.account.toLowerCase()&&Number(args.assets)===assets
         &&args.quotePaid===(assets&1?round.quoteAmount:0n)&&args.memePaid===(assets&2?round.memeAmount:0n));
         const key=snapshotReceiptKey(id,round.round);
         snapshotReceiptClaims.set(key,{mask:(snapshotReceiptClaims.get(key)?.mask??0)|assets,block:receipt.blockNumber});
@@ -5262,13 +3540,13 @@ async function refreshTreasuryReward(resetEpoch: boolean): Promise<void> {
       const [state, amount, pendingQuote, pendingMeme, metadata, releaseInfo, lastFunding, unswept, unsweptTax] = await Promise.all([
         publicClient.readContract({ blockNumber: block.number, abi: continuousRewardsAbi, address: distributor, functionName: "marketState", args: [marketId] }),
         publicClient.readContract({ blockNumber: block.number, abi: continuousRewardsAbi, address: distributor, functionName: "claimable", args: [marketId, account] }),
-        publicClient.readContract({ blockNumber: block.number, abi: v1Abis.ProtocolFeeVault, address: marketRelease(detail.market.marketId).feeVault, functionName: "holderLiability", args: [marketId, 1, detail.market.quoteAsset] }),
-        publicClient.readContract({ blockNumber: block.number, abi: v1Abis.ProtocolFeeVault, address: marketRelease(detail.market.marketId).feeVault, functionName: "holderLiability", args: [marketId, 1, detail.market.memeToken] }),
+        publicClient.readContract({ blockNumber: block.number, abi: v1Abis_ProtocolFeeVault, address: marketRelease(detail.market.marketId).feeVault, functionName: "holderLiability", args: [marketId, 1, detail.market.quoteAsset] }),
+        publicClient.readContract({ blockNumber: block.number, abi: v1Abis_ProtocolFeeVault, address: marketRelease(detail.market.marketId).feeVault, functionName: "holderLiability", args: [marketId, 1, detail.market.memeToken] }),
         marketMetadata(detail.market),
         publicClient.readContract({blockNumber: block.number, abi: continuousRewardsAbi, address: distributor, functionName: "releaseState", args: [marketId]}),
         publicClient.readContract({blockNumber: block.number, abi: continuousRewardsAbi, address: distributor, functionName: "lastFundingAt", args: [marketId]}),
-        publicClient.readContract({blockNumber: block.number, abi: v1Abis.TickerGardenCurve, address: detail.market.curve, functionName: "accruedCurveFees"}),
-        publicClient.readContract({blockNumber: block.number, abi: v1Abis.TickerGardenCurve, address: detail.market.curve, functionName: "accruedCreatorTax"}),
+        publicClient.readContract({blockNumber: block.number, abi: v1Abis_TickerGardenCurve, address: detail.market.curve, functionName: "accruedCurveFees"}),
+        publicClient.readContract({blockNumber: block.number, abi: v1Abis_TickerGardenCurve, address: detail.market.curve, functionName: "accruedCreatorTax"}),
       ]);
       if (state.token.toLowerCase() !== detail.market.memeToken || state.quote.toLowerCase() !== detail.market.quoteAsset
           || state.vault.toLowerCase() !== marketRelease(detail.market.marketId).feeVault.toLowerCase()) throw new Error("Holder stream canonical binding mismatch");
@@ -5292,7 +3570,7 @@ async function refreshTreasuryReward(resetEpoch: boolean): Promise<void> {
       return;
     }
     setContinuousRewardsView(false);
-    const rawTreasuryMarket = await publicClient.readContract({ abi: v1Abis.TreasuryDistributorV1, address: distributor, functionName: "market", args: [detail.market.marketId] });
+    const rawTreasuryMarket = await publicClient.readContract({ abi: v1Abis_TreasuryDistributorV1, address: distributor, functionName: "market", args: [detail.market.marketId] });
     if (generation !== treasuryLoadGeneration) return;
     const memeToken = canonicalAddress(tupleString(rawTreasuryMarket, "memeToken", 0), "holder fee-sharing created token");
     const quoteToken = canonicalAddress(tupleString(rawTreasuryMarket, "quoteToken", 1), "holder fee-sharing Quote token", true);
@@ -5300,20 +3578,20 @@ async function refreshTreasuryReward(resetEpoch: boolean): Promise<void> {
     if (memeToken !== detail.market.memeToken || quoteToken !== detail.market.quoteAsset || activatedAt <= 0n) {
       throw new Error("Holder fee-sharing registration or activation does not match the canonical market");
     }
-    const currentEpochId = await publicClient.readContract({ abi: v1Abis.TreasuryDistributorV1, address: distributor, functionName: "currentEpochId", args: [detail.market.marketId] });
+    const currentEpochId = await publicClient.readContract({ abi: v1Abis_TreasuryDistributorV1, address: distributor, functionName: "currentEpochId", args: [detail.market.marketId] });
     const epochId = populateTreasuryEpochs(currentEpochId, resetEpoch);
     const [rawEpoch, epochQuoteAmount, rawWindow, rawFee, holderBalance, accountClaimed, block, finalityDelay, publicationWindow, pendingHolderQuote, pendingHolderMeme] = await Promise.all([
-      publicClient.readContract({ abi: v1Abis.TreasuryDistributorV1, address: distributor, functionName: "epoch", args: [detail.market.marketId, epochId] }),
-      publicClient.readContract({ abi: v1Abis.TreasuryDistributorV1, address: distributor, functionName: "epochQuoteAmount", args: [detail.market.marketId, epochId] }),
-      publicClient.readContract({ abi: v1Abis.TreasuryDistributorV1, address: distributor, functionName: "epochWindow", args: [detail.market.marketId, epochId] }),
-      publicClient.readContract({ abi: v1Abis.TreasuryDistributorV1, address: distributor, functionName: "rootServiceFee" }),
+      publicClient.readContract({ abi: v1Abis_TreasuryDistributorV1, address: distributor, functionName: "epoch", args: [detail.market.marketId, epochId] }),
+      publicClient.readContract({ abi: v1Abis_TreasuryDistributorV1, address: distributor, functionName: "epochQuoteAmount", args: [detail.market.marketId, epochId] }),
+      publicClient.readContract({ abi: v1Abis_TreasuryDistributorV1, address: distributor, functionName: "epochWindow", args: [detail.market.marketId, epochId] }),
+      publicClient.readContract({ abi: v1Abis_TreasuryDistributorV1, address: distributor, functionName: "rootServiceFee" }),
       publicClient.readContract({ abi: erc20Abi, address: memeToken, functionName: "balanceOf", args: [wallet.account] }),
-      publicClient.readContract({ abi: v1Abis.TreasuryDistributorV1, address: distributor, functionName: "accountClaimed", args: [detail.market.marketId, epochId, wallet.account] }),
+      publicClient.readContract({ abi: v1Abis_TreasuryDistributorV1, address: distributor, functionName: "accountClaimed", args: [detail.market.marketId, epochId, wallet.account] }),
       publicClient.getBlock({ blockTag: "latest" }),
       publicClient.readContract({ abi: parseAbi(["function finalityDelaySeconds() view returns (uint32)"]), address: distributor, functionName: "finalityDelaySeconds" }),
       publicClient.readContract({ abi: parseAbi(["function rootPublicationWindow() view returns (uint32)"]), address: distributor, functionName: "rootPublicationWindow" }),
-      publicClient.readContract({ abi: v1Abis.ProtocolFeeVault, address: marketRelease(detail.market.marketId).feeVault, functionName: "holderLiability", args: [detail.market.marketId, epochId, quoteToken] }),
-      publicClient.readContract({ abi: v1Abis.ProtocolFeeVault, address: marketRelease(detail.market.marketId).feeVault, functionName: "holderLiability", args: [detail.market.marketId, epochId, memeToken] }),
+      publicClient.readContract({ abi: v1Abis_ProtocolFeeVault, address: marketRelease(detail.market.marketId).feeVault, functionName: "holderLiability", args: [detail.market.marketId, epochId, quoteToken] }),
+      publicClient.readContract({ abi: v1Abis_ProtocolFeeVault, address: marketRelease(detail.market.marketId).feeVault, functionName: "holderLiability", args: [detail.market.marketId, epochId, memeToken] }),
     ]);
     const status = tupleNumber(rawEpoch, "status", 6);
     if (status < 0 || status >= treasuryStatusLabels.length) throw new Error("Holder fee sharing returned an unknown epoch status");
@@ -5327,7 +3605,7 @@ async function refreshTreasuryReward(resetEpoch: boolean): Promise<void> {
       serviceFeeAsset === ZERO_ADDRESS
         ? Promise.resolve(null)
         : publicClient.readContract({ abi: erc20Abi, address: serviceFeeAsset, functionName: "allowance", args: [wallet.account, distributor] }),
-      publicClient.readContract({ abi: v1Abis.TreasuryDistributorV1, address: distributor, functionName: "serviceCredit", args: [serviceCreditAsset, wallet.account] }),
+      publicClient.readContract({ abi: v1Abis_TreasuryDistributorV1, address: distributor, functionName: "serviceCredit", args: [serviceCreditAsset, wallet.account] }),
     ]);
     const metadata = await marketMetadata(detail.market);
     const base = Object.freeze({
@@ -5417,6 +3695,7 @@ function updateRewardsAvailability(): void {
   queryAll<HTMLButtonElement>('[data-close-stake]').forEach(button=>{button.disabled=stakeBusy||stakeSubmitting;});
   const copy = query<HTMLButtonElement>("[data-copy-beneficiary]"); if (copy) copy.disabled = !creatorReward;
   queryAll<HTMLButtonElement>("[data-rewards-connect]").forEach(button=>button.hidden=!!wallet);
+  const claimPage=query<HTMLElement>(".claim-page");if(claimPage)claimPage.dataset.walletConnected=String(!!wallet);
   if(!wallet)queryAll<HTMLElement>("[data-legacy-treasury],[data-continuous-treasury],[data-snapshot-rewards]").forEach(panel=>panel.hidden=true);
   const prerequisite = !wallet ? 'Connect your wallet.' : !foundation?.writeReady ? 'Transactions are unavailable until the market connection is restored.' : '';
   if(creatorDirectoryError)text('[data-creator-status]',creatorDirectoryError);
@@ -5500,7 +3779,7 @@ async function freshPositionValue(
     ? [state.asset.assetUid, account] as const
     : [state.asset.assetUid, account, state.detail.market.marketId] as const;
   return publicClient.readContract({
-    abi: v1Abis.UserStockVault,
+    abi: v1Abis_UserStockVault,
     address: state.asset.userStockVault,
     functionName,
     args,
@@ -5509,6 +3788,9 @@ async function freshPositionValue(
 }
 
 async function executePositionAction(action: string, button: HTMLButtonElement): Promise<void> {
+  const actions = await import('./v1/features/vault.ts').catch(() => null);
+  if (!actions) { notify('Could not load this action. Please try again.', 'warning'); return; }
+  const {buildStake,buildStockApproval,buildUnstakeAndWithdraw,buildRageQuit} = actions;
   if (!foundation || !wallet || !rewardPosition) throw new Error("Load a verified wallet position first");
   const activeWallet = wallet;
   const account = activeWallet.account;
@@ -5527,8 +3809,8 @@ async function executePositionAction(action: string, button: HTMLButtonElement):
     request = buildStake(marketRelease(marketId).allocationManager, marketId, amount);
     approval = await allowanceApproval(buildStockApproval(state.asset.stockToken, state.asset.userStockVault, amount), state.asset.stockToken, state.asset.userStockVault, amount, account);
     confirm = async (receipt) => {
-      receiptEvent(receipt, state.asset.userStockVault, v1Abis.UserStockVault, "StockDeposited", (args) => args.assetUid === state.asset.assetUid && String(args.user).toLowerCase() === account && args.amount === amount);
-      receiptEvent(receipt, state.asset.userStockVault, v1Abis.UserStockVault, "AllocationLocked", (args) => args.assetUid === state.asset.assetUid && String(args.user).toLowerCase() === account && args.marketId === marketId && args.amount === amount);
+      receiptEvent(receipt, state.asset.userStockVault, v1Abis_UserStockVault, "StockDeposited", (args) => args.assetUid === state.asset.assetUid && String(args.user).toLowerCase() === account && args.amount === amount);
+      receiptEvent(receipt, state.asset.userStockVault, v1Abis_UserStockVault, "AllocationLocked", (args) => args.assetUid === state.asset.assetUid && String(args.user).toLowerCase() === account && args.marketId === marketId && args.amount === amount);
       const [free, allocated] = await Promise.all([
         freshPositionValue(state, "free", account, receipt.blockNumber),
         freshPositionValue(state, "allocated", account, receipt.blockNumber),
@@ -5540,8 +3822,8 @@ async function executePositionAction(action: string, button: HTMLButtonElement):
     if (state.allocated <= 0n) throw new Error("There is no stake to withdraw");
     request = buildUnstakeAndWithdraw(marketRelease(marketId).allocationManager, marketId);
     confirm = async (receipt) => {
-      receiptEvent(receipt, state.asset.userStockVault, v1Abis.UserStockVault, "AllocationReleased", (args) => args.assetUid === state.asset.assetUid && String(args.user).toLowerCase() === account && args.marketId === marketId && args.amount === state.allocated);
-      receiptEvent(receipt, state.asset.userStockVault, v1Abis.UserStockVault, "StockWithdrawn", (args) => args.assetUid === state.asset.assetUid && String(args.user).toLowerCase() === account && args.amount === state.allocated);
+      receiptEvent(receipt, state.asset.userStockVault, v1Abis_UserStockVault, "AllocationReleased", (args) => args.assetUid === state.asset.assetUid && String(args.user).toLowerCase() === account && args.marketId === marketId && args.amount === state.allocated);
+      receiptEvent(receipt, state.asset.userStockVault, v1Abis_UserStockVault, "StockWithdrawn", (args) => args.assetUid === state.asset.assetUid && String(args.user).toLowerCase() === account && args.amount === state.allocated);
       const [allocated, free] = await Promise.all([
         freshPositionValue(state, "allocated", account, receipt.blockNumber),
         freshPositionValue(state, "free", account, receipt.blockNumber),
@@ -5554,7 +3836,7 @@ async function executePositionAction(action: string, button: HTMLButtonElement):
     const walletBalanceBefore = await publicClient.readContract({ abi: erc20Abi, address: state.asset.stockToken, functionName: "balanceOf", args: [account] });
     request = buildRageQuit(marketRelease(marketId).allocationManager, marketId);
     confirm = async (receipt) => {
-      receiptEvent(receipt, state.asset.userStockVault, v1Abis.UserStockVault, "AllocationRageQuit", (args) => args.assetUid === state.asset.assetUid && String(args.user).toLowerCase() === account && args.marketId === marketId && args.amount === state.allocated);
+      receiptEvent(receipt, state.asset.userStockVault, v1Abis_UserStockVault, "AllocationRageQuit", (args) => args.assetUid === state.asset.assetUid && String(args.user).toLowerCase() === account && args.marketId === marketId && args.amount === state.allocated);
       const [afterAllocation, afterBalance, settlement] = await Promise.all([
         freshPositionValue(state, "allocated", account, receipt.blockNumber),
         publicClient.readContract({ abi: erc20Abi, address: state.asset.stockToken, functionName: "balanceOf", args: [account], blockNumber: receipt.blockNumber }),
@@ -5588,6 +3870,9 @@ async function executePositionAction(action: string, button: HTMLButtonElement):
 }
 
 async function executeDirectVaultRageQuit(): Promise<void> {
+  const actions = await import('./v1/features/vault.ts').catch(() => null);
+  if (!actions) { notify('Could not load this action. Please try again.', 'warning'); return; }
+  const {buildDirectRageQuit} = actions;
   if (!wallet) throw new Error("Connect a wallet first");
   const activeWallet = wallet;
   const marketId = canonicalBytes32(
@@ -5616,20 +3901,20 @@ async function executeDirectVaultRageQuit(): Promise<void> {
       verifyWalletContext: () => verifyLiveWalletContext(activeWallet),
       currentRevision: async () => (await readDirectEscapeState(state.marketId, activeWallet.account)).revision,
       confirm: async (receipt) => {
-        receiptEvent(receipt, state.vault, v1Abis.UserStockVault, "AllocationRageQuit", (args) =>
+        receiptEvent(receipt, state.vault, v1Abis_UserStockVault, "AllocationRageQuit", (args) =>
           args.assetUid === state.assetUid
           && String(args.user).toLowerCase() === activeWallet.account
           && args.marketId === state.marketId
           && args.amount === state.allocated,
         );
-        receiptEvent(receipt, state.vault, v1Abis.UserStockVault, "StockWithdrawn", (args) =>
+        receiptEvent(receipt, state.vault, v1Abis_UserStockVault, "StockWithdrawn", (args) =>
           args.assetUid === state.assetUid
           && String(args.user).toLowerCase() === activeWallet.account
           && args.amount === state.allocated,
         );
         const [afterAllocation, afterBalance] = await Promise.all([
           publicClient.readContract({
-            abi: v1Abis.UserStockVault,
+            abi: v1Abis_UserStockVault,
             address: state.vault,
             functionName: "allocation",
             args: [state.assetUid, activeWallet.account, state.marketId],
@@ -5661,6 +3946,9 @@ async function executeDirectVaultRageQuit(): Promise<void> {
 }
 
 async function executeSettlement(): Promise<void> {
+  const actions = await import('./v1/features/vault.ts').catch(() => null);
+  if (!actions) { notify('Could not load this action. Please try again.', 'warning'); return; }
+  const {buildSettleRageQuitRewards} = actions;
   if (!foundation || !wallet || !rewardPosition) throw new Error("Load a verified market first");
   const activeWallet = wallet;
   const state = rewardPosition;
@@ -5668,7 +3956,7 @@ async function executeSettlement(): Promise<void> {
   const marketId = canonicalBytes32(required<HTMLSelectElement>("[data-settle-market]").value, "Settlement market");
   if (marketId !== state.detail.market.marketId) throw new Error("Settlement market differs from the verified position market");
   const user = canonicalAddress(required<HTMLInputElement>("[data-settle-user]").value.trim(), "Position owner");
-  const principal = await publicClient.readContract({ abi: v1Abis.UserStockVault, address: state.asset.userStockVault, functionName: "rageQuitSettlementPrincipal", args: [state.asset.assetUid, user, marketId] });
+  const principal = await publicClient.readContract({ abi: v1Abis_UserStockVault, address: state.asset.userStockVault, functionName: "rageQuitSettlementPrincipal", args: [state.asset.assetUid, user, marketId] });
   if (principal <= 0n) throw new Error("No deferred rage-quit reward settlement exists for this account");
   await executeTransaction({
     operationKey: `reward:settle:${marketId}:${user}:${foundation.sync.revision}`,
@@ -5677,8 +3965,8 @@ async function executeSettlement(): Promise<void> {
     walletContext: activeWallet,
     verifyChain: () => ensureCanonicalMarket(state.detail.market),
     confirm: async (receipt) => {
-      receiptEvent(receipt, marketRelease(marketId).allocationManager, v1Abis.AllocationManager, "RageQuitRewardSettlementFinalized", (args) => String(args.user).toLowerCase() === user && args.marketId === marketId && args.principal === principal);
-      const after = await publicClient.readContract({ abi: v1Abis.UserStockVault, address: state.asset.userStockVault, functionName: "rageQuitSettlementPrincipal", args: [state.asset.assetUid, user, marketId], blockNumber: receipt.blockNumber });
+      receiptEvent(receipt, marketRelease(marketId).allocationManager, v1Abis_AllocationManager, "RageQuitRewardSettlementFinalized", (args) => String(args.user).toLowerCase() === user && args.marketId === marketId && args.principal === principal);
+      const after = await publicClient.readContract({ abi: v1Abis_UserStockVault, address: state.asset.userStockVault, functionName: "rageQuitSettlementPrincipal", args: [state.asset.assetUid, user, marketId], blockNumber: receipt.blockNumber });
       if (after !== 0n) throw new Error("Deferred settlement tombstone remains after settlement");
       return after;
     },
@@ -5718,7 +4006,7 @@ async function executeUserClaim(market: Parameters<typeof marketMetadata>[0],rol
       const paid=receiptEvent(receipt,feeVault,claimRequest.abi,'UserRewardsClaimed',args=>args.marketId===market.marketId&&String(args.user).toLowerCase()===activeWallet.account&&Number(args.role)===role&&Number(args.creatorEpoch)===epoch);
       let memeBurned=0n;
       for(const log of receipt.logs)if(log.address.toLowerCase()===feeVault.toLowerCase()){
-        try{const e=decodeEventLog({abi:currentV4Abis.ProtocolFeeVault,data:log.data,topics:log.topics});
+        try{const e=decodeEventLog({abi:currentV4Abis_ProtocolFeeVault,data:log.data,topics:log.topics});
           if(e.eventName==='MemeFeesBurned'&&e.args.marketId===market.marketId&&e.args.beneficiary.toLowerCase()===activeWallet.account&&Number(e.args.role)===role&&Number(e.args.creatorEpoch)===epoch&&e.args.token.toLowerCase()===market.memeToken.toLowerCase())memeBurned+=e.args.amount;
         }catch{/* Other vault events have unrelated shapes. */}
       }
@@ -5740,6 +4028,9 @@ async function executeStakerClaim(): Promise<void> {
 }
 
 async function executeCreatorAction(action: string): Promise<void> {
+  const actions = await import('./v1/features/creator.ts').catch(() => null);
+  if (!actions) { notify('Could not load this action. Please try again.', 'warning'); return; }
+  const {buildTransferCreatorBeneficiary} = actions;
   if (!foundation || !wallet || !creatorReward || !runtimeConfig.contracts.available) throw new Error("Load verified creator revenue state first");
   const activeWallet = wallet;
   await verifyLiveWalletContext(activeWallet);
@@ -5759,15 +4050,15 @@ async function executeCreatorAction(action: string): Promise<void> {
     await executeTransaction({
       operationKey: `reward:creator-handoff:${state.marketId}:${action}:${next}:${foundation.sync.revision}`,
       sync: foundation.sync, walletContext: activeWallet,
-      request: accept || cancel ? createContractWriteRequest({abi: v1Abis.CreatorRevenueRegistry, address: creatorRegistry,
+      request: accept || cancel ? createContractWriteRequest({abi: v1Abis_CreatorRevenueRegistry, address: creatorRegistry,
         functionName: accept ? "acceptCreatorRevenueBeneficiary" : "cancelCreatorRevenueBeneficiaryTransfer", args: [state.marketId]})
         : buildTransferCreatorBeneficiary({registry: creatorRegistry, marketId: state.marketId, nextBeneficiary: next}),
       verifyChain: () => ensureCanonicalMarket(selectedRewardMarket("[data-creator-market]")),
       confirm: async receipt => {
         const event = accept ? "CreatorRevenueBeneficiaryUpdated" : cancel ? "CreatorRevenueBeneficiaryTransferCancelled" : "CreatorRevenueBeneficiaryProposed";
-        receiptEvent(receipt, creatorRegistry, v1Abis.CreatorRevenueRegistry, event, args => args.marketId === state.marketId);
-        const pending = await publicClient.readContract({abi: v1Abis.CreatorRevenueRegistry, address: creatorRegistry, functionName: "pendingCreatorRevenueBeneficiary", args: [state.marketId], blockNumber: receipt.blockNumber});
-        const epoch = await publicClient.readContract({abi: v1Abis.CreatorRevenueRegistry, address: creatorRegistry, functionName: "currentCreatorEpoch", args: [state.marketId], blockNumber: receipt.blockNumber});
+        receiptEvent(receipt, creatorRegistry, v1Abis_CreatorRevenueRegistry, event, args => args.marketId === state.marketId);
+        const pending = await publicClient.readContract({abi: v1Abis_CreatorRevenueRegistry, address: creatorRegistry, functionName: "pendingCreatorRevenueBeneficiary", args: [state.marketId], blockNumber: receipt.blockNumber});
+        const epoch = await publicClient.readContract({abi: v1Abis_CreatorRevenueRegistry, address: creatorRegistry, functionName: "currentCreatorEpoch", args: [state.marketId], blockNumber: receipt.blockNumber});
         if (pending.toLowerCase() !== (accept || cancel ? ZERO_ADDRESS : next.toLowerCase()) || epoch !== state.currentEpoch + (accept ? 1 : 0)) throw new Error("Handoff receipt state mismatch");
         return epoch;
       },
@@ -5785,14 +4076,14 @@ async function ensureTreasuryActionState(state: TreasuryRewardState, action: str
   }
   const distributor = marketRelease(state.detail.market.marketId).holderDistributor;
   if (action === "withdrawServiceCredit") {
-    const amount = await publicClient.readContract({ abi: v1Abis.TreasuryDistributorV1, address: distributor, functionName: "serviceCredit", args: [state.serviceCreditAsset, account] });
+    const amount = await publicClient.readContract({ abi: v1Abis_TreasuryDistributorV1, address: distributor, functionName: "serviceCredit", args: [state.serviceCreditAsset, account] });
     if (amount !== state.serviceCreditAmount || amount <= 0n) throw new Error("Holder fee-sharing service credit changed; refresh before signing");
     return;
   }
   await ensureCanonicalMarket(state.detail.market);
   const [rawMarket, rawEpoch] = await Promise.all([
-    publicClient.readContract({ abi: v1Abis.TreasuryDistributorV1, address: distributor, functionName: "market", args: [state.detail.market.marketId] }),
-    publicClient.readContract({ abi: v1Abis.TreasuryDistributorV1, address: distributor, functionName: "epoch", args: [state.detail.market.marketId, state.epochId] }),
+    publicClient.readContract({ abi: v1Abis_TreasuryDistributorV1, address: distributor, functionName: "market", args: [state.detail.market.marketId] }),
+    publicClient.readContract({ abi: v1Abis_TreasuryDistributorV1, address: distributor, functionName: "epoch", args: [state.detail.market.marketId, state.epochId] }),
   ]);
   if (
     canonicalAddress(tupleString(rawMarket, "memeToken", 0), "holder fee-sharing created token") !== state.detail.market.memeToken
@@ -5802,8 +4093,8 @@ async function ensureTreasuryActionState(state: TreasuryRewardState, action: str
   if (tupleNumber(rawEpoch, "status", 6) !== state.status) throw new Error("Holder fee-sharing epoch status changed; refresh before signing");
   if (action === "requestRoot") {
     const [rawFee, quoteAmount] = await Promise.all([
-      publicClient.readContract({ abi: v1Abis.TreasuryDistributorV1, address: distributor, functionName: "rootServiceFee" }),
-      publicClient.readContract({ abi: v1Abis.TreasuryDistributorV1, address: distributor, functionName: "epochQuoteAmount", args: [state.detail.market.marketId, state.epochId] }),
+      publicClient.readContract({ abi: v1Abis_TreasuryDistributorV1, address: distributor, functionName: "rootServiceFee" }),
+      publicClient.readContract({ abi: v1Abis_TreasuryDistributorV1, address: distributor, functionName: "epochQuoteAmount", args: [state.detail.market.marketId, state.epochId] }),
     ]);
     if (
       canonicalAddress(tupleString(rawFee, "asset", 0), "Root service fee asset", true) !== state.serviceFeeAsset
@@ -5836,6 +4127,9 @@ async function executeContinuousHolderClaim(): Promise<void> {
 }
 
 async function executeTreasuryAction(action: string): Promise<void> {
+  const actions = await import('./v1/features/treasury.ts').catch(() => null);
+  if (!actions) { notify('Could not load this action. Please try again.', 'warning'); return; }
+  const {buildRequestRoot,buildTreasuryClaim,buildFinalizeRoot,buildExpireRoot,buildRolloverEpoch,buildWithdrawServiceCredit} = actions;
   if (!foundation || !wallet || !treasuryReward || !runtimeConfig.contracts.available) throw new Error("Load a verified holder fee-sharing epoch first");
   if (!runtimeConfig.treasuryWrites.available) throw new Error(runtimeConfig.treasuryWrites.reasons.join("; "));
   const activeWallet = wallet;
@@ -5886,12 +4180,12 @@ async function executeTreasuryAction(action: string): Promise<void> {
     verifyChain: () => ensureTreasuryActionState(state, action, account),
     confirm: async (receipt) => {
       if (action === "withdrawServiceCredit") {
-        const event = receiptEvent(receipt, distributor, v1Abis.TreasuryDistributorV1, eventName, (eventArgs) =>
+        const event = receiptEvent(receipt, distributor, v1Abis_TreasuryDistributorV1, eventName, (eventArgs) =>
           String(eventArgs.asset).toLowerCase() === state.serviceCreditAsset
           && String(eventArgs.beneficiary).toLowerCase() === account
           && eventArgs.amount === state.serviceCreditAmount,
         );
-        const creditAfter = await publicClient.readContract({ abi: v1Abis.TreasuryDistributorV1, address: distributor, functionName: "serviceCredit", args: [state.serviceCreditAsset, account], blockNumber: receipt.blockNumber });
+        const creditAfter = await publicClient.readContract({ abi: v1Abis_TreasuryDistributorV1, address: distributor, functionName: "serviceCredit", args: [state.serviceCreditAsset, account], blockNumber: receipt.blockNumber });
         if (creditAfter !== 0n) throw new Error("Holder fee-sharing service credit is not zero at the receipt block");
         if (serviceAssetBalanceBefore !== null) {
           const balanceAfter = await publicClient.readContract({ abi: erc20Abi, address: state.serviceCreditAsset, functionName: "balanceOf", args: [account], blockNumber: receipt.blockNumber });
@@ -5899,7 +4193,7 @@ async function executeTreasuryAction(action: string): Promise<void> {
         }
         return event;
       }
-      const args = receiptEvent(receipt, distributor, v1Abis.TreasuryDistributorV1, eventName, (eventArgs) => eventArgs.marketId === marketId && Number(eventArgs.epochId ?? eventArgs.fromEpochId) === state.epochId);
+      const args = receiptEvent(receipt, distributor, v1Abis_TreasuryDistributorV1, eventName, (eventArgs) => eventArgs.marketId === marketId && Number(eventArgs.epochId ?? eventArgs.fromEpochId) === state.epochId);
       if (action === "requestRoot" && (
         String(args.requester).toLowerCase() !== account
         || args.quoteAmount !== state.epochQuoteAmount
@@ -5908,7 +4202,7 @@ async function executeTreasuryAction(action: string): Promise<void> {
       )) throw new Error("Root request event differs from the verified holder, funding, or service fee");
       if (action === "claim") {
         if (!state.proof || String(args.account).toLowerCase() !== account || args.leafIndex !== state.proof.leafIndex || args.twab !== state.proof.twab || args.amount !== state.proof.amount) throw new Error("Holder fee-sharing claim event differs from the verified leaf");
-        const claimed = await publicClient.readContract({ abi: v1Abis.TreasuryDistributorV1, address: distributor, functionName: "accountClaimed", args: [marketId, state.epochId, account], blockNumber: receipt.blockNumber });
+        const claimed = await publicClient.readContract({ abi: v1Abis_TreasuryDistributorV1, address: distributor, functionName: "accountClaimed", args: [marketId, state.epochId, account], blockNumber: receipt.blockNumber });
         if (!claimed) throw new Error("Fresh holder fee-sharing account claim flag is false");
       }
       if (action === "finalizeRoot" && (args.merkleRoot !== state.merkleRoot || typeof args.claimUntil !== "bigint" || (state.leafCount === 0 ? args.claimUntil !== 0n : args.claimUntil <= state.now))) {
@@ -5922,10 +4216,10 @@ async function executeTreasuryAction(action: string): Promise<void> {
         || args.amount !== state.quoteAmount - state.claimedAmount
       )) throw new Error("Holder fee-sharing rollover event differs from the expired epoch remainder");
       if (action === "finalizeRoot" && state.leafCount === 0) {
-        receiptEvent(receipt, distributor, v1Abis.TreasuryDistributorV1, "EpochRemainderRolledOver", (event) =>
+        receiptEvent(receipt, distributor, v1Abis_TreasuryDistributorV1, "EpochRemainderRolledOver", (event) =>
           event.marketId === marketId && Number(event.fromEpochId) === state.epochId && Number(event.toEpochId) > state.epochId && event.amount === state.quoteAmount);
       }
-      const freshEpoch = await publicClient.readContract({ abi: v1Abis.TreasuryDistributorV1, address: distributor, functionName: "epoch", args: [marketId, state.epochId], blockNumber: receipt.blockNumber });
+      const freshEpoch = await publicClient.readContract({ abi: v1Abis_TreasuryDistributorV1, address: distributor, functionName: "epoch", args: [marketId, state.epochId], blockNumber: receipt.blockNumber });
       const expectedStatus = action === "requestRoot" ? 1 : action === "expireRootRequest" ? 0 : action === "rolloverExpiredEpoch" || (action === "finalizeRoot" && state.leafCount === 0) ? 4 : 3;
       if (tupleNumber(freshEpoch, "status", 6) !== expectedStatus) throw new Error("Holder fee-sharing receipt-block state does not match the confirmed action");
       if (action === "finalizeRoot" && tupleBigInt(freshEpoch, "claimUntil", 3) !== args.claimUntil) {
@@ -6334,7 +4628,7 @@ function startSnapshotUpdates(): void {
       const generation = ++foundationGeneration;
       const activeWallet = wallet;
       const api = new TickerGardenV1Client(baseUrl, (input, init) => fetch(input, { ...init, signal }));
-      const next = await prepareFoundation(api, update.sync, currentPage()==='markets'&&update.mode!=='reset'&&!update.invalidated.includes('configs'));
+      const next = await prepareFoundation(api, update.sync, update.mode!=='reset'&&!update.invalidated.includes('configs'));
       return () => {
         if (generation !== foundationGeneration || activeWallet !== wallet) throw new SnapshotRefreshSuperseded("Snapshot refresh superseded");
         invalidateSnapshotReads(currentPage() === 'trade',currentPage() === 'markets');
@@ -6435,6 +4729,8 @@ function mountRoute(route: Route): void {
   renderWallet();
   outlet.replaceChildren();
   void (async () => {
+    await Promise.all([route.page==='create'?ensureCreateController():Promise.resolve(),route.page==='trade'?ensureTradeController():Promise.resolve()]);
+    if(generation!==routeGeneration)return;
     const page = await loadPageTemplate(route.page);
     if (generation !== routeGeneration) return;
     document.title = page.title;
@@ -6463,7 +4759,7 @@ function mountRoute(route: Route): void {
       case "rewards": setupRewards(); break;
       case "docs": setupDocs(); break;
     }
-    if (isStaticPage()) { refreshActionAvailability(); return; }
+    if (isStaticPage()) { assetPrices.pause(); refreshActionAvailability(); return; }
     assetPrices.start();
     const needsFoundation = !foundation || (route.page === "trade" && !foundation.markets.some(m=>m.marketId===new URL(window.location.href).searchParams.get("marketId")?.toLowerCase())) || (!!foundation.directoryMarketId && route.page !== "trade");
     if (needsFoundation) await loadFoundation();
@@ -6485,6 +4781,186 @@ function mountRoute(route: Route): void {
   });
 }
 
+// Lazy controllers borrow the live application state. Getters/setters deliberately
+// preserve one wallet, request generation and transaction state across route changes.
+// Controller imports of this module must remain type-only.
+export const controllerContext = {
+  get CONSERVATIVE_LAUNCH_GAS(){return CONSERVATIVE_LAUNCH_GAS;},
+  get allowanceApproval(){return allowanceApproval;},
+  get assetPrices(){return assetPrices;},
+  get candleWidget(){return candleWidget;},
+  set candleWidget(value: typeof candleWidget){candleWidget=value;},
+  get confirmFlowAction(){return confirmFlowAction;},
+  get creatorDirectoryAt(){return creatorDirectoryAt;},
+  set creatorDirectoryAt(value: typeof creatorDirectoryAt){creatorDirectoryAt=value;},
+  get currentPage(){return currentPage;},
+  get curvePricing(){return curvePricing;},
+  set curvePricing(value: typeof curvePricing){curvePricing=value;},
+  get curvePricingPending(){return curvePricingPending;},
+  set curvePricingPending(value: typeof curvePricingPending){curvePricingPending=value;},
+  get detailBalanceAccount(){return detailBalanceAccount;},
+  set detailBalanceAccount(value: typeof detailBalanceAccount){detailBalanceAccount=value;},
+  get detailBalanceLoader(){return detailBalanceLoader;},
+  get detailBalances(){return detailBalances;},
+  set detailBalances(value: typeof detailBalances){detailBalances=value;},
+  get detailContentAbort(){return detailContentAbort;},
+  set detailContentAbort(value: typeof detailContentAbort){detailContentAbort=value;},
+  get developerBuyBalances(){return developerBuyBalances;},
+  get directMarkets(){return directMarkets;},
+  set directMarkets(value: typeof directMarkets){directMarkets=value;},
+  get displayPriceWidget(){return displayPriceWidget;},
+  set displayPriceWidget(value: typeof displayPriceWidget){displayPriceWidget=value;},
+  get draftImageMissing(){return draftImageMissing;},
+  set draftImageMissing(value: typeof draftImageMissing){draftImageMissing=value;},
+  get ensureCanonicalLaunch(){return ensureCanonicalLaunch;},
+  get ensureCanonicalMarket(){return ensureCanonicalMarket;},
+  get ensureCurrentRevision(){return ensureCurrentRevision;},
+  get ensureStandaloneApproval(){return ensureStandaloneApproval;},
+  get errorText(){return errorText;},
+  get executeTransaction(){return executeTransaction;},
+  get findAsset(){return findAsset;},
+  get foundation(){return foundation;},
+  set foundation(value: typeof foundation){foundation=value;},
+  get holderWidget(){return holderWidget;},
+  set holderWidget(value: typeof holderWidget){holderWidget=value;},
+  get iconText(){return iconText;},
+  get latestListing(){return latestListing;},
+  set latestListing(value: typeof latestListing){latestListing=value;},
+  get launchFunding(){return launchFunding;},
+  set launchFunding(value: typeof launchFunding){launchFunding=value;},
+  get launchImage(){return launchImage;},
+  set launchImage(value: typeof launchImage){launchImage=value;},
+  get launchImageGeneration(){return launchImageGeneration;},
+  set launchImageGeneration(value: typeof launchImageGeneration){launchImageGeneration=value;},
+  get launchImageReading(){return launchImageReading;},
+  set launchImageReading(value: typeof launchImageReading){launchImageReading=value;},
+  get launchMetadataOrigin(){return launchMetadataOrigin;},
+  get launchPreview(){return launchPreview;},
+  set launchPreview(value: typeof launchPreview){launchPreview=value;},
+  get launchPreviewGeneration(){return launchPreviewGeneration;},
+  set launchPreviewGeneration(value: typeof launchPreviewGeneration){launchPreviewGeneration=value;},
+  get launchPreviewTimer(){return launchPreviewTimer;},
+  set launchPreviewTimer(value: typeof launchPreviewTimer){launchPreviewTimer=value;},
+  get launchProgress(){return launchProgress;},
+  set launchProgress(value: typeof launchProgress){launchProgress=value;},
+  get launchRecoveryBusy(){return launchRecoveryBusy;},
+  set launchRecoveryBusy(value: typeof launchRecoveryBusy){launchRecoveryBusy=value;},
+  get launchRecoveryTimer(){return launchRecoveryTimer;},
+  set launchRecoveryTimer(value: typeof launchRecoveryTimer){launchRecoveryTimer=value;},
+  get launchSalt(){return launchSalt;},
+  set launchSalt(value: typeof launchSalt){launchSalt=value;},
+  get launchSubmitting(){return launchSubmitting;},
+  set launchSubmitting(value: typeof launchSubmitting){launchSubmitting=value;},
+  get marketBloomProgress(){return marketBloomProgress;},
+  get marketMetadata(){return marketMetadata;},
+  get marketRelease(){return marketRelease;},
+  get notify(){return notify;},
+  get overviewLoads(){return overviewLoads;},
+  get pendingCreateDraft(){return pendingCreateDraft;},
+  set pendingCreateDraft(value: typeof pendingCreateDraft){pendingCreateDraft=value;},
+  get poolQuoteBindings(){return poolQuoteBindings;},
+  get populateSelect(){return populateSelect;},
+  get preparedMetadata(){return preparedMetadata;},
+  set preparedMetadata(value: typeof preparedMetadata){preparedMetadata=value;},
+  get preparedMetadataKey(){return preparedMetadataKey;},
+  set preparedMetadataKey(value: typeof preparedMetadataKey){preparedMetadataKey=value;},
+  get preparedMetadataURI(){return preparedMetadataURI;},
+  set preparedMetadataURI(value: typeof preparedMetadataURI){preparedMetadataURI=value;},
+  get publicClient(){return publicClient;},
+  get query(){return query;},
+  get queryAll(){return queryAll;},
+  get randomSalt(){return randomSalt;},
+  get readApi(){return readApi;},
+  get readWalletMarket(){return readWalletMarket;},
+  get receiptEvent(){return receiptEvent;},
+  get required(){return required;},
+  get routeGeneration(){return routeGeneration;},
+  set routeGeneration(value: typeof routeGeneration){routeGeneration=value;},
+  get router(){return router;},
+  get runPageAction(){return runPageAction;},
+  get runtimeConfig(){return runtimeConfig;},
+  get runtimeReasons(){return runtimeReasons;},
+  get setDisabled(){return setDisabled;},
+  get setPageStatus(){return setPageStatus;},
+  get simulationTuple(){return simulationTuple;},
+  get snapshotPoller(){return snapshotPoller;},
+  set snapshotPoller(value: typeof snapshotPoller){snapshotPoller=value;},
+  get stockLogo(){return stockLogo;},
+  get stockSymbol(){return stockSymbol;},
+  get stockToken(){return stockToken;},
+  get text(){return text;},
+  get tokenDetailWidget(){return tokenDetailWidget;},
+  set tokenDetailWidget(value: typeof tokenDetailWidget){tokenDetailWidget=value;},
+  get tradeAutoRefreshPending(){return tradeAutoRefreshPending;},
+  set tradeAutoRefreshPending(value: typeof tradeAutoRefreshPending){tradeAutoRefreshPending=value;},
+  get tradeFieldsGeneration(){return tradeFieldsGeneration;},
+  set tradeFieldsGeneration(value: typeof tradeFieldsGeneration){tradeFieldsGeneration=value;},
+  get tradeHistoryWidget(){return tradeHistoryWidget;},
+  set tradeHistoryWidget(value: typeof tradeHistoryWidget){tradeHistoryWidget=value;},
+  get tradeLoadGeneration(){return tradeLoadGeneration;},
+  set tradeLoadGeneration(value: typeof tradeLoadGeneration){tradeLoadGeneration=value;},
+  get tradeLoadingTimeout(){return tradeLoadingTimeout;},
+  set tradeLoadingTimeout(value: typeof tradeLoadingTimeout){tradeLoadingTimeout=value;},
+  get tradeMarket(){return tradeMarket;},
+  set tradeMarket(value: typeof tradeMarket){tradeMarket=value;},
+  get tradeMarketVerified(){return tradeMarketVerified;},
+  set tradeMarketVerified(value: typeof tradeMarketVerified){tradeMarketVerified=value;},
+  get tradeMemeLogoUrl(){return tradeMemeLogoUrl;},
+  set tradeMemeLogoUrl(value: typeof tradeMemeLogoUrl){tradeMemeLogoUrl=value;},
+  get tradeMetadata(){return tradeMetadata;},
+  set tradeMetadata(value: typeof tradeMetadata){tradeMetadata=value;},
+  get tradePhaseLoading(){return tradePhaseLoading;},
+  set tradePhaseLoading(value: typeof tradePhaseLoading){tradePhaseLoading=value;},
+  get tradePhaseTimer(){return tradePhaseTimer;},
+  set tradePhaseTimer(value: typeof tradePhaseTimer){tradePhaseTimer=value;},
+  get tradeQuote(){return tradeQuote;},
+  set tradeQuote(value: typeof tradeQuote){tradeQuote=value;},
+  get tradeQuoteExpiryTimer(){return tradeQuoteExpiryTimer;},
+  set tradeQuoteExpiryTimer(value: typeof tradeQuoteExpiryTimer){tradeQuoteExpiryTimer=value;},
+  get tradeQuoteGeneration(){return tradeQuoteGeneration;},
+  set tradeQuoteGeneration(value: typeof tradeQuoteGeneration){tradeQuoteGeneration=value;},
+  get tradeQuoteTimer(){return tradeQuoteTimer;},
+  set tradeQuoteTimer(value: typeof tradeQuoteTimer){tradeQuoteTimer=value;},
+  get tradeSide(){return tradeSide;},
+  set tradeSide(value: typeof tradeSide){tradeSide=value;},
+  get tradeStakeAccount(){return tradeStakeAccount;},
+  set tradeStakeAccount(value: typeof tradeStakeAccount){tradeStakeAccount=value;},
+  get tradeStakeGeneration(){return tradeStakeGeneration;},
+  set tradeStakeGeneration(value: typeof tradeStakeGeneration){tradeStakeGeneration=value;},
+  get tradeSubmitting(){return tradeSubmitting;},
+  set tradeSubmitting(value: typeof tradeSubmitting){tradeSubmitting=value;},
+  get tradeSubmittingLabel(){return tradeSubmittingLabel;},
+  set tradeSubmittingLabel(value: typeof tradeSubmittingLabel){tradeSubmittingLabel=value;},
+  get tradeSubmittingMarketId(){return tradeSubmittingMarketId;},
+  set tradeSubmittingMarketId(value: typeof tradeSubmittingMarketId){tradeSubmittingMarketId=value;},
+  get tradeTokenLogoFallback(){return tradeTokenLogoFallback;},
+  get transactionScopeBusy(){return transactionScopeBusy;},
+  get verifiedMarketReleases(){return verifiedMarketReleases;},
+  get verifiedMarketRuntime(){return verifiedMarketRuntime;},
+  get verifyLiveWalletContext(){return verifyLiveWalletContext;},
+  get verifyTransactionFoundation(){return verifyTransactionFoundation;},
+  get wallet(){return wallet;},
+  set wallet(value: typeof wallet){wallet=value;},
+  get walletConnecting(){return walletConnecting;},
+  set walletConnecting(value: typeof walletConnecting){walletConnecting=value;},
+  get writeReady(){return writeReady;},
+};
+export type ControllerContext = typeof controllerContext;
+
+type TradeController = ReturnType<typeof import('./controllers/trade.ts').createTradeController>;
+let tradeController: TradeController | undefined;
+let tradeControllerRequest: Promise<void>|undefined;
+function ensureTradeController():Promise<void>{
+ if(tradeController)return Promise.resolve();
+ return tradeControllerRequest??=import('./controllers/trade.ts').then(module=>{tradeController=module.createTradeController(controllerContext);}).finally(()=>{tradeControllerRequest=undefined;});
+}
+type CreateController = ReturnType<typeof import('./controllers/create.ts').createCreateController>;
+let createController: CreateController | undefined;
+let createControllerRequest: Promise<void>|undefined;
+function ensureCreateController():Promise<void>{
+ if(createController)return Promise.resolve();
+ return createControllerRequest??=import('./controllers/create.ts').then(module=>{createController=module.createCreateController(controllerContext);}).finally(()=>{createControllerRequest=undefined;});
+}
 const router = createRouter({
   render: mountRoute,
   canNavigate: () => !walletConnecting && !launchSubmitting,

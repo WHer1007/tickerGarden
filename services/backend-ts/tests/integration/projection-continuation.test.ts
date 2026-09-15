@@ -57,3 +57,29 @@ test('chain processor durably continues 129 Holder markets, skips completed scop
   assert.equal(await processor(continuation),'projection:already-complete-or-obsolete');
  }finally{await pool.query(`DROP SCHEMA IF EXISTS ${s} CASCADE`);await pool.end();}
 });
+
+import {projectF72Principal} from '../../packages/principal-projector/src/index.ts';
+import {ProjectionPending} from '../../packages/projection/src/index.ts';
+test('principal-only continuation resumes without any market observation rows',async ctx=>{
+ if(!url){ctx.skip('local PostgreSQL required');return;}
+ const schemaName='tg_principal_resume_'+randomBytes(5).toString('hex'),s=`"${schemaName}"`,{pool}=createDatabasePool(url);
+ const id=['test',46630,CURRENT_RELEASE_ID],primary=new ContinuationRpc(),secondary=new ContinuationRpc();
+ const deployment={environment:'test' as const,chainId:46630 as const,deploymentDigest:CURRENT_RELEASE_ID,activationBlock:CURRENT_ACTIVATION_BLOCK};
+ try{
+  await applyCoreMigration(pool,schemaName);
+  await pool.query(`INSERT INTO ${s}.deployments(environment,chain_id,deployment_digest,genesis_hash,start_block,start_block_hash,abi_digest) VALUES($1,$2,$3,$4,$5,$6,$7)`,[...id,h(1),CURRENT_ACTIVATION_BLOCK.toString(),h(2),h(3)]);
+  await pool.query(`INSERT INTO ${s}.chain_blocks(environment,chain_id,deployment_digest,number,hash,parent_hash,canonical,finalized) VALUES($1,$2,$3,$4,$5,$6,true,true)`,[...id,height.toString(),h(3),h(2)]);
+  await pool.query(`INSERT INTO ${s}.ingestion_checkpoints(environment,chain_id,deployment_digest,stream,next_block,last_block_hash,generation) VALUES($1,$2,$3,'frontend-events',$4,$5,0)`,[...id,(height+1n).toString(),h(3)]);
+  await pool.query(`INSERT INTO ${s}.covered_ranges(environment,chain_id,deployment_digest,from_block,to_block,generation,filter_digest,complete,verified_at) VALUES($1,$2,$3,$4,$5,0,$6,true,now())`,[...id,CURRENT_ACTIVATION_BLOCK.toString(),height.toString(),h(4)]);
+  const revision=`${height}:${h(3)}`;
+  await pool.query(`INSERT INTO ${s}.publications(environment,chain_id,deployment_digest,scope,revision,block_number,block_hash,generation,payload_digest,payload) VALUES($1,$2,$3,'markets',$4,$5,$6,0,$7,'{}')`,[...id,revision,height.toString(),h(3),h(5)]);
+  await pool.query(`INSERT INTO ${s}.publication_pointers(environment,chain_id,deployment_digest,scope,revision) VALUES($1,$2,$3,'markets',$4)`,[...id,revision]);
+  for(const scope of ['markets','configs','history','analytics'])await pool.query(`INSERT INTO ${s}.projection_checkpoints(environment,chain_id,deployment_digest,scope,algorithm_version,next_block,generation) VALUES($1,$2,$3,$4,'fixture',$5,0)`,[...id,scope,(height+1n).toString()]);
+  await assert.rejects(projectF72Principal({pool,deployment,blockNumber:height,blockHash:h(3),generation:0n,primary,secondary,schemaName,maxPages:1}),ProjectionPending);
+  assert.equal((await pool.query(`SELECT count(*)::int n FROM ${s}.projection_observations`)).rows[0].n,0);
+  const processor=createChainProcessor({pool,primary,secondary,schemaName,finalityDelayBlocks:0n,finalityDelaySeconds:0n});
+  const lease:Lease={id:'resume',operationId:'resume',queue:'chain',kind:'projection-continuation',payload:{headBlock:height.toString(),headHash:h(3)},payloadDigest:h(1),generation:'0',fencing:'1',attempt:1,maxAttempts:16,leaseExpiresAt:new Date(Date.now()+60000)};
+  assert.equal(await processor(lease),`projection:${height}`);
+  assert.equal((await pool.query(`SELECT count(*)::int n FROM ${s}.publication_pointers WHERE scope IN ('accounts','positions') AND revision=$1`,[revision])).rows[0].n,2);
+ }finally{await pool.query(`DROP SCHEMA IF EXISTS ${s} CASCADE`);await pool.end();}
+});

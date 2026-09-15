@@ -1,7 +1,18 @@
+import v1Abis_TickerMemeTokenV1 from '../generated/contracts/legacy/TickerMemeTokenV1.ts';
+import v1Abis_TickerGardenFactoryV1 from '../generated/contracts/legacy/TickerGardenFactoryV1.ts';
+import v1Abis_TickerGardenCurve from '../generated/contracts/legacy/TickerGardenCurve.ts';
+import currentV4Abis_TickerGardenFactoryV1 from '../generated/contracts/current/TickerGardenFactoryV1.ts';
+import currentV4Abis_LaunchAndBuyRouter from '../generated/contracts/current/LaunchAndBuyRouter.ts';
+import currentV4Abis_MarketRegistryV1 from '../generated/contracts/current/MarketRegistryV1.ts';
+import v1Abis_LaunchAndBuyRouter from '../generated/contracts/legacy/LaunchAndBuyRouter.ts';
+import v1Abis_MarketRegistryV1 from '../generated/contracts/legacy/MarketRegistryV1.ts';
+import burnV4Abis_TickerGardenFactoryV1 from '../generated/contracts/burn/TickerGardenFactoryV1.ts';
+import burnV4Abis_LaunchAndBuyRouter from '../generated/contracts/burn/LaunchAndBuyRouter.ts';
+import burnV4Abis_MarketRegistryV1 from '../generated/contracts/burn/MarketRegistryV1.ts';
 import { ROBINHOOD_CHAIN_ID } from "../chain.ts";
 import { decodeEventLog, keccak256, stringToHex, type Address, type Hex, type TransactionReceipt } from "viem";
 import type { MarketDetailResponse, MarketReadModel, SyncStatus } from "../readApi.ts";
-import { currentV4Abis, burnV4Abis, v1Abis } from "../generated/abis.ts";
+
 import { createContractWriteRequest, type ContractWriteRequest } from "../transaction.ts";
 
 const ZERO_ADDRESS = "0x0000000000000000000000000000000000000000" as Address;
@@ -241,7 +252,7 @@ export async function buildLaunchAndBuyRequests(input: Readonly<{
   });
   if (native) return Object.freeze({ params, request });
   const approval = createContractWriteRequest({
-    abi: v1Abis.TickerMemeTokenV1,
+    abi: v1Abis_TickerMemeTokenV1,
     address: input.config.quote.quoteAsset,
     functionName: "approve",
     args: [input.router, input.quoteIn],
@@ -260,7 +271,7 @@ export function findCanonicalMarketCreated(
     if (log.address.toLowerCase() !== expectedFactory) continue;
     try {
       const decoded = decodeEventLog({
-        abi: v1Abis.TickerGardenFactoryV1,
+        abi: v1Abis_TickerGardenFactoryV1,
         data: log.data,
         topics: log.topics,
       });
@@ -351,7 +362,7 @@ export function buildCurveBuyRequest(input: Readonly<{
   const view = toCurveViewModel(input.marketResponse);
   positive(input.quoteIn, "quoteIn"); uint256(input.minTokensOut, "minTokensOut");
   const baseRequest = {
-    abi: v1Abis.TickerGardenCurve, address: view.curve, functionName: "buy",
+    abi: v1Abis_TickerGardenCurve, address: view.curve, functionName: "buy",
     args: [input.quoteIn, input.minTokensOut, contractAddress(input.recipient, "recipient")],
   } as const;
   const request = view.quoteAssetKind === "native"
@@ -359,7 +370,7 @@ export function buildCurveBuyRequest(input: Readonly<{
     : createContractWriteRequest(baseRequest);
   if (view.quoteAssetKind === "native") return Object.freeze({ request, view });
   const approval = createContractWriteRequest({
-    abi: v1Abis.TickerMemeTokenV1, address: view.quoteAsset, functionName: "approve", args: [view.curve, input.quoteIn],
+    abi: v1Abis_TickerMemeTokenV1, address: view.quoteAsset, functionName: "approve", args: [view.curve, input.quoteIn],
   });
   return Object.freeze({ request, approval, view });
 }
@@ -373,18 +384,21 @@ export function buildCurveSellRequest(input: Readonly<{
   const view = toCurveViewModel(input.marketResponse);
   positive(input.tokensIn, "tokensIn"); uint256(input.minQuoteOut, "minQuoteOut");
   const request = createContractWriteRequest({
-    abi: v1Abis.TickerGardenCurve, address: view.curve, functionName: "sell",
+    abi: v1Abis_TickerGardenCurve, address: view.curve, functionName: "sell",
     args: [input.tokensIn, input.minQuoteOut, contractAddress(input.recipient, "recipient")],
   });
   const approval = createContractWriteRequest({
-    abi: v1Abis.TickerMemeTokenV1, address: view.memeToken, functionName: "approve", args: [view.curve, input.tokensIn],
+    abi: v1Abis_TickerMemeTokenV1, address: view.memeToken, functionName: "approve", args: [view.curve, input.tokensIn],
   });
   return Object.freeze({ request, approval, view });
 }
 
 export const MEME_FEE_BURN_MODE = keccak256(stringToHex("TICKERGARDEN_MEME_FEE_BURN_ON_SETTLEMENT_V1"));
 export function launchAbis(config: Pick<SelectedLaunchConfig, "burnMemeFees" | "lpFeePips">) {
-  return config.lpFeePips !== undefined ? currentV4Abis : config.burnMemeFees === undefined ? v1Abis : burnV4Abis;
+  const current = {TickerGardenFactoryV1:currentV4Abis_TickerGardenFactoryV1, LaunchAndBuyRouter:currentV4Abis_LaunchAndBuyRouter, MarketRegistryV1:currentV4Abis_MarketRegistryV1};
+  const legacy = {TickerGardenFactoryV1:v1Abis_TickerGardenFactoryV1, LaunchAndBuyRouter:v1Abis_LaunchAndBuyRouter, MarketRegistryV1:v1Abis_MarketRegistryV1};
+  const burn = {TickerGardenFactoryV1:burnV4Abis_TickerGardenFactoryV1, LaunchAndBuyRouter:burnV4Abis_LaunchAndBuyRouter, MarketRegistryV1:burnV4Abis_MarketRegistryV1};
+  return config.lpFeePips !== undefined ? current : config.burnMemeFees === undefined ? legacy : burn;
 }
 /** Called only while preparing a wallet launch. Never silently drop an enabled burn choice on an older Factory. */
 export async function resolveBurnLaunchConfig(config: SelectedLaunchConfig, probe: () => Promise<Hex>): Promise<SelectedLaunchConfig> {

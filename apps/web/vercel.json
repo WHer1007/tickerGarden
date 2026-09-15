@@ -25,10 +25,10 @@
     { "source": "/stats", "destination": "/index.html" },
     { "source": "/claim", "destination": "/index.html" },
     { "source": "/stake", "destination": "/index.html" },
-    { "source": "/docs", "destination": "/index.html" },
-    { "source": "/privacy", "destination": "/index.html" },
-    { "source": "/terms", "destination": "/index.html" },
-    { "source": "/risks", "destination": "/index.html" },
+    { "source": "/docs", "destination": "/docs/index.html" },
+    { "source": "/privacy", "destination": "/privacy/index.html" },
+    { "source": "/terms", "destination": "/terms/index.html" },
+    { "source": "/risks", "destination": "/risks/index.html" },
     { "source": "/rewards", "destination": "/index.html" },
     { "source": "/markets", "destination": "/index.html" }
   ]

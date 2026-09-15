@@ -1,10 +1,11 @@
+import {controllerSources} from './controller-source.ts';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import test from 'node:test';
 import markets from '../src/pages/markets.ts';
 
 const index = fs.readFileSync(new URL('../index.html', import.meta.url), 'utf8');
-const app = fs.readFileSync(new URL('../src/app.ts', import.meta.url), 'utf8');
+const app = fs.readFileSync(new URL('../src/app.ts', import.meta.url), 'utf8')+'\n'+controllerSources.slice(0,2).join('\n');
 const styles = fs.readFileSync(new URL('../subpages.css', import.meta.url), 'utf8');
 const globalStyles = fs.readFileSync(new URL('../styles.css', import.meta.url), 'utf8');
 const trade = fs.readFileSync(new URL('../src/pages/trade.ts', import.meta.url), 'utf8');

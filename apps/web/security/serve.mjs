@@ -10,8 +10,8 @@ http.createServer((req,res)=>{
  if(!['GET','HEAD'].includes(req.method)){res.writeHead(405);res.end();return}
  let relative;try{relative=decodeURIComponent(new URL(req.url,'http://localhost').pathname)}catch{res.writeHead(400);res.end();return}
  if(relative.includes('\0')||relative.split('/').some(s=>s.startsWith('.'))||relative==='/_headers'){res.writeHead(404);res.end();return}
- let file=path.resolve(root,'.'+relative);if(!file.startsWith(root)){res.writeHead(404);res.end();return}
- try{if(!fs.statSync(file).isFile())file=path.join(root,'index.html')}catch{if(path.extname(relative)){res.writeHead(404);res.end();return}file=path.join(root,'index.html')}
+ let file=path.resolve(root,'.'+relative);if(file!==path.resolve(root)&&!file.startsWith(root)){res.writeHead(404);res.end();return}
+ try{if(fs.statSync(file).isDirectory())file=fs.existsSync(path.join(file,'index.html'))?path.join(file,'index.html'):path.join(root,'index.html')}catch{if(path.extname(relative)){res.writeHead(404);res.end();return}file=path.join(root,'index.html')}
  res.setHeader('Content-Type',types[path.extname(file)]||'application/octet-stream');res.setHeader('Cache-Control',file.endsWith('index.html')?'no-cache':'public, max-age=3600');
  if(req.method==='HEAD'){res.end();return}const stream=fs.createReadStream(file);stream.on('error',()=>res.destroy());stream.pipe(res);
 }).listen(Number(process.env.PORT||4173),process.env.HOST||'127.0.0.1');

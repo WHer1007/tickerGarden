@@ -1,9 +1,10 @@
+import {controllerFunction,controllerSources} from './controller-source.ts';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 import test from 'node:test';
-const app=readFileSync(new URL('../src/app.ts',import.meta.url),'utf8');
+const app=controllerSources.join('\n');
 const widget=readFileSync(new URL('../src/v1/tokenDetailWidget.ts',import.meta.url),'utf8');
-function section(start:string,end:string){return app.slice(app.indexOf(start),app.indexOf(end,app.indexOf(start)+start.length));}
+function section(start:string,end:string){return controllerFunction(start.match(/function (\w+)/)![1]!);}
 test('public browsing and statistics never probe RPC or explorer history',()=>{
  for(const [start,end] of [
   ['async function prepareFoundation','async function verifyTransactionFoundation'],

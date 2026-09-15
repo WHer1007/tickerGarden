@@ -114,3 +114,14 @@ body[data-page=rewards] main.claim-page:focus{outline:none!important}.claim-toke
 }
 [data-snapshot-more]:hover { background: #e8eee4; }
 @media(max-width:680px){.holder-round-field{width:100%}}
+
+.claim-page .claim-wallet-guide{font-size:var(--text-body);line-height:1.6;color:var(--muted);max-width:440px;margin:12px 0 4px}
+.claim-page[data-wallet-connected=true] .claim-wallet-guide{display:none}
+.claim-page[data-wallet-connected=false] #rewards-panel-creator>:is(.field,.claim-amounts,.claim-facts,[data-creator-more],[data-creator-older],.claim-result){display:none}
+.claim-page[data-wallet-connected=false] .holder-content>:is(.fields,[data-holder-action-help]){display:none}
+.claim-page .claim-amounts{background:transparent;border-radius:0;border-top:1px solid var(--line);border-bottom:1px solid var(--line);padding:22px 0;margin:22px 0}
+.claim-page .claim-amounts strong{font-size:var(--text-metric)}
+.claim-page :is(.claim-facts,.claim-amounts span,.holder-pool-details small){font-size:var(--text-support);color:var(--muted)}
+.claim-page .claim-action .action-button{min-height:var(--control-height);border-radius:var(--control-radius)}
+.claim-page .holder-reward-card{background:transparent;box-shadow:none;border:0;padding:0}
+.claim-page .field{margin-bottom:16px}

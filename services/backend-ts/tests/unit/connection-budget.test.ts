@@ -39,3 +39,10 @@ test('database role caps sum shared runtime roles and reject incomplete or unsaf
  assert.throws(()=>connectionRoleLimitsSql(budget,{api:'tg_api'}),/missing/);
  assert.throws(()=>connectionRoleLimitsSql(budget,{api:'bad;sql',worker:'tg_worker'}),/invalid/);
 });
+
+test('rolling deployments and shared roles consume the same server budget',()=>{
+ const budget={maxConnections:100,reservedConnections:20,services:[{name:'api',instances:8,rollingInstances:8,poolMax:4},{name:'worker',instances:1,rollingInstances:1,poolMax:4}]};
+ assert.equal(evaluateConnectionBudget(budget).used,72);
+ assert.equal(connectionRoleLimitsSql(budget,{api:'tg_shared',worker:'tg_shared'}),'ALTER ROLE "tg_shared" CONNECTION LIMIT 72;');
+ assert.throws(()=>evaluateConnectionBudget({...budget,services:[{name:'api',instances:10,rollingInstances:10,poolMax:5}]}),/exceeded/);
+});

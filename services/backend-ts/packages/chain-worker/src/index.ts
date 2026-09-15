@@ -60,7 +60,7 @@ export function createChainProcessor(options: ChainProcessorOptions): (lease: Le
     // Finish the oldest durable candidate before observing a later head. This
     // prevents a busy chain from starving a multi-job bootstrap indefinitely.
     const projectionSchema=identifier(options.schemaName??'tickergarden_serverless');
-    const candidate=(await options.pool.query<{block_number:string}>(`SELECT min(o.block_number)::text block_number FROM ${projectionSchema}.projection_observations o
+    const candidate=(await options.pool.query<{block_number:string}>(`SELECT min(o.block_number)::text block_number FROM (SELECT environment,chain_id,deployment_digest,generation,block_number,block_hash FROM ${projectionSchema}.projection_observations UNION SELECT environment,chain_id,deployment_digest,generation,block_number,block_hash FROM ${projectionSchema}.principal_candidates WHERE phase<>'published') o
       JOIN ${projectionSchema}.chain_blocks b ON b.environment=o.environment AND b.chain_id=o.chain_id AND b.deployment_digest=o.deployment_digest AND b.hash=o.block_hash
       WHERE o.environment=$1 AND o.chain_id=$2 AND o.deployment_digest=$3 AND o.generation=$4 AND b.canonical AND b.finalized
       AND o.block_number>=coalesce((SELECT next_block FROM ${projectionSchema}.projection_checkpoints WHERE environment=$1 AND chain_id=$2 AND deployment_digest=$3 AND scope='holder-rewards' AND generation=$4),$5)`,[deployment.environment,deployment.chainId,deployment.deploymentDigest,state.generation.toString(),deployment.activationBlock.toString()])).rows[0];
