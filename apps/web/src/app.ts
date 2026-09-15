@@ -1710,7 +1710,7 @@ function applyStatsSnapshot():void{
 async function renderProtocolStatistics(force=false):Promise<any>{
  if(!runtimeConfig.readApi.available)throw Error('Stats syncing');
  if(statsRequest)return statsRequest;
- if(!force&&statsSnapshot&&Date.now()<Math.min(statsReadAt+20*60_000,statsSnapshot.nextRefreshAt*1000))return statsSnapshot;
+ if(!force&&statsSnapshot&&statsFresh(statsSnapshot.observedAt)&&(!statsSnapshot.stakingCoverage||statsFresh(statsSnapshot.stakingObservedAt))&&Date.now()<Math.min(statsReadAt+20*60_000,statsSnapshot.nextRefreshAt*1000))return statsSnapshot;
  if(!force&&Date.now()<statsRetryAt)return statsSnapshot;
  const request=new AbortController();statsAbort=request;
  const timer=setTimeout(()=>request.abort(),15000);
