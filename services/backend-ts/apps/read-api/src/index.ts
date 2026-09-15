@@ -57,7 +57,7 @@ export function createReadApiApp(options: ReadApiOptions = {}) {
     const dynamicRanking = path==='/v1/markets'&&['marketCapUsd_desc','recentBuy_desc'].includes(context.req.query('sort')??'');
     const immutableRevision = context.res.status >= 200 && context.res.status < 300
       && typeof revision === 'string' && /^(0|[1-9][0-9]*):0x[0-9a-f]{64}$/.test(revision);
-    context.header('cache-control', context.res.status < 200 || context.res.status >= 300 || privateRead || activity || context.req.query('includeRecent')==='true' || path.endsWith('/updates') || dynamicRanking
+    context.header('cache-control', context.res.status < 200 || context.res.status >= 300 || privateRead || activity || context.req.query('includeRecent')==='true' || path.endsWith('/updates') || dynamicRanking || path==='/v1/protocol-statistics'
       ? 'no-store'
       : immutableRevision
         ? 'public, max-age=300, s-maxage=31536000, immutable'
