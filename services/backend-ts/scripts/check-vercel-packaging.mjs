@@ -122,6 +122,9 @@ for (const appName of expectedApps) {
   }
 
   const config = readJson(join(appDirectory, 'vercel.json'));
+  if (config.installCommand !== 'npm ci --prefix ../.. --workspaces --include-workspace-root --include=dev --ignore-scripts') {
+    fail(`apps/${appName}/vercel.json must install the locked backend workspace before compiling shared packages`);
+  }
   const expectedMaxDuration = appName === 'pipeline' ? 300 : 20;
   if (config.functions?.['api/index.ts']?.maxDuration !== expectedMaxDuration) {
     fail(`apps/${appName}/vercel.json must configure api/index.ts maxDuration=${expectedMaxDuration}`);

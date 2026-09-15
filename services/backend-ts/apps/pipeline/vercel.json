@@ -1,1 +1,29 @@
-{"$schema":"https://openapi.vercel.sh/vercel.json","buildCommand":"node ../../../../tools/deployment-boundary.mjs auto pipeline && npm run build --prefix ../..","functions":{"api/index.ts":{"maxDuration":300}},"rewrites":[{"source":"/(.*)","destination":"/api"}],"crons":[{"path":"/internal/dispatch","schedule":"* * * * *"},{"path":"/internal/prices/refresh","schedule":"*/5 * * * *"}],"regions":["sin1"]}
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "buildCommand": "node ../../../../tools/deployment-boundary.mjs auto pipeline && npm run build --prefix ../..",
+  "functions": {
+    "api/index.ts": {
+      "maxDuration": 300
+    }
+  },
+  "rewrites": [
+    {
+      "source": "/(.*)",
+      "destination": "/api"
+    }
+  ],
+  "crons": [
+    {
+      "path": "/internal/dispatch",
+      "schedule": "* * * * *"
+    },
+    {
+      "path": "/internal/prices/refresh",
+      "schedule": "*/5 * * * *"
+    }
+  ],
+  "regions": [
+    "sin1"
+  ],
+  "installCommand": "npm ci --prefix ../.. --workspaces --include-workspace-root --include=dev --ignore-scripts"
+}
