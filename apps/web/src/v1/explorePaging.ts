@@ -1,3 +1,4 @@
+import type {MarketPage} from "./generated/read-api.ts";
 export type ExplorePage<T> = {
   items: readonly T[];
   page: number;
@@ -5,11 +6,13 @@ export type ExplorePage<T> = {
   hasNext: boolean;
   availablePages: number;
   recovered?: boolean;
+  ranking?: MarketPage["ranking"];
 };
 
 type StoredPage<T> = {
   items: readonly T[];
   nextCursor: string | null;
+  ranking?: MarketPage["ranking"];
 };
 
 export function createExplorePager<T extends { marketId: string }>(
@@ -19,7 +22,7 @@ export function createExplorePager<T extends { marketId: string }>(
     cursor: string | undefined,
     limit: number,
     signal: AbortSignal,
-  ) => Promise<{ items: readonly T[]; nextCursor: string | null }>,
+  ) => Promise<StoredPage<T>>,
 ) {
   if (!Number.isInteger(pageSize) || pageSize <= 0) {
     throw new Error("pageSize must be a positive integer");
@@ -35,6 +38,7 @@ export function createExplorePager<T extends { marketId: string }>(
 
   const result = (page: number, stored: StoredPage<T>, recovered = false): ExplorePage<T> => ({
     items: stored.items,
+    ...(stored.ranking?{ranking:stored.ranking}:{}),
     page,
     hasPrevious: page > 1,
     hasNext: stored.nextCursor !== null,
@@ -87,7 +91,8 @@ export function createExplorePager<T extends { marketId: string }>(
     // not jump the reader back to page 1 or combine old cursors with new data.
     const filters=(value:object)=>{const {revision:_,...rest}=value as Record<string,unknown>;return JSON.stringify(rest);};
     if(queryValue&&(currentPage>1||inFlight||(direction!=='current'&&currentPage>0))&&filters(queryValue)===filters(query))query=queryValue;
-    const nextKey = JSON.stringify(query);
+    const ranked=["marketCapUsd_desc","recentBuy_desc"].includes(String((query as {sort?:string}).sort));
+    const nextKey = ranked ? filters(query) : JSON.stringify(query);
     if (queryKey !== nextKey) {
       resetState();
       queryKey = nextKey;
@@ -134,7 +139,7 @@ export function createExplorePager<T extends { marketId: string }>(
       queryValue = savedQueryValue;
     };
     const request = (async () => {
-      let response: { items: readonly T[]; nextCursor: string | null };
+      let response: StoredPage<T>;
       let responsePage = target;
       let responseCursor = cursor;
       let recovered = false;
@@ -146,7 +151,7 @@ export function createExplorePager<T extends { marketId: string }>(
         currentPage = 0;
         seenCursors = new Set();
         queryValue = suppliedQuery;
-        queryKey = JSON.stringify(suppliedQuery);
+        queryKey = ranked ? filters(suppliedQuery) : JSON.stringify(suppliedQuery);
         responsePage = 1;
         responseCursor = undefined;
         recovered = true;
@@ -168,7 +173,7 @@ export function createExplorePager<T extends { marketId: string }>(
         if (recovered) restoreSavedState();
         throw validationError;
       }
-      const stored = { items: response.items, nextCursor: response.nextCursor };
+      const stored = { items: response.items, nextCursor: response.nextCursor,...(response.ranking?{ranking:response.ranking}:{}) };
       pages.set(responsePage, stored);
       currentPage = responsePage;
       return result(responsePage, stored, recovered);
@@ -197,5 +202,14 @@ export function createExplorePager<T extends { marketId: string }>(
     reset();
     return true;
   };
-  return { reset, pause, load, refreshFirstPage };
+  const adoptFirstPage=(query:object,response:StoredPage<T>):boolean=>{
+    if(currentPage>1||inFlight)return false;
+    const saved=pages;pages=new Map();
+    try{validate(response.items,response.nextCursor);}catch(error){pages=saved;throw error;}
+    pause();const {revision:_,...filters}=query as Record<string,unknown>;
+    queryKey=["marketCapUsd_desc","recentBuy_desc"].includes(String(filters.sort))?JSON.stringify(filters):JSON.stringify(query);
+    queryValue=query;currentPage=1;pages.set(1,response);return true;
+  };
+  const removeMarkets=(ids:ReadonlySet<string>)=>{for(const [number,page] of pages)pages.set(number,{...page,items:page.items.filter(item=>!ids.has(item.marketId))});};
+  return { reset, pause, load, refreshFirstPage,adoptFirstPage,removeMarkets };
 }

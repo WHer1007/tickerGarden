@@ -1,3 +1,4 @@
+import {publishMarketCapRanking} from '../../services/backend-ts/packages/display-price/src/ranking.ts';
 // Real Hono/PostgreSQL Explore integration with isolated synthetic market data.
 // Requires a dedicated loopback test database. Never seeds a hosted environment.
 import assert from 'node:assert/strict';
@@ -38,6 +39,7 @@ try{
  }
  const price={token:a(0),symbol:'ETH',chainId:46630,source:'coinbase_spot',status:'available',reason:'available',unit:'USD_PER_WHOLE_TOKEN',bidUsd:'2',askUsd:'2',asOf:new Date().toISOString(),expiresAt:new Date(Date.now()+3600000).toISOString(),retrievedAt:new Date().toISOString(),multiplier:'1'};
  await pool.query(`INSERT INTO ${s}.price_references(environment,chain_id,deployment_digest,asset,source,status,as_of,expires_at,payload) VALUES($1,$2,$3,$4,'coinbase_spot','available',$5,$6,$7)`,[...id,a(0),price.asOf,price.expiresAt,price]);
+ await publishMarketCapRanking(pool,deployment,schemaName);
  const app=createReadApiApp({pool,deployment,env:{NODE_ENV:'test',TG_READ_DATABASE_URL:db,TG_CURSOR_SECRET:'local-explore-cursor-secret-32-characters',TG_DATABASE_SCHEMA:schemaName,TG_ALLOWED_ORIGINS:'http://127.0.0.1:18771'}});
  http=createServer(async(req,res)=>{try{const response=await app.request('http://127.0.0.1'+req.url,{method:req.method,headers:req.headers});res.writeHead(response.status,Object.fromEntries(response.headers));res.end(Buffer.from(await response.arrayBuffer()));}catch{res.writeHead(500).end();}});
  await new Promise(resolve=>http.listen(0,'127.0.0.1',resolve));const api=`http://127.0.0.1:${http.address().port}`;
@@ -55,21 +57,35 @@ try{
   assert.equal(await first(0).getAttribute('data-runtime-market'),h(80));
   assert.equal(await first(0).locator('[data-market-progress-label]').innerText(),'50.00%');
   assert.ok(!calls.some(u=>u.pathname==='/v1/markets'&&u.searchParams.get('limit')==='100'),'no unused general directory');
-  await page.locator('[data-growing-sort="recentBuy_desc"]').click();await page.waitForFunction(()=>document.querySelector('[data-stage-grid="0"]')?.getAttribute('aria-busy')==='false');assert.equal(await first(0).getAttribute('data-runtime-market'),h(80));
+  await page.locator('[data-growing-sort="recentBuy_desc"]').click();await page.waitForFunction(()=>document.querySelector('[data-stage-grid="0"]')?.getAttribute('aria-busy')==='false');assert.equal(await first(0).getAttribute('data-runtime-market'),h(mobile?6:80));
+  // An actual newly indexed buy moves only its project to the first position.
+  const bought=mobile?4:2;
+  await page.mouse.move(0,0);
+  await pool.query(`INSERT INTO ${s}.market_trades(environment,chain_id,deployment_digest,market_id,block_hash,transaction_hash,log_index,occurred_at,classification,base_raw,quote_raw,payload) VALUES($1,$2,$3,$4,$5,$6,0,now(),'unclassified',1,1,$7)`,[...id,h(bought),hash,h(9000000+bought),{side:'buy',timestamp:String(now),source:{blockNumber:'4',transactionIndex:String((mobile?900100:900000)+bought),logIndex:'0'}}]);
+  await page.waitForFunction(id=>document.querySelector('[data-stage-grid="0"] [data-runtime-market]')?.getAttribute('data-runtime-market')===id,h(bought),{polling:100,timeout:15000});
+  await first(0).hover();
+  const nextBought=mobile?5:3;
+  const insertBuy=async market=>pool.query(`INSERT INTO ${s}.market_trades(environment,chain_id,deployment_digest,market_id,block_hash,transaction_hash,log_index,occurred_at,classification,base_raw,quote_raw,payload) VALUES($1,$2,$3,$4,$5,$6,0,now(),'unclassified',1,1,$7)`,[...id,h(market),hash,h(9000000+market),{side:'buy',timestamp:String(now),source:{blockNumber:'4',transactionIndex:String((mobile?900100:900000)+market),logIndex:'0'}}]);
+  await insertBuy(nextBought);await page.locator('[data-new-buys]:visible').waitFor({timeout:15000});assert.equal(await first(0).getAttribute('data-runtime-market'),h(bought));
+  await page.locator('[data-new-buys]').click();await page.waitForFunction(id=>document.querySelector('[data-stage-grid="0"] [data-runtime-market]')?.getAttribute('data-runtime-market')===id,h(nextBought),{polling:100});
+  await page.locator('[data-stage-next="0"]').click();await page.waitForFunction(()=>document.querySelector('[data-stage-page="0"] [aria-current]')?.textContent==='2',null,{polling:100});
+  const frozen=await first(0).getAttribute('data-runtime-market'),pagedBuy=mobile?8:6;await insertBuy(pagedBuy);
+  await page.locator('[data-new-buys]:visible').waitFor({timeout:15000});assert.equal(await first(0).getAttribute('data-runtime-market'),frozen);
+  await page.locator('[data-new-buys]').click();await page.waitForFunction(id=>document.querySelector('[data-stage-grid="0"] [data-runtime-market]')?.getAttribute('data-runtime-market')===id,h(pagedBuy),{polling:100});
   await page.locator('[data-growing-sort="marketCapUsd_desc"]').click();await page.waitForFunction(()=>document.querySelector('[data-stage-grid="0"]')?.getAttribute('aria-busy')==='false');assert.equal(await first(0).getAttribute('data-runtime-market'),h(80));
   await page.locator('[data-market-asset]').selectOption(h(42),{force:true});
-  await page.waitForFunction(()=>document.querySelector('[data-stage-grid="0"] [data-runtime-market]')?.getAttribute('data-runtime-market')==='0x'+(79).toString(16).padStart(64,'0'));
+  await page.waitForFunction(()=>document.querySelector('[data-stage-grid="0"] [data-runtime-market]')?.getAttribute('data-runtime-market')==='0x'+(79).toString(16).padStart(64,'0')&&document.querySelector('[data-stage-grid="1"] [data-runtime-market]')?.getAttribute('data-runtime-market')==='0x'+(119).toString(16).padStart(64,'0'),null,{polling:100});
   assert.equal(await first(1).getAttribute('data-runtime-market'),h(119));
   for(const value of await page.locator('[data-runtime-market]').evaluateAll(nodes=>nodes.map(n=>n.dataset.runtimeMarket)))assert.equal(Number(BigInt(value)%2n),1);
   await page.locator('[data-market-reset]').click();await page.waitForFunction(()=>document.querySelector('[data-stage-grid="0"] [data-runtime-market]')?.getAttribute('data-runtime-market')==='0x'+(80).toString(16).padStart(64,'0'));
-  const other=await page.locator('[data-stage-grid="1"]').innerText();await page.locator('[data-stage-next="0"]').click();
-  await page.waitForFunction(()=>document.querySelector('[data-stage-grid="0"] [data-runtime-market]')?.getAttribute('data-runtime-market')==='0x'+(40).toString(16).padStart(64,'0'));assert.equal(await page.locator('[data-stage-grid="1"]').innerText(),other);
-  // Change the real backend ranking input, then request an uncached next page.
+  const other=await page.locator('[data-stage-grid="1"] [data-runtime-market]').evaluateAll(nodes=>nodes.map(n=>n.getAttribute('data-runtime-market')));await first(1).evaluate(n=>n.dataset.retained='true');await page.locator('[data-stage-next="0"]').click();
+  await page.waitForFunction(()=>document.querySelector('[data-stage-grid="0"] [data-runtime-market]')?.getAttribute('data-runtime-market')==='0x'+(40).toString(16).padStart(64,'0'));assert.deepEqual(await page.locator('[data-stage-grid="1"] [data-runtime-market]').evaluateAll(nodes=>nodes.map(n=>n.getAttribute('data-runtime-market'))),other);assert.equal(await first(1).getAttribute('data-retained'),'true');
+  // A price update must not invalidate the shared cap ranking cursor.
   await page.locator('[data-stage-next="1"]').click();await page.waitForFunction(()=>document.querySelector('[data-stage-page="1"] [aria-current]')?.textContent==='2');
   const fresh={...price,bidUsd:mobile?'4':'3',askUsd:mobile?'4':'3',asOf:new Date().toISOString()};
   await pool.query(`INSERT INTO ${s}.price_references(environment,chain_id,deployment_digest,asset,source,status,as_of,expires_at,payload) VALUES($1,$2,$3,$4,'coinbase_spot','available',$5,$6,$7)`,[...id,a(0),fresh.asOf,fresh.expiresAt,fresh]);
-  await page.locator('[data-stage-next="1"]').click();await page.waitForFunction(()=>document.querySelector('[data-stage-page="1"] [aria-current]')?.textContent==='1');
-  assert.match(await page.locator('[data-page-status]').innerText(),/list has updated/);
+  await page.locator('[data-stage-next="1"]').click();await page.waitForFunction(()=>document.querySelector('[data-stage-page="1"] [aria-current]')?.textContent==='3');
+  assert.match(await page.locator('[data-ranking-note="1"]').innerText(),/every 20 minutes/);
   await page.locator('[data-market-search]').fill('Local Market 00017');await page.waitForFunction(()=>document.querySelectorAll('[data-runtime-market]').length===1);
   assert.equal(await first(0).getAttribute('data-runtime-market'),h(17));
   await page.locator('[data-market-reset]').click();await page.locator('[data-stage-next="0"]:not([disabled])').waitFor();
@@ -94,7 +110,7 @@ try{
    assert.equal(await page.locator('[data-stage-grid="0"] [data-runtime-market]').count(),0);
    assert.ok(!calls.some(u=>u.pathname.startsWith('/v1/config/')),'unchanged configs reused during market-only publication');
   }
-  report.checks.push({mobile,passed:true,markets:120,stockBothStages:true,fundingProgress:'50.00%',capSort:true,recentBuySort:true,paginationRecovery:true,scopedPaging:true,search:true,staleLabel:true,...(!mobile?{bloomTransition:true,unchangedConfigReuse:true}:{})});await page.close();
+  report.checks.push({mobile,passed:true,markets:120,stockBothStages:true,fundingProgress:'50.00%',capSort:true,recentBuySort:true,stableCapPagination:true,recentBuyMovesFirst:true,hoverProtection:true,livePagingPaused:true,scopedPaging:true,search:true,staleLabel:true,...(!mobile?{bloomTransition:true,unchangedConfigReuse:true}:{})});await page.close();
  }
  console.log(JSON.stringify(report));
 }finally{

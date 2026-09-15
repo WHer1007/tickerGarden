@@ -121,6 +121,11 @@ test('TS-02/03/04/05/06 PostgreSQL, ingestion, publications and Hono read paths'
       await handle.pool.query(`GRANT ${ident(role)} TO ${quoteRole(currentUser)}`);
     }
     await handle.pool.query(permissionsSql(schemaName, roles));
+    for(const table of ['market_latest_buys','market_cap_snapshots','market_cap_ranks']){
+      const grants=(await handle.pool.query<{can_read:boolean;can_write:boolean;pipeline_write:boolean}>(`SELECT has_table_privilege($1,$3,'SELECT') can_read,has_table_privilege($1,$3,'INSERT') can_write,has_table_privilege($2,$3,'INSERT') pipeline_write`,[roles.readApi,roles.pipeline,`${schemaName}.${table}`])).rows[0]!;
+      assert.deepEqual(grants,{can_read:true,can_write:false,pipeline_write:true});
+    }
+
 
     const deployment = ['test', 46630, hash('1'), hash('2'), 115580290n, hash('3'), hash('4')] as const;
     await handle.pool.query(

@@ -1344,7 +1344,7 @@ async function fetchExplorePage(params:DirectoryQuery,cursor:string|undefined,li
   page=await new TickerGardenV1Client(runtimeConfig.readApi.value,(input,init)=>fetch(input,{...init,signal})).listMarkets({...params,includeRecent:true,limit,...(cursor?{cursor}:{})});
  }
  try{
-  if(!foundation.direct)assertFinalizedSync(page.sync,params.revision,'explore page');
+  if(!foundation.direct)assertFinalizedSync(page.sync,['marketCapUsd_desc','recentBuy_desc'].includes(params.sort??'')?page.sync.revision:params.revision,'explore page');
   if(!Array.isArray(page.items)||page.items.some(m=>m.launchPhase!==params.launchPhase))throw Error('Unexpected Market Stage');
  }catch{throw new ExploreResponseError('Market response failed verification');}
  return page;
@@ -1356,6 +1356,7 @@ function marketBloomProgress(market:MarketReadModel):number|null {
   ? graduationProgress(BigInt(raised),BigInt(target)) : null;
 }
 function applyExploreStatistics():void {
+ reconcileExploreStages();
  for(const market of [...exploreVisibleRows[0],...exploreVisibleRows[1]]){
   const stat=exploreStatistics[market.marketId];
   const card=query<HTMLElement>(`[data-runtime-market="${market.marketId}"]`);if(!card)continue;
@@ -1368,10 +1369,50 @@ function applyExploreStatistics():void {
   const cap=query<HTMLElement>('[data-market-cap]',card);if(cap)cap.title=`USD estimate · Updated ${new Date(stat.observedAt*1000).toLocaleString()}`;
  }
 }
+type ExploreRanking=import('./v1/generated/read-api.ts').MarketPage['ranking'];
+const exploreRankings:{0:ExploreRanking;1:ExploreRanking}={0:undefined,1:undefined};
+let exploreRecentHead='',exploreLiveGeneration=0,exploreLiveRequest:AbortController|null=null,exploreLastCapCheck=0;
+function exploreQuery(phase:0|1):DirectoryQuery{
+ const selected=query<HTMLElement>('[data-growing-sort][aria-pressed="true"]')?.dataset.growingSort;
+ const stock=query<HTMLSelectElement>('[data-market-asset]')?.value,search=query<HTMLInputElement>('[data-market-search]')?.value.trim();
+ return {revision:foundation!.sync.revision,launchPhase:phase,sort:phase===1?'marketCapUsd_desc':(selected??'createdAt_desc') as DirectoryQuery['sort'],...(search?{search}:{}),...(stock?{assetUid:canonicalBytes32(stock,'Stock')}: {})};
+}
+async function refreshExploreRankings():Promise<void>{
+ if(!foundation||foundation.direct||exploreLiveRequest||currentPage()!=='markets')return;
+ const capDue=Date.now()-exploreLastCapCheck>=30_000;
+ const phases=([0,1] as const).filter(phase=>exploreQuery(phase).sort==='recentBuy_desc'||(capDue&&exploreQuery(phase).sort==='marketCapUsd_desc'&&exploreVisiblePage[phase]===1));
+ if(!phases.length)return;
+ if(capDue)exploreLastCapCheck=Date.now();
+ const controller=new AbortController(),generation=exploreLiveGeneration;exploreLiveRequest=controller;
+ const timeout=setTimeout(()=>controller.abort(),8000);
+ try{for(const phase of phases){
+  const params=exploreQuery(phase),key=JSON.stringify({...params,revision:undefined});
+  const page=await fetchExplorePage(params,undefined,phase===0?40:10,controller.signal);
+  if(controller.signal.aborted||generation!==exploreLiveGeneration||currentPage()!=='markets'||key!==JSON.stringify({...exploreQuery(phase),revision:undefined}))continue;
+  const head=JSON.stringify(page.items.map(m=>[m.marketId,m.lastBuy]));
+  const recent=params.sort==='recentBuy_desc';
+  const visibleHead=JSON.stringify(exploreVisibleRows[phase].map(m=>[m.marketId,m.lastBuy]));
+  const changed=recent?head!==visibleHead:page.ranking?.version!==exploreRankings[phase]?.version||page.ranking?.stale!==exploreRankings[phase]?.stale||page.items.map(m=>m.marketId).join(',')!==exploreVisibleRows[phase].map(m=>m.marketId).join(',');
+  if(!changed){if(recent)exploreRecentHead=head;continue;}
+  const grid=query<HTMLElement>(`[data-stage-grid="${phase}"]`);
+  const interacting=!!grid?.matches(':hover')||!!grid?.contains(document.activeElement)||grid?.getAttribute('aria-busy')==='true';
+  if(exploreVisiblePage[phase]>1||interacting){if(recent&&head!==exploreRecentHead){const button=query<HTMLButtonElement>('[data-new-buys]');if(button)button.hidden=false;}continue;}
+  if(explorePagers[phase].adoptFirstPage(params,page)){if(recent){exploreRecentHead=head;const button=query<HTMLButtonElement>('[data-new-buys]');if(button)button.hidden=true;}await renderExploreStage(phase);}
+ }}catch{/* Existing rows and timestamps remain visible until the next successful read. */}
+ finally{clearTimeout(timeout);if(exploreLiveRequest===controller)exploreLiveRequest=null;}
+}
+function reconcileExploreStages():void{
+ for(const phase of [0,1] as const){
+  const removed=new Set(exploreVisibleRows[phase].filter(m=>{const stat=exploreStatistics[m.marketId];return stat&&stat.memeToken===m.memeToken&&stat.quoteAsset===m.quoteAsset&&['0','1'].includes(stat.launchPhase??'')&&stat.launchPhase!==String(phase)&&Number.isSafeInteger(stat.observedAt)&&stat.observedAt>=Number(m.display?.asOfTimestamp??0)&&Date.now()/1000-stat.observedAt<1200;}).map(m=>m.marketId));
+  if(!removed.size)continue;explorePagers[phase].removeMarkets(removed);exploreVisibleRows[phase]=exploreVisibleRows[phase].filter(m=>!removed.has(m.marketId));
+  for(const id of removed)query<HTMLElement>(`[data-runtime-market="${id}"]`)?.remove();
+  text(`[data-stage-count="${phase}"]`,String(exploreVisibleRows[phase].length));exploreLastCapCheck=0;
+ }
+}
 const explorePagers={0:createExplorePager<MarketReadModel>(40,fetchExplorePage),1:createExplorePager<MarketReadModel>(10,fetchExplorePage)};
 const explorePageGeneration={0:0,1:0};
 const exploreRenderedPages={0:"",1:""};
-function resetExplorePages(){exploreFrozenRows.clear();explorePagers[0].reset();explorePagers[1].reset();explorePageGeneration[0]++;explorePageGeneration[1]++;}
+function resetExplorePages(){exploreLiveGeneration++;exploreLiveRequest?.abort();exploreLiveRequest=null;exploreRecentHead="";exploreRankings[0]=undefined;exploreRankings[1]=undefined;exploreFrozenRows.clear();explorePagers[0].reset();explorePagers[1].reset();explorePageGeneration[0]++;explorePageGeneration[1]++;}
 function clearMarketDirectoryView(resetPages=true):void {
  exploreRenderedPages[0]="";exploreRenderedPages[1]="";
  if(resetPages)resetExplorePages();
@@ -1420,6 +1461,7 @@ function exploreIdentity(market:MarketReadModel):Promise<ExploreIdentity>{
 }
 
 function setupMarkets(): void {
+  query<HTMLButtonElement>('[data-new-buys]')?.addEventListener('click',()=>{explorePagers[0].reset();exploreVisiblePage[0]=1;exploreRecentHead='';const button=query<HTMLButtonElement>('[data-new-buys]');if(button)button.hidden=true;void renderExploreStage(0);});
   let searchTimer:number|undefined;
   for(const selector of ['[data-market-search]','[data-market-stock-search]'])query<HTMLInputElement>(selector)?.addEventListener('input',()=>{window.clearTimeout(searchTimer);searchTimer=window.setTimeout(()=>{if(currentPage()==='markets')void renderMarkets();},250);});
   query<HTMLButtonElement>('[data-market-reset]')?.addEventListener('click',()=>{
@@ -1476,6 +1518,10 @@ async function renderExploreStage(phase:0|1,direction:'current'|'next'|'previous
   const page=await explorePagers[phase].load(params,direction);
   if(!page||generation!==explorePageGeneration[phase]||!grid.isConnected)return;
   exploreVisiblePage[phase]=page.page;
+  exploreRankings[phase]=page.ranking;
+  if(phase===0){const button=query<HTMLButtonElement>('[data-new-buys]');if(sort!=='recentBuy_desc'&&button)button.hidden=true;if(sort==='recentBuy_desc'&&page.page===1)exploreRecentHead=JSON.stringify(page.items.map(m=>[m.marketId,m.lastBuy]));}
+  const note=query<HTMLElement>(`[data-ranking-note="${phase}"]`);
+  if(note){note.hidden=sort!=='marketCapUsd_desc';note.textContent='Ranking updates every 20 minutes'+(page.ranking?.updatedAt?` · ${page.ranking.stale?'Update delayed · ':''}Updated ${new Date(page.ranking.updatedAt).toLocaleTimeString()}`:'');}
   if(page.recovered)setPageStatus('The market list has updated. Showing the first page.');
   const filtered=page.items;
   exploreVisibleRows[phase]=filtered;
@@ -6220,7 +6266,7 @@ function startSnapshotUpdates(): void {
         invalidateSnapshotReads(currentPage() === 'trade',currentPage() === 'markets');
         const recentChanged=update.recentVersion!==undefined&&update.recentVersion!==recentMarketVersion;
         recentMarketVersion=update.recentVersion;
-        if(recentChanged&&currentPage()==='markets')for(const phase of [0,1] as const)if(exploreVisiblePage[phase]===1)explorePagers[phase].refreshFirstPage();
+        if(recentChanged&&currentPage()==='markets'&&exploreVisiblePage[0]===1&&!['marketCapUsd_desc','recentBuy_desc'].includes(query<HTMLElement>('[data-growing-sort][aria-pressed="true"]')?.dataset.growingSort??''))explorePagers[0].refreshFirstPage();
         foundation = next;
         foundationError = "";
         analyticsRefresh.request();
@@ -6431,11 +6477,12 @@ if(import.meta.hot)import.meta.hot.dispose(()=>{if(directDirectoryTimer)clearInt
 
 const exploreStatisticsTimer=setInterval(()=>{
  if(currentPage()!=='markets'||document.hidden)return;
+ void refreshExploreRankings();
  void refreshExploreStatistics().then(changed=>{
   if(currentPage()!=='markets')return;
   applyExploreStatistics();
  });
-},20_000);
+},2_000);
 if(import.meta.hot)import.meta.hot.dispose(()=>clearInterval(exploreStatisticsTimer));
 
 const statsPageTimer=setInterval(()=>{if(currentPage()==="stats"&&!document.hidden){void renderStats();analyticsRefresh.request();}},20*60_000);

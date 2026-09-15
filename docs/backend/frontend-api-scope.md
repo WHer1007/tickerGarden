@@ -14,13 +14,13 @@
 
 ## 正式 Read API caller
 
-本节 Read API 只允许 `GET`；Content 上传和 Pipeline 创建交易通知的 `POST` 调用在下一节单独列出。生成契约的正常响应为下表 schema；错误码和完整字段以 baseline 锁定的 OpenAPI 为准。分页的 `revision`、`cursor`、`limit` 与筛选条件不可跨 publication 混用。
+本节 Read API 只允许 `GET`；Content 上传和 Pipeline 创建交易通知的 `POST` 调用在下一节单独列出。生成契约的正常响应为下表 schema；错误码和完整字段以 baseline 锁定的 OpenAPI 为准。普通目录分页的 `revision`、`cursor`、`limit` 与筛选条件不可跨 publication 混用。Explore 的两种排名独立管理游标：市值游标固定后台 20 分钟排名版本，Recent buys 游标固定最后买入位置；两者返回当前 finalized 项目详情，不能用于交易授权。
 
 | 路径与 query | 响应 schema / 关键约束 | caller 与页面 | 任务 |
 | --- | --- | --- | --- |
 | `/health` | `HealthResponse`；`executionSpecId/status/sync` | `app.ts` 启动、重连、可见性恢复 | TS-01/05 |
 | `/v1/config/{kind}?revision&limit&cursor` | `ConfigPage`；kind=`asset/quote/baseline/template`，`items/nextCursor/sync` | `app.ts:loadConfigDirectory`，全站/Create | TS-06 |
-| `/v1/markets?assetUid&marketId&memeToken&launchPhase&search&createdFrom&createdTo&sort&revision&limit&cursor` | `MarketPage`；`items/nextCursor/sync` | `app.ts` 基础目录、Home、Explore | TS-06 |
+| `/v1/markets?assetUid&marketId&memeToken&launchPhase&search&createdFrom&createdTo&sort&revision&limit&cursor` | `MarketPage`；`items/nextCursor/sync`，排名排序另含 `ranking` | `app.ts` 基础目录、Home、Explore | TS-06 |
 | `/v1/markets/{marketId}?revision` | `MarketDetailResponse`；`market/sync` | `app.ts` Trade、Stake、Claim 市场解析 | TS-06/07/09/10 |
 | `/v1/market-statistics?markets` | `MarketStatisticsResponse`；`registry/items/observedAt` | `app.ts` 和 `v1/marketOverview.ts`，Home/Explore/Trade | TS-08 |
 | `/v1/prices/references` | `DisplayPriceResponse`；`status/confidence/references/expiresAt` | `app.ts`、`v1/displayPrices.ts` | TS-08 |
@@ -75,3 +75,11 @@
 ## Wallet snapshot rewards
 
 `GET /v1/holder-snapshots?chainId&distributor&marketId&account&cursor` supplies finalized, display-only published round proofs and independent claimed-asset masks. It is included in the current OpenAPI 5.1.0, uses no-store, and returns 503 for missing or corrupt proof archives. See [backend operations](../operations/HOLDER_SNAPSHOT_BACKEND.md).
+
+## Explore 排名维护
+
+`0015_explore_rankings` 增加仅用于展示的最近买入索引及市值排名快照。买入记录随已确认交易写入事务增量更新；重复/较旧事件不会置顶，内部兑换与零额交易不参与，交易移除、分类变化和链重组会修正受影响项目。Recent buys 只列出有符合条件买入的项目，动态游标不保证遍历覆盖全部项目。
+
+市值榜复用 Pipeline `/internal/dispatch` 的现有每分钟调度，按 UTC 20 分钟桶去重生成；价格刷新入口也可触发同一幂等函数。无需新增 Preview cron 或常驻服务。构建成功原子发布、失败保留上次结果；成功构建时清理两小时前的旧版本。Read API 对这些表只读，Pipeline 可写。排名不依赖浏览器触发，不读取即时 RPC。
+
+发布次序为：在测试数据库应用迁移与权限，生成初始市值排名，发布 Pipeline/Read API/Web 候选版，验收 `sin1` 后切换测试别名。生产须另行批准，不能使用测试数据库或 release。

@@ -31,7 +31,7 @@ test('Explore starts with one loading message and keeps error recovery in its li
 
 test('Explore uses the finalized paged directory in production and an explicit local integration adapter', () => {
   assert.match(app, /listMarkets\(\{\.\.\.params,includeRecent:true,limit,\.\.\.\(cursor\?\{cursor\}:\{\}\)\}\)/);
-  assert.match(app, /if\(!foundation\.direct\)assertFinalizedSync\(page\.sync,params\.revision,'explore page'\)/);
+  assert.match(app, /if\(!foundation\.direct\)assertFinalizedSync\(page\.sync,\['marketCapUsd_desc','recentBuy_desc'\]\.includes\(params\.sort\?\?''\)\?page\.sync\.revision:params\.revision,'explore page'\)/);
   assert.match(app, /if\(markets\.length===0\)return false/);
   assert.match(app, /pageDirectExplore\(foundation\.markets,unversioned,cursor,limit\)/);
   const refresh = app.slice(app.indexOf('async function refreshDirectDirectory('), app.indexOf('let directDirectoryTimer:'));

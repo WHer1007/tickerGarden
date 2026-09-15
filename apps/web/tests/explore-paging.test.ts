@@ -242,6 +242,60 @@ test("ordinary errors do not trigger recovery", async () => {
   assert.equal(calls, 1);
 });
 
+test("ranking revisions keep the current page while other sorts retain reset behavior", async () => {
+  const seen: Array<{ revision?: string; cursor?: string }> = [];
+  const pager = createExplorePager<Item>(1, async (query, cursor) => {
+    seen.push({ revision: query.revision, cursor });
+    return cursor ? page(["second"]) : page(["first"], "next");
+  });
+  await pager.load({ sort: "marketCapUsd_desc", revision: "one" });
+  assert.equal((await pager.load({ sort: "marketCapUsd_desc", revision: "one" }, "next"))?.page, 2);
+  assert.equal((await pager.load({ sort: "marketCapUsd_desc", revision: "two" }))?.page, 2);
+  assert.equal((await pager.load({ sort: "recentBuy_desc", revision: "three" }))?.page, 1);
+  assert.deepEqual(seen, [
+    { revision: "one", cursor: undefined },
+    { revision: "one", cursor: "next" },
+    { revision: "three", cursor: undefined },
+  ]);
+});
+
+test("ranking metadata survives fetch and load", async () => {
+  const ranking = { mode: "market-cap-snapshot" as const, version: "v2", updatedAt: "2026-09-15T00:00:00.000Z", refreshSeconds: 1200, stale: false };
+  const pager = createExplorePager<Item>(10, async () => ({ ...page(["a"]), ranking }));
+  const loaded = await pager.load({ sort: "marketCapUsd_desc" });
+  assert.deepEqual(loaded?.ranking, ranking);
+});
+
+test("adoptFirstPage only replaces an idle visible first page", async () => {
+  const pager = createExplorePager<Item>(10, async () => page(["old"], "next"));
+  await pager.load({ sort: "marketCapUsd_desc", revision: "one" });
+  assert.equal(pager.adoptFirstPage({ sort: "marketCapUsd_desc", revision: "two" }, { ...page(["new"], "adopt-next"), ranking: { mode: "market-cap-snapshot" as const, version: "3", updatedAt: "now", refreshSeconds: 1200, stale: false } }), true);
+  assert.deepEqual((await pager.load({ sort: "marketCapUsd_desc", revision: "two" }))?.items, [{ marketId: "new" }]);
+  await pager.load({ sort: "marketCapUsd_desc", revision: "two" }, "next");
+  assert.equal(pager.adoptFirstPage({ sort: "marketCapUsd_desc", revision: "three" }, { ...page(["nope"], "next"), ranking: { mode: "market-cap-snapshot" as const, version: "4", updatedAt: "now", refreshSeconds: 1200, stale: false } }), false);
+});
+
+test("removeMarkets removes ids from every cached page without changing page number", async () => {
+  const pager = createExplorePager<Item>(2, async (_query, cursor) => cursor ? page(["c", "d"]) : page(["a", "b"], "next"));
+  await pager.load({ sort: "marketCapUsd_desc" });
+  await pager.load({ sort: "marketCapUsd_desc" }, "next");
+  pager.removeMarkets(new Set(["a", "c"]));
+  assert.deepEqual((await pager.load({ sort: "marketCapUsd_desc" }))?.items, [{ marketId: "d" }]);
+  assert.equal((await pager.load({ sort: "marketCapUsd_desc" }, "previous"))?.page, 1);
+  assert.deepEqual((await pager.load({ sort: "marketCapUsd_desc" }, "next"))?.items, [{ marketId: "d" }]);
+});
+
+test("adoptFirstPage rejects while a page request is in flight", async () => {
+  let resolve!: (value: ReturnType<typeof page>) => void;
+  const pending = new Promise<ReturnType<typeof page>>(r => { resolve = r; });
+  const pager = createExplorePager<Item>(10, async (_query, cursor) => cursor ? pending : page(["first"], "next"));
+  await pager.load({ sort: "marketCapUsd_desc" });
+  const next = pager.load({ sort: "marketCapUsd_desc" }, "next");
+  assert.equal(pager.adoptFirstPage({ sort: "marketCapUsd_desc" }, { ...page(["new"]), ranking: { mode: "market-cap-snapshot" as const, version: "2", updatedAt: "now", refreshSeconds: 1200, stale: false } }), false);
+  resolve(page(["second"]));
+  await next;
+});
+
 test("a superseded 409 request cannot recover or overwrite the newer query", async () => {
   let rejectOld!: (error: unknown) => void;
   const oldRequest = new Promise<never>((_resolve, reject) => { rejectOld = reject; });

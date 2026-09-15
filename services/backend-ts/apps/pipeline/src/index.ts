@@ -1,3 +1,4 @@
+import { publishMarketCapRanking } from '../../../packages/display-price/src/ranking.ts';
 import { randomUUID } from 'node:crypto';
 import type { Pool } from 'pg';
 import type { Client } from '@upstash/qstash';
@@ -154,6 +155,10 @@ export function createPipelineApp(options: PipelineAppOptions = {}) {
       expectedGeneration: generation,
       ...(env.TG_DATABASE_SCHEMA ? { schemaName: env.TG_DATABASE_SCHEMA } : {}),
     });
+    // The existing minute scheduler also serves Preview, where Vercel cron is not active.
+    // Snapshot work is idempotent per 20-minute bucket and cannot stop queue dispatch.
+    try { const ranking=await publishMarketCapRanking(databasePool(),{environment:environmentName(env.TG_ENVIRONMENT),chainId:46630,deploymentDigest:CURRENT_RELEASE_ID,activationBlock:CURRENT_ACTIVATION_BLOCK},env.TG_DATABASE_SCHEMA);emitMetric(env,{event:'market_cap_ranking',...ranking}); }
+    catch { emitMetric(env,{event:'market_cap_ranking',published:false,reason:'refresh_failed'}); }
     emitMetric(env, { event: 'queue_dispatch', queue: 'chain', ...dispatched });
     return context.json({ repaired, dispatched });
   });
@@ -183,6 +188,7 @@ export function createPipelineApp(options: PipelineAppOptions = {}) {
       url: env.TG_SECONDARY_RPC_URL ?? '', provider: 'display-price-secondary', observe: (metric) => emitMetric(env, metric),
     }) });
     await storePriceReferences(databasePool(), deployment, references, env.TG_DATABASE_SCHEMA);
+    await publishMarketCapRanking(databasePool(), deployment, env.TG_DATABASE_SCHEMA);
     emitMetric(env, { event: 'price_refresh', targets: references.length, available: references.filter((item) => item.status === 'available').length });
     return context.json({ refreshed: references.length, available: references.filter((item) => item.status === 'available').length });
   });

@@ -1,4 +1,3 @@
-import { latestPrices, preferredPrices } from '../../display-price/src/read.ts';
 import { createHash, createHmac, timingSafeEqual } from 'node:crypto';
 import type { Pool } from 'pg';
 import type { DeploymentIdentity } from '../../chain/src/index.ts';
@@ -31,7 +30,7 @@ export function encodeCursor(payload: Omit<CursorPayload, 'v'>, secret: string):
   return `${encoded}.${signature}`;
 }
 
-export function decodeCursor(cursor: string, expected: { scope: string; revision: string; filterDigest: string }, secret: string): CursorPayload {
+export function decodeCursor(cursor: string, expected: { scope: string; revision?: string; filterDigest: string }, secret: string): CursorPayload {
   assertCursorSecret(secret);
   const [encoded, signature, extra] = cursor.split('.');
   if (!encoded || !signature || extra) throw new PublicationChangedError('cursor is malformed');
@@ -43,8 +42,8 @@ export function decodeCursor(cursor: string, expected: { scope: string; revision
   try { payload = JSON.parse(Buffer.from(encoded, 'base64url').toString('utf8')); } catch { throw new PublicationChangedError('cursor payload is invalid'); }
   if (!payload || typeof payload !== 'object') throw new PublicationChangedError('cursor payload is invalid');
   const value = payload as Partial<CursorPayload>;
-  if (value.v !== 1 || value.scope !== expected.scope || value.revision !== expected.revision || value.filterDigest !== expected.filterDigest
-    || typeof value.sortKey !== 'string' || typeof value.identity !== 'string') throw new PublicationChangedError('cursor does not belong to this page');
+  if (value.v !== 1 || value.scope !== expected.scope || (expected.revision !== undefined && value.revision !== expected.revision) || value.filterDigest !== expected.filterDigest
+    || typeof value.revision !== 'string' || typeof value.sortKey !== 'string' || typeof value.identity !== 'string') throw new PublicationChangedError('cursor does not belong to this page');
   return value as CursorPayload;
 }
 
@@ -96,29 +95,16 @@ export interface MarketPageFilter {
 export async function readPublishedMarketPage(input: {
   readonly pool: Pool; readonly deployment: DeploymentIdentity; readonly filter: MarketPageFilter; readonly secret: string;
   readonly includeRecent?: boolean; readonly revision?: string; readonly cursor?: string; readonly limit?: number; readonly schemaName?: string;
-}): Promise<{ items: Json[]; nextCursor: string | null; sync: SyncStatus }> {
+}): Promise<{ items: Json[]; nextCursor: string | null; sync: SyncStatus; ranking?: ExploreRankingInfo }> {
   const limit = input.limit ?? 50;
   if (!Number.isSafeInteger(limit) || limit < 1 || limit > 100) throw new Error('limit must be between 1 and 100');
   validateMarketFilter(input.filter);
   const schema = identifier(input.schemaName ?? 'tickergarden_serverless');
+  if(input.filter.sort==='marketCapUsd_desc'||input.filter.sort==='recentBuy_desc')return readRankedMarketPage(input);
   const publication = await resolvePublication(input.pool, schema, input.deployment, 'markets', input.revision);
   const canonicalFilter = marketFilterJson(input.filter);
   const recentVersion = input.includeRecent ? await readRecentMarketVersion(input) : undefined;
-  // Rank before pagination using observed values, never optional fields in the
-  // market payload. Bind changing display inputs to the signed cursor as well.
-  const capSort = input.filter.sort === 'marketCapUsd_desc';
-  const buySort = input.filter.sort === 'recentBuy_desc';
-  const priceNow = new Date();
-  const prices = capSort ? [...preferredPrices(await latestPrices(input.pool,input.deployment,priceNow,input.schemaName),priceNow).values()]
-    .filter(p=>p.status==='available'&&p.bidUsd&&p.askUsd)
-    .map(p=>({asset:p.token,bid:p.bidUsd!,ask:p.askUsd!,asOf:p.asOf,expiresAt:p.expiresAt,source:p.source})) : [];
-  const analytics = buySort ? (await input.pool.query<{revision:string;number:string}>(`SELECT c.last_revision revision,b.number::text number
-    FROM ${schema}.projection_checkpoints c JOIN ${schema}.chain_blocks b ON b.environment=c.environment AND b.chain_id=c.chain_id AND b.deployment_digest=c.deployment_digest
-    AND b.number=c.next_block-1 AND c.last_revision=b.number::text||':'||b.hash
-    WHERE c.environment=$1 AND c.chain_id=$2 AND c.deployment_digest=$3 AND c.scope='analytics' AND b.canonical AND b.finalized`,
-    [input.deployment.environment,input.deployment.chainId,input.deployment.deploymentDigest])).rows[0] : undefined;
-  const filterDigest = digest({filter:canonicalFilter,...(input.includeRecent?{recentVersion:recentVersion??''}:{}),
-    ...(capSort?{prices}:{}),...(buySort?{analytics:analytics?.revision??null}:{})});
+  const filterDigest = digest(input.includeRecent ? {filter:canonicalFilter,recentVersion:recentVersion??''} : canonicalFilter);
   const after = input.cursor ? decodeCursor(input.cursor, { scope: 'markets', revision: publication.revision, filterDigest }, input.secret) : undefined;
   const sort = marketSort(input.filter.sort ?? 'marketId_asc');
   if (after && after.sortKey !== 'n:' && !after.sortKey.startsWith('v:')) throw new PublicationChangedError('market cursor sort value is invalid');
@@ -129,21 +115,13 @@ export async function readPublishedMarketPage(input: {
     input.filter.assetUid ?? null, input.filter.marketId ?? null, input.filter.memeToken ?? null, input.filter.launchPhase ?? null,
     input.filter.search?.toLocaleLowerCase() ?? null, input.filter.createdFrom ?? null, input.filter.createdTo ?? null,
     after?.identity ?? null, cursorValue, limit + 1, cursorMissing,
-    JSON.stringify(prices),analytics ? (BigInt(analytics.number)<publication.blockNumber?analytics.number:publication.blockNumber.toString()) : null,
   ];
   const afterClause = `AND ($13::text IS NULL
     OR ($16::boolean AND order_value IS NULL AND identity>$13)
     OR (NOT $16::boolean AND ((order_value IS NOT NULL AND (order_value ${sort.direction === 'ASC' ? '>' : '<'} $14::${sort.cast}
       OR (order_value=$14::${sort.cast} AND identity>$13))) OR order_value IS NULL)))`;
-  const pricedPayload = `r.payload || jsonb_build_object('metrics',jsonb_build_object('quoteUsdMidpoint',((p.bid+p.ask)/2)::text,'marketCapUsd',
-    CASE WHEN (r.payload->'display'->>'priceQuote') ~ '^(0|[1-9][0-9]*)(\\.[0-9]+)?$'
-      AND (r.payload->'display'->>'totalSupplyRaw') ~ '^[0-9]+$' AND p.bid IS NOT NULL
-      THEN ((r.payload->'display'->>'totalSupplyRaw')::numeric / 1000000000000000000::numeric
-        * (r.payload->'display'->>'priceQuote')::numeric * (p.bid+p.ask)/2)::text ELSE NULL END))`;
-  const rowsPayload = capSort ? pricedPayload : buySort ? `CASE WHEN buy.position IS NULL THEN r.payload-'lastBuy' ELSE r.payload || jsonb_build_object('lastBuy',buy.position) END` : 'r.payload';
   const records = await input.pool.query<{ identity: string; payload: Json; order_text: string | null }>(
-    `WITH price_inputs AS (SELECT * FROM jsonb_to_recordset($17::jsonb) p(asset text,bid numeric,ask numeric)),
-     market_rows AS (
+    `WITH market_rows AS (
        SELECT r.identity,r.payload FROM ${schema}.projection_read_records r
        JOIN ${schema}.chain_blocks b ON b.environment=r.environment AND b.chain_id=r.chain_id AND b.deployment_digest=r.deployment_digest AND b.hash=$4
        WHERE r.environment=$1 AND r.chain_id=$2 AND r.deployment_digest=$3 AND r.scope='markets' AND r.revision=$5 AND b.canonical AND b.finalized
@@ -151,19 +129,9 @@ export async function readPublishedMarketPage(input: {
        WHERE recent.environment=$1 AND recent.chain_id=$2 AND recent.deployment_digest=$3 AND recent.canonical AND recent.expires_at>now()
          AND recent.block_number>${publication.blockNumber}
          AND NOT EXISTS(SELECT 1 FROM ${schema}.projection_read_records existing WHERE existing.environment=$1 AND existing.chain_id=$2 AND existing.deployment_digest=$3 AND existing.scope='markets' AND existing.revision=$5 AND existing.identity=recent.market_id)` : ''}
-     ), ranked_rows AS (
-       SELECT r.identity,${rowsPayload} payload FROM market_rows r
-       LEFT JOIN price_inputs p ON p.asset=r.payload->>'quoteAsset'
-       ${buySort ? `LEFT JOIN LATERAL (
-         SELECT jsonb_build_object('blockNumber',b.number::text,'transactionIndex',t.payload->'source'->>'transactionIndex','logIndex',t.log_index::text,'timestamp',t.payload->>'timestamp') position
-         FROM ${schema}.market_trades t JOIN ${schema}.chain_blocks b ON b.environment=t.environment AND b.chain_id=t.chain_id AND b.deployment_digest=t.deployment_digest AND b.hash=t.block_hash
-         WHERE t.environment=$1 AND t.chain_id=$2 AND t.deployment_digest=$3 AND t.market_id=r.identity AND t.payload->>'side'='buy'
-           AND b.canonical AND b.finalized AND b.number<=$18::bigint
-         ORDER BY b.number DESC,(t.payload->'source'->>'transactionIndex')::bigint DESC,t.log_index DESC LIMIT 1
-       ) buy ON true` : `LEFT JOIN (SELECT $18::bigint unused) bound ON true`}
      ), candidates AS (
        SELECT r.identity,r.payload,${sort.expression} AS order_value
-       FROM ranked_rows r WHERE true
+       FROM market_rows r WHERE true
          AND ($6::text IS NULL OR r.payload->>'assetUid'=$6)
          AND ($7::text IS NULL OR r.payload->>'marketId'=$7)
          AND ($8::text IS NULL OR r.payload->>'memeToken'=$8)
@@ -181,19 +149,47 @@ export async function readPublishedMarketPage(input: {
     scope: 'markets', revision: publication.revision, filterDigest,
     sortKey: last.order_text === null ? 'n:' : `v:${last.order_text}`, identity: last.identity,
   }, input.secret) : null;
-  const priceByAsset=new Map(prices.map(p=>[p.asset,p]));
-  const items=visible.map(row=>{
-    const payload=displayAtPublication(row.payload,publication) as Record<string,Json>;
-    if(!capSort)return payload;
-    const computed=payload.metrics as Record<string,Json>,price=priceByAsset.get(String(payload.quoteAsset) as `0x${string}`);
-    const asOf=publication.asOf??'0';
-    return {...payload,metrics:{...computed,status:computed.marketCapUsd===null?'unavailable':'available',
-      reason:computed.marketCapUsd===null?'valuation_inputs_unavailable':'historical_usd_coverage_unavailable',volume24hUsd:null,
-      windowFromTimestamp:String(BigInt(asOf)>86400n?BigInt(asOf)-86400n:0n),asOfTimestamp:asOf,
-      usdPriceAsOf:price?.asOf??null,usdPriceSource:price?.source??null,
-      volumeBasis:'EXTERNAL_EXECUTIONS_CURVE_EXCLUDING_FEE_TAX_OR_POOL_CORE',marketCapBasis:'TOTAL_SUPPLY_X_FINALIZED_SPOT_X_QUOTE_USD'}};
-  });
-  return { items, nextCursor, sync: await syncForPublication(input.pool, schema, input.deployment, publication) };
+  return { items: visible.map(row=>displayAtPublication(row.payload,publication)), nextCursor, sync: await syncForPublication(input.pool, schema, input.deployment, publication) };
+}
+
+export interface ExploreRankingInfo { readonly mode:'market-cap-snapshot'|'recent-buys';readonly version:string;readonly updatedAt:string|null;readonly refreshSeconds:number;readonly stale:boolean; }
+async function readRankedMarketPage(input:Parameters<typeof readPublishedMarketPage>[0]):Promise<{items:Json[];nextCursor:string|null;sync:SyncStatus;ranking:ExploreRankingInfo}>{
+ const schema=identifier(input.schemaName??'tickergarden_serverless'),id=deploymentIdentity(input.deployment),limit=input.limit??50;
+ if(input.revision&&!/^[0-9]+:0x[0-9a-f]{64}$/.test(input.revision))throw new PublicationChangedError('requested revision is invalid');
+ // Ranking cursors have their own lifetime; details always use the latest finalized publication.
+ const publication=await resolvePublication(input.pool,schema,input.deployment,'markets');
+ const cap=input.filter.sort==='marketCapUsd_desc',filterDigest=digest({deployment:id,filter:marketFilterJson(input.filter),version:2});
+ const after=input.cursor?decodeCursor(input.cursor,{scope:'explore-ranking',filterDigest,...(!cap?{revision:'recent-buys-v2'}:{})},input.secret):undefined;
+ if(after&&!/^(0|[1-9][0-9]*)$/.test(after.sortKey))throw new PublicationChangedError('invalid ranking cursor position');
+ let version='recent-buys-v2',updatedAt:string|null=null,stale=false;
+ if(cap){
+  const snapshot=(await input.pool.query<{version:string;created_at:Date}>(`SELECT r.version,r.created_at FROM ${schema}.market_cap_snapshots r JOIN ${schema}.chain_blocks b ON b.environment=r.environment AND b.chain_id=r.chain_id AND b.deployment_digest=r.deployment_digest AND b.hash=r.block_hash WHERE r.environment=$1 AND r.chain_id=$2 AND r.deployment_digest=$3 AND ($4::text IS NULL OR r.version=$4) AND b.canonical AND b.finalized ORDER BY r.scheduled_at DESC,r.created_at DESC LIMIT 1`,[...id,after?.revision??null])).rows[0];
+  if(!snapshot){if(after)throw new PublicationChangedError('ranking expired');throw new PublicationUnavailableError('market cap ranking is preparing');}
+  version=snapshot.version;updatedAt=snapshot.created_at.toISOString();stale=Date.now()-snapshot.created_at.getTime()>25*60*1000;
+ }
+ const f=input.filter;
+ const params=[...id,publication.revision,version,after?.sortKey??null,after?.identity??null,limit+1,f.assetUid??null,f.marketId??null,f.memeToken??null,f.launchPhase??null,f.search?.toLocaleLowerCase()??null,f.createdFrom??null,f.createdTo??null];
+ const order=cap?'b.rank':'b.position',direction=cap?'ASC':'DESC';
+ const marketLookup=publication.storage==='market-versions-v1'
+  ? `SELECT m.payload FROM ${schema}.market_record_versions m WHERE m.environment=$1 AND m.chain_id=$2 AND m.deployment_digest=$3 AND m.generation=${BigInt(publication.generation!)} AND m.identity=b.market_id AND m.valid_from<=${publication.blockNumber} AND (m.valid_to IS NULL OR m.valid_to>${publication.blockNumber}) AND $4::text IS NOT NULL LIMIT 1`
+  : `SELECT m.payload FROM ${schema}.projection_records m WHERE m.environment=$1 AND m.chain_id=$2 AND m.deployment_digest=$3::${schema}.hash32 AND m.scope='markets' AND m.revision=$4 AND m.identity=b.market_id LIMIT 1`;
+ const records=await input.pool.query<{market_id:string;sort_key:string;payload:Json}>(`SELECT b.market_id,${order}::text sort_key,
+  ${cap?"r.payload || jsonb_build_object('metrics',b.metrics)":"r.payload || jsonb_build_object('lastBuy',b.payload)"} payload
+  FROM ${schema}.${cap?'market_cap_ranks':'market_latest_buys'} b
+  JOIN LATERAL(${marketLookup}) r ON true
+  WHERE b.environment=$1 AND b.chain_id=$2 AND b.deployment_digest=$3
+  ${cap?'AND b.version=$5':'AND $5::text=\'recent-buys-v2\''}
+  AND ($6::numeric IS NULL OR ${order}${cap?'>':'<'}$6 OR (${order}=$6 AND b.market_id>$7))
+  AND ($9::text IS NULL OR ${cap?'b.asset_uid':"r.payload->>'assetUid'"}=$9)
+  AND ($10::text IS NULL OR b.market_id=$10) AND ($11::text IS NULL OR r.payload->>'memeToken'=$11)
+  AND ($12::int IS NULL OR (r.payload->>'launchPhase')::int=$12)
+  AND ($13::text IS NULL OR ${schema}.market_search_text(r.payload) LIKE '%'||$13||'%')
+  AND ($14::numeric IS NULL OR (r.payload->'identity'->>'deployedAt')::numeric>=$14)
+  AND ($15::numeric IS NULL OR (r.payload->'identity'->>'deployedAt')::numeric<=$15)
+  ORDER BY ${order} ${direction},b.market_id ASC LIMIT $8`,params);
+ const visible=records.rows.slice(0,limit),last=visible.at(-1);
+ const nextCursor=records.rows.length>limit&&last?encodeCursor({scope:'explore-ranking',revision:version,filterDigest,sortKey:last.sort_key,identity:last.market_id},input.secret):null;
+ return {items:visible.map(row=>displayAtPublication(row.payload,publication)),nextCursor,sync:await syncForPublication(input.pool,schema,input.deployment,publication),ranking:{mode:cap?'market-cap-snapshot':'recent-buys',version,updatedAt,refreshSeconds:cap?1200:2,stale}};
 }
 
 export async function readPublishedRecord(input: {
@@ -418,17 +414,17 @@ export async function readPublishedSync(input: {
   return syncForPublication(input.pool, schema, input.deployment, publication);
 }
 
-async function resolvePublication(pool: Pool, schema: string, deployment: DeploymentIdentity, scope: string, requested?: string): Promise<{ revision: string; blockNumber: bigint; blockHash: `0x${string}`;storage?:string;asOf?:string }> {
+async function resolvePublication(pool: Pool, schema: string, deployment: DeploymentIdentity, scope: string, requested?: string): Promise<{ revision: string; blockNumber: bigint; blockHash: `0x${string}`;storage?:string;generation?:string;asOf?:string }> {
   if (requested && !/^[0-9]+:0x[0-9a-f]{64}$/.test(requested)) throw new PublicationChangedError('requested revision is invalid');
-  const result = await pool.query<{ revision: string; block_number: string; block_hash: `0x${string}`;storage:string;as_of:string }>(
+  const result = await pool.query<{ revision: string; block_number: string; block_hash: `0x${string}`;storage:string;generation:string;as_of:string }>(
     requested
-      ? `SELECT p.revision,p.block_number,p.block_hash,p.payload->>'storage' storage,extract(epoch FROM b.source_timestamp)::bigint::text as_of FROM ${schema}.publications p JOIN ${schema}.chain_blocks b ON b.environment=p.environment AND b.chain_id=p.chain_id AND b.deployment_digest=p.deployment_digest AND b.hash=p.block_hash WHERE p.environment=$1 AND p.chain_id=$2 AND p.deployment_digest=$3 AND p.scope=$4 AND p.revision=$5 AND b.canonical AND b.finalized`
-      : `SELECT p.revision,p.block_number,p.block_hash,p.payload->>'storage' storage,extract(epoch FROM b.source_timestamp)::bigint::text as_of FROM ${schema}.publication_pointers pointer JOIN ${schema}.publications p USING(environment,chain_id,deployment_digest,scope,revision) JOIN ${schema}.chain_blocks b ON b.environment=p.environment AND b.chain_id=p.chain_id AND b.deployment_digest=p.deployment_digest AND b.hash=p.block_hash WHERE pointer.environment=$1 AND pointer.chain_id=$2 AND pointer.deployment_digest=$3 AND pointer.scope=$4 AND b.canonical AND b.finalized`,
+      ? `SELECT p.revision,p.block_number,p.block_hash,p.generation,p.payload->>'storage' storage,extract(epoch FROM b.source_timestamp)::bigint::text as_of FROM ${schema}.publications p JOIN ${schema}.chain_blocks b ON b.environment=p.environment AND b.chain_id=p.chain_id AND b.deployment_digest=p.deployment_digest AND b.hash=p.block_hash WHERE p.environment=$1 AND p.chain_id=$2 AND p.deployment_digest=$3 AND p.scope=$4 AND p.revision=$5 AND b.canonical AND b.finalized`
+      : `SELECT p.revision,p.block_number,p.block_hash,p.generation,p.payload->>'storage' storage,extract(epoch FROM b.source_timestamp)::bigint::text as_of FROM ${schema}.publication_pointers pointer JOIN ${schema}.publications p USING(environment,chain_id,deployment_digest,scope,revision) JOIN ${schema}.chain_blocks b ON b.environment=p.environment AND b.chain_id=p.chain_id AND b.deployment_digest=p.deployment_digest AND b.hash=p.block_hash WHERE pointer.environment=$1 AND pointer.chain_id=$2 AND pointer.deployment_digest=$3 AND pointer.scope=$4 AND b.canonical AND b.finalized`,
     requested ? [deployment.environment, deployment.chainId, deployment.deploymentDigest, scope, requested] : [deployment.environment, deployment.chainId, deployment.deploymentDigest, scope],
   );
   const row = result.rows[0];
   if (!row) throw requested ? new PublicationChangedError('requested publication is unavailable') : new PublicationUnavailableError('publication is unavailable');
-  return { revision: row.revision, blockNumber: BigInt(row.block_number), blockHash: row.block_hash,storage:row.storage,asOf:row.as_of };
+  return { revision: row.revision, blockNumber: BigInt(row.block_number), blockHash: row.block_hash,storage:row.storage,generation:row.generation,asOf:row.as_of };
 }
 
 async function isPublicationCanonical(pool: Pool, schema: string, deployment: DeploymentIdentity, scope: string, revision: string): Promise<boolean> {
@@ -528,7 +524,7 @@ export async function readMemeFeeBurns(input: {readonly pool:Pool;readonly deplo
 
 // A temporal publication proves unchanged state through its finalized anchor.
 // Rebase only the display envelope; immutable version data retains RPC provenance.
-function displayAtPublication(payload:Json,publication:{blockNumber:bigint;blockHash:string;storage?:string;asOf?:string}):Json{
+function displayAtPublication(payload:Json,publication:{blockNumber:bigint;blockHash:string;storage?:string;generation?:string;asOf?:string}):Json{
  if(publication.storage!=='market-versions-v1'||!publication.asOf||!payload||typeof payload!=='object'||Array.isArray(payload))return payload;
  const record=payload as Record<string,Json>,display=record.display;
  if(!display||typeof display!=='object'||Array.isArray(display))return payload;

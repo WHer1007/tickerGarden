@@ -175,4 +175,12 @@ Worker 的 SQL 故障/租约/模式切换及批量计数回归位于 backend-ts 
 TG_TEST_DATABASE_URL='<专用 loopback PostgreSQL URL>' node --experimental-strip-types tools/full-local-integration/explore.mjs
 ```
 
-脚本创建并清理独立 schema，构造 120 个合成市场，通过真实 Read API 验证桌面与移动端的双阶段 Stock 筛选、筹资比例、全量市值/最近买入排序、独立分页、409 恢复、搜索、数据延迟提示、Bloom 阶段转换和配置复用。输出位于 `outputs/explore-browser.json` 与 `outputs/explore-browser/`。这项验收没有链上交易，不能替代测试链真实资金流程验证。
+脚本创建并清理独立 schema，构造 120 个合成市场，通过真实 Read API 验证桌面与移动端的双阶段 Stock 筛选、筹资比例、全量市值/最近买入排序、独立分页、价格更新后的稳定市值分页、事件更新置顶、搜索、数据延迟提示、Bloom 阶段转换和配置复用。输出位于 `outputs/explore-browser.json` 与 `outputs/explore-browser/`。这项验收没有链上交易，不能替代测试链真实资金流程验证。
+
+排名规模验证：
+
+```sh
+TG_TEST_DATABASE_URL='<专用 loopback PostgreSQL URL>' node --experimental-strip-types tools/full-local-integration/ranking-capacity.mjs
+```
+
+构造 20,000/50,000 项目，每项目 20 笔历史买入（最终 1,000,000 笔），检验第 100 页无重复、Stock 筛选、搜索、16/64 并发及排名生成耗时，结果写入 `outputs/ranking-capacity.json`。这是本机数据库基准，不代表线上容量；正常运行结束会删除独立 schema。

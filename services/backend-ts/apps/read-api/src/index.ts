@@ -102,11 +102,11 @@ export function createReadApiApp(options: ReadApiOptions = {}) {
         ...(query.search ? { search: query.search.trim() } : {}), ...(query.createdFrom ? { createdFrom: query.createdFrom } : {}),
         ...(query.createdTo ? { createdTo: query.createdTo } : {}), ...(query.sort ? { sort: parseSort(query.sort) } : {}),
       };
-      const page = await readPublishedMarketPage({
+      const page = await shareRead(`markets:${JSON.stringify(query)}`,()=>readPublishedMarketPage({
         pool: pool(), deployment, filter, secret: cursorSecret, includeRecent:parseIncludeRecent(query.includeRecent),
         ...(query.revision ? { revision: query.revision } : {}), ...(query.cursor ? { cursor: query.cursor } : {}),
         ...(query.limit ? { limit: parseLimit(query.limit) } : {}), ...(schemaName ? { schemaName } : {}),
-      });
+      }));
       return context.json(page);
     } catch (error) { return readError(context, error, deployment); }
   });
