@@ -10,7 +10,8 @@ test('Stats contains the requested metrics without old analytics sections',()=>{
 });
 test('Stats summary uses the aggregate endpoint without paging the market directory',()=>{
  const source=fs.readFileSync(new URL('../src/app.ts',import.meta.url),'utf8');
- const body=controllerFunction('renderStats');
+ const sourceController=fs.readFileSync(new URL('../src/controllers/stats.ts',import.meta.url),'utf8');
+ const body=sourceController.slice(sourceController.indexOf('async function renderStats('),sourceController.indexOf('function dispose('));
  assert.match(body,/renderProtocolStatistics/);assert.doesNotMatch(body,/appendMarketPage|refreshExploreStatistics|readContract/);
 });
 test('Stats price updates reuse the snapshot without refetching',()=>{

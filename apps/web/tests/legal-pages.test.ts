@@ -5,7 +5,8 @@ import { test } from "node:test";
 const read = (path: string): string => readFileSync(new URL(path, import.meta.url), "utf8");
 const privacy = read("../src/pages/privacy.ts");
 const terms = read("../src/pages/terms.ts");
-const risks = read("../src/pages/risks.ts");
+import docs from "../src/pages/docs.ts";
+import { resolveRoute } from "../src/routing/routes.ts";
 const app = read("../src/ui/shell.ts");
 const vite = read("../vite.config.js");
 const routes = read("../src/routing/routes.ts");
@@ -21,29 +22,27 @@ function assertLocalAnchorsResolve(page: string): void {
 test("privacy and terms pages expose complete legal-page structure", () => {
   assert.match(privacy, /Privacy Policy/);
   assert.match(terms, /Terms of Use/);
-  assert.match(risks, /Risk information/);
-  assert.match(privacy, /Pre-launch legal draft/);
-  assert.match(terms, /Pre-launch legal draft/);
+  assert.doesNotMatch(privacy, /pre-launch|legal-placeholder|draft|not yet effective|required before launch/i);
+  assert.doesNotMatch(terms, /pre-launch|legal-placeholder|draft|not yet effective|required before launch/i);
   assert.match(privacy, /Public blockchain and distributed records/);
-  assert.match(terms, /Created-token and STOCK relationship/);
-  assert.match(terms, /UserStockVault/);
+  assert.match(terms, /Community tokens and Stock Tokens/);
   assert.match(terms, /Bloomed/);
-  assert.match(terms, /rageQuit/);
+  assert.match(terms, /emergency exit can forfeit unclaimed rewards/i);
+  for (const page of [privacy, terms]) {
+    assert.match(page, /Singapore/);
+    assert.match(page, /href="mailto:info@tickergarden.com"/);
+  }
+  assert.match(terms, /not yet undergone an independent external audit/);
   assert.doesNotMatch(privacy, /\bPons\b/i);
   assert.doesNotMatch(terms, /\bPons\b/i);
   assertLocalAnchorsResolve(privacy);
   assertLocalAnchorsResolve(terms);
-  assertLocalAnchorsResolve(risks);
-  assert.match(risks, /irreversible/);
-  assert.match(risks, /stock ownership/);
-  assert.match(risks, /Smart contracts/);
-  assert.match(risks, /afford to lose/);
 });
 
 test("shared footer exposes product and legal navigation", () => {
-  for (const path of ["/", "/explore", "/create", "/stats", "/claim", "/docs", "/privacy", "/terms", "/risks"]) assert.match(routes, new RegExp(`\\"${path.replace("/", "\\/")}\\"`));
+  for (const path of ["/", "/explore", "/create", "/stats", "/claim", "/docs", "/privacy", "/terms"]) assert.match(routes, new RegExp(`\\"${path.replace("/", "\\/")}\\"`));
   assert.match(app, /aria-label="Footer navigation"/);
-  assert.match(app, /<strong>Legal<\/strong>\$\{footerLink\("privacy", "Privacy", "\/privacy"\)\}\$\{footerLink\("terms", "Terms", "\/terms"\)\}\$\{footerLink\("risks", "Risk", "\/risks"\)\}/);
+  assert.ok(app.includes('<a href="/docs#docs-risks">Risk</a>'));
   assert.match(styles, /\.footer-navigation\{[^}]*grid-template-columns:repeat\(3,minmax\(96px,max-content\)\)[^}]*column-gap:24px[^}]*width:max-content[^}]*padding-top:8px[^}]*justify-self:end/);
 });
 
@@ -74,4 +73,20 @@ test("Vite keeps legal pages in the SPA while allowing route chunking", () => {
   assert.match(vite, /appType:\s*['"]spa['"]/);
   assert.doesNotMatch(vite, /input\s*:|resolve\([^\n]+\.html/);
   assert.match(read("../src/app.ts"), /page === "privacy" \|\| page === "terms"/);
+});
+
+
+test("risk disclosure links resolve in Docs and the standalone route is removed", () => {
+  for (const path of ["/risks", "/risks.html"]) assert.equal(resolveRoute(new URL(path, "https://tickergarden.com")).page, "not-found");
+  assert.doesNotMatch(read("../vercel.json"), /\/risks/);
+  assert.doesNotMatch(vite, /risksPage/);
+  assert.match(docs.html, /not yet undergone an independent external audit/);
+  const ids = new Set(Array.from(docs.html.matchAll(/id="([^"]+)"/g), m => m[1]));
+  assert.ok(ids.has("docs-risks"));
+  for (const page of ["create", "trade", "staking"]) {
+    const source = read(`../src/pages/${page}.ts`);
+    const anchors = [...source.matchAll(/href="\/docs#(risk-[^"]+)"/g)];
+    assert.ok(anchors.length > 0, `${page} has a risk link`);
+    for (const anchor of anchors) assert.ok(ids.has(anchor[1]), anchor[1]);
+  }
 });

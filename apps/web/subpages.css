@@ -605,3 +605,25 @@ body:is([data-page=create],[data-page=stats],[data-page=rewards],[data-page=stak
 
 .docs-toc a[aria-current="location"]{color:var(--ink);background:#e9ede3;font-weight:700;box-shadow:inset 3px 0 var(--green)}
 .docs-toc a[aria-current="location"] i{opacity:1}
+
+.action-risk-note{font-size:12px;line-height:1.6;color:var(--muted);margin:12px 0}.action-risk-note a{color:var(--ink);text-decoration:underline;text-underline-offset:3px}
+
+/* A quiet recovery page, with one clear route back into the garden. */
+.not-found-page{min-height:calc(100svh - 270px);display:grid;place-items:center;padding-block:64px 80px}
+.not-found-content{width:100%;max-width:680px;text-align:center}
+.not-found-code{margin:0;color:#dce3dc;font-size:clamp(100px,16vw,176px);font-weight:750;line-height:1;letter-spacing:-.075em;user-select:none}
+.not-found-eyebrow{margin:24px 0 12px;color:var(--muted);font-size:12px;font-weight:600;letter-spacing:.09em;text-transform:uppercase}
+.not-found-content h1{margin:0;font-size:clamp(30px,5vw,44px);line-height:1.15;letter-spacing:-.035em;font-weight:650}
+.not-found-description{margin:20px auto 0;max-width:470px;color:var(--muted);font-size:15px;line-height:1.8}
+.not-found-actions{display:flex;justify-content:center;align-items:center;gap:12px;margin-top:30px}
+.not-found-actions a{display:inline-flex;align-items:center;justify-content:center;gap:12px;min-height:48px;padding:12px 22px;border-radius:10px;font-size:14px;font-weight:600;text-decoration:none;transition:background-color .15s,color .15s}
+.not-found-primary{background:var(--ink);color:#fff;border:1px solid var(--ink)}
+.not-found-primary:hover{background:var(--green)}
+.not-found-secondary{background:var(--paper);color:var(--ink);border:1px solid #cbd4cd}
+.not-found-secondary:hover{background:#f0f1ed}
+.not-found-actions a:focus-visible,.not-found-help a:focus-visible{outline:3px solid var(--green);outline-offset:4px}
+.not-found-help{margin:32px 0 0;color:var(--muted);font-size:13px}
+.not-found-help a{color:var(--ink);text-underline-offset:4px}
+@media(max-width:640px){.not-found-page{min-height:calc(100svh - 170px);padding-block:48px 56px}.not-found-actions{flex-direction:column;max-width:300px;margin-inline:auto}.not-found-actions a{width:100%}.not-found-description br{display:none}.not-found-eyebrow{font-size:11px}}
+
+.route-load-state{min-height:55vh;display:grid;place-content:center;text-align:center}.route-load-state p{color:var(--muted);max-width:58ch;margin:16px auto;line-height:1.7}

@@ -34,7 +34,7 @@ export function renderShell(page: PageName, chainName: string): void {
     <nav class="footer-navigation" aria-label="Footer navigation">
       <section><strong>Garden</strong>${footerLink("markets", "Explore", "/explore")}${footerLink("create", "Create", "/create")}</section>
       <section><strong>Community</strong><span data-wallet-only hidden>${footerLink("rewards", "Claim", "/claim")}</span>${footerLink("stats", "Stats", "/stats")}${footerLink("docs", "Docs", "/docs")}</section>
-      <section><strong>Legal</strong>${footerLink("privacy", "Privacy", "/privacy")}${footerLink("terms", "Terms", "/terms")}${footerLink("risks", "Risk", "/risks")}</section>
+      <section><strong>Legal</strong>${footerLink("privacy", "Privacy", "/privacy")}${footerLink("terms", "Terms", "/terms")}<a href="/docs#docs-risks">Risk</a></section>
     </nav>
     <div class="footer-meta">
       <span>© 2026 TickerGarden</span>

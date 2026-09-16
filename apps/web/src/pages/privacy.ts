@@ -9,26 +9,21 @@ export default {
           <h1>Privacy Policy</h1>
           <p>How information may be collected, used, disclosed, retained, and protected when you visit the interface, connect a wallet, or interact with TickerGarden markets.</p>
         </div>
-        <aside class="hero-badge"><i class="ph ph-lock-key" aria-hidden="true"></i><strong>Privacy draft</strong><span>Dated September 4, 2026</span></aside>
       </section>
 
-      <aside class="legal-draft-banner" role="note">
-        <i class="ph ph-warning-circle" aria-hidden="true"></i>
-        <div><strong>Pre-launch legal draft</strong>This policy is an implementation draft, not an effective production policy. The operator’s legal name, privacy contact, jurisdictional disclosures, infrastructure inventory, and effective date require counsel and deployment approval before publication.</div>
-      </aside>
 
       <div class="legal-layout">
         <nav class="legal-toc" aria-label="Privacy Policy contents">
           <strong>On this page</strong>
           <ol>
             <li><a href="#privacy-scope">Scope</a></li>
-            <li><a href="#privacy-operator">Operator</a></li>
+            <li><a href="#privacy-operator">About us and contact</a></li>
             <li><a href="#privacy-collect">Information collected</a></li>
             <li><a href="#privacy-sources">Sources</a></li>
             <li><a href="#privacy-use">How information is used</a></li>
-            <li><a href="#privacy-bases">Legal bases</a></li>
+            <li><a href="#privacy-bases">Consent and lawful processing</a></li>
             <li><a href="#privacy-chain">Public blockchain data</a></li>
-            <li><a href="#privacy-disclosure">Disclosures</a></li>
+            <li><a href="#privacy-disclosure">Sharing and transfers</a></li>
             <li><a href="#privacy-third-party">Third parties</a></li>
             <li><a href="#privacy-storage">Browser storage</a></li>
             <li><a href="#privacy-retention">Retention</a></li>
@@ -42,116 +37,112 @@ export default {
         <article class="legal-document">
           <header>
             <h2>Privacy Policy</h2>
-            <p>Draft date: September 4, 2026 · Status: pre-launch review · Applies to the TickerGarden web interface and operator-controlled supporting services.</p>
+            <p>How TickerGarden handles information when you use its website and supporting services.</p>
           </header>
 
           <section id="privacy-scope">
             <h2>1. Scope</h2>
-            <p>This policy describes information processing associated with the TickerGarden website, wallet connection flows, market discovery and creation, trading transaction preparation, STOCK allocation, fee claims, holder fee-sharing views if enabled, and communications sent to an operator-controlled support channel.</p>
-            <p>It does not govern independent blockchains, smart contracts, wallets, token issuers, RPC providers, indexers, storage networks, exchanges, explorers, websites, or other third parties. Those services apply their own policies.</p>
+            <p>This Privacy Policy explains how TickerGarden (“we,” “us,” or “our”) handles information through its website and supporting services. It covers browsing markets, connecting a wallet, creating tokens, preparing trades, staking Stock Tokens, claiming rewards, and contacting us.</p>
+            <p>Independent wallets, blockchain networks, token issuers, and other third-party services have their own privacy practices. This policy describes our use of those services but does not replace their policies.</p>
           </section>
 
           <section id="privacy-operator">
-            <h2>2. Operator and controller</h2>
-            <p>The legal entity that operates the production TickerGarden interface will be responsible for personal information processed through systems under its control. Smart-contract and public blockchain records are not controlled in the same way as an operator database.</p>
-            <span class="legal-placeholder"><strong>Required before launch:</strong> insert the operator’s full legal name, registered address, applicable representative or data-protection contact, and a monitored privacy email address.</span>
+            <h2>2. About us and contact</h2>
+            <p>TickerGarden is based in Singapore. This policy applies to information processed through services operated by TickerGarden. Public blockchain records and copies of content held by independent networks are outside our ability to change or delete.</p>
+            <p>For privacy questions, complaints, or requests, email <a href="mailto:info@tickergarden.com">info@tickergarden.com</a>. Never include a private key, recovery phrase, or wallet password in a message.</p>
           </section>
 
           <section id="privacy-collect">
-            <h2>3. Information we may collect</h2>
-            <h3>Wallet and blockchain information</h3>
-            <p>Public wallet addresses, requested signatures, transaction hashes, token balances, contract interactions, market creation records, Curve and Pool activity, STOCK deposits and allocations, fee claims, holder fee sharing claims, and other public onchain records associated with your use of the interface.</p>
-            <h3>Content and market metadata</h3>
-            <p>Names, symbols, metadata URIs, images, descriptions, links, beneficiary addresses, and other information you choose to submit or publish when creating or participating in a token market. Public metadata should not contain information you expect to keep private.</p>
-            <h3>Device, network, and usage information</h3>
-            <p>Hosting, security, RPC, API, content-delivery, and font providers may receive IP address, browser and device type, operating system, requested URL, referring page, request time, approximate location inferred from IP, error details, and performance or security events. The current interface also requests resources from Google Fonts and communicates with configured TickerGarden APIs and Robinhood Chain RPC services.</p>
-            <h3>Communications</h3>
-            <p>If you contact the future support or privacy channel, the operator may receive your contact details, message, attachments, wallet address, and information needed to investigate the request.</p>
+            <h2>3. Information we collect</h2>
+            <h3>Wallet and transaction information</h3>
+            <p>When you connect a wallet or use a wallet-based feature, we process your public wallet address, network, relevant signatures, transaction hashes, and public blockchain activity. This can include token balances, trades, staking positions, and reward claims. We do not receive your private key or recovery phrase through the wallet connection.</p>
+            <h3>Information you publish</h3>
+            <p>Creating a token involves submitting a name, symbol, image, and any description or links you choose to add. These details are intended to be public. Published content may remain accessible even if you do not complete the token launch.</p>
+            <h3>Technical information</h3>
+            <p>Our services and infrastructure providers process information needed to deliver and protect the website, such as IP addresses, requested URLs, request times, browser information, and error or security logs. Requests to a wallet, blockchain access provider, or external content host can also disclose technical information to that provider.</p>
+            <h3>Messages you send us</h3>
+            <p>If you contact us, we receive the details you provide, which may include your contact information, wallet address, message, and attachments. Please share only what is needed to resolve your request.</p>
           </section>
 
           <section id="privacy-sources">
-            <h2>4. Sources of information</h2>
-            <p>Information may come directly from you, from your browser or wallet, from public blockchain networks and smart-contract events, and from infrastructure providers such as hosting services, RPC endpoints, read APIs, indexers, explorers, content gateways, and security services.</p>
+            <h2>4. Where information comes from</h2>
+            <p>We receive information from you, your browser or connected wallet, public blockchain records, and providers that support our services. A public wallet address can become personal information when it is linked to an identifiable individual.</p>
           </section>
 
           <section id="privacy-use">
-            <h2>5. How information may be used</h2>
+            <h2>5. How we use information</h2>
             <ul>
-              <li>Provide and maintain market discovery, creation, transaction preparation, STOCK allocation, fee reporting, and claim functionality.</li>
-              <li>Connect a wallet, validate addresses and signatures, simulate calls, display public onchain state, and verify transaction receipts.</li>
-              <li>Resolve market metadata and operate public creator, market, or holder fee sharing surfaces.</li>
-              <li>Detect malicious links, fraud, abuse, security threats, sanctions exposure, and unlawful activity.</li>
-              <li>Diagnose outages, reconcile indexer state, protect service integrity, and understand interface performance.</li>
-              <li>Respond to support, privacy, security, and legal requests.</li>
-              <li>Comply with law and enforce the <a href="/terms">Terms of Use</a>.</li>
+            <li>Display markets, balances, staking positions, and available rewards.</li>
+            <li>Prepare wallet requests, verify signatures, and check transaction status.</li>
+            <li>Publish token images and descriptions that you authorize us to publish.</li>
+            <li>Save selected preferences and help you resume an interrupted action.</li>
+            <li>Protect the service, investigate abuse, and diagnose technical problems.</li>
+            <li>Respond to requests and meet applicable legal obligations.</li>
             </ul>
-            <p>TickerGarden does not use a wallet connection to obtain your private key or recovery phrase, and the interface must never ask you to provide either one.</p>
+            <p>Connecting a wallet does not give us permission to sign transactions or spend assets on your behalf. Review each signature and transaction request in your wallet.</p>
           </section>
 
           <section id="privacy-bases">
-            <h2>6. Legal bases</h2>
-            <p>Where a legal basis is required, processing may rely on steps requested by you, performance of a contract, legitimate interests in operating and securing the interface, consent where specifically requested, and compliance with legal obligations. The final operator and launch jurisdictions may change which bases and notices apply.</p>
-            <p>You may withdraw consent where processing depends on consent. Withdrawal does not undo prior lawful processing and may prevent optional functionality from working.</p>
+            <h2>6. Consent and lawful processing</h2>
+            <p>We collect, use, and disclose personal information for the purposes explained in this policy, with your consent where required or as otherwise permitted by applicable law. Depending on the law that applies, processing may be necessary to provide a requested service, protect legitimate interests in service security, or meet legal obligations. We apply the conditions and safeguards required for the relevant basis.</p>
+            <p>Where we rely on consent, you may withdraw it. Withdrawal does not affect processing that was lawful before withdrawal. We do not treat acceptance of the Terms of Use as consent to every use of personal information.</p>
           </section>
 
           <section id="privacy-chain">
             <h2>7. Public blockchain and distributed records</h2>
-            <div class="legal-callout"><strong>Onchain activity is public by design.</strong><p>A wallet address or transaction can become personal information when it is linked to an identifiable person.</p></div>
-            <p>Transactions, signatures submitted to contracts, token transfers, created-token metadata references, market events, UserStockVault balances and allocations, fee activity, and claim records may be permanently available through Robinhood Chain, nodes, explorers, indexers, analytics tools, and other independent services.</p>
-            <p>The interface operator cannot edit, reverse, conceal, or delete records confirmed on a public blockchain. Disconnecting a wallet, clearing browser data, or making an offchain privacy request does not remove historical blockchain activity or copies stored by independent systems.</p>
+            <div class="legal-callout"><strong>Blockchain activity is public and may be permanent.</strong><p>Wallet addresses, transfers, trades, staking activity, and claims can be viewed and copied by others.</p></div>
+            <p>We cannot erase or change confirmed blockchain records. Token images and metadata published through distributed storage, including IPFS, may also remain available through independent copies. Removing content from our interface does not remove those copies.</p>
+            <p>Disconnecting your wallet or clearing browser data does not delete past transactions. Do not include personal, confidential, or sensitive information in token names, images, descriptions, or other public content.</p>
           </section>
 
           <section id="privacy-disclosure">
-            <h2>8. How information may be disclosed</h2>
-            <p>The operator may disclose information to vendors that support hosting, content delivery, security, wallet connectivity, blockchain access, indexing, storage, fonts, market metadata, communications, and legal compliance. Information may also be disclosed when required by law, to investigate abuse or a security incident, to protect rights or users, during a business reorganization, or with your direction.</p>
-            <p>Information intentionally published in market metadata, onchain transactions, or public interface surfaces may be visible to anyone. The final operator must publish an accurate production vendor list before launch. No sale of personal information or targeted advertising is intended, but that statement must be reverified against the final operator and production vendor stack before this policy becomes effective.</p>
+            <h2>8. Sharing and international processing</h2>
+            <p>We use service providers for website hosting, content delivery, security, blockchain access, and storage. They process information needed for those services. Our production services include Vercel, Cloudflare, DigitalOcean, Alchemy, and Pinata. Your chosen wallet and other services you use may involve additional providers.</p>
+            <p>Information may be processed outside your country. For transfers of personal information outside Singapore, we take measures required by applicable law to provide a standard of protection comparable to the Singapore Personal Data Protection Act. Other protections may apply depending on your location.</p>
+            <p>We may also disclose information where required by law, to investigate abuse or security incidents, to establish or defend legal claims, or at your direction. Public transactions and content you choose to publish are accessible to others by design.</p>
           </section>
 
           <section id="privacy-third-party">
             <h2>9. Third-party services</h2>
-            <p>Wallets, Stock Token issuers, Robinhood Chain, Uniswap infrastructure, RPC services, indexers, explorers, IPFS or HTTPS metadata hosts, font providers, and linked websites operate independently. A link or integration does not mean that TickerGarden controls or endorses the third party. Review its privacy terms before use.</p>
+            <p>Wallets, Robinhood Chain, Stock Token issuers, trading infrastructure, explorers, content gateways, and linked websites operate under their own terms and privacy policies. They may receive your IP address, wallet address, or request details when you use them. Review their policies before connecting or sharing information.</p>
+            <p>A link or integration does not mean that TickerGarden controls the third party or its handling of information.</p>
           </section>
 
           <section id="privacy-storage">
             <h2>10. Cookies and browser storage</h2>
-            <p>The current interface does not intentionally use first-party storage for targeted advertising. Wallet extensions, browsers, embedded resources, hosting layers, and infrastructure providers may use cookies, local storage, connection state, or similar technologies under their own policies. Future analytics or optional preferences must be disclosed here and, where required, gated by consent before they are enabled.</p>
-            <p>You can disconnect your wallet, clear browser data, and manage browser or wallet permissions. Doing so may remove preferences or interrupt functionality, but it will not erase blockchain records.</p>
+            <p>We use browser storage for features such as wallet preferences, saved token-creation details, recent selections, and transaction progress. This helps preserve your settings and resume actions after a page reload. Stored transaction information can include public wallet addresses and transaction hashes.</p>
+            <p>Hosting, security, and wallet services may use cookies or similar technologies to operate their services. You can manage these through your browser and wallet settings. Blocking or clearing storage may reset preferences or interrupt recovery of an unfinished action.</p>
+            <p>The interface does not currently include advertising trackers. If we introduce optional tracking that requires consent, we will provide the relevant information and request consent before enabling it.</p>
           </section>
 
           <section id="privacy-retention">
-            <h2>11. Retention</h2>
-            <p>Operator-controlled offchain information should be retained only as long as reasonably necessary for the stated purposes, including service operation, security, dispute resolution, agreement enforcement, and legal compliance. Retention periods may differ for logs, metadata caches, support messages, security events, and legal records.</p>
-            <p>Public blockchain records and independently hosted distributed content may remain available indefinitely and fall outside the operator’s deletion control.</p>
+            <h2>11. How long information is kept</h2>
+            <p>Retention depends on the information and its purpose. We consider whether it is needed to provide a requested service, maintain transaction and reward records, investigate security events, resolve disputes, or satisfy applicable legal obligations. These purposes may require different retention periods. When personal information is no longer needed for a business or legal purpose, we delete it or remove the information that identifies you from records under our control.</p>
+            <p>Browser-stored information may remain on your device until the feature clears it or you remove it. Public blockchain records and distributed copies of published content may remain available indefinitely.</p>
           </section>
 
           <section id="privacy-security">
-            <h2>12. Security</h2>
-            <p>The operator should use reasonable administrative, organizational, and technical safeguards for systems under its control. No website, wallet, smart contract, RPC endpoint, blockchain, API, or storage network can be guaranteed completely secure.</p>
-            <p>Never send anyone claiming to represent TickerGarden your private key, recovery phrase, wallet password, or unrestricted remote access. Review every wallet prompt and contract address before signing.</p>
+            <h2>12. Protecting information</h2>
+            <p>We use access controls, encrypted connections, and other technical safeguards to protect services under our control. No online service, wallet, smart contract, or blockchain can be guaranteed completely secure.</p>
+            <p>Keep your wallet credentials private, verify website and contract addresses, and review requests before signing. TickerGarden will never ask you to send a private key or recovery phrase.</p>
           </section>
 
           <section id="privacy-rights">
             <h2>13. Your rights and choices</h2>
-            <ul>
-              <li>Browse public pages without connecting a wallet where a wallet is not required.</li>
-              <li>Disconnect your wallet and manage browser, wallet, and storage permissions.</li>
-              <li>Avoid placing personal or confidential information in public market metadata.</li>
-              <li>Where applicable, request access, correction, deletion, restriction, objection, portability, or appeal for personal information held offchain.</li>
-              <li>Complain to an appropriate privacy authority where local law provides that right.</li>
-            </ul>
-            <p>Requests may require identity and authority verification. Rights can be limited by legal exceptions and cannot compel modification of public blockchain records.</p>
-            <span class="legal-placeholder"><strong>Required before launch:</strong> publish a verified request channel, response process, applicable regional notices, and any appeal mechanism.</span>
+            <p>Depending on applicable law, you may have rights to access, correct, delete, or obtain a copy of personal information; restrict or object to processing; withdraw consent; or complain to a relevant data protection authority, including Singapore’s <a href="https://www.pdpc.gov.sg/" target="_blank" rel="noopener noreferrer">Personal Data Protection Commission</a>.</p>
+            <p>Email <a href="mailto:info@tickergarden.com">info@tickergarden.com</a> to make a request or raise a privacy concern. Describe the information or activity involved without including wallet secrets. We may ask for proportionate verification that you are entitled to make the request and respond within the period required by applicable law.</p>
+            <p>These rights are subject to legal exceptions and the limits of our control. We cannot alter public blockchain records or require independent parties to delete their copies. You can also browse public pages without connecting a wallet and manage wallet permissions directly in your wallet.</p>
           </section>
 
           <section id="privacy-children">
             <h2>14. Children</h2>
-            <p>The interface is intended only for adults and is not directed to anyone under 18 or below the age of legal majority where they live. The operator should not knowingly collect personal information from children. A verified reporting channel must be available before launch.</p>
+            <p>TickerGarden is intended for people aged 18 or older who have reached the age of legal majority where they live. It is not directed at children. If you believe a child has provided personal information to us, please contact us so we can investigate and take appropriate action.</p>
           </section>
 
           <section id="privacy-changes">
-            <h2>15. Policy changes and contact</h2>
-            <p>This policy may change as the interface, infrastructure, jurisdictions, or legal requirements change. The published effective date should identify the applicable version, and material changes should be communicated through an appropriate interface notice.</p>
-            <span class="legal-placeholder"><strong>Not yet effective:</strong> operator identity, legal address, privacy email, effective date, and production infrastructure disclosures remain open. These fields must be completed and approved by counsel before public launch.</span>
+            <h2>15. Updates and contact</h2>
+            <p>We may update this policy as our services or legal obligations change. The date at the top identifies the latest revision. We will provide additional notice of material changes where required by law.</p>
+            <p>For privacy questions, contact <a href="mailto:info@tickergarden.com">info@tickergarden.com</a>. Requests should relate to information processed by TickerGarden; independent wallet and service providers handle requests concerning their own services.</p>
           </section>
         </article>
       </div>

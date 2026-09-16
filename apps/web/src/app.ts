@@ -1,3 +1,7 @@
+import {loadRewardPageDependencies} from './routing/reward-dependencies.ts';
+import { applyPageMetadata } from "./routing/metadata.ts";
+import { renderRouteLoading, renderRouteFailure } from "./routing/load-state.ts";
+import { publicError } from "./ui/public-error.ts";
 import {V1_EXECUTION_SPEC_ID} from './v1/generated/abi-identity.ts';
 import v1Abis_TickerGardenFactoryV1 from './v1/generated/contracts/legacy/TickerGardenFactoryV1.ts';
 import v1Abis_TreasuryDistributorV1 from './v1/generated/contracts/legacy/TreasuryDistributorV1.ts';
@@ -10,12 +14,12 @@ import v1Abis_TickerGardenBaselineRegistry from './v1/generated/contracts/legacy
 import v1Abis_LaunchTemplateRegistry from './v1/generated/contracts/legacy/LaunchTemplateRegistry.ts';
 import v1Abis_UserStockVault from './v1/generated/contracts/legacy/UserStockVault.ts';
 import v1Abis_CreatorRevenueRegistry from './v1/generated/contracts/legacy/CreatorRevenueRegistry.ts';
-import v1Abis_MemeStockGauge from './v1/generated/contracts/legacy/MemeStockGauge.ts';
-import v1Abis_ProtocolFeeVault from './v1/generated/contracts/legacy/ProtocolFeeVault.ts';
-import currentV4Abis_HolderRewardsDistributorV1 from './v1/generated/contracts/current/HolderRewardsDistributorV1.ts';
-import v1Abis_TickerGardenCurve from './v1/generated/contracts/legacy/TickerGardenCurve.ts';
-import v1Abis_AllocationManager from './v1/generated/contracts/legacy/AllocationManager.ts';
-import currentV4Abis_ProtocolFeeVault from './v1/generated/contracts/current/ProtocolFeeVault.ts';
+
+
+
+
+
+
 import {
 createPublicClient,
 createWalletClient,
@@ -56,12 +60,11 @@ import { mountFieldValidation } from './ui/fieldValidation.ts';
 import { createGlobalNotice,globalNoticeRegion,type GlobalNoticeTone } from './ui/global-notice.ts';
 import { ensureWalletChain } from "./ui/network-support.ts";
 import { publicMessage } from "./ui/public-copy.ts";
-import { rewardClaimDialog } from './ui/reward-claim-dialog.ts';
+
 import { renderShell } from "./ui/shell.ts";
 import { bindStakeAmountInput } from './ui/stake-amount-input.ts';
 import { stakeErrorMessage } from "./ui/stake-error.ts";
 import { stakeLockLabel,stakeProgress } from './ui/stake-progress.ts';
-import { mountStatsStockList } from './ui/stats-stock-list.ts';
 import { tokenAge } from './ui/token-age.ts';
 import { createTradeTransactionStatus } from './ui/trade-transaction-status.ts';
 import { watchWalletAccount } from './ui/wallet-account-sync.ts';
@@ -71,24 +74,25 @@ import { loadWalletAccounts } from "./v1/accounts.ts";
 import { createAssetPriceStore } from './v1/assetPrices.ts';
 import type { mountCandles } from "./v1/candleWidget.ts";
 import { createCoalescedRefresh } from "./v1/coalescedRefresh.ts";
-import { loadCreatorMarketPage } from './v1/creatorMarkets.ts';
+
 import { ownsCreatorRewards } from './v1/creatorOwnership.ts';
 import { pageDirectExplore } from './v1/directExploreDirectory.ts';
 import type { DirectMarkets } from "./v1/directMarkets.ts";
 import { directReceipt } from "./v1/directReceipt.ts";
 import { mountDisplayPrice } from "./v1/displayPrices.ts";
 import { createExplorePager } from './v1/explorePaging.ts';
-import { HOLDER_REWARDS_DISTRIBUTOR_V1_ABI as continuousRewardsAbi,isContinuousHolderRewardMode } from "./v1/features/continuousRewards.ts";
-import { buildSnapshotClaim,fetchHolderSnapshots,holderSnapshotStatus,remainingSnapshotAssets,WALLET_SNAPSHOT_MODE,type HolderRound,type HolderSnapshotPage,type SnapshotIdentity } from "./v1/features/holderSnapshots.ts";
+
+import {holderSnapshotStatus,remainingSnapshotAssets} from './v1/features/holderSnapshotDisplay.ts';
+import type {HolderRound,HolderSnapshotPage,SnapshotIdentity} from './v1/features/holderSnapshots.ts';
 import { validateMarketStake } from './v1/features/stake-validation.ts';
-import { DUAL_HOLDER_MODE,LEGACY_USER_CLAIM_MODE,rawUserClaimRequest,USER_CLAIM_MODE,userClaimOutcome,userClaimsAbi } from './v1/features/userClaims.ts';
+import {LEGACY_USER_CLAIM_MODE,USER_CLAIM_MODE,userClaimsAbi} from './v1/features/userClaims.ts';
 import { rewardTab } from "./v1/flowUx.ts";
 import type { PositionPage,UserActivityPage } from './v1/generated/read-api.ts';
 import type { mountGlobalHolders } from "./v1/globalHoldersWidget.ts";
 import type { mountGlobalSeries } from "./v1/globalSeriesWidget.ts";
 import type { mountGlobalStatistics } from "./v1/globalStatsWidget.ts";
 import { graduationProgress } from "./v1/graduationProgress.ts";
-import { searchHolderMarkets,type HolderMarket } from './v1/holderMarkets.ts';
+import {type HolderMarket} from './v1/holderMarkets.ts';
 import type { mountHolders } from "./v1/holderWidget.ts";
 import { bootstrapSync,parseIntegrationBootstrap,type IntegrationBootstrap } from "./v1/integrationBootstrap.ts";
 import { type LaunchFunding } from "./v1/launchFunding.ts";
@@ -96,12 +100,10 @@ import { createMarketDirectory,type DirectoryQuery } from "./v1/marketDirectory.
 import { resolveMarketRelease,snapshotReleaseForMarket,type MarketRelease } from "./v1/marketRelease.ts";
 import { pendingTransactionPage } from './v1/pending-transaction-page.ts';
 import { readPublishedMarket } from './v1/pendingMarket.ts';
-import { decimalProduct,parseProtocolStatistics,type ProtocolStatistics } from './v1/protocolStatistics.ts';
 import { createSnapshotPoller,SnapshotRefreshSuperseded } from "./v1/snapshotUpdates.ts";
-import { explorerStakeStatistics } from './v1/stakeStatistics.ts';
+
 import { firstActiveStakeMarket,stakeAfter,stakeDirectorySource,stakeHistoryEvent,stakeMarketIsOpen,stakePortfolioMode,stakeShare,summarizeDirectStakeAllocations,unstakeConfirmationCopy,validateStakePositions } from './v1/stakingView.ts';
 import { statisticsUSD } from "./v1/statisticsValue.ts";
-import { sumStatisticsUSD } from "./v1/statsSummary.ts";
 import { displayDecimal } from './v1/tokenDetail.ts';
 import type { mountTokenDetail } from './v1/tokenDetailWidget.ts';
 import { readDetailMetadata } from './v1/tokenMetadata.ts';
@@ -391,7 +393,7 @@ function setDisabled(element: HTMLButtonElement | HTMLInputElement | HTMLSelectE
 
 function currentPage(): PageName {
   const candidate = document.body.dataset.page;
-  return (["home", "markets", "trade", "create", "stats", "statsStocks", "rewards", "staking", "docs", "privacy", "terms", "risks", "not-found"] as const).includes(candidate as PageName)
+  return (["home", "markets", "trade", "create", "stats", "statsStocks", "rewards", "staking", "docs", "privacy", "terms", "not-found"] as const).includes(candidate as PageName)
     ? candidate as PageName
     : "home";
 }
@@ -427,9 +429,9 @@ function setPageStatus(message: string, tone: "neutral" | "success" | "warning" 
 }
 
 function runtimeReasons(): readonly string[] {
-  if (foundationError) return [publicMessage(foundationError)];
+  if (foundationError) return [publicError(new Error(foundationError))];
   if (!foundation) return ["Loading market data"];
-  return foundation.writeReasons.map(publicMessage);
+  return foundation.writeReasons.length ? ["Market data is still being verified. Please try again shortly."] : [];
 }
 
 function isRewardsPage(): boolean { return currentPage() === 'rewards' || currentPage() === 'staking'; }
@@ -895,7 +897,7 @@ function renderTransactionUpdates():void{
     const icon=document.createElement('i');icon.className=`ph ${update.stage==='confirmed'?'ph-check-circle':update.stage==='failed'?'ph-warning-circle':['submitted','pending','replaced','confirming','approval_submitted'].includes(update.stage)?'ph-spinner-gap trade-tx-spinner':'ph-info'}`;icon.setAttribute('aria-hidden','true');
     const content=document.createElement('div');content.className='transaction-progress-item__content';
     const status=document.createElement('strong');status.textContent=transactionStageLabels[update.stage];
-    const note=document.createElement('span');note.textContent=update.error?errorText(update.error):update.replacementReason?`Replacement: ${update.replacementReason}.`:update.stage==='confirmed'?'Balances are refreshing.':update.hash?'Waiting for confirmation.':'Review the request in your wallet.';
+    const note=document.createElement('span');note.textContent=update.error?publicError(update.error,'transaction'):update.replacementReason?`Replacement: ${update.replacementReason}.`:update.stage==='confirmed'?'Balances are refreshing.':update.hash?'Waiting for confirmation.':'Review the request in your wallet.';
     content.append(status,note);
     if(update.hash){const link=document.createElement('a');link.href=`${robinhoodChain.blockExplorers.default.url}/tx/${update.hash}`;link.target='_blank';link.rel='noopener noreferrer';link.textContent='View transaction';content.append(link);}
     const close=document.createElement('button');close.type='button';close.className='status-notice__close';close.setAttribute('aria-label','Dismiss transaction update');close.innerHTML='<i class="ph ph-x" aria-hidden="true"></i>';close.onclick=()=>dismissTransactionUpdate(update.operationKey);
@@ -1047,7 +1049,7 @@ async function connectWallet(provider: InjectedProvider, reportStatus: (message:
     installWallet(provider, account);
     notify(`Wallet connected — ${shortHex(account)}`, "success");
   } catch (error) {
-    notify(`Wallet connection failed — ${errorText(error)}`, "error");
+    notify(publicError(error), "error");
     throw error;
   } finally {
     walletConnecting = false;
@@ -1570,107 +1572,11 @@ async function renderExploreStage(phase:0|1,direction:'current'|'next'|'previous
  finally{if(generation===explorePageGeneration[phase]){grid.setAttribute('aria-busy','false');syncExploreStatus();}}
 }
 
-function clearStatsSnapshotView(_message: string): void {
-  for(const selector of ['[data-stat-market-cap]','[data-stat-volume]','[data-stat-launches]','[data-stat-bloomed]','[data-stat-total-markets]'])text(selector,'-');
-  statsStockList?.setUnavailable();
-  for(const selector of ['[data-stats-phase-list]','[data-stats-quote-list]']){
-    const container=query<HTMLElement>(selector);if(container){const empty=document.createElement('p');empty.className='stats-empty';empty.textContent='Data is not available yet';container.replaceChildren(empty);}
-  }
-  for(const selector of ['[data-stats-growing-bar]','[data-stats-bloomed-bar]']){const bar=query<HTMLElement>(selector);if(bar)bar.style.width='0%';}
-  query<HTMLElement>('[data-stats-summary]')?.setAttribute('aria-busy','false');
-}
-function setupStats(): void {
- const list=query<HTMLElement>('[data-stats-staking-values]');if(list)statsStockList=mountStatsStockList(list,{full:currentPage()==='statsStocks'});
- text('[data-stats-network]',robinhoodChain.id===46630?'Testnet data':'Robinhood Chain');
-}
-function statsAsset(address:string):{label:string;icon?:string}{
- if(address==='0x'+'0'.repeat(40))return{label:'ETH',icon:quoteIconUrl('ETH')};
- const asset=foundation?.assets.find(c=>stockToken(c)?.toLowerCase()===address.toLowerCase());
- const listed=asset?stakingAssetForConfig(robinhoodChain.id,asset):undefined;
- return{label:listed?.symbol??(typeof asset?.values.tokenSymbol==='string'?asset.values.tokenSymbol:undefined)??marketStockSymbols.get(address)??shortHex(address,6,4),icon:asset?stockLogo(asset):undefined};
-}
-function renderStatsDistribution(selector:string,groups:Map<string,{label:string;icon?:string;count:number}>,total:number){
- const list=query<HTMLElement>(selector);if(!list)return;
- if(!groups.size){const empty=document.createElement('p');empty.className='stats-empty';empty.textContent='No markets yet';list.replaceChildren(empty);return;}
- const fragment=document.createDocumentFragment();
- for(const group of [...groups.values()].sort((a,b)=>b.count-a.count||a.label.localeCompare(b.label))){
-  const wrapper=document.createElement('div'),row=document.createElement('div');row.className='stats-distribution-row';
-  const label=document.createElement('span');label.className='stats-asset-label';
-  if(group.icon){const image=document.createElement('img');image.src=group.icon;image.alt='';image.onerror=()=>image.remove();label.append(image);}
-  const name=document.createElement('span');name.textContent=group.label;label.append(name);
-  const value=document.createElement('span');value.className='stats-distribution-value';const count=document.createElement('strong');count.textContent=group.count.toLocaleString();const percent=document.createElement('small');percent.textContent=`${total?Math.round(group.count/total*100):0}%`;value.append(count,percent);row.append(label,value);
-  const track=document.createElement('div');track.className='stats-distribution-track';track.setAttribute('aria-hidden','true');const fill=document.createElement('span');fill.style.width=`${total?group.count/total*100:0}%`;track.append(fill);wrapper.append(row,track);fragment.append(wrapper);
- }
- list.replaceChildren(fragment);
-}
-let statsStockList:ReturnType<typeof mountStatsStockList>|undefined;
-let statsSnapshot:ProtocolStatistics|null=null,statsReadAt=0,statsRetryAt=0;
-let statsRequest:Promise<any>|null=null,statsAbort:AbortController|null=null;
-const statsFresh=(at:unknown)=>typeof at==='number'&&Number.isSafeInteger(at)&&at>0&&at<=Date.now()/1000+5&&Date.now()/1000-at<25*60;
-function statsPrices(){
- const snapshot=assetPrices.snapshot();
- const rows=Object.values(snapshot.prices).filter(p=>snapshot.chainId===robinhoodChain.id&&p.status==='available'&&p.midpointUsd!==null&&p.expiresAt!==null);
- return {prices:Object.fromEntries(rows.map(p=>[p.token,p.midpointUsd])),expiresAt:Object.fromEntries(rows.map(p=>[p.token,Math.floor(p.expiresAt!/1000)]))};
-}
-function applyStatsSnapshot():void{
- if(!['stats','statsStocks'].includes(currentPage()))return;
- const summary=statsSnapshot,prices=statsPrices(),fresh=summary&&statsFresh(summary.observedAt);
- const value=(amount:unknown,asset:string)=>{
-  const reference=summary?.feePriceQuotes[asset];
-  const quotePrice=reference?prices.prices[reference.quoteAsset]:undefined;
-  const price=prices.prices[asset]??(reference&&quotePrice?decimalProduct(reference.priceQuote,quotePrice):undefined);
-  const expires=prices.prices[asset]?prices.expiresAt[asset]:reference?prices.expiresAt[reference.quoteAsset]:undefined;
-  return statisticsUSD(amount,summary?.feeDecimals?.[asset],price,expires,Date.now());
- };
- const sum=(amounts:Record<string,string>|undefined)=>amounts?sumStatisticsUSD(Object.entries(amounts).map(([asset,amount])=>value(amount,asset))):null;
- const volume=fresh&&summary.volumeCoverage===true?sum(summary.volumeAmounts):null;
- const revenue=fresh&&summary.feeCoverage===true&&summary.feeBasis==='TRADE_TIME'?sum(summary.feeTotals):null;
- text('[data-stat-volume]',volume===null?'-':formatMarketUSD(volume,true));
- text('[data-stat-fee-revenue]',revenue===null?'-':formatMarketUSD(revenue,true));
- for(const [key,field]of [['launches','launches24h'],['bloomed','bloomedMarketCount']] as const)text(`[data-stat-${key}]`,fresh&&summary[field]!==null&&Number.isSafeInteger(summary[field])&&summary[field]!>=0?summary[field]!.toLocaleString():'-');
- const stakingFresh=summary?.stakingCoverage===true&&statsFresh(summary.stakingObservedAt);
- text('[data-stat-staking-wallets]',stakingFresh&&Number.isSafeInteger(summary.stakingWallets)?summary.stakingWallets!.toLocaleString():'-');
- for(const bucket of ['creator','staker','holder','platform']){
-  const amounts=fresh&&summary.allocationCoverage===true?Object.entries(summary.feeAssets as Record<string,Record<string,string>>).map(([asset,buckets])=>value(buckets[bucket],asset)):null;
-  const total=amounts?sumStatisticsUSD(amounts):null;
-  text(`[data-stat-fee-${bucket}]`,total===null?'-':formatMarketUSD(total,true));
- }
- const rows=[...new Map((foundation?.assets??[]).map(asset=>[asset.id,asset])).values()].map(asset=>{
-  const token=stockToken(asset),info=token?statsAsset(token):{label:shortHex(asset.id)},decimals=Number(asset.values.tokenDecimals);
-  const raw=stakingFresh&&summary.stockAmounts?summary.stockAmounts[asset.id]??'0':undefined;
-  const amount=typeof raw==='string'&&/^(0|[1-9][0-9]*)$/.test(raw)?BigInt(raw):null;
-  return {id:asset.id,...info,decimals,amount,value:amount===null?null:statisticsUSD(raw,decimals,prices.prices[token?.toLowerCase()??''],prices.expiresAt[token?.toLowerCase()??''],Date.now())};
- });
- for(const [id,raw]of Object.entries(summary?.stockAmounts??{}))if(BigInt(raw)>0n&&!rows.some(row=>row.id===id))rows.push({id:id as Hex,label:shortHex(id),decimals:0,amount:BigInt(raw),value:null});
- const stockTotal=stakingFresh?sumStatisticsUSD(rows.map(r=>r.value)):null;
- text('[data-stat-stock-value]',stockTotal===null?'-':formatMarketUSD(stockTotal,true));
- if(stakingFresh)statsStockList?.update(rows);else statsStockList?.setUnavailable();
- const time=(at:number)=>new Date(at*1000).toLocaleString('en-US',{month:'short',day:'numeric',hour:'2-digit',minute:'2-digit'});
- text('[data-stats-updated]',summary?`Activity as of ${time(summary.observedAt)} · refreshed every 20 minutes`:'Updates every 20 minutes');
- text('[data-stats-staking-updated]',summary?.stakingObservedAt?`Staking as of ${time(summary.stakingObservedAt)}`:'');
- query<HTMLElement>('[data-stats-summary]')?.setAttribute('aria-busy','false');
-}
-async function renderProtocolStatistics(force=false):Promise<any>{
- if(!runtimeConfig.readApi.available)throw Error('Stats syncing');
- if(statsRequest)return statsRequest;
- if(!force&&statsSnapshot&&statsFresh(statsSnapshot.observedAt)&&(!statsSnapshot.stakingCoverage||statsFresh(statsSnapshot.stakingObservedAt))&&Date.now()<Math.min(statsReadAt+20*60_000,statsSnapshot.nextRefreshAt*1000))return statsSnapshot;
- if(!force&&Date.now()<statsRetryAt)return statsSnapshot;
- const request=new AbortController();statsAbort=request;
- const timer=setTimeout(()=>request.abort(),15000);
- const pending=fetch(`${runtimeConfig.readApi.value}/v1/protocol-statistics`,{signal:request.signal}).then(async response=>{
-  if(!response.ok)throw Error('Stats syncing');const summary=parseProtocolStatistics(await response.json(),robinhoodChain.id);
-  if(statsAbort!==request)return null;
-  statsSnapshot=summary;statsReadAt=Date.now();statsRetryAt=0;return summary;
- }).catch(error=>{if(statsAbort===request){statsSnapshot=null;statsRetryAt=Date.now()+30000;}throw error;}).finally(()=>{clearTimeout(timer);if(statsAbort===request){statsRequest=null;statsAbort=null;}});
- statsRequest=pending;return pending;
-}
-async function renderStats(force=false):Promise<void>{
- const render=statsRender.begin();
- try{await renderProtocolStatistics(force);}catch{ /* Render the cleared snapshot consistently, including Stock rows. */ }
- if(!render.isCurrent())return;
- applyStatsSnapshot();
-}
-
+function statsAsset(address:string):{label:string;icon?:string}{return statsController?.statsAsset(address)??{label:shortHex(address)};}
+function clearStatsSnapshotView(message:string):void{statsController?.clearStatsSnapshotView(message);}
+function setupStats():void{statsController?.setupStats();}
+function applyStatsSnapshot():void{statsController?.applyStatsSnapshot();}
+function renderStats(force=false):Promise<void>{return statsController?.renderStats(force)??Promise.resolve();}
 
 export type TradeQuote = Readonly<{
   side: "buy" | "sell";
@@ -2026,7 +1932,7 @@ let treasuryLoadGeneration = 0;
 let directEscapeLoadGeneration = 0;
 let directEscapeRefreshTimer = 0;
 
-const treasuryStatusLabels = ["Not requested", "Root requested", "Root under review", "Claiming", "Rolled over"] as const;
+const treasuryStatusLabels = ["Not scheduled", "Preparing rewards", "Confirming rewards", "Ready to claim", "Moved to the next period"] as const;
 
 const rewardMarketLabels = new Map<string, { label: string; search: string; symbol?:string }>();
 
@@ -2055,6 +1961,8 @@ function stakeText(selector:string,value:string):void { queryAll<HTMLElement>(se
 function stockSymbol(config:ConfigReadModel):string {return stakingAssetForConfig(robinhoodChain.id,config)?.symbol ?? String(config.values.tokenSymbol ?? 'STOCK');}
 function stockLogo(config:ConfigReadModel):string|undefined {const asset=stakingAssetForConfig(robinhoodChain.id,config);return asset?(assetLogoUrl(asset.logo)??asset.logoUrl??quoteIconUrl(stockSymbol(config))):quoteIconUrl(stockSymbol(config));}
 async function refreshStakeStatistics():Promise<void>{
+const {explorerStakeStatistics} = await import('./v1/stakeStatistics.ts');
+
   if(currentPage()!=='staking'||document.hidden)return;
   const generation=++stakeStatsGeneration;
   const id=query<HTMLSelectElement>('[data-position-market]')?.value;
@@ -2638,6 +2546,8 @@ function rewardMarketOptionLabel(market: MarketReadModel): string {
 
 const holderHistoryCache=new Map<string,{at:number,claimed:bigint}>();
 async function loadHolderRewardHistory(marketId:Hex,account:Address,block:bigint,quote:Address,decimals:number,symbol:string,amount:bigint):Promise<void>{
+const {DUAL_HOLDER_MODE} = await import('./v1/features/userClaims.ts');
+
  const key=`${robinhoodChain.id}:${marketId}:${account.toLowerCase()}`;
  const dual=continuousReward?.mode===DUAL_HOLDER_MODE;
  const generation=treasuryLoadGeneration;
@@ -2690,6 +2600,8 @@ function renderRecentHolderMarkets():void{
 
 let holderSearchRequest:AbortController|undefined;
 async function renderHolderSearch():Promise<void>{
+const {searchHolderMarkets} = await import('./v1/holderMarkets.ts');
+
  const input=query<HTMLInputElement>('[data-holder-search]');const results=query<HTMLElement>('[data-holder-search-results]');
  if(!input||!results||!runtimeConfig.readApi.available)return;
  holderSearchRequest?.abort();const request=new AbortController();holderSearchRequest=request;
@@ -2740,6 +2652,8 @@ function clearCreatorDirectory():void {
   const select=query<HTMLSelectElement>('[data-creator-market]');if(select){select.replaceChildren(new Option('Select a token',''));select.disabled=true;}
 }
 async function refreshCreatorDirectory(more=false):Promise<void>{
+const {loadCreatorMarketPage} = await import('./v1/creatorMarkets.ts');
+
   if(currentPage()!=='rewards'||!wallet||!foundation||(!foundation.direct&&!runtimeConfig.readApi.available))return;
   const account=wallet.account.toLowerCase();
   if(!more&&creatorDirectoryAccount===account&&Date.now()-creatorDirectoryAt<600000)return;
@@ -2971,7 +2885,7 @@ async function refreshDirectEscape(): Promise<void> {
       : "No allocated principal exists for this wallet and market.");
   } catch (error) {
     if (generation !== directEscapeLoadGeneration) return;
-    text("[data-direct-vault-status]", `Direct escape locked — ${errorText(error)}`);
+    text("[data-direct-vault-status]", publicError(error,'transaction'));
   }
   updateRewardsAvailability();
 }
@@ -3011,6 +2925,8 @@ async function readHolderDistributor(address: Address): Promise<Address> {
 }
 
 async function readRewardPositionState(detail: MarketDetailResponse): Promise<RewardPositionState> {
+const {default: v1Abis_MemeStockGauge} = await import('./v1/generated/contracts/legacy/MemeStockGauge.ts');
+
   if (!wallet) throw new Error("Connect a wallet to load your position");
   if (detail.market.gauge === ZERO_ADDRESS) throw new Error("Stock staking is not enabled for this market");
   const assetConfig = findAsset(detail.market.assetUid);
@@ -3198,8 +3114,8 @@ async function refreshRewardPosition(force=true): Promise<void> {
     updateRewardsAvailability();
   } catch (error) {
     if (generation !== rewardLoadGeneration) return;
-    iconText("[data-position-summary]", "ph-warning", `Position locked — ${errorText(error)}`);
-    text("[data-rewards-status]", `Unable to load your position — ${errorText(error)}`);
+    iconText("[data-position-summary]", "ph-warning", publicError(error));
+    text("[data-rewards-status]", publicError(error));
     updateRewardsAvailability();
   }
 }
@@ -3249,10 +3165,12 @@ async function loadCreatorEpochs(marketId:Hex,registry:Address,currentEpoch:numb
  if(!creatorEpochChoices.size){text('[data-creator-status]',creatorEpochNext?'No rewards for this wallet in these periods. Check earlier periods.':'No creator reward periods for this wallet.');}
 }
 async function refreshCreatorReward(): Promise<void> {
+const {default: v1Abis_ProtocolFeeVault} = await import('./v1/generated/contracts/legacy/ProtocolFeeVault.ts');
+
   const generation=++creatorLoadGeneration;
   updateRewardsAvailability();
   if (!foundation || !wallet || !runtimeConfig.contracts.available) {
-    text("[data-creator-status]", !wallet ? "" : `Connection unavailable — ${runtimeReasons().join("; ")}`);
+    text("[data-creator-status]", !wallet ? "" : 'Rewards are temporarily unavailable. Reload the page to try again.');
     return;
   }
   const activeWallet=wallet;
@@ -3402,6 +3320,8 @@ function renderSnapshotRound(): void {
   updateRewardsAvailability();
 }
 async function loadSnapshotReward(market:MarketReadModel,distributor:Address,generation:number,prior:typeof snapshotReward=null):Promise<void> {
+const {fetchHolderSnapshots} = await import('./v1/features/holderSnapshots.ts');
+
   const panel=query<HTMLElement>('[data-snapshot-rewards]');
   if(!panel||!wallet)return;
   setContinuousRewardsView(false);
@@ -3439,7 +3359,7 @@ async function loadSnapshotReward(market:MarketReadModel,distributor:Address,gen
   } catch(error) {
     if(!current())return;
     snapshotReward=null;
-    snapshotRewardStatus=request.signal.aborted?'Rewards took too long to load. Reload the page to try again.':errorText(error);
+    snapshotRewardStatus=request.signal.aborted?'Rewards took too long to load. Reload the page to try again.':publicError(error,'rewards');
     query<HTMLElement>('[data-snapshot-status]')?.setAttribute('data-tone','error');
     const select=query<HTMLSelectElement>('[data-snapshot-round]');if(select)select.disabled=true;
     const roundField=query<HTMLElement>('[data-holder-round-field]');if(roundField)roundField.hidden=true;
@@ -3450,6 +3370,11 @@ async function loadSnapshotReward(market:MarketReadModel,distributor:Address,gen
   }
 }
 async function executeSnapshotClaim():Promise<void> {
+const {default: currentV4Abis_HolderRewardsDistributorV1} = await import('./v1/generated/contracts/current/HolderRewardsDistributorV1.ts');
+const {rewardClaimDialog} = await import('./ui/reward-claim-dialog.ts');
+const {buildSnapshotClaim} = await import('./v1/features/holderSnapshots.ts');
+const {WALLET_SNAPSHOT_MODE} = await import('./v1/features/holderSnapshots.ts');
+
   if(!foundation||!wallet||!snapshotReward||rewardChoicePending||!runtimeConfig.snapshotHolderWrites.available)throw Error('Load a published reward round first');
   const state=snapshotReward,round=selectedSnapshotRound(),activeWallet=wallet;
   if(state.page.identity.account.toLowerCase()!==activeWallet.account.toLowerCase())throw Error("Wallet changed. Reload the page before claiming.");
@@ -3491,6 +3416,12 @@ async function executeSnapshotClaim():Promise<void> {
 }
 
 async function refreshTreasuryReward(resetEpoch: boolean): Promise<void> {
+const {default: v1Abis_ProtocolFeeVault} = await import('./v1/generated/contracts/legacy/ProtocolFeeVault.ts');
+const {default: v1Abis_TickerGardenCurve} = await import('./v1/generated/contracts/legacy/TickerGardenCurve.ts');
+const {HOLDER_REWARDS_DISTRIBUTOR_V1_ABI: continuousRewardsAbi} = await import('./v1/features/continuousRewards.ts');
+const {isContinuousHolderRewardMode} = await import('./v1/features/continuousRewards.ts');
+const {DUAL_HOLDER_MODE} = await import('./v1/features/userClaims.ts');
+
   const generation = ++treasuryLoadGeneration;
   const preserveContinuous=continuousReward?.account===wallet?.account&&continuousReward?.marketId===query<HTMLSelectElement>('[data-treasury-market]')?.value;
   treasuryReward = null;
@@ -3503,12 +3434,12 @@ async function refreshTreasuryReward(resetEpoch: boolean): Promise<void> {
   text("[data-treasury-status]", wallet?"Select a token":"Connect wallet");
   text("[data-treasury-epoch-id]", "-");
   text("[data-treasury-root]", "-");
-  text("[data-treasury-fee]", "Locked — live configuration required");
-  text("[data-treasury-fee-asset]", "Locked — live configuration required");
-  text("[data-treasury-fee-allowance]", "Locked — live allowance required");
-  text("[data-treasury-service-credit]", "Locked — live credit required");
+  text("[data-treasury-fee]", "Not available yet");
+  text("[data-treasury-fee-asset]", "Not available yet");
+  text("[data-treasury-fee-allowance]", "Approval not checked");
+  text("[data-treasury-service-credit]", "Not available yet");
   text("[data-treasury-claimable]", "-");
-  text("[data-treasury-proof]", "No verified proof loaded");
+  text("[data-treasury-proof]", "Reward eligibility has not been checked yet.");
   updateRewardsAvailability();
   if (!foundation || !wallet || !runtimeConfig.contracts.available) {
     text("[data-treasury-status-note]", wallet?"Unable to load rewards. Try again.":"");
@@ -3637,37 +3568,31 @@ async function refreshTreasuryReward(resetEpoch: boolean): Promise<void> {
       now: block.timestamp,
     });
     let proof: TreasuryClaimProof | null = null;
-    let proofStatus = runtimeConfig.treasuryProofApi.available ? "No claim proof for this account / epoch" : runtimeConfig.treasuryProofApi.reasons.join("; ");
+    let proofStatus = runtimeConfig.treasuryProofApi.available ? "No rewards found for this wallet in this period." : "Reward eligibility cannot be checked right now. Try again shortly.";
     try {
       proof = await verifiedTreasuryProof(base);
-      if (proof) proofStatus = "Proof fetched and verified against the live Merkle Root";
-      else if (accountClaimed) proofStatus = "This account already claimed the epoch";
-      else if (status !== 3) proofStatus = "Proof becomes actionable after Root finalization";
+      if (proof) proofStatus = "Your reward eligibility has been verified.";
+      else if (accountClaimed) proofStatus = "This wallet has already claimed rewards for this period.";
+      else if (status !== 3) proofStatus = "Rewards will be available after this period is confirmed.";
     } catch (error) {
-      proofStatus = `Proof unavailable — ${errorText(error)}`;
+      proofStatus = "Reward eligibility could not be checked. Try again shortly.";
     }
     if (generation !== treasuryLoadGeneration) return;
     treasuryReward = Object.freeze({ ...base, proof });
-    text("[data-treasury-status]", treasuryStatusLabels[status] ?? `Status ${status}`);
+    text("[data-treasury-status]", treasuryStatusLabels[status] ?? "Reward status pending");
     text("[data-treasury-epoch-id]", `${epochId} · ${new Date(Number(base.windowStart) * 1_000).toLocaleDateString()} – ${new Date(Number(base.windowEnd) * 1_000).toLocaleDateString()}`);
-    text("[data-treasury-root]", base.merkleRoot);
-    text("[data-treasury-fee]", `${base.serviceFeeAmount} raw · ${base.serviceFeeAsset === ZERO_ADDRESS ? "native ETH" : shortHex(base.serviceFeeAsset)}`);
     text("[data-treasury-fee-asset]", base.serviceFeeAsset === ZERO_ADDRESS ? "Native ETH" : base.serviceFeeAsset);
-    text("[data-treasury-fee-allowance]", base.serviceFeeAllowance === null ? "Not applicable" : `${base.serviceFeeAllowance} raw${base.serviceFeeAllowance >= base.serviceFeeAmount ? " · sufficient" : " · approval required"}`);
-    text("[data-treasury-service-credit]", `${base.serviceCreditAmount} raw · ${base.serviceCreditAsset === ZERO_ADDRESS ? "native ETH" : shortHex(base.serviceCreditAsset)}`);
-    text("[data-treasury-claimable]", proof ? `${formatTokenAmount(proof.amount, metadata.quoteDecimals)} ${metadata.quoteSymbol}` : accountClaimed ? "Already claimed" : "No verified claim loaded");
+    text("[data-treasury-claimable]", proof ? `${formatTokenAmount(proof.amount, metadata.quoteDecimals)} ${metadata.quoteSymbol}` : accountClaimed ? "Already claimed" : "-");
     text("[data-treasury-proof]", proofStatus);
-    const releaseGate = runtimeConfig.treasuryWrites.available
-      ? " Holder fee-sharing writes are release-approved."
-      : ` Read-only: ${runtimeConfig.treasuryWrites.reasons.join("; ")}.`;
-    text("[data-treasury-status-note]", `Epoch Quote ${formatTokenAmount(base.epochQuoteAmount, metadata.quoteDecimals)} ${metadata.quoteSymbol}; ${base.claimedAmount} of ${base.quoteAmount} raw allocated amount claimed. Current holder balance ${formatTokenAmount(base.holderBalance, 18)} ${metadata.symbol}. Pending settlement credit: ${formatTokenAmount(base.pendingHolderQuote, metadata.quoteDecimals)} ${metadata.quoteSymbol}; pending swap: ${formatTokenAmount(base.pendingHolderMeme, 18)} ${metadata.symbol}.${releaseGate}`);
+    const claimNotice = runtimeConfig.treasuryWrites.available ? "" : " Claims are temporarily paused. Please check again later.";
+    text("[data-treasury-status-note]", `This period: ${formatTokenAmount(base.epochQuoteAmount, metadata.quoteDecimals)} ${metadata.quoteSymbol} in rewards. Claimed: ${formatTokenAmount(base.claimedAmount, metadata.quoteDecimals)} of ${formatTokenAmount(base.quoteAmount, metadata.quoteDecimals)} ${metadata.quoteSymbol}.${claimNotice}`);
     renderTreasuryProof(proof, metadata);
     updateRewardsAvailability();
   } catch (error) {
     if (generation !== treasuryLoadGeneration) return;
     text("[data-treasury-status]", wallet?"Select a token":"Connect wallet");
-    text("[data-treasury-status-note]", `Holder fee sharing locked — ${errorText(error)}`);
-    text("[data-treasury-proof]", "No verified proof loaded");
+    text("[data-treasury-status-note]", "Rewards could not be loaded. Please try again shortly.");
+    text("[data-treasury-proof]", "Reward eligibility has not been checked yet.");
     updateRewardsAvailability();
   }
 }
@@ -3678,7 +3603,7 @@ function rewardActionButton(action: string, route?: string): HTMLButtonElement |
 }
 
 function setContinuousRewardsView(enabled: boolean): void {
-  text("[data-holder-reward-summary]",enabled?"This legacy market uses continuous rewards. Already earned rewards remain claimable after selling.":"Select a token to view its reward distribution.");
+  text("[data-holder-reward-summary]",enabled?"Rewards become available over time. Rewards already earned remain claimable after selling.":"Select a token to view its reward distribution.");
   queryAll<HTMLElement>("[data-legacy-treasury]").forEach((el) => { el.hidden = enabled; });
   queryAll<HTMLElement>("[data-continuous-treasury]").forEach((el) => { el.hidden = !enabled; });
 }
@@ -3943,6 +3868,8 @@ async function executeDirectVaultRageQuit(): Promise<void> {
 }
 
 async function executeSettlement(): Promise<void> {
+const {default: v1Abis_AllocationManager} = await import('./v1/generated/contracts/legacy/AllocationManager.ts');
+
   const actions = await import('./v1/features/vault.ts').catch(() => null);
   if (!actions) { notify('Could not load this action. Please try again.', 'warning'); return; }
   const {buildSettleRageQuitRewards} = actions;
@@ -3977,6 +3904,11 @@ let rewardClaimOutcomeMessage='';
 let rewardChoicePending=false;
 let rewardChoiceCancelled=false;
 async function executeUserClaim(market: Parameters<typeof marketMetadata>[0],role: 0|1|2,epoch=0): Promise<void> {
+const {default: currentV4Abis_ProtocolFeeVault} = await import('./v1/generated/contracts/current/ProtocolFeeVault.ts');
+const {rewardClaimDialog} = await import('./ui/reward-claim-dialog.ts');
+const {rawUserClaimRequest} = await import('./v1/features/userClaims.ts');
+const {userClaimOutcome} = await import('./v1/features/userClaims.ts');
+
   if(rewardChoicePending)throw Error('A Claim Is Already In Progress');
   rewardChoicePending=true;
   rewardClaimOutcomeMessage='';
@@ -4069,7 +4001,7 @@ async function executeCreatorAction(action: string): Promise<void> {
 
 async function ensureTreasuryActionState(state: TreasuryRewardState, action: string, account: Address): Promise<void> {
   if (!runtimeConfig.contracts.available || !runtimeConfig.treasuryWrites.available) {
-    throw new Error(runtimeConfig.treasuryWrites.available ? "Holder fee-sharing contracts are not configured" : runtimeConfig.treasuryWrites.reasons.join("; "));
+    throw new Error("Holder claims are temporarily unavailable. Please try again later.");
   }
   const distributor = marketRelease(state.detail.market.marketId).holderDistributor;
   if (action === "withdrawServiceCredit") {
@@ -4111,6 +4043,8 @@ async function ensureTreasuryActionState(state: TreasuryRewardState, action: str
 }
 
 async function executeContinuousHolderClaim(): Promise<void> {
+const {DUAL_HOLDER_MODE} = await import('./v1/features/userClaims.ts');
+
   if (!foundation || !wallet || !continuousReward || !runtimeConfig.contracts.available || !writeReady() || !runtimeConfig.continuousHolderModes.includes(continuousReward.mode)) throw new Error("Load verified holder rewards first");
   const state = continuousReward;
   const activeWallet = wallet;
@@ -4128,7 +4062,7 @@ async function executeTreasuryAction(action: string): Promise<void> {
   if (!actions) { notify('Could not load this action. Please try again.', 'warning'); return; }
   const {buildRequestRoot,buildTreasuryClaim,buildFinalizeRoot,buildExpireRoot,buildRolloverEpoch,buildWithdrawServiceCredit} = actions;
   if (!foundation || !wallet || !treasuryReward || !runtimeConfig.contracts.available) throw new Error("Load a verified holder fee-sharing epoch first");
-  if (!runtimeConfig.treasuryWrites.available) throw new Error(runtimeConfig.treasuryWrites.reasons.join("; "));
+  if (!runtimeConfig.treasuryWrites.available) throw new Error("Holder claims are temporarily paused. Please check again later.");
   const activeWallet = wallet;
   const account = activeWallet.account;
   await verifyLiveWalletContext(activeWallet);
@@ -4282,7 +4216,7 @@ async function runRewardAction(button: HTMLButtonElement): Promise<void> {
       const message=stakeErrorMessage(errorText(error),hasPendingTransaction());
       notify(message,'error');
     }else{
-      notify(`Rewards action stopped — ${errorText(error)}`,'error');
+      notify(publicError(error,'transaction'),'error');
     }
   }finally{
     if(action==='stake')stakeSubmitting=false;
@@ -4381,7 +4315,7 @@ async function renderRewards(): Promise<void> {
     } catch (error) {
       if (pageGeneration !== routeGeneration) return;
       rewardPosition = null;
-      text("[data-rewards-status]", `Linked market unavailable — ${errorText(error)}`);
+      text("[data-rewards-status]", publicError(error));
       updateRewardsAvailability();
       return;
     }
@@ -4463,7 +4397,7 @@ function renderRecoveryControls(): void {
     more.onclick = async () => {
       more.disabled = true;
       try { await appendMarketPage(); if (generation === routeGeneration) await refreshCurrentPage(true); }
-      catch (error) { if (generation === routeGeneration) notify(`${errorText(error)}. Reload the page to restart the market list.`, "warning"); more.disabled = false; }
+      catch (error) { if (generation === routeGeneration) notify(publicError(error), "warning"); more.disabled = false; }
     };
     pageControls.append(more);
   } else pageControls?.remove();
@@ -4507,7 +4441,7 @@ function renderRecoveryControls(): void {
           if(recoveredTrade){if(tradeMarket)completeTradeDisplay(tradeMarket);}
           else if(currentPage()==='staking'){if(rewardPosition)stakeStatsCache.delete(rewardPosition.detail.market.marketId);await refreshRewardPosition();void refreshStakeDirectory(false,true);}
           else{await loadFoundation();await refreshCurrentPage();}
-        } catch (error) { notify(`Still unconfirmed — ${errorText(error)}`, "warning"); recover.disabled = false; }
+        } catch (error) { notify(publicError(error,'transaction'), "warning"); recover.disabled = false; }
       }); };
       const actions=document.createElement('div');actions.className='transaction-recovery-item__actions';actions.append(explorer,recover);
       content.append(description,actions);row.append(icon,content);recoveryPanel?.append(row);
@@ -4547,12 +4481,7 @@ async function refreshCurrentPage(preserveSnapshot = false): Promise<void> {
     case "home": await renderHome(); break;
     case "markets": await renderMarkets(); break;
     case "trade":
-      if (tradeMarket) await refreshTradeFields(undefined, true);
-      else {
-        const marketId = new URL(window.location.href).searchParams.get("marketId")?.trim().toLowerCase() ?? "";
-        if (BYTES32_PATTERN.test(marketId)) await loadTradeMarket(marketId);
-        else { text("[data-detail-phase]", "Choose a market"); text("[data-detail-phase-note]", "Open a token from Explore to trade."); updateTradeAvailability(); }
-      }
+      await loadTradeMarket();
       break;
     case "create": renderCreateConfig(); break;
     case "statsStocks":
@@ -4677,14 +4606,14 @@ document.addEventListener("visibilitychange", () => { if (document.hidden) { pol
 
 function isStaticPage(): boolean {
   const page = currentPage();
-  return page === "privacy" || page === "terms" || page === "risks" || page === "docs" || page === "not-found";
+  return page === "privacy" || page === "terms" || page === "docs" || page === "not-found";
 }
 
 let disposeDocs: (() => void) | undefined;
 let disposeFieldValidation: (() => void) | undefined;
 function unmountPage(): void {
   disposeDocs?.();disposeDocs=undefined;
-  statsStockList?.destroy();statsStockList=undefined;statsAbort?.abort();statsAbort=null;statsRequest=null;
+  statsController?.dispose();
 
   resetExplorePages();
   exploreStockPicker?.destroy();exploreStockPicker=undefined;
@@ -4719,7 +4648,7 @@ function unmountPage(): void {
   holderWidget = null; tradeHistoryWidget = null; candleWidget = null; displayPriceWidget = null;
 }
 
-function mountRoute(route: Route): void {
+function mountRoute(route: Route): Promise<void> {
   const generation = ++routeGeneration;
   readyRouteGeneration = 0;
   unmountPage();
@@ -4727,13 +4656,13 @@ function mountRoute(route: Route): void {
   const outlet = required<HTMLElement>("[data-route-outlet]");
   setupShell();
   renderWallet();
-  outlet.replaceChildren();
-  void (async () => {
-    await Promise.all([route.page==='create'?ensureCreateController():Promise.resolve(),route.page==='trade'?ensureTradeController():Promise.resolve()]);
+  renderRouteLoading(outlet);
+  return (async () => {
+    await Promise.all([route.page==='rewards'||route.page==='staking'?loadRewardPageDependencies(route.page):Promise.resolve(),['stats','statsStocks'].includes(route.page)?ensureStatsController():Promise.resolve(),route.page==='create'?ensureCreateController():Promise.resolve(),route.page==='trade'?ensureTradeController():Promise.resolve()]);
     if(generation!==routeGeneration)return;
     const page = await loadPageTemplate(route.page);
     if (generation !== routeGeneration) return;
-    document.title = page.title;
+    applyPageMetadata(route.page, page.title, route.pathname);
     outlet.innerHTML = page.html;
     const main = outlet.querySelector<HTMLElement>("main");
     if (main) {
@@ -4776,8 +4705,7 @@ function mountRoute(route: Route): void {
   })().catch(error => {
     if (generation !== routeGeneration) return;
     foundationError = errorText(error);
-    setPageStatus("We couldn’t load this page. Try again.", "error");
-    text("[data-rewards-status]", "We couldn’t load this page. Try again.");
+    renderRouteFailure(outlet, () => window.location.reload());
     refreshActionAvailability();
   });
 }
@@ -4957,6 +4885,26 @@ function ensureTradeController():Promise<void>{
 }
 type CreateController = ReturnType<typeof import('./controllers/create.ts').createCreateController>;
 let createController: CreateController | undefined;
+let statsController: ReturnType<typeof import('./controllers/stats.ts').createStatsController>|undefined;
+let statsControllerRequest:Promise<void>|undefined;
+const statsContext={
+get text(){return text;},
+get query(){return query;},
+get currentPage(){return currentPage;},
+get foundation(){return foundation;},
+get stockToken(){return stockToken;},
+get marketStockSymbols(){return marketStockSymbols;},
+get stockLogo(){return stockLogo;},
+get assetPrices(){return assetPrices;},
+get formatMarketUSD(){return formatMarketUSD;},
+get runtimeConfig(){return runtimeConfig;},
+get statsRender(){return statsRender;},
+};
+export type StatsContext=typeof statsContext;
+function ensureStatsController():Promise<void>{
+ if(statsController)return Promise.resolve();
+ return statsControllerRequest??=import('./controllers/stats.ts').then(module=>{statsController=module.createStatsController(statsContext);}).finally(()=>{statsControllerRequest=undefined;});
+}
 let createControllerRequest: Promise<void>|undefined;
 function ensureCreateController():Promise<void>{
  if(createController)return Promise.resolve();

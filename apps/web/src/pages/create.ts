@@ -71,6 +71,7 @@ export default {
             <div><span>Total ETH required</span><strong data-funding-total>-</strong></div>
             <div><span>Wallet ETH balance</span><strong data-funding-balance>-</strong></div>
           </div>
+          <p class="action-risk-note">Launching a token does not guarantee demand or liquidity. Contracts have not undergone an independent external audit. <a href="/docs#risk-contracts">Read the risks</a>.</p>
           <button class="action-button" type="submit" data-create-submit disabled><i class="ph ph-plant" aria-hidden="true"></i>Launch token</button>
         </form>
         <aside class="panel token-preview" aria-labelledby="preview-heading">

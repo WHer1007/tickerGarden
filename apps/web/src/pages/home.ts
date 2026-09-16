@@ -32,7 +32,7 @@ export default {
 <main class="home-main">
       <section class="home-hero">
         <div class="hero-copy">
-          <p class="hero-kicker"><i class="ph ph-plant" aria-hidden="true"></i>Community signal markets</p>
+          <p class="hero-kicker"><i class="ph ph-plant" aria-hidden="true"></i>Stake to earn</p>
           <h1>Stake the ticker.<span>Grow the culture.</span></h1>
           <p class="hero-lede">TickerGarden is where stock communities create and trade their own onchain tokens—an open, expressive layer for every ticker story.</p>
           <div class="hero-actions">

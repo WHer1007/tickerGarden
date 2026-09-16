@@ -1,7 +1,7 @@
 import { isRouteLink, resolveRoute, type Route } from "./routes.ts";
 
 type Options = {
-  render(route: Route): void;
+  render(route: Route): void | Promise<void>;
   canNavigate(): boolean;
   blocked(): void;
   hashChanged?(route: Route): void;
@@ -12,6 +12,8 @@ export function createRouter(options: Options) {
   let current = resolveRoute(new URL(window.location.href));
   let index = Number.isInteger(window.history.state?.tgRouteIndex) ? window.history.state.tgRouteIndex as number : 0;
   let restoring = false;
+  let navigation = 0;
+  let mounted: Promise<void> = Promise.resolve();
   const scroll = new Map<number, readonly [number, number]>();
   const controller = new AbortController();
   const events = { signal: controller.signal };
@@ -36,12 +38,16 @@ export function createRouter(options: Options) {
     else window.scrollTo(0, 0);
   }
 
-  function commit(route: Route, position?: readonly [number, number]) {
-    const changed = route.key !== current.key;
+  function commit(route: Route, position?: readonly [number, number], initial = false) {
+    const changed = initial || route.key !== current.key;
     current = route;
-    if (changed) options.render(route);
+    const generation = ++navigation;
+    if (changed) mounted = Promise.resolve(options.render(route));
     else options.hashChanged?.(route);
-    focusRoute(route, position);
+    void mounted.then(() => {
+      if (generation !== navigation || controller.signal.aborted) return;
+      focusRoute(current, position);
+    });
   }
 
   function navigate(href: string, replace = false): boolean {
@@ -62,8 +68,7 @@ export function createRouter(options: Options) {
   function start() {
     window.history.scrollRestoration = "manual";
     window.history.replaceState(state(index), "", current.href);
-    options.render(current);
-    if (current.hash) focusRoute(current);
+    commit(current, undefined, true);
     document.addEventListener("click", event => {
       if (event.defaultPrevented || event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
       const target = event.target;
@@ -94,7 +99,7 @@ export function createRouter(options: Options) {
       if (restoring) return;
       // Native fragment changes (address bar / assistive navigation) also select Rewards tabs.
       const next = location();
-      if (next.href !== current.href) { current = next; options.hashChanged?.(next); }
+      if (next.href !== current.href) commit(next);
     }, events);
   }
 

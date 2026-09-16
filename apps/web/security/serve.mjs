@@ -1,3 +1,4 @@
+import {legacyRedirect} from './legacy-redirects.mjs';
 import http from 'node:http';import fs from 'node:fs';import path from 'node:path';import {fileURLToPath} from 'node:url';import {securityHeaders} from './headers.mjs';
 const root=fileURLToPath(new URL('../dist/',import.meta.url));
 // Build-generated CSP preserves the same endpoint allowlist as the bundled app.
@@ -9,6 +10,7 @@ http.createServer((req,res)=>{
  for(const [k,v]of Object.entries(headers))res.setHeader(k,v);
  if(!['GET','HEAD'].includes(req.method)){res.writeHead(405);res.end();return}
  let relative;try{relative=decodeURIComponent(new URL(req.url,'http://localhost').pathname)}catch{res.writeHead(400);res.end();return}
+ const redirect=legacyRedirect(relative);if(redirect){res.writeHead(308,{Location:redirect+new URL(req.url,'http://localhost').search});res.end();return}
  if(relative.includes('\0')||relative.split('/').some(s=>s.startsWith('.'))||relative==='/_headers'){res.writeHead(404);res.end();return}
  let file=path.resolve(root,'.'+relative);if(file!==path.resolve(root)&&!file.startsWith(root)){res.writeHead(404);res.end();return}
  try{if(fs.statSync(file).isDirectory())file=fs.existsSync(path.join(file,'index.html'))?path.join(file,'index.html'):path.join(root,'index.html')}catch{if(path.extname(relative)){res.writeHead(404);res.end();return}file=path.join(root,'index.html')}
