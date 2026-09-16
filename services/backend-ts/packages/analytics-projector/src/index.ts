@@ -2,7 +2,7 @@ import type { Pool, PoolClient } from 'pg';
 import type { DeploymentIdentity, RpcLog } from '../../chain/src/index.ts';
 import { transaction } from '../../db/src/index.ts';
 import {runtimeConfigs as f72BootstrapConfigs} from '../../runtime-deployment/src/index.ts';
-import { decodeF72Event, f72EventCatalog, type DecodedProtocolEvent } from '../../events/src/index.ts';
+import { decodeF72Event, eventTopic, f72EventCatalog, type DecodedProtocolEvent } from '../../events/src/index.ts';
 import { normalizeTransaction, rebuildHolderSnapshot, transferFromObservation, type Address, type EventObservation, type MarketBinding, type TradeActivity } from '../../analytics/src/index.ts';
 
 interface MarketRecord {
@@ -62,6 +62,9 @@ export async function projectF72Analytics(input: {
   const feeEvents: FeeTotal[] = [];
   for (const row of logRows.rows) {
     const log = parseStoredLog(row.payload);
+    // Historical dense ingestion may contain other applications' shared PoolManager logs.
+    // Only protocol-owned Swap events contribute to this deployment's analytics.
+    if (row.module === 'UniswapV4PoolManager' && (log.topics[0] !== eventTopic('UniswapV4PoolManager', 'Swap') || !marketByPool.has(log.topics[1]!))) continue;
     const decoded = decodeF72Event(row.module, log);
     if (!decoded) throw new Error(`stored ${row.module} log cannot be decoded with frozen f72 ABI`);
     const observation = { event: decoded, timestamp: BigInt(Math.floor(row.source_timestamp.getTime() / 1_000)) } satisfies EventObservation;
