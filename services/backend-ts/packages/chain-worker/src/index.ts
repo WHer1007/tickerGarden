@@ -3,7 +3,7 @@ import { projectHolderRewards } from './holder-snapshots.ts';
 import type { Pool } from 'pg';
 import { transaction } from '../../db/src/index.ts';
 import {
-  consensusBlock, deserializeRpcLog, findCommonAncestor, ingestCanonicalRange, ingestFinalizedSparseRange, loadIngestionState,
+  consensusBlock, deserializeRpcLog, findCommonAncestor, ingestFinalizedSparseRange, loadIngestionState,
   ReorgDetectedError, rewindCanonicalChain, parseChainLogTrigger, RpcTransport, verifyChainIdentity,
   type DeploymentIdentity, type RpcBlock, type RpcLog,
 } from '../../chain/src/index.ts';
@@ -94,7 +94,8 @@ export function createChainProcessor(options: ChainProcessorOptions): (lease: Le
         discover: (logs: readonly RpcLog[], block: RpcBlock) => discoverF72MarketSources(logs, block.number, options.primary, options.secondary),
         ...(options.schemaName ? { schemaName: options.schemaName } : {}),
       } as const;
-      if (sparse) {
+      // Shared PoolManager logs must be scoped to protocol-owned pools even for short ranges.
+      {
         const poolManager = fixedF72Sources().find((source) => source.module === 'UniswapV4PoolManager')!;
         const protocolSources = common.sources.filter((source) => source.address !== poolManager.address);
         const eventTopics = eventTopicsForModules([...new Set([...protocolSources.map((source) => source.module), 'TickerMemeTokenV1', 'TickerGardenCurve'])]);
@@ -102,7 +103,7 @@ export function createChainProcessor(options: ChainProcessorOptions): (lease: Le
           excludedAddresses: [poolManager.address],
           additionalQueries: async (currentLogs) => poolManagerQueries(options.pool, deployment, common.sources, currentLogs, poolManager.address, options.schemaName),
         });
-      } else result = await ingestCanonicalRange(common);
+      }
     } catch (error) {
       if (!(error instanceof ReorgDetectedError) || state.nextBlock <= deployment.activationBlock) throw error;
       return recoverReorg();
