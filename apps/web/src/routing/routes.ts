@@ -1,6 +1,6 @@
 export const PAGE_PATHS = {
   home: "/", markets: "/explore", trade: "/trade", create: "/create",
-  stats: "/stats", rewards: "/claim", staking: "/stake", docs: "/docs",
+  stats: "/stats", statsStocks: "/stats/stocks", rewards: "/claim", staking: "/stake", docs: "/docs",
   privacy: "/privacy", terms: "/terms", risks: "/risks",
 } as const;
 

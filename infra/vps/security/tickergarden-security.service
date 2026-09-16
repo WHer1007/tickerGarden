@@ -1,0 +1,13 @@
+[Unit]
+Description=TickerGarden ingress connection limits and Cloudflare origin restriction
+Wants=network-online.target
+After=network-online.target docker.service
+Requires=docker.service
+
+[Service]
+Type=oneshot
+ExecStart=/bin/bash -c 'exec /opt/tickergarden/security/edge-firewall.sh "$(cat /etc/tickergarden/security/firewall-mode)"'
+RemainAfterExit=yes
+
+[Install]
+WantedBy=multi-user.target

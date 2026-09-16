@@ -23,6 +23,7 @@
     { "source": "/trade", "destination": "/index.html" },
     { "source": "/create", "destination": "/index.html" },
     { "source": "/stats", "destination": "/index.html" },
+    { "source": "/stats/stocks", "destination": "/index.html" },
     { "source": "/claim", "destination": "/index.html" },
     { "source": "/stake", "destination": "/index.html" },
     { "source": "/docs", "destination": "/docs/index.html" },

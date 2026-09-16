@@ -391,7 +391,7 @@ function setDisabled(element: HTMLButtonElement | HTMLInputElement | HTMLSelectE
 
 function currentPage(): PageName {
   const candidate = document.body.dataset.page;
-  return (["home", "markets", "trade", "create", "stats", "rewards", "staking", "docs", "privacy", "terms", "risks", "not-found"] as const).includes(candidate as PageName)
+  return (["home", "markets", "trade", "create", "stats", "statsStocks", "rewards", "staking", "docs", "privacy", "terms", "risks", "not-found"] as const).includes(candidate as PageName)
     ? candidate as PageName
     : "home";
 }
@@ -558,7 +558,7 @@ async function prepareFoundation(api: TickerGardenV1Client | null, expectedSync?
     directoryMarketId
       ? readPublishedMarket(()=>api.getMarket({marketId:directoryMarketId,revision,includeRecent:true}),directoryMarketId,revision)
         .then(detail=>({items:detail?[detail.market]:[],nextCursor:undefined}))
-      : ["markets","create","stats"].includes(currentPage()) ? Promise.resolve({items:[] as MarketReadModel[],nextCursor:undefined}) : readMarketPage(revision, undefined, api),
+      : ["markets","create","stats","statsStocks"].includes(currentPage()) ? Promise.resolve({items:[] as MarketReadModel[],nextCursor:undefined}) : readMarketPage(revision, undefined, api),
   ]);
 
   const reasons: string[] = [];
@@ -1580,9 +1580,8 @@ function clearStatsSnapshotView(_message: string): void {
   query<HTMLElement>('[data-stats-summary]')?.setAttribute('aria-busy','false');
 }
 function setupStats(): void {
- const list=query<HTMLElement>('[data-stats-staking-values]');if(list)statsStockList=mountStatsStockList(list);
+ const list=query<HTMLElement>('[data-stats-staking-values]');if(list)statsStockList=mountStatsStockList(list,{full:currentPage()==='statsStocks'});
  text('[data-stats-network]',robinhoodChain.id===46630?'Testnet data':'Robinhood Chain');
- query<HTMLButtonElement>('[data-stats-refresh]')?.addEventListener('click',()=>void renderStats(true));
 }
 function statsAsset(address:string):{label:string;icon?:string}{
  if(address==='0x'+'0'.repeat(40))return{label:'ETH',icon:quoteIconUrl('ETH')};
@@ -1614,7 +1613,7 @@ function statsPrices(){
  return {prices:Object.fromEntries(rows.map(p=>[p.token,p.midpointUsd])),expiresAt:Object.fromEntries(rows.map(p=>[p.token,Math.floor(p.expiresAt!/1000)]))};
 }
 function applyStatsSnapshot():void{
- if(currentPage()!=='stats')return;
+ if(!['stats','statsStocks'].includes(currentPage()))return;
  const summary=statsSnapshot,prices=statsPrices(),fresh=summary&&statsFresh(summary.observedAt);
  const value=(amount:unknown,asset:string)=>{
   const reference=summary?.feePriceQuotes[asset];
@@ -1631,10 +1630,9 @@ function applyStatsSnapshot():void{
  for(const [key,field]of [['launches','launches24h'],['bloomed','bloomedMarketCount']] as const)text(`[data-stat-${key}]`,fresh&&summary[field]!==null&&Number.isSafeInteger(summary[field])&&summary[field]!>=0?summary[field]!.toLocaleString():'-');
  const stakingFresh=summary?.stakingCoverage===true&&statsFresh(summary.stakingObservedAt);
  text('[data-stat-staking-wallets]',stakingFresh&&Number.isSafeInteger(summary.stakingWallets)?summary.stakingWallets!.toLocaleString():'-');
- let allocationsReady=Boolean(fresh&&summary.allocationCoverage===true);
  for(const bucket of ['creator','staker','holder','platform']){
   const amounts=fresh&&summary.allocationCoverage===true?Object.entries(summary.feeAssets as Record<string,Record<string,string>>).map(([asset,buckets])=>value(buckets[bucket],asset)):null;
-  const total=amounts?sumStatisticsUSD(amounts):null;if(total===null)allocationsReady=false;
+  const total=amounts?sumStatisticsUSD(amounts):null;
   text(`[data-stat-fee-${bucket}]`,total===null?'-':formatMarketUSD(total,true));
  }
  const rows=[...new Map((foundation?.assets??[]).map(asset=>[asset.id,asset])).values()].map(asset=>{
@@ -1646,12 +1644,10 @@ function applyStatsSnapshot():void{
  for(const [id,raw]of Object.entries(summary?.stockAmounts??{}))if(BigInt(raw)>0n&&!rows.some(row=>row.id===id))rows.push({id:id as Hex,label:shortHex(id),decimals:0,amount:BigInt(raw),value:null});
  const stockTotal=stakingFresh?sumStatisticsUSD(rows.map(r=>r.value)):null;
  text('[data-stat-stock-value]',stockTotal===null?'-':formatMarketUSD(stockTotal,true));
- if(stakingFresh)statsStockList?.update(rows);else statsStockList?.setUnavailable('Staking data is syncing. Try again.');
+ if(stakingFresh)statsStockList?.update(rows);else statsStockList?.setUnavailable();
  const time=(at:number)=>new Date(at*1000).toLocaleString('en-US',{month:'short',day:'numeric',hour:'2-digit',minute:'2-digit'});
- text('[data-stats-updated]',summary?`Activity as of ${time(summary.observedAt)} · refreshed every 20 minutes`:'Statistics are syncing');
- text('[data-stats-staking-updated]',summary?.stakingObservedAt?`Staking as of ${time(summary.stakingObservedAt)}`:'Staking data is syncing');
- const complete=fresh&&volume!==null&&revenue!==null&&stockTotal!==null&&allocationsReady&&Number.isSafeInteger(summary.launches24h);
- setPageStatus(complete?'':summary?'Some values are still syncing. Missing values are shown as “-”.':'Statistics could not be loaded. Try again.','warning');
+ text('[data-stats-updated]',summary?`Activity as of ${time(summary.observedAt)} · refreshed every 20 minutes`:'Updates every 20 minutes');
+ text('[data-stats-staking-updated]',summary?.stakingObservedAt?`Staking as of ${time(summary.stakingObservedAt)}`:'');
  query<HTMLElement>('[data-stats-summary]')?.setAttribute('aria-busy','false');
 }
 async function renderProtocolStatistics(force=false):Promise<any>{
@@ -1670,10 +1666,9 @@ async function renderProtocolStatistics(force=false):Promise<any>{
 }
 async function renderStats(force=false):Promise<void>{
  const render=statsRender.begin();
- const button=query<HTMLButtonElement>('[data-stats-refresh]');if(button)button.disabled=true;
  try{await renderProtocolStatistics(force);}catch{ /* Render the cleared snapshot consistently, including Stock rows. */ }
  if(!render.isCurrent())return;
- applyStatsSnapshot();if(button)button.disabled=false;
+ applyStatsSnapshot();
 }
 
 
@@ -4560,6 +4555,7 @@ async function refreshCurrentPage(preserveSnapshot = false): Promise<void> {
       }
       break;
     case "create": renderCreateConfig(); break;
+    case "statsStocks":
     case "stats": await renderStats(); break;
     case "staking":
     case "rewards": await renderRewards(); break;
@@ -4684,8 +4680,10 @@ function isStaticPage(): boolean {
   return page === "privacy" || page === "terms" || page === "risks" || page === "docs" || page === "not-found";
 }
 
+let disposeDocs: (() => void) | undefined;
 let disposeFieldValidation: (() => void) | undefined;
 function unmountPage(): void {
+  disposeDocs?.();disposeDocs=undefined;
   statsStockList?.destroy();statsStockList=undefined;statsAbort?.abort();statsAbort=null;statsRequest=null;
 
   resetExplorePages();
@@ -4756,10 +4754,11 @@ function mountRoute(route: Route): void {
       case "markets": setupMarkets(); break;
       case "trade": setupTrade(); break;
       case "create": setupCreate(); break;
+      case "statsStocks":
       case "stats": setupStats(); break;
       case "staking":
       case "rewards": setupRewards(); break;
-      case "docs": setupDocs(); break;
+      case "docs": disposeDocs=setupDocs(); break;
     }
     if (isStaticPage()) { assetPrices.pause(); refreshActionAvailability(); return; }
     assetPrices.start();
@@ -4981,7 +4980,7 @@ const unsubscribeAssetPrices = assetPrices.subscribe(snapshot => {
       if(currentPage()!=='markets')return;
       applyExploreStatistics();
     });
-  } else if (currentPage() === 'stats' && foundation) applyStatsSnapshot();
+  } else if (['stats','statsStocks'].includes(currentPage()) && foundation) applyStatsSnapshot();
 });
 void restoreLaunchProgress();
 startSnapshotUpdates();
@@ -5017,7 +5016,7 @@ async function refreshDirectDirectory(_renderAfter=true):Promise<void>{
   if(JSON.stringify(current.markets)!==JSON.stringify(markets)){
    foundation=Object.freeze({...current,markets});
    if(currentPage()==='staking')stakeDirectPortfolioVerified=false;
-   if(_renderAfter){if(currentPage()==='stats')await renderStats();else if(currentPage()==='home')await renderHome();else if(isRewardsPage()){populateRewardMarkets();if(currentPage()==='staking')void refreshStakeDirectory(false,true);}else if(currentPage()==='markets')await renderMarkets();}
+   if(_renderAfter){if(['stats','statsStocks'].includes(currentPage()))await renderStats();else if(currentPage()==='home')await renderHome();else if(isRewardsPage()){populateRewardMarkets();if(currentPage()==='staking')void refreshStakeDirectory(false,true);}else if(currentPage()==='markets')await renderMarkets();}
   }
  })();
  directDirectoryRequest=request;
@@ -5038,5 +5037,5 @@ const exploreStatisticsTimer=setInterval(()=>{
 },2_000);
 if(import.meta.hot)import.meta.hot.dispose(()=>clearInterval(exploreStatisticsTimer));
 
-const statsPageTimer=setInterval(()=>{if(currentPage()==="stats"&&!document.hidden)void renderStats();},60_000);
+const statsPageTimer=setInterval(()=>{if(["stats","statsStocks"].includes(currentPage())&&!document.hidden)void renderStats();},60_000);
 if(import.meta.hot)import.meta.hot.dispose(()=>clearInterval(statsPageTimer));

@@ -1,0 +1,1364 @@
+{
+  "retrievedAt": "2026-09-16",
+  "notes": "Company or ETF issuer logos for identification only; trademarks belong to their respective owners. PNGs normalized to 128px with padding; white marks have a dark backing for contrast. Official token metadata remains in deployment manifests.",
+  "assets": [
+    {
+      "symbol": "CRM",
+      "tokenAddress": "0xd95b44124e475743a7589e68f3d74008a5536d44",
+      "path": "/stock-logos/0xd95b44124e475743a7589e68f3d74008a5536d44.png",
+      "source": "https://financialmodelingprep.com/image-stock/CRM.png",
+      "sha256": "8d8043aadb4cbb6ea52f17b95891c7f0eb5b488ce2225c553430eced7f5eca54"
+    },
+    {
+      "symbol": "P",
+      "tokenAddress": "0x1cdad396db64bda184d5182a97dd9b3c62100b7d",
+      "path": "/stock-logos/0x1cdad396db64bda184d5182a97dd9b3c62100b7d.png",
+      "source": "https://financialmodelingprep.com/image-stock/P.png",
+      "sha256": "7b1a63a0cee1cc77cf7e7bfef52c767254fb7603467ff31cfc6ac1fe94dea21c"
+    },
+    {
+      "symbol": "CIEN",
+      "tokenAddress": "0x44f6d488021f8233b9416294d1fe9b1fee28382d",
+      "path": "/stock-logos/0x44f6d488021f8233b9416294d1fe9b1fee28382d.png",
+      "source": "https://financialmodelingprep.com/image-stock/CIEN.png",
+      "sha256": "ba7fb4b22998d72f1157a74121e8c91af0c5e9fdfa6ea167fadef81b5850239e"
+    },
+    {
+      "symbol": "ON",
+      "tokenAddress": "0xbbd09f72b025360fee5c928053dca6248d35be54",
+      "path": "/stock-logos/0xbbd09f72b025360fee5c928053dca6248d35be54.png",
+      "source": "https://raw.githubusercontent.com/nvstly/icons/main/ticker_icons/ON.png",
+      "sha256": "0b77ac822742a3e34c8360152cc9de2664791872da3dea431349ad56c8c7814a"
+    },
+    {
+      "symbol": "APLD",
+      "tokenAddress": "0xb8dbf92f9741c9ac1c32115e78581f23509916fd",
+      "path": "/stock-logos/0xb8dbf92f9741c9ac1c32115e78581f23509916fd.png",
+      "source": "https://financialmodelingprep.com/image-stock/APLD.png",
+      "sha256": "411a70c9fafaccce4b88a0c86456c06c2ce67b0f9702e6c5d91efa72c2c876ba"
+    },
+    {
+      "symbol": "AEHR",
+      "tokenAddress": "0x5f604fba1162193a4388a5dfa56f556f3e133cc2",
+      "path": "/stock-logos/0x5f604fba1162193a4388a5dfa56f556f3e133cc2.png",
+      "source": "https://financialmodelingprep.com/image-stock/AEHR.png",
+      "sha256": "ae7fd8e4eb3aadce7e2c7946ecb2e185d507c183d8331ee8c6eea0a44aaaafe2"
+    },
+    {
+      "symbol": "TEAM",
+      "tokenAddress": "0x5b97476b922f3305131b8f0b9d333172e87f4aae",
+      "path": "/stock-logos/0x5b97476b922f3305131b8f0b9d333172e87f4aae.png",
+      "source": "https://financialmodelingprep.com/image-stock/TEAM.png",
+      "sha256": "314eb78e63f761d391edc132101b178fe3f1b4b696947f068f52e5b04b3151fb"
+    },
+    {
+      "symbol": "QBTS",
+      "tokenAddress": "0xc583c60aef9dc401da72cec1b404743a93cea1cc",
+      "path": "/stock-logos/0xc583c60aef9dc401da72cec1b404743a93cea1cc.png",
+      "source": "https://financialmodelingprep.com/image-stock/QBTS.png",
+      "sha256": "46b16d7f7a94d0ed20b42e77c7564098e6322d98c65f291326fdcc2b4c63d0f1"
+    },
+    {
+      "symbol": "SATS",
+      "tokenAddress": "0x95052ddcd5dc25641657424a8cf04834997e1730",
+      "path": "/stock-logos/0x95052ddcd5dc25641657424a8cf04834997e1730.png",
+      "source": "https://financialmodelingprep.com/image-stock/SATS.png",
+      "sha256": "41fb58d348c46c34eb0286482d31d63fcd29f960706c5a411a26b6532d1d454e"
+    },
+    {
+      "symbol": "FIX",
+      "tokenAddress": "0x93dbb1d2dc5d63f4abacff30485273f538df68ac",
+      "path": "/stock-logos/0x93dbb1d2dc5d63f4abacff30485273f538df68ac.png",
+      "source": "https://financialmodelingprep.com/image-stock/FIX.png",
+      "sha256": "1a104c84bbd0abf66a8e8b1d13a91554e28549149832089b324e144d73db4163"
+    },
+    {
+      "symbol": "MTSI",
+      "tokenAddress": "0xc93f4d80e268ab922e871bd169156c3cc41894e6",
+      "path": "/stock-logos/0xc93f4d80e268ab922e871bd169156c3cc41894e6.png",
+      "source": "https://financialmodelingprep.com/image-stock/MTSI.png",
+      "sha256": "fd38bd491f0d08d2a01a4eff724bc90a015a791dc4f4f99db3f82c54aae3492d"
+    },
+    {
+      "symbol": "SMCI",
+      "tokenAddress": "0xc01aa1fecec0605b13bc84874ff7256c0f5f562a",
+      "path": "/stock-logos/0xc01aa1fecec0605b13bc84874ff7256c0f5f562a.png",
+      "source": "https://financialmodelingprep.com/image-stock/SMCI.png",
+      "sha256": "ff6484483261321502d6127ba6c3e7ff2aaa4a77ee45a49da13ec3d59b53c1b7"
+    },
+    {
+      "symbol": "DELL",
+      "tokenAddress": "0x941ae714ec6d8130c7b75d67160ca08f1e7d11dd",
+      "path": "/stock-logos/0x941ae714ec6d8130c7b75d67160ca08f1e7d11dd.png",
+      "source": "https://financialmodelingprep.com/image-stock/DELL.png",
+      "sha256": "cc3658ff0e84285fa8b706551da3c2956c08f6ec8d752d905ca33862819a7875"
+    },
+    {
+      "symbol": "MXL",
+      "tokenAddress": "0x48961813349333209994750ffa89b3c5c22ec969",
+      "path": "/stock-logos/0x48961813349333209994750ffa89b3c5c22ec969.png",
+      "source": "https://financialmodelingprep.com/image-stock/MXL.png",
+      "sha256": "83c6c40b66ccc0409a3d04b4df7bce97d14171fb390a488cb0ccb384180e32ed"
+    },
+    {
+      "symbol": "RUN",
+      "tokenAddress": "0x756bc80af765c82da966a788858d65adf14f3793",
+      "path": "/stock-logos/0x756bc80af765c82da966a788858d65adf14f3793.png",
+      "source": "https://financialmodelingprep.com/image-stock/RUN.png",
+      "sha256": "b93c81c4ea584845edef0cd7628c00cc3a66a32099c1e7a27954ccf70e13fa8a"
+    },
+    {
+      "symbol": "WDAY",
+      "tokenAddress": "0x82da4646242e1d962e96e932269dc644c94a9caa",
+      "path": "/stock-logos/0x82da4646242e1d962e96e932269dc644c94a9caa.png",
+      "source": "https://financialmodelingprep.com/image-stock/WDAY.png",
+      "sha256": "080b808b2ef88a775474f38d9aa40dc458ec53ae2f3947e9fddb200f0699f808"
+    },
+    {
+      "symbol": "SPCX",
+      "tokenAddress": "0x4a0e65a3eccec6dbe60ae065f2e7bb85fae35eea",
+      "path": "/stock-logos/0x4a0e65a3eccec6dbe60ae065f2e7bb85fae35eea.png",
+      "source": "https://financialmodelingprep.com/image-stock/SPCX.png",
+      "sha256": "b999fcc005d7a2aaf0ad908ddaad33d7fffc6b8cf93d6e055340acdd0dbf0819"
+    },
+    {
+      "symbol": "GLXY",
+      "tokenAddress": "0x2d427692e928fa156ec22acfabafa0447c5805b7",
+      "path": "/stock-logos/0x2d427692e928fa156ec22acfabafa0447c5805b7.png",
+      "source": "https://financialmodelingprep.com/image-stock/GLXY.png",
+      "sha256": "bd885de05a69ca58adca953f10c5e8339442a4074f7cdec55ed61cc84cae56b0"
+    },
+    {
+      "symbol": "CRWD",
+      "tokenAddress": "0xea72ecca2d0f6bfa1394dbbcff85b52cd4233931",
+      "path": "/stock-logos/0xea72ecca2d0f6bfa1394dbbcff85b52cd4233931.png",
+      "source": "https://financialmodelingprep.com/image-stock/CRWD.png",
+      "sha256": "f9fc09f4e8c0691ae35f1535bbc1f76eeff016c345f1cd2742e92b0a527bfe37"
+    },
+    {
+      "symbol": "AVGO",
+      "tokenAddress": "0x156e175dd063a8ce274c50654ef40e0032b3fbcf",
+      "path": "/stock-logos/0x156e175dd063a8ce274c50654ef40e0032b3fbcf.png",
+      "source": "https://financialmodelingprep.com/image-stock/AVGO.png",
+      "sha256": "893bf1766184454aae27fcada525d78b72bca7e79da0fe3093394b58d6348a1e"
+    },
+    {
+      "symbol": "SPY",
+      "tokenAddress": "0x117cc2133c37b721f49de2a7a74833232b3b4c0c",
+      "path": "/stock-logos/0x117cc2133c37b721f49de2a7a74833232b3b4c0c.png",
+      "source": "https://financialmodelingprep.com/image-stock/SPY.png",
+      "sha256": "b8fe69c91dea5583e04ac6a22d696ff8bbe26d43de05f08c6f2f75c3e5272041"
+    },
+    {
+      "symbol": "CCL",
+      "tokenAddress": "0x9651342cea770ae9a2969ba2a52611523146aef9",
+      "path": "/stock-logos/0x9651342cea770ae9a2969ba2a52611523146aef9.png",
+      "source": "https://financialmodelingprep.com/image-stock/CCL.png",
+      "sha256": "a69825e70a3741851ec1295c0f07bce493e10aac252eb78fe04abfd6aff29833"
+    },
+    {
+      "symbol": "GLD",
+      "tokenAddress": "0xc9a981fee1f9dec688bb123ccdecc63d0debfc4e",
+      "path": "/stock-logos/0xc9a981fee1f9dec688bb123ccdecc63d0debfc4e.png",
+      "source": "https://financialmodelingprep.com/image-stock/GLD.png",
+      "sha256": "7da9527ab56432b56fc54f406811666b0673410a90c0a346ad2eb36931ab1752"
+    },
+    {
+      "symbol": "SNOW",
+      "tokenAddress": "0xba0cab75495255d0cb58e22b648bfed4ecd1f47e",
+      "path": "/stock-logos/0xba0cab75495255d0cb58e22b648bfed4ecd1f47e.png",
+      "source": "https://financialmodelingprep.com/image-stock/SNOW.png",
+      "sha256": "9a43b7fe9dc821e412bbe01cf60c9166ed7836236a89ebfe74ec157cb8d3cf2e"
+    },
+    {
+      "symbol": "FICO",
+      "tokenAddress": "0xa48f22a46c0f1c46ca7d111cb6c137c271987180",
+      "path": "/stock-logos/0xa48f22a46c0f1c46ca7d111cb6c137c271987180.png",
+      "source": "https://financialmodelingprep.com/image-stock/FICO.png",
+      "sha256": "fb9e4d4ff91791da8355d90ad992ca8bb2fcbd1fc82a351c553e30ea6e97d51b"
+    },
+    {
+      "symbol": "PR",
+      "tokenAddress": "0x4189f0c66ebbb0bfef1c31f763131361ef32f77c",
+      "path": "/stock-logos/0x4189f0c66ebbb0bfef1c31f763131361ef32f77c.png",
+      "source": "https://financialmodelingprep.com/image-stock/PR.png",
+      "sha256": "ea5067509ec3cfe942306fdb11eabcd92115af9f0099775a7a7e6c4e0947a822"
+    },
+    {
+      "symbol": "QQQ",
+      "tokenAddress": "0xd5f3879160bc7c32ebb4dc785f8a4f505888de68",
+      "path": "/stock-logos/0xd5f3879160bc7c32ebb4dc785f8a4f505888de68.png",
+      "source": "https://companieslogo.com/img/orig/invesco-qqq-6e7735b4.png?download=true&t=1720244494",
+      "sha256": "75111ccb939fd1774601ae493eb7e5fc7a603f3ee9c294933c6070b05af09819"
+    },
+    {
+      "symbol": "WYFI",
+      "tokenAddress": "0x9e7abd3c9139d14e4c86dce0e455aab7a0c2fb3e",
+      "path": "/stock-logos/0x9e7abd3c9139d14e4c86dce0e455aab7a0c2fb3e.png",
+      "source": "https://financialmodelingprep.com/image-stock/WYFI.png",
+      "sha256": "ecf0edffc83844475d208c81a5f31c754383c7e123ea8a11b4f14d76bd15df9d"
+    },
+    {
+      "symbol": "NNE",
+      "tokenAddress": "0xbef75684c43c4ea7bd18dd532a2244674ee8b926",
+      "path": "/stock-logos/0xbef75684c43c4ea7bd18dd532a2244674ee8b926.png",
+      "source": "https://financialmodelingprep.com/image-stock/NNE.png",
+      "sha256": "f8724c057128b1d807dbc6fdeda5b048ca465e3f56f6dc97b45c5cefa89e5474"
+    },
+    {
+      "symbol": "GE",
+      "tokenAddress": "0x63b814ddbd6bf339f25fed8c36158a008d5b373e",
+      "path": "/stock-logos/0x63b814ddbd6bf339f25fed8c36158a008d5b373e.png",
+      "source": "https://financialmodelingprep.com/image-stock/GE.png",
+      "sha256": "2d2077541fee7d156b3c2664a2d0756a92d6f544c955d4a4e0ad99f136cc7bcf"
+    },
+    {
+      "symbol": "SNAP",
+      "tokenAddress": "0xf6589f11bc40b669e584073f428b05562f568733",
+      "path": "/stock-logos/0xf6589f11bc40b669e584073f428b05562f568733.png",
+      "source": "https://financialmodelingprep.com/image-stock/SNAP.png",
+      "sha256": "364dd7508d64c20189477359d855ab2581c1d64e882aca7c96e3fe81c27a99f8"
+    },
+    {
+      "symbol": "SKHY",
+      "tokenAddress": "0x84cab63bc87912e71ad199ff14a0ba45de68fef8",
+      "path": "/stock-logos/0x84cab63bc87912e71ad199ff14a0ba45de68fef8.png",
+      "source": "https://financialmodelingprep.com/image-stock/SKHY.png",
+      "sha256": "07b474f9c1483dd432f0da2997efc2cfeb1f9b270a09dcc3a02ee24ed6528a91"
+    },
+    {
+      "symbol": "CBRS",
+      "tokenAddress": "0x5c90450bbb4273d7b2f17cf6917aeb237a569679",
+      "path": "/stock-logos/0x5c90450bbb4273d7b2f17cf6917aeb237a569679.png",
+      "source": "https://financialmodelingprep.com/image-stock/CBRS.png",
+      "sha256": "62e7230a827a90af912c7c1ff578a02fe0666f43f074c523ffdbfc93d1f9e7c3"
+    },
+    {
+      "symbol": "FUTU",
+      "tokenAddress": "0xeb30663bdff0622ef4e4e5cbb4e975f19f33f51d",
+      "path": "/stock-logos/0xeb30663bdff0622ef4e4e5cbb4e975f19f33f51d.png",
+      "source": "https://financialmodelingprep.com/image-stock/FUTU.png",
+      "sha256": "343df88888b5009e272770f06bfcdade2b656b21175ab2ea9805c93d731a76f3"
+    },
+    {
+      "symbol": "TSM",
+      "tokenAddress": "0x58ffe4a942d3885baa22d7520691f611ef09e7aa",
+      "path": "/stock-logos/0x58ffe4a942d3885baa22d7520691f611ef09e7aa.png",
+      "source": "https://financialmodelingprep.com/image-stock/TSM.png",
+      "sha256": "003067ba26fa8cf6512fe1aea93e5ceb47dc4c92a6222e5b303861a17dcd39d3"
+    },
+    {
+      "symbol": "NU",
+      "tokenAddress": "0x408c14038a04f7bd235329e26d2bf569ee20e250",
+      "path": "/stock-logos/0x408c14038a04f7bd235329e26d2bf569ee20e250.png",
+      "source": "https://financialmodelingprep.com/image-stock/NU.png",
+      "sha256": "7558b70a819c8e37e8882f2e14f955df159dfac391cb1024dce9c0fb0aa8778e"
+    },
+    {
+      "symbol": "INTC",
+      "tokenAddress": "0xc72b96e0e48ecd4dc75e1e45396e26300bc39681",
+      "path": "/stock-logos/0xc72b96e0e48ecd4dc75e1e45396e26300bc39681.png",
+      "source": "https://financialmodelingprep.com/image-stock/INTC.png",
+      "sha256": "9157f085529bdb7ce83cfa0145e6ccc81706e7dc1af2ad09e22ce8c5f691dfdb"
+    },
+    {
+      "symbol": "MSFT",
+      "tokenAddress": "0xe93237c50d904957cf27e7b1133b510c669c2e74",
+      "path": "/stock-logos/0xe93237c50d904957cf27e7b1133b510c669c2e74.png",
+      "source": "https://financialmodelingprep.com/image-stock/MSFT.png",
+      "sha256": "54de3d675f6b91a8566f8db03b2d33fa8c229cb4a465f6f8391c8fb32d539fdd"
+    },
+    {
+      "symbol": "RCAT",
+      "tokenAddress": "0xfde6b5d9bb419b10c23268c74e369abff39c0460",
+      "path": "/stock-logos/0xfde6b5d9bb419b10c23268c74e369abff39c0460.png",
+      "source": "https://financialmodelingprep.com/image-stock/RCAT.png",
+      "sha256": "ecda00373a4bd45fcde3fbd7e2a85172f1d9d34ad6075c81b58148a0afb71461"
+    },
+    {
+      "symbol": "RGTI",
+      "tokenAddress": "0x284358abc07f9359f19f4b5b4ac91901be2597ba",
+      "path": "/stock-logos/0x284358abc07f9359f19f4b5b4ac91901be2597ba.png",
+      "source": "https://raw.githubusercontent.com/nvstly/icons/main/ticker_icons/RGTI.png",
+      "sha256": "45ed4f319430ea65ce93f218decd92f04946532cd64ee0e4c7da57ef01ec9540"
+    },
+    {
+      "symbol": "TTWO",
+      "tokenAddress": "0x5e81213613b6b86eab4c6c50d718d34359459786",
+      "path": "/stock-logos/0x5e81213613b6b86eab4c6c50d718d34359459786.png",
+      "source": "https://financialmodelingprep.com/image-stock/TTWO.png",
+      "sha256": "88a3dba7654f6db52fe36f435cdedb5ba839a46d52aa05e6f2d269ee953a95bf"
+    },
+    {
+      "symbol": "META",
+      "tokenAddress": "0xc0d6457c16cc70d6790dd43521c899c87ce02f35",
+      "path": "/stock-logos/0xc0d6457c16cc70d6790dd43521c899c87ce02f35.png",
+      "source": "https://financialmodelingprep.com/image-stock/META.png",
+      "sha256": "6e644d3629173a7c4b3164770e61ae1d08299f1db87fbe02323c06ebc15f1582"
+    },
+    {
+      "symbol": "VICR",
+      "tokenAddress": "0x6006ed4b2f94110851ff7509d97d034f0eed9226",
+      "path": "/stock-logos/0x6006ed4b2f94110851ff7509d97d034f0eed9226.png",
+      "source": "https://financialmodelingprep.com/image-stock/VICR.png",
+      "sha256": "f2aac63bbe562e48c3c6be61135dea5bd9b11475de73fc1d0d0d2ac2eb585f0d"
+    },
+    {
+      "symbol": "TSEM",
+      "tokenAddress": "0x89776d4cd68193597a2fc132cfac1fde36ccea8a",
+      "path": "/stock-logos/0x89776d4cd68193597a2fc132cfac1fde36ccea8a.png",
+      "source": "https://towersemi.com/wp-content/uploads/2020/02/Tower-logo-CMYKtag.png",
+      "sha256": "77f8bf5f7a137cc7c4d1278f1a95f5f2925cf0fbecbb4d6ddb4614a003c6850a"
+    },
+    {
+      "symbol": "RDDT",
+      "tokenAddress": "0x05b37fb53a299a1b874a619e1c4c404d52c36f4c",
+      "path": "/stock-logos/0x05b37fb53a299a1b874a619e1c4c404d52c36f4c.png",
+      "source": "https://financialmodelingprep.com/image-stock/RDDT.png",
+      "sha256": "712fe825049348de62cc9edecbb01beaa3ec8cd390a81b4892411b15b96e2796"
+    },
+    {
+      "symbol": "GLW",
+      "tokenAddress": "0x7c04e6a3368f2a1de3874f0e80d2e0a1a9915da6",
+      "path": "/stock-logos/0x7c04e6a3368f2a1de3874f0e80d2e0a1a9915da6.png",
+      "source": "https://financialmodelingprep.com/image-stock/GLW.png",
+      "sha256": "701c1a7ab854a16d7fd852144e397ef23e06961bcbf4d1059256198bae46a233"
+    },
+    {
+      "symbol": "UPS",
+      "tokenAddress": "0xf23250dac154d05bb671cb0d0ebef3c635c79ce2",
+      "path": "/stock-logos/0xf23250dac154d05bb671cb0d0ebef3c635c79ce2.png",
+      "source": "https://financialmodelingprep.com/image-stock/UPS.png",
+      "sha256": "d2f55388cf0ce29e0f19709b4a864bb4a363ad439968c60322672fc5dcdc265b"
+    },
+    {
+      "symbol": "PANW",
+      "tokenAddress": "0xb039597ed45cba7b6e2fb9e8be51802969cee5be",
+      "path": "/stock-logos/0xb039597ed45cba7b6e2fb9e8be51802969cee5be.png",
+      "source": "https://financialmodelingprep.com/image-stock/PANW.png",
+      "sha256": "bf3bbbd0443a355e5b6b82d7a4ecdff6a1d77bd41796875819916a8fc373dca7"
+    },
+    {
+      "symbol": "LHX",
+      "tokenAddress": "0x48d60243c66437c6ac3c2495be94747aed5dfe25",
+      "path": "/stock-logos/0x48d60243c66437c6ac3c2495be94747aed5dfe25.png",
+      "source": "https://financialmodelingprep.com/image-stock/LHX.png",
+      "sha256": "182257cfc054d7e89906a694c77744e3fd5141ed4fc9603b9ede141637bfe2bf"
+    },
+    {
+      "symbol": "FLY",
+      "tokenAddress": "0x03bc731ffb162cdd7b98d3c6542bfc291126075d",
+      "path": "/stock-logos/0x03bc731ffb162cdd7b98d3c6542bfc291126075d.png",
+      "source": "https://companieslogo.com/img/orig/FLY-334a9356.png?download=true&t=1755648539",
+      "sha256": "e0fdc668a0e2becec7cd3f72db0d88374a7207b9bd2948146b1884b41440aa3c"
+    },
+    {
+      "symbol": "SNDK",
+      "tokenAddress": "0xb90a19ff0af67f7779aff50a882a9cff42446400",
+      "path": "/stock-logos/0xb90a19ff0af67f7779aff50a882a9cff42446400.png",
+      "source": "https://financialmodelingprep.com/image-stock/SNDK.png",
+      "sha256": "0ae757a712df93ff4b67f082e6b1b6520362a0027f21b70516891f62eb4e7546"
+    },
+    {
+      "symbol": "BA",
+      "tokenAddress": "0x4d21483a44bf67a86b77e3da301411880797d452",
+      "path": "/stock-logos/0x4d21483a44bf67a86b77e3da301411880797d452.png",
+      "source": "https://raw.githubusercontent.com/nvstly/icons/main/ticker_icons/BA.png",
+      "sha256": "1f7712b5eabf35457a1c211154dcf21a3b8d8c8890f60dae41e904283515faf8"
+    },
+    {
+      "symbol": "INTU",
+      "tokenAddress": "0x56d23bee5f41a7120170b0c603dae30128e460e9",
+      "path": "/stock-logos/0x56d23bee5f41a7120170b0c603dae30128e460e9.png",
+      "source": "https://financialmodelingprep.com/image-stock/INTU.png",
+      "sha256": "a3d2d3ca04412e6ae4eae957fc3c4a3abef2fc9f2469b887358f17704b54cceb"
+    },
+    {
+      "symbol": "ELF",
+      "tokenAddress": "0x39ec44bee4f6a116c6f9b8de566848a985c53c60",
+      "path": "/stock-logos/0x39ec44bee4f6a116c6f9b8de566848a985c53c60.png",
+      "source": "https://raw.githubusercontent.com/nvstly/icons/main/ticker_icons/ELF.png",
+      "sha256": "7602a6fc18ab8d1412cb494fc22751746695c11462d6a67ca1b47e02d6a5dccc"
+    },
+    {
+      "symbol": "AMZN",
+      "tokenAddress": "0x12f190a9f9d7d37a250758b26824b97ce941bf54",
+      "path": "/stock-logos/0x12f190a9f9d7d37a250758b26824b97ce941bf54.png",
+      "source": "https://financialmodelingprep.com/image-stock/AMZN.png",
+      "sha256": "0b2484c09b7654fcf39365ddc222ebc986f3f63a3718c5e53fd9e5d35d641a47"
+    },
+    {
+      "symbol": "NFLX",
+      "tokenAddress": "0xe0444ef8bf4ed74f74fd73686e2ddf4c1c5591e8",
+      "path": "/stock-logos/0xe0444ef8bf4ed74f74fd73686e2ddf4c1c5591e8.png",
+      "source": "https://financialmodelingprep.com/image-stock/NFLX.png",
+      "sha256": "7ecac48ee2ce6a1fce6db00776d4aae5afe2b8ba563eafa102e1277ea14b1fb4"
+    },
+    {
+      "symbol": "CRCL",
+      "tokenAddress": "0xdf0992e440dd0be65bd8439b609d6d4366bf1cb5",
+      "path": "/stock-logos/0xdf0992e440dd0be65bd8439b609d6d4366bf1cb5.png",
+      "source": "https://financialmodelingprep.com/image-stock/CRCL.png",
+      "sha256": "0dcb02e2f897f40fbea0a6f1d893301111042bc253fbdd175f2f143c8134eb40"
+    },
+    {
+      "symbol": "USAR",
+      "tokenAddress": "0xd917b029c761d264c6a312bbbcda868658ef86a6",
+      "path": "/stock-logos/0xd917b029c761d264c6a312bbbcda868658ef86a6.png",
+      "source": "https://financialmodelingprep.com/image-stock/USAR.png",
+      "sha256": "4f36d688989a9774a67e762c67f549380a9e9b27f5b53d3bf8a15c013228bf87"
+    },
+    {
+      "symbol": "VST",
+      "tokenAddress": "0x561e2a49212b7ccf47f2744ccb83e200722fadbc",
+      "path": "/stock-logos/0x561e2a49212b7ccf47f2744ccb83e200722fadbc.png",
+      "source": "https://financialmodelingprep.com/image-stock/VST.png",
+      "sha256": "a4aac634e2575c4f162c4d5ca834be8e5540dc5fc330ed9088cb764231b2d709"
+    },
+    {
+      "symbol": "CSCO",
+      "tokenAddress": "0xf543967eebb6f1917992ef0e68de63ab07a5a0da",
+      "path": "/stock-logos/0xf543967eebb6f1917992ef0e68de63ab07a5a0da.png",
+      "source": "https://financialmodelingprep.com/image-stock/CSCO.png",
+      "sha256": "433d9e4c9f53d2eaaefc57992a29e2f290f90e303e1a73b17a25f61410ba6515"
+    },
+    {
+      "symbol": "FISV",
+      "tokenAddress": "0x9ece29a4a2397c0a35fb5fa8ee2b9509130a98cc",
+      "path": "/stock-logos/0x9ece29a4a2397c0a35fb5fa8ee2b9509130a98cc.png",
+      "source": "https://financialmodelingprep.com/image-stock/FISV.png",
+      "sha256": "dcfd0a1c60c7f9ae8bdb0ff7c431020daf8f52e3b39160b7ac5e6ffb39b5a982"
+    },
+    {
+      "symbol": "GOOGL",
+      "tokenAddress": "0x2e0847e8910a9732eb3fb1bb4b70a580adad4fe3",
+      "path": "/stock-logos/0x2e0847e8910a9732eb3fb1bb4b70a580adad4fe3.png",
+      "source": "https://financialmodelingprep.com/image-stock/GOOGL.png",
+      "sha256": "767cdd68545cfa5a32963d2f25fc7a4a4e15407af8605a87676f4849fb3e50bc"
+    },
+    {
+      "symbol": "BB",
+      "tokenAddress": "0x48e39e56acdba37b09020c0b734a613c9a2f100a",
+      "path": "/stock-logos/0x48e39e56acdba37b09020c0b734a613c9a2f100a.png",
+      "source": "https://raw.githubusercontent.com/nvstly/icons/main/ticker_icons/BB.png",
+      "sha256": "a68a7a632d72c1a74060ffac6348ab8e8e04b5dc070b83f611e68651286cd7b7"
+    },
+    {
+      "symbol": "CVNA",
+      "tokenAddress": "0xa4f319104089fe321dc8093c6e707d4fe190a988",
+      "path": "/stock-logos/0xa4f319104089fe321dc8093c6e707d4fe190a988.png",
+      "source": "https://financialmodelingprep.com/image-stock/CVNA.png",
+      "sha256": "55086c74c3b50fcd0c1d4c595e8a50c573dbf6b58bf9dc70ba68265cea0455b8"
+    },
+    {
+      "symbol": "AXTI",
+      "tokenAddress": "0x141eea040c2250eec0314e336975e81f85f6585e",
+      "path": "/stock-logos/0x141eea040c2250eec0314e336975e81f85f6585e.png",
+      "source": "https://financialmodelingprep.com/image-stock/AXTI.png",
+      "sha256": "785f0a7fc4d00ea44e1bccaf4ccc59fc96eb36593d9ec96ff33ea283d9e2b979"
+    },
+    {
+      "symbol": "MOD",
+      "tokenAddress": "0xc6cbad1016b38b797610c25e1dc7d95988b1f362",
+      "path": "/stock-logos/0xc6cbad1016b38b797610c25e1dc7d95988b1f362.png",
+      "source": "https://financialmodelingprep.com/image-stock/MOD.png",
+      "sha256": "9697a1f2c8b89b74be320fa1293bd592c1a34a4e96113de76e2b70c668f89e93"
+    },
+    {
+      "symbol": "LULU",
+      "tokenAddress": "0x4e62068525ab11fe768e29dfd00ef909b9803016",
+      "path": "/stock-logos/0x4e62068525ab11fe768e29dfd00ef909b9803016.png",
+      "source": "https://financialmodelingprep.com/image-stock/LULU.png",
+      "sha256": "ad8d8ffd8f6f242c8bd55e3d990a6118fb9a32c99b2a7c267e155e4430c3e143"
+    },
+    {
+      "symbol": "LMT",
+      "tokenAddress": "0x329fcaceb9ad6f9580dd5f643fed0646900d043c",
+      "path": "/stock-logos/0x329fcaceb9ad6f9580dd5f643fed0646900d043c.png",
+      "source": "https://raw.githubusercontent.com/nvstly/icons/main/ticker_icons/LMT.png",
+      "sha256": "7fe1c6f5d9de978fdd1797108b46bcb184dcfc1abf5cbc518b2ee0eed4a7052e"
+    },
+    {
+      "symbol": "INFQ",
+      "tokenAddress": "0xb853bc83a753342a4f8320ea680b4b1e84118d21",
+      "path": "/stock-logos/0xb853bc83a753342a4f8320ea680b4b1e84118d21.png",
+      "source": "https://financialmodelingprep.com/image-stock/INFQ.png",
+      "sha256": "9791809f922137b4aa00e50cc5afacdb497c5c01a52d73b7248da86873596015"
+    },
+    {
+      "symbol": "SGOV",
+      "tokenAddress": "0x92fd66527192e3e61d4ddd13322aa222de86f9b5",
+      "path": "/stock-logos/0x92fd66527192e3e61d4ddd13322aa222de86f9b5.png",
+      "source": "https://financialmodelingprep.com/image-stock/SGOV.png",
+      "sha256": "9a1d63d13cf7418a4c1e05184c1e50d70fcc340cc9fd2aebdda229386b0e4f42"
+    },
+    {
+      "symbol": "OUST",
+      "tokenAddress": "0x40e7a279850e443f582059ae5dc1c3b6563e6395",
+      "path": "/stock-logos/0x40e7a279850e443f582059ae5dc1c3b6563e6395.png",
+      "source": "https://financialmodelingprep.com/image-stock/OUST.png",
+      "sha256": "bef2088163aecd784055b01b41dfb66d43ff70a49b2bc3d75b5e6499628ae9e1"
+    },
+    {
+      "symbol": "IREN",
+      "tokenAddress": "0xf0ab0c93be6f41369d302e55db1a96b3c430212d",
+      "path": "/stock-logos/0xf0ab0c93be6f41369d302e55db1a96b3c430212d.png",
+      "source": "https://companieslogo.com/img/orig/IREN-f3e8d4f9.png?download=true&t=1723010978",
+      "sha256": "f1be7cb666c813767a2418aca261bbdf464c123e0bc7fe08264ee6061f380750"
+    },
+    {
+      "symbol": "MRNA",
+      "tokenAddress": "0x43b07d15ce533bec5476d70c22a78a1b2b662155",
+      "path": "/stock-logos/0x43b07d15ce533bec5476d70c22a78a1b2b662155.png",
+      "source": "https://financialmodelingprep.com/image-stock/MRNA.png",
+      "sha256": "cf959f43264eaf7fac2d83299399ccc7d7d24541f5b0e21244a3ab667492ca5b"
+    },
+    {
+      "symbol": "LRCX",
+      "tokenAddress": "0x57b0030166db0c31690d1a5aa167e2e26e2c29a4",
+      "path": "/stock-logos/0x57b0030166db0c31690d1a5aa167e2e26e2c29a4.png",
+      "source": "https://financialmodelingprep.com/image-stock/LRCX.png",
+      "sha256": "92022ef61417480cd515679a0176bb1ee755f4bedad1550c50a72fcd9f91b5fa"
+    },
+    {
+      "symbol": "BND",
+      "tokenAddress": "0x2f62fc9fabb470c690f141c28340ed832bb27020",
+      "path": "/stock-logos/0x2f62fc9fabb470c690f141c28340ed832bb27020.png",
+      "source": "https://financialmodelingprep.com/image-stock/BND.png",
+      "sha256": "11f78d9b54a8c5dbabeaa8d2e9b2aba063c6a53520cd7dd3931dc651019f245d"
+    },
+    {
+      "symbol": "CEG",
+      "tokenAddress": "0xae517a2903e68bd929dfd15be875f8369d53e94a",
+      "path": "/stock-logos/0xae517a2903e68bd929dfd15be875f8369d53e94a.png",
+      "source": "https://raw.githubusercontent.com/nvstly/icons/main/ticker_icons/CEG.png",
+      "sha256": "db5d7570871e44d77a764a9a1f87a97ee1f43fb35d9c98545f81f4418c9e449d"
+    },
+    {
+      "symbol": "ALAB",
+      "tokenAddress": "0x748c32c3ca24edf31ea597db1f3d330a7a6da3dc",
+      "path": "/stock-logos/0x748c32c3ca24edf31ea597db1f3d330a7a6da3dc.png",
+      "source": "https://financialmodelingprep.com/image-stock/ALAB.png",
+      "sha256": "2ac1501ca808b75c047bee1debaeba73ad3dee14d6af3616fc2fff54388cf963"
+    },
+    {
+      "symbol": "TEM",
+      "tokenAddress": "0xb1cc0ec7db69cf43539119814df40071b9d61793",
+      "path": "/stock-logos/0xb1cc0ec7db69cf43539119814df40071b9d61793.png",
+      "source": "https://financialmodelingprep.com/image-stock/TEM.png",
+      "sha256": "b8f622a240f9425838edaf9c3a32ffe36523439a5e0922a35b9781856533a774"
+    },
+    {
+      "symbol": "BULL",
+      "tokenAddress": "0xcef9027c7d6985b85f0ba431125073529a947a68",
+      "path": "/stock-logos/0xcef9027c7d6985b85f0ba431125073529a947a68.png",
+      "source": "https://financialmodelingprep.com/image-stock/BULL.png",
+      "sha256": "9ce2f79cfeb55fbd65084794ca90a4f0f85a113424799f9d95e5d8c199d42919"
+    },
+    {
+      "symbol": "UNH",
+      "tokenAddress": "0xcf364ea52787e289de6f32077834056e3e70d6a8",
+      "path": "/stock-logos/0xcf364ea52787e289de6f32077834056e3e70d6a8.png",
+      "source": "https://raw.githubusercontent.com/nvstly/icons/main/ticker_icons/UNH.png",
+      "sha256": "c458cd82cd5eacf900637d433f2127ba90fad5c04f8b236b0b8b885641b9a5b2"
+    },
+    {
+      "symbol": "CLOV",
+      "tokenAddress": "0x62200915e7deab1ec7f79fb246dadbb80eacddd0",
+      "path": "/stock-logos/0x62200915e7deab1ec7f79fb246dadbb80eacddd0.png",
+      "source": "https://financialmodelingprep.com/image-stock/CLOV.png",
+      "sha256": "29a607e60f5da236553b9f3813f20978b5a000a58328cd029e33e398f221f426"
+    },
+    {
+      "symbol": "BABA",
+      "tokenAddress": "0xad25ac6c84d497db898fa1e8387bf6af3532a1c4",
+      "path": "/stock-logos/0xad25ac6c84d497db898fa1e8387bf6af3532a1c4.png",
+      "source": "https://financialmodelingprep.com/image-stock/BABA.png",
+      "sha256": "105a11ecba2347cc866b0e430a12e456a5eadff3293e615543a1aa2535247300"
+    },
+    {
+      "symbol": "SIMO",
+      "tokenAddress": "0x77e655e37f4d913fb9540e0d541d824171a60e81",
+      "path": "/stock-logos/0x77e655e37f4d913fb9540e0d541d824171a60e81.png",
+      "source": "https://financialmodelingprep.com/image-stock/SIMO.png",
+      "sha256": "1261d2cfcb7cc9302f305a5bb67285829c0047a6e580b5a336c6b03b6789bceb"
+    },
+    {
+      "symbol": "WDC",
+      "tokenAddress": "0xf52597345a8edf418bc4071b4a35112472277d3e",
+      "path": "/stock-logos/0xf52597345a8edf418bc4071b4a35112472277d3e.png",
+      "source": "https://financialmodelingprep.com/image-stock/WDC.png",
+      "sha256": "62c154e99c2df63f5dcb71e81baaeda2de80e74b6c753a87628ec84bec679f66"
+    },
+    {
+      "symbol": "CLSK",
+      "tokenAddress": "0xcbb95bbf36099d34da091dc6fa6f49efa257cee3",
+      "path": "/stock-logos/0xcbb95bbf36099d34da091dc6fa6f49efa257cee3.png",
+      "source": "https://raw.githubusercontent.com/nvstly/icons/main/ticker_icons/CLSK.png",
+      "sha256": "c94084cbb9e0cf0ae4e16a57dbf382b99c2e3447186489326df141d35144b261"
+    },
+    {
+      "symbol": "PLTR",
+      "tokenAddress": "0x894e1ec2d74ffe5aef8dc8a9e84686accb964f2a",
+      "path": "/stock-logos/0x894e1ec2d74ffe5aef8dc8a9e84686accb964f2a.png",
+      "source": "https://financialmodelingprep.com/image-stock/PLTR.png",
+      "sha256": "95c2efd3a2c998429c377324e22f6d2108d2c91f9cf8af91b90478467e260a81"
+    },
+    {
+      "symbol": "MU",
+      "tokenAddress": "0xff080c8ce2e5feadaca0da81314ae59d232d4afd",
+      "path": "/stock-logos/0xff080c8ce2e5feadaca0da81314ae59d232d4afd.png",
+      "source": "https://financialmodelingprep.com/image-stock/MU.png",
+      "sha256": "6680a3802ff504670cfbb4e9959f2486c6715d91502dc66fea7c5843a76320f5"
+    },
+    {
+      "symbol": "ASTS",
+      "tokenAddress": "0x1af6446f07eb1d97c546afc8c9544cbdf3ad5137",
+      "path": "/stock-logos/0x1af6446f07eb1d97c546afc8c9544cbdf3ad5137.png",
+      "source": "https://financialmodelingprep.com/image-stock/ASTS.png",
+      "sha256": "bb041030d22cf14e2aabcebe467d37412661501c74baf52ab9accead0f951b44"
+    },
+    {
+      "symbol": "POWL",
+      "tokenAddress": "0x237c16d66590f67b886d978acd362eaead8b18c7",
+      "path": "/stock-logos/0x237c16d66590f67b886d978acd362eaead8b18c7.png",
+      "source": "https://financialmodelingprep.com/image-stock/POWL.png",
+      "sha256": "1ca0d73fa2f589483bdae175fbe3c32df1cddfcbe86a337cd07d202ececcb07f"
+    },
+    {
+      "symbol": "VTI",
+      "tokenAddress": "0x0594134df3f171a354d9c85ebd65b7a6148f6d09",
+      "path": "/stock-logos/0x0594134df3f171a354d9c85ebd65b7a6148f6d09.png",
+      "source": "https://financialmodelingprep.com/image-stock/VTI.png",
+      "sha256": "ddb28a2a2429d935457db45b6c384f6f1df94ce740b5c323748bd51900bd28b5"
+    },
+    {
+      "symbol": "RKLB",
+      "tokenAddress": "0x3b14c39e89d60d627b42a1a4ca45b5bb45fc12e2",
+      "path": "/stock-logos/0x3b14c39e89d60d627b42a1a4ca45b5bb45fc12e2.png",
+      "source": "https://financialmodelingprep.com/image-stock/RKLB.png",
+      "sha256": "b81118e1497e463b89783cdc3b05cb4a329376b9d0f1be0e736de1a09f605c92"
+    },
+    {
+      "symbol": "TER",
+      "tokenAddress": "0x2778c5024d5ca2cdb0f8ead671ffc69963adcd9c",
+      "path": "/stock-logos/0x2778c5024d5ca2cdb0f8ead671ffc69963adcd9c.png",
+      "source": "https://financialmodelingprep.com/image-stock/TER.png",
+      "sha256": "11630aa0b45b910015a04407d5b167497d14d37b427a5e4473218c271cd99151"
+    },
+    {
+      "symbol": "CRWV",
+      "tokenAddress": "0x5f10a1c971b69e47e059e1dc91901b59b3fb49c3",
+      "path": "/stock-logos/0x5f10a1c971b69e47e059e1dc91901b59b3fb49c3.png",
+      "source": "https://financialmodelingprep.com/image-stock/CRWV.png",
+      "sha256": "270faa75ce8f9c0aa7fcb2c9ae93602062dff44f8527ee2856245bff0bd2e8c3"
+    },
+    {
+      "symbol": "CLS",
+      "tokenAddress": "0xbf449977089c718c004a66c554b26b94ef3ad4de",
+      "path": "/stock-logos/0xbf449977089c718c004a66c554b26b94ef3ad4de.png",
+      "source": "https://raw.githubusercontent.com/nvstly/icons/main/ticker_icons/CLS.png",
+      "sha256": "bc174404ad441f88a342bd528c9819d68ebcec36eec7bb1c32e92607bcc4913d"
+    },
+    {
+      "symbol": "FIG",
+      "tokenAddress": "0x41f4267525a8aff329540ef24fd83d9044758b33",
+      "path": "/stock-logos/0x41f4267525a8aff329540ef24fd83d9044758b33.png",
+      "source": "https://financialmodelingprep.com/image-stock/FIG.png",
+      "sha256": "62427d608bfe12ccdfa97632cec399abccfb057a9057c6824a35a61094a63920"
+    },
+    {
+      "symbol": "AMD",
+      "tokenAddress": "0x86923f96303d656e4aa86d9d42d1e57ad2023fdc",
+      "path": "/stock-logos/0x86923f96303d656e4aa86d9d42d1e57ad2023fdc.png",
+      "source": "https://financialmodelingprep.com/image-stock/AMD.png",
+      "sha256": "430b8463c851124e1c6bdc994fc82cd75b913df1c46f23a9e4a4f95d2af25295"
+    },
+    {
+      "symbol": "EWY",
+      "tokenAddress": "0x7f0abef0c07280f82c6a08ead09ded6bae2c13fc",
+      "path": "/stock-logos/0x7f0abef0c07280f82c6a08ead09ded6bae2c13fc.png",
+      "source": "https://financialmodelingprep.com/image-stock/EWY.png",
+      "sha256": "e65568173ba74369f438b1f1833c75aaadf47342827af608d4df23d9c6e94da8"
+    },
+    {
+      "symbol": "SLS",
+      "tokenAddress": "0x285b231728c7e4333799183df1094d775246a535",
+      "path": "/stock-logos/0x285b231728c7e4333799183df1094d775246a535.png",
+      "source": "https://raw.githubusercontent.com/nvstly/icons/main/ticker_icons/SLS.png",
+      "sha256": "bc752f60ac51b584e48dfdf5bd712080edc043f284afc19886d82b62b327f7b1"
+    },
+    {
+      "symbol": "CRDO",
+      "tokenAddress": "0x4d67253bc223e6b0e104f1084c1fb2b669ddc41b",
+      "path": "/stock-logos/0x4d67253bc223e6b0e104f1084c1fb2b669ddc41b.png",
+      "source": "https://financialmodelingprep.com/image-stock/CRDO.png",
+      "sha256": "9578a6a00601fc9dac7b584aa8641663e9e71bdebdf4bd456211c00455cf9f70"
+    },
+    {
+      "symbol": "SMH",
+      "tokenAddress": "0x072f979c2cac8e1391b0162a87fee094bf8744a0",
+      "path": "/stock-logos/0x072f979c2cac8e1391b0162a87fee094bf8744a0.png",
+      "source": "https://financialmodelingprep.com/image-stock/SMH.png",
+      "sha256": "7cc009bc5b0fb0c8165ec4db5c95d1ed5d3f7c771555dd47e0df9f8bd110e7c4"
+    },
+    {
+      "symbol": "VRT",
+      "tokenAddress": "0xfa78c12e6488814a0262e4e802749a4a737d5fb7",
+      "path": "/stock-logos/0xfa78c12e6488814a0262e4e802749a4a737d5fb7.png",
+      "source": "https://financialmodelingprep.com/image-stock/VRT.png",
+      "sha256": "9ad54ff4664dff72aa6451287f4ae53c2e430aa3d8e3d3bc6005de2519dbd543"
+    },
+    {
+      "symbol": "NOW",
+      "tokenAddress": "0x0c3260af4b8f13a69c4c2dfb84fd667890cdfa14",
+      "path": "/stock-logos/0x0c3260af4b8f13a69c4c2dfb84fd667890cdfa14.png",
+      "source": "https://financialmodelingprep.com/image-stock/NOW.png",
+      "sha256": "d1ef14ef4319bcfef02d1a215ba9c41e028dc2d11f57af0440cfd702ba16688d"
+    },
+    {
+      "symbol": "XLK",
+      "tokenAddress": "0x15cd20759ce7f3285c29a319de2d1a2e098c6f43",
+      "path": "/stock-logos/0x15cd20759ce7f3285c29a319de2d1a2e098c6f43.png",
+      "source": "https://financialmodelingprep.com/image-stock/XLK.png",
+      "sha256": "7a37ea20d6cf88b03661f11d106f2e68c30d6731b53bcc0bb8bb7a991ba3e1f1"
+    },
+    {
+      "symbol": "AMBA",
+      "tokenAddress": "0x99d9d8663545151603863c5acbd6fc3218899009",
+      "path": "/stock-logos/0x99d9d8663545151603863c5acbd6fc3218899009.png",
+      "source": "https://financialmodelingprep.com/image-stock/AMBA.png",
+      "sha256": "f6957f487408bb236b0701128fd8e25a60592f0a96c8642c0400d68ea728623f"
+    },
+    {
+      "symbol": "NVDA",
+      "tokenAddress": "0xd0601ce157db5bdc3162bbac2a2c8af5320d9eec",
+      "path": "/stock-logos/0xd0601ce157db5bdc3162bbac2a2c8af5320d9eec.png",
+      "source": "https://financialmodelingprep.com/image-stock/NVDA.png",
+      "sha256": "a747b2f43361cc931516e38ad482ade910e331074f6ca7044d40ce5c5b859178"
+    },
+    {
+      "symbol": "JOBY",
+      "tokenAddress": "0xb334c5ce741b80b5b671f47f5c269cb193fe8e24",
+      "path": "/stock-logos/0xb334c5ce741b80b5b671f47f5c269cb193fe8e24.png",
+      "source": "https://raw.githubusercontent.com/nvstly/icons/main/ticker_icons/JOBY.png",
+      "sha256": "05f6a80c83e1c1172266d78ec0c97ce5d6e06a29bc8e7b63434bf35bfa0e4c5d"
+    },
+    {
+      "symbol": "QUBT",
+      "tokenAddress": "0x59818904ab4ce163b3ce4ffb64f2d6ca02c434b4",
+      "path": "/stock-logos/0x59818904ab4ce163b3ce4ffb64f2d6ca02c434b4.png",
+      "source": "https://financialmodelingprep.com/image-stock/QUBT.png",
+      "sha256": "1e9cb91dd65d95da97d0e00b355c8d253638910647f96334581285689cb1e08d"
+    },
+    {
+      "symbol": "USO",
+      "tokenAddress": "0xa30fa36db767ad9ed3f7a60fc79526fb4d56d344",
+      "path": "/stock-logos/0xa30fa36db767ad9ed3f7a60fc79526fb4d56d344.png",
+      "source": "https://financialmodelingprep.com/image-stock/USO.png",
+      "sha256": "5fbd84fa9a956f08a856aa5628622eca71c28c6e8913faa0543c0afee4a8dece"
+    },
+    {
+      "symbol": "PWR",
+      "tokenAddress": "0x9ab02ead789b6903c3c44d0ed32f9c707cdf12fd",
+      "path": "/stock-logos/0x9ab02ead789b6903c3c44d0ed32f9c707cdf12fd.png",
+      "source": "https://financialmodelingprep.com/image-stock/PWR.png",
+      "sha256": "c40a66b2df35432ae09e8078bdc909b81af847dc86baa09775a2de3e319385b7"
+    },
+    {
+      "symbol": "F",
+      "tokenAddress": "0x25c288e6d899b9bc30160965ad9644c67e73be0c",
+      "path": "/stock-logos/0x25c288e6d899b9bc30160965ad9644c67e73be0c.png",
+      "source": "https://financialmodelingprep.com/image-stock/F.png",
+      "sha256": "be841dc4baad2aad2565ef8a3d1094d721ececb83a5428282408cb0097dd09dd"
+    },
+    {
+      "symbol": "ZS",
+      "tokenAddress": "0x7dc013eb55e436f30d7ed1afe4e36d6e45e3c3f7",
+      "path": "/stock-logos/0x7dc013eb55e436f30d7ed1afe4e36d6e45e3c3f7.png",
+      "source": "https://financialmodelingprep.com/image-stock/ZS.png",
+      "sha256": "cf1587c915997ed832b04af29bbef6a817e2bb19ee7c7e3cf7dc666a2f32a168"
+    },
+    {
+      "symbol": "COIN",
+      "tokenAddress": "0x6330d8c3178a418788df01a47479c0ce7ccf450b",
+      "path": "/stock-logos/0x6330d8c3178a418788df01a47479c0ce7ccf450b.png",
+      "source": "https://financialmodelingprep.com/image-stock/COIN.png",
+      "sha256": "7039291df7ab867a1de1882fc598e46ef136886057cec6521a3a84aa7f3092ab"
+    },
+    {
+      "symbol": "XOM",
+      "tokenAddress": "0xf9b46d3d1b22199d4d1025a9cedb540a33f1a2d5",
+      "path": "/stock-logos/0xf9b46d3d1b22199d4d1025a9cedb540a33f1a2d5.png",
+      "source": "https://financialmodelingprep.com/image-stock/XOM.png",
+      "sha256": "b00c788ff3b20a119635ac9444bfd02b2176ebd4514e41db55e9a6e1896d2751"
+    },
+    {
+      "symbol": "NBIS",
+      "tokenAddress": "0x9d9c6684f596f66a64c030b93a886d51fd4d7931",
+      "path": "/stock-logos/0x9d9c6684f596f66a64c030b93a886d51fd4d7931.png",
+      "source": "https://financialmodelingprep.com/image-stock/NBIS.png",
+      "sha256": "06d5844ea5d45c9cf375ea7bacc1dab969a4c226e23da53192037d622e26a157"
+    },
+    {
+      "symbol": "SHY",
+      "tokenAddress": "0xbe274710bf3d9567e1b290ef6a5f9f90ca016fd8",
+      "path": "/stock-logos/0xbe274710bf3d9567e1b290ef6a5f9f90ca016fd8.png",
+      "source": "https://financialmodelingprep.com/image-stock/SHY.png",
+      "sha256": "3fb6f2c3d42d6d1c57b3d21babb0751ca06e66d3957d3d7c51bc5d788a71e3d9"
+    },
+    {
+      "symbol": "SMR",
+      "tokenAddress": "0x1eebee7f74517e0279dfb09d25b0407beec3fdd6",
+      "path": "/stock-logos/0x1eebee7f74517e0279dfb09d25b0407beec3fdd6.png",
+      "source": "https://financialmodelingprep.com/image-stock/SMR.png",
+      "sha256": "86868ace195b58fb1eb4f082a9199932b9aa7a44255470fbd155ff8a7b4d039e"
+    },
+    {
+      "symbol": "SOUN",
+      "tokenAddress": "0x6e3dfd9f7e1649baa14d25cac18c94d62db10a54",
+      "path": "/stock-logos/0x6e3dfd9f7e1649baa14d25cac18c94d62db10a54.png",
+      "source": "https://financialmodelingprep.com/image-stock/SOUN.png",
+      "sha256": "fd4aa6d12d1855cf4b501b8edccbed086b823e9d0b4c92cfe0291fa601e57153"
+    },
+    {
+      "symbol": "POET",
+      "tokenAddress": "0xcf6b2d875361be807eafa57458c80f28521f9333",
+      "path": "/stock-logos/0xcf6b2d875361be807eafa57458c80f28521f9333.png",
+      "source": "https://financialmodelingprep.com/image-stock/POET.png",
+      "sha256": "caea21d7bfb914ab1f18662525602cbf0f1db42c2a4ad99ba20a59059be8a616"
+    },
+    {
+      "symbol": "APP",
+      "tokenAddress": "0xa249baf1063af884807c1e1400aef7784836917e",
+      "path": "/stock-logos/0xa249baf1063af884807c1e1400aef7784836917e.png",
+      "source": "https://raw.githubusercontent.com/nvstly/icons/main/ticker_icons/APP.png",
+      "sha256": "311b45d8e432f89b8df7c86596de8389009d3ec5a2e0c8d85f69a2916d69ccd2"
+    },
+    {
+      "symbol": "AAOI",
+      "tokenAddress": "0x521cf887e6531c6f667b5bc4d896e5d9bfe8eb2e",
+      "path": "/stock-logos/0x521cf887e6531c6f667b5bc4d896e5d9bfe8eb2e.png",
+      "source": "https://financialmodelingprep.com/image-stock/AAOI.png",
+      "sha256": "d4e76c6c071f399dc778b09539e03babce214f8fd9d7455327d2fd9ae97e3ba8"
+    },
+    {
+      "symbol": "LITE",
+      "tokenAddress": "0x8ef20885f94e3d9bc7eb3080279188bd5ed7c08c",
+      "path": "/stock-logos/0x8ef20885f94e3d9bc7eb3080279188bd5ed7c08c.png",
+      "source": "https://raw.githubusercontent.com/nvstly/icons/main/ticker_icons/LITE.png",
+      "sha256": "a0012a5178f97222c2375b02983a7f716b8a8891fc41dd9348f87b9852ab9077"
+    },
+    {
+      "symbol": "AEIS",
+      "tokenAddress": "0xfaf9cb261b5fcc1f404bb10cd39c5c6c1974e612",
+      "path": "/stock-logos/0xfaf9cb261b5fcc1f404bb10cd39c5c6c1974e612.png",
+      "source": "https://financialmodelingprep.com/image-stock/AEIS.png",
+      "sha256": "64b05d1cc869873dba642c6fa041e3090ff99cd9036691b9644167389732d004"
+    },
+    {
+      "symbol": "KTOS",
+      "tokenAddress": "0x7fd06a4d81ccfa3f351394e144d5191874c31313",
+      "path": "/stock-logos/0x7fd06a4d81ccfa3f351394e144d5191874c31313.png",
+      "source": "https://financialmodelingprep.com/image-stock/KTOS.png",
+      "sha256": "162e2b34f05ea86ff33ab0564e5bae07cc354cf2aa920797900bbc304a642c38"
+    },
+    {
+      "symbol": "AMAT",
+      "tokenAddress": "0x36046893810a7e7fce501229d57dc3fc8c8716d0",
+      "path": "/stock-logos/0x36046893810a7e7fce501229d57dc3fc8c8716d0.png",
+      "source": "https://financialmodelingprep.com/image-stock/AMAT.png",
+      "sha256": "4fd9e80b7540bca44460091ee438bcf074e2dfb3abecae498dd1e563838d57d8"
+    },
+    {
+      "symbol": "MRVL",
+      "tokenAddress": "0x62fd0668e10d8b72339be2dcf7643001688ff13b",
+      "path": "/stock-logos/0x62fd0668e10d8b72339be2dcf7643001688ff13b.png",
+      "source": "https://raw.githubusercontent.com/nvstly/icons/main/ticker_icons/MRVL.png",
+      "sha256": "905357ba154142675c9fc7a15247f494c1f7ac2339551c0117832d1154569092"
+    },
+    {
+      "symbol": "JBL",
+      "tokenAddress": "0xeaf2512dfc1beac608f8794b3793cd4e02894aa6",
+      "path": "/stock-logos/0xeaf2512dfc1beac608f8794b3793cd4e02894aa6.png",
+      "source": "https://raw.githubusercontent.com/nvstly/icons/main/ticker_icons/JBL.png",
+      "sha256": "5a46020dc6c683217ffa281dbde3e1ee5b085918c3ff69e14513bb29aee19f88"
+    },
+    {
+      "symbol": "LLY",
+      "tokenAddress": "0x8005d266423c7ea827372c9c864491e5786600ea",
+      "path": "/stock-logos/0x8005d266423c7ea827372c9c864491e5786600ea.png",
+      "source": "https://financialmodelingprep.com/image-stock/LLY.png",
+      "sha256": "87111efd5c6b852bd9773c32c0aa4173ac6f31ea6356614632b4dd422517b48d"
+    },
+    {
+      "symbol": "QCOM",
+      "tokenAddress": "0x0f17206447090e464c277571124dd2688e48aea9",
+      "path": "/stock-logos/0x0f17206447090e464c277571124dd2688e48aea9.png",
+      "source": "https://financialmodelingprep.com/image-stock/QCOM.png",
+      "sha256": "b6a5469fde25e38f90a74c7ecb10366945e816c77106db40873314c93880e9a4"
+    },
+    {
+      "symbol": "JNJ",
+      "tokenAddress": "0x03dfbbe0ac4e7bcdafd08ed41a400326b77d8c80",
+      "path": "/stock-logos/0x03dfbbe0ac4e7bcdafd08ed41a400326b77d8c80.png",
+      "source": "https://financialmodelingprep.com/image-stock/JNJ.png",
+      "sha256": "9b78836981fa8a8c810ead1e47fadfe10a1d33b64853dbaec8cd47d2e36fb063"
+    },
+    {
+      "symbol": "KSS",
+      "tokenAddress": "0x12e3c047bf9aecaf9ddc98c05c31bfd1dd043993",
+      "path": "/stock-logos/0x12e3c047bf9aecaf9ddc98c05c31bfd1dd043993.png",
+      "source": "https://raw.githubusercontent.com/nvstly/icons/main/ticker_icons/KSS.png",
+      "sha256": "fd36de9da04d886888d70a041a06c2b213ca45ac5218e0cf9ecef735250c86b5"
+    },
+    {
+      "symbol": "ANET",
+      "tokenAddress": "0x28babd556b60e53663b8615036479a29c2cdd1bf",
+      "path": "/stock-logos/0x28babd556b60e53663b8615036479a29c2cdd1bf.png",
+      "source": "https://raw.githubusercontent.com/nvstly/icons/main/ticker_icons/ANET.png",
+      "sha256": "9f6bb6428d0411aa0c40cb72b7340edc86660253f5827c12d78a45e7e6a490ae"
+    },
+    {
+      "symbol": "CTSH",
+      "tokenAddress": "0x63d5a3b6939a33f1e75d8bcd85759858239600db",
+      "path": "/stock-logos/0x63d5a3b6939a33f1e75d8bcd85759858239600db.png",
+      "source": "https://financialmodelingprep.com/image-stock/CTSH.png",
+      "sha256": "36e95789d99cbcfdaba8f467dafc675a0e06f1d80bba816f920d61a0462cae30"
+    },
+    {
+      "symbol": "PL",
+      "tokenAddress": "0xaa4d64474c172010ab57719cb9951e6142a100d3",
+      "path": "/stock-logos/0xaa4d64474c172010ab57719cb9951e6142a100d3.png",
+      "source": "https://financialmodelingprep.com/image-stock/PL.png",
+      "sha256": "b19281454884139ccdf29fdf78902cbf2f4a0019ecdf53c828813e13620d1743"
+    },
+    {
+      "symbol": "IONQ",
+      "tokenAddress": "0x558378e000d634a36593e338ebacdd6207640efe",
+      "path": "/stock-logos/0x558378e000d634a36593e338ebacdd6207640efe.png",
+      "source": "https://financialmodelingprep.com/image-stock/IONQ.png",
+      "sha256": "751f84b99cf9a70145cd4f8e9c21e2393fd44aebcd9ded4914cf1652b64979a0"
+    },
+    {
+      "symbol": "TE",
+      "tokenAddress": "0xb1969f6604ca1ae7a2cd3f1827876e914594ca2d",
+      "path": "/stock-logos/0xb1969f6604ca1ae7a2cd3f1827876e914594ca2d.png",
+      "source": "https://financialmodelingprep.com/image-stock/TE.png",
+      "sha256": "7e7fd8b5ab864916971f6b18c6af49a60fb9130f920e8692d06930bb664bf32f"
+    },
+    {
+      "symbol": "SHOP",
+      "tokenAddress": "0xf53f66751b1eff985311b693531e3290f600c410",
+      "path": "/stock-logos/0xf53f66751b1eff985311b693531e3290f600c410.png",
+      "source": "https://financialmodelingprep.com/image-stock/SHOP.png",
+      "sha256": "272c9604fd6708e95b5df34a3f462441f245514ec839f7febebca1d4f0dd0124"
+    },
+    {
+      "symbol": "NVTS",
+      "tokenAddress": "0xbe6702d7b70315376dc48a3293f24f0982f86386",
+      "path": "/stock-logos/0xbe6702d7b70315376dc48a3293f24f0982f86386.png",
+      "source": "https://financialmodelingprep.com/image-stock/NVTS.png",
+      "sha256": "197ba22722ec1598dfb346afaf980c8d89c4769cdd023aba649bcb69be1e8570"
+    },
+    {
+      "symbol": "PATH",
+      "tokenAddress": "0xfb2664f07b6aadd29ea7a59d8859b1aeb8645cda",
+      "path": "/stock-logos/0xfb2664f07b6aadd29ea7a59d8859b1aeb8645cda.png",
+      "source": "https://financialmodelingprep.com/image-stock/PATH.png",
+      "sha256": "31ffb14170e11f46199cdf782c59e436fada99869093ae3da43dc71d4a7480ab"
+    },
+    {
+      "symbol": "UMC",
+      "tokenAddress": "0x0e6e67ba88e7b5d9b67636a215c76779b948de79",
+      "path": "/stock-logos/0x0e6e67ba88e7b5d9b67636a215c76779b948de79.png",
+      "source": "https://financialmodelingprep.com/image-stock/UMC.png",
+      "sha256": "0256d3f3f62f0de11feca30a3c964d6094e6a10320c909b9aac7a1a6cc193f89"
+    },
+    {
+      "symbol": "ORCL",
+      "tokenAddress": "0xb0992820e760d836549ba69bc7598b4af75dee03",
+      "path": "/stock-logos/0xb0992820e760d836549ba69bc7598b4af75dee03.png",
+      "source": "https://financialmodelingprep.com/image-stock/ORCL.png",
+      "sha256": "4ff4b21c8c73e836de459bcbfd9516d98408727ab445b7dc3116cf7379afee8b"
+    },
+    {
+      "symbol": "COHR",
+      "tokenAddress": "0x92f9f459f1a9a5ad266b182be7bffd1c6c666894",
+      "path": "/stock-logos/0x92f9f459f1a9a5ad266b182be7bffd1c6c666894.png",
+      "source": "https://financialmodelingprep.com/image-stock/COHR.png",
+      "sha256": "c02501830bb30fac5405014c0ce70fb970c50f7ce00cca7e60782e772fa08651"
+    },
+    {
+      "symbol": "GEV",
+      "tokenAddress": "0x94b8aae43a1ccc08aa64b7d1f29b4d920af4a0c9",
+      "path": "/stock-logos/0x94b8aae43a1ccc08aa64b7d1f29b4d920af4a0c9.png",
+      "source": "https://financialmodelingprep.com/image-stock/GEV.png",
+      "sha256": "4fa85b9789140679b580d5b0d15dd87c27ff3b259d718a17e68d57f11722ec0d"
+    },
+    {
+      "symbol": "AUR",
+      "tokenAddress": "0x373c06c4f7bde527d7dae4ba169e42b55e393ced",
+      "path": "/stock-logos/0x373c06c4f7bde527d7dae4ba169e42b55e393ced.png",
+      "source": "https://financialmodelingprep.com/image-stock/AUR.png",
+      "sha256": "f4b9027e210e34127c03b78177cb9c2ba8b0315fc21133e012400930cae6ede0"
+    },
+    {
+      "symbol": "IBM",
+      "tokenAddress": "0x980dcf6766fa79f5cf0c4aadb3ab477ff15a9619",
+      "path": "/stock-logos/0x980dcf6766fa79f5cf0c4aadb3ab477ff15a9619.png",
+      "source": "https://raw.githubusercontent.com/nvstly/icons/main/ticker_icons/IBM.png",
+      "sha256": "5c0a63b2ed77a6a4204ae9bd2dacea2b72e7c02f2bcb7cc159f18b3a90d44fd6"
+    },
+    {
+      "symbol": "NAVN",
+      "tokenAddress": "0xf7181b63fdb858558a74ba96bc42732684cd7965",
+      "path": "/stock-logos/0xf7181b63fdb858558a74ba96bc42732684cd7965.png",
+      "source": "https://financialmodelingprep.com/image-stock/NAVN.png",
+      "sha256": "c36aefa966a1dec7edd11fcd49c1f9246f90589d7c65081861287e0ee6e81ed6"
+    },
+    {
+      "symbol": "INOD",
+      "tokenAddress": "0xf1953dab6fad537488d5a022361ffaa8b4c95ec6",
+      "path": "/stock-logos/0xf1953dab6fad537488d5a022361ffaa8b4c95ec6.png",
+      "source": "https://financialmodelingprep.com/image-stock/INOD.png",
+      "sha256": "aad8c094f3ddf5cb3b06407719249ca4deb1037704b6250490d42c16db742701"
+    },
+    {
+      "symbol": "AAPL",
+      "tokenAddress": "0xaf3d76f1834a1d425780943c99ea8a608f8a93f9",
+      "path": "/stock-logos/0xaf3d76f1834a1d425780943c99ea8a608f8a93f9.png",
+      "source": "https://financialmodelingprep.com/image-stock/AAPL.png",
+      "sha256": "ff3fe276fdf3467505dc9abc52950902507d298d7954e480641033d5dcfe2a6c"
+    },
+    {
+      "symbol": "AMC",
+      "tokenAddress": "0x05a3d1cd21d0c88145e82600e62e7e496e0f222b",
+      "path": "/stock-logos/0x05a3d1cd21d0c88145e82600e62e7e496e0f222b.png",
+      "source": "https://financialmodelingprep.com/image-stock/AMC.png",
+      "sha256": "6592c1938b50584a996df21ed1f04ae1369a1d29e01babc6f389f15d6c84df4d"
+    },
+    {
+      "symbol": "RIVN",
+      "tokenAddress": "0xb1bf26c1d20ff267a4f93550d1e0d06ac40a114b",
+      "path": "/stock-logos/0xb1bf26c1d20ff267a4f93550d1e0d06ac40a114b.png",
+      "source": "https://financialmodelingprep.com/image-stock/RIVN.png",
+      "sha256": "945e4305d1ceb108f0c8a6fcc2f6bfda318c5238f6a50a5f0cc0f9828c9d11aa"
+    },
+    {
+      "symbol": "GME",
+      "tokenAddress": "0x1b0e319c6a659f002271b69db8a7df2f911c153e",
+      "path": "/stock-logos/0x1b0e319c6a659f002271b69db8a7df2f911c153e.png",
+      "source": "https://financialmodelingprep.com/image-stock/GME.png",
+      "sha256": "77dcdc6d03f4df5e09380203cf93ef629045a55aa9878bfc9d33e28e362cebed"
+    },
+    {
+      "symbol": "MPWR",
+      "tokenAddress": "0x52d50d0280ad1054b43f052bd70a49a212a1b128",
+      "path": "/stock-logos/0x52d50d0280ad1054b43f052bd70a49a212a1b128.png",
+      "source": "https://financialmodelingprep.com/image-stock/MPWR.png",
+      "sha256": "9e758d2fa536fdd53654a0d9f9f0b5b6c46ba6f287b9a9dbc944547ac2e60d9d"
+    },
+    {
+      "symbol": "PENG",
+      "tokenAddress": "0x9b23573b156b52565012f5ce02cdf60afbaa70be",
+      "path": "/stock-logos/0x9b23573b156b52565012f5ce02cdf60afbaa70be.png",
+      "source": "https://financialmodelingprep.com/image-stock/PENG.png",
+      "sha256": "a5d1e37d18835d5279fef64c39f7e59f97d7dcad0da923b8185461a9010dc3ad"
+    },
+    {
+      "symbol": "NET",
+      "tokenAddress": "0x116f00968269b7bfbad4109ce591d6e74c0601d4",
+      "path": "/stock-logos/0x116f00968269b7bfbad4109ce591d6e74c0601d4.png",
+      "source": "https://financialmodelingprep.com/image-stock/NET.png",
+      "sha256": "fe605129868ee2911899c3c656367377fb0ff5ec8a7299079c53771c2f7b916f"
+    },
+    {
+      "symbol": "SCHD",
+      "tokenAddress": "0xd63abb2c13d7a8421a8017a712802053568e3c1d",
+      "path": "/stock-logos/0xd63abb2c13d7a8421a8017a712802053568e3c1d.png",
+      "source": "https://financialmodelingprep.com/image-stock/SCHD.png",
+      "sha256": "786a502c81173a87527428a62bf1e44f119d4d96cdcd0349d1a45a33042cabcd"
+    },
+    {
+      "symbol": "LUNR",
+      "tokenAddress": "0xa5d4968421ba94814be3b136b15cf422101ac1a3",
+      "path": "/stock-logos/0xa5d4968421ba94814be3b136b15cf422101ac1a3.png",
+      "source": "https://financialmodelingprep.com/image-stock/LUNR.png",
+      "sha256": "906e958e2ff86bfa35a0d8a0365f5f1a6c51a886fbab83440bb167e2a7ebb0da"
+    },
+    {
+      "symbol": "MSTR",
+      "tokenAddress": "0xec262a75e413fafd0df80480274532c79d42da09",
+      "path": "/stock-logos/0xec262a75e413fafd0df80480274532c79d42da09.png",
+      "source": "https://financialmodelingprep.com/image-stock/MSTR.png",
+      "sha256": "cdafbb2120c66da49200a034a4c797f14c629f6ee62c21a78a172cfb843028ea"
+    },
+    {
+      "symbol": "ABCL",
+      "tokenAddress": "0x3139d77ace0cbaa5bdfd38bd1f1911a794af0b0e",
+      "path": "/stock-logos/0x3139d77ace0cbaa5bdfd38bd1f1911a794af0b0e.png",
+      "source": "https://financialmodelingprep.com/image-stock/ABCL.png",
+      "sha256": "7eec06c6eb53e1b9fddbf90c750c03fe25c5daf48dfdfd001175add257ffc85f"
+    },
+    {
+      "symbol": "AXON",
+      "tokenAddress": "0xc27dbd474af5181c5a8777903690d8d262d12648",
+      "path": "/stock-logos/0xc27dbd474af5181c5a8777903690d8d262d12648.png",
+      "source": "https://raw.githubusercontent.com/nvstly/icons/main/ticker_icons/AXON.png",
+      "sha256": "769abb43914e06aa12673e201db65152881100bd434d781d12832bc918abce59"
+    },
+    {
+      "symbol": "TSLA",
+      "tokenAddress": "0x322f0929c4625ed5bad873c95208d54e1c003b2d",
+      "path": "/stock-logos/0x322f0929c4625ed5bad873c95208d54e1c003b2d.png",
+      "source": "https://financialmodelingprep.com/image-stock/TSLA.png",
+      "sha256": "0d9677e3fee6040966e3d1cf5a6070db27ee6359b2e147fdde6cb774a071096d"
+    },
+    {
+      "symbol": "EWT",
+      "tokenAddress": "0x1c690498150252222c275a5ced69d3a6b1f52d5e",
+      "path": "/stock-logos/0x1c690498150252222c275a5ced69d3a6b1f52d5e.png",
+      "source": "https://financialmodelingprep.com/image-stock/EWT.png",
+      "sha256": "e65568173ba74369f438b1f1833c75aaadf47342827af608d4df23d9c6e94da8"
+    },
+    {
+      "symbol": "FTNT",
+      "tokenAddress": "0x3fb8976980d486084b2eb4a404bd12e72823958f",
+      "path": "/stock-logos/0x3fb8976980d486084b2eb4a404bd12e72823958f.png",
+      "source": "https://financialmodelingprep.com/image-stock/FTNT.png",
+      "sha256": "6041b0c8109b1ba53299303d0ab41aa6091aa7c37a049818b302565c7a43c65e"
+    },
+    {
+      "symbol": "HPE",
+      "tokenAddress": "0x59dd09d4900c2e4b5f75b7c0d4e6796fcc234cb1",
+      "path": "/stock-logos/0x59dd09d4900c2e4b5f75b7c0d4e6796fcc234cb1.png",
+      "source": "https://financialmodelingprep.com/image-stock/HPE.png",
+      "sha256": "59a6d5016c85a048acb62999b70a92711da74be45330f6fc241372d78a49f535"
+    },
+    {
+      "symbol": "VSAT",
+      "tokenAddress": "0x26dcbfb34fc83cabd6990f449674efdc6097ff85",
+      "path": "/stock-logos/0x26dcbfb34fc83cabd6990f449674efdc6097ff85.png",
+      "source": "https://financialmodelingprep.com/image-stock/VSAT.png",
+      "sha256": "1709962460459d00350d91f973ca0aa9ab77b7f48000089c5ec0192d56348c77"
+    },
+    {
+      "symbol": "ADBE",
+      "tokenAddress": "0x232b8ed6377be97813853b0ac104c4cda8378d1b",
+      "path": "/stock-logos/0x232b8ed6377be97813853b0ac104c4cda8378d1b.png",
+      "source": "https://financialmodelingprep.com/image-stock/ADBE.png",
+      "sha256": "4b3223747f6dde6297e93307b89044b21b989c0da662bf9ac30b8e76b1662bc6"
+    },
+    {
+      "symbol": "XNDU",
+      "tokenAddress": "0xa8eb3bccbf2017ee7cbfb652eb51cf2e1b153289",
+      "path": "/stock-logos/0xa8eb3bccbf2017ee7cbfb652eb51cf2e1b153289.png",
+      "source": "https://financialmodelingprep.com/image-stock/XNDU.png",
+      "sha256": "4804a9372fdacb317975c433bfc6e86b9fd3409087d5d2237f4f3f61e7b54ad6"
+    },
+    {
+      "symbol": "DDOG",
+      "tokenAddress": "0x27c99fbde9d0d2aa4f4bfb4943f237843ddf6958",
+      "path": "/stock-logos/0x27c99fbde9d0d2aa4f4bfb4943f237843ddf6958.png",
+      "source": "https://financialmodelingprep.com/image-stock/DDOG.png",
+      "sha256": "2b3b6cc596357ad9caf1c7a06f6542fbf484a6828c5ff025ac031b4f1d13343f"
+    },
+    {
+      "symbol": "RDW",
+      "tokenAddress": "0x92ef19e82bd8ff36661de838d5eae7e5cef0effe",
+      "path": "/stock-logos/0x92ef19e82bd8ff36661de838d5eae7e5cef0effe.png",
+      "source": "https://financialmodelingprep.com/image-stock/RDW.png",
+      "sha256": "bda7c4e6b1152dc39f235cfdc81d845bac410792b55d2921353efef0df1a0ab7"
+    },
+    {
+      "symbol": "BE",
+      "tokenAddress": "0x822cc93ffd030293e9842c30bbd678f530701867",
+      "path": "/stock-logos/0x822cc93ffd030293e9842c30bbd678f530701867.png",
+      "source": "https://financialmodelingprep.com/image-stock/BE.png",
+      "sha256": "392caf5d5b0cece1f4479ecf1195edf2a8626f04b977575d61a236045281c7fd"
+    },
+    {
+      "symbol": "DJT",
+      "tokenAddress": "0x1d11f0496982706c5e14a514d4e79f2e6bde4516",
+      "path": "/stock-logos/0x1d11f0496982706c5e14a514d4e79f2e6bde4516.png",
+      "source": "https://financialmodelingprep.com/image-stock/DJT.png",
+      "sha256": "538a0e8605634196a107c7aa89deddfa13335cf6e94034201764de63dd00065e"
+    },
+    {
+      "symbol": "OKLO",
+      "tokenAddress": "0x8b2f88497f15a18e9d4ffa1a8ffb8538399ae774",
+      "path": "/stock-logos/0x8b2f88497f15a18e9d4ffa1a8ffb8538399ae774.png",
+      "source": "https://companieslogo.com/img/orig/OKLO-e5c17c8d.png?download=true&t=1720244493",
+      "sha256": "07377e23a82f4aa40ec1cd8e6fe9d5ae697f48214caa95312d16f091ebe77734"
+    },
+    {
+      "symbol": "ZM",
+      "tokenAddress": "0x44c4f142009036cf477ed2d09932051843137cf1",
+      "path": "/stock-logos/0x44c4f142009036cf477ed2d09932051843137cf1.png",
+      "source": "https://raw.githubusercontent.com/nvstly/icons/main/ticker_icons/ZM.png",
+      "sha256": "a9204d05eefaf2efa88cf95862d411f798c3a6805884b2ddfe9ae6f1b92409d3"
+    },
+    {
+      "symbol": "FLNC",
+      "tokenAddress": "0x282e87451e10fa6679bc7d76c69be44cd3fc777c",
+      "path": "/stock-logos/0x282e87451e10fa6679bc7d76c69be44cd3fc777c.png",
+      "source": "https://raw.githubusercontent.com/nvstly/icons/main/ticker_icons/FLNC.png",
+      "sha256": "52661bcb178421b986bca0041e7035b4a333720115b6a27da57d843ba2a2ee2e"
+    },
+    {
+      "symbol": "SLV",
+      "tokenAddress": "0x411efb0e7f985935daec3d4c3ebaea0d0ad7d89f",
+      "path": "/stock-logos/0x411efb0e7f985935daec3d4c3ebaea0d0ad7d89f.png",
+      "source": "https://financialmodelingprep.com/image-stock/SLV.png",
+      "sha256": "3fb6f2c3d42d6d1c57b3d21babb0751ca06e66d3957d3d7c51bc5d788a71e3d9"
+    },
+    {
+      "symbol": "SOFI",
+      "tokenAddress": "0x98e75885157c80992a8d41b696d8c9c6fb30a926",
+      "path": "/stock-logos/0x98e75885157c80992a8d41b696d8c9c6fb30a926.png",
+      "source": "https://financialmodelingprep.com/image-stock/SOFI.png",
+      "sha256": "3979a616337bbb5d78dab4d41edced93ea4c0262b57c7b09c9191987fa1317d0"
+    },
+    {
+      "symbol": "DOCN",
+      "tokenAddress": "0xc02f12b9fe9e707079ec0d546f3050d3f6c1f8bd",
+      "path": "/stock-logos/0xc02f12b9fe9e707079ec0d546f3050d3f6c1f8bd.png",
+      "source": "https://financialmodelingprep.com/image-stock/DOCN.png",
+      "sha256": "a967e828c30f081f224913d196b09d4f01d72668db49cba3afd8b5859ed46d0e"
+    },
+    {
+      "symbol": "WULF",
+      "tokenAddress": "0x348be1a8663f15edde5cdf8a96bb69078f7ab6fd",
+      "path": "/stock-logos/0x348be1a8663f15edde5cdf8a96bb69078f7ab6fd.png",
+      "source": "https://financialmodelingprep.com/image-stock/WULF.png",
+      "sha256": "7f3317e7b3edb3e03c2bec6a3a304d5a9df75342a9c91a82b6ac7b1c77b3be51"
+    },
+    {
+      "symbol": "COST",
+      "tokenAddress": "0x4ea005168d7f09a7a0ba9d1def21a479950e44c2",
+      "path": "/stock-logos/0x4ea005168d7f09a7a0ba9d1def21a479950e44c2.png",
+      "source": "https://financialmodelingprep.com/image-stock/COST.png",
+      "sha256": "68ca43a3f4c782cb7527117959df5a1ed2bb883cd1db8e07064ced1714c65695"
+    },
+    {
+      "symbol": "TTD",
+      "tokenAddress": "0x0b5fb4031cae9163db10b169ee72685f0edc8545",
+      "path": "/stock-logos/0x0b5fb4031cae9163db10b169ee72685f0edc8545.png",
+      "source": "https://financialmodelingprep.com/image-stock/TTD.png",
+      "sha256": "aed31c6cbeb66a3521f134efba572ef4e43983a053d4e66fdcb89119724b01b7"
+    },
+    {
+      "symbol": "HWM",
+      "tokenAddress": "0xaea445c5f3db1a462998ccc422a875a361ee5d99",
+      "path": "/stock-logos/0xaea445c5f3db1a462998ccc422a875a361ee5d99.png",
+      "source": "https://financialmodelingprep.com/image-stock/HWM.png",
+      "sha256": "1cc8f17caa7f8f1e00066cd5904dd7d455ecea067b82bc0c30b58c97985507b7"
+    },
+    {
+      "symbol": "HIMS",
+      "tokenAddress": "0xccee82fe024c36fa15e1005ede3e9e4787e23d09",
+      "path": "/stock-logos/0xccee82fe024c36fa15e1005ede3e9e4787e23d09.png",
+      "source": "https://financialmodelingprep.com/image-stock/HIMS.png",
+      "sha256": "b3177651ed3ee6389d5038119d913f909263ab601f56c93818b83fad3dabf2b2"
+    },
+    {
+      "symbol": "CELH",
+      "tokenAddress": "0x8cf07c5a878945185d327aaa6e33faa95f95e7bf",
+      "path": "/stock-logos/0x8cf07c5a878945185d327aaa6e33faa95f95e7bf.png",
+      "source": "https://financialmodelingprep.com/image-stock/CELH.png",
+      "sha256": "d0c1379aada466d5a10571be06d88d20c9b58e9c9ffed2403c165fedd39e4fd5"
+    },
+    {
+      "symbol": "RBLX",
+      "tokenAddress": "0xf0c4bf4c582cb3836e98394b1d4e7b7281101be8",
+      "path": "/stock-logos/0xf0c4bf4c582cb3836e98394b1d4e7b7281101be8.png",
+      "source": "https://raw.githubusercontent.com/nvstly/icons/main/ticker_icons/RBLX.png",
+      "sha256": "8b03fe6ddfeb352dbc07b4753d5050308abe01b4cfdaf8a32d630bf1fc1580a6"
+    },
+    {
+      "symbol": "SPMO",
+      "tokenAddress": "0xad622320e520de39e72d41ef07438c3fd3354875",
+      "path": "/stock-logos/0xad622320e520de39e72d41ef07438c3fd3354875.png",
+      "source": "https://financialmodelingprep.com/image-stock/SPMO.png",
+      "sha256": "591c9932e4d033b0ab09d50fb701571ce676cf02aedbc2321b312b59cfe4e192"
+    },
+    {
+      "symbol": "AMKR",
+      "tokenAddress": "0xdd356aa38f40a7b7076755ac854b6fbb1f0d305b",
+      "path": "/stock-logos/0xdd356aa38f40a7b7076755ac854b6fbb1f0d305b.png",
+      "source": "https://financialmodelingprep.com/image-stock/AMKR.png",
+      "sha256": "8b0ea1c43d8742abe407a4f32e8caa6e24fe03db46a9212bbb151379a35094b8"
+    },
+    {
+      "symbol": "ONTO",
+      "tokenAddress": "0x8ff63eaeee3fe54ba450c4f5538064ec5a893aef",
+      "path": "/stock-logos/0x8ff63eaeee3fe54ba450c4f5538064ec5a893aef.png",
+      "source": "https://financialmodelingprep.com/image-stock/ONTO.png",
+      "sha256": "e6f292815a1ab585de348e0af2ff938a549ac98b9a6754e5804f89fadadcf3c7"
+    },
+    {
+      "symbol": "SOXX",
+      "tokenAddress": "0x75742c18bc1f1c5c5f448f4c9d9c6f66dafaaa38",
+      "path": "/stock-logos/0x75742c18bc1f1c5c5f448f4c9d9c6f66dafaaa38.png",
+      "source": "https://financialmodelingprep.com/image-stock/SOXX.png",
+      "sha256": "d87d1d52d5e5c63b593bd6fef985e816cc0bead4dafc20cb81b494d3607e39c0"
+    },
+    {
+      "symbol": "ASML",
+      "tokenAddress": "0x47f93d52cbec7c6d2cfc080e154002370a60daea",
+      "path": "/stock-logos/0x47f93d52cbec7c6d2cfc080e154002370a60daea.png",
+      "source": "https://financialmodelingprep.com/image-stock/ASML.png",
+      "sha256": "a13b3200ae28acbe5793f9359ce1f399d731913840469c5eac231f0a6c1b5237"
+    },
+    {
+      "symbol": "HII",
+      "tokenAddress": "0xeb61c0ed490a367d4e3631ccf8a74b3bfc7e775d",
+      "path": "/stock-logos/0xeb61c0ed490a367d4e3631ccf8a74b3bfc7e775d.png",
+      "source": "https://financialmodelingprep.com/image-stock/HII.png",
+      "sha256": "d6c13fcd75acdfea1269afb6e4d9adea6a8d879432c21be77ecba4b3a82697d6"
+    },
+    {
+      "symbol": "AVAV",
+      "tokenAddress": "0xf6290b5e7c26502e2da514c31509849718ea76a5",
+      "path": "/stock-logos/0xf6290b5e7c26502e2da514c31509849718ea76a5.png",
+      "source": "https://raw.githubusercontent.com/nvstly/icons/main/ticker_icons/AVAV.png",
+      "sha256": "8766859226b6565bd00f2b20d07f10304a6ba579cde085ef7a13ca2d0542fafb"
+    },
+    {
+      "symbol": "INDA",
+      "tokenAddress": "0xacef2e09adb47ad6abebad9ff06689e60615c2b6",
+      "path": "/stock-logos/0xacef2e09adb47ad6abebad9ff06689e60615c2b6.png",
+      "source": "https://financialmodelingprep.com/image-stock/INDA.png",
+      "sha256": "e65568173ba74369f438b1f1833c75aaadf47342827af608d4df23d9c6e94da8"
+    },
+    {
+      "symbol": "MDB",
+      "tokenAddress": "0xddf2266b79abf0b48898959b0ed6e6adf512be74",
+      "path": "/stock-logos/0xddf2266b79abf0b48898959b0ed6e6adf512be74.png",
+      "source": "https://financialmodelingprep.com/image-stock/MDB.png",
+      "sha256": "3929b8269c2d537c445bc46a9a52ef67f299e3b116045a3de48837779858e08c"
+    },
+    {
+      "symbol": "PFE",
+      "tokenAddress": "0x7066a64c24e4206cd62e83bf198c1e7eb361f51e",
+      "path": "/stock-logos/0x7066a64c24e4206cd62e83bf198c1e7eb361f51e.png",
+      "source": "https://financialmodelingprep.com/image-stock/PFE.png",
+      "sha256": "a6da14eebdb59933481c310f559bf2d923e584db2eb95f2ff7f5823ef16cd899"
+    },
+    {
+      "symbol": "KLAC",
+      "tokenAddress": "0x96b933c74ecb4a0926b9210cef7b743ef46be2e9",
+      "path": "/stock-logos/0x96b933c74ecb4a0926b9210cef7b743ef46be2e9.png",
+      "source": "https://financialmodelingprep.com/image-stock/KLAC.png",
+      "sha256": "d9866b1bef55d3a02e51c9862f948479611a996739910992616df14d27c301b7"
+    },
+    {
+      "symbol": "IBRX",
+      "tokenAddress": "0x7c148f74ac7445d1f28366b7fcdc6792a9fcd0cf",
+      "path": "/stock-logos/0x7c148f74ac7445d1f28366b7fcdc6792a9fcd0cf.png",
+      "source": "https://financialmodelingprep.com/image-stock/IBRX.png",
+      "sha256": "1c69c5520e1c998d914485be1ccfcffa57223650ff8e831f44abd8eb4d765d24"
+    }
+  ]
+}

@@ -21,10 +21,14 @@ test('release mirrors observed asset universe, including quote decimal differenc
   assert.equal(new Set(RELEASE_PAIRED_ASSETS.map(a=>a.admissionPath)).size, 1);
   assert.equal(RELEASE_PAIRED_ASSETS.every(a=>a.admissionPath === 'ADMIN_REVIEWED_WHITELIST'), true);
 });
-test('every release paired asset has a local or official logo icon', async () => {
+test('every release paired asset has a bundled logo icon', async () => {
   await Promise.all(RELEASE_PAIRED_ASSETS.map(async asset => {
-    try { await access(fileURLToPath(new URL(`../assets/quotes/${quoteIconFilename(asset.symbol)}`, import.meta.url))); }
-    catch { assert.ok(asset.logoUrl); assert.equal(new URL(asset.logoUrl!).hostname, 'cdn.robinhood.com'); }
+    if (asset.logoUrl) {
+      assert.equal(asset.logoUrl, `/stock-logos/${asset.tokenAddress.toLowerCase()}.png`);
+      await access(new URL(`../public${asset.logoUrl}`, import.meta.url));
+    } else {
+      await access(fileURLToPath(new URL(`../assets/quotes/${quoteIconFilename(asset.symbol)}`, import.meta.url)));
+    }
   }));
 });
 test('release candidates never imply an active quote or cross-network address reuse', () => {

@@ -16,7 +16,7 @@ test('staking catalog matches chain, address and UID, not a reused symbol', () =
   assert.equal(isListedStakingAsset(46630,config({values:{stockToken:`0x${'1'.repeat(40)}`,tokenSymbol:'TSLA'}})),false);
 });
 
-test('staking catalog identities are unique and local or official logos exist', async () => {
+test('staking catalog identities are unique and bundled logos exist', async () => {
   const keys=new Set<string>();
   for(const entry of STAKING_ASSETS){
     const key=`${entry.chainId}:${entry.tokenAddress.toLowerCase()}`;
@@ -24,7 +24,7 @@ test('staking catalog identities are unique and local or official logos exist', 
     assert.match(entry.tokenAddress,/^0x[0-9a-f]{40}$/);
     assert.match(entry.assetUid,/^0x[0-9a-f]{64}$/);
     if(entry.logo) assert.match(entry.logo,/^[a-z0-9-]+\.(svg|png)$/);
-    else assert.equal(new URL(entry.logoUrl!).hostname,'cdn.robinhood.com');
+    else { assert.match(entry.logoUrl!, /^\/stock-logos\/0x[0-9a-f]{40}\.png$/); await access(new URL(`../public${entry.logoUrl}`,import.meta.url)); }
     assert.ok(Number.isInteger(entry.decimals)&&entry.decimals>=0&&entry.decimals<=255);
     if(entry.logo) await access(new URL(`../assets/quotes/${entry.logo}`,import.meta.url));
   }
