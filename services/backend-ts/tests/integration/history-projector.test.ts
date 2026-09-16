@@ -34,6 +34,9 @@ for (const burnMode of [false,true]) test(`TS-10 history directories and payment
       ['ProtocolFeeVault', f72EventCatalog.ProtocolFeeVault.address], ['TickerMemeTokenV1', token], ['TickerGardenFactoryV1', f72EventCatalog.TickerGardenFactoryV1.address]] as const) await handle.pool.query(
       `INSERT INTO ${schema}.contract_sources(environment,chain_id,deployment_digest,module,address,birth_block,runtime_code_hash) VALUES ('test',46630,$1,$2,$3,1,$4)`,
       [deployment.deploymentDigest, module, emitter, hash(module === 'ProtocolFeeVault' ? '6' : module === 'TickerMemeTokenV1' ? '7' : '8')]);
+    await handle.pool.query(
+      `INSERT INTO ${schema}.contract_sources(environment,chain_id,deployment_digest,module,address,birth_block,runtime_code_hash) VALUES ('test',46630,$1,'UniswapV4PoolManager',$2,1,$3)`,
+      [deployment.deploymentDigest, f72EventCatalog.UniswapV4PoolManager.address, hash('9')]);
     await saveEvent(handle.pool, schema, deployment.deploymentDigest, 'TickerGardenFactoryV1', 'MarketCreated',
       f72EventCatalog.TickerGardenFactoryV1.address, hash('8'), 0, { marketId, assetUid: hash('2'), memeToken: token, curve: address('7'), gauge: address('8'), quoteAsset: quote,
         tickerGardenBaselineId: hash('3'), quoteAssetConfigId: hash('4'), expectedEconomics: hash('5') });
@@ -41,6 +44,13 @@ for (const burnMode of [false,true]) test(`TS-10 history directories and payment
       f72EventCatalog.HolderRewardsDistributorV1.address, hash('9'), 0, { marketId, token, quote, vault: address('6') });
     await saveEvent(handle.pool, schema, deployment.deploymentDigest, 'TickerMemeTokenV1', 'Transfer', token, hash('a'), 1,
       { from: address('0'), to: user, value: 100n });
+    // A shared PoolManager Swap is outside history's protocol event set. It must
+    // not make otherwise valid history projection fail during decoder lookup.
+    await saveEvent(handle.pool, schema, deployment.deploymentDigest, 'UniswapV4PoolManager', 'Swap',
+      f72EventCatalog.UniswapV4PoolManager.address, hash('d'), 2,
+      { id: marketId, sender: user, amount0: 1n, amount1: -1n, sqrtPriceX96: 1n, liquidity: 1n, tick: 0, fee: 500 }, 1n, hash('b'));
+    await saveRawLog(handle.pool, schema, deployment.deploymentDigest, f72EventCatalog.UniswapV4PoolManager.address,
+      hash('d'), 3, '0xf208f4912782fd25c7f114ca3723a2d5dd6f3bcc3ac8db5af63baa85f711d5ec', 1n, hash('b'));
     if(burnMode) {
       await saveEvent(handle.pool,schema,deployment.deploymentDigest,'HolderRewardsDistributorV1','HolderSnapshotClaimed',f72EventCatalog.HolderRewardsDistributorV1.address,hash('c'),3,{marketId,round:1n,account:user,assets:1,quotePaid:7n,memePaid:0n});
     } else {
@@ -148,4 +158,11 @@ async function saveEvent(pool: ReturnType<typeof createDatabasePool>['pool'], sc
   const payload = { address: emitter, blockNumber: String(blockNumber), blockHash, transactionHash, transactionIndex: '0', logIndex: String(logIndex), data, topics, removed: false };
   await pool.query(`INSERT INTO ${schema}.chain_logs(environment,chain_id,deployment_digest,block_hash,transaction_hash,transaction_index,log_index,address,topic0,payload)
     VALUES ('test',46630,$1,$2,$3,0,$4,$5,$6,$7)`, [deploymentDigest, blockHash, transactionHash, logIndex, emitter, topics[0], payload]);
+}
+
+async function saveRawLog(pool: ReturnType<typeof createDatabasePool>['pool'], schema: string, deploymentDigest: string,
+  emitter: Address, transactionHash: Hex, logIndex: number, topic0: Hex, blockNumber=1n, blockHash=hash('b')): Promise<void> {
+  const payload = { address: emitter, blockNumber: String(blockNumber), blockHash, transactionHash, transactionIndex: '0', logIndex: String(logIndex), data: '0x', topics: [topic0], removed: false };
+  await pool.query(`INSERT INTO ${schema}.chain_logs(environment,chain_id,deployment_digest,block_hash,transaction_hash,transaction_index,log_index,address,topic0,payload)
+    VALUES ('test',46630,$1,$2,$3,0,$4,$5,$6,$7)`, [deploymentDigest, blockHash, transactionHash, logIndex, emitter, topic0, payload]);
 }
