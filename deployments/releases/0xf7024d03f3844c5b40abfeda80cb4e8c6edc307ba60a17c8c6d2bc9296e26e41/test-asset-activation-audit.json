@@ -1,0 +1,39 @@
+{
+  "schemaVersion": 1,
+  "status": "APPROVED_FOR_ROBINHOOD_TESTNET_ASSET_ACTIVATION",
+  "scope": "ROBINHOOD_TESTNET_SYNTHETIC_ASSETS_ONLY",
+  "chainId": 46630,
+  "releaseId": "0xf7024d03f3844c5b40abfeda80cb4e8c6edc307ba60a17c8c6d2bc9296e26e41",
+  "planSha256": "0x6a2753d3d34e723d06bb27aff31e613b16c0889e778a34325c15a6dc4be6b252",
+  "auditBlock": "115059066",
+  "expiresAtUnix": 1788895334,
+  "checks": [
+    {
+      "asset": "USDG",
+      "predictedAddressEmpty": true,
+      "runtimeCodeHashVerified": true
+    },
+    {
+      "asset": "cbBTC",
+      "predictedAddressEmpty": true,
+      "runtimeCodeHashVerified": true
+    },
+    {
+      "asset": "NVDA",
+      "predictedAddressEmpty": true,
+      "runtimeCodeHashVerified": true
+    },
+    {
+      "asset": "AAPL",
+      "predictedAddressEmpty": true,
+      "runtimeCodeHashVerified": true
+    },
+    {
+      "asset": "TSLA",
+      "predictedAddressEmpty": true,
+      "runtimeCodeHashVerified": true
+    }
+  ],
+  "transactionCount": 10,
+  "reviewer": "AUTOMATED_FAIL_CLOSED_REVIEW"
+}

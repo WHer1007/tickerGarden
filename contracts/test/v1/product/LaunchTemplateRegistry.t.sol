@@ -72,7 +72,7 @@ contract LaunchTemplateRegistryTest is Test {
     bytes32 internal constant REASON_HASH = keccak256("template-risk");
 
     function EXECUTION_SPEC_ID() internal pure returns (bytes32) {
-        return keccak256("V1-EXEC-10");
+        return keccak256("V1-EXEC-11");
     }
     bytes32 internal constant FEE_POLICY_ID = keccak256("immutable-fee-policy");
     address internal constant HOOK = address(uint160(0x12044));
@@ -121,19 +121,20 @@ contract LaunchTemplateRegistryTest is Test {
         address platformTreasury = address(new EmptyTemplateComponent());
         vm.etch(HOOK, address(hookComponent).code);
 
-        TemplateBindingComponent(HOOK).configureAddresses(
-            marketRegistry,
-            quoteRegistry,
-            factory,
-            poolManager,
-            positionManager,
-            permit2,
-            HOOK,
-            feeVault,
-            graduationExecutor,
-            creatorRevenue,
-            platformTreasury
-        );
+        TemplateBindingComponent(HOOK)
+            .configureAddresses(
+                marketRegistry,
+                quoteRegistry,
+                factory,
+                poolManager,
+                positionManager,
+                permit2,
+                HOOK,
+                feeVault,
+                graduationExecutor,
+                creatorRevenue,
+                platformTreasury
+            );
         executorComponent.configureAddresses(
             marketRegistry,
             quoteRegistry,
@@ -399,9 +400,7 @@ contract LaunchTemplateRegistryTest is Test {
         vm.etch(HOOK, hex"f4");
         value.hookCodeHash = HOOK.codehash;
         vm.expectRevert(
-            abi.encodeWithSelector(
-                LaunchTemplateRegistry.UnsafeTemplateRuntime.selector, HOOK, uint8(0xf4)
-            )
+            abi.encodeWithSelector(LaunchTemplateRegistry.UnsafeTemplateRuntime.selector, HOOK, uint8(0xf4))
         );
         vm.prank(FAST_ADMIN);
         registry.addLaunchTemplate(TEMPLATE_ID, value);
@@ -413,9 +412,7 @@ contract LaunchTemplateRegistryTest is Test {
         value.graduationExecutorCodeHash = graduationExecutor.codehash;
         vm.expectRevert(
             abi.encodeWithSelector(
-                LaunchTemplateRegistry.UnsafeTemplateRuntime.selector,
-                graduationExecutor,
-                uint8(0xff)
+                LaunchTemplateRegistry.UnsafeTemplateRuntime.selector, graduationExecutor, uint8(0xff)
             )
         );
         vm.prank(FAST_ADMIN);

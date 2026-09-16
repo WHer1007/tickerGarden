@@ -1,0 +1,34 @@
+{
+  "schemaVersion": 1,
+  "status": "VERIFIED",
+  "executionSpecId": "V1-EXEC-11",
+  "chainId": 421614,
+  "deployer": "0xA6c3298a5559544c3b4cf8e6DC5f349f4be524ea",
+  "releaseId": "0xe451138ea1858fdd816e0c1f4a0480945b16d85713056d33655a91bfb74eeeb7",
+  "payloadHash": "0x91ac4dbbf9ffc9e0d5b26c9a9fefd13e008a10d48d5705a511a8af5a7ae9b5d5",
+  "verifiedAt": 1788637562,
+  "expiresAt": 1788641062,
+  "executionManifestSha256": "0xeb700ff36ecb7478135356a675869eea948475e2b556483f110d22bfd2d4ff2f",
+  "productArtifactManifestSha256": "0xa5ab7ce42fc9e6260427c2f645d647a634525556a172ed58a1a18043e440b888",
+  "compiledInterfaceManifestSha256": "0x9c1ba31035dec23ab331d5938ddf2365e8223843212ef56b2115c76dc48d138f",
+  "scope": "ARBITRUM_SEPOLIA_TEST_ONLY_REVIEWED_PAYLOAD",
+  "productionTargetChainId": 4663,
+  "notes": [
+    "User authorized funded multi-role testnet deployment and scenarios.",
+    "811 ordinary tests and 4 new boundaries pass; Arbitrum and RH Fork pass. New 7-day schema; 30-day claim window. Full simulation must pass before broadcast."
+  ],
+  "files": [
+    {
+      "path": "deployments/evidence/v1-r3-test-validation.json",
+      "sha256": "0x589637c5af880c6ec959a71ced2f8f44103aebe6ab8bd76bec97945fb80b22c8"
+    },
+    {
+      "path": "outputs/reviews/arbitrum-wallet-deployment/preview.log",
+      "sha256": "0x30f6deb9bb61c68f839d72bad6436cacf4fa26661e3276c3fe1193494daa3346"
+    },
+    {
+      "path": "/tmp/tg7-deployment-current.log",
+      "sha256": "0xbf83b20b427cf0a86ab8fe8677933a963c8fbb505dfd8ac4fa9ca748d49b8f89"
+    }
+  ]
+}

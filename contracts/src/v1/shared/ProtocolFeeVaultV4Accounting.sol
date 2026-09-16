@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.26;
 
+import {CreatorTax} from "../libraries/CreatorTax.sol";
 import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
 
 import {IMemeStockGauge, MarketView} from "../interfaces/IV1Protocol.sol";
@@ -12,7 +13,7 @@ import {V1MarketEconomics} from "./V1MarketEconomics.sol";
 abstract contract ProtocolFeeVaultV4Accounting is ProtocolFeeVaultLiabilities {
     bytes32 private constant V4_FEE_DOMAIN = keccak256("TICKERGARDEN_V1_V4_FEE");
     uint256 private constant V4_FEE_SCHEMA_VERSION = 1;
-    bytes32 private constant EXECUTION_SPEC_ID = keccak256("V1-EXEC-10");
+    bytes32 private constant EXECUTION_SPEC_ID = keccak256("V1-EXEC-11");
     uint256 private constant FEE_PIPS_DENOMINATOR = 1_000_000;
     uint24 private constant FEE_PIPS = 10_000;
     uint16 private constant LP_SHARE_BPS = 0;
@@ -24,7 +25,23 @@ abstract contract ProtocolFeeVaultV4Accounting is ProtocolFeeVaultLiabilities {
 
     bytes32 private immutable _feePolicyId;
     bytes32 private immutable _feePolicyHash;
-    mapping(bytes32 poolId => uint64 nonce) private _lastV4FeeNonces;
+    mapping(bytes32 poolId => uint64 nonce) internal _lastV4FeeNonces;
+
+    struct StakerAttempt {
+        uint256 activeStock;
+        bool abandoned;
+        bytes4 errorSelector;
+    }
+    uint256 public constant STAKER_SETTLEMENT_GAS = 4_000_000;
+    uint256 public constant STAKER_SETTLEMENT_RESERVE = 300_000;
+    // Covers the cold Gauge -> AllocationManager -> Registry -> Vault view,
+    // including all 32 activation slots. The write budget remains independent.
+    uint256 private constant STAKER_WEIGHT_PROBE_GAS = 300_000;
+    error InsufficientStakerSettlementGas();
+    error OnlyStakerSettlementSelf();
+    event StakerFeeAbandoned(
+        bytes32 indexed marketId, bytes32 indexed feeId, address indexed feeAsset, uint256 amount, bytes4 errorSelector
+    );
 
     error InvalidV4FeePolicy(bytes32 feePolicyId);
     error InvalidV4FeeAmounts(uint256 base, uint256 totalFee, uint256 expectedTotalFee);
@@ -54,19 +71,23 @@ abstract contract ProtocolFeeVaultV4Accounting is ProtocolFeeVaultLiabilities {
         );
     }
 
-    function _recordExactV4Credit(V4CreditRecord memory record) internal virtual override {
-        MarketView memory value = _feeMarketRegistry.market(record.marketId);
-        _validateV4Record(record, value);
-        _settleV4Attribution(record, value.config.gauge);
+    function _recordExactV4Credit(V4CreditRecord memory record, MarketView memory value) internal virtual override {
+        uint256 tax = _validateV4Record(record, value);
+        _settleV4Attribution(record, value, tax);
         _lastV4FeeNonces[value.runtime.poolId] = record.feeNonce;
     }
 
-    function _validateV4Record(V4CreditRecord memory record, MarketView memory value) private view {
+    function _validateV4Record(V4CreditRecord memory record, MarketView memory value)
+        private
+        view
+        returns (uint256 tax)
+    {
         if (value.config.feePolicyId != _feePolicyId || value.config.executionSpecId != EXECUTION_SPEC_ID) {
             revert InvalidV4MarketPolicy(record.marketId, value.config.feePolicyId, value.config.executionSpecId);
         }
 
-        uint256 expectedTotalFee = Math.mulDiv(record.base, FEE_PIPS, FEE_PIPS_DENOMINATOR);
+        tax = CreatorTax.amount(record.base, value.config.creatorTaxBps);
+        uint256 expectedTotalFee = Math.mulDiv(record.base, FEE_PIPS, FEE_PIPS_DENOMINATOR) + tax;
         if (record.totalFee == 0 || record.totalFee != expectedTotalFee) {
             revert InvalidV4FeeAmounts(record.base, record.totalFee, expectedTotalFee);
         }
@@ -78,12 +99,23 @@ abstract contract ProtocolFeeVaultV4Accounting is ProtocolFeeVaultLiabilities {
         }
     }
 
-    function _settleV4Attribution(V4CreditRecord memory record, address gaugeAddress) private {
-        IMemeStockGauge gauge = IMemeStockGauge(gaugeAddress);
-        gauge.checkpointActivations();
-        uint256 activeStock = gauge.effectiveTotalActiveStock();
-        MarketFeeAccounting.V4Buckets memory buckets =
-            MarketFeeAccounting.splitV4(record.totalFee, record.lpAmount, record.nonLpAmount, activeStock);
+    function _settleV4Attribution(V4CreditRecord memory record, MarketView memory value, uint256 tax) private {
+        StakerAttempt memory attempt;
+        if (value.config.stakingEnabled) {
+            (attempt.activeStock, attempt.abandoned, attempt.errorSelector) = _tryStakerSettlement(
+                value.config.gauge,
+                record.feeAsset,
+                Math.mulDiv(record.nonLpAmount - tax, STAKER_NON_LP_SHARE_BPS, 10_000),
+                record.feeId
+            );
+        }
+        MarketFeeAccounting.V4Buckets memory buckets = MarketFeeAccounting.splitV4(
+            record.totalFee - tax,
+            record.lpAmount,
+            record.nonLpAmount - tax,
+            attempt.abandoned ? 1 : attempt.activeStock
+        );
+        buckets.creatorAmount += tax;
 
         uint32 creatorEpoch = _feeCreatorRevenueRegistry.currentCreatorEpoch(record.marketId);
         if (
@@ -93,29 +125,81 @@ abstract contract ProtocolFeeVaultV4Accounting is ProtocolFeeVaultLiabilities {
             revert CreatorEpochUnavailableForV4(record.marketId, creatorEpoch);
         }
 
-        if (buckets.stakerAmount != 0) {
-            gauge.creditStakerFee(record.feeAsset, buckets.stakerAmount, record.feeId);
-        }
-        _creditFeeLiabilities(
+        uint256 holderAmount = _creditTradingFeeLiabilities(
             record.marketId,
             creatorEpoch,
             record.feeAsset,
             record.nonLpAmount,
             buckets.creatorAmount,
             buckets.stakerAmount,
-            buckets.platformAmount
+            buckets.platformAmount,
+            tax,
+            value
         );
 
+        if (attempt.abandoned && buckets.stakerAmount != 0) {
+            // New failed fees only. Never replay against a later cohort or touch already-earned rewards.
+            _reserveForfeiture(record.marketId, address(this), record.feeAsset, buckets.stakerAmount);
+            emit StakerFeeAbandoned(
+                record.marketId, record.feeId, record.feeAsset, buckets.stakerAmount, attempt.errorSelector
+            );
+        }
         emit FeeBucketsCredited(
             record.marketId,
             creatorEpoch,
             record.feeAsset,
             record.feeId,
-            buckets.creatorAmount,
+            buckets.creatorAmount - holderAmount,
             buckets.stakerAmount,
             buckets.platformAmount,
-            activeStock
+            attempt.activeStock
         );
+    }
+
+    /// @dev Fixed self-call creates a rollback boundary around both weight lookup and Gauge mutation.
+    /// The caller cannot underfund this attempt to deliberately redirect a healthy reward.
+    function _tryStakerSettlement(address gauge, address asset, uint256 amount, bytes32 feeId)
+        private
+        returns (uint256 activeStock, bool abandoned, bytes4 errorSelector)
+    {
+        // A successful bounded static probe may prove that no reward write is needed.
+        // Failure/malformed output never means zero: retain the original fully funded
+        // rollback boundary below, including its anti-underfunding check.
+        bytes4 selector = IMemeStockGauge.effectiveTotalActiveStock.selector;
+        bool empty;
+        assembly ("memory-safe") {
+            // Fixed-size calldata and returndata fit in scratch memory; never copy
+            // unbounded returndata or allocate a dynamic bytes value for this probe.
+            mstore(0, selector)
+            let ok := staticcall(STAKER_WEIGHT_PROBE_GAS, gauge, 0, 4, 0, 32)
+            empty := and(and(ok, eq(returndatasize(), 32)), iszero(mload(0)))
+        }
+        if (empty) return (0, false, bytes4(0));
+        bytes memory data = abi.encodeCall(this.settleV4StakerFee, (gauge, asset, amount, feeId));
+        uint256 budget = STAKER_SETTLEMENT_GAS;
+        if (gasleft() < budget + budget / 63 + STAKER_SETTLEMENT_RESERVE) revert InsufficientStakerSettlementGas();
+        bool ok;
+        uint256 size;
+        bytes32 result;
+        assembly ("memory-safe") {
+            let out := mload(0x40)
+            mstore(out, 0)
+            ok := call(budget, address(), 0, add(data, 32), mload(data), out, 32)
+            size := returndatasize()
+            result := mload(out)
+        }
+        if (ok && size == 32) return (uint256(result), false, bytes4(0));
+        return (0, true, bytes4(result));
+    }
+
+    /// @notice Internal transaction subcall only; no permissionless reward-credit entry.
+    function settleV4StakerFee(address gauge, address asset, uint256 amount, bytes32 feeId)
+        external
+        returns (uint256 activeStock)
+    {
+        if (msg.sender != address(this) || _creditState() != 2) revert OnlyStakerSettlementSelf();
+        activeStock = IMemeStockGauge(gauge).effectiveTotalActiveStock();
+        if (activeStock != 0 && amount != 0) IMemeStockGauge(gauge).creditStakerFee(asset, amount, feeId);
     }
 
     function _expectedV4FeeId(V4CreditRecord memory record, bytes32 poolId) private view returns (bytes32) {
@@ -144,9 +228,5 @@ abstract contract ProtocolFeeVaultV4Accounting is ProtocolFeeVaultLiabilities {
 
     function _feePolicyIdValue() internal view returns (bytes32) {
         return _feePolicyId;
-    }
-
-    function _lastV4FeeNonce(bytes32 poolId) internal view returns (uint64) {
-        return _lastV4FeeNonces[poolId];
     }
 }

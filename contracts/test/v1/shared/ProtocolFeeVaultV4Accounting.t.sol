@@ -34,6 +34,7 @@ contract V4AccountingMarketRegistryMock {
         config.quoteAsset = quoteAsset;
         config.memeToken = memeToken;
         config.gauge = gauge;
+        config.stakingEnabled = true;
         config.graduatedHook = hook;
         config.feePolicyId = feePolicyId;
         config.executionSpecId = executionSpecId;
@@ -50,6 +51,15 @@ contract V4AccountingMarketRegistryMock {
 
     function setLaunchPhase(bytes32 marketId, uint8 launchPhase) external {
         _markets[marketId].runtime.launchPhase = launchPhase;
+    }
+
+    function disableStaking(bytes32 marketId) external {
+        _markets[marketId].config.stakingEnabled = false;
+        _markets[marketId].config.gauge = address(0);
+    }
+
+    function setCreatorTaxBps(bytes32 marketId, uint16 creatorTaxBps) external {
+        _markets[marketId].config.creatorTaxBps = creatorTaxBps;
     }
 }
 
@@ -87,7 +97,7 @@ contract V4AccountingGaugeMock {
         rejectCredit = credit;
     }
 
-    function checkpointActivations() external returns (uint256 activatedAmount, uint256 processedBuckets) {
+    function checkpointActivations() public returns (uint256 activatedAmount, uint256 processedBuckets) {
         if (rejectCheckpoint) revert("CHECKPOINT_REJECTED");
         ++checkpointCalls;
         activatedAmount = maturingStock;
@@ -99,7 +109,7 @@ contract V4AccountingGaugeMock {
     }
 
     function effectiveTotalActiveStock() external view returns (uint256) {
-        return storedTotalActiveStock;
+        return storedTotalActiveStock + maturingStock;
     }
 
     function creditStakerFee(address feeAsset, uint256 amount, bytes32 feeId)
@@ -107,6 +117,7 @@ contract V4AccountingGaugeMock {
         returns (uint256 accumulatorDelta, uint256 indexRemainder)
     {
         if (rejectCredit) revert("CREDIT_REJECTED");
+        checkpointActivations();
         ++creditCalls;
         lastFeeAsset = feeAsset;
         lastAmount = amount;
@@ -148,6 +159,10 @@ contract V4AccountingAllocationManagerMock {
         return block.timestamp >= _activationAt ? _totalRewardEligible : 0;
     }
 
+    function rewardCohortEpoch(bytes32) external pure returns (uint256) {
+        return 0;
+    }
+
     function recordGaugeRewardState(bytes32, uint256 quoteAccumulator, uint256 memeAccumulator) external {
         _quoteAccumulator = quoteAccumulator;
         _memeAccumulator = memeAccumulator;
@@ -156,9 +171,9 @@ contract V4AccountingAllocationManagerMock {
     function rageQuitRewardCutoff(bytes32, address)
         external
         view
-        returns (uint256 principal, uint256 quoteAccumulator, uint256 memeAccumulator, bool forfeitureRedistributable)
+        returns (uint256 principal, uint256 quoteAccumulator, uint256 memeAccumulator)
     {
-        return (0, _quoteAccumulator, _memeAccumulator, false);
+        return (0, _quoteAccumulator, _memeAccumulator);
     }
 }
 
@@ -215,7 +230,7 @@ contract ProtocolFeeVaultV4AccountingHarness is ProtocolFeeVaultV4Accounting {
     }
 
     function lastNonce(bytes32 poolId) external view returns (uint64) {
-        return _lastV4FeeNonce(poolId);
+        return _lastV4FeeNonces[poolId];
     }
 }
 
@@ -234,7 +249,7 @@ contract ProtocolFeeVaultV4AccountingTest is Test {
     bytes32 private constant MARKET_ID = keccak256("v4-accounting-market");
     bytes32 private constant POOL_ID = keccak256("v4-accounting-pool");
     bytes32 private constant FEE_POLICY_ID = keccak256("v1-fee-policy");
-    bytes32 private constant EXECUTION_SPEC_ID = keccak256("V1-EXEC-10");
+    bytes32 private constant EXECUTION_SPEC_ID = keccak256("V1-EXEC-11");
     uint32 private constant SOURCE_VERSION = 3;
     uint256 private constant B = 10;
     address private constant CREATOR = address(0xC0FFEE);
@@ -266,6 +281,18 @@ contract ProtocolFeeVaultV4AccountingTest is Test {
         _configure(FEE_POLICY_ID, EXECUTION_SPEC_ID);
     }
 
+    function test_disabledStakingNeverCallsGaugeAndRetainsAllCreatorTax() public {
+        registry.disableStaking(MARKET_ID);
+        registry.setCreatorTaxBps(MARKET_ID, 500);
+        bytes32 feeId = _feeId(address(quote), 10_000, 600, 1);
+        quote.mint(address(source), 600);
+        _creditErc20(quote, 10_000, 600, 0, 600, 1, feeId);
+        assertEq(vault.liability(MARKET_ID, address(quote), 0), 570);
+        assertEq(vault.liability(MARKET_ID, address(quote), 1), 0);
+        assertEq(vault.liability(MARKET_ID, address(quote), 2), 30);
+        assertEq(gauge.checkpointCalls(), 0);
+    }
+
     function test_zeroActiveStockCreditsSeventyZeroThirtyAndSkipsGaugeCredit() public {
         bytes32 feeId = _feeId(address(quote), 10_000, 100, 1);
         quote.mint(address(source), 100);
@@ -276,7 +303,7 @@ contract ProtocolFeeVaultV4AccountingTest is Test {
         assertEq(vault.liability(MARKET_ID, address(quote), 0), 70);
         assertEq(vault.liability(MARKET_ID, address(quote), 1), 0);
         assertEq(vault.liability(MARKET_ID, address(quote), 2), 30);
-        assertEq(gauge.checkpointCalls(), 1);
+        assertEq(gauge.checkpointCalls(), 0);
         assertEq(gauge.creditCalls(), 0);
     }
 
@@ -304,6 +331,7 @@ contract ProtocolFeeVaultV4AccountingTest is Test {
         _creditErc20(quote, 10_000, 100, 0, 100, 1, feeId);
 
         assertEq(gauge.storedTotalActiveStock(), B / 2);
+        assertEq(gauge.checkpointCalls(), 1);
         assertEq(gauge.creditCalls(), 1);
         assertEq(gauge.lastAmount(), 30);
         assertEq(gauge.lastFeeId(), feeId);
@@ -337,6 +365,65 @@ contract ProtocolFeeVaultV4AccountingTest is Test {
         assertEq(vault.liability(MARKET_ID, address(quote), 0), 41);
         assertEq(vault.liability(MARKET_ID, address(quote), 1), 30);
         assertEq(vault.liability(MARKET_ID, address(quote), 2), 30);
+    }
+
+    function test_creatorTax500IsAddedToCreatorAfterBaseFeeSplitWithActiveStake() public {
+        registry.setCreatorTaxBps(MARKET_ID, 500);
+        gauge.setActive(B);
+        bytes32 feeId = _feeId(address(quote), 10_000, 600, 1);
+        quote.mint(address(source), 600);
+        vm.expectEmit(true, true, true, true, address(vault));
+        emit FeeBucketsCredited(MARKET_ID, 1, address(quote), feeId, 540, 30, 30, B);
+        _creditErc20(quote, 10_000, 600, 0, 600, 1, feeId);
+
+        assertEq(vault.liability(MARKET_ID, address(quote), 0), 540);
+        assertEq(vault.liability(MARKET_ID, address(quote), 1), 30);
+        assertEq(vault.liability(MARKET_ID, address(quote), 2), 30);
+        assertEq(gauge.lastAmount(), 30);
+    }
+
+    function test_creatorTax500WithZeroActiveStakeRemainsCreatorOwned() public {
+        registry.setCreatorTaxBps(MARKET_ID, 500);
+        bytes32 feeId = _feeId(address(quote), 10_000, 600, 1);
+        quote.mint(address(source), 600);
+        vm.expectEmit(true, true, true, true, address(vault));
+        emit FeeBucketsCredited(MARKET_ID, 1, address(quote), feeId, 570, 0, 30, 0);
+        _creditErc20(quote, 10_000, 600, 0, 600, 1, feeId);
+
+        assertEq(vault.liability(MARKET_ID, address(quote), 0), 570);
+        assertEq(vault.liability(MARKET_ID, address(quote), 1), 0);
+        assertEq(vault.liability(MARKET_ID, address(quote), 2), 30);
+        assertEq(gauge.creditCalls(), 0);
+    }
+
+    function test_creatorTaxAndBaseFeeBothUseFloorRoundingForTinyBase() public {
+        registry.setCreatorTaxBps(MARKET_ID, 500);
+        gauge.setActive(B);
+        bytes32 feeId = _feeId(address(quote), 101, 6, 1);
+        quote.mint(address(source), 6);
+        _creditErc20(quote, 101, 6, 0, 6, 1, feeId);
+
+        assertEq(vault.liability(MARKET_ID, address(quote), 0), 6);
+        assertEq(vault.liability(MARKET_ID, address(quote), 1), 0);
+        assertEq(vault.liability(MARKET_ID, address(quote), 2), 0);
+        assertEq(gauge.creditCalls(), 0);
+    }
+
+    function test_creatorTaxWrongTotalFeeRollsBackArrivalAndFeeState() public {
+        registry.setCreatorTaxBps(MARKET_ID, 500);
+        gauge.setActive(B);
+        quote.mint(address(source), 600);
+        bytes32 feeId = _feeId(address(quote), 10_000, 599, 1);
+        vm.expectRevert(
+            abi.encodeWithSelector(ProtocolFeeVaultV4Accounting.InvalidV4FeeAmounts.selector, 10_000, 599, 600)
+        );
+        _creditErc20(quote, 10_000, 599, 0, 599, 1, feeId);
+
+        assertEq(quote.balanceOf(address(source)), 600);
+        assertEq(quote.balanceOf(address(vault)), 0);
+        assertEq(vault.totalLiability(address(quote)), 0);
+        assertEq(vault.lastNonce(POOL_ID), 0);
+        assertFalse(vault.consumedFeeId(feeId));
     }
 
     function test_quoteAndMemeCreditsUseIndependentLiabilitiesAndGaugeAssets() public {
@@ -378,56 +465,23 @@ contract ProtocolFeeVaultV4AccountingTest is Test {
         assertEq(vault.liability(MARKET_ID, address(0), 1), 30);
     }
 
-    function test_realGaugeDistributesStakerBucketByActiveRawStockAndClaimsThroughVault() public {
-        vm.warp(1_000_000);
-        V4AccountingAllocationManagerMock manager = new V4AccountingAllocationManagerMock();
-        MemeStockGauge implementation = new MemeStockGauge();
-        MemeStockGauge realGauge = MemeStockGauge(
-            MemeStockGaugeClone.deployDeterministic(
-                address(implementation),
-                MARKET_ID,
-                GaugeIdentity({
-                    marketId: MARKET_ID,
-                    assetUid: keccak256("v4-accounting-stock"),
-                    quoteAssetConfigId: keccak256("v4-accounting-quote"),
-                    allocationManager: address(manager),
-                    protocolFeeVault: address(vault),
-                    quoteAsset: address(quote),
-                    memeToken: address(meme)
-                })
-            )
-        );
-        registry.configure(
-            MARKET_ID,
-            address(source),
-            address(quote),
-            address(meme),
-            address(realGauge),
-            FEE_POLICY_ID,
-            EXECUTION_SPEC_ID,
-            SOURCE_VERSION,
-            POOL_ID
-        );
-
-        uint64 activationAt = uint64(block.timestamp + 30 seconds);
-        uint64 unlockAt = uint64(block.timestamp + 24 hours);
-        manager.add(realGauge, ALICE, B / 2, activationAt, unlockAt);
-        manager.add(realGauge, BOB, B / 2, activationAt, unlockAt);
-        vm.warp(activationAt);
-
-        quote.mint(address(source), 100);
-        bytes32 feeId = _feeId(address(quote), 10_000, 100, 1);
-        _creditErc20(quote, 10_000, 100, 0, 100, 1, feeId);
-
-        assertEq(realGauge.storedTotalActiveStock(), B);
-        vm.warp(unlockAt);
-        assertEq(vault.liability(MARKET_ID, address(quote), 1), 30);
-        assertEq(vault.claimStakerFor(ALICE, MARKET_ID, address(quote)), 15);
-        assertEq(vault.claimStakerFor(BOB, MARKET_ID, address(quote)), 15);
-        assertEq(quote.balanceOf(ALICE), 15);
-        assertEq(quote.balanceOf(BOB), 15);
-        assertEq(vault.liability(MARKET_ID, address(quote), 1), 0);
-        assertEq(vault.totalLiability(address(quote)), 70);
+    function test_nativeDeficitContributionPreservesEveryBeneficiaryLiability() public {
+        test_nativeCreditUsesTheSameSnapshotAndLiabilityRules();
+        vm.deal(address(vault), 90);
+        vm.deal(address(this), 20);
+        vm.expectRevert();
+        vault.coverAssetDeficit{value: 11}(address(0), 11);
+        vm.expectRevert();
+        vault.coverAssetDeficit{value: 5}(address(0), 4);
+        vault.coverAssetDeficit{value: 4}(address(0), 4);
+        (,, uint256 deficit) = vault.assetCoverage(address(0));
+        assertEq(deficit, 6);
+        vault.coverAssetDeficit{value: 6}(address(0), 6);
+        assertEq(address(vault).balance, 100);
+        assertEq(vault.totalLiability(address(0)), 100);
+        assertEq(vault.liability(MARKET_ID, address(0), 0), 40);
+        assertEq(vault.liability(MARKET_ID, address(0), 1), 30);
+        assertEq(vault.liability(MARKET_ID, address(0), 2), 30);
     }
 
     function test_feeIdAndNonceMustMatchEveryCanonicalFieldAndSequence() public {
@@ -487,22 +541,33 @@ contract ProtocolFeeVaultV4AccountingTest is Test {
         assertFalse(vault.consumedFeeId(feeId));
     }
 
-    function test_gaugeCheckpointOrCreditFailureRollsBackTransferFeeIdAndNonce() public {
+    function test_gaugeFailureKeepsFeesAndNonceButAbandonsOnlyFailedReward() public {
         gauge.setActive(B);
-        quote.mint(address(source), 100);
+        quote.mint(address(source), 300);
         bytes32 feeId = _feeId(address(quote), 10_000, 100, 1);
         gauge.setFailures(true, false);
-        vm.expectRevert("CHECKPOINT_REJECTED");
         _creditErc20(quote, 10_000, 100, 0, 100, 1, feeId);
         assertEq(gauge.checkpointCalls(), 0);
+        assertTrue(vault.consumedFeeId(feeId));
+        assertEq(vault.lastNonce(POOL_ID), 1);
+        assertEq(vault.forfeitureReserve(MARKET_ID, address(quote)), 30);
+        assertEq(vault.liability(MARKET_ID, address(quote), 1), 0);
 
         gauge.setFailures(false, true);
-        vm.expectRevert("CREDIT_REJECTED");
-        _creditErc20(quote, 10_000, 100, 0, 100, 1, feeId);
+        bytes32 second = _feeId(address(quote), 10_000, 100, 2);
+        _creditErc20(quote, 10_000, 100, 0, 100, 2, second);
         assertEq(quote.balanceOf(address(source)), 100);
-        assertEq(vault.totalLiability(address(quote)), 0);
-        assertEq(vault.lastNonce(POOL_ID), 0);
-        assertFalse(vault.consumedFeeId(feeId));
+        assertEq(vault.totalLiability(address(quote)), 200);
+        assertEq(vault.lastNonce(POOL_ID), 2);
+        assertTrue(vault.consumedFeeId(second));
+        assertEq(vault.forfeitureReserve(MARKET_ID, address(quote)), 60);
+        assertEq(vault.liability(MARKET_ID, address(quote), 1), 0);
+        vm.expectRevert();
+        _creditErc20(quote, 10_000, 100, 0, 100, 1, feeId);
+        gauge.setFailures(false, false);
+        _creditErc20(quote, 10_000, 100, 0, 100, 3, _feeId(address(quote), 10_000, 100, 3));
+        assertEq(vault.liability(MARKET_ID, address(quote), 1), 30);
+        assertEq(vault.forfeitureReserve(MARKET_ID, address(quote)), 60);
     }
 
     function test_constructorRejectsZeroFeePolicyId() public {

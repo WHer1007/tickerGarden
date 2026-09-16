@@ -1,6 +1,12 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.26;
 
+import {AuthorityUtils} from "@openzeppelin/contracts/access/manager/AuthorityUtils.sol";
+
+interface ICompoundGovernanceAuthority {
+    function authority() external view returns (address);
+}
+
 import {GraduationExecutorPoolExecution} from "../shared/GraduationExecutorPoolExecution.sol";
 import {LaunchLocker} from "./LaunchLocker.sol";
 
@@ -15,6 +21,20 @@ contract LaunchLockerCreationCodeStore {
 
 /// @notice Canonical atomic V1 graduation, v4 pool creation, and permanent Locker deployment module.
 contract GraduationExecutor is GraduationExecutorPoolExecution {
+    address public compoundKeeper;
+    error UnauthorizedCompoundGovernance();
+    event CompoundKeeperChanged(address indexed previousKeeper, address indexed newKeeper);
+
+    /// @notice Governance rotates the shared automation wallet. Zero disables compounding, never trading.
+    function setCompoundKeeper(address keeper) external {
+        address stocks = _graduationMarketRegistry.officialStockRegistry();
+        address authority = ICompoundGovernanceAuthority(stocks).authority();
+        (bool immediate,) = AuthorityUtils.canCallWithDelay(authority, msg.sender, address(this), msg.sig);
+        if (!immediate) revert UnauthorizedCompoundGovernance();
+        emit CompoundKeeperChanged(compoundKeeper, keeper);
+        compoundKeeper = keeper;
+    }
+
     address private immutable _lockerCreationCodeStore;
     bytes32 private immutable _lockerCreationCodeHash;
 

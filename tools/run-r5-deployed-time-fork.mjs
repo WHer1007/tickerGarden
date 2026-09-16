@@ -1,0 +1,16 @@
+import fs from 'node:fs';import {spawn}from'node:child_process';
+import {createPublicClient,http,keccak256}from'../apps/web/node_modules/viem/_esm/index.js';
+import {createPinnedRpcProxy}from'./robinhood-rpc-compat-proxy.mjs';
+const dir='outputs/reviews/r5-business-acceptance-2026-09-06',s=JSON.parse(fs.readFileSync(dir+'/public/results.json')),p=JSON.parse(fs.readFileSync('deployments/manifests/arbitrum-sepolia-421614.v1.deployed.json')),roles=JSON.parse(fs.readFileSync(dir+'/public/roles.json')).roles;
+if(s.releaseId!==p.releaseId||!s.timeQueue)throw Error('R5 lifecycle not complete');
+const matrix=process.argv[2]==='matrix';
+const active=JSON.parse(fs.readFileSync('deployments/manifests/arbitrum-sepolia-421614.v1.activation.json')),plan=JSON.parse(fs.readFileSync('deployments/manifests/arbitrum-sepolia-421614.v1.plan.json'));
+const rpc='https://sepolia-rollup.arbitrum.io/rpc',c=createPublicClient({transport:http(rpc)});if(await c.getChainId()!==421614)throw Error('Wrong chain');
+const b=await c.getBlock(),feeVaultRuntimeCodeHash=keccak256(await c.getCode({address:p.ordinaryComponents[15],blockNumber:b.number}));
+if(feeVaultRuntimeCodeHash!==p.contracts.find(x=>x.address.toLowerCase()===p.ordinaryComponents[15].toLowerCase()).runtimeCodeHash)throw Error('FeeVault drift');
+const fixture={factory:p.factory,router:p.ordinaryComponents[9],registry:p.ordinaryComponents[10],stockVault:p.ordinaryComponents[13],poolManager:plan.externalDependencies.find(x=>x.name==='POOL_MANAGER').address,baselineId:active.baselineId,nativeQuoteId:active.quoteId,templateId:active.templateId,quoteId:s.quoteId,testQuote:s.testQuote,releaseId:p.releaseId,fees:p.ordinaryComponents[15],manager:p.ordinaryComponents[12],stocks:p.ordinaryComponents[1],distributor:p.ordinaryComponents[14],roles,feeVaultRuntimeCodeHash,stock:s.stock,stockUid:s.stockUid,staking:s.markets['ERC20-S1-H0-T0'],holder:s.markets['ERC20-S1-H1-T0'],raw:{...s.rawExit,token:s.markets['ETH-S1-H1-T500'].token},unpauseAt:Number(s.timeQueue.find(x=>x.type==='STOCK_UNPAUSE').availableAt)};
+fs.writeFileSync(dir+'/time-fixture.json',JSON.stringify(fixture,null,2)+'\n');
+const proof={startedAt:new Date().toISOString(),chainId:421614,releaseId:p.releaseId,blockNumber:String(b.number),blockHash:b.hash,mode:'LOCAL_TIME_WARP_OF_REAL_R5_DEPLOYMENT_NOT_NATURAL_PUBLIC_CLOCK'};
+const proxy=await createPinnedRpcProxy({upstreamUrl:rpc,expectedChainId:'421614',blockNumber:String(b.number),blockHash:b.hash});
+const child=spawn(process.execPath,['tools/run-forge.mjs','test','--match-path',matrix?'test/v1/fork/R5DeployedBusinessMatrix.t.sol':'test/v1/fork/R5DeployedBusinessTimeGates.t.sol',...(matrix?['--match-test','test_matrix_','--threads','1']:[]),'--fork-url',proxy.url,'--fork-block-number',String(b.number),'--no-storage-caching','-vv'],{stdio:'inherit'});
+child.on('exit',async code=>{proof.exitCode=code;proof.finishedAt=new Date().toISOString();fs.writeFileSync(dir+(matrix?'/local-matrix-fork-pin.json':'/deployed-time-fork-pin.json'),JSON.stringify(proof,null,2)+'\n');await proxy.close();process.exitCode=code??1;});

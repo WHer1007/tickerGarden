@@ -1,0 +1,11 @@
+<!doctype html><meta name="viewport" content="width=device-width,initial-scale=1"><title>Global holders verification</title>
+<style>body{font:16px system-ui;background:#fbfaf3;color:#25382b;margin:20px}section{padding:20px;border:1px solid #ccc;max-width:1000px}button{padding:10px;margin:4px}</style>
+<button id="snapshot">Snapshot update</button><button id="pause">Pause</button><button id="normal">Normal</button><button id="empty">Empty</button><button id="unavailable">Unavailable</button><button id="invalid">Invalid</button><p>Distinct holder addresses: <strong id="holder-count">—</strong></p><section id="holders"><h2>Global holder addresses</h2></section>
+<script type="module">
+import {mountGlobalHolders} from '/src/v1/globalHoldersWidget.ts';
+let mode='normal';const hash=n=>'0x'+n.toString(16).padStart(64,'0'),address=n=>'0x'+n.toString(16).padStart(40,'0');
+window.fetch=async()=>{if(mode==='unavailable')return new Response('{}',{status:503});const empty=mode==='empty';return new Response(JSON.stringify({chainId:4663,displayOnly:true,finality:'finalized',sourceBlockNumber:'123',sourceBlockHash:hash(123),marketCount:empty?0:3,positiveMarketAddressPairs:empty?0:6,positiveAddressCount:empty?0:4,includedAddressCount:mode==='invalid'?5:empty?0:3,exclusionPolicy:'UNION_OF_KNOWN_PROTOCOL_ADDRESSES_V1',excludedAccounts:empty?[]:[address(3)],groups:empty?[]:[{assetUid:hash(1),binding:'registered_stock',marketCount:2,positiveMarketAddressPairs:4,positiveAddressCount:3,includedAddressCount:2},{assetUid:hash(2),binding:'registered_stock',marketCount:1,positiveMarketAddressPairs:2,positiveAddressCount:2,includedAddressCount:2}]}));};
+const widget=mountGlobalHolders(document.querySelector('#holders'),'http://fixture.test',4663,document.querySelector('#holder-count'));
+document.querySelector('#snapshot').onclick=()=>void widget.refresh();document.querySelector('#pause').onclick=()=>widget.stop();
+for(const m of ['normal','empty','unavailable','invalid'])document.getElementById(m).onclick=()=>{mode=m;document.querySelector('#holders button').click();};
+</script>

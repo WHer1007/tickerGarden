@@ -49,6 +49,7 @@ contract MockAllocationMarketRegistry {
     function configure(bytes32 marketId, bytes32 assetUid, address gauge) external {
         _markets[marketId].config.assetUid = assetUid;
         _markets[marketId].config.gauge = gauge;
+        _markets[marketId].config.stakingEnabled = true;
         _markets[marketId].runtime.launchPhase = 1;
     }
 
@@ -142,6 +143,11 @@ contract MockFullExitGauge {
         return _positions[user];
     }
 
+    function setClaimable(address user, uint256 quote, uint256 meme) external {
+        _positions[user].quoteClaimable = quote;
+        _positions[user].memeClaimable = meme;
+    }
+
     function _materialize(address user) private {
         PositionView storage position = _positions[user];
         if (position.pendingAmount != 0 && block.timestamp >= position.pendingGeneration) {
@@ -156,11 +162,28 @@ contract MockFullExitGauge {
     }
 }
 
+contract MockUnstakeFailureToken is MockExactQuoteToken {
+    bool public failTransfers;
+
+    constructor() MockExactQuoteToken(18) {}
+
+    function setFailTransfers(bool fail) external {
+        failTransfers = fail;
+    }
+
+    function transfer(address recipient, uint256 amount) external override returns (bool) {
+        if (failTransfers) revert("withdrawal failed");
+        _transfer(msg.sender, recipient, amount);
+        return true;
+    }
+}
+
 contract AllocationManagerTest is Test {
     bytes32 internal constant ASSET_UID = keccak256("official-stock");
     bytes32 internal constant MARKET_ID = keccak256("market");
     bytes32 internal constant OTHER_MARKET_ID = keccak256("other-market");
     address internal constant ALICE = address(0xA11CE);
+    address internal constant BOB = address(0xB0B);
 
     MockAllocationOfficialStockRegistry internal officialRegistry;
     MockAllocationMarketRegistry internal marketRegistry;
@@ -229,6 +252,139 @@ contract AllocationManagerTest is Test {
         assertEq(stockToken.balanceOf(address(vault)), 2 ether);
     }
 
+    function test_stakeWalletFundsFullRoundTripAndPreservesRewards() public {
+        uint256 amount = 2 ether;
+        stockToken.mint(ALICE, amount);
+        vm.startPrank(ALICE);
+        stockToken.approve(address(vault), amount);
+        manager.stake(MARKET_ID, amount);
+        vm.stopPrank();
+
+        assertEq(stockToken.balanceOf(ALICE), 0);
+        assertEq(vault.deposited(ASSET_UID, ALICE), amount);
+        assertEq(vault.allocation(ASSET_UID, ALICE, MARKET_ID), amount);
+        gauge.setClaimable(ALICE, 7 ether, 11 ether);
+        vm.warp(gauge.positionOf(ALICE).unlockAt);
+
+        vm.prank(ALICE);
+        manager.unstakeAndWithdraw(MARKET_ID);
+
+        assertEq(stockToken.balanceOf(ALICE), amount);
+        assertEq(stockToken.balanceOf(address(vault)), 0);
+        assertEq(vault.deposited(ASSET_UID, ALICE), 0);
+        assertEq(vault.allocation(ASSET_UID, ALICE, MARKET_ID), 0);
+        PositionView memory position = gauge.positionOf(ALICE);
+        assertEq(position.activeAmount, 0);
+        assertEq(position.pendingAmount, 0);
+        assertEq(position.quoteClaimable, 7 ether);
+        assertEq(position.memeClaimable, 11 ether);
+    }
+
+    function test_stakeCannotUseFreeLedgerWhenWalletIsInsufficient() public {
+        stockToken.mint(ALICE, 1 ether);
+        vm.startPrank(ALICE);
+        stockToken.approve(address(vault), 1 ether);
+        vault.depositStock(ASSET_UID, 1 ether);
+        stockToken.approve(address(vault), 0.5 ether);
+        vm.expectRevert();
+        manager.stake(MARKET_ID, 0.5 ether);
+        vm.stopPrank();
+
+        assertEq(vault.deposited(ASSET_UID, ALICE), 1 ether);
+        assertEq(vault.freeBalanceOf(ASSET_UID, ALICE), 1 ether);
+        assertEq(vault.allocation(ASSET_UID, ALICE, MARKET_ID), 0);
+    }
+
+    function test_stakeBelowMinimumRevertsAndDoesNotPullWalletFunds() public {
+        uint256 amount = 0.5 ether - 1;
+        stockToken.mint(ALICE, amount);
+        vm.startPrank(ALICE);
+        stockToken.approve(address(vault), amount);
+        vm.expectRevert();
+        manager.stake(MARKET_ID, amount);
+        vm.stopPrank();
+
+        assertEq(stockToken.balanceOf(ALICE), amount);
+        assertEq(vault.deposited(ASSET_UID, ALICE), 0);
+        assertEq(vault.allocation(ASSET_UID, ALICE, MARKET_ID), 0);
+    }
+
+    function test_unstakeLockedRevertsWithoutChangingPrincipal() public {
+        _stake(ALICE, 1 ether);
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                AllocationManagerExits.PositionLockedUntil.selector, gauge.positionOf(ALICE).unlockAt
+            )
+        );
+        vm.prank(ALICE);
+        manager.unstakeAndWithdraw(MARKET_ID);
+
+        assertEq(vault.allocation(ASSET_UID, ALICE, MARKET_ID), 1 ether);
+        assertEq(vault.deposited(ASSET_UID, ALICE), 1 ether);
+        assertEq(stockToken.balanceOf(ALICE), 0);
+    }
+
+    function test_unstakePausedAndRetiredAssetStillWithdraws() public {
+        for (uint8 status = 2; status <= 3; ++status) {
+            address user = address(uint160(0xBEEF + status));
+            _stake(user, 1 ether);
+            vm.warp(gauge.positionOf(user).unlockAt);
+            officialRegistry.setStatus(ASSET_UID, status);
+            vm.prank(user);
+            manager.unstakeAndWithdraw(MARKET_ID);
+            assertEq(stockToken.balanceOf(user), 1 ether);
+            assertEq(vault.allocation(ASSET_UID, user, MARKET_ID), 0);
+            officialRegistry.setStatus(ASSET_UID, 1);
+        }
+    }
+
+    function test_unstakeWithdrawalTokenFailureRollsBackGaugeVaultAndWallet() public {
+        MockUnstakeFailureToken failingToken = new MockUnstakeFailureToken();
+        officialRegistry.configure(ASSET_UID, address(failingToken), address(vault), 1, 0.5 ether);
+        uint256 amount = 1 ether;
+        failingToken.mint(ALICE, amount);
+        vm.startPrank(ALICE);
+        failingToken.approve(address(vault), amount);
+        manager.stake(MARKET_ID, amount);
+        vm.stopPrank();
+        vm.warp(gauge.positionOf(ALICE).unlockAt);
+        failingToken.setFailTransfers(true);
+
+        vm.expectRevert();
+        vm.prank(ALICE);
+        manager.unstakeAndWithdraw(MARKET_ID);
+
+        assertEq(failingToken.balanceOf(ALICE), 0);
+        assertEq(failingToken.balanceOf(address(vault)), amount);
+        assertEq(vault.deposited(ASSET_UID, ALICE), amount);
+        assertEq(vault.allocation(ASSET_UID, ALICE, MARKET_ID), amount);
+        assertEq(_positionAmount(ALICE), amount);
+    }
+
+    function test_vaultWithdrawalEndpointRejectsCrossUserCaller() public {
+        _stake(ALICE, 1 ether);
+        vm.warp(gauge.positionOf(ALICE).unlockAt);
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                bytes4(keccak256("UnauthorizedAllocationManager(address,address)")), BOB, address(manager)
+            )
+        );
+        vm.prank(BOB);
+        vault.releaseAllocationAndWithdraw(ASSET_UID, ALICE, MARKET_ID);
+        assertEq(vault.allocation(ASSET_UID, ALICE, MARKET_ID), 1 ether);
+    }
+
+    function testFuzz_unstakeAlwaysReturnsExactlyTheFullPrincipal(uint96 seed) public {
+        uint256 amount = bound(uint256(seed), 0.5 ether, 1_000_000 ether);
+        _stake(ALICE, amount);
+        vm.warp(gauge.positionOf(ALICE).unlockAt);
+        vm.prank(ALICE);
+        manager.unstakeAndWithdraw(MARKET_ID);
+        assertEq(stockToken.balanceOf(ALICE), amount);
+        assertEq(vault.deposited(ASSET_UID, ALICE), 0);
+        assertEq(vault.totalAllocated(ASSET_UID), 0);
+    }
+
     function test_lockedCloseFailsWithoutChangingPrincipal() public {
         _seedAllocation(1 ether);
         uint64 unlockAt = gauge.positionOf(ALICE).unlockAt;
@@ -285,8 +441,10 @@ contract AllocationManagerTest is Test {
 
     function test_canonicalSurfaceHasNoDecreaseMigrationOrRecipientBypass() public {
         assertEq(AllocationManager.allocate.selector, IAllocationManager.allocate.selector);
+        assertEq(AllocationManager.stake.selector, IAllocationManager.stake.selector);
         assertEq(AllocationManager.increaseAllocation.selector, IAllocationManager.increaseAllocation.selector);
         assertEq(AllocationManager.closeAllocation.selector, IAllocationManager.closeAllocation.selector);
+        assertEq(AllocationManager.unstakeAndWithdraw.selector, IAllocationManager.unstakeAndWithdraw.selector);
         assertEq(AllocationManager.rageQuit.selector, IAllocationManager.rageQuit.selector);
         assertEq(AllocationManager.depositAndAllocate.selector, IAllocationManager.depositAndAllocate.selector);
 
@@ -326,6 +484,15 @@ contract AllocationManagerTest is Test {
         stockToken.approve(address(vault), amount);
         vault.depositStock(ASSET_UID, amount);
         manager.allocate(MARKET_ID, amount);
+        vm.stopPrank();
+    }
+
+    function _stake(address user, uint256 amount) private {
+        vm.warp(2_000_000);
+        stockToken.mint(user, amount);
+        vm.startPrank(user);
+        stockToken.approve(address(vault), amount);
+        manager.stake(MARKET_ID, amount);
         vm.stopPrank();
     }
 

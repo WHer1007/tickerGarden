@@ -1,0 +1,36 @@
+# Local development only; these are disposable development credentials.
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: tickergarden
+      POSTGRES_PASSWORD: tickergarden_dev
+      POSTGRES_DB: tickergarden
+    ports:
+      - "127.0.0.1:54329:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U tickergarden -d tickergarden"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+  api:
+    build: .
+    environment:
+      TG_ENV: development
+      TG_HTTP_ADDR: "0.0.0.0:8790"
+      TG_CHAIN_ID: "46630"
+      TG_WEB_ORIGIN: "http://localhost:5193"
+      TG_DATABASE_URL: "postgres://tickergarden:tickergarden_dev@postgres:5432/tickergarden?sslmode=disable"
+    ports:
+      - "127.0.0.1:8790:8790"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    read_only: true
+    cap_drop: [ALL]
+    security_opt: ["no-new-privileges:true"]
+    # /readyz deliberately stays 503 until real chain read models are connected.
+volumes:
+  postgres-data:

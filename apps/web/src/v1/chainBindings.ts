@@ -11,7 +11,7 @@ const ZERO_HEX32 = `0x${"0".repeat(64)}`;
 export interface CanonicalRuntimeBindings {
   readonly officialStockRegistry: Address;
   readonly approvedQuoteRegistry: Address;
-  readonly ponsBaselineRegistry: Address;
+  readonly tickerGardenBaselineRegistry: Address;
   readonly launchTemplateRegistry: Address;
   readonly marketRegistry: Address;
   readonly protocolFeeVault: Address;
@@ -101,7 +101,7 @@ export function decodeCanonicalFactoryBindings(raw: unknown): CanonicalRuntimeBi
   return Object.freeze({
     officialStockRegistry: address(field(raw, "output0", 0), "Factory.officialStockRegistry"),
     approvedQuoteRegistry: address(field(raw, "output1", 1), "Factory.approvedQuoteRegistry"),
-    ponsBaselineRegistry: address(field(raw, "output2", 2), "Factory.ponsBaselineRegistry"),
+    tickerGardenBaselineRegistry: address(field(raw, "output2", 2), "Factory.tickerGardenBaselineRegistry"),
     launchTemplateRegistry: address(field(raw, "output3", 3), "Factory.launchTemplateRegistry"),
     marketRegistry: address(field(raw, "output4", 4), "Factory.marketRegistry"),
     protocolFeeVault: address(field(raw, "output5", 5), "Factory.protocolFeeVault"),
@@ -127,20 +127,23 @@ export function assertCanonicalFactoryBindings(
 
 export function assertCanonicalLaunchBindings(
   selected: SelectedLaunchConfig,
-  raw: Readonly<{ asset: unknown; quote: unknown; pons: unknown; template: unknown }>,
+  raw: Readonly<{ asset: unknown; quote: unknown; baseline: unknown; template: unknown }>,
 ): void {
-  bytes32(selected.asset.assetUid, "selected assetUid", false);
+  if (selected.stakingEnabled !== false) {
+    if (!selected.asset) throw new Error("Select a staking asset");
+    bytes32(selected.asset.assetUid, "selected assetUid", false);
+    same(statusOf(raw.asset, 3, "asset"), selected.asset.status, "asset status");
+  }
   bytes32(selected.quote.configId, "selected quote configId", false);
-  bytes32(selected.pons.baselineId, "selected Pons baselineId", false);
+  bytes32(selected.baseline.baselineId, "selected TickerGarden baselineId", false);
   bytes32(selected.template.templateId, "selected launch templateId", false);
 
-  same(statusOf(raw.asset, 3, "asset"), selected.asset.status, "asset status");
-  same(bytes32(field(raw.quote, "ponsBaselineId", 0), "Quote.ponsBaselineId", false), selected.quote.ponsBaselineId, "Quote Pons baseline");
+  same(bytes32(field(raw.quote, "tickerGardenBaselineId", 0), "Quote.tickerGardenBaselineId", false), selected.quote.tickerGardenBaselineId, "Quote TickerGarden baseline");
   same(address(field(raw.quote, "quoteAsset", 1), "Quote.quoteAsset", true), selected.quote.quoteAsset, "Quote asset");
   same(bytes32(field(raw.quote, "economicsHash", 5), "Quote.economicsHash", false), selected.quote.economicsHash, "Quote economics hash");
   same(statusOf(raw.quote, 6, "quote"), selected.quote.status, "Quote status");
-  same(statusOf(raw.pons, 9, "Pons baseline"), selected.pons.status, "Pons baseline status");
-  same(statusOf(raw.template, 13, "launch template"), selected.template.status, "launch template status");
+  same(statusOf(raw.baseline, 9, "TickerGarden baseline"), selected.baseline.status, "TickerGarden baseline status");
+  same(statusOf(raw.template, 12, "launch template"), selected.template.status, "launch template status");
 }
 
 export function assertCanonicalAssetBinding(
@@ -179,15 +182,18 @@ export function assertCanonicalMarketBinding(
   }
   const config = field(rawMarket, "config", 0);
   const runtime = field(rawMarket, "runtime", 1);
+  const stakingEnabled = boolean(field(config, "stakingEnabled", 16), "Market.stakingEnabled");
+  const disabledStaking = !stakingEnabled;
+  if (disabledStaking && (api.assetUid !== ZERO_HEX32 || api.gauge !== "0x0000000000000000000000000000000000000000")) throw new Error("Disabled staking has a stock or Gauge binding");
   const apiMarketId = bytes32(api.marketId, "API marketId", false);
   bytes32(apiMarketId, "API marketId", false);
 
-  same(bytes32(field(config, "assetUid", 0), "Market.assetUid", false), bytes32(api.assetUid, "API assetUid", false), "market assetUid");
-  same(bytes32(field(config, "ponsBaselineId", 1), "Market.ponsBaselineId", false), bytes32(api.ponsBaselineId, "API ponsBaselineId", false), "market Pons baseline");
+  same(bytes32(field(config, "assetUid", 0), "Market.assetUid", disabledStaking), bytes32(api.assetUid, "API assetUid", disabledStaking), "market assetUid");
+  same(bytes32(field(config, "tickerGardenBaselineId", 1), "Market.tickerGardenBaselineId", false), bytes32(api.tickerGardenBaselineId, "API tickerGardenBaselineId", false), "market TickerGarden baseline");
   same(bytes32(field(config, "quoteAssetConfigId", 2), "Market.quoteAssetConfigId", false), bytes32(api.quoteAssetConfigId, "API quoteAssetConfigId", false), "market Quote config");
-  same(address(field(config, "memeToken", 9), "Market.memeToken"), address(api.memeToken, "API memeToken"), "market Meme token");
+  same(address(field(config, "memeToken", 9), "Market.memeToken"), address(api.memeToken, "API memeToken"), "market created token");
   same(address(field(config, "curve", 10), "Market.curve"), address(api.curve, "API curve"), "market Curve");
-  same(address(field(config, "gauge", 11), "Market.gauge"), address(api.gauge, "API gauge"), "market Gauge");
+  same(address(field(config, "gauge", 11), "Market.gauge", disabledStaking), address(api.gauge, "API gauge", disabledStaking), "market Gauge");
   same(address(field(config, "quoteAsset", 12), "Market.quoteAsset", true), address(api.quoteAsset, "API quoteAsset", true), "market Quote asset");
 
   const sourceVersion = integer(field(runtime, "sourceVersion", 1), "Market.sourceVersion");
@@ -197,20 +203,21 @@ export function assertCanonicalMarketBinding(
   const runtimePoolId = bytes32(field(runtime, "poolId", 0), "Market.poolId");
   same(runtimePoolId, api.poolId === null ? ZERO_HEX32 as Hex : bytes32(api.poolId, "API poolId", false), "market runtime poolId");
 
-  same(address(field(rawRoute, "swapRouter", 2), "Route.swapRouter"), address(api.canonicalRoute.router, "API route.router"), "route router");
-  same(address(field(rawRoute, "quoter", 3), "Route.quoter"), address(api.canonicalRoute.quoter, "API route.quoter"), "route quoter");
-  const routeHook = address(field(rawRoute, "hook", 4), "Route.hook");
+  // Older deployed releases include two service fields. They are not protocol invariants.
+  const legacyRoute = Array.isArray(rawRoute) ? rawRoute.length === 14 : Object.hasOwn(rawRoute as object, 'swapRouter');
+  const routeOffset = legacyRoute ? 2 : 0;
+  const routeHook = address(field(rawRoute, "hook", 2 + routeOffset), "Route.hook");
   same(routeHook, address(api.canonicalRoute.hook, "API route.hook"), "route hook");
   same(routeHook, address(field(config, "graduatedHook", 13), "Market.graduatedHook"), "market graduated hook");
-  same(address(field(rawRoute, "quoteAsset", 5), "Route.quoteAsset", true), address(api.quoteAsset, "API quoteAsset", true), "route Quote asset");
-  same(address(field(rawRoute, "memeToken", 6), "Route.memeToken"), address(api.memeToken, "API memeToken"), "route Meme token");
-  same(address(field(rawRoute, "gauge", 7), "Route.gauge"), address(api.gauge, "API gauge"), "route Gauge");
-  same(address(field(rawRoute, "curve", 8), "Route.curve"), address(api.curve, "API curve"), "route Curve");
-  same(address(field(rawRoute, "launchLocker", 9), "Route.launchLocker"), address(api.canonicalRoute.launchLocker, "API route.launchLocker"), "route LaunchLocker");
-  same(integer(field(rawRoute, "sourceVersion", 10), "Route.sourceVersion"), api.sourceVersion, "route sourceVersion");
-  same(integer(field(rawRoute, "launchPhase", 11), "Route.launchPhase"), api.launchPhase, "route launch phase");
-  same(boolean(field(rawRoute, "curveTradingEnabled", 13), "Route.curveTradingEnabled"), api.canonicalRoute.curveTradingEnabled, "route Curve flag");
-  same(boolean(field(rawRoute, "poolTradingEnabled", 14), "Route.poolTradingEnabled"), api.canonicalRoute.poolTradingEnabled, "route pool flag");
+  same(address(field(rawRoute, "quoteAsset", 3 + routeOffset), "Route.quoteAsset", true), address(api.quoteAsset, "API quoteAsset", true), "route Quote asset");
+  same(address(field(rawRoute, "memeToken", 4 + routeOffset), "Route.memeToken"), address(api.memeToken, "API memeToken"), "route created token");
+  same(address(field(rawRoute, "gauge", 5 + routeOffset), "Route.gauge", disabledStaking), address(api.gauge, "API gauge", disabledStaking), "route Gauge");
+  same(address(field(rawRoute, "curve", 6 + routeOffset), "Route.curve"), address(api.curve, "API curve"), "route Curve");
+  same(address(field(rawRoute, "launchLocker", 7 + routeOffset), "Route.launchLocker"), address(api.canonicalRoute.launchLocker, "API route.launchLocker"), "route LaunchLocker");
+  same(integer(field(rawRoute, "sourceVersion", 8 + routeOffset), "Route.sourceVersion"), api.sourceVersion, "route sourceVersion");
+  same(integer(field(rawRoute, "launchPhase", 9 + routeOffset), "Route.launchPhase"), api.launchPhase, "route launch phase");
+  same(boolean(field(rawRoute, "curveTradingEnabled", 10 + routeOffset), "Route.curveTradingEnabled"), api.canonicalRoute.curveTradingEnabled, "route Curve flag");
+  same(boolean(field(rawRoute, "poolTradingEnabled", 11 + routeOffset), "Route.poolTradingEnabled"), api.canonicalRoute.poolTradingEnabled, "route pool flag");
 
   const routePoolId = bytes32(field(rawRoute, "poolId", 1), "Route.poolId", false);
   const key = field(rawRoute, "poolKey", 0);
@@ -223,9 +230,11 @@ export function assertCanonicalMarketBinding(
   const memeToken = address(api.memeToken, "API memeToken");
   const expectedCurrency0 = quoteAsset < memeToken ? quoteAsset : memeToken;
   const expectedCurrency1 = quoteAsset < memeToken ? memeToken : quoteAsset;
-  same(routeCurrency0, expectedCurrency0, "pool currency0 Quote/Meme ordering");
-  same(routeCurrency1, expectedCurrency1, "pool currency1 Quote/Meme ordering");
-  same(routeFee, 0, "pool fee");
+  same(routeCurrency0, expectedCurrency0, "pool currency0 paired-asset/token ordering");
+  same(routeCurrency1, expectedCurrency1, "pool currency1 paired-asset/token ordering");
+  const configuredLpFee = Array.isArray(config) ? config[18] : (config as Record<string,unknown>).lpFeePips;
+  const expectedLpFee = configuredLpFee === undefined ? 0 : integer(configuredLpFee, "Market.lpFeePips");
+  if (![0, 1000, 2000, 3000].includes(expectedLpFee) || routeFee !== expectedLpFee) throw new Error("pool fee does not match market config");
   same(routeKeyHook, routeHook, "pool key hook");
   const encodedPoolKey = encodeAbiParameters(
     [

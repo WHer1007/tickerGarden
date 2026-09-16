@@ -2,7 +2,7 @@
 pragma solidity 0.8.26;
 
 // GENERATED FILE. DO NOT EDIT.
-// Source: spec/v1_abi_surface.json (V1-EXEC-10)
+// Source: spec/v1_abi_surface.json (V1-EXEC-11)
 // forge-lint: disable-start(multi-contract-file)
 // forgefmt: disable-start
 
@@ -36,7 +36,7 @@ struct StockTokenFingerprint {
 }
 
 struct QuoteAssetConfig {
-    bytes32 ponsBaselineId;
+    bytes32 tickerGardenBaselineId;
     address quoteAsset;
     uint8 quoteDecimals;
     uint256 phantomQuote;
@@ -45,7 +45,14 @@ struct QuoteAssetConfig {
     uint8 status;
 }
 
-struct PonsBaseline {
+struct StockQuoteBinding {
+    bytes32 assetUid;
+    bytes32 stockTokenFingerprintHash;
+    bytes32 referenceEvidenceHash;
+    bytes32 generatorPolicyId;
+}
+
+struct TickerGardenBaseline {
     uint256 referenceChainId;
     address referenceFactory;
     bytes32 referenceFactoryCodeHash;
@@ -76,7 +83,7 @@ struct LaunchTemplate {
 
 struct CreateMarketParams {
     bytes32 assetUid;
-    bytes32 ponsBaselineId;
+    bytes32 tickerGardenBaselineId;
     bytes32 quoteAssetConfigId;
     bytes32 launchTemplateId;
     bytes32 expectedEconomics;
@@ -85,11 +92,16 @@ struct CreateMarketParams {
     string symbol;
     string metadataURI;
     bytes32 salt;
+    uint16 creatorTaxBps;
+    bool creatorFeesToHolders;
+    bool stakingEnabled;
+    bool burnMemeFees;
+    uint24 lpFeePips;
 }
 
 struct MarketConfig {
     bytes32 assetUid;
-    bytes32 ponsBaselineId;
+    bytes32 tickerGardenBaselineId;
     bytes32 quoteAssetConfigId;
     bytes32 launchTemplateId;
     bytes32 feePolicyId;
@@ -102,6 +114,11 @@ struct MarketConfig {
     address gauge;
     address quoteAsset;
     address graduatedHook;
+    uint16 creatorTaxBps;
+    bool creatorFeesToHolders;
+    bool stakingEnabled;
+    bool burnMemeFees;
+    uint24 lpFeePips;
 }
 
 struct MarketRuntime {
@@ -118,8 +135,6 @@ struct MarketView {
 struct CanonicalRoute {
     PoolKey poolKey;
     bytes32 poolId;
-    address swapRouter;
-    address quoter;
     address hook;
     address quoteAsset;
     address memeToken;
@@ -177,49 +192,10 @@ struct PoolBinding {
     uint8 status;
 }
 
-struct TreasuryMarketV1 {
-    address memeToken;
-    address quoteToken;
-    bytes32 eligibilityPolicyHash;
-    uint64 activatedAt;
-}
-
-struct RootServiceFeeV1 {
-    address asset;
-    uint128 amount;
-}
-
-struct TreasuryEpochV1 {
-    uint64 requestedAt;
-    uint64 publishBy;
-    uint64 finalizeAfter;
-    uint64 claimUntil;
-    uint64 sourceBlockNumber;
-    uint32 leafCount;
-    TreasuryEpochStatusV1 status;
-    address requester;
-    address serviceFeeAsset;
-    uint128 serviceFeeAmount;
-    bytes32 sourceBlockHash;
-    bytes32 merkleRoot;
-    bytes32 datasetHash;
-    uint256 quoteAmount;
-    uint256 claimedAmount;
-    uint256 totalTwab;
-}
-
 enum BucketType {
     CREATOR_REVENUE,
     STAKER_REWARD,
     PLATFORM_REVENUE
-}
-
-enum TreasuryEpochStatusV1 {
-    UNREQUESTED,
-    REQUESTED,
-    ROOT_PENDING,
-    CLAIMING,
-    ROLLED_OVER
 }
 
 interface IV1Errors {
@@ -289,28 +265,32 @@ interface IOfficialStockRegistryV1 {
 }
 
 interface IApprovedQuoteRegistry {
-    event QuoteAssetConfigAdded(bytes32 indexed configId, address indexed quoteAsset, bytes32 indexed ponsBaselineId, bytes32 economicsHash);
+    event QuoteAssetConfigAdded(bytes32 indexed configId, address indexed quoteAsset, bytes32 indexed tickerGardenBaselineId, bytes32 economicsHash);
     event QuoteAssetIdentityPinned(bytes32 indexed configId, address indexed quoteAsset, bytes32 runtimeCodeHash);
+    event StockQuoteConfigBound(bytes32 indexed configId, bytes32 indexed assetUid, address indexed quoteAsset, bytes32 stockTokenFingerprintHash, bytes32 referenceEvidenceHash, bytes32 generatorPolicyId);
     event QuoteAssetStatusChanged(bytes32 indexed configId, uint8 oldStatus, uint8 newStatus, bytes32 reasonHash);
 
     function addQuoteConfig(bytes32 arg0, QuoteAssetConfig calldata arg1) external;
+    function addStockQuoteConfig(bytes32 arg0, QuoteAssetConfig calldata arg1, StockQuoteBinding calldata arg2) external;
     function pauseQuote(bytes32 arg0, bytes32 arg1) external;
     function unpauseQuote(bytes32 arg0) external;
     function retireQuote(bytes32 arg0, bytes32 arg1) external;
     function quoteConfig(bytes32 arg0) external view returns (QuoteAssetConfig memory output0);
+    function stockQuoteBinding(bytes32 arg0) external view returns (StockQuoteBinding memory output0);
     function quoteRuntimeCodeHash(bytes32 arg0) external view returns (bytes32 output0);
     function quoteIdentityCurrent(bytes32 arg0) external view returns (bool output0);
+    function officialStockRegistry() external view returns (address output0);
 }
 
-interface IPonsBaselineRegistry {
-    event PonsBaselineAdded(bytes32 indexed baselineId, bytes32 indexed behaviorVectorRoot, bytes32 factoryCodeHash);
-    event PonsBaselineStatusChanged(bytes32 indexed baselineId, uint8 oldStatus, uint8 newStatus, bytes32 reasonHash);
+interface ITickerGardenBaselineRegistry {
+    event TickerGardenBaselineAdded(bytes32 indexed baselineId, bytes32 indexed behaviorVectorRoot, bytes32 factoryCodeHash);
+    event TickerGardenBaselineStatusChanged(bytes32 indexed baselineId, uint8 oldStatus, uint8 newStatus, bytes32 reasonHash);
 
-    function addBaseline(bytes32 arg0, PonsBaseline calldata arg1) external;
+    function addBaseline(bytes32 arg0, TickerGardenBaseline calldata arg1) external;
     function pauseBaseline(bytes32 arg0, bytes32 arg1) external;
     function unpauseBaseline(bytes32 arg0) external;
     function retireBaseline(bytes32 arg0, bytes32 arg1) external;
-    function baseline(bytes32 arg0) external view returns (PonsBaseline memory output0);
+    function baseline(bytes32 arg0) external view returns (TickerGardenBaseline memory output0);
 }
 
 interface ILaunchTemplateRegistry {
@@ -326,23 +306,25 @@ interface ILaunchTemplateRegistry {
 }
 
 interface ILaunchConfigResolver {
-    function resolve(bytes32 arg0, bytes32 arg1, bytes32 arg2) external view returns (QuoteAssetConfig memory output0, PonsBaseline memory output1, LaunchTemplate memory output2);
+    function resolve(bytes32 arg0, bytes32 arg1, bytes32 arg2) external view returns (QuoteAssetConfig memory output0, TickerGardenBaseline memory output1, LaunchTemplate memory output2);
     function approvedQuoteRegistry() external view returns (address output0);
-    function ponsBaselineRegistry() external view returns (address output0);
+    function tickerGardenBaselineRegistry() external view returns (address output0);
     function launchTemplateRegistry() external view returns (address output0);
 }
 
 interface ITickerGardenFactoryV1 {
-    event MarketCreated(bytes32 indexed marketId, bytes32 indexed assetUid, address indexed memeToken, address curve, address gauge, address quoteAsset, bytes32 ponsBaselineId, bytes32 quoteAssetConfigId, bytes32 expectedEconomics);
+    event MarketCreated(bytes32 indexed marketId, bytes32 indexed assetUid, address indexed memeToken, address curve, address gauge, address quoteAsset, bytes32 tickerGardenBaselineId, bytes32 quoteAssetConfigId, bytes32 expectedEconomics);
 
     function createMarket(CreateMarketParams calldata arg0) external payable returns (bytes32 output0, address output1, address output2, address output3);
     function createMarketFor(address arg0, CreateMarketParams calldata arg1) external payable returns (bytes32 output0, address output1, address output2, address output3);
     function previewMarketEconomics(CreateMarketParams calldata arg0) external view returns (bytes32 output0);
     function predictMarketAddresses(address arg0, CreateMarketParams calldata arg1) external view returns (bytes32 output0, address output1, address output2, address output3, address output4);
     function launchFee() external view returns (uint256 output0);
-    function treasuryDistributor() external view returns (address output0);
+    function holderRewardsDistributor() external view returns (address output0);
     function creatorRevenueRegistry() external view returns (address output0);
     function runtimeBindings() external view returns (address output0, address output1, address output2, address output3, address output4, address output5, address output6, address output7);
+    function memeFeeBurnMode() external pure returns (bytes32 output0);
+    function lpFeeMode() external pure returns (bytes32 output0);
 }
 
 interface IMarketRegistryV1 {
@@ -360,11 +342,9 @@ interface IMarketRegistryV1 {
     function factory() external view returns (address output0);
     function officialStockRegistry() external view returns (address output0);
     function approvedQuoteRegistry() external view returns (address output0);
-    function ponsBaselineRegistry() external view returns (address output0);
+    function tickerGardenBaselineRegistry() external view returns (address output0);
     function launchTemplateRegistry() external view returns (address output0);
     function graduationExecutor() external view returns (address output0);
-    function swapRouter() external view returns (address output0);
-    function quoter() external view returns (address output0);
 }
 
 interface ILaunchAndBuyRouter {
@@ -376,7 +356,6 @@ interface ILaunchAndBuyRouter {
 interface ITickerMemeTokenV1 {
     event Transfer(address indexed from, address indexed to, uint256 value);
     event Approval(address indexed owner, address indexed spender, uint256 value);
-    event TreasuryBurn(address indexed treasuryDistributor, uint256 amount, uint256 totalSupplyAfter);
 
     function name() external view returns (string memory output0);
     function symbol() external view returns (string memory output0);
@@ -390,14 +369,14 @@ interface ITickerMemeTokenV1 {
     function marketId() external view returns (bytes32 output0);
     function creator() external view returns (address output0);
     function factory() external view returns (address output0);
-    function treasuryDistributor() external view returns (address output0);
+    function holderRewardsDistributor() external view returns (address output0);
     function metadataURI() external view returns (string memory output0);
     function initialSupply() external view returns (uint256 output0);
     function deployedAt() external view returns (uint64 output0);
-    function burnTreasury(uint256 arg0) external;
+    function burn(uint256 arg0) external;
 }
 
-interface IPonsCompatibleCurve {
+interface ITickerGardenCurve {
     event CurveBuy(address indexed buyer, address indexed recipient, uint256 quoteIn, uint256 tokensOut, uint256 fee, uint256 tax);
     event CurveSell(address indexed seller, address indexed recipient, uint256 tokensIn, uint256 quoteOut, uint256 fee, uint256 tax);
     event CurveBuyRefunded(address indexed buyer, uint256 unusedQuote);
@@ -416,6 +395,8 @@ interface IPonsCompatibleCurve {
     function reservedTokens() external view returns (uint256 output0);
     function readyToGraduate() external view returns (bool output0);
     function accruedCurveFees() external view returns (uint256 output0);
+    function creatorTaxBps() external view returns (uint16 output0);
+    function accruedCreatorTax() external view returns (uint256 output0);
     function sweepNonce() external view returns (uint64 output0);
 }
 
@@ -434,6 +415,7 @@ interface IUserStockVault {
     function rageQuit(bytes32 arg0, bytes32 arg1) external returns (uint256 output0);
     function lockAllocation(bytes32 arg0, address arg1, bytes32 arg2, uint256 arg3) external;
     function releaseAllocation(bytes32 arg0, address arg1, bytes32 arg2) external returns (uint256 output0);
+    function releaseAllocationAndWithdraw(bytes32 arg0, address arg1, bytes32 arg2) external returns (uint256 output0);
     function rageQuitAllocation(bytes32 arg0, address arg1, bytes32 arg2) external returns (uint256 output0);
     function completeRageQuitRewardSettlement(bytes32 arg0, address arg1, bytes32 arg2) external returns (uint256 output0);
     function recordGaugeRewardState(bytes32 arg0, bytes32 arg1, uint256 arg2, uint256 arg3) external;
@@ -441,28 +423,32 @@ interface IUserStockVault {
     function allocated(bytes32 arg0, address arg1) external view returns (uint256 output0);
     function allocation(bytes32 arg0, address arg1, bytes32 arg2) external view returns (uint256 output0);
     function rageQuitSettlementPrincipal(bytes32 arg0, address arg1, bytes32 arg2) external view returns (uint256 output0);
-    function rageQuitRewardCutoff(bytes32 arg0, address arg1, bytes32 arg2) external view returns (uint256 output0, uint256 output1, uint256 output2, bool output3);
+    function rageQuitRewardCutoff(bytes32 arg0, address arg1, bytes32 arg2) external view returns (uint256 output0, uint256 output1, uint256 output2);
     function freeBalanceOf(bytes32 arg0, address arg1) external view returns (uint256 output0);
     function marketAllocated(bytes32 arg0, bytes32 arg1) external view returns (uint256 output0);
     function marketRewardEligible(bytes32 arg0, bytes32 arg1) external view returns (uint256 output0);
+    function marketRewardCohortEpoch(bytes32 arg0, bytes32 arg1) external view returns (uint256 output0);
     function totalDeposited(bytes32 arg0) external view returns (uint256 output0);
     function totalAllocated(bytes32 arg0) external view returns (uint256 output0);
     function vaultIdentity() external view returns (address output0, address output1, address output2, bytes32 output3);
 }
 
 interface IAllocationManager {
-    event AllocationRageQuitExecuted(address indexed user, bytes32 indexed marketId, uint256 principal, uint256 quoteForfeited, uint256 memeForfeited, bool redistributed);
+    event AllocationRageQuitExecuted(address indexed user, bytes32 indexed marketId, uint256 principal, uint256 quoteForfeited, uint256 memeForfeited);
     event RageQuitRewardSettlementDeferred(address indexed user, bytes32 indexed marketId, uint256 principal, address gauge);
-    event RageQuitRewardSettlementFinalized(address indexed user, bytes32 indexed marketId, uint256 principal, uint256 quoteForfeited, uint256 memeForfeited, bool redistributed);
+    event RageQuitRewardSettlementFinalized(address indexed user, bytes32 indexed marketId, uint256 principal, uint256 quoteForfeited, uint256 memeForfeited);
 
     function allocate(bytes32 arg0, uint256 arg1) external;
+    function stake(bytes32 arg0, uint256 arg1) external;
     function increaseAllocation(bytes32 arg0, uint256 arg1) external;
     function closeAllocation(bytes32 arg0) external;
+    function unstakeAndWithdraw(bytes32 arg0) external;
     function rageQuit(bytes32 arg0) external;
-    function settleRageQuitRewards(bytes32 arg0, address arg1) external returns (uint256 output0, uint256 output1, bool output2);
+    function settleRageQuitRewards(bytes32 arg0, address arg1) external returns (uint256 output0, uint256 output1);
     function rageQuitSettlementPending(bytes32 arg0, address arg1) external view returns (bool output0, uint256 output1);
-    function rageQuitRewardCutoff(bytes32 arg0, address arg1) external view returns (uint256 output0, uint256 output1, uint256 output2, bool output3);
+    function rageQuitRewardCutoff(bytes32 arg0, address arg1) external view returns (uint256 output0, uint256 output1, uint256 output2);
     function rewardEligibleActiveStock(bytes32 arg0) external view returns (uint256 output0);
+    function rewardCohortEpoch(bytes32 arg0) external view returns (uint256 output0);
     function recordGaugeRewardState(bytes32 arg0, uint256 arg1, uint256 arg2) external;
     function depositAndAllocate(bytes32 arg0, uint256 arg1, uint256 arg2) external;
     function officialStockRegistry() external view returns (address output0);
@@ -475,19 +461,20 @@ interface IMemeStockGauge {
     event ActivationBucketProcessed(bytes32 indexed marketId, uint64 indexed generation, uint256 amount, uint256 quoteAccumulator, uint256 memeAccumulator, uint256 refs);
     event PendingMaterialized(address indexed user, bytes32 indexed marketId, uint64 indexed generation, uint256 amount);
     event StakerFeeCredited(bytes32 indexed marketId, address indexed feeAsset, bytes32 indexed feeId, uint256 amount, uint256 accumulatorDelta, uint256 indexRemainder);
-    event GaugeRageQuit(address indexed user, bytes32 indexed marketId, uint256 principal, uint256 quoteForfeited, uint256 memeForfeited, bool redistributed);
+    event GaugeRageQuit(address indexed user, bytes32 indexed marketId, uint256 principal, uint256 quoteForfeited, uint256 memeForfeited);
     event ForfeitureRecordDeferred(bytes32 indexed marketId, address indexed user, uint256 quoteAmount, uint256 memeAmount, uint256 totalDeferredQuote, uint256 totalDeferredMeme);
     event ForfeitureRecordFlushed(bytes32 indexed marketId, uint256 quoteAmount, uint256 memeAmount);
 
     function gaugeIdentity() external view returns (GaugeIdentity memory output0);
     function addPending(address arg0, uint256 arg1, uint64 arg2, uint64 arg3) external;
     function removeAllocation(address arg0) external returns (uint256 output0);
-    function rageQuit(address arg0) external returns (uint256 output0, uint256 output1, uint256 output2, bool output3);
+    function rageQuit(address arg0) external returns (uint256 output0, uint256 output1, uint256 output2);
     function checkpointActivations() external returns (uint256 output0, uint256 output1);
     function flushDeferredForfeiture() external;
     function settle(address arg0) external;
     function creditStakerFee(address arg0, uint256 arg1, bytes32 arg2) external returns (uint256 output0, uint256 output1);
-    function consumeClaimable(address arg0, address arg1) external returns (uint256 output0);
+    function consumeClaimable(address arg0) external returns (uint256 output0, uint256 output1);
+    function consumeClaimableAssets(address arg0, uint8 arg1) external returns (uint256 output0, uint256 output1);
     function positionOf(address arg0) external view returns (PositionView memory output0);
     function rewardState(address arg0) external view returns (RewardStateView memory output0);
     function storedTotalActiveStock() external view returns (uint256 output0);
@@ -522,15 +509,23 @@ interface IProtocolFeeVault {
     event FeeClaimed(uint8 indexed beneficiaryType, address indexed beneficiary, bytes32 indexed marketId, uint32 beneficiaryEpoch, address feeAsset, uint256 amount);
     event ForfeitureReserved(bytes32 indexed marketId, address indexed user, address indexed feeAsset, uint256 amount, uint256 reserveBalance);
     event ForfeitureReserveConverted(bytes32 indexed marketId, address indexed feeAsset, uint256 amount);
+    event HolderFeesAccrued(bytes32 indexed marketId, uint32 indexed epochId, address indexed feeAsset, uint256 amount);
+    event UserRewardsClaimed(bytes32 indexed marketId, address indexed user, uint8 indexed role, uint32 creatorEpoch, uint256 quotePaid, uint256 memePaid);
+    event PlatformTreasuryProposed(uint256 indexed nonce, address indexed oldTreasury, address indexed newTreasury, address proposer, uint256 readyAt, bytes32 codeHash);
+    event PlatformTreasuryAccepted(uint256 indexed nonce, address indexed newTreasury);
+    event PlatformTreasuryCancelled(uint256 indexed nonce, address indexed caller);
+    event PlatformTreasuryChanged(uint256 indexed nonce, address indexed oldTreasury, address indexed newTreasury);
+    event HolderFundingResult(bytes32 indexed marketId, uint8 indexed asset, uint8 status, uint256 amount, bytes4 errorSelector);
+    event HolderFundingBatchStopped(uint256 nextMarket, uint8 nextAsset);
+    event StakerFeeAbandoned(bytes32 indexed marketId, bytes32 indexed feeId, address indexed feeAsset, uint256 amount, bytes4 errorSelector);
+    event FeeAssetDeficitCovered(address indexed asset, address indexed contributor, uint256 amount, uint256 remainingDeficit);
+    event MemeFeesBurned(bytes32 indexed marketId, address indexed beneficiary, uint8 indexed role, uint32 creatorEpoch, address token, uint256 amount);
 
     function beginV4Credit(bytes32 arg0, address arg1, uint256 arg2, uint32 arg3, bytes32 arg4) external;
     function finalizeV4Credit(bytes32 arg0, address arg1, uint256 arg2, uint256 arg3, uint256 arg4, uint256 arg5, uint64 arg6, bytes32 arg7) external;
-    function beginCurveCredit(bytes32 arg0, address arg1, uint256 arg2, uint32 arg3, uint64 arg4, bytes32 arg5) external;
-    function finalizeCurveCredit(bytes32 arg0, address arg1, uint256 arg2, uint32 arg3, uint64 arg4, bytes32 arg5) external payable;
-    function claimCreator(bytes32 arg0, uint32 arg1, address arg2) external returns (uint256 output0);
+    function beginCurveCredit(bytes32 arg0, address arg1, uint256 arg2, uint256 arg3, uint32 arg4, uint64 arg5, bytes32 arg6) external;
+    function finalizeCurveCredit(bytes32 arg0, address arg1, uint256 arg2, uint256 arg3, uint32 arg4, uint64 arg5, bytes32 arg6) external payable;
     function claimPlatform(bytes32 arg0, address arg1) external returns (uint256 output0);
-    function claimStaker(bytes32 arg0, address arg1) external returns (uint256 output0);
-    function claimStakerFor(address arg0, bytes32 arg1, address arg2) external returns (uint256 output0);
     function recordForfeiture(bytes32 arg0, address arg1, uint256 arg2, uint256 arg3) external;
     function liability(bytes32 arg0, address arg1, uint8 arg2) external view returns (uint256 output0);
     function creatorLiability(bytes32 arg0, uint32 arg1, address arg2) external view returns (uint256 output0);
@@ -543,10 +538,39 @@ interface IProtocolFeeVault {
     function platformTreasury() external view returns (address output0);
     function feePolicyId() external view returns (bytes32 output0);
     function feePolicyHash() external view returns (bytes32 output0);
+    function holderLiability(bytes32 arg0, uint32 arg1, address arg2) external view returns (uint256 output0);
+    function fundHolderRewards(bytes32 arg0, uint32 arg1) external returns (uint256 output0);
+    function claimUserRewards(bytes32 arg0, uint8 arg1, uint32 arg2) external returns (uint256 output0, uint256 output1);
+    function claimUserRewardAssets(bytes32 arg0, uint8 arg1, uint32 arg2, uint8 arg3) external returns (uint256 output0, uint256 output1);
+    function userClaimMode() external pure returns (bytes32 output0);
+    function fundHolderMemeRewards(bytes32 arg0) external returns (uint256 output0);
+    function proposePlatformTreasury(address arg0) external;
+    function acceptPlatformTreasury(uint256 arg0) external;
+    function cancelPlatformTreasury(uint256 arg0) external;
+    function executePlatformTreasury(uint256 arg0) external;
+    function authority() external view returns (address output0);
+    function TREASURY_CHANGE_DELAY() external view returns (uint256 output0);
+    function treasuryProposalNonce() external view returns (uint256 output0);
+    function pendingPlatformTreasury() external view returns (address output0);
+    function treasuryProposer() external view returns (address output0);
+    function treasuryChangeReadyAt() external view returns (uint256 output0);
+    function treasuryChangeAccepted() external view returns (bool output0);
+    function pendingTreasuryCodeHash() external view returns (bytes32 output0);
+    function fundHolderRewardsBatch(bytes32[] calldata arg0, uint8 arg1, uint256 arg2) external returns (uint256 output0, uint8 output1);
+    function MAX_HOLDER_FUNDING_BATCH() external view returns (uint256 output0);
+    function MIN_HOLDER_FUNDING_GAS() external view returns (uint256 output0);
+    function MAX_HOLDER_FUNDING_GAS() external view returns (uint256 output0);
+    function HOLDER_FUNDING_GAS_RESERVE() external view returns (uint256 output0);
+    function settleV4StakerFee(address arg0, address arg1, uint256 arg2, bytes32 arg3) external returns (uint256 output0);
+    function coverAssetDeficit(address arg0, uint256 arg1) external payable;
+    function assetCoverage(address arg0) external view returns (uint256 output0, uint256 output1, uint256 output2);
+    function STAKER_SETTLEMENT_GAS() external view returns (uint256 output0);
+    function STAKER_SETTLEMENT_RESERVE() external view returns (uint256 output0);
 }
 
 interface IGraduationExecutor {
     event PoolGraduated(bytes32 indexed marketId, bytes32 indexed poolId, address indexed launchLocker, uint256 sweptQuote, uint256 sweptTokens, uint256 poolQuoteAmount, uint256 poolMemeAmount, uint256 lockedExcessQuote, uint256 lockedExcessMeme, uint32 sourceVersion);
+    event CompoundKeeperChanged(address indexed previousKeeper, address indexed newKeeper);
 
     function graduateFromCurve(bytes32 arg0, uint256 arg1, uint256 arg2) external payable;
     function predictLaunchLocker(bytes32 arg0) external view returns (address output0);
@@ -558,17 +582,27 @@ interface IGraduationExecutor {
     function permit2() external view returns (address output0);
     function hook() external view returns (address output0);
     function launchLockerCreationCodeHash() external view returns (bytes32 output0);
+    function compoundKeeper() external view returns (address output0);
+    function setCompoundKeeper(address arg0) external;
 }
 
 interface ILaunchLocker {
+    event LockedFeesCollected(bytes32 indexed marketId, uint256 indexed tokenId, uint256 amount0, uint256 amount1);
+    event LockedFeesCompounded(bytes32 indexed marketId, uint256 indexed tokenId, uint128 liquidity, uint256 amount0, uint256 amount1, uint256 remaining0, uint256 remaining1);
+
     function marketId() external view returns (bytes32 output0);
     function lockedPosition() external view returns (uint256 output0, bytes32 output1);
     function unpairedLockedBalance(address arg0) external view returns (uint256 output0);
+    function pendingCompoundFees() external view returns (uint256 output0, uint256 output1);
+    function collectLockedFees() external returns (uint256 output0, uint256 output1);
+    function compoundLockedFees(uint128 arg0, uint128 arg1, uint128 arg2, uint256 arg3) external returns (uint256 output0, uint256 output1);
 }
 
 interface ICreatorRevenueRegistry {
     event CreatorRevenueEpochInitialized(bytes32 indexed marketId, uint32 indexed epoch, address indexed beneficiary);
     event CreatorRevenueBeneficiaryUpdated(bytes32 indexed marketId, uint32 indexed oldEpoch, uint32 indexed newEpoch, address oldBeneficiary, address newBeneficiary);
+    event CreatorRevenueBeneficiaryProposed(bytes32 indexed marketId, uint32 indexed epoch, address indexed currentBeneficiary, address pendingBeneficiary);
+    event CreatorRevenueBeneficiaryTransferCancelled(bytes32 indexed marketId, uint32 indexed epoch);
 
     function initializeCreatorRevenueEpoch(bytes32 arg0, address arg1) external;
     function transferCreatorRevenueBeneficiary(bytes32 arg0, address arg1) external returns (uint32 output0);
@@ -576,50 +610,9 @@ interface ICreatorRevenueRegistry {
     function creatorBeneficiaryAt(bytes32 arg0, uint32 arg1) external view returns (address output0);
     function factory() external view returns (address output0);
     function marketRegistry() external view returns (address output0);
-}
-
-interface ITreasuryDistributorV1 {
-    event TreasuryMarketRegistered(bytes32 indexed marketId, address indexed memeToken, address indexed quoteToken, bytes32 eligibilityPolicyHash);
-    event TreasuryMarketActivated(bytes32 indexed marketId, uint64 activatedAt);
-    event RootServiceFeeUpdated(address indexed asset, uint128 amount);
-    event QuoteTreasuryFunded(bytes32 indexed marketId, uint32 indexed epochId, address indexed funder, address quoteToken, bytes32 fundingId, uint256 amount);
-    event MemeTreasuryBurned(bytes32 indexed marketId, address indexed funder, address indexed memeToken, bytes32 burnId, uint256 amount, uint256 totalSupplyAfter);
-    event RootRequested(bytes32 indexed marketId, uint32 indexed epochId, address indexed requester, uint64 windowStart, uint64 windowEnd, uint64 sourceBlockNumber, bytes32 sourceBlockHash, uint256 quoteAmount, address serviceFeeAsset, uint128 serviceFeeAmount, uint64 publishBy);
-    event RootPublished(bytes32 indexed marketId, uint32 indexed epochId, bytes32 indexed merkleRoot, bytes32 datasetHash, uint256 totalTwab, uint32 leafCount, uint64 finalizeAfter);
-    event PendingRootCancelled(bytes32 indexed marketId, uint32 indexed epochId, bytes32 indexed reasonHash);
-    event RootFinalized(bytes32 indexed marketId, uint32 indexed epochId, bytes32 indexed merkleRoot, uint64 claimUntil);
-    event RootRequestExpired(bytes32 indexed marketId, uint32 indexed epochId, address indexed requester);
-    event TreasuryClaimed(bytes32 indexed marketId, uint32 indexed epochId, uint256 indexed leafIndex, address account, uint256 twab, uint256 amount);
-    event EpochRemainderRolledOver(bytes32 indexed marketId, uint32 indexed fromEpochId, uint32 indexed toEpochId, uint256 amount);
-    event ServiceCreditWithdrawn(address indexed asset, address indexed beneficiary, uint256 amount);
-
-    function registerMarket(bytes32 arg0, address arg1, address arg2, bytes32 arg3) external;
-    function activateMarket(bytes32 arg0) external;
-    function setRootServiceFee(address arg0, uint128 arg1) external;
-    function fundQuoteTreasury(bytes32 arg0, uint256 arg1, bytes32 arg2) external payable returns (uint32 output0);
-    function burnMeme(bytes32 arg0, uint256 arg1, bytes32 arg2) external;
-    function requestRoot(bytes32 arg0, uint32 arg1) external payable;
-    function publishRoot(bytes32 arg0, uint32 arg1, bytes32 arg2, bytes32 arg3, uint256 arg4, uint32 arg5, uint256 arg6) external;
-    function cancelPendingRoot(bytes32 arg0, uint32 arg1, bytes32 arg2) external;
-    function finalizeRoot(bytes32 arg0, uint32 arg1) external;
-    function expireRootRequest(bytes32 arg0, uint32 arg1) external;
-    function claim(bytes32 arg0, uint32 arg1, uint256 arg2, address arg3, uint256 arg4, uint256 arg5, bytes32[] calldata arg6) external;
-    function rolloverExpiredEpoch(bytes32 arg0, uint32 arg1) external returns (uint32 output0, uint256 output1);
-    function withdrawServiceCredit(address arg0) external returns (uint256 output0);
-    function marketRegistry() external view returns (address output0);
-    function market(bytes32 arg0) external view returns (TreasuryMarketV1 memory output0);
-    function epoch(bytes32 arg0, uint32 arg1) external view returns (TreasuryEpochV1 memory output0);
-    function rootServiceFee() external view returns (RootServiceFeeV1 memory output0);
-    function epochWindow(bytes32 arg0, uint32 arg1) external view returns (uint64 output0, uint64 output1);
-    function currentEpochId(bytes32 arg0) external view returns (uint32 output0);
-    function epochQuoteAmount(bytes32 arg0, uint32 arg1) external view returns (uint256 output0);
-    function serviceCredit(address arg0, address arg1) external view returns (uint256 output0);
-    function totalQuoteLiability(address arg0) external view returns (uint256 output0);
-    function totalServiceLiability(address arg0) external view returns (uint256 output0);
-    function isClaimed(bytes32 arg0, uint32 arg1, uint256 arg2) external view returns (bool output0);
-    function accountClaimed(bytes32 arg0, uint32 arg1, address arg2) external view returns (bool output0);
-    function operationConsumed(address arg0, bool arg1, bytes32 arg2) external view returns (bool output0);
-    function claimLeaf(bytes32 arg0, uint32 arg1, uint256 arg2, address arg3, uint256 arg4, uint256 arg5) external view returns (bytes32 output0);
+    function pendingCreatorRevenueBeneficiary(bytes32 arg0) external view returns (address output0);
+    function acceptCreatorRevenueBeneficiary(bytes32 arg0) external returns (uint32 output0);
+    function cancelCreatorRevenueBeneficiaryTransfer(bytes32 arg0) external;
 }
 
 // forgefmt: disable-end

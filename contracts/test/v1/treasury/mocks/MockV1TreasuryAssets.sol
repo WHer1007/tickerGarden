@@ -15,8 +15,7 @@ contract MockTreasuryMarketRegistryV1 {
         config.memeToken = memeToken;
         config.quoteAsset = quoteToken;
         _markets[marketId] = MarketView({
-            config: config,
-            runtime: MarketRuntime({poolId: bytes32(0), sourceVersion: 1, launchPhase: launchPhase})
+            config: config, runtime: MarketRuntime({poolId: bytes32(0), sourceVersion: 1, launchPhase: launchPhase})
         });
         _registered[marketId] = true;
     }

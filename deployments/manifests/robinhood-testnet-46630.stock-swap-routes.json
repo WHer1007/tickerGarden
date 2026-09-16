@@ -1,0 +1,184 @@
+{
+  "schemaVersion": 1,
+  "status": "EXECUTED_TESTNET_ROUTES",
+  "network": "Robinhood Chain Testnet",
+  "chainId": 46630,
+  "recordedOn": "2026-09-08",
+  "venue": "Synthra V3",
+  "rpcGateway": "http://127.0.0.1:18570",
+  "factory": "0x911b4000d3422f482f4062a913885f7b035382df",
+  "quoter": "0x231606c321a99de81e28fe48b07a93f1ba49e713",
+  "router": "0x3ce954107b1a675826b33bf23060dd655e3758fe",
+  "wrappedNative": "0x33e4191705c386532ba27cbf171db86919200b94",
+  "routerRuntimeCodeHash": "0xbab2cf24dd73f84128e43b7a241c35093278cfe539251f192166d66b4e6e1c77",
+  "routes": [
+    {
+      "symbol": "TSLA",
+      "tokenOut": "0xc9f9c86933092bbbfff3ccb4b105a4a94bf3bd4e",
+      "decimals": 18,
+      "tokenIn": "0x33e4191705c386532ba27cbf171db86919200b94",
+      "pool": "0x14768ae6e6c655e9df62256b18d7df85501c24fc",
+      "fee": 500,
+      "sqrtPriceLimitX96": "0",
+      "evidence": {
+        "status": "SUCCESSFUL_EXACT_OUTPUT_SWAP",
+        "transactionHash": "0x1c94749eca407ec9a6951c08d604d3c45daa320c9bddf2d14d1ee28b1eac046d",
+        "blockNumber": "115648802",
+        "blockHash": "0x965cc5482d0261b9efe930b7709051de1161b8b343a8e5a75d6e5ca129c3ffa4"
+      },
+      "alternatives": [
+        {
+          "pool": "0x593e2e0ef3869616ec3fbe989dcff2699d52b69b",
+          "fee": 3000,
+          "status": "QUOTED_ONLY_NOT_EXECUTED"
+        },
+        {
+          "pool": "0x70f03dbdd0bb28fc4ef4c74485e4d7e72205994c",
+          "fee": 10000,
+          "status": "QUOTED_ONLY_NOT_EXECUTED"
+        }
+      ]
+    },
+    {
+      "symbol": "AMZN",
+      "tokenOut": "0x5884ad2f920c162cfbbacc88c9c51aa75ec09e02",
+      "decimals": 18,
+      "tokenIn": "0x33e4191705c386532ba27cbf171db86919200b94",
+      "pool": "0x52da6b2ea089d0fb2054b057a88d8aa516cb54c3",
+      "fee": 3000,
+      "sqrtPriceLimitX96": "0",
+      "evidence": {
+        "status": "SUCCESSFUL_EXACT_OUTPUT_SWAP",
+        "transactionHash": "0xaec9cba41ffe02a3375d4260c9f41578893c9254cc94dcaef3d1aa29163ec2ae",
+        "blockNumber": "115648885",
+        "blockHash": "0x09a6e5c59776740caf79b24eb0214b48e332856ae400e3be2838a62e19aa5c3a"
+      },
+      "alternatives": [
+        {
+          "pool": "0x5f05bc624115cd84d775346811c9cfe2131a4649",
+          "fee": 500,
+          "status": "QUOTED_ONLY_NOT_EXECUTED"
+        },
+        {
+          "pool": "0x2ad1916faee9e9748df4fb891f896e1b0ce45c7e",
+          "fee": 10000,
+          "status": "QUOTED_ONLY_NOT_EXECUTED"
+        }
+      ]
+    },
+    {
+      "symbol": "PLTR",
+      "tokenOut": "0x1fbe1a0e43594b3455993b5de5fd0a7a266298d0",
+      "decimals": 18,
+      "tokenIn": "0x33e4191705c386532ba27cbf171db86919200b94",
+      "pool": "0x4dac9debe44d3aa104ab66f09debb40c59f4a283",
+      "fee": 3000,
+      "sqrtPriceLimitX96": "0",
+      "evidence": {
+        "status": "SUCCESSFUL_EXACT_OUTPUT_SWAP",
+        "transactionHash": "0x5567bf424076c97a60acd79a8d1d87475a9d3b55d0d6f492e8baf8944cabb551",
+        "blockNumber": "115648974",
+        "blockHash": "0xb446f25b1f8e7c24f272113833f670ef52a1c2354f9d998c6b76791844dff24c"
+      },
+      "alternatives": [
+        {
+          "pool": "0xe17a996e14cd652cee29f6af8b427b4641b9f6f0",
+          "fee": 500,
+          "status": "QUOTED_ONLY_NOT_EXECUTED"
+        },
+        {
+          "pool": "0xc62a46eb59197a8253e4cab484eafa8fd0aed18a",
+          "fee": 10000,
+          "status": "QUOTED_ONLY_NOT_EXECUTED"
+        }
+      ]
+    },
+    {
+      "symbol": "NFLX",
+      "tokenOut": "0x3b8262a63d25f0477c4dde23f83cfe22cb768c93",
+      "decimals": 18,
+      "tokenIn": "0x33e4191705c386532ba27cbf171db86919200b94",
+      "pool": "0x3274d3092aa2e1a9321ab2cb04697c87c5a389b0",
+      "fee": 3000,
+      "sqrtPriceLimitX96": "0",
+      "evidence": {
+        "status": "SUCCESSFUL_EXACT_OUTPUT_SWAP",
+        "transactionHash": "0xa3098e8440c22325b74ebb9814063657504d7b2f1876c49a65ad6fc6fb37eff8",
+        "blockNumber": "115649036",
+        "blockHash": "0x3993b499acd038553b9fabddf1e2e4b589cbd171244feac6f5edacde3c1fe424"
+      },
+      "alternatives": [
+        {
+          "pool": "0x026f4e9e08b5d07e4c3e00bcf10a6a3456613fc5",
+          "fee": 500,
+          "status": "QUOTED_ONLY_NOT_EXECUTED"
+        },
+        {
+          "pool": "0x9f72f15699b73adcbb0a75b1e3304084658b260e",
+          "fee": 10000,
+          "status": "QUOTED_ONLY_NOT_EXECUTED"
+        }
+      ]
+    },
+    {
+      "symbol": "AMD",
+      "tokenOut": "0x71178bac73cbeb415514eb542a8995b82669778d",
+      "decimals": 18,
+      "tokenIn": "0x33e4191705c386532ba27cbf171db86919200b94",
+      "pool": "0x51cc359a19dfd16217cd6c186e1476f78768588d",
+      "fee": 3000,
+      "sqrtPriceLimitX96": "0",
+      "evidence": {
+        "status": "SUCCESSFUL_EXACT_OUTPUT_SWAP",
+        "transactionHash": "0xe25f004e415ccfe04d9a6c748dfc70c41dd27612a0d05c74bc5f31e2bdcefb55",
+        "blockNumber": "115649083",
+        "blockHash": "0xe8393c118cd3f32123250fe51442e3e7dc14d5ef6ca6a1f9f164b5033379a5b8"
+      },
+      "alternatives": [
+        {
+          "pool": "0xa132e66edd001ddfd92bb453bd8c54906351cceb",
+          "fee": 500,
+          "status": "QUOTED_ONLY_NOT_EXECUTED"
+        },
+        {
+          "pool": "0x691b90b449d0d2aaff1755e32e11d4d7407987d1",
+          "fee": 10000,
+          "status": "QUOTED_ONLY_NOT_EXECUTED"
+        }
+      ]
+    }
+  ],
+  "callSignatures": {
+    "quote": "quoteExactOutputSingle((address tokenIn,address tokenOut,uint256 amount,uint24 fee,uint160 sqrtPriceLimitX96)) returns (uint256 amountIn,uint160 sqrtPriceX96After,uint32 initializedTicksCrossed,uint256 gasEstimate)",
+    "swap": "exactOutputSingle((address tokenIn,address tokenOut,uint24 fee,address recipient,uint256 amountOut,uint256 amountInMaximum,uint160 sqrtPriceLimitX96)) payable returns (uint256 amountIn)",
+    "batch": "multicall(uint256 deadline,bytes[] data) payable returns (bytes[] results)",
+    "refund": "refundETH() payable"
+  },
+  "execution": {
+    "mode": "EXACT_OUTPUT",
+    "input": "native ETH wrapped by router",
+    "sequence": [
+      "multicall(deadline, [exactOutputSingle(params), refundETH()])",
+      "ERC20.transfer(buyer, amountOut) after confirmed exact stock delivery"
+    ],
+    "slippageBps": 100,
+    "defaultProbePolicy": "Use saved preferred pool directly. Do not rediscover contracts, search websites, scan history, or probe all fee tiers. Only try recorded alternatives after preferred route fails; stop before expanding discovery.",
+    "freshDataRequired": [
+      "Requested output amount",
+      "Current quote and amountInMaximum",
+      "Wallet balances and nonce",
+      "Gas fees",
+      "New deadline",
+      "Simulation and receipt for the new intent"
+    ],
+    "neverReuse": [
+      "Old quote as current price",
+      "Old signed transaction, nonce, deadline or calldata"
+    ]
+  },
+  "evidenceDirectory": "outputs/reviews/stock-graduation-funding-2026-09-08",
+  "sources": [
+    "https://app.synthra.org/static/js/847.ed06912a.js",
+    "https://github.com/Synthra-swap/swap-router-contract/blob/main/contracts/interfaces/IV3SwapRouter.sol"
+  ]
+}

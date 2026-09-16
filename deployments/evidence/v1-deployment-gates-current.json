@@ -1,0 +1,1276 @@
+{
+  "schemaVersion": 1,
+  "reportKind": "TICKERGARDEN_V1_DEPLOYMENT_GATE_EVIDENCE",
+  "executionSpecId": "V1-EXEC-11",
+  "verificationDate": "2026-09-05",
+  "scope": "ROBINHOOD_TESTNET_REHEARSAL_AND_MAINNET_STATE_FORK",
+  "readinessOutcome": {
+    "technicalDeploymentGatesClosed": true,
+    "state": "DEPLOYMENT_ELIGIBLE",
+    "productionReady": false,
+    "broadcastPerformed": false,
+    "broadcastAuthorized": false,
+    "productionGatesOpen": 8
+  },
+  "testnetChainEvidence": {
+    "chainId": 46630,
+    "pinnedLatestBlock": "113046891",
+    "pinnedLatestBlockHash": "0xe96faf4af5a9ab471c0230b19d832e4e46ff1470c57ce26e65cba5223e46e019",
+    "pinnedFinalizedBlock": "113040908",
+    "pinnedFinalizedBlockHash": "0xe9a960875b2ef0e51c22092083f168efd92bd9cae9b46e0833013b5291a74de9",
+    "liveVerifiedCurrentLatestBlock": "113493031",
+    "liveVerifiedCurrentFinalizedBlock": "113483479",
+    "dependencyStateReadTag": "latest",
+    "dependenciesChecked": 7,
+    "positionManagerBindingsChecked": 2,
+    "officialUniswap46630ListingAvailable": false,
+    "dependencyAcceptance": "EXPLICIT_TEST_ONLY_PIN_REQUIRED_BEFORE_BROADCAST"
+  },
+  "externalDependencies": [
+    {
+      "name": "CANONICAL_CREATE2_DEPLOYER",
+      "address": "0x4e59B44847b379578588920cA78FbF26c0B4956C",
+      "runtimeCodeHash": "0x2fa86add0aed31f33a762c9d88e807c475bd51d0f52bd0955754b2608f7e4989",
+      "runtimeCodeSize": 69
+    },
+    {
+      "name": "POOL_MANAGER",
+      "address": "0x8366a39cc670b4001a1121b8f6a443a643e40951",
+      "runtimeCodeHash": "0xbd3881180b547f5fe817545743cfb4343e96b1bc6640dcd70c106b0066e95626",
+      "runtimeCodeSize": 24009
+    },
+    {
+      "name": "POSITION_MANAGER",
+      "address": "0x58daec3116aae6d93017baaea7749052e8a04fa7",
+      "runtimeCodeHash": "0xf3a0edb689229fa4bf135a728f2ec2eb4a2fbee2e41e3e74ffadb7b4c56e8a6d",
+      "runtimeCodeSize": 23877
+    },
+    {
+      "name": "PERMIT2",
+      "address": "0x000000000022D473030F116dDEE9F6B43aC78BA3",
+      "runtimeCodeHash": "0x0117e0ed818bc3f2a8729ffc336c837e63e965f04b473047b39b35ad86aac259",
+      "runtimeCodeSize": 9152
+    },
+    {
+      "name": "UNIVERSAL_ROUTER",
+      "address": "0x8876789976decbfcbbbe364623c63652db8c0904",
+      "runtimeCodeHash": "0xfdd90802f39ce5fc8bac4c2f1b3ac7bac530fd17ff46b0630f1bd00f1e14082f",
+      "runtimeCodeSize": 24546
+    },
+    {
+      "name": "V4_QUOTER",
+      "address": "0x8dc178efb8111bb0973dd9d722ebeff267c98f94",
+      "runtimeCodeHash": "0xd707b1da8cb165e5ea35a3b4450d971eb562ec171e23492aa117036b78a868f6",
+      "runtimeCodeSize": 6118
+    },
+    {
+      "name": "STATE_VIEW",
+      "address": "0xf3334192d15450cdd385c8b70e03f9a6bd9e673b",
+      "runtimeCodeHash": "0x7d9c591e0956fd89d98feb4ffcfe8bf1f7a62bd485edd979fa21d104b49878a6",
+      "runtimeCodeSize": 3531
+    }
+  ],
+  "artifactEvidence": {
+    "productArtifactManifest": "spec/v1_product_artifact_manifest.json",
+    "productArtifactManifestSha256": "0x1abf6be41be56ffe4e695d59873b9b0225121f6437438ed007216f365be09760",
+    "productArtifactManifestHash": "0x0e3cc60e5ef6071f941badf7c341a8c0dafab6eeef861373dd76db2ef40eddbd",
+    "moduleCount": 19,
+    "compilerVersion": "0.8.26+commit.8a97fa7a",
+    "files": [
+      {
+        "path": "contracts/foundry.toml",
+        "sha256": "0x6006ef4d64f48cadc3f4993a7e01948443a44870ff80a246584468a85315e292"
+      },
+      {
+        "path": "contracts/script/v1/DeployV1Deterministic.s.sol",
+        "sha256": "0xcd3336fd33522d817fd709022a2719b2594cb439f97c05873f8ad65d637485bc"
+      },
+      {
+        "path": "contracts/script/v1/V1DeterministicDeploymentBuilder.sol",
+        "sha256": "0x8c49b081a3d9688cc244d881357526be205cc4173298bf32d18368fe21ed9dd9"
+      },
+      {
+        "path": "contracts/script/v1/V1DeterministicDeploymentOrchestrator.sol",
+        "sha256": "0x08058419b2e8ee376231d756bac76ea7d2d940630bb05ae547aa48a040be9d0f"
+      },
+      {
+        "path": "contracts/script/v1/V1HookExecutorDeployer.sol",
+        "sha256": "0xc37ca07e0e6bff351774da64a8632a754f119c252113c6a4cdea4e6add08a10a"
+      },
+      {
+        "path": "contracts/script/v1/V1ReleaseGate.sol",
+        "sha256": "0x9933993fff07fbd8de3bfba404a28fa06467852fbcb005fdaf13e7f8feb97a38"
+      },
+      {
+        "path": "contracts/src/v1/interfaces/IV1Protocol.sol",
+        "sha256": "0xaee38f2f863460eaa71f49495599f592e7e58a9894cf852f85d01f015345c2ba"
+      },
+      {
+        "path": "contracts/src/v1/libraries/CreatorTax.sol",
+        "sha256": "0x62216ffb14cf4bc72d6872e7df378678c75fc25a8c9bd9cd99a8aefa020c6b7c"
+      },
+      {
+        "path": "contracts/src/v1/libraries/GraduationPoolMath.sol",
+        "sha256": "0x5e577fc91159f54db8320e6503495a6b4e0dad80512a5f3ec1fba1e198c0d23b"
+      },
+      {
+        "path": "contracts/src/v1/libraries/MarketFeeAccounting.sol",
+        "sha256": "0x9e9b288433c52df9bdb1dea7928ead18e7037e3d86e2bb1bf2a81db6496b0262"
+      },
+      {
+        "path": "contracts/src/v1/libraries/PonsAntiSnipe.sol",
+        "sha256": "0xff6ad18a1c3975dc9633d65280b9a7bc6d2324ec8ff3eacba3f4e4342061fb93"
+      },
+      {
+        "path": "contracts/src/v1/libraries/PonsCurveMath.sol",
+        "sha256": "0xdc120e92b03a94ccde37144b5e80b6f0ee34aa3cfb5f20a51f396c3465b9bfa5"
+      },
+      {
+        "path": "contracts/src/v1/libraries/PonsSupplyMath.sol",
+        "sha256": "0x6c8a0fb956e941b97a97b53116d791e12c3c9dd9b78cd97fc2dcd8933a997aa9"
+      },
+      {
+        "path": "contracts/src/v1/libraries/TreasuryClaimLeafV1.sol",
+        "sha256": "0x06e2ae95dce42d3526416526511543ea7f06e3d8eeff6d888155f08401c6f550"
+      },
+      {
+        "path": "contracts/src/v1/libraries/V1GraduationEconomicDomain.sol",
+        "sha256": "0x3e0df3382d21bf932581cc359615d713b6b131da1faff6ff616302f73acbe596"
+      },
+      {
+        "path": "contracts/src/v1/modules/AllocationManager.sol",
+        "sha256": "0xee2dd1668d36dd0b3f83cb66bb91a3bcb7c98d222f8b55d5bdfe3b7f68683d2b"
+      },
+      {
+        "path": "contracts/src/v1/modules/ApprovedQuoteRegistry.sol",
+        "sha256": "0xc2dc60d3a5bab8d81426f2ac66f5e41ed3c826d6fa88d20deb6acf0b13cdc1c5"
+      },
+      {
+        "path": "contracts/src/v1/modules/CreatorRevenueRegistry.sol",
+        "sha256": "0x7044511cb9f14a0f6f2ee295b7d792e4edf16b603586bbe1a2c3d1e631a1a5a3"
+      },
+      {
+        "path": "contracts/src/v1/modules/GraduationExecutor.sol",
+        "sha256": "0x47ecab8dc7c5bdaa3bc8545e2e3ec3bd43de119900dfc598d0bf6896a46eee3e"
+      },
+      {
+        "path": "contracts/src/v1/modules/LaunchAndBuyRouter.sol",
+        "sha256": "0x7906ad7fc7c783d9ccdced373a2c29623a043044df0a2ed4325376b3df3f87cd"
+      },
+      {
+        "path": "contracts/src/v1/modules/LaunchConfigResolver.sol",
+        "sha256": "0xe44e184fb2ca403cdde4a77d5cc5d9f75a65532263bfd1a53c6f549f369c6d23"
+      },
+      {
+        "path": "contracts/src/v1/modules/LaunchLocker.sol",
+        "sha256": "0xe53613f277bec70565c3a089eae5389dd4e332610cad576006b5a0a38a84b294"
+      },
+      {
+        "path": "contracts/src/v1/modules/LaunchTemplateRegistry.sol",
+        "sha256": "0xd807af70bad585de148959c65c5bb0d4473e060feac64e5f408c1cdc7ee7de88"
+      },
+      {
+        "path": "contracts/src/v1/modules/MarketRegistryV1.sol",
+        "sha256": "0xf8f11b93387838c131f83a0b7f8476e1f4a7c715d2a194d2aee52b7994aebbea"
+      },
+      {
+        "path": "contracts/src/v1/modules/MemeStockGauge.sol",
+        "sha256": "0xdbff9b6cf4e061c433721d6e596d37523b05c2097f932791670450829460f319"
+      },
+      {
+        "path": "contracts/src/v1/modules/OfficialStockRegistryV1.sol",
+        "sha256": "0x586e952983cb4d25eeb8f8ac4116948325d1e5bbe9c77dfdd702dcd3bab2f89b"
+      },
+      {
+        "path": "contracts/src/v1/modules/PonsBaselineRegistry.sol",
+        "sha256": "0x6f5306ef74eea0f76aa22487fe5cca74aaeaf1824ad31f03b492ac049a192c7b"
+      },
+      {
+        "path": "contracts/src/v1/modules/PonsCompatibleCurve.sol",
+        "sha256": "0x9ec25a2053378529838f5722532dfc8a6325908e888ab23c756869d4dcdf49fd"
+      },
+      {
+        "path": "contracts/src/v1/modules/ProtocolFeeVault.sol",
+        "sha256": "0x1e354f7cc34f8b40254bd9ee1b50538ff14a815d5e510764674ea97de3654ceb"
+      },
+      {
+        "path": "contracts/src/v1/modules/TickerGardenFactoryV1.sol",
+        "sha256": "0x804c83861c86c892ce4aab7dc63083ebbe359f5e0016d386ebf6ff8f5ffd92b9"
+      },
+      {
+        "path": "contracts/src/v1/modules/TickerGardenMemeHook.sol",
+        "sha256": "0xd10d6778b5d5bbf944895390c778e6e945ad7594c90c899f78fef67d9beed1af"
+      },
+      {
+        "path": "contracts/src/v1/modules/TickerMemeTokenV1.sol",
+        "sha256": "0x446920b03c76618266b0d01705cb76f36d2e0a41aba886a81867e835059f6708"
+      },
+      {
+        "path": "contracts/src/v1/modules/TreasuryDistributorV1.sol",
+        "sha256": "0x0013b8772d0e8830f81ff9085b76a4de91e51ee3076d2209d53a4aea52d20390"
+      },
+      {
+        "path": "contracts/src/v1/modules/UserStockVault.sol",
+        "sha256": "0xa92170a9908acdae176e258a4fa1fcf681d710a45d0ece322ab84014948c9b18"
+      },
+      {
+        "path": "contracts/src/v1/shared/AllocationManagerDeposits.sol",
+        "sha256": "0xb730dc67661f13f3d3801290f600953affcfb6d002d5f2791ec77b64f7a69f6d"
+      },
+      {
+        "path": "contracts/src/v1/shared/AllocationManagerExits.sol",
+        "sha256": "0x1f1e665b153eade31927be154dbb41ab3bbb44b6d63ff85dda31fc84e9e8f859"
+      },
+      {
+        "path": "contracts/src/v1/shared/AllocationManagerIncreases.sol",
+        "sha256": "0x3258784e73a662e3e4768eeb894c8896a4e983385a0c1e0faf626b86ab6f5ee5"
+      },
+      {
+        "path": "contracts/src/v1/shared/DelayedUnpause.sol",
+        "sha256": "0xf26807178227c5c01f0544387698f4cfbddcf756740e4e77dddc2a739126ce89"
+      },
+      {
+        "path": "contracts/src/v1/shared/GraduationExecutorAssetAccounting.sol",
+        "sha256": "0x8c19e0097bbe0e98f2bb5ff5b9a42fea1dff28f9af53f76f7e61092b1309f609"
+      },
+      {
+        "path": "contracts/src/v1/shared/GraduationExecutorEntry.sol",
+        "sha256": "0x6edb7f87a5d4fb34699669bad44e70dfac347c0638048ab6076b7d65c7496c61"
+      },
+      {
+        "path": "contracts/src/v1/shared/GraduationExecutorPoolExecution.sol",
+        "sha256": "0x5ef21de0b2fe19d19b85629e7f70452e9da58d2796b3b9224fec5687f1c04f17"
+      },
+      {
+        "path": "contracts/src/v1/shared/ImmutableAccessManaged.sol",
+        "sha256": "0xe7c881d6188b84ebc9f1d71c326399a6698444ccf43294930625bd0dee1a1e13"
+      },
+      {
+        "path": "contracts/src/v1/shared/ImmutableBeaconProxyRuntime.sol",
+        "sha256": "0x8f2518432e9c5b602ce358b71fa97724e8aa819b9841028918bf4b57ced24d8f"
+      },
+      {
+        "path": "contracts/src/v1/shared/LaunchAndBuyRouterERC20.sol",
+        "sha256": "0x07147e3daf0e7bf0222f248248aa4e931614a1d2326f944bd53f7b4554cd09fe"
+      },
+      {
+        "path": "contracts/src/v1/shared/LaunchAndBuyRouterNative.sol",
+        "sha256": "0xe574cfc68f935b007c1a7516856a1525d638442b07ab103ec9ad5d022bbcee1a"
+      },
+      {
+        "path": "contracts/src/v1/shared/LaunchLockerBinding.sol",
+        "sha256": "0x5467c17f457f3e666db66b2fcd5e4a3fa5182e1cd964cea615d9314925b695b7"
+      },
+      {
+        "path": "contracts/src/v1/shared/LaunchLockerCustody.sol",
+        "sha256": "0xf9f5b89c649e17e98b153ce926d05167596c191c21b4abe7824ab346233ce33b"
+      },
+      {
+        "path": "contracts/src/v1/shared/MemeStockGaugeAccumulators.sol",
+        "sha256": "0xec4ecff2db0bcbacf96a4ba81cb0c0c98faea8b4d5d2ded5e6c2433238f018ab"
+      },
+      {
+        "path": "contracts/src/v1/shared/MemeStockGaugeActivationSnapshots.sol",
+        "sha256": "0xf8c2581926c3b30245b4a431d9bc2f67779795ac15e772ee8863714318bc5b0e"
+      },
+      {
+        "path": "contracts/src/v1/shared/MemeStockGaugeActivationWheel.sol",
+        "sha256": "0x3a30de52a3baaea6da90a44dbdccb27ad90274ca2620a08476e6ead8024dcd94"
+      },
+      {
+        "path": "contracts/src/v1/shared/MemeStockGaugeClone.sol",
+        "sha256": "0xc662f077c01bbaa01d09a467734e685e5439a0454432b80c17768b7b451ff8cb"
+      },
+      {
+        "path": "contracts/src/v1/shared/MemeStockGaugeForfeitures.sol",
+        "sha256": "0xcb1769fa2732fc29b46caf212775b22edef89b6b745a1f17c5f7b1a6c18d8123"
+      },
+      {
+        "path": "contracts/src/v1/shared/MemeStockGaugeLockedPositions.sol",
+        "sha256": "0x2a639382b7ce8238dda860c449066207bfb3cdb3cbc5765e99027fd92fbbda6a"
+      },
+      {
+        "path": "contracts/src/v1/shared/MemeStockGaugePendingPositions.sol",
+        "sha256": "0x8113b236cf2bf1631652243cbbb4d196e128f1a4a88df98b97bc402b25a07e56"
+      },
+      {
+        "path": "contracts/src/v1/shared/MemeStockGaugeSettlements.sol",
+        "sha256": "0x70a0b491ad574454ff016faf437f49075335f49ae41abfa947030cdfeea9b500"
+      },
+      {
+        "path": "contracts/src/v1/shared/ProtocolFeeVaultCurveCredit.sol",
+        "sha256": "0x202294fe4e7cd8cfc66e68b8afc9f4ebf85f9d84c9eb3cc5313bda63aa438dda"
+      },
+      {
+        "path": "contracts/src/v1/shared/ProtocolFeeVaultLiabilities.sol",
+        "sha256": "0xb2eb0ea5eed92e401781360611b5b622db0418c4fce5ce1cf5dc39a241eb2d76"
+      },
+      {
+        "path": "contracts/src/v1/shared/ProtocolFeeVaultRewardSettlement.sol",
+        "sha256": "0x7665a6df4494836b9070ae038abfa931726e4a4b302eabeb75436bc2f9f6d0bd"
+      },
+      {
+        "path": "contracts/src/v1/shared/ProtocolFeeVaultV4Accounting.sol",
+        "sha256": "0x53b3e783b921c42ffa3dd073c8e219d050ac8c37758ddd74b84ead85bc5fff9a"
+      },
+      {
+        "path": "contracts/src/v1/shared/ProtocolFeeVaultV4Credit.sol",
+        "sha256": "0xa2a3c493a8c0f3fad5832b8ee28d17bb42e7de8860f785a2762fbb0d6b525b0c"
+      },
+      {
+        "path": "contracts/src/v1/shared/TickerGardenMemeHookBinding.sol",
+        "sha256": "0xf93e0bde0d4497b6079ed67dd025dea16b84aa8655e4ea7b03b059e2c9d537a7"
+      },
+      {
+        "path": "contracts/src/v1/shared/TickerGardenMemeHookFeeCalculation.sol",
+        "sha256": "0x463656a8815c6f840fa72797275baa0ebe6ac4e7285f74bd8c61c8ae21aaccd4"
+      },
+      {
+        "path": "contracts/src/v1/shared/TickerGardenMemeHookFeeExecution.sol",
+        "sha256": "0x34a81a584935dbd9bc22be840df0bef6162f9dfa65872f5f9591b917afa51b08"
+      },
+      {
+        "path": "contracts/src/v1/shared/TickerGardenMemeHookLifecycle.sol",
+        "sha256": "0xf35c4ce81f23cc4376d0320b4a4b262cbf1ad057ebb86b7b682df29f3cb8171a"
+      },
+      {
+        "path": "contracts/src/v1/shared/TickerGardenRewardConversion.sol",
+        "sha256": "0x095d9021c44d70c79936fa4621eb67f5ab5b04e825f02e87990e0ed6d9c1551f"
+      },
+      {
+        "path": "contracts/src/v1/shared/UserStockVaultDeposits.sol",
+        "sha256": "0x21806d586129313eac2f4371df59676df658414848c13a36fe52282429798095"
+      },
+      {
+        "path": "contracts/src/v1/shared/UserStockVaultExits.sol",
+        "sha256": "0x1a8ea3506b963d34c628b43245d9b80c6bba34c7f10600d71d24d2716b69295a"
+      },
+      {
+        "path": "contracts/src/v1/shared/UserStockVaultIdentity.sol",
+        "sha256": "0xc8b2b8df61345f9760c2233c4217587f87db5e5b4670aed56f3909502db35889"
+      },
+      {
+        "path": "contracts/src/v1/shared/UserStockVaultLedger.sol",
+        "sha256": "0xf57ff57c744b007436a508ad32a9e0fe1790d9069bba22a93497edf0a147dd7c"
+      },
+      {
+        "path": "contracts/src/v1/shared/UserStockVaultRewardAccounting.sol",
+        "sha256": "0x6d17a1ea42c80b1b382707521e46887e1198ee3feae00b3419a82c5748e357f3"
+      },
+      {
+        "path": "contracts/src/v1/shared/V1Create2.sol",
+        "sha256": "0x0c5424d19911aa239022010254da0b04290d94215a432d17f1e177d4a5fc5aa2"
+      },
+      {
+        "path": "contracts/src/v1/shared/V1FactoryValidation.sol",
+        "sha256": "0x9040242ed1677a79396d4000188c8390f9acc0d88d23beda790fd07f75329ddd"
+      },
+      {
+        "path": "contracts/src/v1/shared/V1Identifiers.sol",
+        "sha256": "0xf9a78093bd738022a0709a6caec82f4e2470a8c2839d3f68a4df865f31c822b9"
+      },
+      {
+        "path": "contracts/src/v1/shared/V1MarketEconomics.sol",
+        "sha256": "0x45f47c02de2e34d0efd2ba8d4ac68d7c9805d8961df8f65cee8b58d358857424"
+      },
+      {
+        "path": "contracts/src/v1/shared/V1Scaffold.sol",
+        "sha256": "0x7aef3f79a100a697fa2c05143013398ddd0aed354adff27e3bf050c0f28f8ca8"
+      },
+      {
+        "path": "contracts/test/v1/V1Scaffold.t.sol",
+        "sha256": "0x1d63fe5a93ad145bf2eb4c2dda38c3b363ddb049c98b7e7a65f44a5e3c819518"
+      },
+      {
+        "path": "contracts/test/v1/audit/Audit20260905.t.sol",
+        "sha256": "0xc8c741193ccbe3003184e7e73043399c3eb73b2187c48576b776328a9f04bd38"
+      },
+      {
+        "path": "contracts/test/v1/audit/BeaconRuntimeBinding.t.sol",
+        "sha256": "0x017b7865dca6cdaf83ce4807af27d0ab8ba2f43039237ef3622089c4847729c7"
+      },
+      {
+        "path": "contracts/test/v1/audit/RewardCohortBoundary.t.sol",
+        "sha256": "0xe182063c44185e37f06ded6b4774e06e5e06a1a5e2ccbaa78c8af1ab72d13c6a"
+      },
+      {
+        "path": "contracts/test/v1/deployment/V1DeterministicDeploymentOrchestrator.t.sol",
+        "sha256": "0x64b68078f540199f4be5655e1dd6cf92329f1441e16df365418f12e0ebb64be9"
+      },
+      {
+        "path": "contracts/test/v1/deployment/V1ReleaseGate.t.sol",
+        "sha256": "0x8ba9465769cc3893dfbb67ee1cddebe5c4698b5d7b42e678bc6790d5030838c7"
+      },
+      {
+        "path": "contracts/test/v1/fixtures/V1QuoteFixtures.t.sol",
+        "sha256": "0x4e5a076ab063332f5932fd2bcf799595a68686dede6e3ca2af37267af2ab34b7"
+      },
+      {
+        "path": "contracts/test/v1/fork/V1ProductForkE2E.t.sol",
+        "sha256": "0x34f54e595a538417e5f7c77a9a4de60df2ad44f4cb0d92e9b8a1c773774087de"
+      },
+      {
+        "path": "contracts/test/v1/mocks/MockV1QuoteAssets.sol",
+        "sha256": "0x499e46afe61590bd6104412ec053de5c7359b6b574e718cfdcc43a4f4e985108"
+      },
+      {
+        "path": "contracts/test/v1/mocks/StockTokenFingerprintTestLib.sol",
+        "sha256": "0x6f5ed5d3f70a7938a3f0053e42243f3af31f4b4b862c8e10de03e2a8a45a475f"
+      },
+      {
+        "path": "contracts/test/v1/product/AllocationManager.t.sol",
+        "sha256": "0xa6659e4f931beb0694c3e84f647abdea8d993bf79bea4175c81c5ae91c9361a2"
+      },
+      {
+        "path": "contracts/test/v1/product/ApprovedQuoteRegistry.t.sol",
+        "sha256": "0xde26faa71ef08938ae5d5b57bcd619241d99c70d694f047aafb73b896b1f1cb2"
+      },
+      {
+        "path": "contracts/test/v1/product/C405CurveAutonomyInvariant.t.sol",
+        "sha256": "0x9fad258cd876530ef296a6432a40a97596e1eadadfff1d8fd0c6af84dbfdd5a8"
+      },
+      {
+        "path": "contracts/test/v1/product/CreatorRevenueRegistry.t.sol",
+        "sha256": "0xd4621bf2bc31374e8fffdbc97455f3983361dd7fe7957910e878d8981b487308"
+      },
+      {
+        "path": "contracts/test/v1/product/GraduationExecutor.t.sol",
+        "sha256": "0xa3b6e50988e8e5567cdb1cfa4ca00721dd0f01f3bf85325650121e3ed13a3dbf"
+      },
+      {
+        "path": "contracts/test/v1/product/LaunchConfigResolver.t.sol",
+        "sha256": "0xb334ac817a6ecf326601694cf2999ff5d3e7530de1a01f747651655caeb3de29"
+      },
+      {
+        "path": "contracts/test/v1/product/LaunchLocker.t.sol",
+        "sha256": "0xfa046bbcf41fa54f637657dbb6216688d84f8c14d2d88355d246054919d4e166"
+      },
+      {
+        "path": "contracts/test/v1/product/LaunchTemplateRegistry.t.sol",
+        "sha256": "0x5e6133a97d90ae2bf00ee9c330f11ce04ae2d1c58d4df4bd2dd04fa323f0ddce"
+      },
+      {
+        "path": "contracts/test/v1/product/MarketRegistryV1.t.sol",
+        "sha256": "0x0cf8821551be623a768af00ae6824ea7def8901df98742f0d854f38dc5ae15d8"
+      },
+      {
+        "path": "contracts/test/v1/product/MemeStockGauge.t.sol",
+        "sha256": "0x79eacb88712be531ca7034bbed891875059919c5154955c160f7d1dec48c216f"
+      },
+      {
+        "path": "contracts/test/v1/product/MultiAssetMaliciousSettlementInvariant.t.sol",
+        "sha256": "0xbe3d35ec3989a7d66b7d0d7ef4b6f0fb8b49a2ed826105f01b6a9437a5a0c51a"
+      },
+      {
+        "path": "contracts/test/v1/product/OfficialStockRegistryV1.t.sol",
+        "sha256": "0xe929de0056d5072015d6f273e41264e3c0163e59e694acfc4728955acdfa9275"
+      },
+      {
+        "path": "contracts/test/v1/product/PonsBaselineRegistry.t.sol",
+        "sha256": "0xe6f7fa87357f0faf6f306a6abe949d06edbe1667b03d484f5343cdb818c67cf5"
+      },
+      {
+        "path": "contracts/test/v1/product/PonsCompatibleCurve.t.sol",
+        "sha256": "0x6670f94c6c54b67f3926af74c9c17cd52c167d49cc9f23d529345f9190f03eea"
+      },
+      {
+        "path": "contracts/test/v1/product/ProtocolFeeVault.t.sol",
+        "sha256": "0x2e71b120ea10096496b82d9417a4f35481f81e72d340a043ede6d8a0723656fc"
+      },
+      {
+        "path": "contracts/test/v1/product/TickerGardenFactoryV1.t.sol",
+        "sha256": "0x69063283d2aef3e5a4390d5c88980ced9a4ae20698c9b87d8d767dc2731a5cf0"
+      },
+      {
+        "path": "contracts/test/v1/product/TickerGardenMemeHook.t.sol",
+        "sha256": "0x83c96f96bb73eaaef5836b6ade9a30d4067cf0343a65c36de2ab7162a902088e"
+      },
+      {
+        "path": "contracts/test/v1/product/TickerMemeTokenV1.t.sol",
+        "sha256": "0x29aea511929767cb9e3b000114bc62e7c2e9b41421717cb73f128a2d84b89471"
+      },
+      {
+        "path": "contracts/test/v1/product/UserStockVault.t.sol",
+        "sha256": "0x25bae49eddaf12e3248f64e10a2e86849cca6b9bba1a97d269f3f34378ccf934"
+      },
+      {
+        "path": "contracts/test/v1/product/VaultGaugeInvariant.t.sol",
+        "sha256": "0x891cd457560d355ebade1ef05be418385e7fbade42dd62eb210a483f8cf35772"
+      },
+      {
+        "path": "contracts/test/v1/shared/AccessManagerConfiguration.t.sol",
+        "sha256": "0x92a447194399a3def47ef2733253496e4ffd2fa1fc60b36c92a6d2e5c9ed4fde"
+      },
+      {
+        "path": "contracts/test/v1/shared/AllocationManagerDeposits.t.sol",
+        "sha256": "0xf83dcc7b72af7ec88e1146d86ff5f51ead4c77e7a008fffea716fe19ae8b12ea"
+      },
+      {
+        "path": "contracts/test/v1/shared/AllocationManagerExits.t.sol",
+        "sha256": "0xc648875a03fd182478324006314165ad571c118eb6929432b75a50dd29607acb"
+      },
+      {
+        "path": "contracts/test/v1/shared/AllocationManagerIncreases.t.sol",
+        "sha256": "0x4cb2e75671d991398585e80e8ceefb03ec61c75d3fbd03a8ea534fedd7e2e478"
+      },
+      {
+        "path": "contracts/test/v1/shared/GraduationExecutorAssetAccounting.t.sol",
+        "sha256": "0xc4d4f49168004ec92d3b9678e585b200a05e2af87d896a0c67e27b0cb722eba7"
+      },
+      {
+        "path": "contracts/test/v1/shared/GraduationExecutorEntry.t.sol",
+        "sha256": "0x0357b2aca4aea4896eeb419e1bac47ec1deb2a3946b92b467d4e796a1a26e639"
+      },
+      {
+        "path": "contracts/test/v1/shared/GraduationExecutorPoolExecution.t.sol",
+        "sha256": "0x3ae3711714baddf5567a5401cf0faaa51a5a381a5e7985e881e1813fa599f2b3"
+      },
+      {
+        "path": "contracts/test/v1/shared/GraduationPoolMath.t.sol",
+        "sha256": "0x53c0c9a6cb9649d7d69f81716bf944a65db55414e7dd9b0c547fc59c7baf5e28"
+      },
+      {
+        "path": "contracts/test/v1/shared/HolderFeeSharing.t.sol",
+        "sha256": "0x53661a0672eef7d25ae3b6f0240a908539504b0370249724697d71ded7d60d00"
+      },
+      {
+        "path": "contracts/test/v1/shared/LaunchLockerBinding.t.sol",
+        "sha256": "0x017ea702a55b1969eb3d360d0885a711067b54a31bd38ec5263697cb5e581424"
+      },
+      {
+        "path": "contracts/test/v1/shared/LaunchLockerCustody.t.sol",
+        "sha256": "0x6352bc5723025310b1783a2123896767519487d996d3d119ba77eea0f2ad9924"
+      },
+      {
+        "path": "contracts/test/v1/shared/MarketFeeAccounting.t.sol",
+        "sha256": "0x38b09daf40a670aa10c2c1d16143dc4c77745e08031d874e89d8d7b63d54cf9e"
+      },
+      {
+        "path": "contracts/test/v1/shared/MemeStockGaugeAccumulators.t.sol",
+        "sha256": "0x01802042925e873ca55ebc4d547e09433b77a7a85afdcbe7fd7e3aab7c23c073"
+      },
+      {
+        "path": "contracts/test/v1/shared/MemeStockGaugeActivationSnapshots.t.sol",
+        "sha256": "0xdbce66da368598c0eb460dd5b011b7e2343557ea3d76f204d24b785a23b2bb2c"
+      },
+      {
+        "path": "contracts/test/v1/shared/MemeStockGaugeActivationWheel.t.sol",
+        "sha256": "0x89321cbfc32d9e0297f7226b594b9bf36b54615c0c16d3f09c032962a9b316b3"
+      },
+      {
+        "path": "contracts/test/v1/shared/MemeStockGaugeLockedPositions.t.sol",
+        "sha256": "0x33dd41ff95ddcfc0b87826a879c223fb017abbb7b5a38538b3c1ad7978942f67"
+      },
+      {
+        "path": "contracts/test/v1/shared/MemeStockGaugePendingPositions.t.sol",
+        "sha256": "0x0d272ca9a599235035236bb48c59c620265de6fed5bf7b36fca0eabe2e265d76"
+      },
+      {
+        "path": "contracts/test/v1/shared/PonsAntiSnipe.t.sol",
+        "sha256": "0x021b850451244d5aed12f19c5a52ed52b521570a2534805fc37935137c371ff1"
+      },
+      {
+        "path": "contracts/test/v1/shared/PonsCurveMath.t.sol",
+        "sha256": "0x47c559312233179dcd29dc6bd3a506da951c1078381928d4060e7545d5ee20cf"
+      },
+      {
+        "path": "contracts/test/v1/shared/PonsSupplyMath.t.sol",
+        "sha256": "0x8e26e638170acf0eff4b9a36eb5aafd19d5361c581dadfe416bfdcf105360d51"
+      },
+      {
+        "path": "contracts/test/v1/shared/ProtocolFeeVaultCurveCredit.t.sol",
+        "sha256": "0xa39d149a6f1e9e25625484e727a89aad136ba612b26c46b56847b1af3b399940"
+      },
+      {
+        "path": "contracts/test/v1/shared/ProtocolFeeVaultLiabilities.t.sol",
+        "sha256": "0x679c3b5ad2ecd01ea1891757922605858aad71a4f535c60cf6653a3bd026f8db"
+      },
+      {
+        "path": "contracts/test/v1/shared/ProtocolFeeVaultV4Accounting.t.sol",
+        "sha256": "0x3cb6c6c31c35ddc1a061cb5ea7932bf3db5f938cb705d50b1df1ea41c8b77618"
+      },
+      {
+        "path": "contracts/test/v1/shared/ProtocolFeeVaultV4Credit.t.sol",
+        "sha256": "0xbcd25bb405bc5661e810b401725ddee5362ed687153f13ddc47351fc5e7ad0a2"
+      },
+      {
+        "path": "contracts/test/v1/shared/RewardConversionPool.t.sol",
+        "sha256": "0xa9b484246fe8eb76bc8151f283ec4c06a4f4ec3b620e5a34e92dba28b59ef5ba"
+      },
+      {
+        "path": "contracts/test/v1/shared/RewardSettlement.t.sol",
+        "sha256": "0xae28595161c5329fac5ea7e4d73be2d9bb36f38acbd3defc162b96f50ddce441"
+      },
+      {
+        "path": "contracts/test/v1/shared/TickerGardenMemeHookBinding.t.sol",
+        "sha256": "0xc91ec89779051e68134259f055c0bd1ec4dcd2a8e48fb02ab813bff688639f5a"
+      },
+      {
+        "path": "contracts/test/v1/shared/TickerGardenMemeHookFeeCalculation.t.sol",
+        "sha256": "0x9bd6de3510305e14db8d8ad49568132aea1960b0ebaab51b4bccdf4f6eeea6c9"
+      },
+      {
+        "path": "contracts/test/v1/shared/TickerGardenMemeHookFeeExecution.t.sol",
+        "sha256": "0x22c2858d4a0efbe62ffe4cc2f09ffac2b962a57fb0f7ac84d81b1b7c57be5169"
+      },
+      {
+        "path": "contracts/test/v1/shared/TickerGardenMemeHookLifecycle.t.sol",
+        "sha256": "0x9d8850c52692f179eacc7e3e42706887995bafad2af5242ba1ae976dc08eb5c3"
+      },
+      {
+        "path": "contracts/test/v1/shared/UserStockVaultDeposits.t.sol",
+        "sha256": "0x147c15f5112a8b9588b431bbfb378937c15a64553831395cc9f6abfe531d01e4"
+      },
+      {
+        "path": "contracts/test/v1/shared/UserStockVaultIdentity.t.sol",
+        "sha256": "0x7b62c7be18f658ff26138463a5818e1b25bd7548d39dde96b085349b176a2217"
+      },
+      {
+        "path": "contracts/test/v1/shared/UserStockVaultLedger.t.sol",
+        "sha256": "0x1af0044a887ccbdb6b0efa2e981afb49629cf9669c705d023288a73f4867bdbd"
+      },
+      {
+        "path": "contracts/test/v1/shared/V1DeploymentLibraries.t.sol",
+        "sha256": "0x7bdabfeae370b8e2a069166b633001d85b4bf33fa3813efa0e16368a14ba5384"
+      },
+      {
+        "path": "contracts/test/v1/shared/V1FactoryValidation.t.sol",
+        "sha256": "0x450bea0ae55e85a62793ec446ecccf5c86336a296f9bb5abd7e412daebb45405"
+      },
+      {
+        "path": "contracts/test/v1/shared/V1GraduationEconomicDomain.t.sol",
+        "sha256": "0x2345e03d8f56b5a61eeaacd13b4ced2a33e02572a7e99a1cec8984f357329fc4"
+      },
+      {
+        "path": "contracts/test/v1/shared/V1HookExecutorDeployer.t.sol",
+        "sha256": "0xaf6dcbd002c682f45595f379baedec146cda9dc595c80fb1569a6e3af660c4b3"
+      },
+      {
+        "path": "contracts/test/v1/shared/V1PonsDifferential.t.sol",
+        "sha256": "0x9939c8c6f767e6af92fa5655b4f7bb90d94e8611af387d8bbfa873e877fafd0e"
+      },
+      {
+        "path": "contracts/test/v1/treasury/mocks/MockV1TreasuryAssets.sol",
+        "sha256": "0x5253d0e593f060b75e1ed6d5c80bee5bbce07c1cba55038a6357cb424561dcca"
+      },
+      {
+        "path": "contracts/test/v1/treasury/product/TickerMemeTokenTreasuryV1.t.sol",
+        "sha256": "0x1af636a89069f4b1dd413814bd30764157cac42878e07848c255bf2fa0cc9a7f"
+      },
+      {
+        "path": "contracts/test/v1/treasury/product/TreasuryDistributorV1.t.sol",
+        "sha256": "0xd5c3aa27b52c051961030b00e93605e90f013951612f0cd8af4b516463645cec"
+      },
+      {
+        "path": "contracts/test/v1/treasury/product/TreasuryDistributorV1AccessManager.t.sol",
+        "sha256": "0xa17ab745b6df13117177051276779e1a67d4981c03ded0e3075c397d4dd40c95"
+      },
+      {
+        "path": "contracts/test/v1/treasury/product/TreasuryDistributorV1Invariant.t.sol",
+        "sha256": "0xc44dfd168f6725e0efd6d665b42541fa29bccee9b6ac636f0a7ed6d0e15f2627"
+      },
+      {
+        "path": "contracts/test/v1/treasury/shared/TreasuryClaimLeafV1.t.sol",
+        "sha256": "0x4a73d11ffb2e0672519488d09b992fb8aacf75461a4a2d0d2d9502fbec8bdf0b"
+      },
+      {
+        "path": "deployments/manifests/robinhood-testnet-46630.v1.plan.json",
+        "sha256": "0x483b0551dd72d22c80ff197fed37b62517c65626f1481fac01b0dbfb8dc43e88"
+      },
+      {
+        "path": "deployments/package.json",
+        "sha256": "0xb0c8e178865434612b30cde38e122cfc384e24b24d08e506346a448cc63e3c0c"
+      },
+      {
+        "path": "deployments/schemas/README.md",
+        "sha256": "0xb03a014b5d3e4fc223e3f8d7984517b5a834d5d44da32de1c8e06efe1a5af45a"
+      },
+      {
+        "path": "deployments/schemas/v1-deployment-gate-evidence.schema.json",
+        "sha256": "0x7f801eef9d6ba4bb8b2d0e8499b1531ac5306f65ed38d6eb0181a85d351c9f3d"
+      },
+      {
+        "path": "deployments/schemas/v1-deployment-manifest.schema.json",
+        "sha256": "0x3b9954b020e0ae266332cf2322a58d01bbdc888a55fa37a52e7d5279ec0c214f"
+      },
+      {
+        "path": "deployments/schemas/v1-testnet-deployment-plan.schema.json",
+        "sha256": "0x371f507ee2d738996b08e4e8a5e005c4626610f4a8a5405190bef093deb47995"
+      },
+      {
+        "path": "deployments/src/index.ts",
+        "sha256": "0x5a63459075d952ed697b93a5d5756f7c8ffff99c2d1c1cbe1916e2ee1533ed9d"
+      },
+      {
+        "path": "deployments/src/readiness.ts",
+        "sha256": "0xe54f4f7a27d7bce42f1bef42e0cf5b1a5bdda79c303135d8826a48b9a3f1c161"
+      },
+      {
+        "path": "deployments/src/schema.ts",
+        "sha256": "0x14c7a3f5b9b8ecc52f1e979508bdea9525534833b79fb38f4ab91c7f0b68099f"
+      },
+      {
+        "path": "deployments/src/v1/access-manager-plan.ts",
+        "sha256": "0x9a511c89f2bac5a127ea15a2e7940289cecc4ef355a09fd1abcb2aadc65b87da"
+      },
+      {
+        "path": "deployments/src/v1/immutable-beacon.ts",
+        "sha256": "0x919487b74a61bec23c2c56a79feb461e8a770a5433deeebd99154190a46e07b3"
+      },
+      {
+        "path": "deployments/src/v1/preflight.ts",
+        "sha256": "0xa1e98f49733f7b013f774659067a1695974e80c6bbb217d823c1d2164de39bd1"
+      },
+      {
+        "path": "deployments/src/v1/release-paired-assets.ts",
+        "sha256": "0x387d18ce9f22bb918b766e1b31c6a8fceda8e8747700cf912c589861d6204b25"
+      },
+      {
+        "path": "deployments/src/v1/render-access-manager-plan.ts",
+        "sha256": "0x4bf01d2b27a074a16cf4698592122cf3875c92d7b06ae586b67cd572b7ba24fd"
+      },
+      {
+        "path": "deployments/src/v1/testnet-plan.ts",
+        "sha256": "0xa060aa701d6eee4e856596a7376bedc933170a14e5c6497a30328861500e0e97"
+      },
+      {
+        "path": "deployments/src/v1/verify-deployment-manifest.ts",
+        "sha256": "0x154155ffeb380abce75449d7968268ddbebda044cf46a74eb4d34db68e5c4f77"
+      },
+      {
+        "path": "deployments/src/v1/verify-testnet-plan.ts",
+        "sha256": "0x98c531f786a8eaf4feba5a15f2f89316eb470ee361231931eec284b78ab7bfd9"
+      },
+      {
+        "path": "deployments/test/access-manager-plan.test.ts",
+        "sha256": "0xa6af96af7f05e75b578ca479a2ccd02338c61ddc7d6b8a50f30353399da76176"
+      },
+      {
+        "path": "deployments/test/deployment-gate-evidence.test.ts",
+        "sha256": "0xcce892f91c9c985861be833a0c2c688e15b809f923597bcc2fe882db67629879"
+      },
+      {
+        "path": "deployments/test/immutable-beacon.test.ts",
+        "sha256": "0xa4aa09427d8cbf0a4663bbc68d339296a341f963fee1e1364863c5eea0f9b2ef"
+      },
+      {
+        "path": "deployments/test/manifest-fixture.ts",
+        "sha256": "0x1d2d33ec186ad6202d6e0be2e2b241b52013a90f2589aa63c4450567bad433bd"
+      },
+      {
+        "path": "deployments/test/preflight.test.ts",
+        "sha256": "0x12987c89f667bb01471b95064b8740fc6f3e0cad542bfa8bd39a05ac7bc92412"
+      },
+      {
+        "path": "deployments/test/readiness.test.ts",
+        "sha256": "0xd1f5d45658d6978108afbac468bc09a10d197e90c4b36caf290bd4239eb60f1f"
+      },
+      {
+        "path": "deployments/test/release-paired-assets.test.ts",
+        "sha256": "0x76da6a3bd2002e31985686bea749e4189cd4a6a2aac8889b78e52407ab189c39"
+      },
+      {
+        "path": "deployments/test/schema.test.ts",
+        "sha256": "0xec4041f091d72636f9b6dd490d8cd322715869b1cdc050bff3ee69258e5e865a"
+      },
+      {
+        "path": "deployments/test/testnet-plan.test.ts",
+        "sha256": "0x9ebff5ed9af8d98aa534a255c7a930ca29ac7ef355d3e1c62f85fca33dd1ed2b"
+      },
+      {
+        "path": "docs/v1/README.md",
+        "sha256": "0xc2cd5a49fed1ef815d429bc49534f4b254120744952adfabae96af5314d4721d"
+      },
+      {
+        "path": "docs/v1/V1_ACCUMULATOR_NUMERIC_REPORT.md",
+        "sha256": "0x5b90fb51812062196bd89411210840bd0284057e74f5ed4c9fad85bcd4977103"
+      },
+      {
+        "path": "docs/v1/V1_ACTIVATION_WHEEL_GAS_REPORT.md",
+        "sha256": "0x805ba0b026af264ac0dfb03e49978f68fcf3e2b94fe0f5e65f70e73dc2177732"
+      },
+      {
+        "path": "docs/v1/V1_BEACON_PROXY_ADMISSION.md",
+        "sha256": "0x50e246d6cac13b5549245f64a00b6b07c4dad1241eb10cb76d4de469fbd73824"
+      },
+      {
+        "path": "docs/v1/V1_BUSINESS_LOGIC_REMEDIATION.md",
+        "sha256": "0x3fee878e634c4ae85e2b7ba24ad3031c9e03a5b0934cfe6b2f59a9258e7050c4"
+      },
+      {
+        "path": "docs/v1/V1_CANONICAL_ABI_POLICY.md",
+        "sha256": "0x7c0bc7c7e9d8deb8bde905adb0e418460fcac0390245fedc2181260c04ab179d"
+      },
+      {
+        "path": "docs/v1/V1_COMPOSED_CALL_IDENTITY.md",
+        "sha256": "0x2ee8ab7fadf359d6df252a8d46848c4cafdc89cb77b088bea2092c723019f000"
+      },
+      {
+        "path": "docs/v1/V1_CONTRACT_ARCHITECTURE_DECISION.md",
+        "sha256": "0x5f1a115aaff6d9255c2d0b133180988d28016e1b6d8e5601cf6019009f3529a4"
+      },
+      {
+        "path": "docs/v1/V1_CREATE_PONS_V2_ALIGNMENT.md",
+        "sha256": "0xe938389e56759bd2f06dd7bc115d57f7e2383c1f1f22732cdb117208d7fbb8f0"
+      },
+      {
+        "path": "docs/v1/V1_CREATOR_REVENUE_EPOCH.md",
+        "sha256": "0xcce44576f4f8031018ba282be10da9f30c62c08b763c2d50fcc9f283d2c6c46d"
+      },
+      {
+        "path": "docs/v1/V1_CREATOR_TAX.md",
+        "sha256": "0xdc26634f1b83a97c3cacfc9b0e6bbec39e9a3c931fe8c89b27bdf4ad3f3eb2bd"
+      },
+      {
+        "path": "docs/v1/V1_DEVELOPMENT_PLAN.md",
+        "sha256": "0x92075d81348e7e894a5fa7eefb595366f6a88fd5b7e802035c52b882dd7ea7e6"
+      },
+      {
+        "path": "docs/v1/V1_EXECUTION_SPEC.md",
+        "sha256": "0x00515b21e5d8a31c0984b27b84b90c18a1028e819da8574e7f025bbe70761b4a"
+      },
+      {
+        "path": "docs/v1/V1_G0_EXTERNAL_EVIDENCE.md",
+        "sha256": "0xbddb251524a981f413e22061e0944349711ae58eaba415c357487f646f970c09"
+      },
+      {
+        "path": "docs/v1/V1_G0_RECOMMENDATIONS.md",
+        "sha256": "0xa77be4d54332ebcc9111b2298a57664bb881338417a3abf0b92a8139aba34785"
+      },
+      {
+        "path": "docs/v1/V1_M0_BLOCKER_AUDIT.md",
+        "sha256": "0x5fadd8b27170c3c3e9215b14f070c27ceb190c105a476fa523c88cddda518be2"
+      },
+      {
+        "path": "docs/v1/V1_MARKET_AUTONOMY_AND_RAGE_QUIT.md",
+        "sha256": "0x3a713dca57471762bfa31d34128543798a7f7fd85df99c968bb5a90a9c9f150a"
+      },
+      {
+        "path": "docs/v1/V1_MARKET_REGISTRY_STATE_MODEL.md",
+        "sha256": "0x975e95a47007a68c3f0cb792cffaf6ddf1c01ac2973334339db324a24f32cc1f"
+      },
+      {
+        "path": "docs/v1/V1_MIGRATION_RESCUE_TIMING.md",
+        "sha256": "0xf429feaa27ed45c98098e8bac8116e2244633b2c112f46f2a64fd76c4f706c29"
+      },
+      {
+        "path": "docs/v1/V1_MULTI_ASSET_STOCK_VAULT.md",
+        "sha256": "0x0eea83ad9bf7019d26886a55180a7953c64a0dabe11782aa404ea8a1e57fe01b"
+      },
+      {
+        "path": "docs/v1/V1_OFFICIAL_STOCK_ADMISSION.md",
+        "sha256": "0xecc87e7cc37a05260bffaaa30d0f0f29e6af845d81bfedd06591926b60e46182"
+      },
+      {
+        "path": "docs/v1/V1_PONS_BEHAVIOR_BASELINE.md",
+        "sha256": "0x155b66528b1b444475f918eee0d16e09c1f2901cffcbaeec9bb559ee60db1440"
+      },
+      {
+        "path": "docs/v1/V1_PONS_IPFS_UPLOAD_RESEARCH.md",
+        "sha256": "0x3a63966fc69f60a38a38f7082cbe7b11214e908682c3253929c615038fa09259"
+      },
+      {
+        "path": "docs/v1/V1_PROTOCOL_PARAMETERS.md",
+        "sha256": "0xfdcc00123a73e36b90ee3089ab386de610b6518aa5fe8911899dd506306edb95"
+      },
+      {
+        "path": "docs/v1/V1_QUOTE_WHITELIST_POLICY.md",
+        "sha256": "0x1ddaf913b278fa58c68ec6c77606175e231c7e288a18fb648d742356335dbf85"
+      },
+      {
+        "path": "docs/v1/V1_READINESS_AND_DEPLOYMENT_GATES.md",
+        "sha256": "0x0ae5cdf5da45f6496aaec5dd024b1010314be9bfc226b9df2ab4a4d1ff804311"
+      },
+      {
+        "path": "docs/v1/V1_REWARD_CONVERSION.md",
+        "sha256": "0x99cd94618d78d3eafa101ca0aaf047444ee9e21f8646e506afd0001df068dd22"
+      },
+      {
+        "path": "docs/v1/V1_STOCK_QUOTE_PRICE_REFERENCE.md",
+        "sha256": "0xf0c03aa601a256411226b3a752fd1a0aa7c019ec58a1d32d908ddceedd7a70f2"
+      },
+      {
+        "path": "docs/v1/V1_TECHNICAL_ARCHITECTURE.md",
+        "sha256": "0xffedff823adba6fab9f70dde06558a5fbdb96e09fdc0c63748c7b52a3eae2bd6"
+      },
+      {
+        "path": "docs/v1/V1_TESTNET_DEPLOYMENT_RUNBOOK.md",
+        "sha256": "0xafc0af8ba6c5ddde1617d6d40f4ecb7ee7de7727fd6c8ac563ff0ef2c7af6761"
+      },
+      {
+        "path": "docs/v1/V1_TESTNET_ROLLBACK_CHECKLIST.md",
+        "sha256": "0xdcc854c79af2a0cc4bd165331e39ebd725cd4ac6b784d660a96c8ab307e614c3"
+      },
+      {
+        "path": "docs/v1/V1_TREASURY_ARCHITECTURE.md",
+        "sha256": "0xe8422c62c9a5a0def37c601abc8dca267a42c91d86f7a055a183144c6e64d9ac"
+      },
+      {
+        "path": "docs/v1/V1_TYPED_IDENTIFIERS.md",
+        "sha256": "0x1113001188566db1524a60bc7ca9df8e5a04fa4c29d4d28732a449c0cfbc282b"
+      },
+      {
+        "path": "docs/v1/V1_USER_EMERGENCY_ESCAPE_FLOW.md",
+        "sha256": "0x5e20c6472649aa60592d79bbd159270ec41c2a5c4be9d358a221ccd757d96519"
+      },
+      {
+        "path": "outputs/reviews/testnet-release-candidate/README.md",
+        "sha256": "0xea908e0140757984061c43fb05429824e8e38dabf83a2aca2e5d3188b11bead3"
+      },
+      {
+        "path": "outputs/reviews/testnet-release-candidate/build.log",
+        "sha256": "0x461002aad6f104fccd6892222627fbe3b498b3ef562f0fe38cc4415b677ae109"
+      },
+      {
+        "path": "outputs/reviews/testnet-release-candidate/contracts.log",
+        "sha256": "0x5883c27927c90043ebfc33ffe0d4cdc829fa0aeabc271353e74f0e669693b441"
+      },
+      {
+        "path": "outputs/reviews/testnet-release-candidate/deployment-build.log",
+        "sha256": "0xea75dbda014e9611c45b65c992965d5c1745e031b6bedfb9ccb27f8c128f7133"
+      },
+      {
+        "path": "outputs/reviews/testnet-release-candidate/deployment-tests.log",
+        "sha256": "0xc5046805a4ac783ca43c8a631b66dde911838d294ff5ff3e76d72ab748e79c62"
+      },
+      {
+        "path": "outputs/reviews/testnet-release-candidate/deployment-track.log",
+        "sha256": "0xfa4adbed62714187624c6b87b834312fe1b204cb28e35a79b22b6ecf695e6dd4"
+      },
+      {
+        "path": "outputs/reviews/testnet-release-candidate/fork-official-header.json",
+        "sha256": "0x0cfcf1dd849e48c797e2df81e7b5b912f2848c751071d2db7d15665a476d4b67"
+      },
+      {
+        "path": "outputs/reviews/testnet-release-candidate/fork-pin-55149612.json",
+        "sha256": "0x163015242dc05f127e1a37029ffe646eb45f797af4feb4ee737bb13f9a75b00d"
+      },
+      {
+        "path": "outputs/reviews/testnet-release-candidate/fork-pin-55157312.json",
+        "sha256": "0x055e456d01db006f23c8aaa8e9103f10a979b92ba5ee24f7fdcf35e2cba18ecb"
+      },
+      {
+        "path": "outputs/reviews/testnet-release-candidate/fork-pin.json",
+        "sha256": "0x7e22999f38ffb8f7a7135c25598c310953af445fe96ce49c6e30067fb79b1f97"
+      },
+      {
+        "path": "outputs/reviews/testnet-release-candidate/fork-run-used.mjs",
+        "sha256": "0xafed847e2b48d773863548b7024e64bc5beb201b3408463a9c1bdadc4c43b57b"
+      },
+      {
+        "path": "outputs/reviews/testnet-release-candidate/fork.log",
+        "sha256": "0x33d826cc8243ce4c3cf515c5e44d8efc7b9ce91507174dd1371dabcc0b5b1866"
+      },
+      {
+        "path": "outputs/reviews/testnet-release-candidate/release-gate.log",
+        "sha256": "0x9307e6a205a10d03903d78512b560eeb365f9b010098c8477b30d9bbf40ae3b7"
+      },
+      {
+        "path": "outputs/reviews/testnet-release-candidate/spec-tests.log",
+        "sha256": "0x2c013098616db3612edf0db4c06679c4b5e9b364ba73d8cd5be8132ea332e7f6"
+      },
+      {
+        "path": "outputs/reviews/testnet-release-candidate/tool-tests.log",
+        "sha256": "0x6b8068a032b49618220be9f481c601aa9fbdb49493ba63b54d490866f778616b"
+      },
+      {
+        "path": "package.json",
+        "sha256": "0xd12335fff0d6b69455fdeb7eddc8a99cbfd4290a0e22c8567f74285a8bae3ea3"
+      },
+      {
+        "path": "spec/generate_v1_artifact_manifest.py",
+        "sha256": "0xe078900b80fec71498ccee9a323483372c8fa3d739d0698f4169ae2e2283957a"
+      },
+      {
+        "path": "spec/generate_v1_backing_targets.py",
+        "sha256": "0x75d207cff3ae840585028b7bddfd328542aedb172abd9c0b8a1d16b3290682be"
+      },
+      {
+        "path": "spec/generate_v1_canonical_abi.py",
+        "sha256": "0x21398e413142e32dacd26ebaa24bdb6cde85f70bd6015e2fdd4301f26553f271"
+      },
+      {
+        "path": "spec/generate_v1_chainlink_feed_directory.py",
+        "sha256": "0x832a56d468f98263ee52526942ce0f482880ab10d8e195c012bb8bd1edf63930"
+      },
+      {
+        "path": "spec/generate_v1_hash_vectors.py",
+        "sha256": "0x5ab9ef0fa5f941cfe801c4a1aeef7d0f98400b970bb9c793c287d50215aa9c77"
+      },
+      {
+        "path": "spec/generate_v1_interfaces.py",
+        "sha256": "0xb5b7adf971c1c932ef7bd8653d23e46a492bcbaf5ad565255434ede7591733ad"
+      },
+      {
+        "path": "spec/generate_v1_product_artifacts.py",
+        "sha256": "0x9620f3c77c255c7d917fb6a28870574825334fbb26059b2913798c53b557c0b1"
+      },
+      {
+        "path": "spec/generate_v1_rh_stock_catalog.py",
+        "sha256": "0x31287818d5eb1e391f5bbfaac5132f1b864e8f6359ad9bb8656a31d525250ff4"
+      },
+      {
+        "path": "spec/generate_v1_solidity_draft.py",
+        "sha256": "0x978086ac51895b355b29d8fdfa61a7fb71b44d0a1dbdfc124589186ef47d03c3"
+      },
+      {
+        "path": "spec/generate_v1_test_fixtures.py",
+        "sha256": "0x01bd1b1f61c75d3a81fc3f89b140c973a20888f316d0c11222f2e4f74b01015b"
+      },
+      {
+        "path": "spec/test_v1_execution_spec.py",
+        "sha256": "0xb2fc23a201ee713f61c0439baf01a9c7661ecaab7a78fa74b28bc89961afe4d7"
+      },
+      {
+        "path": "spec/v1_abi_surface.json",
+        "sha256": "0x1b7000ca72bf6bbce3c647cab8ab0ea5bd4d093022956db72cbd3b409865fdd7"
+      },
+      {
+        "path": "spec/v1_backing_target_input.json",
+        "sha256": "0x493d710d15eb6d2f7c3ec97232ec17df34abf65c2dd830052b1f2de15947d25e"
+      },
+      {
+        "path": "spec/v1_beacon_proxy_templates.json",
+        "sha256": "0x28981580581aba3ce3dcfb1df59308e2379195d21fc6f1d9bd84c5183a3e7b58"
+      },
+      {
+        "path": "spec/v1_canonical_abi.json",
+        "sha256": "0xe87744e4590fe4e5b802b2566d9440dbe4a5a7c58024cfafa73f2fd69a94b659"
+      },
+      {
+        "path": "spec/v1_chainlink_feed_directory.snapshot.json",
+        "sha256": "0xc22f359e6764fd1e0666217a8bfc456c72325d273a3f0203378d0f2155f7c114"
+      },
+      {
+        "path": "spec/v1_chainlink_feed_directory.source.json",
+        "sha256": "0x2ae1ea5f432cab06904134759033d7c6434c323171f954120c4933fdde42e85d"
+      },
+      {
+        "path": "spec/v1_compiled_interface_manifest.json",
+        "sha256": "0xc9444ae077208204f1cf86ca5e35a2eeab527ffb32d139b1382b179d02dacd66"
+      },
+      {
+        "path": "spec/v1_execution_manifest.json",
+        "sha256": "0x371c32e79216c83a512baf314cd398bdd80e3b98a1f71cc30690491e86206282"
+      },
+      {
+        "path": "spec/v1_g0_external_evidence.json",
+        "sha256": "0x611dd1fa6dc725f445a9e4e5ef7300f867d9bf4b83840443074c18ecb8373aab"
+      },
+      {
+        "path": "spec/v1_g0_recommendations.json",
+        "sha256": "0x6a946ac2aa0b53a5c052b008e2fa511b8f7c2ba84c4eeb641de322864d2f2091"
+      },
+      {
+        "path": "spec/v1_hash_schemas.json",
+        "sha256": "0x9dad473a68903c481b72ac97511f88b90bf9742fd195d9c1134430e7d38aa64e"
+      },
+      {
+        "path": "spec/v1_initial_quote_configs.json",
+        "sha256": "0x3193b973e4f410d056c868efd3875badd1d833874c45e73dafb828c51223bd87"
+      },
+      {
+        "path": "spec/v1_numeric_bounds.json",
+        "sha256": "0xaf22ab324686a22429bc10ee2f7f0202d098dc401a7cf5f078362627eb9c0fac"
+      },
+      {
+        "path": "spec/v1_permissions_matrix.json",
+        "sha256": "0xdf8e9561c17bd046c62da5e38eee1372acbb899b42b208ffe4af24b58a791b09"
+      },
+      {
+        "path": "spec/v1_pons_behavior_vectors.json",
+        "sha256": "0xc442340028600ef10a51cc7f1616c44b7d082a0d19519050ec10005d7a4f3b82"
+      },
+      {
+        "path": "spec/v1_pons_runtime_evidence.json",
+        "sha256": "0x02e1f044f3cf681ece7a7909a3114149aaaabf7426b26f6a9d9dbd213f84c92e"
+      },
+      {
+        "path": "spec/v1_product_artifact_manifest.json",
+        "sha256": "0x1abf6be41be56ffe4e695d59873b9b0225121f6437438ed007216f365be09760"
+      },
+      {
+        "path": "spec/v1_reference_model.py",
+        "sha256": "0xa41120111ed3b819b34738297f5786d0884678b7d90e7d2386f787763c2b6aba"
+      },
+      {
+        "path": "spec/v1_rh_official_stock_catalog.snapshot.json",
+        "sha256": "0x6bd5edcf6eb17e7a2c2a7ef1afa636df0d5fc05c23b77cc9153c287e3582d5ff"
+      },
+      {
+        "path": "spec/v1_rh_official_stock_catalog.source.json",
+        "sha256": "0xb4fe914d1fe7c44e3aa192aa0d673952696add4aa30b2afc4338187988939188"
+      },
+      {
+        "path": "spec/v1_treasury_execution_manifest.json",
+        "sha256": "0xc2f9079e9748374df2a764941a138d8804cae9d06f9ef2dbdde4212dc056f007"
+      },
+      {
+        "path": "spec/v1_treasury_hash_vectors.json",
+        "sha256": "0x4fae1ac2e2eea3317b15a1a0420e973f8920628ab090a79f2304920432fa6083"
+      },
+      {
+        "path": "tools/check-v1-ci-tracks.mjs",
+        "sha256": "0x01f79f6bbd74f5ae71d1f9a9c43fd417ed01952055790ffd928c3ce0c23c394f"
+      },
+      {
+        "path": "tools/check-v1-ci-tracks.test.mjs",
+        "sha256": "0x9b3d6f8b63c29c77b364077c46ac56e043d8fe568c18c9085b151fb03a79e339"
+      },
+      {
+        "path": "tools/robinhood-rpc-compat-proxy.mjs",
+        "sha256": "0x6f0b37ca8bea8698d875ace4504add1f600a0f8e64a6cc52abdcfad39b89a6ec"
+      },
+      {
+        "path": "tools/robinhood-rpc-compat-proxy.test.mjs",
+        "sha256": "0x0dbb320326230aad057df65ce886a98cc03f6da51a2e750cac8f78e76f79dec0"
+      },
+      {
+        "path": "tools/run-forge.mjs",
+        "sha256": "0x93c85ac013cb038b818057e001a3d54f2a07b850f2a03055d727281ae5645e1c"
+      }
+    ]
+  },
+  "orchestrationEvidence": {
+    "ordinaryComponentCount": 16,
+    "atomicRollback": true,
+    "deterministicRetry": true,
+    "oneShot": true,
+    "hookMask": "0x2044",
+    "testsPassed": 3
+  },
+  "forkEvidence": {
+    "chainId": 4663,
+    "l2BlockNumber": "55165256",
+    "l2BlockHash": "0xc6c62c0bc02d8a2e71d1898213cdd3f7606a957de11827e5df6646bca1d16ed7",
+    "l1BlockNumber": "25911498",
+    "testPath": "contracts/test/v1/fork/V1ProductForkE2E.t.sol",
+    "result": "PASSED",
+    "realStockToken": "0xd95B44124e475743a7589e68F3D74008A5536D44",
+    "realBeacon": "0xe10b6f6B275de231345c20D14Ab812db62151b00",
+    "realImplementation": "0xb35490d6f9163DE4F80d88dc75c3516eb64C5aE2",
+    "realPoolManager": "0x8366a39CC670B4001A1121B8F6A443A643e40951",
+    "realPositionManager": "0x58daec3116aae6D93017bAAea7749052E8a04fA7",
+    "stockQuoteAdmissionExercised": true,
+    "atomicGraduationExercised": true,
+    "rageQuitExercised": true,
+    "syntheticStockBalanceFunding": true
+  },
+  "commands": [
+    {
+      "id": "C1",
+      "command": "node tools/run-forge.mjs build --force; product and compiled interface manifests --check",
+      "result": "PASS"
+    },
+    {
+      "id": "C2",
+      "command": "node tools/run-forge.mjs test --no-match-path test/v1/fork/** (794 passed, including deterministic orchestration and invariants)",
+      "result": "PASS"
+    },
+    {
+      "id": "C3",
+      "command": "npm run check:deployment-track (55 deployment tests and live dependency check)",
+      "result": "PASS"
+    },
+    {
+      "id": "C4",
+      "command": "python3 spec/generate_v1_interfaces.py --check; python3 spec/generate_v1_artifact_manifest.py --check",
+      "result": "PASS"
+    },
+    {
+      "id": "C5",
+      "command": "npm --prefix deployments run check:testnet-plan-live (executed by deployment track)",
+      "result": "PASS"
+    },
+    {
+      "id": "C6",
+      "command": "node /tmp/tg-fast-fork.mjs; archived as outputs/reviews/testnet-release-candidate/fork-run-used.mjs; 2 passed against pinned real state",
+      "result": "PASS"
+    },
+    {
+      "id": "C7",
+      "command": "node --test tools/robinhood-rpc-compat-proxy.test.mjs; node --test tools/check-v1-ci-tracks.test.mjs tools/robinhood-rpc-compat-proxy.test.mjs",
+      "result": "PASS"
+    },
+    {
+      "id": "C8",
+      "command": "npm --prefix deployments test (56 passed); python3 -m unittest spec/test_v1_execution_spec.py (62 passed); node tools/run-forge.mjs fmt --check",
+      "result": "PASS"
+    }
+  ],
+  "gates": [
+    {
+      "gateId": "V1-DEPLOY-CHAIN-SNAPSHOT-01",
+      "status": "CLOSED",
+      "evidenceRefs": [
+        "C5",
+        "testnetChainEvidence",
+        "externalDependencies"
+      ]
+    },
+    {
+      "gateId": "V1-DEPLOY-ARTIFACT-CODEHASH-01",
+      "status": "CLOSED",
+      "evidenceRefs": [
+        "C1",
+        "artifactEvidence"
+      ]
+    },
+    {
+      "gateId": "V1-DEPLOY-CREATE2-VECTORS-01",
+      "status": "CLOSED",
+      "evidenceRefs": [
+        "C2",
+        "orchestrationEvidence"
+      ]
+    },
+    {
+      "gateId": "V1-DEPLOY-HOOK-MASK-01",
+      "status": "CLOSED",
+      "evidenceRefs": [
+        "C2",
+        "orchestrationEvidence.hookMask"
+      ]
+    },
+    {
+      "gateId": "V1-DEPLOY-PERMISSIONS-01",
+      "status": "CLOSED",
+      "evidenceRefs": [
+        "C3",
+        "spec/v1_permissions_matrix.json"
+      ]
+    },
+    {
+      "gateId": "V1-DEPLOY-ABI-DIFF-01",
+      "status": "CLOSED",
+      "evidenceRefs": [
+        "C4",
+        "spec/v1_compiled_interface_manifest.json",
+        "spec/v1_canonical_abi.json"
+      ]
+    },
+    {
+      "gateId": "V1-DEPLOY-PRODUCT-FORK-E2E-01",
+      "status": "CLOSED",
+      "evidenceRefs": [
+        "C6",
+        "forkEvidence"
+      ]
+    }
+  ],
+  "limitations": [
+    "No transactions were broadcast. Technical testnet readiness is not production readiness or broadcast authorization.",
+    "The 46630 dependency addresses are project-pinned test dependencies, not an official Uniswap deployment claim.",
+    "Testnet dependency code was checked at latest; block headers include finalized evidence. Refresh immediately before broadcast.",
+    "Fork block is a fixed recent mainnet block. Official header hash and stateRoot were cross-checked with BlockReq. BlockReq omits l1BlockNumber; the adapter restored only that field from the identical official block header retained in the evidence.",
+    "Public BlockReq serves only the most recent 1024 blocks. Long-lived repeatability requires an archive-capable RPC; recorded passing results do not imply the public endpoint will retain this block.",
+    "The real CRM balance was synthetically funded. The holder Root used an explicitly synthetic one-holder TWAB attestation to test contract workflow, not the production root generator output.",
+    "Both sharing disabled and sharing enabled with 500bps creator tax passed real atomic creation/graduation; enabled case includes real PoolManager trade, holder conversion, original-epoch funding and claim.",
+    "Final operator addresses, release ID and payload must be reviewed before issuing the 24-hour v1-current-release.json broadcast certificate. No such certificate was issued.",
+    "All eight production gates remain open."
+  ],
+  "applicability": {
+    "status": "STALE",
+    "reason": "Optional immutable stock staking changes the ABI and runtime; this report remains evidence for commit a5cd19b only."
+  }
+}

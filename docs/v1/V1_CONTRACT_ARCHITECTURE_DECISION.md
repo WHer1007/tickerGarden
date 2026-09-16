@@ -1,6 +1,6 @@
 # TickerGarden V1 合约架构优化决策
 
-> **当前实现（2026-09-04）：** `V1-EXEC-10` 已实现部署后市场永久自治与最终买入原子毕业；`launchPhase` 只允许 `NotGraduated -> PoolCreated`，用户 `rageQuit` 随时即时取回本金，奖励异步处理。目标链部署与独立审计仍开放。
+> **当前实现（2026-09-04）：** `V1-EXEC-11` 已实现部署后市场永久自治与最终买入原子毕业；`launchPhase` 只允许 `NotGraduated -> PoolCreated`，用户 `rageQuit` 随时即时取回本金，奖励异步处理。目标链部署与独立审计仍开放。
 
 手续费架构更新：总协议手续费维持 1%，不再切出 LP 协议手续费；Active 分支为 Creator40/Staker30/Platform30，无 Active 分支为 Creator70/Staker0/Platform30，向下取整余数归 Creator。Hook 不再 donate，LaunchLocker 不再 collect/compound，手续费统一由 FeeVault 记账。canonical LP 继续永久锁定但无协议 LP 手续费。该取舍消除基于即时池价的复投/捐赠与 JIT 经济风险，并减少链上 gas 和 keeper 运维面。
 
@@ -14,12 +14,12 @@
 
 ```text
 ApprovedQuoteRegistry ─┐
-PonsBaselineRegistry ──┼─> LaunchConfigResolver（只读、无缓存、可选调用面）
+TickerGardenBaselineRegistry ──┼─> LaunchConfigResolver（只读、无缓存、可选调用面）
 LaunchTemplateRegistry ┘
 
 TickerGardenFactoryV1
 ├─ TickerMemeTokenV1：每市场完整 CREATE2 合约
-├─ PonsCompatibleCurve：每市场完整 CREATE2 合约
+├─ TickerGardenCurve：每市场完整 CREATE2 合约
 ├─ MemeStockGauge：一个固定 implementation + 每市场 immutable-args CREATE2 clone
 └─ LaunchLocker：每个毕业市场一个完整、独立 CREATE2 合约
 ```
@@ -35,7 +35,7 @@ TickerGardenFactoryV1
 - 独立 selector 权限、暂停和退休状态机；
 - 任一 Registry 缺陷不直接改写其他配置类型；
 - 原有事件和索引语义不迁移；
-- Web/运维可一次读取 `QuoteAssetConfig + PonsBaseline + LaunchTemplate`；
+- Web/运维可一次读取 `QuoteAssetConfig + TickerGardenBaseline + LaunchTemplate`；
 - Registry 返回值始终是实时权威值，不存在缓存漂移。
 
 因此，Resolver 是管理面的聚合，不是安全边界的合并。
@@ -74,7 +74,7 @@ Token 与 Curve 的构造过程本身承担安全职责：固定供应直接铸�
 
 ## 5. 为什么 LaunchLocker 保持每市场完整独立
 
-LaunchLocker 与 Gauge 的风险性质不同。Locker 仅永久持有具体市场的 Position NFT 以及意外直接转入的 Quote/Meme 余额；核心 LP fee 与协议 LP 分成都固定为0，也不存在 collect、Permit2 授权或同仓复投。继续按市场隔离 Locker，主要是为了让 tokenId、PoolKey、资产归属和永久托管边界保持一一对应，避免共享合约把多个市场集中到同一托管故障域。
+LaunchLocker 与 Gauge 的风险性质不同。Locker 仅永久持有具体市场的 Position NFT 以及意外直接转入的 Quote/Meme 余额；原生 LP fee 在创建时选择 0/1000/2000/3000 pips，协议 LP 分成固定为0；新版支持公开手续费归集和仅 Keeper 可调用的同仓复投，临时 Permit2 授权在操作结束后清零。继续按市场隔离 Locker，主要是为了让 tokenId、PoolKey、资产归属和永久托管边界保持一一对应，避免共享合约把多个市场集中到同一托管故障域。
 
 每市场完整 Locker 虽然增加毕业交易 Gas 和地址数量，但换来：
 
@@ -112,7 +112,7 @@ LaunchLocker 与 Gauge 的风险性质不同。Locker 仅永久持有具体市�
 - TOKEN、CURVE、LOCKER 仍标记为 `FULL_CREATE2`；
 - 所有 CREATE2 冲突必须回滚，禁止 nonce fallback。
 
-当前本地实现和测试不等于可部署状态。RH Testnet 仍需完成目标链外部依赖快照、真实部署清单、AccessManager 安装、固定区块 Fork/E2E、源码验证、独立审计和 canary soak。
+当前架构已达到 `DEPLOYMENT_ELIGIBLE`：RH Testnet 外部依赖快照、artifact/CREATE2/Hook/权限/ABI 证据和固定区块 Fork/E2E 已闭合。尚未广播交易；实际部署清单、AccessManager 安装与撤权、源码验证、独立审计和 canary soak 仍分别属于广播后或 production work。
 
 ## 8. 必须持续成立的不变量
 

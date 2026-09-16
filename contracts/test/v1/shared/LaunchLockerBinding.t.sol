@@ -17,11 +17,11 @@ contract LaunchLockerRegistryMock {
         _value = MarketView({
             config: MarketConfig({
                 assetUid: bytes32("ASSET"),
-                ponsBaselineId: bytes32("PONS"),
+                tickerGardenBaselineId: bytes32("TICKERGARDEN"),
                 quoteAssetConfigId: bytes32("QUOTE"),
                 launchTemplateId: bytes32("TEMPLATE"),
                 feePolicyId: bytes32("FEE"),
-                executionSpecId: keccak256("V1-EXEC-10"),
+                executionSpecId: keccak256("V1-EXEC-11"),
                 expectedEconomics: bytes32("ECON"),
                 launchConfigId: 0,
                 creatorRevenueBeneficiaryAtCreation: address(0xBEEF),
@@ -29,8 +29,13 @@ contract LaunchLockerRegistryMock {
                 curve: address(0x4000),
                 gauge: address(0x5000),
                 quoteAsset: address(0x2000),
-                graduatedHook: address(0x2044)
-            }),
+                graduatedHook: address(0x2044),
+                creatorTaxBps: 0,
+                creatorFeesToHolders: false,
+                stakingEnabled: true,
+                burnMemeFees: false,
+            lpFeePips: 0
+        }),
             runtime: MarketRuntime({poolId: existingPool, sourceVersion: 1, launchPhase: phase})
         });
         _key = PoolKey({

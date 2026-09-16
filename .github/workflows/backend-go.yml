@@ -1,0 +1,71 @@
+name: Historical Go Backend Reference
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: services/backend-go
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: tickergarden
+          POSTGRES_PASSWORD: tickergarden_ci
+          POSTGRES_DB: postgres
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U tickergarden -d postgres"
+          --health-interval 5s --health-timeout 3s --health-retries 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: services/backend-go/go.mod
+          cache-dependency-path: services/backend-go/go.sum
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22.22.0"
+      - uses: foundry-rs/foundry-toolchain@v1
+        with:
+          version: v1.8.1
+      - name: Restore pinned Solidity dependencies and build ABI inputs
+        working-directory: contracts
+        run: |
+          node scripts/sync-dependencies.mjs
+          FOUNDRY_PROFILE=v1 forge build
+      - name: Install pinned test encoder dependencies
+        working-directory: apps/web
+        run: npm ci
+      - name: Verify candidate claim hashes against Solidity
+        run: make treasury-solidity-check
+      - name: Verify API contract and independent reference vectors
+        run: make contract-check
+      - name: Verify module checksums and tidy state
+        run: |
+          go mod verify
+          go mod tidy
+          git diff --exit-code -- go.mod go.sum
+      - name: Format, vet, race tests and build
+        run: make verify
+      - name: PostgreSQL migrations, journal reorg, snapshot publication and readiness integration
+        env:
+          TG_TEST_DATABASE_URL: postgres://tickergarden:tickergarden_ci@localhost:5432/postgres?sslmode=disable
+        run: make integration
+      - name: Install local PostgreSQL tools for isolated chain smoke
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y postgresql
+          echo "$(pg_config --bindir)" >> "$GITHUB_PATH"
+      - name: Anvil journal and persistent discovery smoke
+        run: make smoke-chain smoke-gauge smoke-vault smoke-holder
+      - name: Actual FeeVault and Gauge execution evidence (ERC20 and native quote)
+        run: make smoke-execution-evidence
+      - name: Build container
+        run: docker build -t tickergarden-backend:ci .

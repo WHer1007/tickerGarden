@@ -3,21 +3,33 @@ import { readFileSync } from "node:fs";
 import { test } from "node:test";
 
 import { assertV1DeploymentManifest, validateV1DeploymentManifestSchema } from "../src/index.ts";
+import { V1_DEPLOYMENT_GATE_IDS } from "../src/v1/testnet-plan.ts";
 import { address, clone, compiled, hash, permissions, validManifest, type JsonRecord } from "./manifest-fixture.ts";
 
 const deploymentSchema = JSON.parse(readFileSync(new URL("../schemas/v1-deployment-manifest.schema.json", import.meta.url), "utf8")) as JsonRecord;
 const executionManifest = JSON.parse(readFileSync(new URL("../../spec/v1_execution_manifest.json", import.meta.url), "utf8")) as { readiness: { gateSets: { deployment: { open: string[] } } } };
 
-test("accepts a complete V1-EXEC-10 deployment candidate and native zero sentinel", () => {
+test("accepts a complete V1-EXEC-11 deployment candidate and native zero sentinel", () => {
   const candidate = validManifest();
   assert.deepEqual(validateV1DeploymentManifestSchema(candidate), { valid: true, errors: [] });
   assert.doesNotThrow(() => assertV1DeploymentManifest(candidate));
 });
 
+test("accepts chain 46630 only as a non-production deployment candidate", () => {
+  const testnet = clone(validManifest());
+  (testnet.chain as JsonRecord).chainId = 46630;
+  (testnet.chain as JsonRecord).network = "Robinhood Chain Testnet";
+  assert.deepEqual(validateV1DeploymentManifestSchema(testnet), { valid: true, errors: [] });
+  assert.doesNotThrow(() => assertV1DeploymentManifest(testnet));
+
+  testnet.releaseStatus = "PRODUCTION_CANDIDATE";
+  assert.equal(validateV1DeploymentManifestSchema(testnet).valid, false);
+});
+
 test("schema cardinalities and identities remain aligned with canonical machine manifests", () => {
   const rootProperties = deploymentSchema.properties as JsonRecord;
   const protocolModules = rootProperties.protocolModules as JsonRecord;
-  assert.deepEqual([...(protocolModules.required as string[])].sort(), compiled.modules.map(({ target }) => target).sort());
+  assert.deepEqual([...(protocolModules.required as string[])].sort(), [...compiled.modules.map(({ target }) => target), "HolderRewardsDistributorV1"].sort());
   const definitions = deploymentSchema.$defs as JsonRecord;
   const accessProperties = (definitions.accessManagerEvidence as JsonRecord).properties as JsonRecord;
   const protocolPermissions = accessProperties.protocolPermissions as JsonRecord;
@@ -28,7 +40,8 @@ test("schema cardinalities and identities remain aligned with canonical machine 
   assert.equal(administrativePermissions.minItems, adminCount);
   assert.equal(administrativePermissions.maxItems, adminCount);
   const gateIds = [...((definitions.deploymentGateId as JsonRecord).enum as string[])].sort();
-  assert.deepEqual(gateIds, [...executionManifest.readiness.gateSets.deployment.open].sort());
+  assert.deepEqual(gateIds, [...V1_DEPLOYMENT_GATE_IDS].sort());
+  assert.ok(executionManifest.readiness.gateSets.deployment.open.every(id => gateIds.includes(id)));
 });
 
 test("rejects missing chain evidence and missing canonical modules", () => {
@@ -60,12 +73,12 @@ test("rejects ERC20 zero addresses, invalid Hook permissions, and incomplete CRE
   assert.equal(validateV1DeploymentManifestSchema(fullGauge).valid, false);
 });
 
-test("first release schema rejects every upgradeable ERC20 Quote kind", () => {
+test("release schema accepts administrator-reviewed ERC20 proxy kinds", () => {
   for (const proxyKind of ["ERC1967", "BEACON", "OTHER_VERIFIED"]) {
     const candidate = clone(validManifest());
     candidate.quoteAssets = [{
       configId: hash("erc20-quote"),
-      ponsBaselineId: hash("baseline"),
+      tickerGardenBaselineId: hash("baseline"),
       economicsHash: hash("erc20-economics"),
       assetKind: "ERC20",
       tokenAddress: "0x1234567890abcdef1234567890abcdef12345678",
@@ -79,7 +92,7 @@ test("first release schema rejects every upgradeable ERC20 Quote kind", () => {
       observationBlockHash: hash("erc20-observation"),
       exactBalanceDeltaEvidenceHash: hash("erc20-balance-delta"),
     }];
-    assert.equal(validateV1DeploymentManifestSchema(candidate).valid, false, proxyKind);
+    assert.equal(validateV1DeploymentManifestSchema(candidate).valid, true, proxyKind);
   }
 });
 
@@ -102,7 +115,29 @@ test("accepts DIRECT Official Stock shape and rejects beacon leakage or missing 
   assert.equal(validateV1DeploymentManifestSchema(missingKind).valid, false);
 });
 
-test("requires exactly 83 protocol and 6 AccessManager permissions", () => {
+test("accepts a complete OFFICIAL_STOCK Quote and rejects incomplete or non-Beacon shapes", () => {
+  const candidate = clone(validManifest());
+  const stock = (candidate.officialStocks as JsonRecord[])[0]!;
+  candidate.quoteAssets = [{
+    configId: hash("stock-quote"), tickerGardenBaselineId: hash("baseline"), economicsHash: hash("stock-economics"),
+    assetKind: "OFFICIAL_STOCK", assetUid: stock.assetUid, tokenAddress: stock.tokenAddress, decimals: stock.decimals,
+    phantomQuote: "1000000", graduationThreshold: "2000000", stockTokenFingerprintHash: hash("fingerprint"),
+    referenceEvidenceHash: hash("reference"), generatorPolicyId: hash("generator"), runtimeCodeHash: stock.runtimeCodeHash,
+    proxyKind: "IMMUTABLE_BEACON", beaconAddress: stock.beaconAddress, beaconCodeHash: stock.beaconCodeHash,
+    implementationAddress: stock.implementationAddress, implementationCodeHash: stock.implementationCodeHash,
+    observationBlockHash: hash("observation"), exactBalanceDeltaEvidenceHash: hash("balance-delta"),
+  }];
+  assert.equal(validateV1DeploymentManifestSchema(candidate).valid, true);
+
+  const missingFingerprint = clone(candidate);
+  delete (missingFingerprint.quoteAssets as JsonRecord[])[0]!.stockTokenFingerprintHash;
+  assert.equal(validateV1DeploymentManifestSchema(missingFingerprint).valid, false);
+  const wrongProxy = clone(candidate);
+  (wrongProxy.quoteAssets as JsonRecord[])[0]!.proxyKind = "NONE";
+  assert.equal(validateV1DeploymentManifestSchema(wrongProxy).valid, false);
+});
+
+test("requires exactly 88 protocol and 6 AccessManager permissions", () => {
   const candidate = clone(validManifest());
   const manager = candidate.accessManager as JsonRecord;
   manager.protocolPermissions = (manager.protocolPermissions as unknown[]).slice(1);
@@ -136,4 +171,25 @@ test("rejects unknown fields, placeholders, low-entropy identifiers, and incompl
   const lowEntropy = clone(validManifest());
   (lowEntropy.chain as JsonRecord).finalizedBlockHash = `0x${"11".repeat(32)}`;
   assert.throws(() => assertV1DeploymentManifest(lowEntropy), /contains placeholders/);
+});
+
+test("Arbitrum Sepolia can only be a test deployment candidate, never the production target", () => {
+  const candidate = clone(validManifest());
+  (candidate.chain as JsonRecord).chainId = 421614;
+  (candidate.chain as JsonRecord).network = "Arbitrum Sepolia";
+  assert.deepEqual(validateV1DeploymentManifestSchema(candidate), { valid: true, errors: [] });
+  assert.doesNotThrow(() => assertV1DeploymentManifest(candidate));
+  candidate.releaseStatus = "PRODUCTION_CANDIDATE";
+  assert.equal(validateV1DeploymentManifestSchema(candidate).valid, false);
+});
+
+test('deployment schema permits exactly the creator static LP fee tiers',()=>{
+ for(const fee of [0,1000,2000,3000,500,4000,8388608]) {
+  const candidate=clone(validManifest());
+  const hook=candidate.hook as JsonRecord;
+  hook.poolKeyFee=fee;hook.requiredSlot0LpFee=fee;
+  const probe=(candidate.livePreflight as JsonRecord).marketProbe as JsonRecord;
+  (probe.poolKey as JsonRecord).fee=fee;
+  assert.equal(validateV1DeploymentManifestSchema(candidate).valid,[0,1000,2000,3000].includes(fee));
+ }
 });

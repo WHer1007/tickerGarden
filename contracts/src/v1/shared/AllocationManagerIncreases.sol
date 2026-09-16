@@ -14,7 +14,7 @@ import {
 } from "../interfaces/IV1Protocol.sol";
 
 /// @notice Shared allocate/increase path for the final AllocationManager.
-/// @dev Quote status intentionally does not gate an existing PoolCreated market: V1-EXEC-10 limits later Quote
+/// @dev Quote status intentionally does not gate an existing PoolCreated market: V1-EXEC-11 limits later Quote
 ///      status changes to new-market admission. Deployed markets have no platform-controlled runtime status.
 abstract contract AllocationManagerIncreases is ReentrancyGuard {
     uint8 internal constant ASSET_STATUS_ACTIVE = 1;
@@ -104,6 +104,7 @@ abstract contract AllocationManagerIncreases is ReentrancyGuard {
     {
         if (marketId == bytes32(0)) revert StockAllocationClosed(marketId);
         marketView = _marketRegistry.market(marketId);
+        if (!marketView.config.stakingEnabled) revert StockAllocationClosed(marketId);
         assetView = _officialStockRegistry.asset(marketView.config.assetUid);
         if (
             assetView.status == 0 || assetView.status > 3 || assetView.tokenDecimals < 6 || assetView.tokenDecimals > 18

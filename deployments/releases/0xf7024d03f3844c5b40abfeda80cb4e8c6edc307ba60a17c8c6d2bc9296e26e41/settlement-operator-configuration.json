@@ -1,0 +1,17 @@
+{
+  "schemaVersion": 1,
+  "chainId": 46630,
+  "releaseId": "0xf7024d03f3844c5b40abfeda80cb4e8c6edc307ba60a17c8c6d2bc9296e26e41",
+  "action": "CONFIGURE_SETTLEMENT_OPERATOR",
+  "treasury": "0xD84897cD860Da0B51D39a252961B18D54fBbb266",
+  "feeVault": "0xA6AAeddd288578D11b99F9fbFBCAf8eb113Ac38C",
+  "operator": "0xA6c3298a5559544c3b4cf8e6DC5f349f4be524ea",
+  "nonce": 20,
+  "transactionHash": "0xd63216bfde134892a4f912bd437e0d7b7d7a52f1e953781ac1b90e14abf896fa",
+  "status": "CONFIRMED_VERIFIED",
+  "blockNumber": "115011151",
+  "blockHash": "0x4ae1eaa5ef9592afc2a65ab7f4d98e38694256c6d01449bb6d0a3d548a16f108",
+  "gasUsed": "41934",
+  "effectiveGasPrice": "10000000",
+  "feeWei": "419340000000"
+}

@@ -36,6 +36,8 @@ abstract contract UserStockVaultRewardAccounting is UserStockVaultDeposits {
         bytes32 assetUid => mapping(bytes32 marketId => RewardActivationSlot[REWARD_ACTIVATION_WHEEL_SIZE] slots)
     ) internal _rewardActivationWheels;
     mapping(bytes32 assetUid => mapping(bytes32 marketId => uint256 amount)) internal _storedRewardActive;
+    // Monotonic history: a later matured pending bucket must not hide a zero-active boundary.
+    mapping(bytes32 assetUid => mapping(bytes32 marketId => uint256 epoch)) internal _rewardCohortEpochs;
     mapping(bytes32 assetUid => mapping(bytes32 marketId => uint256 amount)) internal _rewardPending;
     mapping(
         bytes32 assetUid => mapping(address user => mapping(bytes32 marketId => RewardEligibilityPosition value))
@@ -97,6 +99,9 @@ abstract contract UserStockVaultRewardAccounting is UserStockVaultDeposits {
             revert RewardEligibilityLedgerMismatch(storedActive, activeAmount);
         }
         _storedRewardActive[assetUid][marketId] = storedActive - activeAmount;
+        if (activeAmount != 0 && activeAmount == storedActive) {
+            ++_rewardCohortEpochs[assetUid][marketId];
+        }
         delete _rewardEligibilityPositions[assetUid][user][marketId];
     }
 
@@ -120,8 +125,7 @@ abstract contract UserStockVaultRewardAccounting is UserStockVaultDeposits {
     function _snapshotRageQuitRewardCutoff(bytes32 assetUid, address user, bytes32 marketId) internal {
         RewardAccumulatorPair storage latest = _latestRewardAccumulators[assetUid][marketId];
         _rageQuitRewardCutoffs[assetUid][user][marketId] = RageQuitRewardSnapshot({
-            quoteAccumulator: latest.quoteAccumulator,
-            memeAccumulator: latest.memeAccumulator
+            quoteAccumulator: latest.quoteAccumulator, memeAccumulator: latest.memeAccumulator
         });
     }
 
@@ -131,6 +135,7 @@ abstract contract UserStockVaultRewardAccounting is UserStockVaultDeposits {
 
     function _marketRewardEligible(bytes32 assetUid, bytes32 marketId) internal view returns (uint256 total) {
         total = _storedRewardActive[assetUid][marketId];
+        if (_rewardPending[assetUid][marketId] == 0) return total;
         RewardActivationSlot[REWARD_ACTIVATION_WHEEL_SIZE] storage wheel = _rewardActivationWheels[assetUid][marketId];
         for (uint8 i; i < REWARD_ACTIVATION_WHEEL_SIZE; ++i) {
             RewardActivationSlot storage slot = wheel[i];
@@ -141,20 +146,21 @@ abstract contract UserStockVaultRewardAccounting is UserStockVaultDeposits {
     function _rageQuitRewardCutoff(bytes32 assetUid, address user, bytes32 marketId)
         internal
         view
-        returns (uint256 quoteAccumulator, uint256 memeAccumulator, bool forfeitureRedistributable)
+        returns (uint256 quoteAccumulator, uint256 memeAccumulator)
     {
         RageQuitRewardSnapshot storage cutoff = _rageQuitRewardCutoffs[assetUid][user][marketId];
         quoteAccumulator = cutoff.quoteAccumulator;
         memeAccumulator = cutoff.memeAccumulator;
-        // Keep the return slot for source/ABI compatibility, but V1 escape forfeitures are always platform-owned.
-        forfeitureRedistributable = false;
     }
 
     function _checkpointRewardEligibility(bytes32 assetUid, bytes32 marketId) private {
+        if (_rewardPending[assetUid][marketId] == 0) return;
         RewardActivationSlot[REWARD_ACTIVATION_WHEEL_SIZE] storage wheel = _rewardActivationWheels[assetUid][marketId];
         for (uint8 i; i < REWARD_ACTIVATION_WHEEL_SIZE; ++i) {
-            RewardActivationSlot memory slot = wheel[i];
-            if (slot.generation == 0 || slot.generation > block.timestamp) continue;
+            RewardActivationSlot storage stored = wheel[i];
+            uint64 generation = stored.generation;
+            if (generation == 0 || generation > block.timestamp) continue;
+            RewardActivationSlot memory slot = stored;
             if (slot.amount == 0 || slot.refs == 0) {
                 revert InvalidRewardActivationSlot(i, slot.generation, slot.amount, slot.refs);
             }

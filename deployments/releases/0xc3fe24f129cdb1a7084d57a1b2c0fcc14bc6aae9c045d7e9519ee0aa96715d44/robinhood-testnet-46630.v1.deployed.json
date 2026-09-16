@@ -1,0 +1,173 @@
+{
+  "status": "DEPLOYED_VERIFIED_ACTIVE_TEST_ONLY",
+  "chainId": 46630,
+  "releaseId": "0xc3fe24f129cdb1a7084d57a1b2c0fcc14bc6aae9c045d7e9519ee0aa96715d44",
+  "orchestrator": "0xDAaFd689a9946dB676fDBb0F843019513BfCA961",
+  "factory": "0x28c4A042417D75c6580030eea08FE4b63b0eC6cb",
+  "hook": "0xAB979ecb013d93dE831C895D471452d882386044",
+  "executor": "0xfabe27aeDD521e03Ef3497DB8359cD0f1D035c68",
+  "helper": "0x76724A530E6DC081CEb0e376F342904f6655e528",
+  "payloadHash": "0x9b4cc0ae07117ec63355ef750c793a42ce502a62564b976917e5f3ef0779cb96",
+  "ordinaryComponents": [
+    "0xDC07C13FE0e3FF981f36F167bDbF758852b90DF9",
+    "0xe910D0D392c50f7B5057851b10872997b7617d19",
+    "0x3d8CC9ca77891E112dFF6Ad0c84EFe0839Ab1D0E",
+    "0xF5A23220645ddBcb358D6a186D1B5F7FCcAC3bE7",
+    "0x24CEDae1dcDa7c914799a5952C4Fcc72321685f7",
+    "0xdb5111899F0E83d619c39b8cB61132A046E185Ab",
+    "0x398Cd33588aD0d2EbeECCFee26AcdACE7ffD4CB6",
+    "0xEC5Ef661e615298Ec636F97209160Cb900d671ed",
+    "0x4976DCB40f866c49aE7F59B53B5495D7d35930fB",
+    "0xAbB92b57Be652f210E41F662525A695836A8A2eC",
+    "0x4D9dF59754c274B5c7740cFB82456118F1F79C56",
+    "0x5d3634E60E6970422c7A582FAbfCB92Ddc76b0D2",
+    "0xD765f638f674627fE8FAD8ad498AdE80460C6af9",
+    "0xf9773510f690503d5cC36D1B36BaD8283D4dFa52",
+    "0x89F36F889f050790aC5CE9a60A2428c93d6b9108",
+    "0x70Ae70F98125567317C4eEA05967E8Eb52bd0986"
+  ],
+  "deployer": "0xA6c3298a5559544c3b4cf8e6DC5f349f4be524ea",
+  "productionTargetChainId": 4663,
+  "networkScope": "ROBINHOOD_TESTNET_ONLY",
+  "verifiedAt": "2026-09-13T06:52:25.231Z",
+  "contracts": [
+    {
+      "name": "AccessManager",
+      "address": "0xDC07C13FE0e3FF981f36F167bDbF758852b90DF9",
+      "runtimeCodeHash": "0x22df78cfa620b7b8aa6f9ac71ba562c2b39c705601aa492655f0070e05e01343",
+      "runtimeBytes": 10445
+    },
+    {
+      "name": "OfficialStockRegistryV1",
+      "address": "0xe910D0D392c50f7B5057851b10872997b7617d19",
+      "runtimeCodeHash": "0x751123e94fb6ca199fb7af9dcb2aaf4a22fb77ee21ea0440f9ff25d861c91218",
+      "runtimeBytes": 9475
+    },
+    {
+      "name": "ApprovedQuoteRegistry",
+      "address": "0x3d8CC9ca77891E112dFF6Ad0c84EFe0839Ab1D0E",
+      "runtimeCodeHash": "0x86f6735cd6111da195c6679373ea054c16012ce2e5d5f4182642ec92510412b0",
+      "runtimeBytes": 7223
+    },
+    {
+      "name": "TickerGardenBaselineRegistry",
+      "address": "0xF5A23220645ddBcb358D6a186D1B5F7FCcAC3bE7",
+      "runtimeCodeHash": "0xc23136e5e4aeb01a3a158fb29bf3092df65f33b250d6d6f73fb46ecf5a456ac7",
+      "runtimeBytes": 2976
+    },
+    {
+      "name": "LaunchTemplateRegistry",
+      "address": "0x24CEDae1dcDa7c914799a5952C4Fcc72321685f7",
+      "runtimeCodeHash": "0x5c27485a825e09e931f968f0d445d62d414fa5cc893d2627f7968243f04d3b6d",
+      "runtimeBytes": 6291
+    },
+    {
+      "name": "LaunchConfigResolver",
+      "address": "0xdb5111899F0E83d619c39b8cB61132A046E185Ab",
+      "runtimeCodeHash": "0xceba03fdf4a2ff0f2f018c44ddcf8411057f34f3b66890a8c0d5d283bb76254a",
+      "runtimeBytes": 2165
+    },
+    {
+      "name": "TickerMemeTokenV1Implementation",
+      "address": "0x398Cd33588aD0d2EbeECCFee26AcdACE7ffD4CB6",
+      "runtimeCodeHash": "0x1f735fceab4e0369e3e0e16c20fce9e9b46488ee01745710fcb393b6ac72ee25",
+      "runtimeBytes": 5164
+    },
+    {
+      "name": "TickerGardenCurveImplementation",
+      "address": "0xEC5Ef661e615298Ec636F97209160Cb900d671ed",
+      "runtimeCodeHash": "0xe79b429ffdbcbb186632f2f3ea3361239edca7cdeba794c1ee661e5b8bf2f839",
+      "runtimeBytes": 21853
+    },
+    {
+      "name": "MemeStockGauge",
+      "address": "0x4976DCB40f866c49aE7F59B53B5495D7d35930fB",
+      "runtimeCodeHash": "0x3e3f1fcd99cab3ed17310a7197535514f590eff63ce17fb8e158e732351bce52",
+      "runtimeBytes": 12997
+    },
+    {
+      "name": "LaunchAndBuyRouter",
+      "address": "0xAbB92b57Be652f210E41F662525A695836A8A2eC",
+      "runtimeCodeHash": "0xa54ef754e2d0bf0384f32147ed664d3a70e3f843b10bb82248f3da6e39161d5e",
+      "runtimeBytes": 5854
+    },
+    {
+      "name": "MarketRegistryV1",
+      "address": "0x4D9dF59754c274B5c7740cFB82456118F1F79C56",
+      "runtimeCodeHash": "0xda8acfb50fc366297db99cfeb1f5bd8a320b53c508cc373de32c658a13798c6e",
+      "runtimeBytes": 8610
+    },
+    {
+      "name": "CreatorRevenueRegistry",
+      "address": "0x5d3634E60E6970422c7A582FAbfCB92Ddc76b0D2",
+      "runtimeCodeHash": "0x454b84a5ce4cc6678f13d4a4de226fb6ba55835183e35d148b11a221a3956143",
+      "runtimeBytes": 3400
+    },
+    {
+      "name": "AllocationManager",
+      "address": "0xD765f638f674627fE8FAD8ad498AdE80460C6af9",
+      "runtimeCodeHash": "0x4a556063d89df869c1dbc51d528d50eb304db5150fa46f42d9cf582c1eeed74b",
+      "runtimeBytes": 10429
+    },
+    {
+      "name": "UserStockVault",
+      "address": "0xf9773510f690503d5cC36D1B36BaD8283D4dFa52",
+      "runtimeCodeHash": "0xa5ae0072eaf02c0a31ff00ea7f72a117415254421db7cef4cdd34512d7735644",
+      "runtimeBytes": 12235
+    },
+    {
+      "name": "HolderRewardsDistributorV1",
+      "address": "0x89F36F889f050790aC5CE9a60A2428c93d6b9108",
+      "runtimeCodeHash": "0x4705bae056481b9c76488768f47e1f5763d6e3430e8dd5d6c5f3de8921ece3d0",
+      "runtimeBytes": 12223
+    },
+    {
+      "name": "ProtocolFeeVault",
+      "address": "0x70Ae70F98125567317C4eEA05967E8Eb52bd0986",
+      "runtimeCodeHash": "0xf82944d0c15e2dabfb5b75b400aa3250a0f7622bdc633980b6b0b0236ed7ec96",
+      "runtimeBytes": 22306
+    },
+    {
+      "name": "V1RobinhoodTestnetDeploymentOrchestrator",
+      "address": "0xDAaFd689a9946dB676fDBb0F843019513BfCA961",
+      "runtimeCodeHash": "0x4caa3b325605cf914125a215e8de5908c794f438ce20d347a3f147c8cf7ffcb0",
+      "runtimeBytes": 4480
+    },
+    {
+      "name": "V1HookExecutorDeployer",
+      "address": "0x76724A530E6DC081CEb0e376F342904f6655e528",
+      "runtimeCodeHash": "0xa984ab90a8e240949855d4ae96649aa9273cf42ed22afb8b97e9ec4e566d3c57",
+      "runtimeBytes": 2217
+    },
+    {
+      "name": "TickerGardenMemeHook",
+      "address": "0xAB979ecb013d93dE831C895D471452d882386044",
+      "runtimeCodeHash": "0x09dab4643081a11f74b3f8dde3a935e3befb893f09900c4b8d76ff5dc9c25339",
+      "runtimeBytes": 8632
+    },
+    {
+      "name": "GraduationExecutor",
+      "address": "0xfabe27aeDD521e03Ef3497DB8359cD0f1D035c68",
+      "runtimeCodeHash": "0xe4d2a55d058ed94afaa65cc52fd7dd59f3e5a99012b2b8df6d0a627a16d0c143",
+      "runtimeBytes": 17312
+    },
+    {
+      "name": "TickerGardenFactoryV1",
+      "address": "0x28c4A042417D75c6580030eea08FE4b63b0eC6cb",
+      "runtimeCodeHash": "0x4074ca7972b6ae1a5a18a8b00f8c7ab797d9113623f9b89b8fc3bc647c008975",
+      "runtimeBytes": 23880
+    }
+  ],
+  "startBlock": "118580817",
+  "endBlock": "118581426",
+  "transactionCount": 19,
+  "totalDeploymentFeeWei": "538148950000000",
+  "balanceWei": "1372363610995801415",
+  "platformTreasury": "0xD84897cD860Da0B51D39a252961B18D54fBbb266",
+  "activation": {
+    "quote": true,
+    "baseline": true,
+    "template": true
+  },
+  "publicTestnetE2E": false
+}

@@ -1,0 +1,212 @@
+body:has(.trade-live){background:#faf9f4}.trade-live .ref-token-symbol{color:#111}.trade-live .ref-token-name{color:#718092;font-weight:400}.trade-live .trade-placeholder-logo{display:grid;place-items:center;background:#edf2e9;color:#51735c;width:46px;height:46px;border-radius:50%}.trade-live .trade-placeholder-logo .ph{font-size:22px}.trade-live .ref-side button[aria-pressed=true]{background:#164b37;color:#fff}.trade-live .ref-side button[aria-pressed=false]{background:transparent;color:#73818a}.trade-live [data-trade-submit]{width:100%;height:49px;border:0;border-radius:11px;background:#174c39;color:#fff;font-size:18px;font-weight:600;margin-top:10px}.trade-live [data-trade-submit]:disabled{background:#c9d0cb;color:#fff;cursor:not-allowed}.trade-live .ref-connect{margin-bottom:0}.trade-live .ref-quote input{width:90px;border:0;background:transparent;text-align:right;color:#18382c}.trade-live .ref-activity header{gap:12px}.trade-live .ref-activity header button{font-size:12px}.trade-loader{margin-top:12px;padding:10px 14px;color:#718092}.trade-loader input{margin:0 8px}.trade-live [data-detail-links-empty]{color:#718092;font-size:14px}
+
+.trade-live .ref-side button[data-trade-side="sell"][aria-pressed=true],.trade-live [data-ref-mode="sell"] [data-trade-submit]:not(:disabled){background:#b83f3f;color:white;box-shadow:inset 0 0 0 1px #a73737}
+.trade-live .ref-data-note{font-size:10px;line-height:1.5;color:#7a8790;margin-top:10px;max-height:30px;overflow:auto}
+.trade-live .ref-links a{display:flex;gap:12px;align-items:center;margin-top:17px;font-size:14px}.trade-live .ref-links a[hidden]{display:none}
+.trade-live .ref-negative{color:#b83f3f}.trade-live .ref-fee-rows p{white-space:normal;overflow-wrap:anywhere}.trade-live [data-detail-fee-rules]{font-size:11px;line-height:1.6;color:#718092;margin-top:12px}
+.trade-live [data-trade-approval],.trade-live [data-trade-status]{font-size:11px;color:#718092;line-height:1.6;margin:6px 0}.trade-live .ref-quote strong{white-space:normal;overflow-wrap:anywhere;text-align:right;font-size:12px;max-width:170px}
+.trade-live .ref-fee-metrics:has(>span){font-size:14px;color:#718092}.trade-live .ref-fee-metrics:has(>div:nth-child(4))>div{gap:3px}.trade-live .ref-fee-metrics:has(>div:nth-child(4)) strong{font-size:23px}
+.trade-live .ref-risk .ph{font-size:26px}.trade-live .ref-fee-bar>span:nth-child(4){background:#c0cbbf}.trade-live .ref-periods [aria-pressed=true]{background:white;box-shadow:0 1px 5px #0000000a}
+.trade-live [hidden]{display:none!important}.trade-live .ref-about dd{white-space:normal;overflow-wrap:anywhere}.trade-live .ref-about dt{font-size:13px}.trade-live .ref-about dd{font-size:13px}.trade-live .ref-identity h1{overflow-wrap:anywhere}
+
+.trade-live .ref-table-wrap a{color:inherit;text-decoration:none}.trade-live .ref-table-wrap a:hover{text-decoration:underline}.trade-live .ref-chart canvas{display:block;width:100%;height:100%}.trade-live .ref-data-note{max-height:none;white-space:nowrap;text-overflow:ellipsis;overflow:hidden}
+/* Keep the independent fee card below market activity at every breakpoint. */
+.trade-live .ref-center>.ref-market{order:0}.trade-live .ref-center>.ref-fees{order:1}
+
+.trade-lifecycle{margin:16px 0 24px;padding:18px 22px;border:1px solid #dbe8df;border-radius:16px;background:#f4faf5;display:flex;gap:24px;align-items:center;justify-content:space-between}.trade-lifecycle>div{flex:1}.trade-lifecycle strong{color:#237442}.trade-lifecycle [data-detail-phase-note]{display:block;margin-top:5px;font-size:13px;color:#607068}.trade-progress-label{display:flex;justify-content:space-between;font-size:13px}.trade-lifecycle progress{display:block;width:100%;height:10px;margin:9px 0;accent-color:#379c59}.trade-lifecycle small{font-size:11px;color:#65726a}.trade-pool-route{font-size:12px;color:#53705d;overflow-wrap:anywhere;margin:0 0 14px}@media(max-width:640px){.trade-lifecycle{display:block}.trade-lifecycle>div+div:not([hidden]){margin-top:18px}}
+
+.trade-live .detail-loading,.trade-live .ref-hero[aria-busy=true] [data-detail-name],.trade-live .ref-hero[aria-busy=true] [data-detail-symbol],.trade-live .ref-hero[aria-busy=true] .ref-address,.trade-live .ref-hero[aria-busy=true] [data-detail-created]{display:inline-block;min-width:56px;min-height:1em;border-radius:4px;background:#e8eee3;color:transparent;user-select:none;animation:detail-pulse 1.4s ease-in-out infinite}
+@keyframes detail-pulse{50%{opacity:.45}}
+@media(prefers-reduced-motion:reduce){.trade-live .detail-loading,.trade-live .ref-hero[aria-busy=true] *{animation:none!important}}
+
+.trade-live a,.trade-live a:visited{color:inherit;text-decoration:none}
+.trade-live a:hover{color:var(--green,#233e2c)}
+.trade-live .ref-links{gap:10px}
+.trade-live .ref-links h3{margin-bottom:4px}
+.trade-live .ref-links button{width:fit-content;max-width:100%;display:flex;align-items:center;gap:8px;margin:0;padding:4px 0;border:0;border-radius:0;background:transparent;box-shadow:none;color:var(--ink,#233e2c);font-family:inherit;font-size:12px;font-weight:500;cursor:pointer;text-decoration:none}
+.trade-live .ref-links button span{font-size:12px;font-weight:500}
+.trade-live .ref-links button>.ph:first-child{font-size:16px;color:var(--green,#233e2c)}
+.trade-live .ref-links button>.ph:last-child{margin-left:2px;font-size:12px;color:var(--muted,#66806d)}
+.trade-live .ref-links button:hover{background:transparent;color:#688052}
+.trade-live .ref-links button:focus-visible{outline:2px solid var(--green,#233e2c);outline-offset:3px}
+
+.trade-page-loading{position:fixed;inset:0;z-index:900;display:grid;place-items:center;background:rgba(248,250,244,.78);backdrop-filter:blur(5px);-webkit-backdrop-filter:blur(5px)}
+.trade-page-loading__card{display:grid;justify-items:center;gap:12px;padding:28px 40px;background:var(--paper,#fafbf5);border:1px solid var(--line,#dce3d8);border-radius:18px;box-shadow:0 12px 48px #233e2c12}
+.trade-page-loading__card strong{font-size:14px;color:var(--green,#233e2c)}
+.trade-page-loading__card small{font-size:12px;color:var(--muted,#66806d)}
+.trade-page-loading__spinner{width:28px;height:28px;border:2px solid #dce5d5;border-top-color:var(--green,#233e2c);border-radius:50%;animation:trade-loading-spin .8s linear infinite}
+@keyframes trade-loading-spin{to{transform:rotate(360deg)}}
+@media(prefers-reduced-motion:reduce){.trade-page-loading__spinner{animation:none}}
+
+.trade-live .trade-slippage-percent{display:inline-flex;align-items:center;gap:5px;color:var(--ink,#233e2c)}
+.trade-live .trade-slippage-percent input{width:70px;text-align:right}
+.trade-live .trade-slippage-percent>span{font-size:12px}
+
+.trade-live .ref-hero-right{height:auto;align-self:center;padding-top:0}
+.trade-live .market-summary{width:100%;display:flex;flex-direction:column;gap:12px}
+.market-summary-label{display:flex;align-items:center;justify-content:space-between;gap:12px;font-size:12px;color:var(--green,#233e2c)}
+.market-summary-label strong{font-weight:600}.market-summary-label span{font-size:12px;font-weight:600}
+.market-summary-progress progress{display:block;appearance:none;-webkit-appearance:none;width:100%;height:6px;margin:10px 0 0;border:0;border-radius:9px;overflow:hidden;background:#dce5d5;accent-color:#355e3c}
+.market-summary-progress progress::-webkit-progress-bar{background:#dce5d5;border-radius:9px}
+.market-summary-progress progress::-webkit-progress-value{background:#355e3c;border-radius:9px}
+.market-summary-progress progress::-moz-progress-bar{background:#355e3c;border-radius:9px}
+.market-summary-progress [data-detail-phase-note]{font-size:11px;color:var(--muted);margin:8px 0 0;line-height:1.5}.market-summary-progress [data-detail-phase-note]:empty{display:none}
+.trade-live .market-summary .ref-fee-overview{margin:0;padding:0;border:0}
+.trade-live .market-summary .ref-fee-metrics{display:grid;gap:4px;margin:0}
+.trade-live .market-summary .ref-fee-metrics>div{display:flex;flex-wrap:wrap;align-items:center;justify-content:center;gap:4px;padding:8px 5px;border-radius:5px;background:#e0ead9;color:#34533a;min-width:0}
+.trade-live .market-summary .ref-fee-metrics>[data-fee-recipient="stakers"]{background:#eee6cb;color:#79632c}
+.trade-live .market-summary .ref-fee-metrics>[data-fee-recipient="platform"]{background:#dce9eb;color:#38616a}
+.trade-live .market-summary .ref-fee-metrics>div.is-zero{background:#e9e9e5;color:#92958e}
+.trade-live .market-summary .ref-fee-metrics small{order:-1;font-size:10px;color:inherit}
+.trade-live .market-summary .ref-fee-metrics strong,.trade-live .market-summary .ref-fee-metrics strong span{font-family:inherit;font-size:11px;line-height:14px;font-weight:600;color:inherit;letter-spacing:0;margin:0}
+.trade-live .market-summary .fee-holder-share{flex-basis:100%;text-align:center;font-size:10px;line-height:12px}
+.trade-live .market-summary progress{margin-top:6px;height:5px}
+@media(max-width:1100px){.trade-live .ref-hero{height:auto;min-height:202px}.trade-live .ref-hero-right{margin-bottom:14px}}
+
+.trade-live .ref-table-wrap td.detail-empty-cell{height:180px;padding:0;background:transparent;border-bottom:0}
+.trade-live .detail-activity-empty{min-height:180px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;color:var(--muted,#66806d);font-size:12px;text-align:center;white-space:normal}
+.trade-live .detail-activity-empty .ph{font-size:25px;color:#9aab91}
+.trade-live .ref-table-wrap table:has(.detail-empty-cell){min-width:0}
+
+.trade-live [data-trade-approval]:empty,.trade-live [data-trade-status]:empty{display:none}
+
+.trade-live .ref-meta [data-detail-copy]{display:inline-flex;align-items:center;justify-content:center;flex:0 0 24px;width:24px;height:24px;min-height:0;padding:0;border:0;border-radius:6px;background:transparent;color:#71806c;cursor:pointer;transition:background .15s,color .15s,transform .15s}
+.trade-live .ref-meta [data-detail-copy] .ph{font-size:13px}
+.trade-live .ref-meta [data-detail-copy]:hover,.trade-live .ref-meta [data-detail-copy].is-copied{background:#e5eddf;color:#315b35}
+.trade-live .ref-meta [data-detail-copy]:active{transform:scale(.9)}
+.trade-live .ref-meta [data-detail-copy]:focus-visible{outline:2px solid #648357;outline-offset:2px}
+
+.trade-live .trade-quote-logo{display:grid;place-items:center;width:28px;height:28px;flex:0 0 28px;background:transparent;border-radius:50%;overflow:hidden}
+.trade-live .trade-quote-logo img{display:block;width:100%;height:100%;object-fit:contain}
+.trade-live .trade-quote-logo img[hidden]{display:none}
+
+.trade-live .token-staking-badge{display:inline-flex;align-items:center;gap:5px;max-width:100%;margin-top:7px;padding:4px 8px;border:1px solid #d8e5ce;border-radius:6px;background:#edf3e6;color:#42653b;font-size:10px;line-height:16px;vertical-align:middle}
+.trade-live .token-staking-badge[hidden]{display:none}
+.trade-live .token-staking-badge>.ph{font-size:13px}
+.trade-live .token-staking-badge__asset{display:inline-flex;align-items:center;gap:4px;padding-left:7px;margin-left:2px;border-left:1px solid #ceddc3}
+.trade-live .token-staking-badge__asset img{width:16px;height:16px;object-fit:contain;border-radius:50%}
+.trade-live .token-staking-badge__asset img[hidden]{display:none}
+.trade-live .token-staking-badge__asset strong{font-size:10px;font-weight:600}
+
+.trade-live .ref-identity h1 .token-staking-badge{margin:0 0 0 10px;vertical-align:middle;white-space:nowrap;letter-spacing:0;font-family:var(--font-sans);font-weight:400}
+
+.trade-live .ref-meta>div{position:relative;border-right:0}
+.trade-live .ref-meta>div:not(:last-child)::after{content:"";position:absolute;right:0;top:50%;transform:translateY(-50%);width:1px;height:12px;background:#dce2d8}
+@media(max-width:700px){.trade-live .ref-meta>div:not(:last-child)::after{display:none}}
+
+.trade-live .trade-balance-fill{border:0;padding:2px 3px;background:transparent;border-radius:4px;color:inherit;font:inherit;cursor:pointer}
+.trade-live .trade-balance-fill:not(:disabled):hover{color:#315b35;background:#e8efdf}
+.trade-live .trade-balance-fill:not(:disabled):active{background:#dce8d1}
+.trade-live .trade-balance-fill:disabled{cursor:default}
+.trade-live .trade-balance-fill:focus-visible{outline:2px solid #648357;outline-offset:2px}
+
+.trade-live .ref-assets>div{gap:9px}
+
+.trade-live .ref-periods{width:auto;display:inline-flex;justify-content:flex-start;gap:2px;padding:3px;border-radius:9px;margin-left:auto}
+.trade-live .ref-periods button{min-width:34px;height:26px;padding:0 8px;border-radius:6px;font-size:11px;line-height:26px}
+
+.trade-live .ref-input-box{min-width:0;max-width:100%;border-color:#e0e4de;overflow:hidden}
+.trade-live .ref-input-box .ref-token{flex:0 1 auto;max-width:42%;min-width:0;display:flex;align-items:center;font-size:13px!important;line-height:1.3}
+.trade-live .ref-input-box .ref-token>img{display:block;width:24px;height:24px;flex:0 0 24px;border-radius:50%;object-fit:contain;background:#edf2e9}
+.trade-live .ref-input-box .ref-token>img[hidden]{display:none}
+.trade-live .ref-input-box .ref-token>span{display:block;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.trade-live .ref-input-box .ref-amount{flex:1 1 0;min-width:0;max-width:100%;display:block}
+.trade-live .ref-input-box .ref-amount input{display:block;width:100%;min-width:0;max-width:100%;font-size:22px;line-height:1.3;border:0;box-shadow:none;border-radius:0}
+.trade-live .ref-input-box input:focus,.trade-live .ref-input-box input:focus-visible{outline:0!important;border:0;box-shadow:none}
+.trade-live .ref-input-box:focus-within{border-color:#adb3ad;box-shadow:none}
+.trade-live .ref-receive output{display:block;flex:1 1 0;min-width:0;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;text-align:right;font-size:22px;line-height:1.3}
+
+.trade-live .ref-input-box .ref-amount input:focus{color:#18241c;caret-color:#18241c}
+
+.trade-live [data-trade-impact][data-impact-level="warning"]{color:#a87912}
+.trade-live [data-trade-impact][data-impact-level="danger"]{color:#c6413c}
+
+.trade-live .trade-stake-summary{margin-top:4px;padding-top:12px;border-top:1px solid #e2e6df}
+.trade-live .trade-stake-summary dl{display:grid;gap:9px;margin:0}
+.trade-live .trade-stake-summary dl>div{display:flex;align-items:baseline;justify-content:space-between;gap:12px}
+.trade-live .trade-stake-summary dt{font-size:12px;color:#758079}
+.trade-live .trade-stake-summary dd{margin:0;font-size:12px;font-weight:550;color:#263d30;text-align:right;overflow-wrap:anywhere}
+.trade-live .trade-stake-summary p{font-size:11px;color:#7a8074;margin:10px 0;line-height:1.5}
+.trade-live .trade-stake-summary p:empty{display:none}
+.trade-live .trade-stake-actions{display:flex;gap:8px;margin-top:12px}
+.trade-live .trade-stake-actions button{display:inline-flex;align-items:center;justify-content:center;gap:5px;flex:1;padding:7px 10px;border:1px solid #d8dfd3;border-radius:7px;background:#f5f6ef;color:#36543d;font:500 12px var(--font-sans);cursor:pointer}
+.trade-live .trade-stake-actions button:hover:not(:disabled){background:#e8eddf}
+.trade-live .trade-stake-actions button:disabled{opacity:.45;cursor:not-allowed}
+.trade-live .trade-stake-rewards{display:flex;align-items:center;gap:4px;width:fit-content;margin-left:auto;margin-top:11px;padding:0;border:0;background:transparent;color:#55704e;font:500 11px var(--font-sans);cursor:pointer}
+.trade-live .trade-stake-rewards .ph{font-size:10px}
+.trade-live .trade-stake-rewards:hover{color:#223e25}
+.trade-live .trade-stake-summary button:focus-visible{outline:2px solid #708563;outline-offset:3px}
+.trade-live .token-staking-badge.is-pending{background:#fff4d8;border-color:#ecd799;color:#917023}
+.trade-live .token-staking-badge.is-pending .token-staking-badge__asset{border-left-color:#e5ce91}
+.trade-live [data-trade-stake-base][hidden],.trade-live [data-trade-stake-summary][hidden]{display:none}
+.trade-live .ref-swap{cursor:pointer;transition:transform .15s ease,background-color .15s ease,border-color .15s ease}
+.trade-live .ref-swap:hover{background:#edf2e8!important;border-color:#aebfa6!important}
+.trade-live .ref-swap:active{transform:scale(.9);background:#e0e9d8!important}
+.trade-live .ref-swap .ph{display:inline-block;transition:transform .3s ease}
+.trade-live .ref-swap:focus-visible{outline:2px solid #708563;outline-offset:3px}
+@media(prefers-reduced-motion:reduce){.trade-live .ref-swap,.trade-live .ref-swap .ph{transition:none}.trade-live .ref-swap:active{transform:none}}
+.trade-live .trade-pool-route{display:flex;align-items:center;flex-wrap:wrap;gap:4px}
+.trade-live .trade-pool-route em{font-style:italic;overflow-wrap:anywhere}
+.trade-live .trade-pool-copy{display:inline-flex;align-items:center;justify-content:center;width:22px;height:22px;padding:0;border:0;border-radius:4px;background:transparent;color:inherit;cursor:pointer;vertical-align:middle}
+.trade-live .trade-pool-copy .ph{font-size:13px}
+.trade-live .trade-pool-copy:hover{background:#e9eee2;color:#36543d}
+.trade-live .trade-pool-copy:active{transform:scale(.92)}
+.trade-live .trade-pool-copy:focus-visible{outline:2px solid #708563;outline-offset:2px}
+.trade-live .ref-links{display:flex;flex-wrap:wrap;align-items:center;column-gap:20px;row-gap:8px}
+.trade-live .ref-links h3{flex-basis:100%;margin-bottom:0}
+.trade-live .ref-links button{flex:0 0 auto;white-space:nowrap;gap:6px}
+.trade-live .ref-links button[hidden]{display:none}
+.trade-live .ref-stats [data-detail-price],.trade-live .ref-stats [data-detail-volume]{font-size:18px;line-height:1.4;font-weight:500;overflow-wrap:anywhere}
+@media(max-width:700px){.trade-live .ref-stats [data-detail-price],.trade-live .ref-stats [data-detail-volume]{font-size:16px}}
+.trade-live .ref-activity .ref-table-wrap{height:190px;min-height:190px;max-height:190px;overflow:auto;overscroll-behavior:contain;scrollbar-gutter:stable}
+.trade-live .ref-activity .ref-table-wrap[hidden]{display:none}
+.trade-live .ref-activity .ref-table-wrap thead{position:sticky;top:0;z-index:1;background:#fcfdf9}
+.trade-live .ref-activity>header [data-detail-more-trades],.trade-live .ref-activity>header [data-detail-more-holders]{display:inline-flex;align-items:center;gap:4px;white-space:nowrap;font-size:11px;color:#55704e;padding:4px 0;background:transparent;border:0;cursor:pointer}
+.trade-live .ref-activity>header [hidden],.trade-live .ref-activity:has([data-detail-tab="trades"].active) [data-detail-more-holders],.trade-live .ref-activity:has([data-detail-tab="holders"].active) [data-detail-more-trades]{display:none}
+.trade-live .ref-links [data-detail-website]:not([hidden]) + [data-detail-x]:not([hidden]){position:relative}
+.trade-live .ref-links [data-detail-website]:not([hidden]) + [data-detail-x]:not([hidden])::before{content:"";position:absolute;left:-10px;top:50%;height:12px;width:1px;background:#ccd5c7;transform:translateY(-50%);pointer-events:none}
+
+.trade-live .ref-activity>header [data-detail-more-trades],.trade-live .ref-activity>header [data-detail-more-holders]{margin-left:auto;flex-shrink:0}
+
+.trade-live .trade-stake-card{margin-top:16px;background:#f3f7eb;border-radius:12px;padding:12px 14px}
+.trade-live .trade-stake-card>h3{margin:0 0 10px}
+.trade-live .trade-stake-card>div{display:flex;align-items:center;gap:9px;margin-bottom:12px}
+.trade-live .trade-stake-card .trade-stake-summary{margin-top:0;padding-top:0;border-top:0}
+
+.trade-live .ref-chart{height:280px;margin-top:10px;margin-bottom:14px}
+.trade-live .ref-activity{margin-top:8px}
+@media(max-width:700px){.trade-live .ref-chart{height:240px}}
+
+.trade-live .trade-quote-card{background:#f0f1ee;border:1px solid #e3e6df;border-radius:12px;padding:12px 14px}
+.trade-live .trade-quote-card>h3{margin:0 0 10px}
+.trade-live .trade-quote-card>div{display:flex;align-items:center;gap:9px}
+
+.trade-live .trade-quote-card p small,.trade-live .trade-stake-card>div p small{margin:0 0 3px;font-size:11px;line-height:1.3}
+.trade-live .trade-quote-card p strong,.trade-live .trade-stake-card>div p strong{font-size:14px;line-height:1.4}
+.trade-live .ref-activity>header [data-detail-more-trades] .ph,.trade-live .ref-activity>header [data-detail-more-holders] .ph{font-size:10px}
+.trade-live .ref-about>dl>div>dd{justify-content:flex-end;text-align:right;min-width:0;margin-left:0}
+/* Compact title hierarchy for the live token detail page. */
+.trade-live .ref-identity h1{font-size:32px;line-height:1.15;letter-spacing:-.4px}
+.trade-live .ref-identity .ref-token-name{font-size:18px;line-height:1.3}
+.trade-live h2{font-size:18px;line-height:1.3;letter-spacing:-.3px;font-weight:600}
+.trade-live h3{font-size:14px;line-height:1.4;letter-spacing:0;font-weight:600}
+.trade-live .ref-fees h3{font-size:15px;line-height:1.4;letter-spacing:0}
+.trade-live .ref-links h3,.trade-live .ref-assets h3{font-size:12px;line-height:1.4}
+@media(max-width:700px){.trade-live .ref-identity h1{font-size:26px}.trade-live .ref-identity .ref-token-name{font-size:16px}.trade-live h2{font-size:17px}.trade-live .ref-fees h3{font-size:14px}}
+.trade-live [data-trade-stake-action="add"] .ph,.trade-live [data-trade-stake-action="withdraw"] .ph{font-size:11px}
+
+.trade-live [data-detail-source]:empty{display:none}
+.trade-live .market-summary-label [data-detail-phase].is-bloomed{display:inline-flex;align-items:center;gap:5px;margin-left:auto;padding:5px 9px;border:1px solid #c9ddba;border-radius:6px;background:#eaf3e1;color:#3e6635;font-size:11px;font-weight:600;line-height:16px;letter-spacing:.1px}
+.trade-live .market-summary-label [data-detail-phase].is-bloomed .ph{font-size:13px}
+.trade-live .market-summary-label [data-detail-phase].is-bloomed span{font-size:11px;line-height:16px}
+
+.trade-live .ref-links button:disabled{color:#a1a79f;cursor:default;opacity:1}
+.trade-live .ref-links button:disabled>.ph{color:inherit}
+.trade-live .ref-links button:disabled>.ph:last-child{visibility:hidden}
+
+.trade-live .ref-fee-rows p{min-width:0;max-width:100%;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;text-align:right;font-variant-numeric:tabular-nums}
+
+.trade-live .ref-meta [data-detail-copy]{width:36px;height:36px;flex-basis:36px}
+.trade-live .trade-balance-fill{min-height:32px;min-width:44px}
+
+.trade-live .ref-trade>[data-trade-pool-fees]{margin:14px 2px 0;color:#8a928d;font-size:10px;line-height:1.4;text-align:center;font-weight:400}

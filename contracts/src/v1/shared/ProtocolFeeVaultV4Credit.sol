@@ -15,9 +15,9 @@ abstract contract ProtocolFeeVaultV4Credit {
     struct PendingV4Credit {
         bytes32 marketId;
         address feeAsset;
+        uint32 sourceVersion;
         uint256 amount;
         uint256 balanceBefore;
-        uint32 sourceVersion;
         bytes32 feeId;
         address source;
     }
@@ -37,8 +37,9 @@ abstract contract ProtocolFeeVaultV4Credit {
     IMarketRegistryV1 internal immutable _feeMarketRegistry;
     address internal immutable _feePoolManager;
 
-    uint8 private _creditState;
-    PendingV4Credit private _pendingCredit;
+    // Transaction-local contexts use disjoint namespaces, including across inherited modules.
+    bytes32 private constant CREDIT_STATE_SLOT = keccak256("tickergarden.fee-vault.credit-state.v1");
+    bytes32 private constant V4_PENDING_SLOT = keccak256("tickergarden.fee-vault.v4-pending.v1");
     mapping(bytes32 feeId => bool consumed) internal _consumedFeeIds;
 
     error InvalidFeeVaultCreditDependency(address dependency);
@@ -61,12 +62,12 @@ abstract contract ProtocolFeeVaultV4Credit {
     function beginV4Credit(bytes32 marketId, address feeAsset, uint256 amount, uint32 sourceVersion, bytes32 feeId)
         external
     {
-        if (_creditState != CREDIT_IDLE || feeId == bytes32(0)) revert FeeCreditNotPrepared(feeId);
+        if (_creditState() != CREDIT_IDLE || feeId == bytes32(0)) revert FeeCreditNotPrepared(feeId);
         if (amount == 0 || amount > uint256(uint128(type(int128).max))) revert FeeAmountTooLarge(amount);
         if (_consumedFeeIds[feeId]) revert FeeIdAlreadyConsumed(feeId);
 
         _requireActiveV4Source(marketId, feeAsset, sourceVersion, msg.sender);
-        _pendingCredit = PendingV4Credit({
+        _storePendingV4Credit(PendingV4Credit({
             marketId: marketId,
             feeAsset: feeAsset,
             amount: amount,
@@ -74,8 +75,8 @@ abstract contract ProtocolFeeVaultV4Credit {
             sourceVersion: sourceVersion,
             feeId: feeId,
             source: msg.sender
-        });
-        _creditState = CREDIT_PENDING;
+        }));
+        _setCreditState(CREDIT_PENDING);
     }
 
     function finalizeV4Credit(
@@ -88,15 +89,16 @@ abstract contract ProtocolFeeVaultV4Credit {
         uint64 feeNonce,
         bytes32 feeId
     ) external {
-        PendingV4Credit memory pending = _pendingCredit;
+        PendingV4Credit memory pending = _pendingV4Credit();
         if (
-            _creditState != CREDIT_PENDING || pending.marketId != marketId || pending.feeAsset != feeAsset
+            _creditState() != CREDIT_PENDING || pending.marketId != marketId || pending.feeAsset != feeAsset
                 || pending.amount != nonLpAmount || pending.feeId != feeId || pending.source != msg.sender
         ) {
             revert FeeCreditNotPrepared(feeId);
         }
         if (_consumedFeeIds[feeId]) revert FeeIdAlreadyConsumed(feeId);
-        _requireActiveV4Source(marketId, feeAsset, pending.sourceVersion, msg.sender);
+        // Revalidate after the external transfer, then reuse this view only within finalization.
+        MarketView memory value = _requireActiveV4Source(marketId, feeAsset, pending.sourceVersion, msg.sender);
 
         uint256 currentBalance = _assetBalance(feeAsset);
         uint256 actualDelta = currentBalance >= pending.balanceBefore ? currentBalance - pending.balanceBefore : 0;
@@ -104,7 +106,7 @@ abstract contract ProtocolFeeVaultV4Credit {
             revert FeeBalanceDeltaMismatch(feeAsset, pending.amount, actualDelta);
         }
 
-        _creditState = CREDIT_FINALIZING;
+        _setCreditState(CREDIT_FINALIZING);
         _consumedFeeIds[feeId] = true;
         V4CreditRecord memory record;
         record.marketId = marketId;
@@ -116,26 +118,27 @@ abstract contract ProtocolFeeVaultV4Credit {
         record.sourceVersion = pending.sourceVersion;
         record.feeNonce = feeNonce;
         record.feeId = feeId;
-        _recordExactV4Credit(record);
-        delete _pendingCredit;
-        _creditState = CREDIT_IDLE;
+        _recordExactV4Credit(record, value);
+        _clearPendingV4Credit();
+        _setCreditState(CREDIT_IDLE);
+    }
+
+    function _isRewardSettlementPayment() internal view virtual returns (bool) {
+        return false;
     }
 
     receive() external payable {
-        PendingV4Credit memory pending = _pendingCredit;
+        if (_isRewardSettlementPayment()) return;
+        PendingV4Credit memory pending = _pendingV4Credit();
         if (
-            _creditState != CREDIT_PENDING || pending.feeAsset != address(0) || msg.sender != _feePoolManager
+            _creditState() != CREDIT_PENDING || pending.feeAsset != address(0) || msg.sender != _feePoolManager
                 || msg.value != pending.amount
         ) {
             revert FeeCreditNotPrepared(pending.feeId);
         }
     }
 
-    function _recordExactV4Credit(V4CreditRecord memory record) internal virtual;
-
-    function _pendingV4Credit() internal view returns (uint8 state, PendingV4Credit memory pending) {
-        return (_creditState, _pendingCredit);
-    }
+    function _recordExactV4Credit(V4CreditRecord memory record, MarketView memory value) internal virtual;
 
     function _enterStandaloneCredit(bytes32 feeId) internal {
         if (feeId == bytes32(0)) revert FeeCreditNotPrepared(feeId);
@@ -143,9 +146,13 @@ abstract contract ProtocolFeeVaultV4Credit {
         _enterStandaloneOperation(feeId);
     }
 
+    function _requireCreditIdle(bytes32 operationId) internal view {
+        if (_creditState() != CREDIT_IDLE) revert FeeCreditNotPrepared(operationId);
+    }
+
     function _enterStandaloneOperation(bytes32 operationId) internal {
-        if (_creditState != CREDIT_IDLE) revert FeeCreditNotPrepared(operationId);
-        _creditState = CREDIT_FINALIZING;
+        _requireCreditIdle(operationId);
+        _setCreditState(CREDIT_FINALIZING);
     }
 
     function _consumeAndExitStandaloneCredit(bytes32 feeId) internal {
@@ -154,14 +161,15 @@ abstract contract ProtocolFeeVaultV4Credit {
     }
 
     function _exitStandaloneOperation() internal {
-        _creditState = CREDIT_IDLE;
+        _setCreditState(CREDIT_IDLE);
     }
 
     function _requireActiveV4Source(bytes32 marketId, address feeAsset, uint32 sourceVersion, address source)
         private
         view
+        returns (MarketView memory value)
     {
-        MarketView memory value = _feeMarketRegistry.market(marketId);
+        value = _feeMarketRegistry.market(marketId);
         if (
             value.runtime.launchPhase != LAUNCH_PHASE_POOL_CREATED || value.runtime.poolId == bytes32(0)
                 || value.runtime.sourceVersion != sourceVersion || value.config.graduatedHook != source
@@ -170,6 +178,43 @@ abstract contract ProtocolFeeVaultV4Credit {
         }
         if (feeAsset != value.config.quoteAsset && feeAsset != value.config.memeToken) {
             revert FeeAssetNotCanonical(feeAsset);
+        }
+    }
+
+    function _creditState() internal view returns (uint8 state) {
+        bytes32 slot = CREDIT_STATE_SLOT;
+        assembly ("memory-safe") { state := tload(slot) }
+    }
+
+    function _setCreditState(uint8 state) internal {
+        bytes32 slot = CREDIT_STATE_SLOT;
+        assembly ("memory-safe") { tstore(slot, state) }
+    }
+
+    // PendingV4Credit has seven static memory words. Explicit clearing permits sequential
+    // credits in one transaction; reverted children restore both context and lock atomically.
+    function _storePendingV4Credit(PendingV4Credit memory pending) private {
+        bytes32 slot = V4_PENDING_SLOT;
+        assembly ("memory-safe") {
+            for { let i := 0 } lt(i, 7) { i := add(i, 1) } {
+                tstore(add(slot, i), mload(add(pending, mul(i, 32))))
+            }
+        }
+    }
+
+    function _pendingV4Credit() internal view returns (PendingV4Credit memory pending) {
+        bytes32 slot = V4_PENDING_SLOT;
+        assembly ("memory-safe") {
+            for { let i := 0 } lt(i, 7) { i := add(i, 1) } {
+                mstore(add(pending, mul(i, 32)), tload(add(slot, i)))
+            }
+        }
+    }
+
+    function _clearPendingV4Credit() private {
+        bytes32 slot = V4_PENDING_SLOT;
+        assembly ("memory-safe") {
+            for { let i := 0 } lt(i, 7) { i := add(i, 1) } { tstore(add(slot, i), 0) }
         }
     }
 

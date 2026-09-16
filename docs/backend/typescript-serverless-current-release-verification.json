@@ -1,0 +1,32 @@
+{
+  "schema": "tickergarden.typescript-serverless-current-release-verification.v1",
+  "capturedAt": "2026-09-10T22:04:14Z",
+  "status": "TESTNET_READ_ONLY_VERIFIED",
+  "runtime": "node-v24.19.0",
+  "target": {
+    "chainId": 46630,
+    "releaseId": "0x5c2c656b1b23e895ea268c34b187cd267e0f4fdcc1759c726cbca7fafb7c9c12",
+    "activationBlockNumber": "117032526",
+    "activationBlockHash": "0x36065fb09f78a00f75c528cad0e81e2f1a7b9f59bea9577488f26f4fb611f806"
+  },
+  "observations": {
+    "chainIdentityProviders": 2,
+    "secondarySource": "TG_SECONDARY_RPC_URL",
+    "fixedContractSources": 17,
+    "bootstrapRecords": 13,
+    "bootstrapSourceBlocks": 13,
+    "marketCreatedLogs": 0,
+    "dynamicSources": 0,
+    "eventVerificationScope": "deployment-and-bootstrap-only"
+  },
+  "commands": [
+    "npm --prefix services/backend-ts run verify:rpc",
+    "npm --prefix services/backend-ts run verify:current-bootstrap",
+    "npm --prefix services/backend-ts run verify:current-events"
+  ],
+  "limitations": [
+    "The current release baseline freezes no QA market range; historical F72 market evidence is excluded.",
+    "This artifact proves read-only agreement for chain identity, activation, fixed runtime code and bootstrap sources at capture time.",
+    "It does not prove Preview deployment, Alchemy webhook delivery, QStash delivery, pipeline catch-up, browser behavior or production readiness."
+  ]
+}

@@ -1,0 +1,217 @@
+{
+  "schemaVersion": 1,
+  "manifestKind": "TICKERGARDEN_V1_TESTNET_DEPLOYMENT_PLAN",
+  "executionSpecId": "V1-EXEC-11",
+  "target": "ARBITRUM_SEPOLIA_V4_INTEGRATION",
+  "chain": {
+    "chainId": 421614,
+    "network": "Arbitrum Sepolia",
+    "rpcUrl": "https://sepolia-rollup.arbitrum.io/rpc",
+    "explorerUrl": "https://sepolia.arbiscan.io",
+    "evmVersion": "cancun",
+    "latestSnapshot": {
+      "number": "305933430",
+      "hash": "0x8860b0f870d770cc7907b0d9c60f4d7d8107252526709037e4bccf8af0fa9d42",
+      "timestamp": "2026-09-06T05:38:03Z"
+    },
+    "finalizedSnapshot": {
+      "number": "305929297",
+      "hash": "0xae8d373d16bd52a55be9171f8253b9c81b2b5b3a79452abd2f541b86345b4caa",
+      "timestamp": "2026-09-06T05:20:51Z"
+    },
+    "dependencyStateReadTag": "latest"
+  },
+  "dependencyProvenance": {
+    "identityStatus": "OFFICIAL_UNISWAP_V4_ARBITRUM_SEPOLIA",
+    "uniswapOfficial46630ListingAvailable": false,
+    "projectUsageScope": "TESTNET_REHEARSAL_ONLY",
+    "sourceUrls": [
+      "https://developers.uniswap.org/docs/protocols/v4/deployments#arbitrum-sepolia-421614",
+      "https://docs.arbitrum.io/for-devs/dev-tools-and-resources/chain-info"
+    ],
+    "acceptance": "EXPLICIT_TEST_ONLY_PIN_REQUIRED_BEFORE_BROADCAST"
+  },
+  "externalDependencies": [
+    {
+      "name": "CANONICAL_CREATE2_DEPLOYER",
+      "address": "0x4e59b44847b379578588920ca78fbf26c0b4956c",
+      "runtimeCodeHash": "0x2fa86add0aed31f33a762c9d88e807c475bd51d0f52bd0955754b2608f7e4989",
+      "runtimeCodeSize": 69,
+      "observationBlockHash": "0x8860b0f870d770cc7907b0d9c60f4d7d8107252526709037e4bccf8af0fa9d42"
+    },
+    {
+      "name": "POOL_MANAGER",
+      "address": "0xfb3e0c6f74eb1a21cc1da29aec80d2dfe6c9a317",
+      "runtimeCodeHash": "0x790926015bb866adc59a6619aaddd47273949f6b3a4e4b43efc9eab8a9c93cdb",
+      "runtimeCodeSize": 24009,
+      "observationBlockHash": "0x8860b0f870d770cc7907b0d9c60f4d7d8107252526709037e4bccf8af0fa9d42"
+    },
+    {
+      "name": "POSITION_MANAGER",
+      "address": "0xac631556d3d4019c95769033b5e719dd77124bac",
+      "runtimeCodeHash": "0x80ef9e16bafa80a5c631677d12fc256774aaeb63068d4ca597b0e743f7a738e2",
+      "runtimeCodeSize": 23877,
+      "observationBlockHash": "0x8860b0f870d770cc7907b0d9c60f4d7d8107252526709037e4bccf8af0fa9d42"
+    },
+    {
+      "name": "PERMIT2",
+      "address": "0x000000000022d473030f116ddee9f6b43ac78ba3",
+      "runtimeCodeHash": "0x055d90ff6146107f315c7c306b841138ec59c541a8e4e04df787c38ce400a1e4",
+      "runtimeCodeSize": 9152,
+      "observationBlockHash": "0x8860b0f870d770cc7907b0d9c60f4d7d8107252526709037e4bccf8af0fa9d42"
+    },
+    {
+      "name": "UNIVERSAL_ROUTER",
+      "address": "0xefd1d4bd4cf1e86da286bb4cb1b8bced9c10ba47",
+      "runtimeCodeHash": "0xd1b72cad4c9dffc62de6226f90ca8d5d9dfa6650149caeddacff8edfc9d83608",
+      "runtimeCodeSize": 19540,
+      "observationBlockHash": "0x8860b0f870d770cc7907b0d9c60f4d7d8107252526709037e4bccf8af0fa9d42"
+    },
+    {
+      "name": "V4_QUOTER",
+      "address": "0x7de51022d70a725b508085468052e25e22b5c4c9",
+      "runtimeCodeHash": "0x67860b76a19b774bd9eea3c29095d29138cfdcd19df2df79b708d73794c63fef",
+      "runtimeCodeSize": 5820,
+      "observationBlockHash": "0x8860b0f870d770cc7907b0d9c60f4d7d8107252526709037e4bccf8af0fa9d42"
+    },
+    {
+      "name": "STATE_VIEW",
+      "address": "0x9d467fa9062b6e9b1a46e26007ad82db116c67cb",
+      "runtimeCodeHash": "0x496980635f4d3596ebe9d577a736f5d181c418532151e5590671b8c972dfd3bc",
+      "runtimeCodeSize": 3531,
+      "observationBlockHash": "0x8860b0f870d770cc7907b0d9c60f4d7d8107252526709037e4bccf8af0fa9d42"
+    }
+  ],
+  "deterministicDeployment": {
+    "broadcastStatus": "NOT_BROADCAST",
+    "entrypoint": "contracts/script/v1/DeployV1Deterministic.s.sol:DeployV1Deterministic",
+    "previewEntrypoint": "contracts/script/v1/DeployV1Deterministic.s.sol:DeployV1Deterministic.preview",
+    "canonicalCreate2Deployer": "0x4e59B44847b379578588920cA78FbF26c0B4956C",
+    "orchestratorSaltDomain": "0xf0a18756cd4eee5355ce7dfed745941aa646cdac210fc28dc93489d11cdf5749",
+    "helperSaltDomain": "0xf990c74b44aade0a5b245ec9081986e1d56d135f1f14042309f5def79f5dd626",
+    "factorySaltDomain": "0x156d61438582fef00fcc7ec1ea957c7a13af3924f12fc1b91038aba085a42066",
+    "ordinaryComponentCount": 16,
+    "ordinaryComponentOrder": [
+      "AccessManager",
+      "OfficialStockRegistryV1",
+      "ApprovedQuoteRegistry",
+      "TickerGardenBaselineRegistry",
+      "LaunchTemplateRegistry",
+      "LaunchConfigResolver",
+      "TickerMemeTokenV1Implementation",
+      "TickerGardenCurveImplementation",
+      "MemeStockGauge",
+      "LaunchAndBuyRouter",
+      "MarketRegistryV1",
+      "CreatorRevenueRegistry",
+      "AllocationManager",
+      "UserStockVault",
+      "TreasuryDistributorV1",
+      "ProtocolFeeVault"
+    ],
+    "requiredHookPermissionMask": "0x2044",
+    "hookAddressBitMask": "0x3fff",
+    "maximumHelperSaltAttempts": 500000,
+    "runtimeGraphAtomic": true,
+    "retryPreservesAddresses": true,
+    "activationSeparate": true
+  },
+  "configurationInputs": [
+    "DEPLOYER_PRIVATE_KEY",
+    "V1_EXPECTED_DEPLOYER",
+    "V1_EXPECTED_CHAIN_ID",
+    "V1_RELEASE_ID",
+    "V1_EXPECTED_ORCHESTRATOR",
+    "V1_INITIAL_ADMIN",
+    "V1_POOL_MANAGER",
+    "V1_POOL_MANAGER_CODEHASH",
+    "V1_POSITION_MANAGER",
+    "V1_POSITION_MANAGER_CODEHASH",
+    "V1_PERMIT2",
+    "V1_PERMIT2_CODEHASH",
+    "V1_SWAP_ROUTER",
+    "V1_SWAP_ROUTER_CODEHASH",
+    "V1_QUOTER",
+    "V1_QUOTER_CODEHASH",
+    "V1_PLATFORM_TREASURY",
+    "V1_PLATFORM_TREASURY_CODEHASH",
+    "V1_ROOT_SERVICE_TREASURY",
+    "V1_ROOT_SERVICE_FEE_ASSET",
+    "V1_ROOT_SERVICE_FEE_AMOUNT",
+    "V1_FINALITY_DELAY_SECONDS",
+    "V1_FINALITY_DELAY_BLOCKS",
+    "V1_ROOT_PUBLICATION_WINDOW",
+    "V1_ROOT_REVIEW_DELAY",
+    "V1_CLAIM_WINDOW",
+    "V1_FEE_POLICY_ID"
+  ],
+  "forkEvidence": {
+    "status": "PASSED",
+    "network": "Robinhood Chain",
+    "chainId": 4663,
+    "blockNumber": "55379327",
+    "blockHash": "0xae608b65928fb6b113f46368a736305103ca38f48f28f32285bf01039721017d",
+    "testPath": "contracts/test/v1/fork/V1ProductForkE2E.t.sol",
+    "reportPath": "deployments/evidence/v1-deployment-gates.json"
+  },
+  "deploymentGateEvidence": [
+    {
+      "gateId": "V1-DEPLOY-CHAIN-SNAPSHOT-01",
+      "status": "OPEN",
+      "evidence": [
+        "Independent Arbitrum release proof required; RH evidence does not authorize this target."
+      ]
+    },
+    {
+      "gateId": "V1-DEPLOY-ARTIFACT-CODEHASH-01",
+      "status": "OPEN",
+      "evidence": [
+        "Independent Arbitrum release proof required; RH evidence does not authorize this target."
+      ]
+    },
+    {
+      "gateId": "V1-DEPLOY-CREATE2-VECTORS-01",
+      "status": "OPEN",
+      "evidence": [
+        "Independent Arbitrum release proof required; RH evidence does not authorize this target."
+      ]
+    },
+    {
+      "gateId": "V1-DEPLOY-HOOK-MASK-01",
+      "status": "OPEN",
+      "evidence": [
+        "Independent Arbitrum release proof required; RH evidence does not authorize this target."
+      ]
+    },
+    {
+      "gateId": "V1-DEPLOY-PERMISSIONS-01",
+      "status": "OPEN",
+      "evidence": [
+        "Independent Arbitrum release proof required; RH evidence does not authorize this target."
+      ]
+    },
+    {
+      "gateId": "V1-DEPLOY-ABI-DIFF-01",
+      "status": "OPEN",
+      "evidence": [
+        "Independent Arbitrum release proof required; RH evidence does not authorize this target."
+      ]
+    },
+    {
+      "gateId": "V1-DEPLOY-PRODUCT-FORK-E2E-01",
+      "status": "OPEN",
+      "evidence": [
+        "Independent Arbitrum release proof required; RH evidence does not authorize this target."
+      ]
+    }
+  ],
+  "limitations": [
+    "NOT_BROADCAST: operator address and locally configured key are pending.",
+    "RH chain 4663 remains the final production target. Arbitrum Sepolia is integration-only.",
+    "RH forkEvidence is retained production compatibility evidence, not an Arbitrum E2E result.",
+    "All test operator roles use one user-provided account. No production role policy changes.",
+    "No RH stock-token or quote whitelist address may be reused on Arbitrum. Start with native ETH and staking disabled; synthetic stocks must be marked test-only.",
+    "Every Arbitrum deployment gate remains OPEN until separate release evidence is verified."
+  ],
+  "productionTargetChainId": 4663
+}

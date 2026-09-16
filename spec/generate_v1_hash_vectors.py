@@ -77,6 +77,8 @@ def sample_value(type_name, field_name, index, domain, schema_version):
         return schema_version
     if field_name == "chainId":
         return 31337
+    if type_name == "bool":
+        return True
     if type_name == "address":
         return int.from_bytes(keccak256(field_name.encode())[-20:], "big")
     if type_name == "bytes32":
@@ -91,6 +93,8 @@ def sample_value(type_name, field_name, index, domain, schema_version):
 
 
 def encode_word(type_name, value):
+    if type_name == "bool":
+        return int(value).to_bytes(32, "big")
     if type_name == "bytes32":
         return value
     if type_name == "address":
@@ -103,6 +107,8 @@ def encode_word(type_name, value):
 
 
 def printable(type_name, value):
+    if type_name == "bool":
+        return value
     if type_name == "address":
         return "0x" + value.to_bytes(20, "big").hex()
     if type_name == "bytes32":

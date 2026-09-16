@@ -1,0 +1,28 @@
+{
+  "schemaVersion": 1,
+  "status": "REGISTRY_ACTIVE",
+  "networkScope": "ROBINHOOD_TESTNET_ONLY",
+  "chainId": 46630,
+  "releaseId": "0xc3fe24f129cdb1a7084d57a1b2c0fcc14bc6aae9c045d7e9519ee0aa96715d44",
+  "baselineId": "0x9d3569044d6b8c8eaf4bcdab70eb24def1313867429289abd61e91ded0d2f98c",
+  "templateId": "0x3d472393e5567c8f4ed32b92ca80e0cc1c7b340fe4fba9fda6287a85cd0416ad",
+  "supplyReferenceRaw": "1000000000000000000000000000",
+  "assets": [
+    {
+      "symbol": "ETH",
+      "name": "Native Ether",
+      "address": "0x0000000000000000000000000000000000000000",
+      "decimals": 18,
+      "quoteAssetConfigId": "0xdf494ec6b1b46729541750b915384654454baeaba146afbcc99f6e51a5e369e8",
+      "phantomQuote": "168000000000000000",
+      "graduationThreshold": "420000000000000000",
+      "status": "ACTIVE_TEST_ONLY"
+    }
+  ],
+  "limitations": [
+    "Testnet-only native ETH quote.",
+    "The 0.42 ETH graduation threshold is intentionally reduced for testing.",
+    "Production activation on Robinhood Chain Mainnet requires a separate reviewed release."
+  ],
+  "observedAt": "2026-09-13T06:51:32.381Z"
+}

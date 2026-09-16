@@ -1,3 +1,4 @@
+import { ROBINHOOD_CHAIN_ID } from "../v1/chain.ts";
 import { concatHex, formatUnits, keccak256, parseUnits, type Address, type Hex } from "viem";
 import type {
   ConfigReadModel,
@@ -12,14 +13,14 @@ export const ADDRESS_PATTERN = /^0x[0-9a-f]{40}$/;
 export const BYTES32_PATTERN = /^0x[0-9a-f]{64}$/;
 export const MAX_UINT256 = (1n << 256n) - 1n;
 
-export const PHASE_LABELS = ["Not Graduated", "Pool Created"] as const;
+export const PHASE_LABELS = ["Growing", "Bloomed"] as const;
 
 export function phaseLabel(phase: number): string {
   return PHASE_LABELS[phase] ?? `Phase ${phase}`;
 }
 
 export function shortHex(value: string | null | undefined, left = 6, right = 4): string {
-  if (!value) return "—";
+  if (!value) return "-";
   if (value.length <= left + right + 2) return value;
   return `${value.slice(0, left + 2)}…${value.slice(-right)}`;
 }
@@ -67,7 +68,7 @@ export function configBigInt(config: ConfigReadModel, key: string): bigint {
 
 export function assertFinalizedSync(sync: SyncStatus, expectedRevision?: string, label = "snapshot"): void {
   if (
-    sync.chainId !== 4663
+    sync.chainId !== ROBINHOOD_CHAIN_ID
     || sync.status !== "synced"
     || sync.finality !== "finalized"
     || typeof sync.blockNumber !== "string"
@@ -132,7 +133,7 @@ export function formatTokenAmount(value: bigint | string, decimals: number, prec
     const trimmed = fraction.slice(0, precision).replace(/0+$/, "");
     return trimmed ? `${whole}.${trimmed}` : whole ?? "0";
   } catch {
-    return "—";
+    return "-";
   }
 }
 
@@ -164,6 +165,8 @@ export function tupleString(value: unknown, name: string, index: number): string
 }
 
 export interface MarketMetadata {
+  readonly metadataURI?: string;
+  readonly deployedAt?: string;
   readonly name: string;
   readonly symbol: string;
   readonly quoteSymbol: string;

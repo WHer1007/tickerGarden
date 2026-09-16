@@ -1,9 +1,9 @@
 # TickerGarden V1 外部 G0 证据记录
 
-> 状态：`OBSERVED_NOT_APPROVED`  
-> 观测时间：2026-09-02 12:28:48（Asia/Shanghai）  
-> 固定区块：Robinhood Chain `52,289,586`（`0x31de032`）  
-> 区块哈希：`0x9477917aacd098d56b4d5fb375e555a09d1a61b7bf33417429e5c8e4a2e86006`  
+> 状态：`OBSERVED_NOT_APPROVED`
+> 观测时间：2026-09-02 12:28:48（Asia/Shanghai）
+> 固定区块：Robinhood Chain `52,289,586`（`0x31de032`）
+> 区块哈希：`0x9477917aacd098d56b4d5fb375e555a09d1a61b7bf33417429e5c8e4a2e86006`
 > 机器记录：[`spec/v1_g0_external_evidence.json`](../../spec/v1_g0_external_evidence.json)
 
 > 后续决策：本文件保留取证当时的 `BLOCKED` 快照，不随产品决定回写。2026-09-02 后续已选择 `0x7eD598…` 固定行为作为参考并批准多 Quote 协议能力；当前规范见 [V1_PONS_BEHAVIOR_BASELINE.md](./V1_PONS_BEHAVIOR_BASELINE.md) 与 [V1_G0_RECOMMENDATIONS.md](./V1_G0_RECOMMENDATIONS.md)。公开源码复现、反狙击差分和逐资产生产配置仍未关闭。
@@ -64,7 +64,7 @@ decimals = 6
 
 该比例同样推导出 `2/7` 的池保留量。它只证明 USDG 的 Pons 现网配置，不自动授权 TickerGarden 改用 USDG。
 
-历史结论：上述 USDG 仅是链上观测，`V1-G0-PONS-QUOTE-01` 不构成对其的批准；其可升级代理身份也不符合普通 Quote 门禁。该点时快照中的“新增 Quote BLOCKED”已由 `V1-EXEC-10` 的管理员白名单实现取代：管理员现在可以追加任意通过风险评估的 native 或 direct immutable ERC-20 config，但每个具体资产在进入 `ACTIVE` 前仍必须提供 canonical 合约、发行/桥接权威、源码/行为审查及非代理证明。Robinhood 官方 Stock Token 如作为 Quote，仍必须走独立的 Asset UID/Beacon 指纹和行为审查路径，不能据此为 USDG 或其他代理资产创建通用豁免。
+历史结论：上述 USDG 仅是链上观测，`V1-G0-PONS-QUOTE-01` 不构成对其的批准；其可升级代理身份也不符合普通 Quote 门禁。该点时快照中的“新增 Quote BLOCKED”已由 `V1-EXEC-11` 的管理员白名单实现取代：管理员现在可以追加任意通过风险评估的 native 或 direct immutable ERC-20 config，但每个具体资产在进入 `ACTIVE` 前仍必须提供 canonical 合约、发行/桥接权威、源码/行为审查及非代理证明。Robinhood 官方 Stock Token 如作为 Quote，仍必须走独立的 Asset UID/Beacon 指纹和行为审查路径，不能据此为 USDG 或其他代理资产创建通用豁免。
 
 ## 3. 已观测但未批准的其他状态
 

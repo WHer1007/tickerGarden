@@ -1,0 +1,8 @@
+[Unit]
+Description=Hourly TickerGarden backup (RPO target requires measured completion)
+[Timer]
+OnCalendar=hourly
+Persistent=true
+RandomizedDelaySec=60
+[Install]
+WantedBy=timers.target

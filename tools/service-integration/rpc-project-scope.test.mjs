@@ -1,0 +1,45 @@
+import test from 'node:test';import assert from 'node:assert/strict';import {encodeAbiParameters,keccak256,parseAbiParameters} from '../../apps/web/node_modules/viem/_esm/index.js';import {ProjectScope} from './rpc-project-scope.mjs';
+const a='0x'+'1'.repeat(40),pool='0x'+'2'.repeat(40),id='0x'+'3'.repeat(64),hash='0x'+'4'.repeat(64),tx='0x'+'5'.repeat(64);
+const make=()=>new ProjectScope({startBlock:100,contracts:[{address:a,fromBlock:100,reason:'protocol'},{address:pool,fromBlock:110,reason:'project pool',shared:true,poolIds:[id]}]});
+test('wallet transaction tracking returns only matching project transactions',()=>{
+ const s=make();s.check('eth_getTransactionByHash',[tx]);
+ assert.throws(()=>s.check('eth_getTransactionByHash',['latest']));
+ s.observe('eth_getTransactionByHash',[tx],null);
+ s.observe('eth_getTransactionByHash',[tx],{hash:tx,to:a});
+ assert.throws(()=>s.observe('eth_getTransactionByHash',[tx],{hash:id,to:a}));
+ assert.throws(()=>s.observe('eth_getTransactionByHash',[tx],{hash:tx,to:'0x'+'9'.repeat(40)}));
+});
+test('reject unrelated, predeployment and unbounded history',()=>{const s=make();for(const f of [{fromBlock:'0x64',toBlock:'0x65'},{address:a,fromBlock:'0x63',toBlock:'0x65'},{address:a,fromBlock:'0x64',toBlock:'latest'},{address:a,fromBlock:'0x64',toBlock:'0xffff'}])assert.throws(()=>s.check('eth_getLogs',[f]));s.check('eth_getLogs',[{address:a,fromBlock:'0x64',toBlock:'0x65'}]);});
+test('shared PoolManager needs owned pool ID',()=>{const s=make(),f={address:pool,fromBlock:'0x6e',toBlock:'0x70'};assert.throws(()=>s.check('eth_getLogs',[f]));assert.throws(()=>s.check('eth_getLogs',[{...f,topics:[null,hash]}]));s.check('eth_getLogs',[{...f,topics:[null,id]}]);});
+test('full receipts only after a project log, no empty whole-block scan',()=>{const s=make();assert.throws(()=>s.check('eth_getBlockReceipts',[hash]));const p=[{address:a,fromBlock:'0x64',toBlock:'0x65'}];s.check('eth_getLogs',p);s.observe('eth_getLogs',p,[{address:a,blockNumber:'0x64',blockHash:hash,transactionHash:tx,removed:false}]);s.check('eth_getBlockReceipts',[hash]);s.check('eth_getTransactionReceipt',[tx]);s.check('eth_getTransactionReceipt',[id]);assert.throws(()=>s.observe('eth_getTransactionReceipt',[id],{transactionHash:id,to:'0x'+'9'.repeat(40)}));s.observe('eth_getTransactionReceipt',[tx],{transactionHash:tx,to:a,logs:[]});});
+test('reject upstream logs outside scope before granting proof reads',()=>{const s=make();assert.throws(()=>s.observe('eth_getLogs',[{address:a,fromBlock:'0x64',toBlock:'0x65'}],[{address:pool,blockNumber:'0x64',blockHash:hash,transactionHash:tx}]));assert.throws(()=>s.check('eth_getBlockReceipts',[hash]));});
+test('preview dependencies allow bounded state but no log history',()=>{const s=new ProjectScope({startBlock:100,contracts:[{address:a,fromBlock:100,reason:'preview dependency',logs:false}]});s.check('eth_getStorageAt',[a,'0x0','0x64']);s.check('eth_getTransactionCount',[a,'0x64']);assert.throws(()=>s.check('eth_getStorageAt',[a,'0x0','0x63']));assert.throws(()=>s.check('eth_getLogs',[{address:a,fromBlock:'0x64',toBlock:'0x65'}]));});
+
+test('origin proof allows exact code anchors only, never earlier events or calls',()=>{const s=new ProjectScope({startBlock:100,originProof:{parentBlock:99,businessBlock:105,addresses:[a]},contracts:[{address:a,fromBlock:103,reason:'protocol'}]});s.check('eth_getBlockByNumber',['0x63',false]);s.observe('eth_getBlockByNumber',['0x63',false],{number:'0x63',hash});s.check('eth_getCode',[a,{blockHash:hash}]);assert.throws(()=>s.check('eth_call',[{to:a},{blockHash:hash}]));assert.throws(()=>s.check('eth_getCode',[a,'0x62']));assert.throws(()=>s.check('eth_getLogs',[{address:a,fromBlock:'0x63',toBlock:'0x63'}]));});
+test('explicit header proof policy grants receipts only for positive project blooms',()=>{const s=new ProjectScope({startBlock:100,headerEventProofs:true,contracts:[{address:a,fromBlock:100,reason:'protocol'}]});s.observe('eth_getBlockByNumber',['0x64',false],{number:'0x64',hash,logsBloom:'0x'+'00'.repeat(256)});assert.throws(()=>s.check('eth_getBlockReceipts',[hash]));s.observe('eth_getBlockByNumber',['0x64',false],{number:'0x64',hash,logsBloom:'0x'+'ff'.repeat(256)});s.check('eth_getBlockReceipts',[hash]);});
+test('factory MarketCreated discovery adds only scoped meme and curve children',()=>{
+ const factory='0x'+'6'.repeat(40),meme='0x'+'7'.repeat(40),curve='0x'+'8'.repeat(40),unrelated='0x'+'9'.repeat(40);
+ const s=new ProjectScope({startBlock:100,contracts:[{address:factory,fromBlock:100,reason:'factory',module:'TickerGardenFactoryV1'}]});
+ const marketId='0x'+'a'.repeat(64),assetUid='0x'+'b'.repeat(64),gauge='0x'+'1'.repeat(40),quoteAsset='0x'+'2'.repeat(40),baseline='0x'+'c'.repeat(64),quoteConfig='0x'+'d'.repeat(64),economics='0x'+'e'.repeat(64);
+ const topic0=keccak256(new TextEncoder().encode('MarketCreated(bytes32,bytes32,address,address,address,address,bytes32,bytes32,bytes32)'));
+ const topics=[topic0,marketId,assetUid,'0x'+meme.slice(2).padStart(64,'0')];
+ const data=encodeAbiParameters(parseAbiParameters('address,address,address,bytes32,bytes32,bytes32'),[curve,gauge,quoteAsset,baseline,quoteConfig,economics]);
+ const log={address:factory,blockNumber:'0x64',transactionHash:tx,logIndex:'0x0',topics,data,removed:false};
+ s.discover(log);s.check('eth_getLogs',[{address:meme,fromBlock:'0x64',toBlock:'0x64'}]);s.check('eth_getLogs',[{address:curve,fromBlock:'0x64',toBlock:'0x64'}]);
+ s.discover({...log,address:unrelated});assert.throws(()=>s.check('eth_getLogs',[{address:unrelated,fromBlock:'0x64',toBlock:'0x64'}]));
+ assert.throws(()=>s.discover({...log,data:'0x',topics:encoded.topics}));
+});
+
+test('wallet display and simulations remain bounded to current state and project targets',()=>{const s=make();s.check('eth_getBalance',['0x'+'9'.repeat(40),'latest']);assert.throws(()=>s.check('eth_getBalance',['0x'+'9'.repeat(40),'0x64']));s.check('eth_estimateGas',[{to:a}]);assert.throws(()=>s.check('eth_estimateGas',[{to:'0x'+'9'.repeat(40)}]));});
+
+test('only trusted hook binding of a discovered market grants pool logs and survives restart',()=>{
+ const hook='0x'+'a'.repeat(40),meme='0x'+'b'.repeat(40),market='0x'+'c'.repeat(64);
+ const config=()=>({startBlock:100,contracts:[{address:hook,module:'TickerGardenMemeHook',fromBlock:100,reason:'hook'},{address:meme,module:'TickerMemeTokenV1',marketId:market,fromBlock:100,reason:'market child'},{address:pool,module:'UniswapV4PoolManager',shared:true,poolIds:[],fromBlock:100,reason:'pool manager'}]});
+ const s=new ProjectScope(config()), log={address:hook,blockNumber:'0x6e',transactionHash:tx,logIndex:'0x1',topics:[keccak256(new TextEncoder().encode('PoolBindingActivated(bytes32,bytes32,uint32)')),market,id],data:encodeAbiParameters(parseAbiParameters('uint32'),[1]),removed:false};
+ const request=[{address:pool,fromBlock:'0x6e',toBlock:'0x70',topics:[null,id]}];
+ assert.throws(()=>s.check('eth_getLogs',request));
+ s.discover({...log,address:a});assert.throws(()=>s.check('eth_getLogs',request));
+ assert.throws(()=>s.discover({...log,topics:[log.topics[0],hash,id]}));
+ s.discover(log);s.check('eth_getLogs',request);
+ const restored=new ProjectScope(config());restored.restoreDiscoveries([...s.discoveries.values()]);restored.check('eth_getLogs',request);
+});

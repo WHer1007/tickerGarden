@@ -33,12 +33,20 @@ contract HookFeeCalculationRegistryMock {
         _keys[marketId] = key;
     }
 
+    function setCreatorTaxBps(bytes32 marketId, uint16 creatorTaxBps) external {
+        _markets[marketId].config.creatorTaxBps = creatorTaxBps;
+    }
+
     function market(bytes32 marketId) external view returns (MarketView memory) {
         return _markets[marketId];
     }
 
     function canonicalPoolKey(bytes32 marketId) external view returns (PoolKey memory) {
         return _keys[marketId];
+    }
+
+    function canonicalPoolId(bytes32 marketId) external view returns (bytes32) {
+        return keccak256(abi.encode(_keys[marketId]));
     }
 }
 
@@ -66,6 +74,14 @@ contract HookFeeCalculationPoolManagerMock {
 }
 
 contract TickerGardenMemeHookFeeCalculationHarness is TickerGardenMemeHookFeeCalculation {
+    function convertRewards(bytes32, uint256, uint256) external pure returns (uint256, uint256) {
+        revert("UNSUPPORTED_TEST_LAYER");
+    }
+
+    function unlockCallback(bytes calldata) external pure returns (bytes memory) {
+        revert("UNSUPPORTED_TEST_LAYER");
+    }
+
     constructor(address registry, address poolManager, address feeVault, address graduation)
         TickerGardenMemeHookFeeCalculation(registry, poolManager, feeVault, graduation)
     {}
@@ -167,6 +183,35 @@ contract TickerGardenMemeHookFeeCalculationTest is Test {
         assertEq(fee.totalFee, 123);
         assertEq(fee.lpAmount, 0);
         assertEq(fee.nonLpAmount, 123);
+        assertEq(fee.feeNonce, 1);
+        assertEq(fee.feeId, _feeId(fee));
+    }
+
+    function test_creatorTax500IsIncludedForExactInputAndExactOutputUnspecifiedCurrency() public {
+        registry.setCreatorTaxBps(MARKET_ID, 500);
+
+        TickerGardenMemeHookFeeCalculation.CalculatedV4Fee memory exactInput = _prepare(true, -1, _delta(-1, 10_000));
+        assertEq(exactInput.feeAsset, MEME);
+        assertEq(exactInput.base, 10_000);
+        assertEq(exactInput.totalFee, 600);
+        assertEq(exactInput.nonLpAmount, 600);
+        assertEq(exactInput.feeId, _feeId(exactInput));
+
+        TickerGardenMemeHookFeeCalculation.CalculatedV4Fee memory exactOutput = _prepare(true, 1, _delta(10_000, -1));
+        assertEq(exactOutput.feeAsset, QUOTE);
+        assertEq(exactOutput.base, 10_000);
+        assertEq(exactOutput.totalFee, 600);
+        assertEq(exactOutput.nonLpAmount, 600);
+        assertEq(exactOutput.feeId, _feeId(exactOutput));
+    }
+
+    function test_creatorTaxAndBaseFeeUseIndependentFloorRoundingForTinyAmount() public {
+        registry.setCreatorTaxBps(MARKET_ID, 500);
+        TickerGardenMemeHookFeeCalculation.CalculatedV4Fee memory fee = _prepare(true, -1, _delta(-1, 101));
+
+        assertEq(fee.base, 101);
+        assertEq(fee.totalFee, 6); // floor(101 * 1%) + floor(101 * 5%) = 1 + 5
+        assertEq(fee.nonLpAmount, 6);
         assertEq(fee.feeNonce, 1);
         assertEq(fee.feeId, _feeId(fee));
     }
@@ -276,7 +321,7 @@ contract TickerGardenMemeHookFeeCalculationTest is Test {
     function test_feePolicyHashMatchesFeeVaultAndSuccessiveIdsCannotRepeat() public {
         bytes32 expectedPolicyHash = V1MarketEconomics.hashFeePolicy(
             V1MarketEconomics.FeePolicyInput({
-                executionSpecId: keccak256("V1-EXEC-10"),
+                executionSpecId: keccak256("V1-EXEC-11"),
                 feePips: 10_000,
                 lpShareBps: 0,
                 poolKeyFee: 0,

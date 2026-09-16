@@ -1,0 +1,39 @@
+{
+  "schemaVersion": 1,
+  "status": "VERIFIED",
+  "scope": "ARBITRUM_SEPOLIA_DEPLOYMENT_PAYLOAD_ONLY",
+  "broadcastStatus": "NOT_BROADCAST",
+  "productionStatus": "NOT_PRODUCTION_READY",
+  "executionSpecId": "V1-EXEC-11",
+  "chainId": 421614,
+  "deployer": "0xA6c3298a5559544c3b4cf8e6DC5f349f4be524ea",
+  "releaseId": "0xc822f8254eea6141a77a8f372d40828ffa453a3e5393ae636d6833436e8d057f",
+  "payloadHash": "0x4e5247ef1999103b1a3eb374be8d9f1951bd18b956b9f3f77cfd3c27fe6a1de8",
+  "verifiedAt": 1788721334,
+  "expiresAt": 1788728534,
+  "executionManifestSha256": "0xc2079db71ad0d794147c85fff8b28ac093381928cee0c1ab0efbc665e6688ce5",
+  "productArtifactManifestSha256": "0xe69e4945493893c1d94cc4d6c6ec7898577b371d224c81fade7264def3672c3c",
+  "compiledInterfaceManifestSha256": "0x61c5dc4a7c2c4bf2a1d5d2678a4520c1971567ece59a1cee61ff08317001800e",
+  "inputHashes": {
+    "spec/v1_execution_manifest.json": "0xc2079db71ad0d794147c85fff8b28ac093381928cee0c1ab0efbc665e6688ce5",
+    "spec/v1_product_artifact_manifest.json": "0xe69e4945493893c1d94cc4d6c6ec7898577b371d224c81fade7264def3672c3c",
+    "spec/v1_compiled_interface_manifest.json": "0x61c5dc4a7c2c4bf2a1d5d2678a4520c1971567ece59a1cee61ff08317001800e",
+    "outputs/reviews/arbitrum-continuous-preflight-2026-09-07/candidate.public.env": "0xa43a8673a4e2b26d759ffccfd08ef071959c945841e9f1c8186095f382c5b70c",
+    "outputs/reviews/arbitrum-continuous-simulation-2026-09-07/unsigned-transactions.json": "0x732b0c129f4c544e563113ed5ff202001424d4a3c094866e74fc455af60be939",
+    "contracts/script/v1/DeployV1ArbitrumStaged.s.sol": "0x8c5562f42910b83eb05fc31f551e73ccd91cdd3a28ff10c71383a2652200c4e5",
+    "contracts/script/v1/DeployV1ArbitrumContinuousHolders.s.sol": "0x84fd71f4dc1945e7ded25164cd43b25ff060a74daebe873bc717993d38ab8443",
+    "tools/verify-arbitrum-continuous-simulation.mjs": "0x7077138906d505873126cb67093c24bea65cf526939745f8a7c866de15b807c4",
+    "tools/simulate-arbitrum-continuous.mjs": "0x049de7accb0b025af1d1aac65f7b3080b2932c4bdcba2c089e90795c59bf9b6c",
+    "tools/certify-arbitrum-continuous.mjs": "0x8353959b9b5ab46382bc65aafba24cbb91afa4961b69de1d7db11146fb2f914e",
+    "outputs/reviews/arbitrum-continuous-simulation-2026-09-07/simulation.log": "0x28071bd712c2d0ed07c6dc88b5454270a1aa09b5f9560c299a957abf2fcd0ec8",
+    "outputs/reviews/arbitrum-continuous-simulation-2026-09-07/verification.json": "0x1490453c08288af9391fd94217b0bb0924041a1a3544a0e1ed09ece578de8c7f"
+  },
+  "transactionCount": 19,
+  "gasLimitsApproved": false,
+  "executionRequirements": [
+    "Revalidate certificate, source hashes, chain, external code and pending nonce immediately before sending.",
+    "Do not replay dry-run gas limits: estimate each transaction after the preceding receipt; enforce an operator budget.",
+    "Verify completed deployment and configure settlement operator before business activation."
+  ],
+  "evidenceDirectory": "outputs/reviews/arbitrum-continuous-simulation-2026-09-07"
+}

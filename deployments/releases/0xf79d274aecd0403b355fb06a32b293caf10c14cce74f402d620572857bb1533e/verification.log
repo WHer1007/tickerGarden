@@ -1,0 +1,9 @@
+{
+  "status": "DEPLOYED_VERIFIED_NOT_ACTIVATED",
+  "factory": "0xFa1db971633129eA2C6fd55E3Bd2D896B7366efc",
+  "router": "0x159f795f9B93178F3a2A668E00D96275667f146C",
+  "hook": "0x75FC52973D6D0Cd84d77f86Cf3c57354C97Ea044",
+  "contractsVerified": 21,
+  "transactionCount": 19,
+  "balanceWei": "99060890620722800"
+}

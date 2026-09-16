@@ -1,0 +1,341 @@
+{
+  "releaseId": "0xf2ab431cdae9144d0bd1b5f4f3c52c337e0b77a5aa8fd5504cff3d46bf2eec4f",
+  "purpose": "R6 fast only; apply only to a fresh isolated matching base snapshot; never to production checkout",
+  "files": [
+    {
+      "path": "apps/web/src/app.ts",
+      "baseSHA256": "9a82882dd5faef2d5bcd276948731b2a0c44860de90f040bbc765a2ccd24eb77",
+      "r6SHA256": "1ced3b4eb2b386eb2bbc4167b4d1c0fd401df76de8ff6e9dc267ae8757534095"
+    },
+    {
+      "path": "apps/web/src/v1/generated/abis.ts",
+      "baseSHA256": "d6c84facedfa02136edf8a6d496cefbd95927fc234dea12acf39c4c1709251de",
+      "r6SHA256": "4b48f7d072f9df300e04a2c507b80700d1385a3d8ca22804a13c02fca698d020"
+    },
+    {
+      "path": "contracts/foundry.toml",
+      "baseSHA256": "c14a734f1175310013620fcda4f748e96f6a8979c6fc5e4c76f721cff8723523",
+      "r6SHA256": "4bba1b72cadb4e9b814c474b188ec39cacc328a1e0a94b0bb2301ce3141373bd"
+    },
+    {
+      "path": "contracts/src/v1/libraries/CanonicalBlockClock.sol",
+      "baseSHA256": null,
+      "r6SHA256": "192bda76e282087ee5d1f27e2529396390bfb5a8b1e6753ec5f066655fe78dbf"
+    },
+    {
+      "path": "contracts/src/v1/libraries/TreasuryClaimLeafV1.sol",
+      "baseSHA256": "01dc042684ab5e9b36437b23238ff119a97d62f43de3e4eab5cc1a635dd4ccff",
+      "r6SHA256": "e28badf4909b68e309e5aa66212ee765ee7d5c1905c5036b1ce12b19900cb66f"
+    },
+    {
+      "path": "contracts/src/v1/modules/TickerGardenFactoryV1.sol",
+      "baseSHA256": "ebc16f3808102391f0247029a457b222d73a4578eeeb9f0534d5fd4b90618d90",
+      "r6SHA256": "0d47f813aa710450d821a803d8a35c24580e88f5e05ffd6df5f3c0848b3b7a3f"
+    },
+    {
+      "path": "contracts/src/v1/modules/TreasuryDistributorV1.sol",
+      "baseSHA256": "cfc9cd2fac9b6dd8a522c3c94ab1575542aec5256643947055d220953f8347b7",
+      "r6SHA256": "4a00f0b9f7247804f71e30c90e4710d8ecc58459612e259dbcd995e13fa84919"
+    },
+    {
+      "path": "contracts/src/v1/shared/AllocationManagerIncreases.sol",
+      "baseSHA256": "cabc8e7f31e771d70bb9fc3c3f1daf4a7f98f2861f0d3fa506cba8e5ed7d3d39",
+      "r6SHA256": "6e27a9845edf607b301a421dfb6dbef5b6b5e3e1b0dc46d68e5340e8e178d248"
+    },
+    {
+      "path": "contracts/src/v1/shared/DelayedUnpause.sol",
+      "baseSHA256": "f26807178227c5c01f0544387698f4cfbddcf756740e4e77dddc2a739126ce89",
+      "r6SHA256": "a903f2d59595b579b8c4f8f2c681db755317076e6d79556d45b758928deef45f"
+    },
+    {
+      "path": "contracts/src/v1/shared/MemeStockGaugePendingPositions.sol",
+      "baseSHA256": "8113b236cf2bf1631652243cbbb4d196e128f1a4a88df98b97bc402b25a07e56",
+      "r6SHA256": "d9204bf652f69f531433aa634e340879f816c6539000fe496baf15b5e12b3391"
+    },
+    {
+      "path": "contracts/src/v1/shared/ProtocolFeeVaultRewardSettlement.sol",
+      "baseSHA256": "68159e8c3b08b15177c4d196fd5e47c9c03360bc7db7b174b2462c8160fe6f7c",
+      "r6SHA256": "215bd1b89033daf7946d7d597144f9f95aaea70b3266f62504c908af03168c42"
+    },
+    {
+      "path": "contracts/test/v1/fork/R5BusinessArbitrumFork.t.sol",
+      "baseSHA256": "75d6da30429352988b788dfbcfe4c95c6aa53ce3da627c29650eabade84bb30e",
+      "r6SHA256": "2c62d316fa1304f6c5eb1cd9646140d3ed6ea606f4b28d4fdc4a50137b9b45ff"
+    },
+    {
+      "path": "contracts/test/v1/fork/R6DeployedBusinessMatrix.t.sol",
+      "baseSHA256": null,
+      "r6SHA256": "ac1691376b26e825624880b5cddf24e55f2c06ce89a5a9a2fdba7c47a69815fa"
+    },
+    {
+      "path": "contracts/test/v1/fork/R6DeployedBusinessTimeGates.t.sol",
+      "baseSHA256": null,
+      "r6SHA256": "0cd8f7e9796371533e0c9054967a9ca6a957d6d7ebe0cc11ceed8a86d004b420"
+    },
+    {
+      "path": "contracts/test/v1/fork/V1ArbitrumSepoliaForkE2E.t.sol",
+      "baseSHA256": "7c6e0f3f8054e9c734ebdbb4df2874c4e764655c4b1178660a5faf4f06df281a",
+      "r6SHA256": "ea100752ff8ef67cbed8b0b5d0205507fb137ee92bd6b095fbb26b9e188f8642"
+    },
+    {
+      "path": "contracts/test/v1/product/ApprovedQuoteRegistry.t.sol",
+      "baseSHA256": "92ba71948f41fbbd41aadfcb7c61c660233c8a55a72a8ea5b6489cdaeaa5acad",
+      "r6SHA256": "257c94036ad13cdc23f76774b032ce8c37fdd5f5b0a32382e6c6e6e2f310d780"
+    },
+    {
+      "path": "contracts/test/v1/product/LaunchTemplateRegistry.t.sol",
+      "baseSHA256": "5e6133a97d90ae2bf00ee9c330f11ce04ae2d1c58d4df4bd2dd04fa323f0ddce",
+      "r6SHA256": "242f7b95439c74042a1fbe4adc2cb45346a6f7a9db5b17e09792248db0e3eb16"
+    },
+    {
+      "path": "contracts/test/v1/product/MemeStockGauge.t.sol",
+      "baseSHA256": "79eacb88712be531ca7034bbed891875059919c5154955c160f7d1dec48c216f",
+      "r6SHA256": "a159e079e220575f06cdeda9b99154af4fa20495d5ee3a07b3a8313676dbd346"
+    },
+    {
+      "path": "contracts/test/v1/product/OfficialStockRegistryV1.t.sol",
+      "baseSHA256": "e929de0056d5072015d6f273e41264e3c0163e59e694acfc4728955acdfa9275",
+      "r6SHA256": "b7583ce8674dca688b1275237b647eb4f2fd036f1d67b45ecb56a0ff97ca11c8"
+    },
+    {
+      "path": "contracts/test/v1/product/TickerGardenBaselineRegistry.t.sol",
+      "baseSHA256": "6450696f6903fd931cba981d210d5da3c9d78d81bdf0aad07161cef2092ef48e",
+      "r6SHA256": "9b55103ba8607143e86821204e13142ffa770fc719d989f9d63d568623266ae9"
+    },
+    {
+      "path": "contracts/test/v1/product/TickerGardenFactoryV1.t.sol",
+      "baseSHA256": "19e9a8189deb01e32bd9fb4dcf197d670947b2a2f125c85f27921de0c8372c43",
+      "r6SHA256": "37b6dccc94d5a3e080da809acaec683206c3f319574a6949b39a26963cf07345"
+    },
+    {
+      "path": "contracts/test/v1/product/VaultGaugeInvariant.t.sol",
+      "baseSHA256": "3057d0bfee7716d15ab3e6d19371aac5b9a60088548eebc4d0a7d21ce8a84912",
+      "r6SHA256": "9ced8d9f1c6cd13b2bdc5e145ada27324aadfdb6d09ca36f6ccc9ee0196daf67"
+    },
+    {
+      "path": "contracts/test/v1/shared/AllocationManagerDeposits.t.sol",
+      "baseSHA256": "f83dcc7b72af7ec88e1146d86ff5f51ead4c77e7a008fffea716fe19ae8b12ea",
+      "r6SHA256": "f1c587743acc9b9b3684afb0fda39c9d1b2edf93d61529c7786789a18456a6d0"
+    },
+    {
+      "path": "contracts/test/v1/shared/AllocationManagerIncreases.t.sol",
+      "baseSHA256": "901e68c79e46b0e28bf88cd57a93618c773cb40753585e7b5e6143fd7f488a39",
+      "r6SHA256": "235a0bb38340a3543cac37c900012cc0e1ccd182ea5fc793ffb574fcef34378f"
+    },
+    {
+      "path": "contracts/test/v1/shared/CanonicalBlockClock.t.sol",
+      "baseSHA256": null,
+      "r6SHA256": "a82f0284bae437d745fc03458c93430470ca40dc3c37c2440d591901ea927465"
+    },
+    {
+      "path": "contracts/test/v1/shared/MemeStockGaugePendingPositions.t.sol",
+      "baseSHA256": "0d272ca9a599235035236bb48c59c620265de6fed5bf7b36fca0eabe2e265d76",
+      "r6SHA256": "cb136953f83a5463fa3ba8badba0090905c6685e2edf80bd07b6a802ccf8e47c"
+    },
+    {
+      "path": "contracts/test/v1/shared/ProtocolFeeVaultV4Accounting.t.sol",
+      "baseSHA256": "cdae00f3a59c3cc206791ec13e77c623ec111ade66710dd7e83a208ac6e6358a",
+      "r6SHA256": "7906611a4af610acdd4a6cae9289d43be8740d908fb02f16572168aadb4f5caf"
+    },
+    {
+      "path": "contracts/test/v1/shared/RewardSettlement.t.sol",
+      "baseSHA256": "472b81e058097391494ddba37317614c68610f1cbca3d417f33d7c996e9839ea",
+      "r6SHA256": "9bbf0d8b2269afdea8ce7893c3fb7433b23a26e4aee984e53a0a639dc3fc1692"
+    },
+    {
+      "path": "contracts/test/v1/treasury/product/TreasuryDistributorV1.t.sol",
+      "baseSHA256": "d78953c3224ed354c83c7fc3a34ddaa16e49627f9656b0bed681f7bd23b0832d",
+      "r6SHA256": "e2c2db11589bac265cb31ec284399c9fc7e58862995e730d59fc7d8d207a4660"
+    },
+    {
+      "path": "contracts/test/v1/treasury/product/TreasuryDistributorV1Invariant.t.sol",
+      "baseSHA256": "74a5c13c3e3b1a2c80f62ec8ede9cd151fd33e66fb9383ac338e28d1be1cad9e",
+      "r6SHA256": "4472c1efd4d875905f8ffc25cbf128905b50a83876bd33856691f1c9109137a3"
+    },
+    {
+      "path": "contracts/test/v1/treasury/product/TreasurySevenDayBoundary.t.sol",
+      "baseSHA256": "bd407c9d7f80b53cc101ca760379b995426317687ddccc7180d7a14c5e9d2a62",
+      "r6SHA256": "9d5969a5c8536fb0ce78201fedd5e1bb80006955b046bfcbcc0603316b9a0a96"
+    },
+    {
+      "path": "contracts/test/v1/treasury/shared/TreasuryClaimLeafV1.t.sol",
+      "baseSHA256": "6d4a30a3976ad497fd34895be15160c7f89b083adc9801cbae966f2fe32d1a8c",
+      "r6SHA256": "aee4617b482e9f89f6f8b2dca4d3fde0463b53d15b2c264450c3d1c6600c0246"
+    },
+    {
+      "path": "deployments/src/v1/access-manager-plan.ts",
+      "baseSHA256": "9a511c89f2bac5a127ea15a2e7940289cecc4ef355a09fd1abcb2aadc65b87da",
+      "r6SHA256": "cf15da09bff3d3bf9579fc9f4e1dec547cacd2d410caef8edf8500a5e4b34905"
+    },
+    {
+      "path": "deployments/src/v1/preflight.ts",
+      "baseSHA256": "1273481905c8ae4230019abfca9f25f24b6b0eef4cdc76e59cc0fc72d9470609",
+      "r6SHA256": "c587a154901fce512b7ff453a419cb907711ff38c4aed619cf7f656d4dc1acf2"
+    },
+    {
+      "path": "deployments/test/access-manager-plan.test.ts",
+      "baseSHA256": "a6af96af7f05e75b578ca479a2ccd02338c61ddc7d6b8a50f30353399da76176",
+      "r6SHA256": "f072805eda599fa71d25d1f09d6994503a24debe98fca1bd25ece439c1227967"
+    },
+    {
+      "path": "deployments/test/deployment-gate-evidence.test.ts",
+      "baseSHA256": "ced48bbd8b55b5c7e88a3476aec7d8a11bcf48c3e8265eecec07fcbdcdc761a3",
+      "r6SHA256": "c059de367096fdb2c698281f9106fd0b554c3eee4f033c70302c7be6df923741"
+    },
+    {
+      "path": "deployments/test/manifest-fixture.ts",
+      "baseSHA256": "556f4a321c680b4450b301517a773e018c7bd45cba3840d171f90173454cd88d",
+      "r6SHA256": "bc92bb6ba13b7ae5cbbd9abd0fb016eb6e5242086d4218c661a1d4f3e3d7cd4c"
+    },
+    {
+      "path": "services/backend-go/cmd/settlement-worker/main.go",
+      "baseSHA256": "568a17bf85e6977de9132afcf72e80cd012e7be0c3814001bae1e10f9cc56a07",
+      "r6SHA256": "0d5239c540abd00197e0c074459a718d4e7b3d19b6eb3e596738e12b747630b5"
+    },
+    {
+      "path": "services/backend-go/integration/postgres_test.go",
+      "baseSHA256": "7ff94f8a928d42df2c66717667222d1f8b0fa1335c31dd3980cb0ec9fd5616ee",
+      "r6SHA256": "b60aabf7240fa79d2d244faf58e9ac6bbded014af57730526df5a95c35df6898"
+    },
+    {
+      "path": "services/backend-go/integration/treasury_discovery_test.go",
+      "baseSHA256": "c42f5093625c931cdf886680e108285ded98c4644012283661512e29eb5934d1",
+      "r6SHA256": "670e971a455241c34351181db666f57e104ddabb0dc48f4d0edf76e271e337db"
+    },
+    {
+      "path": "services/backend-go/integration/treasury_test.go",
+      "baseSHA256": "33177207097acae7efd5635c36515e3fd223915f2f887ee6c65f63c7360dfcb7",
+      "r6SHA256": "79993416f4c5d91a8ed8c7bad617b7667b444a3240ec845add69e5817868b25b"
+    },
+    {
+      "path": "services/backend-go/internal/chainrpc/submission_anvil_test.go",
+      "baseSHA256": "74b0c8c8dc034a68d830f392dbe9e385938f08f40eca2495b1dcd42dfb8cdd1d",
+      "r6SHA256": "e40735326120d50f275c54852084238538f91b75e312c9126a525eddfb241087"
+    },
+    {
+      "path": "services/backend-go/internal/deployment/holder_observations_test.go",
+      "baseSHA256": "9a0b41fa4b183c925e684907f59f9b3b117a4c1801cccbf769d6850592ace848",
+      "r6SHA256": "c3d8baecc036f487b992e0bcb02f46bb8ebec42398f64c7064ce6c9a149e92d7"
+    },
+    {
+      "path": "services/backend-go/internal/deployment/reward_conversion_state.go",
+      "baseSHA256": "3f1a62c2ea6fce231292a7fcb4c967a2b29d8c59bbbe0d3838766218be63ac93",
+      "r6SHA256": "9e59376238c27fd55f43d0384a8b0f91497f50eff0493175957c069dae5833cd"
+    },
+    {
+      "path": "services/backend-go/internal/deployment/reward_conversion_state_test.go",
+      "baseSHA256": "4e9da0308b18b71a0f7a7bd05721ac8c95f927499e829161b9c27ff750e3743e",
+      "r6SHA256": "bdee15f5eba9f19b8fa6cb1c2c25c6b1d159ef322c964bb05b59bb8dcf90b888"
+    },
+    {
+      "path": "services/backend-go/internal/events/catalog.json",
+      "baseSHA256": "5705b34a7b7f86baace8b7f926848ec6c754e78b7cf2661a1923d620422175f0",
+      "r6SHA256": "66347eb487edb9114e7c5b07e3ac4629ec811e3e27c1629a27896f6d5a66b1ae"
+    },
+    {
+      "path": "services/backend-go/internal/settlement/signer_bounds_test.go",
+      "baseSHA256": "16edfe73799846da7b3068e26eace2e02a6f32209e367416c666d8676967d1b1",
+      "r6SHA256": "75a6bb6e4b93eedc7a08b5c0275f11c71c9461d661a677519f626d1110f3b53f"
+    },
+    {
+      "path": "services/backend-go/internal/treasury/jobs_test.go",
+      "baseSHA256": "cdc59bfa0ab8f06c6e9300b9d2d47c15b969e6c4abfb3a039796ddaf55c22c26",
+      "r6SHA256": "c93ac9e8c901c5e2d8c5f377454c287a40285fcd1a739ec0080586454ce0e867"
+    },
+    {
+      "path": "services/backend-go/internal/treasury/root.go",
+      "baseSHA256": "651ab7b600d10ed1858d8c3e7b0f51b6c91eae50ebc0ab4da32af3e413618532",
+      "r6SHA256": "dee2f5cc7871d66e9114a78fb4230f611ab39e81063c2bb47033d3d8254d4f52"
+    },
+    {
+      "path": "services/backend-go/internal/treasury/testdata/golden.json",
+      "baseSHA256": "84653e068913f83a3dc26a30cbe42eef157f9634eb7d24eff51d0389a5bff34a",
+      "r6SHA256": "7771045d12a5379725f2e415df8fc656b8b5bf6e49e1e64bc680e86c21deeff2"
+    },
+    {
+      "path": "services/backend-go/scripts/generate_treasury_golden.mjs",
+      "baseSHA256": "da289aeee768a9a4d6c3f5019e294e24c9eb2f060a575c6fb27feda993df9d59",
+      "r6SHA256": "df2dddbb41f44bab3c3e2c6c708a50c9f76929c8feb6157c1a30658b0240b0fa"
+    },
+    {
+      "path": "services/backend-go/scripts/smoke_bindings.py",
+      "baseSHA256": "d512dd2997785b237b9fbd51719ab810942b32063fdc2be56214195fcadc4f11",
+      "r6SHA256": "cf0caa168f66c1ca3e5f2eaebc3b20d00472255ae37a7a2cfa5fc760fc6d2ab0"
+    },
+    {
+      "path": "services/backend-go/scripts/smoke_conversion_state.py",
+      "baseSHA256": "6d2f669d648e5b6f27ce5351d6dbab3ad6da1e2ca81d80253da74ec2f53a4a29",
+      "r6SHA256": "ffc57077a804052060b8f48ede114a207ff09b3e7b480652a5cdea1577ecfa7d"
+    },
+    {
+      "path": "services/treasury-root-generator/src/index.ts",
+      "baseSHA256": "ff17d3311dd6cbab598d8ffb3d5f6e8a79ac2aa0155f1194cdba2d68ddd940f7",
+      "r6SHA256": "73b2ec34ee05668e7759998daa964c5c1c4e6a565da522b9c11c9d2624b7d2ca"
+    },
+    {
+      "path": "services/treasury-root-generator/test/index.test.ts",
+      "baseSHA256": "f5df252d2cb952644512fc942439150e811d04835d651a4c2e0164d3498450c7",
+      "r6SHA256": "b58c9ecab333dc0e9279a44ecb1eb13a00909cf7f8d95622f2a1113d441ab1a4"
+    },
+    {
+      "path": "spec/interfaces/IV1MutationSurfaceDraft.sol",
+      "baseSHA256": "12d3f7e045468292b65d571cbbb8886e6570e4189d467bba90bf4dd217649cda",
+      "r6SHA256": "e1984ba1abe506f78f20c15d67a8b2dc341ecdd98e41d471ce773b81a65f5ff8"
+    },
+    {
+      "path": "spec/test_v1_execution_spec.py",
+      "baseSHA256": "87537171e519f35a93838a27bff6ad624dc3c84c1f997c64f9aab2ffa7ead5b3",
+      "r6SHA256": "cc6a63d603d223a6b9cc45a6354fdfe932053f608e795600d0597c1e5ffb93f1"
+    },
+    {
+      "path": "spec/v1_canonical_abi.json",
+      "baseSHA256": "ea997da7a95df2f5864ec0e0188cd621e854cccaacbb225d54c4c1db2c37b483",
+      "r6SHA256": "4fbd7aa968438b7051c5c1be9373a69300c1134ec22a8c2eac6c3d480ad83208"
+    },
+    {
+      "path": "spec/v1_compiled_interface_manifest.json",
+      "baseSHA256": "9c1ba31035dec23ab331d5938ddf2365e8223843212ef56b2115c76dc48d138f",
+      "r6SHA256": "5b8dd03567bf235cb01b62fac8f9105fffe0599224cb812c9199661f90c21e99"
+    },
+    {
+      "path": "spec/v1_execution_manifest.json",
+      "baseSHA256": "eb700ff36ecb7478135356a675869eea948475e2b556483f110d22bfd2d4ff2f",
+      "r6SHA256": "4df2ae4710e9e1b56a3ef490e214bb48371cdecad9b7393b67d443687590760f"
+    },
+    {
+      "path": "spec/v1_permissions_matrix.json",
+      "baseSHA256": "07895780d4079aba87648fe3d9e3338845cb4efe6b23a21ddcff27c0af42eeec",
+      "r6SHA256": "1f45940757c8da8b51ebceb18cfaabb6801642891cf690579adee16db682c75c"
+    },
+    {
+      "path": "spec/v1_product_artifact_manifest.json",
+      "baseSHA256": "97ce4f5a066389803b53594022339e5b48a11456820cc208492f328ce580ca42",
+      "r6SHA256": "92f5cd0141e76a3f8ee5927a3be356e4dd29db306173a0657ca5b8286afe5c3b"
+    },
+    {
+      "path": "spec/v1_treasury_execution_manifest.json",
+      "baseSHA256": "de62fc4f2df22abfe5ee17e10c95b2dba65e38e12dd1248cb80045c8bce0053e",
+      "r6SHA256": "3bd4742bcab522176fcde00a012c4bfd72714d1e173863c14aecbf7d1720fda6"
+    },
+    {
+      "path": "tools/audit-r6-business-public.mjs",
+      "baseSHA256": null,
+      "r6SHA256": "443fb71078d6cd8a4b62ad58d926623cc3c18f88949490404a0cb3b6b871556a"
+    },
+    {
+      "path": "tools/run-r5-business-fork.mjs",
+      "baseSHA256": "35d3b55e1605d80b6b7748b64cbb6a82e054b477af123e9cf54da2335dab1d6c",
+      "r6SHA256": "2140d3e6963e425d760b6b8f3edaf3fac25c23be54d0741671172db496bac938"
+    },
+    {
+      "path": "tools/run-r6-deployed-time-fork.mjs",
+      "baseSHA256": null,
+      "r6SHA256": "beed0c99af223aeeaaf27455aec5560c9ba2439ae7c6f34286fa0e51f7d69694"
+    },
+    {
+      "path": "tools/test-r6-business-public.mjs",
+      "baseSHA256": null,
+      "r6SHA256": "3eb420c108d2a9a908e1e622825e3e4dc8e30b6c6ab1656b94c1306b84c516ba"
+    }
+  ]
+}

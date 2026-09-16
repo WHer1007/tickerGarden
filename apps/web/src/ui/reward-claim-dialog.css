@@ -1,0 +1,26 @@
+.reward-claim-dialog{width:min(500px,calc(100vw - 28px));padding:0;border:1px solid #dfe5dc;border-radius:22px;background:#fffefb;color:#263128;box-shadow:0 28px 90px #17241733,0 4px 16px #17241714;overflow:hidden}
+.reward-claim-dialog::backdrop{background:#12201673;backdrop-filter:blur(6px)}
+.reward-claim-dialog form{margin:0}
+.reward-claim-dialog header{display:flex;align-items:center;justify-content:space-between;gap:16px;padding:24px 26px 20px;border-bottom:1px solid #edf0ea;background:linear-gradient(145deg,#fbfcf7 0%,#f4f8f1 100%)}
+.reward-claim-heading{display:flex;align-items:center;gap:13px;min-width:0}.reward-claim-heading>div{display:grid;gap:2px}.reward-claim-heading small{font-size:10px;line-height:1.2;font-weight:750;letter-spacing:.12em;color:#718074}
+.reward-claim-mark{display:grid;place-items:center;width:38px;height:38px;border-radius:12px;background:#0b513c;color:#fff;font-size:18px;font-weight:750;box-shadow:0 7px 18px #0b513c2e}
+.reward-claim-dialog h3{margin:0;font-size:21px;line-height:1.25;letter-spacing:-.02em}
+.reward-claim-dialog header>button{display:grid;place-items:center;width:34px;height:34px;padding:0;border:1px solid transparent;border-radius:50%;background:transparent;color:#6e776d;font-size:25px;line-height:1;cursor:pointer;transition:background-color .16s ease,border-color .16s ease,color .16s ease,transform .16s ease}
+.reward-claim-dialog header>button:hover{border-color:#dfe5dc;background:#fff;color:#27332b}.reward-claim-dialog header>button:active{transform:scale(.95)}
+.reward-claim-dialog fieldset{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));column-gap:10px;row-gap:5px;margin:0;padding:22px 26px 0;border:0}
+.reward-claim-dialog legend{float:none;grid-column:1/-1;box-sizing:border-box;width:100%;margin:0;padding:18px 0 0;font-size:12px;font-weight:650;color:#68736a}
+.reward-claim-dialog fieldset label{position:relative;display:flex;min-width:0;min-height:78px;padding:13px 12px;border:1px solid #dfe5dc;border-radius:13px;background:#fff;cursor:pointer;transition:border-color .16s ease,background-color .16s ease,box-shadow .16s ease,transform .16s ease}
+.reward-claim-dialog fieldset label:hover{border-color:#aebcaf;background:#fafcf8;transform:translateY(-1px)}
+.reward-claim-dialog fieldset label:has(input:checked){border-color:#39765f;background:#f1f7f3;box-shadow:inset 0 0 0 1px #39765f,0 7px 18px #173c2c0d}
+.reward-claim-dialog fieldset label:has(input:checked)::after{content:"✓";position:absolute;top:9px;right:9px;display:grid;place-items:center;width:18px;height:18px;border-radius:50%;background:#0b513c;color:#fff;font-size:11px;font-weight:800}
+.reward-claim-dialog fieldset input{position:absolute;inline-size:1px;block-size:1px;opacity:0;pointer-events:none}
+.reward-claim-dialog fieldset label>span{display:grid;align-content:center;gap:5px;min-width:0;padding-right:14px}.reward-claim-dialog fieldset strong{overflow:hidden;font-size:13px;line-height:1.25;text-overflow:ellipsis;white-space:nowrap}.reward-claim-dialog fieldset small{font-size:10px;line-height:1.35;color:#818a81}
+.reward-claim-dialog footer{display:flex;align-items:center;gap:10px;padding:17px 26px 22px;border-top:1px solid #edf0ea;background:#fcfcf9}
+.reward-claim-dialog footer button{flex:1;min-height:46px;padding:10px 18px;border:1px solid #cad4c9;border-radius:12px;background:#f5f7f2;color:#174d3b;font:inherit;font-weight:700;cursor:pointer;transition:background-color .16s ease,border-color .16s ease,box-shadow .16s ease,transform .16s ease}
+.reward-claim-dialog footer button:hover{border-color:#aebcaf;background:#eef3ec}.reward-claim-dialog footer button:active{transform:translateY(1px)}
+.reward-claim-dialog footer button[value="claim"]{border-color:#0b513c;background:#0b513c;color:#fff;box-shadow:0 8px 18px #0b513c26}.reward-claim-dialog footer button[value="claim"]:hover{border-color:#063f2e;background:#063f2e}
+.reward-claim-dialog [hidden]{display:none}
+[data-reward-action^="claim"][aria-busy="true"]::before{content:"";display:inline-block;width:12px;height:12px;margin-right:8px;border:2px solid currentColor;border-right-color:transparent;border-radius:50%;animation:reward-claim-spin .8s linear infinite}
+@keyframes reward-claim-spin{to{transform:rotate(360deg)}}
+@media(max-width:520px){.reward-claim-dialog header{padding:21px 20px 18px}.reward-claim-dialog fieldset{grid-template-columns:1fr;row-gap:8px;padding:20px 20px 0}.reward-claim-dialog fieldset label{min-height:64px}.reward-claim-dialog footer{padding:15px 20px 20px}}
+@media(prefers-reduced-motion:reduce){.reward-claim-dialog *{transition:none!important}[data-reward-action^="claim"][aria-busy="true"]::before{animation:none}}

@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.26;
 
+import {StaticLPFee} from "./StaticLPFee.sol";
+
 import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
 import {FullMath} from "@uniswap/v4-core/src/libraries/FullMath.sol";
 import {Pool} from "@uniswap/v4-core/src/libraries/Pool.sol";
@@ -100,7 +102,7 @@ library GraduationPoolMath {
         address expected1 = quoteAsset < memeToken ? memeToken : quoteAsset;
         if (
             memeToken == address(0) || quoteAsset == memeToken || key.currency0 != expected0
-                || key.currency1 != expected1 || key.currency0 >= key.currency1 || key.fee != 0 || key.tickSpacing < 1
+                || key.currency1 != expected1 || key.currency0 >= key.currency1 || !StaticLPFee.isAllowed(key.fee) || key.tickSpacing < 1
                 || key.tickSpacing > type(int16).max || key.hooks == address(0)
                 || (uint160(key.hooks) & ALL_HOOK_PERMISSION_BITS) != HOOK_PERMISSION_MASK
         ) revert InvalidGraduationPoolKey();

@@ -76,11 +76,11 @@ contract ProtocolFeeVaultV4CreditHarness is ProtocolFeeVaultV4Credit {
 
     function pending() external view returns (uint8 state, bytes32 feeId, uint256 amount) {
         PendingV4Credit memory value;
-        (state, value) = _pendingV4Credit();
+        (state, value) = (_creditState(), _pendingV4Credit());
         return (state, value.feeId, value.amount);
     }
 
-    function _recordExactV4Credit(V4CreditRecord memory record) internal override {
+    function _recordExactV4Credit(V4CreditRecord memory record, MarketView memory) internal override {
         if (rejectRecord) revert("RECORD_REJECTED");
         if (attemptReentry) {
             (bool success,) = address(this)
@@ -220,6 +220,31 @@ contract ProtocolFeeVaultV4CreditTest is Test {
         quote = new MockExactQuoteToken(6);
         meme = new MockExactQuoteToken(18);
         registry.configure(MARKET_ID, address(source), address(quote), address(meme), 1, SOURCE_VERSION, POOL_ID);
+    }
+
+    function test_sequentialCreditsAndCaughtFailureClearContextInSameTransaction() public {
+        this.atomicSequentialCredits();
+    }
+
+    function atomicSequentialCredits() external {
+        quote.mint(address(source), 160);
+        bytes32 first = keccak256("sequential-first");
+        bytes32 retry = keccak256("sequential-retry");
+        source.creditErc20(creditVault, quote, MARKET_ID, SOURCE_VERSION, first, 80, 80);
+        _assertNoPending();
+        vault.setRecordBehavior(true, false);
+        vm.expectRevert("RECORD_REJECTED");
+        source.creditErc20(creditVault, quote, MARKET_ID, SOURCE_VERSION, retry, 80, 80);
+        _assertNoPending();
+        assertFalse(vault.consumed(retry));
+        vault.setRecordBehavior(false, true);
+        source.creditErc20(creditVault, quote, MARKET_ID, SOURCE_VERSION, retry, 80, 80);
+        _assertNoPending();
+        assertTrue(vault.reentryRejected());
+        assertTrue(vault.consumed(first));
+        assertTrue(vault.consumed(retry));
+        assertEq(vault.recordCount(), 2);
+        assertEq(quote.balanceOf(address(vault)), 160);
     }
 
     function test_exactErc20ArrivalConsumesFeeIdAndClearsPendingLock() public {

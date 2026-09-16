@@ -19,7 +19,7 @@ script = "script/v1"
 out = "out-v1"
 cache_path = "cache-v1"
 libs = ["lib"]
-fs_permissions = [{ access = "read", path = "../spec" }]
+fs_permissions = [{ access = "read", path = "../outputs/reviews/r5-business-acceptance-2026-09-06/time-fixture.json" }, { access = "read", path = "../deployments/releases/0xe451138ea1858fdd816e0c1f4a0480945b16d85713056d33655a91bfb74eeeb7/arbitrum-sepolia-421614.v1.deployed.json" }, { access = "read", path = "../spec" }, { access = "read", path = "../deployments/evidence" }, { access = "read", path = "../deployments/manifests/arbitrum-sepolia-421614.v1.deployed.json" }, { access = "read", path = "../outputs/reviews/arbitrum-r3-scenarios/results.json" }, { access = "read", path = "../outputs/reviews/arbitrum-r3-scenarios/roles.json" }]
 solc_version = "0.8.26"
 evm_version = "cancun"
 optimizer = true
@@ -40,7 +40,7 @@ script = "script/v1"
 out = "out-v1-ci"
 cache_path = "cache-v1-ci"
 libs = ["lib"]
-fs_permissions = [{ access = "read", path = "../spec" }]
+fs_permissions = [{ access = "read", path = "../outputs/reviews/r5-business-acceptance-2026-09-06/time-fixture.json" }, { access = "read", path = "../deployments/releases/0xe451138ea1858fdd816e0c1f4a0480945b16d85713056d33655a91bfb74eeeb7/arbitrum-sepolia-421614.v1.deployed.json" }, { access = "read", path = "../spec" }, { access = "read", path = "../deployments/evidence" }, { access = "read", path = "../deployments/manifests/arbitrum-sepolia-421614.v1.deployed.json" }, { access = "read", path = "../outputs/reviews/arbitrum-r3-scenarios/results.json" }, { access = "read", path = "../outputs/reviews/arbitrum-r3-scenarios/roles.json" }]
 solc_version = "0.8.26"
 evm_version = "cancun"
 optimizer = true

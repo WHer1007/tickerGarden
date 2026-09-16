@@ -5,7 +5,13 @@ import {Test} from "forge-std/Test.sol";
 import {ERC20} from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
-import {MarketConfig, MarketRuntime, MarketView, PonsBaseline, QuoteAssetConfig} from "../../../src/v1/interfaces/IV1Protocol.sol";
+import {
+    MarketConfig,
+    MarketRuntime,
+    MarketView,
+    TickerGardenBaseline,
+    QuoteAssetConfig
+} from "../../../src/v1/interfaces/IV1Protocol.sol";
 import {GraduationExecutorAssetAccounting} from "../../../src/v1/shared/GraduationExecutorAssetAccounting.sol";
 
 contract GraduationAccountingToken is ERC20 {
@@ -28,15 +34,21 @@ contract GraduationAccountingQuoteRegistryMock {
     }
 }
 
-contract GraduationAccountingPonsBaselineRegistryMock {
-    mapping(bytes32 id => PonsBaseline value) private _baselines;
-    function configure(bytes32 id, PonsBaseline calldata value) external { _baselines[id] = value; }
-    function baseline(bytes32 id) external view returns (PonsBaseline memory) { return _baselines[id]; }
+contract GraduationAccountingTickerGardenBaselineRegistryMock {
+    mapping(bytes32 id => TickerGardenBaseline value) private _baselines;
+
+    function configure(bytes32 id, TickerGardenBaseline calldata value) external {
+        _baselines[id] = value;
+    }
+
+    function baseline(bytes32 id) external view returns (TickerGardenBaseline memory) {
+        return _baselines[id];
+    }
 }
 
 contract GraduationAccountingRegistryMock {
     address public immutable approvedQuoteRegistry;
-    address public immutable ponsBaselineRegistry;
+    address public immutable tickerGardenBaselineRegistry;
     address public executor;
     mapping(bytes32 marketId => MarketView value) private _markets;
 
@@ -44,7 +56,7 @@ contract GraduationAccountingRegistryMock {
 
     constructor(address quoteRegistry, address baselineRegistry) {
         approvedQuoteRegistry = quoteRegistry;
-        ponsBaselineRegistry = baselineRegistry;
+        tickerGardenBaselineRegistry = baselineRegistry;
     }
 
     function setExecutor(address value) external {
@@ -157,7 +169,7 @@ contract GraduationExecutorAssetAccountingTest is Test {
     uint256 private constant BASELINE_SUPPLY = 1_000_000_000 ether;
 
     GraduationAccountingQuoteRegistryMock private quotes;
-    GraduationAccountingPonsBaselineRegistryMock private baselines;
+    GraduationAccountingTickerGardenBaselineRegistryMock private baselines;
     GraduationAccountingRegistryMock private registry;
     GraduationAccountingCurveCaller private curve;
     GraduationAccountingToken private meme;
@@ -178,7 +190,7 @@ contract GraduationExecutorAssetAccountingTest is Test {
 
     function setUp() public {
         quotes = new GraduationAccountingQuoteRegistryMock();
-        baselines = new GraduationAccountingPonsBaselineRegistryMock();
+        baselines = new GraduationAccountingTickerGardenBaselineRegistryMock();
         registry = new GraduationAccountingRegistryMock(address(quotes), address(baselines));
         curve = new GraduationAccountingCurveCaller();
         meme = new GraduationAccountingToken("Meme", "MEME");
@@ -324,7 +336,7 @@ contract GraduationExecutorAssetAccountingTest is Test {
         config.curve = address(curve);
         config.memeToken = address(meme);
         config.quoteAsset = quoteAsset;
-        config.ponsBaselineId = BASELINE_ID;
+        config.tickerGardenBaselineId = BASELINE_ID;
         config.quoteAssetConfigId = QUOTE_CONFIG_ID;
         registry.configure(MARKET_ID, config, SOURCE_VERSION);
     }
@@ -333,20 +345,18 @@ contract GraduationExecutorAssetAccountingTest is Test {
         quotes.configure(
             QUOTE_CONFIG_ID,
             QuoteAssetConfig({
-                ponsBaselineId: baselineId,
+                tickerGardenBaselineId: baselineId,
                 quoteAsset: quoteAsset,
                 quoteDecimals: 18,
                 phantomQuote: phantom,
-                graduationThreshold: quoteAsset == address(0)
-                    ? NATIVE_THRESHOLD
-                    : 26_639_006_882_017_848_346,
+                graduationThreshold: quoteAsset == address(0) ? NATIVE_THRESHOLD : 26_639_006_882_017_848_346,
                 economicsHash: QUOTE_CONFIG_ID,
                 status: 1
             })
         );
         baselines.configure(
             baselineId,
-            PonsBaseline({
+            TickerGardenBaseline({
                 referenceChainId: block.chainid,
                 referenceFactory: address(registry),
                 referenceFactoryCodeHash: bytes32(0),

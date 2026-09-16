@@ -115,6 +115,7 @@ abstract contract MemeStockGaugeAccumulators is MemeStockGaugeLockedPositions {
         internal
         returns (uint256 activatedAmount, uint256 processedBuckets)
     {
+        _beforeRewardActivationCheckpoint(marketId);
         return _checkpointActivations(
             marketId, _rewardStates[QUOTE_REWARD_INDEX].accFeePerShare, _rewardStates[MEME_REWARD_INDEX].accFeePerShare
         );
@@ -162,16 +163,6 @@ abstract contract MemeStockGaugeAccumulators is MemeStockGaugeLockedPositions {
         reward.pendingFee = 0;
     }
 
-    function _rewardState(uint8 rewardIndex) internal view returns (GaugeRewardState memory) {
-        _requireRewardIndex(rewardIndex);
-        return _rewardStates[rewardIndex];
-    }
-
-    function _claimable(address user, uint8 rewardIndex) internal view returns (uint256) {
-        _requireRewardIndex(rewardIndex);
-        return _gaugePositions[user].rewards[rewardIndex].pendingFee;
-    }
-
     function _requireRewardIndex(uint8 rewardIndex) private pure {
         if (rewardIndex >= REWARD_ASSET_COUNT) revert InvalidRewardIndex(rewardIndex);
     }
@@ -185,4 +176,6 @@ abstract contract MemeStockGaugeAccumulators is MemeStockGaugeLockedPositions {
     /// @dev Production publishes the accumulator pair to the Vault after every non-zero update. Harnesses that
     ///      test the arithmetic primitives need no external dependency.
     function _afterRewardAccumulatorUpdate(bytes32) internal virtual {}
+
+    function _beforeRewardActivationCheckpoint(bytes32) internal virtual {}
 }

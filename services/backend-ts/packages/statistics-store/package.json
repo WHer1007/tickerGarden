@@ -1,0 +1,1 @@
+{"name":"@tickergarden/statistics-store","version":"0.0.0","private":true,"type":"module","dependencies":{"@tickergarden/analytics":"0.0.0","@tickergarden/config-projector":"0.0.0","@tickergarden/display-price":"0.0.0","@tickergarden/events":"0.0.0","pg":"^8.23.0"}}

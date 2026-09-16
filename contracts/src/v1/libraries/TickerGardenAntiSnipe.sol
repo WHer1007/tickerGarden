@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.26;
 
-import {PonsCurveMath} from "./PonsCurveMath.sol";
+import {TickerGardenCurveMath} from "./TickerGardenCurveMath.sol";
 
 /// @notice Fixed five-second TickerGarden runtime anti-snipe policy for buy quotes.
 /// @dev The atomic first-buy recipient must be supplied only by an authenticated Router execution context.
@@ -29,7 +29,7 @@ library TickerGardenAntiSnipe {
         uint256 rawSnipeBps;
         uint256 effectiveSnipeBps;
         bool exempt;
-        PonsCurveMath.BuyQuote curveQuote;
+        TickerGardenCurveMath.BuyQuote curveQuote;
     }
 
     error InvalidRecipient(address recipient);
@@ -94,7 +94,7 @@ library TickerGardenAntiSnipe {
         quote.exempt = isExempt(recipient, caller, context);
         uint256 elapsedSeconds = elapsedSince(currentTimestamp, launchTimestamp);
         (quote.rawSnipeBps, quote.effectiveSnipeBps) = effectiveSnipeBps(elapsedSeconds, quote.exempt, feeBps);
-        quote.curveQuote = PonsCurveMath.quoteBuy(
+        quote.curveQuote = TickerGardenCurveMath.quoteBuy(
             quoteReceived, quoteReserve, tokenReserve, reservedTokens, feeBps, quote.effectiveSnipeBps, minTokensOut
         );
     }

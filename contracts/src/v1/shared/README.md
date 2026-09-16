@@ -1,12 +1,12 @@
 # Shared V1 implementation
 
-> Current local boundary: `V1-EXEC-10`. Shared code contains no deployed-market administrator, pause/retire/takeover switch, Hook/Gauge disable path, graduation retry, terminal rescue, or management-recovery ledger.
+> Current local boundary: `V1-EXEC-11`. Shared code contains no deployed-market administrator, pause/retire/takeover switch, Hook/Gauge disable path, graduation retry, terminal rescue, or management-recovery ledger.
 
 ## Foundation
 
-- `ImmutableAccessManaged` and `DelayedUnpause` implement selector-scoped AccessManager authorization and the state-relative 24-hour unpause delay for Asset/Quote/Pons/Template configuration objects only.
+- `ImmutableAccessManaged` and `DelayedUnpause` implement selector-scoped AccessManager authorization and the state-relative 24-hour unpause delay for Asset/Quote/TickerGarden/Template configuration objects only.
 - `V1Identifiers`, `V1Create2`, `V1MarketEconomics`, and `V1FactoryValidation` provide typed IDs, deterministic deployment, immutable economics hashes, active configuration-snapshot validation, and exact `MultiAsset.v6` Vault schema/dependency admission.
-- `V1Scaffold` freezes the `V1-EXEC-10` compile identity.
+- `V1Scaffold` freezes the `V1-EXEC-11` compile identity.
 
 ## Launch and creation
 
@@ -36,6 +36,6 @@
 ## Graduation and permanent liquidity
 
 - `GraduationExecutorEntry`, `GraduationExecutorAssetAccounting`, and `GraduationExecutorPoolExecution` authenticate the exact Curve, consume only the exact assets delivered by the final buy, deploy/bind the Locker, initialize and mint the canonical v4 pool, permanently lock both-currency dust, activate the Hook, and commit `PoolCreated` atomically.
-- `LaunchLockerBinding` and `LaunchLockerCustody` permanently isolate the full-range Position NFT and balances per market. Fee collection and compounding are intentionally absent.
+- `LaunchLockerBinding` and `LaunchLockerCustody` permanently isolate the full-range Position NFT and balances per market. `LaunchLockerCompounding` adds public fee collection and Keeper-bounded reinvestment of separately accounted fees; position principal and observed unrelated balances remain isolated.
 
 Configuration controls can stop new admission or new STOCK exposure, but cannot alter existing Curve/v4 trading or block principal exit. Target-chain identities, production deployment manifest, independent audit, and live E2E remain external gates.

@@ -1,0 +1,43 @@
+import {reviewPath, simulationPath} from "./robinhood-deployment-run.mjs";
+import fs from 'node:fs';
+import path from 'node:path';
+import {fileURLToPath} from 'node:url';
+import {keccak256,decodeFunctionData,encodeFunctionData,encodeAbiParameters,getContractAddress,concat} from '../apps/web/node_modules/viem/_esm/index.js';
+import {ordinaryArtifactNames,assertArtifactSourcesCurrent,assertOrdinaryInitCodesCurrent} from './verify-v1-build-inputs.mjs';
+const root=fileURLToPath(new URL('../',import.meta.url));
+export const output=root+`${simulationPath}`;
+const input=root+`${reviewPath}`;
+const read=p=>JSON.parse(fs.readFileSync(p));
+const eq=(a,b,msg)=>{if(String(a).toLowerCase()!==String(b).toLowerCase())throw Error(msg);};
+export function verifyBatch(batch=read(output+'/unsigned-transactions.json')) {
+ const preview=read(input+'/candidate.preview.json'), preflight=read(input+'/chain-preflight.json');
+ const names=[...ordinaryArtifactNames];names[14]='HolderRewardsDistributorV1';
+ const load=n=>read(root+'contracts/out-v1/'+(['TickerMemeTokenV1Implementation','TickerGardenCurveImplementation'].includes(n)?'TickerGardenFactoryV1':n)+'.sol/'+n+'.json');
+ const artifacts=names.map(load), orchestrator=load('V1RobinhoodTestnetDeploymentOrchestrator');
+ const extra=['V1HookExecutorDeployer','TickerGardenMemeHook','GraduationExecutor','TickerGardenFactoryV1'].map(load);
+ for(const a of [...artifacts,orchestrator,...extra])assertArtifactSourcesCurrent(a,root+'contracts');
+ eq(batch.chain,46630,'Batch chain');eq(batch.transactions.length,19,'Transaction count');
+ if(batch.receipts.length||batch.pending.length)throw Error('Expected an unbroadcast batch');
+ const txs=batch.transactions.map(e=>e.transaction), canonical='0x4e59b44847b379578588920ca78fbf26c0b4956c';
+ const firstNonce=BigInt(txs[0].nonce);eq(firstNonce,BigInt(preflight.nonce),'Snapshot nonce');
+ txs.forEach((t,i)=>{eq(t.from,preflight.deployer,'Sender');eq(BigInt(t.chainId),46630n,'Transaction chain');eq(BigInt(t.value),0n,'Transaction value');eq(BigInt(t.nonce),firstNonce+BigInt(i),'Nonce order');eq(t.to,i?preview.orchestrator:canonical,'Target');if((t.input.length-2)/2>90000)throw Error('Calldata cap');if(batch.transactions[i].hash)throw Error('Unexpected signed/broadcast transaction');});
+ const init=concat([orchestrator.bytecode.object,encodeAbiParameters([{type:'address'},{type:'bytes32'}],[preflight.deployer,preview.releaseId])]);
+ eq('0x'+txs[0].input.slice(66),init,'Orchestrator creation code or constructor');
+ eq(getContractAddress({from:canonical,opcode:'CREATE2',salt:txs[0].input.slice(0,66),bytecode:init}),preview.orchestrator,'Orchestrator prediction');
+ const calls=txs.slice(1).map(t=>decodeFunctionData({abi:orchestrator.abi,data:t.input}));
+ eq(calls[0].functionName,'begin','Begin order');eq(calls[17].functionName,'finish','Finish order');
+ calls.forEach((c,i)=>eq(encodeFunctionData({abi:orchestrator.abi,functionName:c.functionName,args:c.args}),txs[i+1].input,'Noncanonical transaction calldata'));
+ const codes=calls.slice(1,17).map((c,i)=>{eq(c.functionName,'deployComponent','Component call');eq(c.args[0],i,'Component order');eq(keccak256(c.args[1]),calls[0].args[1][i],'Init commitment');eq(getContractAddress({from:preview.orchestrator,nonce:BigInt(i+1)}),preview.ordinaryComponents[i],'Component address');return c.args[1];});
+ assertOrdinaryInitCodesCurrent(batch,orchestrator.abi,artifacts);
+ const final=calls[17].args[0], type=orchestrator.abi.find(a=>a.name==='finish').inputs;
+ eq(final.ordinaryInitCodes.length,0,'Finish ordinary codes');
+ eq(keccak256(encodeAbiParameters(type,[final])),calls[0].args[2],'Final payload commitment');
+ const fullHash=keccak256(encodeAbiParameters(type,[{...final,ordinaryInitCodes:codes}]));
+ eq(fullHash,preview.payloadHash,'Reviewed payload');eq(fullHash,calls[0].args[0],'Begin payload');
+ ['helperInitCode','hookInitCode','executorInitCode','factoryInitCode'].forEach((k,i)=>{if(!final[k].startsWith(extra[i].bytecode.object))throw Error('Stale '+k);});
+ const helper=getContractAddress({from:preview.orchestrator,opcode:'CREATE2',salt:final.helperSalt,bytecode:final.helperInitCode});
+ eq(getContractAddress({from:helper,nonce:1n}),preview.hook,'Hook address');eq(getContractAddress({from:helper,nonce:2n}),preview.executor,'Executor address');eq(getContractAddress({from:preview.orchestrator,opcode:'CREATE2',salt:final.factorySalt,bytecode:final.factoryInitCode}),preview.factory,'Factory address');eq(BigInt(preview.hook)&16383n,0x2044n,'Hook permissions');
+ const gasUnderestimates=artifacts.flatMap((a,i)=>{const minimum=(a.deployedBytecode.object.length-2)/2*200;return BigInt(txs[i+2].gas)<BigInt(minimum)?[{component:names[i],rpcGasLimit:Number(BigInt(txs[i+2].gas)),runtimeCodeDepositGasMinimum:minimum}]:[];});
+ return {gasLimitsApproved:false,gasUnderestimates,status:'VERIFIED_UNSIGNED_NOT_BROADCAST',chainId:46630,releaseId:preview.releaseId,payloadHash:fullHash,transactions:19,components:16,component14:names[14],firstNonce:Number(firstNonce),lastNonce:Number(firstNonce)+18,helper,transactionGasLimitSum:txs.reduce((s,t)=>s+BigInt(t.gas),0n).toString(),maxCalldataBytes:Math.max(...txs.map(t=>(t.input.length-2)/2)),rows:txs.map((t,i)=>({index:i,action:i===0?'create orchestrator':i===1?'begin':i===18?'finish':names[i-2],nonce:Number(BigInt(t.nonce)),gasLimit:BigInt(t.gas).toString(),calldataBytes:(t.input.length-2)/2}))};
+}
+if(process.argv[1]&&path.resolve(process.argv[1])===fileURLToPath(import.meta.url)){const result=verifyBatch();fs.writeFileSync(output+'/verification.json',JSON.stringify(result,null,2)+'\n');console.log(JSON.stringify(result));}

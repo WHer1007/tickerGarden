@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.26;
 
-import {LaunchLockerCustody} from "../shared/LaunchLockerCustody.sol";
+import {LaunchLockerCompounding} from "../shared/LaunchLockerCompounding.sol";
 
-/// @notice Canonical per-market permanent Position NFT custody with no fee collection or compounding entrypoint.
-contract LaunchLocker is LaunchLockerCustody {
+/// @notice Permanent Position NFT custody with public fee collection and Keeper-bounded compounding.
+contract LaunchLocker is LaunchLockerCompounding {
     constructor(bytes32 marketId_, address marketRegistry_, address positionManager_)
-        LaunchLockerCustody(marketId_, marketRegistry_, positionManager_)
+        LaunchLockerCompounding(marketId_, marketRegistry_, positionManager_)
     {}
 }

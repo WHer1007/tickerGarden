@@ -52,7 +52,7 @@ contract TickerGardenMemeHookTest is Test {
         bytes32 salt = _findSalt(initCode, true);
         address predicted = _predict(salt, keccak256(initCode));
 
-        TickerGardenMemeHook hook = TickerGardenMemeHook(deployer.deploy(initCode, salt));
+        TickerGardenMemeHook hook = TickerGardenMemeHook(payable(deployer.deploy(initCode, salt)));
 
         assertEq(address(hook), predicted);
         assertEq(uint160(address(hook)) & ALL_BITS, MASK);

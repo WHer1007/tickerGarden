@@ -1,0 +1,153 @@
+rule_files: [pipeline-alerts.yml]
+evaluation_interval: 1m
+tests:
+  - interval: 1m
+    input_series:
+      - series: 'up{job="tickergarden-pipeline",instance="pipeline"}'
+        values: '0+0x10'
+    alert_rule_test:
+      - eval_time: 3m
+        alertname: TickerGardenPipelineCollectorDown
+        exp_alerts:
+          - exp_labels: {"job": "tickergarden-pipeline", "instance": "pipeline", "severity": "critical"}
+            exp_annotations: {"summary": "TickerGarden pipeline collector cannot be scraped"}
+      - eval_time: 3m
+        alertname: TickerGardenPipelineMetricsMissing
+        exp_alerts: []
+  - interval: 1m
+    input_series:
+      - series: 'up{job="tickergarden-pipeline",instance="pipeline"}'
+        values: '1+0x10'
+    alert_rule_test:
+      - eval_time: 3m
+        alertname: TickerGardenPipelineMetricsMissing
+        exp_alerts:
+          - exp_labels: {"job": "tickergarden-pipeline", "instance": "pipeline", "severity": "warning"}
+            exp_annotations: {"summary": "TickerGarden pipeline scrape lacks required status metrics"}
+      - eval_time: 3m
+        alertname: TickerGardenPipelineAttention
+        exp_alerts: []
+  - interval: 1m
+    input_series:
+      - series: 'up{job="tickergarden-pipeline",instance="pipeline"}'
+        values: '1+0x10'
+      - series: 'tickergarden_pipeline_observed_timestamp_seconds{job="tickergarden-pipeline",instance="pipeline",chain_id="46630"}'
+        values: '0+60x10'
+    alert_rule_test:
+      - eval_time: 3m
+        alertname: TickerGardenPipelineMetricsMissing
+        exp_alerts:
+          - exp_labels: {"job": "tickergarden-pipeline", "instance": "pipeline", "severity": "warning"}
+            exp_annotations: {"summary": "TickerGarden pipeline scrape lacks required status metrics"}
+  - interval: 1m
+    input_series:
+      - series: 'up{job="tickergarden-pipeline",instance="pipeline"}'
+        values: '1+0x10'
+      - series: 'tickergarden_pipeline_attention{job="tickergarden-pipeline",instance="pipeline",chain_id="46630"}'
+        values: '1+0x10'
+    alert_rule_test:
+      - eval_time: 3m
+        alertname: TickerGardenPipelineMetricsMissing
+        exp_alerts:
+          - exp_labels: {"job": "tickergarden-pipeline", "instance": "pipeline", "severity": "warning"}
+            exp_annotations: {"summary": "TickerGarden pipeline scrape lacks required status metrics"}
+      - eval_time: 3m
+        alertname: TickerGardenPipelineAttention
+        exp_alerts: []
+  - interval: 1m
+    input_series:
+      - series: 'up{job="tickergarden-pipeline",instance="pipeline"}'
+        values: '1+0x10'
+      - series: 'tickergarden_pipeline_observed_timestamp_seconds{job="tickergarden-pipeline",instance="pipeline",chain_id="46630"}'
+        values: '0+0x10'
+      - series: 'tickergarden_pipeline_attention{job="tickergarden-pipeline",instance="pipeline",chain_id="46630"}'
+        values: '1+0x10'
+    alert_rule_test:
+      - eval_time: 8m
+        alertname: TickerGardenPipelineStale
+        exp_alerts:
+          - exp_labels: {"job": "tickergarden-pipeline", "instance": "pipeline", "severity": "warning", "chain_id": "46630"}
+            exp_annotations: {"summary": "TickerGarden pipeline report is older than five minutes"}
+      - eval_time: 8m
+        alertname: TickerGardenPipelineAttention
+        exp_alerts: []
+  - interval: 1m
+    input_series:
+      - series: 'up{job="tickergarden-pipeline",instance="pipeline"}'
+        values: '1+0x10'
+      - series: 'tickergarden_pipeline_observed_timestamp_seconds{job="tickergarden-pipeline",instance="pipeline",chain_id="46630"}'
+        values: '1000+60x10'
+      - series: 'tickergarden_pipeline_attention{job="tickergarden-pipeline",instance="pipeline",chain_id="46630"}'
+        values: '1+0x10'
+    alert_rule_test:
+      - eval_time: 3m
+        alertname: TickerGardenPipelineClockSkew
+        exp_alerts:
+          - exp_labels: {"job": "tickergarden-pipeline", "instance": "pipeline", "severity": "warning", "chain_id": "46630"}
+            exp_annotations: {"summary": "TickerGarden pipeline report timestamp is in the future"}
+      - eval_time: 3m
+        alertname: TickerGardenPipelineAttention
+        exp_alerts: []
+  - interval: 1m
+    input_series:
+      - series: 'up{job="tickergarden-pipeline",instance="pipeline"}'
+        values: '1+0x10'
+      - series: 'tickergarden_pipeline_observed_timestamp_seconds{job="tickergarden-pipeline",instance="pipeline",chain_id="46630"}'
+        values: '0+60x10'
+      - series: 'tickergarden_pipeline_attention{job="tickergarden-pipeline",instance="pipeline",chain_id="46630"}'
+        values: '1+0x3 0+0x6'
+    alert_rule_test:
+      - eval_time: 3m
+        alertname: TickerGardenPipelineAttention
+        exp_alerts:
+          - exp_labels: {"job": "tickergarden-pipeline", "instance": "pipeline", "severity": "warning", "chain_id": "46630"}
+            exp_annotations: {"summary": "TickerGarden pipeline reports an active attention signal"}
+      - eval_time: 5m
+        alertname: TickerGardenPipelineAttention
+        exp_alerts: []
+      - eval_time: 3m
+        alertname: TickerGardenPipelineStale
+        exp_alerts: []
+      - eval_time: 3m
+        alertname: TickerGardenPipelineMetricsMissing
+        exp_alerts: []
+  - interval: 1m
+    input_series:
+      - series: 'up{job="tickergarden-pipeline",instance="pipeline"}'
+        values: '1+0x10'
+      - series: 'tickergarden_pipeline_observed_timestamp_seconds{job="tickergarden-pipeline",instance="pipeline",chain_id="46630"}'
+        values: '0+60x10'
+      - series: 'tickergarden_pipeline_attention{job="tickergarden-pipeline",instance="pipeline",chain_id="46630"}'
+        values: '0+0x10'
+    alert_rule_test:
+      - eval_time: 3m
+        alertname: TickerGardenPipelineCollectorDown
+        exp_alerts: []
+      - eval_time: 3m
+        alertname: TickerGardenPipelineMetricsMissing
+        exp_alerts: []
+      - eval_time: 3m
+        alertname: TickerGardenPipelineStale
+        exp_alerts: []
+      - eval_time: 3m
+        alertname: TickerGardenPipelineClockSkew
+        exp_alerts: []
+      - eval_time: 3m
+        alertname: TickerGardenPipelineAttention
+        exp_alerts: []
+  - interval: 1m
+    input_series:
+      - series: 'up{job="tickergarden-pipeline",instance="pipeline"}'
+        values: '1+0x10'
+      - series: 'up{job="tickergarden-pipeline",instance="healthy"}'
+        values: '1+0x10'
+      - series: 'tickergarden_pipeline_observed_timestamp_seconds{job="tickergarden-pipeline",instance="healthy",chain_id="46630"}'
+        values: '0+60x10'
+      - series: 'tickergarden_pipeline_attention{job="tickergarden-pipeline",instance="healthy",chain_id="46630"}'
+        values: '0+0x10'
+    alert_rule_test:
+      - eval_time: 3m
+        alertname: TickerGardenPipelineMetricsMissing
+        exp_alerts:
+          - exp_labels: {"job": "tickergarden-pipeline", "instance": "pipeline", "severity": "warning"}
+            exp_annotations: {"summary": "TickerGarden pipeline scrape lacks required status metrics"}

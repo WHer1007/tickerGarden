@@ -7,9 +7,7 @@ import {MarketView, PoolKey} from "../interfaces/IV1Protocol.sol";
 import {LaunchLockerBinding} from "./LaunchLockerBinding.sol";
 
 /// @notice Permanent two-currency custody boundary shared by the final per-market LaunchLocker.
-/// @dev This layer intentionally has no asset/NFT transfer, approval, arbitrary-call, admin, or initialization entry.
-///      Any directly transferred currency remains permanently isolated with the position; no collection or compound
-///      mutation exists in the final LaunchLocker.
+/// @dev Derived compounding spends only separately accounted LP fees; direct donations and graduation excess stay isolated.
 abstract contract LaunchLockerCustody is LaunchLockerBinding {
     address internal immutable _lockerCurrency0;
     address internal immutable _lockerCurrency1;
@@ -31,7 +29,7 @@ abstract contract LaunchLockerCustody is LaunchLockerBinding {
         bytes32 suppliedPoolId = keccak256(abi.encode(key));
         if (
             boundMarketId != marketId_ || key.currency0 != expectedCurrency0 || key.currency1 != expectedCurrency1
-                || key.currency0 >= key.currency1 || key.fee != 0 || key.hooks != marketView.config.graduatedHook
+                || key.currency0 >= key.currency1 || key.fee != marketView.config.lpFeePips || key.hooks != marketView.config.graduatedHook
                 || suppliedPoolId != boundPoolId
         ) revert InvalidLaunchLockerPoolKey(marketId_, suppliedPoolId, boundPoolId);
 

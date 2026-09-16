@@ -1,0 +1,24 @@
+[Unit]
+Description=TickerGarden production resident chain worker
+After=network-online.target docker.service
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=tickergarden
+Group=tickergarden
+WorkingDirectory=/opt/tickergarden-production-source/services/backend-ts
+EnvironmentFile=/etc/tickergarden/resident-worker-production.env
+ExecStart=/opt/node24/bin/node --experimental-strip-types scripts/resident-worker.ts
+Restart=on-failure
+RestartSec=10
+KillSignal=SIGTERM
+TimeoutStopSec=270
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+MemoryMax=1G
+
+[Install]
+WantedBy=multi-user.target

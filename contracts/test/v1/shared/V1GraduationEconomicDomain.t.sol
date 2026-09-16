@@ -3,12 +3,12 @@ pragma solidity 0.8.26;
 
 import {Test} from "forge-std/Test.sol";
 
-import {PonsBaseline, QuoteAssetConfig} from "../../../src/v1/interfaces/IV1Protocol.sol";
+import {TickerGardenBaseline, QuoteAssetConfig} from "../../../src/v1/interfaces/IV1Protocol.sol";
 import {GraduationPoolMath} from "../../../src/v1/libraries/GraduationPoolMath.sol";
 import {V1GraduationEconomicDomain} from "../../../src/v1/libraries/V1GraduationEconomicDomain.sol";
 
 contract V1GraduationEconomicDomainHarness {
-    function validate(PonsBaseline memory baseline, QuoteAssetConfig memory quote) external pure {
+    function validate(TickerGardenBaseline memory baseline, QuoteAssetConfig memory quote) external pure {
         V1GraduationEconomicDomain.validate(baseline, quote);
     }
 }
@@ -78,7 +78,7 @@ contract V1GraduationEconomicDomainTest is Test {
         harness.validate(_baseline(MAX_SIGNED, 1), _quote(MAX_SIGNED, threshold));
     }
 
-    function _baseline(uint256 supply, int24 spacing) private pure returns (PonsBaseline memory baseline) {
+    function _baseline(uint256 supply, int24 spacing) private pure returns (TickerGardenBaseline memory baseline) {
         baseline.supply = supply;
         baseline.tickSpacing = spacing;
     }

@@ -1,0 +1,314 @@
+{
+  "version": 1,
+  "chainId": 46630,
+  "releaseId": "0x5c2c656b1b23e895ea268c34b187cd267e0f4fdcc1759c726cbca7fafb7c9c12",
+  "status": "DEPLOYED_VERIFIED_ACTIVE_TEST_ONLY",
+  "factory": "0x496a3cb9fd8a045c590f311e948b2b4382f17904",
+  "bindings": {
+    "officialStockRegistry": "0xb214ffa2d11f6b0bd117bc41d6d51800c52ef928",
+    "approvedQuoteRegistry": "0x93c8ce0e44c2ed39399ff12821454d681c0b5353",
+    "tickerGardenBaselineRegistry": "0x78c1526860e0da4acdc6f32a4f4f8d45bbde0933",
+    "launchTemplateRegistry": "0x7b0be869b940c61cbb1cb90655dc34aac329fc63",
+    "marketRegistry": "0x03f8a6e75ce7bf707076d7339968f8fdf5703b16",
+    "protocolFeeVault": "0x9cba4929745077198393f09ad2f409db43c90da9",
+    "allocationManager": "0xe737f06bffa94f4bd9eb233ca344fdea4d796452",
+    "launchRouter": "0x0923719faaf02f1e512fb62f69bda312447cbd60"
+  },
+  "configs": [
+    {
+      "kind": "quote",
+      "id": "0xb68b91965e03bd5e87f49b34cd51e37bdd543de83b5c18c0394c29cbc4292056",
+      "status": 1,
+      "values": {
+        "tickerGardenBaselineId": "0x28d9469a2acb5e0f4de9482e25ffa445b0228a000372c204314f95be663265fd",
+        "quoteAsset": "0x0000000000000000000000000000000000000000",
+        "quoteDecimals": 18,
+        "phantomQuote": "168000000000000000",
+        "graduationThreshold": "420000000000000000",
+        "economicsHash": "0xb68b91965e03bd5e87f49b34cd51e37bdd543de83b5c18c0394c29cbc4292056",
+        "symbol": "ETH"
+      },
+      "source": {
+        "chainId": 46630,
+        "blockNumber": "117030529",
+        "blockHash": "0x374ae82231628e69803d965650aec21ce617ef6f1be87d10db35812839fc6ca0",
+        "transactionHash": "0xccf8713615cd6ebd16caac0600c90e238908080c7e66778b54e0828466d2dc7e",
+        "transactionIndex": 1,
+        "logIndex": 0
+      }
+    },
+    {
+      "kind": "baseline",
+      "id": "0x28d9469a2acb5e0f4de9482e25ffa445b0228a000372c204314f95be663265fd",
+      "status": 1,
+      "values": {
+        "referenceChainId": "46630",
+        "referenceFactory": "0x4C586A9865AF202c60d1793CC8C506f9B59bEE6f",
+        "referenceFactoryCodeHash": "0x43af30e13874131653a266948b5523109b8a2e374ac7cbf0fcbeadf3629c3740",
+        "launchConfigId": "0",
+        "supply": "1000000000000000000000000000",
+        "curveFeeBps": "100",
+        "poolFee": 0,
+        "tickSpacing": 200,
+        "behaviorVectorRoot": "0x003a3a356bfbb0d910f46c1bfa8ccb67cb910e614262387f387659e7cf231046"
+      },
+      "source": {
+        "chainId": 46630,
+        "blockNumber": "117030520",
+        "blockHash": "0xf0c46e4a3750f2f18871df94581bd052f3c41a7ce83232255ea8e1a393cc1def",
+        "transactionHash": "0x8f778b5bdab8a75dc07a79e95f337e095e65e1d4add51c69e36ae69f44421ba1",
+        "transactionIndex": 1,
+        "logIndex": 0
+      }
+    },
+    {
+      "kind": "template",
+      "id": "0x0cbe3e15031a7611067cf5bbbd8b4f4b61648a5dc52045f9692b5da0d4aa5267",
+      "status": 1,
+      "values": {
+        "memeTokenImplementation": "0xceE84a87Cfb105A7fBf2095D7BFcdb7cB62E69b8",
+        "memeTokenCodeHash": "0xeb74e6163b9003abf375493deabb66663b5f77619cad1e0056dde4eed125a32f",
+        "curveImplementation": "0xe1203B34dc94539c9D9038A51FBFe072D6FBDF98",
+        "curveCodeHash": "0xe79b429ffdbcbb186632f2f3ea3361239edca7cdeba794c1ee661e5b8bf2f839",
+        "gaugeImplementation": "0x576a9311aE4c142269ED3d9047893682a3350037",
+        "gaugeCodeHash": "0x699e74280e4c14847f5a3b71b37b8e9aeb4db7d8aab13a0463cc15f3c34c81b0",
+        "graduatedHook": "0xf5e89AF0949745FE497b22D1214FEA3DAA75A044",
+        "hookCodeHash": "0x3046cd98e4e8850911bfb3b1781548dbd866ac67224315cae08c5a30e48b5b06",
+        "graduationExecutor": "0xed1E7c1256e848D520677A017263d75f5377706C",
+        "graduationExecutorCodeHash": "0xf82170cfd71aadb74f88a3e606f3c7a52f91006b9f4cdf3777532466ad51c7f8",
+        "feePolicyId": "0x17958c241fa97faa42009efccbfaa14f680f8db3f12c2098ca90374c6a1b1395",
+        "executionSpecId": "0xbe17658476819fb4584897aaa4fb7cb14f33532e64eb209633640be14c01493e"
+      },
+      "source": {
+        "chainId": 46630,
+        "blockNumber": "117030546",
+        "blockHash": "0x3756ed731cedd812744d8fb9febf3e65c840daa213f23a09c58d94c42da18da3",
+        "transactionHash": "0x1e1fa4422efda627547d31569250228b636dbe4debd3ac9b7d2a646a065af02e",
+        "transactionIndex": 1,
+        "logIndex": 0
+      }
+    },
+    {
+      "kind": "quote",
+      "id": "0xd114c17e0c397f7d32b5a78aebce61df693cd0b36b74f3e5b438d57e42119152",
+      "status": 1,
+      "values": {
+        "tickerGardenBaselineId": "0x28d9469a2acb5e0f4de9482e25ffa445b0228a000372c204314f95be663265fd",
+        "quoteAsset": "0xC9f9c86933092BbbfFF3CCb4b105A4A94bf3Bd4E",
+        "quoteDecimals": 18,
+        "phantomQuote": "1040000000000000000",
+        "graduationThreshold": "2600000000000000000",
+        "economicsHash": "0xd114c17e0c397f7d32b5a78aebce61df693cd0b36b74f3e5b438d57e42119152",
+        "symbol": "TSLA"
+      },
+      "source": {
+        "chainId": 46630,
+        "blockNumber": "117032094",
+        "blockHash": "0x4280b1d1379a353ea5e53e68e84734ec9f8d4b03248164a66fa12f87db78429c",
+        "transactionHash": "0x2341acd71bcfbb30a3d7942150e16d3baad05b697eab30bfb3dca1090b70c0c5",
+        "transactionIndex": 1,
+        "logIndex": 0
+      }
+    },
+    {
+      "kind": "quote",
+      "id": "0x873053017e93a7979cb8380e87b6c38cc8ea7fce785d1d579bc5ac55a342c9ef",
+      "status": 1,
+      "values": {
+        "tickerGardenBaselineId": "0x28d9469a2acb5e0f4de9482e25ffa445b0228a000372c204314f95be663265fd",
+        "quoteAsset": "0x5884aD2f920c162CFBbACc88C9C51AA75eC09E02",
+        "quoteDecimals": 18,
+        "phantomQuote": "1173211643685708100",
+        "graduationThreshold": "2933029109214270250",
+        "economicsHash": "0x873053017e93a7979cb8380e87b6c38cc8ea7fce785d1d579bc5ac55a342c9ef",
+        "symbol": "AMZN"
+      },
+      "source": {
+        "chainId": 46630,
+        "blockNumber": "117032110",
+        "blockHash": "0xa3850100bb051e5a0efad92067726d01ff4a4e8653074834bfbab0725c51c1af",
+        "transactionHash": "0x1ed23d590a36ad5bbd9b1bde48b0d0c47892880fcd2ea839a86131e5a3a9e6fe",
+        "transactionIndex": 1,
+        "logIndex": 0
+      }
+    },
+    {
+      "kind": "quote",
+      "id": "0x81271bee15d90b559b04d7b3812f321d5a6cd59b293f2d20e1551c1915038ede",
+      "status": 1,
+      "values": {
+        "tickerGardenBaselineId": "0x28d9469a2acb5e0f4de9482e25ffa445b0228a000372c204314f95be663265fd",
+        "quoteAsset": "0x1FBE1a0e43594b3455993B5dE5Fd0A7A266298d0",
+        "quoteDecimals": 18,
+        "phantomQuote": "1882605010536174275",
+        "graduationThreshold": "4706512526340435687",
+        "economicsHash": "0x81271bee15d90b559b04d7b3812f321d5a6cd59b293f2d20e1551c1915038ede",
+        "symbol": "PLTR"
+      },
+      "source": {
+        "chainId": 46630,
+        "blockNumber": "117032129",
+        "blockHash": "0x756e9230ccce9409f8076e4480624e4a5481bcf1e3a142c316cc290780938856",
+        "transactionHash": "0x9f49acda984a98c3443450e9ace86fd3f1e27621ef49d397ca1e570a16c364ca",
+        "transactionIndex": 1,
+        "logIndex": 0
+      }
+    },
+    {
+      "kind": "quote",
+      "id": "0xe79ed06c9ead5f3670b3e54a07e59f8592c75be8f6c413cadf94eb7f2955bc3b",
+      "status": 1,
+      "values": {
+        "tickerGardenBaselineId": "0x28d9469a2acb5e0f4de9482e25ffa445b0228a000372c204314f95be663265fd",
+        "quoteAsset": "0x3b8262A63d25f0477c4DDE23F83cfe22Cb768C93",
+        "quoteDecimals": 18,
+        "phantomQuote": "5212121854304635775",
+        "graduationThreshold": "13030304635761589439",
+        "economicsHash": "0xe79ed06c9ead5f3670b3e54a07e59f8592c75be8f6c413cadf94eb7f2955bc3b",
+        "symbol": "NFLX"
+      },
+      "source": {
+        "chainId": 46630,
+        "blockNumber": "117032151",
+        "blockHash": "0xbbf8bd81aee2383ef30b39d3ffed4e2315dffa3873752d687ae780a7a8070360",
+        "transactionHash": "0x9725bc5e793ccf6eda255c55032629492f178cc83598e51378a756407ca8f063",
+        "transactionIndex": 1,
+        "logIndex": 0
+      }
+    },
+    {
+      "kind": "quote",
+      "id": "0xd27652e4de7c78c2634113af6fda5f9073551a7f6c3965f829b95ae1e16dc526",
+      "status": 1,
+      "values": {
+        "tickerGardenBaselineId": "0x28d9469a2acb5e0f4de9482e25ffa445b0228a000372c204314f95be663265fd",
+        "quoteAsset": "0x71178BAc73cBeb415514eB542a8995b82669778d",
+        "quoteDecimals": 18,
+        "phantomQuote": "666620183638360900",
+        "graduationThreshold": "1666550459095902251",
+        "economicsHash": "0xd27652e4de7c78c2634113af6fda5f9073551a7f6c3965f829b95ae1e16dc526",
+        "symbol": "AMD"
+      },
+      "source": {
+        "chainId": 46630,
+        "blockNumber": "117032183",
+        "blockHash": "0x6bbae073409c82c0b740722f20332c1f947490c75e7ad08ae754a5496104eb0f",
+        "transactionHash": "0x048b01c1cb4fa038f334707f3f1ddca38f770b2d0d86121888e4690dbd256d5b",
+        "transactionIndex": 1,
+        "logIndex": 0
+      }
+    }
+  ],
+  "assets": [
+    {
+      "kind": "asset",
+      "id": "0x00000000000000000000000000000000aa1fee9afa45465cbc65157b4edf63f5",
+      "status": 1,
+      "values": {
+        "stockToken": "0xC9f9c86933092BbbfFF3CCb4b105A4A94bf3Bd4E",
+        "userStockVault": "0xA608276C7273373A7961cdb01e7505C385744EAa",
+        "tokenDecimals": 18,
+        "tokenSymbol": "TSLA",
+        "tokenName": "Tesla"
+      },
+      "source": {
+        "chainId": 46630,
+        "blockNumber": "117031992",
+        "blockHash": "0x52d5fa49a1e2d2098c3d483fd4cb8cd58ad5c620197bcea6ac4cd5800328da42",
+        "transactionHash": "0x231e6332553cc6141443b7089e77d29e0fdf9a4103d23fa97426efdc9ba4ec19",
+        "transactionIndex": 1,
+        "logIndex": 2
+      }
+    },
+    {
+      "kind": "asset",
+      "id": "0x0000000000000000000000000000000099c33a4e234448e99d6c8a5e5dddeda0",
+      "status": 1,
+      "values": {
+        "stockToken": "0x5884aD2f920c162CFBbACc88C9C51AA75eC09E02",
+        "userStockVault": "0xA608276C7273373A7961cdb01e7505C385744EAa",
+        "tokenDecimals": 18,
+        "tokenSymbol": "AMZN",
+        "tokenName": "Amazon"
+      },
+      "source": {
+        "chainId": 46630,
+        "blockNumber": "117032012",
+        "blockHash": "0xba15ddc0b4b5e6d7ee9a1e4fd77b60ffa0d698b82b1cc6a35020a8c92c9cd7e8",
+        "transactionHash": "0xfad1c0d24cb438f04d2be695a11cd08c1cefeeb0f73a57e1bf0ef6b07a20991d",
+        "transactionIndex": 1,
+        "logIndex": 0
+      }
+    },
+    {
+      "kind": "asset",
+      "id": "0x0000000000000000000000000000000052cd6b007b15456ba5fbc3aa605765e0",
+      "status": 1,
+      "values": {
+        "stockToken": "0x1FBE1a0e43594b3455993B5dE5Fd0A7A266298d0",
+        "userStockVault": "0xA608276C7273373A7961cdb01e7505C385744EAa",
+        "tokenDecimals": 18,
+        "tokenSymbol": "PLTR",
+        "tokenName": "Palantir Technologies"
+      },
+      "source": {
+        "chainId": 46630,
+        "blockNumber": "117032036",
+        "blockHash": "0xe72350816bc195d3c432d963dfef89b57cb0d2451df4a81d5d7b6b4a467e140c",
+        "transactionHash": "0x858150d2ceb0e71ee99dfdde54e84f8b66e9d6e958fb4033e776c4f7e0850a4f",
+        "transactionIndex": 1,
+        "logIndex": 0
+      }
+    },
+    {
+      "kind": "asset",
+      "id": "0x0000000000000000000000000000000041de1e6ae0f4cd3825f77b5a4a3cc784",
+      "status": 1,
+      "values": {
+        "stockToken": "0x3b8262A63d25f0477c4DDE23F83cfe22Cb768C93",
+        "userStockVault": "0xA608276C7273373A7961cdb01e7505C385744EAa",
+        "tokenDecimals": 18,
+        "tokenSymbol": "NFLX",
+        "tokenName": "Netflix"
+      },
+      "source": {
+        "chainId": 46630,
+        "blockNumber": "117032057",
+        "blockHash": "0x9c256a1b6bb6c915456c9f8459ca4251bf54f2a064f1d0619ab8b245f0cade1f",
+        "transactionHash": "0x56bbd120ca99e740ca628f20ac3e7792d7ffd10a1e8729e0ddcb4146b9aa5c26",
+        "transactionIndex": 1,
+        "logIndex": 0
+      }
+    },
+    {
+      "kind": "asset",
+      "id": "0x00000000000000000000000000000000958cc238f7a04144bf5eb07da3d3734e",
+      "status": 1,
+      "values": {
+        "stockToken": "0x71178BAc73cBeb415514eB542a8995b82669778d",
+        "userStockVault": "0xA608276C7273373A7961cdb01e7505C385744EAa",
+        "tokenDecimals": 18,
+        "tokenSymbol": "AMD",
+        "tokenName": "AMD"
+      },
+      "source": {
+        "chainId": 46630,
+        "blockNumber": "117032072",
+        "blockHash": "0x8e872a062868162182108a5331c50aa653e07197cfaf36f4057b183bf45aea5a",
+        "transactionHash": "0x1299f76ea7154e9054eeab21531bc0d4e946ab676a2a0ffb0f78e9b4b2e483be",
+        "transactionIndex": 1,
+        "logIndex": 0
+      }
+    }
+  ],
+  "initialMarkets": [],
+  "activationBlock": {
+    "number": "117032526",
+    "hash": "0x36065fb09f78a00f75c528cad0e81e2f1a7b9f59bea9577488f26f4fb611f806"
+  },
+  "limitations": {
+    "startupConfigOnly": true,
+    "financialSnapshot": false
+  },
+  "launchFee": "500000000000000"
+}

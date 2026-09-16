@@ -1,0 +1,11 @@
+import fs from 'node:fs';
+import {encodeFunctionData} from '../../../apps/web/node_modules/viem/_esm/index.js';
+const repo=new URL('../../../',import.meta.url);
+const manifest=JSON.parse(fs.readFileSync(new URL('spec/v1_product_artifact_manifest.json',repo),'utf8'));
+const entry=manifest.modules.find(m=>m.module==='ProtocolFeeVault');
+const artifact=JSON.parse(fs.readFileSync(new URL(entry.interfaceArtifact,repo),'utf8'));
+const preview=JSON.parse(fs.readFileSync(0,'utf8'));
+const b=preview.candidate.plan.batches[0];
+const expected=encodeFunctionData({abi:artifact.abi,functionName:'settleRewards',args:[b.marketId,b.items.map(i=>({user:i.user,creatorEpoch:i.creatorEpoch,maximumMeme:BigInt(i.maximumMeme)})),BigInt(b.minimumQuote),BigInt(b.deadline)]});
+if(expected!==preview.data) throw new Error('Go calldata differs from compiled Solidity ABI and viem');
+console.log('PASS: compiled settleRewards ABI / viem calldata');

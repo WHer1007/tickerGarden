@@ -1,0 +1,194 @@
+{
+  "schema": "TICKERGARDEN_BACKEND_PLANNING_SOURCES_V1",
+  "capturedAtUtc": "2026-09-05T11:53:08.096135+00:00",
+  "head": "0ca4eca8fae9c719098c112d0031e0345b37c3a4",
+  "workingTreeDirty": true,
+  "captureMode": "sequential source hashes; not an atomic checkout, deployment artifact, or source archive",
+  "checks": {
+    "backendOpenApiCheck": "passed in this review",
+    "indexerEventCatalogCheck": "passed in this review",
+    "fullRepositoryTests": "not run; planning-only task"
+  },
+  "sources": [
+    {
+      "path": "README.md",
+      "sha256": "57f5daf22e090a31549b6fa90e7a0da8bd8cebb9c82f2169ab0d21dd0204a082",
+      "bytes": 9008
+    },
+    {
+      "path": "apps/README.md",
+      "sha256": "3455e1667cf47862c47c1ada644ec7e941606a4fa66ca1af7cc9cdbd8eed9ee2",
+      "bytes": 351
+    },
+    {
+      "path": "apps/web/README.md",
+      "sha256": "e809203765c9f28d64e00e22029ec279303d6da9b7bd4b1b44c7a32f105124ab",
+      "bytes": 7782
+    },
+    {
+      "path": "apps/web-v2/README.md",
+      "sha256": "447bf11b7bace0b540f9c421c0a8017d4638562282d27d87b31d2334113fcd72",
+      "bytes": 3620
+    },
+    {
+      "path": "apps/web-v3/README.md",
+      "sha256": "022766cf4d7731bafdd366d7f7b749a25759dde635bb03d2a5eb9d2d9adcc5c1",
+      "bytes": 4751
+    },
+    {
+      "path": "apps/web/src/app.ts",
+      "sha256": "209841bc48c2f69505d51ef2a03394b518c1e9d0c8ae0645f80a28878ddd827b",
+      "bytes": 176013
+    },
+    {
+      "path": "apps/web/src/runtime/model.ts",
+      "sha256": "dfabe65a733ca39884eccd7d91ca18d9b931e23b2d42b04512809abc51337f1e",
+      "bytes": 7705
+    },
+    {
+      "path": "apps/web/src/v1/transaction.ts",
+      "sha256": "0bdf1cee3fd65a29dac3bb17f3c130c7024fc2c23d262d3643626367d7eab6fa",
+      "bytes": 15729
+    },
+    {
+      "path": "apps/web/src/v1/features/treasury.ts",
+      "sha256": "86b1250b9f79d947e365e3cbd6703ddb69a1c7f66163408252bb3dc1ba081409",
+      "bytes": 9242
+    },
+    {
+      "path": "services/backend-api/src/index.ts",
+      "sha256": "f82fba34c0e01fae49cd8aeff71be61cdf0a396789d096b6689d0428b989d8b1",
+      "bytes": 7967
+    },
+    {
+      "path": "services/backend-api/src/generated/v1-client.ts",
+      "sha256": "85fa808dada3040213a3c5e4f78588b509cf540d88903b6d247466bbbb305a86",
+      "bytes": 8627
+    },
+    {
+      "path": "services/backend-api/src/launch-metadata.ts",
+      "sha256": "6a533e9507c889a808db4e6838b748fbd72528129d24ea62b81d10e33aafdc57",
+      "bytes": 11229
+    },
+    {
+      "path": "services/backend-api/src/file-repository.ts",
+      "sha256": "394ed21e1019b1c9c783c05657bb60ac2c165e20535e7377425a941692b50299",
+      "bytes": 3997
+    },
+    {
+      "path": "services/backend-api/openapi/v1.json",
+      "sha256": "ef8ad6531ed88b3793e6e43ed3a730a866303cdca296714d815c9edb9d06953a",
+      "bytes": 26900
+    },
+    {
+      "path": "services/indexer/src/schema.ts",
+      "sha256": "3b6f22bc6ff9b2de94b6cda7af76bc26bda1d46c72b89bf55f1e283d32f96260",
+      "bytes": 3530
+    },
+    {
+      "path": "services/indexer/src/projector.ts",
+      "sha256": "e53de78d78953be60bb99c92d8d03ff9aff6c98a6d0b7178293889f7fba7051d",
+      "bytes": 25473
+    },
+    {
+      "path": "services/indexer/src/observation-plan.ts",
+      "sha256": "ab34d8dca3cdde479a81e4f2b078bb4ec64a0949578547553f84b61b8f1729b9",
+      "bytes": 7649
+    },
+    {
+      "path": "services/indexer/src/reconciliation.ts",
+      "sha256": "992af5aaf83ddef22b3ebe0ef1ff7f2ffa562af572f81d26156c7cd9a557e7b7",
+      "bytes": 1968
+    },
+    {
+      "path": "services/indexer/src/replay.ts",
+      "sha256": "b59670891497b2fc86511bc2ec7cd2b33993741ba1e8f4824345767ec90f1522",
+      "bytes": 6557
+    },
+    {
+      "path": "services/indexer/src/generated/v1-events.ts",
+      "sha256": "7725aed383659a041e7d6c10d3c5e6dedf4b908829605b5c18d10ad515842996",
+      "bytes": 49619
+    },
+    {
+      "path": "services/maintenance-runner/src/index.ts",
+      "sha256": "bfe1f6802c4e4460a55e170b081d4ac7baa31404c1131bd1d0991d1d8381dc39",
+      "bytes": 17915
+    },
+    {
+      "path": "services/maintenance-runner/src/reward-settlement.ts",
+      "sha256": "d2c7c24f12d786575d8728834d1f5bedc20b7d78028a21e094edeee96ed228a7",
+      "bytes": 9056
+    },
+    {
+      "path": "services/treasury-root-generator/src/index.ts",
+      "sha256": "3925ac1d2ded1fd50c67c7a3defc7be0b50bda0cf3dcc07bdcd13b07900bee2c",
+      "bytes": 18220
+    },
+    {
+      "path": "contracts/src/v1/interfaces/IV1Protocol.sol",
+      "sha256": "f2e9d950f074abee2a422051e0104f237dab394e726e0b10b4b612b867b398f8",
+      "bytes": 39336
+    },
+    {
+      "path": "contracts/src/v1/shared/ProtocolFeeVaultRewardSettlement.sol",
+      "sha256": "a6e183c85323c4b8e3415e306796491ec750b4f4497b4b9a036af7596f55e3f4",
+      "bytes": 9943
+    },
+    {
+      "path": "contracts/src/v1/shared/TickerGardenRewardConversion.sol",
+      "sha256": "e778ef6f43293e2a518614fa9adb8403319afd486569dc053e233ef42c214064",
+      "bytes": 7013
+    },
+    {
+      "path": "spec/v1_permissions_matrix.json",
+      "sha256": "c7f06c907cdc16c3759a0c829e62d5770ccfdc09e9fe7fbeb9c3d8d6c4528759",
+      "bytes": 22294
+    },
+    {
+      "path": "spec/v1_canonical_abi.json",
+      "sha256": "908819a2e81cf8dbdfda2fafd1f379d706792a0c5f14b7af11491b981b35727e",
+      "bytes": 77710
+    },
+    {
+      "path": "spec/v1_execution_manifest.json",
+      "sha256": "3d7af261d18020caec78180a63913f85e348757104ea2026d080aba961c09c43",
+      "bytes": 28509
+    },
+    {
+      "path": "docs/v1/README.md",
+      "sha256": "a2f7177845f7447dac4e6417651896e448b105c688ec40ad3764032d5a62039b",
+      "bytes": 2694
+    },
+    {
+      "path": "docs/v1/V1_TECHNICAL_ARCHITECTURE.md",
+      "sha256": "ffedff823adba6fab9f70dde06558a5fbdb96e09fdc0c63748c7b52a3eae2bd6",
+      "bytes": 4923
+    },
+    {
+      "path": "docs/v1/V1_PROTOCOL_PARAMETERS.md",
+      "sha256": "fdcc00123a73e36b90ee3089ab386de610b6518aa5fe8911899dd506306edb95",
+      "bytes": 67227
+    },
+    {
+      "path": "docs/v1/V1_CREATOR_TAX.md",
+      "sha256": "d793545dc8124ef1f521eb7ea7d18dffbffcfe7b14489ba816f6c7c357996af2",
+      "bytes": 5183
+    },
+    {
+      "path": "docs/v1/V1_REWARD_CONVERSION.md",
+      "sha256": "18e5e6c56a09023ee22c3568cf0d954940e5da8d1eaf63e9b7d5041179e5f258",
+      "bytes": 5380
+    },
+    {
+      "path": "docs/v1/V1_TREASURY_ARCHITECTURE.md",
+      "sha256": "650bc4a8068c82f0f30b6cea481a8b477ee2d8c36f3f1361cab7f2bc34061efc",
+      "bytes": 12860
+    },
+    {
+      "path": "docs/v1/V1_STOCK_QUOTE_PRICE_REFERENCE.md",
+      "sha256": "f0c03aa601a256411226b3a752fd1a0aa7c019ec58a1d32d908ddceedd7a70f2",
+      "bytes": 10488
+    }
+  ]
+}

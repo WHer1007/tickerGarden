@@ -1,0 +1,1 @@
+{"name":"@tickergarden/display-price","version":"0.0.0","private":true,"type":"module","dependencies":{"@tickergarden/config-projector":"0.0.0","@tickergarden/db":"0.0.0","pg":"^8.23.0"}}

@@ -1,0 +1,9 @@
+{
+  "releaseId": "0xa9253cb9398f5f1a84ed71ddf1853a981fc4faa2d59ee9d0c7faeace25224521",
+  "status": "REJECTED_NOT_ACTIVATED",
+  "reason": "Stale deployment script embedded historical FeeVault init code; runtime mismatches fixed artifact.",
+  "factory": "0xa5b21abF5ab91B54f7d308D9a54E0C0e3D307686",
+  "feeVault": "0x46F771CaEC17d00Ff77B5ec6149918c7c5A02913",
+  "runtimeMismatchEvidence": "outputs/reviews/arbitrum-r4-fix/runtime-mismatch.json",
+  "detectedAt": "2026-09-06T05:57:30.575Z"
+}

@@ -1,0 +1,59 @@
+{
+  "schemaVersion": 1,
+  "status": "APPROVED_FOR_ROBINHOOD_TESTNET_ACTIVATION",
+  "scope": "ROBINHOOD_TESTNET_ONLY",
+  "chainId": 46630,
+  "releaseId": "0xf7024d03f3844c5b40abfeda80cb4e8c6edc307ba60a17c8c6d2bc9296e26e41",
+  "planSha256": "0xe7ed44b26b35a636b0c5880bc24ff3cfddedf893c97d85710178e2d7810a4c00",
+  "auditedAt": "2026-09-07T17:55:36.706Z",
+  "expiresAtUnix": 1788807326,
+  "auditBlock": {
+    "number": "115017011",
+    "hash": "0x4d0304b595af7d9e544b93294058b6a22f5d8c9d68dd8bdc82ed5fb559677986",
+    "timestamp": "1788803726"
+  },
+  "startingNonce": 21,
+  "transactions": [
+    {
+      "id": "deploy-baseline-fixture",
+      "nonce": 21,
+      "to": null,
+      "inputHash": "0x905173923a55750c8783d011eed5cd60c85cfa98a0614746d227a7882f90029e"
+    },
+    {
+      "id": "add-baseline",
+      "nonce": 22,
+      "to": "0x750F809fB647B542B21b9A9335f1cDd95A9EE389",
+      "inputHash": "0x36a493e0a3a72a4d77dca1a609796d107124c51cc979ca59a4a831c8c9ea0646"
+    },
+    {
+      "id": "add-native-eth-quote",
+      "nonce": 23,
+      "to": "0x4FE87f1e7Eb36b70Ac47d335c169F6634048E9AA",
+      "inputHash": "0x70a26e6763245ddb51e5e1327fd4fed47381c2c95fd3e20377bba0e7c004e58a"
+    },
+    {
+      "id": "add-launch-template",
+      "nonce": 24,
+      "to": "0xC5b4EEa812075BCc15B669Cdd5D39De3Bf39A855",
+      "inputHash": "0xb9e56aa5d23ce91a3cc41981fb0098bf3765ddc8492304545990b998fedfe2a7"
+    }
+  ],
+  "checks": {
+    "sourceInputsCurrent": true,
+    "runtimeCodeHashesCurrent": true,
+    "releaseBindingsCurrent": true,
+    "settlementOperatorConfigured": true,
+    "adminRolePresent": true,
+    "callsImmediate": true,
+    "calldataRoundTrip": true,
+    "identifiersUnused": true,
+    "fixtureAddressEmpty": true,
+    "budgetAvailable": true
+  },
+  "exclusions": {
+    "roleHandoff": false,
+    "marketCreation": false,
+    "stockRegistration": false
+  }
+}

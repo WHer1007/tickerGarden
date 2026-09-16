@@ -2,7 +2,7 @@
 pragma solidity 0.8.26;
 
 import {Test} from "forge-std/Test.sol";
-import {LaunchTemplate, PonsBaseline, QuoteAssetConfig} from "../../../src/v1/interfaces/IV1Protocol.sol";
+import {LaunchTemplate, TickerGardenBaseline, QuoteAssetConfig} from "../../../src/v1/interfaces/IV1Protocol.sol";
 import {LaunchConfigResolver} from "../../../src/v1/modules/LaunchConfigResolver.sol";
 
 contract LaunchConfigResolverQuoteRegistryMock {
@@ -17,14 +17,14 @@ contract LaunchConfigResolverQuoteRegistryMock {
     }
 }
 
-contract LaunchConfigResolverPonsRegistryMock {
-    mapping(bytes32 baselineId => PonsBaseline value) private _baselines;
+contract LaunchConfigResolverTickerGardenRegistryMock {
+    mapping(bytes32 baselineId => TickerGardenBaseline value) private _baselines;
 
-    function setBaseline(bytes32 baselineId, PonsBaseline calldata value) external {
+    function setBaseline(bytes32 baselineId, TickerGardenBaseline calldata value) external {
         _baselines[baselineId] = value;
     }
 
-    function baseline(bytes32 baselineId) external view returns (PonsBaseline memory) {
+    function baseline(bytes32 baselineId) external view returns (TickerGardenBaseline memory) {
         return _baselines[baselineId];
     }
 }
@@ -50,27 +50,28 @@ contract LaunchConfigResolverTest is Test {
     bytes32 internal constant TEMPLATE_ID_B = keccak256("template-b");
 
     LaunchConfigResolverQuoteRegistryMock internal quotes;
-    LaunchConfigResolverPonsRegistryMock internal baselines;
+    LaunchConfigResolverTickerGardenRegistryMock internal baselines;
     LaunchConfigResolverTemplateRegistryMock internal templates;
     LaunchConfigResolver internal resolver;
 
     function setUp() public {
         quotes = new LaunchConfigResolverQuoteRegistryMock();
-        baselines = new LaunchConfigResolverPonsRegistryMock();
+        baselines = new LaunchConfigResolverTickerGardenRegistryMock();
         templates = new LaunchConfigResolverTemplateRegistryMock();
         resolver = new LaunchConfigResolver(address(quotes), address(baselines), address(templates));
     }
 
     function test_constructorFreezesRegistryBindingsAndExposesGetters() public view {
         assertEq(address(resolver.approvedQuoteRegistry()), address(quotes));
-        assertEq(address(resolver.ponsBaselineRegistry()), address(baselines));
+        assertEq(address(resolver.tickerGardenBaselineRegistry()), address(baselines));
         assertEq(address(resolver.launchTemplateRegistry()), address(templates));
     }
 
     function test_resolveForwardsTypedSnapshotsFromEachRegistry() public {
         QuoteAssetConfig memory quote =
             _quote(bytes32(uint256(0x1111)), address(0x1001), 6, 11, 22, bytes32(uint256(0xaaaa)), 1);
-        PonsBaseline memory baseline = _baseline(4663, address(0x2001), 33, 44, 55, 66, bytes32(uint256(0xbbbb)), 1);
+        TickerGardenBaseline memory baseline =
+            _baseline(4663, address(0x2001), 33, 44, 55, 66, bytes32(uint256(0xbbbb)), 1);
         LaunchTemplate memory template = _template(1);
         quotes.setQuoteConfig(QUOTE_ID_A, quote);
         baselines.setBaseline(BASELINE_ID_A, baseline);
@@ -78,7 +79,7 @@ contract LaunchConfigResolverTest is Test {
 
         (
             QuoteAssetConfig memory resolvedQuote,
-            PonsBaseline memory resolvedBaseline,
+            TickerGardenBaseline memory resolvedBaseline,
             LaunchTemplate memory resolvedTemplate
         ) = resolver.resolve(QUOTE_ID_A, BASELINE_ID_A, TEMPLATE_ID_A);
 
@@ -92,8 +93,9 @@ contract LaunchConfigResolverTest is Test {
             _quote(bytes32(uint256(0xaaaa)), address(0x1001), 6, 1, 2, bytes32(uint256(0x1111)), 1);
         QuoteAssetConfig memory quoteB =
             _quote(bytes32(uint256(0xbbbb)), address(0x1002), 18, 3, 4, bytes32(uint256(0x2222)), 2);
-        PonsBaseline memory baselineA = _baseline(1, address(0x2001), 5, 6, 7, 8, bytes32(uint256(0x3333)), 1);
-        PonsBaseline memory baselineB = _baseline(2, address(0x2002), 9, 10, 11, 12, bytes32(uint256(0x4444)), 2);
+        TickerGardenBaseline memory baselineA = _baseline(1, address(0x2001), 5, 6, 7, 8, bytes32(uint256(0x3333)), 1);
+        TickerGardenBaseline memory baselineB =
+            _baseline(2, address(0x2002), 9, 10, 11, 12, bytes32(uint256(0x4444)), 2);
         LaunchTemplate memory templateA = _templateWithSeed(bytes32(uint256(0x5555)), 1);
         LaunchTemplate memory templateB = _templateWithSeed(bytes32(uint256(0x6666)), 2);
 
@@ -106,7 +108,7 @@ contract LaunchConfigResolverTest is Test {
 
         (
             QuoteAssetConfig memory resolvedQuote,
-            PonsBaseline memory resolvedBaseline,
+            TickerGardenBaseline memory resolvedBaseline,
             LaunchTemplate memory resolvedTemplate
         ) = resolver.resolve(QUOTE_ID_B, BASELINE_ID_A, TEMPLATE_ID_B);
 
@@ -155,7 +157,7 @@ contract LaunchConfigResolverTest is Test {
     }
 
     function _quote(
-        bytes32 ponsBaselineId,
+        bytes32 tickerGardenBaselineId,
         address quoteAsset,
         uint8 quoteDecimals,
         uint256 phantomQuote,
@@ -164,7 +166,7 @@ contract LaunchConfigResolverTest is Test {
         uint8 status
     ) private pure returns (QuoteAssetConfig memory) {
         return QuoteAssetConfig({
-            ponsBaselineId: ponsBaselineId,
+            tickerGardenBaselineId: tickerGardenBaselineId,
             quoteAsset: quoteAsset,
             quoteDecimals: quoteDecimals,
             phantomQuote: phantomQuote,
@@ -183,8 +185,8 @@ contract LaunchConfigResolverTest is Test {
         uint24 poolFee,
         bytes32 behaviorVectorRoot,
         uint8 status
-    ) private pure returns (PonsBaseline memory) {
-        return PonsBaseline({
+    ) private pure returns (TickerGardenBaseline memory) {
+        return TickerGardenBaseline({
             referenceChainId: referenceChainId,
             referenceFactory: referenceFactory,
             referenceFactoryCodeHash: bytes32(uint256(0x123456)),

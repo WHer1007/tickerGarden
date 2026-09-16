@@ -1,0 +1,48 @@
+// Read-only candidate preparation. No wallet file, signer, broadcast, or active-release overwrite.
+import fs from 'node:fs';
+import {spawnSync} from 'node:child_process';
+import {keccak256, toHex} from '../apps/web/node_modules/viem/_esm/index.js';
+import {assertArtifactSourcesCurrent} from './verify-v1-build-inputs.mjs';
+const root=new URL('../',import.meta.url).pathname;
+const dir=root+'outputs/reviews/arbitrum-continuous-preflight-2026-09-07';
+fs.mkdirSync(dir,{recursive:true});
+const config=Object.fromEntries(fs.readFileSync(root+'deployments/config/arbitrum-sepolia.public.env','utf8').split('\n').filter(l=>l&&!l.startsWith('#')).map(l=>{const i=l.indexOf('=');return[l.slice(0,i),l.slice(i+1)];}));
+for(const k of Object.keys(config)) if(!/^(V1_|ARBITRUM_SEPOLIA_RPC_URL$)/.test(k)) throw Error('Unexpected public configuration key');
+const plan=JSON.parse(fs.readFileSync(root+'deployments/manifests/arbitrum-sepolia-421614.v1.plan.json'));
+const rpc=async(method,params)=>{const r=await fetch(config.ARBITRUM_SEPOLIA_RPC_URL,{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({jsonrpc:'2.0',id:1,method,params}),signal:AbortSignal.timeout(30000)});const j=await r.json();if(!r.ok||j.error)throw Error('RPC failure: '+method);return j.result;};
+if(BigInt(await rpc('eth_chainId',[]))!==421614n)throw Error('Wrong chain');
+const block=await rpc('eth_getBlockByNumber',['latest',false]), tag=block.number;
+const dependencies=[];
+for(const d of plan.externalDependencies){const code=await rpc('eth_getCode',[d.address,tag]);const hash=keccak256(code);if(hash!==d.runtimeCodeHash)throw Error('Dependency code drift: '+d.name);dependencies.push({name:d.name,address:d.address,codeHash:hash,codeBytes:(code.length-2)/2});}
+const callAddress=async(address,selector)=>'0x'+(await rpc('eth_call',[{to:address,data:selector},tag])).slice(-40);
+const owner=await callAddress(config.V1_PLATFORM_TREASURY,'0x8da5cb5b');
+if(owner.toLowerCase()!==config.V1_EXPECTED_DEPLOYER.toLowerCase())throw Error('Receiver owner mismatch');
+const receiverCode=await rpc('eth_getCode',[config.V1_PLATFORM_TREASURY,tag]);
+if(keccak256(receiverCode)!==config.V1_PLATFORM_TREASURY_CODEHASH)throw Error('Receiver code drift');
+const pm=plan.externalDependencies.find(d=>d.name==='POSITION_MANAGER');
+for(const [getter,expected] of [['poolManager',config.V1_POOL_MANAGER],['permit2',config.V1_PERMIT2]]){const observed=await callAddress(pm.address,keccak256(toHex(getter+'()')).slice(0,10));if(observed.toLowerCase()!==expected.toLowerCase())throw Error('PositionManager binding mismatch');}
+const balance=BigInt(await rpc('eth_getBalance',[config.V1_EXPECTED_DEPLOYER,tag]));
+const nonce=await rpc('eth_getTransactionCount',[config.V1_EXPECTED_DEPLOYER,tag]);
+const gasPrice=BigInt(await rpc('eth_gasPrice',[]));
+const history=JSON.parse(fs.readFileSync(root+'deployments/manifests/arbitrum-sepolia-421614.v1.transactions.json'));
+const historicalGas=history.reduce((s,t)=>s+BigInt(t.gasUsed),0n);
+const planningBudget=historicalGas*gasPrice*3n;
+const product=fs.readFileSync(root+'spec/v1_product_artifact_manifest.json');
+config.V1_RELEASE_ID=keccak256(toHex('TickerGarden:ArbitrumSepolia:continuous24h:antisnipe5s:20260907:'+keccak256(product)));
+const candidateConfig=Object.fromEntries(Object.entries(config).filter(([k])=>k!=='ARBITRUM_SEPOLIA_RPC_URL'));
+fs.writeFileSync(dir+'/candidate.public.env',Object.entries(candidateConfig).map(([k,v])=>`${k}=${v}`).join('\n')+'\n');
+fs.writeFileSync(dir+'/chain-preflight.json',JSON.stringify({status:'READ_ONLY_PREFLIGHT_PASSED_NOT_BROADCAST',chainId:421614,productionTargetChainId:4663,observedAt:new Date().toISOString(),block:{number:tag,hash:block.hash},releaseId:config.V1_RELEASE_ID,deployer:config.V1_EXPECTED_DEPLOYER,nonce,balanceWei:String(balance),gasPriceWei:String(gasPrice),historicalDeploymentGas:String(historicalGas),planningBudgetWei:String(planningBudget),balanceCoversHistorical3xBudget:balance>=planningBudget,budgetQualification:'Historical gas * current gas price * 3 only; not a fresh transaction estimate or fee cap. Activation and business-test capital are separate.',receiver:{address:config.V1_PLATFORM_TREASURY,owner,codeHash:keccak256(receiverCode)},dependencies},null,2)+'\n');
+const script='DeployV1ArbitrumContinuousHolders';
+const artifact=JSON.parse(fs.readFileSync(root+`contracts/out-v1/${script}.s.sol/${script}.json`));
+assertArtifactSourcesCurrent(artifact,root+'contracts',script);
+const env={...process.env,...config};delete env.DEPLOYER_PRIVATE_KEY;
+const result=spawnSync(process.execPath,['tools/run-forge.mjs','script',`script/v1/${script}.s.sol:${script}`,'--sig','preview()','--rpc-url',config.ARBITRUM_SEPOLIA_RPC_URL,'--sender',config.V1_EXPECTED_DEPLOYER,'--non-interactive','-vv'],{cwd:root,env,encoding:'utf8',maxBuffer:20*1024*1024});
+const log=(result.stdout??'')+(result.stderr??'');
+fs.writeFileSync(dir+'/preview.log',log.split(config.ARBITRUM_SEPOLIA_RPC_URL).join('[ARBITRUM_RPC]'));
+if(result.status!==0)throw Error('Preview failed; see sanitized preview.log');
+const take=re=>{const m=log.match(re);if(!m)throw Error('Missing preview field');return m[1];};
+const preview={releaseId:config.V1_RELEASE_ID,status:'PREDICTED_NOT_DEPLOYED',chainId:421614,orchestrator:take(/\borchestrator (0x[\da-fA-F]{40})/),factory:take(/\bfactory (0x[\da-fA-F]{40})/),hook:take(/\bhook (0x[\da-fA-F]{40})/),executor:take(/\bexecutor (0x[\da-fA-F]{40})/),payloadHash:take(/payload hash\s+(0x[\da-fA-F]{64})/),ordinaryComponents:take(/ordinaryComponents: \[([^\]]+)\]/).split(',').map(s=>s.trim())};
+if(preview.ordinaryComponents.length!==16||(BigInt(preview.hook)&0x3fffn)!==0x2044n)throw Error('Invalid planned graph');
+for(const address of [preview.orchestrator,preview.factory,preview.hook,preview.executor,...preview.ordinaryComponents])if(await rpc('eth_getCode',[address,'latest'])!=='0x')throw Error('Candidate address already occupied');
+fs.writeFileSync(dir+'/candidate.preview.json',JSON.stringify(preview,null,2)+'\n');
+console.log(JSON.stringify({status:'PREVIEW_PASSED_NOT_BROADCAST',releaseId:preview.releaseId,balanceWei:String(balance),planningBudgetWei:String(planningBudget),output:dir}));

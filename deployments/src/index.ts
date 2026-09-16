@@ -18,6 +18,7 @@ export * from "./readiness.ts";
 export * from "./schema.ts";
 export * from "./v1/preflight.ts";
 export * from "./v1/access-manager-plan.ts";
+export * from "./v1/testnet-plan.ts";
 
 type JsonRecord = Record<string, unknown>;
 

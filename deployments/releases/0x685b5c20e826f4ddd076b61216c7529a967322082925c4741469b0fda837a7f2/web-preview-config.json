@@ -1,0 +1,20 @@
+{
+  "TG_PROFILE": "test",
+  "VITE_V1_CHAIN_ID": "46630",
+  "VITE_V1_READ_API_URL": "https://tickergarden-read-api-test.vercel.app",
+  "VITE_V1_PIPELINE_URL": "https://tickergarden-pipeline-test.vercel.app",
+  "VITE_LAUNCH_METADATA_ORIGIN": "https://tickergarden-content-test.vercel.app",
+  "VITE_IPFS_GATEWAY": "https://silver-implicit-bass-617.mypinata.cloud",
+  "VITE_V1_RPC_URL": "/api/rpc",
+  "VITE_MARKET_RELEASE_CATALOG": "[{\"releaseId\":\"0x685b5c20e826f4ddd076b61216c7529a967322082925c4741469b0fda837a7f2\",\"chainId\":46630,\"holderRewardMode\":\"wallet-snapshot-v1\",\"factory\":\"0xf11839c3566c8b3345ed81e4a0e26cc38aa2866a\",\"marketRegistry\":\"0xab37f78d3a41c8f510f5a95a74f1ff1144e14660\",\"hook\":\"0x3d10b2891730dc11f352087b0703a93772d56044\",\"feeVault\":\"0x8c4ce2bb409b68697024afc28d26138d621035e2\",\"creatorRegistry\":\"0x02d2700ce866c2e88bb21819df07f8b894ec7d73\",\"holderDistributor\":\"0xc2716b960bd675fa7f605ce8d191b6e247cf61e8\",\"launchRouter\":\"0xdce9a656eb611a7ee34651ead17f3b76e2155756\",\"allocationManager\":\"0x6eac1c710edf540bbacfc3b5da2ad427e916741f\"}]",
+  "VITE_V1_FACTORY_ADDRESS": "0xf11839c3566c8b3345ed81e4a0e26cc38aa2866a",
+  "VITE_V1_LAUNCH_ROUTER_ADDRESS": "0xdce9a656eb611a7ee34651ead17f3b76e2155756",
+  "VITE_V1_ALLOCATION_MANAGER_ADDRESS": "0x6eac1c710edf540bbacfc3b5da2ad427e916741f",
+  "VITE_V1_PROTOCOL_FEE_VAULT_ADDRESS": "0x8c4ce2bb409b68697024afc28d26138d621035e2",
+  "VITE_V1_CREATOR_REVENUE_REGISTRY_ADDRESS": "0x02d2700ce866c2e88bb21819df07f8b894ec7d73",
+  "VITE_V1_TREASURY_DISTRIBUTOR_ADDRESS": "0xc2716b960bd675fa7f605ce8d191b6e247cf61e8",
+  "VITE_INTEGRATION_BOOTSTRAP": "",
+  "VITE_HOLDER_SNAPSHOT_RELEASE_APPROVAL": "",
+  "VITE_CONTINUOUS_HOLDER_RELEASE_APPROVAL": "",
+  "VITE_V1_TREASURY_RELEASE_APPROVAL": ""
+}

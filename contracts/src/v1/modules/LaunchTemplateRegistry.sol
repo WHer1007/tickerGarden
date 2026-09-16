@@ -22,7 +22,7 @@ contract LaunchTemplateRegistry is ILaunchTemplateRegistry, ImmutableAccessManag
     uint160 internal constant ALL_HOOK_PERMISSION_BITS = 0x3fff;
     uint256 internal constant LAUNCH_TEMPLATE_SCHEMA_VERSION = 2;
     bytes32 internal constant LAUNCH_TEMPLATE_DOMAIN = keccak256("TICKERGARDEN_V1_LAUNCH_TEMPLATE");
-    bytes32 public constant EXECUTION_SPEC_ID = keccak256("V1-EXEC-10");
+    bytes32 public constant EXECUTION_SPEC_ID = keccak256("V1-EXEC-11");
 
     mapping(bytes32 launchTemplateId => LaunchTemplate value) private _launchTemplates;
     mapping(bytes32 launchTemplateId => bytes32 value) private _launchTemplateHashes;
@@ -43,9 +43,8 @@ contract LaunchTemplateRegistry is ILaunchTemplateRegistry, ImmutableAccessManag
                 || value.curveCodeHash == bytes32(0) || value.gaugeImplementation == address(0)
                 || value.gaugeCodeHash == bytes32(0) || value.graduatedHook == address(0)
                 || value.hookCodeHash == bytes32(0) || value.graduationExecutor == address(0)
-                || value.graduationExecutorCodeHash == bytes32(0)
-                || value.feePolicyId == bytes32(0) || value.executionSpecId != EXECUTION_SPEC_ID
-                || value.status != TEMPLATE_STATUS_ACTIVE
+                || value.graduationExecutorCodeHash == bytes32(0) || value.feePolicyId == bytes32(0)
+                || value.executionSpecId != EXECUTION_SPEC_ID || value.status != TEMPLATE_STATUS_ACTIVE
                 || (uint160(value.graduatedHook) & ALL_HOOK_PERMISSION_BITS) != REQUIRED_HOOK_PERMISSION_MASK
         ) revert InvalidLaunchTemplate(launchTemplateId);
         if (_launchTemplates[launchTemplateId].status != TEMPLATE_STATUS_UNSET) {

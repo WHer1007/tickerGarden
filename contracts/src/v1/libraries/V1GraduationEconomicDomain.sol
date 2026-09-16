@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.26;
 
-import {PonsBaseline, PoolKey, QuoteAssetConfig} from "../interfaces/IV1Protocol.sol";
+import {TickerGardenBaseline, PoolKey, QuoteAssetConfig} from "../interfaces/IV1Protocol.sol";
 import {GraduationPoolMath} from "./GraduationPoolMath.sol";
-import {PonsSupplyMath} from "./PonsSupplyMath.sol";
+import {TickerGardenSupplyMath} from "./TickerGardenSupplyMath.sol";
 
-/// @notice Admission-time proof that a paired Pons/Quote configuration has a representable graduation plan.
+/// @notice Admission-time proof that a paired TickerGarden/Quote configuration has a representable graduation plan.
 /// @dev The pool amount is derived only from immutable configuration. Arbitrary-history rounding surplus is locked
 ///      outside the pool at graduation, so admission needs to prove one canonical plan for both token orderings.
 library V1GraduationEconomicDomain {
@@ -17,7 +17,7 @@ library V1GraduationEconomicDomain {
     error EconomicValueOutsideGraduationDomain(uint256 supply, uint256 phantomQuote, uint256 graduationThreshold);
     error TerminalQuoteOutsideGraduationDomain(uint256 terminalQuote, uint256 maximum);
 
-    function validate(PonsBaseline memory baseline, QuoteAssetConfig memory quote) internal pure {
+    function validate(TickerGardenBaseline memory baseline, QuoteAssetConfig memory quote) internal pure {
         if (
             baseline.supply == 0 || baseline.supply > MAX_V4_SIGNED_AMOUNT || quote.phantomQuote == 0
                 || quote.phantomQuote > MAX_V4_SIGNED_AMOUNT || quote.graduationThreshold == 0
@@ -27,9 +27,10 @@ library V1GraduationEconomicDomain {
         }
 
         (uint256 sweptTokens,) =
-            PonsSupplyMath.supplyPartition(baseline.supply, quote.phantomQuote, quote.graduationThreshold);
-        uint256 canonicalPoolQuote =
-            PonsSupplyMath.canonicalGraduationQuote(baseline.supply, quote.phantomQuote, quote.graduationThreshold);
+            TickerGardenSupplyMath.supplyPartition(baseline.supply, quote.phantomQuote, quote.graduationThreshold);
+        uint256 canonicalPoolQuote = TickerGardenSupplyMath.canonicalGraduationQuote(
+            baseline.supply, quote.phantomQuote, quote.graduationThreshold
+        );
         if (canonicalPoolQuote > MAX_V4_SIGNED_AMOUNT) {
             revert TerminalQuoteOutsideGraduationDomain(canonicalPoolQuote, MAX_V4_SIGNED_AMOUNT);
         }
@@ -40,7 +41,7 @@ library V1GraduationEconomicDomain {
         private
         pure
     {
-        (uint256 poolMemeAmount,) = PonsSupplyMath.graduationPartition(sweptTokens, sweptQuote, phantomQuote);
+        (uint256 poolMemeAmount,) = TickerGardenSupplyMath.graduationPartition(sweptTokens, sweptQuote, phantomQuote);
         PoolKey memory key = PoolKey({
             currency0: SYNTHETIC_TOKEN_0,
             currency1: SYNTHETIC_TOKEN_1,

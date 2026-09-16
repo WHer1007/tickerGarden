@@ -1,0 +1,8 @@
+{
+  "chainId": 4663,
+  "blockNumber": "61904345",
+  "blockHash": "0x363bbab10c6c16c328b9228184de5c68403f17517d837bfffb973d31c44c593f",
+  "l1BlockNumber": "25968068",
+  "observedAt": "2026-09-13T10:59:25.971Z",
+  "scope": "READ_ONLY_CURRENT_SOURCE_BUSINESS_FORK"
+}

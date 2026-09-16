@@ -1,0 +1,49 @@
+groups:
+  - name: tickergarden-api
+    rules:
+      - alert: TickerGardenAPIDown
+        expr: up{job="tickergarden-api"} == 0
+        for: 2m
+        labels: {severity: critical}
+        annotations: {summary: "TickerGarden API metrics cannot be scraped"}
+      - alert: TickerGardenReadinessMetricsMissing
+        expr: |
+          (up{job="tickergarden-api"} == 1 unless on (job, instance) tickergarden_api_ready{job="tickergarden-api"})
+          or (up{job="tickergarden-api"} == 1 unless on (job, instance) tickergarden_api_readiness_observed_timestamp_seconds{job="tickergarden-api"})
+        for: 2m
+        labels: {severity: warning}
+        annotations: {summary: "TickerGarden API scrape lacks required readiness metrics"}
+      - alert: TickerGardenReadinessClockSkew
+        expr: tickergarden_api_readiness_observed_timestamp_seconds{job="tickergarden-api"} - time() > 30
+        for: 2m
+        labels: {severity: warning}
+        annotations: {summary: "TickerGarden readiness observation is in the future"}
+      - alert: TickerGardenReadinessStale
+        expr: time() - tickergarden_api_readiness_observed_timestamp_seconds{job="tickergarden-api"} > 120
+        for: 2m
+        labels: {severity: warning}
+        annotations: {summary: "TickerGarden readiness probe is missing or stale"}
+      - alert: TickerGardenNotReady
+        expr: |
+          (tickergarden_api_ready{job="tickergarden-api"} == 0)
+          and (time() - tickergarden_api_readiness_observed_timestamp_seconds{job="tickergarden-api"} <= 120)
+        for: 2m
+        labels: {severity: critical}
+        annotations: {summary: "TickerGarden database or published read model is not ready"}
+      - alert: TickerGardenAPIErrorRate
+        expr: |
+          (
+            sum by (job, instance) (rate(tickergarden_http_requests_total{job="tickergarden-api",status_class="5xx",route!~"/readyz|/livez|/health"}[5m]))
+            / sum by (job, instance) (rate(tickergarden_http_requests_total{job="tickergarden-api",route!~"/readyz|/livez|/health"}[5m])) > 0.05
+          )
+          and (sum by (job, instance) (rate(tickergarden_http_requests_total{job="tickergarden-api",route!~"/readyz|/livez|/health"}[5m])) > 1)
+        for: 5m
+        labels: {severity: warning}
+        annotations: {summary: "TickerGarden API 5xx ratio exceeds 5 percent"}
+      - alert: TickerGardenAPILatency
+        expr: |
+          (histogram_quantile(0.95, sum by (job, instance, le) (rate(tickergarden_http_request_duration_seconds_bucket{job="tickergarden-api",route!~"/readyz|/livez|/health"}[5m]))) > 1)
+          and (sum by (job, instance) (rate(tickergarden_http_request_duration_seconds_count{job="tickergarden-api",route!~"/readyz|/livez|/health"}[5m])) > 1)
+        for: 5m
+        labels: {severity: warning}
+        annotations: {summary: "TickerGarden API p95 latency exceeds one second"}

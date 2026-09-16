@@ -1,11 +1,13 @@
 # TickerGarden V1 Pons 行为参考基线
 
-> 修订说明：Pons链上行为证据仍保留原始版本标识；TickerGarden自身的质押、Treasury、费用与原子毕业差异已按当前`V1-EXEC-10`修订，不再使用旧版10 STOCK线性规则。
+> 历史基线说明：本文件中的三秒窗口是外部 runtime 存档。2026-09-07 起 TickerGarden 新 release 改用五秒表，见 [新规则](../planning/PROTOCOL_OPTIMIZATION_2026-09-07.md)。
 
-> 决策状态：`PRODUCT_DIRECTION_APPROVED / IMPLEMENTATION_ALLOWED / NOT_DEPLOYABLE`  
-> 基线标识：`TG-PONS-BEHAVIOR-1`  
-> 执行规范：`V1-EXEC-10`
-> 决策日期：2026-09-02  
+> 修订说明：Pons链上行为证据仍保留原始版本标识；TickerGarden自身的质押、Treasury、费用与原子毕业差异已按当前`V1-EXEC-11`修订，不再使用旧版10 STOCK线性规则。
+
+> 决策状态：`PRODUCT_DIRECTION_APPROVED / DEPLOYMENT_ELIGIBLE / NOT_PRODUCTION_READY`
+> 基线标识：`TG-PONS-BEHAVIOR-1`
+> 执行规范：`V1-EXEC-11`
+> 决策日期：2026-09-02
 > 适用范围：TickerGarden V1；不覆盖任何 Test Prototype 文档或合约
 
 ## 1. 决策
@@ -24,7 +26,7 @@ TickerGarden V1 的发行主链路以 Pons V2 当前活跃部署的已确认链�
 - 沿用 Pons 地址、管理员、手续费受益人、BuybackVault 或升级权限；
 - 把未来 Pons 配置变更自动应用到既有 TickerGarden 市场。
 
-TickerGarden 使用自己的 ABI、Registry、CREATE2 domain、部署 manifest、数学不变量和测试向量。市场创建时冻结 `ponsBaselineId`、`quoteAssetConfigId`、`launchTemplateId`、`feePolicyId` 和 `expectedEconomics`；历史市场不随外部状态改变。
+TickerGarden 使用自己的 ABI、Registry、CREATE2 domain、部署 manifest、数学不变量和测试向量。市场创建时冻结 `tickerGardenBaselineId`、`quoteAssetConfigId`、`launchTemplateId`、`feePolicyId` 和 `expectedEconomics`；历史市场不随外部状态改变。
 
 ## 2. 参考部署和证据等级
 
@@ -74,7 +76,7 @@ TickerGarden 采用“一市场一 Quote、平台支持多 Quote”的模型：
 
 ```solidity
 struct QuoteAssetConfig {
-    bytes32 ponsBaselineId;
+    bytes32 tickerGardenBaselineId;
     address quoteAsset;            // address(0) = native
     uint8 quoteDecimals;
     uint256 phantomQuote;
@@ -91,7 +93,7 @@ struct QuoteAssetConfig {
 3. ERC-20 批准时和创建时都读取 decimals；异常或变化时拒绝新市场；
 4. config 追加而不覆盖；更新 economics 必须生成新 ID；
 5. 暂停 Quote 默认只阻止新市场，不改变历史市场资产，也不阻止已到账费用领取；
-6. `NATIVE_ETH_V1` 是当前 bootstrap 示例，不是唯一 Quote 或协议上限。管理员可逐项评估并追加普通 ERC-20 config，但只能接受 `proxyKind == NONE` 的不可升级直接合约；Registry 固定 runtime codehash 并在创建市场时复核，部署 preflight 还须证明 implementation/admin/beacon 三个 EIP-1967 槽均为零。已观测 USDG 是可升级代理，因此不符合普通路径。Robinhood 官方 Stock Token 如需成为 Quote，必须走独立的 Asset UID + canonical Token + Beacon/implementation 指纹准入路径；该路径当前为 `IMPLEMENTATION_PENDING`，不构成对任一 Stock Quote 的激活。
+6. `NATIVE_ETH_V1` 是当前 bootstrap 示例，不是唯一 Quote 或协议上限。管理员可逐项评估并追加普通 ERC-20 config，但只能接受 `proxyKind == NONE` 的不可升级直接合约；Registry 固定 runtime codehash 并在创建市场时复核，部署 preflight 还须证明 implementation/admin/beacon 三个 EIP-1967 槽均为零。已观测 USDG 是可升级代理，因此不符合普通路径。Robinhood 官方 Stock Token 使用独立的 Asset UID + canonical Token + Beacon/implementation 指纹准入路径；该 admission 与固定区块真实代理 Fork 已验证，当前为 `NO_ACTIVE_CONFIG`。价格生成器与首批 allowlist 是 `PENDING_PRODUCT_ACTIVATION`。
 
 7. Stock Quote 的链下价格只可用于生成追加式 config 和前端展示。REST `/rhj/prices/{symbol}` 的底层股票价格必须乘一次 `currentMultiplier`；Robinhood Chain Chainlink Feed 已返回 multiplier-adjusted Token 价格，禁止重复相乘。最终上链的是冻结的 raw `phantomQuote` 与 `graduationThreshold`，市场创建后 Curve/毕业不读取 API、Oracle 或动态 USD 目标。完整规则见 [`V1_STOCK_QUOTE_PRICE_REFERENCE.md`](./V1_STOCK_QUOTE_PRICE_REFERENCE.md)。
 
@@ -101,7 +103,7 @@ struct QuoteAssetConfig {
 |---|---|---:|---:|---:|---|
 | `NATIVE_ETH_V1` | `0x0000000000000000000000000000000000000000` | 18 | `1680000000000000000` | `4200000000000000000` | `0x110acc145df286ef871d394b987b4ce12b062dc4d50d75343cdac7986a21e64e` |
 
-Quote economics hash 使用 domain `TICKERGARDEN_V1_QUOTE_ECONOMICS`、schema version `1` 和 `keccak256(abi.encode(domain,schemaVersion,chainId,ponsBaselineId,quoteAsset,quoteDecimals,phantomQuote,graduationThreshold))`。ERC-20 的代码身份另由 Registry 的 append-only runtime codehash 指纹和部署 manifest 固定。
+Quote economics hash 使用 domain `TICKERGARDEN_V1_QUOTE_ECONOMICS`、schema version `1` 和 `keccak256(abi.encode(domain,schemaVersion,chainId,tickerGardenBaselineId,quoteAsset,quoteDecimals,phantomQuote,graduationThreshold))`。ERC-20 的代码身份另由 Registry 的 append-only runtime codehash 指纹和部署 manifest 固定。
 
 ## 5. 创建 ABI 和付款语义
 
@@ -110,7 +112,7 @@ TickerGarden 不追求 Pons 二进制 ABI 相同，保留自己的市场身份�
 ```solidity
 struct CreateMarketParams {
     bytes32 assetUid;
-    bytes32 ponsBaselineId;
+    bytes32 tickerGardenBaselineId;
     bytes32 quoteAssetConfigId;
     bytes32 launchTemplateId;
     bytes32 expectedEconomics;
@@ -453,12 +455,12 @@ derive marketId
 - CREATE2 Curve/Token/Gauge/LaunchLocker 固定地址；地址已有代码、deployer 或 initCodeHash 变化；
 - TickerGarden 手续费差异和毕业后 STOCK Gauge 不改变 Pons 曲线输出。
 
-以下仍是部署门禁，而不是产品方向未决：
+以下是广播前复核或 production gates，而不是产品方向未决：
 
 1. 生产登记 STOCK 质押 Base 前使用 finalized-state RPC 重新验证官方 Asset UID、canonical token、decimals、状态及代理实现；Base 准入不读取 STOCK 价格，也不按 Feed 覆盖筛选；
-2. 从最终 Solidity artifact 重新生成真实 ABI、selector、initCodeHash 和 CREATE2 向量；
-3. 完成 Pons 参考许可审查、TickerGarden 独立审计和目标链 fork 验证；
-4. 普通 ERC-20 Quote 上线前证明其为不可升级直接合约，并固定 runtime/implementation 指纹与零 EIP-1967 槽证据；官方 Stock Quote 上线前则必须实现并审计专用 Beacon/implementation 准入、价格参考生成器和真实资产行为测试；
+2. 广播前从最终 Solidity artifact 复核 ABI、selector、initCodeHash、CREATE2 地址与 payload hash；
+3. 完成 Pons 参考许可审查和 TickerGarden 独立审计；固定区块目标链 Fork 已作为技术 deployment evidence 通过；
+4. 普通 ERC-20 Quote 上线前证明其为不可升级直接合约，并固定 runtime/implementation 指纹与零 EIP-1967 槽证据；官方 Stock Quote admission 与真实代理 Fork 已验证，价格参考生成器与首批 allowlist 仍属于 `PENDING_PRODUCT_ACTIVATION`；
 5. 完成权限、监控、源代码可复现和法律门禁。
 
-本基线随当前`V1-EXEC-10`保持`IMPLEMENTATION_ALLOWED / NOT_DEPLOYABLE`。反狙击runtime、管理员准入的 native/direct ERC-20 多 Quote 能力、通用数值域、原子毕业成功/失败语义、当前观测194项官方STOCK全量可选为质押Base、动态最低仓位、`S=0/S>0`固定质押者份额，以及 V1 Treasury 接口边界均已冻结。最终artifact/fork、目标链身份取证、安全审计、许可与法律仍约束部署和生产上线。
+本基线随当前`V1-EXEC-11`达到`DEPLOYMENT_ELIGIBLE / NOT_PRODUCTION_READY`。反狙击 runtime、管理员准入的 native/direct ERC-20 多 Quote 能力、通用数值域、原子毕业成功/失败语义、当前观测194项官方 STOCK 全量可选为质押 Base、动态最低仓位、`S=0/S>0`固定质押者份额，以及 V1 Treasury 接口边界均已冻结。广播前复核、部署后身份取证、安全审计、许可与法律仍约束实际发布和生产上线。

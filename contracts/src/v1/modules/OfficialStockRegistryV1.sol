@@ -9,6 +9,7 @@ import {
 } from "../interfaces/IV1Protocol.sol";
 import {DelayedUnpause} from "../shared/DelayedUnpause.sol";
 import {ImmutableAccessManaged} from "../shared/ImmutableAccessManaged.sol";
+import {ImmutableBeaconProxyRuntime} from "../shared/ImmutableBeaconProxyRuntime.sol";
 
 /// @notice Append-only canonical STOCK identities and admission status for TickerGarden V1.
 contract OfficialStockRegistryV1 is IOfficialStockRegistryV1, ImmutableAccessManaged, DelayedUnpause {
@@ -21,7 +22,6 @@ contract OfficialStockRegistryV1 is IOfficialStockRegistryV1, ImmutableAccessMan
     bytes4 private constant UID_SELECTOR = 0xf514ce36;
     bytes4 private constant DECIMALS_SELECTOR = 0x313ce567;
     bytes4 private constant IMPLEMENTATION_SELECTOR = 0x5c60da1b;
-    bytes14 private constant IMMUTABLE_BEACON_SUFFIX = 0x6001600160a01b0316635c60da1b;
     /// @dev Lowest raw-unit denominator that keeps the documented uint48 lifetime accumulator bound inside uint256.
     uint256 internal constant MINIMUM_SAFE_ALLOCATION_RAW = 414;
 
@@ -34,6 +34,9 @@ contract OfficialStockRegistryV1 is IOfficialStockRegistryV1, ImmutableAccessMan
     mapping(address userStockVault => bytes32 runtimeCodeHash) private _vaultRuntimeCodeHashes;
     mapping(address userStockVault => address marketRegistry) private _vaultMarketRegistries;
     mapping(address userStockVault => address allocationManager) private _vaultAllocationManagers;
+    // The opcode property depends only on runtime bytes. Assets sharing the same
+    // verified Beacon or implementation can reuse it without caching identity.
+    mapping(bytes32 runtimeCodeHash => bool) private _nonDelegatingRuntimeHashes;
 
     error InvalidAssetIdentity(bytes32 assetUid, address stockToken, uint8 tokenDecimals, address userStockVault);
     error AssetAlreadyRegistered(bytes32 assetUid);
@@ -157,9 +160,7 @@ contract OfficialStockRegistryV1 is IOfficialStockRegistryV1, ImmutableAccessMan
                 observedCodeHash
             );
         }
-        if (_containsDelegateExecution(expectedImplementation)) {
-            revert UnmonitoredDelegateProxy(expectedImplementation);
-        }
+        _requireNonDelegatingRuntime(expectedImplementation);
 
         address oldImplementation = fingerprint.implementation;
         bytes32 oldImplementationRuntimeCodeHash = fingerprint.implementationRuntimeCodeHash;
@@ -301,7 +302,6 @@ contract OfficialStockRegistryV1 is IOfficialStockRegistryV1, ImmutableAccessMan
 
     function _observeFingerprint(bytes32 assetUid, address stockToken, address expectedBeacon)
         private
-        view
         returns (StockTokenFingerprint memory observed)
     {
         observed.tokenRuntimeCodeHash = stockToken.codehash;
@@ -314,9 +314,7 @@ contract OfficialStockRegistryV1 is IOfficialStockRegistryV1, ImmutableAccessMan
             // A token admitted as direct must not be an unmonitored proxy. Runtime code-hash
             // pinning cannot detect implementation-slot upgrades when DELEGATECALL/CALLCODE
             // remains in otherwise unchanged proxy bytecode.
-            if (_containsDelegateExecution(stockToken)) {
-                revert UnmonitoredDelegateProxy(stockToken);
-            }
+            _requireNonDelegatingRuntime(stockToken);
             observed.implementation = stockToken;
             observed.implementationRuntimeCodeHash = observed.tokenRuntimeCodeHash;
             return observed;
@@ -324,7 +322,7 @@ contract OfficialStockRegistryV1 is IOfficialStockRegistryV1, ImmutableAccessMan
         if (expectedBeacon.code.length == 0) {
             revert UnsupportedStockTokenProxy(stockToken, expectedBeacon, embeddedBeacon);
         }
-        if (_containsDelegateExecution(expectedBeacon)) revert UnmonitoredDelegateProxy(expectedBeacon);
+        _requireNonDelegatingRuntime(expectedBeacon);
 
         observed.beacon = expectedBeacon;
         observed.beaconRuntimeCodeHash = expectedBeacon.codehash;
@@ -332,50 +330,26 @@ contract OfficialStockRegistryV1 is IOfficialStockRegistryV1, ImmutableAccessMan
         if (!implementationOk || implementation.code.length == 0) {
             revert InvalidAssetImplementation(assetUid, address(0), bytes32(0), implementation, implementation.codehash);
         }
-        if (_containsDelegateExecution(implementation)) revert UnmonitoredDelegateProxy(implementation);
+        _requireNonDelegatingRuntime(implementation);
         observed.implementation = implementation;
         observed.implementationRuntimeCodeHash = implementation.codehash;
     }
 
-    function _embeddedImmutableBeacon(address stockToken) private view returns (address candidate, bool unambiguous) {
-        bytes memory runtime = stockToken.code;
-        uint256 patternLength = 47;
-        if (runtime.length < patternLength) return (address(0), true);
-
-        uint256 limit = runtime.length - patternLength;
-        for (uint256 offset; offset <= limit; ++offset) {
-            if (uint8(runtime[offset]) != 0x7f) continue;
-            bool matches = true;
-            for (uint256 index; index < 12; ++index) {
-                if (runtime[offset + 1 + index] != bytes1(0)) {
-                    matches = false;
-                    break;
-                }
-            }
-            if (!matches) continue;
-            for (uint256 index; index < 14; ++index) {
-                if (runtime[offset + 33 + index] != IMMUTABLE_BEACON_SUFFIX[index]) {
-                    matches = false;
-                    break;
-                }
-            }
-            if (!matches) continue;
-
-            uint160 rawAddress;
-            for (uint256 index; index < 20; ++index) {
-                rawAddress = (rawAddress << 8) | uint160(uint8(runtime[offset + 13 + index]));
-            }
-            address found = address(rawAddress);
-            if (found == address(0)) continue;
-            if (candidate != address(0) && candidate != found) return (address(0), false);
-            candidate = found;
-        }
-        return (candidate, true);
+    function _requireNonDelegatingRuntime(address component) private {
+        bytes32 runtimeCodeHash = component.codehash;
+        if (_nonDelegatingRuntimeHashes[runtimeCodeHash]) return;
+        if (_containsDelegateExecution(component)) revert UnmonitoredDelegateProxy(component);
+        _nonDelegatingRuntimeHashes[runtimeCodeHash] = true;
     }
 
-    function _containsDelegateExecution(address stockToken) private view returns (bool) {
+    function _embeddedImmutableBeacon(address stockToken) private view returns (address candidate, bool unambiguous) {
+        return (ImmutableBeaconProxyRuntime.beacon(stockToken.code), true);
+    }
+
+    function _containsDelegateExecution(address stockToken) internal view returns (bool) {
         bytes memory runtime = stockToken.code;
-        for (uint256 offset; offset < runtime.length; ++offset) {
+        uint256 executableLength = _executableBytecodeLength(runtime);
+        for (uint256 offset; offset < executableLength; ++offset) {
             uint8 opcode = uint8(runtime[offset]);
             if (opcode == 0xf2 || opcode == 0xf4) return true; // CALLCODE or DELEGATECALL
             if (opcode >= 0x60 && opcode <= 0x7f) {
@@ -383,6 +357,25 @@ contract OfficialStockRegistryV1 is IOfficialStockRegistryV1, ImmutableAccessMan
             }
         }
         return false;
+    }
+
+    /// @dev An opcode-aligned INVALID prevents fallthrough into auxiliary data. Such a
+    ///      suffix is unreachable only if it contains no valid JUMPDEST. Solidity can put
+    ///      literal constants between INVALID and CBOR, so CBOR's start is not the boundary.
+    ///      PUSH payload bytes are never instructions or valid jump destinations.
+    function _executableBytecodeLength(bytes memory runtime) private pure returns (uint256) {
+        uint256 boundary = runtime.length;
+        for (uint256 offset; offset < runtime.length; ++offset) {
+            uint8 opcode = uint8(runtime[offset]);
+            if (opcode == 0x5b) {
+                // A jump can enter here: every earlier candidate boundary is invalid.
+                boundary = runtime.length;
+            } else if (opcode == 0xfe && boundary == runtime.length) {
+                boundary = offset;
+            }
+            if (opcode >= 0x60 && opcode <= 0x7f) offset += opcode - 0x5f;
+        }
+        return boundary;
     }
 
     function _tryReadBytes32(address target, bytes4 selector) private view returns (bool ok, bytes32 value) {
@@ -473,10 +466,12 @@ contract OfficialStockRegistryV1 is IOfficialStockRegistryV1, ImmutableAccessMan
     function _vaultIdentityCurrent(address userStockVault) private view returns (bool) {
         bytes32 schemaId = _vaultSchemaIds[userStockVault];
         bytes32 runtimeCodeHash = _vaultRuntimeCodeHashes[userStockVault];
+        // Registration scans the runtime before pinning its hash. An identical
+        // hash preserves that opcode result; mutable identity bindings still
+        // require the checks below on every use.
         if (
             schemaId == bytes32(0) || runtimeCodeHash == bytes32(0) || userStockVault.code.length == 0
                 || userStockVault.codehash != runtimeCodeHash || _vaultBySchemaIds[schemaId] != userStockVault
-                || _containsForbiddenVaultOpcode(userStockVault)
         ) return false;
 
         try IUserStockVault(userStockVault).vaultIdentity() returns (
@@ -496,10 +491,25 @@ contract OfficialStockRegistryV1 is IOfficialStockRegistryV1, ImmutableAccessMan
         }
     }
 
-    function _containsForbiddenVaultOpcode(address userStockVault) private view returns (bool) {
+    function _containsForbiddenVaultOpcode(address userStockVault) internal view returns (bool) {
         bytes memory runtime = userStockVault.code;
         for (uint256 offset; offset < runtime.length; ++offset) {
             uint8 opcode = uint8(runtime[offset]);
+            // solc can append CODECOPY constants even with CBOR metadata disabled.
+            // An opcode-aligned INVALID blocks fallthrough. Without any subsequent
+            // JUMPDEST the suffix cannot be entered, so data bytes are not opcodes.
+            // Keep scanning when any possible jump target remains; never trust a
+            // metadata length or an INVALID byte inside a PUSH immediate.
+            if (opcode == 0xfe) {
+                bool hasJumpDestination;
+                for (uint256 tail = offset + 1; tail < runtime.length; ++tail) {
+                    if (runtime[tail] == bytes1(0x5b)) {
+                        hasJumpDestination = true;
+                        break;
+                    }
+                }
+                if (!hasJumpDestination) return false;
+            }
             if (opcode == 0xf2 || opcode == 0xf4 || opcode == 0xff) return true;
             if (opcode >= 0x60 && opcode <= 0x7f) {
                 offset += opcode - 0x5f;

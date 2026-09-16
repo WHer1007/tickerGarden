@@ -1,0 +1,99 @@
+{
+  "schemaVersion": 1,
+  "status": "DEPLOYED_VERIFIED_ACTIVE_TEST_ONLY",
+  "network": "Robinhood Chain Testnet",
+  "chainId": 46630,
+  "productionTargetChainId": 4663,
+  "releaseId": "0xf7024d03f3844c5b40abfeda80cb4e8c6edc307ba60a17c8c6d2bc9296e26e41",
+  "payloadHash": "0x36a6748906456b77c78e24d3f0dac964f61b625099971119a9185f098fc75b78",
+  "deployer": "0xA6c3298a5559544c3b4cf8e6DC5f349f4be524ea",
+  "platformTreasury": "0xD84897cD860Da0B51D39a252961B18D54fBbb266",
+  "settlementOperator": "0xA6c3298a5559544c3b4cf8e6DC5f349f4be524ea",
+  "orchestrator": "0xBEac38aa168c09C9Fb978A91B7E4c0E0264102Ee",
+  "factory": "0xd945d3d16801b48e1268f69E2C10651925CCbCFb",
+  "hook": "0x45df010082D88722756f890fcDA1634f205B6044",
+  "graduationExecutor": "0x82ADBB9566cEaaac170Fc82808092Cda6675dEFd",
+  "hookExecutorHelper": "0x9bD11A241d856f31346e8A82A01ac31D263b976A",
+  "components": {
+    "AccessManager": "0xaE8B567e6C89070eBD14112E14faf08A581C12dB",
+    "OfficialStockRegistryV1": "0x5a04e4dB95BcEFb7f4CddC7E27576f8D74029586",
+    "ApprovedQuoteRegistry": "0x4FE87f1e7Eb36b70Ac47d335c169F6634048E9AA",
+    "TickerGardenBaselineRegistry": "0x750F809fB647B542B21b9A9335f1cDd95A9EE389",
+    "LaunchTemplateRegistry": "0xC5b4EEa812075BCc15B669Cdd5D39De3Bf39A855",
+    "LaunchConfigResolver": "0x252D531896D5E3A8e479Ef652ac57Dc614D1E51D",
+    "TickerMemeTokenV1Implementation": "0xCd4B6c541Cf839994d0F9ab451b58ca7F99914d6",
+    "TickerGardenCurveImplementation": "0x4296A17179Df66fb9d88F849173f79c8e1a4C9FB",
+    "MemeStockGauge": "0xb1F4C649Cc00121B0A4CdbA7098Ce88cB7939E48",
+    "LaunchAndBuyRouter": "0xa3eDba183f586Cd0Eb9DE5080701bb9610F9f351",
+    "MarketRegistryV1": "0x5e09f948F0c51b35E9C6130ac028a43A66260792",
+    "CreatorRevenueRegistry": "0x53C2f9412FFcC06E66a4421049fEf73B39E2f1fe",
+    "AllocationManager": "0x4D62Ed1Ae353710f73A1A8A9ddeaa9301570A2ab",
+    "UserStockVault": "0x8b58A2c4166D5a2Dad021D8772114b4b41813584",
+    "HolderRewardsDistributorV1": "0x9e8D8B91189c075860C0567fD08404f0114C20c9",
+    "ProtocolFeeVault": "0xA6AAeddd288578D11b99F9fbFBCAf8eb113Ac38C"
+  },
+  "transactions": {
+    "treasury": "0x6d6d312509c3ed5291ae0573392e64483d16fa09bb47455cdb242aa76d7aca93",
+    "core": [
+      "0x932a3fe993ab6a503ce4ed7f7a3d1e5aa3d9640ffcbacd4d1d594e4ce8cbb3ef",
+      "0xff35d00d8a2a6cb384814dff50a6e3bc9831a05bce94fbc96057e41f5ff8b882",
+      "0xb24621b5232caec1f957a80ed49480cf3053b3181aea373fe1d686629d38acb9",
+      "0xf31ebe2ae1d675f3579c62c844b29589758b417cf18ef21f66933305669a2944",
+      "0x86527342531df8469ae9ab68696e7ff7d9a9e9e7ef2db93a9f6f483e7061bd1b",
+      "0x9d7c03474559157ce0e23075ece168cae460b7d5d377156d789372b7281f31c8",
+      "0xa3c76f9dcac53515b8622a265d06bde7d1729bf0ce2d4f337740060472e4d453",
+      "0x486a9e046dc9a225eb4436053ee3f0510efa7c13981b6f68e2f1a4b2b2abcd56",
+      "0xbf1fa4a83c3f90d3e7eecf606fb14d60dddc98a6495917a45841a54c36e7613e",
+      "0x3c31ec47e4fa35678691d2610060d9def8382e8f4919f9dc5957a9d5aed15e08",
+      "0x0ecba6602e7798cba9a9128f6b497391793373c2ec4a0407165b7a65fd23acc4",
+      "0xfb8626c6ed4dc982210de82ba5a2c8a27cc16cb1cd9d2b18cb9e3c221f8a5e67",
+      "0xfd32c5acd4c003bc3fd681f4cd0504b00de3c19aa699eec405672fffb2912351",
+      "0x64cb8baa031dc0784b977718e38bec7aac842c70e363a64a77cc6471d4c83a33",
+      "0x38e1d127bb476489fb645cba664b0d94f1d12b99473bad1eee26b7d1ac647f63",
+      "0x6e26611cc9945870356e4851d041313098daa278dc23446d70de6accc7ce7ef6",
+      "0xde2d5c5ada9aa53043222b9390a5790dd17589a01e15bad0f527b18cda044058",
+      "0xe45847651b60c75e3150b18f9a39911c7983091e5e0e1f72ab4891949e3a450b",
+      "0xedcec66d4a4a70115b19465f223a0813a25489ef32077783f601a237db5ab817"
+    ],
+    "settlementOperator": "0xd63216bfde134892a4f912bd437e0d7b7d7a52f1e953781ac1b90e14abf896fa",
+    "count": 21
+  },
+  "blocks": {
+    "treasury": "115002221",
+    "coreStart": "115007944",
+    "coreEnd": "115010023",
+    "settlementOperator": "115011151"
+  },
+  "cost": {
+    "treasuryFeeWei": "3962980000000",
+    "coreFeeWei": "556094120000000",
+    "operatorFeeWei": "419340000000",
+    "totalFeeWei": "560476440000000",
+    "totalFeeEth": "0.000560476440",
+    "balanceWei": "1759446369046548800"
+  },
+  "verification": {
+    "contractsVerified": 21,
+    "hookMask": "0x2044",
+    "continuousHolderStreamSeconds": 86400,
+    "allCoreReceiptsConfirmed": true,
+    "settlementOperatorConfigured": true
+  },
+  "activation": {
+    "performed": true,
+    "registriesConfigured": true,
+    "rolesTransferred": false,
+    "marketsCreated": false,
+    "baselineId": "0x94e4bdb2daf29472b5f1c4a70062058f2d0342e23cc4c96b196ee42f1991d249",
+    "quoteId": "0xcd6aa0d1d38e55593dc13924f015b0deb7df83b1dc14e5b179228bc73c9acdd8",
+    "templateId": "0xb5fa3ce674c2c0cd4be80d80892603394644554749d035aae9e4fb3b98d8ebca",
+    "baselineFixture": "0xc4924714EAe487d3A1d093343F98B8680fA3ee65",
+    "activationBlock": "115020210"
+  },
+  "limitations": [
+    "Chain 46630 Uniswap v4 dependencies are project-pinned test-only deployments and are not an official Uniswap 46630 mapping.",
+    "Robinhood production target remains chain 4663. This testnet deployment is not production-ready evidence."
+  ],
+  "activationManifest": "activation.json",
+  "updatedAt": "2026-09-07T18:01:59.123Z"
+}

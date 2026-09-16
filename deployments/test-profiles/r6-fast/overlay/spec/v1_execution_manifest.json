@@ -1,0 +1,822 @@
+{
+  "schemaVersion": 1,
+  "executionSpecId": "V1-EXEC-11",
+  "status": "DEPLOYMENT_ELIGIBLE",
+  "updatedAt": "2026-09-05",
+  "normativeDocument": "docs/v1/V1_EXECUTION_SPEC.md",
+  "readiness": {
+    "modelVersion": 1,
+    "state": "DEPLOYMENT_ELIGIBLE",
+    "stateOrder": [
+      "SPEC_FROZEN_NOT_DEPLOYABLE",
+      "IMPLEMENTATION_ALLOWED",
+      "DEPLOYMENT_ELIGIBLE",
+      "PRODUCTION_READY"
+    ],
+    "allowedTransitions": [
+      [
+        "SPEC_FROZEN_NOT_DEPLOYABLE",
+        "IMPLEMENTATION_ALLOWED"
+      ],
+      [
+        "IMPLEMENTATION_ALLOWED",
+        "DEPLOYMENT_ELIGIBLE"
+      ],
+      [
+        "DEPLOYMENT_ELIGIBLE",
+        "PRODUCTION_READY"
+      ]
+    ],
+    "implementationAllowed": true,
+    "deploymentEligible": true,
+    "productionReady": false,
+    "gateSets": {
+      "implementation": {
+        "open": [],
+        "requiredEvidence": [
+          "V1_EXEC_6_CANONICAL_ABI_HASH_AND_PERMISSION_VECTORS",
+          "ALL_OFFICIAL_STOCK_BASE_SELECTION_POLICY",
+          "OFFICIAL_STOCK_QUOTE_IMMUTABLE_BEACON_TYPED_ADMISSION_AND_PREFLIGHT",
+          "FIXED_ACTIVE_STAKER_SHARE_AND_RAGE_QUIT_FORFEITURE_VECTORS",
+          "COMPLETE_SPEC_VECTOR_SUITE"
+        ]
+      },
+      "deployment": {
+        "open": [],
+        "requiredEvidence": [
+          "CHAIN_ID_RPC_AND_FINALIZED_BLOCK_HASH",
+          "ALL_MODULE_ADDRESSES_ARTIFACTS_AND_RUNTIME_CODEHASHES",
+          "CREATE2_INIT_CODE_HASHES_AND_PREDICTION_VECTORS",
+          "HOOK_ADDRESS_PERMISSION_MASK_PROOF",
+          "ACCESS_MANAGER_TARGET_SELECTOR_ROLE_DELAY_DIFF",
+          "COMPILED_ABI_AND_EVENT_EXACT_DIFF",
+          "PRODUCT_TESTS_FORK_TESTS_AND_E2E_TESTS"
+        ]
+      },
+      "production": {
+        "open": [
+          "V1-G0-PONS-SECURITY-01",
+          "V1-G0-LEGAL-01",
+          "V1-PROD-AUDIT-01",
+          "V1-PROD-LICENSE-01",
+          "V1-PROD-ROLE-TRANSFER-01",
+          "V1-PROD-SOURCE-VERIFICATION-01",
+          "V1-PROD-MONITORING-RUNBOOK-01",
+          "V1-PROD-SOAK-72H-01"
+        ],
+        "requiredEvidence": [
+          "ZERO_OPEN_CRITICAL_OR_HIGH_AUDIT_FINDINGS",
+          "PONS_REFERENCE_LICENSE_AND_PRODUCT_LEGAL_APPROVAL",
+          "DEPLOYER_ROLE_RENOUNCED_AND_SAFE_ROLES_VERIFIED",
+          "SOURCE_AND_BUILD_REPRODUCIBILITY_VERIFIED",
+          "MONITORING_ALERTS_AND_INCIDENT_RUNBOOK_ACTIVE",
+          "SEVENTY_TWO_HOUR_CANARY_SOAK_COMPLETE"
+        ]
+      }
+    },
+    "placeholderPolicy": {
+      "scopeGlob": "deployments/manifests/*.production.json",
+      "failClosed": true,
+      "reject": [
+        "NULL",
+        "EMPTY_STRING",
+        "EMPTY_ARRAY",
+        "EMPTY_OBJECT",
+        "ZERO_ADDRESS_OR_HASH_UNLESS_PATH_ALLOWLISTED",
+        "REPEATED_OR_LOW_ENTROPY_ADDRESS_OR_HASH",
+        "DRAFT_EXAMPLE_PLACEHOLDER_TBD_TODO_CHANGEME_SAMPLE_TAG",
+        "REFERENCE_FIXTURE_VALUE"
+      ],
+      "allowedZeroRules": [
+        {
+          "pathPattern": "$.quoteAssets.*.tokenAddress",
+          "requiresSibling": {
+            "field": "assetKind",
+            "equals": "NATIVE"
+          }
+        },
+        {
+          "pathPattern": "$.livePreflight.storageChecks.*.expectedValue",
+          "requiresSibling": {
+            "field": "slot",
+            "equals": "0x360894a13ba1a3210667c828492db98dca3e2076cc3735a920a3ca505d382bbc"
+          }
+        },
+        {
+          "pathPattern": "$.livePreflight.storageChecks.*.expectedValue",
+          "requiresSibling": {
+            "field": "slot",
+            "equals": "0xb53127684a568b3173ae13b9f8a6016e243e63b6e8ee1178d6a717850b5d6103"
+          }
+        },
+        {
+          "pathPattern": "$.livePreflight.storageChecks.*.expectedValue",
+          "requiresSibling": {
+            "field": "slot",
+            "equals": "0xa3f0ad74e5423aebfd80d3ef4346578335a9a72aeaee59ff6cb3582b35133d50"
+          }
+        },
+        {
+          "pathPattern": "$.marketInitialRuntime.poolId"
+        },
+        {
+          "pathPattern": "$.poolBindingInitial.status"
+        }
+      ],
+      "referenceFixtureScopes": [
+        {
+          "file": "spec/v1_hash_schemas.json",
+          "jsonPointer": "/vectors"
+        },
+        {
+          "file": "spec/v1_pons_behavior_vectors.json",
+          "jsonPointer": "/create2"
+        }
+      ]
+    }
+  },
+  "ponsBehaviorBaseline": {
+    "id": "TG-PONS-BEHAVIOR-1",
+    "document": "docs/v1/V1_PONS_BEHAVIOR_BASELINE.md",
+    "vectors": "spec/v1_pons_behavior_vectors.json",
+    "runtimeEvidence": "spec/v1_pons_runtime_evidence.json",
+    "referenceFactory": "0x7ed598bcef8bd9edd8c97a195c6d13f40801ec7e",
+    "referenceBlock": 52289586,
+    "runtimeDependency": false,
+    "implementation": "TICKERGARDEN_INDEPENDENT_REWRITE"
+  },
+  "launch": {
+    "multiQuote": true,
+    "oneQuotePerMarket": true,
+    "initialLaunchFeeRawNative": "500000000000000",
+    "launchFeeMutability": "IMMUTABLE_PER_FACTORY_AND_EXECUTION_SPEC",
+    "launchFeeChangePolicy": "DEPLOY_NEW_FACTORY_AND_NEW_EXECUTION_SPEC_ID",
+    "exactLaunchFeePayment": true,
+    "atomicLaunchAndBuy": true,
+    "firstBuyGraduationShareCapBps": null,
+    "arbitrarySnipeExemptionArray": false,
+    "antiSnipe": {
+      "durationSeconds": 3,
+      "rawBpsByElapsedSecond": [
+        9900,
+        618,
+        19
+      ],
+      "zeroFromElapsedSecond": 3,
+      "minimumNetBps": 100,
+      "effectiveBpsFormula": "min(rawSnipeBps,10000-feeBps-creatorTaxBps-minimumNetBps)",
+      "creatorTaxBps": 0,
+      "automaticExemptions": [
+        "CREATOR",
+        "CREATOR_REVENUE_BENEFICIARY_AT_CREATION",
+        "ATOMIC_FIRST_BUY_RECIPIENT"
+      ],
+      "runtimeEvidence": "spec/v1_pons_runtime_evidence.json"
+    }
+  },
+  "quoteConfigs": {
+    "authoritativeArtifact": "spec/v1_initial_quote_configs.json",
+    "configuredExamples": [
+      "NATIVE_ETH_V1"
+    ],
+    "configuredExamplesAreProtocolCap": false,
+    "selectionRule": "NEW_MARKET_MAY_SELECT_ANY_ADMIN_APPROVED_ACTIVE_QUOTE",
+    "approvalRequirement": "ADMIN_APPROVED_AND_ACTIVE",
+    "riskAcceptance": "ADMIN_EVALUATES_EACH_QUOTE_BEFORE_TIMELOCKED_ADMISSION",
+    "erc20AdmissionRequirement": "DIRECT_IMMUTABLE_ERC20_WITH_PINNED_RUNTIME_AND_ZERO_EIP1967_SLOTS",
+    "officialStockQuoteAdmissionRequirement": "SEPARATE_OFFICIAL_ACTIVE_ASSET_UID_CANONICAL_TOKEN_IMMUTABLE_BEACON_AND_PINNED_FINGERPRINT",
+    "officialStockQuoteIdentityPolicy": "FAIL_CLOSED_ON_ASSET_STATUS_TOKEN_RUNTIME_BEACON_IMPLEMENTATION_OR_DECIMALS_DRIFT",
+    "officialStockQuoteEconomicsBinding": "CONTENT_ADDRESSED_HASH_BINDS_CHAIN_BASELINE_RAW_ECONOMICS_ASSET_UID_FINGERPRINT_REFERENCE_EVIDENCE_AND_GENERATOR_POLICY",
+    "stockQuoteAdmissionStatus": "IMPLEMENTED_LOCAL_VERIFIED",
+    "stockQuoteIdentityDriftPolicyStatus": "IMPLEMENTED_LOCAL_VERIFIED",
+    "stockQuoteDeploymentPreflightStatus": "IMPLEMENTED_LOCAL_VERIFIED",
+    "stockBaseAutoPromotionToQuote": false,
+    "initialStockQuoteConfigs": [],
+    "stockQuoteConfigGeneratorStatus": "PENDING_PRODUCT_ACTIVATION",
+    "stockQuoteActivationStatus": "NO_ACTIVE_CONFIG",
+    "stockQuoteTargetChainEvidenceStatus": "MAINNET_FORK_ADMISSION_VERIFIED",
+    "stockQuoteForkE2EStatus": "FORK_ADMISSION_VERIFIED_NO_ACTIVE_PRODUCT_CONFIG",
+    "nativeQuoteIsProtocolRequirement": false,
+    "configurationMode": "APPEND_ONLY_CONTENT_ADDRESSED",
+    "individualGraduationAmountBound": "phantomQuote_AND_graduationThreshold_LE_int128.max",
+    "jointGraduationDomainGate": "FACTORY_PREVIEW_AND_CREATE_VALIDATE_PAIRED_BASELINE_AND_QUOTE_BEFORE_RESERVATION_OR_DEPLOYMENT",
+    "jointGraduationDomainChecks": [
+      "SUPPLY_PHANTOM_AND_THRESHOLD_SIGNED_V4_AMOUNT_DOMAIN",
+      "PONS_SUPPLY_AND_TERMINAL_QUOTE_PARTITIONS",
+      "BOTH_CANONICAL_TOKEN_ADDRESS_ORDERINGS",
+      "SQRT_PRICE_TICK_AND_MAX_LIQUIDITY_REPRESENTABILITY"
+    ],
+    "deploymentPreflight": "ERC20_PROXY_KIND_NONE_IMPLEMENTATION_EQUALS_TOKEN_THREE_EIP1967_SLOTS_ZERO_AND_RUNTIME_HASH_PINNED",
+    "officialStockQuoteDeploymentPreflight": "OFFICIAL_STOCK_LINK_UID_DECIMALS_RUNTIME_IMMUTABLE_BEACON_IMPLEMENTATION_FINGERPRINT_AND_TYPED_ECONOMICS_HASH"
+  },
+  "numericBounds": {
+    "authoritativeArtifact": "spec/v1_numeric_bounds.json",
+    "status": "APPROVED_GENERIC_NUMERIC_DOMAIN",
+    "productionManifestAdmissionCheckRequired": true
+  },
+  "batchOperations": {
+    "initialReleaseScope": false,
+    "batchAbiAllowed": false,
+    "singleMarketEntryPointsPermanent": true
+  },
+  "templateDeployment": {
+    "sharedImmutableModules": [
+      "MarketRegistryV1",
+      "ProtocolFeeVault",
+      "AllocationManager",
+      "UserStockVault",
+      "LaunchConfigResolver",
+      "TickerGardenMemeHook",
+      "GraduationExecutor",
+      "UniswapV4PoolManager"
+    ],
+    "perAssetModules": [],
+    "perMarketCreate2AtLaunch": [
+      "TickerMemeTokenV1",
+      "TickerGardenCurve",
+      "MemeStockGauge"
+    ],
+    "perMarketFullCreate2AtLaunch": [
+      "TickerMemeTokenV1",
+      "TickerGardenCurve"
+    ],
+    "perMarketCloneCreate2AtLaunch": [
+      "MemeStockGauge"
+    ],
+    "cloneImplementations": {
+      "MemeStockGauge": {
+        "kind": "ERC1167_IMMUTABLE_ARGS",
+        "identityWords": 7,
+        "initializer": false,
+        "instanceRuntimeBytes": 269,
+        "storageScope": "ONE_ISOLATED_STORAGE_DOMAIN_PER_MARKET"
+      }
+    },
+    "perMarketCreate2AtGraduation": [
+      "LaunchLocker"
+    ],
+    "componentKinds": [
+      "TOKEN",
+      "CURVE",
+      "GAUGE",
+      "LOCKER"
+    ],
+    "launchLockerCustodyScope": "ONE_IMMUTABLE_LOCKER_PER_MARKET",
+    "hookExecutorBootstrap": "ONE_SHOT_CREATE2_MINED_HELPER_DEPLOYS_HOOK_AT_CREATE_NONCE_1_AND_EXECUTOR_AT_NONCE_2_WITH_ATOMIC_RECIPROCAL_BINDING_CHECK",
+    "addressCollisionPolicy": "REVERT_NO_NONCE_FALLBACK"
+  },
+  "graduation": {
+    "automaticTrigger": "FINAL_CURVE_BUY_AFTER_SETTLEMENT_REFUND_AND_FINAL_FEE_SWEEP",
+    "terminalMathPrecommit": "REQUIRE_RESERVED_MEME_EXACT_AND_ACTUAL_QUOTE_AT_LEAST_CONFIGURATION_DERIVED_CANONICAL_POOL_QUOTE_BEFORE_TRANSFER_OR_POOL_INITIALIZATION",
+    "terminalMathFailure": "REVERT_FINAL_BUY_ATOMICALLY_AND_REMAIN_NotGraduated",
+    "automaticEntrypoint": "GraduationExecutor.graduateFromCurve(bytes32,uint256,uint256)",
+    "automaticCaller": "EXACT_REGISTERED_CURVE",
+    "atomic": true,
+    "failureMode": "REVERT_FINAL_BUY_AND_ALL_GRADUATION_EFFECTS",
+    "manualRetryEntrypoint": false,
+    "terminalRescueEntrypoint": false,
+    "marketAssetRecipient": "NONE_OUTSIDE_CANONICAL_POOL_AND_PERMANENT_LAUNCH_LOCKER",
+    "curveEventAuthority": [
+      "CurveCompleted"
+    ],
+    "executorEventAuthority": [
+      "PoolGraduated"
+    ],
+    "launchAndBuyRouterSummaryEvent": false
+  },
+  "graduationSupply": {
+    "reservedFormula": "floor(supply*phantomQuote/(phantomQuote+graduationThreshold))",
+    "sellableFormula": "supply-reservedTokens",
+    "poolQuoteFormula": "ceil(sellableTokens*phantomQuote/reservedTokens)",
+    "lockedExcessQuoteFormula": "sweptQuote-poolQuoteAmount",
+    "poolMemeFormula": "floor(reservedTokens*poolQuoteAmount/(poolQuoteAmount+phantomQuote))",
+    "lockedExcessMemeFormula": "reservedTokens-poolMemeAmount",
+    "historyRoundingPolicy": "ACTUAL_QUOTE_ABOVE_CANONICAL_POOL_QUOTE_IS_PERMANENTLY_LOCKED_OUTSIDE_THE_POOL"
+  },
+  "dependencies": {
+    "uniswapV4Core": {
+      "commit": "59d3ecf53afa9264a16bba0e38f4c5d2231f80bc",
+      "version": "1.0.2"
+    },
+    "uniswapV4Periphery": {
+      "commit": "dce236d4e2057422d0791d9a973a58765eb46f65"
+    },
+    "openzeppelinContracts": {
+      "commit": "cab19933c33c2ad1d4c7a84864a3601dddfd16f3",
+      "version": "5.7.0"
+    },
+    "solidity": "0.8.26",
+    "evmVersion": "cancun"
+  },
+  "postGraduationFee": {
+    "basis": "ABS_UNSPECIFIED_CORE_SWAP_DELTA",
+    "feePips": 10000,
+    "pipsDenominator": 1000000,
+    "lpShareBps": 0,
+    "bpsDenominator": 10000,
+    "totalFeeFormula": "floor(base*10000/1000000)",
+    "lpFormula": "0",
+    "nonLpFormula": "totalFee",
+    "stakerEligibility": "ANY_POSITIVE_ACTIVE_STOCK",
+    "stakerNonLpShareBps": 3000,
+    "platformNonLpShareBps": 3000,
+    "stakerReleaseMode": "FIXED_BINARY_BY_ACTIVE_STOCK",
+    "stakerFormula": "activeStock==0?0:floor(nonLpAmount*3000/10000)",
+    "boundaryResults": {
+      "S_EQ_0": "CREATOR_70_STAKER_0_PLATFORM_30_LP_0_SUBJECT_TO_INTEGER_ROUNDING",
+      "S_GT_0": "CREATOR_40_STAKER_30_PLATFORM_30_LP_0_SUBJECT_TO_INTEGER_ROUNDING"
+    },
+    "creatorFormula": "nonLpAmount-stakerAmount-platformAmount",
+    "platformFormula": "floor(nonLpAmount*3000/10000)",
+    "stakerShareWithinBucket": "PRO_RATA_BY_ACTIVE_STOCK_AT_FEE_CREDIT",
+    "exactInputFeeAsset": "OUTPUT",
+    "exactOutputFeeAsset": "INPUT",
+    "roundingDust": "STAKER_AND_PLATFORM_FLOOR_THEN_CREATOR_RESIDUAL",
+    "assetConversion": false,
+    "fallbackToErc6909": false,
+    "dynamicFee": false
+  },
+  "canonicalPool": {
+    "poolKeyFee": 0,
+    "dynamicFee": false,
+    "currencyOrder": "ADDRESS_ASCENDING",
+    "nativeCurrency": "0x0000000000000000000000000000000000000000",
+    "tickSpacingSource": "FROZEN_LAUNCH_BASELINE",
+    "hookPermissionMaskHex": "0x2044",
+    "hookPermissionMaskDecimal": 8260,
+    "hookPermissions": [
+      "BEFORE_INITIALIZE",
+      "AFTER_SWAP",
+      "AFTER_SWAP_RETURNS_DELTA"
+    ],
+    "requiredSlot0LpFee": 0,
+    "requiredPackedProtocolFee": 0,
+    "lpDistribution": "NONE",
+    "hookFeeDestination": "PROTOCOL_FEE_VAULT_FULL_AMOUNT",
+    "failureMode": "REVERT_ENTIRE_SWAP"
+  },
+  "feeIdentity": {
+    "domain": "TICKERGARDEN_V1_V4_FEE",
+    "schemaVersion": 1,
+    "nonceScope": "POOL_ID",
+    "maximumFeeNonce": "281474976710655",
+    "overflowPolicy": "REJECT_WHEN_NEXT_CREDIT_WOULD_EXCEED_UINT48_MAX",
+    "fields": [
+      "domain",
+      "schemaVersion",
+      "chainId",
+      "feeVault",
+      "poolManager",
+      "poolId",
+      "marketId",
+      "sourceVersion",
+      "feeNonce",
+      "feeAsset",
+      "base",
+      "totalFee",
+      "feePolicyHash"
+    ]
+  },
+  "typedHashSchemas": "spec/v1_hash_schemas.json",
+  "officialStockAdmission": {
+    "chainId": 4663,
+    "eligibilityStatus": "APPROVED_ALL_ROBINHOOD_OFFICIAL_STOCK_TOKENS",
+    "eligibilityRule": "EVERY_ASSET_RETURNED_BY_THE_ROBINHOOD_OFFICIAL_STOCK_TOKEN_DIRECTORY_WITH_A_CHAIN_4663_DEPLOYMENT",
+    "issuerAuthenticityTrustModel": "GOVERNANCE_ATTESTED_FROM_ARCHIVED_OFFICIAL_DIRECTORY_AND_FINALIZED_CHAIN_EVIDENCE_NOT_ONCHAIN_ISSUER_SIGNATURE_VERIFICATION",
+    "identityTuple": [
+      "chainId",
+      "assetUid",
+      "stockToken",
+      "stockDecimals"
+    ],
+    "symbolOrNameIsIdentity": false,
+    "observedSnapshotArtifact": "spec/v1_rh_official_stock_catalog.snapshot.json",
+    "observedRawDirectoryArtifact": "spec/v1_rh_official_stock_catalog.source.json",
+    "observedAssetCount": 194,
+    "observedSnapshotFinality": "OBSERVATION_NOT_PRODUCTION_FINALITY",
+    "productionCatalogRequiresFinalizedHistoricalStateRpc": true,
+    "proxyImplementationFingerprintRequired": true,
+    "catalogCountIsProtocolCap": false,
+    "futureOfficialAssetsEligibleUnderSameRule": true,
+    "runtimeHttpDependency": false,
+    "activeOfficialStatusRequiredForNewMarkets": true,
+    "inactiveAssetEffect": "PAUSE_NEW_MARKETS_AND_NEW_ALLOCATION_ONLY",
+    "historicalClaimsAndPrincipalExitUnaffected": true,
+    "allObservedActiveAssetsSelectableAsStakingBase": true,
+    "marketStakingBaseCardinality": "EXACTLY_ONE_ASSET_UID",
+    "stakingBaseSelectedBy": "MARKET_CREATOR_AT_MARKET_CREATION",
+    "stakingBaseImmutableAfterCreation": true,
+    "sameStockMayBackUnlimitedMarkets": true,
+    "stockHolderChoice": "ALLOCATE_OR_NOT_ALLOCATE_OWN_BASE_STOCK_TO_ANY_MATCHING_GRADUATED_MARKET",
+    "stockPriceRequired": false,
+    "stockPriceOracleDependency": false,
+    "backingTargetRequired": false,
+    "minimumAllocationPolicy": "PER_ASSET_TIMELOCKED_ADMIN_CONFIGURATION",
+    "minimumAllocationSafetyFloorRaw": "414",
+    "minimumAllocationUpdateEffect": "EXISTING_POSITIONS_GRANDFATHERED_NEW_OR_INCREASED_POSITIONS_USE_CURRENT_VALUE_FULL_EXIT_UNCONDITIONAL",
+    "priceFeedCoverageAffectsEligibility": false,
+    "officialIdentityAndTokenSafetyChecksStillRequired": true,
+    "productionRegistration": "PER_ASSET_TIMELOCKED_REGISTRY_CALLS_NO_BATCH_ABI"
+  },
+  "activation": {
+    "quantumSeconds": 1,
+    "delaySeconds": 30,
+    "wheelSize": 32,
+    "slotIndexFormula": "activationAt%32",
+    "slotGeneration": "ABSOLUTE_ACTIVATION_TIMESTAMP",
+    "scanCountPerWrite": 32,
+    "matureComparison": "generation<=block.timestamp",
+    "feeBoundaryOrder": "PROCESS_MATURED_THEN_CREDIT_FEE",
+    "snapshotKey": "ABSOLUTE_GENERATION",
+    "snapshotCleanup": "REFERENCE_COUNT_ZERO",
+    "maxPendingPerUserMarket": 1,
+    "pendingIncreaseBehavior": "MERGE_AND_RESET_30_SECONDS",
+    "historicalTimeScan": false
+  },
+  "staking": {
+    "indexPrecision": "1000000000000000000000000000",
+    "minPositionRule": "ZERO_OR_AT_LEAST_CURRENT_ASSET_MINIMUM_ALLOCATION",
+    "minimumAllocationSource": "OfficialStockRegistryV1.minimumAllocation(assetUid)",
+    "minimumAllocationSafetyFloorRaw": "414",
+    "minimumAllocationUpdateRoleDelaySeconds": 172800,
+    "existingPositionGrandfathering": "NO_FORCED_EXIT; ANY_INCREASE_RESULT_USES_CURRENT_MINIMUM; FULL_CLOSE_AND_RAGE_QUIT_ALWAYS_ALLOWED",
+    "normalPositionTransitions": [
+      "DEPOSIT_OR_INCREASE",
+      "FULL_WITHDRAWAL"
+    ],
+    "partialDecreaseAllowed": false,
+    "crossMarketMigrationAllowed": false,
+    "normalWithdrawalAmount": "FULL_USER_MARKET_ALLOCATION",
+    "normalWithdrawalDestination": "USER_VAULT_FREE_BALANCE",
+    "minLockSeconds": 1200,
+    "lockStartsAt": "ALLOCATION_TRANSACTION_TIMESTAMP",
+    "increaseResetsWholePositionLock": true,
+    "normalClaimRequiresUnlock": true,
+    "normalClosePreservesAccruedRewards": true,
+    "rageQuit": {
+      "callerScope": "POSITION_OWNER_ONLY_VIA_DIRECT_VAULT_OR_ALLOCATION_MANAGER_CONVENIENCE_ENTRY",
+      "principalExit": "ATOMIC_FULL_POSITION_DIRECT_TO_USER_WALLET",
+      "principalAuthority": "USER_STOCK_VAULT_ALLOCATION_LEDGER",
+      "mandatoryOrder": "WRITE_FORFEITURE_TOMBSTONE_THEN_CLEAR_PRINCIPAL_LEDGER_THEN_EXACT_STOCK_TRANSFER_THEN_OPTIONAL_GAUGE_CLEANUP",
+      "marketLifecycleGate": false,
+      "bypassesMinimumLock": true,
+      "bypassesMinimumAllocation": true,
+      "forfeitsAllUnclaimedQuoteAndMemeRewards": true,
+      "marketLifecycleEffect": "NONE",
+      "gaugeFailureEffect": "PRINCIPAL_REMAINS_COMPLETE_AND_REWARD_SETTLEMENT_TOMBSTONE_REMAINS_PENDING",
+      "pendingSettlementClaimPolicy": "BLOCK_USER_SETTLE_AND_CLAIM_UNTIL_GAUGE_FORFEITURE_COMPLETES",
+      "pendingSettlementReentryPolicy": "BLOCK_SAME_ASSET_USER_MARKET_REALLOCATION_UNTIL_COMPLETION",
+      "rewardAccrualCutoff": "VAULT_SNAPSHOTS_LATEST_GAUGE_ACCUMULATORS_IN_THE_PRINCIPAL_EXIT_TRANSACTION",
+      "postExitRewardAccrual": "NONE_EVEN_WHEN_GAUGE_CLEANUP_IS_DEFERRED",
+      "retryEntrypoint": "AllocationManager.settleRageQuitRewards(bytes32,address)",
+      "retryCaller": "PUBLIC",
+      "redistributionCondition": "NONE_ESCAPE_REWARDS_NEVER_RETURN_TO_STAKER_ACCUMULATORS",
+      "whenOtherActiveStakersRemain": "MOVE_TO_MARKET_AND_FEE_ASSET_ISOLATED_PLATFORM_FORFEITURE_RESERVE",
+      "whenNoOtherActiveStakerRemains": "MOVE_TO_MARKET_AND_FEE_ASSET_ISOLATED_PLATFORM_FORFEITURE_RESERVE",
+      "whenExitCohortChanged": "MOVE_TO_MARKET_AND_FEE_ASSET_ISOLATED_PLATFORM_FORFEITURE_RESERVE",
+      "forfeitureReserveRecordFailure": "STORE_GAUGE_LOCAL_DEFERRED_QUOTE_AND_MEME_AMOUNTS_WITHOUT_RESTORING_USER_REWARDS",
+      "forfeitureReserveRetryEntrypoint": "MemeStockGauge.flushDeferredForfeiture()",
+      "forfeitureReserveRetryCaller": "PUBLIC",
+      "forfeitureReserveRetryMarketLifecycleGate": false,
+      "forfeitureReserveRetryReentrancyOrder": "CLEAR_DEFERRED_BEFORE_EXTERNAL_CALL_AND_RESTORE_ON_FAILURE",
+      "reserveConversion": "NEXT_PLATFORM_CLAIM_CONVERTS_RESERVE_TO_PLATFORM_REVENUE"
+    },
+    "preGraduationAllocation": false,
+    "marketBaseAssetCount": 1,
+    "marketBaseSelectedAtCreation": true,
+    "marketBaseImmutable": true,
+    "priceOrUsdNotionalUsedForWeight": false,
+    "feeBucketRule": "ANY_POSITIVE_ACTIVE_STOCK_ENABLES_FIXED_THIRTY_PERCENT_OF_TOTAL_FEE_FOR_STAKERS",
+    "rewardWeightAuthority": "USER_STOCK_VAULT_MULTI_ASSET_V6_EFFECTIVE_ACTIVE_LEDGER",
+    "rewardActivationDelaySeconds": 30,
+    "deferredGaugeCleanupWeightEffect": "NONE",
+    "rewardAssets": [
+      "MARKET_QUOTE_ASSET",
+      "MARKET_MEME_TOKEN"
+    ]
+  },
+  "vault": {
+    "custodyScope": "ONE_MULTI_ASSET_USER_STOCK_VAULT_PER_VAULT_SCHEMA_VERSION",
+    "initialDeploymentCount": 1,
+    "schemaIdentity": "keccak256(TickerGarden.UserStockVault.MultiAsset.v6)",
+    "schemaUniqueness": "OFFICIAL_STOCK_REGISTRY_ENFORCES_ONE_CANONICAL_VAULT_PER_SCHEMA",
+    "schemaDiscovery": [
+      "vaultSchemaId(address)",
+      "vaultForSchema(bytes32)",
+      "vaultIdentity()"
+    ],
+    "assetKey": "EXPLICIT_CANONICAL_ASSET_UID",
+    "tokenResolution": "OFFICIAL_STOCK_REGISTRY_ONLY_NO_CALLER_SUPPLIED_TOKEN",
+    "onchainAssetEnumeration": false,
+    "versioning": "NEW_SCHEMA_DEPLOYS_SUCCESSOR_VAULT_EXISTING_BINDINGS_STAY_WRITE_ONCE_AND_OLD_SCHEMA_ASSETS_RETAIN_EXIT_BUT_CANNOT_CREATE_V1_EXEC_8_MARKETS",
+    "gaugeCustodiesStock": false,
+    "allocationKey": "ASSET_UID_USER_MARKET_ID",
+    "aggregates": [
+      "ASSET_USER_ALLOCATED",
+      "ASSET_MARKET_ALLOCATED",
+      "ASSET_TOTAL_ALLOCATED"
+    ],
+    "normalReleaseRequiresGauge": true,
+    "rageQuitRequiresGauge": false,
+    "rageQuitRewardSettlementRequiresGauge": true,
+    "rageQuitRewardSettlementFailureBlocksPrincipal": false,
+    "rewardEligibilityLedger": "ASSET_UID_MARKET_ID_FIXED_32_SLOT_ACTIVATION_WHEEL_PLUS_USER_PENDING_POSITION",
+    "rewardEligibilityReadCost": "BOUNDED_BY_32_SLOTS_INDEPENDENT_OF_STAKER_COUNT",
+    "gaugeAccumulatorMirror": "LATEST_QUOTE_AND_MEME_ACCUMULATORS_WRITTEN_ONLY_BY_CANONICAL_GAUGE_VIA_ALLOCATION_MANAGER",
+    "rageQuitPendingMarker": "ASSET_UID_USER_MARKET_ID_TO_ORIGINAL_PRINCIPAL",
+    "rageQuitDestination": "USER_WALLET",
+    "rageQuitChangesMarketLifecycle": false,
+    "arbitraryRecipient": false
+  },
+  "marketAutonomy": {
+    "appliesFrom": "SUCCESSFUL_MARKET_REGISTRATION",
+    "postDeploymentAdministrativeState": false,
+    "pauseEntrypoint": false,
+    "retireEntrypoint": false,
+    "takeoverEntrypoint": false,
+    "hookDisableEntrypoint": false,
+    "gaugeDisableEntrypoint": false,
+    "feeVaultRewardMigrationEntrypoint": false,
+    "launchPhaseMeaning": "ONE_WAY_EXECUTION_FACT_NOT_ADMINISTRATIVE_CONTROL",
+    "assetAndConfigPauseBoundary": "BLOCKS_ONLY_NEW_MARKETS_OR_NEW_STOCK_ALLOCATIONS_WHERE_EXPLICITLY_SPECIFIED",
+    "existingMarketTradingEffectOfAssetOrConfigPause": "NONE",
+    "userPrincipalEscape": "PER_MARKET_RAGE_QUIT_ALWAYS_AVAILABLE"
+  },
+  "access": {
+    "framework": "OPENZEPPELIN_ACCESS_MANAGER_5_7_0",
+    "protocolAdminDelaySeconds": 172800,
+    "unpauseDelaySeconds": 1200,
+    "pauseGuardianDelaySeconds": 0,
+    "deployerRetainsRole": false,
+    "genericExecute": false,
+    "genericDelegatecall": false,
+    "genericWithdraw": false
+  },
+  "stateAuthority": {
+    "revision": "V1-STATE-7-FROZEN",
+    "canonicalModule": "MarketRegistryV1",
+    "canonicalConfigFields": [
+      "assetUid",
+      "tickerGardenBaselineId",
+      "quoteAssetConfigId",
+      "launchTemplateId",
+      "feePolicyId",
+      "executionSpecId",
+      "expectedEconomics",
+      "launchConfigId",
+      "creatorRevenueBeneficiaryAtCreation",
+      "memeToken",
+      "curve",
+      "gauge",
+      "quoteAsset",
+      "graduatedHook"
+    ],
+    "canonicalRuntimeFields": [
+      "poolId",
+      "sourceVersion",
+      "launchPhase"
+    ],
+    "initialRuntime": {
+      "poolId": "ZERO",
+      "sourceVersion": 1,
+      "launchPhase": "NotGraduated"
+    },
+    "activeFeeSourceByPhase": {
+      "NotGraduated": "REGISTERED_CURVE_AT_CURRENT_SOURCE_VERSION",
+      "PoolCreated": "REGISTERED_HOOK_AND_POOL_AT_CURRENT_SOURCE_VERSION"
+    },
+    "marketAdministrativeState": "ABSENT",
+    "mutations": [
+      {
+        "function": "registerMarket(bytes32,MarketConfig)",
+        "caller": "IMMUTABLE_FACTORY",
+        "writes": [
+          "MarketConfig",
+          "MarketRuntime",
+          "marketIdByToken"
+        ]
+      },
+      {
+        "function": "commitPoolCreated(bytes32,bytes32)",
+        "caller": "IMMUTABLE_GRADUATION_EXECUTOR",
+        "transition": [
+          "NotGraduated",
+          "PoolCreated"
+        ],
+        "writes": [
+          "launchPhase",
+          "poolId",
+          "sourceVersion"
+        ],
+        "sourceVersionEffect": "CHECKED_INCREMENT",
+        "atomicWith": "FINAL_CURVE_BUY_POOL_INITIALIZATION_LP_MINT_AND_LOCK_HOOK_ACTIVATION"
+      }
+    ],
+    "subordinateState": {
+      "TickerGardenMemeHook.PoolBindingStatus": "EXECUTION_HANDSHAKE_ONLY",
+      "UserStockVault.allocation": "PRINCIPAL_ACCOUNTING_ONLY",
+      "MemeStockGauge.position": "REWARD_WEIGHT_ACCOUNTING_ONLY"
+    },
+    "forbidden": [
+      "SECOND_CANONICAL_MARKET_COPY",
+      "GENERIC_MARKET_SETTER",
+      "ARBITRARY_FEE_SOURCE_SETTER",
+      "GOVERNANCE_DIRECT_REGISTRY_MUTATION",
+      "SHARED_DELEGATECALL_STORAGE",
+      "POST_DEPLOYMENT_MARKET_INTERVENTION"
+    ]
+  },
+  "creatorRevenue": {
+    "authority": "CreatorRevenueRegistry",
+    "initialEpoch": 1,
+    "invalidEpoch": 0,
+    "epochIncrement": "CHECKED_INCREMENT",
+    "beneficiaryWriteMode": "WRITE_ONCE_PER_MARKET_EPOCH",
+    "curveBoundary": "ATOMIC_SWEEP_OLD_EPOCH_BEFORE_INCREMENT",
+    "curveAccruedRequiredAfterBoundary": 0,
+    "poolFeeAttribution": "CURRENT_EPOCH_AT_ATOMIC_FEE_CREDIT",
+    "creatorLiabilityKey": [
+      "marketId",
+      "creatorEpoch",
+      "feeAsset"
+    ],
+    "claimRecipient": "creatorBeneficiaryAt(marketId,creatorEpoch)",
+    "administratorOverride": false,
+    "arbitraryClaimRecipient": false
+  },
+  "allocationAndTiming": {
+    "normalDirections": [
+      "DEPOSIT_OR_INCREASE",
+      "FULL_WITHDRAWAL"
+    ],
+    "partialDecreaseAllowed": false,
+    "migrationAllowed": false,
+    "normalWithdrawalAmount": "FULL_USER_MARKET_ALLOCATION",
+    "normalWithdrawalOrder": "CHECK_LEDGER_AND_LOCK_THEN_GAUGE_SETTLE_AND_REMOVE_FULL_POSITION_THEN_VAULT_RELEASE_FULL_ALLOCATION",
+    "activationDelaySeconds": 30,
+    "increaseWholePositionLockResetSeconds": 1200
+  },
+  "states": {
+    "AssetStatus": [
+      "UNSET",
+      "ACTIVE",
+      "PAUSED",
+      "RETIRED"
+    ],
+    "QuoteStatus": [
+      "UNSET",
+      "ACTIVE",
+      "PAUSED",
+      "RETIRED"
+    ],
+    "BaselineStatus": [
+      "UNSET",
+      "ACTIVE",
+      "PAUSED",
+      "RETIRED"
+    ],
+    "LaunchTemplateStatus": [
+      "UNSET",
+      "ACTIVE",
+      "PAUSED",
+      "RETIRED"
+    ],
+    "LaunchPhase": [
+      "NotGraduated",
+      "PoolCreated"
+    ],
+    "PoolBindingStatus": [
+      "NONE",
+      "EXPECTED",
+      "INITIALIZE_SEEN",
+      "ACTIVE"
+    ]
+  },
+  "transitions": {
+    "AssetStatus": [
+      [
+        "UNSET",
+        "ACTIVE"
+      ],
+      [
+        "ACTIVE",
+        "PAUSED"
+      ],
+      [
+        "PAUSED",
+        "ACTIVE"
+      ],
+      [
+        "ACTIVE",
+        "RETIRED"
+      ],
+      [
+        "PAUSED",
+        "RETIRED"
+      ]
+    ],
+    "QuoteStatus": [
+      [
+        "UNSET",
+        "ACTIVE"
+      ],
+      [
+        "ACTIVE",
+        "PAUSED"
+      ],
+      [
+        "PAUSED",
+        "ACTIVE"
+      ],
+      [
+        "ACTIVE",
+        "RETIRED"
+      ],
+      [
+        "PAUSED",
+        "RETIRED"
+      ]
+    ],
+    "BaselineStatus": [
+      [
+        "UNSET",
+        "ACTIVE"
+      ],
+      [
+        "ACTIVE",
+        "PAUSED"
+      ],
+      [
+        "PAUSED",
+        "ACTIVE"
+      ],
+      [
+        "ACTIVE",
+        "RETIRED"
+      ],
+      [
+        "PAUSED",
+        "RETIRED"
+      ]
+    ],
+    "LaunchTemplateStatus": [
+      [
+        "UNSET",
+        "ACTIVE"
+      ],
+      [
+        "ACTIVE",
+        "PAUSED"
+      ],
+      [
+        "PAUSED",
+        "ACTIVE"
+      ],
+      [
+        "ACTIVE",
+        "RETIRED"
+      ],
+      [
+        "PAUSED",
+        "RETIRED"
+      ]
+    ],
+    "LaunchPhase": [
+      [
+        "NotGraduated",
+        "PoolCreated"
+      ]
+    ],
+    "PoolBindingStatus": [
+      [
+        "NONE",
+        "EXPECTED"
+      ],
+      [
+        "EXPECTED",
+        "INITIALIZE_SEEN"
+      ],
+      [
+        "INITIALIZE_SEEN",
+        "ACTIVE"
+      ]
+    ]
+  },
+  "optionalStockStaking": {
+    "creationField": "stakingEnabled",
+    "immutable": true,
+    "expectedEconomicsSchemaVersion": 6,
+    "enabledRequires": "ACTIVE_STOCK_CURRENT_FINGERPRINT_AND_CANONICAL_VAULT",
+    "disabledAssetUid": "ZERO_BYTES32",
+    "disabledGauge": "ZERO_ADDRESS_NOT_DEPLOYED",
+    "disabledStakingCalls": "REVERT",
+    "disabledPostGraduationBaseFeeSplitBps": {
+      "creator": 7000,
+      "staker": 0,
+      "platform": 3000,
+      "lp": 0
+    },
+    "holderSharingIndependent": true,
+    "creatorTaxIndependent": true
+  }
+}

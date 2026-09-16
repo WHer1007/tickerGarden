@@ -1,0 +1,92 @@
+{
+  "status": "TECHNICALLY_PREPARED_EXTERNAL_GATES_PENDING_NOT_BROADCAST",
+  "chainId": 4663,
+  "publicRpc": "https://rpc.mainnet.chain.robinhood.com",
+  "addresses": {
+    "platformTreasury": "0xB993fD249D997EfB3F4E2f7F2948FcC247e4BC7b",
+    "governance": "0x9d24c6D24CaCCF9C5Fc03d566D3f2c4C42b77248",
+    "deployer": "0xaF8D8Ac7F359135f19aE6b6f63FC0e7053C7BA31",
+    "initialAdmin": "0xaF8D8Ac7F359135f19aE6b6f63FC0e7053C7BA31",
+    "pauseGuardian": "0xB993fD249D997EfB3F4E2f7F2948FcC247e4BC7b",
+    "unpause": "0x9d24c6D24CaCCF9C5Fc03d566D3f2c4C42b77248"
+  },
+  "roleDelaysSeconds": {
+    "governance": 172800,
+    "unpause": 86400,
+    "pauseGuardian": 0
+  },
+  "holderSnapshots": {
+    "publisher": "0x2cFb6cAa2042690fc928CE0ccE40F3828336dE44",
+    "publisherStatus": "USER_DESIGNATED_NOT_CONFIGURED_ONCHAIN"
+  },
+  "lpCompounding": {
+    "onchainEnabledAtLaunch": true,
+    "keeperAtLaunch": "0x2cFb6cAa2042690fc928CE0ccE40F3828336dE44",
+    "keeperStatus": "USER_DESIGNATED_PENDING_DEPLOYMENT_CONFIGURATION",
+    "activationPolicy": "CONFIGURE_DURING_DEPLOYMENT_BOOTSTRAP",
+    "keeperInitializationPhase": "BEFORE_SELECTOR_ROLE_BINDING_AND_DEPLOYER_RENOUNCE",
+    "governanceExecutionDelaySeconds": 172800,
+    "schedulerEnabled": false,
+    "executionPolicy": "OFFCHAIN_ON_DEMAND"
+  },
+  "operatorWalletPolicy": {
+    "holderPublisherAndKeeperShared": true,
+    "nonceCoordination": "SERIALIZE_HOLDER_AND_COMPOUND_TRANSACTIONS_BY_CHAIN_AND_WALLET"
+  },
+  "forkPin": {
+    "blockNumber": "62934780",
+    "blockHash": "0x21b58ec01746c22b3ef01bfe36c4d67f0f7060e1ceef164f09c9de5fa16c897b",
+    "l1BlockNumber": "25976765"
+  },
+  "safeEvidence": "../../docs/reviews/evidence/production-release-2026-09-15/mainnet-snapshot.json",
+  "quoteManifest": "robinhood-mainnet-4663.paired-assets.json",
+  "stakeManifest": "robinhood-mainnet-4663.staking-assets.json",
+  "openGates": [
+    "final-independent-security-and-staged-deployer-signoff",
+    "legal-and-license-approval-materials",
+    "safe-owner-and-operator-control-proofs",
+    "safe-transaction-signature-and-execution-drill",
+    "fresh-pre-signing-nonce-balance-fees-and-codehash-check",
+    "explicit-broadcast-authorization"
+  ],
+  "broadcastAuthorized": false,
+  "passedChecks": [
+    "194-approved-official-stock-identities-and-fingerprints-at-finalized-pin",
+    "two-safe-configurations-and-dependency-codehashes-at-finalized-pin",
+    "1066-nonfork-contract-tests",
+    "4-current-pin-mainnet-business-fork-tests",
+    "67-spec-tests-fixtures-and-generated-product-artifacts",
+    "71-deployment-plan-tests-and-typescript-build",
+    "22-production-release-tool-tests",
+    "24-fork-and-artifact-tool-safety-tests",
+    "cross-layer-boundary-backend-contracts-and-environment-checks",
+    "34-exact-transaction-local-fork-initialization-and-readbacks",
+    "194-exact-vault-deposit-and-withdrawal-drills",
+    "196-market-economics-previews-and-3-market-creations",
+    "local-governance-delay-and-guardian-boundary-drills",
+    "23-independent-compiler-artifact-reproductions",
+    "factory-and-feevault-project-runtime-budgets"
+  ],
+  "firstBuyFunding": "CALLER_WALLET_QUOTE_ONLY",
+  "priorRuntimePlan": "../../docs/reviews/evidence/raw-claims-offchain-services-2026-09-13/runtime-plan.json",
+  "priorRuntimePlanStatus": "SUPERSEDED_BY_20260915_REGISTRY_CODEHASH_CACHE_AND_BATCHED_RELEASE",
+  "evidenceDirectory": "docs/reviews/evidence/production-release-2026-09-15/",
+  "runtimePlan": "../../docs/reviews/evidence/production-release-2026-09-15/runtime-plan.json",
+  "rewardClaims": "ORIGINAL_ASSETS_ONLY",
+  "tradingServices": "OFFCHAIN_CONFIGURATION",
+  "productionReady": false,
+  "releaseId": "0xda13cee41cf89064426e10cd5b2f63cb8448fb5b4e8713f2d48d2f99b9570cd5",
+  "unsignedTransactionPack": "../../docs/reviews/evidence/production-release-2026-09-15/transactions.unsigned.json",
+  "candidateCatalog": "../../docs/reviews/evidence/production-release-2026-09-15/runtime-catalog.candidate.json",
+  "feeBudget": "../../docs/reviews/evidence/production-release-2026-09-15/fee-budget.json",
+  "sourceInputLock": "../../docs/reviews/evidence/production-release-2026-09-15/input-lock.json",
+  "report": "../../docs/reviews/PRODUCTION_RELEASE_PREPARATION_2026-09-15.md",
+  "runbook": "../../docs/runbooks/RH_MAINNET_RELEASE_2026-09-15.md",
+  "postBroadcastGates": [
+    "canonical-mainnet-receipts-and-finalized-activation-block",
+    "source-verification-and-runtime-codehash-attestation",
+    "production-catalog-and-service-bindings",
+    "operator-eth-funding-and-shared-nonce-coordination-before-operations",
+    "production-monitoring-business-acceptance-and-72h-controlled-soak"
+  ]
+}

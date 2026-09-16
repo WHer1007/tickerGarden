@@ -1,0 +1,38 @@
+{
+  "schemaVersion": 1,
+  "status": "REGISTRY_ACTIVE",
+  "networkScope": "ROBINHOOD_TESTNET_ONLY",
+  "chainId": 46630,
+  "releaseId": "0x685b5c20e826f4ddd076b61216c7529a967322082925c4741469b0fda837a7f2",
+  "baselineId": "0x28d9469a2acb5e0f4de9482e25ffa445b0228a000372c204314f95be663265fd",
+  "templateId": "0x0cbe3e15031a7611067cf5bbbd8b4f4b61648a5dc52045f9692b5da0d4aa5267",
+  "supplyReferenceRaw": "1000000000000000000000000000",
+  "assets": [
+    {
+      "symbol": "ETH",
+      "name": "Ether",
+      "chainId": 46630,
+      "tokenAddress": "0x0000000000000000000000000000000000000000",
+      "decimals": 18,
+      "assetKind": "NATIVE",
+      "assetUid": null,
+      "officialStatus": null,
+      "currentMultiplier": null,
+      "pendingMultiplier": null,
+      "quoteAssetConfigId": "0xb68b91965e03bd5e87f49b34cd51e37bdd543de83b5c18c0394c29cbc4292056",
+      "phantomQuote": "168000000000000000",
+      "graduationThreshold": "420000000000000000",
+      "includedInRelease": true,
+      "activationStatus": "REGISTRY_ACTIVE",
+      "runtimeCodeHash": null,
+      "proxySlots": null,
+      "admissionPath": "ADMIN_REVIEWED_WHITELIST"
+    }
+  ],
+  "limitations": [
+    "Canonical USDG is sourced from Paxos testnet documentation.",
+    "Canonical Stock Tokens are pinned to the onchain RH testnet faucet list and shared beacon identity.",
+    "NVDA and AAPL are unavailable in the observed faucet list and are excluded."
+  ],
+  "observedAt": "2026-09-13T11:25:26.510Z"
+}

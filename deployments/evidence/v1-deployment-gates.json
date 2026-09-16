@@ -1,0 +1,244 @@
+{
+  "schemaVersion": 1,
+  "reportKind": "TICKERGARDEN_V1_DEPLOYMENT_GATE_EVIDENCE",
+  "executionSpecId": "V1-EXEC-11",
+  "verificationDate": "2026-09-05",
+  "scope": "ROBINHOOD_TESTNET_REHEARSAL_AND_MAINNET_STATE_FORK",
+  "readinessOutcome": {
+    "technicalDeploymentGatesClosed": true,
+    "state": "DEPLOYMENT_ELIGIBLE",
+    "productionReady": false,
+    "broadcastPerformed": false,
+    "broadcastAuthorized": false,
+    "productionGatesOpen": 8
+  },
+  "testnetChainEvidence": {
+    "chainId": 46630,
+    "pinnedLatestBlock": "113046891",
+    "pinnedLatestBlockHash": "0xe96faf4af5a9ab471c0230b19d832e4e46ff1470c57ce26e65cba5223e46e019",
+    "pinnedFinalizedBlock": "113040908",
+    "pinnedFinalizedBlockHash": "0xe9a960875b2ef0e51c22092083f168efd92bd9cae9b46e0833013b5291a74de9",
+    "liveVerifiedCurrentLatestBlock": "113084388",
+    "liveVerifiedCurrentFinalizedBlock": "113076402",
+    "dependencyStateReadTag": "latest",
+    "dependenciesChecked": 7,
+    "positionManagerBindingsChecked": 2,
+    "officialUniswap46630ListingAvailable": false,
+    "dependencyAcceptance": "EXPLICIT_TEST_ONLY_PIN_REQUIRED_BEFORE_BROADCAST"
+  },
+  "externalDependencies": [
+    {
+      "name": "CANONICAL_CREATE2_DEPLOYER",
+      "address": "0x4e59B44847b379578588920cA78FbF26c0B4956C",
+      "runtimeCodeHash": "0x2fa86add0aed31f33a762c9d88e807c475bd51d0f52bd0955754b2608f7e4989",
+      "runtimeCodeSize": 69
+    },
+    {
+      "name": "POOL_MANAGER",
+      "address": "0x8366a39cc670b4001a1121b8f6a443a643e40951",
+      "runtimeCodeHash": "0xbd3881180b547f5fe817545743cfb4343e96b1bc6640dcd70c106b0066e95626",
+      "runtimeCodeSize": 24009
+    },
+    {
+      "name": "POSITION_MANAGER",
+      "address": "0x58daec3116aae6d93017baaea7749052e8a04fa7",
+      "runtimeCodeHash": "0xf3a0edb689229fa4bf135a728f2ec2eb4a2fbee2e41e3e74ffadb7b4c56e8a6d",
+      "runtimeCodeSize": 23877
+    },
+    {
+      "name": "PERMIT2",
+      "address": "0x000000000022D473030F116dDEE9F6B43aC78BA3",
+      "runtimeCodeHash": "0x0117e0ed818bc3f2a8729ffc336c837e63e965f04b473047b39b35ad86aac259",
+      "runtimeCodeSize": 9152
+    },
+    {
+      "name": "UNIVERSAL_ROUTER",
+      "address": "0x8876789976decbfcbbbe364623c63652db8c0904",
+      "runtimeCodeHash": "0xfdd90802f39ce5fc8bac4c2f1b3ac7bac530fd17ff46b0630f1bd00f1e14082f",
+      "runtimeCodeSize": 24546
+    },
+    {
+      "name": "V4_QUOTER",
+      "address": "0x8dc178efb8111bb0973dd9d722ebeff267c98f94",
+      "runtimeCodeHash": "0xd707b1da8cb165e5ea35a3b4450d971eb562ec171e23492aa117036b78a868f6",
+      "runtimeCodeSize": 6118
+    },
+    {
+      "name": "STATE_VIEW",
+      "address": "0xf3334192d15450cdd385c8b70e03f9a6bd9e673b",
+      "runtimeCodeHash": "0x7d9c591e0956fd89d98feb4ffcfe8bf1f7a62bd485edd979fa21d104b49878a6",
+      "runtimeCodeSize": 3531
+    }
+  ],
+  "artifactEvidence": {
+    "productArtifactManifest": "spec/v1_product_artifact_manifest.json",
+    "productArtifactManifestSha256": "0x65c9d58d2e36b044bbc8e1f57fb6a9738e50dafe3fa7cd4682d364c7e8936b87",
+    "productArtifactManifestHash": "0xe21aff36d236a754e23a7594ede1921a2cf213acae3c0fe57c0cfc7d96730035",
+    "moduleCount": 19,
+    "compilerVersion": "0.8.26+commit.8a97fa7a",
+    "files": [
+      {
+        "path": "spec/v1_compiled_interface_manifest.json",
+        "sha256": "0xf0683752375d2e869b16c1eb3160ec9eeb14e92356caf4af0d7294d9eab50496"
+      },
+      {
+        "path": "spec/v1_canonical_abi.json",
+        "sha256": "0x4417d5eb7ee894c310208475b23e2d4bd515eeba9463131b3d9fc65b55628046"
+      },
+      {
+        "path": "spec/v1_permissions_matrix.json",
+        "sha256": "0x632aa4507e8a4f3b8ddcdc891fd471be063c681a341816caba0973dd8fdd69c9"
+      },
+      {
+        "path": "contracts/script/v1/V1DeterministicDeploymentBuilder.sol",
+        "sha256": "0x8c49b081a3d9688cc244d881357526be205cc4173298bf32d18368fe21ed9dd9"
+      },
+      {
+        "path": "contracts/script/v1/V1DeterministicDeploymentOrchestrator.sol",
+        "sha256": "0x08058419b2e8ee376231d756bac76ea7d2d940630bb05ae547aa48a040be9d0f"
+      },
+      {
+        "path": "contracts/script/v1/DeployV1Deterministic.s.sol",
+        "sha256": "0xc8e80b2e83b1aeb5a8ed885b7d320e7e8aeec90387aeb1914cb4d2bf2dad2e9e"
+      },
+      {
+        "path": "contracts/test/v1/fork/V1ProductForkE2E.t.sol",
+        "sha256": "0xd7d3754de2da56254c6474f90e7b2fdba1746611d290b916bf90b5541ba35d39"
+      }
+    ]
+  },
+  "orchestrationEvidence": {
+    "ordinaryComponentCount": 16,
+    "atomicRollback": true,
+    "deterministicRetry": true,
+    "oneShot": true,
+    "hookMask": "0x2044",
+    "testsPassed": 3
+  },
+  "forkEvidence": {
+    "chainId": 4663,
+    "l2BlockNumber": "54574453",
+    "l2BlockHash": "0x890779a9495c5e825a5c19c70d0de3afd3e4076e7da74387346b30bc79460e22",
+    "l1BlockNumber": "25906551",
+    "testPath": "contracts/test/v1/fork/V1ProductForkE2E.t.sol",
+    "result": "PASSED",
+    "realStockToken": "0xd95B44124e475743a7589e68F3D74008A5536D44",
+    "realBeacon": "0xe10b6f6B275de231345c20D14Ab812db62151b00",
+    "realImplementation": "0xb35490d6f9163DE4F80d88dc75c3516eb64C5aE2",
+    "realPoolManager": "0x8366a39CC670B4001A1121B8F6A443A643e40951",
+    "realPositionManager": "0x58daec3116aae6D93017bAAea7749052E8a04fA7",
+    "stockQuoteAdmissionExercised": true,
+    "atomicGraduationExercised": true,
+    "rageQuitExercised": true,
+    "syntheticStockBalanceFunding": true
+  },
+  "commands": [
+    {
+      "id": "C1",
+      "command": "node tools/run-forge.mjs build --force && python3 spec/generate_v1_product_artifacts.py --check && python3 spec/generate_v1_artifact_manifest.py --check",
+      "result": "PASS"
+    },
+    {
+      "id": "C2",
+      "command": "node tools/run-forge.mjs test --match-path test/v1/deployment/V1DeterministicDeploymentOrchestrator.t.sol",
+      "result": "PASS"
+    },
+    {
+      "id": "C3",
+      "command": "npm run check:deployment-track",
+      "result": "PASS"
+    },
+    {
+      "id": "C4",
+      "command": "npm run check:interfaces",
+      "result": "PASS"
+    },
+    {
+      "id": "C5",
+      "command": "npm --prefix deployments run check:testnet-plan-live",
+      "result": "PASS"
+    },
+    {
+      "id": "C6",
+      "command": "ROBINHOOD_RPC_URL=<archive-capable-rpc> npm run check:fork-track",
+      "result": "PASS"
+    },
+    {
+      "id": "C7",
+      "command": "node --test tools/check-v1-ci-tracks.test.mjs tools/robinhood-rpc-compat-proxy.test.mjs",
+      "result": "PASS"
+    }
+  ],
+  "gates": [
+    {
+      "gateId": "V1-DEPLOY-CHAIN-SNAPSHOT-01",
+      "status": "CLOSED",
+      "evidenceRefs": [
+        "C5",
+        "testnetChainEvidence",
+        "externalDependencies"
+      ]
+    },
+    {
+      "gateId": "V1-DEPLOY-ARTIFACT-CODEHASH-01",
+      "status": "CLOSED",
+      "evidenceRefs": [
+        "C1",
+        "artifactEvidence"
+      ]
+    },
+    {
+      "gateId": "V1-DEPLOY-CREATE2-VECTORS-01",
+      "status": "CLOSED",
+      "evidenceRefs": [
+        "C2",
+        "orchestrationEvidence"
+      ]
+    },
+    {
+      "gateId": "V1-DEPLOY-HOOK-MASK-01",
+      "status": "CLOSED",
+      "evidenceRefs": [
+        "C2",
+        "orchestrationEvidence.hookMask"
+      ]
+    },
+    {
+      "gateId": "V1-DEPLOY-PERMISSIONS-01",
+      "status": "CLOSED",
+      "evidenceRefs": [
+        "C3",
+        "spec/v1_permissions_matrix.json"
+      ]
+    },
+    {
+      "gateId": "V1-DEPLOY-ABI-DIFF-01",
+      "status": "CLOSED",
+      "evidenceRefs": [
+        "C4",
+        "spec/v1_compiled_interface_manifest.json",
+        "spec/v1_canonical_abi.json"
+      ]
+    },
+    {
+      "gateId": "V1-DEPLOY-PRODUCT-FORK-E2E-01",
+      "status": "CLOSED",
+      "evidenceRefs": [
+        "C6",
+        "forkEvidence"
+      ]
+    }
+  ],
+  "limitations": [
+    "No public testnet transaction was broadcast during this evidence run.",
+    "Chain 46630 has no Uniswap-published v4 deployment mapping; the observed contracts are project-pinned test-only dependencies.",
+    "The public testnet RPC did not expose historical contract state, so dependency code was re-read at latest and must be checked again immediately before broadcast.",
+    "The mainnet Fork funded the real CRM proxy balance synthetically; token proxy and implementation transfer logic, Stock Quote admission, v4 graduation, and Vault accounting were executed against real forked code.",
+    "DEPLOYMENT_ELIGIBLE does not mean PRODUCTION_READY; all eight production gates remain open.",
+    "Broadcast authorization remains withheld until test-only dependency acceptance and every operator-controlled address and parameter are signed off."
+  ],
+  "applicability": {
+    "status": "STALE",
+    "reason": "Reward conversion changes the ABI, permissions, Gauge and Hook/FeeVault bytecode. This report records earlier evidence only; it does not authorize the current development revision. Refresh deployment rehearsal and Fork evidence before deployment."
+  }
+}

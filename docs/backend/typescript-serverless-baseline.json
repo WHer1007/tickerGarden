@@ -1,0 +1,51 @@
+{
+  "schema": "tickergarden.typescript-serverless-baseline.v1",
+  "capturedAt": "2026-09-13",
+  "status": "TEST_ONLY_NOT_PRODUCTION_READY",
+  "executionSpecId": "V1-EXEC-11",
+  "target": {
+    "chainId": 46630,
+    "genesisHash": "0x829a42e6d68c872aafcef3abb2123fe371138fc415dd8b44381bbbf23049dd32",
+    "releaseId": "0x685b5c20e826f4ddd076b61216c7529a967322082925c4741469b0fda837a7f2",
+    "bootstrap": "apps/web/tests/fixtures/integration/rh-685b5c20.json",
+    "activationBlockNumber": "118689839",
+    "activationBlockHash": "0x9b368b4107601d7abc1de430d89b30ac21bc3688a76ca83035bbce3bca56a63d",
+    "factory": "0xf11839c3566c8b3345ed81e4a0e26cc38aa2866a",
+    "officialStockRegistry": "0x01564750928a97faddc94c69306e6a8598cd2a03",
+    "approvedQuoteRegistry": "0x14697017390ee72157b0f294764673e36a6a614d",
+    "tickerGardenBaselineRegistry": "0xdab7eba06f8fbecad13ae622d6993c6f645d099a",
+    "launchTemplateRegistry": "0x3bd049845131ba86fcbf17685acedb203afe7e8c",
+    "marketRegistry": "0xab37f78d3a41c8f510f5a95a74f1ff1144e14660",
+    "protocolFeeVault": "0x8c4ce2bb409b68697024afc28d26138d621035e2",
+    "allocationManager": "0x6eac1c710edf540bbacfc3b5da2ad427e916741f",
+    "launchRouter": "0xdce9a656eb611a7ee34651ead17f3b76e2155756",
+    "holderRewardsDistributor": "0xc2716b960bd675fa7f605ce8d191b6e247cf61e8",
+    "holderRewardMode": {
+      "name": "TICKERGARDEN_HOLDER_WALLET_SNAPSHOT_V1",
+      "hash": "0xf8a4b02f9761e5649a1cbddc56862d77792624aceac62d909b21c5544fceec4d",
+      "evidence": "verified RH testnet Locker release"
+    },
+    "qaMarketRange": {
+      "count": 0
+    }
+  },
+  "sourceLocks": {
+    "services/backend-ts/openapi/v1.json": "2bc71a3c9e6ea2e25137ea97486122c9d882bbab1b682e02a5c4410b6c5af588",
+    "services/backend-ts/openapi/v1.lock.json": "ba7810b86f027ad21849fa7425c4eab35b88f05b927043cd49b8549a0af0a701",
+    "services/backend-ts/packages/events/src/index.ts": "f23f22158f16f251d77953bc4273229d25409350b04cd29308f894c80a56c189",
+    "services/backend-ts/packages/events/src/f72-abis.generated.ts": "36125edf261162a5fb1db0547df88ea0737a12254e8f296302a7b32c7c51451c",
+    "services/backend-ts/packages/config-projector/src/f72-bootstrap.generated.ts": "ebcbb3447daa60efcb6eb494f0d20b79346b6f6de80014198653fbae12724aa2",
+    "deployments/releases/0x685b5c20e826f4ddd076b61216c7529a967322082925c4741469b0fda837a7f2/backend-deployment-manifest.json": "8c5568e25cfd82a07270a79817f76d20233e17f80bad1a28ac19081725833922",
+    "apps/web/tests/fixtures/integration/rh-685b5c20.json": "25d203474936db0849d31c65c56f8a6894af4466b4f68cf4a509b5ecf7e6a082",
+    "services/backend-ts/packages/runtime-deployment/src/types.ts": "e86bb9d04659fe04c75160448872fc22c262b099d50cd11344227effd7e56adf",
+    "services/backend-ts/packages/runtime-deployment/src/production.generated.ts": "a57f69c7377c345f9c9bdfdc192a60c5ce38adae9236e6561352e3fb77dd6b3d",
+    "services/backend-ts/packages/runtime-deployment/src/index.ts": "b2b0c39caf976bce5cef95342a056339b37ed4847e1345a3c77110bbb65907b8"
+  },
+  "capabilities": {
+    "snapshotHolderRead": true,
+    "snapshotHolderWriteApprovalConfigured": false,
+    "legacyTreasuryProofOriginConfigured": false,
+    "legacyTreasuryWriteApprovalConfigured": false,
+    "walletSnapshotModeDeployed": true
+  }
+}

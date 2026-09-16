@@ -1,0 +1,778 @@
+{
+  "snapshot": {
+    "executionSpecId": "V1-EXEC-11",
+    "reconciliationAlerts": [],
+    "sync": {
+      "chainId": 46630,
+      "status": "synced",
+      "blockNumber": "1",
+      "blockHash": "0x000000000000000000000000000000000000000000000000000000000000000b",
+      "finality": "finalized",
+      "headBlockNumber": "1",
+      "headBlockHash": "0x000000000000000000000000000000000000000000000000000000000000000b",
+      "lagBlocks": "0",
+      "revision": "1:0x000000000000000000000000000000000000000000000000000000000000000b"
+    },
+    "markets": [
+      {
+        "marketId": "0x0000000000000000000000000000000000000000000000000000000000000064",
+        "assetUid": "0x00000000000000000000000000000000000000000000000000000000000000c8",
+        "memeToken": "0x000000000000000000000000000000000000000a",
+        "curve": "0x000000000000000000000000000000000000000b",
+        "gauge": "0x000000000000000000000000000000000000000c",
+        "quoteAsset": "0x0000000000000000000000000000000000000001",
+        "quoteAssetConfigId": "0x00000000000000000000000000000000000000000000000000000000000000c9",
+        "tickerGardenBaselineId": "0x00000000000000000000000000000000000000000000000000000000000000ca",
+        "sourceVersion": 1,
+        "launchPhase": 0,
+        "curveProgress": {
+          "realQuoteReserve": "900719925474099312345",
+          "sellableTokens": "1000",
+          "reservedTokens": "50",
+          "accruedCurveFees": "3",
+          "readyToGraduate": false
+        },
+        "poolId": null,
+        "poolKey": null,
+        "canonicalRoute": {
+          "router": "0x000000000000000000000000000000000000000d",
+          "quoter": "0x000000000000000000000000000000000000000e",
+          "hook": "0x000000000000000000000000000000000000000f",
+          "launchLocker": "0x0000000000000000000000000000000000000010",
+          "graduationExecutor": "0x0000000000000000000000000000000000000011",
+          "curveTradingEnabled": true,
+          "poolTradingEnabled": false,
+          "sourceVersion": 1,
+          "launchPhase": 0
+        },
+        "source": {
+          "chainId": 46630,
+          "blockNumber": "1",
+          "blockHash": "0x000000000000000000000000000000000000000000000000000000000000000b",
+          "transactionHash": "0x0000000000000000000000000000000000000000000000000000000000000063",
+          "transactionIndex": 0,
+          "logIndex": 0
+        },
+        "identity": {
+          "name": "Orchard 苹果 <&> ",
+          "symbol": "MiXeD",
+          "metadataURI": "",
+          "deployedAt": "9",
+          "blockNumber": "1",
+          "blockHash": "0x000000000000000000000000000000000000000000000000000000000000000b",
+          "runtimeCodeHash": "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+        }
+      },
+      {
+        "marketId": "0x0000000000000000000000000000000000000000000000000000000000000065",
+        "assetUid": "0x00000000000000000000000000000000000000000000000000000000000000c8",
+        "memeToken": "0x000000000000000000000000000000000000000a",
+        "curve": "0x000000000000000000000000000000000000000b",
+        "gauge": "0x000000000000000000000000000000000000000c",
+        "quoteAsset": "0x0000000000000000000000000000000000000001",
+        "quoteAssetConfigId": "0x00000000000000000000000000000000000000000000000000000000000000c9",
+        "tickerGardenBaselineId": "0x00000000000000000000000000000000000000000000000000000000000000ca",
+        "sourceVersion": 1,
+        "launchPhase": 0,
+        "curveProgress": {
+          "realQuoteReserve": "900719925474099312345",
+          "sellableTokens": "1000",
+          "reservedTokens": "50",
+          "accruedCurveFees": "3",
+          "readyToGraduate": false
+        },
+        "poolId": null,
+        "poolKey": null,
+        "canonicalRoute": {
+          "router": "0x000000000000000000000000000000000000000d",
+          "quoter": "0x000000000000000000000000000000000000000e",
+          "hook": "0x000000000000000000000000000000000000000f",
+          "launchLocker": "0x0000000000000000000000000000000000000010",
+          "graduationExecutor": "0x0000000000000000000000000000000000000011",
+          "curveTradingEnabled": true,
+          "poolTradingEnabled": false,
+          "sourceVersion": 1,
+          "launchPhase": 0
+        },
+        "source": {
+          "chainId": 46630,
+          "blockNumber": "1",
+          "blockHash": "0x000000000000000000000000000000000000000000000000000000000000000b",
+          "transactionHash": "0x0000000000000000000000000000000000000000000000000000000000000063",
+          "transactionIndex": 0,
+          "logIndex": 0
+        },
+        "identity": {
+          "name": "Orchard 苹果 <&> ",
+          "symbol": "MiXeD",
+          "metadataURI": "",
+          "deployedAt": "100",
+          "blockNumber": "1",
+          "blockHash": "0x000000000000000000000000000000000000000000000000000000000000000b",
+          "runtimeCodeHash": "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+        }
+      }
+    ],
+    "configs": [
+      {
+        "kind": "asset",
+        "id": "0x00000000000000000000000000000000000000000000000000000000000000c8",
+        "status": 1,
+        "values": {
+          "minimumAllocation": "414"
+        },
+        "source": {
+          "chainId": 46630,
+          "blockNumber": "1",
+          "blockHash": "0x000000000000000000000000000000000000000000000000000000000000000b",
+          "transactionHash": "0x0000000000000000000000000000000000000000000000000000000000000063",
+          "transactionIndex": 0,
+          "logIndex": 0
+        }
+      }
+    ],
+    "positions": [
+      {
+        "user": "0x0000000000000000000000000000000000000014",
+        "assetUid": "0x00000000000000000000000000000000000000000000000000000000000000c8",
+        "marketId": "0x0000000000000000000000000000000000000000000000000000000000000064",
+        "free": "900719925474099300000",
+        "allocated": "1000",
+        "pending": "400",
+        "active": "600",
+        "activationAt": "30",
+        "unlockAt": "86400",
+        "claimable": [
+          {
+            "kind": "quote",
+            "asset": "0x0000000000000000000000000000000000000001",
+            "amount": "10"
+          },
+          {
+            "kind": "meme",
+            "asset": "0x000000000000000000000000000000000000000a",
+            "amount": "20"
+          }
+        ],
+        "source": {
+          "chainId": 46630,
+          "blockNumber": "1",
+          "blockHash": "0x000000000000000000000000000000000000000000000000000000000000000b",
+          "transactionHash": "0x0000000000000000000000000000000000000000000000000000000000000063",
+          "transactionIndex": 0,
+          "logIndex": 0
+        }
+      }
+    ]
+  },
+  "cases": [
+    {
+      "path": "/v1/markets?search=Orchard&sort=createdAt_asc&limit=1",
+      "status": 200,
+      "body": {
+        "items": [
+          {
+            "marketId": "0x0000000000000000000000000000000000000000000000000000000000000064",
+            "assetUid": "0x00000000000000000000000000000000000000000000000000000000000000c8",
+            "memeToken": "0x000000000000000000000000000000000000000a",
+            "curve": "0x000000000000000000000000000000000000000b",
+            "gauge": "0x000000000000000000000000000000000000000c",
+            "quoteAsset": "0x0000000000000000000000000000000000000001",
+            "quoteAssetConfigId": "0x00000000000000000000000000000000000000000000000000000000000000c9",
+            "tickerGardenBaselineId": "0x00000000000000000000000000000000000000000000000000000000000000ca",
+            "sourceVersion": 1,
+            "launchPhase": 0,
+            "curveProgress": {
+              "realQuoteReserve": "900719925474099312345",
+              "sellableTokens": "1000",
+              "reservedTokens": "50",
+              "accruedCurveFees": "3",
+              "readyToGraduate": false
+            },
+            "poolId": null,
+            "poolKey": null,
+            "canonicalRoute": {
+              "router": "0x000000000000000000000000000000000000000d",
+              "quoter": "0x000000000000000000000000000000000000000e",
+              "hook": "0x000000000000000000000000000000000000000f",
+              "launchLocker": "0x0000000000000000000000000000000000000010",
+              "graduationExecutor": "0x0000000000000000000000000000000000000011",
+              "curveTradingEnabled": true,
+              "poolTradingEnabled": false,
+              "sourceVersion": 1,
+              "launchPhase": 0
+            },
+            "source": {
+              "chainId": 46630,
+              "blockNumber": "1",
+              "blockHash": "0x000000000000000000000000000000000000000000000000000000000000000b",
+              "transactionHash": "0x0000000000000000000000000000000000000000000000000000000000000063",
+              "transactionIndex": 0,
+              "logIndex": 0
+            },
+            "identity": {
+              "name": "Orchard 苹果 <&> ",
+              "symbol": "MiXeD",
+              "metadataURI": "",
+              "deployedAt": "9",
+              "blockNumber": "1",
+              "blockHash": "0x000000000000000000000000000000000000000000000000000000000000000b",
+              "runtimeCodeHash": "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+            }
+          }
+        ],
+        "nextCursor": "eyJ2ZXJzaW9uIjoxLCJzY29wZSI6Im1hcmtldHMiLCJmaWx0ZXIiOiJbXCJhbGxcIixcIlwiLFwiXCIsXCJcIixcImNyZWF0ZWRBdF9hc2NcIixcImIzSmphR0Z5WkFcIixcIlwiLFwiXCJdIiwic25hcHNob3QiOiIxOjB4MDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwYiIsImFmdGVyIjoiMDAwMDAwMDAwMDAwMDAwMDAwOToweDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwNjQifQ",
+        "sync": {
+          "chainId": 46630,
+          "status": "synced",
+          "blockNumber": "1",
+          "blockHash": "0x000000000000000000000000000000000000000000000000000000000000000b",
+          "finality": "finalized",
+          "headBlockNumber": "1",
+          "headBlockHash": "0x000000000000000000000000000000000000000000000000000000000000000b",
+          "lagBlocks": "0",
+          "revision": "1:0x000000000000000000000000000000000000000000000000000000000000000b"
+        }
+      }
+    },
+    {
+      "path": "/v1/markets?search=Orchard&sort=createdAt_asc&limit=1&cursor=eyJ2ZXJzaW9uIjoxLCJzY29wZSI6Im1hcmtldHMiLCJmaWx0ZXIiOiJbXCJhbGxcIixcIlwiLFwiXCIsXCJcIixcImNyZWF0ZWRBdF9hc2NcIixcImIzSmphR0Z5WkFcIixcIlwiLFwiXCJdIiwic25hcHNob3QiOiIxOjB4MDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwYiIsImFmdGVyIjoiMDAwMDAwMDAwMDAwMDAwMDAwOToweDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwNjQifQ",
+      "status": 200,
+      "body": {
+        "items": [
+          {
+            "marketId": "0x0000000000000000000000000000000000000000000000000000000000000065",
+            "assetUid": "0x00000000000000000000000000000000000000000000000000000000000000c8",
+            "memeToken": "0x000000000000000000000000000000000000000a",
+            "curve": "0x000000000000000000000000000000000000000b",
+            "gauge": "0x000000000000000000000000000000000000000c",
+            "quoteAsset": "0x0000000000000000000000000000000000000001",
+            "quoteAssetConfigId": "0x00000000000000000000000000000000000000000000000000000000000000c9",
+            "tickerGardenBaselineId": "0x00000000000000000000000000000000000000000000000000000000000000ca",
+            "sourceVersion": 1,
+            "launchPhase": 0,
+            "curveProgress": {
+              "realQuoteReserve": "900719925474099312345",
+              "sellableTokens": "1000",
+              "reservedTokens": "50",
+              "accruedCurveFees": "3",
+              "readyToGraduate": false
+            },
+            "poolId": null,
+            "poolKey": null,
+            "canonicalRoute": {
+              "router": "0x000000000000000000000000000000000000000d",
+              "quoter": "0x000000000000000000000000000000000000000e",
+              "hook": "0x000000000000000000000000000000000000000f",
+              "launchLocker": "0x0000000000000000000000000000000000000010",
+              "graduationExecutor": "0x0000000000000000000000000000000000000011",
+              "curveTradingEnabled": true,
+              "poolTradingEnabled": false,
+              "sourceVersion": 1,
+              "launchPhase": 0
+            },
+            "source": {
+              "chainId": 46630,
+              "blockNumber": "1",
+              "blockHash": "0x000000000000000000000000000000000000000000000000000000000000000b",
+              "transactionHash": "0x0000000000000000000000000000000000000000000000000000000000000063",
+              "transactionIndex": 0,
+              "logIndex": 0
+            },
+            "identity": {
+              "name": "Orchard 苹果 <&> ",
+              "symbol": "MiXeD",
+              "metadataURI": "",
+              "deployedAt": "100",
+              "blockNumber": "1",
+              "blockHash": "0x000000000000000000000000000000000000000000000000000000000000000b",
+              "runtimeCodeHash": "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+            }
+          }
+        ],
+        "nextCursor": null,
+        "sync": {
+          "chainId": 46630,
+          "status": "synced",
+          "blockNumber": "1",
+          "blockHash": "0x000000000000000000000000000000000000000000000000000000000000000b",
+          "finality": "finalized",
+          "headBlockNumber": "1",
+          "headBlockHash": "0x000000000000000000000000000000000000000000000000000000000000000b",
+          "lagBlocks": "0",
+          "revision": "1:0x000000000000000000000000000000000000000000000000000000000000000b"
+        }
+      }
+    },
+    {
+      "path": "/v1/markets?search=Orchard&sort=createdAt_asc&limit=1&createdFrom=10&cursor=eyJ2ZXJzaW9uIjoxLCJzY29wZSI6Im1hcmtldHMiLCJmaWx0ZXIiOiJbXCJhbGxcIixcIlwiLFwiXCIsXCJcIixcImNyZWF0ZWRBdF9hc2NcIixcImIzSmphR0Z5WkFcIixcIlwiLFwiXCJdIiwic25hcHNob3QiOiIxOjB4MDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwYiIsImFmdGVyIjoiMDAwMDAwMDAwMDAwMDAwMDAwOToweDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwNjQifQ",
+      "status": 400,
+      "body": {
+        "error": "invalid_request",
+        "message": "cursor is malformed or belongs to a different query snapshot",
+        "sync": {
+          "chainId": 46630,
+          "status": "synced",
+          "blockNumber": "1",
+          "blockHash": "0x000000000000000000000000000000000000000000000000000000000000000b",
+          "finality": "finalized",
+          "headBlockNumber": "1",
+          "headBlockHash": "0x000000000000000000000000000000000000000000000000000000000000000b",
+          "lagBlocks": "0",
+          "revision": "1:0x000000000000000000000000000000000000000000000000000000000000000b"
+        }
+      }
+    },
+    {
+      "path": "/v1/markets?search=Orchard&sort=createdAt_desc&limit=1",
+      "status": 200,
+      "body": {
+        "items": [
+          {
+            "marketId": "0x0000000000000000000000000000000000000000000000000000000000000065",
+            "assetUid": "0x00000000000000000000000000000000000000000000000000000000000000c8",
+            "memeToken": "0x000000000000000000000000000000000000000a",
+            "curve": "0x000000000000000000000000000000000000000b",
+            "gauge": "0x000000000000000000000000000000000000000c",
+            "quoteAsset": "0x0000000000000000000000000000000000000001",
+            "quoteAssetConfigId": "0x00000000000000000000000000000000000000000000000000000000000000c9",
+            "tickerGardenBaselineId": "0x00000000000000000000000000000000000000000000000000000000000000ca",
+            "sourceVersion": 1,
+            "launchPhase": 0,
+            "curveProgress": {
+              "realQuoteReserve": "900719925474099312345",
+              "sellableTokens": "1000",
+              "reservedTokens": "50",
+              "accruedCurveFees": "3",
+              "readyToGraduate": false
+            },
+            "poolId": null,
+            "poolKey": null,
+            "canonicalRoute": {
+              "router": "0x000000000000000000000000000000000000000d",
+              "quoter": "0x000000000000000000000000000000000000000e",
+              "hook": "0x000000000000000000000000000000000000000f",
+              "launchLocker": "0x0000000000000000000000000000000000000010",
+              "graduationExecutor": "0x0000000000000000000000000000000000000011",
+              "curveTradingEnabled": true,
+              "poolTradingEnabled": false,
+              "sourceVersion": 1,
+              "launchPhase": 0
+            },
+            "source": {
+              "chainId": 46630,
+              "blockNumber": "1",
+              "blockHash": "0x000000000000000000000000000000000000000000000000000000000000000b",
+              "transactionHash": "0x0000000000000000000000000000000000000000000000000000000000000063",
+              "transactionIndex": 0,
+              "logIndex": 0
+            },
+            "identity": {
+              "name": "Orchard 苹果 <&> ",
+              "symbol": "MiXeD",
+              "metadataURI": "",
+              "deployedAt": "100",
+              "blockNumber": "1",
+              "blockHash": "0x000000000000000000000000000000000000000000000000000000000000000b",
+              "runtimeCodeHash": "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+            }
+          }
+        ],
+        "nextCursor": "eyJ2ZXJzaW9uIjoxLCJzY29wZSI6Im1hcmtldHMiLCJmaWx0ZXIiOiJbXCJhbGxcIixcIlwiLFwiXCIsXCJcIixcImNyZWF0ZWRBdF9kZXNjXCIsXCJiM0pqYUdGeVpBXCIsXCJcIixcIlwiXSIsInNuYXBzaG90IjoiMToweDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMGIiLCJhZnRlciI6Ijk5OTk5OTk5OTk5OTk5OTk4OTk6MHgwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDY1In0",
+        "sync": {
+          "chainId": 46630,
+          "status": "synced",
+          "blockNumber": "1",
+          "blockHash": "0x000000000000000000000000000000000000000000000000000000000000000b",
+          "finality": "finalized",
+          "headBlockNumber": "1",
+          "headBlockHash": "0x000000000000000000000000000000000000000000000000000000000000000b",
+          "lagBlocks": "0",
+          "revision": "1:0x000000000000000000000000000000000000000000000000000000000000000b"
+        }
+      }
+    },
+    {
+      "path": "/v1/markets?search=Orchard&sort=createdAt_desc&limit=1&cursor=eyJ2ZXJzaW9uIjoxLCJzY29wZSI6Im1hcmtldHMiLCJmaWx0ZXIiOiJbXCJhbGxcIixcIlwiLFwiXCIsXCJcIixcImNyZWF0ZWRBdF9kZXNjXCIsXCJiM0pqYUdGeVpBXCIsXCJcIixcIlwiXSIsInNuYXBzaG90IjoiMToweDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMGIiLCJhZnRlciI6Ijk5OTk5OTk5OTk5OTk5OTk4OTk6MHgwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDY1In0",
+      "status": 200,
+      "body": {
+        "items": [
+          {
+            "marketId": "0x0000000000000000000000000000000000000000000000000000000000000064",
+            "assetUid": "0x00000000000000000000000000000000000000000000000000000000000000c8",
+            "memeToken": "0x000000000000000000000000000000000000000a",
+            "curve": "0x000000000000000000000000000000000000000b",
+            "gauge": "0x000000000000000000000000000000000000000c",
+            "quoteAsset": "0x0000000000000000000000000000000000000001",
+            "quoteAssetConfigId": "0x00000000000000000000000000000000000000000000000000000000000000c9",
+            "tickerGardenBaselineId": "0x00000000000000000000000000000000000000000000000000000000000000ca",
+            "sourceVersion": 1,
+            "launchPhase": 0,
+            "curveProgress": {
+              "realQuoteReserve": "900719925474099312345",
+              "sellableTokens": "1000",
+              "reservedTokens": "50",
+              "accruedCurveFees": "3",
+              "readyToGraduate": false
+            },
+            "poolId": null,
+            "poolKey": null,
+            "canonicalRoute": {
+              "router": "0x000000000000000000000000000000000000000d",
+              "quoter": "0x000000000000000000000000000000000000000e",
+              "hook": "0x000000000000000000000000000000000000000f",
+              "launchLocker": "0x0000000000000000000000000000000000000010",
+              "graduationExecutor": "0x0000000000000000000000000000000000000011",
+              "curveTradingEnabled": true,
+              "poolTradingEnabled": false,
+              "sourceVersion": 1,
+              "launchPhase": 0
+            },
+            "source": {
+              "chainId": 46630,
+              "blockNumber": "1",
+              "blockHash": "0x000000000000000000000000000000000000000000000000000000000000000b",
+              "transactionHash": "0x0000000000000000000000000000000000000000000000000000000000000063",
+              "transactionIndex": 0,
+              "logIndex": 0
+            },
+            "identity": {
+              "name": "Orchard 苹果 <&> ",
+              "symbol": "MiXeD",
+              "metadataURI": "",
+              "deployedAt": "9",
+              "blockNumber": "1",
+              "blockHash": "0x000000000000000000000000000000000000000000000000000000000000000b",
+              "runtimeCodeHash": "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+            }
+          }
+        ],
+        "nextCursor": null,
+        "sync": {
+          "chainId": 46630,
+          "status": "synced",
+          "blockNumber": "1",
+          "blockHash": "0x000000000000000000000000000000000000000000000000000000000000000b",
+          "finality": "finalized",
+          "headBlockNumber": "1",
+          "headBlockHash": "0x000000000000000000000000000000000000000000000000000000000000000b",
+          "lagBlocks": "0",
+          "revision": "1:0x000000000000000000000000000000000000000000000000000000000000000b"
+        }
+      }
+    },
+    {
+      "path": "/v1/markets?search=Orchard&sort=createdAt_desc&limit=1&createdFrom=10&cursor=eyJ2ZXJzaW9uIjoxLCJzY29wZSI6Im1hcmtldHMiLCJmaWx0ZXIiOiJbXCJhbGxcIixcIlwiLFwiXCIsXCJcIixcImNyZWF0ZWRBdF9kZXNjXCIsXCJiM0pqYUdGeVpBXCIsXCJcIixcIlwiXSIsInNuYXBzaG90IjoiMToweDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMGIiLCJhZnRlciI6Ijk5OTk5OTk5OTk5OTk5OTk4OTk6MHgwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDY1In0",
+      "status": 400,
+      "body": {
+        "error": "invalid_request",
+        "message": "cursor is malformed or belongs to a different query snapshot",
+        "sync": {
+          "chainId": 46630,
+          "status": "synced",
+          "blockNumber": "1",
+          "blockHash": "0x000000000000000000000000000000000000000000000000000000000000000b",
+          "finality": "finalized",
+          "headBlockNumber": "1",
+          "headBlockHash": "0x000000000000000000000000000000000000000000000000000000000000000b",
+          "lagBlocks": "0",
+          "revision": "1:0x000000000000000000000000000000000000000000000000000000000000000b"
+        }
+      }
+    },
+    {
+      "path": "/v1/markets?search=%E8%8B%B9%E6%9E%9C",
+      "status": 200,
+      "body": {
+        "items": [
+          {
+            "marketId": "0x0000000000000000000000000000000000000000000000000000000000000064",
+            "assetUid": "0x00000000000000000000000000000000000000000000000000000000000000c8",
+            "memeToken": "0x000000000000000000000000000000000000000a",
+            "curve": "0x000000000000000000000000000000000000000b",
+            "gauge": "0x000000000000000000000000000000000000000c",
+            "quoteAsset": "0x0000000000000000000000000000000000000001",
+            "quoteAssetConfigId": "0x00000000000000000000000000000000000000000000000000000000000000c9",
+            "tickerGardenBaselineId": "0x00000000000000000000000000000000000000000000000000000000000000ca",
+            "sourceVersion": 1,
+            "launchPhase": 0,
+            "curveProgress": {
+              "realQuoteReserve": "900719925474099312345",
+              "sellableTokens": "1000",
+              "reservedTokens": "50",
+              "accruedCurveFees": "3",
+              "readyToGraduate": false
+            },
+            "poolId": null,
+            "poolKey": null,
+            "canonicalRoute": {
+              "router": "0x000000000000000000000000000000000000000d",
+              "quoter": "0x000000000000000000000000000000000000000e",
+              "hook": "0x000000000000000000000000000000000000000f",
+              "launchLocker": "0x0000000000000000000000000000000000000010",
+              "graduationExecutor": "0x0000000000000000000000000000000000000011",
+              "curveTradingEnabled": true,
+              "poolTradingEnabled": false,
+              "sourceVersion": 1,
+              "launchPhase": 0
+            },
+            "source": {
+              "chainId": 46630,
+              "blockNumber": "1",
+              "blockHash": "0x000000000000000000000000000000000000000000000000000000000000000b",
+              "transactionHash": "0x0000000000000000000000000000000000000000000000000000000000000063",
+              "transactionIndex": 0,
+              "logIndex": 0
+            },
+            "identity": {
+              "name": "Orchard 苹果 <&> ",
+              "symbol": "MiXeD",
+              "metadataURI": "",
+              "deployedAt": "9",
+              "blockNumber": "1",
+              "blockHash": "0x000000000000000000000000000000000000000000000000000000000000000b",
+              "runtimeCodeHash": "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+            }
+          },
+          {
+            "marketId": "0x0000000000000000000000000000000000000000000000000000000000000065",
+            "assetUid": "0x00000000000000000000000000000000000000000000000000000000000000c8",
+            "memeToken": "0x000000000000000000000000000000000000000a",
+            "curve": "0x000000000000000000000000000000000000000b",
+            "gauge": "0x000000000000000000000000000000000000000c",
+            "quoteAsset": "0x0000000000000000000000000000000000000001",
+            "quoteAssetConfigId": "0x00000000000000000000000000000000000000000000000000000000000000c9",
+            "tickerGardenBaselineId": "0x00000000000000000000000000000000000000000000000000000000000000ca",
+            "sourceVersion": 1,
+            "launchPhase": 0,
+            "curveProgress": {
+              "realQuoteReserve": "900719925474099312345",
+              "sellableTokens": "1000",
+              "reservedTokens": "50",
+              "accruedCurveFees": "3",
+              "readyToGraduate": false
+            },
+            "poolId": null,
+            "poolKey": null,
+            "canonicalRoute": {
+              "router": "0x000000000000000000000000000000000000000d",
+              "quoter": "0x000000000000000000000000000000000000000e",
+              "hook": "0x000000000000000000000000000000000000000f",
+              "launchLocker": "0x0000000000000000000000000000000000000010",
+              "graduationExecutor": "0x0000000000000000000000000000000000000011",
+              "curveTradingEnabled": true,
+              "poolTradingEnabled": false,
+              "sourceVersion": 1,
+              "launchPhase": 0
+            },
+            "source": {
+              "chainId": 46630,
+              "blockNumber": "1",
+              "blockHash": "0x000000000000000000000000000000000000000000000000000000000000000b",
+              "transactionHash": "0x0000000000000000000000000000000000000000000000000000000000000063",
+              "transactionIndex": 0,
+              "logIndex": 0
+            },
+            "identity": {
+              "name": "Orchard 苹果 <&> ",
+              "symbol": "MiXeD",
+              "metadataURI": "",
+              "deployedAt": "100",
+              "blockNumber": "1",
+              "blockHash": "0x000000000000000000000000000000000000000000000000000000000000000b",
+              "runtimeCodeHash": "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+            }
+          }
+        ],
+        "nextCursor": null,
+        "sync": {
+          "chainId": 46630,
+          "status": "synced",
+          "blockNumber": "1",
+          "blockHash": "0x000000000000000000000000000000000000000000000000000000000000000b",
+          "finality": "finalized",
+          "headBlockNumber": "1",
+          "headBlockHash": "0x000000000000000000000000000000000000000000000000000000000000000b",
+          "lagBlocks": "0",
+          "revision": "1:0x000000000000000000000000000000000000000000000000000000000000000b"
+        }
+      }
+    },
+    {
+      "path": "/v1/markets?search=%3C%26%3E%E2%80%A8&limit=1",
+      "status": 200,
+      "body": {
+        "items": [
+          {
+            "marketId": "0x0000000000000000000000000000000000000000000000000000000000000064",
+            "assetUid": "0x00000000000000000000000000000000000000000000000000000000000000c8",
+            "memeToken": "0x000000000000000000000000000000000000000a",
+            "curve": "0x000000000000000000000000000000000000000b",
+            "gauge": "0x000000000000000000000000000000000000000c",
+            "quoteAsset": "0x0000000000000000000000000000000000000001",
+            "quoteAssetConfigId": "0x00000000000000000000000000000000000000000000000000000000000000c9",
+            "tickerGardenBaselineId": "0x00000000000000000000000000000000000000000000000000000000000000ca",
+            "sourceVersion": 1,
+            "launchPhase": 0,
+            "curveProgress": {
+              "realQuoteReserve": "900719925474099312345",
+              "sellableTokens": "1000",
+              "reservedTokens": "50",
+              "accruedCurveFees": "3",
+              "readyToGraduate": false
+            },
+            "poolId": null,
+            "poolKey": null,
+            "canonicalRoute": {
+              "router": "0x000000000000000000000000000000000000000d",
+              "quoter": "0x000000000000000000000000000000000000000e",
+              "hook": "0x000000000000000000000000000000000000000f",
+              "launchLocker": "0x0000000000000000000000000000000000000010",
+              "graduationExecutor": "0x0000000000000000000000000000000000000011",
+              "curveTradingEnabled": true,
+              "poolTradingEnabled": false,
+              "sourceVersion": 1,
+              "launchPhase": 0
+            },
+            "source": {
+              "chainId": 46630,
+              "blockNumber": "1",
+              "blockHash": "0x000000000000000000000000000000000000000000000000000000000000000b",
+              "transactionHash": "0x0000000000000000000000000000000000000000000000000000000000000063",
+              "transactionIndex": 0,
+              "logIndex": 0
+            },
+            "identity": {
+              "name": "Orchard 苹果 <&> ",
+              "symbol": "MiXeD",
+              "metadataURI": "",
+              "deployedAt": "9",
+              "blockNumber": "1",
+              "blockHash": "0x000000000000000000000000000000000000000000000000000000000000000b",
+              "runtimeCodeHash": "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+            }
+          }
+        ],
+        "nextCursor": "eyJ2ZXJzaW9uIjoxLCJzY29wZSI6Im1hcmtldHMiLCJmaWx0ZXIiOiJbXCJhbGxcIixcIlwiLFwiXCIsXCJcIixcIm1hcmtldElkX2FzY1wiLFwiUENZLTRvQ29cIixcIlwiLFwiXCJdIiwic25hcHNob3QiOiIxOjB4MDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwYiIsImFmdGVyIjoiMHgwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDY0In0",
+        "sync": {
+          "chainId": 46630,
+          "status": "synced",
+          "blockNumber": "1",
+          "blockHash": "0x000000000000000000000000000000000000000000000000000000000000000b",
+          "finality": "finalized",
+          "headBlockNumber": "1",
+          "headBlockHash": "0x000000000000000000000000000000000000000000000000000000000000000b",
+          "lagBlocks": "0",
+          "revision": "1:0x000000000000000000000000000000000000000000000000000000000000000b"
+        }
+      }
+    },
+    {
+      "path": "/v1/markets?createdFrom=9&createdTo=9",
+      "status": 200,
+      "body": {
+        "items": [
+          {
+            "marketId": "0x0000000000000000000000000000000000000000000000000000000000000064",
+            "assetUid": "0x00000000000000000000000000000000000000000000000000000000000000c8",
+            "memeToken": "0x000000000000000000000000000000000000000a",
+            "curve": "0x000000000000000000000000000000000000000b",
+            "gauge": "0x000000000000000000000000000000000000000c",
+            "quoteAsset": "0x0000000000000000000000000000000000000001",
+            "quoteAssetConfigId": "0x00000000000000000000000000000000000000000000000000000000000000c9",
+            "tickerGardenBaselineId": "0x00000000000000000000000000000000000000000000000000000000000000ca",
+            "sourceVersion": 1,
+            "launchPhase": 0,
+            "curveProgress": {
+              "realQuoteReserve": "900719925474099312345",
+              "sellableTokens": "1000",
+              "reservedTokens": "50",
+              "accruedCurveFees": "3",
+              "readyToGraduate": false
+            },
+            "poolId": null,
+            "poolKey": null,
+            "canonicalRoute": {
+              "router": "0x000000000000000000000000000000000000000d",
+              "quoter": "0x000000000000000000000000000000000000000e",
+              "hook": "0x000000000000000000000000000000000000000f",
+              "launchLocker": "0x0000000000000000000000000000000000000010",
+              "graduationExecutor": "0x0000000000000000000000000000000000000011",
+              "curveTradingEnabled": true,
+              "poolTradingEnabled": false,
+              "sourceVersion": 1,
+              "launchPhase": 0
+            },
+            "source": {
+              "chainId": 46630,
+              "blockNumber": "1",
+              "blockHash": "0x000000000000000000000000000000000000000000000000000000000000000b",
+              "transactionHash": "0x0000000000000000000000000000000000000000000000000000000000000063",
+              "transactionIndex": 0,
+              "logIndex": 0
+            },
+            "identity": {
+              "name": "Orchard 苹果 <&> ",
+              "symbol": "MiXeD",
+              "metadataURI": "",
+              "deployedAt": "9",
+              "blockNumber": "1",
+              "blockHash": "0x000000000000000000000000000000000000000000000000000000000000000b",
+              "runtimeCodeHash": "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+            }
+          }
+        ],
+        "nextCursor": null,
+        "sync": {
+          "chainId": 46630,
+          "status": "synced",
+          "blockNumber": "1",
+          "blockHash": "0x000000000000000000000000000000000000000000000000000000000000000b",
+          "finality": "finalized",
+          "headBlockNumber": "1",
+          "headBlockHash": "0x000000000000000000000000000000000000000000000000000000000000000b",
+          "lagBlocks": "0",
+          "revision": "1:0x000000000000000000000000000000000000000000000000000000000000000b"
+        }
+      }
+    },
+    {
+      "path": "/v1/markets?createdFrom=100&createdTo=9",
+      "status": 400,
+      "body": {
+        "error": "invalid_request",
+        "message": "creation time bounds reversed",
+        "sync": {
+          "chainId": 46630,
+          "status": "synced",
+          "blockNumber": "1",
+          "blockHash": "0x000000000000000000000000000000000000000000000000000000000000000b",
+          "finality": "finalized",
+          "headBlockNumber": "1",
+          "headBlockHash": "0x000000000000000000000000000000000000000000000000000000000000000b",
+          "lagBlocks": "0",
+          "revision": "1:0x000000000000000000000000000000000000000000000000000000000000000b"
+        }
+      }
+    },
+    {
+      "path": "/v1/markets?search=",
+      "status": 400,
+      "body": {
+        "error": "invalid_request",
+        "message": "search must contain 1..128 UTF-8 bytes",
+        "sync": {
+          "chainId": 46630,
+          "status": "synced",
+          "blockNumber": "1",
+          "blockHash": "0x000000000000000000000000000000000000000000000000000000000000000b",
+          "finality": "finalized",
+          "headBlockNumber": "1",
+          "headBlockHash": "0x000000000000000000000000000000000000000000000000000000000000000b",
+          "lagBlocks": "0",
+          "revision": "1:0x000000000000000000000000000000000000000000000000000000000000000b"
+        }
+      }
+    }
+  ]
+}

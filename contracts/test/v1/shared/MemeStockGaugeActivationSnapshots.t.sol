@@ -73,7 +73,8 @@ contract MemeStockGaugeActivationSnapshotsHarness is MemeStockGaugeActivationSna
         uint256 refs,
         bool processed
     ) external {
-        _activationSnapshots[generation] = ActivationSnapshot(quoteAccumulator_, memeAccumulator_, refs, processed);
+        require(processed || refs == 0, "unprocessed snapshots cannot retain references");
+        _activationSnapshots[generation] = StoredActivationSnapshot(quoteAccumulator_, memeAccumulator_, refs);
     }
 
     function snapshot(uint64 generation) external view returns (ActivationSnapshot memory) {
@@ -281,15 +282,23 @@ contract MemeStockGaugeActivationSnapshotsTest is Test {
         gauge.materialize(ALICE);
     }
 
-    function test_processedSnapshotWithZeroRefsFailsClosedWithoutMovingPending() public {
+    function test_fullWidthSnapshotReferenceCountIsPreserved() public {
+        uint64 generation = uint64(block.timestamp - 1);
+        gauge.setPosition(ALICE, 0, 10, generation, 0, 0, 0);
+        gauge.injectSnapshot(generation, 0, 0, type(uint256).max, true);
+        assertEq(gauge.snapshot(generation).refs, type(uint256).max);
+        gauge.materialize(ALICE);
+        assertEq(gauge.snapshot(generation).refs, type(uint256).max - 1);
+        assertTrue(gauge.snapshot(generation).processed);
+    }
+
+    function test_orphanedSnapshotWithZeroRefsFailsClosedWithoutMovingPending() public {
         uint64 generation = uint64(block.timestamp - 1);
         gauge.setPosition(ALICE, 3, 10, generation, 0, 0, 0);
         gauge.injectSnapshot(generation, 4, 5, 0, true);
 
         vm.expectRevert(
-            abi.encodeWithSelector(
-                MemeStockGaugeActivationSnapshots.InvalidActivationSnapshot.selector, generation, 0, true
-            )
+            abi.encodeWithSelector(MemeStockGaugeActivationWheel.PendingGenerationNotFound.selector, generation)
         );
         gauge.materialize(ALICE);
 
@@ -297,7 +306,7 @@ contract MemeStockGaugeActivationSnapshotsTest is Test {
         assertEq(active, 3);
         assertEq(pending, 10);
         assertEq(pendingGeneration, generation);
-        assertTrue(gauge.snapshot(generation).processed);
+        assertFalse(gauge.snapshot(generation).processed);
         assertEq(gauge.settlementCalls(), 0);
     }
 

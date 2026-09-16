@@ -1,0 +1,15 @@
+{
+  "schemaVersion": 1,
+  "chainId": 46630,
+  "scope": "ROBINHOOD_TESTNET_ONLY",
+  "owner": "0xA6c3298a5559544c3b4cf8e6DC5f349f4be524ea",
+  "address": "0xD84897cD860Da0B51D39a252961B18D54fBbb266",
+  "transactionHash": "0x6d6d312509c3ed5291ae0573392e64483d16fa09bb47455cdb242aa76d7aca93",
+  "status": "DEPLOYED_VERIFIED",
+  "runtimeCodeHash": "0xec2f0c3cd44014a900f73e21ab55ed1e78b81b13925a951da0e8d289059866c8",
+  "blockNumber": "115002221",
+  "blockHash": "0x49a03f428ce1d63665a92ccbcb6d4d80e4d3513a4d277ce9671962fc6ea04aac",
+  "gasUsed": "396298",
+  "effectiveGasPrice": "10000000",
+  "feeWei": "3962980000000"
+}

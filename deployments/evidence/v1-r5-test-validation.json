@@ -1,0 +1,152 @@
+{
+  "schemaVersion": 1,
+  "status": "VERIFIED_TEST_ONLY_CANDIDATE",
+  "productionReady": false,
+  "chainId": 421614,
+  "productionTargetChainId": 4663,
+  "releaseId": "0x14963af9576a3b1cb915b8a13e86e0899a4c8345c010c47d4932789ebf46031d",
+  "scope": "R5_NO_STAKING_FEE_FIX_CLEAN_BUILD_AND_BROADCAST_PROVENANCE",
+  "verifiedAt": "2026-09-06T06:08:26.564763+00:00",
+  "broadcastPerformed": false,
+  "contractTests": 822,
+  "arbitrumForkTests": 1,
+  "rhForkTests": 3,
+  "fuzzRuns": 1000,
+  "invariantRuns": 256,
+  "invariantDepth": 500,
+  "invariantFailOnRevert": true,
+  "files": [
+    {
+      "path": "spec/v1_execution_manifest.json",
+      "sha256": "0xeb700ff36ecb7478135356a675869eea948475e2b556483f110d22bfd2d4ff2f"
+    },
+    {
+      "path": "spec/v1_product_artifact_manifest.json",
+      "sha256": "0x97ce4f5a066389803b53594022339e5b48a11456820cc208492f328ce580ca42"
+    },
+    {
+      "path": "spec/v1_compiled_interface_manifest.json",
+      "sha256": "0x9c1ba31035dec23ab331d5938ddf2365e8223843212ef56b2115c76dc48d138f"
+    },
+    {
+      "path": "contracts/src/v1/shared/ProtocolFeeVaultLiabilities.sol",
+      "sha256": "0x2aefab79116d47b9d4cc41ad730e138c94622745712513220a50011ea0332494"
+    },
+    {
+      "path": "contracts/test/v1/shared/ProtocolFeeVaultLiabilities.t.sol",
+      "sha256": "0xdbb7db1c56fa4f626afb6bfff9b810286d1dcc93213e268f8b29869cec9fcba8"
+    },
+    {
+      "path": "contracts/test/v1/shared/RewardSettlement.t.sol",
+      "sha256": "0x472b81e058097391494ddba37317614c68610f1cbca3d417f33d7c996e9839ea"
+    },
+    {
+      "path": "contracts/test/v1/fork/V1ProductForkE2E.t.sol",
+      "sha256": "0x7ac8654ff86760bb873e2b755d515366f44cbe0132f5ab572c79b3f0a352ba2d"
+    },
+    {
+      "path": "contracts/test/v1/fork/V1ArbitrumSepoliaForkE2E.t.sol",
+      "sha256": "0x7c6e0f3f8054e9c734ebdbb4df2874c4e764655c4b1178660a5faf4f06df281a"
+    },
+    {
+      "path": "deployments/test/deployment-gate-evidence.test.ts",
+      "sha256": "0xced48bbd8b55b5c7e88a3476aec7d8a11bcf48c3e8265eecec07fcbdcdc761a3"
+    },
+    {
+      "path": "tools/run-arbitrum-deployment.mjs",
+      "sha256": "0x5b4ad7250354a0fb7c5bc379741875c2e41b0b2b7b0e7bda48f918529ce61607"
+    },
+    {
+      "path": "tools/verify-v1-build-inputs.mjs",
+      "sha256": "0x8764f6e2036e6a48b530a7703755f6b2f58c30c962cdab4bdc5b3c58af72761e"
+    },
+    {
+      "path": "tools/verify-v1-build-inputs.test.mjs",
+      "sha256": "0x7b206827f0bfcb99963e58cef4fb44e8e1de00c3d306d16e9ae88ea33e21282c"
+    },
+    {
+      "path": "tools/test-arbitrum-fee-regression.mjs",
+      "sha256": "0xfd2580a527403b3b7e1427de44e13c7a037f427c9283f52b3c4188a980956084"
+    },
+    {
+      "path": "tools/audit-arbitrum-fee-regression.mjs",
+      "sha256": "0x0ea7007dddfe244eb813dd5ea382b961c509725ebc50d4285b30ceeed1e11eee"
+    },
+    {
+      "path": "outputs/reviews/arbitrum-r4-fix/contracts-clean-strict.log",
+      "sha256": "0x598473b51d53e7f2383fe0fbf436acef66d8d8a8d5a0aaf6bbc634bbc2b28405"
+    },
+    {
+      "path": "outputs/reviews/arbitrum-r4-fix/regression-before.log",
+      "sha256": "0x64dca095d290a1cad7c8b8e23612a589355b55dcda2844c6f74452cd378b9cf4"
+    },
+    {
+      "path": "outputs/reviews/arbitrum-r4-fix/regression-after.log",
+      "sha256": "0xc376b6d5898f65de20863cb38bc5f59a32080d6a13896631b6f79f8ef8dcd1f2"
+    },
+    {
+      "path": "outputs/reviews/arbitrum-r4-fix/arbitrum-clean-fork.log",
+      "sha256": "0xb2d83019c8939e6ddce3b6fee1676e29300f545d021fc4f9344c20b9c111375e"
+    },
+    {
+      "path": "outputs/reviews/arbitrum-r4-fix/rh-clean-fork.log",
+      "sha256": "0x0cc820bd0290b82d6d0ed454e71a177ecdca1030d77da8e4883fe7e03667f070"
+    },
+    {
+      "path": "outputs/reviews/arbitrum-r4-fix/arbitrum-pin.json",
+      "sha256": "0x20b8b9144d32e22cfe4825439386528ee1515d57f20d5657897509585c9e0d11"
+    },
+    {
+      "path": "outputs/reviews/arbitrum-r4-fix/rh-clean-fork-pin.json",
+      "sha256": "0xc2247f6393a1791221ea96a92c2b8a99dda1f99d064fb259bcef147ec669c047"
+    },
+    {
+      "path": "outputs/reviews/arbitrum-r4-fix/spec.log",
+      "sha256": "0xe5bdc0d1f898fcca8671d84a20bccd350a24218ff7d75a5f374a117195ae7aec"
+    },
+    {
+      "path": "outputs/reviews/arbitrum-r4-fix/web-test.log",
+      "sha256": "0x0ed328cf68b56a9ef17afe22dcbe968b5d6e6281104852ee930d20cb0d736f07"
+    },
+    {
+      "path": "outputs/reviews/arbitrum-r4-fix/web-build.log",
+      "sha256": "0xee250947ad46e72458663a86b18e9f3b5cd71a6396994e8a0eedf9631ff99173"
+    },
+    {
+      "path": "outputs/reviews/arbitrum-r4-fix/go-test-rerun.log",
+      "sha256": "0xc38156047f7e526f8ecb54eee499148ccd976d17ea8ab8d4d7f1f6506f43256f"
+    },
+    {
+      "path": "outputs/reviews/arbitrum-r4-fix/root-generator-test.log",
+      "sha256": "0xc741fa0630ab5f69784f4671176f8b55659d6615b6b2c7d67bd4cc724de63f56"
+    },
+    {
+      "path": "outputs/reviews/arbitrum-r4-fix/product-artifacts-clean.log",
+      "sha256": "0x14b256f20d522c07c75a2ded47e726d443b38d241b79e8d0f11388341c46c870"
+    },
+    {
+      "path": "outputs/reviews/arbitrum-r4-fix/interfaces-clean.log",
+      "sha256": "0x1af9941d1595e335a80505c804f6c07a3d62e830f8c44a954787e91e56c08e78"
+    },
+    {
+      "path": "outputs/reviews/arbitrum-r4-fix/clean-build.log",
+      "sha256": "0x163a1a31a9cbc20c82d7246358cd0c86df0de4a4d7d081b0c68900d7bc32bc4b"
+    },
+    {
+      "path": "outputs/reviews/arbitrum-r4-fix/build-guard-clean.log",
+      "sha256": "0x39e327574be07926676b79bf865f02f7d8ef6835ba45808cf050c96297d55904"
+    },
+    {
+      "path": "outputs/reviews/arbitrum-r4-fix/gate-tools-final.log",
+      "sha256": "0xd8a0620847df67c71ff8b01353571adcba3597aa32a5d2506ceb5ea8c0965b15"
+    },
+    {
+      "path": "outputs/reviews/arbitrum-r4-fix/build-guard-stale-reproduction.log",
+      "sha256": "0x15b6a636e440c9a75c78e6715b35767c8e1031a509f8de59e021a5dd7ef2ac86"
+    },
+    {
+      "path": "outputs/reviews/arbitrum-r4-fix/build-guard-stale-batch.log",
+      "sha256": "0xad87065388d3c43f6bd31f08e2f23f21ebbecac36f306a389abda369ab590de2"
+    }
+  ]
+}

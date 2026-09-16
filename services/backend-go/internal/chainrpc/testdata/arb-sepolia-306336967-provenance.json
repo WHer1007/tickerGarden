@@ -1,0 +1,16 @@
+{
+  "capturedOn": "2026-09-07",
+  "chainId": 421614,
+  "blockNumber": 306336967,
+  "blockHash": "0xd724c7c27a13f4173b0d2f03a1b4f90b2d3da5ba47e64180484d462c40b3e41a",
+  "methods": [
+    "eth_getBlockByNumber(finalized,true)",
+    "eth_getBlockReceipts(blockHash)"
+  ],
+  "trust": "Single configured Alchemy provider; observed finalized, later same-height hash rechecked. Not independent consensus verification.",
+  "sourceCommit": "OffchainLabs/go-ethereum@260bc5dcbd5a16925d7e26145577b2612f30f428",
+  "sha256": {
+    "arb-sepolia-306336967.json": "77e58ef0aeb9b65958100e7c54ca490f1d15df7d92a7e67741211feb5c9f4eda",
+    "arb-sepolia-306336967-receipts.json": "d5ee187d08fe3fecfd79486dba8a8b042c52cf87064239518fa565c00cc761d5"
+  }
+}

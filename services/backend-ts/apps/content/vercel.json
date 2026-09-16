@@ -1,0 +1,25 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "buildCommand": "node ../../../../tools/deployment-boundary.mjs auto content && npm run build --prefix ../..",
+  "functions": {
+    "api/index.ts": {
+      "maxDuration": 20
+    }
+  },
+  "rewrites": [
+    {
+      "source": "/(.*)",
+      "destination": "/api"
+    }
+  ],
+  "crons": [
+    {
+      "path": "/internal/dispatch",
+      "schedule": "* * * * *"
+    }
+  ],
+  "regions": [
+    "sin1"
+  ],
+  "installCommand": "npm ci --prefix ../.. --workspaces --include-workspace-root --include=dev --ignore-scripts"
+}

@@ -1,0 +1,52 @@
+{
+  "schemaVersion": 1,
+  "status": "PUBLIC_R5_REGRESSION_VERIFIED",
+  "chainId": 421614,
+  "productionTargetChainId": 4663,
+  "productionReady": false,
+  "releaseId": "0x14963af9576a3b1cb915b8a13e86e0899a4c8345c010c47d4932789ebf46031d",
+  "verifiedAt": "2026-09-06T06:26:23.203260+00:00",
+  "localEvidence": "deployments/evidence/v1-r5-test-validation.json",
+  "files": [
+    {
+      "path": "outputs/reviews/arbitrum-r4-fix/REPORT.md",
+      "sha256": "0xf8bef8eae50a5a8e975f83ace0928221672711e3d88183040d2a2b12dbb70cdc"
+    },
+    {
+      "path": "outputs/reviews/arbitrum-r4-fix/public-regression/results.json",
+      "sha256": "0xf1fd848cd7bbae30f3ee4545f072aad3c2a7d79c86bb4a6c14bc4c99b02648c3"
+    },
+    {
+      "path": "outputs/reviews/arbitrum-r4-fix/public-regression/receipt-audit.json",
+      "sha256": "0x91bf50002d9026f4063567feb2b4df14138b7c5f11e114f2f424005688514b25"
+    },
+    {
+      "path": "outputs/reviews/arbitrum-r4-fix/r5-verify-final.log",
+      "sha256": "0x34fae5da25038831f33cb913142395224be5baf2364ef356c8c0e717ca01d462"
+    },
+    {
+      "path": "outputs/reviews/arbitrum-r4-fix/r5-broadcast.log",
+      "sha256": "0x8e7525f02bf47c207a80c7ae52c9f332a460843dfa9189541badf99dffad244f"
+    },
+    {
+      "path": "outputs/reviews/arbitrum-r4-fix/r5-activation.log",
+      "sha256": "0x4c6b6f54a30f7bf0fa0b99a5e68f31bde441681a40e248bcac17624321bd6072"
+    },
+    {
+      "path": "outputs/reviews/arbitrum-r4-fix/r5-simulate-runner.log",
+      "sha256": "0xff48413c8f914d37ce7a64ed68844552a51679a78bdbb18489844e53d1a8a689"
+    },
+    {
+      "path": "deployments/manifests/arbitrum-sepolia-421614.v1.deployed.json",
+      "sha256": "0x22cebaa7d73de4d09a2b4e21f19b8cea5ed702aa55f43ece42b9d46b37ddc7e8"
+    },
+    {
+      "path": "deployments/manifests/arbitrum-sepolia-421614.v1.activation.json",
+      "sha256": "0x14ecb2fba2a4d0db22d2b68a59ea3430a73d4fa09e915dd90d058671d7966267"
+    },
+    {
+      "path": "deployments/config/arbitrum-sepolia.r5.frontend-public.env",
+      "sha256": "0x7eabf7add6e6a5cfe0ae9739a5a9951b8ff4060d397f2113818d91f066668b3f"
+    }
+  ]
+}

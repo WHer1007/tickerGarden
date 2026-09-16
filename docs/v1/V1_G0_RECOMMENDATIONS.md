@@ -1,22 +1,22 @@
 # TickerGarden V1-M0 G0 决策登记
 
-> **当前覆盖（2026-09-04）：** `V1-EXEC-10` 已在本地实现永久自治市场、最终买入原子毕业、对象级配置治理和即时本金 `rageQuit`。旧管理建议已归档；目标链部署与独立审计仍开放。
+> **当前覆盖（2026-09-05）：** `V1-EXEC-11` 已实现永久自治市场、最终买入原子毕业、对象级配置治理和即时本金 `rageQuit`。确定性部署和固定区块 Fork 证据已闭合；尚未广播测试网交易，独立审计与生产批准仍开放。
 
-> 状态：`PRODUCT_DIRECTION_APPROVED / IMPLEMENTATION_ALLOWED / NOT_DEPLOYABLE`  
-> 当前执行规范：`V1-EXEC-10`
+> 状态：`PRODUCT_DIRECTION_APPROVED / DEPLOYMENT_ELIGIBLE / NOT_PRODUCTION_READY`
+> 当前执行规范：`V1-EXEC-11`
 > 历史机器清单：[`spec/v1_g0_recommendations.json`](../../spec/v1_g0_recommendations.json)
 > 外部证据：[`V1_G0_EXTERNAL_EVIDENCE.md`](./V1_G0_EXTERNAL_EVIDENCE.md)
 
-> 修订说明：Pons 链上观测仍保留旧 `V1-EXEC-3` 证据编号；Quote 准入、STOCK 分配和原子毕业规则已经按当前 `V1-EXEC-10` 决策修订。管理员按 Asset UID 动态设置 `minimumAllocation`（不得低于414 raw units）；手续费按 Active 状态分配为 Creator40/Staker30/Platform30 或 Creator70/Staker0/Platform30，余数归 Creator。
+> 修订说明：Pons 链上观测仍保留旧 `V1-EXEC-3` 证据编号；Quote 准入、STOCK 分配和原子毕业规则已经按当前 `V1-EXEC-11` 决策修订。管理员按 Asset UID 动态设置 `minimumAllocation`（不得低于414 raw units）；手续费按 Active 状态分配为 Creator40/Staker30/Platform30 或 Creator70/Staker0/Platform30，余数归 Creator。
 
-本文记录 2026-09-02 已确认的 Pons 参考方向，并把仍需逐资产/工程/安全验证的事项留作部署门禁。产品批准不等于允许把观测值或不一致的公开源码直接部署。
+本文记录 2026-09-02 已确认的 Pons 参考方向，并把仍需逐资产激活、独立审计、法律和生产验证的事项留作后续门禁。产品批准与技术部署资格都不等于允许把观测值或不一致的公开源码直接投入生产。
 
 ## 1. 推荐组合
 
 | G0 | 已确认方案 | 工程边界 |
 |---|---|---|
 | Pons baseline | 官方文档当前活跃 Factory `0x7eD598…` 的固定 block/codehash 行为，不建立运行时依赖 | GitHub `main` 不是可复现 deployed source；必须独立实现并做 runtime 差分 |
-| Quote | 新市场可选择任意管理员批准且 `ACTIVE` 的 Quote config；原生 ETH 只是 bootstrap 示例，可升级 USDG 不得通过普通路径 ACTIVE；少量官方 Stock Quote 为已确认但待实现的追加方向 | 权威配置见 [`spec/v1_initial_quote_configs.json`](../../spec/v1_initial_quote_configs.json)；普通 ERC-20 可由管理员逐项评估后追加，但必须是已审计的不可升级直接合约；官方 Stock Quote 必须走 Asset UID/Beacon 指纹、价格参考生成器和独立 allowlist 门禁 |
+| Quote | 新市场可选择任意管理员批准且 `ACTIVE` 的 Quote config；原生 ETH 只是 bootstrap 示例，可升级 USDG 不得通过普通路径 ACTIVE；官方 Stock Quote admission 与 fixed-block Fork 已验证，激活状态为 `NO_ACTIVE_CONFIG` | 权威配置见 [`spec/v1_initial_quote_configs.json`](../../spec/v1_initial_quote_configs.json)；普通 ERC-20 可由管理员逐项评估后追加，但必须是已审计的不可升级直接合约；Stock Quote 价格生成器与首批 allowlist是 `PENDING_PRODUCT_ACTIVATION` |
 | Pons diff | 手续费路由与毕业后 STOCK 质押是产品差异；其余发行主链路继承 | TickerGarden 自有 ABI/Registry/CREATE2/测试向量是实现硬化，不复制 Pons 地址与权限 |
 | Official STOCK Base | Robinhood 官方目录中存在 chainId 4663 deployment 的全部资产均可准入；当前观测194项 ACTIVE 资产全部可由创建者选择为市场唯一质押 Base | Asset UID + token + decimals + Beacon/implementation 在生产登记前逐项验证；管理员按Asset设置动态最低仓位，质押量无上限；价格、Feed 覆盖和 backing target 不参与准入或权重；194不是协议上限 |
 | Launch friction | 当前 Factory 创建费 immutable 为 `0.0005` 原生资产，要求精确支付 | 不采用旧建议的 `5 USDG`、保证金、STOCK 资格或地址限速；改费必须新 Factory/Router/Template + 新 `executionSpecId` |
@@ -64,21 +64,17 @@ STOCK 作为质押 Base 时只以 raw balance 参与权重。不存在饱和值�
 
 - P005：活跃 runtime 3 秒 anti-snipe 以及 native/ERC20 graduation receipt 已写入 [`spec/v1_pons_runtime_evidence.json`](../../spec/v1_pons_runtime_evidence.json)，并由独立整数模型复核。
 - P007：泛化数值域、生命周期上界和 accumulator 证明已写入 [`spec/v1_numeric_bounds.json`](../../spec/v1_numeric_bounds.json)。
-- Quote 白名单：管理员可追加任意通过风险评估的 native 或 direct immutable ERC-20 config，Factory 已支持从所有 `ACTIVE` 条目选择；当前机器文件中的 native 仅为 bootstrap 示例。USDG 因可升级而不具备普通路径资格；官方 Stock Quote 的独立规则见 [`V1_STOCK_QUOTE_PRICE_REFERENCE.md`](./V1_STOCK_QUOTE_PRICE_REFERENCE.md)，当前仍未实现或激活。
+- Quote 白名单：管理员可追加任意通过风险评估的 native 或 direct immutable ERC-20 config，Factory 已支持从所有 `ACTIVE` 条目选择；当前机器文件中的 native 仅为 bootstrap 示例。USDG 因可升级而不具备普通路径资格；官方 Stock Quote admission 与固定区块真实代理 Fork 已验证，当前为 `NO_ACTIVE_CONFIG`。价格生成器与产品参数/首批 allowlist 是 `PENDING_PRODUCT_ACTIVATION`。
 - Batch：不属于 V1 首发能力，单市场入口为永久 ABI 约束。
 
 ## 6. 仍开放的分阶段门禁
 
-1. Implementation：门禁为空，当前为 `IMPLEMENTATION_ALLOWED`；`V1-P-010`、`V1-T-001` 已按无价格 STOCK Base 规则闭合。
-2. Deployment：最终 artifact ABI/codehash、initCodeHash、四组件 CREATE2 地址与目标链 Fork。
-3. Production：Pons 参考许可、TickerGarden 独立审计、法律/角色/监控与72小时 soak 签字。
+1. Implementation：门禁为空；`V1-P-010`、`V1-T-001` 已按无价格 STOCK Base 规则闭合。
+2. Deployment：七个技术门已由 artifact/codehash、确定性 CREATE2、Hook mask、权限/ABI diff、测试网快照与固定区块 Fork/E2E 证据关闭，当前为 `DEPLOYMENT_ELIGIBLE`；尚未广播。
+3. Production：Pons 参考许可、TickerGarden 独立审计、法律、角色移交、源码验证、监控与72小时 soak 签字仍开放。
 
-在上述门禁关闭前，不能宣称可部署、无需审计或已完成安全审计。
+当前只能宣称具备受控部署验证资格；不能宣称已部署、生产就绪、无需审计或已完成安全审计。
 
 状态和完整 gate ID 不在本文重复维护，统一读取 `spec/v1_execution_manifest.json.readiness`。
 
 发行主链路的正式说明见 [V1_PONS_BEHAVIOR_BASELINE.md](./V1_PONS_BEHAVIOR_BASELINE.md)，机器向量见 [`spec/v1_pons_behavior_vectors.json`](../../spec/v1_pons_behavior_vectors.json)。
-
-## Current launch policy override
-
-The historical Pons runtime observations above retain their original three-second schedule. Current TickerGarden production buys use the approved five-second schedule in `spec/v1_execution_manifest.json` and `TickerGardenAntiSnipe.sol`: 9900, 2475, 309, 19, 1 raw bps, then zero from elapsed second 5.

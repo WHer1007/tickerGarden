@@ -1,7 +1,10 @@
 {
   "schemaVersion": "v1-treasury-execution-manifest-1",
   "executionSpecId": "V1-TREASURY-EXEC-1",
-  "status": "V1_RELEASE_CORE_CODE_COMPLETE_LOCAL_VERIFIED_FEE_POLICY_AND_AUTO_FUNDING_PENDING_NOT_DEPLOYABLE",
+  "status": "RUNTIME_COMPLETE_DEPLOYMENT_ELIGIBLE_ACTIVATION_PENDING_NOT_BROADCAST_NOT_PRODUCTION_READY",
+  "runtimeStatus": "COMPLETE",
+  "deploymentStatus": "DEPLOYMENT_ELIGIBLE_NOT_BROADCAST",
+  "activationStatus": "PENDING_SIGNED_RELEASE_CONFIGURATION_AND_PRODUCTION_GATES",
   "v1Compatibility": {
     "partOfV1": true,
     "changesV1Contracts": true,
@@ -94,6 +97,16 @@
       {
         "signature": "withdrawServiceCredit(address)",
         "caller": "SERVICE_BENEFICIARY"
+      },
+      {
+        "signature": "registerFeeSharingMarket(bytes32,address,address)",
+        "caller": "FACTORY_MODULE",
+        "executionDelaySeconds": 0
+      },
+      {
+        "signature": "fundCreatorFees(bytes32,uint32,uint256)",
+        "caller": "FEE_VAULT",
+        "executionDelaySeconds": 0
       }
     ],
     "handoff": {
@@ -108,7 +121,10 @@
   "deploymentShape": {
     "sharedTreasuryDistributorCount": 1,
     "perMarketTreasuryContractCount": 0,
-    "marketLedgerKey": ["marketId", "epochId"],
+    "marketLedgerKey": [
+      "marketId",
+      "epochId"
+    ],
     "activation": "ONE_WAY_AT_V1_GRADUATION"
   },
   "epoch": {
@@ -143,7 +159,17 @@
     "timeoutRefund": true,
     "reviewCancellationRefund": true,
     "permissionlessFinalizationAfterReview": true,
-    "immutableAfterFinalization": true
+    "immutableAfterFinalization": true,
+    "permissionlessRequestFallback": "EPOCH_END_PLUS_FINALITY_DELAY_PLUS_PUBLICATION_WINDOW",
+    "emptyEpoch": {
+      "commitmentDomain": "TICKERGARDEN_V1_TREASURY_EMPTY_EPOCH_V1",
+      "requiresZeroTwabLeavesAndAllocation": true,
+      "requiresNonzeroDatasetHash": true,
+      "reviewDelayAndCancellation": true,
+      "destination": "CURRENT_MARKET_EPOCH",
+      "finalStatus": "ROLLED_OVER",
+      "changesTotalQuoteLiability": false
+    }
   },
   "claim": {
     "fixedLeafRecipient": true,
@@ -162,8 +188,8 @@
     ],
     "idempotency": "CALLER_SCOPED_OPERATION_ID"
   },
+  "openProductInputScope": "ACTIVATION_AND_PRODUCTION_ONLY_NOT_RUNTIME_COMPLETENESS",
   "openProductInputs": [
-    "FINAL_FEE_SPLITS",
     "CANONICAL_FEE_SOURCE",
     "ELIGIBILITY_EXCLUSIONS",
     "ROOT_SERVICE_FEE_ASSET_AND_PRICE",

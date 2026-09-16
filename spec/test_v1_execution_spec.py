@@ -29,7 +29,7 @@ from spec.v1_reference_model import (
     add_activation_bucket,
     checked_add_uint256,
     credit_pool_index,
-    historical_snipe_tax_bps,
+    historical_snipe_tax_bps as current_snipe_tax_bps,  # historical reference vectors stay immutable
     curve_amount_in,
     curve_amount_out,
     derive_component_salt,
@@ -66,6 +66,91 @@ def load(name):
 
 
 class V1ExecutionSpecTest(unittest.TestCase):
+    def _doc_section(self, name, heading, next_heading):
+        text = (PROJECT_ROOT / "docs/v1" / name).read_text(encoding="utf-8")
+        self.assertIn(heading, text)
+        section = text.split(heading, 1)[1]
+        self.assertIn(next_heading, section)
+        return section.split(next_heading, 1)[0]
+
+    def test_current_docs_quote_admission_distinguishes_proxy_guarantees(self):
+        lifecycle = self._doc_section("V1_EXECUTION_SPEC.md", "## 3. 交易与生命周期", "## 4.")
+        self.assertIn("通用 Quote 可为管理员评审的可升级 ERC-20", lifecycle)
+        self.assertIn("代理外壳检查不等于实现不可升级", lifecycle)
+        self.assertIn("addQuoteConfig", lifecycle)
+        self.assertIn("addStockQuoteConfig", lifecycle)
+        for obsolete in ("direct immutable ERC-20", "固定 runtime、非代理", "不能借通用 direct ERC-20 路径绕过"):
+            self.assertNotIn(obsolete, lifecycle)
+
+    def test_current_docs_fee_sections_keep_tax_and_lp_fee_separate(self):
+        parameters = (PROJECT_ROOT / "docs/v1/V1_PROTOCOL_PARAMETERS.md").read_text(encoding="utf-8")
+        comparison = self._doc_section("V1_PROTOCOL_PARAMETERS.md", "### 3.3", "### 3.4")
+        fee = self._doc_section("V1_PROTOCOL_PARAMETERS.md", "## 6. 手续费分配", "## 7.")
+        frozen = self._doc_section("V1_PROTOCOL_PARAMETERS.md", "### 6.2", "### 6.3")
+        conservation = self._doc_section("V1_PROTOCOL_PARAMETERS.md", "### 6.5", "### 6.6")
+        self.assertIn("0–500 bps", comparison)
+        self.assertIn("lpFee == MarketConfig.lpFeePips", fee)
+        self.assertIn("0/1000/2000/3000", fee)
+        self.assertIn("T_asset = B_asset + C_asset", frozen)
+        self.assertIn("floor(B_asset × 30 / 100)", frozen)
+        self.assertIn("Creator = CreatorBase + C_asset", frozen)
+        self.assertIn("Holder = floor(CreatorBase / 2)", frozen)
+        self.assertIn("B_asset = D_asset - C_asset", conservation)
+        self.assertIn("floor((D_curve - C_curve) × 30 / 100)", conservation)
+        for obsolete in (r"PoolKey\.fee\s*=\s*0(?:`|，)", r"lpFee\s*==\s*0", r"附加税[^。\n]*固定为零"):
+            self.assertNotRegex(parameters, obsolete)
+        self.assertNotIn("floor(T_asset × 30", fee)
+
+    def test_current_docs_raw_claims_do_not_reinstate_conversion(self):
+        current = (PROJECT_ROOT / "docs/v1/V1_EXECUTION_SPEC.md").read_text(encoding="utf-8").split("## 1.", 1)[0]
+        rewards = self._doc_section("V1_PROTOCOL_PARAMETERS.md", "### 6.1", "## 7.")
+        lp_binding = (PROJECT_ROOT / "docs/v1/CREATOR_SELECTED_LP_FEE.md").read_text(encoding="utf-8").split("## Contract binding", 1)[1]
+        legacy = (PROJECT_ROOT / "docs/v1/V1_REWARD_CONVERSION.md").read_text(encoding="utf-8")
+        self.assertIn("没有内部兑换、minimumQuote、deadline", current)
+        self.assertIn("Staker 的24小时锁", current)
+        self.assertIn("burnMemeFees", current)
+        self.assertNotIn("minimumQuote 继续", current)
+        self.assertNotIn("已分桶的 Meme 负债可在独立奖励结算交易中兑换", rewards)
+        self.assertIn("does not perform internal reward conversion or apply a 98% output rule", lp_binding)
+        self.assertTrue(legacy.startswith("# 历史版本："))
+        self.assertIn("不是当前源码验收规则", legacy.split("## 领取", 1)[0])
+
+    def test_current_docs_acceptance_is_bound_to_current_artifacts(self):
+        acceptance = (PROJECT_ROOT / "docs/v1/V1_EXECUTION_SPEC.md").read_text(encoding="utf-8").split("## 6. 验收边界", 1)[1]
+        for artifact in ("v1_abi_surface.json", "v1_permissions_matrix.json", "v1_execution_manifest.json"):
+            self.assertIn(artifact, acceptance)
+        self.assertIn("runtime 体积", acceptance)
+        self.assertIn("legacy plan", acceptance)
+        self.assertIn("同一候选版本", acceptance)
+        self.assertNotIn("当前 19 个模块共有 84", acceptance)
+        self.assertNotIn("固定区块合约 Fork/E2E 已作为 deployment evidence 通过", acceptance)
+
+    def test_beacon_runtime_templates_bind_complete_programs_across_languages(self):
+        from spec.generate_v1_rh_stock_catalog import _immutable_beacon
+
+        root = Path(__file__).resolve().parent.parent
+        catalog = json.loads((root / "spec/v1_beacon_proxy_templates.json").read_text())
+        solidity = (root / "contracts/src/v1/shared/ImmutableBeaconProxyRuntime.sol").read_text()
+        offset = catalog["immutableWordOffset"]
+        for template in catalog["templates"]:
+            raw = bytes.fromhex(template["normalizedRuntime"][2:])
+            self.assertIn(keccak256(raw).hex(), solidity)
+            self.assertEqual(raw[offset:offset + 32], bytes(32))
+            beacon = bytes.fromhex(template.get("observedBeacon", "0x" + "11" * 20)[2:])
+            program = raw[:offset] + bytes(12) + beacon + raw[offset + 32:]
+            self.assertEqual(_immutable_beacon("0x" + program.hex()), "0x" + beacon.hex())
+            if "observedRuntimeHash" in template:
+                self.assertEqual("0x" + keccak256(program).hex(), template["observedRuntimeHash"])
+            self.assertIsNone(_immutable_beacon("0x" + (program + b"\x00").hex()))
+            for index in range(len(program)):
+                if offset + 12 <= index < offset + 32:
+                    continue
+                mutated = bytearray(program)
+                mutated[index] ^= 1
+                self.assertIsNone(_immutable_beacon("0x" + mutated.hex()))
+        decoy = "0x365f5f375f5f365f5f545af43d5f5f3e3d5ff37f" + "00" * 12 + "11" * 20 + "6001600160a01b0316635c60da1b"
+        self.assertIsNone(_immutable_beacon(decoy))
+
     @classmethod
     def setUpClass(cls):
         cls.manifest = load("v1_execution_manifest.json")
@@ -79,74 +164,31 @@ class V1ExecutionSpecTest(unittest.TestCase):
         cls.pons_runtime_evidence = load("v1_pons_runtime_evidence.json")
         cls.initial_quote_configs = load("v1_initial_quote_configs.json")
         cls.numeric_bounds = load("v1_numeric_bounds.json")
-        cls.treasury_manifest = load("v1_treasury_execution_manifest.json")
         cls.official_stock_catalog = load("v1_rh_official_stock_catalog.snapshot.json")
         cls.official_stock_catalog_raw = (ROOT / "v1_rh_official_stock_catalog.source.json").read_bytes()
 
     def test_spec_ids_match(self):
-        expected = "V1-EXEC-10"
+        expected = "V1-EXEC-11"
         self.assertEqual(self.manifest["executionSpecId"], expected)
         self.assertEqual(self.permissions["executionSpecId"], expected)
         self.assertEqual(self.abi["executionSpecId"], expected)
         self.assertEqual(self.canonical_abi["executionSpecId"], expected)
 
-    def test_treasury_access_manager_surface_is_explicit_and_matches_permissions(self):
-        treasury = self.treasury_manifest
-        access = treasury["accessManager"]
-        self.assertTrue(treasury["v1Compatibility"]["changesV1Contracts"])
-        self.assertTrue(treasury["v1Compatibility"]["changesV1Abi"])
-        self.assertEqual(
-            access["bindings"],
-            {
-                "authority": "IMMUTABLE_SHARED_V1_ACCESS_MANAGER",
-                "marketRegistry": "IMMUTABLE_CANONICAL_MARKET_REGISTRY_V1",
-                "livePreflightRequired": True,
-            },
-        )
-        self.assertEqual(
-            {
-                role["roleName"]: (
-                    role["roleId"],
-                    role["executionDelaySeconds"],
-                )
-                for role in access["roles"]
-            },
-            {
-                "PROTOCOL_ADMIN_ROLE": ("1", 172800),
-                "PAUSE_GUARDIAN_ROLE": ("2", 0),
-                "ROOT_PUBLISHER_ROLE": ("4", 0),
-                "ROOT_REVIEW_ROLE": ("5", 0),
-            },
-        )
+    def test_current_business_surface_excludes_legacy_treasury(self):
+        modules = {entry["module"]: entry for entry in self.abi["modules"]}
+        self.assertNotIn("TreasuryDistributorV1", modules)
+        vault_functions = {entry["signature"] for entry in modules["ProtocolFeeVault"]["functions"]}
+        self.assertIn("claimUserRewards(bytes32,uint8,uint32)", vault_functions)
+        self.assertNotIn("claimCreator(bytes32,uint32,address)", vault_functions)
+        self.assertNotIn("claimCreator(bytes32,address)", vault_functions)
 
-        declared = {
-            row["signature"]: (
-                row["caller"],
-                row.get("executionDelaySeconds", 0),
-            )
-            for row in access["restrictedFunctions"] + access["directFunctions"]
-        }
-        permissions = {
-            row["signature"]: (row["caller"], row["delaySeconds"])
-            for row in self.permissions["functions"]
-            if row["module"] == "TreasuryDistributorV1"
-        }
-        self.assertEqual(declared, permissions)
-        self.assertEqual(
-            {row["signature"] for row in access["restrictedFunctions"]},
-            {
-                "registerMarket(bytes32,address,address,bytes32)",
-                "setRootServiceFee(address,uint128)",
-                "publishRoot(bytes32,uint32,bytes32,bytes32,uint256,uint32,uint256)",
-                "cancelPendingRoot(bytes32,uint32,bytes32)",
-            },
-        )
-        direct = {row["signature"]: row["caller"] for row in access["directFunctions"]}
-        self.assertEqual(direct["activateMarket(bytes32)"], "PUBLIC")
-        self.assertTrue(access["handoff"]["dedicatedRootSafesRequired"])
-        self.assertTrue(access["handoff"]["rootSafesMustNotAliasCoreSafes"])
-        self.assertTrue(access["handoff"]["selectorAssignmentsFrozenBeforeProduction"])
-        self.assertTrue(access["handoff"]["bootstrapAdminRenouncedLast"])
+    def test_approved_five_second_policy_is_separate_from_historical_observations(self):
+        from spec.v1_reference_model import current_snipe_tax_bps as production_snipe
+        policy = self.manifest["launch"]["antiSnipe"]
+        self.assertEqual(policy["durationSeconds"], 5)
+        self.assertEqual(policy["rawBpsByElapsedSecond"], [9900, 2475, 309, 19, 1])
+        self.assertEqual([production_snipe(i) for i in range(7)], [9900, 2475, 309, 19, 1, 0, 0])
+        self.assertEqual([production_snipe(i, True) for i in range(7)], [0] * 7)
 
     def test_pons_vectors_match_reference_model_and_bind_runtime_evidence(self):
         vectors = self.pons_vectors
@@ -247,7 +289,7 @@ class V1ExecutionSpecTest(unittest.TestCase):
                     )
                 }
             elif kind == "antiSnipeBuy":
-                raw = historical_snipe_tax_bps(
+                raw = current_snipe_tax_bps(
                     inputs["elapsedSeconds"], inputs["exempt"]
                 )
                 effective = effective_snipe_tax_bps(
@@ -392,7 +434,7 @@ class V1ExecutionSpecTest(unittest.TestCase):
                     vector["provenance"]["revertData"][:10], "0x71c4efed"
                 )
             elif kind == "antiSnipeSchedule":
-                raw = historical_snipe_tax_bps(
+                raw = current_snipe_tax_bps(
                     inputs["elapsedSeconds"], inputs["exempt"]
                 )
                 actual = {"rawSnipeBps": raw}
@@ -467,7 +509,7 @@ class V1ExecutionSpecTest(unittest.TestCase):
         self.assertNotIn("V1-G0-PONS-RUNTIME-VECTORS-01", implementation_open)
         self.assertNotIn("V1-G0-PRODUCTION-QUOTES-01", implementation_open)
         self.assertNotIn("V1-G0-BATCH-01", implementation_open)
-        self.assertIn("V1-DEPLOY-ABI-DIFF-01", gate_sets["deployment"]["open"])
+        self.assertEqual(gate_sets["deployment"]["open"], [])
         self.assertIn("V1-PROD-SOAK-72H-01", gate_sets["production"]["open"])
         for relative in (
             "README.md",
@@ -575,6 +617,40 @@ class V1ExecutionSpecTest(unittest.TestCase):
         self.assertEqual(governance["status"], "APPROVED_IMMUTABLE_PER_FACTORY")
         self.assertFalse(governance["setterAllowed"])
 
+    def test_stock_quote_admission_is_dedicated_append_only_and_not_auto_activated(self):
+        quote = self.manifest["quoteConfigs"]
+        self.assertEqual(
+            quote["officialStockQuoteAdmissionRequirement"],
+            "SEPARATE_OFFICIAL_ACTIVE_ASSET_UID_CANONICAL_TOKEN_IMMUTABLE_BEACON_AND_PINNED_FINGERPRINT",
+        )
+        self.assertEqual(
+            quote["officialStockQuoteIdentityPolicy"],
+            "FAIL_CLOSED_ON_ASSET_STATUS_TOKEN_RUNTIME_BEACON_IMPLEMENTATION_OR_DECIMALS_DRIFT",
+        )
+        self.assertEqual(quote["stockQuoteAdmissionStatus"], "IMPLEMENTED_LOCAL_VERIFIED")
+        self.assertEqual(
+            quote["stockQuoteIdentityDriftPolicyStatus"], "IMPLEMENTED_LOCAL_VERIFIED"
+        )
+        self.assertEqual(
+            quote["stockQuoteDeploymentPreflightStatus"], "IMPLEMENTED_LOCAL_VERIFIED"
+        )
+        self.assertFalse(quote["stockBaseAutoPromotionToQuote"])
+        self.assertEqual(quote["initialStockQuoteConfigs"], [])
+        self.assertEqual(
+            quote["stockQuoteConfigGeneratorStatus"],
+            "PENDING_PRODUCT_ACTIVATION",
+        )
+        self.assertEqual(quote["stockQuoteActivationStatus"], "NO_ACTIVE_CONFIG")
+        self.assertEqual(quote["stockQuoteTargetChainEvidenceStatus"], "MAINNET_FORK_ADMISSION_VERIFIED")
+        self.assertEqual(
+            quote["stockQuoteForkE2EStatus"],
+            "FORK_ADMISSION_VERIFIED_NO_ACTIVE_PRODUCT_CONFIG",
+        )
+        self.assertEqual(
+            self.manifest["officialStockAdmission"]["issuerAuthenticityTrustModel"],
+            "GOVERNANCE_ATTESTED_FROM_ARCHIVED_OFFICIAL_DIRECTORY_AND_FINALIZED_CHAIN_EVIDENCE_NOT_ONCHAIN_ISSUER_SIGNATURE_VERIFICATION",
+        )
+
     def test_graduation_entrypoints_event_owners_and_template_mode_are_unique(self):
         modules = {entry["module"]: entry for entry in self.abi["modules"]}
         permission = {
@@ -593,6 +669,8 @@ class V1ExecutionSpecTest(unittest.TestCase):
             {
                 "graduateFromCurve(bytes32,uint256,uint256)",
                 "predictLaunchLocker(bytes32)",
+                "compoundKeeper()",
+                "setCompoundKeeper(address)",
                 "marketRegistry()",
                 "approvedQuoteRegistry()",
                 "factory()",
@@ -605,7 +683,7 @@ class V1ExecutionSpecTest(unittest.TestCase):
         )
         self.assertNotIn(("GraduationExecutor", "retryGraduation(bytes32)"), permission)
         self.assertNotIn(("GraduationExecutor", "rescueSweptLaunch(bytes32)"), permission)
-        curve_events = set(modules["PonsCompatibleCurve"]["events"])
+        curve_events = set(modules["TickerGardenCurve"]["events"])
         executor_events = set(modules["GraduationExecutor"]["events"])
         self.assertFalse(any(event.startswith("LaunchSwept(") for event in curve_events))
         self.assertFalse(any(event.startswith("AutoGraduationFailed(") for event in curve_events))
@@ -643,6 +721,8 @@ class V1ExecutionSpecTest(unittest.TestCase):
             "(address,address,address,address,address,address,address,address)",
         )
         locker = {entry["signature"] for entry in modules["LaunchLocker"]["functions"]}
+        self.assertIn("compoundLockedFees(uint128,uint128,uint128,uint256)", locker)
+        self.assertIn("collectLockedFees()", locker)
         self.assertNotIn("compoundLockedFees()", locker)
         self.assertNotIn("compoundLockedFees(bytes32)", locker)
         required_errors = set(self.abi["requiredErrors"])
@@ -660,10 +740,10 @@ class V1ExecutionSpecTest(unittest.TestCase):
         pool = self.manifest["canonicalPool"]
         self.assertEqual(fee["feePips"] * 100, fee["pipsDenominator"])
         self.assertEqual(fee["lpShareBps"], 0)
-        self.assertEqual(pool["lpDistribution"], "NONE")
+        self.assertEqual(pool["lpDistribution"], "V4_NATIVE_ACTIVE_LIQUIDITY")
         self.assertEqual(pool["hookFeeDestination"], "PROTOCOL_FEE_VAULT_FULL_AMOUNT")
         self.assertEqual(pool["poolKeyFee"], 0)
-        self.assertEqual(pool["requiredSlot0LpFee"], 0)
+        self.assertEqual(pool["requiredSlot0LpFee"], "MATCH_CANONICAL_POOL_KEY")
         self.assertEqual(pool["requiredPackedProtocolFee"], 0)
         self.assertEqual(pool["hookPermissionMaskDecimal"], 0x2044)
         self.assertEqual(
@@ -921,6 +1001,7 @@ class V1ExecutionSpecTest(unittest.TestCase):
             for entry in self.canonical_abi["mutations"]
         }
         allowed_callers = {
+            "COMPOUND_KEEPER",
             "PUBLIC",
             "PROTOCOL_ADMIN_ROLE",
             "PAUSE_GUARDIAN_ROLE",
@@ -936,11 +1017,18 @@ class V1ExecutionSpecTest(unittest.TestCase):
             "EXACT_REGISTERED_GAUGE",
             "FEE_VAULT",
             "CURRENT_CREATOR_BENEFICIARY",
-            "TREASURY_DISTRIBUTOR_MODULE",
+            "PENDING_CREATOR_REVENUE_BENEFICIARY",
+                "TREASURY_DISTRIBUTOR_MODULE",
+                "HOLDER_REWARDS_DISTRIBUTOR_MODULE",
             "CURRENT_MEME_HOLDER",
             "ROOT_PUBLISHER_ROLE",
             "ROOT_REVIEW_ROLE",
             "SERVICE_BENEFICIARY",
+            "SETTLEMENT_OPERATOR",
+            "FIXED_PLATFORM_BENEFICIARY",
+            "PROTOCOL_ADMIN_MEMBER",
+            "PROTOCOL_ADMIN_OR_GUARDIAN_MEMBER",
+            "PENDING_PLATFORM_TREASURY",
         }
         for module in self.abi["modules"]:
             for function in module.get("functions", []):
@@ -967,7 +1055,9 @@ class V1ExecutionSpecTest(unittest.TestCase):
         self.assertNotIn(("GraduationExecutor", "rescueSweptLaunch(bytes32)"), rows)
         self.assertNotIn(("MarketRegistryV1", "markSwept(bytes32)"), rows)
         self.assertNotIn(("MarketRegistryV1", "markRescued(bytes32)"), rows)
-        self.assertTrue(all(entry["stateDelaySeconds"] == 0 for entry in rows.values()))
+        self.assertTrue(all(entry["stateDelaySeconds"] == 0 for key, entry in rows.items() if key[0] == "GraduationExecutor"))
+        delayed = {key: entry["stateDelaySeconds"] for key, entry in rows.items() if entry["stateDelaySeconds"]}
+        self.assertEqual(delayed, {("ProtocolFeeVault", "executePlatformTreasury(uint256)"): 172800})
 
     def test_struct_aliases_expand_to_canonical_tuples(self):
         rows = {
@@ -978,6 +1068,16 @@ class V1ExecutionSpecTest(unittest.TestCase):
         self.assertEqual(
             quote["canonicalSignature"],
             "addQuoteConfig(bytes32,(bytes32,address,uint8,uint256,uint256,bytes32,uint8))",
+        )
+        stock_quote = rows[
+            (
+                "ApprovedQuoteRegistry",
+                "addStockQuoteConfig(bytes32,QuoteAssetConfig,StockQuoteBinding)",
+            )
+        ]
+        self.assertEqual(
+            stock_quote["canonicalSignature"],
+            "addStockQuoteConfig(bytes32,(bytes32,address,uint8,uint256,uint256,bytes32,uint8),(bytes32,bytes32,bytes32,bytes32))",
         )
         factory = rows[("TickerGardenFactoryV1", "createMarket(CreateMarketParams)")]
         self.assertNotIn("CreateMarketParams", factory["canonicalSignature"])
@@ -1077,8 +1177,8 @@ class V1ExecutionSpecTest(unittest.TestCase):
         vault_functions = {
             entry["signature"] for entry in modules["ProtocolFeeVault"]["functions"]
         }
-        self.assertIn("claimCreator(bytes32,uint32,address)", vault_functions)
-        self.assertIn("creatorLiability(bytes32,uint32,address)", vault_functions)
+        self.assertIn("claimUserRewards(bytes32,uint8,uint32)", vault_functions)
+        self.assertNotIn("claimCreator(bytes32,uint32,address)", vault_functions)
         self.assertNotIn("claimCreator(bytes32,address)", vault_functions)
 
         permissions = {
@@ -1089,11 +1189,12 @@ class V1ExecutionSpecTest(unittest.TestCase):
             ("CreatorRevenueRegistry", "transferCreatorRevenueBeneficiary(bytes32,address)")
         ]
         self.assertEqual(transfer["caller"], "CURRENT_CREATOR_BENEFICIARY")
-        self.assertIn("ATOMIC_OLD_EPOCH_SWEEP", transfer["precondition"])
-        claim = permissions[
-            ("ProtocolFeeVault", "claimCreator(bytes32,uint32,address)")
-        ]
-        self.assertEqual(claim["recipient"], "stored_creator_epoch_beneficiary")
+        self.assertIn("PROPOSE_ONLY", transfer["precondition"])
+        accept = permissions[("CreatorRevenueRegistry", "acceptCreatorRevenueBeneficiary(bytes32)")]
+        self.assertEqual(accept["caller"], "PENDING_CREATOR_REVENUE_BENEFICIARY")
+        self.assertIn("ATOMIC_OLD_EPOCH_SWEEP", accept["precondition"])
+        claim = permissions[("ProtocolFeeVault", "claimUserRewards(bytes32,uint8,uint32)")]
+        self.assertEqual(claim["caller"], "PUBLIC")
 
     def test_market_autonomy_keeps_rage_quit_and_removes_reward_migration(self):
         autonomy = self.manifest["marketAutonomy"]
@@ -1120,7 +1221,7 @@ class V1ExecutionSpecTest(unittest.TestCase):
         schemas = self.hash_schemas["schemas"]
         expected_names = {
             "launchTemplateHash",
-            "ponsBaselineHash",
+            "tickerGardenBaselineHash",
             "expectedEconomics",
             "marketId",
             "componentSalt",
@@ -1128,6 +1229,8 @@ class V1ExecutionSpecTest(unittest.TestCase):
             "v4FeeId",
             "curveFeeId",
             "quoteEconomicsHash",
+            "stockQuoteFingerprintHash",
+            "stockQuoteEconomicsHash",
         }
         self.assertEqual(set(schemas), expected_names)
         domains = [entry["domain"] for entry in schemas.values()]
@@ -1137,10 +1240,46 @@ class V1ExecutionSpecTest(unittest.TestCase):
         vectors = {entry["schema"]: entry for entry in self.hash_schemas["vectors"]}
         self.assertEqual(set(vectors), expected_names)
         self.assertTrue(all(len(entry["result"]) == 66 for entry in vectors.values()))
-        self.assertEqual(vectors["expectedEconomics"]["inputs"]["schemaVersion"], "3")
-        self.assertEqual(vectors["ponsBaselineHash"]["inputs"]["schemaVersion"], "1")
-        self.assertEqual(vectors["feePolicyHash"]["inputs"]["schemaVersion"], "4")
+        self.assertEqual(vectors["expectedEconomics"]["inputs"]["schemaVersion"], "8")
+        self.assertEqual(vectors["tickerGardenBaselineHash"]["inputs"]["schemaVersion"], "1")
+        self.assertEqual(vectors["feePolicyHash"]["inputs"]["schemaVersion"], "5")
         self.assertEqual(vectors["quoteEconomicsHash"]["inputs"]["schemaVersion"], "1")
+        self.assertEqual(vectors["stockQuoteFingerprintHash"]["inputs"]["schemaVersion"], "1")
+        self.assertEqual(vectors["stockQuoteEconomicsHash"]["inputs"]["schemaVersion"], "1")
+
+        self.assertEqual(
+            self.hash_schemas["schemas"]["stockQuoteFingerprintHash"]["fields"],
+            [
+                "bytes32 domain",
+                "uint256 schemaVersion",
+                "uint256 chainId",
+                "bytes32 assetUid",
+                "address stockToken",
+                "uint8 tokenDecimals",
+                "bytes32 tokenRuntimeCodeHash",
+                "address beacon",
+                "bytes32 beaconRuntimeCodeHash",
+                "address implementation",
+                "bytes32 implementationRuntimeCodeHash",
+            ],
+        )
+        self.assertEqual(
+            self.hash_schemas["schemas"]["stockQuoteEconomicsHash"]["fields"],
+            [
+                "bytes32 domain",
+                "uint256 schemaVersion",
+                "uint256 chainId",
+                "bytes32 tickerGardenBaselineId",
+                "address quoteAsset",
+                "uint8 quoteDecimals",
+                "uint256 phantomQuote",
+                "uint256 graduationThreshold",
+                "bytes32 assetUid",
+                "bytes32 stockTokenFingerprintHash",
+                "bytes32 referenceEvidenceHash",
+                "bytes32 generatorPolicyId",
+            ],
+        )
 
         template_fields = self.hash_schemas["schemas"]["launchTemplateHash"]["fields"]
         self.assertEqual(
@@ -1163,7 +1302,7 @@ class V1ExecutionSpecTest(unittest.TestCase):
             ],
         )
         self.assertEqual(
-            self.hash_schemas["schemas"]["ponsBaselineHash"]["fields"],
+            self.hash_schemas["schemas"]["tickerGardenBaselineHash"]["fields"],
             [
                 "bytes32 domain",
                 "uint256 schemaVersion",
@@ -1247,6 +1386,20 @@ class V1ExecutionSpecTest(unittest.TestCase):
         }
         self.assertNotIn("decreaseAllocation(bytes32,uint256)", signatures)
         self.assertNotIn("migrateAllocation(bytes32,bytes32,uint256)", signatures)
+        self.assertIn("stake(bytes32,uint256)", signatures)
+        self.assertIn("unstakeAndWithdraw(bytes32)", signatures)
+        self.assertEqual(
+            permissions[("AllocationManager", "stake(bytes32,uint256)")]["caller"],
+            "PUBLIC",
+        )
+        self.assertEqual(
+            permissions[("AllocationManager", "unstakeAndWithdraw(bytes32)")]["recipient"],
+            "caller",
+        )
+        self.assertEqual(
+            permissions[("UserStockVault", "releaseAllocationAndWithdraw(bytes32,address,bytes32)")]["recipient"],
+            "fixed_user",
+        )
         self.assertIn("FULL_POSITION_ONLY", permissions[("AllocationManager", "closeAllocation(bytes32)")]["precondition"])
         self.assertNotIn(("GraduationExecutor", "rescueSweptLaunch(bytes32)"), permissions)
         self.assertNotIn(("GraduationExecutor", "retryGraduation(bytes32)"), permissions)
@@ -1375,7 +1528,7 @@ class V1ExecutionSpecTest(unittest.TestCase):
                     outputs["slippagePass"],
                 )
             elif kind == "antiSnipeBuy":
-                raw_snipe_bps = historical_snipe_tax_bps(
+                raw_snipe_bps = current_snipe_tax_bps(
                     inputs["elapsedSeconds"], bool(inputs["exempt"])
                 )
                 effective_snipe_bps = effective_snipe_tax_bps(
@@ -1455,7 +1608,7 @@ class V1ExecutionSpecTest(unittest.TestCase):
         self.assertEqual(observed, [9900, 618, 19, 0])
         self.assertEqual(
             [
-                historical_snipe_tax_bps(entry["elapsedSeconds"])
+                current_snipe_tax_bps(entry["elapsedSeconds"])
                 for entry in anti_snipe["rawSchedule"]
             ],
             observed,
@@ -1472,7 +1625,7 @@ class V1ExecutionSpecTest(unittest.TestCase):
             ],
             anti_snipe["tickerGardenEffectiveScheduleBps"],
         )
-        self.assertEqual(historical_snipe_tax_bps(0, exempt=True), 0)
+        self.assertEqual(current_snipe_tax_bps(0, exempt=True), 0)
 
         traces = evidence["graduationTraces"]
         self.assertEqual({trace["quoteKind"] for trace in traces}, {"NATIVE", "ERC20"})
@@ -1517,7 +1670,7 @@ class V1ExecutionSpecTest(unittest.TestCase):
 
     def test_initial_quote_configs_are_content_addressed_and_fail_closed(self):
         artifact = self.initial_quote_configs
-        self.assertEqual(artifact["executionSpecId"], "V1-EXEC-10")
+        self.assertEqual(artifact["executionSpecId"], "V1-EXEC-11")
         self.assertEqual(artifact["status"], "APPROVED_BOOTSTRAP_EXAMPLE_CONFIGS")
         self.assertEqual(artifact["chainId"], 4663)
         self.assertEqual(artifact["scope"]["configuredQuoteCount"], 1)
@@ -1533,8 +1686,30 @@ class V1ExecutionSpecTest(unittest.TestCase):
         self.assertEqual(artifact["scope"]["approvalRequirement"], "ADMIN_APPROVED_AND_ACTIVE")
         self.assertEqual(
             artifact["scope"]["erc20AdmissionRequirement"],
-            "DIRECT_IMMUTABLE_ERC20_WITH_PINNED_RUNTIME_AND_ZERO_EIP1967_SLOTS",
+            "ADMINISTRATOR_RISK_REVIEWED_TOKEN_WHITELIST",
         )
+        self.assertEqual(
+            artifact["scope"]["stockQuoteAdmissionRequirement"],
+            "OFFICIAL_ACTIVE_ASSET_UID_CANONICAL_TOKEN_IMMUTABLE_BEACON_PINNED_FINGERPRINT_AND_TYPED_EVIDENCE",
+        )
+        self.assertEqual(
+            artifact["scope"]["stockQuoteAdmissionStatus"], "IMPLEMENTED_LOCAL_VERIFIED"
+        )
+        self.assertEqual(
+            artifact["scope"]["stockQuoteConfigGeneratorStatus"],
+            "PENDING_PRODUCT_ACTIVATION",
+        )
+        self.assertFalse(artifact["scope"]["stockBaseAutoPromotionToQuote"])
+        self.assertEqual(artifact["scope"]["stockQuoteActivationStatus"], "NO_ACTIVE_CONFIG")
+        self.assertEqual(
+            artifact["scope"]["stockQuoteTargetChainEvidenceStatus"],
+            "MAINNET_FORK_ADMISSION_VERIFIED",
+        )
+        self.assertEqual(
+            artifact["scope"]["stockQuoteForkE2EStatus"],
+            "FORK_ADMISSION_VERIFIED_NO_ACTIVE_PRODUCT_CONFIG",
+        )
+        self.assertEqual(artifact["scope"]["activeStockQuoteConfigCount"], 0)
         configs = {entry["label"]: entry for entry in artifact["configs"]}
         self.assertEqual(set(configs), {"NATIVE_ETH_V1"})
 
@@ -1542,7 +1717,7 @@ class V1ExecutionSpecTest(unittest.TestCase):
         for config in configs.values():
             expected_hash = quote_economics_hash(
                 artifact["chainId"],
-                artifact["ponsBaselineId"],
+                artifact["tickerGardenBaselineId"],
                 config["quoteAsset"],
                 config["quoteDecimals"],
                 int(config["phantomQuote"]),
@@ -1562,7 +1737,7 @@ class V1ExecutionSpecTest(unittest.TestCase):
 
         self.assertEqual(
             artifact["scope"]["upgradeableQuotePolicy"],
-            "FORBIDDEN_FOR_ACTIVE_ERC20_QUOTE_CONFIGS",
+            "ADMINISTRATOR_MAY_APPROVE_UPGRADEABLE_TOKENS",
         )
 
     def test_official_stock_catalog_covers_the_dynamic_robinhood_universe(self):
@@ -1914,23 +2089,29 @@ class V1ExecutionSpecTest(unittest.TestCase):
             ]
         )
 
-    def test_batch_operations_are_absent_from_initial_release_abi(self):
+    def test_batch_operations_are_limited_to_holder_funding(self):
         batch = self.manifest["batchOperations"]
-        self.assertFalse(batch["initialReleaseScope"])
-        self.assertFalse(batch["batchAbiAllowed"])
+        self.assertTrue(batch["initialReleaseScope"])
+        self.assertTrue(batch["batchAbiAllowed"])
+        self.assertEqual(batch["scope"], "HOLDER_FUNDING_ONLY")
         self.assertTrue(batch["singleMarketEntryPointsPermanent"])
-        signatures = [
-            entry["signature"]
+        expected_mutations = {"ProtocolFeeVault.fundHolderRewardsBatch(bytes32[],uint8,uint256)"}
+        expected_views = {"ProtocolFeeVault.MAX_HOLDER_FUNDING_BATCH()"}
+        self.assertEqual(set(batch["allowedMutations"]), expected_mutations)
+        self.assertEqual(set(batch["allowedBatchNamedViews"]), expected_views)
+        actual = {
+            module["module"] + "." + entry["signature"]
             for module in self.abi["modules"]
             for entry in module.get("functions", [])
-        ]
-        canonical_mutations = [
-            entry["canonicalSignature"]
+            if "batch" in entry["signature"].lower()
+        }
+        self.assertEqual(actual, expected_mutations | expected_views)
+        canonical = {
+            entry["module"] + "." + entry["canonicalSignature"]
             for entry in self.canonical_abi["mutations"]
-        ]
-        self.assertFalse(
-            [signature for signature in signatures + canonical_mutations if "batch" in signature.lower()]
-        )
+            if "batch" in entry["canonicalSignature"].lower()
+        }
+        self.assertEqual(canonical, expected_mutations)
 
     def test_curve_exact_output_rounding_and_invalid_zero_output(self):
         self.assertEqual(curve_amount_in(66_667, 1_000, 400_000), 201)
@@ -1985,7 +2166,7 @@ class V1ExecutionSpecTest(unittest.TestCase):
 
     def test_graduation_events_expose_each_supply_partition(self):
         modules = {entry["module"]: entry for entry in self.abi["modules"]}
-        curve_events = set(modules["PonsCompatibleCurve"]["events"])
+        curve_events = set(modules["TickerGardenCurve"]["events"])
         graduation_events = set(modules["GraduationExecutor"]["events"])
         self.assertNotIn(
             "LaunchSwept(bytes32 indexed marketId,address indexed quoteAsset,uint256 sweptQuote,uint256 sweptTokens,uint64 sweptAt)",
@@ -2080,11 +2261,12 @@ class V1ExecutionSpecTest(unittest.TestCase):
         with self.assertRaises(ValueError):
             settle_user_reward(1, 0, 1, 0, 0)
 
-    def test_g0_register_separates_approved_direction_from_open_deployment_inputs(self):
+    def test_g0_register_separates_approved_direction_from_production_readiness(self):
         register = self.g0_recommendations
-        self.assertEqual(register["executionSpecId"], "V1-EXEC-10")
+        self.assertEqual(register["executionSpecId"], "V1-EXEC-11")
         self.assertEqual(
-            register["status"], "PRODUCT_DIRECTION_APPROVED_IMPLEMENTATION_ALLOWED"
+            register["status"],
+            "PRODUCT_DIRECTION_APPROVED_DEPLOYMENT_ELIGIBLE_NOT_PRODUCTION_READY",
         )
         expected = {
             "V1-G0-PONS-BASELINE-01",
@@ -2197,15 +2379,3 @@ class V1ExecutionSpecTest(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
-
-
-class CurrentLaunchPolicyTest(unittest.TestCase):
-    def test_five_second_schedule(self):
-        from spec.v1_reference_model import current_snipe_tax_bps
-        expected = [9900,2475,309,19,1]
-        self.assertEqual([current_snipe_tax_bps(i) for i in range(7)], expected + [0,0])
-        manifest = json.loads((Path(__file__).parent / "v1_execution_manifest.json").read_text())
-        policy = manifest["launch"]["antiSnipe"]
-        self.assertEqual(policy["rawBpsByElapsedSecond"], expected)
-        self.assertEqual(policy["durationSeconds"], 5)
-        self.assertEqual(policy["zeroFromElapsedSecond"], 5)

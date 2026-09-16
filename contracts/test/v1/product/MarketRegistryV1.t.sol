@@ -12,7 +12,8 @@ import {
     LaunchTemplate,
     MarketConfig,
     MarketView,
-    PonsBaseline,
+    PoolKey,
+    TickerGardenBaseline,
     QuoteAssetConfig
 } from "../../../src/v1/interfaces/IV1Protocol.sol";
 import {MarketRegistryV1} from "../../../src/v1/modules/MarketRegistryV1.sol";
@@ -37,6 +38,15 @@ contract MarketRegistryStockMock {
 contract MarketRegistryQuoteMock {
     mapping(bytes32 configId => QuoteAssetConfig value) private _quotes;
     bool private _identityIsCurrent = true;
+    address private _officialStockRegistry;
+
+    function setOfficialStockRegistry(address registry) external {
+        _officialStockRegistry = registry;
+    }
+
+    function officialStockRegistry() external view returns (address) {
+        return _officialStockRegistry;
+    }
 
     function setQuote(bytes32 configId, QuoteAssetConfig calldata value) external {
         _quotes[configId] = value;
@@ -56,13 +66,13 @@ contract MarketRegistryQuoteMock {
 }
 
 contract MarketRegistryBaselineMock {
-    mapping(bytes32 baselineId => PonsBaseline value) private _baselines;
+    mapping(bytes32 baselineId => TickerGardenBaseline value) private _baselines;
 
-    function setBaseline(bytes32 baselineId, PonsBaseline calldata value) external {
+    function setBaseline(bytes32 baselineId, TickerGardenBaseline calldata value) external {
         _baselines[baselineId] = value;
     }
 
-    function baseline(bytes32 baselineId) external view returns (PonsBaseline memory) {
+    function baseline(bytes32 baselineId) external view returns (TickerGardenBaseline memory) {
         return _baselines[baselineId];
     }
 }
@@ -123,20 +133,31 @@ contract MarketRegistryV1Test is Test {
         baselines = new MarketRegistryBaselineMock();
         templates = new MarketRegistryTemplateMock();
         assets.setAsset(ASSET_UID, AssetView(address(0x570C), address(0xA017), 18, 1));
+        quotes.setOfficialStockRegistry(address(assets));
         quotes.setQuote(QUOTE_CONFIG_ID, _quote(QUOTE_ASSET));
         baselines.setBaseline(BASELINE_ID, _baseline());
         templates.setTemplate(TEMPLATE_ID, _template());
         vm.etch(SWAP_ROUTER, hex"00");
         vm.etch(QUOTER, hex"00");
         registry = new MarketRegistryV1(
-            FACTORY,
-            address(assets),
-            address(quotes),
-            address(baselines),
-            address(templates),
-            GRADUATION,
-            SWAP_ROUTER,
-            QUOTER
+            FACTORY, address(assets), address(quotes), address(baselines), address(templates), GRADUATION
+        );
+    }
+
+    function test_constructorRejectsQuoteRegistryBoundToDifferentOfficialStockRegistry() public {
+        address wrongStockRegistry = address(new MarketRegistryStockMock());
+        quotes.setOfficialStockRegistry(wrongStockRegistry);
+
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                MarketRegistryV1.InvalidQuoteRegistryBinding.selector,
+                address(quotes),
+                address(assets),
+                wrongStockRegistry
+            )
+        );
+        new MarketRegistryV1(
+            FACTORY, address(assets), address(quotes), address(baselines), address(templates), GRADUATION
         );
     }
 
@@ -159,7 +180,9 @@ contract MarketRegistryV1Test is Test {
     function test_canonicalSelectorsAndOldInterventionSelectorsAreAbsent() public {
         assertEq(MarketRegistryV1.registerMarket.selector, IMarketRegistryV1.registerMarket.selector);
         assertEq(MarketRegistryV1.commitPoolCreated.selector, IMarketRegistryV1.commitPoolCreated.selector);
-        bytes4[6] memory removed = [
+        bytes4[8] memory removed = [
+            bytes4(keccak256("swapRouter()")),
+            bytes4(keccak256("quoter()")),
             bytes4(keccak256("setMarketPaused(bytes32,bytes32)")),
             bytes4(keccak256("setMarketActive(bytes32)")),
             bytes4(keccak256("setMarketRetired(bytes32,bytes32)")),
@@ -251,7 +274,7 @@ contract MarketRegistryV1Test is Test {
         QuoteAssetConfig memory quote = _quote(QUOTE_ASSET);
         quote.status = 3;
         quotes.setQuote(QUOTE_CONFIG_ID, quote);
-        PonsBaseline memory baseline = _baseline();
+        TickerGardenBaseline memory baseline = _baseline();
         baseline.status = 3;
         baselines.setBaseline(BASELINE_ID, baseline);
         LaunchTemplate memory template = _template();
@@ -277,6 +300,24 @@ contract MarketRegistryV1Test is Test {
         assertEq(version, 2);
     }
 
+    function test_selectedLpFeeBindsCanonicalPoolAndCannotBeOverwritten() public {
+        for (uint24 fee; fee <= 3000; fee += 1000) {
+            bytes32 id = bytes32(uint256(fee + 1));
+            MarketConfig memory c = _config(QUOTE_ASSET, address(uint160(MEME_TOKEN) + fee));
+            c.lpFeePips = fee;
+            _register(id, c);
+            PoolKey memory key = registry.canonicalPoolKey(id);
+            assertEq(key.fee, fee);
+            assertEq(registry.canonicalPoolId(id), keccak256(abi.encode(key)));
+            vm.prank(FACTORY);
+            vm.expectRevert();
+            registry.registerMarket(id, c);
+            vm.prank(GRADUATION);
+            registry.commitPoolCreated(id, keccak256(abi.encode(key)));
+            assertEq(registry.market(id).config.lpFeePips, fee);
+        }
+    }
+
     function _register(bytes32 marketId, MarketConfig memory config) private {
         vm.prank(FACTORY);
         registry.registerMarket(marketId, config);
@@ -296,11 +337,11 @@ contract MarketRegistryV1Test is Test {
     function _config(address quoteAsset, address memeToken) private pure returns (MarketConfig memory) {
         return MarketConfig({
             assetUid: ASSET_UID,
-            ponsBaselineId: BASELINE_ID,
+            tickerGardenBaselineId: BASELINE_ID,
             quoteAssetConfigId: QUOTE_CONFIG_ID,
             launchTemplateId: TEMPLATE_ID,
             feePolicyId: FEE_POLICY_ID,
-            executionSpecId: keccak256("V1-EXEC-10"),
+            executionSpecId: keccak256("V1-EXEC-11"),
             expectedEconomics: ECONOMICS,
             launchConfigId: 0,
             creatorRevenueBeneficiaryAtCreation: address(0xBEEF),
@@ -308,13 +349,18 @@ contract MarketRegistryV1Test is Test {
             curve: CURVE,
             gauge: GAUGE,
             quoteAsset: quoteAsset,
-            graduatedHook: HOOK
+            graduatedHook: HOOK,
+            creatorTaxBps: 0,
+            creatorFeesToHolders: false,
+            stakingEnabled: true,
+                burnMemeFees: false,
+            lpFeePips: 0
         });
     }
 
     function _quote(address quoteAsset) private pure returns (QuoteAssetConfig memory) {
         return QuoteAssetConfig({
-            ponsBaselineId: BASELINE_ID,
+            tickerGardenBaselineId: BASELINE_ID,
             quoteAsset: quoteAsset,
             quoteDecimals: quoteAsset == address(0) ? 18 : 6,
             phantomQuote: 1,
@@ -324,8 +370,8 @@ contract MarketRegistryV1Test is Test {
         });
     }
 
-    function _baseline() private pure returns (PonsBaseline memory) {
-        return PonsBaseline({
+    function _baseline() private pure returns (TickerGardenBaseline memory) {
+        return TickerGardenBaseline({
             referenceChainId: 4663,
             referenceFactory: address(0xFACADE),
             referenceFactoryCodeHash: keccak256("factory-runtime"),
@@ -352,7 +398,7 @@ contract MarketRegistryV1Test is Test {
             graduationExecutor: GRADUATION,
             graduationExecutorCodeHash: keccak256("executor"),
             feePolicyId: FEE_POLICY_ID,
-            executionSpecId: keccak256("V1-EXEC-10"),
+            executionSpecId: keccak256("V1-EXEC-11"),
             status: 1
         });
     }

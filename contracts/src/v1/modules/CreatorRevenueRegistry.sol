@@ -6,7 +6,7 @@ import {ReentrancyGuard} from "@openzeppelin/contracts/utils/ReentrancyGuard.sol
 import {
     ICreatorRevenueRegistry,
     IMarketRegistryV1,
-    IPonsCompatibleCurve,
+    ITickerGardenCurve,
     MarketView
 } from "../interfaces/IV1Protocol.sol";
 
@@ -20,6 +20,9 @@ contract CreatorRevenueRegistry is ICreatorRevenueRegistry, ReentrancyGuard {
 
     mapping(bytes32 marketId => uint32 epoch) internal _currentCreatorEpoch;
     mapping(bytes32 marketId => mapping(uint32 epoch => address beneficiary)) internal _creatorBeneficiaries;
+
+    mapping(bytes32 => address) public override pendingCreatorRevenueBeneficiary;
+    error UnauthorizedPendingBeneficiary(address caller, address expected);
 
     error InvalidConstructorAddress();
     error UnauthorizedFactory(address caller);
@@ -69,8 +72,34 @@ contract CreatorRevenueRegistry is ICreatorRevenueRegistry, ReentrancyGuard {
             revert InvalidNewBeneficiary(newBeneficiary);
         }
 
+        pendingCreatorRevenueBeneficiary[marketId] = newBeneficiary;
+        emit CreatorRevenueBeneficiaryProposed(marketId, oldEpoch, oldBeneficiary, newBeneficiary);
+        return oldEpoch;
+    }
+
+    function cancelCreatorRevenueBeneficiaryTransfer(bytes32 marketId) external override nonReentrant {
+        uint32 epoch = _currentCreatorEpoch[marketId];
+        address owner = _creatorBeneficiaries[marketId][epoch];
+        if (epoch == 0) revert CreatorRevenueEpochNotInitialized(marketId);
+        if (msg.sender != owner) revert UnauthorizedCurrentBeneficiary(msg.sender, owner);
+        delete pendingCreatorRevenueBeneficiary[marketId];
+        emit CreatorRevenueBeneficiaryTransferCancelled(marketId, epoch);
+    }
+
+    function acceptCreatorRevenueBeneficiary(bytes32 marketId)
+        external
+        override
+        nonReentrant
+        returns (uint32 newEpoch)
+    {
+        uint32 oldEpoch = _currentCreatorEpoch[marketId];
+        address oldBeneficiary = _creatorBeneficiaries[marketId][oldEpoch];
+        address newBeneficiary = pendingCreatorRevenueBeneficiary[marketId];
+        if (newBeneficiary == address(0) || msg.sender != newBeneficiary) {
+            revert UnauthorizedPendingBeneficiary(msg.sender, newBeneficiary);
+        }
         MarketView memory marketView = IMarketRegistryV1(marketRegistry).market(marketId);
-        IPonsCompatibleCurve curve = IPonsCompatibleCurve(marketView.config.curve);
+        ITickerGardenCurve curve = ITickerGardenCurve(marketView.config.curve);
         if (marketView.runtime.launchPhase == LAUNCH_PHASE_NOT_GRADUATED) curve.sweepCurveFees();
 
         uint256 accruedFees = curve.accruedCurveFees();
@@ -80,6 +109,7 @@ contract CreatorRevenueRegistry is ICreatorRevenueRegistry, ReentrancyGuard {
         if (_creatorBeneficiaries[marketId][newEpoch] != address(0)) {
             revert CreatorRevenueEpochAlreadyWritten(marketId, newEpoch);
         }
+        delete pendingCreatorRevenueBeneficiary[marketId];
         _currentCreatorEpoch[marketId] = newEpoch;
         _creatorBeneficiaries[marketId][newEpoch] = newBeneficiary;
         emit CreatorRevenueBeneficiaryUpdated(marketId, oldEpoch, newEpoch, oldBeneficiary, newBeneficiary);

@@ -93,6 +93,11 @@ contract MockMutableUserStockVaultIdentity {
         allocationManager = allocationManager_;
     }
 
+    function setIdentity(address registry_, bytes32 schemaId_) external {
+        registry = registry_;
+        schemaId = schemaId_;
+    }
+
     function vaultIdentity() external view returns (address, address, address, bytes32) {
         return (registry, marketRegistry, allocationManager, schemaId);
     }
@@ -107,6 +112,18 @@ contract MockDelegatingUserStockVaultIdentity is MockUserStockVaultIdentity {
         (bool success, bytes memory returned) = target.delegatecall(data);
         require(success, "DELEGATE_FAILED");
         return returned;
+    }
+}
+
+contract OfficialStockRegistryV1InspectionHarness is OfficialStockRegistryV1 {
+    constructor(address authority_) OfficialStockRegistryV1(authority_) {}
+
+    function containsForbiddenVaultOpcode(address target) external view returns (bool) {
+        return _containsForbiddenVaultOpcode(target);
+    }
+
+    function containsDelegateExecution(address target) external view returns (bool) {
+        return _containsDelegateExecution(target);
     }
 }
 
@@ -339,6 +356,24 @@ contract OfficialStockRegistryV1Test is Test {
         assertFalse(registry.assetIdentityCurrent(ASSET_UID));
     }
 
+    function testFuzz_vaultPinnedCodeStillChecksMutableIdentityAndDependencies(uint8 seed) public {
+        MockMutableUserStockVaultIdentity mutableVault = new MockMutableUserStockVaultIdentity(
+            address(registry), marketRegistry, allocationManager, VAULT_SCHEMA_ID
+        );
+        _registerFast(ASSET_UID, stockToken, 18, address(mutableVault));
+        bytes32 pinned = address(mutableVault).codehash;
+        uint256 variant = bound(uint256(seed), 0, 5);
+        if (variant == 0) mutableVault.setIdentity(address(0xBAD), VAULT_SCHEMA_ID);
+        else if (variant == 1) mutableVault.setIdentity(address(registry), keccak256("changed-schema"));
+        else if (variant == 2) mutableVault.setBindings(marketRegistry, address(new EmptyV1Contract()));
+        else if (variant == 3) mutableVault.setBindings(address(new EmptyV1Contract()), allocationManager);
+        else if (variant == 4) vm.etch(marketRegistry, hex"");
+        else vm.etch(allocationManager, hex"");
+        assertEq(address(mutableVault).codehash, pinned, "vault runtime is unchanged");
+        assertFalse(registry.vaultIdentityCurrent(address(mutableVault)));
+        assertFalse(registry.assetIdentityCurrent(ASSET_UID));
+    }
+
     function test_registerRejectsVaultRuntimeWithDelegatedExecution() public {
         address delegatingVault = address(
             new MockDelegatingUserStockVaultIdentity(
@@ -354,9 +389,7 @@ contract OfficialStockRegistryV1Test is Test {
             )
         );
         vm.prank(FAST_ADMIN);
-        registry.registerAsset(
-            ASSET_UID, stockToken, 18, delegatingVault, 0.5 ether, _directFingerprint(stockToken)
-        );
+        registry.registerAsset(ASSET_UID, stockToken, 18, delegatingVault, 0.5 ether, _directFingerprint(stockToken));
     }
 
     function test_minimumAllocationIsPerAssetAndUsesConfiguredAdminDelay() public {
@@ -492,6 +525,62 @@ contract OfficialStockRegistryV1Test is Test {
         registry.registerAsset(ASSET_UID, address(proxy), 18, vault, 0.5 ether, _directFingerprint(address(proxy)));
     }
 
+    function test_vaultScannerSkipsOnlyUnreachableInvalidDelimitedConstants() public {
+        OfficialStockRegistryV1InspectionHarness harness =
+            new OfficialStockRegistryV1InspectionHarness(address(manager));
+        address target = address(0xCA04);
+        vm.etch(target, hex"60006000f3fef2f4ff");
+        assertFalse(harness.containsForbiddenVaultOpcode(target));
+        // A jump target after INVALID makes the suffix executable.
+        vm.etch(target, hex"600456fe5bf4");
+        assertTrue(harness.containsForbiddenVaultOpcode(target));
+        // INVALID inside PUSH data must never terminate the scan.
+        vm.etch(target, hex"60fef4");
+        assertTrue(harness.containsForbiddenVaultOpcode(target));
+        vm.etch(target, hex"f2fe");
+        assertTrue(harness.containsForbiddenVaultOpcode(target));
+        vm.etch(target, hex"fffe");
+        assertTrue(harness.containsForbiddenVaultOpcode(target));
+        vm.etch(target, hex"62f2f4ff00");
+        assertFalse(harness.containsForbiddenVaultOpcode(target));
+    }
+
+    function test_delegateScannerIgnoresSolidityCborMetadataButNotExecutableOpcodes() public {
+        OfficialStockRegistryV1InspectionHarness harness =
+            new OfficialStockRegistryV1InspectionHarness(address(manager));
+        address metadataOnly = address(0xCA01);
+        address executableDelegate = address(0xCA02);
+        address jumpableSuffix = address(0xCA03);
+        address fakeMetadataAfterPushImmediate = address(0xCA05);
+        vm.etch(metadataOnly, hex"60006000f3fea16178f40004");
+        vm.etch(executableDelegate, hex"60006000f40000");
+        vm.etch(jumpableSuffix, hex"60006000f3fe5bf4a16178000004");
+        vm.etch(fakeMetadataAfterPushImmediate, hex"60fe50365f5f375f5f365f5f545af43d5f5f3e3d5ff3a00001");
+
+        assertFalse(harness.containsDelegateExecution(metadataOnly));
+        assertTrue(harness.containsDelegateExecution(executableDelegate));
+        assertTrue(harness.containsDelegateExecution(jumpableSuffix));
+        assertTrue(harness.containsDelegateExecution(fakeMetadataAfterPushImmediate));
+    }
+
+    function test_delegateScannerHandlesLiteralDataBeforeCborWithoutHidingJumpableCode() public {
+        OfficialStockRegistryV1InspectionHarness harness =
+            new OfficialStockRegistryV1InspectionHarness(address(manager));
+        address constantsBeforeCbor = address(0xCA06);
+        address laterJumpDestination = address(0xCA07);
+        address invalidInsidePush = address(0xCA08);
+        // The real CRM implementation has this INVALID + literals + CBOR layout.
+        vm.etch(
+            constantsBeforeCbor,
+            hex"00fe395525728d1d6f4af44d273368682dd92b28e7464d750ef3212d3cb7f5959d0052c63247e1f47db19d5ce0460030c497f067ca4cebf71ba98eeadabe20bace0068747470733a2f2f726f62696e686f6f642e636f6d2f73746f636b746f6b656e2f72686a8d25ea8ee309999a79f0af498fbab0e424669497170669bd9e93b81a62babc008d25ea8ee309999a79f0af498fbab0e424669497170669bd9e93b81a62babc01a2646970667358221220de4ea362122513b8e7578bfb315ce99fc240a11e4e9c5464cada2fa0503fe7aa64736f6c63430008210033"
+        );
+        vm.etch(laterJumpDestination, hex"600456fe5bf4fe112233");
+        vm.etch(invalidInsidePush, hex"61fe0050f400");
+        assertFalse(harness.containsDelegateExecution(constantsBeforeCbor));
+        assertTrue(harness.containsDelegateExecution(laterJumpDestination));
+        assertTrue(harness.containsDelegateExecution(invalidInsidePush));
+    }
+
     function test_beaconUpgradeDriftRequiresPauseAndCommittedImplementationAcceptance() public {
         MockBeaconStockTokenLogic firstImplementation = new MockBeaconStockTokenLogic();
         UpgradeableBeacon beacon = new UpgradeableBeacon(address(firstImplementation), address(this));
@@ -546,6 +635,70 @@ contract OfficialStockRegistryV1Test is Test {
         assertEq(stored.implementation, address(secondImplementation));
         assertEq(stored.implementationRuntimeCodeHash, address(secondImplementation).codehash);
         assertEq(registry.asset(ASSET_UID).status, 2);
+    }
+
+    function test_sameBeaconImplementationCanRegisterTwoDifferentAssetUids() public {
+        MockBeaconStockTokenLogic implementation = new MockBeaconStockTokenLogic();
+        UpgradeableBeacon beacon = new UpgradeableBeacon(address(implementation), address(this));
+        BeaconProxy first = new BeaconProxy(address(beacon), abi.encodeCall(MockBeaconStockTokenLogic.initialize, (ASSET_UID, uint8(18))));
+        BeaconProxy second = new BeaconProxy(address(beacon), abi.encodeCall(MockBeaconStockTokenLogic.initialize, (OTHER_ASSET_UID, uint8(18))));
+        vm.prank(FAST_ADMIN);
+        registry.registerAsset(ASSET_UID, address(first), 18, vault, 0.5 ether, StockTokenFingerprintTestLib.beacon(address(first), address(beacon), address(implementation)));
+        vm.prank(FAST_ADMIN);
+        registry.registerAsset(OTHER_ASSET_UID, address(second), 18, vault, 0.5 ether, StockTokenFingerprintTestLib.beacon(address(second), address(beacon), address(implementation)));
+        assertTrue(registry.assetIdentityCurrent(ASSET_UID));
+        assertTrue(registry.assetIdentityCurrent(OTHER_ASSET_UID));
+    }
+
+    function test_cachedCodeHashDoesNotSkipTokenIdentityOrFingerprintChecks() public {
+        MockBeaconStockTokenLogic implementation = new MockBeaconStockTokenLogic();
+        UpgradeableBeacon beacon = new UpgradeableBeacon(address(implementation), address(this));
+        BeaconProxy first = new BeaconProxy(address(beacon), abi.encodeCall(MockBeaconStockTokenLogic.initialize, (ASSET_UID, uint8(18))));
+        BeaconProxy second = new BeaconProxy(address(beacon), abi.encodeCall(MockBeaconStockTokenLogic.initialize, (OTHER_ASSET_UID, uint8(18))));
+        vm.prank(FAST_ADMIN);
+        registry.registerAsset(ASSET_UID, address(first), 18, vault, 0.5 ether, StockTokenFingerprintTestLib.beacon(address(first), address(beacon), address(implementation)));
+        StockTokenFingerprint memory fingerprint = StockTokenFingerprintTestLib.beacon(address(second), address(beacon), address(implementation));
+        bytes32 incorrectUid = keccak256("incorrect-uid");
+        vm.expectRevert(abi.encodeWithSelector(OfficialStockRegistryV1.StockTokenUidMismatch.selector, address(second), incorrectUid, OTHER_ASSET_UID));
+        vm.prank(FAST_ADMIN);
+        registry.registerAsset(incorrectUid, address(second), 18, vault, 0.5 ether, fingerprint);
+        vm.expectRevert(abi.encodeWithSelector(OfficialStockRegistryV1.StockTokenDecimalsMismatch.selector, address(second), uint8(6), uint256(18)));
+        vm.prank(FAST_ADMIN);
+        registry.registerAsset(OTHER_ASSET_UID, address(second), 6, vault, 0.5 ether, fingerprint);
+        bytes32 correctHash = keccak256(abi.encode(fingerprint));
+        fingerprint.tokenRuntimeCodeHash = bytes32(uint256(1));
+        vm.expectRevert(abi.encodeWithSelector(OfficialStockRegistryV1.StockTokenFingerprintMismatch.selector, OTHER_ASSET_UID, keccak256(abi.encode(fingerprint)), correctHash));
+        vm.prank(FAST_ADMIN);
+        registry.registerAsset(OTHER_ASSET_UID, address(second), 18, vault, 0.5 ether, fingerprint);
+        assertEq(registry.asset(OTHER_ASSET_UID).status, 0);
+    }
+
+    function test_newBeaconTokenRejectsExecutableDelegateImplementationEvenAfterSafeCacheHit() public {
+        MockBeaconStockTokenLogic implementation = new MockBeaconStockTokenLogic();
+        UpgradeableBeacon beacon = new UpgradeableBeacon(address(implementation), address(this));
+        BeaconProxy first = new BeaconProxy(address(beacon), abi.encodeCall(MockBeaconStockTokenLogic.initialize, (ASSET_UID, uint8(18))));
+        vm.prank(FAST_ADMIN);
+        registry.registerAsset(ASSET_UID, address(first), 18, vault, 0.5 ether, StockTokenFingerprintTestLib.beacon(address(first), address(beacon), address(implementation)));
+        MockNestedDelegateStockTokenLogic unsafe = new MockNestedDelegateStockTokenLogic();
+        beacon.upgradeTo(address(unsafe));
+        BeaconProxy second = new BeaconProxy(address(beacon), abi.encodeCall(MockBeaconStockTokenLogic.initialize, (OTHER_ASSET_UID, uint8(18))));
+        vm.expectRevert(abi.encodeWithSelector(OfficialStockRegistryV1.UnmonitoredDelegateProxy.selector, address(unsafe)));
+        vm.prank(FAST_ADMIN);
+        registry.registerAsset(OTHER_ASSET_UID, address(second), 18, vault, 0.5 ether, StockTokenFingerprintTestLib.beacon(address(second), address(beacon), address(unsafe)));
+    }
+
+    function test_changedCodeAtCachedAddressIsRescannedAndRejected() public {
+        MockBeaconStockTokenLogic implementation = new MockBeaconStockTokenLogic();
+        UpgradeableBeacon beacon = new UpgradeableBeacon(address(implementation), address(this));
+        BeaconProxy first = new BeaconProxy(address(beacon), abi.encodeCall(MockBeaconStockTokenLogic.initialize, (ASSET_UID, uint8(18))));
+        vm.prank(FAST_ADMIN);
+        registry.registerAsset(ASSET_UID, address(first), 18, vault, 0.5 ether, StockTokenFingerprintTestLib.beacon(address(first), address(beacon), address(implementation)));
+        BeaconProxy second = new BeaconProxy(address(beacon), abi.encodeCall(MockBeaconStockTokenLogic.initialize, (OTHER_ASSET_UID, uint8(18))));
+        MockNestedDelegateStockTokenLogic unsafe = new MockNestedDelegateStockTokenLogic();
+        vm.etch(address(implementation), address(unsafe).code);
+        vm.expectRevert(abi.encodeWithSelector(OfficialStockRegistryV1.UnmonitoredDelegateProxy.selector, address(implementation)));
+        vm.prank(FAST_ADMIN);
+        registry.registerAsset(OTHER_ASSET_UID, address(second), 18, vault, 0.5 ether, StockTokenFingerprintTestLib.beacon(address(second), address(beacon), address(implementation)));
     }
 
     function test_acceptRejectsNestedDelegateImplementationThatWouldEscapeMonitoring() public {

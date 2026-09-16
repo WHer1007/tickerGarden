@@ -1,0 +1,13 @@
+[Unit]
+Description=Advance TickerGarden test finalized event coverage
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+EnvironmentFile=/etc/tickergarden/test.env
+ExecStart=/bin/sh -c 'exec /usr/bin/curl --fail --silent --show-error --max-time 300 -X POST -H "Authorization: Bearer $TG_REPAIR_TOKEN" https://tickergarden-pipeline-test.vercel.app/internal/bootstrap'
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true

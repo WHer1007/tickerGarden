@@ -8,6 +8,8 @@ import {Test} from "forge-std/Test.sol";
 import {AssetView, MarketView, StockTokenFingerprint} from "../../../src/v1/interfaces/IV1Protocol.sol";
 import {OfficialStockRegistryV1} from "../../../src/v1/modules/OfficialStockRegistryV1.sol";
 import {ProtocolFeeVault, ProtocolFeeVaultInit} from "../../../src/v1/modules/ProtocolFeeVault.sol";
+import {ProtocolFeeVaultUserClaims} from "../../../src/v1/shared/ProtocolFeeVaultUserClaims.sol";
+import {ProtocolFeeVaultV4Credit} from "../../../src/v1/shared/ProtocolFeeVaultV4Credit.sol";
 import {UserStockVault} from "../../../src/v1/modules/UserStockVault.sol";
 import {MockExactQuoteToken} from "../mocks/MockV1QuoteAssets.sol";
 import {StockTokenFingerprintTestLib} from "../mocks/StockTokenFingerprintTestLib.sol";
@@ -92,6 +94,7 @@ contract MultiAssetMarketRegistryMock {
 
     function configureFeeMarket(bytes32 marketId, address gauge, address quoteAsset, address memeToken) external {
         _markets[marketId].config.gauge = gauge;
+        _markets[marketId].config.stakingEnabled = true;
         _markets[marketId].config.quoteAsset = quoteAsset;
         _markets[marketId].config.memeToken = memeToken;
     }
@@ -119,6 +122,13 @@ contract MultiAssetAllocationManagerMock {
 }
 
 contract MultiAssetFeeGaugeMock {
+    address immutable quote;
+    address immutable meme;
+
+    constructor(address q, address m) {
+        quote = q;
+        meme = m;
+    }
     mapping(address user => mapping(address asset => uint256 amount)) private _claimable;
 
     function addClaimable(address user, address asset, uint256 amount) external {
@@ -129,9 +139,15 @@ contract MultiAssetFeeGaugeMock {
         return _claimable[user][asset];
     }
 
-    function consumeClaimable(address user, address asset) external returns (uint256 amount) {
-        amount = _claimable[user][asset];
-        delete _claimable[user][asset];
+    function consumeClaimableAssets(address user, uint8 assets) external returns (uint256 q, uint256 m) {
+        if (assets & 1 != 0) {
+            q = _claimable[user][quote];
+            delete _claimable[user][quote];
+        }
+        if (assets & 2 != 0) {
+            m = _claimable[user][meme];
+            delete _claimable[user][meme];
+        }
     }
 }
 
@@ -140,6 +156,7 @@ contract MultiAssetFeeVaultHarness is ProtocolFeeVault {
 
     constructor(address marketRegistry_, address gauge_, address quoteAsset_, address memeAsset_)
         ProtocolFeeVault(ProtocolFeeVaultInit({
+                authority: marketRegistry_,
                 marketRegistry: marketRegistry_,
                 poolManager: address(new MockExactQuoteToken(18)),
                 creatorRevenueRegistry: address(new MockExactQuoteToken(18)),
@@ -253,7 +270,8 @@ contract MultiAssetSettlementHandler is Test {
     function claimFee(uint8 assetSeed, uint8 userSeed) external {
         uint256 index = assetSeed % 2;
         address user = _users[userSeed % 2];
-        try feeVault.claimStakerFor(user, feeVault.FEE_MARKET(), address(feeAsset[index])) {} catch {}
+        vm.prank(user);
+        try feeVault.claimUserRewards(keccak256("multi-asset-fee-market"), 1, 0) {} catch {}
     }
 
     function userAt(uint256 index) external view returns (address) {
@@ -292,7 +310,7 @@ contract MultiAssetMaliciousSettlementInvariantTest is StdInvariant, Test {
         feeAsset[1] = new MultiAssetMaliciousToken(18);
         stock[0].setUid(ASSET_A);
         stock[1].setUid(ASSET_B);
-        feeGauge = new MultiAssetFeeGaugeMock();
+        feeGauge = new MultiAssetFeeGaugeMock(address(feeAsset[0]), address(feeAsset[1]));
         feeVault = new MultiAssetFeeVaultHarness(
             address(marketRegistry), address(feeGauge), address(feeAsset[0]), address(feeAsset[1])
         );
@@ -380,7 +398,7 @@ contract MultiAssetMaliciousSettlementInvariantTest is StdInvariant, Test {
         feeAsset[0].setMode(MultiAssetMaliciousToken.Mode.FEE_ON_TRANSFER);
 
         vm.prank(ALICE);
-        try feeVault.claimStakerFor(ALICE, feeVault.FEE_MARKET(), address(feeAsset[0])) {} catch {}
+        try feeVault.claimUserRewards(keccak256("multi-asset-fee-market"), 1, 0) {} catch {}
         assertEq(feeVault.totalLiability(address(feeAsset[0])), amount);
         assertEq(feeAsset[0].balanceOf(address(feeVault)), amount);
         assertEq(feeGauge.claimable(ALICE, address(feeAsset[0])), amount);
@@ -388,7 +406,7 @@ contract MultiAssetMaliciousSettlementInvariantTest is StdInvariant, Test {
         feeAsset[0].setMode(MultiAssetMaliciousToken.Mode.EXACT);
         uint256 beforeUser = feeAsset[0].balanceOf(ALICE);
         vm.prank(ALICE);
-        feeVault.claimStakerFor(ALICE, feeVault.FEE_MARKET(), address(feeAsset[0]));
+        feeVault.claimUserRewards(keccak256("multi-asset-fee-market"), 1, 0);
         assertEq(feeVault.totalLiability(address(feeAsset[0])), 0);
         assertEq(feeAsset[0].balanceOf(address(feeVault)), 0);
         assertEq(feeAsset[0].balanceOf(ALICE) - beforeUser, amount);

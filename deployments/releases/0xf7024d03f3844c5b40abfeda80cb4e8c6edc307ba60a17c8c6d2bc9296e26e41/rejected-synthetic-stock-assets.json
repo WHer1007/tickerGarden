@@ -1,0 +1,49 @@
+{
+  "schemaVersion": 1,
+  "status": "REGISTRY_ACTIVE",
+  "networkScope": "ROBINHOOD_TESTNET_ONLY",
+  "chainId": 46630,
+  "releaseId": "0xf7024d03f3844c5b40abfeda80cb4e8c6edc307ba60a17c8c6d2bc9296e26e41",
+  "officialStockRegistry": "0x5a04e4dB95BcEFb7f4CddC7E27576f8D74029586",
+  "userStockVault": "0x8b58A2c4166D5a2Dad021D8772114b4b41813584",
+  "assets": [
+    {
+      "symbol": "NVDA",
+      "name": "TickerGarden Test NVDA Stock",
+      "assetUid": "0x00000000000000000000000000000000915f477416294f5099a5e0e09f327ce5",
+      "testnetTokenAddress": "0x30727a54387012a435576aac1bbeaa0766dc2903",
+      "productionTokenAddress": "0xd0601ce157db5bdc3162bbac2a2c8af5320d9eec",
+      "decimals": 18,
+      "minimumAllocation": "1000000000000000000",
+      "runtimeCodeHash": "0x1f0c4c78bd251459b8dd09ead28954b40de868fd496bddd65367744b988d6e85",
+      "status": "ACTIVE_TEST_ONLY"
+    },
+    {
+      "symbol": "AAPL",
+      "name": "TickerGarden Test AAPL Stock",
+      "assetUid": "0x00000000000000000000000000000000c2425be3658540dd8e2424cbf3c5c649",
+      "testnetTokenAddress": "0xc5816626e002461675f60a0e9f1b2f717142c98d",
+      "productionTokenAddress": "0xaf3d76f1834a1d425780943c99ea8a608f8a93f9",
+      "decimals": 18,
+      "minimumAllocation": "1000000000000000000",
+      "runtimeCodeHash": "0x4ba8cd39d7b196e7ba3c0b900e63c076ac594988cc8fb771a2141270c1a353bf",
+      "status": "ACTIVE_TEST_ONLY"
+    },
+    {
+      "symbol": "TSLA",
+      "name": "TickerGarden Test TSLA Stock",
+      "assetUid": "0x00000000000000000000000000000000cfece3244ea34bb29414dd9488b32d9f",
+      "testnetTokenAddress": "0xc882fb686c3455f41c47ec60a371840ed7a51645",
+      "productionTokenAddress": "0x322f0929c4625ed5bad873c95208d54e1c003b2d",
+      "decimals": 18,
+      "minimumAllocation": "1000000000000000000",
+      "runtimeCodeHash": "0x5214098ee44ff3dc7fe14e88037235c8d0b33cd56b1ccfa4e7eb8e52d8cfffd7",
+      "status": "ACTIVE_TEST_ONLY"
+    }
+  ],
+  "observedAt": "2026-09-07T19:24:16.530Z",
+  "limitations": [
+    "Synthetic test tokens have no monetary value.",
+    "Production addresses are correspondence metadata only and are never used by the testnet frontend."
+  ]
+}

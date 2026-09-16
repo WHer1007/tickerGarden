@@ -1,0 +1,17 @@
+.git
+.vercel
+.codex_tmp
+outputs
+**/node_modules
+**/dist
+**/.env*
+**/.state
+contracts/lib
+contracts/out*
+contracts/cache*
+contracts/broadcast
+docs/reviews/evidence
+docs/references/data
+apps/web/qa-captures
+apps/web/public/integration
+apps/web/tests

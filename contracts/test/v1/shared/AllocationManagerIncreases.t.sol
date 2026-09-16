@@ -66,7 +66,14 @@ contract MockIncreaseMarketRegistry {
         _registered[marketId] = true;
         _markets[marketId].config.assetUid = assetUid;
         _markets[marketId].config.gauge = gauge;
+        _markets[marketId].config.stakingEnabled = true;
         _markets[marketId].runtime.launchPhase = launchPhase;
+    }
+
+    function disableStaking(bytes32 marketId) external {
+        _markets[marketId].config.assetUid = bytes32(0);
+        _markets[marketId].config.gauge = address(0);
+        _markets[marketId].config.stakingEnabled = false;
     }
 
     function market(bytes32 marketId) external view returns (MarketView memory) {
@@ -257,6 +264,31 @@ contract AllocationManagerIncreasesTest is Test {
             manager.allocate(MARKET_ID, 1 ether);
         }
         assertEq(gauge.checkpointCalls(), 0);
+    }
+
+    function test_disabledStakingRejectsAllocateAndIncreaseBeforeTokenOrBalanceMutation() public {
+        _deposit(ALICE, 2 ether);
+        vm.prank(ALICE);
+        manager.allocate(MARKET_ID, 0.5 ether);
+
+        marketRegistry.disableStaking(MARKET_ID);
+        uint256 freeBalance = vault.freeBalanceOf(ASSET_UID, ALICE);
+        uint256 allocated = vault.allocation(ASSET_UID, ALICE, MARKET_ID);
+        uint256 tokenBalance = stockToken.balanceOf(address(vault));
+        uint256 checkpointCalls = gauge.checkpointCalls();
+
+        vm.expectRevert(abi.encodeWithSelector(AllocationManagerIncreases.StockAllocationClosed.selector, MARKET_ID));
+        vm.prank(ALICE);
+        manager.increaseAllocation(MARKET_ID, 1);
+
+        vm.expectRevert(abi.encodeWithSelector(AllocationManagerIncreases.StockAllocationClosed.selector, MARKET_ID));
+        vm.prank(ALICE);
+        manager.allocate(MARKET_ID, 1);
+
+        assertEq(vault.freeBalanceOf(ASSET_UID, ALICE), freeBalance);
+        assertEq(vault.allocation(ASSET_UID, ALICE, MARKET_ID), allocated);
+        assertEq(stockToken.balanceOf(address(vault)), tokenBalance);
+        assertEq(gauge.checkpointCalls(), checkpointCalls);
     }
 
     function test_identityDriftBlocksNewAllocationBeforeGaugeOrVaultMutation() public {

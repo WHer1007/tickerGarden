@@ -1,0 +1,273 @@
+No files changed, compilation skipped
+Script ran successfully.
+
+== Return ==
+plan: struct V1DeploymentPlan V1DeploymentPlan({ ordinaryComponents: [0x0fdb0BbA96870609758B61f87C648aAccA7E695E, 0x01564750928A97faDDC94c69306E6a8598cD2a03, 0x14697017390ee72157b0f294764673E36A6a614d, 0xdAB7EBa06f8fBECAd13ae622D6993c6f645d099a, 0x3Bd049845131ba86fcbF17685ACedb203aFE7e8C, 0x04A1AB04a0Cc3F27AfA7a1C24bB23Fb540A81C40, 0x2C542d34c04B101cd30E11EA459ac98cAE05f6DC, 0x68F4AA8403592bdDDB9235E2dc77394993081777, 0x97f033BE7243123a4Bf86026560809B8cd03eeE3, 0xdCe9a656Eb611A7Ee34651Ead17F3b76e2155756, 0xaB37F78D3a41c8F510f5a95A74F1Ff1144E14660, 0x02D2700Ce866c2E88BB21819DF07F8B894Ec7d73, 0x6EaC1c710Edf540BBAcfc3B5Da2Ad427e916741F, 0x6910d8Eeecd8589bed39830eA854Ae250584e59E, 0xC2716b960BD675Fa7F605Ce8D191b6E247cf61e8, 0x8c4CE2BB409B68697024AFc28D26138D621035e2], helper: 0x724c3B3e31bCAd54eAdc755Fc48dbBeE63E5C5e8, hook: 0x3D10b2891730dC11F352087B0703A93772d56044, executor: 0xbc20F5659FB44FB1471901ca8FDBa9F068a464e9, factory: 0xF11839C3566C8B3345Ed81E4A0e26cc38Aa2866A, payloadHash: 0x9c47100e76c4c62bad065dc0121ee868fc7602f3954f79bd813645e7f325d929 })
+
+== Logs ==
+  V1 release id
+  0x685b5c20e826f4ddd076b61216c7529a967322082925c4741469b0fda837a7f2
+  orchestrator 0xaC95bB20770bD8DC2a999a891B086C64e2335f29
+  orchestrator salt
+  0x3967b6410450079cedc5a0e668861dbf83847c3dc9a57271396e6865a5a1803b
+  helper 0x724c3B3e31bCAd54eAdc755Fc48dbBeE63E5C5e8
+  helper salt
+  0x6ab3cf05faeaf8ae42c36956c36b4fd501934185fc9d9c5c95ecfb87da73902c
+  helper salt attempts 16545
+  hook 0x3D10b2891730dC11F352087B0703A93772d56044
+  executor 0xbc20F5659FB44FB1471901ca8FDBa9F068a464e9
+  factory 0xF11839C3566C8B3345Ed81E4A0e26cc38Aa2866A
+  factory salt
+  0x48268874e554d3896173d87d6af1fa5e0c6c3735aa2be7a9cea17de2a8c8811a
+  payload hash
+  0x9c47100e76c4c62bad065dc0121ee868fc7602f3954f79bd813645e7f325d929
+2026-09-13T11:00:04.998658Z  WARN foundry_evm_traces::debug::sources: failed to parse contract definitions for lib/forge-std/src/StdAssertions.sol
+2026-09-13T11:00:04.999097Z  WARN foundry_evm_traces::debug::sources: failed to parse contract definitions for lib/forge-std/src/StdError.sol
+2026-09-13T11:00:04.999163Z  WARN foundry_evm_traces::debug::sources: failed to parse contract definitions for lib/forge-std/src/StdInvariant.sol
+2026-09-13T11:00:05.001044Z  WARN foundry_evm_traces::debug::sources: failed to parse contract definitions for lib/forge-std/src/StdToml.sol
+2026-09-13T11:00:05.001235Z  WARN foundry_evm_traces::debug::sources: failed to parse contract definitions for lib/forge-std/src/Test.sol
+2026-09-13T11:00:05.004725Z  WARN foundry_evm_traces::debug::sources: failed to parse contract definitions for lib/openzeppelin-contracts/contracts/access/Ownable.sol
+2026-09-13T11:00:05.005441Z  WARN foundry_evm_traces::debug::sources: failed to parse contract definitions for lib/openzeppelin-contracts/contracts/interfaces/IERC1967.sol
+2026-09-13T11:00:05.005886Z  WARN foundry_evm_traces::debug::sources: failed to parse contract definitions for lib/openzeppelin-contracts/contracts/proxy/ERC1967/ERC1967Proxy.sol
+2026-09-13T11:00:05.005984Z  WARN foundry_evm_traces::debug::sources: failed to parse contract definitions for lib/openzeppelin-contracts/contracts/proxy/ERC1967/ERC1967Utils.sol
+2026-09-13T11:00:05.006084Z  WARN foundry_evm_traces::debug::sources: failed to parse contract definitions for lib/openzeppelin-contracts/contracts/proxy/Proxy.sol
+2026-09-13T11:00:05.006131Z  WARN foundry_evm_traces::debug::sources: failed to parse contract definitions for lib/openzeppelin-contracts/contracts/proxy/beacon/BeaconProxy.sol
+2026-09-13T11:00:05.006198Z  WARN foundry_evm_traces::debug::sources: failed to parse contract definitions for lib/openzeppelin-contracts/contracts/proxy/beacon/IBeacon.sol
+2026-09-13T11:00:05.006245Z  WARN foundry_evm_traces::debug::sources: failed to parse contract definitions for lib/openzeppelin-contracts/contracts/proxy/beacon/UpgradeableBeacon.sol
+2026-09-13T11:00:05.007669Z  WARN foundry_evm_traces::debug::sources: failed to parse contract definitions for lib/v4-periphery/lib/v4-core/lib/solmate/src/auth/Owned.sol
+2026-09-13T11:00:05.007730Z  WARN foundry_evm_traces::debug::sources: failed to parse contract definitions for lib/v4-periphery/lib/v4-core/src/ERC6909.sol
+2026-09-13T11:00:05.007780Z  WARN foundry_evm_traces::debug::sources: failed to parse contract definitions for lib/v4-periphery/lib/v4-core/src/ERC6909Claims.sol
+2026-09-13T11:00:05.007843Z  WARN foundry_evm_traces::debug::sources: failed to parse contract definitions for lib/v4-periphery/lib/v4-core/src/Extsload.sol
+2026-09-13T11:00:05.007931Z  WARN foundry_evm_traces::debug::sources: failed to parse contract definitions for lib/v4-periphery/lib/v4-core/src/Exttload.sol
+2026-09-13T11:00:05.007984Z  WARN foundry_evm_traces::debug::sources: failed to parse contract definitions for lib/v4-periphery/lib/v4-core/src/NoDelegateCall.sol
+2026-09-13T11:00:05.008036Z  WARN foundry_evm_traces::debug::sources: failed to parse contract definitions for lib/v4-periphery/lib/v4-core/src/PoolManager.sol
+2026-09-13T11:00:05.008119Z  WARN foundry_evm_traces::debug::sources: failed to parse contract definitions for lib/v4-periphery/lib/v4-core/src/ProtocolFees.sol
+2026-09-13T11:00:05.008400Z  WARN foundry_evm_traces::debug::sources: failed to parse contract definitions for lib/v4-periphery/lib/v4-core/src/interfaces/callback/IUnlockCallback.sol
+2026-09-13T11:00:05.008641Z  WARN foundry_evm_traces::debug::sources: failed to parse contract definitions for lib/v4-periphery/lib/v4-core/src/libraries/CurrencyDelta.sol
+2026-09-13T11:00:05.008689Z  WARN foundry_evm_traces::debug::sources: failed to parse contract definitions for lib/v4-periphery/lib/v4-core/src/libraries/CurrencyReserves.sol
+2026-09-13T11:00:05.009303Z  WARN foundry_evm_traces::debug::sources: failed to parse contract definitions for lib/v4-periphery/lib/v4-core/src/libraries/Hooks.sol
+2026-09-13T11:00:05.012191Z  WARN foundry_evm_traces::debug::sources: failed to parse contract definitions for lib/v4-periphery/lib/v4-core/src/libraries/Lock.sol
+2026-09-13T11:00:05.012332Z  WARN foundry_evm_traces::debug::sources: failed to parse contract definitions for lib/v4-periphery/lib/v4-core/src/libraries/NonzeroDeltaCount.sol
+2026-09-13T11:00:05.012368Z  WARN foundry_evm_traces::debug::sources: failed to parse contract definitions for lib/v4-periphery/lib/v4-core/src/libraries/ParseBytes.sol
+2026-09-13T11:00:05.014812Z  WARN foundry_evm_traces::debug::sources: failed to parse contract definitions for lib/v4-periphery/lib/v4-core/src/libraries/TransientStateLibrary.sol
+2026-09-13T11:00:05.014982Z  WARN foundry_evm_traces::debug::sources: failed to parse contract definitions for lib/v4-periphery/lib/v4-core/src/test/PoolModifyLiquidityTest.sol
+2026-09-13T11:00:05.015084Z  WARN foundry_evm_traces::debug::sources: failed to parse contract definitions for lib/v4-periphery/lib/v4-core/src/test/PoolSwapTest.sol
+2026-09-13T11:00:05.015141Z  WARN foundry_evm_traces::debug::sources: failed to parse contract definitions for lib/v4-periphery/lib/v4-core/src/test/PoolTestBase.sol
+2026-09-13T11:00:05.015658Z  WARN foundry_evm_traces::debug::sources: failed to parse contract definitions for lib/v4-periphery/lib/v4-core/test/utils/CurrencySettler.sol
+2026-09-13T11:00:05.015703Z  WARN foundry_evm_traces::debug::sources: failed to parse contract definitions for lib/v4-periphery/src/V4Router.sol
+2026-09-13T11:00:05.015745Z  WARN foundry_evm_traces::debug::sources: failed to parse contract definitions for lib/v4-periphery/src/base/BaseActionsRouter.sol
+2026-09-13T11:00:05.015776Z  WARN foundry_evm_traces::debug::sources: failed to parse contract definitions for lib/v4-periphery/src/base/DeltaResolver.sol
+2026-09-13T11:00:05.015814Z  WARN foundry_evm_traces::debug::sources: failed to parse contract definitions for lib/v4-periphery/src/base/ImmutableState.sol
+2026-09-13T11:00:05.015856Z  WARN foundry_evm_traces::debug::sources: failed to parse contract definitions for lib/v4-periphery/src/base/SafeCallback.sol
+2026-09-13T11:00:05.015992Z  WARN foundry_evm_traces::debug::sources: failed to parse contract definitions for lib/v4-periphery/src/interfaces/IMsgSender.sol
+2026-09-13T11:00:05.016295Z  WARN foundry_evm_traces::debug::sources: failed to parse contract definitions for lib/v4-periphery/src/interfaces/IStateView.sol
+2026-09-13T11:00:05.016469Z  WARN foundry_evm_traces::debug::sources: failed to parse contract definitions for lib/v4-periphery/src/interfaces/IV4Router.sol
+2026-09-13T11:00:05.016512Z  WARN foundry_evm_traces::debug::sources: failed to parse contract definitions for lib/v4-periphery/src/libraries/ActionConstants.sol
+2026-09-13T11:00:05.016586Z  WARN foundry_evm_traces::debug::sources: failed to parse contract definitions for lib/v4-periphery/src/libraries/BipsLibrary.sol
+2026-09-13T11:00:05.016667Z  WARN foundry_evm_traces::debug::sources: failed to parse contract definitions for lib/v4-periphery/src/libraries/CalldataDecoder.sol
+2026-09-13T11:00:05.016783Z  WARN foundry_evm_traces::debug::sources: failed to parse contract definitions for lib/v4-periphery/src/libraries/PathKey.sol
+2026-09-13T11:00:05.016946Z  WARN foundry_evm_traces::debug::sources: failed to parse contract definitions for script/v1/ArbitrumActiveScenarioStock.sol
+2026-09-13T11:00:05.017013Z  WARN foundry_evm_traces::debug::sources: failed to parse contract definitions for script/v1/ArbitrumContinuousTestDriver.sol
+2026-09-13T11:00:05.017075Z  WARN foundry_evm_traces::debug::sources: failed to parse contract definitions for script/v1/ArbitrumScenarioStock.sol
+2026-09-13T11:00:05.017146Z  WARN foundry_evm_traces::debug::sources: failed to parse contract definitions for script/v1/ArbitrumTestBaselineFixture.sol
+2026-09-13T11:00:05.017225Z  WARN foundry_evm_traces::debug::sources: failed to parse contract definitions for script/v1/ArbitrumTestTreasury.sol
+2026-09-13T11:00:05.017307Z  WARN foundry_evm_traces::debug::sources: failed to parse contract definitions for script/v1/DeployV1ArbitrumContinuousHolders.s.sol
+2026-09-13T11:00:05.017435Z  WARN foundry_evm_traces::debug::sources: failed to parse contract definitions for script/v1/DeployV1ArbitrumStaged.s.sol
+2026-09-13T11:00:05.017491Z  WARN foundry_evm_traces::debug::sources: failed to parse contract definitions for script/v1/DeployV1ContinuousHolders.s.sol
+2026-09-13T11:00:05.017572Z  WARN foundry_evm_traces::debug::sources: failed to parse contract definitions for script/v1/DeployV1Deterministic.s.sol
+2026-09-13T11:00:05.017835Z  WARN foundry_evm_traces::debug::sources: failed to parse contract definitions for script/v1/RobinhoodTestnetBaselineFixture.sol
+2026-09-13T11:00:05.017880Z  WARN foundry_evm_traces::debug::sources: failed to parse contract definitions for script/v1/RobinhoodTestnetTreasury.sol
+2026-09-13T11:00:05.017940Z  WARN foundry_evm_traces::debug::sources: failed to parse contract definitions for script/v1/V1ArbitrumDeploymentOrchestrator.sol
+2026-09-13T11:00:05.025049Z  WARN foundry_evm_traces::debug::sources: failed to parse contract definitions for test/v1/V1Scaffold.t.sol
+2026-09-13T11:00:05.025139Z  WARN foundry_evm_traces::debug::sources: failed to parse contract definitions for test/v1/audit/Audit20260905.t.sol
+2026-09-13T11:00:05.025198Z  WARN foundry_evm_traces::debug::sources: failed to parse contract definitions for test/v1/audit/BeaconRuntimeBinding.t.sol
+2026-09-13T11:00:05.025309Z  WARN foundry_evm_traces::debug::sources: failed to parse contract definitions for test/v1/audit/RewardCohortBoundary.t.sol
+2026-09-13T11:00:05.025351Z  WARN foundry_evm_traces::debug::sources: failed to parse contract definitions for test/v1/deployment/ArbitrumTestTreasury.t.sol
+2026-09-13T11:00:05.025435Z  WARN foundry_evm_traces::debug::sources: failed to parse contract definitions for test/v1/deployment/RobinhoodTestnetBaselineFixture.t.sol
+2026-09-13T11:00:05.025496Z  WARN foundry_evm_traces::debug::sources: failed to parse contract definitions for test/v1/deployment/RobinhoodTestnetTreasury.t.sol
+2026-09-13T11:00:05.025628Z  WARN foundry_evm_traces::debug::sources: failed to parse contract definitions for test/v1/deployment/V1ArbitrumDeploymentOrchestrator.t.sol
+2026-09-13T11:00:05.025686Z  WARN foundry_evm_traces::debug::sources: failed to parse contract definitions for test/v1/deployment/V1DeterministicDeploymentOrchestrator.t.sol
+2026-09-13T11:00:05.025765Z  WARN foundry_evm_traces::debug::sources: failed to parse contract definitions for test/v1/deployment/V1HolderModeSelection.t.sol
+2026-09-13T11:00:05.025846Z  WARN foundry_evm_traces::debug::sources: failed to parse contract definitions for test/v1/deployment/V1ReleaseGate.t.sol
+2026-09-13T11:00:05.025934Z  WARN foundry_evm_traces::debug::sources: failed to parse contract definitions for test/v1/deployment/V1RobinhoodTestnetDeploymentOrchestrator.t.sol
+2026-09-13T11:00:05.025964Z  WARN foundry_evm_traces::debug::sources: failed to parse contract definitions for test/v1/deployment/V1TestnetTreasuryPolicy.t.sol
+2026-09-13T11:00:05.025999Z  WARN foundry_evm_traces::debug::sources: failed to parse contract definitions for test/v1/fixtures/V1QuoteFixtures.t.sol
+2026-09-13T11:00:05.026048Z  WARN foundry_evm_traces::debug::sources: failed to parse contract definitions for test/v1/fork/V1ProductForkE2E.t.sol
+2026-09-13T11:00:05.026122Z  WARN foundry_evm_traces::debug::sources: failed to parse contract definitions for test/v1/mocks/MockV1QuoteAssets.sol
+2026-09-13T11:00:05.026174Z  WARN foundry_evm_traces::debug::sources: failed to parse contract definitions for test/v1/mocks/StockTokenFingerprintTestLib.sol
+2026-09-13T11:00:05.026238Z  WARN foundry_evm_traces::debug::sources: failed to parse contract definitions for test/v1/product/AllocationManager.t.sol
+2026-09-13T11:00:05.026498Z  WARN foundry_evm_traces::debug::sources: failed to parse contract definitions for test/v1/product/ApprovedQuoteRegistry.t.sol
+2026-09-13T11:00:05.028199Z  WARN foundry_evm_traces::debug::sources: failed to parse contract definitions for test/v1/product/C405CurveAutonomyInvariant.t.sol
+2026-09-13T11:00:05.030071Z  WARN foundry_evm_traces::debug::sources: failed to parse contract definitions for test/v1/product/CreatorRevenueRegistry.t.sol
+2026-09-13T11:00:05.030127Z  WARN foundry_evm_traces::debug::sources: failed to parse contract definitions for test/v1/product/GraduationExecutor.t.sol
+2026-09-13T11:00:05.030242Z  WARN foundry_evm_traces::debug::sources: failed to parse contract definitions for test/v1/product/LaunchConfigResolver.t.sol
+2026-09-13T11:00:05.030348Z  WARN foundry_evm_traces::debug::sources: failed to parse contract definitions for test/v1/product/LaunchLocker.t.sol
+2026-09-13T11:00:05.030432Z  WARN foundry_evm_traces::debug::sources: failed to parse contract definitions for test/v1/product/LaunchTemplateRegistry.t.sol
+2026-09-13T11:00:05.030533Z  WARN foundry_evm_traces::debug::sources: failed to parse contract definitions for test/v1/product/MarketRegistryV1.t.sol
+2026-09-13T11:00:05.030667Z  WARN foundry_evm_traces::debug::sources: failed to parse contract definitions for test/v1/product/MemeStockGauge.t.sol
+2026-09-13T11:00:05.030768Z  WARN foundry_evm_traces::debug::sources: failed to parse contract definitions for test/v1/product/MultiAssetMaliciousSettlementInvariant.t.sol
+2026-09-13T11:00:05.030859Z  WARN foundry_evm_traces::debug::sources: failed to parse contract definitions for test/v1/product/OfficialStockRegistryV1.t.sol
+2026-09-13T11:00:05.030927Z  WARN foundry_evm_traces::debug::sources: failed to parse contract definitions for test/v1/product/ProtocolFeeVault.t.sol
+2026-09-13T11:00:05.030996Z  WARN foundry_evm_traces::debug::sources: failed to parse contract definitions for test/v1/product/TickerGardenBaselineRegistry.t.sol
+2026-09-13T11:00:05.031069Z  WARN foundry_evm_traces::debug::sources: failed to parse contract definitions for test/v1/product/TickerGardenCurve.t.sol
+2026-09-13T11:00:05.031209Z  WARN foundry_evm_traces::debug::sources: failed to parse contract definitions for test/v1/product/TickerGardenFactoryV1.t.sol
+2026-09-13T11:00:05.031267Z  WARN foundry_evm_traces::debug::sources: failed to parse contract definitions for test/v1/product/TickerGardenMemeHook.t.sol
+2026-09-13T11:00:05.031367Z  WARN foundry_evm_traces::debug::sources: failed to parse contract definitions for test/v1/product/TickerMemeTokenV1.t.sol
+2026-09-13T11:00:05.031488Z  WARN foundry_evm_traces::debug::sources: failed to parse contract definitions for test/v1/product/UserStockVault.t.sol
+2026-09-13T11:00:05.031646Z  WARN foundry_evm_traces::debug::sources: failed to parse contract definitions for test/v1/product/VaultGaugeInvariant.t.sol
+2026-09-13T11:00:05.031720Z  WARN foundry_evm_traces::debug::sources: failed to parse contract definitions for test/v1/shared/AccessManagerConfiguration.t.sol
+2026-09-13T11:00:05.031843Z  WARN foundry_evm_traces::debug::sources: failed to parse contract definitions for test/v1/shared/AllocationManagerDeposits.t.sol
+2026-09-13T11:00:05.031936Z  WARN foundry_evm_traces::debug::sources: failed to parse contract definitions for test/v1/shared/AllocationManagerExits.t.sol
+2026-09-13T11:00:05.032028Z  WARN foundry_evm_traces::debug::sources: failed to parse contract definitions for test/v1/shared/AllocationManagerIncreases.t.sol
+2026-09-13T11:00:05.032119Z  WARN foundry_evm_traces::debug::sources: failed to parse contract definitions for test/v1/shared/CanonicalBlockClock.t.sol
+2026-09-13T11:00:05.032181Z  WARN foundry_evm_traces::debug::sources: failed to parse contract definitions for test/v1/shared/ClaimAvailabilityAudit.t.sol
+2026-09-13T11:00:05.032238Z  WARN foundry_evm_traces::debug::sources: failed to parse contract definitions for test/v1/shared/ContinuousHolderFeeFlow.t.sol
+2026-09-13T11:00:05.032302Z  WARN foundry_evm_traces::debug::sources: failed to parse contract definitions for test/v1/shared/GraduationExecutorAssetAccounting.t.sol
+2026-09-13T11:00:05.032370Z  WARN foundry_evm_traces::debug::sources: failed to parse contract definitions for test/v1/shared/GraduationExecutorEntry.t.sol
+2026-09-13T11:00:05.032448Z  WARN foundry_evm_traces::debug::sources: failed to parse contract definitions for test/v1/shared/GraduationExecutorPoolExecution.t.sol
+2026-09-13T11:00:05.032538Z  WARN foundry_evm_traces::debug::sources: failed to parse contract definitions for test/v1/shared/GraduationPoolMath.t.sol
+2026-09-13T11:00:05.032634Z  WARN foundry_evm_traces::debug::sources: failed to parse contract definitions for test/v1/shared/HolderFeeSharing.t.sol
+2026-09-13T11:00:05.032736Z  WARN foundry_evm_traces::debug::sources: failed to parse contract definitions for test/v1/shared/HolderPoolFlow.t.sol
+2026-09-13T11:00:05.033272Z  WARN foundry_evm_traces::debug::sources: failed to parse contract definitions for test/v1/shared/LaunchLockerBinding.t.sol
+2026-09-13T11:00:05.033352Z  WARN foundry_evm_traces::debug::sources: failed to parse contract definitions for test/v1/shared/LaunchLockerCustody.t.sol
+2026-09-13T11:00:05.033441Z  WARN foundry_evm_traces::debug::sources: failed to parse contract definitions for test/v1/shared/MarketFeeAccounting.t.sol
+2026-09-13T11:00:05.033657Z  WARN foundry_evm_traces::debug::sources: failed to parse contract definitions for test/v1/shared/MemeStockGaugeAccumulators.t.sol
+2026-09-13T11:00:05.033725Z  WARN foundry_evm_traces::debug::sources: failed to parse contract definitions for test/v1/shared/MemeStockGaugeActivationSnapshots.t.sol
+2026-09-13T11:00:05.033823Z  WARN foundry_evm_traces::debug::sources: failed to parse contract definitions for test/v1/shared/MemeStockGaugeActivationWheel.t.sol
+2026-09-13T11:00:05.033874Z  WARN foundry_evm_traces::debug::sources: failed to parse contract definitions for test/v1/shared/MemeStockGaugeLockedPositions.t.sol
+2026-09-13T11:00:05.033916Z  WARN foundry_evm_traces::debug::sources: failed to parse contract definitions for test/v1/shared/MemeStockGaugePendingPositions.t.sol
+2026-09-13T11:00:05.033951Z  WARN foundry_evm_traces::debug::sources: failed to parse contract definitions for test/v1/shared/ProtocolFeeVaultCurveCredit.t.sol
+2026-09-13T11:00:05.033987Z  WARN foundry_evm_traces::debug::sources: failed to parse contract definitions for test/v1/shared/ProtocolFeeVaultLiabilities.t.sol
+2026-09-13T11:00:05.034035Z  WARN foundry_evm_traces::debug::sources: failed to parse contract definitions for test/v1/shared/ProtocolFeeVaultV4Accounting.t.sol
+2026-09-13T11:00:05.034103Z  WARN foundry_evm_traces::debug::sources: failed to parse contract definitions for test/v1/shared/ProtocolFeeVaultV4Credit.t.sol
+2026-09-13T11:00:05.034181Z  WARN foundry_evm_traces::debug::sources: failed to parse contract definitions for test/v1/shared/RewardSettlement.t.sol
+2026-09-13T11:00:05.034236Z  WARN foundry_evm_traces::debug::sources: failed to parse contract definitions for test/v1/shared/SelectedRewardClaims.t.sol
+2026-09-13T11:00:05.034284Z  WARN foundry_evm_traces::debug::sources: failed to parse contract definitions for test/v1/shared/TickerGardenAntiSnipe.t.sol
+2026-09-13T11:00:05.034320Z  WARN foundry_evm_traces::debug::sources: failed to parse contract definitions for test/v1/shared/TickerGardenCurveMath.t.sol
+2026-09-13T11:00:05.034402Z  WARN foundry_evm_traces::debug::sources: failed to parse contract definitions for test/v1/shared/TickerGardenMemeHookBinding.t.sol
+2026-09-13T11:00:05.034529Z  WARN foundry_evm_traces::debug::sources: failed to parse contract definitions for test/v1/shared/TickerGardenMemeHookFeeCalculation.t.sol
+2026-09-13T11:00:05.034626Z  WARN foundry_evm_traces::debug::sources: failed to parse contract definitions for test/v1/shared/TickerGardenMemeHookFeeExecution.t.sol
+2026-09-13T11:00:05.034759Z  WARN foundry_evm_traces::debug::sources: failed to parse contract definitions for test/v1/shared/TickerGardenMemeHookLifecycle.t.sol
+2026-09-13T11:00:05.034845Z  WARN foundry_evm_traces::debug::sources: failed to parse contract definitions for test/v1/shared/TickerGardenSupplyMath.t.sol
+2026-09-13T11:00:05.034927Z  WARN foundry_evm_traces::debug::sources: failed to parse contract definitions for test/v1/shared/UserRewardClaims.t.sol
+2026-09-13T11:00:05.035024Z  WARN foundry_evm_traces::debug::sources: failed to parse contract definitions for test/v1/shared/UserStockVaultDeposits.t.sol
+2026-09-13T11:00:05.035097Z  WARN foundry_evm_traces::debug::sources: failed to parse contract definitions for test/v1/shared/UserStockVaultIdentity.t.sol
+2026-09-13T11:00:05.035172Z  WARN foundry_evm_traces::debug::sources: failed to parse contract definitions for test/v1/shared/UserStockVaultLedger.t.sol
+2026-09-13T11:00:05.035244Z  WARN foundry_evm_traces::debug::sources: failed to parse contract definitions for test/v1/shared/V1DeploymentLibraries.t.sol
+2026-09-13T11:00:05.035347Z  WARN foundry_evm_traces::debug::sources: failed to parse contract definitions for test/v1/shared/V1FactoryValidation.t.sol
+2026-09-13T11:00:05.035391Z  WARN foundry_evm_traces::debug::sources: failed to parse contract definitions for test/v1/shared/V1GraduationEconomicDomain.t.sol
+2026-09-13T11:00:05.035494Z  WARN foundry_evm_traces::debug::sources: failed to parse contract definitions for test/v1/shared/V1HookExecutorDeployer.t.sol
+2026-09-13T11:00:05.035536Z  WARN foundry_evm_traces::debug::sources: failed to parse contract definitions for test/v1/shared/V1TickerGardenDifferential.t.sol
+2026-09-13T11:00:05.035597Z  WARN foundry_evm_traces::debug::sources: failed to parse contract definitions for test/v1/treasury/mocks/MockV1TreasuryAssets.sol
+2026-09-13T11:00:05.036401Z  WARN foundry_evm_traces::debug::sources: failed to parse contract definitions for script/v1/DeployV1RobinhoodMainnetStaged.s.sol
+2026-09-13T11:00:05.036515Z  WARN foundry_evm_traces::debug::sources: failed to parse contract definitions for script/v1/V1RobinhoodMainnetDeploymentOrchestrator.sol
+2026-09-13T11:00:05.036810Z  WARN foundry_evm_traces::debug::sources: failed to parse contract definitions for test/v1/audit/CurrentContractOptimizationBoundary.t.sol
+2026-09-13T11:00:05.036848Z  WARN foundry_evm_traces::debug::sources: failed to parse contract definitions for test/v1/audit/FeeClaimSafetyBoundary.t.sol
+2026-09-13T11:00:05.036879Z  WARN foundry_evm_traces::debug::sources: failed to parse contract definitions for test/v1/audit/PlatformTreasuryRotation.t.sol
+2026-09-13T11:00:05.036941Z  WARN foundry_evm_traces::debug::sources: failed to parse contract definitions for test/v1/deployment/V1RobinhoodMainnetDeploymentOrchestrator.t.sol
+2026-09-13T11:00:05.037042Z  WARN foundry_evm_traces::debug::sources: failed to parse contract definitions for test/v1/shared/HolderBatchFunding.t.sol
+2026-09-13T11:00:05.037105Z  WARN foundry_evm_traces::debug::sources: failed to parse contract definitions for test/v1/treasury/product/HolderSnapshotRewards.t.sol
+2026-09-13T11:00:05.039275Z  WARN foundry_evm_traces::debug::sources: failed to parse contract definitions for test/v1/audit/StockVaultCustodyBoundary.t.sol
+2026-09-13T11:00:05.039340Z  WARN foundry_evm_traces::debug::sources: failed to parse contract definitions for test/v1/audit/StockVaultIdentityGas.t.sol
+2026-09-13T11:00:05.039493Z  WARN foundry_evm_traces::debug::sources: failed to parse contract definitions for test/v1/fork/CurrentReleasePublicState.t.sol
+2026-09-13T11:00:05.039606Z  WARN foundry_evm_traces::debug::sources: failed to parse contract definitions for test/v1/fork/V1MainnetCandidateForkE2E.t.sol
+2026-09-13T11:00:05.040352Z  WARN foundry_evm_traces::debug::sources: failed to parse contract definitions for lib/v4-periphery/lib/permit2/lib/solmate/src/tokens/ERC721.sol
+2026-09-13T11:00:05.040408Z  WARN foundry_evm_traces::debug::sources: failed to parse contract definitions for lib/v4-periphery/lib/permit2/src/interfaces/IERC1271.sol
+2026-09-13T11:00:05.040554Z  WARN foundry_evm_traces::debug::sources: failed to parse contract definitions for lib/v4-periphery/lib/permit2/src/libraries/SignatureVerification.sol
+2026-09-13T11:00:05.041030Z  WARN foundry_evm_traces::debug::sources: failed to parse contract definitions for lib/v4-periphery/lib/v4-core/src/test/PoolDonateTest.sol
+2026-09-13T11:00:05.041112Z  WARN foundry_evm_traces::debug::sources: failed to parse contract definitions for lib/v4-periphery/src/PositionManager.sol
+2026-09-13T11:00:05.041194Z  WARN foundry_evm_traces::debug::sources: failed to parse contract definitions for lib/v4-periphery/src/base/EIP712_v4.sol
+2026-09-13T11:00:05.041261Z  WARN foundry_evm_traces::debug::sources: failed to parse contract definitions for lib/v4-periphery/src/base/ERC721Permit_v4.sol
+2026-09-13T11:00:05.041367Z  WARN foundry_evm_traces::debug::sources: failed to parse contract definitions for lib/v4-periphery/src/base/Multicall_v4.sol
+2026-09-13T11:00:05.041424Z  WARN foundry_evm_traces::debug::sources: failed to parse contract definitions for lib/v4-periphery/src/base/NativeWrapper.sol
+2026-09-13T11:00:05.041635Z  WARN foundry_evm_traces::debug::sources: failed to parse contract definitions for lib/v4-periphery/src/base/Notifier.sol
+2026-09-13T11:00:05.041766Z  WARN foundry_evm_traces::debug::sources: failed to parse contract definitions for lib/v4-periphery/src/base/Permit2Forwarder.sol
+2026-09-13T11:00:05.041846Z  WARN foundry_evm_traces::debug::sources: failed to parse contract definitions for lib/v4-periphery/src/base/PoolInitializer_v4.sol
+2026-09-13T11:00:05.041893Z  WARN foundry_evm_traces::debug::sources: failed to parse contract definitions for lib/v4-periphery/src/base/ReentrancyLock.sol
+2026-09-13T11:00:05.041993Z  WARN foundry_evm_traces::debug::sources: failed to parse contract definitions for lib/v4-periphery/src/base/UnorderedNonce.sol
+2026-09-13T11:00:05.042121Z  WARN foundry_evm_traces::debug::sources: failed to parse contract definitions for lib/v4-periphery/src/interfaces/IPositionDescriptor.sol
+2026-09-13T11:00:05.042234Z  WARN foundry_evm_traces::debug::sources: failed to parse contract definitions for lib/v4-periphery/src/interfaces/external/IWETH9.sol
+2026-09-13T11:00:05.042291Z  WARN foundry_evm_traces::debug::sources: failed to parse contract definitions for lib/v4-periphery/src/libraries/ERC721PermitHash.sol
+2026-09-13T11:00:05.042329Z  WARN foundry_evm_traces::debug::sources: failed to parse contract definitions for lib/v4-periphery/src/libraries/Locker.sol
+2026-09-13T11:00:05.042397Z  WARN foundry_evm_traces::debug::sources: failed to parse contract definitions for lib/v4-periphery/src/libraries/SlippageCheck.sol
+2026-09-13T11:00:05.042650Z  WARN foundry_evm_traces::debug::sources: failed to parse contract definitions for test/v1/product/LaunchLockerCompounding.t.sol
+2026-09-13T11:00:05.048507Z  WARN foundry_evm_traces::debug::sources: failed to parse contract definitions for test/v1/audit/MemeFeeBurn.t.sol
+2026-09-13T11:00:05.049562Z  WARN foundry_evm_traces::debug::sources: failed to parse contract definitions for test/v1/audit/LockerAdversarialReview.t.sol
+2026-09-13T11:00:05.049610Z  WARN foundry_evm_traces::debug::sources: failed to parse contract definitions for test/v1/fork/LockerRecoveryFork.t.sol
+2026-09-13T11:00:05.050448Z  WARN foundry_evm_traces::debug::sources: failed to parse contract definitions for test/v1/audit/LatestBusinessSemantics.t.sol
+Warning: Detected artifacts built from source files that no longer exist. Run `forge clean` to make sure builds are in sync with project files.
+ - /Users/dear/Documents/code/TickerGarden/contracts/foundry-pp/DeployHelper188.sol
+ - /Users/dear/Documents/code/TickerGarden/contracts/foundry-pp/DeployHelper203.sol
+ - /Users/dear/Documents/code/TickerGarden/contracts/foundry-pp/DeployHelper232.sol
+ - /Users/dear/Documents/code/TickerGarden/contracts/foundry-pp/DeployHelper200.sol
+ - /Users/dear/Documents/code/TickerGarden/contracts/test/v1/mocks/HolderAccountingHarness.sol
+ - /Users/dear/Documents/code/TickerGarden/contracts/foundry-pp/DeployHelper218.sol
+ - /Users/dear/Documents/code/TickerGarden/contracts/foundry-pp/DeployHelper169.sol
+ - /Users/dear/Documents/code/TickerGarden/contracts/foundry-pp/DeployHelper79.sol
+ - /Users/dear/Documents/code/TickerGarden/contracts/foundry-pp/DeployHelper195.sol
+ - /Users/dear/Documents/code/TickerGarden/contracts/foundry-pp/DeployHelper78.sol
+ - /Users/dear/Documents/code/TickerGarden/contracts/foundry-pp/DeployHelper211.sol
+ - /Users/dear/Documents/code/TickerGarden/contracts/src/v1/shared/ProtocolFeeVaultUserConversion.sol
+ - /Users/dear/Documents/code/TickerGarden/contracts/foundry-pp/DeployHelper250.sol
+ - /Users/dear/Documents/code/TickerGarden/contracts/foundry-pp/DeployHelper233.sol
+ - /Users/dear/Documents/code/TickerGarden/contracts/src/v1/shared/LaunchAndBuyRouterV4Fallback.sol
+ - /Users/dear/Documents/code/TickerGarden/contracts/foundry-pp/DeployHelper269.sol
+ - /Users/dear/Documents/code/TickerGarden/contracts/test/v1/treasury/product/HolderFundingInterval.t.sol
+ - /Users/dear/Documents/code/TickerGarden/contracts/foundry-pp/DeployHelper262.sol
+ - /Users/dear/Documents/code/TickerGarden/contracts/foundry-pp/DeployHelper220.sol
+ - /Users/dear/Documents/code/TickerGarden/contracts/foundry-pp/DeployHelper285.sol
+ - /Users/dear/Documents/code/TickerGarden/contracts/foundry-pp/DeployHelper199.sol
+ - /Users/dear/Documents/code/TickerGarden/contracts/foundry-pp/DeployHelper172.sol
+ - /Users/dear/Documents/code/TickerGarden/contracts/test/v1/shared/RewardConversionPool.t.sol
+ - /Users/dear/Documents/code/TickerGarden/contracts/foundry-pp/DeployHelper246.sol
+ - /Users/dear/Documents/code/TickerGarden/contracts/foundry-pp/DeployHelper197.sol
+ - /Users/dear/Documents/code/TickerGarden/contracts/foundry-pp/DeployHelper198.sol
+ - /Users/dear/Documents/code/TickerGarden/contracts/foundry-pp/DeployHelper209.sol
+ - /Users/dear/Documents/code/TickerGarden/contracts/foundry-pp/DeployHelper215.sol
+ - /Users/dear/Documents/code/TickerGarden/contracts/foundry-pp/DeployHelper212.sol
+ - /Users/dear/Documents/code/TickerGarden/contracts/foundry-pp/DeployHelper229.sol
+ - /Users/dear/Documents/code/TickerGarden/contracts/foundry-pp/DeployHelper228.sol
+ - /Users/dear/Documents/code/TickerGarden/contracts/foundry-pp/DeployHelper173.sol
+ - /Users/dear/Documents/code/TickerGarden/contracts/test/v1/treasury/product/HolderBatchedInvariant.t.sol
+ - /Users/dear/Documents/code/TickerGarden/contracts/foundry-pp/DeployHelper225.sol
+ - /Users/dear/Documents/code/TickerGarden/contracts/foundry-pp/DeployHelper226.sol
+ - /Users/dear/Documents/code/TickerGarden/contracts/foundry-pp/DeployHelper241.sol
+ - /Users/dear/Documents/code/TickerGarden/contracts/foundry-pp/DeployHelper247.sol
+ - /Users/dear/Documents/code/TickerGarden/contracts/foundry-pp/DeployHelper219.sol
+ - /Users/dear/Documents/code/TickerGarden/contracts/foundry-pp/DeployHelper217.sol
+ - /Users/dear/Documents/code/TickerGarden/contracts/foundry-pp/DeployHelper196.sol
+ - /Users/dear/Documents/code/TickerGarden/contracts/foundry-pp/DeployHelper231.sol
+ - /Users/dear/Documents/code/TickerGarden/contracts/foundry-pp/DeployHelper230.sol
+ - /Users/dear/Documents/code/TickerGarden/contracts/test/v1/treasury/product/HolderLedgerConformance.t.sol
+ - /Users/dear/Documents/code/TickerGarden/contracts/foundry-pp/DeployHelper223.sol
+ - /Users/dear/Documents/code/TickerGarden/contracts/foundry-pp/DeployHelper175.sol
+ - /Users/dear/Documents/code/TickerGarden/contracts/foundry-pp/DeployHelper191.sol
+ - /Users/dear/Documents/code/TickerGarden/contracts/foundry-pp/DeployHelper202.sol
+ - /Users/dear/Documents/code/TickerGarden/contracts/foundry-pp/DeployHelper194.sol
+ - /Users/dear/Documents/code/TickerGarden/contracts/foundry-pp/DeployHelper249.sol
+ - /Users/dear/Documents/code/TickerGarden/contracts/foundry-pp/DeployHelper254.sol
+ - /Users/dear/Documents/code/TickerGarden/contracts/foundry-pp/DeployHelper210.sol
+ - /Users/dear/Documents/code/TickerGarden/contracts/test/v1/treasury/product/HolderRewardsDistributorV1.t.sol
+ - /Users/dear/Documents/code/TickerGarden/contracts/foundry-pp/DeployHelper176.sol
+ - /Users/dear/Documents/code/TickerGarden/contracts/foundry-pp/DeployHelper256.sol
+ - /Users/dear/Documents/code/TickerGarden/contracts/foundry-pp/DeployHelper171.sol
+ - /Users/dear/Documents/code/TickerGarden/contracts/foundry-pp/DeployHelper204.sol
+ - /Users/dear/Documents/code/TickerGarden/contracts/foundry-pp/DeployHelper234.sol
+ - /Users/dear/Documents/code/TickerGarden/contracts/foundry-pp/DeployHelper205.sol
+ - /Users/dear/Documents/code/TickerGarden/contracts/foundry-pp/DeployHelper216.sol
+ - /Users/dear/Documents/code/TickerGarden/contracts/foundry-pp/DeployHelper276.sol
+ - /Users/dear/Documents/code/TickerGarden/contracts/foundry-pp/DeployHelper255.sol
+ - /Users/dear/Documents/code/TickerGarden/contracts/foundry-pp/DeployHelper190.sol
+ - /Users/dear/Documents/code/TickerGarden/contracts/foundry-pp/DeployHelper201.sol
+ - /Users/dear/Documents/code/TickerGarden/contracts/foundry-pp/DeployHelper266.sol
+ - /Users/dear/Documents/code/TickerGarden/contracts/foundry-pp/DeployHelper193.sol
+ - /Users/dear/Documents/code/TickerGarden/contracts/src/v1/interfaces/IContinuousHolderRewards.sol
+ - /Users/dear/Documents/code/TickerGarden/contracts/foundry-pp/DeployHelper208.sol
+ - /Users/dear/Documents/code/TickerGarden/contracts/foundry-pp/DeployHelper260.sol
+ - /Users/dear/Documents/code/TickerGarden/contracts/foundry-pp/DeployHelper245.sol
+ - /Users/dear/Documents/code/TickerGarden/contracts/foundry-pp/DeployHelper251.sol
+ - /Users/dear/Documents/code/TickerGarden/contracts/src/v1/shared/TickerGardenRewardConversion.sol
+ - /Users/dear/Documents/code/TickerGarden/contracts/foundry-pp/DeployHelper224.sol
+ - /Users/dear/Documents/code/TickerGarden/contracts/foundry-pp/DeployHelper174.sol
+2026-09-13T11:00:08.149273Z  WARN foundry_fork_db::cache: Failed to read cache file err=Os { code: 2, kind: NotFound, message: "No such file or directory" } path="/Users/dear/.foundry/cache/rpc/robinhood-testnet/118684943"
+2026-09-13T11:00:10.659755Z  WARN evm::traces::external: etherscan config not found

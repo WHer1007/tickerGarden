@@ -1,0 +1,61 @@
+{
+  "chainId": 421614,
+  "releaseId": "0x14963af9576a3b1cb915b8a13e86e0899a4c8345c010c47d4932789ebf46031d",
+  "status": "ACTIVE_TEST_ONLY",
+  "transactions": [
+    {
+      "id": "configure-operator",
+      "to": "0xB39BD5e7BB13CF2C0EA513e8bE69b6DCa3a42dE9",
+      "inputHash": "0x4bde7eb25b1d1c4944b55a1ea5f7283a28b56ef8e7b951aa27a15ca73a1807e2",
+      "transactionHash": "0x5f1e93b5f39f581177108837342df444306f6011bcb2b3c7b8974217b2c4b0a2",
+      "nonce": 131,
+      "status": "CONFIRMED",
+      "blockNumber": "305942152"
+    },
+    {
+      "id": "baseline-fixture",
+      "inputHash": "0xf2a7b1705b80529b4f7af33eeb081bb9fd83245bf2a320b8fb175d4bc8aa0046",
+      "transactionHash": "0x6d9670ff4e460c7f3711f3105ac2da1edeab5f3a51d35d3cd18c38a994866056",
+      "nonce": 132,
+      "status": "CONFIRMED",
+      "blockNumber": "305942175"
+    },
+    {
+      "id": "baseline",
+      "to": "0x7aBfE2848dBbaeE768548Bf92137362F4f6D94B7",
+      "inputHash": "0x17e582fc44dff583843429cf91c1d3e32fcf662247e4547f320ad848524191ac",
+      "transactionHash": "0xd8e7abdb2e1104054ec36c198ec7f45e909de6c6ebb4389f151116f6abd603ab",
+      "nonce": 133,
+      "status": "CONFIRMED",
+      "blockNumber": "305942208"
+    },
+    {
+      "id": "quote",
+      "to": "0xb7eA4a1572Ff819B3603d31a7ad928929db5d30F",
+      "inputHash": "0x8e5507eab8bf71ac3aff8ed61e898ef766ede40d4d4b5663c1317df0c0bd5d86",
+      "transactionHash": "0xab8d00a9863396366f5700c3c80c3afd94e4dd42ef40df6353e0ee65179e7e1c",
+      "nonce": 134,
+      "status": "CONFIRMED",
+      "blockNumber": "305942227"
+    },
+    {
+      "id": "template",
+      "to": "0x52C8ebd3866b8D87213ffd916DFd338F0D7caE13",
+      "inputHash": "0xd216de31eb6fb85b989c9d2508ed7e346458c5ad1205ed6031d466dbfbfa4aa0",
+      "transactionHash": "0x0a2a06dfc3d1733f106eacae6e7ab9420bcf02ef8e6d7178a0a8a04ef2443009",
+      "nonce": 135,
+      "status": "CONFIRMED",
+      "blockNumber": "305942246"
+    }
+  ],
+  "operator": "0xA6c3298a5559544c3b4cf8e6DC5f349f4be524ea",
+  "permissionProbes": "PASSED",
+  "launchAndBuySimulation": "PASSED_READ_ONLY_NO_MARKET_CREATED",
+  "baselineId": "0x693afb64261c07acf60473b0cceabd26e96b373c00ad5203e10b1f8b2f1bbd9b",
+  "quoteId": "0xef99a9f50c01b85d4af1c2151ab1cd2e6d4122140808f1e94d10c0426b9cc37c",
+  "templateId": "0xef344b593aae22b8a06193bc9e01f7ee399192120b7e57e4dcc062e00cb2689d",
+  "baselineFixture": "0xc3863454dB008F99daE538b1264d4D0edf7cCad0",
+  "phantomQuote": "168000000000000000",
+  "graduationThreshold": "420000000000000000",
+  "observedAt": "2026-09-06T06:14:45.560Z"
+}

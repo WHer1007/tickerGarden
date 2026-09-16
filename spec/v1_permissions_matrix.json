@@ -1,119 +1,798 @@
 {
   "schemaVersion": 1,
-  "executionSpecId": "V1-EXEC-10",
+  "executionSpecId": "V1-EXEC-11",
   "accessFramework": "OpenZeppelin AccessManager 5.7.0",
   "selectorRule": "bytes4(keccak256(canonicalAbiSignatureFromCompiledInterface))",
   "abiSource": "spec/v1_abi_surface.json",
   "deploymentRequirement": "derive selectors from compiled V1 interfaces, then require exact target+selector+role equality with this matrix",
   "roles": {
-    "PUBLIC": {"delaySeconds": 0},
-    "PROTOCOL_ADMIN_ROLE": {"delaySeconds": 172800, "member": "GOVERNANCE_SAFE"},
-    "PAUSE_GUARDIAN_ROLE": {"delaySeconds": 0, "member": "INDEPENDENT_GUARDIAN_SAFE"},
-    "UNPAUSE_ROLE": {"delaySeconds": 86400, "member": "SECURITY_OR_GOVERNANCE_SAFE"},
-    "FACTORY_MODULE": {"delaySeconds": 0, "member": "IMMUTABLE_FACTORY"},
-    "LAUNCH_ROUTER_MODULE": {"delaySeconds": 0, "member": "IMMUTABLE_LAUNCH_AND_BUY_ROUTER"},
-    "GRADUATION_MODULE": {"delaySeconds": 0, "member": "IMMUTABLE_GRADUATION_EXECUTOR"},
-    "ALLOCATION_MODULE": {"delaySeconds": 0, "member": "IMMUTABLE_ALLOCATION_MANAGER"},
-    "POOL_MANAGER": {"delaySeconds": 0, "member": "IMMUTABLE_UNISWAP_V4_POOL_MANAGER"},
-    "ACTIVE_FEE_SOURCE": {"delaySeconds": 0, "member": "MARKET_REGISTRY_VERIFIED_SOURCE"},
-    "CURRENT_CREATOR_BENEFICIARY": {"delaySeconds": 0},
-    "FIXED_PLATFORM_BENEFICIARY": {"delaySeconds": 0},
-    "TREASURY_DISTRIBUTOR_MODULE": {"delaySeconds": 0, "member": "IMMUTABLE_TREASURY_DISTRIBUTOR"},
-    "CURRENT_MEME_HOLDER": {"delaySeconds": 0},
-    "ROOT_PUBLISHER_ROLE": {"delaySeconds": 0, "member": "PLATFORM_ROOT_PUBLISHER"},
-    "ROOT_REVIEW_ROLE": {"delaySeconds": 0, "member": "INDEPENDENT_ROOT_REVIEWER"},
-    "SERVICE_BENEFICIARY": {"delaySeconds": 0}
+    "PUBLIC": {
+      "delaySeconds": 0
+    },
+    "PROTOCOL_ADMIN_ROLE": {
+      "delaySeconds": 172800,
+      "member": "GOVERNANCE_SAFE"
+    },
+    "PAUSE_GUARDIAN_ROLE": {
+      "delaySeconds": 0,
+      "member": "INDEPENDENT_GUARDIAN_SAFE"
+    },
+    "UNPAUSE_ROLE": {
+      "delaySeconds": 86400,
+      "member": "SECURITY_OR_GOVERNANCE_SAFE"
+    },
+    "FACTORY_MODULE": {
+      "delaySeconds": 0,
+      "member": "IMMUTABLE_FACTORY"
+    },
+    "LAUNCH_ROUTER_MODULE": {
+      "delaySeconds": 0,
+      "member": "IMMUTABLE_LAUNCH_AND_BUY_ROUTER"
+    },
+    "GRADUATION_MODULE": {
+      "delaySeconds": 0,
+      "member": "IMMUTABLE_GRADUATION_EXECUTOR"
+    },
+    "ALLOCATION_MODULE": {
+      "delaySeconds": 0,
+      "member": "IMMUTABLE_ALLOCATION_MANAGER"
+    },
+    "POOL_MANAGER": {
+      "delaySeconds": 0,
+      "member": "IMMUTABLE_UNISWAP_V4_POOL_MANAGER"
+    },
+    "ACTIVE_FEE_SOURCE": {
+      "delaySeconds": 0,
+      "member": "MARKET_REGISTRY_VERIFIED_SOURCE"
+    },
+    "CURRENT_CREATOR_BENEFICIARY": {
+      "delaySeconds": 0
+    },
+    "FIXED_PLATFORM_BENEFICIARY": {
+      "delaySeconds": 0
+    },
+    "CURRENT_MEME_HOLDER": {
+      "delaySeconds": 0
+    },
+    "SERVICE_BENEFICIARY": {
+      "delaySeconds": 0
+    },
+    "PENDING_CREATOR_REVENUE_BENEFICIARY": {
+      "delaySeconds": 0
+    },
+    "HOLDER_REWARDS_DISTRIBUTOR_MODULE": {
+      "delaySeconds": 0,
+      "member": "IMMUTABLE_HOLDER_REWARDS_DISTRIBUTOR"
+    },
+    "PROTOCOL_ADMIN_MEMBER": {
+      "delaySeconds": 0,
+      "member": "ACTIVE_ACCESS_MANAGER_ROLE_1_MEMBER",
+      "stateDelayEnforcedBy": "ProtocolFeeVault.TREASURY_CHANGE_DELAY"
+    },
+    "PROTOCOL_ADMIN_OR_GUARDIAN_MEMBER": {
+      "delaySeconds": 0,
+      "member": "ACTIVE_ACCESS_MANAGER_ROLE_1_OR_2_MEMBER"
+    },
+    "PENDING_PLATFORM_TREASURY": {
+      "delaySeconds": 0,
+      "member": "EXACT_PENDING_CONTRACT"
+    }
   },
   "functions": [
-    {"module":"AccessManager","signature":"schedule(address,bytes,uint48)","caller":"ROLE_MEMBER_WITH_EXECUTION_DELAY","delaySeconds":"ROLE_SPECIFIC","recipient":"none"},
-    {"module":"AccessManager","signature":"execute(address,bytes)","caller":"SCHEDULING_ROLE_MEMBER","delaySeconds":"AFTER_SCHEDULED_DELAY","recipient":"target_fixed_by_schedule"},
-    {"module":"AccessManager","signature":"cancel(address,address,bytes)","caller":"ROLE_GUARDIAN_OR_ADMIN_OR_SCHEDULER","delaySeconds":0,"recipient":"none"},
-    {"module":"AccessManager","signature":"setTargetFunctionRole(address,bytes4[],uint64)","caller":"ADMIN_ROLE_BOOTSTRAP_ONLY","delaySeconds":0,"recipient":"none","precondition":"NO_ADMIN_ROLE_MEMBER_AFTER_HANDOFF"},
-    {"module":"AccessManager","signature":"grantRole(uint64,address,uint32)","caller":"PROTOCOL_ADMIN_ROLE","delaySeconds":172800,"recipient":"none"},
-    {"module":"AccessManager","signature":"revokeRole(uint64,address)","caller":"PROTOCOL_ADMIN_ROLE","delaySeconds":172800,"recipient":"none"},
-    {"module":"OfficialStockRegistryV1","signature":"registerAsset(bytes32,address,uint8,address,uint256,StockTokenFingerprint)","caller":"PROTOCOL_ADMIN_ROLE","delaySeconds":172800,"recipient":"none","precondition":"UID_DECIMALS_RUNTIME_BEACON_AND_IMPLEMENTATION_MATCH_GOVERNANCE_COMMITTED_FINGERPRINT"},
-    {"module":"OfficialStockRegistryV1","signature":"acceptAssetImplementation(bytes32,address,bytes32,bytes32)","caller":"PROTOCOL_ADMIN_ROLE","delaySeconds":172800,"recipient":"none","precondition":"ASSET_PAUSED_AND_TOKEN_BEACON_IDENTITY_UNCHANGED_AND_CURRENT_BEACON_IMPLEMENTATION_MATCHES_COMMITTED_CODEHASH"},
-    {"module":"OfficialStockRegistryV1","signature":"setMinimumAllocation(bytes32,uint256,bytes32)","caller":"PROTOCOL_ADMIN_ROLE","delaySeconds":172800,"recipient":"none","precondition":"REGISTERED_ASSET_AND_MINIMUM_AT_LEAST_414_RAW_UNITS"},
-    {"module":"OfficialStockRegistryV1","signature":"pauseAsset(bytes32,bytes32)","caller":"PAUSE_GUARDIAN_ROLE","delaySeconds":0,"recipient":"none"},
-    {"module":"OfficialStockRegistryV1","signature":"unpauseAsset(bytes32)","caller":"UNPAUSE_ROLE","delaySeconds":86400,"recipient":"none"},
-    {"module":"OfficialStockRegistryV1","signature":"retireAsset(bytes32,bytes32)","caller":"PROTOCOL_ADMIN_ROLE","delaySeconds":172800,"recipient":"none"},
-    {"module":"ApprovedQuoteRegistry","signature":"addQuoteConfig(bytes32,QuoteAssetConfig)","caller":"PROTOCOL_ADMIN_ROLE","delaySeconds":172800,"recipient":"none"},
-    {"module":"ApprovedQuoteRegistry","signature":"pauseQuote(bytes32,bytes32)","caller":"PAUSE_GUARDIAN_ROLE","delaySeconds":0,"recipient":"none"},
-    {"module":"ApprovedQuoteRegistry","signature":"unpauseQuote(bytes32)","caller":"UNPAUSE_ROLE","delaySeconds":86400,"recipient":"none"},
-    {"module":"ApprovedQuoteRegistry","signature":"retireQuote(bytes32,bytes32)","caller":"PROTOCOL_ADMIN_ROLE","delaySeconds":172800,"recipient":"none"},
-    {"module":"PonsBaselineRegistry","signature":"addBaseline(bytes32,PonsBaseline)","caller":"PROTOCOL_ADMIN_ROLE","delaySeconds":172800,"recipient":"none"},
-    {"module":"PonsBaselineRegistry","signature":"pauseBaseline(bytes32,bytes32)","caller":"PAUSE_GUARDIAN_ROLE","delaySeconds":0,"recipient":"none"},
-    {"module":"PonsBaselineRegistry","signature":"unpauseBaseline(bytes32)","caller":"UNPAUSE_ROLE","delaySeconds":86400,"recipient":"none"},
-    {"module":"PonsBaselineRegistry","signature":"retireBaseline(bytes32,bytes32)","caller":"PROTOCOL_ADMIN_ROLE","delaySeconds":172800,"recipient":"none"},
-    {"module":"LaunchTemplateRegistry","signature":"addLaunchTemplate(bytes32,LaunchTemplate)","caller":"PROTOCOL_ADMIN_ROLE","delaySeconds":172800,"recipient":"none"},
-    {"module":"LaunchTemplateRegistry","signature":"pauseLaunchTemplate(bytes32,bytes32)","caller":"PAUSE_GUARDIAN_ROLE","delaySeconds":0,"recipient":"none"},
-    {"module":"LaunchTemplateRegistry","signature":"unpauseLaunchTemplate(bytes32)","caller":"UNPAUSE_ROLE","delaySeconds":86400,"recipient":"none"},
-    {"module":"LaunchTemplateRegistry","signature":"retireLaunchTemplate(bytes32,bytes32)","caller":"PROTOCOL_ADMIN_ROLE","delaySeconds":172800,"recipient":"none"},
-    {"module":"TickerGardenFactoryV1","signature":"createMarket(CreateMarketParams)","caller":"PUBLIC","delaySeconds":0,"recipient":"none"},
-    {"module":"TickerGardenFactoryV1","signature":"createMarketFor(address,CreateMarketParams)","caller":"LAUNCH_ROUTER_MODULE","delaySeconds":0,"recipient":"none","precondition":"CREATOR_EQUALS_ROUTER_OUTER_MSG_SENDER"},
-    {"module":"LaunchAndBuyRouter","signature":"launchAndBuy(CreateMarketParams,uint256,uint256,address)","caller":"PUBLIC","delaySeconds":0,"recipient":"specified_first_buy_recipient"},
-    {"module":"TickerMemeTokenV1","signature":"transfer(address,uint256)","caller":"PUBLIC","delaySeconds":0,"recipient":"specified_token_recipient"},
-    {"module":"TickerMemeTokenV1","signature":"approve(address,uint256)","caller":"PUBLIC","delaySeconds":0,"recipient":"specified_spender_allowance"},
-    {"module":"TickerMemeTokenV1","signature":"transferFrom(address,address,uint256)","caller":"PUBLIC","delaySeconds":0,"recipient":"specified_token_recipient"},
-    {"module":"TickerMemeTokenV1","signature":"burnTreasury(uint256)","caller":"TREASURY_DISTRIBUTOR_MODULE","delaySeconds":0,"recipient":"burn_address","precondition":"CALLER_EQUALS_IMMUTABLE_TREASURY_DISTRIBUTOR_AND_BURNS_ONLY_ITS_OWN_BALANCE"},
-    {"module":"MarketRegistryV1","signature":"registerMarket(bytes32,MarketConfig)","caller":"FACTORY_MODULE","delaySeconds":0,"recipient":"none"},
-    {"module":"MarketRegistryV1","signature":"commitPoolCreated(bytes32,bytes32)","caller":"GRADUATION_MODULE","delaySeconds":0,"recipient":"none","precondition":"NotGraduated_AND_CANONICAL_POOL_ACTIVE_AND_LP_PERMANENTLY_LOCKED_IN_SAME_TRANSACTION"},
-    {"module":"PonsCompatibleCurve","signature":"buy(uint256,uint256,address)","caller":"PUBLIC","delaySeconds":0,"recipient":"specified_trade_recipient","precondition":"LaunchPhase==NotGraduated"},
-    {"module":"PonsCompatibleCurve","signature":"sell(uint256,uint256,address)","caller":"PUBLIC","delaySeconds":0,"recipient":"specified_trade_recipient","precondition":"LaunchPhase==NotGraduated"},
-    {"module":"PonsCompatibleCurve","signature":"sweepCurveFees()","caller":"PUBLIC","delaySeconds":0,"recipient":"fixed_fee_vault_beneficiaries","precondition":"THIS_CURVE_IS_EXACT_REGISTERED_SOURCE_AND_LAUNCH_PHASE_NOT_GRADUATED_ZERO_ACCRUAL_IS_NOOP"},
-    {"module":"GraduationExecutor","signature":"graduateFromCurve(bytes32,uint256,uint256)","caller":"EXACT_REGISTERED_CURVE","delaySeconds":0,"recipient":"canonical_per_market_launch_locker","precondition":"NotGraduated_AND_CALLER_MATCHES_MARKET_CURVE_AND_EXACT_ASSETS_RECEIVED_IN_SAME_TRANSACTION"},
-    {"module":"TickerGardenMemeHook","signature":"registerExpectedPool(bytes32,PoolKey,uint32)","caller":"GRADUATION_MODULE","delaySeconds":0,"recipient":"none"},
-    {"module":"TickerGardenMemeHook","signature":"activatePool(bytes32)","caller":"GRADUATION_MODULE","delaySeconds":0,"recipient":"none"},
-    {"module":"TickerGardenMemeHook","signature":"beforeInitialize(address,PoolKey,uint160)","caller":"POOL_MANAGER","delaySeconds":0,"recipient":"none"},
-    {"module":"TickerGardenMemeHook","signature":"afterSwap(address,PoolKey,SwapParams,BalanceDelta,bytes)","caller":"POOL_MANAGER","delaySeconds":0,"recipient":"fee_vault_and_pool_fee_growth"},
-    {"module":"UserStockVault","signature":"depositStock(bytes32,uint256)","caller":"PUBLIC","delaySeconds":0,"recipient":"caller_internal_balance","precondition":"CANONICAL_ASSET_AND_AssetStatus==ACTIVE"},
-    {"module":"UserStockVault","signature":"depositStockFor(bytes32,address,uint256)","caller":"ALLOCATION_MODULE","delaySeconds":0,"recipient":"fixed_user_internal_balance","precondition":"USER_EQUALS_ALLOCATION_MANAGER_OUTER_MSG_SENDER_AND_CANONICAL_ASSET_AND_ASSET_ACTIVE"},
-    {"module":"UserStockVault","signature":"withdrawFreeStock(bytes32,uint256)","caller":"PUBLIC","delaySeconds":0,"recipient":"caller","precondition":"CANONICAL_ASSET"},
-    {"module":"UserStockVault","signature":"rageQuit(bytes32,bytes32)","caller":"PUBLIC","delaySeconds":0,"recipient":"caller","precondition":"CALLER_FULL_POSITION_ONLY; PRINCIPAL_FIRST; NO_MARKET_LIFECYCLE_OR_MINIMUM_GATE; REWARD_TOMBSTONE_PRECEDES_EXACT_TRANSFER"},
-    {"module":"UserStockVault","signature":"lockAllocation(bytes32,address,bytes32,uint256)","caller":"ALLOCATION_MODULE","delaySeconds":0,"recipient":"none","precondition":"CANONICAL_ASSET_AND_MARKET_MATCH"},
-    {"module":"UserStockVault","signature":"releaseAllocation(bytes32,address,bytes32)","caller":"ALLOCATION_MODULE","delaySeconds":0,"recipient":"user_free_balance","precondition":"FULL_CANONICAL_USER_MARKET_ALLOCATION_ONLY"},
-    {"module":"UserStockVault","signature":"rageQuitAllocation(bytes32,address,bytes32)","caller":"ALLOCATION_MODULE","delaySeconds":0,"recipient":"fixed_user","precondition":"FULL_CANONICAL_USER_MARKET_ALLOCATION; PRINCIPAL_FIRST; REWARD_TOMBSTONE_PRECEDES_EXACT_TRANSFER"},
-    {"module":"UserStockVault","signature":"completeRageQuitRewardSettlement(bytes32,address,bytes32)","caller":"ALLOCATION_MODULE","delaySeconds":0,"recipient":"none","precondition":"GAUGE_POSITION_AND_UNCLAIMED_REWARDS_ALREADY_ZERO"},
-    {"module":"UserStockVault","signature":"recordGaugeRewardState(bytes32,bytes32,uint256,uint256)","caller":"ALLOCATION_MODULE","delaySeconds":0,"recipient":"none","precondition":"FORWARDED_ONLY_FROM_EXACT_REGISTERED_GAUGE; ACCUMULATORS_MONOTONIC"},
-    {"module":"AllocationManager","signature":"allocate(bytes32,uint256)","caller":"PUBLIC","delaySeconds":0,"recipient":"caller_position"},
-    {"module":"AllocationManager","signature":"increaseAllocation(bytes32,uint256)","caller":"PUBLIC","delaySeconds":0,"recipient":"caller_position"},
-    {"module":"AllocationManager","signature":"closeAllocation(bytes32)","caller":"PUBLIC","delaySeconds":0,"recipient":"caller_free_balance","precondition":"CALLER_FULL_POSITION_ONLY_AND_UNLOCKED"},
-    {"module":"AllocationManager","signature":"rageQuit(bytes32)","caller":"PUBLIC","delaySeconds":0,"recipient":"caller","precondition":"CALLER_FULL_POSITION_ONLY_FORFEITS_ALL_UNCLAIMED_REWARDS_BYPASSES_LOCK_AND_DOES_NOT_CHANGE_MARKET_STATE"},
-    {"module":"AllocationManager","signature":"settleRageQuitRewards(bytes32,address)","caller":"PUBLIC","delaySeconds":0,"recipient":"market_asset_forfeiture_reserves","precondition":"VAULT_REWARD_SETTLEMENT_TOMBSTONE_EXISTS; ALL_ESCAPE_REWARDS_PLATFORM_FORFEITED; PERMISSIONLESS_IDEMPOTENT_RETRY"},
-    {"module":"AllocationManager","signature":"recordGaugeRewardState(bytes32,uint256,uint256)","caller":"EXACT_REGISTERED_GAUGE","delaySeconds":0,"recipient":"none","precondition":"MARKET_TO_ASSET_TO_VAULT_BINDING_CANONICAL; ACCUMULATORS_MONOTONIC"},
-    {"module":"AllocationManager","signature":"depositAndAllocate(bytes32,uint256,uint256)","caller":"PUBLIC","delaySeconds":0,"recipient":"caller_position"},
-    {"module":"MemeStockGauge","signature":"addPending(address,uint256,uint64,uint64)","caller":"ALLOCATION_MODULE","delaySeconds":0,"recipient":"user_position"},
-    {"module":"MemeStockGauge","signature":"removeAllocation(address)","caller":"ALLOCATION_MODULE","delaySeconds":0,"recipient":"user_position","precondition":"FULL_USER_POSITION_ONLY_AND_UNLOCKED"},
-    {"module":"MemeStockGauge","signature":"rageQuit(address)","caller":"ALLOCATION_MODULE","delaySeconds":0,"recipient":"market_asset_forfeiture_reserves","precondition":"FIXED_USER_FULL_POSITION; ALL_UNCLAIMED_REWARDS_PLATFORM_FORFEITED; NO_ADMINISTRATIVE_DISABLE_GATE"},
-    {"module":"MemeStockGauge","signature":"checkpointActivations()","caller":"PUBLIC","delaySeconds":0,"recipient":"none"},
-    {"module":"MemeStockGauge","signature":"flushDeferredForfeiture()","caller":"PUBLIC","delaySeconds":0,"recipient":"market_asset_forfeiture_reserves","precondition":"NONZERO_DEFERRED_FORFEITURE; NO_ADMINISTRATIVE_DISABLE_GATE"},
-    {"module":"MemeStockGauge","signature":"settle(address)","caller":"ALLOCATION_MODULE_OR_FEE_VAULT","delaySeconds":0,"recipient":"fixed_user"},
-    {"module":"MemeStockGauge","signature":"creditStakerFee(address,uint256,bytes32)","caller":"FEE_VAULT","delaySeconds":0,"recipient":"staker_liability"},
-    {"module":"MemeStockGauge","signature":"consumeClaimable(address,address)","caller":"FEE_VAULT","delaySeconds":0,"recipient":"fixed_user"},
-    {"module":"ProtocolFeeVault","signature":"beginV4Credit(bytes32,address,uint256,uint32,bytes32)","caller":"ACTIVE_FEE_SOURCE","delaySeconds":0,"recipient":"none","precondition":"source_is_registered_hook"},
-    {"module":"ProtocolFeeVault","signature":"finalizeV4Credit(bytes32,address,uint256,uint256,uint256,uint256,uint64,bytes32)","caller":"ACTIVE_FEE_SOURCE","delaySeconds":0,"recipient":"fixed_buckets","precondition":"exact_balance_delta"},
-    {"module":"ProtocolFeeVault","signature":"beginCurveCredit(bytes32,address,uint256,uint32,uint64,bytes32)","caller":"EXACT_REGISTERED_CURVE","delaySeconds":0,"recipient":"none","precondition":"CALLER_EQUALS_REGISTERED_CURVE_SOURCE_VERSION_MATCHES_AND_ATOMIC_FEE_SWEEP_PRECEDES_GRADUATION_TRANSFER"},
-    {"module":"ProtocolFeeVault","signature":"finalizeCurveCredit(bytes32,address,uint256,uint32,uint64,bytes32)","caller":"EXACT_REGISTERED_CURVE","delaySeconds":0,"recipient":"creator_and_platform","precondition":"MATCHING_BEGIN_AND_EXACT_BALANCE_DELTA"},
-    {"module":"ProtocolFeeVault","signature":"claimCreator(bytes32,uint32,address)","caller":"PUBLIC","delaySeconds":0,"recipient":"stored_creator_epoch_beneficiary"},
-    {"module":"ProtocolFeeVault","signature":"claimPlatform(bytes32,address)","caller":"PUBLIC","delaySeconds":0,"recipient":"stored_platform_treasury"},
-    {"module":"ProtocolFeeVault","signature":"claimStaker(bytes32,address)","caller":"PUBLIC","delaySeconds":0,"recipient":"caller"},
-    {"module":"ProtocolFeeVault","signature":"claimStakerFor(address,bytes32,address)","caller":"PUBLIC","delaySeconds":0,"recipient":"fixed_user"},
-    {"module":"ProtocolFeeVault","signature":"recordForfeiture(bytes32,address,uint256,uint256)","caller":"EXACT_REGISTERED_GAUGE","delaySeconds":0,"recipient":"market_asset_forfeiture_reserves","precondition":"ESCAPE_REWARD_FORFEITURE_ONLY; AMOUNT_LE_STAKER_LIABILITY"},
-    {"module":"CreatorRevenueRegistry","signature":"initializeCreatorRevenueEpoch(bytes32,address)","caller":"FACTORY_MODULE","delaySeconds":0,"recipient":"epoch_1_beneficiary","precondition":"MARKET_REGISTRATION_AND_NONZERO_BENEFICIARY"},
-    {"module":"CreatorRevenueRegistry","signature":"transferCreatorRevenueBeneficiary(bytes32,address)","caller":"CURRENT_CREATOR_BENEFICIARY","delaySeconds":0,"recipient":"new_beneficiary_for_future_fees","precondition":"CURVE_ACCRUED_FEE_ZERO_AFTER_ATOMIC_OLD_EPOCH_SWEEP"},
-    {"module":"TreasuryDistributorV1","signature":"registerMarket(bytes32,address,address,bytes32)","caller":"PROTOCOL_ADMIN_ROLE","delaySeconds":172800,"recipient":"none","precondition":"MARKET_AND_ASSETS_MATCH_CANONICAL_MARKET_REGISTRY"},
-    {"module":"TreasuryDistributorV1","signature":"activateMarket(bytes32)","caller":"PUBLIC","delaySeconds":0,"recipient":"none","precondition":"CANONICAL_MARKET_LAUNCH_PHASE_EQUALS_POOL_CREATED"},
-    {"module":"TreasuryDistributorV1","signature":"setRootServiceFee(address,uint128)","caller":"PROTOCOL_ADMIN_ROLE","delaySeconds":172800,"recipient":"none"},
-    {"module":"TreasuryDistributorV1","signature":"fundQuoteTreasury(bytes32,uint256,bytes32)","caller":"PUBLIC","delaySeconds":0,"recipient":"market_epoch_quote_liability","precondition":"ACTIVE_MARKET_AND_EXACT_NATIVE_VALUE_OR_ERC20_BALANCE_DELTA"},
-    {"module":"TreasuryDistributorV1","signature":"burnMeme(bytes32,uint256,bytes32)","caller":"PUBLIC","delaySeconds":0,"recipient":"burn_address","precondition":"ACTIVE_MARKET_AND_EXACT_MEME_TRANSFER_AND_SUPPLY_DECREASE"},
-    {"module":"TreasuryDistributorV1","signature":"requestRoot(bytes32,uint32)","caller":"CURRENT_MEME_HOLDER","delaySeconds":0,"recipient":"service_fee_escrow","precondition":"CLOSED_FINALIZED_NONEMPTY_EPOCH_AND_CURRENT_MEME_BALANCE_GT_ZERO"},
-    {"module":"TreasuryDistributorV1","signature":"publishRoot(bytes32,uint32,bytes32,bytes32,uint256,uint32,uint256)","caller":"ROOT_PUBLISHER_ROLE","delaySeconds":0,"recipient":"none","precondition":"REQUESTED_EPOCH_AND_EXACT_EPOCH_ALLOCATION"},
-    {"module":"TreasuryDistributorV1","signature":"cancelPendingRoot(bytes32,uint32,bytes32)","caller":"ROOT_REVIEW_ROLE","delaySeconds":0,"recipient":"fixed_requester_service_credit","precondition":"ROOT_PENDING_AND_NONZERO_REASON"},
-    {"module":"TreasuryDistributorV1","signature":"finalizeRoot(bytes32,uint32)","caller":"PUBLIC","delaySeconds":0,"recipient":"fixed_root_service_treasury_credit","precondition":"ROOT_PENDING_AND_REVIEW_DELAY_ELAPSED"},
-    {"module":"TreasuryDistributorV1","signature":"expireRootRequest(bytes32,uint32)","caller":"PUBLIC","delaySeconds":0,"recipient":"fixed_requester_service_credit","precondition":"REQUESTED_AND_PUBLICATION_WINDOW_EXPIRED"},
-    {"module":"TreasuryDistributorV1","signature":"claim(bytes32,uint32,uint256,address,uint256,uint256,bytes32[])","caller":"PUBLIC","delaySeconds":0,"recipient":"merkle_leaf_account","precondition":"FINALIZED_ROOT_VALID_PROOF_UNCLAIMED_INDEX_AND_ACCOUNT"},
-    {"module":"TreasuryDistributorV1","signature":"rolloverExpiredEpoch(bytes32,uint32)","caller":"PUBLIC","delaySeconds":0,"recipient":"current_market_epoch","precondition":"CLAIM_WINDOW_EXPIRED"},
-    {"module":"TreasuryDistributorV1","signature":"withdrawServiceCredit(address)","caller":"SERVICE_BENEFICIARY","delaySeconds":0,"recipient":"caller","precondition":"NONZERO_CALLER_SERVICE_CREDIT"}
+    {
+      "module": "AccessManager",
+      "signature": "schedule(address,bytes,uint48)",
+      "caller": "ROLE_MEMBER_WITH_EXECUTION_DELAY",
+      "delaySeconds": "ROLE_SPECIFIC",
+      "recipient": "none"
+    },
+    {
+      "module": "AccessManager",
+      "signature": "execute(address,bytes)",
+      "caller": "SCHEDULING_ROLE_MEMBER",
+      "delaySeconds": "AFTER_SCHEDULED_DELAY",
+      "recipient": "target_fixed_by_schedule"
+    },
+    {
+      "module": "AccessManager",
+      "signature": "cancel(address,address,bytes)",
+      "caller": "ROLE_GUARDIAN_OR_ADMIN_OR_SCHEDULER",
+      "delaySeconds": 0,
+      "recipient": "none"
+    },
+    {
+      "module": "AccessManager",
+      "signature": "setTargetFunctionRole(address,bytes4[],uint64)",
+      "caller": "ADMIN_ROLE_BOOTSTRAP_ONLY",
+      "delaySeconds": 0,
+      "recipient": "none",
+      "precondition": "NO_ADMIN_ROLE_MEMBER_AFTER_HANDOFF"
+    },
+    {
+      "module": "AccessManager",
+      "signature": "grantRole(uint64,address,uint32)",
+      "caller": "PROTOCOL_ADMIN_ROLE",
+      "delaySeconds": 172800,
+      "recipient": "none"
+    },
+    {
+      "module": "AccessManager",
+      "signature": "revokeRole(uint64,address)",
+      "caller": "PROTOCOL_ADMIN_ROLE",
+      "delaySeconds": 172800,
+      "recipient": "none"
+    },
+    {
+      "module": "OfficialStockRegistryV1",
+      "signature": "registerAsset(bytes32,address,uint8,address,uint256,StockTokenFingerprint)",
+      "caller": "PROTOCOL_ADMIN_ROLE",
+      "delaySeconds": 172800,
+      "recipient": "none",
+      "precondition": "UID_DECIMALS_RUNTIME_BEACON_AND_IMPLEMENTATION_MATCH_GOVERNANCE_COMMITTED_FINGERPRINT"
+    },
+    {
+      "module": "OfficialStockRegistryV1",
+      "signature": "acceptAssetImplementation(bytes32,address,bytes32,bytes32)",
+      "caller": "PROTOCOL_ADMIN_ROLE",
+      "delaySeconds": 172800,
+      "recipient": "none",
+      "precondition": "ASSET_PAUSED_AND_TOKEN_BEACON_IDENTITY_UNCHANGED_AND_CURRENT_BEACON_IMPLEMENTATION_MATCHES_COMMITTED_CODEHASH"
+    },
+    {
+      "module": "OfficialStockRegistryV1",
+      "signature": "setMinimumAllocation(bytes32,uint256,bytes32)",
+      "caller": "PROTOCOL_ADMIN_ROLE",
+      "delaySeconds": 172800,
+      "recipient": "none",
+      "precondition": "REGISTERED_ASSET_AND_MINIMUM_AT_LEAST_414_RAW_UNITS"
+    },
+    {
+      "module": "OfficialStockRegistryV1",
+      "signature": "pauseAsset(bytes32,bytes32)",
+      "caller": "PAUSE_GUARDIAN_ROLE",
+      "delaySeconds": 0,
+      "recipient": "none"
+    },
+    {
+      "module": "OfficialStockRegistryV1",
+      "signature": "unpauseAsset(bytes32)",
+      "caller": "UNPAUSE_ROLE",
+      "delaySeconds": 86400,
+      "recipient": "none"
+    },
+    {
+      "module": "OfficialStockRegistryV1",
+      "signature": "retireAsset(bytes32,bytes32)",
+      "caller": "PROTOCOL_ADMIN_ROLE",
+      "delaySeconds": 172800,
+      "recipient": "none"
+    },
+    {
+      "module": "ApprovedQuoteRegistry",
+      "signature": "addQuoteConfig(bytes32,QuoteAssetConfig)",
+      "caller": "PROTOCOL_ADMIN_ROLE",
+      "delaySeconds": 172800,
+      "recipient": "none"
+    },
+    {
+      "module": "ApprovedQuoteRegistry",
+      "signature": "addStockQuoteConfig(bytes32,QuoteAssetConfig,StockQuoteBinding)",
+      "caller": "PROTOCOL_ADMIN_ROLE",
+      "delaySeconds": 172800,
+      "recipient": "none",
+      "precondition": "OFFICIAL_ACTIVE_IMMUTABLE_BEACON_ASSET_AND_PINNED_FINGERPRINT_PRICE_EVIDENCE"
+    },
+    {
+      "module": "ApprovedQuoteRegistry",
+      "signature": "pauseQuote(bytes32,bytes32)",
+      "caller": "PAUSE_GUARDIAN_ROLE",
+      "delaySeconds": 0,
+      "recipient": "none"
+    },
+    {
+      "module": "ApprovedQuoteRegistry",
+      "signature": "unpauseQuote(bytes32)",
+      "caller": "UNPAUSE_ROLE",
+      "delaySeconds": 86400,
+      "recipient": "none"
+    },
+    {
+      "module": "ApprovedQuoteRegistry",
+      "signature": "retireQuote(bytes32,bytes32)",
+      "caller": "PROTOCOL_ADMIN_ROLE",
+      "delaySeconds": 172800,
+      "recipient": "none"
+    },
+    {
+      "module": "TickerGardenBaselineRegistry",
+      "signature": "addBaseline(bytes32,TickerGardenBaseline)",
+      "caller": "PROTOCOL_ADMIN_ROLE",
+      "delaySeconds": 172800,
+      "recipient": "none"
+    },
+    {
+      "module": "TickerGardenBaselineRegistry",
+      "signature": "pauseBaseline(bytes32,bytes32)",
+      "caller": "PAUSE_GUARDIAN_ROLE",
+      "delaySeconds": 0,
+      "recipient": "none"
+    },
+    {
+      "module": "TickerGardenBaselineRegistry",
+      "signature": "unpauseBaseline(bytes32)",
+      "caller": "UNPAUSE_ROLE",
+      "delaySeconds": 86400,
+      "recipient": "none"
+    },
+    {
+      "module": "TickerGardenBaselineRegistry",
+      "signature": "retireBaseline(bytes32,bytes32)",
+      "caller": "PROTOCOL_ADMIN_ROLE",
+      "delaySeconds": 172800,
+      "recipient": "none"
+    },
+    {
+      "module": "LaunchTemplateRegistry",
+      "signature": "addLaunchTemplate(bytes32,LaunchTemplate)",
+      "caller": "PROTOCOL_ADMIN_ROLE",
+      "delaySeconds": 172800,
+      "recipient": "none"
+    },
+    {
+      "module": "LaunchTemplateRegistry",
+      "signature": "pauseLaunchTemplate(bytes32,bytes32)",
+      "caller": "PAUSE_GUARDIAN_ROLE",
+      "delaySeconds": 0,
+      "recipient": "none"
+    },
+    {
+      "module": "LaunchTemplateRegistry",
+      "signature": "unpauseLaunchTemplate(bytes32)",
+      "caller": "UNPAUSE_ROLE",
+      "delaySeconds": 86400,
+      "recipient": "none"
+    },
+    {
+      "module": "LaunchTemplateRegistry",
+      "signature": "retireLaunchTemplate(bytes32,bytes32)",
+      "caller": "PROTOCOL_ADMIN_ROLE",
+      "delaySeconds": 172800,
+      "recipient": "none"
+    },
+    {
+      "module": "TickerGardenFactoryV1",
+      "signature": "createMarket(CreateMarketParams)",
+      "caller": "PUBLIC",
+      "delaySeconds": 0,
+      "recipient": "none"
+    },
+    {
+      "module": "TickerGardenFactoryV1",
+      "signature": "createMarketFor(address,CreateMarketParams)",
+      "caller": "LAUNCH_ROUTER_MODULE",
+      "delaySeconds": 0,
+      "recipient": "none",
+      "precondition": "CREATOR_EQUALS_ROUTER_OUTER_MSG_SENDER"
+    },
+    {
+      "module": "LaunchAndBuyRouter",
+      "signature": "launchAndBuy(CreateMarketParams,uint256,uint256,address)",
+      "caller": "PUBLIC",
+      "delaySeconds": 0,
+      "recipient": "specified_first_buy_recipient"
+    },
+    {
+      "module": "TickerMemeTokenV1",
+      "signature": "transfer(address,uint256)",
+      "caller": "PUBLIC",
+      "delaySeconds": 0,
+      "recipient": "specified_token_recipient"
+    },
+    {
+      "module": "TickerMemeTokenV1",
+      "signature": "approve(address,uint256)",
+      "caller": "PUBLIC",
+      "delaySeconds": 0,
+      "recipient": "specified_spender_allowance"
+    },
+    {
+      "module": "TickerMemeTokenV1",
+      "signature": "transferFrom(address,address,uint256)",
+      "caller": "PUBLIC",
+      "delaySeconds": 0,
+      "recipient": "specified_token_recipient"
+    },
+    {
+      "module": "MarketRegistryV1",
+      "signature": "registerMarket(bytes32,MarketConfig)",
+      "caller": "FACTORY_MODULE",
+      "delaySeconds": 0,
+      "recipient": "none"
+    },
+    {
+      "module": "MarketRegistryV1",
+      "signature": "commitPoolCreated(bytes32,bytes32)",
+      "caller": "GRADUATION_MODULE",
+      "delaySeconds": 0,
+      "recipient": "none",
+      "precondition": "NotGraduated_AND_CANONICAL_POOL_ACTIVE_AND_LP_PERMANENTLY_LOCKED_IN_SAME_TRANSACTION"
+    },
+    {
+      "module": "TickerGardenCurve",
+      "signature": "buy(uint256,uint256,address)",
+      "caller": "PUBLIC",
+      "delaySeconds": 0,
+      "recipient": "specified_trade_recipient",
+      "precondition": "LaunchPhase==NotGraduated"
+    },
+    {
+      "module": "TickerGardenCurve",
+      "signature": "sell(uint256,uint256,address)",
+      "caller": "PUBLIC",
+      "delaySeconds": 0,
+      "recipient": "specified_trade_recipient",
+      "precondition": "LaunchPhase==NotGraduated"
+    },
+    {
+      "module": "TickerGardenCurve",
+      "signature": "sweepCurveFees()",
+      "caller": "PUBLIC",
+      "delaySeconds": 0,
+      "recipient": "fixed_fee_vault_beneficiaries",
+      "precondition": "THIS_CURVE_IS_EXACT_REGISTERED_SOURCE_AND_LAUNCH_PHASE_NOT_GRADUATED_ZERO_ACCRUAL_IS_NOOP"
+    },
+    {
+      "module": "GraduationExecutor",
+      "signature": "graduateFromCurve(bytes32,uint256,uint256)",
+      "caller": "EXACT_REGISTERED_CURVE",
+      "delaySeconds": 0,
+      "recipient": "canonical_per_market_launch_locker",
+      "precondition": "NotGraduated_AND_CALLER_MATCHES_MARKET_CURVE_AND_EXACT_ASSETS_RECEIVED_IN_SAME_TRANSACTION"
+    },
+    {
+      "module": "TickerGardenMemeHook",
+      "signature": "registerExpectedPool(bytes32,PoolKey,uint32)",
+      "caller": "GRADUATION_MODULE",
+      "delaySeconds": 0,
+      "recipient": "none"
+    },
+    {
+      "module": "TickerGardenMemeHook",
+      "signature": "activatePool(bytes32)",
+      "caller": "GRADUATION_MODULE",
+      "delaySeconds": 0,
+      "recipient": "none"
+    },
+    {
+      "module": "TickerGardenMemeHook",
+      "signature": "beforeInitialize(address,PoolKey,uint160)",
+      "caller": "POOL_MANAGER",
+      "delaySeconds": 0,
+      "recipient": "none"
+    },
+    {
+      "module": "TickerGardenMemeHook",
+      "signature": "afterSwap(address,PoolKey,SwapParams,BalanceDelta,bytes)",
+      "caller": "POOL_MANAGER",
+      "delaySeconds": 0,
+      "recipient": "fee_vault_and_pool_fee_growth"
+    },
+    {
+      "module": "UserStockVault",
+      "signature": "depositStock(bytes32,uint256)",
+      "caller": "PUBLIC",
+      "delaySeconds": 0,
+      "recipient": "caller_internal_balance",
+      "precondition": "CANONICAL_ASSET_AND_AssetStatus==ACTIVE"
+    },
+    {
+      "module": "UserStockVault",
+      "signature": "depositStockFor(bytes32,address,uint256)",
+      "caller": "ALLOCATION_MODULE",
+      "delaySeconds": 0,
+      "recipient": "fixed_user_internal_balance",
+      "precondition": "USER_EQUALS_ALLOCATION_MANAGER_OUTER_MSG_SENDER_AND_CANONICAL_ASSET_AND_ASSET_ACTIVE"
+    },
+    {
+      "module": "UserStockVault",
+      "signature": "withdrawFreeStock(bytes32,uint256)",
+      "caller": "PUBLIC",
+      "delaySeconds": 0,
+      "recipient": "caller",
+      "precondition": "CANONICAL_ASSET"
+    },
+    {
+      "module": "UserStockVault",
+      "signature": "rageQuit(bytes32,bytes32)",
+      "caller": "PUBLIC",
+      "delaySeconds": 0,
+      "recipient": "caller",
+      "precondition": "CALLER_FULL_POSITION_ONLY; PRINCIPAL_FIRST; NO_MARKET_LIFECYCLE_OR_MINIMUM_GATE; REWARD_TOMBSTONE_PRECEDES_EXACT_TRANSFER"
+    },
+    {
+      "module": "UserStockVault",
+      "signature": "lockAllocation(bytes32,address,bytes32,uint256)",
+      "caller": "ALLOCATION_MODULE",
+      "delaySeconds": 0,
+      "recipient": "none",
+      "precondition": "CANONICAL_ASSET_AND_MARKET_MATCH"
+    },
+    {
+      "module": "UserStockVault",
+      "signature": "releaseAllocation(bytes32,address,bytes32)",
+      "caller": "ALLOCATION_MODULE",
+      "delaySeconds": 0,
+      "recipient": "user_free_balance",
+      "precondition": "FULL_CANONICAL_USER_MARKET_ALLOCATION_ONLY"
+    },
+    {
+      "module": "UserStockVault",
+      "signature": "releaseAllocationAndWithdraw(bytes32,address,bytes32)",
+      "caller": "ALLOCATION_MODULE",
+      "delaySeconds": 0,
+      "recipient": "fixed_user",
+      "precondition": "FULL_CANONICAL_USER_MARKET_ALLOCATION_ONLY"
+    },
+    {
+      "module": "UserStockVault",
+      "signature": "rageQuitAllocation(bytes32,address,bytes32)",
+      "caller": "ALLOCATION_MODULE",
+      "delaySeconds": 0,
+      "recipient": "fixed_user",
+      "precondition": "FULL_CANONICAL_USER_MARKET_ALLOCATION; PRINCIPAL_FIRST; REWARD_TOMBSTONE_PRECEDES_EXACT_TRANSFER"
+    },
+    {
+      "module": "UserStockVault",
+      "signature": "completeRageQuitRewardSettlement(bytes32,address,bytes32)",
+      "caller": "ALLOCATION_MODULE",
+      "delaySeconds": 0,
+      "recipient": "none",
+      "precondition": "GAUGE_POSITION_AND_UNCLAIMED_REWARDS_ALREADY_ZERO"
+    },
+    {
+      "module": "UserStockVault",
+      "signature": "recordGaugeRewardState(bytes32,bytes32,uint256,uint256)",
+      "caller": "ALLOCATION_MODULE",
+      "delaySeconds": 0,
+      "recipient": "none",
+      "precondition": "FORWARDED_ONLY_FROM_EXACT_REGISTERED_GAUGE; ACCUMULATORS_MONOTONIC"
+    },
+    {
+      "module": "AllocationManager",
+      "signature": "allocate(bytes32,uint256)",
+      "caller": "PUBLIC",
+      "delaySeconds": 0,
+      "recipient": "caller_position"
+    },
+    {
+      "module": "AllocationManager",
+      "signature": "stake(bytes32,uint256)",
+      "caller": "PUBLIC",
+      "delaySeconds": 0,
+      "recipient": "caller_position"
+    },
+    {
+      "module": "AllocationManager",
+      "signature": "increaseAllocation(bytes32,uint256)",
+      "caller": "PUBLIC",
+      "delaySeconds": 0,
+      "recipient": "caller_position"
+    },
+    {
+      "module": "AllocationManager",
+      "signature": "closeAllocation(bytes32)",
+      "caller": "PUBLIC",
+      "delaySeconds": 0,
+      "recipient": "caller_free_balance",
+      "precondition": "CALLER_FULL_POSITION_ONLY_AND_UNLOCKED"
+    },
+    {
+      "module": "AllocationManager",
+      "signature": "unstakeAndWithdraw(bytes32)",
+      "caller": "PUBLIC",
+      "delaySeconds": 0,
+      "recipient": "caller",
+      "precondition": "CALLER_FULL_POSITION_ONLY_AND_UNLOCKED"
+    },
+    {
+      "module": "AllocationManager",
+      "signature": "rageQuit(bytes32)",
+      "caller": "PUBLIC",
+      "delaySeconds": 0,
+      "recipient": "caller",
+      "precondition": "CALLER_FULL_POSITION_ONLY_FORFEITS_ALL_UNCLAIMED_REWARDS_BYPASSES_LOCK_AND_DOES_NOT_CHANGE_MARKET_STATE"
+    },
+    {
+      "module": "AllocationManager",
+      "signature": "settleRageQuitRewards(bytes32,address)",
+      "caller": "PUBLIC",
+      "delaySeconds": 0,
+      "recipient": "market_asset_forfeiture_reserves",
+      "precondition": "VAULT_REWARD_SETTLEMENT_TOMBSTONE_EXISTS; ALL_ESCAPE_REWARDS_PLATFORM_FORFEITED; PERMISSIONLESS_IDEMPOTENT_RETRY"
+    },
+    {
+      "module": "AllocationManager",
+      "signature": "recordGaugeRewardState(bytes32,uint256,uint256)",
+      "caller": "EXACT_REGISTERED_GAUGE",
+      "delaySeconds": 0,
+      "recipient": "none",
+      "precondition": "MARKET_TO_ASSET_TO_VAULT_BINDING_CANONICAL; ACCUMULATORS_MONOTONIC"
+    },
+    {
+      "module": "AllocationManager",
+      "signature": "depositAndAllocate(bytes32,uint256,uint256)",
+      "caller": "PUBLIC",
+      "delaySeconds": 0,
+      "recipient": "caller_position"
+    },
+    {
+      "module": "MemeStockGauge",
+      "signature": "addPending(address,uint256,uint64,uint64)",
+      "caller": "ALLOCATION_MODULE",
+      "delaySeconds": 0,
+      "recipient": "user_position"
+    },
+    {
+      "module": "MemeStockGauge",
+      "signature": "removeAllocation(address)",
+      "caller": "ALLOCATION_MODULE",
+      "delaySeconds": 0,
+      "recipient": "user_position",
+      "precondition": "FULL_USER_POSITION_ONLY_AND_UNLOCKED"
+    },
+    {
+      "module": "MemeStockGauge",
+      "signature": "rageQuit(address)",
+      "caller": "ALLOCATION_MODULE",
+      "delaySeconds": 0,
+      "recipient": "market_asset_forfeiture_reserves",
+      "precondition": "FIXED_USER_FULL_POSITION; ALL_UNCLAIMED_REWARDS_PLATFORM_FORFEITED; NO_ADMINISTRATIVE_DISABLE_GATE"
+    },
+    {
+      "module": "MemeStockGauge",
+      "signature": "checkpointActivations()",
+      "caller": "PUBLIC",
+      "delaySeconds": 0,
+      "recipient": "none"
+    },
+    {
+      "module": "MemeStockGauge",
+      "signature": "flushDeferredForfeiture()",
+      "caller": "PUBLIC",
+      "delaySeconds": 0,
+      "recipient": "market_asset_forfeiture_reserves",
+      "precondition": "NONZERO_DEFERRED_FORFEITURE; NO_ADMINISTRATIVE_DISABLE_GATE"
+    },
+    {
+      "module": "MemeStockGauge",
+      "signature": "settle(address)",
+      "caller": "ALLOCATION_MODULE_OR_FEE_VAULT",
+      "delaySeconds": 0,
+      "recipient": "fixed_user"
+    },
+    {
+      "module": "MemeStockGauge",
+      "signature": "creditStakerFee(address,uint256,bytes32)",
+      "caller": "FEE_VAULT",
+      "delaySeconds": 0,
+      "recipient": "staker_liability"
+    },
+    {
+      "module": "MemeStockGauge",
+      "signature": "consumeClaimable(address)",
+      "caller": "FEE_VAULT",
+      "delaySeconds": 0,
+      "recipient": "fixed_user"
+    },
+    {
+      "module": "MemeStockGauge",
+      "signature": "consumeClaimableAssets(address,uint8)",
+      "caller": "FEE_VAULT",
+      "delaySeconds": 0,
+      "recipient": "fixed_user"
+    },
+    {
+      "module": "ProtocolFeeVault",
+      "signature": "beginV4Credit(bytes32,address,uint256,uint32,bytes32)",
+      "caller": "ACTIVE_FEE_SOURCE",
+      "delaySeconds": 0,
+      "recipient": "none",
+      "precondition": "source_is_registered_hook"
+    },
+    {
+      "module": "ProtocolFeeVault",
+      "signature": "finalizeV4Credit(bytes32,address,uint256,uint256,uint256,uint256,uint64,bytes32)",
+      "caller": "ACTIVE_FEE_SOURCE",
+      "delaySeconds": 0,
+      "recipient": "fixed_buckets",
+      "precondition": "exact_balance_delta"
+    },
+    {
+      "module": "ProtocolFeeVault",
+      "signature": "beginCurveCredit(bytes32,address,uint256,uint256,uint32,uint64,bytes32)",
+      "caller": "EXACT_REGISTERED_CURVE",
+      "delaySeconds": 0,
+      "recipient": "none",
+      "precondition": "CALLER_EQUALS_REGISTERED_CURVE_SOURCE_VERSION_MATCHES_AND_ATOMIC_FEE_SWEEP_PRECEDES_GRADUATION_TRANSFER"
+    },
+    {
+      "module": "ProtocolFeeVault",
+      "signature": "finalizeCurveCredit(bytes32,address,uint256,uint256,uint32,uint64,bytes32)",
+      "caller": "EXACT_REGISTERED_CURVE",
+      "delaySeconds": 0,
+      "recipient": "creator_and_platform",
+      "precondition": "MATCHING_BEGIN_AND_EXACT_BALANCE_DELTA"
+    },
+    {
+      "module": "ProtocolFeeVault",
+      "signature": "claimPlatform(bytes32,address)",
+      "caller": "PUBLIC",
+      "delaySeconds": 0,
+      "recipient": "stored_platform_treasury"
+    },
+    {
+      "module": "ProtocolFeeVault",
+      "signature": "recordForfeiture(bytes32,address,uint256,uint256)",
+      "caller": "EXACT_REGISTERED_GAUGE",
+      "delaySeconds": 0,
+      "recipient": "market_asset_forfeiture_reserves",
+      "precondition": "ESCAPE_REWARD_FORFEITURE_ONLY; AMOUNT_LE_STAKER_LIABILITY"
+    },
+    {
+      "module": "CreatorRevenueRegistry",
+      "signature": "initializeCreatorRevenueEpoch(bytes32,address)",
+      "caller": "FACTORY_MODULE",
+      "delaySeconds": 0,
+      "recipient": "epoch_1_beneficiary",
+      "precondition": "MARKET_REGISTRATION_AND_NONZERO_BENEFICIARY"
+    },
+    {
+      "module": "CreatorRevenueRegistry",
+      "signature": "transferCreatorRevenueBeneficiary(bytes32,address)",
+      "caller": "CURRENT_CREATOR_BENEFICIARY",
+      "delaySeconds": 0,
+      "recipient": "pending_beneficiary_only",
+      "precondition": "PROPOSE_ONLY_CURRENT_BENEFICIARY_NO_EPOCH_CHANGE"
+    },
+    {
+      "module": "ProtocolFeeVault",
+      "signature": "fundHolderRewards(bytes32,uint32)",
+      "caller": "PUBLIC",
+      "delaySeconds": 0,
+      "recipient": "fixed_holder_distribution_market_and_epoch"
+    },
+    {
+      "module": "CreatorRevenueRegistry",
+      "signature": "acceptCreatorRevenueBeneficiary(bytes32)",
+      "caller": "PENDING_CREATOR_REVENUE_BENEFICIARY",
+      "delaySeconds": 0,
+      "recipient": "none",
+      "precondition": "PENDING_BENEFICIARY_ACCEPTS_WITH_ATOMIC_OLD_EPOCH_SWEEP"
+    },
+    {
+      "module": "CreatorRevenueRegistry",
+      "signature": "cancelCreatorRevenueBeneficiaryTransfer(bytes32)",
+      "caller": "CURRENT_CREATOR_BENEFICIARY",
+      "delaySeconds": 0,
+      "recipient": "none",
+      "precondition": "CURRENT_BENEFICIARY_CANCELS_PENDING_NOMINATION"
+    },
+    {
+      "module": "ProtocolFeeVault",
+      "signature": "claimUserRewards(bytes32,uint8,uint32)",
+      "caller": "PUBLIC",
+      "delaySeconds": 0,
+      "recipient": "fixed_reward_beneficiary_or_canonical_pool",
+      "precondition": "CALLER_OWNED_UNLOCKED_REWARDS_ONLY"
+    },
+    {
+      "module": "ProtocolFeeVault",
+      "signature": "claimUserRewardAssets(bytes32,uint8,uint32,uint8)",
+      "caller": "PUBLIC",
+      "delaySeconds": 0,
+      "recipient": "fixed_reward_beneficiary_or_canonical_pool",
+      "precondition": "CALLER_OWNED_UNLOCKED_REWARDS_ONLY"
+    },
+    {
+      "module": "ProtocolFeeVault",
+      "signature": "fundHolderMemeRewards(bytes32)",
+      "caller": "PUBLIC",
+      "delaySeconds": 0,
+      "recipient": "fixed_reward_beneficiary_or_canonical_pool",
+      "precondition": "FIXED_DISTRIBUTOR_CANONICAL_MEME"
+    },
+    {
+      "module": "ProtocolFeeVault",
+      "signature": "proposePlatformTreasury(address)",
+      "caller": "PROTOCOL_ADMIN_MEMBER",
+      "delaySeconds": 0,
+      "stateDelaySeconds": 0,
+      "recipient": "none",
+      "precondition": "ACTIVE_ROLE_1_MEMBER_DIRECT_CALL; FIXED_48H_STATE_TIMELOCK_STARTS; NO_PENDING_PROPOSAL; CONTRACT_RECIPIENT"
+    },
+    {
+      "module": "ProtocolFeeVault",
+      "signature": "acceptPlatformTreasury(uint256)",
+      "caller": "PENDING_PLATFORM_TREASURY",
+      "delaySeconds": 0,
+      "stateDelaySeconds": 0,
+      "recipient": "none",
+      "precondition": "EXACT_PENDING_CONTRACT_DIRECT_CALL; MATCHING_PROPOSAL_NONCE_AND_CODEHASH"
+    },
+    {
+      "module": "ProtocolFeeVault",
+      "signature": "cancelPlatformTreasury(uint256)",
+      "caller": "PROTOCOL_ADMIN_OR_GUARDIAN_MEMBER",
+      "delaySeconds": 0,
+      "stateDelaySeconds": 0,
+      "recipient": "none",
+      "precondition": "ACTIVE_ROLE_1_OR_ROLE_2_MEMBER_DIRECT_CALL; MATCHING_PROPOSAL_NONCE; IMMEDIATE_CANCEL"
+    },
+    {
+      "module": "ProtocolFeeVault",
+      "signature": "executePlatformTreasury(uint256)",
+      "caller": "PUBLIC",
+      "delaySeconds": 0,
+      "stateDelaySeconds": 172800,
+      "recipient": "none",
+      "precondition": "MATCHING_NONCE; NEW_TREASURY_ACCEPTED; 48H_ELAPSED; PROPOSER_STILL_ROLE_1; CODEHASH_UNCHANGED; ALL_UNPAID_PLATFORM_FEES_FOLLOW_CURRENT_TREASURY",
+      "stateDelayAnchor": "TREASURY_PROPOSAL_TIMESTAMP"
+    },
+    {
+      "module": "ProtocolFeeVault",
+      "signature": "fundHolderRewardsBatch(bytes32[],uint8,uint256)",
+      "caller": "PUBLIC",
+      "delaySeconds": 0,
+      "recipient": "fixed_holder_distributor_per_market_and_asset",
+      "precondition": "BOUNDED_MARKETS_ASSET_MASK_AND_GAS; EACH_CHILD_USES_CANONICAL_FUNDING_AND_OPERATION_GUARD"
+    },
+    {
+      "module": "ProtocolFeeVault",
+      "signature": "settleV4StakerFee(address,address,uint256,bytes32)",
+      "caller": "FEE_VAULT",
+      "delaySeconds": 0,
+      "recipient": "none",
+      "precondition": "SELF_ONLY_AND_CREDIT_FINALIZING; FIXED_GAS_ROLLBACK_BOUNDARY; FAILURE_NEW_STAKER_FEES_FORFEITED_TO_PLATFORM"
+    },
+    {
+      "module": "ProtocolFeeVault",
+      "signature": "coverAssetDeficit(address,uint256)",
+      "caller": "PUBLIC",
+      "delaySeconds": 0,
+      "recipient": "fixed_fee_vault",
+      "precondition": "EXISTING_DEFICIT; EXACT_ASSET_RECEIPT; AMOUNT_NOT_ABOVE_DEFICIT; NO_NEW_LIABILITY"
+    },
+    {
+      "module": "TickerMemeTokenV1",
+      "signature": "burn(uint256)",
+      "caller": "CURRENT_MEME_HOLDER",
+      "delaySeconds": 0,
+      "recipient": "none; destroys only caller balance"
+    },
+    {
+      "module": "LaunchLocker",
+      "signature": "collectLockedFees()",
+      "caller": "PUBLIC",
+      "delaySeconds": 0,
+      "recipient": "fixed_locked_position",
+      "precondition": "FIXED_POSITION_ZERO_LIQUIDITY_DECREASE; ONLY_FEES_TO_LOCKER"
+    },
+    {
+      "module": "LaunchLocker",
+      "signature": "compoundLockedFees(uint128,uint128,uint128,uint256)",
+      "caller": "COMPOUND_KEEPER",
+      "delaySeconds": 0,
+      "recipient": "fixed_locked_position",
+      "precondition": "ONLY_COLLECTED_FEES; SAME_POSITION_POOL_RANGE; EXACT_LIQUIDITY_INCREASE; MAX_INPUTS; DEADLINE_WITHIN_300_SECONDS"
+    },
+    {
+      "module": "GraduationExecutor",
+      "signature": "setCompoundKeeper(address)",
+      "caller": "PROTOCOL_ADMIN_ROLE",
+      "delaySeconds": 172800,
+      "recipient": "none",
+      "precondition": "ZERO_DISABLES_COMPOUNDING_ONLY; NO_DEPLOYER_DEFAULT"
+    }
   ],
   "forbiddenCapabilities": [
     "ARBITRARY_RECIPIENT_CLAIM",

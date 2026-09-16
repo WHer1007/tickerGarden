@@ -1,0 +1,187 @@
+{
+  "schemaVersion": 1,
+  "status": "REJECTED_AND_PAUSED",
+  "scope": "ROBINHOOD_TESTNET_SYNTHETIC_ASSETS_ONLY",
+  "chainId": 46630,
+  "releaseId": "0xf7024d03f3844c5b40abfeda80cb4e8c6edc307ba60a17c8c6d2bc9296e26e41",
+  "planSha256": "0x6a2753d3d34e723d06bb27aff31e613b16c0889e778a34325c15a6dc4be6b252",
+  "transactions": [
+    {
+      "id": "deploy-usdg",
+      "nonce": 25,
+      "to": null,
+      "inputHash": "0x9b106b10d1b7383447abf30caad790eaeecc070b818231a385abbdfab2a5c1d6",
+      "transactionHash": "0xbbe0c5c8f63d9ec13d83f6e9274289fa26fbe970c52a9422c015f96e5f8a37f0",
+      "status": "CONFIRMED",
+      "blockNumber": "115059642",
+      "blockHash": "0x182bf41e135852ac8875286d3933f3d5eea2ce005d3a3114fb682c2d3a0af327",
+      "gasUsed": "634146",
+      "effectiveGasPrice": "10000000",
+      "feeWei": "6341460000000"
+    },
+    {
+      "id": "deploy-cbbtc",
+      "nonce": 26,
+      "to": null,
+      "inputHash": "0x0bd0414c5de8da72476abd26b2bd772c4718592d8a74825ee855ad2d30ce6a34",
+      "transactionHash": "0x628a106741c11f2a4fee5787f4befc614e860232551291386d109bdc40c5ec83",
+      "status": "CONFIRMED",
+      "blockNumber": "115059671",
+      "blockHash": "0xb6824dd20c61c2ac28adab7180588fcc989cd5ff912ea00d9d16206020d52589",
+      "gasUsed": "634158",
+      "effectiveGasPrice": "10000000",
+      "feeWei": "6341580000000"
+    },
+    {
+      "id": "deploy-nvda",
+      "nonce": 27,
+      "to": null,
+      "inputHash": "0xbcce30f1b757cad9b280b89fd4dc54374664bcd237665bd48e494de7191f146a",
+      "transactionHash": "0x76ca73e6deb34905ee062816f5290dc101e73c1685229a142613e00aee534cb4",
+      "status": "CONFIRMED",
+      "blockNumber": "115059691",
+      "blockHash": "0xb9f5d932a0b61ce980e5c6a55279969fb34334f984934cf4688f1618d03f01f7",
+      "gasUsed": "633829",
+      "effectiveGasPrice": "10000000",
+      "feeWei": "6338290000000"
+    },
+    {
+      "id": "deploy-aapl",
+      "nonce": 28,
+      "to": null,
+      "inputHash": "0x732cdac664cb10eb0fd4d06a6aa009b450acc808402dee15c9f0d77d8de17814",
+      "transactionHash": "0x9ce970ce789585e8759c4e19ff4bc7593a64831aac6d5d8ac471527f3760223b",
+      "status": "CONFIRMED",
+      "blockNumber": "115059722",
+      "blockHash": "0x499f65225c00068ea6c12cb51bb527bf60c93ed56f0537bdf8554ccf378c155c",
+      "gasUsed": "634013",
+      "effectiveGasPrice": "10000000",
+      "feeWei": "6340130000000"
+    },
+    {
+      "id": "deploy-tsla",
+      "nonce": 29,
+      "to": null,
+      "inputHash": "0x477eeee8e7775608c80f67c6fcabc960627d1b7f4e369ebb9f054dbd1f0e6b51",
+      "transactionHash": "0x4d442a2bd917ef01466bb4d254e336e008248ba03d9d892f0f063e846730309f",
+      "status": "CONFIRMED",
+      "blockNumber": "115059749",
+      "blockHash": "0xd55a7f11e72bf3be0b81dc5b1d9756357b973402073cff476b05e8f3168cf882",
+      "gasUsed": "633792",
+      "effectiveGasPrice": "10000000",
+      "feeWei": "6337920000000"
+    },
+    {
+      "id": "register-nvda-staking",
+      "nonce": 30,
+      "to": "0x5a04e4dB95BcEFb7f4CddC7E27576f8D74029586",
+      "inputHash": "0xacdadc202e8e06ea8782b8f4cffaf711081b8e3cf05aeef566a1a9750634f1ac",
+      "transactionHash": "0x651af0a643e5826a7b97e46d3273c723087edd89357db47c67ae8d1efd14c2c1",
+      "status": "CONFIRMED",
+      "blockNumber": "115059779",
+      "blockHash": "0x31fb6c60cb428658153d99a1422641dee05f33b7a95411154d326d804acc19b5",
+      "gasUsed": "4502435",
+      "effectiveGasPrice": "10000000",
+      "feeWei": "45024350000000"
+    },
+    {
+      "id": "register-aapl-staking",
+      "nonce": 31,
+      "to": "0x5a04e4dB95BcEFb7f4CddC7E27576f8D74029586",
+      "inputHash": "0x04575680cbf9ddb9523372c1a9812b6d105a3bde6360ab1ca1bef138c29202e7",
+      "transactionHash": "0x070cd7a2fe88ff19af00f2c277ecc4348e8b11a8c00a22d0a38f6b1645792ca3",
+      "status": "CONFIRMED",
+      "blockNumber": "115059807",
+      "blockHash": "0xa981172bd77e0535e8e43ca7f45452d70f76ee650144917aa38b81e6bd6249df",
+      "gasUsed": "4398681",
+      "effectiveGasPrice": "10000000",
+      "feeWei": "43986810000000"
+    },
+    {
+      "id": "register-tsla-staking",
+      "nonce": 32,
+      "to": "0x5a04e4dB95BcEFb7f4CddC7E27576f8D74029586",
+      "inputHash": "0xc415b5ab095a776db907f27b0e452cbea56441fe39313ad0dc3df173a78a07fd",
+      "transactionHash": "0x47f6972848e1ec824bd17079409cad697e14b556b0dcc6c5358018986b7997dc",
+      "status": "CONFIRMED",
+      "blockNumber": "115059837",
+      "blockHash": "0x3f1659c5e778232ff111a5c8b3c8ef2586d399a02132631c83bd2d3f8acd41f0",
+      "gasUsed": "4398866",
+      "effectiveGasPrice": "10000000",
+      "feeWei": "43988660000000"
+    },
+    {
+      "id": "add-usdg-quote",
+      "nonce": 33,
+      "to": "0x4FE87f1e7Eb36b70Ac47d335c169F6634048E9AA",
+      "inputHash": "0x45fa66cccc59ce18ae71bde1a3568f53949ac92cd8e19d56f05edd8471f0319f",
+      "transactionHash": "0x8a983ddb65e45259844e4621a48265a5323083fe5ff010a2784b1d2d4517220e",
+      "status": "CONFIRMED",
+      "blockNumber": "115059869",
+      "blockHash": "0xfed915f706bfaf83238d9ad29b988675ae629893906ff3697cd25e669a181176",
+      "gasUsed": "214247",
+      "effectiveGasPrice": "10000000",
+      "feeWei": "2142470000000"
+    },
+    {
+      "id": "add-cbbtc-quote",
+      "nonce": 34,
+      "to": "0x4FE87f1e7Eb36b70Ac47d335c169F6634048E9AA",
+      "inputHash": "0x27cbacb8f83f0cedde7a89d09a5dac76daec0652dca09b5f36fe95083f0c66bc",
+      "transactionHash": "0x62fe9f95ca2f949c13def43bf218b68c8b146680b3acfc48420086aed01ffa5c",
+      "status": "CONFIRMED",
+      "blockNumber": "115059896",
+      "blockHash": "0xc2acb2776165d1668e87f4eb2d6ab63c0e660ec73dffdc400b7aa7ee6b6a7fbd",
+      "gasUsed": "214113",
+      "effectiveGasPrice": "10000000",
+      "feeWei": "2141130000000"
+    }
+  ],
+  "totalFeeWei": "168982800000000",
+  "observedAt": "2026-09-07T19:24:16.530Z",
+  "rejectionReason": "Synthetic assets were deployed and admitted in error; only canonical Robinhood testnet assets may be used.",
+  "reasonHash": "0x581161bbfb6eb28a4098940f8b7d8e2e193ab00312b6c3cb31beda6b0e676081",
+  "pauseTransactions": [
+    {
+      "id": "pause-nvda-staking",
+      "status": "CONFIRMED_PAUSED",
+      "transactionHash": "0x6de38857827b2ab32e012b3fc5ce66d365533d9ba7878e80cf719867f23933e2",
+      "blockNumber": "115062439",
+      "blockHash": "0xef85f1faf22c74b7a9781a848f177a78b1eaa07624f5e4bb4373251db41a60e3",
+      "feeWei": "676740000000"
+    },
+    {
+      "id": "pause-aapl-staking",
+      "status": "CONFIRMED_PAUSED",
+      "transactionHash": "0x035dee6384546a69278a50f375b81b59816d4f3c7cef2400cb95304c0a194bd8",
+      "blockNumber": "115062471",
+      "blockHash": "0x70842e298d367dac123882c25b7af62bde18d848a047c48d3804c18a8567eb8c",
+      "feeWei": "676740000000"
+    },
+    {
+      "id": "pause-tsla-staking",
+      "status": "CONFIRMED_PAUSED",
+      "transactionHash": "0xe786c5b6dcd1b85bf3c52146a71ad200705afdf0755631545c7bd107e3a54715",
+      "blockNumber": "115062501",
+      "blockHash": "0x28eec85fdc7c9ff9bc7d747ac77d0e80ad33bb6eee402c23285256439dc0f341",
+      "feeWei": "676740000000"
+    },
+    {
+      "id": "pause-usdg-quote",
+      "status": "CONFIRMED_PAUSED",
+      "transactionHash": "0xd5dd66ed706d654391bbcbf5c82949c14646e0265751c3e11ecffdde781dbaf6",
+      "blockNumber": "115062526",
+      "blockHash": "0x6f93ecdab7ed980508d65690d91c78a4817b7de4970b12be5e0077ada20e0a2f",
+      "feeWei": "678170000000"
+    },
+    {
+      "id": "pause-cbbtc-quote",
+      "status": "CONFIRMED_PAUSED",
+      "transactionHash": "0xb6a856023138041445f19ba5f8d570572ddb6c7d76d871f344310fb6a9275e64",
+      "blockNumber": "115062544",
+      "blockHash": "0x33e894887df18fb60667c80a05a54ce22b253431c1412b9fcbd28cce0487c728",
+      "feeWei": "678170000000"
+    }
+  ],
+  "pausedAt": "2026-09-07T19:30:01.866Z"
+}

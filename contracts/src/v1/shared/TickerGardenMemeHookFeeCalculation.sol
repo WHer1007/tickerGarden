@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.26;
 
+import {CreatorTax} from "../libraries/CreatorTax.sol";
 import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
 
 import {MarketView, PoolBinding, PoolKey, SwapParams} from "../interfaces/IV1Protocol.sol";
@@ -11,7 +12,7 @@ import {V1MarketEconomics} from "./V1MarketEconomics.sol";
 abstract contract TickerGardenMemeHookFeeCalculation is TickerGardenMemeHookLifecycle {
     bytes32 private constant V4_FEE_DOMAIN = keccak256("TICKERGARDEN_V1_V4_FEE");
     uint256 private constant V4_FEE_SCHEMA_VERSION = 1;
-    bytes32 private constant EXECUTION_SPEC_ID = keccak256("V1-EXEC-10");
+    bytes32 private constant EXECUTION_SPEC_ID = keccak256("V1-EXEC-11");
     uint256 private constant FEE_PIPS_DENOMINATOR = 1_000_000;
     uint24 private constant FEE_PIPS = 10_000;
     uint256 private constant BPS_DENOMINATOR = 10_000;
@@ -69,7 +70,8 @@ abstract contract TickerGardenMemeHookFeeCalculation is TickerGardenMemeHookLife
         fee.marketId = binding.marketId;
         fee.sourceVersion = binding.sourceVersion;
         (fee.feeAsset, fee.base) = _unspecifiedCurrencyAndBase(key, params, coreDelta, value);
-        fee.totalFee = Math.mulDiv(fee.base, FEE_PIPS, FEE_PIPS_DENOMINATOR);
+        fee.totalFee = Math.mulDiv(fee.base, FEE_PIPS, FEE_PIPS_DENOMINATOR)
+            + CreatorTax.amount(fee.base, value.config.creatorTaxBps);
         if (fee.totalFee == 0) return fee;
         if (fee.totalFee > uint256(uint128(type(int128).max))) revert FeeAmountTooLarge(fee.totalFee);
 

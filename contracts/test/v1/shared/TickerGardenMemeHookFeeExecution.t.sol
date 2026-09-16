@@ -41,6 +41,10 @@ contract HookFeeExecutionRegistryMock {
     function canonicalPoolKey(bytes32 marketId) external view returns (PoolKey memory) {
         return _keys[marketId];
     }
+
+    function canonicalPoolId(bytes32 marketId) external view returns (bytes32) {
+        return keccak256(abi.encode(_keys[marketId]));
+    }
 }
 
 contract HookFeeExecutionVault is ProtocolFeeVaultV4Credit {
@@ -61,10 +65,10 @@ contract HookFeeExecutionVault is ProtocolFeeVaultV4Credit {
     }
 
     function creditState() external view returns (uint8 state) {
-        (state,) = _pendingV4Credit();
+        (state,) = (_creditState(), _pendingV4Credit());
     }
 
-    function _recordExactV4Credit(V4CreditRecord memory record) internal override {
+    function _recordExactV4Credit(V4CreditRecord memory record, MarketView memory) internal override {
         if (failRecord) revert ForcedRecordFailure();
         _lastRecord = record;
         recordCount += 1;
@@ -194,6 +198,14 @@ contract HookFeeExecutionCreate2Deployer {
 }
 
 contract TickerGardenMemeHookFeeExecutionHarness is TickerGardenMemeHookFeeExecution {
+    function convertRewards(bytes32, uint256, uint256) external pure returns (uint256, uint256) {
+        revert("UNSUPPORTED_TEST_LAYER");
+    }
+
+    function unlockCallback(bytes calldata) external pure returns (bytes memory) {
+        revert("UNSUPPORTED_TEST_LAYER");
+    }
+
     constructor(address registry, address poolManager, address feeVault, address graduation)
         TickerGardenMemeHookFeeExecution(registry, poolManager, feeVault, graduation)
     {}
@@ -360,6 +372,28 @@ contract TickerGardenMemeHookFeeExecutionTest is Test {
         hook.afterSwap(address(this), key, params, _delta(-1, 10_000), "ignored");
     }
 
+    function test_allStaticLpTiersPreserveHookFeeAccountingBothDirections() public {
+        for (uint24 fee; fee <= 3_000; fee += 1_000) {
+            key.fee = fee;
+            poolId = keccak256(abi.encode(key));
+            _configure();
+            hook.seedActive(MARKET_ID, key, 2);
+            poolManager.setCoreFees(poolId, 1000, fee);
+            (, int128 first) = poolManager.swap(hook, key, _params(true, -1), _delta(-20_000, 10_000), "");
+            assertEq(first, 100);
+            (, int128 second) = poolManager.swap(hook, key, _params(false, -1), _delta(10_000, -20_000), "");
+            assertEq(second, 100);
+            assertEq(feeVault.lastRecord().lpAmount, 0);
+            assertEq(feeVault.lastRecord().nonLpAmount, 100);
+            (, int128 exactBuy) = poolManager.swap(hook, key, _params(true, 1), _delta(-10_000, 20_000), "");
+            assertEq(exactBuy, 100);
+            (, int128 exactSell) = poolManager.swap(hook, key, _params(false, 1), _delta(20_000, -10_000), "");
+            assertEq(exactSell, 100);
+            assertEq(feeVault.lastRecord().lpAmount, 0);
+            assertEq(hook.poolBinding(poolId).feeNonce, 4);
+        }
+    }
+
     function test_nonzeroLpFeeFailsClosedBeforeAnyFeeActionAndCanRetry() public {
         poolManager.setCoreFees(poolId, 0, 3_000);
         vm.expectRevert(
@@ -376,24 +410,17 @@ contract TickerGardenMemeHookFeeExecutionTest is Test {
         assertEq(hook.poolBinding(poolId).feeNonce, 1);
     }
 
-    function test_eitherPackedProtocolFeeDirectionFailsClosedIncludingZeroTotalFee() public {
-        poolManager.setCoreFees(poolId, 1, 0);
-        vm.expectRevert(
-            abi.encodeWithSelector(
-                TickerGardenMemeHookFeeExecution.NonzeroCorePoolFee.selector, poolId, uint24(1), uint24(0)
-            )
-        );
-        poolManager.swap(hook, key, _params(true, -1), _delta(-1, 99), "zero-total-fee");
-        _assertNoEffects(address(meme));
-
-        poolManager.setCoreFees(poolId, uint24(1 << 12), 0);
-        vm.expectRevert(
-            abi.encodeWithSelector(
-                TickerGardenMemeHookFeeExecution.NonzeroCorePoolFee.selector, poolId, uint24(1 << 12), uint24(0)
-            )
-        );
-        poolManager.swap(hook, key, _params(true, -1), _delta(-1, 10_000), "other-direction");
-        _assertNoEffects(address(meme));
+    function test_eitherPackedProtocolFeeDirectionPreservesOwnFeeAccounting() public {
+        poolManager.setCoreFees(poolId, 1000, 0);
+        (, int128 zeroFee) = poolManager.swap(hook, key, _params(true, -1), _delta(-1, 99), "zero-total-fee");
+        assertEq(zeroFee, 0);
+        assertEq(hook.poolBinding(poolId).feeNonce, 0);
+        assertEq(feeVault.recordCount(), 0);
+        poolManager.setCoreFees(poolId, uint24(1000 << 12), 0);
+        (, int128 ownFee) = poolManager.swap(hook, key, _params(true, -1), _delta(-1, 10_000), "other-direction");
+        assertEq(ownFee, 100);
+        assertEq(meme.balanceOf(address(feeVault)), 100);
+        assertEq(hook.poolBinding(poolId).feeNonce, 1);
     }
 
     function test_nonzeroPoolKeyFeeCannotReachCoreOrConsumeNonce() public {
@@ -460,6 +487,7 @@ contract TickerGardenMemeHookFeeExecutionTest is Test {
         config.quoteAsset = QUOTE;
         config.memeToken = address(meme);
         config.graduatedHook = address(hook);
+        config.lpFeePips = key.fee;
         MarketRuntime memory runtime;
         runtime.launchPhase = 1;
         runtime.poolId = poolId;
@@ -491,8 +519,8 @@ contract TickerGardenMemeHookFeeExecutionTest is Test {
         return keccak256(
             abi.encode(
                 keccak256("TICKERGARDEN_V1_FEE_POLICY"),
-                uint256(4),
-                keccak256("V1-EXEC-10"),
+                uint256(5),
+                keccak256("V1-EXEC-11"),
                 uint24(10_000),
                 uint16(0),
                 uint24(0),

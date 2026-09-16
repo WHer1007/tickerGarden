@@ -15,6 +15,8 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: "22.13"
+      - name: Check environment isolation
+        run: npm run test:environment
       - name: Verify V1 source boundary
         run: npm run check:boundary
       - name: Verify V1 machine specification
@@ -64,7 +66,7 @@ jobs:
       - name: Verify generated interfaces and compiled ABI manifest
         run: npm run check:interfaces
 
-  v1-treasury:
+  v1-holder-rewards:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -72,31 +74,31 @@ jobs:
         with:
           node-version: "22.13"
           cache: npm
-          cache-dependency-path: services/treasury-root-generator/package-lock.json
+          cache-dependency-path: apps/web/package-lock.json
       - uses: foundry-rs/foundry-toolchain@v1
         with:
           version: v1.8.1
       - name: Restore pinned contract dependencies
         working-directory: contracts
         run: node scripts/sync-dependencies.mjs
-      - name: Install V1 Root generator
-        working-directory: services/treasury-root-generator
+      - name: Install pinned test encoder dependencies
+        working-directory: apps/web
         run: npm ci
-      - name: Check V1 Treasury formatting
+      - name: Check V1 Holder rewards formatting
         working-directory: contracts
         run: forge fmt --profile v1-ci --check src/v1 test/v1/treasury
-      - name: Build V1 Treasury namespace
+      - name: Build V1 Holder rewards namespace
         working-directory: contracts
         run: forge build --profile v1-ci
-      - name: Test V1 Treasury subsystem
+      - name: Test V1 Holder rewards subsystem
         working-directory: contracts
         run: forge test --profile v1-ci --match-path 'test/v1/treasury/**'
-      - name: Verify V1 Treasury invariant without cache
+      - name: Verify V1 Holder rewards invariant without cache
         working-directory: contracts
-        run: forge test --profile v1-ci --no-cache --match-path 'test/v1/treasury/product/TreasuryDistributorV1Invariant.t.sol'
-      - name: Test and build deterministic V1 Root generator
-        working-directory: services/treasury-root-generator
-        run: npm test && npm run build
+        run: forge test --profile v1-ci --no-cache --match-path 'test/v1/treasury/product/HolderBatchedInvariant.t.sol'
+      - name: Check current reward paths and worker policy
+        run: npm run test:current-rewards && npm run test:holder-worker
+
 
   contracts-product:
     runs-on: ubuntu-latest
@@ -156,31 +158,40 @@ jobs:
       - name: Report V1 deployment-track status
         run: npm run check:deployment-track
 
-  offchain-scaffolds:
+  typescript-serverless-backend:
     runs-on: ubuntu-latest
-    strategy:
-      fail-fast: false
-      matrix:
-        package:
-          - services/backend-api
-          - services/indexer
-          - services/maintenance-runner
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: tickergarden
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: "22.13"
+          node-version: "24"
           cache: npm
-          cache-dependency-path: ${{ matrix.package }}/package-lock.json
-      - name: Install
-        working-directory: ${{ matrix.package }}
+          cache-dependency-path: services/backend-ts/package-lock.json
+      - name: Install TypeScript backend
+        working-directory: services/backend-ts
         run: npm ci
-      - name: Build
-        working-directory: ${{ matrix.package }}
-        run: npm run build
-      - name: Test
-        working-directory: ${{ matrix.package }}
-        run: npm test
+      - name: Verify generated contracts, types, unit tests and build
+        working-directory: services/backend-ts
+        run: npm test && npm run build
+      - name: Run PostgreSQL integration tests
+        working-directory: services/backend-ts
+        env:
+          TG_MIGRATION_DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:5432/tickergarden
+        run: npm run test:integration && npm run test:recovery
 
   website:
     runs-on: ubuntu-latest

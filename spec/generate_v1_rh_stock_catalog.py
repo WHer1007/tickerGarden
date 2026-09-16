@@ -45,7 +45,7 @@ UID_SELECTOR = "0xf514ce36"
 IMPLEMENTATION_SELECTOR = "0x5c60da1b"
 HEX_32 = re.compile(r"^0x[0-9a-fA-F]{64}$")
 HEX_ADDRESS = re.compile(r"^0x[0-9a-fA-F]{40}$")
-IMMUTABLE_BEACON_SUFFIX = bytes.fromhex("6001600160a01b0316635c60da1b")
+BEACON_TEMPLATES = json.loads(Path(__file__).with_name("v1_beacon_proxy_templates.json").read_text())
 
 
 def _request(url: str, payload: Any | None = None) -> bytes:
@@ -194,28 +194,16 @@ def _runtime_hash(code: str, name: str) -> tuple[int, str]:
 
 
 def _immutable_beacon(code: str) -> str | None:
-    """Recognize Robinhood's immutable-beacon proxy runtime."""
-
+    """Accept only complete reviewed proxy programs, matching the onchain admission rule."""
     raw = bytes.fromhex(code.removeprefix("0x"))
-    candidates: list[str] = []
-    limit = max(0, len(raw) - 1 - 32 - len(IMMUTABLE_BEACON_SUFFIX) + 1)
-    for offset in range(limit):
-        if raw[offset] != 0x7F:
-            continue
-        immediate = raw[offset + 1 : offset + 33]
-        suffix = raw[offset + 33 : offset + 33 + len(IMMUTABLE_BEACON_SUFFIX)]
-        if (
-            len(immediate) == 32
-            and immediate[:12] == bytes(12)
-            and suffix == IMMUTABLE_BEACON_SUFFIX
-        ):
-            address = "0x" + immediate[12:].hex()
-            if int(address, 16) != 0:
-                candidates.append(address)
-    unique = sorted(set(candidates))
-    if len(unique) > 1:
-        raise ValueError("proxy runtime contains multiple immutable beacon candidates")
-    return unique[0] if unique else None
+    offset = BEACON_TEMPLATES["immutableWordOffset"]
+    word = raw[offset : offset + 32]
+    if len(word) != 32 or word[:12] != bytes(12) or int.from_bytes(word, "big") == 0:
+        return None
+    normalized = "0x" + (raw[:offset] + bytes(32) + raw[offset + 32:]).hex()
+    if not any(template["normalizedRuntime"] == normalized for template in BEACON_TEMPLATES["templates"]):
+        return None
+    return "0x" + word[12:].hex()
 
 
 def _address_from_abi_word(value: Any, name: str) -> str:

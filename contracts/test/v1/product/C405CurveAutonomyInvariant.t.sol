@@ -6,15 +6,15 @@ import {
     AssetView,
     LaunchTemplate,
     MarketConfig,
-    PonsBaseline,
+    TickerGardenBaseline,
     QuoteAssetConfig
 } from "../../../src/v1/interfaces/IV1Protocol.sol";
 import {MarketRegistryV1} from "../../../src/v1/modules/MarketRegistryV1.sol";
 import {
     CurveInitialization,
     ICurveInitializationSource,
-    PonsCompatibleCurve
-} from "../../../src/v1/modules/PonsCompatibleCurve.sol";
+    TickerGardenCurve
+} from "../../../src/v1/modules/TickerGardenCurve.sol";
 import {TickerMemeTokenV1} from "../../../src/v1/modules/TickerMemeTokenV1.sol";
 import {
     MarketRegistryStockMock,
@@ -46,12 +46,12 @@ contract C405CurveFactory is ICurveInitializationSource {
     }
 
     function predictCurve(bytes32 salt) external view returns (address) {
-        bytes32 hash = keccak256(bytes.concat(type(PonsCompatibleCurve).creationCode, abi.encode(address(this))));
+        bytes32 hash = keccak256(bytes.concat(type(TickerGardenCurve).creationCode, abi.encode(address(this))));
         return address(uint160(uint256(keccak256(abi.encodePacked(bytes1(0xff), address(this), salt, hash)))));
     }
 
-    function deployCurve(bytes32 salt) external returns (PonsCompatibleCurve) {
-        return new PonsCompatibleCurve{salt: salt}(address(this));
+    function deployCurve(bytes32 salt) external returns (TickerGardenCurve) {
+        return new TickerGardenCurve{salt: salt}(address(this));
     }
 
     function deployToken(bytes32 marketId, address predictedCurve) external returns (TickerMemeTokenV1) {
@@ -64,9 +64,9 @@ contract C405CurveFactory is ICurveInitializationSource {
 contract C405FeeVault {
     receive() external payable {}
 
-    function beginCurveCredit(bytes32, address, uint256, uint32, uint64, bytes32) external {}
+    function beginCurveCredit(bytes32, address, uint256, uint256, uint32, uint64, bytes32) external {}
 
-    function finalizeCurveCredit(bytes32, address, uint256, uint32, uint64, bytes32) external payable {}
+    function finalizeCurveCredit(bytes32, address, uint256, uint256, uint32, uint64, bytes32) external payable {}
 }
 
 /// @dev Regression vectors proving a live Curve cannot be administratively interrupted.
@@ -97,6 +97,7 @@ contract C405CurveAutonomyInvariantTest is Test {
     function setUp() public {
         assets = new MarketRegistryStockMock();
         quotes = new MarketRegistryQuoteMock();
+        quotes.setOfficialStockRegistry(address(assets));
         baselines = new MarketRegistryBaselineMock();
         templates = new MarketRegistryTemplateMock();
         assets.setAsset(ASSET_UID, _asset());
@@ -108,21 +109,14 @@ contract C405CurveAutonomyInvariantTest is Test {
         vm.etch(SWAP_ROUTER, hex"00");
         vm.etch(QUOTER, hex"00");
         registry = new MarketRegistryV1(
-            FACTORY,
-            address(assets),
-            address(quotes),
-            address(baselines),
-            address(templates),
-            address(graduation),
-            SWAP_ROUTER,
-            QUOTER
+            FACTORY, address(assets), address(quotes), address(baselines), address(templates), address(graduation)
         );
     }
 
     function test_nativeCurveBalancesRemainTradableBecauseInterventionSelectorsAreAbsent() public {
         C405CurveFactory factory = new C405CurveFactory();
         quotes.setQuote(QUOTE_CONFIG_ID, _quote(address(0)));
-        (PonsCompatibleCurve curve, TickerMemeTokenV1 meme) = _deployCurve(factory, NATIVE_MARKET_ID, address(0));
+        (TickerGardenCurve curve, TickerMemeTokenV1 meme) = _deployCurve(factory, NATIVE_MARKET_ID, address(0));
         _c405Register(NATIVE_MARKET_ID, _config(address(0), address(meme), address(curve)));
         vm.deal(USER, 1 ether);
         vm.prank(USER);
@@ -155,7 +149,7 @@ contract C405CurveAutonomyInvariantTest is Test {
         MockExactQuoteToken quote = new MockExactQuoteToken(6);
         quotes.setQuote(QUOTE_CONFIG_ID, _quote(address(quote)));
         C405CurveFactory factory = new C405CurveFactory();
-        (PonsCompatibleCurve curve, TickerMemeTokenV1 meme) = _deployCurve(factory, ERC20_MARKET_ID, address(quote));
+        (TickerGardenCurve curve, TickerMemeTokenV1 meme) = _deployCurve(factory, ERC20_MARKET_ID, address(quote));
         _c405Register(ERC20_MARKET_ID, _config(address(quote), address(meme), address(curve)));
         quote.mint(USER, 1_000);
         vm.prank(USER);
@@ -212,11 +206,11 @@ contract C405CurveAutonomyInvariantTest is Test {
     function _config(address quoteAsset, address memeToken, address curve) internal pure returns (MarketConfig memory) {
         return MarketConfig({
             assetUid: ASSET_UID,
-            ponsBaselineId: BASELINE_ID,
+            tickerGardenBaselineId: BASELINE_ID,
             quoteAssetConfigId: QUOTE_CONFIG_ID,
             launchTemplateId: TEMPLATE_ID,
             feePolicyId: FEE_POLICY_ID,
-            executionSpecId: keccak256("V1-EXEC-10"),
+            executionSpecId: keccak256("V1-EXEC-11"),
             expectedEconomics: ECONOMICS,
             launchConfigId: 0,
             creatorRevenueBeneficiaryAtCreation: BENEFICIARY,
@@ -224,7 +218,12 @@ contract C405CurveAutonomyInvariantTest is Test {
             curve: curve,
             gauge: GAUGE,
             quoteAsset: quoteAsset,
-            graduatedHook: HOOK
+            graduatedHook: HOOK,
+            creatorTaxBps: 0,
+            creatorFeesToHolders: false,
+            stakingEnabled: true,
+                burnMemeFees: false,
+            lpFeePips: 0
         });
     }
 
@@ -234,7 +233,7 @@ contract C405CurveAutonomyInvariantTest is Test {
 
     function _quote(address quoteAsset) internal pure returns (QuoteAssetConfig memory) {
         return QuoteAssetConfig({
-            ponsBaselineId: BASELINE_ID,
+            tickerGardenBaselineId: BASELINE_ID,
             quoteAsset: quoteAsset,
             quoteDecimals: quoteAsset == address(0) ? 18 : 6,
             phantomQuote: 1,
@@ -244,8 +243,8 @@ contract C405CurveAutonomyInvariantTest is Test {
         });
     }
 
-    function _baseline() internal pure returns (PonsBaseline memory) {
-        return PonsBaseline({
+    function _baseline() internal pure returns (TickerGardenBaseline memory) {
+        return TickerGardenBaseline({
             referenceChainId: 4663,
             referenceFactory: address(0xFACADE),
             referenceFactoryCodeHash: keccak256("factory-runtime"),
@@ -272,14 +271,14 @@ contract C405CurveAutonomyInvariantTest is Test {
             graduationExecutor: graduationExecutor,
             graduationExecutorCodeHash: keccak256("executor"),
             feePolicyId: FEE_POLICY_ID,
-            executionSpecId: keccak256("V1-EXEC-10"),
+            executionSpecId: keccak256("V1-EXEC-11"),
             status: 1
         });
     }
 
     function _deployCurve(C405CurveFactory factory, bytes32 marketId, address quote)
         internal
-        returns (PonsCompatibleCurve curve, TickerMemeTokenV1 meme)
+        returns (TickerGardenCurve curve, TickerMemeTokenV1 meme)
     {
         bytes32 salt = keccak256(abi.encode(marketId));
         address predicted = factory.predictCurve(salt);
@@ -288,7 +287,7 @@ contract C405CurveAutonomyInvariantTest is Test {
             predicted,
             CurveInitialization({
                 marketId: marketId,
-                ponsBaselineId: BASELINE_ID,
+                tickerGardenBaselineId: BASELINE_ID,
                 quoteAssetConfigId: QUOTE_CONFIG_ID,
                 marketRegistry: address(registry),
                 protocolFeeVault: address(feeVault),
@@ -301,7 +300,8 @@ contract C405CurveAutonomyInvariantTest is Test {
                 phantomQuote: 1,
                 graduationThreshold: 400_000,
                 initialSupply: 1_000_000,
-                curveFeeBps: 100
+                curveFeeBps: 100,
+                creatorTaxBps: 0
             })
         );
         curve = factory.deployCurve(salt);

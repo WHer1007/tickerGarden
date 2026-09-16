@@ -35,6 +35,7 @@ contract MockGaugeModuleCaller {
     mapping(bytes32 marketId => mapping(address user => uint64 activationAt)) internal _activationAt;
     mapping(bytes32 marketId => mapping(address user => bool rageQuiting)) internal _rageQuiting;
     mapping(bytes32 marketId => uint256 nonce) internal _cohortNonces;
+    mapping(bytes32 marketId => uint256 epoch) internal _emptyCohortEpochs;
     mapping(bytes32 marketId => mapping(address user => bool snapshotted)) internal _hasCohortSnapshot;
     mapping(bytes32 marketId => mapping(address user => uint256 amount)) internal _remainingAtExit;
     mapping(bytes32 marketId => mapping(address user => uint256 nonce)) internal _cohortNonceAtExit;
@@ -69,28 +70,32 @@ contract MockGaugeModuleCaller {
 
     function remove(MemeStockGauge gauge, address user) external returns (uint256) {
         bytes32 marketId = gauge.gaugeIdentity().marketId;
+        uint256 beforeActive = _rewardEligibleActiveStock(marketId);
         uint256 amount = gauge.removeAllocation(user);
         delete _active[marketId][user];
         delete _pending[marketId][user];
         delete _activationAt[marketId][user];
+        if (beforeActive != 0 && _rewardEligibleActiveStock(marketId) == 0) ++_emptyCohortEpochs[marketId];
         ++_cohortNonces[marketId];
         return amount;
     }
 
-    function rageQuit(MemeStockGauge gauge, address user) external returns (uint256, uint256, uint256, bool) {
+    function rageQuit(MemeStockGauge gauge, address user) external returns (uint256, uint256, uint256) {
         bytes32 marketId = gauge.gaugeIdentity().marketId;
         if (!_hasRageQuitCutoff[marketId][user]) _snapshotRageQuitRewardCutoff(marketId, user);
         if (!_rageQuiting[marketId][user]) {
+            uint256 beforeActive = _rewardEligibleActiveStock(marketId);
             _rageQuiting[marketId][user] = true;
+            if (beforeActive != 0 && _rewardEligibleActiveStock(marketId) == 0) ++_emptyCohortEpochs[marketId];
             ++_cohortNonces[marketId];
             _snapshotCohort(marketId, user);
         }
-        (uint256 principal, uint256 quoteForfeited, uint256 memeForfeited, bool redistributed) = gauge.rageQuit(user);
+        (uint256 principal, uint256 quoteForfeited, uint256 memeForfeited) = gauge.rageQuit(user);
         delete _rageQuiting[marketId][user];
         delete _active[marketId][user];
         delete _pending[marketId][user];
         delete _activationAt[marketId][user];
-        return (principal, quoteForfeited, memeForfeited, redistributed);
+        return (principal, quoteForfeited, memeForfeited);
     }
 
     function snapshotRageQuitRewardCutoff(bytes32 marketId, address user) external {
@@ -98,9 +103,11 @@ contract MockGaugeModuleCaller {
     }
 
     function deferRageQuitRewardCleanup(bytes32 marketId, address user) external {
+        uint256 beforeActive = _rewardEligibleActiveStock(marketId);
         _snapshotRageQuitRewardCutoff(marketId, user);
         _rageQuitSettlementPrincipal[marketId][user] = _active[marketId][user] + _pending[marketId][user];
         _rageQuiting[marketId][user] = true;
+        if (beforeActive != 0 && _rewardEligibleActiveStock(marketId) == 0) ++_emptyCohortEpochs[marketId];
         ++_cohortNonces[marketId];
         _snapshotCohort(marketId, user);
     }
@@ -108,21 +115,22 @@ contract MockGaugeModuleCaller {
     function rageQuitRewardCutoff(bytes32 marketId, address user)
         external
         view
-        returns (uint256 principal, uint256 quoteAccumulator, uint256 memeAccumulator, bool forfeitureRedistributable)
+        returns (uint256 principal, uint256 quoteAccumulator, uint256 memeAccumulator)
     {
         principal = _rageQuitSettlementPrincipal[marketId][user];
         if (principal == 0) principal = _active[marketId][user] + _pending[marketId][user];
         if (_hasRageQuitCutoff[marketId][user]) {
-            forfeitureRedistributable = _hasCohortSnapshot[marketId][user] && _remainingAtExit[marketId][user] != 0
-                && _cohortNonceAtExit[marketId][user] == _cohortNonces[marketId]
-                && _remainingAtExit[marketId][user] == _rewardEligibleActiveStock(marketId);
-            return (principal, _quoteCutoffs[marketId][user], _memeCutoffs[marketId][user], forfeitureRedistributable);
+            return (principal, _quoteCutoffs[marketId][user], _memeCutoffs[marketId][user]);
         }
-        return (principal, _latestQuoteAccumulator[marketId], _latestMemeAccumulator[marketId], false);
+        return (principal, _latestQuoteAccumulator[marketId], _latestMemeAccumulator[marketId]);
     }
 
     function rewardEligibleActiveStock(bytes32 marketId) external view returns (uint256 total) {
         return _rewardEligibleActiveStock(marketId);
+    }
+
+    function rewardCohortEpoch(bytes32 marketId) external view returns (uint256) {
+        return _emptyCohortEpochs[marketId];
     }
 
     function _rewardEligibleActiveStock(bytes32 marketId) private view returns (uint256 total) {
@@ -164,8 +172,8 @@ contract MockGaugeModuleCaller {
         return gauge.creditStakerFee(feeAsset, amount, feeId);
     }
 
-    function consume(MemeStockGauge gauge, address user, address feeAsset) external returns (uint256) {
-        return gauge.consumeClaimable(user, feeAsset);
+    function consume(MemeStockGauge gauge, address user) external returns (uint256, uint256) {
+        return gauge.consumeClaimable(user);
     }
 }
 
@@ -348,7 +356,7 @@ contract MemeStockGaugeTest is Test {
         vm.expectRevert(
             abi.encodeWithSelector(MemeStockGauge.UnauthorizedFeeVault.selector, address(this), address(feeVault))
         );
-        gauge.consumeClaimable(ALICE, address(quote));
+        gauge.consumeClaimable(ALICE);
     }
 
     function test_oldEmergencyDisableSelectorHasNoCallableSurface() public {
@@ -458,7 +466,7 @@ contract MemeStockGaugeTest is Test {
         assertEq(position.memeClaimable, 1_000);
     }
 
-    function test_consumingOneAssetSettlesBothButOnlyClearsSelectedClaimable() public {
+    function test_consumingBothAssetsSettlesOnceAndClearsBothClaimables() public {
         (uint64 generation, uint64 unlockAt) = _schedule(ALICE, 100);
         vm.warp(generation);
         feeVault.credit(gauge, address(quote), 100, keccak256("q"));
@@ -466,12 +474,56 @@ contract MemeStockGaugeTest is Test {
 
         // Claiming is subject to the same 24-hour lock as normal removal.
         vm.warp(unlockAt);
-        assertEq(feeVault.consume(gauge, ALICE, address(quote)), 100);
+        (uint256 q, uint256 m) = feeVault.consume(gauge, ALICE);
+        assertEq(q, 100);
+        assertEq(m, 200);
         PositionView memory position = gauge.positionOf(ALICE);
         assertEq(position.quoteClaimable, 0);
-        assertEq(position.memeClaimable, 200);
-        assertEq(feeVault.consume(gauge, ALICE, address(quote)), 0);
-        assertEq(feeVault.consume(gauge, ALICE, address(meme)), 200);
+        assertEq(position.memeClaimable, 0);
+        (q, m) = feeVault.consume(gauge, ALICE);
+        assertEq(q, 0);
+        assertEq(m, 0);
+    }
+
+    function test_selectedAssetsKeepUnselectedGaugeRewards() public {
+        (uint64 generation, uint64 unlockAt) = _schedule(ALICE, 100);
+        vm.warp(generation);
+        feeVault.credit(gauge, address(quote), 100, keccak256("selected-q"));
+        feeVault.credit(gauge, address(meme), 200, keccak256("selected-m"));
+        vm.prank(address(feeVault));
+        vm.expectRevert();
+        gauge.consumeClaimableAssets(ALICE, 2);
+        vm.warp(unlockAt);
+        vm.prank(address(feeVault));
+        (uint256 q, uint256 m) = gauge.consumeClaimableAssets(ALICE, 2);
+        assertEq(q, 0);
+        assertEq(m, 200);
+        assertEq(gauge.positionOf(ALICE).quoteClaimable, 100);
+        assertEq(gauge.positionOf(ALICE).memeClaimable, 0);
+        vm.prank(address(feeVault));
+        (q, m) = gauge.consumeClaimableAssets(ALICE, 1);
+        assertEq(q, 100);
+        assertEq(m, 0);
+        vm.prank(address(feeVault));
+        vm.expectRevert();
+        gauge.consumeClaimableAssets(ALICE, 0);
+        vm.expectRevert();
+        gauge.consumeClaimableAssets(ALICE, 1);
+    }
+
+    function test_removedRestorationCannotRecreditConsumedRewards() public {
+        (uint64 generation, uint64 unlockAt) = _schedule(ALICE, 100);
+        vm.warp(generation);
+        feeVault.credit(gauge, address(meme), 200, keccak256("user-meme"));
+        vm.warp(unlockAt);
+        (uint256 q, uint256 m) = feeVault.consume(gauge, ALICE);
+        assertEq(q, 0);
+        assertEq(m, 200);
+        vm.prank(address(feeVault));
+        (bool ok,) = address(gauge).call(abi.encodeWithSignature("restoreUserMemeRewards(address,uint256)", ALICE, 80));
+        assertFalse(ok);
+        assertEq(gauge.positionOf(ALICE).memeClaimable, 0);
+        assertEq(gauge.positionOf(BOB).memeClaimable, 0);
     }
 
     function test_claimBeforeUnlockRevertsForBothRewardAssetsAndPreservesClaimable() public {
@@ -484,9 +536,9 @@ contract MemeStockGaugeTest is Test {
         bytes memory lockedError =
             abi.encodeWithSelector(MemeStockGaugeLockedPositions.PositionLockedUntil.selector, unlockAt);
         vm.expectRevert(lockedError);
-        feeVault.consume(gauge, ALICE, address(quote));
+        feeVault.consume(gauge, ALICE);
         vm.expectRevert(lockedError);
-        feeVault.consume(gauge, ALICE, address(meme));
+        feeVault.consume(gauge, ALICE);
 
         PositionView memory position = gauge.positionOf(ALICE);
         assertEq(position.quoteClaimable, 100);
@@ -505,9 +557,9 @@ contract MemeStockGaugeTest is Test {
         manager.settle(gauge, ALICE);
         vm.warp(unlockAt);
         vm.expectRevert(pendingError);
-        feeVault.consume(gauge, ALICE, address(quote));
+        feeVault.consume(gauge, ALICE);
 
-        (uint256 principal, uint256 quoteForfeited,,) = manager.rageQuit(gauge, ALICE);
+        (uint256 principal, uint256 quoteForfeited,) = manager.rageQuit(gauge, ALICE);
         assertEq(principal, 100);
         assertEq(quoteForfeited, 100);
         assertEq(gauge.positionOf(ALICE).quoteClaimable, 0);
@@ -516,7 +568,7 @@ contract MemeStockGaugeTest is Test {
     function test_rageQuitRewardCleanupRemainsAlwaysAvailable() public {
         _schedule(ALICE, 100);
 
-        (uint256 principal,,,) = manager.rageQuit(gauge, ALICE);
+        (uint256 principal,,) = manager.rageQuit(gauge, ALICE);
         assertEq(principal, 100);
         PositionView memory position = gauge.positionOf(ALICE);
         assertEq(position.activeAmount, 0);
@@ -529,11 +581,10 @@ contract MemeStockGaugeTest is Test {
         vm.warp(generation);
         feeVault.credit(gauge, address(quote), 200, keccak256("stable-cohort"));
 
-        (uint256 principal, uint256 quoteForfeited,, bool redistributed) = manager.rageQuit(gauge, ALICE);
+        (uint256 principal, uint256 quoteForfeited,) = manager.rageQuit(gauge, ALICE);
 
         assertEq(principal, 100);
         assertEq(quoteForfeited, 100);
-        assertFalse(redistributed);
         // The exiting user's reward is never reintroduced into the Gauge accumulator.  This mock FeeVault
         // intentionally lacks recordForfeiture, so the platform-owned amount remains deferred for retry.
         assertEq(gauge.positionOf(BOB).quoteClaimable, 100);
@@ -550,11 +601,10 @@ contract MemeStockGaugeTest is Test {
         (uint64 bobGeneration,) = _schedule(BOB, 100);
         vm.warp(bobGeneration);
         gauge.checkpointActivations();
-        (uint256 principal, uint256 quoteForfeited,, bool redistributed) = manager.rageQuit(gauge, ALICE);
+        (uint256 principal, uint256 quoteForfeited,) = manager.rageQuit(gauge, ALICE);
 
         assertEq(principal, 100);
         assertEq(quoteForfeited, 100);
-        assertFalse(redistributed);
         assertEq(gauge.positionOf(BOB).quoteClaimable, 0);
         (uint256 deferredQuote,) = gauge.deferredForfeiture();
         assertEq(deferredQuote, 100);
@@ -570,11 +620,10 @@ contract MemeStockGaugeTest is Test {
         (uint64 charlieGeneration,) = _schedule(CHARLIE, 100);
         vm.warp(charlieGeneration);
         gauge.checkpointActivations();
-        (uint256 principal, uint256 quoteForfeited,, bool redistributed) = manager.rageQuit(gauge, ALICE);
+        (uint256 principal, uint256 quoteForfeited,) = manager.rageQuit(gauge, ALICE);
 
         assertEq(principal, 100);
         assertEq(quoteForfeited, 100);
-        assertFalse(redistributed);
         assertEq(gauge.positionOf(BOB).quoteClaimable, 100);
         assertEq(gauge.positionOf(CHARLIE).quoteClaimable, 0);
         (uint256 deferredQuote,) = gauge.deferredForfeiture();
@@ -596,11 +645,10 @@ contract MemeStockGaugeTest is Test {
         // still detects Charlie's later maturity and prevents the old forfeiture from flowing to that entrant.
         vm.warp(charlieGeneration);
         gauge.checkpointActivations();
-        (uint256 principal, uint256 quoteForfeited,, bool redistributed) = manager.rageQuit(gauge, ALICE);
+        (uint256 principal, uint256 quoteForfeited,) = manager.rageQuit(gauge, ALICE);
 
         assertEq(principal, 100);
         assertEq(quoteForfeited, 100);
-        assertFalse(redistributed);
         assertEq(gauge.positionOf(BOB).quoteClaimable, 100);
         assertEq(gauge.positionOf(CHARLIE).quoteClaimable, 0);
         (uint256 deferredQuote,) = gauge.deferredForfeiture();
@@ -616,9 +664,8 @@ contract MemeStockGaugeTest is Test {
         manager.deferRageQuitRewardCleanup(MARKET_ID, ALICE);
 
         _schedule(CHARLIE, 1);
-        (,,, bool redistributed) = manager.rageQuit(gauge, ALICE);
+        manager.rageQuit(gauge, ALICE);
 
-        assertFalse(redistributed);
         assertEq(gauge.rewardState(address(quote)).indexRemainder, 1);
     }
 
@@ -630,7 +677,7 @@ contract MemeStockGaugeTest is Test {
         manager.snapshotRageQuitRewardCutoff(MARKET_ID, ALICE);
         feeVault.credit(gauge, address(quote), 100, keccak256("after-cutoff"));
 
-        (uint256 principal, uint256 quoteForfeited,,) = manager.rageQuit(gauge, ALICE);
+        (uint256 principal, uint256 quoteForfeited,) = manager.rageQuit(gauge, ALICE);
         assertEq(principal, 100);
         // Only rewards accounted for at the cutoff can be settled and forfeited. The later fee is not ALICE's.
         assertEq(quoteForfeited, 100);
@@ -658,7 +705,7 @@ contract MemeStockGaugeTest is Test {
         gauge.checkpointActivations();
         assertEq(gauge.positionOf(ALICE).quoteClaimable, 0);
 
-        (uint256 principal, uint256 quoteForfeited, uint256 memeForfeited,) = manager.rageQuit(gauge, ALICE);
+        (uint256 principal, uint256 quoteForfeited, uint256 memeForfeited) = manager.rageQuit(gauge, ALICE);
         assertEq(principal, 100);
         assertEq(quoteForfeited, 0);
         assertEq(memeForfeited, 0);

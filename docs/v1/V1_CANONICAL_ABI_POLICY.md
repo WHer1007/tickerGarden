@@ -3,9 +3,11 @@
 > **当前 ABI 边界（2026-09-04）：** 市场级状态迁移、MarketController 和管理型 Recovery ABI 已删除；保留资产/配置 Registry 的 pause/retire ABI，以及用户无状态依赖的即时 `rageQuit`。旧 Emergency 签名只作为已移除记录，不能视为当前 ABI。
 
 > 规格任务：`V1-P-002`
-> 状态：`FROZEN / IMPLEMENTATION_ALLOWED`  
-> 适用基线：`V1-EXEC-10`
-> 更新时间：2026-09-03
+> 状态：`DEPLOYMENT_ELIGIBLE / NOT_PRODUCTION_READY / NOT_BROADCAST`（2026-09-05 holder fee sharing ABI 与当前编译接口已纳入 refreshed release evidence；无 release certificate、无广播）
+> 适用基线：`V1-EXEC-11`
+> 更新时间：2026-09-05
+
+当前 ABI/compiled-interface 证据属于 [`outputs/reviews/optional-stock-staking/`](../../outputs/reviews/optional-stock-staking/) 对应候选；旧部署证据仅作历史记录。完整状态由 [`deployments/evidence/v1-optional-staking-gates.json`](../../deployments/evidence/v1-optional-staking-gates.json) 表示，不因 `DEPLOYMENT_ELIGIBLE` 自动获得生产批准或广播授权。
 
 ## 1. 单一机器来源
 
@@ -49,7 +51,7 @@ recipient
 ```
 
 - `executionDelaySeconds` 是 AccessManager/角色执行延迟。
-- `stateDelaySeconds` 是业务状态从某个链上时间锚点开始的等待；不能伪装成角色延迟。当前 V1-EXEC-10 全部为0。
+- `stateDelaySeconds` 是业务状态从某个链上时间锚点开始的等待；不能伪装成角色延迟。当前 V1-EXEC-11 全部为0。
 - 当前 ABI 不得出现 graduation retry、terminal rescue、`sweptAt` 锚点或市场资产接收人。
 - `PUBLIC_SELF_ONLY` 不是 caller。caller 使用 `PUBLIC`，本人收款约束写入 `recipient/precondition`。
 - `*_DELAYED` 不是 caller。caller 与延迟必须拆成两个字段。

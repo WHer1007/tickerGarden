@@ -1,0 +1,162 @@
+{
+  "schemaVersion": 1,
+  "status": "passed",
+  "scope": "local-smoke",
+  "observedAt": "2026-09-10T22:24:35.447Z",
+  "runtime": "v24.19.0",
+  "targets": {
+    "web": "127.0.0.1"
+  },
+  "routes": [
+    {
+      "viewport": "desktop",
+      "name": "home",
+      "route": "/",
+      "status": 200,
+      "durationMs": 628.17,
+      "title": "TickerGarden — Grow community signals"
+    },
+    {
+      "viewport": "desktop",
+      "name": "explore",
+      "route": "/explore",
+      "status": 200,
+      "durationMs": 368.01,
+      "title": "Explore — TickerGarden"
+    },
+    {
+      "viewport": "desktop",
+      "name": "trade",
+      "route": "/trade?marketId=0x1111111111111111111111111111111111111111111111111111111111111111",
+      "status": 200,
+      "durationMs": 340.46,
+      "title": "Trade a market — TickerGarden"
+    },
+    {
+      "viewport": "desktop",
+      "name": "create",
+      "route": "/create",
+      "status": 200,
+      "durationMs": 345.81,
+      "title": "Launch a token — TickerGarden"
+    },
+    {
+      "viewport": "desktop",
+      "name": "stake",
+      "route": "/stake?marketId=0x1111111111111111111111111111111111111111111111111111111111111111#positions",
+      "status": 200,
+      "durationMs": 320.33,
+      "title": "Stake — TickerGarden"
+    },
+    {
+      "viewport": "desktop",
+      "name": "claim",
+      "route": "/claim",
+      "status": 200,
+      "durationMs": 310.31,
+      "title": "Claim — TickerGarden"
+    },
+    {
+      "viewport": "desktop",
+      "name": "stats",
+      "route": "/stats",
+      "status": 200,
+      "durationMs": 306.57,
+      "title": "Stats — TickerGarden"
+    },
+    {
+      "viewport": "desktop",
+      "name": "legacy-rewards-positions",
+      "route": "/rewards?marketId=0x1111111111111111111111111111111111111111111111111111111111111111#positions",
+      "canonicalRoute": "/stake?marketId=0x1111111111111111111111111111111111111111111111111111111111111111#positions",
+      "status": 200
+    },
+    {
+      "viewport": "desktop",
+      "name": "legacy-rewards-staker",
+      "route": "/rewards?marketId=0x1111111111111111111111111111111111111111111111111111111111111111#staker",
+      "canonicalRoute": "/stake?marketId=0x1111111111111111111111111111111111111111111111111111111111111111#positions",
+      "status": 200
+    },
+    {
+      "viewport": "desktop",
+      "name": "legacy-rewards-activity",
+      "route": "/rewards?marketId=0x1111111111111111111111111111111111111111111111111111111111111111#activity",
+      "canonicalRoute": "/stake?marketId=0x1111111111111111111111111111111111111111111111111111111111111111#positions",
+      "status": 200
+    },
+    {
+      "viewport": "desktop",
+      "name": "create-draft-recovery",
+      "route": "/create",
+      "status": 200
+    },
+    {
+      "viewport": "mobile",
+      "name": "home",
+      "route": "/",
+      "status": 200,
+      "durationMs": 424.73,
+      "title": "TickerGarden — Grow community signals"
+    },
+    {
+      "viewport": "mobile",
+      "name": "explore",
+      "route": "/explore",
+      "status": 200,
+      "durationMs": 329.53,
+      "title": "Explore — TickerGarden"
+    },
+    {
+      "viewport": "mobile",
+      "name": "trade",
+      "route": "/trade?marketId=0x1111111111111111111111111111111111111111111111111111111111111111",
+      "status": 200,
+      "durationMs": 322.54,
+      "title": "Trade a market — TickerGarden"
+    },
+    {
+      "viewport": "mobile",
+      "name": "create",
+      "route": "/create",
+      "status": 200,
+      "durationMs": 331.64,
+      "title": "Launch a token — TickerGarden"
+    },
+    {
+      "viewport": "mobile",
+      "name": "stake",
+      "route": "/stake?marketId=0x1111111111111111111111111111111111111111111111111111111111111111#positions",
+      "status": 200,
+      "durationMs": 323.59,
+      "title": "Stake — TickerGarden"
+    },
+    {
+      "viewport": "mobile",
+      "name": "claim",
+      "route": "/claim",
+      "status": 200,
+      "durationMs": 320.16,
+      "title": "Claim — TickerGarden"
+    },
+    {
+      "viewport": "mobile",
+      "name": "stats",
+      "route": "/stats",
+      "status": 200,
+      "durationMs": 312.05,
+      "title": "Stats — TickerGarden"
+    }
+  ],
+  "wallet": {
+    "connect": "passed",
+    "accountSwitch": "passed",
+    "wrongChainInvalidation": "passed",
+    "submittedTransactions": 0
+  },
+  "platform": {
+    "status": "skipped-local",
+    "reason": "Vercel rewrite and cache headers require Preview"
+  },
+  "failures": []
+}

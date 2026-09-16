@@ -23,6 +23,15 @@ abstract contract UserStockVaultExits is UserStockVaultLedger {
         _withdrawFreeStockUnchecked(assetUid, user, amount);
     }
 
+    function _releaseAllocationAndWithdraw(bytes32 assetUid, address user, bytes32 marketId)
+        internal
+        nonReentrant
+        returns (uint256 amount)
+    {
+        amount = _releaseAllocation(assetUid, user, marketId);
+        _withdrawFreeStockUnchecked(assetUid, user, amount);
+    }
+
     function _withdrawFreeStockUnchecked(bytes32 assetUid, address user, uint256 amount) private {
         if (amount == 0) revert InvalidWithdrawalAmount(amount);
         AssetView memory assetView = _canonicalAsset(assetUid);

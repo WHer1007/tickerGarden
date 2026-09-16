@@ -1,0 +1,228 @@
+{
+  "schemaVersion": 1,
+  "status": "CONFIRMED_VERIFIED",
+  "chainId": 46630,
+  "source": "0xA6c3298a5559544c3b4cf8e6DC5f349f4be524ea",
+  "recipients": [
+    {
+      "role": "buyer",
+      "address": "0xF6694020ee3DA75229439FAFc53f39BFC1ea3256"
+    },
+    {
+      "role": "staker",
+      "address": "0xadCcb4b643987dE0F1DDDf4B5a0495fE459C42C1"
+    }
+  ],
+  "targets": {
+    "ETH": "20000000000000000",
+    "eachOfficialStock": "1000000000000000000"
+  },
+  "before": {
+    "buyer": {
+      "address": "0xF6694020ee3DA75229439FAFc53f39BFC1ea3256",
+      "ETH": "0",
+      "stocks": {
+        "TSLA": "0",
+        "AMZN": "0",
+        "PLTR": "0",
+        "NFLX": "0",
+        "AMD": "0"
+      }
+    },
+    "staker": {
+      "address": "0xadCcb4b643987dE0F1DDDf4B5a0495fE459C42C1",
+      "ETH": "0",
+      "stocks": {
+        "TSLA": "0",
+        "AMZN": "0",
+        "PLTR": "0",
+        "NFLX": "0",
+        "AMD": "0"
+      }
+    }
+  },
+  "transactions": [
+    {
+      "id": "buyer-eth",
+      "role": "buyer",
+      "asset": "ETH",
+      "recipient": "0xF6694020ee3DA75229439FAFc53f39BFC1ea3256",
+      "amountRaw": "20000000000000000",
+      "nonce": 75,
+      "hash": "0x1388d0000034ccdd360be3dffed079ce7855f10fcc013f74289b23c38eaec5ea",
+      "status": "CONFIRMED",
+      "blockNumber": "115081481",
+      "blockHash": "0xe476a207cbeb4b09552cbe09c4a44ce812dfd8fc702ec4091717eeeef826127f",
+      "feeWei": "318860000000"
+    },
+    {
+      "id": "buyer-tsla",
+      "role": "buyer",
+      "asset": "TSLA",
+      "recipient": "0xF6694020ee3DA75229439FAFc53f39BFC1ea3256",
+      "amountRaw": "1000000000000000000",
+      "nonce": 76,
+      "hash": "0x9fbc5668442719ded01fc9bccb07836f9335e983b401bfbd70c70a7fca62ebe0",
+      "status": "CONFIRMED",
+      "blockNumber": "115081502",
+      "blockHash": "0x2f6a1a514760aad552020bf87afe748646af9685fd4172aa09b6f39f3e3627ed",
+      "feeWei": "944180000000"
+    },
+    {
+      "id": "buyer-amzn",
+      "role": "buyer",
+      "asset": "AMZN",
+      "recipient": "0xF6694020ee3DA75229439FAFc53f39BFC1ea3256",
+      "amountRaw": "1000000000000000000",
+      "nonce": 77,
+      "hash": "0x47f3efccd19f87a2c07a8c76c66a4dab178008c15c9d85cbe77bc0d84f2b667f",
+      "status": "CONFIRMED",
+      "blockNumber": "115081518",
+      "blockHash": "0xe9a3b12a1f76c431c05832dbaae37049bc9d03ab89ec67491b650b745363e77c",
+      "feeWei": "944180000000"
+    },
+    {
+      "id": "buyer-pltr",
+      "role": "buyer",
+      "asset": "PLTR",
+      "recipient": "0xF6694020ee3DA75229439FAFc53f39BFC1ea3256",
+      "amountRaw": "1000000000000000000",
+      "nonce": 78,
+      "hash": "0xe16a4ef2dc703f76efb44a593ac4db799548cc2b975a66e57e76f2d8d16c4bad",
+      "status": "CONFIRMED",
+      "blockNumber": "115081532",
+      "blockHash": "0x14c177aa34f2d5172472dc85f7646f2f01535a11b76710b62c5f1345726759eb",
+      "feeWei": "944180000000"
+    },
+    {
+      "id": "buyer-nflx",
+      "role": "buyer",
+      "asset": "NFLX",
+      "recipient": "0xF6694020ee3DA75229439FAFc53f39BFC1ea3256",
+      "amountRaw": "1000000000000000000",
+      "nonce": 79,
+      "hash": "0xba7a284a401b743ed08b01f93548c43ee65d316798acb3561097aa02f9954b33",
+      "status": "CONFIRMED",
+      "blockNumber": "115081556",
+      "blockHash": "0x6152a56d99e8cc039e9d1f02fddff5a84d41f0bf9f3a3c88bc725a295b653588",
+      "feeWei": "944180000000"
+    },
+    {
+      "id": "buyer-amd",
+      "role": "buyer",
+      "asset": "AMD",
+      "recipient": "0xF6694020ee3DA75229439FAFc53f39BFC1ea3256",
+      "amountRaw": "1000000000000000000",
+      "nonce": 80,
+      "hash": "0x5cde5cef2337131a4d055baeb9c08ad586102fdc51789991948fa9864394bca4",
+      "status": "CONFIRMED",
+      "blockNumber": "115081578",
+      "blockHash": "0x9f07ca55833f77455b77ce4225e8d3ff679fa95d051b0fdefb98c3c355fcdca5",
+      "feeWei": "944180000000"
+    },
+    {
+      "id": "staker-eth",
+      "role": "staker",
+      "asset": "ETH",
+      "recipient": "0xadCcb4b643987dE0F1DDDf4B5a0495fE459C42C1",
+      "amountRaw": "20000000000000000",
+      "nonce": 81,
+      "hash": "0xff4694824365c172ce204fcfd6ecec50ce7f4633503ee01fe5bd54a485a7a93a",
+      "status": "CONFIRMED",
+      "blockNumber": "115081602",
+      "blockHash": "0x4a86e1afb29d903279eac2b556310b10bf624dac08b66f7ce423506cc203c83a",
+      "feeWei": "318860000000"
+    },
+    {
+      "id": "staker-tsla",
+      "role": "staker",
+      "asset": "TSLA",
+      "recipient": "0xadCcb4b643987dE0F1DDDf4B5a0495fE459C42C1",
+      "amountRaw": "1000000000000000000",
+      "nonce": 82,
+      "hash": "0x464dbc5e58eb94f02d272c3aae09144555a877cf91316ac5b7acde6360277427",
+      "status": "CONFIRMED",
+      "blockNumber": "115081628",
+      "blockHash": "0x1b0dc7f7222b8b1e3305e71ad8b85777e8a1fcd906c9f2ed11fafb5169aa8842",
+      "feeWei": "944180000000"
+    },
+    {
+      "id": "staker-amzn",
+      "role": "staker",
+      "asset": "AMZN",
+      "recipient": "0xadCcb4b643987dE0F1DDDf4B5a0495fE459C42C1",
+      "amountRaw": "1000000000000000000",
+      "nonce": 83,
+      "hash": "0x4642f631a6ccaa0d6d627fc1a27289ac4a11507a17130bb47881404b7bd6faad",
+      "status": "CONFIRMED",
+      "blockNumber": "115081649",
+      "blockHash": "0x64c9bddedb70099278eb532af00ac619601b2abaacc8d33a8cde74064c33e6cb",
+      "feeWei": "944180000000"
+    },
+    {
+      "id": "staker-pltr",
+      "role": "staker",
+      "asset": "PLTR",
+      "recipient": "0xadCcb4b643987dE0F1DDDf4B5a0495fE459C42C1",
+      "amountRaw": "1000000000000000000",
+      "nonce": 84,
+      "hash": "0x2f94cd19ff9f30105750ca2982dff35214276b86b3f797f1bc63425c030eeeab",
+      "status": "CONFIRMED",
+      "blockNumber": "115081673",
+      "blockHash": "0xbfa12a90a3666a86a2fb595c0b15eff034417451dde0aca3b1ce6e5a290873ea",
+      "feeWei": "944180000000"
+    },
+    {
+      "id": "staker-nflx",
+      "role": "staker",
+      "asset": "NFLX",
+      "recipient": "0xadCcb4b643987dE0F1DDDf4B5a0495fE459C42C1",
+      "amountRaw": "1000000000000000000",
+      "nonce": 85,
+      "hash": "0x30c71846b2227e90c6547bd63bd18007221c5557de3bbfb9efa60e7441cb2b26",
+      "status": "CONFIRMED",
+      "blockNumber": "115081696",
+      "blockHash": "0x7a7c08083207c0559cc2bfb5ede785c9cac4ef3fbb1aecd64c4532d4115ebaa1",
+      "feeWei": "944180000000"
+    },
+    {
+      "id": "staker-amd",
+      "role": "staker",
+      "asset": "AMD",
+      "recipient": "0xadCcb4b643987dE0F1DDDf4B5a0495fE459C42C1",
+      "amountRaw": "1000000000000000000",
+      "nonce": 86,
+      "hash": "0xe16488f7f57a1c0fb21eec73d001f07514b58ca7a46690c9f683e3aa69b2cd94",
+      "status": "CONFIRMED",
+      "blockNumber": "115081710",
+      "blockHash": "0x3602e14ee244575a200a56d6975b5e5a2a56c34145955f67b1daf3d212244179",
+      "feeWei": "944180000000"
+    }
+  ],
+  "after": {
+    "buyer": {
+      "address": "0xF6694020ee3DA75229439FAFc53f39BFC1ea3256",
+      "ETH": "20000000000000000",
+      "stocks": {
+        "TSLA": "1000000000000000000",
+        "AMZN": "1000000000000000000",
+        "PLTR": "1000000000000000000",
+        "NFLX": "1000000000000000000",
+        "AMD": "1000000000000000000"
+      }
+    },
+    "staker": {
+      "address": "0xadCcb4b643987dE0F1DDDf4B5a0495fE459C42C1",
+      "ETH": "20000000000000000",
+      "stocks": {
+        "TSLA": "1000000000000000000",
+        "AMZN": "1000000000000000000",
+        "PLTR": "1000000000000000000",
+        "NFLX": "1000000000000000000",
+        "AMD": "1000000000000000000"
+      }
+    }
+  },
+  "observedAt": "2026-09-07T20:09:36.478Z",
+  "transactionCount": 12
+}

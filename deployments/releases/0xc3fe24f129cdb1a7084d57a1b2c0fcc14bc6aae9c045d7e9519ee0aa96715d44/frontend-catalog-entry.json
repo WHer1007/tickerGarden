@@ -1,0 +1,13 @@
+{
+  "releaseId": "0xc3fe24f129cdb1a7084d57a1b2c0fcc14bc6aae9c045d7e9519ee0aa96715d44",
+  "chainId": 46630,
+  "holderRewardMode": "wallet-snapshot-v1",
+  "factory": "0x28c4a042417d75c6580030eea08fe4b63b0ec6cb",
+  "marketRegistry": "0x4d9df59754c274b5c7740cfb82456118f1f79c56",
+  "hook": "0xab979ecb013d93de831c895d471452d882386044",
+  "feeVault": "0x70ae70f98125567317c4eea05967e8eb52bd0986",
+  "creatorRegistry": "0x5d3634e60e6970422c7a582fabfcb92ddc76b0d2",
+  "holderDistributor": "0x89f36f889f050790ac5ce9a60a2428c93d6b9108",
+  "launchRouter": "0xabb92b57be652f210e41f662525a695836a8a2ec",
+  "allocationManager": "0xd765f638f674627fe8fad8ad498ade80460c6af9"
+}

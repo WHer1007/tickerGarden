@@ -1,0 +1,34 @@
+/* Scoped to the new homepage illustration; the site's existing color tokens are untouched. */
+.tree-stage.signal-arbor {
+  width: 100%; max-width: 570px; height: auto; aspect-ratio: 1 / 1.02;
+  transform: none; isolation: isolate; align-self: center;
+}
+.signal-arbor .arbor-art { position: absolute; inset: 0; mix-blend-mode: multiply; }
+.signal-arbor .arbor-source, .signal-arbor .arbor-base, .signal-arbor .arbor-branch {
+  display: block; position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain;
+}
+.signal-arbor .arbor-source { visibility: hidden; transition: none; }
+.signal-arbor.is-fallback .arbor-source { visibility: visible; }
+.signal-arbor .arbor-base, .signal-arbor .arbor-branch { pointer-events: none; }
+.signal-arbor .arbor-branch { opacity: 0; transition: opacity 180ms ease; }
+.signal-arbor .arbor-branch.is-active { opacity: 1; }
+.signal-arbor .arbor-fruit, .signal-arbor .arbor-leaf {
+  position: absolute; display: block; padding: 0; margin: 0; border: 0;
+  background: transparent; box-shadow: none; color: inherit; transform-origin: 50% 90%;
+}
+.signal-arbor .arbor-fruit { cursor: pointer; z-index: 2; transition: transform 220ms cubic-bezier(.2,.75,.3,1); touch-action: manipulation; }
+.signal-arbor .arbor-fruit canvas, .signal-arbor .arbor-leaf canvas { width: 100%; height: 100%; display: block; pointer-events: none; }
+.signal-arbor .arbor-fruit:hover, .signal-arbor .arbor-fruit:focus-visible { transform: translateY(-3px) rotate(-2deg); }
+.signal-arbor .arbor-fruit:focus-visible { outline: 2px solid var(--ink); outline-offset: 3px; border-radius: 35%; }
+.signal-arbor .arbor-leaf { pointer-events: none; z-index: 1; }
+.signal-arbor .arbor-announcement { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+@media (max-width:800px) { .tree-stage.signal-arbor { width: min(520px,100%); justify-self: center; } }
+@media (max-width:520px) { .tree-stage.signal-arbor { width: 100%; aspect-ratio: 1 / 1.08; } }
+@media (prefers-reduced-motion: reduce) {
+  .signal-arbor .arbor-fruit, .signal-arbor .arbor-branch { transition: none; }
+  .signal-arbor .arbor-fruit:hover, .signal-arbor .arbor-fruit:focus-visible { transform: none; }
+}
+
+.signal-arbor .arbor-fruit[data-state="falling"] { transform: none; transition: none; z-index: 3; }
+.signal-arbor .arbor-fruit[aria-disabled="true"] { opacity: 1; filter: none; cursor: default; }
+.signal-arbor .arbor-fruit[data-state="falling"] canvas { transform-origin: 50% 50%; }

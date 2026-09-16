@@ -1,0 +1,60 @@
+{
+  "schemaVersion": 1,
+  "status": "VERIFIED_TEST_ONLY_CANDIDATE",
+  "productionReady": false,
+  "chainId": 421614,
+  "productionTargetChainId": 4663,
+  "scope": "R3_7_DAY_HOLDER_PERIOD_0_42_ETH_TEST_GRADUATION",
+  "verifiedAt": "2026-09-05T19:45:20.372285+00:00",
+  "broadcastPerformed": false,
+  "files": [
+    {
+      "path": "spec/v1_execution_manifest.json",
+      "sha256": "0xeb700ff36ecb7478135356a675869eea948475e2b556483f110d22bfd2d4ff2f"
+    },
+    {
+      "path": "spec/v1_product_artifact_manifest.json",
+      "sha256": "0xa5ab7ce42fc9e6260427c2f645d647a634525556a172ed58a1a18043e440b888"
+    },
+    {
+      "path": "spec/v1_compiled_interface_manifest.json",
+      "sha256": "0x9c1ba31035dec23ab331d5938ddf2365e8223843212ef56b2115c76dc48d138f"
+    },
+    {
+      "path": "outputs/reviews/arbitrum-r3-scenarios/contracts.log",
+      "sha256": "0xf7386d9841e799d3eb4c28420b81b5195621e61af32b8e4a31f21562ecb3c3a9"
+    },
+    {
+      "path": "outputs/reviews/arbitrum-r3-scenarios/build-web.log",
+      "sha256": "0x0d6836345c343d23bc3fe3092b1b6ed706e6d45edb17fe3415d4874693dc363f"
+    },
+    {
+      "path": "outputs/reviews/arbitrum-r3-scenarios/fork.log",
+      "sha256": "0x9094e525abaef1cf4cd9b00a78c9e06ce6f99ffb100e0f40f351e60849fec785"
+    },
+    {
+      "path": "outputs/reviews/arbitrum-r3-scenarios/rh-fork.log",
+      "sha256": "0x2c755e5e44c31ca07c193fa55f6b0cffb02a9cd1579cc0d99b8fc3f5cfc2dfe5"
+    },
+    {
+      "path": "outputs/reviews/arbitrum-r3-scenarios/offchain.log",
+      "sha256": "0x14bcadba0d5d3768f553ef9556fbbcac3f1e095cc3ff81717ec927f82e4166e0"
+    },
+    {
+      "path": "outputs/reviews/arbitrum-r3-scenarios/build-final.log",
+      "sha256": "0x2f96a561576022fbed7c6c8a97de6e7e694c558562994a322f322efc5570a501"
+    },
+    {
+      "path": "outputs/reviews/arbitrum-r3-scenarios/spec.log",
+      "sha256": "0x454f10b6c7943cb61e6cb6bf50137ddc2e7ba3bbc18f5d320ea17f1aa9935176"
+    },
+    {
+      "path": "outputs/reviews/arbitrum-r3-scenarios/root-fixed.log",
+      "sha256": "0x3bc5b313fdadff809e877fd531340710a76084006a4b0685c05f8a61d1b22c55"
+    },
+    {
+      "path": "outputs/reviews/arbitrum-r3-scenarios/build-offchain.log",
+      "sha256": "0x48612a5cfdd769555330b35a0048a3b4430b29a14dbd706899c0f7d60a128a2d"
+    }
+  ]
+}

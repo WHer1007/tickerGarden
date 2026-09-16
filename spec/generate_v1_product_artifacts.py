@@ -96,8 +96,38 @@ def build():
     canonical_modules = {module["module"] for module in surface["modules"]}
     source_paths = sorted(MODULES_ROOT.glob("*.sol"))
     modules = []
+    extensions = []
     for source_path in source_paths:
         module = source_path.stem
+        if module == "HolderRewardsDistributorV1":
+            artifact_path = ARTIFACT_ROOT / source_path.name / f"{module}.json"
+            artifact = json.loads(artifact_path.read_text(encoding="utf-8"))
+            mutations = sorted(signature(x) for x in entries(artifact["abi"], "function")
+                               if x["stateMutability"] not in ("view", "pure"))
+            function_signatures = {signature(x): x for x in entries(artifact["abi"], "function")}
+            expected_snapshot_mutations = {
+                "setSnapshotPublisher(address)",
+                "revokeSnapshotPublisher(address)",
+                "registerFeeSharingMarket(bytes32,address,address)",
+                "fundQuoteRewards(bytes32,uint32,uint256)",
+                "fundMemeFees(bytes32,uint256)",
+                "publishSnapshots((bytes32,uint64,uint64,bytes32,bytes32,bytes32,uint256,uint256)[])",
+                "claimSnapshot(bytes32,uint64,uint256,uint256,uint8,bytes32[])",
+            }
+            if set(mutations) != expected_snapshot_mutations:
+                raise ValueError(f"snapshot holder mutation surface drift: {mutations}")
+            if "claim(bytes32)" in function_signatures:
+                raise ValueError("snapshot holder claim surface must be absent")
+            reward_bucket = function_signatures.get("rewardBucket(bytes32)")
+            if not reward_bucket or reward_bucket["stateMutability"] != "view":
+                raise ValueError("snapshot holder rewardBucket view drift")
+            extensions.append({"module": module, "mode": "TICKERGARDEN_HOLDER_WALLET_SNAPSHOT_V1",
+                "source": str(source_path.relative_to(ROOT)), "sourceSha256": sha256_bytes(source_path.read_bytes()),
+                "artifact": str(artifact_path.relative_to(ROOT)), "abi": artifact["abi"],
+                "creationCode": code_identity(artifact["bytecode"]),
+                "runtimeTemplate": {**code_identity(artifact["deployedBytecode"]), "isFinalDeploymentCodeHash": False},
+                "mutations": mutations})
+            continue
         if module not in canonical_modules:
             raise ValueError(f"non-canonical product module source: {source_path.relative_to(ROOT)}")
         artifact_path = ARTIFACT_ROOT / source_path.name / f"{module}.json"
@@ -138,6 +168,7 @@ def build():
         "executionSpecId": surface["executionSpecId"],
         "status": "PRODUCT_ARTIFACTS_COMPILED_NOT_DEPLOYMENT_EVIDENCE",
         "modules": modules,
+        "extensionModules": extensions,
     }
     manifest["manifestHash"] = canonical_hash(manifest)
     return manifest

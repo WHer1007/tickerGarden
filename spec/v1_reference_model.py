@@ -361,7 +361,7 @@ def partition_graduation_tokens(
 
 
 def current_snipe_tax_bps(elapsed_seconds: int, exempt: bool = False) -> int:
-    """Return the approved five-second TickerGarden schedule for a buy recipient."""
+    """Return the approved five-second schedule for a buy recipient."""
 
     _require_uint(64, elapsed_seconds=elapsed_seconds)
     if exempt or elapsed_seconds >= SNIPE_TAX_SECONDS:
@@ -585,7 +585,7 @@ def _hex_bytes(value: str, expected_length: int) -> bytes:
 
 def quote_economics_hash(
     chain_id: int,
-    pons_baseline_id: str,
+    tickergarden_baseline_id: str,
     quote_asset: str,
     quote_decimals: int,
     phantom_quote: int,
@@ -611,7 +611,7 @@ def quote_economics_hash(
             domain,
             (1).to_bytes(32, "big"),
             chain_id.to_bytes(32, "big"),
-            _hex_bytes(pons_baseline_id, 32),
+            _hex_bytes(tickergarden_baseline_id, 32),
             _hex_bytes(quote_asset, 20).rjust(32, b"\x00"),
             quote_decimals.to_bytes(32, "big"),
             phantom_quote.to_bytes(32, "big"),
@@ -638,7 +638,7 @@ def stake_saturation_amount(stock_decimals: int) -> int:
 
 
 def validate_minimum_allocation(stock_decimals: int, minimum_allocation: int) -> int:
-    """Validate one V1-EXEC-10 per-asset minimum in canonical raw units."""
+    """Validate one V1-EXEC-11 per-asset minimum in canonical raw units."""
 
     if not MIN_SUPPORTED_ASSET_DECIMALS <= stock_decimals <= MAX_SUPPORTED_ASSET_DECIMALS:
         raise ValueError("unsupported Stock decimals")
@@ -659,7 +659,7 @@ class AccumulatorLifetimeBound:
 
 
 def accumulator_lifetime_bound() -> AccumulatorLifetimeBound:
-    """Prove the base fee-credit index bound for every V1-EXEC-10 asset."""
+    """Prove the base fee-credit index bound for every V1-EXEC-11 asset."""
 
     minimum_active = MINIMUM_SAFE_ALLOCATION_RAW
     maximum_carry = (MAX_ACCOUNTING_AMOUNT - 1) // minimum_active
@@ -746,7 +746,7 @@ class PoolFeePartition:
 
 
 def partition_pool_fee(base: int, active_stock: int) -> PoolFeePartition:
-    """Partition a V1-EXEC-10 pool fee with no LP leg and fixed beneficiary shares."""
+    """Partition a V1-EXEC-11 pool fee with no LP leg and fixed beneficiary shares."""
 
     _require_uint(base=base, active_stock=active_stock)
     if base > maximum_post_graduation_fee_base():
@@ -1029,6 +1029,6 @@ def schedule_new_pending(
 
 
 def historical_snipe_tax_bps(elapsed_seconds: int, exempt: bool = False) -> int:
-    """Historical Pons observation, separate from the active TickerGarden policy."""
+    """Archived three-second observation; never used for current launch policy."""
     _require_uint(64, elapsed_seconds=elapsed_seconds)
     return 0 if exempt or elapsed_seconds >= 3 else (9900, 618, 19)[elapsed_seconds]

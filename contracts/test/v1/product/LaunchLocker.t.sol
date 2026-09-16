@@ -32,11 +32,11 @@ contract LaunchLockerRegistryMock {
         _market = MarketView({
             config: MarketConfig({
                 assetUid: keccak256("locker-stock"),
-                ponsBaselineId: keccak256("locker-pons"),
+                tickerGardenBaselineId: keccak256("locker-pons"),
                 quoteAssetConfigId: keccak256("locker-quote"),
                 launchTemplateId: keccak256("locker-template"),
                 feePolicyId: keccak256("locker-fee"),
-                executionSpecId: keccak256("V1-EXEC-10"),
+                executionSpecId: keccak256("V1-EXEC-11"),
                 expectedEconomics: keccak256("locker-economics"),
                 launchConfigId: 0,
                 creatorRevenueBeneficiaryAtCreation: address(0xBEEF),
@@ -44,8 +44,13 @@ contract LaunchLockerRegistryMock {
                 curve: address(0xC0DE),
                 gauge: address(0x6000),
                 quoteAsset: quote,
-                graduatedHook: hook
-            }),
+                graduatedHook: hook,
+                creatorTaxBps: 0,
+                creatorFeesToHolders: false,
+                stakingEnabled: true,
+                burnMemeFees: false,
+            lpFeePips: 0
+        }),
             runtime: MarketRuntime({poolId: bytes32(0), sourceVersion: 1, launchPhase: 0})
         });
     }
@@ -136,7 +141,7 @@ contract LaunchLockerTest is Test {
         new LaunchLocker(MARKET_ID, address(wrongRegistry), address(positionManager));
     }
 
-    function test_locksPositionNFTAndExposesNoWithdrawalOrCompoundSurface() public view {
+    function test_locksPositionNFTAndExposesNoWithdrawalOrUnboundedCompoundSurface() public view {
         bytes4[9] memory forbidden = [
             bytes4(keccak256("withdraw(address,uint256)")),
             bytes4(keccak256("withdrawFees(address)")),
@@ -155,7 +160,7 @@ contract LaunchLockerTest is Test {
         assertEq(positionManager.ownerOf(1), address(locker));
     }
 
-    function test_compoundLockedFeesSelectorDoesNotExist() public view {
+    function test_unboundedCompoundSelectorDoesNotExist() public view {
         (bool success,) = address(locker).staticcall(abi.encodeWithSignature("compoundLockedFees()"));
         assertFalse(success);
     }

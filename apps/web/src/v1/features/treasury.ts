@@ -1,5 +1,8 @@
+import v1Abis_TreasuryDistributorV1 from '../generated/contracts/legacy/TreasuryDistributorV1.ts';
+import v1Abis_TickerMemeTokenV1 from '../generated/contracts/legacy/TickerMemeTokenV1.ts';
+import { ROBINHOOD_CHAIN_ID } from "../chain.ts";
 import type { Address, Hex } from "viem";
-import { v1Abis } from "../generated/abis.ts";
+
 import { createContractWriteRequest, type ContractWriteRequest } from "../transaction.ts";
 
 const ADDRESS = /^0x[0-9a-f]{40}$/;
@@ -11,7 +14,7 @@ const MAX_UINT256 = (1n << 256n) - 1n;
 export interface TreasuryClaimProof {
   readonly schema: "TICKERGARDEN_V1_TREASURY_CLAIM_PROOF_V1";
   readonly executionSpecId: "V1-TREASURY-EXEC-1";
-  readonly chainId: 4663;
+  readonly chainId: 4663 | 46630 | 421614;
   readonly distributor: Address;
   readonly marketId: Hex;
   readonly epochId: number;
@@ -55,7 +58,7 @@ function epoch(value: unknown): number {
 function request(name: string, distributor: Address, args: readonly unknown[], value?: bigint): ContractWriteRequest {
   address(distributor, "TreasuryDistributor");
   return createContractWriteRequest({
-    abi: v1Abis.TreasuryDistributorV1,
+    abi: v1Abis_TreasuryDistributorV1,
     address: distributor,
     functionName: name as never,
     args: args as never,
@@ -68,7 +71,7 @@ function approval(token: Address, distributor: Address, amount: bigint): Contrac
   address(distributor, "TreasuryDistributor");
   uint(amount, "approval amount", true);
   return createContractWriteRequest({
-    abi: v1Abis.TickerMemeTokenV1,
+    abi: v1Abis_TickerMemeTokenV1,
     address: token,
     functionName: "approve",
     args: [distributor, amount],
@@ -101,7 +104,7 @@ export function buildTreasuryClaim(input: Readonly<{
   const account = address(input.expectedAccount, "connected account");
   if (address(input.proof.distributor, "proof.distributor") !== distributor) throw new Error("proof distributor mismatch");
   if (address(input.proof.account, "proof.account") !== account) throw new Error("proof account is not the connected wallet");
-  if (input.proof.chainId !== 4663 || input.proof.executionSpecId !== "V1-TREASURY-EXEC-1") throw new Error("proof execution domain mismatch");
+  if (input.proof.chainId !== ROBINHOOD_CHAIN_ID || input.proof.executionSpecId !== "V1-TREASURY-EXEC-1") throw new Error("proof execution domain mismatch");
   const market = bytes32(input.proof.marketId, "proof.marketId");
   const id = epoch(input.proof.epochId);
   const leafIndex = uint(input.proof.leafIndex, "proof.leafIndex");
@@ -168,7 +171,7 @@ export async function fetchTreasuryClaimProof(input: Readonly<{
   const parsed: TreasuryClaimProof = Object.freeze({
     schema: raw.schema === "TICKERGARDEN_V1_TREASURY_CLAIM_PROOF_V1" ? raw.schema : (() => { throw new Error("Treasury proof schema mismatch"); })(),
     executionSpecId: raw.executionSpecId === "V1-TREASURY-EXEC-1" ? raw.executionSpecId : (() => { throw new Error("Treasury proof execution domain mismatch"); })(),
-    chainId: raw.chainId === 4663 ? 4663 : (() => { throw new Error("Treasury proof chain mismatch"); })(),
+    chainId: raw.chainId === ROBINHOOD_CHAIN_ID ? ROBINHOOD_CHAIN_ID : (() => { throw new Error("Treasury proof chain mismatch"); })(),
     distributor: address(String(raw.distributor), "proof.distributor"),
     marketId: bytes32(String(raw.marketId), "proof.marketId"),
     epochId: epoch(raw.epochId),

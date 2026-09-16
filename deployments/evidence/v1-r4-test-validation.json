@@ -1,0 +1,107 @@
+{
+  "schemaVersion": 1,
+  "status": "VERIFIED_TEST_ONLY_CANDIDATE",
+  "productionReady": false,
+  "chainId": 421614,
+  "productionTargetChainId": 4663,
+  "scope": "R4_NO_STAKING_FEE_CLAIM_AND_CONVERSION_REGRESSION",
+  "verifiedAt": "2026-09-06T05:47:16.672022+00:00",
+  "broadcastPerformed": false,
+  "contractTests": 822,
+  "arbitrumForkTests": 1,
+  "rhForkTests": 3,
+  "files": [
+    {
+      "path": "spec/v1_execution_manifest.json",
+      "sha256": "0xeb700ff36ecb7478135356a675869eea948475e2b556483f110d22bfd2d4ff2f"
+    },
+    {
+      "path": "spec/v1_product_artifact_manifest.json",
+      "sha256": "0x97ce4f5a066389803b53594022339e5b48a11456820cc208492f328ce580ca42"
+    },
+    {
+      "path": "spec/v1_compiled_interface_manifest.json",
+      "sha256": "0x9c1ba31035dec23ab331d5938ddf2365e8223843212ef56b2115c76dc48d138f"
+    },
+    {
+      "path": "contracts/src/v1/shared/ProtocolFeeVaultLiabilities.sol",
+      "sha256": "0x2aefab79116d47b9d4cc41ad730e138c94622745712513220a50011ea0332494"
+    },
+    {
+      "path": "contracts/test/v1/shared/ProtocolFeeVaultLiabilities.t.sol",
+      "sha256": "0xdbb7db1c56fa4f626afb6bfff9b810286d1dcc93213e268f8b29869cec9fcba8"
+    },
+    {
+      "path": "contracts/test/v1/shared/RewardSettlement.t.sol",
+      "sha256": "0x472b81e058097391494ddba37317614c68610f1cbca3d417f33d7c996e9839ea"
+    },
+    {
+      "path": "contracts/test/v1/fork/V1ProductForkE2E.t.sol",
+      "sha256": "0x842b330b87e04aa9b130506b901126202f9a0f5e2795238f49ef6df2be124613"
+    },
+    {
+      "path": "contracts/test/v1/fork/V1ArbitrumSepoliaForkE2E.t.sol",
+      "sha256": "0x7c6e0f3f8054e9c734ebdbb4df2874c4e764655c4b1178660a5faf4f06df281a"
+    },
+    {
+      "path": "deployments/test/deployment-gate-evidence.test.ts",
+      "sha256": "0xae5bc988e503e99427bdf54f1602a54c63ab8c613785cd3f4abb8bf6ea0dd490"
+    },
+    {
+      "path": "outputs/reviews/arbitrum-r4-fix/contracts-strict.log",
+      "sha256": "0x650e14d86364da07fcd549956e0a3124a0b1b50fa772dba8f74ac88b010f38cb"
+    },
+    {
+      "path": "outputs/reviews/arbitrum-r4-fix/regression-before.log",
+      "sha256": "0x64dca095d290a1cad7c8b8e23612a589355b55dcda2844c6f74452cd378b9cf4"
+    },
+    {
+      "path": "outputs/reviews/arbitrum-r4-fix/regression-after.log",
+      "sha256": "0xc376b6d5898f65de20863cb38bc5f59a32080d6a13896631b6f79f8ef8dcd1f2"
+    },
+    {
+      "path": "outputs/reviews/arbitrum-r4-fix/arbitrum-fork.log",
+      "sha256": "0x2195421ebb66a805c47a3902ff24aacf422cb79bdeaec19b0fa9c64fb4073645"
+    },
+    {
+      "path": "outputs/reviews/arbitrum-r4-fix/rh-fork.log",
+      "sha256": "0xaa61f9cf96bab13f6a5dc4fd163e9fe8db559cfc53d705fb99d3b9a34bae7057"
+    },
+    {
+      "path": "outputs/reviews/arbitrum-r4-fix/arbitrum-pin.json",
+      "sha256": "0x20b8b9144d32e22cfe4825439386528ee1515d57f20d5657897509585c9e0d11"
+    },
+    {
+      "path": "outputs/reviews/arbitrum-r4-fix/rh-fork-pin.json",
+      "sha256": "0x1415e744a0882f98cac2be91ceb9afef4184cd677ecbbc3d5191a4594708d69d"
+    },
+    {
+      "path": "outputs/reviews/arbitrum-r4-fix/spec.log",
+      "sha256": "0xe5bdc0d1f898fcca8671d84a20bccd350a24218ff7d75a5f374a117195ae7aec"
+    },
+    {
+      "path": "outputs/reviews/arbitrum-r4-fix/web-test.log",
+      "sha256": "0x0ed328cf68b56a9ef17afe22dcbe968b5d6e6281104852ee930d20cb0d736f07"
+    },
+    {
+      "path": "outputs/reviews/arbitrum-r4-fix/web-build.log",
+      "sha256": "0xee250947ad46e72458663a86b18e9f3b5cd71a6396994e8a0eedf9631ff99173"
+    },
+    {
+      "path": "outputs/reviews/arbitrum-r4-fix/go-test-rerun.log",
+      "sha256": "0xc38156047f7e526f8ecb54eee499148ccd976d17ea8ab8d4d7f1f6506f43256f"
+    },
+    {
+      "path": "outputs/reviews/arbitrum-r4-fix/root-generator-test.log",
+      "sha256": "0xc741fa0630ab5f69784f4671176f8b55659d6615b6b2c7d67bd4cc724de63f56"
+    },
+    {
+      "path": "outputs/reviews/arbitrum-r4-fix/product-artifacts.log",
+      "sha256": "0x14b256f20d522c07c75a2ded47e726d443b38d241b79e8d0f11388341c46c870"
+    },
+    {
+      "path": "outputs/reviews/arbitrum-r4-fix/interfaces.log",
+      "sha256": "0x24fdfa744cee32dfa3762ab7469d171a8fa50c72dd8126cd5e67bd67e7e71de7"
+    }
+  ]
+}

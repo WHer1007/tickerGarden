@@ -13,6 +13,7 @@ abstract contract ProtocolFeeVaultCurveCredit is ProtocolFeeVaultV4Credit {
         address quoteAsset;
         uint256 amount;
         uint256 balanceBefore;
+        uint256 creatorTaxAmount;
         uint32 sourceVersion;
         uint64 sweepNonce;
         bytes32 feeId;
@@ -25,6 +26,7 @@ abstract contract ProtocolFeeVaultCurveCredit is ProtocolFeeVaultV4Credit {
         address quoteAsset;
         uint256 amount;
         uint256 creatorAmount;
+        uint256 creatorTaxAmount;
         uint256 platformAmount;
         uint256 currentBalance;
         uint32 sourceVersion;
@@ -37,8 +39,8 @@ abstract contract ProtocolFeeVaultCurveCredit is ProtocolFeeVaultV4Credit {
     uint8 private constant LAUNCH_PHASE_NOT_GRADUATED = 0;
 
     ICreatorRevenueRegistry internal immutable _feeCreatorRevenueRegistry;
-    mapping(bytes32 marketId => uint64 nonce) private _lastCurveSweepNonces;
-    PendingCurveCredit private _pendingCurveCredit;
+    mapping(bytes32 marketId => uint64 nonce) internal _lastCurveSweepNonces;
+    bytes32 private constant CURVE_PENDING_SLOT = keccak256("tickergarden.fee-vault.curve-pending.v1");
 
     error InvalidCreatorRevenueRegistry(address registry);
     error UnauthorizedMarketCurve(address caller, address expected);
@@ -61,11 +63,13 @@ abstract contract ProtocolFeeVaultCurveCredit is ProtocolFeeVaultV4Credit {
         bytes32 marketId,
         address quoteAsset,
         uint256 amount,
+        uint256 creatorTaxAmount,
         uint32 sourceVersion,
         uint64 sweepNonce,
         bytes32 feeId
     ) external {
         _enterStandaloneCredit(feeId);
+        if (creatorTaxAmount > amount) revert FeeAmountTooLarge(creatorTaxAmount);
         if (amount == 0 || amount > uint256(uint128(type(int128).max))) revert FeeAmountTooLarge(amount);
 
         PendingCurveCredit memory pending = PendingCurveCredit({
@@ -74,14 +78,15 @@ abstract contract ProtocolFeeVaultCurveCredit is ProtocolFeeVaultV4Credit {
             quoteAsset: quoteAsset,
             amount: amount,
             balanceBefore: 0,
+            creatorTaxAmount: creatorTaxAmount,
             sourceVersion: sourceVersion,
             sweepNonce: sweepNonce,
             feeId: feeId,
             source: msg.sender
         });
-        pending.creatorEpoch = _validateCurveCredit(pending);
+        (pending.creatorEpoch,) = _validateCurveCredit(pending);
         pending.balanceBefore = _assetBalance(quoteAsset);
-        _pendingCurveCredit = pending;
+        _storePendingCurveCredit(pending);
     }
 
     /// @notice Finalizes a registered Curve sweep only when exactly `amount` arrived after `beginCurveCredit`.
@@ -89,18 +94,20 @@ abstract contract ProtocolFeeVaultCurveCredit is ProtocolFeeVaultV4Credit {
         bytes32 marketId,
         address quoteAsset,
         uint256 amount,
+        uint256 creatorTaxAmount,
         uint32 sourceVersion,
         uint64 sweepNonce,
         bytes32 feeId
     ) external payable {
-        PendingCurveCredit memory pending = _pendingCurveCredit;
+        PendingCurveCredit memory pending = _pendingCurveCredit();
         if (
-            pending.marketId != marketId || pending.quoteAsset != quoteAsset || pending.amount != amount
+            pending.creatorTaxAmount != creatorTaxAmount || pending.marketId != marketId
+                || pending.quoteAsset != quoteAsset || pending.amount != amount
                 || pending.sourceVersion != sourceVersion || pending.sweepNonce != sweepNonce || pending.feeId != feeId
                 || pending.source != msg.sender
         ) revert FeeCreditNotPrepared(feeId);
 
-        uint32 currentCreatorEpoch = _validateCurveCredit(pending);
+        (uint32 currentCreatorEpoch, MarketView memory value) = _validateCurveCredit(pending);
         if (currentCreatorEpoch != pending.creatorEpoch) revert FeeCreditNotPrepared(feeId);
         if (quoteAsset == address(0)) {
             if (msg.value != amount) revert FeeBalanceDeltaMismatch(quoteAsset, amount, msg.value);
@@ -113,7 +120,9 @@ abstract contract ProtocolFeeVaultCurveCredit is ProtocolFeeVaultV4Credit {
             currentBalance >= pending.balanceBefore ? currentBalance - pending.balanceBefore : type(uint256).max;
         if (actualDelta != amount) revert FeeBalanceDeltaMismatch(quoteAsset, amount, actualDelta);
 
-        MarketFeeAccounting.CurveBuckets memory buckets = MarketFeeAccounting.splitCurve(amount);
+        MarketFeeAccounting.CurveBuckets memory buckets =
+            MarketFeeAccounting.splitCurve(amount - pending.creatorTaxAmount);
+        buckets.creatorAmount += pending.creatorTaxAmount;
         _lastCurveSweepNonces[marketId] = sweepNonce;
         CurveCreditRecord memory record;
         record.marketId = marketId;
@@ -121,18 +130,50 @@ abstract contract ProtocolFeeVaultCurveCredit is ProtocolFeeVaultV4Credit {
         record.quoteAsset = quoteAsset;
         record.amount = amount;
         record.creatorAmount = buckets.creatorAmount;
+        record.creatorTaxAmount = pending.creatorTaxAmount;
         record.platformAmount = buckets.platformAmount;
         record.currentBalance = currentBalance;
         record.sourceVersion = sourceVersion;
         record.sweepNonce = sweepNonce;
         record.feeId = feeId;
-        _recordExactCurveCredit(record);
-        delete _pendingCurveCredit;
+        _recordExactCurveCredit(record, value);
+        _clearPendingCurveCredit();
         _consumeAndExitStandaloneCredit(feeId);
     }
 
-    function _validateCurveCredit(PendingCurveCredit memory pending) private view returns (uint32 creatorEpoch) {
-        MarketView memory value = _feeMarketRegistry.market(pending.marketId);
+    // PendingCurveCredit has ten static memory words. Explicit clearing permits sequential
+    // credits in one transaction; reverted children restore both context and lock atomically.
+    function _storePendingCurveCredit(PendingCurveCredit memory pending) private {
+        bytes32 slot = CURVE_PENDING_SLOT;
+        assembly ("memory-safe") {
+            for { let i := 0 } lt(i, 10) { i := add(i, 1) } {
+                tstore(add(slot, i), mload(add(pending, mul(i, 32))))
+            }
+        }
+    }
+
+    function _pendingCurveCredit() private view returns (PendingCurveCredit memory pending) {
+        bytes32 slot = CURVE_PENDING_SLOT;
+        assembly ("memory-safe") {
+            for { let i := 0 } lt(i, 10) { i := add(i, 1) } {
+                mstore(add(pending, mul(i, 32)), tload(add(slot, i)))
+            }
+        }
+    }
+
+    function _clearPendingCurveCredit() private {
+        bytes32 slot = CURVE_PENDING_SLOT;
+        assembly ("memory-safe") {
+            for { let i := 0 } lt(i, 10) { i := add(i, 1) } { tstore(add(slot, i), 0) }
+        }
+    }
+
+    function _validateCurveCredit(PendingCurveCredit memory pending)
+        private
+        view
+        returns (uint32 creatorEpoch, MarketView memory value)
+    {
+        value = _feeMarketRegistry.market(pending.marketId);
         if (value.config.curve != pending.source) {
             revert UnauthorizedMarketCurve(pending.source, value.config.curve);
         }
@@ -153,7 +194,8 @@ abstract contract ProtocolFeeVaultCurveCredit is ProtocolFeeVaultV4Credit {
                 pending.sourceVersion,
                 pending.sweepNonce,
                 pending.quoteAsset,
-                pending.amount
+                pending.amount,
+                pending.creatorTaxAmount
             )
         );
         uint64 expectedNonce = _lastCurveSweepNonces[pending.marketId] + 1;
@@ -168,9 +210,5 @@ abstract contract ProtocolFeeVaultCurveCredit is ProtocolFeeVaultV4Credit {
         ) revert CreatorEpochUnavailable(pending.marketId, creatorEpoch);
     }
 
-    function _lastCurveSweepNonce(bytes32 marketId) internal view returns (uint64) {
-        return _lastCurveSweepNonces[marketId];
-    }
-
-    function _recordExactCurveCredit(CurveCreditRecord memory record) internal virtual;
+    function _recordExactCurveCredit(CurveCreditRecord memory record, MarketView memory value) internal virtual;
 }

@@ -1,8 +1,8 @@
 # TickerGarden V1 RH Stock Quote 创建时价格参考
 
 > 产品方向：`CONFIRMED`（2026-09-05）<br>
-> 工程状态：`SPECIFIED / IMPLEMENTATION_PENDING`<br>
-> 当前执行版本：`V1-EXEC-10` 已支持管理员准入的 native/direct immutable ERC-20 Quote 白名单；`NATIVE_ETH_V1` 只是 bootstrap 示例。本文不把任何 BeaconProxy Stock Token 自动激活为 Quote。
+> 工程状态：`IMPLEMENTED_FORK_VERIFIED / NO_ACTIVE_CONFIG`；价格生成器与首批 allowlist 为 `PENDING_PRODUCT_ACTIVATION`，固定区块真实代理 Fork/E2E 已通过<br>
+> 当前执行版本：`V1-EXEC-11` 的 Quote 资格唯一来自管理员风险审查后的白名单；`NATIVE_ETH_V1` 只是 bootstrap 示例。任意 Token（包括可升级 USDG、cbBTC 和 Stock proxy）均可进入 Registry 审查与激活流程，但本文不宣称任何 Quote 已激活或任何交易已广播。
 
 ## 1. 结论
 
@@ -65,7 +65,7 @@ phantomQuoteRaw        = floor(
 )
 ```
 
-生成后必须用与 Factory/GraduationExecutor 相同的 `PonsSupplyMath` 和 `GraduationPoolMath` 验证供应分区、整数舍入、signed amount、sqrt price、tick 与 max-liquidity 域。治理实际登记的是最终 raw integers；`targetGraduationUsd` 和参考价格只属于可审计的生成证据，不进入 Curve 热路径，也不意味着毕业时仍值同样的美元金额。
+生成后必须用与 Factory/GraduationExecutor 相同的 `TickerGardenSupplyMath` 和 `GraduationPoolMath` 验证供应分区、整数舍入、signed amount、sqrt price、tick 与 max-liquidity 域。治理实际登记的是最终 raw integers；`targetGraduationUsd` 和参考价格只属于可审计的生成证据，不进入 Curve 热路径，也不意味着毕业时仍值同样的美元金额。
 
 若产品尚未冻结 `targetGraduationUsd`、比例、价差容忍度或最大价格时效，生成器只能输出 `PROPOSED` 草案，不能生成 ACTIVE Quote config。
 
@@ -136,12 +136,12 @@ generatedAt        = 2026-09-04T17:03:24.714442651Z
 
 ## 7. 实现与发布缺口
 
-当前 `ApprovedQuoteRegistry` 对普通 ERC-20 禁止可执行 `DELEGATECALL`，因此 Robinhood BeaconProxy Stock Token 仍不能登记为 Quote。启用任何 Stock Quote 前必须另行完成：
+`ApprovedQuoteRegistry` 的唯一 Quote 资格门槛是管理员逐资产风险审查、白名单登记、有效身份和 `ACTIVE` 状态。通用 `addQuoteConfig` 支持包括 Stock proxy 在内的任意 Token；可选的 `addStockQuoteConfig` 可用于提交明确的官方 Asset UID、Beacon、implementation、runtime codehash 与 proxy-slot fingerprint commitments，但不是必要条件。codehash、proxy slots、transfer 行为和其他资产观察结果是风险审查与运行时安全证据，不能单独构成拒绝规则。启用任何 Stock Quote 前仍必须完成：
 
-1. 增加只接受 `OfficialStockRegistryV1` canonical Asset UID/Token/Beacon/implementation 指纹的专用 Stock Quote 准入路径；普通 ERC-20 的 direct immutable 规则保持不变；
-2. 将 Stock Quote 的 Asset UID、参考价格证据 hash、生成策略版本和最终 raw 参数写入版本化部署证据；
+1. 治理登记时必须完成管理员风险审查并使用通用 `addQuoteConfig`，或在需要显式承诺时使用可选的 `addStockQuoteConfig`；`OfficialStockRegistryV1` 的 Base 资格与 Quote 资格仍分离，Stock 指纹记录用于审查而非自动准入；
+2. 将 Stock Quote 的 Asset UID、参考价格证据 hash、生成策略版本和最终 raw 参数写入版本化部署证据；价格配置生成器和产品参数属于 `PENDING_PRODUCT_ACTIVATION`，不表示 admission runtime 未实现；
 3. 实现并测试 Quote Config Generator，覆盖 REST/Chainlink multiplier 差异、十进制舍入、限流、陈旧数据、停牌、公司行动和不一致价格；
-4. 增加真实 RH Stock Token fork 测试，覆盖 buy/sell、尾单退款、原子毕业、FeeVault/Treasury 精确偿付、pause/blocklist/adminBurn 与 Beacon 升级；
-5. 选定少量满足流动性门槛的 Stock Token 并生成新的 ACTIVE config；在专用代理路径完成前，`spec/v1_initial_quote_configs.json` 只把 native 条目作为示例，其他符合现有 direct immutable 规则的 ERC-20 仍可由管理员独立加入。
+4. 固定区块真实 RH Stock Token Fork 已覆盖代理转账、通用 Quote admission、原子毕业与 Vault/rageQuit 主路径；首批激活前仍须补齐 pause/blocklist/adminBurn、Beacon 升级、FeeVault/Treasury 精确偿付与浏览器交易专项用例；
+5. 选定满足风险与流动性审查的 Token 并生成新的 ACTIVE config；在生成器、参数与目标链证据门禁关闭前，`spec/v1_initial_quote_configs.json` 仍只把 native 条目作为示例，任何 Token 都只能由管理员独立加入并完成 Registry 激活。
 
 因此，本文确认的是“官方链下价格可用于创建时的可审计参考”，不是“链下 API 可以直接控制链上市场”或“194 种 Stock Token 已获得 Quote 资格”。

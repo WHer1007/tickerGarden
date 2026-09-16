@@ -1,0 +1,44 @@
+<!doctype html><html lang="en"><meta charset="utf-8"><title>History lifecycle regression</title>
+<style>body{font:16px system-ui;margin:24px}section{border:1px solid #ccc;padding:16px;margin:16px 0}pre{white-space:pre-wrap}</style>
+<h1>History lifecycle regression</h1><p>Controlled responses; actual widgets and browser DOM. No chain or wallet operations.</p>
+<pre id="result" role="status">RUNNING</pre><section id="trades"></section><section id="candles"></section><section id="holders"></section>
+<script type="module">
+import {mountHolders} from '/src/v1/holderWidget.ts';
+import {mountTrades} from '/src/v1/tradeWidget.ts';
+import {mountCandles} from '/src/v1/candleWidget.ts';
+const output=document.querySelector('#result'),tradeRoot=document.querySelector('#trades'),candleRoot=document.querySelector('#candles'),holderRoot=document.querySelector('#holders');
+const identity=n=>({marketId:'0x'+String(n).repeat(64),memeAsset:'0x'+'2'.repeat(40),quoteAsset:'0x'+'3'.repeat(40),quoteDecimals:18});
+const a=identity(1),b=identity(4),requests=[],passed=[];
+const originalFetch=window.fetch;
+// Deliberately ignore AbortSignal so generation protection, not fetch behavior,
+// must reject an old response delivered after cancellation.
+window.fetch=input=>new Promise(resolve=>requests.push({url:new URL(String(input)),resolve}));
+const trades=mountTrades(tradeRoot,location.origin,4663),candles=mountCandles(candleRoot,location.origin,4663),holders=mountHolders(holderRoot,location.origin,4663);
+const check=(ok,message)=>{if(!ok)throw Error(message);};
+const flush=async()=>{for(let i=0;i<50;i++){await new Promise(resolve=>setTimeout(resolve,20));if(![tradeRoot,candleRoot,holderRoot].some(root=>root.querySelector('[role=status]')?.textContent.startsWith('Loading')))return;}throw Error('widget did not settle within one second');};
+const select=id=>{trades.setMarket(id);candles.setMarket(id);holders.setMarket(id?{marketId:id.marketId,memeToken:id.memeAsset}:null);};
+function deliver(request){
+ const u=request.url,id=u.pathname.includes(b.marketId)?b:a,from=Number(u.searchParams.get('from')),to=Number(u.searchParams.get('to'));
+ const value=id===a?'10':'20',p={numerator:value,denominator:'1'};
+ const common={chainId:4663,displayOnly:true,...id,coverage:{from,to,anchorNumber:1,throughNumber:4,projectionNumber:5,anchorHash:id.marketId,throughHash:id.marketId,projectionHash:id.marketId}};
+ const payload=u.pathname.endsWith('/holders')?{chainId:4663,displayOnly:true,marketId:id.marketId,memeToken:id.memeAsset,creationBlockNumber:'1',sourceBlockNumber:'3',sourceBlockHash:id.marketId,finality:'finalized',exclusionPolicy:'KNOWN_PROTOCOL_ADDRESSES_V1',totalSupplyRaw:value+'000000000000000000',positiveAddressCount:1,includedAddressCount:1,excludedAccounts:[],balances:[{account:'0x'+'5'.repeat(40),balanceRaw:value+'000000000000000000',excluded:false}],revision:'sha256:'+id.marketId.slice(2),nextCursor:null}:u.pathname.endsWith('/trades')?{...common,revision:'sha256:'+id.marketId.slice(2),nextCursor:null,items:[{
+ source:{chainId:4663,blockNumber:'3',blockHash:id.marketId,transactionHash:id.marketId,transactionIndex:0,logIndex:1,emitter:id.memeAsset,eventKey:`4663:${id.marketId}:1`},
+ venue:'pool',marketId:id.marketId,timestamp:String(from+100),side:'sell',classification:'internal_reward_conversion',actor:null,recipient:null,actorConfidence:'unavailable',memeAsset:id.memeAsset,quoteAsset:id.quoteAsset,quoteDecimals:18,memeRaw:'1000000000000000000',quoteRaw:value+'000000000000000000',price:p,priceUnit:'QUOTE_PER_WHOLE_MEME',amountBasis:'POOL_CORE',feeRaw:null,feeAsset:null,taxRaw:null,feeStatus:'not_provided'
+ }]}:{...common,interval:3600,series:{priceUnit:'QUOTE_PER_WHOLE_MEME',volumeBasis:'CURVE_EXCLUDING_FEE_TAX_OR_POOL_CORE',pricePopulation:'ALL_EXECUTIONS_INCLUDING_INTERNAL_CONVERSIONS',emptyPolicy:'NULL_OHLC_ZERO_VOLUME',candles:Array.from({length:24},(_,i)=>({timestamp:from+i*3600,open:i?null:p,close:i?null:p,high:i?null:p,low:i?null:p,tradeCount:i?0:1,internalTradeCount:i?0:1,unclassifiedTradeCount:0,memeVolumeRaw:i?'0':'1000000000000000000',quoteVolumeRaw:i?'0':value+'000000000000000000',internalMemeVolumeRaw:i?'0':'1000000000000000000',internalQuoteVolumeRaw:i?'0':value+'000000000000000000'}))}};
+ request.resolve(new Response(JSON.stringify(payload),{headers:{'content-type':'application/json'}}));
+}
+const take=()=>{check(requests.length===3,`expected three requests, got ${requests.length}`);return requests.splice(0);};
+const empty=()=>check(!tradeRoot.querySelector('table')&&!candleRoot.querySelector('table')&&!candleRoot.querySelector('svg')&&!holderRoot.querySelector('table'),'old history remains after stop');
+const loaded=value=>{check(tradeRoot.querySelectorAll('tbody tr').length===1,'trade not rendered');check(tradeRoot.querySelector('tbody tr').cells[5].textContent===value,'wrong market price');check(candleRoot.querySelectorAll('tbody tr').length===24&&!!candleRoot.querySelector('svg'),'candles not rendered');check(holderRoot.querySelectorAll('tbody tr').length===1&&holderRoot.querySelector('tbody tr').cells[1].textContent===value,'holder balance not rendered for current market');};
+try{
+ select(a);take().forEach(deliver);await flush();loaded('10');passed.push('initial render');
+ trades.stop();candles.stop();holders.stop();empty();passed.push('stop clears trades, chart and holders');
+ tradeRoot.querySelector('button').click();candleRoot.querySelector('button').click();holderRoot.querySelector('button').click();await flush();check(requests.length===0,'refresh reused stopped market');passed.push('refresh cannot resurrect stopped identity');
+ select(a);const old=take();select(b);take().forEach(deliver);await flush();loaded('20');const before=tradeRoot.innerHTML+candleRoot.innerHTML+holderRoot.innerHTML;
+ old.forEach(deliver);await flush();check(before===tradeRoot.innerHTML+candleRoot.innerHTML+holderRoot.innerHTML,'late market A overwrote B');passed.push('late previous market ignored');
+ select(a);const stopped=take();trades.stop();candles.stop();holders.stop();stopped.forEach(deliver);await flush();empty();passed.push('late stopped request ignored');
+ select(b);take().forEach(deliver);await flush();loaded('20');passed.push('explicit market selection recovers');
+ output.textContent='PASS\n'+passed.join('\n');document.title='PASS — History lifecycle';
+}catch(error){output.textContent='FAIL\n'+passed.join('\n')+'\n'+String(error);document.title='FAIL — History lifecycle';}
+finally{trades.stop();candles.stop();holders.stop();window.fetch=originalFetch;}
+</script></html>

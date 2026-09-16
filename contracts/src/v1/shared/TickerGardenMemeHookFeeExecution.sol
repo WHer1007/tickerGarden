@@ -45,7 +45,7 @@ abstract contract TickerGardenMemeHookFeeExecution is TickerGardenMemeHookFeeCal
         returns (bytes4 selector, int128 hookFeeDelta)
     {
         CalculatedV4Fee memory fee = _prepareV4Fee(key, params, coreDelta);
-        _requireZeroCorePoolFees(fee.poolId);
+        _requireConfiguredLpFee(fee.poolId, key.fee);
         selector = ITickerGardenMemeHook.afterSwap.selector;
         if (fee.totalFee == 0) return (selector, 0);
 
@@ -69,8 +69,9 @@ abstract contract TickerGardenMemeHookFeeExecution is TickerGardenMemeHookFeeCal
         hookFeeDelta = int128(uint128(fee.totalFee));
     }
 
-    function _requireZeroCorePoolFees(bytes32 poolId) private view {
+    function _requireConfiguredLpFee(bytes32 poolId, uint24 expectedLpFee) private view {
         (,, uint24 protocolFee, uint24 lpFee) = StateLibrary.getSlot0(_hookPoolManagerActions, PoolId.wrap(poolId));
-        if (protocolFee != 0 || lpFee != 0) revert NonzeroCorePoolFee(poolId, protocolFee, lpFee);
+        // PoolManager collects its directional protocol fee separately from our Hook fee.
+        if (lpFee != expectedLpFee) revert NonzeroCorePoolFee(poolId, protocolFee, lpFee);
     }
 }

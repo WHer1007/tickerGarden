@@ -1,0 +1,16 @@
+{
+  "schemaVersion": 1,
+  "status": "passed",
+  "scope": "read-only-authentication",
+  "observedAt": "2026-09-10T22:26:12.475895Z",
+  "endpoint": "https://dashboard.alchemy.com/api/team-webhooks",
+  "httpStatus": 200,
+  "authenticated": true,
+  "webhookCount": 0,
+  "networks": [],
+  "types": [],
+  "mutationsPerformed": 0,
+  "secretsRecorded": false,
+  "networkConfiguration": "pending-exact-dashboard-value",
+  "callbackConfiguration": "pending-public-preview-origin"
+}

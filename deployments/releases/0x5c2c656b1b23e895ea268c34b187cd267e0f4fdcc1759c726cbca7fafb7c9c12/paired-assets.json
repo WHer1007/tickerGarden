@@ -1,0 +1,153 @@
+{
+  "schemaVersion": 1,
+  "status": "REGISTRY_ACTIVE",
+  "networkScope": "ROBINHOOD_TESTNET_ONLY",
+  "chainId": 46630,
+  "releaseId": "0x5c2c656b1b23e895ea268c34b187cd267e0f4fdcc1759c726cbca7fafb7c9c12",
+  "baselineId": "0x28d9469a2acb5e0f4de9482e25ffa445b0228a000372c204314f95be663265fd",
+  "templateId": "0x0cbe3e15031a7611067cf5bbbd8b4f4b61648a5dc52045f9692b5da0d4aa5267",
+  "supplyReferenceRaw": "1000000000000000000000000000",
+  "assets": [
+    {
+      "symbol": "ETH",
+      "name": "Ether",
+      "chainId": 46630,
+      "tokenAddress": "0x0000000000000000000000000000000000000000",
+      "decimals": 18,
+      "assetKind": "NATIVE",
+      "assetUid": null,
+      "officialStatus": null,
+      "currentMultiplier": null,
+      "pendingMultiplier": null,
+      "quoteAssetConfigId": "0xb68b91965e03bd5e87f49b34cd51e37bdd543de83b5c18c0394c29cbc4292056",
+      "phantomQuote": "168000000000000000",
+      "graduationThreshold": "420000000000000000",
+      "includedInRelease": true,
+      "activationStatus": "REGISTRY_ACTIVE",
+      "runtimeCodeHash": null,
+      "proxySlots": null,
+      "admissionPath": "ADMIN_REVIEWED_WHITELIST"
+    },
+    {
+      "symbol": "TSLA",
+      "name": "Tesla",
+      "chainId": 46630,
+      "tokenAddress": "0xc9f9c86933092bbbfff3ccb4b105a4a94bf3bd4e",
+      "decimals": 18,
+      "assetKind": "OFFICIAL_STOCK",
+      "assetUid": "0x00000000000000000000000000000000aa1fee9afa45465cbc65157b4edf63f5",
+      "officialStatus": "TESTNET_FAUCET_ACTIVE",
+      "currentMultiplier": null,
+      "pendingMultiplier": null,
+      "quoteAssetConfigId": "0xd114c17e0c397f7d32b5a78aebce61df693cd0b36b74f3e5b438d57e42119152",
+      "phantomQuote": "1040000000000000000",
+      "graduationThreshold": "2600000000000000000",
+      "includedInRelease": true,
+      "activationStatus": "REGISTRY_ACTIVE",
+      "runtimeCodeHash": "0x2f367e6a678e7b30ab613d5963e541e6f4d3ca586de76e2f441fbfeb1a27c440",
+      "proxySlots": {
+        "beacon": "0x1df3ca0fd30ed5eeb09eb01938f4e9c5196e6ca5",
+        "implementation": "0xBd14156E05c6AF28ad39aA53a2AB8eB9CDf657DA"
+      },
+      "admissionPath": "ADMIN_REVIEWED_WHITELIST"
+    },
+    {
+      "symbol": "AMZN",
+      "name": "Amazon",
+      "chainId": 46630,
+      "tokenAddress": "0x5884ad2f920c162cfbbacc88c9c51aa75ec09e02",
+      "decimals": 18,
+      "assetKind": "OFFICIAL_STOCK",
+      "assetUid": "0x0000000000000000000000000000000099c33a4e234448e99d6c8a5e5dddeda0",
+      "officialStatus": "TESTNET_FAUCET_ACTIVE",
+      "currentMultiplier": null,
+      "pendingMultiplier": null,
+      "quoteAssetConfigId": "0x873053017e93a7979cb8380e87b6c38cc8ea7fce785d1d579bc5ac55a342c9ef",
+      "phantomQuote": "1173211643685708100",
+      "graduationThreshold": "2933029109214270250",
+      "includedInRelease": true,
+      "activationStatus": "REGISTRY_ACTIVE",
+      "runtimeCodeHash": "0x2f367e6a678e7b30ab613d5963e541e6f4d3ca586de76e2f441fbfeb1a27c440",
+      "proxySlots": {
+        "beacon": "0x1df3ca0fd30ed5eeb09eb01938f4e9c5196e6ca5",
+        "implementation": "0xBd14156E05c6AF28ad39aA53a2AB8eB9CDf657DA"
+      },
+      "admissionPath": "ADMIN_REVIEWED_WHITELIST"
+    },
+    {
+      "symbol": "PLTR",
+      "name": "Palantir Technologies",
+      "chainId": 46630,
+      "tokenAddress": "0x1fbe1a0e43594b3455993b5de5fd0a7a266298d0",
+      "decimals": 18,
+      "assetKind": "OFFICIAL_STOCK",
+      "assetUid": "0x0000000000000000000000000000000052cd6b007b15456ba5fbc3aa605765e0",
+      "officialStatus": "TESTNET_FAUCET_ACTIVE",
+      "currentMultiplier": null,
+      "pendingMultiplier": null,
+      "quoteAssetConfigId": "0x81271bee15d90b559b04d7b3812f321d5a6cd59b293f2d20e1551c1915038ede",
+      "phantomQuote": "1882605010536174275",
+      "graduationThreshold": "4706512526340435687",
+      "includedInRelease": true,
+      "activationStatus": "REGISTRY_ACTIVE",
+      "runtimeCodeHash": "0x2f367e6a678e7b30ab613d5963e541e6f4d3ca586de76e2f441fbfeb1a27c440",
+      "proxySlots": {
+        "beacon": "0x1df3ca0fd30ed5eeb09eb01938f4e9c5196e6ca5",
+        "implementation": "0xBd14156E05c6AF28ad39aA53a2AB8eB9CDf657DA"
+      },
+      "admissionPath": "ADMIN_REVIEWED_WHITELIST"
+    },
+    {
+      "symbol": "NFLX",
+      "name": "Netflix",
+      "chainId": 46630,
+      "tokenAddress": "0x3b8262a63d25f0477c4dde23f83cfe22cb768c93",
+      "decimals": 18,
+      "assetKind": "OFFICIAL_STOCK",
+      "assetUid": "0x0000000000000000000000000000000041de1e6ae0f4cd3825f77b5a4a3cc784",
+      "officialStatus": "TESTNET_FAUCET_ACTIVE",
+      "currentMultiplier": null,
+      "pendingMultiplier": null,
+      "quoteAssetConfigId": "0xe79ed06c9ead5f3670b3e54a07e59f8592c75be8f6c413cadf94eb7f2955bc3b",
+      "phantomQuote": "5212121854304635775",
+      "graduationThreshold": "13030304635761589439",
+      "includedInRelease": true,
+      "activationStatus": "REGISTRY_ACTIVE",
+      "runtimeCodeHash": "0x2f367e6a678e7b30ab613d5963e541e6f4d3ca586de76e2f441fbfeb1a27c440",
+      "proxySlots": {
+        "beacon": "0x1df3ca0fd30ed5eeb09eb01938f4e9c5196e6ca5",
+        "implementation": "0xBd14156E05c6AF28ad39aA53a2AB8eB9CDf657DA"
+      },
+      "admissionPath": "ADMIN_REVIEWED_WHITELIST"
+    },
+    {
+      "symbol": "AMD",
+      "name": "AMD",
+      "chainId": 46630,
+      "tokenAddress": "0x71178bac73cbeb415514eb542a8995b82669778d",
+      "decimals": 18,
+      "assetKind": "OFFICIAL_STOCK",
+      "assetUid": "0x00000000000000000000000000000000958cc238f7a04144bf5eb07da3d3734e",
+      "officialStatus": "TESTNET_FAUCET_ACTIVE",
+      "currentMultiplier": null,
+      "pendingMultiplier": null,
+      "quoteAssetConfigId": "0xd27652e4de7c78c2634113af6fda5f9073551a7f6c3965f829b95ae1e16dc526",
+      "phantomQuote": "666620183638360900",
+      "graduationThreshold": "1666550459095902251",
+      "includedInRelease": true,
+      "activationStatus": "REGISTRY_ACTIVE",
+      "runtimeCodeHash": "0x2f367e6a678e7b30ab613d5963e541e6f4d3ca586de76e2f441fbfeb1a27c440",
+      "proxySlots": {
+        "beacon": "0x1df3ca0fd30ed5eeb09eb01938f4e9c5196e6ca5",
+        "implementation": "0xBd14156E05c6AF28ad39aA53a2AB8eB9CDf657DA"
+      },
+      "admissionPath": "ADMIN_REVIEWED_WHITELIST"
+    }
+  ],
+  "limitations": [
+    "Canonical USDG is sourced from Paxos testnet documentation.",
+    "Canonical Stock Tokens are pinned to the onchain RH testnet faucet list and shared beacon identity.",
+    "NVDA and AAPL are unavailable in the observed faucet list and are excluded."
+  ],
+  "observedAt": "2026-09-10T19:29:06.962Z"
+}

@@ -3,7 +3,7 @@
 > **当前边界（2026-09-04）：** Creator revenue 不得依赖市场级 pause/retire/emergency 或 Recovery 管理状态；市场部署后永久自治，launchPhase 仅为事实。本文若出现旧状态词汇，仅作历史兼容说明。
 
 > 规格任务：`V1-P-004`
-> 状态：`FROZEN / IMPLEMENTATION_ALLOWED`  
+> 状态：`FROZEN / DEPLOYMENT_ELIGIBLE`
 > 更新时间：2026-09-02
 
 ## 1. 规则

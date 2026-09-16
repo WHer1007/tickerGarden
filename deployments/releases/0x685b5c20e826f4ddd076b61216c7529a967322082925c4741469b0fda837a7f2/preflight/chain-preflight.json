@@ -1,0 +1,79 @@
+{
+  "schemaVersion": 1,
+  "status": "READ_ONLY_PREFLIGHT_PASSED_NOT_BROADCAST",
+  "chainId": 46630,
+  "dependencyProvenance": {
+    "identityStatus": "PROJECT_PINNED_UNISWAP_V4_TEST_DEPENDENCY_NOT_OFFICIAL_46630",
+    "uniswapOfficial46630ListingAvailable": false,
+    "projectUsageScope": "TESTNET_REHEARSAL_ONLY",
+    "sourceUrls": [
+      "https://docs.robinhood.com/chain/connecting/",
+      "https://github.com/Uniswap/contracts/blob/main/deployments/4663.md",
+      "https://developers.uniswap.org/docs/protocols/v4/deployments"
+    ],
+    "acceptance": "EXPLICIT_TEST_ONLY_PIN_REQUIRED_BEFORE_BROADCAST"
+  },
+  "observedAt": "2026-09-13T11:00:17.751Z",
+  "block": {
+    "number": "118684893",
+    "hash": "0x275c3833cc795763fc687e0b4b41d152fdaff331918812144f4dd1dc02255e2d",
+    "timestamp": "1789297194"
+  },
+  "deployer": "0xA6c3298a5559544c3b4cf8e6DC5f349f4be524ea",
+  "nonce": "303",
+  "balanceWei": "1372363610995801415",
+  "gasPriceWei": "10000000",
+  "releaseId": "0x685b5c20e826f4ddd076b61216c7529a967322082925c4741469b0fda837a7f2",
+  "treasury": {
+    "address": "0xD84897cD860Da0B51D39a252961B18D54fBbb266",
+    "codeHash": "0xec2f0c3cd44014a900f73e21ab55ed1e78b81b13925a951da0e8d289059866c8"
+  },
+  "dependencies": [
+    {
+      "name": "CANONICAL_CREATE2_DEPLOYER",
+      "address": "0x4e59B44847b379578588920cA78FbF26c0B4956C",
+      "codeHash": "0x2fa86add0aed31f33a762c9d88e807c475bd51d0f52bd0955754b2608f7e4989",
+      "codeBytes": 69
+    },
+    {
+      "name": "POOL_MANAGER",
+      "address": "0x8366a39cc670b4001a1121b8f6a443a643e40951",
+      "codeHash": "0xbd3881180b547f5fe817545743cfb4343e96b1bc6640dcd70c106b0066e95626",
+      "codeBytes": 24009
+    },
+    {
+      "name": "POSITION_MANAGER",
+      "address": "0x58daec3116aae6d93017baaea7749052e8a04fa7",
+      "codeHash": "0xf3a0edb689229fa4bf135a728f2ec2eb4a2fbee2e41e3e74ffadb7b4c56e8a6d",
+      "codeBytes": 23877
+    },
+    {
+      "name": "PERMIT2",
+      "address": "0x000000000022D473030F116dDEE9F6B43aC78BA3",
+      "codeHash": "0x0117e0ed818bc3f2a8729ffc336c837e63e965f04b473047b39b35ad86aac259",
+      "codeBytes": 9152
+    },
+    {
+      "name": "UNIVERSAL_ROUTER",
+      "address": "0x8876789976decbfcbbbe364623c63652db8c0904",
+      "codeHash": "0xfdd90802f39ce5fc8bac4c2f1b3ac7bac530fd17ff46b0630f1bd00f1e14082f",
+      "codeBytes": 24546
+    },
+    {
+      "name": "V4_QUOTER",
+      "address": "0x8dc178efb8111bb0973dd9d722ebeff267c98f94",
+      "codeHash": "0xd707b1da8cb165e5ea35a3b4450d971eb562ec171e23492aa117036b78a868f6",
+      "codeBytes": 6118
+    },
+    {
+      "name": "STATE_VIEW",
+      "address": "0xf3334192d15450cdd385c8b70e03f9a6bd9e673b",
+      "codeHash": "0x7d9c591e0956fd89d98feb4ffcfe8bf1f7a62bd485edd979fa21d104b49878a6",
+      "codeBytes": 3531
+    }
+  ],
+  "sourceHashes": {
+    "executionManifestSha256": "0x346f88392c7ede499c462dee3fb9d8a35240b64173f0d490d4c55cb925392f05",
+    "productArtifactManifestSha256": "0x41e61c628d6c14bcf51f4a8bbb975ea8387b505659ec1d751b42d8f3245112db"
+  }
+}

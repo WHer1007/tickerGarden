@@ -402,18 +402,16 @@ contract UserStockVaultTest is Test {
         vault.rageQuit(ASSET_UID, MARKET_ID);
         assertEq(vault.marketRewardEligible(ASSET_UID, MARKET_ID), 0);
 
-        (uint256 principal, uint256 quoteCutoff, uint256 memeCutoff, bool forfeitureRedistributable) =
+        (uint256 principal, uint256 quoteCutoff, uint256 memeCutoff) =
             vault.rageQuitRewardCutoff(ASSET_UID, ALICE, MARKET_ID);
         assertEq(principal, 600);
         assertEq(quoteCutoff, 100);
         assertEq(memeCutoff, 200);
-        assertFalse(forfeitureRedistributable);
 
         manager.recordGaugeRewardState(vault, ASSET_UID, MARKET_ID, 150, 250);
-        (, quoteCutoff, memeCutoff, forfeitureRedistributable) = vault.rageQuitRewardCutoff(ASSET_UID, ALICE, MARKET_ID);
+        (, quoteCutoff, memeCutoff) = vault.rageQuitRewardCutoff(ASSET_UID, ALICE, MARKET_ID);
         assertEq(quoteCutoff, 100);
         assertEq(memeCutoff, 200);
-        assertFalse(forfeitureRedistributable);
 
         vm.expectRevert(
             abi.encodeWithSelector(
@@ -423,12 +421,10 @@ contract UserStockVaultTest is Test {
         manager.recordGaugeRewardState(vault, ASSET_UID, MARKET_ID, 149, 250);
 
         manager.completeRageQuitRewardSettlement(vault, ASSET_UID, ALICE, MARKET_ID);
-        (principal, quoteCutoff, memeCutoff, forfeitureRedistributable) =
-            vault.rageQuitRewardCutoff(ASSET_UID, ALICE, MARKET_ID);
+        (principal, quoteCutoff, memeCutoff) = vault.rageQuitRewardCutoff(ASSET_UID, ALICE, MARKET_ID);
         assertEq(principal, 0);
         assertEq(quoteCutoff, 0);
         assertEq(memeCutoff, 0);
-        assertFalse(forfeitureRedistributable);
     }
 
     function test_rageQuitForfeitureIsNeverRedistributableRegardlessOfExitCohort() public {
@@ -441,14 +437,12 @@ contract UserStockVaultTest is Test {
         vm.prank(ALICE);
         vault.rageQuit(ASSET_UID, MARKET_ID);
 
-        (,,, bool forfeitureRedistributable) = vault.rageQuitRewardCutoff(ASSET_UID, ALICE, MARKET_ID);
-        assertFalse(forfeitureRedistributable);
+        vault.rageQuitRewardCutoff(ASSET_UID, ALICE, MARKET_ID);
         assertEq(vault.marketRewardEligible(ASSET_UID, MARKET_ID), 400);
 
         // Cohort mutations do not change the platform-only forfeiture policy.
         manager.lock(vault, ASSET_UID, BOB, MARKET_ID, 1);
-        (,,, forfeitureRedistributable) = vault.rageQuitRewardCutoff(ASSET_UID, ALICE, MARKET_ID);
-        assertFalse(forfeitureRedistributable);
+        vault.rageQuitRewardCutoff(ASSET_UID, ALICE, MARKET_ID);
     }
 
     function test_directRageQuitStillReturnsPrincipalAfterAdmissionIdentityDrift() public {

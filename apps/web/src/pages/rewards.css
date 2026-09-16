@@ -1,0 +1,127 @@
+
+    .rewards-runtime{display:grid;gap:8px;min-width:275px;background:#154f3f;border:1px solid #477160;border-radius:15px;padding:16px 18px;color:#fff}
+    .rewards-runtime strong{display:flex;align-items:center;gap:8px;font-size:13px}
+    .rewards-runtime strong i{color:var(--lime)}
+    .rewards-runtime span{color:#bcd0c5;font-size:12px;line-height:1.45}
+    .rewards-runtime a{color:#d9f58a;text-decoration:underline}
+    .runtime-refresh{justify-self:start;border:1px solid #87a897;border-radius:999px;padding:7px 11px;background:transparent;color:#fff;font:inherit;font-size:12px;font-weight:800;cursor:pointer}
+    .runtime-refresh:hover{background:#286650}
+    .runtime-refresh i{margin-right:5px}
+    .staker-market-field{min-width:min(100%,280px)}
+    .tab-action-help{margin:0 0 14px}
+    .reward-details{padding-top:16px}
+    .reward-details>summary{cursor:pointer;font-weight:800;color:var(--ink)}
+    .reward-details[open]>summary{margin-bottom:16px}
+    .details-content{display:grid;gap:12px}
+    .fallback-status{margin-top:10px}
+    .proof-details{border-top:0;margin-top:10px;padding-top:0}
+    .proof-details>summary{font-size:12px;color:var(--muted)}
+    .rewards-tabs{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:22px}
+    .rewards-tabs button{border:1px solid #b4c1b7;background:transparent;border-radius:999px;padding:11px 17px;color:var(--ink);font-weight:800;cursor:pointer}
+    .rewards-tabs button:hover,.rewards-tabs button[aria-selected="true"]{background:var(--ink);border-color:var(--ink);color:#fff}
+    .rewards-tabs button:focus-visible,.rewards-panel button:focus-visible{outline:3px solid #b9f31d;outline-offset:2px}
+    .rewards-panel[hidden]{display:none}
+    .rewards-panel-head{display:flex;justify-content:space-between;align-items:start;gap:20px;margin-bottom:22px}
+    .rewards-panel-head h2{font:600 29px "Inter Variable",serif;margin:0}
+    .rewards-panel-head p{color:var(--muted);font-size:13px;line-height:1.55;margin:6px 0 0;max-width:720px}
+    .locked-note{display:flex;gap:10px;align-items:start;border-radius:12px;background:#f4f1e8;border:1px dashed #b9c5b9;color:var(--muted);padding:13px 15px;font-size:12px;line-height:1.5}
+    .locked-note i{color:#7a8d82;font-size:18px;flex:0 0 auto}
+    .reward-forms{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:15px}
+    .reward-form{display:grid;gap:12px;border:1px solid var(--line);border-radius:15px;padding:18px;background:#fffefa}
+    .reward-form h3{font:600 21px "Inter Variable",serif;margin:0}
+    .reward-form p{color:var(--muted);font-size:12px;line-height:1.5;margin:0}
+    .reward-form .field{margin-top:2px}
+    .reward-form .action-button{margin-top:auto}
+    .reward-form .action-button[disabled],.advanced-actions button[disabled]{cursor:not-allowed;opacity:.48}
+    .danger-panel{border:2px solid var(--coral);background:#fff8f4}
+    .danger-panel h3{color:#b83323}
+    .danger-button{background:var(--coral);color:var(--ink);font-size:14px}
+    .danger-copy{color:#7b342b!important;font-weight:700}
+    .subsection{border-top:1px solid var(--line);margin-top:22px;padding-top:22px}
+    .subsection h3{font:600 22px "Inter Variable",serif;margin:0 0 6px}
+    .subsection>p{color:var(--muted);font-size:12px;line-height:1.5;margin:0 0 16px}
+    .reward-data-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;margin:18px 0}
+    .reward-data{background:var(--soft);border-radius:11px;padding:13px;min-width:0}
+    .reward-data small{display:block;color:var(--muted);font-size:11px}
+    .reward-data strong,.reward-data output{display:block;overflow-wrap:anywhere;margin-top:6px;font-size:13px;line-height:1.35}
+    .reward-data output{font-weight:800}
+    .reward-cards{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:15px}
+    .reward-card{display:grid;gap:14px;border:1px solid var(--line);border-radius:15px;padding:19px;background:#fffefa}
+    .reward-card .garden-head{align-items:center}
+    .reward-card h3{font:600 22px "Inter Variable",serif;margin:0}
+    .reward-card small{color:var(--muted);font-size:11px}
+    .reward-card .claimable{font:600 27px "Inter Variable",serif;color:var(--ink);overflow-wrap:anywhere}
+    .creator-layout,.treasury-layout{display:grid;grid-template-columns:minmax(0,1.45fr) minmax(280px,.55fr);gap:22px}
+    .creator-side,.treasury-side{height:max-content}
+    .action-stack{display:grid;gap:10px}
+    .action-stack .action-button{width:100%}
+    .advanced-actions{display:grid;gap:10px;margin-top:15px}
+    .advanced-actions button{width:100%;border:1px solid #b4c1b7;border-radius:10px;padding:12px;background:transparent;color:var(--ink);font-weight:800}
+    .role-copy{font-size:12px;line-height:1.55;color:var(--muted);margin:0}
+    .proof-box{min-height:90px;resize:vertical}
+    .form-actions{display:flex;gap:10px;flex-wrap:wrap}
+    .form-actions .action-button{width:auto;min-width:180px}
+    @media(max-width:800px){.reward-forms,.reward-cards,.creator-layout,.treasury-layout{grid-template-columns:1fr}.rewards-panel-head{display:block}.rewards-runtime{margin-top:18px}.reward-data-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
+    @media(max-width:520px){.reward-data-grid{grid-template-columns:1fr}.form-actions .action-button{width:100%}}
+  
+
+/* Claim: selected two-role design, without a separate title/hero row. */
+.claim-page{max-width:1280px;margin:0 auto;padding:40px 42px 64px;font-size:14px}
+.claim-workspace{display:grid;grid-template-columns:220px minmax(0,1fr);gap:24px;align-items:start}
+.claim-tabs{display:flex;flex-direction:column;gap:5px;padding:10px;margin:0;border:1px solid var(--line);border-radius:14px;background:#fffefa}
+.claim-tabs button{display:flex;align-items:center;gap:14px;width:100%;min-height:48px;padding:12px 16px;border:0;border-radius:10px;text-align:left;font-size:14px;font-weight:600;color:var(--muted);background:transparent}
+.claim-tabs button i{font-size:22px}.claim-tabs button[aria-selected=true],.claim-tabs button:hover{background:#eaf0e6;color:var(--ink);border:0}
+.claim-content{min-width:0}.claim-content>.rewards-panel{padding:24px 26px;border:1px solid var(--line);border-radius:14px;background:#fffefa}
+.claim-page h2,.claim-page .rewards-panel-head h2{font:600 23px/1.25 'Inter Variable',serif;margin:0 0 5px}.claim-page h3{font-size:18px}
+.claim-card-heading{margin-bottom:24px}.claim-card-heading p,.claim-page .rewards-panel-head p{font-size:13px;line-height:1.5;color:var(--muted);margin:0}
+.claim-page .field label{font-size:12px;font-weight:600}.claim-page .field select{height:48px;font-size:14px;background:#fff}.claim-page .field{min-width:0}
+.holder-token-search{position:relative;z-index:4}.holder-token-search-control{position:relative}.holder-token-search-control>i{position:absolute;top:50%;z-index:1;transform:translateY(-50%);color:#718078;font-size:15px;pointer-events:none}.holder-token-search-control>i:first-child{left:12px}.holder-token-search-control>i:last-child{right:12px;font-size:13px}.holder-token-search-control>input[data-holder-search]{width:100%;height:42px;border:1px solid var(--line);border-radius:9px;background:#fff;color:var(--ink);font:inherit;font-size:13px;padding:0 36px;transition:border-color .16s ease}.holder-token-search-control>input[data-holder-search]::placeholder{color:#89958b}.holder-token-search-control>input[data-holder-search]:focus{border-color:#8b9c8f;box-shadow:none;outline:none}.holder-search-results{position:absolute;z-index:20;top:calc(100% + 7px);left:0;right:0;display:grid;gap:3px;max-height:260px;overflow:auto;padding:6px;border:1px solid #cbd4ca;border-radius:11px;background:#fff;box-shadow:0 14px 32px #173c2c1f}.holder-search-results[hidden]{display:none}.holder-search-results:not(:has(button)){padding:12px 13px;color:var(--muted);font-size:12px}.holder-search-results button{display:flex;align-items:center;justify-content:space-between;gap:12px;width:100%;border:0;border-radius:8px;background:#fff;color:var(--ink);padding:9px 10px;text-align:left;font:inherit;font-size:12px;cursor:pointer}.holder-search-results button:hover,.holder-search-results button:focus-visible{outline:0;background:#f0f4ed}.holder-search-results small{max-width:48%;color:var(--muted);font-size:10px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.claim-amounts{display:grid;grid-template-columns:1fr 1fr;gap:28px;padding:30px 0 24px}.claim-amounts>div+div{border-left:1px solid var(--line);padding-left:28px}.claim-amounts span{display:block;font-size:12px;color:var(--muted);margin-bottom:6px}.claim-amounts strong{display:block;font:650 27px/1.3 'Inter',sans-serif;overflow-wrap:anywhere}.claim-amounts>div+div strong{font-size:23px}.claim-amounts small{display:block;color:var(--muted);font-size:12px;margin-top:7px}
+.claim-facts{margin:0;padding:18px 0;border-top:1px solid var(--line);border-bottom:1px solid var(--line);display:grid;gap:18px}.claim-facts>div{display:grid;grid-template-columns:120px minmax(0,1fr);gap:16px;align-items:start}.claim-facts dt{font-size:12px;color:var(--muted)}.claim-facts dd{margin:0;min-width:0;font-size:13px;line-height:1.45;overflow-wrap:anywhere}.claim-facts dd button{border:0;background:transparent;color:var(--ink);margin-left:8px;padding:0;cursor:pointer}.claim-facts dd i{font-size:17px}
+.claim-action{display:flex;align-items:center;gap:20px;padding-top:22px}.claim-action .action-button{flex-shrink:0;min-width:210px;min-height:42px;font-size:13px;padding:11px 18px;border-radius:9px}.claim-action p{font-size:12px;color:var(--muted);line-height:1.5;margin:0}.claim-gas-note{display:block;font-size:11px;color:var(--muted);margin-top:8px}
+.claim-result{font-size:12px;line-height:1.5;color:var(--muted)}.claim-result:empty{display:none}.claim-advanced{margin-top:22px;padding-top:18px;border-top:1px solid var(--line)}.claim-advanced>summary,.claim-page .treasury-side>summary{font-size:14px;font-weight:600;cursor:pointer;color:var(--ink)}.claim-advanced[open]>summary{margin-bottom:20px}.claim-advanced .field{margin-bottom:16px}.claim-advanced .action-button{font-size:13px;min-height:40px}.claim-page details summary{list-style:revert}.claim-page details summary:after{display:none}
+.claim-page .reward-form{border:0;background:transparent;padding:0}.claim-page .subsection{margin-top:18px;padding-top:18px}.claim-page .reward-data-grid{grid-template-columns:repeat(3,minmax(0,1fr));gap:16px}.claim-page .reward-data{background:transparent;padding:0}.claim-page .reward-data output{font-size:16px}.claim-page .treasury-side{margin-top:20px;border-top:1px solid var(--line);padding-top:18px}.claim-page .role-copy,.claim-page .locked-note{font-size:12px}.claim-page .locked-note{border:0;background:#f1f4ed;padding:12px}.claim-page .tab-action-help{margin:16px 0}.claim-page .tab-action-help:empty{display:none}
+.claim-connection{display:flex;align-items:center;flex-wrap:wrap;gap:10px;margin-top:16px;font-size:12px;color:var(--muted)}.claim-connection>span{flex:1;min-width:180px}.claim-connection button,.stake-runtime button{border:1px solid var(--line);border-radius:8px;background:#fffefa;color:var(--ink);padding:8px 12px;font:inherit;font-size:12px;cursor:pointer}.claim-content>[data-rewards-empty]{font-size:12px;color:var(--muted);line-height:1.5}
+.staking-heading{margin-bottom:24px}.staking-heading h1{font:600 30px 'Inter Variable',serif;margin:0 0 8px}.staking-heading p{font-size:14px;color:var(--muted)}.staking-heading a{font-size:13px;color:var(--ink)}.stake-runtime{display:flex;gap:12px;flex-wrap:wrap;align-items:center;margin-bottom:20px;font-size:12px;color:var(--muted)}
+@media(max-width:800px){.claim-page{padding:24px 20px 48px}.claim-workspace{grid-template-columns:150px minmax(0,1fr);gap:16px}.claim-tabs button{padding:10px;font-size:13px;gap:8px}.claim-content>.rewards-panel{padding:20px}.claim-action{align-items:flex-start;flex-direction:column;gap:10px}.claim-facts>div{grid-template-columns:90px minmax(0,1fr);gap:10px}}
+@media(max-width:580px){.claim-page{padding:20px 16px 40px}.claim-workspace{grid-template-columns:1fr;gap:14px}.claim-tabs{padding:6px;gap:2px}.claim-tabs button{min-height:40px}.claim-content>.rewards-panel{padding:18px}.claim-page h2{font-size:22px}.claim-amounts{gap:14px;padding:24px 0}.claim-amounts>div+div{padding-left:14px}.claim-amounts strong{font-size:22px}.claim-amounts>div+div strong{font-size:20px}.claim-page .reward-data-grid{grid-template-columns:1fr}.claim-action .action-button{width:100%}.claim-facts>div{grid-template-columns:80px minmax(0,1fr)}}
+.claim-page:focus{outline:none}.claim-action .action-button{width:auto;flex:0 0 auto}.claim-action p{min-width:0}.claim-page [data-claim-market-lookup]{margin-top:16px;color:var(--muted);font-size:12px}.claim-page [data-claim-market-lookup] input{margin:12px 8px 0 0;padding:9px;border:1px solid var(--line);border-radius:8px;max-width:100%}.claim-page [data-claim-market-lookup] button{padding:9px;border:1px solid var(--line);border-radius:8px;background:#fffefa;color:var(--ink)}
+@media(max-width:580px){.claim-action .action-button{width:100%}}
+body[data-page=rewards] main.claim-page:focus{outline:none!important}.claim-token-select{position:relative;min-width:0}.claim-token-select>i{position:absolute;left:14px;top:14px;font-size:20px;color:#607a65;pointer-events:none}.claim-page .claim-token-select select{width:100%;max-width:100%;padding-left:44px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.claim-page .fields{align-items:start}.claim-page .fields>.field{align-self:start}.claim-page .reward-form>.action-button,.claim-page [data-reward-action=claimContinuous]{width:fit-content;min-width:210px;min-height:42px;padding:11px 18px;font-size:13px;border-radius:9px}.claim-page .reward-form .fields>.field{width:100%}
+@media(max-width:580px){.claim-page .reward-form>.action-button,.claim-page [data-reward-action=claimContinuous]{width:100%}}
+
+.holder-content > [data-rewards-connect] { width:auto;min-width:164px;min-height:38px;margin:0 0 16px;padding:9px 14px;border-radius:8px;font-size:12px; }
+.holder-content > [data-rewards-connect] i{font-size:14px}
+
+.holder-pool-details{margin:16px 0;padding:10px 0;border:0}
+.holder-pool-details summary{cursor:pointer;font-size:13px;font-weight:500}
+.holder-pool-details>small{display:block;font-size:11px;color:var(--muted,#7c847a);line-height:1.5}
+.holder-pool-details .claim-facts dd{overflow-wrap:anywhere;text-align:right}
+
+/* Holder rewards follow the same hierarchy and spacing as Creator rewards. */
+.holder-reward-card{margin:0;padding:0;border:0;background:transparent}
+.holder-reward-card .claim-amounts strong{font-size:23px}.holder-reward-card .claim-amounts>div+div strong{font-size:20px}
+.holder-round-field{width:min(100%,220px);margin-top:16px}
+.claim-page .holder-round-field select{width:100%;height:40px;font-size:12px;background:#fff}
+[data-snapshot-status]{margin:10px 0 0;color:var(--muted);font-size:12px;font-weight:400;line-height:1.5}
+[data-snapshot-status][data-tone=error]{color:#a53b31}
+.holder-reward-actions{gap:10px}
+.holder-reward-actions .action-button i{font-size:15px}
+[data-snapshot-more] {
+  border: 1px solid #cad4c9; border-radius: 10px; background: #f5f7f2; color: #084b37;
+  font: inherit; font-size: 12px; font-weight: 600; min-height: 38px; padding: 9px 13px;cursor: pointer;
+}
+[data-snapshot-more]:hover { background: #e8eee4; }
+@media(max-width:680px){.holder-round-field{width:100%}}
+
+.claim-page .claim-wallet-guide{font-size:var(--text-body);line-height:1.6;color:var(--muted);max-width:440px;margin:12px 0 4px}
+.claim-page[data-wallet-connected=true] .claim-wallet-guide{display:none}
+.claim-page[data-wallet-connected=false] #rewards-panel-creator>:is(.field,.claim-amounts,.claim-facts,[data-creator-more],[data-creator-older],.claim-result){display:none}
+.claim-page[data-wallet-connected=false] .holder-content>:is(.fields,[data-holder-action-help]){display:none}
+.claim-page .claim-amounts{background:transparent;border-radius:0;border-top:1px solid var(--line);border-bottom:1px solid var(--line);padding:22px 0;margin:22px 0}
+.claim-page .claim-amounts strong{font-size:var(--text-metric)}
+.claim-page :is(.claim-facts,.claim-amounts span,.holder-pool-details small){font-size:var(--text-support);color:var(--muted)}
+.claim-page .claim-action .action-button{min-height:var(--control-height);border-radius:var(--control-radius)}
+.claim-page .holder-reward-card{background:transparent;box-shadow:none;border:0;padding:0}
+.claim-page .field{margin-bottom:16px}
