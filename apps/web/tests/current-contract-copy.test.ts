@@ -7,8 +7,8 @@ import staking from "../src/pages/staking.ts";
 test("pages describe current holder snapshots and fee sharing", () => {
   assert.match(create.html, /exactly 50% of the creator base-fee share/);
   assert.match(create.html, /excluding creator tax/);
-  assert.match(create.html, /wallet balances at published snapshots/);
-  assert.match(create.html, /no fixed payout schedule/i);
+  assert.doesNotMatch(create.html, /wallet balances at published snapshots|View holder rewards/);
+  assert.doesNotMatch(create.html, /no fixed payout schedule/i);
   assert.match(create.html, /paired asset purchase/);
   assert.doesNotMatch(home.html, /wallet balance snapshots/);
   assert.match(staking.html, /Rewards are paid in the original Quote and created token assets/);
