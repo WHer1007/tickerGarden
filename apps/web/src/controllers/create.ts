@@ -1,3 +1,4 @@
+import {createLaunchFeeDisplay} from '../create/launch-fee-display.ts';
 import {sortStakingAssets} from '../create/featured-stocks.ts';
 import { publicError } from "../ui/public-error.ts";
 import currentV4Abis_TickerGardenFactoryV1 from '../v1/generated/contracts/current/TickerGardenFactoryV1.ts';
@@ -62,6 +63,23 @@ type TransactionUpdate
 } from "../v1/transaction.ts";
 import type { ControllerContext,LaunchPreview,WalletState } from '../app.ts';
 export function createCreateController(ctx:ControllerContext){
+const launchFeeDisplay = createLaunchFeeDisplay(async () => {
+  if (!ctx.runtimeConfig.contracts.available) throw new Error('Launch unavailable');
+  const [chainId, fee] = await Promise.all([
+    ctx.publicClient.getChainId(),
+    ctx.publicClient.readContract({abi:currentV4Abis_TickerGardenFactoryV1,address:ctx.runtimeConfig.contracts.value.factoryAddress,functionName:'launchFee'}),
+  ]);
+  if (chainId !== robinhoodChain.id) throw new Error('Unexpected network');
+  return fee;
+});
+async function refreshLaunchFeeDisplay():Promise<void> {
+  const generation=ctx.routeGeneration;
+  const show=(fee:bigint|null)=>ctx.text('[data-preview-launch-fee]',fee===null?'-':`${formatTokenAmount(fee,18)} ETH`);
+  show(launchFeeDisplay.peek());
+  const fee=await launchFeeDisplay.load();
+  if(generation===ctx.routeGeneration&&ctx.query('[data-create-form]'))show(fee);
+}
+
 function drawLaunchProgress():void{
  if(!ctx.launchProgress)return;
  const display=ctx.launchProgress.phase==='paused'&&!ctx.launchProgress.hash?{step:'Confirm in wallet',percent:60}:launchPhaseDisplay[ctx.launchProgress.phase];
@@ -516,7 +534,7 @@ function renderCreateIdentity(): void {
   const quote = ctx.foundation?.quotes.find(item => item.id === selection);
   const releaseAsset = releasePairForSelection(selection, ctx.foundation?.quotes ?? []);
   ctx.displayPriceWidget?.setToken(typeof quote?.values.quoteAsset === "string" ? quote.values.quoteAsset : null);
-  ctx.text("[data-preview-launch-fee]", ctx.foundation?.launchFee === undefined ? "-" : `${formatTokenAmount(ctx.foundation.launchFee, 18)} ETH`);
+  void refreshLaunchFeeDisplay();
   ctx.text("[data-preview-trade-fee]", "-");
   ctx.text("[data-preview-graduation]", "-");
   ctx.text("[data-graduation-caption]", "Loading bloom target…");
