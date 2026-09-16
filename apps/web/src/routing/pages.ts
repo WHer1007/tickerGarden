@@ -8,6 +8,7 @@ const loaders: Record<Exclude<PageName, "not-found">, () => Promise<{ default: P
   trade: () => import("../pages/trade.ts"),
   create: async () => { await import("../create/create.css"); return import("../pages/create.ts"); },
   stats: async () => { await import("../pages/stats.css"); return import("../pages/stats.ts"); },
+  statsStocks: async () => { await import("../pages/stats.css"); return import("../pages/statsStocks.ts"); },
   staking: async () => { await import("../pages/staking.css"); return import("../pages/staking.ts"); },
   rewards: async () => { await import("../pages/rewards.css"); return import("../pages/rewards.ts"); },
   docs: () => import("../pages/docs.ts"),

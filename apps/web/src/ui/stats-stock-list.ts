@@ -34,27 +34,17 @@ function isPositive(row: StatsStockRow): boolean {
   return row.amount === null || row.amount > 0n;
 }
 
-export function mountStatsStockList(container: HTMLElement) {
-  const search = document.createElement("input");
-  search.type = "search";search.className="stats-stock-search";
-  search.placeholder = "Search stocks";
-  search.setAttribute("aria-label", "Search stocks");
+export function mountStatsStockList(container: HTMLElement, options: { full?: boolean } = {}) {
   const list = document.createElement("div");
   list.className = "stats-stock-list";
-  const toggle = document.createElement("button");
-  toggle.type = "button";
-  toggle.className = "stats-stock-toggle";
   let rows: readonly StatsStockRow[] = [];
-  let expanded = false;
   let failureMessage: string | null = null;
 
-  container.replaceChildren(search, list, toggle);
+  container.replaceChildren(list);
 
   function render() {
-    const query = search.value.trim().toLocaleLowerCase();
-    const filtered = rows.filter(row => !query || `${row.label} ${row.id}`.toLocaleLowerCase().includes(query));
-    const ordered = [...filtered].sort((a,b)=>Number(isPositive(b))-Number(isPositive(a))||compareUSD(a,b)||a.label.localeCompare(b.label));
-    const visible = expanded || query ? ordered : ordered.filter(isPositive).slice(0, 8);
+    const ordered = [...rows].sort((a,b)=>Number(isPositive(b))-Number(isPositive(a))||compareUSD(a,b)||a.label.localeCompare(b.label));
+    const visible = options.full ? ordered : ordered.filter(isPositive).slice(0, 8);
     list.replaceChildren(...visible.map(row => {
       const item = document.createElement("div");
       item.className = "stats-fee-row";
@@ -67,12 +57,8 @@ export function mountStatsStockList(container: HTMLElement) {
       item.append(label, value);
       return item;
     }));
-    if(!visible.length){const empty=document.createElement("p");empty.className="stats-empty";empty.textContent=failureMessage??(query?"No matching stocks":"No allocated Stock yet");list.append(empty);}
-    toggle.hidden = Boolean(query) || (!expanded && visible.length === ordered.length);
-    toggle.textContent = expanded ? "Show less" : "Show all";
+    if(!visible.length){const empty=document.createElement("p");empty.className="stats-empty";empty.textContent=failureMessage??"No allocated Stock yet";list.append(empty);}
   }
-  search.addEventListener("input", render);
-  toggle.addEventListener("click", () => { expanded = !expanded; render(); });
   render();
-  return { update(next: readonly StatsStockRow[]) { rows = next; failureMessage = null; render(); }, setUnavailable(message = "Statistics syncing. Try again.") { rows = []; failureMessage = message; render(); }, destroy() { search.removeEventListener("input", render); toggle.replaceWith(); container.replaceChildren(); } };
+  return { update(next: readonly StatsStockRow[]) { rows = next; failureMessage = null; render(); }, setUnavailable() { rows = []; failureMessage = "-"; render(); }, destroy() { container.replaceChildren(); } };
 }

@@ -2,6 +2,7 @@ import { randomUUID, timingSafeEqual } from 'node:crypto';
 import { serve } from '@hono/node-server';
 import { Hono } from 'hono';
 import pg from 'pg';
+import { cachedProbe, limitedText } from './request-guards.ts';
 import { signCallback } from './signature.ts';
 
 const { Pool } = pg;
@@ -33,8 +34,13 @@ await pool.query(`CREATE TABLE IF NOT EXISTS queue_messages (
 )`);
 await pool.query('CREATE INDEX IF NOT EXISTS queue_messages_due_idx ON queue_messages(state,next_attempt_at)');
 
+const healthProbe = cachedProbe(async () => {
+  await pool.query('SELECT 1');
+  return { ok: true, release: await releaseIdentity() };
+});
 app.get('/healthz', async (c) => {
-  try { await pool.query('SELECT 1'); return c.json({ ok: true, release: await releaseIdentity() }); }
+  c.header('Cache-Control', 'no-store');
+  try { return c.json(await healthProbe()); }
   catch { return c.json({ ok: false }, 503); }
 });
 
@@ -43,8 +49,8 @@ app.post('/v2/publish/*', async (c) => {
   const prefix = '/v2/publish/';
   const destination = decodeURIComponent(new URL(c.req.url).pathname.slice(prefix.length));
   if (!validDestination(destination)) return c.json({ error: 'invalid destination' }, 400);
-  const body = await c.req.text();
-  if (Buffer.byteLength(body) > 1024 * 1024) return c.json({ error: 'body too large' }, 413);
+  const body = await limitedText(c.req.raw);
+  if (body === null) return c.json({ error: 'body too large' }, 413);
   const dedup = c.req.header('upstash-deduplication-id') ?? null;
   const requestedRetries = Number(c.req.header('upstash-retries') ?? '3');
   const maxAttempts = Number.isInteger(requestedRetries) && requestedRetries >= 0 && requestedRetries <= 10 ? requestedRetries + 1 : 4;
@@ -119,6 +125,9 @@ async function work(): Promise<void> {
 }
 
 const server = serve({ fetch: app.fetch, port });
+server.requestTimeout = 15_000;
+server.headersTimeout = 10_000;
+server.keepAliveTimeout = 5_000;
 void work();
 for (const signal of ['SIGTERM', 'SIGINT'] as const) process.on(signal, () => {
   stopping = true;

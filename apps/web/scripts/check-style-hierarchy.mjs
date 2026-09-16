@@ -15,22 +15,27 @@ try{
    await page.waitForTimeout(150);
    assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth),false,`${route} horizontal overflow at ${width}`);
    if(route==='create'){
-    const optional=page.locator('.optional-token-details');assert.equal(await optional.getAttribute('open'),null);
-    await optional.locator('summary').click();await page.locator('#description').fill('Preserve my description');await optional.locator('summary').click();await optional.locator('summary').click();assert.equal(await page.locator('#description').inputValue(),'Preserve my description');
-    assert.equal(await page.locator('.preview-key-facts [data-preview-graduation]').count(),1);
-    await page.locator('#website').fill('invalid-url');await optional.locator('summary').click();await page.locator('#website').evaluate(input=>input.checkValidity());assert.equal(await optional.getAttribute('open'),'');await page.locator('#website').fill('');
-    if(width===390){await page.locator('.mobile-summary-link').click();assert.equal(new URL(page.url()).hash,'#create-summary');await page.waitForTimeout(250);assert.equal(await page.locator('#description').inputValue(),'Preserve my description');}
+    assert.equal(await page.locator('.optional-token-details,.preview-settings,.mobile-summary-link').count(),0);
+    await page.locator('#description').fill('Preserve my description');
+    assert.equal(await page.locator('#description').isVisible(),true);
+    assert.equal(await page.locator('.preview-list [data-preview-graduation]').count(),1);
+    assert.equal(await page.locator('[data-preview-lp-fee]').isVisible(),true);
    }
    if(route==='claim'){
-    assert.equal(await page.locator('[data-creator-epoch]').isVisible(),false);
-    assert.equal(await page.locator('#rewards-panel-creator [data-rewards-connect]').isVisible(),true);
-    // Check both layouts; actual wallet lifecycle is covered by app-routing-lifecycle.
-    await page.locator('.claim-page').evaluate(node=>node.dataset.walletConnected='true');
     assert.equal(await page.locator('[data-creator-epoch]').isVisible(),true);
-    assert.equal(await page.evaluate(()=>Boolean(document.querySelector('[data-creator-epoch]').compareDocumentPosition(document.querySelector('.claim-action')) & Node.DOCUMENT_POSITION_FOLLOWING)),true);
+    assert.equal(await page.locator('#rewards-panel-creator [data-rewards-connect]').isVisible(),true);
+    assert.equal(await page.evaluate(()=>Boolean(document.querySelector('.claim-action').compareDocumentPosition(document.querySelector('[data-creator-epoch]')) & Node.DOCUMENT_POSITION_FOLLOWING)),true);
    }
-   if(route==='stake'){await page.locator('[data-stake-portfolio-empty][data-state=connect]').waitFor();assert.equal(await page.locator('[data-stake-my-markets]').isVisible(),false);}
-   if(route==='stats'){assert.equal(await page.locator('.stats-heading [data-stats-refresh]').count(),1);assert.equal(await page.locator('.stat-card-primary').count(),2);}
+   if(route==='stake'){
+    await page.locator('[data-stake-portfolio-empty][data-state=connect]').waitFor();
+    assert.equal(await page.locator('.stake-sidebar').isVisible(),true);
+   }
+   if(route==='stats'){
+    assert.equal(await page.locator('.stats-heading [data-stats-refresh]').count(),0);
+    assert.equal(await page.locator('[data-stats-refresh]').count(),0);
+    assert.equal(await page.locator('.stat-card-primary').count(),0);
+    assert.equal(await page.locator('[data-stat-fee-revenue]').count(),1);
+   }
    if(route==='explore'){
     for(const state of ['loading','error','empty']){
      await page.evaluate(async state=>{document.querySelectorAll('[data-stage-grid]').forEach(grid=>grid.dataset.loadState=state);const app=await import('/src/app.ts');app.syncExploreStatus();},state);

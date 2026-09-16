@@ -4,6 +4,7 @@ const brandMarkUrl = new URL("../../assets/tickergarden-mark-128.webp", import.m
 const robinhoodFeatherUrl = new URL("../../assets/robinhood-chain/robinhood-feather-60.webp", import.meta.url).href;
 const brandWordmark = `<span class="wordmark" aria-hidden="true"><span>Ticker</span><span>Garden</span></span>`;
 export function renderShell(page: PageName, chainName: string): void {
+  if (page === "statsStocks") page = "stats";
   const nav: readonly [PageName, string, string][] = [
     ["markets", "Explore", "/explore"],
     ["create", "Create", "/create"],

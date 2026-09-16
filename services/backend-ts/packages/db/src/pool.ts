@@ -23,6 +23,11 @@ export function createDatabasePool(connectionString: string, overrides: PoolConf
     if(!allocation||Number(overrides.max??max)>allocation.poolMax)throw Error('service pool exceeds declared connection budget');
   }
   const ca = env.TG_DB_CA_PEM;
+  const cert = env.TG_DB_CLIENT_CERT_PEM;
+  const key = env.TG_DB_CLIENT_KEY_PEM;
+  if ((cert || key) && (!ca || !cert?.includes('-----BEGIN CERTIFICATE-----') || !key?.includes('PRIVATE KEY-----'))) {
+    throw new Error('Database client authentication requires CA, certificate and private key PEM values');
+  }
   if (ca && (!ca.includes('-----BEGIN CERTIFICATE-----') || [...new URL(connectionString).searchParams.keys()].some(key => key.startsWith('ssl')))) {
     throw new Error('Explicit database CA requires a PEM certificate and no conflicting URL SSL options');
   }
@@ -33,7 +38,7 @@ export function createDatabasePool(connectionString: string, overrides: PoolConf
     connectionTimeoutMillis: 5_000,
     options: '-c statement_timeout=5000 -c lock_timeout=2000 -c idle_in_transaction_session_timeout=5000',
     ...overrides,
-    ...(ca ? {ssl:{ca,rejectUnauthorized:true,
+    ...(ca ? {ssl:{ca,rejectUnauthorized:true,...(cert && key ? {cert,key} : {}),
       // pg omits SNI for IP endpoints; verify the configured host, not TLS's localhost default.
       checkServerIdentity: (_hostname, certificate) => checkServerIdentity(new URL(connectionString).hostname, certificate),
     }} : {}),

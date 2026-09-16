@@ -21,7 +21,8 @@ test('Stats price updates reuse the snapshot without refetching',()=>{
 test('Stats Stock list keeps failure state separate from a verified empty result',()=>{
  const source=fs.readFileSync(new URL('../src/ui/stats-stock-list.ts',import.meta.url),'utf8');
  assert.match(source,/failureMessage/);
- assert.match(source,/setUnavailable\(message = "Statistics syncing\. Try again\."\)/);
+ assert.match(source,/setUnavailable\(\)/);
+ assert.match(source,/failureMessage = "-"/);
  assert.match(source,/failureMessage\?\?/);
- assert.match(source,/query\?"No matching stocks":"No allocated Stock yet"/);
+ assert.match(source,/"No allocated Stock yet"/);
 });
