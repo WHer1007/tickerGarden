@@ -8,6 +8,12 @@ test('Stats contains the requested metrics without old analytics sections',()=>{
  for(const key of ['creator','staker','holder','platform'])assert.ok(stats.html.includes(`data-stat-fee-${key}`));
  assert.doesNotMatch(stats.html,/Current holder addresses|data-global-holders|data-global-series|Total Market Cap|data-stats-period|Holder Breakdown|Trading Breakdown/);
 });
+test('Stock stats full list exposes quantity detail and a full-page zero allocation toggle',()=>{
+ const source=fs.readFileSync(new URL('../src/ui/stats-stock-list.ts',import.meta.url),'utf8');
+ const page=fs.readFileSync(new URL('../src/pages/statsStocks.ts',import.meta.url),'utf8');
+ assert.match(source,/options\.full/);assert.match(source,/Hide zero allocations/);assert.match(source,/Search Stock name or symbol/);assert.match(source,/No Stock matches found/);assert.match(source,/Allocated:/);assert.match(source,/Exact USD value/);
+ assert.match(page,/stats-stocks-page/);assert.doesNotMatch(fs.readFileSync(new URL('../src/pages/stats.ts',import.meta.url),'utf8'),/Hide zero allocations/);
+});
 test('Stats summary uses the aggregate endpoint without paging the market directory',()=>{
  const source=fs.readFileSync(new URL('../src/app.ts',import.meta.url),'utf8');
  const sourceController=fs.readFileSync(new URL('../src/controllers/stats.ts',import.meta.url),'utf8');

@@ -7,7 +7,7 @@ export function renderShell(page: PageName, chainName: string): void {
   if (page === "statsStocks") page = "stats";
   const nav: readonly [PageName, string, string][] = [
     ["markets", "Explore", "/explore"],
-    ["create", "Create", "/create"],
+    ["create", "Launch", "/create"],
     ["stats", "Stats", "/stats"],
     ["rewards", "Claim", "/claim"],
     ["staking", "Stake", "/stake"],
@@ -21,7 +21,7 @@ export function renderShell(page: PageName, chainName: string): void {
     <a class="brand" href="/" aria-label="TickerGarden home">
       <img src="${brandMarkUrl}" alt="">${brandWordmark}
     </a>
-    <nav aria-label="Primary navigation">${nav.map(([id, label, url]) => `<a class="${page === id ? "active" : ""}" ${page === id ? "aria-current=\"page\"" : ""} ${(id === "rewards" || id === "staking") ? "data-wallet-only hidden" : ""} href="${url}">${label}</a>`).join("")}</nav>
+    <nav aria-label="Primary navigation">${nav.map(([id, label, url]) => `<a class="${page === id ? "active" : ""}" ${page === id ? "aria-current=\"page\"" : ""}  href="${url}">${label}</a>`).join("")}</nav>
     <div class="header-actions">
       <button class="wallet" type="button" data-wallet><i class="ph ph-wallet" aria-hidden="true"></i><span>Connect Wallet</span></button>
       <button class="menu" type="button" data-menu aria-label="Open navigation" aria-expanded="false"><i class="ph ph-list" aria-hidden="true"></i></button>
@@ -32,8 +32,8 @@ export function renderShell(page: PageName, chainName: string): void {
       <p>Where stock communities meet onchain culture—and new possibilities take root.</p>
     </div>
     <nav class="footer-navigation" aria-label="Footer navigation">
-      <section><strong>Garden</strong>${footerLink("markets", "Explore", "/explore")}${footerLink("create", "Create", "/create")}</section>
-      <section><strong>Community</strong><span data-wallet-only hidden>${footerLink("rewards", "Claim", "/claim")}</span>${footerLink("stats", "Stats", "/stats")}${footerLink("docs", "Docs", "/docs")}</section>
+      <section><strong>Garden</strong>${footerLink("markets", "Explore", "/explore")}${footerLink("create", "Launch", "/create")}</section>
+      <section><strong>Community</strong>${footerLink("rewards", "Claim", "/claim")}${footerLink("stats", "Stats", "/stats")}${footerLink("docs", "Docs", "/docs")}</section>
       <section><strong>Legal</strong>${footerLink("privacy", "Privacy", "/privacy")}${footerLink("terms", "Terms", "/terms")}<a href="/docs#docs-risks">Risk</a></section>
     </nav>
     <div class="footer-meta">

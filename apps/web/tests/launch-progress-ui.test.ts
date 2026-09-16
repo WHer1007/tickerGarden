@@ -17,7 +17,7 @@ test('successful launch presents token identity and both next actions', () => {
   assert.match(dialog, /tokenName/);
   assert.match(dialog, /tokenSymbol/);
   assert.match(dialog, /tokenLogo/);
-  assert.match(dialog, /Create new one/);
+  assert.match(dialog, /Launch another token/);
   assert.match(dialog, /View Token/);
   assert.match(app, /outcome:launchProgress\.phase==='complete'/);
   assert.match(app, /tokenSymbol:launchProgress\.listing\?\.symbol/);

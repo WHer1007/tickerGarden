@@ -57,6 +57,7 @@ export function assertDeploymentBoundary(target, service, env, branch) {
     if (env.TG_CHAIN_ID && env.TG_CHAIN_ID !== policy.chainId) throw Error(`${service} chain does not match deployment target`);
     remoteUrl(env, service === 'read-api' ? 'TG_READ_DATABASE_URL' : service === 'pipeline' ? 'TG_PIPELINE_DATABASE_URL' : 'TG_CONTENT_DATABASE_URL', ['postgres:', 'postgresql:']);
     if (service === 'pipeline') remoteUrl(env, 'TG_RPC_URL');
+    if (service === 'read-api' && (target === 'production' || env.TG_READ_RPC_URL)) remoteUrl(env, 'TG_READ_RPC_URL');
     if (env.TG_ALLOWED_ORIGINS) for (const origin of env.TG_ALLOWED_ORIGINS.split(',').filter(Boolean)) {
       let url;try { url = new URL(origin); } catch { throw Error('Invalid TG_ALLOWED_ORIGINS'); }
       if (url.protocol !== 'https:' || localReference.test(origin)) throw Error('Deployed allowed origins must use remote HTTPS origins');

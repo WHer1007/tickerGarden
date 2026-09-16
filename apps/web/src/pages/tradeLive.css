@@ -212,3 +212,4 @@ body:has(.trade-live){background:#faf9f4}.trade-live .ref-token-symbol{color:#11
 .trade-live .ref-trade>[data-trade-pool-fees]{margin:14px 2px 0;color:#8a928d;font-size:10px;line-height:1.4;text-align:center;font-weight:400}
 
 [data-trade-market-content][hidden],.trade-empty[hidden]{display:none!important}.trade-empty{max-width:620px;margin:70px auto;padding:40px 24px;text-align:center}.trade-empty>i{font-size:32px;color:#51735c}.trade-empty h1{font-size:28px;margin:18px 0 12px}.trade-empty p{line-height:1.65;color:#596b60}.trade-empty>.action-button{display:inline-block;background:#174c39;color:white;padding:13px 22px;border-radius:11px;text-decoration:none;margin:12px 0}.trade-empty small{display:block;margin-top:10px}.trade-empty small a{color:#496955}
+.trade-empty [data-trade-retry]{margin:12px 0}

@@ -50,7 +50,6 @@ export function mountFieldValidation(root:HTMLElement,decimalsFor:(field:Field)=
  };
  const eligible=(f:Element):f is Field=>(f instanceof HTMLInputElement||f instanceof HTMLSelectElement||f instanceof HTMLTextAreaElement)&&!f.disabled&&!(f instanceof HTMLInputElement&&(f.type==='hidden'||f.type==='checkbox'||f.type==='search'))&&!('readOnly' in f&&f.readOnly);
  const validate=(f:Field,show:boolean)=>{
-  if(f instanceof HTMLInputElement&&f.name==='creatorTax'&&f.valueAsNumber>5)f.value='5';
   const rule=ruleFor(f);if(rule)f.setCustomValidity(fieldError(f.value,rule));
   const quietRequired=f.validationMessage==='This field is required.';
   const error=show&&!f.validity.valid&&!quietRequired?(f.validationMessage||'Check this field.') : '';

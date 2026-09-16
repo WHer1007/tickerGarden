@@ -5,6 +5,7 @@ export default {
   title: 'Launch a token — TickerGarden',
   html: `
 <main class="page">
+      <h1 class="sr-only">Launch a token</h1>
       <section class="panel listing-package" data-listing-package aria-label="Created token information" hidden></section>
       <div class="create-layout">
         <form class="panel launch-form" data-create-form>
@@ -61,9 +62,10 @@ export default {
               <div class="field full launch-treasury"><div class="treasury-heading"><i class="ph ph-vault" aria-hidden="true"></i><label for="treasury-enabled"><strong>Share creator fees with holders</strong></label><input id="treasury-enabled" name="treasuryEnabled" type="checkbox" role="switch" /></div><small data-treasury-option-status>Share exactly 50% of the creator base-fee share with holders, excluding creator tax. Creator keeps the other 50% and all creator tax. Permanent at launch.</small></div>
             </div>
           </details>
-          <div hidden><select name="tickerGardenBaselineId" aria-label="Automatic baseline"></select><select name="launchTemplateId" aria-label="Automatic launch template"></select><select name="launchMode" aria-label="Automatic launch mode"><option value="create">Create</option><option value="create-buy">Create and buy</option></select></div>
+          <div hidden><select name="tickerGardenBaselineId" aria-label="Automatic baseline"></select><select name="launchTemplateId" aria-label="Automatic launch template"></select><select name="launchMode" aria-label="Automatic launch mode"><option value="create">Launch</option><option value="create-buy">Launch and buy</option></select></div>
           <p class="config-status create-notice create-notice-error" data-notice-level="error" data-create-config-status role="status" aria-live="polite"></p>
           <div class="create-preview create-notice" data-create-preview aria-live="polite"></div>
+          <button type="button" class="secondary-button" data-create-preview-retry hidden>Try again</button>
           <div class="launch-funding" data-launch-funding hidden aria-live="polite">
             <div><span>Payment route</span><strong data-funding-route>-</strong></div>
             <div><span>Paired asset balance</span><strong data-funding-quote-balance>-</strong></div>
@@ -72,7 +74,6 @@ export default {
             <div><span>Total ETH required</span><strong data-funding-total>-</strong></div>
             <div><span>Wallet ETH balance</span><strong data-funding-balance>-</strong></div>
           </div>
-          <p class="action-risk-note">Launching a token does not guarantee demand or liquidity. Contracts have not undergone an independent external audit. <a href="/docs#risk-contracts">Read the risks</a>.</p>
           <button class="action-button" type="submit" data-create-submit disabled><i class="ph ph-plant" aria-hidden="true"></i>Launch token</button>
         </form>
         <aside class="panel token-preview" aria-labelledby="preview-heading">

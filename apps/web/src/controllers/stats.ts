@@ -78,15 +78,14 @@ function applyStatsSnapshot():void{
   const token=ctx.stockToken(asset),info=token?statsAsset(token):{label:shortHex(asset.id)},decimals=Number(asset.values.tokenDecimals);
   const raw=stakingFresh&&summary.stockAmounts?summary.stockAmounts[asset.id]??'0':undefined;
   const amount=typeof raw==='string'&&/^(0|[1-9][0-9]*)$/.test(raw)?BigInt(raw):null;
-  return {id:asset.id,...info,decimals,amount,value:amount===null?null:statisticsUSD(raw,decimals,prices.prices[token?.toLowerCase()??''],prices.expiresAt[token?.toLowerCase()??''],Date.now())};
+  return {id:asset.id,...info,name:stakingAssetForConfig(robinhoodChain.id,asset)?.name,decimals,amount,value:amount===null?null:statisticsUSD(raw,decimals,prices.prices[token?.toLowerCase()??''],prices.expiresAt[token?.toLowerCase()??''],Date.now())};
  });
- for(const [id,raw]of Object.entries(summary?.stockAmounts??{}))if(BigInt(raw)>0n&&!rows.some(row=>row.id===id))rows.push({id:id as Hex,label:shortHex(id),decimals:0,amount:BigInt(raw),value:null});
+ for(const [id,raw]of Object.entries(summary?.stockAmounts??{}))if(BigInt(raw)>0n&&!rows.some(row=>row.id===id))rows.push({id:id as Hex,label:shortHex(id),name:undefined,decimals:0,amount:BigInt(raw),value:null});
  const stockTotal=stakingFresh?sumStatisticsUSD(rows.map(r=>r.value)):null;
  ctx.text('[data-stat-stock-value]',stockTotal===null?'-':ctx.formatMarketUSD(stockTotal,true));
  if(stakingFresh)statsStockList?.update(rows);else statsStockList?.setUnavailable();
  const time=(at:number)=>new Date(at*1000).toLocaleString('en-US',{month:'short',day:'numeric',hour:'2-digit',minute:'2-digit'});
  ctx.text('[data-stats-updated]',summary?`Activity as of ${time(summary.observedAt)} · refreshed every 20 minutes`:'Updates every 20 minutes');
- ctx.text('[data-stats-staking-updated]',summary?.stakingObservedAt?`Staking as of ${time(summary.stakingObservedAt)}`:'');
  ctx.query<HTMLElement>('[data-stats-summary]')?.setAttribute('aria-busy','false');
 }
 async function renderProtocolStatistics(force=false):Promise<any>{

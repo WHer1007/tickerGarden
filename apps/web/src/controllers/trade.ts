@@ -1,3 +1,4 @@
+import { quotedMinimum, approvedQuoteMinimum, gasReserve, spendableNative } from '../v1/tradeProtection.ts';
 import { publicError } from "../ui/public-error.ts";
 import { renderTradeEmptyState } from "../ui/trade-empty-state.ts";
 import v1Abis_TickerGardenCurve from '../v1/generated/contracts/legacy/TickerGardenCurve.ts';
@@ -77,7 +78,20 @@ async function loadPoolQuoteBindings(market:MarketReadModel,blockNumber:bigint){
  try{return await pending;}catch(error){if(ctx.poolQuoteBindings.get(cacheKey)===pending)ctx.poolQuoteBindings.delete(cacheKey);throw error;}
 }
 
+async function tradeNetworkReserve(market:MarketDetailResponse,quote:TradeQuote|null,account:WalletState['account']):Promise<bigint>{
+ const fees=await ctx.publicClient.estimateFeesPerGas(),price=fees.maxFeePerGas??fees.gasPrice;
+ if(!price)throw Error('Network fee could not be estimated.');
+ let gas=8_000_000n; // Conservative fallback covers the existing staking settlement gas limit.
+ if(quote&&quote.marketId===market.market.marketId){
+   const request=market.market.launchPhase===1&&quote.transactionDeadline!==undefined
+    ?buildPoolTrade(market.market,quote.side,quote.input,quote.minimum,quote.transactionDeadline)
+    :market.market.launchPhase===0?(quote.side==='buy'?buildCurveBuyRequest({marketResponse:market,quoteIn:quote.input,minTokensOut:quote.minimum,recipient:account}):buildCurveSellRequest({marketResponse:market,tokensIn:quote.input,minQuoteOut:quote.minimum,recipient:account})).request:null;
+   if(request){try{const estimate=await ctx.publicClient.estimateContractGas({...request,account} as never);gas=request.gas&&request.gas>estimate?request.gas:estimate;}catch{/* Approval or insufficient native value can prevent estimation; retain the conservative budget. */}}
+ }
+ return gasReserve(gas,price);
+}
 function setupTrade(): void {
+  ctx.query<HTMLButtonElement>('[data-trade-retry]')?.addEventListener('click',()=>{void loadTradeMarket();});
   const requested = new URL(window.location.href).searchParams.get("marketId")?.trim() ?? "";
   renderTradeEmptyState(!requested ? "missing" : /^0x[0-9a-fA-F]{64}$/.test(requested) ? null : "invalid");
   ctx.query<HTMLElement>('.ref-links')?.addEventListener('click',event=>{
@@ -100,13 +114,25 @@ function setupTrade(): void {
     finally { ctx.tradePhaseLoading = false; }
   }, 30_000);
 
-  ctx.queryAll<HTMLButtonElement>('[data-fill-trade-balance]').forEach(button=>button.addEventListener('click',()=>{
+  ctx.queryAll<HTMLButtonElement>('[data-fill-trade-balance]').forEach(button=>button.addEventListener('click',async()=>{
     if(!ctx.wallet||!ctx.tradeMetadata||ctx.detailBalanceAccount!==ctx.wallet.account)return;
     const side=button.dataset.fillTradeBalance==='receive'?(ctx.tradeSide==='buy'?'sell':'buy'):ctx.tradeSide;
     const balance=side==='buy'?ctx.detailBalances?.quote:ctx.detailBalances?.meme;
     if(balance===undefined||balance<=0n)return;
     const amount=ctx.query<HTMLInputElement>('[data-trade-amount]');if(!amount)return;
-    amount.value=formatUnits(balance,side==='buy'?ctx.tradeMetadata.quoteDecimals:18);
+    const wallet=ctx.wallet,market=ctx.tradeMarket,original=amount.value,oldSide=ctx.tradeSide;
+    let available=balance;
+    if(side==='buy'&&market?.market.quoteAsset===ZERO_ADDRESS){
+      button.disabled=true;
+      try{const reserve=await tradeNetworkReserve(market,ctx.tradeQuote?.side===side?ctx.tradeQuote:null,wallet.account);
+        const live=await ctx.publicClient.getBalance({address:wallet.account});
+        available=spendableNative(live,reserve);
+        if(ctx.wallet!==wallet||ctx.tradeMarket!==market||!amount.isConnected||amount.value!==original||ctx.tradeSide!==oldSide)return;
+        if(available===0n){ctx.text('[data-trade-status]','Keep enough ETH for the network fee.');return;}
+      }catch{ctx.text('[data-trade-status]','Could not estimate the network fee. Try again.');return;}
+      finally{if(button.isConnected)button.disabled=false;}
+    }
+    amount.value=formatUnits(available,side==='buy'?ctx.tradeMetadata.quoteDecimals:18);
     if(side!==ctx.tradeSide)ctx.query<HTMLButtonElement>(`[data-trade-side="${side}"]`)?.click();
     else amount.dispatchEvent(new Event('input',{bubbles:true}));
     amount.focus();
@@ -562,7 +588,7 @@ async function quoteTrade(generation: number): Promise<void> {
        ctx.publicClient.readContract({abi:poolStateAbi,address:binding.manager,functionName:'extsload',args:[poolSlot0(market.market.poolId!)],blockNumber})]);
       const poolProtocolPips=poolProtocolFee(slot0, route.zeroForOne, market.market.poolKey?.fee ?? 0);
       const output=poolAmount(result.result[0]);
-      quote=Object.freeze({side,marketId:market.market.marketId,input:amount,output,spent:side==='buy'?amount:null,refund:null,fee:estimatedPoolTradingFee(output,binding.taxBps),poolProtocolPips,feeInMeme:side==='buy',feeEstimated:true,impactBps:poolTradeImpactBps(amount,output,BigInt(slot0)&((1n<<160n)-1n),route.zeroForOne,binding.taxBps,poolProtocolPips,route.poolKey.fee),impactEstimated:true,minimum:0n,revision:market.sync.revision,expiresAtMs:Date.now()+30_000,transactionDeadline:poolTransactionDeadline(block.timestamp)});
+      quote=Object.freeze({side,marketId:market.market.marketId,input:amount,output,spent:side==='buy'?amount:null,refund:null,fee:estimatedPoolTradingFee(output,binding.taxBps),poolProtocolPips,feeInMeme:side==='buy',feeEstimated:true,impactBps:poolTradeImpactBps(amount,output,BigInt(slot0)&((1n<<160n)-1n),route.zeroForOne,binding.taxBps,poolProtocolPips,route.poolKey.fee),impactEstimated:true,minimum:quotedMinimum(output),revision:market.sync.revision,expiresAtMs:Date.now()+30_000,transactionDeadline:poolTransactionDeadline(block.timestamp)});
     } else if (side === "buy") {
       const [tokensOut, quoteSpent, refund] = await ctx.publicClient.readContract({
         abi: v1Abis_TickerGardenCurve,
@@ -584,7 +610,7 @@ async function quoteTrade(generation: number): Promise<void> {
       const metrics=curveTradeMetrics('buy',amount,tokensOut,quoteSpent,pricing!.quoteReserve,pricing!.tokenReserve,fee);
       quote = Object.freeze({
         side: "buy", marketId: market.market.marketId, input: amount, output: tokensOut,
-        spent: quoteSpent, refund, fee, impactBps:metrics.impactBps, minimum: 0n,
+        spent: quoteSpent, refund, fee, impactBps:metrics.impactBps, minimum: quotedMinimum(tokensOut),
         revision: market.sync.revision, expiresAtMs: Date.now() + 30_000,
       });
     } else {
@@ -599,7 +625,7 @@ async function quoteTrade(generation: number): Promise<void> {
       if (quoteOut <= 0n) throw new Error("Curve returned zero Quote output");
       quote = Object.freeze({
         side: "sell", marketId: market.market.marketId, input: amount, output: quoteOut,
-        spent: null, refund: null, fee, impactBps:curveTradeMetrics('sell',amount,quoteOut,0n,pricing!.quoteReserve,pricing!.tokenReserve,fee).impactBps, minimum: 0n,
+        spent: null, refund: null, fee, impactBps:curveTradeMetrics('sell',amount,quoteOut,0n,pricing!.quoteReserve,pricing!.tokenReserve,fee).impactBps, minimum: quotedMinimum(quoteOut),
         revision: market.sync.revision, expiresAtMs: Date.now() + 30_000,
       });
     }
@@ -708,7 +734,7 @@ function renderTradeQuote(): void {
   if(poolFees){poolFees.hidden=ctx.tradeQuote.poolProtocolPips===undefined;poolFees.textContent=ctx.tradeQuote.poolProtocolPips===undefined?'':formatPoolFeeSummary(ctx.tradeMarket?.market.poolKey?.fee??0,ctx.tradeQuote.poolProtocolPips);}
 
   renderTradeImpact(ctx.tradeQuote.impactBps,ctx.tradeQuote.impactEstimated);
-  ctx.text("[data-trade-minimum]", `${formatTokenAmount(ctx.tradeQuote.minimum, outputDecimals)} ${outputSymbol}`);
+  ctx.text("[data-trade-minimum]", `${formatUnits(ctx.tradeQuote.minimum, outputDecimals)} ${outputSymbol}`);
   ctx.text("[data-trade-status]", "");
   updateTradeAvailability();
 }
@@ -810,7 +836,7 @@ async function submitTrade(): Promise<void> {
     if (!ctx.tradeMarketVerified) throw new Error("The canonical trading route is still being verified");
     const activeWallet = ctx.wallet;
     const market = ctx.tradeMarket;
-    const quote = ctx.tradeQuote;
+    const quote = Object.freeze({...ctx.tradeQuote,minimum:quotedMinimum(ctx.tradeQuote.output)});
     const side = ctx.tradeSide;
     await ctx.verifyLiveWalletContext(activeWallet);
     if (quote.expiresAtMs <= Date.now() || quote.side !== side || quote.marketId !== market.market.marketId) {
@@ -827,6 +853,10 @@ async function submitTrade(): Promise<void> {
       throw new Error("The trade form changed after quoting; request a fresh quote");
     }
     if (!tradingRoute(market.market.launchPhase, market.market.canonicalRoute)) throw new Error("Trading route changed. Refresh the market and quote.");
+    if(!window.confirm(`${side==='buy'?'Buy':'Sell'} ${metadata.symbol}\nPay: ${formatUnits(quote.input,side==='buy'?metadata.quoteDecimals:18)} ${side==='buy'?metadata.quoteSymbol:metadata.symbol}\nPrice impact: ${quote.impactBps===undefined?'-':`${Number(quote.impactBps)/100}%`}\nMinimum received: ${formatUnits(quote.minimum,side==='buy'?18:metadata.quoteDecimals)} ${side==='buy'?metadata.symbol:metadata.quoteSymbol}\nConfirm trade?`))return;
+    const [eth,reserve]=await Promise.all([ctx.publicClient.getBalance({address:activeWallet.account}),tradeNetworkReserve(market,quote,activeWallet.account)]);
+    const inputValue=side==='buy'&&market.market.quoteAsset===ZERO_ADDRESS?quote.input:0n;
+    if(eth<inputValue+reserve){ctx.text('[data-trade-status]','Keep enough ETH for the network fee.');return;}
     if(market.market.launchPhase===1){await submitPoolTrade(market,quote,activeWallet);return;}
     const curve = canonicalAddress(market.market.curve, "Curve");
     const account = activeWallet.account;
@@ -900,9 +930,12 @@ async function submitPoolTrade(market:MarketDetailResponse,initial:TradeQuote,ac
   // Approvals may take longer than the quote window. Always refresh before signing the swap.
   await quoteTrade(++ctx.tradeQuoteGeneration);
   const quote=ctx.tradeQuote;
-  if(ctx.wallet!==activeWallet||ctx.tradeMarket!==market||!quote||quote.input!==initial.input||quote.side!==initial.side||quote.minimum!==initial.minimum)throw Error('Trade changed during approval. Review the new quote.');
+  if(ctx.wallet!==activeWallet||ctx.tradeMarket!==market||!quote||quote.input!==initial.input||quote.side!==initial.side)throw Error('Trade changed during approval. Review the new quote.');
+  let minimum:bigint;
+  try{minimum=approvedQuoteMinimum(initial,quote);}catch{ctx.text('[data-trade-status]','Price changed. Review the updated quote and submit again.');return;}
   if(quote.transactionDeadline===undefined)throw Error('Pool transaction deadline is unavailable. Refresh the quote.');
-  const request=buildPoolTrade(market.market,quote.side,quote.input,quote.minimum,quote.transactionDeadline);
+  ctx.tradeQuote=Object.freeze({...quote,minimum});renderTradeQuote();
+  const request=buildPoolTrade(market.market,quote.side,quote.input,minimum,quote.transactionDeadline);
   await ctx.executeTransaction({operationKey:`pool-trade:${quote.side}:${quote.marketId}:${quote.input}:${quote.expiresAtMs}`,sync:market.sync,request,quoteExpiresAtMs:quote.expiresAtMs,walletContext:activeWallet,verifyChain:verify,confirm:async receipt=>{
     try {
       ctx.receiptEvent(receipt,canonicalAddress(manager,'PoolManager'),poolSwapAbi,'Swap',args=>String(args.id).toLowerCase()===market.market.poolId&&String(args.sender).toLowerCase()===route.router.toLowerCase()&&typeof args.amount0==='bigint'&&typeof args.amount1==='bigint'&&(route.zeroForOne?args.amount0<0n&&args.amount1>0n:args.amount1<0n&&args.amount0>0n));

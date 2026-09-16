@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { activePairedConfig, pairedAssetsForChain, RELEASE_PAIRED_ASSETS, releasePairForSelection } from '../src/create/paired-assets.ts';
+import { activePairedConfig, isQuoteSelectionPaused, pairedAssetsForChain, RELEASE_PAIRED_ASSETS, releasePairForSelection } from '../src/create/paired-assets.ts';
 import { quoteIconFilename } from '../src/create/quote-icon-names.ts';
 import { access } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
@@ -65,5 +65,16 @@ test('pending production thresholds cannot match even an active database config'
   for (const asset of pending) {
     const old = config({values: {quoteAsset:asset.tokenAddress,quoteDecimals:asset.decimals,phantomQuote:asset.phantomQuote,graduationThreshold:'100'}});
     assert.equal(activePairedConfig(asset,[old],4663),undefined);
+  }
+});
+
+test('only SATS and BND mainnet quote selection is paused, without changing registry activation', () => {
+  const assets = pairedAssetsForChain(4663);
+  assert.deepEqual(assets.filter(isQuoteSelectionPaused).map(a => a.symbol).sort(), ['BND', 'SATS']);
+  for (const asset of assets.filter(isQuoteSelectionPaused)) {
+    assert.equal(isQuoteSelectionPaused({...asset, chainId:46630}), false);
+    assert.equal(isQuoteSelectionPaused({...asset, tokenAddress:asset.tokenAddress.toUpperCase()}), true);
+    const active = config({values:{quoteAsset:asset.tokenAddress,quoteDecimals:asset.decimals,phantomQuote:asset.phantomQuote,graduationThreshold:asset.graduationThreshold}});
+    assert.equal(activePairedConfig(asset,[active],4663)?.id,active.id);
   }
 });

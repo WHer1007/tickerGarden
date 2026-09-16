@@ -2,7 +2,7 @@ export default {
  title:'Explore — TickerGarden',
  html:`
 <main class="page explore-page">
- <header class="explore-heading"><div><h1>Explore</h1><p>Discover the next community to grow with.</p></div><a href="/create" class="explore-create"><i class="ph ph-plus" aria-hidden="true"></i>Create Token</a></header>
+ <header class="explore-heading"><div><h1>Explore</h1><p>Discover the next community to grow with.</p></div><a href="/create" class="explore-create"><i class="ph ph-plus" aria-hidden="true"></i>Launch a token</a></header>
  <section class="explore-controls" aria-label="Market filters">
   <div class="explore-search-row">
    <label class="explore-search"><i class="ph ph-magnifying-glass" aria-hidden="true"></i><span class="sr-only">Search tokens by name or address</span><input data-market-search type="search" placeholder="Search tokens by name or address" autocomplete="off" spellcheck="false"></label>

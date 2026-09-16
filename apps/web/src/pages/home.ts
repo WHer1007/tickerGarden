@@ -34,16 +34,17 @@ export default {
         <div class="hero-copy">
           <p class="hero-kicker"><i class="ph ph-plant" aria-hidden="true"></i>Stake to earn</p>
           <h1>Stake the ticker.<span>Grow the culture.</span></h1>
-          <p class="hero-lede">TickerGarden is where stock communities create and trade their own onchain tokens—an open, expressive layer for every ticker story.</p>
+          <div class="hero-proof" aria-label="TickerGarden features">
+            <div class="hero-feature"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m12 3 9 5-9 5-9-5 9-5Z"/><path d="m3 12 9 5 9-5M3 16l9 5 9-5"/></svg><div><strong>194 Stock tokens</strong><span>Official Robinhood assets</span></div></div>
+            <div class="hero-feature"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 21v-9M12 16C5 16 3 12 3 7c6 0 9 3 9 9ZM12 12c0-6 3-9 9-9 0 6-3 9-9 9Z"/></svg><div><strong>30% base-fee share</strong><span>For active Stock stakers after Bloom</span></div></div>
+            <div class="hero-feature"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 7h4m6 0h6M4 17h10m6 0h0"/><circle cx="11" cy="7" r="3"/><circle cx="17" cy="17" r="3"/></svg><div><strong>Custom LP fees</strong><span>Set your market’s LP fee</span></div></div>
+            <div class="hero-feature"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3c1 5 6 6 6 11a6 6 0 0 1-12 0c0-3 2-5 3-6 0 3 1 4 2 4 2-2 2-6 1-9Z"/></svg><div><strong>Token fee burning</strong><span>Burn token fees. Reduce supply.</span></div></div>
+          </div>
           <div class="hero-actions">
             <a class="home-button primary" href="/explore">Explore markets <i class="ph ph-arrow-up-right" aria-hidden="true"></i></a>
-            <a class="home-button secondary" href="/create">Create a market <i class="ph ph-sprout" aria-hidden="true"></i></a>
+            <a class="home-button secondary" href="/create">Launch a token <i class="ph ph-sprout" aria-hidden="true"></i></a>
           </div>
-          <div class="hero-proof" aria-label="TickerGarden principles">
-            <span><strong>Rooted</strong> onchain</span>
-            <span><strong>Grown</strong> by communities</span>
-            <span><strong>Inspired</strong> by ticker culture</span>
-          </div>
+
         </div>
 
         <div class="tree-stage signal-arbor" data-signal-arbor role="group" aria-label="Interactive stock fruit tree">
@@ -57,7 +58,7 @@ export default {
       <section class="creation-banner">
         <div><p class="section-kicker">One STOCK. Many cultures.</p><h2>Grow the next <em>community token.</em></h2></div>
         <p>Every stock carries more than one story. Give the next culture room to take root.</p>
-        <a class="home-button banner-button" href="/create">Create a market <i class="ph ph-arrow-right" aria-hidden="true"></i></a>
+        <a class="home-button banner-button" href="/create">Launch a token <i class="ph ph-arrow-right" aria-hidden="true"></i></a>
       </section>
 
       <section class="how" aria-labelledby="how-heading">

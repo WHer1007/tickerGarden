@@ -1,6 +1,7 @@
 export type CreateAvailability = {
  submitting: boolean; imageReading: boolean; imageReady: boolean; runtimeReady: boolean; runtimeReason: string;
  walletConnected: boolean; busy: boolean; pendingQuote: boolean; invalidField?: string;
+ previewState?: "idle"|"loading"|"ready"|"error";
  metadataReady: boolean; buyMode: boolean; fundingReady: boolean; insufficientEth: boolean;
 };
 /** Explain every disabled state next to the action, including optional buy previews. */
@@ -14,7 +15,7 @@ export function createDisabledReason(s: CreateAvailability): string | null {
  if(!s.imageReady)return 'Add a token image.';
  if(s.invalidField)return `Check ${s.invalidField}.`;
  if(!s.metadataReady)return 'Publishing unavailable. Try again later.';
- if(s.buyMode&&!s.fundingReady)return 'Buy preview failed. Retry or remove Developer buy.';
+ if(s.buyMode&&!s.fundingReady)return s.previewState==='loading'?'Calculating your launch cost…':s.previewState==='idle'?'Complete your token details to calculate the launch cost.':'Your launch cost could not be calculated. Try again.';
  if(s.insufficientEth)return 'Insufficient ETH';
  return null;
 }
@@ -24,7 +25,7 @@ export type CreateNoticeLevel = 'info' | 'warning' | 'error';
 export function createDisabledLevel(s: CreateAvailability): CreateNoticeLevel {
  if(s.submitting||s.imageReading)return 'info';
  if(!s.runtimeReady||!s.walletConnected)return 'error';
- if(s.busy)return 'info';
+ if(s.busy||s.previewState==='loading')return 'info';
  return createDisabledReason(s) ? 'error' : 'info';
 }
 

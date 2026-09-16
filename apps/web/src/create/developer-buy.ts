@@ -4,6 +4,7 @@ export class DeveloperBuyBalanceCache {
   private readonly now: () => number;
   private readonly ttl: number;
   constructor(now = Date.now, ttl = 30_000) { this.now = now; this.ttl = ttl; }
+  invalidate(key: string): void { this.entries.delete(key); }
   read(key: string, fetchBalance: () => Promise<bigint>): Promise<bigint | null> {
     const cached = this.entries.get(key);
     if (cached && cached.expires > this.now()) return cached.result;
@@ -18,10 +19,11 @@ export class DeveloperBuyBalanceCache {
 }
 
 export function developerBuyNotice(input: {
-  amount: bigint; balance: bigint; symbol: string; displayAmount: string; native: boolean;
+  amount: bigint; balance: bigint; symbol: string; displayAmount: string; native: boolean; canPurchase?: boolean;
 }): string {
   if (input.amount <= input.balance) return '';
   // The launch blocker reports the total ETH shortfall, including fees and gas.
   if (input.native) return '';
-  return `Add ${input.symbol} to your wallet before the developer buy.`;
+  if(!input.canPurchase)return `Add ${input.symbol} to your wallet before the developer buy.`;
+  return `ETH will be used to buy the missing ${input.symbol} during launch.`;
 }

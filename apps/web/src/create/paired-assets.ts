@@ -49,3 +49,12 @@ export function releasePairForSelection(value: string, configs: readonly ConfigR
   const config = configs.find(item => item.id === value);
   return config ? RELEASE_PAIRED_ASSETS.find(asset => asset.tokenAddress === String(config.values.quoteAsset).toLowerCase()) : undefined;
 }
+
+// Frontend-only pause following the mainnet simple-route review. Registry stays unchanged.
+const pausedQuoteAddresses = new Set([
+  '0x95052ddcd5dc25641657424a8cf04834997e1730', // SATS
+  '0x2f62fc9fabb470c690f141c28340ed832bb27020', // BND
+]);
+export function isQuoteSelectionPaused(asset: ReleasePairedAsset): boolean {
+  return asset.chainId === ROBINHOOD_PRODUCTION_CHAIN_ID && pausedQuoteAddresses.has(asset.tokenAddress.toLowerCase());
+}

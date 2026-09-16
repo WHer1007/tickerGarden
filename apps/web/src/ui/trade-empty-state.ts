@@ -4,6 +4,7 @@ export function renderTradeEmptyState(state: 'missing' | 'invalid' | 'unavailabl
   if (!empty || !content) return;
   empty.hidden = state === null;
   content.hidden = state !== null;
+  const retry=empty.querySelector<HTMLButtonElement>('[data-trade-retry]');if(retry)retry.hidden=state!=='unavailable';
   if (state === null) return;
   const title = empty.querySelector<HTMLElement>('[data-trade-empty-title]');
   const description = empty.querySelector<HTMLElement>('[data-trade-empty-description]');
