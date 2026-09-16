@@ -454,7 +454,7 @@ function updateLaunchMode(): void {
   const lpSelect=ctx.query<HTMLSelectElement>("[name=lpFeePips]");
   if(lpSelect)lpSelect.disabled=!lpEnabled;
   const lpOptions=ctx.query<HTMLElement>("#lp-fee-options");if(lpOptions)lpOptions.hidden=!lpEnabled;
-  ctx.text("[data-preview-lp-fee]", `${lpEnabled ? Number(lpSelect?.value ?? 1000)/10000 : 0}% · after Bloom`);
+  ctx.text("[data-preview-lp-fee]", `${lpEnabled ? Number(lpSelect?.value ?? 1000)/10000 : 0}%`);
   ctx.text("[data-preview-meme-burn]", ctx.query<HTMLInputElement>("[name=burnMemeFees]")?.checked ? "On · permanent" : "Off");
   const tax = ctx.query<HTMLInputElement>("[name=creatorTax]");
   if (tax) {
