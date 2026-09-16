@@ -1,5 +1,4 @@
 import {readFile} from 'node:fs/promises';
-import {join} from 'node:path';
 
 export async function marketPage(request:Request, shell:string, env:Record<string,string|undefined>, fetcher:typeof fetch=fetch):Promise<Response>{
  const url=new URL(request.url);const raw=url.searchParams.get('marketId')??'';
@@ -22,7 +21,7 @@ export async function marketPage(request:Request, shell:string, env:Record<strin
 
  return new Response(html,{headers:{'Content-Type':'text/html; charset=utf-8','Cache-Control':found?'public, max-age=0, s-maxage=60, stale-while-revalidate=300':'no-store'}});
 }
-export async function GET(request:Request){return marketPage(request,await readFile(join(process.cwd(),'dist/market-shell.html'),'utf8'),process.env);}
+export async function GET(request:Request){return marketPage(request,await readFile(new URL('../dist/market-shell.html',import.meta.url),'utf8'),process.env);}
 
 export default {
  async fetch(request:Request):Promise<Response>{
