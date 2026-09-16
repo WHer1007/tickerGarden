@@ -81,7 +81,7 @@ services:
     restart: unless-stopped
     env_file: /etc/tickergarden/test.env
     environment:
-      MINIO_API_CORS_ALLOW_ORIGIN: "https://tickergarden-web.vercel.app,https://*.vercel.app"
+      MINIO_API_CORS_ALLOW_ORIGIN: "https://tickergarden-web-test.vercel.app"
     volumes: ["minio_test:/data"]
     networks: [test, edge]
     healthcheck: { test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"], interval: 10s, timeout: 5s, retries: 10 }
@@ -93,7 +93,7 @@ services:
     restart: unless-stopped
     env_file: /etc/tickergarden/production.env
     environment:
-      MINIO_API_CORS_ALLOW_ORIGIN: "https://tickergarden-web.vercel.app"
+      MINIO_API_CORS_ALLOW_ORIGIN: "https://tickergarden.com,https://www.tickergarden.com,https://tickergarden-web.vercel.app"
     volumes: ["minio_prod:/data"]
     networks: [production, edge]
     healthcheck: { test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"], interval: 10s, timeout: 5s, retries: 10 }
