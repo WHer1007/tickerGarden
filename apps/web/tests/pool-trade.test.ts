@@ -141,3 +141,16 @@ test('pool fee summary omits zero-value fee categories',()=>{
  assert.equal(formatPoolFeeSummary(0,0),'No pool fee is added to this quote.');
  assert.throws(()=>formatPoolFeeSummary(500,0),/Invalid LP fee/);
 });
+
+test('Pool swap and take actions retain the exact accepted floor after an improved quote',async()=>{
+ const {quotedMinimum,approvedQuoteMinimum}=await import('../src/v1/tradeProtection.ts');
+ const initial={minimum:quotedMinimum(123456789n)};
+ const minimum=approvedQuoteMinimum(initial,{output:123999999n});
+ for(const side of ['buy','sell'] as const){
+  const request=buildPoolTrade(market(),side,7n,minimum,99n) as any;
+  const [,inputs]=decodeAbiParameters(parseAbiParameters('bytes,bytes[]'),request.args[1][0]);
+  const [swap]=decodeAbiParameters(parseAbiParameters('((address,address,uint24,int24,address),bool,uint128,uint128,uint256,bytes)'),inputs[0]!);
+  const [,takeMinimum]=decodeAbiParameters(parseAbiParameters('address,uint256'),inputs[2]!);
+  assert.equal(swap[3],initial.minimum);assert.equal(takeMinimum,initial.minimum);
+ }
+});

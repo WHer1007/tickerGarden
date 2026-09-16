@@ -190,7 +190,7 @@ export function renderLaunchProgress(state: LaunchProgressState, actions: Launch
       view.addEventListener('click',()=>actions.onViewToken?.());controls.append(view);
     }
     if(actions.onCreateNew){
-      const create=element('button','launch-progress-dialog__create-new');create.type='button';create.textContent='Create new one';
+      const create=element('button','launch-progress-dialog__create-new');create.type='button';create.textContent='Launch another token';
       create.addEventListener('click',()=>actions.onCreateNew?.());controls.append(create);
     }
     content.append(controls);

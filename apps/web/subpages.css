@@ -65,6 +65,8 @@
   outline-offset:3px;
 }
 :where(a,button,input,select,textarea,summary,[tabindex]):focus:not(:focus-visible){outline:0}
+/* Route focus moves reading position without outlining the whole page. */
+main#main-content:focus{outline:none!important;box-shadow:none}
 button,[role="button"]{cursor:pointer}
 :where(button,input,select,textarea):disabled,
 :where(button,input,select,textarea)[aria-disabled="true"],
@@ -606,7 +608,6 @@ body:is([data-page=create],[data-page=stats],[data-page=rewards],[data-page=stak
 .docs-toc a[aria-current="location"]{color:var(--ink);background:#e9ede3;font-weight:700;box-shadow:inset 3px 0 var(--green)}
 .docs-toc a[aria-current="location"] i{opacity:1}
 
-.action-risk-note{font-size:12px;line-height:1.6;color:var(--muted);margin:12px 0}.action-risk-note a{color:var(--ink);text-decoration:underline;text-underline-offset:3px}
 
 /* A quiet recovery page, with one clear route back into the garden. */
 .not-found-page{min-height:calc(100svh - 270px);display:grid;place-items:center;padding-block:64px 80px}
@@ -627,3 +628,4 @@ body:is([data-page=create],[data-page=stats],[data-page=rewards],[data-page=stak
 @media(max-width:640px){.not-found-page{min-height:calc(100svh - 170px);padding-block:48px 56px}.not-found-actions{flex-direction:column;max-width:300px;margin-inline:auto}.not-found-actions a{width:100%}.not-found-description br{display:none}.not-found-eyebrow{font-size:11px}}
 
 .route-load-state{min-height:55vh;display:grid;place-content:center;text-align:center}.route-load-state p{color:var(--muted);max-width:58ch;margin:16px auto;line-height:1.7}
+.wallet-mobile-actions{display:grid;gap:10px;margin:14px 0}.wallet-mobile-actions[hidden]{display:none}.wallet-mobile-actions a,.wallet-mobile-actions button{padding:10px;border:1px solid var(--line);border-radius:8px;color:var(--ink);background:var(--paper);text-align:center;text-decoration:none}.wallet-mobile-actions span{overflow-wrap:anywhere;font-size:12px}

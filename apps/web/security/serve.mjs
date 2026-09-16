@@ -13,7 +13,7 @@ http.createServer((req,res)=>{
  const redirect=legacyRedirect(relative);if(redirect){res.writeHead(308,{Location:redirect+new URL(req.url,'http://localhost').search});res.end();return}
  if(relative.includes('\0')||relative.split('/').some(s=>s.startsWith('.'))||relative==='/_headers'){res.writeHead(404);res.end();return}
  let file=path.resolve(root,'.'+relative);if(file!==path.resolve(root)&&!file.startsWith(root)){res.writeHead(404);res.end();return}
- try{if(fs.statSync(file).isDirectory())file=fs.existsSync(path.join(file,'index.html'))?path.join(file,'index.html'):path.join(root,'index.html')}catch{if(path.extname(relative)){res.writeHead(404);res.end();return}file=path.join(root,'index.html')}
+ try{if(fs.statSync(file).isDirectory())file=fs.existsSync(path.join(file,'index.html'))?path.join(file,'index.html'):path.join(root,'index.html')}catch{if(path.extname(relative)){res.writeHead(404);res.end();return}const known=['/','/explore','/trade','/create','/stats','/stats/stocks','/claim','/stake','/docs','/privacy','/terms'].includes(relative.replace(/\/$/,'')||'/');file=path.join(root,known?'index.html':'404.html');if(!known)res.statusCode=404;}
  res.setHeader('Content-Type',types[path.extname(file)]||'application/octet-stream');res.setHeader('Cache-Control',file.endsWith('index.html')?'no-cache':'public, max-age=3600');
  if(req.method==='HEAD'){res.end();return}const stream=fs.createReadStream(file);stream.on('error',()=>res.destroy());stream.pipe(res);
 }).listen(Number(process.env.PORT||4173),process.env.HOST||'127.0.0.1');

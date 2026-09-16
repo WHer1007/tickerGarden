@@ -72,3 +72,10 @@ test('production backend runtime uses production while its source branch remains
  assert.doesNotThrow(()=>assertDeploymentBoundary('production','pipeline',env,'master'));
  assert.throws(()=>assertDeploymentBoundary('production','pipeline',{...env,TG_ENVIRONMENT:'master'},'master'),/environment/);
 });
+
+test('production read API requires its own remote RPC configuration',()=>{
+ const env={TG_ENVIRONMENT:'production',TG_CHAIN_ID:'4663',VERCEL_ENV:'production',TG_READ_DATABASE_URL:'postgresql://db.example/read'};
+ assert.throws(()=>assertDeploymentBoundary('production','read-api',env,'master'),/TG_READ_RPC_URL/);
+ assert.doesNotThrow(()=>assertDeploymentBoundary('production','read-api',{...env,TG_READ_RPC_URL:'https://read-rpc.example'},'master'));
+ assert.throws(()=>assertDeploymentBoundary('production','read-api',{...env,TG_READ_RPC_URL:'https://read-rpc.example',TG_RPC_URL:'https://pipeline-rpc.example'},'master'),/owned by another service/);
+});

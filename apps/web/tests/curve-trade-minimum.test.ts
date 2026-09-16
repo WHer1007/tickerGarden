@@ -11,3 +11,10 @@ test('curve trades accept zero minimum while rejecting negative minimum and zero
  assert.throws(()=>buildCurveBuyRequest({marketResponse:response,quoteIn:10n,minTokensOut:-1n,recipient:address}),/uint256/);
  assert.throws(()=>buildCurveSellRequest({marketResponse:response,tokensIn:0n,minQuoteOut:0n,recipient:address}),/positive/);
 });
+
+test('confirmed quoted output is retained exactly in both Curve transaction requests',async()=>{
+ const {quotedMinimum}=await import('../src/v1/tradeProtection.ts');
+ const minimum=quotedMinimum(1234567890123456789n);
+ assert.equal(buildCurveBuyRequest({marketResponse:response,quoteIn:10n,minTokensOut:minimum,recipient:address}).request.args?.[1],minimum);
+ assert.equal(buildCurveSellRequest({marketResponse:response,tokensIn:10n,minQuoteOut:minimum,recipient:address}).request.args?.[1],minimum);
+});

@@ -5,6 +5,7 @@ export type QuotePickerOption = Readonly<{
   symbol: string;
   name: string;
   pending: boolean;
+  disabled?: boolean;
   logoUrl?: string;
 }>;
 
@@ -29,7 +30,7 @@ function selectionContent(option: QuotePickerOption, compact = false): DocumentF
   const symbol = document.createElement("strong");
   symbol.textContent = option.symbol;
   const name = document.createElement("small");
-  name.textContent = compact ? option.name : `${option.name}${option.pending ? " · Pending activation" : ""}`;
+  name.textContent = compact ? option.name : `${option.name}${option.disabled ? " · Temporarily disabled" : option.pending ? " · Pending activation" : ""}`;
   copy.append(symbol, name);
   fragment.append(icon, copy);
   return fragment;
@@ -51,7 +52,7 @@ function createController(select: HTMLSelectElement): PickerController | undefin
     trigger.setAttribute("aria-expanded", "false");
   };
   const focusOption = (index: number) => {
-    const buttons = [...list.querySelectorAll<HTMLButtonElement>("[role=option]")];
+    const buttons = [...list.querySelectorAll<HTMLButtonElement>("[role=option]:not(:disabled)")];
     buttons[(index + buttons.length) % buttons.length]?.focus();
   };
   const open = () => {
@@ -63,12 +64,13 @@ function createController(select: HTMLSelectElement): PickerController | undefin
     search.focus();
   };
   const renderCurrent = () => {
-    const option = options.find(item => item.value === select.value) ?? options[0];
+    const option = options.find(item => item.value === select.value);
     current.replaceChildren();
     if (option) current.append(selectionContent(option, true));
     else current.textContent = select.selectedOptions[0]?.textContent ?? "No assets available";
   };
   const selectOption = (option: QuotePickerOption) => {
+    if (option.disabled || select.disabled) return;
     select.value = option.value;
     select.dispatchEvent(new Event("change", { bubbles: true }));
     renderCurrent();
@@ -80,11 +82,13 @@ function createController(select: HTMLSelectElement): PickerController | undefin
     const query = search.value.trim().toLowerCase();
     const filtered = options.filter(option => `${option.symbol} ${option.name}`.toLowerCase().includes(query));
     empty.hidden = filtered.length !== 0;
-    filtered.forEach((option, index) => {
+    filtered.forEach(option => {
       const button = document.createElement("button");
       button.type = "button";
       button.className = "quote-picker-option";
       button.role = "option";
+      button.disabled = option.disabled === true;
+      button.setAttribute("aria-disabled", String(button.disabled));
       button.dataset.value = option.value;
       button.setAttribute("aria-selected", String(option.value === select.value));
       button.append(selectionContent(option));
@@ -92,10 +96,11 @@ function createController(select: HTMLSelectElement): PickerController | undefin
       button.addEventListener("keydown", event => {
         if (event.key === "ArrowDown" || event.key === "ArrowUp") {
           event.preventDefault();
-          focusOption(index + (event.key === "ArrowDown" ? 1 : -1));
+          const enabled = [...list.querySelectorAll<HTMLButtonElement>("[role=option]:not(:disabled)")];
+          focusOption(enabled.indexOf(button) + (event.key === "ArrowDown" ? 1 : -1));
         } else if (event.key === "Home" || event.key === "End") {
           event.preventDefault();
-          focusOption(event.key === "Home" ? 0 : filtered.length - 1);
+          focusOption(event.key === "Home" ? 0 : -1);
         } else if (event.key === "Escape") {
           close();
           if (event.key === "Escape") {
@@ -115,7 +120,7 @@ function createController(select: HTMLSelectElement): PickerController | undefin
       focusOption(event.key === "ArrowDown" ? 0 : -1);
     } else if (event.key === "Enter") {
       event.preventDefault();
-      list.querySelector<HTMLButtonElement>("[role=option]")?.click();
+      list.querySelector<HTMLButtonElement>("[role=option]:not(:disabled)")?.click();
     } else if (event.key === "Escape") {
       event.preventDefault();
       close();

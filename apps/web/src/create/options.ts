@@ -1,5 +1,3 @@
-/** Developer buy is an amount; retain automatic output protection without a manual UI field. */
-export const DEVELOPER_BUY_SLIPPAGE_BPS = 100;
 export const MAX_CREATOR_TAX_BPS = 500;
 export function creatorTaxBps(value: string): number {
   const normalized = value.trim() || '0';

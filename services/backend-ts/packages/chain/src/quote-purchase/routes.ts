@@ -1,0 +1,1692 @@
+// Mainnet simple-route review: block 64560142, 2026-09-16. Fresh quotes are mandatory.
+export const routes = {
+  "0xd95b44124e475743a7589e68f3d74008a5536d44": {
+    "version": "v4",
+    "pool": "0x5d0434f1dcf45ff9450c1a63b5c9e088f90cfebf483458164e81be6fb96e2b2a",
+    "input": "0x5fc5360d0400a0fd4f2af552add042d716f1d168",
+    "output": "0xd95b44124e475743a7589e68f3d74008a5536d44",
+    "fee": 10000,
+    "tickSpacing": 100,
+    "hooks": "0x0000000000000000000000000000000000000000"
+  },
+  "0x1cdad396db64bda184d5182a97dd9b3c62100b7d": {
+    "version": "v4",
+    "pool": "0x502eedd0e88e8a8f374ee4a37c432f2cb75287f499273133600fa3d64f251f23",
+    "input": "0x0000000000000000000000000000000000000000",
+    "output": "0x1cdad396db64bda184d5182a97dd9b3c62100b7d",
+    "fee": 50000,
+    "tickSpacing": 500,
+    "hooks": "0x0000000000000000000000000000000000000000"
+  },
+  "0x44f6d488021f8233b9416294d1fe9b1fee28382d": {
+    "version": "v4",
+    "pool": "0x08d99268a599777de8aff18c129d0d75d7e812ded53cee689ec475ae4ea1971a",
+    "input": "0x0000000000000000000000000000000000000000",
+    "output": "0x44f6d488021f8233b9416294d1fe9b1fee28382d",
+    "fee": 48000,
+    "tickSpacing": 480,
+    "hooks": "0x0000000000000000000000000000000000000000"
+  },
+  "0xbbd09f72b025360fee5c928053dca6248d35be54": {
+    "version": "v3",
+    "pool": "0xfcE637eeAd7D62d9ED27F81D9767de03e9E534Cf",
+    "input": "0x5fc5360d0400a0fd4f2af552add042d716f1d168",
+    "output": "0xbbd09f72b025360fee5c928053dca6248d35be54",
+    "fee": 10000,
+    "tickSpacing": 200
+  },
+  "0xb8dbf92f9741c9ac1c32115e78581f23509916fd": {
+    "version": "v4",
+    "pool": "0xac7846c1475c97705b59427f5b697cfa8705480f81ba3cd28058b031d0407ebf",
+    "input": "0x0000000000000000000000000000000000000000",
+    "output": "0xb8dbf92f9741c9ac1c32115e78581f23509916fd",
+    "fee": 50000,
+    "tickSpacing": 200,
+    "hooks": "0x0000000000000000000000000000000000000000"
+  },
+  "0x5f604fba1162193a4388a5dfa56f556f3e133cc2": {
+    "version": "v4",
+    "pool": "0x361f0fb512c4ce83c253cc4235c3e85f2e60658c2d2f22a0ae06595b7907df45",
+    "input": "0x0000000000000000000000000000000000000000",
+    "output": "0x5f604fba1162193a4388a5dfa56f556f3e133cc2",
+    "fee": 49500,
+    "tickSpacing": 495,
+    "hooks": "0x0000000000000000000000000000000000000000"
+  },
+  "0x5b97476b922f3305131b8f0b9d333172e87f4aae": {
+    "version": "v4",
+    "pool": "0x29eec7b9315ec3af9cf1ba669b7cdb53d7a0d5996cefed500fd5ba7e05152db9",
+    "input": "0x0000000000000000000000000000000000000000",
+    "output": "0x5b97476b922f3305131b8f0b9d333172e87f4aae",
+    "fee": 50000,
+    "tickSpacing": 200,
+    "hooks": "0x0000000000000000000000000000000000000000"
+  },
+  "0xc583c60aef9dc401da72cec1b404743a93cea1cc": {
+    "version": "v4",
+    "pool": "0x1ff317d83d0169c92ea96e287a7c60289c17908e833de0a478bdf3facf4d2db8",
+    "input": "0x0000000000000000000000000000000000000000",
+    "output": "0xc583c60aef9dc401da72cec1b404743a93cea1cc",
+    "fee": 50000,
+    "tickSpacing": 500,
+    "hooks": "0x0000000000000000000000000000000000000000"
+  },
+  "0x93dbb1d2dc5d63f4abacff30485273f538df68ac": {
+    "version": "v4",
+    "pool": "0x4fdf89b864a4b25f6b92bbd3e380a61a42c6087b485dde3249d99b6b953904ff",
+    "input": "0x5fc5360d0400a0fd4f2af552add042d716f1d168",
+    "output": "0x93dbb1d2dc5d63f4abacff30485273f538df68ac",
+    "fee": 10000,
+    "tickSpacing": 100,
+    "hooks": "0x0000000000000000000000000000000000000000"
+  },
+  "0xc93f4d80e268ab922e871bd169156c3cc41894e6": {
+    "version": "v4",
+    "pool": "0x84884c274899f7f55557193e303e9c1f636ea39e5e820ca331bee3b19e18741f",
+    "input": "0x0000000000000000000000000000000000000000",
+    "output": "0xc93f4d80e268ab922e871bd169156c3cc41894e6",
+    "fee": 49000,
+    "tickSpacing": 490,
+    "hooks": "0x0000000000000000000000000000000000000000"
+  },
+  "0xc01aa1fecec0605b13bc84874ff7256c0f5f562a": {
+    "version": "v4",
+    "pool": "0x7bacabc3e0325f74fc51230a90a1e1fe54c05ca7c14c390c1780b593f137161a",
+    "input": "0x0000000000000000000000000000000000000000",
+    "output": "0xc01aa1fecec0605b13bc84874ff7256c0f5f562a",
+    "fee": 50000,
+    "tickSpacing": 1000,
+    "hooks": "0x0000000000000000000000000000000000000000"
+  },
+  "0x941ae714ec6d8130c7b75d67160ca08f1e7d11dd": {
+    "version": "v3",
+    "pool": "0x61346CD249a6453fBa2ADa35f210376ac0B4957c",
+    "input": "0x0bd7d308f8e1639fab988df18a8011f41eacad73",
+    "output": "0x941ae714ec6d8130c7b75d67160ca08f1e7d11dd",
+    "fee": 3000,
+    "tickSpacing": 60
+  },
+  "0x48961813349333209994750ffa89b3c5c22ec969": {
+    "version": "v4",
+    "pool": "0x92dd9b47059317927dc7f8bce0982a6d7bf2a3c135e74db4864c968bed5290ff",
+    "input": "0x0000000000000000000000000000000000000000",
+    "output": "0x48961813349333209994750ffa89b3c5c22ec969",
+    "fee": 49500,
+    "tickSpacing": 495,
+    "hooks": "0x0000000000000000000000000000000000000000"
+  },
+  "0x756bc80af765c82da966a788858d65adf14f3793": {
+    "version": "v4",
+    "pool": "0x87be5bc8f3196643f962d5d28fc9121f7c6c7b79f56d54827c76ef8c06d94020",
+    "input": "0x5fc5360d0400a0fd4f2af552add042d716f1d168",
+    "output": "0x756bc80af765c82da966a788858d65adf14f3793",
+    "fee": 6000,
+    "tickSpacing": 60,
+    "hooks": "0x0000000000000000000000000000000000000000"
+  },
+  "0x82da4646242e1d962e96e932269dc644c94a9caa": {
+    "version": "v4",
+    "pool": "0x84d02cefcc23186672bab674b960bdef18384d56490926910f22b0d10d116f10",
+    "input": "0x0000000000000000000000000000000000000000",
+    "output": "0x82da4646242e1d962e96e932269dc644c94a9caa",
+    "fee": 50000,
+    "tickSpacing": 200,
+    "hooks": "0x0000000000000000000000000000000000000000"
+  },
+  "0x4a0e65a3eccec6dbe60ae065f2e7bb85fae35eea": {
+    "version": "v3",
+    "pool": "0xc61284332117c3FB23A2A56cceFFD07F7aF60029",
+    "input": "0x5fc5360d0400a0fd4f2af552add042d716f1d168",
+    "output": "0x4a0e65a3eccec6dbe60ae065f2e7bb85fae35eea",
+    "fee": 500,
+    "tickSpacing": 10
+  },
+  "0x2d427692e928fa156ec22acfabafa0447c5805b7": {
+    "version": "v4",
+    "pool": "0x2fdca0bb38d6737a9b995ec30998b5de9511e7b08cf7c77306397220443e799b",
+    "input": "0x5fc5360d0400a0fd4f2af552add042d716f1d168",
+    "output": "0x2d427692e928fa156ec22acfabafa0447c5805b7",
+    "fee": 2500,
+    "tickSpacing": 25,
+    "hooks": "0x0000000000000000000000000000000000000000"
+  },
+  "0xea72ecca2d0f6bfa1394dbbcff85b52cd4233931": {
+    "version": "v4",
+    "pool": "0x1d054a6687f34076dd00937c34d827aecf101ef0879f00a46b39409dba69f680",
+    "input": "0x0000000000000000000000000000000000000000",
+    "output": "0xea72ecca2d0f6bfa1394dbbcff85b52cd4233931",
+    "fee": 50000,
+    "tickSpacing": 500,
+    "hooks": "0x0000000000000000000000000000000000000000"
+  },
+  "0x156e175dd063a8ce274c50654ef40e0032b3fbcf": {
+    "version": "v3",
+    "pool": "0x5B7C404f1d7d77F9f3885aB13d7764F8a173028c",
+    "input": "0x5fc5360d0400a0fd4f2af552add042d716f1d168",
+    "output": "0x156e175dd063a8ce274c50654ef40e0032b3fbcf",
+    "fee": 3000,
+    "tickSpacing": 60
+  },
+  "0x117cc2133c37b721f49de2a7a74833232b3b4c0c": {
+    "version": "v4",
+    "pool": "0xe5923c8a8be481ec89a2ca784a2bbfa4235de6d88f92260fd66b660c4babf907",
+    "input": "0x5fc5360d0400a0fd4f2af552add042d716f1d168",
+    "output": "0x117cc2133c37b721f49de2a7a74833232b3b4c0c",
+    "fee": 500,
+    "tickSpacing": 5,
+    "hooks": "0x0000000000000000000000000000000000000000"
+  },
+  "0x9651342cea770ae9a2969ba2a52611523146aef9": {
+    "version": "v3",
+    "pool": "0xB19AcE635Ef3A28B85bFB01Bae97d0DE80750680",
+    "input": "0x5fc5360d0400a0fd4f2af552add042d716f1d168",
+    "output": "0x9651342cea770ae9a2969ba2a52611523146aef9",
+    "fee": 10000,
+    "tickSpacing": 200
+  },
+  "0xc9a981fee1f9dec688bb123ccdecc63d0debfc4e": {
+    "version": "v3",
+    "pool": "0xBA2f1ed4cEB2169D538d1e614D847E83C5A55913",
+    "input": "0x5fc5360d0400a0fd4f2af552add042d716f1d168",
+    "output": "0xc9a981fee1f9dec688bb123ccdecc63d0debfc4e",
+    "fee": 500,
+    "tickSpacing": 10
+  },
+  "0xba0cab75495255d0cb58e22b648bfed4ecd1f47e": {
+    "version": "v4",
+    "pool": "0xac720e95589b7124f0affbdb9e66c7ec6e824c68eae00dc54f9e11b0b294bac8",
+    "input": "0x5fc5360d0400a0fd4f2af552add042d716f1d168",
+    "output": "0xba0cab75495255d0cb58e22b648bfed4ecd1f47e",
+    "fee": 10000,
+    "tickSpacing": 200,
+    "hooks": "0x0000000000000000000000000000000000000000"
+  },
+  "0xa48f22a46c0f1c46ca7d111cb6c137c271987180": {
+    "version": "v4",
+    "pool": "0x6ae9a056661ecc9015a54e48fdc02a0f798ef06e04d7837c7a3c39fcc62c3ee3",
+    "input": "0x0000000000000000000000000000000000000000",
+    "output": "0xa48f22a46c0f1c46ca7d111cb6c137c271987180",
+    "fee": 48700,
+    "tickSpacing": 487,
+    "hooks": "0x0000000000000000000000000000000000000000"
+  },
+  "0x4189f0c66ebbb0bfef1c31f763131361ef32f77c": {
+    "version": "v4",
+    "pool": "0x6b3faf5cf92ead741d06cbbff7f424caab3a3d0d7b4806e13caba6d1d81ae3d7",
+    "input": "0x0000000000000000000000000000000000000000",
+    "output": "0x4189f0c66ebbb0bfef1c31f763131361ef32f77c",
+    "fee": 49500,
+    "tickSpacing": 495,
+    "hooks": "0x0000000000000000000000000000000000000000"
+  },
+  "0xd5f3879160bc7c32ebb4dc785f8a4f505888de68": {
+    "version": "v4",
+    "pool": "0x40156467240220368e7d8c4400de96f15f674f1954f501dc34389d1b521e4a84",
+    "input": "0x5fc5360d0400a0fd4f2af552add042d716f1d168",
+    "output": "0xd5f3879160bc7c32ebb4dc785f8a4f505888de68",
+    "fee": 375,
+    "tickSpacing": 4,
+    "hooks": "0x0000000000000000000000000000000000000000"
+  },
+  "0x9e7abd3c9139d14e4c86dce0e455aab7a0c2fb3e": {
+    "version": "v3",
+    "pool": "0x2a3063e34C60253ABB23C2442F4CDFBC5cbd02c2",
+    "input": "0x5fc5360d0400a0fd4f2af552add042d716f1d168",
+    "output": "0x9e7abd3c9139d14e4c86dce0e455aab7a0c2fb3e",
+    "fee": 3000,
+    "tickSpacing": 60
+  },
+  "0xbef75684c43c4ea7bd18dd532a2244674ee8b926": {
+    "version": "v4",
+    "pool": "0x9b0ca1c4906f6517a12802513c3ae6f1c1e3ec47d81c6d23437fc401b6e2771b",
+    "input": "0x5fc5360d0400a0fd4f2af552add042d716f1d168",
+    "output": "0xbef75684c43c4ea7bd18dd532a2244674ee8b926",
+    "fee": 10000,
+    "tickSpacing": 100,
+    "hooks": "0x0000000000000000000000000000000000000000"
+  },
+  "0x63b814ddbd6bf339f25fed8c36158a008d5b373e": {
+    "version": "v4",
+    "pool": "0x6bf00eb49fa8d3713cb0f77e9a11f9acd9f5363fc4824e13488acfa28d90dc2d",
+    "input": "0x5fc5360d0400a0fd4f2af552add042d716f1d168",
+    "output": "0x63b814ddbd6bf339f25fed8c36158a008d5b373e",
+    "fee": 20000,
+    "tickSpacing": 200,
+    "hooks": "0x0000000000000000000000000000000000000000"
+  },
+  "0xf6589f11bc40b669e584073f428b05562f568733": {
+    "version": "v4",
+    "pool": "0x2e4cc4c65587faca7a08b69a13c86ca8c86599d90ad818ceaa1a875176f5fb52",
+    "input": "0x5fc5360d0400a0fd4f2af552add042d716f1d168",
+    "output": "0xf6589f11bc40b669e584073f428b05562f568733",
+    "fee": 1950,
+    "tickSpacing": 20,
+    "hooks": "0x0000000000000000000000000000000000000000"
+  },
+  "0x84cab63bc87912e71ad199ff14a0ba45de68fef8": {
+    "version": "v3",
+    "pool": "0x5F2a5025feb93a4C44DA4E3B37e4fD3Fb0ab5171",
+    "input": "0x5fc5360d0400a0fd4f2af552add042d716f1d168",
+    "output": "0x84cab63bc87912e71ad199ff14a0ba45de68fef8",
+    "fee": 3000,
+    "tickSpacing": 60
+  },
+  "0x5c90450bbb4273d7b2f17cf6917aeb237a569679": {
+    "version": "v4",
+    "pool": "0x52c4673e8afaae9e6f27776bf567d8eb7d98881409ccbf355ed044717e26735d",
+    "input": "0x0000000000000000000000000000000000000000",
+    "output": "0x5c90450bbb4273d7b2f17cf6917aeb237a569679",
+    "fee": 50000,
+    "tickSpacing": 500,
+    "hooks": "0x0000000000000000000000000000000000000000"
+  },
+  "0xeb30663bdff0622ef4e4e5cbb4e975f19f33f51d": {
+    "version": "v4",
+    "pool": "0x58dbfebf1974b036a248566f2d80862477b3f09c0ec921f253beb24535d12dc6",
+    "input": "0x0000000000000000000000000000000000000000",
+    "output": "0xeb30663bdff0622ef4e4e5cbb4e975f19f33f51d",
+    "fee": 50000,
+    "tickSpacing": 500,
+    "hooks": "0x0000000000000000000000000000000000000000"
+  },
+  "0x58ffe4a942d3885baa22d7520691f611ef09e7aa": {
+    "version": "v4",
+    "pool": "0x0ba5d53d2f6255f334b7c8ead4f56b6aef5af3402c5e4d11180afd38c6b85fb1",
+    "input": "0x5fc5360d0400a0fd4f2af552add042d716f1d168",
+    "output": "0x58ffe4a942d3885baa22d7520691f611ef09e7aa",
+    "fee": 7500,
+    "tickSpacing": 75,
+    "hooks": "0x0000000000000000000000000000000000000000"
+  },
+  "0x408c14038a04f7bd235329e26d2bf569ee20e250": {
+    "version": "v3",
+    "pool": "0x0E3FaEd512E7909758EB924E6919e0057Bd6b45E",
+    "input": "0x5fc5360d0400a0fd4f2af552add042d716f1d168",
+    "output": "0x408c14038a04f7bd235329e26d2bf569ee20e250",
+    "fee": 3000,
+    "tickSpacing": 60
+  },
+  "0xc72b96e0e48ecd4dc75e1e45396e26300bc39681": {
+    "version": "v3",
+    "pool": "0x2e5a92f5013a64661A49312111be2e8aBd33F56a",
+    "input": "0x5fc5360d0400a0fd4f2af552add042d716f1d168",
+    "output": "0xc72b96e0e48ecd4dc75e1e45396e26300bc39681",
+    "fee": 3000,
+    "tickSpacing": 60
+  },
+  "0xe93237c50d904957cf27e7b1133b510c669c2e74": {
+    "version": "v4",
+    "pool": "0xdd04fe28b7f5fcb07b492cfd434286ff1a54b12eaa69ff00a2807fa1f2adc6a8",
+    "input": "0x5fc5360d0400a0fd4f2af552add042d716f1d168",
+    "output": "0xe93237c50d904957cf27e7b1133b510c669c2e74",
+    "fee": 900,
+    "tickSpacing": 9,
+    "hooks": "0x0000000000000000000000000000000000000000"
+  },
+  "0xfde6b5d9bb419b10c23268c74e369abff39c0460": {
+    "version": "v4",
+    "pool": "0xd3c27381f7d1ef4dcd8ec4ba66e74fe88d06ab5250c1393769d4dd0e996a8dc9",
+    "input": "0x5fc5360d0400a0fd4f2af552add042d716f1d168",
+    "output": "0xfde6b5d9bb419b10c23268c74e369abff39c0460",
+    "fee": 2500,
+    "tickSpacing": 25,
+    "hooks": "0x0000000000000000000000000000000000000000"
+  },
+  "0x284358abc07f9359f19f4b5b4ac91901be2597ba": {
+    "version": "v4",
+    "pool": "0x27e22cc81d01ca660aabd013462df5f8f940d85e9c760fec6cf2b3dab5ac46c6",
+    "input": "0x0000000000000000000000000000000000000000",
+    "output": "0x284358abc07f9359f19f4b5b4ac91901be2597ba",
+    "fee": 50000,
+    "tickSpacing": 200,
+    "hooks": "0x0000000000000000000000000000000000000000"
+  },
+  "0x5e81213613b6b86eab4c6c50d718d34359459786": {
+    "version": "v4",
+    "pool": "0xd5850279c17e422d8ad108691254df010af9c6f8fcec0b586b89133100096556",
+    "input": "0x5fc5360d0400a0fd4f2af552add042d716f1d168",
+    "output": "0x5e81213613b6b86eab4c6c50d718d34359459786",
+    "fee": 2000,
+    "tickSpacing": 2,
+    "hooks": "0x0000000000000000000000000000000000000000"
+  },
+  "0xc0d6457c16cc70d6790dd43521c899c87ce02f35": {
+    "version": "v4",
+    "pool": "0xb85fa44cbde163fbaa51b861b0fb997d8b2783bd914aba9e0038ffa8df735e09",
+    "input": "0x5fc5360d0400a0fd4f2af552add042d716f1d168",
+    "output": "0xc0d6457c16cc70d6790dd43521c899c87ce02f35",
+    "fee": 600,
+    "tickSpacing": 6,
+    "hooks": "0x0000000000000000000000000000000000000000"
+  },
+  "0x6006ed4b2f94110851ff7509d97d034f0eed9226": {
+    "version": "v4",
+    "pool": "0xa1f9cad15a9e12d9fdb4e2de9924f4378904f5acdac6b1d9641761cf37054b6a",
+    "input": "0x0000000000000000000000000000000000000000",
+    "output": "0x6006ed4b2f94110851ff7509d97d034f0eed9226",
+    "fee": 49000,
+    "tickSpacing": 490,
+    "hooks": "0x0000000000000000000000000000000000000000"
+  },
+  "0x89776d4cd68193597a2fc132cfac1fde36ccea8a": {
+    "version": "v4",
+    "pool": "0xcfc70821a66e31d741e03bebbe5372667675eb4303060ef2988775034b72cafe",
+    "input": "0x0000000000000000000000000000000000000000",
+    "output": "0x89776d4cd68193597a2fc132cfac1fde36ccea8a",
+    "fee": 47000,
+    "tickSpacing": 470,
+    "hooks": "0x0000000000000000000000000000000000000000"
+  },
+  "0x05b37fb53a299a1b874a619e1c4c404d52c36f4c": {
+    "version": "v3",
+    "pool": "0x714187EeD11d8fc9500ff6798734c8BB63a8A19b",
+    "input": "0x0bd7d308f8e1639fab988df18a8011f41eacad73",
+    "output": "0x05b37fb53a299a1b874a619e1c4c404d52c36f4c",
+    "fee": 3000,
+    "tickSpacing": 60
+  },
+  "0x7c04e6a3368f2a1de3874f0e80d2e0a1a9915da6": {
+    "version": "v4",
+    "pool": "0x5363d7374a647d5c0b5ac514c67427d26cc81b516c25df770223193a274507e9",
+    "input": "0x0000000000000000000000000000000000000000",
+    "output": "0x7c04e6a3368f2a1de3874f0e80d2e0a1a9915da6",
+    "fee": 49500,
+    "tickSpacing": 495,
+    "hooks": "0x0000000000000000000000000000000000000000"
+  },
+  "0xf23250dac154d05bb671cb0d0ebef3c635c79ce2": {
+    "version": "v4",
+    "pool": "0x62982f45f29ed197c4c98427bdd18b76ff692630027c5fe5c5f6dcbd9a85310a",
+    "input": "0x0000000000000000000000000000000000000000",
+    "output": "0xf23250dac154d05bb671cb0d0ebef3c635c79ce2",
+    "fee": 1200,
+    "tickSpacing": 12,
+    "hooks": "0x0000000000000000000000000000000000000000"
+  },
+  "0xb039597ed45cba7b6e2fb9e8be51802969cee5be": {
+    "version": "v4",
+    "pool": "0x38f44c508b4e5a3432ea8915bf7c424ec591ff349ba7f2b74821576351748efd",
+    "input": "0x0000000000000000000000000000000000000000",
+    "output": "0xb039597ed45cba7b6e2fb9e8be51802969cee5be",
+    "fee": 50000,
+    "tickSpacing": 500,
+    "hooks": "0x0000000000000000000000000000000000000000"
+  },
+  "0x48d60243c66437c6ac3c2495be94747aed5dfe25": {
+    "version": "v4",
+    "pool": "0x908ad1c8b831e15c8016116429731d952d0b50dd525ee7751764149f605771ef",
+    "input": "0x5fc5360d0400a0fd4f2af552add042d716f1d168",
+    "output": "0x48d60243c66437c6ac3c2495be94747aed5dfe25",
+    "fee": 20000,
+    "tickSpacing": 200,
+    "hooks": "0x0000000000000000000000000000000000000000"
+  },
+  "0x03bc731ffb162cdd7b98d3c6542bfc291126075d": {
+    "version": "v4",
+    "pool": "0x6edaf089b86a262e86caa0d40c693502e59de8781402de5f89d2de8e5a230070",
+    "input": "0x5fc5360d0400a0fd4f2af552add042d716f1d168",
+    "output": "0x03bc731ffb162cdd7b98d3c6542bfc291126075d",
+    "fee": 20000,
+    "tickSpacing": 200,
+    "hooks": "0x0000000000000000000000000000000000000000"
+  },
+  "0xb90a19ff0af67f7779aff50a882a9cff42446400": {
+    "version": "v3",
+    "pool": "0x995c1Ad5Eb998b1BdD89F515C4BB64760c411b62",
+    "input": "0x0bd7d308f8e1639fab988df18a8011f41eacad73",
+    "output": "0xb90a19ff0af67f7779aff50a882a9cff42446400",
+    "fee": 3000,
+    "tickSpacing": 60
+  },
+  "0x4d21483a44bf67a86b77e3da301411880797d452": {
+    "version": "v4",
+    "pool": "0x1bd266afaf99164a3913a959e4d27698c51fe51535bbe0af0718d7ae666c7e10",
+    "input": "0x5fc5360d0400a0fd4f2af552add042d716f1d168",
+    "output": "0x4d21483a44bf67a86b77e3da301411880797d452",
+    "fee": 2000,
+    "tickSpacing": 20,
+    "hooks": "0x0000000000000000000000000000000000000000"
+  },
+  "0x56d23bee5f41a7120170b0c603dae30128e460e9": {
+    "version": "v4",
+    "pool": "0x42473e27f793b7a3b71b225729e3962651c5dfea6d7fa078a44dc8a4adf3d9bf",
+    "input": "0x5fc5360d0400a0fd4f2af552add042d716f1d168",
+    "output": "0x56d23bee5f41a7120170b0c603dae30128e460e9",
+    "fee": 30000,
+    "tickSpacing": 300,
+    "hooks": "0x0000000000000000000000000000000000000000"
+  },
+  "0x39ec44bee4f6a116c6f9b8de566848a985c53c60": {
+    "version": "v4",
+    "pool": "0xde350b1f58a33826eecbc54c599ab87391a13a14d5eb4992b4f09b78eba4d49f",
+    "input": "0x5fc5360d0400a0fd4f2af552add042d716f1d168",
+    "output": "0x39ec44bee4f6a116c6f9b8de566848a985c53c60",
+    "fee": 10000,
+    "tickSpacing": 100,
+    "hooks": "0x0000000000000000000000000000000000000000"
+  },
+  "0x12f190a9f9d7d37a250758b26824b97ce941bf54": {
+    "version": "v4",
+    "pool": "0xefc94885c96b02696b9b45de43eeeb8ac53c0199cab42b4daae4911b96fb8825",
+    "input": "0x5fc5360d0400a0fd4f2af552add042d716f1d168",
+    "output": "0x12f190a9f9d7d37a250758b26824b97ce941bf54",
+    "fee": 2400,
+    "tickSpacing": 24,
+    "hooks": "0x0000000000000000000000000000000000000000"
+  },
+  "0xe0444ef8bf4ed74f74fd73686e2ddf4c1c5591e8": {
+    "version": "v4",
+    "pool": "0xc3ce6292ae631e73a6adc6faaad7d10e326a9d11517a6dfcd001345d20097df4",
+    "input": "0x5fc5360d0400a0fd4f2af552add042d716f1d168",
+    "output": "0xe0444ef8bf4ed74f74fd73686e2ddf4c1c5591e8",
+    "fee": 1500,
+    "tickSpacing": 15,
+    "hooks": "0x0000000000000000000000000000000000000000"
+  },
+  "0xdf0992e440dd0be65bd8439b609d6d4366bf1cb5": {
+    "version": "v4",
+    "pool": "0x5177eac8c2176468bbf15e44081e151d35c2e7d068e96d3db94f496a4dc944b2",
+    "input": "0x5fc5360d0400a0fd4f2af552add042d716f1d168",
+    "output": "0xdf0992e440dd0be65bd8439b609d6d4366bf1cb5",
+    "fee": 1500,
+    "tickSpacing": 15,
+    "hooks": "0x0000000000000000000000000000000000000000"
+  },
+  "0xd917b029c761d264c6a312bbbcda868658ef86a6": {
+    "version": "v3",
+    "pool": "0x04391780F519B7d3ba59c9590459D76e23d225C4",
+    "input": "0x5fc5360d0400a0fd4f2af552add042d716f1d168",
+    "output": "0xd917b029c761d264c6a312bbbcda868658ef86a6",
+    "fee": 3000,
+    "tickSpacing": 60
+  },
+  "0x561e2a49212b7ccf47f2744ccb83e200722fadbc": {
+    "version": "v4",
+    "pool": "0xa10251ee66f7d51f7410811ab5dacae1f0a32b7ee7f94566a0359ef96b405fb0",
+    "input": "0x0000000000000000000000000000000000000000",
+    "output": "0x561e2a49212b7ccf47f2744ccb83e200722fadbc",
+    "fee": 50000,
+    "tickSpacing": 500,
+    "hooks": "0x0000000000000000000000000000000000000000"
+  },
+  "0xf543967eebb6f1917992ef0e68de63ab07a5a0da": {
+    "version": "v4",
+    "pool": "0x0dc674af3aa8f4395dcb338787784d492684ca60b98b6f672196cb084cca1fbd",
+    "input": "0x0000000000000000000000000000000000000000",
+    "output": "0xf543967eebb6f1917992ef0e68de63ab07a5a0da",
+    "fee": 50000,
+    "tickSpacing": 500,
+    "hooks": "0x0000000000000000000000000000000000000000"
+  },
+  "0x9ece29a4a2397c0a35fb5fa8ee2b9509130a98cc": {
+    "version": "v4",
+    "pool": "0xf5634d8c996cb63836a91c9fcbc18171ae9bb2d98a4c4e627aa96aab9b63d5b1",
+    "input": "0x0000000000000000000000000000000000000000",
+    "output": "0x9ece29a4a2397c0a35fb5fa8ee2b9509130a98cc",
+    "fee": 50000,
+    "tickSpacing": 500,
+    "hooks": "0x0000000000000000000000000000000000000000"
+  },
+  "0x2e0847e8910a9732eb3fb1bb4b70a580adad4fe3": {
+    "version": "v3",
+    "pool": "0x34D0dC122CF9A8Eb296fC5e0D3A233625D7d19b7",
+    "input": "0x5fc5360d0400a0fd4f2af552add042d716f1d168",
+    "output": "0x2e0847e8910a9732eb3fb1bb4b70a580adad4fe3",
+    "fee": 500,
+    "tickSpacing": 10
+  },
+  "0x48e39e56acdba37b09020c0b734a613c9a2f100a": {
+    "version": "v3",
+    "pool": "0x183304567485e97e68835708f572aAA0e0E71d08",
+    "input": "0x0bd7d308f8e1639fab988df18a8011f41eacad73",
+    "output": "0x48e39e56acdba37b09020c0b734a613c9a2f100a",
+    "fee": 10000,
+    "tickSpacing": 200
+  },
+  "0xa4f319104089fe321dc8093c6e707d4fe190a988": {
+    "version": "v4",
+    "pool": "0x37bab26ff48790bf68f287f1ade826288d091a9d527357d8a25b5f7f9700b90b",
+    "input": "0x0000000000000000000000000000000000000000",
+    "output": "0xa4f319104089fe321dc8093c6e707d4fe190a988",
+    "fee": 50000,
+    "tickSpacing": 500,
+    "hooks": "0x0000000000000000000000000000000000000000"
+  },
+  "0x141eea040c2250eec0314e336975e81f85f6585e": {
+    "version": "v4",
+    "pool": "0x47d2dc7d27a3d6da9be82fba26ee4aaab935246adde2f0d98431c9cdbbc46978",
+    "input": "0x0000000000000000000000000000000000000000",
+    "output": "0x141eea040c2250eec0314e336975e81f85f6585e",
+    "fee": 50000,
+    "tickSpacing": 500,
+    "hooks": "0x0000000000000000000000000000000000000000"
+  },
+  "0xc6cbad1016b38b797610c25e1dc7d95988b1f362": {
+    "version": "v4",
+    "pool": "0xd80181d68dfc90f15b2357c5de6ba13895058bbb5a551ded07d1e0fc660fd44d",
+    "input": "0x0000000000000000000000000000000000000000",
+    "output": "0xc6cbad1016b38b797610c25e1dc7d95988b1f362",
+    "fee": 50000,
+    "tickSpacing": 200,
+    "hooks": "0x0000000000000000000000000000000000000000"
+  },
+  "0x4e62068525ab11fe768e29dfd00ef909b9803016": {
+    "version": "v3",
+    "pool": "0x0F4227D27082B3BCA6818381b9ea6460275e49f4",
+    "input": "0x5fc5360d0400a0fd4f2af552add042d716f1d168",
+    "output": "0x4e62068525ab11fe768e29dfd00ef909b9803016",
+    "fee": 3000,
+    "tickSpacing": 60
+  },
+  "0x329fcaceb9ad6f9580dd5f643fed0646900d043c": {
+    "version": "v4",
+    "pool": "0x0b118d2480ebdb11374d3ad2ea1b935e9458a9f704222004b3b8de07bc98f1eb",
+    "input": "0x5fc5360d0400a0fd4f2af552add042d716f1d168",
+    "output": "0x329fcaceb9ad6f9580dd5f643fed0646900d043c",
+    "fee": 5000,
+    "tickSpacing": 50,
+    "hooks": "0x0000000000000000000000000000000000000000"
+  },
+  "0xb853bc83a753342a4f8320ea680b4b1e84118d21": {
+    "version": "v4",
+    "pool": "0xf7157cada27780cdf65d8ab74168d0891206bc050c000baec35cb36893e4706d",
+    "input": "0x0000000000000000000000000000000000000000",
+    "output": "0xb853bc83a753342a4f8320ea680b4b1e84118d21",
+    "fee": 49000,
+    "tickSpacing": 490,
+    "hooks": "0x0000000000000000000000000000000000000000"
+  },
+  "0x92fd66527192e3e61d4ddd13322aa222de86f9b5": {
+    "version": "v4",
+    "pool": "0x834b8424f719784726e0182701ca18416993a62b56b16e403ede94a48a5793a3",
+    "input": "0x5fc5360d0400a0fd4f2af552add042d716f1d168",
+    "output": "0x92fd66527192e3e61d4ddd13322aa222de86f9b5",
+    "fee": 200,
+    "tickSpacing": 2,
+    "hooks": "0x0000000000000000000000000000000000000000"
+  },
+  "0x40e7a279850e443f582059ae5dc1c3b6563e6395": {
+    "version": "v4",
+    "pool": "0xec9f7f5b027987e958da9fecee0d3e73ad4adac95755e201e5efbce019b47956",
+    "input": "0x0000000000000000000000000000000000000000",
+    "output": "0x40e7a279850e443f582059ae5dc1c3b6563e6395",
+    "fee": 49000,
+    "tickSpacing": 490,
+    "hooks": "0x0000000000000000000000000000000000000000"
+  },
+  "0xf0ab0c93be6f41369d302e55db1a96b3c430212d": {
+    "version": "v4",
+    "pool": "0x2566088fd6aa48831800109ad3360328f6c4131da2043b948e1bacdde5151e9f",
+    "input": "0x5fc5360d0400a0fd4f2af552add042d716f1d168",
+    "output": "0xf0ab0c93be6f41369d302e55db1a96b3c430212d",
+    "fee": 9000,
+    "tickSpacing": 90,
+    "hooks": "0x0000000000000000000000000000000000000000"
+  },
+  "0x43b07d15ce533bec5476d70c22a78a1b2b662155": {
+    "version": "v3",
+    "pool": "0xB40196272A6d2EB5edF6d93bc4DC39856AD95E0E",
+    "input": "0x5fc5360d0400a0fd4f2af552add042d716f1d168",
+    "output": "0x43b07d15ce533bec5476d70c22a78a1b2b662155",
+    "fee": 3000,
+    "tickSpacing": 60
+  },
+  "0x57b0030166db0c31690d1a5aa167e2e26e2c29a4": {
+    "version": "v4",
+    "pool": "0x545f5bc9a76365f5d838a9aef6e184177f49d491519306f639c93743365c1656",
+    "input": "0x0000000000000000000000000000000000000000",
+    "output": "0x57b0030166db0c31690d1a5aa167e2e26e2c29a4",
+    "fee": 50000,
+    "tickSpacing": 500,
+    "hooks": "0x0000000000000000000000000000000000000000"
+  },
+  "0xae517a2903e68bd929dfd15be875f8369d53e94a": {
+    "version": "v3",
+    "pool": "0xc9529b7dc74BF15da6Cee01a282908E8C7aB6BA3",
+    "input": "0x5fc5360d0400a0fd4f2af552add042d716f1d168",
+    "output": "0xae517a2903e68bd929dfd15be875f8369d53e94a",
+    "fee": 10000,
+    "tickSpacing": 200
+  },
+  "0x748c32c3ca24edf31ea597db1f3d330a7a6da3dc": {
+    "version": "v4",
+    "pool": "0xfefd43410dc8dec18294dc6eb4ac418bde567b8944ffa35e45c6b0923fb5dd32",
+    "input": "0x0000000000000000000000000000000000000000",
+    "output": "0x748c32c3ca24edf31ea597db1f3d330a7a6da3dc",
+    "fee": 50000,
+    "tickSpacing": 500,
+    "hooks": "0x0000000000000000000000000000000000000000"
+  },
+  "0xb1cc0ec7db69cf43539119814df40071b9d61793": {
+    "version": "v4",
+    "pool": "0xde8f6953e20ad746524e3e45e484b18b8595ba6da20526d9973c79d80a9f961c",
+    "input": "0x0000000000000000000000000000000000000000",
+    "output": "0xb1cc0ec7db69cf43539119814df40071b9d61793",
+    "fee": 48000,
+    "tickSpacing": 480,
+    "hooks": "0x0000000000000000000000000000000000000000"
+  },
+  "0xcef9027c7d6985b85f0ba431125073529a947a68": {
+    "version": "v4",
+    "pool": "0xdfc620485cebd394955e7cde9e3d336ec8dabe24a7c80c4b9de71ea896208e79",
+    "input": "0x5fc5360d0400a0fd4f2af552add042d716f1d168",
+    "output": "0xcef9027c7d6985b85f0ba431125073529a947a68",
+    "fee": 8000,
+    "tickSpacing": 50,
+    "hooks": "0x0000000000000000000000000000000000000000"
+  },
+  "0xcf364ea52787e289de6f32077834056e3e70d6a8": {
+    "version": "v4",
+    "pool": "0x968046797b360bc9af4ac59faa255018d17064412c7a32ae2938e6cf6edabd94",
+    "input": "0x0000000000000000000000000000000000000000",
+    "output": "0xcf364ea52787e289de6f32077834056e3e70d6a8",
+    "fee": 50000,
+    "tickSpacing": 500,
+    "hooks": "0x0000000000000000000000000000000000000000"
+  },
+  "0x62200915e7deab1ec7f79fb246dadbb80eacddd0": {
+    "version": "v4",
+    "pool": "0x73fa85bb27e0168f5fea56d0959a0b19d09930b62879cb99fca3a0dcbbf151bf",
+    "input": "0x5fc5360d0400a0fd4f2af552add042d716f1d168",
+    "output": "0x62200915e7deab1ec7f79fb246dadbb80eacddd0",
+    "fee": 9000,
+    "tickSpacing": 90,
+    "hooks": "0x0000000000000000000000000000000000000000"
+  },
+  "0xad25ac6c84d497db898fa1e8387bf6af3532a1c4": {
+    "version": "v4",
+    "pool": "0x1791fc651cc794a282e5dbcb56d0b2b38eff8754b677c8876e86901521ecc439",
+    "input": "0x5fc5360d0400a0fd4f2af552add042d716f1d168",
+    "output": "0xad25ac6c84d497db898fa1e8387bf6af3532a1c4",
+    "fee": 1000,
+    "tickSpacing": 10,
+    "hooks": "0x0000000000000000000000000000000000000000"
+  },
+  "0x77e655e37f4d913fb9540e0d541d824171a60e81": {
+    "version": "v4",
+    "pool": "0xab99c0156e7107cfcdf445b7ab53cf5e547d4a906c434093ce40bfed7a140efe",
+    "input": "0x5fc5360d0400a0fd4f2af552add042d716f1d168",
+    "output": "0x77e655e37f4d913fb9540e0d541d824171a60e81",
+    "fee": 30000,
+    "tickSpacing": 300,
+    "hooks": "0x0000000000000000000000000000000000000000"
+  },
+  "0xf52597345a8edf418bc4071b4a35112472277d3e": {
+    "version": "v4",
+    "pool": "0xf59909ae5c97ac41157d3841e128ceb495399903883a42e4411cfa7a4840ae52",
+    "input": "0x0000000000000000000000000000000000000000",
+    "output": "0xf52597345a8edf418bc4071b4a35112472277d3e",
+    "fee": 50000,
+    "tickSpacing": 500,
+    "hooks": "0x0000000000000000000000000000000000000000"
+  },
+  "0xcbb95bbf36099d34da091dc6fa6f49efa257cee3": {
+    "version": "v4",
+    "pool": "0x40e4ceb2358e0fbd20c4d77c62b4830f3363966995e5e54600917de034f77b8d",
+    "input": "0x0000000000000000000000000000000000000000",
+    "output": "0xcbb95bbf36099d34da091dc6fa6f49efa257cee3",
+    "fee": 49000,
+    "tickSpacing": 490,
+    "hooks": "0x0000000000000000000000000000000000000000"
+  },
+  "0x894e1ec2d74ffe5aef8dc8a9e84686accb964f2a": {
+    "version": "v3",
+    "pool": "0x851680416A4f4E1c463d45171d61ACDdBc8554c0",
+    "input": "0x5fc5360d0400a0fd4f2af552add042d716f1d168",
+    "output": "0x894e1ec2d74ffe5aef8dc8a9e84686accb964f2a",
+    "fee": 3000,
+    "tickSpacing": 60
+  },
+  "0xff080c8ce2e5feadaca0da81314ae59d232d4afd": {
+    "version": "v3",
+    "pool": "0xFD4911302Ba5c25D153a6912b394a72d0A9601F2",
+    "input": "0x0bd7d308f8e1639fab988df18a8011f41eacad73",
+    "output": "0xff080c8ce2e5feadaca0da81314ae59d232d4afd",
+    "fee": 3000,
+    "tickSpacing": 60
+  },
+  "0x1af6446f07eb1d97c546afc8c9544cbdf3ad5137": {
+    "version": "v4",
+    "pool": "0xd94506f18e4d618fba9653e48af35df392ce91d30ea0bff327ad8a1102e11942",
+    "input": "0x5fc5360d0400a0fd4f2af552add042d716f1d168",
+    "output": "0x1af6446f07eb1d97c546afc8c9544cbdf3ad5137",
+    "fee": 25000,
+    "tickSpacing": 250,
+    "hooks": "0x0000000000000000000000000000000000000000"
+  },
+  "0x237c16d66590f67b886d978acd362eaead8b18c7": {
+    "version": "v4",
+    "pool": "0xb9a7b9c03c6f8da513c7f9ed460f2171417a0df386fe7238efd096bbef9687f6",
+    "input": "0x0000000000000000000000000000000000000000",
+    "output": "0x237c16d66590f67b886d978acd362eaead8b18c7",
+    "fee": 50000,
+    "tickSpacing": 200,
+    "hooks": "0x0000000000000000000000000000000000000000"
+  },
+  "0x0594134df3f171a354d9c85ebd65b7a6148f6d09": {
+    "version": "v3",
+    "pool": "0xb78DD1A97fa544c65d7D1f12453EcaAF1e05c36d",
+    "input": "0x5fc5360d0400a0fd4f2af552add042d716f1d168",
+    "output": "0x0594134df3f171a354d9c85ebd65b7a6148f6d09",
+    "fee": 10000,
+    "tickSpacing": 200
+  },
+  "0x3b14c39e89d60d627b42a1a4ca45b5bb45fc12e2": {
+    "version": "v4",
+    "pool": "0x1842905adc4a34f5c21df540eedd60adb7e0847056b9be223c31183af102b68e",
+    "input": "0x0000000000000000000000000000000000000000",
+    "output": "0x3b14c39e89d60d627b42a1a4ca45b5bb45fc12e2",
+    "fee": 2500,
+    "tickSpacing": 25,
+    "hooks": "0x0000000000000000000000000000000000000000"
+  },
+  "0x2778c5024d5ca2cdb0f8ead671ffc69963adcd9c": {
+    "version": "v4",
+    "pool": "0x6b4812010ce7b82aaa30af7baf7b41ec587ae544c47b239c4cee458cb002f8cb",
+    "input": "0x0000000000000000000000000000000000000000",
+    "output": "0x2778c5024d5ca2cdb0f8ead671ffc69963adcd9c",
+    "fee": 50000,
+    "tickSpacing": 500,
+    "hooks": "0x0000000000000000000000000000000000000000"
+  },
+  "0x5f10a1c971b69e47e059e1dc91901b59b3fb49c3": {
+    "version": "v4",
+    "pool": "0x237014478f7ef98afbe7412ac35b6a3f96b8fb111de48b7c4dbf49dba4bd9c4b",
+    "input": "0x5fc5360d0400a0fd4f2af552add042d716f1d168",
+    "output": "0x5f10a1c971b69e47e059e1dc91901b59b3fb49c3",
+    "fee": 9000,
+    "tickSpacing": 90,
+    "hooks": "0x0000000000000000000000000000000000000000"
+  },
+  "0xbf449977089c718c004a66c554b26b94ef3ad4de": {
+    "version": "v4",
+    "pool": "0x568633ce8967d55c31ce8b8f565ee58b301db699a7543d8381b256a57e75fbf1",
+    "input": "0x0000000000000000000000000000000000000000",
+    "output": "0xbf449977089c718c004a66c554b26b94ef3ad4de",
+    "fee": 50000,
+    "tickSpacing": 500,
+    "hooks": "0x0000000000000000000000000000000000000000"
+  },
+  "0x41f4267525a8aff329540ef24fd83d9044758b33": {
+    "version": "v3",
+    "pool": "0xca5904C0a9d42F0Ec1Bf760FDf779907877144fD",
+    "input": "0x5fc5360d0400a0fd4f2af552add042d716f1d168",
+    "output": "0x41f4267525a8aff329540ef24fd83d9044758b33",
+    "fee": 3000,
+    "tickSpacing": 60
+  },
+  "0x86923f96303d656e4aa86d9d42d1e57ad2023fdc": {
+    "version": "v4",
+    "pool": "0x529838496d45557bbe794413893c54787ac063b4505b31a722a69999cf741ab3",
+    "input": "0x5fc5360d0400a0fd4f2af552add042d716f1d168",
+    "output": "0x86923f96303d656e4aa86d9d42d1e57ad2023fdc",
+    "fee": 1500,
+    "tickSpacing": 15,
+    "hooks": "0x0000000000000000000000000000000000000000"
+  },
+  "0x7f0abef0c07280f82c6a08ead09ded6bae2c13fc": {
+    "version": "v4",
+    "pool": "0x3cba52145fb271e4a76f44df3d8b86f460a04e767841bcb8288a02729047dbbb",
+    "input": "0x5fc5360d0400a0fd4f2af552add042d716f1d168",
+    "output": "0x7f0abef0c07280f82c6a08ead09ded6bae2c13fc",
+    "fee": 5000,
+    "tickSpacing": 50,
+    "hooks": "0x0000000000000000000000000000000000000000"
+  },
+  "0x285b231728c7e4333799183df1094d775246a535": {
+    "version": "v4",
+    "pool": "0x7539a5846c5720adc2461cfcc2674e767860a9faffbf9ef756f6f76476410afd",
+    "input": "0x0000000000000000000000000000000000000000",
+    "output": "0x285b231728c7e4333799183df1094d775246a535",
+    "fee": 50000,
+    "tickSpacing": 500,
+    "hooks": "0x0000000000000000000000000000000000000000"
+  },
+  "0x4d67253bc223e6b0e104f1084c1fb2b669ddc41b": {
+    "version": "v4",
+    "pool": "0x595d46b6ac80fcbc35cf07fbde5252d1cc7a68363e3e1e30a4a68101f3ea73e2",
+    "input": "0x0000000000000000000000000000000000000000",
+    "output": "0x4d67253bc223e6b0e104f1084c1fb2b669ddc41b",
+    "fee": 50000,
+    "tickSpacing": 500,
+    "hooks": "0x0000000000000000000000000000000000000000"
+  },
+  "0x072f979c2cac8e1391b0162a87fee094bf8744a0": {
+    "version": "v4",
+    "pool": "0xd4c09b469af5c558fc87d242967efa1f2dcb7e5d2e7bcc5c6a7228e9fe2c7665",
+    "input": "0x0000000000000000000000000000000000000000",
+    "output": "0x072f979c2cac8e1391b0162a87fee094bf8744a0",
+    "fee": 50000,
+    "tickSpacing": 500,
+    "hooks": "0x0000000000000000000000000000000000000000"
+  },
+  "0xfa78c12e6488814a0262e4e802749a4a737d5fb7": {
+    "version": "v4",
+    "pool": "0xff653b276acea179f3a4f6226c87fe95295da8e5cba47a7b716eef0eb444a2c7",
+    "input": "0x0000000000000000000000000000000000000000",
+    "output": "0xfa78c12e6488814a0262e4e802749a4a737d5fb7",
+    "fee": 50000,
+    "tickSpacing": 500,
+    "hooks": "0x0000000000000000000000000000000000000000"
+  },
+  "0x0c3260af4b8f13a69c4c2dfb84fd667890cdfa14": {
+    "version": "v4",
+    "pool": "0xc56a28baafe3bcb71c4243043a186347ed7c8751abf4d84b82563f43a50e81cf",
+    "input": "0x5fc5360d0400a0fd4f2af552add042d716f1d168",
+    "output": "0x0c3260af4b8f13a69c4c2dfb84fd667890cdfa14",
+    "fee": 19000,
+    "tickSpacing": 190,
+    "hooks": "0x0000000000000000000000000000000000000000"
+  },
+  "0x15cd20759ce7f3285c29a319de2d1a2e098c6f43": {
+    "version": "v4",
+    "pool": "0xae84c62eb66f69bf94262fbe0d65029c2eb27d1a6f3712d06e7521caad0cba00",
+    "input": "0x0000000000000000000000000000000000000000",
+    "output": "0x15cd20759ce7f3285c29a319de2d1a2e098c6f43",
+    "fee": 50000,
+    "tickSpacing": 500,
+    "hooks": "0x0000000000000000000000000000000000000000"
+  },
+  "0x99d9d8663545151603863c5acbd6fc3218899009": {
+    "version": "v4",
+    "pool": "0x767f3d7cd19ce87cdd7388325d10e19d979187ffe3f288b7cea05bb29f00a62a",
+    "input": "0x0000000000000000000000000000000000000000",
+    "output": "0x99d9d8663545151603863c5acbd6fc3218899009",
+    "fee": 50000,
+    "tickSpacing": 500,
+    "hooks": "0x0000000000000000000000000000000000000000"
+  },
+  "0xd0601ce157db5bdc3162bbac2a2c8af5320d9eec": {
+    "version": "v4",
+    "pool": "0x6444a8e0b267406a15db74ca00c4a24bdfa81ed3180f5b6d0851f8ed6f4f29c5",
+    "input": "0x5fc5360d0400a0fd4f2af552add042d716f1d168",
+    "output": "0xd0601ce157db5bdc3162bbac2a2c8af5320d9eec",
+    "fee": 100,
+    "tickSpacing": 1,
+    "hooks": "0x0000000000000000000000000000000000000000"
+  },
+  "0xb334c5ce741b80b5b671f47f5c269cb193fe8e24": {
+    "version": "v4",
+    "pool": "0x5ac0d300231e792db1528aecaf28af5f81700efd7ac6cf222500ef5f8934d898",
+    "input": "0x5fc5360d0400a0fd4f2af552add042d716f1d168",
+    "output": "0xb334c5ce741b80b5b671f47f5c269cb193fe8e24",
+    "fee": 25000,
+    "tickSpacing": 250,
+    "hooks": "0x0000000000000000000000000000000000000000"
+  },
+  "0x59818904ab4ce163b3ce4ffb64f2d6ca02c434b4": {
+    "version": "v3",
+    "pool": "0x227Bbce9A81B3694b01754298a983Be3F9E44A93",
+    "input": "0x5fc5360d0400a0fd4f2af552add042d716f1d168",
+    "output": "0x59818904ab4ce163b3ce4ffb64f2d6ca02c434b4",
+    "fee": 3000,
+    "tickSpacing": 60
+  },
+  "0xa30fa36db767ad9ed3f7a60fc79526fb4d56d344": {
+    "version": "v4",
+    "pool": "0x1f2ad5a274a776d8e1408292bde1d92d8fa7b6444acf14ad60b9c3e4e5b66420",
+    "input": "0x5fc5360d0400a0fd4f2af552add042d716f1d168",
+    "output": "0xa30fa36db767ad9ed3f7a60fc79526fb4d56d344",
+    "fee": 1200,
+    "tickSpacing": 15,
+    "hooks": "0x0000000000000000000000000000000000000000"
+  },
+  "0x9ab02ead789b6903c3c44d0ed32f9c707cdf12fd": {
+    "version": "v4",
+    "pool": "0x8ace3c12c92ce921274ce25d8fb00cd03a7f27736577d4deff386358d31dbb3a",
+    "input": "0x0000000000000000000000000000000000000000",
+    "output": "0x9ab02ead789b6903c3c44d0ed32f9c707cdf12fd",
+    "fee": 50000,
+    "tickSpacing": 200,
+    "hooks": "0x0000000000000000000000000000000000000000"
+  },
+  "0x25c288e6d899b9bc30160965ad9644c67e73be0c": {
+    "version": "v3",
+    "pool": "0x4dbAC19E895322ac5b93abad9008691632bFFC05",
+    "input": "0x5fc5360d0400a0fd4f2af552add042d716f1d168",
+    "output": "0x25c288e6d899b9bc30160965ad9644c67e73be0c",
+    "fee": 3000,
+    "tickSpacing": 60
+  },
+  "0x7dc013eb55e436f30d7ed1afe4e36d6e45e3c3f7": {
+    "version": "v4",
+    "pool": "0x39d448c15645d1d4fd0bffa7b91d98ba2bd235508e147c48d2dac2877efc0dc1",
+    "input": "0x0000000000000000000000000000000000000000",
+    "output": "0x7dc013eb55e436f30d7ed1afe4e36d6e45e3c3f7",
+    "fee": 49500,
+    "tickSpacing": 495,
+    "hooks": "0x0000000000000000000000000000000000000000"
+  },
+  "0x6330d8c3178a418788df01a47479c0ce7ccf450b": {
+    "version": "v3",
+    "pool": "0x6707aeAc7D0e519B083219d27BB427364363183A",
+    "input": "0x0bd7d308f8e1639fab988df18a8011f41eacad73",
+    "output": "0x6330d8c3178a418788df01a47479c0ce7ccf450b",
+    "fee": 3000,
+    "tickSpacing": 60
+  },
+  "0xf9b46d3d1b22199d4d1025a9cedb540a33f1a2d5": {
+    "version": "v4",
+    "pool": "0x98ebc2fbebae0a7d88367485a68ec6e2b457b3896240131f945a150ba277fc08",
+    "input": "0x5fc5360d0400a0fd4f2af552add042d716f1d168",
+    "output": "0xf9b46d3d1b22199d4d1025a9cedb540a33f1a2d5",
+    "fee": 20001,
+    "tickSpacing": 200,
+    "hooks": "0x0000000000000000000000000000000000000000"
+  },
+  "0x9d9c6684f596f66a64c030b93a886d51fd4d7931": {
+    "version": "v4",
+    "pool": "0x7c2f9ce1214ba9baf56d1b6a1fc640c1b63e9a711172c0c7d10e5a9c4a3d4f0c",
+    "input": "0x5fc5360d0400a0fd4f2af552add042d716f1d168",
+    "output": "0x9d9c6684f596f66a64c030b93a886d51fd4d7931",
+    "fee": 9900,
+    "tickSpacing": 99,
+    "hooks": "0x0000000000000000000000000000000000000000"
+  },
+  "0xbe274710bf3d9567e1b290ef6a5f9f90ca016fd8": {
+    "version": "v4",
+    "pool": "0x768b3c7809afd191f99027866d40a43960408d39554835821b1159ea208daa2e",
+    "input": "0x5fc5360d0400a0fd4f2af552add042d716f1d168",
+    "output": "0xbe274710bf3d9567e1b290ef6a5f9f90ca016fd8",
+    "fee": 48380,
+    "tickSpacing": 1,
+    "hooks": "0x0000000000000000000000000000000000000000"
+  },
+  "0x1eebee7f74517e0279dfb09d25b0407beec3fdd6": {
+    "version": "v4",
+    "pool": "0x70c362347ec9a031e5f2d3b816baed2af9ff56b6302b5b0112b51e207fc812db",
+    "input": "0x0000000000000000000000000000000000000000",
+    "output": "0x1eebee7f74517e0279dfb09d25b0407beec3fdd6",
+    "fee": 50000,
+    "tickSpacing": 500,
+    "hooks": "0x0000000000000000000000000000000000000000"
+  },
+  "0x6e3dfd9f7e1649baa14d25cac18c94d62db10a54": {
+    "version": "v4",
+    "pool": "0x3d2a14a63d4695bcc3403123cd84d287d0bfb932fe94599bb18df00a9b298d8b",
+    "input": "0x5fc5360d0400a0fd4f2af552add042d716f1d168",
+    "output": "0x6e3dfd9f7e1649baa14d25cac18c94d62db10a54",
+    "fee": 2654,
+    "tickSpacing": 27,
+    "hooks": "0x0000000000000000000000000000000000000000"
+  },
+  "0xcf6b2d875361be807eafa57458c80f28521f9333": {
+    "version": "v3",
+    "pool": "0xa1C781ed62AC2d0283f50fF5A843647a56ddd80a",
+    "input": "0x5fc5360d0400a0fd4f2af552add042d716f1d168",
+    "output": "0xcf6b2d875361be807eafa57458c80f28521f9333",
+    "fee": 10000,
+    "tickSpacing": 200
+  },
+  "0xa249baf1063af884807c1e1400aef7784836917e": {
+    "version": "v4",
+    "pool": "0x7e34702b6f1a53005f5ea94b72b21d51864b38a09be0da6846ece0d51eac8645",
+    "input": "0x0000000000000000000000000000000000000000",
+    "output": "0xa249baf1063af884807c1e1400aef7784836917e",
+    "fee": 50000,
+    "tickSpacing": 500,
+    "hooks": "0x0000000000000000000000000000000000000000"
+  },
+  "0x521cf887e6531c6f667b5bc4d896e5d9bfe8eb2e": {
+    "version": "v4",
+    "pool": "0x36b652d2f4bde8958638747d3e45fcb2089fbd2a3c298a17d0d5b458e25c3228",
+    "input": "0x0000000000000000000000000000000000000000",
+    "output": "0x521cf887e6531c6f667b5bc4d896e5d9bfe8eb2e",
+    "fee": 50000,
+    "tickSpacing": 500,
+    "hooks": "0x0000000000000000000000000000000000000000"
+  },
+  "0x8ef20885f94e3d9bc7eb3080279188bd5ed7c08c": {
+    "version": "v4",
+    "pool": "0xe2c508ce68ebc3a04a5000cc3659905bb391d390e5b8994d0a65ba316ec326c2",
+    "input": "0x5fc5360d0400a0fd4f2af552add042d716f1d168",
+    "output": "0x8ef20885f94e3d9bc7eb3080279188bd5ed7c08c",
+    "fee": 10000,
+    "tickSpacing": 100,
+    "hooks": "0x0000000000000000000000000000000000000000"
+  },
+  "0xfaf9cb261b5fcc1f404bb10cd39c5c6c1974e612": {
+    "version": "v4",
+    "pool": "0xe138f151edae48fda5caae984589c59c1cdb923893b33158999f078889850d05",
+    "input": "0x0000000000000000000000000000000000000000",
+    "output": "0xfaf9cb261b5fcc1f404bb10cd39c5c6c1974e612",
+    "fee": 50000,
+    "tickSpacing": 200,
+    "hooks": "0x0000000000000000000000000000000000000000"
+  },
+  "0x7fd06a4d81ccfa3f351394e144d5191874c31313": {
+    "version": "v4",
+    "pool": "0x2c0dad35f93b6f751962c7bed41c19073fc4d0759c7c0bc48863778ee5e0dd57",
+    "input": "0x0000000000000000000000000000000000000000",
+    "output": "0x7fd06a4d81ccfa3f351394e144d5191874c31313",
+    "fee": 50000,
+    "tickSpacing": 200,
+    "hooks": "0x0000000000000000000000000000000000000000"
+  },
+  "0x36046893810a7e7fce501229d57dc3fc8c8716d0": {
+    "version": "v4",
+    "pool": "0xe1bf5309778aca8ca0474366ae5e1721c7e5d629f48fe39fd26d3cda4c220258",
+    "input": "0x0000000000000000000000000000000000000000",
+    "output": "0x36046893810a7e7fce501229d57dc3fc8c8716d0",
+    "fee": 50000,
+    "tickSpacing": 1000,
+    "hooks": "0x0000000000000000000000000000000000000000"
+  },
+  "0x62fd0668e10d8b72339be2dcf7643001688ff13b": {
+    "version": "v3",
+    "pool": "0x06cc0b96Be1fa1d754CE2e1228F5d8c616F795b0",
+    "input": "0x5fc5360d0400a0fd4f2af552add042d716f1d168",
+    "output": "0x62fd0668e10d8b72339be2dcf7643001688ff13b",
+    "fee": 10000,
+    "tickSpacing": 200
+  },
+  "0xeaf2512dfc1beac608f8794b3793cd4e02894aa6": {
+    "version": "v4",
+    "pool": "0xd907cf233c9ad16de6d794ac9b0feee44bb2d8bc57db7870379164e301acbb0b",
+    "input": "0x0000000000000000000000000000000000000000",
+    "output": "0xeaf2512dfc1beac608f8794b3793cd4e02894aa6",
+    "fee": 50000,
+    "tickSpacing": 500,
+    "hooks": "0x0000000000000000000000000000000000000000"
+  },
+  "0x8005d266423c7ea827372c9c864491e5786600ea": {
+    "version": "v3",
+    "pool": "0xF212D02146a897F5F686E9d629F6A73da534324a",
+    "input": "0x5fc5360d0400a0fd4f2af552add042d716f1d168",
+    "output": "0x8005d266423c7ea827372c9c864491e5786600ea",
+    "fee": 500,
+    "tickSpacing": 10
+  },
+  "0x0f17206447090e464c277571124dd2688e48aea9": {
+    "version": "v4",
+    "pool": "0x80ee0f4dbf8d83456ad66ba18a95ae2f585ca6d81e07292ebcc5aadfea0af5eb",
+    "input": "0x5fc5360d0400a0fd4f2af552add042d716f1d168",
+    "output": "0x0f17206447090e464c277571124dd2688e48aea9",
+    "fee": 50000,
+    "tickSpacing": 500,
+    "hooks": "0x0000000000000000000000000000000000000000"
+  },
+  "0x03dfbbe0ac4e7bcdafd08ed41a400326b77d8c80": {
+    "version": "v3",
+    "pool": "0x7F0aCE18D1dCEd47063CF26e649bc8AB14D09e67",
+    "input": "0x5fc5360d0400a0fd4f2af552add042d716f1d168",
+    "output": "0x03dfbbe0ac4e7bcdafd08ed41a400326b77d8c80",
+    "fee": 3000,
+    "tickSpacing": 60
+  },
+  "0x12e3c047bf9aecaf9ddc98c05c31bfd1dd043993": {
+    "version": "v4",
+    "pool": "0x554820abca0d7fdecfc8a21edf82103a43c063846f71f9c34fddee96cb06bb37",
+    "input": "0x0000000000000000000000000000000000000000",
+    "output": "0x12e3c047bf9aecaf9ddc98c05c31bfd1dd043993",
+    "fee": 50000,
+    "tickSpacing": 500,
+    "hooks": "0x0000000000000000000000000000000000000000"
+  },
+  "0x28babd556b60e53663b8615036479a29c2cdd1bf": {
+    "version": "v4",
+    "pool": "0xf127159e45c56c4994b378fb06efa0795aa37fa655e3e59a56bd6cd2db55678e",
+    "input": "0x0000000000000000000000000000000000000000",
+    "output": "0x28babd556b60e53663b8615036479a29c2cdd1bf",
+    "fee": 50000,
+    "tickSpacing": 500,
+    "hooks": "0x0000000000000000000000000000000000000000"
+  },
+  "0x63d5a3b6939a33f1e75d8bcd85759858239600db": {
+    "version": "v4",
+    "pool": "0xe5c815147ae37e92f1601df5e54f9f49222bb5c19dc0c9b8cf73d9e7f5fdb8eb",
+    "input": "0x0000000000000000000000000000000000000000",
+    "output": "0x63d5a3b6939a33f1e75d8bcd85759858239600db",
+    "fee": 50000,
+    "tickSpacing": 500,
+    "hooks": "0x0000000000000000000000000000000000000000"
+  },
+  "0xaa4d64474c172010ab57719cb9951e6142a100d3": {
+    "version": "v4",
+    "pool": "0x7de70efc572684e85388658e83376a9158f9a964261098d047a2bd498b4d411c",
+    "input": "0x0000000000000000000000000000000000000000",
+    "output": "0xaa4d64474c172010ab57719cb9951e6142a100d3",
+    "fee": 50000,
+    "tickSpacing": 500,
+    "hooks": "0x0000000000000000000000000000000000000000"
+  },
+  "0x558378e000d634a36593e338ebacdd6207640efe": {
+    "version": "v4",
+    "pool": "0xa5fb5171610a57253725ddecc264ea2c832867ea81559880960300fabd848ca7",
+    "input": "0x0000000000000000000000000000000000000000",
+    "output": "0x558378e000d634a36593e338ebacdd6207640efe",
+    "fee": 50000,
+    "tickSpacing": 500,
+    "hooks": "0x0000000000000000000000000000000000000000"
+  },
+  "0xb1969f6604ca1ae7a2cd3f1827876e914594ca2d": {
+    "version": "v4",
+    "pool": "0x686775b1d37ffeb79330a724c1a21aa0cd06cbf00356722f65a59a8b4086ed10",
+    "input": "0x0000000000000000000000000000000000000000",
+    "output": "0xb1969f6604ca1ae7a2cd3f1827876e914594ca2d",
+    "fee": 50000,
+    "tickSpacing": 500,
+    "hooks": "0x0000000000000000000000000000000000000000"
+  },
+  "0xf53f66751b1eff985311b693531e3290f600c410": {
+    "version": "v4",
+    "pool": "0x3edfbf6a3c6ef62b822be53c749bab2e52006866ffaa2566b4936823e2c94683",
+    "input": "0x5fc5360d0400a0fd4f2af552add042d716f1d168",
+    "output": "0xf53f66751b1eff985311b693531e3290f600c410",
+    "fee": 5210,
+    "tickSpacing": 52,
+    "hooks": "0x0000000000000000000000000000000000000000"
+  },
+  "0xbe6702d7b70315376dc48a3293f24f0982f86386": {
+    "version": "v4",
+    "pool": "0xa3b695bd08e514cfe9ff8ad3a70d14d60b82eabf87f20a949a8fb20ef56e43b2",
+    "input": "0x0000000000000000000000000000000000000000",
+    "output": "0xbe6702d7b70315376dc48a3293f24f0982f86386",
+    "fee": 49000,
+    "tickSpacing": 490,
+    "hooks": "0x0000000000000000000000000000000000000000"
+  },
+  "0xfb2664f07b6aadd29ea7a59d8859b1aeb8645cda": {
+    "version": "v4",
+    "pool": "0xfb3f85e9d11d9942d5fea6def7fde1d2bd5b919cdb22b6b1dc5525289491e80d",
+    "input": "0x0000000000000000000000000000000000000000",
+    "output": "0xfb2664f07b6aadd29ea7a59d8859b1aeb8645cda",
+    "fee": 50000,
+    "tickSpacing": 500,
+    "hooks": "0x0000000000000000000000000000000000000000"
+  },
+  "0x0e6e67ba88e7b5d9b67636a215c76779b948de79": {
+    "version": "v4",
+    "pool": "0x82f6c749e9fb8890434bee3174f2bfe6a235c38f596fd1d8a8551b922e036066",
+    "input": "0x0000000000000000000000000000000000000000",
+    "output": "0x0e6e67ba88e7b5d9b67636a215c76779b948de79",
+    "fee": 49500,
+    "tickSpacing": 495,
+    "hooks": "0x0000000000000000000000000000000000000000"
+  },
+  "0xb0992820e760d836549ba69bc7598b4af75dee03": {
+    "version": "v4",
+    "pool": "0xc2ce4784e1e72cf0221b51b30c8aaadf6c0b12863cf03ab3687854fb7b1d850a",
+    "input": "0x5fc5360d0400a0fd4f2af552add042d716f1d168",
+    "output": "0xb0992820e760d836549ba69bc7598b4af75dee03",
+    "fee": 10000,
+    "tickSpacing": 200,
+    "hooks": "0x0000000000000000000000000000000000000000"
+  },
+  "0x92f9f459f1a9a5ad266b182be7bffd1c6c666894": {
+    "version": "v4",
+    "pool": "0x12fa5c5cdf005323bfe33ffe2bf7ada9e4a333bd65d9eaf844425207cd0ee231",
+    "input": "0x0000000000000000000000000000000000000000",
+    "output": "0x92f9f459f1a9a5ad266b182be7bffd1c6c666894",
+    "fee": 50000,
+    "tickSpacing": 500,
+    "hooks": "0x0000000000000000000000000000000000000000"
+  },
+  "0x94b8aae43a1ccc08aa64b7d1f29b4d920af4a0c9": {
+    "version": "v4",
+    "pool": "0xe2e2a7c441753df701531254711e7e707a0c2ccf151053112227cf399121d5ff",
+    "input": "0x0000000000000000000000000000000000000000",
+    "output": "0x94b8aae43a1ccc08aa64b7d1f29b4d920af4a0c9",
+    "fee": 50000,
+    "tickSpacing": 200,
+    "hooks": "0x0000000000000000000000000000000000000000"
+  },
+  "0x373c06c4f7bde527d7dae4ba169e42b55e393ced": {
+    "version": "v4",
+    "pool": "0xe4f5e2f3f8486f41819079c3fd56df9d65771fce081aa0b153964c14e04045db",
+    "input": "0x0000000000000000000000000000000000000000",
+    "output": "0x373c06c4f7bde527d7dae4ba169e42b55e393ced",
+    "fee": 48000,
+    "tickSpacing": 480,
+    "hooks": "0x0000000000000000000000000000000000000000"
+  },
+  "0x980dcf6766fa79f5cf0c4aadb3ab477ff15a9619": {
+    "version": "v3",
+    "pool": "0x8cD848ce18b829C5c769AFf27164078bB52e0E97",
+    "input": "0x5fc5360d0400a0fd4f2af552add042d716f1d168",
+    "output": "0x980dcf6766fa79f5cf0c4aadb3ab477ff15a9619",
+    "fee": 3000,
+    "tickSpacing": 60
+  },
+  "0xf7181b63fdb858558a74ba96bc42732684cd7965": {
+    "version": "v4",
+    "pool": "0x1e8a0e15ffd6e28a78f284c76fd54600dc7cd7a1f308037ffe68a4c9387c67f6",
+    "input": "0x0000000000000000000000000000000000000000",
+    "output": "0xf7181b63fdb858558a74ba96bc42732684cd7965",
+    "fee": 48900,
+    "tickSpacing": 489,
+    "hooks": "0x0000000000000000000000000000000000000000"
+  },
+  "0xf1953dab6fad537488d5a022361ffaa8b4c95ec6": {
+    "version": "v4",
+    "pool": "0x2f400711661996987514367aa260c8d016b1ae766e9d1d6f2cb848dad98fdc3c",
+    "input": "0x0000000000000000000000000000000000000000",
+    "output": "0xf1953dab6fad537488d5a022361ffaa8b4c95ec6",
+    "fee": 50000,
+    "tickSpacing": 500,
+    "hooks": "0x0000000000000000000000000000000000000000"
+  },
+  "0xaf3d76f1834a1d425780943c99ea8a608f8a93f9": {
+    "version": "v3",
+    "pool": "0xAae0d815EE56e4092a5E5C2911E676Fea50B2d6D",
+    "input": "0x5fc5360d0400a0fd4f2af552add042d716f1d168",
+    "output": "0xaf3d76f1834a1d425780943c99ea8a608f8a93f9",
+    "fee": 500,
+    "tickSpacing": 10
+  },
+  "0x05a3d1cd21d0c88145e82600e62e7e496e0f222b": {
+    "version": "v4",
+    "pool": "0x06b9732431bd134599dd112a93c708fe80cadd2fb7dc750fe632e1cbf49fd8c0",
+    "input": "0x5fc5360d0400a0fd4f2af552add042d716f1d168",
+    "output": "0x05a3d1cd21d0c88145e82600e62e7e496e0f222b",
+    "fee": 500,
+    "tickSpacing": 5,
+    "hooks": "0x0000000000000000000000000000000000000000"
+  },
+  "0xb1bf26c1d20ff267a4f93550d1e0d06ac40a114b": {
+    "version": "v4",
+    "pool": "0x58b68552d45529cc6c3b35faeaa75e47f4e2bcf2afb2399597acbc39e34a9a8a",
+    "input": "0x5fc5360d0400a0fd4f2af552add042d716f1d168",
+    "output": "0xb1bf26c1d20ff267a4f93550d1e0d06ac40a114b",
+    "fee": 2300,
+    "tickSpacing": 23,
+    "hooks": "0x0000000000000000000000000000000000000000"
+  },
+  "0x1b0e319c6a659f002271b69db8a7df2f911c153e": {
+    "version": "v3",
+    "pool": "0xE2b46c905E12Ab8E2f864e4821a4325884C1B126",
+    "input": "0x5fc5360d0400a0fd4f2af552add042d716f1d168",
+    "output": "0x1b0e319c6a659f002271b69db8a7df2f911c153e",
+    "fee": 500,
+    "tickSpacing": 10
+  },
+  "0x52d50d0280ad1054b43f052bd70a49a212a1b128": {
+    "version": "v4",
+    "pool": "0x0e12c4fbb7ecd127e221007455718fc07239df9f646d673160af20640794d981",
+    "input": "0x0000000000000000000000000000000000000000",
+    "output": "0x52d50d0280ad1054b43f052bd70a49a212a1b128",
+    "fee": 50000,
+    "tickSpacing": 500,
+    "hooks": "0x0000000000000000000000000000000000000000"
+  },
+  "0x9b23573b156b52565012f5ce02cdf60afbaa70be": {
+    "version": "v3",
+    "pool": "0x1cD650500fa6F07646361F5F508aa6Fbf7ddaD36",
+    "input": "0x5fc5360d0400a0fd4f2af552add042d716f1d168",
+    "output": "0x9b23573b156b52565012f5ce02cdf60afbaa70be",
+    "fee": 3000,
+    "tickSpacing": 60
+  },
+  "0x116f00968269b7bfbad4109ce591d6e74c0601d4": {
+    "version": "v4",
+    "pool": "0x578d3e799e888723d7f4292dec70e0e2abe9dc7e3b337a1c53ea16757f18faf2",
+    "input": "0x5fc5360d0400a0fd4f2af552add042d716f1d168",
+    "output": "0x116f00968269b7bfbad4109ce591d6e74c0601d4",
+    "fee": 9500,
+    "tickSpacing": 95,
+    "hooks": "0x0000000000000000000000000000000000000000"
+  },
+  "0xd63abb2c13d7a8421a8017a712802053568e3c1d": {
+    "version": "v4",
+    "pool": "0x99acaf1862af2d333064b3957cd7ee9d46e6f44747cd89fd826c1936b5d44ea0",
+    "input": "0x0000000000000000000000000000000000000000",
+    "output": "0xd63abb2c13d7a8421a8017a712802053568e3c1d",
+    "fee": 50000,
+    "tickSpacing": 200,
+    "hooks": "0x0000000000000000000000000000000000000000"
+  },
+  "0xa5d4968421ba94814be3b136b15cf422101ac1a3": {
+    "version": "v4",
+    "pool": "0x63bd80045294eb0e8283d29de4f54a7861825c4f933c07f383ac9eb58c5911bd",
+    "input": "0x0000000000000000000000000000000000000000",
+    "output": "0xa5d4968421ba94814be3b136b15cf422101ac1a3",
+    "fee": 50000,
+    "tickSpacing": 500,
+    "hooks": "0x0000000000000000000000000000000000000000"
+  },
+  "0xec262a75e413fafd0df80480274532c79d42da09": {
+    "version": "v4",
+    "pool": "0x0b7651084eb6758980efbccf73d95c680dd26e80800fbc91927d94a7f804d8bf",
+    "input": "0x5fc5360d0400a0fd4f2af552add042d716f1d168",
+    "output": "0xec262a75e413fafd0df80480274532c79d42da09",
+    "fee": 2010,
+    "tickSpacing": 20,
+    "hooks": "0x0000000000000000000000000000000000000000"
+  },
+  "0x3139d77ace0cbaa5bdfd38bd1f1911a794af0b0e": {
+    "version": "v4",
+    "pool": "0x1d79078707f7d576317be0df85700b22c2e60e18de4bf4510489d77a4d0fd33f",
+    "input": "0x5fc5360d0400a0fd4f2af552add042d716f1d168",
+    "output": "0x3139d77ace0cbaa5bdfd38bd1f1911a794af0b0e",
+    "fee": 30000,
+    "tickSpacing": 300,
+    "hooks": "0x0000000000000000000000000000000000000000"
+  },
+  "0xc27dbd474af5181c5a8777903690d8d262d12648": {
+    "version": "v4",
+    "pool": "0xe09df23f65bda1230573be579f31eeb0405a3339b53f38392ced9d32fd02679c",
+    "input": "0x0000000000000000000000000000000000000000",
+    "output": "0xc27dbd474af5181c5a8777903690d8d262d12648",
+    "fee": 50000,
+    "tickSpacing": 200,
+    "hooks": "0x0000000000000000000000000000000000000000"
+  },
+  "0x322f0929c4625ed5bad873c95208d54e1c003b2d": {
+    "version": "v3",
+    "pool": "0xc4f0172D6ac8DD294Dd1137D047d5E1893760236",
+    "input": "0x5fc5360d0400a0fd4f2af552add042d716f1d168",
+    "output": "0x322f0929c4625ed5bad873c95208d54e1c003b2d",
+    "fee": 500,
+    "tickSpacing": 10
+  },
+  "0x1c690498150252222c275a5ced69d3a6b1f52d5e": {
+    "version": "v4",
+    "pool": "0x4fe58bcbb88be70c72057283fa4ddef03556e8ae6b7ab66f0d4ecf46079e6c93",
+    "input": "0x0000000000000000000000000000000000000000",
+    "output": "0x1c690498150252222c275a5ced69d3a6b1f52d5e",
+    "fee": 48800,
+    "tickSpacing": 488,
+    "hooks": "0x0000000000000000000000000000000000000000"
+  },
+  "0x3fb8976980d486084b2eb4a404bd12e72823958f": {
+    "version": "v4",
+    "pool": "0x4172402c6b49cb84b1d8f5ce86b2bbe21fdf7fbc38004d4603bd7b2e66abc708",
+    "input": "0x5fc5360d0400a0fd4f2af552add042d716f1d168",
+    "output": "0x3fb8976980d486084b2eb4a404bd12e72823958f",
+    "fee": 30000,
+    "tickSpacing": 300,
+    "hooks": "0x0000000000000000000000000000000000000000"
+  },
+  "0x59dd09d4900c2e4b5f75b7c0d4e6796fcc234cb1": {
+    "version": "v3",
+    "pool": "0xe0E25884A3B690B1699732De475b2281600B0934",
+    "input": "0x5fc5360d0400a0fd4f2af552add042d716f1d168",
+    "output": "0x59dd09d4900c2e4b5f75b7c0d4e6796fcc234cb1",
+    "fee": 3000,
+    "tickSpacing": 60
+  },
+  "0x26dcbfb34fc83cabd6990f449674efdc6097ff85": {
+    "version": "v4",
+    "pool": "0x6065ca2607746f38d7e421cdd7343bcbb8f16f365ce5c659fcd92a0fc6162d9b",
+    "input": "0x0000000000000000000000000000000000000000",
+    "output": "0x26dcbfb34fc83cabd6990f449674efdc6097ff85",
+    "fee": 50050,
+    "tickSpacing": 501,
+    "hooks": "0x0000000000000000000000000000000000000000"
+  },
+  "0x232b8ed6377be97813853b0ac104c4cda8378d1b": {
+    "version": "v4",
+    "pool": "0xc9c3f1c077949b9b25245aafa34ff974ebd2eb8d053ec55a85ecbfc8f4554660",
+    "input": "0x5fc5360d0400a0fd4f2af552add042d716f1d168",
+    "output": "0x232b8ed6377be97813853b0ac104c4cda8378d1b",
+    "fee": 2000,
+    "tickSpacing": 20,
+    "hooks": "0x0000000000000000000000000000000000000000"
+  },
+  "0xa8eb3bccbf2017ee7cbfb652eb51cf2e1b153289": {
+    "version": "v4",
+    "pool": "0xaf5c7643bf92e38223a19d783291bd04b85ef80dfacaa9ffce1f5eb010714e14",
+    "input": "0x0000000000000000000000000000000000000000",
+    "output": "0xa8eb3bccbf2017ee7cbfb652eb51cf2e1b153289",
+    "fee": 50000,
+    "tickSpacing": 500,
+    "hooks": "0x0000000000000000000000000000000000000000"
+  },
+  "0x27c99fbde9d0d2aa4f4bfb4943f237843ddf6958": {
+    "version": "v4",
+    "pool": "0x977c78c96cd9b306d87c235dee5a69ccab913b0f775575627e709643ad416598",
+    "input": "0x5fc5360d0400a0fd4f2af552add042d716f1d168",
+    "output": "0x27c99fbde9d0d2aa4f4bfb4943f237843ddf6958",
+    "fee": 10000,
+    "tickSpacing": 100,
+    "hooks": "0x0000000000000000000000000000000000000000"
+  },
+  "0x92ef19e82bd8ff36661de838d5eae7e5cef0effe": {
+    "version": "v4",
+    "pool": "0x8e373ecc92c00a656e65a554c084bd1260067e6ae820fd87c9bb4101df4c9c96",
+    "input": "0x0000000000000000000000000000000000000000",
+    "output": "0x92ef19e82bd8ff36661de838d5eae7e5cef0effe",
+    "fee": 50000,
+    "tickSpacing": 500,
+    "hooks": "0x0000000000000000000000000000000000000000"
+  },
+  "0x822cc93ffd030293e9842c30bbd678f530701867": {
+    "version": "v3",
+    "pool": "0x1baD145C8F06444E0dF81c28257cd20231Bd1f16",
+    "input": "0x5fc5360d0400a0fd4f2af552add042d716f1d168",
+    "output": "0x822cc93ffd030293e9842c30bbd678f530701867",
+    "fee": 3000,
+    "tickSpacing": 60
+  },
+  "0x1d11f0496982706c5e14a514d4e79f2e6bde4516": {
+    "version": "v4",
+    "pool": "0xdd8037839d4505a5a7d184628e8f3ad1348d1ac380428eed9e91b67b09d7dc57",
+    "input": "0x5fc5360d0400a0fd4f2af552add042d716f1d168",
+    "output": "0x1d11f0496982706c5e14a514d4e79f2e6bde4516",
+    "fee": 1896,
+    "tickSpacing": 19,
+    "hooks": "0x0000000000000000000000000000000000000000"
+  },
+  "0x8b2f88497f15a18e9d4ffa1a8ffb8538399ae774": {
+    "version": "v4",
+    "pool": "0x921d20506de45ee56f7f5ddd9bca9160141de2710b1574dd2bf64afd25aacced",
+    "input": "0x0000000000000000000000000000000000000000",
+    "output": "0x8b2f88497f15a18e9d4ffa1a8ffb8538399ae774",
+    "fee": 50000,
+    "tickSpacing": 500,
+    "hooks": "0x0000000000000000000000000000000000000000"
+  },
+  "0x44c4f142009036cf477ed2d09932051843137cf1": {
+    "version": "v4",
+    "pool": "0x46f1c54d32456c306e2c1e79f5ccf982654e3d7bd6df4bb4a06a69b27c67571b",
+    "input": "0x5fc5360d0400a0fd4f2af552add042d716f1d168",
+    "output": "0x44c4f142009036cf477ed2d09932051843137cf1",
+    "fee": 10000,
+    "tickSpacing": 100,
+    "hooks": "0x0000000000000000000000000000000000000000"
+  },
+  "0x282e87451e10fa6679bc7d76c69be44cd3fc777c": {
+    "version": "v4",
+    "pool": "0x9521de4c72b5f92b484af880ea4b1831024d19c460a1e849deb48eeae6218ecd",
+    "input": "0x0000000000000000000000000000000000000000",
+    "output": "0x282e87451e10fa6679bc7d76c69be44cd3fc777c",
+    "fee": 50000,
+    "tickSpacing": 200,
+    "hooks": "0x0000000000000000000000000000000000000000"
+  },
+  "0x411efb0e7f985935daec3d4c3ebaea0d0ad7d89f": {
+    "version": "v3",
+    "pool": "0xCa2734C70E3C348eDcDA36A6478c9275A0Ff0c90",
+    "input": "0x0bd7d308f8e1639fab988df18a8011f41eacad73",
+    "output": "0x411efb0e7f985935daec3d4c3ebaea0d0ad7d89f",
+    "fee": 3000,
+    "tickSpacing": 60
+  },
+  "0x98e75885157c80992a8d41b696d8c9c6fb30a926": {
+    "version": "v4",
+    "pool": "0x8f78763fc305229964e2e3d7be28f6cde8c3c0797a5774415d86e50b2e409f0f",
+    "input": "0x5fc5360d0400a0fd4f2af552add042d716f1d168",
+    "output": "0x98e75885157c80992a8d41b696d8c9c6fb30a926",
+    "fee": 29351,
+    "tickSpacing": 294,
+    "hooks": "0x0000000000000000000000000000000000000000"
+  },
+  "0xc02f12b9fe9e707079ec0d546f3050d3f6c1f8bd": {
+    "version": "v4",
+    "pool": "0x0b26355937a72d03a303a1ed6e069d681a4bbf152e521ec31aff6f17c6e3a06b",
+    "input": "0x0000000000000000000000000000000000000000",
+    "output": "0xc02f12b9fe9e707079ec0d546f3050d3f6c1f8bd",
+    "fee": 48000,
+    "tickSpacing": 480,
+    "hooks": "0x0000000000000000000000000000000000000000"
+  },
+  "0x348be1a8663f15edde5cdf8a96bb69078f7ab6fd": {
+    "version": "v4",
+    "pool": "0x38d736c5aa6a73a320947e877f11b127baddb5b6e45862aac2574e1cee1c0c18",
+    "input": "0x5fc5360d0400a0fd4f2af552add042d716f1d168",
+    "output": "0x348be1a8663f15edde5cdf8a96bb69078f7ab6fd",
+    "fee": 8000,
+    "tickSpacing": 80,
+    "hooks": "0x0000000000000000000000000000000000000000"
+  },
+  "0x4ea005168d7f09a7a0ba9d1def21a479950e44c2": {
+    "version": "v4",
+    "pool": "0xd0f36f913c83d95ab0e5f2cd2b991fc74bad741745ba9e7aeb6df8394c761f7b",
+    "input": "0x5fc5360d0400a0fd4f2af552add042d716f1d168",
+    "output": "0x4ea005168d7f09a7a0ba9d1def21a479950e44c2",
+    "fee": 880,
+    "tickSpacing": 9,
+    "hooks": "0x0000000000000000000000000000000000000000"
+  },
+  "0x0b5fb4031cae9163db10b169ee72685f0edc8545": {
+    "version": "v4",
+    "pool": "0xd7f142d4b74d052c528788792e6df5f84e4acfb35b0b84b7347cac603636b045",
+    "input": "0x0000000000000000000000000000000000000000",
+    "output": "0x0b5fb4031cae9163db10b169ee72685f0edc8545",
+    "fee": 47500,
+    "tickSpacing": 475,
+    "hooks": "0x0000000000000000000000000000000000000000"
+  },
+  "0xaea445c5f3db1a462998ccc422a875a361ee5d99": {
+    "version": "v4",
+    "pool": "0x5780789b3e84e8e6b4309932d868fe6d973b0ec8dc9109ee23b63b4ca44afc28",
+    "input": "0x0000000000000000000000000000000000000000",
+    "output": "0xaea445c5f3db1a462998ccc422a875a361ee5d99",
+    "fee": 50000,
+    "tickSpacing": 500,
+    "hooks": "0x0000000000000000000000000000000000000000"
+  },
+  "0xccee82fe024c36fa15e1005ede3e9e4787e23d09": {
+    "version": "v4",
+    "pool": "0xa7b26f2f7d0fdddbbe626845948f92eb006ff7df732ffc40d59d560453db8c2a",
+    "input": "0x5fc5360d0400a0fd4f2af552add042d716f1d168",
+    "output": "0xccee82fe024c36fa15e1005ede3e9e4787e23d09",
+    "fee": 2000,
+    "tickSpacing": 20,
+    "hooks": "0x0000000000000000000000000000000000000000"
+  },
+  "0x8cf07c5a878945185d327aaa6e33faa95f95e7bf": {
+    "version": "v4",
+    "pool": "0x6f1423ed3a6ad2124381db3c24740287ce6b7f55bd8868ca95af5be28092d7e9",
+    "input": "0x0000000000000000000000000000000000000000",
+    "output": "0x8cf07c5a878945185d327aaa6e33faa95f95e7bf",
+    "fee": 50000,
+    "tickSpacing": 500,
+    "hooks": "0x0000000000000000000000000000000000000000"
+  },
+  "0xf0c4bf4c582cb3836e98394b1d4e7b7281101be8": {
+    "version": "v4",
+    "pool": "0xf807376333cd408c36d48a11a96309b92c5bd2bca9ba9f0b21800636cb3a30da",
+    "input": "0x5fc5360d0400a0fd4f2af552add042d716f1d168",
+    "output": "0xf0c4bf4c582cb3836e98394b1d4e7b7281101be8",
+    "fee": 1000,
+    "tickSpacing": 10,
+    "hooks": "0x0000000000000000000000000000000000000000"
+  },
+  "0xad622320e520de39e72d41ef07438c3fd3354875": {
+    "version": "v4",
+    "pool": "0x7931fb8c36996a6ade40d5b93c0f531c1b877dd9925946829686de3b0bbc42ee",
+    "input": "0x0000000000000000000000000000000000000000",
+    "output": "0xad622320e520de39e72d41ef07438c3fd3354875",
+    "fee": 50000,
+    "tickSpacing": 500,
+    "hooks": "0x0000000000000000000000000000000000000000"
+  },
+  "0xdd356aa38f40a7b7076755ac854b6fbb1f0d305b": {
+    "version": "v4",
+    "pool": "0x14177ae51e8ad3aaf2cee426725858335db2c79ac0012c200aecc80e4437d687",
+    "input": "0x0000000000000000000000000000000000000000",
+    "output": "0xdd356aa38f40a7b7076755ac854b6fbb1f0d305b",
+    "fee": 49000,
+    "tickSpacing": 490,
+    "hooks": "0x0000000000000000000000000000000000000000"
+  },
+  "0x8ff63eaeee3fe54ba450c4f5538064ec5a893aef": {
+    "version": "v4",
+    "pool": "0x40a5d5da94fdb8154a5823f5e5f6912aab687947db544b850ad4f6df0cf80205",
+    "input": "0x0000000000000000000000000000000000000000",
+    "output": "0x8ff63eaeee3fe54ba450c4f5538064ec5a893aef",
+    "fee": 49000,
+    "tickSpacing": 490,
+    "hooks": "0x0000000000000000000000000000000000000000"
+  },
+  "0x75742c18bc1f1c5c5f448f4c9d9c6f66dafaaa38": {
+    "version": "v4",
+    "pool": "0x75c70e9b045d4cb2bb79ff8dea3f22add5aa15a3d5e3e6640aabc23f146d1aed",
+    "input": "0x0000000000000000000000000000000000000000",
+    "output": "0x75742c18bc1f1c5c5f448f4c9d9c6f66dafaaa38",
+    "fee": 50000,
+    "tickSpacing": 500,
+    "hooks": "0x0000000000000000000000000000000000000000"
+  },
+  "0x47f93d52cbec7c6d2cfc080e154002370a60daea": {
+    "version": "v3",
+    "pool": "0xce79c1B7b5f9Ae1aab3B1796e7Fcd2F5F24cF265",
+    "input": "0x5fc5360d0400a0fd4f2af552add042d716f1d168",
+    "output": "0x47f93d52cbec7c6d2cfc080e154002370a60daea",
+    "fee": 3000,
+    "tickSpacing": 60
+  },
+  "0xeb61c0ed490a367d4e3631ccf8a74b3bfc7e775d": {
+    "version": "v4",
+    "pool": "0x2341b2ec6872da1303df008689f40e3d04d9e08851279658ef85b80f8dbf0196",
+    "input": "0x5fc5360d0400a0fd4f2af552add042d716f1d168",
+    "output": "0xeb61c0ed490a367d4e3631ccf8a74b3bfc7e775d",
+    "fee": 30000,
+    "tickSpacing": 300,
+    "hooks": "0x0000000000000000000000000000000000000000"
+  },
+  "0xf6290b5e7c26502e2da514c31509849718ea76a5": {
+    "version": "v4",
+    "pool": "0x124771185140451495aeb8387fc513b5eb5dbf1ae2a73ee7b4f782f1b4af4c59",
+    "input": "0x0000000000000000000000000000000000000000",
+    "output": "0xf6290b5e7c26502e2da514c31509849718ea76a5",
+    "fee": 49500,
+    "tickSpacing": 495,
+    "hooks": "0x0000000000000000000000000000000000000000"
+  },
+  "0xacef2e09adb47ad6abebad9ff06689e60615c2b6": {
+    "version": "v3",
+    "pool": "0x2171c94d8073C4913f4653a0766D18aA8A29D1f6",
+    "input": "0x5fc5360d0400a0fd4f2af552add042d716f1d168",
+    "output": "0xacef2e09adb47ad6abebad9ff06689e60615c2b6",
+    "fee": 3000,
+    "tickSpacing": 60
+  },
+  "0xddf2266b79abf0b48898959b0ed6e6adf512be74": {
+    "version": "v4",
+    "pool": "0x108f208bea5ab4d4620097776d2f981094c3da5ff2a58074d86792e7100f0038",
+    "input": "0x5fc5360d0400a0fd4f2af552add042d716f1d168",
+    "output": "0xddf2266b79abf0b48898959b0ed6e6adf512be74",
+    "fee": 38560,
+    "tickSpacing": 386,
+    "hooks": "0x0000000000000000000000000000000000000000"
+  },
+  "0x7066a64c24e4206cd62e83bf198c1e7eb361f51e": {
+    "version": "v4",
+    "pool": "0x632d9bdccf26e13dbf23b185f29cba47e237371010e1abf7aceaeff653f66be4",
+    "input": "0x5fc5360d0400a0fd4f2af552add042d716f1d168",
+    "output": "0x7066a64c24e4206cd62e83bf198c1e7eb361f51e",
+    "fee": 1500,
+    "tickSpacing": 15,
+    "hooks": "0x0000000000000000000000000000000000000000"
+  },
+  "0x96b933c74ecb4a0926b9210cef7b743ef46be2e9": {
+    "version": "v4",
+    "pool": "0x5c7d204cf492ebf491aac9e52d2e1099aff7397f9d5f87a7bebf7a1e450d48e4",
+    "input": "0x0000000000000000000000000000000000000000",
+    "output": "0x96b933c74ecb4a0926b9210cef7b743ef46be2e9",
+    "fee": 50000,
+    "tickSpacing": 200,
+    "hooks": "0x0000000000000000000000000000000000000000"
+  },
+  "0x7c148f74ac7445d1f28366b7fcdc6792a9fcd0cf": {
+    "version": "v4",
+    "pool": "0xa2523895590afecd6245d18f3ea7b81f7f86bafbe1d849c692cd4792beac5ffc",
+    "input": "0x0000000000000000000000000000000000000000",
+    "output": "0x7c148f74ac7445d1f28366b7fcdc6792a9fcd0cf",
+    "fee": 50000,
+    "tickSpacing": 500,
+    "hooks": "0x0000000000000000000000000000000000000000"
+  }
+} as const;

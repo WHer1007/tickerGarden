@@ -1,3 +1,4 @@
+import {quotePurchase} from '../../../packages/chain/src/quote-purchase/quote.ts';
 import {rpcPolicy} from '../../../packages/chain/src/rpc-policy.ts';
 import {CURRENT_CHAIN_ID,assertRuntimeEnvironment} from '../../../packages/runtime-deployment/src/index.ts';
 import {readProtocolStatistics} from '../../../packages/statistics-store/src/snapshot.ts';
@@ -50,7 +51,7 @@ export function createReadApiApp(options: ReadApiOptions = {}) {
   const cachedGlobalRead=<T>(key:string,build:(readPool:Pool)=>Promise<T>)=>shareGlobalRead(key,()=>sharedStatistics({pool:pool(),deployment,...(schemaName?{schemaName}:{})},key,build));
 
   const cursorSecret = env.TG_CURSOR_SECRET ?? '';
-  const primary = options.primary ?? (env.TG_RPC_URL ? new RpcTransport({ url: env.TG_RPC_URL }) : undefined);
+  const primary = options.primary ?? (env.TG_READ_RPC_URL ? new RpcTransport({ url: env.TG_READ_RPC_URL }) : undefined);
   const secondary = options.secondary ?? (rpc.verificationUrl ? new RpcTransport({ url: rpc.verificationUrl }) : undefined);
 
   app.use('/v1/*', async (context, next) => {
@@ -62,7 +63,7 @@ export function createReadApiApp(options: ReadApiOptions = {}) {
     const dynamicRanking = path==='/v1/markets'&&['marketCapUsd_desc','recentBuy_desc'].includes(context.req.query('sort')??'');
     const immutableRevision = context.res.status >= 200 && context.res.status < 300
       && typeof revision === 'string' && /^(0|[1-9][0-9]*):0x[0-9a-f]{64}$/.test(revision);
-    context.header('cache-control', context.res.status < 200 || context.res.status >= 300 || privateRead || activity || context.req.query('includeRecent')==='true' || path.endsWith('/updates') || dynamicRanking || path==='/v1/protocol-statistics'
+    context.header('cache-control', context.res.status < 200 || context.res.status >= 300 || privateRead || path==='/v1/quote-purchase' || activity || context.req.query('includeRecent')==='true' || path.endsWith('/updates') || dynamicRanking || path==='/v1/protocol-statistics'
       ? 'no-store'
       : immutableRevision
         ? 'public, max-age=300, s-maxage=31536000, immutable'
@@ -70,6 +71,21 @@ export function createReadApiApp(options: ReadApiOptions = {}) {
           ? 'public, max-age=60, s-maxage=300, stale-while-revalidate=60'
         : 'public, max-age=5, s-maxage=15, stale-while-revalidate=30');
   });
+
+  const purchaseReads=createReadAdmission({concurrency:4,maxPending:8,unavailable:()=>new PublicationUnavailableError('Purchase quotes are busy')});
+  app.get('/v1/quote-purchase',async context=>{
+    try {
+      const q=context.req.query();
+      if(Object.keys(q).some(key=>!['chainId','token','amountOut'].includes(key)))return context.json({error:'invalid_query',message:'Check the purchase request.'},400);
+      if(q.chainId!=='4663'||deployment.chainId!==4663||!/^0x[0-9a-fA-F]{40}$/.test(q.token??''))return context.json({error:'invalid_query',message:'Choose a supported paired asset.'},400);
+      if(!/^[1-9][0-9]{0,38}$/.test(q.amountOut??'')||BigInt(q.amountOut!)>=2n**128n)return context.json({error:'invalid_query',message:'Enter a valid purchase amount.'},400);
+      if(!primary)throw Error('RPC unavailable');
+      const result=await purchaseReads(`${q.token!.toLowerCase()}:${q.amountOut}`,()=>quotePurchase(primary,q.token!,q.amountOut!));
+      return context.json(result);
+    }catch{return context.json({error:'quote_unavailable',message:'This purchase could not be quoted. Try again shortly.'},503);}
+  });
+
+  app.all('/v1/quote-purchase',context=>context.json({error:'method_not_allowed',message:'Use GET.'},405));
 
   app.get('/health', async (context) => {
     let sync = await unavailableSync(deployment);

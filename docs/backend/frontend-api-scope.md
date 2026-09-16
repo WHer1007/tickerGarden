@@ -83,3 +83,7 @@
 市值榜复用 Pipeline `/internal/dispatch` 的现有每分钟调度，按 UTC 20 分钟桶去重生成；价格刷新入口也可触发同一幂等函数。无需新增 Preview cron 或常驻服务。构建成功原子发布、失败保留上次结果；成功构建时清理两小时前的旧版本。Read API 对这些表只读，Pipeline 可写。排名不依赖浏览器触发，不读取即时 RPC。
 
 发布次序为：在测试数据库应用迁移与权限，生成初始市值排名，发布 Pipeline/Read API/Web 候选版，验收 `sin1` 后切换测试别名。生产须另行批准，不能使用测试数据库或 release。
+
+### Developer buy funding
+
+`GET /v1/quote-purchase` accepts mainnet `chainId=4663`, allowlisted `token`, and raw `amountOut`. Returns an expiring exact-output quote with ETH input, intermediate input, block number and price impact (including LP fees). No caching, signing or submission. At most four concurrent reads and eight queued reads per instance. The browser rebuilds calldata from the reviewed route catalog, checks wallet balance again, simulates and submits from the wallet. SATS/BND are not offered.

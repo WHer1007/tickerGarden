@@ -1,3 +1,4 @@
+import {metamaskDappLink} from './wallet-links.ts';
 import { createWalletSession } from "./wallet-session.ts";
 import { publicMessage } from "./public-copy.ts";
 export interface InjectedProvider {
@@ -47,7 +48,7 @@ export function createWalletPicker(actions: { connect(provider: InjectedProvider
     <h2 id="wallet-dialog-title">Connect a wallet</h2>
     <div class="wallet-current" hidden><div class="wallet-current-address"><span data-wallet-address></span><button type="button" class="wallet-copy" data-wallet-copy aria-label="Copy wallet address" title="Copy wallet address"><i class="ph ph-copy" aria-hidden="true"></i></button></div><button type="button" data-wallet-disconnect>Disconnect</button></div>
     <div class="wallet-options"></div><p class="wallet-picker-status" role="status" aria-live="polite"></p>
-    <p class="wallet-dialog-foot">Use an installed browser wallet or open this site in your wallet’s browser. Connecting does not submit a transaction.</p>`;
+    <div class="wallet-mobile-actions" data-wallet-mobile hidden><a data-wallet-open>Open in MetaMask</a><button type="button" data-wallet-copy-page>Copy page link</button><span data-wallet-page-link hidden></span></div><p class="wallet-dialog-foot">Use an installed browser wallet or open this site in your wallet’s browser. Connecting does not submit a transaction.</p>`;
   document.body.append(dialog);
   const list = dialog.querySelector<HTMLElement>(".wallet-options")!;
   const status = dialog.querySelector<HTMLElement>(".wallet-picker-status")!;
@@ -115,6 +116,12 @@ export function createWalletPicker(actions: { connect(provider: InjectedProvider
     }
   }
   function render() {
+    const mobile=/Android|iPhone|iPad|iPod/i.test(navigator.userAgent)||(navigator.maxTouchPoints>1&&/Macintosh/.test(navigator.userAgent));
+    const target=metamaskDappLink(location.href),mobilePanel=dialog.querySelector<HTMLElement>('[data-wallet-mobile]')!;
+    mobilePanel.hidden=!mobile||!!actions.account();
+    const open=dialog.querySelector<HTMLAnchorElement>('[data-wallet-open]')!;open.hidden=!target;if(target)open.href=target;
+    dialog.querySelector<HTMLButtonElement>('[data-wallet-copy-page]')!.onclick=async()=>{try{await navigator.clipboard.writeText(location.href);status.textContent='Page link copied. Paste it into your wallet browser.';}catch{const link=dialog.querySelector<HTMLElement>('[data-wallet-page-link]')!;link.hidden=false;link.textContent=location.href;status.textContent='Copy this link into your wallet browser.';}};
+
     const focused = (document.activeElement as HTMLElement | null)?.dataset.walletChoice;
     list.replaceChildren();
     const rows = [...discovered.map((entry) => ({ entry, common: COMMON_WALLETS.find((item) => item.rdns === entry.rdns) })),

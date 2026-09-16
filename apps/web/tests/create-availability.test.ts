@@ -16,7 +16,7 @@ test('missing fields and unavailable prerequisites explain the first blocker', (
   assert.equal(createDisabledReason(available({pendingQuote: true})), 'Select an active paired asset.');
 });
 test('developer buy requires preview and sufficient ETH', () => {
-  assert.equal(createDisabledReason(available({buyMode: true, fundingReady: false})), 'Buy preview failed. Retry or remove Developer buy.');
+  assert.equal(createDisabledReason(available({buyMode: true, fundingReady: false})), 'Your launch cost could not be calculated. Try again.');
   assert.equal(createDisabledReason(available({buyMode: true, fundingReady: true, insufficientEth: true})), 'Insufficient ETH');
 });
 test('create mode does not depend on optional buy funding', () => assert.equal(createDisabledReason(available({fundingReady: false, insufficientEth: false})), null));
@@ -54,4 +54,12 @@ test('a missing or failed image blocks publishing and the ready state',()=>{
  assert.equal(createDisabledReason(state),'Add a token image.');
  assert.equal(createDisabledLevel(state),'error');
  assert.equal(createReady(state,true),false);
+});
+
+test('developer buy loading and incomplete details are not reported as calculation failures',()=>{
+ const pending=available({buyMode:true,fundingReady:false,previewState:'loading'});
+ assert.equal(createDisabledReason(pending),'Calculating your launch cost…');
+ assert.equal(createDisabledLevel(pending),'info');
+ assert.match(createDisabledReason({...pending,previewState:'idle'})!,/Complete your token details/);
+ assert.match(createDisabledReason({...pending,previewState:'error'})!,/Try again/);
 });

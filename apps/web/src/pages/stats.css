@@ -12,6 +12,8 @@
 .stats-page .stats-grid{grid-template-columns:repeat(3,minmax(0,1fr))}.stats-page .stats-unit{font-size:10px;color:#8a9488}.stats-page .stats-fee-row{display:flex;align-items:center;justify-content:space-between;gap:16px;min-height:49px;border-bottom:1px solid #eef0e9;font-size:12px;color:#718070}.stats-page .stats-fee-row:last-child{border-bottom:0}.stats-page .stats-fee-row strong{font-size:14px;font-weight:550;color:var(--ink);font-variant-numeric:tabular-nums}.stats-page .stats-heading>p{font-size:10px;color:#879084}.stats-page .stats-secondary-layout{align-items:start}@media(max-width:800px){.stats-page .stats-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
 
 
-.stats-valuation-note,[data-stats-staking-updated]{font-size:12px;color:#577266;line-height:1.5}
+.stats-valuation-note{font-size:12px;color:#577266;line-height:1.5}
+.stats-stock-controls{display:flex;justify-content:space-between;gap:12px;margin-bottom:8px;color:#617064;font-size:11px}.stats-stock-controls input{margin-right:5px}.stats-stock-search input{min-width:220px;padding:5px 8px;border:1px solid #dfe4da;border-radius:6px}.stats-stock-quantity{display:block;grid-column:1/-1;color:#8a9588;font-size:10px}
 
 .stats-view-all,.stats-back-link{color:var(--ink);font-size:12px;font-weight:600;text-decoration:none}.stats-view-all:hover,.stats-back-link:hover{text-decoration:underline}.stats-back-link{display:inline-block;margin-bottom:24px}.stats-stocks-page .stats-heading h1{font-size:clamp(26px,4vw,40px)}
+.stats-stock-exact{text-align:right;min-width:0}.stats-stock-exact summary{cursor:pointer}.stats-stock-exact small{display:block;overflow-wrap:anywhere;margin-top:6px}

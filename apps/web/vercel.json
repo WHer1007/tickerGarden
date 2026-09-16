@@ -9,6 +9,10 @@
   "functions": {
     "api/rpc.ts": {
       "maxDuration": 20
+    },
+    "api/market-page.ts": {
+      "maxDuration": 10,
+      "includeFiles": "dist/market-shell.html"
     }
   },
   "headers": [
@@ -67,7 +71,7 @@
     },
     {
       "source": "/trade",
-      "destination": "/index.html"
+      "destination": "/api/market-page"
     },
     {
       "source": "/create",

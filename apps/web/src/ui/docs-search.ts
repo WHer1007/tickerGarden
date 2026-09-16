@@ -1,5 +1,7 @@
 const query = <T extends Element>(s: string) => document.querySelector<T>(s);
 const queryAll = <T extends Element>(s: string) => Array.from(document.querySelectorAll<T>(s));
+let revealCurrent: (()=>void)|undefined;
+export function revealDocsHash(){revealCurrent?.();}
 let disposePrevious: (() => void) | undefined;
 
 export function setupDocs(): () => void {
@@ -50,6 +52,12 @@ export function setupDocs(): () => void {
     if (empty) empty.hidden = articles.some(item => !item.hidden);
     schedule();
   };
+  const reveal=()=>{
+    let target:HTMLElement|null=null;try{target=document.getElementById(decodeURIComponent(location.hash.slice(1)));}catch{}
+    if(target?.closest('[data-docs-section]')&&search?.value){search.value='';apply();target.scrollIntoView();}
+    schedule();
+  };
+  revealCurrent=reveal;
   const events = { signal: listeners.signal };
   search?.addEventListener("input", apply, events);
   links.forEach(link => link.addEventListener("click", () => {
@@ -58,12 +66,14 @@ export function setupDocs(): () => void {
   }, events));
   window.addEventListener("scroll", schedule, { ...events, passive: true });
   window.addEventListener("resize", schedule, events);
-  window.addEventListener("hashchange", schedule, events);
+  window.addEventListener("hashchange", reveal, events);
+  window.addEventListener("popstate", reveal, events);
   const resize = new ResizeObserver(schedule);
   const content = query<HTMLElement>(".docs-content");
   if (content) resize.observe(content);
   schedule();
   const dispose = () => {
+    if(revealCurrent===reveal)revealCurrent=undefined;
     listeners.abort();resize.disconnect();cancelAnimationFrame(frame);
     if (disposePrevious === dispose) disposePrevious = undefined;
   };

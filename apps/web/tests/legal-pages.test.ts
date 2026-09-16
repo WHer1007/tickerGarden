@@ -54,7 +54,7 @@ test("shared navigation exposes Explore and keeps Home out of the primary links"
   assert.doesNotMatch(app, /footerLink\("home", "Home", "\/"\)/);
   assert.match(app, /\["rewards", "Claim", "\/claim"\]/);
   assert.match(app, /\["docs", "Docs", "\/docs"\]/);
-  assert.match(app, /data-wallet-only hidden/);
+  assert.doesNotMatch(app, /data-wallet-only hidden/);
   const headerShell = app.slice(app.indexOf("header.innerHTML"), app.indexOf("required<HTMLElement>(\"[data-shell-footer]\")"));
   const footerShell = app.slice(app.indexOf("required<HTMLElement>(\"[data-shell-footer]\")"), app.indexOf("walletPicker ??="));
   const gardenLinks = footerShell.slice(footerShell.indexOf("<strong>Garden</strong>"), footerShell.indexOf("</section>"));
@@ -81,12 +81,10 @@ test("risk disclosure links resolve in Docs and the standalone route is removed"
   assert.doesNotMatch(read("../vercel.json"), /\/risks/);
   assert.doesNotMatch(vite, /risksPage/);
   assert.match(docs.html, /not yet undergone an independent external audit/);
-  const ids = new Set(Array.from(docs.html.matchAll(/id="([^"]+)"/g), m => m[1]));
-  assert.ok(ids.has("docs-risks"));
+  assert.match(docs.html, /id="docs-risks"/);
+  assert.match(app, /href="\/docs#docs-risks"/);
   for (const page of ["create", "trade", "staking"]) {
     const source = read(`../src/pages/${page}.ts`);
-    const anchors = [...source.matchAll(/href="\/docs#(risk-[^"]+)"/g)];
-    assert.ok(anchors.length > 0, `${page} has a risk link`);
-    for (const anchor of anchors) assert.ok(ids.has(anchor[1]), anchor[1]);
+    assert.doesNotMatch(source, /action-risk-note|Trade responsibly\.|Read the risks/);
   }
 });

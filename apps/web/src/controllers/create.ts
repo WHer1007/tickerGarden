@@ -1,3 +1,4 @@
+import {fetchPurchaseQuote,purchaseRequest,assertPurchaseWithinApproval,type PurchaseQuote} from '../create/quote-purchase.ts';
 import {FIXED_LAUNCH_FEE_LABEL} from '../create/launch-fee-display.ts';
 import {sortStakingAssets} from '../create/featured-stocks.ts';
 import { publicError } from "../ui/public-error.ts";
@@ -5,6 +6,9 @@ import currentV4Abis_TickerGardenFactoryV1 from '../v1/generated/contracts/curre
 import v1Abis_TickerGardenCurve from '../v1/generated/contracts/legacy/TickerGardenCurve.ts';
 import {
 encodeFunctionData,
+formatUnits,
+keccak256,
+parseEventLogs,
 erc20Abi,
 type Address,
 type Hash,
@@ -23,8 +27,8 @@ import { launchPhaseDisplay,launchStateKey,readLaunchState,saveLaunchState,type 
 import { parseSavedListing } from "../create/listing-package.ts";
 import { renderListingPanel } from "../create/listing-panel.ts";
 import { canResumeUpload,publishLaunchDetails,readTokenImage } from "../create/metadata.ts";
-import { assertCreatorTaxSupported,creatorTaxBps,DEVELOPER_BUY_SLIPPAGE_BPS } from "../create/options.ts";
-import { activePairedConfig,RELEASE_PAIRED_ASSETS,RELEASE_SUPPLY,releasePairForSelection } from "../create/paired-assets.ts";
+import { assertCreatorTaxSupported,creatorTaxBps } from "../create/options.ts";
+import { activePairedConfig,isQuoteSelectionPaused,RELEASE_PAIRED_ASSETS,RELEASE_SUPPLY,releasePairForSelection } from "../create/paired-assets.ts";
 import { launchPreviewField } from "../create/preview-dependencies.ts";
 import { updateQuotePicker,type QuotePickerOption } from "../create/quote-picker.ts";
 import { isListedStakingAsset,stakingAssetForConfig } from "../create/staking-assets.ts";
@@ -36,7 +40,6 @@ configBigInt,
 configNumber,
 configString,
 formatTokenAmount,
-minimumAfterSlippage,
 parseTokenAmount,
 shortHex,
 tupleField,
@@ -63,14 +66,16 @@ type TransactionUpdate
 } from "../v1/transaction.ts";
 import type { ControllerContext,LaunchPreview,WalletState } from '../app.ts';
 export function createCreateController(ctx:ControllerContext){
+let previewState: "idle"|"loading"|"ready"|"error"="idle";
 function drawLaunchProgress():void{
  if(!ctx.launchProgress)return;
  const display=ctx.launchProgress.phase==='paused'&&!ctx.launchProgress.hash?{step:'Confirm in wallet',percent:60}:launchPhaseDisplay[ctx.launchProgress.phase];
+ const purchasePending=localStorage.getItem(purchaseStateKey(ctx.launchProgress.account));
  const rawLogo=ctx.launchProgress.listing?.logo??'';
  const logo=ipfsGatewayURL(rawLogo,import.meta.env.VITE_IPFS_GATEWAY)??(/^data:image\/(?:png|jpeg|webp);base64,/i.test(rawLogo)?rawLogo:undefined);
  renderLaunchProgress({title:ctx.launchProgress.phase==='complete'?'Launch Successful':ctx.launchProgress.phase==='confirming'?'Token Created':ctx.launchProgress.phase==='pending'?'Launch Submitted':ctx.launchProgress.phase==='failed'?'Launch Stopped':'Launching Your Token',...display,detail:ctx.launchProgress.phase==='failed'?publicError(undefined,'transaction'):ctx.launchProgress.detail,hash:ctx.launchProgress.hash,
-  explorer:ctx.launchProgress.hash?`${robinhoodChain.blockExplorers.default.url}/tx/${ctx.launchProgress.hash}`:'',needsHash:ctx.launchProgress.phase==='paused'||(ctx.launchProgress.phase==='wallet'&&!ctx.launchSubmitting),canDismiss:ctx.launchProgress.phase==='failed',outcome:ctx.launchProgress.phase==='complete',complete:ctx.launchProgress.phase==='complete',tokenName:ctx.launchProgress.listing?.name,tokenSymbol:ctx.launchProgress.listing?.symbol,tokenLogo:logo},
- {onViewToken:()=>{if(ctx.launchProgress?.phase==='complete')navigateCompletedLaunch(ctx.launchProgress);},onHash:hash=>{if(!ctx.launchProgress||ctx.launchSubmitting)return;ctx.launchProgress.hash=hash;updateLaunchProgress('pending','Checking the transaction you provided…');void restoreLaunchProgress();},
+  explorer:ctx.launchProgress.hash?`${robinhoodChain.blockExplorers.default.url}/tx/${ctx.launchProgress.hash}`:'',needsHash:Boolean(purchasePending)||ctx.launchProgress.phase==='paused'||(ctx.launchProgress.phase==='wallet'&&!ctx.launchSubmitting),canDismiss:ctx.launchProgress.phase==='failed',outcome:ctx.launchProgress.phase==='complete',complete:ctx.launchProgress.phase==='complete',tokenName:ctx.launchProgress.listing?.name,tokenSymbol:ctx.launchProgress.listing?.symbol,tokenLogo:logo},
+ {onViewToken:()=>{if(ctx.launchProgress?.phase==='complete')navigateCompletedLaunch(ctx.launchProgress);},onHash:hash=>{if(!ctx.launchProgress||ctx.launchSubmitting)return;if(purchasePending){void recoverProvidedPurchaseHash(hash);return;}ctx.launchProgress.hash=hash;updateLaunchProgress('pending','Checking the transaction you provided…');void restoreLaunchProgress();},
  onCreateNew:()=>{if(ctx.launchProgress?.phase!=='complete')return;const chainId=ctx.launchProgress.chainId;try{localStorage.removeItem(launchStateKey(chainId));localStorage.removeItem(`tg-listing:${chainId}`);}catch{}ctx.launchProgress=null;ctx.latestListing=null;closeLaunchProgress();window.location.assign('/create');},
  onDismiss:()=>{if(ctx.launchProgress?.phase!=='failed')return;localStorage.removeItem(launchStateKey(robinhoodChain.id));ctx.launchProgress=null;closeLaunchProgress();updateCreateAvailability();}});
 }
@@ -198,7 +203,7 @@ function renderDeveloperBuyBalance(): void {
       const raw = ctx.query<HTMLInputElement>("[name=firstBuyAmount]")?.value.trim() ?? "";
       const amount = raw ? parseTokenAmount(raw, asset.decimals, "Developer buy") : 0n;
       notice.textContent = developerBuyNotice({ amount, balance, symbol: asset.symbol,
-        displayAmount: formatTokenAmount(amount, asset.decimals), native,
+        displayAmount: formatTokenAmount(amount, asset.decimals), native, canPurchase:robinhoodChain.id===4663&&!isQuoteSelectionPaused(asset),
       });
       notice.hidden = !notice.textContent;
     } catch { /* Field validation explains invalid amounts. */ }
@@ -266,7 +271,7 @@ function showLatestListing(): void {
  if(host&&ctx.latestListing){
   renderListingPanel(host,ctx.latestListing.snapshot,ctx.latestListing.marketId,robinhoodChain.blockExplorers.default.url,robinhoodChain.testnet,import.meta.env.VITE_IPFS_GATEWAY,url=>{ctx.router.navigate(url);});
   const layout=ctx.query<HTMLElement>(".create-layout");if(layout)layout.hidden=true;
-  const again=document.createElement('button');again.type='button';again.textContent='Create new one';again.className='listing-create-another';host.append(again);
+  const again=document.createElement('button');again.type='button';again.textContent='Launch another token';again.className='listing-create-another';host.append(again);
   again.onclick=()=>{ctx.latestListing=null;try{localStorage.removeItem(`tg-listing:${robinhoodChain.id}`);}catch{}host.hidden=true;if(layout)layout.hidden=false;};
  }
 }
@@ -279,7 +284,7 @@ function applyCreateDraft(configReady: boolean): void {
     if (['tickerGardenBaselineId', 'launchTemplateId', 'launchMode'].includes(key)) continue;
     const field = form.elements.namedItem(key);
     if (field instanceof HTMLSelectElement) { if (configReady && typeof value === 'string') {
-      if (value && !Array.from(field.options).some(option => option.value === value)) {
+      if (value && !Array.from(field.options).some(option => option.value === value && !option.disabled)) {
         unavailable.push(key);
       } else field.value = value;
     } }
@@ -298,6 +303,7 @@ function applyCreateDraft(configReady: boolean): void {
         field.setCustomValidity('Asset unavailable. Select another.');
       }
     }
+    paired?.dispatchEvent(new Event('change', { bubbles: true }));
     if (stock && ctx.foundation) updateQuotePicker(stock, ctx.foundation.assets.filter(a=>isListedStakingAsset(robinhoodChain.id,a)).map(a=>({value:a.id,symbol:ctx.stockSymbol(a),name:stakingAssetForConfig(robinhoodChain.id,a)?.name??'Stock',logoUrl:ctx.stockLogo(a),pending:false})));
   }
 }
@@ -313,6 +319,8 @@ function saveCurrentCreateDraft(): void {
 }
 
 function setupCreate(): void {
+ previewState="idle";
+ ctx.query<HTMLButtonElement>("[data-create-preview-retry]")?.addEventListener("click",scheduleLaunchPreview);
  if(!ctx.latestListing){try{ctx.latestListing=parseSavedListing(localStorage.getItem(`tg-listing:${robinhoodChain.id}`),robinhoodChain.id);}catch{/* Browser storage may be disabled. */}}
  showLatestListing();
   const form = ctx.query<HTMLFormElement>("[data-create-form]");
@@ -389,9 +397,11 @@ function populatePairedAssets(): void {
   for (const asset of RELEASE_PAIRED_ASSETS) {
     const config = activePairedConfig(asset, ctx.foundation?.quotes ?? [], robinhoodChain.id);
     const option = new Option(`${asset.symbol} — ${asset.name}${config ? "" : asset.graduationThreshold === null ? " · Parameters pending" : " · Pending activation"}`, config?.id ?? `pending:${asset.symbol}`);
+    option.disabled = isQuoteSelectionPaused(asset);
+    if (option.disabled) option.textContent = `${asset.symbol} — ${asset.name} · Temporarily disabled`;
     select.add(option);
-    pickerOptions.push({ value: option.value, symbol: asset.symbol, name: asset.name, pending: !config });
-    if (previous?.symbol === asset.symbol || priorValue === option.value) select.value = option.value;
+    pickerOptions.push({ value: option.value, symbol: asset.symbol, name: asset.name, pending: !config, disabled: option.disabled });
+    if (!option.disabled && (previous?.symbol === asset.symbol || priorValue === option.value)) select.value = option.value;
   }
   updateQuotePicker(select, pickerOptions);
 }
@@ -568,6 +578,7 @@ function selectedLaunchConfig(allowPendingMetadata = false): SelectedLaunchConfi
   if ((stakingEnabled && !asset) || !quote || !baseline || !template) throw new Error("Selected launch settings are not active yet");
   const releasedPair = releasePairForSelection(quoteId, ctx.foundation.quotes);
   if (!releasedPair || activePairedConfig(releasedPair, [quote], robinhoodChain.id)?.id !== quoteId) throw new Error("Paired asset does not match the release whitelist on this network");
+  if (isQuoteSelectionPaused(releasedPair)) throw new Error("Choose another paired asset to continue.");
   const beneficiary = canonicalAddress(ctx.required<HTMLInputElement>("[name=beneficiary]", form).value.trim() || ctx.wallet.account, "Creator beneficiary");
   const name = ctx.required<HTMLInputElement>("[name=name]", form).value.trim();
   const symbol = ctx.required<HTMLInputElement>("[name=symbol]", form).value.trim();
@@ -645,6 +656,8 @@ function scheduleLaunchPreview(): void {
   const generation = ++ctx.launchPreviewGeneration;
   ctx.launchPreview = null;
   ctx.launchFunding = null;
+  previewState="loading";
+  const retry=ctx.query<HTMLButtonElement>("[data-create-preview-retry]");if(retry)retry.hidden=true;
   ctx.text("[data-create-preview]", "");
   updateCreateAvailability();
   ctx.launchPreviewTimer = window.setTimeout(() => { void refreshLaunchPreview(generation); }, 350);
@@ -655,13 +668,14 @@ async function refreshLaunchPreview(generation: number): Promise<void> {
   // An unfinished form is normal. Do not run RPC previews or report it as a failure.
   if(!form||!ctx.wallet||!ctx.foundation?.writeReady||[...form.elements].some(field=>
     (field instanceof HTMLInputElement||field instanceof HTMLSelectElement||field instanceof HTMLTextAreaElement)&&!field.disabled&&!field.validity.valid)){
-    if(generation===ctx.launchPreviewGeneration){ctx.text('[data-create-preview]','');const funding=ctx.query<HTMLElement>('[data-launch-funding]');if(funding)funding.hidden=true;}
+    if(generation===ctx.launchPreviewGeneration){previewState='idle';updateCreateAvailability();ctx.text('[data-create-preview]','');const funding=ctx.query<HTMLElement>('[data-launch-funding]');if(funding)funding.hidden=true;}
     return;
   }
   try {
     const preview = await previewLaunch(undefined, true);
     const funding = await calculateLaunchFunding(preview);
     if (generation !== ctx.launchPreviewGeneration) return;
+    previewState="ready";
     ctx.launchPreview = preview;
     ctx.launchFunding = funding;
     renderLaunchFunding(funding);
@@ -675,7 +689,9 @@ async function refreshLaunchPreview(generation: number): Promise<void> {
     ctx.launchFunding = null;
     const panel = ctx.query<HTMLElement>("[data-launch-funding]");
     if (panel) panel.hidden = true;
-    ctx.text("[data-create-preview]", publicError(error,'preview'));
+    previewState="error";
+    const retry=ctx.query<HTMLButtonElement>("[data-create-preview-retry]");if(retry)retry.hidden=false;
+    ctx.text("[data-create-preview]", "Your launch cost could not be calculated. Try again.");
     setCreateNoticeLevel("[data-create-preview]", "error");
     updateCreateAvailability();
   }
@@ -701,7 +717,7 @@ function updateCreateAvailability(): void {
     runtimeReady:Boolean(ctx.foundation?.writeReady),runtimeReason:ctx.runtimeReasons().join("; "),walletConnected:Boolean(ctx.wallet),busy:Boolean(ctx.launchSubmitting||ctx.walletConnecting),
     pendingQuote:ctx.query<HTMLSelectElement>("[name=quoteAssetConfigId]")?.value.startsWith("pending:")===true,
     invalidField:invalid ? labels[invalid.name] ?? invalid.name : undefined,metadataReady:Boolean(ctx.launchMetadataOrigin),buyMode,
-    fundingReady:Boolean(ctx.launchFunding),insufficientEth:Boolean(ctx.launchFunding&&ctx.launchFunding.ethBalance<ctx.launchFunding.totalRequired)};
+    previewState,fundingReady:Boolean(ctx.launchFunding),insufficientEth:Boolean(ctx.launchFunding&&ctx.launchFunding.ethBalance<ctx.launchFunding.totalRequired)};
   const reason=ctx.draftImageMissing ? "Reselect your image." : createDisabledReason(availability);
   ctx.setDisabled(button, Boolean(reason));
   let hint = ctx.query<HTMLElement>("[data-create-blocker]",form);
@@ -723,12 +739,13 @@ async function calculateLaunchFunding(preview: LaunchPreview): Promise<LaunchFun
     account: preview.creator,
     quoteAsset: preview.selected.quote.quoteAsset,
     quoteAmount,
+    ...(robinhoodChain.id===4663 && ctx.runtimeConfig.readApi.available ? {quotePurchase:(shortfall:bigint)=>fetchPurchaseQuote(ctx.runtimeConfig.readApi.available?ctx.runtimeConfig.readApi.value:'',robinhoodChain.id,preview.selected.quote.quoteAsset,shortfall,preview.creator)} : {}),
   });
   const fees = await ctx.publicClient.estimateFeesPerGas();
   const feePerGas = fees.maxFeePerGas ?? fees.gasPrice;
   if (feePerGas === undefined) throw new Error("Network gas price is unavailable");
-  const gasCost = ctx.CONSERVATIVE_LAUNCH_GAS * feePerGas;
-  const transactionValue = ctx.foundation.launchFee + (funding.mode === "native" ? quoteAmount : 0n);
+  const gasCost = (ctx.CONSERVATIVE_LAUNCH_GAS + (funding.purchase ? 1500000n : 0n)) * feePerGas;
+  const transactionValue = ctx.foundation.launchFee + funding.quotedNativeInput;
   return Object.freeze({ ...funding, gasCost, totalRequired: transactionValue + gasCost, quoteDecimals: decimals });
 }
 
@@ -736,14 +753,13 @@ function renderLaunchFunding(funding: LaunchFunding & Readonly<{ gasCost: bigint
   const panel = ctx.query<HTMLElement>("[data-launch-funding]");
   if (panel) panel.hidden = false;
   const symbol = releasePairForSelection(ctx.query<HTMLSelectElement>("[name=quoteAssetConfigId]")?.value ?? "", ctx.foundation?.quotes ?? [])?.symbol ?? "Quote";
-  // The first buy uses the selected asset already held by the wallet.
-  const conversion=false;
+  const conversion=Boolean(funding.purchase);
   for(const selector of ['[data-funding-route]','[data-funding-swap]']){
     const row=ctx.query<HTMLElement>(selector)?.parentElement;if(row)row.hidden=!conversion;
   }
-  ctx.text("[data-funding-route]", funding.mode === "quote" ? `Wallet ${symbol}` : "ETH");
+  ctx.text("[data-funding-route]", conversion ? `ETH → ${symbol}` : funding.mode === "quote" ? `Wallet ${symbol}` : "ETH");
   ctx.text("[data-funding-quote-balance]", funding.mode === "native" ? "ETH" : `${funding.quoteBalance === null ? "—" : formatTokenAmount(funding.quoteBalance, funding.quoteDecimals)} ${symbol}`);
-  ctx.text("[data-funding-swap]", funding.mode === "native" ? `${formatTokenAmount(funding.quotedNativeInput, 18)} ETH` : "0 ETH");
+  ctx.text("[data-funding-swap]", `${formatTokenAmount(funding.quotedNativeInput, 18)} ETH`);
   ctx.text("[data-funding-gas]", `${formatTokenAmount(funding.gasCost, 18)} ETH`);
   ctx.text("[data-funding-total]", `${formatTokenAmount(funding.totalRequired, 18)} ETH`);
   ctx.text("[data-funding-balance]", `${formatTokenAmount(funding.ethBalance, 18)} ETH`);
@@ -756,7 +772,61 @@ async function quoteDecimalsFor(selected: SelectedLaunchConfig): Promise<number>
   return result;
 }
 
+
+const purchaseStateKey=(account:string)=>`tg-quote-purchase:${robinhoodChain.id}:${account.toLowerCase()}`;
+async function recoverProvidedPurchaseHash(hash:string):Promise<void>{
+ try{
+  const state=ctx.launchProgress;if(!state)return;
+  const key=purchaseStateKey(state.account),saved=JSON.parse(localStorage.getItem(key)??'null');
+  if(!saved)return;
+  const tx=await ctx.publicClient.getTransaction({hash:hash as Hash});
+  if(tx.from.toLowerCase()!==state.account.toLowerCase()||tx.to?.toLowerCase()!=='0x8876789976decbfcbbbe364623c63652db8c0904'||tx.input!==saved.data||String(tx.value)!==saved.value)throw Error('This transaction does not match the paired asset purchase.');
+  localStorage.setItem(key,JSON.stringify({...saved,hash}));await recoverQuotePurchase();
+  updateLaunchProgress('failed','Purchase checked. Return to the form to continue with your wallet balance.');
+ }catch{ctx.notify('The purchase could not be confirmed. Check the transaction in your wallet and try again.','warning');}
+}
+async function recoverQuotePurchase():Promise<void>{
+ const active=ctx.wallet;if(!active)return;
+ const key=purchaseStateKey(active.account),raw=localStorage.getItem(key);if(!raw)return;
+ const saved=JSON.parse(raw) as {hash?:Hash};
+ const pending=active.executor.pending(active.account).find(item=>item.operationKey.startsWith('quote-purchase:'));
+ if(pending)saved.hash=pending.hash;
+ if(!saved.hash)throw Error('Check your wallet for the pending paired asset purchase before trying again.');
+ const receipt=await ctx.publicClient.getTransactionReceipt({hash:saved.hash}).catch(()=>null);
+ if(!receipt)throw Error('Your paired asset purchase is still pending. Wait for confirmation before trying again.');
+ if(pending)await active.executor.reconcilePending(active.account,pending.operationKey);
+ localStorage.removeItem(key);
+ // Never resend a recovered purchase. A fresh balance read determines the remaining shortfall.
+}
+async function executeQuotePurchase(q:PurchaseQuote,wallet:WalletState,preview:LaunchPreview):Promise<void>{
+ const request={...purchaseRequest(q,wallet.account),gas:1500000n};
+ const code=await ctx.publicClient.getCode({address:request.address});
+ if(!code||keccak256(code)!=='0x2ce6aaaf9f4151f5e1cbf774668772f17f532ae11b15e9284fd0a072a8b0fbde')throw Error('The purchase route is not ready. Try again later.');
+ await recoverQuotePurchase();
+ const key=purchaseStateKey(wallet.account);
+ const purchaseIntent={data:encodeFunctionData(request),value:String(request.value)};
+ updateLaunchProgress('preparing','Buying the paired asset with ETH. Confirm the purchase in your wallet.');
+ await ctx.executeTransaction({operationKey:`quote-purchase:${preview.marketId}`,scope:{businessType:'other',conflictKey:`launch:${preview.marketId}`},sync:ctx.foundation!.sync,walletContext:wallet,request,quoteExpiresAtMs:q.expiresAt,
+ verifyChain:async()=>{await ctx.ensureCanonicalLaunch(preview.selected);purchaseRequest(q,wallet.account);},
+ onUpdate:update=>{
+  if(update.stage==='awaiting_signature')localStorage.setItem(key,JSON.stringify({...purchaseIntent,stage:'wallet'}));
+  if(update.hash)localStorage.setItem(key,JSON.stringify({...purchaseIntent,stage:update.stage,hash:update.hash}));
+  if(update.stage==='failed'&&['user_rejected','transaction_reverted','replacement_cancelled','simulation_failed'].includes(update.error?.code??''))localStorage.removeItem(key);
+ },
+ confirm:async receipt=>{
+  const received=parseEventLogs({abi:erc20Abi,eventName:'Transfer',logs:receipt.logs,strict:true}).filter(log=>log.address.toLowerCase()===q.token.toLowerCase()&&log.args.to.toLowerCase()===wallet.account.toLowerCase()).reduce((sum,log)=>sum+log.args.value,0n);
+  if(received<BigInt(q.amountOut))throw Error('The paired asset purchase could not be verified. Check your wallet.');
+  localStorage.removeItem(key);
+  ctx.developerBuyBalances.invalidate(`${robinhoodChain.id}:${wallet.account}:${q.token}`);
+ }});
+ updateLaunchProgress('preparing','Paired asset received. Preparing your token launch.');
+ const balance=await ctx.publicClient.readContract({abi:erc20Abi,address:q.token,functionName:'balanceOf',args:[wallet.account]});
+ const needed=parseTokenAmount(ctx.required<HTMLInputElement>('[name=firstBuyAmount]').value,await quoteDecimalsFor(preview.selected),'Developer buy');
+ if(balance<needed)throw Error('Paired asset balance changed. Review your balance and try again.');
+}
+
 async function submitLaunch(): Promise<void> {
+ await recoverQuotePurchase();
  if(!navigator.locks)throw Error("This browser cannot protect against duplicate launches. Use an up-to-date browser.");
  await navigator.locks.request(`tg-launch:${robinhoodChain.id}`,{ifAvailable:true},async lock=>{
   if(!lock){void restoreLaunchProgress();return;}
@@ -764,6 +834,7 @@ async function submitLaunch(): Promise<void> {
   const form=ctx.required<HTMLFormElement>('[data-create-form]');
   if(!form.reportValidity())return;
   if(!ctx.launchImage||ctx.launchImageReading||!ctx.wallet){updateCreateAvailability();return;}
+  const reviewedPurchase=ctx.launchFunding?.purchase;
   const snapshot=()=>JSON.stringify({chainId:robinhoodChain.id,account:ctx.wallet?.account,details:launchDetails(),fields:[...new FormData(form).entries()].filter(([,value])=>typeof value==='string')});
   const details=launchDetails();
   const pair=ctx.query<HTMLElement>('[data-preview-quote]')?.textContent ?? '-';
@@ -784,14 +855,16 @@ async function submitLaunch(): Promise<void> {
   };
   addRows([['Network',robinhoodChain.name],['Wallet',ctx.wallet.account]]);
   addRows([['Paired Asset',pair],['Developer Buy',buy],['Staking Rewards',staking ? stock : 'Disabled'],[`Burn ${details.symbol.trim() || details.name.trim() || 'your token'}`,ctx.query<HTMLInputElement>('[name=burnMemeFees]')?.checked ? 'On · permanent' : 'Off'],['LP Fee',`${ctx.query<HTMLInputElement>('[name=lpFeeEnabled]')?.checked ? Number(ctx.query<HTMLSelectElement>('[name=lpFeePips]')?.value)/10000 : 0}%`],['Creator Tax',`${details.creatorTaxBps/100}%`],['Holder Fee Sharing',details.creatorFeesToHolders ? 'Enabled' : 'Disabled']]);
+  if(reviewedPurchase)addRows([['Buy paired asset',`${formatUnits(BigInt(reviewedPurchase.amountOut),ctx.launchFunding!.quoteDecimals)} ${pair}`],['Maximum ETH',`${formatUnits(BigInt(reviewedPurchase.amountIn),18)} ETH`],['Price impact (including fees)',`${(reviewedPurchase.priceImpactBps/100).toFixed(2)}%`],['Minimum received',`${formatUnits(BigInt(reviewedPurchase.amountOut),ctx.launchFunding!.quoteDecimals)} ${pair}`]]);
+  if(reviewedPurchase){const note=document.createElement('p');note.textContent='ETH buys the missing paired asset first, then your token launches. If the launch stops, purchased assets stay in your wallet.';content.append(note);}
   if(ctx.launchFunding)addRows([['Estimated Total',`${formatTokenAmount(ctx.launchFunding.totalRequired,18)} ETH`]],'launch-confirm-total');
   try {
-    await confirmLaunch(snapshot,()=>ctx.confirmFlowAction('',{title:'Confirm Launch',confirmLabel:'Confirm And Launch',content}),performLaunch);
+    await confirmLaunch(snapshot,()=>ctx.confirmFlowAction('',{title:'Confirm launch',confirmLabel:'Confirm and launch',content}),()=>performLaunch(reviewedPurchase));
   } catch(error){ctx.text('[data-create-preview]',publicError(error,'preview'));setCreateNoticeLevel('[data-create-preview]','error');updateCreateAvailability();}
  });
 }
 
-async function performLaunch(): Promise<void> {
+async function performLaunch(reviewedPurchase?:PurchaseQuote): Promise<void> {
   if (ctx.launchSubmitting) return;
   ctx.launchSubmitting = true;
   updateCreateAvailability();
@@ -844,11 +917,14 @@ async function performLaunch(): Promise<void> {
       const decimals = await quoteDecimalsFor(preview.selected);
       const quoteIn = parseTokenAmount(ctx.required<HTMLInputElement>("[name=firstBuyAmount]").value, decimals, "First buy amount");
       requestedQuote = quoteIn;
-      const slippageBps = DEVELOPER_BUY_SLIPPAGE_BPS;
       const freshFunding = await calculateLaunchFunding(preview);
       ctx.launchFunding = freshFunding;
       renderLaunchFunding(freshFunding);
       if (freshFunding.ethBalance < freshFunding.totalRequired) throw new Error("ETH balance is below the estimated total required");
+      if(freshFunding.purchase){
+        assertPurchaseWithinApproval(freshFunding.purchase,reviewedPurchase);
+        await executeQuotePurchase(freshFunding.purchase,activeWallet,preview);
+      }
       const probe = await buildLaunchAndBuyRequests({
         router: ctx.foundation.bindings!.launchRouter,
         launchFee: ctx.foundation.launchFee,
@@ -869,7 +945,7 @@ async function performLaunch(): Promise<void> {
       const refund = ctx.simulationTuple(simulated.result, 3, "first-buy refund");
       if (tokensOut <= 0n || refund > quoteIn) throw new Error("Launch simulation returned an invalid first-buy result");
       expectedSpent = quoteIn - refund;
-      expectedMinimum = minimumAfterSlippage(tokensOut, slippageBps);
+      expectedMinimum = tokensOut;
       const built = await buildLaunchAndBuyRequests({
         router: ctx.foundation.bindings!.launchRouter,
         launchFee: ctx.foundation.launchFee,
