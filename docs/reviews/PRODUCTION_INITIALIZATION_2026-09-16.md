@@ -1,6 +1,6 @@
 # 生产配置与初始化验收（2026-09-16）
 
-状态：基础设施与激活区块配置初始化已完成；尚未完成生产应用发布验收。Content 的生产 Pinata 凭据待提供，生产历史回填与持续消费尚未启动。
+状态：基础设施与激活区块配置初始化已完成；尚未完成生产应用发布验收。Content 的 Pinata 凭据已按用户明确授权复用现有配置；生产历史回填与持续消费尚未启动。
 
 ## 已完成
 
@@ -9,7 +9,8 @@
 - 三个应用角色均通过实际 TLS 连接测试。Vercel 使用加密变量 `TG_DB_CA_PEM` 提供可信 PEM 证书；对应数据库 URL 不携带 `ssl*` 参数。代码保持证书链与目标主机校验，不关闭 TLS 验证。证书有效期至 2028-12-14，届时需要更新可信证书。
 - 测试与生产数据库密码、队列签名/发布凭据、对象存储凭据及 bucket 均核实不同。
 - MinIO 签名上传返回 200，读取内容校验通过，有独立对象版本，匿名读取返回 403。保留一个无敏感信息的 `initialization/20260916-storage-check.txt` 验收对象。
-- 四个 Vercel 项目的 Production 变量已分别写入并回读逐项校验：Web 14 项、Read API 12 项、Pipeline 24 项、Content 26 项。没有修改 Preview 变量、发布 Vercel deployment 或切换 alias。`sin1` 配置已准备；实际生产函数区域仍需在部署后验收。
+- 四个 Vercel 项目的 Production 变量已分别写入并回读逐项校验：Web 14 项、Read API 12 项、Pipeline 24 项、Content 28 项。没有修改 Preview 变量、发布 Vercel deployment 或切换 alias。`sin1` 配置已准备；实际生产函数区域仍需在部署后验收。
+- 用户明确批准现有 Pinata 配置用于生产：`PINATA_JWT` 与 `PINATA_GROUP_ID` 已写入 Content Production 加密变量并回读校验，同时同步到受保护的 VPS 配置与本地 `.env.master.local`。只读认证返回 HTTP 200；这是 Pinata 凭据与分组复用的明确例外，其余环境隔离要求保持不变。当前 Content 实现只需要这两个变量，未额外分发 API key/secret。
 - 生产配置为 Robinhood Mainnet 4663，显式信任单一 Alchemy RPC。USDG 固定 1 美元规则来自已验收源码，LP 复投继续由运营按需触发。
 - 主网 genesis、激活区块及 17 个固定事件来源的字节码身份已通过 RPC 核验；已写入生产部署及事件来源记录。
 - 使用既有 ingestion 和 projection 实现，核验并摄取激活区块 `63094312`（9 条事件），发布 392 条初始配置：194 个 Stock、196 个 Quote、1 个 Baseline、1 个 Template。此记录只证明激活区块状态，**不代表最新链高同步完成**。
@@ -27,7 +28,7 @@
 
 ## 发布前剩余条件
 
-1. 提供生产专用 `PINATA_JWT`；如启用 group 限制，同时提供对应 `PINATA_GROUP_ID`。当前没有复用测试凭据。Content 的完整 ready 与 IPFS 上传验收仍未通过。
+1. Pinata 配置已补齐，无需再提供凭据。生产 Content 部署后仍需完成完整 ready 与 IPFS 上传验收；当前只验证认证及变量写入，尚未执行上传。
 2. 将本次配置兼容修复纳入测试环境验收，然后将接受的产品树从 `test` 推进至 `master`。当前分支存在分歧，不应直接覆盖或跳过对齐。
 3. 从合规源码版本完成生产应用部署与区域验收，再启动生产链 Worker/Relay，完成历史回填、价格刷新及各投影检查后切换入口。不得将当前激活区块初始化视为这一环节完成。
 4. 执行生产用户业务验收。当前没有发送主网交易、使用签名私钥或广播合约变更。
