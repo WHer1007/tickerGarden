@@ -1,4 +1,4 @@
-import {createLaunchFeeDisplay} from '../create/launch-fee-display.ts';
+import {FIXED_LAUNCH_FEE_LABEL} from '../create/launch-fee-display.ts';
 import {sortStakingAssets} from '../create/featured-stocks.ts';
 import { publicError } from "../ui/public-error.ts";
 import currentV4Abis_TickerGardenFactoryV1 from '../v1/generated/contracts/current/TickerGardenFactoryV1.ts';
@@ -63,23 +63,6 @@ type TransactionUpdate
 } from "../v1/transaction.ts";
 import type { ControllerContext,LaunchPreview,WalletState } from '../app.ts';
 export function createCreateController(ctx:ControllerContext){
-const launchFeeDisplay = createLaunchFeeDisplay(async () => {
-  if (!ctx.runtimeConfig.contracts.available) throw new Error('Launch unavailable');
-  const [chainId, fee] = await Promise.all([
-    ctx.publicClient.getChainId(),
-    ctx.publicClient.readContract({abi:currentV4Abis_TickerGardenFactoryV1,address:ctx.runtimeConfig.contracts.value.factoryAddress,functionName:'launchFee'}),
-  ]);
-  if (chainId !== robinhoodChain.id) throw new Error('Unexpected network');
-  return fee;
-});
-async function refreshLaunchFeeDisplay():Promise<void> {
-  const generation=ctx.routeGeneration;
-  const show=(fee:bigint|null)=>ctx.text('[data-preview-launch-fee]',fee===null?'-':`${formatTokenAmount(fee,18)} ETH`);
-  show(launchFeeDisplay.peek());
-  const fee=await launchFeeDisplay.load();
-  if(generation===ctx.routeGeneration&&ctx.query('[data-create-form]'))show(fee);
-}
-
 function drawLaunchProgress():void{
  if(!ctx.launchProgress)return;
  const display=ctx.launchProgress.phase==='paused'&&!ctx.launchProgress.hash?{step:'Confirm in wallet',percent:60}:launchPhaseDisplay[ctx.launchProgress.phase];
@@ -491,14 +474,11 @@ function renderCreateIdentity(): void {
   ctx.text("#meme-fee-burn-help", `Burn fees earned in ${burnToken}. Paired-asset rewards and platform fees are unaffected. Permanent at launch.`);
   ctx.text("[data-fee-burn-note]", `Fees earned in ${burnToken} are burned at settlement; paired-asset rewards are paid out. Platform fees are unaffected.`);
   ctx.text("[data-creator-tax-help]",burn?`Extra trading fee (0–5%). The paired asset is paid to you; ${burnToken} is burned when you claim. Fixed at launch.`:"Extra trading fee (0–5%), allocated to you. Fixed at launch.");
-  ctx.text("[data-holder-sharing-help]",burn?`Holder rewards use wallet snapshots and pay the paired asset only. Holder ${burnToken} fees are burned during funding settlement.`:"Rewards use wallet balances at published snapshots. Eligible holders can claim the original paired asset and created token after publication. There is no fixed payout schedule.");
   const burnNote=ctx.query<HTMLElement>("[data-fee-burn-note]");if(burnNote)burnNote.hidden=!burn;
   ctx.text("[data-creator-tax-recipient]",burn?`Paired asset to you · ${burnToken} burned`:"100% to you");
   ctx.text("[data-preview-creator-tax]", `${formatTokenAmount(BigInt(details.creatorTaxBps), 2)}%`);
   ctx.text("[data-preview-treasury]", details.creatorFeesToHolders ? "50% of creator base fees" : "Off");
   ctx.text("[data-treasury-option-status]", burn?`Allocate 50% of your creator base-fee share to holders. ${burnToken} portions are burned; paired-asset rewards are paid normally. Fixed at launch.`:"Share 50% of your creator base-fee share with holders. Creator tax stays yours. Fixed at launch.");
-  const treasuryDetails = ctx.query<HTMLElement>("#treasury-details");
-  if (treasuryDetails) treasuryDetails.hidden = !details.creatorFeesToHolders;
   ctx.text("[data-token-name]", details.name || "Your next big idea");
   ctx.text("[data-token-symbol]", details.symbol || "ticker");
   ctx.text("[data-token-description]", details.description);
@@ -534,7 +514,7 @@ function renderCreateIdentity(): void {
   const quote = ctx.foundation?.quotes.find(item => item.id === selection);
   const releaseAsset = releasePairForSelection(selection, ctx.foundation?.quotes ?? []);
   ctx.displayPriceWidget?.setToken(typeof quote?.values.quoteAsset === "string" ? quote.values.quoteAsset : null);
-  void refreshLaunchFeeDisplay();
+  ctx.text('[data-preview-launch-fee]',FIXED_LAUNCH_FEE_LABEL);
   ctx.text("[data-preview-trade-fee]", "-");
   ctx.text("[data-preview-graduation]", "-");
   ctx.text("[data-graduation-caption]", "Loading bloom target…");

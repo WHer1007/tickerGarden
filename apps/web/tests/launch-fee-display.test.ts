@@ -1,18 +1,14 @@
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
-import {createLaunchFeeDisplay} from '../src/create/launch-fee-display.ts';
-test('fee display works without wallet state, coalesces reads and refreshes expired values',async()=>{
- let calls=0,time=0,fee=123n;
- const reader=createLaunchFeeDisplay(async()=>{calls++;return fee;},()=>time);
- assert.equal(reader.peek(),null);
- assert.deepEqual(await Promise.all([reader.load(),reader.load()]),[123n,123n]);assert.equal(calls,1);
- fee=0n;assert.equal(await reader.load(),123n);time=60001;assert.equal(reader.peek(),null);
- assert.equal(await reader.load(),0n);assert.equal(calls,2);
-});
-test('failed or malformed fee is never presented as free and can be retried',async()=>{
- let time=0,fail=true;
- const reader=createLaunchFeeDisplay(async()=>{if(fail)throw Error('RPC unavailable');return 55n;},()=>time);
- assert.equal(await reader.load(),null);fail=false;time=5001;assert.equal(await reader.load(),55n);
- assert.equal(await createLaunchFeeDisplay(async()=>-1n).load(),null);
- assert.equal(await createLaunchFeeDisplay(async()=>'0').load(),null);
+import {readFileSync} from 'node:fs';
+import {formatUnits} from 'viem';
+import {FIXED_LAUNCH_FEE_WEI,FIXED_LAUNCH_FEE_LABEL} from '../src/create/launch-fee-display.ts';
+import create from '../src/pages/create.ts';
+test('the displayed fixed fee matches the immutable Factory fee',()=>{
+ const source=readFileSync(new URL('../../../contracts/src/v1/modules/TickerGardenFactoryV1.sol',import.meta.url),'utf8');
+ const amount=source.match(/constant LAUNCH_FEE = ([\d_]+);/)?.[1];assert.ok(amount);
+ assert.equal(FIXED_LAUNCH_FEE_WEI,BigInt(amount.replaceAll('_','')));
+ assert.equal(FIXED_LAUNCH_FEE_LABEL,`${formatUnits(FIXED_LAUNCH_FEE_WEI,18)} ETH`);
+ assert.match(source,/launchFee = LAUNCH_FEE;/);
+ assert.ok(create.html.includes(`data-preview-launch-fee>${FIXED_LAUNCH_FEE_LABEL}</strong>`));
 });
