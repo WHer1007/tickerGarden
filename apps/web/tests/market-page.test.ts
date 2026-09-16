@@ -1,8 +1,8 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import {marketPage} from '../api/market-page.ts';
-import {pageMetadata} from '../src/routing/metadata.ts';
-const id='0x'+'a'.repeat(64),shell='<html><head><title>Home</title></head><body><div data-route-outlet></div><script src="/app.js"></script></body></html>';
+import {pageMetadata,renderMetadata} from '../src/routing/metadata.ts';
+const id='0x'+'a'.repeat(64),shell=`<html><head>${renderMetadata('trade','/trade')}</head><body><div data-route-outlet></div><script src="/app.js"></script></body></html>`;
 const env={VITE_V1_READ_API_URL:'https://read.example',VITE_V1_CHAIN_ID:'4663'};
 test('market sharing preserves only the market identity in its canonical URL',()=>{
  assert.equal(pageMetadata('trade',`/trade?marketId=${id}&other=secret#x`).canonical,`https://tickergarden.com/trade?marketId=${id}`);
