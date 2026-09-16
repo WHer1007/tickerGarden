@@ -1,7 +1,7 @@
+import {renderMetadata} from "./src/routing/metadata.ts";
 import docsPage from "./src/pages/docs.ts";
 import privacyPage from "./src/pages/privacy.ts";
 import termsPage from "./src/pages/terms.ts";
-import risksPage from "./src/pages/risks.ts";
 import { defineConfig } from 'vite';
 import fs from 'node:fs';
 import path from 'node:path';
@@ -38,8 +38,8 @@ export default defineConfig(({command})=>{
   {name:"bundle-audit",generateBundle(_,bundle){if(process.env.TG_BUNDLE_ANALYZE){fs.mkdirSync(path.join(root,"outputs"),{recursive:true});fs.writeFileSync(path.join(root,"outputs/controller-bundle.json"),JSON.stringify(Object.values(bundle).filter(x=>x.type==="chunk").map(x=>({file:x.fileName,imports:x.imports,dynamic:x.dynamicImports,modules:Object.entries(x.modules).map(([id,m])=>({id,length:m.renderedLength}))})),null,2));}}},
   {name:'prerender-public-documents',writeBundle(){if(command==='build'){
    const output=path.join(root,'apps/web/dist');const shell=fs.readFileSync(path.join(output,'index.html'),'utf8');
-   for(const [route,page] of Object.entries({docs:docsPage,privacy:privacyPage,terms:termsPage,risks:risksPage})){
-    const html=shell.replace(/<noscript>[\s\S]*?<\/noscript>/,'').replace(/<title>.*?<\/title>/,`<title>${page.title}</title>`).replace('<div data-route-outlet></div>',`<div data-route-outlet>${page.html.replace('<main ', '<main id="main-content" ')}</div>`);
+   for(const [route,page] of Object.entries({docs:docsPage,privacy:privacyPage,terms:termsPage})){
+    const html=shell.replace(/<noscript>[\s\S]*?<\/noscript>/,'').replace(/<title>.*?<\/title>/,'').replace(/<meta\s+(?:name|property)="(?:description|robots|theme-color|og:[^"]+|twitter:[^"]+)"[^>]*>/g,'').replace(/<link\s+rel="canonical"[^>]*>/g,'').replace('</head>',renderMetadata(route,`/${route}`)+'</head>').replace('<div data-route-outlet></div>',`<div data-route-outlet>${page.html.replace('<main ', '<main id="main-content" ')}</div>`);
     fs.mkdirSync(path.join(output,route),{recursive:true});fs.writeFileSync(path.join(output,route,'index.html'),html);
    }
   }}},

@@ -5,7 +5,7 @@ const root=new URL('../dist/',import.meta.url);
 const files=fs.readdirSync(new URL('assets/',root));
 const budgets=[[/^step-.*\.webp$/,90000],[/^robinhood-feather-60.*\.webp$/,5000],[/^phosphor.*\.woff2$/i,25000]];
 for(const name of files){const data=fs.readFileSync(new URL(`assets/${name}`,root));for(const [pattern,limit] of budgets)if(pattern.test(name))assert.ok(data.length<=limit,`${name}: ${data.length} exceeds ${limit}`);if(name.endsWith('.js'))assert.ok(brotliCompressSync(data).length<=220000,`${name}: compressed JS budget exceeded`);}
-for(const route of ['docs','privacy','terms','risks']){const html=fs.readFileSync(new URL(`${route}/index.html`,root),'utf8');assert.match(html,/<main id="main-content"/);assert.match(html,/<h1>/);assert.doesNotMatch(html,/<link[^>]+modulepreload[^>]+chain-/);}
+for(const route of ['docs','privacy','terms']){const html=fs.readFileSync(new URL(`${route}/index.html`,root),'utf8');assert.match(html,/<main id="main-content"/);assert.match(html,/<h1>/);assert.doesNotMatch(html,/<link[^>]+modulepreload[^>]+chain-/);}
 console.log('PASS: asset budgets and public document prerender');
 const src=new URL('../src/',import.meta.url);const css=fs.readFileSync(new URL('icons/regular.css',src),'utf8');
 for(const file of fs.readdirSync(src,{recursive:true})){if(file.startsWith('icons/')||!file.endsWith('.ts'))continue;const text=fs.readFileSync(new URL(file,src),'utf8');const names=[...text.matchAll(/ph-([a-z0-9-]+)/g)].map(m=>m[1]);if(text.includes('ph-${name}'))names.push(...[...text.matchAll(/icon\(['"]([a-z0-9-]+)['"]\)/g)].map(m=>m[1]));for(const name of names)assert.ok(css.includes(`.ph.ph-${name}:before`),`${file}: missing icon ${name}; regenerate subset`);}
@@ -27,3 +27,12 @@ for(const file of fs.readdirSync(src,{recursive:true})){
  assert.doesNotMatch(text,/deployments\/manifests\//,'full deployment manifest entered browser: '+file);
 }
 console.log('PASS: lazy controller graph, ABI import boundaries and business entry budget');
+
+const staticKey=Object.keys(manifest).find(key=>key.endsWith('/routing/static-entry.ts'));
+assert.ok(staticKey,'public entry missing');
+const publicGraph=new Set();
+function visitPublic(key){if(publicGraph.has(key))return;publicGraph.add(key);for(const child of manifest[key]?.imports??[])visitPublic(child);}
+visitPublic(staticKey);
+for(const key of publicGraph)assert.doesNotMatch(manifest[key].file,/\/(?:app|chain|create-controller|trade-controller)-/,'financial runtime entered public entry');
+assert.ok(Object.keys(manifest).some(key=>key.endsWith('/controllers/stats.ts')),'lazy Stats controller missing');
+console.log('PASS: public entry excludes financial runtime; Stats controller is split');

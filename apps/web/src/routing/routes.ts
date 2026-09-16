@@ -1,7 +1,7 @@
 export const PAGE_PATHS = {
   home: "/", markets: "/explore", trade: "/trade", create: "/create",
   stats: "/stats", statsStocks: "/stats/stocks", rewards: "/claim", staking: "/stake", docs: "/docs",
-  privacy: "/privacy", terms: "/terms", risks: "/risks",
+  privacy: "/privacy", terms: "/terms",
 } as const;
 
 export type PageName = keyof typeof PAGE_PATHS | "not-found";

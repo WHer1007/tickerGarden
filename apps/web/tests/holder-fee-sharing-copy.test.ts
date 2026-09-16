@@ -14,8 +14,8 @@ test("holder fee sharing uses the approved feature label and creation semantics"
   assert.match(rewards, /Holder rewards/);
   assert.match(create, /50% of the creator base-fee share/i);
   assert.match(create, /excluding creator tax/i);
-  assert.match(create, /claim the original paired asset and created token after publication/i);
-  assert.match(create, /no fixed payout schedule/i);
+  assert.doesNotMatch(create, /claim the original paired asset and created token after publication|View holder rewards/i);
+  assert.doesNotMatch(create, /no fixed payout schedule/i);
   assert.doesNotMatch(create, /Request a treasury|Registration and funding happen separately|no fees are automatically redirected/i);
   assert.doesNotMatch(create, /give up all creator base fee share|all creator base fee share and creator tax/i);
 });

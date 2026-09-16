@@ -91,6 +91,27 @@ async function run() {
   check(!defaultPreventedAfterStop, "stop removes the router click handler");
   check(renders === stoppedRenders, "stop unbinds click handling");
 
+  // Real delayed mounts: fragment positioning must happen after the target exists.
+  let releaseDocs: (() => void) | undefined;
+  let anchorScrolls = 0;
+  history.replaceState(null, '', '/explore');
+  const delayed = createRouter({
+    async render(route) {
+      outlet.replaceChildren();
+      if (route.page === 'docs') await new Promise<void>(resolve => { releaseDocs = resolve; });
+      outlet.innerHTML = '<h1>Ready</h1><section id="docs-risks">Risks</section>';
+      outlet.querySelector<HTMLElement>('#docs-risks')!.scrollIntoView = () => { anchorScrolls++; };
+    }, canNavigate: () => true, blocked() {},
+  });
+  delayed.start();
+  await Promise.resolve();
+  delayed.navigate('/docs#docs-risks');
+  check(anchorScrolls === 0, 'fragment does not scroll before its async page exists');
+  releaseDocs!();
+  await waitFor(() => anchorScrolls === 1, 'fragment scroll after mount');
+  check(anchorScrolls === 1, 'fragment scrolls after its page is mounted');
+  delayed.stop();
+
   result.textContent = `PASS (${assertions} assertions)`;
   document.title = result.textContent;
   log.textContent = checks.join("\n");

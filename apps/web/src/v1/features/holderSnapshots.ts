@@ -1,3 +1,4 @@
+import {remainingSnapshotAssets} from './holderSnapshotDisplay.ts';
 import currentV4Abis_HolderRewardsDistributorV1 from '../generated/contracts/current/HolderRewardsDistributorV1.ts';
 import {encodeAbiParameters, keccak256, concat, toHex, type Address, type Hex} from 'viem';
 
@@ -32,21 +33,7 @@ export function parseHolderSnapshots(value:unknown,id:SnapshotIdentity):HolderSn
  });
  return Object.freeze({identity:id,status:p.status as HolderSnapshotPage['status'],sourceBlock,sourceHash:p.sourceBlockHash as Hex,rounds:Object.freeze(rounds),nextCursor:p.nextCursor as string|null});
 }
-export function claimableSnapshotAssets(r:HolderRound):number {return (r.quoteAmount>0n?1:0) | (r.memeAmount>0n?2:0);}
-export function remainingSnapshotAssets(r:HolderRound):number {return claimableSnapshotAssets(r)&~r.claimedAssets;}
-export function holderSnapshotStatus(status:HolderSnapshotPage['status'],round:HolderRound|undefined,writesAvailable:boolean):Readonly<{message:string;tone:'neutral'|'error'}>{
- if(round){
-  if(remainingSnapshotAssets(round)===0)return {message:'Rewards from this distribution have already been claimed.',tone:'neutral'};
-  return writesAvailable?{message:'',tone:'neutral'}:{message:'Claiming is temporarily unavailable.',tone:'error'};
- }
- const messages:Record<HolderSnapshotPage['status'],string>={
-  ready:'No rewards available for this wallet.',
-  awaiting_funding:'Your rewards are being prepared.',
-  awaiting_publication:'The next reward distribution is being prepared.',
-  publisher_unconfigured:'New reward distributions are temporarily unavailable.',
- };
- return {message:messages[status],tone:'neutral'};
-}
+export {claimableSnapshotAssets,remainingSnapshotAssets,holderSnapshotStatus} from './holderSnapshotDisplay.ts';
 export function buildSnapshotClaim(id:SnapshotIdentity,r:HolderRound,assets:number) {
  if(id.burnMemeFees && r.memeAmount!==0n)throw Error('Burn-mode holder snapshots must be Quote-only');
  if(![1,2,3].includes(assets)||(assets&remainingSnapshotAssets(r))!==assets)throw Error('Selected snapshot assets are unavailable');

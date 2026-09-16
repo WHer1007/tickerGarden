@@ -1,40 +1,32 @@
-# TickerGarden legal-page review notes
+# Legal-page maintenance notes
 
-> Review date: 2026-09-04
-> Status: implementation aid only; not legal advice and not part of the public agreement
+Updated: 2026-09-16. Internal maintenance record; not part of the public agreement.
 
-## Reference material
+## Approved publication choices
 
-- Pons Privacy Policy: <https://www.ponsfamily.com/privacy>
-- Pons Terms of Use: <https://www.ponsfamily.com/terms>
-- TickerGarden protocol/product source: [`../../docs/v1/V1_PROTOCOL_PARAMETERS.md`](../../docs/v1/V1_PROTOCOL_PARAMETERS.md)
-- TickerGarden brand-language source: [`../../brand/BRAND_CULTURE_AND_ECOSYSTEM.md`](../../brand/BRAND_CULTURE_AND_ECOSYSTEM.md)
+The owner requested production-facing Privacy and Terms copy without draft banners, launch checklists, or implementation commentary. The owner confirmed Singapore and `info@tickergarden.com`, and explicitly requested that the operator's legal name not be displayed for now. These instructions supersede the previous requirement to retain pre-launch banners.
 
-Pons was used as a structural reference for topics expected on a wallet-connected token interface: public blockchain data, browser and infrastructure data, third-party providers, wallet security, irreversible transactions, user-created content, market and liquidity risk, fees, acceptable use, warranty and liability boundaries, and legal contacts.
+Both pages use a last-updated date and the supplied contact email. No company registration, registered address, named legal entity, external legal review, exclusive court, mandatory arbitration clause, or monetary liability cap has been invented. The country statement is not treated as an instruction to select exclusive Singapore jurisdiction.
 
-TickerGarden text was independently drafted and is not a copy of Pons's legal text.
+## Content and implementation alignment
 
-## TickerGarden-specific differences
+- Fonts are self-hosted. Remove the former Google Fonts disclosure.
+- Browser storage supports wallet preferences, creation details, transaction recovery, and recent selections. Public addresses and transaction hashes may be stored for recovery; private keys and recovery phrases are not collected through wallet connection.
+- Production hosting, security, blockchain access, and content providers include Vercel, Cloudflare, DigitalOcean, Alchemy, and Pinata. User-published metadata may persist on IPFS even without a successful token launch.
+- No advertising SDK was found in the current frontend. Do not turn this into an unsupported company-wide promise that all information is never sold or shared.
+- State that community tokens are separate from Stock ownership and redemption rights; rewards depend on actual fees. Describe fees and exits in user language, with Docs links for details.
+- USDG's 1 USD display convention is not a market-price or redemption guarantee.
+- Preserve the absence of an independent external contract audit, the limits of internal security review, and mandatory statutory rights.
+- Risk disclosure is consolidated in Docs. The owner requested removal of /risks without a redirect, a footer Risk link to /docs#docs-risks, and contextual Create/Trade/Stake notices.
 
-1. The interface does not hold private keys, but protocol contracts can hold allocated STOCK in the canonical `UserStockVault`. The public language therefore distinguishes a noncustodial interface from smart-contract custody.
-2. Ticker Meme tokens are explicitly separated from stock ownership, dividends, voting, redemption, price tracking, or collateral claims.
-3. One eligible STOCK may anchor multiple independent Ticker Meme markets.
-4. `Bloom` is user language for successful Graduation and is true only at canonical `PoolCreated`; it is not a quality or value signal.
-5. STOCK allocation begins only after Bloom and shares only fees actually generated under the market's rules. It does not mint Meme tokens or create a fixed return.
-6. `rageQuit` is described as a contract exit that returns allocated principal under the current rules while forfeiting unclaimed fees; it is not insurance.
-7. Treasury language is conditional because the production release gate remains open.
-8. Pons's legal entity, jurisdiction list, governing law, arbitration process, liability cap, contacts, and effective dates are specific to Pons and were not reused.
+## Ongoing responsibilities
 
-## Required legal decisions before production publication
+The text is not evidence that every legal or operational obligation has been fulfilled. The operator remains responsible for an active privacy request process, applicable data-protection officer arrangements, provider/transfer safeguards, retention practices, required notices, and jurisdiction-specific legal review. Revisit the identity disclosure when the owner supplies the public operator details.
 
-- operator legal name, legal form, registered address, and role as data controller;
-- monitored legal, privacy, security, and copyright contact channels;
-- effective dates and version/change-notice process;
-- launch jurisdictions, restricted jurisdictions, sanctions screening, and age rules;
-- governing law, forum or arbitration model, informal-resolution process, and consumer-law variations;
-- warranty exclusions, protected parties, liability cap and carve-outs, indemnification, and release language;
-- complete production vendor and data-flow inventory, including hosting, RPC, APIs, indexers, fonts, metadata gateways, security, analytics, logs, and retention;
-- regional privacy disclosures, request verification, appeals, international-transfer mechanisms, and cookie/consent requirements;
-- review of Stock Token, fee allocation, Treasury, creator, marketing, and Ticker Meme terminology in each offered jurisdiction.
+References checked for the wording:
 
-Until these items are approved, the public pages must continue to display `Pre-launch legal draft` and must not be represented as effective Terms or a final Privacy Policy.
+- Singapore PDPC data protection obligations: https://www.pdpc.gov.sg/overview-of-pdpa/the-legislation/personal-data-protection-act/data-protection-obligations
+- Singapore PDPC notification guidance: https://www.pdpc.gov.sg/help-and-resources/2019/09/guide-to-notification
+- FTC privacy promises and actual practices: https://www.ftc.gov/business-guidance/privacy-security
+
+Code and runtime validation do not constitute legal approval or test mailbox delivery. No email was sent as part of this work.

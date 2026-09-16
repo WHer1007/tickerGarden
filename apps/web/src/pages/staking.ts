@@ -10,6 +10,7 @@ export default { title: 'Stake — TickerGarden', html: `
   <section class="stake-content" data-rewards-panel="positions" aria-label="Market staking">
     <button type="button" data-rewards-tab="positions" hidden>Positions</button>
     <div class="stake-toolbar"><div class="stake-market-search"><label class="search-field"><i class="ph ph-magnifying-glass" aria-hidden="true"></i><input data-position-search type="search" aria-label="Search staking markets" placeholder="Search markets…" autocomplete="off" aria-controls="stake-search-results" aria-expanded="false"></label><div id="stake-search-results" data-stake-search-results role="listbox" aria-label="Matching markets" hidden></div></div><select data-position-market aria-label="Selected staking market" hidden><option value="">Select a market</option></select></div>
+    <p class="action-risk-note">Rewards are not guaranteed, and staked assets carry contract and issuer risk. <a href="/docs#risk-staking">Read the risks</a>.</p>
     <section class="stake-portfolio-empty" data-stake-portfolio-empty aria-labelledby="stake-empty-title" hidden>
       <div class="stake-portfolio-empty__visual" aria-hidden="true"><span><i class="ph ph-plant" data-stake-empty-icon></i></span></div>
       <div class="stake-portfolio-empty__copy"><span class="stake-portfolio-empty__eyebrow" data-stake-empty-eyebrow>Your staking portfolio</span><h2 id="stake-empty-title" data-stake-empty-title>No active stakes yet</h2><p data-stake-empty-copy>Choose a market and stake its paired Stock asset to start earning a share of trading fees.</p></div>
@@ -46,6 +47,7 @@ export default { title: 'Stake — TickerGarden', html: `
     <p id="stake-preview" data-stake-preview aria-live="polite">Enter an amount to preview your position.</p>
     <div class="after-stake"><div><span>Currently staked</span><strong data-stake-modal-current>-</strong></div><div><span>After staking</span><strong data-stake-modal-after>-</strong></div></div>
     <div class="lock-notice"><i class="ph ph-warning-circle" aria-hidden="true"></i><span data-stake-modal-relock hidden>Adding stake restarts the full 24-hour lock. Rewards unlock at the same time.</span><span data-stake-modal-unlock>Expected unlock: —</span></div><p class="activation-note">New stake starts earning after 30 seconds.</p>
+    <p class="action-risk-note">Staking puts assets at risk; an emergency exit forfeits unclaimed rewards. <a href="/docs#risk-staking">Read the risks</a>.</p>
     <button type="button" disabled class="primary-button dialog-submit" data-reward-action="stake" data-action="stake">Stake</button><button type="button" class="secondary-button" data-close-stake>Cancel</button><small>Approval may be required · Network fee applies</small>
   </form></dialog>
 </main>` };

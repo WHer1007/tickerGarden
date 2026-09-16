@@ -84,13 +84,13 @@ async function run() {
   await waitFor(() => button("[data-wallet]").dataset.state === "connected" && !document.querySelector<HTMLDialogElement>(".wallet-dialog")!.open, "connected mock wallet");
   check(button("[data-wallet]").textContent?.includes("0x111111…1111"), "connected wallet button shows the shortened address");
 
-  const sequence = ["markets", "create", "stats", "rewards", "docs", "privacy", "terms", "risks", "home"];
+  const sequence = ["markets", "create", "stats", "rewards", "docs", "privacy", "terms", "home"];
   for (const pass of [1, 2]) {
     for (const page of sequence) {
       await navigate(page === "home" ? "/" : page === "markets" ? "/explore" : page === "rewards" ? "/claim" : `/${page}`, page);
       check(button("[data-wallet]").dataset.state === "connected", `${page} pass ${pass}: wallet survives same-document navigation`);
       check(document.querySelectorAll(".wallet-dialog").length === 1, `${page} pass ${pass}: only one wallet picker exists`);
-      const routeIntervals = page === "rewards" ? 1 : ["docs", "privacy", "terms", "risks"].includes(page) ? -1 : 0;
+      const routeIntervals = page === "rewards" ? 1 : ["docs", "privacy", "terms"].includes(page) ? -1 : 0;
       await waitFor(() => intervals.size === persistentIntervalBaseline + routeIntervals, `${page} pass ${pass} timers initialize`);
       check(intervals.size === persistentIntervalBaseline + routeIntervals, `${page} pass ${pass}: route timers are scoped and do not grow (${intervals.size} active intervals)`);
     }

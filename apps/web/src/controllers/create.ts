@@ -1,3 +1,6 @@
+import {FIXED_LAUNCH_FEE_LABEL} from '../create/launch-fee-display.ts';
+import {sortStakingAssets} from '../create/featured-stocks.ts';
+import { publicError } from "../ui/public-error.ts";
 import currentV4Abis_TickerGardenFactoryV1 from '../v1/generated/contracts/current/TickerGardenFactoryV1.ts';
 import v1Abis_TickerGardenCurve from '../v1/generated/contracts/legacy/TickerGardenCurve.ts';
 import {
@@ -65,7 +68,7 @@ function drawLaunchProgress():void{
  const display=ctx.launchProgress.phase==='paused'&&!ctx.launchProgress.hash?{step:'Confirm in wallet',percent:60}:launchPhaseDisplay[ctx.launchProgress.phase];
  const rawLogo=ctx.launchProgress.listing?.logo??'';
  const logo=ipfsGatewayURL(rawLogo,import.meta.env.VITE_IPFS_GATEWAY)??(/^data:image\/(?:png|jpeg|webp);base64,/i.test(rawLogo)?rawLogo:undefined);
- renderLaunchProgress({title:ctx.launchProgress.phase==='complete'?'Launch Successful':ctx.launchProgress.phase==='confirming'?'Token Created':ctx.launchProgress.phase==='pending'?'Launch Submitted':ctx.launchProgress.phase==='failed'?'Launch Stopped':'Launching Your Token',...display,detail:ctx.launchProgress.detail,hash:ctx.launchProgress.hash,
+ renderLaunchProgress({title:ctx.launchProgress.phase==='complete'?'Launch Successful':ctx.launchProgress.phase==='confirming'?'Token Created':ctx.launchProgress.phase==='pending'?'Launch Submitted':ctx.launchProgress.phase==='failed'?'Launch Stopped':'Launching Your Token',...display,detail:ctx.launchProgress.phase==='failed'?publicError(undefined,'transaction'):ctx.launchProgress.detail,hash:ctx.launchProgress.hash,
   explorer:ctx.launchProgress.hash?`${robinhoodChain.blockExplorers.default.url}/tx/${ctx.launchProgress.hash}`:'',needsHash:ctx.launchProgress.phase==='paused'||(ctx.launchProgress.phase==='wallet'&&!ctx.launchSubmitting),canDismiss:ctx.launchProgress.phase==='failed',outcome:ctx.launchProgress.phase==='complete',complete:ctx.launchProgress.phase==='complete',tokenName:ctx.launchProgress.listing?.name,tokenSymbol:ctx.launchProgress.listing?.symbol,tokenLogo:logo},
  {onViewToken:()=>{if(ctx.launchProgress?.phase==='complete')navigateCompletedLaunch(ctx.launchProgress);},onHash:hash=>{if(!ctx.launchProgress||ctx.launchSubmitting)return;ctx.launchProgress.hash=hash;updateLaunchProgress('pending','Checking the transaction you provided…');void restoreLaunchProgress();},
  onCreateNew:()=>{if(ctx.launchProgress?.phase!=='complete')return;const chainId=ctx.launchProgress.chainId;try{localStorage.removeItem(launchStateKey(chainId));localStorage.removeItem(`tg-listing:${chainId}`);}catch{}ctx.launchProgress=null;ctx.latestListing=null;closeLaunchProgress();window.location.assign('/create');},
@@ -119,7 +122,7 @@ async function restoreLaunchProgress():Promise<void>{
  if(ctx.launchSubmitting||ctx.launchRecoveryBusy)return;
  if(ctx.launchRecoveryTimer){clearTimeout(ctx.launchRecoveryTimer);ctx.launchRecoveryTimer=undefined;}
  try{ctx.launchProgress=readLaunchState(localStorage,robinhoodChain.id);}catch(error){
-  renderLaunchProgress({title:'Launch recovery needs attention',step:'Check saved launch',detail:ctx.errorText(error),percent:0,explorer:robinhoodChain.blockExplorers.default.url},{});return;
+  renderLaunchProgress({title:'Launch recovery needs attention',step:'Check saved launch',detail:publicError(error,'recovery'),percent:0,explorer:robinhoodChain.blockExplorers.default.url},{});return;
  }
  const state=ctx.launchProgress;if(!state){closeLaunchProgress();updateCreateAvailability();return;}
  if(state.phase==='complete'&&state.expected){
@@ -203,7 +206,7 @@ function renderDeveloperBuyBalance(): void {
 }
 
 function launchDetails() {
-  const value = (name: string) => ctx.query<HTMLInputElement | HTMLTextAreaElement>(`[name=${name}]`)?.value.trim() ?? "";
+  const value = (name: string) => ctx.query<HTMLInputElement | HTMLTextAreaElement>(`[data-create-form] [name=${name}]`)?.value.trim() ?? "";
   return { name: value("name"), symbol: value("symbol"), description: value("description"), x: value("x"), website: value("website"), creatorFeesToHolders: ctx.query<HTMLInputElement>("[name=treasuryEnabled]")?.checked ?? false, creatorTaxBps: (() => { try { return creatorTaxBps(value("creatorTax")); } catch { return 0; } })(), image: ctx.launchImage };
 }
 
@@ -408,7 +411,7 @@ function renderCreateConfig(): void {
     return;
   }
   const stockSelect = ctx.required<HTMLSelectElement>("[name=assetUid]", form);
-  const activeStocks = ctx.foundation.assets.filter((item) => isListedStakingAsset(robinhoodChain.id, item));
+  const activeStocks = sortStakingAssets(ctx.foundation.assets.filter((item) => isListedStakingAsset(robinhoodChain.id, item)), ctx.stockSymbol);
   ctx.populateSelect(stockSelect, activeStocks, "No eligible staking assets");
   updateQuotePicker(stockSelect, activeStocks.map((stock) => ({
     value: stock.id,
@@ -452,7 +455,7 @@ function updateLaunchMode(): void {
   const lpSelect=ctx.query<HTMLSelectElement>("[name=lpFeePips]");
   if(lpSelect)lpSelect.disabled=!lpEnabled;
   const lpOptions=ctx.query<HTMLElement>("#lp-fee-options");if(lpOptions)lpOptions.hidden=!lpEnabled;
-  ctx.text("[data-preview-lp-fee]", `${lpEnabled ? Number(lpSelect?.value ?? 1000)/10000 : 0}% · after Bloom`);
+  ctx.text("[data-preview-lp-fee]", `${lpEnabled ? Number(lpSelect?.value ?? 1000)/10000 : 0}%`);
   ctx.text("[data-preview-meme-burn]", ctx.query<HTMLInputElement>("[name=burnMemeFees]")?.checked ? "On · permanent" : "Off");
   const tax = ctx.query<HTMLInputElement>("[name=creatorTax]");
   if (tax) {
@@ -471,18 +474,15 @@ function renderCreateIdentity(): void {
   ctx.text("#meme-fee-burn-help", `Burn fees earned in ${burnToken}. Paired-asset rewards and platform fees are unaffected. Permanent at launch.`);
   ctx.text("[data-fee-burn-note]", `Fees earned in ${burnToken} are burned at settlement; paired-asset rewards are paid out. Platform fees are unaffected.`);
   ctx.text("[data-creator-tax-help]",burn?`Extra trading fee (0–5%). The paired asset is paid to you; ${burnToken} is burned when you claim. Fixed at launch.`:"Extra trading fee (0–5%), allocated to you. Fixed at launch.");
-  ctx.text("[data-holder-sharing-help]",burn?`Holder rewards use wallet snapshots and pay the paired asset only. Holder ${burnToken} fees are burned during funding settlement.`:"Rewards use wallet balances at published snapshots. Eligible holders can claim the original paired asset and created token after publication. There is no fixed payout schedule.");
   const burnNote=ctx.query<HTMLElement>("[data-fee-burn-note]");if(burnNote)burnNote.hidden=!burn;
   ctx.text("[data-creator-tax-recipient]",burn?`Paired asset to you · ${burnToken} burned`:"100% to you");
   ctx.text("[data-preview-creator-tax]", `${formatTokenAmount(BigInt(details.creatorTaxBps), 2)}%`);
   ctx.text("[data-preview-treasury]", details.creatorFeesToHolders ? "50% of creator base fees" : "Off");
   ctx.text("[data-treasury-option-status]", burn?`Allocate 50% of your creator base-fee share to holders. ${burnToken} portions are burned; paired-asset rewards are paid normally. Fixed at launch.`:"Share 50% of your creator base-fee share with holders. Creator tax stays yours. Fixed at launch.");
-  const treasuryDetails = ctx.query<HTMLElement>("#treasury-details");
-  if (treasuryDetails) treasuryDetails.hidden = !details.creatorFeesToHolders;
   ctx.text("[data-token-name]", details.name || "Your next big idea");
   ctx.text("[data-token-symbol]", details.symbol || "ticker");
   ctx.text("[data-token-description]", details.description);
-  const description=ctx.query<HTMLTextAreaElement>('[name=description]');
+  const description=ctx.query<HTMLTextAreaElement>('[data-create-form] [name=description]');
   if(description){
     const error=fieldError(description.value,{kind:'description'});
     description.setCustomValidity(error);
@@ -514,7 +514,7 @@ function renderCreateIdentity(): void {
   const quote = ctx.foundation?.quotes.find(item => item.id === selection);
   const releaseAsset = releasePairForSelection(selection, ctx.foundation?.quotes ?? []);
   ctx.displayPriceWidget?.setToken(typeof quote?.values.quoteAsset === "string" ? quote.values.quoteAsset : null);
-  ctx.text("[data-preview-launch-fee]", ctx.foundation?.launchFee === undefined ? "-" : `${formatTokenAmount(ctx.foundation.launchFee, 18)} ETH`);
+  ctx.text('[data-preview-launch-fee]',FIXED_LAUNCH_FEE_LABEL);
   ctx.text("[data-preview-trade-fee]", "-");
   ctx.text("[data-preview-graduation]", "-");
   ctx.text("[data-graduation-caption]", "Loading bloom target…");
@@ -675,7 +675,7 @@ async function refreshLaunchPreview(generation: number): Promise<void> {
     ctx.launchFunding = null;
     const panel = ctx.query<HTMLElement>("[data-launch-funding]");
     if (panel) panel.hidden = true;
-    ctx.text("[data-create-preview]", ctx.errorText(error));
+    ctx.text("[data-create-preview]", publicError(error,'preview'));
     setCreateNoticeLevel("[data-create-preview]", "error");
     updateCreateAvailability();
   }
@@ -787,7 +787,7 @@ async function submitLaunch(): Promise<void> {
   if(ctx.launchFunding)addRows([['Estimated Total',`${formatTokenAmount(ctx.launchFunding.totalRequired,18)} ETH`]],'launch-confirm-total');
   try {
     await confirmLaunch(snapshot,()=>ctx.confirmFlowAction('',{title:'Confirm Launch',confirmLabel:'Confirm And Launch',content}),performLaunch);
-  } catch(error){ctx.text('[data-create-preview]',ctx.errorText(error));setCreateNoticeLevel('[data-create-preview]','error');updateCreateAvailability();}
+  } catch(error){ctx.text('[data-create-preview]',publicError(error,'preview'));setCreateNoticeLevel('[data-create-preview]','error');updateCreateAvailability();}
  });
 }
 
@@ -953,9 +953,9 @@ async function performLaunch(): Promise<void> {
       if(ctx.launchProgress.phase!=='failed'&&(ctx.launchProgress.hash||ctx.launchProgress.phase==='wallet'||ctx.launchProgress.phase==='pending'||ctx.launchProgress.phase==='confirming')){
        updateLaunchProgress('paused','The transaction outcome is not confirmed yet. We will keep tracking it; do not launch again.');
        setTimeout(()=>void restoreLaunchProgress(),0);
-      } else updateLaunchProgress('failed',ctx.errorText(error));
+      } else updateLaunchProgress('failed',publicError(error,'transaction'));
     }
-    ctx.notify(ctx.launchProgress?.phase==='paused'?'Launch is still being tracked. Do not publish again.':`Launch stopped — ${ctx.errorText(error)}`,ctx.launchProgress?.phase==='paused'?'warning':'error');
+    ctx.notify(ctx.launchProgress?.phase==='paused'?'Launch is still being tracked. Do not publish again.':publicError(error,'transaction'),ctx.launchProgress?.phase==='paused'?'warning':'error');
     scheduleLaunchPreview();
   } finally {
     fields.forEach((field, index) => { field.disabled = disabledBefore[index]!; });

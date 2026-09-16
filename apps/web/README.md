@@ -14,7 +14,7 @@ Current brand-renamed candidate: `IMPLEMENTATION_ALLOWED / NOT_BROADCAST`. Gate 
 
 ## 页面
 
-- 正式构建为单 `index.html` 的 History API SPA，页面路由为：`/`（首页与产品入口）、`/explore`（市场浏览）、`/trade`（市场交易）、`/create`（创建市场）、`/stats`（统计）、`/docs`（文档与边界说明）、`/claim`（Claim，承载 Position、Staker、Creator、Treasury）、`/privacy`（Privacy Policy 预发布法律草案）、`/terms`（Terms of Use 预发布法律草案）、`/risks`（风险说明）。旧 `/market`、`/markets` 书签会保留查询参数和片段并归一化到 `/explore`。
+- 正式构建为单 `index.html` 的 History API SPA，页面路由为：`/`（首页与产品入口）、`/explore`（市场浏览）、`/trade`（市场交易）、`/create`（创建市场）、`/stats`（统计）、`/docs`（文档与边界说明）、`/claim`（Claim，承载 Position、Staker、Creator、Treasury）、`/privacy`（Privacy Policy）、`/terms`（Terms of Use）、`/docs#docs-risks`（风险说明）。旧 `/market`、`/markets` 书签会保留查询参数和片段并归一化到 `/explore`。
 - 旧 `/rewards` 和 `/rewards.html` 地址兼容跳转至 `/claim`。旧的 `.html` 地址由客户端路由替换为对应的新地址，并保留原 query/hash；例如 `trade.html?marketId=...` → `/trade?marketId=...`，`rewards.html#positions` → `/claim#positions`。`marketId` 通过 `/trade` 的 query 传递，Rewards 的标签和定位继续通过 hash 传递。
 - 本地运行：`npm run dev` 启动 Vite 开发服务器；`npm run build` 生成生产产物；`npm run preview` 预览 `dist/`。Vite dev/preview 支持 SPA History API deep-link 回退。
 - 生产托管必须为站点路由配置 deep-link fallback：支持该格式的平台可使用 `dist/_redirects`；Nginx 可参考 `try_files $uri $uri/ /index.html`（仅站点路由，不覆写独立 API）；其他平台配置等价 rewrite。生产托管规则尚未部署验证。

@@ -24,7 +24,8 @@
     "generate:catalogs": "node scripts/generate-asset-catalogs.mjs",
     "check:catalogs": "node scripts/generate-asset-catalogs.mjs --check",
     "test:browser:controllers": "node scripts/check-controller-navigation.mjs",
-    "test:browser:styles": "node scripts/check-style-hierarchy.mjs"
+    "test:browser:styles": "node scripts/check-style-hierarchy.mjs",
+    "test:browser:delivery": "node scripts/check-route-delivery.mjs"
   },
   "dependencies": {
     "@phosphor-icons/web": "^2.1.2",

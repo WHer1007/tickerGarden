@@ -1,3 +1,5 @@
+import { publicError } from "../ui/public-error.ts";
+import { renderTradeEmptyState } from "../ui/trade-empty-state.ts";
 import v1Abis_TickerGardenCurve from '../v1/generated/contracts/legacy/TickerGardenCurve.ts';
 import v1Abis_ProtocolFeeVault from '../v1/generated/contracts/legacy/ProtocolFeeVault.ts';
 import v1Abis_TickerMemeTokenV1 from '../v1/generated/contracts/legacy/TickerMemeTokenV1.ts';
@@ -76,6 +78,8 @@ async function loadPoolQuoteBindings(market:MarketReadModel,blockNumber:bigint){
 }
 
 function setupTrade(): void {
+  const requested = new URL(window.location.href).searchParams.get("marketId")?.trim() ?? "";
+  renderTradeEmptyState(!requested ? "missing" : /^0x[0-9a-fA-F]{64}$/.test(requested) ? null : "invalid");
   ctx.query<HTMLElement>('.ref-links')?.addEventListener('click',event=>{
     const button=event.target instanceof Element?event.target.closest<HTMLButtonElement>('button[data-external-url]'):null;
     if(!button||button.hidden||button.disabled||!button.dataset.externalUrl)return;
@@ -345,6 +349,7 @@ function setTradePageLoading(loading:boolean):void{
 async function loadTradeMarket(explicit?: string): Promise<void> {
   const requested = explicit ?? new URL(window.location.href).searchParams.get('marketId') ?? '';
   if (ctx.tradeMarket && ctx.tradeMarket.market.marketId === requested.trim().toLowerCase()) {
+    renderTradeEmptyState(null);
     await refreshTradeFields(undefined, true);
     return;
   }
@@ -357,13 +362,15 @@ async function loadTradeMarket(explicit?: string): Promise<void> {
   const raw = explicit ?? new URL(window.location.href).searchParams.get("marketId") ?? "";
   let marketId: Hex;
   try { marketId = canonicalBytes32(raw.trim().toLowerCase(), "marketId"); }
-  catch (error) { ctx.text("[data-detail-phase]", "Choose a market"); ctx.text("[data-detail-phase-note]", "Open a token from Explore to view its trading pool."); ctx.setPageStatus(ctx.errorText(error), "error"); return; }
+  catch { renderTradeEmptyState(raw.trim() ? "invalid" : "missing"); updateTradeAvailability(); return; }
   if (!ctx.foundation || (!ctx.readApi && !ctx.foundation.direct)) {
-    ctx.setPageStatus(`Market data unavailable — ${ctx.runtimeReasons().join("; ")}`, "error");
+    renderTradeEmptyState("unavailable");
+    updateTradeAvailability();
     return;
   }
+  renderTradeEmptyState(null);
   setTradePageLoading(true);
-  ctx.setPageStatus("Loading the finalized market record…");
+  ctx.setPageStatus("Loading market details…");
   ctx.tradeQuote = null;
   ctx.displayPriceWidget?.setToken(null);
   try {
@@ -453,8 +460,8 @@ async function loadTradeMarket(explicit?: string): Promise<void> {
     ctx.query<HTMLElement>('.ref-hero')?.setAttribute('aria-busy','false');
     ctx.tokenDetailWidget?.setUnavailable();
     ctx.text('[data-detail-description]','Token details could not be loaded.');
-    ctx.text("[data-detail-phase-note]", ctx.errorText(error));
-    ctx.setPageStatus(`Market load failed — ${ctx.errorText(error)}`, "error");
+    ctx.text("[data-detail-phase-note]", publicError(error));
+    renderTradeEmptyState("unavailable");
     updateTradeAvailability();
   } finally {
     if(generation===ctx.tradeLoadGeneration)setTradePageLoading(false);
@@ -862,7 +869,7 @@ async function submitTrade(): Promise<void> {
     });
     completeTradeDisplay(market);
   } catch (error) {
-    ctx.notify(`Trade requires attention — ${ctx.errorText(error)}`, "warning");
+    ctx.notify(publicError(error,'transaction'), "warning");
   } finally {ctx.tradeSubmitting=false;ctx.tradeSubmittingMarketId=undefined;updateTradeAvailability();}
 }
 
