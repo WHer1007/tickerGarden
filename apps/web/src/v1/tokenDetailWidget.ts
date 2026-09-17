@@ -6,14 +6,14 @@ import {creationReceiptChart,detailChartWindow,loadDetailChart} from './detailCh
 import {formatTradePrice} from './tradePricing.ts';
 import {mergeRecentTrades} from './recentTrades.ts';
 import type {TokenDetailTrade,TokenDetailFee} from './generated/read-api.ts';
-import {marketCapUsd,type MarketOverview} from './marketOverview.ts';
+import type {MarketOverview} from './marketOverview.ts';
 import {TickerGardenV1Client,TickerGardenApiError,type TokenDetailResponse,type TokenDetailChart} from './generated/read-api.ts';
 import {validateTokenDetail,displayDecimal,scaledDecimal,feeRows,type DetailIdentity,type DetailPeriod,type FeeConfig} from './tokenDetail.ts';
 import {candleVolume} from './candleTable.ts';
 export function mountTokenDetail(root:HTMLElement,base:string|null,chain:number,explorer:string){
  const q=<T extends HTMLElement=HTMLElement>(s:string)=>root.querySelector<T>(s)!;
  const text=(s:string,v:string)=>root.querySelectorAll<HTMLElement>(s).forEach(e=>{if(e.textContent!==v)e.textContent=v;});
- let id:DetailIdentity|null=null,period:DetailPeriod='1H',data:TokenDetailResponse|null=null,fees:FeeConfig|null=null,controller:AbortController|null=null,generation=0,expiry:ReturnType<typeof setTimeout>|undefined,tradeLimit=20,holderLimit=20;
+ let id:DetailIdentity|null=null,period:DetailPeriod='1H',data:TokenDetailResponse|null=null,fees:FeeConfig|null=null,controller:AbortController|null=null,generation=0,tradeLimit=20,holderLimit=20;
  let changes:ReturnType<typeof watchMarketChanges>|null=null,partialAbort:AbortController|null=null;
  let activity:TokenDetailResponse|null=null,activityLoader:ReturnType<typeof createDetailActivity>|null=null;
  let state:'loading'|'ready'|'pending'|'error'='loading';
@@ -29,7 +29,7 @@ export function mountTokenDetail(root:HTMLElement,base:string|null,chain:number,
  const chartKeyFor=(identity:DetailIdentity,chosen:DetailPeriod,asOf:number)=>`${identity.marketId}:${chosen}:${detailChartWindow(chosen,asOf).to}`;
  const chartTime=()=>Math.max(overview.asOf??0,...(data?Object.values(data.sources).map(source=>source.asOf):[0]));
  const chartStateText=()=>chartState==='pending'?'Waiting for market data':chartState==='loading'?'Loading Chart…':'Could Not Load Chart. Try Again.';
- const cache=new Map<string,{data:TokenDetailResponse;until:number;refreshAt:number}>();
+ const cache=new Map<string,{data:TokenDetailResponse;refreshAt:number}>();
  const stateText=()=>state==='loading'?'Loading Data…':state==='pending'?'Statistics Not Ready':state==='error'?'Could Not Load Data. Try Refresh.':'Some Statistics Are Not Ready';
  const amount=(raw:string,d:number)=>displayDecimal(candleVolume(raw,d),6);
  const empty=(tbody:HTMLTableSectionElement,message:string,cols:number)=>{tbody.replaceChildren();const td=tbody.insertRow().insertCell();td.colSpan=cols;td.className='detail-empty-cell';const box=document.createElement('div');box.className='detail-activity-empty';box.setAttribute('role','status');const icon=document.createElement('i');icon.className=cols===6?'ph ph-arrows-left-right':'ph ph-users';icon.setAttribute('aria-hidden','true');const label=document.createElement('span');label.textContent=message;box.append(icon,label);td.append(box);};
@@ -77,7 +77,7 @@ export function mountTokenDetail(root:HTMLElement,base:string|null,chain:number,
   text('[data-detail-volume]',volume!==null&&volume!==undefined&&id?`${displayDecimal(volume,6)} ${id.quoteSymbol}`:'-');
   text('[data-detail-holders]',h?h.count.toLocaleString():'-');const supply=(data?.sources.holders?.asOf??0)>(overview.asOf??0)?data?.holders?.totalSupplyRaw??overview.supply:overview.supply??data?.holders?.totalSupplyRaw;text('[data-detail-circulating]',supply!==undefined?amount(supply,18):'-');
   if(overview.maximum!==undefined)text('[data-detail-supply]',amount(overview.maximum,18));
-  const cap=marketCapUsd(supply,exactPrice??undefined,overview.usd);text('[data-detail-cap]',cap!==null?`$${displayDecimal(cap,2)}`:'-');
+  const cap=stats?.marketCapUsd;text('[data-detail-cap]',cap?`$${displayDecimal(cap,2)}`:'-');
   renderChartChange();
   const visibleTrades=activity?.trades??data?.trades??[];
   const tradesKey=JSON.stringify([id?.marketId,activity?.trades??data?.trades,tradeLimit,activity?.trades||data?.trades?null:state]);
@@ -99,19 +99,18 @@ export function mountTokenDetail(root:HTMLElement,base:string|null,chain:number,
   const identity=id,chosen=period,asOf=chartTime();
   const initial=data&&data.period===chosen?creationReceiptChart(data,chosen):null;
   if(initial){chartGeneration++;chartRequest?.abort();chartRequest=null;chartData=initial;chartState='ready';renderChartChange();draw();return;}
-  if(!asOf){chartState='loading';chartData=null;draw();return;}
-  if(Date.now()/1000-asOf>1200||asOf>Date.now()/1000+30){chartState='error';chartData=null;renderChartChange();draw();return;}
+  if(!asOf){chartState='loading';draw();return;}
   const key=chartKeyFor(identity,chosen,asOf);
   if(chartRequest&&chartKey===key&&!chartRequest.signal.aborted)return;
   const own=++chartGeneration;chartRequest?.abort();chartRequest=null;chartKey=key;
   const cached=chartCache.get(key);
   if(!force&&cached&&cached.until>Date.now()){chartData=cached.value;chartState='ready';renderChartChange();draw();return;}
-  chartData=cached&&cached.until>Date.now()?cached.value:null;chartState='loading';renderChartChange();draw();
+  chartData=cached?.value??chartData;chartState='loading';renderChartChange();draw();
   const abort=new AbortController();chartRequest=abort;const timer=setTimeout(()=>abort.abort(),12000);
   try{
    const next=await loadDetailChart(base,chain,identity,chosen,asOf,abort.signal,fetch,data?.confirmation==='confirmed');
    if(own!==chartGeneration||abort.signal.aborted||id!==identity||period!==chosen)return;
-   chartCache.set(key,{value:next,until:Math.min(Date.now()+15000,(asOf+1200)*1000)});
+   chartCache.set(key,{value:next,until:Date.now()+15000});
    if(chartCache.size>12)chartCache.delete(chartCache.keys().next().value!);
    chartData=next;chartState='ready';renderChartChange();draw();
   }catch{if(own===chartGeneration){chartState=data?.confirmation==='confirmed'?'pending':'error';renderChartChange();draw();}}
@@ -135,9 +134,11 @@ export function mountTokenDetail(root:HTMLElement,base:string|null,chain:number,
   if(!id||!base){data=null;state=id?'error':'loading';if(id&&!base){chartData=null;chartState='error';renderChartChange();}render();return;}
   const identity=id,chosen='1H' as const,key=`${identity.marketId}:summary`,cached=cache.get(key);
   if(!force&&cached&&Date.now()<cached.refreshAt)return;
-  const own=++generation;controller?.abort();controller=null;clearTimeout(expiry);
+  const own=++generation;controller?.abort();controller=null;
   // Summary data is market-scoped; chart selection never invalidates it.
-  data=cached&&Date.now()<cached.until?cached.data:null;state='loading';if(!data)render();else text('[data-detail-source]',sourceLabel());
+  // Keep the last validated snapshot visible while a refresh is in flight,
+  // including after its freshness window. A failed refresh must not erase it.
+  data=data??cached?.data??null;state='loading';if(!data)render();else text('[data-detail-source]',sourceLabel());
   const abort=new AbortController();controller=abort;activeKey=key;const timer=setTimeout(()=>abort.abort(),12000);
   try{
    const api=new TickerGardenV1Client(base,(input,init)=>fetch(input,{...init,signal:abort.signal}));
@@ -150,15 +151,13 @@ export function mountTokenDetail(root:HTMLElement,base:string|null,chain:number,
 
    const next=validateTokenDetail(raw,chain,identity,chosen);if(own!==generation||abort.signal.aborted)return;
    if(data?.confirmation==='confirmed'&&next.confirmation!=='confirmed'&&BigInt(next.sources.trades?.blockNumber??'0')<BigInt(data.sources.trades?.blockNumber??'0')){state='ready';return;}
-   const changed=JSON.stringify(data)!==JSON.stringify(next);data=next;state='ready';const times=Object.values(next.sources).map(s=>s.asOf);
-   const until=times.length?(Math.min(...times)+1200)*1000:Date.now()+30000;
+   const changed=JSON.stringify(data)!==JSON.stringify(next);data=next;state='ready';
    activityLoader?.seed();
    if(activity&&next.sources.trades&&BigInt(next.sources.trades.blockNumber)>=BigInt(activity.sources.trades!.blockNumber))activity=null;
-   cache.set(key,{data:next,until,refreshAt:Math.min(Date.now()+(next.confirmation==='confirmed'?5000:15000),until)});
-   if(next.chart&&next.sources.chart){chartCache.set(chartKeyFor(identity,chosen,next.sources.chart.asOf),{value:next.chart,until:Math.min(Date.now()+15000,(next.sources.chart.asOf+1200)*1000)});}
+   cache.set(key,{data:next,refreshAt:Date.now()+(next.confirmation==='confirmed'?5000:15000)});
+   if(next.chart&&next.sources.chart){chartCache.set(chartKeyFor(identity,chosen,next.sources.chart.asOf),{value:next.chart,until:Date.now()+15000});}
    if(changed)render();else text('[data-detail-source]',sourceLabel());
    void refreshChart();
-   expiry=setTimeout(()=>{if(own===generation){data=null;state='pending';render();}},Math.max(0,(times.length?Math.min(...times)*1000+1200000:until)-Date.now()));
   }catch(error){if(own===generation){state=error instanceof TickerGardenApiError&&error.status===503&&error.body.error==='analytics_unavailable'?'pending':'error';render();}}
   finally{clearTimeout(timer);if(own===generation)controller=null;}
  };
@@ -187,11 +186,11 @@ export function mountTokenDetail(root:HTMLElement,base:string|null,chain:number,
    for(const key of selected as Array<'statistics'|'chart'|'trades'|'holders'|'fees'>){merged[key]=next[key] as never;}
    if(selected.includes('chart'))merged.period=chosen;
    merged.confirmation=next.confirmation;data=merged;activity=null;state='ready';
-   cache.set(`${identity.marketId}:summary`,{data:merged,until:Date.now()+1200000,refreshAt:Date.now()+60000});
+   cache.set(`${identity.marketId}:summary`,{data:merged,refreshAt:Date.now()+60000});
    if(selected.includes('chart')&&period===chosen){chartGeneration++;chartRequest?.abort();chartRequest=null;chartData=next.chart;chartState=next.chart?'ready':'pending';chartCache.clear();}
    render();
   }finally{clearTimeout(timeout);if(partialAbort===abort)partialAbort=null;}
  };
  const observer=new ResizeObserver(()=>draw());observer.observe(q('[data-detail-chart]'));
- render();return{refresh,prefetch,receipt(hash:string){activityLoader?.receipt(hash);},setMarket(value:DetailIdentity|null){if(id?.marketId!==value?.marketId){changes?.stop();changes=null;partialAbort?.abort();summaryPending=null;activityLoader?.stop();activityLoader=null;activity=null;generation++;controller?.abort();controller=null;clearTimeout(expiry);if(value&&prefetchRequest?.marketId!==value.marketId){prefetchRequest?.abort.abort();prefetchRequest=null;}cache.clear();chartCache.clear();chartGeneration++;chartRequest?.abort();chartRequest=null;chartData=null;chartState='loading';data=null;recentTrades=[];chartTrades=[];feeTotals=null;feeTotalsAt=0;}overview={};tradePrice=null;id=value;if(id&&base&&!activityLoader)activityLoader=createDetailActivity(base,chain,id,value=>{if(data?.confirmation==='confirmed'&&value.confirmation!=='confirmed'&&BigInt(value.sources.trades?.blockNumber??'0')<BigInt(data.sources.trades?.blockNumber??'0'))return;activity=value;render();});if(id&&base&&!changes)changes=watchMarketChanges(base,id.marketId,updateRegions);fees=null;tradeLimit=20;holderLimit=20;void refresh();},setChartTrades(_value:readonly TokenDetailTrade[]){/* Database chart only. */},addRecentTrades(_value:readonly TokenDetailTrade[]){/* Database activity only. */},setTradePrice(_value:string|null){/* Quotes belong only to the transaction form. */},setOverview(value:MarketOverview){const next={...overview,...value};if(JSON.stringify(next)===JSON.stringify(overview))return;const chartTimeChanged=next.asOf!==overview.asOf;overview=next;render();if(chartTimeChanged&&!chartData&&!chartRequest)void refreshChart();},setUnavailable(publicationPending=false){changes?.stop();changes=null;partialAbort?.abort();activityLoader?.stop();activityLoader=null;activity=null;prefetchRequest?.abort.abort();prefetchRequest=null;generation++;controller?.abort();controller=null;chartGeneration++;chartRequest?.abort();chartRequest=null;chartData=null;chartState=publicationPending?'pending':'error';data=null;state=publicationPending?'pending':'error';clearTimeout(expiry);render();},setFeeTotals(value:readonly TokenDetailFee[]){feeTotals=value;feeTotalsAt=Date.now();renderFees();},setFeeConfig(value:FeeConfig|null){if(JSON.stringify(fees)===JSON.stringify(value))return;fees=value;renderFees();},stop(){changes?.stop();partialAbort?.abort();activityLoader?.stop();prefetchRequest?.abort.abort();prefetchRequest=null;generation++;controller?.abort();chartGeneration++;chartRequest?.abort();clearTimeout(expiry);observer.disconnect();id=null;data=null;}};
+ render();return{refresh,prefetch,receipt(hash:string){activityLoader?.receipt(hash);},setMarket(value:DetailIdentity|null){if(id?.marketId!==value?.marketId){changes?.stop();changes=null;partialAbort?.abort();summaryPending=null;activityLoader?.stop();activityLoader=null;activity=null;generation++;controller?.abort();controller=null;if(value&&prefetchRequest?.marketId!==value.marketId){prefetchRequest?.abort.abort();prefetchRequest=null;}cache.clear();chartCache.clear();chartGeneration++;chartRequest?.abort();chartRequest=null;chartData=null;chartState='loading';data=null;overview={};recentTrades=[];chartTrades=[];feeTotals=null;feeTotalsAt=0;}tradePrice=null;id=value;if(id&&base&&!activityLoader)activityLoader=createDetailActivity(base,chain,id,value=>{if(data?.confirmation==='confirmed'&&value.confirmation!=='confirmed'&&BigInt(value.sources.trades?.blockNumber??'0')<BigInt(data.sources.trades?.blockNumber??'0'))return;activity=value;render();});if(id&&base&&!changes)changes=watchMarketChanges(base,id.marketId,updateRegions);fees=null;tradeLimit=20;holderLimit=20;void refresh();},setChartTrades(_value:readonly TokenDetailTrade[]){/* Database chart only. */},addRecentTrades(_value:readonly TokenDetailTrade[]){/* Database activity only. */},setTradePrice(_value:string|null){/* Quotes belong only to the transaction form. */},setOverview(value:MarketOverview){const next={...overview};for(const[key,item]of Object.entries(value))if(item!==undefined)(next as Record<string,unknown>)[key]=item;if(JSON.stringify(next)===JSON.stringify(overview))return;const chartTimeChanged=next.asOf!==overview.asOf;overview=next;render();if(chartTimeChanged&&!chartData&&!chartRequest)void refreshChart();},setUnavailable(publicationPending=false){changes?.stop();changes=null;partialAbort?.abort();activityLoader?.stop();activityLoader=null;activity=null;prefetchRequest?.abort.abort();prefetchRequest=null;generation++;controller?.abort();controller=null;chartGeneration++;chartRequest?.abort();chartRequest=null;chartData=null;chartState=publicationPending?'pending':'error';data=null;state=publicationPending?'pending':'error';render();},setFeeTotals(value:readonly TokenDetailFee[]){feeTotals=value;feeTotalsAt=Date.now();renderFees();},setFeeConfig(value:FeeConfig|null){if(JSON.stringify(fees)===JSON.stringify(value))return;fees=value;renderFees();},stop(){changes?.stop();partialAbort?.abort();activityLoader?.stop();prefetchRequest?.abort.abort();prefetchRequest=null;generation++;controller?.abort();chartGeneration++;chartRequest?.abort();observer.disconnect();id=null;data=null;}};
 }

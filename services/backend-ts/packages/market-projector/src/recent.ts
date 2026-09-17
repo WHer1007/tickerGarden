@@ -1,3 +1,8 @@
+import {formatUnits,parseUnits} from 'viem';
+import type {MarketReadModel} from '../../../openapi/generated/v1-client.ts';
+import {publicMarketContent} from '../../confirmed-display/src/content.ts';
+import {displayUsd} from '../../confirmed-display/src/state.ts';
+import {latestPrices,preferredPrices} from '../../display-price/src/read.ts';
 import type {Pool} from 'pg';
 import {consensusBlock,parseLog,type DeploymentIdentity,type RpcTransport} from '../../chain/src/index.ts';
 import {decodeF72Event,eventTopic,f72EventCatalog} from '../../events/src/index.ts';
@@ -39,7 +44,12 @@ export async function recordRecentLaunch(input:RecentLaunchInput,txHash:`0x${str
  const after=await consensusBlock(input.primary,input.secondary,block.number);
  if(after.hash!==block.hash)throw Error('Creation reorganized during observation');
  const initialDetail=creationDetail(receipts,market as unknown as Parameters<typeof creationDetail>[1],block.timestamp,input.deployment.chainId);
- const payload={...(market as Record<string,unknown>),confirmation:{status:'confirmed',blockNumber:block.number.toString(),blockHash:block.hash,observedAt:new Date().toISOString()}};
+ const model=market as unknown as MarketReadModel,now=new Date();
+ const reference=preferredPrices(await latestPrices(input.pool,input.deployment,now,input.schemaName),now).get(model.quoteAsset);
+ const usd=reference?.status==='available'&&reference.bidUsd&&reference.askUsd?formatUnits((parseUnits(reference.bidUsd,36)+parseUnits(reference.askUsd,36))/2n,36):null;
+ initialDetail.statistics={...initialDetail.statistics,price:model.display?.priceQuote??initialDetail.statistics.price,...displayUsd(model.display?.priceQuote??initialDetail.statistics.price,initialDetail.holders.totalSupplyRaw,usd)};
+ const content=await publicMarketContent(input.pool,model,input.schemaName);
+ const payload={...(market as Record<string,unknown>),content,confirmation:{status:'confirmed',blockNumber:block.number.toString(),blockHash:block.hash,observedAt:new Date().toISOString()}};
  const stored=await input.pool.query(`INSERT INTO ${schema}.recent_markets(environment,chain_id,deployment_digest,market_id,transaction_hash,block_number,block_hash,payload,initial_detail)
  VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9) ON CONFLICT(environment,chain_id,deployment_digest,market_id) DO UPDATE SET
  transaction_hash=excluded.transaction_hash,block_number=excluded.block_number,block_hash=excluded.block_hash,payload=excluded.payload,initial_detail=excluded.initial_detail,canonical=true,observed_at=now(),expires_at=now()+interval '30 minutes'

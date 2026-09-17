@@ -1,4 +1,4 @@
-import {formatUnits} from 'viem';
+import {formatUnits,parseUnits} from 'viem';
 import type {MarketReadModel,TokenDetailResponse,TokenDetailTrade} from '../../../openapi/generated/v1-client.ts';
 import {normalizeTransaction,transferFromObservation,type EventObservation} from '../../analytics/src/index.ts';
 import {feeCredits,validateMarket} from '../../analytics-projector/src/index.ts';
@@ -8,6 +8,8 @@ import type {RpcBlock} from '../../chain/src/index.ts';
 const ZERO=`0x${'0'.repeat(40)}`;
 export interface DisplayState {
  creation:MarketCreation; market:MarketReadModel; nextRefreshAt?:string|null;
+ quoteUsd?:string|null;
+ detailViews?:Record<'1H'|'12H'|'1D',TokenDetailResponse>;
  balances:Record<string,string>; exclusions:string[]; supply:string;
  trades:TokenDetailTrade[]; fees:NonNullable<TokenDetailResponse['fees']>;
  /** Earliest time for which all executions are known. */
@@ -63,7 +65,19 @@ export function displayDetail(state:DisplayState,period:'1H'|'12H'|'1D',asOf=sta
  const trades=state.trades.filter(t=>t.timestamp>=asOf-86400);
  const volume=selected.has('statistics')&&state.historyFrom<=Math.max(asOf-86400,Number(state.market.identity?.deployedAt??0))?formatUnits(trades.filter(t=>t.classification==='unclassified').reduce((n,t)=>n+BigInt(t.quoteRaw),0n),validated.binding.quoteDecimals):null;
  const result:TokenDetailResponse={version:1,chainId:state.market.source.chainId,displayOnly:true,confirmation:'confirmed',marketId:state.market.marketId,memeToken:state.market.memeToken,quoteAsset:state.market.quoteAsset,quoteDecimals:validated.binding.quoteDecimals,period,
- statistics:{price:state.market.display?.priceQuote??trades[0]?.price??null,volume24h:volume,volumeFrom:asOf-86400,volumeTo:asOf,volumeBasis:'EXTERNAL_EXECUTIONS_CURVE_EXCLUDING_FEE_TAX_OR_POOL_CORE'},chart:{from,to,interval,points},
+ statistics:{price:state.market.display?.priceQuote??trades[0]?.price??null,...displayUsd(state.market.display?.priceQuote??trades[0]?.price??null,state.supply,state.quoteUsd),volume24h:volume,volumeFrom:asOf-86400,volumeTo:asOf,volumeBasis:'EXTERNAL_EXECUTIONS_CURVE_EXCLUDING_FEE_TAX_OR_POOL_CORE'},chart:{from,to,interval,points},
  holders:{totalSupplyRaw:state.supply,circulatingSupplyRaw:items.reduce((n,v)=>n+BigInt(v.balanceRaw),0n).toString(),count:items.length,basis:'TOTAL_MINUS_KNOWN_PROTOCOL_BALANCES_V1',items:items.slice(0,100)},trades:trades.slice(0,100),fees:state.fees,sources:{statistics:source,chart:source,holders:source,trades:source,fees:source},reasons:{}};
  return {...result,statistics:selected.has('statistics')?result.statistics:null,chart:selected.has('chart')?result.chart:null,trades:selected.has('trades')?result.trades:null,holders:selected.has('holders')?result.holders:null,fees:selected.has('fees')?result.fees:null,sources:Object.fromEntries(Object.entries(result.sources).filter(([key])=>selected.has(key)))};
+}
+
+/** Materialize in the worker. Read endpoints only select stored response fields. */
+export function materializeDisplay(state:DisplayState,head={number:state.blockNumber,hash:state.blockHash,timestamp:state.asOf}):DisplayState{
+ const observed={...state,blockNumber:head.number,blockHash:head.hash};
+ return {...state,detailViews:{'1H':displayDetail(observed,'1H',head.timestamp),'12H':displayDetail(observed,'12H',head.timestamp),'1D':displayDetail(observed,'1D',head.timestamp)}};
+}
+
+export function displayUsd(price:string|null,supply:string,usd:string|null|undefined):{priceUsd:string|null;marketCapUsd:string|null}{
+ if(!price||!usd)return {priceUsd:null,marketCapUsd:null};
+ const product=parseUnits(price,36)*parseUnits(usd,36);
+ return {priceUsd:formatUnits(product/10n**36n,36),marketCapUsd:formatUnits(product*BigInt(supply)/10n**54n,36)};
 }

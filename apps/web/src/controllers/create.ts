@@ -1,4 +1,3 @@
-import {prepareCreatedMarket} from '../v1/createdMarket.ts';
 import {recordLaunchFailure,launchFailureMessage,type LaunchOperation} from '../create/launch-diagnostics.ts';
 import {createConfirmationAsset} from '../create/confirmation-asset.ts';
 import {quoteIconUrl} from '../create/quote-icons.ts';
@@ -114,7 +113,6 @@ async function finishRecoveredLaunch(state:LaunchState,receipt:TransactionReceip
  const expected=state.expected;if(!expected)throw Error('Saved launch identity is missing');
  assertRecoveredLaunchReceipt(state,receipt);
  ctx.directMarkets?.receipt(receipt);
- await prepareCreatedMarket(ctx,receipt).catch(()=>{});
  if(state.listing){ctx.latestListing={snapshot:{...state.listing,txHash:receipt.transactionHash},marketId:expected.marketId};localStorage.setItem(`tg-listing:${robinhoodChain.id}`,JSON.stringify(ctx.latestListing));}
  // Clear only a matching executor journal, never an unrelated approval/trade.
  const key=`tickergarden:pending:${state.chainId}:${state.account.toLowerCase()}`;
@@ -1013,7 +1011,6 @@ async function performLaunch(reviewedPurchase?:PurchaseQuote): Promise<void> {
         if (preview.params.lpFeePips !== undefined && tupleField(tupleField(createdMarket, "config", 0), "lpFeePips", 18) !== preview.params.lpFeePips) throw new Error("Created LP fee differs from the signed choice");
         if (preview.params.burnMemeFees !== undefined && tupleField(tupleField(createdMarket, "config", 0), "burnMemeFees", 17) !== preview.params.burnMemeFees) throw new Error("Created token fee burn choice differs from the signed choice");
         ctx.directMarkets?.receipt(receipt);
- await prepareCreatedMarket(ctx,receipt).catch(()=>{});
         confirmedHash = receipt.transactionHash;
         return result;
       },

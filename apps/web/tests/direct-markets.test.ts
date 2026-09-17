@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import fs from 'node:fs';
-import { encodeAbiParameters, encodeEventTopics, encodeFunctionData, parseAbiParameters, erc20Abi, type Hex } from 'viem';
+import { encodeAbiParameters, encodeEventTopics, encodeFunctionData, parseAbiParameters, type Hex } from 'viem';
 import { DirectMarkets } from '../src/v1/directMarkets.ts';
 import { currentV4Abis as directAbis } from '../src/v1/generated/abis.ts';
 import { parseIntegrationBootstrap } from '../src/v1/integrationBootstrap.ts';
@@ -134,29 +134,6 @@ test('a confirmed receipt invalidates the shared head before the next state read
   dm.receipt({logs:[]} as unknown as Parameters<DirectMarkets['receipt']>[0]);
   await dm.market(id);
   assert.equal(heads,2);
-});
-
-test('confirmed creation prepares full detail and initial cap inputs without any read API',async()=>{
- const {prepareCreatedMarket,preparedCreatedMarket}=await import('../src/v1/createdMarket.ts');
- const log={...createdLog(),blockNumber:120n};
- const foundation={sync:{chainId:46630},bindings:b.bindings,quotes:b.configs.filter(c=>c.kind==='quote'),baseline:b.configs.filter(c=>c.kind==='baseline'),templates:b.configs.filter(c=>c.kind==='template')};
- const read=reader({calls:0});
- const ctx:any={foundation,runtimeConfig:{contracts:{available:true,value:{factoryAddress:factory,protocolFeeVaultAddress:b.bindings.protocolFeeVault}},releaseCatalog:[]},publicClient:{getChainId:async()=>46630,getBlock:async()=>({number:120n,hash,timestamp:123n}),readContract:async({address,abi,functionName,args=[],blockNumber}:any)=>functionName==='getReserves'?[2n*10n**18n,100n*10n**18n]:functionName==='totalSupply'?100n*10n**18n:read(address,abi,functionName,args,blockNumber)}};
- const transfer=(from:`0x${string}`,to:`0x${string}`,value:bigint)=>({...log,address:meme,topics:encodeEventTopics({abi:erc20Abi,eventName:'Transfer',args:{from,to}}),data:encodeAbiParameters(parseAbiParameters('uint256'),[value])});
- const user='0x4444444444444444444444444444444444444444';
- await prepareCreatedMarket(ctx,{status:'success',blockNumber:120n,blockHash:hash,logs:[log,transfer(quote,curve,100n*10n**18n),transfer(curve,user,10n*10n**18n),transfer(curve,b.bindings.protocolFeeVault,5n*10n**18n)]} as any);
- const prepared=preparedCreatedMarket(id)!;assert.ok(prepared);
- const detail=await prepared.request;
- assert.equal(detail.market.marketId,id);assert.ok(detail.market.identity);assert.equal(detail.sync.finality,'head');
- await new Promise(resolve=>setTimeout(resolve,0));
- assert.equal(prepared.overview?.price,'0.02');assert.equal(prepared.overview?.supply,'100000000000000000000');
-});
-
-test('creation rejects a reorganized receipt and mismatched network',async()=>{
- const {prepareCreatedMarket}=await import('../src/v1/createdMarket.ts');
- const ctx:any={foundation:{bindings:b.bindings,sync:{chainId:46630}},runtimeConfig:{contracts:{available:true,value:{factoryAddress:factory}}},publicClient:{getBlock:async()=>({hash}),getChainId:async()=>4663}};
- await assert.rejects(()=>prepareCreatedMarket(ctx,{status:'success',blockNumber:120n,blockHash:`0x${'c'.repeat(64)}`} as any),/canonical/);
- await assert.rejects(()=>prepareCreatedMarket(ctx,{status:'success',blockNumber:120n,blockHash:hash} as any),/chain mismatch/);
 });
 
  test('optional staking statistics cannot prevent the fresh creation detail read',async()=>{

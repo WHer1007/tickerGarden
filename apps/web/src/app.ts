@@ -551,7 +551,6 @@ async function prepareFoundation(api: TickerGardenV1Client | null, expectedSync?
   if(currentPage()==="trade"&&!expectedSync){
     const marketId=new URL(window.location.href).searchParams.get('marketId')?.toLowerCase();
     if(marketId&&BYTES32_PATTERN.test(marketId)){
-      const {preparedCreatedMarket}=await import('./v1/createdMarket.ts');const created=preparedCreatedMarket(marketId);if(created)return created.foundation;
       const page=await api.getMarketPageBootstrap({marketId:marketId as Hex});
       if(page.displayOnly!==true||page.sync.chainId!==robinhoodChain.id||page.market.marketId!==marketId||!page.market.identity)throw Error('Invalid market page');
       const configs=page.configs;

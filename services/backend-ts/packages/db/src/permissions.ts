@@ -149,6 +149,7 @@ GRANT SELECT, INSERT, UPDATE, DELETE ON
 TO ${pipeline};
 GRANT SELECT ON ${schema}.holder_snapshots_covered TO ${readApi}, ${pipeline};
 GRANT SELECT, INSERT ON ${schema}.publications TO ${pipeline};
+GRANT SELECT ON ${schema}.content_objects TO ${pipeline};
 GRANT SELECT, INSERT ON ${schema}.holder_reward_datasets TO ${pipeline};
 GRANT SELECT, INSERT, DELETE ON ${schema}.holder_reward_wallet_proofs TO ${pipeline};
 REVOKE UPDATE, DELETE ON ${schema}.holder_reward_datasets FROM ${pipeline};

@@ -9,11 +9,12 @@ test('display uses token prices once and preserves arbitrary precision',()=>{
  const data=fixture();const view=displayPriceView(data,4663,token,now);assert.equal(view.status,'available');assert.match(view.text,/\$26\.68125–\$26\.68375 per AAPL token/);assert.match(view.text,/Robinhood/);assert.match(view.text,/Display estimate only/);
  data.references[0]!.bidUsd='9007199254740993.000000000000000001';data.references[0]!.askUsd='9007199254740994.000000000000000001';assert.match(displayPriceView(data,4663,token,now).text,/9007199254740993\.000000000000000001/);
 });
-test('response identity, precision and freshness fail closed',()=>{
- const mutations:((d:ReturnType<typeof fixture>)=>void)[]=[d=>{d.chainId=46630},d=>{d.displayOnly=false},d=>{d.confidence='verified'},d=>{d.references.push(d.references[0]!)},d=>{d.references[0]!.token=`0x${'3'.repeat(40)}`},d=>{d.references[0]!.chainId=1},d=>{d.references[0]!.source='chainlink'},d=>{d.references[0]!.symbol='<img>'},d=>{d.references[0]!.bidUsd='1e4'},d=>{d.references[0]!.bidUsd='0'},d=>{d.references[0]!.askUsd='1'},d=>{d.references[0]!.asOf='invalid'},d=>{d.references[0]!.asOf=new Date(now+1).toISOString()},d=>{d.references[0]!.expiresAt=new Date(now+3600000).toISOString()},d=>{d.references[0]!.retrievedAt=new Date(now+6000).toISOString()}];
+test('response identity and price types fail closed while backend status controls freshness',()=>{
+ const mutations:((d:ReturnType<typeof fixture>)=>void)[]=[d=>{d.chainId=46630},d=>{d.displayOnly=false},d=>{d.confidence='verified'},d=>{d.references.push(d.references[0]!)},d=>{d.references[0]!.token=`0x${'3'.repeat(40)}`},d=>{d.references[0]!.chainId=1},d=>{d.references[0]!.source='chainlink'},d=>{d.references[0]!.symbol='<img>'},d=>{d.references[0]!.bidUsd='1e4'},d=>{d.references[0]!.bidUsd='0'},d=>{d.references[0]!.askUsd='1'},d=>{d.references[0]!.asOf='invalid'}];
  for(const change of mutations){const data=fixture();change(data);const view=displayPriceView(data,4663,token,now);assert.equal(view.status,'unavailable');assert.doesNotMatch(view.text,/26\.68/)}
  for(const payload of [null,{},[],{...fixture(),references:null},{...fixture(),references:[null]}]) assert.equal(displayPriceView(payload,4663,token,now).status,'unavailable');
- assert.equal(displayPriceView(fixture(),4663,token,now+59000).status,'stale');
+ assert.equal(displayPriceView(fixture(),4663,token,now+59000).status,'available');
+ assert.equal(displayPriceView(fixture(now-3_600_000),4663,token,now).status,'available');
 });
 test('one global catalog request updates every subscribed price consumer',async()=>{
  const other=`0x${'4'.repeat(40)}`;const data=fixture(Date.now());data.references.push({...data.references[0]!,token:other,symbol:'AMD'});
@@ -34,7 +35,7 @@ test('full catalog of 196 references remains readable and oversized responses ar
 });
 
 
-test('global store publishes changed prices and keeps an unexpired value across a failed refresh',async()=>{
+test('global store publishes changed prices and retains its snapshot across a failed refresh',async()=>{
  let response=fixture(Date.now()),fail=false,calls=0;
  const store=createAssetPriceStore({baseUrl:'https://api.example',chainId:4663,fetcher:async(_input,init)=>{calls++;assert.equal(init?.cache,undefined);if(fail)throw Error('offline');return new Response(JSON.stringify(response));}});
  const element={textContent:'',dataset:{}} as unknown as HTMLElement;

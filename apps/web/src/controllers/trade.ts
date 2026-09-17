@@ -1,5 +1,4 @@
 import {stockPurchasePool} from '../trade/stock-pool.ts';
-import {preparedCreatedMarket,prepareCreatedMarket} from '../v1/createdMarket.ts';
 import {paymentAssets,fetchConversion,conversionRequest,TRADE_NATIVE,readRecovery,recoveryKey,type PaymentAsset,type ConversionRecovery,type ConversionQuote} from '../trade/conversion.ts';
 import {ALLOWANCE_HOLDER,SETTLER_REGISTRY,registryAbi,conversionSettler,providerToken,preserveConversionMinimum} from '../../../../services/backend-ts/packages/chain/src/quote-purchase/zeroex.ts';
 import {renderMarketSettings} from '../ui/market-settings.ts';
@@ -44,7 +43,7 @@ import {
 type MarketDetailResponse,
 type MarketReadModel
 } from "../v1/readApi.ts";
-import { readDetailMetadata } from "../v1/tokenMetadata.ts";
+import { ipfsGatewayURL } from "../create/ipfs.ts";
 import { tradeContextKey } from "../v1/tradeContext.ts";
 import { antiSnipeBps,curveBuyFee,curveTradeMetrics,estimatedPoolTradingFee,formatTradePrice,poolTradeImpactBps } from "../v1/tradePricing.ts";
 import type { ControllerContext,CurvePricing,TradeQuote,WalletState } from '../app.ts';
@@ -304,24 +303,13 @@ function setupTrade(): void {
   updateTradeAvailability();
 }
 
-let createdOverviewGeneration=0;
 async function refreshMarketOverview(_preserve=false):Promise<void>{
- const own=++createdOverviewGeneration;
  const market=ctx.tradeMarket?.market;if(!market)return;
+ // Display values come exclusively from the database response. An old event
+ // timestamp is not evidence that an unchanged supply or price is invalid.
  const display=market.display;
- const fresh=display&&Date.now()/1000-Number(display.asOfTimestamp)<=1200&&Number(display.asOfTimestamp)<=Date.now()/1000+30;
- const initial=preparedCreatedMarket(market.marketId)?.overview;
- ctx.tokenDetailWidget?.setOverview({asOf:fresh?Number(display.asOfTimestamp):initial?.asOf,supply:fresh?display.totalSupplyRaw:initial?.supply,price:fresh?display.priceQuote??undefined:initial?.price,usd:ctx.assetPrices.midpointUsd(market.quoteAsset)??undefined});
+ ctx.tokenDetailWidget?.setOverview({asOf:display?Number(display.asOfTimestamp):undefined,supply:display?.totalSupplyRaw,price:display?.priceQuote??undefined,usd:ctx.assetPrices.midpointUsd(market.quoteAsset)??undefined});
  void renderTradeFeeDetails(market,ctx.tradeLoadGeneration);
- if(market.launchPhase===0&&!market.display&&preparedCreatedMarket(market.marketId)){
-  try{const pricing=await loadCurvePricing(market);if(own!==createdOverviewGeneration||ctx.tradeMarket?.market.marketId!==market.marketId||ctx.tradeMarket.market.launchPhase!==0||!ctx.tradeMetadata||pricing.tokenReserve===0n)return;
-   const price=formatUnits(pricing.quoteReserve*10n**54n/pricing.tokenReserve/10n**BigInt(ctx.tradeMetadata.quoteDecimals),36);
-   ctx.tokenDetailWidget?.setOverview({price,usd:ctx.assetPrices.midpointUsd(market.quoteAsset)??undefined});
-   const supply=await ctx.publicClient.readContract({address:market.memeToken,abi:erc20Abi,functionName:'totalSupply',blockNumber:pricing.blockNumber});
-   if(own!==createdOverviewGeneration||ctx.tradeMarket?.market.marketId!==market.marketId||ctx.tradeMarket.market.launchPhase!==0)return;
-   ctx.tokenDetailWidget?.setOverview({supply:supply.toString(),price});
-  }catch{/* Keep the last verified display; other detail sections stay usable. */}
- }
 }
 
 async function refreshTradeStake():Promise<void>{
@@ -346,7 +334,7 @@ async function refreshTradeStake():Promise<void>{
     if(!Number.isInteger(decimals)||decimals<0||decimals>18)throw Error('Invalid Stock Decimals');
     const current=()=>generation===ctx.tradeStakeGeneration&&ctx.tradeMarket===detail&&ctx.wallet?.account===account;
     const display=(value:bigint)=>`${formatTokenAmount(value,decimals)} ${ctx.stockSymbol(config)}`;
-    if(market.display&&Date.now()/1000-Number(market.display.asOfTimestamp)<=1200)ctx.text('[data-trade-stake-total]',display(BigInt(market.display.totalStakedRaw)));
+    if(market.display)ctx.text('[data-trade-stake-total]',display(BigInt(market.display.totalStakedRaw)));
     if(account&&ctx.readApi){
       let cursor:string|undefined,positionRevision:string|undefined;let found=false;
       do{
@@ -446,12 +434,14 @@ async function verifyTradeMarket(detail: MarketDetailResponse, generation: numbe
 }
 
 async function loadDetailContent(market:MarketReadModel,generation:number):Promise<void>{
-  const abort=new AbortController();ctx.detailContentAbort?.abort();ctx.detailContentAbort=abort;const timeout=setTimeout(()=>abort.abort(),10000);
-  try{const value=await readDetailMetadata(market.identity?.metadataURI??ctx.tradeMetadata?.metadataURI??'',ctx.launchMetadataOrigin,abort.signal,import.meta.env.VITE_IPFS_GATEWAY);if(generation!==ctx.tradeLoadGeneration||abort.signal.aborted)return;if(!value){ctx.text('[data-detail-description]','Description could not be loaded.');return;}
-    ctx.text('[data-detail-description]',value.description||'No description added.');const image=ctx.query<HTMLImageElement>('[data-detail-image]');if(image&&value.image)image.src=value.image;
-    ctx.tradeMemeLogoUrl=value.image||ctx.tradeTokenLogoFallback;renderTradeQuote();
-    for(const key of ['website','x'] as const){const link=ctx.query<HTMLButtonElement>(`[data-detail-${key}]`);if(link&&value[key]){link.dataset.externalUrl=value[key];link.title=value[key];link.hidden=false;link.disabled=false;}}
-  }catch{if(generation===ctx.tradeLoadGeneration){ctx.text('[data-detail-description]','Description could not be loaded.');}}finally{clearTimeout(timeout);}
+  if(generation!==ctx.tradeLoadGeneration)return;
+  const value=market.content;
+  if(!value){ctx.text('[data-detail-description]','');return;}
+  ctx.text('[data-detail-description]',value.description||'No description added.');
+  const imageUrl=value.imageURI?ipfsGatewayURL(value.imageURI,import.meta.env.VITE_IPFS_GATEWAY):null;
+  const image=ctx.query<HTMLImageElement>('[data-detail-image]');if(image&&imageUrl)image.src=imageUrl;
+  ctx.tradeMemeLogoUrl=imageUrl||ctx.tradeTokenLogoFallback;renderTradeQuote();
+  for(const key of ['website','x'] as const){const link=ctx.query<HTMLButtonElement>(`[data-detail-${key}]`);if(link){const url=value[key];link.hidden=!url;link.disabled=!url;if(url){link.dataset.externalUrl=url;link.title=url;}else delete link.dataset.externalUrl;}}
 }
 
 function renderDetailBalances():void{
@@ -504,8 +494,6 @@ async function loadTradeMarket(explicit?: string): Promise<void> {
   let marketId: Hex;
   try { marketId = canonicalBytes32(raw.trim().toLowerCase(), "marketId"); }
   catch { renderTradeEmptyState(raw.trim() ? "invalid" : "missing"); updateTradeAvailability(); return; }
-  let created=preparedCreatedMarket(marketId);
-  if(!ctx.foundation&&created)ctx.foundation=created.foundation;
   // Wallet restoration and route mounting can reach this concurrently. Join the
   // market-scoped bootstrap before deciding that a missing foundation is an error.
   renderTradeEmptyState(null);
@@ -513,7 +501,7 @@ async function loadTradeMarket(explicit?: string): Promise<void> {
   if (!ctx.foundation && ctx.readApi) await ctx.loadFoundation();
   if (generation !== ctx.tradeLoadGeneration || ctx.currentPage() !== 'trade') return;
 
-  if (!ctx.foundation || (!ctx.readApi && !ctx.foundation.direct&&!created)) {
+  if (!ctx.foundation || (!ctx.readApi && !ctx.foundation.direct)) {
     renderTradeEmptyState(ctx.latestListing?.marketId===marketId?"preparing":"unavailable");
     updateTradeAvailability();
     return;
@@ -529,16 +517,11 @@ async function loadTradeMarket(explicit?: string): Promise<void> {
     const known = ctx.foundation.markets.find(m => m.marketId === marketId);
     const earlyMetadata = known&&!marketIdentityPending(known) ? ctx.marketMetadata(known) : null;
     void earlyMetadata?.catch(()=>{});
-    // A verified local creation can render before any database publication.
-    if(!created&&ctx.latestListing?.marketId===marketId&&ctx.latestListing.snapshot.txHash){
-      try{const receipt=await ctx.publicClient.getTransactionReceipt({hash:ctx.latestListing.snapshot.txHash as Hex});await prepareCreatedMarket(ctx,receipt);created=preparedCreatedMarket(marketId);}catch{/* Published data remains an independent source. */}
-    }
-    const localResponse=created&&(!known?.identity||!known.display)?await created.request.catch(()=>null):null;
-    const response = localResponse ?? (known && !marketIdentityPending(known) && !ctx.foundation.direct
+    const response = known && !marketIdentityPending(known) && !ctx.foundation.direct
       ? { market: known, sync: ctx.foundation.sync }
       : ctx.foundation.direct && ctx.directMarkets
         ? await ctx.directMarkets.market(marketId)
-                : await ctx.readApi!.getMarketPageBootstrap({marketId}));
+        : await ctx.readApi!.getMarketPageBootstrap({marketId});
     if (generation !== ctx.tradeLoadGeneration) return;
     if(!response){
       renderTradeEmptyState('preparing');
@@ -552,7 +535,7 @@ async function loadTradeMarket(explicit?: string): Promise<void> {
       return;
     }
     if (response.market.marketId !== marketId) throw new Error("Read API returned a different market identity");
-    if (ctx.foundation.direct&&!localResponse) assertFinalizedSync(response.sync, undefined, "market detail");
+    if (ctx.foundation.direct) assertFinalizedSync(response.sync, undefined, "market detail");
     if(marketIdentityPending(response.market)){renderTradeEmptyState('preparing');ctx.setPageStatus(MARKET_PUBLICATION_PENDING);updateTradeAvailability();return;}
     const metadata = await (earlyMetadata && known?.memeToken === response.market.memeToken && known.quoteAssetConfigId === response.market.quoteAssetConfigId ? earlyMetadata : ctx.marketMetadata(response.market));
     const view = toCurveProgressViewModel(response);
@@ -576,8 +559,6 @@ async function loadTradeMarket(explicit?: string): Promise<void> {
     renderTradePoolAddress(response.market);
     ctx.text('[data-detail-supply]',typeof supply==='string'?formatTokenAmount(BigInt(supply),18):'-');
     ctx.tokenDetailWidget?.setMarket({marketId:response.market.marketId,memeToken:response.market.memeToken,quoteAsset:response.market.quoteAsset,quoteDecimals:metadata.quoteDecimals,symbol:metadata.symbol,quoteSymbol:metadata.quoteSymbol,createdAt:Number(response.market.identity?.deployedAt??metadata.deployedAt)||undefined});
-    const initialOverview=preparedCreatedMarket(response.market.marketId)?.overview;
-    if(initialOverview)ctx.tokenDetailWidget?.setOverview({...initialOverview,usd:ctx.assetPrices.midpointUsd(response.market.quoteAsset)??undefined});
     void refreshMarketOverview();
     void loadDetailContent(response.market,generation);
     void loadDetailBalances();
@@ -631,7 +612,7 @@ async function renderTradeFeeDetails(market: MarketReadModel, generation: number
   renderMarketSettings(document,market);
   const direct=(market as MarketReadModel&{directFeeConfig?:{creatorTaxBps:number;activeStakeRaw:string}}).directFeeConfig;
   const display=market.display;
-  const snapshot=direct??(display&&Date.now()/1000-Number(display.asOfTimestamp)<=1200?{creatorTaxBps:display.creatorTaxBps,activeStakeRaw:display.activeStakeRaw}:null);
+  const snapshot=direct??(display?{creatorTaxBps:display.creatorTaxBps,activeStakeRaw:display.activeStakeRaw}:null);
   if(!snapshot||market.stakingEnabled===undefined||market.creatorFeesToHolders===undefined||market.lpFeePips===undefined){ctx.tokenDetailWidget?.setFeeConfig(null);return;}
   const baseline=ctx.foundation?.baseline.find(config=>config.id===market.tickerGardenBaselineId);
   if(!baseline){ctx.tokenDetailWidget?.setFeeConfig(null);return;}
@@ -976,6 +957,7 @@ async function refreshTradeFields(fresh?:MarketDetailResponse,background=false,s
   if(own!==ctx.tradeFieldsGeneration||page!==ctx.routeGeneration||ctx.tradeMarket!==response)return;
   if(!background || changed)ctx.overviewLoads.delete(response.market.marketId);
   void refreshMarketOverview(!background || changed);
+  if(response.market.content!==current.market.content)void loadDetailContent(response.market,ctx.tradeLoadGeneration);
   if(!background || changed){
     ctx.tradeQuote=null;renderTradeQuote();
     if(ctx.query<HTMLInputElement>('[data-trade-amount]')?.value.trim())scheduleTradeQuote();
