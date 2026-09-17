@@ -1,8 +1,4 @@
-import {notFound} from "./src/pages/not-found.ts";
-import {renderMetadata} from "./src/routing/metadata.ts";
-import docsPage from "./src/pages/docs.ts";
-import privacyPage from "./src/pages/privacy.ts";
-import termsPage from "./src/pages/terms.ts";
+import {prerender} from './scripts/prerender.mjs';
 import { defineConfig } from 'vite';
 import fs from 'node:fs';
 import path from 'node:path';
@@ -37,17 +33,7 @@ export default defineConfig(({command})=>{
  preview:{headers:securityHeaders(process.env,false)},
  plugins:[
   {name:"bundle-audit",generateBundle(_,bundle){if(process.env.TG_BUNDLE_ANALYZE){fs.mkdirSync(path.join(root,"outputs"),{recursive:true});fs.writeFileSync(path.join(root,"outputs/controller-bundle.json"),JSON.stringify(Object.values(bundle).filter(x=>x.type==="chunk").map(x=>({file:x.fileName,imports:x.imports,dynamic:x.dynamicImports,modules:Object.entries(x.modules).map(([id,m])=>({id,length:m.renderedLength}))})),null,2));}}},
-  {name:'prerender-public-documents',writeBundle(){if(command==='build'){
-   const output=path.join(root,'apps/web/dist');const shell=fs.readFileSync(path.join(output,'index.html'),'utf8');
-   // Pre-render shared metadata at build time so the serverless function has no browser-source imports.
-   const marketShell=shell.replace(/<title>[\s\S]*?<\/title>/g,'').replace(/<meta\s+(?:name|property)="(?:description|robots|theme-color|og:[^"]+|twitter:[^"]+)"[^>]*>/g,'').replace(/<link\s+rel="canonical"[^>]*>/g,'').replace('</head>',renderMetadata('trade','/trade')+'</head>');
-   fs.writeFileSync(path.join(output,'market-shell.html'),marketShell);
-   for(const [route,page] of Object.entries({docs:docsPage,privacy:privacyPage,terms:termsPage,"not-found":notFound})){
-    const html=shell.replace(/<noscript>[\s\S]*?<\/noscript>/,'').replace(/<title>.*?<\/title>/,'').replace(/<meta\s+(?:name|property)="(?:description|robots|theme-color|og:[^"]+|twitter:[^"]+)"[^>]*>/g,'').replace(/<link\s+rel="canonical"[^>]*>/g,'').replace('</head>',renderMetadata(route,`/${route}`)+'</head>').replace('<div data-route-outlet></div>',`<div data-route-outlet>${page.html.replace('<main ', '<main id="main-content" ')}</div>`);
-    if(route==="not-found"){fs.writeFileSync(path.join(output,"404.html"),html);continue;}
-    fs.mkdirSync(path.join(output,route),{recursive:true});fs.writeFileSync(path.join(output,route,'index.html'),html);
-   }
-  }}},
+  {name:'prerender-public-pages',writeBundle(){if(command==='build')prerender(path.join(root,'apps/web/dist'),process.env);}},
   {name:'production-security-headers',generateBundle(){this.emitFile({type:'asset',fileName:'_headers',source:'/*\n'+Object.entries(securityHeaders(process.env,false)).map(([k,v])=>`  ${k}: ${v}`).join('\n')+'\n'});}},
   {name:'exclude-local-integration-fixtures',closeBundle(){if(command==='build')fs.rmSync(path.join(root,'apps/web/dist/integration'),{recursive:true,force:true});}},
  ],

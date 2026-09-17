@@ -4,7 +4,7 @@ const root=fileURLToPath(new URL('../dist/',import.meta.url));
 // Build-generated CSP preserves the same endpoint allowlist as the bundled app.
 const built=fs.readFileSync(path.join(root,'_headers'),'utf8');
 const headers=Object.fromEntries(built.split('\n').filter(l=>l.startsWith('  ')).map(l=>{const i=l.indexOf(':');return[l.slice(2,i),l.slice(i+1).trim()]}));
-for(const key of Object.keys(securityHeaders()))if(!headers[key])throw Error(`Missing build security header: ${key}`);
+for(const key of Object.keys(securityHeaders()))if(key!=='X-Robots-Tag'&&!headers[key])throw Error(`Missing build security header: ${key}`);
 const types={'.html':'text/html; charset=utf-8','.js':'text/javascript; charset=utf-8','.css':'text/css; charset=utf-8','.json':'application/json','.svg':'image/svg+xml','.png':'image/png','.jpg':'image/jpeg','.webp':'image/webp','.woff2':'font/woff2','.ico':'image/x-icon'};
 http.createServer((req,res)=>{
  for(const [k,v]of Object.entries(headers))res.setHeader(k,v);

@@ -62,12 +62,27 @@
           "value": "no-cache"
         }
       ]
+    },
+    {
+      "source": "/(.*)",
+      "has": [
+        {
+          "type": "host",
+          "value": ".*\\.vercel\\.app"
+        }
+      ],
+      "headers": [
+        {
+          "key": "X-Robots-Tag",
+          "value": "noindex, nofollow"
+        }
+      ]
     }
   ],
   "rewrites": [
     {
       "source": "/explore",
-      "destination": "/index.html"
+      "destination": "/explore/index.html"
     },
     {
       "source": "/trade",
@@ -75,23 +90,23 @@
     },
     {
       "source": "/create",
-      "destination": "/index.html"
+      "destination": "/create/index.html"
     },
     {
       "source": "/stats",
-      "destination": "/index.html"
+      "destination": "/stats/index.html"
     },
     {
       "source": "/stats/stocks",
-      "destination": "/index.html"
+      "destination": "/stats/stocks/index.html"
     },
     {
       "source": "/claim",
-      "destination": "/index.html"
+      "destination": "/claim/index.html"
     },
     {
       "source": "/stake",
-      "destination": "/index.html"
+      "destination": "/stake/index.html"
     },
     {
       "source": "/docs",

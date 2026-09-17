@@ -3,7 +3,7 @@ const required = <T extends Element>(selector: string): T => document.querySelec
 const brandMarkUrl = new URL("../../assets/tickergarden-mark-128.webp", import.meta.url).href;
 const robinhoodFeatherUrl = new URL("../../assets/robinhood-chain/robinhood-feather-60.webp", import.meta.url).href;
 const brandWordmark = `<span class="wordmark" aria-hidden="true"><span>Ticker</span><span>Garden</span></span>`;
-export function renderShell(page: PageName, chainName: string): void {
+export function shellMarkup(page: PageName, chainName: string): {header:string;footer:string} {
   if (page === "statsStocks") page = "stats";
   const nav: readonly [PageName, string, string][] = [
     ["markets", "Explore", "/explore"],
@@ -13,11 +13,9 @@ export function renderShell(page: PageName, chainName: string): void {
     ["staking", "Stake", "/stake"],
     ["docs", "Docs", "/docs"],
   ];
-  const header = required<HTMLElement>("[data-shell-header]");
   const footerLink = (id: PageName, label: string, url: string): string =>
     `<a class="${page === id ? "active" : ""}" ${page === id ? "aria-current=\"page\"" : ""} href="${url}">${label}</a>`;
-  header.classList.remove("nav-open");
-  header.innerHTML = `
+  const header = `
     <a class="brand" href="/" aria-label="TickerGarden home">
       <img src="${brandMarkUrl}" alt="">${brandWordmark}
     </a>
@@ -26,7 +24,7 @@ export function renderShell(page: PageName, chainName: string): void {
       <button class="wallet" type="button" data-wallet><i class="ph ph-wallet" aria-hidden="true"></i><span>Connect Wallet</span></button>
       <button class="menu" type="button" data-menu aria-label="Open navigation" aria-expanded="false"><i class="ph ph-list" aria-hidden="true"></i></button>
     </div>`;
-  required<HTMLElement>("[data-shell-footer]").innerHTML = `
+  const footer = `
     <div class="footer-intro">
       <a class="brand" href="/" aria-label="TickerGarden home"><img src="${brandMarkUrl}" alt="">${brandWordmark}</a>
       <p>Where stock communities meet onchain culture—and new possibilities take root.</p>
@@ -43,5 +41,13 @@ export function renderShell(page: PageName, chainName: string): void {
         <span class="chain-tag" title="${chainName}"><img src="${robinhoodFeatherUrl}" width="20" height="20" alt="">Robinhood Chain</span>
       </div>
     </div>`;
+  return {header,footer};
+}
 
+export function renderShell(page: PageName, chainName: string): void {
+  const markup=shellMarkup(page,chainName);
+  const header=required<HTMLElement>("[data-shell-header]");
+  header.classList.remove("nav-open");
+  header.innerHTML=markup.header;
+  required<HTMLElement>("[data-shell-footer]").innerHTML=markup.footer;
 }

@@ -4746,13 +4746,14 @@ function mountRoute(route: Route): Promise<void> {
   const outlet = required<HTMLElement>("[data-route-outlet]");
   setupShell();
   renderWallet();
-  renderRouteLoading(outlet);
+  if(outlet.dataset.prerendered!==route.page)renderRouteLoading(outlet);
+  delete outlet.dataset.prerendered;
   return (async () => {
     await Promise.all([route.page==='rewards'||route.page==='staking'?loadRewardPageDependencies(route.page):Promise.resolve(),['stats','statsStocks'].includes(route.page)?ensureStatsController():Promise.resolve(),route.page==='create'?ensureCreateController():Promise.resolve(),route.page==='trade'?ensureTradeController():Promise.resolve()]);
     if(generation!==routeGeneration)return;
     const page = await loadPageTemplate(route.page);
     if (generation !== routeGeneration) return;
-    applyPageMetadata(route.page, page.title, route.pathname + window.location.search);
+    applyPageMetadata(route.page, undefined, route.pathname + window.location.search);
     outlet.innerHTML = page.html;
     const main = outlet.querySelector<HTMLElement>("main");
     if (main) {
