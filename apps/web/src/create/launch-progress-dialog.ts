@@ -6,6 +6,7 @@ export type LaunchProgressState = {
   detail: string;
   percent: number;
   hash?: string;
+  supportDetails?: string;
   explorer: string;
   needsHash?: boolean;
   canDismiss?: boolean;
@@ -130,6 +131,17 @@ export function renderLaunchProgress(state: LaunchProgressState, actions: Launch
     stages.append(item);
   });
   if(!state.outcome)content.append(stages);
+
+  if (state.supportDetails) {
+    const support = element('button', 'launch-progress-dialog__track');
+    support.type = 'button';
+    support.textContent = 'Copy support details';
+    support.addEventListener('click', async () => {
+      try { await navigator.clipboard.writeText(state.supportDetails!); support.textContent = 'Copied'; }
+      catch { const details=element('textarea'); details.readOnly=true; details.value=state.supportDetails!; support.after(details); details.focus(); details.select(); support.disabled=true; }
+    });
+    content.append(support);
+  }
 
   if (state.hash) {
     const hashText = element('p', 'launch-progress-dialog__hash');
