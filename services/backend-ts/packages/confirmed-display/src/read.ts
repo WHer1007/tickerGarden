@@ -2,20 +2,22 @@ import type {Pool} from 'pg';
 import type {DeploymentIdentity} from '../../chain/src/index.ts';
 import type {MarketReadModel,MarketDetailResponse,ConfigReadModel} from '../../../openapi/generated/v1-client.ts';
 import {runtimeConfigs} from '../../runtime-deployment/src/index.ts';
-import {displayDetail,type DisplayState} from './state.ts';
+import type {DisplayState} from './state.ts';
+import type {TokenDetailResponse} from '../../../openapi/generated/v1-client.ts';
 import {displayIdentity,displaySchema} from './worker.ts';
 export async function readConfirmedState(pool:Pick<Pool,'query'>,d:DeploymentIdentity,marketId:string,schemaName?:string,section?:string){
  const schema=displaySchema(schemaName);
  const selected=new Set(section==='activity'?['trades','fees']:section?.split(',')??['holders','chart','trades','statistics','fees']);
- const omitted=[...(!selected.has('holders')?['balances','exclusions']:[]),...(!['chart','trades','statistics'].some(k=>selected.has(k))?['trades']:[]),...(!selected.has('fees')?['fees']:[])];
- const row=(await pool.query<{payload:DisplayState;head_number:string;head_hash:`0x${string}`;head_timestamp:string}>(`SELECT m.payload - $5::text[] payload,c.block_number::text head_number,c.block_hash head_hash,c.block_timestamp::text head_timestamp FROM ${schema}.confirmed_display_markets m JOIN ${schema}.confirmed_display_cursor c USING(environment,chain_id,deployment_digest) WHERE m.environment=$1 AND m.chain_id=$2 AND m.deployment_digest=$3 AND m.market_id=$4 AND c.updated_at>now()-interval '30 seconds' AND m.block_number<=c.block_number`,[...displayIdentity(d),marketId,omitted])).rows[0];
+ const omitted=['detailViews',...(!selected.has('holders')?['balances','exclusions']:[]),...(!['chart','trades','statistics'].some(k=>selected.has(k))?['trades']:[]),...(!selected.has('fees')?['fees']:[])];
+ const row=(await pool.query<{payload:DisplayState;head_number:string;head_hash:`0x${string}`;head_timestamp:string}>(`SELECT m.payload - $5::text[] payload,c.block_number::text head_number,c.block_hash head_hash,c.block_timestamp::text head_timestamp FROM ${schema}.confirmed_display_markets m JOIN ${schema}.confirmed_display_cursor c USING(environment,chain_id,deployment_digest) WHERE m.environment=$1 AND m.chain_id=$2 AND m.deployment_digest=$3 AND m.market_id=$4 AND m.block_number<=c.block_number`,[...displayIdentity(d),marketId,omitted])).rows[0];
  return row;
 }
 export async function readConfirmedDetail(pool:Pick<Pool,'query'>,d:DeploymentIdentity,marketId:string,period:'1H'|'12H'|'1D',schemaName?:string,section?:string){
- const row=await readConfirmedState(pool,d,marketId,schemaName,section);if(!row)return null;
- // Fresh cursor proves no intervening token events were omitted. Values retain
- // their own source block; this is display data, not a finalized financial input.
- return displayDetail({...row.payload,balances:row.payload.balances??{},exclusions:row.payload.exclusions??[],trades:row.payload.trades??[],fees:row.payload.fees??[],blockNumber:row.head_number,blockHash:row.head_hash},period,Number(row.head_timestamp),section);
+ const schema=displaySchema(schemaName);
+ const value=(await pool.query<{detail:TokenDetailResponse}>(`SELECT m.payload->'detailViews'->$5 detail FROM ${schema}.confirmed_display_markets m JOIN ${schema}.confirmed_display_cursor c USING(environment,chain_id,deployment_digest) WHERE m.environment=$1 AND m.chain_id=$2 AND m.deployment_digest=$3 AND m.market_id=$4 AND m.block_number<=c.block_number`,[...displayIdentity(d),marketId,period])).rows[0]?.detail;
+ if(!value)return null;
+ const selected=new Set(section==='activity'?['trades','fees']:section?.split(',')??['holders','chart','trades','statistics','fees']);
+ return {...value,statistics:selected.has('statistics')?value.statistics:null,chart:selected.has('chart')?value.chart:null,holders:selected.has('holders')?value.holders:null,trades:selected.has('trades')?value.trades:null,fees:selected.has('fees')?value.fees:null,sources:Object.fromEntries(Object.entries(value.sources).filter(([key])=>selected.has(key))),reasons:Object.fromEntries(Object.entries(value.reasons).filter(([key])=>selected.has(key)))};
 }
 export async function readMarketPageBootstrap(pool:Pool,d:DeploymentIdentity,marketId:string,schemaName?:string){
  const schema=displaySchema(schemaName),id=displayIdentity(d),live=await readConfirmedState(pool,d,marketId,schemaName,'market');

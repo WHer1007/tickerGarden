@@ -45,6 +45,7 @@ market.properties.burnMemeFees = {type:'boolean'};
 market.properties.lpFeePips = {type:'integer',enum:[0,1000,2000,3000]};
 market.properties.stakingEnabled = {type:'boolean'};
 market.properties.display = object({priceQuote:nullable({type:"string",pattern:"^(0|[1-9][0-9]*)(\\.[0-9]{1,36})?$"}),totalSupplyRaw:uintString,totalStakedRaw:uintString,activeStakeRaw:uintString,creatorTaxBps:{type:'integer',minimum:0,maximum:500},asOfTimestamp:uintString,blockNumber:uintString,blockHash:bytes32});
+market.properties.content = nullable(object({description:{type:'string'},imageURI:nullable({type:'string'}),website:nullable({type:'string'}),x:nullable({type:'string'})}));
 market.properties.identity = ref("MarketIdentityReadModel");
 market.properties.metrics = ref("MarketMetricsReadModel");
 market.properties.lastBuy = ref("LastBuyReadModel");
@@ -82,7 +83,7 @@ const displayReference = object({chainId:{type:"integer",enum:[4663,46630,421614
 displayReference.allOf=[{if:{properties:{status:{const:"available"}}},then:{properties:{bidUsd:displayDecimal,askUsd:displayDecimal,multiplier:displayDecimal,asOf:displayTime,expiresAt:displayTime}},else:{properties:{bidUsd:{type:"null"},askUsd:{type:"null"}}}}];
 const spec = {
   openapi: "3.1.0",
-  info: { title: "TickerGarden V1 Read API", version: "5.6.0", description: "Non-custodial TypeScript Serverless read API for the routes consumed by the current frontend." },
+  info: { title: "TickerGarden V1 Read API", version: "5.7.0", description: "Non-custodial TypeScript Serverless read API for the routes consumed by the current frontend." },
   "x-execution-spec-id": "V1-EXEC-11",
   paths: {
     "/v1/users/{address}/activity":{get:{operationId:"listUserActivity",description:"Finalized address-referenced protocol events, newest first, from the configured indexing start. All canonical batches and stored receipt commitments must be complete. Roles are event references, not verified transaction initiators or trading volume. A changed history returns 409; restart pagination. No transaction submission.",parameters:[{name:"address",in:"path",required:true,schema:address},{name:"limit",in:"query",schema:{type:"integer",minimum:1,maximum:100,default:50}},{name:"cursor",in:"query",schema:{type:"string",minLength:1,maxLength:1024}}],responses:{"200":response(ref("UserActivityPage")),"400":response(ref("ActivityError")),"405":response(ref("ActivityError")),"409":response(ref("ActivityError")),"503":response(ref("ActivityError"))}}},
@@ -177,6 +178,9 @@ const spec = {
     }), ApiErrorResponse: error,
   } },
 };
+
+spec.components.schemas.TokenDetailStatistics.properties.marketCapUsd = nullable({type:'string'});
+spec.components.schemas.TokenDetailStatistics.properties.priceUsd = nullable({type:'string'});
 
 const directoryMarket = object({ marketId: bytes32, memeToken: address, name: { type: 'string' }, symbol: { type: 'string' } });
 spec.components.schemas.CreatorMarket = object({ marketId: bytes32, memeToken: address, creator: address, creationBlockNumber: uintString });

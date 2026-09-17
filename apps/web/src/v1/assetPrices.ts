@@ -40,7 +40,7 @@ function compareDecimal(left: string, right: string): number {
   return a < b ? -1 : a > b ? 1 : 0;
 }
 
-function parseReference(raw: unknown, chainId: number, now: number): AssetPrice | null {
+function parseReference(raw: unknown, chainId: number): AssetPrice | null {
   if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return null;
   const value = raw as DisplayPriceReference;
   const token = String(value.token).toLowerCase();
@@ -59,15 +59,13 @@ function parseReference(raw: unknown, chainId: number, now: number): AssetPrice 
     || !DECIMAL.test(value.multiplier) || !/[1-9]/.test(value.bidUsd) || !/[1-9]/.test(value.askUsd) || !/[1-9]/.test(value.multiplier)
     || compareDecimal(value.bidUsd, value.askUsd) > 0 || !value.asOf || !value.expiresAt) return null;
   const asOf = Date.parse(value.asOf); const expiresAt = Date.parse(value.expiresAt); const retrievedAt = Date.parse(value.retrievedAt);
-  if (![asOf, expiresAt, retrievedAt].every(Number.isFinite) || asOf > now || retrievedAt > now + 5_000 || retrievedAt < asOf
-    || expiresAt <= asOf || expiresAt - asOf > 1_200_000) return null;
-  const status = expiresAt <= now ? 'stale' as const : 'available' as const;
-  return Object.freeze({ token: token as `0x${string}`, assetUid: value.assetUid, symbol: value.symbol, source: value.source, status,
-    bidUsd: status === 'available' ? value.bidUsd : null, askUsd: status === 'available' ? value.askUsd : null,
-    midpointUsd: status === 'available' ? midpoint(value.bidUsd, value.askUsd) : null, asOf, expiresAt });
+  if (![asOf, expiresAt, retrievedAt].every(Number.isFinite)) return null;
+  return Object.freeze({ token: token as `0x${string}`, assetUid: value.assetUid, symbol: value.symbol, source: value.source, status: value.status,
+    bidUsd: value.status === 'available' ? value.bidUsd : null, askUsd: value.status === 'available' ? value.askUsd : null,
+    midpointUsd: value.status === 'available' ? midpoint(value.bidUsd, value.askUsd) : null, asOf, expiresAt });
 }
 
-export function parseAssetPriceSnapshot(payload: unknown, chainId: number, now = Date.now()): AssetPriceSnapshot {
+export function parseAssetPriceSnapshot(payload: unknown, chainId: number, _now?: number): AssetPriceSnapshot {
   const empty = (): AssetPriceSnapshot => Object.freeze({ chainId, updatedAt: null, prices: Object.freeze({}) });
   if (!payload || typeof payload !== 'object' || Array.isArray(payload)) return empty();
   const value = payload as DisplayPriceResponse;
@@ -75,7 +73,7 @@ export function parseAssetPriceSnapshot(payload: unknown, chainId: number, now =
     || !Array.isArray(value.references) || value.references.length > MAX_PRICE_REFERENCES) return empty();
   const prices: Record<string, AssetPrice> = {}; const duplicates = new Set<string>(); let updatedAt: number | null = null;
   for (const raw of value.references) {
-    const parsed = parseReference(raw, chainId, now); if (!parsed || duplicates.has(parsed.token)) continue;
+    const parsed = parseReference(raw, chainId); if (!parsed || duplicates.has(parsed.token)) continue;
     if (prices[parsed.token]) { delete prices[parsed.token]; duplicates.add(parsed.token); continue; }
     prices[parsed.token] = parsed; if (parsed.asOf !== null) updatedAt = Math.max(updatedAt ?? 0, parsed.asOf);
   }
@@ -85,17 +83,8 @@ export function parseAssetPriceSnapshot(payload: unknown, chainId: number, now =
 export function createAssetPriceStore(options: { baseUrl: string | null; chainId: number; fetcher?: typeof fetch; pollIntervalMs?: number }) {
   const listeners = new Set<Listener>(); const fetcher = options.fetcher ?? fetch; const pollInterval = options.pollIntervalMs ?? 60_000;
   let snapshot = parseAssetPriceSnapshot(null, options.chainId); let pending: Promise<void> | null = null; let stopped = false; let active = false; let lastRequestAt = 0;
-  let pollTimer: ReturnType<typeof setInterval> | undefined; let expiryTimer: ReturnType<typeof setTimeout> | undefined;
+  let pollTimer: ReturnType<typeof setInterval> | undefined;
   const notify = () => listeners.forEach(listener => listener(snapshot));
-  const scheduleExpiry = () => {
-    clearTimeout(expiryTimer); const next = Object.values(snapshot.prices).filter(price => price.status === 'available' && price.expiresAt !== null)
-      .map(price => price.expiresAt!).sort((a, b) => a - b)[0];
-    if (next === undefined) return;
-    expiryTimer = setTimeout(() => { snapshot = parseAssetPriceSnapshot({ chainId: options.chainId, displayOnly: true, confidence: 'provider_reported', status: 'configured',
-      references: Object.values(snapshot.prices).map(price => ({ ...price, chainId: options.chainId, unit: 'USD_PER_WHOLE_TOKEN', multiplier: '1',
-        asOf: price.asOf === null ? null : new Date(price.asOf).toISOString(), expiresAt: price.expiresAt === null ? null : new Date(price.expiresAt).toISOString(),
-        retrievedAt: new Date(price.asOf ?? Date.now()).toISOString() })) }, options.chainId); notify(); scheduleExpiry(); }, Math.max(0, next - Date.now() + 1));
-  };
   const refresh = (): Promise<void> => {
     if (stopped || !options.baseUrl) return Promise.resolve(); if (pending) return pending;
     lastRequestAt = Date.now();
@@ -103,7 +92,7 @@ export function createAssetPriceStore(options: { baseUrl: string | null; chainId
     pending = client.listDisplayPriceReferences().then(value => { if (stopped) return;
       if (!value || value.chainId !== options.chainId || value.displayOnly !== true || value.confidence !== 'provider_reported' || value.status !== 'configured' || !Array.isArray(value.references)) throw new Error('invalid asset price catalog');
       const next = parseAssetPriceSnapshot(value, options.chainId); if (value.references.length > 0 && Object.keys(next.prices).length === 0) throw new Error('empty asset price catalog');
-      if (JSON.stringify(next) !== JSON.stringify(snapshot)) { snapshot = next; notify(); scheduleExpiry(); } }).catch(() => { /* Keep unexpired cached values. */ }).finally(() => { pending = null; });
+      if (JSON.stringify(next) !== JSON.stringify(snapshot)) { snapshot = next; notify(); } }).catch(() => { /* Retain the last valid same-chain snapshot. */ }).finally(() => { pending = null; });
     return pending;
   };
   const start = () => { if (stopped || pollTimer) return; active = true; void refresh(); pollTimer = setInterval(() => { if (typeof document === 'undefined' || document.visibilityState === 'visible') void refresh(); }, pollInterval); };
@@ -116,7 +105,7 @@ export function createAssetPriceStore(options: { baseUrl: string | null; chainId
     get(token: string | null | undefined): AssetPrice | null { const key = token?.toLowerCase(); return key && ADDRESS.test(key) ? snapshot.prices[key] ?? null : null; },
     midpointUsd(token: string | null | undefined): string | null { const key = token?.toLowerCase(); const price = key && ADDRESS.test(key) ? snapshot.prices[key] : null; return price?.status === 'available' ? price.midpointUsd : null; },
     subscribe(listener: Listener) { listeners.add(listener); listener(snapshot); return () => listeners.delete(listener); },
-    stop() { stopped = true; clearInterval(pollTimer); clearTimeout(expiryTimer); listeners.clear(); if (typeof window !== 'undefined') { window.removeEventListener('pageshow', resume); window.removeEventListener('online', resume); if(typeof document!=='undefined')document.removeEventListener('visibilitychange',resume); } },
+    stop() { stopped = true; clearInterval(pollTimer); listeners.clear(); if (typeof window !== 'undefined') { window.removeEventListener('pageshow', resume); window.removeEventListener('online', resume); if(typeof document!=='undefined')document.removeEventListener('visibilitychange',resume); } },
   };
 }
 

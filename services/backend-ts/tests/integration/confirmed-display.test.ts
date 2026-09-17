@@ -1,4 +1,4 @@
-import {readConfirmedState} from '../../packages/confirmed-display/src/read.ts';
+import {readConfirmedDetail,readConfirmedState} from '../../packages/confirmed-display/src/read.ts';
 import {changeChannel} from '../../packages/confirmed-display/src/changes.ts';
 import assert from 'node:assert/strict';
 import { randomBytes } from 'node:crypto';
@@ -8,6 +8,7 @@ import type { DeploymentIdentity, RpcBlock, RpcTransport } from '../../packages/
 import { advanceConfirmedDisplay } from '../../packages/confirmed-display/src/worker.ts';
 import type { DisplayState } from '../../packages/confirmed-display/src/state.ts';
 import type { MarketCreation } from '../../packages/market-projector/src/index.ts';
+import {runtimeConfigs} from '../../packages/runtime-deployment/src/index.ts';
 
 // The default points only at a local Unix socket. CI/dev can override it explicitly,
 // but this test never reads TG_DATABASE_URL or any deployment environment setting.
@@ -20,7 +21,7 @@ function block(number: bigint, hashValue: `0x${string}`, parentHash: `0x${string
   return { number, hash: hashValue, parentHash, timestamp: 1_800_000_000n + number };
 }
 
-function fakeRpc(options: { canonicalOrphan?: boolean; head?: bigint } = {}): RpcTransport {
+function fakeRpc(options: { canonicalOrphan?: boolean; head?: bigint; calls?: string[] } = {}): RpcTransport {
   const canonical = new Map<bigint, RpcBlock>([
     [10n, block(10n, hash('a'), hash('9'))],
     [11n, block(11n, hash('b'), hash('a'))],
@@ -37,6 +38,7 @@ function fakeRpc(options: { canonicalOrphan?: boolean; head?: bigint } = {}): Rp
     },
     logs: async () => [],
     call: async (method: string) => {
+      options.calls?.push(method);
       if (method === 'eth_getLogs') return [];
       throw new Error(`unexpected fake RPC call ${method}`);
     },
@@ -134,4 +136,47 @@ test('confirmed display advances an empty range idempotently and rolls back orph
     await db.pool.query(`DROP SCHEMA IF EXISTS ${schema} CASCADE`).catch(() => undefined);
     await db.pool.end();
   }
+});
+
+test('quiet markets skipped by the prior display cursor are seeded and retain DB-backed detail without trades', {timeout: 60_000}, async context => {
+  const schemaName=`tg_display_quiet_${process.pid}_${randomBytes(5).toString('hex')}`,schema=`"${schemaName}"`;
+  const db=createDatabasePool(databaseUrl,{max:2,connectionTimeoutMillis:5_000});
+  const deployment:DeploymentIdentity={environment:'test',chainId:46630,deploymentDigest:hash('6'),activationBlock:10n},id=['test',46630,deployment.deploymentDigest] as const;
+  const marketId=hash('7'),token=address('2'),curve=address('3'),gauge=address('0'),quoteAsset=address('0');
+  const baseline=runtimeConfigs.find(c=>c.kind==='baseline')!,quote=runtimeConfigs.find(c=>c.kind==='quote'&&c.values.quoteAsset===quoteAsset)!;
+  const totalSupplyRaw=String(baseline.values.supply),timestamp=1_800_000_010;
+  const creation:MarketCreation={marketId,assetUid:hash('8'),memeToken:token,curve,gauge,quoteAsset,quoteAssetConfigId:quote.id as `0x${string}`,tickerGardenBaselineId:baseline.id as `0x${string}`,expectedEconomics:hash('9'),source:{chainId:46630,blockNumber:'10',blockHash:hash('a'),transactionHash:hash('f'),transactionIndex:0,logIndex:0}};
+  const market={marketId,assetUid:creation.assetUid,memeToken:token,curve,gauge,quoteAsset,quoteAssetConfigId:creation.quoteAssetConfigId,tickerGardenBaselineId:creation.tickerGardenBaselineId,sourceVersion:1,launchPhase:0,creator:address('5'),creatorFeesToHolders:false,stakingEnabled:false,burnMemeFees:false,lpFeePips:0,curveProgress:{realQuoteReserve:'0',sellableTokens:'0',reservedTokens:'0',accruedCurveFees:'0',readyToGraduate:false},poolId:null,poolKey:null,canonicalRoute:{router:address('0'),quoter:address('0'),hook:address('0'),launchLocker:address('0'),graduationExecutor:address('0'),curveTradingEnabled:true,poolTradingEnabled:false,sourceVersion:1,launchPhase:0},source:{chainId:46630,blockNumber:'10',blockHash:hash('a'),transactionHash:hash('f'),transactionIndex:0,logIndex:0},identity:{name:'Quiet Market',symbol:'QUIET',metadataURI:'',deployedAt:String(timestamp-100),blockNumber:'10',blockHash:hash('a'),runtimeCodeHash:hash('b')},display:{totalSupplyRaw,priceQuote:'0.0125',totalStakedRaw:'0',activeStakeRaw:'0',creatorTaxBps:0,asOfTimestamp:String(timestamp),blockNumber:'10',blockHash:hash('a')}} as any;
+  const rpcCalls:string[]=[];
+  try{
+    try{await applyCoreMigration(db.pool,schemaName);}catch(error){if(process.env.TG_TEST_DISPLAY_DATABASE_URL||!['ECONNREFUSED','ENOENT','28P01','28000'].includes(String((error as {code?:string}).code)))throw error;context.skip('Local PostgreSQL unavailable for confirmed display integration test');return;}
+    await db.pool.query(`INSERT INTO ${schema}.deployments(environment,chain_id,deployment_digest,genesis_hash,start_block,start_block_hash,abi_digest) VALUES($1,$2,$3,$4,10,$5,$6)`,[...id,hash('c'),hash('a'),hash('d')]);
+    await db.pool.query(`INSERT INTO ${schema}.chain_blocks(environment,chain_id,deployment_digest,number,hash,parent_hash,canonical,finalized,source_timestamp) VALUES($1,$2,$3,10,$4,$5,true,true,to_timestamp($6))`,[...id,hash('a'),hash('9'),timestamp]);
+    const revision=`10:${hash('a')}`;
+    await db.pool.query(`INSERT INTO ${schema}.projection_checkpoints(environment,chain_id,deployment_digest,scope,algorithm_version,next_block,generation,last_revision) VALUES($1,$2,$3,'analytics','integration-fixture',11,4,$4)`,[...id,revision]);
+    await db.pool.query(`INSERT INTO ${schema}.publications(environment,chain_id,deployment_digest,scope,revision,block_number,block_hash,generation,payload_digest,payload) VALUES($1,$2,$3,'markets',$4,10,$5,1,$6,'{}')`,[...id,revision,hash('a'),hash('d')]);
+    await db.pool.query(`INSERT INTO ${schema}.publication_pointers(environment,chain_id,deployment_digest,scope,revision) VALUES($1,$2,$3,'markets',$4)`,[...id,revision]);
+    await db.pool.query(`INSERT INTO ${schema}.projection_records(environment,chain_id,deployment_digest,scope,revision,identity,sort_key,payload_digest,payload) VALUES($1,$2,$3,'markets',$4,$5,$5,$6,$7)`,[...id,revision,marketId,hash('e'),JSON.stringify(market)]);
+    await db.pool.query(`INSERT INTO ${schema}.market_creation_directory(environment,chain_id,deployment_digest,block_hash,transaction_hash,log_index,market_id,payload) VALUES($1,$2,$3,$4,$5,0,$6,$7)`,[...id,hash('a'),hash('f'),marketId,JSON.stringify(creation)]);
+    await db.pool.query(`INSERT INTO ${schema}.holder_balances(environment,chain_id,deployment_digest,market_id,account,balance_raw,excluded,block_hash,payload) VALUES($1,$2,$3,$4,$5,$6,false,$7,'{}')`,[...id,marketId,address('5'),totalSupplyRaw,hash('a')]);
+    await db.pool.query(`INSERT INTO ${schema}.detail_fee_totals(environment,chain_id,deployment_digest,market_id,recipient,asset,amount_raw,block_hash) VALUES($1,$2,$3,$4,'platform',$5,'123',$6)`,[...id,marketId,quoteAsset,hash('a')]);
+    await db.pool.query(`INSERT INTO ${schema}.confirmed_display_cursor(environment,chain_id,deployment_digest,block_number,block_hash,base_number,block_timestamp) VALUES($1,$2,$3,11,$4,10,$5)`,[...id,hash('b'),String(timestamp+1)]);
+    const checkpointBefore=(await db.pool.query(`SELECT next_block::text,generation::text,last_revision FROM ${schema}.projection_checkpoints WHERE scope='analytics'`)).rows[0];
+    const rpc=fakeRpc({head:12n,calls:rpcCalls});
+    assert.equal(await advanceConfirmedDisplay({pool:db.pool,deployment,rpc,schemaName}),'initialized:rebase');
+    assert.equal(await advanceConfirmedDisplay({pool:db.pool,deployment,rpc,schemaName}),'initialized:1');
+    assert.equal(await advanceConfirmedDisplay({pool:db.pool,deployment,rpc,schemaName}),'confirmed:12:0');
+    assert.ok(!rpcCalls.includes('eth_call'),`unexpected eth_call: ${rpcCalls.join(',')}`);
+    const detail=await readConfirmedDetail(db.pool,deployment,marketId,'1H',schemaName);
+    assert.ok(detail);
+    assert.equal(detail.statistics?.price,'0.0125');
+    assert.equal(detail.statistics?.marketCapUsd,null);
+    assert.equal(detail.holders?.totalSupplyRaw,totalSupplyRaw);
+    assert.equal(detail.holders?.count,1);
+    assert.equal(detail.holders?.items[0]?.account,address('5'));
+    assert.deepEqual(detail.trades,[]);
+    assert.deepEqual(detail.fees,[{recipient:'platform',asset:quoteAsset,amountRaw:'123'}]);
+    const checkpointAfter=(await db.pool.query(`SELECT next_block::text,generation::text,last_revision FROM ${schema}.projection_checkpoints WHERE scope='analytics'`)).rows[0];
+    assert.deepEqual(checkpointAfter,checkpointBefore);
+  }finally{await db.pool.query(`DROP SCHEMA IF EXISTS ${schema} CASCADE`).catch(()=>undefined);await db.pool.end();}
 });

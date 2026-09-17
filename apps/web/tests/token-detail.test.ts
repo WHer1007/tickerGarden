@@ -6,13 +6,15 @@ const id:DetailIdentity={marketId:`0x${'1'.repeat(64)}`,memeToken:`0x${'2'.repea
 const now=1_700_000_040_000;
 const report=()=>({version:1,chainId:46630,displayOnly:true,...id,period:'1H',statistics:null,chart:null,trades:null,holders:null,fees:null,sources:{},reasons:{}});
 const source={provider:'indexer',asOf:now/1000,blockNumber:'10',blockHash:`0x${'4'.repeat(64)}`};
-test('detail refuses wrong identity, stale analytics and unavailable masquerading as zero',()=>{
+test('detail validates identity and numeric data without expiring unchanged indexer observations',()=>{
  const v=report();assert.equal(validateTokenDetail(v,46630,id,'1H',now).statistics,null);
  assert.throws(()=>validateTokenDetail({...v,chainId:1},46630,id,'1H',now));
  assert.throws(()=>validateTokenDetail({...v,memeToken:id.quoteAsset},46630,id,'1H',now));
  const withVolume={...v,statistics:{price:null,volume24h:'0',volumeFrom:now/1000-86400,volumeTo:now/1000,volumeBasis:'EXTERNAL_EXECUTIONS_CURVE_EXCLUDING_FEE_TAX_OR_POOL_CORE'},sources:{statistics:source}};
  assert.equal(validateTokenDetail(withVolume,46630,id,'1H',now).statistics?.volume24h,'0');
- assert.throws(()=>validateTokenDetail(withVolume,46630,id,'1H',now+1_201_000));
+ assert.equal(validateTokenDetail(withVolume,46630,id,'1H',now+1_201_000).statistics?.volume24h,'0');
+ assert.equal(validateTokenDetail(withVolume,46630,id,'1H',now-600_000).statistics?.volume24h,'0');
+ assert.equal(validateTokenDetail({...withVolume,sources:{statistics:{...source,provider:'dune',queryId:'1',executionId:'a',cachedAt:now/1000}}},46630,id,'1H',now+1_201_000).statistics?.volume24h,'0');
  assert.throws(()=>validateTokenDetail({...withVolume,statistics:{...withVolume.statistics,volume24h:0}},46630,id,'1H',now));
 });
 test('chart periods require complete aligned buckets; gaps remain null',()=>{

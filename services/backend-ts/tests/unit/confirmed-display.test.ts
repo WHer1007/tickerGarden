@@ -42,3 +42,29 @@ test('scoped confirmed reads omit unrelated sections and retain the open candle'
  assert.deepEqual(Object.keys(value.sources).sort(),['chart','trades']);
  assert.equal(value.chart?.points.at(-1)?.price,'0.01');assert.equal(value.trades?.length,1);
 });
+
+test('worker materializes USD cap from current total supply and the shared database quote',async()=>{
+ const {materializeDisplay,displayUsd}=await import('../../packages/confirmed-display/src/state.ts');
+ const state=applyDisplayEvents(emptyDisplayState(creation,market,block),market,[mint,transfer,buy],block);
+ const materialized=materializeDisplay({...state,quoteUsd:'2'});
+ assert.deepEqual(displayUsd('0.01','100000000000000000000','2'),{priceUsd:'0.02',marketCapUsd:'2'});
+ assert.equal(materialized.detailViews?.['1H'].statistics?.marketCapUsd,formatCap(supply));
+ assert.equal(materialized.detailViews?.['1D'].holders?.totalSupplyRaw,supply);
+ assert.equal(materializeDisplay({...state,quoteUsd:null}).detailViews?.['1H'].statistics?.marketCapUsd,null);
+ const aged=materializeDisplay({...state,quoteUsd:'2'},{number:'11',hash:hash('d'),timestamp:Number(time)+86401});
+ assert.equal(aged.detailViews?.['1H'].statistics?.volume24h,'0');
+ assert.equal(aged.detailViews?.['1H'].statistics?.price,'0.01');
+ assert.equal(state.trades.length,1);
+ function formatCap(raw:string){return String(BigInt(raw)/10n**18n/50n);}
+});
+
+test('detail read selects a stored view without recalculating windows or applying client expiry',async()=>{
+ const {materializeDisplay}=await import('../../packages/confirmed-display/src/state.ts');
+ const {readConfirmedDetail}=await import('../../packages/confirmed-display/src/read.ts');
+ const state=materializeDisplay(applyDisplayEvents(emptyDisplayState(creation,market,block),market,[mint,transfer,buy],block));
+ const stored=state.detailViews!['1H'];
+ const pool={query:async(sql:string,args:unknown[])=>{assert.match(sql,/detailViews/);assert.equal(args.at(-1),'1H');return {rows:[{detail:stored}]};}} as any;
+ const result=await readConfirmedDetail(pool,{environment:'test',chainId:46630,deploymentDigest:hash('8'),activationBlock:0n},market.marketId,'1H',undefined,'statistics,holders');
+ assert.deepEqual(result?.statistics,stored.statistics);assert.deepEqual(result?.sources.statistics,stored.sources.statistics);
+ assert.deepEqual(result?.holders,stored.holders);assert.equal(result?.trades,null);assert.equal(result?.chart,null);
+});
