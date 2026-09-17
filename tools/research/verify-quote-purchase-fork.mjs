@@ -25,19 +25,24 @@ try{
  const sample=process.env.TG_ALL_ROUTES==='1'?raw.assets.filter(a=>a.primary):(process.env.TG_FORK_SYMBOLS??'P,CRM,ON,DELL').split(',').map(s=>raw.assets.find(a=>a.symbol===s));
  sample.push({symbol:'USDG',stock:'0x5fc5360d0400a0fd4f2af552add042d716f1d168',exactOutputProbe:{requestedAmount:'100000000'}});
  for(const a of sample){const snap=await client.request({method:'evm_snapshot'});try{
-  const q=await quotePurchase({call:(method,params)=>client.request({method,params})},a.stock,a.exactOutputProbe.requestedAmount);
-  const req=purchaseRequest(q,account.address,Number((await client.getBlock()).timestamp)*1000);
+  const liveQuote=await quotePurchase({call:(method,params)=>client.request({method,params})},a.stock,a.exactOutputProbe.requestedAmount);
+  const q=process.env.TG_CAP_DRIFT==='1'?{...liveQuote,amountIn:String(BigInt(liveQuote.amountIn)*98n/100n),stockInput:String(BigInt(liveQuote.stockInput)*98n/100n)}:liveQuote;
+ const req=purchaseRequest(q,account.address,Number((await client.getBlock()).timestamp)*1000);
   const before=await client.readContract({address:a.stock,abi:erc20Abi,functionName:'balanceOf',args:[account.address]});
   const badQuote={...q,amountIn:String(BigInt(q.amountIn)/2n),...(q.stockInput===q.amountIn?{stockInput:String(BigInt(q.stockInput)/2n)}:{})};
   const bad=purchaseRequest(badQuote,account.address,Number((await client.getBlock()).timestamp)*1000);
   const rejected=await client.waitForTransactionReceipt({hash:await wallet.writeContract({...bad,chain:null,gas:1500000n})});
   const unchanged=await client.readContract({address:a.stock,abi:erc20Abi,functionName:'balanceOf',args:[account.address]});
   if(rejected.status!=='reverted'||unchanged!==before)throw Error('Purchase cap did not roll back atomically');
+  const ethBefore=await client.getBalance({address:account.address});
   const hash=await wallet.writeContract({...req,chain:null,gas:4000000n});
   const receipt=await client.waitForTransactionReceipt({hash});
   const after=await client.readContract({address:a.stock,abi:erc20Abi,functionName:'balanceOf',args:[account.address]});
+  const ethAfter=await client.getBalance({address:account.address});
+  const actualSpent=ethBefore-ethAfter-receipt.gasUsed*receipt.effectiveGasPrice;
+  if(actualSpent>req.value)throw Error('ETH cap exceeded');
   const held=await client.getBalance({address:PURCHASE_ROUTER});
-  if(receipt.status!=='success'||after-before<BigInt(q.amountOut)||held!==0n)throw Error('Execution or balance assertion failed');
+  if(receipt.status!=='success'||after-before!==BigInt(q.amountOut)||held!==0n)throw Error('Execution or balance assertion failed');
   if(a.symbol==='CRM'){
    const rt=productionRuntime.runtime,factory=rt.TickerGardenFactoryV1.address,launch=rt.LaunchAndBuyRouter.address;
    const config=productionRuntime.configs.find(c=>c.kind==='quote'&&c.values.quoteAsset===a.stock);
@@ -57,7 +62,7 @@ try{
    if(receipt.status!=='success'||tokens<simulation.result[2])throw Error('Launch and first buy failed');
    results.push({symbol:a.symbol,status:'PASS',step:'PURCHASE_APPROVE_FAILED_LAUNCH_RETAIN_AND_RETRY_BUY',tokensReceived:String(tokens)});console.log('CRM full launch PASS');
   }
-  results.push({symbol:a.symbol,status:'PASS',gas:String(receipt.gasUsed),underfundedPurchaseReverted:true,received:String(after-before)});console.log(a.symbol,'PASS',String(receipt.gasUsed));
+  results.push({symbol:a.symbol,status:'PASS',gas:String(receipt.gasUsed),underfundedPurchaseReverted:true,received:String(after-before),maximumEth:String(req.value),actualEthSpent:String(actualSpent),quoteDrift:process.env.TG_CAP_DRIFT==='1'});console.log(a.symbol,'PASS',String(receipt.gasUsed));
  }catch(e){results.push({symbol:a.symbol,status:'FAIL',error:e.shortMessage??e.message});console.log(a.symbol,'FAIL',String(e.message).replaceAll(env.ROBINHOOD_RPC_URL,'[RPC]').slice(0,5000));}finally{await client.request({method:'evm_revert',params:[snap]});}}
  fs.mkdirSync('outputs/reviews/quote-purchase-integration',{recursive:true});fs.writeFileSync('outputs/reviews/quote-purchase-integration/fork-'+String(block.number)+'.json',JSON.stringify({chainId:4663,block:String(block.number),hash:block.hash,broadcast:false,results},null,2));
  if(results.some(r=>r.status==='FAIL'))process.exitCode=1;

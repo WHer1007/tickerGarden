@@ -2,7 +2,7 @@ import {recordLaunchFailure,launchFailureMessage,type LaunchOperation} from '../
 import {createConfirmationAsset} from '../create/confirmation-asset.ts';
 import {quoteIconUrl} from '../create/quote-icons.ts';
 import {createPurchaseNotice} from '../create/purchase-notice.ts';
-import {fetchPurchaseQuote,purchaseRequest,assertPurchaseWithinApproval,type PurchaseQuote} from '../create/quote-purchase.ts';
+import {fetchPurchaseQuote,purchaseRequest,purchaseEthLimit,assertPurchaseWithinApproval,type PurchaseQuote} from '../create/quote-purchase.ts';
 import {FIXED_LAUNCH_FEE_LABEL} from '../create/launch-fee-display.ts';
 import {sortStakingAssets,sortPairedAssets} from '../create/featured-stocks.ts';
 import { publicError } from "../ui/public-error.ts";
@@ -749,7 +749,7 @@ async function calculateLaunchFunding(preview: LaunchPreview): Promise<LaunchFun
   const feePerGas = fees.maxFeePerGas ?? fees.gasPrice;
   if (feePerGas === undefined) throw new Error("Network gas price is unavailable");
   const gasCost = (ctx.CONSERVATIVE_LAUNCH_GAS + (funding.purchase ? 1500000n : 0n)) * feePerGas;
-  const transactionValue = ctx.foundation.launchFee + funding.quotedNativeInput;
+  const transactionValue = ctx.foundation.launchFee + (funding.purchase?purchaseEthLimit(BigInt(funding.purchase.amountIn)):funding.quotedNativeInput);
   return Object.freeze({ ...funding, gasCost, totalRequired: transactionValue + gasCost, quoteDecimals: decimals });
 }
 
@@ -802,8 +802,8 @@ async function recoverQuotePurchase():Promise<void>{
  localStorage.removeItem(key);
  // Never resend a recovered purchase. A fresh balance read determines the remaining shortfall.
 }
-async function executeQuotePurchase(q:PurchaseQuote,wallet:WalletState,preview:LaunchPreview):Promise<void>{
- const request={...purchaseRequest(q,wallet.account),gas:1500000n};
+async function executeQuotePurchase(q:PurchaseQuote,wallet:WalletState,preview:LaunchPreview,maximumEth:bigint):Promise<void>{
+ const request={...purchaseRequest(q,wallet.account,Date.now(),maximumEth),gas:1500000n};
  const code=await ctx.publicClient.getCode({address:request.address});
  if(!code||keccak256(code)!=='0x2ce6aaaf9f4151f5e1cbf774668772f17f532ae11b15e9284fd0a072a8b0fbde')throw Error('The purchase route is not ready. Try again later.');
  await recoverQuotePurchase();
@@ -811,7 +811,7 @@ async function executeQuotePurchase(q:PurchaseQuote,wallet:WalletState,preview:L
  const purchaseIntent={data:encodeFunctionData(request),value:String(request.value)};
  updateLaunchProgress('preparing','Buying the paired asset with ETH. Confirm the purchase in your wallet.');
  await ctx.executeTransaction({operationKey:`quote-purchase:${preview.marketId}`,scope:{businessType:'other',conflictKey:`launch:${preview.marketId}`},sync:ctx.foundation!.sync,walletContext:wallet,request,quoteExpiresAtMs:q.expiresAt,
- verifyChain:async()=>{await ctx.ensureCanonicalLaunch(preview.selected);purchaseRequest(q,wallet.account);},
+ verifyChain:async()=>{await ctx.ensureCanonicalLaunch(preview.selected);purchaseRequest(q,wallet.account,Date.now(),maximumEth);},
  onUpdate:update=>{
   if(update.stage==='awaiting_signature')localStorage.setItem(key,JSON.stringify({...purchaseIntent,stage:'wallet'}));
   if(update.hash)localStorage.setItem(key,JSON.stringify({...purchaseIntent,stage:update.stage,hash:update.hash}));
@@ -860,9 +860,9 @@ async function submitLaunch(): Promise<void> {
   };
   addRows([['Network',robinhoodChain.name],['Wallet',ctx.wallet.account]]);
   addRows([['Paired Asset',pair,quoteIconUrl(pair)],['Developer Buy',buy],['Staking Stock',staking ? stock : 'Disabled',staking ? (selectedStock ? ctx.stockLogo(selectedStock) : quoteIconUrl(stock)) : undefined],[`Burn ${details.symbol.trim() || details.name.trim() || 'your token'}`,ctx.query<HTMLInputElement>('[name=burnMemeFees]')?.checked ? 'On' : 'Off'],['LP Fee',`${ctx.query<HTMLInputElement>('[name=lpFeeEnabled]')?.checked ? Number(ctx.query<HTMLSelectElement>('[name=lpFeePips]')?.value)/10000 : 0}%`],['Creator Tax',`${details.creatorTaxBps/100}%`],['Holder Fee Sharing',details.creatorFeesToHolders ? 'Enabled' : 'Disabled']]);
-  if(reviewedPurchase)addRows([['Buy paired asset',`${formatUnits(BigInt(reviewedPurchase.amountOut),ctx.launchFunding!.quoteDecimals)} ${pair}`],['Maximum ETH',`${formatUnits(BigInt(reviewedPurchase.amountIn),18)} ETH`],['Price impact (including fees)',`${(reviewedPurchase.priceImpactBps/100).toFixed(2)}%`],['Minimum received',`${formatUnits(BigInt(reviewedPurchase.amountOut),ctx.launchFunding!.quoteDecimals)} ${pair}`]]);
+  if(reviewedPurchase)addRows([['Buy paired asset',`${formatUnits(BigInt(reviewedPurchase.amountOut),ctx.launchFunding!.quoteDecimals)} ${pair}`],['Estimated ETH',`${formatUnits(BigInt(reviewedPurchase.amountIn),18)} ETH`],['Maximum ETH (+10%)',`${formatUnits(purchaseEthLimit(BigInt(reviewedPurchase.amountIn)),18)} ETH`],['Price impact (including fees)',`${(reviewedPurchase.priceImpactBps/100).toFixed(2)}%`],['Minimum received',`${formatUnits(BigInt(reviewedPurchase.amountOut),ctx.launchFunding!.quoteDecimals)} ${pair}`]]);
   if(reviewedPurchase)content.append(createPurchaseNotice());
-  if(ctx.launchFunding)addRows([['Estimated Total',`${formatTokenAmount(ctx.launchFunding.totalRequired,18)} ETH`]],'launch-confirm-total');
+  if(ctx.launchFunding)addRows([[reviewedPurchase?'Required ETH (incl. gas)':'Estimated Total',`${formatTokenAmount(ctx.launchFunding.totalRequired,18)} ETH`]],'launch-confirm-total');
   try {
     await confirmLaunch(snapshot,()=>ctx.confirmFlowAction('',{title:'Confirm launch',confirmLabel:'Confirm and launch',content}),()=>performLaunch(reviewedPurchase));
   } catch(error){ctx.text('[data-create-preview]',publicError(error,'preview'));setCreateNoticeLevel('[data-create-preview]','error');updateCreateAvailability();}
@@ -926,14 +926,15 @@ async function performLaunch(reviewedPurchase?:PurchaseQuote): Promise<void> {
       requestedQuote = quoteIn;
     operation='refresh_funding';
       const freshFunding = await calculateLaunchFunding(preview);
-      ctx.launchFunding = freshFunding;
-      renderLaunchFunding(freshFunding);
-      if (freshFunding.ethBalance < freshFunding.totalRequired) throw new Error("ETH balance is below the estimated total required");
+      const requiredEth=freshFunding.totalRequired-(freshFunding.purchase?purchaseEthLimit(BigInt(freshFunding.purchase.amountIn)):0n)+(freshFunding.purchase&&reviewedPurchase?purchaseEthLimit(BigInt(reviewedPurchase.amountIn)):0n);
+      ctx.launchFunding = {...freshFunding,totalRequired:requiredEth};
+      renderLaunchFunding(ctx.launchFunding);
+      if (freshFunding.ethBalance < requiredEth) throw new Error("ETH balance is below the estimated total required");
       if(freshFunding.purchase){
     operation='review_purchase';
         assertPurchaseWithinApproval(freshFunding.purchase,reviewedPurchase);
     operation='purchase_asset';
-        await executeQuotePurchase(freshFunding.purchase,activeWallet,preview);
+        await executeQuotePurchase(freshFunding.purchase,activeWallet,preview,purchaseEthLimit(BigInt(reviewedPurchase!.amountIn)));
       }
       const probe = await buildLaunchAndBuyRequests({
         router: ctx.foundation.bindings!.launchRouter,
