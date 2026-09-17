@@ -1,0 +1,17 @@
+{
+  "name": "@tickergarden/confirmed-display",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": "./src/read.ts",
+  "dependencies": {
+    "@tickergarden/chain": "0.0.0",
+    "@tickergarden/events": "0.0.0",
+    "@tickergarden/analytics": "0.0.0",
+    "@tickergarden/analytics-projector": "0.0.0",
+    "@tickergarden/market-projector": "0.0.0",
+    "@tickergarden/runtime-deployment": "0.0.0",
+    "pg": "^8.23.0",
+    "viem": "2.56.3"
+  }
+}

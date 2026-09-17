@@ -2,7 +2,7 @@
   "openapi": "3.1.0",
   "info": {
     "title": "TickerGarden V1 Read API",
-    "version": "5.4.0",
+    "version": "5.6.0",
     "description": "Non-custodial TypeScript Serverless read API for the routes consumed by the current frontend."
   },
   "x-execution-spec-id": "V1-EXEC-11",
@@ -665,7 +665,7 @@
     "/v1/markets/{marketId}/detail": {
       "get": {
         "operationId": "getTokenDetail",
-        "description": "Display-only approved token detail analytics. Prefers cached scheduled Dune results and falls back per section to finalized indexer coverage. Null means unavailable, never zero. Amounts are decimal strings; price and cap are Quote denominated. Protocol-balance exclusions define circulating supply. No execution or settlement authority. New launches may return a confirmed creation-transaction seed from the database; confirmation marks this provisional scope. Subsequent history comes from the independent indexer.",
+        "description": "Display-only approved token detail analytics. Prefers cached scheduled Dune results and falls back per section to finalized indexer coverage. Null means unavailable, never zero. Amounts are decimal strings; price and cap are Quote denominated. Circulating supply follows token totalSupply; only burns reduce it. No execution or settlement authority. New launches may return a confirmed creation-transaction seed from the database; confirmation marks this provisional scope. Subsequent history comes from the independent indexer.",
         "parameters": [
           {
             "name": "marketId",
@@ -695,11 +695,9 @@
             "required": false,
             "schema": {
               "type": "string",
-              "enum": [
-                "activity"
-              ]
+              "pattern": "^(activity|statistics|chart|trades|holders|fees)(,(statistics|chart|trades|holders|fees))*$"
             },
-            "description": "Only finalized recent trades and fee totals; skips chart, volume and holders. Omit for full summary."
+            "description": "Comma-separated changed display sections. Omit for initial full detail; activity selects trades and fees."
           }
         ],
         "responses": {
@@ -1183,6 +1181,64 @@
           },
           "503": {
             "description": "Market identity or ranking metrics unavailable",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/markets/{marketId}/page": {
+      "get": {
+        "operationId": "getMarketPageBootstrap",
+        "parameters": [
+          {
+            "name": "marketId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^0x[0-9a-f]{64}$"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MarketPageBootstrap"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid input or cursor snapshot",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "405": {
+            "description": "Read-only API",
             "content": {
               "application/json": {
                 "schema": {
@@ -5837,6 +5893,34 @@
           "items",
           "nextCursor",
           "sync"
+        ]
+      },
+      "MarketPageBootstrap": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "displayOnly": {
+            "type": "boolean",
+            "const": true
+          },
+          "market": {
+            "$ref": "#/components/schemas/MarketReadModel"
+          },
+          "sync": {
+            "$ref": "#/components/schemas/SyncStatus"
+          },
+          "configs": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ConfigReadModel"
+            }
+          }
+        },
+        "required": [
+          "displayOnly",
+          "market",
+          "sync",
+          "configs"
         ]
       },
       "PositionPage": {

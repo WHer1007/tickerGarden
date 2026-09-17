@@ -3,7 +3,7 @@ import {createServer} from 'node:http';
 import {randomUUID} from 'node:crypto';
 import {createDatabasePool} from '../packages/db/src/index.ts';
 import {validateDatabasePlacement} from '../packages/db/src/connection-budget.ts';
-import {createChainProcessor} from '../packages/chain-worker/src/index.ts';
+import {createChainProcessor,settlementFinalityMode} from '../packages/chain-worker/src/index.ts';
 import {RpcTransport} from '../packages/chain/src/index.ts';
 import {setQueueExecutionMode} from '../packages/jobs/src/index.ts';
 import {createWorkerState,runResidentWorker} from '../packages/chain-worker/src/resident.ts';
@@ -28,7 +28,7 @@ if(mode){
  const controlPool=createDatabasePool(required('TG_WORKER_CONTROL_DATABASE_URL'),{max:1},{role:'resident-control',env}).pool;
  const environment=required('TG_ENVIRONMENT');
  if(environment!=='test'&&environment!=='production')throw Error('invalid environment');
- const processor=createChainProcessor({pool,primary:new RpcTransport({url:required('TG_RPC_URL')}),secondary:new RpcTransport({url:rpc.verificationUrl ?? ''}),
+ const processor=createChainProcessor({settlementFinality:settlementFinalityMode(env),pool,primary:new RpcTransport({url:required('TG_RPC_URL')}),secondary:new RpcTransport({url:rpc.verificationUrl ?? ''}),
   ...(rpc.logsUrl?{logsSecondary:new RpcTransport({url:rpc.logsUrl})}:{}),environment,schemaName,
   ...(env.V1_FINALITY_DELAY_BLOCKS?{finalityDelayBlocks:BigInt(env.V1_FINALITY_DELAY_BLOCKS)}:{}),
   ...(env.V1_FINALITY_DELAY_SECONDS?{finalityDelaySeconds:BigInt(env.V1_FINALITY_DELAY_SECONDS)}:{})});

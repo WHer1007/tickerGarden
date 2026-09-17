@@ -5,12 +5,11 @@ import test from 'node:test';
 const app=controllerSources.join('\n');
 const widget=readFileSync(new URL('../src/v1/tokenDetailWidget.ts',import.meta.url),'utf8');
 function section(start:string,end:string){return controllerFunction(start.match(/function (\w+)/)![1]!);}
-test('public browsing and statistics never probe RPC or explorer history',()=>{
+test('public statistics use database reads; verified creations may read current chain state',()=>{
  for(const [start,end] of [
   ['async function prepareFoundation','async function verifyTransactionFoundation'],
   ['async function marketMetadata','const homeRender'],
   ['function exploreIdentity','function setupMarkets'],
-  ['async function refreshMarketOverview','let tradeStakeAccount'],
   ['async function refreshTradeStake','function renderDetailStakingSymbol'],
   ['async function renderTradeFeeDetails','function scheduleTradeQuote'],
   ['async function refreshRecentTrades','let tradeFieldsGeneration'],
@@ -19,7 +18,8 @@ test('public browsing and statistics never probe RPC or explorer history',()=>{
   const body=section(start!,end!);assert.ok(body.length>0,start);
   assert.doesNotMatch(body,/publicClient\.|explorerRecentTrades\(|explorerCurveVolume24h\(/,start);
  }
- assert.doesNotMatch(section('async function loadTradeMarket','async function renderTradeFeeDetails'),/void verifyTradeMarket|publicClient\./);
+ assert.doesNotMatch(section('async function loadTradeMarket','async function renderTradeFeeDetails'),/void verifyTradeMarket|publicClient\.getLogs/);
+ assert.match(section('async function refreshMarketOverview','let tradeStakeAccount'),/market.launchPhase===0&&!market.display&&preparedCreatedMarket\(market.marketId\)/);
  assert.doesNotMatch(app,/Trading is ready in the Uniswap v4 pool\. Quotes refresh every 30 seconds\./);
 });
 test('historical widgets use database series and never live transaction overrides',()=>{
@@ -41,7 +41,7 @@ test('period selection requests only the chart and preserves independent summary
 
 test('detail bootstrap and background display refresh do not wait for wallet RPC',()=>{
  const load=section('async function loadTradeMarket','async function renderTradeFeeDetails');
- assert.match(load,/\(!readApi && !foundation\.direct\)/);
+ assert.match(load,/\(!readApi && !foundation\.direct&&!created\)/);
  assert.match(load,/foundation\.direct && directMarkets/);
  assert.doesNotMatch(load,/await loadDetailBalances|await verifyTradeMarket|await refreshRecentTrades|await loadDetailContent/);
  const verify=section('async function verifyTradeMarket','async function loadDetailContent');
@@ -55,7 +55,8 @@ test('detail bootstrap and background display refresh do not wait for wallet RPC
  assert.match(complete,/void loadDetailBalances\(false\)/);
  assert.match(app,/await refreshCurrentPage\(needsFoundation\)/);
  assert.match(app,/directoryMarketId\s*\? readPublishedMarket/);
- assert.match(app,/foundation.directoryMarketId && route.page !== "trade"/);
+ assert.match(app,/const needsFoundation = route.page==='trade' \|\|/);
+ assert.match(app,/\|\| !!foundation.directoryMarketId/);
 });
 
 test('local direct detail converges unavailable historical widgets instead of loading forever',()=>{

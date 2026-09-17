@@ -7,9 +7,16 @@
   "functions": {
     "api/index.ts": {
       "maxDuration": 20
+    },
+    "api/events.ts": {
+      "maxDuration": 300
     }
   },
   "rewrites": [
+    {
+      "source": "/v1/markets/:marketId/events",
+      "destination": "/api/events"
+    },
     {
       "source": "/(.*)",
       "destination": "/api"

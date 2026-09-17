@@ -31,6 +31,7 @@ export interface ChainProcessorOptions {
   readonly logsSecondary?: RpcTransport;
   readonly environment?: DeploymentIdentity['environment'];
   readonly schemaName?: string;
+  readonly settlementFinality?: 'finalized' | 'delay';
   readonly finalityDelayBlocks?: bigint;
   readonly finalityDelaySeconds?: bigint;
   readonly initialBlock?: bigint;
@@ -48,8 +49,13 @@ export function createChainProcessor(options: ChainProcessorOptions): (lease: Le
     ]);
     const head = await resolveHead(lease, options.primary, options.secondary, deployment);
     await ensureBootstrap({ ...options, deployment });
-    const delayBlocks = options.finalityDelayBlocks ?? 2n;
-    const delaySeconds = options.finalityDelaySeconds ?? 600n;
+    const tagged = (options.settlementFinality ?? 'finalized') === 'finalized';
+    const delayBlocks = tagged ? 0n : options.finalityDelayBlocks ?? 2n;
+    const delaySeconds = tagged ? 0n : options.finalityDelaySeconds ?? 60n;
+    const finalizedUpper = tagged
+      ? await settlementFinalizedUpper(options.primary, options.secondary, head)
+      : await latestFinalizedBlock(options.primary, options.secondary, deployment.activationBlock, head, delayBlocks, delaySeconds);
+    if (finalizedUpper < deployment.activationBlock) return 'waiting:finalized';
     const initialBlock = options.initialBlock ?? deployment.activationBlock;
     const state = await loadIngestionState({ pool: options.pool, deployment, stream: STREAM,
       ...(initialBlock !== undefined ? { initialNextBlock: initialBlock } : {}),
@@ -66,12 +72,11 @@ export function createChainProcessor(options: ChainProcessorOptions): (lease: Le
       JOIN ${projectionSchema}.chain_blocks b ON b.environment=o.environment AND b.chain_id=o.chain_id AND b.deployment_digest=o.deployment_digest AND b.hash=o.block_hash
       WHERE o.environment=$1 AND o.chain_id=$2 AND o.deployment_digest=$3 AND o.generation=$4 AND b.canonical AND b.finalized
       AND o.block_number>=coalesce((SELECT next_block FROM ${projectionSchema}.projection_checkpoints WHERE environment=$1 AND chain_id=$2 AND deployment_digest=$3 AND scope='holder-rewards' AND generation=$4),$5)`,[deployment.environment,deployment.chainId,deployment.deploymentDigest,state.generation.toString(),deployment.activationBlock.toString()])).rows[0];
+    if(candidate?.block_number&&BigInt(candidate.block_number)>finalizedUpper)return 'waiting:settlement-finality';
     if(candidate?.block_number){await runProjection(BigInt(candidate.block_number),state.generation);return `projection:${candidate.block_number}`;}
     if(lease.kind==='projection-continuation')return 'projection:already-complete-or-obsolete';
     if (head.number < delayBlocks) return `waiting:${state.nextBlock}`;
 
-    const finalizedUpper = await latestFinalizedBlock(options.primary, options.secondary, deployment.activationBlock,
-      head, delayBlocks, delaySeconds);
     if (state.nextBlock > finalizedUpper) {
       const anchorNumber = state.nextBlock - 1n;
       if (await projectionBatchPending(options.pool, deployment, anchorNumber, options.schemaName)) {
@@ -128,6 +133,7 @@ export function createChainProcessor(options: ChainProcessorOptions): (lease: Le
       return JSON.stringify({ reorg: true, ancestor: ancestor.number.toString(), generation: generation.toString() });
     }
     async function runProjection(block:bigint,generation:bigint):Promise<void>{
+      if(block>finalizedUpper)throw Error('Settlement projection is ahead of the confirmed finality boundary');
       try { await projectBatch(options,deployment,block,generation); }
       catch(error){
         if(!(error instanceof ProjectionPending))throw error;
@@ -341,4 +347,18 @@ async function enqueueContinuation(pool: Pool, head: RpcBlock, fromBlock: bigint
 function identifier(value: string): string {
   if (!/^[a-z][a-z0-9_]{0,62}$/.test(value)) throw new Error('invalid database schema name');
   return `"${value}"`;
+}
+
+/** A transport error never silently downgrades settlement to a time estimate. */
+export async function settlementFinalizedUpper(primary:RpcTransport,secondary:RpcTransport,head:RpcBlock):Promise<bigint>{
+ const [a,b]=await Promise.all([primary.finalizedBlock(),secondary.finalizedBlock()]);
+ const number=a.number<b.number?a.number:b.number;
+ const canonical=await consensusBlock(primary,secondary,number);
+ const tagged=a.number===number?a:b;
+ if(canonical.hash!==tagged.hash||number>head.number||canonical.timestamp>head.timestamp)throw Error('Invalid finalized settlement anchor');
+ return number;
+}
+
+export function settlementFinalityMode(env:Readonly<Record<string,string|undefined>>):'finalized'|'delay'{
+ const mode=env.TG_SETTLEMENT_FINALITY??'finalized';if(mode!=='finalized'&&mode!=='delay')throw Error('Invalid settlement finality mode');return mode;
 }

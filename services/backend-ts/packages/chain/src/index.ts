@@ -182,6 +182,12 @@ export class RpcTransport {
     return parseBlock(raw, number);
   }
 
+  async finalizedBlock(): Promise<RpcBlock> {
+    const raw = await this.call<Record<string, unknown> | null>('eth_getBlockByNumber', ['finalized', false]);
+    if (!raw || typeof raw.number !== 'string') throw new RpcError('Finalized RPC block unavailable');
+    return parseBlock(raw, hexQuantity(raw.number));
+  }
+
   async latestBlock(): Promise<RpcBlock> {
     const raw = await this.call<Record<string, unknown> | null>('eth_getBlockByNumber', ['latest', false]);
     if (!raw || typeof raw.number !== 'string') throw new RpcError('latest RPC block was not found');
@@ -230,7 +236,7 @@ export async function verifyChainIdentity(transport: RpcTransport, expectedChain
 
 export async function consensusBlock(primary: RpcTransport, secondary: RpcTransport | undefined, number: bigint): Promise<RpcBlock> {
   const first = await primary.block(number);
-  if (!secondary) return first;
+  if (!secondary||secondary===primary) return first;
   const second = await secondary.block(number);
   if (first.hash !== second.hash || first.parentHash !== second.parentHash || first.timestamp !== second.timestamp) {
     throw new RpcError('RPC providers disagree on block identity');

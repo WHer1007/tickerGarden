@@ -129,6 +129,7 @@ for (const appName of expectedApps) {
   if (config.installCommand !== 'npm ci --prefix ../.. --workspaces --include-workspace-root --include=dev --ignore-scripts') {
     fail(`apps/${appName}/vercel.json must install the locked backend workspace before compiling shared packages`);
   }
+  if(appName==='read-api'&&(config.functions?.['api/events.ts']?.maxDuration!==300||config.rewrites?.[0]?.destination!=='/api/events'))fail('read-api must isolate the bounded SSE stream from ordinary 20-second queries');
   const expectedMaxDuration = appName === 'pipeline' ? 300 : 20;
   if (config.functions?.['api/index.ts']?.maxDuration !== expectedMaxDuration) {
     fail(`apps/${appName}/vercel.json must configure api/index.ts maxDuration=${expectedMaxDuration}`);

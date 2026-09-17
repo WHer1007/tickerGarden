@@ -12,6 +12,7 @@ import type {Lease} from '../../packages/jobs/src/index.ts';
 const url=process.env.TG_TEST_DATABASE_URL;
 class ContinuationRpc extends FakeRpc {
  reads=0;
+ override async finalizedBlock(){return this.block(height);}
  override async block(n:bigint){if(n===0n)return{number:0n,hash:'0x829a42e6d68c872aafcef3abb2123fe371138fc415dd8b44381bbbf23049dd32' as const,parentHash:h(0),timestamp:0n};return super.block(n);}
  override async callAt(...args:Parameters<FakeRpc['callAt']>){this.reads++;return super.callAt(...args);}
 }

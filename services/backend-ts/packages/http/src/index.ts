@@ -108,6 +108,7 @@ export function createServiceApp(options: ServiceOptions): ServiceApp {
       : ['GET', 'POST', 'HEAD', 'OPTIONS'];
     if (!allowed.includes(context.req.method)) {
       context.header('allow', allowed.join(', '));
+      context.header('cache-control','no-store');
       return context.json({ error: 'method_not_allowed', message: 'Method is not allowed', requestId: context.get('requestId') }, 405);
     }
     await next();

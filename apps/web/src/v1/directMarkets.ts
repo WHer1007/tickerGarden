@@ -8,9 +8,10 @@ import {decodeEventLog,type Abi,type Address,type Hex,type TransactionReceipt} f
 
 import type {MarketDetailResponse,MarketReadModel,SourceBlock} from './generated/read-api.ts';
 import type {IntegrationBootstrap} from './integrationBootstrap.ts';
+export type DirectDeployment = Pick<IntegrationBootstrap,'factory'|'bindings'> & {chainId:4663|46630;skipStake?:true;releaseId:string;configs:readonly IntegrationBootstrap['configs'][number][]};
 export type ReadState=(address:Address,abi:Abi,name:string,args:readonly unknown[],block:bigint)=>Promise<unknown>;
 export type DirectFeeConfig=Readonly<{creatorTaxBps:number;activeStakeRaw:string}>;
-export type DirectMarket=Omit<MarketDetailResponse,'market'> & {observation:'direct-chain';market:MarketReadModel&{directFeeConfig:DirectFeeConfig}};
+export type DirectMarket=Omit<MarketDetailResponse,'market'> & {observation:'direct-chain';market:MarketReadModel&{directFeeConfig?:DirectFeeConfig}};
 const zero='0x0000000000000000000000000000000000000000',hexzero=`0x${'0'.repeat(64)}`;
 const addr=(v:unknown):Address=>{if(typeof v!=='string'||!/^0x[0-9a-fA-F]{40}$/.test(v))throw Error('Invalid market address');return v.toLowerCase() as Address;};
 const uint=(v:unknown)=>{if(typeof v!=='bigint'||v<0n)throw Error('Invalid market state');return v.toString();};
@@ -19,7 +20,7 @@ const text=(v:unknown,label:string,max:number)=>{if(typeof v!=='string'||!v.trim
 export class DirectMarkets {
  readonly sources=new Map<Hex,SourceBlock>();
  readonly cache=new Map<Hex,{at:number,value:DirectMarket}>();
- readonly deployment:IntegrationBootstrap;
+ readonly deployment:DirectDeployment;
  readonly read:ReadState;
  readonly head:()=>Promise<{number:bigint;hash:Hex}>;
  readonly storage?:Pick<Storage,'getItem'|'setItem'>;
@@ -27,7 +28,7 @@ export class DirectMarkets {
   readonly pending=new Map<Hex,Promise<DirectMarket>>();
   private headCache?: {at:number,value:{number:bigint;hash:Hex}};
   private headPending?: Promise<{number:bigint;hash:Hex}>;
- constructor(deployment:IntegrationBootstrap,read:ReadState,head:()=>Promise<{number:bigint;hash:Hex}>,storage?:Pick<Storage,'getItem'|'setItem'>,discover?:(id:Hex,head:bigint)=>Promise<void>){
+ constructor(deployment:DirectDeployment,read:ReadState,head:()=>Promise<{number:bigint;hash:Hex}>,storage?:Pick<Storage,'getItem'|'setItem'>,discover?:(id:Hex,head:bigint)=>Promise<void>){
   this.deployment=deployment;this.read=read;this.head=head;this.storage=storage;this.discover=discover;
   try{const rows=JSON.parse(storage?.getItem(this.key())??'[]') as [Hex,SourceBlock][];for(const [id,source] of rows){if(/^0x[0-9a-f]{64}$/.test(id)&&source.chainId===deployment.chainId&&/^0x[0-9a-f]{64}$/.test(source.transactionHash))this.sources.set(id,source);}}catch{/* local display cache is optional */}
  }
@@ -68,7 +69,7 @@ export class DirectMarkets {
    ...['realQuoteReserve','sellableTokens','reservedTokens','accruedCurveFees','readyToGraduate'].map(functionName=>this.read(curve,directAbis_TickerGardenCurve,functionName,[],head.number)),
    this.read(registry,directAbis_MarketRegistryV1,'graduationExecutor',[],head.number),
    ...['name','symbol','metadataURI','deployedAt','creator'].map(functionName=>this.read(token,directAbis_TickerMemeTokenV1,functionName,[],head.number)),
-   c.stakingEnabled?this.read(addr(c.gauge),directAbis_MemeStockGauge,'effectiveTotalActiveStock',[],head.number):Promise.resolve(0n),
+   this.deployment.skipStake&&Number(r.launchPhase)===0?Promise.resolve(0n):c.stakingEnabled?this.read(addr(c.gauge),directAbis_MemeStockGauge,'effectiveTotalActiveStock',[],head.number).catch(()=>undefined):Promise.resolve(0n),
   ]);
   const phase=Number(r.launchPhase);if((phase!==0&&phase!==1)||typeof ready!=='boolean')throw Error('Invalid market phase');
   const tokenName=text(name,'token name',64),tokenSymbol=text(symbol,'token symbol',16),uri=text(metadataURI,'metadata URI',2048);
@@ -77,7 +78,7 @@ export class DirectMarkets {
   const runtimeCodeHash=typeof template?.values.memeTokenCodeHash==='string'&&/^0x[0-9a-fA-F]{64}$/.test(template.values.memeTokenCodeHash)?template.values.memeTokenCodeHash.toLowerCase() as Hex:hexzero as Hex;
   const lpFeePips=Number(c.lpFeePips);if(![0,1000,2000,3000].includes(lpFeePips))throw Error('Invalid LP fee');
   const creatorTaxBps=Number(c.creatorTaxBps);if(!Number.isInteger(creatorTaxBps)||creatorTaxBps<0||creatorTaxBps>500)throw Error('Invalid Creator Tax');
-  const value:DirectMarket={observation:'direct-chain',sync:{chainId:this.deployment.chainId,status:'synced',finality:'head',blockNumber:head.number.toString(),blockHash:head.hash,headBlockNumber:head.number.toString(),headBlockHash:head.hash,lagBlocks:'0',revision:`${head.number}:${head.hash}`},market:{marketId:id,assetUid:c.assetUid,memeToken:token,curve,gauge:addr(c.gauge),quoteAsset:addr(c.quoteAsset),quoteAssetConfigId:c.quoteAssetConfigId,tickerGardenBaselineId:c.tickerGardenBaselineId,sourceVersion:Number(r.sourceVersion),launchPhase:phase,curveProgress:{realQuoteReserve:uint(reserve),sellableTokens:uint(sellable),reservedTokens:uint(reserved),accruedCurveFees:uint(fees),readyToGraduate:ready},poolId:r.poolId===hexzero?null:r.poolId,poolKey:r.poolId===hexzero?null:route.poolKey,canonicalRoute:{router:externalTradingService(this.deployment.chainId)?.router??zero,quoter:externalTradingService(this.deployment.chainId)?.quoter??zero,hook:addr(route.hook),launchLocker:addr(route.launchLocker),graduationExecutor:addr(executor),curveTradingEnabled:route.curveTradingEnabled,poolTradingEnabled:route.poolTradingEnabled,sourceVersion:Number(route.sourceVersion),launchPhase:phase},source,creator:addr(creator),creatorFeesToHolders:Boolean(c.creatorFeesToHolders),burnMemeFees:Boolean(c.burnMemeFees),lpFeePips:lpFeePips as 0|1000|2000|3000,stakingEnabled:Boolean(c.stakingEnabled),directFeeConfig:{creatorTaxBps,activeStakeRaw:uint(activeStake)},identity:{name:tokenName,symbol:tokenSymbol,metadataURI:uri,deployedAt:uint(deployedAt),blockNumber:head.number.toString(),blockHash:head.hash,runtimeCodeHash}}};
+  const value:DirectMarket={observation:'direct-chain',sync:{chainId:this.deployment.chainId,status:'synced',finality:'head',blockNumber:head.number.toString(),blockHash:head.hash,headBlockNumber:head.number.toString(),headBlockHash:head.hash,lagBlocks:'0',revision:`${head.number}:${head.hash}`},market:{marketId:id,assetUid:c.assetUid,memeToken:token,curve,gauge:addr(c.gauge),quoteAsset:addr(c.quoteAsset),quoteAssetConfigId:c.quoteAssetConfigId,tickerGardenBaselineId:c.tickerGardenBaselineId,sourceVersion:Number(r.sourceVersion),launchPhase:phase,curveProgress:{realQuoteReserve:uint(reserve),sellableTokens:uint(sellable),reservedTokens:uint(reserved),accruedCurveFees:uint(fees),readyToGraduate:ready},poolId:r.poolId===hexzero?null:r.poolId,poolKey:r.poolId===hexzero?null:route.poolKey,canonicalRoute:{router:externalTradingService(this.deployment.chainId)?.router??zero,quoter:externalTradingService(this.deployment.chainId)?.quoter??zero,hook:addr(route.hook),launchLocker:addr(route.launchLocker),graduationExecutor:addr(executor),curveTradingEnabled:route.curveTradingEnabled,poolTradingEnabled:route.poolTradingEnabled,sourceVersion:Number(route.sourceVersion),launchPhase:phase},source,creator:addr(creator),creatorFeesToHolders:Boolean(c.creatorFeesToHolders),burnMemeFees:Boolean(c.burnMemeFees),lpFeePips:lpFeePips as 0|1000|2000|3000,stakingEnabled:Boolean(c.stakingEnabled),...(activeStake===undefined?{}:{directFeeConfig:{creatorTaxBps,activeStakeRaw:uint(activeStake)}}),identity:{name:tokenName,symbol:tokenSymbol,metadataURI:uri,deployedAt:uint(deployedAt),blockNumber:head.number.toString(),blockHash:head.hash,runtimeCodeHash}}};
   this.cache.set(id,{at:Date.now(),value});return value;
  }
 }

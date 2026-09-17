@@ -87,3 +87,13 @@
 ### Developer buy funding
 
 `GET /v1/quote-purchase` accepts mainnet `chainId=4663`, allowlisted `token`, and raw `amountOut`. Returns an expiring exact-output quote with ETH input, intermediate input, block number and price impact (including LP fees). No caching, signing or submission. At most four concurrent reads and eight queued reads per instance. The browser rebuilds calldata from the reviewed route catalog, checks wallet balance again, simulates and submits from the wallet. SATS/BND are not offered.
+
+### Trade payment conversion
+
+`GET /v1/trade-conversion?chainId=4663&sellToken=...&buyToken=...&sellAmount=...&taker=...`
+
+Fixed-input ETH/USDG conversion to the market paired asset through 0x AllowanceHolder v2. Mainnet only; target must be ETH, USDG or a supported Stock route. Server-only `ZEROX_API_KEY`; never expose it in Vite variables. Responses and failures use `Cache-Control: no-store`; in-flight sharing includes the complete intent, including wallet. The response contains the bound intent, `buyAmount`, `minBuyAmount`, 30-second `expiresAt`, normalized `transaction` and optional provider fee. Unknown query parameters, unsupported chain/assets and invalid amounts return 400; unavailable routes and provider authorization failures return a public 503 without upstream details.
+
+This endpoint never submits a transaction. Frontend validates the AllowanceHolder calldata, fixed spend, recipient and minimum, then uses the existing transaction executor. Conversion uses the user-approved 1% tolerance (`slippageBps=100`). Final project minimum is quoted from the conversion minimum and shown separately for approval; Developer Buy's 10% ETH cap is unrelated. Conversion and project buy are two separate wallet transactions. Positive conversion surplus remains in the wallet; the project buy consumes receipt-confirmed paired assets, capped at the reviewed expected amount. After recovery without a resolved receipt balance, it uses the guaranteed minimum. Pending/funded conversion progress is scoped to chain/account/market and never silently replays conversion after a purchase interruption.
+
+Market invalidation stream: `GET /v1/markets/{marketId}/events` (SSE). Payload contains only marketId, revision and changed region names; no user information or display values. Shared instance-level PostgreSQL LISTEN, bounded streams, 60-second client recovery reads. These hints do not authorize transactions.

@@ -26,15 +26,9 @@
 .launch-progress-dialog__stages li[data-state='complete'] { color: #355943; }
 .launch-progress-dialog__stages li[data-state='complete'] i { color: #27834b; }
 @keyframes launch-stage-spin { to { transform: rotate(360deg); } }
-.launch-progress-dialog__hash { overflow-wrap: anywhere; margin: 0; font-family: ui-monospace, SFMono-Regular, monospace; font-size: .8rem; }
-.launch-progress-dialog__hash-form { display: grid; gap: .5rem; }
-.launch-progress-dialog__hash-form label { display: grid; gap: .35rem; font-weight: 700; }
-.launch-progress-dialog input { min-width: 0; border: 1px solid #a8cdb3; border-radius: .45rem; padding: .65rem; font: inherit; }
-.launch-progress-dialog__help { color: #52725c; font-size: .8rem; }
 .launch-progress-dialog button { border: 0; border-radius: .65rem; padding: .7rem .95rem; font: inherit; font-weight: 700; cursor: pointer; }
-.launch-progress-dialog__track { color: #fff; background: #27834b; }
+.launch-progress-dialog__support { color: #fff; background: #27834b; }
 .launch-progress-dialog button:disabled { cursor: not-allowed; opacity: .5; }
-.launch-progress-dialog__explorer { color: #176d39; font-weight: 700; }
 .launch-progress-dialog__dismiss { justify-self: start; color: #285337; background: #e3f2e7; }
 @media (max-width: 35rem) { .launch-progress-dialog__content { padding: 1.2rem; } }
 @media (prefers-reduced-motion: reduce) { .launch-progress-dialog__stages li[data-state='current'] i { animation: none; } }
@@ -52,8 +46,6 @@
 .launch-progress-dialog__identity span{color:var(--muted,#66806d);font-size:12px;font-weight:650;overflow-wrap:anywhere}
 .launch-progress-dialog--outcome .launch-progress-dialog__status{padding:18px;border:1px solid var(--line,#dce3d8);border-radius:12px;background:var(--soft,#f0f4e9);font-size:13px;line-height:1.6}
 .launch-progress-dialog--outcome .launch-progress-dialog__progress-label{text-align:left;font-size:11px}
-.launch-progress-dialog--outcome .launch-progress-dialog__hash{font-size:11px;color:var(--muted,#66806d)}
-.launch-progress-dialog--outcome .launch-progress-dialog__explorer{font-size:12px}
 .launch-progress-dialog .launch-progress-dialog__view{background:var(--green,#233e2c);color:white;border-radius:10px;min-height:44px;font-size:13px}
 .launch-progress-dialog__complete-actions{display:grid;grid-template-columns:1fr 1fr;gap:10px;width:100%}
 .launch-progress-dialog .launch-progress-dialog__create-new{min-height:44px;border:1px solid var(--line,#dce3d8);background:transparent;color:var(--green,#233e2c);font-size:13px}

@@ -284,7 +284,7 @@ export async function projectF72Markets(input: {
   return publishProjection({...publish,records});
 }
 
-async function nextMarketActivation(input:ObserveF72MarketInput,payload:Json):Promise<string|null>{
+export async function nextMarketActivation(input:ObserveF72MarketInput,payload:Json):Promise<string|null>{
   const display=(payload as any).display;
   if(!display)return input.blockTimestamp.toString();
   const total=BigInt(display.totalStakedRaw),active=BigInt(display.activeStakeRaw);
@@ -306,12 +306,14 @@ async function readFunction(input: ObserveF72MarketInput, target: Address, abi: 
 
 async function consensusRawCall(input: ObserveF72MarketInput, target: Address, abi: Abi, functionName: string, args: readonly unknown[]): Promise<Hex> {
   const data = encodeFunctionData({ abi, functionName, args });
+  if(input.primary===input.secondary)return input.primary.callAt(target,data,input.blockNumber);
   const [first, second] = await Promise.all([input.primary.callAt(target, data, input.blockNumber), input.secondary.callAt(target, data, input.blockNumber)]);
   if (first !== second) throw new Error(`RPC providers disagree on ${functionName}`);
   return first;
 }
 
 async function consensusCodeHash(input: ObserveF72MarketInput, target: Address): Promise<Hex> {
+  if(input.primary===input.secondary)return input.primary.codeHash(target,input.blockNumber);
   const [first, second] = await Promise.all([input.primary.codeHash(target, input.blockNumber), input.secondary.codeHash(target, input.blockNumber)]);
   if (first !== second) throw new Error('RPC providers disagree on market runtime code hash');
   return first;

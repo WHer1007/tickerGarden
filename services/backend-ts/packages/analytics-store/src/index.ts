@@ -1,3 +1,4 @@
+import {readConfirmedDetail} from '../../confirmed-display/src/read.ts';
 import type {TokenDetailResponse} from '../../../openapi/generated/v1-client.ts';
 import { coverageFor } from '../../statistics-store/src/index.ts';
 import { createHash } from 'node:crypto';
@@ -100,16 +101,28 @@ export async function readMarketHolders(input: { readonly pool: Pool; readonly d
 }
 
 export async function readTokenDetail(input: { readonly pool: Pool; readonly deployment: DeploymentIdentity; readonly marketId: Hex32;
-  readonly period: '1H' | '12H' | '1D'; readonly section?: 'activity'; readonly schemaName?: string }) {
+  readonly period: '1H' | '12H' | '1D'; readonly section?: string; readonly schemaName?: string }) {
   const periodConfig = { '1H': [3_600, 60], '12H': [43_200, 300], '1D': [86_400, 900] } as const;
   const [duration, interval] = periodConfig[input.period];
+  const selected=new Set(input.section==='activity'?['trades','fees']:input.section?.split(',')??['statistics','chart','trades','holders','fees']);
+  const select=(value:TokenDetailResponse):TokenDetailResponse=>({...value,statistics:selected.has('statistics')?value.statistics:null,chart:selected.has('chart')?value.chart:null,trades:selected.has('trades')?value.trades:null,holders:selected.has('holders')?value.holders:null,fees:selected.has('fees')?value.fees:null,sources:Object.fromEntries(Object.entries(value.sources).filter(([k])=>selected.has(k)))});
   return transaction(input.pool, async (client) => {
     await client.query('SET TRANSACTION ISOLATION LEVEL REPEATABLE READ READ ONLY');
     const schema = identifier(input.schemaName ?? 'tickergarden_serverless');
+    const confirmed=await readConfirmedDetail(client,input.deployment,input.marketId,input.period,input.schemaName,input.section);if(confirmed)return confirmed;
     const recent=await client.query<{initial_detail:TokenDetailResponse}>(`SELECT initial_detail FROM ${schema}.recent_markets
       WHERE environment=$1 AND chain_id=$2 AND deployment_digest=$3 AND market_id=$4 AND canonical AND expires_at>now() AND initial_detail IS NOT NULL
       AND block_number>coalesce((SELECT next_block-1 FROM ${schema}.projection_checkpoints WHERE environment=$1 AND chain_id=$2 AND deployment_digest=$3 AND scope='analytics'),-1)`,[...identity(input.deployment),input.marketId]);
-    if(recent.rows[0])return {...recent.rows[0].initial_detail,period:input.period};
+    if(recent.rows[0]){
+      const initial=recent.rows[0].initial_detail,source=initial.sources.trades;
+      if(selected.has('chart')&&source&&initial.trades){
+        const to=(Math.floor(source.asOf/interval)+1)*interval,from=to-duration;
+        const points:Array<{timestamp:number;price:string|null}>=Array.from({length:duration/interval},(_,i)=>({timestamp:from+i*interval,price:null}));
+        for(const trade of [...initial.trades].reverse()){if(trade.timestamp<from||trade.timestamp>source.asOf)continue;const point=points[Math.floor((trade.timestamp-from)/interval)];if(point)point.price=trade.price;}
+        return select({...initial,period:input.period,chart:{from,to,interval,points},sources:{...initial.sources,chart:source},reasons:{...initial.reasons,chart:''}});
+      }
+      return select({...initial,period:input.period});
+    }
     const checkpoint = await checkpointContext(client, schema, input.deployment);
     const market = await marketAt(client, schema, input.deployment, checkpoint.revision, input.marketId);
     const quoteDecimals = await quoteDecimalsAt(client, schema, input.deployment, checkpoint.revision, market.quoteAssetConfigId);
@@ -136,6 +149,7 @@ export async function readTokenDetail(input: { readonly pool: Pool; readonly dep
     let trades: { timestamp: number; side: 'buy' | 'sell'; price: string; memeRaw: string; quoteRaw: string; actor: Address | null; txHash: Hex32; eventKey: string; classification: TradeActivity['classification'] }[] | null = null;
     try {
       const volumeFrom = to - 86_400;
+      if(selected.has('chart')){
       await analyticsCoverage(client, schema, input.deployment, checkpoint, from, to);
       const rows = await client.query<{ payload: TradeActivity }>(
         `SELECT t.payload FROM ${schema}.market_trades t JOIN ${schema}.chain_blocks b ON b.environment=t.environment AND b.chain_id=t.chain_id AND b.deployment_digest=t.deployment_digest AND b.hash=t.block_hash
@@ -149,6 +163,8 @@ export async function readTokenDetail(input: { readonly pool: Pool; readonly dep
       const series = buildCandles({ chainId: input.deployment.chainId, marketId: input.marketId, memeAsset: market.memeToken,
         quoteAsset: market.quoteAsset, quoteDecimals, from, to, interval, trades: values });
       chart = { from, to, interval, points: series.candles.map((candle) => ({ timestamp: candle.timestamp, price: candle.close ? rationalDecimal(candle.close) : null })) };
+      }
+      if(selected.has('statistics')||selected.has('trades')){
       // The chart is intentionally interval-scoped, while the detail feed and
       // headline price remain useful for quiet markets by reading the full
       // finalized history at this pinned checkpoint.
@@ -162,7 +178,7 @@ export async function readTokenDetail(input: { readonly pool: Pool; readonly dep
       trades = historicalValues.map((trade) => ({ timestamp: Number(trade.timestamp),
         side: trade.side, price: rationalDecimal(trade.price), memeRaw: trade.memeRaw, quoteRaw: trade.quoteRaw, actor: trade.actor,
         txHash: trade.source.transactionHash, eventKey: trade.source.eventKey, classification: trade.classification }));
-      try {
+      if(selected.has('statistics'))try {
         // A short-period chart can remain available before a complete 24-hour
         // volume window exists. Reuse the pinned checkpoint and identity while
         // validating the wider interval independently.
@@ -180,11 +196,12 @@ export async function readTokenDetail(input: { readonly pool: Pool; readonly dep
         if (!(error instanceof PublicationUnavailableError)) throw error;
         reasons.statistics = error.message;
       }
+      }
     } catch (error) {
       if (!(error instanceof PublicationUnavailableError)) throw error;
       reasons.chart = error.message; reasons.statistics ??= error.message; reasons.trades = error.message;
     }
-    const detailRows = await client.query<{ total_supply_raw: string | null; circulating: string | null; holder_count: string; holders: { account: Address; balanceRaw: string }[]; fees: { recipient: 'creator' | 'stakers' | 'platform' | 'holders'; asset: Address; amountRaw: string }[] }>(
+    const detailRows = selected.has('holders')||selected.has('fees')?await client.query<{ total_supply_raw: string | null; circulating: string | null; holder_count: string; holders: { account: Address; balanceRaw: string }[]; fees: { recipient: 'creator' | 'stakers' | 'platform' | 'holders'; asset: Address; amountRaw: string }[] }>(
       `WITH included AS (
          SELECT account,balance_raw FROM ${schema}.holder_balances WHERE environment=$1 AND chain_id=$2 AND deployment_digest=$3 AND market_id=$4 AND NOT excluded
        ), top_holders AS (
@@ -198,7 +215,7 @@ export async function readTokenDetail(input: { readonly pool: Pool; readonly dep
          COALESCE((SELECT jsonb_agg(jsonb_build_object('recipient',recipient,'asset',asset,'amountRaw',amount_raw::text) ORDER BY recipient,asset)
            FROM ${schema}.detail_fee_totals WHERE environment=$1 AND chain_id=$2 AND deployment_digest=$3 AND market_id=$4),'[]'::jsonb) AS fees`,
       [...identity(input.deployment), input.marketId, checkpoint.blockHash, checkpoint.blockNumber.toString()],
-    );
+    ):{rows:[]};
     const detailRow = detailRows.rows[0];
     const holderCount = safeInteger(detailRow?.holder_count ?? '0', 'holder count');
     const holders = detailRow?.total_supply_raw ? { totalSupplyRaw: detailRow.total_supply_raw, circulatingSupplyRaw: detailRow.circulating ?? '0',
@@ -209,9 +226,9 @@ export async function readTokenDetail(input: { readonly pool: Pool; readonly dep
     const sources: Record<string, typeof source> = {};
     if (statistics) sources.statistics = source; if (chart) sources.chart = source; if (trades) sources.trades = source; if (holders) sources.holders = source;
     sources.fees = source;
-    return { version: 1 as const, chainId: input.deployment.chainId, displayOnly: true as const, marketId: input.marketId,
+    return select({ version: 1 as const, chainId: input.deployment.chainId, displayOnly: true as const, marketId: input.marketId,
       memeToken: market.memeToken, quoteAsset: market.quoteAsset, quoteDecimals, period: input.period, statistics, chart, trades,
-      holders, fees, sources, reasons };
+      holders, fees, sources, reasons });
   });
 }
 

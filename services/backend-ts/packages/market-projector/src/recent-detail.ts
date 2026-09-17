@@ -31,8 +31,10 @@ export function creationDetail(receipts:readonly (Record<string,unknown>|null)[]
  for(const {event} of observations)for(const fee of feeCredits(event)){if(fee.marketId!==market.marketId)continue;const key=`${fee.recipient}:${fee.asset}`;fees.set(key,{recipient:fee.recipient,asset:fee.asset,amountRaw:(BigInt(fees.get(key)?.amountRaw??'0')+fee.amountRaw).toString()});}
  const source={provider:'indexer' as const,asOf:Number(timestamp),blockNumber:market.source.blockNumber,blockHash:logs[0]![0]!.blockHash};
  return {version:1 as const,chainId,displayOnly:true as const,confirmation:'confirmed' as const,marketId:market.marketId,memeToken:market.memeToken,quoteAsset:market.quoteAsset,quoteDecimals:validated.binding.quoteDecimals,
-  period:'1H' as const,statistics:null,chart:null,
+  period:'1H' as const,statistics:{price:trades.length?formatUnits(BigInt(trades.at(-1)!.price.numerator)*10n**36n/BigInt(trades.at(-1)!.price.denominator),36):null,
+   volume24h:formatUnits(trades.filter(t=>t.classification==='unclassified').reduce((sum,t)=>sum+BigInt(t.quoteRaw),0n),validated.binding.quoteDecimals),
+   volumeFrom:Number(timestamp)-86400,volumeTo:Number(timestamp),volumeBasis:'EXTERNAL_EXECUTIONS_CURVE_EXCLUDING_FEE_TAX_OR_POOL_CORE' as const},chart:null,
   holders:{totalSupplyRaw:holders.totalSupplyRaw,circulatingSupplyRaw:items.reduce((sum,b)=>sum+BigInt(b.balanceRaw),0n).toString(),count:items.length,basis:'TOTAL_MINUS_KNOWN_PROTOCOL_BALANCES_V1' as const,items:items.slice(0,100)},
   trades:trades.map(t=>({timestamp:Number(t.timestamp),side:t.side,price:formatUnits(BigInt(t.price.numerator)*10n**36n/BigInt(t.price.denominator),36),memeRaw:t.memeRaw,quoteRaw:t.quoteRaw,actor:t.actor,txHash:t.source.transactionHash,eventKey:t.source.eventKey,classification:t.classification})),
-  fees:[...fees.values()],sources:{holders:source,trades:source,fees:source},reasons:{statistics:'Creation transaction only; historical statistics update independently.',chart:'Waiting for indexed trade history.'}};
+  fees:[...fees.values()],sources:{statistics:source,holders:source,trades:source,fees:source},reasons:{chart:'Waiting for indexed trade history.'}};
 }

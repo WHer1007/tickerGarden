@@ -221,3 +221,11 @@ body:has(.trade-live){background:#faf9f4}.trade-live .ref-token-symbol{color:#11
 
 .trade-live .ref-identity h1 .token-status-badges{display:inline-flex;flex-wrap:wrap;align-items:center;gap:6px;margin-left:10px;vertical-align:middle}
 .trade-live .ref-identity h1 .token-status-badges>span{margin:0}
+
+.trade-payment-options { display:flex;flex-wrap:wrap;gap:8px;margin:0 0 12px; }
+.trade-payment-options[hidden] { display:none; }
+.trade-payment-options button { min-height:36px;padding:6px 14px;border:1px solid #d5ded8;border-radius:999px;background:#fff;color:#245342;font:inherit;font-size:14px;cursor:pointer; }
+.trade-payment-options button.active { background:#07543f;color:#fff;border-color:#07543f; }
+.trade-payment-options button:focus-visible { outline:2px solid #07543f;outline-offset:3px; }
+.trade-payment-options button:disabled { cursor:wait;opacity:.65; }
+.trade-conversion-note { color:#52665e;font-size:13px;line-height:1.5;margin:12px 0; }

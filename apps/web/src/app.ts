@@ -1,3 +1,4 @@
+import type {ConversionQuote} from './trade/conversion.ts';
 import {loadRewardPageDependencies} from './routing/reward-dependencies.ts';
 import { applyPageMetadata } from "./routing/metadata.ts";
 import { renderRouteLoading, renderRouteFailure } from "./routing/load-state.ts";
@@ -177,6 +178,7 @@ let directMarkets: DirectMarkets | null = null;
 const integrationBootstrapPath = import.meta.env.VITE_INTEGRATION_BOOTSTRAP as string | undefined;
 export type Foundation = Readonly<{
   direct?: true;
+  displayOnly?: true;
   configScope?: "read"|"full";
   health: HealthResponse;
   sync: SyncStatus;
@@ -489,16 +491,19 @@ async function readMarketPage(revision: string, cursor?: string, api = readApi) 
 
 let foundationGeneration = 0;
 let loadingFoundation: Promise<void> | null = null;
+let foundationRequestKey='';
 async function loadFoundation(): Promise<void> {
-  if (loadingFoundation) return loadingFoundation;
-  loadingFoundation = (async () => {
+  const key=currentPage()==='trade'?`trade:${new URL(location.href).searchParams.get('marketId')}`:'global';
+  if (loadingFoundation&&foundationRequestKey===key) return loadingFoundation;
+  foundationRequestKey=key;
+  const pending = (async () => {
     for (let attempt = 0; attempt < 3; attempt++) {
-      if (isStaticPage()) break;
+      if (isStaticPage()||foundationRequestKey!==key) break;
       await loadFoundationAttempt();
       if (foundation || !readApi) break;
     }
-  })().finally(() => { loadingFoundation = null; });
-  return loadingFoundation;
+  })().finally(() => { if(loadingFoundation===pending)loadingFoundation = null; });
+  loadingFoundation=pending;return pending;
 }
 
 async function loadFoundationAttempt(): Promise<void> {
@@ -543,6 +548,17 @@ async function prepareLocalIntegrationFoundation():Promise<Foundation>{
 async function prepareFoundation(api: TickerGardenV1Client | null, expectedSync?: SyncStatus, reuseConfigs=false): Promise<Foundation> {
   if (integrationBootstrapPath) return prepareLocalIntegrationFoundation();
   if (!api) throw Error("V1 read API is unavailable");
+  if(currentPage()==="trade"&&!expectedSync){
+    const marketId=new URL(window.location.href).searchParams.get('marketId')?.toLowerCase();
+    if(marketId&&BYTES32_PATTERN.test(marketId)){
+      const {preparedCreatedMarket}=await import('./v1/createdMarket.ts');const created=preparedCreatedMarket(marketId);if(created)return created.foundation;
+      const page=await api.getMarketPageBootstrap({marketId:marketId as Hex});
+      if(page.displayOnly!==true||page.sync.chainId!==robinhoodChain.id||page.market.marketId!==marketId||!page.market.identity)throw Error('Invalid market page');
+      const configs=page.configs;
+      return Object.freeze({displayOnly:true,configScope:'full',health:{executionSpecId:V1_EXECUTION_SPEC_ID,status:'read-api',readApiImplemented:true,productRuntimeImplemented:true,custody:false,transactionSubmission:false,sync:page.sync} as HealthResponse,sync:page.sync,assets:configs.filter(c=>c.kind==='asset'),quotes:configs.filter(c=>c.kind==='quote'),baseline:configs.filter(c=>c.kind==='baseline'),templates:configs.filter(c=>c.kind==='template'),markets:[page.market],directoryMarketId:marketId as Hex,writeReady:runtimeConfig.contracts.available,writeReasons:[]});
+    }
+  }
+  if(currentPage()==='trade'&&!expectedSync)throw Error('Choose a market from Explore.');
   let health = await api.getHealth();
   if (health.executionSpecId !== V1_EXECUTION_SPEC_ID || health.status !== "read-api" || !health.readApiImplemented) {
     throw new Error("Read API does not advertise this V1 execution contract");
@@ -641,6 +657,13 @@ async function ensureCurrentRevision(expected: string): Promise<string> {
   // Direct operations validate the relevant current contracts before simulation;
   // analytics revisions never authorize these transactions.
   if(foundation?.direct && integrationBootstrap) return expected;
+  if(currentPage()==='trade'){
+    const match=/^(0|[1-9][0-9]*):(0x[0-9a-f]{64})$/.exec(expected);
+    if(!match)throw new V1TransactionError('stale_snapshot','Refresh the trade quote before signing.');
+    const [chain,block]=await Promise.all([publicClient.getChainId(),publicClient.getBlock({blockNumber:BigInt(match[1]! )})]);
+    if(chain!==robinhoodChain.id||block.hash!==match[2])throw new V1TransactionError('stale_snapshot','The trade quote changed. Review a new quote before signing.');
+    return expected;
+  }
   if (!readApi) throw new V1TransactionError("indexer_unavailable", "The V1 read API is unavailable");
   let current: HealthResponse;
   try {
@@ -1042,6 +1065,8 @@ function installWallet(provider: InjectedProvider, account: Address): void {
     try {
       const settled=await installed.executor.reconcileSettledPending(installed.account);
       if(!settled.length||wallet!==installed)return;
+      if(settled.some(r=>r.pending.businessType==='trade')){const {reconcileConversionJournal}=await import('./trade/conversion.ts');reconcileConversionJournal(localStorage,installed.account,settled);}
+      if(wallet!==installed)return;
       settled.forEach(result=>{
         directMarkets?.receipt(result.receipt);
         showTransactionUpdate({operationKey:result.pending.operationKey,hash:result.receipt.transactionHash,stage:result.receipt.status==='success'&&!result.cancelled?'confirmed':'failed'});
@@ -1511,8 +1536,6 @@ async function renderExploreStage(phase:0|1,direction:'current'|'next'|'previous
   exploreVisiblePage[phase]=page.page;
   exploreRankings[phase]=page.ranking;
   if(phase===0){const button=query<HTMLButtonElement>('[data-new-buys]');if(sort!=='recentBuy_desc'&&button)button.hidden=true;if(sort==='recentBuy_desc'&&page.page===1)exploreRecentHead=JSON.stringify(page.items.map(m=>[m.marketId,m.lastBuy]));}
-  const note=query<HTMLElement>(`[data-ranking-note="${phase}"]`);
-  if(note){note.hidden=sort!=='marketCapUsd_desc';note.textContent='Ranking updates every 20 minutes'+(page.ranking?.updatedAt?` · ${page.ranking.stale?'Update delayed · ':''}Updated ${new Date(page.ranking.updatedAt).toLocaleTimeString()}`:'');}
   if(page.recovered)setPageStatus('The market list has updated. Showing the first page.');
   const filtered=page.items;grid.dataset.loadState=filtered.length?'ready':'empty';
   exploreVisibleRows[phase]=filtered;
@@ -1620,6 +1643,7 @@ function applyStatsSnapshot():void{statsController?.applyStatsSnapshot();}
 function renderStats(force=false):Promise<void>{return statsController?.renderStats(force)??Promise.resolve();}
 
 export type TradeQuote = Readonly<{
+  conversion?: ConversionQuote;
   side: "buy" | "sell";
   marketId: Hex;
   input: bigint;
@@ -4527,7 +4551,11 @@ function renderRecoveryControls(): void {
           if(!recoveredTrade)notify(result?.cancelled ? "Existing transaction was cancelled." : succeeded
             ? result.approval ? "Approval confirmed. The business transaction has not been resubmitted; request a fresh quote." : "Existing transaction succeeded. Review refreshed balances before creating another order."
             : "Existing transaction reverted; no replacement was submitted.", succeeded ? "success" : "warning");
-          if(recoveredTrade){if(tradeMarket)completeTradeDisplay(tradeMarket);}
+          if(recoveredTrade){
+            // A recovered conversion/approval is only the first leg; keep its funded resume state.
+            if(succeeded&&!result!.approval&&record.businessType==='trade'&&!record.operationKey.startsWith('trade:conversion:')){if(tradeMarket)completeTradeDisplay(tradeMarket);}
+            else await refreshTradeFields(undefined,false);
+          }
           else if(currentPage()==='staking'){if(rewardPosition)stakeStatsCache.delete(rewardPosition.detail.market.marketId);await refreshRewardPosition();void refreshStakeDirectory(false,true);}
           else{await loadFoundation();await refreshCurrentPage();}
         } catch (error) { notify(publicError(error,'transaction'), "warning"); recover.disabled = false; }
@@ -4552,7 +4580,7 @@ async function refreshCurrentPage(preserveSnapshot = false): Promise<void> {
   const generation = routeGeneration;
   if (isStaticPage()) { renderWallet(); return; }
   if (integrationBootstrapPath && !foundation) await loadFoundation();
-  if (!integrationBootstrapPath && readApi && !preserveSnapshot) {
+  if (!integrationBootstrapPath && readApi && !preserveSnapshot && currentPage()!=="trade") {
     try {
       const health = await readApi.getHealth();
       if (generation !== routeGeneration) return;
@@ -4638,15 +4666,17 @@ function startSnapshotUpdates(): void {
   const baseUrl = runtimeConfig.readApi.value;
   const poller = createSnapshotPoller({
     chainId: robinhoodChain.id,
-    canPoll: () => readyRouteGeneration === routeGeneration && !isStaticPage() && !walletConnecting && !loadingFoundation && !document.hidden,
+    canPoll: () => readyRouteGeneration === routeGeneration && !isStaticPage() && currentPage()!=='trade' && !walletConnecting && !loadingFoundation && !document.hidden,
     fetchUpdate: (since, signal) => new TickerGardenV1Client(baseUrl, (input, init) => fetch(input, { ...init, signal })).getSnapshotUpdates(since && foundation ? { since } : {}),
     prepare: async (update, signal) => {
+      if(currentPage()==='trade')throw new SnapshotRefreshSuperseded('Trade uses its own market stream');
+      const route=routeGeneration;
       const generation = ++foundationGeneration;
       const activeWallet = wallet;
       const api = new TickerGardenV1Client(baseUrl, (input, init) => fetch(input, { ...init, signal }));
       const next = await prepareFoundation(api, update.sync, update.mode!=='reset'&&!update.invalidated.includes('configs'));
       return () => {
-        if (generation !== foundationGeneration || activeWallet !== wallet) throw new SnapshotRefreshSuperseded("Snapshot refresh superseded");
+        if (route!==routeGeneration||currentPage()==='trade'||generation !== foundationGeneration || activeWallet !== wallet) throw new SnapshotRefreshSuperseded("Snapshot refresh superseded");
         invalidateSnapshotReads(currentPage() === 'trade',currentPage() === 'markets');
         const recentChanged=update.recentVersion!==undefined&&update.recentVersion!==recentMarketVersion;
         recentMarketVersion=update.recentVersion;
@@ -4668,6 +4698,7 @@ function startSnapshotUpdates(): void {
     },
     unavailable: error => {
       ++foundationGeneration;
+      if(currentPage()==="trade"&&tradeMarket)return;
       foundation = null;
       foundationError = errorText(error);
       pauseAnalytics();
@@ -4765,7 +4796,7 @@ function mountRoute(route: Route): Promise<void> {
     if(generation!==routeGeneration)return;
     disposeFieldValidation=mountFieldValidation(outlet,field=>{
       if(field.matches('[data-reward-amount]'))return rewardPosition?.asset.tokenDecimals;
-      if(field.matches('[data-trade-amount]'))return tradeSide==='sell'?18:tradeMetadata?.quoteDecimals;
+      if(field.matches('[data-trade-amount]'))return Number(field.dataset.paymentDecimals??(tradeSide==='sell'?18:tradeMetadata?.quoteDecimals));
       if(field.name==='firstBuyAmount'){const id=query<HTMLSelectElement>('[name=quoteAssetConfigId]')?.value;return Number(foundation?.quotes.find(q=>q.id===id)?.values.quoteDecimals??18);}
       return undefined;
     });
@@ -4782,7 +4813,7 @@ function mountRoute(route: Route): Promise<void> {
     }
     if (isStaticPage()) { assetPrices.pause(); refreshActionAvailability(); return; }
     assetPrices.start();
-    const needsFoundation = !foundation || (foundation.configScope==="read"&&!["markets","stats","statsStocks"].includes(route.page)) || (route.page === "trade" && !foundation.markets.some(m=>m.marketId===new URL(window.location.href).searchParams.get("marketId")?.toLowerCase())) || (!!foundation.directoryMarketId && route.page !== "trade");
+    const needsFoundation = route.page==='trade' || !foundation || foundation.displayOnly || (foundation.configScope==="read"&&!["markets","stats","statsStocks"].includes(route.page)) || !!foundation.directoryMarketId;
     if (needsFoundation) await loadFoundation();
     if (generation !== routeGeneration) return;
     // A navigation may have joined an in-flight detail-only bootstrap.
@@ -4791,7 +4822,7 @@ function mountRoute(route: Route): Promise<void> {
     await refreshCurrentPage(needsFoundation);
     if (generation === routeGeneration) {
       readyRouteGeneration = generation;
-      if (foundation) snapshotPoller?.adoptRevision(foundation.sync.revision);
+      if (foundation&&!foundation.displayOnly) snapshotPoller?.adoptRevision(foundation.sync.revision);
     }
   })().catch(error => {
     if (generation !== routeGeneration) return;
