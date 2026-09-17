@@ -118,8 +118,8 @@ function active(status: number, label: string): void {
   if (status !== ACTIVE) throw new Error(`${label} must be ACTIVE`);
 }
 
-function assertSynced(sync: SyncStatus): void {
-  if (sync.chainId !== ROBINHOOD_CHAIN_ID || sync.status !== "synced" || sync.finality !== "finalized" || sync.blockNumber === null || sync.blockHash === null || !/^\d+$/.test(sync.blockNumber) || !HEX32.test(sync.blockHash) || !/^\d+:0x[0-9a-f]{64}$/.test(sync.revision)) {
+function assertSynced(sync: SyncStatus, displayOnly = false): void {
+  if (sync.chainId !== ROBINHOOD_CHAIN_ID || sync.status !== "synced" || (sync.finality !== "finalized" && !(displayOnly && sync.finality === "head")) || sync.blockNumber === null || sync.blockHash === null || !/^\d+$/.test(sync.blockNumber) || !HEX32.test(sync.blockHash) || !/^\d+:0x[0-9a-f]{64}$/.test(sync.revision)) {
     throw new Error("chain snapshot must be synced and finalized");
   }
   if (sync.revision !== `${sync.blockNumber}:${sync.blockHash}`) throw new Error("chain snapshot revision drift");
@@ -302,11 +302,11 @@ export function findCanonicalMarketCreated(
   throw new Error("The receipt did not contain the expected canonical Factory MarketCreated event");
 }
 
-function validateCurveResponse(response: MarketDetailResponse): MarketReadModel {
+function validateCurveResponse(response: MarketDetailResponse, displayOnly = false): MarketReadModel {
   if ("observation" in response && response.observation === "direct-chain") {
     const s=response.sync;
     if(s.chainId!==ROBINHOOD_CHAIN_ID||s.status!=="synced"||s.finality!=="head"||!s.blockNumber||!s.blockHash||s.revision!==`${s.blockNumber}:${s.blockHash}`)throw Error("Invalid direct market observation");
-  } else assertSynced(response.sync);
+  } else assertSynced(response.sync, displayOnly);
   const market = response.market;
   canonicalHex(market.marketId, "marketId");
   canonicalHex(market.assetUid, "assetUid");
@@ -327,7 +327,9 @@ function validateCurveResponse(response: MarketDetailResponse): MarketReadModel 
 }
 
 export function toCurveProgressViewModel(response: MarketDetailResponse): CurveViewModel {
-  const market = validateCurveResponse(response);
+  // Display projections may follow the verified head; transaction builders below
+  // retain their separate finalized/direct-chain validation.
+  const market = validateCurveResponse(response, true);
   const quoteAsset = canonicalAddress(market.quoteAsset, "quoteAsset");
   return Object.freeze({
     marketId: canonicalHex(market.marketId, "marketId"), curve: contractAddress(market.curve, "curve"),
@@ -346,6 +348,7 @@ export function toCurveProgressViewModel(response: MarketDetailResponse): CurveV
 }
 
 export function toCurveViewModel(response: MarketDetailResponse): CurveViewModel {
+  validateCurveResponse(response);
   const view = toCurveProgressViewModel(response);
   if (view.launchPhase !== NOT_GRADUATED || !view.curveTradingEnabled) {
     throw new Error("market is not an available, not-graduated curve");
