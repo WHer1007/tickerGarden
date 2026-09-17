@@ -1,8 +1,9 @@
+import {displayLogs} from './logs.ts';
 import {changeChannel,changedRegions,regions} from './changes.ts';
 import type {Pool,PoolClient} from 'pg';
 import {formatUnits} from 'viem';
 import {consensusBlock,parseLog,type DeploymentIdentity,type RpcTransport,type RpcBlock,type RpcLog} from '../../chain/src/index.ts';
-import {decodeF72Event,fixedF72Sources,eventTopicsForModules,type DecodedProtocolEvent} from '../../events/src/index.ts';
+import {decodeF72Event,fixedF72Sources,type DecodedProtocolEvent} from '../../events/src/index.ts';
 import {creationFromEvent,observeF72Market,nextMarketActivation,type MarketCreation} from '../../market-projector/src/index.ts';
 import type {MarketReadModel,TokenDetailTrade} from '../../../openapi/generated/v1-client.ts';
 import type {EventObservation,TradeActivity} from '../../analytics/src/index.ts';
@@ -59,10 +60,8 @@ export async function advanceConfirmedDisplay(input:DisplayWorkerInput):Promise<
   for(const log of factoryLogs){const e=decodeF72Event('TickerGardenFactoryV1',log);if(e?.eventName==='MarketCreated'){const c=creationFromEvent(e.args,log,d.chainId);creations.set(c.marketId,c);}}
   const modules=new Map<string,DecodedProtocolEvent['module']>(fixed.map(s=>[s.address,s.module as DecodedProtocolEvent['module']]));
   for(const c of creations.values()){modules.set(c.memeToken,'TickerMemeTokenV1');modules.set(c.curve,'TickerGardenCurve');if(!/^0x0{40}$/.test(c.gauge))modules.set(c.gauge,'MemeStockGauge');}
-  // Query by event signature once, then authenticate emitters locally. Growing
-  // the catalog to 20k markets must not create hundreds of RPC calls per tick.
-  const topics=eventTopicsForModules([...new Set([...modules.values()].filter(m=>m!=='UniswapV4PoolManager'))]);
-  const raw=await rpc.call<Record<string,unknown>[]>('eth_getLogs',[{fromBlock:`0x${from.toString(16)}`,toBlock:`0x${to.toString(16)}`,topics:[topics]}]);
+  // Protocol signatures are shared; ERC20 transfers are scoped to our tokens.
+  const raw=await displayLogs(rpc,modules,from,to);
   const logs=raw.map(parseLog).filter(l=>modules.has(l.address)&&modules.get(l.address)!=='UniswapV4PoolManager');
   if(logs.some(l=>l.removed||l.blockNumber<from||l.blockNumber>to))throw Error('Display log range mismatch');
   const hashes=[...new Set(logs.map(l=>l.transactionHash))];const observations:EventObservation[]=[];

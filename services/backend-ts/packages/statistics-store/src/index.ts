@@ -15,8 +15,12 @@ export async function readDisplayPrices(input: { readonly pool: Pool; readonly d
   const targets = f72PriceTargets(); const now = input.now ?? new Date(); const rows = await latestPrices(input.pool, input.deployment, now, input.schemaName);
   const byToken = preferredPrices(rows, now);
   const native = byToken.get('0x0000000000000000000000000000000000000000');
+  const usdgConfig = input.deployment.chainId === 4663 ? f72BootstrapConfigs.find(config => config.kind === 'quote' && config.values.symbol === 'USDG') : undefined;
+  const usdgTarget = usdgConfig ? { chainId: 4663 as const, token: String(usdgConfig.values.quoteAsset).toLowerCase() as `0x${string}`, assetUid: usdgConfig.id, symbol: 'USDG' } : undefined;
+  const usdg = usdgTarget ? byToken.get(usdgTarget.token) ?? { ...usdgTarget, source: 'fixed_usd' as const, unit: 'USD_PER_WHOLE_TOKEN' as const,
+    status: 'unavailable' as const, reason: 'not_refreshed', bidUsd: null, askUsd: null, multiplier: null, asOf: null, expiresAt: null, retrievedAt: now.toISOString() } : undefined;
   return { chainId: input.deployment.chainId, displayOnly: true as const, confidence: 'provider_reported' as const, status: 'configured' as const,
-    references: [...(native ? [native] : []), ...targets.map((target) => byToken.get(target.token) ?? { ...target, source: 'robinhood_rest' as const, unit: 'USD_PER_WHOLE_TOKEN' as const,
+    references: [...(native ? [native] : []), ...(usdg ? [usdg] : []), ...targets.filter(target => target.token !== usdgTarget?.token && target.token !== native?.token).map((target) => byToken.get(target.token) ?? { ...target, source: 'robinhood_rest' as const, unit: 'USD_PER_WHOLE_TOKEN' as const,
       status: 'unavailable' as const, reason: 'not_refreshed', bidUsd: null, askUsd: null, multiplier: null, asOf: null, expiresAt: null, retrievedAt: now.toISOString() })] };
 }
 
