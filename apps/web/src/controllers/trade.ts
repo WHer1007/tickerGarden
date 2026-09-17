@@ -1,3 +1,4 @@
+import {renderMarketSettings} from '../ui/market-settings.ts';
 import { quotedMinimum, approvedQuoteMinimum, gasReserve, spendableNative } from '../v1/tradeProtection.ts';
 import { publicError } from "../ui/public-error.ts";
 import { renderTradeEmptyState } from "../ui/trade-empty-state.ts";
@@ -295,6 +296,7 @@ function clearTradeMarketState(): void {
   for(const key of ['website','x']){const link=ctx.query<HTMLButtonElement>(`[data-detail-${key}]`);if(link){link.hidden=false;link.disabled=true;delete link.dataset.externalUrl;link.removeAttribute('title');}}
   ctx.text('[data-detail-stock-label]','-');ctx.text('[data-detail-venue]','-');
   for (const key of ['symbol', 'token', 'created', 'creator', 'supply', 'volume', 'cap', 'holders', 'fees', 'fee-rules']) ctx.text(`[data-detail-${key}]`, '-');
+  renderMarketSettings(document,null);
   ctx.text('[data-detail-fee-note]', 'Load a verified market to view fee allocation rules.');
   const explorer = ctx.query<HTMLAnchorElement>('[data-detail-explorer]');
   if (explorer) { explorer.hidden = true; explorer.removeAttribute('href'); }
@@ -496,6 +498,7 @@ async function loadTradeMarket(explicit?: string): Promise<void> {
 
 async function renderTradeFeeDetails(market: MarketReadModel, generation: number): Promise<void> {
   if(generation!==ctx.tradeLoadGeneration)return;
+  renderMarketSettings(document,market);
   const direct=(market as MarketReadModel&{directFeeConfig?:{creatorTaxBps:number;activeStakeRaw:string}}).directFeeConfig;
   const display=market.display;
   const snapshot=direct??(display&&Date.now()/1000-Number(display.asOfTimestamp)<=1200?{creatorTaxBps:display.creatorTaxBps,activeStakeRaw:display.activeStakeRaw}:null);
