@@ -1,5 +1,3 @@
-import './tradeReference.css';
-import './tradeLive.css';
 
 const logo = new URL('../../assets/token-placeholder.svg', import.meta.url).href;
 const icon = (name: string) => `<i class="ph ph-${name}" aria-hidden="true"></i>`;

@@ -55,8 +55,8 @@ test("shared navigation exposes Explore and keeps Home out of the primary links"
   assert.match(app, /\["rewards", "Claim", "\/claim"\]/);
   assert.match(app, /\["docs", "Docs", "\/docs"\]/);
   assert.doesNotMatch(app, /data-wallet-only hidden/);
-  const headerShell = app.slice(app.indexOf("header.innerHTML"), app.indexOf("required<HTMLElement>(\"[data-shell-footer]\")"));
-  const footerShell = app.slice(app.indexOf("required<HTMLElement>(\"[data-shell-footer]\")"), app.indexOf("walletPicker ??="));
+  const headerShell = app.slice(app.indexOf("const header = `"), app.indexOf("const footer = `"));
+  const footerShell = app.slice(app.indexOf("const footer = `"), app.indexOf("return {header,footer}"));
   const gardenLinks = footerShell.slice(footerShell.indexOf("<strong>Garden</strong>"), footerShell.indexOf("</section>"));
   const communityLinks = footerShell.slice(footerShell.indexOf("<strong>Community</strong>"), footerShell.indexOf("</section>", footerShell.indexOf("<strong>Community</strong>")));
   assert.doesNotMatch(gardenLinks, /footerLink\("stats"/);

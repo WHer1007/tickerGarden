@@ -10,7 +10,7 @@ export default { title: 'Claim — TickerGarden', html: `
 <header class="claim-card-heading"><div><h2>Creator rewards</h2></div></header>
 <div class="field"><label for="creator-market">Select token</label><div class="claim-token-select"><i class="ph ph-coins" aria-hidden="true"></i><select id="creator-market" data-creator-market><option value="">Select a token</option></select></div></div>
 <button type="button" class="secondary-button" data-creator-more hidden>Load more tokens</button>
-<label class="field">Reward period<select data-creator-epoch disabled><option value="">Select a period</option></select></label><button type="button" class="secondary-button" data-creator-older hidden>View earlier periods</button>
+<div class="field creator-period-field"><label for="creator-epoch">Reward period</label><select id="creator-epoch" data-creator-epoch disabled><option value="">Select a period</option></select></div><button type="button" class="secondary-button" data-creator-older hidden>View earlier periods</button>
 <div class="claim-amounts"><div><span>Available to claim</span><strong data-creator-quote-asset>-</strong></div><div><span>Token rewards</span><strong data-creator-pending-meme>-</strong></div></div>
 <dl class="claim-facts"><div><dt>Receive in</dt><dd data-creator-receive-asset>-</dd></div><div><dt>Recipient</dt><dd><span data-creator-beneficiary>-</span><button type="button" data-copy-beneficiary aria-label="Copy recipient address" disabled><i class="ph ph-copy" aria-hidden="true"></i></button></dd></div></dl>
 <input type="hidden" data-creator-fee-asset>

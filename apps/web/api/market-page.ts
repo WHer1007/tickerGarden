@@ -19,7 +19,7 @@ export async function marketPage(request:Request, shell:string, env:Record<strin
   }
  }catch{/* The trading shell stays available when the public directory is delayed. */}}
 
- return new Response(html,{headers:{'Content-Type':'text/html; charset=utf-8','Cache-Control':found?'public, max-age=0, s-maxage=60, stale-while-revalidate=300':'no-store'}});
+ return new Response(html,{headers:{'Content-Type':'text/html; charset=utf-8',...(shell.includes('data-search-index="deny"')?{'X-Robots-Tag':'noindex, nofollow'}:{}),'Cache-Control':found?'public, max-age=0, s-maxage=60, stale-while-revalidate=300':'no-store'}});
 }
 export async function GET(request:Request){return marketPage(request,await readFile(new URL('../dist/market-shell.html',import.meta.url),'utf8'),process.env);}
 

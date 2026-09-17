@@ -6,7 +6,7 @@ export type PageTemplate = Readonly<{ title: string; html: string }>;
 const loaders: Record<Exclude<PageName, "not-found">, () => Promise<{ default: PageTemplate }>> = {
   home: async () => { await import("../home/signal-arbor.css"); return import("../pages/home.ts"); },
   markets: async () => { await import("../pages/markets.css"); return import("../pages/markets.ts"); },
-  trade: () => import("../pages/trade.ts"),
+  trade: async () => { await Promise.all([import("../pages/tradeReference.css"),import("../pages/tradeLive.css")]); return import("../pages/trade.ts"); },
   create: async () => { await import("../create/create.css"); return import("../pages/create.ts"); },
   stats: async () => { await import("../pages/stats.css"); return import("../pages/stats.ts"); },
   statsStocks: async () => { await import("../pages/stats.css"); return import("../pages/statsStocks.ts"); },

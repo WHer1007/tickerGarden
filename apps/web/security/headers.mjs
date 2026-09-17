@@ -7,6 +7,7 @@ export function securityHeaders(env={},development=false){
  if(development){origins.add('ws://127.0.0.1:*');origins.add('ws://localhost:*')}
  return {
  'Content-Security-Policy':[`default-src 'self'`,`script-src 'self'`,`style-src 'self' 'unsafe-inline'`,`img-src 'self' data: blob: https:`,`font-src 'self'`,`connect-src ${[...origins].join(' ')}`,`object-src 'none'`,`base-uri 'none'`,`frame-ancestors 'none'`,`form-action 'self'`,`frame-src 'none'`,`worker-src 'self' blob:`].join('; '),
+ ...(env.VERCEL_ENV==='production'&&env.VITE_V1_CHAIN_ID==='4663'?{}:{'X-Robots-Tag':'noindex, nofollow'}),
  'X-Frame-Options':'DENY',
  'X-Content-Type-Options':'nosniff',
  'Referrer-Policy':'strict-origin-when-cross-origin',
