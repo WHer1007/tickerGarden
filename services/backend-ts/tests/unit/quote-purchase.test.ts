@@ -3,7 +3,7 @@ import test from 'node:test';
 import { decodeAbiParameters, parseAbiParameters, type Address } from 'viem';
 import { routes } from '../../packages/chain/src/quote-purchase/routes.ts';
 import { purchaseRoute, quotePurchase, USDG, WETH, ZERO } from '../../packages/chain/src/quote-purchase/quote.ts';
-import { purchaseRequest, PURCHASE_ROUTER } from '../../packages/chain/src/quote-purchase/transaction.ts';
+import { purchaseRequest, purchaseEthLimit, PURCHASE_ROUTER } from '../../packages/chain/src/quote-purchase/transaction.ts';
 
 const wallet = '0x1111111111111111111111111111111111111111' as Address;
 const now = Date.now();
@@ -27,13 +27,13 @@ test('quote policy rejects zero, nonpositive, malformed and oversized amounts be
 test('direct ETH to V4 uses exact output, router-funded settlement, wallet take and refunds', () => {
   const token = '0x1cdad396db64bda184d5182a97dd9b3c62100b7d' as Address;
   const req = purchaseRequest(quote(token, { amountIn: '2000', stockInput: '2000' }), wallet, now);
-  assert.equal(req.address, PURCHASE_ROUTER); assert.equal(req.value, 2000n);
+  assert.equal(req.address, PURCHASE_ROUTER); assert.equal(req.value, 2200n);
   const commands = req.args[0]; const inputs = req.args[1] as readonly `0x${string}`[];
   assert.equal(commands, '0x1004'); assert.equal(inputs.length, 2);
   const [actions, params] = decodeAbiParameters(parseAbiParameters('bytes,bytes[]'), inputs[0]!);
   assert.equal(actions, '0x080b0e');
   const [swap] = decodeAbiParameters(parseAbiParameters('((address,address,uint24,int24,address),bool,uint128,uint128,uint256,bytes)'), params[0]!);
-  assert.equal(swap[2], 1000n); assert.equal(swap[3], 2000n); assert.equal(swap[4], 0n);
+  assert.equal(swap[2], 1000n); assert.equal(swap[3], 2200n); assert.equal(swap[4], 0n);
   const settle = decodeAbiParameters(parseAbiParameters('address,uint256,bool'), params[1]!);
   assert.equal(String(settle[0]).toLowerCase(), ZERO); assert.equal(settle[1], 0n); assert.equal(settle[2], false);
   const take = decodeAbiParameters(parseAbiParameters('address,address,uint256'), params[2]!);
@@ -50,21 +50,36 @@ test('V3 direct WETH route wraps ETH and uses reverse path plus minHop array', (
   const wrap = decodeAbiParameters(parseAbiParameters('address,uint256'), req.args[1][0]!);
   assert.equal(wrap[0], '0x0000000000000000000000000000000000000002');
   const [to, out, cap, path, payer, hops] = decodeAbiParameters(parseAbiParameters('address,uint256,uint256,bytes,bool,uint256[]'), req.args[1][1]!);
-  assert.equal(to, wallet); assert.equal(out, 1000n); assert.equal(cap, 1500n); assert.equal(payer, false); assert.deepEqual(hops, [0n]);
+  assert.equal(to, wallet); assert.equal(out, 1000n); assert.equal(cap, 1650n); assert.equal(payer, false); assert.deepEqual(hops, [0n]);
   assert.equal(path.toLowerCase(), `0x${token.slice(2)}000bb80bd7d308f8e1639fab988df18a8011f41eacad73`.toLowerCase());
 });
 
-test('USDG two-leg route uses router-funded reversed V3 bridge and refunds USDG', () => {
-  const token = '0xbbd09f72b025360fee5c928053dca6248d35be54' as Address;
-  const req = purchaseRequest(quote(token), wallet, now);
-  assert.equal(req.args[0], '0x0b0101040c04');
-  const [, bridgeOut, bridgeCap, bridgePath, bridgePayer, bridgeHops] = decodeAbiParameters(parseAbiParameters('address,uint256,uint256,bytes,bool,uint256[]'), req.args[1][1]!);
-  assert.equal(bridgeOut, 1500n); assert.equal(bridgeCap, 2000n); assert.equal(bridgePayer, false); assert.deepEqual(bridgeHops, [0n]);
-  assert.equal(bridgePath.toLowerCase(), `0x${USDG.slice(2)}0000640bd7d308f8e1639fab988df18a8011f41eacad73`.toLowerCase());
-  const [stockTo] = decodeAbiParameters(parseAbiParameters('address,uint256,uint256,bytes,bool,uint256[]'), req.args[1][2]!);
-  assert.equal(stockTo, wallet);
-  const [refundToken, refundRecipient, refundMin] = decodeAbiParameters(parseAbiParameters('address,address,uint256'), req.args[1][3]!);
-  assert.equal(String(refundToken).toLowerCase(), USDG); assert.equal(String(refundRecipient).toLowerCase(), wallet); assert.equal(refundMin, 0n);
+test('V3 USDG multihop enforces one ETH cap and exact Stock output', () => {
+ const token='0xbbd09f72b025360fee5c928053dca6248d35be54' as Address;
+ const req=purchaseRequest(quote(token),wallet,now);
+ assert.equal(req.value,2200n);assert.equal(req.args[0],'0x0b01040c04');
+ const [to,out,cap,path,payer,hops]=decodeAbiParameters(parseAbiParameters('address,uint256,uint256,bytes,bool,uint256[]'),req.args[1][1]!);
+ assert.equal(to,wallet);assert.equal(out,1000n);assert.equal(cap,2200n);assert.equal(payer,false);assert.deepEqual(hops,[0n,0n]);
+ assert.equal(path.toLowerCase(),`0x${token.slice(2)}002710${USDG.slice(2)}000064${WETH.slice(2)}`);
+});
+test('mixed V3/V4 route spends at most the ETH budget and refunds intermediate USDG',()=>{
+ const token='0xd95b44124e475743a7589e68f3d74008a5536d44' as Address;
+ const req=purchaseRequest(quote(token),wallet,now);assert.equal(req.value,2200n);assert.equal(req.args[0],'0x0b0010040c04');
+ const [,input,minimum]=decodeAbiParameters(parseAbiParameters('address,uint256,uint256,bytes,bool,uint256[]'),req.args[1][1]!);
+ assert.equal(input,2200n);assert.equal(minimum,1500n);
+ const [,params]=decodeAbiParameters(parseAbiParameters('bytes,bytes[]'),req.args[1][2]!);
+ const [swap]=decodeAbiParameters(parseAbiParameters('((address,address,uint24,int24,address),bool,uint128,uint128,uint256,bytes)'),params[0]!);
+ assert.equal(swap[2],1000n);assert.equal(swap[3],2n**128n-1n);
+ const [asset,to,min]=decodeAbiParameters(parseAbiParameters('address,address,uint256'),req.args[1][3]!);
+ assert.equal(asset.toLowerCase(),USDG);assert.equal(to,wallet);assert.equal(min,0n);
+});
+test('rounds the allowance up and never compounds the approved cap on refresh',()=>{
+ assert.equal(purchaseEthLimit(1n),2n);assert.equal(purchaseEthLimit(100n),110n);
+ const original=quote(USDG,{amountIn:'100',stockInput:'100'});
+ const cap=purchaseEthLimit(BigInt(original.amountIn));
+ const refreshed={...original,amountIn:'109',stockInput:'109'};
+ assert.equal(purchaseRequest(refreshed,wallet,now,cap).value,110n);
+ assert.throws(()=>purchaseRequest({...refreshed,amountIn:'111',stockInput:'111'},wallet,now,cap),/approved ETH limit/);
 });
 
 test('purchase request rejects bad chain, expiry, recipient and direct cap mismatch', () => {

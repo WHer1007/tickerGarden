@@ -7,7 +7,7 @@ export function createPurchaseNotice(): HTMLElement {
   icon.setAttribute('aria-hidden', 'true');
   icon.textContent = 'i';
   const text = document.createElement('p');
-  text.textContent = 'ETH buys the missing paired asset first, then your token launches. If the launch stops, purchased assets stay in your wallet.';
+  text.textContent = 'ETH buys the missing paired asset first, then your token launches. Unused ETH or intermediate USDG is returned to your wallet. If the launch stops, purchased assets stay in your wallet.';
   notice.append(icon, text);
   return notice;
 }

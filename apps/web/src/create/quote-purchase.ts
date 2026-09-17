@@ -1,7 +1,7 @@
 import type {Address} from 'viem';
-import {purchaseRequest} from '../../../../services/backend-ts/packages/chain/src/quote-purchase/transaction.ts';
+import {purchaseRequest,purchaseEthLimit} from '../../../../services/backend-ts/packages/chain/src/quote-purchase/transaction.ts';
 import type {PurchaseQuote} from '../../../../services/backend-ts/packages/chain/src/quote-purchase/quote.ts';
-export {purchaseRequest};
+export {purchaseRequest,purchaseEthLimit};
 export type {PurchaseQuote};
 export async function fetchPurchaseQuote(base:string,chainId:number,token:Address,amount:bigint,account:Address):Promise<PurchaseQuote>{
  const url=new URL(`${base.replace(/\/$/,'')}/v1/quote-purchase`);url.search=new URLSearchParams({chainId:String(chainId),token,amountOut:String(amount)}).toString();
@@ -13,5 +13,5 @@ export async function fetchPurchaseQuote(base:string,chainId:number,token:Addres
 }
 
 export function assertPurchaseWithinApproval(fresh:PurchaseQuote,reviewed:PurchaseQuote|undefined):void {
- if(!reviewed||fresh.chainId!==reviewed.chainId||fresh.token!==reviewed.token||BigInt(fresh.amountOut)>BigInt(reviewed.amountOut)||BigInt(fresh.amountIn)>BigInt(reviewed.amountIn))throw Object.assign(new Error('Purchase cost changed. Review the updated launch cost and try again.'),{code:'purchase_cost_changed'});
+ if(!reviewed||fresh.chainId!==reviewed.chainId||fresh.token!==reviewed.token||BigInt(fresh.amountOut)>BigInt(reviewed.amountOut)||BigInt(fresh.amountIn)>purchaseEthLimit(BigInt(reviewed.amountIn)))throw Object.assign(new Error('Purchase cost changed. Review the updated launch cost and try again.'),{code:'purchase_cost_changed'});
 }

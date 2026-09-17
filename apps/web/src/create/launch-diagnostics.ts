@@ -24,7 +24,7 @@ export function launchErrorCode(error:unknown):string {
 }
 export function launchFailureMessage(code:string,phase:LaunchPhase,pending:boolean):string {
  if(pending)return 'Your transaction outcome is not confirmed yet. Check your wallet history and keep tracking it. Do not submit another launch.';
- if(code==='purchase_cost_changed')return 'The ETH cost to buy your paired asset has changed. No purchase was submitted in this step. Return to the form and review the updated total before confirming again.';
+ if(code==='purchase_cost_changed')return 'The updated purchase cost exceeds your confirmed ETH limit (including the 10% allowance). No purchase was submitted in this step. Return to the form and review the updated total before confirming again.';
  if(code==='stale_quote')return 'The purchase quote has expired. Return to the form to refresh the quote and review the total before confirming again.';
  if(code==='user_rejected')return 'The wallet request was declined. Return to the form when you are ready. Check your wallet for any earlier completed steps.';
  if(code==='insufficient_funds')return 'Your balance does not cover the amount and network fee. Review your wallet balance and the updated total.';
