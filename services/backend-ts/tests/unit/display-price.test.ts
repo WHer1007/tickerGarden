@@ -81,3 +81,15 @@ test('official inactive or halted assets and due or ambiguous multiplier transit
  for(const changes of [{status:'ASSET_STATUS_INACTIVE'},{pendingMultiplier:'2'},{pendingMultiplier:'2',pendingMultiplierEffectiveTime:'2026-09-15T12:00:10Z'},{pendingMultiplier:'2',pendingMultiplierEffectiveTime:'invalid'},{pendingMultiplier:'0',pendingMultiplierEffectiveTime:'2026-09-16T00:00:00Z'}])assert.equal((await stockReference(changes)).status,'unavailable');
  for(const changes of [{isTradingHalt:true},{bid:'0'},{bid:'400',ask:'399'},{currency:'EUR'},{bid:'1.'+'1'.repeat(19)}])assert.equal((await stockReference({},changes)).status,'unavailable');
 });
+
+test('one refresh publishes all prices in a single atomic database statement',async()=>{
+ const {storePriceReferences}=await import('../../packages/display-price/src/index.ts');
+ const calls:Array<{sql:string;values:unknown[]}>=[];
+ const pool={query:async(sql:string,values:unknown[])=>{calls.push({sql,values});return {rows:[]};}};
+ const now='2026-09-17T00:00:00.000Z';
+ const references=Array.from({length:196},(_,i)=>({chainId:4663 as const,token:`0x${i.toString(16).padStart(40,'0')}` as `0x${string}`,assetUid:`0x${i.toString(16).padStart(64,'0')}` as `0x${string}`,symbol:`S${i}`,source:'robinhood_rest' as const,unit:'USD_PER_WHOLE_TOKEN' as const,status:'available' as const,bidUsd:'2',askUsd:'4',multiplier:'1',asOf:now,expiresAt:'2026-09-17T00:05:00.000Z',retrievedAt:now}));
+ await storePriceReferences(pool as never,{environment:'production',chainId:4663,deploymentDigest:`0x${'a'.repeat(64)}`,activationBlock:1n},references);
+ assert.equal(calls.length,1);assert.match(calls[0]!.sql,/jsonb_to_recordset/);
+ const rows=JSON.parse(calls[0]!.values[3] as string);assert.equal(rows.length,196);
+ assert.equal(rows[195].payload.token,references[195]!.token);assert.equal(Number(rows[0].value),3);
+});

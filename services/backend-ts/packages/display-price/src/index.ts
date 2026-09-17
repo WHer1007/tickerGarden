@@ -26,7 +26,7 @@ export function multiplyDecimal(left: string, right: string): string {
 }
 
 export async function fetchPriceReferences(targets: readonly PriceTarget[], options: { readonly fetcher?: typeof fetch; readonly now?: Date; readonly maxAgeSeconds?: number } = {}): Promise<PriceReference[]> {
-  if (!targets.length || targets.length > 64) throw new Error('invalid display price targets');
+  if (!targets.length || targets.length > 256) throw new Error('invalid display price targets');
   const fetcher = options.fetcher ?? fetch; const retrieved = options.now ?? new Date(); const maxAge = options.maxAgeSeconds ?? 60;
   if (!Number.isSafeInteger(maxAge) || maxAge < 15 || maxAge > 300) throw new Error('invalid display price max age');
   const get = async (path: string) => { const response = await fetcher(`${API}${path}`, { headers: { accept: 'application/json' }, redirect: 'error', signal: AbortSignal.timeout(5_000) });
@@ -119,13 +119,18 @@ export async function fetchTestnetPriceReferences(
 
 export async function storePriceReferences(pool: Pool, deployment: DeploymentIdentity, references: readonly PriceReference[], schemaName = 'tickergarden_serverless'): Promise<void> {
   const schema = identifier(schemaName);
-  for (const reference of references) {
-    const asOf = reference.asOf ?? reference.retrievedAt; const expiresAt = reference.expiresAt ?? new Date(new Date(asOf).getTime() + 1_000).toISOString();
-    const midpoint = reference.bidUsd && reference.askUsd ? midpointDecimal(reference.bidUsd, reference.askUsd) : null;
-    await pool.query(`INSERT INTO ${schema}.price_references(environment,chain_id,deployment_digest,asset,source,status,value,as_of,expires_at,payload)
-      VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10) ON CONFLICT DO NOTHING`,
-    [deployment.environment, deployment.chainId, deployment.deploymentDigest, reference.token, reference.source, reference.status, midpoint, asOf, expiresAt, reference]);
-  }
+  if(!references.length)return;
+  const rows=references.map(reference=>{
+    const asOf=reference.asOf??reference.retrievedAt;
+    return {asset:reference.token,source:reference.source,status:reference.status,
+      value:reference.bidUsd&&reference.askUsd?midpointDecimal(reference.bidUsd,reference.askUsd):null,
+      as_of:asOf,expires_at:reference.expiresAt??new Date(new Date(asOf).getTime()+1_000).toISOString(),payload:reference};
+  });
+  // Publish the complete refresh atomically; consumers cannot see half a batch.
+  await pool.query(`INSERT INTO ${schema}.price_references(environment,chain_id,deployment_digest,asset,source,status,value,as_of,expires_at,payload)
+    SELECT $1,$2,$3,r.asset,r.source,r.status,r.value::numeric,r.as_of::timestamptz,r.expires_at::timestamptz,r.payload
+    FROM jsonb_to_recordset($4::jsonb) AS r(asset text,source text,status text,value text,as_of text,expires_at text,payload jsonb)
+    ON CONFLICT DO NOTHING`,[deployment.environment,deployment.chainId,deployment.deploymentDigest,JSON.stringify(rows)]);
 }
 
 function unavailable(target: PriceTarget, now: Date, reason: string): PriceReference { return { ...target, source: 'robinhood_rest', unit: 'USD_PER_WHOLE_TOKEN', status: 'unavailable', reason, bidUsd: null, askUsd: null, multiplier: null, asOf: null, expiresAt: null, retrievedAt: now.toISOString() } }
@@ -156,12 +161,12 @@ function midpointDecimal(left: string, right: string): string { const scale = 18
 function identifier(value: string): string { if (!/^[a-z][a-z0-9_]{0,62}$/.test(value)) throw new Error('invalid database schema name'); return `"${value}"` }
 
 
-/** One bounded batch at a time; never use testnet pool quotes on mainnet. */
+/** One shared provider snapshot per refresh; never use testnet pool quotes on mainnet. */
 export async function fetchRuntimePriceReferences(targets:readonly PriceTarget[],options:Parameters<typeof fetchTestnetPriceReferences>[1]):Promise<PriceReference[]> {
  if(CURRENT_CHAIN_ID===46630)return fetchTestnetPriceReferences(targets,options);
  if(targets.some(t=>t.chainId!==4663))throw Error('Mainnet price target mismatch');
  const result:PriceReference[]=[];
- for(let start=0;start<targets.length;start+=64)result.push(...await fetchPriceReferences(targets.slice(start,start+64),{...options,maxAgeSeconds:300}));
+ result.push(...await fetchPriceReferences(targets,{...options,maxAgeSeconds:300}));
  const now=options.now??new Date();
  const currencies:PriceTarget[]=[{chainId:4663,token:NATIVE_TOKEN,assetUid:NATIVE_ASSET_UID,symbol:'ETH'}];
  const usdg=f72BootstrapConfigs.find(c=>c.kind==='quote'&&c.values.symbol==='USDG');

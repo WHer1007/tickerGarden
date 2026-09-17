@@ -210,9 +210,9 @@ export async function readPublishedRecord(input: {
       publication.blockHash, publication.revision, input.identity],
   );
   let item=record.rows[0]?.payload??null;
-  if(!item&&input.includeRecent&&input.scope==='markets'){
-    const recent=await input.pool.query<{payload:Json}>(`SELECT payload FROM ${schema}.recent_markets WHERE environment=$1 AND chain_id=$2 AND deployment_digest=$3 AND market_id=$4 AND canonical AND expires_at>now() AND block_number>$5`,[input.deployment.environment,input.deployment.chainId,input.deployment.deploymentDigest,input.identity,publication.blockNumber.toString()]);
-    item=recent.rows[0]?.payload??null;
+  if(input.includeRecent&&input.scope==='markets'&&(!item||typeof item==='object'&&!Array.isArray(item)&&!(item as Record<string,Json>).identity)){
+    const recent=await input.pool.query<{payload:Json}>(`SELECT payload FROM ${schema}.recent_markets WHERE environment=$1 AND chain_id=$2 AND deployment_digest=$3 AND market_id=$4 AND canonical AND expires_at>now()`,[input.deployment.environment,input.deployment.chainId,input.deployment.deploymentDigest,input.identity]);
+    item=recent.rows[0]?.payload??item;
   }
   return { item:item===null?null:displayAtPublication(item,publication), sync: await syncForPublication(input.pool, schema, input.deployment, publication) };
 }

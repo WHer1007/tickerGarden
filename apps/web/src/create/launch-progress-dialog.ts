@@ -5,10 +5,7 @@ export type LaunchProgressState = {
   step: string;
   detail: string;
   percent: number;
-  hash?: string;
   supportDetails?: string;
-  explorer: string;
-  needsHash?: boolean;
   canDismiss?: boolean;
   outcome?: boolean;
   complete?: boolean;
@@ -18,7 +15,6 @@ export type LaunchProgressState = {
 };
 
 export type LaunchProgressActions = {
-  onHash?: (hash: string) => void;
   onDismiss?: () => void;
   onViewToken?: () => void;
   onCreateNew?: () => void;
@@ -32,7 +28,6 @@ const STAGES = [
   'Confirm on chain',
   'Complete',
 ];
-const HASH_PATTERN = /^0x[\da-fA-F]{64}$/;
 
 let dialog: HTMLDialogElement | undefined;
 
@@ -58,11 +53,6 @@ function getDialog(): HTMLDialogElement {
 
 export function renderLaunchProgress(state: LaunchProgressState, actions: LaunchProgressActions): void {
   const modal = getDialog();
-  const previousInput = modal.querySelector<HTMLInputElement>('input[type="text"]');
-  const previousValue = previousInput?.value;
-  const hadFocus = previousInput === document.activeElement;
-  const previousSelectionStart = previousInput?.selectionStart;
-  const previousSelectionEnd = previousInput?.selectionEnd;
   modal.replaceChildren();
   modal.classList.toggle('launch-progress-dialog--outcome',Boolean(state.outcome));
 
@@ -133,7 +123,7 @@ export function renderLaunchProgress(state: LaunchProgressState, actions: Launch
   if(!state.outcome)content.append(stages);
 
   if (state.supportDetails) {
-    const support = element('button', 'launch-progress-dialog__track');
+    const support = element('button', 'launch-progress-dialog__support');
     support.type = 'button';
     support.textContent = 'Copy support details';
     support.addEventListener('click', async () => {
@@ -141,58 +131,6 @@ export function renderLaunchProgress(state: LaunchProgressState, actions: Launch
       catch { const details=element('textarea'); details.readOnly=true; details.value=state.supportDetails!; support.after(details); details.focus(); details.select(); support.disabled=true; }
     });
     content.append(support);
-  }
-
-  if (state.hash) {
-    const hashText = element('p', 'launch-progress-dialog__hash');
-    hashText.textContent = state.hash;
-    content.append(hashText);
-  }
-
-  if (state.needsHash) {
-    const hashForm = element('form', 'launch-progress-dialog__hash-form');
-    hashForm.noValidate = true;
-    const hashLabel = element('label');
-    hashLabel.textContent = 'Transaction hash';
-    const input = element('input');
-    input.type = 'text';
-    input.inputMode = 'text';
-    input.autocomplete = 'off';
-    input.spellcheck = false;
-    input.required = true;
-    input.pattern = '0x[0-9a-fA-F]{64}';
-    input.setAttribute('aria-describedby', 'launch-progress-hash-help');
-    const help = element('span', 'launch-progress-dialog__help');
-    help.id = 'launch-progress-hash-help';
-    help.textContent = 'Enter the 64-character transaction hash.';
-    const track = element('button', 'launch-progress-dialog__track');
-    track.type = 'submit';
-    track.textContent = 'Track transaction';
-    track.disabled = true;
-    input.addEventListener('input', () => {
-      track.disabled = !HASH_PATTERN.test(input.value.trim());
-    });
-    if (previousValue !== undefined) {
-      input.value = previousValue;
-      track.disabled = !HASH_PATTERN.test(previousValue.trim());
-    }
-    hashForm.addEventListener('submit', (event) => {
-      event.preventDefault();
-      const hash = input.value.trim();
-      if (HASH_PATTERN.test(hash)) actions.onHash?.(hash);
-    });
-    hashLabel.append(input);
-    hashForm.append(hashLabel, help, track);
-    content.append(hashForm);
-  }
-
-  if (state.explorer) {
-    const link = element('a', 'launch-progress-dialog__explorer');
-    link.textContent = 'View on explorer';
-    link.href = state.explorer;
-    link.target = '_blank';
-    link.rel = 'noopener noreferrer';
-    content.append(link);
   }
 
   if(state.complete&&(actions.onViewToken||actions.onCreateNew)){
@@ -218,16 +156,7 @@ export function renderLaunchProgress(state: LaunchProgressState, actions: Launch
 
   modal.append(content);
   if (!modal.open) modal.showModal();
-  if (hadFocus) {
-    const restoredInput = modal.querySelector<HTMLInputElement>('input[type="text"]');
-    restoredInput?.focus();
-    if (previousSelectionStart !== null && previousSelectionStart !== undefined) {
-      restoredInput?.setSelectionRange(previousSelectionStart, previousSelectionEnd ?? previousSelectionStart);
-    }
-  } else {
-    const autofocus = modal.querySelector<HTMLElement>('input, button, a');
-    autofocus?.focus();
-  }
+  modal.querySelector<HTMLElement>('button, a')?.focus();
 }
 
 export function closeLaunchProgress(): void {

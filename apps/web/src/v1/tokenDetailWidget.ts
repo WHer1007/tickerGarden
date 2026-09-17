@@ -1,7 +1,8 @@
+import {watchMarketChanges,type DetailRegion} from './marketChanges.ts';
 import {createDetailActivity} from './detailActivity.ts';
 import {feeUsdValue,formatFeeUsd} from './feeQuoteValue.ts';
 import {compactPrice} from "../ui/compact-price.ts";
-import {detailChartWindow,loadDetailChart} from './detailChart.ts';
+import {creationReceiptChart,detailChartWindow,loadDetailChart} from './detailChart.ts';
 import {formatTradePrice} from './tradePricing.ts';
 import {mergeRecentTrades} from './recentTrades.ts';
 import type {TokenDetailTrade,TokenDetailFee} from './generated/read-api.ts';
@@ -13,6 +14,7 @@ export function mountTokenDetail(root:HTMLElement,base:string|null,chain:number,
  const q=<T extends HTMLElement=HTMLElement>(s:string)=>root.querySelector<T>(s)!;
  const text=(s:string,v:string)=>root.querySelectorAll<HTMLElement>(s).forEach(e=>{if(e.textContent!==v)e.textContent=v;});
  let id:DetailIdentity|null=null,period:DetailPeriod='1H',data:TokenDetailResponse|null=null,fees:FeeConfig|null=null,controller:AbortController|null=null,generation=0,expiry:ReturnType<typeof setTimeout>|undefined,tradeLimit=20,holderLimit=20;
+ let changes:ReturnType<typeof watchMarketChanges>|null=null,partialAbort:AbortController|null=null;
  let activity:TokenDetailResponse|null=null,activityLoader:ReturnType<typeof createDetailActivity>|null=null;
  let state:'loading'|'ready'|'pending'|'error'='loading';
  let activeKey='';
@@ -25,13 +27,13 @@ export function mountTokenDetail(root:HTMLElement,base:string|null,chain:number,
  const chartCache=new Map<string,{value:TokenDetailChart;until:number}>();
  const currentChart=()=>chartData;
  const chartKeyFor=(identity:DetailIdentity,chosen:DetailPeriod,asOf:number)=>`${identity.marketId}:${chosen}:${detailChartWindow(chosen,asOf).to}`;
- const chartTime=()=>overview.asOf??(data?Math.max(0,...Object.values(data.sources).map(source=>source.asOf)):0);
+ const chartTime=()=>Math.max(overview.asOf??0,...(data?Object.values(data.sources).map(source=>source.asOf):[0]));
  const chartStateText=()=>chartState==='pending'?'Waiting for market data':chartState==='loading'?'Loading Chart…':'Could Not Load Chart. Try Again.';
  const cache=new Map<string,{data:TokenDetailResponse;until:number;refreshAt:number}>();
  const stateText=()=>state==='loading'?'Loading Data…':state==='pending'?'Statistics Not Ready':state==='error'?'Could Not Load Data. Try Refresh.':'Some Statistics Are Not Ready';
  const amount=(raw:string,d:number)=>displayDecimal(candleVolume(raw,d),6);
  const empty=(tbody:HTMLTableSectionElement,message:string,cols:number)=>{tbody.replaceChildren();const td=tbody.insertRow().insertCell();td.colSpan=cols;td.className='detail-empty-cell';const box=document.createElement('div');box.className='detail-activity-empty';box.setAttribute('role','status');const icon=document.createElement('i');icon.className=cols===6?'ph ph-arrows-left-right':'ph ph-users';icon.setAttribute('aria-hidden','true');const label=document.createElement('span');label.textContent=message;box.append(icon,label);td.append(box);};
- const sourceLabel=()=>{if(!data)return stateText();if(data.confirmation==='confirmed')return 'Creation transaction · Final confirmation pending';const entries=Object.entries({...data.sources,...activity?.sources}).filter(([k])=>['statistics','chart','trades','holders','fees'].includes(k));if(!entries.length)return 'Statistics Not Ready';const providers=[...new Set(entries.map(([,s])=>s.provider==='dune'?'Dune':'Indexer'))];const oldest=Math.min(...entries.map(([,s])=>s.asOf));q('[data-detail-source]').title=entries.map(([k,s])=>`${k}: ${s.provider} · ${new Date(s.asOf*1000).toLocaleString()} · block ${s.blockNumber}`).join(' | ');return `${state==='loading'?'Refreshing · ':state==='error'||state==='pending'?'Refresh Failed · Showing Cached Data · ':''}${providers.join(' + ')} · Updated ${new Date(oldest*1000).toLocaleTimeString()} · Historical data`;};
+ const sourceLabel=()=>{if(!data)return stateText();if(data.confirmation==='confirmed')return '';const entries=Object.entries({...data.sources,...activity?.sources}).filter(([k])=>['statistics','chart','trades','holders','fees'].includes(k));if(!entries.length)return 'Statistics Not Ready';const providers=[...new Set(entries.map(([,s])=>s.provider==='dune'?'Dune':'Indexer'))];const oldest=Math.min(...entries.map(([,s])=>s.asOf));q('[data-detail-source]').title=entries.map(([k,s])=>`${k}: ${s.provider} · ${new Date(s.asOf*1000).toLocaleString()} · block ${s.blockNumber}`).join(' | ');return `${state==='loading'?'Refreshing · ':state==='error'||state==='pending'?'Refresh Failed · Showing Cached Data · ':''}${providers.join(' + ')} · Updated ${new Date(oldest*1000).toLocaleTimeString()} · Historical data`;};
  let drawnChartKey='';
  const draw=(force=false)=>{
   const canvas=q<HTMLCanvasElement>('[data-detail-chart] canvas'),ctx=canvas.getContext('2d');if(!ctx)return;
@@ -70,12 +72,12 @@ export function mountTokenDetail(root:HTMLElement,base:string|null,chain:number,
  };
  const render=()=>{
   const stats=data?.statistics,h=overview.holders?{...overview.holders,totalSupplyRaw:overview.supply??'0'}:data?.holders;
-  const exactPrice=overview.price??stats?.price; text('[data-detail-price]',compactPrice(exactPrice));q('[data-detail-price]').title=exactPrice??'';text('[data-detail-price-unit]',id?`Price (${id.quoteSymbol})`:'Price');
+  const exactPrice=(data?.sources.statistics?.asOf??0)>(overview.asOf??0)?stats?.price??overview.price:overview.price??stats?.price; text('[data-detail-price]',compactPrice(exactPrice));q('[data-detail-price]').title=exactPrice??'';text('[data-detail-price-unit]',id?`Price (${id.quoteSymbol})`:'Price');
   const volume=overview.volume24h??stats?.volume24h;
   text('[data-detail-volume]',volume!==null&&volume!==undefined&&id?`${displayDecimal(volume,6)} ${id.quoteSymbol}`:'-');
-  text('[data-detail-holders]',h?h.count.toLocaleString():'-');text('[data-detail-circulating]',h?amount(data?.holders?.circulatingSupplyRaw??h.totalSupplyRaw,18):overview.supply!==undefined?amount(overview.supply,18):'-');
+  text('[data-detail-holders]',h?h.count.toLocaleString():'-');const supply=(data?.sources.holders?.asOf??0)>(overview.asOf??0)?data?.holders?.totalSupplyRaw??overview.supply:overview.supply??data?.holders?.totalSupplyRaw;text('[data-detail-circulating]',supply!==undefined?amount(supply,18):'-');
   if(overview.maximum!==undefined)text('[data-detail-supply]',amount(overview.maximum,18));
-  const cap=marketCapUsd(data?.holders?.circulatingSupplyRaw??overview.supply,overview.price??stats?.price??undefined,overview.usd);text('[data-detail-cap]',cap!==null?`$${displayDecimal(cap,2)}`:'-');
+  const cap=marketCapUsd(supply,exactPrice??undefined,overview.usd);text('[data-detail-cap]',cap!==null?`$${displayDecimal(cap,2)}`:'-');
   renderChartChange();
   const visibleTrades=activity?.trades??data?.trades??[];
   const tradesKey=JSON.stringify([id?.marketId,activity?.trades??data?.trades,tradeLimit,activity?.trades||data?.trades?null:state]);
@@ -95,6 +97,8 @@ export function mountTokenDetail(root:HTMLElement,base:string|null,chain:number,
  const refreshChart=async(force=false)=>{
   if(!id||!base)return;
   const identity=id,chosen=period,asOf=chartTime();
+  const initial=data&&data.period===chosen?creationReceiptChart(data,chosen):null;
+  if(initial){chartGeneration++;chartRequest?.abort();chartRequest=null;chartData=initial;chartState='ready';renderChartChange();draw();return;}
   if(!asOf){chartState='loading';chartData=null;draw();return;}
   if(Date.now()/1000-asOf>1200||asOf>Date.now()/1000+30){chartState='error';chartData=null;renderChartChange();draw();return;}
   const key=chartKeyFor(identity,chosen,asOf);
@@ -105,9 +109,9 @@ export function mountTokenDetail(root:HTMLElement,base:string|null,chain:number,
   chartData=cached&&cached.until>Date.now()?cached.value:null;chartState='loading';renderChartChange();draw();
   const abort=new AbortController();chartRequest=abort;const timer=setTimeout(()=>abort.abort(),12000);
   try{
-   const next=await loadDetailChart(base,chain,identity,chosen,asOf,abort.signal);
+   const next=await loadDetailChart(base,chain,identity,chosen,asOf,abort.signal,fetch,data?.confirmation==='confirmed');
    if(own!==chartGeneration||abort.signal.aborted||id!==identity||period!==chosen)return;
-   chartCache.set(key,{value:next,until:(asOf+1200)*1000});
+   chartCache.set(key,{value:next,until:Math.min(Date.now()+15000,(asOf+1200)*1000)});
    if(chartCache.size>12)chartCache.delete(chartCache.keys().next().value!);
    chartData=next;chartState='ready';renderChartChange();draw();
   }catch{if(own===chartGeneration){chartState=data?.confirmation==='confirmed'?'pending':'error';renderChartChange();draw();}}
@@ -124,7 +128,8 @@ export function mountTokenDetail(root:HTMLElement,base:string|null,chain:number,
   const result=api.getTokenDetail({marketId:marketId as `0x${string}`,period:'1H'}).then(value=>({value}),error=>({error})).finally(()=>clearTimeout(timer));
   prefetchRequest={marketId,abort,result};
  };
- const refresh=async(force=false)=>{
+ let summaryPending:Promise<void>|null=null;
+ const runRefresh=async(force=false)=>{
   const requestedKey=id?`${id.marketId}:summary`:'';
   if(controller&&activeKey===requestedKey&&!controller.signal.aborted)return;
   if(!id||!base){data=null;state=id?'error':'loading';if(id&&!base){chartData=null;chartState='error';renderChartChange();}render();return;}
@@ -144,24 +149,49 @@ export function mountTokenDetail(root:HTMLElement,base:string|null,chain:number,
    finally{abort.signal.removeEventListener('abort',cancel);}
 
    const next=validateTokenDetail(raw,chain,identity,chosen);if(own!==generation||abort.signal.aborted)return;
+   if(data?.confirmation==='confirmed'&&next.confirmation!=='confirmed'&&BigInt(next.sources.trades?.blockNumber??'0')<BigInt(data.sources.trades?.blockNumber??'0')){state='ready';return;}
    const changed=JSON.stringify(data)!==JSON.stringify(next);data=next;state='ready';const times=Object.values(next.sources).map(s=>s.asOf);
    const until=times.length?(Math.min(...times)+1200)*1000:Date.now()+30000;
    activityLoader?.seed();
    if(activity&&next.sources.trades&&BigInt(next.sources.trades.blockNumber)>=BigInt(activity.sources.trades!.blockNumber))activity=null;
-   cache.set(key,{data:next,until,refreshAt:Math.min(Date.now()+(next.confirmation==='confirmed'?5000:600000),until)});
-   if(next.chart&&next.sources.chart){chartCache.set(chartKeyFor(identity,chosen,next.sources.chart.asOf),{value:next.chart,until:(next.sources.chart.asOf+1200)*1000});}
+   cache.set(key,{data:next,until,refreshAt:Math.min(Date.now()+(next.confirmation==='confirmed'?5000:15000),until)});
+   if(next.chart&&next.sources.chart){chartCache.set(chartKeyFor(identity,chosen,next.sources.chart.asOf),{value:next.chart,until:Math.min(Date.now()+15000,(next.sources.chart.asOf+1200)*1000)});}
    if(changed)render();else text('[data-detail-source]',sourceLabel());
    void refreshChart();
    expiry=setTimeout(()=>{if(own===generation){data=null;state='pending';render();}},Math.max(0,(times.length?Math.min(...times)*1000+1200000:until)-Date.now()));
   }catch(error){if(own===generation){state=error instanceof TickerGardenApiError&&error.status===503&&error.body.error==='analytics_unavailable'?'pending':'error';render();}}
   finally{clearTimeout(timer);if(own===generation)controller=null;}
  };
+ const refresh=(force=false):Promise<void>=>{if(summaryPending)return summaryPending;const pending=runRefresh(force).finally(()=>{if(summaryPending===pending)summaryPending=null;});summaryPending=pending;return pending;};
  for(const b of root.querySelectorAll<HTMLButtonElement>('[data-detail-period]'))b.onclick=()=>{if(period===b.dataset.detailPeriod&&chartState!=='error')return;period=b.dataset.detailPeriod as DetailPeriod;root.querySelectorAll('[data-detail-period]').forEach(v=>{v.classList.toggle('active',v===b);v.setAttribute('aria-pressed',String(v===b));});void refreshChart();};
  q('[data-detail-more-trades]').onclick=()=>{if(id)window.open(`${explorer}/token/${id.memeToken}?tab=token_transfers`,'_blank','noopener,noreferrer');};q('[data-detail-more-holders]').onclick=()=>{if(id)window.open(`${explorer}/token/${id.memeToken}?tab=holders`,'_blank','noopener,noreferrer');};
- // Statistical analytics are intentionally refreshed every 10 minutes; this is
- // independent from live transaction, position, reward, and pricing refreshes.
- const observer=new ResizeObserver(()=>draw());observer.observe(q('[data-detail-chart]'));const timer=setInterval(()=>{if(activity&&Date.now()/1000-(activity.sources.trades?.asOf??0)>1200){activity=null;render();}if(id&&document.visibilityState==='visible'&&navigator.onLine){void refresh();void activityLoader?.refresh();void refreshChart();}},30000);
- const visibility=()=>{if(document.visibilityState==='visible'&&navigator.onLine){void refresh();void activityLoader?.refresh();void refreshChart();}else{generation++;controller?.abort();controller=null;chartGeneration++;chartRequest?.abort();chartRequest=null;}};
- document.addEventListener('visibilitychange',visibility);window.addEventListener('online',visibility);window.addEventListener('offline',visibility);
- render();return{refresh,prefetch,receipt(hash:string){activityLoader?.receipt(hash);},setMarket(value:DetailIdentity|null){if(id?.marketId!==value?.marketId){activityLoader?.stop();activityLoader=null;activity=null;generation++;controller?.abort();controller=null;clearTimeout(expiry);if(value&&prefetchRequest?.marketId!==value.marketId){prefetchRequest?.abort.abort();prefetchRequest=null;}cache.clear();chartCache.clear();chartGeneration++;chartRequest?.abort();chartRequest=null;chartData=null;chartState='loading';data=null;recentTrades=[];chartTrades=[];feeTotals=null;feeTotalsAt=0;}overview={};tradePrice=null;id=value;if(id&&base&&!activityLoader)activityLoader=createDetailActivity(base,chain,id,value=>{activity=value;render();});fees=null;tradeLimit=20;holderLimit=20;void refresh();},setChartTrades(_value:readonly TokenDetailTrade[]){/* Database chart only. */},addRecentTrades(_value:readonly TokenDetailTrade[]){/* Database activity only. */},setTradePrice(_value:string|null){/* Quotes belong only to the transaction form. */},setOverview(value:MarketOverview){const next={...overview,...value};if(JSON.stringify(next)===JSON.stringify(overview))return;const chartTimeChanged=next.asOf!==overview.asOf;overview=next;render();if(chartTimeChanged)void refreshChart();},setUnavailable(publicationPending=false){activityLoader?.stop();activityLoader=null;activity=null;prefetchRequest?.abort.abort();prefetchRequest=null;generation++;controller?.abort();controller=null;chartGeneration++;chartRequest?.abort();chartRequest=null;chartData=null;chartState=publicationPending?'pending':'error';data=null;state=publicationPending?'pending':'error';clearTimeout(expiry);render();},setFeeTotals(value:readonly TokenDetailFee[]){feeTotals=value;feeTotalsAt=Date.now();renderFees();},setFeeConfig(value:FeeConfig|null){if(JSON.stringify(fees)===JSON.stringify(value))return;fees=value;renderFees();},stop(){activityLoader?.stop();prefetchRequest?.abort.abort();prefetchRequest=null;generation++;controller?.abort();chartGeneration++;chartRequest?.abort();clearInterval(timer);clearTimeout(expiry);document.removeEventListener('visibilitychange',visibility);window.removeEventListener('online',visibility);window.removeEventListener('offline',visibility);observer.disconnect();id=null;data=null;}};
+ // One market stream fans out scoped invalidations; no independent fast timers.
+ const updateRegions=async(regions:readonly DetailRegion[])=>{
+  if(!id||!base)return;
+  const identity=id,chosen=period;
+  if(summaryPending)await summaryPending;
+  if(id!==identity)return;
+  const selected=regions.filter(r=>!['market','staking'].includes(r));
+  if(regions.includes('market')||regions.includes('staking'))root.dispatchEvent(new CustomEvent('market-regions',{detail:{marketId:identity.marketId,regions}}));
+  if(!selected.length)return;
+  partialAbort?.abort();const abort=new AbortController();partialAbort=abort;const timeout=setTimeout(()=>abort.abort(),12000);
+  try{
+   const response=await fetch(`${base.replace(/\/$/,'')}/v1/markets/${identity.marketId}/detail?period=${chosen}&section=${selected.join(',')}`,{signal:abort.signal});
+   if(!response.ok)throw Error('Detail refresh unavailable');
+   const next=validateTokenDetail(await response.json(),chain,identity,chosen);
+   if(id!==identity||abort.signal.aborted)return;
+   if(data?.confirmation==='confirmed'&&next.confirmation!=='confirmed'&&Math.max(...Object.values(next.sources).map(s=>Number(s.blockNumber)),0)<Math.max(...Object.values(data.sources).map(s=>Number(s.blockNumber)),0))return;
+   // A notification supersedes an older initial fetch, but never clears other sections.
+   generation++;controller?.abort();controller=null;prefetchRequest?.abort.abort();prefetchRequest=null;
+   const merged={...(data??next),sources:{...data?.sources,...next.sources},reasons:{...data?.reasons,...next.reasons}};
+   for(const key of selected as Array<'statistics'|'chart'|'trades'|'holders'|'fees'>){merged[key]=next[key] as never;}
+   if(selected.includes('chart'))merged.period=chosen;
+   merged.confirmation=next.confirmation;data=merged;activity=null;state='ready';
+   cache.set(`${identity.marketId}:summary`,{data:merged,until:Date.now()+1200000,refreshAt:Date.now()+60000});
+   if(selected.includes('chart')&&period===chosen){chartGeneration++;chartRequest?.abort();chartRequest=null;chartData=next.chart;chartState=next.chart?'ready':'pending';chartCache.clear();}
+   render();
+  }finally{clearTimeout(timeout);if(partialAbort===abort)partialAbort=null;}
+ };
+ const observer=new ResizeObserver(()=>draw());observer.observe(q('[data-detail-chart]'));
+ render();return{refresh,prefetch,receipt(hash:string){activityLoader?.receipt(hash);},setMarket(value:DetailIdentity|null){if(id?.marketId!==value?.marketId){changes?.stop();changes=null;partialAbort?.abort();summaryPending=null;activityLoader?.stop();activityLoader=null;activity=null;generation++;controller?.abort();controller=null;clearTimeout(expiry);if(value&&prefetchRequest?.marketId!==value.marketId){prefetchRequest?.abort.abort();prefetchRequest=null;}cache.clear();chartCache.clear();chartGeneration++;chartRequest?.abort();chartRequest=null;chartData=null;chartState='loading';data=null;recentTrades=[];chartTrades=[];feeTotals=null;feeTotalsAt=0;}overview={};tradePrice=null;id=value;if(id&&base&&!activityLoader)activityLoader=createDetailActivity(base,chain,id,value=>{if(data?.confirmation==='confirmed'&&value.confirmation!=='confirmed'&&BigInt(value.sources.trades?.blockNumber??'0')<BigInt(data.sources.trades?.blockNumber??'0'))return;activity=value;render();});if(id&&base&&!changes)changes=watchMarketChanges(base,id.marketId,updateRegions);fees=null;tradeLimit=20;holderLimit=20;void refresh();},setChartTrades(_value:readonly TokenDetailTrade[]){/* Database chart only. */},addRecentTrades(_value:readonly TokenDetailTrade[]){/* Database activity only. */},setTradePrice(_value:string|null){/* Quotes belong only to the transaction form. */},setOverview(value:MarketOverview){const next={...overview,...value};if(JSON.stringify(next)===JSON.stringify(overview))return;const chartTimeChanged=next.asOf!==overview.asOf;overview=next;render();if(chartTimeChanged&&!chartData&&!chartRequest)void refreshChart();},setUnavailable(publicationPending=false){changes?.stop();changes=null;partialAbort?.abort();activityLoader?.stop();activityLoader=null;activity=null;prefetchRequest?.abort.abort();prefetchRequest=null;generation++;controller?.abort();controller=null;chartGeneration++;chartRequest?.abort();chartRequest=null;chartData=null;chartState=publicationPending?'pending':'error';data=null;state=publicationPending?'pending':'error';clearTimeout(expiry);render();},setFeeTotals(value:readonly TokenDetailFee[]){feeTotals=value;feeTotalsAt=Date.now();renderFees();},setFeeConfig(value:FeeConfig|null){if(JSON.stringify(fees)===JSON.stringify(value))return;fees=value;renderFees();},stop(){changes?.stop();partialAbort?.abort();activityLoader?.stop();prefetchRequest?.abort.abort();prefetchRequest=null;generation++;controller?.abort();chartGeneration++;chartRequest?.abort();clearTimeout(expiry);observer.disconnect();id=null;data=null;}};
 }

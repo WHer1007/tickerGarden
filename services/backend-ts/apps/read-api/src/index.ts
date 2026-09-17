@@ -1,3 +1,7 @@
+import {createMarketEvents} from './market-events.ts';
+import {readMarketPageBootstrap} from '../../../packages/confirmed-display/src/read.ts';
+import {getConversionQuote,assertConversionIntent,type ConversionIntent,TRADE_NATIVE,TRADE_USDG} from '../../../packages/chain/src/quote-purchase/zeroex.ts';
+import {routes as conversionStocks} from '../../../packages/chain/src/quote-purchase/routes.ts';
 import {quotePurchase} from '../../../packages/chain/src/quote-purchase/quote.ts';
 import {rpcPolicy} from '../../../packages/chain/src/rpc-policy.ts';
 import {CURRENT_CHAIN_ID,assertRuntimeEnvironment} from '../../../packages/runtime-deployment/src/index.ts';
@@ -40,6 +44,8 @@ export function createReadApiApp(options: ReadApiOptions = {}) {
   let ownedPool: Pool | undefined;
   const pool = () => ownedPool ??= options.pool ?? createDatabasePool(env.TG_READ_DATABASE_URL ?? '', {}, {role:'read-api',env}).pool;
   const schemaName = env.TG_DATABASE_SCHEMA;
+  let eventPool:Pool|undefined;
+  const marketEvents=createMarketEvents(()=>eventPool??=options.pool??createDatabasePool(env.TG_READ_DATABASE_URL??'',{max:1},{role:'market-events',env}).pool,deployment,schemaName);
   // Share only in-flight public version reads. Never cache finality decisions.
   const updateReads = new Map<string,Promise<unknown>>();
   const shareRead = createReadAdmission({ concurrency: 8, maxPending: 128,
@@ -63,12 +69,11 @@ export function createReadApiApp(options: ReadApiOptions = {}) {
     const dynamicRanking = path==='/v1/markets'&&['marketCapUsd_desc','recentBuy_desc'].includes(context.req.query('sort')??'');
     const immutableRevision = context.res.status >= 200 && context.res.status < 300
       && typeof revision === 'string' && /^(0|[1-9][0-9]*):0x[0-9a-f]{64}$/.test(revision);
-    context.header('cache-control', context.res.status < 200 || context.res.status >= 300 || privateRead || path==='/v1/quote-purchase' || activity || context.req.query('includeRecent')==='true' || path.endsWith('/updates') || dynamicRanking || path==='/v1/protocol-statistics'
+    context.header('cache-control', context.res.status < 200 || context.res.status >= 300 || privateRead || priceCatalog || (path==='/v1/quote-purchase'||path==='/v1/trade-conversion') || path.endsWith('/events') || path.endsWith('/page') || path.endsWith('/detail') || activity || context.req.query('includeRecent')==='true' || path.endsWith('/updates') || dynamicRanking || path==='/v1/protocol-statistics'
       ? 'no-store'
       : immutableRevision
         ? 'public, max-age=300, s-maxage=31536000, immutable'
-        : priceCatalog
-          ? 'public, max-age=60, s-maxage=300, stale-while-revalidate=60'
+
         : 'public, max-age=5, s-maxage=15, stale-while-revalidate=30');
   });
 
@@ -84,6 +89,21 @@ export function createReadApiApp(options: ReadApiOptions = {}) {
       return context.json(result);
     }catch{return context.json({error:'quote_unavailable',message:'This purchase could not be quoted. Try again shortly.'},503);}
   });
+
+  app.get('/v1/trade-conversion',async context=>{
+    const q=context.req.query();
+    try {
+      if(Object.keys(q).some(k=>!['chainId','sellToken','buyToken','sellAmount','taker'].includes(k)))throw Error();
+      const intent={...q,chainId:Number(q.chainId)} as ConversionIntent;assertConversionIntent(intent);
+      if(deployment.chainId!==4663||![TRADE_NATIVE,TRADE_USDG,...Object.keys(conversionStocks)].includes(intent.buyToken.toLowerCase()))throw Error();
+    }catch{return context.json({error:'invalid_query',message:'Choose a supported payment asset and amount.'},400);}
+    try {
+      const intent={...q,chainId:4663} as ConversionIntent;
+      const result=await purchaseReads('conversion:'+JSON.stringify(intent),()=>getConversionQuote(intent,env.ZEROX_API_KEY??''));
+      return context.json(result);
+    }catch{return context.json({error:'conversion_unavailable',message:'This payment route is unavailable. Try again or pay with the paired asset.'},503);}
+  });
+  app.all('/v1/trade-conversion',context=>{context.header('cache-control','no-store');return context.json({error:'method_not_allowed',message:'Use GET.'},405);});
 
   app.all('/v1/quote-purchase',context=>context.json({error:'method_not_allowed',message:'Use GET.'},405));
 
@@ -145,6 +165,13 @@ export function createReadApiApp(options: ReadApiOptions = {}) {
       }
       return context.json(await pending);
     } catch (error) { return readError(context, error, deployment); }
+  });
+
+  app.get('/v1/markets/:marketId/events',async context=>{try{return await marketEvents(context,parseMarketId(context.req.param('marketId')));}catch{return context.json({error:'events_unavailable'},503);}});
+
+  app.get('/v1/markets/:marketId/page',async context=>{
+    try{rejectUnknown(context.req.query(),[]);const marketId=parseMarketId(context.req.param('marketId'));const page=await shareRead(analyticsReadKey('market-page',context,deployment,marketId),()=>readMarketPageBootstrap(pool(),deployment,marketId,schemaName));return page?context.json(page):context.json({error:'market_not_found',message:'Market details are not ready'},404);}
+    catch(error){return readError(context,error,deployment);}
   });
 
   app.get('/v1/markets/:marketId', async (context) => {
@@ -290,11 +317,11 @@ export function createReadApiApp(options: ReadApiOptions = {}) {
   app.get('/v1/markets/:marketId/detail', async (context) => {
     try {
       const query = context.req.query(); rejectUnknown(query, ['period','section']);
-      if(query.section!==undefined&&query.section!=='activity')throw new Error('invalid detail section');
+      if(query.section!==undefined&&!/^(activity|statistics|chart|trades|holders|fees)(,(statistics|chart|trades|holders|fees))*$/.test(query.section))throw new Error('invalid detail section');
       const period = query.period ?? '1D'; if (period !== '1H' && period !== '12H' && period !== '1D') throw new Error('invalid detail period');
       const marketId = parseMarketId(context.req.param('marketId'));
       return context.json(await shareRead(analyticsReadKey('detail', context, deployment, marketId), () => readTokenDetail({ pool: pool(), deployment, marketId, period,
-        ...(query.section==='activity'?{section:'activity' as const}:{}),
+        ...(query.section?{section:query.section}:{}),
         ...(schemaName ? { schemaName } : {}) })));
     } catch (error) { return analyticsError(context, error, 'candle'); }
   });

@@ -2,6 +2,7 @@ import { TickerGardenV1Client, type DisplayPriceReference, type DisplayPriceResp
 
 const ADDRESS = /^0x[0-9a-f]{40}$/;
 const DECIMAL = /^(0|[1-9][0-9]{0,119})(\.[0-9]{1,36})?$/;
+const MAX_PRICE_REFERENCES = 256;
 
 export type AssetPrice = Readonly<{
   token: `0x${string}`;
@@ -71,7 +72,7 @@ export function parseAssetPriceSnapshot(payload: unknown, chainId: number, now =
   if (!payload || typeof payload !== 'object' || Array.isArray(payload)) return empty();
   const value = payload as DisplayPriceResponse;
   if (value.chainId !== chainId || value.displayOnly !== true || value.confidence !== 'provider_reported' || value.status !== 'configured'
-    || !Array.isArray(value.references) || value.references.length > 64) return empty();
+    || !Array.isArray(value.references) || value.references.length > MAX_PRICE_REFERENCES) return empty();
   const prices: Record<string, AssetPrice> = {}; const duplicates = new Set<string>(); let updatedAt: number | null = null;
   for (const raw of value.references) {
     const parsed = parseReference(raw, chainId, now); if (!parsed || duplicates.has(parsed.token)) continue;

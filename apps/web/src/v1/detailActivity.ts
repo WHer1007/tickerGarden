@@ -7,7 +7,7 @@ export function createDetailActivity(base:string,chain:number,id:DetailIdentity,
  const refresh=(force=false):Promise<boolean>=>{
   if(stopped)return Promise.resolve(false);
   if(pending)return pending;
-  if(!force&&Date.now()-lastRead<30000)return Promise.resolve(false);
+  if(!force&&Date.now()-lastRead<10000)return Promise.resolve(false);
   const abort=new AbortController();controller=abort;const deadline=setTimeout(()=>abort.abort(),12000);
   const api=new TickerGardenV1Client(base,(input,init)=>transport(input,{...init,signal:abort.signal}));
   pending=api.getTokenDetail({marketId:id.marketId,period:'1H',section:'activity'}).then(raw=>{

@@ -42,7 +42,7 @@ test('creation analytics includes initial mint and buy without any finalized jou
   log('TickerMemeTokenV1','Transfer',token,{from:curve,to:buyer,value:amount},1),
   log('TickerGardenCurve','CurveBuy',curve,{buyer,recipient:buyer,quoteIn:10n**16n,tokensOut:amount,fee:0n,tax:0n},2)];
  const receipt={logs};const result=creationDetail([receipt,receipt],market,1000n,46630);
- assert.equal(result.confirmation,'confirmed');assert.equal(result.holders.count,1);assert.equal(result.holders.circulatingSupplyRaw,amount.toString());assert.equal(result.trades.length,1);assert.equal(result.trades[0]?.price,'0.01');assert.equal(result.statistics,null);
+ assert.equal(result.confirmation,'confirmed');assert.equal(result.holders.count,1);assert.equal(result.holders.circulatingSupplyRaw,amount.toString());assert.equal(result.trades.length,1);assert.equal(result.trades[0]?.price,'0.01');assert.equal(result.statistics.price,'0.01');assert.equal(result.statistics.volume24h,'0.01');assert.equal(result.statistics.volumeTo,1000);
  assert.throws(()=>creationDetail([receipt,{logs:logs.slice(0,1)}],market,1000n,46630),/complete launch receipt/);
  const altered=[...logs];altered[0]=log('TickerMemeTokenV1','Transfer',token,{from:address('0'),to:buyer,value:BigInt(supply)},0);
  assert.throws(()=>creationDetail([{logs:altered},{logs:altered}],market,1000n,46630),/initial mint/);

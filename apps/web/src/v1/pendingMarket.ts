@@ -19,8 +19,12 @@ export async function readPublishedMarket(
  return detail;
 }
 
-export const MARKET_PUBLICATION_PENDING = 'This market is not in the published data yet. Check the link, or wait if the token was just created. This page updates automatically.';
-export const LAUNCH_CONFIRMED_COPY = 'Your token is live on-chain. Market data is syncing and will appear automatically once indexing is complete.';
+export const MARKET_PUBLICATION_PENDING = 'Market details are being prepared. This page will update automatically. You do not need to launch again.';
+
+export function marketIdentityPending(market:Pick<MarketDetailResponse['market'],'identity'>):boolean {
+ return !market.identity;
+}
+export const LAUNCH_CONFIRMED_COPY = 'Your token is live.';
 
 // This only requests backend verification. It never sends market fields or
 // copies receipt-derived statistics into the page.

@@ -5,7 +5,7 @@ export default {
   title: 'Launch a token — TickerGarden',
   html: `
 <main class="page">
-      <h1 class="sr-only">Launch a token</h1>
+      <h1 class="sr-only" data-create-heading>Launch a token</h1>
       <section class="panel listing-package" data-listing-package aria-label="Created token information" hidden></section>
       <div class="create-layout">
         <form class="panel launch-form" data-create-form>

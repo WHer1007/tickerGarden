@@ -10,17 +10,17 @@ test('mainnet cold start binds modules and bootstrap to the actual deployed rele
  execFileSync(process.execPath,['--experimental-strip-types','--input-type=module','-e',code],{env:{...process.env,TG_ENVIRONMENT:'production',TG_CHAIN_ID:'4663',VERCEL_ENV:'production'},stdio:'pipe'});
 });
 
-test('mainnet prices cover 194 targets in bounded batches without testnet RPC', () => {
+test('mainnet prices cover all 194 Stocks and ETH in one provider snapshot without projects or testnet RPC', () => {
  const code = `import assert from 'node:assert/strict';
  import {f72PriceTargets,fetchRuntimePriceReferences} from './packages/display-price/src/index.ts';
- let assetRequests=0;
+ let assetRequests=0,quoteRequests=0,ethRequests=0;
  const fetcher=async(input)=>{const url=new URL(String(input));
- if(url.hostname==='api.coinbase.com'){assert.ok(!url.pathname.includes('USDG'));const base=url.pathname.includes('ETH-USD')?'ETH':'USDG';return Response.json({data:{base,currency:'USD',amount:base==='ETH'?'2000':'1.001'}});}
+ if(url.hostname==='api.coinbase.com'){ethRequests++;assert.ok(!url.pathname.includes('USDG'));const base=url.pathname.includes('ETH-USD')?'ETH':'USDG';return Response.json({data:{base,currency:'USD',amount:base==='ETH'?'2000':'1.001'}});}
  if(url.pathname.endsWith('/assets')){assetRequests++;return Response.json({assets:[]});}
  if(url.pathname.endsWith('/corporate-actions'))return Response.json({corpActions:[]});
- return Response.json({quotes:[]});};
+ quoteRequests++;return Response.json({quotes:[]});};
  const rows=await fetchRuntimePriceReferences(f72PriceTargets(),{fetcher,rpc:{request:async()=>{throw Error('must not call testnet RPC')}}});
- assert.equal(rows.length,196);assert.equal(assetRequests,4);
+ assert.equal(rows.length,196);assert.equal(assetRequests,1);assert.equal(quoteRequests,1);assert.equal(ethRequests,1);
  assert.ok(rows.filter(r=>r.source==='robinhood_rest').every(r=>r.status==='unavailable'));
  assert.equal(rows.find(r=>r.symbol==='ETH').bidUsd,'2000');
  assert.equal(rows.find(r=>r.symbol==='USDG').bidUsd,'1');assert.equal(rows.find(r=>r.symbol==='USDG').source,'fixed_usd');`;

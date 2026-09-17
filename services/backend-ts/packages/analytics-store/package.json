@@ -9,6 +9,7 @@
     "@tickergarden/chain": "0.0.0",
     "@tickergarden/db": "0.0.0",
     "@tickergarden/read-store": "0.0.0",
-    "pg": "^8.23.0"
+    "pg": "^8.23.0",
+    "@tickergarden/confirmed-display": "0.0.0"
   }
 }

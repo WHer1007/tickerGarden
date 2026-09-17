@@ -1,3 +1,4 @@
+import {prepareCreatedMarket} from '../v1/createdMarket.ts';
 import {recordLaunchFailure,launchFailureMessage,type LaunchOperation} from '../create/launch-diagnostics.ts';
 import {createConfirmationAsset} from '../create/confirmation-asset.ts';
 import {quoteIconUrl} from '../create/quote-icons.ts';
@@ -74,12 +75,11 @@ let previewState: "idle"|"loading"|"ready"|"error"="idle";
 function drawLaunchProgress():void{
  if(!ctx.launchProgress)return;
  const display=ctx.launchProgress.phase==='paused'&&!ctx.launchProgress.hash?{step:'Confirm in wallet',percent:60}:launchPhaseDisplay[ctx.launchProgress.phase==='failed'?(ctx.launchProgress.failedFrom??'failed'):ctx.launchProgress.phase];
- const purchasePending=localStorage.getItem(purchaseStateKey(ctx.launchProgress.account));
  const rawLogo=ctx.launchProgress.listing?.logo??'';
  const logo=ipfsGatewayURL(rawLogo,import.meta.env.VITE_IPFS_GATEWAY)??(/^data:image\/(?:png|jpeg|webp);base64,/i.test(rawLogo)?rawLogo:undefined);
- renderLaunchProgress({title:ctx.launchProgress.phase==='complete'?'Launch Successful':ctx.launchProgress.phase==='confirming'?'Token Created':ctx.launchProgress.phase==='pending'?'Launch Submitted':ctx.launchProgress.phase==='failed'?'Launch Stopped':'Launching Your Token',...display,detail:['failed','paused'].includes(ctx.launchProgress.phase)&&ctx.launchProgress.diagnostic?launchFailureMessage(ctx.launchProgress.diagnostic.code,ctx.launchProgress.diagnostic.phase,ctx.launchProgress.diagnostic.transactionMayBePending):ctx.launchProgress.phase==='failed'?publicError(undefined,'transaction'):ctx.launchProgress.detail,supportDetails:['failed','paused'].includes(ctx.launchProgress.phase)&&ctx.launchProgress.diagnostic?JSON.stringify(ctx.launchProgress.diagnostic,null,2):undefined,hash:ctx.launchProgress.hash,
-  explorer:ctx.launchProgress.hash?`${robinhoodChain.blockExplorers.default.url}/tx/${ctx.launchProgress.hash}`:'',needsHash:Boolean(purchasePending)||ctx.launchProgress.phase==='paused'||(ctx.launchProgress.phase==='wallet'&&!ctx.launchSubmitting),canDismiss:ctx.launchProgress.phase==='failed',outcome:ctx.launchProgress.phase==='complete',complete:ctx.launchProgress.phase==='complete',tokenName:ctx.launchProgress.listing?.name,tokenSymbol:ctx.launchProgress.listing?.symbol,tokenLogo:logo},
- {onViewToken:()=>{if(ctx.launchProgress?.phase==='complete')navigateCompletedLaunch(ctx.launchProgress);},onHash:hash=>{if(!ctx.launchProgress||ctx.launchSubmitting)return;if(purchasePending){void recoverProvidedPurchaseHash(hash);return;}ctx.launchProgress.hash=hash;updateLaunchProgress('pending','Checking the transaction you provided…');void restoreLaunchProgress();},
+ renderLaunchProgress({title:ctx.launchProgress.phase==='complete'?'Launch Successful':ctx.launchProgress.phase==='confirming'?'Token Created':ctx.launchProgress.phase==='pending'?'Launch Submitted':ctx.launchProgress.phase==='failed'?'Launch Stopped':'Launching Your Token',...display,detail:['failed','paused'].includes(ctx.launchProgress.phase)&&ctx.launchProgress.diagnostic?launchFailureMessage(ctx.launchProgress.diagnostic.code,ctx.launchProgress.diagnostic.phase,ctx.launchProgress.diagnostic.transactionMayBePending):ctx.launchProgress.phase==='failed'?publicError(undefined,'transaction'):ctx.launchProgress.detail,supportDetails:['failed','paused'].includes(ctx.launchProgress.phase)&&ctx.launchProgress.diagnostic?JSON.stringify(ctx.launchProgress.diagnostic,null,2):undefined,
+  canDismiss:ctx.launchProgress.phase==='failed',outcome:ctx.launchProgress.phase==='complete',complete:ctx.launchProgress.phase==='complete',tokenName:ctx.launchProgress.listing?.name,tokenSymbol:ctx.launchProgress.listing?.symbol,tokenLogo:logo},
+ {onViewToken:()=>{if(ctx.launchProgress?.phase==='complete')navigateCompletedLaunch(ctx.launchProgress);},
  onCreateNew:()=>{if(ctx.launchProgress?.phase!=='complete')return;const chainId=ctx.launchProgress.chainId;try{localStorage.removeItem(launchStateKey(chainId));localStorage.removeItem(`tg-listing:${chainId}`);}catch{}ctx.launchProgress=null;ctx.latestListing=null;closeLaunchProgress();window.location.assign('/create');},
  onDismiss:()=>{if(ctx.launchProgress?.phase!=='failed')return;localStorage.removeItem(launchStateKey(robinhoodChain.id));ctx.launchProgress=null;closeLaunchProgress();updateCreateAvailability();}});
 }
@@ -98,7 +98,7 @@ function handleLaunchTransactionUpdate(update:TransactionUpdate):void{
  else if(update.stage==='confirming')updateLaunchProgress('confirming','Transaction mined. Verifying your new token…');
  else if((update.stage==='simulating'||update.stage==='preflight')&&ctx.launchProgress.phase!=='approval')updateLaunchProgress('preparing','Preparing and checking your launch transaction…');
  else if(update.stage==='failed'&&['user_rejected','transaction_reverted','replacement_cancelled','simulation_failed'].includes(update.error?.code??''))updateLaunchProgress('failed',update.error?.message??'The transaction did not complete.');
- else if(update.stage==='unknown')updateLaunchProgress('paused','Confirmation is taking longer. Keep tracking this transaction; do not launch again.');
+ else if(update.stage==='unknown')updateLaunchProgress('paused','Confirmation is taking longer. We will check again automatically. Please do not launch again.');
 }
 
 function navigateCompletedLaunch(state:LaunchState):void{
@@ -110,10 +110,11 @@ function navigateCompletedLaunch(state:LaunchState):void{
  }
 }
 
-function finishRecoveredLaunch(state:LaunchState,receipt:TransactionReceipt):void{
+async function finishRecoveredLaunch(state:LaunchState,receipt:TransactionReceipt):Promise<void>{
  const expected=state.expected;if(!expected)throw Error('Saved launch identity is missing');
  assertRecoveredLaunchReceipt(state,receipt);
  ctx.directMarkets?.receipt(receipt);
+ await prepareCreatedMarket(ctx,receipt).catch(()=>{});
  if(state.listing){ctx.latestListing={snapshot:{...state.listing,txHash:receipt.transactionHash},marketId:expected.marketId};localStorage.setItem(`tg-listing:${robinhoodChain.id}`,JSON.stringify(ctx.latestListing));}
  // Clear only a matching executor journal, never an unrelated approval/trade.
  const key=`tickergarden:pending:${state.chainId}:${state.account.toLowerCase()}`;
@@ -131,7 +132,7 @@ async function restoreLaunchProgress():Promise<void>{
  if(ctx.launchSubmitting||ctx.launchRecoveryBusy)return;
  if(ctx.launchRecoveryTimer){clearTimeout(ctx.launchRecoveryTimer);ctx.launchRecoveryTimer=undefined;}
  try{ctx.launchProgress=readLaunchState(localStorage,robinhoodChain.id);}catch(error){
-  renderLaunchProgress({title:'Launch recovery needs attention',step:'Check saved launch',detail:publicError(error,'recovery'),percent:0,explorer:robinhoodChain.blockExplorers.default.url},{});return;
+  renderLaunchProgress({title:'Launch recovery needs attention',step:'Check saved launch',detail:publicError(error,'recovery'),percent:0},{});return;
  }
  const state=ctx.launchProgress;if(!state){closeLaunchProgress();updateCreateAvailability();return;}
  if(state.phase==='complete'&&state.expected){
@@ -156,7 +157,7 @@ async function restoreLaunchProgress():Promise<void>{
  }
  if(!state.hash){
   // A tab holding the launch lock may still be uploading or waiting on its wallet.
-  if(state.phase==='wallet'||state.phase==='paused')updateLaunchProgress('paused','This page was refreshed before the wallet returned a transaction hash. Check wallet activity and enter the launch hash below. Do not publish again.');
+  if(state.phase==='wallet'||state.phase==='paused')updateLaunchProgress('paused','Launch confirmation is not available yet. Check your wallet activity before trying again. Please do not launch again while confirmation is pending.');
   else updateLaunchProgress('failed','Preparation was interrupted before the launch was sent. Return to the form to continue. Any asset approval is a separate transaction.');
   return;
  }
@@ -174,9 +175,9 @@ async function restoreLaunchProgress():Promise<void>{
    const key=`tickergarden:pending:${state.chainId}:${state.account.toLowerCase()}`;
    const pending=JSON.parse(localStorage.getItem(key)??'null');if(pending?.intent===state.intent)localStorage.removeItem(key);
    updateLaunchProgress('failed',state.cancelled?'The launch transaction was cancelled.':'The launch transaction reverted. No token was created.');return;}
-  finishRecoveredLaunch(state,receipt);
+  await finishRecoveredLaunch(state,receipt);
  }catch{
-  updateLaunchProgress('paused',receiptFound?'A receipt was found, but it could not be matched to this launch. Check the launch hash in your wallet.':'Still checking this launch transaction. We will check again shortly. If your wallet replaced it, enter the new hash.');
+  updateLaunchProgress('paused',receiptFound?'We could not confirm this launch. Check your wallet activity or contact support before trying again.':'Your launch is still being confirmed. We will check again shortly.');
   if(!receiptFound)ctx.launchRecoveryTimer=setTimeout(()=>void restoreLaunchProgress(),10000);
  }finally{ctx.launchRecoveryBusy=false;}
 }
@@ -274,9 +275,10 @@ function showLatestListing(): void {
  const host=ctx.query<HTMLElement>("[data-listing-package]");
  if(host&&ctx.latestListing){
   renderListingPanel(host,ctx.latestListing.snapshot,ctx.latestListing.marketId,robinhoodChain.blockExplorers.default.url,robinhoodChain.testnet,import.meta.env.VITE_IPFS_GATEWAY,url=>{ctx.router.navigate(url);});
+  const heading=ctx.query<HTMLElement>("[data-create-heading]");if(heading)heading.hidden=true;
   const layout=ctx.query<HTMLElement>(".create-layout");if(layout)layout.hidden=true;
   const again=document.createElement('button');again.type='button';again.textContent='Launch another token';again.className='listing-create-another';host.append(again);
-  again.onclick=()=>{ctx.latestListing=null;try{localStorage.removeItem(`tg-listing:${robinhoodChain.id}`);}catch{}host.hidden=true;if(layout)layout.hidden=false;};
+  again.onclick=()=>{ctx.latestListing=null;try{localStorage.removeItem(`tg-listing:${robinhoodChain.id}`);}catch{}host.hidden=true;if(layout)layout.hidden=false;if(heading)heading.hidden=false;};
  }
 }
 
@@ -778,17 +780,6 @@ async function quoteDecimalsFor(selected: SelectedLaunchConfig): Promise<number>
 
 
 const purchaseStateKey=(account:string)=>`tg-quote-purchase:${robinhoodChain.id}:${account.toLowerCase()}`;
-async function recoverProvidedPurchaseHash(hash:string):Promise<void>{
- try{
-  const state=ctx.launchProgress;if(!state)return;
-  const key=purchaseStateKey(state.account),saved=JSON.parse(localStorage.getItem(key)??'null');
-  if(!saved)return;
-  const tx=await ctx.publicClient.getTransaction({hash:hash as Hash});
-  if(tx.from.toLowerCase()!==state.account.toLowerCase()||tx.to?.toLowerCase()!=='0x8876789976decbfcbbbe364623c63652db8c0904'||tx.input!==saved.data||String(tx.value)!==saved.value)throw Error('This transaction does not match the paired asset purchase.');
-  localStorage.setItem(key,JSON.stringify({...saved,hash}));await recoverQuotePurchase();
-  updateLaunchProgress('failed','Purchase checked. Return to the form to continue with your wallet balance.');
- }catch{ctx.notify('The purchase could not be confirmed. Check the transaction in your wallet and try again.','warning');}
-}
 async function recoverQuotePurchase():Promise<void>{
  const active=ctx.wallet;if(!active)return;
  const key=purchaseStateKey(active.account),raw=localStorage.getItem(key);if(!raw)return;
@@ -1022,6 +1013,7 @@ async function performLaunch(reviewedPurchase?:PurchaseQuote): Promise<void> {
         if (preview.params.lpFeePips !== undefined && tupleField(tupleField(createdMarket, "config", 0), "lpFeePips", 18) !== preview.params.lpFeePips) throw new Error("Created LP fee differs from the signed choice");
         if (preview.params.burnMemeFees !== undefined && tupleField(tupleField(createdMarket, "config", 0), "burnMemeFees", 17) !== preview.params.burnMemeFees) throw new Error("Created token fee burn choice differs from the signed choice");
         ctx.directMarkets?.receipt(receipt);
+ await prepareCreatedMarket(ctx,receipt).catch(()=>{});
         confirmedHash = receipt.transactionHash;
         return result;
       },

@@ -14,7 +14,7 @@ import {
 } from '../../../packages/jobs/src/index.ts';
 import { ALCHEMY_EVM_COMPUTE_UNIT_SCHEDULE, alchemyNominalComputeUnits } from '../../../packages/alchemy/src/index.ts';
 import { consensusBlock, parseChainLogTrigger, RpcTransport } from '../../../packages/chain/src/index.ts';
-import { createChainProcessor } from '../../../packages/chain-worker/src/index.ts';
+import { createChainProcessor,settlementFinalityMode } from '../../../packages/chain-worker/src/index.ts';
 import { f72PriceTargets, fetchRuntimePriceReferences, storePriceReferences } from '../../../packages/display-price/src/index.ts';
 import { CURRENT_ACTIVATION_BLOCK, CURRENT_RELEASE_ID } from '../../../packages/events/src/index.ts';
 import {recordRecentLaunch,recordRecentLaunchTrigger} from '../../../packages/market-projector/src/recent.ts';
@@ -49,7 +49,7 @@ export function createPipelineApp(options: PipelineAppOptions = {}) {
   }
   function chainProcessor(): (lease: Lease) => Promise<string | Buffer> {
     ownedProcessor ??= options.chainProcessor ?? createChainProcessor({
-      pool: databasePool(), primary: new RpcTransport({
+      settlementFinality:settlementFinalityMode(env),pool: databasePool(), primary: new RpcTransport({
         url: env.TG_RPC_URL ?? '', provider: 'alchemy-primary', nominalComputeUnits: alchemyNominalComputeUnits,
         computeUnitSchedule: ALCHEMY_EVM_COMPUTE_UNIT_SCHEDULE.id, observe: (metric) => emitMetric(env, metric),
       }),

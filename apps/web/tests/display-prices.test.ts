@@ -23,13 +23,13 @@ test('one global catalog request updates every subscribed price consumer',async(
  await store.refresh();assert.equal(calls,1);assert.match(first.textContent??'',/26\.68125/);assert.match(second.textContent??'',/AMD token/);
  a.stop();b.stop();store.stop();
 });
-test('full catalog remains readable and oversized responses are rejected',()=>{
+test('full catalog of 196 references remains readable and oversized responses are rejected',()=>{
  const data=fixture();
  const template=data.references[0]!;
- data.references=Array.from({length:64},(_,i)=>({...template,token:`0x${(i+1).toString(16).padStart(40,'0')}`}));
- const selected=data.references[63]!.token;
+ data.references=Array.from({length:196},(_,i)=>({...template,token:`0x${(i+1).toString(16).padStart(40,'0')}`}));
+ const selected=data.references[195]!.token;
  assert.equal(displayPriceView(data,4663,selected,now).status,'available');
- data.references.push({...template,token:`0x${'f'.repeat(40)}`});
+ data.references=Array.from({length:257},(_,i)=>({...template,token:`0x${(i+1).toString(16).padStart(40,'0')}`}));
  assert.equal(displayPriceView(data,4663,selected,now).status,'unavailable');
 });
 

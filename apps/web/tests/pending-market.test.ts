@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { TickerGardenApiError } from '../src/v1/generated/read-api.ts';
-import { readPublishedMarket } from '../src/v1/pendingMarket.ts';
+import { readPublishedMarket,marketIdentityPending } from '../src/v1/pendingMarket.ts';
 import { createSnapshotPoller } from '../src/v1/snapshotUpdates.ts';
 
 const marketId = `0x${'a'.repeat(64)}` as `0x${string}`;
@@ -68,4 +68,10 @@ test('a pending market recovers on the next finalized snapshot without unavailab
   assert.equal(committed, true);
   assert.equal(unavailable, 0);
   assert.equal(poller.revision, next.revision);
+});
+
+test('published market without hydrated identity stays preparing until details are ready',()=>{
+ assert.equal(marketIdentityPending({}),true);
+ assert.equal(marketIdentityPending({identity:undefined}),true);
+ assert.equal(marketIdentityPending({identity:{name:'Genesis Seed',symbol:'SEED',metadataURI:'ipfs://test',deployedAt:'1'}} as any),false);
 });
