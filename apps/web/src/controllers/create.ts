@@ -1,3 +1,5 @@
+import {createConfirmationAsset} from '../create/confirmation-asset.ts';
+import {quoteIconUrl} from '../create/quote-icons.ts';
 import {createPurchaseNotice} from '../create/purchase-notice.ts';
 import {fetchPurchaseQuote,purchaseRequest,assertPurchaseWithinApproval,type PurchaseQuote} from '../create/quote-purchase.ts';
 import {FIXED_LAUNCH_FEE_LABEL} from '../create/launch-fee-display.ts';
@@ -842,6 +844,7 @@ async function submitLaunch(): Promise<void> {
   const buy=ctx.query<HTMLElement>('[data-preview-mode]')?.textContent ?? '-';
   const staking=ctx.query<HTMLInputElement>('[name=stakingEnabled]')?.checked;
   const stock=ctx.query<HTMLElement>('[data-preview-asset]')?.textContent ?? '-';
+  const selectedStock=ctx.foundation?.assets.find(asset=>asset.id===ctx.query<HTMLSelectElement>('[name=assetUid]')?.value);
   const content=document.createElement('section');content.className='launch-confirm-content';
   const identity=document.createElement('div');identity.className='launch-confirm-identity';
   const image=document.createElement('img');image.src=ctx.launchImage;image.alt='';
@@ -849,13 +852,13 @@ async function submitLaunch(): Promise<void> {
   const name=document.createElement('strong');name.textContent=details.name;
   const ticker=document.createElement('span');ticker.textContent=`$${details.symbol}`;
   identityText.append(name,ticker);identity.append(image,identityText);content.append(identity);
-  const addRows=(rows:readonly (readonly [string,string])[],className='')=>{
+  const addRows=(rows:readonly (readonly [string,string,string?])[],className='')=>{
     const list=document.createElement('dl');list.className=`launch-confirm-rows ${className}`;
-    for(const [label,value] of rows){const row=document.createElement('div');const term=document.createElement('dt');term.textContent=label;const definition=document.createElement('dd');definition.textContent=value;if(label==='Wallet'){definition.title=value;definition.textContent=shortHex(value,7,5);}row.append(term,definition);list.append(row);}
+    for(const [label,value,iconUrl] of rows){const row=document.createElement('div');const term=document.createElement('dt');term.textContent=label;const definition=document.createElement('dd');if(iconUrl)definition.append(createConfirmationAsset(value,iconUrl,label==='Paired Asset'));else definition.textContent=value;if(label==='Wallet'){definition.title=value;definition.textContent=shortHex(value,7,5);}row.append(term,definition);list.append(row);}
     content.append(list);
   };
   addRows([['Network',robinhoodChain.name],['Wallet',ctx.wallet.account]]);
-  addRows([['Paired Asset',pair],['Developer Buy',buy],['Staking Rewards',staking ? stock : 'Disabled'],[`Burn ${details.symbol.trim() || details.name.trim() || 'your token'}`,ctx.query<HTMLInputElement>('[name=burnMemeFees]')?.checked ? 'On · permanent' : 'Off'],['LP Fee',`${ctx.query<HTMLInputElement>('[name=lpFeeEnabled]')?.checked ? Number(ctx.query<HTMLSelectElement>('[name=lpFeePips]')?.value)/10000 : 0}%`],['Creator Tax',`${details.creatorTaxBps/100}%`],['Holder Fee Sharing',details.creatorFeesToHolders ? 'Enabled' : 'Disabled']]);
+  addRows([['Paired Asset',pair,quoteIconUrl(pair)],['Developer Buy',buy],['Staking Stock',staking ? stock : 'Disabled',staking ? (selectedStock ? ctx.stockLogo(selectedStock) : quoteIconUrl(stock)) : undefined],[`Burn ${details.symbol.trim() || details.name.trim() || 'your token'}`,ctx.query<HTMLInputElement>('[name=burnMemeFees]')?.checked ? 'On' : 'Off'],['LP Fee',`${ctx.query<HTMLInputElement>('[name=lpFeeEnabled]')?.checked ? Number(ctx.query<HTMLSelectElement>('[name=lpFeePips]')?.value)/10000 : 0}%`],['Creator Tax',`${details.creatorTaxBps/100}%`],['Holder Fee Sharing',details.creatorFeesToHolders ? 'Enabled' : 'Disabled']]);
   if(reviewedPurchase)addRows([['Buy paired asset',`${formatUnits(BigInt(reviewedPurchase.amountOut),ctx.launchFunding!.quoteDecimals)} ${pair}`],['Maximum ETH',`${formatUnits(BigInt(reviewedPurchase.amountIn),18)} ETH`],['Price impact (including fees)',`${(reviewedPurchase.priceImpactBps/100).toFixed(2)}%`],['Minimum received',`${formatUnits(BigInt(reviewedPurchase.amountOut),ctx.launchFunding!.quoteDecimals)} ${pair}`]]);
   if(reviewedPurchase)content.append(createPurchaseNotice());
   if(ctx.launchFunding)addRows([['Estimated Total',`${formatTokenAmount(ctx.launchFunding.totalRequired,18)} ETH`]],'launch-confirm-total');
