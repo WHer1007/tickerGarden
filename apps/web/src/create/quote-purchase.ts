@@ -13,5 +13,5 @@ export async function fetchPurchaseQuote(base:string,chainId:number,token:Addres
 }
 
 export function assertPurchaseWithinApproval(fresh:PurchaseQuote,reviewed:PurchaseQuote|undefined):void {
- if(!reviewed||fresh.chainId!==reviewed.chainId||fresh.token!==reviewed.token||BigInt(fresh.amountOut)>BigInt(reviewed.amountOut)||BigInt(fresh.amountIn)>BigInt(reviewed.amountIn))throw Error('Purchase cost changed. Review the updated launch cost and try again.');
+ if(!reviewed||fresh.chainId!==reviewed.chainId||fresh.token!==reviewed.token||BigInt(fresh.amountOut)>BigInt(reviewed.amountOut)||BigInt(fresh.amountIn)>BigInt(reviewed.amountIn))throw Object.assign(new Error('Purchase cost changed. Review the updated launch cost and try again.'),{code:'purchase_cost_changed'});
 }

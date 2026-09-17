@@ -1,3 +1,4 @@
+import {recordLaunchFailure,launchFailureMessage,type LaunchOperation} from '../create/launch-diagnostics.ts';
 import {createConfirmationAsset} from '../create/confirmation-asset.ts';
 import {quoteIconUrl} from '../create/quote-icons.ts';
 import {createPurchaseNotice} from '../create/purchase-notice.ts';
@@ -72,11 +73,11 @@ export function createCreateController(ctx:ControllerContext){
 let previewState: "idle"|"loading"|"ready"|"error"="idle";
 function drawLaunchProgress():void{
  if(!ctx.launchProgress)return;
- const display=ctx.launchProgress.phase==='paused'&&!ctx.launchProgress.hash?{step:'Confirm in wallet',percent:60}:launchPhaseDisplay[ctx.launchProgress.phase];
+ const display=ctx.launchProgress.phase==='paused'&&!ctx.launchProgress.hash?{step:'Confirm in wallet',percent:60}:launchPhaseDisplay[ctx.launchProgress.phase==='failed'?(ctx.launchProgress.failedFrom??'failed'):ctx.launchProgress.phase];
  const purchasePending=localStorage.getItem(purchaseStateKey(ctx.launchProgress.account));
  const rawLogo=ctx.launchProgress.listing?.logo??'';
  const logo=ipfsGatewayURL(rawLogo,import.meta.env.VITE_IPFS_GATEWAY)??(/^data:image\/(?:png|jpeg|webp);base64,/i.test(rawLogo)?rawLogo:undefined);
- renderLaunchProgress({title:ctx.launchProgress.phase==='complete'?'Launch Successful':ctx.launchProgress.phase==='confirming'?'Token Created':ctx.launchProgress.phase==='pending'?'Launch Submitted':ctx.launchProgress.phase==='failed'?'Launch Stopped':'Launching Your Token',...display,detail:ctx.launchProgress.phase==='failed'?publicError(undefined,'transaction'):ctx.launchProgress.detail,hash:ctx.launchProgress.hash,
+ renderLaunchProgress({title:ctx.launchProgress.phase==='complete'?'Launch Successful':ctx.launchProgress.phase==='confirming'?'Token Created':ctx.launchProgress.phase==='pending'?'Launch Submitted':ctx.launchProgress.phase==='failed'?'Launch Stopped':'Launching Your Token',...display,detail:['failed','paused'].includes(ctx.launchProgress.phase)&&ctx.launchProgress.diagnostic?launchFailureMessage(ctx.launchProgress.diagnostic.code,ctx.launchProgress.diagnostic.phase,ctx.launchProgress.diagnostic.transactionMayBePending):ctx.launchProgress.phase==='failed'?publicError(undefined,'transaction'):ctx.launchProgress.detail,supportDetails:['failed','paused'].includes(ctx.launchProgress.phase)&&ctx.launchProgress.diagnostic?JSON.stringify(ctx.launchProgress.diagnostic,null,2):undefined,hash:ctx.launchProgress.hash,
   explorer:ctx.launchProgress.hash?`${robinhoodChain.blockExplorers.default.url}/tx/${ctx.launchProgress.hash}`:'',needsHash:Boolean(purchasePending)||ctx.launchProgress.phase==='paused'||(ctx.launchProgress.phase==='wallet'&&!ctx.launchSubmitting),canDismiss:ctx.launchProgress.phase==='failed',outcome:ctx.launchProgress.phase==='complete',complete:ctx.launchProgress.phase==='complete',tokenName:ctx.launchProgress.listing?.name,tokenSymbol:ctx.launchProgress.listing?.symbol,tokenLogo:logo},
  {onViewToken:()=>{if(ctx.launchProgress?.phase==='complete')navigateCompletedLaunch(ctx.launchProgress);},onHash:hash=>{if(!ctx.launchProgress||ctx.launchSubmitting)return;if(purchasePending){void recoverProvidedPurchaseHash(hash);return;}ctx.launchProgress.hash=hash;updateLaunchProgress('pending','Checking the transaction you provided…');void restoreLaunchProgress();},
  onCreateNew:()=>{if(ctx.launchProgress?.phase!=='complete')return;const chainId=ctx.launchProgress.chainId;try{localStorage.removeItem(launchStateKey(chainId));localStorage.removeItem(`tg-listing:${chainId}`);}catch{}ctx.launchProgress=null;ctx.latestListing=null;closeLaunchProgress();window.location.assign('/create');},
@@ -84,7 +85,7 @@ function drawLaunchProgress():void{
 }
 
 function updateLaunchProgress(phase:LaunchPhase,detail:string):void{
- if(!ctx.launchProgress)return;ctx.launchProgress={...ctx.launchProgress,phase,detail};
+ if(!ctx.launchProgress)return;ctx.launchProgress={...ctx.launchProgress,failedFrom:phase==='failed'?(ctx.launchProgress.failedFrom??ctx.launchProgress.phase):undefined,phase,detail};
  saveLaunchState(localStorage,ctx.launchProgress);drawLaunchProgress();
 }
 
@@ -875,6 +876,7 @@ async function performLaunch(reviewedPurchase?:PurchaseQuote): Promise<void> {
   const form = ctx.required<HTMLFormElement>("[data-create-form]");
   const fields = [...form.querySelectorAll<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>("input, select, textarea")];
   const disabledBefore = fields.map(field => field.disabled);
+  let operation:LaunchOperation='publish_details';
   try {
     if (!ctx.required<HTMLFormElement>("[data-create-form]").reportValidity()) return;
     await ctx.verifyTransactionFoundation();
@@ -894,6 +896,7 @@ async function performLaunch(reviewedPurchase?:PurchaseQuote): Promise<void> {
     updateLaunchProgress("preparing","Checking the launch settings and preparing your transaction.");
     const submittedDetails = launchDetails();
     const submittedMetadata = ctx.preparedMetadata;
+    operation='preview_launch';
     const preview = await previewLaunch(activeWallet);
     ctx.launchPreview = preview;
     const propsForProgress=submittedMetadata?.properties as Record<string,unknown>|undefined;
@@ -921,12 +924,15 @@ async function performLaunch(reviewedPurchase?:PurchaseQuote): Promise<void> {
       const decimals = await quoteDecimalsFor(preview.selected);
       const quoteIn = parseTokenAmount(ctx.required<HTMLInputElement>("[name=firstBuyAmount]").value, decimals, "First buy amount");
       requestedQuote = quoteIn;
+    operation='refresh_funding';
       const freshFunding = await calculateLaunchFunding(preview);
       ctx.launchFunding = freshFunding;
       renderLaunchFunding(freshFunding);
       if (freshFunding.ethBalance < freshFunding.totalRequired) throw new Error("ETH balance is below the estimated total required");
       if(freshFunding.purchase){
+    operation='review_purchase';
         assertPurchaseWithinApproval(freshFunding.purchase,reviewedPurchase);
+    operation='purchase_asset';
         await executeQuotePurchase(freshFunding.purchase,activeWallet,preview);
       }
       const probe = await buildLaunchAndBuyRequests({
@@ -939,11 +945,13 @@ async function performLaunch(reviewedPurchase?:PurchaseQuote): Promise<void> {
         previewMarketEconomics: previewEconomics,
       });
       if (probe.approval) {
+    operation='approve_asset';
         await ctx.ensureStandaloneApproval(probe.approval, preview.selected.quote.quoteAsset, ctx.foundation.bindings!.launchRouter, quoteIn, ctx.foundation.sync, verifyChain, activeWallet,{businessType:'approval',marketId:preview.marketId,conflictKey:`launch:${preview.marketId}`});
       }
       await ctx.ensureCurrentRevision(ctx.foundation.sync.revision);
       await verifyChain();
       await ctx.verifyLiveWalletContext(activeWallet);
+    operation='simulate_launch';
       const simulated = await ctx.publicClient.simulateContract({ ...probe.request, account: preview.creator } as never) as { result: unknown };
       const tokensOut = ctx.simulationTuple(simulated.result, 2, "first-buy output");
       const refund = ctx.simulationTuple(simulated.result, 3, "first-buy refund");
@@ -961,6 +969,7 @@ async function performLaunch(reviewedPurchase?:PurchaseQuote): Promise<void> {
       });
       request = built.request;
     }
+    operation='prepare_transaction';
     const estimatedLaunchGas = await ctx.publicClient.estimateContractGas({ ...request, account: preview.creator } as never);
     const paddedLaunchGas = (estimatedLaunchGas * 120n + 99n) / 100n;
     const gas = paddedLaunchGas > ctx.CONSERVATIVE_LAUNCH_GAS ? paddedLaunchGas : ctx.CONSERVATIVE_LAUNCH_GAS;
@@ -972,6 +981,7 @@ async function performLaunch(reviewedPurchase?:PurchaseQuote): Promise<void> {
     ctx.launchProgress!.data=encodeFunctionData({abi:request.abi,functionName:request.functionName,args:request.args} as never);
     ctx.launchProgress!.intent=JSON.stringify([request.address.toLowerCase(),request.functionName,request.args??[],request.value??0n],(_key,value)=>typeof value==='bigint'?value.toString():value);
     saveLaunchState(localStorage,ctx.launchProgress!);
+    operation='submit_launch';
     let confirmedHash = "";
     const created = await ctx.executeTransaction({
       operationKey: `launch:${mode}:${preview.marketId}:${ctx.foundation.sync.revision}`,
@@ -982,6 +992,7 @@ async function performLaunch(reviewedPurchase?:PurchaseQuote): Promise<void> {
       walletContext: activeWallet,
       verifyChain,
       confirm: async (receipt) => {
+        operation='verify_launch';
         const result = findCanonicalMarketCreated(receipt, contracts.factoryAddress, {
           params: preview.params,
           quoteAsset: preview.selected.quote.quoteAsset,
@@ -1029,13 +1040,18 @@ async function performLaunch(reviewedPurchase?:PurchaseQuote): Promise<void> {
     updateLaunchProgress('complete',LAUNCH_CONFIRMED_COPY);
     void notifyLaunchDatabase(confirmedHash,import.meta.env.VITE_V1_PIPELINE_URL).then(()=>ctx.snapshotPoller?.reconnect());
   } catch (error) {
+    let failureMessage=publicError(error,'transaction');
     if(ctx.launchProgress){
-      if(ctx.launchProgress.phase!=='failed'&&(ctx.launchProgress.hash||ctx.launchProgress.phase==='wallet'||ctx.launchProgress.phase==='pending'||ctx.launchProgress.phase==='confirming')){
-       updateLaunchProgress('paused','The transaction outcome is not confirmed yet. We will keep tracking it; do not launch again.');
+      const purchasePending=Boolean(localStorage.getItem(purchaseStateKey(ctx.launchProgress.account)));
+      const pending=purchasePending||(ctx.launchProgress.phase!=='failed'&&Boolean(ctx.launchProgress.hash||['wallet','pending','confirming'].includes(ctx.launchProgress.phase)));
+      ctx.launchProgress.diagnostic=await recordLaunchFailure(localStorage,ctx.launchProgress,operation,error,pending);
+      failureMessage=launchFailureMessage(ctx.launchProgress.diagnostic.code,ctx.launchProgress.diagnostic.phase,pending);
+      if(pending){
+       updateLaunchProgress('paused',failureMessage);
        setTimeout(()=>void restoreLaunchProgress(),0);
-      } else updateLaunchProgress('failed',publicError(error,'transaction'));
+      } else updateLaunchProgress('failed',failureMessage);
     }
-    ctx.notify(ctx.launchProgress?.phase==='paused'?'Launch is still being tracked. Do not publish again.':publicError(error,'transaction'),ctx.launchProgress?.phase==='paused'?'warning':'error');
+    ctx.notify(failureMessage,ctx.launchProgress?.phase==='paused'?'warning':'error');
     scheduleLaunchPreview();
   } finally {
     fields.forEach((field, index) => { field.disabled = disabledBefore[index]!; });
