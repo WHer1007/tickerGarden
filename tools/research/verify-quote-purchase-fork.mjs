@@ -6,7 +6,7 @@ import fs from 'node:fs';import {parseEnv} from 'node:util';import {spawn} from 
 import {createPublicClient,createWalletClient,http,erc20Abi,keccak256} from '../../apps/web/node_modules/viem/_esm/index.js';
 import {privateKeyToAccount} from '../../apps/web/node_modules/viem/_esm/accounts/index.js';
 import {createPinnedRpcProxy} from '../robinhood-rpc-compat-proxy.mjs';
-import {quotePurchase} from '../../services/backend-ts/packages/chain/src/quote-purchase/quote.ts';
+import {quotePurchase,purchaseRoute,USDG} from '../../services/backend-ts/packages/chain/src/quote-purchase/quote.ts';
 import {purchaseRequest,PURCHASE_ROUTER} from '../../services/backend-ts/packages/chain/src/quote-purchase/transaction.ts';
 const env=parseEnv(fs.readFileSync('/Users/dear/Documents/code/TickerGarden/.env.test.local','utf8'));
 const remote=createPublicClient({transport:http(env.ROBINHOOD_RPC_URL,{timeout:30000})});
@@ -19,6 +19,9 @@ const wallet=createWalletClient({account,transport:http(`http://127.0.0.1:${port
 const results=[];
 try{
  for(let i=0;i<60;i++){try{await client.getChainId();break;}catch{await new Promise(r=>setTimeout(r,500));}}
+ // The public Anvil test key can carry unrelated mainnet EIP-7702 code.
+ // Clear that code on the LOCAL fork so refunds measure this test wallet only.
+ await client.request({method:'anvil_setCode',params:[account.address,'0x']});
  await client.request({method:'evm_mine'});
  console.log('fork',String(block.number),'router hash',keccak256(await client.getCode({address:PURCHASE_ROUTER})));
  const raw=JSON.parse(fs.readFileSync(new URL('../../outputs/reviews/rh-buy-routes-2026-09-16/fixed-route-candidates.json',import.meta.url)));
@@ -41,6 +44,10 @@ try{
   const ethAfter=await client.getBalance({address:account.address});
   const actualSpent=ethBefore-ethAfter-receipt.gasUsed*receipt.effectiveGasPrice;
   if(actualSpent>req.value)throw Error('ETH cap exceeded');
+  if(!(purchaseRoute(a.stock).version==='v4'&&purchaseRoute(a.stock).input===USDG)&&actualSpent>=req.value)throw Error('Expected unused ETH refund was not received');
+  const usdgRouter=await client.readContract({address:'0x5fc5360d0400a0fd4f2af552add042d716f1d168',abi:erc20Abi,functionName:'balanceOf',args:[PURCHASE_ROUTER]});
+  const wethRouter=await client.readContract({address:'0x0bd7d308f8e1639fab988df18a8011f41eacad73',abi:erc20Abi,functionName:'balanceOf',args:[PURCHASE_ROUTER]});
+  if(usdgRouter!==0n||wethRouter!==0n)throw Error('Intermediate refund remained in router');
   const held=await client.getBalance({address:PURCHASE_ROUTER});
   if(receipt.status!=='success'||after-before!==BigInt(q.amountOut)||held!==0n)throw Error('Execution or balance assertion failed');
   if(a.symbol==='CRM'){
