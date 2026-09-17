@@ -11,3 +11,12 @@ export function sortStakingAssets<T>(assets: readonly T[], symbol: (asset: T) =>
       || left.localeCompare(right, 'en');
   });
 }
+
+/** Keep the two base assets first, then use the staking picker stock order. */
+export function sortPairedAssets<T extends {readonly symbol: string}>(assets: readonly T[]): T[] {
+  const base = ['ETH', 'USDG'];
+  return [
+    ...base.flatMap(symbol => assets.filter(asset => asset.symbol.toUpperCase() === symbol)),
+    ...sortStakingAssets(assets.filter(asset => !base.includes(asset.symbol.toUpperCase())), asset => asset.symbol),
+  ];
+}

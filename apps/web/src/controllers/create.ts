@@ -1,6 +1,6 @@
 import {fetchPurchaseQuote,purchaseRequest,assertPurchaseWithinApproval,type PurchaseQuote} from '../create/quote-purchase.ts';
 import {FIXED_LAUNCH_FEE_LABEL} from '../create/launch-fee-display.ts';
-import {sortStakingAssets} from '../create/featured-stocks.ts';
+import {sortStakingAssets,sortPairedAssets} from '../create/featured-stocks.ts';
 import { publicError } from "../ui/public-error.ts";
 import currentV4Abis_TickerGardenFactoryV1 from '../v1/generated/contracts/current/TickerGardenFactoryV1.ts';
 import v1Abis_TickerGardenCurve from '../v1/generated/contracts/legacy/TickerGardenCurve.ts';
@@ -394,7 +394,7 @@ function populatePairedAssets(): void {
   const priorValue = select.value;
   const pickerOptions: QuotePickerOption[] = [];
   select.replaceChildren();
-  for (const asset of RELEASE_PAIRED_ASSETS) {
+  for (const asset of sortPairedAssets(RELEASE_PAIRED_ASSETS)) {
     const config = activePairedConfig(asset, ctx.foundation?.quotes ?? [], robinhoodChain.id);
     const option = new Option(`${asset.symbol} — ${asset.name}${config ? "" : asset.graduationThreshold === null ? " · Parameters pending" : " · Pending activation"}`, config?.id ?? `pending:${asset.symbol}`);
     option.disabled = isQuoteSelectionPaused(asset);
