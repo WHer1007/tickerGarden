@@ -198,6 +198,7 @@ function setupTrade(): void {
   ctx.query<HTMLButtonElement>('[data-trade-retry]')?.addEventListener('click',()=>{ctx.snapshotPoller?.reconnect();void loadTradeMarket();});
   const requested = new URL(window.location.href).searchParams.get("marketId")?.trim() ?? "";
   renderTradeEmptyState(!requested ? "missing" : /^0x[0-9a-fA-F]{64}$/.test(requested) ? null : "invalid");
+  if (/^0x[0-9a-fA-F]{64}$/.test(requested)) setTradePageLoading(true);
   ctx.query<HTMLElement>('.ref-links')?.addEventListener('click',event=>{
     const button=event.target instanceof Element?event.target.closest<HTMLButtonElement>('button[data-external-url]'):null;
     if(!button||button.hidden||button.disabled||!button.dataset.externalUrl)return;
@@ -505,6 +506,13 @@ async function loadTradeMarket(explicit?: string): Promise<void> {
   catch { renderTradeEmptyState(raw.trim() ? "invalid" : "missing"); updateTradeAvailability(); return; }
   let created=preparedCreatedMarket(marketId);
   if(!ctx.foundation&&created)ctx.foundation=created.foundation;
+  // Wallet restoration and route mounting can reach this concurrently. Join the
+  // market-scoped bootstrap before deciding that a missing foundation is an error.
+  renderTradeEmptyState(null);
+  setTradePageLoading(true);
+  if (!ctx.foundation && ctx.readApi) await ctx.loadFoundation();
+  if (generation !== ctx.tradeLoadGeneration || ctx.currentPage() !== 'trade') return;
+
   if (!ctx.foundation || (!ctx.readApi && !ctx.foundation.direct&&!created)) {
     renderTradeEmptyState(ctx.latestListing?.marketId===marketId?"preparing":"unavailable");
     updateTradeAvailability();

@@ -512,14 +512,14 @@ async function loadFoundationAttempt(): Promise<void> {
   try {
     const next = await prepareFoundation(readApi);
     if (generation !== foundationGeneration) return;
-    invalidateSnapshotReads();
+    invalidateSnapshotReads(currentPage() === 'trade' && !tradeMarket);
     foundation = next;
     foundationError = "";
   } catch (error) {
     if (generation !== foundationGeneration) return;
     foundation = null;
     foundationError = errorText(error);
-    invalidateSnapshotReads();
+    invalidateSnapshotReads(currentPage() === 'trade' && !tradeMarket);
   }
 }
 
@@ -4836,6 +4836,7 @@ function mountRoute(route: Route): Promise<void> {
 // preserve one wallet, request generation and transaction state across route changes.
 // Controller imports of this module must remain type-only.
 export const controllerContext = {
+  get loadFoundation(){return loadFoundation;},
   get CONSERVATIVE_LAUNCH_GAS(){return CONSERVATIVE_LAUNCH_GAS;},
   get allowanceApproval(){return allowanceApproval;},
   get assetPrices(){return assetPrices;},
