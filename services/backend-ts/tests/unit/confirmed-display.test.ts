@@ -90,3 +90,17 @@ test('quiet 1H chart retains only the last historical trade, including after 24h
  assert.equal(quiet.latestTrade?.txHash,hash('c'));
  assert.ok(displayDetail(emptyDisplayState(creation,market,block),'1H').chart!.points.every(p=>p.price===null));
 });
+
+test('Explore materializes current cap, volume and latest buy independently of rolling history',async()=>{
+ const {materializeDisplay}=await import('../../packages/confirmed-display/src/state.ts');
+ const seed=applyDisplayEvents(emptyDisplayState(creation,market,block),market,[mint,transfer,buy],block);
+ const current=materializeDisplay({...seed,quoteUsd:'2'});
+ assert.equal(current.market.metrics?.volume24hUsd,'0.02');
+ assert.equal(current.market.metrics?.marketCapUsd,current.detailViews?.['1H'].statistics?.marketCapUsd);
+ assert.deepEqual(current.market.lastBuy,{blockNumber:'10',transactionIndex:'0',logIndex:'2',timestamp:String(time)});
+ const quiet=materializeDisplay(applyDisplayEvents(current,market,[],{...block,number:11n,timestamp:time+86401n}));
+ assert.equal(quiet.trades.length,0);assert.equal(quiet.market.metrics?.volume24hUsd,'0');
+ assert.deepEqual(quiet.market.lastBuy,current.market.lastBuy);
+ assert.equal(seed.market.metrics,undefined);
+ const undo=materializeDisplay({...seed,latestBuy:null});assert.equal(undo.market.lastBuy,undefined);
+});

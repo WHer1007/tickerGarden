@@ -30,15 +30,16 @@ test('Explore starts with one loading message and keeps error recovery in its li
   assert.match(app, /Try loading .* markets again/);
 });
 
-test('Explore uses the finalized paged directory in production and an explicit local integration adapter', () => {
-  assert.match(app, /listMarkets\(\{\.\.\.params,includeRecent:true,limit,\.\.\.\(cursor\?\{cursor\}:\{\}\)\}\)/);
-  assert.match(app, /if\(!foundation\.direct\)assertFinalizedSync\(page\.sync,\['marketCapUsd_desc','recentBuy_desc'\]\.includes\(params\.sort\?\?''\)\?page\.sync\.revision:params\.revision,'explore page'\)/);
+test('Explore uses its confirmed endpoints without health or finality gates and keeps the local adapter', () => {
+  const bootstrap=app.slice(app.indexOf("if(currentPage()==='markets'&&!expectedSync)"),app.indexOf('  let health = await api.getHealth();'));
+  assert.match(bootstrap,/\/v1\/explore\/bootstrap/);
+  assert.doesNotMatch(bootstrap,/getHealth|assertFinalizedSync/);
   assert.match(app, /if\(markets\.length===0\)return false/);
   assert.match(app, /pageDirectExplore\(foundation\.markets,unversioned,cursor,limit\)/);
   const refresh = app.slice(app.indexOf('async function refreshDirectDirectory('), app.indexOf('let directDirectoryTimer:'));
   assert.doesNotMatch(refresh, /publicClient|directMarkets|integrationMarketDirectory/);
-  const directory=app.slice(app.indexOf('async function fetchExplorePage'),app.indexOf('function applyExploreStatistics'));
-  assert.doesNotMatch(directory,/publicClient/);assert.match(directory,/if\(foundation\.direct\)/);assert.match(directory,/pageDirectExplore\(foundation\.markets/);assert.match(directory,/throw new ExploreResponseError/);
+  const directory=app.slice(app.indexOf('async function fetchExplorePage'),app.indexOf('function marketBloomProgress'));
+  assert.doesNotMatch(directory,/publicClient|getHealth|assertFinalizedSync|listMarkets/);assert.match(directory,/\/v1\/explore/);assert.match(directory,/if\(foundation\.direct\)/);assert.match(directory,/pageDirectExplore\(foundation\.markets/);assert.match(directory,/throw new ExploreResponseError/);
 });
 
 test('trade controls describe their behavior and tab panels support keyboard navigation', () => {

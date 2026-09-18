@@ -57,6 +57,7 @@ import { createRenderGeneration } from "./runtime/renderGeneration.ts";
 import { assertCanonicalSnapshotContinuation,mapConcurrent } from "./runtime/snapshot.ts";
 import { setupDocs,revealDocsHash } from "./ui/docs-search.ts";
 import { setupExploreStockPicker } from './ui/explore-stock-picker.ts';
+import { reconcileVisibleCards,resolveExploreImageURI } from './v1/exploreUpdates.ts';
 import { mountFieldValidation } from './ui/fieldValidation.ts';
 import { createGlobalNotice,globalNoticeRegion,type GlobalNoticeTone } from './ui/global-notice.ts';
 import { ensureWalletChain } from "./ui/network-support.ts";
@@ -88,7 +89,7 @@ import type {HolderRound,HolderSnapshotPage,SnapshotIdentity} from './v1/feature
 import { validateMarketStake } from './v1/features/stake-validation.ts';
 import {LEGACY_USER_CLAIM_MODE,USER_CLAIM_MODE,userClaimsAbi} from './v1/features/userClaims.ts';
 import { rewardTab } from "./v1/flowUx.ts";
-import type { PositionPage,UserActivityPage } from './v1/generated/read-api.ts';
+import type { MarketPage,PositionPage,UserActivityPage } from './v1/generated/read-api.ts';
 import type { mountGlobalHolders } from "./v1/globalHoldersWidget.ts";
 import type { mountGlobalSeries } from "./v1/globalSeriesWidget.ts";
 import type { mountGlobalStatistics } from "./v1/globalStatsWidget.ts";
@@ -493,7 +494,7 @@ let foundationGeneration = 0;
 let loadingFoundation: Promise<void> | null = null;
 let foundationRequestKey='';
 async function loadFoundation(): Promise<void> {
-  const key=currentPage()==='trade'?`trade:${new URL(location.href).searchParams.get('marketId')}`:'global';
+  const key=currentPage()==='trade'?`trade:${new URL(location.href).searchParams.get('marketId')}`:currentPage()==='markets'?'explore':'global';
   if (loadingFoundation&&foundationRequestKey===key) return loadingFoundation;
   foundationRequestKey=key;
   const pending = (async () => {
@@ -548,6 +549,14 @@ async function prepareLocalIntegrationFoundation():Promise<Foundation>{
 async function prepareFoundation(api: TickerGardenV1Client | null, expectedSync?: SyncStatus, reuseConfigs=false): Promise<Foundation> {
   if (integrationBootstrapPath) return prepareLocalIntegrationFoundation();
   if (!api) throw Error("V1 read API is unavailable");
+  if(currentPage()==='markets'&&!expectedSync){
+    if(!runtimeConfig.readApi.available)throw Error('V1 read API is unavailable');
+    const response=await fetch(new URL('/v1/explore/bootstrap',runtimeConfig.readApi.value),{signal:AbortSignal.timeout(8000)});
+    if(!response.ok)throw Error('Explore bootstrap unavailable');
+    const page=await response.json() as {displayOnly?:boolean;configs?:ConfigReadModel[];sync?:SyncStatus};
+    if(page.displayOnly!==true||!Array.isArray(page.configs)||page.sync?.chainId!==robinhoodChain.id)throw Error('Invalid Explore bootstrap');
+    return Object.freeze({displayOnly:true,configScope:'read',health:{executionSpecId:V1_EXECUTION_SPEC_ID,status:'read-api',readApiImplemented:true,productRuntimeImplemented:true,custody:false,transactionSubmission:false,sync:page.sync} as HealthResponse,sync:page.sync,assets:page.configs.filter(c=>c.kind==='asset'),quotes:page.configs.filter(c=>c.kind==='quote'),baseline:[],templates:[],markets:[],writeReady:runtimeConfig.contracts.available,writeReasons:[]});
+  }
   if(currentPage()==="trade"&&!expectedSync){
     const marketId=new URL(window.location.href).searchParams.get('marketId')?.toLowerCase();
     if(marketId&&BYTES32_PATTERN.test(marketId)){
@@ -1271,58 +1280,65 @@ const marketDirectory=createMarketDirectory((params,signal)=>{
  return new TickerGardenV1Client(runtimeConfig.readApi.value,(input,init)=>fetch(input,{...init,signal})).listMarkets({...params,includeRecent:true});
 });
 const exploreCreatedAt=new Map<string,string>();
-export type ExploreStat={marketId:string;memeToken?:string;quoteAsset?:string;sourceVersion?:number;sourceBlockNumber?:string;sourceBlockHash?:string;metrics?:MarketReadModel['metrics'];lastBuy?:MarketReadModel['lastBuy'];observedAt:number;launchPhase?:string};
+export type ExploreStat={marketId:string;memeToken?:string;quoteAsset?:string;sourceVersion?:number;sourceBlockNumber?:string;sourceBlockHash?:string;metrics?:MarketReadModel['metrics'];lastBuy?:MarketReadModel['lastBuy'];market?:MarketReadModel;observedAt:number;launchPhase?:string};
 let exploreStatistics:Record<string,ExploreStat>={};
 let exploreStatisticsAt=0;
 let exploreStatisticsKey="";
+let explorePendingListRefresh=false;
 const exploreVisibleRows:{0:readonly MarketReadModel[];1:readonly MarketReadModel[]}={0:[],1:[]};
+let exploreEvents:EventSource|undefined,exploreEventRefreshTimer:number|undefined;
+const exploreDirtyIds=new Set<string>(),exploreDirtyRegions=new Set<string>();
 let exploreStatisticsRequest:Promise<boolean>|null=null;
+const explorePendingDirtyIds=new Set<string>();let explorePendingFullRefresh=false;
 let exploreStatisticsFailed=false;
 const exploreVisiblePage:{0:number;1:number}={0:1,1:1};
 const exploreFrozenRows=new Map<string,MarketReadModel[]>();
-async function refreshExploreStatistics():Promise<boolean>{
+async function refreshExploreStatistics():Promise<boolean>{return refreshExploreCards();}
+async function refreshExploreCards(dirtyIds?:readonly string[]):Promise<boolean>{
  if(!foundation||!runtimeConfig.readApi.available)return false;
- if(exploreStatisticsRequest)return exploreStatisticsRequest;
- const markets=[...new Set([...exploreVisibleRows[0],...exploreVisibleRows[1]].map(m=>m.marketId))].sort();
+ if(exploreStatisticsRequest){if(dirtyIds)for(const id of dirtyIds)explorePendingDirtyIds.add(id);else explorePendingFullRefresh=true;return exploreStatisticsRequest;}
+ const visible=[...new Set([...exploreVisibleRows[0],...exploreVisibleRows[1]].map(m=>m.marketId))].sort();
+ const markets=dirtyIds?visible.filter(id=>dirtyIds.includes(id)):visible;
  if(markets.length===0)return false;
- const requestKey=markets.join(",");if(requestKey===exploreStatisticsKey&&Date.now()-exploreStatisticsAt<15_000)return false;
+ const requestKey=markets.join(","),visibleKey=visible.join(','),pageGeneration=`${explorePageGeneration[0]}:${explorePageGeneration[1]}`;
  const statisticsBase=runtimeConfig.readApi.value;
  exploreStatisticsRequest=(async()=>{
-  let merged:Record<string,ExploreStat>={};
+  const returned:MarketReadModel[]=[];
   for(let i=0;i<Math.max(markets.length,1);i+=100){
-   const url=new URL('/v1/market-statistics',statisticsBase);url.searchParams.set('markets',markets.slice(i,i+100).join(','));
+   const url=new URL('/v1/explore/cards',statisticsBase);url.searchParams.set('markets',markets.slice(i,i+100).join(','));
    const response=await fetch(url,{signal:AbortSignal.timeout(15_000)});if(!response.ok)throw Error('Statistics unavailable');
-   const data=await response.json();if(data.chainId!==robinhoodChain.id||data.displayOnly!==true||!data.items||typeof data.items!=='object')throw Error('Invalid statistics response');
-   for(const [id,raw]of Object.entries(data.items)){
-    const value=raw as ExploreStat;if(value.marketId!==id||!/^0x[0-9a-f]{64}$/.test(id))continue;
-    if(value.metrics?.marketCapUsd!=null&&!/^(0|[1-9][0-9]*)(\.[0-9]+)?$/.test(value.metrics.marketCapUsd))continue;
-    if(value.lastBuy&&!['blockNumber','transactionIndex','logIndex','timestamp'].every(key=>/^(0|[1-9][0-9]*)$/.test((value.lastBuy as unknown as Record<string,string>)[key]??'')))continue;
-    merged[id]=value;
-   }
+   const data=await response.json() as {chainId?:number;displayOnly?:boolean;items?:MarketReadModel[]};if(data.chainId!==robinhoodChain.id||data.displayOnly!==true||!Array.isArray(data.items))throw Error('Invalid Explore cards response');
+   returned.push(...data.items);
   }
+  const currentVisible=[...new Set([...exploreVisibleRows[0],...exploreVisibleRows[1]].map(m=>m.marketId))].sort().join(',');
+  if(currentPage()!=='markets')return false;
+  const reconciled=reconcileVisibleCards({visibleIdsAtRequest:visible,visibleIdsNow:currentVisible.split(',').filter(Boolean),generationAtRequest:pageGeneration,generationNow:`${explorePageGeneration[0]}:${explorePageGeneration[1]}`,requestedIds:markets,returned,previous:exploreStatistics,full:!dirtyIds,toStat:market=>({marketId:market.marketId,memeToken:market.memeToken,quoteAsset:market.quoteAsset,sourceVersion:market.sourceVersion,metrics:market.metrics,lastBuy:market.lastBuy,market,observedAt:Date.now()/1000,launchPhase:String(market.launchPhase)})});
+  if(!reconciled)return false;
+  const merged=reconciled.stats;
+  for(const id of reconciled.missing){for(const phase of [0,1] as const){if(!exploreVisibleRows[phase].some(m=>m.marketId===id))continue;exploreVisibleRows[phase]=exploreVisibleRows[phase].filter(m=>m.marketId!==id);explorePagers[phase].removeMarkets(new Set([id]));text(`[data-stage-count="${phase}"]`,String(exploreVisibleRows[phase].length));}query<HTMLElement>(`[data-runtime-market="${id}"]`)?.remove();}
   const ranking=(items:Record<string,ExploreStat>)=>JSON.stringify(Object.keys(items).sort().map(id=>[id,items[id]!.metrics,items[id]!.observedAt,items[id]!.sourceVersion,items[id]!.lastBuy]));
-  if(currentPage()!=='markets'||requestKey!==[...new Set([...exploreVisibleRows[0],...exploreVisibleRows[1]].map(m=>m.marketId))].sort().join(','))return false;
   exploreStatisticsFailed=false;
   const changed=ranking(merged)!==ranking(exploreStatistics);exploreStatistics=merged;exploreStatisticsAt=Date.now();exploreStatisticsKey=requestKey;return changed;
- })().catch(()=>{exploreStatisticsFailed=true;return false;}).finally(()=>{exploreStatisticsRequest=null;const visibleKey=[...new Set([...exploreVisibleRows[0],...exploreVisibleRows[1]].map(m=>m.marketId))].sort().join(',');if(currentPage()==='markets'&&visibleKey&&visibleKey!==requestKey)void refreshExploreStatistics().then(()=>applyExploreStatistics());});
+ })().catch(()=>{exploreStatisticsFailed=true;return false;}).finally(()=>{exploreStatisticsRequest=null;const visibleNow=[...new Set([...exploreVisibleRows[0],...exploreVisibleRows[1]].map(m=>m.marketId))].sort().join(',');if(explorePendingDirtyIds.size||explorePendingFullRefresh){const pending=[...explorePendingDirtyIds];explorePendingDirtyIds.clear();const full=explorePendingFullRefresh;explorePendingFullRefresh=false;if(currentPage()==='markets')void refreshExploreCards(full?undefined:pending).then(()=>applyExploreStatistics(full?undefined:pending));}else if(currentPage()==='markets'&&visibleNow!==visibleKey)void refreshExploreStatistics().then(()=>applyExploreStatistics());if(explorePendingListRefresh){explorePendingListRefresh=false;if(currentPage()==='markets')void refreshExploreRankings(true);}});
  return exploreStatisticsRequest;
 }
 
-class ExploreResponseError extends Error {}
+class ExploreResponseError extends Error { readonly status?:number; constructor(message:string,status?:number){super(message);this.status=status;} }
 async function fetchExplorePage(params:DirectoryQuery,cursor:string|undefined,limit:number,signal:AbortSignal){
  if(!foundation)throw Error('Market Directory Unavailable');
  const {revision:_,...unversioned}=params;
- let page;
+ let page:MarketPage;
  if(foundation.direct){
   await refreshDirectDirectory(false);
   if(signal.aborted||!foundation?.direct)throw Error('Market Directory Unavailable');
   page={...pageDirectExplore(foundation.markets,unversioned,cursor,limit),sync:foundation.sync};
  }else{
   if(!runtimeConfig.readApi.available)throw Error('Market Directory Unavailable');
-  page=await new TickerGardenV1Client(runtimeConfig.readApi.value,(input,init)=>fetch(input,{...init,signal})).listMarkets({...params,includeRecent:true,limit,...(cursor?{cursor}:{})});
+  const url=new URL('/v1/explore',runtimeConfig.readApi.value);url.searchParams.set('launchPhase',String(params.launchPhase));url.searchParams.set('sort',String(params.sort??'createdAt_desc'));url.searchParams.set('limit',String(limit));if(params.search)url.searchParams.set('search',params.search);if(params.assetUid)url.searchParams.set('assetUid',params.assetUid);if(cursor)url.searchParams.set('cursor',cursor);
+  const response=await fetch(url,{signal});if(!response.ok)throw new ExploreResponseError('Explore page unavailable',response.status);page=await response.json();
  }
  try{
-  if(!foundation.direct)assertFinalizedSync(page.sync,['marketCapUsd_desc','recentBuy_desc'].includes(params.sort??'')?page.sync.revision:params.revision,'explore page');
+  if(!foundation.direct&&(page.sync?.chainId!==robinhoodChain.id||typeof page.sync?.revision!=='string'))throw Error('Invalid Explore sync head');
   if(!Array.isArray(page.items)||page.items.some(m=>m.launchPhase!==params.launchPhase))throw Error('Unexpected Market Stage');
  }catch{throw new ExploreResponseError('Market response failed verification');}
  return page;
@@ -1333,17 +1349,19 @@ function marketBloomProgress(market:MarketReadModel):number|null {
  return typeof target==='string'&&/^[0-9]+$/.test(target)&&/^[0-9]+$/.test(raised)
   ? graduationProgress(BigInt(raised),BigInt(target)) : null;
 }
-function applyExploreStatistics():void {
- reconcileExploreStages();
+function applyExploreStatistics(dirtyIds?:readonly string[]):void {
+ reconcileExploreStages(dirtyIds);
  for(const market of [...exploreVisibleRows[0],...exploreVisibleRows[1]]){
+  if(dirtyIds&&!dirtyIds.includes(market.marketId))continue;
   const stat=exploreStatistics[market.marketId];
   const card=query<HTMLElement>(`[data-runtime-market="${market.marketId}"]`);if(!card)continue;
-  const valid=stat&&stat.memeToken===market.memeToken&&stat.quoteAsset===market.quoteAsset&&stat.sourceVersion===market.sourceVersion&&stat.launchPhase===String(market.launchPhase)&&Number.isSafeInteger(stat.observedAt)&&Date.now()/1000-stat.observedAt<=1200&&stat.observedAt<=Date.now()/1000+30&&(!market.display||stat.observedAt>=Number(market.display.asOfTimestamp));
+  const valid=stat&&stat.memeToken===market.memeToken&&stat.quoteAsset===market.quoteAsset&&stat.sourceVersion===market.sourceVersion&&stat.launchPhase===String(market.launchPhase);
   const freshness=query<HTMLElement>('[data-market-freshness]',card);
   if(freshness){freshness.hidden=!exploreStatisticsFailed&&Boolean(valid);freshness.textContent=exploreStatisticsFailed?'Updates delayed':valid?'':'Updating…';}
   if(!valid)continue;
   text('[data-market-cap]',formatMarketUSD(stat.metrics?.marketCapUsd,true,2),card);
   text('[data-market-volume]',formatMarketUSD(stat.metrics?.volume24hUsd),card);
+  const latest=stat.market??market;if(latest.launchPhase===0){const progress=marketBloomProgress(latest),area=query<HTMLElement>('[data-market-progress]',card),bar=area?.querySelector<HTMLProgressElement>('progress');if(bar){bar.value=progress??0;bar.hidden=progress===null;}text('[data-market-progress-label]',progress===null?'-':`${progress.toFixed(2)}%`,area??undefined);if(area)area.title=progress===null?'Bloom Progress Pending':`${progress.toFixed(2)}% To Bloom`;}
   const cap=query<HTMLElement>('[data-market-cap]',card);if(cap)cap.title=`USD estimate · Updated ${new Date(stat.observedAt*1000).toLocaleString()}`;
  }
 }
@@ -1355,10 +1373,11 @@ function exploreQuery(phase:0|1):DirectoryQuery{
  const stock=query<HTMLSelectElement>('[data-market-asset]')?.value,search=query<HTMLInputElement>('[data-market-search]')?.value.trim();
  return {revision:foundation!.sync.revision,launchPhase:phase,sort:phase===1?'marketCapUsd_desc':(selected??'createdAt_desc') as DirectoryQuery['sort'],...(search?{search}:{}),...(stock?{assetUid:canonicalBytes32(stock,'Stock')}: {})};
 }
-async function refreshExploreRankings():Promise<void>{
- if(!foundation||foundation.direct||exploreLiveRequest||currentPage()!=='markets')return;
+async function refreshExploreRankings(forceFirstPages=false):Promise<void>{
+ if(!foundation||foundation.direct||currentPage()!=='markets')return;
+ if(exploreLiveRequest){if(forceFirstPages)explorePendingListRefresh=true;return;}
  const capDue=Date.now()-exploreLastCapCheck>=30_000;
- const phases=([0,1] as const).filter(phase=>exploreQuery(phase).sort==='recentBuy_desc'||(capDue&&exploreQuery(phase).sort==='marketCapUsd_desc'&&exploreVisiblePage[phase]===1));
+ const phases=([0,1] as const).filter(phase=>forceFirstPages?exploreVisiblePage[phase]===1:exploreQuery(phase).sort==='recentBuy_desc'||(capDue&&exploreQuery(phase).sort==='marketCapUsd_desc'&&exploreVisiblePage[phase]===1));
  if(!phases.length)return;
  if(capDue)exploreLastCapCheck=Date.now();
  const controller=new AbortController(),generation=exploreLiveGeneration;exploreLiveRequest=controller;
@@ -1377,11 +1396,11 @@ async function refreshExploreRankings():Promise<void>{
   if(exploreVisiblePage[phase]>1||interacting){if(recent&&head!==exploreRecentHead){const button=query<HTMLButtonElement>('[data-new-buys]');if(button)button.hidden=false;}continue;}
   if(explorePagers[phase].adoptFirstPage(params,page)){if(recent){exploreRecentHead=head;const button=query<HTMLButtonElement>('[data-new-buys]');if(button)button.hidden=true;}await renderExploreStage(phase);}
  }}catch{/* Existing rows and timestamps remain visible until the next successful read. */}
- finally{clearTimeout(timeout);if(exploreLiveRequest===controller)exploreLiveRequest=null;}
+ finally{clearTimeout(timeout);if(exploreLiveRequest===controller)exploreLiveRequest=null;if(explorePendingListRefresh){explorePendingListRefresh=false;if(currentPage()==='markets')void refreshExploreRankings(true);}}
 }
-function reconcileExploreStages():void{
+function reconcileExploreStages(dirtyIds?:readonly string[]):void{
  for(const phase of [0,1] as const){
-  const removed=new Set(exploreVisibleRows[phase].filter(m=>{const stat=exploreStatistics[m.marketId];return stat&&stat.memeToken===m.memeToken&&stat.quoteAsset===m.quoteAsset&&['0','1'].includes(stat.launchPhase??'')&&stat.launchPhase!==String(phase)&&Number.isSafeInteger(stat.observedAt)&&stat.observedAt>=Number(m.display?.asOfTimestamp??0)&&Date.now()/1000-stat.observedAt<1200;}).map(m=>m.marketId));
+  const removed=new Set(exploreVisibleRows[phase].filter(m=>{if(dirtyIds&&!dirtyIds.includes(m.marketId))return false;const stat=exploreStatistics[m.marketId];return stat&&stat.memeToken===m.memeToken&&stat.quoteAsset===m.quoteAsset&&['0','1'].includes(stat.launchPhase??'')&&stat.launchPhase!==String(phase);}).map(m=>m.marketId));
   if(!removed.size)continue;explorePagers[phase].removeMarkets(removed);exploreVisibleRows[phase]=exploreVisibleRows[phase].filter(m=>!removed.has(m.marketId));
   for(const id of removed)query<HTMLElement>(`[data-runtime-market="${id}"]`)?.remove();
   text(`[data-stage-count="${phase}"]`,String(exploreVisibleRows[phase].length));exploreLastCapCheck=0;
@@ -1454,7 +1473,7 @@ function selectExploreCache(){
 function setupMarkets(): void {
  const params=new URL(location.href).searchParams;
  const input=query<HTMLInputElement>('[data-market-search]');if(input)input.value=params.get('search')??'';
- const requestedSort=params.get('sort');const selected=['createdAt_desc','marketCapUsd_desc','recentBuy_desc'].includes(requestedSort??'')?requestedSort:'createdAt_desc';
+ const requestedSort=params.get('sort');const selected=['createdAt_desc','createdAt_asc','marketCapUsd_desc','recentBuy_desc'].includes(requestedSort??'')?requestedSort:'createdAt_desc';
  queryAll<HTMLButtonElement>('[data-growing-sort]').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.growingSort===selected)));
  selectExploreCache();
 
@@ -1570,14 +1589,15 @@ async function renderExploreStage(phase:0|1,direction:'current'|'next'|'previous
       image.onload=finish;
       image.onerror=()=>{if(image.src!==fallback){image.src=fallback;}else{finish();}};
       const showImage=(url:string)=>{image.src=url;if(image.complete&&image.naturalWidth>0)finish();};
+      if(market.content)showImage(resolveExploreImageURI(market.content.imageURI,import.meta.env.VITE_IPFS_GATEWAY)??fallback);
       mark.append(image);
       void exploreIdentity(market).then(async identity=>{
         if(!card.isConnected)return;
         text('[data-market-name]',identity.name,card);text('[data-market-symbol]',`$${identity.symbol}`,card);
         cardLink.setAttribute('aria-label',`View ${identity.name}`);
         const age=query<HTMLTimeElement>('[data-market-age]',card);if(age){age.textContent=tokenAge(identity.deployedAt);const at=new Date(Number(identity.deployedAt)*1000);if(Number.isFinite(at.getTime())){age.dateTime=at.toISOString();age.title=at.toLocaleString();}}
-        const detail=await readDetailMetadata(identity.metadataURI,launchMetadataOrigin,AbortSignal.timeout(8000),import.meta.env.VITE_IPFS_GATEWAY);
-        if(card.isConnected)showImage(detail?.image||fallback);
+        const detail=market.content?null:await readDetailMetadata(identity.metadataURI,launchMetadataOrigin,AbortSignal.timeout(8000),import.meta.env.VITE_IPFS_GATEWAY);
+        if(card.isConnected&&!market.content)showImage(detail?.image||fallback);
       }).catch(()=>{if(card.isConnected)showImage(fallback);});
     }
     const stock = foundation.assets.find(asset => asset.id === market.assetUid);
@@ -4578,8 +4598,9 @@ function renderRecoveryControls(): void {
 async function refreshCurrentPage(preserveSnapshot = false): Promise<void> {
   const generation = routeGeneration;
   if (isStaticPage()) { renderWallet(); return; }
+  if (["stats","statsStocks"].includes(currentPage())) { await renderStats(); return; }
   if (integrationBootstrapPath && !foundation) await loadFoundation();
-  if (!integrationBootstrapPath && readApi && !preserveSnapshot && currentPage()!=="trade") {
+  if (!integrationBootstrapPath && readApi && !preserveSnapshot && currentPage()!=="trade" && currentPage()!=="markets") {
     try {
       const health = await readApi.getHealth();
       if (generation !== routeGeneration) return;
@@ -4589,6 +4610,7 @@ async function refreshCurrentPage(preserveSnapshot = false): Promise<void> {
       foundation = null; foundationError = errorText(error); invalidateSnapshotReads();
     }
   }
+  if(currentPage()==='markets'&&!foundation)await loadFoundation();
   if (generation !== routeGeneration) return;
   renderWallet();
   renderRecoveryControls();
@@ -4665,17 +4687,17 @@ function startSnapshotUpdates(): void {
   const baseUrl = runtimeConfig.readApi.value;
   const poller = createSnapshotPoller({
     chainId: robinhoodChain.id,
-    canPoll: () => readyRouteGeneration === routeGeneration && !isStaticPage() && currentPage()!=='trade' && !walletConnecting && !loadingFoundation && !document.hidden,
+    canPoll: () => readyRouteGeneration === routeGeneration && !isStaticPage() && currentPage()!=='trade' && currentPage()!=='markets' && !['stats','statsStocks'].includes(currentPage()) && !walletConnecting && !loadingFoundation && !document.hidden,
     fetchUpdate: (since, signal) => new TickerGardenV1Client(baseUrl, (input, init) => fetch(input, { ...init, signal })).getSnapshotUpdates(since && foundation ? { since } : {}),
     prepare: async (update, signal) => {
-      if(currentPage()==='trade')throw new SnapshotRefreshSuperseded('Trade uses its own market stream');
+      if(currentPage()==='trade'||currentPage()==='markets')throw new SnapshotRefreshSuperseded('This page uses its own display stream');
       const route=routeGeneration;
       const generation = ++foundationGeneration;
       const activeWallet = wallet;
       const api = new TickerGardenV1Client(baseUrl, (input, init) => fetch(input, { ...init, signal }));
       const next = await prepareFoundation(api, update.sync, update.mode!=='reset'&&!update.invalidated.includes('configs'));
       return () => {
-        if (route!==routeGeneration||currentPage()==='trade'||generation !== foundationGeneration || activeWallet !== wallet) throw new SnapshotRefreshSuperseded("Snapshot refresh superseded");
+        if (route!==routeGeneration||currentPage()==='trade'||currentPage()==='markets'||generation !== foundationGeneration || activeWallet !== wallet) throw new SnapshotRefreshSuperseded("Snapshot refresh superseded");
         invalidateSnapshotReads(currentPage() === 'trade',currentPage() === 'markets');
         const recentChanged=update.recentVersion!==undefined&&update.recentVersion!==recentMarketVersion;
         recentMarketVersion=update.recentVersion;
@@ -4696,6 +4718,7 @@ function startSnapshotUpdates(): void {
       };
     },
     unavailable: error => {
+      if(currentPage()==='markets')return;
       ++foundationGeneration;
       if(currentPage()==="trade"&&tradeMarket)return;
       foundation = null;
@@ -4709,6 +4732,7 @@ function startSnapshotUpdates(): void {
   window.addEventListener("online", () => poller.reconnect());
   window.addEventListener("offline", () => {
     poller.stop();
+    if(currentPage()==='markets')return;
     ++foundationGeneration;
     foundation = null;
     foundationError = "Network unavailable";
@@ -4718,7 +4742,7 @@ function startSnapshotUpdates(): void {
   });
 window.addEventListener("pagehide", () => poller.stop());
   window.addEventListener("pageshow", event => { if (event.persisted) poller.reconnect(); });
-document.addEventListener("visibilitychange", () => { if (document.hidden) { poller.stop(); pauseAnalytics(); } else poller.reconnect(); });
+document.addEventListener("visibilitychange", () => { if (document.hidden) { poller.stop(); pauseAnalytics(); if(currentPage()==='markets')closeExploreEvents(); } else {poller.reconnect();if(currentPage()==='markets'&&!foundation?.direct)openExploreEvents();} });
   snapshotPoller = poller;
   if (!isStaticPage()) poller.start();
 }
@@ -4736,6 +4760,7 @@ function unmountPage(): void {
 
   explorePagers[0].pause();explorePagers[1].pause();explorePageGeneration[0]++;explorePageGeneration[1]++;
   exploreLiveGeneration++;exploreLiveRequest?.abort();exploreLiveRequest=null;
+  closeExploreEvents();
   exploreStockPicker?.destroy();exploreStockPicker=undefined;
   window.clearInterval(stakeCountdownTimer);
   window.clearInterval(stakeStatisticsTimer);stakePageListeners?.abort();stakePageListeners=undefined;
@@ -4811,8 +4836,9 @@ function mountRoute(route: Route): Promise<void> {
       case "docs": disposeDocs=setupDocs(); break;
     }
     if (isStaticPage()) { assetPrices.pause(); refreshActionAvailability(); return; }
+    if (["stats","statsStocks"].includes(route.page)) { assetPrices.pause(); await renderStats(); if(generation===routeGeneration)readyRouteGeneration=generation; return; }
     assetPrices.start();
-    const needsFoundation = route.page==='trade' || !foundation || foundation.displayOnly || (foundation.configScope==="read"&&!["markets","stats","statsStocks"].includes(route.page)) || !!foundation.directoryMarketId;
+    const needsFoundation = route.page==='markets' || route.page==='trade' || !foundation || foundation.displayOnly || (foundation.configScope==="read"&&!["markets","stats","statsStocks"].includes(route.page)) || !!foundation.directoryMarketId;
     if (needsFoundation) await loadFoundation();
     if (generation !== routeGeneration) return;
     // A navigation may have joined an in-flight detail-only bootstrap.
@@ -4821,7 +4847,8 @@ function mountRoute(route: Route): Promise<void> {
     await refreshCurrentPage(needsFoundation);
     if (generation === routeGeneration) {
       readyRouteGeneration = generation;
-      if (foundation&&!foundation.displayOnly) snapshotPoller?.adoptRevision(foundation.sync.revision);
+      if(route.page==='markets'&&!foundation?.direct)openExploreEvents();
+      if (foundation&&!foundation.displayOnly&&route.page!=='markets') snapshotPoller?.adoptRevision(foundation.sync.revision);
     }
   })().catch(error => {
     if (generation !== routeGeneration) return;
@@ -5013,14 +5040,8 @@ const statsContext={
 get text(){return text;},
 get query(){return query;},
 get currentPage(){return currentPage;},
-get foundation(){return foundation;},
-get stockToken(){return stockToken;},
-get marketStockSymbols(){return marketStockSymbols;},
-get stockLogo(){return stockLogo;},
-get assetPrices(){return assetPrices;},
 get formatMarketUSD(){return formatMarketUSD;},
 get runtimeConfig(){return runtimeConfig;},
-get statsRender(){return statsRender;},
 };
 export type StatsContext=typeof statsContext;
 function ensureStatsController():Promise<void>{
@@ -5044,13 +5065,6 @@ const unsubscribeAssetPrices = assetPrices.subscribe(snapshot => {
   const fingerprint = JSON.stringify(snapshot); if (fingerprint === assetPriceFingerprint) return; assetPriceFingerprint = fingerprint;
   marketStockSymbols = new Map(Object.values(snapshot.prices).map(price => [price.token, price.symbol]));
   if (tradeMarket) tokenDetailWidget?.setOverview({ usd: assetPrices.midpointUsd(tradeMarket.market.quoteAsset) ?? undefined });
-  if (currentPage() === 'markets' && foundation) {
-    exploreStatisticsAt = 0;
-    void refreshExploreStatistics().then(changed => {
-      if(currentPage()!=='markets')return;
-      applyExploreStatistics();
-    });
-  } else if (['stats','statsStocks'].includes(currentPage()) && foundation) applyStatsSnapshot();
 });
 void restoreLaunchProgress();
 startSnapshotUpdates();
@@ -5097,15 +5111,30 @@ let directDirectoryTimer: ReturnType<typeof setInterval>|undefined;
 if(integrationBootstrapPath)directDirectoryTimer=setInterval(()=>{if(!document.hidden)void refreshDirectDirectory();},30_000);
 if(import.meta.hot)import.meta.hot.dispose(()=>{if(directDirectoryTimer)clearInterval(directDirectoryTimer);});
 
+function openExploreEvents():void{
+ if(exploreEvents||!runtimeConfig.readApi.available||typeof EventSource==='undefined')return;
+ exploreEvents=new EventSource(new URL('/v1/explore/events',runtimeConfig.readApi.value));
+ const recover=()=>{exploreStatisticsAt=0;void refreshExploreStatistics().then(()=>applyExploreStatistics());void refreshExploreRankings(true);};
+ exploreEvents.addEventListener('ready',()=>{if(currentPage()==='markets')recover();});
+ exploreEvents.addEventListener('change',event=>{
+  if(currentPage()!=='markets')return;
+  let data:{marketId?:string;regions?:string[]};try{data=JSON.parse((event as MessageEvent).data);}catch{return;}
+  if(data.marketId&&!/^0x[0-9a-f]{64}$/.test(data.marketId))return;
+  if(data.marketId)exploreDirtyIds.add(data.marketId);for(const region of data.regions??[])exploreDirtyRegions.add(region);
+  if(exploreEventRefreshTimer)return;
+  exploreEventRefreshTimer=window.setTimeout(()=>{
+   if(currentPage()!=='markets')return;
+   const dirty=[...exploreDirtyIds],regions=new Set(exploreDirtyRegions);exploreDirtyIds.clear();exploreDirtyRegions.clear();exploreEventRefreshTimer=undefined;
+   exploreStatisticsAt=0;
+   void refreshExploreCards(dirty.length?dirty:undefined).then(()=>applyExploreStatistics(dirty.length?dirty:undefined));
+   const listRelevant=regions.has('market')||regions.has('trades');
+   if(listRelevant)void refreshExploreRankings(true);
+  },150);
+ });
+}
+function closeExploreEvents():void{window.clearTimeout(exploreEventRefreshTimer);exploreEventRefreshTimer=undefined;exploreDirtyIds.clear();exploreDirtyRegions.clear();exploreEvents?.close();exploreEvents=undefined;}
 const exploreStatisticsTimer=setInterval(()=>{
  if(currentPage()!=='markets'||document.hidden)return;
- void refreshExploreRankings();
- void refreshExploreStatistics().then(changed=>{
-  if(currentPage()!=='markets')return;
-  applyExploreStatistics();
- });
-},2_000);
+ exploreStatisticsAt=0;void refreshExploreStatistics().then(()=>applyExploreStatistics());void refreshExploreRankings(true);
+},60_000);
 if(import.meta.hot)import.meta.hot.dispose(()=>clearInterval(exploreStatisticsTimer));
-
-const statsPageTimer=setInterval(()=>{if(["stats","statsStocks"].includes(currentPage())&&!document.hidden)void renderStats();},60_000);
-if(import.meta.hot)import.meta.hot.dispose(()=>clearInterval(statsPageTimer));

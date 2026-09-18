@@ -618,7 +618,8 @@ test('TS-02/03/04/05/06 PostgreSQL, ingestion, publications and Hono read paths'
         const hiddenContent = await client.query(`SELECT * FROM ${schema}.jobs WHERE operation_id='content-operation'`);
         assert.equal(hiddenContent.rowCount, 0);
         assert.deepEqual((await client.query(`SELECT queue FROM ${schema}.queue_generations ORDER BY queue`)).rows, [{ queue: 'chain' }]);
-        await rejectsQuery(() => client.query(`SELECT * FROM ${schema}.content_objects`), /permission denied/);
+        await client.query(`SELECT * FROM ${schema}.content_objects`); // Worker reads published metadata for display cards.
+        await rejectsQuery(() => client.query(`DELETE FROM ${schema}.content_objects WHERE false`), /permission denied/);
       });
 
       await client.query('BEGIN');

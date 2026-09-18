@@ -43,3 +43,16 @@ test('holder snapshots use the documented error schema and private cache policy'
  const body=await response.json();assert.equal(body.error,'snapshot_unavailable');assert.equal(typeof body.requestId,'string');
  const method=await app.request('/v1/holder-snapshots',{method:'POST'});assert.equal(method.status,405);assert.equal((await method.json()).error,'method_not_allowed');
 });
+
+test('Explore reads are database-only, head-independent and uncached; malformed requests never query',async()=>{
+ let queries=0;
+ const pool={query:async()=>{queries++;return {rows:[],rowCount:0};}} as unknown as Pool;
+ const app=createReadApiApp({env:{NODE_ENV:'test',TG_READ_DATABASE_URL:'postgres://unused',TG_CURSOR_SECRET:'x'.repeat(32)},pool});
+ for(const path of ['/v1/explore?limit=101','/v1/explore?launchPhase=2','/v1/explore?sort=oops','/v1/explore?assetUid=oops','/v1/explore?revision=untrusted','/v1/explore/cards?markets=oops','/v1/explore/bootstrap?extra=true']){
+  const before=queries,response=await app.request(path);assert.equal(response.status,400,path);assert.equal(queries,before,path);
+ }
+ for(const path of ['/v1/explore/bootstrap','/v1/explore',`/v1/explore/cards?markets=0x${'1'.repeat(64)}`]){
+  const response=await app.request(path);assert.equal(response.status,200,path);assert.equal(response.headers.get('cache-control'),'no-store');
+  const body=await response.json();if(path.endsWith('bootstrap')){assert.equal(body.displayOnly,true);assert.equal(body.sync.status,'unavailable');assert.ok(body.configs.length>0);}else assert.deepEqual(body.items,[]);
+ }
+});

@@ -1,3 +1,4 @@
+import {recoveryRead,recoveryWrite,recoveryRemove} from './recoveryStorage.ts';
 import {V1_EXECUTION_SPEC_ID} from './generated/abi-identity.ts';
 import type {
   Abi,
@@ -283,14 +284,14 @@ export class V1TransactionExecutor {
 
   #writePending(account: Address, records: readonly PendingTransaction[]): void {
     const key = this.#journalKey(account);
-    if (!records.length) { this.journal.removeItem(key); return; }
-    this.journal.setItem(key, JSON.stringify({ version: 2, records } satisfies PendingTransactionJournalV2));
+    if (!records.length) { recoveryRemove(this.journal,key); return; }
+    recoveryWrite(this.journal,key, JSON.stringify({ version: 2, records } satisfies PendingTransactionJournalV2));
   }
 
   pending(account: Address): readonly PendingTransaction[] {
-    const raw = this.journal.getItem(this.#journalKey(account));
+    const raw = recoveryRead(this.journal,this.#journalKey(account));
     if (!raw) {
-      const legacyRaw = this.journal.getItem(this.#legacyJournalKey(account));
+      const legacyRaw = recoveryRead(this.journal,this.#legacyJournalKey(account));
       if (!legacyRaw) return [];
       let legacy: { intent?: unknown; hash?: unknown; approval?: unknown; operationKey?: unknown; cancelled?: unknown };
       try { legacy = JSON.parse(legacyRaw) as typeof legacy; }
@@ -302,7 +303,7 @@ export class V1TransactionExecutor {
       const now = Date.now();
       const migrated = this.#validatePending({ ...legacy, ...scope, operationKey: legacy.operationKey, createdAt: now, updatedAt: now, stage: "unknown" });
       this.#writePending(account, [migrated]);
-      this.journal.removeItem(this.#legacyJournalKey(account));
+      recoveryRemove(this.journal,this.#legacyJournalKey(account));
       return [migrated];
     }
     let parsed: PendingTransactionJournalV2;

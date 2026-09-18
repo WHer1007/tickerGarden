@@ -117,7 +117,7 @@ test('confirmed display advances an empty range idempotently and rolls back orph
     const notifyDb=createDatabasePool(databaseUrl,{max:1});const listener=await notifyDb.pool.connect();
     const notices:Array<{marketId:string;regions:string[]}>=[];
     try{
-      listener.on('notification',n=>{if(n.payload)notices.push(JSON.parse(n.payload));});
+      listener.on('notification',n=>{if(n.payload){const data=JSON.parse(n.payload);if(data.marketId)notices.push(data);}});
       await listener.query(`LISTEN ${changeChannel(deployment,schemaName)}`);
       assert.equal(await advanceConfirmedDisplay({ pool: db.pool, deployment, rpc: fakeRpc({ canonicalOrphan: true, head: 11n }), schemaName }), 'current');
       for(let i=0;i<100&&notices.length<2;i++)await new Promise(resolve=>setTimeout(resolve,5));

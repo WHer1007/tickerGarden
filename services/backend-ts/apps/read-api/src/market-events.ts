@@ -9,7 +9,7 @@ export function createMarketEvents(pool:()=>Pool,d:DeploymentIdentity,schema?:st
  let client:PoolClient|null=null,opening:Promise<void>|null=null;
  const close=()=>{const c=client;client=null;c?.removeAllListeners('notification');c?.removeListener('error',failed);c?.release(true);};
  const failed=()=>{for(const l of [...listeners.values()])l.close();close();};
- const receive=(n:Notification)=>{if(n.channel!==channel||!n.payload)return;try{const data=JSON.parse(n.payload);if(typeof data.marketId!=='string')return;for(const l of listeners.values())if(l.market===data.marketId)l.send(n.payload);}catch{/* Only invalidation hints; malformed payloads are ignored. */}};
+ const receive=(n:Notification)=>{if(n.channel!==channel||!n.payload)return;try{const data=JSON.parse(n.payload);const stats=Array.isArray(data.statsRegions);if(!stats&&typeof data.marketId!=='string')return;for(const l of listeners.values())if(stats?l.market==='@stats':l.market==='*'||l.market===data.marketId)l.send(n.payload);}catch{/* Only invalidation hints; malformed payloads are ignored. */}};
  const connect=()=>opening??=(async()=>{if(client)return;const c=await pool().connect();client=c;c.on('error',failed);c.on('notification',receive);try{await c.query(`LISTEN ${channel}`);}catch(e){close();throw e;}})().finally(()=>{opening=null;});
  return async(context:Context,market:string)=>{
   if(listeners.size>=128)return context.json({error:'stream_capacity'},503);

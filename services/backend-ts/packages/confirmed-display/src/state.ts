@@ -1,5 +1,5 @@
 import {formatUnits,parseUnits} from 'viem';
-import type {MarketReadModel,TokenDetailResponse,TokenDetailTrade} from '../../../openapi/generated/v1-client.ts';
+import type {MarketReadModel,TokenDetailResponse,TokenDetailTrade,LastBuyReadModel,MarketMetricsReadModel} from '../../../openapi/generated/v1-client.ts';
 import {normalizeTransaction,transferFromObservation,type EventObservation} from '../../analytics/src/index.ts';
 import {feeCredits,validateMarket} from '../../analytics-projector/src/index.ts';
 import {f72EventCatalog} from '../../events/src/index.ts';
@@ -12,6 +12,9 @@ export interface DisplayState {
  detailViews?:Record<'1H'|'12H'|'1D',TokenDetailResponse>;
  balances:Record<string,string>; exclusions:string[]; supply:string;
  latestTrade?:TokenDetailTrade|null;
+ latestBuy?:LastBuyReadModel|null;
+ quoteUsdAsOf?:string|null;
+ quoteUsdSource?:MarketMetricsReadModel['usdPriceSource'];
  trades:TokenDetailTrade[]; fees:NonNullable<TokenDetailResponse['fees']>;
  /** Earliest time for which all executions are known. */
  historyFrom:number; asOf:number; blockNumber:string; blockHash:`0x${string}`;
@@ -40,6 +43,7 @@ export function applyDisplayEvents(previous:DisplayState,market:MarketReadModel,
  const incoming:TokenDetailTrade[]=[];
  for(const group of groups.values())for(const t of normalizeTransaction(group.filter(o=>o.event.module!=='TickerGardenCurve'||o.event.log.address===market.curve),[validated.binding])){
   if(t.marketId!==market.marketId)continue;
+  if(t.side==='buy'&&t.classification==='unclassified'&&BigInt(t.memeRaw)>0n&&BigInt(t.quoteRaw)>0n)next.latestBuy={blockNumber:t.source.blockNumber,transactionIndex:String(t.source.transactionIndex),logIndex:String(t.source.logIndex),timestamp:t.timestamp};
   incoming.push({timestamp:Number(t.timestamp),side:t.side,price:formatUnits(BigInt(t.price.numerator)*10n**36n/BigInt(t.price.denominator),36),memeRaw:t.memeRaw,quoteRaw:t.quoteRaw,actor:t.actor,txHash:t.source.transactionHash,eventKey:t.source.eventKey,classification:t.classification});
  }
  const keys=new Set(next.trades.map(t=>t.eventKey));if(incoming.some(t=>keys.has(t.eventKey)))throw Error('Display receipt already applied');
@@ -83,11 +87,20 @@ export function displayDetail(state:DisplayState,period:'1H'|'12H'|'1D',asOf=sta
 /** Materialize in the worker. Read endpoints only select stored response fields. */
 export function materializeDisplay(state:DisplayState,head={number:state.blockNumber,hash:state.blockHash,timestamp:state.asOf}):DisplayState{
  const observed={...state,blockNumber:head.number,blockHash:head.hash};
- return {...state,detailViews:{'1H':displayDetail(observed,'1H',head.timestamp),'12H':displayDetail(observed,'12H',head.timestamp),'1D':displayDetail(observed,'1D',head.timestamp)}};
+ const hour=displayDetail(observed,'1H',head.timestamp);
+ const metrics=exploreMetrics(hour.statistics!,state.quoteUsd,head.timestamp,state.quoteUsdAsOf??null,state.quoteUsdSource??null);
+ const {lastBuy:oldBuy,...baseMarket}=state.market;
+ return {...state,market:{...baseMarket,metrics,...(state.latestBuy?{lastBuy:state.latestBuy}:{})},detailViews:{'1H':hour,'12H':displayDetail(observed,'12H',head.timestamp),'1D':displayDetail(observed,'1D',head.timestamp)}};
 }
 
 export function displayUsd(price:string|null,supply:string,usd:string|null|undefined):{priceUsd:string|null;marketCapUsd:string|null}{
  if(!price||!usd)return {priceUsd:null,marketCapUsd:null};
  const product=parseUnits(price,36)*parseUnits(usd,36);
  return {priceUsd:formatUnits(product/10n**36n,36),marketCapUsd:formatUnits(product*BigInt(supply)/10n**54n,36)};
+}
+
+/** Current-price USD estimate, materialized once by the worker, never by readers. */
+export function exploreMetrics(stat:NonNullable<TokenDetailResponse['statistics']>,usd:string|null|undefined,asOf:number,usdAsOf:string|null=null,usdSource:MarketMetricsReadModel['usdPriceSource']=null):MarketMetricsReadModel{
+ const volume=stat.volume24h===null?null:stat.volume24h==='0'?'0':usd?formatUnits(parseUnits(stat.volume24h,36)*parseUnits(usd,36)/10n**36n,36):null;
+ return {status:stat.marketCapUsd!=null?'available':'unavailable',reason:stat.marketCapUsd==null?'valuation_inputs_unavailable':'',marketCapUsd:stat.marketCapUsd??null,volume24hUsd:volume,quoteUsdMidpoint:usd??null,windowFromTimestamp:String(Math.max(0,asOf-86400)),asOfTimestamp:String(asOf),usdPriceAsOf:usdAsOf,usdPriceSource:usdSource,volumeBasis:'EXTERNAL_EXECUTIONS_CURVE_EXCLUDING_FEE_TAX_OR_POOL_CORE',marketCapBasis:'TOTAL_SUPPLY_X_POOL_SPOT_X_QUOTE_USD'};
 }

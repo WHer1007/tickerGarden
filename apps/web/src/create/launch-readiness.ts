@@ -12,14 +12,21 @@ export function launchDataReady(page:MarketPageBootstrap, detail:TokenDetailResp
   && detail.holders!=null && detail.chart!=null && detail.trades!=null && detail.fees!=null;
 }
 
-export async function waitForLaunchData(base:string,marketId:`0x${string}`,token:string,signal:AbortSignal):Promise<void>{
- const api=new TickerGardenV1Client(base,(input,init)=>fetch(input,{...init,cache:'no-store',signal:AbortSignal.any([signal,AbortSignal.timeout(10000)])}));
- while(!signal.aborted){
+export class LaunchDataPendingError extends Error {
+ constructor(){super('Your token is created. Its page is still being prepared. We will retry automatically.');this.name='LaunchDataPendingError';}
+}
+export async function waitForLaunchData(base:string,marketId:`0x${string}`,token:string,signal:AbortSignal,timing:{timeoutMs?:number;retryMs?:number}={}):Promise<void>{
+ const deadline=AbortSignal.timeout(timing.timeoutMs??60000);
+ const active=AbortSignal.any([signal,deadline]);
+ const api=new TickerGardenV1Client(base,(input,init)=>fetch(input,{...init,cache:'no-store',signal:AbortSignal.any([active,AbortSignal.timeout(10000)])}));
+ while(!active.aborted){
   try{
    const [page,detail]=await Promise.all([api.getMarketPageBootstrap({marketId}),api.getTokenDetail({marketId,period:'1H'})]);
-   if(launchDataReady(page,detail,marketId,token))return;
-  }catch{/* Readiness failures never turn a confirmed launch into a failed transaction. */}
-  await new Promise<void>(resolve=>{const done=()=>{clearTimeout(timer);signal.removeEventListener('abort',done);resolve();};const timer=setTimeout(done,3000);signal.addEventListener('abort',done,{once:true});});
+   if(!active.aborted&&launchDataReady(page,detail,marketId,token))return;
+  }catch{/* A confirmed launch stays confirmed while its read model recovers. */}
+  if(active.aborted)break;
+  await new Promise<void>(resolve=>{const done=()=>{clearTimeout(timer);active.removeEventListener('abort',done);resolve();};const timer=setTimeout(done,timing.retryMs??3000);active.addEventListener('abort',done,{once:true});});
  }
  signal.throwIfAborted();
+ throw new LaunchDataPendingError();
 }

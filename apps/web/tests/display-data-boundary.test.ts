@@ -56,7 +56,7 @@ test('detail bootstrap and background display refresh do not wait for wallet RPC
  assert.match(complete,/void loadDetailBalances\(false\)/);
  assert.match(app,/await refreshCurrentPage\(needsFoundation\)/);
  assert.match(app,/directoryMarketId\s*\? readPublishedMarket/);
- assert.match(app,/const needsFoundation = route.page==='trade' \|\|/);
+ assert.match(app,/const needsFoundation = route.page==='markets' \|\| route.page==='trade' \|\|/);
  assert.match(app,/\|\| !!foundation.directoryMarketId/);
 });
 

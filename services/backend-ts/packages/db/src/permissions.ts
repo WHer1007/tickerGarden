@@ -42,6 +42,9 @@ GRANT SELECT ON
   ${schema}.projection_checkpoints,
   ${schema}.markets,
   ${schema}.recent_markets,
+  ${schema}.explore_display_cards,
+  ${schema}.explore_cap_snapshots,
+  ${schema}.explore_cap_ranks,
   ${schema}.confirmed_display_markets,
   ${schema}.confirmed_display_cursor,
   ${schema}.account_facts,
@@ -50,6 +53,7 @@ GRANT SELECT ON
   ${schema}.market_trades,
   ${schema}.market_latest_buys,
   ${schema}.protocol_statistics_snapshots,
+  ${schema}.stats_display_snapshots,
   ${schema}.market_cap_snapshots,
   ${schema}.market_cap_ranks,
   ${schema}.market_candles,
@@ -117,15 +121,25 @@ GRANT SELECT, INSERT, UPDATE, DELETE ON
   ${schema}.projection_checkpoints,
   ${schema}.markets,
   ${schema}.recent_markets,
+  ${schema}.explore_cap_snapshots,
+  ${schema}.explore_cap_ranks,
   ${schema}.confirmed_display_markets,
   ${schema}.confirmed_display_cursor,
   ${schema}.confirmed_display_journal,
+  ${schema}.stats_display_flows,
+  ${schema}.stats_display_buckets,
+  ${schema}.stats_display_positions,
+  ${schema}.stats_display_markets,
+  ${schema}.stats_display_counts,
+  ${schema}.stats_display_stock_totals,
+  ${schema}.stats_display_wallet_refs,
   ${schema}.account_facts,
   ${schema}.display_records,
   ${schema}.config_records,
   ${schema}.market_trades,
   ${schema}.market_latest_buys,
   ${schema}.protocol_statistics_snapshots,
+  ${schema}.stats_display_snapshots,
   ${schema}.market_cap_snapshots,
   ${schema}.market_cap_ranks,
   ${schema}.market_candles,
@@ -149,7 +163,7 @@ GRANT SELECT, INSERT, UPDATE, DELETE ON
 TO ${pipeline};
 GRANT SELECT ON ${schema}.holder_snapshots_covered TO ${readApi}, ${pipeline};
 GRANT SELECT, INSERT ON ${schema}.publications TO ${pipeline};
-GRANT SELECT ON ${schema}.content_objects TO ${pipeline};
+GRANT SELECT ON ${schema}.content_objects, ${schema}.explore_display_cards TO ${pipeline};
 GRANT SELECT, INSERT ON ${schema}.holder_reward_datasets TO ${pipeline};
 GRANT SELECT, INSERT, DELETE ON ${schema}.holder_reward_wallet_proofs TO ${pipeline};
 REVOKE UPDATE, DELETE ON ${schema}.holder_reward_datasets FROM ${pipeline};
