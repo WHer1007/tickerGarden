@@ -1,4 +1,4 @@
-import {webRequestId,reportWebError} from './diagnostics.ts';
+import {webRequestId,reportWebError} from '../server/diagnostics.ts';
 const ALLOWED_METHODS = new Set([
   'eth_blockNumber',
   'eth_call',

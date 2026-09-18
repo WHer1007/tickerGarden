@@ -1,4 +1,4 @@
-import {webRequestId,reportWebError} from './diagnostics.ts';
+import {webRequestId,reportWebError} from '../server/diagnostics.ts';
 import {readFile} from 'node:fs/promises';
 
 export async function marketPage(request:Request, shell:string, env:Record<string,string|undefined>, fetcher:typeof fetch=fetch):Promise<Response>{
