@@ -1,3 +1,4 @@
+import {compactPrice} from '../ui/compact-price.ts';
 /** Display-only arithmetic; settlement still uses a fresh contract quote. */
 export function curveTradeMetrics(side:'buy'|'sell',input:bigint,output:bigint,spent:bigint,quoteReserve:bigint,tokenReserve:bigint,fee:bigint){
  if(input<=0n||output<=0n||quoteReserve<=0n||tokenReserve<=0n||fee<0n)throw Error('Invalid pricing inputs');
@@ -23,10 +24,7 @@ export function antiSnipeBps(elapsed:bigint,exempt:boolean,base:bigint,tax:bigin
 
 /** Short display only; never feed rounded prices back into transaction math. */
 export function formatTradePrice(decimal:string):string{
- const fraction=decimal.split('.')[1]?.replace(/0+$/,'')??'';
- if(fraction.length<=6)return decimal;
- const [mantissa,exponent]=Number(decimal).toExponential(3).split('e');
- return `${mantissa!.replace(/\.?0+$/,'')}e${exponent}`;
+ return compactPrice(decimal);
 }
 
 /** Exact-input v4 Hook fees are deducted from the output currency. The quoter

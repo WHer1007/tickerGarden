@@ -12,6 +12,14 @@ const other = '0x3333333333333333333333333333333333333333' as Address;
 const holderAbi = parseAbi(['function exec(address operator,address token,uint256 amount,address target,bytes data) payable returns (bytes)']);
 const settlerAbi = parseAbi(['function execute((address recipient,address buyToken,uint256 minAmountOut) slippage,bytes[] actions,bytes32 zid) payable returns (bool)']);
 
+test('provider token restriction has a stable safe category without leaking provider body',async()=>{
+ const fetcher=(async()=>new Response(JSON.stringify({name:'BUY_TOKEN_NOT_AUTHORIZED_FOR_TRADE',message:'private upstream text'}),{status:422})) as typeof fetch;
+ await assert.rejects(getConversionQuote(intent(),'synthetic-key',fetcher),error=>{
+  assert.equal((error as {code:string}).code,'conversion_asset_unavailable');
+  assert.equal((error as Error).message,'Conversion service unavailable');return true;
+ });
+});
+
 function intent(sellToken: Address = TRADE_NATIVE, buyToken: Address = TRADE_USDG, sellAmount = '1000'): ConversionIntent {
   return { chainId: 4663, sellToken, buyToken, sellAmount, taker: wallet };
 }

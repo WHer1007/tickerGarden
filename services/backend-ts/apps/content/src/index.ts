@@ -1,3 +1,4 @@
+import {reportError} from '../../../packages/observability/src/index.ts';
 import {CURRENT_CHAIN_ID,assertRuntimeEnvironment} from '../../../packages/runtime-deployment/src/index.ts';
 import { randomUUID } from 'node:crypto';
 import type { Pool } from 'pg';
@@ -140,6 +141,7 @@ function contentError(context: Context, error: unknown) { const requestId = cont
   if (error instanceof ContentAuthorizationError) return context.json({ error: 'invalid_authorization', requestId }, 401);
   if (error instanceof ContentQuotaError) return context.json({ error: 'content_quota_exhausted', requestId }, 429);
   if (error instanceof Error && /invalid/.test(error.message)) return context.json({ error: 'invalid_request', message: error.message, requestId }, 400);
+  reportError('content','content_store_unavailable',error,{requestId,status:503});
   return context.json({ error: 'content_store_unavailable', requestId }, 503);
 }
 export default createContentApp();

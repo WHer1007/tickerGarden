@@ -6,6 +6,7 @@
   "exports": "./src/index.ts",
   "dependencies": {
     "@upstash/qstash": "^2.11.3",
-    "pg": "^8.23.0"
+    "pg": "^8.23.0",
+    "@tickergarden/observability": "0.0.0"
   }
 }

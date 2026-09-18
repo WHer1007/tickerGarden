@@ -1,3 +1,4 @@
+import {reportError} from '../../observability/src/index.ts';
 import { checkServerIdentity } from 'node:tls';
 import { attachDatabasePool } from '@vercel/functions';
 import { drizzle, type NodePgDatabase } from 'drizzle-orm/node-postgres';
@@ -46,7 +47,7 @@ export function createDatabasePool(connectionString: string, overrides: PoolConf
   // pg removes failed idle clients itself. Without this listener EventEmitter
   // terminates the process; the next request should instead acquire a new client.
   pool.on('error', (error: Error & {code?:string}) => {
-    console.error(JSON.stringify({level:'error',event:'database_idle_client_error',code:error.code??'unknown'}));
+    reportError('database','database_idle_client_error',error,{code:error.code??'unknown'});
   });
   if (process.env.VERCEL) attachDatabasePool(pool);
   return Object.freeze({ pool, db: drizzle(pool, { schema }) });

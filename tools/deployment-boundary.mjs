@@ -6,7 +6,7 @@ import { environmentPolicy, vercelProjects } from '../config/environment-policy.
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const services = new Set(Object.keys(vercelProjects));
 const localReference = /(?:localhost|127\.0\.0\.1|\[::1\]|\/integration\/|\.codex_tmp\/|\/Users\/|\/tmp\/)/i;
-const ownedKey = /^(?:VITE_|TG_|V1_|RH46630_|ALCHEMY_|QSTASH_|PINATA_|CRON_SECRET$)/;
+const ownedKey = /^(?:VITE_|TG_|V1_|RH46630_|ALCHEMY_|QSTASH_|PINATA_|ZEROX_API_KEY$|CRON_SECRET$)/;
 
 function required(env, key) {
   const value = env[key];
@@ -22,6 +22,7 @@ function remoteUrl(env, key, protocols = ['https:']) {
 }
 
 function assertServiceIsolation(service, env) {
+  if(service!=='read-api'&&Object.hasOwn(env,'ZEROX_API_KEY'))throw Error(`${service} contains variables owned by another service: ZEROX_API_KEY`);
   // Vercel injects this public instrumentation setting into backend builds too.
   const keys = Object.keys(env).filter(key => ownedKey.test(key) && key !== 'VITE_VERCEL_OBSERVABILITY_CLIENT_CONFIG');
   const forbidden = service === 'web'
@@ -44,6 +45,7 @@ export function assertDeploymentBoundary(target, service, env, branch) {
   if (env.VERCEL_TARGET_ENV && env.VERCEL_TARGET_ENV !== policy.vercelEnvironment) throw Error(`${target} deployment has the wrong Vercel target`);
   if (env.VITE_INTEGRATION_BOOTSTRAP) throw Error('Deployed environments cannot use the local integration bootstrap');
   for (const [key, value] of Object.entries(env)) if (ownedKey.test(key) && value && localReference.test(value)) throw Error(`Deployment variable contains a local reference: ${key}`);
+  if(Object.keys(env).some(k=>/^VITE_(?:SENTRY_AUTH_TOKEN|LARK_|ALERT_INGEST_TOKEN)/.test(k)))throw Error('Observability secrets must not use the public VITE prefix');
   assertServiceIsolation(service, env);
 
   if (service === 'web') {

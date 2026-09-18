@@ -1,3 +1,4 @@
+import {reportError} from '../../../packages/observability/src/index.ts';
 import {rpcPolicy} from '../../../packages/chain/src/rpc-policy.ts';
 import {CURRENT_CHAIN_ID,assertRuntimeEnvironment} from '../../../packages/runtime-deployment/src/index.ts';
 import { publishMarketCapRanking } from '../../../packages/display-price/src/ranking.ts';
@@ -77,7 +78,7 @@ export function createPipelineApp(options: PipelineAppOptions = {}) {
     try{body=await context.req.json();if(!body||Object.keys(body).length!==1||typeof body.transactionHash!=='string'||!/^0x[0-9a-f]{64}$/.test(body.transactionHash))throw Error('invalid');}
     catch{return context.json({error:'invalid_request'},400);}
     try{return context.json(await recordRecentLaunch(recentLaunchInput(),body.transactionHash as `0x${string}`));}
-    catch{return context.json({error:'launch_observation_unavailable',message:'Creation could not yet be verified. Retry with the same transaction hash.'},503);}
+    catch(error){reportError('pipeline','launch_observation_failed',error,{requestId:context.get('requestId'),flow:'launch',status:503});return context.json({error:'launch_observation_unavailable',message:'Creation could not yet be verified. Retry with the same transaction hash.'},503);}
   });
   function operatorAuthorized(header: string | undefined): boolean {
     const provided = header?.startsWith('Bearer ') ? header.slice(7) : null;
@@ -277,7 +278,7 @@ async function readPipelineMetrics(pool: Pool, environment: 'preview' | 'test' |
       `SELECT scope,next_block::text,generation::text,extract(epoch FROM now()-updated_at)::text age_seconds FROM ${schema}.projection_checkpoints WHERE environment=$1 AND chain_id=$2 AND deployment_digest=$3 ORDER BY scope`, identity),
     pool.query<{ count: string }>(`SELECT count(*)::text count FROM ${schema}.source_conflicts WHERE environment=$1 AND chain_id=$2 AND deployment_digest=$3 AND resolved_at IS NULL`, identity),
     pool.query<{ status: string; count: string; oldest_age_seconds: string; nearest_expiry_seconds: string }>(
-      `SELECT status,count(*)::text count,extract(epoch FROM now()-min(as_of))::text oldest_age_seconds,extract(epoch FROM min(expires_at)-now())::text nearest_expiry_seconds FROM ${schema}.price_references WHERE environment=$1 AND chain_id=$2 AND deployment_digest=$3 GROUP BY status ORDER BY status`, identity),
+      `SELECT status,count(*)::text count,extract(epoch FROM now()-min(as_of))::text oldest_age_seconds,extract(epoch FROM min(expires_at)-now())::text nearest_expiry_seconds FROM (SELECT DISTINCT ON (asset) asset,status,as_of,expires_at FROM ${schema}.price_references WHERE environment=$1 AND chain_id=$2 AND deployment_digest=$3 AND source<>'fixed_usd' ORDER BY asset,as_of DESC,expires_at DESC) latest GROUP BY status ORDER BY status`, identity),
     pool.query<{ number: string | null }>(`SELECT max(number)::text number FROM ${schema}.chain_blocks WHERE environment=$1 AND chain_id=$2 AND deployment_digest=$3 AND canonical`, identity),
   ]);
   const headNumber = head.rows[0]?.number === null || head.rows[0]?.number === undefined ? null : BigInt(head.rows[0].number);
@@ -293,8 +294,8 @@ async function readPipelineMetrics(pool: Pool, environment: 'preview' | 'test' |
   };
 }
 
-function poolMetrics(pool: Pool) { return { total: pool.totalCount, idle: pool.idleCount, waiting: pool.waitingCount }; }
-function pipelineAlerts(queue: Awaited<ReturnType<typeof readQueueMetrics>>, pipeline: Awaited<ReturnType<typeof readPipelineMetrics>>,
+function poolMetrics(pool: Pool) { return { total: pool.totalCount, idle: pool.idleCount, waiting: pool.waitingCount, max: pool.options.max??4 }; }
+export function pipelineAlerts(queue: Awaited<ReturnType<typeof readQueueMetrics>>, pipeline: Awaited<ReturnType<typeof readPipelineMetrics>>,
   database: ReturnType<typeof poolMetrics>, env: Readonly<Record<string, string | undefined>>) {
   const alerts: Array<{ code: string; severity: 'warning' | 'critical'; value: number | string; threshold: number | string }> = [];
   if (queue.oldestOutboxAgeSeconds > 180) alerts.push({ code: 'outbox_age_high', severity: 'critical', value: queue.oldestOutboxAgeSeconds, threshold: 180 });
@@ -303,9 +304,12 @@ function pipelineAlerts(queue: Awaited<ReturnType<typeof readQueueMetrics>>, pip
   const lagThreshold = Number(env.V1_FINALITY_DELAY_BLOCKS ?? '2') + 30;
   for (const checkpoint of [...pipeline.ingestion, ...pipeline.projections]) if (checkpoint.lagBlocks !== null && BigInt(checkpoint.lagBlocks) > BigInt(lagThreshold))
     alerts.push({ code: 'checkpoint_lag_high', severity: 'critical', value: checkpoint.lagBlocks, threshold: lagThreshold });
-  if (pipeline.prices.some((price) => price.nearestExpirySeconds <= 0)) alerts.push({ code: 'price_expired', severity: 'warning', value: 1, threshold: 0 });
-  const poolMax = Number(env.TG_DB_POOL_MAX ?? '4');
-  if (database.waiting > 0 || database.total >= Math.ceil(poolMax * 0.8)) alerts.push({ code: 'database_pool_pressure', severity: 'warning', value: database.total, threshold: Math.ceil(poolMax * 0.8) });
+  const expectedPrices=new Set([...f72PriceTargets().map(p=>p.token),'0x0000000000000000000000000000000000000000']).size;
+  const availablePrices=pipeline.prices.filter(p=>p.status==='available').reduce((n,p)=>n+p.count,0);
+  if(availablePrices<expectedPrices)alerts.push({code:'price_coverage_incomplete',severity:'warning',value:availablePrices,threshold:expectedPrices});
+  if (pipeline.prices.some((price) => price.nearestExpirySeconds < -60)) alerts.push({ code: 'price_expired', severity: 'warning', value: 1, threshold: 0 });
+  const poolMax = database.max;
+  if (database.waiting > 0 || database.total-database.idle >= Math.ceil(poolMax * 0.8)) alerts.push({ code: 'database_pool_pressure', severity: 'warning', value: database.total-database.idle, threshold: Math.ceil(poolMax * 0.8) });
   return alerts;
 }
 function identifier(value: string) { if (!/^[a-z][a-z0-9_]{0,62}$/.test(value)) throw new Error('invalid database schema name'); return `"${value}"`; }

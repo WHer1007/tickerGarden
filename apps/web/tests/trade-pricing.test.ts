@@ -24,10 +24,10 @@ test('anti-snipe honors exemptions, five-second expiry and fee cap',()=>{
  assert.throws(()=>antiSnipeBps(-1n,false,100n,0n));
 });
 
-test('long decimal prices use compact scientific notation',()=>{
- assert.equal(formatTradePrice('0.000000000191345183'),'1.913e-10');
- assert.equal(formatTradePrice('0.000001'),'0.000001');
- assert.equal(formatTradePrice('1.23456789'),'1.235e+0');
+test('small prices use subscript zero counts and six significant digits',()=>{
+ assert.equal(formatTradePrice('0.000000000191345183'),'0.0₉191345');
+ assert.equal(formatTradePrice('0.000001'),'0.0₅1');
+ assert.equal(formatTradePrice('1.23456789'),'1.23457');
  assert.equal(formatTradePrice('0'),'0');
 });
 

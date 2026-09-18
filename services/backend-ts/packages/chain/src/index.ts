@@ -14,8 +14,8 @@ const MAX_RESPONSE_BYTES = 5 * 1024 * 1024;
 export class RpcError extends Error {
   override readonly name = 'RpcError';
   readonly retryable: boolean;
-  constructor(message: string, retryable = false) {
-    super(message);
+  constructor(message: string, retryable = false, cause?: unknown) {
+    super(message, cause === undefined ? undefined : {cause});
     this.retryable = retryable;
   }
 }
@@ -183,7 +183,7 @@ export class RpcTransport {
       }
     }
     if (lastError instanceof RpcError) throw lastError;
-    throw new RpcError('RPC request failed', true);
+    throw new RpcError('RPC request failed', true, lastError);
   }
 
   #emit(metric: RpcCallMetric): void {

@@ -1,3 +1,4 @@
+import {reportError,logEvent,withLogContext} from '../../observability/src/index.ts';
 import { randomUUID, timingSafeEqual } from 'node:crypto';
 import { OpenAPIHono, createRoute, z } from '@hono/zod-openapi';
 import { bodyLimit } from 'hono/body-limit';
@@ -85,18 +86,16 @@ export function createServiceApp(options: ServiceOptions): ServiceApp {
     const requestId = incoming && /^[A-Za-z0-9._:-]{1,128}$/.test(incoming) ? incoming : randomUUID();
     context.set('requestId', requestId);
     context.header('x-request-id', requestId);
-    await next();
+    await withLogContext({requestId,method:context.req.method,path:new URL(context.req.url).pathname.replace(/0x[0-9a-fA-F]{40,64}/g, ':id')},next);
   });
   app.use('*', async (context, next) => {
     const started = performance.now();
     await next();
-    console.info(JSON.stringify({
-      level: 'info', event: 'http_request', service: options.kind, environment: config.environment,
+    logEvent(options.kind,context.res.status>=500?'error':context.res.status===429?'warn':'info','http_request',{
       requestId: context.get('requestId'), method: context.req.method,
       path: new URL(context.req.url).pathname.replace(/0x[0-9a-fA-F]{40,64}/g, ':id'),
       status: context.res.status, durationMs: Math.round((performance.now() - started) * 100) / 100,
-      requestBytes: Number(context.req.header('content-length') ?? 0) || 0,
-    }));
+    });
   });
   app.use('*', bodyLimit({
     maxSize: config.maxBodyBytes,
@@ -157,7 +156,7 @@ export function createServiceApp(options: ServiceOptions): ServiceApp {
   });
   app.notFound((context) => context.json({ error: 'not_found', message: 'Route not found', requestId: context.get('requestId') }, 404));
   app.onError((error, context) => {
-    console.error(JSON.stringify({ level: 'error', service: options.kind, requestId: context.get('requestId'), error: error.name }));
+    reportError(options.kind,'http_unhandled_error',error,{requestId:context.get('requestId'),status:500});
     return context.json({ error: 'internal_error', message: 'Internal server error', requestId: context.get('requestId') }, 500);
   });
   return app;

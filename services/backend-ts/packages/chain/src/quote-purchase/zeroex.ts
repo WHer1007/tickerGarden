@@ -8,6 +8,10 @@ export const registryAbi=parseAbi(['function ownerOf(uint256 tokenId) view retur
 export const holderAbi=parseAbi(['function exec(address operator,address token,uint256 amount,address target,bytes data) payable returns (bytes)']);
 const settlerAbi=parseAbi(['function execute((address recipient,address buyToken,uint256 minAmountOut) slippage,bytes[] actions,bytes32 zid) payable returns (bool)']);
 export type ConversionIntent={chainId:number;sellToken:Address;buyToken:Address;sellAmount:string;taker:Address};
+export class ConversionUnavailableError extends Error {
+ readonly code:string;
+ constructor(code:string){super('Conversion service unavailable');this.name='ConversionUnavailableError';this.code=code;}
+}
 export type ConversionQuote=ConversionIntent&{buyAmount:string;minBuyAmount:string;blockNumber?:string;expiresAt:number;transaction:{to:Address;data:Hex;value:string};providerFee:{amount:string;token:Address}|null};
 const addr=(x:unknown):x is Address=>typeof x==='string'&&/^0x[0-9a-fA-F]{40}$/.test(x);
 const positive=(x:unknown):x is string=>typeof x==='string'&&/^[1-9][0-9]{0,38}$/.test(x)&&BigInt(x)<2n**128n;
@@ -42,12 +46,16 @@ export function preserveConversionMinimum(fresh:ConversionQuote,reviewed:Convers
 }
 export function conversionSettler(q:ConversionQuote){return decodeFunctionData({abi:holderAbi,data:q.transaction.data}).args[3];}
 export async function getConversionQuote(i:ConversionIntent,key:string,fetcher:typeof fetch=fetch):Promise<ConversionQuote>{
- assertConversionIntent(i);if(!key)throw Error('Conversion service unavailable');
+ assertConversionIntent(i);if(!key)throw new ConversionUnavailableError('conversion_not_configured');
  const u=new URL('https://api.0x.org/swap/allowance-holder/quote');
  // User-approved conversion tolerance: 1%. The project-buy floor is quoted separately.
  u.search=new URLSearchParams({chainId:String(i.chainId),sellToken:providerToken(i.sellToken),buyToken:providerToken(i.buyToken),sellAmount:i.sellAmount,taker:i.taker,recipient:i.taker,slippageBps:'100',wrapUnwrapMode:'settler'}).toString();
  const r=await fetcher(u,{headers:{'0x-api-key':key,'0x-version':'v2'},signal:AbortSignal.timeout(12000)});
- if(!r.ok)throw Error('Conversion service unavailable');
+ if(!r.ok){
+  const failure=await r.json().catch(()=>null) as {name?:string}|null;
+  // Only stable public categories escape the provider boundary, never raw errors.
+  throw new ConversionUnavailableError(failure?.name==='BUY_TOKEN_NOT_AUTHORIZED_FOR_TRADE'?'conversion_asset_unavailable':'conversion_quote_failed');
+ }
  const raw=await r.json();
  if(raw.liquidityAvailable!==true||raw.sellToken?.toLowerCase()!==providerToken(i.sellToken)||raw.buyToken?.toLowerCase()!==providerToken(i.buyToken)||raw.sellAmount!==i.sellAmount||raw.allowanceTarget?.toLowerCase()!==ALLOWANCE_HOLDER||(raw.issues?.allowance&&raw.issues.allowance.spender?.toLowerCase()!==ALLOWANCE_HOLDER))throw Error('Conversion route unavailable');
  const fee=raw.fees?.zeroExFee;

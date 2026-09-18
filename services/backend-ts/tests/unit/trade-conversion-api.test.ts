@@ -37,7 +37,7 @@ test('conversion endpoint rejects unsupported methods with no-store', async () =
   assert.equal(response.headers.get('cache-control'), 'no-store');
 });
 
-test('missing server key returns sanitized 503 and never calls upstream', async () => {
+test('missing RPC returns sanitized 503 and never calls a third-party quote service', async () => {
   const app = fixture();
   const originalFetch = globalThis.fetch;
   let calls = 0;

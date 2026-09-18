@@ -74,8 +74,19 @@ test('production backend runtime uses production while its source branch remains
 });
 
 test('production read API requires its own remote RPC configuration',()=>{
- const env={TG_ENVIRONMENT:'production',TG_CHAIN_ID:'4663',VERCEL_ENV:'production',TG_READ_DATABASE_URL:'postgresql://db.example/read'};
+ const env={TG_ENVIRONMENT:'production',TG_CHAIN_ID:'4663',VERCEL_ENV:'production',TG_READ_DATABASE_URL:'postgresql://db.example/read',ZEROX_API_KEY:'synthetic-key'};
  assert.throws(()=>assertDeploymentBoundary('production','read-api',env,'master'),/TG_READ_RPC_URL/);
  assert.doesNotThrow(()=>assertDeploymentBoundary('production','read-api',{...env,TG_READ_RPC_URL:'https://read-rpc.example'},'master'));
  assert.throws(()=>assertDeploymentBoundary('production','read-api',{...env,TG_READ_RPC_URL:'https://read-rpc.example',TG_RPC_URL:'https://pipeline-rpc.example'},'master'),/owned by another service/);
+});
+
+test('production pool conversion does not require a 0x credential and keeps legacy keys server-only',()=>{
+ const env={TG_ENVIRONMENT:'production',TG_CHAIN_ID:'4663',VERCEL_ENV:'production',TG_READ_DATABASE_URL:'postgresql://db.example/read',TG_READ_RPC_URL:'https://rpc.example'};
+ assert.doesNotThrow(()=>assertDeploymentBoundary('production','read-api',env,'master'));
+ assert.doesNotThrow(()=>assertDeploymentBoundary('production','read-api',{...env,ZEROX_API_KEY:'synthetic-key'},'master'));
+ for(const service of ['web','pipeline','content'])assert.throws(()=>assertDeploymentBoundary('test',service,{ZEROX_API_KEY:'wrong-service'},'test'),/owned by another service/);
+});
+
+test('public environment rejects notification and source-map credentials',()=>{
+ for(const key of ['VITE_SENTRY_AUTH_TOKEN','VITE_LARK_WEBHOOK_URL','VITE_ALERT_INGEST_TOKEN'])assert.throws(()=>assertDeploymentBoundary('test','web',{...web('test'),[key]:'secret'},'test'),/public VITE prefix/);
 });

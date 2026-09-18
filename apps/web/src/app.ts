@@ -1,3 +1,4 @@
+import {reportClientError} from './observability.ts';
 import {loadCreatorRewards,type CreatorPeriod} from './v1/creatorRewards.ts';
 import {createInvalidatedRead} from './ui/invalidated-read.ts';
 import {verifyStakeReceipt} from './ui/stake-receipt.ts';
@@ -4276,6 +4277,7 @@ async function runRewardAction(button: HTMLButtonElement): Promise<void> {
     rewardClaimOutcomeMessage='';
     rewardChoiceCancelled=false;
   } catch (error) {
+    reportClientError(error,{flow:action==='stake'?'stake':'claim',step:action});
     if(action==='stake'){
       const marketId=rewardPosition?.detail.market.marketId??query<HTMLSelectElement>('[data-position-market]')?.value;
       const pending=!!wallet&&wallet.executor.pending(wallet.account).some(p=>p.businessType==='stake'&&p.marketId===marketId);

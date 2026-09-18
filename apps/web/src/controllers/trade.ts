@@ -1,8 +1,10 @@
+import {setPriceDisplay} from '../ui/compact-price.ts';
+import {reportClientError} from '../observability.ts';
 import {renderPaymentMenu} from '../trade/payment-menu.ts';
 import {stockPurchasePool} from '../trade/stock-pool.ts';
 import {paymentAssets,fetchConversion,conversionRequest,TRADE_NATIVE,readRecovery,recoveryKey,writeRecoveryBeforeBroadcast,type PaymentAsset,type ConversionRecovery,type ConversionQuote} from '../trade/conversion.ts';
 import {recoveryRead,recoveryWrite,recoveryRemove} from '../v1/recoveryStorage.ts';
-import {ALLOWANCE_HOLDER,SETTLER_REGISTRY,registryAbi,conversionSettler,providerToken,preserveConversionMinimum} from '../../../../services/backend-ts/packages/chain/src/quote-purchase/zeroex.ts';
+import {PURCHASE_ROUTER,PURCHASE_ROUTER_CODEHASH,preserveConversionMinimum} from '../../../../services/backend-ts/packages/chain/src/quote-purchase/conversion.ts';
 import {renderMarketSettings} from '../ui/market-settings.ts';
 import { quotedMinimum, approvedQuoteMinimum, gasReserve, spendableNative } from '../v1/tradeProtection.ts';
 import { publicError } from "../ui/public-error.ts";
@@ -13,6 +15,7 @@ import v1Abis_TickerMemeTokenV1 from '../v1/generated/contracts/legacy/TickerMem
 import v1Abis_TickerGardenMemeHook from '../v1/generated/contracts/legacy/TickerGardenMemeHook.ts';
 import {
 erc20Abi,
+keccak256,
 formatUnits,
 decodeEventLog,
 type Hex,
@@ -47,11 +50,12 @@ type MarketReadModel
 } from "../v1/readApi.ts";
 import { ipfsGatewayURL } from "../create/ipfs.ts";
 import { tradeContextKey } from "../v1/tradeContext.ts";
-import { antiSnipeBps,curveBuyFee,curveTradeMetrics,estimatedPoolTradingFee,formatTradePrice,poolTradeImpactBps } from "../v1/tradePricing.ts";
+import { antiSnipeBps,curveBuyFee,curveTradeMetrics,estimatedPoolTradingFee,poolTradeImpactBps } from "../v1/tradePricing.ts";
 import type { ControllerContext,CurvePricing,TradeQuote,WalletState } from '../app.ts';
 export function createTradeController(ctx:ControllerContext){
 let selectedPayment:string|null=null;
 let paymentBalance:{account:string;token:string;value:bigint}|null=null;
+const paymentBalanceRequests=new Map<string,Promise<void>>();
 let recovery:ConversionRecovery|null=null;
 let recoveryIdentity='';
 let recoveryStorageUnavailable=false;
@@ -80,12 +84,7 @@ function renderStockPurchaseHint(){
 function saveRecovery(value:ConversionRecovery|null,old=value??recovery,requireDurable=false){
  if(old){const key=recoveryKey(old.account,old.marketId);if(value){if(requireDurable)writeRecoveryBeforeBroadcast(localStorage,value);else recoveryWrite(localStorage,key,JSON.stringify(value));}else recoveryRemove(localStorage,key);}if(!old||(old.account===ctx.wallet?.account&&old.marketId===ctx.tradeMarket?.market.marketId))recovery=value;
 }
-function conversionFeeLabel(q:ConversionQuote){
- const fee=q.providerFee;if(!fee||BigInt(fee.amount)===0n)return '0';
- const sell=payment()!,pair=pairAsset()!;
- const asset=providerToken(fee.token)===providerToken(q.sellToken)?sell:pair;
- return `${formatUnits(BigInt(fee.amount),asset.decimals)} ${asset.symbol} (included)`;
-}
+function conversionFeeLabel(_q:ConversionQuote){return 'Pool fees included';}
 function renderPayments(){
  const pair=pairAsset(),node=ctx.query<HTMLSelectElement>('[data-trade-payment-options]');if(!node)return;
  node.hidden=!pair||ctx.tradeSide!=='buy'||robinhoodChain.id!==4663;
@@ -102,8 +101,19 @@ function renderPayments(){
 }
 async function loadPaymentBalance(){
  const a=payment(),w=ctx.wallet;if(!a||!w||!usesConversion())return;
- try{const value=a.address===TRADE_NATIVE?await ctx.publicClient.getBalance({address:w.account}):await ctx.publicClient.readContract({abi:erc20Abi,address:a.address,functionName:'balanceOf',args:[w.account]});
- if(ctx.wallet!==w||payment()?.address!==a.address)return;paymentBalance={account:w.account,token:a.address,value};renderDetailBalances();updateTradeAvailability();}catch{paymentBalance=null;}
+ const key=`${w.account.toLowerCase()}:${a.address.toLowerCase()}`;
+ const pending=paymentBalanceRequests.get(key);if(pending)return pending;
+ const request=(async()=>{
+  try{const value=a.address===TRADE_NATIVE?await ctx.publicClient.getBalance({address:w.account}):await ctx.publicClient.readContract({abi:erc20Abi,address:a.address,functionName:'balanceOf',args:[w.account]});
+   if(ctx.wallet?.account.toLowerCase()!==w.account.toLowerCase()||payment()?.address.toLowerCase()!==a.address.toLowerCase())return;
+   paymentBalance={account:w.account,token:a.address,value};renderDetailBalances();updateTradeAvailability();
+  }catch(error){
+   if(ctx.wallet?.account.toLowerCase()!==w.account.toLowerCase()||payment()?.address.toLowerCase()!==a.address.toLowerCase())return;
+   paymentBalance=null;reportClientError(error,{flow:'trade',step:'payment_balance'});renderDetailBalances();ctx.text('[data-trade-status]','Could Not Load Payment Balance. Retry shortly.');updateTradeAvailability();
+  }
+ })();
+ paymentBalanceRequests.set(key,request);
+ try{return await request;}finally{if(paymentBalanceRequests.get(key)===request)paymentBalanceRequests.delete(key);}
 }
 async function restoreConversion(){
  const w=ctx.wallet,m=ctx.tradeMarket;if(!w||!m){recovery=null;recoveryIdentity='';recoveryStorageUnavailable=false;return;}
@@ -132,7 +142,7 @@ async function restoreConversion(){
  const pending=w.executor.pending(w.account).find(p=>p.hash===saved.hash);
  if(pending)await w.executor.reconcilePending(w.account,pending.operationKey);
  if(ctx.wallet!==w||ctx.tradeMarket?.market.marketId!==m.market.marketId)return;
- if(receipt.status==='success'&&receipt.to?.toLowerCase()===ALLOWANCE_HOLDER&&!pending?.cancelled)saveRecovery({...saved,state:'funded'});else saveRecovery(null);
+ if(receipt.status==='success'&&receipt.to?.toLowerCase()===(saved.conversionTo??'0x0000000000001ff3684f28c67538d4d072c22734').toLowerCase()&&!pending?.cancelled)saveRecovery({...saved,state:'funded'});else saveRecovery(null);
  }}catch{/* Pending hashes remain blocked. */}}
  if(recovery?.state==='funded'){selectedPayment=m.market.quoteAsset;const f=ctx.query<HTMLInputElement>('[data-trade-amount]');if(f)f.value=formatUnits(BigInt(recovery.amount),ctx.tradeMetadata!.quoteDecimals);scheduleTradeQuote();}renderPayments();updateTradeAvailability();
 }
@@ -829,10 +839,9 @@ function renderTradePoolAddress(market:MarketReadModel):void{
 function renderTradePrice(value:string|null):void{
   ctx.tokenDetailWidget?.setTradePrice(value);
   const node=ctx.query<HTMLElement>('[data-trade-rate]');if(!node)return;
-  if(value===null||!ctx.tradeMetadata){node.textContent='-';node.removeAttribute('title');return;}
+  if(value===null||!ctx.tradeMetadata){setPriceDisplay(node,null);return;}
   const unit=`${ctx.tradeMetadata.quoteSymbol} / ${ctx.tradeMetadata.symbol}`;
-  node.textContent=`${formatTradePrice(value)} ${unit}`;
-  node.title=`${value} ${unit}`;
+  setPriceDisplay(node,value,` ${unit}`);
 }
 
 function renderTradeQuote(): void {
@@ -864,7 +873,7 @@ function renderTradeQuote(): void {
     ctx.text("[data-trade-fee]", "-");
     renderTradeImpact();
     ctx.text("[data-trade-minimum]", "-");
-    ctx.text("[data-trade-status]", ctx.wallet ? "" : "Connect Your Wallet");
+    ctx.text("[data-trade-status]", !ctx.wallet ? "Connect Your Wallet" : usesConversion()&&conversionUnavailableFor===pairAsset()?.address ? `Automatic exchange is unavailable. Pay with ${ctx.tradeMetadata?.quoteSymbol??'the paired asset'}.` : "");
     updateTradeAvailability();
     return;
   }
@@ -884,9 +893,9 @@ function renderTradeQuote(): void {
   renderTradeImpact(ctx.tradeQuote.impactBps,ctx.tradeQuote.impactEstimated);
   if(ctx.tradeQuote.conversion){
     const q=ctx.tradeQuote.conversion,pay=payment()!;
-    ctx.text('[data-trade-impact]',`Market: ${ctx.tradeQuote.impactBps===undefined?'-':`${Number(ctx.tradeQuote.impactBps)/100}%`} · Conversion: -`);
+    ctx.text('[data-trade-impact]',`Market: ${ctx.tradeQuote.impactBps===undefined?'-':`${Number(ctx.tradeQuote.impactBps)/100}%`} · Conversion: ${q.priceImpactBps/100}%`);
     ctx.text('[data-trade-conversion-fee]',conversionFeeLabel(q));
-    const rate=ctx.query<HTMLElement>('[data-trade-rate]');if(rate){const value=formatUnits(BigInt(q.sellAmount)*10n**18n/ctx.tradeQuote.output,pay.decimals);rate.textContent=`${formatTradePrice(value)} ${pay.symbol} / ${ctx.tradeMetadata.symbol}`;rate.title=`${value} ${pay.symbol} / ${ctx.tradeMetadata.symbol}`;}
+    const rate=ctx.query<HTMLElement>('[data-trade-rate]');if(rate){const value=formatUnits(BigInt(q.sellAmount)*10n**18n/ctx.tradeQuote.output,pay.decimals);setPriceDisplay(rate,value,` ${pay.symbol} / ${ctx.tradeMetadata.symbol}`);}
   }
 
   ctx.text("[data-trade-minimum]", `${formatUnits(ctx.tradeQuote.minimum, outputDecimals)} ${outputSymbol}`);
@@ -992,24 +1001,18 @@ function completeTradeDisplay(market:MarketDetailResponse):void{
 
 async function convertPayment(initial:TradeQuote,market:MarketDetailResponse,wallet:WalletState):Promise<TradeQuote>{
  const original=initial.conversion!;
- let executable=original;
  if(recovery&&recovery.state!=='funded')throw Error('Check the existing conversion before trying again.');
  const verify=async()=>{await ctx.verifyLiveWalletContext(wallet);if(ctx.tradeMarket?.market.marketId!==market.market.marketId||ctx.tradeSide!=='buy')throw Error('Trade changed');await ctx.ensureCanonicalMarket(market.market);
- const target=conversionSettler(executable).toLowerCase();
- const current=await ctx.publicClient.readContract({address:SETTLER_REGISTRY,abi:registryAbi,functionName:'ownerOf',args:[2n]});
- if(current.toLowerCase()!==target){const prev=await ctx.publicClient.readContract({address:SETTLER_REGISTRY,abi:registryAbi,functionName:'prev',args:[2n]});if(prev.toLowerCase()!==target)throw Error('Payment route changed. Try again.');}
+ const code=await ctx.publicClient.getCode({address:PURCHASE_ROUTER});
+ if(!code||keccak256(code)!==PURCHASE_ROUTER_CODEHASH)throw Error('The purchase route is not ready. Try again later.');
  };
  await verify();
- if(original.sellToken!==TRADE_NATIVE){
-   await ctx.ensureStandaloneApproval({abi:erc20Abi,address:original.sellToken,functionName:'approve',args:[ALLOWANCE_HOLDER,BigInt(original.sellAmount)]},original.sellToken,ALLOWANCE_HOLDER,BigInt(original.sellAmount),market.sync,verify,wallet,{businessType:'approval',marketId:market.market.marketId,conflictKey:`trade:${market.market.marketId}`});
- }
  if(!ctx.runtimeConfig.readApi.available)throw Error('Conversion unavailable');
  const fresh=preserveConversionMinimum(await fetchConversion(ctx.runtimeConfig.readApi.value,original),original);
- executable=fresh;
  await verify();
  const request=conversionRequest(fresh,original);
  const scope={businessType:'trade' as const,marketId:market.market.marketId,conflictKey:`trade:${market.market.marketId}`};
- const saved:ConversionRecovery={account:wallet.account,marketId:market.market.marketId,pair:original.buyToken,amount:original.minBuyAmount,minimum:String(initial.minimum),state:'submitting'};
+ const saved:ConversionRecovery={account:wallet.account,marketId:market.market.marketId,pair:original.buyToken,conversionTo:PURCHASE_ROUTER,amount:original.minBuyAmount,minimum:String(initial.minimum),state:'submitting'};
  const nativeBefore=original.buyToken===TRADE_NATIVE?await ctx.publicClient.getBalance({address:wallet.account}):0n;
  // Persistence must work BEFORE opening a wallet. Never silently lose a funded or uncertain conversion.
  saveRecovery(saved,saved,true);
@@ -1141,6 +1144,7 @@ async function submitTrade(): Promise<void> {
     });
     completeTradeDisplay(market);
   } catch (error) {
+    reportClientError(error,{flow:'trade',step:'submit'});
     ctx.notify(recovery?.state==='funded'?'Conversion complete. Your paired asset is in your wallet. Refresh the quote and continue buying.':publicError(error,'transaction'), "warning");
   } finally {ctx.tradeSubmitting=false;if(inputField)inputField.readOnly=false;ctx.tradeSubmittingMarketId=undefined;renderPayments();updateTradeAvailability();}
 }

@@ -1,3 +1,4 @@
+import {reportError} from '../../../packages/observability/src/index.ts';
 import {readCreatorRewards} from '../../../packages/read-store/src/creator-rewards.ts';
 import {readStakeSummary} from '../../../packages/history-projector/src/stake-summary.ts';
 import {readLaunchReadiness} from '../../../packages/confirmed-display/src/read.ts';
@@ -6,7 +7,7 @@ import {readExploreBootstrap,readExploreCards,readExplorePage} from '../../../pa
 import {rpcScope} from './rpc-scope.ts';
 import {createMarketEvents} from './market-events.ts';
 import {readMarketPageBootstrap} from '../../../packages/confirmed-display/src/read.ts';
-import {getConversionQuote,assertConversionIntent,type ConversionIntent,TRADE_NATIVE,TRADE_USDG} from '../../../packages/chain/src/quote-purchase/zeroex.ts';
+import {getConversionQuote,assertConversionIntent,type ConversionIntent,TRADE_NATIVE,TRADE_USDG} from '../../../packages/chain/src/quote-purchase/conversion.ts';
 import {routes as conversionStocks} from '../../../packages/chain/src/quote-purchase/routes.ts';
 import {quotePurchase} from '../../../packages/chain/src/quote-purchase/quote.ts';
 import {rpcPolicy} from '../../../packages/chain/src/rpc-policy.ts';
@@ -116,9 +117,14 @@ export function createReadApiApp(options: ReadApiOptions = {}) {
     }catch{return context.json({error:'invalid_query',message:'Choose a supported payment asset and amount.'},400);}
     try {
       const intent={...q,chainId:4663} as ConversionIntent;
-      const result=await purchaseReads('conversion:'+JSON.stringify(intent),()=>getConversionQuote(intent,env.ZEROX_API_KEY??''));
+      if(!primary)throw Error('Conversion RPC unavailable');
+      const result=await purchaseReads('conversion:'+JSON.stringify(intent),()=>getConversionQuote(intent,primary));
       return context.json(result);
-    }catch{return context.json({error:'conversion_unavailable',message:'This payment route is unavailable. Try again or pay with the paired asset.'},503);}
+    }catch(error){
+      const code='conversion_quote_failed';
+      reportError('read-api','trade_conversion_failed',error,{flow:'trade',step:'conversion_quote',code});
+      return context.json({error:'conversion_unavailable',message:'This payment route is unavailable. Try again or pay with the paired asset.'},503);
+    }
   });
   app.all('/v1/trade-conversion',context=>{context.header('cache-control','no-store');return context.json({error:'method_not_allowed',message:'Use GET.'},405);});
 
@@ -453,6 +459,7 @@ async function historyError(context: Context, error: unknown) {
 async function transactionError(context: Context, error: unknown) {
   if (error instanceof PublicationUnavailableError) return context.json({ error: 'transaction_unavailable', message: error.message, requestId: context.get('requestId') }, 503);
   if (error instanceof Error && /invalid/.test(error.message)) return context.json({ error: 'invalid_query', message: error.message, requestId: context.get('requestId') }, 400);
+  reportError('read-api','transaction_observation_failed',error,{requestId:context.get('requestId'),status:503});
   return context.json({ error: 'transaction_unavailable', message: 'transaction observations are unavailable or inconsistent', requestId: context.get('requestId') }, 503);
 }
 

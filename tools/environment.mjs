@@ -12,6 +12,7 @@ export function currentBranch(cwd=root){return execFileSync('git',['branch','--s
 export function validateEnvironment(profile,env,branch){
  const p=policies[profile];if(!p)throw Error('Environment must be test or master');
  if(Object.keys(env).some(k=>/^VITE_.*(JWT|SECRET|PASSWORD|API_KEY)/i.test(k)))throw Error('Secret-looking variable must not use the public VITE prefix');
+ if(Object.keys(env).some(k=>/^VITE_(?:SENTRY_AUTH_TOKEN|LARK_|ALERT_INGEST_TOKEN)/.test(k)))throw Error('Observability secrets must not use the public VITE prefix');
  if(env.VITE_INTEGRATION_BOOTSTRAP)throw Error('Deployed environments cannot use the local integration bootstrap');
  if(branch!==profile && !(profile==='test'&&branch.startsWith('codex/')))throw Error(`Branch ${branch||'detached HEAD'} cannot use ${profile} configuration`);
  const expected={TG_PROFILE:profile,TG_CHAIN_ID:p.chain,VITE_V1_CHAIN_ID:p.chain,V1_EXPECTED_CHAIN_ID:p.chain,
@@ -40,12 +41,12 @@ export function serviceEnvironment(values,service,inherited=process.env){
  // cannot override the selected file or reach the Vite process.
  const env=Object.fromEntries(Object.entries(inherited).filter(([k])=>/^(PATH|HOME|USER|LOGNAME|SHELL|TMPDIR|TMP|TEMP|LANG|LC_.*|TERM|COLORTERM|SSH_AUTH_SOCK|GOPATH|GOCACHE|GOMODCACHE|GOROOT|FOUNDRY_FORGE|SSL_CERT_FILE|SSL_CERT_DIR|NODE_EXTRA_CA_CERTS)$/.test(k)));
  const serviceKeys={
-  'read-api':/^(TG_READ_|TG_CURSOR_SECRET$|TG_ALLOWED_ORIGINS$|TG_ENVIRONMENT$|TG_ENV$|TG_CHAIN_ID$|TG_DATABASE_SCHEMA$|TG_DB_|TG_RPC_URL$|TG_RPC_VERIFICATION_MODE$|TG_SECONDARY_RPC_URL$)/,
+  'read-api':/^(TG_READ_|ZEROX_API_KEY$|TG_CURSOR_SECRET$|TG_ALLOWED_ORIGINS$|TG_ENVIRONMENT$|TG_ENV$|TG_CHAIN_ID$|TG_DATABASE_SCHEMA$|TG_DB_|TG_RPC_URL$|TG_RPC_VERIFICATION_MODE$|TG_SECONDARY_RPC_URL$)/,
   pipeline:/^(TG_PIPELINE_|TG_CHAIN_JOB_|TG_RPC_|TG_SECONDARY_RPC_URL$|TG_REPAIR_TOKEN$|TG_PRICE_REFRESH_TOKEN$|TG_ALLOWED_ORIGINS$|TG_ENVIRONMENT$|TG_ENV$|TG_CHAIN_ID$|TG_DATABASE_SCHEMA$|TG_DB_|QSTASH_(CURRENT_SIGNING_KEY|NEXT_SIGNING_KEY|CHAIN_TOKEN)$|CRON_SECRET$|V1_FINALITY_DELAY_)/,
   content:/^(TG_CONTENT_|TG_REPAIR_TOKEN$|TG_ALLOWED_ORIGINS$|TG_ENVIRONMENT$|TG_ENV$|TG_CHAIN_ID$|TG_DATABASE_SCHEMA$|TG_DB_|PINATA_|QSTASH_(CURRENT_SIGNING_KEY|NEXT_SIGNING_KEY|CONTENT_TOKEN)$|CRON_SECRET$)/,
  };
  for(const [k,v] of Object.entries(values)){
-  if(service==='web'?k.startsWith('VITE_'):service==='gateway'?k.startsWith('RH46630_')||k==='TG_GATEWAY_CONFIG_JSON'||k==='TG_RPC_CU_PER_SECOND':service==='tooling'?true:serviceKeys[service]?.test(k))env[k]=v;
+  if(service==='web'?k.startsWith('VITE_'):service==='gateway'?k.startsWith('RH46630_')||k==='TG_GATEWAY_CONFIG_JSON'||k==='TG_RPC_CU_PER_SECOND':service==='tooling'?true:(serviceKeys[service]?.test(k)||['read-api','pipeline','content'].includes(service)&&/^(TG_SENTRY_DSN|TG_LOG_LEVEL|TG_RELEASE_COMMIT|TG_ALERT_INGEST_URL|TG_ALERT_INGEST_TOKEN)$/.test(k)))env[k]=v;
  }
  if(service==='read-api'&&!env.TG_READ_DATABASE_URL)env.TG_READ_DATABASE_URL=values.TG_DATABASE_URL;
  if(service==='pipeline'&&!env.TG_PIPELINE_DATABASE_URL)env.TG_PIPELINE_DATABASE_URL=values.TG_DATABASE_URL;
