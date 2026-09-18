@@ -6,7 +6,7 @@ import type { Pool, PoolClient } from 'pg';
 
 const IDENTIFIER = /^[a-z][a-z0-9_]{0,62}$/;
 
-const MIGRATIONS = ['0001_core', '0002_queue_generation_fence', '0003_recent_markets', '0004_holder_rewards', '0005_capacity', '0006_statistics_buckets', '0007_market_work', '0008_holder_counts', '0009_holder_work', '0010_statistics_cache', '0011_holder_batch_exclusions', '0012_holder_shared_coverage', '0013_resident_queue', '0014_holder_balance_batches', '0015_explore_rankings', '0016_reward_read_paths', '0017_protocol_statistics', '0018_principal_work', '0019_confirmed_display', '0020_explore_display', '0021_stats_display', '0022_display_preparation', '0023_stake_recovery'] as const;
+const MIGRATIONS = ['0001_core', '0002_queue_generation_fence', '0003_recent_markets', '0004_holder_rewards', '0005_capacity', '0006_statistics_buckets', '0007_market_work', '0008_holder_counts', '0009_holder_work', '0010_statistics_cache', '0011_holder_batch_exclusions', '0012_holder_shared_coverage', '0013_resident_queue', '0014_holder_balance_batches', '0015_explore_rankings', '0016_reward_read_paths', '0017_protocol_statistics', '0018_principal_work', '0019_confirmed_display', '0020_explore_display', '0021_stats_display', '0022_display_preparation', '0023_stake_recovery', '0024_holder_recovery'] as const;
 type MigrationVersion = typeof MIGRATIONS[number];
 
 function migrationPath(version: MigrationVersion = MIGRATIONS[0]): string {

@@ -2,7 +2,7 @@
   "openapi": "3.1.0",
   "info": {
     "title": "TickerGarden V1 Read API",
-    "version": "5.9.0",
+    "version": "5.10.0",
     "description": "Non-custodial TypeScript Serverless read API for the routes consumed by the current frontend."
   },
   "x-execution-spec-id": "V1-EXEC-11",
@@ -447,7 +447,7 @@
     "/v1/holder-snapshots": {
       "get": {
         "operationId": "getHolderSnapshots",
-        "description": "Display-only finalized Holder wallet snapshot entitlements and Merkle proofs. Proof datasets are integrity-checked against their committed root and data hash. The opaque cursor is bound to the publication revision; a changed revision returns 409 and pagination must restart. Missing, incomplete, or corrupt proof data returns 503. This endpoint is cache disabled and never submits transactions.",
+        "description": "Display-only finalized Holder wallet snapshot entitlements and Merkle proofs. Proof datasets are integrity-checked against their committed root and data hash. The opaque cursor is bound to the publication revision; a changed revision returns 409 and pagination must restart. Wallet-entitled rounds are newest first. Claims do not invalidate cursors. Missing or corrupt rounds are isolated with complete=false; unavailable market anchors return 503. This endpoint is cache disabled and never submits transactions.",
         "parameters": [
           {
             "name": "chainId",
@@ -2567,6 +2567,19 @@
               "publisher_unconfigured"
             ]
           },
+          "publicationRevision": {
+            "type": "string"
+          },
+          "complete": {
+            "type": "boolean"
+          },
+          "unavailableRounds": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "pattern": "^(0|[1-9][0-9]*)$"
+            }
+          },
           "sourceBlockNumber": {
             "type": "string",
             "pattern": "^(0|[1-9][0-9]*)$"
@@ -2606,6 +2619,9 @@
           "quote",
           "meme",
           "status",
+          "publicationRevision",
+          "complete",
+          "unavailableRounds",
           "sourceBlockNumber",
           "sourceBlockHash",
           "rounds",

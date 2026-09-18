@@ -4,7 +4,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import type {Pool} from 'pg';
-import {encodeAbiParameters,encodeEventTopics,keccak256,parseAbiParameters,toHex,type Abi,type Hex} from 'viem';
+import {encodeAbiParameters,encodeEventTopics,encodeFunctionData,keccak256,parseAbiParameters,parseTransaction,toHex,type Abi,type Hex} from 'viem';
 import {privateKeyToAccount} from 'viem/accounts';
 import {FakeRpc,fixture,height,h} from '../fixtures/snapshot-rpc.ts';
 import {CURRENT_RELEASE_ID,CURRENT_ACTIVATION_BLOCK} from '../../packages/events/src/index.ts';
@@ -14,31 +14,36 @@ import {withPublicationJournal,publicationStatus} from '../../packages/chain-wor
 import {safePublicationError} from '../../scripts/holder-publication-cli.ts';
 import {PublicationRpcTransport} from '../../packages/chain-worker/src/holder-publication-rpc.ts';
 import {RpcTransport} from '../../packages/chain/src/index.ts';
+import {buildSnapshot,type SnapshotDataset} from '../../packages/chain/src/holder-snapshot.ts';
+import type {SnapshotArtifact} from '../../packages/chain/src/holder-artifact.ts';
 
 const account=privateKeyToAccount(`0x${'1'.padStart(64,'0')}`),ds=fixture();
 const signer={address:account.address,sign:account.signTransaction};
-function receipt(hash:Hex){return {transactionHash:hash,blockHash:h(4),blockNumber:toHex(height+999n),status:'0x1',gasUsed:'0x10000',effectiveGasPrice:'0x2',logs:[{
- address:ds.input.distributor,topics:encodeEventTopics({abi:snapshotAbis.HolderRewardsDistributorV1 as Abi,eventName:'HolderSnapshotPublished',args:{marketId:ds.input.marketId,round:1n}}),
- data:encodeAbiParameters(parseAbiParameters('uint64,bytes32,bytes32,bytes32,uint256,uint256'),[height,ds.input.snapshotBlockHash,ds.root,ds.dataHash,BigInt(ds.quoteBudget),0n]),
-}]};}
+const publicationData=(dataset:SnapshotArtifact)=>encodeFunctionData({abi:snapshotAbis.HolderRewardsDistributorV1 as Abi,functionName:'publishSnapshots',args:[[{marketId:dataset.input.marketId,round:BigInt(dataset.input.round),snapshotBlock:BigInt(dataset.input.snapshotBlock),snapshotBlockHash:dataset.input.snapshotBlockHash,root:dataset.root,dataHash:dataset.dataHash,quoteBudget:BigInt(dataset.quoteBudget),memeBudget:BigInt(dataset.memeBudget)}]]});
+function receipt(hash:Hex,datasets:readonly SnapshotArtifact[]=[ds]){return {transactionHash:hash,blockHash:h(4),blockNumber:toHex(height+999n),status:'0x1',gasUsed:'0x10000',effectiveGasPrice:'0x2',logs:datasets.map(dataset=>({
+ address:dataset.input.distributor,topics:encodeEventTopics({abi:snapshotAbis.HolderRewardsDistributorV1 as Abi,eventName:'HolderSnapshotPublished',args:{marketId:dataset.input.marketId,round:BigInt(dataset.input.round)}}),
+ data:encodeAbiParameters(parseAbiParameters('uint64,bytes32,bytes32,bytes32,uint256,uint256'),[BigInt(dataset.input.snapshotBlock),dataset.input.snapshotBlockHash,dataset.root,dataset.dataHash,BigInt(dataset.quoteBudget),BigInt(dataset.memeBudget)]),
+}))};}
 class PublisherRpc extends FakeRpc {
- sent:Hex[]=[];receipt:ReturnType<typeof receipt>|null=null;nonce=0;pendingNonce:number|undefined;accept:((raw:Hex)=>void)|undefined;uncertain=false;price='0x2';headTime=100000n;
+ sent:Hex[]=[];receipt:ReturnType<typeof receipt>|null=null;nonce=0;pendingNonce:number|undefined;accept:((raw:Hex)=>void)|undefined;uncertain=false;price='0x2';headTime=100000n;finalizedUnavailable=false;onSimulation:(()=>void)|undefined;onEstimate:(()=>void)|undefined;
  constructor(){super();this.publisher=account.address;}
  override async block(number:bigint){return {...await super.block(number),timestamp:number===height+1000n?this.headTime:100000n};}
  override async call<T>(method:string,params:readonly unknown[]):Promise<T>{
   if(method==='eth_getTransactionCount')return toHex(params[1]==='pending'?(this.pendingNonce??this.nonce):this.nonce) as T;
-  if(method==='eth_estimateGas')return '0x30000' as T;
+  if(method==='eth_getBlockByNumber'&&params[0]==='finalized')return (this.finalizedUnavailable?null:{number:toHex(height+1000n),hash:h(4),parentHash:h(1),timestamp:'0x186a0'}) as T;
+  if(method==='eth_estimateGas'){this.onEstimate?.();return '0x30000' as T;}
   if(method==='eth_gasPrice')return this.price as T;
   if(method==='eth_getBalance')return '0xffffffffff' as T;
   if(method==='eth_getTransactionReceipt')return this.receipt as T;
   if(method==='eth_sendRawTransaction'){const raw=params[0] as Hex;this.sent.push(raw);this.accept?.(raw);if(this.uncertain)throw Error('secret RPC url/raw transport failure');return keccak256(raw) as T;}
+  if(method==='eth_call')this.onSimulation?.();
   return super.call(method,params);
  }
 }
 function setup(){
  const primary=new PublisherRpc(),secondary=new PublisherRpc();let saved:PublicationJournal|null=null;let saves=0;
  const journal:PublicationJournal={chainId:46630,releaseId:CURRENT_RELEASE_ID,publisher:account.address,pending:null};
- const d:PublicationDependencies={options:{pool:{query:async()=>({rowCount:1})} as unknown as Pool,deployment:{environment:'test',chainId:46630,deploymentDigest:CURRENT_RELEASE_ID,activationBlock:CURRENT_ACTIVATION_BLOCK},primary,secondary},policy:{publisher:account.address,maxGasWei:10000000n,confirmations:2,finalitySeconds:0,intentMaxAgeSeconds:300},journal,
+ const d:PublicationDependencies={options:{pool:{query:async()=>({rowCount:1,rows:[{generation:'0',evidence:false}]})} as unknown as Pool,deployment:{environment:'test',chainId:46630,deploymentDigest:CURRENT_RELEASE_ID,activationBlock:CURRENT_ACTIVATION_BLOCK},primary,secondary},policy:{publisher:account.address,maxGasWei:10000000n,confirmations:2,finalitySeconds:0,intentMaxAgeSeconds:300},journal,
  save:async j=>{saved=structuredClone(j);saves++;}};
  const accept=(raw:Hex)=>{assert.equal(saved?.pending?.raw,raw,'must persist before broadcasting');for(const rpc of [primary,secondary]){rpc.receipt=receipt(keccak256(raw));rpc.root=ds.root;rpc.dataHash=ds.dataHash;rpc.nonce=1;}};
  primary.accept=accept;
@@ -49,6 +54,34 @@ test('manual publish verifies dataset, persists exact signature, sends and confi
  const x=setup();const result=await publishSnapshotOnce(x.d,ds,signer);
  assert.equal(result.status,'confirmed');assert.equal(x.primary.sent.length,1);assert.equal(x.saved?.pending,null);assert.equal(x.saved?.last?.dataHash,ds.dataHash);
  assert.equal((await publishSnapshotOnce(x.d,ds,signer)).status,'already_published');assert.equal(x.primary.sent.length,1);
+});
+function secondMarket():SnapshotDataset{return buildSnapshot({...ds.input,marketId:h(22)});}
+test('two-market publication signs batch calldata and verifies every receipt event',async()=>{
+ const x=setup(),other=secondMarket(),batch=[ds,other];let published=false;
+ x.d.preview=async dataset=>published?{status:'already_published',headBlock:(height+1000n).toString(),headHash:h(4)}:{status:'simulated_not_broadcast',from:account.address,to:dataset.input.distributor,data:publicationData(dataset),headBlock:(height+1000n).toString(),headHash:h(4),dataHash:dataset.dataHash};
+ x.primary.accept=raw=>{const hash=keccak256(raw);for(const rpc of [x.primary,x.secondary]){rpc.receipt=receipt(hash,batch);rpc.nonce=1;}published=true;};
+ const result=await publishSnapshotOnce(x.d,batch,signer);
+ assert.equal(result.status,'confirmed');assert.equal(x.primary.sent.length,1);
+ const signed=parseTransaction(x.primary.sent[0]!);
+ assert.equal(signed.data,publicationDataBatch(batch));
+});
+function publicationDataBatch(datasets:readonly SnapshotArtifact[]):Hex{return encodeFunctionData({abi:snapshotAbis.HolderRewardsDistributorV1 as Abi,functionName:'publishSnapshots',args:[datasets.map(dataset=>({marketId:dataset.input.marketId,round:BigInt(dataset.input.round),snapshotBlock:BigInt(dataset.input.snapshotBlock),snapshotBlockHash:dataset.input.snapshotBlockHash,root:dataset.root,dataHash:dataset.dataHash,quoteBudget:BigInt(dataset.quoteBudget),memeBudget:BigInt(dataset.memeBudget)}))]});}
+test('mixed already-published and unpublished markets reject before signing',async()=>{
+ const x=setup(),other=secondMarket(),batch=[ds,other];let signatures=0;
+ x.d.preview=async dataset=>dataset.input.marketId===ds.input.marketId?{status:'already_published',headBlock:(height+1000n).toString(),headHash:h(4)}:{status:'simulated_not_broadcast',from:account.address,to:dataset.input.distributor,data:publicationData(dataset),headBlock:(height+1000n).toString(),headHash:h(4),dataHash:dataset.dataHash};
+ await assert.rejects(()=>publishSnapshotOnce(x.d,batch,{...signer,sign:async tx=>{signatures++;return signer.sign(tx);}}),/partially published/);
+ assert.equal(signatures,0);assert.equal(x.primary.sent.length,0);
+});
+test('finalized policy confirms at finalized head and stays pending when finality is unavailable',async()=>{
+ const complete=setup();complete.d.policy.finalityMode='finalized';assert.equal((await publishSnapshotOnce(complete.d,ds,signer)).status,'confirmed');
+ const unavailable=setup();unavailable.d.policy.finalityMode='finalized';unavailable.primary.finalizedUnavailable=unavailable.secondary.finalizedUnavailable=true;
+ await assert.rejects(()=>publishSnapshotOnce(unavailable.d,ds,signer),/Finalized RPC block unavailable/);assert.ok(unavailable.d.journal.pending);assert.equal(unavailable.primary.sent.length,1);
+ unavailable.primary.finalizedUnavailable=unavailable.secondary.finalizedUnavailable=false;assert.equal((await reconcilePublication(unavailable.d,ds)).status,'confirmed');
+});
+test('nonce refresh detects a nonce consumed after simulation and refuses to sign',async()=>{
+ const x=setup();x.primary.onEstimate=()=>{x.primary.nonce=1;x.secondary.nonce=1;};let signatures=0;
+ await assert.rejects(()=>publishSnapshotOnce(x.d,ds,{...signer,sign:async tx=>{signatures++;return signer.sign(tx);}}),/nonce changed before signing/);
+ assert.equal(signatures,0);assert.equal(x.primary.sent.length,0);assert.equal(x.d.journal.pending,null);
 });
 test('uncertain accepted submission is recovered read-only without private signer or duplicate send',async()=>{
  const x=setup();x.primary.uncertain=true;
@@ -85,7 +118,7 @@ test('confirmation depth, elapsed time, RPC disagreement and orphaned receipt do
 test('mismatched publication event and reverted receipt are distinguished',async()=>{
  const x=setup();x.d.policy.confirmations=3;await publishSnapshotOnce(x.d,ds,signer);x.d.policy.confirmations=2;
  for(const rpc of [x.primary,x.secondary])rpc.receipt={...rpc.receipt!,logs:[]};
- await assert.rejects(()=>reconcilePublication(x.d,ds),/exactly one/);assert.ok(x.d.journal.pending);
+ await assert.rejects(()=>reconcilePublication(x.d,ds),/event count|exactly one/);assert.ok(x.d.journal.pending);
  for(const rpc of [x.primary,x.secondary])rpc.receipt={...rpc.receipt!,status:'0x0'};
  assert.equal((await reconcilePublication(x.d,ds)).status,'reverted');assert.equal(x.d.journal.pending,null);
 });

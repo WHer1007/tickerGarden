@@ -19,6 +19,7 @@ export function permissionsSql(schemaName: string, roles: DatabaseRoles): string
 
   return `
 REVOKE ALL ON SCHEMA ${schema} FROM PUBLIC;
+GRANT SELECT, INSERT ON ${schema}.holder_snapshot_evidence TO ${pipeline};
 REVOKE ALL ON ALL TABLES IN SCHEMA ${schema} FROM PUBLIC;
 REVOKE ALL ON ALL SEQUENCES IN SCHEMA ${schema} FROM PUBLIC;
 
@@ -113,6 +114,9 @@ GRANT SELECT, INSERT, UPDATE, DELETE ON
   ${schema}.principal_ledger,
   ${schema}.principal_work,
   ${schema}.stake_summary_work,
+  ${schema}.holder_snapshot_work,
+  ${schema}.holder_snapshot_balances,
+  ${schema}.holder_snapshot_nodes,
   ${schema}.stake_cleanup_observations,
   ${schema}.holder_work_candidates,
   ${schema}.holder_work_events,

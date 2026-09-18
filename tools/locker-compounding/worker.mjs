@@ -1,3 +1,4 @@
+import {withSignerLane} from '../../services/backend-ts/packages/chain-worker/src/signer-coordination.ts';
 import fs from 'node:fs';
 import path from 'node:path';
 import {createPublicClient,createWalletClient,defineChain,http} from '../../apps/web/node_modules/viem/_esm/index.js';
@@ -44,7 +45,8 @@ try{
    let account;
    try{account=privateKeyToAccount(JSON.parse(fs.readFileSync(signer,'utf8')).privateKey);}catch{throw Error('Invalid private signer file');}
    const wallet=createWalletClient({account,chain,transport:http(rpc,{retryCount:0,timeout:20000})});
-   console.log(json(await executeOnce(client,wallet,m,journal,save)));
+   const coordination=process.env.TG_SIGNER_COORDINATION_DIR;if(!coordination)throw Error('Set TG_SIGNER_COORDINATION_DIR shared with Holder publisher');
+   console.log(json(await withSignerLane(coordination,m.chainId,m.keeper,'locker',()=>executeOnce(client,wallet,m,journal,save),()=>journal.pending!==null&&journal.pending!==undefined)));
   }
  }
 }catch(e){

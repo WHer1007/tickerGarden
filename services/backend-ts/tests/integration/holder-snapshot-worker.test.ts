@@ -27,10 +27,11 @@ test('snapshot worker replays retained transfers, reconciles RPC, persists idemp
    const log={address:a(2),blockHash:h(3),blockNumber:height.toString(),transactionHash:h(10),transactionIndex:'0',logIndex:String(index),topics,data,removed:false};
    await db.pool.query(`INSERT INTO ${schema}.chain_logs(environment,chain_id,deployment_digest,block_hash,transaction_hash,transaction_index,log_index,address,topic0,payload) VALUES($1,$2,$3,$4,$5,0,$6,$7,$8,$9)`,[...id,h(3),h(10),index,a(2),topics[0],log]);
   }
+  secondary.badBalance=true;await assert.rejects(()=>prepareHolderSnapshot({...o,marketId:h(2),blockNumber:height}),/disagreement/);secondary.badBalance=false;
   const ds=await prepareHolderSnapshot({...o,marketId:h(2),blockNumber:height});assert.equal(ds.entries.length,3);assert.equal(ds.quoteBudget,'99');
   assert.equal((await prepareHolderSnapshot({...o,marketId:h(2),blockNumber:height})).dataHash,ds.dataHash);
   assert.equal((await previewSnapshotPublication(o,ds)).status,'simulated_not_broadcast');
-  secondary.badBalance=true;await assert.rejects(()=>prepareHolderSnapshot({...o,marketId:h(2),blockNumber:height}),/disagreement/);secondary.badBalance=false;
+  secondary.badBalance=true;assert.equal((await prepareHolderSnapshot({...o,marketId:h(2),blockNumber:height})).dataHash,ds.dataHash,'verified immutable anchor reuses durable balances');secondary.badBalance=false;
   await db.pool.query(`UPDATE ${schema}.covered_ranges SET complete=false`);await assert.rejects(()=>prepareHolderSnapshot({...o,marketId:h(2),blockNumber:height}),/history gap/);
   await db.pool.query(`UPDATE ${schema}.covered_ranges SET complete=true`);
   // Even an empty reward event stream must persist a complete projector checkpoint.

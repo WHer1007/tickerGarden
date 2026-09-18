@@ -7,7 +7,8 @@ export const WALLET_SNAPSHOT_MODE = keccak256(toHex('TICKERGARDEN_HOLDER_WALLET_
 const DOMAIN = keccak256(toHex('TICKERGARDEN_HOLDER_WALLET_SNAPSHOT_LEAF_V1'));
 export type SnapshotIdentity = Readonly<{chainId:number; distributor:Address; marketId:Hex; account:Address; quote:Address; meme:Address;burnMemeFees?:boolean}>;
 export type HolderRound = Readonly<{round:bigint; snapshotBlock:bigint; root:Hex; quoteAmount:bigint; memeAmount:bigint; claimedAssets:number; proof:readonly Hex[]}>;
-export type HolderSnapshotPage = Readonly<{identity:SnapshotIdentity; status:'ready'|'awaiting_funding'|'awaiting_publication'|'publisher_unconfigured'; sourceBlock:bigint; sourceHash:Hex; rounds:readonly HolderRound[]; nextCursor:string|null}>;
+export type HolderSnapshotPage = Readonly<{identity:SnapshotIdentity; status:'ready'|'awaiting_funding'|'awaiting_publication'|'publisher_unconfigured'; sourceBlock:bigint; sourceHash:Hex; publicationRevision:string; complete:boolean; unavailableRounds:readonly string[]; rounds:readonly HolderRound[]; nextCursor:string|null}>;
+export class SnapshotCursorExpiredError extends Error { constructor(){super('Snapshot pagination cursor expired');this.name='SnapshotCursorExpiredError';} }
 function record(v:unknown):Record<string,unknown>{if(!v||typeof v!=='object'||Array.isArray(v))throw Error('Invalid snapshot response');return v as Record<string,unknown>;}
 function integer(v:unknown,bits=256):bigint {if(typeof v!=='string'||v.length>78||!/^(0|[1-9][0-9]*)$/.test(v))throw Error('Invalid snapshot amount');const n=BigInt(v);if(n>=1n<<BigInt(bits))throw Error('Snapshot integer overflow');return n;}
 function hash(v:unknown):Hex {if(typeof v!=='string'||!/^0x[0-9a-f]{64}$/.test(v)||/^0x0+$/.test(v))throw Error('Invalid snapshot commitment');return v as Hex;}
@@ -24,14 +25,22 @@ export function parseHolderSnapshots(value:unknown,id:SnapshotIdentity):HolderSn
  if(!['ready','awaiting_funding','awaiting_publication','publisher_unconfigured'].includes(String(p.status)))throw Error('Unknown snapshot status');
  if(!Array.isArray(p.rounds)||p.rounds.length>50)throw Error('Invalid snapshot rounds');
  if(p.nextCursor!==null&&(typeof p.nextCursor!=='string'||p.nextCursor.length===0||p.nextCursor.length>2048))throw Error('Invalid snapshot cursor');
- let last=0n;
+ let last:bigint|undefined;
  const rounds=p.rounds.map(value=>{const v=record(value);const round=integer(v.round,64),snapshotBlock=integer(v.snapshotBlock,64),root=hash(v.root),quoteAmount=integer(v.quoteAmount),memeAmount=integer(v.memeAmount);
   if(id.burnMemeFees && memeAmount!==0n)throw Error('Burn-mode holder snapshots must be Quote-only');
-  if(round<=last||snapshotBlock>=sourceBlock||quoteAmount+memeAmount===0n||!Number.isInteger(v.claimedAssets)||Number(v.claimedAssets)<0||Number(v.claimedAssets)>3||!Array.isArray(v.proof)||v.proof.length>64)throw Error('Invalid snapshot entitlement');
+  if((last!==undefined&&round>=last)||snapshotBlock>=sourceBlock||quoteAmount+memeAmount===0n||!Number.isInteger(v.claimedAssets)||Number(v.claimedAssets)<0||Number(v.claimedAssets)>3||!Array.isArray(v.proof)||v.proof.length>64)throw Error('Invalid snapshot entitlement');
   last=round;const proof=v.proof.map(hash);const r={round,snapshotBlock,root,quoteAmount,memeAmount,claimedAssets:Number(v.claimedAssets),proof};
   if(snapshotRoot(snapshotLeaf(id,r),proof)!==root)throw Error('Snapshot proof does not match root');return Object.freeze(r);
  });
- return Object.freeze({identity:id,status:p.status as HolderSnapshotPage['status'],sourceBlock,sourceHash:p.sourceBlockHash as Hex,rounds:Object.freeze(rounds),nextCursor:p.nextCursor as string|null});
+ const legacy=!Object.hasOwn(p,'publicationRevision')&&!Object.hasOwn(p,'complete')&&!Object.hasOwn(p,'unavailableRounds');
+ if(!legacy&&(!Object.hasOwn(p,'publicationRevision')||!Object.hasOwn(p,'complete')||!Object.hasOwn(p,'unavailableRounds')))throw Error('Incomplete snapshot pagination metadata');
+ const publicationRevision=legacy?`${sourceBlock}:${String(p.sourceBlockHash)}`:p.publicationRevision;
+ if(typeof publicationRevision!=='string'||publicationRevision.length<1||publicationRevision.length>256||/[\u0000-\u001f\u007f]/.test(publicationRevision))throw Error('Invalid snapshot publication revision');
+ const complete=legacy?true:p.complete;
+ if(typeof complete!=='boolean'||!Array.isArray(legacy?[]:p.unavailableRounds)||(!legacy&&(p.unavailableRounds as unknown[]).length>1000))throw Error('Invalid snapshot completeness');
+ const unavailableRounds=legacy?[]:(p.unavailableRounds as unknown[]).map(v=>{if(typeof v!=='string'||!/^(0|[1-9][0-9]*)$/.test(v)||BigInt(v)>=1n<<64n)throw Error('Invalid unavailable round');return v;});
+ if(new Set(unavailableRounds).size!==unavailableRounds.length)throw Error('Duplicate unavailable round');
+ return Object.freeze({identity:id,status:p.status as HolderSnapshotPage['status'],sourceBlock,sourceHash:p.sourceBlockHash as Hex,publicationRevision,complete,unavailableRounds:Object.freeze(unavailableRounds),rounds:Object.freeze(rounds),nextCursor:p.nextCursor as string|null});
 }
 export {claimableSnapshotAssets,remainingSnapshotAssets,holderSnapshotStatus} from './holderSnapshotDisplay.ts';
 export function buildSnapshotClaim(id:SnapshotIdentity,r:HolderRound,assets:number) {
@@ -43,7 +52,22 @@ export function buildSnapshotClaim(id:SnapshotIdentity,r:HolderRound,assets:numb
 export async function fetchHolderSnapshots(baseUrl:string,id:SnapshotIdentity,signal:AbortSignal,cursor?:string):Promise<HolderSnapshotPage> {
  const url=new URL('/v1/holder-snapshots',baseUrl);for(const k of ['chainId','distributor','marketId','account'])url.searchParams.set(k,String(id[k as keyof SnapshotIdentity]).toLowerCase());if(cursor)url.searchParams.set('cursor',cursor);
  const response=await fetch(url,{signal,headers:{accept:'application/json'}});
+ if(response.status===409&&cursor)throw new SnapshotCursorExpiredError();
  if(!response.ok)throw Error('Snapshot rewards are unavailable. Try again later.');
  const body=await response.text();if(body.length>512_000)throw Error('Snapshot response is too large');
  return parseHolderSnapshots(JSON.parse(body),id);
+}
+export async function fetchHolderSnapshotsPage(baseUrl:string,id:SnapshotIdentity,signal:AbortSignal,cursor?:string):Promise<Readonly<{page:HolderSnapshotPage;recoveredCursor:boolean}>>{
+ try{return {page:await fetchHolderSnapshots(baseUrl,id,signal,cursor),recoveredCursor:false};}
+ catch(error){if(!(error instanceof SnapshotCursorExpiredError)||!cursor)throw error;return {page:await fetchHolderSnapshots(baseUrl,id,signal),recoveredCursor:true};}
+}
+
+/** Append older rounds without losing earlier partial-archive state or rearranging selection order. */
+export function mergeHolderSnapshotPages(prior:HolderSnapshotPage|null,page:HolderSnapshotPage):HolderSnapshotPage{
+ if(!prior)return page;
+ for(const key of ['chainId','distributor','marketId','account','quote','meme'] as const)if(prior.identity[key]!==page.identity[key])throw Error('Snapshot page identity changed');
+ if(prior.publicationRevision!==page.publicationRevision)throw Error('Snapshot publication changed');
+ const last=prior.rounds.at(-1);
+ if(last&&page.rounds.some(r=>r.round>=last.round))throw Error('Snapshot pages overlap');
+ return {...page,rounds:[...prior.rounds,...page.rounds],complete:prior.complete&&page.complete,unavailableRounds:[...new Set([...prior.unavailableRounds,...page.unavailableRounds])]};
 }

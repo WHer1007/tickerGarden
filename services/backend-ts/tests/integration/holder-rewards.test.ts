@@ -26,10 +26,8 @@ test('holder rewards read path enforces publication identity, claims, and corrup
   const common=[deployment.chainId,h('d'),marketId];
   const secret='s'.repeat(32);
   let page=await readHolderSnapshots({pool:db.pool,deployment,distributor,marketId,account,secret,schemaName}); assert.equal(page.status,'publisher_unconfigured'); assert.deepEqual(page.rounds,[]);
-  const revision=`100:${h('b')}`;
-  const filterDigest=createHash('sha256').update(JSON.stringify(['test',deployment.chainId,deployment.deploymentDigest,distributor,marketId,account])).digest('hex');
-  const cursor=encodeCursor({scope:'holder-snapshots',revision,filterDigest,sortKey:'0',identity:'0'},'x'.repeat(32));
-  await assert.rejects(()=>readHolderSnapshots({pool:db.pool,deployment,distributor,marketId,account:a('2'),secret:'x'.repeat(32),schemaName,cursor}),/cursor|scope|filter/i);
+  const cursor=encodeCursor({scope:'holder-snapshots-v2',revision:page.publicationRevision,filterDigest:createHash('sha256').update(JSON.stringify(['test',deployment.chainId,deployment.deploymentDigest,distributor,marketId,account])).digest('hex'),sortKey:'0',identity:'0'},secret);
+  await assert.rejects(()=>readHolderSnapshots({pool:db.pool,deployment,distributor,marketId,account:a('2'),secret,schemaName,cursor}),/cursor|scope|filter/i);
   const ds=buildSnapshot(baseInput);
   await db.pool.query(`UPDATE ${schema}.holder_reward_markets SET payload=$1`,[JSON.stringify({token,quote,publisher:a('c'),lastRound:'1',unallocatedQuote:'0',unallocatedMeme:'0'})]);
   await db.pool.query(`INSERT INTO ${schema}.holder_reward_rounds(environment,chain_id,deployment_digest,market_id,round,block_number,block_hash,root,data_hash,snapshot_block,snapshot_block_hash,quote_budget,meme_budget) VALUES('test',$1,$2,$3,1,100,$4,$5,$6,90,$7,$8,0)`,[deployment.chainId,h('d'),marketId,h('b'),ds.root,ds.dataHash,h('9'),ds.quoteBudget]);
@@ -38,7 +36,7 @@ test('holder rewards read path enforces publication identity, claims, and corrup
   await db.pool.query(`INSERT INTO ${schema}.holder_reward_claims(environment,chain_id,deployment_digest,market_id,round,account,assets) VALUES('test',$1,$2,$3,1,$4,1)`,[deployment.chainId,h('d'),marketId,account]);
   page=await readHolderSnapshots({pool:db.pool,deployment,distributor,marketId,account,secret,schemaName}); assert.equal(page.status,'ready'); assert.equal(page.rounds[0]!.claimedAssets,1); assert.deepEqual(page.rounds[0]!.proof,ds.entries[0]!.proof);
   await db.pool.query(`DELETE FROM ${schema}.holder_reward_datasets`);
-  await assert.rejects(()=>readHolderSnapshots({pool:db.pool,deployment,distributor,marketId,account,secret:'x'.repeat(32),schemaName}),/dataset unavailable/);
+  page=await readHolderSnapshots({pool:db.pool,deployment,distributor,marketId,account,secret,schemaName}); assert.equal(page.complete,false); assert.deepEqual(page.unavailableRounds,[]); assert.deepEqual(page.rounds,[]);
   await db.pool.query(`INSERT INTO ${schema}.holder_reward_datasets(environment,chain_id,deployment_digest,market_id,round,data_hash,snapshot_block,snapshot_block_hash,payload) VALUES('test',$1,$2,$3,1,$4,90,$5,$6)`,[deployment.chainId,h('d'),marketId,ds.dataHash,h('9'),JSON.stringify(ds)]);
   await transaction(db.pool,client=>indexHolderDataset(client,schemaName,'test',ds));
   await db.pool.query(`UPDATE ${schema}.chain_blocks SET canonical=false`);
@@ -47,7 +45,7 @@ test('holder rewards read path enforces publication identity, claims, and corrup
   await db.pool.query(`UPDATE ${schema}.ingestion_checkpoints SET generation=8`);
   await assert.rejects(()=>readHolderSnapshots({pool:db.pool,deployment,distributor,marketId,account,secret:'x'.repeat(32),schemaName}),/unavailable/);
   await db.pool.query(`UPDATE ${schema}.ingestion_checkpoints SET generation=7`);
-  await db.pool.query(`UPDATE ${schema}.holder_reward_datasets SET payload=$1`,[JSON.stringify({...ds,root:h('8')})]);
-  await assert.rejects(()=>readHolderSnapshots({pool:db.pool,deployment,distributor,marketId,account,secret,schemaName}),/503|unavailable|corrupt/i);
+  await db.pool.query(`UPDATE ${schema}.holder_reward_datasets SET verified_header=NULL`);
+  page=await readHolderSnapshots({pool:db.pool,deployment,distributor,marketId,account,secret,schemaName}); assert.equal(page.complete,false); assert.deepEqual(page.unavailableRounds,['1']); assert.deepEqual(page.rounds,[]);
  } finally { await db.pool.query(`DROP SCHEMA IF EXISTS ${schema} CASCADE`).catch(()=>undefined); await db.pool.end(); }
 });
