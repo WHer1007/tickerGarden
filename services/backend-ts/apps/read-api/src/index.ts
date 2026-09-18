@@ -1,3 +1,4 @@
+import {readCreatorRewards} from '../../../packages/read-store/src/creator-rewards.ts';
 import {readStakeSummary} from '../../../packages/history-projector/src/stake-summary.ts';
 import {readLaunchReadiness} from '../../../packages/confirmed-display/src/read.ts';
 import {readStatsDisplay} from '../../../packages/confirmed-display/src/stats.ts';
@@ -67,7 +68,7 @@ export function createReadApiApp(options: ReadApiOptions = {}) {
 
   app.use('/v1/*', async (context, next) => {
     await next(); const path = context.req.path;
-    const privateRead = path.includes('/users/') || path.includes('holder-snapshots') || (path.includes('reward-history') || path.includes('reward-summary')) || path.includes('/wallet-holder-markets') || path.includes('/transactions/');
+    const privateRead = path.includes('/users/') || path.includes('holder-snapshots') || path.includes('creator-rewards') || path.includes('creator-markets') || (path.includes('reward-history') || path.includes('reward-summary')) || path.includes('/wallet-holder-markets') || path.includes('/transactions/');
     const activity = path.endsWith('/detail') && context.req.query('section')==='activity';
     const priceCatalog = path.endsWith('/prices/references') || path.endsWith('/statistics-prices');
     const revision = context.req.query('revision');
@@ -260,6 +261,11 @@ export function createReadApiApp(options: ReadApiOptions = {}) {
     } catch (error) { return historyError(context, error); }
   });
 
+  app.get('/v1/creator-rewards',async context=>{
+    try {const q=context.req.query();rejectUnknown(q,['marketId','account','cursor','epoch']);if(q.epoch&&(!/^[1-9][0-9]*$/.test(q.epoch)||Number(q.epoch)>4294967295))throw Error('invalid Creator epoch');if(!q.marketId||!q.account)throw Error('invalid Creator query');
+      return context.json(await shareRead('creator-rewards:'+JSON.stringify(q),()=>readCreatorRewards({pool:pool(),deployment,marketId:parseMarketId(q.marketId!),account:parseAddress(q.account!),secret:cursorSecret,...(q.epoch?{epoch:Number(q.epoch)}:{}),...(q.cursor?{cursor:q.cursor}:{}),...(schemaName?{schemaName}:{})})));
+    }catch(error){return historyError(context,error);}
+  });
   app.get('/v1/creator-markets', async (context) => {
     try {
       const query = context.req.query(); rejectUnknown(query, ['address', 'limit', 'cursor']); if (!query.address) throw new Error('invalid address');

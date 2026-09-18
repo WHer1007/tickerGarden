@@ -20,7 +20,7 @@ export function recoverSignerLock(file:string,expectedToken:string){
  const release=acquireSignerLock(file+'.recovery');
  try{const current=fs.lstatSync(file);if(current.ino!==stat.ino||JSON.parse(fs.readFileSync(file,'utf8')).token!==expectedToken)throw Error('Signer lock changed during recovery');fs.unlinkSync(file);return {status:'lock_recovered_pending_journal_preserved'};}finally{release();}
 }
-export async function withSignerLane<T>(directory:string,chainId:number,address:string,owner:'holder'|'locker',action:()=>Promise<T>,hasPending:()=>boolean):Promise<T>{
+export async function withSignerLane<T>(directory:string,chainId:number,address:string,owner:'holder'|'locker'|'creator',action:()=>Promise<T>,hasPending:()=>boolean):Promise<T>{
  if(!path.isAbsolute(directory)||!Number.isSafeInteger(chainId)||chainId<=0||!/^0x[0-9a-f]{40}$/i.test(address))throw Error('Invalid shared signer lane');
  fs.mkdirSync(directory,{recursive:true,mode:0o700});privateStatePath(directory);
  const file=path.join(directory,`${chainId}-${address.toLowerCase()}.json`),release=acquireSignerLock(file+'.lock');

@@ -61,15 +61,16 @@ for (const burnMode of [false,true]) test(`TS-10 history directories and payment
     }
     await saveEvent(handle.pool, schema, deployment.deploymentDigest, 'ProtocolFeeVault', 'FeeClaimed', f72EventCatalog.ProtocolFeeVault.address,
       hash('f'), 4, { beneficiaryType: 1, beneficiary: user, marketId, beneficiaryEpoch: 0, feeAsset: quote, amount: 5n });
+    if(burnMode) await saveEvent(handle.pool,schema,deployment.deploymentDigest,'ProtocolFeeVault','FeeBucketsCredited',f72EventCatalog.ProtocolFeeVault.address,hash('1'),5,{marketId,creatorEpoch:1,feeAsset:token,feeId:hash('2'),creatorAmount:11n,stakerAmount:0n,platformAmount:0n,activeStock:0n});
     if(burnMode) await saveEvent(handle.pool, schema, deployment.deploymentDigest, 'ProtocolFeeVault', 'MemeFeesBurned', f72EventCatalog.ProtocolFeeVault.address,
-      hash('1'), 5, { marketId, beneficiary: user, role: 0, creatorEpoch: 1, token, amount: 11n });
+      hash('1'), 6, { marketId, beneficiary: creator, role: 0, creatorEpoch: 1, token, amount: 11n });
 
     assert.deepEqual(await projectF72History({ pool: handle.pool, deployment, blockNumber: 1n, blockHash: hash('b'), generation: 0n, schemaName }),
       { rewards: burnMode?2:3, activities: burnMode?3:4, aggregates: 4 });
     const app = createReadApiApp({ pool: handle.pool, deployment, env: { NODE_ENV: 'test', TG_ENVIRONMENT: 'test', TG_READ_DATABASE_URL: connectionString,
       TG_CURSOR_SECRET: 'integration-cursor-secret-at-least-32-bytes', TG_DATABASE_SCHEMA: schemaName } });
     const creatorResponse = await app.request(`/v1/creator-markets?address=${creator}&limit=1`); assert.equal(creatorResponse.status, 200);
-    assert.deepEqual((await creatorResponse.json() as { items: unknown[] }).items, [{ marketId, memeToken: token, creator, creationBlockNumber: '1' }]);
+    assert.deepEqual((await creatorResponse.json() as { items: any[] }).items.map(({market,...row})=>{assert.equal(market.marketId,marketId);return row;}), [{ marketId, memeToken: token, creator, creationBlockNumber: '1' }]);
     const holderResponse = await app.request('/v1/holder-markets?q=gdn'); assert.equal(holderResponse.status, 200);
     assert.equal((await holderResponse.json() as { items: unknown[] }).items.length, 1);
     const walletResponse = await app.request(`/v1/wallet-holder-markets?account=${user}`); assert.equal(walletResponse.status, 200);
@@ -111,7 +112,8 @@ for (const burnMode of [false,true]) test(`TS-10 history directories and payment
     assert.deepEqual(await projectF72History({pool:handle.pool,deployment,blockNumber:2n,blockHash:hash('6'),generation:0n,schemaName}),{rewards:0,activities:0,aggregates:0});
     await handle.pool.query(`UPDATE ${schema}.chain_blocks SET canonical=false,finalized=false WHERE hash=$1`,[hash('6')]);
     assert.equal((await handle.pool.query(`SELECT next_block::text n,last_revision FROM ${schema}.projection_checkpoints WHERE scope='history'`)).rows[0].n,'2');
-    assert.equal((await app.request(`/v1/creator-markets?address=${creator}`)).status,503,'orphan checkpoint cannot serve complete history');
+    assert.equal((await app.request(`/v1/creator-markets?address=${creator}`)).status,200,'display reads do not depend on a global history checkpoint');
+    assert.equal((await (await app.request(`/v1/creator-markets?address=${creator}`)).json() as {items:unknown[]}).items.length,1,'canonical creation remains readable while a later history block is orphaned');
     await advance(hash('7'));
     await saveEvent(handle.pool,schema,deployment.deploymentDigest,'ProtocolFeeVault','FeeClaimed',f72EventCatalog.ProtocolFeeVault.address,hash('9'),0,{beneficiaryType:1,beneficiary:user,marketId,beneficiaryEpoch:0,feeAsset:quote,amount:3n},2n,hash('7'));
     await projectF72History({pool:handle.pool,deployment,blockNumber:2n,blockHash:hash('7'),generation:0n,schemaName});

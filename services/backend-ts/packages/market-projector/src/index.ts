@@ -150,6 +150,7 @@ export async function observeF72Market(input: ObserveF72MarketInput): Promise<Js
     stakingEnabled: boolean(config.stakingEnabled, 'stakingEnabled'),
     burnMemeFees: boolean(config.burnMemeFees, 'burnMemeFees'),
     lpFeePips: safeNumber(config.lpFeePips,24,'lpFeePips'),
+    creatorTaxBps: safeNumber(config.creatorTaxBps,16,'creatorTaxBps'),
     curveProgress: {
       realQuoteReserve: bigint(realQuoteReserveValue, 'realQuoteReserve').toString(),
       sellableTokens: bigint(sellableTokensValue, 'sellableTokens').toString(),

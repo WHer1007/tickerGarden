@@ -2,7 +2,7 @@
   "openapi": "3.1.0",
   "info": {
     "title": "TickerGarden V1 Read API",
-    "version": "5.10.0",
+    "version": "5.11.0",
     "description": "Non-custodial TypeScript Serverless read API for the routes consumed by the current frontend."
   },
   "x-execution-spec-id": "V1-EXEC-11",
@@ -1659,6 +1659,91 @@
             }
           },
           "400": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ActivityError"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ActivityError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/creator-rewards": {
+      "get": {
+        "operationId": "getCreatorRewards",
+        "parameters": [
+          {
+            "name": "marketId",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^0x[0-9a-f]{64}$"
+            }
+          },
+          {
+            "name": "account",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^0x[0-9a-f]{40}$"
+            }
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "epoch",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 4294967295
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CreatorRewards"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ActivityError"
+                }
+              }
+            }
+          },
+          "409": {
             "description": "Success",
             "content": {
               "application/json": {
@@ -5393,6 +5478,11 @@
             "type": "string",
             "pattern": "^0x[0-9a-f]{40}$"
           },
+          "creatorTaxBps": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 500
+          },
           "creatorFeesToHolders": {
             "type": "boolean"
           },
@@ -6282,6 +6372,16 @@
         "type": "object",
         "additionalProperties": false,
         "properties": {
+          "market": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/MarketReadModel"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "marketId": {
             "type": "string",
             "pattern": "^0x[0-9a-f]{64}$"
@@ -6300,6 +6400,7 @@
           }
         },
         "required": [
+          "market",
           "marketId",
           "memeToken",
           "creator",
@@ -6591,6 +6692,168 @@
           "blockNumber",
           "blockHash",
           "finality"
+        ]
+      },
+      "CreatorRewards": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "chainId": {
+            "type": "integer"
+          },
+          "displayOnly": {
+            "type": "boolean",
+            "const": true
+          },
+          "marketId": {
+            "type": "string",
+            "pattern": "^0x[0-9a-f]{64}$"
+          },
+          "account": {
+            "type": "string",
+            "pattern": "^0x[0-9a-f]{40}$"
+          },
+          "market": {
+            "$ref": "#/components/schemas/MarketReadModel"
+          },
+          "currentEpoch": {
+            "type": "integer"
+          },
+          "currentBeneficiary": {
+            "oneOf": [
+              {
+                "type": "string",
+                "pattern": "^0x[0-9a-f]{40}$"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "pendingBeneficiary": {
+            "type": "string",
+            "pattern": "^0x[0-9a-f]{40}$"
+          },
+          "pendingQuote": {
+            "type": "string",
+            "pattern": "^(0|[1-9][0-9]*)$"
+          },
+          "curveFees": {
+            "type": "string",
+            "pattern": "^(0|[1-9][0-9]*)$"
+          },
+          "periods": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "epoch": {
+                  "type": "integer"
+                },
+                "beneficiary": {
+                  "type": "string",
+                  "pattern": "^0x[0-9a-f]{40}$"
+                },
+                "quote": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "properties": {
+                    "credited": {
+                      "type": "string",
+                      "pattern": "^(0|[1-9][0-9]*)$"
+                    },
+                    "paid": {
+                      "type": "string",
+                      "pattern": "^(0|[1-9][0-9]*)$"
+                    },
+                    "burned": {
+                      "type": "string",
+                      "pattern": "^(0|[1-9][0-9]*)$"
+                    },
+                    "remaining": {
+                      "type": "string",
+                      "pattern": "^(0|[1-9][0-9]*)$"
+                    }
+                  },
+                  "required": [
+                    "credited",
+                    "paid",
+                    "burned",
+                    "remaining"
+                  ]
+                },
+                "meme": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "properties": {
+                    "credited": {
+                      "type": "string",
+                      "pattern": "^(0|[1-9][0-9]*)$"
+                    },
+                    "paid": {
+                      "type": "string",
+                      "pattern": "^(0|[1-9][0-9]*)$"
+                    },
+                    "burned": {
+                      "type": "string",
+                      "pattern": "^(0|[1-9][0-9]*)$"
+                    },
+                    "remaining": {
+                      "type": "string",
+                      "pattern": "^(0|[1-9][0-9]*)$"
+                    }
+                  },
+                  "required": [
+                    "credited",
+                    "paid",
+                    "burned",
+                    "remaining"
+                  ]
+                }
+              },
+              "required": [
+                "epoch",
+                "beneficiary",
+                "quote",
+                "meme"
+              ]
+            }
+          },
+          "nextCursor": {
+            "oneOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "sourceBlockNumber": {
+            "type": "string",
+            "pattern": "^(0|[1-9][0-9]*)$"
+          },
+          "sourceBlockHash": {
+            "type": "string",
+            "pattern": "^0x[0-9a-f]{64}$"
+          }
+        },
+        "required": [
+          "chainId",
+          "displayOnly",
+          "marketId",
+          "account",
+          "market",
+          "currentEpoch",
+          "currentBeneficiary",
+          "pendingBeneficiary",
+          "pendingQuote",
+          "curveFees",
+          "periods",
+          "nextCursor",
+          "sourceBlockNumber",
+          "sourceBlockHash"
         ]
       },
       "MemeFeeBurnsResponse": {

@@ -28,5 +28,8 @@ test('migration and grants accept only bounded PostgreSQL identifiers', () => {
   assert.match(grants, /projection_checkpoints,[\s\S]+TO "tg_read"/);
   assert.match(grants, /GRANT SELECT, INSERT ON "tg_test_1"\.publications TO "tg_pipeline"/);
   assert.doesNotMatch(grants, /UPDATE[^;]+publications/);
+  assert.match(grants,/GRANT SELECT ON "tg_test_1"\.creator_reward_epochs, "tg_test_1"\.creator_reward_balances TO "tg_read"/);
+  assert.match(grants,/GRANT SELECT, INSERT, UPDATE, DELETE ON "tg_test_1"\.creator_reward_epochs, "tg_test_1"\.creator_reward_balances TO "tg_pipeline"/);
+  assert.doesNotMatch(grants,/GRANT[^;]*creator_reward[^;]*TO "tg_content"/);
   assert.throws(() => permissionsSql('tg_test_1', { readApi: 'bad-role', content: 'tg_content', pipeline: 'tg_pipeline' }), /invalid/);
 });

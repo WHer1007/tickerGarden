@@ -49,6 +49,7 @@
 | `GET /v1/launch-recovery?marketId` | 必须绑定 marketId、交易/创建身份与恢复状态 | `app.ts`，Create 未决交易 | TS-11/15 |
 | `GET /v1/holder-reward-history?marketId&account&throughBlock` | `chainId/marketId/account/throughBlock/displayOnly/complete/claimed` | `app.ts:loadHolderRewardHistory`，Claim | TS-10/15 |
 | `GET /v1/staker-reward-history?marketId&account&throughBlock` | 同上，资产仅允许该市场 Quote/Meme | `app.ts:loadStakeRewardHistory`，Stake | TS-10/15 |
+| `GET /v1/creator-rewards?account&marketId&epoch&cursor` | 数据库中的轮次、原资产余额、待归集费用、提名状态；钱包隔离与签名游标，无 RPC 或全局健康依赖 | `v1/creatorRewards.ts`，Claim/Creator | Creator flow |
 | `GET /v1/creator-markets?address&limit&cursor` | `chainId/address/displayOnly/complete/items/nextCursor`；每项 creator 必须等于 address | `v1/creatorMarkets.ts`，Claim/Creator | TS-10/15 |
 | `GET /v1/holder-markets?q` | `chainId/complete/items`，最多 20 项，marketId/memeToken 唯一 | `v1/holderMarkets.ts`，Claim/Holder 搜索 | TS-10/15 |
 | `GET /v1/wallet-holder-markets?account` | `chainId/account/displayOnly/items` | `app.ts`，Claim/Holder 最近市场 | TS-10/15 |
