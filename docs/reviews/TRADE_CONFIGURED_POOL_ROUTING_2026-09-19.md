@@ -1,6 +1,6 @@
 # Trade configured-pool routing — 2026-09-19
 
-Status: implemented and verified locally. Not deployed; no mainnet transactions broadcast. No project contract change or database migration is required.
+Status: deployed to test and production; see [release acceptance](DEPLOYMENT_2026-09-19.md). No mainnet transactions broadcast during verification. No project contract change or database migration is required.
 
 ## Behavior
 
@@ -27,6 +27,6 @@ For market `0x01f5eb9ec14492bcefcc4598d9ac8ed3f1c2a2e7eca7b217b2e7b60576448476`,
 
 ## Rollout
 
-Publish the backend and frontend together through the normal test → master deployment process, including Singapore runtime verification. A pending legacy wallet journal must remain recoverable across the release. Production has not yet received this implementation.
+Publish the backend and frontend together through the normal test → master deployment process, including Singapore runtime verification. A pending legacy wallet journal must remain recoverable across the release. Production received this implementation in release `ea6c8af6e9`; see the release acceptance report.
 
 The previous SEED diagnosis remains historical evidence of the old 0x path. Its missing-key requirement is superseded for this new Trade route; adding the key is not required to enable configured-pool conversion.
