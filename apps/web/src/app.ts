@@ -3474,11 +3474,11 @@ function renderSnapshotRound(): void {
   text('[data-snapshot-assets]',state&&round?[...(assets&1?[state.metadata.quoteSymbol]:[]),...(assets&2?[state.metadata.symbol]:[])].join(' ｜ ')||'Claimed':'—');
   const recipient=query<HTMLElement>('[data-snapshot-recipient]');
   if(recipient){recipient.textContent=state?state.page.identity.account:'—';recipient.title=state?state.page.identity.account:'';}
-  if(state){const status=holderSnapshotStatus(state.page.status,round,runtimeConfig.snapshotHolderWrites.available);snapshotRewardStatus=status.message;text('[data-snapshot-status]',status.message);query<HTMLElement>('[data-snapshot-status]')?.setAttribute('data-tone',status.tone);}
+  if(state){const status=holderSnapshotStatus(state.page.status,round,runtimeConfig.snapshotHolderWrites.available);const partial=!state.page.complete?`Some rewards are temporarily unavailable${state.page.unavailableRounds.length?` (rounds ${state.page.unavailableRounds.join(', ')})`:''}. Refresh to try again.`:'';snapshotRewardStatus=[!round&&!state.page.complete?'':status.message,partial].filter(Boolean).join(' ');text('[data-snapshot-status]',snapshotRewardStatus);query<HTMLElement>('[data-snapshot-status]')?.setAttribute('data-tone',status.tone);}
   updateRewardsAvailability();
 }
 async function loadSnapshotReward(market:MarketReadModel,distributor:Address,generation:number,prior:typeof snapshotReward=null):Promise<void> {
-const {fetchHolderSnapshots} = await import('./v1/features/holderSnapshots.ts');
+const {fetchHolderSnapshotsPage,mergeHolderSnapshotPages} = await import('./v1/features/holderSnapshots.ts');
 
   const panel=query<HTMLElement>('[data-snapshot-rewards]');
   if(!panel||!wallet)return;
@@ -3495,17 +3495,19 @@ const {fetchHolderSnapshots} = await import('./v1/features/holderSnapshots.ts');
   try {
     if(!runtimeConfig.readApi.available)throw Error('Snapshot rewards are unavailable. Try again later.');
     const identity:SnapshotIdentity={chainId:robinhoodChain.id,distributor,marketId:market.marketId,account,quote:market.quoteAsset,meme:market.memeToken,burnMemeFees:market.burnMemeFees};
-    const [page,metadata]=await Promise.all([fetchHolderSnapshots(runtimeConfig.readApi.value,identity,request.signal,prior?.page.nextCursor??undefined),marketMetadata(market)]);
+    const [{page,recoveredCursor},metadata]=await Promise.all([fetchHolderSnapshotsPage(runtimeConfig.readApi.value,identity,request.signal,prior?.page.nextCursor??undefined),marketMetadata(market)]);
     if(!current())return;
-    if(prior&&(page.sourceBlock!==prior.page.sourceBlock||page.sourceHash!==prior.page.sourceHash||page.nextCursor===prior.page.nextCursor||page.rounds.some(r=>r.round<=(prior.page.rounds.at(-1)?.round??0n))))throw Error('Snapshot data changed. Reload the page to update rounds.');
+    const restarted=recoveredCursor||Boolean(prior&&prior.page.publicationRevision!==page.publicationRevision);
+    if(prior&&!restarted&&(page.nextCursor===prior.page.nextCursor||page.rounds.some(r=>prior.page.rounds.some(old=>old.round===r.round))))throw Error('Snapshot page is inconsistent. Refresh rewards to try again.');
     const loaded=page.rounds.map(round=>{
       const key=snapshotReceiptKey(identity,round.round),receipt=snapshotReceiptClaims.get(key);
       if(!receipt)return round;
       if(page.sourceBlock>=receipt.block){snapshotReceiptClaims.delete(key);return round;}
       return {...round,claimedAssets:round.claimedAssets|receipt.mask};
     });
-    const rounds=prior?[...prior.page.rounds,...loaded]:loaded;
-    snapshotReward={page:{...page,rounds},market,metadata};
+    const merged=mergeHolderSnapshotPages(prior&&!restarted?prior.page:null,{...page,rounds:loaded});
+    const rounds=merged.rounds;
+    snapshotReward={page:merged,market,metadata};
     const select=query<HTMLSelectElement>('[data-snapshot-round]')!, selected=select.value;
     select.replaceChildren();
     for(const r of rounds){const option=document.createElement('option');option.value=String(r.round);option.textContent=`Distribution ${r.round}${remainingSnapshotAssets(r)===0?' · Claimed':''}`;select.append(option);}

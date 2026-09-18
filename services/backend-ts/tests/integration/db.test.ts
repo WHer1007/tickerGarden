@@ -125,6 +125,11 @@ test('TS-02/03/04/05/06 PostgreSQL, ingestion, publications and Hono read paths'
       const grants=(await handle.pool.query<{can_read:boolean;can_write:boolean;pipeline_write:boolean}>(`SELECT has_table_privilege($1,$3,'SELECT') can_read,has_table_privilege($1,$3,'INSERT') can_write,has_table_privilege($2,$3,'INSERT') pipeline_write`,[roles.readApi,roles.pipeline,`${schemaName}.${table}`])).rows[0]!;
       assert.deepEqual(grants,{can_read:true,can_write:false,pipeline_write:true});
     }
+    const evidenceGrants=(await handle.pool.query(`SELECT has_table_privilege($1,$3,'SELECT') reader,has_table_privilege($2,$3,'INSERT') insertable,has_table_privilege($2,$3,'UPDATE') mutable,has_table_privilege($2,$3,'DELETE') deletable`,[roles.readApi,roles.pipeline,`${schemaName}.holder_snapshot_evidence`])).rows[0];
+    assert.deepEqual(evidenceGrants,{reader:false,insertable:true,mutable:false,deletable:false});
+    for(const table of ['holder_snapshot_work','holder_snapshot_balances','holder_snapshot_nodes']){
+      const grant=(await handle.pool.query(`SELECT has_table_privilege($1,$3,'SELECT') reader,has_table_privilege($2,$3,'UPDATE') writer`,[roles.readApi,roles.pipeline,`${schemaName}.${table}`])).rows[0];assert.deepEqual(grant,{reader:false,writer:true});
+    }
     assert.equal((await handle.pool.query(`SELECT has_column_privilege($1,$2,'verified_header','UPDATE') permitted,has_column_privilege($1,$2,'payload','UPDATE') raw_update`,[roles.pipeline,`${schemaName}.holder_reward_datasets`])).rows[0].permitted,true);
     assert.equal((await handle.pool.query(`SELECT has_column_privilege($1,$2,'payload','UPDATE') raw_update`,[roles.pipeline,`${schemaName}.holder_reward_datasets`])).rows[0].raw_update,false);
 

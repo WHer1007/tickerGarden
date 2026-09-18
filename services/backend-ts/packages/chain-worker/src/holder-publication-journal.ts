@@ -1,3 +1,4 @@
+import {acquireSignerLock,recoverSignerLock} from './signer-coordination.ts';
 import fs from 'node:fs';
 import path from 'node:path';
 import type {Address,Hex} from 'viem';
@@ -18,9 +19,8 @@ export async function withPublicationJournal<T>(directory:string,identity:{chain
  // Shared by all rounds/markets/releases for one signer and chain. Release changes require
  // deliberate archival after pending nonce reconciliation, not another concurrent nonce lane.
  const file=path.join(directory,`${identity.chainId}-${identity.publisher.toLowerCase()}.json`),lock=file+'.lock';
- const fd=fs.openSync(lock,'wx',0o600);
+ const release=acquireSignerLock(lock);
  try{
-  fs.writeFileSync(fd,JSON.stringify({pid:process.pid}));fs.closeSync(fd);
   let journal:PublicationJournal={...identity,pending:null};
   if(fs.existsSync(file)){privatePublicationPath(file);journal=JSON.parse(fs.readFileSync(file,'utf8')) as PublicationJournal;}
   if(journal.chainId!==identity.chainId||journal.releaseId!==identity.releaseId||journal.publisher.toLowerCase()!==identity.publisher.toLowerCase())throw Error('Publication journal/deployment mismatch');
@@ -32,5 +32,7 @@ export async function withPublicationJournal<T>(directory:string,identity:{chain
    const d=fs.openSync(directory,'r');try{fs.fsyncSync(d);}finally{fs.closeSync(d);}
   };
   return await action(journal,save);
- }finally{fs.unlinkSync(lock);}
+ }finally{release();}
 }
+
+export {recoverSignerLock};

@@ -2,11 +2,11 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {decodeFunctionData,keccak256,toHex,type Hex} from 'viem';
 import {currentV4Abis} from '../src/v1/generated/abis.ts';
-import {parseHolderSnapshots,snapshotLeaf,snapshotRoot,remainingSnapshotAssets,holderSnapshotStatus,buildSnapshotClaim,type SnapshotIdentity} from '../src/v1/features/holderSnapshots.ts';
+import {parseHolderSnapshots,snapshotLeaf,snapshotRoot,remainingSnapshotAssets,holderSnapshotStatus,buildSnapshotClaim,fetchHolderSnapshotsPage,mergeHolderSnapshotPages,type SnapshotIdentity} from '../src/v1/features/holderSnapshots.ts';
 const id:SnapshotIdentity={chainId:46630,distributor:`0x${'11'.repeat(20)}`,marketId:`0x${'22'.repeat(32)}`,account:`0x${'33'.repeat(20)}`,quote:`0x${'00'.repeat(20)}`,meme:`0x${'44'.repeat(20)}`};
-function fixture() {
+function fixture(): any {
  const r={round:1n,quoteAmount:7n,memeAmount:9n};
- return {schema:'TICKERGARDEN_HOLDER_WALLET_SNAPSHOTS_V1',...id,displayOnly:true,finality:'finalized',sourceBlockNumber:'100',sourceBlockHash:`0x${'55'.repeat(32)}`,status:'ready',nextCursor:null,rounds:[{round:'1',snapshotBlock:'90',root:snapshotLeaf(id,r),quoteAmount:'7',memeAmount:'9',claimedAssets:0,proof:[]}]};
+ return {schema:'TICKERGARDEN_HOLDER_WALLET_SNAPSHOTS_V1',...id,displayOnly:true,finality:'finalized',sourceBlockNumber:'100',sourceBlockHash:`0x${'55'.repeat(32)}`,publicationRevision:'rev-1',complete:true,unavailableRounds:[],status:'ready',nextCursor:null,rounds:[{round:'1',snapshotBlock:'90',root:snapshotLeaf(id,r),quoteAmount:'7',memeAmount:'9',claimedAssets:0,proof:[]}]};
 }
 test('wallet proof binds chain, distributor, market, account, round and both assets',()=>{
  const p=parseHolderSnapshots(fixture(),id),r=p.rounds[0]!;assert.equal(remainingSnapshotAssets(r),3);
@@ -28,6 +28,33 @@ test('claim status appears only when it helps the holder decide what to do',()=>
 });
 test('strict integers, finality, source identity, duplicates and future snapshots fail closed',()=>{
  for(const modify of [(f:any)=>f.rounds[0].quoteAmount='1e18',(f:any)=>f.rounds[0].round='18446744073709551616',(f:any)=>f.rounds[0].snapshotBlock='100',(f:any)=>f.rounds.push(f.rounds[0]),(f:any)=>f.finality='head',(f:any)=>f.status='unknown',(f:any)=>f.rounds[0].claimedAssets=4,(f:any)=>f.sourceBlockHash='0x0']){const f=fixture();modify(f);assert.throws(()=>parseHolderSnapshots(f,id));}
+});
+
+test('round pages require distinct descending round numbers and expose incomplete rounds',()=>{
+ const f=fixture();f.rounds.unshift({...f.rounds[0]!,round:'2',snapshotBlock:'91',root:snapshotLeaf(id,{round:2n,quoteAmount:7n,memeAmount:9n})});
+ assert.doesNotThrow(()=>parseHolderSnapshots(f,id));
+ f.rounds.reverse();assert.throws(()=>parseHolderSnapshots(f,id),/Invalid snapshot entitlement/);
+ const partial=fixture();partial.complete=false;partial.unavailableRounds=['4','3'];
+ const page=parseHolderSnapshots(partial,id);assert.equal(page.complete,false);assert.deepEqual(page.unavailableRounds,['4','3']);
+});
+
+test('legacy snapshot schema defaults completeness only when all new fields are absent',()=>{
+ const f=fixture();delete f.publicationRevision;delete f.complete;delete f.unavailableRounds;
+ const page=parseHolderSnapshots(f,id);assert.equal(page.complete,true);assert.deepEqual(page.unavailableRounds,[]);assert.equal(page.publicationRevision,'100:'+f.sourceBlockHash);
+ f.complete=true;assert.throws(()=>parseHolderSnapshots(f,id),/Incomplete snapshot pagination metadata/);
+});
+
+test('expired pagination cursor restarts once at the first page',async()=>{
+ const original=globalThis.fetch;let calls=0;
+ globalThis.fetch=async input=>{calls++;const url=new URL(String(input));if(url.searchParams.has('cursor'))return new Response('',{status:409});return new Response(JSON.stringify(fixture()),{status:200,headers:{'content-type':'application/json'}});};
+ try{const result=await fetchHolderSnapshotsPage('https://read.example',id,new AbortController().signal,'stale');assert.equal(result.recoveredCursor,true);assert.equal(result.page.rounds[0]!.round,1n);assert.equal(calls,2);}
+ finally{globalThis.fetch=original;}
+});
+
+test('cursor recovery does not mask unrelated fetch failures',async()=>{
+ const original=globalThis.fetch;globalThis.fetch=async()=>new Response('',{status:503});
+ try{await assert.rejects(fetchHolderSnapshotsPage('https://read.example',id,new AbortController().signal,'stale'),/unavailable/);}
+ finally{globalThis.fetch=original;}
 });
 test('publisher disabled does not remove already-published claims; unavailable is not zero',()=>{
  const f=fixture();f.status='publisher_unconfigured';assert.equal(remainingSnapshotAssets(parseHolderSnapshots(f,id).rounds[0]!),3);
@@ -57,6 +84,8 @@ test('new Holder loading is API-only and preempts legacy RPC paths; only the Hol
  assert.ok(refresh.indexOf('loadSnapshotReward')<refresh.indexOf('getRewardMarketDetail'));
  assert.match(app,/rewardChoicePending \|\| document.hidden \|\| !isRewardsPage/);
  assert.doesNotMatch(app,/hasActiveOperations\(\) \|\| rewardChoicePending/);
+ assert.match(load,/publicationRevision/);assert.match(load,/recoveredCursor/);assert.doesNotMatch(load,/sourceBlock!==prior\.page\.sourceBlock|sourceHash!==prior\.page\.sourceHash/);
+ assert.match(load,/generation===treasuryLoadGeneration/);assert.match(load,/wallet\?\.account===account/);assert.match(load,/value===market\.marketId/);
 });
 
 test('reviewed snapshot display routing rejects ambiguous and cross-chain releases',async()=>{
@@ -73,4 +102,14 @@ test('burn markets reject Meme proofs at both read and transaction boundaries',(
  assert.throws(()=>parseHolderSnapshots(fixture(),burnId),/Quote-only/);
  const r=parseHolderSnapshots(fixture(),id).rounds[0]!;
  assert.throws(()=>buildSnapshotClaim(burnId,r,1),/Quote-only/);
+});
+
+test('older page merge keeps descending order and prior partial status across advancing claim observations',()=>{
+ const first=fixture(),older=fixture();first.rounds[0].round='2';first.rounds[0].root=snapshotLeaf(id,{round:2n,quoteAmount:7n,memeAmount:9n});first.complete=false;first.unavailableRounds=['3'];
+ older.sourceBlockNumber='101';older.sourceBlockHash=`0x${'66'.repeat(32)}`;
+ const a=parseHolderSnapshots(first,id),b=parseHolderSnapshots(older,id),merged=mergeHolderSnapshotPages(a,b);
+ assert.deepEqual(merged.rounds.map(r=>r.round),[2n,1n]);assert.equal(merged.complete,false);assert.deepEqual(merged.unavailableRounds,['3']);
+ assert.throws(()=>mergeHolderSnapshotPages(a,a),/overlap/);
+ assert.throws(()=>mergeHolderSnapshotPages(a,{...b,publicationRevision:'new'}),/publication changed/);
+ assert.throws(()=>mergeHolderSnapshotPages(a,{...b,identity:{...id,account:`0x${'77'.repeat(20)}`}}),/identity changed/);
 });

@@ -11,7 +11,7 @@ export async function indexHolderDataset(client:PoolClient,schemaName:string,env
   await client.query(`INSERT INTO ${s}.holder_reward_wallet_proofs SELECT $1,$2,$3,$4,$5,$6,r.account,r.payload FROM jsonb_to_recordset($7::jsonb) r(account text,payload jsonb)`,[...id,JSON.stringify(d.entries.slice(offset,offset+500).map(({account,quoteAmount,memeAmount,proof})=>({account,payload:{quoteAmount,memeAmount,proof}})))]);
  }
  const {balances,exclusions,...input}=i;
- await client.query(`UPDATE ${s}.holder_reward_datasets SET verified_header=$7 WHERE environment=$1 AND chain_id=$2 AND deployment_digest=$3 AND market_id=$4 AND round=$5 AND data_hash=$6`,[...id,{input,root:d.root,dataHash:d.dataHash,quoteBudget:d.quoteBudget,memeBudget:d.memeBudget}]);
+ await client.query(`UPDATE ${s}.holder_reward_datasets SET verified_header=$7 WHERE environment=$1 AND chain_id=$2 AND deployment_digest=$3 AND market_id=$4 AND round=$5 AND data_hash=$6`,[...id,{input,root:d.root,dataHash:d.dataHash,quoteBudget:d.quoteBudget,memeBudget:d.memeBudget,entryCount:String(d.entries.length)}]);
 }
 
 /** Explicit upgrade/backfill; runtime GET never reconstructs full datasets. */
@@ -21,7 +21,7 @@ export async function backfillHolderProofIndexes(pool:import('pg').Pool,deployme
  const {buildSnapshot,canonicalSnapshotJson}=await import('./holder-snapshot.ts');
  let count=0;
  for(;;){
-  const rows=await pool.query<{payload:SnapshotDataset}>(`SELECT payload FROM "${schemaName}".holder_reward_datasets WHERE environment=$1 AND chain_id=$2 AND deployment_digest=$3 AND verified_header IS NULL ORDER BY market_id,round LIMIT 1`,[deployment.environment,deployment.chainId,deployment.deploymentDigest]);
+  const rows=await pool.query<{payload:SnapshotDataset}>(`SELECT payload FROM "${schemaName}".holder_reward_datasets WHERE environment=$1 AND chain_id=$2 AND deployment_digest=$3 AND verified_header IS NULL AND payload->>'schema' IN ('TICKERGARDEN_HOLDER_DATASET_V1','TICKERGARDEN_HOLDER_COMPACT_V1') ORDER BY market_id,round LIMIT 1`,[deployment.environment,deployment.chainId,deployment.deploymentDigest]);
   if(!rows.rows.length)return count;
   for(const row of rows.rows){const stored=row.payload;const ds=Array.isArray(stored.entries)?verifySnapshot(stored):buildSnapshot(stored.input);
    if(!Array.isArray(stored.entries)&&canonicalSnapshotJson(compactSnapshotDataset(ds))!==canonicalSnapshotJson(stored))throw Error('stored snapshot commitments corrupt');
