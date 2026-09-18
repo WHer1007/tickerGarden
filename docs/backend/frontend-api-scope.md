@@ -14,7 +14,7 @@
 
 ## 正式 Read API caller
 
-本节 Read API 只允许 `GET`；Content 上传和 Pipeline 创建交易通知的 `POST` 调用在下一节单独列出。生成契约的正常响应为下表 schema；错误码和完整字段以 baseline 锁定的 OpenAPI 为准。普通目录分页的 `revision`、`cursor`、`limit` 与筛选条件不可跨 publication 混用。Explore 的两种排名独立管理游标：市值游标固定后台 20 分钟排名版本，Recent buys 游标固定最后买入位置；两者返回当前 finalized 项目详情，不能用于交易授权。
+本节 Read API 只允许 `GET`；Content 上传和 Pipeline 创建交易通知的 `POST` 调用在下一节单独列出。生成契约的正常响应为下表 schema；错误码和完整字段以 baseline 锁定的 OpenAPI 为准。普通目录分页的 `revision`、`cursor`、`limit` 与筛选条件不可跨 publication 混用。Explore 使用独立的 confirmed 展示接口；市值游标固定后台 20 分钟排名版本，Recent buys 游标固定最后买入位置，卡片始终读取当前数据库字段，不能用于交易授权。
 
 | 路径与 query | 响应 schema / 关键约束 | caller 与页面 | 任务 |
 | --- | --- | --- | --- |
@@ -41,7 +41,9 @@
 
 | Method / 路径 | 请求与响应冻结点 | caller / 条件 | 任务 |
 | --- | --- | --- | --- |
-| `GET /v1/protocol-statistics` | 20-minute scheduled schemaVersion 3 snapshot; raw external volume, trade-time fees, allocation-time distributions and independently anchored staking; current-price USD estimates; missing coverage stays null | `app.ts:renderProtocolStatistics` | TS-08/15 |
+| `GET /v1/stats/display` | SchemaVersion 4 materialized global display; optional overview/allocations/stocks section; database-only values including USD; no expiry gate | `controllers/stats.ts` | Stats display integration |
+| `GET /v1/stats/events` | Shared display channel; only Stats region invalidations after snapshot commit; no financial authority | `v1/statsUpdates.ts` | Stats lifecycle tests |
+| `GET /v1/protocol-statistics` | Legacy schemaVersion 3 snapshot reader, retained for existing API consumers; no longer used by Stats or rebuilt by the minute scheduler | Legacy API | TS-08/15 |
 | `GET /v1/statistics-prices` | `chainId/displayOnly/prices/expiresAt`；缺价保持 unavailable | `app.ts:refreshExplorePrices` | TS-08/15 |
 | `GET /v1/market-display-statistics?marketId` | `chainId/marketId/displayOnly/complete/totalRaw/participants` | `v1/stakeStatistics.ts`，Stake | TS-08/09/15 |
 | `GET /v1/launch-recovery?marketId` | 必须绑定 marketId、交易/创建身份与恢复状态 | `app.ts`，Create 未决交易 | TS-11/15 |
@@ -76,9 +78,9 @@
 
 `GET /v1/holder-snapshots?chainId&distributor&marketId&account&cursor` supplies finalized, display-only published round proofs and independent claimed-asset masks. It is included in the current OpenAPI 5.1.0, uses no-store, and returns 503 for missing or corrupt proof archives. See [backend operations](../operations/HOLDER_SNAPSHOT_BACKEND.md).
 
-## Explore 排名维护
+## 旧目录接口排名维护（兼容其他调用方）
 
-`0015_explore_rankings` 增加仅用于展示的最近买入索引及市值排名快照。买入记录随已确认交易写入事务增量更新；重复/较旧事件不会置顶，内部兑换与零额交易不参与，交易移除、分类变化和链重组会修正受影响项目。Recent buys 只列出有符合条件买入的项目，动态游标不保证遍历覆盖全部项目。
+`/v1/markets` 的旧排名实现仍由 `0015_explore_rankings` 提供，Explore 页面已迁移至文末的 confirmed 展示接口。该旧实现增加仅用于展示的最近买入索引及市值排名快照。买入记录随已确认交易写入事务增量更新；重复/较旧事件不会置顶，内部兑换与零额交易不参与，交易移除、分类变化和链重组会修正受影响项目。Recent buys 只列出有符合条件买入的项目，动态游标不保证遍历覆盖全部项目。
 
 市值榜复用 Pipeline `/internal/dispatch` 的现有每分钟调度，按 UTC 20 分钟桶去重生成；价格刷新入口也可触发同一幂等函数。无需新增 Preview cron 或常驻服务。构建成功原子发布、失败保留上次结果；成功构建时清理两小时前的旧版本。Read API 对这些表只读，Pipeline 可写。排名不依赖浏览器触发，不读取即时 RPC。
 
@@ -101,3 +103,28 @@ Market invalidation stream: `GET /v1/markets/{marketId}/events` (SSE). Payload c
 ### Project RPC scope
 
 `GET /v1/rpc-scope?addresses=0x...,0x...` is a bounded, database-only helper for the Web RPC proxy. Maximum 60 lowercase addresses; returns `{chainId, targets:[{address,topics}]}` for fixed protocol contracts, configured assets, reviewed exchange contracts and canonical registered market contracts. Unknown targets are omitted. No client-supplied allowlist is accepted. The proxy enforces address and topic scope before forwarding contract/log requests. Wallet balance, nonce, gas and block-header reads remain available for wallet execution; transaction-hash responses must resolve to an allowed target. Calls do not update projections or initiate RPC from this endpoint.
+
+
+## Explore confirmed 展示接口
+
+- `GET /v1/explore/bootstrap`：返回 `displayOnly/configs/sync`，从展示 cursor 或已核验创建记录读取已知 head；空库允许返回 unavailable sync + 空列表，不等待全局健康检查或资金结算。
+- `GET /v1/explore`：接受 `launchPhase/sort/search/assetUid/limit/cursor`，返回 `MarketPage`。仅查询 `explore_display_cards` 与独立展示排名，不在 HTTP 中执行 RPC、重放交易或计算统计。游标签名绑定筛选条件；排名版本保留两小时，过期游标返回 409 后客户端重开第一页。
+- `GET /v1/explore/cards`：`markets` 为最多 100 个 marketId，返回 `chainId/displayOnly/items`，直接读取当前完整卡片（含 `metrics/curveProgress/lastBuy`）。被重组撤销的市场不返回；不按前端时间过期或清空已有指标。
+- `GET /v1/explore/events`：共享展示 Worker 的数据库通知连接，SSE `change {marketId,regions,revision}` 与 `ready`。浏览器合并通知，仅补读可见卡片；market/trades 变化触发第一页校对。60 秒补漏，重连主动校对，不依赖 `/v1/updates` 或全局重新初始化。
+
+`0020_explore_display` 提供 confirmed + canonical recent 的数据库视图。confirmed 记录优先；新创建记录在展示 Worker 追上之前可立即列出。后台将美元市值、24h 成交额和最后有效买入位置随展示状态保存，重组 journal 一起撤销。24h USD 成交额是配对资产成交量乘共享当前美元价的估算（排除协议内部成交），不宣称历史成交时美元金额；无交易为 0，缺少完整覆盖或报价为 null。
+
+市值排名由展示 Worker 每 20 分钟写独立快照，分页时只冻结次序，不冻结卡片数值。新市场未进入该快照时先展示在已有排名之前，下一周期纳入正式排名。Recent buys 按区块、交易序号、日志序号排列，保留最近买入位置，不随 24h 缓冲淘汰。上述机制不修改奖励和资金结算确认规则。
+
+发布顺序：先执行数据库迁移与角色权限更新，再发布 Read API 和展示 Worker，验证新接口后发布前端；旧 `/v1/markets` 接口保留给其他业务读取。
+
+
+### Stats confirmed display
+
+Stats, Explore and market detail consume one receipt/block-verified display worker and the existing shared USD price table. Stats does not introduce log scans, RPC calls, exchange quotes or a price scheduler. USDG remains fixed at USD 1. The independently stored `stats_display_snapshots` row contains all public render values, including valuations. HTTP selects the full payload or one section by deployment identity; requests never build aggregates or reject rows based on age.
+
+The worker uses idempotent event contributions and minute buckets for external volume, trade-time fee revenue and allocation-time credits. A separate per-asset/account position projection tracks allocated principal; per-stock sums and account references are maintained on each delta. Narrow per-market contribution rows maintain Bloomed counts and indexed launch times. Snapshot valuation reads asset totals, relevant fee-token prices and the shared price catalog, not market holder arrays or the full account ledger. Rollback restores market contributions and prior account amounts and deletes orphan flow contributions in the same transaction as the display cursor. Notifications become visible only after commit.
+
+Changes invalidate `overview`, `allocations` or `stocks` only when their stored values differ. The browser debounces bursts, merges only the requested section, retains successful results on network failure, and performs a 60-second recovery read while visible. It never converts USD or clears values because a local freshness timer expired. The Stocks list remains independent of global health/bootstrap/publication requests.
+
+Migration `0021_stats_display` must be applied before the updated worker/API. On first activation, the display worker rebases to its verified stored baseline, seeds prior rolling activity and latest per-wallet allocation checkpoints, then catches up using the same display events. Keep the last successful Stats snapshot while reinitializing. This path is display-only; reward settlement, principal verification and their finality rules remain separate.

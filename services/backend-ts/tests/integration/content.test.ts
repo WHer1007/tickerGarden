@@ -51,6 +51,11 @@ test('TS-12 content authorization is digest-bound, one-use and idempotently reco
       PINATA_JWT: 'unused', QSTASH_CURRENT_SIGNING_KEY: 'current', QSTASH_NEXT_SIGNING_KEY: 'next', QSTASH_CONTENT_TOKEN: 'unused',
       TG_CONTENT_JOB_CALLBACK_URL: 'https://content.example/v1/jobs/content', TG_CONTENT_GENERATION: '0', TG_REPAIR_TOKEN: 'repair', CRON_SECRET: 'cron',
     } });
+    await handle.pool.query(`UPDATE ${schema}.content_uploads SET status='failed' WHERE upload_id=$1`,[created.uploadId]);
+    const invalidCompletion=await app.request(`https://content.example/v1/content/uploads/${created.uploadId}/complete`,{method:'POST',headers:{authorization:`Bearer ${created.accessToken}`,'content-type':'application/json'},body:'{}'});
+    assert.equal(invalidCompletion.status,409);
+    assert.equal((await invalidCompletion.json() as {error:string}).error,'upload_session_invalid');
+    await handle.pool.query(`UPDATE ${schema}.content_uploads SET status='ready' WHERE upload_id=$1`,[created.uploadId]);
     const metricsResponse = await app.request('https://content.example/internal/metrics', { headers: { authorization: 'Bearer repair' } });
     assert.equal(metricsResponse.status, 200);
     const metrics = await metricsResponse.json() as { queue: { queue: string }; content: { failed: number; uploads: Array<{ status: string }> }; database: { total: number } };

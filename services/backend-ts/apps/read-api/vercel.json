@@ -14,6 +14,14 @@
   },
   "rewrites": [
     {
+      "source": "/v1/explore/events",
+      "destination": "/api/events"
+    },
+    {
+      "source": "/v1/stats/events",
+      "destination": "/api/events"
+    },
+    {
       "source": "/v1/markets/:marketId/events",
       "destination": "/api/events"
     },

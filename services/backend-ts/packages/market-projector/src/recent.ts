@@ -1,7 +1,8 @@
 import {formatUnits,parseUnits} from 'viem';
 import type {MarketReadModel} from '../../../openapi/generated/v1-client.ts';
 import {publicMarketContent} from '../../confirmed-display/src/content.ts';
-import {displayUsd} from '../../confirmed-display/src/state.ts';
+import {changeChannel,regions} from '../../confirmed-display/src/changes.ts';
+import {displayUsd,exploreMetrics} from '../../confirmed-display/src/state.ts';
 import {latestPrices,preferredPrices} from '../../display-price/src/read.ts';
 import type {Pool} from 'pg';
 import {consensusBlock,parseLog,type DeploymentIdentity,type RpcTransport} from '../../chain/src/index.ts';
@@ -49,13 +50,18 @@ export async function recordRecentLaunch(input:RecentLaunchInput,txHash:`0x${str
  const usd=reference?.status==='available'&&reference.bidUsd&&reference.askUsd?formatUnits((parseUnits(reference.bidUsd,36)+parseUnits(reference.askUsd,36))/2n,36):null;
  initialDetail.statistics={...initialDetail.statistics,price:model.display?.priceQuote??initialDetail.statistics.price,...displayUsd(model.display?.priceQuote??initialDetail.statistics.price,initialDetail.holders.totalSupplyRaw,usd)};
  const content=await publicMarketContent(input.pool,model,input.schemaName);
- const payload={...(market as Record<string,unknown>),content,confirmation:{status:'confirmed',blockNumber:block.number.toString(),blockHash:block.hash,observedAt:new Date().toISOString()}};
+ const buys=(receipts[0]!.logs as Record<string,unknown>[]).map(parseLog).filter(log=>log.address===model.curve).map(log=>({log,event:decodeF72Event('TickerGardenCurve',log)})).filter(({event,log})=>event?.eventName==='CurveBuy'&&BigInt(String(event.args.quoteIn))>0n&&BigInt(String(event.args.tokensOut))>0n&&initialDetail.trades.some(t=>t.side==='buy'&&t.classification==='unclassified'&&t.eventKey===`${input.deployment.chainId}:${log.transactionHash}:${log.logIndex}`)).sort((a,b)=>Number(a.log.logIndex-b.log.logIndex));
+ const buy=buys.at(-1)?.log;
+ const lastBuy=buy?{blockNumber:buy.blockNumber.toString(),transactionIndex:buy.transactionIndex.toString(),logIndex:buy.logIndex.toString(),timestamp:block.timestamp.toString()}:undefined;
+ const metrics=exploreMetrics(initialDetail.statistics,usd,Number(block.timestamp),reference?.asOf??null,reference?.source??null);
+ const payload={...(market as Record<string,unknown>),content,metrics,...(lastBuy?{lastBuy}:{}),confirmation:{status:'confirmed',blockNumber:block.number.toString(),blockHash:block.hash,observedAt:new Date().toISOString()}};
  const stored=await input.pool.query(`INSERT INTO ${schema}.recent_markets(environment,chain_id,deployment_digest,market_id,transaction_hash,block_number,block_hash,payload,initial_detail)
  VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9) ON CONFLICT(environment,chain_id,deployment_digest,market_id) DO UPDATE SET
  transaction_hash=excluded.transaction_hash,block_number=excluded.block_number,block_hash=excluded.block_hash,payload=excluded.payload,initial_detail=excluded.initial_detail,canonical=true,observed_at=now(),expires_at=now()+interval '30 minutes'
  WHERE recent_markets.block_hash<>excluded.block_hash OR recent_markets.canonical RETURNING market_id`,
  [...identity,creation.marketId,txHash,block.number.toString(),block.hash,JSON.stringify(payload),JSON.stringify(initialDetail)]);
  if(!stored.rowCount)throw Error('Creation was removed while being observed');
+ await input.pool.query('SELECT pg_notify($1,$2)',[changeChannel(input.deployment,input.schemaName),JSON.stringify({marketId:creation.marketId,regions,revision:`created:${block.hash}`})]);
  return {marketId:creation.marketId,status:'confirmed' as const};
 }
 

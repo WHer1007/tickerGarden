@@ -1,3 +1,5 @@
+import {readStatsDisplay} from '../../../packages/confirmed-display/src/stats.ts';
+import {readExploreBootstrap,readExploreCards,readExplorePage} from '../../../packages/confirmed-display/src/explore.ts';
 import {rpcScope} from './rpc-scope.ts';
 import {createMarketEvents} from './market-events.ts';
 import {readMarketPageBootstrap} from '../../../packages/confirmed-display/src/read.ts';
@@ -70,7 +72,7 @@ export function createReadApiApp(options: ReadApiOptions = {}) {
     const dynamicRanking = path==='/v1/markets'&&['marketCapUsd_desc','recentBuy_desc'].includes(context.req.query('sort')??'');
     const immutableRevision = context.res.status >= 200 && context.res.status < 300
       && typeof revision === 'string' && /^(0|[1-9][0-9]*):0x[0-9a-f]{64}$/.test(revision);
-    context.header('cache-control', context.res.status < 200 || context.res.status >= 300 || privateRead || priceCatalog || (path==='/v1/quote-purchase'||path==='/v1/trade-conversion') || path.endsWith('/events') || path==='/v1/rpc-scope' || path.endsWith('/page') || path.endsWith('/detail') || activity || context.req.query('includeRecent')==='true' || path.endsWith('/updates') || dynamicRanking || path==='/v1/protocol-statistics'
+    context.header('cache-control', context.res.status < 200 || context.res.status >= 300 || privateRead || priceCatalog || path.startsWith('/v1/explore') || (path==='/v1/quote-purchase'||path==='/v1/trade-conversion') || path.endsWith('/events') || path==='/v1/rpc-scope' || path.endsWith('/page') || path.endsWith('/detail') || activity || context.req.query('includeRecent')==='true' || path.endsWith('/updates') || dynamicRanking || path==='/v1/protocol-statistics' || path==='/v1/stats/display'
       ? 'no-store'
       : immutableRevision
         ? 'public, max-age=300, s-maxage=31536000, immutable'
@@ -143,6 +145,20 @@ export function createReadApiApp(options: ReadApiOptions = {}) {
     }
   });
   app.all('/v1/holder-snapshots',context=>context.json({error:'method_not_allowed',message:'Use GET',requestId:context.get('requestId')},405));
+
+  app.get('/v1/explore/bootstrap',async context=>{
+    try {rejectUnknown(context.req.query(),[]);return context.json(await shareRead('explore:bootstrap',()=>readExploreBootstrap({pool:pool(),deployment,...(schemaName?{schemaName}:{})})));}
+    catch(error){return readError(context,error,deployment);}
+  });
+  app.get('/v1/explore/cards',async context=>{
+    try {const q=context.req.query();rejectUnknown(q,['markets']);const markets=[...new Set((q.markets??'').split(','))].sort();return context.json(await shareRead('explore:cards:'+markets.join(','),()=>readExploreCards({pool:pool(),deployment,...(schemaName?{schemaName}:{})},markets)));}
+    catch(error){return readError(context,error,deployment);}
+  });
+  app.get('/v1/explore/events',context=>marketEvents(context,'*'));
+  app.get('/v1/explore',async context=>{
+    try {const query=context.req.query();return context.json(await shareRead('explore:'+JSON.stringify(query),()=>readExplorePage({pool:pool(),deployment,secret:cursorSecret,query,...(schemaName?{schemaName}:{})})));}
+    catch(error){return readError(context,error,deployment);}
+  });
 
   app.get('/v1/markets', async (context) => {
     try {
@@ -380,6 +396,9 @@ export function createReadApiApp(options: ReadApiOptions = {}) {
       const interval=parseInterval(query.interval!),from=parseTimestamp(query.from!),to=parseTimestamp(query.to!);if(from>=to||from%interval||to%interval||(to-from)/interval>2000)throw Error('invalid series interval');return context.json(await cachedGlobalRead('series:'+JSON.stringify([interval,from,to]),readPool=>readGlobalSeries({pool:readPool,deployment,interval,from,to,...(schemaName?{schemaName}:{})}))); }
     catch(error){return analyticsError(context,error,'candle');}
   });
+
+  app.get('/v1/stats/display',async context=>{try{rejectUnknown(context.req.query(),['section']);const section=context.req.query('section');return context.json(await shareGlobalRead('stats-display:'+String(section),()=>readStatsDisplay({pool:pool(),deployment,...(schemaName?{schemaName}:{})},section)));}catch(error){return analyticsError(context,error,'candle');}});
+  app.get('/v1/stats/events',context=>marketEvents(context,'@stats'));
 
   app.get('/v1/protocol-statistics', async (context) => {
     try { rejectUnknown(context.req.query(),[]);return context.json(await shareGlobalRead('protocol',()=>readProtocolStatistics({pool:pool(),deployment,...(schemaName?{schemaName}:{})}))); }

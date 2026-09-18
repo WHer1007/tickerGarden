@@ -5,7 +5,7 @@ import type { Client } from '@upstash/qstash';
 import type { Context } from 'hono';
 import { createServiceApp } from '../../../packages/http/src/index.ts';
 import { createDatabasePool } from '../../../packages/db/src/index.ts';
-import { ContentAuthorizationError, ContentQuotaError, completeContentUpload, createContentChallenge, createContentUpload, readContentUpload } from '../../../packages/content-core/src/index.ts';
+import { ContentUploadStateError, ContentAuthorizationError, ContentQuotaError, completeContentUpload, createContentChallenge, createContentUpload, readContentUpload } from '../../../packages/content-core/src/index.ts';
 import { presignImagePut, publishContentJob, type S3Config } from '../../../packages/content-storage/src/index.ts';
 import { advanceQueueGeneration, createQStashClient, dispatchDueOutbox, processSignedJob, readQueueMetrics, repairQueue, StaleQueueGenerationError, verifyRepairToken, type Lease } from '../../../packages/jobs/src/index.ts';
 
@@ -136,6 +136,7 @@ function bearer(value: string | undefined): string { if (!value?.startsWith('Bea
 function string(value: unknown): string { if (typeof value !== 'string') throw new Error('invalid request'); return value }
 function canonicalAddress(value: unknown): `0x${string}` { if (typeof value !== 'string' || !/^0x[0-9a-f]{40}$/.test(value)) throw new Error('invalid account'); return value as `0x${string}` }
 function contentError(context: Context, error: unknown) { const requestId = context.get('requestId');
+  if (error instanceof ContentUploadStateError) return context.json({ error: 'upload_session_invalid', requestId }, 409);
   if (error instanceof ContentAuthorizationError) return context.json({ error: 'invalid_authorization', requestId }, 401);
   if (error instanceof ContentQuotaError) return context.json({ error: 'content_quota_exhausted', requestId }, 429);
   if (error instanceof Error && /invalid/.test(error.message)) return context.json({ error: 'invalid_request', message: error.message, requestId }, 400);

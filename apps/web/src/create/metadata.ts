@@ -52,7 +52,7 @@ export async function publishLaunchDetails(origin: string, details: LaunchDetail
     const put=await fetch(upload.url,{method:'PUT',headers:upload.headers as Record<string,string>,body:bytes,signal:AbortSignal.timeout(30000)});
     if(!put.ok){discardSession(key);throw Error('Storage unavailable. Try again shortly.');}session.objectVersion=put.headers.get('x-amz-version-id')??undefined;session.uploaded=true;saveSession(key,session);
   }
-  if(!session.completed){const complete=await fetch(`${origin}/v1/content/uploads/${session.uploadId}/complete`,{method:'POST',headers:{'content-type':'application/json',authorization:`Bearer ${session.accessToken}`},body:JSON.stringify(session.objectVersion?{objectVersion:session.objectVersion}:{}),signal:AbortSignal.timeout(10000)});if(!complete.ok){discardSession(key);throw Error('Publishing failed. Try again.');}session.completed=true;saveSession(key,session);}
+  if(!session.completed){const complete=await fetch(`${origin}/v1/content/uploads/${session.uploadId}/complete`,{method:'POST',headers:{'content-type':'application/json',authorization:`Bearer ${session.accessToken}`},body:JSON.stringify(session.objectVersion?{objectVersion:session.objectVersion}:{}),signal:AbortSignal.timeout(10000)});if(!complete.ok){discardSession(key);if([401,403,404,409].includes(complete.status))throw Error('Invalid Upload Session');throw Error('Publishing failed. Try again.');}session.completed=true;saveSession(key,session);}
   const deadline=Date.now()+55000;
   while(Date.now()<deadline){
     const status=await fetch(`${origin}/v1/content/uploads/${session.uploadId}`,{headers:{authorization:`Bearer ${session.accessToken}`},signal:AbortSignal.timeout(5000)});

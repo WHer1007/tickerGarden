@@ -180,6 +180,7 @@ export async function finishLaunchProgress(ready: (signal: AbortSignal) => Promi
     const label = element('span');label.textContent='Preparing your token…';
     status.append(spinner,label);
   }
+  const delayed = setTimeout(() => { const label=status?.querySelector("span"); if(label)label.textContent="Your token is created. Its page is still being prepared."; }, 15000);
   const abort = new AbortController();
   const cancellation = setInterval(() => { if (version !== transitionVersion || !dialog?.open) abort.abort(); }, 250);
   try {
@@ -187,7 +188,7 @@ export async function finishLaunchProgress(ready: (signal: AbortSignal) => Promi
   } catch (error) {
     if (!abort.signal.aborted) throw error;
     return false;
-  } finally { clearInterval(cancellation); }
+  } finally { clearInterval(cancellation); clearTimeout(delayed); }
   return version === transitionVersion && Boolean(dialog?.open);
 }
 

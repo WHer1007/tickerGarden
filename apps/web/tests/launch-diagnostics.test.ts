@@ -12,7 +12,7 @@ test('retains the actual failing phase across reload and classifies quote change
 });
 test('unknown outcomes always take precedence over retry or quote-change advice',()=>{
  for(const code of ['purchase_cost_changed','stale_quote','user_rejected','unexpected_error']){
-  const message=launchFailureMessage(code,'wallet',true);assert.match(message,/Do not submit another/);assert.doesNotMatch(message,/No purchase was submitted|try again|confirming again/);
+  const message=launchFailureMessage(code,'wallet',true);assert.match(message,/checking the transaction automatically/i);assert.doesNotMatch(message,/wallet history|explorer|keep tracking|No purchase was submitted/i);
  }
 });
 test('diagnostics exclude raw messages, signatures, URLs, wallet data and arbitrary error codes',async()=>{
@@ -32,4 +32,18 @@ test('classifies nested errors and does not mistake an upload signature rejectio
  assert.equal(launchErrorCode({cause:{code:4001}}),'user_rejected');
  assert.equal(launchErrorCode(new Error('Invalid publishing response. Retry.')),'publishing_response_invalid');
  assert.match(launchFailureMessage('unexpected_error','publishing',false),/token details/);
+});
+test('classifies account and network changes, approval, simulation and unavailable funding routes',()=>{
+ assert.equal(launchErrorCode(new Error('Wallet changed while confirming')),'wrong_account');
+ assert.equal(launchErrorCode(new Error('unsupported chain')),'wrong_account');
+ assert.equal(launchErrorCode({code:'approval_reverted'}),'approval_reverted');
+ assert.equal(launchErrorCode({code:'simulation_failed'}),'simulation_failed');
+ assert.equal(launchErrorCode(new Error('purchase route is not ready')),'purchase_route_unavailable');
+});
+test('classifies upload authorization, expired session, limits and temporary network failures',()=>{
+ assert.equal(launchErrorCode(new Error('Upload Authorization failed')),'upload_authorization_failed');
+ assert.equal(launchErrorCode(new Error('Invalid Upload Session')),'upload_session_invalid');
+ assert.equal(launchErrorCode(new Error('Publishing limit exceeded')),'upload_limit');
+ assert.equal(launchErrorCode(new Error('Storage unavailable')),'publishing_failed');
+ assert.equal(launchErrorCode(new Error('Image gateway unavailable')),'image_gateway_unavailable');
 });

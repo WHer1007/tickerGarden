@@ -68,7 +68,7 @@ export async function completeContentUpload(input: { readonly pool: Pool; readon
   const changed = await input.pool.query(`UPDATE ${schema}.content_uploads SET status='uploaded',image_object_version=COALESCE($2,image_object_version),updated_at=now()
     WHERE upload_id=$1 AND status='awaiting_upload'`, [input.uploadId, input.objectVersion ?? null]);
   const row = (await input.pool.query<{ status: string }>(`SELECT status FROM ${schema}.content_uploads WHERE upload_id=$1`, [input.uploadId])).rows[0];
-  if (!row || row.status === 'failed') throw new Error('content upload cannot be completed');
+  if (!row || row.status === 'failed') throw new ContentUploadStateError();
   const rawBody = JSON.stringify({ uploadId: input.uploadId });
   const generation = input.generation ?? 0n;
   const enqueued = await enqueueReliableMessage(input.pool, { queue: 'content', externalId: `g${generation}:upload-${input.uploadId}`,
@@ -143,3 +143,5 @@ function strictOrigin(value: string): boolean { try { const url = new URL(value)
 function identifier(value: string): string { if (!/^[a-z][a-z0-9_]{0,62}$/.test(value)) throw new Error('invalid database schema name'); return `"${value}"` }
 export class ContentAuthorizationError extends Error { override readonly name = 'ContentAuthorizationError' }
 export class ContentQuotaError extends Error { override readonly name = 'ContentQuotaError' }
+
+export class ContentUploadStateError extends Error { constructor(){super("Upload session cannot be completed");this.name="ContentUploadStateError";} }

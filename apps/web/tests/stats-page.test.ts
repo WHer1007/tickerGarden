@@ -1,4 +1,3 @@
-import {controllerFunction} from './controller-source.ts';
 import assert from 'node:assert/strict';
 import {test} from 'node:test';
 import fs from 'node:fs';
@@ -14,16 +13,27 @@ test('Stock stats full list exposes quantity detail and a full-page zero allocat
  assert.match(source,/options\.full/);assert.match(source,/Hide zero allocations/);assert.match(source,/Search Stock name or symbol/);assert.match(source,/No Stock matches found/);assert.match(source,/Allocated:/);assert.match(source,/Exact USD value/);
  assert.match(page,/stats-stocks-page/);assert.doesNotMatch(fs.readFileSync(new URL('../src/pages/stats.ts',import.meta.url),'utf8'),/Hide zero allocations/);
 });
-test('Stats summary uses the aggregate endpoint without paging the market directory',()=>{
- const source=fs.readFileSync(new URL('../src/app.ts',import.meta.url),'utf8');
+test('Stats reads only the DB display endpoint without market or RPC reads',()=>{
  const sourceController=fs.readFileSync(new URL('../src/controllers/stats.ts',import.meta.url),'utf8');
- const body=sourceController.slice(sourceController.indexOf('async function renderStats('),sourceController.indexOf('function dispose('));
- assert.match(body,/renderProtocolStatistics/);assert.doesNotMatch(body,/appendMarketPage|refreshExploreStatistics|readContract/);
+ assert.match(sourceController,/\/v1\/stats\/display/);assert.doesNotMatch(sourceController,/protocol-statistics|assetPrices|readContract|appendMarketPage|refreshExploreStatistics/);
 });
-test('Stats price updates reuse the snapshot without refetching',()=>{
+test('Stats retains its displayed snapshot when refreshes fail or navigation changes',()=>{
+ const sourceController=fs.readFileSync(new URL('../src/controllers/stats.ts',import.meta.url),'utf8');
+ const sourceUpdates=fs.readFileSync(new URL('../src/v1/statsUpdates.ts',import.meta.url),'utf8');
+ assert.match(sourceUpdates,/store\.apply\(raw,section\)/);assert.match(sourceUpdates,/Retain the last valid section on errors and aborts/);
+ assert.match(sourceUpdates,/controller\.abort\(\)/);assert.doesNotMatch(sourceController,/statsSnapshot=null/);
+});
+test('Stats reattaches visibility recovery on each mount and limits refreshes to the active Stats page',()=>{
+ const source=fs.readFileSync(new URL('../src/controllers/stats.ts',import.meta.url),'utf8');
+ const setup=source.slice(source.indexOf('function setupStats()'),source.indexOf('function applyStatsSnapshot()'));
+ const visibility=source.slice(source.indexOf('function onVisibility()'),source.indexOf('function dispose()'));
+ assert.match(setup,/removeEventListener\('visibilitychange',onVisibility\)/);assert.match(setup,/addEventListener\('visibilitychange',onVisibility\)/);
+ assert.match(visibility,/!\['stats','statsStocks'\]\.includes\(ctx\.currentPage\(\)\)/);assert.match(source,/getSections:sectionsForPage/);
+});
+test('Stats no longer revalues its materialized USD snapshot from browser prices',()=>{
  const source=fs.readFileSync(new URL('../src/app.ts',import.meta.url),'utf8');
  const body=source.slice(source.indexOf('const unsubscribeAssetPrices'),source.indexOf('void restoreLaunchProgress',source.indexOf('const unsubscribeAssetPrices')));
- assert.match(body,/applyStatsSnapshot/);assert.doesNotMatch(body,/renderStats/);
+ assert.doesNotMatch(body,/applyStatsSnapshot/);
 });
 test('Stats Stock list keeps failure state separate from a verified empty result',()=>{
  const source=fs.readFileSync(new URL('../src/ui/stats-stock-list.ts',import.meta.url),'utf8');

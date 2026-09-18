@@ -42,7 +42,7 @@ test('statistics only query visible rows and patch values without reloading list
  const refresh=section('async function refreshExploreStatistics()', 'async function fetchExplorePage(');
  assert.match(refresh,/exploreVisibleRows\[0\],\.\.\.exploreVisibleRows\[1\]/);
  assert.doesNotMatch(refresh,/foundation.markets/);
- const patch=section('function applyExploreStatistics()', 'type ExploreRanking=');
+ const patch=section('function applyExploreStatistics(dirtyIds?', 'type ExploreRanking=');
  assert.match(patch,/stat.sourceVersion===market.sourceVersion/);
  assert.doesNotMatch(patch,/renderExploreStage|\.reset\(|listMarkets|replaceChildren|\.remove\(/);
  const timer=section('const exploreStatisticsTimer=', 'if(import.meta.hot)import.meta.hot.dispose(()=>clearInterval(exploreStatisticsTimer))');
