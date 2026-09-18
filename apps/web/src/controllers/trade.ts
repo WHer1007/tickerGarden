@@ -1,3 +1,4 @@
+import {renderPaymentMenu} from '../trade/payment-menu.ts';
 import {stockPurchasePool} from '../trade/stock-pool.ts';
 import {paymentAssets,fetchConversion,conversionRequest,TRADE_NATIVE,readRecovery,recoveryKey,type PaymentAsset,type ConversionRecovery,type ConversionQuote} from '../trade/conversion.ts';
 import {ALLOWANCE_HOLDER,SETTLER_REGISTRY,registryAbi,conversionSettler,providerToken,preserveConversionMinimum} from '../../../../services/backend-ts/packages/chain/src/quote-purchase/zeroex.ts';
@@ -71,7 +72,7 @@ function renderStockPurchaseHint(){
  const unavailable=usesConversion()&&conversionUnavailableFor===pair.address;
  if(usesConversion()&&!unavailable)return;
  if(!short&&!unavailable)return;
- const link=document.createElement('a');link.href=pool.url;link.target='_blank';link.rel='noopener noreferrer';link.textContent='Buy Now';link.setAttribute('aria-label',`Buy ${pair.symbol} in the ${pool.version} pool`);
+ const link=document.createElement('a');link.href=pool.url;link.target='_blank';link.rel='noopener noreferrer';link.textContent=`BUY ${pair.symbol}`;link.setAttribute('aria-label',`Buy ${pair.symbol} in the ${pool.version} pool`);
  node.append(link);node.hidden=false;
 }
 function saveRecovery(value:ConversionRecovery|null,old=value??recovery){
@@ -93,6 +94,7 @@ function renderPayments(){
  if(node.dataset.key!==key){node.dataset.key=key;node.replaceChildren();for(const a of paymentAssets(robinhoodChain.id,pair)){
  const option=document.createElement('option');option.value=a.address;option.textContent=a.symbol;option.selected=a.address===current?.address;node.append(option);}}
  const field=ctx.query<HTMLInputElement>('[data-trade-amount]');if(field)field.dataset.paymentDecimals=String(ctx.tradeSide==='buy'?current?.decimals:18);}
+ renderPaymentMenu(node,quoteIconUrl);
  const check=ctx.query<HTMLButtonElement>('[data-trade-conversion-check]');if(check){check.hidden=!recovery||recovery.state==='funded';check.disabled=ctx.tradeSubmitting;}
  const note=ctx.query<HTMLElement>('[data-trade-conversion-note]');if(note){note.hidden=!usesConversion()&&!recovery;note.textContent=recovery?(recovery.state==='funded'?'Conversion complete. Continue buying with the paired asset already in your wallet.':'Check the existing purchase transaction before starting another purchase.'): `Your ${payment()?.symbol} is exchanged for ${pair?.symbol}, then used to buy ${ctx.tradeMetadata?.symbol}. Any unused paired asset stays in your wallet.`;}
 }
