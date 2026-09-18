@@ -1,3 +1,4 @@
+import {reportError} from '../packages/observability/src/index.ts';
 /** Explicit operator command. Not started by the ordinary indexing Worker. */
 import fs from 'node:fs';import path from 'node:path';
 import {privateKeyToAccount} from 'viem/accounts';import type {Address,Hex} from 'viem';
@@ -36,4 +37,4 @@ async function main(){
   }finally{await pool.end();}
  },()=>Boolean(journal?.pending));
 }
-main().catch(()=>{console.error('Creator sweep stopped. Check configuration and the private journal; no replacement transaction was sent.');process.exitCode=1;});
+main().catch(error=>{reportError('creator-sweep','creator_sweep_failed',error);console.error('Creator sweep stopped. Check configuration and the private journal; no replacement transaction was sent.');process.exitCode=1;});

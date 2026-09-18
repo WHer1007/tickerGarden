@@ -1,3 +1,4 @@
+import {webRequestId,reportWebError} from './diagnostics.ts';
 const ALLOWED_METHODS = new Set([
   'eth_blockNumber',
   'eth_call',
@@ -75,7 +76,8 @@ function validReadScope(call:Call):boolean{
  return BigInt(f.toBlock)>=BigInt(f.fromBlock)&&BigInt(f.toBlock)-BigInt(f.fromBlock)<=2000n;
 }
 export async function proxyReadRpc(request:Request,environment:RpcEnvironment,fetcher:typeof fetch=fetch):Promise<Response>{
- const headers={'cache-control':'no-store','content-type':'application/json'};
+ const requestId=webRequestId();
+ const headers={'cache-control':'no-store','content-type':'application/json','x-request-id':requestId};
  if(request.method!=='POST')return json({error:'method_not_allowed'},405,headers);
  if(!sameOrigin(request))return json({error:'origin_not_allowed'},403,headers);
  const declared=Number(request.headers.get('content-length')??'0');
@@ -121,7 +123,7 @@ export async function proxyReadRpc(request:Request,environment:RpcEnvironment,fe
    return {...body,id:c.id};
   }));
   return json(Array.isArray(payload)?results:results[0],200,headers);
- }catch{return json({error:'rpc_upstream_unavailable'},502,headers);}
+ }catch(error){reportWebError('rpc_upstream_unavailable',error,{requestId,status:502});return json({error:'rpc_upstream_unavailable'},502,headers);}
 }
 
 function validPayload(value: unknown): value is { readonly jsonrpc: '2.0'; readonly id: string | number | null; readonly method: string; readonly params?: readonly unknown[] } {

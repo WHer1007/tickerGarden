@@ -1,0 +1,1 @@
+{"name":"@tickergarden/observability","version":"0.0.0","private":true,"type":"module","exports":"./src/index.ts","dependencies":{"@sentry/node":"^10.75.0","@vercel/functions":"^3.9.8","pino":"^10.3.1"}}

@@ -1,3 +1,4 @@
+import {reportError} from '../../observability/src/index.ts';
 import { createHash, timingSafeEqual } from 'node:crypto';
 import { Client, Receiver } from '@upstash/qstash';
 import type { Pool, PoolClient } from 'pg';
@@ -392,7 +393,8 @@ export async function processSignedJob(input: {
   try {
     const result = await input.process(lease);
     return await completeJob(input.pool, lease, input.owner, sha256(result), input.schemaName) ? 'succeeded' : 'stale';
-  } catch {
+  } catch(error) {
+    reportError('queue','job_failed',error,{operationId:lease.operationId,jobId:lease.id,attempt:lease.attempt,queue:lease.queue});
     return failJob(input.pool, lease, input.owner, 'processor_failed', input.schemaName);
   }
 }
@@ -432,7 +434,8 @@ export async function dispatchDueOutbox(input: {
       const messageId = await publishOutbox(input.client, lease, input.destinations);
       if (await completeOutbox(input.pool, lease, input.owner, messageId, input.schemaName)) result.sent += 1;
       else result.stale += 1;
-    } catch {
+    } catch(error) {
+      reportError('queue','outbox_delivery_failed',error,{operationId:lease.operationId,attempt:lease.attempt},'warn');
       const outcome = await failOutbox(input.pool, lease, input.owner, 'provider_publish_failed', input.schemaName);
       if (outcome === 'retry') result.retried += 1;
       else if (outcome === 'dead') result.dead += 1;

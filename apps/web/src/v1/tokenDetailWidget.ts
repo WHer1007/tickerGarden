@@ -1,7 +1,7 @@
 import {watchMarketChanges,type DetailRegion} from './marketChanges.ts';
 import {createDetailActivity} from './detailActivity.ts';
 import {feeUsdValue,formatFeeUsd} from './feeQuoteValue.ts';
-import {compactPrice} from "../ui/compact-price.ts";
+import {setPriceDisplay} from "../ui/compact-price.ts";
 import {creationReceiptChart,detailChartWindow,loadDetailChart} from './detailChart.ts';
 import {formatTradePrice} from './tradePricing.ts';
 import {mergeRecentTrades} from './recentTrades.ts';
@@ -72,7 +72,7 @@ export function mountTokenDetail(root:HTMLElement,base:string|null,chain:number,
  };
  const render=()=>{
   const stats=data?.statistics,h=overview.holders?{...overview.holders,totalSupplyRaw:overview.supply??'0'}:data?.holders;
-  const exactPrice=(data?.sources.statistics?.asOf??0)>(overview.asOf??0)?stats?.price??overview.price:overview.price??stats?.price; text('[data-detail-price]',compactPrice(exactPrice));q('[data-detail-price]').title=exactPrice??'';text('[data-detail-price-unit]',id?`Price (${id.quoteSymbol})`:'Price');
+  const exactPrice=(data?.sources.statistics?.asOf??0)>(overview.asOf??0)?stats?.price??overview.price:overview.price??stats?.price; setPriceDisplay(q('[data-detail-price]'),exactPrice);text('[data-detail-price-unit]',id?`Price (${id.quoteSymbol})`:'Price');
   const volume=overview.volume24h??stats?.volume24h;
   text('[data-detail-volume]',volume!==null&&volume!==undefined&&id?`${displayDecimal(volume,6)} ${id.quoteSymbol}`:'-');
   text('[data-detail-holders]',h?h.count.toLocaleString():'-');const supply=(data?.sources.holders?.asOf??0)>(overview.asOf??0)?data?.holders?.totalSupplyRaw??overview.supply:overview.supply??data?.holders?.totalSupplyRaw;text('[data-detail-circulating]',supply!==undefined?amount(supply,18):'-');
@@ -83,14 +83,14 @@ export function mountTokenDetail(root:HTMLElement,base:string|null,chain:number,
   const tradesKey=JSON.stringify([id?.marketId,activity?.trades??data?.trades,tradeLimit,activity?.trades||data?.trades?null:state]);
   if(tradesKey!==renderedTradesKey){renderedTradesKey=tradesKey;
   const trades=q<HTMLTableSectionElement>('[data-detail-trades-body]');empty(trades,activity?.trades||data?.trades?'No Trades Yet':state==='loading'?'Loading Trades…':state==='error'?'Could Not Load Trades':'No Trade Data Yet',6);
-  if(visibleTrades.length){trades.replaceChildren();for(const t of visibleTrades.slice(0,tradeLimit)){const row=trades.insertRow();row.title=t.classification==='unclassified'?'Contract caller; wallet identity unverified':'Internal reward conversion';const values=[new Date(t.timestamp*1000).toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit',second:'2-digit',hourCycle:'h23'}),t.side==='buy'?'Buy':'Sell',formatTradePrice(t.price),amount(t.memeRaw,18),amount(t.quoteRaw,id!.quoteDecimals),t.actor?`${t.actor.slice(0,6)}…${t.actor.slice(-4)}`:'-'];values.forEach((v,i)=>{const c=row.insertCell();c.textContent=v;if(i===1)c.className=t.side;if(i===0){const link=document.createElement('a');link.href=`${explorer}/tx/${t.txHash}`;link.target='_blank';link.rel='noopener noreferrer';link.textContent=v;c.replaceChildren(link);}});}}
+  if(visibleTrades.length){trades.replaceChildren();for(const t of visibleTrades.slice(0,tradeLimit)){const row=trades.insertRow();row.title=t.classification==='unclassified'?'Contract caller; wallet identity unverified':'Internal reward conversion';const values=[new Date(t.timestamp*1000).toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit',second:'2-digit',hourCycle:'h23'}),t.side==='buy'?'Buy':'Sell',formatTradePrice(t.price),amount(t.memeRaw,18),amount(t.quoteRaw,id!.quoteDecimals),t.actor?`${t.actor.slice(0,6)}…${t.actor.slice(-4)}`:'-'];values.forEach((v,i)=>{const c=row.insertCell();c.textContent=v;if(i===2)setPriceDisplay(c,t.price);if(i===1)c.className=t.side;if(i===0){const link=document.createElement('a');link.href=`${explorer}/tx/${t.txHash}`;link.target='_blank';link.rel='noopener noreferrer';link.textContent=v;c.replaceChildren(link);}});}}
   }
   const holdersKey=JSON.stringify([id?.marketId,h,holderLimit,h?null:state]);
   if(holdersKey!==renderedHoldersKey){renderedHoldersKey=holdersKey;
   const holders=q<HTMLTableSectionElement>('[data-detail-holders-body]');empty(holders,h?'No Holders To Show':state==='loading'?'Loading Holders…':state==='error'?'Could Not Load Holders':'No Holder Data Yet',3);if(h?.items.length){holders.replaceChildren();for(const v of h.items.slice(0,holderLimit)){const row=holders.insertRow(),bp=BigInt(h.totalSupplyRaw)?BigInt(v.balanceRaw)*10000n/BigInt(h.totalSupplyRaw):0n;for(const s of [`${v.account.slice(0,6)}…${v.account.slice(-4)}`,amount(v.balanceRaw,18),`${bp/100n}.${(bp%100n).toString().padStart(2,'0')}%`])row.insertCell().textContent=s;row.title=v.account;}}
   }
   q('[data-detail-more-trades]').hidden=!id;q('[data-detail-more-holders]').hidden=!id;text('[data-detail-source]',sourceLabel());renderFees();
-  for(const el of root.querySelectorAll<HTMLElement>('[data-detail-price],[data-detail-volume],[data-detail-holders],[data-detail-circulating],[data-detail-cap],[data-detail-change]')){el.classList.toggle('detail-loading',state==='loading'&&el.textContent==='-');el.title=el.textContent==='-'?stateText():'';}
+  for(const el of root.querySelectorAll<HTMLElement>('[data-detail-price],[data-detail-volume],[data-detail-holders],[data-detail-circulating],[data-detail-cap],[data-detail-change]')){el.classList.toggle('detail-loading',state==='loading'&&el.textContent==='-');el.title=el.textContent==='-'?stateText():el.dataset.exactPrice??'';}
   q('[data-detail-source]').setAttribute('role','status');
   draw();
  };

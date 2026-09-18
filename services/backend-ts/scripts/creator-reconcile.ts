@@ -1,3 +1,4 @@
+import {reportError} from '../packages/observability/src/index.ts';
 /** Read-only, bounded ledger audit. A mismatch never overwrites financial facts. */
 import {createPublicClient,custom,parseAbi,keccak256,type Address,type Hex} from 'viem';
 import {createDatabasePool,transaction} from '../packages/db/src/index.ts';
@@ -34,4 +35,4 @@ async function main(){
   console.log(JSON.stringify({status:mismatches.length?'mismatch':'matched',checked:snapshot.rows.length,blockNumber:String(blockNumber),mismatches,nextCursor:snapshot.rows.length===20?snapshot.rows.at(-1).cursor:null}));if(mismatches.length)process.exitCode=1;
  }finally{await pool.end();}
 }
-main().catch(()=>{console.error('Creator reconciliation failed. Check the database checkpoint, RPC and deployment configuration. No data was changed.');process.exitCode=1;});
+main().catch(error=>{reportError('creator-reconcile','creator_reconciliation_failed',error);console.error('Creator reconciliation failed. Check the database checkpoint, RPC and deployment configuration. No data was changed.');process.exitCode=1;});

@@ -5,6 +5,7 @@ import {runtimeConfigs} from '../../../packages/runtime-deployment/src/index.ts'
 import {externalTradingService} from '../../../packages/chain/src/external-trading.ts';
 import {routes} from '../../../packages/chain/src/quote-purchase/routes.ts';
 import {WETH,USDG,Q3,Q4,bridge} from '../../../packages/chain/src/quote-purchase/quote.ts';
+import {PURCHASE_ROUTER} from '../../../packages/chain/src/quote-purchase/transaction.ts';
 import {ALLOWANCE_HOLDER,SETTLER_REGISTRY} from '../../../packages/chain/src/quote-purchase/zeroex.ts';
 const address=/^0x[0-9a-f]{40}$/;
 // ERC-20 Transfer and Approval signatures.
@@ -20,7 +21,7 @@ export async function rpcScope(pool:Pool,d:DeploymentIdentity,requested:string[]
  const service=externalTradingService(d.chainId);if(service)for(const v of [service.router,service.quoter,'0x000000000022d473030f116ddee9f6b43ac78ba3'])scope.set(v,{address:v,topics:[]});
  if(d.chainId===4663){
   for(const v of [WETH,USDG])scope.set(v,{address:v,topics:tokenTopics});
-  for(const v of [Q3,Q4,bridge.pool,ALLOWANCE_HOLDER,SETTLER_REGISTRY,'0xf3334192d15450cdd385c8b70e03f9a6bd9e673b',...Object.values(routes).filter(r=>r.version==='v3').map(r=>r.pool)])scope.set(v,{address:v,topics:[]});
+  for(const v of [PURCHASE_ROUTER,Q3,Q4,bridge.pool,ALLOWANCE_HOLDER,SETTLER_REGISTRY,'0xf3334192d15450cdd385c8b70e03f9a6bd9e673b',...Object.values(routes).filter(r=>r.version==='v3').map(r=>r.pool)])scope.set(v,{address:v,topics:[]});
  }
  const missing=requested.filter(a=>!scope.has(a));
  if(missing.length){

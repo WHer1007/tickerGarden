@@ -1,3 +1,4 @@
+import {reportClientError} from '../observability.ts';
 import {savedLaunchTransaction,clearVerifiedLaunchTransaction,recoveryRead,recoveryRemove,recoveryWrite} from '../v1/recoveryStorage.ts';
 import {failedLaunchState} from '../create/launch-state.ts';
 import {waitForLaunchData} from '../create/launch-readiness.ts';
@@ -1056,6 +1057,7 @@ async function performLaunch(reviewedPurchase?:PurchaseQuote): Promise<void> {
       let purchasePending=true;try{purchasePending=Boolean(recoveryRead(localStorage,purchaseStateKey(ctx.launchProgress.account)));}catch{/* Unknown storage state retains the duplicate-submission guard. */}
       const pending=purchasePending||(ctx.launchProgress.phase!=='failed'&&Boolean(ctx.launchProgress.hash||['wallet','pending','confirming'].includes(ctx.launchProgress.phase)));
       ctx.launchProgress.diagnostic=await recordLaunchFailure(localStorage,ctx.launchProgress,operation,error,pending);
+      reportClientError(error,{flow:'launch',step:operation,code:ctx.launchProgress.diagnostic.code,reference:ctx.launchProgress.diagnostic.reference});
       failureMessage=launchFailureMessage(ctx.launchProgress.diagnostic.code,ctx.launchProgress.diagnostic.phase,pending);
       if(pending){
        updateLaunchProgress('paused',failureMessage);

@@ -1,3 +1,4 @@
+import {reportError} from '../../observability/src/index.ts';
 import type { Pool } from 'pg';
 import { setTimeout as pause } from 'node:timers/promises';
 import { claimJobs, completeJob, failJob, recoverExpiredLeases, sha256, type Lease } from '../../jobs/src/index.ts';
@@ -62,6 +63,7 @@ export async function runResidentWorker(input: {
         if(!await completeJob(input.pool,lease,input.owner,sha256(result),name))throw Error('resident job lease lost');
         input.state.succeeded++;
       }catch(error){
+        reportError('resident-worker','job_failed',error,{operationId:lease.operationId,jobId:lease.id,attempt:lease.attempt,queue:lease.queue});
         if(lost)throw lost;
         const outcome=await failJob(input.pool,lease,input.owner,'resident_processor_failed',name);
         if(outcome==='retry')input.state.retried++;

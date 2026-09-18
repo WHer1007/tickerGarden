@@ -1,6 +1,8 @@
+import {webRequestId,reportWebError} from './diagnostics.ts';
 import {readFile} from 'node:fs/promises';
 
 export async function marketPage(request:Request, shell:string, env:Record<string,string|undefined>, fetcher:typeof fetch=fetch):Promise<Response>{
+ const requestId=webRequestId();
  const url=new URL(request.url);const raw=url.searchParams.get('marketId')??'';
  const id=/^0x[0-9a-f]{64}$/i.test(raw)?raw.toLowerCase():null;
  let html=shell;let found=false;
@@ -17,7 +19,7 @@ export async function marketPage(request:Request, shell:string, env:Record<strin
    const name=escape(identity.name.slice(0,80));const symbol=escape(identity.symbol.slice(0,24));
    html=html.replaceAll('Trade a market — TickerGarden',`${name} (${symbol}) — TickerGarden`);found=true;
   }
- }catch{/* The trading shell stays available when the public directory is delayed. */}}
+ }catch(error){reportWebError('market_metadata_unavailable',error,{requestId,step:'metadata'});/* The trading shell stays available. */}}
 
  return new Response(html,{headers:{'Content-Type':'text/html; charset=utf-8',...(shell.includes('data-search-index="deny"')?{'X-Robots-Tag':'noindex, nofollow'}:{}),'Cache-Control':found?'public, max-age=0, s-maxage=60, stale-while-revalidate=300':'no-store'}});
 }

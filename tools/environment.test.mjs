@@ -6,6 +6,13 @@ import test from "node:test";
 
 import { assertServiceRuntime, canonicalService, checkSource, policies, readProjectEnv, serviceEnvironment, serviceLaunch, validateEnvironment } from "./environment.mjs";
 
+test('0x conversion credential reaches only the Read API, never Web or unrelated services', () => {
+  const values={TG_PROFILE:'master',ZEROX_API_KEY:'synthetic-conversion-key'};
+  assert.equal(serviceEnvironment(values,'read-api',{}).ZEROX_API_KEY,values.ZEROX_API_KEY);
+  for(const service of ['web','pipeline','content','gateway'])assert.equal(serviceEnvironment(values,service,{}).ZEROX_API_KEY,undefined);
+  assert.equal(serviceEnvironment({TG_PROFILE:'test'},'read-api',{ZEROX_API_KEY:'wrong-environment'}).ZEROX_API_KEY,undefined);
+});
+
 function environment(profile = "test") {
   const p = policies[profile];
   return {
@@ -176,4 +183,11 @@ test("legacy Treasury, raw-exit, and root keys are tolerated but ignored", () =>
 
 test("real HolderRewardsDistributor source matches the V4 policy", () => {
   assert.doesNotThrow(() => checkSource(environment("master"), process.cwd()));
+});
+
+test('observability secrets remain server-scoped while public ingest DSN can reach Web',()=>{
+ const values={...environment(),TG_SENTRY_DSN:'server-dsn',TG_ALERT_INGEST_TOKEN:'private-token',VITE_SENTRY_DSN:'public-dsn',TG_LARK_SIGNING_SECRET:'bot-secret'};
+ const web=serviceEnvironment(values,'web',{}),backend=serviceEnvironment(values,'pipeline',{});
+ assert.equal(web.VITE_SENTRY_DSN,'public-dsn');assert.equal(web.TG_ALERT_INGEST_TOKEN,undefined);assert.equal(backend.TG_SENTRY_DSN,'server-dsn');assert.equal(backend.VITE_SENTRY_DSN,undefined);assert.equal(backend.TG_LARK_SIGNING_SECRET,undefined);
+ assert.throws(()=>validateEnvironment('test',{...environment(),VITE_SENTRY_AUTH_TOKEN:'secret'},'test'),/public VITE prefix/);
 });

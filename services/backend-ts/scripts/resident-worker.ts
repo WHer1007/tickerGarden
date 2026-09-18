@@ -1,3 +1,4 @@
+import {reportError,installProcessDiagnostics,logEvent,flushErrors} from '../packages/observability/src/index.ts';
 import {rpcPolicy} from '../packages/chain/src/rpc-policy.ts';
 import {createServer} from 'node:http';
 import {randomUUID} from 'node:crypto';
@@ -8,6 +9,7 @@ import {RpcTransport} from '../packages/chain/src/index.ts';
 import {setQueueExecutionMode} from '../packages/jobs/src/index.ts';
 import {createWorkerState,runResidentWorker} from '../packages/chain-worker/src/resident.ts';
 
+installProcessDiagnostics('resident-worker');
 const env=process.env;
 const rpc=rpcPolicy(env);
 function required(key:string):string{const value=env[key];if(!value)throw Error(`${key} is required`);return value;}
@@ -28,7 +30,7 @@ if(mode){
  const controlPool=createDatabasePool(required('TG_WORKER_CONTROL_DATABASE_URL'),{max:1},{role:'resident-control',env}).pool;
  const environment=required('TG_ENVIRONMENT');
  if(environment!=='test'&&environment!=='production')throw Error('invalid environment');
- const processor=createChainProcessor({settlementFinality:settlementFinalityMode(env),pool,primary:new RpcTransport({url:required('TG_RPC_URL')}),secondary:new RpcTransport({url:rpc.verificationUrl ?? ''}),
+ const processor=createChainProcessor({settlementFinality:settlementFinalityMode(env),pool,primary:new RpcTransport({url:required('TG_RPC_URL'),observe:metric=>logEvent('resident-worker','info','rpc_call',metric as unknown as Record<string,unknown>)}),secondary:new RpcTransport({url:rpc.verificationUrl ?? ''}),
   ...(rpc.logsUrl?{logsSecondary:new RpcTransport({url:rpc.logsUrl})}:{}),environment,schemaName,
   ...(env.V1_FINALITY_DELAY_BLOCKS?{finalityDelayBlocks:BigInt(env.V1_FINALITY_DELAY_BLOCKS)}:{}),
   ...(env.V1_FINALITY_DELAY_SECONDS?{finalityDelaySeconds:BigInt(env.V1_FINALITY_DELAY_SECONDS)}:{})});
@@ -44,6 +46,6 @@ if(mode){
  });
  server.listen(port,env.TG_WORKER_HEALTH_HOST??'127.0.0.1');
  try{await runResidentWorker({pool,controlPool,owner:`resident-${randomUUID()}`,generation,schemaName,signal:abort.signal,state,process:processor,
-  fatal:error=>{console.error(JSON.stringify({event:'resident_worker_fatal',reason:error.message}));process.exit(1);}});}
- finally{server.close();await controlPool.end();await pool.end();}
+  fatal:error=>{reportError('resident-worker','resident_worker_fatal',error);void flushErrors(1000).finally(()=>process.exit(1));}});}
+ finally{server.close();await flushErrors(1000);await controlPool.end();await pool.end();}
 }
