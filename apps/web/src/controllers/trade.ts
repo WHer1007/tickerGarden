@@ -1,3 +1,5 @@
+import {tradeConfirmationContent} from '../trade/confirmation.ts';
+import '../trade/confirmation.css';
 import {setPriceDisplay} from '../ui/compact-price.ts';
 import {reportClientError} from '../observability.ts';
 import {renderPaymentMenu} from '../trade/payment-menu.ts';
@@ -1093,8 +1095,14 @@ async function submitTrade(): Promise<void> {
     }
     if (!tradingRoute(market.market.launchPhase, market.market.canonicalRoute)) throw new Error("Trading route changed. Refresh the market and quote.");
     const pay=payment()!;
-    const confirmationPay=quote.conversion?`${formatUnits(BigInt(quote.conversion.sellAmount),pay.decimals)} ${pay.symbol}`:`${formatUnits(quote.input,side==='buy'?metadata.quoteDecimals:18)} ${side==='buy'?metadata.quoteSymbol:metadata.symbol}`;
-    if(!await ctx.confirmFlowAction(`${side==='buy'?'Buy':'Sell'} ${metadata.symbol}\nPay: ${confirmationPay}\n${quote.conversion?`Route: ${pay.symbol} → ${metadata.quoteSymbol} → ${metadata.symbol}\nConversion minimum (1% tolerance): ${formatUnits(BigInt(quote.conversion.minBuyAmount),metadata.quoteDecimals)} ${metadata.quoteSymbol}\nConversion fee: ${conversionFeeLabel(quote.conversion)}\n`:''}Market price impact: ${quote.impactBps===undefined?'-':`${Number(quote.impactBps)/100}%`}\nMinimum received: ${formatUnits(quote.minimum,side==='buy'?18:metadata.quoteDecimals)} ${side==='buy'?metadata.symbol:metadata.quoteSymbol}`,{title:'Confirm trade',confirmLabel:'Confirm trade'}))return;
+    const content=tradeConfirmationContent({
+      pay:{amount:formatUnits(quote.conversion?BigInt(quote.conversion.sellAmount):quote.input,side==='buy'?pay.decimals:18),symbol:side==='buy'?pay.symbol:metadata.symbol,logo:side==='buy'?quoteIconUrl(pay.symbol):ctx.tradeMemeLogoUrl},
+      receive:{amount:formatUnits(quote.output,side==='buy'?18:metadata.quoteDecimals),symbol:side==='buy'?metadata.symbol:metadata.quoteSymbol,logo:side==='buy'?ctx.tradeMemeLogoUrl:quoteIconUrl(metadata.quoteSymbol)},
+      minimum:`${formatUnits(quote.minimum,side==='buy'?18:metadata.quoteDecimals)} ${side==='buy'?metadata.symbol:metadata.quoteSymbol}`,
+      impact:quote.impactBps===undefined?'-':`${Number(quote.impactBps)/100}%`,
+      ...(quote.conversion?{conversion:{route:`${pay.symbol} → ${metadata.quoteSymbol} → ${metadata.symbol}`,minimum:`${formatUnits(BigInt(quote.conversion.minBuyAmount),metadata.quoteDecimals)} ${metadata.quoteSymbol}`,fee:conversionFeeLabel(quote.conversion)}}:{}),
+    });
+    if(!await ctx.confirmFlowAction('',{title:'Confirm trade',confirmLabel:'Confirm trade',content,className:'trade-confirm'}))return;
     await ctx.verifyLiveWalletContext(activeWallet);
     if(ctx.tradeMarket!==market||ctx.tradeSide!==side||payment()?.address!==pay.address)throw Error('Trade changed. Review the current quote.');
     const [eth,reserve,fees]=await Promise.all([ctx.publicClient.getBalance({address:activeWallet.account}),tradeNetworkReserve(market,quote,activeWallet.account),ctx.publicClient.estimateFeesPerGas()]);

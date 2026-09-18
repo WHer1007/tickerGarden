@@ -1,0 +1,14 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="robots" content="noindex,nofollow"><title>Confirm trade · Local preview</title><link rel="stylesheet" href="/fonts.css"><link rel="stylesheet" href="/subpages.css"><link rel="stylesheet" href="/styles.css"><style>body{background:#f8f8f6;color:#073f30}.preview-controls{padding:40px;max-width:800px;margin:auto}.preview-controls button{padding:12px 18px;margin:8px;border:1px solid #cad6ce;background:#fff;border-radius:10px;color:inherit;cursor:pointer}.preview-controls p{color:#67776e}</style></head><body><main class="preview-controls"><h1>Confirm trade</h1><p>Local preview · Sample data · No transactions</p><button data-mode="direct">AAPL → SEED</button><button data-mode="conversion">ETH → AAPL → SEED</button><button data-mode="sell">SEED → AAPL</button></main><dialog class="flow-confirm trade-confirm" aria-labelledby="preview-title"><h2 id="preview-title">Confirm trade</h2><div id="content"></div><div class="flow-confirm-controls"><button id="cancel" autofocus>Cancel</button><button id="confirm">Confirm trade</button></div></dialog><script type="module">
+import '../../src/trade/confirmation.css';
+import {tradeConfirmationContent} from '../../src/trade/confirmation.ts';
+import {quoteIconUrl} from '../../src/create/quote-icons.ts';
+if(!import.meta.env.DEV||!['localhost','127.0.0.1'].includes(location.hostname))throw Error('Local preview only');
+const dialog=document.querySelector('dialog');
+const stock={symbol:'AAPL',logo:quoteIconUrl('AAPL')};
+const seed={symbol:'SEED',logo:'https://silver-implicit-bass-617.mypinata.cloud/ipfs/bafybeigagem7xrhvaahoaxsonj5dd2i64rvpguq2ewktrg5buv6rnz4x7i'};
+function open(mode){
+ const data=mode==='sell'?{pay:{...seed,amount:'850,000'},receive:{...stock,amount:'0.00718'},minimum:'0.00718 AAPL',impact:'0.18%'}:{pay:mode==='conversion'?{symbol:'ETH',logo:quoteIconUrl('ETH'),amount:'0.001'}:{...stock,amount:'0.00775'},receive:{...seed,amount:'902,451.68'},minimum:'902,451.68 SEED',impact:'0.24%',...(mode==='conversion'?{conversion:{route:'ETH → AAPL → SEED',minimum:'0.00767567 AAPL',fee:'Pool fees included'}}:{})};
+ document.querySelector('#content').replaceChildren(tradeConfirmationContent(data));dialog.showModal();
+}
+document.querySelectorAll('[data-mode]').forEach(button=>button.onclick=()=>open(button.dataset.mode));document.querySelector('#cancel').onclick=()=>dialog.close();document.querySelector('#confirm').onclick=()=>dialog.close();open('conversion');
+</script></body></html>
