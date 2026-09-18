@@ -2,7 +2,7 @@
   "openapi": "3.1.0",
   "info": {
     "title": "TickerGarden V1 Read API",
-    "version": "5.7.0",
+    "version": "5.8.0",
     "description": "Non-custodial TypeScript Serverless read API for the routes consumed by the current frontend."
   },
   "x-execution-spec-id": "V1-EXEC-11",
@@ -1181,6 +1181,54 @@
           },
           "503": {
             "description": "Market identity or ranking metrics unavailable",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/markets/{marketId}/launch-readiness": {
+      "get": {
+        "operationId": "getLaunchReadiness",
+        "parameters": [
+          {
+            "name": "marketId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^0x[0-9a-f]{64}$"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LaunchReadiness"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid input or cursor snapshot",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "405": {
+            "description": "Read-only API",
             "content": {
               "application/json": {
                 "schema": {
@@ -5965,6 +6013,39 @@
           "items",
           "nextCursor",
           "sync"
+        ]
+      },
+      "LaunchReadiness": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "chainId": {
+            "type": "integer"
+          },
+          "marketId": {
+            "type": "string",
+            "pattern": "^0x[0-9a-f]{64}$"
+          },
+          "memeToken": {
+            "oneOf": [
+              {
+                "type": "string",
+                "pattern": "^0x[0-9a-f]{40}$"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "ready": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "chainId",
+          "marketId",
+          "memeToken",
+          "ready"
         ]
       },
       "MarketPageBootstrap": {

@@ -28,3 +28,17 @@ export async function readMarketPageBootstrap(pool:Pool,d:DeploymentIdentity,mar
  const sync:MarketDetailResponse['sync']={chainId:d.chainId,status:'synced',finality:market.confirmation?'head':'finalized',blockNumber:number,blockHash:hash,headBlockNumber:number,headBlockHash:hash,lagBlocks:'0',revision:`${number}:${hash}`};
  return{displayOnly:true as const,market,sync,configs:runtimeConfigs as readonly ConfigReadModel[]};
 }
+
+/** Compact, persisted readiness only. No RPC, price fetch, indexing or repair in HTTP. */
+export async function readLaunchReadiness(pool:Pick<Pool,'query'>,d:DeploymentIdentity,marketId:string,schemaName?:string){
+ const s=displaySchema(schemaName);
+ const row=(await pool.query<{token:string;missing:string[]}>(`SELECT token,missing FROM (
+ SELECT m.payload->'market'->>'memeToken' token,m.launch_missing missing,0 priority FROM ${s}.confirmed_display_markets m
+ JOIN ${s}.confirmed_display_cursor c USING(environment,chain_id,deployment_digest)
+ WHERE m.environment=$1 AND m.chain_id=$2 AND m.deployment_digest=$3 AND m.market_id=$4 AND m.block_number<=c.block_number
+ UNION ALL SELECT r.payload->>'memeToken',r.launch_missing,1 FROM ${s}.recent_markets r
+ WHERE r.environment=$1 AND r.chain_id=$2 AND r.deployment_digest=$3 AND r.market_id=$4 AND r.canonical AND r.expires_at>now()
+ AND r.block_number>coalesce((SELECT next_block-1 FROM ${s}.projection_checkpoints WHERE environment=$1 AND chain_id=$2 AND deployment_digest=$3 AND scope='analytics'),-1)
+ ) x ORDER BY priority LIMIT 1`,[...displayIdentity(d),marketId])).rows[0];
+ return {chainId:d.chainId,marketId,memeToken:row?.token??null,ready:Boolean(row&&row.missing.length===0)};
+}

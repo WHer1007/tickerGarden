@@ -42,11 +42,16 @@ export async function createContentUpload(input: { readonly pool: Pool; readonly
   if (recovered !== challenge.account) throw new ContentAuthorizationError();
   const metadata = parseLaunchMetadata(input.rawBody); const operationDigest = sha256(`${challenge.account}:${digest}`);
   const row = await transaction(input.pool, async (client) => {
+    // Serialize the absent-row case too. Each failed attempt retains its own
+    // upload ID and queue identity; an old delivery cannot mutate the retry.
+    await client.query('SELECT pg_advisory_xact_lock(hashtextextended($1,0))', [`content-upload:${operationDigest}`]);
     const prior = (await client.query<{ upload_id: string; payload: Record<string, unknown>; status: string }>(
       `SELECT upload_id,payload,status FROM ${schema}.content_uploads WHERE operation_digest=$1 FOR UPDATE`, [operationDigest])).rows[0];
-    if (prior) return prior;
+    if (prior && prior.status !== 'failed') return prior;
     const consumed = await client.query(`UPDATE ${schema}.content_challenges SET used=true WHERE nonce=$1 AND NOT used AND expires_at>now()`, [input.nonce]);
     if (consumed.rowCount !== 1) throw new ContentAuthorizationError();
+    if (prior) await client.query(`UPDATE ${schema}.content_uploads SET operation_digest=$2,updated_at=now() WHERE upload_id=$1 AND status='failed'`,
+      [prior.upload_id, sha256(`${operationDigest}:failed:${prior.upload_id}`)]);
     const uploadId = randomUUID(); const objectKey = metadata.image ? `uploads/${uploadId}/${metadata.image.digest.slice(2)}.${metadata.image.extension}` : null;
     const payload = { metadata: withoutImage(metadata), image: metadata.image ? { digest: metadata.image.digest, mediaType: metadata.image.mediaType,
       byteLength: metadata.image.byteLength, width: metadata.image.width, height: metadata.image.height, objectKey } : null };

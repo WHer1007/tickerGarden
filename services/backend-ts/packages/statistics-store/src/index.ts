@@ -1,3 +1,4 @@
+import type {TokenDetailResponse} from '../../../openapi/generated/v1-client.ts';
 import { latestPrices, preferredPrices } from '../../display-price/src/read.ts';
 import type { Pool, PoolClient } from 'pg';
 import type { DeploymentIdentity } from '../../chain/src/index.ts';
@@ -69,12 +70,20 @@ export async function readMarketStatistics(input: { readonly pool: Pool; readonl
 }
 
 export async function readMarketDisplayStatistics(input:{readonly pool:Pool;readonly deployment:DeploymentIdentity;readonly marketId:Hex32;readonly schemaName?:string}){
-  const schema=identifier(input.schemaName??'tickergarden_serverless');const point=await checkpoint(input.pool,schema,input.deployment);
-  const market=(await currentMarkets(input.pool,schema,input.deployment,point.revision,[input.marketId]))[0];if(!market)throw new PublicationUnavailableError('market is unavailable');
-  const fees=await input.pool.query<{recipient:string;asset:Address;amount_raw:string}>(`SELECT recipient,asset,amount_raw::text FROM ${schema}.detail_fee_totals WHERE environment=$1 AND chain_id=$2 AND deployment_digest=$3 AND market_id=$4 ORDER BY recipient,asset`,[...identity(input.deployment),input.marketId]);
-  const volume=await input.pool.query<{raw:string|null}>(`SELECT sum(quote_raw)::text raw FROM ${schema}.market_trades t JOIN ${schema}.chain_blocks b ON b.environment=t.environment AND b.chain_id=t.chain_id AND b.deployment_digest=t.deployment_digest AND b.hash=t.block_hash WHERE t.environment=$1 AND t.chain_id=$2 AND t.deployment_digest=$3 AND t.market_id=$4 AND t.classification='unclassified' AND b.canonical AND b.finalized AND t.occurred_at>=to_timestamp($5) AND t.occurred_at<to_timestamp($6)`,[...identity(input.deployment),input.marketId,point.asOf-86400,point.asOf]);
-  return {schemaVersion:2,chainId:input.deployment.chainId,displayOnly:true as const,marketId:input.marketId,observedAt:point.asOf,feeCoverage:true,volumeRaw:volume.rows[0]?.raw??'0',volumeAt:point.asOf,
-    feeDistribution:fees.rows.map(row=>({recipient:row.recipient,asset:row.asset,amountRaw:row.amount_raw}))};
+  const schema=identifier(input.schemaName??'tickergarden_serverless');
+  const row=(await input.pool.query<{detail:TokenDetailResponse;total_staked:string|null}>(`SELECT detail,total_staked FROM (
+   SELECT m.payload->'detailViews'->'1H' detail,m.payload->'market'->'display'->>'totalStakedRaw' total_staked,0 priority
+   FROM ${schema}.confirmed_display_markets m JOIN ${schema}.confirmed_display_cursor c USING(environment,chain_id,deployment_digest)
+   WHERE m.environment=$1 AND m.chain_id=$2 AND m.deployment_digest=$3 AND m.market_id=$4 AND m.block_number<=c.block_number
+   UNION ALL SELECT r.initial_detail,r.payload->'display'->>'totalStakedRaw',1 FROM ${schema}.recent_markets r
+   WHERE r.environment=$1 AND r.chain_id=$2 AND r.deployment_digest=$3 AND r.market_id=$4 AND r.canonical AND r.expires_at>now() AND r.initial_detail IS NOT NULL
+  ) x ORDER BY priority LIMIT 1`,[...identity(input.deployment),input.marketId])).rows[0];
+  if(!row?.detail)throw new PublicationUnavailableError('market display statistics are not ready');
+  const detail=row.detail,asOf=detail.sources.statistics?.asOf??0;
+  return {schemaVersion:2,chainId:input.deployment.chainId,displayOnly:true as const,marketId:input.marketId,
+   observedAt:detail.sources.fees?.asOf??asOf,feeCoverage:detail.fees!==null,
+   volumeRaw:detail.statistics?.volume24h==null?null:decimalToRaw(detail.statistics.volume24h,detail.quoteDecimals),volumeAt:asOf,
+   totalStakedRaw:row.total_staked,feeDistribution:detail.fees??[]};
 }
 
 export async function readGlobalHolders(input:{readonly pool:Pool;readonly deployment:DeploymentIdentity;readonly schemaName?:string}){
@@ -208,3 +217,8 @@ function decimalProduct(a:string,b:string){const parse=(v:string)=>{const[i,f=''
 function midpoint(a:string,b:string){const scale=18;const read=(v:string)=>{const[i,f='']=v.split('.');return BigInt(i!+f.padEnd(scale,'0').slice(0,scale))};const n=(read(a)+read(b))/2n;return `${n/10n**18n}.${(n%10n**18n).toString().padStart(18,'0')}`}
 function identity(d:DeploymentIdentity):[string,number,string]{return[d.environment,d.chainId,d.deploymentDigest]}
 function identifier(v:string){if(!/^[a-z][a-z0-9_]{0,62}$/.test(v))throw new Error('invalid database schema name');return`"${v}"`}
+
+function decimalToRaw(value:string,decimals:number):string {
+ if(!Number.isInteger(decimals)||decimals<0||decimals>36||!/^\d+(?:\.\d+)?$/.test(value))throw Error("Invalid stored display volume");
+ const [whole,fraction=""]=value.split(".");if(fraction.length>decimals)throw Error("Invalid stored volume precision");return BigInt(whole+fraction.padEnd(decimals,"0")).toString();
+}

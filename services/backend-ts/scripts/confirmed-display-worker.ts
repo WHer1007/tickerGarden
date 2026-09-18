@@ -1,3 +1,4 @@
+import {refreshDisplayPreparation} from '../packages/confirmed-display/src/maintenance.ts';
 import type {PoolClient} from 'pg';
 import {displayWakeChannel,DisplayWake,displayCatchup} from '../packages/confirmed-display/src/wake.ts';
 import {setTimeout as pause} from 'node:timers/promises';
@@ -26,6 +27,9 @@ async function listen(){
 const abort=new AbortController();process.once('SIGTERM',()=>{stopped=true;abort.abort();});process.once('SIGINT',()=>{stopped=true;abort.abort();});
 const server=createServer((req,res)=>{if(req.url!=='/healthz'){res.writeHead(404).end();return;}res.writeHead(!stopped&&Date.now()-lastSuccess<60000?200:503,{'content-type':'application/json'}).end(JSON.stringify({lastSuccess,lastResult,displayOnly:true}));});
 server.listen(Number(env.TG_DISPLAY_HEALTH_PORT??8084),'127.0.0.1');
+// Maintenance uses the LISTEN connection for short SQL reads/writes, keeping
+// its work independent of the scanner without increasing the two-connection budget.
+const maintenance=(async()=>{while(!stopped){let more=false;try{if(!listener)throw Error('listener_not_ready');const result=await refreshDisplayPreparation({pool:listener,deployment,...(env.TG_DATABASE_SCHEMA?{schemaName:env.TG_DATABASE_SCHEMA}:{})});more=result.more;if(result.failed)console.error(JSON.stringify({event:'display_preparation_retry',failed:result.failed}));}catch{console.error(JSON.stringify({event:'display_preparation_unavailable'}));}await pause(more?100:1000,undefined,{signal:abort.signal}).catch(()=>{});}})();
 try{while(!stopped){
  const started=Date.now();
  try{
@@ -39,4 +43,4 @@ try{while(!stopped){
  await pause(Math.max(0,1000-(Date.now()-started)),undefined,{signal:abort.signal}).catch(()=>{});
  await wake.wait(lastResult==='retrying'?5000:30000,abort.signal);
 }}
-finally{server.close();if(listener){await listener.query('UNLISTEN *').catch(()=>{});listener.release();listener=undefined;}await pool.end();}
+finally{stopped=true;abort.abort();await maintenance;server.close();if(listener){await listener.query('UNLISTEN *').catch(()=>{});listener.release();listener=undefined;}await pool.end();}

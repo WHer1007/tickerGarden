@@ -126,6 +126,7 @@ GRANT SELECT, INSERT, UPDATE, DELETE ON
   ${schema}.confirmed_display_markets,
   ${schema}.confirmed_display_cursor,
   ${schema}.confirmed_display_journal,
+  ${schema}.display_log_scan,
   ${schema}.stats_display_flows,
   ${schema}.stats_display_buckets,
   ${schema}.stats_display_positions,

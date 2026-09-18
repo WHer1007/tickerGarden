@@ -128,3 +128,5 @@ The worker uses idempotent event contributions and minute buckets for external v
 Changes invalidate `overview`, `allocations` or `stocks` only when their stored values differ. The browser debounces bursts, merges only the requested section, retains successful results on network failure, and performs a 60-second recovery read while visible. It never converts USD or clears values because a local freshness timer expired. The Stocks list remains independent of global health/bootstrap/publication requests.
 
 Migration `0021_stats_display` must be applied before the updated worker/API. On first activation, the display worker rebases to its verified stored baseline, seeds prior rolling activity and latest per-wallet allocation checkpoints, then catches up using the same display events. Keep the last successful Stats snapshot while reinitializing. This path is display-only; reward settlement, principal verification and their finality rules remain separate.
+
+- `GET /v1/markets/{marketId}/launch-readiness`: compact persisted launch preparation status; DB-only and no-store.

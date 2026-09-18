@@ -1,3 +1,4 @@
+import {readLaunchReadiness} from '../../../packages/confirmed-display/src/read.ts';
 import {readStatsDisplay} from '../../../packages/confirmed-display/src/stats.ts';
 import {readExploreBootstrap,readExploreCards,readExplorePage} from '../../../packages/confirmed-display/src/explore.ts';
 import {rpcScope} from './rpc-scope.ts';
@@ -72,7 +73,7 @@ export function createReadApiApp(options: ReadApiOptions = {}) {
     const dynamicRanking = path==='/v1/markets'&&['marketCapUsd_desc','recentBuy_desc'].includes(context.req.query('sort')??'');
     const immutableRevision = context.res.status >= 200 && context.res.status < 300
       && typeof revision === 'string' && /^(0|[1-9][0-9]*):0x[0-9a-f]{64}$/.test(revision);
-    context.header('cache-control', context.res.status < 200 || context.res.status >= 300 || privateRead || priceCatalog || path.startsWith('/v1/explore') || (path==='/v1/quote-purchase'||path==='/v1/trade-conversion') || path.endsWith('/events') || path==='/v1/rpc-scope' || path.endsWith('/page') || path.endsWith('/detail') || activity || context.req.query('includeRecent')==='true' || path.endsWith('/updates') || dynamicRanking || path==='/v1/protocol-statistics' || path==='/v1/stats/display'
+    context.header('cache-control', context.res.status < 200 || context.res.status >= 300 || privateRead || priceCatalog || path.startsWith('/v1/explore') || (path==='/v1/quote-purchase'||path==='/v1/trade-conversion') || path.endsWith('/events') || path==='/v1/rpc-scope' || path.endsWith('/launch-readiness') || path.endsWith('/page') || path.endsWith('/detail') || activity || context.req.query('includeRecent')==='true' || path.endsWith('/updates') || dynamicRanking || path==='/v1/market-display-statistics' || path==='/v1/protocol-statistics' || path==='/v1/stats/display'
       ? 'no-store'
       : immutableRevision
         ? 'public, max-age=300, s-maxage=31536000, immutable'
@@ -196,6 +197,8 @@ export function createReadApiApp(options: ReadApiOptions = {}) {
   });
 
   app.get('/v1/markets/:marketId/events',async context=>{try{return await marketEvents(context,parseMarketId(context.req.param('marketId')));}catch{return context.json({error:'events_unavailable'},503);}});
+
+  app.get('/v1/markets/:marketId/launch-readiness',async context=>{try{rejectUnknown(context.req.query(),[]);const marketId=parseMarketId(context.req.param('marketId'));return context.json(await shareRead('launch-readiness:'+marketId,()=>readLaunchReadiness(pool(),deployment,marketId,schemaName)));}catch(error){return analyticsError(context,error,'candle');}});
 
   app.get('/v1/markets/:marketId/page',async context=>{
     try{rejectUnknown(context.req.query(),[]);const marketId=parseMarketId(context.req.param('marketId'));const page=await shareRead(analyticsReadKey('market-page',context,deployment,marketId),()=>readMarketPageBootstrap(pool(),deployment,marketId,schemaName));return page?context.json(page):context.json({error:'market_not_found',message:'Market details are not ready'},404);}
@@ -376,7 +379,7 @@ export function createReadApiApp(options: ReadApiOptions = {}) {
   app.get('/v1/market-display-statistics', async (context) => {
     try {
       const query = context.req.query(); rejectUnknown(query, ['marketId']); if (!query.marketId) throw new Error('invalid marketId');
-      return context.json(await readMarketDisplayStatistics({ pool: pool(), deployment, marketId: parseMarketId(query.marketId), ...(schemaName ? { schemaName } : {}) }));
+      return context.json(await shareRead('market-display-statistics:'+parseMarketId(query.marketId),()=>readMarketDisplayStatistics({ pool: pool(), deployment, marketId: parseMarketId(query.marketId!), ...(schemaName ? { schemaName } : {}) })));
     } catch (error) { return analyticsError(context, error, 'candle'); }
   });
 
