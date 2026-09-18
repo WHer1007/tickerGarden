@@ -325,13 +325,15 @@ export class V1TransactionExecutor {
   }
 
   /** Batch-checks every saved hash and clears only records that already have a receipt. */
-  async reconcileSettledPending(account: Address): Promise<readonly ReconciledPendingTransaction[]> {
+  async reconcileSettledPending(account: Address, options: {filter?:(pending:PendingTransaction)=>boolean;verify?:(result:ReconciledPendingTransaction)=>Promise<void>} = {}): Promise<readonly ReconciledPendingTransaction[]> {
     const records = this.pending(account);
     if (!records.length || !this.clients.publicClient.getTransactionReceipt) return [];
-    const results = await Promise.all(records.map(async pending => {
+    const results = await Promise.all(records.filter(p=>!options.filter||options.filter(p)).map(async pending => {
       try {
         const receipt = await this.clients.publicClient.getTransactionReceipt!({ hash: pending.hash });
-        return { pending, receipt, approval: pending.approval, cancelled: pending.cancelled ?? false } satisfies ReconciledPendingTransaction;
+        const result={ pending, receipt, approval: pending.approval, cancelled: pending.cancelled ?? false } satisfies ReconciledPendingTransaction;
+        await options.verify?.(result);
+        return result;
       } catch (error) {
         if (error instanceof Error && error.name === "TransactionReceiptNotFoundError") return null;
         // A transient failure for one hash must not prevent other mined records
@@ -342,7 +344,7 @@ export class V1TransactionExecutor {
     const settled = results.filter((result): result is ReconciledPendingTransaction => result !== null);
     if (settled.length) {
       const settledKeys = new Set(settled.map(result => result.pending.operationKey));
-      this.#writePending(account, records.filter(record => !settledKeys.has(record.operationKey)));
+      this.#writePending(account, this.pending(account).filter(record => !settledKeys.has(record.operationKey) || !settled.some(r=>r.pending.operationKey===record.operationKey&&r.pending.hash===record.hash)));
     }
     return settled;
   }

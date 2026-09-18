@@ -1,3 +1,4 @@
+import {projectStakeSummaries} from '../../history-projector/src/stake-summary.ts';
 import {CURRENT_CHAIN_ID,assertRuntimeEnvironment,runtimeGenesisHash,runtimeActivationHash} from '../../runtime-deployment/src/index.ts';
 import { projectHolderRewards } from './holder-snapshots.ts';
 import type { Pool } from 'pg';
@@ -158,6 +159,7 @@ async function projectBatch(options: ChainProcessorOptions, deployment: Deployme
   if(!(done('accounts')&&done('positions')))await projectF72Principal({ pool: options.pool, deployment, blockNumber, blockHash: anchor.hash, generation,
     primary: options.primary, secondary: options.secondary, ...schema });
   if(!(done('history')))await projectF72History({ pool: options.pool, deployment, blockNumber, blockHash: anchor.hash, generation, ...schema });
+  if(!done('stake-summary'))await projectStakeSummaries({pool:options.pool,deployment,blockNumber,blockHash:anchor.hash,generation,...schema});
   if(!(done('analytics')))await projectF72Analytics({ pool: options.pool, deployment, blockNumber, blockHash: anchor.hash, generation, ...schema });
   if(!(done('holder-rewards')))await projectHolderRewards({pool:options.pool,deployment,blockNumber,blockHash:anchor.hash,generation,primary:options.primary,secondary:options.secondary,...schema});
   await options.pool.query(`DELETE FROM ${identifier(options.schemaName??'tickergarden_serverless')}.projection_observations WHERE environment=$1 AND chain_id=$2 AND deployment_digest=$3 AND (generation<$4 OR (generation=$4 AND block_number<=$5))`,[deployment.environment,deployment.chainId,deployment.deploymentDigest,generation.toString(),blockNumber.toString()]);

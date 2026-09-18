@@ -80,12 +80,14 @@ export async function projectF72Principal(input:Input):Promise<{accounts:number;
    if(c.phase==='accounts'){await transaction(input.pool,async client=>{await locked(client,c);await client.query(`UPDATE ${schema}.principal_candidates SET phase='positions',progress=progress+1 WHERE ${candidateWhere}`,key);});continue;}
    return finish(c);
   }
-  const verified: Array<{row:Ledger;record:ProjectionRecord|null}>=[];
+  const verified: Array<{row:Ledger;record:ProjectionRecord|null;settlement?:bigint}>=[];
   // Bounded parallel calls; each getter still requires exact agreement of two RPC providers.
-  for(let offset=0;offset<work.length;offset+=8)verified.push(...await Promise.all(work.slice(offset,offset+8).map(async row=>({row,record:row.kind==='accounts'?await verifyAccount(input,hydrate<Account>(row.payload)):await verifyPosition(input,hydrate<Allocation>(row.payload),loadMarket,loadAccount)}))));
+  for(let offset=0;offset<work.length;offset+=8)verified.push(...await Promise.all(work.slice(offset,offset+8).map(async row=>{let settlement:bigint|undefined;const record=row.kind==='accounts'?await verifyAccount(input,hydrate<Account>(row.payload)):await verifyPosition({...input,onSettlement:principal=>{settlement=principal;}},hydrate<Allocation>(row.payload),loadMarket,loadAccount);return {row,record,...(settlement===undefined?{}:{settlement})};})));
   await transaction(input.pool,async client=>{
    await locked(client,c);
-   for(const {row,record} of verified){
+   for(const {row,record,settlement} of verified){
+    if(settlement!==undefined)await client.query(`INSERT INTO ${schema}.stake_cleanup_observations(environment,chain_id,deployment_digest,generation,asset_uid,account,market_id,block_number,block_hash,principal) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10) ON CONFLICT(environment,chain_id,deployment_digest,generation,asset_uid,account,market_id) DO UPDATE SET block_number=excluded.block_number,block_hash=excluded.block_hash,principal=excluded.principal`,[...id,row.asset_uid,row.user_address,row.market_id,String(input.blockNumber),input.blockHash,String(settlement)]);
+
     const old=(await client.query<{payload_digest:string}>(`SELECT payload_digest FROM ${schema}.principal_record_versions WHERE ${where} AND scope=$5 AND identity=$6 AND valid_to IS NULL`,[...id,row.kind,row.identity])).rows[0];
     const next=record?digest(record.payload):null;
     if(old?.payload_digest!==next){

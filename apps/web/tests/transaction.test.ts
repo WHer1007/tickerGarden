@@ -293,6 +293,78 @@ test("wallet restore batch-clears mined records and preserves unresolved records
   assert.deepEqual(executor.pending(account).map(record => record.hash), [secondHash]);
 });
 
+test('batch reconciliation preserves a mined journal record when verification fails', async () => {
+  const storage = journal();
+  const api = clients(async () => hash);
+  api.publicClient.waitForTransactionReceipt = async () => {
+    throw Object.assign(new Error('timeout'), {name: 'WaitForTransactionReceiptTimeoutError'});
+  };
+  const executor = new V1TransactionExecutor(api, storage);
+  const operation = {...input(async () => {}), operationKey: 'trade:buy:market-a:10:verify'};
+  await assert.rejects(executor.execute(operation), {code: 'receipt_timeout'});
+  api.publicClient.getTransactionReceipt = async () => receipt;
+
+  const settled = await executor.reconcileSettledPending(account, {
+    verify: async () => { throw new Error('receipt does not match the expected vault action'); },
+  });
+  assert.deepEqual(settled, []);
+  assert.equal(executor.pending(account)[0]?.hash, hash, 'verification failure must leave the recovery journal intact');
+});
+
+test('batch reconciliation filters unrelated pending records before RPC lookup', async () => {
+  const secondHash = '0xcccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc' as Hash;
+  let writes = 0;
+  const storage = journal();
+  const api = clients(async () => ++writes === 1 ? hash : secondHash);
+  api.publicClient.waitForTransactionReceipt = async () => {
+    throw Object.assign(new Error('timeout'), {name: 'WaitForTransactionReceiptTimeoutError'});
+  };
+  const executor = new V1TransactionExecutor(api, storage);
+  const tradeKey = 'trade:buy:market-a:10:filter';
+  const claimKey = 'reward:user-claim:market-b:creator:3:0x1111111111111111111111111111111111111111:filter';
+  await assert.rejects(executor.execute({...input(async () => {}), operationKey: tradeKey}), {code: 'receipt_timeout'});
+  await assert.rejects(executor.execute({...input(async () => {}), operationKey: claimKey, request: {...request, functionName: 'claim'}}), {code: 'receipt_timeout'});
+  const requested: Hash[] = [];
+  api.publicClient.getTransactionReceipt = async ({hash: requestedHash}) => {
+    requested.push(requestedHash);
+    return receipt;
+  };
+
+  const settled = await executor.reconcileSettledPending(account, {filter: pending => pending.operationKey === tradeKey});
+  assert.deepEqual(requested, [hash]);
+  assert.equal(settled.length, 1);
+  assert.equal(settled[0]?.pending.operationKey, tradeKey);
+  assert.deepEqual(executor.pending(account).map(pending => pending.operationKey), [claimKey]);
+});
+
+test('batch reconciliation does not overwrite a different pending record added during RPC lookup', async () => {
+  const secondHash = '0xdddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd' as Hash;
+  let writes = 0;
+  const storage = journal();
+  const api = clients(async () => ++writes === 1 ? hash : secondHash);
+  api.publicClient.waitForTransactionReceipt = async () => {
+    throw Object.assign(new Error('timeout'), {name: 'WaitForTransactionReceiptTimeoutError'});
+  };
+  const executor = new V1TransactionExecutor(api, storage);
+  await assert.rejects(executor.execute({...input(async () => {}), operationKey: 'trade:buy:market-a:10:race'}), {code: 'receipt_timeout'});
+
+  let releaseReceipt!: (value: TransactionReceipt) => void;
+  let lookupStarted = false;
+  api.publicClient.getTransactionReceipt = () => {
+    lookupStarted = true;
+    return new Promise(resolve => { releaseReceipt = resolve; });
+  };
+  const reconciling = executor.reconcileSettledPending(account);
+  while (!lookupStarted) await new Promise(resolve => setTimeout(resolve, 0));
+
+  await assert.rejects(executor.execute({...input(async () => {}), operationKey: 'trade:sell:market-b:8:race', request: {...request, functionName: 'sell'}}), {code: 'receipt_timeout'});
+  assert.deepEqual(executor.pending(account).map(pending => pending.hash), [hash, secondHash]);
+  releaseReceipt(receipt);
+  const settled = await reconciling;
+  assert.equal(settled.length, 1);
+  assert.deepEqual(executor.pending(account).map(pending => pending.hash), [secondHash]);
+});
+
 test("replacement and nonce metadata are kept on the individual pending record", async () => {
   const replacementHash = "0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee" as Hash;
   const api = clients(async () => hash);

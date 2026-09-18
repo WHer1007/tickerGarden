@@ -1,7 +1,7 @@
 import type {ListMarketsParams,MarketPage} from './generated/read-api.ts';
 import {assertFinalizedSync} from '../runtime/model.ts';
 export type DirectoryQuery=Omit<ListMarketsParams,'cursor'|'limit'> & {revision:string};
-export function createMarketDirectory(fetchPage:(params:ListMarketsParams,signal:AbortSignal)=>Promise<MarketPage>,pageSize=100){
+export function createMarketDirectory(fetchPage:(params:ListMarketsParams,signal:AbortSignal)=>Promise<MarketPage>,pageSize=100,mode: {displayChainId:number}|undefined=undefined){
  let generation=0,controller:AbortController|null=null,key='',state:MarketPage|null=null;
  const reset=()=>{generation++;controller?.abort();controller=null;key='';state=null;};
  return{reset,async load(query:DirectoryQuery,append=false):Promise<MarketPage|null>{
@@ -14,7 +14,8 @@ export function createMarketDirectory(fetchPage:(params:ListMarketsParams,signal
   try{
    const page=await fetchPage({...query,limit:pageSize,...(append?{cursor:previous!.nextCursor!}:{})},abort.signal);
    if(own!==generation)return null;if(abort.signal.aborted)throw new Error('Directory query timed out');
-   assertFinalizedSync(page.sync,query.revision,'market query');
+   if(mode){if(page.sync.chainId!==mode.displayChainId)throw Error('Invalid directory chain');}
+   else assertFinalizedSync(page.sync,query.revision,'market query');
    if(!Array.isArray(page.items)||page.items.length>100||(page.nextCursor!==null&&(typeof page.nextCursor!=='string'||page.nextCursor.length===0||page.nextCursor.length>8192||page.items.length===0||page.nextCursor===previous?.nextCursor)))throw new Error('Invalid market query page');
    const items=[...(append?previous!.items:[]),...page.items],seen=new Set<string>();
    for(const m of items){if(!m||!/^0x[0-9a-f]{64}$/.test(m.marketId)||seen.has(m.marketId))throw new Error('Duplicate or invalid market identity');seen.add(m.marketId);}

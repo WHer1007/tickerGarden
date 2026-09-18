@@ -6,7 +6,7 @@ import { applyCoreMigration, createDatabasePool } from '../../packages/db/src/in
 import { f72EventAbis, f72ReadAbis } from '../../packages/events/src/f72-abis.generated.ts';
 import { F72_RELEASE_ID, fixedF72Sources } from '../../packages/events/src/index.ts';
 import { ProjectionPending } from '../../packages/projection/src/index.ts';
-import { projectF72Principal } from '../../packages/principal-projector/src/index.ts';
+import { projectF72Principal, verifyPosition } from '../../packages/principal-projector/src/index.ts';
 import { createReadApiApp } from '../../apps/read-api/src/index.ts';
 import { f72BootstrapConfigs } from '../../packages/config-projector/src/f72-bootstrap.generated.ts';
 
@@ -14,6 +14,27 @@ const connectionString = process.env.TG_MIGRATION_DATABASE_URL ?? process.env.TG
 const hash = (character: string): Hex => `0x${character.repeat(64)}`;
 const address = (character: string): Address => `0x${character.repeat(40)}`;
 const ident = (value: string): string => { assert.match(value, /^[a-z][a-z0-9_]{0,62}$/); return `"${value}"`; };
+
+test('verifyPosition rejects invalid deferred settlement principal before acknowledging cleanup', async () => {
+  const user=address('a'),assetUid=hash('1'),marketId=hash('2'),vault=fixedF72Sources().find(item=>item.module==='UserStockVault')!.address as Address;
+  const gauge=address('3'),quote=address('4'),meme=address('5');
+  for(const [amount,settlementPrincipal] of [[0n,0n],[1n,41n]] as const){
+    const calls:string[]=[];let observed:bigint|undefined;
+    const transport={callAt:async(target:Address,data:Hex):Promise<Hex>=>{
+      const abi=target===vault?f72ReadAbis.UserStockVault as Abi:target===gauge?f72ReadAbis.MemeStockGauge as Abi:f72ReadAbis.AllocationManager as Abi;
+      const decoded=decodeFunctionData({abi,data});calls.push(decoded.functionName);
+      if(target===vault)return encodeFunctionResult({abi,functionName:'allocation',result:amount});
+      if(target===gauge)return encodeFunctionResult({abi,functionName:'positionOf',result:{activeAmount:0n,pendingAmount:0n,pendingGeneration:0n,unlockAt:0n,quoteClaimable:0n,memeClaimable:0n}});
+      return encodeFunctionResult({abi,functionName:'rageQuitSettlementPending',result:[true,settlementPrincipal]});
+    }};
+    const allocation={user,assetUid,marketId,amount,source:{chainId:46630 as const,blockNumber:'1',blockHash:hash('6'),transactionHash:hash('7'),transactionIndex:0,logIndex:0}};
+    await assert.rejects(()=>verifyPosition({primary:transport,secondary:transport,blockNumber:1n,onSettlement:value=>{observed=value;}},allocation,
+      async()=>({marketId,assetUid,gauge,quoteAsset:quote,memeToken:meme,stakingEnabled:true}),
+      async()=>({user,assetUid,vault,deposited:100n,allocated:amount,source:allocation.source})),/invalid deferred settlement principal/);
+    assert.equal(observed,undefined,'invalid observations are not reported to persistence');
+    assert.deepEqual(calls.sort(),['allocation','positionOf','rageQuitSettlementPending','allocation','positionOf','rageQuitSettlementPending'].sort());
+  }
+});
 
 test('TS-09 principal projector reconciles one finalized Vault/Gauge block and publishes bounded user pages', { timeout: 180_000 }, async (context) => {
   if (!connectionString) { context.skip('TG_MIGRATION_DATABASE_URL or TG_DATABASE_URL is required'); return; }
@@ -119,6 +140,60 @@ test('TS-09 principal projector reconciles one finalized Vault/Gauge block and p
       assert.equal(result.accounts,10002);assert.equal(result.positions,10002);
       assert.equal((await handle.pool.query(`SELECT count(*)::int n FROM ${schema}.principal_work WHERE block_hash=$1`,[hash('f')])).rows[0].n,0,'completed transient work is reclaimed');
       assert.deepEqual((await handle.pool.query(`SELECT (payload->>'verifiedRecordCount')::int n FROM ${schema}.publications WHERE revision=$1 AND scope IN ('accounts','positions') ORDER BY scope`,[`5:${hash('f')}`])).rows,[{n:10002},{n:10002}]);
+    }
+    if(process.env.TG_TEST_PRINCIPAL_CAPACITY!=='1'){
+      const settler=address('a');
+      await handle.pool.query(`INSERT INTO ${schema}.principal_ledger(environment,chain_id,deployment_digest,generation,kind,identity,user_address,asset_uid,market_id,payload) VALUES
+        ('test',46630,$1,0,'accounts',$2,$3,$4,NULL,$5),('test',46630,$1,0,'positions',$6,$3,$4,$7,$8)`,[
+        deployment.deploymentDigest,`${settler}:${assetUid}`,settler,assetUid,
+        {user:settler,assetUid,vault,deposited:'0',allocated:'0',source:{chainId:46630,blockNumber:'4',blockHash:hash('e'),transactionHash:hash('a'),transactionIndex:0,logIndex:0}},
+        `${settler}:${assetUid}:${marketId}`,marketId,
+        {user:settler,assetUid,marketId,amount:'0',source:{chainId:46630,blockNumber:'4',blockHash:hash('e'),transactionHash:hash('a'),transactionIndex:0,logIndex:0}},
+      ]);
+      const startBlock=5;
+      const parent=hash('e');
+      const firstHash=hash('a');
+      await advance(startBlock,firstHash,parent);
+      const functionNames:string[]=[];
+      const settlementTransport={callAt:async(target:Address,data:Hex,blockNumber:bigint):Promise<Hex>=>{
+        const isVault=target===vault;const abi=isVault?f72ReadAbis.UserStockVault as Abi:target===gauge?f72ReadAbis.MemeStockGauge as Abi:f72ReadAbis.AllocationManager as Abi;
+        const decoded=decodeFunctionData({abi,data});
+        if(decoded.args?.some(value=>typeof value==='string'&&value.toLowerCase()===settler.toLowerCase())){
+          functionNames.push(decoded.functionName);
+          if(target===vault)return encodeFunctionResult({abi,functionName:decoded.functionName,result:0n});
+          if(target===gauge)return encodeFunctionResult({abi,functionName:'positionOf',result:{activeAmount:0n,pendingAmount:0n,pendingGeneration:0n,unlockAt:0n,quoteClaimable:0n,memeClaimable:0n}});
+          return encodeFunctionResult({abi,functionName:'rageQuitSettlementPending',result:[true,41n]});
+        }
+        return changed.callAt(target,data);
+      }};
+      const cleanupInput={...fourth,blockNumber:BigInt(startBlock),blockHash:firstHash,primary:settlementTransport,secondary:settlementTransport,
+        maxPages:30,pageSize:10,fullAuditIntervalBlocks:1n};
+      await projectF72Principal(cleanupInput);
+      let observation=(await handle.pool.query(`SELECT block_number::text,block_hash,principal::text FROM ${schema}.stake_cleanup_observations WHERE account=$1 AND market_id=$2`,[settler,marketId])).rows[0];
+      assert.deepEqual(observation,{block_number:String(startBlock),block_hash:firstHash,principal:'41'},'pending settlement principal is persisted at the verified anchor');
+      assert.equal(functionNames.length,12,'both providers verify three account and three position reads only');
+      assert.ok(!functionNames.includes('activationSnapshot'),'settlement observation returns before unrelated snapshot reads');
+      assert.ok(functionNames.includes('rageQuitSettlementPending'));
+
+      functionNames.length=0;
+      const nextBlock=startBlock+1;const nextHash=hash('0');
+      await advance(nextBlock,nextHash,firstHash);
+      const resolvedTransport={callAt:async(target:Address,data:Hex,blockNumber:bigint):Promise<Hex>=>{
+        const abi=target===vault?f72ReadAbis.UserStockVault as Abi:target===gauge?f72ReadAbis.MemeStockGauge as Abi:f72ReadAbis.AllocationManager as Abi;
+        const decoded=decodeFunctionData({abi,data});
+        if(decoded.args?.some(value=>typeof value==='string'&&value.toLowerCase()===settler.toLowerCase())){
+          functionNames.push(decoded.functionName);
+          if(target===vault)return encodeFunctionResult({abi,functionName:decoded.functionName,result:0n});
+          if(target===gauge)return encodeFunctionResult({abi,functionName:'positionOf',result:{activeAmount:0n,pendingAmount:0n,pendingGeneration:0n,unlockAt:0n,quoteClaimable:0n,memeClaimable:0n}});
+          return encodeFunctionResult({abi,functionName:'rageQuitSettlementPending',result:[false,0n]});
+        }
+        return changed.callAt(target,data);
+      }};
+      await projectF72Principal({...cleanupInput,blockNumber:BigInt(nextBlock),blockHash:nextHash,primary:resolvedTransport,secondary:resolvedTransport});
+      observation=(await handle.pool.query(`SELECT block_number::text,block_hash,principal::text FROM ${schema}.stake_cleanup_observations WHERE account=$1 AND market_id=$2`,[settler,marketId])).rows[0];
+      assert.deepEqual(observation,{block_number:String(nextBlock),block_hash:nextHash,principal:'0'},'completed settlement clears the persisted principal observation');
+      assert.equal(functionNames.length,12);
+      assert.ok(!functionNames.includes('activationSnapshot'));
     }
   } finally { bootstrap.length = bootstrapLength; await handle.pool.query(`DROP SCHEMA IF EXISTS ${schema} CASCADE`).catch(() => undefined); await handle.pool.end(); }
 });

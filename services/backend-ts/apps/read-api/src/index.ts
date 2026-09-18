@@ -1,3 +1,4 @@
+import {readStakeSummary} from '../../../packages/history-projector/src/stake-summary.ts';
 import {readLaunchReadiness} from '../../../packages/confirmed-display/src/read.ts';
 import {readStatsDisplay} from '../../../packages/confirmed-display/src/stats.ts';
 import {readExploreBootstrap,readExploreCards,readExplorePage} from '../../../packages/confirmed-display/src/explore.ts';
@@ -66,7 +67,7 @@ export function createReadApiApp(options: ReadApiOptions = {}) {
 
   app.use('/v1/*', async (context, next) => {
     await next(); const path = context.req.path;
-    const privateRead = path.includes('/users/') || path.includes('holder-snapshots') || path.includes('reward-history') || path.includes('/wallet-holder-markets') || path.includes('/transactions/');
+    const privateRead = path.includes('/users/') || path.includes('holder-snapshots') || (path.includes('reward-history') || path.includes('reward-summary')) || path.includes('/wallet-holder-markets') || path.includes('/transactions/');
     const activity = path.endsWith('/detail') && context.req.query('section')==='activity';
     const priceCatalog = path.endsWith('/prices/references') || path.endsWith('/statistics-prices');
     const revision = context.req.query('revision');
@@ -276,6 +277,12 @@ export function createReadApiApp(options: ReadApiOptions = {}) {
     try { const query = context.req.query(); rejectUnknown(query, ['account']); if (!query.account) throw new Error('invalid account');
       return context.json(await readWalletHolderMarkets({ pool: pool(), deployment, account: parseAddress(query.account), ...(schemaName ? { schemaName } : {}) }));
     } catch (error) { return historyError(context, error); }
+  });
+
+  app.get('/v1/staker-reward-summary',async context=>{
+    try { const query=context.req.query();rejectUnknown(query,['marketId','account']);if(!query.marketId||!query.account)throw Error('invalid summary query');
+      return context.json(await shareRead(`stake-summary:${query.marketId}:${query.account}`,()=>readStakeSummary({pool:pool(),deployment,marketId:parseMarketId(query.marketId!),account:parseAddress(query.account!),...(schemaName?{schemaName}:{})})));
+    } catch(error){return historyError(context,error);}
   });
 
   for (const kind of ['holder', 'staker'] as const) app.get(`/v1/${kind}-reward-history`, async (context) => {

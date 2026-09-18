@@ -1,3 +1,5 @@
+import {createInvalidatedRead} from './ui/invalidated-read.ts';
+import {verifyStakeReceipt} from './ui/stake-receipt.ts';
 import type {ConversionQuote} from './trade/conversion.ts';
 import {loadRewardPageDependencies} from './routing/reward-dependencies.ts';
 import { applyPageMetadata } from "./routing/metadata.ts";
@@ -66,7 +68,7 @@ import { publicMessage } from "./ui/public-copy.ts";
 import { renderShell } from "./ui/shell.ts";
 import { bindStakeAmountInput } from './ui/stake-amount-input.ts';
 import { stakeErrorMessage } from "./ui/stake-error.ts";
-import { stakeLockLabel,stakeProgress } from './ui/stake-progress.ts';
+import { stakeLockLabel,stakeProgress,stakeUnlockDisplay } from './ui/stake-progress.ts';
 import { tokenAge } from './ui/token-age.ts';
 import { createTradeTransactionStatus } from './ui/trade-transaction-status.ts';
 import { watchWalletAccount } from './ui/wallet-account-sync.ts';
@@ -433,6 +435,43 @@ function setPageStatus(message: string, tone: "neutral" | "success" | "warning" 
   }
 }
 
+async function verifyRecoveredStakeReceipt(result:import('./v1/transaction.ts').ReconciledPendingTransaction,account:Address):Promise<void>{
+ if(result.pending.businessType!=='stake')return;
+ const {receipt,pending}=result;
+ const block=await publicClient.getBlock({blockNumber:receipt.blockNumber});
+ if(block.hash!==receipt.blockHash||receipt.from.toLowerCase()!==account.toLowerCase())throw Error('Pending stake receipt identity changed');
+ if(receipt.status==='reverted'||result.cancelled)return;
+ if(!readApi||!foundation||!pending.marketId)throw Error('Stake market not ready');
+ const detail=await readApi.getMarketPageBootstrap({marketId:pending.marketId as Hex});
+ await ensureCanonicalMarket(detail.market,true);
+ const asset=await ensureCanonicalAsset(findAsset(detail.market.assetUid),verifiedMarketRuntime.get(detail.market.marketId));
+ const [target,method,args]=JSON.parse(pending.intent) as [string,string,string[]];
+ if(pending.approval){
+  if(receipt.to?.toLowerCase()!==asset.stockToken.toLowerCase())throw Error('Approval target mismatch');
+  receiptEvent(receipt,asset.stockToken,erc20Abi,'Approval',a=>String(a.owner).toLowerCase()===account.toLowerCase()&&String(a.spender).toLowerCase()===asset.userStockVault.toLowerCase()&&typeof a.value==='bigint'&&a.value>=BigInt(args[1]??'0'));
+  return;
+ }
+ const action=method==='stake'?'stake':method==='unstakeAndWithdraw'?'unstakeAndWithdraw':method==='rageQuit'||method==='rageQuitAllocation'?'rageQuit':null;
+ const directExit=method==='rageQuit'&&args.length===2;
+ if(!action||args[directExit?1:0]!==pending.marketId||(directExit&&args[0]!==asset.assetUid))throw Error('Unsupported pending stake intent');
+ const expectedTarget=directExit?asset.userStockVault:marketRelease(pending.marketId).allocationManager;
+ if(target.toLowerCase()!==expectedTarget.toLowerCase())throw Error('Pending stake target mismatch');
+ const {default:abi}=await import('./v1/generated/contracts/legacy/UserStockVault.ts');
+ verifyStakeReceipt(receipt,{abi,vault:asset.userStockVault,target:expectedTarget,assetUid:asset.assetUid,marketId:pending.marketId as Hex,account,action,...(action==='stake'?{stakeAmount:BigInt(args[1]!)}:{})});
+}
+let stakeRecoveryRunning=false;
+async function recoverPendingStake():Promise<void>{
+ if(stakeRecoveryRunning||!wallet||currentPage()!=='staking')return;
+ const active=wallet,marketId=query<HTMLSelectElement>('[data-position-market]')?.value;
+ stakeRecoveryRunning=true;
+ try{
+  const results=await active.executor.reconcileSettledPending(active.account,{filter:p=>p.businessType==='stake'&&p.marketId===marketId,verify:result=>verifyRecoveredStakeReceipt(result,active.account)});
+  if(wallet!==active||!results.length)return;
+  for(const result of results){showTransactionUpdate({operationKey:result.pending.operationKey,hash:result.receipt.transactionHash,stage:result.receipt.status==='success'&&!result.cancelled?(result.approval?'approval_confirmed':'confirmed'):'failed'});}
+  await refreshRewardPosition(true);void refreshStakeStatistics(true);refreshActionAvailability();
+ }finally{stakeRecoveryRunning=false;}
+}
+
 function runtimeReasons(): readonly string[] {
   if (foundationError) return [publicError(new Error(foundationError))];
   if (!foundation) return ["Loading market data"];
@@ -440,10 +479,7 @@ function runtimeReasons(): readonly string[] {
 }
 
 function isRewardsPage(): boolean { return currentPage() === 'rewards' || currentPage() === 'staking'; }
-function hasPendingTransaction(): boolean {
-  if (!wallet) return false;
-  try { return wallet.executor.pending(wallet.account).length > 0; } catch { return true; }
-}
+
 function writeReady(): boolean {
   return Boolean(foundation?.writeReady && wallet && !walletConnecting);
 }
@@ -550,7 +586,7 @@ async function prepareLocalIntegrationFoundation():Promise<Foundation>{
 async function prepareFoundation(api: TickerGardenV1Client | null, expectedSync?: SyncStatus, reuseConfigs=false): Promise<Foundation> {
   if (integrationBootstrapPath) return prepareLocalIntegrationFoundation();
   if (!api) throw Error("V1 read API is unavailable");
-  if(currentPage()==='markets'&&!expectedSync){
+  if((currentPage()==='markets'||currentPage()==='staking')&&!expectedSync){
     if(!runtimeConfig.readApi.available)throw Error('V1 read API is unavailable');
     const response=await fetch(new URL('/v1/explore/bootstrap',runtimeConfig.readApi.value),{signal:AbortSignal.timeout(8000)});
     if(!response.ok)throw Error('Explore bootstrap unavailable');
@@ -666,7 +702,7 @@ async function ensureCurrentRevision(expected: string): Promise<string> {
   // Direct operations validate the relevant current contracts before simulation;
   // analytics revisions never authorize these transactions.
   if(foundation?.direct && integrationBootstrap) return expected;
-  if(currentPage()==='trade'){
+  if(currentPage()==='trade'||currentPage()==='staking'){
     const match=/^(0|[1-9][0-9]*):(0x[0-9a-f]{64})$/.exec(expected);
     if(!match)throw new V1TransactionError('stale_snapshot','Refresh the trade quote before signing.');
     const [chain,block]=await Promise.all([publicClient.getChainId(),publicClient.getBlock({blockNumber:BigInt(match[1]! )})]);
@@ -722,7 +758,10 @@ function marketRelease(id: string): MarketRelease {
   if (!value) throw new Error("Market release has not been verified");
   return value;
 }
-async function ensureCanonicalMarket(market: MarketReadModel): Promise<void> {
+const stakeMarketIdentityChecks=new Set<string>();
+async function ensureCanonicalMarket(market: MarketReadModel,displayRead=false): Promise<void> {
+ const identity=JSON.stringify([robinhoodChain.id,runtimeConfig.releaseCatalog,market.marketId,market.memeToken,market.assetUid,market.gauge,market.quoteAsset,market.curve,market.launchPhase,market.burnMemeFees,market.tickerGardenBaselineId,market.quoteAssetConfigId,market.sourceVersion,market.poolId,market.poolKey,market.canonicalRoute]);
+ if(displayRead&&stakeMarketIdentityChecks.has(identity)&&verifiedMarketRuntime.has(market.marketId)&&verifiedMarketReleases.has(market.marketId))return;
 const {default: v1Abis_TickerMemeTokenV1} = await import('./v1/generated/contracts/legacy/TickerMemeTokenV1.ts');
 const {default: v1Abis_MarketRegistryV1} = await import('./v1/generated/contracts/legacy/MarketRegistryV1.ts');
 const {default: v1Abis_TreasuryDistributorV1} = await import('./v1/generated/contracts/legacy/TreasuryDistributorV1.ts');
@@ -775,6 +814,7 @@ const {default: v1Abis_TickerGardenFactoryV1} = await import('./v1/generated/con
   });
   verifiedMarketRuntime.set(market.marketId, bindings);
   verifiedMarketReleases.set(market.marketId, release);
+  stakeMarketIdentityChecks.add(identity);
 }
 
 async function ensureCanonicalLaunch(selected: SelectedLaunchConfig): Promise<void> {
@@ -1072,7 +1112,7 @@ function installWallet(provider: InjectedProvider, account: Address): void {
   refreshCurrentPage();
   void (async()=>{
     try {
-      const settled=await installed.executor.reconcileSettledPending(installed.account);
+      const settled=await installed.executor.reconcileSettledPending(installed.account,{verify:result=>verifyRecoveredStakeReceipt(result,installed.account)});
       if(!settled.length||wallet!==installed)return;
       if(settled.some(r=>r.pending.businessType==='trade')){const {reconcileConversionJournal}=await import('./trade/conversion.ts');reconcileConversionJournal(localStorage,installed.account,settled);}
       if(wallet!==installed)return;
@@ -1924,6 +1964,7 @@ async function ensureStandaloneApproval(
 
 export type RewardPositionState = Readonly<{
   observedBlock: bigint;
+  observedBlockHash: Hex;
   detail: MarketDetailResponse;
   metadata: MarketMetadata;
   assetConfig: ConfigReadModel;
@@ -2024,7 +2065,7 @@ const rewardMarketLabels = new Map<string, { label: string; search: string; symb
 // Display values survive transport failures; market events invalidate only this selection.
 export type StakeStats = {title:string;description:string;quoteSymbol:string;phase:string;volume:string;fees:string;total:string;totalRaw:bigint|null;status:string};
 const stakeStatsCache = new Map<string,{at:number;data:StakeStats}>();
-const stakeStatsRequests = new Map<string,Promise<StakeStats>>();
+const stakeStatsRequests = createInvalidatedRead<string,StakeStats>();
 let stakeStatsGeneration = 0;
 let stakePageListeners:AbortController|undefined;
 let stakeStatisticsWatcher:{stop():void}|undefined;
@@ -2056,7 +2097,7 @@ const {explorerStakeStatistics} = await import('./v1/stakeStatistics.ts');
   const watchChanged=stakeStatisticsWatchMarket!==(market?.marketId??'');
   if(stakeStatisticsWatchMarket!==(market?.marketId??'')){
     stakeStatisticsWatcher?.stop();stakeStatisticsWatcher=undefined;stakeStatisticsWatchMarket=market?.marketId??'';
-    if(market&&runtimeConfig.readApi.available)stakeStatisticsWatcher=watchMarketChanges(runtimeConfig.readApi.value,market.marketId,async regions=>{if(regions.some(region=>['staking','statistics','fees','market'].includes(region)))await refreshStakeStatistics(true);});
+    if(market&&runtimeConfig.readApi.available)stakeStatisticsWatcher=watchMarketChanges(runtimeConfig.readApi.value,market.marketId,async regions=>{if(regions.some(region=>['staking','statistics','fees','market'].includes(region))){if(regions.includes('market')&&readApi){try{const page=await readApi.getMarketPageBootstrap({marketId:market.marketId});if(foundation&&page.sync.chainId===robinhoodChain.id&&page.market.marketId===market.marketId)foundation=Object.freeze({...foundation,markets:foundation.markets.map(m=>m.marketId===market.marketId?page.market:m)});}catch{/* Existing public data remains usable. */}}await refreshStakeStatistics(true);if(rewardPosition&&rewardPosition.detail.market.marketId===market.marketId)void loadStakeRewardHistory(rewardPosition,true);if(regions.includes('staking'))void refreshRewardPosition(true);}});
   }
   const card=query<HTMLElement>('.staking-page .market-card');
   const sameMarket=!!market&&card?.dataset.marketId===market.marketId;
@@ -2090,7 +2131,7 @@ const {explorerStakeStatistics} = await import('./v1/stakeStatistics.ts');
       (async()=>{
         if(!runtimeConfig.readApi.available)throw Error('Analytics unavailable');
         if(!runtimeConfig.contracts.available)throw Error('Market configuration unavailable');
-        return explorerStakeStatistics({chainId:robinhoodChain.id,apiBase:runtimeConfig.readApi.value,market,decimals:metadata.quoteDecimals,feeVault:runtimeConfig.contracts.value.protocolFeeVaultAddress},force);
+        return explorerStakeStatistics({chainId:robinhoodChain.id,apiBase:runtimeConfig.readApi.value,market,decimals:metadata.quoteDecimals,feeVault:runtimeConfig.contracts.value.protocolFeeVaultAddress},true);
       })()
     ]);
     const analytics=results[0];
@@ -2119,9 +2160,7 @@ const {explorerStakeStatistics} = await import('./v1/stakeStatistics.ts');
   try{
     let cached=stakeStatsCache.get(market.marketId);
     if(force||watchChanged||!cached){
-      let request=stakeStatsRequests.get(market.marketId);
-      if(!request){request=load();stakeStatsRequests.set(market.marketId,request);void request.finally(()=>stakeStatsRequests.delete(market.marketId)).catch(()=>{});}
-      cached={at:Date.now(),data:await request};stakeStatsCache.set(market.marketId,cached);
+      cached={at:Date.now(),data:await stakeStatsRequests.read(market.marketId,load,{invalidate:force})};stakeStatsCache.set(market.marketId,cached);
     }
     if(generation!==stakeStatsGeneration||currentPage()!=='staking')return;
     const data=cached.data;
@@ -2355,10 +2394,13 @@ function updateStakeSearchIdentity(id:string):void {
   const image=row.querySelector<HTMLImageElement>('[data-search-token-icon]');const url=stakeMarketIcons.get(id);
   if(image&&url&&image.getAttribute('src')!==url)image.src=url;
 }
-const stakeSearchDirectory=createMarketDirectory((params,signal)=>{
+const stakeSearchDirectory=createMarketDirectory(async(params,signal)=>{
  if(!runtimeConfig.readApi.available)throw Error('Market search is unavailable');
- return new TickerGardenV1Client(runtimeConfig.readApi.value,(input,init)=>fetch(input,{...init,signal})).listMarkets(params);
-},30);
+ const url=new URL('/v1/explore',runtimeConfig.readApi.value);
+ for(const [name,value]of Object.entries(params))if(name!=='revision'&&value!==undefined)url.searchParams.set(name,String(value));
+ const response=await fetch(url,{signal});if(!response.ok)throw Error('Market search unavailable');
+ return response.json();
+},30,{displayChainId:robinhoodChain.id});
 let stakeSearchPage:import('./v1/generated/read-api.ts').MarketPage|null=null;
 let stakeSearchKey='';
 let stakeSearchTimer:ReturnType<typeof setTimeout>|undefined;
@@ -2527,6 +2569,7 @@ const button=event.currentTarget as HTMLButtonElement;if(!wallet||!foundation)re
   rewardRefreshTimer = window.setInterval(() => {
     if (isRewardsPage() && document.visibilityState === "visible" && wallet && foundation) {
       void refreshActiveReward();
+      void recoverPendingStake().catch(()=>{});
     }
   }, 30_000);
   query<HTMLButtonElement>("[data-rewards-refresh]")?.addEventListener("click", () => { void refreshActiveReward(); void refreshStakeDirectory(false,true); });
@@ -3004,10 +3047,10 @@ async function getRewardMarketDetail(market: MarketReadModel): Promise<MarketDet
   if (!foundation || (!readApi && !foundation.direct)) throw new Error("Market data is unavailable");
   const detail = foundation.direct
     ? await (directMarkets?.market(market.marketId) ?? Promise.reject(new Error("Local market data is unavailable")))
-    : await readApi!.getMarket({ marketId: market.marketId, revision: foundation.sync.revision });
-  if (!foundation.direct) assertFinalizedSync(detail.sync, foundation.sync.revision, "reward market detail");
+    : currentPage()==='staking'?{market,sync:foundation.sync}:await readApi!.getMarket({ marketId: market.marketId, revision: foundation.sync.revision });
+  if (!foundation.direct&&currentPage()!=='staking') assertFinalizedSync(detail.sync, foundation.sync.revision, "reward market detail");
   if (detail.market.marketId !== market.marketId) throw new Error("Read API returned a different reward market");
-  await ensureCanonicalMarket(detail.market);
+  await ensureCanonicalMarket(detail.market,currentPage()==='staking');
   return detail;
 }
 
@@ -3033,9 +3076,10 @@ const {default: v1Abis_MemeStockGauge} = await import('./v1/generated/contracts/
 
   if (!wallet) throw new Error("Connect a wallet to load your position");
   if (detail.market.gauge === ZERO_ADDRESS) throw new Error("Stock staking is not enabled for this market");
+  const positionWallet=wallet;
+  const account=positionWallet.account;
   const assetConfig = findAsset(detail.market.assetUid);
   const asset = await ensureCanonicalAsset(assetConfig, verifiedMarketRuntime.get(detail.market.marketId));
-  const account = wallet.account;
   const block = await publicClient.getBlock({ blockTag: "latest" });
   const blockNumber = block.number;
   const [free, allocated, rawPosition, settlementPrincipal, walletBalance] = await Promise.all([
@@ -3045,6 +3089,7 @@ const {default: v1Abis_MemeStockGauge} = await import('./v1/generated/contracts/
     publicClient.readContract({ blockNumber, abi: v1Abis_UserStockVault, address: asset.userStockVault, functionName: "rageQuitSettlementPrincipal", args: [asset.assetUid, account, detail.market.marketId] }),
     publicClient.readContract({ blockNumber, abi: erc20Abi, address: asset.stockToken, functionName: "balanceOf", args: [account] }),
   ]);
+  if(wallet!==positionWallet)throw Error("Wallet changed while reading the position");
   const active = tupleBigInt(rawPosition, "activeAmount", 0);
   const pending = tupleBigInt(rawPosition, "pendingAmount", 1);
   const unlockAt = tupleBigInt(rawPosition, "unlockAt", 3);
@@ -3058,6 +3103,7 @@ const {default: v1Abis_MemeStockGauge} = await import('./v1/generated/contracts/
   return Object.freeze({
     detail,
     observedBlock: blockNumber,
+    observedBlockHash: block.hash,
     metadata: await marketMetadata(detail.market),
     assetConfig,
     asset,
@@ -3080,37 +3126,28 @@ function renderStakeShare():void {
   const matches=!!rewardPosition&&!!wallet&&rewardPositionOwner===wallet.account&&rewardPosition.detail.market.marketId===id;
   stakeText('[data-stake-share]',matches?stakeShare(rewardPosition!.allocated,total??null):'-');
 }
-const stakeRewardHistoryCache=new Map<string,{at:number;signature:string;claimed:string;earned:string}>();
-const stakeRewardHistoryPending=new Set<string>();
-async function loadStakeRewardHistory(state:RewardPositionState):Promise<void>{
+const stakeRewardHistoryCache=new Map<string,{claimed:string;earned:string}>();
+const stakeRewardHistoryReads=createInvalidatedRead<string,import('./v1/generated/read-api.ts').StakeRewardSummary>();
+async function loadStakeRewardHistory(state:Pick<RewardPositionState,'detail'|'metadata'>,force=false):Promise<void>{
  if(!wallet||!runtimeConfig.readApi.available||currentPage()!=='staking')return;
  const account=wallet.account.toLowerCase(),marketId=state.detail.market.marketId,key=`${robinhoodChain.id}:${marketId}:${account}`;
- const signature=`${state.quoteClaimable}:${state.memeClaimable}:${state.settlementPrincipal}`;
- const current=()=>currentPage()==='staking'&&wallet?.account.toLowerCase()===account&&rewardPosition?.detail.market.marketId===marketId&&`${rewardPosition.quoteClaimable}:${rewardPosition.memeClaimable}:${rewardPosition.settlementPrincipal}`===signature;
+ const current=()=>currentPage()==='staking'&&wallet?.account.toLowerCase()===account&&query<HTMLSelectElement>('[data-position-market]')?.value===marketId;
  const cached=stakeRewardHistoryCache.get(key);
- if(cached&&cached.signature===signature&&Date.now()-cached.at<600000){if(current()){text('[data-staker-earned]',cached.earned);text('[data-staker-claimed]',cached.claimed);}return;}
- if(stakeRewardHistoryPending.has(key))return;
- stakeRewardHistoryPending.add(key);
- text('[data-staker-earned]','-');text('[data-staker-claimed]','-');
+ if(cached&&current()){text('[data-staker-earned]',cached.earned);text('[data-staker-claimed]',cached.claimed);}
  try{
-  for(let attempt=0;attempt<4&&current();attempt++){
-   const result=await new TickerGardenV1Client(runtimeConfig.readApi.value,(input,init)=>fetch(input,{...init,signal:AbortSignal.timeout(5000)}))
-    .getStakerRewardHistory({marketId,account:account as Address,throughBlock:String(state.observedBlock)});
-   if(!current())return;
-   if(result.chainId!==robinhoodChain.id||result.displayOnly!==true||result.marketId!==marketId||result.account!==account||result.throughBlock!==String(state.observedBlock))throw Error('Reward History Mismatch');
-   if(result.complete!==true){await new Promise(resolve=>setTimeout(resolve,5000));continue;}
-   if(!result.claimed||typeof result.claimed!=='object')throw Error('Invalid Reward History');
-   const quote=state.detail.market.quoteAsset.toLowerCase(),meme=state.detail.market.memeToken.toLowerCase();
-   for(const [asset,value]of Object.entries(result.claimed))if(![quote,meme].includes(asset)||typeof value!=='string'||!/^\d+$/.test(value))throw Error('Invalid Reward Amount');
-   const paidQuote=BigInt(result.claimed[quote]??'0'),paidMeme=BigInt(result.claimed[meme]??'0');
-   const label=(q:bigint,m:bigint)=>[q>0n||m===0n?`${formatTokenAmount(q,state.metadata.quoteDecimals)} ${state.metadata.quoteSymbol}`:'',m>0n?`${formatTokenAmount(m,18)} ${state.metadata.symbol}`:''].filter(Boolean).join('\n');
-   const claimed=label(paidQuote,paidMeme),earned=label(paidQuote+(state.settlementPrincipal===0n?state.quoteClaimable:0n),paidMeme+(state.settlementPrincipal===0n&&!state.detail.market.burnMemeFees?state.memeClaimable:0n));
-   stakeRewardHistoryCache.set(key,{at:Date.now(),signature,claimed,earned});
-   if(stakeRewardHistoryCache.size>100)stakeRewardHistoryCache.delete(stakeRewardHistoryCache.keys().next().value!);
-   text('[data-staker-claimed]',claimed);text('[data-staker-earned]',earned);return;
-  }
- }catch{/* Missing history stays unknown; current balances remain usable. */}
- finally{stakeRewardHistoryPending.delete(key);}
+  const base=runtimeConfig.readApi.value;
+  const result=await stakeRewardHistoryReads.read(key,()=>new TickerGardenV1Client(base,(input,init)=>fetch(input,{...init,signal:AbortSignal.timeout(8000)})).getStakerRewardSummary({marketId,account:account as Address}),{invalidate:force});
+  if(result.chainId!==robinhoodChain.id||result.displayOnly!==true||result.marketId!==marketId||result.account!==account)throw Error('Reward summary mismatch');
+  const quote=state.detail.market.quoteAsset.toLowerCase(),meme=state.detail.market.memeToken.toLowerCase();
+  const label=(amounts:Record<string,string>)=>{
+   for(const [asset,value]of Object.entries(amounts))if(![quote,meme].includes(asset)||typeof value!=='string'||!/^\d+$/.test(value))throw Error('Invalid reward amount');
+   const q=BigInt(amounts[quote]??'0'),m=BigInt(amounts[meme]??'0');
+   return [q>0n||m===0n?`${formatTokenAmount(q,state.metadata.quoteDecimals)} ${state.metadata.quoteSymbol}`:'',m>0n?`${formatTokenAmount(m,18)} ${state.metadata.symbol}`:''].filter(Boolean).join('\n');
+  };
+  const value={claimed:label(result.claimed),earned:label(result.earned)};stakeRewardHistoryCache.set(key,value);
+  if(stakeRewardHistoryCache.size>100)stakeRewardHistoryCache.delete(stakeRewardHistoryCache.keys().next().value!);
+  if(current()){text('[data-staker-claimed]',value.claimed);text('[data-staker-earned]',value.earned);}
+ }catch{/* Keep the last published values. Wallet funds are read independently. */}
 }
 function renderRewardPosition(state: RewardPositionState): void {
   // Remove the legacy absolute unlock date if this view survived a hot update.
@@ -3146,6 +3183,8 @@ function renderRewardPosition(state: RewardPositionState): void {
 
 let stakeCountdownTimer=0;
 let stakeClockReadAt=0;
+let stakeUnlockProbeKey='';
+let stakeUnlockProbeAt=0;
 function renderStakeCountdown():void {
  const target=query<HTMLElement>('[data-stake-unlock]');if(!target)return;
  target.removeAttribute('data-state');
@@ -3153,7 +3192,13 @@ function renderStakeCountdown():void {
  const state=rewardPosition;
  if(!state||!wallet||rewardPositionOwner!==wallet.account||state.detail.market.marketId!==query<HTMLSelectElement>('[data-position-market]')?.value){stakeText('[data-stake-unlock]','-');return;}
  const elapsed=BigInt(Math.max(0,Math.floor((performance.now()-stakeClockReadAt)/1000)));
- const label=stakeLockLabel(state.allocated,state.now+elapsed,state.unlockAt);
+ const {label,needsVerification}=stakeUnlockDisplay(state.allocated,state.now,state.unlockAt,elapsed);
+ if(needsVerification){
+  stakeText('[data-stake-unlock]','Checking unlock…');
+  const key=`${wallet.account}:${state.detail.market.marketId}:${state.observedBlock}`;
+  if(key!==stakeUnlockProbeKey||Date.now()-stakeUnlockProbeAt>=30000){stakeUnlockProbeKey=key;stakeUnlockProbeAt=Date.now();void refreshRewardPosition(true);}
+  return;
+ }
  target.classList.toggle('stake-unlock-is-ready',label==='Ready to unstake');
  if(label==='Ready to unstake'){
   const badge=document.createElement('span');badge.className='stake-unlock-ready';
@@ -3202,6 +3247,10 @@ async function refreshRewardPosition(force=true): Promise<void> {
   try {
     if(!samePosition)text("[data-rewards-status]", "Loading your balances…");
     const market = selectedRewardMarket("[data-position-market]");
+    const summaryAccount=wallet.account,summarySync=foundation.sync;
+    void marketMetadata(market).then(metadata=>{
+      if(generation===rewardLoadGeneration&&wallet?.account===summaryAccount)void loadStakeRewardHistory({detail:{market,sync:summarySync},metadata});
+    }).catch(()=>{});
     const detail = await getRewardMarketDetail(market);
     const state = await readRewardPositionState(detail);
     if (generation !== rewardLoadGeneration) return;
@@ -3213,7 +3262,6 @@ async function refreshRewardPosition(force=true): Promise<void> {
     if(samePosition&&previous&&previous.allocated!==state.allocated){stakeStatsCache.delete(state.detail.market.marketId);void refreshStakeStatistics();}
     const visible=(value:RewardPositionState)=>JSON.stringify({wallet:value.walletBalance,allocated:value.allocated,active:value.active,pending:value.pending,free:value.free,quote:value.quoteClaimable,meme:value.memeClaimable,unlock:value.unlockAt,unlocked:value.now>=value.unlockAt,lockLabel:stakeLockLabel(value.allocated,value.now,value.unlockAt),settlement:value.settlementPrincipal,status:value.asset.status,minimum:value.asset.minimumAllocation,phase:value.detail.market.launchPhase},(_,value)=>typeof value==='bigint'?value.toString():value);
     if(!samePosition||!previous||visible(previous)!==visible(state))renderRewardPosition(state);
-    void loadStakeRewardHistory(state);
     text("[data-rewards-status]", `Balances updated for ${shortHex(wallet.account)} at ${new Date().toLocaleTimeString()}.`);
     updateRewardsAvailability();
   } catch (error) {
@@ -3837,73 +3885,47 @@ async function executePositionAction(action: string, button: HTMLButtonElement):
   const activeWallet = wallet;
   const account = activeWallet.account;
   await verifyLiveWalletContext(activeWallet);
-  const state = rewardPosition;
+  const requestedMarket=rewardPosition.detail.market.marketId;
+  const state=await readRewardPositionState(await getRewardMarketDetail(rewardPosition.detail.market));
+  if(wallet!==activeWallet||query<HTMLSelectElement>('[data-position-market]')?.value!==requestedMarket)throw Error('Wallet or market changed; review your stake again');
   const marketId = state.detail.market.marketId;
   const verifyChain = async () => { await ensureCanonicalMarket(state.detail.market); await ensureCanonicalAsset(state.assetConfig, verifiedMarketRuntime.get(state.detail.market.marketId)); };
   const form = button.closest<HTMLFormElement>("form");
   const amountFrom = (name: string, label: string) => parseTokenAmount(required<HTMLInputElement>(`[name=${name}]`, form ?? document).value, state.asset.tokenDecimals, label);
   let request: ContractWriteRequest;
   let approval: ContractWriteRequest | undefined;
-  let confirm: (receipt: TransactionReceipt) => Promise<unknown>;
+  let stakeAmount:bigint|undefined;
   if (action === "stake") {
     const amount = amountFrom("amount", "Stake amount");
+    stakeAmount=amount;
     validateMarketStake(amount, state.walletBalance, state.allocated, state.asset.minimumAllocation);
     request = buildStake(marketRelease(marketId).allocationManager, marketId, amount);
     approval = await allowanceApproval(buildStockApproval(state.asset.stockToken, state.asset.userStockVault, amount), state.asset.stockToken, state.asset.userStockVault, amount, account);
-    confirm = async (receipt) => {
-const {default: v1Abis_UserStockVault} = await import('./v1/generated/contracts/legacy/UserStockVault.ts');
 
-      receiptEvent(receipt, state.asset.userStockVault, v1Abis_UserStockVault, "StockDeposited", (args) => args.assetUid === state.asset.assetUid && String(args.user).toLowerCase() === account && args.amount === amount);
-      receiptEvent(receipt, state.asset.userStockVault, v1Abis_UserStockVault, "AllocationLocked", (args) => args.assetUid === state.asset.assetUid && String(args.user).toLowerCase() === account && args.marketId === marketId && args.amount === amount);
-      const [free, allocated] = await Promise.all([
-        freshPositionValue(state, "free", account, receipt.blockNumber),
-        freshPositionValue(state, "allocated", account, receipt.blockNumber),
-      ]);
-      if (free !== state.free || allocated !== state.allocated + amount) throw new Error("Confirmed principal does not reflect the exact stake");
-      return allocated;
-    };
   } else if (action === "unstakeAndWithdraw") {
     if (state.allocated <= 0n) throw new Error("There is no stake to withdraw");
     request = buildUnstakeAndWithdraw(marketRelease(marketId).allocationManager, marketId);
-    confirm = async (receipt) => {
-const {default: v1Abis_UserStockVault} = await import('./v1/generated/contracts/legacy/UserStockVault.ts');
 
-      receiptEvent(receipt, state.asset.userStockVault, v1Abis_UserStockVault, "AllocationReleased", (args) => args.assetUid === state.asset.assetUid && String(args.user).toLowerCase() === account && args.marketId === marketId && args.amount === state.allocated);
-      receiptEvent(receipt, state.asset.userStockVault, v1Abis_UserStockVault, "StockWithdrawn", (args) => args.assetUid === state.asset.assetUid && String(args.user).toLowerCase() === account && args.amount === state.allocated);
-      const [allocated, free] = await Promise.all([
-        freshPositionValue(state, "allocated", account, receipt.blockNumber),
-        freshPositionValue(state, "free", account, receipt.blockNumber),
-      ]);
-      if (allocated !== 0n || free !== state.free) throw new Error("Confirmed principal does not reflect full withdrawal to wallet");
-      return allocated;
-    };
   } else if (action === "rageQuit") {
     if (state.allocated <= 0n) throw new Error("There is no principal to escape");
-    const walletBalanceBefore = await publicClient.readContract({ abi: erc20Abi, address: state.asset.stockToken, functionName: "balanceOf", args: [account] });
     request = buildRageQuit(marketRelease(marketId).allocationManager, marketId);
-    confirm = async (receipt) => {
-const {default: v1Abis_UserStockVault} = await import('./v1/generated/contracts/legacy/UserStockVault.ts');
 
-      receiptEvent(receipt, state.asset.userStockVault, v1Abis_UserStockVault, "AllocationRageQuit", (args) => args.assetUid === state.asset.assetUid && String(args.user).toLowerCase() === account && args.marketId === marketId && args.amount === state.allocated);
-      const [afterAllocation, afterBalance, settlement] = await Promise.all([
-        freshPositionValue(state, "allocated", account, receipt.blockNumber),
-        publicClient.readContract({ abi: erc20Abi, address: state.asset.stockToken, functionName: "balanceOf", args: [account], blockNumber: receipt.blockNumber }),
-        freshPositionValue(state, "settlement", account, receipt.blockNumber),
-      ]);
-      if (afterAllocation !== 0n || afterBalance !== walletBalanceBefore + state.allocated) throw new Error("Immediate principal escape was not reflected exactly");
-      return settlement;
-    };
   } else {
     throw new Error("Unknown position action");
   }
   await executeTransaction({
     operationKey: `reward:${action}:${marketId}:${account}:${foundation.sync.revision}`,
-    sync: foundation.sync,
+    sync: {...foundation.sync,status:"synced",revision:`${state.observedBlock}:${state.observedBlockHash}`,blockNumber:String(state.observedBlock),blockHash:state.observedBlockHash},
     request,
     ...(approval ? { approval } : {}),
     walletContext: activeWallet,
     verifyChain,
-    confirm,
+    confirm:async receipt=>{
+      const {default:abi}=await import('./v1/generated/contracts/legacy/UserStockVault.ts');
+      const block=await publicClient.getBlock({blockNumber:receipt.blockNumber});
+      if(block.hash!==receipt.blockHash)throw Error('Stake receipt block changed');
+      return verifyStakeReceipt(receipt,{abi,vault:state.asset.userStockVault,assetUid:state.asset.assetUid,marketId,account,target:request.address,action:action as 'stake'|'unstakeAndWithdraw'|'rageQuit',...(stakeAmount===undefined?{}:{stakeAmount})});
+    },
   });
 
   stakeStatsCache.delete(marketId);
@@ -3929,12 +3951,7 @@ async function executeDirectVaultRageQuit(): Promise<void> {
   );
   const state = await readDirectEscapeState(marketId, activeWallet.account);
   if (state.allocated <= 0n) throw new Error("There is no allocated principal to escape");
-  const walletBalanceBefore = await publicClient.readContract({
-    abi: erc20Abi,
-    address: state.stockToken,
-    functionName: "balanceOf",
-    args: [activeWallet.account],
-  });
+
   const operationKey = `reward:direct-vault-rage-quit:${marketId}:${activeWallet.account}:${state.allocated}`;
   activeOperations.set(operationKey,{businessType:'stake',marketId,conflictKey:`stake:${marketId}`});
   refreshActionAvailability();
@@ -3951,37 +3968,9 @@ async function executeDirectVaultRageQuit(): Promise<void> {
       confirm: async (receipt) => {
 const {default: v1Abis_UserStockVault} = await import('./v1/generated/contracts/legacy/UserStockVault.ts');
 
-        receiptEvent(receipt, state.vault, v1Abis_UserStockVault, "AllocationRageQuit", (args) =>
-          args.assetUid === state.assetUid
-          && String(args.user).toLowerCase() === activeWallet.account
-          && args.marketId === state.marketId
-          && args.amount === state.allocated,
-        );
-        receiptEvent(receipt, state.vault, v1Abis_UserStockVault, "StockWithdrawn", (args) =>
-          args.assetUid === state.assetUid
-          && String(args.user).toLowerCase() === activeWallet.account
-          && args.amount === state.allocated,
-        );
-        const [afterAllocation, afterBalance] = await Promise.all([
-          publicClient.readContract({
-            abi: v1Abis_UserStockVault,
-            address: state.vault,
-            functionName: "allocation",
-            args: [state.assetUid, activeWallet.account, state.marketId],
-            blockNumber: receipt.blockNumber,
-          }),
-          publicClient.readContract({
-            abi: erc20Abi,
-            address: state.stockToken,
-            functionName: "balanceOf",
-            args: [activeWallet.account],
-            blockNumber: receipt.blockNumber,
-          }),
-        ]);
-        if (afterAllocation !== 0n || afterBalance !== walletBalanceBefore + state.allocated) {
-          throw new Error("Immediate direct-Vault principal escape was not reflected exactly");
-        }
-        return state.allocated;
+        const block=await publicClient.getBlock({blockNumber:receipt.blockNumber});
+        if(block.hash!==receipt.blockHash)throw Error('Exit receipt block changed');
+        return verifyStakeReceipt(receipt,{abi:v1Abis_UserStockVault,vault:state.vault,target:state.vault,assetUid:state.assetUid,marketId:state.marketId,account:activeWallet.account,action:'rageQuit'});
       },
       onUpdate: showTransactionUpdate,
     });
@@ -4057,10 +4046,12 @@ const {userClaimOutcome} = await import('./v1/features/userClaims.ts');
   const choice=await rewardClaimDialog({quote:metadata.quoteSymbol,meme:metadata.symbol}, (burn ? (balances[0]! > 0n ? 1 : 2) : ((balances[0]! > 0n ? 1 : 0) | (balances[1]! > 0n ? 2 : 0))) as 1|2|3, burn);
   if(!choice){rewardChoiceCancelled=true;return;}
   await verifyLiveWalletContext(activeWallet);
+  const claimBlock=role===1?await publicClient.getBlock({blockTag:'latest'}):undefined;
+  const claimSync=claimBlock?{...foundation.sync,status:'synced' as const,revision:`${claimBlock.number}:${claimBlock.hash}`,blockNumber:String(claimBlock.number),blockHash:claimBlock.hash}:foundation.sync;
   const claimRequest=rawUserClaimRequest(claimMode,feeVault,market.marketId,role,epoch,choice);
   const outcome=await executeTransaction({
     operationKey:`reward:user-claim:${market.marketId}:${role}:${epoch}:${activeWallet.account}:${foundation.sync.revision}`,
-    sync:foundation.sync,walletContext:activeWallet,
+    sync:claimSync,walletContext:activeWallet,
     request:createContractWriteRequest(claimRequest),
     verifyChain:()=>ensureCanonicalMarket(market),
     confirm:async receipt=>{
@@ -4353,7 +4344,10 @@ async function runRewardAction(button: HTMLButtonElement): Promise<void> {
     rewardChoiceCancelled=false;
   } catch (error) {
     if(action==='stake'){
-      const message=stakeErrorMessage(errorText(error),hasPendingTransaction());
+      const marketId=rewardPosition?.detail.market.marketId??query<HTMLSelectElement>('[data-position-market]')?.value;
+      const pending=!!wallet&&wallet.executor.pending(wallet.account).some(p=>p.businessType==='stake'&&p.marketId===marketId);
+      const message=stakeErrorMessage(error,pending);
+      if(pending)void recoverPendingStake().catch(()=>{});
       notify(message,'error');
     }else{
       notify(publicError(error,'transaction'),'error');
@@ -4437,11 +4431,11 @@ async function renderRewards(): Promise<void> {
       const marketId = canonicalBytes32(requestedMarket, "Linked marketId");
       if (!foundation.markets.some((market) => market.marketId === marketId)) {
         const current = foundation;
-        const detail = current.direct && directMarkets ? await directMarkets.market(marketId) : await readApi!.getMarket({ marketId, revision: current.sync.revision });
-        if (!current.direct) assertFinalizedSync(detail.sync, current.sync.revision, "linked staking market");
+        const detail = current.direct && directMarkets ? await directMarkets.market(marketId) : currentPage()==='staking'?await readApi!.getMarketPageBootstrap({marketId}):await readApi!.getMarket({ marketId, revision: current.sync.revision });
+        if (!current.direct&&currentPage()!=='staking') assertFinalizedSync(detail.sync, current.sync.revision, "linked staking market");
         if (pageGeneration !== routeGeneration) return;
         if (foundation !== current || detail.market.marketId !== marketId) throw new Error("Linked market snapshot changed");
-        await ensureCanonicalMarket(detail.market);
+        if(currentPage()!=='staking')await ensureCanonicalMarket(detail.market);
         if (pageGeneration !== routeGeneration) return;
         if (foundation !== current) throw new Error("Linked market snapshot changed");
         foundation = Object.freeze({ ...current, markets: [...current.markets, detail.market] });
@@ -4695,17 +4689,17 @@ function startSnapshotUpdates(): void {
   const baseUrl = runtimeConfig.readApi.value;
   const poller = createSnapshotPoller({
     chainId: robinhoodChain.id,
-    canPoll: () => readyRouteGeneration === routeGeneration && !isStaticPage() && currentPage()!=='trade' && currentPage()!=='markets' && !['stats','statsStocks'].includes(currentPage()) && !walletConnecting && !loadingFoundation && !document.hidden,
+    canPoll: () => readyRouteGeneration === routeGeneration && !isStaticPage() && currentPage()!=='trade' && currentPage()!=='markets' && currentPage()!=='staking' && !['stats','statsStocks'].includes(currentPage()) && !walletConnecting && !loadingFoundation && !document.hidden,
     fetchUpdate: (since, signal) => new TickerGardenV1Client(baseUrl, (input, init) => fetch(input, { ...init, signal })).getSnapshotUpdates(since && foundation ? { since } : {}),
     prepare: async (update, signal) => {
-      if(currentPage()==='trade'||currentPage()==='markets')throw new SnapshotRefreshSuperseded('This page uses its own display stream');
+      if(currentPage()==='trade'||currentPage()==='markets'||currentPage()==='staking')throw new SnapshotRefreshSuperseded('This page uses its own display stream');
       const route=routeGeneration;
       const generation = ++foundationGeneration;
       const activeWallet = wallet;
       const api = new TickerGardenV1Client(baseUrl, (input, init) => fetch(input, { ...init, signal }));
       const next = await prepareFoundation(api, update.sync, update.mode!=='reset'&&!update.invalidated.includes('configs'));
       return () => {
-        if (route!==routeGeneration||currentPage()==='trade'||currentPage()==='markets'||generation !== foundationGeneration || activeWallet !== wallet) throw new SnapshotRefreshSuperseded("Snapshot refresh superseded");
+        if (route!==routeGeneration||currentPage()==='trade'||currentPage()==='markets'||currentPage()==='staking'||generation !== foundationGeneration || activeWallet !== wallet) throw new SnapshotRefreshSuperseded("Snapshot refresh superseded");
         invalidateSnapshotReads(currentPage() === 'trade',currentPage() === 'markets');
         const recentChanged=update.recentVersion!==undefined&&update.recentVersion!==recentMarketVersion;
         recentMarketVersion=update.recentVersion;
@@ -4726,7 +4720,7 @@ function startSnapshotUpdates(): void {
       };
     },
     unavailable: error => {
-      if(currentPage()==='markets')return;
+      if(currentPage()==='markets'||currentPage()==='staking')return;
       ++foundationGeneration;
       if(currentPage()==="trade"&&tradeMarket)return;
       foundation = null;
@@ -4740,7 +4734,7 @@ function startSnapshotUpdates(): void {
   window.addEventListener("online", () => poller.reconnect());
   window.addEventListener("offline", () => {
     poller.stop();
-    if(currentPage()==='markets')return;
+    if(currentPage()==='markets'||currentPage()==='staking')return;
     ++foundationGeneration;
     foundation = null;
     foundationError = "Network unavailable";
@@ -4771,7 +4765,7 @@ function unmountPage(): void {
   closeExploreEvents();
   exploreStockPicker?.destroy();exploreStockPicker=undefined;
   window.clearInterval(stakeCountdownTimer);
-  stakeStatisticsWatcher?.stop();stakeStatisticsWatcher=undefined;stakeStatisticsWatchMarket='';stakePageListeners?.abort();stakePageListeners=undefined;
+  stakeStatisticsWatcher?.stop();stakeStatisticsWatcher=undefined;stakeStatisticsWatchMarket='';stakeStatsRequests.clear();stakeRewardHistoryReads.clear();stakePageListeners?.abort();stakePageListeners=undefined;
   clearTimeout(stakeSearchTimer);stakeSearchGeneration++;stakeSearchDirectory.reset();stakeSearchPage=null;stakeSearchKey='';
   ++stakeStatsGeneration; ++stakeDirectoryGeneration; stakeDirectoryBusy=false;
   disposeFieldValidation?.(); disposeFieldValidation=undefined;

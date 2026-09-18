@@ -112,6 +112,8 @@ GRANT SELECT, INSERT, UPDATE, DELETE ON
   ${schema}.principal_candidates,
   ${schema}.principal_ledger,
   ${schema}.principal_work,
+  ${schema}.stake_summary_work,
+  ${schema}.stake_cleanup_observations,
   ${schema}.holder_work_candidates,
   ${schema}.holder_work_events,
   ${schema}.holder_market_work,
