@@ -1,0 +1,31 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="robots" content="noindex,nofollow"><title>Launch flow · Local preview</title><link rel="stylesheet" href="/fonts.css"><link rel="stylesheet" href="/subpages.css"><link rel="stylesheet" href="/styles.css"></head>
+<body data-page="create"><main style="max-width:960px;margin:40px auto;padding:24px"><p>本地流程演示 · 示例数据 · 不连接钱包、不发送交易</p><button id="replay">重新演示创建流程</button><section class="panel listing-package" data-listing-package aria-label="Created token information" hidden style="margin-top:24px"></section></main>
+<script type="module">
+import '../../src/icons/regular.css';
+import '../../src/create/create.css';
+import {renderLaunchProgress,finishLaunchProgress,closeLaunchProgress} from '../../src/create/launch-progress-dialog.ts';
+import {renderListingPanel} from '../../src/create/listing-panel.ts';
+if(!import.meta.env.DEV||!['localhost','127.0.0.1'].includes(location.hostname))throw Error('Local preview only');
+const host=document.querySelector('[data-listing-package]');
+const button=document.querySelector('#replay');
+const pause=ms=>new Promise(resolve=>setTimeout(resolve,ms));
+async function run(){
+ button.disabled=true;host.hidden=true;
+ for(const [step,percent,detail] of [
+ ['Publish details',10,'Publishing token details…'],
+ ['Prepare launch',30,'Preparing your launch…'],
+ ['Approve asset',45,'Confirm asset approval in your wallet.'],
+ ['Confirm in wallet',60,'Confirm the launch in your wallet.'],
+ ['Confirm on chain',80,'Waiting for chain confirmation…']]){
+ renderLaunchProgress({title:'Launching Your Token',step,percent,detail},{});await pause(950);
+ }
+ if(await finishLaunchProgress()){
+ closeLaunchProgress();
+ renderListingPanel(host,{chainId:4663,chainName:'Robinhood Chain',tokenAddress:'0xde47a062ff9870079d3692f603ae6723b4e6adcb',name:'Genesis Seed',symbol:'SEED',logo:'',website:'',x:'',metadataURI:'',txHash:''},'0x01f5eb9ec14492bcefcc4598d9ac8ed3f1c2a2e7eca7b217b2e7b60576448476','https://explorer.robinhood.com',false);
+ const again=document.createElement('button');again.type='button';again.textContent='Launch new token';again.className='listing-create-another';again.onclick=()=>{window.location.assign('/create');};host.append(again);
+ }
+ button.disabled=false;
+}
+button.onclick=run;
+</script></body></html>

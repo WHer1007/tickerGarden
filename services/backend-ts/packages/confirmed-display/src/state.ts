@@ -11,6 +11,7 @@ export interface DisplayState {
  quoteUsd?:string|null;
  detailViews?:Record<'1H'|'12H'|'1D',TokenDetailResponse>;
  balances:Record<string,string>; exclusions:string[]; supply:string;
+ latestTrade?:TokenDetailTrade|null;
  trades:TokenDetailTrade[]; fees:NonNullable<TokenDetailResponse['fees']>;
  /** Earliest time for which all executions are known. */
  historyFrom:number; asOf:number; blockNumber:string; blockHash:`0x${string}`;
@@ -42,6 +43,8 @@ export function applyDisplayEvents(previous:DisplayState,market:MarketReadModel,
   incoming.push({timestamp:Number(t.timestamp),side:t.side,price:formatUnits(BigInt(t.price.numerator)*10n**36n/BigInt(t.price.denominator),36),memeRaw:t.memeRaw,quoteRaw:t.quoteRaw,actor:t.actor,txHash:t.source.transactionHash,eventKey:t.source.eventKey,classification:t.classification});
  }
  const keys=new Set(next.trades.map(t=>t.eventKey));if(incoming.some(t=>keys.has(t.eventKey)))throw Error('Display receipt already applied');
+ if(incoming.length)next.latestTrade=incoming.at(-1)!;
+ else if(next.latestTrade===undefined&&next.trades.length)next.latestTrade=next.trades[0]!;
  next.trades=[...incoming.reverse(),...next.trades].filter(t=>t.timestamp>=Number(block.timestamp)-86400);
  const totals=new Map(next.fees.map(f=>[`${f.recipient}:${f.asset}`,{...f}]));
  for(const o of observations)for(const f of feeCredits(o.event)){if(f.marketId!==market.marketId)continue;const key=`${f.recipient}:${f.asset}`,prior=totals.get(key);totals.set(key,{recipient:f.recipient,asset:f.asset,amountRaw:(BigInt(prior?.amountRaw??'0')+f.amountRaw).toString()});}
@@ -59,9 +62,16 @@ export function displayDetail(state:DisplayState,period:'1H'|'12H'|'1D',asOf=sta
  const items=Object.entries(selected.has('holders')?state.balances:{}).filter(([a,b])=>!state.exclusions.includes(a)&&BigInt(b)>0n).map(([account,balanceRaw])=>({account:account as `0x${string}`,balanceRaw})).sort((a,b)=>BigInt(a.balanceRaw)>BigInt(b.balanceRaw)?-1:BigInt(a.balanceRaw)<BigInt(b.balanceRaw)?1:a.account.localeCompare(b.account));
  const source={provider:'indexer' as const,asOf,blockNumber:state.blockNumber,blockHash:state.blockHash};
  const [duration,interval]=({'1H':[3600,60],'12H':[43200,300],'1D':[86400,900]} as const)[period];
- const to=(Math.floor(asOf/interval)+1)*interval,from=to-duration;
- const points:Array<{timestamp:number;price:string|null}>=Array.from({length:duration/interval},(_,i)=>({timestamp:from+i*interval,price:null}));
+ let to=(Math.floor(asOf/interval)+1)*interval,from=to-duration;
+ let points:Array<{timestamp:number;price:string|null}>=Array.from({length:duration/interval},(_,i)=>({timestamp:from+i*interval,price:null}));
  for(const t of selected.has('chart')?[...state.trades].reverse():[]){if(t.timestamp<from||t.timestamp>asOf)continue;const point=points[Math.floor((t.timestamp-from)/interval)];if(point)point.price=t.price;}
+ // A quiet 1H view shows exactly the last execution at its historical time.
+ // Do not carry its price into the current hour or count it in current volume.
+ const lastTrade=state.latestTrade??state.trades[0];
+ if(period==='1H'&&selected.has('chart')&&!points.some(p=>p.price!==null)&&lastTrade&&lastTrade.timestamp<=asOf){
+  to=(Math.floor(lastTrade.timestamp/interval)+1)*interval;from=to-duration;
+  points=Array.from({length:duration/interval},(_,i)=>({timestamp:from+i*interval,price:i===duration/interval-1?lastTrade.price:null}));
+ }
  const trades=state.trades.filter(t=>t.timestamp>=asOf-86400);
  const volume=selected.has('statistics')&&state.historyFrom<=Math.max(asOf-86400,Number(state.market.identity?.deployedAt??0))?formatUnits(trades.filter(t=>t.classification==='unclassified').reduce((n,t)=>n+BigInt(t.quoteRaw),0n),validated.binding.quoteDecimals):null;
  const result:TokenDetailResponse={version:1,chainId:state.market.source.chainId,displayOnly:true,confirmation:'confirmed',marketId:state.market.marketId,memeToken:state.market.memeToken,quoteAsset:state.market.quoteAsset,quoteDecimals:validated.binding.quoteDecimals,period,

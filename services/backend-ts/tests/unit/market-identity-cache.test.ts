@@ -1,0 +1,23 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import {encodeFunctionData,encodeFunctionResult,keccak256,type Abi} from 'viem';
+import {RpcTransport} from '../../packages/chain/src/index.ts';
+import {observeTokenIdentity,type ObserveF72MarketInput,type MarketCreation} from '../../packages/market-projector/src/index.ts';
+import {f72ReadAbis} from '../../packages/events/src/index.ts';
+import type {MarketReadModel} from '../../openapi/generated/v1-client.ts';
+const hash=`0x${'1'.repeat(64)}` as const,other=`0x${'2'.repeat(64)}` as const,token=`0x${'1'.repeat(40)}` as const;
+test('immutable identity reads once, reuses canonical record, and invalidates across reorg or token changes',async()=>{
+ let calls=0;
+ const abi=f72ReadAbis.TickerMemeTokenV1 as Abi;
+ const results=new Map(['name','symbol','metadataURI','deployedAt'].map((functionName,i)=>[encodeFunctionData({abi,functionName}),encodeFunctionResult({abi,functionName,result:['Seed','SEED','ipfs://seed',1n][i]})]));
+ const fetcher:typeof fetch=async(_,init)=>{calls++;const r=JSON.parse(String(init?.body));return Response.json({jsonrpc:'2.0',id:r.id,result:r.method==='eth_getCode'?'0x1234':results.get(r.params[0].data)});};
+ const rpc=new RpcTransport({url:'https://identity.example',fetch:fetcher});
+ const creation={marketId:hash,memeToken:token,source:{chainId:46630,blockHash:hash,blockNumber:'1'}} as MarketCreation;
+ const input:ObserveF72MarketInput={creation,primary:rpc,secondary:rpc,blockNumber:2n,blockHash:hash,blockTimestamp:100n};
+ const identity=await observeTokenIdentity(input,token);assert.equal(calls,5);assert.equal(identity.runtimeCodeHash,keccak256('0x1234'));
+ const previous={marketId:hash,memeToken:token,source:creation.source,identity} as MarketReadModel;
+ assert.deepEqual(await observeTokenIdentity({...input,blockNumber:3n,previous},token),identity);assert.equal(calls,5);
+ await observeTokenIdentity({...input,previous,creation:{...creation,source:{...creation.source,blockHash:other}}},token);assert.equal(calls,10);
+ await observeTokenIdentity({...input,previous,blockNumber:1n},token);assert.equal(calls,15);
+ await observeTokenIdentity({...input,previous},`0x${'3'.repeat(40)}`);assert.equal(calls,20);
+});

@@ -195,7 +195,7 @@ export async function discoverF72MarketSources(logs: readonly RpcLog[], blockNum
       const address = rawAddress.toLowerCase() as `0x${string}`;
       const primaryHash = await primary.codeHash(address, blockNumber);
       if (secondary) {
-        const secondaryHash = await secondary.codeHash(address, blockNumber);
+        const secondaryHash = primary.sameSource(secondary) ? primaryHash : await secondary.codeHash(address, blockNumber);
         if (secondaryHash !== primaryHash) throw new Error('RPC providers disagree on discovered runtime code hash');
       }
       discovered.set(address, { module, address, birthBlock: blockNumber, runtimeCodeHash: primaryHash });

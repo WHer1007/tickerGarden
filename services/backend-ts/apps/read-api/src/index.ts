@@ -1,3 +1,4 @@
+import {rpcScope} from './rpc-scope.ts';
 import {createMarketEvents} from './market-events.ts';
 import {readMarketPageBootstrap} from '../../../packages/confirmed-display/src/read.ts';
 import {getConversionQuote,assertConversionIntent,type ConversionIntent,TRADE_NATIVE,TRADE_USDG} from '../../../packages/chain/src/quote-purchase/zeroex.ts';
@@ -69,7 +70,7 @@ export function createReadApiApp(options: ReadApiOptions = {}) {
     const dynamicRanking = path==='/v1/markets'&&['marketCapUsd_desc','recentBuy_desc'].includes(context.req.query('sort')??'');
     const immutableRevision = context.res.status >= 200 && context.res.status < 300
       && typeof revision === 'string' && /^(0|[1-9][0-9]*):0x[0-9a-f]{64}$/.test(revision);
-    context.header('cache-control', context.res.status < 200 || context.res.status >= 300 || privateRead || priceCatalog || (path==='/v1/quote-purchase'||path==='/v1/trade-conversion') || path.endsWith('/events') || path.endsWith('/page') || path.endsWith('/detail') || activity || context.req.query('includeRecent')==='true' || path.endsWith('/updates') || dynamicRanking || path==='/v1/protocol-statistics'
+    context.header('cache-control', context.res.status < 200 || context.res.status >= 300 || privateRead || priceCatalog || (path==='/v1/quote-purchase'||path==='/v1/trade-conversion') || path.endsWith('/events') || path==='/v1/rpc-scope' || path.endsWith('/page') || path.endsWith('/detail') || activity || context.req.query('includeRecent')==='true' || path.endsWith('/updates') || dynamicRanking || path==='/v1/protocol-statistics'
       ? 'no-store'
       : immutableRevision
         ? 'public, max-age=300, s-maxage=31536000, immutable'
@@ -78,6 +79,17 @@ export function createReadApiApp(options: ReadApiOptions = {}) {
   });
 
   const purchaseReads=createReadAdmission({concurrency:4,maxPending:8,unavailable:()=>new PublicationUnavailableError('Purchase quotes are busy')});
+  app.get('/v1/rpc-scope',async context=>{
+    try{
+      const q=context.req.query();
+      if(Object.keys(q).some(k=>k!=='addresses'))throw Error('Invalid query');
+      const addresses=[...new Set((q.addresses??'').split(','))];
+      if(!addresses.length||addresses.length>60||addresses.some(a=>!/^0x[0-9a-f]{40}$/.test(a)))throw Error('Invalid addresses');
+      const targets=await shareRead('rpc-scope:'+addresses.slice().sort().join(','),()=>rpcScope(pool(),deployment,addresses,schemaName));
+      return context.json({chainId:deployment.chainId,targets});
+    }catch{return context.json({error:'rpc_scope_unavailable'},400);}
+  });
+
   app.get('/v1/quote-purchase',async context=>{
     try {
       const q=context.req.query();

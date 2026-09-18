@@ -1,6 +1,6 @@
 export type RpcEnvironment = Readonly<Record<string, string | undefined>>;
 
-/** Single mode deliberately trusts one provider; repeated reads only check its consistency. */
+/** Single mode trusts one provider. Identical in-flight reads are shared; later anchor checks remain fresh. */
 export function rpcPolicy(env: RpcEnvironment) {
   const mode = env.TG_RPC_VERIFICATION_MODE ?? 'dual';
   if (mode !== 'single' && mode !== 'dual') throw Error('Invalid RPC verification mode');

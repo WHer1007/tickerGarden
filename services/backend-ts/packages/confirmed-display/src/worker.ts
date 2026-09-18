@@ -5,7 +5,7 @@ import {changeChannel,changedRegions,regions} from './changes.ts';
 import type {Pool,PoolClient} from 'pg';
 import {formatUnits,parseUnits} from 'viem';
 import {consensusBlock,parseLog,type DeploymentIdentity,type RpcTransport,type RpcBlock,type RpcLog} from '../../chain/src/index.ts';
-import {decodeF72Event,fixedF72Sources,type DecodedProtocolEvent} from '../../events/src/index.ts';
+import {decodeF72Event,fixedF72Sources,eventTopicsForModules,type DecodedProtocolEvent} from '../../events/src/index.ts';
 import {creationFromEvent,observeF72Market,nextMarketActivation,type MarketCreation} from '../../market-projector/src/index.ts';
 import type {MarketReadModel,TokenDetailTrade} from '../../../openapi/generated/v1-client.ts';
 import type {EventObservation,TradeActivity} from '../../analytics/src/index.ts';
@@ -19,6 +19,16 @@ export async function advanceConfirmedDisplay(input:DisplayWorkerInput):Promise<
  const {pool,deployment:d,rpc}=input,schema=displaySchema(input.schemaName),id=displayIdentity(d),client=await pool.connect();
  let prices:ReturnType<typeof preferredPrices>|undefined;
  const materialize=async(state:DisplayState,head?:{number:string;hash:`0x${string}`;timestamp:number})=>{
+  // Upgrade existing state once and retain the last execution independently of
+  // the rolling 24h buffer. This database lookup never runs in an HTTP request.
+  if(state.latestTrade===undefined){
+   const latest=state.trades[0]??null;
+   if(latest)state={...state,latestTrade:latest};
+   else{
+    const trade=(await client.query<{payload:TradeActivity}>(`SELECT t.payload FROM ${schema}.market_trades t JOIN ${schema}.chain_blocks b ON b.environment=t.environment AND b.chain_id=t.chain_id AND b.deployment_digest=t.deployment_digest AND b.hash=t.block_hash WHERE t.environment=$1 AND t.chain_id=$2 AND t.deployment_digest=$3 AND t.market_id=$4 AND b.canonical AND b.finalized AND b.number<=$5 ORDER BY t.occurred_at DESC,b.number DESC,(t.payload->'source'->>'transactionIndex')::bigint DESC,t.log_index DESC LIMIT 1`,[...id,state.market.marketId,state.blockNumber])).rows[0]?.payload;
+    state={...state,latestTrade:trade?displayTrade(trade):null};
+   }
+  }
   if(!prices){const now=new Date();prices=preferredPrices(await latestPrices(client,d,now,input.schemaName),now);}
   const price=prices.get(state.market.quoteAsset);
   const quoteUsd=price?.status==='available'&&price.bidUsd&&price.askUsd?formatUnits((parseUnits(price.bidUsd,36)+parseUnits(price.askUsd,36))/2n,36):null;
@@ -29,7 +39,7 @@ export async function advanceConfirmedDisplay(input:DisplayWorkerInput):Promise<
  try{
   locked=Boolean((await client.query('SELECT pg_try_advisory_lock(hashtextextended($1,0)) locked',[lock])).rows[0]?.locked);if(!locked)return 'busy';
   if(await rpc.chainId()!==BigInt(d.chainId))throw Error('Display chain mismatch');
-  const base=(await pool.query<Cursor>(`SELECT b.number::text block_number,b.hash block_hash,b.number::text base_number,extract(epoch from b.source_timestamp)::bigint::text block_timestamp FROM ${schema}.projection_checkpoints c JOIN ${schema}.chain_blocks b ON b.environment=c.environment AND b.chain_id=c.chain_id AND b.deployment_digest=c.deployment_digest AND b.number=c.next_block-1 WHERE c.environment=$1 AND c.chain_id=$2 AND c.deployment_digest=$3 AND c.scope='analytics' AND b.canonical AND b.finalized`,id)).rows[0];
+  const base=(await client.query<Cursor>(`SELECT b.number::text block_number,b.hash block_hash,b.number::text base_number,extract(epoch from b.source_timestamp)::bigint::text block_timestamp FROM ${schema}.projection_checkpoints c JOIN ${schema}.chain_blocks b ON b.environment=c.environment AND b.chain_id=c.chain_id AND b.deployment_digest=c.deployment_digest AND b.number=c.next_block-1 WHERE c.environment=$1 AND c.chain_id=$2 AND c.deployment_digest=$3 AND c.scope='analytics' AND b.canonical AND b.finalized`,id)).rows[0];
   if(!base)return 'waiting:initial-history';
   const finalized=await rpc.finalizedBlock();
   if(BigInt(base.block_number)>finalized.number)return 'waiting:verified-baseline';
@@ -97,19 +107,22 @@ export async function advanceConfirmedDisplay(input:DisplayWorkerInput):Promise<
    await client.query(`UPDATE ${schema}.confirmed_display_markets SET payload=$5::jsonb WHERE environment=$1 AND chain_id=$2 AND deployment_digest=$3 AND market_id=$4`,[...id,row.market_id,JSON.stringify(refreshed)]);
    await client.query('SELECT pg_notify($1,$2)',[changeChannel(d,input.schemaName),JSON.stringify({marketId:row.market_id,regions:['statistics','chart'],revision:`window:${cursor.block_hash}`})]);
   }
-  const head=await rpc.latestBlock(),from=BigInt(cursor.block_number)+1n;
+  const head=observedHead,from=BigInt(cursor.block_number)+1n;
   if(from>head.number){await client.query(`UPDATE ${schema}.confirmed_display_cursor SET updated_at=now() WHERE environment=$1 AND chain_id=$2 AND deployment_digest=$3`,id);return 'current';}
   const to=from+199n<head.number?from+199n:head.number,anchor=await rpc.block(to);
-  const directory=(await pool.query<{payload:MarketCreation}>(`SELECT d.payload FROM ${schema}.market_creation_directory d JOIN ${schema}.chain_blocks b ON b.environment=d.environment AND b.chain_id=d.chain_id AND b.deployment_digest=d.deployment_digest AND b.hash=d.block_hash WHERE d.environment=$1 AND d.chain_id=$2 AND d.deployment_digest=$3 AND b.canonical AND b.finalized UNION ALL SELECT payload->'creation' payload FROM ${schema}.confirmed_display_markets WHERE environment=$1 AND chain_id=$2 AND deployment_digest=$3`,id)).rows;
+  const directory=(await client.query<{payload:MarketCreation}>(`SELECT d.payload FROM ${schema}.market_creation_directory d JOIN ${schema}.chain_blocks b ON b.environment=d.environment AND b.chain_id=d.chain_id AND b.deployment_digest=d.deployment_digest AND b.hash=d.block_hash WHERE d.environment=$1 AND d.chain_id=$2 AND d.deployment_digest=$3 AND b.canonical AND b.finalized UNION ALL SELECT payload->'creation' payload FROM ${schema}.confirmed_display_markets WHERE environment=$1 AND chain_id=$2 AND deployment_digest=$3`,id)).rows;
   const creations=new Map(directory.filter(r=>BigInt(r.payload.source.blockNumber)<=BigInt(cursor.block_number)).map(r=>[r.payload.marketId,r.payload]));
   const fixed=fixedF72Sources();const factory=fixed.find(s=>s.module==='TickerGardenFactoryV1')!;
-  const factoryLogs=await rpc.logs({fromBlock:from,toBlock:to,addresses:[factory.address]});
+  const factoryLogs=await rpc.logs({fromBlock:from,toBlock:to,addresses:[factory.address],topics:[eventTopicsForModules([factory.module])]});
   for(const log of factoryLogs){const e=decodeF72Event('TickerGardenFactoryV1',log);if(e?.eventName==='MarketCreated'){const c=creationFromEvent(e.args,log,d.chainId);creations.set(c.marketId,c);}}
   const modules=new Map<string,DecodedProtocolEvent['module']>(fixed.map(s=>[s.address,s.module as DecodedProtocolEvent['module']]));
   for(const c of creations.values()){modules.set(c.memeToken,'TickerMemeTokenV1');modules.set(c.curve,'TickerGardenCurve');if(!/^0x0{40}$/.test(c.gauge))modules.set(c.gauge,'MemeStockGauge');}
   // Protocol signatures are shared; ERC20 transfers are scoped to our tokens.
-  const raw=await displayLogs(rpc,modules,from,to);
-  const logs=raw.map(parseLog).filter(l=>modules.has(l.address)&&modules.get(l.address)!=='UniswapV4PoolManager');
+  const scanModules=new Map(modules);scanModules.delete(factory.address);
+  const raw=await displayLogs(rpc,scanModules,from,to);
+  // Factory was already scanned for newborn contracts in this same range.
+  const discoveredLogs=factoryLogs;
+  const logs=[...discoveredLogs,...raw.map(parseLog)].filter(l=>modules.has(l.address)&&modules.get(l.address)!=='UniswapV4PoolManager');
   if(logs.some(l=>l.removed||l.blockNumber<from||l.blockNumber>to))throw Error('Display log range mismatch');
   const hashes=[...new Set(logs.map(l=>l.transactionHash))];const observations:EventObservation[]=[];
   for(const hash of hashes){
@@ -126,16 +139,16 @@ export async function advanceConfirmedDisplay(input:DisplayWorkerInput):Promise<
   for(const c of creations.values())if(observations.some(o=>[c.memeToken,c.curve,c.gauge].includes(o.event.log.address)||o.event.args.marketId===c.marketId))changed.set(c.marketId,c);
   // PoolManager Swap uses poolId rather than marketId. Match only known pools.
   if(observations.some(o=>o.event.module==='UniswapV4PoolManager')){
-   const rows=await pool.query<{market_id:string;pool_id:string}>(`SELECT market_id,payload->'market'->>'poolId' pool_id FROM ${schema}.confirmed_display_markets WHERE environment=$1 AND chain_id=$2 AND deployment_digest=$3 UNION SELECT identity market_id,payload->>'poolId' pool_id FROM ${schema}.projection_read_records WHERE environment=$1 AND chain_id=$2 AND deployment_digest=$3 AND scope='markets' AND revision=$4`,[...id,`${base.block_number}:${base.block_hash}`]);
+   const rows=await client.query<{market_id:string;pool_id:string}>(`SELECT market_id,payload->'market'->>'poolId' pool_id FROM ${schema}.confirmed_display_markets WHERE environment=$1 AND chain_id=$2 AND deployment_digest=$3 UNION SELECT identity market_id,payload->>'poolId' pool_id FROM ${schema}.projection_read_records WHERE environment=$1 AND chain_id=$2 AND deployment_digest=$3 AND scope='markets' AND revision=$4`,[...id,`${base.block_number}:${base.block_hash}`]);
    for(const r of rows.rows)if(observations.some(o=>o.event.args.id===r.pool_id)&&creations.has(r.market_id as `0x${string}`))changed.set(r.market_id,creations.get(r.market_id as `0x${string}`)!);
   }
-  const due=(await pool.query<{market_id:string}>(`SELECT market_id FROM ${schema}.confirmed_display_markets WHERE environment=$1 AND chain_id=$2 AND deployment_digest=$3 AND (payload->>'nextRefreshAt')::bigint<=$4 UNION SELECT t.market_id FROM ${schema}.market_time_refresh t WHERE t.environment=$1 AND t.chain_id=$2 AND t.deployment_digest=$3 AND t.next_at<=$4 AND NOT EXISTS(SELECT 1 FROM ${schema}.confirmed_display_markets m WHERE m.environment=t.environment AND m.chain_id=t.chain_id AND m.deployment_digest=t.deployment_digest AND m.market_id=t.market_id)`,[...id,anchor.timestamp.toString()])).rows;
+  const due=(await client.query<{market_id:string}>(`SELECT market_id FROM ${schema}.confirmed_display_markets WHERE environment=$1 AND chain_id=$2 AND deployment_digest=$3 AND (payload->>'nextRefreshAt')::bigint<=$4 UNION SELECT t.market_id FROM ${schema}.market_time_refresh t WHERE t.environment=$1 AND t.chain_id=$2 AND t.deployment_digest=$3 AND t.next_at<=$4 AND NOT EXISTS(SELECT 1 FROM ${schema}.confirmed_display_markets m WHERE m.environment=t.environment AND m.chain_id=t.chain_id AND m.deployment_digest=t.deployment_digest AND m.market_id=t.market_id)`,[...id,anchor.timestamp.toString()])).rows;
   for(const row of due){const c=creations.get(row.market_id as `0x${string}`);if(c)changed.set(row.market_id,c);}
   const undo:Record<string,DisplayState|null>={},next:DisplayState[]=[];
   for(const c of changed.values()){
-   const prior=(await pool.query<{payload:DisplayState}>(`SELECT payload FROM ${schema}.confirmed_display_markets WHERE environment=$1 AND chain_id=$2 AND deployment_digest=$3 AND market_id=$4`,[...id,c.marketId])).rows[0]?.payload;
+   const prior=(await client.query<{payload:DisplayState}>(`SELECT payload FROM ${schema}.confirmed_display_markets WHERE environment=$1 AND chain_id=$2 AND deployment_digest=$3 AND market_id=$4`,[...id,c.marketId])).rows[0]?.payload;
    undo[c.marketId]=prior??null;
-   const market=await observeF72Market({creation:c,blockNumber:to,blockHash:anchor.hash,blockTimestamp:anchor.timestamp,primary:rpc,secondary:rpc}) as unknown as MarketReadModel;
+   const market=await observeF72Market({creation:c,blockNumber:to,blockHash:anchor.hash,blockTimestamp:anchor.timestamp,primary:rpc,secondary:rpc,...(prior?{previous:prior.market}:{})}) as unknown as MarketReadModel;
    if(!market.display)throw Error('Confirmed market display state unavailable');
    const initial=prior??(BigInt(c.source.blockNumber)>=from?emptyDisplayState(c,market,anchor):await seedState(input,client,c,market,cursor));
    const state=applyDisplayEvents(initial,market,observations,anchor);
@@ -151,7 +164,7 @@ export async function advanceConfirmedDisplay(input:DisplayWorkerInput):Promise<
   }catch(e){await client.query('ROLLBACK');throw e;}
   // Once chain-finalized, an undo entry is no longer needed for the display tail.
   await client.query(`DELETE FROM ${schema}.confirmed_display_journal WHERE environment=$1 AND chain_id=$2 AND deployment_digest=$3 AND block_number<=$4`,[...id,finalized.number.toString()]);
-  return `confirmed:${to}:${changed.size}`;
+  return `${to<head.number?'catchup':'confirmed'}:${to}:${changed.size}`;
  }finally{if(locked)await client.query('SELECT pg_advisory_unlock(hashtextextended($1,0))',[lock]).catch(()=>{});client.release();}
 }
 async function saveState(client:PoolClient,schema:string,id:unknown[],state:DisplayState){await client.query(`INSERT INTO ${schema}.confirmed_display_markets(environment,chain_id,deployment_digest,market_id,block_number,block_hash,payload) VALUES($1,$2,$3,$4,$5,$6,$7) ON CONFLICT(environment,chain_id,deployment_digest,market_id) DO UPDATE SET block_number=excluded.block_number,block_hash=excluded.block_hash,payload=excluded.payload`,[...id,state.market.marketId,state.blockNumber,state.blockHash,JSON.stringify(state)]);}
@@ -164,8 +177,10 @@ async function seedState(input:DisplayWorkerInput,client:PoolClient,creation:Mar
  const block=baselineBlock??await input.rpc.block(BigInt(cursor.block_number)),state=emptyDisplayState(creation,market,block);
  const balances=await client.query<{account:string;balance_raw:string;excluded:boolean}>(`SELECT account,balance_raw::text,excluded FROM ${schema}.holder_balances WHERE environment=$1 AND chain_id=$2 AND deployment_digest=$3 AND market_id=$4`,[...id,creation.marketId]);
  state.balances=Object.fromEntries(balances.rows.map(r=>[r.account,r.balance_raw]));state.exclusions=[...new Set([...state.exclusions,...balances.rows.filter(r=>r.excluded).map(r=>r.account)])];state.supply=balances.rows.reduce((n,r)=>n+BigInt(r.balance_raw),0n).toString();
- const history=await client.query<{payload:TradeActivity}>(`SELECT t.payload FROM ${schema}.market_trades t JOIN ${schema}.chain_blocks b ON b.environment=t.environment AND b.chain_id=t.chain_id AND b.deployment_digest=t.deployment_digest AND b.hash=t.block_hash WHERE t.environment=$1 AND t.chain_id=$2 AND t.deployment_digest=$3 AND t.market_id=$4 AND b.canonical AND b.finalized AND b.number<=$5 AND t.occurred_at>=to_timestamp($6) ORDER BY b.number DESC,t.log_index DESC`,[...id,creation.marketId,cursor.block_number,Number(block.timestamp)-86400]);
- state.trades=history.rows.map(({payload:t}):TokenDetailTrade=>({timestamp:Number(t.timestamp),side:t.side,price:formatUnits(BigInt(t.price.numerator)*10n**36n/BigInt(t.price.denominator),36),memeRaw:t.memeRaw,quoteRaw:t.quoteRaw,actor:t.actor,txHash:t.source.transactionHash,eventKey:t.source.eventKey,classification:t.classification}));
+ const history=await client.query<{payload:TradeActivity}>(`SELECT t.payload FROM ${schema}.market_trades t JOIN ${schema}.chain_blocks b ON b.environment=t.environment AND b.chain_id=t.chain_id AND b.deployment_digest=t.deployment_digest AND b.hash=t.block_hash WHERE t.environment=$1 AND t.chain_id=$2 AND t.deployment_digest=$3 AND t.market_id=$4 AND b.canonical AND b.finalized AND b.number<=$5 AND t.occurred_at>=to_timestamp($6) ORDER BY b.number DESC,(t.payload->'source'->>'transactionIndex')::bigint DESC,t.log_index DESC`,[...id,creation.marketId,cursor.block_number,Number(block.timestamp)-86400]);
+ state.trades=history.rows.map(({payload:t})=>displayTrade(t));
  state.fees=(await client.query<DisplayState['fees'][number]>(`SELECT recipient,asset,amount_raw::text "amountRaw" FROM ${schema}.detail_fee_totals WHERE environment=$1 AND chain_id=$2 AND deployment_digest=$3 AND market_id=$4`,[...id,creation.marketId])).rows;state.historyFrom=Number(block.timestamp)-86400;
  const after=(await client.query<{next_block:string}>(`SELECT next_block FROM ${schema}.projection_checkpoints WHERE environment=$1 AND chain_id=$2 AND deployment_digest=$3 AND scope='analytics'`,id)).rows[0];if(after?.next_block!==current.next_block)throw Error('Display seed changed during read');return state;
 }
+
+function displayTrade(t:TradeActivity):TokenDetailTrade{return {timestamp:Number(t.timestamp),side:t.side,price:formatUnits(BigInt(t.price.numerator)*10n**36n/BigInt(t.price.denominator),36),memeRaw:t.memeRaw,quoteRaw:t.quoteRaw,actor:t.actor,txHash:t.source.transactionHash,eventKey:t.source.eventKey,classification:t.classification};}

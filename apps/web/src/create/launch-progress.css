@@ -51,3 +51,6 @@
 .launch-progress-dialog .launch-progress-dialog__create-new{min-height:44px;border:1px solid var(--line,#dce3d8);background:transparent;color:var(--green,#233e2c);font-size:13px}
 .launch-progress-dialog__view:focus-visible,.launch-progress-dialog__create-new:focus-visible{outline:2px solid var(--green,#233e2c);outline-offset:3px}
 @media(max-width:420px){.launch-progress-dialog__complete-actions{grid-template-columns:1fr}}
+
+.launch-progress-dialog__transition{display:inline-block;margin-right:.5rem;animation:launch-stage-spin 1.2s linear infinite}
+@media(prefers-reduced-motion:reduce){.launch-progress-dialog__transition{animation:none}}

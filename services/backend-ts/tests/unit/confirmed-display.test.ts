@@ -68,3 +68,25 @@ test('detail read selects a stored view without recalculating windows or applyin
  assert.deepEqual(result?.statistics,stored.statistics);assert.deepEqual(result?.sources.statistics,stored.sources.statistics);
  assert.deepEqual(result?.holders,stored.holders);assert.equal(result?.trades,null);assert.equal(result?.chart,null);
 });
+
+test('quiet 1H chart retains only the last historical trade, including after 24h, until a new trade',()=>{
+ const initial=applyDisplayEvents(emptyDisplayState(creation,market,block),market,[mint,transfer,buy],block);
+ const later={...block,number:11n,hash:hash('d'),timestamp:time+90000n};
+ const quiet=applyDisplayEvents(initial,market,[],later);
+ assert.equal(quiet.trades.length,0);
+ assert.equal(quiet.latestTrade?.timestamp,Number(time));
+ const chart=displayDetail(quiet,'1H').chart!;
+ assert.deepEqual(chart.points.filter(p=>p.price!==null),[{timestamp:Math.floor(Number(time)/60)*60,price:'0.01'}]);
+ assert.ok(chart.to<Number(later.timestamp)-3600);
+ assert.equal(displayDetail(quiet,'1H').statistics?.volume24h,'0');
+ assert.ok(displayDetail(quiet,'12H').chart!.points.every(p=>p.price===null));
+ assert.ok(displayDetail(quiet,'1D').chart!.points.every(p=>p.price===null));
+ const newBuy={...buy,timestamp:later.timestamp,event:{...buy.event,log:{...buy.event.log,blockNumber:later.number,blockHash:later.hash,transactionHash:hash('e')}}};
+ const updated=applyDisplayEvents(quiet,market,[newBuy],later);
+ const updatedChart=displayDetail(updated,'1H').chart!;
+ assert.equal(updated.latestTrade?.txHash,hash('e'));
+ assert.ok(updatedChart.to>Number(later.timestamp));
+ assert.deepEqual(updatedChart.points.filter(p=>p.price!==null),[{timestamp:Math.floor(Number(later.timestamp)/60)*60,price:'0.01'}]);
+ assert.equal(quiet.latestTrade?.txHash,hash('c'));
+ assert.ok(displayDetail(emptyDisplayState(creation,market,block),'1H').chart!.points.every(p=>p.price===null));
+});

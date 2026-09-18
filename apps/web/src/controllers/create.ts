@@ -1,3 +1,4 @@
+import {waitForLaunchData} from '../create/launch-readiness.ts';
 import {recordLaunchFailure,launchFailureMessage,type LaunchOperation} from '../create/launch-diagnostics.ts';
 import {createConfirmationAsset} from '../create/confirmation-asset.ts';
 import {quoteIconUrl} from '../create/quote-icons.ts';
@@ -26,7 +27,7 @@ import { developerBuyMode,graduationAmount,graduationEconomics } from "../create
 import { feePreviewTable } from "../create/fee-preview.ts";
 import { ipfsGatewayURL,isIPFSFileURI } from "../create/ipfs.ts";
 import { assertRecoveredLaunchReceipt } from "../create/launch-confirmation.ts";
-import { closeLaunchProgress,renderLaunchProgress } from "../create/launch-progress-dialog.ts";
+import { closeLaunchProgress,finishLaunchProgress,renderLaunchProgress } from "../create/launch-progress-dialog.ts";
 import { launchPhaseDisplay,launchStateKey,readLaunchState,saveLaunchState,type LaunchPhase,type LaunchState } from "../create/launch-state.ts";
 import { parseSavedListing } from "../create/listing-package.ts";
 import { renderListingPanel } from "../create/listing-panel.ts";
@@ -70,17 +71,38 @@ type TransactionUpdate
 } from "../v1/transaction.ts";
 import type { ControllerContext,LaunchPreview,WalletState } from '../app.ts';
 export function createCreateController(ctx:ControllerContext){
+let completionPending=false;
+async function presentCompletedLaunch():Promise<void>{
+ if(completionPending)return;
+ const state=ctx.launchProgress;if(!state?.expected)return;
+ completionPending=true;
+ try{
+  renderLaunchProgress({title:'Launching Your Token',step:'Confirm on chain',percent:95,detail:'Your transaction is confirmed.'},{});
+  const ready=await finishLaunchProgress(async signal=>{
+   if(!ctx.runtimeConfig.readApi.available)throw new Error('Market data service is not configured');
+   await waitForLaunchData(ctx.runtimeConfig.readApi.value,state.expected!.marketId as Hex,state.expected!.token,signal);
+  });
+  if(ready&&ctx.launchProgress?.id===state.id){
+   showLatestListing();closeLaunchProgress();
+   try{localStorage.removeItem(launchStateKey(state.chainId));}catch{/* The persisted complete state remains safe to recover. */}
+   ctx.launchProgress=null;
+  }
+ }catch{
+  // Chain success is permanent UI state; data service failures are not transaction failures.
+  if(ctx.launchProgress?.id===state.id){
+   renderLaunchProgress({title:'Launching Your Token',step:'Complete',percent:100,detail:'Your token is created. Preparing its data; we will retry automatically.'},{});
+   ctx.launchRecoveryTimer=setTimeout(()=>{if(ctx.query('[data-create-form]')&&ctx.launchProgress?.id===state.id)void presentCompletedLaunch();},10000);
+  }
+ }finally{completionPending=false;}
+}
 let previewState: "idle"|"loading"|"ready"|"error"="idle";
 function drawLaunchProgress():void{
  if(!ctx.launchProgress)return;
+ if(ctx.launchProgress.phase==='complete'){void presentCompletedLaunch();return;}
  const display=ctx.launchProgress.phase==='paused'&&!ctx.launchProgress.hash?{step:'Confirm in wallet',percent:60}:launchPhaseDisplay[ctx.launchProgress.phase==='failed'?(ctx.launchProgress.failedFrom??'failed'):ctx.launchProgress.phase];
- const rawLogo=ctx.launchProgress.listing?.logo??'';
- const logo=ipfsGatewayURL(rawLogo,import.meta.env.VITE_IPFS_GATEWAY)??(/^data:image\/(?:png|jpeg|webp);base64,/i.test(rawLogo)?rawLogo:undefined);
- renderLaunchProgress({title:ctx.launchProgress.phase==='complete'?'Launch Successful':ctx.launchProgress.phase==='confirming'?'Token Created':ctx.launchProgress.phase==='pending'?'Launch Submitted':ctx.launchProgress.phase==='failed'?'Launch Stopped':'Launching Your Token',...display,detail:['failed','paused'].includes(ctx.launchProgress.phase)&&ctx.launchProgress.diagnostic?launchFailureMessage(ctx.launchProgress.diagnostic.code,ctx.launchProgress.diagnostic.phase,ctx.launchProgress.diagnostic.transactionMayBePending):ctx.launchProgress.phase==='failed'?publicError(undefined,'transaction'):ctx.launchProgress.detail,supportDetails:['failed','paused'].includes(ctx.launchProgress.phase)&&ctx.launchProgress.diagnostic?JSON.stringify(ctx.launchProgress.diagnostic,null,2):undefined,
-  canDismiss:ctx.launchProgress.phase==='failed',outcome:ctx.launchProgress.phase==='complete',complete:ctx.launchProgress.phase==='complete',tokenName:ctx.launchProgress.listing?.name,tokenSymbol:ctx.launchProgress.listing?.symbol,tokenLogo:logo},
- {onViewToken:()=>{if(ctx.launchProgress?.phase==='complete')navigateCompletedLaunch(ctx.launchProgress);},
- onCreateNew:()=>{if(ctx.launchProgress?.phase!=='complete')return;const chainId=ctx.launchProgress.chainId;try{localStorage.removeItem(launchStateKey(chainId));localStorage.removeItem(`tg-listing:${chainId}`);}catch{}ctx.launchProgress=null;ctx.latestListing=null;closeLaunchProgress();window.location.assign('/create');},
- onDismiss:()=>{if(ctx.launchProgress?.phase!=='failed')return;localStorage.removeItem(launchStateKey(robinhoodChain.id));ctx.launchProgress=null;closeLaunchProgress();updateCreateAvailability();}});
+ renderLaunchProgress({title:ctx.launchProgress.phase==='failed'?'Launch Stopped':'Launching Your Token',...display,detail:['failed','paused'].includes(ctx.launchProgress.phase)&&ctx.launchProgress.diagnostic?launchFailureMessage(ctx.launchProgress.diagnostic.code,ctx.launchProgress.diagnostic.phase,ctx.launchProgress.diagnostic.transactionMayBePending):ctx.launchProgress.phase==='failed'?publicError(undefined,'transaction'):ctx.launchProgress.detail,supportDetails:['failed','paused'].includes(ctx.launchProgress.phase)&&ctx.launchProgress.diagnostic?JSON.stringify(ctx.launchProgress.diagnostic,null,2):undefined,
+  canDismiss:ctx.launchProgress.phase==='failed'},
+ {onDismiss:()=>{if(ctx.launchProgress?.phase!=='failed')return;localStorage.removeItem(launchStateKey(robinhoodChain.id));ctx.launchProgress=null;closeLaunchProgress();updateCreateAvailability();}});
 }
 
 function updateLaunchProgress(phase:LaunchPhase,detail:string):void{
@@ -100,15 +122,6 @@ function handleLaunchTransactionUpdate(update:TransactionUpdate):void{
  else if(update.stage==='unknown')updateLaunchProgress('paused','Confirmation is taking longer. We will check again automatically. Please do not launch again.');
 }
 
-function navigateCompletedLaunch(state:LaunchState):void{
- if(!state.expected)return;
- if(ctx.walletConnecting||ctx.launchSubmitting){drawLaunchProgress();return;}
- if(ctx.router.navigate(`/trade?marketId=${encodeURIComponent(state.expected.marketId)}`)){
-  closeLaunchProgress();const saved=readLaunchState(localStorage,state.chainId);
-  if(saved?.id===state.id)localStorage.removeItem(launchStateKey(state.chainId));ctx.launchProgress=null;
- }
-}
-
 async function finishRecoveredLaunch(state:LaunchState,receipt:TransactionReceipt):Promise<void>{
  const expected=state.expected;if(!expected)throw Error('Saved launch identity is missing');
  assertRecoveredLaunchReceipt(state,receipt);
@@ -123,7 +136,8 @@ async function finishRecoveredLaunch(state:LaunchState,receipt:TransactionReceip
  clearCreateDraft(localStorage, state.chainId); ctx.pendingCreateDraft = null;
  ctx.launchProgress={...state,phase:'complete',hash:receipt.transactionHash,detail:LAUNCH_CONFIRMED_COPY};
  void notifyLaunchDatabase(receipt.transactionHash,import.meta.env.VITE_V1_PIPELINE_URL).then(()=>ctx.snapshotPoller?.reconnect());
- saveLaunchState(localStorage,ctx.launchProgress);drawLaunchProgress();
+ saveLaunchState(localStorage,ctx.launchProgress);
+ await presentCompletedLaunch();
 }
 
 async function restoreLaunchProgress():Promise<void>{
@@ -275,8 +289,8 @@ function showLatestListing(): void {
   renderListingPanel(host,ctx.latestListing.snapshot,ctx.latestListing.marketId,robinhoodChain.blockExplorers.default.url,robinhoodChain.testnet,import.meta.env.VITE_IPFS_GATEWAY,url=>{ctx.router.navigate(url);});
   const heading=ctx.query<HTMLElement>("[data-create-heading]");if(heading)heading.hidden=true;
   const layout=ctx.query<HTMLElement>(".create-layout");if(layout)layout.hidden=true;
-  const again=document.createElement('button');again.type='button';again.textContent='Launch another token';again.className='listing-create-another';host.append(again);
-  again.onclick=()=>{ctx.latestListing=null;try{localStorage.removeItem(`tg-listing:${robinhoodChain.id}`);}catch{}host.hidden=true;if(layout)layout.hidden=false;if(heading)heading.hidden=false;};
+  const again=document.createElement('button');again.type='button';again.textContent='Launch new token';again.className='listing-create-another';host.append(again);
+  again.onclick=()=>{ctx.latestListing=null;ctx.launchProgress=null;try{localStorage.removeItem(launchStateKey(robinhoodChain.id));localStorage.removeItem(`tg-listing:${robinhoodChain.id}`);}catch{}host.hidden=true;if(layout)layout.hidden=false;if(heading)heading.hidden=false;};
  }
 }
 
@@ -326,7 +340,7 @@ function setupCreate(): void {
  previewState="idle";
  ctx.query<HTMLButtonElement>("[data-create-preview-retry]")?.addEventListener("click",scheduleLaunchPreview);
  if(!ctx.latestListing){try{ctx.latestListing=parseSavedListing(localStorage.getItem(`tg-listing:${robinhoodChain.id}`),robinhoodChain.id);}catch{/* Browser storage may be disabled. */}}
- showLatestListing();
+ if(!readLaunchState(localStorage,robinhoodChain.id))showLatestListing();
   const form = ctx.query<HTMLFormElement>("[data-create-form]");
   if (!form) return;
   ctx.pendingCreateDraft = readCreateDraft(localStorage, robinhoodChain.id);
@@ -1018,7 +1032,6 @@ async function performLaunch(reviewedPurchase?:PurchaseQuote): Promise<void> {
     clearCreateDraft(localStorage, robinhoodChain.id); ctx.pendingCreateDraft = null;
     ctx.launchSalt = ctx.randomSalt();
     ctx.launchPreview = null;
-    ctx.notify(`Market created and verified — ${shortHex(created.marketId, 9, 7)}`, "success");
     const props = submittedMetadata?.properties as Record<string,unknown> | undefined;
     ctx.latestListing = {marketId:created.marketId,snapshot:{chainId:robinhoodChain.id,chainName:robinhoodChain.name,tokenAddress:created.memeToken,
       name:submittedDetails.name,symbol:submittedDetails.symbol,logo:typeof submittedMetadata?.image==='string'?submittedMetadata.image:'',
@@ -1027,8 +1040,9 @@ async function performLaunch(reviewedPurchase?:PurchaseQuote): Promise<void> {
     ctx.creatorDirectoryAt=0;
     try { localStorage.setItem(`tg-listing:${robinhoodChain.id}`,JSON.stringify(ctx.latestListing)); } catch { /* Downloads still work without browser storage. */ }
     if(ctx.launchProgress?.listing)ctx.launchProgress.listing.txHash=confirmedHash;
-    updateLaunchProgress('complete',LAUNCH_CONFIRMED_COPY);
+    if(ctx.launchProgress){ctx.launchProgress={...ctx.launchProgress,phase:'complete',detail:LAUNCH_CONFIRMED_COPY};saveLaunchState(localStorage,ctx.launchProgress);}
     void notifyLaunchDatabase(confirmedHash,import.meta.env.VITE_V1_PIPELINE_URL).then(()=>ctx.snapshotPoller?.reconnect());
+    await presentCompletedLaunch();
   } catch (error) {
     let failureMessage=publicError(error,'transaction');
     if(ctx.launchProgress){
