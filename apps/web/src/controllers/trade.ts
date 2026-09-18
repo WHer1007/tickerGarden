@@ -53,7 +53,7 @@ let paymentBalance:{account:string;token:string;value:bigint}|null=null;
 let recovery:ConversionRecovery|null=null;
 let recoveryIdentity='';
 let conversionUnavailableFor:string|null=null;
-function pairAsset():PaymentAsset|null{return ctx.tradeMarket&&ctx.tradeMetadata?{address:canonicalAddress(ctx.tradeMarket.market.quoteAsset,'Paired asset'),symbol:ctx.tradeMetadata.quoteSymbol,decimals:ctx.tradeMetadata.quoteDecimals}:null;}
+function pairAsset():PaymentAsset|null{return ctx.tradeMarket&&ctx.tradeMetadata?{address:canonicalAddress(ctx.tradeMarket.market.quoteAsset,'Paired asset',true),symbol:ctx.tradeMetadata.quoteSymbol,decimals:ctx.tradeMetadata.quoteDecimals}:null;}
 function payment():PaymentAsset|null{const pair=pairAsset();return pair?(ctx.tradeSide==='buy'?paymentAssets(robinhoodChain.id,pair).find(a=>a.address===selectedPayment)??pair:pair):null;}
 function usesConversion(){return ctx.tradeSide==='buy'&&payment()?.address!==pairAsset()?.address;}
 function renderStockPurchaseHint(){
@@ -692,7 +692,7 @@ async function quoteTrade(generation: number): Promise<void> {
     if(usesConversion()){
       if(!ctx.runtimeConfig.readApi.available)throw Error('Conversion unavailable');
       try{
-      conversion=await fetchConversion(ctx.runtimeConfig.readApi.value,{chainId:robinhoodChain.id,sellToken:asset.address,buyToken:canonicalAddress(market.market.quoteAsset,'Paired asset'),sellAmount:String(payAmount),taker:activeWallet.account});
+      conversion=await fetchConversion(ctx.runtimeConfig.readApi.value,{chainId:robinhoodChain.id,sellToken:asset.address,buyToken:canonicalAddress(market.market.quoteAsset,'Paired asset',true),sellAmount:String(payAmount),taker:activeWallet.account});
         if(generation===ctx.tradeQuoteGeneration)conversionUnavailableFor=null;
       }catch(error){if(generation===ctx.tradeQuoteGeneration&&ctx.wallet===activeWallet)conversionUnavailableFor=market.market.quoteAsset;throw error;}
 
