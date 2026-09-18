@@ -1,3 +1,4 @@
+import {refreshDisplayPreparation} from '../../packages/confirmed-display/src/maintenance.ts';
 import {readConfirmedDetail,readConfirmedState} from '../../packages/confirmed-display/src/read.ts';
 import {changeChannel} from '../../packages/confirmed-display/src/changes.ts';
 import assert from 'node:assert/strict';
@@ -186,6 +187,8 @@ test('quiet markets skipped by the prior display cursor are seeded and retain DB
     await db.pool.query(`INSERT INTO ${schema}.market_trades(environment,chain_id,deployment_digest,market_id,block_hash,transaction_hash,log_index,occurred_at,classification,base_raw,quote_raw,payload) VALUES($1,$2,$3,$4,$5,$6,1,to_timestamp($7),'unclassified',$8,$9,$10)`,[...id,marketId,hash('9'),hash('e'),historicalTime,trade.memeRaw,trade.quoteRaw,JSON.stringify(trade)]);
     await db.pool.query(`UPDATE ${schema}.confirmed_display_markets SET payload=payload-'latestTrade'-'detailViews' WHERE market_id=$1`,[marketId]);
     assert.equal(await advanceConfirmedDisplay({pool:db.pool,deployment,rpc,schemaName}),'current');
+    await db.pool.query(`UPDATE ${schema}.confirmed_display_markets SET refresh_due_at=now() WHERE market_id=$1`,[marketId]);
+    const repaired=await refreshDisplayPreparation({pool:db.pool,deployment,schemaName});assert.equal(repaired.failed,0);
     const historical=await readConfirmedDetail(db.pool,deployment,marketId,'1H',schemaName);
     assert.deepEqual(historical?.chart?.points.filter(p=>p.price!==null),[{timestamp:Math.floor(historicalTime/60)*60,price:'0.0125'}]);
     assert.equal(historical?.statistics?.volume24h,'0');

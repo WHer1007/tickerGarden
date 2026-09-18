@@ -1,5 +1,6 @@
 import test from 'node:test';import assert from 'node:assert/strict';
-import {paymentAssets,reconcileConversionJournal,readRecovery,recoveryKey,TRADE_NATIVE,TRADE_USDG,fetchConversion} from '../src/trade/conversion.ts';
+import {recoveryRead,recoveryWrite,recoveryRemove} from '../src/v1/recoveryStorage.ts';
+import {paymentAssets,reconcileConversionJournal,readRecovery,recoveryKey,writeRecoveryBeforeBroadcast,TRADE_NATIVE,TRADE_USDG,fetchConversion} from '../src/trade/conversion.ts';
 const account='0x1111111111111111111111111111111111111111';const stock='0x2222222222222222222222222222222222222222';
 test('buy assets are paired first, ETH/USDG deduplicated and mainnet only',()=>{
  assert.deepEqual(paymentAssets(4663,{address:TRADE_NATIVE,symbol:'ETH',decimals:18}).map(a=>a.symbol),['ETH','USDG']);
@@ -11,9 +12,24 @@ test('conversion recovery isolates account/market and rejects malformed or incom
  const market='market';const value={account,marketId:market,pair:TRADE_USDG,amount:'1000000',minimum:'100',state:'funded'};
  const store={getItem:(key:string)=>key===recoveryKey(account,market)?JSON.stringify(value):null};
  assert.deepEqual(readRecovery(store,account,market),value);
- assert.equal(readRecovery(store,stock,market),null);assert.equal(readRecovery(store,account,'other'),null);
- for(const patch of [{amount:'-1'},{minimum:'0'},{state:'anything'},{hash:'oops'},{pair:'bad'}])assert.equal(readRecovery({getItem:()=>JSON.stringify({...value,...patch})},account,market),null);
- assert.equal(readRecovery({getItem:()=>'{broken'},account,market),null);
+ assert.throws(()=>readRecovery({getItem:()=>JSON.stringify(value)},stock,market),/invalid/);assert.equal(readRecovery(store,account,'other'),null);
+ for(const patch of [{amount:'-1'},{minimum:'0'},{state:'anything'},{hash:'oops'},{pair:'bad'}])assert.throws(()=>readRecovery({getItem:()=>JSON.stringify({...value,...patch})},account,market),/invalid/);
+ assert.throws(()=>readRecovery({getItem:()=>'{broken'},account,market),/corrupt/);
+});
+test('conversion recovery surfaces storage read failures and retains writes/removals in memory',()=>{
+ const key=recoveryKey(account,'market'),value={account,marketId:'market',pair:TRADE_USDG,amount:'1000000',minimum:'100',state:'pending',hash:'0x'+'a'.repeat(64)};
+ const blocked={getItem:()=>{throw Error('storage denied');},setItem:()=>{throw Error('storage denied');},removeItem:()=>{throw Error('storage denied');}};
+ assert.throws(()=>readRecovery(blocked,account,'market'),/storage denied/);
+ recoveryWrite(blocked,key,JSON.stringify(value));
+ assert.equal(readRecovery(blocked,account,'market')?.state,'pending');
+ recoveryRemove(blocked,key);
+ assert.equal(readRecovery(blocked,account,'market'),null);
+ assert.equal(recoveryRead(blocked,key),null);
+});
+test('new conversion intent requires durable storage before broadcast',()=>{
+ const value={account:account as `0x${string}`,marketId:'market',pair:TRADE_USDG,amount:'1000000',minimum:'100',state:'submitting' as const};
+ let stored='';writeRecoveryBeforeBroadcast({setItem:(_key:string,raw:string)=>{stored=raw;}},value);assert.equal(JSON.parse(stored).state,'submitting');
+ assert.throws(()=>writeRecoveryBeforeBroadcast({setItem:()=>{throw Error('quota exceeded');}},value),/quota exceeded/);
 });
 test('frontend forwards only intent fields and never provider calldata/keys in URL',async()=>{
  const original=globalThis.fetch;let requested='';

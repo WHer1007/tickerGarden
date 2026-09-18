@@ -1,15 +1,16 @@
+import {hydrateDisplayHistory} from './history.ts';
+import {readDisplayScan} from './scan.ts';
 import {applyStatsEvents,undoStatsEvents,seedStats,publishStatsDisplay,type StatsUndo} from './stats.ts';
 import {validateRecentDisplay} from './recent-validation.ts';
 import {publishExploreRanking} from './explore-ranking.ts';
 import {publicMarketContent} from './content.ts';
 import {latestPrices,preferredPrices} from '../../display-price/src/read.ts';
-import {displayLogs} from './logs.ts';
 import {changeChannel,changedRegions,regions} from './changes.ts';
 import type {Pool,PoolClient} from 'pg';
 import {formatUnits,parseUnits} from 'viem';
-import {consensusBlock,parseLog,type DeploymentIdentity,type RpcTransport,type RpcBlock,type RpcLog} from '../../chain/src/index.ts';
-import {decodeF72Event,fixedF72Sources,eventTopicsForModules,type DecodedProtocolEvent} from '../../events/src/index.ts';
-import {creationFromEvent,observeF72Market,nextMarketActivation,type MarketCreation} from '../../market-projector/src/index.ts';
+import {parseLog,type DeploymentIdentity,type RpcTransport,type RpcBlock} from '../../chain/src/index.ts';
+import {decodeF72Event} from '../../events/src/index.ts';
+import {observeF72Market,nextMarketActivation,type MarketCreation} from '../../market-projector/src/index.ts';
 import type {MarketReadModel,TokenDetailTrade} from '../../../openapi/generated/v1-client.ts';
 import type {EventObservation,TradeActivity} from '../../analytics/src/index.ts';
 import {applyDisplayEvents,emptyDisplayState,materializeDisplay,type DisplayState} from './state.ts';
@@ -22,20 +23,7 @@ export async function advanceConfirmedDisplay(input:DisplayWorkerInput):Promise<
  const {pool,deployment:d,rpc}=input,schema=displaySchema(input.schemaName),id=displayIdentity(d),client=await pool.connect();
  let prices:ReturnType<typeof preferredPrices>|undefined;
  const materialize=async(state:DisplayState,head?:{number:string;hash:`0x${string}`;timestamp:number})=>{
-  // Upgrade existing state once and retain the last execution independently of
-  // the rolling 24h buffer. This database lookup never runs in an HTTP request.
-  if(state.latestTrade===undefined){
-   const latest=state.trades[0]??null;
-   if(latest)state={...state,latestTrade:latest};
-   else{
-    const trade=(await client.query<{payload:TradeActivity}>(`SELECT t.payload FROM ${schema}.market_trades t JOIN ${schema}.chain_blocks b ON b.environment=t.environment AND b.chain_id=t.chain_id AND b.deployment_digest=t.deployment_digest AND b.hash=t.block_hash WHERE t.environment=$1 AND t.chain_id=$2 AND t.deployment_digest=$3 AND t.market_id=$4 AND b.canonical AND b.finalized AND b.number<=$5 ORDER BY t.occurred_at DESC,b.number DESC,(t.payload->'source'->>'transactionIndex')::bigint DESC,t.log_index DESC LIMIT 1`,[...id,state.market.marketId,state.blockNumber])).rows[0]?.payload;
-    state={...state,latestTrade:trade?displayTrade(trade):null};
-   }
-  }
-  if(state.latestBuy===undefined){
-   const buy=(await client.query<{payload:TradeActivity}>(`SELECT t.payload FROM ${schema}.market_trades t JOIN ${schema}.chain_blocks b ON b.environment=t.environment AND b.chain_id=t.chain_id AND b.deployment_digest=t.deployment_digest AND b.hash=t.block_hash WHERE t.environment=$1 AND t.chain_id=$2 AND t.deployment_digest=$3 AND t.market_id=$4 AND b.canonical AND b.finalized AND b.number<=$5 AND t.payload->>'side'='buy' AND t.classification='unclassified' AND t.base_raw>0 AND t.quote_raw>0 ORDER BY b.number DESC,(t.payload->'source'->>'transactionIndex')::bigint DESC,t.log_index DESC LIMIT 1`,[...id,state.market.marketId,state.blockNumber])).rows[0]?.payload;
-   state={...state,latestBuy:buy?{blockNumber:buy.source.blockNumber,transactionIndex:String(buy.source.transactionIndex),logIndex:String(buy.source.logIndex),timestamp:buy.timestamp}:null};
-  }
+  state=await hydrateDisplayHistory(client,d,state,input.schemaName);
   if(!prices){const now=new Date();prices=preferredPrices(await latestPrices(client,d,now,input.schemaName),now);}
   const price=prices.get(state.market.quoteAsset);
   const quoteUsd=price?.status==='available'&&price.bidUsd&&price.askUsd?formatUnits((parseUnits(price.bidUsd,36)+parseUnits(price.askUsd,36))/2n,36):null;
@@ -118,14 +106,6 @@ export async function advanceConfirmedDisplay(input:DisplayWorkerInput):Promise<
    cursor={...cursor,block_number:entry.previous_number,block_hash:entry.previous_hash,block_timestamp:entry.previous_timestamp};
   }
   await validateRecentDisplay(client,d,rpc,observedHead.number,input.schemaName);
-  // Rolling windows also advance for quiet markets, outside the HTTP request.
-  // Bounded batches retain their last stored values until this worker catches up.
-  const rolling=(await client.query<{market_id:string;payload:DisplayState}>(`SELECT market_id,payload FROM ${schema}.confirmed_display_markets WHERE environment=$1 AND chain_id=$2 AND deployment_digest=$3 AND block_number<=$4 AND coalesce((payload->'detailViews'->'1H'->'sources'->'statistics'->>'asOf')::bigint,0)<$5 ORDER BY coalesce((payload->'detailViews'->'1H'->'sources'->'statistics'->>'asOf')::bigint,0),market_id LIMIT 100`,[...id,cursor.block_number,Number(cursor.block_timestamp)-60])).rows;
-  for(const row of rolling){
-   const refreshed=await materialize(row.payload,{number:cursor.block_number,hash:cursor.block_hash,timestamp:Number(cursor.block_timestamp)}),views=refreshed.detailViews!;
-   await client.query(`UPDATE ${schema}.confirmed_display_markets SET payload=$5::jsonb WHERE environment=$1 AND chain_id=$2 AND deployment_digest=$3 AND market_id=$4`,[...id,row.market_id,JSON.stringify(refreshed)]);
-   await client.query('SELECT pg_notify($1,$2)',[changeChannel(d,input.schemaName),JSON.stringify({marketId:row.market_id,regions:['statistics','chart'],revision:`window:${cursor.block_hash}`})]);
-  }
   await publishExploreRanking(client,d,input.schemaName);
   if(!statsHead||Date.now()-new Date(statsHead.generated_at).getTime()>=60_000){
    await client.query('BEGIN');try{await publishStatsDisplay(client,d,{number:BigInt(cursor.block_number),hash:cursor.block_hash,parentHash:cursor.block_hash,timestamp:BigInt(cursor.block_timestamp)},input.schemaName);await client.query('COMMIT');}catch(e){await client.query('ROLLBACK');throw e;}
@@ -133,19 +113,7 @@ export async function advanceConfirmedDisplay(input:DisplayWorkerInput):Promise<
   const head=observedHead,from=BigInt(cursor.block_number)+1n;
   if(from>head.number){await client.query(`UPDATE ${schema}.confirmed_display_cursor SET updated_at=now() WHERE environment=$1 AND chain_id=$2 AND deployment_digest=$3`,id);return 'current';}
   const to=from+199n<head.number?from+199n:head.number,anchor=await rpc.block(to);
-  const directory=(await client.query<{payload:MarketCreation}>(`SELECT d.payload FROM ${schema}.market_creation_directory d JOIN ${schema}.chain_blocks b ON b.environment=d.environment AND b.chain_id=d.chain_id AND b.deployment_digest=d.deployment_digest AND b.hash=d.block_hash WHERE d.environment=$1 AND d.chain_id=$2 AND d.deployment_digest=$3 AND b.canonical AND b.finalized UNION ALL SELECT payload->'creation' payload FROM ${schema}.confirmed_display_markets WHERE environment=$1 AND chain_id=$2 AND deployment_digest=$3`,id)).rows;
-  const creations=new Map(directory.filter(r=>BigInt(r.payload.source.blockNumber)<=BigInt(cursor.block_number)).map(r=>[r.payload.marketId,r.payload]));
-  const fixed=fixedF72Sources();const factory=fixed.find(s=>s.module==='TickerGardenFactoryV1')!;
-  const factoryLogs=await rpc.logs({fromBlock:from,toBlock:to,addresses:[factory.address],topics:[eventTopicsForModules([factory.module])]});
-  for(const log of factoryLogs){const e=decodeF72Event('TickerGardenFactoryV1',log);if(e?.eventName==='MarketCreated'){const c=creationFromEvent(e.args,log,d.chainId);creations.set(c.marketId,c);}}
-  const modules=new Map<string,DecodedProtocolEvent['module']>(fixed.map(s=>[s.address,s.module as DecodedProtocolEvent['module']]));
-  for(const c of creations.values()){modules.set(c.memeToken,'TickerMemeTokenV1');modules.set(c.curve,'TickerGardenCurve');if(!/^0x0{40}$/.test(c.gauge))modules.set(c.gauge,'MemeStockGauge');}
-  // Protocol signatures are shared; ERC20 transfers are scoped to our tokens.
-  const scanModules=new Map(modules);scanModules.delete(factory.address);
-  const raw=await displayLogs(rpc,scanModules,from,to);
-  // Factory was already scanned for newborn contracts in this same range.
-  const discoveredLogs=factoryLogs;
-  const logs=[...discoveredLogs,...raw.map(parseLog)].filter(l=>modules.has(l.address)&&modules.get(l.address)!=='UniswapV4PoolManager');
+  const {creations,modules,logs}=await readDisplayScan(client,d,rpc,from,to,head.number,input.schemaName);
   if(logs.some(l=>l.removed||l.blockNumber<from||l.blockNumber>to))throw Error('Display log range mismatch');
   const hashes=[...new Set(logs.map(l=>l.transactionHash))];const observations:EventObservation[]=[];
   for(const hash of hashes){

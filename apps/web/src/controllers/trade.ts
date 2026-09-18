@@ -1,6 +1,7 @@
 import {renderPaymentMenu} from '../trade/payment-menu.ts';
 import {stockPurchasePool} from '../trade/stock-pool.ts';
-import {paymentAssets,fetchConversion,conversionRequest,TRADE_NATIVE,readRecovery,recoveryKey,type PaymentAsset,type ConversionRecovery,type ConversionQuote} from '../trade/conversion.ts';
+import {paymentAssets,fetchConversion,conversionRequest,TRADE_NATIVE,readRecovery,recoveryKey,writeRecoveryBeforeBroadcast,type PaymentAsset,type ConversionRecovery,type ConversionQuote} from '../trade/conversion.ts';
+import {recoveryRead,recoveryWrite,recoveryRemove} from '../v1/recoveryStorage.ts';
 import {ALLOWANCE_HOLDER,SETTLER_REGISTRY,registryAbi,conversionSettler,providerToken,preserveConversionMinimum} from '../../../../services/backend-ts/packages/chain/src/quote-purchase/zeroex.ts';
 import {renderMarketSettings} from '../ui/market-settings.ts';
 import { quotedMinimum, approvedQuoteMinimum, gasReserve, spendableNative } from '../v1/tradeProtection.ts';
@@ -53,6 +54,7 @@ let selectedPayment:string|null=null;
 let paymentBalance:{account:string;token:string;value:bigint}|null=null;
 let recovery:ConversionRecovery|null=null;
 let recoveryIdentity='';
+let recoveryStorageUnavailable=false;
 let conversionUnavailableFor:string|null=null;
 function pairAsset():PaymentAsset|null{return ctx.tradeMarket&&ctx.tradeMetadata?{address:canonicalAddress(ctx.tradeMarket.market.quoteAsset,'Paired asset',true),symbol:ctx.tradeMetadata.quoteSymbol,decimals:ctx.tradeMetadata.quoteDecimals}:null;}
 function payment():PaymentAsset|null{const pair=pairAsset();return pair?(ctx.tradeSide==='buy'?paymentAssets(robinhoodChain.id,pair).find(a=>a.address===selectedPayment)??pair:pair):null;}
@@ -75,8 +77,8 @@ function renderStockPurchaseHint(){
  const link=document.createElement('a');link.href=pool.url;link.target='_blank';link.rel='noopener noreferrer';link.textContent=`BUY ${pair.symbol}`;link.setAttribute('aria-label',`Buy ${pair.symbol} in the ${pool.version} pool`);
  node.append(link);node.hidden=false;
 }
-function saveRecovery(value:ConversionRecovery|null,old=value??recovery){
- if(old){const key=recoveryKey(old.account,old.marketId);if(value)localStorage.setItem(key,JSON.stringify(value));else localStorage.removeItem(key);}if(!old||(old.account===ctx.wallet?.account&&old.marketId===ctx.tradeMarket?.market.marketId))recovery=value;
+function saveRecovery(value:ConversionRecovery|null,old=value??recovery,requireDurable=false){
+ if(old){const key=recoveryKey(old.account,old.marketId);if(value){if(requireDurable)writeRecoveryBeforeBroadcast(localStorage,value);else recoveryWrite(localStorage,key,JSON.stringify(value));}else recoveryRemove(localStorage,key);}if(!old||(old.account===ctx.wallet?.account&&old.marketId===ctx.tradeMarket?.market.marketId))recovery=value;
 }
 function conversionFeeLabel(q:ConversionQuote){
  const fee=q.providerFee;if(!fee||BigInt(fee.amount)===0n)return '0';
@@ -87,7 +89,7 @@ function conversionFeeLabel(q:ConversionQuote){
 function renderPayments(){
  const pair=pairAsset(),node=ctx.query<HTMLSelectElement>('[data-trade-payment-options]');if(!node)return;
  node.hidden=!pair||ctx.tradeSide!=='buy'||robinhoodChain.id!==4663;
- node.disabled=ctx.tradeSubmitting||!!recovery;
+ node.disabled=ctx.tradeSubmitting||!!recovery||recoveryStorageUnavailable;
  const caret=ctx.query<HTMLElement>('[data-trade-payment-caret]');if(caret)caret.hidden=node.hidden;
  node.parentElement?.classList.toggle('is-selectable',!node.hidden);
  if(pair){const current=payment();const key=`${pair.address}:${current?.address}:${ctx.tradeSubmitting}:${recovery?.state}`;
@@ -96,7 +98,7 @@ function renderPayments(){
  const field=ctx.query<HTMLInputElement>('[data-trade-amount]');if(field)field.dataset.paymentDecimals=String(ctx.tradeSide==='buy'?current?.decimals:18);}
  renderPaymentMenu(node,quoteIconUrl);
  const check=ctx.query<HTMLButtonElement>('[data-trade-conversion-check]');if(check){check.hidden=!recovery||recovery.state==='funded';check.disabled=ctx.tradeSubmitting;}
- const note=ctx.query<HTMLElement>('[data-trade-conversion-note]');if(note){note.hidden=!usesConversion()&&!recovery;note.textContent=recovery?(recovery.state==='funded'?'Conversion complete. Continue buying with the paired asset already in your wallet.':'Check the existing purchase transaction before starting another purchase.'): `Your ${payment()?.symbol} is exchanged for ${pair?.symbol}, then used to buy ${ctx.tradeMetadata?.symbol}. Any unused paired asset stays in your wallet.`;}
+ const note=ctx.query<HTMLElement>('[data-trade-conversion-note]');if(note){note.hidden=!usesConversion()&&!recovery&&!recoveryStorageUnavailable;note.textContent=recoveryStorageUnavailable?'Recovery data could not be read. Retry shortly; buying is paused until verification completes.':recovery?(recovery.state==='funded'?'Conversion complete. Continue buying with the paired asset already in your wallet.':'Check the existing purchase transaction before starting another purchase.'): `Your ${payment()?.symbol} is exchanged for ${pair?.symbol}, then used to buy ${ctx.tradeMetadata?.symbol}. Any unused paired asset stays in your wallet.`;}
 }
 async function loadPaymentBalance(){
  const a=payment(),w=ctx.wallet;if(!a||!w||!usesConversion())return;
@@ -104,9 +106,12 @@ async function loadPaymentBalance(){
  if(ctx.wallet!==w||payment()?.address!==a.address)return;paymentBalance={account:w.account,token:a.address,value};renderDetailBalances();updateTradeAvailability();}catch{paymentBalance=null;}
 }
 async function restoreConversion(){
- const w=ctx.wallet,m=ctx.tradeMarket;if(!w||!m){recovery=null;recoveryIdentity='';return;}
+ const w=ctx.wallet,m=ctx.tradeMarket;if(!w||!m){recovery=null;recoveryIdentity='';recoveryStorageUnavailable=false;return;}
  if(ctx.tradeSubmitting)return;
- const key=recoveryKey(w.account,m.market.marketId),identity=key+':'+localStorage.getItem(key);if(recoveryIdentity===identity)return;recoveryIdentity=identity;recovery=readRecovery(localStorage,w.account,m.market.marketId);
+ const key=recoveryKey(w.account,m.market.marketId);let raw:string|null;
+ try{raw=recoveryRead(localStorage,key);}catch{recoveryStorageUnavailable=true;recoveryIdentity=key+':unavailable';renderPayments();updateTradeAvailability();return;}
+ const identity=key+':'+raw;if(recoveryIdentity===identity)return;recoveryIdentity=identity;
+ try{recovery=readRecovery(localStorage,w.account,m.market.marketId);if(recovery&&recovery.pair!==m.market.quoteAsset)throw Error('Recovery asset mismatch');recoveryStorageUnavailable=false;}catch{recoveryIdentity='';recoveryStorageUnavailable=true;recovery=null;renderPayments();updateTradeAvailability();return;}
  if(!recovery||recovery.pair!==m.market.quoteAsset){recovery=null;return;}
  let saved=recovery;
  if(saved.state.startsWith('buy_')){
@@ -910,7 +915,7 @@ function updateTradeAvailability(): void {
   submit.classList.toggle('is-loading',loading);submit.setAttribute('aria-busy',String(loading));
   if(loading){submit.replaceChildren();const spinner=document.createElement('i');spinner.className='ph ph-spinner-gap trade-tx-spinner';spinner.setAttribute('aria-hidden','true');submit.append(spinner,document.createTextNode(ctx.tradeSubmittingLabel));}
   else submit.textContent=`${ctx.tradeSide==='buy'?'Buy':'Sell'}${ctx.tradeMetadata?.symbol?` ${ctx.tradeMetadata.symbol}`:''}`;
-  ctx.setDisabled(submit, loading || !ctx.writeReady() || !quoteFresh || !routeReady || insufficient || (usesConversion()&&payBalance===undefined) || (!!recovery&&recovery.state!=='funded'));
+  ctx.setDisabled(submit, loading || recoveryStorageUnavailable || !ctx.writeReady() || !quoteFresh || !routeReady || insufficient || (usesConversion()&&payBalance===undefined) || (!!recovery&&recovery.state!=='funded'));
   if (insufficient) ctx.text('[data-trade-status]', `Insufficient ${ctx.tradeSide === 'buy' ? payment()?.symbol ?? 'Balance' : ctx.tradeMetadata?.symbol ?? 'Balance'}`);
 }
 
@@ -1007,7 +1012,7 @@ async function convertPayment(initial:TradeQuote,market:MarketDetailResponse,wal
  const saved:ConversionRecovery={account:wallet.account,marketId:market.market.marketId,pair:original.buyToken,amount:original.minBuyAmount,minimum:String(initial.minimum),state:'submitting'};
  const nativeBefore=original.buyToken===TRADE_NATIVE?await ctx.publicClient.getBalance({address:wallet.account}):0n;
  // Persistence must work BEFORE opening a wallet. Never silently lose a funded or uncertain conversion.
- saveRecovery(saved);
+ saveRecovery(saved,saved,true);
  let sent=false,signatureRequested=false,funded=false,purchasedAmount=BigInt(original.minBuyAmount);
  try{
   await ctx.executeTransaction({operationKey:`trade:conversion:${market.market.marketId}:${Date.now()}`,scope,sync:market.sync,request,walletContext:wallet,quoteExpiresAtMs:fresh.expiresAt,verifyChain:verify,
@@ -1046,7 +1051,7 @@ async function executeProjectTrade(input:Parameters<ControllerContext['executeTr
  const saved=recovery;
  if(ctx.tradeSide!=='buy'||!saved||saved.state!=='funded'||saved.account!==ctx.wallet?.account||saved.marketId!==ctx.tradeMarket?.market.marketId)return ctx.executeTransaction(input);
  const progress:ConversionRecovery={...saved,state:'buy_submitting',buyTo:input.request.address,buyHash:undefined};
- saveRecovery(progress);let signed=false,sent=false,complete=false;
+ saveRecovery(progress,progress,true);let signed=false,sent=false,complete=false;
  try{return await ctx.executeTransaction({...input,onUpdate:update=>{
    input.onUpdate?.(update);if(update.stage==='awaiting_signature')signed=true;
    if(update.hash&&!update.stage.includes('approval')){sent=true;if(!complete)saveRecovery({...progress,state:'buy_pending',buyHash:update.hash});}
@@ -1059,6 +1064,7 @@ async function executeProjectTrade(input:Parameters<ControllerContext['executeTr
 
 async function submitTrade(): Promise<void> {
   if(ctx.tradeSubmitting)return;
+  if(recoveryStorageUnavailable){ctx.text('[data-trade-status]','Recovery data could not be read. Retry shortly; buying is paused until verification completes.');return;}
   ctx.tradeSubmitting=true;const inputField=ctx.query<HTMLInputElement>('[data-trade-amount]');if(inputField)inputField.readOnly=true;renderPayments();ctx.tradeSubmittingMarketId=ctx.tradeMarket?.market.marketId;ctx.tradeSubmittingLabel='Preparing…';updateTradeAvailability();
   try {
     if (!ctx.foundation || !ctx.wallet || !ctx.tradeMarket || !ctx.tradeQuote) throw new Error("Connect a wallet, load a Curve market and request a fresh quote");

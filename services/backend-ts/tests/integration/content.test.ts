@@ -45,6 +45,8 @@ test('TS-12 content authorization is digest-bound, one-use and idempotently reco
       pinataJwt: 'test-jwt', schemaName, fetch: async () => new Response(JSON.stringify({ data: { cid: `Qm${'a'.repeat(44)}` } }), { status: 201, headers: { 'content-type': 'application/json' } }) });
     const ready = await readContentUpload({ pool: handle.pool, uploadId: created.uploadId, accessToken: created.accessToken, schemaName });
     assert.equal(ready.status, 'ready'); assert.equal(ready.metadataURI, `ipfs://Qm${'a'.repeat(44)}`); assert.equal((ready.metadata as { name: string }).name, 'Garden');
+    await publishContentJob({ pool: handle.pool, lease, storage: { bucket: 'unused', region: 'us-east-1', accessKeyId: 'unused', secretAccessKey: 'unused' },
+      pinataJwt: 'test-jwt', schemaName, fetch: async () => { throw Error('ready uploads must not be pinned again'); } });
     const app = createContentApp({ pool: handle.pool, env: {
       NODE_ENV: 'test', TG_CONTENT_DATABASE_URL: 'configured', TG_DATABASE_SCHEMA: schemaName, TG_CONTENT_BUCKET: 'unused', TG_CONTENT_REGION: 'us-east-1',
       TG_CONTENT_ACCESS_KEY_ID: 'unused', TG_CONTENT_SECRET_ACCESS_KEY: 'unused', TG_CONTENT_SESSION_SECRET: sessionSecret, TG_CONTENT_WEB_ORIGIN: origin,
@@ -55,6 +57,17 @@ test('TS-12 content authorization is digest-bound, one-use and idempotently reco
     const invalidCompletion=await app.request(`https://content.example/v1/content/uploads/${created.uploadId}/complete`,{method:'POST',headers:{authorization:`Bearer ${created.accessToken}`,'content-type':'application/json'},body:'{}'});
     assert.equal(invalidCompletion.status,409);
     assert.equal((await invalidCompletion.json() as {error:string}).error,'upload_session_invalid');
+    await assert.rejects(createContentUpload({ pool: handle.pool, rawBody, nonce: challenge.nonce, signature, origin, expectedOrigin: origin,
+      chainId: 46630, sessionSecret, schemaName }), /ContentAuthorizationError/);
+    const retryChallenge = await createContentChallenge({ pool: handle.pool, account: account.address.toLowerCase() as `0x${string}`, digest, origin, expectedOrigin: origin, chainId: 46630, schemaName });
+    const retryInput = { pool: handle.pool, rawBody, nonce: retryChallenge.nonce, signature: await account.signMessage({message: retryChallenge.message}), origin, expectedOrigin: origin, chainId: 46630, sessionSecret, schemaName };
+    const attempts = await Promise.all([createContentUpload(retryInput), createContentUpload(retryInput)]);
+    assert.notEqual(attempts[0]!.uploadId, created.uploadId);
+    assert.equal(attempts[0]!.uploadId, attempts[1]!.uploadId, 'concurrent retry requests share one new attempt');
+    assert.equal(attempts[0]!.status, 'uploaded');
+    assert.equal((await readContentUpload({pool:handle.pool,uploadId:created.uploadId,accessToken:created.accessToken,schemaName})).status,'failed', 'old attempt remains isolated');
+    await completeContentUpload({pool:handle.pool,uploadId:attempts[0]!.uploadId,accessToken:attempts[0]!.accessToken,sessionSecret,schemaName});
+    assert.equal((await handle.pool.query(`SELECT count(*)::int n FROM ${schema}.jobs WHERE operation_id=$1`, [`g0:content-${attempts[0]!.uploadId}`])).rows[0]?.n,1);
     await handle.pool.query(`UPDATE ${schema}.content_uploads SET status='ready' WHERE upload_id=$1`,[created.uploadId]);
     const metricsResponse = await app.request('https://content.example/internal/metrics', { headers: { authorization: 'Bearer repair' } });
     assert.equal(metricsResponse.status, 200);

@@ -83,7 +83,7 @@ const displayReference = object({chainId:{type:"integer",enum:[4663,46630,421614
 displayReference.allOf=[{if:{properties:{status:{const:"available"}}},then:{properties:{bidUsd:displayDecimal,askUsd:displayDecimal,multiplier:displayDecimal,asOf:displayTime,expiresAt:displayTime}},else:{properties:{bidUsd:{type:"null"},askUsd:{type:"null"}}}}];
 const spec = {
   openapi: "3.1.0",
-  info: { title: "TickerGarden V1 Read API", version: "5.7.0", description: "Non-custodial TypeScript Serverless read API for the routes consumed by the current frontend." },
+  info: { title: "TickerGarden V1 Read API", version: "5.8.0", description: "Non-custodial TypeScript Serverless read API for the routes consumed by the current frontend." },
   "x-execution-spec-id": "V1-EXEC-11",
   paths: {
     "/v1/users/{address}/activity":{get:{operationId:"listUserActivity",description:"Finalized address-referenced protocol events, newest first, from the configured indexing start. All canonical batches and stored receipt commitments must be complete. Roles are event references, not verified transaction initiators or trading volume. A changed history returns 409; restart pagination. No transaction submission.",parameters:[{name:"address",in:"path",required:true,schema:address},{name:"limit",in:"query",schema:{type:"integer",minimum:1,maximum:100,default:50}},{name:"cursor",in:"query",schema:{type:"string",minLength:1,maxLength:1024}}],responses:{"200":response(ref("UserActivityPage")),"400":response(ref("ActivityError")),"405":response(ref("ActivityError")),"409":response(ref("ActivityError")),"503":response(ref("ActivityError"))}}},
@@ -109,6 +109,7 @@ const spec = {
       { name:"createdFrom",in:"query",required:false,schema:uintString,description:"Inclusive Unix seconds, max signed bigint." },
       { name:"createdTo",in:"query",required:false,schema:uintString,description:"Inclusive Unix seconds, max signed bigint." },
       { name: "sort", in: "query", required: false, schema: { type: "string", enum: ["marketId_asc", "marketId_desc", "createdAt_asc", "createdAt_desc", "name_asc", "launchPhase_asc", "volume24hUsd_desc", "marketCapUsd_desc", "recentBuy_desc"] }, description: "ID, deployment-time, name, lifecycle-phase, 24-hour USD volume or USD market-cap order, with ascending marketId as tie-breaker. Market cap uses a shared 20-minute snapshot, missing valuations last; its cursor pins ranking for up to two hours. Recent buys lists projects with eligible finalized buys using event-updated positions, not historical scans. Ranked pages return current finalized details; revision pins only other sorts. Filters apply before pagination; cursors bind deployment, filters and ranking mode." }, ...queryParameters], responses: { "200": response(ref("MarketPage")), "503": response(ref("ApiErrorResponse"), "Market identity or ranking metrics unavailable"), ...errors } } },
+    "/v1/markets/{marketId}/launch-readiness": {get:{operationId:"getLaunchReadiness",parameters:[{name:"marketId",in:"path",required:true,schema:bytes32}],responses:{"200":response(ref("LaunchReadiness")),...errors}}},
     "/v1/markets/{marketId}/page": {get:{operationId:"getMarketPageBootstrap",parameters:[{name:"marketId",in:"path",required:true,schema:bytes32}],responses:{"200":response(ref("MarketPageBootstrap")),"404":response(ref("ApiErrorResponse")),...errors}}},
     "/v1/markets/{marketId}": { get: { operationId: "getMarket", parameters: [recentParameter,{ name: "marketId", in: "path", required: true, schema: bytes32 }, revisionParameter], responses: { "200": response(ref("MarketDetailResponse")), "404": response(ref("ApiErrorResponse"), "Market not found"), ...errors } } },
     "/v1/config/{kind}": { get: { operationId: "listConfig", parameters: [{ name: "kind", in: "path", required: true, schema: { type: "string", enum: ["asset", "quote", "baseline", "template"] } }, ...queryParameters], responses: { "200": response(ref("ConfigPage")), ...errors } } },
@@ -170,6 +171,7 @@ const spec = {
     UserAccountReadModel: object({ user: address, assetUid: bytes32, vault: address, deposited: uintString, allocated: uintString, free: uintString, source: ref("SourceBlock") }),
     AccountPage: page("UserAccountReadModel"),
     UserPositionReadModel: position, MarketPage: page("MarketReadModel"), ConfigPage: page("ConfigReadModel"),
+    LaunchReadiness: object({chainId:{type:"integer"},marketId:bytes32,memeToken:nullable(address),ready:{type:"boolean"}}),
     MarketPageBootstrap: object({displayOnly:{type:"boolean",const:true},market:ref("MarketReadModel"),sync:ref("SyncStatus"),configs:{type:"array",items:ref("ConfigReadModel")}}),
     PositionPage: page("UserPositionReadModel"), MarketDetailResponse: object({ market: ref("MarketReadModel"), sync: ref("SyncStatus") }),
     HealthResponse: object({

@@ -59,11 +59,11 @@ export function emptyDisplayState(creation:MarketCreation,market:MarketReadModel
  const exclusions=[market.curve,market.gauge,market.memeToken,f72EventCatalog.HolderRewardsDistributorV1.address,f72EventCatalog.ProtocolFeeVault.address,f72EventCatalog.UniswapV4PoolManager.address,f72EventCatalog.TickerGardenFactoryV1.address,market.canonicalRoute?.hook??ZERO].filter(a=>a!==ZERO);
  return{creation,market,balances:{},exclusions,supply:'0',trades:[],fees:[],historyFrom:Number(market.identity?.deployedAt??block.timestamp),asOf:Number(block.timestamp),blockNumber:block.number.toString(),blockHash:block.hash};
 }
-export function displayDetail(state:DisplayState,period:'1H'|'12H'|'1D',asOf=state.asOf,section?:string):TokenDetailResponse{
+export function displayDetail(state:DisplayState,period:'1H'|'12H'|'1D',asOf=state.asOf,section?:string,cachedHolders?:TokenDetailResponse['holders']):TokenDetailResponse{
  const selected=new Set(section==='activity'?['trades','fees']:section?.split(',')??['statistics','chart','trades','holders','fees']);
  const chain=state.market.source.chainId;if(chain!==4663&&chain!==46630)throw Error('Invalid display chain');
  const validated=validateMarket(state.market,chain);
- const items=Object.entries(selected.has('holders')?state.balances:{}).filter(([a,b])=>!state.exclusions.includes(a)&&BigInt(b)>0n).map(([account,balanceRaw])=>({account:account as `0x${string}`,balanceRaw})).sort((a,b)=>BigInt(a.balanceRaw)>BigInt(b.balanceRaw)?-1:BigInt(a.balanceRaw)<BigInt(b.balanceRaw)?1:a.account.localeCompare(b.account));
+ const items=Object.entries(selected.has('holders')&&!cachedHolders?state.balances:{}).filter(([a,b])=>!state.exclusions.includes(a)&&BigInt(b)>0n).map(([account,balanceRaw])=>({account:account as `0x${string}`,balanceRaw})).sort((a,b)=>BigInt(a.balanceRaw)>BigInt(b.balanceRaw)?-1:BigInt(a.balanceRaw)<BigInt(b.balanceRaw)?1:a.account.localeCompare(b.account));
  const source={provider:'indexer' as const,asOf,blockNumber:state.blockNumber,blockHash:state.blockHash};
  const [duration,interval]=({'1H':[3600,60],'12H':[43200,300],'1D':[86400,900]} as const)[period];
  let to=(Math.floor(asOf/interval)+1)*interval,from=to-duration;
@@ -80,17 +80,18 @@ export function displayDetail(state:DisplayState,period:'1H'|'12H'|'1D',asOf=sta
  const volume=selected.has('statistics')&&state.historyFrom<=Math.max(asOf-86400,Number(state.market.identity?.deployedAt??0))?formatUnits(trades.filter(t=>t.classification==='unclassified').reduce((n,t)=>n+BigInt(t.quoteRaw),0n),validated.binding.quoteDecimals):null;
  const result:TokenDetailResponse={version:1,chainId:state.market.source.chainId,displayOnly:true,confirmation:'confirmed',marketId:state.market.marketId,memeToken:state.market.memeToken,quoteAsset:state.market.quoteAsset,quoteDecimals:validated.binding.quoteDecimals,period,
  statistics:{price:state.market.display?.priceQuote??trades[0]?.price??null,...displayUsd(state.market.display?.priceQuote??trades[0]?.price??null,state.supply,state.quoteUsd),volume24h:volume,volumeFrom:asOf-86400,volumeTo:asOf,volumeBasis:'EXTERNAL_EXECUTIONS_CURVE_EXCLUDING_FEE_TAX_OR_POOL_CORE'},chart:{from,to,interval,points},
- holders:{totalSupplyRaw:state.supply,circulatingSupplyRaw:items.reduce((n,v)=>n+BigInt(v.balanceRaw),0n).toString(),count:items.length,basis:'TOTAL_MINUS_KNOWN_PROTOCOL_BALANCES_V1',items:items.slice(0,100)},trades:trades.slice(0,100),fees:state.fees,sources:{statistics:source,chart:source,holders:source,trades:source,fees:source},reasons:{}};
+ holders:cachedHolders??{totalSupplyRaw:state.supply,circulatingSupplyRaw:items.reduce((n,v)=>n+BigInt(v.balanceRaw),0n).toString(),count:items.length,basis:'TOTAL_MINUS_KNOWN_PROTOCOL_BALANCES_V1',items:items.slice(0,100)},trades:trades.slice(0,100),fees:state.fees,sources:{statistics:source,chart:source,holders:source,trades:source,fees:source},reasons:{}};
  return {...result,statistics:selected.has('statistics')?result.statistics:null,chart:selected.has('chart')?result.chart:null,trades:selected.has('trades')?result.trades:null,holders:selected.has('holders')?result.holders:null,fees:selected.has('fees')?result.fees:null,sources:Object.fromEntries(Object.entries(result.sources).filter(([key])=>selected.has(key)))};
 }
 
 /** Materialize in the worker. Read endpoints only select stored response fields. */
-export function materializeDisplay(state:DisplayState,head={number:state.blockNumber,hash:state.blockHash,timestamp:state.asOf}):DisplayState{
+export function materializeDisplay(state:DisplayState,head={number:state.blockNumber,hash:state.blockHash,timestamp:state.asOf},reuseHolders=false):DisplayState{
  const observed={...state,blockNumber:head.number,blockHash:head.hash};
- const hour=displayDetail(observed,'1H',head.timestamp);
+ const cachedHolders=reuseHolders?state.detailViews?.['1H'].holders:undefined;
+ const hour=displayDetail(observed,'1H',head.timestamp,undefined,cachedHolders);
  const metrics=exploreMetrics(hour.statistics!,state.quoteUsd,head.timestamp,state.quoteUsdAsOf??null,state.quoteUsdSource??null);
  const {lastBuy:oldBuy,...baseMarket}=state.market;
- return {...state,market:{...baseMarket,metrics,...(state.latestBuy?{lastBuy:state.latestBuy}:{})},detailViews:{'1H':hour,'12H':displayDetail(observed,'12H',head.timestamp),'1D':displayDetail(observed,'1D',head.timestamp)}};
+ return {...state,market:{...baseMarket,metrics,...(state.latestBuy?{lastBuy:state.latestBuy}:{})},detailViews:{'1H':hour,'12H':displayDetail(observed,'12H',head.timestamp,undefined,hour.holders),'1D':displayDetail(observed,'1D',head.timestamp,undefined,hour.holders)}};
 }
 
 export function displayUsd(price:string|null,supply:string,usd:string|null|undefined):{priceUsd:string|null;marketCapUsd:string|null}{

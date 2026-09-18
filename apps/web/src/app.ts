@@ -76,6 +76,7 @@ import { loadWalletAccounts } from "./v1/accounts.ts";
 import { createAssetPriceStore } from './v1/assetPrices.ts';
 import type { mountCandles } from "./v1/candleWidget.ts";
 import { createCoalescedRefresh } from "./v1/coalescedRefresh.ts";
+import { watchMarketChanges } from './v1/marketChanges.ts';
 
 import { ownsCreatorRewards } from './v1/creatorOwnership.ts';
 import { pageDirectExplore } from './v1/directExploreDirectory.ts';
@@ -2020,13 +2021,14 @@ const treasuryStatusLabels = ["Not scheduled", "Preparing rewards", "Confirming 
 
 const rewardMarketLabels = new Map<string, { label: string; search: string; symbol?:string }>();
 
-// Statistics are display-only, cached for ten minutes, and never gate transactions.
-export type StakeStats = {title:string;description:string;quoteSymbol:string;phase:string;volume:string;fees:string;total:string;totalRaw:bigint|null;status:string;expiresAt:number};
+// Display values survive transport failures; market events invalidate only this selection.
+export type StakeStats = {title:string;description:string;quoteSymbol:string;phase:string;volume:string;fees:string;total:string;totalRaw:bigint|null;status:string};
 const stakeStatsCache = new Map<string,{at:number;data:StakeStats}>();
 const stakeStatsRequests = new Map<string,Promise<StakeStats>>();
 let stakeStatsGeneration = 0;
-let stakeStatisticsTimer=0;
 let stakePageListeners:AbortController|undefined;
+let stakeStatisticsWatcher:{stop():void}|undefined;
+let stakeStatisticsWatchMarket='';
 function stakeAssetAmount(selector:string,amount:string,config:ConfigReadModel):void {
  const symbol=stockSymbol(config),logo=stockLogo(config);
  queryAll<HTMLElement>(selector).forEach(target=>{
@@ -2044,13 +2046,18 @@ function stakeAssetAmount(selector:string,amount:string,config:ConfigReadModel):
 function stakeText(selector:string,value:string):void { queryAll<HTMLElement>(selector).forEach(el=>{const next=publicMessage(value);if(el.textContent!==next)el.textContent=next;}); }
 function stockSymbol(config:ConfigReadModel):string {return stakingAssetForConfig(robinhoodChain.id,config)?.symbol ?? String(config.values.tokenSymbol ?? 'STOCK');}
 function stockLogo(config:ConfigReadModel):string|undefined {const asset=stakingAssetForConfig(robinhoodChain.id,config);return asset?(assetLogoUrl(asset.logo)??asset.logoUrl??quoteIconUrl(stockSymbol(config))):quoteIconUrl(stockSymbol(config));}
-async function refreshStakeStatistics():Promise<void>{
+async function refreshStakeStatistics(force=false):Promise<void>{
 const {explorerStakeStatistics} = await import('./v1/stakeStatistics.ts');
 
   if(currentPage()!=='staking'||document.hidden)return;
   const generation=++stakeStatsGeneration;
   const id=query<HTMLSelectElement>('[data-position-market]')?.value;
   const market=foundation?.markets.find(m=>m.marketId===id);
+  const watchChanged=stakeStatisticsWatchMarket!==(market?.marketId??'');
+  if(stakeStatisticsWatchMarket!==(market?.marketId??'')){
+    stakeStatisticsWatcher?.stop();stakeStatisticsWatcher=undefined;stakeStatisticsWatchMarket=market?.marketId??'';
+    if(market&&runtimeConfig.readApi.available)stakeStatisticsWatcher=watchMarketChanges(runtimeConfig.readApi.value,market.marketId,async regions=>{if(regions.some(region=>['staking','statistics','fees','market'].includes(region)))await refreshStakeStatistics(true);});
+  }
   const card=query<HTMLElement>('.staking-page .market-card');
   const sameMarket=!!market&&card?.dataset.marketId===market.marketId;
   const detailsButton=query<HTMLButtonElement>('[data-stake-token-details]');
@@ -2077,39 +2084,41 @@ const {explorerStakeStatistics} = await import('./v1/stakeStatistics.ts');
   const iconUrl=config?stockLogo(config):null;if(stockIcon&&iconUrl){if(stockIcon.getAttribute('src')!==iconUrl)stockIcon.src=iconUrl;stockIcon.hidden=false;}
   const load=async():Promise<StakeStats>=>{
     const metadata=await marketMetadata(market);
-    const data:StakeStats={title:metadata.symbol,description:metadata.name,quoteSymbol:metadata.quoteSymbol,phase:phaseLabel(market.launchPhase),volume:'-',fees:'-',total:'-',totalRaw:null,status:'Market activity is unavailable. Your position is still available.',expiresAt:Date.now()+600000};
+    const previous=stakeStatsCache.get(market.marketId)?.data;
+    const data:StakeStats={title:metadata.symbol,description:metadata.name,quoteSymbol:metadata.quoteSymbol,phase:phaseLabel(market.launchPhase),volume:previous?.volume??'-',fees:previous?.fees??'-',total:previous?.total??'-',totalRaw:previous?.totalRaw??null,status:'Market activity is unavailable. Your position is still available.'};
     const results=await Promise.allSettled([
       (async()=>{
         if(!runtimeConfig.readApi.available)throw Error('Analytics unavailable');
         if(!runtimeConfig.contracts.available)throw Error('Market configuration unavailable');
-        return explorerStakeStatistics({chainId:robinhoodChain.id,apiBase:runtimeConfig.readApi.value,market,decimals:metadata.quoteDecimals,feeVault:runtimeConfig.contracts.value.protocolFeeVaultAddress});
-      })(),
-      (async()=>{
-        // Display-only aggregate from the configured Vault; signing uses canonical bindings separately.
-        if(!config)throw Error('Stock configuration unavailable');
-        const decimals=Number(config.values.tokenDecimals);
-        if(!Number.isInteger(decimals)||decimals<0||decimals>18)throw Error('Stock decimals unavailable');
-        if(!market.display||Date.now()/1000-Number(market.display.asOfTimestamp)>1200)throw Error('Finalized stake aggregate unavailable');
-        const total=BigInt(market.display.totalStakedRaw);
-        return {raw:total,label:`${formatTokenAmount(total,decimals)} ${stockSymbol(config)}`};
+        return explorerStakeStatistics({chainId:robinhoodChain.id,apiBase:runtimeConfig.readApi.value,market,decimals:metadata.quoteDecimals,feeVault:runtimeConfig.contracts.value.protocolFeeVaultAddress},force);
       })()
     ]);
     const analytics=results[0];
     if(analytics.status==='fulfilled'){
       const stats=analytics.value;
-      if(stats.volume!=='')data.volume=`${displayDecimal(stats.volume)} ${metadata.quoteSymbol}`;
+      data.volume=stats.volume!==''?`${displayDecimal(stats.volume)} ${metadata.quoteSymbol}`:'-';
       if(stats.fees)data.fees=stats.fees.size?[...stats.fees].map(([asset,amount])=>{
         if(asset!==market.quoteAsset.toLowerCase()&&asset!==market.memeToken.toLowerCase())throw Error('Unexpected fee asset');
         return `${formatTokenAmount(amount,asset===market.quoteAsset.toLowerCase()?metadata.quoteDecimals:18)} ${asset===market.quoteAsset.toLowerCase()?metadata.quoteSymbol:metadata.symbol}`;
       }).join('\n'):`0 ${metadata.quoteSymbol}`;
-      data.status='Market activity updates every 10–20 minutes.';
+      else data.fees='-';
+      data.status='Market activity updates when confirmed data changes.';
     }
-    if(results[1].status==='fulfilled'){data.total=results[1].value.label;data.totalRaw=results[1].value.raw;}
+    // Prefer the confirmed display total from this statistics response. The
+    // foundation value remains a DB-backed fallback for older API responses.
+    const totalRaw=analytics.status==='fulfilled'
+      ? analytics.value.totalStakedRaw===undefined?market.display?.totalStakedRaw:analytics.value.totalStakedRaw
+      : previous?.totalRaw?.toString();
+    if(analytics.status==='fulfilled'&&analytics.value.totalStakedRaw===null){data.total='-';data.totalRaw=null;}
+    if(config&&typeof totalRaw==='string'&&/^(0|[1-9][0-9]*)$/.test(totalRaw)){
+      const decimals=Number(config.values.tokenDecimals);
+      if(Number.isInteger(decimals)&&decimals>=0&&decimals<=18){const total=BigInt(totalRaw);data.total=`${formatTokenAmount(total,decimals)} ${stockSymbol(config)}`;data.totalRaw=total;}
+    }
     return data;
   };
   try{
     let cached=stakeStatsCache.get(market.marketId);
-    if(!cached||Date.now()-cached.at>=600000||Date.now()>=cached.data.expiresAt){
+    if(force||watchChanged||!cached){
       let request=stakeStatsRequests.get(market.marketId);
       if(!request){request=load();stakeStatsRequests.set(market.marketId,request);void request.finally(()=>stakeStatsRequests.delete(market.marketId)).catch(()=>{});}
       cached={at:Date.now(),data:await request};stakeStatsCache.set(market.marketId,cached);
@@ -2471,8 +2480,7 @@ function setupRewards(): void {
   });
   if(currentPage()==='staking'){
     stakePageListeners=new AbortController();
-    stakeStatisticsTimer=window.setInterval(()=>{if(!document.hidden)void refreshStakeStatistics();},60000);
-    document.addEventListener('visibilitychange',()=>{if(!document.hidden){void refreshStakeStatistics();void refreshActiveReward();void refreshStakeDirectory();}},{signal:stakePageListeners.signal});
+    document.addEventListener('visibilitychange',()=>{if(!document.hidden){void refreshActiveReward();void refreshStakeDirectory();}},{signal:stakePageListeners.signal});
   }
   const dialog=query<HTMLDialogElement>('[data-stake-dialog]');
   query<HTMLButtonElement>('[data-open-stake]')?.addEventListener('click',()=>{if(!wallet){query<HTMLButtonElement>('[data-wallet]')?.click();return;}if(!rewardPosition)return;updateStakePreview();updateRewardsAvailability();dialog?.showModal();});
@@ -4763,7 +4771,7 @@ function unmountPage(): void {
   closeExploreEvents();
   exploreStockPicker?.destroy();exploreStockPicker=undefined;
   window.clearInterval(stakeCountdownTimer);
-  window.clearInterval(stakeStatisticsTimer);stakePageListeners?.abort();stakePageListeners=undefined;
+  stakeStatisticsWatcher?.stop();stakeStatisticsWatcher=undefined;stakeStatisticsWatchMarket='';stakePageListeners?.abort();stakePageListeners=undefined;
   clearTimeout(stakeSearchTimer);stakeSearchGeneration++;stakeSearchDirectory.reset();stakeSearchPage=null;stakeSearchKey='';
   ++stakeStatsGeneration; ++stakeDirectoryGeneration; stakeDirectoryBusy=false;
   disposeFieldValidation?.(); disposeFieldValidation=undefined;

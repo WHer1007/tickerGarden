@@ -55,7 +55,7 @@ test('journal failure after broadcast retains the hash and retries verification 
 test('audit characterization: confirmed launch with unavailable data keeps polling until cancelled',async()=>{
  const original=globalThis.fetch;let reads=0;globalThis.fetch=async()=>{reads++;return new Response('{}',{status:503});};
  const controller=new AbortController();let settled=false;
- try{const pending=waitForLaunchData('https://audit.invalid',hash,account,controller.signal).finally(()=>{settled=true;});await new Promise(r=>setTimeout(r,60));assert.equal(settled,false);assert.equal(reads,2);controller.abort();await assert.rejects(pending,{name:'AbortError'});}finally{globalThis.fetch=original;controller.abort();}
+ try{const pending=waitForLaunchData('https://audit.invalid',hash,account,controller.signal).finally(()=>{settled=true;});await new Promise(r=>setTimeout(r,60));assert.equal(settled,false);assert.equal(reads,1);controller.abort();await assert.rejects(pending,{name:'AbortError'});}finally{globalThis.fetch=original;controller.abort();}
 });
 
 test('unavailable launch data has a bounded attempt without declaring transaction failure',async()=>{

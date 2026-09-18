@@ -36,9 +36,11 @@ export async function publishContentJob(input: { readonly pool: Pool; readonly l
   readonly pinataGroupId?: string; readonly schemaName?: string; readonly fetch?: typeof fetch }): Promise<string> {
   if (input.lease.kind !== 'content-publish' || typeof input.lease.payload.uploadId !== 'string') throw new Error('invalid content job');
   const schema = identifier(input.schemaName ?? 'tickergarden_serverless'); const uploadId = input.lease.payload.uploadId;
+  const ready=await input.pool.query<{metadata_digest:string}>(`SELECT metadata_digest FROM ${schema}.content_uploads WHERE upload_id=$1 AND status='ready'`,[uploadId]);
+  if(ready.rows[0]?.metadata_digest)return ready.rows[0].metadata_digest;
   const row = (await input.pool.query<{ owner: string; image_digest: Hash | null; image_media_type: ImageDescriptor['mediaType'] | null; image_byte_length: number | null;
     image_object_key: string | null; image_object_version: string | null; status: string; payload: { metadata: Record<string, unknown>; image: Record<string, unknown> | null } }>(
-    `UPDATE ${schema}.content_uploads SET status='validating',updated_at=now() WHERE upload_id=$1 AND status IN ('uploaded','validating','ready') RETURNING owner,image_digest,image_media_type,image_byte_length,image_object_key,image_object_version,status,payload`, [uploadId])).rows[0];
+    `UPDATE ${schema}.content_uploads SET status='validating',updated_at=now() WHERE upload_id=$1 AND status IN ('uploaded','validating') RETURNING owner,image_digest,image_media_type,image_byte_length,image_object_key,image_object_version,status,payload`, [uploadId])).rows[0];
   if (!row) throw new Error('content upload is not ready for publication'); if (row.status === 'ready') return String(uploadId);
   try {
     let imageUri: string | null = null; let imageVersion: string | null = null;

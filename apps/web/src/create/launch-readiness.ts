@@ -21,8 +21,8 @@ export async function waitForLaunchData(base:string,marketId:`0x${string}`,token
  const api=new TickerGardenV1Client(base,(input,init)=>fetch(input,{...init,cache:'no-store',signal:AbortSignal.any([active,AbortSignal.timeout(10000)])}));
  while(!active.aborted){
   try{
-   const [page,detail]=await Promise.all([api.getMarketPageBootstrap({marketId}),api.getTokenDetail({marketId,period:'1H'})]);
-   if(!active.aborted&&launchDataReady(page,detail,marketId,token))return;
+   const status=await api.getLaunchReadiness({marketId});
+   if(!active.aborted&&status.ready&&status.marketId===marketId&&status.memeToken===token)return;
   }catch{/* A confirmed launch stays confirmed while its read model recovers. */}
   if(active.aborted)break;
   await new Promise<void>(resolve=>{const done=()=>{clearTimeout(timer);active.removeEventListener('abort',done);resolve();};const timer=setTimeout(done,timing.retryMs??3000);active.addEventListener('abort',done,{once:true});});

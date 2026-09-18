@@ -4,7 +4,7 @@ import { decodeEventLog, formatUnits, toEventSelector, type Hex } from 'viem';
 import type { MarketReadModel, TokenDetailFee } from './generated/read-api.ts';
 
 export type Context = { chainId: number; apiBase: string; market: MarketReadModel; decimals: number; feeVault: Hex; poolManager?: Hex };
-type Stats = { volume: string; fees: Map<string, bigint> | null; distribution: readonly TokenDetailFee[] | null };
+type Stats = { volume: string; fees: Map<string, bigint> | null; distribution: readonly TokenDetailFee[] | null; totalStakedRaw?: string | null };
 type Cache = { requestedAt: number; volumeAt: number; feeAt: number; value: Stats };
 const cache = new Map<string, Cache>();
 const pending = new Map<string, Promise<Stats>>();
@@ -35,9 +35,7 @@ function feeRows(logs: readonly { topics: Hex[]; data: Hex }[], id: Hex): TokenD
 function validRaw(value: unknown): value is string { return typeof value === 'string' && /^(0|[1-9][0-9]*)$/.test(value); }
 function parseResponse(raw: any, context: Context) {
   const marketId = context.market.marketId.toLowerCase();
-  if (raw?.chainId !== context.chainId || raw.displayOnly !== true || raw.marketId?.toLowerCase() !== marketId || !Number.isSafeInteger(raw.observedAt) || !Number.isSafeInteger(raw.volumeAt) || raw.observedAt < 0 || raw.volumeAt < 0 || typeof raw.feeCoverage !== 'boolean' || !Array.isArray(raw.feeDistribution) || !(raw.volumeRaw === null || validRaw(raw.volumeRaw))) throw Error('Invalid market statistics response');
-  const now = Math.floor(Date.now() / 1000);
-  const fresh = (at:number) => at>0 && at<=now && now-at<1200;
+  if (raw?.chainId !== context.chainId || raw.displayOnly !== true || raw.marketId?.toLowerCase() !== marketId || !Number.isSafeInteger(raw.observedAt) || !Number.isSafeInteger(raw.volumeAt) || raw.observedAt < 0 || raw.volumeAt < 0 || typeof raw.feeCoverage !== 'boolean' || !Array.isArray(raw.feeDistribution) || !(raw.volumeRaw === null || validRaw(raw.volumeRaw)) || !(raw.totalStakedRaw === undefined || raw.totalStakedRaw === null || validRaw(raw.totalStakedRaw))) throw Error('Invalid market statistics response');
   const fees = new Map<string, bigint>();
   const distribution:TokenDetailFee[]=[];
   for (const row of raw.feeDistribution) {
@@ -46,23 +44,21 @@ function parseResponse(raw: any, context: Context) {
     fees.set(asset, (fees.get(asset) ?? 0n) + BigInt(row.amountRaw));
     distribution.push({recipient:row.recipient,asset,amountRaw:row.amountRaw});
   }
-  // Allocations are cumulative finalized facts. An older snapshot remains
-  // displayable with its explicit observation point; only rolling volume expires.
   const covered=raw.feeCoverage;
-  return { volume: raw.volumeRaw === null || !fresh(raw.volumeAt) ? '' : formatUnits(BigInt(raw.volumeRaw), context.decimals), fees: covered ? fees : null, distribution:covered?distribution:null, observedAt: raw.observedAt, volumeAt: raw.volumeAt };
+  return { volume: raw.volumeRaw === null ? '' : formatUnits(BigInt(raw.volumeRaw), context.decimals), fees: covered ? fees : null, distribution:covered?distribution:null, totalStakedRaw:raw.totalStakedRaw, observedAt: raw.observedAt, volumeAt: raw.volumeAt };
 }
 async function read(context: Context): Promise<Stats> {
   const response = await fetch(new URL(`/v1/market-display-statistics?marketId=${context.market.marketId}`, context.apiBase), { signal: AbortSignal.timeout(10000) });
   if (!response.ok) throw Error('Statistics unavailable');
   const parsed = parseResponse(await response.json(), context);
-  const value = { volume: parsed.volume, fees: parsed.fees, distribution:parsed.distribution };
+  const value = { volume: parsed.volume, fees: parsed.fees, distribution:parsed.distribution, totalStakedRaw:parsed.totalStakedRaw };
   cache.set(`${context.chainId}:${context.apiBase}:${context.market.marketId}`, { requestedAt: Date.now(), volumeAt: parsed.volumeAt, feeAt: parsed.observedAt, value });
   return value;
 }
-export async function explorerStakeStatistics(context: Context): Promise<Stats> {
+export async function explorerStakeStatistics(context: Context, force = false): Promise<Stats> {
   const key = `${context.chainId}:${context.apiBase}:${context.market.marketId}`;
-  const saved = cache.get(key); const now = Math.floor(Date.now() / 1000);
-  if (saved && Date.now() - saved.requestedAt < 600_000) return saved.value;
+  const saved = cache.get(key);
+  if (!force && saved && Date.now() - saved.requestedAt < 1_000) return saved.value;
   const active = pending.get(key); if (active) return active;
   const request = read(context); pending.set(key, request); try { return await request; } finally { pending.delete(key); }
 }

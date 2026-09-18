@@ -56,3 +56,13 @@ test('Explore reads are database-only, head-independent and uncached; malformed 
   const body=await response.json();if(path.endsWith('bootstrap')){assert.equal(body.displayOnly,true);assert.equal(body.sync.status,'unavailable');assert.ok(body.configs.length>0);}else assert.deepEqual(body.items,[]);
  }
 });
+
+test('launch readiness reads stored fields only and never caches pending status',async()=>{
+ let queries=0,missing=['priceUsd'];
+ const market=`0x${'1'.repeat(64)}`,token=`0x${'2'.repeat(40)}`;
+ const pool={query:async(sql:string)=>{queries++;assert.match(sql,/launch_missing/);return {rows:[{token,missing}]};}} as unknown as Pool;
+ const app=createReadApiApp({env:{NODE_ENV:'test',TG_READ_DATABASE_URL:'postgres://unused',TG_CURSOR_SECRET:'x'.repeat(32)},pool});
+ const bad=await app.request('/v1/markets/bad/launch-readiness');assert.equal(bad.status,400);assert.equal(queries,0);
+ const pending=await app.request(`/v1/markets/${market}/launch-readiness`);assert.equal(pending.headers.get('cache-control'),'no-store');assert.equal((await pending.json()).ready,false);
+ missing=[];const ready=await app.request(`/v1/markets/${market}/launch-readiness`);assert.equal((await ready.json()).ready,true);assert.equal(queries,2);
+});

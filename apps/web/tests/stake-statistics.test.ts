@@ -36,17 +36,17 @@ test('fee coverage false withholds incomplete fees and null volume stays unavail
  }finally{globalThis.fetch=original;}
 });
 
-test('rolling volume expires while cumulative finalized fee allocations remain visible',async()=>{
+test('database volume remains visible after its rolling window and confirmed total is parsed',async()=>{
  const original=globalThis.fetch;let count=0;const now=Math.floor(Date.now()/1000);
  const market={marketId} as MarketReadModel;
  const base={chainId:46630,displayOnly:true,marketId,feeCoverage:true,feeDistribution:[{recipient:'holders',asset:meme,amountRaw:'7'}]};
  const context={chainId:46630,apiBase:'https://independent.test',market,decimals:18,feeVault:quote};
  try{
-  globalThis.fetch=async()=>{count++;await new Promise(r=>setTimeout(r,5));return new Response(JSON.stringify({...base,observedAt:now,volumeAt:0,volumeRaw:null}));};
+  globalThis.fetch=async()=>{count++;await new Promise(r=>setTimeout(r,5));return new Response(JSON.stringify({...base,observedAt:now,volumeAt:now-7200,volumeRaw:'1000000000000000000',totalStakedRaw:'42'}));};
   const [a,b]=await Promise.all([explorerStakeStatistics(context),explorerStakeStatistics(context)]);
-  assert.equal(count,1);assert.equal(a.volume,'');assert.equal(a.fees?.get(meme),7n);assert.deepEqual(a,b);
-  globalThis.fetch=async()=>new Response(JSON.stringify({...base,observedAt:now-1300,volumeAt:now,volumeRaw:'1000000000000000000'}));
-  const c=await explorerStakeStatistics({...context,apiBase:'https://oldfees.test'});assert.equal(c.volume,'1');assert.equal(c.fees?.get(meme),7n);
+  assert.equal(count,1);assert.equal(a.volume,'1');assert.equal(a.totalStakedRaw,'42');assert.equal(a.fees?.get(meme),7n);assert.deepEqual(a,b);
+  globalThis.fetch=async()=>{count++;return new Response(JSON.stringify({...base,observedAt:now,volumeAt:now,volumeRaw:'2000000000000000000',totalStakedRaw:null}));};
+  const c=await explorerStakeStatistics(context,true);assert.equal(count,2);assert.equal(c.volume,'2');assert.equal(c.totalStakedRaw,null);
  }finally{globalThis.fetch=original;}
 });
 
