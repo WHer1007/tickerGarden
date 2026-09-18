@@ -30,6 +30,8 @@ const STAGES = [
 ];
 
 let dialog: HTMLDialogElement | undefined;
+let lastStage = 0;
+let transitionVersion = 0;
 
 function element<K extends keyof HTMLElementTagNameMap>(tag: K, className?: string): HTMLElementTagNameMap[K] {
   const node = document.createElement(tag);
@@ -102,7 +104,8 @@ export function renderLaunchProgress(state: LaunchProgressState, actions: Launch
   const stages = element('ol', 'launch-progress-dialog__stages');
   const activeIndex = state.step === 'Check transaction'
     ? STAGES.indexOf('Confirm on chain')
-    : STAGES.findIndex((stageName) => stageName === state.step || (state.step === 'Approve asset' && stageName === 'Approve asset (if needed)'));
+    : STAGES.findIndex((stageName) => (state.step === 'Launch complete' && stageName === 'Complete') || stageName === state.step || (state.step === 'Approve asset' && stageName === 'Approve asset (if needed)'));
+  if (activeIndex >= 0) lastStage = activeIndex;
   STAGES.forEach((stageName, index) => {
     const item = element('li');
     const stageIcon=element('i');stageIcon.setAttribute('aria-hidden','true');
@@ -159,6 +162,36 @@ export function renderLaunchProgress(state: LaunchProgressState, actions: Launch
   modal.querySelector<HTMLElement>('button, a')?.focus();
 }
 
+// Presentation only: called after the receipt and launch identity are verified.
+export async function finishLaunchProgress(ready: (signal: AbortSignal) => Promise<void> = async () => {}): Promise<boolean> {
+  const version = ++transitionVersion;
+  const pause = () => new Promise<void>(resolve => setTimeout(resolve, 350));
+  for (let index = Math.max(0, lastStage); index < STAGES.length; index++) {
+    if (version !== transitionVersion || !dialog?.open) return false;
+    renderLaunchProgress({title:'Launching Your Token',step:STAGES[index]!,detail:'',percent:index === STAGES.length - 1 ? 100 : Math.round((index + 1) / STAGES.length * 100)},{});
+    await pause();
+  }
+  if (version !== transitionVersion || !dialog?.open) return false;
+  const status = dialog.querySelector('.launch-progress-dialog__status');
+  if (status) {
+    status.replaceChildren();
+    const spinner = element('i','ph ph-circle-notch launch-progress-dialog__transition');
+    spinner.setAttribute('aria-hidden','true');
+    const label = element('span');label.textContent='Preparing your token…';
+    status.append(spinner,label);
+  }
+  const abort = new AbortController();
+  const cancellation = setInterval(() => { if (version !== transitionVersion || !dialog?.open) abort.abort(); }, 250);
+  try {
+    await Promise.all([new Promise<void>(resolve => setTimeout(resolve, 4000)), ready(abort.signal)]);
+  } catch (error) {
+    if (!abort.signal.aborted) throw error;
+    return false;
+  } finally { clearInterval(cancellation); }
+  return version === transitionVersion && Boolean(dialog?.open);
+}
+
 export function closeLaunchProgress(): void {
+  transitionVersion++;
   if (dialog?.open) dialog.close();
 }

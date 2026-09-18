@@ -1,3 +1,4 @@
+import type {MarketReadModel} from '../../../openapi/generated/v1-client.ts';
 import { transaction } from '../../db/src/index.ts';
 import { decodeMarketRecord } from "../../chain/src/market-record.ts";
 import { decodeCoreMarketRoute } from '../../chain/src/market-route.ts';
@@ -37,6 +38,7 @@ export interface MarketCreation {
 }
 
 export interface ObserveF72MarketInput {
+  readonly previous?: MarketReadModel;
   readonly creation: MarketCreation;
   readonly blockNumber: bigint;
   readonly blockHash: Hex;
@@ -92,9 +94,10 @@ export async function observeF72Market(input: ObserveF72MarketInput): Promise<Js
   const reverse = hex32(await readFunction(input, REGISTRY, f72ReadAbis.MarketRegistryV1 as Abi, 'marketIdByToken', [memeToken]), 'market reverse identity');
   if (reverse !== input.creation.marketId) throw new Error('market reverse identity mismatch');
 
+  const identity=await observeTokenIdentity(input,memeToken);
   const [routeValue, keyValue, canonicalPoolIdValue, executorValue,
     quoteAssetValue, creatorTaxValue, realQuoteReserveValue, sellableTokensValue, reservedTokensValue, readyValue, feesValue,
-    tokenMarketValue, tokenFactoryValue, nameValue, symbolValue, metadataValue, deployedAtValue, tokenCodeHash] = await Promise.all([
+    tokenMarketValue, tokenFactoryValue] = await Promise.all([
     readFunction(input, REGISTRY, f72ReadAbis.MarketRegistryV1 as Abi, 'canonicalRoute', [input.creation.marketId]),
     readFunction(input, REGISTRY, f72ReadAbis.MarketRegistryV1 as Abi, 'canonicalPoolKey', [input.creation.marketId]),
     readFunction(input, REGISTRY, f72ReadAbis.MarketRegistryV1 as Abi, 'canonicalPoolId', [input.creation.marketId]),
@@ -108,11 +111,6 @@ export async function observeF72Market(input: ObserveF72MarketInput): Promise<Js
     readFunction(input, curve, f72ReadAbis.TickerGardenCurve as Abi, 'accruedCurveFees', []),
     readFunction(input, memeToken, f72ReadAbis.TickerMemeTokenV1 as Abi, 'marketId', []),
     readFunction(input, memeToken, f72ReadAbis.TickerMemeTokenV1 as Abi, 'factory', []),
-    readFunction(input, memeToken, f72ReadAbis.TickerMemeTokenV1 as Abi, 'name', []),
-    readFunction(input, memeToken, f72ReadAbis.TickerMemeTokenV1 as Abi, 'symbol', []),
-    readFunction(input, memeToken, f72ReadAbis.TickerMemeTokenV1 as Abi, 'metadataURI', []),
-    readFunction(input, memeToken, f72ReadAbis.TickerMemeTokenV1 as Abi, 'deployedAt', []),
-    consensusCodeHash(input, memeToken),
   ]);
 
   if (address(quoteAssetValue, 'curve quote asset') !== quoteAsset
@@ -122,8 +120,6 @@ export async function observeF72Market(input: ObserveF72MarketInput): Promise<Js
   if (hex32(tokenMarketValue, 'token market identity') !== input.creation.marketId || address(tokenFactoryValue, 'token factory') !== FACTORY) {
     throw new Error('market token identity mismatch');
   }
-  const deployedAt = bigint(deployedAtValue, 'deployedAt');
-  if (deployedAt > input.blockTimestamp) throw new Error('market deployment timestamp is after observation block');
 
   const route = objectResult(routeValue);
   const routeKey = objectResult(route.poolKey);
@@ -169,13 +165,31 @@ export async function observeF72Market(input: ObserveF72MarketInput): Promise<Js
       curveTradingEnabled: Boolean(route.curveTradingEnabled), poolTradingEnabled: Boolean(route.poolTradingEnabled), sourceVersion, launchPhase,
     },
     source: input.creation.source,
-    identity: {
-      name: boundedString(nameValue, 'name', 4096), symbol: boundedString(symbolValue, 'symbol', 4096),
-      metadataURI: boundedString(metadataValue, 'metadataURI', 16384), deployedAt: deployedAt.toString(),
-      blockNumber: input.blockNumber.toString(), blockHash: input.blockHash, runtimeCodeHash: tokenCodeHash,
-    },
+    identity,
   } satisfies Json;
   return result;
+}
+
+/** Reuse only a previously verified identity from the same canonical creation. */
+export async function observeTokenIdentity(input:ObserveF72MarketInput,memeToken:Address):Promise<NonNullable<MarketReadModel['identity']>>{
+  const previous=input.previous;
+  // Caller supplies a canonical persisted record (and rewinds it on reorg).
+  // These token fields are immutable. Mutable bindings are still read below.
+  const identity=previous?.identity && previous.marketId===input.creation.marketId
+    && previous.memeToken===memeToken && previous.source.blockHash===input.creation.source.blockHash
+    && previous.source.chainId===input.creation.source.chainId
+    && BigInt(previous.identity.blockNumber)<=input.blockNumber ? previous.identity : undefined;
+  if(identity)return identity;
+  const [name,symbol,metadataURI,deployedAtValue,runtimeCodeHash]=await Promise.all([
+    readFunction(input,memeToken,f72ReadAbis.TickerMemeTokenV1 as Abi,'name',[]),
+    readFunction(input,memeToken,f72ReadAbis.TickerMemeTokenV1 as Abi,'symbol',[]),
+    readFunction(input,memeToken,f72ReadAbis.TickerMemeTokenV1 as Abi,'metadataURI',[]),
+    readFunction(input,memeToken,f72ReadAbis.TickerMemeTokenV1 as Abi,'deployedAt',[]),
+    consensusCodeHash(input,memeToken),
+  ]);
+  const deployedAt=bigint(deployedAtValue,'deployedAt');
+  if(deployedAt>input.blockTimestamp)throw Error('market deployment timestamp is after observation block');
+  return {name:boundedString(name,'name',4096),symbol:boundedString(symbol,'symbol',4096),metadataURI:boundedString(metadataURI,'metadataURI',16384),deployedAt:deployedAt.toString(),blockNumber:input.blockNumber.toString(),blockHash:input.blockHash,runtimeCodeHash};
 }
 
 // These reads run in the asynchronous projector at one finalized block. HTTP
@@ -261,7 +275,9 @@ export async function projectF72Markets(input: {
   }
   const pending=(await input.pool.query<{creation:MarketCreation}>(`SELECT w.creation FROM ${schema}.market_observation_work w WHERE environment=$1 AND chain_id=$2 AND deployment_digest=$3 AND block_hash=$4 AND generation=$5 AND algorithm_version=$6 AND NOT EXISTS(SELECT 1 FROM ${schema}.projection_observations s WHERE s.environment=w.environment AND s.chain_id=w.chain_id AND s.deployment_digest=w.deployment_digest AND s.scope='markets' AND s.block_hash=w.block_hash AND s.generation=w.generation AND s.algorithm_version=w.algorithm_version AND s.identity=w.market_id) ORDER BY market_id LIMIT 129`,args)).rows.map(r=>r.creation);
   for(let offset=0;offset<Math.min(pending.length,128);offset+=8){
-    const batch=pending.slice(offset,Math.min(offset+8,128)),values=await mapBounded(batch,8,creation=>observeF72Market({creation,blockNumber:input.blockNumber,blockHash:input.blockHash,blockTimestamp:input.blockTimestamp,primary:input.primary,secondary:input.secondary}));
+    const batch=pending.slice(offset,Math.min(offset+8,128));
+    const cached=candidate.base_revision?(await input.pool.query<{identity:string;payload:MarketReadModel}>(`SELECT identity,payload FROM ${schema}.projection_read_records WHERE environment=$1 AND chain_id=$2 AND deployment_digest=$3 AND scope='markets' AND revision=$4 AND identity=ANY($5::text[])`,[...id,candidate.base_revision,batch.map(c=>c.marketId)])).rows:[];
+    const values=await mapBounded(batch,8,creation=>{const previous=cached.find(r=>r.identity===creation.marketId)?.payload;return observeF72Market({creation,blockNumber:input.blockNumber,blockHash:input.blockHash,blockTimestamp:input.blockTimestamp,primary:input.primary,secondary:input.secondary,...(previous?{previous}:{})});});
     if((await consensusBlock(input.primary,input.secondary,input.blockNumber)).hash!==input.blockHash)throw Error('market observation anchor changed');
     const schedules=await mapBounded(batch,8,(creation)=>nextMarketActivation({creation,blockNumber:input.blockNumber,blockHash:input.blockHash,blockTimestamp:input.blockTimestamp,primary:input.primary,secondary:input.secondary},values[batch.indexOf(creation)]!).catch(()=>input.blockTimestamp.toString()));
     if((await consensusBlock(input.primary,input.secondary,input.blockNumber)).hash!==input.blockHash)throw Error('market schedule anchor changed');
@@ -306,14 +322,14 @@ async function readFunction(input: ObserveF72MarketInput, target: Address, abi: 
 
 async function consensusRawCall(input: ObserveF72MarketInput, target: Address, abi: Abi, functionName: string, args: readonly unknown[]): Promise<Hex> {
   const data = encodeFunctionData({ abi, functionName, args });
-  if(input.primary===input.secondary)return input.primary.callAt(target,data,input.blockNumber);
+  if(input.primary.sameSource(input.secondary))return input.primary.callAt(target,data,input.blockNumber);
   const [first, second] = await Promise.all([input.primary.callAt(target, data, input.blockNumber), input.secondary.callAt(target, data, input.blockNumber)]);
   if (first !== second) throw new Error(`RPC providers disagree on ${functionName}`);
   return first;
 }
 
 async function consensusCodeHash(input: ObserveF72MarketInput, target: Address): Promise<Hex> {
-  if(input.primary===input.secondary)return input.primary.codeHash(target,input.blockNumber);
+  if(input.primary.sameSource(input.secondary))return input.primary.codeHash(target,input.blockNumber);
   const [first, second] = await Promise.all([input.primary.codeHash(target, input.blockNumber), input.secondary.codeHash(target, input.blockNumber)]);
   if (first !== second) throw new Error('RPC providers disagree on market runtime code hash');
   return first;

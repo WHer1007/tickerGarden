@@ -27,6 +27,9 @@ if (destination.protocol !== 'https:' || destination.username || destination.pas
 const maxBackfillBlocks = positiveInteger(process.env.CHAIN_RELAY_MAX_BACKFILL_BLOCKS ?? '10000', 1, 100_000);
 const backfillChunkBlocks = BigInt(positiveInteger(process.env.CHAIN_RELAY_BACKFILL_CHUNK_BLOCKS ?? '1000', 1, 10_000));
 const sourceRefreshMs = positiveInteger(process.env.CHAIN_RELAY_SOURCE_REFRESH_MS ?? '30000', 5_000, 300_000);
+const recoveryOwner=process.env.CHAIN_RELAY_RECOVERY_OWNER??'display';
+if(!['display','relay'].includes(recoveryOwner))throw Error('Invalid recovery owner');
+const wakeChannel='tg_display_wake_'+createHash('sha256').update([filter.environment,filter.chainId,filter.releaseId,process.env.TG_DATABASE_SCHEMA??'tickergarden_serverless'].join(':')).digest('hex').slice(0,32);
 const publishConcurrency = positiveInteger(process.env.CHAIN_RELAY_PUBLISH_CONCURRENCY ?? '8', 1, 32);
 const recoveryOverlap = BigInt(positiveInteger(process.env.CHAIN_RELAY_RECOVERY_OVERLAP_BLOCKS ?? '12', 1, 1000));
 const port = positiveInteger(process.env.PORT ?? '8081', 1, 65_535);
@@ -51,7 +54,7 @@ const healthServer = createServer(async (request, response) => {
     );
     const healthy = ready && lastError === null && (counts.rows[0]?.dead??0)===0 && (counts.rows[0]?.oldest_pending_seconds??0)<300;
     response.writeHead(healthy ? 200 : 503, { 'content-type': 'application/json', 'cache-control': 'no-store' });
-    response.end(JSON.stringify({ ok: healthy, release: await releaseIdentity(), mode: 'filtered-logs', activeSources, activePools, subscriptions: subscriptionIds.length, reconnects,
+    response.end(JSON.stringify({ ok: healthy, release: await releaseIdentity(), mode: 'filtered-logs', recoveryOwner, activeSources, activePools, subscriptions: subscriptionIds.length, reconnects,
       pending: counts.rows[0]?.pending ?? 0, dead: counts.rows[0]?.dead ?? 0, oldestPendingSeconds:counts.rows[0]?.oldest_pending_seconds??0,publishConcurrency,lastError }));
   } catch {
     response.writeHead(503, { 'content-type': 'application/json' }).end(JSON.stringify({ ok: false }));
@@ -79,7 +82,8 @@ async function connectionLoop(): Promise<void> {
       setAllowed(routing);
       client = await WsRpcClient.connect(process.env.CHAIN_RELAY_WS_URL!, handleSubscriptionLog);
       subscriptionIds = await subscribe(client, routing);
-      await reconcile(client, routing);
+      if(recoveryOwner==='relay')await reconcile(client, routing);
+      else await sourcePool.query('SELECT pg_notify($1,$2)',[wakeChannel,'recover']);
       activeSources = routing.sources.length;
       activePools = routing.pools.length;
       ready = true;
@@ -90,7 +94,7 @@ async function connectionLoop(): Promise<void> {
         await delay(sourceRefreshMs);
         if (stopping || client.closed) break;
         const nextRouting = await loadRouting(sourcePool, filter);
-        if (routingFingerprint(nextRouting) === routingFingerprint(currentRouting)) { await reconcile(client, currentRouting); continue; }
+        if (routingFingerprint(nextRouting) === routingFingerprint(currentRouting)) { if(recoveryOwner==='relay')await reconcile(client, currentRouting); continue; }
         const currentAddresses = new Set(currentRouting.sources.map(source => source.address));
         const currentPools = new Set(currentRouting.pools.map(pool => pool.poolId));
         const addedSources = nextRouting.sources.filter(source => !currentAddresses.has(source.address));
@@ -99,7 +103,7 @@ async function connectionLoop(): Promise<void> {
         const nextSubscriptions = await subscribe(client, nextRouting);
         const head = await latestHead(client);
         const additions = [...addedSources, ...addedPools];
-        if (additions.length > 0) await backfill({ sources: addedSources, pools: addedPools }, minimumBirthBlock(additions), head.number, false);
+        if (recoveryOwner==='relay' && additions.length > 0) await backfill({ sources: addedSources, pools: addedPools }, minimumBirthBlock(additions), head.number, false);
         for (const id of subscriptionIds) await client.request<boolean>('eth_unsubscribe', [id]);
         subscriptionIds = nextSubscriptions;
         currentRouting = nextRouting;
@@ -168,6 +172,8 @@ async function handleSubscriptionLog(value: unknown): Promise<void> {
     `INSERT INTO chain_relay_events(event_key,payload) VALUES($1,$2) ON CONFLICT(event_key) DO NOTHING`,
     [eventKey(log), payload],
   );
+  // The raw event is durable before waking the single display recovery scanner.
+  await sourcePool.query('SELECT pg_notify($1,$2)',[wakeChannel,log.blockNumber.toString()]);
 }
 
 async function publishLoop(): Promise<void> {
@@ -252,7 +258,10 @@ async function loadRouting(pool: Pool, eventFilter: EventFilter): Promise<Routin
   const schema = sqlIdentifier(process.env.TG_DATABASE_SCHEMA ?? 'tickergarden_serverless');
   const result = await pool.query<{ address: string; birth_block: string }>(
     `SELECT address,birth_block::text FROM ${schema}.contract_sources
-     WHERE environment=$3 AND chain_id=$1 AND deployment_digest=$2 AND active ORDER BY address`,
+     WHERE environment=$3 AND chain_id=$1 AND deployment_digest=$2 AND active
+     UNION SELECT v.address,(m.payload->'creation'->'source'->>'blockNumber')::text birth_block FROM ${schema}.confirmed_display_markets m
+       CROSS JOIN LATERAL (VALUES(m.payload->'market'->>'memeToken'),(m.payload->'market'->>'curve'),(m.payload->'market'->>'gauge')) v(address)
+       WHERE m.environment=$3 AND m.chain_id=$1 AND m.deployment_digest=$2 AND v.address ~ '^0x[0-9a-f]{40}$' AND v.address<>'0x0000000000000000000000000000000000000000' ORDER BY address`,
     [eventFilter.chainId, eventFilter.releaseId,eventFilter.environment],
   );
   const pools = await pool.query<{ pool_id: string; birth_block: string }>(

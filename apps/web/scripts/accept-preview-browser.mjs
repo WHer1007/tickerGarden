@@ -278,7 +278,7 @@ async function checkPlatformResponses(browser) {
     if (headers['x-frame-options'] !== 'DENY') throw new Error('X-Frame-Options is not DENY');
     if (headers['x-content-type-options'] !== 'nosniff') throw new Error('X-Content-Type-Options is not nosniff');
     const cache = headers['cache-control'] ?? '';
-    if (!cache.includes('no-cache')) throw new Error('index.html is not no-cache');
+    if (!cache.includes('no-cache') && !(cache.includes('max-age=0') && cache.includes('must-revalidate'))) throw new Error('index.html does not require cache revalidation');
     const missingApi = await page.evaluate(async url => {
       const response = await fetch(url, { redirect: 'error' });
       return { status: response.status, contentType: response.headers.get('content-type') ?? '' };

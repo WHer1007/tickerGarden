@@ -13,13 +13,9 @@ test('launch progress gives completed and current stages distinct icons', () => 
   assert.match(styles, /prefers-reduced-motion/);
 });
 
-test('successful launch presents token identity and both next actions', () => {
-  assert.match(dialog, /tokenName/);
-  assert.match(dialog, /tokenSymbol/);
-  assert.match(dialog, /tokenLogo/);
-  assert.match(dialog, /Launch another token/);
-  assert.match(dialog, /View Token/);
-  assert.match(app, /outcome:launchProgress\.phase==='complete'/);
-  assert.match(app, /tokenSymbol:launchProgress\.listing\?\.symbol/);
-  assert.match(app, /tokenLogo:logo/);
+test('successful launch uses one listing page after the completion transition', () => {
+  assert.match(app, /await finishLaunchProgress\(/);
+  assert.match(app, /phase==='complete'\)\{void presentCompletedLaunch\(\);return;/);
+  assert.doesNotMatch(app, /outcome:launchProgress/);
+  assert.match(dialog, /state.step === 'Launch complete' && stageName === 'Complete'/);
 });

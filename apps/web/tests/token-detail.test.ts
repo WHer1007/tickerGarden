@@ -23,6 +23,14 @@ test('chart periods require complete aligned buckets; gaps remain null',()=>{
  assert.throws(()=>validateTokenDetail({...v,chart:{...chart,points:chart.points.slice(1)}},46630,id,'1H',now));
  assert.throws(()=>validateTokenDetail({...v,chart:{...chart,points:chart.points.map(p=>({...p,price:'NaN'}))}},46630,id,'1H',now));
 });
+test('1H chart accepts its older trade window while preserving bucket, duration, and future guards',()=>{
+ const to=now/1000-7200,from=to-3600;const points=Array.from({length:60},(_,i)=>({timestamp:from+i*60,price:i===42?'0.0000283':null}));
+ const chart={from,to,interval:60,points};const v={...report(),chart,sources:{chart:source}};
+ const accepted=validateTokenDetail(v,46630,id,'1H',now);assert.equal(accepted.chart?.to,to);assert.equal(accepted.chart?.points.filter(p=>p.price!==null).length,1);
+ assert.throws(()=>validateTokenDetail({...v,chart:{...chart,points:points.map((p,i)=>i===42?{...p,timestamp:p.timestamp+60}:p)}},46630,id,'1H',now));
+ assert.throws(()=>validateTokenDetail({...v,chart:{...chart,from:from-60}},46630,id,'1H',now));
+ assert.throws(()=>validateTokenDetail({...v,chart:{...chart,from:source.asOf-3540,to:source.asOf+60,points:Array.from({length:60},(_,i)=>({timestamp:source.asOf-3540+i*60,price:null}))}},46630,id,'1H',now));
+});
 test('circulating cap uses exact circulation rather than fixed supply or unsafe numbers',()=>{
  assert.equal(displayDecimal(circulatingCap('0.1','9007199254740993000000000000000000'),2),'900,719,925,474,099.3');
  assert.equal(circulatingCap(null,'1'),null);assert.equal(displayDecimal('0'),'0');assert.equal(displayDecimal('0.0000000000001'),'<0.00000001');

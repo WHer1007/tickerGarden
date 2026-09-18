@@ -53,7 +53,7 @@ let paymentBalance:{account:string;token:string;value:bigint}|null=null;
 let recovery:ConversionRecovery|null=null;
 let recoveryIdentity='';
 let conversionUnavailableFor:string|null=null;
-function pairAsset():PaymentAsset|null{return ctx.tradeMarket&&ctx.tradeMetadata?{address:canonicalAddress(ctx.tradeMarket.market.quoteAsset,'Paired asset'),symbol:ctx.tradeMetadata.quoteSymbol,decimals:ctx.tradeMetadata.quoteDecimals}:null;}
+function pairAsset():PaymentAsset|null{return ctx.tradeMarket&&ctx.tradeMetadata?{address:canonicalAddress(ctx.tradeMarket.market.quoteAsset,'Paired asset',true),symbol:ctx.tradeMetadata.quoteSymbol,decimals:ctx.tradeMetadata.quoteDecimals}:null;}
 function payment():PaymentAsset|null{const pair=pairAsset();return pair?(ctx.tradeSide==='buy'?paymentAssets(robinhoodChain.id,pair).find(a=>a.address===selectedPayment)??pair:pair):null;}
 function usesConversion(){return ctx.tradeSide==='buy'&&payment()?.address!==pairAsset()?.address;}
 function renderStockPurchaseHint(){
@@ -71,9 +71,8 @@ function renderStockPurchaseHint(){
  const unavailable=usesConversion()&&conversionUnavailableFor===pair.address;
  if(usesConversion()&&!unavailable)return;
  if(!short&&!unavailable)return;
- const prefix=unavailable?`In-app conversion to ${pair.symbol} is currently unavailable. `:`You need more ${pair.symbol} for this purchase. `;
- const link=document.createElement('a');link.href=pool.url;link.target='_blank';link.rel='noopener noreferrer';link.textContent=`Buy ${pair.symbol} in the ${pool.version} pool`;
- node.append(document.createTextNode(prefix),link,document.createTextNode(', then return here to buy your token.'));node.hidden=false;
+ const link=document.createElement('a');link.href=pool.url;link.target='_blank';link.rel='noopener noreferrer';link.textContent='Buy Now';link.setAttribute('aria-label',`Buy ${pair.symbol} in the ${pool.version} pool`);
+ node.append(link);node.hidden=false;
 }
 function saveRecovery(value:ConversionRecovery|null,old=value??recovery){
  if(old){const key=recoveryKey(old.account,old.marketId);if(value)localStorage.setItem(key,JSON.stringify(value));else localStorage.removeItem(key);}if(!old||(old.account===ctx.wallet?.account&&old.marketId===ctx.tradeMarket?.market.marketId))recovery=value;
@@ -85,11 +84,14 @@ function conversionFeeLabel(q:ConversionQuote){
  return `${formatUnits(BigInt(fee.amount),asset.decimals)} ${asset.symbol} (included)`;
 }
 function renderPayments(){
- const pair=pairAsset(),node=ctx.query<HTMLElement>('[data-trade-payment-options]');if(!node)return;
+ const pair=pairAsset(),node=ctx.query<HTMLSelectElement>('[data-trade-payment-options]');if(!node)return;
  node.hidden=!pair||ctx.tradeSide!=='buy'||robinhoodChain.id!==4663;
+ node.disabled=ctx.tradeSubmitting||!!recovery;
+ const caret=ctx.query<HTMLElement>('[data-trade-payment-caret]');if(caret)caret.hidden=node.hidden;
+ node.parentElement?.classList.toggle('is-selectable',!node.hidden);
  if(pair){const current=payment();const key=`${pair.address}:${current?.address}:${ctx.tradeSubmitting}:${recovery?.state}`;
  if(node.dataset.key!==key){node.dataset.key=key;node.replaceChildren();for(const a of paymentAssets(robinhoodChain.id,pair)){
- const b=document.createElement('button');b.type='button';b.dataset.paymentAsset=a.address;b.textContent=a.symbol;b.classList.toggle('active',a.address===current?.address);b.setAttribute('aria-pressed',String(a.address===current?.address));b.disabled=ctx.tradeSubmitting||!!recovery;node.append(b);}}
+ const option=document.createElement('option');option.value=a.address;option.textContent=a.symbol;option.selected=a.address===current?.address;node.append(option);}}
  const field=ctx.query<HTMLInputElement>('[data-trade-amount]');if(field)field.dataset.paymentDecimals=String(ctx.tradeSide==='buy'?current?.decimals:18);}
  const check=ctx.query<HTMLButtonElement>('[data-trade-conversion-check]');if(check){check.hidden=!recovery||recovery.state==='funded';check.disabled=ctx.tradeSubmitting;}
  const note=ctx.query<HTMLElement>('[data-trade-conversion-note]');if(note){note.hidden=!usesConversion()&&!recovery;note.textContent=recovery?(recovery.state==='funded'?'Conversion complete. Continue buying with the paired asset already in your wallet.':'Check the existing purchase transaction before starting another purchase.'): `Your ${payment()?.symbol} is exchanged for ${pair?.symbol}, then used to buy ${ctx.tradeMetadata?.symbol}. Any unused paired asset stays in your wallet.`;}
@@ -190,9 +192,9 @@ function setupTrade(): void {
  if(reset&&ctx.wallet===wallet&&recovery===saved&&!wallet?.executor.pending(wallet.account).some(p=>p.conflictKey===`trade:${saved.marketId}`)){saveRecovery(saved.state.startsWith('buy_')?{...saved,state:'funded',buyHash:undefined,buyTo:undefined}:null);renderTradeQuote();scheduleTradeQuote();}
  }
  });
- ctx.query<HTMLElement>('[data-trade-payment-options]')?.addEventListener('click',event=>{
- const b=event.target instanceof Element?event.target.closest<HTMLButtonElement>('[data-payment-asset]'):null;if(!b||ctx.tradeSubmitting||recovery)return;
- selectedPayment=b.dataset.paymentAsset!;paymentBalance=null;ctx.tradeQuote=null;const f=ctx.query<HTMLInputElement>('[data-trade-amount]');if(f)f.value='';renderTradeQuote();void loadPaymentBalance();scheduleTradeQuote();
+ ctx.query<HTMLSelectElement>('[data-trade-payment-options]')?.addEventListener('change',event=>{
+ const select=event.target instanceof HTMLSelectElement?event.target:null;const pair=pairAsset();if(!select||!pair||ctx.tradeSide!=='buy'||ctx.tradeSubmitting||recovery||!paymentAssets(robinhoodChain.id,pair).some(a=>a.address===select.value))return;
+ selectedPayment=select.value;paymentBalance=null;ctx.tradeQuote=null;const f=ctx.query<HTMLInputElement>('[data-trade-amount]');if(f)f.value='';renderTradeQuote();void loadPaymentBalance();scheduleTradeQuote();
  });
   ctx.query<HTMLButtonElement>('[data-trade-retry]')?.addEventListener('click',()=>{ctx.snapshotPoller?.reconnect();void loadTradeMarket();});
   const requested = new URL(window.location.href).searchParams.get("marketId")?.trim() ?? "";
@@ -690,7 +692,7 @@ async function quoteTrade(generation: number): Promise<void> {
     if(usesConversion()){
       if(!ctx.runtimeConfig.readApi.available)throw Error('Conversion unavailable');
       try{
-      conversion=await fetchConversion(ctx.runtimeConfig.readApi.value,{chainId:robinhoodChain.id,sellToken:asset.address,buyToken:canonicalAddress(market.market.quoteAsset,'Paired asset'),sellAmount:String(payAmount),taker:activeWallet.account});
+      conversion=await fetchConversion(ctx.runtimeConfig.readApi.value,{chainId:robinhoodChain.id,sellToken:asset.address,buyToken:canonicalAddress(market.market.quoteAsset,'Paired asset',true),sellAmount:String(payAmount),taker:activeWallet.account});
         if(generation===ctx.tradeQuoteGeneration)conversionUnavailableFor=null;
       }catch(error){if(generation===ctx.tradeQuoteGeneration&&ctx.wallet===activeWallet)conversionUnavailableFor=market.market.quoteAsset;throw error;}
 

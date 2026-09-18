@@ -101,6 +101,9 @@ export interface RpcCallMetric {
   readonly computeUnitSchedule: string | null;
 }
 
+// Only concurrent identical reads share a result. Completed reads are never
+// cached: later anchor checks must still detect a chain change.
+const inFlightReads = new WeakMap<typeof fetch, Map<string, Promise<unknown>>>();
 export class RpcTransport {
   readonly #url: string;
   readonly #fetch: typeof fetch;
@@ -127,7 +130,22 @@ export class RpcTransport {
     this.#observe = options.observe;
   }
 
+  sameSource(other: RpcTransport): boolean { return this === other || (this.#url === other.#url && this.#fetch === other.#fetch); }
+
   async call<TResult>(method: string, params: readonly unknown[]): Promise<TResult> {
+    let pending = inFlightReads.get(this.#fetch);
+    if (!pending) { pending = new Map(); inFlightReads.set(this.#fetch, pending); }
+    const key = JSON.stringify([this.#url, this.#timeoutMs, this.#maxResponseBytes, method, params]);
+    const existing = pending.get(key); if (existing) return existing as Promise<TResult>;
+    const result = this.#perform<TResult>(method, params);
+    if (pending.size < 512) {
+      pending.set(key, result);
+      void result.finally(() => { if (pending!.get(key) === result) pending!.delete(key); }).catch(() => {});
+    }
+    return result;
+  }
+
+  async #perform<TResult>(method: string, params: readonly unknown[]): Promise<TResult> {
     if (!ALLOWED_METHODS.has(method)) throw new Error('RPC method is not allowed');
     const requestId = ++this.#requestId;
     let lastError: unknown;
@@ -236,7 +254,7 @@ export async function verifyChainIdentity(transport: RpcTransport, expectedChain
 
 export async function consensusBlock(primary: RpcTransport, secondary: RpcTransport | undefined, number: bigint): Promise<RpcBlock> {
   const first = await primary.block(number);
-  if (!secondary||secondary===primary) return first;
+  if (!secondary||primary===secondary||primary.sameSource?.(secondary)) return first;
   const second = await secondary.block(number);
   if (first.hash !== second.hash || first.parentHash !== second.parentHash || first.timestamp !== second.timestamp) {
     throw new RpcError('RPC providers disagree on block identity');
@@ -779,7 +797,7 @@ async function fetchAndMergeLogs(
     const request = { fromBlock, toBlock, addresses: addressBatch } as const;
     const primaryLogs = await input.primary.logs(request);
     if (input.secondary) {
-      const secondaryLogs = await input.secondary.logs(request);
+      const secondaryLogs = input.primary.sameSource(input.secondary) ? primaryLogs : await input.secondary.logs(request);
       if (logSetDigest(primaryLogs) !== logSetDigest(secondaryLogs)) throw new RpcError('RPC providers disagree on range logs');
     }
     for (const log of primaryLogs) {
