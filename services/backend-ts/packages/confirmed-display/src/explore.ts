@@ -27,11 +27,13 @@ export async function readExploreCards(input:ExploreReadInput,markets:string[]){
  return {chainId:input.deployment.chainId,displayOnly:true as const,items:rows.rows.map(r=>r.payload)};
 }
 export async function readExplorePage(input:ExploreReadInput&{secret:string;query:Record<string,string>}):Promise<MarketPage>{
- const q=input.query,allowed=['launchPhase','sort','search','assetUid','limit','cursor'];
+ const q=input.query,allowed=['launchPhase','sort','search','assetUid','limit','cursor','stakingEnabled'];
  if(Object.keys(q).some(k=>!allowed.includes(k)))throw Error('invalid query');
  const sort=q.sort??'createdAt_desc',phase=q.launchPhase??null,search=(q.search??'').trim(),asset=q.assetUid||null,limit=Number(q.limit??40);
  if(!['createdAt_desc','createdAt_asc','marketCapUsd_desc','recentBuy_desc'].includes(sort)||phase!==null&&!['0','1'].includes(phase)||search.length>120||asset!==null&&!/^0x[0-9a-f]{64}$/.test(asset)||!Number.isInteger(limit)||limit<1||limit>100)throw Error('invalid query');
- const filterDigest=createHash('sha256').update(JSON.stringify({sort,phase,search,asset})).digest('hex');
+ if(q.stakingEnabled!==undefined&&!['true','false'].includes(q.stakingEnabled))throw Error('invalid query');
+ const staking=q.stakingEnabled??null;
+ const filterDigest=createHash('sha256').update(JSON.stringify({sort,phase,search,asset,staking})).digest('hex');
  const after=q.cursor?decodeCursor(q.cursor,{scope:'explore-display',filterDigest,...(sort!=='marketCapUsd_desc'?{revision:sort}:{})},input.secret):undefined;
  if(after&&(!/^-?[0-9]+$/.test(after.sortKey)||!/^0x[0-9a-f]{64}$/.test(after.identity)))throw new PublicationChangedError('invalid cursor');
  const {s,id}=context(input);
@@ -51,10 +53,11 @@ export async function readExplorePage(input:ExploreReadInput&{secret:string;quer
  WHERE c.environment=$1 AND c.chain_id=$2 AND c.deployment_digest=$3 AND $4::text IS NOT NULL
  AND ${sort==='recentBuy_desc'?`${position}>0`:'true'}
  AND ($5::text IS NULL OR c.payload->>'launchPhase'=$5) AND ($6::text IS NULL OR c.payload->>'assetUid'=$6)
+ AND ($11::text IS NULL OR coalesce((c.payload->>'stakingEnabled')::boolean,c.payload->>'gauge'<>'0x0000000000000000000000000000000000000000')=($11::boolean))
  AND ($7::text='' OR position(lower($7) IN lower(concat(c.payload->'identity'->>'name',' ',c.payload->'identity'->>'symbol',' ',c.payload->>'memeToken',' ',c.market_id)))>0)
  ) SELECT market_id,payload,sort_key::text FROM page
  WHERE $8::numeric IS NULL OR sort_key<$8 OR (sort_key=$8 AND market_id>$9)
- ORDER BY page.sort_key DESC,market_id LIMIT $10`,[...id,version,phase,asset,search,after?.sortKey??null,after?.identity??null,limit+1]);
+ ORDER BY page.sort_key DESC,market_id LIMIT $10`,[...id,version,phase,asset,search,after?.sortKey??null,after?.identity??null,limit+1,staking]);
  const selected=records.rows.slice(0,limit),last=selected.at(-1),{sync}=await readExploreBootstrap(input);
  return {items:selected.map(r=>r.payload),sync,nextCursor:records.rows.length>limit&&last?encodeCursor({scope:'explore-display',revision:version,filterDigest,sortKey:last.sort_key,identity:last.market_id},input.secret):null,
  ...(['createdAt_desc','createdAt_asc'].includes(sort)?{}:{ranking:{mode:sort==='marketCapUsd_desc'?'market-cap-snapshot' as const:'recent-buys' as const,version,updatedAt,refreshSeconds:sort==='marketCapUsd_desc'?1200:0,stale:false}})};

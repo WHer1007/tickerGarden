@@ -28,7 +28,7 @@ export async function verifyAccount(input: {primary:Transport;secondary:Transpor
     return { identity: `${account.user}:${account.assetUid}`, sortKey: `${account.user}:${account.assetUid}`, payload };
 }
 
-export async function verifyPosition(input: {primary:Transport;secondary:Transport;blockNumber:bigint}, allocation:Allocation,
+export async function verifyPosition(input: {primary:Transport;secondary:Transport;blockNumber:bigint;onSettlement?:(principal:bigint)=>void}, allocation:Allocation,
  loadMarket:(id:string)=>Promise<Market|undefined>,loadAccount:(user:string,assetUid:string)=>Promise<Account|undefined>):Promise<ProjectionRecord|null>{
     const market = await loadMarket(allocation.marketId);
     const account = await loadAccount(allocation.user, allocation.assetUid);
@@ -44,7 +44,12 @@ export async function verifyPosition(input: {primary:Transport;secondary:Transpo
     const settlement = tuple(rawSettlement, 'rage quit settlement');
     const settlementPending = boolean(settlement[0], 'rage quit pending');
     const settlementPrincipal = bigint(settlement[1], 'rage quit principal');
-    if (settlementPending) return null;
+    if (settlementPending) {
+      const gaugePrincipal=bigint(position.activeAmount,'active amount')+bigint(position.pendingAmount,'pending amount');
+      if(settlementPrincipal<=0n||allocation.amount!==0n||(gaugePrincipal!==0n&&gaugePrincipal!==settlementPrincipal))throw Error('invalid deferred settlement principal');
+      input.onSettlement?.(settlementPrincipal);return null;
+    }
+    input.onSettlement?.(0n);
     if (settlementPrincipal !== 0n) throw new Error('completed position retains rage quit settlement principal');
     const rawActive = bigint(position.activeAmount, 'active amount');
     const rawPending = bigint(position.pendingAmount, 'pending amount');

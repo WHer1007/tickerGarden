@@ -130,3 +130,10 @@ Changes invalidate `overview`, `allocations` or `stocks` only when their stored 
 Migration `0021_stats_display` must be applied before the updated worker/API. On first activation, the display worker rebases to its verified stored baseline, seeds prior rolling activity and latest per-wallet allocation checkpoints, then catches up using the same display events. Keep the last successful Stats snapshot while reinitializing. This path is display-only; reward settlement, principal verification and their finality rules remain separate.
 
 - `GET /v1/markets/{marketId}/launch-readiness`: compact persisted launch preparation status; DB-only and no-store.
+
+
+### Stake reward summary (5.9)
+
+`GET /v1/staker-reward-summary?marketId=…&account=…` reads a stored, wallet-isolated finalized summary. `claimed` and `earned` share `throughBlock` and `revision`. It never calls RPC or adds a latest wallet preview to older history. Responses are `no-store`; transient failures retain the last same-wallet/market values in the client. Unknown coverage returns 503; a proven empty wallet history returns empty amount maps only after the summary checkpoint completes.
+
+`GET /v1/explore?stakingEnabled=true` supplies the Stake selector from confirmed display tables. This display directory is independent of finalized wallet settlement publications; writes still verify canonical contracts and current wallet state.

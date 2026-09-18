@@ -49,3 +49,15 @@ test('directory uses configured page size and forwards staking filter',async()=>
  assert.equal(seen[0]?.limit,30);assert.equal(seen[0]?.search,'remote');assert.equal(seen[0]?.stakingEnabled,true);
  const next=await d.load(query,true);assert.equal(next?.items.length,60);assert.equal(seen[1]?.limit,30);assert.equal(seen[1]?.cursor,'next');
 });
+test('configured display-chain directory accepts head data and still validates its chain id',async()=>{
+ const headSync={...sync,status:'unavailable',finality:'head',headBlockNumber:'2',headBlockHash:hash(2),lagBlocks:'1'} as unknown as MarketPage['sync'];
+ const headPage={...page(1,1),sync:headSync};
+ const configured=createMarketDirectory(async()=>headPage,100,{displayChainId:4663});
+ assert.equal((await configured.load({revision}))?.items.length,1);
+
+ const wrongChain=createMarketDirectory(async()=>({...headPage,sync:{...headSync,chainId:1}} as unknown as MarketPage),100,{displayChainId:4663});
+ await assert.rejects(()=>wrongChain.load({revision}),/Invalid directory chain/);
+
+ const defaultMode=createMarketDirectory(async()=>headPage);
+ await assert.rejects(()=>defaultMode.load({revision}),/finalized/);
+});
