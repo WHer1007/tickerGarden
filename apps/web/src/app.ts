@@ -1,3 +1,4 @@
+import {loadCreatorRewards,type CreatorPeriod} from './v1/creatorRewards.ts';
 import {createInvalidatedRead} from './ui/invalidated-read.ts';
 import {verifyStakeReceipt} from './ui/stake-receipt.ts';
 import type {ConversionQuote} from './trade/conversion.ts';
@@ -586,7 +587,7 @@ async function prepareLocalIntegrationFoundation():Promise<Foundation>{
 async function prepareFoundation(api: TickerGardenV1Client | null, expectedSync?: SyncStatus, reuseConfigs=false): Promise<Foundation> {
   if (integrationBootstrapPath) return prepareLocalIntegrationFoundation();
   if (!api) throw Error("V1 read API is unavailable");
-  if((currentPage()==='markets'||currentPage()==='staking')&&!expectedSync){
+  if((currentPage()==='markets'||currentPage()==='staking'||currentPage()==='rewards')&&!expectedSync){
     if(!runtimeConfig.readApi.available)throw Error('V1 read API is unavailable');
     const response=await fetch(new URL('/v1/explore/bootstrap',runtimeConfig.readApi.value),{signal:AbortSignal.timeout(8000)});
     if(!response.ok)throw Error('Explore bootstrap unavailable');
@@ -702,7 +703,7 @@ async function ensureCurrentRevision(expected: string): Promise<string> {
   // Direct operations validate the relevant current contracts before simulation;
   // analytics revisions never authorize these transactions.
   if(foundation?.direct && integrationBootstrap) return expected;
-  if(currentPage()==='trade'||currentPage()==='staking'){
+  if(currentPage()==='trade'||currentPage()==='staking'||currentPage()==='rewards'){
     const match=/^(0|[1-9][0-9]*):(0x[0-9a-f]{64})$/.exec(expected);
     if(!match)throw new V1TransactionError('stale_snapshot','Refresh the trade quote before signing.');
     const [chain,block]=await Promise.all([publicClient.getChainId(),publicClient.getBlock({blockNumber:BigInt(match[1]! )})]);
@@ -1992,6 +1993,7 @@ export type CreatorRewardState = Readonly<{
   liability: bigint;
   creatorFeesToHolders: boolean;
   memeLiability: bigint;
+  pendingQuote?:bigint;
   memeAsset: Address;
   now: bigint;
 }>;
@@ -2542,9 +2544,7 @@ function setupRewards(): void {
     query<HTMLElement>('.stake-market-search')?.addEventListener('focusout',event=>{if(!event.currentTarget||!(event.currentTarget as HTMLElement).contains(event.relatedTarget as Node|null))closeSearch();});
   }
   query<HTMLButtonElement>('[data-creator-more]')?.addEventListener('click',event=>{(event.currentTarget as HTMLButtonElement).disabled=true;void refreshCreatorDirectory(true);});
-  query<HTMLButtonElement>('[data-creator-older]')?.addEventListener('click',async event=>{
-const {default: v1Abis_CreatorRevenueRegistry} = await import('./v1/generated/contracts/legacy/CreatorRevenueRegistry.ts');
-const button=event.currentTarget as HTMLButtonElement;if(!wallet||!foundation)return;button.disabled=true;try{const market=selectedRewardMarket('[data-creator-market]'),registry=marketRelease(market.marketId).creatorRegistry,block=await publicClient.getBlock({blockTag:'latest'}),epoch=await publicClient.readContract({blockNumber:block.number,abi:v1Abis_CreatorRevenueRegistry,address:registry,functionName:'currentCreatorEpoch',args:[market.marketId]});await loadCreatorEpochs(market.marketId,registry,epoch,wallet.account,block.number,true);await refreshCreatorReward();}catch{text('[data-creator-status]','Unable to load earlier rewards. Try again.');}finally{button.disabled=false;}});
+  query<HTMLButtonElement>('[data-creator-older]')?.addEventListener('click',()=>{void refreshCreatorReward(true);});
   query<HTMLButtonElement>('[data-copy-beneficiary]')?.addEventListener('click', async () => {
     if (!creatorReward) return;
     try { await navigator.clipboard.writeText(creatorReward.beneficiary); notify('Recipient address copied', 'success'); }
@@ -2638,7 +2638,7 @@ const button=event.currentTarget as HTMLButtonElement;if(!wallet||!foundation)re
   });
   query<HTMLSelectElement>("[data-creator-market]")?.addEventListener("change", (event) => {
     const marketId = (event.currentTarget as HTMLSelectElement).value;
-    creatorEpochKey='';creatorEpochChoices.clear();const epoch = query<HTMLSelectElement>("[data-creator-epoch]"); if (epoch) epoch.value = "";
+    creatorEpochChoices.clear();const epoch = query<HTMLSelectElement>("[data-creator-epoch]"); if (epoch) epoch.value = "";
     syncRewardMarketSelections(marketId, "creator");
     const market = foundation?.markets.find((entry) => entry.marketId === marketId);
     const feeAsset = query<HTMLInputElement>("[data-creator-fee-asset]");
@@ -2675,7 +2675,6 @@ const button=event.currentTarget as HTMLButtonElement;if(!wallet||!foundation)re
   });
   const settleUser = query<HTMLInputElement>("[data-settle-user]");
   settleUser?.addEventListener("input", updateRewardsAvailability);
-  query<HTMLInputElement>("[data-creator-new-beneficiary]")?.addEventListener("input", updateRewardsAvailability);
 }
 
 function rewardMarketOptionLabel(market: MarketReadModel): string {
@@ -2785,7 +2784,17 @@ let creatorDirectoryAt=0;
 let creatorDirectoryRequest:AbortController|undefined;
 let creatorDirectoryError='';
 let creatorDirectoryCursor:string|null=null;
+let creatorDirectoryEvents:EventSource|undefined,creatorDirectoryEventTimer:ReturnType<typeof setTimeout>|undefined;
+function watchCreatorDirectory(account:string):void{
+ if(creatorDirectoryEvents||!runtimeConfig.readApi.available||typeof EventSource==='undefined')return;
+ creatorDirectoryEvents=new EventSource(new URL('/v1/explore/events',runtimeConfig.readApi.value));
+ const refresh=()=>{if(wallet?.account.toLowerCase()!==account||currentPage()!=='rewards'||document.hidden)return;clearTimeout(creatorDirectoryEventTimer);creatorDirectoryEventTimer=setTimeout(()=>{creatorDirectoryAt=0;void refreshCreatorDirectory();},150);};
+ creatorDirectoryEvents.addEventListener('ready',refresh);
+ creatorDirectoryEvents.addEventListener('change',event=>{try{const data=JSON.parse((event as MessageEvent).data);if(Array.isArray(data.creatorAccounts)&&data.creatorAccounts.includes(account))refresh();}catch{/* Invalidations carry no reward data. */}});
+}
+
 function clearCreatorDirectory():void {
+  creatorDirectoryEvents?.close();creatorDirectoryEvents=undefined;clearTimeout(creatorDirectoryEventTimer);
   creatorDirectoryRequest?.abort();creatorDirectoryRequest=undefined;
   creatorDirectoryAccount='';creatorDirectoryAt=0;creatorDirectoryError='';creatorDirectoryCursor=null;creatorMarketIds.clear();
   const select=query<HTMLSelectElement>('[data-creator-market]');if(select){select.replaceChildren(new Option('Select a token',''));select.disabled=true;}
@@ -2795,10 +2804,10 @@ const {loadCreatorMarketPage} = await import('./v1/creatorMarkets.ts');
 
   if(currentPage()!=='rewards'||!wallet||!foundation||(!foundation.direct&&!runtimeConfig.readApi.available))return;
   const account=wallet.account.toLowerCase();
-  if(!more&&creatorDirectoryAccount===account&&Date.now()-creatorDirectoryAt<600000)return;
+  if(!more&&creatorDirectoryAccount===account&&Date.now()-creatorDirectoryAt<30000)return;
   if(more&&!creatorDirectoryCursor)return;
   if(creatorDirectoryRequest&&creatorDirectoryAccount===account)return;
-  if(!more)clearCreatorDirectory();creatorDirectoryAccount=account;
+  if(creatorDirectoryAccount!==account)clearCreatorDirectory();creatorDirectoryAccount=account;watchCreatorDirectory(account);
   const request=new AbortController();creatorDirectoryRequest=request;const timer=setTimeout(()=>request.abort(),20000);
   try{
     if(foundation.direct){
@@ -2822,20 +2831,15 @@ const {default: v1Abis_CreatorRevenueRegistry} = await import('./v1/generated/co
     const page=await loadCreatorMarketPage(runtimeConfig.readApi.value,robinhoodChain.id,account,request.signal,more?creatorDirectoryCursor??undefined:undefined,more?creatorMarketIds:[]);
     if(request.signal.aborted||wallet?.account.toLowerCase()!==account||currentPage()!=='rewards'||!foundation)return;
     const current:Foundation=foundation,baseUrl=runtimeConfig.readApi.value;
-    const loaded=await mapConcurrent(page.items,async row=>{
-      const existing=current.markets.find(m=>m.marketId===row.marketId);
-      if(existing&&existing.memeToken.toLowerCase()===row.memeToken.toLowerCase())return existing;
-      const detail=await new TickerGardenV1Client(baseUrl,(input,init)=>fetch(input,{...init,signal:request.signal})).getMarket({marketId:row.marketId as Hex,revision:current.sync.revision});
-      assertFinalizedSync(detail.sync,current.sync.revision,'creator market');
-      if(detail.market.marketId!==row.marketId||detail.market.memeToken.toLowerCase()!==row.memeToken.toLowerCase())throw Error('Creator market identity mismatch');
-      return detail.market;
-    },4);
+    const loaded=page.items.flatMap(row=>{const market=row.market??current.markets.find(m=>m.marketId===row.marketId);return market&&market.marketId===row.marketId&&market.memeToken.toLowerCase()===row.memeToken.toLowerCase()?[market]:[];});
     if(request.signal.aborted||wallet?.account.toLowerCase()!==account||currentPage()!=='rewards'||foundation?.sync.revision!==current.sync.revision)return;
     foundation=Object.freeze({...foundation,markets:[...new Map([...foundation.markets,...loaded].map(m=>[m.marketId,m])).values()]});
+    if(!more){const selected=creatorReward&&ownsCreatorRewards(account,creatorReward.beneficiary)?creatorReward.marketId:null;creatorMarketIds.clear();if(selected)creatorMarketIds.add(selected);}
     for(const market of loaded)creatorMarketIds.add(market.marketId);
+    creatorDirectoryError='';
     creatorDirectoryCursor=page.nextCursor;
     creatorDirectoryAt=Date.now();
-  }catch(error){if(creatorDirectoryRequest===request&&wallet?.account.toLowerCase()===account&&currentPage()==='rewards'){creatorDirectoryError=request.signal.aborted?'Loading your tokens took too long. Try again.':'Unable to load your tokens. Try again.';creatorDirectoryAt=Date.now()-570000;}}
+  }catch(error){if(creatorDirectoryRequest===request&&wallet?.account.toLowerCase()===account&&currentPage()==='rewards'){creatorDirectoryError=request.signal.aborted?'Loading your tokens took too long. Try again.':'Unable to load your tokens. Try again.';creatorDirectoryAt=0;}}
   finally{clearTimeout(timer);if(creatorDirectoryRequest===request){creatorDirectoryRequest=undefined;populateRewardMarkets();const moreButton=query<HTMLButtonElement>('[data-creator-more]');if(moreButton){moreButton.hidden=!creatorDirectoryCursor;moreButton.disabled=false;}}}
 }
 function populateRewardMarkets(): void {
@@ -3272,12 +3276,6 @@ async function refreshRewardPosition(force=true): Promise<void> {
   }
 }
 
-function configuredCreatorFeeAsset(market: MarketReadModel): Address {
-  const input = required<HTMLInputElement>("[data-creator-fee-asset]");
-  input.value = market.quoteAsset;
-  return canonicalAddress(input.value.trim(), "Creator fee asset", true);
-}
-
 function clearCreatorRewardView():void {
   creatorReward = null;
   text("[data-creator-receive-asset]", "-");
@@ -3294,101 +3292,47 @@ function clearCreatorRewardView():void {
   const claim=rewardActionButton('claimCreator');if(claim)setDisabled(claim,true);
   const copy=query<HTMLButtonElement>('[data-copy-beneficiary]');if(copy)copy.disabled=true;
 }
-let creatorEpochKey='';
-let creatorEpochOwner='';
-let creatorEpochNext=0;
 const creatorEpochChoices=new Set<number>();
-async function loadCreatorEpochs(marketId:Hex,registry:Address,currentEpoch:number,account:Address,blockNumber:bigint,more=false):Promise<void>{
-const {default: v1Abis_CreatorRevenueRegistry} = await import('./v1/generated/contracts/legacy/CreatorRevenueRegistry.ts');
-
- const key=`${marketId}:${account}:${currentEpoch}`,select=query<HTMLSelectElement>('[data-creator-epoch]');if(!select)return;
- if(!more&&creatorEpochKey===key)return;
- if(more&&creatorEpochKey!==key)more=false;
- const generation=creatorLoadGeneration;
- if(!more){const owner=`${marketId}:${account}`;if(creatorEpochOwner!==owner||!creatorEpochKey){creatorEpochChoices.clear();select.replaceChildren();}creatorEpochOwner=owner;creatorEpochKey=key;creatorEpochNext=currentEpoch;}
- const start=creatorEpochNext,end=Math.max(1,start-19);
- const values=await mapConcurrent(Array.from({length:Math.max(0,start-end+1)},(_,i)=>start-i),async epoch=>({epoch,beneficiary:await publicClient.readContract({blockNumber,abi:v1Abis_CreatorRevenueRegistry,address:registry,functionName:'creatorBeneficiaryAt',args:[marketId,epoch]})}),4);
- if(generation!==creatorLoadGeneration||creatorEpochKey!==key||wallet?.account!==account||!select.isConnected)return;
- const selected=select.value;
- for(const row of values)if(ownsCreatorRewards(account,row.beneficiary))creatorEpochChoices.add(row.epoch);
- select.replaceChildren(...[...creatorEpochChoices].sort((a,b)=>b-a).map(epoch=>new Option(`Distribution ${epoch}`,String(epoch))));
- if(creatorEpochChoices.has(Number(selected)))select.value=selected;
- creatorEpochNext=end-1;
- const button=query<HTMLButtonElement>('[data-creator-older]');if(button){button.hidden=creatorEpochNext===0;button.disabled=false;}
- select.disabled=!creatorEpochChoices.size;
- if(!creatorEpochChoices.size){text('[data-creator-status]',creatorEpochNext?'No rewards for this wallet in these periods. Check earlier periods.':'No creator reward periods for this wallet.');}
-}
-async function refreshCreatorReward(): Promise<void> {
-const {default: v1Abis_CreatorRevenueRegistry} = await import('./v1/generated/contracts/legacy/CreatorRevenueRegistry.ts');
-
-const {default: v1Abis_ProtocolFeeVault} = await import('./v1/generated/contracts/legacy/ProtocolFeeVault.ts');
-
-  const generation=++creatorLoadGeneration;
+const creatorPeriods=new Map<number,CreatorPeriod>();
+let creatorPeriodsOwner='',creatorPeriodsCursor:string|null=null;
+let creatorRewardWatcher:{stop():void}|undefined,creatorRewardWatchKey='';
+let creatorRewardRequest:AbortController|undefined;
+let creatorClaimPreparing=false;
+async function refreshCreatorReward(more=false):Promise<void>{
+ if(!foundation||!wallet||!runtimeConfig.readApi.available||creatorClaimPreparing)return;
+ const select=query<HTMLSelectElement>('[data-creator-market]'),epochInput=query<HTMLSelectElement>('[data-creator-epoch]');
+ if(!select?.value||!epochInput||creatorDirectoryAccount!==wallet.account.toLowerCase()||!creatorMarketIds.has(select.value))return;
+ if(more&&!creatorPeriodsCursor)return;
+ const marketId=select.value as Hex,activeWallet=wallet,owner=`${marketId}:${activeWallet.account}`,generation=++creatorLoadGeneration;
+ if(creatorPeriodsOwner!==owner){clearCreatorRewardView();creatorPeriods.clear();creatorEpochChoices.clear();creatorPeriodsCursor=null;creatorPeriodsOwner=owner;epochInput.replaceChildren();}
+ if(more&&!creatorPeriodsCursor)return;
+ creatorRewardRequest?.abort();const request=new AbortController();creatorRewardRequest=request;const timeout=setTimeout(()=>request.abort(),10000);
+ const valid=()=>generation===creatorLoadGeneration&&wallet===activeWallet&&currentPage()==='rewards'&&select.isConnected&&select.value===marketId;
+ const older=query<HTMLButtonElement>('[data-creator-older]');if(older)older.disabled=true;
+ try{
+  const selected=Number(epochInput.value)||undefined;
+  const page=await loadCreatorRewards(runtimeConfig.readApi.value,robinhoodChain.id,marketId,activeWallet.account,{signal:request.signal,...(more?{cursor:creatorPeriodsCursor!}:selected?{epoch:selected}:{})});
+  if(!valid())return;
+  if(creatorReward&&page.currentEpoch!==creatorReward.currentEpoch){creatorPeriods.clear();creatorEpochChoices.clear();epochInput.replaceChildren();creatorReward=null;void refreshCreatorReward();return;}
+  for(const row of page.periods){creatorPeriods.set(row.epoch,row);creatorEpochChoices.add(row.epoch);}
+  if(!more&&selected&&!page.periods.length){creatorPeriods.delete(selected);creatorEpochChoices.delete(selected);}
+  if(more||!selected)creatorPeriodsCursor=page.nextCursor;
+  epochInput.replaceChildren(...[...creatorEpochChoices].sort((a,b)=>b-a).map(e=>new Option(`Distribution ${e}`,String(e))));
+  if(selected&&creatorEpochChoices.has(selected))epochInput.value=String(selected);
+  epochInput.disabled=!creatorEpochChoices.size;if(older)older.hidden=!creatorPeriodsCursor;
+  foundation=Object.freeze({...foundation,markets:[...foundation.markets.filter(m=>m.marketId!==marketId),page.market]});
+  if(creatorRewardWatchKey!==owner){creatorRewardWatcher?.stop();creatorRewardWatchKey=owner;creatorRewardWatcher=watchMarketChanges(runtimeConfig.readApi.value,marketId,async regions=>{if(regions.some(r=>['fees','market','statistics'].includes(r))&&!rewardChoicePending&&wallet===activeWallet){creatorDirectoryAt=0;void refreshCreatorReward();}});}
+  const row=creatorPeriods.get(Number(epochInput.value));
+  if(!row){clearCreatorRewardView();text('[data-creator-status]','No creator rewards for this wallet.');return;}
+  const metadata=await marketMetadata(page.market);if(!valid())return;
+  creatorReward=Object.freeze({marketId,epoch:row.epoch,beneficiary:row.beneficiary,currentEpoch:page.currentEpoch,currentBeneficiary:page.currentBeneficiary??ZERO_ADDRESS,pendingBeneficiary:page.pendingBeneficiary,feeAsset:page.market.quoteAsset,liability:BigInt(row.quote.remaining),memeLiability:BigInt(row.meme.remaining),memeAsset:page.market.memeToken,creatorFeesToHolders:page.market.creatorFeesToHolders===true,pendingQuote:row.epoch===page.currentEpoch?BigInt(page.pendingQuote):0n,now:0n});
+  text('[data-creator-quote-asset]',`${formatTokenAmount(creatorReward.liability,metadata.quoteDecimals)} ${metadata.quoteSymbol}`);
+  text('[data-creator-pending-meme]',`${formatTokenAmount(creatorReward.memeLiability,18)} ${metadata.symbol}${page.market.burnMemeFees?' · pending burn':''}`);
+  text('[data-creator-receive-asset]',`${metadata.quoteSymbol} ｜ ${metadata.symbol}`);text('[data-creator-beneficiary]',shortHex(row.beneficiary));
+  text('[data-creator-status]',creatorReward.pendingQuote!>0n?'More rewards are ready to prepare when you claim.':'');
   updateRewardsAvailability();
-  if (!foundation || !wallet || !runtimeConfig.contracts.available) {
-    text("[data-creator-status]", !wallet ? "" : 'Rewards are temporarily unavailable. Reload the page to try again.');
-    return;
-  }
-  const activeWallet=wallet;
-  const select = query<HTMLSelectElement>("[data-creator-market]");
-  if(creatorReward&&creatorReward.marketId!==select?.value)clearCreatorRewardView();
-  if (!select?.value||creatorDirectoryAccount!==activeWallet.account.toLowerCase()||!creatorMarketIds.has(select.value)) return;
-  try {
-    const market = selectedRewardMarket("[data-creator-market]");
-    await getRewardMarketDetail(market);
-    const registry = marketRelease(market.marketId).creatorRegistry;
-    const block = await publicClient.getBlock({ blockTag: "latest" });
-    const blockNumber = block.number;
-    const currentEpoch = await publicClient.readContract({ blockNumber, abi: v1Abis_CreatorRevenueRegistry, address: registry, functionName: "currentCreatorEpoch", args: [market.marketId] });
-    if (generation !== creatorLoadGeneration || wallet!==activeWallet) return;
-    if (currentEpoch <= 0) throw new Error("Creator revenue has not been initialized for this market");
-    const epochInput = required<HTMLSelectElement>("[data-creator-epoch]");
-    await loadCreatorEpochs(market.marketId,registry,currentEpoch,activeWallet.account,blockNumber);
-    if(generation!==creatorLoadGeneration||wallet!==activeWallet||!epochInput.value)return;
-    const epoch = parseUint32(epochInput.value, "Creator epoch");
-
-    if (epoch > currentEpoch) throw new Error("Creator epoch is newer than the on-chain current epoch");
-    const feeAsset = configuredCreatorFeeAsset(market);
-    const [beneficiary, currentBeneficiary] = await Promise.all([
-      publicClient.readContract({ blockNumber, abi: v1Abis_CreatorRevenueRegistry, address: registry, functionName: "creatorBeneficiaryAt", args: [market.marketId, epoch] }),
-      publicClient.readContract({ blockNumber, abi: v1Abis_CreatorRevenueRegistry, address: registry, functionName: "creatorBeneficiaryAt", args: [market.marketId, currentEpoch] }),
-    ]);
-    const canonicalBeneficiary = canonicalAddress(beneficiary, "Creator beneficiary");
-    const canonicalCurrentBeneficiary = canonicalAddress(currentBeneficiary, "Current creator beneficiary");
-    if(generation!==creatorLoadGeneration||wallet!==activeWallet||select.value!==market.marketId)return;
-    if(!ownsCreatorRewards(activeWallet.account,canonicalBeneficiary)){
-      updateRewardsAvailability();
-      return;
-    }
-    const memeAsset = canonicalAddress(market.memeToken, "Created-token asset");
-    const [memeLiability, metadata,liability,rawMarket] = await Promise.all([
-      publicClient.readContract({ blockNumber, abi: v1Abis_ProtocolFeeVault, address: marketRelease(market.marketId).feeVault, functionName: "creatorLiability", args: [market.marketId, epoch, memeAsset] }),
-      marketMetadata(market),
-      publicClient.readContract({ blockNumber, abi: v1Abis_ProtocolFeeVault, address: marketRelease(market.marketId).feeVault, functionName: "creatorLiability", args: [market.marketId, epoch, feeAsset] }),
-      readWalletMarket(marketRelease(market.marketId).marketRegistry,market.marketId,blockNumber),
-    ]);
-    if (generation !== creatorLoadGeneration || wallet!==activeWallet) return;
-    const pendingBeneficiary = await publicClient.readContract({blockNumber, abi: v1Abis_CreatorRevenueRegistry, address: registry, functionName: "pendingCreatorRevenueBeneficiary", args: [market.marketId]}).catch(() => null);
-    if (generation !== creatorLoadGeneration || wallet!==activeWallet || select.value!==market.marketId) return;
-    text("[data-creator-pending-beneficiary]", pendingBeneficiary === null ? "Two-step handoff unavailable: unsupported release or RPC read failure" : pendingBeneficiary === ZERO_ADDRESS ? "No pending handoff" : pendingBeneficiary);
-    const creatorFeesToHolders = tupleField(tupleField(rawMarket, "config", 0), "creatorFeesToHolders", 15) === true;
-    creatorReward = Object.freeze({ pendingBeneficiary, creatorFeesToHolders, marketId: market.marketId, epoch, beneficiary: canonicalBeneficiary, currentEpoch, currentBeneficiary: canonicalCurrentBeneficiary, feeAsset, liability, memeAsset, memeLiability, now: block.timestamp });
-    text("[data-creator-quote-asset]", `${formatTokenAmount(liability, metadata.quoteDecimals)} ${metadata.quoteSymbol}`);
-    text("[data-creator-pending-meme]", `${formatTokenAmount(memeLiability, 18)} ${metadata.symbol}${market.burnMemeFees ? " · pending burn" : ""}`);
-    text("[data-creator-receive-asset]", `${metadata.quoteSymbol} ｜ ${metadata.symbol}`);
-    text("[data-creator-beneficiary]", canonicalBeneficiary);
-    text("[data-creator-current-beneficiary]", canonicalCurrentBeneficiary);
-    text("[data-creator-market-summary]", shortHex(market.marketId, 9, 7));
-    text("[data-creator-epoch-summary]", String(epoch));
-    text("[data-creator-status]", "");
-    text("[data-creator-status-summary]", wallet.account === canonicalCurrentBeneficiary ? "Current future-revenue controller" : wallet.account === canonicalBeneficiary ? "Selected historical-epoch beneficiary" : "Read / permissionless claim only");
-    updateRewardsAvailability();
-  } catch (error) {
-    if (generation !== creatorLoadGeneration || wallet!==activeWallet) return;
-    creatorEpochKey='';text("[data-creator-status]", "Creator rewards could not be loaded. Refresh and try again.");
-    text("[data-creator-status-summary]", "-");
-    updateRewardsAvailability();
-  }
+ }catch{if(valid()){text('[data-creator-status]','Rewards could not be refreshed. Please try again.');updateRewardsAvailability();}}
+ finally{clearTimeout(timeout);if(valid()&&older)older.disabled=false;}
 }
 
 function clearTreasuryProof(): void {
@@ -3804,7 +3748,7 @@ function updateRewardsAvailability(): void {
         || directEscape.marketId !== (query<HTMLInputElement>("[data-direct-vault-market]")?.value.trim().toLowerCase() ?? ""),
     );
   }
-  if (!writeReady()||stakeSubmitting||rewardChoicePending) return;
+  if (!writeReady()||stakeSubmitting||rewardChoicePending||creatorClaimPreparing) return;
   if (snapshotReward && wallet?.account.toLowerCase() === snapshotReward.page.identity.account.toLowerCase()) {
     const round = selectedSnapshotRound();
     const button = rewardActionButton('claimSnapshot');
@@ -3830,14 +3774,8 @@ function updateRewardsAvailability(): void {
   }
   if (creatorReward) {
     const claim = rewardActionButton("claimCreator");
-    if (claim) setDisabled(claim, !ownsCreatorRewards(wallet?.account,creatorReward.beneficiary)||(creatorReward.liability <= 0n && creatorReward.memeLiability <= 0n));
-    const next = query<HTMLInputElement>("[data-creator-new-beneficiary]")?.value.trim().toLowerCase() ?? "";
-    const transfer = rewardActionButton("transferCreatorRevenueBeneficiary");
-    if (transfer) setDisabled(transfer, creatorReward.pendingBeneficiary === null || wallet?.account !== creatorReward.currentBeneficiary || !ADDRESS_PATTERN.test(next) || next === ZERO_ADDRESS || next === creatorReward.currentBeneficiary);
-  }
-  if (creatorReward) {
-    const acceptCreatorRevenueBeneficiaryButton=rewardActionButton("acceptCreatorRevenueBeneficiary");if(acceptCreatorRevenueBeneficiaryButton)setDisabled(acceptCreatorRevenueBeneficiaryButton,!creatorReward.pendingBeneficiary || creatorReward.pendingBeneficiary === ZERO_ADDRESS || wallet?.account !== creatorReward.pendingBeneficiary.toLowerCase());
-    const cancelCreatorRevenueBeneficiaryTransferButton=rewardActionButton("cancelCreatorRevenueBeneficiaryTransfer");if(cancelCreatorRevenueBeneficiaryTransferButton)setDisabled(cancelCreatorRevenueBeneficiaryTransferButton,!creatorReward.pendingBeneficiary || creatorReward.pendingBeneficiary === ZERO_ADDRESS || wallet?.account !== creatorReward.currentBeneficiary);
+    if (claim) setDisabled(claim, !ownsCreatorRewards(wallet?.account,creatorReward.beneficiary)||(creatorReward.liability <= 0n && creatorReward.memeLiability <= 0n && (creatorReward.pendingQuote??0n)<=0n));
+
   }
   if (treasuryReward && treasuryWritesReady()) {
     const state = treasuryReward;
@@ -4026,7 +3964,7 @@ const {default: v1Abis_UserStockVault} = await import('./v1/generated/contracts/
 let rewardClaimOutcomeMessage='';
 let rewardChoicePending=false;
 let rewardChoiceCancelled=false;
-async function executeUserClaim(market: Parameters<typeof marketMetadata>[0],role: 0|1|2,epoch=0): Promise<void> {
+async function executeUserClaim(market: Parameters<typeof marketMetadata>[0],role: 0|1|2,epoch=0,claimBalances?:readonly bigint[]): Promise<void> {
 const {default: currentV4Abis_ProtocolFeeVault} = await import('./v1/generated/contracts/current/ProtocolFeeVault.ts');
 const {rewardClaimDialog} = await import('./ui/reward-claim-dialog.ts');
 const {rawUserClaimRequest} = await import('./v1/features/userClaims.ts');
@@ -4041,18 +3979,18 @@ const {userClaimOutcome} = await import('./v1/features/userClaims.ts');
   const activeWallet=wallet, feeVault=marketRelease(market.marketId).feeVault;
   const claimMode=await usesUserClaims(feeVault);
   const metadata=await marketMetadata(market);
-  const balances=role===0?[creatorReward?.liability??0n,creatorReward?.memeLiability??0n]:role===1?[rewardPosition?.quoteClaimable??0n,rewardPosition?.memeClaimable??0n]:[continuousReward?.claimable??0n,continuousReward?.memeClaimable??0n];
+  const balances=claimBalances??(role===0?[creatorReward?.liability??0n,creatorReward?.memeLiability??0n]:role===1?[rewardPosition?.quoteClaimable??0n,rewardPosition?.memeClaimable??0n]:[continuousReward?.claimable??0n,continuousReward?.memeClaimable??0n]);
   const burn=market.burnMemeFees===true;
   if(balances.every(amount=>amount===0n))throw Error("No rewards available to claim");
   await import('./ui/reward-claim-dialog.css');
   const choice=await rewardClaimDialog({quote:metadata.quoteSymbol,meme:metadata.symbol}, (burn ? (balances[0]! > 0n ? 1 : 2) : ((balances[0]! > 0n ? 1 : 0) | (balances[1]! > 0n ? 2 : 0))) as 1|2|3, burn);
   if(!choice){rewardChoiceCancelled=true;return;}
   await verifyLiveWalletContext(activeWallet);
-  const claimBlock=role===1?await publicClient.getBlock({blockTag:'latest'}):undefined;
+  const claimBlock=await publicClient.getBlock({blockTag:'latest'});
   const claimSync=claimBlock?{...foundation.sync,status:'synced' as const,revision:`${claimBlock.number}:${claimBlock.hash}`,blockNumber:String(claimBlock.number),blockHash:claimBlock.hash}:foundation.sync;
   const claimRequest=rawUserClaimRequest(claimMode,feeVault,market.marketId,role,epoch,choice);
   const outcome=await executeTransaction({
-    operationKey:`reward:user-claim:${market.marketId}:${role}:${epoch}:${activeWallet.account}:${foundation.sync.revision}`,
+    operationKey:`reward:user-claim:${market.marketId}:${role}:${epoch}:${activeWallet.account}:${claimSync.revision}`,
     sync:claimSync,walletContext:activeWallet,
     request:createContractWriteRequest(claimRequest),
     verifyChain:()=>ensureCanonicalMarket(market),
@@ -4081,51 +4019,45 @@ async function executeStakerClaim(): Promise<void> {
   await refreshRewardPosition();
 }
 
-async function executeCreatorAction(action: string): Promise<void> {
-const {default: v1Abis_CreatorRevenueRegistry} = await import('./v1/generated/contracts/legacy/CreatorRevenueRegistry.ts');
-
-  const actions = await import('./v1/features/creator.ts').catch(() => null);
-  if (!actions) { notify('Could not load this action. Please try again.', 'warning'); return; }
-  const {buildTransferCreatorBeneficiary} = actions;
-  if (!foundation || !wallet || !creatorReward || !runtimeConfig.contracts.available) throw new Error("Load verified creator revenue state first");
-  const activeWallet = wallet;
-  await verifyLiveWalletContext(activeWallet);
-  const state = creatorReward;
-  const creatorRegistry = marketRelease(state.marketId).creatorRegistry;
-  await ensureCanonicalMarket(selectedRewardMarket("[data-creator-market]"));
-  if (action === "claimCreator") {
-    if(!ownsCreatorRewards(activeWallet.account,state.beneficiary))throw Error("No Creator Rewards For This Wallet");
-    await executeUserClaim(selectedRewardMarket("[data-creator-market]"),0,state.epoch);
-    await refreshCreatorReward();
-  } else {
-    if (state.pendingBeneficiary === null) throw new Error("This release does not support two-step handoff");
-    const accept = action === "acceptCreatorRevenueBeneficiary";
-    const cancel = action === "cancelCreatorRevenueBeneficiaryTransfer";
-    if (activeWallet.account !== (accept ? state.pendingBeneficiary.toLowerCase() : state.currentBeneficiary)) throw new Error("Wallet is not authorized for this handoff step");
-    const next = accept ? state.pendingBeneficiary : cancel ? ZERO_ADDRESS : canonicalAddress(required<HTMLInputElement>("[data-creator-new-beneficiary]").value.trim(), "New beneficiary");
-    await executeTransaction({
-      operationKey: `reward:creator-handoff:${state.marketId}:${action}:${next}:${foundation.sync.revision}`,
-      sync: foundation.sync, walletContext: activeWallet,
-      request: accept || cancel ? createContractWriteRequest({abi: v1Abis_CreatorRevenueRegistry, address: creatorRegistry,
-        functionName: accept ? "acceptCreatorRevenueBeneficiary" : "cancelCreatorRevenueBeneficiaryTransfer", args: [state.marketId]})
-        : buildTransferCreatorBeneficiary({registry: creatorRegistry, marketId: state.marketId, nextBeneficiary: next}),
-      verifyChain: () => ensureCanonicalMarket(selectedRewardMarket("[data-creator-market]")),
-      confirm: async receipt => {
-const {default: v1Abis_CreatorRevenueRegistry} = await import('./v1/generated/contracts/legacy/CreatorRevenueRegistry.ts');
-
-        const event = accept ? "CreatorRevenueBeneficiaryUpdated" : cancel ? "CreatorRevenueBeneficiaryTransferCancelled" : "CreatorRevenueBeneficiaryProposed";
-        receiptEvent(receipt, creatorRegistry, v1Abis_CreatorRevenueRegistry, event, args => args.marketId === state.marketId);
-        const pending = await publicClient.readContract({abi: v1Abis_CreatorRevenueRegistry, address: creatorRegistry, functionName: "pendingCreatorRevenueBeneficiary", args: [state.marketId], blockNumber: receipt.blockNumber});
-        const epoch = await publicClient.readContract({abi: v1Abis_CreatorRevenueRegistry, address: creatorRegistry, functionName: "currentCreatorEpoch", args: [state.marketId], blockNumber: receipt.blockNumber});
-        if (pending.toLowerCase() !== (accept || cancel ? ZERO_ADDRESS : next.toLowerCase()) || epoch !== state.currentEpoch + (accept ? 1 : 0)) throw new Error("Handoff receipt state mismatch");
-        return epoch;
-      },
-    });
-    if (accept) required<HTMLSelectElement>("[data-creator-epoch]").value = String(state.currentEpoch + 1);
-    notify(accept ? "Future revenue handoff accepted" : cancel ? "Handoff cancelled" : "Recipient nominated; new wallet must accept", "success");
+async function executeCreatorAction(action:string):Promise<void>{
+ if(action!=='claimCreator')throw Error('This action is not available.');
+ if(creatorClaimPreparing||rewardChoicePending)throw Error('A claim is already in progress.');
+ creatorClaimPreparing=true;updateRewardsAvailability();
+ try{
+ if(!foundation||!wallet||!creatorReward||!runtimeConfig.contracts.available)throw Error('Load your rewards first.');
+ const activeWallet=wallet,state=creatorReward,market=selectedRewardMarket('[data-creator-market]');
+ if(market.marketId!==state.marketId)throw Error('Select your token again.');
+ await verifyLiveWalletContext(activeWallet);await ensureCanonicalMarket(market);
+ const release=marketRelease(market.marketId);
+ const {default:registryAbi}=await import('./v1/generated/contracts/current/CreatorRevenueRegistry.ts');
+ const {default:vaultAbi}=await import('./v1/generated/contracts/current/ProtocolFeeVault.ts');
+ const {default:curveAbi}=await import('./v1/generated/contracts/current/TickerGardenCurve.ts');
+ let block=await publicClient.getBlock({blockTag:'latest'});
+ const [owner,currentEpoch]=await Promise.all([
+  publicClient.readContract({abi:registryAbi,address:release.creatorRegistry,functionName:'creatorBeneficiaryAt',args:[market.marketId,state.epoch],blockNumber:block.number}),
+  publicClient.readContract({abi:registryAbi,address:release.creatorRegistry,functionName:'currentCreatorEpoch',args:[market.marketId],blockNumber:block.number})]);
+ if(!ownsCreatorRewards(activeWallet.account,owner))throw Error('No Creator Rewards For This Wallet');
+ const raw=await readWalletMarket(release.marketRegistry,market.marketId);
+ if(Number(raw.runtime.launchPhase)===0&&state.epoch===currentEpoch){
+  const curve=raw.config.curve;
+  const pending=await publicClient.readContract({abi:curveAbi,address:curve,functionName:'accruedCurveFees',blockNumber:block.number});
+  if(pending>0n){
+   text('[data-creator-status]','Preparing your rewards…');
+   await executeTransaction({operationKey:`reward:creator-sweep:${market.marketId}:${activeWallet.account}:${block.number}:${block.hash}`,walletContext:activeWallet,
+    sync:{...foundation.sync,status:'synced',revision:`${block.number}:${block.hash}`,blockNumber:String(block.number),blockHash:block.hash},
+    request:createContractWriteRequest({abi:curveAbi,address:curve,functionName:'sweepCurveFees',args:[]}),verifyChain:()=>ensureCanonicalMarket(market),
+    // A concurrent permissionless sweep makes this a valid zero-amount no-op.
+    confirm:async receipt=>{if(receipt.status!=='success')throw Error('Rewards could not be prepared. Please try again.');return true;}});
+   block=await publicClient.getBlock({blockTag:'latest'});
   }
-
-  await refreshCreatorReward();
+ }
+ await verifyLiveWalletContext(activeWallet);
+ const [quote,meme]=await Promise.all([
+  publicClient.readContract({abi:vaultAbi,address:release.feeVault,functionName:'creatorLiability',args:[market.marketId,state.epoch,market.quoteAsset],blockNumber:block.number}),
+  publicClient.readContract({abi:vaultAbi,address:release.feeVault,functionName:'creatorLiability',args:[market.marketId,state.epoch,market.memeToken],blockNumber:block.number})]);
+ await executeUserClaim(market,0,state.epoch,[quote,meme]);
+ void refreshCreatorReward();
+ }finally{creatorClaimPreparing=false;updateRewardsAvailability();void refreshCreatorReward();}
 }
 
 async function ensureTreasuryActionState(state: TreasuryRewardState, action: string, account: Address): Promise<void> {
@@ -4300,7 +4232,6 @@ async function runRewardAction(button: HTMLButtonElement): Promise<void> {
   const action = button.dataset.rewardAction ?? "";
   if (['rageQuit','directVaultRageQuit'].includes(action) && !await confirmFlowAction('Return all principal immediately? All unclaimed rewards in this position will be permanently forfeited to the platform.')) return;
 
-  if (action === 'transferCreatorRevenueBeneficiary' && !await confirmFlowAction('Nominate this wallet to receive future creator revenue? The change takes effect only when it accepts. Past earnings stay with the recorded beneficiary.')) return;
   if(action==='stake'){
     if(stakeSubmitting)return;
     const form=button.closest<HTMLFormElement>('form');if(form&&!form.reportValidity())return;
@@ -4330,7 +4261,7 @@ async function runRewardAction(button: HTMLButtonElement): Promise<void> {
     } else if (action === "claimStaker") {
       await executeStakerClaim();
 
-    } else if (["claimCreator", "transferCreatorRevenueBeneficiary", "acceptCreatorRevenueBeneficiary", "cancelCreatorRevenueBeneficiaryTransfer"].includes(action)) {
+    } else if (action === "claimCreator") {
       await executeCreatorAction(action);
     } else if (action === "claimSnapshot") {
       await executeSnapshotClaim();
@@ -4365,7 +4296,7 @@ let rewardTabLoading = false;
 let rewardRefreshQueued = false;
 async function refreshActiveReward(): Promise<void> {
   if (rewardTabLoading) { rewardRefreshQueued = true; return; }
-  if (rewardChoicePending || document.hidden || !isRewardsPage()) return;
+  if (rewardChoicePending || creatorClaimPreparing || document.hidden || !isRewardsPage()) return;
   rewardTabLoading = true;
   const generation = routeGeneration;
   const button = query<HTMLButtonElement>('[data-rewards-refresh]');
@@ -4691,17 +4622,17 @@ function startSnapshotUpdates(): void {
   const baseUrl = runtimeConfig.readApi.value;
   const poller = createSnapshotPoller({
     chainId: robinhoodChain.id,
-    canPoll: () => readyRouteGeneration === routeGeneration && !isStaticPage() && currentPage()!=='trade' && currentPage()!=='markets' && currentPage()!=='staking' && !['stats','statsStocks'].includes(currentPage()) && !walletConnecting && !loadingFoundation && !document.hidden,
+    canPoll: () => readyRouteGeneration === routeGeneration && !isStaticPage() && currentPage()!=='trade' && currentPage()!=='markets' && currentPage()!=='staking' && currentPage()!=='rewards' && !['stats','statsStocks'].includes(currentPage()) && !walletConnecting && !loadingFoundation && !document.hidden,
     fetchUpdate: (since, signal) => new TickerGardenV1Client(baseUrl, (input, init) => fetch(input, { ...init, signal })).getSnapshotUpdates(since && foundation ? { since } : {}),
     prepare: async (update, signal) => {
-      if(currentPage()==='trade'||currentPage()==='markets'||currentPage()==='staking')throw new SnapshotRefreshSuperseded('This page uses its own display stream');
+      if(currentPage()==='trade'||currentPage()==='markets'||currentPage()==='staking'||currentPage()==='rewards')throw new SnapshotRefreshSuperseded('This page uses its own display stream');
       const route=routeGeneration;
       const generation = ++foundationGeneration;
       const activeWallet = wallet;
       const api = new TickerGardenV1Client(baseUrl, (input, init) => fetch(input, { ...init, signal }));
       const next = await prepareFoundation(api, update.sync, update.mode!=='reset'&&!update.invalidated.includes('configs'));
       return () => {
-        if (route!==routeGeneration||currentPage()==='trade'||currentPage()==='markets'||currentPage()==='staking'||generation !== foundationGeneration || activeWallet !== wallet) throw new SnapshotRefreshSuperseded("Snapshot refresh superseded");
+        if (route!==routeGeneration||currentPage()==='trade'||currentPage()==='markets'||currentPage()==='staking'||currentPage()==='rewards'||generation !== foundationGeneration || activeWallet !== wallet) throw new SnapshotRefreshSuperseded("Snapshot refresh superseded");
         invalidateSnapshotReads(currentPage() === 'trade',currentPage() === 'markets');
         const recentChanged=update.recentVersion!==undefined&&update.recentVersion!==recentMarketVersion;
         recentMarketVersion=update.recentVersion;
@@ -4722,7 +4653,7 @@ function startSnapshotUpdates(): void {
       };
     },
     unavailable: error => {
-      if(currentPage()==='markets'||currentPage()==='staking')return;
+      if(currentPage()==='markets'||currentPage()==='staking'||currentPage()==='rewards')return;
       ++foundationGeneration;
       if(currentPage()==="trade"&&tradeMarket)return;
       foundation = null;
@@ -4736,7 +4667,7 @@ function startSnapshotUpdates(): void {
   window.addEventListener("online", () => poller.reconnect());
   window.addEventListener("offline", () => {
     poller.stop();
-    if(currentPage()==='markets'||currentPage()==='staking')return;
+    if(currentPage()==='markets'||currentPage()==='staking'||currentPage()==='rewards')return;
     ++foundationGeneration;
     foundation = null;
     foundationError = "Network unavailable";
@@ -4765,8 +4696,10 @@ function unmountPage(): void {
   explorePagers[0].pause();explorePagers[1].pause();explorePageGeneration[0]++;explorePageGeneration[1]++;
   exploreLiveGeneration++;exploreLiveRequest?.abort();exploreLiveRequest=null;
   closeExploreEvents();
+  clearCreatorDirectory();++creatorLoadGeneration;
   exploreStockPicker?.destroy();exploreStockPicker=undefined;
   window.clearInterval(stakeCountdownTimer);
+  creatorRewardRequest?.abort();creatorRewardWatcher?.stop();creatorRewardWatcher=undefined;creatorRewardWatchKey='';
   stakeStatisticsWatcher?.stop();stakeStatisticsWatcher=undefined;stakeStatisticsWatchMarket='';stakeStatsRequests.clear();stakeRewardHistoryReads.clear();stakePageListeners?.abort();stakePageListeners=undefined;
   clearTimeout(stakeSearchTimer);stakeSearchGeneration++;stakeSearchDirectory.reset();stakeSearchPage=null;stakeSearchKey='';
   ++stakeStatsGeneration; ++stakeDirectoryGeneration; stakeDirectoryBusy=false;

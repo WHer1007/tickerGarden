@@ -31,7 +31,9 @@
     "test:integration": "node --experimental-strip-types --test --test-concurrency=1 tests/integration/*.test.ts",
     "test:contract": "npm run check:openapi && npm run check:contract-coverage && node --experimental-strip-types --test tests/unit/http.test.ts tests/unit/read-api.test.ts",
     "test:recovery": "node --experimental-strip-types --test tests/unit/jobs.test.ts tests/unit/chain.test.ts tests/unit/transaction-observer.test.ts tests/integration/db.test.ts tests/integration/content.test.ts",
-    "test": "npm run check:generated && npm run check:vercel-packaging && npm run test:contract && npm run typecheck && npm run test:unit"
+    "test": "npm run check:generated && npm run check:vercel-packaging && npm run test:contract && npm run typecheck && npm run test:unit",
+    "creator:sweep": "node --experimental-strip-types scripts/creator-sweep.ts",
+    "creator:reconcile": "node --experimental-strip-types scripts/creator-reconcile.ts"
   },
   "dependencies": {
     "@hono/zod-openapi": "1.6.3",

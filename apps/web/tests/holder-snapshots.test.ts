@@ -76,13 +76,13 @@ test('snapshot write approval is separate from every legacy stream approval',asy
  assert.equal(parseV1RuntimeConfig({VITE_HOLDER_SNAPSHOT_RELEASE_APPROVAL:SNAPSHOT_HOLDER_RELEASE_APPROVAL}).snapshotHolderWrites.available,true);
 });
 
-test('new Holder loading is API-only and preempts legacy RPC paths; only the Holder dialog pauses its refresh',async()=>{
+test('new Holder loading is API-only and preempts legacy RPC paths; claim preparation pauses reward refresh',async()=>{
  const {readFileSync}=await import('node:fs');const app=readFileSync(new URL('../src/app.ts',import.meta.url),'utf8');
  const load=app.slice(app.indexOf('async function loadSnapshotReward('),app.indexOf('async function executeSnapshotClaim('));
  assert.ok(load.includes('fetchHolderSnapshots'));assert.ok(!load.includes('publicClient.'));
  const refresh=app.slice(app.indexOf('async function refreshTreasuryReward('),app.indexOf('function rewardActionButton('));
  assert.ok(refresh.indexOf('loadSnapshotReward')<refresh.indexOf('getRewardMarketDetail'));
- assert.match(app,/rewardChoicePending \|\| document.hidden \|\| !isRewardsPage/);
+ assert.match(app,/rewardChoicePending \|\| creatorClaimPreparing \|\| document.hidden \|\| !isRewardsPage/);
  assert.doesNotMatch(app,/hasActiveOperations\(\) \|\| rewardChoicePending/);
  assert.match(load,/publicationRevision/);assert.match(load,/recoveredCursor/);assert.doesNotMatch(load,/sourceBlock!==prior\.page\.sourceBlock|sourceHash!==prior\.page\.sourceHash/);
  assert.match(load,/generation===treasuryLoadGeneration/);assert.match(load,/wallet\?\.account===account/);assert.match(load,/value===market\.marketId/);

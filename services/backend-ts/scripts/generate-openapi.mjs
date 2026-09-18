@@ -40,6 +40,7 @@ const market = object({
 }, undefined, { description: "poolId and poolKey are null or non-null together." });
 market.properties.confirmation = object({status:{type:'string',const:'confirmed'},blockNumber:uintString,blockHash:bytes32,observedAt:{type:'string',format:'date-time'}});
 market.properties.creator = address;
+market.properties.creatorTaxBps={type:'integer',minimum:0,maximum:500};
 market.properties.creatorFeesToHolders = {type:'boolean'};
 market.properties.burnMemeFees = {type:'boolean'};
 market.properties.lpFeePips = {type:'integer',enum:[0,1000,2000,3000]};
@@ -83,7 +84,7 @@ const displayReference = object({chainId:{type:"integer",enum:[4663,46630,421614
 displayReference.allOf=[{if:{properties:{status:{const:"available"}}},then:{properties:{bidUsd:displayDecimal,askUsd:displayDecimal,multiplier:displayDecimal,asOf:displayTime,expiresAt:displayTime}},else:{properties:{bidUsd:{type:"null"},askUsd:{type:"null"}}}}];
 const spec = {
   openapi: "3.1.0",
-  info: { title: "TickerGarden V1 Read API", version: "5.10.0", description: "Non-custodial TypeScript Serverless read API for the routes consumed by the current frontend." },
+  info: { title: "TickerGarden V1 Read API", version: "5.11.0", description: "Non-custodial TypeScript Serverless read API for the routes consumed by the current frontend." },
   "x-execution-spec-id": "V1-EXEC-11",
   paths: {
     "/v1/users/{address}/activity":{get:{operationId:"listUserActivity",description:"Finalized address-referenced protocol events, newest first, from the configured indexing start. All canonical batches and stored receipt commitments must be complete. Roles are event references, not verified transaction initiators or trading volume. A changed history returns 409; restart pagination. No transaction submission.",parameters:[{name:"address",in:"path",required:true,schema:address},{name:"limit",in:"query",schema:{type:"integer",minimum:1,maximum:100,default:50}},{name:"cursor",in:"query",schema:{type:"string",minLength:1,maxLength:1024}}],responses:{"200":response(ref("UserActivityPage")),"400":response(ref("ActivityError")),"405":response(ref("ActivityError")),"409":response(ref("ActivityError")),"503":response(ref("ActivityError"))}}},
@@ -185,7 +186,7 @@ spec.components.schemas.TokenDetailStatistics.properties.marketCapUsd = nullable
 spec.components.schemas.TokenDetailStatistics.properties.priceUsd = nullable({type:'string'});
 
 const directoryMarket = object({ marketId: bytes32, memeToken: address, name: { type: 'string' }, symbol: { type: 'string' } });
-spec.components.schemas.CreatorMarket = object({ marketId: bytes32, memeToken: address, creator: address, creationBlockNumber: uintString });
+spec.components.schemas.CreatorMarket = object({ market: nullable(ref('MarketReadModel')), marketId: bytes32, memeToken: address, creator: address, creationBlockNumber: uintString });
 spec.components.schemas.MarketPage.properties.ranking = object({mode:{type:'string',enum:['market-cap-snapshot','recent-buys']},version:{type:'string'},updatedAt:nullable({type:'string',format:'date-time'}),refreshSeconds:{type:'integer',minimum:1},stale:{type:'boolean'}});
 spec.components.schemas.CreatorMarketPage = object({ chainId: { type: 'integer' }, address, displayOnly: { type: 'boolean', const: true }, complete: { type: 'boolean', const: true }, items: { type: 'array', items: ref('CreatorMarket') }, nextCursor: nullable({ type: 'string' }) });
 spec.components.schemas.HolderMarketPage = object({ chainId: { type: 'integer' }, complete: { type: 'boolean', const: true }, items: { type: 'array', items: directoryMarket } });
@@ -194,6 +195,9 @@ spec.components.schemas.RewardHistoryResponse = object({ chainId: { type: 'integ
 spec.components.schemas.StakeRewardSummary = object({chainId:{type:'integer'},displayOnly:{type:'boolean',const:true},marketId:bytes32,account:address,throughBlock:uintString,revision:{type:'string'},claimed:{type:'object',additionalProperties:uintString},earned:{type:'object',additionalProperties:uintString}});
 spec.paths['/v1/staker-reward-summary']={get:{operationId:'getStakerRewardSummary',parameters:[{name:'marketId',in:'query',required:true,schema:bytes32},{name:'account',in:'query',required:true,schema:address}],responses:{'200':response(ref('StakeRewardSummary')),'400':response(ref('ActivityError')),'503':response(ref('ActivityError'))}}};
 spec.components.schemas.LaunchRecoveryResponse = object({ chainId: { type: 'integer' }, displayOnly: { type: 'boolean', const: true }, marketId: bytes32, transactionHash: bytes32, blockNumber: uintString, blockHash: bytes32, finality: { type: 'string', const: 'finalized' } });
+const creatorAmounts=object({credited:uintString,paid:uintString,burned:uintString,remaining:uintString});
+spec.components.schemas.CreatorRewards=object({chainId:{type:'integer'},displayOnly:{type:'boolean',const:true},marketId:bytes32,account:address,market:ref('MarketReadModel'),currentEpoch:{type:'integer'},currentBeneficiary:nullable(address),pendingBeneficiary:address,pendingQuote:uintString,curveFees:uintString,periods:{type:'array',items:object({epoch:{type:'integer'},beneficiary:address,quote:creatorAmounts,meme:creatorAmounts})},nextCursor:nullable({type:'string'}),sourceBlockNumber:uintString,sourceBlockHash:bytes32});
+spec.paths['/v1/creator-rewards']={get:{operationId:'getCreatorRewards',parameters:[{name:'marketId',in:'query',required:true,schema:bytes32},{name:'account',in:'query',required:true,schema:address},{name:'cursor',in:'query',required:false,schema:{type:'string'}},{name:'epoch',in:'query',required:false,schema:{type:'integer',minimum:1,maximum:4294967295}}],responses:{'200':response(ref('CreatorRewards')),'400':response(ref('ActivityError')),'409':response(ref('ActivityError')),'503':response(ref('ActivityError'))}}};
 spec.paths['/v1/creator-markets'] = { get: { operationId: 'listCreatorMarkets', parameters: [{ name: 'address', in: 'query', required: true, schema: address }, { name: 'limit', in: 'query', required: false, schema: { type: 'integer', minimum: 1, maximum: 100 } }, { name: 'cursor', in: 'query', required: false, schema: { type: 'string' } }], responses: { '200': response(ref('CreatorMarketPage')), '400': response(ref('ActivityError')), '503': response(ref('ActivityError')) } } };
 spec.paths['/v1/holder-markets'] = { get: { operationId: 'searchHolderMarkets', parameters: [{ name: 'q', in: 'query', required: false, schema: { type: 'string', maxLength: 200 } }], responses: { '200': response(ref('HolderMarketPage')), '400': response(ref('ActivityError')), '503': response(ref('ActivityError')) } } };
 spec.paths['/v1/wallet-holder-markets'] = { get: { operationId: 'listWalletHolderMarkets', parameters: [{ name: 'account', in: 'query', required: true, schema: address }], responses: { '200': response(ref('WalletHolderMarketPage')), '400': response(ref('ActivityError')), '503': response(ref('ActivityError')) } } };

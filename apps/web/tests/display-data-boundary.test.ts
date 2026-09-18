@@ -64,13 +64,15 @@ test('local direct detail converges unavailable historical widgets instead of lo
  assert.match(widget,/if\(id&&!base\)\{chartData=null;chartState='error';renderChartChange\(\);\}/);
 });
 
-test('local Creator rewards read the verified direct market without a Read API',()=>{
+test('Creator display reads its database endpoint without RPC or market-detail gates',()=>{
  const detail=section('async function getRewardMarketDetail','// Claim mode is immutable');
  assert.match(detail,/\(!readApi && !foundation\.direct\)/);
  assert.match(detail,/foundation\.direct[\s\S]*directMarkets\?\.market/);
  const creator=section('async function refreshCreatorReward','function clearTreasuryProof');
  assert.doesNotMatch(creator,/Locked —/);
- assert.match(creator,/Creator rewards could not be loaded\. Refresh and try again\./);
+ assert.match(creator,/loadCreatorRewards/);
+ assert.doesNotMatch(creator,/publicClient|getRewardMarketDetail|assertFinalizedSync/);
+ assert.match(creator,/Rewards could not be refreshed\. Please try again\./);
 });
 
 test('Claim token options keep the complete token address in their label and title',()=>{

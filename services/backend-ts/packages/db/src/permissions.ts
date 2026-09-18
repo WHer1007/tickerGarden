@@ -20,6 +20,8 @@ export function permissionsSql(schemaName: string, roles: DatabaseRoles): string
   return `
 REVOKE ALL ON SCHEMA ${schema} FROM PUBLIC;
 GRANT SELECT, INSERT ON ${schema}.holder_snapshot_evidence TO ${pipeline};
+GRANT SELECT ON ${schema}.creator_reward_epochs, ${schema}.creator_reward_balances TO ${readApi};
+GRANT SELECT, INSERT, UPDATE, DELETE ON ${schema}.creator_reward_epochs, ${schema}.creator_reward_balances TO ${pipeline};
 REVOKE ALL ON ALL TABLES IN SCHEMA ${schema} FROM PUBLIC;
 REVOKE ALL ON ALL SEQUENCES IN SCHEMA ${schema} FROM PUBLIC;
 

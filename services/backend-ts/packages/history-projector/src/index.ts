@@ -1,3 +1,5 @@
+import {changeChannel} from '../../confirmed-display/src/changes.ts';
+import {creatorBlock,materializeCreator,type CreatorMarket} from './creator-rewards.ts';
 import {ProjectionPending} from '../../projection/src/index.ts';
 import type { Pool, PoolClient } from 'pg';
 import type { DeploymentIdentity, RpcLog } from '../../chain/src/index.ts';
@@ -29,15 +31,16 @@ export async function projectF72History(input: {
   await assertAnchor(client,schema,input);
   const prior=(await client.query<{next_block:string;generation:string;algorithm_version:string;last_revision:string|null}>(`SELECT next_block,generation,algorithm_version,last_revision FROM ${schema}.projection_checkpoints WHERE environment=$1 AND chain_id=$2 AND deployment_digest=$3 AND scope='history' FOR UPDATE`,id)).rows[0];
   if(prior&&BigInt(prior.generation)>input.generation)throw Error('history generation advanced');
-  if(prior?.algorithm_version==='history-incremental-v2'&&BigInt(prior.next_block)>input.blockNumber){
+  if(prior?.algorithm_version==='history-incremental-v3-creator'&&BigInt(prior.next_block)>input.blockNumber){
    if(prior.last_revision!==revision)throw Error('history projection advanced');return {rewards:0,activities:0,aggregates:0};
   }
-  const reset=prior?.algorithm_version!=='history-incremental-v2';
+  const reset=prior?.algorithm_version!=='history-incremental-v3-creator';
   const from=reset?input.deployment.activationBlock:BigInt(prior.next_block);
   if(reset){
-   for(const table of ['history_contributions','reward_history','user_activity'])await client.query(`DELETE FROM ${schema}.${table} WHERE environment=$1 AND chain_id=$2 AND deployment_digest=$3`,id);
-   await client.query(`DELETE FROM ${schema}.aggregate_records WHERE environment=$1 AND chain_id=$2 AND deployment_digest=$3 AND scope=ANY($4::text[])`,[...id,['creator-market','holder-market','wallet-holder-market','launch-recovery','meme-fee-burn']]);
+   for(const table of ['history_contributions','reward_history','user_activity','creator_reward_epochs','creator_reward_balances'])await client.query(`DELETE FROM ${schema}.${table} WHERE environment=$1 AND chain_id=$2 AND deployment_digest=$3`,id);
+   await client.query(`DELETE FROM ${schema}.aggregate_records WHERE environment=$1 AND chain_id=$2 AND deployment_digest=$3 AND scope=ANY($4::text[])`,[...id,['creator-market','holder-market','wallet-holder-market','launch-recovery','meme-fee-burn','creator-state','creator-epoch','creator-balance']]);
   }
+  const creatorDirectoryChanges=new Map<string,Set<string>>();
   const affected=new Map<string,{scope:string;identity:string}>();
   const contributions=new Map<string,{scope:string;identity:string;block_number:string;block_hash:Hash;payload:object}>();
   const removed=await client.query<{scope:string;identity:string}>(`DELETE FROM ${schema}.history_contributions WHERE environment=$1 AND chain_id=$2 AND deployment_digest=$3 AND block_number>=$4 RETURNING scope,identity`,[...id,from.toString()]);
@@ -59,6 +62,7 @@ export async function projectF72History(input: {
    const events:StoredEvent[]=rows.rows.map(row=>{const event=decodeF72Event(row.module,parseStoredLog(row.payload));if(!event||!row.source_timestamp)throw Error('history event cannot be decoded');return {event,occurredAt:row.source_timestamp};});
    const created=new Set(events.filter(e=>e.event.module==='TickerGardenFactoryV1'&&e.event.eventName==='MarketCreated').map(e=>hash(e.event.args.marketId)));
 
+   for(const [market,accounts]of await creatorBlock(client,schema,id,block,events.map(e=>e.event),markets as unknown as CreatorMarket[],contribute)){const merged=creatorDirectoryChanges.get(market)??new Set<string>();for(const account of accounts)merged.add(account);creatorDirectoryChanges.set(market,merged);}
    const accounts=creatorBeneficiaries(events,markets.filter(m=>created.has(m.marketId)),byId);
    for(const [marketId,owners]of accounts)for(const creator of owners){const m=requiredMarket(byId,marketId);await contribute('creator-market',`${creator}:${marketId}`,BigInt(block.number),block.hash,{marketId,memeToken:m.memeToken,creator,creationBlockNumber:m.source.blockNumber});aggregates++;}
    for(const e of events)if(e.event.module==='HolderRewardsDistributorV1'&&['HolderStreamMarketRegistered','HolderSnapshotMarketRegistered'].includes(e.event.eventName)){
@@ -78,12 +82,14 @@ export async function projectF72History(input: {
   for(const row of affected.values()){
    await client.query(`DELETE FROM ${schema}.aggregate_records WHERE environment=$1 AND chain_id=$2 AND deployment_digest=$3 AND scope=$4 AND identity=$5`,[...id,row.scope,row.identity]);
    const facts=await client.query<{payload:Record<string,unknown>;block_hash:Hash}>(`SELECT payload,block_hash FROM ${schema}.history_contributions WHERE environment=$1 AND chain_id=$2 AND deployment_digest=$3 AND scope=$4 AND identity=$5 ORDER BY block_number DESC ${row.scope==='meme-fee-burn'?'':'LIMIT 1'}`,[...id,row.scope,row.identity]);
+   if(row.scope==='creator-epoch'||row.scope==='creator-balance'){await materializeCreator(client,schema,id,row.scope,row.identity,facts.rows[0]?.payload,facts.rows[0]?.block_hash);continue;}
    if(!facts.rows.length){if(row.scope==='meme-fee-burn'&&byId.has(row.identity as Hash)){const m=byId.get(row.identity as Hash)!;await saveAggregate(client,schema,input.deployment,row.scope,row.identity,anchorHash,{marketId:m.marketId,token:m.memeToken,enabled:m.burnMemeFees===true,creatorRaw:'0',stakerRaw:'0',holderRaw:'0',totalRaw:'0'});}continue;}
    const payload={...facts.rows[0]!.payload};
    if(row.scope==='meme-fee-burn')for(const name of ['creatorRaw','stakerRaw','holderRaw','totalRaw'])payload[name]=facts.rows.reduce((sum,f)=>sum+BigInt(String(f.payload[name])),0n).toString();
    await saveAggregate(client,schema,input.deployment,row.scope,row.identity,facts.rows[0]!.block_hash,payload);
   }
-  await client.query(`INSERT INTO ${schema}.projection_checkpoints(environment,chain_id,deployment_digest,scope,algorithm_version,next_block,generation,last_revision) VALUES($1,$2,$3,'history','history-incremental-v2',$4,$5,$6) ON CONFLICT(environment,chain_id,deployment_digest,scope) DO UPDATE SET algorithm_version=excluded.algorithm_version,next_block=excluded.next_block,generation=excluded.generation,last_revision=excluded.last_revision,updated_at=now()`,[...id,(through+1n).toString(),input.generation.toString(),`${through}:${anchorHash}`]);
+  for(const row of affected.values())if(row.scope==='creator-state')await client.query('SELECT pg_notify($1,$2)',[changeChannel(input.deployment,input.schemaName),JSON.stringify({marketId:row.identity,regions:['fees'],creatorAccounts:[...(creatorDirectoryChanges.get(row.identity)??[])],revision:`creator:${through}:${anchorHash}`})]);
+  await client.query(`INSERT INTO ${schema}.projection_checkpoints(environment,chain_id,deployment_digest,scope,algorithm_version,next_block,generation,last_revision) VALUES($1,$2,$3,'history','history-incremental-v3-creator',$4,$5,$6) ON CONFLICT(environment,chain_id,deployment_digest,scope) DO UPDATE SET algorithm_version=excluded.algorithm_version,next_block=excluded.next_block,generation=excluded.generation,last_revision=excluded.last_revision,updated_at=now()`,[...id,(through+1n).toString(),input.generation.toString(),`${through}:${anchorHash}`]);
   return {rewards,activities,aggregates,through};
  });
  if('through' in result&&result.through!<input.blockNumber)throw new ProjectionPending('history',input.blockNumber,Number(result.through!-input.deployment.activationBlock+1n));

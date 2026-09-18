@@ -1,8 +1,10 @@
+import type {MarketReadModel} from './generated/read-api.ts';
 export type CreatorMarket = {
   marketId: string;
   memeToken: string;
   creator: string;
   creationBlockNumber: string;
+  market?:MarketReadModel;
 };
 
 const ADDRESS = /^0x[0-9a-f]{40}$/i;
@@ -26,7 +28,7 @@ function validatePage(value: unknown, chainId: number, account: string, seen: Se
         typeof item.creator !== 'string' || !ADDRESS.test(item.creator) || item.creator.toLowerCase() !== account ||
         typeof item.creationBlockNumber !== 'string' || !BLOCK.test(item.creationBlockNumber)) return invalid();
     seen.add(item.marketId.toLowerCase());
-    items.push({ marketId: item.marketId, memeToken: item.memeToken, creator: item.creator, creationBlockNumber: item.creationBlockNumber });
+    items.push({ marketId: item.marketId, memeToken: item.memeToken, creator: item.creator, creationBlockNumber: item.creationBlockNumber,...(item.market&&typeof item.market==='object'&&(item.market as MarketReadModel).marketId===item.marketId?{market:item.market as MarketReadModel}:{}) });
   }
   return { items, nextCursor: page.nextCursor as string | null, complete: page.complete };
 }

@@ -249,13 +249,20 @@ export async function readCreatorMarkets(input: {
 }): Promise<{ chainId: number; address: string; displayOnly: true; complete: true; items: Json[]; nextCursor: string | null }> {
   if (!/^0x[0-9a-f]{40}$/.test(input.address)) throw new Error('invalid address');
   const limit = input.limit ?? 100; if (!Number.isSafeInteger(limit) || limit < 1 || limit > 100) throw new Error('invalid limit');
-  const schema = identifier(input.schemaName ?? 'tickergarden_serverless'); const checkpoint = await resolveHistoryCheckpoint(input.pool, schema, input.deployment);
+  const schema = identifier(input.schemaName ?? 'tickergarden_serverless');
   const filterDigest = digest({ address: input.address, deployment:deploymentIdentity(input.deployment) });
   const after = input.cursor ? decodeCursor(input.cursor, { scope: 'creator-markets', revision: 'creator-directory-v2', filterDigest }, input.secret) : undefined;
-  const rows = await input.pool.query<{ identity: string; payload: Json }>(`SELECT identity,payload FROM ${schema}.aggregate_records
-    WHERE environment=$1 AND chain_id=$2 AND deployment_digest=$3 AND scope='creator-market' AND complete AND payload->>'creator'=$4
-      AND ($5::text IS NULL OR identity>$5) ORDER BY identity LIMIT $6`,
-    [input.deployment.environment, input.deployment.chainId, input.deployment.deploymentDigest, input.address, after?.identity ?? null, limit + 1]);
+  const rows = await input.pool.query<{ identity: string; payload: Json }>(`WITH candidates AS (
+    SELECT a.identity,a.payload FROM ${schema}.aggregate_records a JOIN ${schema}.chain_blocks b ON b.environment=a.environment AND b.chain_id=a.chain_id AND b.deployment_digest=a.deployment_digest AND b.hash=a.block_hash
+    WHERE a.environment=$1 AND a.chain_id=$2 AND a.deployment_digest=$3 AND a.scope='creator-market' AND a.complete AND a.payload->>'creator'=$4 AND b.canonical AND b.finalized
+    UNION
+    SELECT $4||':'||a.identity,jsonb_build_object('marketId',a.identity,'memeToken',a.payload->'market'->>'memeToken','creator',$4,'creationBlockNumber',a.payload->'market'->'source'->>'blockNumber') FROM ${schema}.aggregate_records a JOIN ${schema}.chain_blocks b ON b.environment=a.environment AND b.chain_id=a.chain_id AND b.deployment_digest=a.deployment_digest AND b.hash=a.block_hash
+    WHERE a.environment=$1 AND a.chain_id=$2 AND a.deployment_digest=$3 AND a.scope='creator-state' AND a.complete AND a.payload->>'pendingBeneficiary'=$4 AND b.canonical AND b.finalized
+  ) SELECT DISTINCT ON(c.identity) c.identity,c.payload||jsonb_build_object('market',COALESCE(st.payload->'market',dm.payload->'market')) AS payload FROM candidates c
+    LEFT JOIN ${schema}.aggregate_records st ON st.environment=$1 AND st.chain_id=$2 AND st.deployment_digest=$3 AND st.scope='creator-state' AND st.identity=c.payload->>'marketId' AND st.complete AND EXISTS(SELECT 1 FROM ${schema}.chain_blocks sb WHERE sb.environment=st.environment AND sb.chain_id=st.chain_id AND sb.deployment_digest=st.deployment_digest AND sb.hash=st.block_hash AND sb.canonical AND sb.finalized)
+    LEFT JOIN ${schema}.confirmed_display_markets dm ON dm.environment=$1 AND dm.chain_id=$2 AND dm.deployment_digest=$3 AND dm.market_id=c.payload->>'marketId'
+    WHERE ($5::text IS NULL OR c.identity>$5) ORDER BY c.identity LIMIT $6`,
+    [input.deployment.environment,input.deployment.chainId,input.deployment.deploymentDigest,input.address,after?.identity??null,limit+1]);
   const visible = rows.rows.slice(0, limit); const last = visible.at(-1);
   const nextCursor = rows.rows.length > limit && last ? encodeCursor({ scope: 'creator-markets', revision: 'creator-directory-v2',
     filterDigest, sortKey: last.identity, identity: last.identity }, input.secret) : null;

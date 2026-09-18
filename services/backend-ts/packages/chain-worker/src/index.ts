@@ -149,8 +149,8 @@ export function createChainProcessor(options: ChainProcessorOptions): (lease: Le
 async function projectBatch(options: ChainProcessorOptions, deployment: DeploymentIdentity, blockNumber: bigint, generation: bigint): Promise<void> {
   const anchor = await consensusBlock(options.primary, options.secondary, blockNumber);
   const schema = options.schemaName ? { schemaName: options.schemaName } : {};
-  const completed=(await options.pool.query<{scope:string;next_block:string;generation:string}>(`SELECT scope,next_block,generation FROM ${identifier(options.schemaName??'tickergarden_serverless')}.projection_checkpoints WHERE environment=$1 AND chain_id=$2 AND deployment_digest=$3`,[deployment.environment,deployment.chainId,deployment.deploymentDigest])).rows;
-  const done=(scope:string)=>completed.some(row=>row.scope===scope&&BigInt(row.generation)===generation&&BigInt(row.next_block)>blockNumber);
+  const completed=(await options.pool.query<{scope:string;next_block:string;generation:string;algorithm_version:string}>(`SELECT scope,next_block,generation,algorithm_version FROM ${identifier(options.schemaName??'tickergarden_serverless')}.projection_checkpoints WHERE environment=$1 AND chain_id=$2 AND deployment_digest=$3`,[deployment.environment,deployment.chainId,deployment.deploymentDigest])).rows;
+  const done=(scope:string)=>completed.some(row=>row.scope===scope&&(scope!=='history'||row.algorithm_version==='history-incremental-v3-creator')&&BigInt(row.generation)===generation&&BigInt(row.next_block)>blockNumber);
 
   if(!(done('configs')))await projectF72Configs({ pool: options.pool, deployment, blockNumber, blockHash: anchor.hash, generation,
     primary: options.primary, secondary: options.secondary, ...schema });
