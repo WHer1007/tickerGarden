@@ -31,7 +31,7 @@ test('Explore starts with one loading message and keeps error recovery in its li
 });
 
 test('Explore uses its confirmed endpoints without health or finality gates and keeps the local adapter', () => {
-  const bootstrap=app.slice(app.indexOf("if((currentPage()==='markets'||currentPage()==='staking'||currentPage()==='rewards')&&!expectedSync)"),app.indexOf('  let health = await api.getHealth();'));
+  const bootstrap=app.slice(app.indexOf("if((['markets','staking','rewards','create'].includes(currentPage()))&&!expectedSync)"),app.indexOf('  let health = await api.getHealth();'));
   assert.match(bootstrap,/\/v1\/explore\/bootstrap/);
   assert.doesNotMatch(bootstrap,/getHealth|assertFinalizedSync/);
   assert.match(app, /if\(markets\.length===0\)return false/);

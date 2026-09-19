@@ -72,9 +72,9 @@ async function run() {
   // These application-wide pollers are created once at module scope. Route
   // setup may add its own timers, but repeated transitions must not grow the
   // persistent baseline.
-  await waitFor(() => intervals.size >= 3, "application-wide pollers initialize");
+  await waitFor(() => intervals.size >= 2, "application-wide pollers initialize");
   const persistentIntervalBaseline = intervals.size;
-  check(persistentIntervalBaseline === 3, `application keeps its three persistent pollers (${persistentIntervalBaseline} active intervals)`);
+  check(persistentIntervalBaseline === 2, `application keeps its two persistent pollers (${persistentIntervalBaseline} active intervals)`);
   button("[data-wallet]").click();
   button('[data-wallet-choice="routing-fixture"]').click();
   await waitFor(() => !!releaseAccounts, "mock wallet account prompt");
@@ -97,13 +97,13 @@ async function run() {
   }
   check(walletMethods.filter(method => method === "eth_requestAccounts").length === 1, "route changes do not reconnect the wallet");
   check([...providerListeners.values()].every(listeners => listeners.size === 1), "wallet listeners are not duplicated on route changes");
-  await navigate(`/trade.html?marketId=0x${"ab".repeat(32)}`, "trade");
+  await navigate(`/trade?marketId=0x${"ab".repeat(32)}`, "trade");
   await waitFor(() => !!document.querySelector<HTMLInputElement>("[data-trade-amount]"), "trade deep link fields");
-  check(location.pathname === "/trade" && new URLSearchParams(location.search).get("marketId") === `0x${"ab".repeat(32)}`, "legacy trade deep link keeps the selected market");
-  await navigate("/rewards.html?marketId=fixture#creator", "rewards");
+  check(location.pathname === "/trade" && new URLSearchParams(location.search).get("marketId") === `0x${"ab".repeat(32)}`, "trade deep link keeps the selected market");
+  await navigate("/claim?marketId=fixture#creator", "rewards");
   await waitFor(() => !!document.querySelector("#rewards-tab-creator"), "claim deep link fields");
   const rewardsRoot = document.querySelector("[data-route-outlet] main");
-  check(location.search === "?marketId=fixture" && button("#rewards-tab-creator").getAttribute("aria-selected") === "true", "legacy Rewards deep link keeps query and active tab");
+  check(location.search === "?marketId=fixture" && button("#rewards-tab-creator").getAttribute("aria-selected") === "true", "Claim deep link keeps query and active tab");
   await navigate("/claim?marketId=fixture#treasury", "rewards");
   check(document.querySelector("[data-route-outlet] main") === rewardsRoot && button("#rewards-tab-treasury").getAttribute("aria-selected") === "true", "hash navigation preserves the Claim controller");
   await navigate("/no-such-page", "not-found");

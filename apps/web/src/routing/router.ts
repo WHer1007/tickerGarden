@@ -28,17 +28,24 @@ export function createRouter(options: Options) {
     window.history.replaceState(state(index), "", next.href);
   }
 
-  function focusRoute(route: Route, position?: readonly [number, number]) {
+  function focusRoute(route: Route, position?: readonly [number, number], samePageHash = false) {
+    let anchor: HTMLElement | null = null;
+    try { anchor = route.hash ? document.getElementById(decodeURIComponent(route.hash.slice(1))) : null; } catch { /* Invalid fragment is not a route error. */ }
+    if (samePageHash && anchor) {
+      anchor.tabIndex = -1;
+      anchor.focus({ preventScroll: true });
+      anchor.scrollIntoView();
+      return;
+    }
     const heading = document.querySelector<HTMLElement>("[data-route-outlet] h1, [data-route-outlet] main");
     if (heading) { heading.tabIndex = -1; heading.focus({ preventScroll: true }); }
     if (position) { window.scrollTo(...position); return; }
-    let anchor: HTMLElement | null = null;
-    try { anchor = route.hash ? document.getElementById(decodeURIComponent(route.hash.slice(1))) : null; } catch { /* Invalid fragment is not a route error. */ }
     if (anchor) anchor.scrollIntoView();
     else window.scrollTo(0, 0);
   }
 
   function commit(route: Route, position?: readonly [number, number], initial = false) {
+    const previous = current;
     const changed = initial || route.key !== current.key;
     current = route;
     const generation = ++navigation;
@@ -46,7 +53,7 @@ export function createRouter(options: Options) {
     else options.hashChanged?.(route);
     void mounted.then(() => {
       if (generation !== navigation || controller.signal.aborted) return;
-      focusRoute(current, position);
+      focusRoute(current, position, !changed && previous.key === route.key && previous.hash !== route.hash);
     });
   }
 

@@ -646,8 +646,8 @@ async function previewLaunch(walletContext?: WalletState, allowPendingMetadata =
     abi: currentV4Abis_TickerGardenFactoryV1, address: launchFactoryAddress, functionName: "memeFeeBurnMode",
   }));
   const selected = await resolveLpLaunchConfig(burnSelected, () => ctx.publicClient.readContract({abi:currentV4Abis_TickerGardenFactoryV1,address:launchFactoryAddress,functionName:"lpFeeMode"}));
-  await ctx.ensureCurrentRevision(ctx.foundation.sync.revision);
   await ctx.ensureCanonicalLaunch(selected);
+  await ctx.ensureCurrentRevision(ctx.foundation!.sync.revision);
   const draft = deriveCreateMarketParams(selected);
   const expectedEconomics = await ctx.publicClient.readContract({
     abi: launchAbis(selected).TickerGardenFactoryV1,

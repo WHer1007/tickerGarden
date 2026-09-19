@@ -113,3 +113,14 @@ test('older page merge keeps descending order and prior partial status across ad
  assert.throws(()=>mergeHolderSnapshotPages(a,{...b,publicationRevision:'new'}),/publication changed/);
  assert.throws(()=>mergeHolderSnapshotPages(a,{...b,identity:{...id,account:`0x${'77'.repeat(20)}`}}),/identity changed/);
 });
+
+ test('background refresh retains loaded older rounds and updates their claimed state',async()=>{
+ const {refreshLoadedHolderSnapshots}=await import('../src/v1/features/holderSnapshots.ts');
+ const base=parseHolderSnapshots(fixture(),id),r=base.rounds[0]!;
+ const prior={...base,rounds:[{...r,round:2n},r],nextCursor:'older'};
+ const calls:(string|undefined)[]=[];
+ const result=await refreshLoadedHolderSnapshots(prior,async cursor=>{calls.push(cursor);return cursor?{...base,rounds:[{...r,claimedAssets:3}],nextCursor:'older'}:{...base,rounds:[{...r,round:3n},{...r,round:2n}],nextCursor:'page2'};});
+ assert.deepEqual(calls,[undefined,'page2']);assert.deepEqual(result.rounds.map(r=>r.round),[3n,2n,1n]);assert.equal(result.rounds[2]!.claimedAssets,3);assert.equal(result.nextCursor,'older');
+ await assert.rejects(refreshLoadedHolderSnapshots(prior,async cursor=>{if(cursor)throw Error('offline');return {...base,rounds:[{...r,round:2n}],nextCursor:'page2'};}),/offline/);
+ assert.deepEqual(prior.rounds.map(r=>r.round),[2n,1n]);
+ });

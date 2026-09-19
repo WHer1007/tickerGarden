@@ -71,3 +71,16 @@ export function mergeHolderSnapshotPages(prior:HolderSnapshotPage|null,page:Hold
  if(last&&page.rounds.some(r=>r.round>=last.round))throw Error('Snapshot pages overlap');
  return {...page,rounds:[...prior.rounds,...page.rounds],complete:prior.complete&&page.complete,unavailableRounds:[...new Set([...prior.unavailableRounds,...page.unavailableRounds])]};
 }
+
+/** Refresh only the history the user has opened, retaining its selected older rounds. */
+export async function refreshLoadedHolderSnapshots(prior:HolderSnapshotPage,read:(cursor?:string)=>Promise<HolderSnapshotPage>):Promise<HolderSnapshotPage>{
+ let page=await read();
+ const oldest=prior.rounds.at(-1)?.round;
+ const seen=new Set<string>();
+ while(oldest!==undefined&&page.nextCursor&&(!page.rounds.length||page.rounds.at(-1)!.round>oldest)){
+  if(seen.has(page.nextCursor)||seen.size>=100)throw Error('Snapshot continuation did not finish');
+  seen.add(page.nextCursor);
+  page=mergeHolderSnapshotPages(page,await read(page.nextCursor));
+ }
+ return page;
+}

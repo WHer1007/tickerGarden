@@ -69,33 +69,54 @@ export function mountStatsStockList(container: HTMLElement, options: { full?: bo
   } else container.replaceChildren(list);
   let rows: readonly StatsStockRow[] = [];
   let failureMessage: string | null = null;
+  const rendered = new Map<string, { item: HTMLDivElement; label: HTMLSpanElement; labelText: Text; icon: HTMLImageElement | null; value: HTMLElement; exact: HTMLDetailsElement | null; amount: HTMLElement | null; quantity: HTMLElement }>();
+
+  function createRow(row: StatsStockRow) {
+    const item = document.createElement("div"); item.className = "stats-fee-row";
+    const label = document.createElement("span"); label.className = "stats-asset-label";
+    let icon: HTMLImageElement | null = null;
+    if (row.icon) { icon = document.createElement("img"); icon.src = row.icon; icon.alt = ""; icon.addEventListener("error", () => icon?.remove(), { once: true }); label.append(icon); }
+    const labelText = document.createTextNode(row.label); label.append(labelText);
+    const value = document.createElement("strong");
+    const quantity = document.createElement("small"); quantity.className = "stats-stock-quantity";
+    let exact: HTMLDetailsElement | null = null, amount: HTMLElement | null = null;
+    if (options.full) {
+      exact = document.createElement("details"); exact.className = "stats-stock-exact";
+      const summary = document.createElement("summary"); summary.append(value);
+      amount = document.createElement("small"); exact.append(summary, amount); item.append(label, exact, quantity);
+    } else item.append(label, value);
+    const parts = { item, label, labelText, icon, value, exact, amount, quantity };
+    rendered.set(row.id, parts);
+    return parts;
+  }
+
+  function updateRow(row: StatsStockRow) {
+    const parts = rendered.get(row.id)!;
+    parts.labelText.textContent = row.label;
+    if (row.icon !== (parts.icon?.getAttribute("src") ?? undefined)) {
+      parts.icon?.remove(); parts.icon = null;
+      if (row.icon) { const icon = document.createElement("img"); icon.src = row.icon; icon.alt = ""; icon.addEventListener("error", () => icon.remove(), { once: true }); parts.label.insertBefore(icon, parts.labelText); parts.icon = icon; }
+    }
+    parts.value.textContent = row.value === null ? "-" : new Intl.NumberFormat("en-US",{style:"currency",currency:"USD",notation:"compact",maximumFractionDigits:2}).format(Number(row.value));
+    if (row.value !== null) parts.value.title = `Exact USD value: $${row.value}`; else parts.value.removeAttribute("title");
+    if (parts.amount) parts.amount.textContent = row.value === null ? "-" : `$${row.value}`;
+    parts.quantity.textContent = row.amount === null ? "-" : `Allocated: ${formatAmount(row.amount, row.decimals)}`;
+    return parts.item;
+  }
 
   function render() {
     const ordered = [...rows].sort((a,b)=>Number(isPositive(b))-Number(isPositive(a))||compareUSD(a,b)||a.label.localeCompare(b.label));
     const searched = searchTerm ? ordered.filter(row => `${row.label} ${row.name??''}`.toLowerCase().includes(searchTerm)) : ordered;
     const visible = options.full ? (hideZero ? searched.filter(row=>row.amount!==0n) : searched) : ordered.filter(isPositive).slice(0, 8);
-    list.replaceChildren(...visible.map(row => {
-      const item = document.createElement("div");
-      item.className = "stats-fee-row";
-      const label = document.createElement("span");
-      label.className = "stats-asset-label";
-      if (row.icon) { const icon = document.createElement("img"); icon.src = row.icon; icon.alt = ""; icon.addEventListener("error", () => icon.remove(), { once: true }); label.append(icon); }
-      label.append(document.createTextNode(row.label));
-      const value = document.createElement("strong");
-      value.textContent = row.value === null ? "-" : new Intl.NumberFormat("en-US",{style:"currency",currency:"USD",notation:"compact",maximumFractionDigits:2}).format(Number(row.value));
-      if (row.value !== null) value.title = `Exact USD value: $${row.value}`;
-      const detail = document.createElement("small");
-      detail.className = "stats-stock-quantity";
-      detail.textContent = row.amount === null ? "-" : `Allocated: ${formatAmount(row.amount, row.decimals)}`;
-      item.append(label);
-      if(options.full){
-        const exact=document.createElement("details");exact.className="stats-stock-exact";
-        const summary=document.createElement("summary");summary.append(value);
-        const amount=document.createElement("small");amount.textContent=row.value===null?"-":`$${row.value}`;
-        exact.append(summary,amount);item.append(exact,detail);
-      }else item.append(value);
-      return item;
-    }));
+    const visibleIds = new Set(visible.map(row => row.id));
+    for (const id of rendered.keys()) if (!visibleIds.has(id)) rendered.delete(id);
+    const nodes = visible.map(row => { if (!rendered.has(row.id)) createRow(row); return updateRow(row); });
+    // Reuse details nodes; explicitly restore focus if ranking changes move rows.
+    const focused=document.activeElement as HTMLElement|null;
+    const restoreFocus=!!focused&&list.contains(focused);
+    const empty = list.querySelector(".stats-empty"); empty?.remove();
+    if (nodes.length !== list.children.length || nodes.some((node, index) => list.children[index] !== node)) list.replaceChildren(...nodes);
+    if(restoreFocus&&focused&&list.contains(focused))focused.focus({preventScroll:true});
     if(!visible.length){const empty=document.createElement("p");empty.className="stats-empty";empty.textContent=failureMessage??(searchTerm?"No Stock matches found":"No allocated Stock yet");list.append(empty);}
   }
   render();

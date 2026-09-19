@@ -32,3 +32,11 @@ test('pending status always communicates confirmation without wallet instruction
   assert.doesNotMatch(message,/wallet|retry|try again|submit/i);
  }
 });
+
+ test('withdrawal and cleanup notices never ask for a trading quote',async()=>{
+ const {positionActionError}=await import('../src/ui/stake-error.ts');
+ assert.match(positionActionError({code:'transaction_reverted'},'unstakeAndWithdraw'),/Withdrawal failed on-chain/);
+ assert.match(positionActionError({code:4001},'settleRageQuitRewards'),/Reward cleanup cancelled/);
+ assert.match(positionActionError({code:'wallet_response_timeout'},'rageQuit'),/checking automatically/);
+ assert.doesNotMatch(positionActionError({code:'simulation_failed'},'rageQuit'),/trade|quote|history/);
+ });

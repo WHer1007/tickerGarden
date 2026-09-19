@@ -1127,7 +1127,9 @@ async function submitTrade(): Promise<void> {
       pay:{amount:formatUnits(quote.conversion?BigInt(quote.conversion.sellAmount):quote.input,side==='buy'?pay.decimals:18),symbol:side==='buy'?pay.symbol:metadata.symbol,logo:side==='buy'?quoteIconUrl(pay.symbol):ctx.tradeMemeLogoUrl},
       receive:{amount:formatUnits(quote.output,side==='buy'?18:metadata.quoteDecimals),symbol:side==='buy'?metadata.symbol:metadata.quoteSymbol,logo:side==='buy'?ctx.tradeMemeLogoUrl:quoteIconUrl(metadata.quoteSymbol)},
       minimum:`${formatUnits(quote.minimum,side==='buy'?18:metadata.quoteDecimals)} ${side==='buy'?metadata.symbol:metadata.quoteSymbol}`,
-      impact:quote.impactBps===undefined?'-':`${Number(quote.impactBps)/100}%`,
+      impact:quote.conversion
+        ? `Market: ${quote.impactBps===undefined?'-':`${Number(quote.impactBps)/100}%`} · Conversion: ${quote.conversion.priceImpactBps/100}%`
+        : quote.impactBps===undefined?'-':`${Number(quote.impactBps)/100}%`,
       ...(quote.conversion?{conversion:{route:`${pay.symbol} → ${metadata.quoteSymbol} → ${metadata.symbol}`,minimum:`${formatUnits(BigInt(quote.conversion.minBuyAmount),metadata.quoteDecimals)} ${metadata.quoteSymbol}`,fee:conversionFeeLabel(quote.conversion)}}:{}),
     });
     const reviewedContext=tradeContextKey(market.market);

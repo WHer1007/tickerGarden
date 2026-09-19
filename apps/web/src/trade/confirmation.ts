@@ -22,7 +22,7 @@ export function tradeConfirmationContent(data:TradeConfirmation):HTMLElement {
   const details=document.createElement('dl');details.className='trade-confirm-details';
   const row=(label:string,value:string,emphasis=false)=>{const line=document.createElement('div');if(emphasis)line.className='trade-confirm-minimum';const term=document.createElement('dt');term.textContent=label;const description=document.createElement('dd');description.textContent=value;line.append(term,description);details.append(line);};
   if(data.conversion){row('Route',data.conversion.route);row('Conversion minimum (1% tolerance)',data.conversion.minimum);row('Conversion fee',data.conversion.fee);}
-  row('Market price impact',data.impact);
+  row(data.conversion?'Price impact':'Market price impact',data.impact);
   row('Minimum received',data.minimum,true);
   content.append(assets,details);return content;
 }

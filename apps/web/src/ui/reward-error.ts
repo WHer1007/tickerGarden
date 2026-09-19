@@ -11,6 +11,7 @@ export function rewardErrorNotice(error:unknown):{message:string;tone:'warning'|
  }
  const text=messages.join(' '),has=(...values:string[])=>values.some(v=>codes.has(v));
  const result=(message:string,tone:'warning'|'error'|'info'='warning',refresh=false)=>({message,tone,refresh});
+ if(has('wallet_response_timeout'))return result('Your wallet did not return a submission result within 20 seconds. The request may still complete; we will check any late transaction automatically.');
  if(has('receipt_timeout','confirmation_failed','pending_transaction','WaitForTransactionReceiptTimeoutError','TransactionReceiptNotFoundError'))return result('Your claim outcome is not yet verified. We are checking automatically. Please wait before submitting another claim.');
  if(has('user_rejected','4001','UserRejectedRequestError','replacement_cancelled'))return result('Claim cancelled.', 'info',true);
  if(has('transaction_reverted','approval_reverted'))return result('This claim failed on-chain. Your reward status is being refreshed. Review it before trying again.','error',true);
