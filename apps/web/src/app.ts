@@ -1,3 +1,4 @@
+import {inspectPendingNetwork} from './v1/pendingNetwork.ts';
 import {RewardClaimError,rewardErrorNotice} from './ui/reward-error.ts';
 import {reportClientError} from './observability.ts';
 import {loadCreatorRewards,type CreatorPeriod} from './v1/creatorRewards.ts';
@@ -1099,8 +1100,27 @@ function invalidateWallet(): void {
 
 function installWallet(provider: InjectedProvider, account: Address): void {
   const walletClient = createWalletClient({ account, chain: robinhoodChain, transport: custom(provider) });
+  const walletReadClient=createPublicClient({chain:robinhoodChain,transport:custom(provider)});
+  const recoveryClient={...publicClient,getTransaction:async({hash}:{hash:Hex})=>{
+    try{return await publicClient.getTransaction({hash});}catch(error){
+      if(!(error instanceof Error)||error.name!=='TransactionNotFoundError'||await walletReadClient.getChainId()!==robinhoodChain.id)throw error;
+      const transaction=await walletReadClient.getTransaction({hash});
+      if(transaction.hash!==hash||transaction.from.toLowerCase()!==account.toLowerCase())throw error;
+      return transaction;
+    }
+  },getTransactionReceipt:async({hash}:{hash:Hex})=>{
+    try{return await publicClient.getTransactionReceipt({hash});}
+    catch(error){
+      if(!(error instanceof Error)||error.name!=='TransactionReceiptNotFoundError')throw error;
+      if(await walletReadClient.getChainId()!==robinhoodChain.id)throw error;
+      const receipt=await walletReadClient.getTransactionReceipt({hash});
+      const block=await publicClient.getBlock({blockNumber:receipt.blockNumber});
+      if(receipt.transactionHash!==hash||block.hash!==receipt.blockHash)throw error;
+      return receipt;
+    }
+  }};
   const executor = new V1TransactionExecutor({
-    publicClient: (integrationBootstrapPath ? {...publicClient,waitForTransactionReceipt: ({hash}: {hash: Hex})=>directReceipt(hash=>publicClient.getTransactionReceipt({hash}),hash)} : publicClient) as unknown as V1TransactionClients["publicClient"],
+    publicClient: (integrationBootstrapPath ? {...publicClient,waitForTransactionReceipt: ({hash}: {hash: Hex})=>directReceipt(hash=>publicClient.getTransactionReceipt({hash}),hash)} : recoveryClient) as unknown as V1TransactionClients["publicClient"],
     walletClient: walletClient as unknown as V1TransactionClients["walletClient"],
   });
   stopWalletAccountSync?.();stopWalletAccountSync=undefined;
@@ -4454,6 +4474,23 @@ async function appendMarketPage(): Promise<void> {
   foundation = Object.freeze({ ...rest, markets: [...new Map([...current.markets, ...page.items].map((market) => [market.marketId, market])).values()], ...(page.nextCursor ? { marketNextCursor: page.nextCursor } : {}) });
 }
 
+async function inspectSavedTransaction(active:WalletState,record:import('./v1/transaction.ts').PendingTransaction){
+ const status=await inspectPendingNetwork(active.account,record.hash,record.nonce,robinhoodChain.id,[
+  (method,params)=>publicClient.request({method,params} as never),
+  (method,params)=>active.provider.request({method,params:[...params]}),
+ ]);
+ if(wallet===active&&status.nonce!==undefined)active.executor.rememberPendingNonce(active.account,record.operationKey,record.hash,status.nonce);
+ return status;
+}
+async function retireSavedTrade(active:WalletState,record:import('./v1/transaction.ts').PendingTransaction,reason:'nonce_consumed'|'retry_authorized'){
+ if(wallet!==active||hasActiveOperations()||!active.executor.retirePending(active.account,record.operationKey,record.hash,reason))return;
+ if(record.businessType==='trade'){
+  const {retireConversionJournal}=await import('./trade/conversion.ts');
+  retireConversionJournal(localStorage,active.account,record);
+ }
+ tradeAwaitingConfirmation=false;renderRecoveryControls();updateTradeAvailability();
+ if(currentPage()==='trade')await refreshTradeFields(undefined,false);else await refreshActiveReward();
+}
 let stopTransactionObservation: (() => void) | undefined;
 window.addEventListener("pagehide", () => stopTransactionObservation?.());
 
@@ -4508,6 +4545,16 @@ function renderRecoveryControls(): void {
       recover.onclick = () => { void runPageAction(async () => {
         recover.disabled = true;
         try {
+          const network=await inspectSavedTransaction(active,record);
+          if(network.state==='nonce_consumed'){await retireSavedTrade(active,record,'nonce_consumed');return;}
+          if(network.state==='unobserved'&&record.businessType==='trade'&&Date.now()-record.createdAt>=300000){
+            const retry=await confirmFlowAction('The network and your wallet provider cannot find this transaction. Its outcome is still unverified. Starting another trade could result in both trades executing if the earlier one is broadcast later.',{title:'Start a new trade?',confirmLabel:'Continue'});
+            if(retry&&wallet===active){
+              const checked=await inspectSavedTransaction(active,record);
+              if(checked.state==='unobserved'||checked.state==='nonce_consumed')await retireSavedTrade(active,record,checked.state==='nonce_consumed'?'nonce_consumed':'retry_authorized');
+            }
+            recover.disabled=false;return;
+          }
           const result = await active.executor.reconcilePending(active.account,record.operationKey);
           const succeeded = result?.receipt.status === "success" && !result.cancelled;
           const recoveredTrade=currentPage()==='trade'&&!!result;
@@ -4552,14 +4599,15 @@ function renderRecoveryControls(): void {
         });
         if(wallet!==active||generation!==routeGeneration)return;
         if(!results.length){
-          await Promise.all(visible.map(async record=>{
-            let message='Transaction status could not be verified. Checking automatically…';
-            try{const transaction=await publicClient.getTransaction({hash:record.hash});message=transaction.blockNumber===null?'Transaction is pending on the network.':'Transaction was included. Checking its receipt…';}
-            catch(error){if(error instanceof Error&&error.name==='TransactionNotFoundError')message='This transaction has not been found on the network. Checking automatically…';}
+          for(const record of visible){
+            const network=await inspectSavedTransaction(active,record);
             if(wallet!==active||generation!==routeGeneration)return;
+            if(network.state==='nonce_consumed'){await retireSavedTrade(active,record,'nonce_consumed');return;}
+            const message=network.state==='pending'?'Transaction is pending on the network.':network.state==='unobserved'?'This transaction is not visible to the network or wallet provider.':'Transaction status could not be verified. Checking automatically…';
             const row=[...(recoveryPanel?.querySelectorAll<HTMLElement>('[data-operation-key]')??[])].find(row=>row.dataset.operationKey===record.operationKey);
             const description=row?.querySelector<HTMLElement>('[data-recovery-description]');if(description)description.textContent=message;
-          }));
+            const button=row?.querySelector<HTMLButtonElement>('button');if(button)button.textContent=network.state==='unobserved'&&record.businessType==='trade'&&Date.now()-record.createdAt>=300000?'Review and retry':'Check existing transaction';
+          }
           return;
         }
         if(isRewardsPage()){

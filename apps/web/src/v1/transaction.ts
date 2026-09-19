@@ -324,6 +324,20 @@ export class V1TransactionExecutor {
     this.#writePending(account, this.pending(account).filter(item => item.operationKey !== operationKey));
   }
 
+  /** Archive a specific record after external canonical nonce verification or explicit retry consent. */
+  retirePending(account:Address,operationKey:string,hash:Hash,reason:'nonce_consumed'|'retry_authorized'):boolean {
+    const record=this.pending(account).find(p=>p.operationKey===operationKey&&p.hash===hash);
+    if(!record||this.#inflight.has(operationKey))return false;
+    const key=`${this.#journalKey(account)}:archive:${hash}`;
+    this.journal.setItem(key,JSON.stringify({...record,retiredAt:Date.now(),reason}));
+    this.#removePending(account,operationKey);return true;
+  }
+
+  rememberPendingNonce(account:Address,operationKey:string,hash:Hash,nonce:number):void {
+    const record=this.pending(account).find(p=>p.operationKey===operationKey&&p.hash===hash);
+    if(record&&Number.isSafeInteger(nonce)&&nonce>=0&&(record.nonce===undefined||record.nonce===nonce))this.#replacePending(account,{...record,nonce});
+  }
+
   /** Batch-checks every saved hash and clears only records that already have a receipt. */
   async reconcileSettledPending(account: Address, options: {filter?:(pending:PendingTransaction)=>boolean;verify?:(result:ReconciledPendingTransaction)=>Promise<void>} = {}): Promise<readonly ReconciledPendingTransaction[]> {
     const records = this.pending(account);

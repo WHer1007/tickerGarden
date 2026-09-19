@@ -1,6 +1,6 @@
 import test from 'node:test';import assert from 'node:assert/strict';
 import {recoveryRead,recoveryWrite,recoveryRemove} from '../src/v1/recoveryStorage.ts';
-import {paymentAssets,reconcileConversionJournal,readRecovery,recoveryKey,writeRecoveryBeforeBroadcast,TRADE_NATIVE,TRADE_USDG,fetchConversion} from '../src/trade/conversion.ts';
+import {retireConversionJournal,paymentAssets,reconcileConversionJournal,readRecovery,recoveryKey,writeRecoveryBeforeBroadcast,TRADE_NATIVE,TRADE_USDG,fetchConversion} from '../src/trade/conversion.ts';
 const account='0x1111111111111111111111111111111111111111';const stock='0x2222222222222222222222222222222222222222';
 test('unsupported automatic exchange produces a safe paired-asset action',async()=>{
  const original=globalThis.fetch;
@@ -72,4 +72,14 @@ test('configured-router recovery accepts its receipt and rejects an unrelated de
  const result={pending:{businessType:'trade',marketId:'market',operationKey:'trade:conversion:market:1',approval:false},receipt:{from:account,to:conversionTo,status:'success',transactionHash:'0x'+'b'.repeat(64)},cancelled:false,approval:false};
  reconcileConversionJournal(storage,account,[result] as never);assert.equal(readRecovery(storage,account,'market')?.state,'funded');
  storage.setItem(key,JSON.stringify({...r,conversionTo:stock}));assert.throws(()=>readRecovery(storage,account,'market'),/invalid/);
+});
+
+test('retiring an unverified buy does not offer a duplicate funded resume or touch other hashes',()=>{
+ const entries=new Map<string,string>(),key=recoveryKey(account,'market');
+ const storage={getItem:(k:string)=>entries.get(k)??null,setItem:(k:string,v:string)=>{entries.set(k,v);},removeItem:(k:string)=>{entries.delete(k);}};
+ const hash='0x'+'a'.repeat(64);
+ const record={account,marketId:'market',pair:TRADE_USDG,amount:'100',minimum:'90',state:'buy_pending',buyTo:stock,buyHash:hash};
+ storage.setItem(key,JSON.stringify(record));
+ retireConversionJournal(storage,account,{marketId:'market',hash:'0x'+'b'.repeat(64)} as never);assert.ok(storage.getItem(key));
+ retireConversionJournal(storage,account,{marketId:'market',hash} as never);assert.equal(storage.getItem(key),null);
 });
