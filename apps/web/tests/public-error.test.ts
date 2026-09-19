@@ -52,6 +52,21 @@ test('wallet rejection maps from direct and nested code 4001 errors', () => {
   }
 });
 
+test('known transaction failures and cancellation never use unknown-outcome wallet-history advice', () => {
+  const cases = [
+    [{code: 'transaction_reverted'}, /trade failed on-chain.*refresh the quote and try again/i],
+    [{cause: {cause: {code: 'approval_reverted'}}}, /approval failed on-chain.*try again/i],
+    [{cause: {code: 'replacement_cancelled'}, code: 'submission_failed'}, /transaction was cancelled.*try again/i],
+    [{cause: {cause: {code: 'user_rejected'}}}, /wallet request was declined.*try again/i],
+    [{cause: {code: 4001}}, /wallet request was declined.*try again/i],
+  ] as const;
+  for (const [error, expected] of cases) {
+    const message = publicError(error, 'transaction');
+    assert.match(message, expected);
+    assert.doesNotMatch(message, /check your wallet transaction history|pending transaction|unknown outcome|No trade was completed/i);
+  }
+});
+
 test('insufficient funds and transaction network timeouts remain actionable and safe', () => {
   const funds = publicError(new Error('insufficient funds for calldata 0xdeadbeef'), 'general');
   assert.match(funds, /balance|amount|network fee/i);

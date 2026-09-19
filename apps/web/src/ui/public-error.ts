@@ -13,14 +13,19 @@ export function publicError(error: unknown, context: PublicErrorContext = 'gener
   // Do not infer that funds stayed put, or that resubmission is safe, from an error.
   const transactionAdvice = context === 'transaction' ? ' Check your wallet transaction history before trying again. Do not repeat a pending transaction.' : ' Please try again.';
   let current: unknown = error;
+  const codes: unknown[] = [];
   for (let depth = 0; depth < 5 && current && typeof current === 'object'; depth++) {
     const entry = current as {code?: unknown; message?: unknown; cause?: unknown};
-    if(entry.code==='submission_failed'&&context==='transaction')return 'Your wallet could not complete the submission. You can try again, but the earlier request may still complete.';
-    if(entry.code==='user_rejected'&&context==='transaction')return 'Transaction cancelled.';
-    if(entry.code==='wallet_response_timeout')return 'Your wallet did not return a submission result within 20 seconds. You can try again, but the earlier wallet request may still complete.';
-    if (entry.code === 4001 || entry.code === '4001') return 'The wallet request was declined.' + transactionAdvice;
+    if (entry.code !== undefined) codes.push(entry.code);
     current = entry.cause;
   }
+  if (context === 'transaction' && codes.includes('transaction_reverted')) return 'This trade failed on-chain. Refresh the quote and try again.';
+  if (context === 'transaction' && codes.includes('approval_reverted')) return 'The token approval failed on-chain. Review the approval and try again.';
+  if (context === 'transaction' && codes.includes('replacement_cancelled')) return 'The transaction was cancelled. Review the quote and try again.';
+  if (context === 'transaction' && (codes.includes('user_rejected') || codes.includes(4001) || codes.includes('4001'))) return 'The wallet request was declined. Review the quote and try again.';
+  if(context!=='transaction'&&(codes.includes(4001)||codes.includes('4001')))return 'The wallet request was declined. Please try again.';
+  if (context === 'transaction' && codes.includes('submission_failed')) return 'Your wallet could not complete the submission. You can try again, but the earlier request may still complete.';
+  if (codes.includes('wallet_response_timeout')) return 'Your wallet did not return a submission result within 20 seconds. You can try again, but the earlier wallet request may still complete.';
   const message = error && typeof error === 'object' && 'message' in error ? String(error.message) : '';
   if (/insufficient (?:funds|balance)/i.test(message)) return 'Your available balance may not cover the amount and network fee. Review your balance and amount.' + (context === 'transaction' ? transactionAdvice : '');
   if (/HTTP request failed|Failed to fetch|fetch failed|Network request failed|timed? out|timeout/i.test(message)) return 'The connection was interrupted.' + (context === 'transaction' ? transactionAdvice : ' Please try again shortly.');

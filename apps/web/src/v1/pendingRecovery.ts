@@ -9,3 +9,17 @@ export function pendingRecoveryText(stage:string|undefined,approval:boolean,canc
  if(stage==='replaced')return cancelled?'Cancellation is awaiting confirmation.':'Replacement transaction is awaiting confirmation.';
  return `Checking ${approval?'token approval':'transaction'} status…`;
 }
+
+/** Foreground deadline is independent of receipt/RPC promises and survives reload via createdAt. */
+export function watchSubmissionDeadline(createdAt:number,context:{current:()=>boolean;busy:()=>boolean;observation:()=>{state:string;checkedAt:number}|undefined;expire:()=>void}):()=>void{
+ let stopped=false,timer:ReturnType<typeof setTimeout>;
+ const tick=()=>{
+  if(stopped||!context.current())return;
+  if(context.busy()){timer=setTimeout(tick,50);return;}
+  const observed=context.observation();
+  if(observed?.state==='pending'&&Date.now()-observed.checkedAt<15000){timer=setTimeout(tick,5000);return;}
+  stopped=true;context.expire();
+ };
+ timer=setTimeout(tick,Math.max(0,createdAt+20000-Date.now()));
+ return()=>{stopped=true;clearTimeout(timer);};
+}

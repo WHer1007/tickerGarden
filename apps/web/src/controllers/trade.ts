@@ -5,7 +5,7 @@ import {setPriceDisplay} from '../ui/compact-price.ts';
 import {reportClientError} from '../observability.ts';
 import {renderPaymentMenu} from '../trade/payment-menu.ts';
 import {stockPurchasePool} from '../trade/stock-pool.ts';
-import {paymentAssets,fetchConversion,conversionRequest,TRADE_NATIVE,readRecovery,recoveryKey,writeRecoveryBeforeBroadcast,type PaymentAsset,type ConversionRecovery,type ConversionQuote} from '../trade/conversion.ts';
+import {recoverSubmissionDeadline,paymentAssets,fetchConversion,conversionRequest,TRADE_NATIVE,readRecovery,recoveryKey,writeRecoveryBeforeBroadcast,type PaymentAsset,type ConversionRecovery,type ConversionQuote} from '../trade/conversion.ts';
 import {recoveryRead,recoveryWrite,recoveryRemove} from '../v1/recoveryStorage.ts';
 import {PURCHASE_ROUTER,PURCHASE_ROUTER_CODEHASH,preserveConversionMinimum} from '../../../../services/backend-ts/packages/chain/src/quote-purchase/conversion.ts';
 import {renderMarketSettings} from '../ui/market-settings.ts';
@@ -63,6 +63,7 @@ let paymentBalance:{account:string;token:string;value:bigint}|null=null;
 const paymentBalanceRequests=new Map<string,Promise<void>>();
 let recovery:ConversionRecovery|null=null;
 let recoveryIdentity='';
+let recoveryDeadlineTimer:ReturnType<typeof setTimeout>|undefined;
 let recoveryStorageUnavailable=false;
 let conversionUnavailableFor:string|null=null;
 function pairAsset():PaymentAsset|null{return ctx.tradeMarket&&ctx.tradeMetadata?{address:canonicalAddress(ctx.tradeMarket.market.quoteAsset,'Paired asset',true),symbol:ctx.tradeMetadata.quoteSymbol,decimals:ctx.tradeMetadata.quoteDecimals}:null;}
@@ -123,33 +124,49 @@ async function loadPaymentBalance(){
 async function restoreConversion(){
  const w=ctx.wallet,m=ctx.tradeMarket;if(!w||!m){recovery=null;recoveryIdentity='';recoveryStorageUnavailable=false;return;}
  if(ctx.tradeSubmitting)return;
- const key=recoveryKey(w.account,m.market.marketId);let raw:string|null;
- try{raw=recoveryRead(localStorage,key);}catch{recoveryStorageUnavailable=true;recoveryIdentity=key+':unavailable';renderPayments();updateTradeAvailability();return;}
- const identity=key+':'+raw;if(recoveryIdentity===identity)return;recoveryIdentity=identity;
- try{recovery=readRecovery(localStorage,w.account,m.market.marketId);if(recovery&&recovery.pair!==m.market.quoteAsset)throw Error('Recovery asset mismatch');recoveryStorageUnavailable=false;}catch{recoveryIdentity='';recoveryStorageUnavailable=true;recovery=null;renderPayments();updateTradeAvailability();return;}
- if(!recovery||recovery.pair!==m.market.quoteAsset){recovery=null;return;}
- let saved=recovery;
- if(saved.state.startsWith('buy_')){
-  if(!saved.buyHash){const pending=w.executor.pending(w.account).find(p=>p.businessType==='trade'&&p.marketId===m.market.marketId&&!p.operationKey.startsWith('trade:conversion:')&&!p.approval);if(pending){saved={...saved,state:'buy_pending',buyHash:pending.hash};saveRecovery(saved);}}
-  if(saved.buyHash){try{const receipt=await ctx.publicClient.getTransactionReceipt({hash:saved.buyHash});if(ctx.wallet!==w||ctx.tradeMarket?.market.marketId!==m.market.marketId)return;
-    const pending=w.executor.pending(w.account).find(p=>p.hash===saved.buyHash);if(pending)await w.executor.reconcilePending(w.account,pending.operationKey);
-    if(receipt.status==='success'&&receipt.to?.toLowerCase()===saved.buyTo?.toLowerCase()&&receipt.from.toLowerCase()===w.account.toLowerCase()&&!pending?.cancelled)saveRecovery(null);
-    else saveRecovery({...saved,state:'funded',buyTo:undefined,buyHash:undefined});
-  }catch{/* Keep the existing purchase paused while its receipt is unknown. */}}
-  if(recovery?.state==='funded'){selectedPayment=m.market.quoteAsset;const field=ctx.query<HTMLInputElement>('[data-trade-amount]');if(field)field.value=formatUnits(BigInt(recovery.amount),ctx.tradeMetadata!.quoteDecimals);scheduleTradeQuote();}
-  renderPayments();updateTradeAvailability();return;
- }
- if(saved.state!=='funded'&&!saved.hash){
-  const pending=w.executor.pending(w.account).find(p=>p.operationKey.startsWith(`trade:conversion:${m.market.marketId}:`)&&!p.approval);
-  if(pending){saved={...saved,state:'pending',hash:pending.hash};saveRecovery(saved);}
- }
- if(saved.state!=='funded'&&saved.hash){try{const receipt=await ctx.publicClient.getTransactionReceipt({hash:saved.hash});if(ctx.wallet!==w||ctx.tradeMarket?.market.marketId!==m.market.marketId)return;if(receipt.from.toLowerCase()===w.account.toLowerCase()){
- const pending=w.executor.pending(w.account).find(p=>p.hash===saved.hash);
- if(pending)await w.executor.reconcilePending(w.account,pending.operationKey);
- if(ctx.wallet!==w||ctx.tradeMarket?.market.marketId!==m.market.marketId)return;
- if(receipt.status==='success'&&receipt.to?.toLowerCase()===(saved.conversionTo??'0x0000000000001ff3684f28c67538d4d072c22734').toLowerCase()&&!pending?.cancelled)saveRecovery({...saved,state:'funded'});else saveRecovery(null);
- }}catch{/* Pending hashes remain blocked. */}}
- if(recovery?.state==='funded'){selectedPayment=m.market.quoteAsset;const f=ctx.query<HTMLInputElement>('[data-trade-amount]');if(f)f.value=formatUnits(BigInt(recovery.amount),ctx.tradeMetadata!.quoteDecimals);scheduleTradeQuote();}renderPayments();updateTradeAvailability();
+ try{
+  let saved=readRecovery(localStorage,w.account,m.market.marketId);
+  if(saved&&saved.pair!==m.market.quoteAsset)throw Error('Recovery asset mismatch');
+  const identity=recoveryKey(w.account,m.market.marketId)+':'+JSON.stringify(saved);
+  if(recoveryIdentity===identity)return;
+  recoveryIdentity=identity;clearTimeout(recoveryDeadlineTimer);
+  const previous=saved;
+  if(saved)saved=recoverSubmissionDeadline(localStorage,saved);
+  if(previous&&!saved)ctx.notify('The previous submission could not be confirmed. You can try again; the earlier request may still complete.','warning');
+  recovery=saved;recoveryStorageUnavailable=false;
+  if(saved&&saved.state!=='funded'){
+   if(recovery&&recovery.state!=='funded'){
+    const own=recovery;
+    recoveryDeadlineTimer=setTimeout(()=>{
+     if(ctx.wallet!==w||ctx.tradeMarket?.market.marketId!==m.market.marketId||ctx.tradeSubmitting)return;
+     const current=readRecovery(localStorage,w.account,m.market.marketId);
+     if(!current||current.attemptId!==own.attemptId||current.hash!==own.hash||current.buyHash!==own.buyHash)return;
+     // Hashed executor records are governed by the common receipt/deadline path.
+     if(w.executor.pending(w.account).some(p=>p.hash===(current.state.startsWith('buy_')?current.buyHash:current.hash)))return;
+     localStorage.setItem(`${recoveryKey(w.account,m.market.marketId)}:archive:${current.attemptId}`,JSON.stringify({...current,reason:'foreground_timeout'}));
+     saveRecovery(null,current);renderPayments();updateTradeAvailability();
+     ctx.notify('The previous submission could not be confirmed. You can try again; the earlier request may still complete.','warning');
+    },Math.max(0,(own.deadlineAt??Date.now()+20000)-Date.now()));
+   }
+   const buy=saved.state.startsWith('buy_'),hash=buy?saved.buyHash:saved.hash;
+   if(hash){
+    const pending=w.executor.pending(w.account).find(p=>p.hash===hash||p.previousHashes?.includes(hash));
+    const target=buy?saved.buyTo:saved.conversionTo;
+    if(pending||target){
+     const record=pending??{hash,intent:JSON.stringify([target!.toLowerCase(),'recovery',[]]),operationKey:saved.operationKey??`trade:${buy?'buy':'conversion'}:${m.market.marketId}:recovery`,businessType:'trade' as const,marketId:m.market.marketId,conflictKey:`trade:${m.market.marketId}`,approval:false,createdAt:saved.createdAt??Date.now(),updatedAt:Date.now()};
+     await ctx.reconcileWalletPending(w,[record],true);
+    }
+    if(ctx.wallet!==w||ctx.tradeMarket?.market.marketId!==m.market.marketId)return;
+    recovery=readRecovery(localStorage,w.account,m.market.marketId);
+   }
+
+  }
+  if(recovery?.state==='funded'){
+   selectedPayment=m.market.quoteAsset;const field=ctx.query<HTMLInputElement>('[data-trade-amount]');
+   if(field)field.value=formatUnits(BigInt(recovery.amount),ctx.tradeMetadata!.quoteDecimals);scheduleTradeQuote();
+  }
+ }catch{recoveryStorageUnavailable=true;}
+ renderPayments();updateTradeAvailability();
 }
 
 async function loadCurvePricing(market:MarketReadModel):Promise<CurvePricing>{
@@ -208,12 +225,7 @@ function setupTrade(): void {
   else if(detail.regions.includes('staking'))void refreshTradeStake();
  });
  ctx.query<HTMLButtonElement>('[data-trade-conversion-check]')?.addEventListener('click',async()=>{
- recoveryIdentity='';await restoreConversion();const saved=recovery;
- if(saved&&saved.state!=='funded'&&!(saved.state.startsWith('buy_')?saved.buyHash:saved.hash)&&!ctx.tradeSubmitting){
- const wallet=ctx.wallet;
- const reset=await ctx.confirmFlowAction('Check your wallet transaction history first. Reset only if you cancelled the request and no transaction was submitted. Keep this purchase paused if a transaction is pending or successful.',{title:'Check your wallet',confirmLabel:'Reset cancelled request'});
- if(reset&&ctx.wallet===wallet&&recovery===saved&&!wallet?.executor.pending(wallet.account).some(p=>p.conflictKey===`trade:${saved.marketId}`)){saveRecovery(saved.state.startsWith('buy_')?{...saved,state:'funded',buyHash:undefined,buyTo:undefined}:null);renderTradeQuote();scheduleTradeQuote();}
- }
+ recoveryIdentity='';await restoreConversion();
  });
  ctx.query<HTMLSelectElement>('[data-trade-payment-options]')?.addEventListener('change',event=>{
  const select=event.target instanceof HTMLSelectElement?event.target:null;const pair=pairAsset();if(!select||!pair||ctx.tradeSide!=='buy'||ctx.tradeSubmitting||!paymentAssets(robinhoodChain.id,pair).some(a=>a.address===select.value))return;
@@ -1019,14 +1031,15 @@ async function convertPayment(initial:TradeQuote,market:MarketDetailResponse,wal
  await verify();
  const request=conversionRequest(fresh,original);
  const scope={businessType:'trade' as const,marketId:market.market.marketId,conflictKey:`trade:${market.market.marketId}`};
- const saved:ConversionRecovery={account:wallet.account,marketId:market.market.marketId,pair:original.buyToken,conversionTo:PURCHASE_ROUTER,amount:original.minBuyAmount,minimum:String(initial.minimum),state:'submitting'};
+ const conversionOperation=`trade:conversion:${market.market.marketId}:${crypto.randomUUID()}`;
+ const saved:ConversionRecovery={attemptId:crypto.randomUUID(),operationKey:conversionOperation,createdAt:Date.now(),deadlineAt:Date.now()+20000,account:wallet.account,marketId:market.market.marketId,pair:original.buyToken,conversionTo:PURCHASE_ROUTER,amount:original.minBuyAmount,minimum:String(initial.minimum),state:'submitting'};
  const nativeBefore=original.buyToken===TRADE_NATIVE?await ctx.publicClient.getBalance({address:wallet.account}):0n;
  // Persistence must work BEFORE opening a wallet. Never silently lose a funded or uncertain conversion.
  saveRecovery(saved,saved,true);
  let sent=false,signatureRequested=false,funded=false,purchasedAmount=BigInt(original.minBuyAmount);
  try{
-  await ctx.executeTransaction({operationKey:`trade:conversion:${market.market.marketId}:${Date.now()}`,scope,sync:market.sync,request,walletContext:wallet,quoteExpiresAtMs:fresh.expiresAt,verifyChain:verify,
-   onUpdate:update=>{if(update.stage==='awaiting_signature'){signatureRequested=true;tradeWalletRequested=true;}if(update.hash){tradeWalletRequested=true;sent=true;if(!funded)saveRecovery({...saved,state:'pending',hash:update.hash});}ctx.tradeSubmittingLabel='Exchanging payment…';updateTradeAvailability();},
+  await ctx.executeTransaction({operationKey:conversionOperation,scope,sync:market.sync,request,walletContext:wallet,quoteExpiresAtMs:fresh.expiresAt,verifyChain:verify,
+   onUpdate:update=>{if(update.stage==='awaiting_signature'){saved.createdAt=Date.now();saved.deadlineAt=Date.now()+20000;saveRecovery(saved);signatureRequested=true;tradeWalletRequested=true;}if(update.hash){tradeWalletRequested=true;sent=true;if(!funded)saveRecovery({...saved,state:'pending',hash:update.hash});}ctx.tradeSubmittingLabel='Exchanging payment…';updateTradeAvailability();},
    confirm:async receipt=>{
     if(receipt.status!=='success')throw Error('Conversion failed');
     let received=BigInt(fresh.minBuyAmount);
@@ -1065,10 +1078,10 @@ async function executeProjectTrade(input:Parameters<ControllerContext['executeTr
  const onUpdate=input.onUpdate;input={...input,onUpdate:update=>{if(update.hash||update.stage==='awaiting_signature'||update.stage==='awaiting_approval_signature')tradeWalletRequested=true;onUpdate?.(update);}};
  const saved=recovery;
  if(ctx.tradeSide!=='buy'||!saved||saved.state!=='funded'||saved.account!==ctx.wallet?.account||saved.marketId!==ctx.tradeMarket?.market.marketId)return ctx.executeTransaction(input);
- const progress:ConversionRecovery={...saved,state:'buy_submitting',buyTo:input.request.address,buyHash:undefined};
+ const progress:ConversionRecovery={...saved,attemptId:crypto.randomUUID(),operationKey:input.operationKey,createdAt:Date.now(),deadlineAt:Date.now()+20000,state:'buy_submitting',buyTo:input.request.address,buyHash:undefined};
  saveRecovery(progress,progress,true);let signed=false,sent=false,complete=false;
  try{return await ctx.executeTransaction({...input,onUpdate:update=>{
-   input.onUpdate?.(update);if(update.stage==='awaiting_signature')signed=true;
+   input.onUpdate?.(update);if(update.stage==='awaiting_signature'){signed=true;progress.createdAt=Date.now();progress.deadlineAt=Date.now()+20000;saveRecovery(progress);}
    if(update.hash&&!update.stage.includes('approval')){sent=true;if(!complete)saveRecovery({...progress,state:'buy_pending',buyHash:update.hash});}
   },confirm:async(receipt,hash)=>{const result=await input.confirm(receipt,hash);saveRecovery(null,progress);complete=true;return result;}});
  }catch(error){const code=(error as {code?:string}).code;
@@ -1134,16 +1147,26 @@ async function submitTrade(): Promise<void> {
     if(market.market.launchPhase===1){await submitPoolTrade(market,quote,activeWallet);return;}
     const curve = canonicalAddress(market.market.curve, "Curve");
     const account = activeWallet.account;
-    const built = side === "buy"
+    let built = side === "buy"
       ? buildCurveBuyRequest({ marketResponse: market, quoteIn: quote.input, minTokensOut: quote.minimum, recipient: account })
       : buildCurveSellRequest({ marketResponse: market, tokensIn: quote.input, minQuoteOut: quote.minimum, recipient: account });
     const inputToken = side === "buy" ? built.view.quoteAsset : built.view.memeToken;
     const approval = await ctx.allowanceApproval(built.approval, inputToken, curve, quote.input, account);
+    if(approval){
+      await ctx.ensureStandaloneApproval(approval,inputToken,curve,quote.input,market.sync,()=>ctx.ensureCanonicalMarket(market.market),activeWallet,{businessType:'approval',marketId:market.market.marketId,conflictKey:`trade:${market.market.marketId}`});
+    }
+    // Refresh after approval/confirmation without weakening the reviewed minimum.
+    const reviewed=quote,context=tradeContextKey(market.market);
+    ctx.curvePricing=null;
+    await quoteTrade(++ctx.tradeQuoteGeneration);
+    const fresh=ctx.tradeQuote;
+    if(ctx.wallet!==activeWallet||!ctx.tradeMarket||tradeContextKey(ctx.tradeMarket.market)!==context||!fresh||fresh.side!==reviewed.side||fresh.input!==reviewed.input||fresh.marketId!==reviewed.marketId)throw Error('Trade changed during approval. Review the current quote.');
+    quote=Object.freeze({...fresh,minimum:approvedQuoteMinimum(reviewed,fresh)});
+    built=side==='buy'?buildCurveBuyRequest({marketResponse:market,quoteIn:quote.input,minTokensOut:quote.minimum,recipient:account}):buildCurveSellRequest({marketResponse:market,tokensIn:quote.input,minQuoteOut:quote.minimum,recipient:account});
     await executeProjectTrade({
-      operationKey: `trade:${quote.side}:${quote.marketId}:${quote.input}:${quote.revision}`,
+      operationKey: `trade:${quote.side}:${quote.marketId}:${quote.input}:${crypto.randomUUID()}`,
       sync: market.sync,
       request: built.request,
-      ...(approval ? { approval } : {}),
       quoteExpiresAtMs: quote.expiresAtMs,
       walletContext: activeWallet,
       verifyChain: () => ctx.ensureCanonicalMarket(market.market),
@@ -1174,6 +1197,7 @@ async function submitTrade(): Promise<void> {
     completeTradeDisplay(market);
   } catch (error) {
     reportClientError(error,{flow:'trade',step:submissionStep});
+    if(['transaction_reverted','approval_reverted','replacement_cancelled'].includes(String((error as {code?:string})?.code))){void loadDetailBalances(true);ctx.tradeQuote=null;scheduleTradeQuote();}
     ctx.notify(recovery?.state==='funded'?'Conversion complete. Your paired asset is in your wallet. Refresh the quote and continue buying.':tradeSubmissionError(error,tradeWalletRequested), "warning");
   } finally {ctx.tradeSubmitting=false;if(inputField)inputField.readOnly=false;ctx.tradeSubmittingMarketId=undefined;renderPayments();updateTradeAvailability();}
 }
@@ -1205,13 +1229,13 @@ async function submitPoolTrade(market:MarketDetailResponse,initial:TradeQuote,ac
   // Approvals may take longer than the quote window. Always refresh before signing the swap.
   await quoteTrade(++ctx.tradeQuoteGeneration);
   const quote=ctx.tradeQuote;
-  if(ctx.wallet!==activeWallet||ctx.tradeMarket!==market||!quote||quote.input!==initial.input||quote.side!==initial.side)throw Error('Trade changed during approval. Review the new quote.');
+  if(ctx.wallet!==activeWallet||!ctx.tradeMarket||tradeContextKey(ctx.tradeMarket.market)!==tradeContextKey(market.market)||!quote||quote.input!==initial.input||quote.side!==initial.side)throw Error('Trade changed during approval. Review the new quote.');
   let minimum:bigint;
   try{minimum=approvedQuoteMinimum(initial,quote);}catch{ctx.text('[data-trade-status]','Price changed. Review the updated quote and submit again.');return;}
   if(quote.transactionDeadline===undefined)throw Error('Pool transaction deadline is unavailable. Refresh the quote.');
   ctx.tradeQuote=Object.freeze({...quote,minimum});renderTradeQuote();
   const request=buildPoolTrade(market.market,quote.side,quote.input,minimum,quote.transactionDeadline);
-  await executeProjectTrade({operationKey:`pool-trade:${quote.side}:${quote.marketId}:${quote.input}:${quote.expiresAtMs}`,sync:market.sync,request,quoteExpiresAtMs:quote.expiresAtMs,walletContext:activeWallet,verifyChain:verify,confirm:async receipt=>{
+  await executeProjectTrade({operationKey:`pool-trade:${quote.side}:${quote.marketId}:${quote.input}:${crypto.randomUUID()}`,sync:market.sync,request,quoteExpiresAtMs:quote.expiresAtMs,walletContext:activeWallet,verifyChain:verify,confirm:async receipt=>{
     try {
       ctx.receiptEvent(receipt,canonicalAddress(manager,'PoolManager'),poolSwapAbi,'Swap',args=>String(args.id).toLowerCase()===market.market.poolId&&String(args.sender).toLowerCase()===route.router.toLowerCase()&&typeof args.amount0==='bigint'&&typeof args.amount1==='bigint'&&(route.zeroForOne?args.amount0<0n&&args.amount1>0n:args.amount1<0n&&args.amount0>0n));
     } catch (error) {

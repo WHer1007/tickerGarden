@@ -133,6 +133,7 @@ test("explicit recovery checks existing receipt without requesting a signature",
   const executor = new V1TransactionExecutor(api, storage);
   await assert.rejects(executor.execute(input(async () => {})), { code: "pending_transaction" });
   timeout = false;
+  api.publicClient.getTransactionReceipt=async()=>receipt;
   assert.equal((await executor.reconcilePending(account, input(async () => {}).operationKey))?.receipt.status, "success");
   assert.equal(writes, 1);
   assert.deepEqual(executor.pending(account), []);
@@ -186,6 +187,7 @@ test("cancellation replacement survives timeout without becoming a confirmed bus
   };
   const executor = new V1TransactionExecutor(api, journal());
   await assert.rejects(executor.execute(input(async () => {})));
+  api.publicClient.getTransactionReceipt=async()=>receipt;
   const recovered = await executor.reconcilePending(account, input(async () => {}).operationKey);
   assert.equal(recovered?.cancelled, true);
   assert.equal(writes, 1);
@@ -473,4 +475,41 @@ test('optional nonce lookup cannot delay a successful trade receipt',async()=>{
  const executor=new V1TransactionExecutor(api,journal());
  await executor.execute({...input(async()=>{}),operationKey:'trade:buy:market-a:nonce',confirm:async()=>{confirmed=true;}});
  assert.equal(confirmed,true);assert.deepEqual(executor.pending(account),[]);
+});
+
+test('manual and automatic recovery verify and commit before clearing the same hash',async()=>{
+ const api=clients(async()=>hash),storage=journal();
+ api.publicClient.waitForTransactionReceipt=async()=>{throw Error('offline');};
+ const executor=new V1TransactionExecutor(api,storage);await assert.rejects(executor.execute(input(async()=>{})));
+ api.publicClient.getTransactionReceipt=async()=>receipt;
+ let committed=0;
+ const bad={verify:async()=>{throw Error('wrong block');},commit:async()=>{committed++;}};
+ assert.equal(await executor.reconcilePending(account,'transaction-test',bad),null);
+ assert.deepEqual(await executor.reconcileSettledPending(account,bad),[]);
+ assert.equal(executor.pending(account).length,1);assert.equal(committed,0);
+ const failedCommit={verify:async()=>{},commit:async()=>{throw Error('disk full');}};
+ assert.equal(await executor.reconcilePending(account,'transaction-test',failedCommit),null);assert.equal(executor.pending(account).length,1);
+ const events:string[]=[];
+ assert.ok(await executor.reconcilePending(account,'transaction-test',{verify:async()=>{events.push('verify');},commit:async()=>{assert.equal(executor.pending(account).length,1);events.push('commit');}}));
+ assert.deepEqual(events,['verify','commit']);assert.deepEqual(executor.pending(account),[]);
+});
+test('trade-scoped standalone approval has the same 20 second wallet deadline',async t=>{
+ t.mock.timers.enable({apis:['setTimeout']});let entered=false;
+ const api=clients(()=>{entered=true;return new Promise(()=>{});});
+ const executor=new V1TransactionExecutor(api,journal());
+ const result=executor.execute({...input(async()=>{}),operationKey:'pool-approval:market-a:100'});
+ const rejection=assert.rejects(result,{code:'wallet_response_timeout'});
+ while(!entered)await Promise.resolve();t.mock.timers.tick(20000);await rejection;assert.deepEqual(executor.pending(account),[]);
+});
+test('wallet and receipt share one 20 second deadline even when RPC ignores timeout options',async t=>{
+ t.mock.timers.enable({apis:['setTimeout','Date'],now:1000});
+ let walletCalled=false,receiptCalled=false,finished=false;
+ const api=clients(async()=>{walletCalled=true;await new Promise(r=>setTimeout(r,10000));return hash;});
+ api.publicClient.waitForTransactionReceipt=async()=>{receiptCalled=true;return new Promise(()=>{});};
+ const executor=new V1TransactionExecutor(api,journal());
+ const promise=executor.execute({...input(async()=>{}),operationKey:'pool-approval:market-budget:100'});
+ const rejection=assert.rejects(promise,{code:'receipt_timeout'}).then(()=>{finished=true;});
+ while(!walletCalled)await Promise.resolve();t.mock.timers.tick(10000);
+ while(!receiptCalled)await Promise.resolve();t.mock.timers.tick(9999);await Promise.resolve();assert.equal(finished,false);
+ t.mock.timers.tick(1);await rejection;assert.equal(finished,true);assert.equal(executor.pending(account).length,1);
 });

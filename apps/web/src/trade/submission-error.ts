@@ -1,12 +1,12 @@
 import {publicError} from '../ui/public-error.ts';
 /** Only say a request was not submitted while no wallet write was requested. */
 export function tradeSubmissionError(error:unknown,walletRequested:boolean):string{
- if(walletRequested)return publicError(error,'transaction');
  let current=error,code='',message='';
  for(let depth=0;depth<5&&current&&typeof current==='object';depth++){
   const value=current as {code?:unknown;message?:unknown;cause?:unknown};
   if(value.code)code=String(value.code);if(typeof value.message==='string')message+=' '+value.message;current=value.cause;
  }
+ if(walletRequested||['transaction_reverted','approval_reverted','replacement_cancelled','user_rejected','4001','wallet_response_timeout','receipt_timeout','submission_failed'].includes(code))return publicError(error,'transaction');
  if(code==='pending_transaction'||/existing conversion|existing purchase/i.test(message))return 'An earlier purchase is still awaiting confirmation. Wait for it to finish before starting another.';
  const prefix='Your trade was not submitted. ';
  if(code==='wrong_account')return prefix+'Reconnect your wallet and try again.';

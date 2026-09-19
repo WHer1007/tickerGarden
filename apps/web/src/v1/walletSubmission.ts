@@ -10,3 +10,11 @@ export function waitForWalletSubmission<T>(request:Promise<T>,onLateResult:(valu
   },error=>{clearTimeout(timer);if(!expired)reject(error);});
  });
 }
+
+/** The transport's timeout option is not a UI deadline; enforce it independently. */
+export async function withinSubmissionDeadline<T>(request:Promise<T>,deadlineAt:number):Promise<T>{
+ let timer:ReturnType<typeof setTimeout>|undefined;
+ try{return await Promise.race([request,new Promise<never>((_,reject)=>{
+  timer=setTimeout(()=>reject(Object.assign(new Error('Transaction confirmation deadline exceeded'),{name:'WaitForTransactionReceiptTimeoutError'})),Math.max(0,deadlineAt-Date.now()));
+ })]);}finally{if(timer)clearTimeout(timer);}
+}
