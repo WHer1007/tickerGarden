@@ -41,6 +41,7 @@ import { robinhoodChain } from "../v1/chain.ts";
 import {
 buildCurveBuyRequest,
 buildCurveSellRequest,
+verifyCurveTradeResponse,
 toCurveProgressViewModel
 } from "../v1/features/launch.ts";
 import { tradingRoute } from "../v1/flowUx.ts";
@@ -191,10 +192,11 @@ async function tradeNetworkReserve(market:MarketDetailResponse,quote:TradeQuote|
  if(!price)throw Error('Network fee could not be estimated.');
  let gas=8_000_000n; // Conservative fallback covers the existing staking settlement gas limit.
  if(quote&&quote.marketId===market.market.marketId){
-   const request=market.market.launchPhase===1&&quote.transactionDeadline!==undefined
+   try{const request=market.market.launchPhase===1&&quote.transactionDeadline!==undefined
     ?buildPoolTrade(market.market,quote.side,quote.input,quote.minimum,quote.transactionDeadline)
     :market.market.launchPhase===0?(quote.side==='buy'?buildCurveBuyRequest({marketResponse:market,quoteIn:quote.input,minTokensOut:quote.minimum,recipient:account}):buildCurveSellRequest({marketResponse:market,tokensIn:quote.input,minQuoteOut:quote.minimum,recipient:account})).request:null;
-   if(request){try{const estimate=await ctx.publicClient.estimateContractGas({...request,account} as never);gas=request.gas&&request.gas>estimate?request.gas:estimate;}catch{/* Approval or insufficient native value can prevent estimation; retain the conservative budget. */}}
+   if(request){const estimate=await ctx.publicClient.estimateContractGas({...request,account} as never);gas=request.gas&&request.gas>estimate?request.gas:estimate;}
+   }catch{/* Display-only views, approval or insufficient value may prevent estimation; retain the conservative budget. */}
  }
  return gasReserve(gas,price);
 }
@@ -1079,7 +1081,7 @@ async function submitTrade(): Promise<void> {
     if (!ctx.foundation || !ctx.wallet || !ctx.tradeMarket || !ctx.tradeQuote) throw new Error("Connect a wallet, load a Curve market and request a fresh quote");
     if (!ctx.tradeMarketVerified) throw new Error("The canonical trading route is still being verified");
     const activeWallet = ctx.wallet;
-    const market = ctx.tradeMarket;
+    let market = ctx.tradeMarket;
     if(recovery&&recovery.state!=='funded')throw Error('Check the existing conversion transaction before buying again.');
     let quote = Object.freeze({...ctx.tradeQuote,minimum:ctx.tradeQuote.conversion?ctx.tradeQuote.minimum:quotedMinimum(ctx.tradeQuote.output)});
     const side = ctx.tradeSide;
@@ -1111,6 +1113,8 @@ async function submitTrade(): Promise<void> {
     await ctx.verifyLiveWalletContext(activeWallet);
     submissionStep='confirm_context';
     if(!ctx.tradeMarket||tradeContextKey(ctx.tradeMarket.market)!==reviewedContext||ctx.tradeSide!==side||payment()?.address!==pay.address||parseTokenAmount(ctx.required<HTMLInputElement>('[data-trade-amount]').value,side==='buy'?pay.decimals:18,'Amount')!==currentInput)throw Error('Trade changed. Review the current quote.');
+    submissionStep='canonical_market';
+    if(market.market.launchPhase===0)market=await verifyCurveTradeResponse(market,value=>ctx.ensureCanonicalMarket(value));
     submissionStep='network_balance';
     const [eth,reserve,fees]=await Promise.all([ctx.publicClient.getBalance({address:activeWallet.account}),tradeNetworkReserve(market,quote,activeWallet.account),ctx.publicClient.estimateFeesPerGas()]);
     const conversionGas=quote.conversion?gasReserve(2_000_000n,fees.maxFeePerGas??fees.gasPrice??0n):0n;
