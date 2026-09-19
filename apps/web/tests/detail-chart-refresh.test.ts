@@ -8,10 +8,10 @@ test('period switches fetch only candles, preserve summary DOM and reject late r
  const saved=new Map<string,PropertyDescriptor|undefined>();
  const install=(key:string,value:unknown)=>{saved.set(key,Object.getOwnPropertyDescriptor(globalThis,key));Object.defineProperty(globalThis,key,{value,configurable:true,writable:true});};
  class Element {
-  textContent='';title='';hidden=false;writes=0;onclick?:()=>void;dataset:Record<string,string>={};style={};
+  textContent='';title='';hidden=false;writes=0;rows=0;onclick?:()=>void;dataset:Record<string,string>={};style={};
   classList={toggle(){},add(){}};
   setAttribute(){} removeAttribute(){} append(..._args:unknown[]){this.writes++;}
-  replaceChildren(){this.writes++;} insertRow(){return {insertCell:()=>new Element()};}
+  replaceChildren(){this.writes++;this.rows=0;} insertRow(){this.rows++;return {insertCell:()=>new Element()};}
   getContext(){return null;} querySelector(){return null;} querySelectorAll(){return [];}
  }
  const nodes=new Map<string,Element>();const node=(key:string)=>{if(!nodes.has(key))nodes.set(key,new Element());return nodes.get(key)!;};
@@ -20,7 +20,7 @@ test('period switches fetch only candles, preserve summary DOM and reject late r
  const id={marketId:`0x${'1'.repeat(64)}` as `0x${string}`,memeToken:`0x${'2'.repeat(40)}`,quoteAsset:`0x${'3'.repeat(40)}`,quoteDecimals:18,symbol:'TEST',quoteSymbol:'ETH'};
  const asOf=Math.floor(Date.now()/1000/900)*900;const hash=`0x${'4'.repeat(64)}`;
  const initial=detailChartWindow('1H',asOf);
- const detail={version:1,chainId:46630,displayOnly:true,...id,period:'1H',statistics:{price:'2',volume24h:'12.5',volumeFrom:asOf-86400,volumeTo:asOf,volumeBasis:'EXTERNAL_EXECUTIONS_CURVE_EXCLUDING_FEE_TAX_OR_POOL_CORE',marketCapUsd:'987.65'},holders:{basis:'TOTAL_MINUS_KNOWN_PROTOCOL_BALANCES_V1',totalSupplyRaw:'1000000000000000000000',circulatingSupplyRaw:'900000000000000000000',count:42,items:[]},trades:[],fees:[],reasons:{},chart:{...initial,points:Array.from({length:60},(_,i)=>({timestamp:initial.from+i*60,price:null}))},sources:Object.fromEntries(['chart','trades','fees','statistics','holders'].map(key=>[key,{provider:'indexer',asOf,blockNumber:'10',blockHash:hash}]))};
+ const detail={version:1,chainId:46630,displayOnly:true,...id,period:'1H',statistics:{price:'2',volume24h:'12.5',volumeFrom:asOf-86400,volumeTo:asOf,volumeBasis:'EXTERNAL_EXECUTIONS_CURVE_EXCLUDING_FEE_TAX_OR_POOL_CORE',marketCapUsd:'987.65'},holders:{basis:'TOTAL_MINUS_KNOWN_PROTOCOL_BALANCES_V1',totalSupplyRaw:'1000000000000000000000',circulatingSupplyRaw:'900000000000000000000',count:42,items:[]},trades:Array.from({length:35},(_,i)=>({timestamp:asOf-90000-i*60,side:i%2?'buy' as const:'sell' as const,price:'2',memeRaw:'1000000000000000000',quoteRaw:'1000000000000000000',actor:id.memeToken,txHash:`0x${i.toString(16).padStart(64,'0')}` as `0x${string}`,eventKey:`trade-${i}`,classification:'unclassified' as const})),fees:[],reasons:{},chart:{...initial,points:Array.from({length:60},(_,i)=>({timestamp:initial.from+i*60,price:null}))},sources:Object.fromEntries(['chart','trades','fees','statistics','holders'].map(key=>[key,{provider:'indexer',asOf,blockNumber:'10',blockHash:hash}]))};
  const calls:URL[]=[];let failSummary=false;let release12:((value:Response)=>void)|undefined;let slow12:Response|undefined;
  install('document',{visibilityState:'visible',addEventListener(){},removeEventListener(){},createElement:()=>new Element()});
  install('window',{addEventListener(){},removeEventListener(){}});
@@ -42,6 +42,7 @@ test('period switches fetch only candles, preserve summary DOM and reject late r
   assert.equal(node('[data-detail-holders]').textContent,'42');
   assert.notEqual(node('[data-detail-circulating]').textContent,'-');
   assert.equal(node('[data-detail-cap]').textContent,'$987.65','market cap comes directly from backend snapshot');
+  assert.equal(node('[data-detail-trades-body]').rows,30,'initial render shows the newest 30 trades even when all are older than 24 hours');
   widget.setOverview({price:'3',supply:'1000000000000000000000',usd:'2000'});
   assert.equal(node('[data-detail-cap]').textContent,'$987.65','frontend price inputs do not recalculate backend market cap');
   widget.setMarket({...id});await flush();
@@ -53,7 +54,9 @@ test('period switches fetch only candles, preserve summary DOM and reject late r
   assert.equal(node('[data-detail-holders]').textContent,'42');
   assert.notEqual(node('[data-detail-cap]').textContent,'-');
   const before=node('[data-detail-trades-body]').writes;
-  buttons[1]!.onclick!();await flush();buttons[2]!.onclick!();await flush();await flush();
+  const tradeRowsBefore=node('[data-detail-trades-body]').rows;
+  buttons[1]!.onclick!();await flush();assert.equal(node('[data-detail-trades-body]').rows,tradeRowsBefore,'12H selection preserves the 30 rendered trades');
+  buttons[2]!.onclick!();await flush();await flush();assert.equal(node('[data-detail-trades-body]').rows,tradeRowsBefore,'1D selection preserves the 30 rendered trades');
   assert.equal(calls.filter(url=>url.pathname.endsWith('/detail')).length,2);
   assert.deepEqual(calls.filter(url=>url.pathname.endsWith('/candles')&&url.searchParams.get('interval')!=='1m').map(url=>url.searchParams.get('interval')),['5m','15m']);
   assert.match(node('[data-detail-change]').textContent,/\(1D\)$/);
@@ -63,6 +66,7 @@ test('period switches fetch only candles, preserve summary DOM and reject late r
   buttons[1]!.onclick!();await flush();release12!(Response.json({error:'analytics_unavailable',message:'Unavailable'},{status:503}));await flush();await flush();
   assert.equal(calls.filter(url=>url.pathname.endsWith('/detail')).length,2);
   assert.equal(node('[data-detail-trades-body]').writes,before,'chart errors do not reset summary data');
+  assert.equal(node('[data-detail-trades-body]').rows,tradeRowsBefore,'chart failures preserve the same 30 trade rows');
 
   // A slow/failing summary must not hold the public price or initial chart.
   widget.stop();calls.length=0;

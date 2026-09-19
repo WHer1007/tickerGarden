@@ -104,3 +104,40 @@ test('Explore materializes current cap, volume and latest buy independently of r
  assert.equal(seed.market.metrics,undefined);
  const undo=materializeDisplay({...seed,latestBuy:null});assert.equal(undo.market.lastBuy,undefined);
 });
+
+test('recent activity keeps the latest 30 indefinitely, independently of chart and volume windows',()=>{
+ const initial=applyDisplayEvents(emptyDisplayState(creation,market,block),market,[mint,transfer,buy],block);
+ const old=Array.from({length:35},(_,i)=>({...initial.trades[0]!,timestamp:Number(time)-90000-i*86400,eventKey:`old-${i}`}));
+ const {recentTrades:_recent,...withoutRecent}=initial;
+ const seeded={...withoutRecent,trades:old,latestTrade:old[0]!};
+ const quiet=applyDisplayEvents(seeded,market,[],block);
+ assert.equal(quiet.trades.length,0,'rolling statistics buffer excludes historical executions');
+ assert.equal(quiet.recentTrades?.length,30);
+ for(const period of ['1H','12H','1D'] as const){
+  const detail=displayDetail(quiet,period);
+  assert.deepEqual(detail.trades,old.slice(0,30));
+  assert.equal(detail.statistics?.volume24h,'0');
+ }
+ const newer={...buy,event:{...buy.event,log:{...buy.event.log,transactionHash:hash('e')}}};
+ const updated=applyDisplayEvents(quiet,market,[newer],block);
+ assert.equal(updated.recentTrades?.length,30);
+ assert.equal(updated.recentTrades?.[0]?.txHash,hash('e'));
+ assert.deepEqual(updated.recentTrades?.slice(1),old.slice(0,29));
+ assert.equal(displayDetail(updated,'1D').statistics?.volume24h,'0.01');
+ assert.deepEqual(quiet.recentTrades,old.slice(0,30),'predecessor remains intact for reorg rollback');
+});
+
+test('worker backfills old recent trades once and merges newer receipt data without duplicates',async()=>{
+ const {hydrateDisplayHistory}=await import('../../packages/confirmed-display/src/history.ts');
+ const initial=applyDisplayEvents(emptyDisplayState(creation,market,block),market,[mint,transfer,buy],block);
+ const old=Array.from({length:30},(_,i)=>({timestamp:String(Number(time)-90000-i),side:'buy',price:{numerator:'1',denominator:'100'},memeRaw:'1',quoteRaw:'1',actor:null,classification:'unclassified',source:{transactionHash:hash('f'),eventKey:`old-${i}`}}));
+ let calls=0;
+ const pool={query:async(sql:string,args:unknown[])=>{calls++;assert.match(sql,/LIMIT 30/);assert.doesNotMatch(sql,/occurred_at\s*[<>]/);assert.match(sql,/b\.canonical AND b\.finalized AND b\.number<=\$5/);assert.equal(args[3],market.marketId);return{rows:old.map(payload=>({payload}))};}} as any;
+ const restored=await hydrateDisplayHistory(pool,{environment:'test',chainId:46630,deploymentDigest:hash('8'),activationBlock:0n},initial);
+ assert.equal(restored.recentTradesHydrated,true);assert.equal(restored.recentTrades?.length,30);
+ assert.equal(restored.recentTrades?.[0]?.eventKey,initial.trades[0]?.eventKey);
+ assert.equal(new Set(restored.recentTrades?.map(t=>t.eventKey)).size,30);
+ assert.equal(restored.recentTrades?.at(-1)?.eventKey,'old-28');
+ await hydrateDisplayHistory(pool,{environment:'test',chainId:46630,deploymentDigest:hash('8'),activationBlock:0n},restored);
+ assert.equal(calls,1,'maintenance must not repeatedly scan historical trades');
+});
