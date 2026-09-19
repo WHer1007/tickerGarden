@@ -1,4 +1,4 @@
-import {inspectPendingNetwork} from './v1/pendingNetwork.ts';
+import {inspectPendingNetwork,createUnobservedSubmissionTracker} from './v1/pendingNetwork.ts';
 import {RewardClaimError,rewardErrorNotice} from './ui/reward-error.ts';
 import {reportClientError} from './observability.ts';
 import {loadCreatorRewards,type CreatorPeriod} from './v1/creatorRewards.ts';
@@ -1120,6 +1120,11 @@ function installWallet(provider: InjectedProvider, account: Address): void {
     }
   }};
   const executor = new V1TransactionExecutor({
+    onLateSubmission:(record,account)=>{
+      const active=wallet;if(!active||active.account.toLowerCase()!==account.toLowerCase())return;
+      notify('Your wallet returned the earlier transaction after the request timed out. We are checking its outcome.', 'warning');
+      observeArchivedTrade(active,record);
+    },
     publicClient: (integrationBootstrapPath ? {...publicClient,waitForTransactionReceipt: ({hash}: {hash: Hex})=>directReceipt(hash=>publicClient.getTransactionReceipt({hash}),hash)} : recoveryClient) as unknown as V1TransactionClients["publicClient"],
     walletClient: walletClient as unknown as V1TransactionClients["walletClient"],
   });
@@ -4474,6 +4479,7 @@ async function appendMarketPage(): Promise<void> {
   foundation = Object.freeze({ ...rest, markets: [...new Map([...current.markets, ...page.items].map((market) => [market.marketId, market])).values()], ...(page.nextCursor ? { marketNextCursor: page.nextCursor } : {}) });
 }
 
+const canReleaseUnobservedSubmission=createUnobservedSubmissionTracker();
 async function inspectSavedTransaction(active:WalletState,record:import('./v1/transaction.ts').PendingTransaction){
  const status=await inspectPendingNetwork(active.account,record.hash,record.nonce,robinhoodChain.id,[
   (method,params)=>publicClient.request({method,params} as never),
@@ -4482,14 +4488,33 @@ async function inspectSavedTransaction(active:WalletState,record:import('./v1/tr
  if(wallet===active&&status.nonce!==undefined)active.executor.rememberPendingNonce(active.account,record.operationKey,record.hash,status.nonce);
  return status;
 }
-async function retireSavedTrade(active:WalletState,record:import('./v1/transaction.ts').PendingTransaction,reason:'nonce_consumed'|'retry_authorized'){
+async function retireSavedTrade(active:WalletState,record:import('./v1/transaction.ts').PendingTransaction,reason:'nonce_consumed'|'retry_authorized'|'submission_unobserved'){
  if(wallet!==active||hasActiveOperations()||!active.executor.retirePending(active.account,record.operationKey,record.hash,reason))return;
  if(record.businessType==='trade'){
   const {retireConversionJournal}=await import('./trade/conversion.ts');
   retireConversionJournal(localStorage,active.account,record);
  }
  tradeAwaitingConfirmation=false;renderRecoveryControls();updateTradeAvailability();
+ if(reason==='submission_unobserved'){
+  notify('We could not confirm that your transaction was submitted. You can try again. If the earlier transaction appears later, it may still execute.', 'warning');
+  observeArchivedTrade(active,record);
+ }
  if(currentPage()==='trade')await refreshTradeFields(undefined,false);else await refreshActiveReward();
+}
+function observeArchivedTrade(active:WalletState,record:import('./v1/transaction.ts').PendingTransaction){
+  // Observe the archived hash without locking another order or resubmitting either leg.
+  const started=Date.now();
+  const stop=watchPendingRecovery(async()=>{
+   if(wallet!==active||Date.now()-started>600000){stop();return;}
+   const receipt=await publicClient.getTransactionReceipt({hash:record.hash});
+   const block=await publicClient.getBlock({blockNumber:receipt.blockNumber});
+   if(wallet!==active)return;
+   if(receipt.transactionHash!==record.hash||receipt.from.toLowerCase()!==active.account.toLowerCase()||receipt.blockHash!==block.hash)return;
+   stop();
+   notify(receipt.status==='success'?'Your earlier transaction has now been confirmed. Balances will refresh.':'Your earlier transaction failed on-chain.',receipt.status==='success'?'success':'warning');
+   if(currentPage()==='trade')await refreshTradeFields(undefined,false);
+  },30000);
+  window.addEventListener('pagehide',stop,{once:true});
 }
 let stopTransactionObservation: (() => void) | undefined;
 window.addEventListener("pagehide", () => stopTransactionObservation?.());
@@ -4547,13 +4572,8 @@ function renderRecoveryControls(): void {
         try {
           const network=await inspectSavedTransaction(active,record);
           if(network.state==='nonce_consumed'){await retireSavedTrade(active,record,'nonce_consumed');return;}
-          if(network.state==='unobserved'&&record.businessType==='trade'&&Date.now()-record.createdAt>=300000){
-            const retry=await confirmFlowAction('The network and your wallet provider cannot find this transaction. Its outcome is still unverified. Starting another trade could result in both trades executing if the earlier one is broadcast later.',{title:'Start a new trade?',confirmLabel:'Continue'});
-            if(retry&&wallet===active){
-              const checked=await inspectSavedTransaction(active,record);
-              if(checked.state==='unobserved'||checked.state==='nonce_consumed')await retireSavedTrade(active,record,checked.state==='nonce_consumed'?'nonce_consumed':'retry_authorized');
-            }
-            recover.disabled=false;return;
+          if(record.businessType==='trade'&&canReleaseUnobservedSubmission(`${active.account}:${record.hash}`,record.createdAt,network.state)){
+            await retireSavedTrade(active,record,'submission_unobserved');return;
           }
           const result = await active.executor.reconcilePending(active.account,record.operationKey);
           const succeeded = result?.receipt.status === "success" && !result.cancelled;
@@ -4603,10 +4623,13 @@ function renderRecoveryControls(): void {
             const network=await inspectSavedTransaction(active,record);
             if(wallet!==active||generation!==routeGeneration)return;
             if(network.state==='nonce_consumed'){await retireSavedTrade(active,record,'nonce_consumed');return;}
-            const message=network.state==='pending'?'Transaction is pending on the network.':network.state==='unobserved'?'This transaction is not visible to the network or wallet provider.':'Transaction status could not be verified. Checking automatically…';
+            if(record.businessType==='trade'&&canReleaseUnobservedSubmission(`${active.account}:${record.hash}`,record.createdAt,network.state)){
+              await retireSavedTrade(active,record,'submission_unobserved');return;
+            }
+            const message=network.state==='pending'?'Transaction is pending on the network.':network.state==='unobserved'?'Checking whether your wallet submitted the transaction…':'Transaction status could not be verified. Checking automatically…';
             const row=[...(recoveryPanel?.querySelectorAll<HTMLElement>('[data-operation-key]')??[])].find(row=>row.dataset.operationKey===record.operationKey);
             const description=row?.querySelector<HTMLElement>('[data-recovery-description]');if(description)description.textContent=message;
-            const button=row?.querySelector<HTMLButtonElement>('button');if(button)button.textContent=network.state==='unobserved'&&record.businessType==='trade'&&Date.now()-record.createdAt>=300000?'Review and retry':'Check existing transaction';
+            const button=row?.querySelector<HTMLButtonElement>('button');if(button)button.textContent='Check existing transaction';
           }
           return;
         }
@@ -4622,7 +4645,7 @@ function renderRecoveryControls(): void {
         for(const result of results)tradeTxStatus.update({operationKey:result.pending.operationKey,hash:result.receipt.transactionHash,stage:result.receipt.status==='success'&&!result.cancelled?'confirmed':'failed'});
         renderRecoveryControls();updateTradeAvailability();
         await refreshTradeFields(undefined,false);
-      }));
+      },currentPage()==='trade'?5000:15000));
     }
     if(visible.length&&pending.some(record=>record.nonce!==undefined)){
       const ordered=[...pending].filter((record):record is typeof record & {nonce:number}=>record.nonce!==undefined).sort((a,b)=>a.nonce-b.nonce);

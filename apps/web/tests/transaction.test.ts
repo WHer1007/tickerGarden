@@ -435,3 +435,42 @@ test('retirement preserves an archive and only removes the exact saved hash',asy
  assert.equal(executor.retirePending(account,record.operationKey,hash,'nonce_consumed'),true);
  assert.equal(executor.pending(account).length,0);
 });
+
+test('unobserved submission releases the lock but preserves its unresolved diagnostic record',async()=>{
+ const storage=journal(),api=clients(async()=>hash);
+ api.publicClient.waitForTransactionReceipt=async()=>{throw Object.assign(new Error('timeout'),{name:'WaitForTransactionReceiptTimeoutError'});};
+ const executor=new V1TransactionExecutor(api,storage);
+ await assert.rejects(executor.execute(input(async()=>{})));
+ const record=executor.pending(account)[0]!;
+ assert.equal(executor.retirePending(account,record.operationKey,hash,'submission_unobserved'),true);
+ const archived=JSON.parse(storage.getItem(`tickergarden:pending:v2:4663:${account}:archive:${hash}`)!);
+ assert.equal(archived.reason,'submission_unobserved');
+ assert.equal(archived.hash,hash);
+ assert.equal(archived.stage,record.stage);
+ assert.ok(archived.retiredAt>=record.createdAt);
+ assert.deepEqual(executor.pending(account),[]);
+ assert.equal(executor.retirePending(account,record.operationKey,hash,'submission_unobserved'),false);
+});
+
+test('trade wallet silence releases the operation at 20 seconds and late hash is archive-only',async t=>{
+ t.mock.timers.enable({apis:['setTimeout']});
+ let respond!:(hash:Hash)=>void;let entered=false,confirmed=0,late=0;
+ const storage=journal(),api=clients(()=>{entered=true;return new Promise(resolve=>{respond=resolve;});});
+ const executor=new V1TransactionExecutor({...api,onLateSubmission:()=>{late++;}},storage);
+ const execution=executor.execute({...input(async()=>{}),operationKey:'trade:buy:market-a:timeout',confirm:async()=>{confirmed++;}});
+ const rejection=assert.rejects(execution,{code:'wallet_response_timeout'});
+ while(!entered)await Promise.resolve();
+ t.mock.timers.tick(20000);await rejection;
+ assert.deepEqual(executor.pending(account),[]);
+ respond(hash);await Promise.resolve();await Promise.resolve();
+ assert.equal(confirmed,0);assert.equal(late,1);
+ assert.deepEqual(executor.pending(account),[]);
+ assert.equal(JSON.parse(storage.getItem(`tickergarden:pending:v2:4663:${account}:archive:${hash}`)!).reason,'late_wallet_response');
+});
+test('optional nonce lookup cannot delay a successful trade receipt',async()=>{
+ const api=clients(async()=>hash);api.publicClient.getTransaction=()=>new Promise(()=>{});
+ let confirmed=false;
+ const executor=new V1TransactionExecutor(api,journal());
+ await executor.execute({...input(async()=>{}),operationKey:'trade:buy:market-a:nonce',confirm:async()=>{confirmed=true;}});
+ assert.equal(confirmed,true);assert.deepEqual(executor.pending(account),[]);
+});

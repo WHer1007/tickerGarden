@@ -1,3 +1,4 @@
+import {waitForWalletSubmission} from './walletSubmission.ts';
 import {recoveryRead,recoveryWrite,recoveryRemove} from './recoveryStorage.ts';
 import {V1_EXECUTION_SPEC_ID} from './generated/abi-identity.ts';
 import type {
@@ -24,6 +25,7 @@ export type TransactionFailureCode =
   | "simulation_failed"
   | "user_rejected"
   | "submission_failed"
+  | "wallet_response_timeout"
   | "approval_reverted"
   | "transaction_reverted"
   | "replacement_cancelled"
@@ -106,6 +108,7 @@ interface Replacement {
 }
 
 export interface V1TransactionClients {
+  readonly onLateSubmission?: (record: PendingTransaction, account: Address) => void;
   readonly publicClient: {
     simulateContract(request: ContractWriteRequest & { readonly account: Address }): Promise<SimulatedRequest>;
     getTransactionReceipt?(options: { readonly hash: Hash }): Promise<TransactionReceipt>;
@@ -324,8 +327,8 @@ export class V1TransactionExecutor {
     this.#writePending(account, this.pending(account).filter(item => item.operationKey !== operationKey));
   }
 
-  /** Archive a specific record after external canonical nonce verification or explicit retry consent. */
-  retirePending(account:Address,operationKey:string,hash:Hash,reason:'nonce_consumed'|'retry_authorized'):boolean {
+  /** Archive a specific record after nonce verification, retry consent, or repeated healthy broadcast absence. */
+  retirePending(account:Address,operationKey:string,hash:Hash,reason:'nonce_consumed'|'retry_authorized'|'submission_unobserved'):boolean {
     const record=this.pending(account).find(p=>p.operationKey===operationKey&&p.hash===hash);
     if(!record||this.#inflight.has(operationKey))return false;
     const key=`${this.#journalKey(account)}:archive:${hash}`;
@@ -484,6 +487,7 @@ export class V1TransactionExecutor {
       ?? this.pending(input.expectedAccount).find(record => record.intent === transactionIntent(input.request));
     const recordOperationKey = pending?.operationKey ?? input.operationKey;
     let hash: Hash;
+    let observedReplacementHash: Hash | undefined;
     if (pending) {
       hash = pending.hash;
     } else {
@@ -500,8 +504,15 @@ export class V1TransactionExecutor {
       await this.#assertFresh(input, approval ? "after approval simulation" : "after transaction simulation");
       emit({ stage: approval ? "awaiting_approval_signature" : "awaiting_signature" });
       try {
-        hash = await this.clients.walletClient.writeContract(simulation.request);
+        const submission=this.clients.walletClient.writeContract(simulation.request);
+        hash = scope.businessType==='trade' ? await waitForWalletSubmission(submission,lateHash=>{
+          const now=(input.now??Date.now)();
+          const record:PendingTransaction={intent:transactionIntent(input.request),hash:lateHash,approval,operationKey:input.operationKey,...scope,createdAt:now,updatedAt:now,stage:'unknown'};
+          try{this.journal.setItem(`${key}:archive:${lateHash}`,JSON.stringify({...record,retiredAt:now,reason:'late_wallet_response'}));}
+          finally{this.clients.onLateSubmission?.(record,input.expectedAccount);}
+        }) : await submission;
       } catch (error) {
+        if(error&&typeof error==='object'&&'code' in error&&error.code==='wallet_response_timeout')throw new V1TransactionError('wallet_response_timeout','Wallet did not return a transaction hash',error);
         if (isUserRejected(error)) throw new V1TransactionError("user_rejected", "wallet signature was rejected", error);
         throw new V1TransactionError("submission_failed", approval ? "approval submission failed" : "transaction submission failed", error);
       }
@@ -509,10 +520,10 @@ export class V1TransactionExecutor {
       const record: PendingTransaction = { intent: transactionIntent(input.request), hash, approval, operationKey: input.operationKey, ...scope, createdAt: now, updatedAt: now, stage: "pending" };
       this.#replacePending(input.expectedAccount, record);
       if (this.clients.publicClient.getTransaction) {
-        try {
-          const transaction = await this.clients.publicClient.getTransaction({ hash });
-          this.#replacePending(input.expectedAccount, { ...record, nonce: transaction.nonce, updatedAt: (input.now ?? Date.now)() });
-        } catch { /* A nonce hint is optional; the hash remains recoverable. */ }
+        // A nonce hint must not delay receipt handling or the broadcast recovery deadline.
+        void this.clients.publicClient.getTransaction({hash}).then(transaction=>{
+          this.rememberPendingNonce(input.expectedAccount,input.operationKey,observedReplacementHash??hash,transaction.nonce);
+        }).catch(()=>{});
       }
     }
     emit({ stage: approval ? "approval_submitted" : "submitted", hash });
@@ -523,9 +534,11 @@ export class V1TransactionExecutor {
     try {
       receipt = await this.clients.publicClient.waitForTransactionReceipt({
         hash,
+        ...(scope.businessType==='trade'?{timeout:5000,pollingInterval:1000}:{}),
         ...(input.confirmations === undefined ? {} : { confirmations: input.confirmations }),
         onReplaced: (replacement) => {
           finalHash = replacement.transaction.hash;
+          observedReplacementHash = finalHash;
           cancelled = replacement.reason === "cancelled";
           const existing = this.pending(input.expectedAccount).find(record => record.operationKey === recordOperationKey);
           const now = (input.now ?? Date.now)();

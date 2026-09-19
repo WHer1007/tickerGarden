@@ -15,6 +15,9 @@ export function publicError(error: unknown, context: PublicErrorContext = 'gener
   let current: unknown = error;
   for (let depth = 0; depth < 5 && current && typeof current === 'object'; depth++) {
     const entry = current as {code?: unknown; message?: unknown; cause?: unknown};
+    if(entry.code==='submission_failed'&&context==='transaction')return 'Your wallet could not complete the submission. You can try again, but the earlier request may still complete.';
+    if(entry.code==='user_rejected'&&context==='transaction')return 'Transaction cancelled.';
+    if(entry.code==='wallet_response_timeout')return 'Your wallet did not return a submission result within 20 seconds. You can try again, but the earlier wallet request may still complete.';
     if (entry.code === 4001 || entry.code === '4001') return 'The wallet request was declined.' + transactionAdvice;
     current = entry.cause;
   }

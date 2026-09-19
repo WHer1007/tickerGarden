@@ -16,7 +16,18 @@ export async function inspectPendingNetwork(account:Address,hash:Hash,nonce:numb
  }));
  const found=observations.find(o=>o?.found);
  if(found)return {state:'pending',nonce:found.nonce};
- if(observations.some(o=>!o))return {state:'unavailable',nonce};
+ if(observations.length<2||observations.some(o=>!o))return {state:'unavailable',nonce};
  if(nonce!==undefined&&observations.length>0&&observations.every(o=>o!.count>nonce))return {state:'nonce_consumed',nonce};
  return {state:'unobserved',nonce};
+}
+
+/** Release the UI after repeated healthy absence, without claiming an on-chain failure. */
+export function createUnobservedSubmissionTracker() {
+ const missing=new Map<string,number>();
+ return (key:string,createdAt:number,state:NetworkRecovery['state'],now=Date.now()):boolean=>{
+  if(state!=='unobserved'){missing.delete(key);return false;}
+  const first=missing.get(key);
+  if(first===undefined){missing.set(key,now);return false;}
+  return now-createdAt>=20000&&now-first>=5000;
+ };
 }
