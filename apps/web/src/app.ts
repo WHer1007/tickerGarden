@@ -48,7 +48,7 @@ import { coreMarketRouteAbi,decodeCoreMarketRoute } from '../../../services/back
 import { DeveloperBuyBalanceCache } from './create/developer-buy.ts';
 import { type CreateDraft } from "./create/draft.ts";
 import { closeLaunchProgress } from "./create/launch-progress-dialog.ts";
-import { launchStateKey,readLaunchState,type LaunchPhase,type LaunchState } from "./create/launch-state.ts";
+import { launchStateKey,readLaunchState,saveLaunchState,type LaunchPhase,type LaunchState } from "./create/launch-state.ts";
 import { type ListingPackageSnapshot } from "./create/listing-package.ts";
 import { metadataOrigin } from "./create/metadata.ts";
 import { assetLogoUrl,quoteIconUrl } from './create/quote-icons.ts';
@@ -71,7 +71,7 @@ import { publicMessage } from "./ui/public-copy.ts";
 
 import { renderShell } from "./ui/shell.ts";
 import { bindStakeAmountInput } from './ui/stake-amount-input.ts';
-import { stakeErrorMessage } from "./ui/stake-error.ts";
+import { stakeErrorMessage,positionActionError } from "./ui/stake-error.ts";
 import { stakeLockLabel,stakeProgress,stakeUnlockDisplay } from './ui/stake-progress.ts';
 import { tokenAge } from './ui/token-age.ts';
 import { createTradeTransactionStatus } from './ui/trade-transaction-status.ts';
@@ -245,7 +245,7 @@ const publicClient = createPublicClient({
   transport: http(runtimeRpcUrl, { batch: { batchSize: 20, wait: 8 } }),
 });
 const readApi = runtimeConfig.readApi.available
-  ? new TickerGardenV1Client(runtimeConfig.readApi.value)
+  ? new TickerGardenV1Client(runtimeConfig.readApi.value,(input,init)=>fetch(input,{...init,signal:AbortSignal.timeout(12000)}))
   : null;
 const assetPrices = createAssetPriceStore({ baseUrl: runtimeConfig.readApi.available ? runtimeConfig.readApi.value : null, chainId: robinhoodChain.id });
 
@@ -590,13 +590,13 @@ async function prepareLocalIntegrationFoundation():Promise<Foundation>{
 async function prepareFoundation(api: TickerGardenV1Client | null, expectedSync?: SyncStatus, reuseConfigs=false): Promise<Foundation> {
   if (integrationBootstrapPath) return prepareLocalIntegrationFoundation();
   if (!api) throw Error("V1 read API is unavailable");
-  if((currentPage()==='markets'||currentPage()==='staking'||currentPage()==='rewards')&&!expectedSync){
+  if((['markets','staking','rewards','create'].includes(currentPage()))&&!expectedSync){
     if(!runtimeConfig.readApi.available)throw Error('V1 read API is unavailable');
     const response=await fetch(new URL('/v1/explore/bootstrap',runtimeConfig.readApi.value),{signal:AbortSignal.timeout(8000)});
     if(!response.ok)throw Error('Explore bootstrap unavailable');
     const page=await response.json() as {displayOnly?:boolean;configs?:ConfigReadModel[];sync?:SyncStatus};
     if(page.displayOnly!==true||!Array.isArray(page.configs)||page.sync?.chainId!==robinhoodChain.id)throw Error('Invalid Explore bootstrap');
-    return Object.freeze({displayOnly:true,configScope:'read',health:{executionSpecId:V1_EXECUTION_SPEC_ID,status:'read-api',readApiImplemented:true,productRuntimeImplemented:true,custody:false,transactionSubmission:false,sync:page.sync} as HealthResponse,sync:page.sync,assets:page.configs.filter(c=>c.kind==='asset'),quotes:page.configs.filter(c=>c.kind==='quote'),baseline:[],templates:[],markets:[],writeReady:runtimeConfig.contracts.available,writeReasons:[]});
+    return Object.freeze({displayOnly:true,configScope:currentPage()==='create'?'full':'read',health:{executionSpecId:V1_EXECUTION_SPEC_ID,status:'read-api',readApiImplemented:true,productRuntimeImplemented:true,custody:false,transactionSubmission:false,sync:page.sync} as HealthResponse,sync:page.sync,assets:page.configs.filter(c=>c.kind==='asset'),quotes:page.configs.filter(c=>c.kind==='quote'),baseline:page.configs.filter(c=>c.kind==='baseline'),templates:page.configs.filter(c=>c.kind==='template'),markets:[],writeReady:runtimeConfig.contracts.available,writeReasons:[]});
   }
   if(currentPage()==="trade"&&!expectedSync){
     const marketId=new URL(window.location.href).searchParams.get('marketId')?.toLowerCase();
@@ -699,14 +699,16 @@ const {default: v1Abis_TreasuryDistributorV1} = await import('./v1/generated/con
   }
   if (reasons.length || !bindings || launchFee === undefined) throw new Error(reasons.join('; ') || 'Transaction bindings unavailable');
   if (foundation !== current) throw new Error('Snapshot changed during transaction preparation');
-  foundation = Object.freeze({...current, bindings, launchFee});
+  const block=currentPage()==='create'?await publicClient.getBlock({blockTag:'latest'}):null;
+  if(foundation!==current)throw Error('Configuration changed during transaction preparation');
+  foundation = Object.freeze({...current, bindings, launchFee,...(block?{sync:{...current.sync,status:'synced' as const,blockNumber:String(block.number),blockHash:block.hash,revision:`${block.number}:${block.hash}`}}:{})});
 }
 
 async function ensureCurrentRevision(expected: string): Promise<string> {
   // Direct operations validate the relevant current contracts before simulation;
   // analytics revisions never authorize these transactions.
   if(foundation?.direct && integrationBootstrap) return expected;
-  if(currentPage()==='trade'||currentPage()==='staking'||currentPage()==='rewards'){
+  if(currentPage()==='trade'||currentPage()==='staking'||currentPage()==='rewards'||currentPage()==='create'){
     const match=/^(0|[1-9][0-9]*):(0x[0-9a-f]{64})$/.exec(expected);
     if(!match)throw new V1TransactionError('stale_snapshot','Refresh the trade quote before signing.');
     const [chain,block]=await Promise.all([publicClient.getChainId(),publicClient.getBlock({blockNumber:BigInt(match[1]! )})]);
@@ -1131,6 +1133,8 @@ function installWallet(provider: InjectedProvider, account: Address): void {
   stopWalletAccountSync?.();stopWalletAccountSync=undefined;
   wallet = { account, provider, executor };
   const installed = wallet;
+  for(const stop of archivedObservers.values())stop();
+  for(const record of executor.archived(account))observeArchivedTrade(installed,record);
   invalidateWalletReads();
   stopWalletAccountSync=watchWalletAccount(provider,robinhoodChain.id,{
     invalidate(){wallet=null;stopTransactionObservation?.();invalidateWalletReads();renderWallet();},
@@ -3448,8 +3452,8 @@ function renderSnapshotRound(): void {
   if(state){const status=holderSnapshotStatus(state.page.status,round,runtimeConfig.snapshotHolderWrites.available);const partial=!state.page.complete?`Some rewards are temporarily unavailable${state.page.unavailableRounds.length?` (rounds ${state.page.unavailableRounds.join(', ')})`:''}. Refresh to try again.`:'';snapshotRewardStatus=[!round&&!state.page.complete?'':status.message,partial].filter(Boolean).join(' ');text('[data-snapshot-status]',snapshotRewardStatus);query<HTMLElement>('[data-snapshot-status]')?.setAttribute('data-tone',status.tone);}
   updateRewardsAvailability();
 }
-async function loadSnapshotReward(market:MarketReadModel,distributor:Address,generation:number,prior:typeof snapshotReward=null):Promise<void> {
-const {fetchHolderSnapshotsPage,mergeHolderSnapshotPages} = await import('./v1/features/holderSnapshots.ts');
+async function loadSnapshotReward(market:MarketReadModel,distributor:Address,generation:number,prior:typeof snapshotReward=null,refresh=false):Promise<void> {
+const {fetchHolderSnapshotsPage,fetchHolderSnapshots,mergeHolderSnapshotPages,refreshLoadedHolderSnapshots} = await import('./v1/features/holderSnapshots.ts');
 
   const panel=query<HTMLElement>('[data-snapshot-rewards]');
   if(!panel||!wallet)return;
@@ -3462,21 +3466,22 @@ const {fetchHolderSnapshotsPage,mergeHolderSnapshotPages} = await import('./v1/f
   const timeout=setTimeout(()=>request.abort(),10000);
   let loadError='';
   const current=()=>generation===treasuryLoadGeneration&&snapshotRewardRequest===request&&wallet?.account===account&&currentPage()==='rewards'&&query<HTMLSelectElement>('[data-treasury-market]')?.value===market.marketId;
-  snapshotRewardStatus='Loading rewards…';text('[data-snapshot-status]',snapshotRewardStatus);query<HTMLElement>('[data-snapshot-status]')?.setAttribute('data-tone','loading');updateRewardsAvailability();
+  snapshotRewardStatus=refresh?'':'Loading rewards…';text('[data-snapshot-status]',snapshotRewardStatus);query<HTMLElement>('[data-snapshot-status]')?.setAttribute('data-tone','loading');updateRewardsAvailability();
   try {
     if(!runtimeConfig.readApi.available)throw Error('Snapshot rewards are unavailable. Try again later.');
+    const baseUrl=runtimeConfig.readApi.value;
     const identity:SnapshotIdentity={chainId:robinhoodChain.id,distributor,marketId:market.marketId,account,quote:market.quoteAsset,meme:market.memeToken,burnMemeFees:market.burnMemeFees};
-    const [{page,recoveredCursor},metadata]=await Promise.all([fetchHolderSnapshotsPage(runtimeConfig.readApi.value,identity,request.signal,prior?.page.nextCursor??undefined),marketMetadata(market)]);
+    const [{page,recoveredCursor},metadata]=await Promise.all([refresh&&prior?refreshLoadedHolderSnapshots(prior.page,cursor=>fetchHolderSnapshots(baseUrl,identity,request.signal,cursor)).then(page=>({page,recoveredCursor:false})):fetchHolderSnapshotsPage(runtimeConfig.readApi.value,identity,request.signal,prior?.page.nextCursor??undefined),marketMetadata(market)]);
     if(!current())return;
     const restarted=recoveredCursor||Boolean(prior&&prior.page.publicationRevision!==page.publicationRevision);
-    if(prior&&!restarted&&(page.nextCursor===prior.page.nextCursor||page.rounds.some(r=>prior.page.rounds.some(old=>old.round===r.round))))throw Error('Snapshot page is inconsistent. Refresh rewards to try again.');
+    if(prior&&!refresh&&!restarted&&(page.nextCursor===prior.page.nextCursor||page.rounds.some(r=>prior.page.rounds.some(old=>old.round===r.round))))throw Error('Snapshot page is inconsistent. Refresh rewards to try again.');
     const loaded=page.rounds.map(round=>{
       const key=snapshotReceiptKey(identity,round.round),receipt=snapshotReceiptClaims.get(key);
       if(!receipt)return round;
       if(page.sourceBlock>=receipt.block){snapshotReceiptClaims.delete(key);return round;}
       return {...round,claimedAssets:round.claimedAssets|receipt.mask};
     });
-    const merged=mergeHolderSnapshotPages(prior&&!restarted?prior.page:null,{...page,rounds:loaded});
+    const merged=mergeHolderSnapshotPages(prior&&!refresh&&!restarted?prior.page:null,{...page,rounds:loaded});
     const rounds=merged.rounds;
     snapshotReward={page:merged,market,metadata};
     const select=query<HTMLSelectElement>('[data-snapshot-round]')!, selected=select.value;
@@ -3491,8 +3496,8 @@ const {fetchHolderSnapshotsPage,mergeHolderSnapshotPages} = await import('./v1/f
   } catch(error) {
     if(!current())return;
     if(prior){
-      snapshotReward=prior;loadError='Older rounds could not be loaded. Try again.';
-      const more=query<HTMLButtonElement>('[data-snapshot-more]');if(more){more.hidden=false;more.textContent='Retry older rounds';}
+      snapshotReward=prior;loadError=refresh?'Rewards could not be refreshed. Your previous selection is still shown.':'Older rounds could not be loaded. Try again.';
+      const more=query<HTMLButtonElement>('[data-snapshot-more]');if(more&&!refresh){more.hidden=false;more.textContent='Retry older rounds';}
     }else{
     snapshotReward=null;
     snapshotRewardStatus=request.signal.aborted?'Rewards took too long to load. Reload the page to try again.':publicError(error,'rewards');
@@ -3565,6 +3570,9 @@ const {isContinuousHolderRewardMode} = await import('./v1/features/continuousRew
 const {DUAL_HOLDER_MODE} = await import('./v1/features/userClaims.ts');
 
   const generation = ++treasuryLoadGeneration;
+  const selectedId=query<HTMLSelectElement>('[data-treasury-market]')?.value;
+  const priorSnapshot=!resetEpoch&&snapshotReward&&snapshotReward.page.identity.account.toLowerCase()===wallet?.account.toLowerCase()&&snapshotReward.market.marketId===selectedId?snapshotReward:null;
+  if(priorSnapshot){await loadSnapshotReward(priorSnapshot.market,priorSnapshot.page.identity.distributor,generation,priorSnapshot,true);return;}
   const preserveContinuous=continuousReward?.account===wallet?.account&&continuousReward?.marketId===query<HTMLSelectElement>('[data-treasury-market]')?.value;
   treasuryReward = null;
   renderRecentHolderMarkets();
@@ -4316,7 +4324,7 @@ async function runRewardAction(button: HTMLButtonElement): Promise<void> {
       if(pending)void recoverPendingStake().catch(()=>{});
       notify(message,'error');
     }else{
-      const notice=action.startsWith('claim')?rewardErrorNotice(error):{message:publicError(error,'transaction'),tone:'error' as const,refresh:false};
+      const notice=action.startsWith('claim')?rewardErrorNotice(error):{message:positionActionError(error,action),tone:'error' as const,refresh:true};
       if(notice.refresh)try{await refreshActiveReward();}catch(refreshError){reportClientError(refreshError,{flow:'claim',step:'refresh_after_failure'});}
       notify(notice.message,notice.tone==='info'?'neutral':notice.tone);
     }
@@ -4390,7 +4398,7 @@ async function refreshAccountBalances(): Promise<void> {
 async function renderRewards(): Promise<void> {
   const pageGeneration = routeGeneration;
   if(currentPage()==='staking'&&new URLSearchParams(window.location.search).get('action')==='add')stakeMarketOpened=true;
-  if(currentPage()==='rewards')await refreshCreatorDirectory();
+  if(currentPage()==='rewards'&&rewardTab(window.location.hash)==='creator')await refreshCreatorDirectory();
   if(pageGeneration!==routeGeneration)return;
   if (rewardTab(window.location.hash) === "positions") void refreshAccountBalances();
   const requestedMarket = new URLSearchParams(window.location.search).get("marketId")?.toLowerCase();
@@ -4545,20 +4553,30 @@ async function retireSavedTrade(active:WalletState,record:import('./v1/transacti
  }
  if(currentPage()==='trade')await refreshTradeFields(undefined,false);else await refreshActiveReward();
 }
+const archivedObservers=new Map<string,()=>void>();
 function observeArchivedTrade(active:WalletState,record:import('./v1/transaction.ts').PendingTransaction){
-  // Observe the archived hash without locking another order or resubmitting either leg.
-  const started=Date.now();
-  const stop=watchPendingRecovery(async()=>{
-   if(wallet!==active||Date.now()-started>600000){stop();return;}
-   const receipt=await publicClient.getTransactionReceipt({hash:record.hash});
-   const block=await publicClient.getBlock({blockNumber:receipt.blockNumber});
-   if(wallet!==active)return;
-   if(receipt.transactionHash!==record.hash||receipt.from.toLowerCase()!==active.account.toLowerCase()||receipt.blockHash!==block.hash)return;
-   stop();
-   notify(receipt.status==='success'?'Your earlier transaction has now been confirmed. Balances will refresh.':'Your earlier transaction failed on-chain.',receipt.status==='success'?'success':'warning');
-   if(currentPage()==='trade')await refreshTradeFields(undefined,false);
-  },30000);
-  window.addEventListener('pagehide',stop,{once:true});
+ const key=`${active.account.toLowerCase()}:${record.hash}`;if(archivedObservers.has(key))return;
+ let cancel=()=>{};
+ const stop=()=>{cancel();archivedObservers.delete(key);window.removeEventListener('pagehide',stop);};
+ // Late launch receipts may restore the existing launch, but never submit its next step.
+ if(!record.approval&&record.businessType==='launch'){
+  try{const state=readLaunchState(localStorage,robinhoodChain.id);
+   if(state&&state.account.toLowerCase()===active.account.toLowerCase()&&state.intent===record.intent&&state.expected?.marketId===record.marketId){state.hash=record.hash;state.phase='paused';saveLaunchState(localStorage,state);if(currentPage()==='create')void restoreLaunchProgress();}
+  }catch{/* The verified receipt observer remains independent of the launch UI. */}
+ }
+ cancel=watchPendingRecovery(async()=>{
+  await Promise.resolve();
+  if(wallet!==active){stop();return;}
+  if(!active.executor.archived(active.account).some(item=>item.hash===record.hash)){stop();return;}
+  if(document.hidden)return;
+  const results=await reconcileWalletPending(active,[record],true);
+  if(wallet!==active)return;
+  const result=results.find(item=>item.pending.hash===record.hash);if(!result)return;
+  active.executor.completeArchived(active.account,record.hash);stop();
+  notify(result.receipt.status==='success'&&!result.cancelled?'Your earlier transaction has now been confirmed. Balances will refresh.':'Your earlier transaction failed or was cancelled.',result.receipt.status==='success'&&!result.cancelled?'success':'warning');
+  if(currentPage()==='trade')await refreshTradeFields(undefined,false);else if(isRewardsPage())await refreshActiveReward();else if(currentPage()==='create')await restoreLaunchProgress();
+ },30000);
+ archivedObservers.set(key,stop);window.addEventListener('pagehide',stop,{once:true});
 }
 let stopTransactionObservation: (() => void) | undefined;
 window.addEventListener("pagehide", () => stopTransactionObservation?.());
@@ -4592,7 +4610,7 @@ function renderRecoveryControls(): void {
     let pending: ReturnType<typeof active.executor.pending> = [];
     try { pending = active.executor.pending(active.account); }
     catch { /* Invalid legacy recovery data must not leak into unrelated product pages. */ }
-    const visible=pending.filter(record=>!launchProgress&&pendingTransactionPage(record.operationKey)===currentPage());
+    const visible=pending.filter(record=>!(currentPage()==='create'&&launchProgress)&&pendingTransactionPage(record.operationKey)===currentPage());
     for(const record of visible){
       transactionUpdates.delete(record.operationKey);
       const timer=transactionUpdateDismissals.get(record.operationKey);if(timer)clearTimeout(timer);
@@ -4602,7 +4620,7 @@ function renderRecoveryControls(): void {
     if(visible.length&&!recoveryPanel){recoveryPanel=document.createElement('section');recoveryPanel.dataset.transactionRecovery='';recoveryPanel.className='transaction-recovery-list';recoveryPanel.setAttribute('aria-label','Pending transactions');globalNoticeRegion().append(recoveryPanel);}
     recoveryPanel?.replaceChildren();
     const observers:(()=>void)[]=[];
-    for(const record of visible.filter(r=>r.conflictKey.startsWith('trade:'))){
+    for(const record of visible.filter(r=>r.conflictKey.startsWith('trade:')||['claim','stake','settlement','treasury','handoff'].includes(r.businessType))){
       observers.push(watchSubmissionDeadline(record.createdAt,{
         current:()=>wallet===active&&generation===routeGeneration,
         busy:()=>activeOperations.has(record.operationKey),
@@ -4624,7 +4642,7 @@ function renderRecoveryControls(): void {
         try {
           const network=await inspectSavedTransaction(active,record);
           if(network.state==='nonce_consumed'){await retireSavedTrade(active,record,'nonce_consumed');return;}
-          if(record.conflictKey.startsWith('trade:')&&canReleaseUnobservedSubmission(`${active.account}:${record.hash}`,record.createdAt,network.state)){
+          if((record.conflictKey.startsWith('trade:')||['claim','stake','settlement','treasury','handoff'].includes(record.businessType))&&canReleaseUnobservedSubmission(`${active.account}:${record.hash}`,record.createdAt,network.state)){
             await retireSavedTrade(active,record,'submission_unobserved');return;
           }
           const [result]=await reconcileWalletPending(active,[record]);
@@ -4652,7 +4670,7 @@ function renderRecoveryControls(): void {
             if(wallet!==active||generation!==routeGeneration)return;
             networkStates.set(record.hash,{state:network.state,checkedAt:Date.now()});
             if(network.state==='nonce_consumed'){await retireSavedTrade(active,record,'nonce_consumed');return;}
-            if(record.conflictKey.startsWith('trade:')&&canReleaseUnobservedSubmission(`${active.account}:${record.hash}`,record.createdAt,network.state)){
+            if((record.conflictKey.startsWith('trade:')||['claim','stake','settlement','treasury','handoff'].includes(record.businessType))&&canReleaseUnobservedSubmission(`${active.account}:${record.hash}`,record.createdAt,network.state)){
               await retireSavedTrade(active,record,'submission_unobserved');return;
             }
             const message=network.state==='pending'?'Transaction is pending on the network.':network.state==='unobserved'?'Checking whether your wallet submitted the transaction…':'Transaction status could not be verified. Checking automatically…';
@@ -4689,7 +4707,7 @@ async function refreshCurrentPage(preserveSnapshot = false): Promise<void> {
   if (isStaticPage()) { renderWallet(); return; }
   if (["stats","statsStocks"].includes(currentPage())) { await renderStats(); return; }
   if (integrationBootstrapPath && !foundation) await loadFoundation();
-  if (!integrationBootstrapPath && readApi && !preserveSnapshot && currentPage()!=="trade" && currentPage()!=="markets") {
+  if (!integrationBootstrapPath && readApi && !preserveSnapshot && !['trade','markets','create','staking','rewards'].includes(currentPage())) {
     try {
       const health = await readApi.getHealth();
       if (generation !== routeGeneration) return;
@@ -4776,17 +4794,17 @@ function startSnapshotUpdates(): void {
   const baseUrl = runtimeConfig.readApi.value;
   const poller = createSnapshotPoller({
     chainId: robinhoodChain.id,
-    canPoll: () => readyRouteGeneration === routeGeneration && !isStaticPage() && currentPage()!=='trade' && currentPage()!=='markets' && currentPage()!=='staking' && currentPage()!=='rewards' && !['stats','statsStocks'].includes(currentPage()) && !walletConnecting && !loadingFoundation && !document.hidden,
+    canPoll: () => readyRouteGeneration === routeGeneration && !isStaticPage() && currentPage()!=='trade' && currentPage()!=='markets' && currentPage()!=='staking' && currentPage()!=='rewards' && currentPage()!=='create' && !['stats','statsStocks'].includes(currentPage()) && !walletConnecting && !loadingFoundation && !document.hidden,
     fetchUpdate: (since, signal) => new TickerGardenV1Client(baseUrl, (input, init) => fetch(input, { ...init, signal })).getSnapshotUpdates(since && foundation ? { since } : {}),
     prepare: async (update, signal) => {
-      if(currentPage()==='trade'||currentPage()==='markets'||currentPage()==='staking'||currentPage()==='rewards')throw new SnapshotRefreshSuperseded('This page uses its own display stream');
+      if(currentPage()==='trade'||currentPage()==='markets'||currentPage()==='staking'||currentPage()==='rewards'||currentPage()==='create')throw new SnapshotRefreshSuperseded('This page uses its own display stream');
       const route=routeGeneration;
       const generation = ++foundationGeneration;
       const activeWallet = wallet;
       const api = new TickerGardenV1Client(baseUrl, (input, init) => fetch(input, { ...init, signal }));
       const next = await prepareFoundation(api, update.sync, update.mode!=='reset'&&!update.invalidated.includes('configs'));
       return () => {
-        if (route!==routeGeneration||currentPage()==='trade'||currentPage()==='markets'||currentPage()==='staking'||currentPage()==='rewards'||generation !== foundationGeneration || activeWallet !== wallet) throw new SnapshotRefreshSuperseded("Snapshot refresh superseded");
+        if (route!==routeGeneration||currentPage()==='trade'||currentPage()==='markets'||currentPage()==='staking'||currentPage()==='rewards'||currentPage()==='create'||generation !== foundationGeneration || activeWallet !== wallet) throw new SnapshotRefreshSuperseded("Snapshot refresh superseded");
         invalidateSnapshotReads(currentPage() === 'trade',currentPage() === 'markets');
         const recentChanged=update.recentVersion!==undefined&&update.recentVersion!==recentMarketVersion;
         recentMarketVersion=update.recentVersion;
@@ -4807,7 +4825,7 @@ function startSnapshotUpdates(): void {
       };
     },
     unavailable: error => {
-      if(currentPage()==='markets'||currentPage()==='staking'||currentPage()==='rewards')return;
+      if(currentPage()==='markets'||currentPage()==='staking'||currentPage()==='rewards'||currentPage()==='create')return;
       ++foundationGeneration;
       if(currentPage()==="trade"&&tradeMarket)return;
       foundation = null;
@@ -4821,7 +4839,7 @@ function startSnapshotUpdates(): void {
   window.addEventListener("online", () => poller.reconnect());
   window.addEventListener("offline", () => {
     poller.stop();
-    if(currentPage()==='markets'||currentPage()==='staking'||currentPage()==='rewards')return;
+    if(currentPage()==='markets'||currentPage()==='staking'||currentPage()==='rewards'||currentPage()==='create')return;
     ++foundationGeneration;
     foundation = null;
     foundationError = "Network unavailable";

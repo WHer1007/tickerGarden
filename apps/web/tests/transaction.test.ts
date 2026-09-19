@@ -513,3 +513,36 @@ test('wallet and receipt share one 20 second deadline even when RPC ignores time
  while(!receiptCalled)await Promise.resolve();t.mock.timers.tick(9999);await Promise.resolve();assert.equal(finished,false);
  t.mock.timers.tick(1);await rejection;assert.equal(finished,true);assert.equal(executor.pending(account).length,1);
 });
+
+for(const operationKey of ['launch:direct:market','reward:stake:market','reward:user-claim:market:creator:1:wallet','reward:snapshot:market:1:wallet','reward:user-claim:market:staker:0:wallet','approval:asset:spender'])test(`${operationKey} ends silent wallet waiting and archives late results without continuing`,async t=>{
+ t.mock.timers.enable({apis:['setTimeout']});let entered=false,confirmations=0;let respond!:(hash:Hash)=>void;
+ const storage=journal(),api=clients(()=>{entered=true;return new Promise(resolve=>{respond=resolve;});});
+ const executor=new V1TransactionExecutor(api,storage);
+ const promise=executor.execute({...input(async()=>{}),operationKey,confirm:async()=>{confirmations++;}});
+ const rejection=assert.rejects(promise,{code:'wallet_response_timeout'});
+ while(!entered)await Promise.resolve();t.mock.timers.tick(20000);await rejection;
+ respond(hash);await Promise.resolve();await Promise.resolve();assert.equal(confirmations,0);
+ const reloaded=new V1TransactionExecutor(api,storage);
+ assert.equal(reloaded.archived(account).length,1);assert.deepEqual(reloaded.pending(account),[]);
+ assert.deepEqual(reloaded.archived(contract),[]);
+ reloaded.completeArchived(account,hash);assert.deepEqual(reloaded.archived(account),[]);
+});
+test('archive observation expires and invalid entries do not affect current pending state',async()=>{
+ const storage=journal(),api=clients(async()=>hash);api.publicClient.waitForTransactionReceipt=async()=>{throw Error('offline');};
+ const executor=new V1TransactionExecutor(api,storage);await assert.rejects(executor.execute(input(async()=>{})));
+ assert.equal(executor.retirePending(account,'transaction-test',hash,'foreground_timeout'),true);
+ assert.equal(executor.archived(account).length,1);
+ assert.deepEqual(executor.archived(account,Date.now()+86400001),[]);
+ storage.setItem(`tickergarden:pending:v2:4663:${account}:archive:index`,'["unrelated"]');
+ assert.deepEqual(executor.archived(account),[]);
+});
+
+ test('reward receipt transport cannot hold the foreground beyond twenty seconds',async t=>{
+ t.mock.timers.enable({apis:['setTimeout','Date'],now:1000});let waiting=false;
+ const api=clients(async()=>hash);api.publicClient.waitForTransactionReceipt=async()=>{waiting=true;return new Promise(()=>{});};
+ const executor=new V1TransactionExecutor(api,journal());
+ const result=executor.execute({...input(async()=>{}),operationKey:'reward:user-claim:market:0:1:wallet'});
+ const rejection=assert.rejects(result,{code:'receipt_timeout'});
+ while(!waiting)await Promise.resolve();t.mock.timers.tick(20000);await rejection;
+ assert.equal(executor.pending(account)[0]!.businessType,'claim');
+ });

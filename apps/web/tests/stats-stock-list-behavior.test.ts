@@ -3,14 +3,21 @@ import { test } from 'node:test';
 
 class FakeElement {
   tagName = 'div'; className = ''; textContent = ''; title = ''; value = ''; type = ''; placeholder = '';
-  checked = false; children: FakeElement[] = []; parent: FakeElement | null = null;
+  checked = false; open = false; src = ''; alt = ''; tabIndex = 0; children: FakeElement[] = []; parent: FakeElement | null = null; attributes = new Map<string,string>();
   listeners = new Map<string, () => void>();
   constructor(tag = 'div') { this.tagName = tag; }
-  append(...nodes: FakeElement[]) { for (const node of nodes) { node.parent = this; this.children.push(node); } }
-  replaceChildren(...nodes: FakeElement[]) { this.children = []; this.append(...nodes); }
+  append(...nodes: FakeElement[]) { for (const node of nodes) { node.remove(); node.parent = this; this.children.push(node); } }
+  insertBefore(node: FakeElement, before: FakeElement | null) { node.remove(); const index = before ? this.children.indexOf(before) : -1; node.parent = this; if(index<0)this.children.push(node);else this.children.splice(index,0,node); return node; }
+  remove() { if(this.parent){this.parent.children=this.parent.children.filter(child=>child!==this);this.parent=null;} }
+  replaceChildren(...nodes: FakeElement[]) { for(const child of this.children)child.parent=null; this.children = []; this.append(...nodes); }
   addEventListener(name: string, listener: () => void) { this.listeners.set(name, listener); }
   dispatch(name: string) { this.listeners.get(name)?.(); }
-  setAttribute() {}
+  setAttribute(name:string,value:string) { this.attributes.set(name,value); }
+  getAttribute(name:string) { return this.attributes.get(name) ?? (name==='src'?this.src:null); }
+  removeAttribute(name:string) { this.attributes.delete(name); }
+  contains(node:FakeElement):boolean { return this===node||this.children.some(child=>child.contains(node)); }
+  focus() { (globalThis.document as any).activeElement=this; }
+  querySelector(selector:string) { return this.querySelectorAll(selector)[0] ?? null; }
   querySelectorAll(selector: string): FakeElement[] {
     const matches = (node: FakeElement) => selector === 'input' ? node.tagName === 'input' : selector === 'strong' ? node.tagName === 'strong' : selector === 'small' ? node.tagName === 'small' : selector === '.stats-fee-row' ? node.className === 'stats-fee-row' : false;
     return this.children.flatMap(child => [ ...(matches(child) ? [child] : []), ...child.querySelectorAll(selector) ]);
@@ -66,6 +73,22 @@ test('Stock quantity display preserves large integer precision', async () => {
   } finally { restore(); }
 });
 
+test('refresh retains keyed Stock details expansion and focused summary', async () => {
+  const { container, list, restore } = await mount(true);
+  try {
+    const row = { id: 'acme', label: 'ACME', value: '12.50', amount: 1n, decimals: 0 };
+    list.update([row]);
+    const details = container.querySelectorAll('.stats-fee-row')[0]!.children.find(child => child.tagName === 'details')!;
+    details.open = true;
+    const summary = details.children[0];
+    list.update([{ ...row, value: '13.00' }]);
+    const refreshed = container.querySelectorAll('.stats-fee-row')[0]!.children.find(child => child.tagName === 'details')!;
+    assert.equal(refreshed, details);
+    assert.equal(refreshed.open, true);
+    assert.equal(refreshed.children[0], summary);
+  } finally { restore(); }
+});
+
 test('home Stats list has no search control or quantity details', async () => {
   const { container, list, restore } = await mount(false);
   try {
@@ -74,3 +97,13 @@ test('home Stats list has no search control or quantity details', async () => {
     assert.doesNotMatch(text(container), /Allocated:/);
   } finally { restore(); }
 });
+
+ test('Stock ranking changes retain the focused expanded row',async()=>{
+ const {container,list,restore}=await mount(true);
+ try{
+ const a={id:'a',label:'A',value:'20',amount:1n,decimals:0},b={...a,id:'b',label:'B',value:'10'};list.update([a,b]);
+ const details=container.querySelectorAll('.stats-fee-row')[0]!.children.find(child=>child.tagName==='details')!;
+ const summary=details.children[0]!;details.open=true;summary.focus();
+ list.update([{...a,value:'1'},b]);assert.equal(details.open,true);assert.equal((document as any).activeElement,summary);
+ }finally{restore();}
+ });

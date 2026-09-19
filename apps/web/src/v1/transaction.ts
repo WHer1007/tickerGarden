@@ -205,6 +205,8 @@ export interface TransactionJournal {
   getItem(key: string): string | null;
   setItem(key: string, value: string): void;
   removeItem(key: string): void;
+  readonly length?:number;
+  key?(index:number):string|null;
 }
 
 /** Browser persistence is required when available; inaccessible storage fails before signing. */
@@ -333,9 +335,38 @@ export class V1TransactionExecutor {
   retirePending(account:Address,operationKey:string,hash:Hash,reason:'nonce_consumed'|'retry_authorized'|'submission_unobserved'|'foreground_timeout'):boolean {
     const record=this.pending(account).find(p=>p.operationKey===operationKey&&p.hash===hash);
     if(!record||this.#inflight.has(operationKey))return false;
-    const key=`${this.#journalKey(account)}:archive:${hash}`;
-    this.journal.setItem(key,JSON.stringify({...record,retiredAt:Date.now(),reason}));
+    this.#archive(account,record,reason);
     this.#removePending(account,operationKey);return true;
+  }
+
+  /** Durable, non-blocking observation; never used to authorize or restart a write. */
+  archived(account:Address,now=Date.now()):readonly PendingTransaction[]{
+    const prefix=`${this.#journalKey(account)}:archive:`;
+    const keys=new Set<string>();
+    try{
+      const index=JSON.parse(this.journal.getItem(`${prefix}index`)??'[]');
+      if(Array.isArray(index))for(const key of index)if(typeof key==='string'&&key.startsWith(prefix))keys.add(key);
+      if(this.journal.key)for(let i=0;i<(this.journal.length??0);i++){const key=this.journal.key(i);if(key?.startsWith(prefix)&&key!==`${prefix}index`)keys.add(key);}
+    }catch{return [];}
+    const records:PendingTransaction[]=[];
+    for(const key of keys){try{
+      const raw=JSON.parse(this.journal.getItem(key)??'null');const record=this.#validatePending(raw);
+      if(key!==`${prefix}${record.hash}`)continue;
+      if(!Number.isFinite(raw.retiredAt)||now-raw.retiredAt>86400000||raw.retiredAt>now+60000){this.journal.removeItem(key);continue;}
+      records.push(record);
+    }catch{/* Invalid archives cannot block current actions. */}}
+    return records.sort((a,b)=>b.createdAt-a.createdAt).slice(0,50);
+  }
+  completeArchived(account:Address,hash:Hash):void{
+    const prefix=`${this.#journalKey(account)}:archive:`,key=`${prefix}${hash}`;
+    try{this.journal.removeItem(key);const index=JSON.parse(this.journal.getItem(`${prefix}index`)??'[]');if(Array.isArray(index))this.journal.setItem(`${prefix}index`,JSON.stringify(index.filter(k=>k!==key)));}catch{/* Observation cleanup is best effort. */}
+  }
+  #archive(account:Address,record:PendingTransaction,reason:string):void{
+    const prefix=`${this.#journalKey(account)}:archive:`,key=`${prefix}${record.hash}`;
+    this.journal.setItem(key,JSON.stringify({...record,retiredAt:Date.now(),reason}));
+    const raw=JSON.parse(this.journal.getItem(`${prefix}index`)??'[]');const index=Array.isArray(raw)?raw.filter(k=>typeof k==='string'&&k.startsWith(prefix)&&k!==key):[];
+    const next=[...index,key];for(const expired of next.slice(0,-50))this.journal.removeItem(expired);
+    this.journal.setItem(`${prefix}index`,JSON.stringify(next.slice(-50)));
   }
 
   rememberPendingNonce(account:Address,operationKey:string,hash:Hash,nonce:number):void {
@@ -481,7 +512,6 @@ export class V1TransactionExecutor {
     let hash: Hash;
     let observedReplacementHash: Hash | undefined;
     let submissionStartedAt=pending?.createdAt??Date.now();
-    const tradeScope=scope.conflictKey.startsWith('trade:');
     if (pending) {
       hash = pending.hash;
     } else {
@@ -500,19 +530,19 @@ export class V1TransactionExecutor {
       try {
         submissionStartedAt=Date.now();
         const submission=this.clients.walletClient.writeContract(simulation.request);
-        hash = tradeScope ? await waitForWalletSubmission(submission,lateHash=>{
+        hash = await waitForWalletSubmission(submission,lateHash=>{
           const now=(input.now??Date.now)();
           const record:PendingTransaction={intent:transactionIntent(input.request),hash:lateHash,approval,operationKey:input.operationKey,...scope,createdAt:now,updatedAt:now,stage:'unknown'};
-          try{this.journal.setItem(`${key}:archive:${lateHash}`,JSON.stringify({...record,retiredAt:now,reason:'late_wallet_response'}));}
+          try{this.#archive(input.expectedAccount,record,'late_wallet_response');}
           finally{this.clients.onLateSubmission?.(record,input.expectedAccount);}
-        }) : await submission;
+        });
       } catch (error) {
         if(error&&typeof error==='object'&&'code' in error&&error.code==='wallet_response_timeout')throw new V1TransactionError('wallet_response_timeout','Wallet did not return a transaction hash',error);
         if (isUserRejected(error)) throw new V1TransactionError("user_rejected", "wallet signature was rejected", error);
         throw new V1TransactionError("submission_failed", approval ? "approval submission failed" : "transaction submission failed", error);
       }
       const now = (input.now ?? Date.now)();
-      const record: PendingTransaction = { intent: transactionIntent(input.request), hash, approval, operationKey: input.operationKey, ...scope, createdAt: tradeScope?submissionStartedAt:now, updatedAt: now, stage: "pending" };
+      const record: PendingTransaction = { intent: transactionIntent(input.request), hash, approval, operationKey: input.operationKey, ...scope, createdAt: submissionStartedAt, updatedAt: now, stage: "pending" };
       this.#replacePending(input.expectedAccount, record);
       if (this.clients.publicClient.getTransaction) {
         // A nonce hint must not delay receipt handling or the broadcast recovery deadline.
@@ -529,7 +559,7 @@ export class V1TransactionExecutor {
     try {
       const receiptRequest = this.clients.publicClient.waitForTransactionReceipt({
         hash,
-        ...(tradeScope?{timeout:Math.max(1,submissionStartedAt+20000-Date.now()),pollingInterval:1000}:{}),
+        timeout:Math.max(1,submissionStartedAt+20000-Date.now()),pollingInterval:1000,
         ...(input.confirmations === undefined ? {} : { confirmations: input.confirmations }),
         onReplaced: (replacement) => {
           finalHash = replacement.transaction.hash;
@@ -542,7 +572,7 @@ export class V1TransactionExecutor {
           emit({ stage: "replaced", hash: finalHash, replacementReason: replacement.reason });
         },
       });
-      receipt=tradeScope?await withinSubmissionDeadline(receiptRequest,submissionStartedAt+20000):await receiptRequest;
+      receipt=await withinSubmissionDeadline(receiptRequest,submissionStartedAt+20000);
     } catch (error) {
       const existing=this.pending(input.expectedAccount).find(record=>record.operationKey===recordOperationKey);
       if(existing&&existing.stage!=="replaced")this.#replacePending(input.expectedAccount,{...existing,stage:"unknown",updatedAt:(input.now??Date.now)()});

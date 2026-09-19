@@ -17,6 +17,7 @@ function errorInfo(error:unknown):{message:string;codes:Set<string>} {
 export function stakeErrorMessage(error:unknown,pending:boolean):string {
   if(pending)return 'Your stake transaction is still awaiting confirmation.';
   const {message,codes}=errorInfo(error);const lower=message.toLowerCase();
+  if(codes.has('wallet_response_timeout'))return 'Your wallet did not return a submission result within 20 seconds. We will check any late transaction automatically.';
   if(codes.has('user_rejected')||codes.has('4001')||codes.has('userrejectedrequesterror')||/reject|denied|cancel/i.test(message))return 'The stake request was declined.';
   if(/StockPrincipalDeficit/i.test(message)||lower.includes(deficitSelector))return 'This Stock Vault has a principal shortfall. New deposits are blocked until the shortfall is resolved.';
   if(/settlement.*pending|pending.*settlement|reward cleanup|pending cleanup|RageQuitSettlementPending/i.test(message))return 'Your principal was returned. Reward cleanup for this market must finish before staking again or claiming rewards.';
@@ -29,4 +30,16 @@ export function stakeErrorMessage(error:unknown,pending:boolean):string {
   if(['receipt_timeout','confirmation_failed','indexer_lagging','indexer_unavailable'].some(code=>codes.has(code)))return 'The stake result could not be verified yet. Your transaction status is uncertain.';
   if(/readback|read back|rpc|network request|timed? out|timeout|failed to fetch/i.test(message))return 'Could not refresh your stake information. Please try again.';
   return 'Unable to complete the stake. Review the amount and try again.';
+}
+
+/** Exit and cleanup errors must not ask users to refresh a trading quote. */
+export function positionActionError(error:unknown,action:string):string{
+ const {message,codes}=errorInfo(error);
+ const label=action==='settleRageQuitRewards'?'Reward cleanup':'Withdrawal';
+ if(codes.has('user_rejected')||codes.has('4001')||codes.has('replacement_cancelled'))return `${label} cancelled.`;
+ if(codes.has('transaction_reverted')||codes.has('approval_reverted'))return `${label} failed on-chain. Your position will refresh; review it before trying again.`;
+ if(['wallet_response_timeout','submission_failed','receipt_timeout','confirmation_failed','pending_transaction'].some(code=>codes.has(code)))return `${label} outcome is not yet verified. We are checking automatically.`;
+ if(/insufficient.*(funds|balance)|gas/i.test(message))return `${label} not submitted. Keep enough ETH for the network fee.`;
+ if(/locked|unlock|timelock/i.test(message))return `${label} not submitted. Wait for your position to unlock.`;
+ return `${label} not submitted. Your position could not be verified. Please try again.`;
 }

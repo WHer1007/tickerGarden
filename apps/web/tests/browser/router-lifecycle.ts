@@ -99,7 +99,7 @@ async function run() {
     async render(route) {
       outlet.replaceChildren();
       if (route.page === 'docs') await new Promise<void>(resolve => { releaseDocs = resolve; });
-      outlet.innerHTML = '<h1>Ready</h1><section id="docs-risks">Risks</section>';
+      outlet.innerHTML = '<h1>Ready</h1><section id="docs-risks">Risks</section><section id="docs-next">Next section</section>';
       outlet.querySelector<HTMLElement>('#docs-risks')!.scrollIntoView = () => { anchorScrolls++; };
     }, canNavigate: () => true, blocked() {},
   });
@@ -110,6 +110,9 @@ async function run() {
   releaseDocs!();
   await waitFor(() => anchorScrolls === 1, 'fragment scroll after mount');
   check(anchorScrolls === 1, 'fragment scrolls after its page is mounted');
+  delayed.navigate('/docs#docs-next');
+  await waitFor(() => document.activeElement?.id === 'docs-next', 'same-page fragment receives keyboard focus');
+  check(document.activeElement?.id === 'docs-next', 'same-page fragment moves keyboard focus to its target');
   delayed.stop();
 
   result.textContent = `PASS (${assertions} assertions)`;
