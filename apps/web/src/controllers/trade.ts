@@ -93,7 +93,7 @@ function conversionFeeLabel(_q:ConversionQuote){return 'Pool fees included';}
 function renderPayments(){
  const pair=pairAsset(),node=ctx.query<HTMLSelectElement>('[data-trade-payment-options]');if(!node)return;
  node.hidden=!pair||ctx.tradeSide!=='buy'||robinhoodChain.id!==4663;
- node.disabled=ctx.tradeSubmitting||!!recovery||recoveryStorageUnavailable;
+ node.disabled=ctx.tradeSubmitting;
  const caret=ctx.query<HTMLElement>('[data-trade-payment-caret]');if(caret)caret.hidden=node.hidden;
  node.parentElement?.classList.toggle('is-selectable',!node.hidden);
  if(pair){const current=payment();const key=`${pair.address}:${current?.address}:${ctx.tradeSubmitting}:${recovery?.state}`;
@@ -216,7 +216,7 @@ function setupTrade(): void {
  }
  });
  ctx.query<HTMLSelectElement>('[data-trade-payment-options]')?.addEventListener('change',event=>{
- const select=event.target instanceof HTMLSelectElement?event.target:null;const pair=pairAsset();if(!select||!pair||ctx.tradeSide!=='buy'||ctx.tradeSubmitting||recovery||!paymentAssets(robinhoodChain.id,pair).some(a=>a.address===select.value))return;
+ const select=event.target instanceof HTMLSelectElement?event.target:null;const pair=pairAsset();if(!select||!pair||ctx.tradeSide!=='buy'||ctx.tradeSubmitting||!paymentAssets(robinhoodChain.id,pair).some(a=>a.address===select.value))return;
  selectedPayment=select.value;paymentBalance=null;ctx.tradeQuote=null;const f=ctx.query<HTMLInputElement>('[data-trade-amount]');if(f)f.value='';renderTradeQuote();void loadPaymentBalance();scheduleTradeQuote();
  });
   ctx.query<HTMLButtonElement>('[data-trade-retry]')?.addEventListener('click',()=>{ctx.snapshotPoller?.reconnect();void loadTradeMarket();});
@@ -926,11 +926,12 @@ function updateTradeAvailability(): void {
   const insufficient = !!ctx.tradeQuote && payBalance !== undefined && (ctx.tradeQuote.conversion?BigInt(ctx.tradeQuote.conversion.sellAmount):ctx.tradeQuote.input)>payBalance;
   const marketId=ctx.tradeMarket?.market.marketId;
   const blocked=marketId?ctx.transactionScopeBusy({businessType:'trade',marketId,conflictKey:`trade:${marketId}`}):false;
-  const loading=(ctx.tradeSubmitting&&ctx.tradeSubmittingMarketId===marketId)||blocked;
+  const loading=ctx.tradeSubmitting&&ctx.tradeSubmittingMarketId===marketId;
   submit.classList.toggle('is-loading',loading);submit.setAttribute('aria-busy',String(loading));
   if(loading){submit.replaceChildren();const spinner=document.createElement('i');spinner.className='ph ph-spinner-gap trade-tx-spinner';spinner.setAttribute('aria-hidden','true');submit.append(spinner,document.createTextNode(ctx.tradeSubmittingLabel));}
+  else if(blocked||(!!recovery&&recovery.state!=='funded'))submit.textContent='Transaction status unresolved';
   else submit.textContent=`${ctx.tradeSide==='buy'?'Buy':'Sell'}${ctx.tradeMetadata?.symbol?` ${ctx.tradeMetadata.symbol}`:''}`;
-  ctx.setDisabled(submit, loading || recoveryStorageUnavailable || !ctx.writeReady() || !quoteFresh || !routeReady || insufficient || (usesConversion()&&payBalance===undefined) || (!!recovery&&recovery.state!=='funded'));
+  ctx.setDisabled(submit, loading || blocked || recoveryStorageUnavailable || !ctx.writeReady() || !quoteFresh || !routeReady || insufficient || (usesConversion()&&payBalance===undefined) || (!!recovery&&recovery.state!=='funded'));
   if (insufficient) ctx.text('[data-trade-status]', `Insufficient ${ctx.tradeSide === 'buy' ? payment()?.symbol ?? 'Balance' : ctx.tradeMetadata?.symbol ?? 'Balance'}`);
 }
 

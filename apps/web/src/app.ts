@@ -1,3 +1,4 @@
+import {RewardClaimError,rewardErrorNotice} from './ui/reward-error.ts';
 import {reportClientError} from './observability.ts';
 import {loadCreatorRewards,type CreatorPeriod} from './v1/creatorRewards.ts';
 import {createInvalidatedRead} from './ui/invalidated-read.ts';
@@ -986,11 +987,12 @@ function renderTransactionUpdates():void{
   if(panel.parentElement!==noticeRegion)noticeRegion.append(panel);
   panel.replaceChildren();
   for(const update of visible){
-    const row=document.createElement('article');row.className='status-notice transaction-progress-item';row.dataset.operationKey=update.operationKey;row.dataset.state=update.stage;row.setAttribute('role','status');row.setAttribute('aria-live',update.stage==='failed'?'assertive':'polite');
-    const icon=document.createElement('i');icon.className=`ph ${update.stage==='confirmed'?'ph-check-circle':update.stage==='failed'?'ph-warning-circle':['submitted','pending','replaced','confirming','approval_submitted'].includes(update.stage)?'ph-spinner-gap trade-tx-spinner':'ph-info'}`;icon.setAttribute('aria-hidden','true');
+    const normalClaim=update.operationKey.startsWith('reward:')&&update.error&&rewardErrorNotice(update.error).tone==='info';
+    const row=document.createElement('article');row.className='status-notice transaction-progress-item';row.dataset.operationKey=update.operationKey;row.dataset.state=normalClaim?'notice':update.stage;row.setAttribute('role','status');row.setAttribute('aria-live',update.stage==='failed'&&!normalClaim?'assertive':'polite');
+    const icon=document.createElement('i');icon.className=`ph ${normalClaim?'ph-info':update.stage==='confirmed'?'ph-check-circle':update.stage==='failed'?'ph-warning-circle':['submitted','pending','replaced','confirming','approval_submitted'].includes(update.stage)?'ph-spinner-gap trade-tx-spinner':'ph-info'}`;icon.setAttribute('aria-hidden','true');
     const content=document.createElement('div');content.className='transaction-progress-item__content';
-    const status=document.createElement('strong');status.textContent=transactionStageLabels[update.stage];
-    const note=document.createElement('span');note.textContent=update.error?publicError(update.error,'transaction'):update.replacementReason?`Replacement: ${update.replacementReason}.`:update.stage==='confirmed'?'Balances are refreshing.':update.hash?'Waiting for confirmation.':'Review the request in your wallet.';
+    const status=document.createElement('strong');status.textContent=normalClaim?'Reward status':transactionStageLabels[update.stage];
+    const note=document.createElement('span');note.textContent=update.error?(update.operationKey.startsWith('reward:')?rewardErrorNotice(update.error).message:publicError(update.error,'transaction')):update.stage==='failed'?'This transaction failed. Your balances are being refreshed.':update.replacementReason?`Replacement: ${update.replacementReason}.`:update.stage==='confirmed'?'Balances are refreshing.':update.hash?'Waiting for confirmation.':'Review the request in your wallet.';
     content.append(status,note);
     if(update.hash){const link=document.createElement('a');link.href=`${robinhoodChain.blockExplorers.default.url}/tx/${update.hash}`;link.target='_blank';link.rel='noopener noreferrer';link.textContent='View transaction';content.append(link);}
     const close=document.createElement('button');close.type='button';close.className='status-notice__close';close.setAttribute('aria-label','Dismiss transaction update');close.innerHTML='<i class="ph ph-x" aria-hidden="true"></i>';close.onclick=()=>dismissTransactionUpdate(update.operationKey);
@@ -3508,8 +3510,9 @@ const {WALLET_SNAPSHOT_MODE} = await import('./v1/features/holderSnapshots.ts');
         publicClient.readContract({abi:currentV4Abis_HolderRewardsDistributorV1,address:id.distributor,functionName:'roundState',args:[id.marketId,round.round],blockNumber:block.number}),
         publicClient.readContract({abi:currentV4Abis_HolderRewardsDistributorV1,address:id.distributor,functionName:'claimedAssets',args:[id.marketId,round.round,id.account],blockNumber:block.number}),
       ]);
-      if(mode!==WALLET_SNAPSHOT_MODE||live.root!==round.root||live.snapshotBlock!==round.snapshotBlock||(Number(claimed)&assets)!==0
-        ||(assets&1&&live.quoteRemaining<round.quoteAmount)||(assets&2&&live.memeRemaining<round.memeAmount))throw Error('Reward state changed. Refresh this round before claiming.');
+      if(mode!==WALLET_SNAPSHOT_MODE||live.root!==round.root||live.snapshotBlock!==round.snapshotBlock)throw new RewardClaimError('reward_root_changed','Reward state changed: round commitment');
+      if((Number(claimed)&assets)!==0)throw new RewardClaimError('already_claimed','Reward state changed: already claimed');
+      if((assets&1&&live.quoteRemaining<round.quoteAmount)||(assets&2&&live.memeRemaining<round.memeAmount))throw new RewardClaimError('reward_funds_unavailable','Reward state changed: insufficient round funds');
       return block;
     };
     const claimBlock=await verify();
@@ -4013,7 +4016,6 @@ const {userClaimOutcome} = await import('./v1/features/userClaims.ts');
   });
   tradeStakeTotals.clear();
   rewardClaimOutcomeMessage=outcome.memeBurned>0n ? `${outcome.quotePaid && outcome.quotePaid!==0n ? "Quote claimed. " : ""}${formatTokenAmount(outcome.memeBurned,18)} ${metadata.symbol} permanently burned.` : userClaimOutcome(outcome);
-  await refreshActiveReward();
   } finally { rewardChoicePending=false;queryAll<HTMLButtonElement>('[data-reward-action^=claim]').forEach(button=>button.removeAttribute('aria-busy'));updateRewardsAvailability(); }
 }
 
@@ -4059,7 +4061,7 @@ async function executeCreatorAction(action:string):Promise<void>{
  const [quote,meme]=await Promise.all([
   publicClient.readContract({abi:vaultAbi,address:release.feeVault,functionName:'creatorLiability',args:[market.marketId,state.epoch,market.quoteAsset],blockNumber:block.number}),
   publicClient.readContract({abi:vaultAbi,address:release.feeVault,functionName:'creatorLiability',args:[market.marketId,state.epoch,market.memeToken],blockNumber:block.number})]);
- if(quote===0n&&meme===0n){text('[data-creator-status]','No rewards are available to claim yet.');return;}
+ if(quote===0n&&meme===0n)throw new RewardClaimError('no_rewards','No rewards available to claim');
  await executeUserClaim(market,0,state.epoch,[quote,meme]);
  void refreshCreatorReward();
  }finally{creatorClaimPreparing=false;updateRewardsAvailability();void refreshCreatorReward();}
@@ -4277,6 +4279,7 @@ async function runRewardAction(button: HTMLButtonElement): Promise<void> {
     } else {
       throw new Error("Unknown Rewards action");
     }
+    if(action!=='stake'&&!rewardChoiceCancelled)await refreshActiveReward();
     if(action!=='stake'&&!rewardChoiceCancelled&&rewardClaimOutcomeMessage)notify(rewardClaimOutcomeMessage,'success');
     rewardClaimOutcomeMessage='';
     rewardChoiceCancelled=false;
@@ -4289,7 +4292,9 @@ async function runRewardAction(button: HTMLButtonElement): Promise<void> {
       if(pending)void recoverPendingStake().catch(()=>{});
       notify(message,'error');
     }else{
-      notify(publicError(error,'transaction'),'error');
+      const notice=action.startsWith('claim')?rewardErrorNotice(error):{message:publicError(error,'transaction'),tone:'error' as const,refresh:false};
+      if(notice.refresh)try{await refreshActiveReward();}catch(refreshError){reportClientError(refreshError,{flow:'claim',step:'refresh_after_failure'});}
+      notify(notice.message,notice.tone==='info'?'neutral':notice.tone);
     }
   }finally{
     if(action==='stake')stakeSubmitting=false;
@@ -4495,7 +4500,7 @@ function renderRecoveryControls(): void {
       const row=document.createElement('section');row.className='status-notice transaction-recovery-item';row.dataset.operationKey=record.operationKey;row.setAttribute('role','status');row.setAttribute('aria-live','polite');
       const icon=document.createElement('i');icon.className='ph ph-spinner-gap trade-tx-spinner';icon.setAttribute('aria-hidden','true');
       const content=document.createElement('div');content.className='transaction-recovery-item__content';
-      const description = document.createElement("span");
+      const description = document.createElement("span");description.dataset.recoveryDescription='';
       description.textContent = pendingRecoveryText(record.stage,record.approval,record.cancelled);
       const explorer = document.createElement('a'); explorer.textContent = 'View transaction'; explorer.href = `${robinhoodChain.blockExplorers.default.url}/tx/${record.hash}`; explorer.target = '_blank'; explorer.rel = 'noopener noreferrer';
       const recover = document.createElement("button");
@@ -4517,13 +4522,13 @@ function renderRecoveryControls(): void {
           }
           else if(currentPage()==='staking'){if(rewardPosition)stakeStatsCache.delete(rewardPosition.detail.market.marketId);await refreshRewardPosition();void refreshStakeDirectory(false,true);}
           else{await loadFoundation();await refreshCurrentPage();}
-        } catch (error) { notify(publicError(error,'transaction'), "warning"); recover.disabled = false; }
+        } catch (error) { notify(isRewardsPage()?rewardErrorNotice(error).message:publicError(error,'transaction'), "warning"); recover.disabled = false; }
       }); };
       const actions=document.createElement('div');actions.className='transaction-recovery-item__actions';actions.append(explorer,recover);
       content.append(description,actions);row.append(icon,content);recoveryPanel?.append(row);
 
     }
-    if(visible.length&&currentPage()==='trade'){
+    if(visible.length&&(currentPage()==='trade'||isRewardsPage())){
       observers.push(watchPendingRecovery(async()=>{
         if(wallet!==active||generation!==routeGeneration||document.hidden||hasActiveOperations())return;
         const results=await active.executor.reconcileSettledPending(active.account,{
@@ -4532,9 +4537,37 @@ function renderRecoveryControls(): void {
             const receipt=result.receipt;
             const block=await publicClient.getBlock({blockNumber:receipt.blockNumber});
             if(block.hash!==receipt.blockHash||receipt.transactionHash!==result.pending.hash||receipt.from.toLowerCase()!==active.account.toLowerCase())throw Error('Receipt is not canonical');
+            await verifyRecoveredStakeReceipt(result,active.account);
+            if(receipt.status==='success'&&!result.pending.approval&&result.pending.businessType==='claim'){
+              const [address,method,args]=JSON.parse(result.pending.intent);
+              if(receipt.to?.toLowerCase()!==address)throw Error('Claim destination mismatch');
+              if(method==='claimSnapshot'){
+                const {default:abi}=await import('./v1/generated/contracts/current/HolderRewardsDistributorV1.ts');
+                receiptEvent(receipt,address,abi,'HolderSnapshotClaimed',e=>e.marketId===args[0]&&String(e.round)===String(args[1])&&String(e.account).toLowerCase()===active.account.toLowerCase()&&Number(e.assets)===Number(args[4]));
+              }else if(method==='claimUserRewardAssets'){
+                receiptEvent(receipt,address,userClaimsAbi,'UserRewardsClaimed',e=>e.marketId===args[0]&&String(e.user).toLowerCase()===active.account.toLowerCase()&&Number(e.role)===Number(args[1])&&Number(e.creatorEpoch)===Number(args[2]));
+              }else throw Error('Claim recovery method unavailable');
+            }
           },
         });
-        if(wallet!==active||generation!==routeGeneration||!results.length)return;
+        if(wallet!==active||generation!==routeGeneration)return;
+        if(!results.length){
+          await Promise.all(visible.map(async record=>{
+            let message='Transaction status could not be verified. Checking automatically…';
+            try{const transaction=await publicClient.getTransaction({hash:record.hash});message=transaction.blockNumber===null?'Transaction is pending on the network.':'Transaction was included. Checking its receipt…';}
+            catch(error){if(error instanceof Error&&error.name==='TransactionNotFoundError')message='This transaction has not been found on the network. Checking automatically…';}
+            if(wallet!==active||generation!==routeGeneration)return;
+            const row=[...(recoveryPanel?.querySelectorAll<HTMLElement>('[data-operation-key]')??[])].find(row=>row.dataset.operationKey===record.operationKey);
+            const description=row?.querySelector<HTMLElement>('[data-recovery-description]');if(description)description.textContent=message;
+          }));
+          return;
+        }
+        if(isRewardsPage()){
+          for(const result of results)showTransactionUpdate({operationKey:result.pending.operationKey,hash:result.receipt.transactionHash,stage:result.receipt.status==='success'&&!result.cancelled?'confirmed':'failed'});
+          renderRecoveryControls();
+          await refreshActiveReward();
+          return;
+        }
         const {reconcileConversionJournal}=await import('./trade/conversion.ts');
         reconcileConversionJournal(localStorage,active.account,results);
         tradeAwaitingConfirmation=false;
