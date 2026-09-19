@@ -12,6 +12,9 @@ export interface DisplayState {
  detailViews?:Record<'1H'|'12H'|'1D',TokenDetailResponse>;
  balances:Record<string,string>; exclusions:string[]; supply:string;
  latestTrade?:TokenDetailTrade|null;
+ /** Latest activity is independent of the rolling chart/volume buffer. */
+ recentTrades?:TokenDetailTrade[];
+ recentTradesHydrated?:boolean;
  latestBuy?:LastBuyReadModel|null;
  quoteUsdAsOf?:string|null;
  quoteUsdSource?:MarketMetricsReadModel['usdPriceSource'];
@@ -49,7 +52,9 @@ export function applyDisplayEvents(previous:DisplayState,market:MarketReadModel,
  const keys=new Set(next.trades.map(t=>t.eventKey));if(incoming.some(t=>keys.has(t.eventKey)))throw Error('Display receipt already applied');
  if(incoming.length)next.latestTrade=incoming.at(-1)!;
  else if(next.latestTrade===undefined&&next.trades.length)next.latestTrade=next.trades[0]!;
- next.trades=[...incoming.reverse(),...next.trades].filter(t=>t.timestamp>=Number(block.timestamp)-86400);
+ const newest=[...incoming].reverse();
+ next.recentTrades=recentDisplayTrades(newest,next.recentTrades??next.trades);
+ next.trades=[...newest,...next.trades].filter(t=>t.timestamp>=Number(block.timestamp)-86400);
  const totals=new Map(next.fees.map(f=>[`${f.recipient}:${f.asset}`,{...f}]));
  for(const o of observations)for(const f of feeCredits(o.event)){if(f.marketId!==market.marketId)continue;const key=`${f.recipient}:${f.asset}`,prior=totals.get(key);totals.set(key,{recipient:f.recipient,asset:f.asset,amountRaw:(BigInt(prior?.amountRaw??'0')+f.amountRaw).toString()});}
  next.fees=[...totals.values()];next.asOf=Number(block.timestamp);next.blockNumber=block.number.toString();next.blockHash=block.hash;
@@ -80,8 +85,13 @@ export function displayDetail(state:DisplayState,period:'1H'|'12H'|'1D',asOf=sta
  const volume=selected.has('statistics')&&state.historyFrom<=Math.max(asOf-86400,Number(state.market.identity?.deployedAt??0))?formatUnits(trades.filter(t=>t.classification==='unclassified').reduce((n,t)=>n+BigInt(t.quoteRaw),0n),validated.binding.quoteDecimals):null;
  const result:TokenDetailResponse={version:1,chainId:state.market.source.chainId,displayOnly:true,confirmation:'confirmed',marketId:state.market.marketId,memeToken:state.market.memeToken,quoteAsset:state.market.quoteAsset,quoteDecimals:validated.binding.quoteDecimals,period,
  statistics:{price:state.market.display?.priceQuote??trades[0]?.price??null,...displayUsd(state.market.display?.priceQuote??trades[0]?.price??null,state.supply,state.quoteUsd),volume24h:volume,volumeFrom:asOf-86400,volumeTo:asOf,volumeBasis:'EXTERNAL_EXECUTIONS_CURVE_EXCLUDING_FEE_TAX_OR_POOL_CORE'},chart:{from,to,interval,points},
- holders:cachedHolders??{totalSupplyRaw:state.supply,circulatingSupplyRaw:items.reduce((n,v)=>n+BigInt(v.balanceRaw),0n).toString(),count:items.length,basis:'TOTAL_MINUS_KNOWN_PROTOCOL_BALANCES_V1',items:items.slice(0,100)},trades:trades.slice(0,100),fees:state.fees,sources:{statistics:source,chart:source,holders:source,trades:source,fees:source},reasons:{}};
+ holders:cachedHolders??{totalSupplyRaw:state.supply,circulatingSupplyRaw:items.reduce((n,v)=>n+BigInt(v.balanceRaw),0n).toString(),count:items.length,basis:'TOTAL_MINUS_KNOWN_PROTOCOL_BALANCES_V1',items:items.slice(0,100)},trades:(state.recentTrades??state.trades).slice(0,30),fees:state.fees,sources:{statistics:source,chart:source,holders:source,trades:source,fees:source},reasons:{}};
  return {...result,statistics:selected.has('statistics')?result.statistics:null,chart:selected.has('chart')?result.chart:null,trades:selected.has('trades')?result.trades:null,holders:selected.has('holders')?result.holders:null,fees:selected.has('fees')?result.fees:null,sources:Object.fromEntries(Object.entries(result.sources).filter(([key])=>selected.has(key)))};
+}
+
+export function recentDisplayTrades(...groups:readonly (readonly TokenDetailTrade[])[]):TokenDetailTrade[]{
+ const seen=new Set<string>();
+ return groups.flat().filter(t=>{if(seen.has(t.eventKey))return false;seen.add(t.eventKey);return true;}).sort((a,b)=>b.timestamp-a.timestamp).slice(0,30);
 }
 
 /** Materialize in the worker. Read endpoints only select stored response fields. */

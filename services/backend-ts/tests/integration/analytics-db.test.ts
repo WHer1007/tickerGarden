@@ -112,6 +112,15 @@ test('TS-07 database-only trades, candles, holders and detail paths preserve cov
     assert.ok(quietBody.chart?.points.every(point => point.price === null));
     assert.equal(quietBody.statistics?.price, '0.500000000000000000000000000000000000');
     assert.equal(quietBody.trades?.length, 2);
+    await handle.pool.query(`UPDATE ${schema}.market_trades SET occurred_at=to_timestamp($1), payload=jsonb_set(payload,'{timestamp}',to_jsonb($1::text))`, [candleTo - 90_000]);
+    for (const period of ['1H','12H','1D']) {
+      const response=await app.request(`/v1/markets/${marketId}/detail?period=${period}`);
+      assert.equal(response.status,200);
+      const body=await response.json() as {trades:Array<{timestamp:number}>|null};
+      assert.equal(body.trades?.length,2,'recent trades survive outside every chart window');
+      assert.ok(body.trades?.every(trade=>trade.timestamp===candleTo-90_000));
+    }
+    await handle.pool.query(`UPDATE ${schema}.market_trades SET occurred_at=to_timestamp($1), payload=jsonb_set(payload,'{timestamp}',to_jsonb($1::text))`, [candleTo - 7_200]);
     const globalHolders=await app.request('/v1/stats/holders');assert.equal(globalHolders.status,200);const globalHolderBody=await globalHolders.json() as {marketCount:number;positiveAddressCount:number;includedAddressCount:number;groups:unknown[]};
     assert.deepEqual({marketCount:globalHolderBody.marketCount,positive:globalHolderBody.positiveAddressCount,included:globalHolderBody.includedAddressCount,groups:globalHolderBody.groups.length},{marketCount:1,positive:2,included:1,groups:1});
     const overview=await app.request(`/v1/stats/overview?from=${detailFrom}&to=${detailTo}`);assert.equal(overview.status,200);const overviewBody=await overview.json() as {marketCount:number;groups:Array<{tradeCount:number;quoteVolumeRaw:string}>};assert.equal(overviewBody.marketCount,1);assert.deepEqual(overviewBody.groups.map(g=>[g.tradeCount,g.quoteVolumeRaw]),[[2,'2000000000000000000']]);
@@ -175,12 +184,12 @@ test('TS-07 database-only trades, candles, holders and detail paths preserve cov
     console.log(JSON.stringify({scope:'local stats 20001 markets/wallets',buildMs:Math.round(built-started),readMs:Math.round(performance.now()-built),responseBytes:Buffer.byteLength(JSON.stringify(large))}));
     assert.equal((await publishProtocolStatistics(handle.pool,deployment,schemaName)).published,false);
     // Stored event blocks can be sparse; verified covered ranges establish
-    // completeness. A missing range must still make display data unavailable.
+    // completeness. A missing range blocks interval aggregates, not stored trades.
     await handle.pool.query(`UPDATE ${schema}.covered_ranges SET complete=false`);
     const gap=await app.request(`/v1/markets/${marketId}/detail?period=1D`);
     assert.equal(gap.status,200);
-    const missing=await gap.json() as {chart:unknown;statistics:unknown;trades:unknown};
-    assert.equal(missing.chart,null);assert.equal(missing.statistics,null);assert.equal(missing.trades,null);
+    const missing=await gap.json() as {chart:unknown;statistics:unknown;trades:unknown[]};
+    assert.equal(missing.chart,null);assert.equal(missing.statistics,null);assert.equal(missing.trades.length,2);
   } finally {
     bootstrap.length = bootstrapLength;
     await handle.pool.query(`DROP SCHEMA IF EXISTS ${schema} CASCADE`).catch(() => undefined); await handle.pool.end();

@@ -105,7 +105,7 @@ export async function readTokenDetail(input: { readonly pool: Pool; readonly dep
   const periodConfig = { '1H': [3_600, 60], '12H': [43_200, 300], '1D': [86_400, 900] } as const;
   const [duration, interval] = periodConfig[input.period];
   const selected=new Set(input.section==='activity'?['trades','fees']:input.section?.split(',')??['statistics','chart','trades','holders','fees']);
-  const select=(value:TokenDetailResponse):TokenDetailResponse=>({...value,statistics:selected.has('statistics')?value.statistics:null,chart:selected.has('chart')?value.chart:null,trades:selected.has('trades')?value.trades:null,holders:selected.has('holders')?value.holders:null,fees:selected.has('fees')?value.fees:null,sources:Object.fromEntries(Object.entries(value.sources).filter(([k])=>selected.has(k)))});
+  const select=(value:TokenDetailResponse):TokenDetailResponse=>({...value,statistics:selected.has('statistics')?value.statistics:null,chart:selected.has('chart')?value.chart:null,trades:selected.has('trades')?value.trades?.slice(0,30)??null:null,holders:selected.has('holders')?value.holders:null,fees:selected.has('fees')?value.fees:null,sources:Object.fromEntries(Object.entries(value.sources).filter(([k])=>selected.has(k)))});
   return transaction(input.pool, async (client) => {
     await client.query('SET TRANSACTION ISOLATION LEVEL REPEATABLE READ READ ONLY');
     const schema = identifier(input.schemaName ?? 'tickergarden_serverless');
@@ -132,7 +132,7 @@ export async function readTokenDetail(input: { readonly pool: Pool; readonly dep
       const history=await client.query<{payload:TradeActivity}>(
         `SELECT t.payload FROM ${schema}.market_trades t JOIN ${schema}.chain_blocks b ON b.environment=t.environment AND b.chain_id=t.chain_id AND b.deployment_digest=t.deployment_digest AND b.hash=t.block_hash
          WHERE t.environment=$1 AND t.chain_id=$2 AND t.deployment_digest=$3 AND t.market_id=$4 AND b.canonical AND b.finalized AND b.number<=$5
-         ORDER BY b.number DESC,(t.payload->'source'->>'transactionIndex')::bigint DESC,t.log_index DESC LIMIT 100`,
+         ORDER BY b.number DESC,(t.payload->'source'->>'transactionIndex')::bigint DESC,t.log_index DESC LIMIT 30`,
         [...identity(input.deployment),input.marketId,checkpoint.blockNumber.toString()]);
       const totals=await client.query<{recipient:'creator'|'stakers'|'platform'|'holders';asset:Address;amountRaw:string}>(
         `SELECT recipient,asset,amount_raw::text AS "amountRaw" FROM ${schema}.detail_fee_totals
@@ -148,7 +148,6 @@ export async function readTokenDetail(input: { readonly pool: Pool; readonly dep
     let statistics: { price: string | null; volume24h: string | null; volumeFrom: number; volumeTo: number; volumeBasis: 'EXTERNAL_EXECUTIONS_CURVE_EXCLUDING_FEE_TAX_OR_POOL_CORE' } | null = null;
     let trades: { timestamp: number; side: 'buy' | 'sell'; price: string; memeRaw: string; quoteRaw: string; actor: Address | null; txHash: Hex32; eventKey: string; classification: TradeActivity['classification'] }[] | null = null;
     try {
-      const volumeFrom = to - 86_400;
       if(selected.has('chart')){
       await analyticsCoverage(client, schema, input.deployment, checkpoint, from, to);
       const rows = await client.query<{ payload: TradeActivity }>(
@@ -164,6 +163,12 @@ export async function readTokenDetail(input: { readonly pool: Pool; readonly dep
         quoteAsset: market.quoteAsset, quoteDecimals, from, to, interval, trades: values });
       chart = { from, to, interval, points: series.candles.map((candle) => ({ timestamp: candle.timestamp, price: candle.close ? rationalDecimal(candle.close) : null })) };
       }
+    } catch (error) {
+      if (!(error instanceof PublicationUnavailableError)) throw error;
+      reasons.chart = error.message;
+    }
+    try {
+      const volumeFrom = to - 86_400;
       if(selected.has('statistics')||selected.has('trades')){
       // The chart is intentionally interval-scoped, while the detail feed and
       // headline price remain useful for quiet markets by reading the full
@@ -171,7 +176,7 @@ export async function readTokenDetail(input: { readonly pool: Pool; readonly dep
       const historyRows = await client.query<{ payload: TradeActivity }>(
         `SELECT t.payload FROM ${schema}.market_trades t JOIN ${schema}.chain_blocks b ON b.environment=t.environment AND b.chain_id=t.chain_id AND b.deployment_digest=t.deployment_digest AND b.hash=t.block_hash
          WHERE t.environment=$1 AND t.chain_id=$2 AND t.deployment_digest=$3 AND t.market_id=$4 AND b.canonical AND b.finalized AND b.number<=$5
-         ORDER BY b.number DESC,(t.payload->'source'->>'transactionIndex')::bigint DESC,t.log_index DESC LIMIT 100`,
+         ORDER BY b.number DESC,(t.payload->'source'->>'transactionIndex')::bigint DESC,t.log_index DESC LIMIT 30`,
         [...identity(input.deployment), input.marketId, checkpoint.blockNumber.toString()],
       );
       const historicalValues = historyRows.rows.map((row) => row.payload);
@@ -199,7 +204,7 @@ export async function readTokenDetail(input: { readonly pool: Pool; readonly dep
       }
     } catch (error) {
       if (!(error instanceof PublicationUnavailableError)) throw error;
-      reasons.chart = error.message; reasons.statistics ??= error.message; reasons.trades = error.message;
+      reasons.statistics ??= error.message; reasons.trades = error.message;
     }
     const detailRows = selected.has('holders')||selected.has('fees')?await client.query<{ total_supply_raw: string | null; circulating: string | null; holder_count: string; holders: { account: Address; balanceRaw: string }[]; fees: { recipient: 'creator' | 'stakers' | 'platform' | 'holders'; asset: Address; amountRaw: string }[] }>(
       `WITH included AS (
