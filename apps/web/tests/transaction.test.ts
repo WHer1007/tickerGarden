@@ -419,3 +419,19 @@ for (const [label,error,code] of [
  await assert.rejects(executor.execute(input(async()=>{})),{code});
  assert.deepEqual(executor.pending(account),[]);
 });
+
+test('retirement preserves an archive and only removes the exact saved hash',async()=>{
+ const storage=journal(),api=clients(async()=>hash);
+ api.publicClient.waitForTransactionReceipt=async()=>{throw Object.assign(new Error('timeout'),{name:'WaitForTransactionReceiptTimeoutError'});};
+ const executor=new V1TransactionExecutor(api,storage);
+ await assert.rejects(executor.execute(input(async()=>{})));
+ const record=executor.pending(account)[0]!;
+ assert.equal(executor.retirePending(account,record.operationKey,`0x${'f'.repeat(64)}`,'nonce_consumed'),false);
+ assert.equal(executor.pending(account).length,1);
+ executor.rememberPendingNonce(account,record.operationKey,hash,9);
+ assert.equal(executor.pending(account)[0]!.nonce,9);
+ executor.rememberPendingNonce(account,record.operationKey,hash,10);
+ assert.equal(executor.pending(account)[0]!.nonce,9);
+ assert.equal(executor.retirePending(account,record.operationKey,hash,'nonce_consumed'),true);
+ assert.equal(executor.pending(account).length,0);
+});

@@ -52,3 +52,12 @@ export function reconcileConversionJournal(storage:Pick<Storage,'getItem'|'setIt
   }
  }
 }
+
+/** Remove only the conversion leg associated with a retired executor record. */
+export function retireConversionJournal(storage:Pick<Storage,'getItem'|'setItem'|'removeItem'>,account:Address,p:import('../v1/transaction.ts').PendingTransaction){
+ if(p.approval||!p.marketId)return;
+ const r=readRecovery(storage,account,p.marketId);if(!r)return;
+ // A consumed nonce may have completed the buy; never offer it as an automatic funded resume.
+ if(r.buyHash===p.hash)recoveryRemove(storage,recoveryKey(account,p.marketId));
+ else if(r.hash===p.hash&&!r.state.startsWith('buy_'))recoveryRemove(storage,recoveryKey(account,p.marketId));
+}
