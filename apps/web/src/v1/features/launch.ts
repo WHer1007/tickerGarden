@@ -302,11 +302,25 @@ export function findCanonicalMarketCreated(
   throw new Error("The receipt did not contain the expected canonical Factory MarketCreated event");
 }
 
+// A database head view is not transaction authority. Only a successful live
+// canonical-contract check grants this exact, isolated snapshot to the builders.
+// JSON fields cannot forge this process-local grant; mutation invalidates it.
+const verifiedCurveResponses=new WeakMap<MarketDetailResponse,string>();
+export async function verifyCurveTradeResponse(response:MarketDetailResponse,verify:(market:MarketReadModel)=>Promise<void>):Promise<MarketDetailResponse>{
+  const snapshot:MarketDetailResponse={market:structuredClone(response.market),sync:structuredClone(response.sync)};
+  const market=validateCurveResponse(snapshot,true);
+  const fingerprint=JSON.stringify(snapshot);
+  await verify(market);
+  if(JSON.stringify(snapshot)!==fingerprint)throw Error('Trade changed during verification');
+  verifiedCurveResponses.set(snapshot,fingerprint);
+  return snapshot;
+}
+
 function validateCurveResponse(response: MarketDetailResponse, displayOnly = false): MarketReadModel {
   if ("observation" in response && response.observation === "direct-chain") {
     const s=response.sync;
     if(s.chainId!==ROBINHOOD_CHAIN_ID||s.status!=="synced"||s.finality!=="head"||!s.blockNumber||!s.blockHash||s.revision!==`${s.blockNumber}:${s.blockHash}`)throw Error("Invalid direct market observation");
-  } else assertSynced(response.sync, displayOnly);
+  } else assertSynced(response.sync, displayOnly || verifiedCurveResponses.get(response)===JSON.stringify(response));
   const market = response.market;
   canonicalHex(market.marketId, "marketId");
   canonicalHex(market.assetUid, "assetUid");
