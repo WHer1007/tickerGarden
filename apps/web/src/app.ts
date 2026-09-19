@@ -116,7 +116,7 @@ import type { mountTokenDetail } from './v1/tokenDetailWidget.ts';
 import { readDetailMetadata } from './v1/tokenMetadata.ts';
 import { createTradeBalanceLoader } from './v1/tradeBalances.ts';
 import type { mountTrades } from "./v1/tradeWidget.ts";
-import { mountTransactionObservation } from "./v1/transactionObservation.ts";
+import {watchPendingRecovery,pendingRecoveryText} from "./v1/pendingRecovery.ts";
 import { validateUserActivity } from './v1/userActivity.ts';
 import type { mountUserActivity } from "./v1/userActivityWidget.ts";
 
@@ -2764,9 +2764,9 @@ async function selectHolderSearchResult(item:HolderMarket,input:HTMLInputElement
   if(!foundation||!readApi)return;
   results.textContent='Loading token…';
   let market=foundation.markets.find(m=>m.marketId===item.marketId);
-  if(!market){const current=foundation;const detail=current.direct&&directMarkets?await directMarkets.market(item.marketId as Hex):await readApi.getMarket({marketId:item.marketId as Hex,revision:current.sync.revision});
+  if(!market){const current=foundation;const detail=current.direct&&directMarkets?await directMarkets.market(item.marketId as Hex):await readApi.getMarket({marketId:item.marketId as Hex});
    if(routeGeneration!==generation||foundation!==current)return;
-   if(!current.direct)assertFinalizedSync(detail.sync,current.sync.revision,'holder market');
+   if(!current.direct)assertFinalizedSync(detail.sync,undefined,'holder market');
    market=detail.market;if(market.memeToken.toLowerCase()!==item.memeToken)throw Error('Token Mismatch');
    foundation=Object.freeze({...current,markets:[...current.markets,market]});
   }
@@ -3052,8 +3052,8 @@ async function getRewardMarketDetail(market: MarketReadModel): Promise<MarketDet
   if (!foundation || (!readApi && !foundation.direct)) throw new Error("Market data is unavailable");
   const detail = foundation.direct
     ? await (directMarkets?.market(market.marketId) ?? Promise.reject(new Error("Local market data is unavailable")))
-    : currentPage()==='staking'?{market,sync:foundation.sync}:await readApi!.getMarket({ marketId: market.marketId, revision: foundation.sync.revision });
-  if (!foundation.direct&&currentPage()!=='staking') assertFinalizedSync(detail.sync, foundation.sync.revision, "reward market detail");
+    : currentPage()==='staking'?{market,sync:foundation.sync}:await readApi!.getMarket({ marketId: market.marketId });
+  if (!foundation.direct&&currentPage()!=='staking') assertFinalizedSync(detail.sync, undefined, "reward market detail");
   if (detail.market.marketId !== market.marketId) throw new Error("Read API returned a different reward market");
   await ensureCanonicalMarket(detail.market,currentPage()==='staking');
   return detail;
@@ -3502,17 +3502,19 @@ const {WALLET_SNAPSHOT_MODE} = await import('./v1/features/holderSnapshots.ts');
       await verifyLiveWalletContext(activeWallet);
       await ensureCanonicalMarket(state.market);
       if(marketRelease(id.marketId).holderDistributor.toLowerCase()!==id.distributor.toLowerCase())throw Error('Reward distributor binding changed');
+      const block=await publicClient.getBlock({blockTag:'latest'});
       const [mode,live,claimed]=await Promise.all([
-        publicClient.readContract({abi:currentV4Abis_HolderRewardsDistributorV1,address:id.distributor,functionName:'rewardMode'}),
-        publicClient.readContract({abi:currentV4Abis_HolderRewardsDistributorV1,address:id.distributor,functionName:'roundState',args:[id.marketId,round.round]}),
-        publicClient.readContract({abi:currentV4Abis_HolderRewardsDistributorV1,address:id.distributor,functionName:'claimedAssets',args:[id.marketId,round.round,id.account]}),
+        publicClient.readContract({abi:currentV4Abis_HolderRewardsDistributorV1,address:id.distributor,functionName:'rewardMode',blockNumber:block.number}),
+        publicClient.readContract({abi:currentV4Abis_HolderRewardsDistributorV1,address:id.distributor,functionName:'roundState',args:[id.marketId,round.round],blockNumber:block.number}),
+        publicClient.readContract({abi:currentV4Abis_HolderRewardsDistributorV1,address:id.distributor,functionName:'claimedAssets',args:[id.marketId,round.round,id.account],blockNumber:block.number}),
       ]);
       if(mode!==WALLET_SNAPSHOT_MODE||live.root!==round.root||live.snapshotBlock!==round.snapshotBlock||(Number(claimed)&assets)!==0
         ||(assets&1&&live.quoteRemaining<round.quoteAmount)||(assets&2&&live.memeRemaining<round.memeAmount))throw Error('Reward state changed. Refresh this round before claiming.');
+      return block;
     };
-    await verify();
-    await executeTransaction({operationKey:`reward:snapshot:${id.marketId}:${round.round}:${id.account}:${assets}`,sync:foundation!.sync,walletContext:activeWallet,
-      request:buildSnapshotClaim(id,round,assets),verifyChain:verify,
+    const claimBlock=await verify();
+    await executeTransaction({operationKey:`reward:snapshot:${id.marketId}:${round.round}:${id.account}:${assets}`,sync:{chainId:robinhoodChain.id,status:'synced',finality:'head',revision:`${claimBlock.number}:${claimBlock.hash}`,blockNumber:String(claimBlock.number),blockHash:claimBlock.hash,headBlockNumber:String(claimBlock.number),headBlockHash:claimBlock.hash,lagBlocks:'0'},walletContext:activeWallet,
+      request:buildSnapshotClaim(id,round,assets),verifyChain:async()=>{await verify();},
       confirm:async receipt=>{const event=receiptEvent(receipt,id.distributor,currentV4Abis_HolderRewardsDistributorV1,'HolderSnapshotClaimed',args=>args.marketId===id.marketId&&args.round===round.round&&String(args.account).toLowerCase()===id.account.toLowerCase()&&Number(args.assets)===assets
         &&args.quotePaid===(assets&1?round.quoteAmount:0n)&&args.memePaid===(assets&2?round.memeAmount:0n));
         const key=snapshotReceiptKey(id,round.round);
@@ -3775,7 +3777,8 @@ function updateRewardsAvailability(): void {
   }
   if (creatorReward) {
     const claim = rewardActionButton("claimCreator");
-    if (claim) setDisabled(claim, !ownsCreatorRewards(wallet?.account,creatorReward.beneficiary)||(creatorReward.liability <= 0n && creatorReward.memeLiability <= 0n && (creatorReward.pendingQuote??0n)<=0n));
+    // Display balances may lag; executeCreatorAction checks live ownership and liabilities.
+    if (claim) setDisabled(claim, !ownsCreatorRewards(wallet?.account,creatorReward.beneficiary));
 
   }
   if (treasuryReward && treasuryWritesReady()) {
@@ -4056,6 +4059,7 @@ async function executeCreatorAction(action:string):Promise<void>{
  const [quote,meme]=await Promise.all([
   publicClient.readContract({abi:vaultAbi,address:release.feeVault,functionName:'creatorLiability',args:[market.marketId,state.epoch,market.quoteAsset],blockNumber:block.number}),
   publicClient.readContract({abi:vaultAbi,address:release.feeVault,functionName:'creatorLiability',args:[market.marketId,state.epoch,market.memeToken],blockNumber:block.number})]);
+ if(quote===0n&&meme===0n){text('[data-creator-status]','No rewards are available to claim yet.');return;}
  await executeUserClaim(market,0,state.epoch,[quote,meme]);
  void refreshCreatorReward();
  }finally{creatorClaimPreparing=false;updateRewardsAvailability();void refreshCreatorReward();}
@@ -4492,8 +4496,7 @@ function renderRecoveryControls(): void {
       const icon=document.createElement('i');icon.className='ph ph-spinner-gap trade-tx-spinner';icon.setAttribute('aria-hidden','true');
       const content=document.createElement('div');content.className='transaction-recovery-item__content';
       const description = document.createElement("span");
-      const replacement=record.stage==='replaced'?record.cancelled?'Cancellation replacement is confirming.':'Replacement transaction is confirming.':'';
-      description.textContent = replacement||`${record.approval ? 'Token approval' : 'Transaction'} is still confirming.`;
+      description.textContent = pendingRecoveryText(record.stage,record.approval,record.cancelled);
       const explorer = document.createElement('a'); explorer.textContent = 'View transaction'; explorer.href = `${robinhoodChain.blockExplorers.default.url}/tx/${record.hash}`; explorer.target = '_blank'; explorer.rel = 'noopener noreferrer';
       const recover = document.createElement("button");
       recover.textContent = "Check existing transaction";
@@ -4518,9 +4521,27 @@ function renderRecoveryControls(): void {
       }); };
       const actions=document.createElement('div');actions.className='transaction-recovery-item__actions';actions.append(explorer,recover);
       content.append(description,actions);row.append(icon,content);recoveryPanel?.append(row);
-      if (runtimeConfig.readApi.available) {
-        observers.push(mountTransactionObservation(content, runtimeConfig.readApi.value, robinhoodChain.id, record.hash));
-      }
+
+    }
+    if(visible.length&&currentPage()==='trade'){
+      observers.push(watchPendingRecovery(async()=>{
+        if(wallet!==active||generation!==routeGeneration||document.hidden||hasActiveOperations())return;
+        const results=await active.executor.reconcileSettledPending(active.account,{
+          filter:p=>visible.some(v=>v.operationKey===p.operationKey&&v.hash===p.hash),
+          verify:async result=>{
+            const receipt=result.receipt;
+            const block=await publicClient.getBlock({blockNumber:receipt.blockNumber});
+            if(block.hash!==receipt.blockHash||receipt.transactionHash!==result.pending.hash||receipt.from.toLowerCase()!==active.account.toLowerCase())throw Error('Receipt is not canonical');
+          },
+        });
+        if(wallet!==active||generation!==routeGeneration||!results.length)return;
+        const {reconcileConversionJournal}=await import('./trade/conversion.ts');
+        reconcileConversionJournal(localStorage,active.account,results);
+        tradeAwaitingConfirmation=false;
+        for(const result of results)tradeTxStatus.update({operationKey:result.pending.operationKey,hash:result.receipt.transactionHash,stage:result.receipt.status==='success'&&!result.cancelled?'confirmed':'failed'});
+        renderRecoveryControls();updateTradeAvailability();
+        await refreshTradeFields(undefined,false);
+      }));
     }
     if(visible.length&&pending.some(record=>record.nonce!==undefined)){
       const ordered=[...pending].filter((record):record is typeof record & {nonce:number}=>record.nonce!==undefined).sort((a,b)=>a.nonce-b.nonce);
