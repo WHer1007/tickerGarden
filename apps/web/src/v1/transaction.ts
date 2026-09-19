@@ -1,4 +1,4 @@
-import {waitForWalletSubmission} from './walletSubmission.ts';
+import {waitForWalletSubmission,withinSubmissionDeadline} from './walletSubmission.ts';
 import {recoveryRead,recoveryWrite,recoveryRemove} from './recoveryStorage.ts';
 import {V1_EXECUTION_SPEC_ID} from './generated/abi-identity.ts';
 import type {
@@ -174,6 +174,7 @@ export interface PendingTransaction {
   readonly createdAt: number;
   readonly updatedAt: number;
   readonly nonce?: number;
+  readonly previousHashes?: readonly Hash[];
   readonly stage?: "pending" | "replaced" | "unknown";
   readonly replacementReason?: "repriced" | "replaced" | "cancelled";
   readonly cancelled?: boolean;
@@ -276,6 +277,7 @@ export class V1TransactionExecutor {
     if (!/^0x[0-9a-fA-F]{64}$/.test(parsed.hash ?? "") || typeof parsed.intent !== "string" || typeof parsed.approval !== "boolean"
       || typeof parsed.operationKey !== "string" || !parsed.operationKey || parsed.operationKey.length > 512 || !validScope(scope)
       || typeof parsed.createdAt !== "number" || !Number.isFinite(parsed.createdAt) || typeof parsed.updatedAt !== "number" || !Number.isFinite(parsed.updatedAt)
+      || (parsed.previousHashes!==undefined&&(!Array.isArray(parsed.previousHashes)||parsed.previousHashes.some(h=>!/^0x[0-9a-fA-F]{64}$/.test(h))))
       || (parsed.nonce !== undefined && (!Number.isSafeInteger(parsed.nonce) || parsed.nonce < 0))
       || (parsed.stage !== undefined && !["pending", "replaced", "unknown"].includes(parsed.stage))
       || (parsed.replacementReason !== undefined && !["repriced", "replaced", "cancelled"].includes(parsed.replacementReason))
@@ -328,7 +330,7 @@ export class V1TransactionExecutor {
   }
 
   /** Archive a specific record after nonce verification, retry consent, or repeated healthy broadcast absence. */
-  retirePending(account:Address,operationKey:string,hash:Hash,reason:'nonce_consumed'|'retry_authorized'|'submission_unobserved'):boolean {
+  retirePending(account:Address,operationKey:string,hash:Hash,reason:'nonce_consumed'|'retry_authorized'|'submission_unobserved'|'foreground_timeout'):boolean {
     const record=this.pending(account).find(p=>p.operationKey===operationKey&&p.hash===hash);
     if(!record||this.#inflight.has(operationKey))return false;
     const key=`${this.#journalKey(account)}:archive:${hash}`;
@@ -342,7 +344,7 @@ export class V1TransactionExecutor {
   }
 
   /** Batch-checks every saved hash and clears only records that already have a receipt. */
-  async reconcileSettledPending(account: Address, options: {filter?:(pending:PendingTransaction)=>boolean;verify?:(result:ReconciledPendingTransaction)=>Promise<void>} = {}): Promise<readonly ReconciledPendingTransaction[]> {
+  async reconcileSettledPending(account: Address, options: {filter?:(pending:PendingTransaction)=>boolean;verify?:(result:ReconciledPendingTransaction)=>Promise<void>;commit?:(result:ReconciledPendingTransaction)=>Promise<void>} = {}): Promise<readonly ReconciledPendingTransaction[]> {
     const records = this.pending(account);
     if (!records.length || !this.clients.publicClient.getTransactionReceipt) return [];
     const results = await Promise.all(records.filter(p=>!options.filter||options.filter(p)).map(async pending => {
@@ -350,6 +352,7 @@ export class V1TransactionExecutor {
         const receipt = await this.clients.publicClient.getTransactionReceipt!({ hash: pending.hash });
         const result={ pending, receipt, approval: pending.approval, cancelled: pending.cancelled ?? false } satisfies ReconciledPendingTransaction;
         await options.verify?.(result);
+        await options.commit?.(result);
         return result;
       } catch (error) {
         if (error instanceof Error && error.name === "TransactionReceiptNotFoundError") return null;
@@ -366,22 +369,11 @@ export class V1TransactionExecutor {
     return settled;
   }
 
-  /** Explicit receipt recovery never creates a new wallet transaction. */
-  async reconcilePending(account: Address, operationKey: string): Promise<ReconciledPendingTransaction | null> {
-    const pending = this.pending(account).find(record => record.operationKey === operationKey);
-    if (!pending) return null;
-    let cancelled = pending.cancelled ?? false;
-    const receipt = await this.clients.publicClient.waitForTransactionReceipt({
-      hash: pending.hash,
-      pollingInterval: 3_000,
-      timeout: 30_000,
-      onReplaced: (replacement) => {
-        cancelled = replacement.reason === "cancelled";
-        this.#replacePending(account, { ...pending, hash: replacement.transaction.hash, cancelled, stage: "replaced", replacementReason: replacement.reason, updatedAt: Date.now() });
-      },
-    });
-    this.#removePending(account, operationKey);
-    return { pending, receipt, approval: pending.approval, cancelled };
+  /** Manual recovery uses the same verified, hash-scoped settlement as background recovery. */
+  async reconcilePending(account:Address,operationKey:string,options:Parameters<V1TransactionExecutor['reconcileSettledPending']>[1]={}):Promise<ReconciledPendingTransaction|null>{
+    const record=this.pending(account).find(p=>p.operationKey===operationKey);if(!record)return null;
+    const results=await this.reconcileSettledPending(account,{...options,filter:p=>p.operationKey===operationKey&&p.hash===record.hash});
+    return results[0]??null;
   }
 
   execute<T>(input: ExecuteV1Transaction<T>): Promise<T> {
@@ -488,6 +480,8 @@ export class V1TransactionExecutor {
     const recordOperationKey = pending?.operationKey ?? input.operationKey;
     let hash: Hash;
     let observedReplacementHash: Hash | undefined;
+    let submissionStartedAt=pending?.createdAt??Date.now();
+    const tradeScope=scope.conflictKey.startsWith('trade:');
     if (pending) {
       hash = pending.hash;
     } else {
@@ -504,8 +498,9 @@ export class V1TransactionExecutor {
       await this.#assertFresh(input, approval ? "after approval simulation" : "after transaction simulation");
       emit({ stage: approval ? "awaiting_approval_signature" : "awaiting_signature" });
       try {
+        submissionStartedAt=Date.now();
         const submission=this.clients.walletClient.writeContract(simulation.request);
-        hash = scope.businessType==='trade' ? await waitForWalletSubmission(submission,lateHash=>{
+        hash = tradeScope ? await waitForWalletSubmission(submission,lateHash=>{
           const now=(input.now??Date.now)();
           const record:PendingTransaction={intent:transactionIntent(input.request),hash:lateHash,approval,operationKey:input.operationKey,...scope,createdAt:now,updatedAt:now,stage:'unknown'};
           try{this.journal.setItem(`${key}:archive:${lateHash}`,JSON.stringify({...record,retiredAt:now,reason:'late_wallet_response'}));}
@@ -517,7 +512,7 @@ export class V1TransactionExecutor {
         throw new V1TransactionError("submission_failed", approval ? "approval submission failed" : "transaction submission failed", error);
       }
       const now = (input.now ?? Date.now)();
-      const record: PendingTransaction = { intent: transactionIntent(input.request), hash, approval, operationKey: input.operationKey, ...scope, createdAt: now, updatedAt: now, stage: "pending" };
+      const record: PendingTransaction = { intent: transactionIntent(input.request), hash, approval, operationKey: input.operationKey, ...scope, createdAt: tradeScope?submissionStartedAt:now, updatedAt: now, stage: "pending" };
       this.#replacePending(input.expectedAccount, record);
       if (this.clients.publicClient.getTransaction) {
         // A nonce hint must not delay receipt handling or the broadcast recovery deadline.
@@ -532,20 +527,22 @@ export class V1TransactionExecutor {
     let cancelled = pending?.cancelled ?? false;
     let receipt: TransactionReceipt;
     try {
-      receipt = await this.clients.publicClient.waitForTransactionReceipt({
+      const receiptRequest = this.clients.publicClient.waitForTransactionReceipt({
         hash,
-        ...(scope.businessType==='trade'?{timeout:5000,pollingInterval:1000}:{}),
+        ...(tradeScope?{timeout:Math.max(1,submissionStartedAt+20000-Date.now()),pollingInterval:1000}:{}),
         ...(input.confirmations === undefined ? {} : { confirmations: input.confirmations }),
         onReplaced: (replacement) => {
           finalHash = replacement.transaction.hash;
           observedReplacementHash = finalHash;
           cancelled = replacement.reason === "cancelled";
           const existing = this.pending(input.expectedAccount).find(record => record.operationKey === recordOperationKey);
+          if(!existing)return;
           const now = (input.now ?? Date.now)();
-          this.#replacePending(input.expectedAccount, { ...(existing ?? { intent: transactionIntent(input.request), approval, operationKey: recordOperationKey, ...scope, createdAt: now }), hash: finalHash, cancelled, stage: "replaced", replacementReason: replacement.reason, updatedAt: now });
+          this.#replacePending(input.expectedAccount, { ...(existing ?? { intent: transactionIntent(input.request), approval, operationKey: recordOperationKey, ...scope, createdAt: now }), hash: finalHash, previousHashes:[...(existing?.previousHashes??[]),existing?.hash??hash], cancelled, stage: "replaced", replacementReason: replacement.reason, updatedAt: now });
           emit({ stage: "replaced", hash: finalHash, replacementReason: replacement.reason });
         },
       });
+      receipt=tradeScope?await withinSubmissionDeadline(receiptRequest,submissionStartedAt+20000):await receiptRequest;
     } catch (error) {
       const existing=this.pending(input.expectedAccount).find(record=>record.operationKey===recordOperationKey);
       if(existing&&existing.stage!=="replaced")this.#replacePending(input.expectedAccount,{...existing,stage:"unknown",updatedAt:(input.now??Date.now)()});

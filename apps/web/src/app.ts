@@ -118,7 +118,7 @@ import type { mountTokenDetail } from './v1/tokenDetailWidget.ts';
 import { readDetailMetadata } from './v1/tokenMetadata.ts';
 import { createTradeBalanceLoader } from './v1/tradeBalances.ts';
 import type { mountTrades } from "./v1/tradeWidget.ts";
-import {watchPendingRecovery,pendingRecoveryText} from "./v1/pendingRecovery.ts";
+import {watchPendingRecovery,pendingRecoveryText,watchSubmissionDeadline} from "./v1/pendingRecovery.ts";
 import { validateUserActivity } from './v1/userActivity.ts';
 import type { mountUserActivity } from "./v1/userActivityWidget.ts";
 
@@ -1141,9 +1141,8 @@ function installWallet(provider: InjectedProvider, account: Address): void {
   refreshCurrentPage();
   void (async()=>{
     try {
-      const settled=await installed.executor.reconcileSettledPending(installed.account,{verify:result=>verifyRecoveredStakeReceipt(result,installed.account)});
+      const settled=await reconcileWalletPending(installed);
       if(!settled.length||wallet!==installed)return;
-      if(settled.some(r=>r.pending.businessType==='trade')){const {reconcileConversionJournal}=await import('./trade/conversion.ts');reconcileConversionJournal(localStorage,installed.account,settled);}
       if(wallet!==installed)return;
       settled.forEach(result=>{
         directMarkets?.receipt(result.receipt);
@@ -4479,6 +4478,48 @@ async function appendMarketPage(): Promise<void> {
   foundation = Object.freeze({ ...rest, markets: [...new Map([...current.markets, ...page.items].map((market) => [market.marketId, market])).values()], ...(page.nextCursor ? { marketNextCursor: page.nextCursor } : {}) });
 }
 
+async function reconcileWalletPending(active:WalletState, records?:readonly import('./v1/transaction.ts').PendingTransaction[], detached=false){
+ const options:NonNullable<Parameters<typeof active.executor.reconcileSettledPending>[1]>={
+  filter:p=>!records||records.some(r=>r.operationKey===p.operationKey&&r.hash===p.hash),
+  verify:async result=>{
+            const receipt=result.receipt;
+            const block=await publicClient.getBlock({blockNumber:receipt.blockNumber});
+            if(block.hash!==receipt.blockHash||receipt.transactionHash!==result.pending.hash||receipt.from.toLowerCase()!==active.account.toLowerCase())throw Error('Receipt is not canonical');
+            await verifyRecoveredStakeReceipt(result,active.account);
+            if(receipt.status==='success'&&!result.pending.approval&&result.pending.businessType==='claim'){
+              const [address,method,args]=JSON.parse(result.pending.intent);
+              if(receipt.to?.toLowerCase()!==address)throw Error('Claim destination mismatch');
+              if(method==='claimSnapshot'){
+                const {default:abi}=await import('./v1/generated/contracts/current/HolderRewardsDistributorV1.ts');
+                receiptEvent(receipt,address,abi,'HolderSnapshotClaimed',e=>e.marketId===args[0]&&String(e.round)===String(args[1])&&String(e.account).toLowerCase()===active.account.toLowerCase()&&Number(e.assets)===Number(args[4]));
+              }else if(method==='claimUserRewardAssets'){
+                receiptEvent(receipt,address,userClaimsAbi,'UserRewardsClaimed',e=>e.marketId===args[0]&&String(e.user).toLowerCase()===active.account.toLowerCase()&&Number(e.role)===Number(args[1])&&Number(e.creatorEpoch)===Number(args[2]));
+              }else throw Error('Claim recovery method unavailable');
+            }
+   if(wallet!==active)throw Error('Wallet changed during recovery');
+   if(result.pending.conflictKey.startsWith('trade:')){
+    const [target]=JSON.parse(result.pending.intent);
+    if(result.receipt.status==='success'&&!result.cancelled&&result.receipt.to?.toLowerCase()!==target)throw Error('Recovered trade destination mismatch');
+   }
+  },
+  commit:async result=>{
+   if(wallet!==active)throw Error('Wallet changed during recovery');
+   const {reconcileConversionJournal}=await import('./trade/conversion.ts');
+   reconcileConversionJournal(localStorage,active.account,[result]);
+  }
+ };
+ const results=[...await active.executor.reconcileSettledPending(active.account,options)];
+ if(detached)for(const pending of records??[]){
+  if(results.some(r=>r.pending.hash===pending.hash)||active.executor.pending(active.account).some(p=>p.hash===pending.hash))continue;
+  try{
+   const receipt=await publicClient.getTransactionReceipt({hash:pending.hash});
+   const result={pending,receipt,approval:pending.approval,cancelled:pending.cancelled??false};
+   await options.verify!(result);await options.commit!(result);results.push(result);
+  }catch{/* Retain unverified conversion records until their independent foreground deadline. */}
+ }
+ return results;
+}
+const networkStates=new Map<string,{state:string;checkedAt:number}>();
 const canReleaseUnobservedSubmission=createUnobservedSubmissionTracker();
 async function inspectSavedTransaction(active:WalletState,record:import('./v1/transaction.ts').PendingTransaction){
  const status=await inspectPendingNetwork(active.account,record.hash,record.nonce,robinhoodChain.id,[
@@ -4488,14 +4529,17 @@ async function inspectSavedTransaction(active:WalletState,record:import('./v1/tr
  if(wallet===active&&status.nonce!==undefined)active.executor.rememberPendingNonce(active.account,record.operationKey,record.hash,status.nonce);
  return status;
 }
-async function retireSavedTrade(active:WalletState,record:import('./v1/transaction.ts').PendingTransaction,reason:'nonce_consumed'|'retry_authorized'|'submission_unobserved'){
- if(wallet!==active||hasActiveOperations()||!active.executor.retirePending(active.account,record.operationKey,record.hash,reason))return;
+async function retireSavedTrade(active:WalletState,record:import('./v1/transaction.ts').PendingTransaction,reason:'nonce_consumed'|'retry_authorized'|'submission_unobserved'|'foreground_timeout'){
+ if(wallet!==active||activeOperations.has(record.operationKey)||!active.executor.pending(active.account).some(p=>p.operationKey===record.operationKey&&p.hash===record.hash))return;
  if(record.businessType==='trade'){
   const {retireConversionJournal}=await import('./trade/conversion.ts');
+  if(wallet!==active)return;
   retireConversionJournal(localStorage,active.account,record);
  }
+ if(!active.executor.retirePending(active.account,record.operationKey,record.hash,reason))return;
+ networkStates.delete(record.hash);
  tradeAwaitingConfirmation=false;renderRecoveryControls();updateTradeAvailability();
- if(reason==='submission_unobserved'){
+ if(reason==='submission_unobserved'||reason==='foreground_timeout'){
   notify('We could not confirm that your transaction was submitted. You can try again. If the earlier transaction appears later, it may still execute.', 'warning');
   observeArchivedTrade(active,record);
  }
@@ -4558,6 +4602,14 @@ function renderRecoveryControls(): void {
     if(visible.length&&!recoveryPanel){recoveryPanel=document.createElement('section');recoveryPanel.dataset.transactionRecovery='';recoveryPanel.className='transaction-recovery-list';recoveryPanel.setAttribute('aria-label','Pending transactions');globalNoticeRegion().append(recoveryPanel);}
     recoveryPanel?.replaceChildren();
     const observers:(()=>void)[]=[];
+    for(const record of visible.filter(r=>r.conflictKey.startsWith('trade:'))){
+      observers.push(watchSubmissionDeadline(record.createdAt,{
+        current:()=>wallet===active&&generation===routeGeneration,
+        busy:()=>activeOperations.has(record.operationKey),
+        observation:()=>networkStates.get(record.hash),
+        expire:()=>{void retireSavedTrade(active,record,'foreground_timeout').catch(error=>reportClientError(error,{flow:'trade',step:'recovery_deadline'}));},
+      }));
+    }
     for(const record of visible){
       const row=document.createElement('section');row.className='status-notice transaction-recovery-item';row.dataset.operationKey=record.operationKey;row.setAttribute('role','status');row.setAttribute('aria-live','polite');
       const icon=document.createElement('i');icon.className='ph ph-spinner-gap trade-tx-spinner';icon.setAttribute('aria-hidden','true');
@@ -4572,23 +4624,17 @@ function renderRecoveryControls(): void {
         try {
           const network=await inspectSavedTransaction(active,record);
           if(network.state==='nonce_consumed'){await retireSavedTrade(active,record,'nonce_consumed');return;}
-          if(record.businessType==='trade'&&canReleaseUnobservedSubmission(`${active.account}:${record.hash}`,record.createdAt,network.state)){
+          if(record.conflictKey.startsWith('trade:')&&canReleaseUnobservedSubmission(`${active.account}:${record.hash}`,record.createdAt,network.state)){
             await retireSavedTrade(active,record,'submission_unobserved');return;
           }
-          const result = await active.executor.reconcilePending(active.account,record.operationKey);
-          const succeeded = result?.receipt.status === "success" && !result.cancelled;
-          const recoveredTrade=currentPage()==='trade'&&!!result;
-          if((tradeAwaitingConfirmation||recoveredTrade)&&result){tradeAwaitingConfirmation=false;tradeTxStatus.update({operationKey:result.approval?'recovered-approval':'recovered-trade',hash:result.receipt.transactionHash,stage:succeeded?'confirmed':'failed'});updateTradeAvailability();}
-          if(!recoveredTrade)notify(result?.cancelled ? "Existing transaction was cancelled." : succeeded
-            ? result.approval ? "Approval confirmed. The business transaction has not been resubmitted; request a fresh quote." : "Existing transaction succeeded. Review refreshed balances before creating another order."
-            : "Existing transaction reverted; no replacement was submitted.", succeeded ? "success" : "warning");
-          if(recoveredTrade){
-            // A recovered conversion/approval is only the first leg; keep its funded resume state.
-            if(succeeded&&!result!.approval&&record.businessType==='trade'&&!record.operationKey.startsWith('trade:conversion:')){if(tradeMarket)completeTradeDisplay(tradeMarket);}
-            else await refreshTradeFields(undefined,false);
-          }
-          else if(currentPage()==='staking'){if(rewardPosition)stakeStatsCache.delete(rewardPosition.detail.market.marketId);await refreshRewardPosition();void refreshStakeDirectory(false,true);}
-          else{await loadFoundation();await refreshCurrentPage();}
+          const [result]=await reconcileWalletPending(active,[record]);
+          if(!result){notify('The transaction outcome is still being checked automatically.', 'warning');recover.disabled=false;return;}
+          const succeeded=result.receipt.status==='success'&&!result.cancelled;
+          tradeAwaitingConfirmation=false;
+          showTransactionUpdate({operationKey:record.operationKey,hash:result.receipt.transactionHash,stage:succeeded?'confirmed':'failed'});
+          renderRecoveryControls();updateTradeAvailability();
+          if(currentPage()==='trade')await refreshTradeFields(undefined,false);
+          else await refreshActiveReward();
         } catch (error) { notify(isRewardsPage()?rewardErrorNotice(error).message:publicError(error,'transaction'), "warning"); recover.disabled = false; }
       }); };
       const actions=document.createElement('div');actions.className='transaction-recovery-item__actions';actions.append(explorer,recover);
@@ -4598,32 +4644,15 @@ function renderRecoveryControls(): void {
     if(visible.length&&(currentPage()==='trade'||isRewardsPage())){
       observers.push(watchPendingRecovery(async()=>{
         if(wallet!==active||generation!==routeGeneration||document.hidden||hasActiveOperations())return;
-        const results=await active.executor.reconcileSettledPending(active.account,{
-          filter:p=>visible.some(v=>v.operationKey===p.operationKey&&v.hash===p.hash),
-          verify:async result=>{
-            const receipt=result.receipt;
-            const block=await publicClient.getBlock({blockNumber:receipt.blockNumber});
-            if(block.hash!==receipt.blockHash||receipt.transactionHash!==result.pending.hash||receipt.from.toLowerCase()!==active.account.toLowerCase())throw Error('Receipt is not canonical');
-            await verifyRecoveredStakeReceipt(result,active.account);
-            if(receipt.status==='success'&&!result.pending.approval&&result.pending.businessType==='claim'){
-              const [address,method,args]=JSON.parse(result.pending.intent);
-              if(receipt.to?.toLowerCase()!==address)throw Error('Claim destination mismatch');
-              if(method==='claimSnapshot'){
-                const {default:abi}=await import('./v1/generated/contracts/current/HolderRewardsDistributorV1.ts');
-                receiptEvent(receipt,address,abi,'HolderSnapshotClaimed',e=>e.marketId===args[0]&&String(e.round)===String(args[1])&&String(e.account).toLowerCase()===active.account.toLowerCase()&&Number(e.assets)===Number(args[4]));
-              }else if(method==='claimUserRewardAssets'){
-                receiptEvent(receipt,address,userClaimsAbi,'UserRewardsClaimed',e=>e.marketId===args[0]&&String(e.user).toLowerCase()===active.account.toLowerCase()&&Number(e.role)===Number(args[1])&&Number(e.creatorEpoch)===Number(args[2]));
-              }else throw Error('Claim recovery method unavailable');
-            }
-          },
-        });
+        const results=await reconcileWalletPending(active,visible);
         if(wallet!==active||generation!==routeGeneration)return;
         if(!results.length){
           for(const record of visible){
             const network=await inspectSavedTransaction(active,record);
             if(wallet!==active||generation!==routeGeneration)return;
+            networkStates.set(record.hash,{state:network.state,checkedAt:Date.now()});
             if(network.state==='nonce_consumed'){await retireSavedTrade(active,record,'nonce_consumed');return;}
-            if(record.businessType==='trade'&&canReleaseUnobservedSubmission(`${active.account}:${record.hash}`,record.createdAt,network.state)){
+            if(record.conflictKey.startsWith('trade:')&&canReleaseUnobservedSubmission(`${active.account}:${record.hash}`,record.createdAt,network.state)){
               await retireSavedTrade(active,record,'submission_unobserved');return;
             }
             const message=network.state==='pending'?'Transaction is pending on the network.':network.state==='unobserved'?'Checking whether your wallet submitted the transaction…':'Transaction status could not be verified. Checking automatically…';
@@ -4639,8 +4668,6 @@ function renderRecoveryControls(): void {
           await refreshActiveReward();
           return;
         }
-        const {reconcileConversionJournal}=await import('./trade/conversion.ts');
-        reconcileConversionJournal(localStorage,active.account,results);
         tradeAwaitingConfirmation=false;
         for(const result of results)tradeTxStatus.update({operationKey:result.pending.operationKey,hash:result.receipt.transactionHash,stage:result.receipt.status==='success'&&!result.cancelled?'confirmed':'failed'});
         renderRecoveryControls();updateTradeAvailability();
@@ -4958,6 +4985,7 @@ export const controllerContext = {
   get ensureCanonicalMarket(){return ensureCanonicalMarket;},
   get ensureCurrentRevision(){return ensureCurrentRevision;},
   get ensureStandaloneApproval(){return ensureStandaloneApproval;},
+  get reconcileWalletPending(){return reconcileWalletPending;},
   get errorText(){return errorText;},
   get executeTransaction(){return executeTransaction;},
   get findAsset(){return findAsset;},

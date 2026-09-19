@@ -20,12 +20,13 @@ export async function fetchConversion(base:string,intent:ConversionIntent):Promi
  }
  const q=await r.json() as ConversionQuote;conversionRequest(q,intent);return q;
 }
-export type ConversionRecovery={account:Address;marketId:string;pair:Address;amount:string;minimum:string;state:'submitting'|'pending'|'funded'|'buy_submitting'|'buy_pending';conversionTo?:Address;buyTo?:Address;buyHash?:`0x${string}`;hash?:`0x${string}`};
+export type ConversionRecovery={attemptId?:string;operationKey?:string;createdAt?:number;deadlineAt?:number;account:Address;marketId:string;pair:Address;amount:string;minimum:string;state:'submitting'|'pending'|'funded'|'buy_submitting'|'buy_pending';conversionTo?:Address;buyTo?:Address;buyHash?:`0x${string}`;hash?:`0x${string}`};
 export function recoveryKey(account:string,marketId:string){return `tickergarden:trade-conversion:4663:${account.toLowerCase()}:${marketId.toLowerCase()}`;}
 export function readRecovery(storage:Pick<Storage,'getItem'>,account:Address,marketId:string):ConversionRecovery|null{
  const raw=recoveryRead(storage,recoveryKey(account,marketId));let r:ConversionRecovery|null;
  if(raw===null)return null;
  try{r=JSON.parse(raw);}catch{throw Error('Conversion recovery data is corrupt');}
+ if(r&&((r.createdAt!==undefined&&(!Number.isFinite(r.createdAt)||r.createdAt<0))||(r.deadlineAt!==undefined&&(!Number.isFinite(r.deadlineAt)||r.deadlineAt<0))||(r.attemptId!==undefined&&(typeof r.attemptId!=='string'||r.attemptId.length>200))||(r.operationKey!==undefined&&(typeof r.operationKey!=='string'||r.operationKey.length>512))))throw Error('Conversion recovery deadline is invalid');
  if(!r||typeof r.account!=='string'||r.account.toLowerCase()!==account.toLowerCase()||r.marketId!==marketId||!/^0x[0-9a-fA-F]{40}$/.test(r.pair)||!['submitting','pending','funded','buy_submitting','buy_pending'].includes(r.state)||! /^[1-9]\d{0,38}$/.test(r.amount)||! /^[1-9]\d{0,38}$/.test(r.minimum)||(r.conversionTo&&!['0x8876789976decbfcbbbe364623c63652db8c0904','0x0000000000001ff3684f28c67538d4d072c22734'].includes(r.conversionTo.toLowerCase()))||(r.hash&&!/^0x[0-9a-fA-F]{64}$/.test(r.hash))||(r.buyHash&&!/^0x[0-9a-fA-F]{64}$/.test(r.buyHash))||(r.state.startsWith('buy_')&&!/^0x[0-9a-fA-F]{40}$/.test(r.buyTo??'')))throw Error('Conversion recovery data is invalid');return r;
 }
 
@@ -42,7 +43,11 @@ export function reconcileConversionJournal(storage:Pick<Storage,'getItem'|'setIt
  for(const result of results){
   const p=result.pending;if(p.approval||p.businessType!=='trade'||!p.marketId)continue;
   let r:ConversionRecovery|null;try{r=readRecovery(storage,account,p.marketId);}catch{continue;}if(!r)continue;
-  const receipt=result.receipt;if(receipt.from.toLowerCase()!==account.toLowerCase())continue;
+  const receipt=result.receipt;if(receipt.from.toLowerCase()!==account.toLowerCase()||receipt.transactionHash.toLowerCase()!==p.hash?.toLowerCase())continue;
+  const conversion=p.operationKey.startsWith('trade:conversion:');
+  const expected=conversion?r.hash:r.buyHash;
+  if(r.operationKey&&r.operationKey!==p.operationKey)continue;
+  if(!expected||![p.hash,...(p.previousHashes??[])].some(h=>h.toLowerCase()===expected.toLowerCase()))continue;
   const key=recoveryKey(account,p.marketId),ok=receipt.status==='success'&&!result.cancelled;
   if(p.operationKey.startsWith('trade:conversion:')&&['submitting','pending'].includes(r.state)){
    if(ok&&receipt.to?.toLowerCase()===(r.conversionTo??'0x0000000000001ff3684f28c67538d4d072c22734').toLowerCase())recoveryWrite(storage,key,JSON.stringify({...r,state:'funded',hash:receipt.transactionHash}));else recoveryRemove(storage,key);
@@ -57,7 +62,22 @@ export function reconcileConversionJournal(storage:Pick<Storage,'getItem'|'setIt
 export function retireConversionJournal(storage:Pick<Storage,'getItem'|'setItem'|'removeItem'>,account:Address,p:import('../v1/transaction.ts').PendingTransaction){
  if(p.approval||!p.marketId)return;
  const r=readRecovery(storage,account,p.marketId);if(!r)return;
+ if(r.operationKey&&r.operationKey!==p.operationKey)return;
+ const matches=(hash:string|undefined)=>hash&&[p.hash,...(p.previousHashes??[])].some(h=>h.toLowerCase()===hash.toLowerCase());
  // A consumed nonce may have completed the buy; never offer it as an automatic funded resume.
- if(r.buyHash===p.hash)recoveryRemove(storage,recoveryKey(account,p.marketId));
- else if(r.hash===p.hash&&!r.state.startsWith('buy_'))recoveryRemove(storage,recoveryKey(account,p.marketId));
+ if(matches(r.buyHash))recoveryRemove(storage,recoveryKey(account,p.marketId));
+ else if(matches(r.hash)&&!r.state.startsWith('buy_'))recoveryRemove(storage,recoveryKey(account,p.marketId));
+}
+
+/** Persist one deadline across reloads; legacy hashless attempts receive one bounded grace period. */
+export function recoverSubmissionDeadline(storage:Pick<Storage,'getItem'|'setItem'|'removeItem'>,r:ConversionRecovery,now=Date.now()):ConversionRecovery|null{
+ if(r.state==='funded')return r;
+ const deadline=r.deadlineAt??((r.createdAt??now)+20000);
+ const current={...r,attemptId:r.attemptId??`legacy:${now}`,createdAt:r.createdAt??now,deadlineAt:deadline};
+ if(r.deadlineAt===undefined||r.createdAt===undefined||r.attemptId===undefined)recoveryWrite(storage,recoveryKey(r.account,r.marketId),JSON.stringify(current));
+ if(now<deadline)return current;
+ // A hash is reconciled by the common receipt path, not treated as a failed transaction here.
+ if(r.state.startsWith('buy_')?r.buyHash:r.hash)return current;
+ storage.setItem(`${recoveryKey(r.account,r.marketId)}:archive:${current.attemptId}`,JSON.stringify({...current,reason:'submission_unobserved',retiredAt:now}));
+ recoveryRemove(storage,recoveryKey(r.account,r.marketId));return null;
 }
