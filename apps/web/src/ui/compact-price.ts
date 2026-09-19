@@ -23,7 +23,21 @@ const copyDocuments=new WeakSet<Document>();
 export function setPriceDisplay(node:HTMLElement,value:string|null|undefined,suffix=''):void {
  const formatted=compactPrice(value),exact=formatted==='-'?'':`${value}${suffix}`;
  const shown=formatted==='-'?'-':`${formatted}${suffix}`;
- if(node.textContent!==shown)node.textContent=shown;
+ const tiny=/^(0\.0)([₀₁₂₃₄₅₆₇₈₉]+)([1-9]\d*)$/.exec(formatted);
+ // Use ordinary digits at an explicit subscript size, avoiding fallback-font
+ // side bearings on Unicode subscript glyphs.
+ const rendered=tiny?`${tiny[1]}${[...tiny[2]!].map(d=>'₀₁₂₃₄₅₆₇₈₉'.indexOf(d)).join('')}${tiny[3]}${suffix}`:shown;
+ if(node.textContent!==rendered){
+  if(tiny){
+   const sub=node.ownerDocument.createElement('sub');
+   sub.textContent=[...tiny[2]!].map(d=>'₀₁₂₃₄₅₆₇₈₉'.indexOf(d)).join('');
+   sub.style.cssText='display:inline;position:relative;bottom:-.12em;vertical-align:baseline;font-size:55%;line-height:0;margin:0;padding:0;letter-spacing:0;font-variant-numeric:normal';
+   const number=node.ownerDocument.createElement('span');
+   number.style.cssText='display:inline;white-space:nowrap';
+   number.append(tiny[1]!,sub,tiny[3]!);
+   node.replaceChildren(number,suffix);
+  }else node.textContent=shown;
+ }
  node.title=exact;node.dataset.exactPrice=exact;
  if(exact)node.setAttribute('aria-label',exact);else node.removeAttribute('aria-label');
  const doc=node.ownerDocument;if(!doc||copyDocuments.has(doc))return;copyDocuments.add(doc);

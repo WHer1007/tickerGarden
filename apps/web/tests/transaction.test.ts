@@ -410,3 +410,12 @@ test("all staking mutations for one market share a state dependency", () => {
   const keys=["reward:stake:market-a:user:rev","reward:unstakeAndWithdraw:market-a:user:rev","reward:rageQuit:market-a:user:rev","reward:direct-vault-rage-quit:market-a:user:1"];
   assert.deepEqual(new Set(keys.map(key=>transactionScopeForOperation(key).conflictKey)),new Set(["stake:market-a"]));
 });
+
+for (const [label,error,code] of [
+ ['wallet rejection',Object.assign(new Error('User rejected'),{code:4001}),'user_rejected'],
+ ['wallet submission failure',new Error('insufficient funds'),'submission_failed'],
+] as const) test(`${label} never creates a saved pending transaction`,async()=>{
+ const executor=new V1TransactionExecutor(clients(async()=>{throw error;}),journal());
+ await assert.rejects(executor.execute(input(async()=>{})),{code});
+ assert.deepEqual(executor.pending(account),[]);
+});
