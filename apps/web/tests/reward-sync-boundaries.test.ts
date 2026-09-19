@@ -1,3 +1,4 @@
+import {RewardClaimError} from '../src/ui/reward-error.ts';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
@@ -19,7 +20,7 @@ async function holderClaim(overrides:Record<string,unknown>={}){
  const round={root:'root',snapshotBlock:10n,quoteAmount:5n,memeAmount:2n,round:1n};
  const state={market:{}};const wallet={};const id={marketId:'market',distributor:'distributor',account:'account'};
  let submitted=false;const block={number:200n,hash:'canonical'};
- const context={snapshotReward:state,state,round,selectedSnapshotRound:()=>round,wallet,activeWallet:wallet,verifyLiveWalletContext:async()=>{},ensureCanonicalMarket:async()=>{},marketRelease:()=>({holderDistributor:id.distributor}),id,assets:3,WALLET_SNAPSHOT_MODE:'mode',currentV4Abis_HolderRewardsDistributorV1:[],robinhoodChain:{id:4663},foundation:{sync:{status:'unavailable',revision:'old'}},publicClient:{getBlock:async()=>block,readContract:async(args:any)=>{assert.equal(args.blockNumber,200n);return args.functionName==='rewardMode'?'mode':args.functionName==='claimedAssets'?(overrides.claimed??0):{...round,quoteRemaining:5n,memeRemaining:2n,...overrides};}},buildSnapshotClaim:()=>({}),executeTransaction:async(args:any)=>{assert.equal(args.sync.status,'synced');assert.equal(args.sync.revision,'200:canonical');await args.verifyChain();submitted=true;}};
+ const context={RewardClaimError,snapshotReward:state,state,round,selectedSnapshotRound:()=>round,wallet,activeWallet:wallet,verifyLiveWalletContext:async()=>{},ensureCanonicalMarket:async()=>{},marketRelease:()=>({holderDistributor:id.distributor}),id,assets:3,WALLET_SNAPSHOT_MODE:'mode',currentV4Abis_HolderRewardsDistributorV1:[],robinhoodChain:{id:4663},foundation:{sync:{status:'unavailable',revision:'old'}},publicClient:{getBlock:async()=>block,readContract:async(args:any)=>{assert.equal(args.blockNumber,200n);return args.functionName==='rewardMode'?'mode':args.functionName==='claimedAssets'?(overrides.claimed??0):{...round,quoteRemaining:5n,memeRemaining:2n,...overrides};}},buildSnapshotClaim:()=>({}),executeTransaction:async(args:any)=>{assert.equal(args.sync.status,'synced');assert.equal(args.sync.revision,'200:canonical');await args.verifyChain();submitted=true;}};
  await run('(async()=>{'+source.slice(start,end)+'})()',context);return submitted;
 }
 test('Holder claim uses a live pinned block despite unavailable page sync',async()=>assert.equal(await holderClaim(),true));

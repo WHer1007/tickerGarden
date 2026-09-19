@@ -7,5 +7,5 @@ export function watchPendingRecovery(check:()=>Promise<void>,intervalMs=15000):(
 export function pendingRecoveryText(stage:string|undefined,approval:boolean,cancelled=false):string {
  if(!stage||stage==='unknown')return 'Transaction status is not yet verified. Checking automatically…';
  if(stage==='replaced')return cancelled?'Cancellation is awaiting confirmation.':'Replacement transaction is awaiting confirmation.';
- return `${approval?'Token approval':'Transaction'} submitted. Checking confirmation…`;
+ return `Checking ${approval?'token approval':'transaction'} status…`;
 }

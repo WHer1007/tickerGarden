@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import {watchPendingRecovery,pendingRecoveryText} from '../src/v1/pendingRecovery.ts';
 test('unknown and legacy saved hashes never claim to be confirming',()=>{
  for(const stage of ['unknown',undefined])assert.doesNotMatch(pendingRecoveryText(stage,false),/confirming|submitted/);
- assert.match(pendingRecoveryText('pending',true),/Token approval submitted/);
+ assert.match(pendingRecoveryText('pending',true),/Checking token approval status/);
  assert.match(pendingRecoveryText('replaced',false,true),/Cancellation/);
 });
 test('automatic recovery never overlaps probes and stops after disposal',async()=>{
