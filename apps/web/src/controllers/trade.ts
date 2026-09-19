@@ -1038,6 +1038,10 @@ async function convertPayment(initial:TradeQuote,market:MarketDetailResponse,wal
     saveRecovery({...saved,amount:String(received),state:'funded',hash:receipt.transactionHash});funded=true;purchasedAmount=received;return true;
    }});
  }catch(error){const code=(error as {code?:string})?.code;
+  if(!sent&&['wallet_response_timeout','submission_failed'].includes(code??'')){
+   localStorage.setItem(`${recoveryKey(saved.account,saved.marketId)}:archive:${Date.now()}`,JSON.stringify({...saved,reason:code}));
+   saveRecovery(null,saved);
+  }
   if(!sent&&!signatureRequested)saveRecovery(null,saved);
   if(!sent&&['user_rejected','simulation_failed','stale_quote','stale_snapshot','wrong_account','unsupported_chain'].includes(code??''))saveRecovery(null,saved);
   if(code==='transaction_reverted'||code==='replacement_cancelled')saveRecovery(null,saved);
@@ -1068,6 +1072,10 @@ async function executeProjectTrade(input:Parameters<ControllerContext['executeTr
    if(update.hash&&!update.stage.includes('approval')){sent=true;if(!complete)saveRecovery({...progress,state:'buy_pending',buyHash:update.hash});}
   },confirm:async(receipt,hash)=>{const result=await input.confirm(receipt,hash);saveRecovery(null,progress);complete=true;return result;}});
  }catch(error){const code=(error as {code?:string}).code;
+  if(!sent&&['wallet_response_timeout','submission_failed'].includes(code??'')){
+   localStorage.setItem(`${recoveryKey(progress.account,progress.marketId)}:archive:${Date.now()}`,JSON.stringify({...progress,reason:code}));
+   saveRecovery(null,progress);
+  }
   if((!sent&&!signed)||['user_rejected','simulation_failed','stale_quote','stale_snapshot','transaction_reverted','replacement_cancelled'].includes(code??''))saveRecovery(saved);
   throw error;
  }
