@@ -1,5 +1,5 @@
 /** A log event is not a request dump. Only allowlisted operational context crosses this boundary. */
-const allowed = new Set(['event','code','flow','step','operationId','requestId','jobId','attempt','queue','outcome','durationMs','retryable','status','method','path','marketId','chainId','count','failed','provider','generation','phase','reference','sent','retry','dead','requestBytes','responseBytes','nominalComputeUnits','computeUnitSchedule']);
+const allowed = new Set(['event','code','flow','step','operationId','requestId','jobId','attempt','queue','outcome','durationMs','retryable','status','method','path','marketId','chainId','count','failed','provider','generation','phase','reference','sent','retry','dead','requestBytes','responseBytes','nominalComputeUnits','computeUnitSchedule','task','taskMs','connectionWaitMs','sqlMs','queryCount','slowQueryCount','sqlTimeoutCount','connectionTimeoutCount','queryId','connectionCount','taskCount','taskFailedCount','priceRevision','priceCache','priceRows']);
 export function cleanText(value:string,max=1200):string {
  return value.replace(/-----BEGIN[\s\S]*?-----END[^\n]*?-----/g,'[redacted-key]')
   .replace(/(?:https?|wss?|postgres(?:ql)?):\/\/[^\s<>"']+/gi,'[redacted-url]')

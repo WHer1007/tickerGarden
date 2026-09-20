@@ -6,6 +6,7 @@ import { createReadApiApp } from '../../apps/read-api/src/index.ts';
 import { readFileSync } from 'node:fs';
 import { applyCoreMigration, createDatabasePool } from '../../packages/db/src/index.ts';
 import { readPublishedMarketPage, PublicationChangedError } from '../../packages/read-store/src/index.ts';
+import { storePriceReferences, type PriceReference } from '../../packages/display-price/src/index.ts';
 
 const url=process.env.TG_TEST_DATABASE_URL;
 const h=(n:number)=>`0x${n.toString(16).padStart(64,'0')}` as `0x${string}`;
@@ -29,7 +30,7 @@ test('Explore ranks actual display prices and finalized buys before filtering an
   }
   const now=new Date(),expiry=new Date(now.getTime()+3600000);
   const price={chainId:46630,token:a(99),symbol:'USD',source:'coinbase_spot',status:'available',bidUsd:'2',askUsd:'2',asOf:now.toISOString(),expiresAt:expiry.toISOString()};
-  await pool.query(`INSERT INTO ${s}.price_references(environment,chain_id,deployment_digest,asset,source,status,as_of,expires_at,payload) VALUES($1,$2,$3,$4,'coinbase_spot','available',$5,$6,$7)`,[...id,a(99),now,expiry,price]);
+  await storePriceReferences(pool,deployment,[{...price,unit:'USD_PER_WHOLE_TOKEN',symbol:'USD',multiplier:'1',retrievedAt:now.toISOString()} as unknown as PriceReference],schemaName);
   assert.equal((await publishMarketCapRanking(pool,deployment,schemaName,now)).published,true);
   assert.equal((await publishMarketCapRanking(pool,deployment,schemaName,now)).published,false);
   const query=(filter:Parameters<typeof readPublishedMarketPage>[0]['filter'],cursor?:string)=>readPublishedMarketPage({pool,deployment,schemaName,secret:'explore-test-cursor-secret-32-bytes',filter,limit:2,...(cursor?{cursor}:{})});
@@ -59,7 +60,7 @@ test('Explore ranks actual display prices and finalized buys before filtering an
   assert.deepEqual((await query({sort:'recentBuy_desc'},buys.nextCursor!)).items.map((x:any)=>x.marketId),[h(3)]);
   // Price updates do not invalidate the shared ranking or its cursor.
   const later=new Date(now.getTime()+1000);
-  await pool.query(`INSERT INTO ${s}.price_references(environment,chain_id,deployment_digest,asset,source,status,as_of,expires_at,payload) VALUES($1,$2,$3,$4,'coinbase_spot','available',$5,$6,$7)`,[...id,a(99),later,expiry,{...price,bidUsd:'3',askUsd:'3',asOf:later.toISOString()}]);
+  await storePriceReferences(pool,deployment,[{...price,bidUsd:'3',askUsd:'3',asOf:later.toISOString(),retrievedAt:later.toISOString(),unit:'USD_PER_WHOLE_TOKEN',symbol:'USD',multiplier:'1'} as unknown as PriceReference],schemaName);
   assert.deepEqual((await query({sort:'marketCapUsd_desc'},first.nextCursor!)).items.map((x:any)=>x.marketId),[h(3),h(2)]);
   assert.equal(Number(((await query({sort:'marketCapUsd_desc'})).items[0] as any).metrics.marketCapUsd),1000);
   await publishMarketCapRanking(pool,deployment,schemaName,new Date(now.getTime()+21*60000));
@@ -91,7 +92,7 @@ test('Explore ranks actual display prices and finalized buys before filtering an
   assert.equal(oldRankingPage.sync.revision,nextRevision);
   const beforeFailure=Number((await pool.query(`SELECT count(*) FROM ${s}.market_cap_snapshots`)).rows[0].count);
   const badAt=new Date(now.getTime()+2000),badExpiry=new Date(now.getTime()+86400000);
-  await pool.query(`INSERT INTO ${s}.price_references(environment,chain_id,deployment_digest,asset,source,status,as_of,expires_at,payload) VALUES($1,$2,$3,$4,'coinbase_spot','available',$5,$6,$7)`,[...id,a(99),badAt,badExpiry,{...price,bidUsd:'invalid',asOf:badAt.toISOString(),expiresAt:badExpiry.toISOString()}]);
+  await pool.query(`UPDATE ${s}.price_references SET as_of=$5,expires_at=$6,payload=$7 WHERE environment=$1 AND chain_id=$2 AND deployment_digest=$3 AND asset=$4 AND source='coinbase_spot'`,[...id,a(99),badAt,badExpiry,{...price,bidUsd:'invalid',asOf:badAt.toISOString(),expiresAt:badExpiry.toISOString()}]);
   await assert.rejects(publishMarketCapRanking(pool,deployment,schemaName,new Date(now.getTime()+63*60000)));
   assert.equal(Number((await pool.query(`SELECT count(*) FROM ${s}.market_cap_snapshots`)).rows[0].count),beforeFailure);
   assert.deepEqual((await query({sort:'marketCapUsd_desc'},first.nextCursor!)).items.map((x:any)=>x.marketId),[h(3),h(2)]);

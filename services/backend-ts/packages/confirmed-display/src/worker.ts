@@ -5,7 +5,9 @@ import {applyStatsEvents,undoStatsEvents,seedStats,publishStatsDisplay,type Stat
 import {validateRecentDisplay} from './recent-validation.ts';
 import {publishExploreRanking} from './explore-ranking.ts';
 import {publicMarketContent} from './content.ts';
-import {latestPrices,preferredPrices} from '../../display-price/src/read.ts';
+import {preferredPrices} from '../../display-price/src/read.ts';
+import {createPriceBatch,batchPrices,type PriceBatch} from '../../display-price/src/batch.ts';
+import {withDatabaseTask} from '../../db/src/telemetry.ts';
 import {changeChannel,changedRegions,regions} from './changes.ts';
 import type {Pool,PoolClient} from 'pg';
 import {formatUnits,parseUnits} from 'viem';
@@ -15,17 +17,21 @@ import {observeF72Market,nextMarketActivation,type MarketCreation} from '../../m
 import type {MarketReadModel,TokenDetailTrade} from '../../../openapi/generated/v1-client.ts';
 import type {EventObservation,TradeActivity} from '../../analytics/src/index.ts';
 import {applyDisplayEvents,emptyDisplayState,materializeDisplay,type DisplayState} from './state.ts';
-export interface DisplayWorkerInput {pool:Pool;deployment:DeploymentIdentity;rpc:RpcTransport;schemaName?:string;eventDriven?:boolean;forceRecovery?:boolean}
+export interface DisplayWorkerInput {pool:Pool;deployment:DeploymentIdentity;rpc:RpcTransport;schemaName?:string;eventDriven?:boolean;forceRecovery?:boolean;priceBatch?:PriceBatch;priceChanged?:boolean}
 export function displaySchema(name='tickergarden_serverless'){if(!/^[a-z][a-z0-9_]{0,62}$/.test(name))throw Error('Invalid display schema');return `"${name}"`;}
 export const displayIdentity=(d:DeploymentIdentity)=>[d.environment,d.chainId,d.deploymentDigest];
 type Cursor={block_number:string;block_hash:`0x${string}`;base_number:string;block_timestamp:string};
 /** Independent worker: no settlement queue, publication or reward tables are written. */
 export async function advanceConfirmedDisplay(input:DisplayWorkerInput):Promise<string>{
+ return withDatabaseTask('confirmed-display-worker','display.advance',()=>advance(input));
+}
+async function advance(input:DisplayWorkerInput):Promise<string>{
  const {pool,deployment:d,rpc}=input,schema=displaySchema(input.schemaName),id=displayIdentity(d),client=await pool.connect();
+ const priceBatch=input.priceBatch??createPriceBatch(d,input.schemaName);
  let prices:ReturnType<typeof preferredPrices>|undefined;
  const materialize=async(state:DisplayState,head?:{number:string;hash:`0x${string}`;timestamp:number})=>{
   state=await hydrateDisplayHistory(client,d,state,input.schemaName);
-  if(!prices){const now=new Date();prices=preferredPrices(await latestPrices(client,d,now,input.schemaName),now);}
+  if(!prices)prices=await batchPrices(priceBatch,client);
   const price=prices.get(state.market.quoteAsset);
   const quoteUsd=price?.status==='available'&&price.bidUsd&&price.askUsd?formatUnits((parseUnits(price.bidUsd,36)+parseUnits(price.askUsd,36))/2n,36):null;
   const content=state.market.content??await publicMarketContent(client,state.market,input.schemaName);
@@ -86,7 +92,7 @@ export async function advanceConfirmedDisplay(input:DisplayWorkerInput):Promise<
    await client.query('BEGIN ISOLATION LEVEL REPEATABLE READ');try{
     const block=await rpc.block(BigInt(cursor.block_number));if(block.hash!==cursor.block_hash)throw Error('Stats baseline changed');
     await seedStats(client,d,block,input.schemaName);
-    await publishStatsDisplay(client,d,block,input.schemaName);
+    await publishStatsDisplay(client,d,block,input.schemaName,priceBatch.now,priceBatch);
     await client.query('COMMIT');
    }catch(e){await client.query('ROLLBACK');throw e;}
   }
@@ -107,7 +113,7 @@ export async function advanceConfirmedDisplay(input:DisplayWorkerInput):Promise<
     await undoStatsEvents(client,d,entry.previous_number,entry.stats_undo,input.schemaName);
     if(input.eventDriven)await resetEventCoverage(client,d,{block_number:entry.previous_number,block_hash:entry.previous_hash},input.schemaName);
     await client.query(`DELETE FROM ${schema}.confirmed_display_journal WHERE environment=$1 AND chain_id=$2 AND deployment_digest=$3 AND block_number=$4`,[...id,cursor.block_number]);
-    await client.query(`UPDATE ${schema}.confirmed_display_cursor SET block_number=$4,block_hash=$5,block_timestamp=$6,updated_at=now() WHERE environment=$1 AND chain_id=$2 AND deployment_digest=$3`,[...id,entry.previous_number,entry.previous_hash,entry.previous_timestamp]);await publishStatsDisplay(client,d,{number:BigInt(entry.previous_number),hash:entry.previous_hash,timestamp:BigInt(entry.previous_timestamp),parentHash:entry.previous_hash},input.schemaName);await client.query('COMMIT');
+    await client.query(`UPDATE ${schema}.confirmed_display_cursor SET block_number=$4,block_hash=$5,block_timestamp=$6,updated_at=now() WHERE environment=$1 AND chain_id=$2 AND deployment_digest=$3`,[...id,entry.previous_number,entry.previous_hash,entry.previous_timestamp]);await publishStatsDisplay(client,d,{number:BigInt(entry.previous_number),hash:entry.previous_hash,timestamp:BigInt(entry.previous_timestamp),parentHash:entry.previous_hash},input.schemaName,priceBatch.now,priceBatch);await client.query('COMMIT');
    }catch(e){await client.query('ROLLBACK');throw e;}
    cursor={...cursor,block_number:entry.previous_number,block_hash:entry.previous_hash,block_timestamp:entry.previous_timestamp};
    canonicalCursor=BigInt(cursor.block_number)<=observedHead.number&&(await rpc.block(BigInt(cursor.block_number))).hash===cursor.block_hash;
@@ -115,8 +121,8 @@ export async function advanceConfirmedDisplay(input:DisplayWorkerInput):Promise<
   if(eventPlan?.repairOnly)return 'catchup:coverage';
   await validateRecentDisplay(client,d,rpc,observedHead.number,input.schemaName);
   await publishExploreRanking(client,d,input.schemaName);
-  if(!statsHead||Date.now()-new Date(statsHead.generated_at).getTime()>=60_000){
-   await client.query('BEGIN');try{await publishStatsDisplay(client,d,{number:BigInt(cursor.block_number),hash:cursor.block_hash,parentHash:cursor.block_hash,timestamp:BigInt(cursor.block_timestamp)},input.schemaName);await client.query('COMMIT');}catch(e){await client.query('ROLLBACK');throw e;}
+  if(input.priceChanged||!statsHead||Date.now()-new Date(statsHead.generated_at).getTime()>=60_000){
+   await client.query('BEGIN');try{await publishStatsDisplay(client,d,{number:BigInt(cursor.block_number),hash:cursor.block_hash,parentHash:cursor.block_hash,timestamp:BigInt(cursor.block_timestamp)},input.schemaName,priceBatch.now,priceBatch);await client.query('COMMIT');}catch(e){await client.query('ROLLBACK');throw e;}
   }
   const head=observedHead,from=BigInt(cursor.block_number)+1n;
   if(from>head.number){await client.query(`UPDATE ${schema}.confirmed_display_cursor SET updated_at=now() WHERE environment=$1 AND chain_id=$2 AND deployment_digest=$3`,id);return 'current';}
@@ -186,7 +192,7 @@ export async function advanceConfirmedDisplay(input:DisplayWorkerInput):Promise<
    for(const state of next){await saveState(client,schema,id,await materialize(state));const affected=changedRegions(undo[state.market.marketId]??null,state);if(affected.length)await client.query('SELECT pg_notify($1,$2)',[changeChannel(d,input.schemaName),JSON.stringify({marketId:state.market.marketId,regions:affected,revision:`${to}:${anchor.hash}`})]);}
    if(input.eventDriven){await saveAppliedEvents(client,d,appliedLogs,input.schemaName);if(scanned)await commitEventCoverage(client,d,to,anchor.hash,to===head.number,input.schemaName,from);}
    const statsUndo=await applyStatsEvents(client,d,observations,next,input.schemaName);
-   if(observations.length)await publishStatsDisplay(client,d,anchor,input.schemaName);
+   if(observations.length)await publishStatsDisplay(client,d,anchor,input.schemaName,priceBatch.now,priceBatch);
    else await client.query(`UPDATE ${schema}.stats_display_snapshots SET block_number=$4,block_hash=$5 WHERE environment=$1 AND chain_id=$2 AND deployment_digest=$3`,[...id,to.toString(),anchor.hash]);
    await client.query(`INSERT INTO ${schema}.confirmed_display_journal(environment,chain_id,deployment_digest,block_number,block_hash,previous_number,previous_hash,previous_timestamp,undo,stats_undo) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)`,[...id,to.toString(),anchor.hash,cursor.block_number,cursor.block_hash,cursor.block_timestamp,JSON.stringify(undo),JSON.stringify(statsUndo)]);
    await client.query(`UPDATE ${schema}.confirmed_display_cursor SET block_number=$4,block_hash=$5,block_timestamp=$6,updated_at=now() WHERE environment=$1 AND chain_id=$2 AND deployment_digest=$3`,[...id,to.toString(),anchor.hash,anchor.timestamp.toString()]);
@@ -197,7 +203,7 @@ export async function advanceConfirmedDisplay(input:DisplayWorkerInput):Promise<
   const prune=safePrune<finalized.number?safePrune:finalized.number;
   await client.query(`DELETE FROM ${schema}.confirmed_display_journal WHERE environment=$1 AND chain_id=$2 AND deployment_digest=$3 AND block_number<=$4`,[...id,prune.toString()]);
   if(input.eventDriven)for(const table of ['display_event_inbox','display_event_applied'])await client.query(`DELETE FROM ${schema}.${table} WHERE environment=$1 AND chain_id=$2 AND deployment_digest=$3 AND block_number<=$4`,[...id,prune.toString()]);
-  if(!statsHead||Date.now()-new Date(statsHead.generated_at).getTime()>=60_000){
+  if(input.priceChanged||!statsHead||Date.now()-new Date(statsHead.generated_at).getTime()>=60_000){
    await client.query(`DELETE FROM ${schema}.stats_display_flows WHERE environment=$1 AND chain_id=$2 AND deployment_digest=$3 AND block_number<=$4 AND occurred_at<$5`,[...id,finalized.number.toString(),Number(finalized.timestamp)-2*86400]);
    await client.query(`DELETE FROM ${schema}.stats_display_buckets WHERE environment=$1 AND chain_id=$2 AND deployment_digest=$3 AND minute<$4 AND amount=0`,[...id,Number(finalized.timestamp)-2*86400]);
   }

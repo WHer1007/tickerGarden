@@ -1,3 +1,4 @@
+import {priceBatchChannel} from './batch.ts';
 import {CURRENT_CHAIN_ID} from '../../runtime-deployment/src/index.ts';
 import type { Pool } from 'pg';
 import type { DeploymentIdentity } from '../../chain/src/index.ts';
@@ -124,13 +125,29 @@ export async function storePriceReferences(pool: Pool, deployment: DeploymentIde
     const asOf=reference.asOf??reference.retrievedAt;
     return {asset:reference.token,source:reference.source,status:reference.status,
       value:reference.bidUsd&&reference.askUsd?midpointDecimal(reference.bidUsd,reference.askUsd):null,
-      as_of:asOf,expires_at:reference.expiresAt??new Date(new Date(asOf).getTime()+1_000).toISOString(),payload:reference};
+      as_of:asOf,observed_at:reference.retrievedAt,expires_at:reference.expiresAt??new Date(new Date(asOf).getTime()+1_000).toISOString(),payload:reference};
   });
+  // Record every observation, including failures and out-of-order responses,
+  // outside the database. No credentials or request headers are included.
+  for(const reference of references)console.info(JSON.stringify({level:'info',service:'price-refresh',event:'price_reference',environment:deployment.environment,deploymentDigest:deployment.deploymentDigest,...reference}));
   // Publish the complete refresh atomically; consumers cannot see half a batch.
-  await pool.query(`INSERT INTO ${schema}.price_references(environment,chain_id,deployment_digest,asset,source,status,value,as_of,expires_at,payload)
-    SELECT $1,$2,$3,r.asset,r.source,r.status,r.value::numeric,r.as_of::timestamptz,r.expires_at::timestamptz,r.payload
-    FROM jsonb_to_recordset($4::jsonb) AS r(asset text,source text,status text,value text,as_of text,expires_at text,payload jsonb)
-    ON CONFLICT DO NOTHING`,[deployment.environment,deployment.chainId,deployment.deploymentDigest,JSON.stringify(rows)]);
+  await pool.query(`WITH updated AS (INSERT INTO ${schema}.price_references AS current(environment,chain_id,deployment_digest,asset,source,status,value,as_of,expires_at,payload,observed_at)
+    SELECT $1,$2,$3,r.asset,r.source,r.status,r.value::numeric,r.as_of::timestamptz,r.expires_at::timestamptz,r.payload,r.observed_at::timestamptz
+    FROM jsonb_to_recordset($4::jsonb) AS r(asset text,source text,status text,value text,as_of text,expires_at text,payload jsonb,observed_at text)
+    ON CONFLICT(environment,chain_id,deployment_digest,asset,source) DO UPDATE
+    SET (status,value,as_of,expires_at,payload)=(
+      SELECT q.status,q.value,q.as_of,q.expires_at,q.payload
+      FROM (VALUES(current.status,current.value,current.as_of,current.expires_at,current.payload),
+                  (EXCLUDED.status,EXCLUDED.value,EXCLUDED.as_of,EXCLUDED.expires_at,EXCLUDED.payload))
+        AS q(status,value,as_of,expires_at,payload)
+      ORDER BY (q.status='available' AND q.expires_at>EXCLUDED.observed_at) DESC,q.as_of DESC LIMIT 1
+    ),observed_at=EXCLUDED.observed_at
+    WHERE EXCLUDED.observed_at>current.observed_at RETURNING 1),
+    batch AS (INSERT INTO ${schema}.price_batches AS current(environment,chain_id,deployment_digest,revision,updated_at)
+      SELECT $1,$2,$3,1,clock_timestamp() WHERE EXISTS(SELECT 1 FROM updated)
+      ON CONFLICT(environment,chain_id,deployment_digest) DO UPDATE SET revision=current.revision+1,updated_at=EXCLUDED.updated_at RETURNING revision)
+    SELECT pg_notify($5,revision::text) FROM batch`,[deployment.environment,deployment.chainId,deployment.deploymentDigest,JSON.stringify(rows),priceBatchChannel(deployment,schemaName)]);
+
 }
 
 function unavailable(target: PriceTarget, now: Date, reason: string): PriceReference { return { ...target, source: 'robinhood_rest', unit: 'USD_PER_WHOLE_TOKEN', status: 'unavailable', reason, bidUsd: null, askUsd: null, multiplier: null, asOf: null, expiresAt: null, retrievedAt: now.toISOString() } }

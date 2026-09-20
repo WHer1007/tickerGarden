@@ -79,6 +79,7 @@ GRANT SELECT ON
   ${schema}.transaction_receipts,
   ${schema}.aggregate_records,
   ${schema}.price_references,
+  ${schema}.price_batches,
   ${schema}.reward_history,
   ${schema}.invalidations
 TO ${readApi};
@@ -169,6 +170,7 @@ GRANT SELECT, INSERT, UPDATE, DELETE ON
   ${schema}.transaction_receipts,
   ${schema}.aggregate_records,
   ${schema}.price_references,
+  ${schema}.price_batches,
   ${schema}.reward_history,
   ${schema}.invalidations
 TO ${pipeline};

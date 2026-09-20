@@ -6,6 +6,7 @@ import { applyCoreMigration, createDatabasePool } from '../../packages/db/src/in
 import { createReadApiApp } from '../../apps/read-api/src/index.ts';
 import type { TradeActivity } from '../../packages/analytics/src/index.ts';
 import { f72BootstrapConfigs } from '../../packages/config-projector/src/f72-bootstrap.generated.ts';
+import { storePriceReferences, type PriceReference } from '../../packages/display-price/src/index.ts';
 
 const connectionString = process.env.TG_MIGRATION_DATABASE_URL ?? process.env.TG_DATABASE_URL;
 const hash = (character: string): `0x${string}` => `0x${character.repeat(64)}`;
@@ -73,9 +74,9 @@ test('TS-07 database-only trades, candles, holders and detail paths preserve cov
     const priceTarget=quoteAssetRecord;
     const priceNow=Date.now(),priceAsOf=new Date(priceNow-10_000),priceExpiry=new Date(priceNow+50_000),retrieved=new Date(priceNow-5_000);
     const pricePayload={chainId:46630,token:priceTarget.values.stockToken,assetUid:priceTarget.id,symbol:priceTarget.values.tokenSymbol,source:'robinhood_rest',unit:'USD_PER_WHOLE_TOKEN',status:'available',bidUsd:'10',askUsd:'12',multiplier:'1',asOf:priceAsOf.toISOString(),expiresAt:priceExpiry.toISOString(),retrievedAt:retrieved.toISOString()};
-    await handle.pool.query(`INSERT INTO ${schema}.price_references(environment,chain_id,deployment_digest,asset,source,status,value,as_of,expires_at,payload) VALUES('test',46630,$1,$2,'robinhood_rest','available',11,$3,$4,$5)`,[deployment.deploymentDigest,quoteAsset,priceAsOf,priceExpiry,pricePayload]);
+    await storePriceReferences(handle.pool,deployment,[pricePayload as unknown as PriceReference],schemaName);
     const failedAsOf=new Date(priceNow-2_000),failedExpiry=new Date(priceNow-1_000),failedPayload={...pricePayload,status:'unavailable',reason:'transient_upstream_failure',bidUsd:null,askUsd:null,multiplier:null,asOf:null,expiresAt:null,retrievedAt:failedAsOf.toISOString()};
-    await handle.pool.query(`INSERT INTO ${schema}.price_references(environment,chain_id,deployment_digest,asset,source,status,value,as_of,expires_at,payload) VALUES('test',46630,$1,$2,'robinhood_rest','unavailable',null,$3,$4,$5)`,[deployment.deploymentDigest,quoteAsset,failedAsOf,failedExpiry,failedPayload]);
+    await storePriceReferences(handle.pool,deployment,[failedPayload as unknown as PriceReference],schemaName);
     const app = createReadApiApp({ pool: handle.pool, deployment, env: { NODE_ENV: 'test', TG_READ_DATABASE_URL: connectionString,
       TG_CURSOR_SECRET: 'ts07-integration-cursor-secret-at-least-32-bytes', TG_DATABASE_SCHEMA: schemaName } });
     const trades = await app.request(`/v1/markets/${marketId}/trades?from=${candleTo - 3_600}&to=${candleTo}&limit=1`); assert.equal(trades.status, 200);

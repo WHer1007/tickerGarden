@@ -3,14 +3,15 @@ import type {MarketReadModel} from '../../../openapi/generated/v1-client.ts';
 import {publicMarketContent} from '../../confirmed-display/src/content.ts';
 import {changeChannel,regions} from '../../confirmed-display/src/changes.ts';
 import {displayUsd,exploreMetrics} from '../../confirmed-display/src/state.ts';
-import {latestPrices,preferredPrices} from '../../display-price/src/read.ts';
+import {createPriceBatch,batchPrices,type PriceBatch} from '../../display-price/src/batch.ts';
+import {withDatabaseTask} from '../../db/src/telemetry.ts';
 import type {Pool} from 'pg';
 import {consensusBlock,parseLog,type DeploymentIdentity,type RpcTransport} from '../../chain/src/index.ts';
 import {decodeF72Event,eventTopic,f72EventCatalog} from '../../events/src/index.ts';
 import {creationFromEvent,observeF72Market} from './index.ts';
 import {creationDetail} from './recent-detail.ts';
 
-export interface RecentLaunchInput {pool:Pool;deployment:DeploymentIdentity;primary:RpcTransport;secondary:RpcTransport;schemaName?:string}
+export interface RecentLaunchInput {pool:Pool;deployment:DeploymentIdentity;primary:RpcTransport;secondary:RpcTransport;schemaName?:string;priceBatch?:PriceBatch}
 const factory=f72EventCatalog.TickerGardenFactoryV1.address;
 const topic=eventTopic('TickerGardenFactoryV1','MarketCreated');
 function schemaFor(input:RecentLaunchInput){const name=input.schemaName??'tickergarden_serverless';if(!/^[a-z][a-z0-9_]{0,62}$/.test(name))throw Error('invalid schema');return `"${name}"`;}
@@ -18,6 +19,9 @@ function schemaFor(input:RecentLaunchInput){const name=input.schemaName??'ticker
 // The caller supplies only a transaction hash. Identity, metadata and amounts
 // come from independently checked backend observations, never browser fields.
 export async function recordRecentLaunch(input:RecentLaunchInput,txHash:`0x${string}`){
+ return withDatabaseTask('pipeline','launch.prepare',()=>prepareRecentLaunch(input,txHash));
+}
+async function prepareRecentLaunch(input:RecentLaunchInput,txHash:`0x${string}`){
  if(!/^0x[0-9a-f]{64}$/.test(txHash))throw Error('invalid transaction hash');
  const schema=schemaFor(input),identity=[input.deployment.environment,input.deployment.chainId,input.deployment.deploymentDigest];
  const known=await input.pool.query<{market_id:string}>(`SELECT market_id FROM ${schema}.recent_markets WHERE environment=$1 AND chain_id=$2 AND deployment_digest=$3 AND transaction_hash=$4 AND canonical AND expires_at>now()`,[...identity,txHash]);
@@ -46,7 +50,7 @@ export async function recordRecentLaunch(input:RecentLaunchInput,txHash:`0x${str
  if(after.hash!==block.hash)throw Error('Creation reorganized during observation');
  const initialDetail=creationDetail(receipts,market as unknown as Parameters<typeof creationDetail>[1],block.timestamp,input.deployment.chainId);
  const model=market as unknown as MarketReadModel,now=new Date();
- const reference=preferredPrices(await latestPrices(input.pool,input.deployment,now,input.schemaName),now).get(model.quoteAsset);
+ const reference=(await batchPrices(input.priceBatch??createPriceBatch(input.deployment,input.schemaName,now),input.pool)).get(model.quoteAsset);
  const usd=reference?.status==='available'&&reference.bidUsd&&reference.askUsd?formatUnits((parseUnits(reference.bidUsd,36)+parseUnits(reference.askUsd,36))/2n,36):null;
  initialDetail.statistics={...initialDetail.statistics,price:model.display?.priceQuote??initialDetail.statistics.price,...displayUsd(model.display?.priceQuote??initialDetail.statistics.price,initialDetail.holders.totalSupplyRaw,usd)};
  const content=await publicMarketContent(input.pool,model,input.schemaName);
