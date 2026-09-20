@@ -35,7 +35,7 @@ test('durable preparation repairs shared USD values and exposes DB-only ready/st
   await pool.query(`UPDATE ${s}.confirmed_display_markets SET refresh_due_at=now()`);
   const result=await refreshDisplayPreparation({pool,deployment:d,schemaName});assert.equal(result.failed,0);assert.equal(result.processed,1);
   assert.equal((await readLaunchReadiness(pool,d,market.marketId,schemaName)).ready,true);
-  const repaired=(await pool.query(`SELECT payload,launch_missing,refresh_due_at>now() scheduled FROM ${s}.confirmed_display_markets`)).rows[0];
+  const repaired=(await pool.query(`SELECT ${s}.display_state(m) payload,launch_missing,refresh_due_at>now() scheduled FROM ${s}.confirmed_display_markets m`)).rows[0];
   assert.deepEqual(repaired.launch_missing,[]);assert.equal(repaired.scheduled,true);assert.equal(repaired.payload.detailViews['1H'].statistics.priceUsd,'0.02');
   assert.deepEqual(maintenanceRegions(repaired.payload,repaired.payload),[],'no notification for unchanged views');
   stats=await readMarketDisplayStatistics({pool,deployment:d,marketId:market.marketId,schemaName});assert.equal(stats.totalStakedRaw,'123');
@@ -57,7 +57,7 @@ test('0022 upgrades populated 0021 tables without changing existing display payl
  const {migrationManifest,migrationSql,coreMigrationDigest}=await import('../../packages/db/src/index.ts');
  const schemaName=`tg_prepare_upgrade_${process.pid}_${randomBytes(4).toString('hex')}`,s=`"${schemaName}"`,pool=createDatabasePool(url,{max:1}).pool;
  try{
-  for(const migration of migrationManifest().filter(m=>m.version!=='0022_display_preparation')){
+  for(const migration of migrationManifest().filter(m=>m.version<'0022_display_preparation')){
    await pool.query(migrationSql(schemaName,migration.version));
    await pool.query(`UPDATE ${s}.schema_migrations SET digest=$1 WHERE version=$2`,[coreMigrationDigest(migration.version),migration.version]);
   }

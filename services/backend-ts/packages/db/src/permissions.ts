@@ -29,6 +29,12 @@ REVOKE ALL ON ALL SEQUENCES IN SCHEMA ${schema} FROM PUBLIC;
 
 GRANT USAGE ON SCHEMA ${schema} TO ${readApi}, ${content}, ${pipeline};
 
+GRANT DELETE ON ${schema}.job_attempts TO ${pipeline};
+GRANT SELECT,INSERT,UPDATE ON ${schema}.maintenance_runs TO ${pipeline};
+GRANT SELECT ON ${schema}.confirmed_display_sections TO ${readApi};
+GRANT SELECT,INSERT,UPDATE,DELETE ON ${schema}.confirmed_display_sections TO ${pipeline};
+GRANT SELECT ON ${schema}.config_contents, ${schema}.config_sets, ${schema}.config_set_records, ${schema}.config_publication_sets TO ${readApi};
+GRANT SELECT,INSERT ON ${schema}.config_contents, ${schema}.config_sets, ${schema}.config_set_records, ${schema}.config_publication_sets TO ${pipeline};
 GRANT SELECT ON
   ${schema}.deployments,
   ${schema}.contract_sources,
@@ -152,8 +158,6 @@ GRANT SELECT, INSERT, UPDATE, DELETE ON
   ${schema}.market_latest_buys,
   ${schema}.protocol_statistics_snapshots,
   ${schema}.stats_display_snapshots,
-  ${schema}.market_cap_snapshots,
-  ${schema}.market_cap_ranks,
   ${schema}.market_candles,
   ${schema}.holder_balances,
   ${schema}.holder_market_assets,
@@ -176,7 +180,7 @@ GRANT SELECT, INSERT, UPDATE, DELETE ON
 TO ${pipeline};
 GRANT SELECT ON ${schema}.holder_snapshots_covered TO ${readApi}, ${pipeline};
 GRANT SELECT, INSERT ON ${schema}.publications TO ${pipeline};
-GRANT SELECT ON ${schema}.content_objects, ${schema}.explore_display_cards TO ${pipeline};
+GRANT SELECT ON ${schema}.content_objects, ${schema}.explore_display_cards, ${schema}.market_cap_snapshots, ${schema}.market_cap_ranks TO ${pipeline};
 GRANT SELECT, INSERT ON ${schema}.holder_reward_datasets TO ${pipeline};
 GRANT SELECT, INSERT, DELETE ON ${schema}.holder_reward_wallet_proofs TO ${pipeline};
 REVOKE UPDATE, DELETE ON ${schema}.holder_reward_datasets FROM ${pipeline};

@@ -63,7 +63,7 @@ test('detail read selects a stored view without recalculating windows or applyin
  const {readConfirmedDetail}=await import('../../packages/confirmed-display/src/read.ts');
  const state=materializeDisplay(applyDisplayEvents(emptyDisplayState(creation,market,block),market,[mint,transfer,buy],block));
  const stored=state.detailViews!['1H'];
- const pool={query:async(sql:string,args:unknown[])=>{assert.match(sql,/detailViews/);assert.equal(args.at(-1),'1H');return {rows:[{detail:stored}]};}} as any;
+ const pool={query:async(sql:string,args:unknown[])=>{assert.match(sql,/display_detail/);assert.equal(args.at(-1),'1H');return {rows:[{detail:stored}]};}} as any;
  const result=await readConfirmedDetail(pool,{environment:'test',chainId:46630,deploymentDigest:hash('8'),activationBlock:0n},market.marketId,'1H',undefined,'statistics,holders');
  assert.deepEqual(result?.statistics,stored.statistics);assert.deepEqual(result?.sources.statistics,stored.sources.statistics);
  assert.deepEqual(result?.holders,stored.holders);assert.equal(result?.trades,null);assert.equal(result?.chart,null);

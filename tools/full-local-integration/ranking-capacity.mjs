@@ -20,16 +20,18 @@ try{
  const now=new Date(),price={token:a(99),source:'coinbase_spot',status:'available',bidUsd:'2',askUsd:'2',asOf:now.toISOString(),expiresAt:new Date(+now+86400000).toISOString()};
  await pool.query(`INSERT INTO ${s}.price_references(environment,chain_id,deployment_digest,asset,source,status,as_of,expires_at,payload) VALUES($1,$2,$3,$4,'coinbase_spot','available',$5,$6,$7)`,[...id,a(99),price.asOf,price.expiresAt,price]);
  }
+ await pool.query(`INSERT INTO ${s}.confirmed_display_cursor(environment,chain_id,deployment_digest,block_number,block_hash,base_number,block_timestamp) VALUES($1,$2,$3,10,$4,10,10) ON CONFLICT DO NOTHING`,[...id,h(10)]);
  const now=new Date();
  let previous=process.env.TG_RANKING_RESUME_SCHEMA?20000:0;
  for(const count of [20000,50000]){
   const recordsAt=performance.now();
   if(count>previous)await pool.query(`INSERT INTO ${s}.projection_records(environment,chain_id,deployment_digest,scope,revision,identity,sort_key,payload_digest,payload)
   SELECT $1,$2,$3,'markets',$4,'0x'||lpad(to_hex(n),64,'0'),'0x'||lpad(to_hex(n),64,'0'),$5::text,
-  jsonb_build_object('marketId','0x'||lpad(to_hex(n),64,'0'),'assetUid','0x'||lpad(to_hex(n%194),64,'0'),'memeToken','0x'||lpad(to_hex(n),40,'0'),'quoteAsset',$6::text,'launchPhase',0,'sourceVersion',1,
+  jsonb_build_object('marketId','0x'||lpad(to_hex(n),64,'0'),'assetUid','0x'||lpad(to_hex(n%194),64,'0'),'memeToken','0x'||lpad(to_hex(n),40,'0'),'quoteAsset',$6::text,'launchPhase',0,'sourceVersion',1,'metrics',jsonb_build_object('marketCapUsd',(n*200)::text),
    'identity',jsonb_build_object('name','Market '||n,'symbol','T'||n,'deployedAt',n::text),
    'display',jsonb_build_object('priceQuote',n::text,'totalSupplyRaw','100000000000000000000','blockNumber','10','blockHash',$5::text))
   FROM generate_series($7::int,$8::int) n`,[...id,revision,h(10),a(99),previous+1,count]);
+  await pool.query(`INSERT INTO ${s}.confirmed_display_markets(environment,chain_id,deployment_digest,market_id,block_number,block_hash,payload) SELECT environment,chain_id,deployment_digest,identity,10,$5,jsonb_build_object('market',payload) FROM ${s}.projection_records WHERE environment=$1 AND chain_id=$2 AND deployment_digest=$3 AND scope='markets' AND revision=$4 ON CONFLICT DO NOTHING`,[...id,revision,h(10)]);
   // Twenty finalized historical buys per project; triggers maintain the one-row head.
   for(let start=previous+1;start<=count;start+=1000){
    await pool.query(`INSERT INTO ${s}.market_trades(environment,chain_id,deployment_digest,market_id,block_hash,transaction_hash,log_index,occurred_at,classification,base_raw,quote_raw,payload)
@@ -39,8 +41,8 @@ try{
   console.log(`Seeded ${count} projects / ${count*20} buys`);
   const seededMs=performance.now()-recordsAt;
   await pool.query(`ANALYZE ${s}.market_latest_buys`);await pool.query(`ANALYZE ${s}.projection_records`);
-  const buildAt=performance.now();const built=await publishMarketCapRanking(pool,deployment,schemaName,new Date(+now+(count===50000?21*60000:0)));assert.ok(built.published?built.markets===count:built.reason==='current');const buildMs=performance.now()-buildAt;
-  await pool.query(`ANALYZE ${s}.market_cap_ranks`);
+  const buildAt=performance.now();const built=await publishMarketCapRanking(pool,deployment,schemaName,new Date(+now+(count===50000?21*60000:0)));assert.equal(built.published,true);assert.equal(Number((await pool.query(`SELECT count(*) FROM ${s}.explore_cap_ranks WHERE environment=$1 AND chain_id=$2 AND deployment_digest=$3 AND version=(SELECT version FROM ${s}.explore_cap_snapshots WHERE environment=$1 AND chain_id=$2 AND deployment_digest=$3 AND NOT legacy ORDER BY scheduled_at DESC LIMIT 1)`,id)).rows[0].count),count);const buildMs=performance.now()-buildAt;
+  await pool.query(`ANALYZE ${s}.explore_cap_ranks`);
   const request=(sort,extra={},cursor)=>readPublishedMarketPage({pool,deployment,schemaName,secret:'local-ranking-capacity-secret-32-bytes',filter:{sort,launchPhase:0,...extra},limit:40,...(cursor?{cursor}:{})});
   const measures=[];
   for(const sort of ['recentBuy_desc','marketCapUsd_desc']){

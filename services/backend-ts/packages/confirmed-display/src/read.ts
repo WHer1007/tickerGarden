@@ -14,7 +14,7 @@ export async function readConfirmedState(pool:Pick<Pool,'query'>,d:DeploymentIde
 }
 export async function readConfirmedDetail(pool:Pick<Pool,'query'>,d:DeploymentIdentity,marketId:string,period:'1H'|'12H'|'1D',schemaName?:string,section?:string){
  const schema=displaySchema(schemaName);
- const value=(await pool.query<{detail:TokenDetailResponse}>(`SELECT m.payload->'detailViews'->$5 detail FROM ${schema}.confirmed_display_markets m JOIN ${schema}.confirmed_display_cursor c USING(environment,chain_id,deployment_digest) WHERE m.environment=$1 AND m.chain_id=$2 AND m.deployment_digest=$3 AND m.market_id=$4 AND m.block_number<=c.block_number`,[...displayIdentity(d),marketId,period])).rows[0]?.detail;
+ const value=(await pool.query<{detail:TokenDetailResponse}>(`SELECT ${schema}.display_detail(m,$5) detail FROM ${schema}.confirmed_display_markets m JOIN ${schema}.confirmed_display_cursor c USING(environment,chain_id,deployment_digest) WHERE m.environment=$1 AND m.chain_id=$2 AND m.deployment_digest=$3 AND m.market_id=$4 AND m.block_number<=c.block_number`,[...displayIdentity(d),marketId,period])).rows[0]?.detail;
  if(!value)return null;
  const selected=new Set(section==='activity'?['trades','fees']:section?.split(',')??['holders','chart','trades','statistics','fees']);
  return {...value,statistics:selected.has('statistics')?value.statistics:null,chart:selected.has('chart')?value.chart:null,holders:selected.has('holders')?value.holders:null,trades:selected.has('trades')?value.trades?.slice(0,30)??null:null,fees:selected.has('fees')?value.fees:null,sources:Object.fromEntries(Object.entries(value.sources).filter(([key])=>selected.has(key))),reasons:Object.fromEntries(Object.entries(value.reasons).filter(([key])=>selected.has(key)))};

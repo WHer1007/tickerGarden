@@ -115,3 +115,16 @@ export function exploreMetrics(stat:NonNullable<TokenDetailResponse['statistics'
  const volume=stat.volume24h===null?null:stat.volume24h==='0'?'0':usd?formatUnits(parseUnits(stat.volume24h,36)*parseUnits(usd,36)/10n**36n,36):null;
  return {status:stat.marketCapUsd!=null?'available':'unavailable',reason:stat.marketCapUsd==null?'valuation_inputs_unavailable':'',marketCapUsd:stat.marketCapUsd??null,volume24hUsd:volume,quoteUsdMidpoint:usd??null,windowFromTimestamp:String(Math.max(0,asOf-86400)),asOfTimestamp:String(asOf),usdPriceAsOf:usdAsOf,usdPriceSource:usdSource,volumeBasis:'EXTERNAL_EXECUTIONS_CURVE_EXCLUDING_FEE_TAX_OR_POOL_CORE',marketCapBasis:'TOTAL_SUPPLY_X_POOL_SPOT_X_QUOTE_USD'};
 }
+
+/** Self-contained undo evidence shares common fields without triplicating them. */
+export function packDisplayState(state:DisplayState):DisplayState{
+ if(!state.detailViews)return state;
+ const {detailViews,...base}=state;const {chart:_,period:__,...common}=detailViews['1H'];
+ return {...base,detailSnapshot:{common,charts:Object.fromEntries(Object.entries(detailViews).map(([period,detail])=>[period,detail.chart]))}} as DisplayState;
+}
+export function unpackDisplayState(state:DisplayState):DisplayState{
+ const packed=state as DisplayState&{detailSnapshot?:{common:Omit<TokenDetailResponse,'chart'|'period'>;charts:Record<'1H'|'12H'|'1D',TokenDetailResponse['chart']>}};
+ if(!packed.detailSnapshot)return state;
+ const {detailSnapshot,...base}=packed;
+ return {...base,detailViews:Object.fromEntries(Object.entries(detailSnapshot.charts).map(([period,chart])=>[period,{...detailSnapshot.common,period,chart}])) as Record<'1H'|'12H'|'1D',TokenDetailResponse>};
+}

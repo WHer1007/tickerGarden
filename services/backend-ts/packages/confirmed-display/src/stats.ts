@@ -85,7 +85,10 @@ export async function seedStats(db:DB,d:DeploymentIdentity,block:RpcBlock,schema
 }
 
 async function configs(db:DB,s:string,d:DeploymentIdentity):Promise<Config[]>{
- const stored=(await db.query<{payload:Config}>(`SELECT r.payload FROM ${s}.projection_read_records r JOIN ${s}.publication_pointers p USING(environment,chain_id,deployment_digest,scope,revision) WHERE r.environment=$1 AND r.chain_id=$2 AND r.deployment_digest=$3 AND r.scope='configs'`,id(d))).rows.map(r=>r.payload);
+ const stored=(await db.query<{payload:Config}>(`SELECT c.payload FROM ${s}.config_set_records r JOIN ${s}.config_contents c ON c.id=r.content_id WHERE r.set_id=(
+  SELECT x.set_id FROM ${s}.config_publication_sets x
+  WHERE x.environment=$1 AND x.chain_id=$2 AND x.deployment_digest=$3 AND x.scope='configs'
+   AND x.revision=(SELECT revision FROM ${s}.publication_pointers WHERE environment=$1 AND chain_id=$2 AND deployment_digest=$3 AND scope='configs'))`,id(d))).rows.map(r=>r.payload);
  return [...new Map([...runtimeConfigs,...stored].map(c=>[`${c.kind}:${c.id}`,c as Config])).values()];
 }
 const scale=10n**36n;
@@ -127,7 +130,10 @@ async function publishStats(db:DB,d:DeploymentIdentity,block:RpcBlock,schemaName
  const old=(await db.query<{payload:StatsDisplay}>(`SELECT payload FROM ${s}.stats_display_snapshots WHERE environment=$1 AND chain_id=$2 AND deployment_digest=$3`,args)).rows[0]?.payload;
  const changed=statsRegions.filter(r=>!isDeepStrictEqual(old?.sections[r],sections[r]));
  const payload:StatsDisplay={schemaVersion:4,chainId:d.chainId,displayOnly:true,revision,sections};
- await db.query(`INSERT INTO ${s}.stats_display_snapshots VALUES($1,$2,$3,$4,$5,$6,$7) ON CONFLICT(environment,chain_id,deployment_digest) DO UPDATE SET block_number=excluded.block_number,block_hash=excluded.block_hash,generated_at=excluded.generated_at,payload=excluded.payload`,[...args,block.number.toString(),block.hash,now,JSON.stringify(payload)]);
+ // Snapshot block metadata describes the data version. The independent
+ // confirmed_display_cursor tracks sync progress, including empty blocks.
+ // Keep the last data-bearing version stable when a block changes no stats.
+ if(changed.length)await db.query(`INSERT INTO ${s}.stats_display_snapshots VALUES($1,$2,$3,$4,$5,$6,$7) ON CONFLICT(environment,chain_id,deployment_digest) DO UPDATE SET block_number=excluded.block_number,block_hash=excluded.block_hash,generated_at=excluded.generated_at,payload=excluded.payload`,[...args,block.number.toString(),block.hash,now,JSON.stringify(payload)]);
  if(changed.length)await db.query('SELECT pg_notify($1,$2)',[changeChannel(d,schemaName),JSON.stringify({statsRegions:changed,revision})]);
  return changed;
 }

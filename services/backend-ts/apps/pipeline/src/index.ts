@@ -1,10 +1,10 @@
+import {runScheduledQueueRetention} from '../../../packages/jobs/src/retention.ts';
 import {createPriceBatch,SharedPriceReader} from '../../../packages/display-price/src/batch.ts';
 import {withDatabaseTask,databaseTimingSnapshot} from '../../../packages/db/src/telemetry.ts';
 import {rpcRuntimeOptions} from '../../../packages/rpc-control/src/runtime.ts';
 import {reportError} from '../../../packages/observability/src/index.ts';
 import {rpcPolicy,rpcFailoverOptions} from '../../../packages/chain/src/rpc-policy.ts';
 import {CURRENT_CHAIN_ID,assertRuntimeEnvironment} from '../../../packages/runtime-deployment/src/index.ts';
-import { publishMarketCapRanking } from '../../../packages/display-price/src/ranking.ts';
 import { randomUUID } from 'node:crypto';
 import type { Pool } from 'pg';
 import type { Client } from '@upstash/qstash';
@@ -167,10 +167,7 @@ export function createPipelineApp(options: PipelineAppOptions = {}) {
       expectedGeneration: generation,
       ...(env.TG_DATABASE_SCHEMA ? { schemaName: env.TG_DATABASE_SCHEMA } : {}),
     });
-    // The existing minute scheduler also serves Preview, where Vercel cron is not active.
-    // Snapshot work is idempotent per 20-minute bucket and cannot stop queue dispatch.
-    try { const ranking=await publishMarketCapRanking(databasePool(),priceDeployment,env.TG_DATABASE_SCHEMA,new Date(),priceBatch());emitMetric(env,{event:'market_cap_ranking',...ranking}); }
-    catch { emitMetric(env,{event:'market_cap_ranking',published:false,reason:'refresh_failed'}); }
+    try{const retention=await runScheduledQueueRetention(databasePool(),env.TG_DATABASE_SCHEMA);if(retention)emitMetric(env,{event:'queue_retention',...retention});}catch(error){reportError('pipeline','queue_retention_failed',error);}
     emitMetric(env, { event: 'queue_dispatch', queue: 'chain', ...dispatched });
     return context.json({ repaired, dispatched });
   });
@@ -201,7 +198,6 @@ export function createPipelineApp(options: PipelineAppOptions = {}) {
     }) });
     await storePriceReferences(databasePool(), deployment, references, env.TG_DATABASE_SCHEMA);
     priceReader.invalidate();
-    await publishMarketCapRanking(databasePool(), deployment, env.TG_DATABASE_SCHEMA,new Date(),priceBatch());
     emitMetric(env, { event: 'price_refresh', targets: references.length, available: references.filter((item) => item.status === 'available').length });
     return context.json({ refreshed: references.length, available: references.filter((item) => item.status === 'available').length });
   }));

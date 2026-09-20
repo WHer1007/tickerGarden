@@ -1,3 +1,4 @@
+import {publishProjection} from '../../packages/projection/src/index.ts';
 import {publishProtocolStatistics,readProtocolStatistics} from '../../packages/statistics-store/src/snapshot.ts';
 import assert from 'node:assert/strict';
 import { randomBytes } from 'node:crypto';
@@ -40,13 +41,13 @@ test('TS-07 database-only trades, candles, holders and detail paths preserve cov
     await handle.pool.query(`INSERT INTO ${schema}.covered_ranges(environment,chain_id,deployment_digest,from_block,to_block,generation,filter_digest,complete,verified_at) VALUES ('test',46630,$1,1,4,0,$2,true,now())`,[deployment.deploymentDigest,hash('5')]);
     await handle.pool.query(`INSERT INTO ${schema}.ingestion_checkpoints(environment,chain_id,deployment_digest,stream,next_block,last_block_hash,generation) VALUES ('test',46630,$1,'frontend-events',5,$2,0)`,[deployment.deploymentDigest,hash('e')]);
     const revision = `4:${hash('e')}`;
-    for (const scope of ['markets', 'configs', 'positions'] as const) {
+    for (const scope of ['markets', 'positions'] as const) {
       await handle.pool.query(`INSERT INTO ${schema}.publications(environment,chain_id,deployment_digest,scope,revision,block_number,block_hash,generation,payload_digest,payload) VALUES ('test',46630,$1,$2,$3,4,$4,0,$5,'{}')`, [deployment.deploymentDigest, scope, revision, hash('e'), hash(scope === 'markets' ? '6' : '7')]);
       await handle.pool.query(`INSERT INTO ${schema}.publication_pointers(environment,chain_id,deployment_digest,scope,revision) VALUES ('test',46630,$1,$2,$3)`, [deployment.deploymentDigest, scope, revision]);
     }
     const market = { marketId, assetUid:asset.id, memeToken, quoteAsset, quoteAssetConfigId: configId,tickerGardenBaselineId:baseline.id,launchPhase:0, source: { blockNumber: '1' } };
     await handle.pool.query(`INSERT INTO ${schema}.projection_records(environment,chain_id,deployment_digest,scope,revision,identity,sort_key,payload_digest,payload) VALUES ('test',46630,$1,'markets',$2,$3,$3,$4,$5)`, [deployment.deploymentDigest, revision, marketId, hash('8'), market]);
-    await handle.pool.query(`INSERT INTO ${schema}.projection_records(environment,chain_id,deployment_digest,scope,revision,identity,sort_key,payload_digest,payload) VALUES ('test',46630,$1,'configs',$2,$3,$3,$4,$5)`, [deployment.deploymentDigest, revision, `quote:${configId}`, hash('9'), { kind: 'quote', id: configId, values: { quoteDecimals: quote.values.quoteDecimals } }]);
+    await publishProjection({pool:handle.pool,deployment,schemaName,scope:'configs',algorithmVersion:'fixture',blockNumber:4n,blockHash:hash('e'),generation:0n,records:[{identity:`quote:${configId}`,sortKey:`quote:${configId}`,payload:{kind:'quote',id:configId,values:{quoteDecimals:quote.values.quoteDecimals}}}]});
     const staker=address('9');
     await handle.pool.query(`INSERT INTO ${schema}.projection_records(environment,chain_id,deployment_digest,scope,revision,identity,sort_key,payload_digest,payload) VALUES ('test',46630,$1,'positions',$2,$3,$3,$4,$5)`,[deployment.deploymentDigest,revision,`${staker}:${asset.id}:${marketId}`,hash('4'),{user:staker,assetUid:asset.id,marketId,allocated:'1000000000000000000',active:'1000000000000000000',pending:'0'}]);
     await handle.pool.query(`INSERT INTO ${schema}.projection_checkpoints(environment,chain_id,deployment_digest,scope,algorithm_version,next_block,generation,last_revision) VALUES ('test',46630,$1,'analytics','f72-analytics-v1',5,0,$2)`, [deployment.deploymentDigest, revision]);

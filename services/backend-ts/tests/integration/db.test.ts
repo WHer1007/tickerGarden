@@ -123,7 +123,7 @@ test('TS-02/03/04/05/06 PostgreSQL, ingestion, publications and Hono read paths'
     await handle.pool.query(permissionsSql(schemaName, roles));
     for(const table of ['market_latest_buys','market_cap_snapshots','market_cap_ranks','holder_reward_wallet_proofs']){
       const grants=(await handle.pool.query<{can_read:boolean;can_write:boolean;pipeline_write:boolean}>(`SELECT has_table_privilege($1,$3,'SELECT') can_read,has_table_privilege($1,$3,'INSERT') can_write,has_table_privilege($2,$3,'INSERT') pipeline_write`,[roles.readApi,roles.pipeline,`${schemaName}.${table}`])).rows[0]!;
-      assert.deepEqual(grants,{can_read:true,can_write:false,pipeline_write:true});
+      assert.deepEqual(grants,{can_read:true,can_write:false,pipeline_write:!table.startsWith('market_cap_')});
     }
     const evidenceGrants=(await handle.pool.query(`SELECT has_table_privilege($1,$3,'SELECT') reader,has_table_privilege($2,$3,'INSERT') insertable,has_table_privilege($2,$3,'UPDATE') mutable,has_table_privilege($2,$3,'DELETE') deletable`,[roles.readApi,roles.pipeline,`${schemaName}.holder_snapshot_evidence`])).rows[0];
     assert.deepEqual(evidenceGrants,{reader:false,insertable:true,mutable:false,deletable:false});

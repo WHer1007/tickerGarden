@@ -54,6 +54,13 @@ test('Stats shared-event projection: incremental totals, rollback, windows, pric
   assert.equal(view.sections.allocations.creator,'1');assert.equal(view.sections.allocations.platform,'1');
   assert.equal((await db.query(`SELECT sum(amount)::text n FROM ${s}.stats_display_buckets WHERE kind='volume'`)).rows[0].n,String(19n*unit/10n));
   assert.deepEqual(await publishStatsDisplay(db,d,block(11),schemaName,now),[],'unchanged data sends no region invalidation');
+  const beforeNoop=(await db.query(`SELECT block_number::text,block_hash,generated_at,payload FROM ${s}.stats_display_snapshots WHERE environment=$1 AND chain_id=$2 AND deployment_digest=$3`,id)).rows[0];
+  await db.query(`INSERT INTO ${s}.confirmed_display_cursor VALUES($1,$2,$3,12,$4,12,$5) ON CONFLICT(environment,chain_id,deployment_digest) DO UPDATE SET block_number=excluded.block_number,block_hash=excluded.block_hash,base_number=excluded.base_number,block_timestamp=excluded.block_timestamp`,[...id,h(12),at+1]);
+  assert.deepEqual(await publishStatsDisplay(db,d,block(12,at+1),schemaName,now),[],'an empty sync block does not publish a stats data version');
+  const afterNoop=(await db.query(`SELECT block_number::text,block_hash,generated_at,payload FROM ${s}.stats_display_snapshots WHERE environment=$1 AND chain_id=$2 AND deployment_digest=$3`,id)).rows[0];
+  assert.deepEqual(afterNoop,beforeNoop,'empty blocks leave snapshot provenance and generated time unchanged');
+  assert.deepEqual((await db.query(`SELECT block_number::text,block_hash FROM ${s}.confirmed_display_cursor WHERE environment=$1 AND chain_id=$2 AND deployment_digest=$3`,id)).rows[0],{block_number:'12',block_hash:h(12)},'sync cursor advances independently');
+  assert.equal((await readStatsDisplay({pool:db,deployment:d,schemaName})).sections.overview.volumeUsd,'19','stats remain readable while the independent cursor advances');
   const second=event('AllocationLocked',{assetUid:asset2,user:account,marketId:h(2),amount:unit,userMarketAllocation:unit,userTotalAllocated:unit},3,12);
   await applyStatsEvents(db,d,[second],[],schemaName);await publishStatsDisplay(db,d,block(12),schemaName,now);
   view=await readStatsDisplay({pool:db,deployment:d,schemaName});assert.equal(view.sections.overview.stakingWallets,1,'same wallet across assets counted once');assert.equal(view.sections.overview.stakingValueUsd,'13','USDG fixed at one without a quote');

@@ -1,0 +1,292 @@
+{
+  "production_observations": [
+    {
+      "atUtc": "2026-09-20T13:24:00.162Z",
+      "tempFiles": 27212,
+      "tempBytes": 1201679540224,
+      "databaseSizePg": "795 MB",
+      "currentTempFiles": 0,
+      "currentTempBytes": 0
+    },
+    {
+      "atUtc": "2026-09-20T13:25:29.752Z",
+      "tempFiles": 27212,
+      "tempBytes": 1201679540224
+    },
+    {
+      "atUtc": "2026-09-20T13:27:14.668Z",
+      "tempFiles": 27212,
+      "tempBytes": 1201679540224,
+      "currentTempFiles": 0,
+      "currentTempBytes": 0
+    },
+    {
+      "atUtc": "2026-09-20T13:29:02.292963Z",
+      "tempFiles": 27212,
+      "tempBytes": 1201679540224,
+      "databaseBytes": 834582195,
+      "currentTempFiles": 0,
+      "currentTempBytes": 0
+    }
+  ],
+  "disk": {
+    "rootSize": "77G",
+    "used": "16G",
+    "available": "62G"
+  },
+  "production_settings": {
+    "work_mem": "4MB",
+    "hash_mem_multiplier": 2,
+    "pg_stat_statements": false,
+    "log_temp_files": -1,
+    "track_io_timing": false,
+    "log_min_duration_statement": -1
+  },
+  "production_current": {
+    "prices": 196,
+    "stockPrices": 194,
+    "ethPrices": 1,
+    "fixedUsdPrices": 1,
+    "markets": 1,
+    "priceTableWithIndexes": "504 kB",
+    "projectionRecordsWithIndexes": "767 MB",
+    "migrationsLatest": "0029_price_batches",
+    "oldPriceQueryExecutionMs": 1.29,
+    "oldPriceQuerySortMemoryKb": 139
+  },
+  "historical_log": {
+    "priceQueryStatementEntries": 1801,
+    "matchedStatementTimeouts": 1786,
+    "unmatchedStatementEntries": 15,
+    "firstPriceErrorUtc": "2026-09-18T12:18:37.176Z",
+    "lastPriceErrorUtc": "2026-09-20T11:42:48.281Z",
+    "priceStatementEntriesByUtcDate": {
+      "2026-09-18": 47,
+      "2026-09-19": 233,
+      "2026-09-20": 1521
+    }
+  },
+  "synthetic_local_reproduction": {
+    "scope": "synthetic local reproduction, not historical production attribution",
+    "workMem": "4MB",
+    "data": {
+      "rows": "447844",
+      "avg_payload_bytes": "462.0000000000000000"
+    },
+    "historical": {
+      "Plan": {
+        "Node Type": "Unique",
+        "Parallel Aware": false,
+        "Async Capable": false,
+        "Startup Cost": 298741.17,
+        "Total Cost": 302100.06,
+        "Plan Rows": 196,
+        "Plan Width": 520,
+        "Actual Startup Time": 1294.288,
+        "Actual Total Time": 1623.919,
+        "Actual Rows": 196,
+        "Actual Loops": 1,
+        "Shared Hit Blocks": 5,
+        "Shared Read Blocks": 0,
+        "Shared Dirtied Blocks": 0,
+        "Shared Written Blocks": 0,
+        "Local Hit Blocks": 0,
+        "Local Read Blocks": 37321,
+        "Local Dirtied Blocks": 0,
+        "Local Written Blocks": 206,
+        "Temp Read Blocks": 74932,
+        "Temp Written Blocks": 75049,
+        "Plans": [
+          {
+            "Node Type": "Sort",
+            "Parent Relationship": "Outer",
+            "Parallel Aware": false,
+            "Async Capable": false,
+            "Startup Cost": 298741.17,
+            "Total Cost": 299860.8,
+            "Plan Rows": 447852,
+            "Plan Width": 520,
+            "Actual Startup Time": 1294.287,
+            "Actual Total Time": 1582.107,
+            "Actual Rows": 447844,
+            "Actual Loops": 1,
+            "Sort Key": [
+              "asset",
+              "source",
+              "(((status = 'available'::text) AND (expires_at > now()))) DESC",
+              "as_of DESC"
+            ],
+            "Sort Method": "external merge",
+            "Sort Space Used": 235784,
+            "Sort Space Type": "Disk",
+            "Shared Hit Blocks": 5,
+            "Shared Read Blocks": 0,
+            "Shared Dirtied Blocks": 0,
+            "Shared Written Blocks": 0,
+            "Local Hit Blocks": 0,
+            "Local Read Blocks": 37321,
+            "Local Dirtied Blocks": 0,
+            "Local Written Blocks": 206,
+            "Temp Read Blocks": 74932,
+            "Temp Written Blocks": 75049,
+            "Plans": [
+              {
+                "Node Type": "Seq Scan",
+                "Parent Relationship": "Outer",
+                "Parallel Aware": false,
+                "Async Capable": false,
+                "Relation Name": "prices",
+                "Alias": "prices",
+                "Startup Cost": 0,
+                "Total Cost": 48517.3,
+                "Plan Rows": 447852,
+                "Plan Width": 520,
+                "Actual Startup Time": 0.012,
+                "Actual Total Time": 140.587,
+                "Actual Rows": 447844,
+                "Actual Loops": 1,
+                "Filter": "((environment = 'production'::text) AND (chain_id = 4663) AND (deployment_digest = '0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa'::text))",
+                "Rows Removed by Filter": 0,
+                "Shared Hit Blocks": 0,
+                "Shared Read Blocks": 0,
+                "Shared Dirtied Blocks": 0,
+                "Shared Written Blocks": 0,
+                "Local Hit Blocks": 0,
+                "Local Read Blocks": 37321,
+                "Local Dirtied Blocks": 0,
+                "Local Written Blocks": 206,
+                "Temp Read Blocks": 0,
+                "Temp Written Blocks": 0
+              }
+            ]
+          }
+        ]
+      },
+      "Planning": {
+        "Shared Hit Blocks": 62,
+        "Shared Read Blocks": 0,
+        "Shared Dirtied Blocks": 0,
+        "Shared Written Blocks": 0,
+        "Local Hit Blocks": 0,
+        "Local Read Blocks": 0,
+        "Local Dirtied Blocks": 0,
+        "Local Written Blocks": 0,
+        "Temp Read Blocks": 0,
+        "Temp Written Blocks": 0
+      },
+      "Planning Time": 3.248,
+      "Triggers": [],
+      "Execution Time": 1822.195
+    },
+    "current": {
+      "Plan": {
+        "Node Type": "Unique",
+        "Parallel Aware": false,
+        "Async Capable": false,
+        "Startup Cost": 29.36,
+        "Total Cost": 30.83,
+        "Plan Rows": 196,
+        "Plan Width": 520,
+        "Actual Startup Time": 0.111,
+        "Actual Total Time": 0.133,
+        "Actual Rows": 196,
+        "Actual Loops": 1,
+        "Shared Hit Blocks": 0,
+        "Shared Read Blocks": 0,
+        "Shared Dirtied Blocks": 0,
+        "Shared Written Blocks": 0,
+        "Local Hit Blocks": 17,
+        "Local Read Blocks": 0,
+        "Local Dirtied Blocks": 0,
+        "Local Written Blocks": 0,
+        "Temp Read Blocks": 0,
+        "Temp Written Blocks": 0,
+        "Plans": [
+          {
+            "Node Type": "Sort",
+            "Parent Relationship": "Outer",
+            "Parallel Aware": false,
+            "Async Capable": false,
+            "Startup Cost": 29.36,
+            "Total Cost": 29.85,
+            "Plan Rows": 196,
+            "Plan Width": 520,
+            "Actual Startup Time": 0.11,
+            "Actual Total Time": 0.114,
+            "Actual Rows": 196,
+            "Actual Loops": 1,
+            "Sort Key": [
+              "asset",
+              "source",
+              "(((status = 'available'::text) AND (expires_at > now()))) DESC",
+              "as_of DESC"
+            ],
+            "Sort Method": "quicksort",
+            "Sort Space Used": 224,
+            "Sort Space Type": "Memory",
+            "Shared Hit Blocks": 0,
+            "Shared Read Blocks": 0,
+            "Shared Dirtied Blocks": 0,
+            "Shared Written Blocks": 0,
+            "Local Hit Blocks": 17,
+            "Local Read Blocks": 0,
+            "Local Dirtied Blocks": 0,
+            "Local Written Blocks": 0,
+            "Temp Read Blocks": 0,
+            "Temp Written Blocks": 0,
+            "Plans": [
+              {
+                "Node Type": "Seq Scan",
+                "Parent Relationship": "Outer",
+                "Parallel Aware": false,
+                "Async Capable": false,
+                "Relation Name": "prices",
+                "Alias": "prices",
+                "Startup Cost": 0,
+                "Total Cost": 21.9,
+                "Plan Rows": 196,
+                "Plan Width": 520,
+                "Actual Startup Time": 0.003,
+                "Actual Total Time": 0.034,
+                "Actual Rows": 196,
+                "Actual Loops": 1,
+                "Filter": "((environment = 'production'::text) AND (chain_id = 4663) AND (deployment_digest = '0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa'::text))",
+                "Rows Removed by Filter": 0,
+                "Shared Hit Blocks": 0,
+                "Shared Read Blocks": 0,
+                "Shared Dirtied Blocks": 0,
+                "Shared Written Blocks": 0,
+                "Local Hit Blocks": 17,
+                "Local Read Blocks": 0,
+                "Local Dirtied Blocks": 0,
+                "Local Written Blocks": 0,
+                "Temp Read Blocks": 0,
+                "Temp Written Blocks": 0
+              }
+            ]
+          }
+        ]
+      },
+      "Planning": {
+        "Shared Hit Blocks": 32,
+        "Shared Read Blocks": 0,
+        "Shared Dirtied Blocks": 0,
+        "Shared Written Blocks": 0,
+        "Local Hit Blocks": 0,
+        "Local Read Blocks": 2,
+        "Local Dirtied Blocks": 0,
+        "Local Written Blocks": 0,
+        "Temp Read Blocks": 0,
+        "Temp Written Blocks": 0
+      },
+      "Planning Time": 0.084,
+      "Triggers": [],
+      "Execution Time": 0.15
+    }
+  },
+  "limitations": [
+    "No historical statement-level temp accounting: cannot attribute all 1.20TB or exact percentage to one SQL.",
+    "Production was read-only; no settings, counters, migrations or services changed.",
+    "Local reproduction is approximate historical row width, not a production replay."
+  ]
+}

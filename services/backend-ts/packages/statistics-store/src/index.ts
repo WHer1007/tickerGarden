@@ -72,7 +72,7 @@ export async function readMarketStatistics(input: { readonly pool: Pool; readonl
 export async function readMarketDisplayStatistics(input:{readonly pool:Pool;readonly deployment:DeploymentIdentity;readonly marketId:Hex32;readonly schemaName?:string}){
   const schema=identifier(input.schemaName??'tickergarden_serverless');
   const row=(await input.pool.query<{detail:TokenDetailResponse;total_staked:string|null}>(`SELECT detail,total_staked FROM (
-   SELECT m.payload->'detailViews'->'1H' detail,m.payload->'market'->'display'->>'totalStakedRaw' total_staked,0 priority
+   SELECT ${schema}.display_detail(m,'1H') detail,m.payload->'market'->'display'->>'totalStakedRaw' total_staked,0 priority
    FROM ${schema}.confirmed_display_markets m JOIN ${schema}.confirmed_display_cursor c USING(environment,chain_id,deployment_digest)
    WHERE m.environment=$1 AND m.chain_id=$2 AND m.deployment_digest=$3 AND m.market_id=$4 AND m.block_number<=c.block_number
    UNION ALL SELECT r.initial_detail,r.payload->'display'->>'totalStakedRaw',1 FROM ${schema}.recent_markets r
