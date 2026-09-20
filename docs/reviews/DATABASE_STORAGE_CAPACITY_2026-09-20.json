@@ -1,0 +1,97 @@
+{
+  "scope": "synthetic local PostgreSQL; not production capacity",
+  "stages": [
+    {
+      "projects": 20000,
+      "historicalBuys": 400000,
+      "seededMs": 144720.568042,
+      "buildMs": 263.1427079999994,
+      "measures": [
+        {
+          "sort": "recentBuy_desc",
+          "page100Ms": 2.523542000009911,
+          "stockP95Ms": 28.98445799999172,
+          "concurrency": [
+            {
+              "concurrency": 16,
+              "success": 16,
+              "wallMs": 42.90529199998127,
+              "p95Ms": 42.53904199998942
+            },
+            {
+              "concurrency": 64,
+              "success": 64,
+              "wallMs": 20.035875000001397,
+              "p95Ms": 19.630666000011843
+            }
+          ]
+        },
+        {
+          "sort": "marketCapUsd_desc",
+          "page100Ms": 88.83829200000037,
+          "stockP95Ms": 72.33512499998324,
+          "concurrency": [
+            {
+              "concurrency": 16,
+              "success": 16,
+              "wallMs": 363.7821249999979,
+              "p95Ms": 363.7407919999969
+            },
+            {
+              "concurrency": 64,
+              "success": 64,
+              "wallMs": 1320.8047090000182,
+              "p95Ms": 1275.697583000001
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "projects": 50000,
+      "historicalBuys": 1000000,
+      "seededMs": 304238.078125,
+      "buildMs": 1920.9135839999653,
+      "measures": [
+        {
+          "sort": "recentBuy_desc",
+          "page100Ms": 2.7897499999962747,
+          "stockP95Ms": 56.879707999993116,
+          "concurrency": [
+            {
+              "concurrency": 16,
+              "success": 16,
+              "wallMs": 34.53108299995074,
+              "p95Ms": 34.271375000011176
+            },
+            {
+              "concurrency": 64,
+              "success": 64,
+              "wallMs": 22.71358300000429,
+              "p95Ms": 22.378333000000566
+            }
+          ]
+        },
+        {
+          "sort": "marketCapUsd_desc",
+          "page100Ms": 13.868791999993846,
+          "stockP95Ms": 65.66466700000456,
+          "concurrency": [
+            {
+              "concurrency": 16,
+              "success": 16,
+              "wallMs": 192.46095799998147,
+              "p95Ms": 192.36458400002448
+            },
+            {
+              "concurrency": 64,
+              "success": 64,
+              "wallMs": 626.7220830000006,
+              "p95Ms": 621.8458330000285
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

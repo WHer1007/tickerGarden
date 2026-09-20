@@ -401,3 +401,24 @@ export const recentMarkets = databaseSchema.table('recent_markets', {
  marketId:text('market_id').notNull(),transactionHash:text('transaction_hash').notNull(),blockNumber:bigint('block_number',{mode:'bigint'}).notNull(),blockHash:text('block_hash').notNull(),
  canonical:boolean('canonical').default(true).notNull(),payload:jsonb('payload').notNull(),initialDetail:jsonb('initial_detail'),observedAt:timestamp('observed_at',{withTimezone:true}).defaultNow().notNull(),expiresAt:timestamp('expires_at',{withTimezone:true}).notNull(),
 },table=>[primaryKey({columns:[table.environment,table.chainId,table.deploymentDigest,table.marketId]}),index('recent_markets_transaction').on(table.environment,table.chainId,table.deploymentDigest,table.transactionHash)]);
+
+// Config content rows and set membership use compact internal IDs. Publication
+// revisions remain the externally visible audit anchors.
+export const configContents=databaseSchema.table('config_contents',{
+ id:bigserial('id',{mode:'bigint'}).primaryKey(),payloadDigest:text('payload_digest').notNull().unique(),payload:jsonb('payload').notNull(),
+});
+export const configSets=databaseSchema.table('config_sets',{
+ id:bigserial('id',{mode:'bigint'}).primaryKey(),payloadDigest:text('payload_digest').notNull().unique(),
+});
+export const configSetRecords=databaseSchema.table('config_set_records',{
+ setId:bigint('set_id',{mode:'bigint'}).notNull().references(()=>configSets.id),identity:text('identity').notNull(),sortKey:text('sort_key').notNull(),contentId:bigint('content_id',{mode:'bigint'}).notNull().references(()=>configContents.id),
+},t=>[primaryKey({columns:[t.setId,t.identity]}),index('config_set_page').on(t.setId,t.sortKey,t.identity)]);
+export const configPublicationSets=databaseSchema.table('config_publication_sets',{
+ environment:text('environment').notNull(),chainId:bigint('chain_id',{mode:'number'}).notNull(),deploymentDigest:text('deployment_digest').notNull(),scope:text('scope').notNull().default('configs'),revision:text('revision').notNull(),setId:bigint('set_id',{mode:'bigint'}).notNull().references(()=>configSets.id),
+},t=>[primaryKey({columns:[t.environment,t.chainId,t.deploymentDigest,t.scope,t.revision]})]);
+export const confirmedDisplaySections=databaseSchema.table('confirmed_display_sections',{
+ environment:text('environment').notNull(),chainId:bigint('chain_id',{mode:'number'}).notNull(),deploymentDigest:text('deployment_digest').notNull(),marketId:text('market_id').notNull(),section:text('section').notNull(),payload:jsonb('payload').notNull(),
+},t=>[primaryKey({columns:[t.environment,t.chainId,t.deploymentDigest,t.marketId,t.section]})]);
+export const maintenanceRuns=databaseSchema.table('maintenance_runs',{
+ name:text('name').primaryKey(),nextRunAt:timestamp('next_run_at',{withTimezone:true}).notNull(),
+});

@@ -5,12 +5,14 @@ import type {DeploymentIdentity} from '../../chain/src/index.ts';
 export async function publishExploreRanking(client:PoolClient,d:DeploymentIdentity,schemaName='tickergarden_serverless',now=new Date()){
  if(!/^[a-z][a-z0-9_]{0,62}$/.test(schemaName))throw Error('invalid schema');
  const s=`"${schemaName}"`,id=[d.environment,d.chainId,d.deploymentDigest],scheduled=new Date(Math.floor(now.getTime()/1200000)*1200000);
- if((await client.query(`SELECT 1 FROM ${s}.explore_cap_snapshots WHERE environment=$1 AND chain_id=$2 AND deployment_digest=$3 AND scheduled_at>=$4 LIMIT 1`,[...id,scheduled])).rowCount)return false;
+ if((await client.query(`SELECT 1 FROM ${s}.explore_cap_snapshots WHERE environment=$1 AND chain_id=$2 AND deployment_digest=$3 AND NOT legacy AND scheduled_at>=$4 LIMIT 1`,[...id,scheduled])).rowCount)return false;
  await client.query('BEGIN ISOLATION LEVEL REPEATABLE READ');
  try{
+  if(!(await client.query('SELECT pg_try_advisory_xact_lock(hashtextextended($1,0)) locked',[`explore-ranking:${schemaName}:${id.join(':')}`])).rows[0]?.locked){await client.query('ROLLBACK');return false;}
+  if((await client.query(`SELECT 1 FROM ${s}.explore_cap_snapshots WHERE environment=$1 AND chain_id=$2 AND deployment_digest=$3 AND NOT legacy AND scheduled_at>=$4 LIMIT 1`,[...id,scheduled])).rowCount){await client.query('COMMIT');return false;}
   const version=randomUUID();
   await client.query(`INSERT INTO ${s}.explore_cap_snapshots(environment,chain_id,deployment_digest,version,scheduled_at,created_at) VALUES($1,$2,$3,$4,$5,$6)`,[...id,version,scheduled,now]);
-  await client.query(`INSERT INTO ${s}.explore_cap_ranks SELECT environment,chain_id,deployment_digest,$4,market_id,row_number() OVER(ORDER BY (payload->'metrics'->>'marketCapUsd')::numeric DESC NULLS LAST,market_id) FROM ${s}.explore_display_cards WHERE environment=$1 AND chain_id=$2 AND deployment_digest=$3`,[...id,version]);
+  await client.query(`INSERT INTO ${s}.explore_cap_ranks(environment,chain_id,deployment_digest,version,market_id,rank,metrics) SELECT environment,chain_id,deployment_digest,$4,market_id,row_number() OVER(ORDER BY (payload->'metrics'->>'marketCapUsd')::numeric DESC NULLS LAST,market_id),payload->'metrics' FROM ${s}.explore_display_cards WHERE environment=$1 AND chain_id=$2 AND deployment_digest=$3`,[...id,version]);
   await client.query(`DELETE FROM ${s}.explore_cap_snapshots WHERE environment=$1 AND chain_id=$2 AND deployment_digest=$3 AND created_at<$4`,[...id,new Date(now.getTime()-7200000)]);
   await client.query('COMMIT');return true;
  }catch(e){await client.query('ROLLBACK');throw e;}

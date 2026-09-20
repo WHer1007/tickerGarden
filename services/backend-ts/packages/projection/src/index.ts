@@ -58,6 +58,10 @@ export async function publishProjection(input: PublishProjectionInput): Promise<
 
     const expectedRecords=normalized.map(record=>({identity:record.identity,sort_key:record.sortKey,payload_digest:digest(record.payload),payload:record.payload}));
     let writes=expectedRecords;
+    if(input.scope==='configs'){
+      await publishConfigSet(client,schema,input,revision,payloadDigest,expectedRecords);
+      writes=[];
+    }
     if(input.incrementalMarketVersions){
       const currentVersions=(await client.query<{identity:string;sort_key:string;payload_digest:string}>(`SELECT identity,sort_key,payload_digest FROM ${schema}.market_record_versions WHERE environment=$1 AND chain_id=$2 AND deployment_digest=$3 AND generation=$4 AND valid_from<=$5 AND (valid_to IS NULL OR valid_to>$5)`,[input.deployment.environment,input.deployment.chainId,input.deployment.deploymentDigest,input.generation.toString(),input.blockNumber.toString()])).rows;
       const currentById=new Map(currentVersions.map(row=>[row.identity,row]));
@@ -298,4 +302,25 @@ function identifier(value: string): string {
 export class ProjectionPending extends Error {
   readonly scope:string; readonly block:bigint; readonly completed:number;
   constructor(scope:string,block:bigint,completed:number){super(`${scope} projection continuation required`);this.scope=scope;this.block=block;this.completed=completed;}
+}
+
+/** Compact numeric keys are internal; revision/address/hash API identities do not change. */
+async function publishConfigSet(client:PoolClient,schema:string,input:PublishProjectionInput,revision:string,payloadDigest:string,records:readonly {identity:string;sort_key:string;payload_digest:string;payload:Json}[]){
+ let set=(await client.query<{id:string}>(`SELECT id::text FROM ${schema}.config_sets WHERE payload_digest=$1`,[payloadDigest])).rows[0];
+ if(!set){
+  const inserted=(await client.query<{id:string}>(`INSERT INTO ${schema}.config_sets(payload_digest) VALUES($1) ON CONFLICT DO NOTHING RETURNING id::text`,[payloadDigest])).rows[0];
+  set=inserted??(await client.query<{id:string}>(`SELECT id::text FROM ${schema}.config_sets WHERE payload_digest=$1`,[payloadDigest])).rows[0];
+  if(!set)throw Error('config set missing');
+  if(inserted){
+   for(let i=0;i<records.length;i+=250){const batch=JSON.stringify(records.slice(i,i+250));
+    await client.query(`INSERT INTO ${schema}.config_contents(payload_digest,payload) SELECT r.payload_digest,r.payload FROM jsonb_to_recordset($1::jsonb) r(payload_digest text,payload jsonb) ON CONFLICT DO NOTHING`,[batch]);
+    await client.query(`INSERT INTO ${schema}.config_set_records(set_id,identity,sort_key,content_id) SELECT $1,r.identity,r.sort_key,c.id FROM jsonb_to_recordset($2::jsonb) r(identity text,sort_key text,payload_digest text,payload jsonb) JOIN ${schema}.config_contents c ON c.payload_digest=r.payload_digest AND c.payload=r.payload`,[set.id,batch]);
+   }
+  }
+ }
+ const saved=(await client.query<{identity:string;sort_key:string;payload_digest:string;payload:Json}>(`SELECT r.identity,r.sort_key,c.payload_digest,c.payload FROM ${schema}.config_set_records r JOIN ${schema}.config_contents c ON c.id=r.content_id WHERE r.set_id=$1 ORDER BY r.sort_key,r.identity`,[set.id])).rows;
+ if(stableStringify(saved)!==stableStringify(records))throw Error('config set evidence conflict');
+ await client.query(`INSERT INTO ${schema}.config_publication_sets(environment,chain_id,deployment_digest,scope,revision,set_id) VALUES($1,$2,$3,'configs',$4,$5) ON CONFLICT DO NOTHING`,[input.deployment.environment,input.deployment.chainId,input.deployment.deploymentDigest,revision,set.id]);
+ const linked=(await client.query<{set_id:string}>(`SELECT set_id::text FROM ${schema}.config_publication_sets WHERE environment=$1 AND chain_id=$2 AND deployment_digest=$3 AND scope='configs' AND revision=$4`,[input.deployment.environment,input.deployment.chainId,input.deployment.deploymentDigest,revision])).rows[0];
+ if(linked?.set_id!==set.id)throw Error('config publication set conflict');
 }

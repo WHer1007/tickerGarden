@@ -1,0 +1,358 @@
+{
+  "scope": "production read-only worker logs and selected EXPLAIN; local rank benchmark",
+  "slowEvents": [
+    {
+      "level": 40,
+      "time": "2026-09-20T12:36:47.093Z",
+      "service": "database",
+      "environment": "production",
+      "releaseCommit": "5e3af84f1f64a4fe93c35b1ecc7b2cec05181c80",
+      "durationMs": 1793.3711939999994,
+      "task": "stats.publish",
+      "queryId": "e99ec2af7a6c02ce",
+      "event": "database_slow_query"
+    },
+    {
+      "level": 40,
+      "time": "2026-09-20T12:37:23.129Z",
+      "service": "database",
+      "environment": "production",
+      "releaseCommit": "5e3af84f1f64a4fe93c35b1ecc7b2cec05181c80",
+      "durationMs": 708.9135970000061,
+      "task": "stats.publish",
+      "queryId": "e99ec2af7a6c02ce",
+      "event": "database_slow_query"
+    },
+    {
+      "level": 40,
+      "time": "2026-09-20T12:38:09.487Z",
+      "service": "database",
+      "environment": "production",
+      "releaseCommit": "5e3af84f1f64a4fe93c35b1ecc7b2cec05181c80",
+      "durationMs": 552.743902999995,
+      "task": "stats.publish",
+      "queryId": "e99ec2af7a6c02ce",
+      "event": "database_slow_query"
+    },
+    {
+      "level": 40,
+      "time": "2026-09-20T12:39:15.160Z",
+      "service": "database",
+      "environment": "production",
+      "releaseCommit": "5e3af84f1f64a4fe93c35b1ecc7b2cec05181c80",
+      "durationMs": 514.8695930000104,
+      "task": "stats.publish",
+      "queryId": "e99ec2af7a6c02ce",
+      "event": "database_slow_query"
+    },
+    {
+      "level": 40,
+      "time": "2026-09-20T12:40:09.296Z",
+      "service": "database",
+      "environment": "production",
+      "releaseCommit": "5e3af84f1f64a4fe93c35b1ecc7b2cec05181c80",
+      "durationMs": 658.773137000011,
+      "task": "stats.publish",
+      "queryId": "e99ec2af7a6c02ce",
+      "event": "database_slow_query"
+    },
+    {
+      "level": 40,
+      "time": "2026-09-20T12:59:40.502Z",
+      "service": "database",
+      "environment": "production",
+      "releaseCommit": "5e3af84f1f64a4fe93c35b1ecc7b2cec05181c80",
+      "durationMs": 554.8584729998838,
+      "task": "stats.publish",
+      "queryId": "e99ec2af7a6c02ce",
+      "event": "database_slow_query"
+    },
+    {
+      "level": 40,
+      "time": "2026-09-20T13:02:24.696Z",
+      "service": "database",
+      "environment": "production",
+      "releaseCommit": "5e3af84f1f64a4fe93c35b1ecc7b2cec05181c80",
+      "durationMs": 648.0690999999642,
+      "task": "stats.publish",
+      "queryId": "e99ec2af7a6c02ce",
+      "event": "database_slow_query"
+    },
+    {
+      "level": 40,
+      "time": "2026-09-20T13:08:30.688Z",
+      "service": "database",
+      "environment": "production",
+      "releaseCommit": "5e3af84f1f64a4fe93c35b1ecc7b2cec05181c80",
+      "durationMs": 795.2955069998279,
+      "task": "stats.publish",
+      "queryId": "e99ec2af7a6c02ce",
+      "event": "database_slow_query"
+    },
+    {
+      "level": 40,
+      "time": "2026-09-20T13:12:25.289Z",
+      "service": "database",
+      "environment": "production",
+      "releaseCommit": "5e3af84f1f64a4fe93c35b1ecc7b2cec05181c80",
+      "durationMs": 681.6485959999263,
+      "task": "stats.publish",
+      "queryId": "e99ec2af7a6c02ce",
+      "event": "database_slow_query"
+    },
+    {
+      "level": 40,
+      "time": "2026-09-20T13:17:21.001Z",
+      "service": "database",
+      "environment": "production",
+      "releaseCommit": "5e3af84f1f64a4fe93c35b1ecc7b2cec05181c80",
+      "durationMs": 530.6568570001982,
+      "task": "stats.publish",
+      "queryId": "e99ec2af7a6c02ce",
+      "event": "database_slow_query"
+    },
+    {
+      "level": 40,
+      "time": "2026-09-20T13:25:03.829Z",
+      "service": "database",
+      "environment": "production",
+      "releaseCommit": "5e3af84f1f64a4fe93c35b1ecc7b2cec05181c80",
+      "durationMs": 1102.9558820002712,
+      "task": "stats.publish",
+      "queryId": "e99ec2af7a6c02ce",
+      "event": "database_slow_query"
+    },
+    {
+      "level": 40,
+      "time": "2026-09-20T13:30:08.436Z",
+      "service": "database",
+      "environment": "production",
+      "releaseCommit": "5e3af84f1f64a4fe93c35b1ecc7b2cec05181c80",
+      "durationMs": 591.1431700000539,
+      "task": "stats.publish",
+      "queryId": "e99ec2af7a6c02ce",
+      "event": "database_slow_query"
+    }
+  ],
+  "productionConfigPlans": {
+    "old": {
+      "rowsReturned": 392,
+      "rowsScanned": 403368,
+      "rowsRemovedByJoinFilter": 402976,
+      "sharedHits": 4264,
+      "sharedReads": 58252,
+      "executionMs": 568.693
+    },
+    "revisionOnView": {
+      "executionMs": 222.331,
+      "scan": "Parallel Seq Scan"
+    },
+    "directOriginalTable": {
+      "executionMs": 0.729,
+      "sharedHits": 80,
+      "scan": "projection_records_pkey Index Scan"
+    }
+  },
+  "rejectedRankIndexExperiment": {
+    "scope": "local synthetic 50000 rank cursor, not production API SLA",
+    "before": {
+      "Plan": {
+        "Node Type": "Limit",
+        "Parallel Aware": false,
+        "Async Capable": false,
+        "Startup Cost": 2905.9,
+        "Total Cost": 2906,
+        "Plan Rows": 40,
+        "Plan Width": 75,
+        "Actual Startup Time": 11.27,
+        "Actual Total Time": 11.273,
+        "Actual Rows": 40,
+        "Actual Loops": 1,
+        "Shared Hit Blocks": 863,
+        "Shared Read Blocks": 0,
+        "Shared Dirtied Blocks": 0,
+        "Shared Written Blocks": 0,
+        "Local Hit Blocks": 0,
+        "Local Read Blocks": 0,
+        "Local Dirtied Blocks": 0,
+        "Local Written Blocks": 0,
+        "Temp Read Blocks": 0,
+        "Temp Written Blocks": 0,
+        "Plans": [
+          {
+            "Node Type": "Sort",
+            "Parent Relationship": "Outer",
+            "Parallel Aware": false,
+            "Async Capable": false,
+            "Startup Cost": 2905.9,
+            "Total Cost": 2968.61,
+            "Plan Rows": 25084,
+            "Plan Width": 75,
+            "Actual Startup Time": 11.269,
+            "Actual Total Time": 11.27,
+            "Actual Rows": 40,
+            "Actual Loops": 1,
+            "Sort Key": [
+              "rank",
+              "market_id"
+            ],
+            "Sort Method": "top-N heapsort",
+            "Sort Space Used": 36,
+            "Sort Space Type": "Memory",
+            "Shared Hit Blocks": 863,
+            "Shared Read Blocks": 0,
+            "Shared Dirtied Blocks": 0,
+            "Shared Written Blocks": 0,
+            "Local Hit Blocks": 0,
+            "Local Read Blocks": 0,
+            "Local Dirtied Blocks": 0,
+            "Local Written Blocks": 0,
+            "Temp Read Blocks": 0,
+            "Temp Written Blocks": 0,
+            "Plans": [
+              {
+                "Node Type": "Seq Scan",
+                "Parent Relationship": "Outer",
+                "Parallel Aware": false,
+                "Async Capable": false,
+                "Relation Name": "explore_cap_ranks",
+                "Alias": "explore_cap_ranks",
+                "Startup Cost": 0,
+                "Total Cost": 2113,
+                "Plan Rows": 25084,
+                "Plan Width": 75,
+                "Actual Startup Time": 0.007,
+                "Actual Total Time": 8.401,
+                "Actual Rows": 25001,
+                "Actual Loops": 1,
+                "Filter": "((environment = 'test'::text) AND (chain_id = 46630) AND (deployment_digest = 'digest'::text) AND (version = 'version'::text) AND (ROW(rank, market_id) > ROW(25000, ''::text)))",
+                "Rows Removed by Filter": 24999,
+                "Shared Hit Blocks": 863,
+                "Shared Read Blocks": 0,
+                "Shared Dirtied Blocks": 0,
+                "Shared Written Blocks": 0,
+                "Local Hit Blocks": 0,
+                "Local Read Blocks": 0,
+                "Local Dirtied Blocks": 0,
+                "Local Written Blocks": 0,
+                "Temp Read Blocks": 0,
+                "Temp Written Blocks": 0
+              }
+            ]
+          }
+        ]
+      },
+      "Planning": {
+        "Shared Hit Blocks": 7,
+        "Shared Read Blocks": 0,
+        "Shared Dirtied Blocks": 0,
+        "Shared Written Blocks": 0,
+        "Local Hit Blocks": 0,
+        "Local Read Blocks": 0,
+        "Local Dirtied Blocks": 0,
+        "Local Written Blocks": 0,
+        "Temp Read Blocks": 0,
+        "Temp Written Blocks": 0
+      },
+      "Planning Time": 0.077,
+      "Triggers": [],
+      "Execution Time": 11.285
+    },
+    "after": {
+      "Plan": {
+        "Node Type": "Limit",
+        "Parallel Aware": false,
+        "Async Capable": false,
+        "Startup Cost": 0.41,
+        "Total Cost": 9.23,
+        "Plan Rows": 40,
+        "Plan Width": 75,
+        "Actual Startup Time": 0.013,
+        "Actual Total Time": 0.023,
+        "Actual Rows": 40,
+        "Actual Loops": 1,
+        "Shared Hit Blocks": 6,
+        "Shared Read Blocks": 0,
+        "Shared Dirtied Blocks": 0,
+        "Shared Written Blocks": 0,
+        "Local Hit Blocks": 0,
+        "Local Read Blocks": 0,
+        "Local Dirtied Blocks": 0,
+        "Local Written Blocks": 0,
+        "Temp Read Blocks": 0,
+        "Temp Written Blocks": 0,
+        "Plans": [
+          {
+            "Node Type": "Index Only Scan",
+            "Parent Relationship": "Outer",
+            "Parallel Aware": false,
+            "Async Capable": false,
+            "Scan Direction": "Forward",
+            "Index Name": "explore_cap_rank_page",
+            "Relation Name": "explore_cap_ranks",
+            "Alias": "explore_cap_ranks",
+            "Startup Cost": 0.41,
+            "Total Cost": 5529.73,
+            "Plan Rows": 25084,
+            "Plan Width": 75,
+            "Actual Startup Time": 0.012,
+            "Actual Total Time": 0.021,
+            "Actual Rows": 40,
+            "Actual Loops": 1,
+            "Index Cond": "((environment = 'test'::text) AND (chain_id = 46630) AND (deployment_digest = 'digest'::text) AND (version = 'version'::text) AND (ROW(rank, market_id) > ROW(25000, ''::text)))",
+            "Rows Removed by Index Recheck": 0,
+            "Heap Fetches": 40,
+            "Shared Hit Blocks": 6,
+            "Shared Read Blocks": 0,
+            "Shared Dirtied Blocks": 0,
+            "Shared Written Blocks": 0,
+            "Local Hit Blocks": 0,
+            "Local Read Blocks": 0,
+            "Local Dirtied Blocks": 0,
+            "Local Written Blocks": 0,
+            "Temp Read Blocks": 0,
+            "Temp Written Blocks": 0
+          }
+        ]
+      },
+      "Planning": {
+        "Shared Hit Blocks": 46,
+        "Shared Read Blocks": 0,
+        "Shared Dirtied Blocks": 0,
+        "Shared Written Blocks": 0,
+        "Local Hit Blocks": 0,
+        "Local Read Blocks": 0,
+        "Local Dirtied Blocks": 0,
+        "Local Written Blocks": 0,
+        "Temp Read Blocks": 0,
+        "Temp Written Blocks": 0
+      },
+      "Planning Time": 0.215,
+      "Triggers": [],
+      "Execution Time": 0.04
+    },
+    "accepted": false,
+    "reason": "Actual Explore union query regressed past 5s at 20003 cards under fresh statistics. Index and query experiments reverted."
+  },
+  "finalExploreLocalSampleMs": {
+    "createdAt_desc": 31,
+    "createdAt_asc": 24,
+    "recentBuy_desc": 29,
+    "marketCapUsd_desc": 80,
+    "cards50": 7
+  },
+  "configQueryLocalSample": {
+    "configs": 392,
+    "publicationAnchors": 1000,
+    "statsNodeMs": 0.131,
+    "statsBuffers": 32,
+    "pageNodeMs": 0.12,
+    "pageBuffers": 34,
+    "anchorAndBlockRows": 1,
+    "anchorAndBlockLoops": 1
+  },
+  "acceptedQueryIds": {
+    "stats.current_configs": "598d7ef56785edf4",
+    "api.config_page": "0969509e9c5f67ef"
+  }
+}

@@ -165,7 +165,7 @@ async function readRankedMarketPage(input:Parameters<typeof readPublishedMarketP
  if(after&&!/^(0|[1-9][0-9]*)$/.test(after.sortKey))throw new PublicationChangedError('invalid ranking cursor position');
  let version='recent-buys-v2',updatedAt:string|null=null,stale=false;
  if(cap){
-  const snapshot=(await input.pool.query<{version:string;created_at:Date}>(`SELECT r.version,r.created_at FROM ${schema}.market_cap_snapshots r JOIN ${schema}.chain_blocks b ON b.environment=r.environment AND b.chain_id=r.chain_id AND b.deployment_digest=r.deployment_digest AND b.hash=r.block_hash WHERE r.environment=$1 AND r.chain_id=$2 AND r.deployment_digest=$3 AND ($4::text IS NULL OR r.version=$4) AND b.canonical AND b.finalized ORDER BY r.scheduled_at DESC,r.created_at DESC LIMIT 1`,[...id,after?.revision??null])).rows[0];
+  const snapshot=(await input.pool.query<{version:string;created_at:Date}>(`SELECT r.version,r.created_at FROM ${schema}.explore_cap_snapshots r WHERE r.environment=$1 AND r.chain_id=$2 AND r.deployment_digest=$3 AND ($4::text IS NOT NULL OR NOT r.legacy) AND ($4::text IS NULL OR r.version=$4) ORDER BY r.scheduled_at DESC,r.created_at DESC LIMIT 1`,[...id,after?.revision??null])).rows[0];
   if(!snapshot){if(after)throw new PublicationChangedError('ranking expired');throw new PublicationUnavailableError('market cap ranking is preparing');}
   version=snapshot.version;updatedAt=snapshot.created_at.toISOString();stale=Date.now()-snapshot.created_at.getTime()>25*60*1000;
  }
@@ -177,12 +177,12 @@ async function readRankedMarketPage(input:Parameters<typeof readPublishedMarketP
   : `SELECT m.payload FROM ${schema}.projection_records m WHERE m.environment=$1 AND m.chain_id=$2 AND m.deployment_digest=$3::${schema}.hash32 AND m.scope='markets' AND m.revision=$4 AND m.identity=b.market_id LIMIT 1`;
  const records=await input.pool.query<{market_id:string;sort_key:string;payload:Json}>(`SELECT b.market_id,${order}::text sort_key,
   ${cap?"r.payload || jsonb_build_object('metrics',b.metrics)":"r.payload || jsonb_build_object('lastBuy',b.payload)"} payload
-  FROM ${schema}.${cap?'market_cap_ranks':'market_latest_buys'} b
+  FROM ${schema}.${cap?'explore_cap_ranks':'market_latest_buys'} b
   JOIN LATERAL(${marketLookup}) r ON true
   WHERE b.environment=$1 AND b.chain_id=$2 AND b.deployment_digest=$3
   ${cap?'AND b.version=$5':'AND $5::text=\'recent-buys-v2\''}
   AND ($6::numeric IS NULL OR ${order}${cap?'>':'<'}$6 OR (${order}=$6 AND b.market_id>$7))
-  AND ($9::text IS NULL OR ${cap?'b.asset_uid':"r.payload->>'assetUid'"}=$9)
+  AND ($9::text IS NULL OR r.payload->>'assetUid'=$9)
   AND ($10::text IS NULL OR b.market_id=$10) AND ($11::text IS NULL OR r.payload->>'memeToken'=$11)
   AND ($12::int IS NULL OR (r.payload->>'launchPhase')::int=$12)
   AND ($16::boolean IS NULL OR (r.payload->>'gauge'<>'0x0000000000000000000000000000000000000000')=$16)
@@ -397,10 +397,11 @@ export async function readPublishedConfigPage(input: {
   const filterDigest = digest({ kind: input.kind });
   const after = input.cursor ? decodeCursor(input.cursor, { scope: 'configs', revision: publication.revision, filterDigest }, input.secret) : undefined;
   const records = await input.pool.query<{ identity: string; sort_key: string; payload: Json }>(
-    `SELECT r.identity,r.sort_key,r.payload FROM ${schema}.projection_read_records r
-     JOIN ${schema}.chain_blocks b ON b.environment=r.environment AND b.chain_id=r.chain_id AND b.deployment_digest=r.deployment_digest AND b.hash=$4
-     WHERE r.environment=$1 AND r.chain_id=$2 AND r.deployment_digest=$3 AND r.scope='configs' AND r.revision=$5
-       AND b.canonical AND b.finalized AND r.payload->>'kind'=$6
+    `SELECT r.identity,r.sort_key,c.payload FROM ${schema}.config_set_records r
+     JOIN ${schema}.config_contents c ON c.id=r.content_id
+     WHERE r.set_id=(SELECT set_id FROM ${schema}.config_publication_sets WHERE environment=$1 AND chain_id=$2 AND deployment_digest=$3 AND scope='configs' AND revision=$5)
+       AND EXISTS(SELECT 1 FROM ${schema}.chain_blocks b WHERE b.environment=$1 AND b.chain_id=$2 AND b.deployment_digest=$3 AND b.hash=$4 AND b.canonical AND b.finalized)
+       AND c.payload->>'kind'=$6
        AND ($7::text IS NULL OR (r.sort_key,r.identity)>($7,$8)) ORDER BY r.sort_key,r.identity LIMIT $9`,
     [input.deployment.environment, input.deployment.chainId, input.deployment.deploymentDigest, publication.blockHash,
       publication.revision, input.kind, after?.sortKey ?? null, after?.identity ?? null, limit + 1],

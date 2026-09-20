@@ -39,7 +39,7 @@ export async function readExplorePage(input:ExploreReadInput&{secret:string;quer
  const {s,id}=context(input);
  let version=sort,updatedAt:string|null=null;
  if(sort==='marketCapUsd_desc'){
-  const snapshot=(await input.pool.query<{version:string;created_at:Date|string}>(`SELECT version,created_at FROM ${s}.explore_cap_snapshots WHERE environment=$1 AND chain_id=$2 AND deployment_digest=$3 AND ($4::text IS NULL OR version=$4) ORDER BY scheduled_at DESC,created_at DESC LIMIT 1`,[...id,after?.revision??null])).rows[0];
+  const snapshot=(await input.pool.query<{version:string;created_at:Date|string}>(`SELECT version,created_at FROM ${s}.explore_cap_snapshots WHERE environment=$1 AND chain_id=$2 AND deployment_digest=$3 AND NOT legacy AND ($4::text IS NULL OR version=$4) ORDER BY scheduled_at DESC,created_at DESC LIMIT 1`,[...id,after?.revision??null])).rows[0];
   if(after&&!snapshot)throw new PublicationChangedError('ranking page changed');
   version=snapshot?.version??'pending';updatedAt=snapshot?new Date(snapshot.created_at).toISOString():null;
  }

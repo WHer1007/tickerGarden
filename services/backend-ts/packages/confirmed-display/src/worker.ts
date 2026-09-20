@@ -16,11 +16,11 @@ import {decodeF72Event} from '../../events/src/index.ts';
 import {observeF72Market,nextMarketActivation,type MarketCreation} from '../../market-projector/src/index.ts';
 import type {MarketReadModel,TokenDetailTrade} from '../../../openapi/generated/v1-client.ts';
 import type {EventObservation,TradeActivity} from '../../analytics/src/index.ts';
-import {applyDisplayEvents,emptyDisplayState,materializeDisplay,type DisplayState} from './state.ts';
+import {packDisplayState,unpackDisplayState,applyDisplayEvents,emptyDisplayState,materializeDisplay,type DisplayState} from './state.ts';
 export interface DisplayWorkerInput {pool:Pool;deployment:DeploymentIdentity;rpc:RpcTransport;schemaName?:string;eventDriven?:boolean;forceRecovery?:boolean;priceBatch?:PriceBatch;priceChanged?:boolean}
 export function displaySchema(name='tickergarden_serverless'){if(!/^[a-z][a-z0-9_]{0,62}$/.test(name))throw Error('Invalid display schema');return `"${name}"`;}
 export const displayIdentity=(d:DeploymentIdentity)=>[d.environment,d.chainId,d.deploymentDigest];
-type Cursor={block_number:string;block_hash:`0x${string}`;base_number:string;block_timestamp:string};
+type Cursor={block_number:string;block_hash:`0x${string}`;base_number:string;block_timestamp:string;stats_initialized?:boolean;stats_checked_at?:Date|null};
 /** Independent worker: no settlement queue, publication or reward tables are written. */
 export async function advanceConfirmedDisplay(input:DisplayWorkerInput):Promise<string>{
  return withDatabaseTask('confirmed-display-worker','display.advance',()=>advance(input));
@@ -49,12 +49,12 @@ async function advance(input:DisplayWorkerInput):Promise<string>{
   let cursor=(await client.query<Cursor>(`SELECT * FROM ${schema}.confirmed_display_cursor WHERE environment=$1 AND chain_id=$2 AND deployment_digest=$3`,id)).rows[0]!;
   const statsHead=(await client.query<{block_number:string;block_hash:string;generated_at:Date}>(`SELECT block_number::text,block_hash,generated_at FROM ${schema}.stats_display_snapshots WHERE environment=$1 AND chain_id=$2 AND deployment_digest=$3`,id)).rows[0];
   const eventCoverage=input.eventDriven?await initializeEventCoverage(client,d,cursor,input.schemaName):undefined;
-  if(BigInt(base.block_number)>BigInt(cursor.block_number)||(eventCoverage&&BigInt(eventCoverage.block_number)<BigInt(base.block_number))||(!statsHead&&cursor.block_number!==base.block_number)){
+  if(BigInt(base.block_number)>BigInt(cursor.block_number)||(eventCoverage&&BigInt(eventCoverage.block_number)<BigInt(base.block_number))||(!cursor.stats_initialized&&cursor.block_number!==base.block_number)){
    if((await rpc.block(BigInt(base.block_number))).hash!==base.block_hash)throw Error('Display baseline not canonical');
    await client.query('BEGIN');try{
     await client.query(`DELETE FROM ${schema}.confirmed_display_markets WHERE environment=$1 AND chain_id=$2 AND deployment_digest=$3`,id);
     await client.query(`DELETE FROM ${schema}.confirmed_display_journal WHERE environment=$1 AND chain_id=$2 AND deployment_digest=$3`,id);
-    await client.query(`UPDATE ${schema}.confirmed_display_cursor SET block_number=$4,base_number=$4,block_hash=$5,block_timestamp=$6,updated_at=now() WHERE environment=$1 AND chain_id=$2 AND deployment_digest=$3`,[...id,base.block_number,base.block_hash,base.block_timestamp]);if(input.eventDriven){await resetEventCoverage(client,d,base,input.schemaName);await commitEventCoverage(client,d,BigInt(base.block_number),base.block_hash,true,input.schemaName);}await client.query('COMMIT');cursor=base;if(!statsHead)return 'initialized:rebase';
+    await client.query(`UPDATE ${schema}.confirmed_display_cursor SET block_number=$4,base_number=$4,stats_initialized=false,block_hash=$5,block_timestamp=$6,updated_at=now() WHERE environment=$1 AND chain_id=$2 AND deployment_digest=$3`,[...id,base.block_number,base.block_hash,base.block_timestamp]);if(input.eventDriven){await resetEventCoverage(client,d,base,input.schemaName);await commitEventCoverage(client,d,BigInt(base.block_number),base.block_hash,true,input.schemaName);}await client.query('COMMIT');cursor=base;if(!statsHead)return 'initialized:rebase';
    }catch(e){await client.query('ROLLBACK');throw e;}
   }
   // Seed quiet, pre-existing markets before moving the shared display cursor.
@@ -67,7 +67,7 @@ async function advance(input:DisplayWorkerInput):Promise<string>{
     await client.query('BEGIN');try{
      await client.query(`DELETE FROM ${schema}.confirmed_display_markets WHERE environment=$1 AND chain_id=$2 AND deployment_digest=$3`,id);
      await client.query(`DELETE FROM ${schema}.confirmed_display_journal WHERE environment=$1 AND chain_id=$2 AND deployment_digest=$3`,id);
-     await client.query(`UPDATE ${schema}.confirmed_display_cursor SET block_number=$4,base_number=$4,block_hash=$5,block_timestamp=$6,updated_at=now() WHERE environment=$1 AND chain_id=$2 AND deployment_digest=$3`,[...id,base.block_number,base.block_hash,base.block_timestamp]);
+     await client.query(`UPDATE ${schema}.confirmed_display_cursor SET block_number=$4,base_number=$4,stats_initialized=false,block_hash=$5,block_timestamp=$6,updated_at=now() WHERE environment=$1 AND chain_id=$2 AND deployment_digest=$3`,[...id,base.block_number,base.block_hash,base.block_timestamp]);
      if(input.eventDriven){await resetEventCoverage(client,d,base,input.schemaName);await commitEventCoverage(client,d,BigInt(base.block_number),base.block_hash,true,input.schemaName);}
      await client.query('COMMIT');
     }catch(e){await client.query('ROLLBACK');throw e;}
@@ -87,12 +87,13 @@ async function advance(input:DisplayWorkerInput):Promise<string>{
    }catch(e){await client.query('ROLLBACK');throw e;}
    return `initialized:${missing.length}`;
   }
-  if(!statsHead||statsHead.block_number!==cursor.block_number||statsHead.block_hash!==cursor.block_hash){
+  if(!cursor.stats_initialized){
    if(cursor.block_number!==base.block_number)throw Error('Stats display cursor mismatch');
    await client.query('BEGIN ISOLATION LEVEL REPEATABLE READ');try{
     const block=await rpc.block(BigInt(cursor.block_number));if(block.hash!==cursor.block_hash)throw Error('Stats baseline changed');
     await seedStats(client,d,block,input.schemaName);
     await publishStatsDisplay(client,d,block,input.schemaName,priceBatch.now,priceBatch);
+    await client.query(`UPDATE ${schema}.confirmed_display_cursor SET stats_initialized=true,stats_checked_at=now() WHERE environment=$1 AND chain_id=$2 AND deployment_digest=$3`,id);
     await client.query('COMMIT');
    }catch(e){await client.query('ROLLBACK');throw e;}
   }
@@ -109,7 +110,7 @@ async function advance(input:DisplayWorkerInput):Promise<string>{
    await client.query('BEGIN');try{
     if(orphanHashes.length)await client.query(`UPDATE ${schema}.recent_markets SET canonical=false WHERE environment=$1 AND chain_id=$2 AND deployment_digest=$3 AND block_hash=ANY($4::text[])`,[...id,orphanHashes]);
     for(const market of Object.keys(entry.undo))await client.query('SELECT pg_notify($1,$2)',[changeChannel(d,input.schemaName),JSON.stringify({marketId:market,regions,revision:`reorg:${entry.previous_hash}`})]);
-    for(const [market,state]of Object.entries(entry.undo)){if(state)await saveState(client,schema,id,state);else await client.query(`DELETE FROM ${schema}.confirmed_display_markets WHERE environment=$1 AND chain_id=$2 AND deployment_digest=$3 AND market_id=$4`,[...id,market]);}
+    for(const [market,state]of Object.entries(entry.undo)){if(state)await saveState(client,schema,id,unpackDisplayState(state));else await client.query(`DELETE FROM ${schema}.confirmed_display_markets WHERE environment=$1 AND chain_id=$2 AND deployment_digest=$3 AND market_id=$4`,[...id,market]);}
     await undoStatsEvents(client,d,entry.previous_number,entry.stats_undo,input.schemaName);
     if(input.eventDriven)await resetEventCoverage(client,d,{block_number:entry.previous_number,block_hash:entry.previous_hash},input.schemaName);
     await client.query(`DELETE FROM ${schema}.confirmed_display_journal WHERE environment=$1 AND chain_id=$2 AND deployment_digest=$3 AND block_number=$4`,[...id,cursor.block_number]);
@@ -121,8 +122,8 @@ async function advance(input:DisplayWorkerInput):Promise<string>{
   if(eventPlan?.repairOnly)return 'catchup:coverage';
   await validateRecentDisplay(client,d,rpc,observedHead.number,input.schemaName);
   await publishExploreRanking(client,d,input.schemaName);
-  if(input.priceChanged||!statsHead||Date.now()-new Date(statsHead.generated_at).getTime()>=60_000){
-   await client.query('BEGIN');try{await publishStatsDisplay(client,d,{number:BigInt(cursor.block_number),hash:cursor.block_hash,parentHash:cursor.block_hash,timestamp:BigInt(cursor.block_timestamp)},input.schemaName,priceBatch.now,priceBatch);await client.query('COMMIT');}catch(e){await client.query('ROLLBACK');throw e;}
+  if(input.priceChanged||!cursor.stats_checked_at||Date.now()-new Date(cursor.stats_checked_at).getTime()>=60_000){
+   await client.query('BEGIN');try{await publishStatsDisplay(client,d,{number:BigInt(cursor.block_number),hash:cursor.block_hash,parentHash:cursor.block_hash,timestamp:BigInt(cursor.block_timestamp)},input.schemaName,priceBatch.now,priceBatch);await client.query(`UPDATE ${schema}.confirmed_display_cursor SET stats_checked_at=now() WHERE environment=$1 AND chain_id=$2 AND deployment_digest=$3`,id);await client.query('COMMIT');}catch(e){await client.query('ROLLBACK');throw e;}
   }
   const head=observedHead,from=BigInt(cursor.block_number)+1n;
   if(from>head.number){await client.query(`UPDATE ${schema}.confirmed_display_cursor SET updated_at=now() WHERE environment=$1 AND chain_id=$2 AND deployment_digest=$3`,id);return 'current';}
@@ -178,7 +179,7 @@ async function advance(input:DisplayWorkerInput):Promise<string>{
   for(const row of due){const c=creations.get(row.market_id as `0x${string}`);if(c)changed.set(row.market_id,c);}
   const undo:Record<string,DisplayState|null>={},next:DisplayState[]=[];
   for(const c of changed.values()){
-   const prior=(await client.query<{payload:DisplayState}>(`SELECT payload FROM ${schema}.confirmed_display_markets WHERE environment=$1 AND chain_id=$2 AND deployment_digest=$3 AND market_id=$4`,[...id,c.marketId])).rows[0]?.payload;
+   const prior=(await client.query<{payload:DisplayState}>(`SELECT ${schema}.display_state(m) payload FROM ${schema}.confirmed_display_markets m WHERE environment=$1 AND chain_id=$2 AND deployment_digest=$3 AND market_id=$4`,[...id,c.marketId])).rows[0]?.payload;
    undo[c.marketId]=prior??null;
    const market=await observeF72Market({creation:c,blockNumber:to,blockHash:anchor.hash,blockTimestamp:anchor.timestamp,primary:rpc,secondary:rpc,...(prior?{previous:prior.market}:{})}) as unknown as MarketReadModel;
    if(!market.display)throw Error('Confirmed market display state unavailable');
@@ -193,8 +194,7 @@ async function advance(input:DisplayWorkerInput):Promise<string>{
    if(input.eventDriven){await saveAppliedEvents(client,d,appliedLogs,input.schemaName);if(scanned)await commitEventCoverage(client,d,to,anchor.hash,to===head.number,input.schemaName,from);}
    const statsUndo=await applyStatsEvents(client,d,observations,next,input.schemaName);
    if(observations.length)await publishStatsDisplay(client,d,anchor,input.schemaName,priceBatch.now,priceBatch);
-   else await client.query(`UPDATE ${schema}.stats_display_snapshots SET block_number=$4,block_hash=$5 WHERE environment=$1 AND chain_id=$2 AND deployment_digest=$3`,[...id,to.toString(),anchor.hash]);
-   await client.query(`INSERT INTO ${schema}.confirmed_display_journal(environment,chain_id,deployment_digest,block_number,block_hash,previous_number,previous_hash,previous_timestamp,undo,stats_undo) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)`,[...id,to.toString(),anchor.hash,cursor.block_number,cursor.block_hash,cursor.block_timestamp,JSON.stringify(undo),JSON.stringify(statsUndo)]);
+   await client.query(`INSERT INTO ${schema}.confirmed_display_journal(environment,chain_id,deployment_digest,block_number,block_hash,previous_number,previous_hash,previous_timestamp,undo,stats_undo) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)`,[...id,to.toString(),anchor.hash,cursor.block_number,cursor.block_hash,cursor.block_timestamp,JSON.stringify(Object.fromEntries(Object.entries(undo).map(([key,state])=>[key,state?packDisplayState(state):null]))),JSON.stringify(statsUndo)]);
    await client.query(`UPDATE ${schema}.confirmed_display_cursor SET block_number=$4,block_hash=$5,block_timestamp=$6,updated_at=now() WHERE environment=$1 AND chain_id=$2 AND deployment_digest=$3`,[...id,to.toString(),anchor.hash,anchor.timestamp.toString()]);
    await client.query('COMMIT');
   }catch(e){await client.query('ROLLBACK');throw e;}
@@ -203,7 +203,7 @@ async function advance(input:DisplayWorkerInput):Promise<string>{
   const prune=safePrune<finalized.number?safePrune:finalized.number;
   await client.query(`DELETE FROM ${schema}.confirmed_display_journal WHERE environment=$1 AND chain_id=$2 AND deployment_digest=$3 AND block_number<=$4`,[...id,prune.toString()]);
   if(input.eventDriven)for(const table of ['display_event_inbox','display_event_applied'])await client.query(`DELETE FROM ${schema}.${table} WHERE environment=$1 AND chain_id=$2 AND deployment_digest=$3 AND block_number<=$4`,[...id,prune.toString()]);
-  if(input.priceChanged||!statsHead||Date.now()-new Date(statsHead.generated_at).getTime()>=60_000){
+  if(input.priceChanged||!cursor.stats_checked_at||Date.now()-new Date(cursor.stats_checked_at).getTime()>=60_000){
    await client.query(`DELETE FROM ${schema}.stats_display_flows WHERE environment=$1 AND chain_id=$2 AND deployment_digest=$3 AND block_number<=$4 AND occurred_at<$5`,[...id,finalized.number.toString(),Number(finalized.timestamp)-2*86400]);
    await client.query(`DELETE FROM ${schema}.stats_display_buckets WHERE environment=$1 AND chain_id=$2 AND deployment_digest=$3 AND minute<$4 AND amount=0`,[...id,Number(finalized.timestamp)-2*86400]);
   }
