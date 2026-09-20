@@ -6,6 +6,7 @@ import {RpcControlStore,RpcBudgetBusy,digest,type RpcTier,type RpcBudget} from '
 import type {RpcTransportOptions} from '../../chain/src/index.ts';
 const tiers=new AsyncLocalStorage<RpcTier>();
 export const withRpcTier=<T>(tier:RpcTier,run:()=>T):T=>tiers.run(tier,run);
+export const rpcControlPoolRole=(service:string)=>`${['read-api','pipeline','resident-worker','confirmed-display-worker'].includes(service)?service:'tooling'}-rpc-control`;
 export function providerName(url:string){const host=new URL(url).hostname;return host.endsWith('.quiknode.pro')?'quicknode':host.includes('alchemy')?'alchemy':'other';}
 export function usage(service:string,fields:Record<string,unknown>){try{console.info(JSON.stringify({...fields,event:'rpc_usage',service,time:new Date().toISOString()}));}catch{}}
 export function readBudgets(env:Readonly<Record<string,string|undefined>>):Record<string,RpcBudget>|undefined{
@@ -21,7 +22,7 @@ export function rpcRuntimeOptions(env:Readonly<Record<string,string|undefined>>,
  // Never borrow a connection held by the calling worker transaction/listener.
  // The extra one-connection pool must be included in the deployment DB budget.
  let controlPool:Pool|undefined;
- const control=()=>controlPool??=createDatabasePool(env.TG_RPC_CONTROL_DATABASE_URL??env.TG_PIPELINE_DATABASE_URL??env.TG_READ_DATABASE_URL??'',{max:1,connectionTimeoutMillis:1000},{role:'rpc-control',env}).pool;
+ const control=()=>controlPool??=createDatabasePool(env.TG_RPC_CONTROL_DATABASE_URL??env.TG_PIPELINE_DATABASE_URL??env.TG_READ_DATABASE_URL??'',{max:1,connectionTimeoutMillis:1000},{role:rpcControlPoolRole(service),env}).pool;
  const store=budgets?new RpcControlStore(control,env.TG_DATABASE_SCHEMA):undefined;
  const scope=[env.TG_ENVIRONMENT,env.TG_CHAIN_ID].join(':');
  let lastPrune=0;

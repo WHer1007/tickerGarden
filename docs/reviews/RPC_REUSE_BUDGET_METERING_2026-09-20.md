@@ -30,7 +30,7 @@ QuickNode 和 Alchemy 主网只读探测均确认支持按区块哈希的读取�
 - `permissionsSql` 为 Pipeline、Read API 赋予 RPC 协调表权限；无新资金表权限。
 - `displayRelayPermissionsSql` 给 Relay 源目录角色追加 inbox INSERT，继续保留既有目录读取权限。
 - RPC 缓存和租约是操作数据，按有效期清理，不用来删除奖励、交易审计或重组账本。
-- 每个使用共享控制的后端进程新增独立 **1 条连接**的 `rpc-control` pool，必须加入连接预算及角色上限（含 Vercel 最大实例、滚动实例）。不能借用已被 Worker 事务或 LISTEN 占用的连接池。
+- 每个使用共享控制的后端进程新增独立 **1 条连接**的独立协调 pool（`read-api-rpc-control`、`pipeline-rpc-control`、`resident-worker-rpc-control`、`confirmed-display-worker-rpc-control`；运维命令归入 `tooling-rpc-control`），必须加入连接预算及角色上限（含 Vercel 最大实例、滚动实例）。不能借用已被 Worker 事务或 LISTEN 占用的连接池。
 
 后端：
 

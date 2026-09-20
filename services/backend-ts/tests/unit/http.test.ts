@@ -1,6 +1,17 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { createServiceApp, readServiceConfig } from '../../packages/http/src/index.ts';
+import {rpcBudgetEndpoint} from '../../apps/read-api/src/rpc-budget.ts';
+
+test('private RPC budget POST reaches authentication without opening other read API mutations',async()=>{
+ const path='/v1/internal/rpc-budget';
+ const app=createServiceApp({kind:'read-api',env:{NODE_ENV:'test'},readApiPostPaths:[path]});
+ const handler=rpcBudgetEndpoint(()=>{throw Error('unauthorized request must not access database');},{});
+ app.post(path,c=>handler(c.req.raw));
+ assert.equal((await app.request(path,{method:'POST',body:'{}'})).status,403);
+ for(const other of ['/v1/markets',path+'/other',path+'/'])assert.equal((await app.request(other,{method:'POST'})).status,405);
+ for(const method of ['PUT','PATCH','DELETE'])assert.equal((await app.request(path,{method})).status,405);
+});
 
 test('liveness and readiness are separate', async () => {
   const app = createServiceApp({ kind: 'read-api', env: { NODE_ENV: 'test' }, requiredEnvironmentKeys: ['TG_READ_DATABASE_URL'] });
