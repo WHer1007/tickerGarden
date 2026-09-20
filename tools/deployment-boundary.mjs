@@ -26,7 +26,7 @@ function assertServiceIsolation(service, env) {
   // Vercel injects this public instrumentation setting into backend builds too.
   const keys = Object.keys(env).filter(key => ownedKey.test(key) && key !== 'VITE_VERCEL_OBSERVABILITY_CLIENT_CONFIG');
   const forbidden = service === 'web'
-    ? keys.filter(key => !key.startsWith('VITE_') && !['TG_PROFILE', 'TG_WEB_RPC_URL', 'TG_SOURCE_BRANCH'].includes(key))
+    ? keys.filter(key => !key.startsWith('VITE_') && !['TG_PROFILE', 'TG_WEB_RPC_URL', 'TG_WEB_RPC_FALLBACK_URL', 'TG_WEB_RPC_LOG_MAX_BLOCKS', 'TG_SOURCE_BRANCH'].includes(key))
     : service === 'read-api'
       ? keys.filter(key => key.startsWith('VITE_') || /^(?:TG_PIPELINE_|TG_CONTENT_|TG_CHAIN_JOB_|TG_RPC_|TG_SECONDARY_RPC_URL$|QSTASH_|PINATA_|CRON_SECRET$)/.test(key))
       : service === 'pipeline'
@@ -46,7 +46,9 @@ export function assertDeploymentBoundary(target, service, env, branch) {
   if (env.VITE_INTEGRATION_BOOTSTRAP) throw Error('Deployed environments cannot use the local integration bootstrap');
   for (const [key, value] of Object.entries(env)) if (ownedKey.test(key) && value && localReference.test(value)) throw Error(`Deployment variable contains a local reference: ${key}`);
   if(Object.keys(env).some(k=>/^VITE_(?:SENTRY_AUTH_TOKEN|LARK_|ALERT_INGEST_TOKEN)/.test(k)))throw Error('Observability secrets must not use the public VITE prefix');
+  if(Object.keys(env).some(k=>k.startsWith('QUICKNODE_')))throw Error('Raw QuickNode credentials are tooling-only; configure scoped RPC URLs');
   assertServiceIsolation(service, env);
+  for (const key of ['TG_WEB_RPC_FALLBACK_URL','TG_READ_RPC_FALLBACK_URL','TG_RPC_FALLBACK_URL']) if(env[key]) remoteUrl(env,key);
 
   if (service === 'web') {
     if (required(env, 'TG_PROFILE') !== policy.profile) throw Error('Web profile does not match deployment target');

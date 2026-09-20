@@ -20,3 +20,16 @@ export function rpcPolicy(env: RpcEnvironment) {
     independentProviders: mode === 'single' ? 1 : 2,
   } as const;
 }
+
+/** Failover is availability routing, never an independent verification source. */
+export function rpcFailoverOptions(env:RpcEnvironment, role:'pipeline'|'read-api'='pipeline') {
+  const fallbackUrl=role==='read-api'?env.TG_READ_RPC_FALLBACK_URL:env.TG_RPC_FALLBACK_URL;
+  const limit=role==='read-api'?env.TG_READ_RPC_LOG_MAX_BLOCKS:env.TG_RPC_LOG_MAX_BLOCKS;
+  const primaryLogMaxBlocks=limit?Number(limit):undefined;
+  if(primaryLogMaxBlocks!==undefined&&(!Number.isSafeInteger(primaryLogMaxBlocks)||primaryLogMaxBlocks<1))throw Error('Invalid RPC log range capability');
+  const limits=primaryLogMaxBlocks===undefined?{}:{primaryLogMaxBlocks};
+  if(!fallbackUrl)return limits;
+  const expectedChainId=Number(env.TG_CHAIN_ID);
+  if(!Number.isSafeInteger(expectedChainId)||expectedChainId<=0)throw Error('RPC fallback requires TG_CHAIN_ID');
+  return {fallbackUrl,expectedChainId,...limits};
+}

@@ -1,3 +1,4 @@
+import {rpcFailoverOptions} from '../packages/chain/src/rpc-policy.ts';
 import {reportError,installProcessDiagnostics,logEvent,flushErrors} from '../packages/observability/src/index.ts';
 import {refreshDisplayPreparation} from '../packages/confirmed-display/src/maintenance.ts';
 import type {PoolClient} from 'pg';
@@ -12,7 +13,7 @@ installProcessDiagnostics('confirmed-display-worker');
 const env=process.env;assertRuntimeEnvironment(env);
 function required(key:string){const value=env[key];if(!value)throw Error(`${key} is required`);return value;}
 const pool=createDatabasePool(required('TG_PIPELINE_DATABASE_URL'),{max:2},{role:'display-worker',env}).pool;
-const rpc=new RpcTransport({url:required('TG_RPC_URL'),observe:metric=>logEvent('confirmed-display-worker','info','rpc_call',metric as unknown as Record<string,unknown>)});
+const rpc=new RpcTransport({...rpcFailoverOptions(env),url:required('TG_RPC_URL'),observe:metric=>logEvent('confirmed-display-worker','info','rpc_call',metric as unknown as Record<string,unknown>)});
 await verifyChainIdentity(rpc,BigInt(CURRENT_CHAIN_ID),runtimeGenesisHash);
 const deployment={environment:env.TG_ENVIRONMENT as 'test'|'production',chainId:CURRENT_CHAIN_ID,deploymentDigest:runtimeReleaseId,activationBlock:runtimeActivationBlock};
 let stopped=false,lastSuccess=0,lastResult='starting';
