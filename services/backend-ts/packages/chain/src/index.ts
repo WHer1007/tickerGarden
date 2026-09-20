@@ -1,4 +1,7 @@
+import {rpcAttemptContext} from '../../rpc-control/src/attempt.ts';
+import {scanFilter,filterScan,type ScanFilter,type ScanRecord} from '../../rpc-control/src/scan.ts';
 import { createHash } from 'node:crypto';
+import {fixedBlockContext,fixedReadScope} from './read-context.ts';
 import type { Pool } from 'pg';
 import { keccak256 } from 'viem';
 import { transaction } from '../../db/src/index.ts';
@@ -89,10 +92,12 @@ export interface RpcTransportOptions {
   readonly nominalComputeUnits?: (method: string) => number | null;
   readonly computeUnitSchedule?: string;
   readonly observe?: (metric: RpcCallMetric) => void;
+  readonly sharedReads?: {share<T>(endpoint:string,key:string,run:()=>Promise<T>,ttl:number):Promise<{value:T;reused:boolean}>;findScan(endpoint:string,filter:ScanFilter):Promise<ScanRecord|undefined>;saveScan(endpoint:string,filter:ScanFilter,hash:string,value:Record<string,unknown>[]):Promise<void>;get(endpoint:string,key:string):Promise<unknown|undefined>;put(endpoint:string,key:string,value:unknown,ttlMs:number):Promise<void>};
 }
 
 export interface RpcCallMetric {
   readonly event: 'rpc_call';
+  readonly reuse?: 'context'|'shared'|'coalesced';
   readonly provider: string;
   readonly method: string;
   readonly attempt: number;
@@ -115,7 +120,7 @@ async function verifyEndpointChain(fetcher:typeof fetch,url:string,chainId:numbe
   let entries=endpointChecks.get(fetcher);if(!entries){entries=new Map();endpointChecks.set(fetcher,entries);}
   const key=JSON.stringify([url,chainId]);const prior=entries.get(key);if(prior&&prior.until>Date.now())return prior.pending;
   const pending=(async()=>{
-    const response=await fetcher(url,{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({jsonrpc:'2.0',id:0,method:'eth_chainId',params:[]}),redirect:'error',signal:AbortSignal.timeout(timeout)});
+    const response=await rpcAttemptContext.run({attempt:1,failover:false,purpose:'identity'},()=>fetcher(url,{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({jsonrpc:'2.0',id:0,method:'eth_chainId',params:[]}),redirect:'error',signal:AbortSignal.timeout(timeout)}));
     if(!response.ok)throw new RpcError('RPC identity request unavailable',true);
     const text=await response.text();if(text.length>4096)throw new RpcError('Invalid RPC chain identity');
     let b;try{b=JSON.parse(text);}catch{throw new RpcError('Invalid RPC chain identity');}
@@ -136,6 +141,7 @@ export class RpcTransport {
   readonly #nominalComputeUnits: ((method: string) => number | null) | undefined;
   readonly #computeUnitSchedule: string | undefined;
   readonly #observe: ((metric: RpcCallMetric) => void) | undefined;
+  readonly #sharedReads: RpcTransportOptions['sharedReads'];
   #requestId = 0;
 
   constructor(options: RpcTransportOptions) {
@@ -160,6 +166,7 @@ export class RpcTransport {
     this.#nominalComputeUnits = options.nominalComputeUnits;
     this.#computeUnitSchedule = options.computeUnitSchedule;
     this.#observe = options.observe;
+    this.#sharedReads = options.sharedReads;
   }
 
   sameSource(other: RpcTransport): boolean { return this === other || (this.#url === other.#url && this.#fallbackUrl === other.#fallbackUrl && this.#expectedChainId === other.#expectedChainId && this.#primaryLogMaxBlocks === other.#primaryLogMaxBlocks && this.#fetch === other.#fetch); }
@@ -167,14 +174,52 @@ export class RpcTransport {
   async call<TResult>(method: string, params: readonly unknown[]): Promise<TResult> {
     let pending = inFlightReads.get(this.#fetch);
     if (!pending) { pending = new Map(); inFlightReads.set(this.#fetch, pending); }
-    const key = JSON.stringify([this.#url, this.#fallbackUrl, this.#expectedChainId, this.#primaryLogMaxBlocks, this.#timeoutMs, this.#maxResponseBytes, method, params]);
-    const existing = pending.get(key); if (existing) return existing as Promise<TResult>;
-    const result = this.#perform<TResult>(method, params);
+    const scope=fixedReadScope(method,params);
+    const key = JSON.stringify([scope?.hash,this.#url, this.#fallbackUrl, this.#expectedChainId, this.#primaryLogMaxBlocks, this.#timeoutMs, this.#maxResponseBytes, method, params]);
+    const contextKey=scope?`${scope.hash}:${key}`:undefined;
+    const local=contextKey?scope!.reads.get(contextKey):undefined;
+    if(local){this.#reuse(method,'context');return local as Promise<TResult>;}
+    const existing = pending.get(key); if (existing){this.#reuse(method,'coalesced');return existing as Promise<TResult>;}
+    const result = (async()=>{
+      // Only hash-bound reads persist. Receipts are shared briefly, never null,
+      // and callers still independently validate canonicality and finality.
+      const cacheKey=contextKey??(['eth_getTransactionReceipt','eth_getTransactionByHash'].includes(method)?key:undefined);
+      const digest=cacheKey?createHash('sha256').update(cacheKey).digest('hex'):undefined;
+      if(digest&&this.#sharedReads){const hit=await this.#sharedReads.get(this.#url,digest);if(hit!==undefined){this.#reuse(method,'shared');return hit as TResult;}}
+      if(digest&&this.#sharedReads&&!scope){
+        const shared=await this.#sharedReads.share(this.#url,digest,()=>this.#perform<TResult>(method,params),500);
+        if(shared.reused)this.#reuse(method,'shared');return shared.value;
+      }
+      const f=this.#sharedReads?scanFilter(method,params):undefined;
+      if(f){
+        const prior=await this.#sharedReads!.findScan(this.#url,f);
+        if(prior&&(await this.block(BigInt(prior.to_block))).hash===prior.block_hash){this.#reuse(method,'shared');return filterScan(prior.payload,f) as TResult;}
+        const anchor=await this.block(f.to);
+        const value=await this.#perform<Record<string,unknown>[]>(method,params);
+        if(!Array.isArray(value)||(await this.block(f.to)).hash!==anchor.hash)throw new RpcError('Shared scan anchor changed');
+        if(value.some(raw=>{const log=parseLog(raw);return log.removed||log.blockNumber<f.from||log.blockNumber>f.to;}))throw new RpcError('Shared scan range mismatch');
+        await this.#sharedReads!.saveScan(this.#url,f,anchor.hash,value);
+        return value as TResult;
+      }
+      const wireParams=scope?[params[0],{blockHash:scope.hash,requireCanonical:true}]:params;
+      const value=await this.#perform<TResult>(method, wireParams);
+      if(digest&&this.#sharedReads&&value!==null){const write=()=>this.#sharedReads!.put(this.#url,digest,value,contextKey?300000:500);if(scope)scope.writes.push(write);else await write();}
+      return value;
+    })();
+    if(contextKey&&scope!.reads.size<2048){scope!.reads.set(contextKey,result);void result.catch(()=>scope!.reads.delete(contextKey));}
     if (pending.size < 512) {
       pending.set(key, result);
       void result.finally(() => { if (pending!.get(key) === result) pending!.delete(key); }).catch(() => {});
     }
     return result;
+  }
+
+  #reuse(method:string,reuse:NonNullable<RpcCallMetric['reuse']>){this.#emit({event:'rpc_call',provider:this.#provider,method,attempt:0,outcome:'succeeded',durationMs:0,requestBytes:0,responseBytes:0,retryable:false,nominalComputeUnits:0,computeUnitSchedule:null,reuse});}
+
+  /** Fresh boundary reads deliberately bypass completed/context caches. */
+  async atBlock<T>(number:bigint,hash:string,run:()=>Promise<T>):Promise<T>{
+    if((await this.block(number)).hash!==hash)throw new RpcError('Fixed RPC block changed');
+    return fixedBlockContext(number,hash,run,async()=>{if((await this.block(number)).hash!==hash)throw new RpcError('Fixed RPC block changed');});
   }
 
   async #perform<TResult>(method: string, params: readonly unknown[]): Promise<TResult> {
@@ -195,11 +240,11 @@ export class RpcTransport {
       try {
         const endpoint = attempt === 1 && this.#fallbackUrl ? this.#fallbackUrl : this.#url;
         if (this.#fallbackUrl) await verifyEndpointChain(this.#fetch, endpoint, this.#expectedChainId!, Math.min(this.#timeoutMs,2000));
-        const response = await this.#fetch(endpoint, {
+        const response = await rpcAttemptContext.run({attempt:attempt+1,failover:attempt===1&&!!this.#fallbackUrl,purpose:'read'},()=>this.#fetch(endpoint, {
           method: 'POST', headers: { 'content-type': 'application/json' },
           body: requestBody, redirect: 'error',
           signal: AbortSignal.timeout(this.#timeoutMs),
-        });
+        }));
         const declaredLength = Number(response.headers.get('content-length') ?? '0');
         if (declaredLength > this.#maxResponseBytes) throw new RpcError('RPC response exceeds size limit');
         const bytes = Buffer.from(await response.arrayBuffer());
@@ -216,8 +261,9 @@ export class RpcTransport {
         if(attempt===0)cooldowns.delete(routeKey);
         return body.result as TResult;
       } catch (error) {
-        lastError = error;
-        const retryable = error instanceof RpcError ? error.retryable : true;
+        const normalized=error instanceof Error&&error.message==='RPC response exceeds size limit'?new RpcError(error.message):error;
+        lastError = normalized;
+        const retryable = normalized instanceof RpcError ? normalized.retryable : (normalized as {name?:string})?.name!=='RpcBudgetBusy';
         this.#emit({ event: 'rpc_call', provider: attempt === 1 && this.#fallbackUrl ? 'fallback' : this.#provider, method, attempt: attempt + 1, outcome: 'failed',
           durationMs: elapsed(started), requestBytes: Buffer.byteLength(requestBody), responseBytes, retryable,
           nominalComputeUnits: this.#fallbackUrl || this.#provider.startsWith('quicknode') ? null : this.#nominalComputeUnits?.(method) ?? null, computeUnitSchedule: this.#fallbackUrl || this.#provider.startsWith('quicknode') ? null : this.#computeUnitSchedule ?? null });

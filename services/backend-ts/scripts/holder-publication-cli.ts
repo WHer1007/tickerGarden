@@ -1,3 +1,4 @@
+import {rpcRuntimeOptions} from '../packages/rpc-control/src/runtime.ts';
 import {rpcFailoverOptions} from '../packages/chain/src/rpc-policy.ts';
 import {rpcPolicy} from '../packages/chain/src/rpc-policy.ts';
 import {CURRENT_CHAIN_ID} from '../packages/runtime-deployment/src/index.ts';
@@ -57,7 +58,8 @@ export async function runHolderPublicationCommand(command:string,args:string[]){
    }
    const {pool}=createDatabasePool(process.env.TG_PIPELINE_DATABASE_URL??'');
    try{
-    const options={pool,deployment:{environment:process.env.TG_ENVIRONMENT as 'test'|'production',chainId:CURRENT_CHAIN_ID, deploymentDigest:CURRENT_RELEASE_ID,activationBlock:CURRENT_ACTIVATION_BLOCK},primary:new PublicationRpcTransport({...rpcFailoverOptions(process.env),url:process.env.TG_RPC_URL??''}),secondary:new PublicationRpcTransport({...(rpcPolicy(process.env).mode==='single'?rpcFailoverOptions(process.env):{}),url:rpcPolicy(process.env).verificationUrl??''}),...(process.env.TG_DATABASE_SCHEMA?{schemaName:process.env.TG_DATABASE_SCHEMA}:{})};
+ const rpcRuntime=rpcRuntimeOptions(process.env,'holder-publication','background');
+    const options={pool,deployment:{environment:process.env.TG_ENVIRONMENT as 'test'|'production',chainId:CURRENT_CHAIN_ID, deploymentDigest:CURRENT_RELEASE_ID,activationBlock:CURRENT_ACTIVATION_BLOCK},primary:new PublicationRpcTransport({...rpcRuntime,...rpcFailoverOptions(process.env),url:process.env.TG_RPC_URL??''}),secondary:new PublicationRpcTransport({...rpcRuntime,...(rpcPolicy(process.env).mode==='single'?rpcFailoverOptions(process.env):{}),url:rpcPolicy(process.env).verificationUrl??''}),...(process.env.TG_DATABASE_SCHEMA?{schemaName:process.env.TG_DATABASE_SCHEMA}:{})};
     const d={options,policy,journal,save};
     const coordination=process.env.TG_SIGNER_COORDINATION_DIR;if(!coordination)throw Error('Configure TG_SIGNER_COORDINATION_DIR shared with Locker Keeper');
     const result=await withSignerLane(coordination,identity.chainId,identity.publisher,'holder',()=>command==='publish'?publishSnapshotOnce(d,dataset,signer!):reconcilePublication(d,dataset),()=>journal.pending!==null);

@@ -1,4 +1,6 @@
+import {budgetedRpcFetch} from '../server/rpc-budget.ts';
 import {webRequestId,reportWebError} from '../server/diagnostics.ts';
+import {rpcAttempt,rpcBytes,rpcTelemetry,rpcProvider} from '../server/rpc-meter.ts';
 const ALLOWED_METHODS = new Set([
   'eth_blockNumber',
   'eth_call',
@@ -37,7 +39,7 @@ function admit(state:ProxyState,ip:string,cost:number):boolean{
  for(const key of [ip,'*']){const b=state.buckets.get(key)??{at:now,count:0};b.count+=cost;state.buckets.set(key,b);}return true;
 }
 async function share<T>(state:ProxyState,key:string,read:()=>Promise<T>):Promise<T>{
- const existing=state.pending.get(key);if(existing)return existing as Promise<T>;
+ const existing=state.pending.get(key);if(existing){rpcTelemetry('web_rpc_coalesced',{count:1});return existing as Promise<T>;}
  if(state.active>=32)throw Error('capacity');
  state.active++;const pending=read();state.pending.set(key,pending);
  try{return await pending;}finally{state.active--;state.pending.delete(key);}
@@ -126,10 +128,10 @@ export async function proxyReadRpc(request:Request,environment:RpcEnvironment,fe
   async function fallbackChainMatches():Promise<boolean>{
    if(!fallback)return false;
    const cached=state.fallbackChains.get(fallback);if(cached&&cached.expiresAt>Date.now())return cached.promise;
-   const promise=fetcher(fallback,{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({jsonrpc:'2.0',id:1,method:'eth_chainId',params:[]}),redirect:'error',signal:AbortSignal.timeout(4000)}).then(async r=>{
-    if(!r.ok)return false;const text=await r.text();if(new TextEncoder().encode(text).byteLength>1024)return false;
-    const b=JSON.parse(text);return b.jsonrpc==='2.0'&&b.id===1&&typeof b.result==='string'&&/^0x[0-9a-f]+$/i.test(b.result)&&BigInt(b.result)===BigInt(environment.VITE_V1_CHAIN_ID??'0');
-   }).catch(()=>false);
+   const promise=(async()=>{const started=performance.now(),requestBody=JSON.stringify({jsonrpc:'2.0',id:1,method:'eth_chainId',params:[]});let bytes=0,status:number|undefined;try{
+    const r=await budgetedRpcFetch(fetcher,environment,fallback,{method:'POST',headers:{'content-type':'application/json'},body:requestBody,redirect:'error',signal:AbortSignal.timeout(4000)});status=r.status;const text=await r.text();bytes=rpcBytes(text);if(!r.ok||bytes>1024){rpcAttempt('eth_chainId','fallback',started,rpcBytes(requestBody),bytes,'failed',status,rpcProvider(fallback!));return false;}
+    const b=JSON.parse(text);const matches=b.jsonrpc==='2.0'&&b.id===1&&typeof b.result==='string'&&/^0x[0-9a-f]+$/i.test(b.result)&&BigInt(b.result)===BigInt(environment.VITE_V1_CHAIN_ID??'0');rpcAttempt('eth_chainId','fallback',started,rpcBytes(requestBody),bytes,matches?'succeeded':'failed',status,rpcProvider(fallback!));return matches;
+   }catch(error){if((error as {name?:string}).name==='RpcBudgetBusy'){rpcTelemetry('web_rpc_budget_denied',{method:'eth_chainId',role:'fallback'});throw error;}rpcAttempt('eth_chainId','fallback',started,rpcBytes(requestBody),bytes,'failed',status,rpcProvider(fallback!));return false;}})();
    state.fallbackChains.set(fallback,{expiresAt:Date.now()+30000,promise});
    return promise;
   }
@@ -137,20 +139,21 @@ export async function proxyReadRpc(request:Request,environment:RpcEnvironment,fe
    const forceFallback=logCap!==null&&logRangeExceedsCap(c,logCap);
    const key=JSON.stringify([c.method,c.params??[]]);
    const body=await share(state,key,async()=>{
-    const send=async(url:string)=>{
-     let r:Response;try{r=await fetcher(url,{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({...c,id:1}),redirect:'error',signal:AbortSignal.timeout(4000)});}catch{return {retryable:true,error:new Error('upstream unavailable')};}
-     if(!r.ok){const retryable=[401,403,408,429].includes(r.status)||r.status>=500;if(!retryable)throw Error('upstream unavailable');return {retryable,error:new Error('upstream unavailable')};}
-     let b:any;try{const text=await r.text();if(new TextEncoder().encode(text).byteLength>MAX_RESPONSE_BYTES)throw Error('response too large');b=JSON.parse(text);}catch{return {retryable:true,error:new Error('invalid response')};}
-     if(b.jsonrpc!=='2.0'||b.id!==1||(!('result' in b)&&!b.error))return {retryable:true,error:new Error('invalid response')};
+    const send=async(url:string,attempt=1)=>{
+     const started=performance.now(),requestBody=JSON.stringify({...c,id:1}),role=url===upstream?'primary':'fallback';let r:Response;try{r=await budgetedRpcFetch(fetcher,environment,url,{method:'POST',headers:{'content-type':'application/json'},body:requestBody,redirect:'error',signal:AbortSignal.timeout(4000)});}catch(error){if((error as {name?:string}).name==='RpcBudgetBusy'){rpcTelemetry('web_rpc_budget_denied',{method:c.method,role});throw error;}rpcAttempt(c.method,role,started,rpcBytes(requestBody),0,'failed',undefined,rpcProvider(url),attempt);return {retryable:true,error:new Error('upstream unavailable')};}
+     if(!r.ok){let responseBytes=0;try{responseBytes=rpcBytes(await r.text());}catch{}const retryable=[401,403,408,429].includes(r.status)||r.status>=500;rpcAttempt(c.method,role,started,rpcBytes(requestBody),responseBytes,'failed',r.status,rpcProvider(url),attempt);if(!retryable)throw Error('upstream unavailable');return {retryable,error:new Error('upstream unavailable')};}
+     let b:any,text='';try{text=await r.text();if(rpcBytes(text)>MAX_RESPONSE_BYTES)throw Error('response too large');b=JSON.parse(text);}catch{rpcAttempt(c.method,role,started,rpcBytes(requestBody),rpcBytes(text),'failed',r.status,rpcProvider(url),attempt);return {retryable:true,error:new Error('invalid response')};}
+     if(b.jsonrpc!=='2.0'||b.id!==1||(!('result' in b)&&!b.error)){rpcAttempt(c.method,role,started,rpcBytes(requestBody),rpcBytes(text),'failed',r.status,rpcProvider(url),attempt);return {retryable:true,error:new Error('invalid response')};}
      const code=(b.error as {code?:unknown}|undefined)?.code;
-     return {body:b,retryable:code===-32603||code===-32005};
+     const retryable=code===-32603||code===-32005;rpcAttempt(c.method,role,started,rpcBytes(requestBody),rpcBytes(text),b.error?'failed':'succeeded',r.status,rpcProvider(url),attempt);
+     return {body:b,retryable};
     };
     if(forceFallback){if(!(await fallbackChainMatches()))throw Error('fallback unavailable');const secondary=await send(fallback!);if(secondary.retryable)throw Error('fallback unavailable');return secondary.body;}
     if(fallback&&state.primaryCooldownUntil>Date.now()){
      if(!(await fallbackChainMatches()))throw Error('fallback unavailable');const secondary=await send(fallback);if(secondary.retryable)throw Error('fallback unavailable');return secondary.body;
     }
     const primary=await send(upstream);
-    if(primary.retryable){state.primaryCooldownUntil=Date.now()+30000;if(!fallback)throw primary.error??Error('upstream unavailable');if(!(await fallbackChainMatches()))throw Error('fallback unavailable');const secondary=await send(fallback);if(secondary.retryable)throw Error('fallback unavailable');return secondary.body;}
+    if(primary.retryable){state.primaryCooldownUntil=Date.now()+30000;if(!fallback)throw primary.error??Error('upstream unavailable');if(!(await fallbackChainMatches()))throw Error('fallback unavailable');const secondary=await send(fallback,2);if(secondary.retryable)throw Error('fallback unavailable');return secondary.body;}
     state.primaryCooldownUntil=0;
     return primary.body;
    }) as {jsonrpc:string;id:number;result?:unknown;error?:unknown};
@@ -202,6 +205,7 @@ function rpcUrl(value: string | undefined): string | null {
 }
 
 function json(value: unknown, status: number, headers: Record<string, string>): Response {
+  rpcTelemetry('web_rpc_proxy_response',{status});
   return new Response(JSON.stringify(value), { status, headers });
 }
 

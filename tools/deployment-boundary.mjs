@@ -26,9 +26,9 @@ function assertServiceIsolation(service, env) {
   // Vercel injects this public instrumentation setting into backend builds too.
   const keys = Object.keys(env).filter(key => ownedKey.test(key) && key !== 'VITE_VERCEL_OBSERVABILITY_CLIENT_CONFIG');
   const forbidden = service === 'web'
-    ? keys.filter(key => !key.startsWith('VITE_') && !['TG_PROFILE', 'TG_WEB_RPC_URL', 'TG_WEB_RPC_FALLBACK_URL', 'TG_WEB_RPC_LOG_MAX_BLOCKS', 'TG_SOURCE_BRANCH'].includes(key))
+    ? keys.filter(key => !key.startsWith('VITE_') && !['TG_PROFILE', 'TG_WEB_RPC_URL', 'TG_WEB_RPC_FALLBACK_URL', 'TG_WEB_RPC_LOG_MAX_BLOCKS', 'TG_SOURCE_BRANCH', 'TG_RPC_CONTROL_ENABLED', 'TG_RPC_BUDGET_URL', 'TG_RPC_BUDGET_TOKEN'].includes(key))
     : service === 'read-api'
-      ? keys.filter(key => key.startsWith('VITE_') || /^(?:TG_PIPELINE_|TG_CONTENT_|TG_CHAIN_JOB_|TG_RPC_|TG_SECONDARY_RPC_URL$|QSTASH_|PINATA_|CRON_SECRET$)/.test(key))
+      ? keys.filter(key => key.startsWith('VITE_') || !['TG_RPC_CONTROL_ENABLED','TG_RPC_CONTROL_DATABASE_URL','TG_RPC_BUDGETS_JSON','TG_RPC_BUDGET_TOKEN'].includes(key) && /^(?:TG_PIPELINE_|TG_CONTENT_|TG_CHAIN_JOB_|TG_RPC_|TG_SECONDARY_RPC_URL$|QSTASH_|PINATA_|CRON_SECRET$)/.test(key))
       : service === 'pipeline'
         ? keys.filter(key => key.startsWith('VITE_') || /^(?:TG_CONTENT_|PINATA_)/.test(key))
         : keys.filter(key => key.startsWith('VITE_') || /^(?:TG_PIPELINE_|TG_CHAIN_JOB_|TG_RPC_|TG_SECONDARY_RPC_URL$|QSTASH_CHAIN_TOKEN$)/.test(key));
@@ -45,11 +45,17 @@ export function assertDeploymentBoundary(target, service, env, branch) {
   if (env.VERCEL_TARGET_ENV && env.VERCEL_TARGET_ENV !== policy.vercelEnvironment) throw Error(`${target} deployment has the wrong Vercel target`);
   if (env.VITE_INTEGRATION_BOOTSTRAP) throw Error('Deployed environments cannot use the local integration bootstrap');
   for (const [key, value] of Object.entries(env)) if (ownedKey.test(key) && value && localReference.test(value)) throw Error(`Deployment variable contains a local reference: ${key}`);
-  if(Object.keys(env).some(k=>/^VITE_(?:SENTRY_AUTH_TOKEN|LARK_|ALERT_INGEST_TOKEN)/.test(k)))throw Error('Observability secrets must not use the public VITE prefix');
+  if(Object.keys(env).some(k=>/^VITE_(?:SENTRY_AUTH_TOKEN|LARK_|ALERT_INGEST_TOKEN|RPC_BUDGET_|RPC_CONTROL_)/.test(k)))throw Error('Observability secrets must not use the public VITE prefix');
   if(Object.keys(env).some(k=>k.startsWith('QUICKNODE_')))throw Error('Raw QuickNode credentials are tooling-only; configure scoped RPC URLs');
   assertServiceIsolation(service, env);
   for (const key of ['TG_WEB_RPC_FALLBACK_URL','TG_READ_RPC_FALLBACK_URL','TG_RPC_FALLBACK_URL']) if(env[key]) remoteUrl(env,key);
 
+  if(env.TG_RPC_CONTROL_ENABLED==='true'){
+    if(['web','read-api'].includes(service)&&(!env.TG_RPC_BUDGET_TOKEN||env.TG_RPC_BUDGET_TOKEN.length<32))throw Error('RPC control requires a private budget token');
+    if(service==='web')remoteUrl(env,'TG_RPC_BUDGET_URL');
+    if(['read-api','pipeline'].includes(service)&&!env.TG_RPC_BUDGETS_JSON)throw Error('RPC control requires provider budgets');
+    if(env.TG_RPC_CONTROL_DATABASE_URL)remoteUrl(env,'TG_RPC_CONTROL_DATABASE_URL',['postgres:','postgresql:']);
+  }
   if (service === 'web') {
     if (required(env, 'TG_PROFILE') !== policy.profile) throw Error('Web profile does not match deployment target');
     if (required(env, 'VITE_V1_CHAIN_ID') !== policy.chainId) throw Error('Web chain does not match deployment target');

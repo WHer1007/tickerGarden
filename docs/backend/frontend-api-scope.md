@@ -138,3 +138,7 @@ Migration `0021_stats_display` must be applied before the updated worker/API. On
 `GET /v1/staker-reward-summary?marketId=…&account=…` reads a stored, wallet-isolated finalized summary. `claimed` and `earned` share `throughBlock` and `revision`. It never calls RPC or adds a latest wallet preview to older history. Responses are `no-store`; transient failures retain the last same-wallet/market values in the client. Unknown coverage returns 503; a proven empty wallet history returns empty amount maps only after the summary checkpoint completes.
 
 `GET /v1/explore?stakingEnabled=true` supplies the Stake selector from confirmed display tables. This display directory is independent of finalized wallet settlement publications; writes still verify canonical contracts and current wallet state.
+
+### Server-only RPC coordination
+
+`POST /v1/internal/rpc-budget` is an authenticated server-to-server acquire/release endpoint. It is not a browser API and grants no RPC execution or financial permissions. Requires a private bearer token (minimum 32 characters), configured per-provider budgets and migration 0027. Replies: acquire `{id}`; release `{ok:true}`; 400 invalid input, 403 unauthorized/disabled, 429 exhausted budget, 503 coordination unavailable. Web and Relay keep the token server-side.

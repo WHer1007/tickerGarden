@@ -1,3 +1,4 @@
+import {rpcRuntimeOptions,withRpcTier} from '../packages/rpc-control/src/runtime.ts';
 import {rpcFailoverOptions} from '../packages/chain/src/rpc-policy.ts';
 import {reportError,installProcessDiagnostics,logEvent,flushErrors} from '../packages/observability/src/index.ts';
 import {refreshDisplayPreparation} from '../packages/confirmed-display/src/maintenance.ts';
@@ -13,16 +14,17 @@ installProcessDiagnostics('confirmed-display-worker');
 const env=process.env;assertRuntimeEnvironment(env);
 function required(key:string){const value=env[key];if(!value)throw Error(`${key} is required`);return value;}
 const pool=createDatabasePool(required('TG_PIPELINE_DATABASE_URL'),{max:2},{role:'display-worker',env}).pool;
-const rpc=new RpcTransport({...rpcFailoverOptions(env),url:required('TG_RPC_URL'),observe:metric=>logEvent('confirmed-display-worker','info','rpc_call',metric as unknown as Record<string,unknown>)});
+const rpcRuntime=rpcRuntimeOptions(env,'confirmed-display-worker','realtime');
+const rpc=new RpcTransport({...rpcRuntime,...rpcFailoverOptions(env),url:required('TG_RPC_URL'),observe:metric=>logEvent('confirmed-display-worker','info','rpc_call',metric as unknown as Record<string,unknown>)});
 await verifyChainIdentity(rpc,BigInt(CURRENT_CHAIN_ID),runtimeGenesisHash);
 const deployment={environment:env.TG_ENVIRONMENT as 'test'|'production',chainId:CURRENT_CHAIN_ID,deploymentDigest:runtimeReleaseId,activationBlock:runtimeActivationBlock};
-let stopped=false,lastSuccess=0,lastResult='starting';
+let stopped=false,lastSuccess=0,lastResult='starting',forceRecovery=true;
 const wake=new DisplayWake();
 let listener:PoolClient|undefined;
 async function listen(){
  if(listener)return;
  const client=await pool.connect();listener=client;
- client.on('notification',wake.wake);
+ client.on('notification',message=>{if(message.payload==='recover')forceRecovery=true;wake.wake();});
  client.once('error',()=>{if(listener===client)listener=undefined;client.release(true);wake.wake();});
  try{await client.query(`LISTEN ${displayWakeChannel(deployment,env.TG_DATABASE_SCHEMA)}`);}
  catch(e){if(listener===client){listener=undefined;client.release(true);}throw e;}
@@ -37,9 +39,10 @@ try{while(!stopped){
  const started=Date.now();
  try{
   await listen();
-  lastResult=await advanceConfirmedDisplay({pool,deployment,rpc,...(env.TG_DATABASE_SCHEMA?{schemaName:env.TG_DATABASE_SCHEMA}:{})});
+  const recover=forceRecovery;forceRecovery=false;
+  lastResult=await advanceConfirmedDisplay({pool,deployment,rpc,eventDriven:env.TG_DISPLAY_EVENT_DRIVEN==='true',forceRecovery:recover,...(env.TG_DATABASE_SCHEMA?{schemaName:env.TG_DATABASE_SCHEMA}:{})});
   if(lastResult==='current'||lastResult.startsWith('confirmed:')||displayCatchup(lastResult))lastSuccess=Date.now();
- }catch(error){lastResult='retrying';reportError('display-worker','confirmed_display_retry',error,{},'warn');}
+ }catch(error){forceRecovery=true;lastResult='retrying';reportError('display-worker','confirmed_display_retry',error,{},'warn');}
  if(displayCatchup(lastResult)){await pause(100,undefined,{signal:abort.signal}).catch(()=>{});continue;}
  // Real-time work is event driven, coalesced to at most one pass per second.
  // A 30-second scan also recovers missed notifications, disconnects and reorgs.

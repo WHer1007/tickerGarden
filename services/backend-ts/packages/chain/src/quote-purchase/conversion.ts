@@ -43,11 +43,12 @@ export function preserveConversionMinimum(fresh:ConversionQuote,reviewed:Convers
 const v3=parseAbi(['function quoteExactInputSingle((address tokenIn,address tokenOut,uint256 amountIn,uint24 fee,uint160 sqrtPriceLimitX96) params) returns(uint256 amountOut,uint160 sqrtPriceX96After,uint32 initializedTicksCrossed,uint256 gasEstimate)']);
 const v4=parseAbi(['function quoteExactInputSingle(((address currency0,address currency1,uint24 fee,int24 tickSpacing,address hooks) poolKey,bool zeroForOne,uint128 exactAmount,bytes hookData) params) returns(uint256 amountOut,uint256 gasEstimate)']);
 const state=parseAbi(['function slot0() view returns(uint160,int24,uint16,uint16,uint16,uint8,bool)','function getSlot0(bytes32) view returns(uint160,int24,uint24,uint24)']);
-export async function getConversionQuote(i:ConversionIntent,rpc:{call<T>(method:string,params:readonly unknown[]):Promise<T>}):Promise<ConversionQuote>{
+export async function getConversionQuote(i:ConversionIntent,rpc:{call<T>(method:string,params:readonly unknown[]):Promise<T>;atBlock?<T>(number:bigint,hash:string,run:()=>Promise<T>):Promise<T>}):Promise<ConversionQuote>{
  assertConversionIntent(i);
  const c=createPublicClient({transport:custom({request:({method,params})=>rpc.call(method,(params??[]) as unknown[])})});
  if(await c.getChainId()!==4663)throw Error('Wrong conversion network');
  const block=await c.getBlock();
+ const build=async()=>{
  async function leg(r:PurchaseRoute,input:bigint,spotInput:bigint){
   const quoted=r.version==='v3'?await c.simulateContract({address:Q3,abi:v3,functionName:'quoteExactInputSingle',args:[{tokenIn:r.input,tokenOut:r.output,amountIn:input,fee:r.fee,sqrtPriceLimitX96:0n}],blockNumber:block.number}):await c.simulateContract({address:Q4,abi:v4,functionName:'quoteExactInputSingle',args:[{poolKey:poolKey(r),zeroForOne:r.input<r.output,exactAmount:input,hookData:'0x'}],blockNumber:block.number});
   const out=quoted.result[0];if(out<=0n||out>=2n**128n)throw Error('No conversion depth');
@@ -60,4 +61,6 @@ export async function getConversionQuote(i:ConversionIntent,rpc:{call<T>(method:
  const result=await leg(route,base.out,base.spot);
  const q:ConversionQuote={...i,provider:'configured-pool',buyAmount:String(result.out),minBuyAmount:String(result.out*99n/100n),blockNumber:String(block.number),expiresAt:Date.now()+30000,priceImpactBps:result.spot>result.out?Number((result.spot-result.out)*10000n/result.spot):0,providerFee:null};
  conversionRequest(q,i);return q;
+ };
+ return rpc.atBlock?rpc.atBlock(block.number,block.hash,build):build();
 }

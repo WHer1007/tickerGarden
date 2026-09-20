@@ -14,6 +14,7 @@ const [spec, readSource, contentSource, frontendScope, backendClient, frontendCl
 const manualReadRoutes = new Set([
   'GET /v1/explore', 'GET /v1/explore/bootstrap', 'GET /v1/explore/cards', 'GET /v1/explore/events',
   'GET /v1/rpc-scope',
+  'POST /v1/internal/rpc-budget',
   'GET /v1/markets/{marketId}/events',
   'GET /v1/quote-purchase',
   'GET /v1/trade-conversion',

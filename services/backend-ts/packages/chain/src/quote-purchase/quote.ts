@@ -18,12 +18,13 @@ const q4=parseAbi(['function quoteExactOutputSingle(((address currency0,address 
 const state=parseAbi(['function slot0() view returns(uint160,int24,uint16,uint16,uint16,uint8,bool)','function getSlot0(bytes32) view returns(uint160,int24,uint24,uint24)']);
 export function poolKey(r:PurchaseRoute){const [currency0,currency1]=[r.input,r.output].sort() as [Address,Address];return {currency0,currency1,fee:r.fee,tickSpacing:r.tickSpacing!,hooks:ZERO};}
 export type PurchaseQuote={chainId:4663;token:Address;amountOut:string;amountIn:string;stockInput:string;blockNumber:string;expiresAt:number;priceImpactBps:number};
-export async function quotePurchase(rpc:{call<T>(method:string,params:readonly unknown[]):Promise<T>},token:string,amount:string):Promise<PurchaseQuote>{
+export async function quotePurchase(rpc:{call<T>(method:string,params:readonly unknown[]):Promise<T>;atBlock?<T>(number:bigint,hash:string,run:()=>Promise<T>):Promise<T>},token:string,amount:string):Promise<PurchaseQuote>{
  if(!/^[1-9][0-9]{0,38}$/.test(amount)||BigInt(amount)>=2n**128n)throw Error('Invalid purchase amount');
  const r=purchaseRoute(token);
  const client=createPublicClient({transport:custom({request:({method,params})=>rpc.call(method,(params??[]) as unknown[])})});
  if(await client.getChainId()!==4663)throw Error('Wrong purchase network');
  const block=await client.getBlock();
+ const build=async():Promise<PurchaseQuote>=>{
  async function leg(route:PurchaseRoute,out:bigint){
   const quoted=route.version==='v3'
    ?await client.simulateContract({address:Q3,abi:q3,functionName:'quoteExactOutputSingle',args:[{tokenIn:route.input,tokenOut:route.output,amount:out,fee:route.fee,sqrtPriceLimitX96:0n}],blockNumber:block.number})
@@ -38,4 +39,6 @@ export async function quotePurchase(rpc:{call<T>(method:string,params:readonly u
  // Compare total input with the two pools' pre-trade spot; includes LP fees.
  const spot=via?base.spot*stock.spot/stock.input:stock.spot;
  return {chainId:4663,token:r.output,amountOut:amount,amountIn:String(base.input),stockInput:String(stock.input),blockNumber:String(block.number),expiresAt:Number(block.timestamp)*1000+90000,priceImpactBps:spot>0n?Math.max(0,Number((spot-BigInt(amount))*10000n/spot)):0};
+ };
+ return rpc.atBlock?rpc.atBlock(block.number,block.hash,build):build();
 }

@@ -1,3 +1,4 @@
+import {rpcRuntimeOptions} from '../packages/rpc-control/src/runtime.ts';
 import {rpcFailoverOptions} from '../packages/chain/src/rpc-policy.ts';
 import {rpcPolicy} from '../packages/chain/src/rpc-policy.ts';
 import {CURRENT_CHAIN_ID} from '../packages/runtime-deployment/src/index.ts';
@@ -25,7 +26,8 @@ if(['publish','reconcile','status','recover-lock'].includes(command??'')) {
  if(!['test','production'].includes(process.env.TG_ENVIRONMENT??''))throw Error('This operator CLI requires an explicit runtime environment');
  const pool=createDatabasePool(process.env.TG_PIPELINE_DATABASE_URL??'').pool;
  try {
-  const options={pool,deployment:{environment:process.env.TG_ENVIRONMENT as 'test'|'production',chainId:CURRENT_CHAIN_ID,deploymentDigest:CURRENT_RELEASE_ID,activationBlock:CURRENT_ACTIVATION_BLOCK},primary:new RpcTransport({...rpcFailoverOptions(process.env),url:process.env.TG_RPC_URL??''}),secondary:new RpcTransport({...(rpcPolicy(process.env).mode==='single'?rpcFailoverOptions(process.env):{}),url:rpcPolicy(process.env).verificationUrl??''}),...(process.env.TG_DATABASE_SCHEMA?{schemaName:process.env.TG_DATABASE_SCHEMA}:{})};
+  const rpcRuntime=rpcRuntimeOptions(process.env,'holder-operator','background');
+  const options={pool,deployment:{environment:process.env.TG_ENVIRONMENT as 'test'|'production',chainId:CURRENT_CHAIN_ID,deploymentDigest:CURRENT_RELEASE_ID,activationBlock:CURRENT_ACTIVATION_BLOCK},primary:new RpcTransport({...rpcRuntime,...rpcFailoverOptions(process.env),url:process.env.TG_RPC_URL??''}),secondary:new RpcTransport({...rpcRuntime,...(rpcPolicy(process.env).mode==='single'?rpcFailoverOptions(process.env):{}),url:rpcPolicy(process.env).verificationUrl??''}),...(process.env.TG_DATABASE_SCHEMA?{schemaName:process.env.TG_DATABASE_SCHEMA}:{})};
   if(command==='audit'||command==='repair'){
    const artifact=JSON.parse(await readFile(args[0]!,'utf8')) as SnapshotArtifact;
    const result=command==='audit'?await inspectHolderArchive(options,artifact,args[1]):await repairHolderArchive(options,artifact);

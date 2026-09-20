@@ -1,0 +1,12 @@
+{
+  "name": "@tickergarden/rpc-control",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": "./src/runtime.ts",
+  "dependencies": {
+    "@tickergarden/chain": "0.0.0",
+    "@tickergarden/db": "0.0.0",
+    "pg": "^8.23.0"
+  }
+}
