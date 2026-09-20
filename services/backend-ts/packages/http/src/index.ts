@@ -19,6 +19,7 @@ export interface ServiceOptions {
   readonly env?: Readonly<Record<string, string | undefined>>;
   readonly requiredEnvironmentKeys?: readonly string[];
   readonly maxBodyBytes?: number;
+  readonly readApiPostPaths?: readonly string[];
 }
 
 export type ServiceApp = OpenAPIHono<{ Variables: { requestId: string } }>;
@@ -102,7 +103,8 @@ export function createServiceApp(options: ServiceOptions): ServiceApp {
     onError: (context) => context.json({ error: 'request_too_large', message: 'Request body is too large', requestId: context.get('requestId') }, 413),
   }));
   app.use('*', async (context, next) => {
-    const allowed = options.kind === 'read-api'
+    const privatePost = options.readApiPostPaths?.includes(context.req.path) === true;
+    const allowed = options.kind === 'read-api' && !privatePost
       ? ['GET', 'HEAD', 'OPTIONS']
       : ['GET', 'POST', 'HEAD', 'OPTIONS'];
     if (!allowed.includes(context.req.method)) {

@@ -46,7 +46,7 @@ export function createReadApiApp(options: ReadApiOptions = {}) {
   const env = options.env ?? process.env;
   assertRuntimeEnvironment(env);
   const rpc = rpcPolicy(env);
-  const app = createServiceApp({ kind: 'read-api', env, requiredEnvironmentKeys: ['TG_READ_DATABASE_URL', 'TG_CURSOR_SECRET'] });
+  const app = createServiceApp({ kind: 'read-api', env, requiredEnvironmentKeys: ['TG_READ_DATABASE_URL', 'TG_CURSOR_SECRET'], readApiPostPaths: ['/v1/internal/rpc-budget'] });
   const deployment: DeploymentIdentity = options.deployment ?? {
     environment: environmentName(env.TG_ENVIRONMENT), chainId: CURRENT_CHAIN_ID, deploymentDigest: CURRENT_RELEASE_ID, activationBlock: CURRENT_ACTIVATION_BLOCK,
   };
