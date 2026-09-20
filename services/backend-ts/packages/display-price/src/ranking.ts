@@ -1,10 +1,14 @@
 import { randomUUID } from 'node:crypto';
 import type { Pool } from 'pg';
 import type { DeploymentIdentity } from '../../chain/src/index.ts';
-import { latestPrices, preferredPrices } from './read.ts';
+import {batchPrices,createPriceBatch,type PriceBatch} from './batch.ts';
+import {withDatabaseTask} from '../../db/src/telemetry.ts';
 
 export const CAP_INTERVAL_MS=20*60*1000;
-export async function publishMarketCapRanking(pool:Pool,deployment:DeploymentIdentity,schemaName='tickergarden_serverless',now=new Date()) {
+export async function publishMarketCapRanking(pool:Pool,deployment:DeploymentIdentity,schemaName='tickergarden_serverless',now=new Date(),priceBatch?:PriceBatch) {
+ return withDatabaseTask('pipeline','explore.rank',()=>publishRanking(pool,deployment,schemaName,priceBatch?.now??now,priceBatch??createPriceBatch(deployment,schemaName,now)));
+}
+async function publishRanking(pool:Pool,deployment:DeploymentIdentity,schemaName:string,now:Date,priceBatch:PriceBatch) {
  if(!/^[a-z][a-z0-9_]{0,62}$/.test(schemaName))throw Error('invalid schema');
  const s=`"${schemaName}"`,id=[deployment.environment,deployment.chainId,deployment.deploymentDigest];
  const scheduled=new Date(Math.floor(now.getTime()/CAP_INTERVAL_MS)*CAP_INTERVAL_MS);
@@ -19,7 +23,7 @@ export async function publishMarketCapRanking(pool:Pool,deployment:DeploymentIde
   const publication=(await client.query<{revision:string;block_hash:string;as_of:string}>(`SELECT p.revision,p.block_hash,extract(epoch FROM b.source_timestamp)::bigint::text as_of FROM ${s}.publication_pointers ptr JOIN ${s}.publications p USING(environment,chain_id,deployment_digest,scope,revision) JOIN ${s}.chain_blocks b ON b.environment=p.environment AND b.chain_id=p.chain_id AND b.deployment_digest=p.deployment_digest AND b.hash=p.block_hash WHERE p.environment=$1 AND p.chain_id=$2 AND p.deployment_digest=$3 AND p.scope='markets' AND b.canonical AND b.finalized FOR SHARE OF b`,id)).rows[0];
   if(!publication){await client.query('ROLLBACK');return {published:false,reason:'publication_pending'};}
   // One price read per scheduled build. Readers never calculate a global ranking.
-  const prices=[...preferredPrices(await latestPrices(client,deployment,now,schemaName),now).values()].filter(p=>p.status==='available'&&p.bidUsd&&p.askUsd).map(p=>({asset:p.token,bid:p.bidUsd!,ask:p.askUsd!,as_of:p.asOf,source:p.source}));
+  const prices=[...(await batchPrices(priceBatch,client)).values()].filter(p=>p.status==='available'&&p.bidUsd&&p.askUsd).map(p=>({asset:p.token,bid:p.bidUsd!,ask:p.askUsd!,as_of:p.asOf,source:p.source}));
   const version=randomUUID();
   await client.query(`INSERT INTO ${s}.market_cap_snapshots(environment,chain_id,deployment_digest,version,scheduled_at,created_at,revision,block_hash) VALUES($1,$2,$3,$4,$5,$6,$7,$8)`,[...id,version,scheduled,now,publication.revision,publication.block_hash]);
   const result=await client.query(`WITH prices AS (SELECT * FROM jsonb_to_recordset($6::jsonb) p(asset text,bid numeric,ask numeric,as_of text,source text)), values AS (

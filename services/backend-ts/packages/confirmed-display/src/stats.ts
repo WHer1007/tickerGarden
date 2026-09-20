@@ -6,7 +6,9 @@ import {deserializeRpcLog,type DeploymentIdentity,type RpcBlock} from '../../cha
 import {decodeF72Event,fixedF72Sources} from '../../events/src/index.ts';
 import {normalizeTransaction,type EventObservation,type TradeActivity} from '../../analytics/src/index.ts';
 import {feeCredits,validateMarket} from '../../analytics-projector/src/index.ts';
-import {latestPrices,preferredPrices} from '../../display-price/src/read.ts';
+import {preferredPrices} from '../../display-price/src/read.ts';
+import {createPriceBatch,type PriceBatch} from '../../display-price/src/batch.ts';
+import {withDatabaseTask} from '../../db/src/telemetry.ts';
 import {runtimeConfigs} from '../../runtime-deployment/src/index.ts';
 import {PublicationUnavailableError} from '../../read-store/src/index.ts';
 import {changeChannel} from './changes.ts';
@@ -93,9 +95,12 @@ export function usdAmount(raw:string,decimals:number|undefined,price:string|unde
  return BigInt(raw)*parseUnits(price,36)/10n**BigInt(decimals);
 }
 /** Builds only from narrow contribution/bucket tables and the shared price table. */
-export async function publishStatsDisplay(db:DB,d:DeploymentIdentity,block:RpcBlock,schemaName?:string,now=new Date()):Promise<StatsRegion[]>{
+export async function publishStatsDisplay(db:DB,d:DeploymentIdentity,block:RpcBlock,schemaName?:string,now=new Date(),priceBatch?:PriceBatch):Promise<StatsRegion[]>{
+ return withDatabaseTask('confirmed-display-worker','stats.publish',()=>publishStats(db,d,block,schemaName,priceBatch?.now??now,priceBatch??createPriceBatch(d,schemaName,now)));
+}
+async function publishStats(db:DB,d:DeploymentIdentity,block:RpcBlock,schemaName:string|undefined,now:Date,priceBatch:PriceBatch):Promise<StatsRegion[]>{
  const s=schema(schemaName),args=id(d),to=Number(block.timestamp),from=Math.max(0,to-86400),low=Math.ceil(from/60)*60,high=Math.floor(to/60)*60;
- const catalog=await configs(db,s,d),priceRows=await latestPrices(db,d,now,schemaName);
+ const catalog=await configs(db,s,d),priceRows=(await priceBatch.load(db)).rows;
  const counts=await db.query<{bloomed:string;invalid_dates:string;launches:string}>(`SELECT coalesce(c.bloomed,0)::text bloomed,coalesce(c.invalid_dates,0)::text invalid_dates,(SELECT count(*) FROM ${s}.stats_display_markets WHERE environment=$1 AND chain_id=$2 AND deployment_digest=$3 AND created_at>=$4 AND created_at<=$5)::text launches FROM (SELECT 1) x LEFT JOIN ${s}.stats_display_counts c ON c.environment=$1 AND c.chain_id=$2 AND c.deployment_digest=$3`,[...args,from,to]);
  // Whole minute buckets + two boundary fragments retain exact [from,to] semantics.
  const flowRows=await db.query<{kind:string;asset:string;recipient:string;amount:string}>(`SELECT kind,asset,recipient,sum(amount)::text amount FROM (

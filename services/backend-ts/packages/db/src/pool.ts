@@ -1,3 +1,4 @@
+import {instrumentDatabasePool} from './instrumentation.ts';
 import {reportError} from '../../observability/src/index.ts';
 import { checkServerIdentity } from 'node:tls';
 import { attachDatabasePool } from '@vercel/functions';
@@ -44,6 +45,7 @@ export function createDatabasePool(connectionString: string, overrides: PoolConf
       checkServerIdentity: (_hostname, certificate) => checkServerIdentity(new URL(connectionString).hostname, certificate),
     }} : {}),
   });
+  instrumentDatabasePool(pool);
   // pg removes failed idle clients itself. Without this listener EventEmitter
   // terminates the process; the next request should instead acquire a new client.
   pool.on('error', (error: Error & {code?:string}) => {

@@ -1,3 +1,5 @@
+import {createPriceBatch,SharedPriceReader} from '../../../packages/display-price/src/batch.ts';
+import {withDatabaseTask,databaseTimingSnapshot} from '../../../packages/db/src/telemetry.ts';
 import {rpcRuntimeOptions} from '../../../packages/rpc-control/src/runtime.ts';
 import {reportError} from '../../../packages/observability/src/index.ts';
 import {rpcPolicy,rpcFailoverOptions} from '../../../packages/chain/src/rpc-policy.ts';
@@ -42,6 +44,9 @@ export function createPipelineApp(options: PipelineAppOptions = {}) {
   });
   if (!(app instanceof Hono)) throw new Error('pipeline service factory must return a Hono application');
 
+  const priceDeployment={environment:environmentName(env.TG_ENVIRONMENT),chainId:CURRENT_CHAIN_ID,deploymentDigest:CURRENT_RELEASE_ID,activationBlock:CURRENT_ACTIVATION_BLOCK};
+  const priceReader=new SharedPriceReader(priceDeployment,env.TG_DATABASE_SCHEMA);
+  const priceBatch=()=>createPriceBatch(priceDeployment,env.TG_DATABASE_SCHEMA,new Date(),priceReader);
   let ownedPool: Pool | undefined;
   let ownedProcessor: ((lease: Lease) => Promise<string | Buffer>) | undefined;
   function databasePool(): Pool {
@@ -71,7 +76,7 @@ export function createPipelineApp(options: PipelineAppOptions = {}) {
     const provided = header?.startsWith('Bearer ') ? header.slice(7) : null;
     return verifyRepairToken(provided, env.CRON_SECRET ?? '') || verifyRepairToken(provided, env.TG_REPAIR_TOKEN ?? '');
   }
-  function recentLaunchInput(){return {pool:databasePool(),deployment:{environment:environmentName(env.TG_ENVIRONMENT),chainId:CURRENT_CHAIN_ID,deploymentDigest:CURRENT_RELEASE_ID,activationBlock:CURRENT_ACTIVATION_BLOCK},
+  function recentLaunchInput(){return {pool:databasePool(),priceBatch:priceBatch(),deployment:{environment:environmentName(env.TG_ENVIRONMENT),chainId:CURRENT_CHAIN_ID,deploymentDigest:CURRENT_RELEASE_ID,activationBlock:CURRENT_ACTIVATION_BLOCK},
     primary:new RpcTransport({...rpcRuntime,...rpcFailoverOptions(env),url:env.TG_RPC_URL??''}),secondary:new RpcTransport({...rpcRuntime,...(rpc.mode==='single'?rpcFailoverOptions(env):{}),url:rpc.verificationUrl??''}),...(env.TG_DATABASE_SCHEMA?{schemaName:env.TG_DATABASE_SCHEMA}:{})};}
 
   app.post('/v1/launches',async context=>{
@@ -147,7 +152,7 @@ export function createPipelineApp(options: PipelineAppOptions = {}) {
       readPipelineMetrics(databasePool(), environmentName(env.TG_ENVIRONMENT), env.TG_DATABASE_SCHEMA),
     ]);
     const database = poolMetrics(databasePool());
-    return context.json({ queue, pipeline, database, alerts: pipelineAlerts(queue, pipeline, database, env) });
+    return context.json({ queue, pipeline, database, databaseTimings:databaseTimingSnapshot(), alerts: pipelineAlerts(queue, pipeline, database, env) });
   });
 
   app.on(['GET', 'POST'], '/internal/dispatch', async (context) => {
@@ -164,7 +169,7 @@ export function createPipelineApp(options: PipelineAppOptions = {}) {
     });
     // The existing minute scheduler also serves Preview, where Vercel cron is not active.
     // Snapshot work is idempotent per 20-minute bucket and cannot stop queue dispatch.
-    try { const ranking=await publishMarketCapRanking(databasePool(),{environment:environmentName(env.TG_ENVIRONMENT),chainId:CURRENT_CHAIN_ID,deploymentDigest:CURRENT_RELEASE_ID,activationBlock:CURRENT_ACTIVATION_BLOCK},env.TG_DATABASE_SCHEMA);emitMetric(env,{event:'market_cap_ranking',...ranking}); }
+    try { const ranking=await publishMarketCapRanking(databasePool(),priceDeployment,env.TG_DATABASE_SCHEMA,new Date(),priceBatch());emitMetric(env,{event:'market_cap_ranking',...ranking}); }
     catch { emitMetric(env,{event:'market_cap_ranking',published:false,reason:'refresh_failed'}); }
     emitMetric(env, { event: 'queue_dispatch', queue: 'chain', ...dispatched });
     return context.json({ repaired, dispatched });
@@ -187,7 +192,7 @@ export function createPipelineApp(options: PipelineAppOptions = {}) {
     return context.body(null, 204);
   });
 
-  app.on(['GET', 'POST'], '/internal/prices/refresh', async (context) => {
+  app.on(['GET', 'POST'], '/internal/prices/refresh', async (context) => withDatabaseTask('pipeline','prices.refresh',async()=>{
     if (!priceRefreshAuthorized(context.req.header('authorization'))) return context.json({ error: 'unauthorized', requestId: context.get('requestId') }, 401);
     const deployment = { environment: environmentName(env.TG_ENVIRONMENT), chainId: CURRENT_CHAIN_ID,
       deploymentDigest: CURRENT_RELEASE_ID, activationBlock: CURRENT_ACTIVATION_BLOCK };
@@ -195,10 +200,11 @@ export function createPipelineApp(options: PipelineAppOptions = {}) {
       ...(rpc.mode==='single'?rpcFailoverOptions(env):{}),url: rpc.verificationUrl ?? '', provider: rpc.mode === 'single' ? 'display-price-primary' : 'display-price-secondary', observe: (metric) => emitMetric(env, metric),
     }) });
     await storePriceReferences(databasePool(), deployment, references, env.TG_DATABASE_SCHEMA);
-    await publishMarketCapRanking(databasePool(), deployment, env.TG_DATABASE_SCHEMA);
+    priceReader.invalidate();
+    await publishMarketCapRanking(databasePool(), deployment, env.TG_DATABASE_SCHEMA,new Date(),priceBatch());
     emitMetric(env, { event: 'price_refresh', targets: references.length, available: references.filter((item) => item.status === 'available').length });
     return context.json({ refreshed: references.length, available: references.filter((item) => item.status === 'available').length });
-  });
+  }));
 
   app.post('/v1/webhooks/chain-relay', async (context) => {
     const rawBody = await context.req.text();

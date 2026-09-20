@@ -3,7 +3,8 @@ import {formatUnits,parseUnits} from 'viem';
 import type {Pool} from 'pg';
 import type {DeploymentIdentity} from '../../chain/src/index.ts';
 import type {MarketReadModel,TokenDetailResponse} from '../../../openapi/generated/v1-client.ts';
-import {latestPrices,preferredPrices} from '../../display-price/src/read.ts';
+import {batchPrices,createPriceBatch,type PriceBatch} from '../../display-price/src/batch.ts';
+import {withDatabaseTask} from '../../db/src/telemetry.ts';
 import {publicMarketContent} from './content.ts';
 import {displayIdentity,displaySchema} from './worker.ts';
 import {materializeDisplay,displayUsd,exploreMetrics,type DisplayState} from './state.ts';
@@ -22,14 +23,20 @@ export function maintenanceRegions(before:DisplayState,after:DisplayState):Displ
 }
 
 /** Separate durable queue from chain advancement. HTTP readers never call this. */
-export async function refreshDisplayPreparation(input:{pool:Pick<Pool,'query'>;deployment:DeploymentIdentity;schemaName?:string;limit?:number}){
+interface PreparationInput {pool:Pick<Pool,'query'>;deployment:DeploymentIdentity;schemaName?:string;limit?:number;priceBatch?:PriceBatch}
+export async function refreshDisplayPreparation(input:PreparationInput){
+ return withDatabaseTask('confirmed-display-worker','display.prepare',()=>prepare(input));
+}
+async function prepare(input:PreparationInput){
  const {pool,deployment:d}=input,s=displaySchema(input.schemaName),id=displayIdentity(d),limit=Math.max(1,Math.min(100,input.limit??25));
- const now=new Date(),prices=preferredPrices(await latestPrices(pool,d,now,input.schemaName),now);
- const priceFor=(market:MarketReadModel)=>{const price=prices.get(market.quoteAsset);return {price,usd:price?.status==='available'&&price.bidUsd&&price.askUsd?formatUnits((parseUnits(price.bidUsd,36)+parseUnits(price.askUsd,36))/2n,36):null};};
  let processed=0,failed=0;
  // New launches with missing content/valuation have priority, independent of the
  // finalized analytics cursor. These repairs use only persisted shared prices.
  const recent=(await pool.query<{market_id:string;payload:MarketReadModel;initial_detail:TokenDetailResponse}>(`SELECT r.market_id,r.payload,r.initial_detail FROM ${s}.recent_markets r WHERE r.environment=$1 AND r.chain_id=$2 AND r.deployment_digest=$3 AND r.canonical AND r.expires_at>now() AND cardinality(r.launch_missing)>0 AND r.refresh_due_at<=now() AND r.initial_detail IS NOT NULL AND NOT EXISTS(SELECT 1 FROM ${s}.confirmed_display_markets m WHERE m.environment=r.environment AND m.chain_id=r.chain_id AND m.deployment_digest=r.deployment_digest AND m.market_id=r.market_id) ORDER BY r.refresh_due_at,r.market_id LIMIT $4`,[...id,limit])).rows;
+ const rows=(await pool.query<{market_id:string;payload:DisplayState;head_number:string;head_hash:`0x${string}`;head_timestamp:string}>(`SELECT m.market_id,m.payload,c.block_number::text head_number,c.block_hash head_hash,c.block_timestamp::text head_timestamp FROM ((SELECT * FROM ${s}.confirmed_display_markets WHERE environment=$1 AND chain_id=$2 AND deployment_digest=$3 AND refresh_due_at<=now() AND cardinality(launch_missing)>0 ORDER BY refresh_due_at,market_id LIMIT $4) UNION ALL (SELECT * FROM ${s}.confirmed_display_markets WHERE environment=$1 AND chain_id=$2 AND deployment_digest=$3 AND refresh_due_at<=now() AND cardinality(launch_missing)=0 ORDER BY refresh_due_at,market_id LIMIT $4)) m JOIN ${s}.confirmed_display_cursor c USING(environment,chain_id,deployment_digest) WHERE m.block_number<=c.block_number`,[...id,limit])).rows;
+ if(!recent.length&&!rows.length)return {processed:0,failed:0,more:false};
+ const prices=await batchPrices(input.priceBatch??createPriceBatch(d,input.schemaName),pool);
+ const priceFor=(market:MarketReadModel)=>{const price=prices.get(market.quoteAsset);return {price,usd:price?.status==='available'&&price.bidUsd&&price.askUsd?formatUnits((parseUnits(price.bidUsd,36)+parseUnits(price.askUsd,36))/2n,36):null};};
  for(const row of recent){
   try{
    const {price,usd}=priceFor(row.payload),detail=row.initial_detail,stat=detail.statistics;
@@ -42,7 +49,7 @@ export async function refreshDisplayPreparation(input:{pool:Pick<Pool,'query'>;d
    processed++;
   }catch{failed++;await defer('recent_markets',row.market_id);}
  }
- const rows=(await pool.query<{market_id:string;payload:DisplayState;head_number:string;head_hash:`0x${string}`;head_timestamp:string}>(`SELECT m.market_id,m.payload,c.block_number::text head_number,c.block_hash head_hash,c.block_timestamp::text head_timestamp FROM ((SELECT * FROM ${s}.confirmed_display_markets WHERE environment=$1 AND chain_id=$2 AND deployment_digest=$3 AND refresh_due_at<=now() AND cardinality(launch_missing)>0 ORDER BY refresh_due_at,market_id LIMIT $4) UNION ALL (SELECT * FROM ${s}.confirmed_display_markets WHERE environment=$1 AND chain_id=$2 AND deployment_digest=$3 AND refresh_due_at<=now() AND cardinality(launch_missing)=0 ORDER BY refresh_due_at,market_id LIMIT $4)) m JOIN ${s}.confirmed_display_cursor c USING(environment,chain_id,deployment_digest) WHERE m.block_number<=c.block_number`,[...id,limit])).rows;
+
  for(const row of rows){
   try{
    const {price,usd}=priceFor(row.payload.market);

@@ -325,11 +325,16 @@ export const aggregateRecords = databaseSchema.table('aggregate_records', {
 export const priceReferences = databaseSchema.table('price_references', {
   environment: text('environment').notNull(), chainId: bigint('chain_id', { mode: 'number' }).notNull(), deploymentDigest: text('deployment_digest').notNull(),
   asset: text('asset').notNull(), source: text('source').notNull(), status: text('status').notNull(), value: decimal('value'),
-  asOf: timestamp('as_of', { withTimezone: true }).notNull(), expiresAt: timestamp('expires_at', { withTimezone: true }).notNull(), payload: jsonb('payload').notNull(),
+  asOf: timestamp('as_of', { withTimezone: true }).notNull(), expiresAt: timestamp('expires_at', { withTimezone: true }).notNull(), payload: jsonb('payload').notNull(), observedAt: timestamp('observed_at', { withTimezone: true }).notNull().defaultNow(),
 }, (table) => [
-  primaryKey({ columns: [table.environment, table.chainId, table.deploymentDigest, table.asset, table.source, table.asOf] }),
+  primaryKey({ columns: [table.environment, table.chainId, table.deploymentDigest, table.asset, table.source] }),
   index('price_references_current').on(table.environment, table.chainId, table.deploymentDigest, table.asset, table.expiresAt),
 ]);
+
+export const priceBatches = databaseSchema.table('price_batches', {
+  environment: text('environment').notNull(), chainId: bigint('chain_id', { mode: 'number' }).notNull(), deploymentDigest: text('deployment_digest').notNull(),
+  revision: bigint('revision', { mode: 'bigint' }).notNull(), updatedAt: timestamp('updated_at', { withTimezone: true }).notNull(),
+}, (table) => [primaryKey({ columns: [table.environment, table.chainId, table.deploymentDigest] })]);
 
 export const rewardHistory = databaseSchema.table('reward_history', {
   environment: text('environment').notNull(), chainId: bigint('chain_id', { mode: 'number' }).notNull(), deploymentDigest: text('deployment_digest').notNull(), kind: text('kind').notNull(),

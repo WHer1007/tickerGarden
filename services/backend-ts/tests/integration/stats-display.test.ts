@@ -11,6 +11,7 @@ import {createReadApiApp} from '../../apps/read-api/src/index.ts';
 import type {DisplayState} from '../../packages/confirmed-display/src/state.ts';
 import type {EventObservation} from '../../packages/analytics/src/index.ts';
 import type {RpcBlock} from '../../packages/chain/src/index.ts';
+import {storePriceReferences,type PriceReference} from '../../packages/display-price/src/index.ts';
 const url=process.env.TG_MIGRATION_DATABASE_URL;
 const h=(n:number)=>`0x${n.toString(16).padStart(64,'0')}` as `0x${string}`;
 const a=(n:number)=>`0x${n.toString(16).padStart(40,'0')}` as `0x${string}`;
@@ -29,7 +30,7 @@ test('Stats shared-event projection: incremental totals, rollback, windows, pric
  const save=async(st:DisplayState)=>db.query(`INSERT INTO ${s}.confirmed_display_markets VALUES($1,$2,$3,$4,$5,$6,$7) ON CONFLICT(environment,chain_id,deployment_digest,market_id) DO UPDATE SET payload=excluded.payload`,[...id,st.market.marketId,st.blockNumber,st.blockHash,JSON.stringify(st)]);
  const emitter=(module:string)=>fixedF72Sources().find(s=>s.module===module)!.address;
  const event=(name:string,args:Record<string,unknown>,index:number,n=11,ts=at):EventObservation=>({timestamp:BigInt(ts),event:{module:name.startsWith('Allocation')?'UserStockVault':name==='CurveBuy'?'TickerGardenCurve':'ProtocolFeeVault',eventName:name,args,log:{address:name.startsWith('Allocation')?emitter('UserStockVault'):name==='CurveBuy'?a(101):emitter('ProtocolFeeVault'),blockNumber:BigInt(n),blockHash:h(n),transactionHash:h(n+10000),transactionIndex:0n,logIndex:BigInt(index),data:'0x',topics:name.startsWith('Allocation')?[toEventSelector(`${name}(bytes32,address,bytes32,uint256,uint256,uint256)`)]:[],removed:false}}});
- const price=async(tokenAddress:string,value:string,time=now)=>{const expiry=new Date(time.getTime()+3600000);const p={chainId:46630,token:tokenAddress,status:'available',source:'robinhood_rest',bidUsd:value,askUsd:value,asOf:time.toISOString(),expiresAt:expiry.toISOString(),retrievedAt:time.toISOString()};await db.query(`INSERT INTO ${s}.price_references(environment,chain_id,deployment_digest,asset,source,status,value,as_of,expires_at,payload) VALUES($1,$2,$3,$4,'robinhood_rest','available',$5,$6,$7,$8)`,[...id,tokenAddress,value,time,expiry,p]);};
+ const price=async(tokenAddress:string,value:string,time=now)=>{const expiry=new Date(time.getTime()+3600000);const p={chainId:46630,token:tokenAddress,status:'available',source:'robinhood_rest',unit:'USD_PER_WHOLE_TOKEN',symbol:'TEST',multiplier:'1',bidUsd:value,askUsd:value,asOf:time.toISOString(),expiresAt:expiry.toISOString(),retrievedAt:time.toISOString()};await storePriceReferences(db,d,[p as unknown as PriceReference],schemaName);};
  const buy=event('CurveBuy',{buyer:account,recipient:account,quoteIn:2n*unit,tokensOut:unit,fee:unit/10n,tax:0n},0);
  const stake=event('AllocationLocked',{assetUid:asset,user:account,marketId:h(1),amount:3n*unit,userMarketAllocation:3n*unit,userTotalAllocated:3n*unit},1);
  const credit=event('CurveFeesSwept',{marketId:h(1),quoteAsset:a(0),creatorAmount:unit/10n,platformAmount:unit/10n},2);
