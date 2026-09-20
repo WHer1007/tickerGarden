@@ -359,7 +359,7 @@ async function httpRpc<T>(method: string, params: readonly unknown[]): Promise<T
   }
 }
 
-class TransientRpcError extends Error { constructor(readonly kind: 'transport'|'invalid-json'|number) { super('transient provider failure'); } }
+class TransientRpcError extends Error { readonly kind:'transport'|'invalid-json'|number; constructor(kind:'transport'|'invalid-json'|number) { super('transient provider failure'); this.kind=kind; } }
 const verifiedHttpProviders = new Set<string>();
 async function assertHttpProviderChain(endpoint: string): Promise<void> {
   if (verifiedHttpProviders.has(endpoint)) return;
