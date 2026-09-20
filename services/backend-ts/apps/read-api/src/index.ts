@@ -10,7 +10,7 @@ import {readMarketPageBootstrap} from '../../../packages/confirmed-display/src/r
 import {getConversionQuote,assertConversionIntent,type ConversionIntent,TRADE_NATIVE,TRADE_USDG} from '../../../packages/chain/src/quote-purchase/conversion.ts';
 import {routes as conversionStocks} from '../../../packages/chain/src/quote-purchase/routes.ts';
 import {quotePurchase} from '../../../packages/chain/src/quote-purchase/quote.ts';
-import {rpcPolicy} from '../../../packages/chain/src/rpc-policy.ts';
+import {rpcPolicy,rpcFailoverOptions} from '../../../packages/chain/src/rpc-policy.ts';
 import {CURRENT_CHAIN_ID,assertRuntimeEnvironment} from '../../../packages/runtime-deployment/src/index.ts';
 import {readProtocolStatistics} from '../../../packages/statistics-store/src/snapshot.ts';
 import { createHash } from 'node:crypto';
@@ -64,8 +64,8 @@ export function createReadApiApp(options: ReadApiOptions = {}) {
   const cachedGlobalRead=<T>(key:string,build:(readPool:Pool)=>Promise<T>)=>shareGlobalRead(key,()=>sharedStatistics({pool:pool(),deployment,...(schemaName?{schemaName}:{})},key,build));
 
   const cursorSecret = env.TG_CURSOR_SECRET ?? '';
-  const primary = options.primary ?? (env.TG_READ_RPC_URL ? new RpcTransport({ url: env.TG_READ_RPC_URL }) : undefined);
-  const secondary = options.secondary ?? (rpc.verificationUrl ? new RpcTransport({ url: rpc.verificationUrl }) : undefined);
+  const primary = options.primary ?? (env.TG_READ_RPC_URL ? new RpcTransport({ ...rpcFailoverOptions(env,'read-api'), url: env.TG_READ_RPC_URL }) : undefined);
+  const secondary = options.secondary ?? (rpc.mode === 'single' ? primary : undefined) ?? (rpc.verificationUrl ? new RpcTransport({ url: rpc.verificationUrl }) : undefined);
 
   app.use('/v1/*', async (context, next) => {
     await next(); const path = context.req.path;

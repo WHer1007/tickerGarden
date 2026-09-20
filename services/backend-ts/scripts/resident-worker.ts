@@ -1,3 +1,4 @@
+import {rpcFailoverOptions} from '../packages/chain/src/rpc-policy.ts';
 import {reportError,installProcessDiagnostics,logEvent,flushErrors} from '../packages/observability/src/index.ts';
 import {rpcPolicy} from '../packages/chain/src/rpc-policy.ts';
 import {createServer} from 'node:http';
@@ -30,7 +31,7 @@ if(mode){
  const controlPool=createDatabasePool(required('TG_WORKER_CONTROL_DATABASE_URL'),{max:1},{role:'resident-control',env}).pool;
  const environment=required('TG_ENVIRONMENT');
  if(environment!=='test'&&environment!=='production')throw Error('invalid environment');
- const processor=createChainProcessor({settlementFinality:settlementFinalityMode(env),pool,primary:new RpcTransport({url:required('TG_RPC_URL'),observe:metric=>logEvent('resident-worker','info','rpc_call',metric as unknown as Record<string,unknown>)}),secondary:new RpcTransport({url:rpc.verificationUrl ?? ''}),
+ const processor=createChainProcessor({settlementFinality:settlementFinalityMode(env),pool,primary:new RpcTransport({...rpcFailoverOptions(env),url:required('TG_RPC_URL'),observe:metric=>logEvent('resident-worker','info','rpc_call',metric as unknown as Record<string,unknown>)}),secondary:new RpcTransport({...(rpcPolicy(env).mode==='single'?rpcFailoverOptions(env):{}),url:rpc.verificationUrl ?? ''}),
   ...(rpc.logsUrl?{logsSecondary:new RpcTransport({url:rpc.logsUrl})}:{}),environment,schemaName,
   ...(env.V1_FINALITY_DELAY_BLOCKS?{finalityDelayBlocks:BigInt(env.V1_FINALITY_DELAY_BLOCKS)}:{}),
   ...(env.V1_FINALITY_DELAY_SECONDS?{finalityDelaySeconds:BigInt(env.V1_FINALITY_DELAY_SECONDS)}:{})});

@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import test from 'node:test';
-import { eventKey, matchesFilter, mergeSources, parseEventFilter, parseSubscriptionLog, serializeTrigger, subscriptionFilters, subscriptionParameters } from '../src/core.ts';
+import { eventKey, matchesFilter, mergeSources, parseEventFilter, parseSubscriptionLog, serializeTrigger, subscriptionFilters, subscriptionParameters, shouldFailoverHttp, shouldRouteLargeLogRangeToFallback } from '../src/core.ts';
 
 const filter = parseEventFilter(JSON.parse(await readFile(new URL('../filter.json', import.meta.url), 'utf8')));
 const hash = (character: string): `0x${string}` => `0x${character.repeat(64)}`;
@@ -42,6 +42,24 @@ test('dynamic sources merge by address and earliest birth block', () => {
 test('malformed or unfiltered logs fail closed', () => {
   assert.throws(() => parseSubscriptionLog({}), /invalid subscription log/);
   assert.throws(() => subscriptionParameters([], filter.eventTopics), /cannot be empty/);
+});
+
+test('HTTP fallback is limited to transient transport and server failures', () => {
+  assert.equal(shouldFailoverHttp('transport'), true);
+  assert.equal(shouldFailoverHttp('invalid-json'), true);
+  assert.equal(shouldFailoverHttp(429), true);
+  assert.equal(shouldFailoverHttp(503), true);
+  assert.equal(shouldFailoverHttp(400), false);
+  assert.equal(shouldFailoverHttp('rpc-error'), false);
+  assert.equal(shouldFailoverHttp('http-rejected'), false);
+});
+
+test('large eth_getLogs ranges route directly to configured fallback threshold', () => {
+  assert.equal(shouldRouteLargeLogRangeToFallback('eth_getLogs', [{ fromBlock: '0x10', toBlock: '0x14' }], 5), false);
+  assert.equal(shouldRouteLargeLogRangeToFallback('eth_getLogs', [{ fromBlock: '0x10', toBlock: '0x15' }], 5), true);
+  assert.equal(shouldRouteLargeLogRangeToFallback('eth_getLogs', [{ fromBlock: '0x10', toBlock: '0x10000000000000000' }], 5), true);
+  assert.equal(shouldRouteLargeLogRangeToFallback('eth_blockNumber', [], 5), false);
+  assert.equal(shouldRouteLargeLogRangeToFallback('eth_getLogs', [{ fromBlock: 'latest', toBlock: 'latest' }], 5), false);
 });
 
 test('shared PoolManager swaps require a project pool id in topic1', () => {

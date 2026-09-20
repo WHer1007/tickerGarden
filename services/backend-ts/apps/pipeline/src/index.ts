@@ -1,5 +1,5 @@
 import {reportError} from '../../../packages/observability/src/index.ts';
-import {rpcPolicy} from '../../../packages/chain/src/rpc-policy.ts';
+import {rpcPolicy,rpcFailoverOptions} from '../../../packages/chain/src/rpc-policy.ts';
 import {CURRENT_CHAIN_ID,assertRuntimeEnvironment} from '../../../packages/runtime-deployment/src/index.ts';
 import { publishMarketCapRanking } from '../../../packages/display-price/src/ranking.ts';
 import { randomUUID } from 'node:crypto';
@@ -50,10 +50,10 @@ export function createPipelineApp(options: PipelineAppOptions = {}) {
   function chainProcessor(): (lease: Lease) => Promise<string | Buffer> {
     ownedProcessor ??= options.chainProcessor ?? createChainProcessor({
       settlementFinality:settlementFinalityMode(env),pool: databasePool(), primary: new RpcTransport({
-        url: env.TG_RPC_URL ?? '', provider: 'alchemy-primary', nominalComputeUnits: alchemyNominalComputeUnits,
+        ...rpcFailoverOptions(env),url: env.TG_RPC_URL ?? '', provider: 'alchemy-primary', nominalComputeUnits: alchemyNominalComputeUnits,
         computeUnitSchedule: ALCHEMY_EVM_COMPUTE_UNIT_SCHEDULE.id, observe: (metric) => emitMetric(env, metric),
       }),
-      secondary: new RpcTransport({ url: rpc.verificationUrl ?? '', provider: rpc.verificationProvider, observe: (metric) => emitMetric(env, metric) }),
+      secondary: new RpcTransport({ ...(rpc.mode==='single'?rpcFailoverOptions(env):{}),url: rpc.verificationUrl ?? '', provider: rpc.verificationProvider, observe: (metric) => emitMetric(env, metric) }),
       ...(rpc.logsUrl ? { logsSecondary: new RpcTransport({
         url: rpc.logsUrl, provider: 'independent-logs-secondary', observe: (metric) => emitMetric(env, metric),
       }) } : {}),
@@ -70,7 +70,7 @@ export function createPipelineApp(options: PipelineAppOptions = {}) {
     return verifyRepairToken(provided, env.CRON_SECRET ?? '') || verifyRepairToken(provided, env.TG_REPAIR_TOKEN ?? '');
   }
   function recentLaunchInput(){return {pool:databasePool(),deployment:{environment:environmentName(env.TG_ENVIRONMENT),chainId:CURRENT_CHAIN_ID,deploymentDigest:CURRENT_RELEASE_ID,activationBlock:CURRENT_ACTIVATION_BLOCK},
-    primary:new RpcTransport({url:env.TG_RPC_URL??''}),secondary:new RpcTransport({url:rpc.verificationUrl??''}),...(env.TG_DATABASE_SCHEMA?{schemaName:env.TG_DATABASE_SCHEMA}:{})};}
+    primary:new RpcTransport({...rpcFailoverOptions(env),url:env.TG_RPC_URL??''}),secondary:new RpcTransport({...(rpc.mode==='single'?rpcFailoverOptions(env):{}),url:rpc.verificationUrl??''}),...(env.TG_DATABASE_SCHEMA?{schemaName:env.TG_DATABASE_SCHEMA}:{})};}
 
   app.post('/v1/launches',async context=>{
     context.header('cache-control','no-store');
@@ -97,10 +97,10 @@ export function createPipelineApp(options: PipelineAppOptions = {}) {
     if (!operatorAuthorized(context.req.header('authorization'))) return context.json({ error: 'unauthorized', requestId: context.get('requestId') }, 401);
     try {
       const primary = new RpcTransport({
-        url: env.TG_RPC_URL ?? '', provider: 'alchemy-primary', nominalComputeUnits: alchemyNominalComputeUnits,
+        ...rpcFailoverOptions(env),url: env.TG_RPC_URL ?? '', provider: 'alchemy-primary', nominalComputeUnits: alchemyNominalComputeUnits,
         computeUnitSchedule: ALCHEMY_EVM_COMPUTE_UNIT_SCHEDULE.id, observe: (metric) => emitMetric(env, metric),
       });
-      const secondary = new RpcTransport({ url: rpc.verificationUrl ?? '', provider: rpc.verificationProvider, observe: (metric) => emitMetric(env, metric) });
+      const secondary = new RpcTransport({ ...(rpc.mode==='single'?rpcFailoverOptions(env):{}),url: rpc.verificationUrl ?? '', provider: rpc.verificationProvider, observe: (metric) => emitMetric(env, metric) });
       const [primaryHead, secondaryHead] = await Promise.all([primary.latestBlock(), secondary.latestBlock()]);
       const number = primaryHead.number < secondaryHead.number ? primaryHead.number : secondaryHead.number;
       const head = await consensusBlock(primary, secondary, number);
@@ -190,7 +190,7 @@ export function createPipelineApp(options: PipelineAppOptions = {}) {
     const deployment = { environment: environmentName(env.TG_ENVIRONMENT), chainId: CURRENT_CHAIN_ID,
       deploymentDigest: CURRENT_RELEASE_ID, activationBlock: CURRENT_ACTIVATION_BLOCK };
     const references = await fetchRuntimePriceReferences(f72PriceTargets(), { rpc: new RpcTransport({
-      url: rpc.verificationUrl ?? '', provider: rpc.mode === 'single' ? 'display-price-primary' : 'display-price-secondary', observe: (metric) => emitMetric(env, metric),
+      ...(rpc.mode==='single'?rpcFailoverOptions(env):{}),url: rpc.verificationUrl ?? '', provider: rpc.mode === 'single' ? 'display-price-primary' : 'display-price-secondary', observe: (metric) => emitMetric(env, metric),
     }) });
     await storePriceReferences(databasePool(), deployment, references, env.TG_DATABASE_SCHEMA);
     await publishMarketCapRanking(databasePool(), deployment, env.TG_DATABASE_SCHEMA);

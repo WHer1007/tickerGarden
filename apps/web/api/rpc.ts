@@ -24,11 +24,11 @@ type RpcEnvironment = Readonly<Record<string, string | undefined>>;
 
 type Call={jsonrpc:'2.0';id:string|number|null;method:string;params?:readonly unknown[]};
 type Target={address:string;topics:readonly string[]};
-type ProxyState={pending:Map<string,Promise<unknown>>;buckets:Map<string,{at:number;count:number}>;active:number};
+type ProxyState={pending:Map<string,Promise<unknown>>;buckets:Map<string,{at:number;count:number}>;active:number;fallbackChains:Map<string,{expiresAt:number;promise:Promise<boolean>}>;primaryCooldownUntil:number};
 const states=new WeakMap<typeof fetch,Map<string,ProxyState>>();
 function stateFor(fetcher:typeof fetch,key:string):ProxyState{
  let entries=states.get(fetcher);if(!entries){entries=new Map();states.set(fetcher,entries);}
- let state=entries.get(key);if(!state){state={pending:new Map(),buckets:new Map(),active:0};entries.set(key,state);}return state;
+ let state=entries.get(key);if(!state){state={pending:new Map(),buckets:new Map(),active:0,fallbackChains:new Map(),primaryCooldownUntil:0};entries.set(key,state);}return state;
 }
 function admit(state:ProxyState,ip:string,cost:number):boolean{
  const now=Date.now();for(const [key,b]of state.buckets)if(now-b.at>=10000)state.buckets.delete(key);
@@ -75,6 +75,13 @@ function validReadScope(call:Call):boolean{
  if(typeof f.fromBlock!=='string'||typeof f.toBlock!=='string'||!/^0x[0-9a-fA-F]{1,16}$/.test(f.fromBlock)||!/^0x[0-9a-fA-F]{1,16}$/.test(f.toBlock))return false;
  return BigInt(f.toBlock)>=BigInt(f.fromBlock)&&BigInt(f.toBlock)-BigInt(f.fromBlock)<=2000n;
 }
+function logRangeExceedsCap(call:Call,cap:number):boolean{
+ if(call.method!=='eth_getLogs')return false;
+ const f=call.params?.[0] as {fromBlock?:unknown;toBlock?:unknown}|undefined;
+ if(f?.fromBlock==='latest'&&f.toBlock==='latest')return false;
+ if(typeof f?.fromBlock!=='string'||typeof f.toBlock!=='string'||!/^0x[0-9a-f]{1,16}$/i.test(f.fromBlock)||!/^0x[0-9a-f]{1,16}$/i.test(f.toBlock))return false;
+ return BigInt(f.toBlock)-BigInt(f.fromBlock)+1n>BigInt(cap);
+}
 export async function proxyReadRpc(request:Request,environment:RpcEnvironment,fetcher:typeof fetch=fetch):Promise<Response>{
  const requestId=webRequestId();
  const headers={'cache-control':'no-store','content-type':'application/json','x-request-id':requestId};
@@ -89,7 +96,13 @@ export async function proxyReadRpc(request:Request,environment:RpcEnvironment,fe
  if(calls.some(c=>!ALLOWED_METHODS.has(c.method)))return json({error:'rpc_method_not_allowed'},403,headers);
  if(calls.some(c=>!validReadScope(c)))return json({error:'invalid_json_rpc'},400,headers);
  const upstream=rpcUrl(environment.TG_WEB_RPC_URL);if(!upstream)return json({error:'rpc_upstream_unavailable'},503,headers);
- const state=stateFor(fetcher,upstream+':'+(environment.VITE_V1_READ_API_URL??''));
+ const fallbackConfigured=environment.TG_WEB_RPC_FALLBACK_URL!==undefined;
+ const fallback=fallbackConfigured?rpcUrl(environment.TG_WEB_RPC_FALLBACK_URL):null;
+ if(fallbackConfigured&&!fallback)return json({error:'rpc_upstream_unavailable'},503,headers);
+ const capValue=environment.TG_WEB_RPC_LOG_MAX_BLOCKS;
+ const logCap=capValue===undefined?null:/^[1-9][0-9]*$/.test(capValue)&&Number.isSafeInteger(Number(capValue))?Number(capValue):null;
+ if(capValue!==undefined&&logCap===null)return json({error:'rpc_upstream_unavailable'},503,headers);
+ const state=stateFor(fetcher,upstream+':'+(fallback??'')+':'+(environment.VITE_V1_READ_API_URL??'')+':'+(environment.VITE_V1_CHAIN_ID??''));
  // Vercel overwrites x-vercel-forwarded-for. Never trust caller-selected X-Forwarded-For.
  const ip=request.headers.get('x-vercel-forwarded-for')?.split(',')[0]?.trim()??'local';
  if(!admit(state,ip,calls.length))return json({error:'rpc_rate_limited'},429,{...headers,'retry-after':'10'});
@@ -99,7 +112,7 @@ export async function proxyReadRpc(request:Request,environment:RpcEnvironment,fe
   const unique=[...new Set(addresses)].sort();
   return share(state,'scope:'+unique.join(','),async()=>{
    const url=new URL('/v1/rpc-scope',base);url.searchParams.set('addresses',unique.join(','));
-   const r=await fetcher(url,{redirect:'error',signal:AbortSignal.timeout(5000)});if(!r.ok)throw Error('scope unavailable');
+   const r=await fetcher(url,{redirect:'error',signal:AbortSignal.timeout(4000)});if(!r.ok)throw Error('scope unavailable');
    const data=await r.json();if(data.chainId!==Number(environment.VITE_V1_CHAIN_ID)||!Array.isArray(data.targets))throw Error('scope mismatch');
    return new Map(data.targets.filter((v:Target)=>unique.includes(v.address)&&Array.isArray(v.topics)).map((v:Target)=>[v.address,v]));
   });
@@ -109,17 +122,43 @@ export async function proxyReadRpc(request:Request,environment:RpcEnvironment,fe
   for(const c of calls){const a=targetAddress(c);if(a&&!scope.has(a))return json({error:'rpc_target_not_allowed'},403,headers);
    if(c.method==='eth_getLogs'){const topics=(c.params![0] as {topics:unknown[]}).topics[0];const selected=Array.isArray(topics)?topics:[topics];if(!selected.every(t=>scope.get(a!)!.topics.includes(String(t).toLowerCase())))return json({error:'rpc_event_not_allowed'},403,headers);}
   }
+  if(logCap!==null&&!fallback&&calls.some(c=>logRangeExceedsCap(c,logCap)))return json({error:'rpc_upstream_unavailable'},502,headers);
+  async function fallbackChainMatches():Promise<boolean>{
+   if(!fallback)return false;
+   const cached=state.fallbackChains.get(fallback);if(cached&&cached.expiresAt>Date.now())return cached.promise;
+   const promise=fetcher(fallback,{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({jsonrpc:'2.0',id:1,method:'eth_chainId',params:[]}),redirect:'error',signal:AbortSignal.timeout(4000)}).then(async r=>{
+    if(!r.ok)return false;const text=await r.text();if(new TextEncoder().encode(text).byteLength>1024)return false;
+    const b=JSON.parse(text);return b.jsonrpc==='2.0'&&b.id===1&&typeof b.result==='string'&&/^0x[0-9a-f]+$/i.test(b.result)&&BigInt(b.result)===BigInt(environment.VITE_V1_CHAIN_ID??'0');
+   }).catch(()=>false);
+   state.fallbackChains.set(fallback,{expiresAt:Date.now()+30000,promise});
+   return promise;
+  }
   const results=await Promise.all(calls.map(async c=>{
+   const forceFallback=logCap!==null&&logRangeExceedsCap(c,logCap);
    const key=JSON.stringify([c.method,c.params??[]]);
    const body=await share(state,key,async()=>{
-    const r=await fetcher(upstream,{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({...c,id:1}),redirect:'error',signal:AbortSignal.timeout(12000)});
-    if(!r.ok)throw Error('upstream unavailable');const text=await r.text();if(new TextEncoder().encode(text).byteLength>MAX_RESPONSE_BYTES)throw Error('response too large');
-    const b=JSON.parse(text);if(b.jsonrpc!=='2.0'||b.id!==1||(!('result' in b)&&!b.error))throw Error('invalid response');return b;
+    const send=async(url:string)=>{
+     let r:Response;try{r=await fetcher(url,{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({...c,id:1}),redirect:'error',signal:AbortSignal.timeout(4000)});}catch{return {retryable:true,error:new Error('upstream unavailable')};}
+     if(!r.ok){const retryable=[401,403,408,429].includes(r.status)||r.status>=500;if(!retryable)throw Error('upstream unavailable');return {retryable,error:new Error('upstream unavailable')};}
+     let b:any;try{const text=await r.text();if(new TextEncoder().encode(text).byteLength>MAX_RESPONSE_BYTES)throw Error('response too large');b=JSON.parse(text);}catch{return {retryable:true,error:new Error('invalid response')};}
+     if(b.jsonrpc!=='2.0'||b.id!==1||(!('result' in b)&&!b.error))return {retryable:true,error:new Error('invalid response')};
+     const code=(b.error as {code?:unknown}|undefined)?.code;
+     return {body:b,retryable:code===-32603||code===-32005};
+    };
+    if(forceFallback){if(!(await fallbackChainMatches()))throw Error('fallback unavailable');const secondary=await send(fallback!);if(secondary.retryable)throw Error('fallback unavailable');return secondary.body;}
+    if(fallback&&state.primaryCooldownUntil>Date.now()){
+     if(!(await fallbackChainMatches()))throw Error('fallback unavailable');const secondary=await send(fallback);if(secondary.retryable)throw Error('fallback unavailable');return secondary.body;
+    }
+    const primary=await send(upstream);
+    if(primary.retryable){state.primaryCooldownUntil=Date.now()+30000;if(!fallback)throw primary.error??Error('upstream unavailable');if(!(await fallbackChainMatches()))throw Error('fallback unavailable');const secondary=await send(fallback);if(secondary.retryable)throw Error('fallback unavailable');return secondary.body;}
+    state.primaryCooldownUntil=0;
+    return primary.body;
    }) as {jsonrpc:string;id:number;result?:unknown;error?:unknown};
    if(['eth_getTransactionByHash','eth_getTransactionReceipt'].includes(c.method)&&body.result){
     const r=body.result as {to?:string;logs?:{address:string}[]};const addresses=[r.to,...(r.logs??[]).map(l=>l.address)].filter((a):a is string=>typeof a==='string'&&ADDRESS.test(a)).map(a=>a.toLowerCase());
     if(!(await targets(addresses.slice(0,60))).size)return {jsonrpc:'2.0',id:c.id,error:{code:-32602,message:'Transaction is outside project scope'}};
    }
+   if(body.error){const error=body.error as {code?:unknown;data?:unknown};const revertData=typeof error.data==='string'&&/^0x[0-9a-f]*$/i.test(error.data)?error.data:undefined;return {jsonrpc:'2.0',id:c.id,error:{...(typeof error.code==='number'?{code:error.code}:{}),message:'RPC request failed',...(revertData===undefined?{}:{data:revertData})}};}
    return {...body,id:c.id};
   }));
   return json(Array.isArray(payload)?results:results[0],200,headers);

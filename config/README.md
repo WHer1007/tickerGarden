@@ -79,3 +79,23 @@ TypeScript pipeline/content 的 `TG_PIPELINE_GENERATION`、`TG_CONTENT_GENERATIO
 旧的环境写入脚本 `prepare-robinhood-testnet-local-integration`、`activate-robinhood-atomic-business`、`start-continuous-web` 已明确禁用，避免重建分散配置或激活历史地址。历史证据与签名/部署记录未删除，不可通过重跑旧脚本“恢复配置”。
 
 公开资产准入审查表及字段含义见 [docs/operations/ASSET_ADMISSION_REVIEW.md](../docs/operations/ASSET_ADMISSION_REVIEW.md)。表中的 pending 记录只约束未来 canonical asset admission 脚本，不影响既有市场和提现。
+
+## QuickNode 主网查询与 Alchemy 备用
+
+主网 Endpoint Authentication Token 集中保存在原仓库根目录 `.env.master.local` 的 `QUICKNODE_API_KEY`，同时设置 `QUICKNODE_HTTP_BASE`、`QUICKNODE_WS_BASE`。不维护额外密钥文件，不使用账户管理 API Key，也不放进 `VITE_*`。完整端点路径为 `<base>/<token>/`。
+
+服务端按职责配置（不能整份上传本机配置）：
+
+| 服务 | 主节点 | 可用性备用 | 主节点日志区块上限 |
+|---|---|---|---|
+| Web `/api/rpc` | `TG_WEB_RPC_URL` | `TG_WEB_RPC_FALLBACK_URL` | `TG_WEB_RPC_LOG_MAX_BLOCKS` |
+| Read API | `TG_READ_RPC_URL` | `TG_READ_RPC_FALLBACK_URL` | `TG_READ_RPC_LOG_MAX_BLOCKS` |
+| Pipeline、展示/结算 Worker | `TG_RPC_URL` | `TG_RPC_FALLBACK_URL` | `TG_RPC_LOG_MAX_BLOCKS` |
+| Relay HTTP | `CHAIN_RELAY_HTTP_URL` | `CHAIN_RELAY_HTTP_FALLBACK_URL` | `CHAIN_RELAY_HTTP_LOG_MAX_BLOCKS` |
+| Relay WebSocket | `CHAIN_RELAY_WS_URL` | `CHAIN_RELAY_WS_FALLBACK_URL` | 不适用 |
+
+备用不等于第二核验源，生产保持 `TG_RPC_VERIFICATION_MODE=single`，不填写 `TG_SECONDARY_RPC_URL`。正常查询只读主节点；网络/限流/服务异常才切换，合约回滚不自动重试备用。请求的区块和参数保持不变，继续执行回执、区块身份和业务一致性检查。
+
+2026-09-20 实测此 QuickNode Discover 端点限制 `eth_getLogs` 最多 5 个区块；上述日志上限配置为 `5`，更大范围直接走 Alchemy，避免拆分成大量请求。升级套餐后先验证再调整。测试网沿用其独立端点，不能使用此主网 Token。
+
+文档：[QuickNode 接入格式](https://www.quicknode.com/docs/welcome)、[Robinhood RPC](https://www.quicknode.com/docs/robinhood)。

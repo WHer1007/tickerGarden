@@ -79,6 +79,22 @@ export function eventKey(log: SubscriptionLog): string {
   return `${log.blockHash}:${log.transactionHash}:${log.logIndex}:${log.removed ? 'removed' : 'canonical'}`;
 }
 
+export function shouldFailoverHttp(kind: 'transport' | 'invalid-json' | 'rpc-error' | 'http-rejected' | number): boolean {
+  return kind === 'transport' || kind === 'invalid-json' || kind === 408 || kind === 429 || (typeof kind === 'number' && kind >= 500);
+}
+
+export function shouldRouteLargeLogRangeToFallback(method: string, params: readonly unknown[], maximumBlocks: number): boolean {
+  if (method !== 'eth_getLogs' || maximumBlocks <= 0 || !Number.isInteger(maximumBlocks)) return false;
+  const filter = params[0];
+  if (!filter || typeof filter !== 'object' || Array.isArray(filter)) return false;
+  const range = filter as Record<string, unknown>;
+  if (typeof range.fromBlock !== 'string' || typeof range.toBlock !== 'string'
+    || !/^0x[0-9a-f]+$/i.test(range.fromBlock) || !/^0x[0-9a-f]+$/i.test(range.toBlock)) return false;
+  const from = BigInt(range.fromBlock);
+  const to = BigInt(range.toBlock);
+  return to >= from && to - from + 1n > BigInt(maximumBlocks);
+}
+
 export function subscriptionParameters(addresses: readonly string[], topics: readonly string[]): readonly unknown[] {
   if (addresses.length === 0 || topics.length === 0) throw new Error('subscription filter cannot be empty');
   return ['logs', { address: [...addresses].sort(), topics: [[...topics].sort()] }] as const;

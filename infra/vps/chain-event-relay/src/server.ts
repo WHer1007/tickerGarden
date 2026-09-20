@@ -3,7 +3,7 @@ import { createServer } from 'node:http';
 import { readFile } from 'node:fs/promises';
 import pg, { type Pool } from 'pg';
 import {
-  eventKey, matchesFilter, mergeSources, parseEventFilter, parseSubscriptionLog, serializeTrigger, subscriptionFilters,
+  eventKey, matchesFilter, mergeSources, parseEventFilter, parseSubscriptionLog, serializeTrigger, subscriptionFilters, shouldFailoverHttp, shouldRouteLargeLogRangeToFallback,
   type EventFilter, type PoolBinding, type SourceAddress,
 } from './core.ts';
 
@@ -17,6 +17,18 @@ if (!['test','production'].includes(process.env.TG_ENVIRONMENT??'')) throw new E
 
 const filter = parseEventFilter(JSON.parse(await readFile(new URL(process.env.TG_ENVIRONMENT==='production'?'../filter.production.json':'../filter.json', import.meta.url), 'utf8')));
 if(filter.environment!==process.env.TG_ENVIRONMENT)throw Error('chain relay filter environment mismatch');
+const wsPrimary = process.env.CHAIN_RELAY_WS_URL!;
+const wsFallback = process.env.CHAIN_RELAY_WS_FALLBACK_URL;
+const httpPrimary = process.env.CHAIN_RELAY_HTTP_URL!;
+const httpFallback = process.env.CHAIN_RELAY_HTTP_FALLBACK_URL;
+const httpLogMaxBlocks = process.env.CHAIN_RELAY_HTTP_LOG_MAX_BLOCKS
+  ? positiveInteger(process.env.CHAIN_RELAY_HTTP_LOG_MAX_BLOCKS, 1, 1_000_000) : 0;
+for (const [name, value, protocol] of [['CHAIN_RELAY_WS_URL',wsPrimary,'wss:'],['CHAIN_RELAY_WS_FALLBACK_URL',wsFallback,'wss:'],['CHAIN_RELAY_HTTP_URL',httpPrimary,'https:'],['CHAIN_RELAY_HTTP_FALLBACK_URL',httpFallback,'https:']] as const) {
+  if (!value) continue;
+  const url = new URL(value);
+  const validProtocol = name.startsWith('CHAIN_RELAY_WS_') ? url.protocol === protocol : ['http:','https:'].includes(url.protocol);
+  if (!validProtocol || url.hash) throw new Error(`invalid ${name}`);
+}
 const relayPool = new PgPool({ connectionString: process.env.CHAIN_RELAY_DATABASE_URL, max: positiveInteger(process.env.TG_DB_POOL_MAX_CHAIN_RELAY??'4',1,10), connectionTimeoutMillis: 5_000 });
 const sourcePool = new PgPool({ connectionString: process.env.CHAIN_SOURCE_DATABASE_URL, max: positiveInteger(process.env.TG_DB_POOL_MAX_CHAIN_RELAY_SOURCE??'2',1,10), connectionTimeoutMillis: 5_000 });
 for(const pool of [relayPool,sourcePool])pool.on('error',(error:Error&{code?:string})=>console.error(JSON.stringify({event:'chain_relay_idle_database_error',code:error.code??'unknown'})));
@@ -73,24 +85,29 @@ for (const signal of ['SIGTERM', 'SIGINT'] as const) process.on(signal, () => {
 
 async function connectionLoop(): Promise<void> {
   let backoff = 1_000;
+  let activeWs = wsPrimary;
+  let primaryRetryAt = 0;
   while (!stopping) {
     let client: WsRpcClient | undefined;
+    let healthySince = 0;
     try {
       ready = false;
       subscriptionIds = [];
       const routing = await loadRouting(sourcePool, filter);
       setAllowed(routing);
-      client = await WsRpcClient.connect(process.env.CHAIN_RELAY_WS_URL!, handleSubscriptionLog);
+      client = await WsRpcClient.connect(activeWs, handleSubscriptionLog);
+      await assertChainId(await client.request<string>('eth_chainId', []));
       subscriptionIds = await subscribe(client, routing);
       if(recoveryOwner==='relay')await reconcile(client, routing);
       else await sourcePool.query('SELECT pg_notify($1,$2)',[wakeChannel,'recover']);
       activeSources = routing.sources.length;
       activePools = routing.pools.length;
       ready = true;
+      healthySince = Date.now();
       lastError = null;
-      backoff = 1_000;
       let currentRouting = routing;
       while (!stopping && !client.closed) {
+        if (activeWs !== wsPrimary && Date.now() >= primaryRetryAt) throw new Error('primary recovery probe');
         await delay(sourceRefreshMs);
         if (stopping || client.closed) break;
         const nextRouting = await loadRouting(sourcePool, filter);
@@ -111,11 +128,16 @@ async function connectionLoop(): Promise<void> {
         activeSources = nextRouting.sources.length;
         activePools = nextRouting.pools.length;
       }
-      if (!stopping) throw new Error('Alchemy WebSocket disconnected');
+      if (!stopping) throw new Error('WebSocket disconnected');
     } catch (error) {
-      lastError = error instanceof Error ? error.message.slice(0, 200) : 'chain relay failure';
+      if (healthySince && Date.now() - healthySince >= 60_000) backoff = 1_000;
+      lastError = safeError(error);
       reconnects += 1;
-      console.error(JSON.stringify({ event: 'chain_relay_disconnected', error: lastError, reconnects }));
+      console.error(JSON.stringify({ event: 'chain_relay_disconnected', provider: activeWs === wsPrimary ? 'primary' : 'fallback', error: lastError, reconnects }));
+      if (wsFallback) {
+        if (activeWs === wsPrimary) { activeWs = wsFallback; primaryRetryAt = Date.now() + 60_000; }
+        else { activeWs = wsPrimary; primaryRetryAt = 0; }
+      }
     } finally {
       ready = false;
       subscriptionIds = [];
@@ -131,7 +153,7 @@ async function subscribe(client: WsRpcClient, routing: Routing): Promise<string[
   const ids: string[] = [];
   for (const logFilter of subscriptionFilters(filter, routing.sources, routing.pools)) {
     const id = await client.request<string>('eth_subscribe', ['logs', logFilter]);
-    if (!/^0x[0-9a-f]+$/i.test(id)) throw new Error('invalid Alchemy subscription id');
+    if (!/^0x[0-9a-f]+$/i.test(id)) throw new Error('invalid subscription id');
     ids.push(id);
   }
   if (ids.length === 0) throw new Error('chain relay has no subscription filters');
@@ -183,7 +205,8 @@ async function publishLoop(): Promise<void> {
       event = await claimEvent(relayPool);
       if (!event) { await delay(500); continue; }
       const endpoint = `${queueUrl}/v2/publish/${encodeURIComponent(destination.toString())}`;
-      const response = await fetch(endpoint, {
+      const id=++requestId;
+    const response = await fetch(endpoint, {
         method: 'POST', body: event.payload, redirect: 'error', signal: AbortSignal.timeout(15_000),
         headers: {
           authorization: `Bearer ${process.env.QUEUE_PUBLISH_TOKEN!}`, 'content-type': 'application/json',
@@ -321,14 +344,60 @@ function blockHeader(value: unknown): { number: bigint; hash: `0x${string}` } {
 
 let requestId = 1000;
 async function httpRpc<T>(method: string, params: readonly unknown[]): Promise<T> {
-  const response = await fetch(process.env.CHAIN_RELAY_HTTP_URL!, {
-    method: 'POST', signal: AbortSignal.timeout(15_000), headers: { 'content-type': 'application/json' },
-    body: JSON.stringify({ jsonrpc: '2.0', id: ++requestId, method, params }),
-  });
-  if (!response.ok) throw new Error(`Alchemy RPC returned HTTP ${response.status}`);
-  const value = await response.json() as { result?: T; error?: { message?: string } };
-  if (value.error || value.result === undefined) throw new Error(`Alchemy RPC ${method} failed`);
-  return value.result;
+  if (httpFallback && httpLogMaxBlocks > 0 && shouldRouteLargeLogRangeToFallback(method, params, httpLogMaxBlocks)) {
+    await assertHttpProviderChain(httpFallback);
+    return httpRpcAt<T>(httpFallback, method, params);
+  }
+  try {
+    await assertHttpProviderChain(httpPrimary);
+    return await httpRpcAt<T>(httpPrimary, method, params);
+  }
+  catch (error) {
+    if (!httpFallback || !(error instanceof TransientRpcError) || !shouldFailoverHttp(error.kind)) throw error;
+    await assertHttpProviderChain(httpFallback);
+    return httpRpcAt<T>(httpFallback, method, params);
+  }
+}
+
+class TransientRpcError extends Error { readonly kind:'transport'|'invalid-json'|number; constructor(kind:'transport'|'invalid-json'|number) { super('transient provider failure'); this.kind=kind; } }
+const verifiedHttpProviders = new Set<string>();
+async function assertHttpProviderChain(endpoint: string): Promise<void> {
+  if (verifiedHttpProviders.has(endpoint)) return;
+  const chain = await httpRpcAt<string>(endpoint, 'eth_chainId', []);
+  assertChainId(chain);
+  verifiedHttpProviders.add(endpoint);
+}
+function assertChainId(value: string): void {
+  if (typeof value !== 'string' || !/^0x[0-9a-f]+$/i.test(value) || BigInt(value) !== BigInt(filter.chainId)) throw new Error('provider chain identity mismatch');
+}
+async function httpRpcAt<T>(endpoint: string, method: string, params: readonly unknown[]): Promise<T> {
+  try {
+    const response = await fetch(endpoint, {
+      method: 'POST', redirect:'error', signal: AbortSignal.timeout(5_000), headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ jsonrpc: '2.0', id, method, params }),
+    });
+    if (shouldFailoverHttp(response.status)) throw new TransientRpcError(response.status);
+    if (!response.ok) throw new Error('RPC HTTP request rejected');
+    let value: { jsonrpc?:string; id?:number; result?: T; error?: {code?:number} };
+    try { value = await response.json() as typeof value; } catch { throw new TransientRpcError('invalid-json'); }
+    if(value.jsonrpc!=='2.0'||value.id!==id)throw new Error('RPC application error');
+    if(value.error&&[-32603,-32005].includes(value.error.code??0))throw new TransientRpcError('transport');
+    if (value.error || value.result === undefined) throw new Error('RPC application error');
+    return value.result;
+  } catch (error) {
+    if (error instanceof TransientRpcError) throw error;
+    if (error instanceof Error && error.message === 'RPC application error') throw error;
+    if (error instanceof Error && error.message === 'RPC HTTP request rejected') throw error;
+    throw new TransientRpcError('transport');
+  }
+}
+function safeError(error: unknown): string {
+  const message = error instanceof Error ? error.message : '';
+  if (message === 'provider chain identity mismatch') return message;
+  if (message === 'primary recovery probe') return 'primary recovery probe';
+  if (message.includes('timeout')) return 'provider request timeout';
+  if (message.includes('outside the project filter')) return 'provider log outside project filter';
+  return 'provider connection or RPC failure';
 }
 
 class WsRpcClient {
@@ -344,10 +413,10 @@ class WsRpcClient {
         if (typeof value.id === 'number') {
           const pending = this.pending.get(value.id); if (!pending) return;
           clearTimeout(pending.timer); this.pending.delete(value.id);
-          if (value.error) pending.reject(new Error(value.error.message ?? 'Alchemy WebSocket RPC error')); else pending.resolve(value.result);
+          if (value.error) pending.reject(new Error('WebSocket RPC application error')); else pending.resolve(value.result);
         } else if (value.method === 'eth_subscription' && value.params?.result !== undefined) {
           void onLog(value.params.result).catch((error) => {
-            console.error(JSON.stringify({ event: 'chain_relay_log_rejected', error: error instanceof Error ? error.message : 'unknown' }));
+            console.error(JSON.stringify({ event: 'chain_relay_log_rejected', error: safeError(error) }));
             socket.close(1011, 'log persistence failed');
           });
         }
@@ -358,20 +427,20 @@ class WsRpcClient {
   }
   static async connect(url: string, onLog: (value: unknown) => Promise<void>): Promise<WsRpcClient> {
     const endpoint = new URL(url);
-    if (endpoint.protocol !== 'wss:' || endpoint.username || endpoint.password || endpoint.hash) throw new Error('Alchemy WebSocket URL must use wss');
+    if (endpoint.protocol !== 'wss:' || endpoint.username || endpoint.password || endpoint.hash) throw new Error('WebSocket URL must use wss');
     const socket = new WebSocket(endpoint);
     await new Promise<void>((resolve, reject) => {
-      const timer = setTimeout(() => { socket.close(); reject(new Error('Alchemy WebSocket open timeout')); }, 15_000);
+      const timer = setTimeout(() => { socket.close(); reject(new Error('WebSocket open timeout')); }, 15_000);
       socket.addEventListener('open', () => { clearTimeout(timer); resolve(); }, { once: true });
-      socket.addEventListener('error', () => { clearTimeout(timer); reject(new Error('Alchemy WebSocket open failed')); }, { once: true });
+      socket.addEventListener('error', () => { clearTimeout(timer); reject(new Error('WebSocket open failed')); }, { once: true });
     });
     return new WsRpcClient(socket, onLog);
   }
   request<T = unknown>(method: string, params: readonly unknown[]): Promise<T> {
-    if (this.closed || this.socket.readyState !== WebSocket.OPEN) return Promise.reject(new Error('Alchemy WebSocket is closed'));
+    if (this.closed || this.socket.readyState !== WebSocket.OPEN) return Promise.reject(new Error('WebSocket is closed'));
     const id = this.nextId++;
     return new Promise<T>((resolve, reject) => {
-      const timer = setTimeout(() => { this.pending.delete(id); reject(new Error(`Alchemy WebSocket ${method} timeout`)); }, 15_000);
+      const timer = setTimeout(() => { this.pending.delete(id); reject(new Error(`WebSocket ${method} timeout`)); }, 15_000);
       this.pending.set(id, { resolve: (value) => resolve(value as T), reject, timer });
       this.socket.send(JSON.stringify({ jsonrpc: '2.0', id, method, params }));
     });
@@ -380,7 +449,7 @@ class WsRpcClient {
   private markClosed(): void {
     if (this.closed) return;
     this.closed = true;
-    for (const pending of this.pending.values()) { clearTimeout(pending.timer); pending.reject(new Error('Alchemy WebSocket disconnected')); }
+    for (const pending of this.pending.values()) { clearTimeout(pending.timer); pending.reject(new Error('WebSocket disconnected')); }
     this.pending.clear();
   }
 }

@@ -4,6 +4,7 @@ import { keccak256 } from 'viem';
 import { transaction } from '../../db/src/index.ts';
 
 const ALLOWED_METHODS = new Set([
+  'eth_getTransactionCount', 'eth_estimateGas', 'eth_gasPrice', 'eth_getBalance',
   'eth_chainId', 'eth_getBlockByNumber', 'eth_getLogs', 'eth_getTransactionReceipt', 'eth_getTransactionByHash', 'eth_call', 'eth_getCode',
 ]);
 const HASH = /^0x[0-9a-f]{64}$/;
@@ -78,6 +79,9 @@ export function parseChainLogTrigger(value: unknown, expected: DeploymentIdentit
 
 export interface RpcTransportOptions {
   readonly url: string;
+  readonly fallbackUrl?: string;
+  readonly expectedChainId?: number;
+  readonly primaryLogMaxBlocks?: number;
   readonly fetch?: typeof fetch;
   readonly timeoutMs?: number;
   readonly maxResponseBytes?: number;
@@ -104,8 +108,27 @@ export interface RpcCallMetric {
 // Only concurrent identical reads share a result. Completed reads are never
 // cached: later anchor checks must still detect a chain change.
 const inFlightReads = new WeakMap<typeof fetch, Map<string, Promise<unknown>>>();
+// Chain checks are shared and refreshed periodically; endpoint tokens never enter diagnostics.
+const primaryCooldowns = new WeakMap<typeof fetch, Map<string, number>>();
+const endpointChecks = new WeakMap<typeof fetch, Map<string, {until:number; pending:Promise<void>}>>();
+async function verifyEndpointChain(fetcher:typeof fetch,url:string,chainId:number,timeout:number):Promise<void>{
+  let entries=endpointChecks.get(fetcher);if(!entries){entries=new Map();endpointChecks.set(fetcher,entries);}
+  const key=JSON.stringify([url,chainId]);const prior=entries.get(key);if(prior&&prior.until>Date.now())return prior.pending;
+  const pending=(async()=>{
+    const response=await fetcher(url,{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({jsonrpc:'2.0',id:0,method:'eth_chainId',params:[]}),redirect:'error',signal:AbortSignal.timeout(timeout)});
+    if(!response.ok)throw new RpcError('RPC identity request unavailable',true);
+    const text=await response.text();if(text.length>4096)throw new RpcError('Invalid RPC chain identity');
+    let b;try{b=JSON.parse(text);}catch{throw new RpcError('Invalid RPC chain identity');}
+    if(b.jsonrpc!=='2.0'||b.id!==0||b.error||typeof b.result!=='string'||!/^0x[0-9a-f]+$/i.test(b.result)||BigInt(b.result)!==BigInt(chainId))throw new RpcError('RPC chain identity mismatch');
+  })();
+  entries.set(key,{until:Date.now()+300000,pending});
+  try{await pending;}catch(error){entries.delete(key);throw error;}
+}
 export class RpcTransport {
   readonly #url: string;
+  readonly #fallbackUrl: string | undefined;
+  readonly #expectedChainId: number | undefined;
+  readonly #primaryLogMaxBlocks: number | undefined;
   readonly #fetch: typeof fetch;
   readonly #timeoutMs: number;
   readonly #maxResponseBytes: number;
@@ -121,21 +144,30 @@ export class RpcTransport {
       throw new Error('RPC endpoint must use HTTPS or local HTTP');
     }
     this.#url = url.toString();
+    this.#fallbackUrl = options.fallbackUrl ? new URL(options.fallbackUrl).toString() : undefined;
+    if (this.#fallbackUrl) {
+      const fallback = new URL(this.#fallbackUrl);
+      if (fallback.protocol !== 'https:' || fallback.username || fallback.password || fallback.hash) throw Error('Invalid fallback RPC endpoint');
+      if (!Number.isSafeInteger(options.expectedChainId) || options.expectedChainId! <= 0) throw Error('Fallback RPC requires expected chain ID');
+    }
+    this.#expectedChainId = options.expectedChainId;
+    this.#primaryLogMaxBlocks = options.primaryLogMaxBlocks;
+    if(this.#primaryLogMaxBlocks!==undefined&&(!Number.isSafeInteger(this.#primaryLogMaxBlocks)||this.#primaryLogMaxBlocks<1))throw Error('Invalid primary RPC log limit');
     this.#fetch = options.fetch ?? fetch;
     this.#timeoutMs = options.timeoutMs ?? 5_000;
     this.#maxResponseBytes = options.maxResponseBytes ?? MAX_RESPONSE_BYTES;
-    this.#provider = options.provider ?? 'unspecified';
+    this.#provider = url.hostname.endsWith('.quiknode.pro') ? 'quicknode-primary' : options.provider ?? 'unspecified';
     this.#nominalComputeUnits = options.nominalComputeUnits;
     this.#computeUnitSchedule = options.computeUnitSchedule;
     this.#observe = options.observe;
   }
 
-  sameSource(other: RpcTransport): boolean { return this === other || (this.#url === other.#url && this.#fetch === other.#fetch); }
+  sameSource(other: RpcTransport): boolean { return this === other || (this.#url === other.#url && this.#fallbackUrl === other.#fallbackUrl && this.#expectedChainId === other.#expectedChainId && this.#primaryLogMaxBlocks === other.#primaryLogMaxBlocks && this.#fetch === other.#fetch); }
 
   async call<TResult>(method: string, params: readonly unknown[]): Promise<TResult> {
     let pending = inFlightReads.get(this.#fetch);
     if (!pending) { pending = new Map(); inFlightReads.set(this.#fetch, pending); }
-    const key = JSON.stringify([this.#url, this.#timeoutMs, this.#maxResponseBytes, method, params]);
+    const key = JSON.stringify([this.#url, this.#fallbackUrl, this.#expectedChainId, this.#primaryLogMaxBlocks, this.#timeoutMs, this.#maxResponseBytes, method, params]);
     const existing = pending.get(key); if (existing) return existing as Promise<TResult>;
     const result = this.#perform<TResult>(method, params);
     if (pending.size < 512) {
@@ -147,16 +179,25 @@ export class RpcTransport {
 
   async #perform<TResult>(method: string, params: readonly unknown[]): Promise<TResult> {
     if (!ALLOWED_METHODS.has(method)) throw new Error('RPC method is not allowed');
+    const logFilter=params[0] as {fromBlock?:string;toBlock?:string}|undefined;
+    const numericRange=method==='eth_getLogs'&&/^0x[0-9a-f]+$/i.test(logFilter?.fromBlock??'')&&/^0x[0-9a-f]+$/i.test(logFilter?.toBlock??'');
+    const needsFallback=!!(this.#primaryLogMaxBlocks&&numericRange&&BigInt(logFilter!.toBlock!)-BigInt(logFilter!.fromBlock!)+1n>BigInt(this.#primaryLogMaxBlocks));
+    if(needsFallback&&!this.#fallbackUrl)throw new RpcError('Log range exceeds primary provider capability');
+    let cooldowns=primaryCooldowns.get(this.#fetch);if(!cooldowns){cooldowns=new Map();primaryCooldowns.set(this.#fetch,cooldowns);}
+    const routeKey=JSON.stringify([this.#url,this.#fallbackUrl]);
+    const useStandby=needsFallback||!!(this.#fallbackUrl&&(cooldowns.get(routeKey)??0)>Date.now());
     const requestId = ++this.#requestId;
     let lastError: unknown;
-    for (let attempt = 0; attempt < 2; attempt += 1) {
+    for (let attempt = useStandby ? 1 : 0; attempt < 2; attempt += 1) {
       const started = performance.now();
       const requestBody = JSON.stringify({ jsonrpc: '2.0', id: requestId, method, params });
       let responseBytes = 0;
       try {
-        const response = await this.#fetch(this.#url, {
+        const endpoint = attempt === 1 && this.#fallbackUrl ? this.#fallbackUrl : this.#url;
+        if (this.#fallbackUrl) await verifyEndpointChain(this.#fetch, endpoint, this.#expectedChainId!, Math.min(this.#timeoutMs,2000));
+        const response = await this.#fetch(endpoint, {
           method: 'POST', headers: { 'content-type': 'application/json' },
-          body: requestBody,
+          body: requestBody, redirect: 'error',
           signal: AbortSignal.timeout(this.#timeoutMs),
         });
         const declaredLength = Number(response.headers.get('content-length') ?? '0');
@@ -164,26 +205,28 @@ export class RpcTransport {
         const bytes = Buffer.from(await response.arrayBuffer());
         responseBytes = bytes.byteLength;
         if (bytes.byteLength > this.#maxResponseBytes) throw new RpcError('RPC response exceeds size limit');
-        if (!response.ok) throw new RpcError(`RPC HTTP ${response.status}`, response.status === 429 || response.status >= 500);
+        if (!response.ok) throw new RpcError(`RPC HTTP ${response.status}`, [401,403,408,429].includes(response.status) || response.status >= 500);
         const body = JSON.parse(bytes.toString('utf8')) as { jsonrpc?: unknown; id?: unknown; result?: TResult; error?: { code?: unknown } };
         if (body.jsonrpc !== '2.0' || body.id !== requestId) throw new RpcError('RPC response identity mismatch');
-        if (body.error) throw new RpcError(`RPC returned error code ${String(body.error.code ?? 'unknown')}`);
+        if (body.error) throw new RpcError(`RPC returned error code ${String(body.error.code ?? 'unknown')}`, [-32603,-32005].includes(Number(body.error.code)));
         if (!Object.hasOwn(body, 'result')) throw new RpcError('RPC response has no result');
-        this.#emit({ event: 'rpc_call', provider: this.#provider, method, attempt: attempt + 1, outcome: 'succeeded',
+        this.#emit({ event: 'rpc_call', provider: attempt === 1 && this.#fallbackUrl ? 'fallback' : this.#provider, method, attempt: attempt + 1, outcome: 'succeeded',
           durationMs: elapsed(started), requestBytes: Buffer.byteLength(requestBody), responseBytes, retryable: false,
-          nominalComputeUnits: this.#nominalComputeUnits?.(method) ?? null, computeUnitSchedule: this.#computeUnitSchedule ?? null });
+          nominalComputeUnits: this.#fallbackUrl || this.#provider.startsWith('quicknode') ? null : this.#nominalComputeUnits?.(method) ?? null, computeUnitSchedule: this.#fallbackUrl || this.#provider.startsWith('quicknode') ? null : this.#computeUnitSchedule ?? null });
+        if(attempt===0)cooldowns.delete(routeKey);
         return body.result as TResult;
       } catch (error) {
         lastError = error;
         const retryable = error instanceof RpcError ? error.retryable : true;
-        this.#emit({ event: 'rpc_call', provider: this.#provider, method, attempt: attempt + 1, outcome: 'failed',
+        this.#emit({ event: 'rpc_call', provider: attempt === 1 && this.#fallbackUrl ? 'fallback' : this.#provider, method, attempt: attempt + 1, outcome: 'failed',
           durationMs: elapsed(started), requestBytes: Buffer.byteLength(requestBody), responseBytes, retryable,
-          nominalComputeUnits: this.#nominalComputeUnits?.(method) ?? null, computeUnitSchedule: this.#computeUnitSchedule ?? null });
+          nominalComputeUnits: this.#fallbackUrl || this.#provider.startsWith('quicknode') ? null : this.#nominalComputeUnits?.(method) ?? null, computeUnitSchedule: this.#fallbackUrl || this.#provider.startsWith('quicknode') ? null : this.#computeUnitSchedule ?? null });
+        if(retryable&&attempt===0&&this.#fallbackUrl)cooldowns.set(routeKey,Date.now()+30000);
         if (!retryable || attempt === 1) break;
       }
     }
     if (lastError instanceof RpcError) throw lastError;
-    throw new RpcError('RPC request failed', true, lastError);
+    throw new RpcError('RPC request failed', true);
   }
 
   #emit(metric: RpcCallMetric): void {

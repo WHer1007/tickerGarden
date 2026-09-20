@@ -90,3 +90,10 @@ test('production pool conversion does not require a 0x credential and keeps lega
 test('public environment rejects notification and source-map credentials',()=>{
  for(const key of ['VITE_SENTRY_AUTH_TOKEN','VITE_LARK_WEBHOOK_URL','VITE_ALERT_INGEST_TOKEN'])assert.throws(()=>assertDeploymentBoundary('test','web',{...web('test'),[key]:'secret'},'test'),/public VITE prefix/);
 });
+
+test('web accepts server-only fallback and rejects local or raw provider credentials',()=>{
+ const env={TG_PROFILE:'master',VITE_V1_CHAIN_ID:'4663',VITE_V1_READ_API_URL:'https://api.example',VITE_LAUNCH_METADATA_ORIGIN:'https://content.example',VITE_V1_RPC_URL:'/api/rpc',TG_WEB_RPC_URL:'https://primary.example',TG_WEB_RPC_FALLBACK_URL:'https://backup.example',TG_WEB_RPC_LOG_MAX_BLOCKS:'5'};
+ assert.doesNotThrow(()=>assertDeploymentBoundary('production','web',env,'master'));
+ assert.throws(()=>assertDeploymentBoundary('production','web',{...env,TG_WEB_RPC_FALLBACK_URL:'http://localhost:8545'},'master'),/local reference/);
+ assert.throws(()=>assertDeploymentBoundary('production','web',{...env,QUICKNODE_API_KEY:'secret'},'master'),/tooling-only/);
+});
