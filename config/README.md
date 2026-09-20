@@ -96,6 +96,6 @@ TypeScript pipeline/content 的 `TG_PIPELINE_GENERATION`、`TG_CONTENT_GENERATIO
 
 备用不等于第二核验源，生产保持 `TG_RPC_VERIFICATION_MODE=single`，不填写 `TG_SECONDARY_RPC_URL`。正常查询只读主节点；网络/限流/服务异常才切换，合约回滚不自动重试备用。请求的区块和参数保持不变，继续执行回执、区块身份和业务一致性检查。
 
-2026-09-20 实测此 QuickNode Discover 端点限制 `eth_getLogs` 最多 5 个区块；上述日志上限配置为 `5`，更大范围直接走 Alchemy，避免拆分成大量请求。升级套餐后先验证再调整。测试网沿用其独立端点，不能使用此主网 Token。
+2026-09-20 套餐升级后，实测此 QuickNode 端点可单次查询 50、1,000 和 10,000 个区块。生产已取消上述 `*_LOG_MAX_BLOCKS` 配置，不再按区块范围提前分流至 Alchemy；正常日志补扫也优先使用 QuickNode，只有节点不可用、超时、限流或服务异常时才切换。每秒请求数与单次日志查询区块范围是两种限制，不能混用。应用已有单次最多 10,000 区块的分段限制保持不变。测试网沿用其独立端点，不能使用此主网 Token。
 
 文档：[QuickNode 接入格式](https://www.quicknode.com/docs/welcome)、[Robinhood RPC](https://www.quicknode.com/docs/robinhood)。
