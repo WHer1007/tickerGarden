@@ -77,6 +77,11 @@ export async function loadF72MarketCreations(input: {
 }
 
 export async function observeF72Market(input: ObserveF72MarketInput): Promise<Json> {
+ const run=()=>observeF72MarketAtBlock(input);
+ if(!input.primary.atBlock)return run(); // Lightweight fixtures preserve their structural RPC contract.
+ return input.primary.atBlock(input.blockNumber,input.blockHash,()=>input.primary.sameSource(input.secondary)?run():input.secondary.atBlock(input.blockNumber,input.blockHash,run));
+}
+async function observeF72MarketAtBlock(input: ObserveF72MarketInput): Promise<Json> {
   const market = objectResult(await readFunction(input, REGISTRY, f72ReadAbis.MarketRegistryV1 as Abi, 'market', [input.creation.marketId]));
   const config = objectResult(market.config);
   const runtime = objectResult(market.runtime);
@@ -95,11 +100,11 @@ export async function observeF72Market(input: ObserveF72MarketInput): Promise<Js
   if (reverse !== input.creation.marketId) throw new Error('market reverse identity mismatch');
 
   const identity=await observeTokenIdentity(input,memeToken);
-  const [routeValue, keyValue, canonicalPoolIdValue, executorValue,
+  const [routeValue, keyRaw, canonicalPoolIdValue, executorValue,
     quoteAssetValue, creatorTaxValue, realQuoteReserveValue, sellableTokensValue, reservedTokensValue, readyValue, feesValue,
     tokenMarketValue, tokenFactoryValue] = await Promise.all([
     readFunction(input, REGISTRY, f72ReadAbis.MarketRegistryV1 as Abi, 'canonicalRoute', [input.creation.marketId]),
-    readFunction(input, REGISTRY, f72ReadAbis.MarketRegistryV1 as Abi, 'canonicalPoolKey', [input.creation.marketId]),
+    consensusRawCall(input, REGISTRY, f72ReadAbis.MarketRegistryV1 as Abi, 'canonicalPoolKey', [input.creation.marketId]),
     readFunction(input, REGISTRY, f72ReadAbis.MarketRegistryV1 as Abi, 'canonicalPoolId', [input.creation.marketId]),
     readFunction(input, REGISTRY, f72ReadAbis.MarketRegistryV1 as Abi, 'graduationExecutor', []),
     readFunction(input, curve, f72ReadAbis.TickerGardenCurve as Abi, 'quoteAsset', []),
@@ -123,10 +128,9 @@ export async function observeF72Market(input: ObserveF72MarketInput): Promise<Js
 
   const route = objectResult(routeValue);
   const routeKey = objectResult(route.poolKey);
-  const key = objectResult(keyValue);
+  const key = objectResult(decodeFunctionResult({ abi: f72ReadAbis.MarketRegistryV1 as Abi, functionName: 'canonicalPoolKey', data: keyRaw }));
   const canonicalPoolId = hex32(canonicalPoolIdValue, 'canonicalPoolId');
-  const encodedKey = await consensusRawCall(input, REGISTRY, f72ReadAbis.MarketRegistryV1 as Abi, 'canonicalPoolKey', [input.creation.marketId]);
-  if (canonicalPoolId !== keccak256(encodedKey)) throw new Error('canonical PoolId mismatch');
+  if (canonicalPoolId !== keccak256(keyRaw)) throw new Error('canonical PoolId mismatch');
   assertPoolKey(key, routeKey, quoteAsset, memeToken, address(config.graduatedHook, 'graduatedHook'), safeNumber(config.lpFeePips,24,'lpFeePips'));
   if (hex32(route.poolId, 'route poolId') !== canonicalPoolId
     || address(route.quoteAsset, 'route quoteAsset') !== quoteAsset || address(route.memeToken, 'route memeToken') !== memeToken

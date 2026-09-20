@@ -97,3 +97,11 @@ test('web accepts server-only fallback and rejects local or raw provider credent
  assert.throws(()=>assertDeploymentBoundary('production','web',{...env,TG_WEB_RPC_FALLBACK_URL:'http://localhost:8545'},'master'),/local reference/);
  assert.throws(()=>assertDeploymentBoundary('production','web',{...env,QUICKNODE_API_KEY:'secret'},'master'),/tooling-only/);
 });
+
+test('RPC budget token remains server-only and coordinated deployments require HTTPS control',()=>{
+ const env={...web('production'),TG_RPC_CONTROL_ENABLED:'true',TG_RPC_BUDGET_URL:'https://read.production.example',TG_RPC_BUDGET_TOKEN:'x'.repeat(40)};
+ assert.doesNotThrow(()=>assertDeploymentBoundary('production','web',env,'master'));
+ assert.throws(()=>assertDeploymentBoundary('production','web',{...env,TG_RPC_BUDGET_TOKEN:'short'},'master'),/private budget token/);
+ assert.throws(()=>assertDeploymentBoundary('production','web',{...env,VITE_RPC_BUDGET_TOKEN:'secret'},'master'),/public VITE prefix/);
+ assert.throws(()=>assertDeploymentBoundary('production','web',{...env,TG_RPC_BUDGET_URL:'http://read.production.example'},'master'),/remote https/);
+});

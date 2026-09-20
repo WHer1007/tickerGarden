@@ -9,7 +9,7 @@ const address = (character: string): `0x${string}` => `0x${character.repeat(40)}
 function fixedResult(result: string): typeof fetch {
   return async (_input, init) => {
     const request = JSON.parse(String(init?.body)) as { id: number; method: string };
-    return new Response(JSON.stringify({ jsonrpc: '2.0', id: request.id, result }), { headers: { 'content-type': 'application/json' } });
+    return new Response(JSON.stringify({ jsonrpc: '2.0', id: request.id, result: request.method==='eth_getBlockByNumber'?{number:'0xa',hash:hash('9'),parentHash:hash('8'),timestamp:'0x64'}:result }), { headers: { 'content-type': 'application/json' } });
   };
 }
 

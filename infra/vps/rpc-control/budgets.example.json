@@ -1,0 +1,4 @@
+{
+  "quicknode": {"rps":40,"burst":10,"interactiveReserve":4,"backgroundConcurrency":4,"nonInteractiveConcurrency":8},
+  "alchemy": {"rps":8,"burst":2,"interactiveReserve":1,"backgroundConcurrency":1,"nonInteractiveConcurrency":2}
+}

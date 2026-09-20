@@ -1,5 +1,8 @@
+import {rpcRuntimeOptions} from '../packages/rpc-control/src/runtime.ts';
+import {RpcTransport} from '../packages/chain/src/index.ts';
+import {rpcFailoverOptions} from '../packages/chain/src/rpc-policy.ts';
 /** Read-only operator tool. Never loads a private key, signs, or broadcasts. */
-import {createPublicClient,http,encodeFunctionData,parseAbi,keccak256,type Address,type Hex} from 'viem';
+import {createPublicClient,custom,encodeFunctionData,parseAbi,keccak256,type Address,type Hex} from 'viem';
 import {createDatabasePool} from '../packages/db/src/index.ts';
 import {CURRENT_CHAIN_ID,runtimeReleaseId,runtimeGenesisHash} from '../packages/runtime-deployment/src/index.ts';
 import {fixedF72Sources,f72ReadAbis} from '../packages/events/src/index.ts';
@@ -18,7 +21,8 @@ try{
  console.log(JSON.stringify({mode:'read-only',pending:rows.rows.slice(0,200),hasMore:rows.rows.length>200}));
  if(account&&marketId&&sender){
   const endpoint=process.env.TG_RPC_URL;if(!endpoint)throw Error('TG_RPC_URL required for a fresh plan');
-  const client=createPublicClient({transport:http(endpoint)});
+  const rpc=new RpcTransport({...rpcRuntimeOptions(process.env,'stake-cleanup-plan','background'),...rpcFailoverOptions(process.env),url:endpoint});
+  const client=createPublicClient({transport:custom({request:({method,params})=>rpc.call(method,(params??[]) as unknown[])})});
   const [chain,genesis,block]=await Promise.all([client.getChainId(),client.getBlock({blockNumber:0n}),client.getBlock()]);
   if(chain!==CURRENT_CHAIN_ID||genesis.hash!==runtimeGenesisHash)throw Error('RPC chain identity mismatch');
   const manager=fixedF72Sources().find(s=>s.module==='AllocationManager')!;

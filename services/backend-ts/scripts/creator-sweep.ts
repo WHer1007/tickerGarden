@@ -1,3 +1,4 @@
+import {rpcRuntimeOptions} from '../packages/rpc-control/src/runtime.ts';
 import {rpcFailoverOptions} from '../packages/chain/src/rpc-policy.ts';
 import {reportError} from '../packages/observability/src/index.ts';
 /** Explicit operator command. Not started by the ordinary indexing Worker. */
@@ -15,7 +16,8 @@ async function main(){
  fs.mkdirSync(dir,{recursive:true,mode:0o700});privateStatePath(dir);
  const file=path.join(dir,`${CURRENT_CHAIN_ID}-${signer}.json`);
  const policy:SweepPolicy={chainId:CURRENT_CHAIN_ID,releaseId:runtimeReleaseId,maxTxGasWei:BigInt(env.TG_CREATOR_SWEEP_MAX_TX_GAS_WEI??'0'),dailyGasWei:BigInt(env.TG_CREATOR_SWEEP_DAILY_GAS_WEI??'0'),minByAsset:JSON.parse(env.TG_CREATOR_SWEEP_MIN_BY_ASSET??'{}'),finality:(env.TG_SETTLEMENT_FINALITY??'finalized') as 'finalized'|'delay',delaySeconds:Number(env.TG_FINALITY_SECONDS??'60')};
- const rpc=new PublicationRpcTransport({...rpcFailoverOptions(env),url:env.TG_RPC_URL??''});
+ const rpcRuntime=rpcRuntimeOptions(process.env,'creator-sweep','background');
+ const rpc=new PublicationRpcTransport({...rpcRuntime,...rpcFailoverOptions(env),url:env.TG_RPC_URL??''});
  let journal:SweepJournal;
  const save=async()=>{const tmp=file+'.tmp';if(fs.existsSync(tmp))privateStatePath(tmp);fs.writeFileSync(tmp,JSON.stringify(journal),{mode:0o600});const fd=fs.openSync(tmp,'r');try{fs.fsyncSync(fd);}finally{fs.closeSync(fd);}fs.renameSync(tmp,file);const d=fs.openSync(dir,'r');try{fs.fsyncSync(d);}finally{fs.closeSync(d);}};
  await withSignerLane(coord,CURRENT_CHAIN_ID,signer,'creator',async()=>{

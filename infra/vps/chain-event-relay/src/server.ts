@@ -1,7 +1,9 @@
+import {budgetedRpcFetch,acquireRpcPermit} from './rpc-budget.ts';
 import { createHash } from 'node:crypto';
 import { createServer } from 'node:http';
 import { readFile } from 'node:fs/promises';
 import pg, { type Pool } from 'pg';
+import { startWsHeartbeat } from './ws-heartbeat.ts';
 import {
   eventKey, matchesFilter, mergeSources, parseEventFilter, parseSubscriptionLog, serializeTrigger, subscriptionFilters, shouldFailoverHttp, shouldRouteLargeLogRangeToFallback,
   type EventFilter, type PoolBinding, type SourceAddress,
@@ -89,6 +91,7 @@ async function connectionLoop(): Promise<void> {
   let primaryRetryAt = 0;
   while (!stopping) {
     let client: WsRpcClient | undefined;
+    let stopHeartbeat: (() => void) | undefined;
     let healthySince = 0;
     try {
       ready = false;
@@ -96,6 +99,9 @@ async function connectionLoop(): Promise<void> {
       const routing = await loadRouting(sourcePool, filter);
       setAllowed(routing);
       client = await WsRpcClient.connect(activeWs, handleSubscriptionLog);
+      stopHeartbeat = startWsHeartbeat({ request: () => client!.request('eth_blockNumber', []), close: () => { ready=false;client!.close(); } });
+      client.socket.addEventListener('close', () => stopHeartbeat?.(), { once: true });
+      client.socket.addEventListener('error', () => stopHeartbeat?.(), { once: true });
       await assertChainId(await client.request<string>('eth_chainId', []));
       subscriptionIds = await subscribe(client, routing);
       if(recoveryOwner==='relay')await reconcile(client, routing);
@@ -108,7 +114,7 @@ async function connectionLoop(): Promise<void> {
       let currentRouting = routing;
       while (!stopping && !client.closed) {
         if (activeWs !== wsPrimary && Date.now() >= primaryRetryAt) throw new Error('primary recovery probe');
-        await delay(sourceRefreshMs);
+        await delay(sourceRefreshMs,client.closedSignal.signal);
         if (stopping || client.closed) break;
         const nextRouting = await loadRouting(sourcePool, filter);
         if (routingFingerprint(nextRouting) === routingFingerprint(currentRouting)) { if(recoveryOwner==='relay')await reconcile(client, currentRouting); continue; }
@@ -121,6 +127,7 @@ async function connectionLoop(): Promise<void> {
         const head = await latestHead(client);
         const additions = [...addedSources, ...addedPools];
         if (recoveryOwner==='relay' && additions.length > 0) await backfill({ sources: addedSources, pools: addedPools }, minimumBirthBlock(additions), head.number, false);
+        if(recoveryOwner==='display'&&additions.length>0)await sourcePool.query('SELECT pg_notify($1,$2)',[wakeChannel,'recover']);
         for (const id of subscriptionIds) await client.request<boolean>('eth_unsubscribe', [id]);
         subscriptionIds = nextSubscriptions;
         currentRouting = nextRouting;
@@ -134,11 +141,12 @@ async function connectionLoop(): Promise<void> {
       lastError = safeError(error);
       reconnects += 1;
       console.error(JSON.stringify({ event: 'chain_relay_disconnected', provider: activeWs === wsPrimary ? 'primary' : 'fallback', error: lastError, reconnects }));
-      if (wsFallback) {
+      if (wsFallback && (error as {name?:string})?.name!=='RpcBudgetBusy') {
         if (activeWs === wsPrimary) { activeWs = wsFallback; primaryRetryAt = Date.now() + 60_000; }
         else { activeWs = wsPrimary; primaryRetryAt = 0; }
       }
     } finally {
+      stopHeartbeat?.();
       ready = false;
       subscriptionIds = [];
       client?.close();
@@ -194,6 +202,12 @@ async function handleSubscriptionLog(value: unknown): Promise<void> {
     `INSERT INTO chain_relay_events(event_key,payload) VALUES($1,$2) ON CONFLICT(event_key) DO NOTHING`,
     [eventKey(log), payload],
   );
+  // Separate source-database inbox lets display consume the push directly. Both
+  // inserts are idempotent; failures close WS and trigger bounded recovery.
+  const schema=sqlIdentifier(process.env.TG_DATABASE_SCHEMA??'tickergarden_serverless');
+  const raw={...log,blockNumber:hexQuantity(log.blockNumber),transactionIndex:hexQuantity(log.transactionIndex),logIndex:hexQuantity(log.logIndex)};
+  await sourcePool.query(`INSERT INTO ${schema}.display_event_inbox(environment,chain_id,deployment_digest,block_number,block_hash,transaction_hash,log_index,removed,payload) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9) ON CONFLICT DO NOTHING`,
+    [filter.environment,filter.chainId,filter.releaseId,log.blockNumber.toString(),log.blockHash,log.transactionHash,log.logIndex.toString(),log.removed,JSON.stringify(raw)]);
   // The raw event is durable before waking the single display recovery scanner.
   await sourcePool.query('SELECT pg_notify($1,$2)',[wakeChannel,log.blockNumber.toString()]);
 }
@@ -205,8 +219,7 @@ async function publishLoop(): Promise<void> {
       event = await claimEvent(relayPool);
       if (!event) { await delay(500); continue; }
       const endpoint = `${queueUrl}/v2/publish/${encodeURIComponent(destination.toString())}`;
-      const id=++requestId;
-    const response = await fetch(endpoint, {
+      const response = await fetch(endpoint, {
         method: 'POST', body: event.payload, redirect: 'error', signal: AbortSignal.timeout(15_000),
         headers: {
           authorization: `Bearer ${process.env.QUEUE_PUBLISH_TOKEN!}`, 'content-type': 'application/json',
@@ -343,6 +356,9 @@ function blockHeader(value: unknown): { number: bigint; hash: `0x${string}` } {
 }
 
 let requestId = 1000;
+function rpcProvider(url:string){const host=new URL(url).hostname;return host.endsWith('.quiknode.pro')?'quicknode':host.includes('alchemy')?'alchemy':'other';}
+function rpcMetric(event:string, fields:Record<string,string|number|boolean>):void{try{console.info(JSON.stringify({event,service:'chain-event-relay',time:new Date().toISOString(),...fields}));}catch{/* telemetry must not affect relay */}}
+function byteLength(text:string):number{return Buffer.byteLength(text,'utf8');}
 async function httpRpc<T>(method: string, params: readonly unknown[]): Promise<T> {
   if (httpFallback && httpLogMaxBlocks > 0 && shouldRouteLargeLogRangeToFallback(method, params, httpLogMaxBlocks)) {
     await assertHttpProviderChain(httpFallback);
@@ -355,7 +371,7 @@ async function httpRpc<T>(method: string, params: readonly unknown[]): Promise<T
   catch (error) {
     if (!httpFallback || !(error instanceof TransientRpcError) || !shouldFailoverHttp(error.kind)) throw error;
     await assertHttpProviderChain(httpFallback);
-    return httpRpcAt<T>(httpFallback, method, params);
+    return httpRpcAt<T>(httpFallback, method, params,2);
   }
 }
 
@@ -370,21 +386,28 @@ async function assertHttpProviderChain(endpoint: string): Promise<void> {
 function assertChainId(value: string): void {
   if (typeof value !== 'string' || !/^0x[0-9a-f]+$/i.test(value) || BigInt(value) !== BigInt(filter.chainId)) throw new Error('provider chain identity mismatch');
 }
-async function httpRpcAt<T>(endpoint: string, method: string, params: readonly unknown[]): Promise<T> {
+async function httpRpcAt<T>(endpoint: string, method: string, params: readonly unknown[], attempt=1): Promise<T> {
+  const id=++requestId;
+  const started=performance.now(),requestBody=JSON.stringify({ jsonrpc: '2.0', id, method, params });let responseBytes=0,status:number|undefined;
   try {
-    const response = await fetch(endpoint, {
+    const response = await budgetedRpcFetch(fetch, process.env, endpoint, {
       method: 'POST', redirect:'error', signal: AbortSignal.timeout(5_000), headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ jsonrpc: '2.0', id, method, params }),
-    });
+      body: requestBody,
+    }, 'realtime');
+    status=response.status;
+    const responseText=await response.text();responseBytes=byteLength(responseText);
     if (shouldFailoverHttp(response.status)) throw new TransientRpcError(response.status);
     if (!response.ok) throw new Error('RPC HTTP request rejected');
     let value: { jsonrpc?:string; id?:number; result?: T; error?: {code?:number} };
-    try { value = await response.json() as typeof value; } catch { throw new TransientRpcError('invalid-json'); }
+    try { value=JSON.parse(responseText) as typeof value; } catch { throw new TransientRpcError('invalid-json'); }
     if(value.jsonrpc!=='2.0'||value.id!==id)throw new Error('RPC application error');
     if(value.error&&[-32603,-32005].includes(value.error.code??0))throw new TransientRpcError('transport');
     if (value.error || value.result === undefined) throw new Error('RPC application error');
+    rpcMetric('chain_relay_http_rpc',{method,provider:rpcProvider(endpoint),networkCalls:1,attempt,role:endpoint===httpPrimary?'primary':'fallback',durationMs:Math.max(0,Math.round(performance.now()-started)),requestBytes:byteLength(requestBody),responseBytes,outcome:'succeeded',...(status===undefined?{}:{status})});
     return value.result;
   } catch (error) {
+    if((error as {name?:string}).name==='RpcBudgetBusy'){rpcMetric('chain_relay_rpc_budget_denied',{method});throw error;}
+    rpcMetric('chain_relay_http_rpc',{method,provider:rpcProvider(endpoint),networkCalls:1,attempt,role:endpoint===httpPrimary?'primary':'fallback',durationMs:Math.max(0,Math.round(performance.now()-started)),requestBytes:byteLength(requestBody),responseBytes,outcome:'failed',...(status===undefined?{}:{status})});
     if (error instanceof TransientRpcError) throw error;
     if (error instanceof Error && error.message === 'RPC application error') throw error;
     if (error instanceof Error && error.message === 'RPC HTTP request rejected') throw error;
@@ -402,25 +425,32 @@ function safeError(error: unknown): string {
 
 class WsRpcClient {
   readonly socket: WebSocket;
-  readonly pending = new Map<number, { resolve(value: unknown): void; reject(error: Error): void; timer: ReturnType<typeof setTimeout> }>();
+  readonly endpoint:string;
+  readonly closedSignal = new AbortController();
+  readonly pending = new Map<number, { resolve(value: unknown): void; reject(error: Error): void; timer: ReturnType<typeof setTimeout>; method:string; started:number; requestBytes:number }>();
   closed = false;
   private nextId = 1;
-  private constructor(socket: WebSocket, onLog: (value: unknown) => Promise<void>) {
+  private constructor(socket: WebSocket, onLog: (value: unknown) => Promise<void>, endpoint:string) {
+    this.endpoint=endpoint;
     this.socket = socket;
     socket.addEventListener('message', (event) => {
+      const receivedBytes=typeof event.data==='string'?byteLength(event.data):event.data instanceof ArrayBuffer?event.data.byteLength:0;
+      rpcMetric('chain_relay_ws_frame',{provider:rpcProvider(this.endpoint),receivedBytes,wsMessages:1});
       try {
         const value = JSON.parse(String(event.data)) as { id?: number; result?: unknown; error?: { message?: string }; method?: string; params?: { result?: unknown } };
         if (typeof value.id === 'number') {
           const pending = this.pending.get(value.id); if (!pending) return;
           clearTimeout(pending.timer); this.pending.delete(value.id);
+          rpcMetric('chain_relay_ws_response',{method:pending.method,durationMs:Math.max(0,Math.round(performance.now()-pending.started)),requestBytes:pending.requestBytes,responseBytes:receivedBytes,outcome:value.error?'failed':'succeeded'});
           if (value.error) pending.reject(new Error('WebSocket RPC application error')); else pending.resolve(value.result);
         } else if (value.method === 'eth_subscription' && value.params?.result !== undefined) {
-          void onLog(value.params.result).catch((error) => {
+          rpcMetric('chain_relay_ws_notification',{deliveredBytes:receivedBytes,outcome:'received'});
+          void onLog(value.params.result).then(()=>rpcMetric('chain_relay_ws_notification',{deliveredBytes:receivedBytes,outcome:'delivered'})).catch((error) => {
             console.error(JSON.stringify({ event: 'chain_relay_log_rejected', error: safeError(error) }));
-            socket.close(1011, 'log persistence failed');
+            socket.close(4011, 'log persistence failed');
           });
         }
-      } catch { socket.close(1003, 'invalid JSON'); }
+      } catch { socket.close(4003, 'invalid JSON'); }
     });
     socket.addEventListener('close', () => this.markClosed());
     socket.addEventListener('error', () => this.markClosed());
@@ -434,22 +464,29 @@ class WsRpcClient {
       socket.addEventListener('open', () => { clearTimeout(timer); resolve(); }, { once: true });
       socket.addEventListener('error', () => { clearTimeout(timer); reject(new Error('WebSocket open failed')); }, { once: true });
     });
-    return new WsRpcClient(socket, onLog);
+    return new WsRpcClient(socket, onLog, url);
   }
-  request<T = unknown>(method: string, params: readonly unknown[]): Promise<T> {
+  async request<T = unknown>(method: string, params: readonly unknown[]): Promise<T> {
+    const release=await acquireRpcPermit(fetch,process.env,this.endpoint,'realtime').catch(error=>{rpcMetric('chain_relay_rpc_budget_denied',{method,provider:rpcProvider(this.endpoint)});throw error;});
+    try{return await this.sendRequest<T>(method,params);}finally{await release();}
+  }
+  private sendRequest<T>(method: string, params: readonly unknown[]): Promise<T> {
     if (this.closed || this.socket.readyState !== WebSocket.OPEN) return Promise.reject(new Error('WebSocket is closed'));
     const id = this.nextId++;
     return new Promise<T>((resolve, reject) => {
-      const timer = setTimeout(() => { this.pending.delete(id); reject(new Error(`WebSocket ${method} timeout`)); }, 15_000);
-      this.pending.set(id, { resolve: (value) => resolve(value as T), reject, timer });
-      this.socket.send(JSON.stringify({ jsonrpc: '2.0', id, method, params }));
+      const request=JSON.stringify({ jsonrpc: '2.0', id, method, params });
+      const started=performance.now(),requestBytes=byteLength(request);
+      const timer = setTimeout(() => { this.pending.delete(id);rpcMetric('chain_relay_ws_response',{method,durationMs:Math.max(0,Math.round(performance.now()-started)),requestBytes,responseBytes:0,outcome:'failed',reason:'timeout'});reject(new Error(`WebSocket ${method} timeout`)); }, 15_000);
+      this.pending.set(id, { resolve: (value) => resolve(value as T), reject, timer, method, started, requestBytes });
+      this.socket.send(request);rpcMetric('chain_relay_ws_request',{provider:rpcProvider(this.endpoint),method,networkCalls:1,requestBytes});
     });
   }
   close(): void { if (!this.closed) this.socket.close(); this.markClosed(); }
   private markClosed(): void {
     if (this.closed) return;
     this.closed = true;
-    for (const pending of this.pending.values()) { clearTimeout(pending.timer); pending.reject(new Error('WebSocket disconnected')); }
+    this.closedSignal.abort();
+    for (const pending of this.pending.values()) { clearTimeout(pending.timer);rpcMetric('chain_relay_ws_response',{method:pending.method,durationMs:Math.max(0,Math.round(performance.now()-pending.started)),requestBytes:pending.requestBytes,responseBytes:0,outcome:'failed',reason:'disconnected'});pending.reject(new Error('WebSocket disconnected')); }
     this.pending.clear();
   }
 }
@@ -464,7 +501,10 @@ function positiveInteger(value: string, minimum: number, maximum: number): numbe
 function sqlIdentifier(value: string): string { if (!/^[a-z][a-z0-9_]{0,62}$/.test(value)) throw new Error('invalid database schema'); return `"${value}"`; }
 function hexQuantity(value: bigint): `0x${string}` { return `0x${value.toString(16)}`; }
 function minimumBirthBlock(sources: readonly { readonly birthBlock: bigint }[]): bigint { return sources.reduce((minimum, source) => source.birthBlock < minimum ? source.birthBlock : minimum, sources[0]!.birthBlock); }
-function delay(ms: number): Promise<void> { return new Promise((resolve) => setTimeout(resolve, ms)); }
+function delay(ms: number,signal?:AbortSignal): Promise<void> {
+ if(signal?.aborted)return Promise.resolve();
+ return new Promise(resolve=>{const done=()=>{clearTimeout(timer);signal?.removeEventListener('abort',done);resolve();};const timer=setTimeout(done,ms);signal?.addEventListener('abort',done,{once:true});});
+}
 
 async function releaseIdentity(){
  const schema=(await relayPool.query<{digest:string;n:number}>(`SELECT md5(string_agg(table_name||':'||column_name||':'||data_type||':'||is_nullable,',' ORDER BY table_name,ordinal_position)) digest,count(DISTINCT table_name)::int n FROM information_schema.columns WHERE table_schema='public' AND table_name=ANY($1::text[])`,[["chain_relay_events", "chain_relay_batches", "chain_relay_state"]])).rows[0];

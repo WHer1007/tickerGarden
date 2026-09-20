@@ -1,3 +1,4 @@
+import {rpcRuntimeOptions} from '../packages/rpc-control/src/runtime.ts';
 import {rpcFailoverOptions} from '../packages/chain/src/rpc-policy.ts';
 import {reportError} from '../packages/observability/src/index.ts';
 /** Read-only, bounded ledger audit. A mismatch never overwrites financial facts. */
@@ -21,7 +22,8 @@ async function main(){
    const rows=(await c.query(`SELECT r.*,r.market_id||':'||r.epoch||':'||r.asset AS cursor FROM "${schema}".creator_reward_balances r JOIN "${schema}".chain_blocks b ON b.environment=r.environment AND b.chain_id=r.chain_id AND b.deployment_digest=r.deployment_digest AND b.hash=r.block_hash AND b.canonical AND b.finalized WHERE r.environment=$1 AND r.chain_id=$2 AND r.deployment_digest=$3 AND (r.market_id,r.epoch,r.asset)>($4,$5::bigint,$6) ORDER BY r.market_id,r.epoch,r.asset LIMIT 20`,[...id,afterMarket,afterEpoch,afterAsset])).rows;
    return {head,rows};
   });
-  const rpc=new RpcTransport({...rpcFailoverOptions(process.env),url:process.env.TG_RPC_URL??''}),client=createPublicClient({transport:custom({request:({method,params})=>rpc.call(method,params as unknown[]??[])})});
+  const rpcRuntime=rpcRuntimeOptions(process.env,'creator-reconcile','background');
+  const rpc=new RpcTransport({...rpcRuntime,...rpcFailoverOptions(process.env),url:process.env.TG_RPC_URL??''}),client=createPublicClient({transport:custom({request:({method,params})=>rpc.call(method,params as unknown[]??[])})});
   if(await client.getChainId()!==CURRENT_CHAIN_ID)throw Error('Reconciliation chain mismatch');
   const blockNumber=BigInt(snapshot.head.number),block=await client.getBlock({blockNumber});if(block.hash!==snapshot.head.hash)throw Error('Reconciliation anchor changed');
   const vault=fixedF72Sources().find(s=>s.module==='ProtocolFeeVault')!,registry=fixedF72Sources().find(s=>s.module==='CreatorRevenueRegistry')!;

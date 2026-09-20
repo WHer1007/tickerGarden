@@ -1,3 +1,5 @@
+import {rpcBudgetEndpoint} from './rpc-budget.ts';
+import {rpcRuntimeOptions} from '../../../packages/rpc-control/src/runtime.ts';
 import {reportError} from '../../../packages/observability/src/index.ts';
 import {readCreatorRewards} from '../../../packages/read-store/src/creator-rewards.ts';
 import {readStakeSummary} from '../../../packages/history-projector/src/stake-summary.ts';
@@ -64,8 +66,9 @@ export function createReadApiApp(options: ReadApiOptions = {}) {
   const cachedGlobalRead=<T>(key:string,build:(readPool:Pool)=>Promise<T>)=>shareGlobalRead(key,()=>sharedStatistics({pool:pool(),deployment,...(schemaName?{schemaName}:{})},key,build));
 
   const cursorSecret = env.TG_CURSOR_SECRET ?? '';
-  const primary = options.primary ?? (env.TG_READ_RPC_URL ? new RpcTransport({ ...rpcFailoverOptions(env,'read-api'), url: env.TG_READ_RPC_URL }) : undefined);
-  const secondary = options.secondary ?? (rpc.mode === 'single' ? primary : undefined) ?? (rpc.verificationUrl ? new RpcTransport({ url: rpc.verificationUrl }) : undefined);
+  const rpcRuntime=rpcRuntimeOptions(env,'read-api','interactive');
+  const primary = options.primary ?? (env.TG_READ_RPC_URL ? new RpcTransport({...rpcRuntime, ...rpcFailoverOptions(env,'read-api'), url: env.TG_READ_RPC_URL }) : undefined);
+  const secondary = options.secondary ?? (rpc.mode === 'single' ? primary : undefined) ?? (rpc.verificationUrl ? new RpcTransport({...rpcRuntime, url: rpc.verificationUrl }) : undefined);
 
   app.use('/v1/*', async (context, next) => {
     await next(); const path = context.req.path;
@@ -85,6 +88,8 @@ export function createReadApiApp(options: ReadApiOptions = {}) {
   });
 
   const purchaseReads=createReadAdmission({concurrency:4,maxPending:8,unavailable:()=>new PublicationUnavailableError('Purchase quotes are busy')});
+  const rpcBudget=rpcBudgetEndpoint(pool,env);
+  app.post('/v1/internal/rpc-budget',context=>rpcBudget(context.req.raw));
   app.get('/v1/rpc-scope',async context=>{
     try{
       const q=context.req.query();
@@ -323,7 +328,7 @@ export function createReadApiApp(options: ReadApiOptions = {}) {
       rejectUnknown(context.req.query(), []); const transactionHash = parseMarketId(context.req.param('txHash'));
       if (!primary || !secondary) throw new PublicationUnavailableError('transaction RPC observers are unavailable');
       context.header('cache-control', 'no-store');
-      return context.json(await observeTransaction({ pool: pool(), deployment, transactionHash, primary, secondary, ...(schemaName ? { schemaName } : {}) }));
+      return context.json(await shareRead(`transaction:${transactionHash}`,()=>observeTransaction({ pool: pool(), deployment, transactionHash, primary, secondary, ...(schemaName ? { schemaName } : {}) })));
     } catch (error) { return transactionError(context, error); }
   });
 

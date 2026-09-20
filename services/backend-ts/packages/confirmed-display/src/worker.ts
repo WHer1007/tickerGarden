@@ -1,5 +1,6 @@
+import {initializeEventCoverage,resetEventCoverage,planDisplayEvents,readDisplayEvents,saveAppliedEvents,commitEventCoverage} from './inbox.ts';
 import {hydrateDisplayHistory} from './history.ts';
-import {readDisplayScan} from './scan.ts';
+import {readDisplayScan,discoverDisplayCreations,moduleMap,displayPoolIds} from './scan.ts';
 import {applyStatsEvents,undoStatsEvents,seedStats,publishStatsDisplay,type StatsUndo} from './stats.ts';
 import {validateRecentDisplay} from './recent-validation.ts';
 import {publishExploreRanking} from './explore-ranking.ts';
@@ -14,7 +15,7 @@ import {observeF72Market,nextMarketActivation,type MarketCreation} from '../../m
 import type {MarketReadModel,TokenDetailTrade} from '../../../openapi/generated/v1-client.ts';
 import type {EventObservation,TradeActivity} from '../../analytics/src/index.ts';
 import {applyDisplayEvents,emptyDisplayState,materializeDisplay,type DisplayState} from './state.ts';
-export interface DisplayWorkerInput {pool:Pool;deployment:DeploymentIdentity;rpc:RpcTransport;schemaName?:string}
+export interface DisplayWorkerInput {pool:Pool;deployment:DeploymentIdentity;rpc:RpcTransport;schemaName?:string;eventDriven?:boolean;forceRecovery?:boolean}
 export function displaySchema(name='tickergarden_serverless'){if(!/^[a-z][a-z0-9_]{0,62}$/.test(name))throw Error('Invalid display schema');return `"${name}"`;}
 export const displayIdentity=(d:DeploymentIdentity)=>[d.environment,d.chainId,d.deploymentDigest];
 type Cursor={block_number:string;block_hash:`0x${string}`;base_number:string;block_timestamp:string};
@@ -41,12 +42,13 @@ export async function advanceConfirmedDisplay(input:DisplayWorkerInput):Promise<
   await client.query(`INSERT INTO ${schema}.confirmed_display_cursor(environment,chain_id,deployment_digest,block_number,block_hash,base_number,block_timestamp) VALUES($1,$2,$3,$4,$5,$4,$6) ON CONFLICT DO NOTHING`,[...id,base.block_number,base.block_hash,base.block_timestamp]);
   let cursor=(await client.query<Cursor>(`SELECT * FROM ${schema}.confirmed_display_cursor WHERE environment=$1 AND chain_id=$2 AND deployment_digest=$3`,id)).rows[0]!;
   const statsHead=(await client.query<{block_number:string;block_hash:string;generated_at:Date}>(`SELECT block_number::text,block_hash,generated_at FROM ${schema}.stats_display_snapshots WHERE environment=$1 AND chain_id=$2 AND deployment_digest=$3`,id)).rows[0];
-  if(BigInt(base.block_number)>BigInt(cursor.block_number)||(!statsHead&&cursor.block_number!==base.block_number)){
+  const eventCoverage=input.eventDriven?await initializeEventCoverage(client,d,cursor,input.schemaName):undefined;
+  if(BigInt(base.block_number)>BigInt(cursor.block_number)||(eventCoverage&&BigInt(eventCoverage.block_number)<BigInt(base.block_number))||(!statsHead&&cursor.block_number!==base.block_number)){
    if((await rpc.block(BigInt(base.block_number))).hash!==base.block_hash)throw Error('Display baseline not canonical');
    await client.query('BEGIN');try{
     await client.query(`DELETE FROM ${schema}.confirmed_display_markets WHERE environment=$1 AND chain_id=$2 AND deployment_digest=$3`,id);
     await client.query(`DELETE FROM ${schema}.confirmed_display_journal WHERE environment=$1 AND chain_id=$2 AND deployment_digest=$3`,id);
-    await client.query(`UPDATE ${schema}.confirmed_display_cursor SET block_number=$4,base_number=$4,block_hash=$5,block_timestamp=$6,updated_at=now() WHERE environment=$1 AND chain_id=$2 AND deployment_digest=$3`,[...id,base.block_number,base.block_hash,base.block_timestamp]);await client.query('COMMIT');cursor=base;if(!statsHead)return 'initialized:rebase';
+    await client.query(`UPDATE ${schema}.confirmed_display_cursor SET block_number=$4,base_number=$4,block_hash=$5,block_timestamp=$6,updated_at=now() WHERE environment=$1 AND chain_id=$2 AND deployment_digest=$3`,[...id,base.block_number,base.block_hash,base.block_timestamp]);if(input.eventDriven){await resetEventCoverage(client,d,base,input.schemaName);await commitEventCoverage(client,d,BigInt(base.block_number),base.block_hash,true,input.schemaName);}await client.query('COMMIT');cursor=base;if(!statsHead)return 'initialized:rebase';
    }catch(e){await client.query('ROLLBACK');throw e;}
   }
   // Seed quiet, pre-existing markets before moving the shared display cursor.
@@ -60,6 +62,7 @@ export async function advanceConfirmedDisplay(input:DisplayWorkerInput):Promise<
      await client.query(`DELETE FROM ${schema}.confirmed_display_markets WHERE environment=$1 AND chain_id=$2 AND deployment_digest=$3`,id);
      await client.query(`DELETE FROM ${schema}.confirmed_display_journal WHERE environment=$1 AND chain_id=$2 AND deployment_digest=$3`,id);
      await client.query(`UPDATE ${schema}.confirmed_display_cursor SET block_number=$4,base_number=$4,block_hash=$5,block_timestamp=$6,updated_at=now() WHERE environment=$1 AND chain_id=$2 AND deployment_digest=$3`,[...id,base.block_number,base.block_hash,base.block_timestamp]);
+     if(input.eventDriven){await resetEventCoverage(client,d,base,input.schemaName);await commitEventCoverage(client,d,BigInt(base.block_number),base.block_hash,true,input.schemaName);}
      await client.query('COMMIT');
     }catch(e){await client.query('ROLLBACK');throw e;}
     return 'initialized:rebase';
@@ -90,7 +93,9 @@ export async function advanceConfirmedDisplay(input:DisplayWorkerInput):Promise<
   // Undo newest batches until the stored head is canonical. Each undo and cursor
   // move is atomic, so readers never see half of a reorg correction.
   const observedHead=await rpc.latestBlock();
-  while(BigInt(cursor.block_number)>observedHead.number||(await rpc.block(BigInt(cursor.block_number))).hash!==cursor.block_hash){
+  let canonicalCursor=BigInt(cursor.block_number)<=observedHead.number&&(await rpc.block(BigInt(cursor.block_number))).hash===cursor.block_hash;
+  const eventPlan=input.eventDriven?(canonicalCursor?await planDisplayEvents(client,d,rpc,cursor,input.forceRecovery,input.schemaName):{scan:true}):undefined;
+  while((eventPlan?.replayFrom!==undefined&&BigInt(cursor.block_number)>=eventPlan.replayFrom)||!canonicalCursor){
    const entry=(await client.query<{previous_number:string;previous_hash:`0x${string}`;previous_timestamp:string;undo:Record<string,DisplayState|null>;stats_undo:StatsUndo}> (`SELECT * FROM ${schema}.confirmed_display_journal WHERE environment=$1 AND chain_id=$2 AND deployment_digest=$3 AND block_number=$4`,[...id,cursor.block_number])).rows[0];
    if(!entry)throw Error('Display reorg crosses verified baseline; finalized history must recover first');
    const recent=(await client.query<{block_number:string;block_hash:string}>(`SELECT DISTINCT block_number::text,block_hash FROM ${schema}.recent_markets WHERE environment=$1 AND chain_id=$2 AND deployment_digest=$3 AND canonical AND block_number>$4 AND block_number<=$5`,[...id,entry.previous_number,cursor.block_number])).rows;
@@ -100,11 +105,14 @@ export async function advanceConfirmedDisplay(input:DisplayWorkerInput):Promise<
     for(const market of Object.keys(entry.undo))await client.query('SELECT pg_notify($1,$2)',[changeChannel(d,input.schemaName),JSON.stringify({marketId:market,regions,revision:`reorg:${entry.previous_hash}`})]);
     for(const [market,state]of Object.entries(entry.undo)){if(state)await saveState(client,schema,id,state);else await client.query(`DELETE FROM ${schema}.confirmed_display_markets WHERE environment=$1 AND chain_id=$2 AND deployment_digest=$3 AND market_id=$4`,[...id,market]);}
     await undoStatsEvents(client,d,entry.previous_number,entry.stats_undo,input.schemaName);
+    if(input.eventDriven)await resetEventCoverage(client,d,{block_number:entry.previous_number,block_hash:entry.previous_hash},input.schemaName);
     await client.query(`DELETE FROM ${schema}.confirmed_display_journal WHERE environment=$1 AND chain_id=$2 AND deployment_digest=$3 AND block_number=$4`,[...id,cursor.block_number]);
     await client.query(`UPDATE ${schema}.confirmed_display_cursor SET block_number=$4,block_hash=$5,block_timestamp=$6,updated_at=now() WHERE environment=$1 AND chain_id=$2 AND deployment_digest=$3`,[...id,entry.previous_number,entry.previous_hash,entry.previous_timestamp]);await publishStatsDisplay(client,d,{number:BigInt(entry.previous_number),hash:entry.previous_hash,timestamp:BigInt(entry.previous_timestamp),parentHash:entry.previous_hash},input.schemaName);await client.query('COMMIT');
    }catch(e){await client.query('ROLLBACK');throw e;}
    cursor={...cursor,block_number:entry.previous_number,block_hash:entry.previous_hash,block_timestamp:entry.previous_timestamp};
+   canonicalCursor=BigInt(cursor.block_number)<=observedHead.number&&(await rpc.block(BigInt(cursor.block_number))).hash===cursor.block_hash;
   }
+  if(eventPlan?.repairOnly)return 'catchup:coverage';
   await validateRecentDisplay(client,d,rpc,observedHead.number,input.schemaName);
   await publishExploreRanking(client,d,input.schemaName);
   if(!statsHead||Date.now()-new Date(statsHead.generated_at).getTime()>=60_000){
@@ -112,18 +120,45 @@ export async function advanceConfirmedDisplay(input:DisplayWorkerInput):Promise<
   }
   const head=observedHead,from=BigInt(cursor.block_number)+1n;
   if(from>head.number){await client.query(`UPDATE ${schema}.confirmed_display_cursor SET updated_at=now() WHERE environment=$1 AND chain_id=$2 AND deployment_digest=$3`,id);return 'current';}
-  const to=from+199n<head.number?from+199n:head.number,anchor=await rpc.block(to);
-  const {creations,modules,logs}=await readDisplayScan(client,d,rpc,from,to,head.number,input.schemaName);
+  let to=from+199n<head.number?from+199n:head.number;
+  let scanned=!input.eventDriven||eventPlan?.scan===true;
+  let batch=scanned?await readDisplayScan(client,d,rpc,from,to,head.number,input.schemaName):await readDisplayEvents(client,d,rpc,from,head.number,input.schemaName);
+  if(!batch){scanned=true;batch=await readDisplayScan(client,d,rpc,from,to,head.number,input.schemaName);}
+  if(!scanned){
+   if(!batch.logs.length)return 'current';
+   to=batch.logs.reduce((n,l)=>l.blockNumber>n?l.blockNumber:n,from);
+  }
+  const anchor=await rpc.block(to);
+  const {creations,logs}=batch;
+  let modules=batch.modules;
   if(logs.some(l=>l.removed||l.blockNumber<from||l.blockNumber>to))throw Error('Display log range mismatch');
   const hashes=[...new Set(logs.map(l=>l.transactionHash))];const observations:EventObservation[]=[];
+  const appliedLogs:ReturnType<typeof parseLog>[]=[],receiptBatches:ReturnType<typeof parseLog>[][]=[],receiptBlocks=new Map<bigint,RpcBlock>();
   for(const hash of hashes){
    const receipt=await rpc.call<Record<string,unknown>|null>('eth_getTransactionReceipt',[hash]);
    if(!receipt||receipt.status!=='0x1'||receipt.transactionHash!==hash||!Array.isArray(receipt.logs))throw Error('Confirmed receipt unavailable');
    const receiptLogs=receipt.logs.map(parseLog),expected=logs.filter(l=>l.transactionHash===hash);
    for(const l of expected)if(!receiptLogs.some(r=>r.logIndex===l.logIndex&&r.blockHash===l.blockHash&&r.blockNumber===l.blockNumber&&r.transactionIndex===l.transactionIndex&&r.address===l.address&&r.data===l.data&&JSON.stringify(r.topics)===JSON.stringify(l.topics)))throw Error('Display log/receipt mismatch');
    if(receipt.blockHash!==expected[0]!.blockHash||typeof receipt.blockNumber!=='string'||BigInt(receipt.blockNumber)!==expected[0]!.blockNumber)throw Error('Display receipt block mismatch');
-   const block=await rpc.block(expected[0]!.blockNumber);
-   for(const l of receiptLogs){if(l.removed||l.blockHash!==block.hash||l.blockNumber!==block.number||l.transactionHash!==hash)throw Error('Display receipt is not canonical');const module=modules.get(l.address);if(!module)continue;const e=decodeF72Event(module,l);if(e)observations.push({event:e,timestamp:block.timestamp});}
+   const n=expected[0]!.blockNumber;if(!receiptBlocks.has(n))receiptBlocks.set(n,await rpc.block(n));
+   const block=receiptBlocks.get(n)!;
+   for(const l of receiptLogs)if(l.removed||l.blockHash!==block.hash||l.blockNumber!==block.number||l.transactionHash!==hash)throw Error('Display receipt is not canonical');
+   discoverDisplayCreations(creations,receiptLogs,d.chainId);
+   appliedLogs.push(...expected);
+   receiptBatches.push(receiptLogs);
+  }
+  modules=moduleMap([...creations.values()]);
+  const allReceiptLogs=receiptBatches.flat();
+  const poolIds=new Set(await displayPoolIds(client,d,modules,allReceiptLogs,input.schemaName));
+  for(const receiptLogs of receiptBatches){
+   for(const l of receiptLogs){
+    const module=modules.get(l.address);if(!module)continue;
+    if(module==='UniswapV4PoolManager'&&!poolIds.has(l.topics[1] as `0x${string}`))continue;
+    const e=decodeF72Event(module,l);if(!e)continue;
+    if(!receiptBlocks.has(l.blockNumber))receiptBlocks.set(l.blockNumber,await rpc.block(l.blockNumber));
+    const block=receiptBlocks.get(l.blockNumber)!;if(block.hash!==l.blockHash)throw Error('Display receipt reorganized');
+    appliedLogs.push(l);observations.push({event:e,timestamp:block.timestamp});
+   }
   }
   observations.sort((a,b)=>Number(a.event.log.blockNumber-b.event.log.blockNumber)||Number(a.event.log.transactionIndex-b.event.log.transactionIndex)||Number(a.event.log.logIndex-b.event.log.logIndex));
   const changed=new Map<string,MarketCreation>();
@@ -149,6 +184,7 @@ export async function advanceConfirmedDisplay(input:DisplayWorkerInput):Promise<
   if((await rpc.block(to)).hash!==anchor.hash||(await rpc.block(BigInt(cursor.block_number))).hash!==cursor.block_hash)throw Error('Display chain changed during observation');
   await client.query('BEGIN');try{
    for(const state of next){await saveState(client,schema,id,await materialize(state));const affected=changedRegions(undo[state.market.marketId]??null,state);if(affected.length)await client.query('SELECT pg_notify($1,$2)',[changeChannel(d,input.schemaName),JSON.stringify({marketId:state.market.marketId,regions:affected,revision:`${to}:${anchor.hash}`})]);}
+   if(input.eventDriven){await saveAppliedEvents(client,d,appliedLogs,input.schemaName);if(scanned)await commitEventCoverage(client,d,to,anchor.hash,to===head.number,input.schemaName,from);}
    const statsUndo=await applyStatsEvents(client,d,observations,next,input.schemaName);
    if(observations.length)await publishStatsDisplay(client,d,anchor,input.schemaName);
    else await client.query(`UPDATE ${schema}.stats_display_snapshots SET block_number=$4,block_hash=$5 WHERE environment=$1 AND chain_id=$2 AND deployment_digest=$3`,[...id,to.toString(),anchor.hash]);
@@ -157,12 +193,15 @@ export async function advanceConfirmedDisplay(input:DisplayWorkerInput):Promise<
    await client.query('COMMIT');
   }catch(e){await client.query('ROLLBACK');throw e;}
   // Once chain-finalized, an undo entry is no longer needed for the display tail.
-  await client.query(`DELETE FROM ${schema}.confirmed_display_journal WHERE environment=$1 AND chain_id=$2 AND deployment_digest=$3 AND block_number<=$4`,[...id,finalized.number.toString()]);
+  const safePrune=input.eventDriven?BigInt((await client.query<{block_number:string}>(`SELECT block_number::text FROM ${schema}.display_event_coverage WHERE environment=$1 AND chain_id=$2 AND deployment_digest=$3`,id)).rows[0]!.block_number):finalized.number;
+  const prune=safePrune<finalized.number?safePrune:finalized.number;
+  await client.query(`DELETE FROM ${schema}.confirmed_display_journal WHERE environment=$1 AND chain_id=$2 AND deployment_digest=$3 AND block_number<=$4`,[...id,prune.toString()]);
+  if(input.eventDriven)for(const table of ['display_event_inbox','display_event_applied'])await client.query(`DELETE FROM ${schema}.${table} WHERE environment=$1 AND chain_id=$2 AND deployment_digest=$3 AND block_number<=$4`,[...id,prune.toString()]);
   if(!statsHead||Date.now()-new Date(statsHead.generated_at).getTime()>=60_000){
    await client.query(`DELETE FROM ${schema}.stats_display_flows WHERE environment=$1 AND chain_id=$2 AND deployment_digest=$3 AND block_number<=$4 AND occurred_at<$5`,[...id,finalized.number.toString(),Number(finalized.timestamp)-2*86400]);
    await client.query(`DELETE FROM ${schema}.stats_display_buckets WHERE environment=$1 AND chain_id=$2 AND deployment_digest=$3 AND minute<$4 AND amount=0`,[...id,Number(finalized.timestamp)-2*86400]);
   }
-  return `${to<head.number?'catchup':'confirmed'}:${to}:${changed.size}`;
+  return `${scanned&&to<head.number?'catchup':'confirmed'}:${to}:${changed.size}`;
  }finally{if(locked)await client.query('SELECT pg_advisory_unlock(hashtextextended($1,0))',[lock]).catch(()=>{});client.release();}
 }
 async function saveState(client:PoolClient,schema:string,id:unknown[],state:DisplayState){await client.query(`INSERT INTO ${schema}.confirmed_display_markets(environment,chain_id,deployment_digest,market_id,block_number,block_hash,payload) VALUES($1,$2,$3,$4,$5,$6,$7) ON CONFLICT(environment,chain_id,deployment_digest,market_id) DO UPDATE SET block_number=excluded.block_number,block_hash=excluded.block_hash,payload=excluded.payload`,[...id,state.market.marketId,state.blockNumber,state.blockHash,JSON.stringify(state)]);}

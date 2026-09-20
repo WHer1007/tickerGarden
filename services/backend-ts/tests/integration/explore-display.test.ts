@@ -94,13 +94,13 @@ test('Explore reads current confirmed and recent cards with cursor-safe rankings
     await assert.rejects(readExploreCards({ pool, deployment, schemaName }, Array.from({ length: 101 }, (_, i) => h(i + 1))), /invalid markets/);
 
     // Local scale sample: exercise the three directory sorts and the card endpoint at 20,000 rows.
-    await pool.query(`INSERT INTO ${schema}.confirmed_display_markets(environment,chain_id,deployment_digest,market_id,block_number,block_hash,payload)
+    for(let first=1000;first<21000;first+=2000)await pool.query(`INSERT INTO ${schema}.confirmed_display_markets(environment,chain_id,deployment_digest,market_id,block_number,block_hash,payload)
       SELECT $1,$2,$3, '0x'||lpad(to_hex(n),64,'0'),100,$4,jsonb_build_object('market',jsonb_build_object(
         'marketId','0x'||lpad(to_hex(n),64,'0'),'memeToken','0x'||lpad(to_hex(n),40,'0'),'quoteAsset',$5::text,'assetUid','0x'||lpad(to_hex(n%2+1),64,'0'),
         'launchPhase',n%2,'identity',jsonb_build_object('name','Scale token '||n,'symbol','S'||n,'deployedAt',n::text),
         'metrics',jsonb_build_object('marketCapUsd',(n*100)::text,'asOf','2000-01-01T00:00:00.000Z'),
         'lastBuy',jsonb_build_object('blockNumber',n::text,'transactionIndex','0','logIndex','0')))
-    FROM generate_series(1000,20999) n ON CONFLICT DO NOTHING`, [...id, h(100), a(99)]);
+    FROM generate_series($6::int,$7::int) n ON CONFLICT DO NOTHING`, [...id, h(100), a(99),first,first+1999]);
     await publishRanking(new Date('2026-09-18T12:21:00Z'));
     const elapsed: Record<string, number> = {};
     for (const sort of ['createdAt_desc', 'createdAt_asc', 'recentBuy_desc', 'marketCapUsd_desc']) {
