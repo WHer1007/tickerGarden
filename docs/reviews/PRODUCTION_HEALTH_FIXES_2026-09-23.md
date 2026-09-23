@@ -1,6 +1,6 @@
 # 生产健康检查后续修正
 
-状态：代码、数据库迁移及运维配置已完成本地验证；尚未发布测试或生产，也未修改运行中的 PostgreSQL/容器。
+状态：已按测试验收 → 生产发布完成。运行代码为 `7f5e530f76bf64d288d14cb33e74bbc7544e06e9`；测试和生产均已执行 0034、更新权限、重建 PostgreSQL 并切换 Worker/应用。以下本地验证条目记录发布前证据，线上结果见末节。
 
 工作分支：`codex/production-health-fixes`，基于生产 master `2c4e8034068aa5ea2c7e3f93e9fb5f35d872e4a4`。工作目录：`/Users/dear/Documents/code/TickerGarden-health`。
 
@@ -31,3 +31,33 @@
 PostgreSQL 全局统计需要一次容器重建/重启；日志轮转也需要重建对应容器。生产会有短暂数据库连接中断，不应静默执行。运行环境必须按 test→master 推进；Vercel 发布时使用 sin1，并执行现有 deployment-boundary 和 runtime region 检查。
 
 详细运维步骤：`infra/vps/observability/retention.example.md`。本次不启用自动备份、Lark 或任何新增前端提示。
+
+
+## 线上发布验收（2026-09-23 UTC）
+
+- 用户明确允许数据库短暂重启；先测试、后生产。test/master 均使用上述同一产品提交，已推送远端。后续文档提交不改变运行产物。
+- 测试数据库慢查询探针 1.05 秒同时进入日志与 pg_stat_statements；生产未制造慢查询。两环境的业务和 queue 数据库均安装扩展，生产 `pending_restart=0`。
+- 生产后台写入暂停于 15:17:11，恢复于 15:18:59（约 108 秒维护窗口，不等同于数据库停机时长）。数据库重建步骤在 15:17:20–15:17:34 内完成。保留数据卷、HBA、证书和连接预算，事前创建一次性维护备份；未启用自动备份。
+- 0034 摘要 `0xd288699d33a878c17e6c13614485f5fce6543e8cd905be35d4732e3bbdd32c2d`。两环境均验证重复执行幂等、Holder 余额和其他详情区域摘要不变。
+- SEED 的 1H/12H/1D 接口均返回 `CHAIN_TOTAL_SUPPLY_V1`，totalSupplyRaw 与 circulatingSupplyRaw 均为 `1000000000000000000000000000`，Holder 数 1、交易记录 2。测试市场也通过相同断言。
+- 两环境 health、Explore bootstrap/list、market page/detail、Stats 三区域、共享价格接口均返回 200。独立 Chrome 浏览器读取首页、Explore、Stats、详情页，生产无 pageerror，供应量/市值/价格/最近交易均可见；测试 URL 保持测试域名，未跳转生产。
+- 所有 9 个实际运行容器均为 json-file 20m × 5；包括两个环境的 PostgreSQL、Queue、MinIO、Relay 和 Caddy。仓库另外两个初始化服务也配置轮转。
+- Worker/resident 服务与定时器恢复 active；生产 Relay health 正常，pending/dead 为 0，重建后 restart=0。展示游标持续推进，SQL 超时、连接超时、任务失败均为 0。
+- 全局统计已采集真实业务：短样本中 read-api 最大 SQL 9.44 ms、pipeline 46.59 ms、queue 11.79 ms、content 0.44 ms，业务语句临时块写入均为 0。两次采样间数据库累计临时文件数/字节保持不变；约 1.20 TB 是保留的历史累计统计，本次没有清零。
+- 业务角色未获得 pg_read_all_stats；read/pipeline/content 外部连接保持 TLS。Queue 使用既有 Docker 内网连接。生产连接上限仍为 read 34、pipeline 26、content 4、queue 8。
+- 短期生产 Worker 样本含 display.prepare 18 次、display.advance 11 次，未记录 error。处于发布后追赶/唤醒阶段，不据此推算日均 RPC 节省或供应商账单。
+
+### 发布过程修正
+
+测试首次重建 Queue/Relay 遗漏环境 release override，Relay 使用旧默认镜像并重启；发现后在生产操作前恢复正确镜像和环境配置，确认健康、无积压后才推进生产。生产 Relay 仅定义在 override 中，另补显式日志策略并重建。运维文档已补齐覆盖文件要求。生产前端先行发布以兼容新旧 basis；后续批次再次 promote 前端返回 already-current 409，已核实该候选本来就是当前生产版本，无需重复发布。
+
+### Vercel 产物
+
+以下全部在发布前通过每个函数 sin1 检查（Web 2、Read API 3、Pipeline 2、Content 2）。
+
+| 环境 | Web | Read API | Pipeline | Content |
+|---|---|---|---|---|
+| 测试 | tickergarden-hwqqrntyf-garden24.vercel.app | tickergarden-read-ivgot79xb-garden24.vercel.app | tickergarden-chain-pipeline-gini2iu2o-garden24.vercel.app | tickergarden-content-ed9l4oigh-garden24.vercel.app |
+| 生产 | tickergarden-npvis102g-garden24.vercel.app | tickergarden-read-bfsa8vrs5-garden24.vercel.app | tickergarden-chain-pipeline-i3pkvqre3-garden24.vercel.app | tickergarden-content-g7401a10j-garden24.vercel.app |
+
+部署日志、迁移断言、API 响应与浏览器正文证据保存在本地 alignment 工作区 `.codex_tmp/releases/0034-2026-09-23/`；不把运行环境文件或凭据纳入 Git。本次未签名、未提交链上交易、未新增页面组件。

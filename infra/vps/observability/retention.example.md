@@ -15,7 +15,7 @@
 ## 发布顺序与验收
 
 1. 确认 test、master 对应已验收代码；不要从 codex/* 直接部署。生产需单独授权。
-2. 检查正在运行容器的 Compose 文件和覆盖项。当前生产使用 `/opt/tickergarden/compose.yml` 与 `/opt/tickergarden/production-init.override.json`，保留覆盖项、证书、网络、HBA、卷和连接预算。不要用仓库文件直接覆盖整套现场配置。
+2. 检查正在运行容器的 Compose 文件和覆盖项。当前使用 `/opt/tickergarden/compose.yml`、`/opt/tickergarden/production-init.override.json`，以及对应环境的 `/opt/tickergarden/test-release.override.json` 或 `/opt/tickergarden/production-release.override.json`。Queue/Relay 的镜像和必要环境项来自最后一个覆盖文件，重建时不可遗漏；单独定义在覆盖文件中的服务也须显式设置日志轮转。保留证书、网络、HBA、卷和连接预算。不要用仓库文件直接覆盖整套现场配置。
 3. 先重建测试 PostgreSQL 镜像/容器；从 test 分支合并日志配置。日志限制只有容器重建后生效，不能仅靠 restart。
 4. 分别对 `tickergarden`、`tickergarden_queue` 执行 `enable-query-statistics.sql`。检查 `SHOW shared_preload_libraries`、`SHOW log_min_duration_statement`、`SELECT count(*) FROM pg_stat_statements`，确认没有 pending_restart。
 5. 在测试数据库执行 `SELECT pg_sleep(1.05)`，检查慢语句日志及 queryid/calls/max_exec_time；不对生产制造慢查询。
