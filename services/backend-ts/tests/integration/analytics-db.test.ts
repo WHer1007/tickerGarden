@@ -90,7 +90,7 @@ test('TS-07 database-only trades, candles, holders and detail paths preserve cov
     const detailBody = await detail.json() as { chart: { points: unknown[] } | null; holders: { circulatingSupplyRaw: string } | null;
       statistics: { price: string | null; volume24h: string | null } | null; trades: Array<{ side: string; price: string }> | null;
       fees: Array<{ recipient: string; asset: string; amountRaw: string }>; sources: Record<string, unknown>; reasons: Record<string, string> };
-    assert.equal(detailBody.chart?.points.length, 96); assert.equal(detailBody.holders?.circulatingSupplyRaw, '300');
+    assert.equal(detailBody.chart?.points.length, 96); assert.equal(detailBody.holders?.circulatingSupplyRaw, '1000');
     assert.equal(detailBody.statistics?.price, '0.500000000000000000000000000000000000');
     assert.equal(Number(detailBody.statistics?.volume24h), 2);
     assert.ok((detailBody.statistics?.volume24h?.split('.')[1]?.length ?? 0) <= 36);

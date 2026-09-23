@@ -17,7 +17,7 @@ test('0031 stores shared detail fields and charts independently and reconstructs
  const detail=(period:'1H'|'12H'|'1D',chartTag:string,price:string)=>({
   version:1,chainId:46630,displayOnly:true,marketId,memeToken:address('c'),quoteAsset:address('d'),quoteDecimals:18,period,
   statistics:{price,priceUsd:'2',marketCapUsd:'20',volume24h:'3'},chart:{interval:period,marker:chartTag,points:[{time:1,price:chartTag}]},
-  trades:[{id:'trade-common'}],holders:{totalSupplyRaw:'100',circulatingSupplyRaw:'90',count:1,basis:'fixture',items:[]},fees:[{recipient:'creator',asset:address('d'),amountRaw:'4'}],
+  trades:[{id:'trade-common'}],holders:{totalSupplyRaw:'100',circulatingSupplyRaw:'100',count:1,basis:'CHAIN_TOTAL_SUPPLY_V1',items:[]},fees:[{recipient:'creator',asset:address('d'),amountRaw:'4'}],
   sources:{statistics:{asOf:1},chart:{asOf:1},trades:{asOf:1},holders:{asOf:1},fees:{asOf:1}},reasons:{},
  });
  const views={ '1H':detail('1H','chart-hour','1'),'12H':detail('12H','chart-twelve','1'),'1D':detail('1D','chart-day','1') };
@@ -92,7 +92,7 @@ test('0031 migrates pre-existing populated market rows into common and chart sec
  const schemaName=`tg_display_sections_upgrade_${process.pid}_${randomBytes(4).toString('hex')}`,s=`"${schemaName}"`,pool=createDatabasePool(connectionString,{max:1}).pool;
  const deployment={environment:'test' as const,chainId:46630 as const,deploymentDigest:hash('1'),activationBlock:1n},marketId=hash('2');
  const detail=(period:'1H'|'12H'|'1D',marker:string)=>({version:1,chainId:46630,displayOnly:true,marketId,memeToken:address('3'),quoteAsset:address('4'),quoteDecimals:18,period,
-  statistics:{price:'1',priceUsd:'2',marketCapUsd:'20',volume24h:'3'},chart:{period,marker},trades:[],holders:{totalSupplyRaw:'100',circulatingSupplyRaw:'90',count:0,basis:'fixture',items:[]},fees:[],sources:{statistics:{asOf:1},chart:{asOf:1},trades:{asOf:1},holders:{asOf:1},fees:{asOf:1}},reasons:{}});
+  statistics:{price:'1',priceUsd:'2',marketCapUsd:'20',volume24h:'3'},chart:{period,marker},trades:[],holders:{totalSupplyRaw:'100',circulatingSupplyRaw:'100',count:0,basis:'CHAIN_TOTAL_SUPPLY_V1',items:[]},fees:[],sources:{statistics:{asOf:1},chart:{asOf:1},trades:{asOf:1},holders:{asOf:1},fees:{asOf:1}},reasons:{}});
  const legacy={market:{marketId,memeToken:address('3'),quoteAsset:address('4'),quoteAssetConfigId:hash('5'),identity:{name:'Legacy',symbol:'OLD'},content:null as null|{description:string},display:{priceQuote:'1'}},balances:{[address('6')]:'90'},detailViews:{'1H':detail('1H','old-hour'),'12H':detail('12H','old-12h'),'1D':detail('1D','old-day')},marker:'legacy'};
  const id=[deployment.environment,deployment.chainId,deployment.deploymentDigest];
  try{

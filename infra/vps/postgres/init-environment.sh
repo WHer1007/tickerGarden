@@ -13,3 +13,8 @@ psql -v ON_ERROR_STOP=1 --username "$POSTGRES_USER" --dbname postgres \
 CREATE ROLE tg_queue LOGIN PASSWORD :'queue_password';
 CREATE DATABASE tickergarden_queue OWNER tg_queue;
 SQL
+# Query statistics are available in both application and queue databases.
+for database in "$POSTGRES_DB" tickergarden_queue; do
+  psql -v ON_ERROR_STOP=1 --username "$POSTGRES_USER" --dbname "$database" \
+    -c 'CREATE EXTENSION IF NOT EXISTS pg_stat_statements'
+done

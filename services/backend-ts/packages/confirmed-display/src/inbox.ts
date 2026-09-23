@@ -1,5 +1,5 @@
 import type {PoolClient} from 'pg';
-import {parseLog,type DeploymentIdentity,type RpcTransport,type RpcLog} from '../../chain/src/index.ts';
+import {parseLog,type DeploymentIdentity,type RpcTransport,type RpcLog,type RpcBlock} from '../../chain/src/index.ts';
 import {readDisplayScan,readDisplayDirectory,moduleMap,discoverDisplayCreations} from './scan.ts';
 import {displayIdentity,displaySchema} from './worker.ts';
 
@@ -29,7 +29,8 @@ export async function planDisplayEvents(client:PoolClient,d:DeploymentIdentity,r
  // from a transaction expanded via its receipt are also already in applied.
  const late=(await client.query<{block_number:string;block_hash:`0x${string}`}>(`SELECT DISTINCT e.block_number,e.block_hash FROM ${s}.display_event_inbox e WHERE e.environment=$1 AND e.chain_id=$2 AND e.deployment_digest=$3 AND NOT e.removed AND e.block_number>$4 AND e.block_number<=$5 AND NOT EXISTS(SELECT 1 FROM ${s}.display_event_applied a WHERE a.environment=e.environment AND a.chain_id=e.chain_id AND a.deployment_digest=e.deployment_digest AND a.block_hash=e.block_hash AND a.transaction_hash=e.transaction_hash AND a.log_index=e.log_index) ORDER BY e.block_number LIMIT 200`,[...id,coverage.block_number,cursor.block_number])).rows;
  let replayFrom:bigint|undefined;
- for(const row of late){if((await rpc.block(BigInt(row.block_number))).hash===row.block_hash){const n=BigInt(row.block_number);if(replayFrom===undefined||n<replayFrom)replayFrom=n;}}
+ const lateBlocks=new Map<bigint,RpcBlock>();
+ for(const row of late){const n=BigInt(row.block_number);if(!lateBlocks.has(n))lateBlocks.set(n,await rpc.block(n));if(lateBlocks.get(n)!.hash===row.block_hash){const n=BigInt(row.block_number);if(replayFrom===undefined||n<replayFrom)replayFrom=n;}}
  if(replayFrom!==undefined)return {scan:true,replayFrom:BigInt(coverage.block_number)+1n};
  if(!due)return {scan:false};
  const from=BigInt(coverage.block_number)+1n,tip=BigInt(cursor.block_number);
@@ -50,14 +51,14 @@ export async function planDisplayEvents(client:PoolClient,d:DeploymentIdentity,r
 export async function readDisplayEvents(client:PoolClient,d:DeploymentIdentity,rpc:RpcTransport,from:bigint,to:bigint,schemaName?:string){
  const s=displaySchema(schemaName),id=displayIdentity(d);
  const rows=(await client.query<{payload:Record<string,unknown>}>(`SELECT payload FROM ${s}.display_event_inbox WHERE environment=$1 AND chain_id=$2 AND deployment_digest=$3 AND NOT removed AND block_number BETWEEN $4 AND $5 ORDER BY block_number,log_index LIMIT 1000`,[...id,from.toString(),to.toString()])).rows;
- const logs:RpcLog[]=[],blocks=new Map<bigint,string>();
- for(const row of rows){const log=parseLog(row.payload);if(!blocks.has(log.blockNumber))blocks.set(log.blockNumber,(await rpc.block(log.blockNumber)).hash);if(blocks.get(log.blockNumber)===log.blockHash)logs.push(log);}
+ const logs:RpcLog[]=[],blocks=new Map<bigint,RpcBlock>();
+ for(const row of rows){const log=parseLog(row.payload);if(!blocks.has(log.blockNumber))blocks.set(log.blockNumber,await rpc.block(log.blockNumber));if(blocks.get(log.blockNumber)!.hash===log.blockHash)logs.push(log);}
  // Never commit a partially selected block: a saturated inbox batch is recovered
  // using a bounded full scan, preserving transactions beyond this row limit.
  if(rows.length===1000)return null;
  const creations=await readDisplayDirectory(client,d,from,schemaName);
  discoverDisplayCreations(creations,logs,d.chainId);
- return {creations,modules:moduleMap([...creations.values()]),logs};
+ return {creations,modules:moduleMap([...creations.values()]),logs,blocks};
 }
 export async function saveAppliedEvents(client:PoolClient,d:DeploymentIdentity,logs:readonly RpcLog[],schemaName?:string){
  if(!logs.length)return;const s=displaySchema(schemaName),id=displayIdentity(d);

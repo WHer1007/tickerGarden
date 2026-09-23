@@ -35,6 +35,27 @@ test('inconsistent receipt supply and duplicate logs fail before a state is publ
  assert.throws(()=>applyDisplayEvents(seed,{...market,display:{...market.display!,totalSupplyRaw:'1'}},[mint],block),/disagrees/);
 });
 
+test('transfers preserve chain total supply and cached holders use the new basis',async()=>{
+ const {materializeDisplay}=await import('../../packages/confirmed-display/src/state.ts');
+ const state=applyDisplayEvents(emptyDisplayState(creation,market,block),market,[mint,transfer],block);
+ const materialized=materializeDisplay(state),cached=materialized.detailViews!['1H'].holders!;
+ assert.equal(state.supply,supply);assert.equal(cached.totalSupplyRaw,supply);
+ assert.equal(cached.circulatingSupplyRaw,supply);assert.equal(cached.basis,'CHAIN_TOTAL_SUPPLY_V1');
+ const next=applyDisplayEvents(state,market,[buy],{...block,number:11n,hash:hash('d')});
+ const reused=displayDetail(next,'1H',next.asOf,undefined,cached).holders!;
+ assert.equal(reused.totalSupplyRaw,supply);assert.equal(reused.circulatingSupplyRaw,supply);
+ assert.deepEqual(reused.items,cached.items);assert.equal(reused.basis,'CHAIN_TOTAL_SUPPLY_V1');
+});
+
+test('legacy packed undo state preserves historical supply and holders while converting basis',async()=>{
+ const {materializeDisplay,packDisplayState,unpackDisplayState}=await import('../../packages/confirmed-display/src/state.ts');
+ const state=materializeDisplay(applyDisplayEvents(emptyDisplayState(creation,market,block),market,[mint,transfer],block));
+ const historical=structuredClone(state);
+ for(const period of ['1H','12H','1D'] as const){historical.detailViews![period]={...historical.detailViews![period],holders:{...historical.detailViews![period].holders!,circulatingSupplyRaw:'123',basis:'TOTAL_MINUS_KNOWN_PROTOCOL_BALANCES_V1'}};}
+ const restored=unpackDisplayState(packDisplayState(historical));
+ for(const period of ['1H','12H','1D'] as const){const before=historical.detailViews![period].holders!,after=restored.detailViews![period].holders!;assert.equal(after.totalSupplyRaw,before.totalSupplyRaw);assert.equal(after.circulatingSupplyRaw,before.totalSupplyRaw);assert.deepEqual(after.items,before.items);assert.equal(after.basis,'CHAIN_TOTAL_SUPPLY_V1');}
+});
+
 test('scoped confirmed reads omit unrelated sections and retain the open candle',()=>{
  const state=applyDisplayEvents(emptyDisplayState(creation,market,block),market,[mint,transfer,buy],block);
  const value=displayDetail(state,'1H',Number(time),'chart,trades');

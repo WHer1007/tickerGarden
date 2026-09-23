@@ -34,7 +34,7 @@ export function creationDetail(receipts:readonly (Record<string,unknown>|null)[]
   period:'1H' as const,statistics:{price:trades.length?formatUnits(BigInt(trades.at(-1)!.price.numerator)*10n**36n/BigInt(trades.at(-1)!.price.denominator),36):null,
    volume24h:formatUnits(trades.filter(t=>t.classification==='unclassified').reduce((sum,t)=>sum+BigInt(t.quoteRaw),0n),validated.binding.quoteDecimals),
    volumeFrom:Number(timestamp)-86400,volumeTo:Number(timestamp),volumeBasis:'EXTERNAL_EXECUTIONS_CURVE_EXCLUDING_FEE_TAX_OR_POOL_CORE' as const},chart:null,
-  holders:{totalSupplyRaw:holders.totalSupplyRaw,circulatingSupplyRaw:items.reduce((sum,b)=>sum+BigInt(b.balanceRaw),0n).toString(),count:items.length,basis:'TOTAL_MINUS_KNOWN_PROTOCOL_BALANCES_V1' as const,items:items.slice(0,100)},
+  holders:{totalSupplyRaw:holders.totalSupplyRaw,circulatingSupplyRaw:holders.totalSupplyRaw,count:items.length,basis:'CHAIN_TOTAL_SUPPLY_V1' as const,items:items.slice(0,100)},
   trades:trades.map(t=>({timestamp:Number(t.timestamp),side:t.side,price:formatUnits(BigInt(t.price.numerator)*10n**36n/BigInt(t.price.denominator),36),memeRaw:t.memeRaw,quoteRaw:t.quoteRaw,actor:t.actor,txHash:t.source.transactionHash,eventKey:t.source.eventKey,classification:t.classification})),
   fees:[...fees.values()],sources:{statistics:source,holders:source,trades:source,fees:source},reasons:{chart:'Waiting for indexed trade history.'}};
 }

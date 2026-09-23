@@ -135,12 +135,15 @@ async function advance(input:DisplayWorkerInput):Promise<string>{
    if(!batch.logs.length)return 'current';
    to=batch.logs.reduce((n,l)=>l.blockNumber>n?l.blockNumber:n,from);
   }
-  const anchor=await rpc.block(to);
+  // Reuse only this pass's fresh inbox block observations; final boundary reads below remain fresh.
+  const receiptBlocks=batch.blocks;
+  const anchor=receiptBlocks.get(to)??(to===head.number?head:await rpc.block(to));
+  receiptBlocks.set(to,anchor);
   const {creations,logs}=batch;
   let modules=batch.modules;
   if(logs.some(l=>l.removed||l.blockNumber<from||l.blockNumber>to))throw Error('Display log range mismatch');
   const hashes=[...new Set(logs.map(l=>l.transactionHash))];const observations:EventObservation[]=[];
-  const appliedLogs:ReturnType<typeof parseLog>[]=[],receiptBatches:ReturnType<typeof parseLog>[][]=[],receiptBlocks=new Map<bigint,RpcBlock>();
+  const appliedLogs:ReturnType<typeof parseLog>[]=[],receiptBatches:ReturnType<typeof parseLog>[][]=[];
   for(const hash of hashes){
    const receipt=await rpc.call<Record<string,unknown>|null>('eth_getTransactionReceipt',[hash]);
    if(!receipt||receipt.status!=='0x1'||receipt.transactionHash!==hash||!Array.isArray(receipt.logs))throw Error('Confirmed receipt unavailable');

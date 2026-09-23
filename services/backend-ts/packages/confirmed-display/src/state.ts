@@ -85,7 +85,7 @@ export function displayDetail(state:DisplayState,period:'1H'|'12H'|'1D',asOf=sta
  const volume=selected.has('statistics')&&state.historyFrom<=Math.max(asOf-86400,Number(state.market.identity?.deployedAt??0))?formatUnits(trades.filter(t=>t.classification==='unclassified').reduce((n,t)=>n+BigInt(t.quoteRaw),0n),validated.binding.quoteDecimals):null;
  const result:TokenDetailResponse={version:1,chainId:state.market.source.chainId,displayOnly:true,confirmation:'confirmed',marketId:state.market.marketId,memeToken:state.market.memeToken,quoteAsset:state.market.quoteAsset,quoteDecimals:validated.binding.quoteDecimals,period,
  statistics:{price:state.market.display?.priceQuote??trades[0]?.price??null,...displayUsd(state.market.display?.priceQuote??trades[0]?.price??null,state.supply,state.quoteUsd),volume24h:volume,volumeFrom:asOf-86400,volumeTo:asOf,volumeBasis:'EXTERNAL_EXECUTIONS_CURVE_EXCLUDING_FEE_TAX_OR_POOL_CORE'},chart:{from,to,interval,points},
- holders:cachedHolders??{totalSupplyRaw:state.supply,circulatingSupplyRaw:items.reduce((n,v)=>n+BigInt(v.balanceRaw),0n).toString(),count:items.length,basis:'TOTAL_MINUS_KNOWN_PROTOCOL_BALANCES_V1',items:items.slice(0,100)},trades:(state.recentTrades??state.trades).slice(0,30),fees:state.fees,sources:{statistics:source,chart:source,holders:source,trades:source,fees:source},reasons:{}};
+ holders:cachedHolders?{...cachedHolders,totalSupplyRaw:state.supply,circulatingSupplyRaw:state.supply,basis:'CHAIN_TOTAL_SUPPLY_V1'}:{totalSupplyRaw:state.supply,circulatingSupplyRaw:state.supply,count:items.length,basis:'CHAIN_TOTAL_SUPPLY_V1',items:items.slice(0,100)},trades:(state.recentTrades??state.trades).slice(0,30),fees:state.fees,sources:{statistics:source,chart:source,holders:source,trades:source,fees:source},reasons:{}};
  return {...result,statistics:selected.has('statistics')?result.statistics:null,chart:selected.has('chart')?result.chart:null,trades:selected.has('trades')?result.trades:null,holders:selected.has('holders')?result.holders:null,fees:selected.has('fees')?result.fees:null,sources:Object.fromEntries(Object.entries(result.sources).filter(([key])=>selected.has(key)))};
 }
 
@@ -124,7 +124,9 @@ export function packDisplayState(state:DisplayState):DisplayState{
 }
 export function unpackDisplayState(state:DisplayState):DisplayState{
  const packed=state as DisplayState&{detailSnapshot?:{common:Omit<TokenDetailResponse,'chart'|'period'>;charts:Record<'1H'|'12H'|'1D',TokenDetailResponse['chart']>}};
- if(!packed.detailSnapshot)return state;
  const {detailSnapshot,...base}=packed;
- return {...base,detailViews:Object.fromEntries(Object.entries(detailSnapshot.charts).map(([period,chart])=>[period,{...detailSnapshot.common,period,chart}])) as Record<'1H'|'12H'|'1D',TokenDetailResponse>};
+ const views=detailSnapshot?Object.fromEntries(Object.entries(detailSnapshot.charts).map(([period,chart])=>[period,{...detailSnapshot.common,period,chart}])):state.detailViews;
+ if(!views)return state;
+ // Old undo entries must restore the historical supply, not the old exclusion-based definition.
+ return {...base,detailViews:Object.fromEntries(Object.entries(views).map(([period,detail])=>[period,{...detail,holders:detail.holders?{...detail.holders,circulatingSupplyRaw:detail.holders.totalSupplyRaw,basis:'CHAIN_TOTAL_SUPPLY_V1'}:null}])) as Record<'1H'|'12H'|'1D',TokenDetailResponse>};
 }

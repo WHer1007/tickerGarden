@@ -206,7 +206,7 @@ export async function readTokenDetail(input: { readonly pool: Pool; readonly dep
       if (!(error instanceof PublicationUnavailableError)) throw error;
       reasons.statistics ??= error.message; reasons.trades = error.message;
     }
-    const detailRows = selected.has('holders')||selected.has('fees')?await client.query<{ total_supply_raw: string | null; circulating: string | null; holder_count: string; holders: { account: Address; balanceRaw: string }[]; fees: { recipient: 'creator' | 'stakers' | 'platform' | 'holders'; asset: Address; amountRaw: string }[] }>(
+    const detailRows = selected.has('holders')||selected.has('fees')?await client.query<{ total_supply_raw: string | null; holder_count: string; holders: { account: Address; balanceRaw: string }[]; fees: { recipient: 'creator' | 'stakers' | 'platform' | 'holders'; asset: Address; amountRaw: string }[] }>(
       `WITH included AS (
          SELECT account,balance_raw FROM ${schema}.holder_balances WHERE environment=$1 AND chain_id=$2 AND deployment_digest=$3 AND market_id=$4 AND NOT excluded
        ), top_holders AS (
@@ -214,7 +214,6 @@ export async function readTokenDetail(input: { readonly pool: Pool; readonly dep
        )
        SELECT
          (SELECT total_supply_raw::text FROM ${schema}.holder_snapshots_covered WHERE environment=$1 AND chain_id=$2 AND deployment_digest=$3 AND market_id=$4 AND block_hash=$5 AND block_number=$6) AS total_supply_raw,
-         (SELECT sum(balance_raw)::text FROM included) AS circulating,
          (SELECT count(*)::text FROM included) AS holder_count,
          COALESCE((SELECT jsonb_agg(jsonb_build_object('account',account,'balanceRaw',balance_raw::text) ORDER BY balance_raw DESC,account) FROM top_holders),'[]'::jsonb) AS holders,
          COALESCE((SELECT jsonb_agg(jsonb_build_object('recipient',recipient,'asset',asset,'amountRaw',amount_raw::text) ORDER BY recipient,asset)
@@ -223,8 +222,8 @@ export async function readTokenDetail(input: { readonly pool: Pool; readonly dep
     ):{rows:[]};
     const detailRow = detailRows.rows[0];
     const holderCount = safeInteger(detailRow?.holder_count ?? '0', 'holder count');
-    const holders = detailRow?.total_supply_raw ? { totalSupplyRaw: detailRow.total_supply_raw, circulatingSupplyRaw: detailRow.circulating ?? '0',
-      count: holderCount, basis: 'TOTAL_MINUS_KNOWN_PROTOCOL_BALANCES_V1' as const,
+    const holders = detailRow?.total_supply_raw ? { totalSupplyRaw: detailRow.total_supply_raw, circulatingSupplyRaw: detailRow.total_supply_raw,
+      count: holderCount, basis: 'CHAIN_TOTAL_SUPPLY_V1' as const,
       items: detailRow.holders } : null;
     if (!holders) reasons.holders = 'Finalized holder projection is not available';
     const fees = detailRow?.fees ?? [];

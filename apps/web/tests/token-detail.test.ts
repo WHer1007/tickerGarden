@@ -49,3 +49,11 @@ test('external metadata links never execute script and images remain content-add
  globalThis.fetch=async()=>new Response(raw);
  try{const metadata=await readDetailMetadata(`https://content.example/launch-metadata/${digest}.json`,'https://content.example',new AbortController().signal);assert.equal(metadata?.website,'https://example.com/');assert.equal(metadata?.x,'https://x.com/tg');assert.equal(await readDetailMetadata(`https://content.example/launch-metadata/${'0'.repeat(64)}.json`,'https://content.example',new AbortController().signal),null);}finally{globalThis.fetch=original;}
 });
+
+test('current circulation equals chain supply; rolling deployment still accepts legacy responses',()=>{
+ const holders={totalSupplyRaw:'1000',circulatingSupplyRaw:'1000',basis:'CHAIN_TOTAL_SUPPLY_V1',count:1,items:[{account:id.memeToken,balanceRaw:'100'}]};
+ const value={...report(),holders,sources:{holders:source}};
+ assert.equal(validateTokenDetail(value,46630,id,'1H',now).holders?.circulatingSupplyRaw,'1000');
+ assert.throws(()=>validateTokenDetail({...value,holders:{...holders,circulatingSupplyRaw:'100'}},46630,id,'1H',now));
+ assert.equal(validateTokenDetail({...value,holders:{...holders,basis:'TOTAL_MINUS_KNOWN_PROTOCOL_BALANCES_V1',circulatingSupplyRaw:'100'}},46630,id,'1H',now).holders?.count,1);
+});

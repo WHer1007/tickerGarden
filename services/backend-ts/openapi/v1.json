@@ -2,7 +2,7 @@
   "openapi": "3.1.0",
   "info": {
     "title": "TickerGarden V1 Read API",
-    "version": "5.11.0",
+    "version": "5.12.0",
     "description": "Non-custodial TypeScript Serverless read API for the routes consumed by the current frontend."
   },
   "x-execution-spec-id": "V1-EXEC-11",
@@ -4102,7 +4102,11 @@
           },
           "basis": {
             "type": "string",
-            "const": "TOTAL_MINUS_KNOWN_PROTOCOL_BALANCES_V1"
+            "enum": [
+              "CHAIN_TOTAL_SUPPLY_V1",
+              "TOTAL_MINUS_KNOWN_PROTOCOL_BALANCES_V1"
+            ],
+            "description": "CHAIN_TOTAL_SUPPLY_V1 equals current onchain totalSupply including locked and protocol-held balances; legacy basis accepted during rollout."
           },
           "items": {
             "type": "array",

@@ -3,6 +3,7 @@ import {databaseTimingSnapshot} from '../packages/db/src/telemetry.ts';
 import {rpcRuntimeOptions,withRpcTier} from '../packages/rpc-control/src/runtime.ts';
 import {rpcFailoverOptions} from '../packages/chain/src/rpc-policy.ts';
 import {reportError,installProcessDiagnostics,logEvent,flushErrors} from '../packages/observability/src/index.ts';
+import {changeChannel} from '../packages/confirmed-display/src/changes.ts';
 import {refreshDisplayPreparation} from '../packages/confirmed-display/src/maintenance.ts';
 import type {PoolClient} from 'pg';
 import {displayWakeChannel,DisplayWake,displayCatchup} from '../packages/confirmed-display/src/wake.ts';
@@ -25,13 +26,15 @@ const priceChannel=priceBatchChannel(deployment,env.TG_DATABASE_SCHEMA);
 let pricesChanged=false;
 let stopped=false,lastSuccess=0,lastResult='starting',forceRecovery=true;
 const wake=new DisplayWake();
+const preparationWake=new DisplayWake();
+const changesChannel=changeChannel(deployment,env.TG_DATABASE_SCHEMA);
 let listener:PoolClient|undefined;
 async function listen(){
  if(listener)return;
  const client=await pool.connect();listener=client;
- client.on('notification',message=>{if(message.channel===priceChannel){priceReader.invalidate();pricesChanged=true;}else if(message.payload==='recover')forceRecovery=true;wake.wake();});
- client.once('error',()=>{if(listener===client)listener=undefined;client.release(true);wake.wake();});
- try{await client.query(`LISTEN ${displayWakeChannel(deployment,env.TG_DATABASE_SCHEMA)}`);await client.query(`LISTEN ${priceChannel}`);priceReader.invalidate();}
+ client.on('notification',message=>{preparationWake.wake();if(message.channel===changesChannel)return;if(message.channel===priceChannel){priceReader.invalidate();pricesChanged=true;}else if(message.payload==='recover')forceRecovery=true;wake.wake();});
+ client.once('error',()=>{if(listener===client)listener=undefined;client.release(true);wake.wake();preparationWake.wake();});
+ try{await client.query(`LISTEN ${displayWakeChannel(deployment,env.TG_DATABASE_SCHEMA)}`);await client.query(`LISTEN ${priceChannel}`);await client.query(`LISTEN ${changesChannel}`);priceReader.invalidate();preparationWake.wake();}
  catch(e){if(listener===client){listener=undefined;client.release(true);}throw e;}
 }
 const abort=new AbortController();process.once('SIGTERM',()=>{stopped=true;abort.abort();});process.once('SIGINT',()=>{stopped=true;abort.abort();});
@@ -39,7 +42,20 @@ const server=createServer((req,res)=>{if(req.url!=='/healthz'){res.writeHead(404
 server.listen(Number(env.TG_DISPLAY_HEALTH_PORT??8084),'127.0.0.1');
 // Maintenance uses the LISTEN connection for short SQL reads/writes, keeping
 // its work independent of the scanner without increasing the two-connection budget.
-const maintenance=(async()=>{while(!stopped){let more=false;try{if(!listener){await pause(1000,undefined,{signal:abort.signal}).catch(()=>{});continue;}const result=await refreshDisplayPreparation({pool:listener,deployment,priceBatch:createPriceBatch(deployment,env.TG_DATABASE_SCHEMA,new Date(),priceReader),...(env.TG_DATABASE_SCHEMA?{schemaName:env.TG_DATABASE_SCHEMA}:{})});more=result.more;if(result.failed)console.error(JSON.stringify({event:'display_preparation_retry',failed:result.failed}));}catch(error){reportError('display-worker','display_preparation_unavailable',error,{},'warn');}await pause(more?100:1000,undefined,{signal:abort.signal}).catch(()=>{});}})();
+const maintenance=(async()=>{while(!stopped){
+ let more=false;
+ try{
+  if(listener){
+   const result=await refreshDisplayPreparation({pool:listener,deployment,priceBatch:createPriceBatch(deployment,env.TG_DATABASE_SCHEMA,new Date(),priceReader),...(env.TG_DATABASE_SCHEMA?{schemaName:env.TG_DATABASE_SCHEMA}:{})});
+   more=result.more;
+   if(result.failed)console.error(JSON.stringify({event:'display_preparation_retry',failed:result.failed}));
+  }
+ }catch(error){reportError('display-worker','display_preparation_unavailable',error,{},'warn');}
+ // New launch/event/price notifications wake maintenance immediately. A five-second
+ // fallback also covers missed notifications and scheduled retry deadlines.
+ await pause(more?100:1000,undefined,{signal:abort.signal}).catch(()=>{});
+ if(!more)await preparationWake.wait(4000,abort.signal);
+}})();
 try{while(!stopped){
  const started=Date.now();
  try{
