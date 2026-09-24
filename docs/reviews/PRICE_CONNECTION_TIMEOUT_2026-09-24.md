@@ -35,7 +35,7 @@ Sentry issue: https://tg-one.sentry.io/issues/149040305/ （TG-INONE-7）。查�
 
 ## 改进实现与本地验收
 
-已在 `codex/production-health-fixes` 完成，尚未发布测试或生产：
+已在 `codex/production-health-fixes` 完成；后续已按测试 → 生产发布，部署验收见末节：
 
 - `/v1/prices/references` 与 `/v1/statistics-prices` 使用同一实例、同一部署范围的单路在途查询；结果完成即释放，不增加报价缓存或新报价源。
 - 报价读取显式获得数据库连接后才执行 SELECT。只有明确的临时建连错误允许一次 150 ms 退避重试；权限拒绝、池排队超时、连接数耗尽、所有 SQL 失败均不重试。默认总预算 12 秒，单次获取连接保护 5.25 秒（驱动自身仍为 5 秒），查询超过总预算销毁连接；迟到连接也销毁，不遗留占用。
@@ -46,3 +46,23 @@ Sentry issue: https://tg-one.sentry.io/issues/149040305/ （TG-INONE-7）。查�
 - 17 项发布边界与实际 logger 子进程测试通过；Vite 实际配置验证源码提交覆盖旧环境标签；前端 build:vercel、SEO 和资源预算检查通过。
 
 下一次发布仍须遵循 test 验收后再从 master 发布生产，并在 sin1 验证运行函数。无需数据库迁移或数据库重启。部署后需核对实际日志的 releaseCommit/deploymentId，再观察自然流量；不以本地验证冒充线上修复完成。
+
+
+## 测试与生产发布验收
+
+2026-09-24，产品提交 `b5da19a8bee9ea5272d9d63e17f1688bc615c507` 已经由 test 验收后推进 master，两个分支均已推送。Web、Read API、Pipeline、Content 与相关 VPS Worker 已更新；不涉及数据库迁移或数据库重启，原 PostgreSQL 容器启动时间保持不变。
+
+- 全部 Vercel 命令显式使用 sin1，发布前再次核验 Web 2、Read API 3、Pipeline 2、Content 2 个函数均位于 sin1。
+- 测试环境 12 项 API 读取、两个报价接口、6 个并发报价请求通过。首页/Explore/Stats/详情浏览器读取均 HTTP 200，无 pageerror。
+- 生产同样完成 12 项 API 读取、两个报价接口及四个浏览器页面验收，SEED 供应量、价格等正常显示。
+- 测试和生产实际 Read API 日志均报告上述新提交号与 deploymentId；生产样本 `prices.read` 成功，连接等待 0.15 ms、SQL 往返 8.98 ms、任务总耗时 25.86 ms，无连接/SQL 超时。
+- 生产前端构建完成 Sentry source-map 上传。测试没有人为上报错误，生产也没有通过制造故障验证。
+- 更新后的展示 Worker/resident active、NRestarts=0；健康采样无任务失败、连接超时或 SQL 超时。
+- 发布复核中 Relay 曾短暂 health=false。日志显示 04:28:53/55 UTC shared RPC budget denied，04:28:58 恢复 WS 请求响应；再次核验 health=true、lastError=null、pending=0、dead=0。该容器及代码未在此次更换，记录此瞬时现象，不将短期验收表述为已消除所有网络抖动。
+
+| 环境 | Web | Read API | Pipeline | Content |
+|---|---|---|---|---|
+| 测试 | tickergarden-jqx38oocv-garden24.vercel.app | tickergarden-read-prwzbcj7u-garden24.vercel.app | tickergarden-chain-pipeline-3p0wpahek-garden24.vercel.app | tickergarden-content-etat6n23x-garden24.vercel.app |
+| 生产 | tickergarden-cdrcxk3aw-garden24.vercel.app | tickergarden-read-6ysxsxjvi-garden24.vercel.app | tickergarden-chain-pipeline-mibvoj51m-garden24.vercel.app | tickergarden-content-2byjlqpeb-garden24.vercel.app |
+
+生产 Read API deployment ID: `dpl_9ZuVqihfb1LdVsWmLKRZ7vjC4FxZ`。证据保存在 alignment 工作区 `.codex_tmp/releases/price-recovery-2026-09-24/`。后续仅文档提交不改变运行产品代码。
