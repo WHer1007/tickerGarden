@@ -23,4 +23,5 @@ try { execFileSync('git', ['archive', '--format=tar', commit], { cwd: root, stdi
 finally { fs.closeSync(fd); }
 execFileSync('tar', ['-xf', archive, '-C', directory]);
 fs.unlinkSync(archive);
+fs.writeFileSync(path.join(directory, 'source-release.json'), JSON.stringify({ schemaVersion: 1, commit, branch, target, service }, null, 2) + '\n', { mode: 0o600 });
 console.log(JSON.stringify({ status: 'SOURCE_EXPORTED', target, service, branch, commit, directory }));

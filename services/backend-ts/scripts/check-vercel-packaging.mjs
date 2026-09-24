@@ -126,6 +126,9 @@ for (const appName of expectedApps) {
   }
 
   const config = readJson(join(appDirectory, 'vercel.json'));
+  for (const [name, fn] of Object.entries(config.functions ?? {})) {
+    if(fn.includeFiles !== '../../../../source-release.json') fail(`apps/${appName}/${name} must package source provenance`);
+  }
   if (config.installCommand !== 'npm ci --prefix ../.. --workspaces --include-workspace-root --include=dev --ignore-scripts') {
     fail(`apps/${appName}/vercel.json must install the locked backend workspace before compiling shared packages`);
   }

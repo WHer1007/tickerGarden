@@ -19,10 +19,14 @@ export default defineConfig(({command})=>{
   }
  }
  const uploadMaps=command==='build'&&!!process.env.SENTRY_AUTH_TOKEN;
+ const sourceReleasePath=path.join(root,'source-release.json');
+ let sourceRelease;
+ if(fs.existsSync(sourceReleasePath)){try{sourceRelease=JSON.parse(fs.readFileSync(sourceReleasePath,'utf8'));}catch{throw Error('Invalid source-release.json provenance');}}
+ const releaseCommit=sourceRelease?.commit??process.env.VITE_RELEASE_COMMIT??process.env.VERCEL_GIT_COMMIT_SHA??'unconfigured';
  if(uploadMaps&&(!process.env.SENTRY_ORG||!process.env.SENTRY_PROJECT))throw Error('Sentry source-map upload requires org and project');
  return ({
  appType:'spa',envDir:false,
- define:{'import.meta.env.VITE_RELEASE_COMMIT':JSON.stringify(process.env.VITE_RELEASE_COMMIT??process.env.VERCEL_GIT_COMMIT_SHA??'unconfigured'),'import.meta.env.VITE_TG_ENVIRONMENT':JSON.stringify(process.env.VITE_TG_ENVIRONMENT??(process.env.TG_PROFILE==='master'?'production':process.env.TG_PROFILE==='test'?'test':'local'))},
+ define:{'import.meta.env.VITE_RELEASE_COMMIT':JSON.stringify(releaseCommit),'import.meta.env.VITE_TG_ENVIRONMENT':JSON.stringify(process.env.VITE_TG_ENVIRONMENT??(process.env.TG_PROFILE==='master'?'production':process.env.TG_PROFILE==='test'?'test':'local'))},
  build:{sourcemap:uploadMaps?'hidden':false,manifest:true,rollupOptions:{output:{onlyExplicitManualChunks:true,manualChunks(id){
   if(id.includes('/node_modules/@sentry/'))return 'observability';
   if(id.includes('vite/preload-helper'))return 'preload';
@@ -37,7 +41,7 @@ export default defineConfig(({command})=>{
  server:{headers:securityHeaders(process.env,true)},
  preview:{headers:securityHeaders(process.env,false)},
  plugins:[
-  ...(uploadMaps?[sentryVitePlugin({org:process.env.SENTRY_ORG,project:process.env.SENTRY_PROJECT,authToken:process.env.SENTRY_AUTH_TOKEN,telemetry:false,release:{name:process.env.VITE_RELEASE_COMMIT??process.env.VERCEL_GIT_COMMIT_SHA},sourcemaps:{filesToDeleteAfterUpload:['./dist/**/*.map']}})]:[]),
+  ...(uploadMaps?[sentryVitePlugin({org:process.env.SENTRY_ORG,project:process.env.SENTRY_PROJECT,authToken:process.env.SENTRY_AUTH_TOKEN,telemetry:false,release:{name:releaseCommit},sourcemaps:{filesToDeleteAfterUpload:['./dist/**/*.map']}})]:[]),
   {name:"bundle-audit",generateBundle(_,bundle){if(process.env.TG_BUNDLE_ANALYZE){fs.mkdirSync(path.join(root,"outputs"),{recursive:true});fs.writeFileSync(path.join(root,"outputs/controller-bundle.json"),JSON.stringify(Object.values(bundle).filter(x=>x.type==="chunk").map(x=>({file:x.fileName,imports:x.imports,dynamic:x.dynamicImports,modules:Object.entries(x.modules).map(([id,m])=>({id,length:m.renderedLength}))})),null,2));}}},
   {name:'prerender-public-pages',writeBundle(){if(command==='build')prerender(path.join(root,'apps/web/dist'),process.env);}},
   {name:'production-security-headers',generateBundle(){this.emitFile({type:'asset',fileName:'_headers',source:'/*\n'+Object.entries(securityHeaders(process.env,false)).map(([k,v])=>`  ${k}: ${v}`).join('\n')+'\n'});}},

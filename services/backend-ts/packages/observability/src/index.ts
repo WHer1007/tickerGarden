@@ -1,5 +1,7 @@
 import {AsyncLocalStorage} from 'node:async_hooks';
 import {createHash} from 'node:crypto';
+import {existsSync,readFileSync} from 'node:fs';
+import {dirname,join} from 'node:path';
 import pino from 'pino';
 import * as Sentry from '@sentry/node';
 import {waitUntil} from '@vercel/functions';
@@ -14,6 +16,12 @@ let sentryStarted=false;
 const windows=new Map<string,{at:number;count:number}>();
 const deliveries=new Set<Promise<unknown>>();
 let localDelivery=Promise.resolve();
+const releaseMetadata=(()=>{
+ const env=process.env;let dir=process.cwd();
+ for(let i=0;i<8;i++){const file=join(dir,'source-release.json');if(existsSync(file)){try{const value=JSON.parse(readFileSync(file,'utf8'));if(value.schemaVersion===1&&typeof value.commit==='string'&&/^[0-9a-f]{40}$/i.test(value.commit))return {releaseCommit:value.commit};}catch{} }const parent=dirname(dir);if(parent===dir)break;dir=parent;}
+ return {releaseCommit:env.TG_RELEASE_COMMIT??env.VERCEL_GIT_COMMIT_SHA??'unconfigured'};
+})();
+function deploymentId(){const value=process.env.VERCEL_DEPLOYMENT_ID??process.env.VERCEL_URL;return value&&/^[A-Za-z0-9._-]{1,128}$/.test(value)?value:undefined;}
 function track(promise:Promise<unknown>){deliveries.add(promise);void promise.finally(()=>deliveries.delete(promise)).catch(()=>{});if(process.env.VERCEL)try{waitUntil(promise);}catch{}}
 function alertDelivery(alert:Alert){
  const env=process.env;if(deliveries.size>=20)return;
@@ -27,7 +35,7 @@ function logger(service:string){
  let log=loggers.get(service);if(log)return log;
  const env=process.env;
  log=pino({level:['debug','info','warn','error','fatal','silent'].includes(env.TG_LOG_LEVEL??'')?env.TG_LOG_LEVEL!:'info',
-  base:{service,environment:env.TG_ENVIRONMENT??'local',releaseCommit:env.TG_RELEASE_COMMIT??env.VERCEL_GIT_COMMIT_SHA??'unconfigured'},
+  base:{service,environment:env.TG_ENVIRONMENT??'local',...releaseMetadata,...(deploymentId()?{deploymentId:deploymentId()}: {})},
   timestamp:pino.stdTimeFunctions.isoTime,redact:{paths:['authorization','cookie','signature','privateKey','password','secret','dsn'],remove:true}});
  loggers.set(service,log);return log;
 }
@@ -37,7 +45,7 @@ export function logEvent(service:string,level:'info'|'warn'|'error',event:string
 }
 function startSentry(){
  if(sentryStarted||!process.env.TG_SENTRY_DSN)return;
- Sentry.init({dsn:process.env.TG_SENTRY_DSN,environment:process.env.TG_ENVIRONMENT??'local',release:process.env.TG_RELEASE_COMMIT??process.env.VERCEL_GIT_COMMIT_SHA,
+ Sentry.init({dsn:process.env.TG_SENTRY_DSN,environment:process.env.TG_ENVIRONMENT??'local',release:releaseMetadata.releaseCommit,
   sendDefaultPii:false,defaultIntegrations:false,skipOpenTelemetrySetup:true,
   beforeSend(event){
    delete event.request;delete event.user;delete event.breadcrumbs;delete event.contexts;delete event.extra;
@@ -55,10 +63,10 @@ export function reportError(service:string,event:string,error:unknown,fields:Con
   if(windows.size>=1000)windows.delete(windows.keys().next().value!);
   windows.set(fingerprint,{at:now,count:1});
   logger(service)[level]({...metadata,event:cleanText(event,100),fingerprint,count:previous?.count??1,error:safe});
-  alertDelivery({environment:process.env.TG_ENVIRONMENT??'local',service,event,severity:level==='warn'?'warning':'error',summary:String(safe.message??'Unknown error'),...(metadata.requestId?{requestId:String(metadata.requestId)}:{}),releaseCommit:process.env.TG_RELEASE_COMMIT??process.env.VERCEL_GIT_COMMIT_SHA??'unconfigured'});
+  alertDelivery({environment:process.env.TG_ENVIRONMENT??'local',service,event,severity:level==='warn'?'warning':'error',summary:String(safe.message??'Unknown error'),...(metadata.requestId?{requestId:String(metadata.requestId)}:{}),releaseCommit:releaseMetadata.releaseCommit});
   startSentry();if(!sentryStarted)return;
   const diagnostic=new Error(String(safe.message??'Unknown error'));diagnostic.name=String(safe.type??'Error');if(safe.stack)diagnostic.stack=String(safe.stack);
-  Sentry.captureException(diagnostic,{level:level==='warn'?'warning':'error',tags:{service,event:cleanText(event,100),...Object.fromEntries(Object.entries(metadata).map(([k,v])=>[k,String(v)]))},fingerprint:[service,event,fingerprint]});
+  Sentry.captureException(diagnostic,{level:level==='warn'?'warning':'error',tags:{service,event:cleanText(event,100),releaseCommit:releaseMetadata.releaseCommit,...(deploymentId()?{deploymentId:deploymentId()}:{}),...Object.fromEntries(Object.entries(metadata).map(([k,v])=>[k,String(v)]))},fingerprint:[service,event,fingerprint]});
   if(process.env.VERCEL){const flush=Sentry.flush(1500).catch(()=>false);try{waitUntil(flush);}catch{void flush;}}
  }catch{/* Avoid recursive failures and preserve the original outcome. */}
 }

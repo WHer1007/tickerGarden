@@ -1,7 +1,9 @@
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
 import test from 'node:test';
-import { assertDeploymentBoundary } from './deployment-boundary.mjs';
+import { assertDeploymentBoundary, assertSourceReleaseProvenance } from './deployment-boundary.mjs';
 
 const web = target => ({
   TG_PROFILE: target === 'test' ? 'test' : 'master',
@@ -104,4 +106,30 @@ test('RPC budget token remains server-only and coordinated deployments require H
  assert.throws(()=>assertDeploymentBoundary('production','web',{...env,TG_RPC_BUDGET_TOKEN:'short'},'master'),/private budget token/);
  assert.throws(()=>assertDeploymentBoundary('production','web',{...env,VITE_RPC_BUDGET_TOKEN:'secret'},'master'),/public VITE prefix/);
  assert.throws(()=>assertDeploymentBoundary('production','web',{...env,TG_RPC_BUDGET_URL:'http://read.production.example'},'master'),/remote https/);
+});
+
+test('staged provenance overrides stale release env and rejects malformed or mismatched source',()=>{
+ const dir=fs.mkdtempSync(path.join(os.tmpdir(),'tg-release-')); const file=path.join(dir,'source-release.json');
+ const commit='a'.repeat(40); fs.writeFileSync(file,JSON.stringify({schemaVersion:1,commit,branch:'test',target:'test',service:'web'}));
+ assert.equal(assertSourceReleaseProvenance('test',{VERCEL:'1',TG_RELEASE_COMMIT:'b'.repeat(40)},file).commit,commit);
+ fs.writeFileSync(file,JSON.stringify({schemaVersion:1,commit:'bad',branch:'test',target:'test',service:'web'}));
+ assert.throws(()=>assertSourceReleaseProvenance('test',{VERCEL:'1'},file),/Invalid source-release/);
+ fs.writeFileSync(file,JSON.stringify({schemaVersion:1,commit,branch:'master',target:'test',service:'web'}));
+ assert.throws(()=>assertSourceReleaseProvenance('test',{VERCEL:'1'},file),/branch disagrees/);
+ fs.rmSync(dir,{recursive:true,force:true});
+});
+
+test('local builds retain environment fallback when staged provenance is absent',()=>{
+ const dir=fs.mkdtempSync(path.join(os.tmpdir(),'tg-release-')); assert.equal(assertSourceReleaseProvenance('test',{TG_RELEASE_COMMIT:'local'},path.join(dir,'missing.json')),null); fs.rmSync(dir,{recursive:true,force:true});
+});
+
+test('deployment provenance rejects missing files, mismatched commits, services and targets',()=>{
+ const dir=fs.mkdtempSync(path.join(os.tmpdir(),'tg-release-check-')),file=path.join(dir,'source-release.json');
+ try{
+  assert.throws(()=>assertSourceReleaseProvenance('test',{VERCEL:'1'},file),/requires/);
+  fs.writeFileSync(file,JSON.stringify({schemaVersion:1,commit:'a'.repeat(40),branch:'test',target:'test',service:'web'}));
+  assert.throws(()=>assertSourceReleaseProvenance('production',{VERCEL:'1'},file),/target disagrees/);
+  assert.throws(()=>assertSourceReleaseProvenance('test',{VERCEL:'1',VERCEL_GIT_COMMIT_SHA:'b'.repeat(40)},file),/commit disagrees/);
+  assert.throws(()=>assertSourceReleaseProvenance('test',{VERCEL:'1'},file,'read-api'),/service disagrees/);
+ }finally{fs.rmSync(dir,{recursive:true,force:true});}
 });

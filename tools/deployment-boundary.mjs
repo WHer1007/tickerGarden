@@ -1,6 +1,7 @@
 import path from 'node:path';
 import { execFileSync, spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
+import fs from 'node:fs';
 import { environmentPolicy, vercelProjects } from '../config/environment-policy.mjs';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
@@ -83,6 +84,21 @@ export function assertDeploymentSource(target, branch) {
   return Object.freeze({ target, branch, chainId: policy.chainId, vercelEnvironment: policy.vercelEnvironment });
 }
 
+export function assertSourceReleaseProvenance(target, env = process.env, provenancePath = path.join(root, 'source-release.json'), expectedService) {
+  const file = provenancePath;
+  if (!fs.existsSync(file)) {
+    if (env.VERCEL) throw Error('Vercel deployment requires source-release.json provenance');
+    return null;
+  }
+  let source; try { source = JSON.parse(fs.readFileSync(file, 'utf8')); } catch { throw Error('Invalid source-release.json provenance'); }
+  if (source.schemaVersion !== 1 || typeof source.commit !== 'string' || !/^[0-9a-f]{40}$/i.test(source.commit) || typeof source.branch !== 'string' || typeof source.target !== 'string' || !['web','read-api','pipeline','content'].includes(source.service)) throw Error('Invalid source-release.json provenance');
+  if (expectedService && source.service !== expectedService) throw Error('Source release service disagrees with deployment service');
+  if (source.target !== target) throw Error('Source release target disagrees with deployment target');
+  if (source.branch !== environmentPolicy[target].branch) throw Error('Source release branch disagrees with deployment target');
+  if (env.VERCEL_GIT_COMMIT_SHA && env.VERCEL_GIT_COMMIT_SHA !== source.commit) throw Error('Vercel commit disagrees with source release provenance');
+  return Object.freeze(source);
+}
+
 function gitBranch() { return execFileSync('git', ['branch', '--show-current'], { cwd: root, encoding: 'utf8' }).trim(); }
 function deploymentBranch() { return process.env.VERCEL_GIT_COMMIT_REF || process.env.TG_SOURCE_BRANCH || gitBranch(); }
 
@@ -97,6 +113,7 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
     const sourceOnly = option === '--source-only';
     const target = requestedTarget === 'auto' ? (process.env.VERCEL_ENV === 'production' ? 'production' : process.env.VERCEL_ENV === 'preview' ? 'test' : '') : requestedTarget;
     const result = sourceOnly ? assertDeploymentSource(target, gitBranch()) : assertDeploymentBoundary(target, service, process.env, deploymentBranch());
+    if (!sourceOnly) assertSourceReleaseProvenance(target, process.env, undefined, service);
     if (target === 'production' && sourceOnly) assertProductionPromotion();
     if (sourceOnly && service === 'web') {
       const abi = spawnSync(process.execPath, ['apps/web/scripts/generate-v1-abis.mjs', '--check'], { cwd: root, stdio: 'inherit' });

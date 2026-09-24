@@ -12,7 +12,7 @@ type Hex32 = `0x${string}`;
 interface Market { readonly marketId: Hex32; readonly assetUid: Hex32; readonly memeToken: Address; readonly quoteAsset: Address;
   readonly quoteAssetConfigId: Hex32; readonly tickerGardenBaselineId: Hex32; readonly sourceVersion: number; readonly launchPhase: 0 | 1; readonly display?: {priceQuote: string | null; totalSupplyRaw: string; asOfTimestamp: string; blockNumber: string; blockHash: Hex32} }
 
-export async function readDisplayPrices(input: { readonly pool: Pool; readonly deployment: DeploymentIdentity; readonly now?: Date; readonly schemaName?: string }) {
+export async function readDisplayPrices(input: { readonly pool: Pick<Pool,'query'>; readonly deployment: DeploymentIdentity; readonly now?: Date; readonly schemaName?: string }) {
   const targets = f72PriceTargets(); const now = input.now ?? new Date(); const rows = await latestPrices(input.pool, input.deployment, now, input.schemaName);
   const byToken = preferredPrices(rows, now);
   const native = byToken.get('0x0000000000000000000000000000000000000000');
@@ -25,12 +25,15 @@ export async function readDisplayPrices(input: { readonly pool: Pool; readonly d
       status: 'unavailable' as const, reason: 'not_refreshed', bidUsd: null, askUsd: null, multiplier: null, asOf: null, expiresAt: null, retrievedAt: now.toISOString() })] };
 }
 
-export async function readStatisticsPrices(input: { readonly pool: Pool; readonly deployment: DeploymentIdentity; readonly now?: Date; readonly schemaName?: string }) {
-  const references = (await readDisplayPrices(input)).references; const prices: Record<string,string> = {}; const expiresAt: Record<string,number> = {};
+export async function readStatisticsPrices(input: { readonly pool: Pick<Pool,'query'>; readonly deployment: DeploymentIdentity; readonly now?: Date; readonly schemaName?: string }) {
+  return statisticsPricesFromDisplay(await readDisplayPrices(input));
+}
+export function statisticsPricesFromDisplay(display: Awaited<ReturnType<typeof readDisplayPrices>>) {
+  const references = display.references; const prices: Record<string,string> = {}; const expiresAt: Record<string,number> = {};
   for (const item of references) if (item.status === 'available' && item.bidUsd && item.askUsd && item.expiresAt) {
     prices[item.token] = midpoint(item.bidUsd, item.askUsd); expiresAt[item.token] = Math.floor(new Date(item.expiresAt).getTime()/1_000);
   }
-  return { chainId: input.deployment.chainId, displayOnly: true as const, basis: 'PROVIDER_REPORTED_USD' as const, prices, expiresAt };
+  return { chainId: display.chainId, displayOnly: true as const, basis: 'PROVIDER_REPORTED_USD' as const, prices, expiresAt };
 }
 
 export async function readMarketStatistics(input: { readonly pool: Pool; readonly deployment: DeploymentIdentity; readonly marketIds: readonly Hex32[]; readonly now?: Date; readonly schemaName?: string }) {

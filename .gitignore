@@ -24,6 +24,7 @@ contracts/broadcast/
 **/.state/
 **/bin/
 .codex_tmp/
+source-release.json
 outputs/
 brand/
 apps/web/qa-captures/

@@ -1,3 +1,4 @@
+import {withPriceReadConnection} from './price-read.ts';
 import {rpcBudgetEndpoint} from './rpc-budget.ts';
 import {rpcRuntimeOptions} from '../../../packages/rpc-control/src/runtime.ts';
 import {reportError} from '../../../packages/observability/src/index.ts';
@@ -32,7 +33,7 @@ import {
 import { RpcTransport, type DeploymentIdentity } from '../../../packages/chain/src/index.ts';
 import { observeTransaction } from '../../../packages/transaction-observer/src/index.ts';
 import { readMarketCandles, readMarketHolders, readMarketTrades, readTokenDetail } from '../../../packages/analytics-store/src/index.ts';
-import { readDisplayPrices, readGlobalHolders, readGlobalSeries, readGlobalStatistics, readMarketDisplayStatistics, readMarketStatistics, readStatisticsPrices } from '../../../packages/statistics-store/src/index.ts';
+import { readDisplayPrices, readGlobalHolders, readGlobalSeries, readGlobalStatistics, readMarketDisplayStatistics, readMarketStatistics, statisticsPricesFromDisplay } from '../../../packages/statistics-store/src/index.ts';
 
 interface ReadApiOptions {
   readonly env?: Readonly<Record<string, string | undefined>>;
@@ -381,13 +382,16 @@ export function createReadApiApp(options: ReadApiOptions = {}) {
     } catch (error) { return analyticsError(context, error, 'candle'); }
   });
 
+  const sharePrices = createReadAdmission({concurrency:1,maxPending:0,unavailable:()=>new PublicationUnavailableError('Price read capacity is busy')});
+  const sharedPrices = () => sharePrices('prices:references', () => withPriceReadConnection(pool(), client => readDisplayPrices({ pool: client, deployment, ...(schemaName ? { schemaName } : {}) })));
+
   app.get('/v1/prices/references', async (context) => {
-    try { rejectUnknown(context.req.query(), []); return context.json(await readDisplayPrices({ pool: pool(), deployment, ...(schemaName ? { schemaName } : {}) })); }
+    try { rejectUnknown(context.req.query(), []); return context.json(await sharedPrices()); }
     catch (error) { return analyticsError(context, error, 'candle'); }
   });
 
   app.get('/v1/statistics-prices', async (context) => {
-    try { rejectUnknown(context.req.query(), []); return context.json(await readStatisticsPrices({ pool: pool(), deployment, ...(schemaName ? { schemaName } : {}) })); }
+    try { rejectUnknown(context.req.query(), []); return context.json(statisticsPricesFromDisplay(await sharedPrices())); }
     catch (error) { return analyticsError(context, error, 'candle'); }
   });
 

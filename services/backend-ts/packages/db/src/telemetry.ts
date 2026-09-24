@@ -30,12 +30,16 @@ export function createDatabaseTelemetry(options: {
   };
   const safeEmit = (event: DatabaseTelemetryEvent) => { try { emit(event); } catch { /* instrumentation is non-critical */ } };
 
-  function recordDatabaseTiming(phase: DatabaseTimingPhase, durationMs: number, error?: unknown, queryId?: string): void {
+  function recordDatabaseTiming(phase: DatabaseTimingPhase, durationMs: number, error?: unknown, queryId?: string, pool?: {poolTotal:number;poolIdle:number;poolWaiting:number}): void {
     try {
       const duration = Number.isFinite(durationMs) ? Math.max(0, durationMs) : 0;
       const current = context.getStore();
       const fields: Record<string, unknown> = { durationMs: duration,...(current?{task:current.task}: {}) };
       if (phase === 'connection') {
+        fields.phase='connection';
+        if(pool)for(const key of ['poolTotal','poolIdle','poolWaiting'] as const)if(Number.isSafeInteger(pool[key])&&pool[key]>=0)fields[key]=pool[key];
+        const message=(error as {message?:unknown}|undefined)?.message;
+        if(error) fields.failureStage=message==='Connection terminated due to connection timeout'?'new_connection':message==='timeout exceeded when trying to connect'?'pool_wait':'connection';
         counters.connectionCount++; counters.connectionWaitMs += duration;
         if (current) current.connectionWaitMs += duration;
         if (isConnectionTimeout(error)) {

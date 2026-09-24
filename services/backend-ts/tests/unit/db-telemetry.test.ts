@@ -86,3 +86,10 @@ test('SQL timeout counters exclude explicit cancellation and NOWAIT conflicts',(
  telemetry.recordDatabaseTiming('sql',1,{message:'Query read timeout'});
  assert.equal(telemetry.databaseTimingSnapshot().sqlTimeoutCount,2);
 });
+
+test('connection diagnostics distinguish driver acquisition failures without logging secrets',()=>{
+ const events:Array<{event:string;fields:Record<string,unknown>}>=[];const t=createDatabaseTelemetry({emit:e=>events.push(e)});
+ t.recordDatabaseTiming('connection',5001,new Error('Connection terminated due to connection timeout'),undefined,{poolTotal:1,poolIdle:0,poolWaiting:2});
+ t.recordDatabaseTiming('connection',5001,new Error('timeout exceeded when trying to connect'),undefined,{poolTotal:4,poolIdle:0,poolWaiting:1});
+ assert.equal(events[0]!.fields.failureStage,'new_connection');assert.equal(events[1]!.fields.failureStage,'pool_wait');assert.equal(events[0]!.fields.poolWaiting,2);assert.equal(events[0]!.fields.phase,'connection');assert.equal('message' in events[0]!.fields,false);
+});

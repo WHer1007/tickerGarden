@@ -11,7 +11,7 @@ export function instrumentDatabasePool(pool:Pool):void{
  pool.on('connect',instrumentClient);
  const connect=pool.connect;
  pool.connect=function(this:Pool,...args:unknown[]){
-  const done=timer('connection');
+  const done=timer('connection',undefined,pool);
   const callback=args[0];
   if(typeof callback==='function'){
    return connect.call(this,((error:Error|undefined,client:PoolClient,release:()=>void)=>{done(error);callback(error,client,release);}) as never);
@@ -36,8 +36,8 @@ function instrumentClient(client:PoolClient){
   }catch(error){done(error);throw error;}
  } as PoolClient['query'];
 }
-function timer(phase:'connection'|'sql',queryId?:string){
+function timer(phase:'connection'|'sql',queryId?:string,pool?:Pool){
  const started=performance.now();let finished=false;
  // Socket callbacks may run in a different async context than the caller.
- return AsyncResource.bind((error?:unknown)=>{if(finished)return;finished=true;recordDatabaseTiming(phase,performance.now()-started,error,queryId);});
+ return AsyncResource.bind((error?:unknown)=>{if(finished)return;finished=true;recordDatabaseTiming(phase,performance.now()-started,error,queryId,pool?{poolTotal:pool.totalCount,poolIdle:pool.idleCount,poolWaiting:pool.waitingCount}:undefined);});
 }
