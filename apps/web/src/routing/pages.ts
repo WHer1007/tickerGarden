@@ -1,3 +1,4 @@
+import {withCssRecovery} from './resource-recovery.ts';
 import {notFound} from "../pages/not-found.ts";
 import type { PageName } from "./routes.ts";
 
@@ -19,5 +20,5 @@ const loaders: Record<Exclude<PageName, "not-found">, () => Promise<{ default: P
 
 
 export async function loadPageTemplate(page: PageName): Promise<PageTemplate> {
-  return page === "not-found" ? notFound : (await loaders[page]()).default;
+  return page === "not-found" ? notFound : (await withCssRecovery(loaders[page])).default;
 }

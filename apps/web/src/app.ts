@@ -54,7 +54,6 @@ import { metadataOrigin } from "./create/metadata.ts";
 import { assetLogoUrl,quoteIconUrl } from './create/quote-icons.ts';
 import { destroyQuotePicker } from "./create/quote-picker.ts";
 import { stakingAssetForConfig } from './create/staking-assets.ts';
-import "./icons/regular.css";
 import { loadPageTemplate } from "./routing/pages.ts";
 import { createRouter } from "./routing/router.ts";
 import type { PageName,Route } from "./routing/routes.ts";

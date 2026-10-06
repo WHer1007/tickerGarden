@@ -1,3 +1,4 @@
+import {withCssRecovery} from './resource-recovery.ts';
 import {applyPageMetadata} from './metadata.ts';
 import {mountPageVisuals} from './visuals.ts';
 import {renderRouteFailure} from './load-state.ts';
@@ -5,7 +6,6 @@ import {loadPageTemplate} from './pages.ts';
 import {resolveRoute} from './routes.ts';
 import {renderShell} from '../ui/shell.ts';
 import {setupDocs} from '../ui/docs-search.ts';
-import '../icons/regular.css';
 async function mountStaticPage() {
 const route=resolveRoute(new URL(location.href));
 if(['privacy','terms'].includes(route.page))await import('../../legal.css');
@@ -31,7 +31,7 @@ document.querySelector<HTMLButtonElement>('[data-wallet]')!.onclick=async()=>{
   const button=document.querySelector<HTMLButtonElement>('[data-wallet]')!;button.disabled=true;
   try {
     dispose();
-    await import('../app.ts');
+    await withCssRecovery(()=>import('../app.ts'));
     document.querySelector<HTMLButtonElement>('[data-wallet]')?.click();
   } catch {button.disabled=false;button.querySelector('span')!.textContent='Retry connection';}
 };

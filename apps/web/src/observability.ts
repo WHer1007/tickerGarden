@@ -1,7 +1,8 @@
+import {configureResourceRecovery,recoverStylesheet,cssFailurePath,builtCssPath,resourceContext} from './routing/resource-recovery.ts';
 /** No UI, wallet payloads or request bodies. SDK loads only when a DSN is configured. */
 import {cleanText} from '../../../services/backend-ts/packages/observability/src/sanitize.ts';
 const telemetryEnv=import.meta.env??{};
-type Fields={flow?:string;step?:string;code?:string;reference?:string;operationId?:string;requestId?:string};
+type Fields={flow?:string;step?:string;code?:string;reference?:string;operationId?:string;requestId?:string;resourcePath?:string;pagePath?:string;online?:string;visibility?:string;retryCount?:string};
 let sdk:typeof import('./observability-sdk.ts')|undefined;
 let starting:Promise<void>|undefined;
 let retryAfter=0;
@@ -20,7 +21,8 @@ function expected(error:unknown):boolean {
 export function reportClientError(error:unknown,fields:Fields={}){
  try{
   if(expected(error)||['user_rejected','insufficient_funds','details_changed'].includes(fields.code??''))return;
-  const fingerprint=cleanText(error instanceof Error?error.name+':'+error.message:'unknown',300);const now=Date.now();
+  const css=cssFailurePath(error);if(css){void recoverStylesheet(css);return;}
+  const fingerprint=(fields.resourcePath??'')+cleanText(error instanceof Error?error.name+':'+error.message:'unknown',300);const now=Date.now();
   if(now-(fingerprints.get(fingerprint)??0)<60000)return;
   if(fingerprints.size>=100)fingerprints.delete(fingerprints.keys().next().value!);fingerprints.set(fingerprint,now);
   if(error instanceof Error){if(seen.has(error))return;seen.add(error);}
@@ -50,7 +52,13 @@ export function startObservability():Promise<void>{
  }).catch(()=>{starting=undefined;retryAfter=Date.now()+30000;});return starting;
 }
 export function installClientErrorCapture(){
- window.addEventListener('error',(event:Event)=>{if(event instanceof ErrorEvent)reportClientError(event.error??new Error('Script error'),{flow:'browser',step:'uncaught'});else if(event.target instanceof HTMLScriptElement||event.target instanceof HTMLLinkElement)reportClientError(new Error('Page resource failed to load'),{flow:'browser',step:'resource_load'});},true);
+ configureResourceRecovery((error,fields)=>reportClientError(error,{flow:'browser',step:'resource_retry_failed',...fields}));
+ window.addEventListener('error',(event:Event)=>{if(event instanceof ErrorEvent)reportClientError(event.error??new Error('Script error'),{flow:'browser',step:'uncaught'});else if(event.target instanceof HTMLScriptElement||event.target instanceof HTMLLinkElement){
+  const target=event.target;
+  if(target instanceof HTMLLinkElement&&target.rel==='stylesheet'&&builtCssPath(target.href)){if(!target.dataset.resourceRetry)void recoverStylesheet(target.href);return;}
+  const path=target instanceof HTMLScriptElement?new URL(target.src,location.origin).pathname:'unknown';
+  reportClientError(new Error('Page resource failed to load'),{flow:'browser',step:'resource_load',...resourceContext(/^\/assets\/[\w.-]+\.js$/.test(path)?path:'unknown'),retryCount:'0'});
+ }},true);
  window.addEventListener('unhandledrejection',event=>reportClientError(event.reason,{flow:'browser',step:'unhandled_rejection'}));
  void startObservability();
 }

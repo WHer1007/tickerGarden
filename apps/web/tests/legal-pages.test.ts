@@ -65,7 +65,7 @@ test("shared navigation exposes Explore and keeps Home out of the primary links"
   assert.match(footerShell, /class="chain-tag" title="\$\{chainName\}"/);
   assert.match(footerShell, /robinhoodFeatherUrl/);
   assert.match(footerShell, />Robinhood Chain<\/span>/);
-  assert.match(footerShell, /href="https:\/\/x\.com\/TickerGarden" target="_blank" rel="noopener noreferrer"/);
+  assert.match(footerShell, /href="https:\/\/x\.com\/Ticker_Garden" target="_blank" rel="noopener noreferrer"/);
   assert.match(footerShell, /aria-label="Visit TickerGarden on X"/);
 });
 

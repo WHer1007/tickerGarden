@@ -37,7 +37,7 @@ export function shellMarkup(page: PageName, chainName: string): {header:string;f
     <div class="footer-meta">
       <span>© 2026 TickerGarden</span>
       <div class="footer-meta-links">
-        <a class="footer-social-link" href="https://x.com/TickerGarden" target="_blank" rel="noopener noreferrer" aria-label="Visit TickerGarden on X"><i class="ph ph-x-logo" aria-hidden="true"></i><span>X</span></a>
+        <a class="footer-social-link" href="https://x.com/Ticker_Garden" target="_blank" rel="noopener noreferrer" aria-label="Visit TickerGarden on X"><i class="ph ph-x-logo" aria-hidden="true"></i><span>X</span></a>
         <span class="chain-tag" title="${chainName}"><img src="${robinhoodFeatherUrl}" width="20" height="20" alt="">Robinhood Chain</span>
       </div>
     </div>`;
