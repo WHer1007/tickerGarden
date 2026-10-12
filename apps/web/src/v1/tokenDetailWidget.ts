@@ -1,3 +1,4 @@
+import {evmFetch as fetch} from './evmTransport.ts';
 import {watchMarketChanges,type DetailRegion} from './marketChanges.ts';
 import {createDetailActivity} from './detailActivity.ts';
 import {feeUsdValue,formatFeeUsd} from './feeQuoteValue.ts';
@@ -5,9 +6,9 @@ import {setPriceDisplay} from "../ui/compact-price.ts";
 import {creationReceiptChart,detailChartWindow,loadDetailChart} from './detailChart.ts';
 import {formatTradePrice} from './tradePricing.ts';
 import {mergeRecentTrades} from './recentTrades.ts';
-import type {TokenDetailTrade,TokenDetailFee} from './generated/read-api.ts';
+import type {TokenDetailTrade,TokenDetailFee} from './readApi.ts';
 import type {MarketOverview} from './marketOverview.ts';
-import {TickerGardenV1Client,TickerGardenApiError,type TokenDetailResponse,type TokenDetailChart} from './generated/read-api.ts';
+import {TickerGardenV1Client,TickerGardenApiError,type TokenDetailResponse,type TokenDetailChart} from './readApi.ts';
 import {validateTokenDetail,displayDecimal,scaledDecimal,feeRows,type DetailIdentity,type DetailPeriod,type FeeConfig} from './tokenDetail.ts';
 import {candleVolume} from './candleTable.ts';
 export function mountTokenDetail(root:HTMLElement,base:string|null,chain:number,explorer:string){

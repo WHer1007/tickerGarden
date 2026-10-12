@@ -1,3 +1,4 @@
+import {evmFetch as fetch} from '../v1/evmTransport.ts';
 import type {Address} from 'viem';
 import {recoveryRead,recoveryWrite,recoveryRemove} from '../v1/recoveryStorage.ts';
 import {TRADE_NATIVE,TRADE_USDG,conversionRequest,type ConversionIntent,type ConversionQuote} from '../../../../services/backend-ts/packages/chain/src/quote-purchase/conversion.ts';

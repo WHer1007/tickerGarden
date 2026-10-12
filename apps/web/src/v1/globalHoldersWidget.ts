@@ -1,5 +1,6 @@
+import {evmFetch as fetch} from './evmTransport.ts';
 import {cachedStatistics} from './statisticsCache.ts';
-import {TickerGardenV1Client} from './generated/read-api.ts';
+import {TickerGardenV1Client} from './readApi.ts';
 import {validateGlobalHolders} from './globalHolders.ts';
 export function mountGlobalHolders(element:HTMLElement,baseUrl:string|null,chain:number,summaryCount:HTMLElement|null=null){
  let generation=0,controller:AbortController|null=null;

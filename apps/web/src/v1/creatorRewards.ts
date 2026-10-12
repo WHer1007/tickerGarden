@@ -1,3 +1,4 @@
+import {evmFetch as fetch} from './evmTransport.ts';
 import type {MarketReadModel} from './generated/read-api.ts';
 export type CreatorAmounts={credited:string;paid:string;burned:string;remaining:string};
 export type CreatorPeriod={epoch:number;beneficiary:`0x${string}`;quote:CreatorAmounts;meme:CreatorAmounts};

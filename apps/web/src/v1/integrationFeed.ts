@@ -1,3 +1,4 @@
+import {evmFetch as fetch} from './evmTransport.ts';
 export interface QueryEvent {blockNumber:string;blockHash:string;payload:{address:string;topics:`0x${string}`[];data:`0x${string}`;transactionHash:`0x${string}`;transactionIndex:string;logIndex:string;event:{signature:string;args:Record<string,string>}}}
 export interface QueryFeed {scope:string;chainId:number;finality:string;historyFrom:string;stale:boolean;events:QueryEvent[]}
 const cache=new Map<string,{at:number;value:QueryFeed}>(),pending=new Map<string,Promise<QueryFeed>>();

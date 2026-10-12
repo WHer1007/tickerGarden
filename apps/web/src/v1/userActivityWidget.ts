@@ -1,4 +1,5 @@
-import { TickerGardenApiError, TickerGardenV1Client, type UserActivityPage } from './generated/read-api.ts';
+import {evmFetch as fetch} from './evmTransport.ts';
+import { TickerGardenApiError, TickerGardenV1Client, type UserActivityPage } from './readApi.ts';
 import { validateUserActivity } from './userActivity.ts';
 
 // Compare known revision-bound fields independently of JSON property order.

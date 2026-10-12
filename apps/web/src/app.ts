@@ -1,3 +1,4 @@
+import {evmFetch as fetch, evmUrl} from './v1/evmTransport.ts';
 import {inspectPendingNetwork,createUnobservedSubmissionTracker} from './v1/pendingNetwork.ts';
 import {RewardClaimError,rewardErrorNotice} from './ui/reward-error.ts';
 import {reportClientError} from './observability.ts';
@@ -95,7 +96,7 @@ import type {HolderRound,HolderSnapshotPage,SnapshotIdentity} from './v1/feature
 import { validateMarketStake } from './v1/features/stake-validation.ts';
 import {LEGACY_USER_CLAIM_MODE,USER_CLAIM_MODE,userClaimsAbi} from './v1/features/userClaims.ts';
 import { rewardTab } from "./v1/flowUx.ts";
-import type { MarketPage,PositionPage,UserActivityPage } from './v1/generated/read-api.ts';
+import type { MarketPage,PositionPage,UserActivityPage } from './v1/readApi.ts';
 import type { mountGlobalHolders } from "./v1/globalHoldersWidget.ts";
 import type { mountGlobalSeries } from "./v1/globalSeriesWidget.ts";
 import type { mountGlobalStatistics } from "./v1/globalStatsWidget.ts";
@@ -121,7 +122,7 @@ import {watchPendingRecovery,pendingRecoveryText,watchSubmissionDeadline} from "
 import { validateUserActivity } from './v1/userActivity.ts';
 import type { mountUserActivity } from "./v1/userActivityWidget.ts";
 
-import { robinhoodChain } from "./v1/chain.ts";
+import { robinhoodChain,evmEnv,nativeSymbol } from "./v1/chain.ts";
 import {
 assertCanonicalAssetBinding,
 assertCanonicalFactoryBindings,
@@ -182,7 +183,7 @@ type V1TransactionClients,
 
 let integrationBootstrap: IntegrationBootstrap | null = null;
 let directMarkets: DirectMarkets | null = null;
-const integrationBootstrapPath = import.meta.env.VITE_INTEGRATION_BOOTSTRAP as string | undefined;
+const integrationBootstrapPath = evmEnv.VITE_INTEGRATION_BOOTSTRAP as string | undefined;
 export type Foundation = Readonly<{
   direct?: true;
   displayOnly?: true;
@@ -235,10 +236,10 @@ async function runPageAction(action: () => Promise<void>): Promise<void> {
   }
 }
 
-const runtimeConfig = parseV1RuntimeConfig(import.meta.env);
+const runtimeConfig = parseV1RuntimeConfig(evmEnv);
 const runtimeRpcUrl = import.meta.env.PROD && typeof window !== 'undefined'
-  ? new URL('/api/rpc', window.location.origin).toString()
-  : import.meta.env.VITE_V1_RPC_URL || robinhoodChain.rpcUrls.default.http[0];
+  ? new URL(robinhoodChain.id===56?'/api/rpc?chain=bsc':'/api/rpc', window.location.origin).toString()
+  : evmEnv.VITE_V1_RPC_URL || robinhoodChain.rpcUrls.default.http[0];
 const publicClient = createPublicClient({
   chain: robinhoodChain,
   transport: http(runtimeRpcUrl, { batch: { batchSize: 20, wait: 8 } }),
@@ -1217,7 +1218,7 @@ function configLabel(config: ConfigReadModel): string {
   }
   if (config.kind === "quote") {
     const token = config.values.quoteAsset;
-    if (token === ZERO_ADDRESS) return `Native ETH · ${shortHex(config.id)}`;
+    if (token === ZERO_ADDRESS) return `Native ${nativeSymbol} · ${shortHex(config.id)}`;
     if (typeof token === "string") return `${shortHex(token)} · ${shortHex(config.id)}`;
   }
   return shortHex(config.id, 8, 6);
@@ -1261,7 +1262,7 @@ async function marketMetadata(market: MarketReadModel): Promise<MarketMetadata> 
     const quoteConfig = findQuote(market.quoteAssetConfigId);
     if (!market.identity) throw new Error('Finalized token identity is not available');
     const {name, symbol, metadataURI, deployedAt} = market.identity;
-    if (market.quoteAsset === ZERO_ADDRESS) return Object.freeze({ name, symbol, metadataURI, deployedAt, quoteSymbol: "ETH", quoteDecimals: 18 });
+    if (market.quoteAsset === ZERO_ADDRESS) return Object.freeze({ name, symbol, metadataURI, deployedAt, quoteSymbol: nativeSymbol, quoteDecimals: 18 });
     const quoteAsset = canonicalAddress(market.quoteAsset, "Quote token");
     if (quoteConfig.values.quoteAsset !== quoteAsset) throw new Error("Quote asset drifted from the finalized configuration");
     const quoteSymbol = quoteConfig.values.symbol;
@@ -1437,7 +1438,7 @@ function applyExploreStatistics(dirtyIds?:readonly string[]):void {
   const cap=query<HTMLElement>('[data-market-cap]',card);if(cap)cap.title=`USD estimate · Updated ${new Date(stat.observedAt*1000).toLocaleString()}`;
  }
 }
-export type ExploreRanking=import('./v1/generated/read-api.ts').MarketPage['ranking'];
+export type ExploreRanking=import('./v1/readApi.ts').MarketPage['ranking'];
 const exploreRankings:{0:ExploreRanking;1:ExploreRanking}={0:undefined,1:undefined};
 let exploreRecentHead='',exploreLiveGeneration=0,exploreLiveRequest:AbortController|null=null,exploreLastCapCheck=0;
 function exploreQuery(phase:0|1):DirectoryQuery{
@@ -1889,7 +1890,7 @@ let preparedMetadataURI = "";
 let preparedMetadata: Record<string, unknown> | undefined;
 let latestListing: {snapshot:ListingPackageSnapshot;marketId:string} | null = null;
 let preparedMetadataKey = "";
-const launchMetadataOrigin = (() => { try { return metadataOrigin(import.meta.env.VITE_LAUNCH_METADATA_ORIGIN); } catch { return null; } })();
+const launchMetadataOrigin = (() => { try { return metadataOrigin(evmEnv.VITE_LAUNCH_METADATA_ORIGIN); } catch { return null; } })();
 
 const developerBuyBalances = new DeveloperBuyBalanceCache();
 
@@ -2433,7 +2434,7 @@ const stakeSearchDirectory=createMarketDirectory(async(params,signal)=>{
  const response=await fetch(url,{signal});if(!response.ok)throw Error('Market search unavailable');
  return response.json();
 },30,{displayChainId:robinhoodChain.id});
-let stakeSearchPage:import('./v1/generated/read-api.ts').MarketPage|null=null;
+let stakeSearchPage:import('./v1/readApi.ts').MarketPage|null=null;
 let stakeSearchKey='';
 let stakeSearchTimer:ReturnType<typeof setTimeout>|undefined;
 let stakeSearchGeneration=0;
@@ -2817,7 +2818,7 @@ let creatorDirectoryCursor:string|null=null;
 let creatorDirectoryEvents:EventSource|undefined,creatorDirectoryEventTimer:ReturnType<typeof setTimeout>|undefined;
 function watchCreatorDirectory(account:string):void{
  if(creatorDirectoryEvents||!runtimeConfig.readApi.available||typeof EventSource==='undefined')return;
- creatorDirectoryEvents=new EventSource(new URL('/v1/explore/events',runtimeConfig.readApi.value));
+ creatorDirectoryEvents=new EventSource(evmUrl(new URL('/v1/explore/events',runtimeConfig.readApi.value)));
  const refresh=()=>{if(wallet?.account.toLowerCase()!==account||currentPage()!=='rewards'||document.hidden)return;clearTimeout(creatorDirectoryEventTimer);creatorDirectoryEventTimer=setTimeout(()=>{creatorDirectoryAt=0;void refreshCreatorDirectory();},150);};
  creatorDirectoryEvents.addEventListener('ready',refresh);
  creatorDirectoryEvents.addEventListener('change',event=>{try{const data=JSON.parse((event as MessageEvent).data);if(Array.isArray(data.creatorAccounts)&&data.creatorAccounts.includes(account))refresh();}catch{/* Invalidations carry no reward data. */}});
@@ -3161,7 +3162,7 @@ function renderStakeShare():void {
   stakeText('[data-stake-share]',matches?stakeShare(rewardPosition!.allocated,total??null):'-');
 }
 const stakeRewardHistoryCache=new Map<string,{claimed:string;earned:string}>();
-const stakeRewardHistoryReads=createInvalidatedRead<string,import('./v1/generated/read-api.ts').StakeRewardSummary>();
+const stakeRewardHistoryReads=createInvalidatedRead<string,import('./v1/readApi.ts').StakeRewardSummary>();
 async function loadStakeRewardHistory(state:Pick<RewardPositionState,'detail'|'metadata'>,force=false):Promise<void>{
  if(!wallet||!runtimeConfig.readApi.available||currentPage()!=='staking')return;
  const account=wallet.account.toLowerCase(),marketId=state.detail.market.marketId,key=`${robinhoodChain.id}:${marketId}:${account}`;
@@ -3543,6 +3544,7 @@ const {WALLET_SNAPSHOT_MODE} = await import('./v1/features/holderSnapshots.ts');
       if((assets&1&&live.quoteRemaining<round.quoteAmount)||(assets&2&&live.memeRemaining<round.memeAmount))throw new RewardClaimError('reward_funds_unavailable','Reward state changed: insufficient round funds');
       return block;
     };
+    if(robinhoodChain.id===56)throw Error('BSC claim release is not enabled');
     const claimBlock=await verify();
     await executeTransaction({operationKey:`reward:snapshot:${id.marketId}:${round.round}:${id.account}:${assets}`,sync:{chainId:robinhoodChain.id,status:'synced',finality:'head',revision:`${claimBlock.number}:${claimBlock.hash}`,blockNumber:String(claimBlock.number),blockHash:claimBlock.hash,headBlockNumber:String(claimBlock.number),headBlockHash:claimBlock.hash,lagBlocks:'0'},walletContext:activeWallet,
       request:buildSnapshotClaim(id,round,assets),verifyChain:async()=>{await verify();},
@@ -3730,7 +3732,7 @@ const {DUAL_HOLDER_MODE} = await import('./v1/features/userClaims.ts');
     treasuryReward = Object.freeze({ ...base, proof });
     text("[data-treasury-status]", treasuryStatusLabels[status] ?? "Reward status pending");
     text("[data-treasury-epoch-id]", `${epochId} · ${new Date(Number(base.windowStart) * 1_000).toLocaleDateString()} – ${new Date(Number(base.windowEnd) * 1_000).toLocaleDateString()}`);
-    text("[data-treasury-fee-asset]", base.serviceFeeAsset === ZERO_ADDRESS ? "Native ETH" : base.serviceFeeAsset);
+    text("[data-treasury-fee-asset]", base.serviceFeeAsset === ZERO_ADDRESS ? `Native ${nativeSymbol}` : base.serviceFeeAsset);
     text("[data-treasury-claimable]", proof ? `${formatTokenAmount(proof.amount, metadata.quoteDecimals)} ${metadata.quoteSymbol}` : accountClaimed ? "Already claimed" : "-");
     text("[data-treasury-proof]", proofStatus);
     const claimNotice = runtimeConfig.treasuryWrites.available ? "" : " Claims are temporarily paused. Please check again later.";
@@ -5222,7 +5224,7 @@ if(import.meta.hot)import.meta.hot.dispose(()=>{if(directDirectoryTimer)clearInt
 
 function openExploreEvents():void{
  if(exploreEvents||!runtimeConfig.readApi.available||typeof EventSource==='undefined')return;
- exploreEvents=new EventSource(new URL('/v1/explore/events',runtimeConfig.readApi.value));
+ exploreEvents=new EventSource(evmUrl(new URL('/v1/explore/events',runtimeConfig.readApi.value)));
  const recover=()=>{exploreStatisticsAt=0;void refreshExploreStatistics().then(()=>applyExploreStatistics());void refreshExploreRankings(true);};
  exploreEvents.addEventListener('ready',()=>{if(currentPage()==='markets')recover();});
  exploreEvents.addEventListener('change',event=>{

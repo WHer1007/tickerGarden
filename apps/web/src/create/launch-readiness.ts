@@ -1,4 +1,5 @@
-import type {MarketPageBootstrap,TokenDetailResponse} from '../v1/generated/read-api.ts';
+import {evmFetch as fetch} from '../v1/evmTransport.ts';
+import type {MarketPageBootstrap,TokenDetailResponse} from '../v1/readApi.ts';
 import {TickerGardenV1Client} from '../v1/readApi.ts';
 
 // Empty activity is valid for a new market; missing sections are not.

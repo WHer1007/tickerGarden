@@ -1,3 +1,4 @@
+import {evmFetch as fetch, evmUrl} from '../v1/evmTransport.ts';
 import {mountStatsStockList} from '../ui/stats-stock-list.ts';
 import {robinhoodChain} from '../v1/chain.ts';
 import {quoteIconUrl} from '../create/quote-icons.ts';
@@ -52,7 +53,7 @@ export function createStatsController(ctx:StatsContext){
   eventSource:()=>{
    const api=ctx.runtimeConfig.readApi;
    if(!api.available)throw Error('Stats read API unavailable');
-   return new EventSource(`${api.value.replace(/\/$/,'')}/v1/stats/events`);
+   return new EventSource(evmUrl(`${api.value.replace(/\/$/,'')}/v1/stats/events`));
   },
  });
  function clearStatsSnapshotView(_message:string):void{/* Global publication health does not invalidate stored Stats. */}

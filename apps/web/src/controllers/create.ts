@@ -1,3 +1,4 @@
+import {evmFetch as fetch} from '../v1/evmTransport.ts';
 import {reportClientError} from '../observability.ts';
 import {savedLaunchTransaction,clearVerifiedLaunchTransaction,recoveryRead,recoveryRemove,recoveryWrite} from '../v1/recoveryStorage.ts';
 import {failedLaunchState} from '../create/launch-state.ts';

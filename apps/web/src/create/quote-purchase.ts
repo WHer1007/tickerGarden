@@ -1,3 +1,4 @@
+import {evmFetch as fetch} from '../v1/evmTransport.ts';
 import type {Address} from 'viem';
 import {purchaseRequest,purchaseEthLimit} from '../../../../services/backend-ts/packages/chain/src/quote-purchase/transaction.ts';
 import type {PurchaseQuote} from '../../../../services/backend-ts/packages/chain/src/quote-purchase/quote.ts';

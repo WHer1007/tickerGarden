@@ -1,4 +1,4 @@
-import {TickerGardenV1Client,type TokenDetailResponse} from './generated/read-api.ts';
+import {TickerGardenV1Client,type TokenDetailResponse} from './readApi.ts';
 import {validateTokenDetail,type DetailIdentity} from './tokenDetail.ts';
 export function createDetailActivity(base:string,chain:number,id:DetailIdentity,changed:(value:TokenDetailResponse)=>void,transport:typeof fetch=fetch){
  let stopped=false,pending:Promise<boolean>|null=null,controller:AbortController|null=null,lastRead=0,attempt=0;

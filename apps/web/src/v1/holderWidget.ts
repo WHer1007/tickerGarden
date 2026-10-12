@@ -1,4 +1,5 @@
-import {TickerGardenV1Client,TickerGardenApiError,type MarketHoldersResponse} from './generated/read-api.ts';
+import {evmFetch as fetch} from './evmTransport.ts';
+import {TickerGardenV1Client,TickerGardenApiError,type MarketHoldersResponse} from './readApi.ts';
 import {validateHolderPage,type HolderIdentity} from './holders.ts';
 import {candleVolume} from './candleTable.ts';
 export function mountHolders(element:HTMLElement,baseUrl:string|null,chain:number,onSummary?:(page:MarketHoldersResponse|null)=>void){

@@ -1,3 +1,4 @@
+import {evmFetch as fetch} from '../v1/evmTransport.ts';
 import type {UploadAuthorization} from './upload-auth.ts';
 import { isIPFSFileURI } from "./ipfs.ts";
 /** Immutable metadata is prepared only on explicit launch; typing never uploads a file. */

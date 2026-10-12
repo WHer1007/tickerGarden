@@ -1,4 +1,5 @@
-import { TickerGardenV1Client } from './generated/read-api.ts';
+import {evmFetch as fetch} from './evmTransport.ts';
+import { TickerGardenV1Client } from './readApi.ts';
 export type HolderMarket={marketId:string;memeToken:string;name:string;symbol:string};
 const cache=new Map<string,{at:number;items:HolderMarket[]}>();
 export async function searchHolderMarkets(base:string,chainId:number,q:string,signal?:AbortSignal):Promise<HolderMarket[]>{

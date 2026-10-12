@@ -1,3 +1,4 @@
+import {evmFetch as fetch} from '../evmTransport.ts';
 import {remainingSnapshotAssets} from './holderSnapshotDisplay.ts';
 import currentV4Abis_HolderRewardsDistributorV1 from '../generated/contracts/current/HolderRewardsDistributorV1.ts';
 import {encodeAbiParameters, keccak256, concat, toHex, type Address, type Hex} from 'viem';

@@ -1,5 +1,6 @@
+import {evmFetch as fetch} from './evmTransport.ts';
 import {cachedStatistics} from './statisticsCache.ts';
-import {TickerGardenV1Client} from './generated/read-api.ts';
+import {TickerGardenV1Client} from './readApi.ts';
 import {validateGlobalStatistics} from './globalStats.ts';
 import {candleVolume} from './candleTable.ts';
 export function mountGlobalStatistics(element:HTMLElement,baseUrl:string|null,chain:number){

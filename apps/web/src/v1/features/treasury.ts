@@ -14,7 +14,7 @@ const MAX_UINT256 = (1n << 256n) - 1n;
 export interface TreasuryClaimProof {
   readonly schema: "TICKERGARDEN_V1_TREASURY_CLAIM_PROOF_V1";
   readonly executionSpecId: "V1-TREASURY-EXEC-1";
-  readonly chainId: 4663 | 46630 | 421614;
+  readonly chainId: 56 | 4663 | 46630 | 421614;
   readonly distributor: Address;
   readonly marketId: Hex;
   readonly epochId: number;

@@ -24,6 +24,7 @@ test('staking catalog identities are unique and bundled logos exist', async () =
     assert.match(entry.tokenAddress,/^0x[0-9a-f]{40}$/);
     assert.match(entry.assetUid,/^0x[0-9a-f]{64}$/);
     if(entry.logo) assert.match(entry.logo,/^[a-z0-9-]+\.(svg|png)$/);
+    else if(entry.chainId===56)assert.equal(entry.logoUrl,undefined);
     else { assert.match(entry.logoUrl!, /^\/stock-logos\/0x[0-9a-f]{40}\.png$/); await access(new URL(`../public${entry.logoUrl}`,import.meta.url)); }
     assert.ok(Number.isInteger(entry.decimals)&&entry.decimals>=0&&entry.decimals<=255);
     if(entry.logo) await access(new URL(`../assets/quotes/${entry.logo}`,import.meta.url));
@@ -34,3 +35,5 @@ test('production lists all 194 official assets with 0.5 minimum total stake',()=
  const mainnet=STAKING_ASSETS.filter(a=>a.chainId===4663);assert.equal(mainnet.length,194);assert.equal(STAKING_ASSETS.filter(a=>a.chainId===46630).length,5);
  for(const a of mainnet){assert.equal(a.minimumAllocation,'500000000000000000');assert.equal(a.enabled,true);const c=config({id:a.assetUid,values:{stockToken:a.tokenAddress}});assert.equal(isListedStakingAsset(4663,c),true);assert.equal(isListedStakingAsset(4663,{...c,status:2}),false);}
 });
+
+test('BSC catalog adds 78 isolated assets without enabling unaccepted fund operations',()=>{const rows=STAKING_ASSETS.filter(a=>a.chainId===56);assert.equal(rows.length,78);assert.ok(rows.every(a=>a.enabled===false&&a.minimumAllocation==='500000000000000000'));});

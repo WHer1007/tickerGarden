@@ -1,3 +1,4 @@
+import {evmFetch as fetch} from '../v1/evmTransport.ts';
 export type UploadAuthorization={nonce:string;signature:string};
 export async function authorizeUpload(origin:string,body:string,account:string,chainId:number,sign:(message:string)=>Promise<string>):Promise<UploadAuthorization>{
  const digest=[...new Uint8Array(await crypto.subtle.digest('SHA-256',new TextEncoder().encode(body)))].map(b=>b.toString(16).padStart(2,'0')).join('');

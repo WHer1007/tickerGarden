@@ -1,4 +1,5 @@
-import {TickerGardenV1Client,type GlobalFlowSeriesResponse} from './generated/read-api.ts';
+import {evmFetch as fetch} from './evmTransport.ts';
+import {TickerGardenV1Client,type GlobalFlowSeriesResponse} from './readApi.ts';
 import {validateGlobalSeries} from './globalSeries.ts';
 import {candleVolume} from './candleTable.ts';
 import {cachedStatistics} from './statisticsCache.ts';

@@ -27,7 +27,7 @@ function assertServiceIsolation(service, env) {
   // Vercel injects this public instrumentation setting into backend builds too.
   const keys = Object.keys(env).filter(key => ownedKey.test(key) && key !== 'VITE_VERCEL_OBSERVABILITY_CLIENT_CONFIG');
   const forbidden = service === 'web'
-    ? keys.filter(key => !key.startsWith('VITE_') && !['TG_PROFILE', 'TG_WEB_RPC_URL', 'TG_WEB_RPC_FALLBACK_URL', 'TG_WEB_RPC_LOG_MAX_BLOCKS', 'TG_SOURCE_BRANCH', 'TG_RPC_CONTROL_ENABLED', 'TG_RPC_BUDGET_URL', 'TG_RPC_BUDGET_TOKEN'].includes(key))
+    ? keys.filter(key => !key.startsWith('VITE_') && !['TG_PROFILE', 'TG_WEB_RPC_URL', 'TG_WEB_RPC_FALLBACK_URL', 'TG_BSC_WEB_RPC_URL', 'TG_BSC_WEB_RPC_FALLBACK_URL', 'TG_WEB_RPC_LOG_MAX_BLOCKS', 'TG_SOURCE_BRANCH', 'TG_RPC_CONTROL_ENABLED', 'TG_RPC_BUDGET_URL', 'TG_RPC_BUDGET_TOKEN'].includes(key))
     : service === 'read-api'
       ? keys.filter(key => key.startsWith('VITE_') || !['TG_RPC_CONTROL_ENABLED','TG_RPC_CONTROL_DATABASE_URL','TG_RPC_BUDGETS_JSON','TG_RPC_BUDGET_TOKEN'].includes(key) && /^(?:TG_PIPELINE_|TG_CONTENT_|TG_CHAIN_JOB_|TG_RPC_|TG_SECONDARY_RPC_URL$|QSTASH_|PINATA_|CRON_SECRET$)/.test(key))
       : service === 'pipeline'
@@ -49,7 +49,7 @@ export function assertDeploymentBoundary(target, service, env, branch) {
   if(Object.keys(env).some(k=>/^VITE_(?:SENTRY_AUTH_TOKEN|LARK_|ALERT_INGEST_TOKEN|RPC_BUDGET_|RPC_CONTROL_)/.test(k)))throw Error('Observability secrets must not use the public VITE prefix');
   if(Object.keys(env).some(k=>k.startsWith('QUICKNODE_')))throw Error('Raw QuickNode credentials are tooling-only; configure scoped RPC URLs');
   assertServiceIsolation(service, env);
-  for (const key of ['TG_WEB_RPC_FALLBACK_URL','TG_READ_RPC_FALLBACK_URL','TG_RPC_FALLBACK_URL']) if(env[key]) remoteUrl(env,key);
+  for (const key of ['TG_WEB_RPC_FALLBACK_URL', 'TG_BSC_WEB_RPC_URL', 'TG_BSC_WEB_RPC_FALLBACK_URL','TG_READ_RPC_FALLBACK_URL','TG_RPC_FALLBACK_URL']) if(env[key]) remoteUrl(env,key);
 
   if(env.TG_RPC_CONTROL_ENABLED==='true'){
     if(['web','read-api'].includes(service)&&(!env.TG_RPC_BUDGET_TOKEN||env.TG_RPC_BUDGET_TOKEN.length<32))throw Error('RPC control requires a private budget token');

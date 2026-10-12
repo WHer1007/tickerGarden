@@ -1,4 +1,4 @@
-import { TickerGardenV1Client, type DisplayPriceReference, type DisplayPriceResponse } from './generated/read-api.ts';
+import { TickerGardenV1Client, type DisplayPriceReference, type DisplayPriceResponse } from './readApi.ts';
 
 const ADDRESS = /^0x[0-9a-f]{40}$/;
 const DECIMAL = /^(0|[1-9][0-9]{0,119})(\.[0-9]{1,36})?$/;

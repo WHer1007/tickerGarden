@@ -1,3 +1,4 @@
+import {evmUrl} from './evmTransport.ts';
 export const detailRegions=['market','statistics','chart','trades','holders','fees','staking'] as const;
 export type DetailRegion=typeof detailRegions[number];
 export function parseMarketChange(raw:string,market:string):DetailRegion[]{
@@ -9,7 +10,7 @@ export function watchMarketChanges(base:string,market:string,read:(regions:reado
  const dirty=new Set<DetailRegion>();
  const flush=async()=>{if(stopped||running||document.hidden||!navigator.onLine)return;const batch=[...dirty];if(!batch.length)return;dirty.clear();running=true;try{await read(batch);failures=0;}catch{failures++;batch.forEach(r=>dirty.add(r));}finally{running=false;if(dirty.size&&!stopped)timer=setTimeout(()=>{void flush();},failures?Math.min(60000,1000*2**Math.min(failures,6)):120);}};
  const invalidate=(regions:readonly DetailRegion[])=>{regions.forEach(r=>dirty.add(r));clearTimeout(timer);timer=setTimeout(()=>{void flush();},120);};
- const connect=()=>{if(stopped||source||document.hidden||!navigator.onLine||typeof EventSource==='undefined')return;source=new EventSource(`${base.replace(/\/$/,'')}/v1/markets/${market}/events`);let interrupted=false;source.addEventListener('error',()=>{interrupted=true;});source.addEventListener('ready',()=>{if(interrupted){interrupted=false;invalidate(detailRegions);}});source.addEventListener('change',event=>invalidate(parseMarketChange((event as MessageEvent).data,market)));};
+ const connect=()=>{if(stopped||source||document.hidden||!navigator.onLine||typeof EventSource==='undefined')return;source=new EventSource(evmUrl(`${base.replace(/\/$/,'')}/v1/markets/${market}/events`));let interrupted=false;source.addEventListener('error',()=>{interrupted=true;});source.addEventListener('ready',()=>{if(interrupted){interrupted=false;invalidate(detailRegions);}});source.addEventListener('change',event=>invalidate(parseMarketChange((event as MessageEvent).data,market)));};
  // An unpersisted notification can be lost on disconnect: this bounded sweep
  // repairs every section without tying page entry to the stream or statistics.
  const recover=()=>{if(document.hidden||!navigator.onLine){source?.close();source=null;return;}connect();invalidate(detailRegions);};

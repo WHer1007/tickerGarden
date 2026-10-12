@@ -1,4 +1,4 @@
-import {TickerGardenV1Client,type TokenDetailChart} from './generated/read-api.ts';
+import {TickerGardenV1Client,type TokenDetailChart} from './readApi.ts';
 import {validateTokenDetail} from './tokenDetail.ts';
 import {validateCandles} from './candles.ts';
 import type {DetailIdentity,DetailPeriod} from './tokenDetail.ts';
@@ -20,7 +20,7 @@ export async function loadDetailChart(base:string,chain:number,id:DetailIdentity
 
 /** Initial chart from the backend-verified creation receipt, including its open
  * interval. It is replaced by indexed history, never padded with invented prices. */
-export function creationReceiptChart(data:import('./generated/read-api.ts').TokenDetailResponse,period:DetailPeriod):TokenDetailChart|null{
+export function creationReceiptChart(data:import('./readApi.ts').TokenDetailResponse,period:DetailPeriod):TokenDetailChart|null{
  if(data.period===period&&data.chart)return data.chart;
  if(data.confirmation!=='confirmed'||!data.sources.trades||data.trades===null)return null;
  const [duration,interval]=windows[period],asOf=data.sources.trades.asOf;

@@ -1,5 +1,6 @@
+import {evmFetch as fetch} from './evmTransport.ts';
 import { candleTable } from "./candleTable.ts";
-import { TickerGardenV1Client } from './generated/read-api.ts';
+import { TickerGardenV1Client } from './readApi.ts';
 import { candleY, candlePriceLabel, comparePrice, validateCandles, type CandleIdentity } from './candles.ts';
 
 export function mountCandles(element: HTMLElement, baseUrl: string | null, chain: number) {

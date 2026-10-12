@@ -1,4 +1,5 @@
-import { TickerGardenV1Client, type TransactionStatusResponse } from './generated/read-api.ts';
+import {evmFetch as fetch} from './evmTransport.ts';
+import { TickerGardenV1Client, type TransactionStatusResponse } from './readApi.ts';
 
 const hash = (v: unknown): v is string => typeof v === 'string' && /^0x[0-9a-f]{64}$/.test(v);
 const number = (v: unknown): v is string => typeof v === 'string' && /^(0|[1-9][0-9]{0,18})$/.test(v) && BigInt(v) <= 9223372036854775807n;

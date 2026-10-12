@@ -1,4 +1,5 @@
-import {TickerGardenV1Client,TickerGardenApiError,type MarketTradesResponse} from './generated/read-api.ts';
+import {evmFetch as fetch} from './evmTransport.ts';
+import {TickerGardenV1Client,TickerGardenApiError,type MarketTradesResponse} from './readApi.ts';
 import {validateTradePage} from './trades.ts';
 import {candlePriceLabel,type CandleIdentity} from './candles.ts';
 import {candleVolume} from './candleTable.ts';

@@ -1,4 +1,5 @@
-import type {MarketReadModel} from './generated/read-api.ts';
+import {evmFetch as fetch} from './evmTransport.ts';
+import type {MarketReadModel} from './readApi.ts';
 export type CreatorMarket = {
   marketId: string;
   memeToken: string;
@@ -60,4 +61,4 @@ export async function loadCreatorMarkets(baseUrl: string, chainId: number, accou
   }
   return invalid();
 }
-import { TickerGardenV1Client } from './generated/read-api.ts';
+import { TickerGardenV1Client } from './readApi.ts';

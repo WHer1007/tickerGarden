@@ -1,3 +1,4 @@
+import {evmFetch as fetch} from './evmTransport.ts';
 import v1Abis_ProtocolFeeVault from './generated/contracts/legacy/ProtocolFeeVault.ts';
 import { decodeEventLog, formatUnits, toEventSelector, type Hex } from 'viem';
 

@@ -85,6 +85,12 @@ function logRangeExceedsCap(call:Call,cap:number):boolean{
  return BigInt(f.toBlock)-BigInt(f.fromBlock)+1n>BigInt(cap);
 }
 export async function proxyReadRpc(request:Request,environment:RpcEnvironment,fetcher:typeof fetch=fetch):Promise<Response>{
+ const chain=new URL(request.url).searchParams.getAll('chain');
+ if(chain.length>1||chain.length===1&&chain[0]!=='bsc')return json({error:'unsupported_chain'},400,{'cache-control':'no-store'});
+ if(chain[0]==='bsc')return proxyChainRpc(request,{TG_WEB_RPC_URL:environment.TG_BSC_WEB_RPC_URL,TG_WEB_RPC_FALLBACK_URL:environment.TG_BSC_WEB_RPC_FALLBACK_URL,VITE_V1_CHAIN_ID:'56',VITE_V1_READ_API_URL:environment.VITE_BSC_READ_API_URL},fetcher);
+ return proxyChainRpc(request,environment,fetcher);
+}
+async function proxyChainRpc(request:Request,environment:RpcEnvironment,fetcher:typeof fetch):Promise<Response>{
  const requestId=webRequestId();
  const headers={'cache-control':'no-store','content-type':'application/json','x-request-id':requestId};
  if(request.method!=='POST')return json({error:'method_not_allowed'},405,headers);
@@ -113,7 +119,7 @@ export async function proxyReadRpc(request:Request,environment:RpcEnvironment,fe
   const base=rpcUrl(environment.VITE_V1_READ_API_URL);if(!base)throw Error('scope unavailable');
   const unique=[...new Set(addresses)].sort();
   return share(state,'scope:'+unique.join(','),async()=>{
-   const url=new URL('/v1/rpc-scope',base);url.searchParams.set('addresses',unique.join(','));
+   const url=new URL('/v1/rpc-scope',base);url.searchParams.set('addresses',unique.join(','));if(environment.VITE_V1_CHAIN_ID==='56')url.searchParams.set('chainId','56');
    const r=await fetcher(url,{redirect:'error',signal:AbortSignal.timeout(4000)});if(!r.ok)throw Error('scope unavailable');
    const data=await r.json();if(data.chainId!==Number(environment.VITE_V1_CHAIN_ID)||!Array.isArray(data.targets))throw Error('scope mismatch');
    return new Map(data.targets.filter((v:Target)=>unique.includes(v.address)&&Array.isArray(v.topics)).map((v:Target)=>[v.address,v]));

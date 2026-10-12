@@ -1,3 +1,4 @@
+import {preserveEvmChain} from '../v1/evmContext.ts';
 import { isRouteLink, resolveRoute, type Route } from "./routes.ts";
 
 type Options = {
@@ -21,7 +22,7 @@ export function createRouter(options: Options) {
   const state = (next: number) => ({ ...window.history.state, tgRouteIndex: next });
 
   function replaceLocation(href: string) {
-    const url = new URL(href, window.location.href);
+    const url = preserveEvmChain(new URL(href, window.location.href),new URL(window.location.href));
     const next = resolveRoute(url);
     if (url.origin !== window.location.origin || next.page !== current.page) throw new Error("Route-local URL updates must stay on the current page");
     current = next;
@@ -58,13 +59,14 @@ export function createRouter(options: Options) {
   }
 
   function navigate(href: string, replace = false): boolean {
-    const url = new URL(href, window.location.href);
+    const url = preserveEvmChain(new URL(href, window.location.href),new URL(window.location.href));
     if (!isRouteLink(url, window.location.origin)) return false;
     const next = resolveRoute(url);
     // Read the live URL: page controllers may have replaced a query or tab hash.
     current = location();
     if (next.href === current.href) return true;
     if (!options.canNavigate()) { options.blocked(); return false; }
+    if(url.searchParams.get('chain')!==new URL(window.location.href).searchParams.get('chain')){window.location.assign(url.href);return true;}
     scroll.set(index, [window.scrollX, window.scrollY]);
     if (!replace) index++;
     window.history[replace ? "replaceState" : "pushState"](state(index), "", next.href);
@@ -99,6 +101,7 @@ export function createRouter(options: Options) {
       }
       index = nextIndex;
       const route = location();
+      if(new URL(route.href,window.location.origin).searchParams.get('chain')!==new URL(current.href,window.location.origin).searchParams.get('chain')){window.location.reload();return;}
       window.history.replaceState(state(index), "", route.href);
       commit(route, scroll.get(index));
     }, events);
