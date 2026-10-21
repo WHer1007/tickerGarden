@@ -11,3 +11,10 @@ test('missing heartbeat, stream failure and initial state preserve fallback',()=
  now=45000;assert.equal(health.shouldReconcile(),true);
  health.signal();health.reset();assert.equal(health.shouldReconcile(),true);
 });
+
+test('Explore stream lifecycle state initializes before router can unmount a page',async()=>{
+ const {readFile}=await import('node:fs/promises');
+ const source=await readFile(new URL('../src/app.ts',import.meta.url),'utf8');
+ const initialized=source.indexOf('const exploreStreamHealth=createStreamHealth();');
+ assert.ok(initialized>=0&&initialized<source.indexOf('router.start();'));
+});

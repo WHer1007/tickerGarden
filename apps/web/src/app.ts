@@ -1360,6 +1360,7 @@ let exploreStatisticsAt=0;
 let exploreStatisticsKey="";
 let explorePendingListRefresh=false;
 const exploreVisibleRows:{0:readonly MarketReadModel[];1:readonly MarketReadModel[]}={0:[],1:[]};
+const exploreStreamHealth=createStreamHealth();
 let exploreEvents:EventSource|undefined,exploreEventRefreshTimer:number|undefined;
 const exploreDirtyIds=new Set<string>(),exploreDirtyRegions=new Set<string>();
 let exploreStatisticsRequest:Promise<boolean>|null=null;
@@ -5223,7 +5224,6 @@ let directDirectoryTimer: ReturnType<typeof setInterval>|undefined;
 if(integrationBootstrapPath)directDirectoryTimer=setInterval(()=>{if(!document.hidden)void refreshDirectDirectory();},30_000);
 if(import.meta.hot)import.meta.hot.dispose(()=>{if(directDirectoryTimer)clearInterval(directDirectoryTimer);});
 
-const exploreStreamHealth=createStreamHealth();
 function openExploreEvents():void{
  if(exploreEvents||!runtimeConfig.readApi.available||typeof EventSource==='undefined')return;
  exploreEvents=new EventSource(evmUrl(new URL('/v1/explore/events',runtimeConfig.readApi.value)));
