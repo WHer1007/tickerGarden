@@ -12,6 +12,12 @@ export interface DatabaseHandle {
   readonly db: NodePgDatabase<typeof schema>;
 }
 
+export function databaseIdleTimeout(env: Readonly<Record<string,string|undefined>>): number {
+  const value=Number(env.TG_DB_IDLE_TIMEOUT_MS ?? (env.VERCEL ? '1000' : '10000'));
+  if(!Number.isSafeInteger(value)||value<100||value>60000)throw Error('TG_DB_IDLE_TIMEOUT_MS must be between 100 and 60000');
+  return value;
+}
+
 export function createDatabasePool(connectionString: string, overrides: PoolConfig = {}, runtime?: {role:string; env:Readonly<Record<string,string|undefined>>}): DatabaseHandle {
   if (!connectionString) throw new Error('database connection string is required');
   const env=runtime?.env??process.env;
@@ -36,7 +42,7 @@ export function createDatabasePool(connectionString: string, overrides: PoolConf
   const pool = new Pool({
     connectionString,
     max,
-    idleTimeoutMillis: 10_000,
+    idleTimeoutMillis: databaseIdleTimeout(env),
     connectionTimeoutMillis: 5_000,
     options: '-c statement_timeout=5000 -c lock_timeout=2000 -c idle_in_transaction_session_timeout=5000',
     ...overrides,

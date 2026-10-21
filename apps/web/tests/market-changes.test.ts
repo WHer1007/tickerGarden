@@ -53,9 +53,20 @@ test('market change parsing validates identity and regions, and watcher coalesce
  runDelay(60_000);runDelay(120);await Promise.resolve();await Promise.resolve();
  assert.deepEqual(observed[1],detailRegions);
 
- source.change(JSON.stringify({marketId:market,regions:['fees']}));
- watcher.stop();runDelay(120);await Promise.resolve();
+ // With live heartbeats, retain only one reconciliation in five minutes.
+ source.dispatchEvent(new Event('ready'));
+ for(let i=0;i<4;i++){source.dispatchEvent(new Event('ping'));runDelay(60_000);runDelay(120);await Promise.resolve();await Promise.resolve();}
  assert.equal(observed.length,2);
- assert.equal(source.closed,true);
+ source.dispatchEvent(new Event('ping'));runDelay(60_000);runDelay(120);await Promise.resolve();await Promise.resolve();
+ assert.equal(observed.length,3);
+ source.dispatchEvent(new Event('error'));runDelay(60_000);runDelay(120);await Promise.resolve();await Promise.resolve();
+ assert.equal(observed.length,4,'broken stream resumes minute fallback');
+ doc.hidden=true;doc.dispatchEvent(new Event('visibilitychange'));assert.equal(source.closed,true);
+ doc.hidden=false;doc.dispatchEvent(new Event('visibilitychange'));runDelay(120);await Promise.resolve();await Promise.resolve();
+ assert.equal(FakeSource.instances.length,2);assert.equal(observed.length,5);
+ FakeSource.instances[1]!.change(JSON.stringify({marketId:market,regions:['fees']}));
+ watcher.stop();runDelay(120);await Promise.resolve();
+ assert.equal(observed.length,5);
+ assert.equal(FakeSource.instances[1]!.closed,true);
  assert.ok(timers.filter(item=>item.interval).every(item=>item.cancelled));
 });

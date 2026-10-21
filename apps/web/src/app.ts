@@ -1,3 +1,4 @@
+import {createStreamHealth} from './v1/streamHealth.ts';
 import {evmFetch as fetch, evmUrl} from './v1/evmTransport.ts';
 import {inspectPendingNetwork,createUnobservedSubmissionTracker} from './v1/pendingNetwork.ts';
 import {RewardClaimError,rewardErrorNotice} from './ui/reward-error.ts';
@@ -5222,11 +5223,14 @@ let directDirectoryTimer: ReturnType<typeof setInterval>|undefined;
 if(integrationBootstrapPath)directDirectoryTimer=setInterval(()=>{if(!document.hidden)void refreshDirectDirectory();},30_000);
 if(import.meta.hot)import.meta.hot.dispose(()=>{if(directDirectoryTimer)clearInterval(directDirectoryTimer);});
 
+const exploreStreamHealth=createStreamHealth();
 function openExploreEvents():void{
  if(exploreEvents||!runtimeConfig.readApi.available||typeof EventSource==='undefined')return;
  exploreEvents=new EventSource(evmUrl(new URL('/v1/explore/events',runtimeConfig.readApi.value)));
  const recover=()=>{exploreStatisticsAt=0;void refreshExploreStatistics().then(()=>applyExploreStatistics());void refreshExploreRankings(true);};
- exploreEvents.addEventListener('ready',()=>{if(currentPage()==='markets')recover();});
+ exploreEvents.addEventListener('ready',()=>{exploreStreamHealth.signal();if(currentPage()==='markets')recover();});
+ exploreEvents.addEventListener('ping',()=>exploreStreamHealth.signal());
+ exploreEvents.addEventListener('error',()=>exploreStreamHealth.reset());
  exploreEvents.addEventListener('change',event=>{
   if(currentPage()!=='markets')return;
   let data:{marketId?:string;regions?:string[]};try{data=JSON.parse((event as MessageEvent).data);}catch{return;}
@@ -5243,9 +5247,9 @@ function openExploreEvents():void{
   },150);
  });
 }
-function closeExploreEvents():void{window.clearTimeout(exploreEventRefreshTimer);exploreEventRefreshTimer=undefined;exploreDirtyIds.clear();exploreDirtyRegions.clear();exploreEvents?.close();exploreEvents=undefined;}
+function closeExploreEvents():void{exploreStreamHealth.reset();window.clearTimeout(exploreEventRefreshTimer);exploreEventRefreshTimer=undefined;exploreDirtyIds.clear();exploreDirtyRegions.clear();exploreEvents?.close();exploreEvents=undefined;}
 const exploreStatisticsTimer=setInterval(()=>{
- if(currentPage()!=='markets'||document.hidden)return;
+ if(currentPage()!=='markets'||document.hidden||!exploreStreamHealth.shouldReconcile())return;
  exploreStatisticsAt=0;void refreshExploreStatistics().then(()=>applyExploreStatistics());void refreshExploreRankings(true);
 },60_000);
 if(import.meta.hot)import.meta.hot.dispose(()=>clearInterval(exploreStatisticsTimer));
