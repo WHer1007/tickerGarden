@@ -1,0 +1,829 @@
+{
+  "status": "TEST_VALIDATED_PRODUCTION_NOT_PUBLISHED",
+  "sourceCommit": "c74bc3b66fe844a511af46676d98638ed3b1f9de",
+  "load": {
+    "began": "2026-10-21T08:51:12.757Z",
+    "ended": "2026-10-21T09:08:04.983Z",
+    "total": 988,
+    "groups": [
+      {
+        "id": "1s",
+        "round": "all",
+        "phase": "all",
+        "count": 245,
+        "errors": 0,
+        "p50": 179.9,
+        "p95": 352.1,
+        "p99": 3265.5,
+        "max": 3341
+      },
+      {
+        "id": "1s",
+        "round": "all",
+        "phase": "steady",
+        "count": 135,
+        "errors": 0,
+        "p50": 146.9,
+        "p95": 330.5,
+        "p99": 482.2,
+        "max": 500
+      },
+      {
+        "id": "1s",
+        "round": "all",
+        "phase": "sparse",
+        "count": 42,
+        "errors": 0,
+        "p50": 224.5,
+        "p95": 284.5,
+        "p99": 305.1,
+        "max": 305
+      },
+      {
+        "id": "1s",
+        "round": "all",
+        "phase": "burst",
+        "count": 68,
+        "errors": 0,
+        "p50": 272.6,
+        "p95": 3219.2,
+        "p99": 3341.4,
+        "max": 3341
+      },
+      {
+        "id": "1s",
+        "round": 0,
+        "phase": "all",
+        "count": 120,
+        "errors": 0,
+        "p50": 179.9,
+        "p95": 387.5,
+        "p99": 3219.2,
+        "max": 3341
+      },
+      {
+        "id": "1s",
+        "round": 0,
+        "phase": "steady",
+        "count": 67,
+        "errors": 0,
+        "p50": 149.5,
+        "p95": 387.5,
+        "p99": 482.2,
+        "max": 482
+      },
+      {
+        "id": "1s",
+        "round": 0,
+        "phase": "sparse",
+        "count": 21,
+        "errors": 0,
+        "p50": 218.1,
+        "p95": 263.5,
+        "p99": 276.3,
+        "max": 276
+      },
+      {
+        "id": "1s",
+        "round": 0,
+        "phase": "burst",
+        "count": 32,
+        "errors": 0,
+        "p50": 277.4,
+        "p95": 3219.2,
+        "p99": 3341.4,
+        "max": 3341
+      },
+      {
+        "id": "1s",
+        "round": 1,
+        "phase": "all",
+        "count": 125,
+        "errors": 0,
+        "p50": 179.2,
+        "p95": 306.8,
+        "p99": 3265.5,
+        "max": 3277
+      },
+      {
+        "id": "1s",
+        "round": 1,
+        "phase": "steady",
+        "count": 68,
+        "errors": 0,
+        "p50": 145.9,
+        "p95": 211.2,
+        "p99": 499.9,
+        "max": 500
+      },
+      {
+        "id": "1s",
+        "round": 1,
+        "phase": "sparse",
+        "count": 21,
+        "errors": 0,
+        "p50": 235.9,
+        "p95": 295.5,
+        "p99": 305.1,
+        "max": 305
+      },
+      {
+        "id": "1s",
+        "round": 1,
+        "phase": "burst",
+        "count": 36,
+        "errors": 0,
+        "p50": 271.6,
+        "p95": 3265.5,
+        "p99": 3277.4,
+        "max": 3277
+      },
+      {
+        "id": "3s",
+        "round": "all",
+        "phase": "all",
+        "count": 238,
+        "errors": 0,
+        "p50": 168.1,
+        "p95": 1040,
+        "p99": 3245.8,
+        "max": 3291
+      },
+      {
+        "id": "3s",
+        "round": "all",
+        "phase": "steady",
+        "count": 136,
+        "errors": 0,
+        "p50": 159.3,
+        "p95": 204.6,
+        "p99": 438.5,
+        "max": 453
+      },
+      {
+        "id": "3s",
+        "round": "all",
+        "phase": "sparse",
+        "count": 42,
+        "errors": 0,
+        "p50": 165.8,
+        "p95": 219.1,
+        "p99": 269.9,
+        "max": 270
+      },
+      {
+        "id": "3s",
+        "round": "all",
+        "phase": "burst",
+        "count": 60,
+        "errors": 0,
+        "p50": 377.5,
+        "p95": 1503.5,
+        "p99": 3290.7,
+        "max": 3291
+      },
+      {
+        "id": "3s",
+        "round": 0,
+        "phase": "all",
+        "count": 118,
+        "errors": 0,
+        "p50": 160.1,
+        "p95": 1040,
+        "p99": 1503.5,
+        "max": 3291
+      },
+      {
+        "id": "3s",
+        "round": 0,
+        "phase": "steady",
+        "count": 69,
+        "errors": 0,
+        "p50": 152,
+        "p95": 183.3,
+        "p99": 438.5,
+        "max": 439
+      },
+      {
+        "id": "3s",
+        "round": 0,
+        "phase": "sparse",
+        "count": 21,
+        "errors": 0,
+        "p50": 162,
+        "p95": 196.5,
+        "p99": 219.1,
+        "max": 219
+      },
+      {
+        "id": "3s",
+        "round": 0,
+        "phase": "burst",
+        "count": 28,
+        "errors": 0,
+        "p50": 461.6,
+        "p95": 1503.5,
+        "p99": 3290.7,
+        "max": 3291
+      },
+      {
+        "id": "3s",
+        "round": 1,
+        "phase": "all",
+        "count": 120,
+        "errors": 0,
+        "p50": 178.2,
+        "p95": 506.6,
+        "p99": 3245.8,
+        "max": 3287
+      },
+      {
+        "id": "3s",
+        "round": 1,
+        "phase": "steady",
+        "count": 67,
+        "errors": 0,
+        "p50": 166.1,
+        "p95": 207.5,
+        "p99": 453.5,
+        "max": 453
+      },
+      {
+        "id": "3s",
+        "round": 1,
+        "phase": "sparse",
+        "count": 21,
+        "errors": 0,
+        "p50": 177.7,
+        "p95": 265.5,
+        "p99": 269.9,
+        "max": 270
+      },
+      {
+        "id": "3s",
+        "round": 1,
+        "phase": "burst",
+        "count": 32,
+        "errors": 0,
+        "p50": 332.9,
+        "p95": 3245.8,
+        "p99": 3287,
+        "max": 3287
+      },
+      {
+        "id": "5s",
+        "round": "all",
+        "phase": "all",
+        "count": 255,
+        "errors": 0,
+        "p50": 145,
+        "p95": 294.5,
+        "p99": 424.5,
+        "max": 3102
+      },
+      {
+        "id": "5s",
+        "round": "all",
+        "phase": "steady",
+        "count": 137,
+        "errors": 0,
+        "p50": 143,
+        "p95": 272.3,
+        "p99": 424.5,
+        "max": 475
+      },
+      {
+        "id": "5s",
+        "round": "all",
+        "phase": "sparse",
+        "count": 42,
+        "errors": 0,
+        "p50": 146.1,
+        "p95": 197.6,
+        "p99": 239.1,
+        "max": 239
+      },
+      {
+        "id": "5s",
+        "round": "all",
+        "phase": "burst",
+        "count": 76,
+        "errors": 0,
+        "p50": 150.7,
+        "p95": 327.5,
+        "p99": 3102.1,
+        "max": 3102
+      },
+      {
+        "id": "5s",
+        "round": 0,
+        "phase": "all",
+        "count": 125,
+        "errors": 0,
+        "p50": 146,
+        "p95": 294.5,
+        "p99": 474.7,
+        "max": 3102
+      },
+      {
+        "id": "5s",
+        "round": 0,
+        "phase": "steady",
+        "count": 68,
+        "errors": 0,
+        "p50": 144.7,
+        "p95": 385.6,
+        "p99": 474.7,
+        "max": 475
+      },
+      {
+        "id": "5s",
+        "round": 0,
+        "phase": "sparse",
+        "count": 21,
+        "errors": 0,
+        "p50": 146.1,
+        "p95": 214.7,
+        "p99": 239.1,
+        "max": 239
+      },
+      {
+        "id": "5s",
+        "round": 0,
+        "phase": "burst",
+        "count": 36,
+        "errors": 0,
+        "p50": 148.6,
+        "p95": 321.9,
+        "p99": 3102.1,
+        "max": 3102
+      },
+      {
+        "id": "5s",
+        "round": 1,
+        "phase": "all",
+        "count": 130,
+        "errors": 0,
+        "p50": 143.8,
+        "p95": 280.2,
+        "p99": 373.6,
+        "max": 407
+      },
+      {
+        "id": "5s",
+        "round": 1,
+        "phase": "steady",
+        "count": 69,
+        "errors": 0,
+        "p50": 140.5,
+        "p95": 167.8,
+        "p99": 407.1,
+        "max": 407
+      },
+      {
+        "id": "5s",
+        "round": 1,
+        "phase": "sparse",
+        "count": 21,
+        "errors": 0,
+        "p50": 146.1,
+        "p95": 179.3,
+        "p99": 197.6,
+        "max": 198
+      },
+      {
+        "id": "5s",
+        "round": 1,
+        "phase": "burst",
+        "count": 40,
+        "errors": 0,
+        "p50": 150.7,
+        "p95": 327.5,
+        "p99": 373.6,
+        "max": 374
+      },
+      {
+        "id": "10s",
+        "round": "all",
+        "phase": "all",
+        "count": 250,
+        "errors": 0,
+        "p50": 165.3,
+        "p95": 373.7,
+        "p99": 617.3,
+        "max": 1030
+      },
+      {
+        "id": "10s",
+        "round": "all",
+        "phase": "steady",
+        "count": 128,
+        "errors": 0,
+        "p50": 168.5,
+        "p95": 406.1,
+        "p99": 844,
+        "max": 1030
+      },
+      {
+        "id": "10s",
+        "round": "all",
+        "phase": "sparse",
+        "count": 42,
+        "errors": 0,
+        "p50": 157.2,
+        "p95": 255.1,
+        "p99": 617.3,
+        "max": 617
+      },
+      {
+        "id": "10s",
+        "round": "all",
+        "phase": "burst",
+        "count": 80,
+        "errors": 0,
+        "p50": 165.9,
+        "p95": 365.3,
+        "p99": 496.5,
+        "max": 497
+      },
+      {
+        "id": "10s",
+        "round": 0,
+        "phase": "all",
+        "count": 120,
+        "errors": 0,
+        "p50": 198.6,
+        "p95": 453.6,
+        "p99": 844,
+        "max": 1030
+      },
+      {
+        "id": "10s",
+        "round": 0,
+        "phase": "steady",
+        "count": 59,
+        "errors": 0,
+        "p50": 218.8,
+        "p95": 584.8,
+        "p99": 1029.9,
+        "max": 1030
+      },
+      {
+        "id": "10s",
+        "round": 0,
+        "phase": "sparse",
+        "count": 21,
+        "errors": 0,
+        "p50": 165.5,
+        "p95": 319.8,
+        "p99": 617.3,
+        "max": 617
+      },
+      {
+        "id": "10s",
+        "round": 0,
+        "phase": "burst",
+        "count": 40,
+        "errors": 0,
+        "p50": 164.8,
+        "p95": 377.8,
+        "p99": 496.5,
+        "max": 497
+      },
+      {
+        "id": "10s",
+        "round": 1,
+        "phase": "all",
+        "count": 130,
+        "errors": 0,
+        "p50": 153,
+        "p95": 248.9,
+        "p99": 373.7,
+        "max": 460
+      },
+      {
+        "id": "10s",
+        "round": 1,
+        "phase": "steady",
+        "count": 69,
+        "errors": 0,
+        "p50": 148,
+        "p95": 195.2,
+        "p99": 373.7,
+        "max": 374
+      },
+      {
+        "id": "10s",
+        "round": 1,
+        "phase": "sparse",
+        "count": 21,
+        "errors": 0,
+        "p50": 156,
+        "p95": 177.4,
+        "p99": 178.8,
+        "max": 179
+      },
+      {
+        "id": "10s",
+        "round": 1,
+        "phase": "burst",
+        "count": 40,
+        "errors": 0,
+        "p50": 165.9,
+        "p95": 290.2,
+        "p99": 460.4,
+        "max": 460
+      }
+    ]
+  },
+  "runtime": [
+    {
+      "id": "1s",
+      "phase": "all",
+      "count": 245,
+      "p50": 18.78,
+      "p95": 142.15,
+      "max": 165.89,
+      "regions": [
+        "sin1"
+      ],
+      "events": {
+        "http_request": 245
+      }
+    },
+    {
+      "id": "1s",
+      "phase": "steady",
+      "count": 135,
+      "p50": 13.24,
+      "p95": 30.5,
+      "max": 155.24,
+      "regions": [
+        "sin1"
+      ],
+      "events": {
+        "http_request": 245
+      }
+    },
+    {
+      "id": "1s",
+      "phase": "sparse",
+      "count": 42,
+      "p50": 80.79,
+      "p95": 151.9,
+      "max": 165.89,
+      "regions": [
+        "sin1"
+      ],
+      "events": {
+        "http_request": 245
+      }
+    },
+    {
+      "id": "1s",
+      "phase": "burst",
+      "count": 68,
+      "p50": 110.47,
+      "p95": 152.29,
+      "max": 156.1,
+      "regions": [
+        "sin1"
+      ],
+      "events": {
+        "http_request": 245
+      }
+    },
+    {
+      "id": "3s",
+      "phase": "all",
+      "count": 238,
+      "p50": 14.66,
+      "p95": 181.91,
+      "max": 316.39,
+      "regions": [
+        "sin1"
+      ],
+      "events": {
+        "http_request": 238
+      }
+    },
+    {
+      "id": "3s",
+      "phase": "steady",
+      "count": 136,
+      "p50": 12.98,
+      "p95": 30.6,
+      "max": 112.2,
+      "regions": [
+        "sin1"
+      ],
+      "events": {
+        "http_request": 238
+      }
+    },
+    {
+      "id": "3s",
+      "phase": "sparse",
+      "count": 42,
+      "p50": 14.71,
+      "p95": 28.83,
+      "max": 74.53,
+      "regions": [
+        "sin1"
+      ],
+      "events": {
+        "http_request": 238
+      }
+    },
+    {
+      "id": "3s",
+      "phase": "burst",
+      "count": 60,
+      "p50": 141.79,
+      "p95": 234.12,
+      "max": 316.39,
+      "regions": [
+        "sin1"
+      ],
+      "events": {
+        "http_request": 238
+      }
+    },
+    {
+      "id": "5s",
+      "phase": "all",
+      "count": 255,
+      "p50": 11.9,
+      "p95": 71.73,
+      "max": 114.08,
+      "regions": [
+        "sin1"
+      ],
+      "events": {
+        "http_request": 255
+      }
+    },
+    {
+      "id": "5s",
+      "phase": "steady",
+      "count": 137,
+      "p50": 11.78,
+      "p95": 20.18,
+      "max": 73.72,
+      "regions": [
+        "sin1"
+      ],
+      "events": {
+        "http_request": 255
+      }
+    },
+    {
+      "id": "5s",
+      "phase": "sparse",
+      "count": 42,
+      "p50": 11.9,
+      "p95": 15.29,
+      "max": 18.55,
+      "regions": [
+        "sin1"
+      ],
+      "events": {
+        "http_request": 255
+      }
+    },
+    {
+      "id": "5s",
+      "phase": "burst",
+      "count": 76,
+      "p50": 12.06,
+      "p95": 105.63,
+      "max": 114.08,
+      "regions": [
+        "sin1"
+      ],
+      "events": {
+        "http_request": 255
+      }
+    },
+    {
+      "id": "10s",
+      "phase": "all",
+      "count": 250,
+      "p50": 12.76,
+      "p95": 34.14,
+      "max": 215.93,
+      "regions": [
+        "sin1"
+      ],
+      "events": {
+        "http_request": 250
+      }
+    },
+    {
+      "id": "10s",
+      "phase": "steady",
+      "count": 128,
+      "p50": 12.7,
+      "p95": 20,
+      "max": 89.63,
+      "regions": [
+        "sin1"
+      ],
+      "events": {
+        "http_request": 250
+      }
+    },
+    {
+      "id": "10s",
+      "phase": "sparse",
+      "count": 42,
+      "p50": 11.85,
+      "p95": 21.48,
+      "max": 32.74,
+      "regions": [
+        "sin1"
+      ],
+      "events": {
+        "http_request": 250
+      }
+    },
+    {
+      "id": "10s",
+      "phase": "burst",
+      "count": 80,
+      "p50": 14.25,
+      "p95": 127.55,
+      "max": 215.93,
+      "regions": [
+        "sin1"
+      ],
+      "events": {
+        "http_request": 250
+      }
+    }
+  ],
+  "retentionHook": [
+    {
+      "idleMs": 1000,
+      "retentionMs": 1101.4861250000001
+    },
+    {
+      "idleMs": 3000,
+      "retentionMs": 3101.7899159999997
+    },
+    {
+      "idleMs": 10000,
+      "retentionMs": 10106.215334
+    },
+    {
+      "idleMs": 5000,
+      "retentionMs": 5102.509667
+    }
+  ],
+  "isolatedVercelSamples": [
+    {
+      "id": "5s",
+      "requestId": "fbkll-1792573703529-ea240ffe84d7",
+      "executionSeconds": 5.17,
+      "responseMs": 123,
+      "fluidMB": 245
+    },
+    {
+      "id": "10s",
+      "requestId": "r8dcm-1792573703124-026e04ed7aad",
+      "executionSeconds": 10.25,
+      "responseMs": 198,
+      "fluidMB": 245
+    }
+  ],
+  "selected": {
+    "parameter": "TG_DB_IDLE_TIMEOUT_MS",
+    "value": "5000",
+    "project": "tickergarden-read-api",
+    "scope": "preview",
+    "deploymentId": "dpl_6JZx6CuT563V73czn7jRbMRbit2s",
+    "alias": "https://tickergarden-read-api-test.vercel.app",
+    "region": "sin1",
+    "functions": 3
+  },
+  "production": [
+    {
+      "project": "tickergarden-read-api",
+      "productionId": "dpl_9ZuVqihfb1LdVsWmLKRZ7vjC4FxZ",
+      "productionCommit": "b5da19a8bee9ea5272d9d63e17f1688bc615c507"
+    },
+    {
+      "project": "tickergarden-web",
+      "productionId": "dpl_4BJBzAHH8r1gzQFvgmizioGMHEYC",
+      "productionCommit": "8c737ad0fd17efd36f5b7fcfcca01c31ee2d3335"
+    }
+  ],
+  "rawSha256": {
+    "requests.json": "7022c8da7e851fe2f54b379445baef838909223eb932fce210fe1497242d6cb5",
+    "5s/requests.json": "dddf0758fe7ea3f0a30dfa94db637ec0f7fed00f0d96aedb2b900bb5d6a6d8a1",
+    "runtime-1s.jsonl": "978ad048ecb3ec27dbda9368bffc3d67ad3a023d071079e2bc50193bd3a084fa",
+    "runtime-3s.jsonl": "9e2053aaec12def52ad72f1d521e586b663e06a12064feca622b60117927cded",
+    "runtime-5s.jsonl": "9cd73d418b490dd9a1083c746a9796f8d7ded4fe12885847e9b3c82823b8bca4",
+    "runtime-10s.jsonl": "d9495546adc7c6f5fef10ca7af1b3ecf9fe64ade65ba22b59ddff7cd97144c83"
+  }
+}
