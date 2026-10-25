@@ -48,6 +48,9 @@ test('queue retention scrubs only old successful chain payloads and preserves de
     const preserveContent = await add('content-queue', { queue: 'content' });
     const preserveOutbox = await add('unsent-outbox');
     await pool.query(`UPDATE ${schema}.outbox_messages SET state='retry',updated_at=now()-interval '45 days' WHERE id=$1`, [preserveOutbox.outboxId]);
+    const preserveDeadOutbox = await add('dead-outbox');
+    await pool.query(`UPDATE ${schema}.outbox_messages SET state='dead' WHERE id=$1`, [preserveDeadOutbox.outboxId]);
+    await pool.query(`UPDATE ${schema}.jobs SET updated_at=now()-interval '100 days' WHERE id=$1`, [preserveDeadOutbox.jobId]);
 
     // Any same-digest noneligible job protects every corresponding inbox body.
     const sharedRaw = '{"shared":"digest"}';
@@ -90,7 +93,7 @@ test('queue retention scrubs only old successful chain payloads and preserves de
       { outcome: 'succeeded', error_code: 'unexpected_error' },
     ]);
 
-    for (const [name, row] of [['pending', preservePending], ['retry', preserveRetry], ['dead', preserveDead], ['unknown-kind', preserveUnknown], ['content-queue', preserveContent], ['unsent-outbox', preserveOutbox], ['shared-pending', digestPending]] as const) {
+    for (const [name, row] of [['pending', preservePending], ['retry', preserveRetry], ['dead', preserveDead], ['unknown-kind', preserveUnknown], ['content-queue', preserveContent], ['unsent-outbox', preserveOutbox], ['dead-outbox', preserveDeadOutbox], ['shared-pending', digestPending]] as const) {
       const stored = (await pool.query(`SELECT j.payload,o.payload outbox_payload,i.raw_body FROM ${schema}.jobs j
         JOIN ${schema}.outbox_messages o USING(operation_id) JOIN ${schema}.inbox_messages i ON i.queue=j.queue AND i.external_id=$2 WHERE j.id=$1`, [row.jobId, `ext-${name}`])).rows[0];
       assert.ok(stored?.payload && Object.keys(stored.payload).length > 0);
@@ -99,6 +102,7 @@ test('queue retention scrubs only old successful chain payloads and preserves de
     }
     const sharedInbox = await pool.query(`SELECT raw_body FROM ${schema}.inbox_messages WHERE external_id IN ('ext-shared-eligible','ext-shared-pending') ORDER BY external_id`);
     assert.deepEqual(sharedInbox.rows.map(row => row.raw_body), [sharedRaw, sharedRaw]);
+    assert.equal((await pool.query(`SELECT count(*)::int AS count FROM ${schema}.job_attempts WHERE job_id=$1`, [preserveDeadOutbox.jobId])).rows[0].count, 2, 'dead outbox protects successful attempt history too');
 
     const duplicate = await enqueueReliableMessage(pool, {
       queue: 'chain', externalId: 'ext-eligible-0', operationId: 'op-eligible-0', kind: kinds[0],

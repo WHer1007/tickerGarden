@@ -52,7 +52,7 @@ export async function retainQueueHistory(
     const outbox = await client.query(
       `WITH selected AS (
          SELECT o.id FROM ${schema}.outbox_messages o JOIN ${schema}.jobs j USING(operation_id)
-         WHERE ${eligibleJob} AND o.state='sent' AND o.payload<>'{}'::jsonb
+         WHERE ${eligibleJob} AND o.queue='chain' AND o.state='sent' AND o.payload<>'{}'::jsonb
          ORDER BY o.created_at,o.id FOR UPDATE OF o SKIP LOCKED LIMIT $2
        ) UPDATE ${schema}.outbox_messages o SET payload='{}'::jsonb FROM selected WHERE o.id=selected.id`,
       [ALLOWED_KINDS, batchSize],
@@ -85,7 +85,7 @@ export async function retainQueueHistory(
            AND j.updated_at < now()-interval '90 days'
            AND NOT EXISTS (SELECT 1 FROM ${schema}.outbox_messages o
              WHERE o.operation_id=j.operation_id AND o.state<>'sent')
-           AND a.outcome IN ('leased','succeeded') AND a.error_code IS NULL
+           AND a.queue='chain' AND a.outcome IN ('leased','succeeded') AND a.error_code IS NULL
          ORDER BY a.started_at,a.id FOR UPDATE OF a SKIP LOCKED LIMIT $2
        ) DELETE FROM ${schema}.job_attempts a USING selected WHERE a.id=selected.id`,
       [ALLOWED_KINDS, batchSize],
