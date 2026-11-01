@@ -2,6 +2,7 @@ import test from 'node:test';import assert from 'node:assert/strict';
 import {spawn} from 'node:child_process';import {once} from 'node:events';import {createServer} from 'node:http';import {randomBytes} from 'node:crypto';
 import {applyCoreMigration,createDatabasePool} from '../../packages/db/src/index.ts';
 import {priceBatchChannel} from '../../packages/display-price/src/batch.ts';
+import {changeChannel} from '../../packages/confirmed-display/src/changes.ts';
 import {displayWakeChannel} from '../../packages/confirmed-display/src/wake.ts';
 import {runtimeReleaseId,runtimeActivationBlock} from '../../packages/runtime-deployment/src/index.ts';
 const delay=(ms:number)=>new Promise(r=>setTimeout(r,ms));
@@ -18,6 +19,10 @@ test('real worker startup, 30-second idle timeout, price push, recovery hint and
   const health=()=>fetch(`http://127.0.0.1:${port}/healthz`);
   let ready=false;for(let i=0;i<100;i++){try{if((await health()).ok){ready=true;break;}}catch{}await delay(50);}
   assert.ok(ready,output);assert.equal(calls,0);
+  assert.equal((await (await health()).json()).synchronized,false);
+  const disconnected=await pool.query('SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE query=$1 AND pid<>pg_backend_pid()',[`LISTEN ${changeChannel(d,schemaName)}`]);
+  assert.equal(disconnected.rowCount,1,'terminate only this test worker listener');
+  await delay(500);assert.equal((await health()).status,200,'listener reconnects without chain traffic');assert.equal(calls,0);
   await pool.query('SELECT pg_notify($1,$2)',[priceBatchChannel(d,schemaName),'1']);
   await pool.query('SELECT pg_notify($1,$2)',[displayWakeChannel(d,schemaName),'recover']);
   await delay(32000);

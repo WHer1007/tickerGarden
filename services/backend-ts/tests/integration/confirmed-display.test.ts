@@ -134,12 +134,15 @@ test('explicit display requests do not scan empty ranges and roll back orphan st
     );
 
     await db.pool.query(`INSERT INTO ${schema}.recent_markets(environment,chain_id,deployment_digest,market_id,transaction_hash,block_number,block_hash,payload) VALUES($1,$2,$3,$4,$5,12,$6,'{}')`,[...id,orphanOnlyId,hash('f'),hash('c')]);
+    // A durable removed notification authorizes repair; an unscoped request cannot probe for reorgs.
+    await db.pool.query(`INSERT INTO ${schema}.display_event_inbox(environment,chain_id,deployment_digest,block_number,block_hash,transaction_hash,log_index,removed,payload) VALUES($1,$2,$3,12,$4,$5,0,true,'{}')`,[...id,hash('c'),hash('f')]);
+    await db.pool.query(`INSERT INTO ${schema}.display_event_applied(environment,chain_id,deployment_digest,block_number,block_hash,transaction_hash,log_index) VALUES($1,$2,$3,12,$4,$5,0)`,[...id,hash('c'),hash('f')]);
     const notifyDb=createDatabasePool(databaseUrl,{max:1});const listener=await notifyDb.pool.connect();
     const notices:Array<{marketId:string;regions:string[]}>=[];
     try{
       listener.on('notification',n=>{if(n.payload){const data=JSON.parse(n.payload);if(data.marketId)notices.push(data);}});
       await listener.query(`LISTEN ${changeChannel(deployment,schemaName)}`);
-      assert.equal(await advanceConfirmedDisplay({ pool: db.pool, deployment, rpc: fakeRpc({ canonicalOrphan: true, head: 11n }), schemaName }), 'current');
+      assert.equal(await advance({ pool: db.pool, deployment, rpc: fakeRpc({ canonicalOrphan: true, head: 11n }), schemaName,trigger:{kind:'event',id:hash('f')} }), 'gap:removed-event');
       for(let i=0;i<100&&notices.length<2;i++)await new Promise(resolve=>setTimeout(resolve,5));
       assert.deepEqual(notices.map(n=>n.marketId).sort(),[existingId,orphanOnlyId].sort());
       assert.ok(notices.every(n=>n.regions.includes('chart')&&n.regions.includes('staking')));
@@ -200,7 +203,7 @@ test('quiet markets skipped by the prior display cursor are seeded and retain DB
     const checkpointAfter=(await db.pool.query(`SELECT next_block::text,generation::text,last_revision FROM ${schema}.projection_checkpoints WHERE scope='analytics'`)).rows[0];
     assert.deepEqual(checkpointAfter,checkpointBefore);
     // Simulate upgrading an existing quiet market whose last persisted execution
-    // is outside the rolling 24h buffer. Only the background worker backfills it.
+    // is outside the rolling 24h buffer. The display view reconstructs it from already persisted database records.
     const historicalTime=timestamp-90000;
     const trade={marketId,timestamp:String(historicalTime),side:'buy',price:{numerator:'1',denominator:'80'},memeRaw:'1000000000000000000',quoteRaw:'12500000000000000',actor:address('5'),classification:'unclassified',source:{chainId:46630,blockNumber:'9',blockHash:hash('9'),transactionHash:hash('e'),transactionIndex:0,logIndex:1,eventKey:'historical-trade'}};
     await db.pool.query(`INSERT INTO ${schema}.market_trades(environment,chain_id,deployment_digest,market_id,block_hash,transaction_hash,log_index,occurred_at,classification,base_raw,quote_raw,payload) VALUES($1,$2,$3,$4,$5,$6,1,to_timestamp($7),'unclassified',$8,$9,$10)`,[...id,marketId,hash('9'),hash('e'),historicalTime,trade.memeRaw,trade.quoteRaw,JSON.stringify(trade)]);

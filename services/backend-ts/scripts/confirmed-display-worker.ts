@@ -24,6 +24,7 @@ const schema=displaySchema(env.TG_DATABASE_SCHEMA),id=[deployment.environment,de
 const reader=new SharedPriceReader(deployment,env.TG_DATABASE_SCHEMA),priceChannel=priceBatchChannel(deployment,env.TG_DATABASE_SCHEMA),changesChannel=changeChannel(deployment,env.TG_DATABASE_SCHEMA),eventChannel=displayWakeChannel(deployment,env.TG_DATABASE_SCHEMA);
 let stopped=false,lastSuccess=0,lastResult='idle',gapObserved=false,eventPending=false,pricePending=false,preparePending=false;
 let requested:DisplayTrigger|undefined,listener:PoolClient|undefined;
+let listenerReady=false;
 let lastFailure:{kind:'listen'|'price'|'event';at:string}|null=null;
 let operation:'listen'|'price'|'event'='listen';
 const wake=new DisplayWake(),abort=new AbortController();
@@ -37,22 +38,22 @@ async function listen(){
   else if(message.channel===eventChannel){
    if(message.payload==='recover'){gapObserved=true;lastResult='gap:upstream-recovery-required';}
    else if(/^\d+$/.test(message.payload??''))eventPending=true;
-   else {try{const p=JSON.parse(message.payload??'');if(p.type==='request'&&typeof p.id==='string'&&p.id.trim())requested={kind:'request',id:p.id};}catch{}}
+   else {try{const p=JSON.parse(message.payload??'');if(p.type==='request'&&typeof p.id==='string'&&p.id.trim())requested={kind:'request',id:p.id,...(typeof p.transactionHash==='string'?{transactionHash:p.transactionHash}:{})};}catch{}}
   }
   wake.wake();
  });
- client.once('error',()=>{if(listener===client)listener=undefined;client.release(true);wake.wake();});
+ client.once('error',()=>{listenerReady=false;if(listener===client)listener=undefined;client.release(true);wake.wake();});
  try{
   for(const channel of [eventChannel,priceChannel,changesChannel])await client.query(`LISTEN ${channel}`);
   // A persisted unprocessed event is authority; a process restart alone is not.
-  eventPending=true;if(lastFailure?.kind==='listen'){lastFailure=null;lastResult='idle';}wake.wake();
- }catch(e){if(listener===client){listener=undefined;client.release(true);}throw e;}
+  listenerReady=true;eventPending=true;if(lastFailure?.kind==='listen'){lastFailure=null;lastResult='idle';}wake.wake();
+ }catch(e){listenerReady=false;if(listener===client){listener=undefined;client.release(true);}throw e;}
 }
 async function pendingEvent():Promise<DisplayTrigger|undefined>{
  const row=(await pool.query<{transaction_hash:string}>(`SELECT e.transaction_hash FROM ${schema}.display_event_inbox e WHERE e.environment=$1 AND e.chain_id=$2 AND e.deployment_digest=$3 AND ((NOT e.removed AND e.block_number>=coalesce((SELECT next_block FROM ${schema}.projection_checkpoints WHERE environment=$1 AND chain_id=$2 AND deployment_digest=$3 AND scope='analytics'),0) AND NOT EXISTS(SELECT 1 FROM ${schema}.display_event_applied a WHERE a.environment=e.environment AND a.chain_id=e.chain_id AND a.deployment_digest=e.deployment_digest AND a.block_hash=e.block_hash AND a.transaction_hash=e.transaction_hash AND a.log_index=e.log_index)) OR (e.removed AND EXISTS(SELECT 1 FROM ${schema}.display_event_applied a WHERE a.environment=e.environment AND a.chain_id=e.chain_id AND a.deployment_digest=e.deployment_digest AND a.block_hash=e.block_hash AND a.transaction_hash=e.transaction_hash AND a.log_index=e.log_index))) ORDER BY e.block_number,e.log_index LIMIT 1`,id)).rows[0];
  return row?{kind:'event',id:row.transaction_hash}:undefined;
 }
-const server=createServer((req,res)=>{if(req.url!=='/healthz'){res.writeHead(404).end();return;}res.writeHead(!stopped&&listener&&!lastFailure?200:503,{'content-type':'application/json'}).end(JSON.stringify({lastSuccess,lastResult,lastFailure,displayOnly:true,mode:'push-only',coverage:gapObserved?'gap':'event-only',idleIsHealthy:true,database:databaseTimingSnapshot()}));});
+const server=createServer((req,res)=>{if(req.url!=='/healthz'){res.writeHead(404).end();return;}res.writeHead(!stopped&&listenerReady&&!lastFailure?200:503,{'content-type':'application/json'}).end(JSON.stringify({lastSuccess,lastResult,lastFailure,displayOnly:true,mode:'push-only',coverage:gapObserved?'gap':'unverified',synchronized:false,idleIsHealthy:true,database:databaseTimingSnapshot()}));});
 server.listen(Number(env.TG_DISPLAY_HEALTH_PORT??8084),'127.0.0.1');
 try{while(!stopped){
  try{
@@ -70,6 +71,7 @@ try{while(!stopped){
    if(trigger){
     lastResult=await advanceConfirmedDisplay({pool,deployment,rpc,trigger,priceBatch:createPriceBatch(deployment,env.TG_DATABASE_SCHEMA,new Date(),reader),...(env.TG_DATABASE_SCHEMA?{schemaName:env.TG_DATABASE_SCHEMA}:{})});lastSuccess=Date.now();if(lastFailure?.kind==='event')lastFailure=null;
     // Continue only after progress, and reselect a concrete durable event each pass.
+    if(lastResult.startsWith('gap:'))gapObserved=true;
     if(lastResult.startsWith('confirmed:')||lastResult.startsWith('initialized:')){eventPending=true;continue;}
     if(trigger.kind==='event'&&await pendingEvent()){gapObserved=true;lastResult='blocked:event-repair-required';lastFailure={kind:'event',at:new Date().toISOString()};}
    }

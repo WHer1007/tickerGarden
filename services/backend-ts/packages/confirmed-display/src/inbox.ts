@@ -22,16 +22,13 @@ export async function resetEventCoverage(client:PoolClient,d:DeploymentIdentity,
 export async function planDisplayEvents(client:PoolClient,d:DeploymentIdentity,rpc:RpcTransport,cursor:Cursor,forceRecovery=false,schemaName?:string):Promise<EventPlan>{
  const s=displaySchema(schemaName),id=displayIdentity(d);
  const coverage=(await client.query<{block_number:string;checked_at:Date}>(`SELECT block_number::text,checked_at FROM ${s}.display_event_coverage WHERE environment=$1 AND chain_id=$2 AND deployment_digest=$3`,id)).rows[0]!;
- const late=(await client.query<{block_number:string;block_hash:`0x${string}`}>(`SELECT DISTINCT e.block_number,e.block_hash FROM ${s}.display_event_inbox e WHERE e.environment=$1 AND e.chain_id=$2 AND e.deployment_digest=$3 AND NOT e.removed AND e.block_number>$4 AND e.block_number<=$5 AND NOT EXISTS(SELECT 1 FROM ${s}.display_event_applied a WHERE a.environment=e.environment AND a.chain_id=e.chain_id AND a.deployment_digest=e.deployment_digest AND a.block_hash=e.block_hash AND a.transaction_hash=e.transaction_hash AND a.log_index=e.log_index) ORDER BY e.block_number LIMIT 200`,[...id,coverage.block_number,cursor.block_number])).rows;
- let replayFrom:bigint|undefined;
- const lateBlocks=new Map<bigint,RpcBlock>();
- for(const row of late){const n=BigInt(row.block_number);if(!lateBlocks.has(n))lateBlocks.set(n,await rpc.block(n));if(lateBlocks.get(n)!.hash===row.block_hash){const n=BigInt(row.block_number);if(replayFrom===undefined||n<replayFrom)replayFrom=n;}}
- if(replayFrom!==undefined)return {scan:false,replayFrom};
+ const late=(await client.query<{block_number:string;block_hash:`0x${string}`}>(`SELECT DISTINCT e.block_number,e.block_hash FROM ${s}.display_event_inbox e WHERE e.environment=$1 AND e.chain_id=$2 AND e.deployment_digest=$3 AND NOT e.removed AND e.block_number>$4 AND e.block_number<=$5 AND NOT EXISTS(SELECT 1 FROM ${s}.display_event_applied a WHERE a.environment=e.environment AND a.chain_id=e.chain_id AND a.deployment_digest=e.deployment_digest AND a.block_hash=e.block_hash AND a.transaction_hash=e.transaction_hash AND a.log_index=e.log_index) ORDER BY e.block_number LIMIT 1`,[...id,coverage.block_number,cursor.block_number])).rows;
+ if(late.length)return {scan:false,replayFrom:BigInt(late[0]!.block_number)};
  return {scan:false};
 }
-export async function readDisplayEvents(client:PoolClient,d:DeploymentIdentity,rpc:RpcTransport,from:bigint,to:bigint,schemaName?:string){
+export async function readDisplayEvents(client:PoolClient,d:DeploymentIdentity,rpc:RpcTransport,from:bigint,to:bigint,schemaName?:string,transactionHash?:string){
  const s=displaySchema(schemaName),id=displayIdentity(d);
- const rows=(await client.query<{payload:Record<string,unknown>}>(`SELECT payload FROM ${s}.display_event_inbox WHERE environment=$1 AND chain_id=$2 AND deployment_digest=$3 AND NOT removed AND block_number=(SELECT min(block_number) FROM ${s}.display_event_inbox WHERE environment=$1 AND chain_id=$2 AND deployment_digest=$3 AND NOT removed AND block_number BETWEEN $4 AND $5) ORDER BY block_number,log_index LIMIT 10001`,[...id,from.toString(),to.toString()])).rows;
+ const rows=(await client.query<{payload:Record<string,unknown>}>(`SELECT payload FROM ${s}.display_event_inbox WHERE environment=$1 AND chain_id=$2 AND deployment_digest=$3 AND NOT removed AND ($6::text IS NULL OR transaction_hash=$6) AND block_number=(SELECT min(block_number) FROM ${s}.display_event_inbox WHERE environment=$1 AND chain_id=$2 AND deployment_digest=$3 AND NOT removed AND block_number BETWEEN $4 AND $5) ORDER BY block_number,log_index LIMIT 10001`,[...id,from.toString(),to.toString(),transactionHash??null])).rows;
  if(rows.length===10001)return null;
  const logs:RpcLog[]=[],blocks=new Map<bigint,RpcBlock>();
  for(const row of rows){const log=parseLog(row.payload);if(!blocks.has(log.blockNumber))blocks.set(log.blockNumber,await rpc.block(log.blockNumber));if(blocks.get(log.blockNumber)!.hash===log.blockHash)logs.push(log);}

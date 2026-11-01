@@ -38,3 +38,15 @@ Production deployment requires explicit approval under AGENTS.md. Promote only t
 Release needs the Display Worker restart and scoped Web/Read API/Pipeline redeployment to activate configuration. BSC metering needs a separately isolated BSC release. Preserve the prior deployment/worker source for rollback, but never restore Alchemy configuration.
 
 After release: observe a quiet interval and price-only interval with zero display RPC; verify actual event receipt processing, duplicate/late/reorg behavior, explicit gap state, provider=QuickNode and attribution by service. Compare physical calls and logical batch operations across equal observation windows. Do not translate request counts directly into CU without method-specific provider accounting.
+
+## Strict event-boundary follow-up
+
+The initial implementation still queried latest/finalized heads and unrelated late blocks after an event. Those paths have now been removed. A pass resolves exactly one transaction from the durable inbox; a generic explicit request without a transaction may only prepare persisted database views. A missing requested event returns `gap:missing-event` without RPC.
+
+RPC permits only that transaction receipt, that event block, and state calls pinned to the event block/hash. All other methods/tags, unrelated receipts, batches and scope rebinding are rejected before network/budget acquisition. Each trigger has a maximum of 128 physical attempts (including failures/retries) and a 30-second authorization lifetime. The guard denies further attempts after either limit; it does not cancel an already in-flight request.
+
+No live head/finality lookup, unrelated due-market refresh, speculative multi-block canonicality search or background scan remains in the event path. Baselines and historical display views use already persisted database data. Reorg/late-event repair uses at most 100 persisted journal entries per pass and fails visibly beyond that bound. Same-block transactions preserve the original undo boundary. Durable inbox/application/journal evidence is not pruned based on inferred finality by this worker.
+
+Health always reports `synchronized:false`, with `coverage:unverified` or `gap`. An event-only feed cannot prove absence of missing notifications. A database listener reconnect without a pending concrete event authorizes no chain traffic. Production deployment and configuration were not changed by this follow-up.
+
+Follow-up validation: 258 unit tests passed with the backend generated-artifact and TypeScript gates. The full integration run passed 61 tests, skipped one optional capacity test, and found a test-fixture error in the new listener-disconnect check (it selected the wrong last LISTEN channel). After correcting that selector, the actual disconnect/reconnect + 30-second idle/price/recovery process test passed with zero physical RPC requests. The final scoped-event regression and TypeScript check also passed. Listener health now waits until all subscriptions are established. These results are local, not evidence of a production rollout.
