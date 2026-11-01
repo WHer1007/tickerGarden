@@ -45,7 +45,7 @@ const rpcRuntime=rpcRuntimeOptions(env,'resident-worker','background');
  const server=createServer((req,res)=>{
   if(req.url!=='/healthz'){res.writeHead(404).end();return;}
   const healthy=state.ready&&!state.stopping&&(state.activeOperation!==null||Date.now()-state.lastPollAt<60000);
-  res.writeHead(healthy?200:503,{'content-type':'application/json'}).end(JSON.stringify(state));
+  res.writeHead(healthy?200:503,{'content-type':'application/json'}).end(JSON.stringify({...state,counterScope:"worker-state",sampledAt:new Date().toISOString(),retryCountIsNotBacklog:true}));
  });
  server.listen(port,env.TG_WORKER_HEALTH_HOST??'127.0.0.1');
  try{await runResidentWorker({pool,controlPool,owner:`resident-${randomUUID()}`,generation,schemaName,signal:abort.signal,state,process:processor,

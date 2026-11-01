@@ -12,7 +12,7 @@ function log(n:number,tx:number,index:number,hash=h(n)){
  return {address:registry.address,blockNumber:`0x${n.toString(16)}`,blockHash:hash,transactionHash:h(tx),transactionIndex:'0x0',logIndex:`0x${index.toString(16)}`,removed:false,
  topics:[eventTopic('MarketRegistryV1','MarketRegistered'),h(900+tx),h(2),h(3)],data:encodeAbiParameters(parseAbiParameters('address,address,uint32'),[a(4),a(5),1])};
 }
-test('WS display expands receipts without scanning, deduplicates, repairs late/missed events and rewinds reorgs',{timeout:60000},async()=>{
+test('WS display expands receipts without scanning, deduplicates, replays pushed late events and rewinds reorgs without scanning',{timeout:60000},async()=>{
  const schemaName=`tg_push_${process.pid}_${randomBytes(4).toString('hex')}`,s=`"${schemaName}"`,pool=createDatabasePool('postgresql:///postgres?host=/tmp',{max:2}).pool;
  const deployment={environment:'test' as const,chainId:46630 as const,deploymentDigest:h(1000),activationBlock:10n},id=[deployment.environment,deployment.chainId,deployment.deploymentDigest];
  let head=12,finalTip=10,failReceipt=false,reorg=false,logCalls=0,receiptCalls=0,logs=[log(12,100,0),log(12,100,1)];
@@ -24,7 +24,7 @@ test('WS display expands receipts without scanning, deduplicates, repairs late/m
   throw Error(method);
  }} as unknown as RpcTransport;
  const insert=async(l:ReturnType<typeof log>)=>pool.query(`INSERT INTO ${s}.display_event_inbox(environment,chain_id,deployment_digest,block_number,block_hash,transaction_hash,log_index,removed,payload) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9) ON CONFLICT DO NOTHING`,[...id,String(BigInt(l.blockNumber)),l.blockHash,l.transactionHash,String(BigInt(l.logIndex)),l.removed,JSON.stringify(l)]);
- const run=(forceRecovery=false)=>advanceConfirmedDisplay({pool,deployment,rpc,schemaName,eventDriven:true,forceRecovery});
+ const run=(forceRecovery=false)=>advanceConfirmedDisplay({pool,deployment,rpc,schemaName,eventDriven:true,forceRecovery,trigger:{kind:"event",id:"fixture-push"}});
  const applied=async()=>(await pool.query(`SELECT count(*)::int n FROM ${s}.display_event_applied`)).rows[0].n;
  try{
   await applyCoreMigration(pool,schemaName);
@@ -36,14 +36,14 @@ test('WS display expands receipts without scanning, deduplicates, repairs late/m
   assert.equal((await pool.query(`SELECT block_number::text FROM ${s}.display_event_coverage`)).rows[0].block_number,'10');
   await insert(logs[1]!);await insert(logs[0]!);assert.equal(await run(),'current');assert.equal(receiptCalls,1);assert.equal(logCalls,0);
   // A later notification from an older block must replay in chain order, not append.
-  head=13;logs.push(log(11,101,0));await insert(logs[2]!);assert.equal(await run(),'confirmed:13:0');assert.equal(await applied(),3);assert.equal(receiptCalls,3);assert.equal(logCalls,2);
+  head=13;logs.push(log(11,101,0));await insert(logs[2]!);assert.equal(await run(),'confirmed:11:0');assert.equal(await run(),'confirmed:12:0');assert.equal(await applied(),3);assert.equal(receiptCalls,3);assert.equal(logCalls,0);
   // Advance speculatively, deliberately omit an earlier transaction's WS notification.
-  head=15;finalTip=15;logs.push(log(15,103,0));await insert(logs[3]!);assert.equal(await run(),'confirmed:15:0');assert.equal(logCalls,2);assert.equal((await pool.query(`SELECT count(*)::int n FROM ${s}.confirmed_display_journal WHERE block_number=15`)).rows[0].n,1,'uncovered speculative journal survives finalized');
-  finalTip=13;logs.push(log(14,102,0));assert.equal(await run(true),'confirmed:15:0');assert.equal(await applied(),2);
-  assert.equal((await pool.query(`SELECT block_number::text FROM ${s}.display_event_coverage`)).rows[0].block_number,'15');
-  // A shorter head must enter journal rollback before trying range recovery above head.
-  reorg=true;head=14;logs=[log(14,104,0,h(1400))];assert.equal(await run(),'confirmed:14:0');assert.equal(await applied(),1);
-  assert.equal((await pool.query(`SELECT block_hash FROM ${s}.confirmed_display_cursor`)).rows[0].block_hash,h(1400));
+  head=15;finalTip=15;logs.push(log(15,103,0));await insert(logs[3]!);assert.equal(await run(),'confirmed:15:0');assert.equal(logCalls,0);assert.equal((await pool.query(`SELECT count(*)::int n FROM ${s}.confirmed_display_journal WHERE block_number=15`)).rows[0].n,1,'uncovered speculative journal survives finalized');
+  finalTip=13;logs.push(log(14,102,0));assert.equal(await run(true),'current');assert.equal(logCalls,0,'recovery hints must not discover missing logs through RPC');
+  await insert(logs[4]!);assert.equal(await run(),'confirmed:14:0');assert.equal(await run(),'confirmed:15:0');
+  // A pushed reorg is verified and the persisted journal is rolled back.
+  reorg=true;head=14;logs=[log(14,104,0,h(1400))];await insert(logs[0]!);assert.equal(await run(),'confirmed:14:0');
+  assert.equal((await pool.query(`SELECT block_hash FROM ${s}.confirmed_display_cursor`)).rows[0].block_hash,h(1400));assert.equal(logCalls,0);
   assert.equal((await pool.query(`SELECT next_block::text FROM ${s}.projection_checkpoints WHERE scope='analytics'`)).rows[0].next_block,'11');
  }finally{await pool.query(`DROP SCHEMA IF EXISTS ${s} CASCADE`);await pool.end();}
 });

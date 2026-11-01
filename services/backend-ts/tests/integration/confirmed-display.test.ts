@@ -6,11 +6,13 @@ import { randomBytes } from 'node:crypto';
 import test from 'node:test';
 import { applyCoreMigration, createDatabasePool } from '../../packages/db/src/index.ts';
 import type { DeploymentIdentity, RpcBlock, RpcTransport } from '../../packages/chain/src/index.ts';
-import { advanceConfirmedDisplay } from '../../packages/confirmed-display/src/worker.ts';
+import { advanceConfirmedDisplay as advance } from '../../packages/confirmed-display/src/worker.ts';
 import type { DisplayState } from '../../packages/confirmed-display/src/state.ts';
 import type { MarketCreation } from '../../packages/market-projector/src/index.ts';
 import {runtimeConfigs} from '../../packages/runtime-deployment/src/index.ts';
 import {packDisplayState,unpackDisplayState} from '../../packages/confirmed-display/src/state.ts';
+
+const advanceConfirmedDisplay=(input:Parameters<typeof advance>[0])=>advance({...input,trigger:{kind:'request',id:'integration-explicit-request'}});
 
 // The default points only at a local Unix socket. CI/dev can override it explicitly,
 // but this test never reads TG_DATABASE_URL or any deployment environment setting.
@@ -58,7 +60,7 @@ function displayState(marketId: string, marker: string): DisplayState {
   } as DisplayState;
 }
 
-test('confirmed display advances an empty range idempotently and rolls back orphan state', { timeout: 60_000 }, async (context) => {
+test('explicit display requests do not scan empty ranges and roll back orphan state', { timeout: 60_000 }, async (context) => {
   const schemaName = `tg_display_${process.pid}_${randomBytes(5).toString('hex')}`;
   const schema = `"${schemaName}"`;
   const db = createDatabasePool(databaseUrl, { max: 2, connectionTimeoutMillis: 5_000 });
@@ -92,18 +94,18 @@ test('confirmed display advances an empty range idempotently and rolls back orph
     );
 
     const rpc = fakeRpc();
-    assert.equal(await advanceConfirmedDisplay({ pool: db.pool, deployment, rpc, schemaName }), `confirmed:12:0`);
+    assert.equal(await advanceConfirmedDisplay({ pool: db.pool, deployment, rpc, schemaName }), 'current');
     assert.equal(await advanceConfirmedDisplay({ pool: db.pool, deployment, rpc, schemaName }), 'current');
     const cursor = (await db.pool.query(`SELECT block_number::text,block_hash FROM ${schema}.confirmed_display_cursor`)).rows[0];
-    assert.deepEqual(cursor, { block_number: '12', block_hash: hash('c') });
+    assert.deepEqual(cursor, { block_number: '10', block_hash: hash('a') });
     const statsBefore=(await db.pool.query(`SELECT xmin::text,block_number::text,block_hash,generated_at::text FROM ${schema}.stats_display_snapshots WHERE environment=$1 AND chain_id=$2 AND deployment_digest=$3`,[...id])).rows[0];
     assert.ok(statsBefore,'baseline stats snapshot is initialized');
     const checkedBefore=(await db.pool.query(`SELECT stats_initialized,stats_checked_at::text FROM ${schema}.confirmed_display_cursor WHERE environment=$1 AND chain_id=$2 AND deployment_digest=$3`,[...id])).rows[0];
     assert.equal(checkedBefore.stats_initialized,true);assert.ok(checkedBefore.stats_checked_at);
     for(const [height,headHash] of [[13n,hash('e')],[14n,hash('f')]] as const){
-      assert.equal(await advanceConfirmedDisplay({pool:db.pool,deployment,rpc:fakeRpc({head:height}),schemaName}),`confirmed:${height}:0`);
+      assert.equal(await advanceConfirmedDisplay({pool:db.pool,deployment,rpc:fakeRpc({head:height}),schemaName}),'current');
       const advanced=(await db.pool.query(`SELECT block_number::text,block_hash FROM ${schema}.confirmed_display_cursor WHERE environment=$1 AND chain_id=$2 AND deployment_digest=$3`,[...id])).rows[0];
-      assert.deepEqual(advanced,{block_number:height.toString(),block_hash:headHash},'empty block still advances the independent sync cursor');
+      assert.deepEqual(advanced,{block_number:'10',block_hash:hash('a')},'empty head changes do not advance display state');
       const statsAfter=(await db.pool.query(`SELECT xmin::text,block_number::text,block_hash,generated_at::text FROM ${schema}.stats_display_snapshots WHERE environment=$1 AND chain_id=$2 AND deployment_digest=$3`,[...id])).rows[0];
       assert.deepEqual(statsAfter,statsBefore,'empty block leaves stats data version and snapshot tuple untouched');
       const checkedAfter=(await db.pool.query(`SELECT stats_initialized,stats_checked_at::text FROM ${schema}.confirmed_display_cursor WHERE environment=$1 AND chain_id=$2 AND deployment_digest=$3`,[...id])).rows[0];
@@ -112,6 +114,7 @@ test('confirmed display advances an empty range idempotently and rolls back orph
     const checkpoint = (await db.pool.query(`SELECT next_block::text,generation::text,last_revision FROM ${schema}.projection_checkpoints WHERE scope='analytics'`)).rows[0];
     assert.deepEqual(checkpoint, { next_block: '11', generation: '4', last_revision: `10:${hash('a')}` });
 
+    await db.pool.query(`UPDATE ${schema}.confirmed_display_cursor SET block_number=12,block_hash=$1,block_timestamp=1800000012`,[hash('c')]);
     const existingId = hash('4');
     const orphanOnlyId = hash('5');
     const prior = displayState(existingId, 'before orphan block');
@@ -183,7 +186,7 @@ test('quiet markets skipped by the prior display cursor are seeded and retain DB
     const rpc=fakeRpc({head:12n,calls:rpcCalls});
     assert.equal(await advanceConfirmedDisplay({pool:db.pool,deployment,rpc,schemaName}),'initialized:rebase');
     assert.equal(await advanceConfirmedDisplay({pool:db.pool,deployment,rpc,schemaName}),'initialized:1');
-    assert.equal(await advanceConfirmedDisplay({pool:db.pool,deployment,rpc,schemaName}),'confirmed:12:0');
+    assert.equal(await advanceConfirmedDisplay({pool:db.pool,deployment,rpc,schemaName}),'current');
     assert.ok(!rpcCalls.includes('eth_call'),`unexpected eth_call: ${rpcCalls.join(',')}`);
     const detail=await readConfirmedDetail(db.pool,deployment,marketId,'1H',schemaName);
     assert.ok(detail);

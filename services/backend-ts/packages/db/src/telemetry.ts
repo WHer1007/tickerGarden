@@ -55,10 +55,10 @@ export function createDatabaseTelemetry(options: {
       }
       if (isSqlTimeout(error)) {
         counters.sqlTimeoutCount++; if (current) current.sqlTimeoutCount++;
-        if (safeQueryId(queryId)) fields.queryId = queryId;
+        if (safeQueryId(queryId)) {fields.queryId = queryId;fields.queryKind=queryId==='79663c1d3b43ceaf'?'transaction_commit':queryId==='c6fe476c72ed521c'?'rpc_lease_release':'other';}
         safeEmit({ service: 'database', level: 'warn', event: 'database_query_timeout', fields });
       } else if (duration >= 500) {
-        if (safeQueryId(queryId)) fields.queryId = queryId;
+        if (safeQueryId(queryId)) {fields.queryId = queryId;fields.queryKind=queryId==='79663c1d3b43ceaf'?'transaction_commit':queryId==='c6fe476c72ed521c'?'rpc_lease_release':'other';}
         safeEmit({ service: 'database', level: 'warn', event: 'database_slow_query', fields });
       }
     } catch { /* keep instrumentation failures out of the business path */ }

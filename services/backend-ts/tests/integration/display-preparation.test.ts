@@ -3,7 +3,7 @@ import test from 'node:test';
 import {randomBytes} from 'node:crypto';
 import {applyCoreMigration,createDatabasePool} from '../../packages/db/src/index.ts';
 import {readLaunchReadiness} from '../../packages/confirmed-display/src/read.ts';
-import {refreshDisplayPreparation,maintenanceRegions} from '../../packages/confirmed-display/src/maintenance.ts';
+import {refreshDisplayPreparation,refreshDisplayPrices,maintenanceRegions} from '../../packages/confirmed-display/src/maintenance.ts';
 import {materializeDisplay,emptyDisplayState} from '../../packages/confirmed-display/src/state.ts';
 import {runtimeConfigs} from '../../packages/runtime-deployment/src/index.ts';
 import {readMarketDisplayStatistics} from '../../packages/statistics-store/src/index.ts';
@@ -47,6 +47,13 @@ test('durable preparation repairs shared USD values and exposes DB-only ready/st
   }} as unknown as Pick<typeof pool,'query'>;
   assert.equal((await refreshDisplayPreparation({pool:concurrent,deployment:d,schemaName})).failed,0);
   assert.equal((await readMarketDisplayStatistics({pool,deployment:d,marketId:market.marketId,schemaName})).totalStakedRaw,'456','stale preparation cannot overwrite an event arriving after its read');
+  // Price notifications update persisted valuations without network IO or cursor advancement.
+  const beforePrice=(await pool.query(`SELECT block_number::text,block_hash FROM ${s}.confirmed_display_cursor`)).rows;
+  const originalFetch=globalThis.fetch;let networkCalls=0;
+  globalThis.fetch=async()=>{networkCalls++;throw Error('price notification must not access network');};
+  try{assert.equal((await refreshDisplayPrices({pool,deployment:d,schemaName})).failed,0);}finally{globalThis.fetch=originalFetch;}
+  assert.equal(networkCalls,0);
+  assert.deepEqual((await pool.query(`SELECT block_number::text,block_hash FROM ${s}.confirmed_display_cursor`)).rows,beforePrice);
   // A saved future market cannot pass the cursor gate following a rewind.
   await pool.query(`UPDATE ${s}.confirmed_display_cursor SET block_number=9`);
   assert.equal((await readLaunchReadiness(pool,d,market.marketId,schemaName)).ready,false);

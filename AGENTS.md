@@ -1,4 +1,23 @@
+# Operations workspace
+
+- Store TickerGarden marketing and community operations artifacts in `/Users/dear/Documents/TickerGarden-Operations`, outside this code repository.
+- This includes contact lists, outreach research, DM drafts, X posts and replies, publication records, campaign documents, and social media assets.
+- Do not create repository copies or symlinks of these artifacts, and never stage, commit, or force-add them to Git. Keep product code, technical documentation, and product UI assets in their existing development locations.
+
 # Deployment requirements
+
+## Production RPC policy
+
+- Production application RPC traffic must use QuickNode. Do not configure Alchemy as a primary or fallback endpoint.
+- When independent third-party verification is required, use a chain-verified public RPC endpoint for that verification only; do not make it an automatic fallback for ordinary traffic.
+- The 2026-11-02 RPC cleanup is production-only. Leave test environment configuration unchanged.
+
+## Display Worker RPC boundary
+
+- The Display Worker must never scan block ranges, synchronize chain history, or fall back to block scanning for recovery, reconnects, late events, or inbox saturation.
+- RPC access requires a concrete upstream event or an explicit active request and must remain bounded to that event/request. Idle loops, timer expiry, process startup, and health checks do not authorize RPC calls.
+- Price notifications may refresh persisted display valuations and publish changed views, but must not trigger chain RPC or chain advancement.
+- Process pushed events from a durable inbox. Missing notifications, duplicates, reorgs, and reconnects must preserve correctness without introducing an autonomous scan path in the Display Worker; unresolved gaps must remain explicit rather than being marked synchronized.
 
 All Vercel deployments must run in Singapore (`sin1`). This applies to Web, Read API, Pipeline, Content, preview/test and any separately authorized production deployment.
 

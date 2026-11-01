@@ -1,3 +1,4 @@
+import {currentDisplayTrigger} from '../../confirmed-display/src/rpc-boundary.ts';
 import {rpcAttemptContext} from './attempt.ts';
 import {AsyncLocalStorage} from 'node:async_hooks';
 import type {Pool} from 'pg';
@@ -41,7 +42,7 @@ export function rpcRuntimeOptions(env:Readonly<Record<string,string|undefined>>,
    return new Response(raw,{status:r.status,statusText:r.statusText,headers:r.headers});
   }catch(error){if(networkCalls===0||error instanceof RpcBudgetBusy){outcome='budget_denied';throw new RpcBudgetBusy();}throw error;}
   finally{
-   usage(service,{provider,method,flow,networkCalls,responseBytes,requestBytes:networkCalls?Buffer.byteLength(String(init?.body??'')):0,outcome,durationMs:Math.round(performance.now()-started),transport:'http',...rpcAttemptContext.getStore()});
+   usage(service,{environment:env.TG_ENVIRONMENT,chainId:env.TG_CHAIN_ID,trigger:service==='confirmed-display-worker'?currentDisplayTrigger():undefined,provider,method,flow,networkCalls,responseBytes,requestBytes:networkCalls?Buffer.byteLength(String(init?.body??'')):0,outcome,durationMs:Math.round(performance.now()-started),transport:'http',...rpcAttemptContext.getStore()});
    await release?.().catch(()=>usage(service,{provider,method,flow,networkCalls:0,outcome:'lease_release_failed'}));
    if(store&&Date.now()-lastPrune>60000){lastPrune=Date.now();void store.prune().catch(()=>usage(service,{networkCalls:0,outcome:'prune_failed'}));}
   }

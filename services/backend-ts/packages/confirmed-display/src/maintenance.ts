@@ -1,3 +1,4 @@
+import {publishStatsDisplay} from './stats.ts';
 import {hydrateDisplayHistory} from './history.ts';
 import {formatUnits,parseUnits} from 'viem';
 import type {Pool} from 'pg';
@@ -66,4 +67,19 @@ async function prepare(input:PreparationInput){
  }
  return {processed,failed,more:recent.length===limit||rows.length>=limit};
  async function defer(table:'recent_markets'|'confirmed_display_markets',market:string){await pool.query(`UPDATE ${s}.${table} SET refresh_attempts=refresh_attempts+1,refresh_error='display_preparation_retry',refresh_due_at=now()+interval '30 seconds' WHERE environment=$1 AND chain_id=$2 AND deployment_digest=$3 AND market_id=$4`,[...id,market]);}
+}
+
+/** Price-only refresh: never accepts a transport or advances a chain cursor. */
+export async function refreshDisplayPrices(input:Omit<PreparationInput,'pool'>&{pool:Pool}){
+ const s=displaySchema(input.schemaName),id=displayIdentity(input.deployment),client=await input.pool.connect();
+ try{
+  await client.query('BEGIN');
+  await client.query('SELECT pg_advisory_xact_lock(hashtextextended($1,0))',[`confirmed-display:${id.join(':')}`]);
+  await client.query(`UPDATE ${s}.confirmed_display_markets SET refresh_due_at=now() WHERE environment=$1 AND chain_id=$2 AND deployment_digest=$3`,id);
+  await client.query(`UPDATE ${s}.recent_markets SET refresh_due_at=now() WHERE environment=$1 AND chain_id=$2 AND deployment_digest=$3 AND canonical`,id);
+  const result=await refreshDisplayPreparation({...input,pool:client});
+  const cursor=(await client.query<{block_number:string;block_hash:`0x${string}`;block_timestamp:string;stats_initialized:boolean}>(`SELECT block_number::text,block_hash,block_timestamp::text,stats_initialized FROM ${s}.confirmed_display_cursor WHERE environment=$1 AND chain_id=$2 AND deployment_digest=$3`,id)).rows[0];
+  if(cursor?.stats_initialized)await publishStatsDisplay(client,input.deployment,{number:BigInt(cursor.block_number),hash:cursor.block_hash,parentHash:cursor.block_hash,timestamp:BigInt(cursor.block_timestamp)},input.schemaName,input.priceBatch?.now,input.priceBatch);
+  await client.query('COMMIT');return result;
+ }catch(error){await client.query('ROLLBACK');throw error;}finally{client.release();}
 }

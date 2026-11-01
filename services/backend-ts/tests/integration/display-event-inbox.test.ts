@@ -36,7 +36,7 @@ async function setCoverage(client:any,schema:string,d:DeploymentIdentity,number:
  await client.query(`INSERT INTO ${schema}.display_event_coverage(environment,chain_id,deployment_digest,block_number,block_hash,checked_at) VALUES($1,$2,$3,$4,$5,${checkedAt}) ON CONFLICT(environment,chain_id,deployment_digest) DO UPDATE SET block_number=excluded.block_number,block_hash=excluded.block_hash,checked_at=excluded.checked_at`,[d.environment,d.chainId,d.deploymentDigest,number.toString(),blockHash]);
 }
 
-test('display event inbox reads canonical hints and recovery catches missing range logs',{timeout:120_000},async context=>{
+test('display event inbox reads canonical hints and recovery never scans for missing range logs',{timeout:120_000},async context=>{
  const schemaName=`tg_event_inbox_${process.pid}_${randomBytes(4).toString('hex')}`,schema=schemaIdent(schemaName);
  const pool=createDatabasePool(databaseUrl,{max:1,connectionTimeoutMillis:5_000}).pool;
  try{
@@ -71,14 +71,17 @@ test('display event inbox reads canonical hints and recovery catches missing ran
    const saturatedDeployment=deployment(3),many=Array.from({length:1000},(_,i)=>log(5n,h('5'),BigInt(i)));
    await insertInbox(client,schema,saturatedDeployment,many);
    const saturated=await readDisplayEvents(client,saturatedDeployment,rpc(canonical),5n,5n,schemaName);
-   assert.equal(saturated,null,'a full 1000-row batch forces bounded range recovery');
+   assert.equal(saturated?.logs.length,1000,'a complete pushed block is processed without range recovery');
+   await client.query(`INSERT INTO ${schema}.display_event_inbox(environment,chain_id,deployment_digest,block_number,block_hash,transaction_hash,log_index,removed,payload) SELECT environment,chain_id,deployment_digest,block_number,block_hash,transaction_hash,n,false,jsonb_set(payload,'{logIndex}',to_jsonb('0x'||to_hex(n))) FROM ${schema}.display_event_inbox CROSS JOIN generate_series(1000,10000) n WHERE deployment_digest=$1 AND log_index=0`,[saturatedDeployment.deploymentDigest]);
+   const forbiddenRpc={block:async()=>{throw Error('saturation must not access RPC');},call:async()=>{throw Error('saturation must not access RPC');}} as unknown as RpcTransport;
+   assert.equal(await readDisplayEvents(client,saturatedDeployment,forbiddenRpc,5n,5n,schemaName),null,'oversized pushed block requires explicit repair without an RPC fallback');
 
    const lateDeployment=deployment(4),late=log(7n,h('7'),2n);
    await setCoverage(client,schema,lateDeployment,5n,h('5'));
    await initializeEventCoverage(client,lateDeployment,{block_number:'5',block_hash:h('5')},schemaName);
    await insertInbox(client,schema,lateDeployment,[late]);
    const latePlan=await planDisplayEvents(client,lateDeployment,rpc(canonical),{block_number:'10',block_hash:h('a')},false,schemaName);
-   assert.deepEqual(latePlan,{scan:true,replayFrom:6n},'a late unseen canonical event replays from just after verified coverage');
+   assert.deepEqual(latePlan,{scan:false,replayFrom:7n},'a late unseen canonical event replays persisted events without range scans');
 
    const duplicateDeployment=deployment(5),alreadyApplied=log(7n,h('7'),3n);
    await setCoverage(client,schema,duplicateDeployment,5n,h('5'));
@@ -99,8 +102,8 @@ test('display event inbox reads canonical hints and recovery catches missing ran
    ];}throw Error(`unexpected RPC method ${method}`);}} as unknown as RpcTransport;
    const before=getLogs;
    const gapPlan=await planDisplayEvents(client,gapDeployment,recoveryRpc,{block_number:'6',block_hash:h('6')},true,schemaName);
-   assert.deepEqual(gapPlan,{scan:true,replayFrom:6n},'due range recovery detects a canonical log missing from the inbox');
-   assert.ok(getLogs>before,'due recovery performs an authoritative eth_getLogs scan');
+   assert.deepEqual(gapPlan,{scan:false},'a recovery hint cannot discover absent events through RPC');
+   assert.equal(getLogs,before,'recovery never performs an eth_getLogs scan');
   }finally{client.release();}
  }finally{await pool.query(`DROP SCHEMA IF EXISTS ${schema} CASCADE`).catch(()=>undefined);await pool.end();}
 });

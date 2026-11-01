@@ -93,3 +93,9 @@ test('connection diagnostics distinguish driver acquisition failures without log
  t.recordDatabaseTiming('connection',5001,new Error('timeout exceeded when trying to connect'),undefined,{poolTotal:4,poolIdle:0,poolWaiting:1});
  assert.equal(events[0]!.fields.failureStage,'new_connection');assert.equal(events[1]!.fields.failureStage,'pool_wait');assert.equal(events[0]!.fields.poolWaiting,2);assert.equal(events[0]!.fields.phase,'connection');assert.equal('message' in events[0]!.fields,false);
 });
+
+ test('known production slow-query fingerprints distinguish durable commits and RPC lease release',()=>{
+ const events:Array<{fields:Record<string,unknown>}>=[];const t=createDatabaseTelemetry({emit:e=>events.push(e)});
+ t.recordDatabaseTiming('sql',600,undefined,'79663c1d3b43ceaf');t.recordDatabaseTiming('sql',600,undefined,'c6fe476c72ed521c');
+ assert.deepEqual(events.map(e=>e.fields.queryKind),['transaction_commit','rpc_lease_release']);
+ });

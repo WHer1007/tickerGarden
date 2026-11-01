@@ -143,7 +143,7 @@ export function createReadApiApp(options: ReadApiOptions = {}) {
     }
     context.header('cache-control', 'public, max-age=2, s-maxage=5, stale-while-revalidate=10');
     return context.json({ executionSpecId: 'V1-EXEC-11' as const, status: 'read-api' as const, readApiImplemented: true as const,
-      productRuntimeImplemented: true as const, custody: false as const, transactionSubmission: false as const, sync });
+      productRuntimeImplemented: true as const, custody: false as const, transactionSubmission: false as const, sync, syncBasis: "persisted-publication", liveChainHeadVerified: false });
   });
 
   app.get('/v1/holder-snapshots', async context => {

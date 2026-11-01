@@ -1,6 +1,7 @@
+import {withDisplayTrigger} from './rpc-boundary.ts';
 import {initializeEventCoverage,resetEventCoverage,planDisplayEvents,readDisplayEvents,saveAppliedEvents,commitEventCoverage} from './inbox.ts';
 import {hydrateDisplayHistory} from './history.ts';
-import {readDisplayScan,discoverDisplayCreations,moduleMap,displayPoolIds} from './scan.ts';
+import {discoverDisplayCreations,moduleMap,displayPoolIds} from './scan.ts';
 import {applyStatsEvents,undoStatsEvents,seedStats,publishStatsDisplay,type StatsUndo} from './stats.ts';
 import {validateRecentDisplay} from './recent-validation.ts';
 import {publishExploreRanking} from './explore-ranking.ts';
@@ -17,13 +18,16 @@ import {observeF72Market,nextMarketActivation,type MarketCreation} from '../../m
 import type {MarketReadModel,TokenDetailTrade} from '../../../openapi/generated/v1-client.ts';
 import type {EventObservation,TradeActivity} from '../../analytics/src/index.ts';
 import {packDisplayState,unpackDisplayState,applyDisplayEvents,emptyDisplayState,materializeDisplay,type DisplayState} from './state.ts';
-export interface DisplayWorkerInput {pool:Pool;deployment:DeploymentIdentity;rpc:RpcTransport;schemaName?:string;eventDriven?:boolean;forceRecovery?:boolean;priceBatch?:PriceBatch;priceChanged?:boolean}
+export interface DisplayWorkerInput {trigger?: {kind:"event"|"request"; id:string};pool:Pool;deployment:DeploymentIdentity;rpc:RpcTransport;schemaName?:string;eventDriven?:boolean;forceRecovery?:boolean;priceBatch?:PriceBatch;priceChanged?:boolean}
 export function displaySchema(name='tickergarden_serverless'){if(!/^[a-z][a-z0-9_]{0,62}$/.test(name))throw Error('Invalid display schema');return `"${name}"`;}
 export const displayIdentity=(d:DeploymentIdentity)=>[d.environment,d.chainId,d.deploymentDigest];
 type Cursor={block_number:string;block_hash:`0x${string}`;base_number:string;block_timestamp:string;stats_initialized?:boolean;stats_checked_at?:Date|null};
 /** Independent worker: no settlement queue, publication or reward tables are written. */
 export async function advanceConfirmedDisplay(input:DisplayWorkerInput):Promise<string>{
- return withDatabaseTask('confirmed-display-worker','display.advance',()=>advance(input));
+ if(!input.trigger)return Promise.resolve('idle');
+ if(!input.trigger.id.trim())throw Error('Display trigger identity required');
+ if(input.priceChanged)throw Error('Price updates must use the RPC-free display path');
+ return withDatabaseTask('confirmed-display-worker','display.advance',()=>withDisplayTrigger(input.trigger!,()=>advance({...input,eventDriven:true,forceRecovery:false})));
 }
 async function advance(input:DisplayWorkerInput):Promise<string>{
  const {pool,deployment:d,rpc}=input,schema=displaySchema(input.schemaName),id=displayIdentity(d),client=await pool.connect();
@@ -127,14 +131,11 @@ async function advance(input:DisplayWorkerInput):Promise<string>{
   }
   const head=observedHead,from=BigInt(cursor.block_number)+1n;
   if(from>head.number){await client.query(`UPDATE ${schema}.confirmed_display_cursor SET updated_at=now() WHERE environment=$1 AND chain_id=$2 AND deployment_digest=$3`,id);return 'current';}
-  let to=from+199n<head.number?from+199n:head.number;
-  let scanned=!input.eventDriven||eventPlan?.scan===true;
-  let batch=scanned?await readDisplayScan(client,d,rpc,from,to,head.number,input.schemaName):await readDisplayEvents(client,d,rpc,from,head.number,input.schemaName);
-  if(!batch){scanned=true;batch=await readDisplayScan(client,d,rpc,from,to,head.number,input.schemaName);}
-  if(!scanned){
-   if(!batch.logs.length)return 'current';
-   to=batch.logs.reduce((n,l)=>l.blockNumber>n?l.blockNumber:n,from);
-  }
+  const batch=await readDisplayEvents(client,d,rpc,from,head.number,input.schemaName);
+  if(!batch)throw Error('Display event batch exceeds limit; explicit event repair required');
+  if(!batch.logs.length)return 'current';
+  const to=batch.logs.reduce((n,l)=>l.blockNumber>n?l.blockNumber:n,from);
+  const scanned=false;
   // Reuse only this pass's fresh inbox block observations; final boundary reads below remain fresh.
   const receiptBlocks=batch.blocks;
   const anchor=receiptBlocks.get(to)??(to===head.number?head:await rpc.block(to));
