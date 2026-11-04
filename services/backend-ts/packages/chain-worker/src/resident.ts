@@ -43,7 +43,21 @@ export async function runResidentWorker(input: {
     input.state.ready=true;
     let processed=0;
     while(!input.signal.aborted&&!lost){
-      await recoverExpiredLeases(input.pool,'chain',100,name,input.generation);
+      // Empty queues must not take the generation row lock: even a no-op
+      // recovery/claim transaction writes WAL for that lock. This snapshot is
+      // only a hint; the existing write paths still recheck mode/generation and
+      // fence every lease. A job arriving after it is picked up on the next poll.
+      const work=(await input.pool.query(`SELECT active_generation,execution_mode,
+        EXISTS(SELECT 1 FROM ${schema}.jobs WHERE queue='chain' AND generation=$1 AND state IN ('pending','retry') AND next_attempt_at<=now()) AS due,
+        EXISTS(SELECT 1 FROM ${schema}.jobs WHERE queue='chain' AND generation=$1 AND state='leased' AND lease_expires_at<=now()) AS expired
+        FROM ${schema}.queue_generations WHERE queue='chain'`,[input.generation.toString()])).rows[0];
+      input.state.lastPollAt=Date.now();
+      if(input.signal.aborted||lost)break;
+      if(work?.execution_mode!=='resident'||BigInt(work.active_generation)!==input.generation)break;
+      if(!work.due&&!work.expired){
+        await pause(pollMs,undefined,{signal:input.signal}).catch(error=>{if(!input.signal.aborted)throw error;});continue;
+      }
+      if(work.expired)await recoverExpiredLeases(input.pool,'chain',100,name,input.generation);
       const leases=await claimJobs(input.pool,'chain',input.owner,1,300000,name,input.generation,'resident');
       input.state.lastPollAt=Date.now();
       const lease=leases[0];

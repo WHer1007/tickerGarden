@@ -1,0 +1,86 @@
+{
+  "status": "LOCAL_VERIFIED_NOT_DEPLOYED",
+  "productionBaseCommit": "082eb229236882bde0acc2a1dc8f783ab070f88a",
+  "sourceFile": "services/backend-ts/packages/chain-worker/src/resident.ts",
+  "sourceSha256": "d1b71222f0cdbd600deb62f3f51fa78df23a92c011a0bf88a24acdd0ee0fa8d9",
+  "observation": {
+    "startUtc": "2026-11-04T15:03:26.873458+00:00",
+    "endUtc": "2026-11-04T15:13:12.303515+00:00",
+    "residentSixHourWarnings": {
+      "79663c1d3b43ceaf": {
+        "count": 69,
+        "p50Ms": 773.9328579902649,
+        "p95Ms": 1900.5748170018196,
+        "maxMs": 3442.082726985216
+      },
+      "c6fe476c72ed521c": {
+        "count": 2,
+        "p50Ms": 532.6113700270653,
+        "p95Ms": 532.6113700270653,
+        "maxMs": 1001.8805409967899
+      },
+      "database_slow_connection": {
+        "count": 2,
+        "p50Ms": 229.28768900036812,
+        "p95Ms": 229.28768900036812,
+        "maxMs": 246.17898300290108
+      },
+      "a8402858d4f1e1d2": {
+        "count": 3,
+        "p50Ms": 621.4210340082645,
+        "p95Ms": 621.4210340082645,
+        "maxMs": 1888.267424017191
+      }
+    },
+    "blockedSessions": 0
+  },
+  "productionReadOnlyExplain": {
+    "executionMs": 0.284,
+    "planningMs": 6.21,
+    "sharedHitBlocks": 7,
+    "walBytes": 0
+  },
+  "tests": {
+    "contractHttp": 14,
+    "unit": 258,
+    "integrationDefaultPassed": 67,
+    "integrationOptInCapacityPassed": 1,
+    "typecheck": "PASS",
+    "build": "PASS",
+    "generated": "PASS",
+    "packaging": "PASS"
+  },
+  "localEqualPollBenchmark": {
+    "samples": 200,
+    "old": {
+      "counts": {
+        "begins": 400,
+        "rowLocks": 400,
+        "other": 800,
+        "commits": 400
+      },
+      "sqlMs": 1155.644303000028,
+      "walBytes": 38496,
+      "p50PollMs": 6.168249999999944,
+      "p95PollMs": 10.896749999999884
+    },
+    "after": {
+      "counts": {
+        "other": 200
+      },
+      "sqlMs": 367.7253770000043,
+      "walBytes": 0,
+      "polls": 200,
+      "processed": 0,
+      "p50QueryMs": 1.692374999999629,
+      "p95QueryMs": 2.5363330000000133
+    },
+    "scope": "Local PG14; timings exclude intentional poll sleep; WAL LSN is cluster-wide, not production latency."
+  },
+  "limitations": [
+    "Production worker not changed or restarted",
+    "Local integration PostgreSQL 14.20; production EXPLAIN PostgreSQL 17.11",
+    "WAL insertion-position delta is cluster-wide",
+    "Production tail-latency improvement requires a post-release observation window"
+  ]
+}
