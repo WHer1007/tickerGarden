@@ -1,4 +1,5 @@
 import {tradeSubmissionError} from '../trade/submission-error.ts';
+import {assertFrontendAssetOpen,isFrontendAssetOpen} from '../chains/asset-availability.ts';
 import {tradeConfirmationContent} from '../trade/confirmation.ts';
 import '../trade/confirmation.css';
 import {setPriceDisplay} from '../ui/compact-price.ts';
@@ -685,6 +686,9 @@ async function refreshTradeQuote():Promise<void>{
 }
 
 async function quoteTrade(generation: number): Promise<void> {
+  if (ctx.tradeMarket && !isFrontendAssetOpen(robinhoodChain.id,ctx.tradeMarket.market.quoteAsset)) {
+    ctx.tradeQuote=null;ctx.text('[data-trade-status]','This asset is not available on the platform.');updateTradeAvailability();return;
+  }
   if (!ctx.tradeMarket || !ctx.tradeMetadata || !ctx.wallet || !ctx.foundation) {
     if (ctx.tradeMarket && !ctx.tradeMarketVerified) ctx.text('[data-trade-status]', 'Verifying Trading Route…');
     updateTradeAvailability();
@@ -932,7 +936,7 @@ function updateTradeAvailability(): void {
     && ctx.tradeQuote.marketId === ctx.tradeMarket.market.marketId
     && ctx.tradeQuote.side === ctx.tradeSide,
   );
-  const routeReady = ctx.tradeMarketVerified && ctx.tradeMarket && tradingRoute(ctx.tradeMarket.market.launchPhase, ctx.tradeMarket.market.canonicalRoute);
+  const routeReady = ctx.tradeMarketVerified && ctx.tradeMarket && isFrontendAssetOpen(robinhoodChain.id,ctx.tradeMarket.market.quoteAsset) && tradingRoute(ctx.tradeMarket.market.launchPhase, ctx.tradeMarket.market.canonicalRoute);
   const balance = ctx.detailBalanceAccount === ctx.wallet?.account ? (ctx.tradeSide === 'buy' ? ctx.detailBalances?.quote : ctx.detailBalances?.meme) : undefined;
   const payBalance=usesConversion()?(paymentBalance&&paymentBalance.account===ctx.wallet?.account&&paymentBalance.token===payment()?.address?paymentBalance.value:undefined):balance;
   const insufficient = !!ctx.tradeQuote && payBalance !== undefined && (ctx.tradeQuote.conversion?BigInt(ctx.tradeQuote.conversion.sellAmount):ctx.tradeQuote.input)>payBalance;
@@ -1101,6 +1105,7 @@ async function submitTrade(): Promise<void> {
   ctx.tradeSubmitting=true;const inputField=ctx.query<HTMLInputElement>('[data-trade-amount]');if(inputField)inputField.readOnly=true;renderPayments();ctx.tradeSubmittingMarketId=ctx.tradeMarket?.market.marketId;ctx.tradeSubmittingLabel='Preparing…';updateTradeAvailability();
   try {
     if (!ctx.foundation || !ctx.wallet || !ctx.tradeMarket || !ctx.tradeQuote) throw new Error("Connect a wallet, load a Curve market and request a fresh quote");
+    assertFrontendAssetOpen(robinhoodChain.id,ctx.tradeMarket.market.quoteAsset);
     if (!ctx.tradeMarketVerified) throw new Error("The canonical trading route is still being verified");
     const activeWallet = ctx.wallet;
     let market = ctx.tradeMarket;

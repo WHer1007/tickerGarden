@@ -1,4 +1,5 @@
 import {verifyBscEntry} from './chains/bsc/risk.ts';
+import {assertFrontendAssetOpen,isFrontendAssetOpen} from './chains/asset-availability.ts';
 import {createStreamHealth} from './v1/streamHealth.ts';
 import {evmFetch as fetch, evmUrl} from './v1/evmTransport.ts';
 import {inspectPendingNetwork,createUnobservedSubmissionTracker} from './v1/pendingNetwork.ts';
@@ -1583,7 +1584,7 @@ async function renderMarkets(phases:readonly (0|1)[]=[1,0]):Promise<void>{
  const list=query<HTMLElement>('[data-market-list]');if(!list)return;
  if(!foundation){if(foundationError)pauseExploreView();else setPageStatus('Loading markets…');return;}
  const select=required<HTMLSelectElement>('[data-market-asset]');
- const options=[{value:'',symbol:'All Stocks',name:'',logo:undefined as string|undefined},...foundation.assets.map(asset=>({value:asset.id,symbol:stockSymbol(asset),name:stakingAssetForConfig(robinhoodChain.id,asset)?.name??stockToken(asset)??'',logo:stockLogo(asset)}))];
+ const options=[{value:'',symbol:'All Stocks',name:'',logo:undefined as string|undefined},...foundation.assets.filter(asset=>isFrontendAssetOpen(robinhoodChain.id,stockToken(asset)??'')).map(asset=>({value:asset.id,symbol:stockSymbol(asset),name:stakingAssetForConfig(robinhoodChain.id,asset)?.name??stockToken(asset)??'',logo:stockLogo(asset)}))];
  if(exploreStockPicker)exploreStockPicker.update(options);else {
  exploreStockPicker=setupExploreStockPicker(select,options);
  const stock=new URL(location.href).searchParams.get('stock');if(stock&&options.some(o=>o.value===stock)){select.value=stock;exploreStockPicker.update(options);}
@@ -3767,7 +3768,7 @@ function updateRewardsAvailability(): void {
   const stakeBusy=currentStakeOperationBusy();
   const stakeInput=query<HTMLInputElement>('#stake-amount');if(stakeInput)stakeInput.disabled=!rewardPosition||stakeBusy||stakeSubmitting;
   const max=query<HTMLButtonElement>('[data-stake-max]');if(max)max.disabled=!rewardPosition||stakeBusy||stakeSubmitting;
-  const open=query<HTMLButtonElement>('[data-open-stake]');if(open){open.disabled=stakeBusy||stakeSubmitting||!!wallet&&!rewardPosition;open.innerHTML=wallet?'<i class="ph ph-plus" aria-hidden="true"></i> Add Stake':'<i class="ph ph-wallet" aria-hidden="true"></i> Connect Wallet';}
+  const open=query<HTMLButtonElement>('[data-open-stake]');if(open){open.disabled=stakeBusy||stakeSubmitting||!!wallet&&!rewardPosition||!!rewardPosition&&!isFrontendAssetOpen(robinhoodChain.id,rewardPosition.asset.stockToken);open.innerHTML=wallet?'<i class="ph ph-plus" aria-hidden="true"></i> Add Stake':'<i class="ph ph-wallet" aria-hidden="true"></i> Connect Wallet';}
   queryAll<HTMLButtonElement>('[data-close-stake]').forEach(button=>{button.disabled=stakeBusy||stakeSubmitting;});
   const copy = query<HTMLButtonElement>("[data-copy-beneficiary]"); if (copy) copy.disabled = !creatorReward;
   queryAll<HTMLButtonElement>("[data-rewards-connect]").forEach(button=>button.hidden=!!wallet);
@@ -3802,7 +3803,7 @@ function updateRewardsAvailability(): void {
   }
   if (rewardPosition) {
     const normalClaimReady = rewardPosition.allocated === 0n || (rewardPosition.unlockAt > 0n && rewardPosition.now >= rewardPosition.unlockAt);
-    const allocationOpen = rewardPosition.asset.status === 1 && rewardPosition.detail.market.launchPhase === 1 && rewardPosition.settlementPrincipal === 0n;
+    const allocationOpen = isFrontendAssetOpen(robinhoodChain.id,rewardPosition.asset.stockToken) && rewardPosition.asset.status === 1 && rewardPosition.detail.market.launchPhase === 1 && rewardPosition.settlementPrincipal === 0n;
     setDisabled(rewardActionButton("stake")!, stakeBusy || !allocationOpen || !validStakeAmount());
     setDisabled(rewardActionButton("unstakeAndWithdraw")!, stakeBusy || rewardPosition.allocated <= 0n || rewardPosition.detail.market.launchPhase !== 1 || rewardPosition.unlockAt === 0n || rewardPosition.now < rewardPosition.unlockAt);
     const rageQuit=rewardActionButton("rageQuit", "allocation-manager");if(rageQuit)setDisabled(rageQuit,stakeBusy||rewardPosition.allocated<=0n);
@@ -3879,6 +3880,7 @@ async function executePositionAction(action: string, button: HTMLButtonElement):
   let approval: ContractWriteRequest | undefined;
   let stakeAmount:bigint|undefined;
   if (action === "stake") {
+    assertFrontendAssetOpen(robinhoodChain.id,state.asset.stockToken);
     const amount = amountFrom("amount", "Stake amount");
     stakeAmount=amount;
     validateMarketStake(amount, state.walletBalance, state.allocated, state.asset.minimumAllocation);

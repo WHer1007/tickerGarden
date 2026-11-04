@@ -4,6 +4,7 @@ import ts from 'typescript';
 import {readFileSync} from 'node:fs';
 import {tradeContextKey} from '../src/v1/tradeContext.ts';
 import {tradeSubmissionError} from '../src/trade/submission-error.ts';
+import {assertFrontendAssetOpen} from '../src/chains/asset-availability.ts';
 
 const native='0x0000000000000000000000000000000000000001';
 const pair='0x0000000000000000000000000000000000000002';
@@ -15,8 +16,8 @@ function rawControllerFunction(name:string):string{
  walk(tree);if(!result)throw Error(`Missing controller function: ${name}`);return result;
 }
 
-function harness(change?: (state:HarnessState)=>void, failWalletCheck?:boolean){
- const market={market:{marketId:'market-1',quoteAsset:pair,launchPhase:1,canonicalRoute:{router:'0xrouter'}},sync:{revision:'rev-1'}};
+function harness(change?: (state:HarnessState)=>void, failWalletCheck?:boolean, chainId=4663, quoteToken=pair){
+ const market={market:{marketId:'market-1',quoteAsset:quoteToken,launchPhase:1,canonicalRoute:{router:'0xrouter'}},sync:{revision:'rev-1'}};
  const quote={side:'buy',marketId:'market-1',input:6n,output:100n,minimum:90n,expiresAtMs:Date.now()+60_000,conversion:{sellToken:native,buyToken:pair,sellAmount:'6',minBuyAmount:'5'}};
  const input={value:'6',readOnly:false};
  let contextChecks=0,balanceChecks=0,conversionCalls=0,poolCalls=0;
@@ -25,6 +26,7 @@ function harness(change?: (state:HarnessState)=>void, failWalletCheck?:boolean){
  const ctx:any={foundation:{},wallet:{account:'0xaccount'},tradeMarket:market,tradeQuote:quote,tradeSide:'buy',tradeMetadata:{quoteDecimals:18,quoteSymbol:'PAIR',symbol:'MEME'},tradeMemeLogoUrl:'',tradeMarketVerified:true,tradeSubmitting:false,publicClient:{getBalance:async()=>{balanceChecks++;return 10n**18n;},estimateFeesPerGas:async()=>({maxFeePerGas:1n})},query:(selector:string)=>selector==='[data-trade-amount]'?input:null,required:()=>input,text:()=>{},notify:(message:string)=>notices.push(message),verifyLiveWalletContext:async()=>{contextChecks++;if(failWalletCheck&&contextChecks===2)throw Error('temporary wallet context check failure');},tradeQuoteGeneration:1,tradeSubmittingLabel:'',ensureCanonicalMarket:async()=>{}};
  state.ctx=ctx;
  const globals={
+  assertFrontendAssetOpen,robinhoodChain:{id:chainId},
   ctx,recovery:null,recoveryStorageUnavailable:false,tradeWalletRequested:false,tradeSubmitting:false,tradeSubmittingMarketId:undefined,tradeSubmittingLabel:'',
   renderPayments:()=>{},updateTradeAvailability:()=>{},payment:()=>({address:native,symbol:'ETH',decimals:18}),
   quotedMinimum:(value:bigint)=>value,parseTokenAmount:(value:string)=>BigInt(value),
@@ -41,6 +43,11 @@ function harness(change?: (state:HarnessState)=>void, failWalletCheck?:boolean){
 }
 
 type HarnessState={ctx:any;market:any;input:{value:string;readOnly:boolean};quote:any;notices:string[];contextChecks:number;balanceChecks:number;conversionCalls:number;poolCalls:number};
+
+test('a cached GPROB quote cannot reach wallet verification, conversion or pool submission',async()=>{
+ const {submit,state}=harness(undefined,false,56,'0x1ecfda023c46ca216b5c620ef357a6d0c03951e6');
+ await submit();assert.equal(state.contextChecks,0);assert.equal(state.balanceChecks,0);assert.equal(state.conversionCalls,0);assert.equal(state.poolCalls,0);assert.equal(state.notices.length,1);
+});
 
 test('a background refresh replacing the market object with the same route still reaches conversion',async()=>{
  const {submit,state}=harness(s=>{s.ctx.tradeMarket={...s.market,market:{...s.market.market}};});

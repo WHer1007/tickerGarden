@@ -1,4 +1,5 @@
 import {bscPairedRelease} from '../chains/bsc/generated.ts';
+import {isFrontendAssetOpen} from '../chains/asset-availability.ts';
 import productionRelease from './generated/robinhood-mainnet-4663.paired-assets.json' with { type: 'json' };
 import robinhoodTestnetRelease from './generated/robinhood-testnet-46630.paired-assets.json' with { type: 'json' };
 import arbitrumSepoliaRelease from './generated/arbitrum-sepolia-421614.paired-assets.json' with { type: 'json' };
@@ -27,19 +28,19 @@ const releases = new Map<number, PairedAssetRelease>([
 ]);
 const release = releases.get(ROBINHOOD_CHAIN_ID);
 if (!release) throw new Error(`No paired-asset manifest for chain ${ROBINHOOD_CHAIN_ID}`);
-export const RELEASE_PAIRED_ASSETS = release.assets;
+export const RELEASE_PAIRED_ASSETS = release.assets.filter(asset => isFrontendAssetOpen(asset.chainId, asset.tokenAddress));
 export const RELEASE_OBSERVED_AT = release.observedAt;
 export const RELEASE_CHAIN_ID = release.chainId;
 export const RELEASE_SUPPLY = BigInt(release.supplyReferenceRaw);
 
 /** Returns the release catalog for the selected network; unknown networks have no catalog. */
 export function pairedAssetsForChain(chainId: number): readonly ReleasePairedAsset[] {
-  return releases.get(chainId)?.assets ?? [];
+  return releases.get(chainId)?.assets.filter(asset => isFrontendAssetOpen(chainId, asset.tokenAddress)) ?? [];
 }
 
 /** A release selection is not a chain activation. Only matching own-registry configs can sign. */
 export function activePairedConfig(asset: ReleasePairedAsset, configs: readonly ConfigReadModel[], chainId: number): ConfigReadModel | undefined {
-  if (chainId !== asset.chainId || asset.graduationThreshold === null || asset.phantomQuote === null) return undefined;
+  if (chainId !== asset.chainId || !isFrontendAssetOpen(chainId, asset.tokenAddress) || asset.graduationThreshold === null || asset.phantomQuote === null) return undefined;
   return configs.find(config => config.kind === 'quote' && config.status === 1
     && String(config.values.quoteAsset).toLowerCase() === asset.tokenAddress
     && config.values.quoteDecimals === asset.decimals
@@ -58,5 +59,5 @@ const pausedQuoteAddresses = new Set([
   '0x2f62fc9fabb470c690f141c28340ed832bb27020', // BND
 ]);
 export function isQuoteSelectionPaused(asset: ReleasePairedAsset): boolean {
-  return asset.chainId === ROBINHOOD_PRODUCTION_CHAIN_ID && pausedQuoteAddresses.has(asset.tokenAddress.toLowerCase());
+  return !isFrontendAssetOpen(asset.chainId, asset.tokenAddress) || (asset.chainId === ROBINHOOD_PRODUCTION_CHAIN_ID && pausedQuoteAddresses.has(asset.tokenAddress.toLowerCase()));
 }

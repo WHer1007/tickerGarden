@@ -36,4 +36,4 @@ test('production lists all 194 official assets with 0.5 minimum total stake',()=
  for(const a of mainnet){assert.equal(a.minimumAllocation,'500000000000000000');assert.equal(a.enabled,true);const c=config({id:a.assetUid,values:{stockToken:a.tokenAddress}});assert.equal(isListedStakingAsset(4663,c),true);assert.equal(isListedStakingAsset(4663,{...c,status:2}),false);}
 });
 
-test('BSC accepted catalog contains 78 isolated assets with the production minimum',()=>{const rows=STAKING_ASSETS.filter(a=>a.chainId===56);assert.equal(rows.length,78);assert.ok(rows.every(a=>a.enabled===true&&a.minimumAllocation==='500000000000000000'));});
+test('BSC keeps 78 asset identities and opens 77 with the production minimum',()=>{const rows=STAKING_ASSETS.filter(a=>a.chainId===56);assert.equal(rows.length,78);assert.equal(rows.filter(a=>a.enabled).length,77);assert.ok(rows.every(a=>a.minimumAllocation==='500000000000000000'));assert.deepEqual(rows.filter(a=>!a.enabled).map(a=>a.symbol),['GPROB']);});
