@@ -26,7 +26,7 @@ export default { title: 'Stake — TickerGarden', html: `
       <p class="status-line" data-stake-stats-status aria-live="polite">Select a market to view activity.</p>
     </article>
     <article class="position-card">
-      <div class="section-heading"><div><h2>Your stake</h2><p>Stake Stock to earn a share of trading fees.</p></div><div class="stake-position-actions"><button type="button" class="primary-button" data-open-stake><i class="ph ph-plus" aria-hidden="true"></i> Add stake</button><button type="button" disabled class="position-secondary-button" data-reward-action="unstakeAndWithdraw" data-action="unstakeAndWithdraw"><i class="ph ph-minus-circle" aria-hidden="true"></i> Unstake all</button></div></div>
+      <div class="section-heading"><div><h2>Your stake</h2><p>Stake Stock to earn a share of trading fees.</p></div><div class="stake-position-actions"><button type="button" class="primary-button" data-open-stake disabled><i class="ph ph-plus" aria-hidden="true"></i> Add stake</button><button type="button" disabled class="position-secondary-button" data-reward-action="unstakeAndWithdraw" data-action="unstakeAndWithdraw"><i class="ph ph-minus-circle" aria-hidden="true"></i> Unstake all</button></div></div>
       <div class="position-stats"><div><span>Staked principal</span><strong data-stake-allocated>-</strong><small class="stake-share">Share of total <b data-stake-share>-</b></small></div><div><span>Withdrawal status</span><strong data-stake-unlock>-</strong></div><div><span>Wallet available</span><strong data-stake-wallet>-</strong></div></div>
     <div class="rewards-card">
         <h2>Staking rewards</h2><p>Rewards are paid in the paired asset and created token.</p>

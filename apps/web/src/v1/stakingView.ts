@@ -91,3 +91,8 @@ export function unstakeConfirmationCopy(input:Readonly<{principal:string;assetSy
     note:'Partial withdrawal is not supported. You can stake again later, which starts a new 24-hour lock.',
   });
 }
+
+/** Preserve an explicit deep-link choice during initial account hydration, never across wallets. */
+export function stakeMarketOpenAfterAccountChange(previousAccount:string,explicitlyOpened:boolean,action:string|null):boolean{
+  return action==='add'||(!previousAccount&&explicitlyOpened);
+}

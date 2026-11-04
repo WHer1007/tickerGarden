@@ -71,8 +71,8 @@ export default {
             <div><span>Paired asset balance</span><strong data-funding-quote-balance>-</strong></div>
             <div><span>ETH for paired asset purchase</span><strong data-funding-swap>-</strong></div>
             <div><span>Estimated gas</span><strong data-funding-gas>-</strong></div>
-            <div><span>Total ETH required</span><strong data-funding-total>-</strong></div>
-            <div><span>Wallet ETH balance</span><strong data-funding-balance>-</strong></div>
+            <div><span data-funding-total-label>Total ETH required</span><strong data-funding-total>-</strong></div>
+            <div><span data-funding-balance-label>Wallet ETH balance</span><strong data-funding-balance>-</strong></div>
           </div>
           <button class="action-button" type="submit" data-create-submit disabled><i class="ph ph-plant" aria-hidden="true"></i>Launch token</button>
         </form>

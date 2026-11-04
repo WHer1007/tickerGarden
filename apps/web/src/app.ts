@@ -1,3 +1,4 @@
+import {verifyBscEntry} from './chains/bsc/risk.ts';
 import {createStreamHealth} from './v1/streamHealth.ts';
 import {evmFetch as fetch, evmUrl} from './v1/evmTransport.ts';
 import {inspectPendingNetwork,createUnobservedSubmissionTracker} from './v1/pendingNetwork.ts';
@@ -112,7 +113,7 @@ import { pendingTransactionPage } from './v1/pending-transaction-page.ts';
 import { readPublishedMarket } from './v1/pendingMarket.ts';
 import { createSnapshotPoller,SnapshotRefreshSuperseded } from "./v1/snapshotUpdates.ts";
 
-import { firstActiveStakeMarket,stakeAfter,stakeDirectorySource,stakeHistoryEvent,stakeMarketIsOpen,stakePortfolioMode,stakeShare,summarizeDirectStakeAllocations,unstakeConfirmationCopy,validateStakePositions } from './v1/stakingView.ts';
+import { firstActiveStakeMarket,stakeAfter,stakeDirectorySource,stakeHistoryEvent,stakeMarketIsOpen,stakeMarketOpenAfterAccountChange,stakePortfolioMode,stakeShare,summarizeDirectStakeAllocations,unstakeConfirmationCopy,validateStakePositions } from './v1/stakingView.ts';
 import { statisticsUSD } from "./v1/statisticsValue.ts";
 import { displayDecimal } from './v1/tokenDetail.ts';
 import type { mountTokenDetail } from './v1/tokenDetailWidget.ts';
@@ -2336,7 +2337,7 @@ async function refreshStakeDirectory(more=false,force=false):Promise<void>{
   const account=wallet?.account.toLowerCase()??'';
   if(account!==stakeDirectoryAccount){
     const previousAccount=stakeDirectoryAccount;
-    stakeDirectoryAccount=account;stakeDirectoryRows.clear();stakePositionIds.clear();stakePositionsPage=undefined;stakeActivityPage=undefined;stakeDirectoryAt=0;stakeDirectoryBusy=false;stakeDirectPortfolioVerified=false;stakeDirectoryFailed=false;stakeMarketOpened=new URLSearchParams(location.search).get('action')==='add';++stakeDirectoryGeneration;
+    stakeDirectoryAccount=account;stakeDirectoryRows.clear();stakePositionIds.clear();stakePositionsPage=undefined;stakeActivityPage=undefined;stakeDirectoryAt=0;stakeDirectoryBusy=false;stakeDirectPortfolioVerified=false;stakeDirectoryFailed=false;stakeMarketOpened=stakeMarketOpenAfterAccountChange(previousAccount,stakeMarketOpened,new URLSearchParams(location.search).get('action'));++stakeDirectoryGeneration;
     if(previousAccount){const select=query<HTMLSelectElement>('[data-position-market]');if(select){select.value='';syncRewardMarketSelections('', 'position');}}
   }
   renderStakeDirectory();
@@ -3871,7 +3872,7 @@ async function executePositionAction(action: string, button: HTMLButtonElement):
   const state=await readRewardPositionState(await getRewardMarketDetail(rewardPosition.detail.market));
   if(wallet!==activeWallet||query<HTMLSelectElement>('[data-position-market]')?.value!==requestedMarket)throw Error('Wallet or market changed; review your stake again');
   const marketId = state.detail.market.marketId;
-  const verifyChain = async () => { await ensureCanonicalMarket(state.detail.market); await ensureCanonicalAsset(state.assetConfig, verifiedMarketRuntime.get(state.detail.market.marketId)); };
+  const verifyChain = async () => { await ensureCanonicalMarket(state.detail.market); await ensureCanonicalAsset(state.assetConfig, verifiedMarketRuntime.get(state.detail.market.marketId)); if(robinhoodChain.id===56&&stakeAmount){if(!foundation?.bindings)throw Error('Canonical BSC registry unavailable');await verifyBscEntry(publicClient,foundation.bindings.officialStockRegistry,state.asset.userStockVault,state.asset.assetUid,account,stakeAmount);} };
   const form = button.closest<HTMLFormElement>("form");
   const amountFrom = (name: string, label: string) => parseTokenAmount(required<HTMLInputElement>(`[name=${name}]`, form ?? document).value, state.asset.tokenDecimals, label);
   let request: ContractWriteRequest;
@@ -4437,13 +4438,12 @@ async function renderRewards(): Promise<void> {
   if(currentPage()==='staking' && rewardDeepLinkApplied){
     const url=new URL(window.location.href);
     const action=url.searchParams.get('action');
-    if(action==='add')query<HTMLButtonElement>('[data-open-stake]')?.click();
     if(action==='withdraw'){
       const position=query<HTMLElement>('.position-card');
       if(position){position.tabIndex=-1;position.focus({preventScroll:true});position.scrollIntoView({block:'center',behavior:'smooth'});}
     }
     if(action==='rewards')query<HTMLElement>('.rewards-card')?.scrollIntoView({block:'center',behavior:'smooth'});
-    if(action){url.searchParams.delete('action');router.replaceLocation(`${url.pathname}${url.search}${url.hash}`);}
+    if(action&&action!=='add'){url.searchParams.delete('action');router.replaceLocation(`${url.pathname}${url.search}${url.hash}`);}
   }
   void refreshStakeDirectory();
   void refreshStakeStatistics();
@@ -4476,7 +4476,14 @@ async function renderRewards(): Promise<void> {
   const settleUser = query<HTMLInputElement>("[data-settle-user]");
   if (settleUser && !settleUser.value) settleUser.value = wallet.account;
   await refreshActiveReward();
+  if(pageGeneration!==routeGeneration)return;
   updateRewardsAvailability();
+  const pendingAction=new URL(window.location.href);
+  const openStake=query<HTMLButtonElement>('[data-open-stake]');
+  if(currentPage()==='staking'&&pendingAction.searchParams.get('action')==='add'&&rewardPosition&&openStake&&!openStake.disabled){
+    openStake.click();pendingAction.searchParams.delete('action');
+    router.replaceLocation(`${pendingAction.pathname}${pendingAction.search}${pendingAction.hash}`);
+  }
 }
 
 async function appendMarketPage(): Promise<void> {

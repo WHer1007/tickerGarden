@@ -784,12 +784,15 @@ function renderLaunchFunding(funding: LaunchFunding & Readonly<{ gasCost: bigint
   for(const selector of ['[data-funding-route]','[data-funding-swap]']){
     const row=ctx.query<HTMLElement>(selector)?.parentElement;if(row)row.hidden=!conversion;
   }
-  ctx.text("[data-funding-route]", conversion ? `ETH → ${symbol}` : funding.mode === "quote" ? `Wallet ${symbol}` : "ETH");
-  ctx.text("[data-funding-quote-balance]", funding.mode === "native" ? "ETH" : `${funding.quoteBalance === null ? "—" : formatTokenAmount(funding.quoteBalance, funding.quoteDecimals)} ${symbol}`);
-  ctx.text("[data-funding-swap]", `${formatTokenAmount(funding.quotedNativeInput, 18)} ETH`);
-  ctx.text("[data-funding-gas]", `${formatTokenAmount(funding.gasCost, 18)} ETH`);
-  ctx.text("[data-funding-total]", `${formatTokenAmount(funding.totalRequired, 18)} ETH`);
-  ctx.text("[data-funding-balance]", `${formatTokenAmount(funding.ethBalance, 18)} ETH`);
+  const nativeSymbol=robinhoodChain.nativeCurrency.symbol;
+  ctx.text('[data-funding-total-label]',`Total ${nativeSymbol} required`);
+  ctx.text('[data-funding-balance-label]',`Wallet ${nativeSymbol} balance`);
+  ctx.text("[data-funding-route]", conversion ? `${nativeSymbol} → ${symbol}` : funding.mode === "quote" ? `Wallet ${symbol}` : nativeSymbol);
+  ctx.text("[data-funding-quote-balance]", funding.mode === "native" ? nativeSymbol : `${funding.quoteBalance === null ? "—" : formatTokenAmount(funding.quoteBalance, funding.quoteDecimals)} ${symbol}`);
+  ctx.text("[data-funding-swap]", `${formatTokenAmount(funding.quotedNativeInput, 18)} ${nativeSymbol}`);
+  ctx.text("[data-funding-gas]", `${formatTokenAmount(funding.gasCost, 18)} ${nativeSymbol}`);
+  ctx.text("[data-funding-total]", `${formatTokenAmount(funding.totalRequired, 18)} ${nativeSymbol}`);
+  ctx.text("[data-funding-balance]", `${formatTokenAmount(funding.ethBalance, 18)} ${nativeSymbol}`);
 }
 
 async function quoteDecimalsFor(selected: SelectedLaunchConfig): Promise<number> {

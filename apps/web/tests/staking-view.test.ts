@@ -65,3 +65,6 @@ test('position display validates free, claimable, timestamps and source against 
   assert.throws(()=>validateStakePositions([position],address,46630,new Set(),{blockNumber:'9',blockHash:source.blockHash}),/exceeds snapshot/);
   assert.throws(()=>validateStakePositions([position],address,46630,new Set(),{blockNumber:'10',blockHash:('0x'+'7'.repeat(64)) as `0x${string}`}),/exceeds snapshot/);
 });
+
+import {stakeMarketOpenAfterAccountChange} from '../src/v1/stakingView.ts';
+test('initial account hydration preserves explicit stake selection; wallet changes clear it',()=>{assert.equal(stakeMarketOpenAfterAccountChange('',true,null),true);assert.equal(stakeMarketOpenAfterAccountChange('0xold',true,null),false);assert.equal(stakeMarketOpenAfterAccountChange('0xold',false,'add'),true);});
