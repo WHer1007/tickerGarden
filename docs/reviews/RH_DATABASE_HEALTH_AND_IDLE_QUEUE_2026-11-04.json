@@ -1,6 +1,5 @@
 {
-  "status": "LOCAL_VERIFIED_NOT_DEPLOYED",
-  "productionBaseCommit": "082eb229236882bde0acc2a1dc8f783ab070f88a",
+  "status": "DEPLOYED_VERIFIED_SHORT_WINDOW",
   "sourceFile": "services/backend-ts/packages/chain-worker/src/resident.ts",
   "sourceSha256": "d1b71222f0cdbd600deb62f3f51fa78df23a92c011a0bf88a24acdd0ee0fa8d9",
   "observation": {
@@ -48,7 +47,8 @@
     "typecheck": "PASS",
     "build": "PASS",
     "generated": "PASS",
-    "packaging": "PASS"
+    "packaging": "PASS",
+    "liveCompatibleResident": 7
   },
   "localEqualPollBenchmark": {
     "samples": 200,
@@ -78,9 +78,64 @@
     "scope": "Local PG14; timings exclude intentional poll sleep; WAL LSN is cluster-wide, not production latency."
   },
   "limitations": [
-    "Production worker not changed or restarted",
-    "Local integration PostgreSQL 14.20; production EXPLAIN PostgreSQL 17.11",
-    "WAL insertion-position delta is cluster-wide",
-    "Production tail-latency improvement requires a post-release observation window"
-  ]
+    "Production observation covers a short window; six-hour tail-latency comparison remains necessary",
+    "Local PostgreSQL 14.20 tests and production PostgreSQL 17.11 readonly EXPLAIN",
+    "Actual deployed baseline differs from its Git label; manifest seals the single-module overlay",
+    "Local WAL insertion-position deltas are cluster-wide",
+    "RH off-host automatic backup and restore evidence remain unresolved"
+  ],
+  "productionBaseLabel": "082eb229236882bde0acc2a1dc8f783ab070f88a",
+  "productionBaseLabelMatchesEntireLiveTree": false,
+  "productionRelease": {
+    "commit": "2bd4cb02274922b542dc0283af4cf118e6e09a77",
+    "service": "tickergarden-resident-worker-production.service",
+    "startedAt": "2026-11-04T15:32:40.476547+00:00",
+    "finishedAt": "2026-11-04T15:32:49.295741+00:00",
+    "oldPid": 531687,
+    "newPid": 3464672,
+    "sourcePath": "/opt/tickergarden-releases/2bd4cb0227-rh-resident-only",
+    "protectedUnchanged": true,
+    "residentSha256": "d1b71222f0cdbd600deb62f3f51fa78df23a92c011a0bf88a24acdd0ee0fa8d9",
+    "assembly": "sealed actual live base plus master resident.ts only",
+    "verifiedBackendFiles": 329,
+    "changedBackendFiles": [
+      "services/backend-ts/packages/chain-worker/src/resident.ts"
+    ],
+    "runtimeManifestSha256": "7a50a3a8f9b6d2796191a6f35719df91adc73a18da541d035b5f97dad2456f92"
+  },
+  "postReleaseObservation": {
+    "observedAt": "2026-11-04T15:35:00.985189+00:00",
+    "health": {
+      "ready": true,
+      "stopping": false,
+      "lastPollAt": 1793806500399,
+      "activeOperation": null,
+      "succeeded": 1,
+      "retried": 0,
+      "dead": 0,
+      "counterScope": "worker-state",
+      "sampledAt": "2026-11-04T15:35:01.075Z",
+      "retryCountIsNotBacklog": true
+    },
+    "queue": [
+      {
+        "queue": "chain",
+        "state": "succeeded",
+        "count": 13953
+      },
+      {
+        "queue": "content",
+        "state": "succeeded",
+        "count": 6
+      }
+    ],
+    "warningCount": 0,
+    "logReleaseCommits": [
+      "2bd4cb02274922b542dc0283af4cf118e6e09a77"
+    ],
+    "comparisonSeconds": 95.739677,
+    "workHintCalls": 90,
+    "workHintExecutionMs": 24.621,
+    "workHintWalBytes": 0
+  }
 }

@@ -1,8 +1,8 @@
 # RH 数据库健康与空闲队列优化 — 2026-11-04
 
-状态：优化已在独立工作区实现；生产仅执行只读诊断，尚未发布优化。
+状态：经用户明确授权，已于 2026-11-04 15:32:49 UTC 发布 RH resident Worker，初步健康检查通过。下方保留诊断和本地验收证据，生产观察结果附后。
 
-生产 RH Worker 的源目录为 `/opt/tickergarden-releases/082eb22923-ops`，对应基线 `082eb229236882bde0acc2a1dc8f783ab070f88a`。本次工作区为 `TickerGarden-rh-database-health`，不包含主工作区其他未发布变更。应用计时器、遥测和 RPC 租约存储源码哈希已与实际运行文件核对。
+原生产 RH Worker 的源目录为 `/opt/tickergarden-releases/082eb22923-ops`，标称基线 `082eb229236882bde0acc2a1dc8f783ab070f88a`。应用计时器、遥测和 RPC 租约存储源码哈希已与实际运行文件核对。后续全文件发布校验发现部分旧发布组装差异，处理方式见下方“窄范围发布”。本次工作区为 `TickerGarden-rh-database-health`，不包含主工作区其他未发布变更。
 
 ## 慢查询证据
 
@@ -73,10 +73,33 @@ SQL 调用减少 90%，空闲提交和行锁消除。WAL 位置为集群级计�
 
 ## 尚需处理的事项
 
-1. **生产发布及观测**：发布范围应仅为 RH resident Worker；经过 `test → master`，保留旧 release 路径用于回滚。发布后验证实际进程源码哈希、ready、真实任务处理、空闲时 SQL 量及新日志窗口，随后至少对比同等 6 小时窗口。不能将本地通过称为生产慢查询已消除。
+1. **生产持续观测**：已完成 RH resident Worker 窄范围发布，仍需对比同等 6 小时窗口。短窗口正常不能证明间歇性提交停顿彻底消失。
 2. **备份与恢复**：服务器已启用的应用数据库备份 timer 仅查到 BSC，每日任务最近成功于 11 月 3 日 20:54 UTC，文件保存在同一台机器。未找到 RH 已启用的自动备份 timer；所查 RH dump 为旧维护备份。仓库已有 off-host restic 备份及恢复演练脚本，但现有运维说明记录异机自动备份曾被暂缓。当前 `archive_mode=off`、无复制槽；没有足够证据确认 RH 的异机备份或 PITR 已落实。需要确认独立备份目标、保留期、RPO/RTO 并做恢复演练。
 3. **投影覆盖行锁写放大**：同一增量窗口，覆盖证明的 `covered_ranges ... FOR SHARE` 14 次执行产生约 13.7 MB WAL。它属于发布资格的安全检查，不能直接删除锁。若继续优化，应单独设计覆盖证明压缩及并发/reorg 验证，本次不与空闲轮询修改混合。
 4. **测试 relay**：RH test relay `/healthz` 返回 503，错误为 provider connection/RPC failure，订阅数为 0、待处理/死信均为 0。这是测试上游订阅故障，不是生产数据库故障。本次未改测试 RPC 配置或重启该服务。
 5. **宿主机资源**：若发布后仍出现慢 COMMIT，继续按短时间窗口采集 steal、WAL 等待与磁盘尾延迟，必要时评估独享 CPU/存储。当前证据不足以建议扩大连接池、增大 work_mem 或关闭同步刷盘。
 
 原始诊断存于本工作区 `.codex_tmp/rh-db-health/evidence/`，不进入 Git；包含内部 SQL 结构及运维细节。可共享的验证汇总另见同目录下本报告对应的 JSON 文件。
+
+## 窄范围发布
+
+- 开发提交 `32e1191e40e79ecee5d9d35f0215020869f6ea4b` 已通过 `test → master`，生产来源提交为 `2bd4cb02274922b542dc0283af4cf118e6e09a77`。两个分支的 source-only 门禁均通过，backend 产品树与本地验收版本相同。
+- 完整对照时发现：旧服务器运行包的 `pool.ts` 仍使用固定 10 秒回收；`retention.ts` 保留旧筛选；迁移注册止于 0034，未包含 0035。此外部分测试/验证脚本与标称 commit 不同。首次候选在校验处停止，未激活。
+- 为遵守“仅发布此项 RH Worker 优化”，最终候选封存并复制**实际在线运行版本**，仅叠加 master 上的 `resident.ts`。实际运行依赖/迁移/配置全部保留；另外按这三项实际源码差异重建本地兼容副本，重新执行 7 项 resident 数据库测试，全部通过。
+- 最终 release：`/opt/tickergarden-releases/2bd4cb0227-rh-resident-only`。329 个 backend 文件逐一校验，除 `packages/chain-worker/src/resident.ts` 外无差异；该文件 SHA-256 为 `d1b71222f0cdbd600deb62f3f51fa78df23a92c011a0bf88a24acdd0ee0fa8d9`。release 元数据明确记录这是“实际运行基线 + master 单模块”的组装产物，不能将它冒充完整 master 快照。
+- 只为 `tickergarden-resident-worker-production.service` 添加 `40-rh-idle-source.conf`，将 WorkingDirectory 固定到新 release。原实例 idle 后执行一次受控重启，PID 从 531687 变为 3464672；ready 为 true。
+- RH Display/BSC Display PID 与启动时间、PostgreSQL 容器启动时间、共享源码软链接、原环境文件 SHA-256 均保持不变。没有 Vercel 部署、前端发布、数据库迁移或数据库重启。
+- 回滚仅需删除上述独占 drop-in，`systemctl daemon-reload` 后重启该 resident service，即回到原 WorkingDirectory。原 release、共享软链接和环境文件均保留。
+
+后续全量后端发布必须继续按实际运行文件核对，不能只凭旧包目录名或 commit 标签判断来源一致。
+
+## 发布后在线观察
+
+2026-11-04 15:33:25–15:35:01 UTC（约 95.74 秒）：
+
+- 新 Worker 成功处理 1 个实际入队任务，重试 0、死信 0，`ready=true`；数据库 chain 成功任务从 13,952 增至 13,953，无待处理/失败积压。
+- 新工作提示 SQL 执行 90 次，合计数据库执行时间约 24.62 ms，WAL 字节增量 **0**。实际任务仍正常使用受保护的写事务。
+- 发布以来的日志没有慢 SQL、慢连接或任务失败事件，日志中的 release commit 为 `2bd4cb02274922b542dc0283af4cf118e6e09a77`。
+- 活跃日志出现业务处理所需 RPC；空闲阶段没有此类日志。此次代码未修改业务 RPC 行为。
+
+这些是发布后的短窗口结果，不是全天 SLA 或“慢查询已永久消失”的结论。保留原告警阈值，后续按同等 6 小时窗口比较 COMMIT 告警频率、任务耗时和宿主机 steal。
