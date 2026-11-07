@@ -1,0 +1,506 @@
+{
+  "schemaVersion": 1,
+  "reportDate": "2026-11-08",
+  "timezone": "Asia/Shanghai",
+  "status": "RELEASE_SCOPE_IDENTIFIED_PATCH_AND_FINAL_ACCEPTANCE_REQUIRED",
+  "deployed": false,
+  "sourceBaseline": {
+    "sourceCommit": "042f46e55a8a86e04ded0ac79dc34e5f2c659c06",
+    "baseCommit": "082eb229236882bde0acc2a1dc8f783ab070f88a",
+    "webTree": "28d52e590e2a433313490ddb5222319e63a3c2ff",
+    "testWebTree": "28d52e590e2a433313490ddb5222319e63a3c2ff",
+    "priorCandidateWebTree": "28d52e590e2a433313490ddb5222319e63a3c2ff",
+    "changedFiles": [
+      "apps/web/src/app.ts",
+      "apps/web/src/chains/asset-availability.ts",
+      "apps/web/src/chains/bsc/generated.ts",
+      "apps/web/src/chains/bsc/risk.ts",
+      "apps/web/src/controllers/create.ts",
+      "apps/web/src/controllers/trade.ts",
+      "apps/web/src/create/paired-assets.ts",
+      "apps/web/src/create/staking-assets.ts",
+      "apps/web/src/pages/create.ts",
+      "apps/web/src/pages/staking.ts",
+      "apps/web/src/v1/stakingView.ts",
+      "apps/web/tests/asset-availability.test.ts",
+      "apps/web/tests/bsc-entry.test.ts",
+      "apps/web/tests/staking-assets.test.ts",
+      "apps/web/tests/staking-view.test.ts",
+      "apps/web/tests/trade-head-submit.test.ts",
+      "apps/web/tests/trade-submit-refresh.test.ts"
+    ],
+    "styleFiles": [
+      {
+        "path": "apps/web/fonts.css",
+        "unchanged": true,
+        "gitBlob": "3b444cb89b5c7fe15c6033f67f9524f0438596a6"
+      },
+      {
+        "path": "apps/web/legal.css",
+        "unchanged": true,
+        "gitBlob": "cf86edb1dfb9ab62c1003ff5d4901be6a901dccb"
+      },
+      {
+        "path": "apps/web/src/create/create.css",
+        "unchanged": true,
+        "gitBlob": "080735ce264126c5b1dfc37e70913f70cdcb4d02"
+      },
+      {
+        "path": "apps/web/src/create/launch-progress.css",
+        "unchanged": true,
+        "gitBlob": "019116b293123aaa28d9ee23215eb14b6b18fd0f"
+      },
+      {
+        "path": "apps/web/src/home/signal-arbor.css",
+        "unchanged": true,
+        "gitBlob": "7739b9cad88758256a7660fa859fff1cd87d4979"
+      },
+      {
+        "path": "apps/web/src/icons/regular.css",
+        "unchanged": true,
+        "gitBlob": "cba4a388ff838acaf38cec9ee9d25c82848212cb"
+      },
+      {
+        "path": "apps/web/src/pages/markets.css",
+        "unchanged": true,
+        "gitBlob": "8bbf7b7610e5f0952135b16bd129b41ce7b3feeb"
+      },
+      {
+        "path": "apps/web/src/pages/rewards.css",
+        "unchanged": true,
+        "gitBlob": "06838d624c29bb921a15d2321f2e945cdf53f8a1"
+      },
+      {
+        "path": "apps/web/src/pages/staking.css",
+        "unchanged": true,
+        "gitBlob": "bd5277708121303ff6179d85848a231b7e17aea8"
+      },
+      {
+        "path": "apps/web/src/pages/stats.css",
+        "unchanged": true,
+        "gitBlob": "4c07647e23c4b72619f6f8ca79dac1be073ddd0c"
+      },
+      {
+        "path": "apps/web/src/pages/trade.css",
+        "unchanged": true,
+        "gitBlob": "9382c97da408443342641181574401e55b1d6a5d"
+      },
+      {
+        "path": "apps/web/src/pages/tradeLive.css",
+        "unchanged": true,
+        "gitBlob": "b59db7130d49836fa4f0f16726a583118db8a5f3"
+      },
+      {
+        "path": "apps/web/src/pages/tradeReference.css",
+        "unchanged": true,
+        "gitBlob": "056229247ca9c0efd103146eac749d81f9de874a"
+      },
+      {
+        "path": "apps/web/src/trade/confirmation.css",
+        "unchanged": true,
+        "gitBlob": "1a99db5514b7f3191d71e814c8269b7afcddc535"
+      },
+      {
+        "path": "apps/web/src/ui/reward-claim-dialog.css",
+        "unchanged": true,
+        "gitBlob": "0aea59aa339c7d6698b99db281285992faa84411"
+      },
+      {
+        "path": "apps/web/styles.css",
+        "unchanged": true,
+        "gitBlob": "bc49edd300b51823f44cc0c09ad94f20363ef1a1"
+      },
+      {
+        "path": "apps/web/subpages.css",
+        "unchanged": true,
+        "gitBlob": "92d9abbf1cba873d77b1d0a332db596e8d40cf9f"
+      }
+    ],
+    "stylesUnchanged": true,
+    "dependenciesChanged": false
+  },
+  "finalReleaseCommit": null,
+  "productionWeb": {
+    "id": "dpl_BozQjCvVJayzpUo8ePshsjEJxhuH",
+    "url": "tickergarden-cbx919358-garden24.vercel.app",
+    "readyState": "READY",
+    "regions": [
+      "sin1"
+    ]
+  },
+  "productionWebCommit": "082eb229236882bde0acc2a1dc8f783ab070f88a",
+  "currentWebRuntimeFunctions": {
+    "count": 2,
+    "regions": [
+      "sin1"
+    ],
+    "gatePassed": true
+  },
+  "backendDeployments": [
+    {
+      "alias": "tickergarden-bsc-read-api.vercel.app",
+      "id": "dpl_YbZoNveTLGDLk6VcfwHKagEKa51a",
+      "url": "tickergarden-bsc-read-ey4979ys4-garden24.vercel.app",
+      "readyState": "READY",
+      "commit": "39217f4fb4112a28647d1932e67d24aa82dbadfa",
+      "regions": [
+        "sin1"
+      ]
+    },
+    {
+      "alias": "tickergarden-bsc-content.vercel.app",
+      "id": "dpl_C5ZW1HiZEvvHgKRuJh9VAJQnXVAp",
+      "url": "tickergarden-bsc-content-6iolpyf81-garden24.vercel.app",
+      "readyState": "READY",
+      "commit": "b8a1d17e7a6084c3e7779a12e6617f08d9514a87",
+      "regions": [
+        "sin1"
+      ]
+    }
+  ],
+  "webCommits": [
+    "a55d751212e2e618d169b0a7255e7404b209698d",
+    "f022a820982442280f4951a0053d476b9434b136"
+  ],
+  "tests": {
+    "passed": 778,
+    "failed": 0,
+    "skipped": 0,
+    "compiledAbiInputsMatched": 18,
+    "buildVercelPassed": true,
+    "sourceBoundaryPassed": true,
+    "fullEnvironmentBoundary": {
+      "status": "NOT_VERIFIED",
+      "reason": "RPC control requires a private budget token"
+    },
+    "forkRerun": false,
+    "browserTransactionRerun": false
+  },
+  "configProposal": {
+    "authoritativeSource": "/Users/dear/Documents/code/TickerGarden-BSC/config/workspace.json",
+    "section": "productionResources.frontend.candidate",
+    "applied": false,
+    "publicDiff": [
+      {
+        "key": "VITE_BSC_FACTORY_ADDRESS",
+        "current": null,
+        "proposed": "0x186d0c4b6f9f33a30545c0acff8e0cd90cc20578",
+        "equal": false
+      },
+      {
+        "key": "VITE_BSC_LAUNCH_ROUTER_ADDRESS",
+        "current": null,
+        "proposed": "0x0ba79b15d7cfd640fa19d591ce4055b80269a76c",
+        "equal": false
+      },
+      {
+        "key": "VITE_BSC_ALLOCATION_MANAGER_ADDRESS",
+        "current": null,
+        "proposed": "0x074d660831eab9ebd8323443487bc2f30ad0aff6",
+        "equal": false
+      },
+      {
+        "key": "VITE_BSC_PROTOCOL_FEE_VAULT_ADDRESS",
+        "current": null,
+        "proposed": "0x24fbfa2679698fae4f5cf34d8b937045deb271d5",
+        "equal": false
+      },
+      {
+        "key": "VITE_BSC_CREATOR_REVENUE_REGISTRY_ADDRESS",
+        "current": null,
+        "proposed": "0x6a0378d04e9b67fab9579a1e30a007b875029a5a",
+        "equal": false
+      },
+      {
+        "key": "VITE_BSC_TREASURY_DISTRIBUTOR_ADDRESS",
+        "current": null,
+        "proposed": "0x81ad9c2ad391c95c3a45e4ba20d146fb59392e6c",
+        "equal": false
+      },
+      {
+        "key": "VITE_BSC_READ_API_URL",
+        "current": "https://tickergarden-evm-api.vercel.app",
+        "proposed": "https://tickergarden-evm-api.vercel.app",
+        "equal": true
+      },
+      {
+        "key": "VITE_BSC_CONTENT_ORIGIN",
+        "current": "https://tickergarden-evm-api.vercel.app",
+        "proposed": "https://tickergarden-evm-api.vercel.app",
+        "equal": true
+      },
+      {
+        "key": "VITE_BSC_RELEASE_CATALOG",
+        "current": null,
+        "proposed": "[{\"releaseId\":\"0x182de16882fbe6f2305871fbdf4f21f64ae5404a43d8ff0d434096bbce067d64\",\"chainId\":56,\"holderRewardMode\":\"wallet-snapshot-v1\",\"factory\":\"0x186d0c4b6f9f33a30545c0acff8e0cd90cc20578\",\"marketRegistry\":\"0x2eb5897dd46e62d4df7a20b42f020590541104aa\",\"hook\":\"0xbc27972bfe54658330b78d53ad3716ffb4162044\",\"feeVault\":\"0x24fbfa2679698fae4f5cf34d8b937045deb271d5\",\"creatorRegistry\":\"0x6a0378d04e9b67fab9579a1e30a007b875029a5a\",\"holderDistributor\":\"0x81ad9c2ad391c95c3a45e4ba20d146fb59392e6c\",\"launchRouter\":\"0x0ba79b15d7cfd640fa19d591ce4055b80269a76c\",\"allocationManager\":\"0x074d660831eab9ebd8323443487bc2f30ad0aff6\"}]",
+        "equal": false
+      },
+      {
+        "key": "VITE_BSC_USER_WRITES",
+        "current": "disabled",
+        "proposed": "approved",
+        "equal": false
+      },
+      {
+        "key": "VITE_BSC_HOLDER_SNAPSHOT_RELEASE_APPROVAL",
+        "current": null,
+        "proposed": null,
+        "equal": true
+      }
+    ],
+    "rpcProviderInspection": [
+      {
+        "key": "TG_BSC_WEB_RPC_URL",
+        "exported": true,
+        "pathRelative": false,
+        "quicknode": true,
+        "alchemy": false,
+        "fallback": false
+      },
+      {
+        "key": "TG_RPC_BUDGET_URL",
+        "exported": true,
+        "pathRelative": false,
+        "quicknode": false,
+        "alchemy": false,
+        "fallback": false
+      },
+      {
+        "key": "TG_WEB_RPC_URL",
+        "exported": true,
+        "pathRelative": false,
+        "quicknode": false,
+        "alchemy": false,
+        "fallback": false
+      },
+      {
+        "key": "VITE_V1_RPC_URL",
+        "exported": true,
+        "pathRelative": true,
+        "quicknode": false,
+        "alchemy": false,
+        "fallback": false
+      }
+    ],
+    "rh": {
+      "TG_PROFILE": "master",
+      "VITE_V1_CHAIN_ID": "4663",
+      "VITE_V1_RPC_URL": "/api/rpc",
+      "VITE_V1_READ_API_URL": "https://api.tickergarden.com"
+    }
+  },
+  "assetComparison": {
+    "source": "persisted API configuration; not a fresh chain-wide scan",
+    "registeredQuote": 81,
+    "registeredStake": 78,
+    "frontendQuote": 80,
+    "frontendStake": 77,
+    "mismatches": []
+  },
+  "priceSnapshot": {
+    "observedAt": "2026-11-07T15:58:25.556370+00:00",
+    "total": 81,
+    "available": 80,
+    "rejected": [
+      {
+        "symbol": "GPROB",
+        "status": "unavailable",
+        "reason": "book_spread_exceeded"
+      }
+    ]
+  },
+  "apiHealth": [
+    {
+      "path": "/health?chainId=56",
+      "status": 200,
+      "data": {
+        "syncBasis": "persisted-publication",
+        "liveChainHeadVerified": false,
+        "indexing": {
+          "status": "idle",
+          "checkpointAgeSeconds": 265542.617424,
+          "deadJobs": 0
+        },
+        "executionSpecId": "V1-EXEC-11",
+        "status": "read-api",
+        "readApiImplemented": true,
+        "productRuntimeImplemented": true,
+        "custody": false,
+        "transactionSubmission": false,
+        "sync": {
+          "chainId": 56,
+          "status": "lagging",
+          "blockNumber": "131638020",
+          "blockHash": "0x8c56333534f48f6e478b314918bc489b6779ef8455fba2a37e12e4fad5b24a55",
+          "finality": "finalized",
+          "headBlockNumber": "131638020",
+          "headBlockHash": "0x8c56333534f48f6e478b314918bc489b6779ef8455fba2a37e12e4fad5b24a55",
+          "lagBlocks": "0",
+          "revision": "131638020:0x8c56333534f48f6e478b314918bc489b6779ef8455fba2a37e12e4fad5b24a55"
+        }
+      }
+    },
+    {
+      "path": "/health?chainId=4663",
+      "status": 200,
+      "data": {
+        "executionSpecId": "V1-EXEC-11",
+        "status": "read-api",
+        "readApiImplemented": true,
+        "productRuntimeImplemented": true,
+        "custody": false,
+        "transactionSubmission": false,
+        "sync": {
+          "chainId": 4663,
+          "status": "synced",
+          "blockNumber": "108515101",
+          "blockHash": "0xa227c89cda4c660743ef2ae499d6c9b591b3a79275d501a1932552a9df2f3520",
+          "finality": "finalized",
+          "headBlockNumber": "108515101",
+          "headBlockHash": "0xa227c89cda4c660743ef2ae499d6c9b591b3a79275d501a1932552a9df2f3520",
+          "lagBlocks": "0",
+          "revision": "108515101:0xa227c89cda4c660743ef2ae499d6c9b591b3a79275d501a1932552a9df2f3520"
+        },
+        "syncBasis": "persisted-publication",
+        "liveChainHeadVerified": false
+      }
+    }
+  ],
+  "launchNotificationFinding": {
+    "networkUsed": false,
+    "selectedChain": 56,
+    "currentRawPipeline": "https://pipeline.tickergarden.com",
+    "scopedBscPipeline": null,
+    "calls": [
+      {
+        "url": "https://pipeline.tickergarden.com/v1/launches",
+        "method": "POST",
+        "bodyKeys": [
+          "transactionHash"
+        ]
+      }
+    ],
+    "chainSelectorPresent": false,
+    "sourceCallSites": [
+      "apps/web/src/controllers/create.ts:137",
+      "apps/web/src/controllers/create.ts:1056"
+    ],
+    "finding": "Raw RH Pipeline environment is used for BSC launch completion and recovery"
+  },
+  "gatewayLaunchFinding": {
+    "sourceCommit": "8c0428ae6d60c874b1d0106ef0557fc64d3b5570",
+    "sourcePath": "services/evm-gateway/src/router.mjs",
+    "sha256": "ac0ddff60a30f31aa97f47ee5b9ae5c181bcc5feed60230e23edc63c6015501c",
+    "httpStatus": 405,
+    "response": {
+      "error": "method_not_allowed"
+    },
+    "upstreamCalls": 0,
+    "networkUsed": false
+  },
+  "hostReadOnly": {
+    "observedAt": "2026-11-07T16:00:08.791233+00:00",
+    "services": {
+      "tickergarden-resident-worker-production.service": {
+        "properties": {
+          "MainPID": "3464672",
+          "NRestarts": "0",
+          "ActiveState": "active",
+          "SubState": "running",
+          "ActiveEnterTimestamp": "Wed 2026-11-04 15:32:42 UTC"
+        },
+        "last15Minutes": {
+          "structuredWarningsErrors": 0,
+          "eventCounts": {}
+        }
+      },
+      "tickergarden-confirmed-display-production.service": {
+        "properties": {
+          "MainPID": "531686",
+          "NRestarts": "0",
+          "ActiveState": "active",
+          "SubState": "running",
+          "ActiveEnterTimestamp": "Sun 2026-11-01 19:29:19 UTC"
+        },
+        "last15Minutes": {
+          "structuredWarningsErrors": 0,
+          "eventCounts": {}
+        }
+      },
+      "tickergarden-bsc-display.service": {
+        "properties": {
+          "MainPID": "3396593",
+          "NRestarts": "0",
+          "ActiveState": "active",
+          "SubState": "running",
+          "ActiveEnterTimestamp": "Wed 2026-11-04 14:06:35 UTC"
+        },
+        "last15Minutes": {
+          "structuredWarningsErrors": 0,
+          "eventCounts": {}
+        }
+      },
+      "tickergarden-bsc-event-relay.service": {
+        "properties": {
+          "MainPID": "3396583",
+          "NRestarts": "3",
+          "ActiveState": "active",
+          "SubState": "running",
+          "ActiveEnterTimestamp": "Wed 2026-11-04 14:06:35 UTC"
+        },
+        "last15Minutes": {
+          "structuredWarningsErrors": 1,
+          "eventCounts": {
+            "database_slow_query": 1
+          }
+        }
+      },
+      "tickergarden-bsc-backend.service": {
+        "properties": {
+          "MainPID": "3393304",
+          "NRestarts": "0",
+          "ActiveState": "active",
+          "SubState": "running",
+          "ActiveEnterTimestamp": "Wed 2026-11-04 14:02:56 UTC"
+        },
+        "last15Minutes": {
+          "structuredWarningsErrors": 0,
+          "eventCounts": {}
+        }
+      }
+    }
+  },
+  "requiredReleaseComponents": [
+    "shared-web: chain-scoped launch notification and recovery",
+    "evm-gateway: allowlisted chain-specific launch notification route",
+    "central-config: generated runtime bindings with Holder approval disabled"
+  ],
+  "baselineExport": {
+    "status": "SOURCE_EXPORTED",
+    "target": "production",
+    "service": "web",
+    "branch": "master",
+    "commit": "042f46e55a8a86e04ded0ac79dc34e5f2c659c06",
+    "directory": "/Users/dear/Documents/code/TickerGarden-production/.codex_tmp/vercel-source/web-042f46e5-BxC8yt"
+  },
+  "baselineExportIsFinalRelease": false,
+  "remainingAcceptance": [
+    "final patch on test then master",
+    "final configuration Fork and browser integration",
+    "sensitive runtime boundary in Vercel build",
+    "actual runtime sin1 for both new deployments",
+    "BSC Relay slow-query observation",
+    "explicit final production publication instruction"
+  ],
+  "evidenceHashes": {
+    "frontend-tests.log": "e488c2428f656e40f4483db038331fd388956bb6200b99c55873871ab91f5de7",
+    "frontend-build.log": "020441e778b5a3c007c0b200819bf65dabe32cea8513e59852d64e83c9ed5448",
+    "current-web-region.log": "2a4ea3f5efe604aeb8139ffa483bd2272a5023d38a56f951b4ec378d75459f5a",
+    "source-stage.log": "42d6d7ff67ba9a7203dd57baf08aa077f972ae4ded6bd7ed12427df9f2451d7e",
+    "abi-inputs.json": "77ac6431ccf0fee752d38f4fd5beb7b955e82f21ac04d9256703bd8df4cacff9",
+    "asset-comparison.json": "a110d41f5a6430735c96f5d6d06f89dfa30294bf7a1d085a2580783aefcedd86",
+    "launch-notification-repro.json": "ca4abcf4372608cd70843404d5befa40baa5b68c8acc45bb437ab30fd3fc76c6",
+    "gateway-launch-repro.json": "5955f45a56d08ef964c0d21c20961e0e17e0560abb2339c3dc2c144532c01314",
+    "host-readonly.json": "03d6451275b94a509f6f312d38dfa2d406b56e207c90c4ff4344943b266b70e5"
+  }
+}
