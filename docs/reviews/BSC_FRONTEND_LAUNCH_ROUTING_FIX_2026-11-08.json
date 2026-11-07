@@ -1,0 +1,81 @@
+{
+  "date": "2026-11-08",
+  "status": "LOCAL_ACCEPTANCE_PASSED",
+  "publication": "NOT_DEPLOYED",
+  "webCommit": "657682fdb8268551b674b8429c41cbc4ab9569da",
+  "webTree": "109501256597a986edba7d16bcc75c098271fb74",
+  "gatewayCommit": "249254a3e1a258fe61dee8d2515c97142d25e8ff",
+  "gatewayTree": "066476e8c04e1a9b55a4e6d6b5a4bb58ced9ff6e",
+  "headerDesignCommit": "a8f564e1d90a9ef0615fdbe654d36158e3f9aee3",
+  "tests": {
+    "webPassed": 792,
+    "gatewayAndResourcePassed": 30,
+    "browserViewports": [
+      1440,
+      390
+    ],
+    "lifecycle": "passed",
+    "styles": "passed",
+    "candidateBuild": "passed",
+    "crossRepositoryRouting": "passed_with_simulated_upstreams"
+  },
+  "productionMutation": false,
+  "broadcast": false,
+  "forkRerun": false,
+  "realWallet": false,
+  "fullBscToolsSuite": "not_passed_missing_isolated_inputs_dependencies_and_legacy_fixtures",
+  "artifacts": [
+    {
+      "path": "/Users/dear/Documents/code/TickerGarden-bsc-web-release-plan/.codex_tmp/bsc-launch-routing/evidence/frontend-tests.log",
+      "sha256": "5357111f970540015bc6b1821a2efb61b2d3be3a5ff5316d7c662b9899a24ea7"
+    },
+    {
+      "path": "/Users/dear/Documents/code/TickerGarden-bsc-web-release-plan/.codex_tmp/bsc-launch-routing/evidence/frontend-build.log",
+      "sha256": "02ddc692c49f3be166f413fff3e2fd4c32c3fcb691895da9a5ea228c76f6603d"
+    },
+    {
+      "path": "/Users/dear/Documents/code/TickerGarden-bsc-web-release-plan/.codex_tmp/bsc-launch-routing/evidence/browser-lifecycle.log",
+      "sha256": "c026d67672c1105c1bb837c4d049b3e2402c28bed57be3784939617547a12d70"
+    },
+    {
+      "path": "/Users/dear/Documents/code/TickerGarden-bsc-web-release-plan/.codex_tmp/bsc-launch-routing/evidence/browser-styles.log",
+      "sha256": "a6c2e98a0e58313aba1959c198c7d0265c1accf43fdab4df059bd837a1ba2c8e"
+    },
+    {
+      "path": "/Users/dear/Documents/code/TickerGarden-bsc-web-release-plan/.codex_tmp/bsc-launch-routing/evidence/joint-routing.log",
+      "sha256": "84b12c3514ad4e7ba6ad37cd823bb65e9ac75a0e7352380ec78cdeddf21755c2"
+    },
+    {
+      "path": "/Users/dear/Documents/code/TickerGarden-bsc-web-release-plan/.codex_tmp/bsc-launch-routing/evidence/browser/acceptance.json",
+      "sha256": "0564e81b4599a28c5d30c053b3feac848dacc9949b7bd5afe2ce2bde9a56bc50"
+    },
+    {
+      "path": "/Users/dear/Documents/code/TickerGarden-bsc-web-release-plan/.codex_tmp/bsc-launch-routing/evidence/config-change.json",
+      "sha256": "d07384ade087cc569e1f463197cd7205584ccaea657052d008e210d05428761d"
+    },
+    {
+      "path": "/Users/dear/Documents/code/TickerGarden-BSC-launch-routing/.codex_tmp/launch-routing/evidence/gateway-tests.log",
+      "sha256": "7b4677b36da872cab6caa70753ecd697db5e1f2334846a4431ce5b38eca359a9"
+    },
+    {
+      "path": "/Users/dear/Documents/code/TickerGarden-BSC-launch-routing/.codex_tmp/launch-routing/evidence/config-projection.json",
+      "sha256": "b09bf612c9f0a842cb0d2b2b9f148d1b6d5d5eceae8c7e3b51edc51021581eb0"
+    },
+    {
+      "path": "/Users/dear/Documents/code/TickerGarden-bsc-web-release-plan/.codex_tmp/bsc-launch-routing/evidence/browser/header-bsc-1440.png",
+      "sha256": "a189d40195fa3b9a7b45ed829217877d37e18b53f9d445d3b4a04be87836454c"
+    },
+    {
+      "path": "/Users/dear/Documents/code/TickerGarden-bsc-web-release-plan/.codex_tmp/bsc-launch-routing/evidence/browser/header-bsc-390.png",
+      "sha256": "14ede12b952e9d83001b7c41ae0f592f061e91eccb007ff0dc31028aec293be7"
+    },
+    {
+      "path": "/Users/dear/Documents/code/TickerGarden-bsc-web-release-plan/.codex_tmp/bsc-launch-routing/evidence/browser/header-rh-1440.png",
+      "sha256": "cdeb5dbe0139e26cbb1042f8c501a164cad2fac931583d7c4b6d66986a7329d5"
+    },
+    {
+      "path": "/Users/dear/Documents/code/TickerGarden-bsc-web-release-plan/.codex_tmp/bsc-launch-routing/evidence/browser/header-rh-390.png",
+      "sha256": "562a84c18540d324683a03b7caea8986d44f32b2a2390ef583d51fbcb59ab8b5"
+    }
+  ]
+}
