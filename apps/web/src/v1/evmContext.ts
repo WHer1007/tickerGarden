@@ -20,8 +20,10 @@ export function evmEnvironment(env: Record<string, string | boolean | undefined>
  if(env.VITE_BSC_USER_WRITES!=='approved')for(const key of Object.keys(scoped))if(key.startsWith('VITE_V1_')&&key.endsWith('_ADDRESS'))delete scoped[key];
  scoped.VITE_LAUNCH_METADATA_ORIGIN = typeof bscEnv.VITE_BSC_CONTENT_ORIGIN === "string" ? bscEnv.VITE_BSC_CONTENT_ORIGIN : undefined;
  scoped.VITE_INTEGRATION_BOOTSTRAP = undefined;
- scoped.VITE_HOLDER_SNAPSHOT_RELEASE_APPROVAL = typeof env.VITE_BSC_HOLDER_SNAPSHOT_RELEASE_APPROVAL==='string'?env.VITE_BSC_HOLDER_SNAPSHOT_RELEASE_APPROVAL:undefined;
- scoped.VITE_CONTINUOUS_HOLDER_RELEASE_APPROVAL = typeof env.VITE_BSC_CONTINUOUS_HOLDER_RELEASE_APPROVAL==='string'?env.VITE_BSC_CONTINUOUS_HOLDER_RELEASE_APPROVAL:undefined;
+ // First BSC release keeps Holder claims closed, including stale candidate approvals.
+ // This matches the execution guard and does not affect Creator or Staker claims.
+ scoped.VITE_HOLDER_SNAPSHOT_RELEASE_APPROVAL = undefined;
+ scoped.VITE_CONTINUOUS_HOLDER_RELEASE_APPROVAL = undefined;
  scoped.VITE_MARKET_RELEASE_CATALOG = typeof env.VITE_BSC_RELEASE_CATALOG==='string'?env.VITE_BSC_RELEASE_CATALOG:undefined;
  return Object.freeze(scoped);
 }

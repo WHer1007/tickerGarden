@@ -24,7 +24,8 @@ try{
    if(route==='claim'){
     assert.equal(await page.locator('[data-creator-epoch]').isVisible(),true);
     assert.equal(await page.locator('#rewards-panel-creator [data-rewards-connect]').isVisible(),true);
-    assert.equal(await page.evaluate(()=>Boolean(document.querySelector('.claim-action').compareDocumentPosition(document.querySelector('[data-creator-epoch]')) & Node.DOCUMENT_POSITION_FOLLOWING)),true);
+    // The released Creator form selects a reward period before the claim action.
+    assert.equal(await page.evaluate(()=>Boolean(document.querySelector('[data-creator-epoch]').compareDocumentPosition(document.querySelector('#rewards-panel-creator .claim-action')) & Node.DOCUMENT_POSITION_FOLLOWING)),true);
    }
    if(route==='stake'){
     await page.locator('[data-stake-portfolio-empty][data-state=connect]').waitFor();

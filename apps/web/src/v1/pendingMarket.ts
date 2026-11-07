@@ -1,5 +1,6 @@
 import {assertFinalizedSync} from '../runtime/model.ts';
 import {TickerGardenApiError,type MarketDetailResponse} from './generated/read-api.ts';
+import {EVM_GATEWAY_ORIGIN,scopedEvmUrl} from './evmTransport.ts';
 
 // Absence in a valid publication is recoverable; transport and identity errors
 // must still fail visibly. Never construct a market from a receipt or RPC here.
@@ -29,13 +30,30 @@ export const LAUNCH_CONFIRMED_COPY = 'Your token is live.';
 // This only requests backend verification. It never sends market fields or
 // copies receipt-derived statistics into the page.
 const notifications=new Map<string,Promise<boolean>>();
-export function notifyLaunchDatabase(hash:string,base:unknown,fetcher:typeof fetch=fetch):Promise<boolean>{
- if(!/^0x[0-9a-f]{64}$/.test(hash)||typeof base!=='string')return Promise.resolve(false);
- let url:URL;try{url=new URL('/v1/launches',base);if(url.protocol!=='https:')return Promise.resolve(false);}catch{return Promise.resolve(false);}
- const key=`${url.origin}:${hash}`;const pending=notifications.get(key);if(pending)return pending;
+export type LaunchNotificationTarget = Readonly<{chainId:number;pipelineUrl:string}>;
+export function launchNotificationTarget(env:Record<string,unknown>,chainId:number):LaunchNotificationTarget|undefined {
+ const pipelineUrl=chainId===56?env.VITE_BSC_PIPELINE_URL:env.VITE_V1_PIPELINE_URL;
+ return typeof pipelineUrl==='string'&&[56,4663,46630,421614].includes(chainId)?{chainId,pipelineUrl}:undefined;
+}
+export function notifyLaunchDatabase(hash:string,target:LaunchNotificationTarget|undefined,fetcher:typeof fetch=fetch):Promise<boolean>{
+ if(!/^0x[0-9a-f]{64}$/.test(hash)||!target||![56,4663,46630,421614].includes(target.chainId))return Promise.resolve(false);
+ let url:URL;
+ try{
+  const base=new URL(target.pipelineUrl);
+  if(base.protocol!=='https:'||base.username||base.password||base.hash) return Promise.resolve(false);
+  // BSC notifications use the explicit gateway; never inherit a direct RH Pipeline.
+  if(target.chainId===56&&base.origin!==EVM_GATEWAY_ORIGIN)return Promise.resolve(false);
+  if(base.searchParams.size&&(![...base.searchParams.keys()].every(k=>k==='chainId')||base.searchParams.getAll('chainId').length!==1||base.searchParams.get('chainId')!==String(target.chainId)))return Promise.resolve(false);
+  url=new URL(scopedEvmUrl(new URL('/v1/launches',base),target.chainId));
+ }catch{return Promise.resolve(false);}
+ const key=`${target.chainId}:${url.href}:${hash}`;const pending=notifications.get(key);if(pending)return pending;
  const work=(async()=>{for(let attempt=0;attempt<6;attempt++){
   try{const response=await fetcher(url,{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({transactionHash:hash}),signal:AbortSignal.timeout(25000)});
-   if(response.ok){const result=await response.json();if(result.status==='confirmed'&&/^0x[0-9a-f]{64}$/.test(result.marketId))return true;}
+   const selected=response.headers.get('x-chain-id');
+   if((response.ok&&url.origin===EVM_GATEWAY_ORIGIN&&selected!==String(target.chainId))||(selected!==null&&selected!==String(target.chainId)))return false;
+   if(response.ok){const result=await response.json();if(result.chainId!==undefined&&result.chainId!==target.chainId)return false;if(result.transactionHash!==undefined&&result.transactionHash!==hash)return false;if(result.status==='confirmed'&&/^0x[0-9a-f]{64}$/.test(result.marketId))return true;}
+   // Configuration and validation failures cannot be recovered by repeating the same request.
+   if(response.status>=400&&response.status<500&&![408,429].includes(response.status))return false;
   }catch{/* The durable WebSocket relay is an independent delivery path. */}
   if(attempt<5)await new Promise(resolve=>setTimeout(resolve,5000));
  }return false;})();

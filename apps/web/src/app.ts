@@ -1057,7 +1057,11 @@ function receiptEvent(
 }
 
 function setupShell(): void {
-  renderShell(currentPage(), robinhoodChain.name);
+  renderShell(currentPage(), robinhoodChain.name, () => {
+    if (!hasActiveOperations()) return true;
+    notify("Wait for the current transaction before switching networks.", "warning");
+    return false;
+  });
   const header = required<HTMLElement>("[data-shell-header]");
   walletPicker ??= createWalletPicker({ connect: connectWallet, restore: restoreWallet, disconnect: disconnectWallet, account: () => wallet?.account ?? null });
   required<HTMLButtonElement>("[data-wallet]").addEventListener("click", () => {
@@ -1086,7 +1090,7 @@ function renderWallet(): void {
   if (label) label.textContent = wallet ? shortHex(wallet.account) : "Connect Wallet";
   button.dataset.state = wallet ? "connected" : "disconnected";
   button.setAttribute("aria-label", wallet ? "Manage connected wallet" : "Connect wallet");
-  button.title = wallet?.account ?? "";
+  button.title = wallet ? `Manage wallet · ${shortHex(wallet.account)}` : "Connect wallet";
   queryAll<HTMLElement>("[data-wallet-only]").forEach(element => { element.hidden = !wallet; });
 }
 

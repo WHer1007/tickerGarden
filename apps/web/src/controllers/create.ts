@@ -8,7 +8,7 @@ import {createConfirmationAsset} from '../create/confirmation-asset.ts';
 import {quoteIconUrl} from '../create/quote-icons.ts';
 import {createPurchaseNotice} from '../create/purchase-notice.ts';
 import {fetchPurchaseQuote,purchaseRequest,purchaseEthLimit,assertPurchaseWithinApproval,type PurchaseQuote} from '../create/quote-purchase.ts';
-import {FIXED_LAUNCH_FEE_LABEL} from '../create/launch-fee-display.ts';
+import {launchFeeLabel} from '../create/launch-fee-display.ts';
 import {sortStakingAssets,sortPairedAssets} from '../create/featured-stocks.ts';
 import { publicError } from "../ui/public-error.ts";
 import currentV4Abis_TickerGardenFactoryV1 from '../v1/generated/contracts/current/TickerGardenFactoryV1.ts';
@@ -64,7 +64,7 @@ findCanonicalMarketCreated,launchAbis,resolveBurnLaunchConfig,resolveLpLaunchCon
 } from "../v1/features/launch.ts";
 
 import { resolveLaunchFunding,type LaunchFunding } from "../v1/launchFunding.ts";
-import { LAUNCH_CONFIRMED_COPY,notifyLaunchDatabase } from "../v1/pendingMarket.ts";
+import { LAUNCH_CONFIRMED_COPY,launchNotificationTarget,notifyLaunchDatabase } from "../v1/pendingMarket.ts";
 import {
 TickerGardenV1Client
 } from "../v1/readApi.ts";
@@ -134,7 +134,7 @@ async function finishRecoveredLaunch(state:LaunchState,receipt:TransactionReceip
  try{if(state.intent)clearVerifiedLaunchTransaction(localStorage,state.chainId,state.account,state.intent,receipt.transactionHash);}catch{/* Preserve unreadable unrelated records. */}
  clearCreateDraft(localStorage, state.chainId); ctx.pendingCreateDraft = null;
  ctx.launchProgress={...state,phase:'complete',hash:receipt.transactionHash,detail:LAUNCH_CONFIRMED_COPY};
- void notifyLaunchDatabase(receipt.transactionHash,import.meta.env.VITE_V1_PIPELINE_URL).then(()=>ctx.snapshotPoller?.reconnect());
+ void notifyLaunchDatabase(receipt.transactionHash,launchNotificationTarget(import.meta.env,state.chainId)).then(()=>ctx.snapshotPoller?.reconnect());
  saveLaunchState(localStorage,ctx.launchProgress);
  await presentCompletedLaunch();
 }
@@ -551,7 +551,7 @@ function renderCreateIdentity(): void {
   const quote = ctx.foundation?.quotes.find(item => item.id === selection);
   const releaseAsset = releasePairForSelection(selection, ctx.foundation?.quotes ?? []);
   ctx.displayPriceWidget?.setToken(typeof quote?.values.quoteAsset === "string" ? quote.values.quoteAsset : null);
-  ctx.text('[data-preview-launch-fee]',FIXED_LAUNCH_FEE_LABEL);
+  ctx.text('[data-preview-launch-fee]',launchFeeLabel(robinhoodChain.nativeCurrency.symbol,ctx.foundation?.launchFee));
   ctx.text("[data-preview-trade-fee]", "-");
   ctx.text("[data-preview-graduation]", "-");
   ctx.text("[data-graduation-caption]", "Loading bloom target…");
@@ -1053,7 +1053,7 @@ async function performLaunch(reviewedPurchase?:PurchaseQuote): Promise<void> {
     try { localStorage.setItem(`tg-listing:${robinhoodChain.id}`,JSON.stringify(ctx.latestListing)); } catch { /* Downloads still work without browser storage. */ }
     if(ctx.launchProgress?.listing)ctx.launchProgress.listing.txHash=confirmedHash;
     if(ctx.launchProgress){ctx.launchProgress={...ctx.launchProgress,phase:'complete',detail:LAUNCH_CONFIRMED_COPY};saveLaunchState(localStorage,ctx.launchProgress);}
-    void notifyLaunchDatabase(confirmedHash,import.meta.env.VITE_V1_PIPELINE_URL).then(()=>ctx.snapshotPoller?.reconnect());
+    void notifyLaunchDatabase(confirmedHash,launchNotificationTarget(import.meta.env,robinhoodChain.id)).then(()=>ctx.snapshotPoller?.reconnect());
     await presentCompletedLaunch();
   } catch (error) {
     let failureMessage=publicError(error,'transaction');
