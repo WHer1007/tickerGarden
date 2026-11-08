@@ -1,3 +1,4 @@
+import {stockDisplaySymbol} from './stock-branding.ts';
 // Editorial display order only; asset eligibility and identity remain unchanged.
 export const FEATURED_STOCKS = [
   'SPCX', 'NVDA', 'TSLA', 'AAPL', 'MSFT', 'AMZN', 'GOOGL', 'META', 'AVGO', 'AMD',
@@ -12,8 +13,17 @@ export function sortStakingAssets<T>(assets: readonly T[], symbol: (asset: T) =>
   });
 }
 
-/** Keep the two base assets first, then use the staking picker stock order. */
-export function sortPairedAssets<T extends {readonly symbol: string}>(assets: readonly T[]): T[] {
+/** BSC pins its three base assets and the first ten RH featured companies. */
+export function sortPairedAssets<T extends {readonly symbol: string; readonly chainId?: number}>(assets: readonly T[]): T[] {
+  if (assets.some(asset => asset.chainId === 56)) {
+    const preferred = ['BNB', 'USDT', 'USDC', ...FEATURED_STOCKS.slice(0, 10)];
+    const priority = (symbol: string) => {
+      const index = preferred.indexOf(stockDisplaySymbol(symbol));
+      return index < 0 ? preferred.length : index;
+    };
+    return [...assets].sort((a, b) => priority(a.symbol) - priority(b.symbol)
+      || a.symbol.localeCompare(b.symbol, 'en'));
+  }
   const base = ['ETH', 'USDG'];
   return [
     ...base.flatMap(symbol => assets.filter(asset => asset.symbol.toUpperCase() === symbol)),

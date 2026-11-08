@@ -1,0 +1,126 @@
+{
+  "retrievedAt": "2026-11-08",
+  "notes": "Supplemental shared company and base-token logos. Existing RH company URLs take precedence. Original source PNG files, without image transformations. Symbols are display metadata, not admission or token identities.",
+  "assets": [
+    {
+      "symbol": "AGPU",
+      "path": "/company-logos/agpu.png",
+      "source": "https://axecompute.com/wp-content/uploads/2025/12/cropped-Axe_Compute-Logo-192x192.png",
+      "sha256": "6525810295c08254ca23af03b3f22916f3088e206b1494781f3f5508532fe9e6",
+      "sourcePage": "https://axecompute.com/"
+    },
+    {
+      "symbol": "ARM",
+      "path": "/company-logos/arm.png",
+      "source": "https://financialmodelingprep.com/image-stock/ARM.png",
+      "sha256": "76eadc1bbd3f9d6a50a9e7fa81cb99c2e5f33e547e6a6b6460706062a496ed46"
+    },
+    {
+      "symbol": "BMNR",
+      "path": "/company-logos/bmnr.png",
+      "source": "https://www.bitminetech.io/bitmine/apple-touch-icon.png",
+      "sha256": "7b8d8c7827be610b54e3c82a6b434f5ecbd1a89c11503478673811d5c8efb1e7",
+      "sourcePage": "https://www.bitminetech.io/"
+    },
+    {
+      "symbol": "BNC",
+      "path": "/company-logos/bnc.png",
+      "source": "https://www.bnbstandard.com/apple-icon.png?apple-icon.0fklur-id-qkv.png",
+      "sha256": "7075b836d91e73e4d3e68c10537e124ed6b31cea7caee5c1aa5ce3c02d03bde6",
+      "sourcePage": "https://www.bnbstandard.com/"
+    },
+    {
+      "symbol": "CYPH",
+      "path": "/company-logos/cyph.png",
+      "source": "https://financialmodelingprep.com/image-stock/CYPH.png",
+      "sha256": "b399135a502e162536a117f16ea8336272001c519ba6d08dbbf886b8202de2ff"
+    },
+    {
+      "symbol": "DRAM",
+      "path": "/company-logos/dram.png",
+      "source": "https://financialmodelingprep.com/image-stock/DRAM.png",
+      "sha256": "9b3e8ef000af5c41d45c389fc895e91f537d4c171c68934ad7e513adaa786028"
+    },
+    {
+      "symbol": "FWDI",
+      "path": "/company-logos/fwdi.png",
+      "source": "https://framerusercontent.com/images/tf8ZgXBNEWp8PUMuqEN1iq7xoU.png",
+      "sha256": "40bf473f74490bc73cd8c038f9cbd7754402eef5b56ce850998869634ccbc20e",
+      "sourcePage": "https://forwardindustries.com/"
+    },
+    {
+      "symbol": "GPRO",
+      "path": "/company-logos/gpro.png",
+      "source": "https://financialmodelingprep.com/image-stock/GPRO.png",
+      "sha256": "85ed407b3607d53556a9aedf914333431926d586e7289d72a1ff02e61c48cadc"
+    },
+    {
+      "symbol": "GS",
+      "path": "/company-logos/gs.png",
+      "source": "https://financialmodelingprep.com/image-stock/GS.png",
+      "sha256": "c341eea7238985befe454c53bce84675651d0e967d296c64273d6277088a0e33"
+    },
+    {
+      "symbol": "HOOD",
+      "path": "/company-logos/hood.png",
+      "source": "https://financialmodelingprep.com/image-stock/HOOD.png",
+      "sha256": "7e231a0969c743544890e6ee370d63d5f7d41c5f922c2c583171f5455d8b6962"
+    },
+    {
+      "symbol": "NOK",
+      "path": "/company-logos/nok.png",
+      "source": "https://www.nokia.com/themes/custom/onenokia_reskin/icons/apple-touch-icon.png",
+      "sha256": "a248a589255e8efbd7a39179578ae2c56b5977cd9d187291c5af43c4653b8ca0",
+      "sourcePage": "https://www.nokia.com/"
+    },
+    {
+      "symbol": "PDD",
+      "path": "/company-logos/pdd.png",
+      "source": "https://financialmodelingprep.com/image-stock/PDD.png",
+      "sha256": "6fac156fe2b3aed23f91b6e99f5761745895b209c1463182420e78345f4048d5"
+    },
+    {
+      "symbol": "PYPL",
+      "path": "/company-logos/pypl.png",
+      "source": "https://financialmodelingprep.com/image-stock/PYPL.png",
+      "sha256": "539c93fd1afdddb654bb8ee45a7e1ad813370acf00c06fac66561d25c5e9d860"
+    },
+    {
+      "symbol": "QNT",
+      "path": "/company-logos/qnt.png",
+      "source": "https://financialmodelingprep.com/image-stock/QNT.png",
+      "sha256": "1ac80e79051a018f720627776022a3b79c6a786d4aedfde1bbce2ba8f6ce92bf"
+    },
+    {
+      "symbol": "SHAZ",
+      "path": "/company-logos/shaz.png",
+      "source": "https://sharonai.com/media/2024/09/cropped-fav-test-192x192.png",
+      "sha256": "9f4bcdf32839a92ecf344db83fca88783df3f15828eed4aaf8f55a759deb1819",
+      "sourcePage": "https://sharonai.com/"
+    },
+    {
+      "symbol": "STX",
+      "path": "/company-logos/stx.png",
+      "source": "https://financialmodelingprep.com/image-stock/STX.png",
+      "sha256": "f798196a79d29a49ca12dbbd5bbc6ab3a43b5d505a7e8f40833216d23c34d8fc"
+    },
+    {
+      "symbol": "WEN",
+      "path": "/company-logos/wen.png",
+      "source": "https://financialmodelingprep.com/image-stock/WEN.png",
+      "sha256": "8154f1cf2e3af7429381b24a2d18f631fc62dd05c3586422d64d13c56b15f766"
+    },
+    {
+      "symbol": "USDT",
+      "path": "/company-logos/usdt.png",
+      "source": "https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/smartchain/assets/0x55d398326f99059fF775485246999027B3197955/logo.png",
+      "sha256": "1c2ecfc8c08a821a4839f2ae0df1d8796a8df233939b537b4e26514fa4f91196"
+    },
+    {
+      "symbol": "USDC",
+      "path": "/company-logos/usdc.png",
+      "source": "https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/smartchain/assets/0x8AC76a51cc950d9822D68b83fE1Ad97B32Cd580d/logo.png",
+      "sha256": "6d14601d0b1109046e366592b8c0f256ffb075f69180b65dddd97ae665d49f9e"
+    }
+  ]
+}

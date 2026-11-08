@@ -24,7 +24,7 @@ test('staking catalog identities are unique and bundled logos exist', async () =
     assert.match(entry.tokenAddress,/^0x[0-9a-f]{40}$/);
     assert.match(entry.assetUid,/^0x[0-9a-f]{64}$/);
     if(entry.logo) assert.match(entry.logo,/^[a-z0-9-]+\.(svg|png)$/);
-    else if(entry.chainId===56)assert.equal(entry.logoUrl,undefined);
+    else if(entry.chainId===56){assert.match(entry.logoUrl!, /^\/(stock-logos|company-logos)\/[a-z0-9]+\.png$/);await access(new URL(`../public${entry.logoUrl}`,import.meta.url));}
     else { assert.match(entry.logoUrl!, /^\/stock-logos\/0x[0-9a-f]{40}\.png$/); await access(new URL(`../public${entry.logoUrl}`,import.meta.url)); }
     assert.ok(Number.isInteger(entry.decimals)&&entry.decimals>=0&&entry.decimals<=255);
     if(entry.logo) await access(new URL(`../assets/quotes/${entry.logo}`,import.meta.url));

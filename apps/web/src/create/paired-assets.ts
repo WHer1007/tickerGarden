@@ -1,5 +1,6 @@
 import {bscPairedRelease} from '../chains/bsc/generated.ts';
 import {isFrontendAssetOpen} from '../chains/asset-availability.ts';
+import {stockBrandLogoUrl} from './stock-branding.ts';
 import productionRelease from './generated/robinhood-mainnet-4663.paired-assets.json' with { type: 'json' };
 import robinhoodTestnetRelease from './generated/robinhood-testnet-46630.paired-assets.json' with { type: 'json' };
 import arbitrumSepoliaRelease from './generated/arbitrum-sepolia-421614.paired-assets.json' with { type: 'json' };
@@ -21,7 +22,7 @@ export type ReleasePairedAsset = {
 };
 type PairedAssetRelease = { readonly chainId: number; readonly observedAt: string; readonly supplyReferenceRaw: string; readonly assets: readonly ReleasePairedAsset[] };
 const releases = new Map<number, PairedAssetRelease>([
-  [56,bscPairedRelease],
+  [56,{...bscPairedRelease, assets:bscPairedRelease.assets.map(asset => ({...asset, logoUrl:stockBrandLogoUrl(asset.symbol)}))}],
   [ROBINHOOD_PRODUCTION_CHAIN_ID, productionRelease],
   [46630, robinhoodTestnetRelease],
   [421614, arbitrumSepoliaRelease],

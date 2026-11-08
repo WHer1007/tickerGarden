@@ -1,4 +1,4 @@
-import productionRelease from './generated/robinhood-mainnet-4663.paired-assets.json' with { type: 'json' };
+import {stockBrandLogoUrl} from './stock-branding.ts';
 import { quoteIconFilename } from "./quote-icon-names.ts";
 
 const modules = import.meta.glob(["../../assets/quotes/*.svg", "../../assets/quotes/*.png"], {
@@ -12,7 +12,8 @@ const icons = new Map(
 );
 
 export function quoteIconUrl(symbol: string): string | undefined {
-  return productionRelease.assets.find(asset => asset.symbol === symbol)?.logoUrl ?? icons.get(quoteIconFilename(symbol));
+  if (symbol === 'BNB') return new URL('../../assets/networks/bnb.png', import.meta.url).href;
+  return stockBrandLogoUrl(symbol) ?? icons.get(quoteIconFilename(symbol));
 }
 
 export function assetLogoUrl(filename: string): string | undefined {

@@ -427,7 +427,7 @@ function populatePairedAssets(): void {
     option.disabled = isQuoteSelectionPaused(asset);
     if (option.disabled) option.textContent = `${asset.symbol} — ${asset.name} · Temporarily disabled`;
     select.add(option);
-    pickerOptions.push({ value: option.value, symbol: asset.symbol, name: asset.name, pending: !config, disabled: option.disabled });
+    pickerOptions.push({ value: option.value, symbol: asset.symbol, name: asset.name, logoUrl: asset.logoUrl ?? undefined, pending: !config, disabled: option.disabled });
     if (!option.disabled && (previous?.symbol === asset.symbol || priorValue === option.value)) select.value = option.value;
   }
   updateQuotePicker(select, pickerOptions);
