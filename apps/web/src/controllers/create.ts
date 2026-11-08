@@ -331,7 +331,7 @@ function applyCreateDraft(configReady: boolean): void {
       }
     }
     paired?.dispatchEvent(new Event('change', { bubbles: true }));
-    if (stock && ctx.foundation) updateQuotePicker(stock, ctx.foundation.assets.filter(a=>isListedStakingAsset(robinhoodChain.id,a)).map(a=>({value:a.id,symbol:ctx.stockSymbol(a),name:stakingAssetForConfig(robinhoodChain.id,a)?.name??'Stock',logoUrl:ctx.stockLogo(a),pending:false})));
+    if (stock && ctx.foundation) updateQuotePicker(stock, launchStakingAssets().map(a=>({value:a.id,symbol:ctx.stockSymbol(a),name:stakingAssetForConfig(robinhoodChain.id,a)?.name??'Stock',logoUrl:ctx.stockLogo(a),pending:false})));
   }
 }
 
@@ -420,6 +420,8 @@ function populatePairedAssets(): void {
   const previous = releasePairForSelection(select.value, ctx.foundation?.quotes ?? []);
   const priorValue = select.value;
   const pickerOptions: QuotePickerOption[] = [];
+  let retainedValue: string | undefined;
+  let defaultValue: string | undefined;
   select.replaceChildren();
   for (const asset of sortPairedAssets(RELEASE_PAIRED_ASSETS)) {
     const config = activePairedConfig(asset, ctx.foundation?.quotes ?? [], robinhoodChain.id);
@@ -428,9 +430,18 @@ function populatePairedAssets(): void {
     if (option.disabled) option.textContent = `${asset.symbol} — ${asset.name} · Temporarily disabled`;
     select.add(option);
     pickerOptions.push({ value: option.value, symbol: asset.symbol, name: asset.name, logoUrl: asset.logoUrl ?? undefined, pending: !config, disabled: option.disabled });
-    if (!option.disabled && (previous?.symbol === asset.symbol || priorValue === option.value)) select.value = option.value;
+    if (!option.disabled) {
+      if (previous?.symbol === asset.symbol || priorValue === option.value) retainedValue = option.value;
+      if (robinhoodChain.id === 56 && asset.symbol === 'BNB') defaultValue = option.value;
+    }
   }
+  const selectedValue = retainedValue ?? defaultValue;
+  if (selectedValue !== undefined) select.value = selectedValue;
   updateQuotePicker(select, pickerOptions);
+}
+
+function launchStakingAssets() {
+  return sortStakingAssets((ctx.foundation?.assets ?? []).filter(item => isListedStakingAsset(robinhoodChain.id, item)), ctx.stockSymbol, robinhoodChain.id);
 }
 
 function renderCreateConfig(): void {
@@ -448,7 +459,7 @@ function renderCreateConfig(): void {
     return;
   }
   const stockSelect = ctx.required<HTMLSelectElement>("[name=assetUid]", form);
-  const activeStocks = sortStakingAssets(ctx.foundation.assets.filter((item) => isListedStakingAsset(robinhoodChain.id, item)), ctx.stockSymbol);
+  const activeStocks = launchStakingAssets();
   ctx.populateSelect(stockSelect, activeStocks, "No eligible staking assets");
   updateQuotePicker(stockSelect, activeStocks.map((stock) => ({
     value: stock.id,

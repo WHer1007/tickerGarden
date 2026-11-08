@@ -5,28 +5,23 @@ export const FEATURED_STOCKS = [
   'PLTR', 'COIN', 'NFLX', 'MSTR', 'TSM', 'ORCL', 'COST', 'SPY', 'QQQ', 'BABA',
 ] as const;
 const rank = new Map<string, number>(FEATURED_STOCKS.map((symbol, index) => [symbol, index]));
-export function sortStakingAssets<T>(assets: readonly T[], symbol: (asset: T) => string): T[] {
+const bscRank = new Map<string, number>(FEATURED_STOCKS.slice(0, 10).map((symbol, index) => [symbol, index]));
+export function sortStakingAssets<T>(assets: readonly T[], symbol: (asset: T) => string, chainId?: number): T[] {
+  const priorities = chainId === 56 ? bscRank : rank;
+  const priority = (symbol: string) => priorities.get(chainId === 56 ? stockDisplaySymbol(symbol) : symbol) ?? priorities.size;
   return [...assets].sort((a, b) => {
     const left = symbol(a).toUpperCase(), right = symbol(b).toUpperCase();
-    return (rank.get(left) ?? FEATURED_STOCKS.length) - (rank.get(right) ?? FEATURED_STOCKS.length)
+    return priority(left) - priority(right)
       || left.localeCompare(right, 'en');
   });
 }
 
 /** BSC pins its three base assets and the first ten RH featured companies. */
 export function sortPairedAssets<T extends {readonly symbol: string; readonly chainId?: number}>(assets: readonly T[]): T[] {
-  if (assets.some(asset => asset.chainId === 56)) {
-    const preferred = ['BNB', 'USDT', 'USDC', ...FEATURED_STOCKS.slice(0, 10)];
-    const priority = (symbol: string) => {
-      const index = preferred.indexOf(stockDisplaySymbol(symbol));
-      return index < 0 ? preferred.length : index;
-    };
-    return [...assets].sort((a, b) => priority(a.symbol) - priority(b.symbol)
-      || a.symbol.localeCompare(b.symbol, 'en'));
-  }
-  const base = ['ETH', 'USDG'];
+  const chainId = assets.some(asset => asset.chainId === 56) ? 56 : undefined;
+  const base = chainId === 56 ? ['BNB', 'USDT', 'USDC'] : ['ETH', 'USDG'];
   return [
     ...base.flatMap(symbol => assets.filter(asset => asset.symbol.toUpperCase() === symbol)),
-    ...sortStakingAssets(assets.filter(asset => !base.includes(asset.symbol.toUpperCase())), asset => asset.symbol),
+    ...sortStakingAssets(assets.filter(asset => !base.includes(asset.symbol.toUpperCase())), asset => asset.symbol, chainId),
   ];
 }
