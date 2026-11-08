@@ -36,6 +36,7 @@ test('display aliases are limited to registered bStocks, not arbitrary B suffixe
 
 test('supplemental logos are local, nonempty original PNGs with pinned source hashes',()=>{
  for(const entry of sources.assets){
+  assert.equal(stockBrandLogoUrl(entry.symbol),entry.path);
   assert.match(entry.source,/^https:\/\//);
   assert.match(entry.path,/^\/company-logos\/[a-z0-9]+\.png$/);
   const bytes=readFileSync(new URL(`../public${entry.path}`,import.meta.url));
