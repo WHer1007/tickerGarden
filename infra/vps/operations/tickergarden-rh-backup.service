@@ -1,0 +1,16 @@
+[Unit]
+Description=TickerGarden RH local logical recovery backup
+After=docker.service
+Requires=docker.service
+
+[Service]
+Type=oneshot
+ExecStart=/opt/tickergarden-runtime-ops/backup-rh-docker.sh
+UMask=0077
+Nice=15
+IOSchedulingClass=idle
+CPUQuota=25%
+MemoryMax=128M
+TimeoutStartSec=900
+NoNewPrivileges=true
+PrivateTmp=true

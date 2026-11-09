@@ -31,7 +31,7 @@ function assertLocalPostgres(urlText: string): void {
   }
 }
 
-test('relay process persists before notifying, deduplicates, retains removed logs, and reconnects after a missed heartbeat', { timeout: 55_000 }, async (context) => {
+test('relay process persists before notifying, deduplicates, retains removed logs, and reconnects after transport close without idle RPC', { timeout: 55_000 }, async (context) => {
   const schema = `tg_relay_inbox_${process.pid}_${randomBytes(4).toString('hex')}`;
   const schemaSqlName = `"${schema}"`;
   assertLocalPostgres(databaseUrl);
@@ -195,7 +195,10 @@ test('relay process persists before notifying, deduplicates, retains removed log
     const relayEvents = await pool.query(`SELECT count(*)::int AS n FROM ${schemaSqlName}.chain_relay_events`);
     assert.ok(relayEvents.rows[0]!.n >= 1);
 
-    const reconnectDeadline = Date.now() + 45_000;
+    await wait(31_000);
+    assert.equal(heartbeatRequests,0,'idle socket must not issue JSON-RPC heartbeats');
+    for(const socket of upgradedSockets)socket.destroy();
+    const reconnectDeadline = Date.now() + 10_000;
     let recovered = false;
     while (Date.now() < reconnectDeadline && !recovered) {
       const response = await fetch(healthUrl);
@@ -203,8 +206,8 @@ test('relay process persists before notifying, deduplicates, retains removed log
       recovered = health.ok && health.reconnects >= 1;
       if (!recovered) await wait(100);
     }
-    assert.ok(heartbeatRequests >= 1, 'active socket must receive a periodic JSON-RPC heartbeat');
-    assert.ok(recovered, 'missed heartbeat must close and reconnect the WebSocket');
+    assert.equal(heartbeatRequests,0,'reconnect must not re-enable idle RPC');
+    assert.ok(recovered, 'transport close must reconnect the WebSocket');
   } finally {
     if (processServer && processServer.exitCode === null) { processServer.kill('SIGTERM'); await Promise.race([once(processServer, 'exit'), wait(2_000)]); }
     await listener?.end().catch(() => undefined);

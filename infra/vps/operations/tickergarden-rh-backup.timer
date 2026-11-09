@@ -1,0 +1,11 @@
+[Unit]
+Description=Daily TickerGarden RH logical backup
+
+[Timer]
+OnCalendar=*-*-* 20:15:00 UTC
+RandomizedDelaySec=600
+Persistent=true
+Unit=tickergarden-rh-backup.service
+
+[Install]
+WantedBy=timers.target

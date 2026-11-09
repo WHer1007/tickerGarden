@@ -1,5 +1,6 @@
 import { createHash, createHmac, timingSafeEqual } from 'node:crypto';
 import type { Pool } from 'pg';
+import { transaction } from '../../db/src/index.ts';
 import type { DeploymentIdentity } from '../../chain/src/index.ts';
 
 export type Json = null | boolean | string | number | readonly Json[] | { readonly [key: string]: Json };
@@ -353,24 +354,27 @@ export async function readUserActivity(input: { readonly pool: Pool; readonly de
 
 export async function readSnapshotUpdates(input: { readonly pool: Pool; readonly deployment: DeploymentIdentity; readonly since?: string; readonly schemaName?: string }) {
   if (input.since && !/^(0|[1-9][0-9]*):0x[0-9a-f]{64}$/.test(input.since)) throw new Error('invalid since revision');
+  return transaction(input.pool, async client => {
+    await client.query('SET TRANSACTION ISOLATION LEVEL REPEATABLE READ READ ONLY');
   const schema = identifier(input.schemaName ?? 'tickergarden_serverless'); const scopes = ['markets', 'configs', 'positions', 'accounts'] as const;
-  const rows = await input.pool.query<{ scope: string; revision: string; payload_digest: string }>(`SELECT pointer.scope,pointer.revision,p.payload_digest
+  const rows = await client.query<{ scope: string; revision: string; payload_digest: string }>(`SELECT pointer.scope,pointer.revision,p.payload_digest
     FROM ${schema}.publication_pointers pointer JOIN ${schema}.publications p USING(environment,chain_id,deployment_digest,scope,revision)
     JOIN ${schema}.chain_blocks b ON b.environment=p.environment AND b.chain_id=p.chain_id AND b.deployment_digest=p.deployment_digest AND b.hash=p.block_hash
     WHERE pointer.environment=$1 AND pointer.chain_id=$2 AND pointer.deployment_digest=$3 AND pointer.scope=ANY($4::text[]) AND b.canonical AND b.finalized`,
     [...deploymentIdentity(input.deployment), scopes]);
   if (rows.rows.length !== scopes.length || new Set(rows.rows.map((row) => row.revision)).size !== 1) throw new PublicationUnavailableError('coherent snapshot publication is unavailable');
-  const revision = rows.rows[0]!.revision; const sync = await readPublishedSync({ pool: input.pool, deployment: input.deployment, scope: 'markets',
+  const revision = rows.rows[0]!.revision; const sync = await readPublishedSync({ pool: client, deployment: input.deployment, scope: 'markets',
     ...(input.schemaName ? { schemaName: input.schemaName } : {}) });
   if (sync.status !== 'synced' || sync.finality !== 'finalized' || sync.revision !== revision) throw new PublicationUnavailableError('snapshot publication is not synchronized');
   if (!input.since) return { mode: 'reset' as const, sync, invalidated: [...scopes], pollAfterMs: 5000 as const };
   if (input.since === revision) return { mode: 'unchanged' as const, sync, invalidated: [] as string[], pollAfterMs: 5000 as const };
-  const prior = await input.pool.query<{ scope: string; payload_digest: string }>(`SELECT scope,payload_digest FROM ${schema}.publications
+  const prior = await client.query<{ scope: string; payload_digest: string }>(`SELECT scope,payload_digest FROM ${schema}.publications
     WHERE environment=$1 AND chain_id=$2 AND deployment_digest=$3 AND revision=$4 AND scope=ANY($5::text[])`,
     [...deploymentIdentity(input.deployment), input.since, scopes]);
   if (prior.rows.length !== scopes.length) return { mode: 'reset' as const, sync, invalidated: [...scopes], pollAfterMs: 5000 as const };
   const before = new Map(prior.rows.map((row) => [row.scope, row.payload_digest])); const now = new Map(rows.rows.map((row) => [row.scope, row.payload_digest]));
   return { mode: 'changed' as const, sync, invalidated: scopes.filter((scope) => before.get(scope) !== now.get(scope)), pollAfterMs: 5000 as const };
+  });
 }
 
 async function resolveHistoryCheckpoint(pool: Pool, schema: string, deployment: DeploymentIdentity): Promise<{ revision: string; blockNumber: bigint; blockHash: string; observedAt: Date }> {
@@ -418,14 +422,14 @@ export async function unavailableSync(deployment: DeploymentIdentity): Promise<S
 }
 
 export async function readPublishedSync(input: {
-  readonly pool: Pool; readonly deployment: DeploymentIdentity; readonly scope: string; readonly revision?: string; readonly schemaName?: string;
+  readonly pool: Pick<Pool, 'query'>; readonly deployment: DeploymentIdentity; readonly scope: string; readonly revision?: string; readonly schemaName?: string;
 }): Promise<SyncStatus> {
   const schema = identifier(input.schemaName ?? 'tickergarden_serverless');
   const publication = await resolvePublication(input.pool, schema, input.deployment, input.scope, input.revision);
   return syncForPublication(input.pool, schema, input.deployment, publication);
 }
 
-async function resolvePublication(pool: Pool, schema: string, deployment: DeploymentIdentity, scope: string, requested?: string): Promise<{ revision: string; blockNumber: bigint; blockHash: `0x${string}`;storage?:string;generation?:string;asOf?:string }> {
+async function resolvePublication(pool: Pick<Pool, 'query'>, schema: string, deployment: DeploymentIdentity, scope: string, requested?: string): Promise<{ revision: string; blockNumber: bigint; blockHash: `0x${string}`;storage?:string;generation?:string;asOf?:string }> {
   if (requested && !/^[0-9]+:0x[0-9a-f]{64}$/.test(requested)) throw new PublicationChangedError('requested revision is invalid');
   const result = await pool.query<{ revision: string; block_number: string; block_hash: `0x${string}`;storage:string;generation:string;as_of:string }>(
     requested
@@ -447,7 +451,7 @@ async function isPublicationCanonical(pool: Pool, schema: string, deployment: De
   return Boolean(result.rowCount);
 }
 
-async function syncForPublication(pool: Pool, schema: string, deployment: DeploymentIdentity, publication: { revision: string; blockNumber: bigint; blockHash: `0x${string}` }): Promise<SyncStatus> {
+async function syncForPublication(pool: Pick<Pool, 'query'>, schema: string, deployment: DeploymentIdentity, publication: { revision: string; blockNumber: bigint; blockHash: `0x${string}` }): Promise<SyncStatus> {
   const head = await pool.query<{ number: string; hash: `0x${string}` }>(
     `SELECT number,hash FROM ${schema}.chain_blocks WHERE environment=$1 AND chain_id=$2 AND deployment_digest=$3 AND canonical ORDER BY number DESC LIMIT 1`,
     [deployment.environment, deployment.chainId, deployment.deploymentDigest],
