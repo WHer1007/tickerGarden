@@ -8,6 +8,13 @@ chmod 700 "$base"
 exec 9>"$base/.lock"
 flock -n 9 || exit 0
 stamp=$(date -u +%Y%m%dT%H%M%SZ)
+# Policies reference role names even when ownership/ACLs are omitted. Credentials
+# are deliberately excluded; recovery provisions login secrets separately.
+roles="$base/roles-$stamp.sql"
+docker exec tickergarden-postgres-prod-1 psql -XqAt -U tg_admin -d tickergarden -v ON_ERROR_STOP=1 -c "SELECT format('CREATE ROLE %I NOLOGIN;',rolname) FROM pg_roles WHERE rolname !~ '^pg_' ORDER BY rolname" > "$roles.partial"
+test -s "$roles.partial"
+mv "$roles.partial" "$roles"
+sha256sum "$roles" > "$roles.sha256"
 for db in tickergarden tickergarden_queue; do
   target="$base/$db-$stamp.dump"
   trap 'rm -f "$target.partial"' EXIT HUP INT TERM
