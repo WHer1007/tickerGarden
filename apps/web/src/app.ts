@@ -57,7 +57,7 @@ import { type ListingPackageSnapshot } from "./create/listing-package.ts";
 import { metadataOrigin } from "./create/metadata.ts";
 import { assetLogoUrl,quoteIconUrl } from './create/quote-icons.ts';
 import { destroyQuotePicker } from "./create/quote-picker.ts";
-import { stakingAssetForConfig } from './create/staking-assets.ts';
+import { stakingAssetForConfig,STAKING_ASSETS } from './create/staking-assets.ts';
 import { loadPageTemplate } from "./routing/pages.ts";
 import { createRouter } from "./routing/router.ts";
 import type { PageName,Route } from "./routing/routes.ts";
@@ -1518,6 +1518,7 @@ function pauseExploreView():void {
 let marketPhaseFilter = "bloomed";
 
 async function loadMarketStockSymbols(): Promise<void> {
+  if(robinhoodChain.id===56){marketStockSymbols=new Map(STAKING_ASSETS.filter(a=>a.chainId===56).map(a=>[a.tokenAddress.toLowerCase(),a.symbol]));if(currentPage()==='markets')void renderMarkets();return;}
   if (!runtimeConfig.readApi.available) return;
   try {
     await assetPrices.refresh(); const response = assetPrices.snapshot();
@@ -5189,7 +5190,9 @@ router.start();
 let assetPriceFingerprint = '';
 const unsubscribeAssetPrices = assetPrices.subscribe(snapshot => {
   const fingerprint = JSON.stringify(snapshot); if (fingerprint === assetPriceFingerprint) return; assetPriceFingerprint = fingerprint;
-  marketStockSymbols = new Map(Object.values(snapshot.prices).map(price => [price.token, price.symbol]));
+  marketStockSymbols = robinhoodChain.id===56
+    ? new Map(STAKING_ASSETS.filter(a=>a.chainId===56).map(a=>[a.tokenAddress.toLowerCase(),a.symbol]))
+    : new Map(Object.values(snapshot.prices).map(price => [price.token, price.symbol]));
   if (tradeMarket) tokenDetailWidget?.setOverview({ usd: assetPrices.midpointUsd(tradeMarket.market.quoteAsset) ?? undefined });
 });
 void restoreLaunchProgress();
