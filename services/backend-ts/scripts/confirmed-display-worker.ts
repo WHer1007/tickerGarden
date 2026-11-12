@@ -1,3 +1,4 @@
+import {readDisplayCoverage,recordDisplayGap} from '../packages/confirmed-display/src/health.ts';
 import {createPriceBatch,SharedPriceReader,priceBatchChannel} from '../packages/display-price/src/batch.ts';
 import {databaseTimingSnapshot} from '../packages/db/src/telemetry.ts';
 import {rpcRuntimeOptions} from '../packages/rpc-control/src/runtime.ts';
@@ -23,6 +24,7 @@ const deployment={environment:env.TG_ENVIRONMENT as 'test'|'production',chainId:
 const schema=displaySchema(env.TG_DATABASE_SCHEMA),id=[deployment.environment,deployment.chainId,deployment.deploymentDigest];
 const reader=new SharedPriceReader(deployment,env.TG_DATABASE_SCHEMA),priceChannel=priceBatchChannel(deployment,env.TG_DATABASE_SCHEMA),changesChannel=changeChannel(deployment,env.TG_DATABASE_SCHEMA),eventChannel=displayWakeChannel(deployment,env.TG_DATABASE_SCHEMA);
 let stopped=false,lastSuccess=0,lastResult='idle',gapObserved=false,eventPending=false,pricePending=false,preparePending=false;
+let gapToPersist:string|undefined;
 let requested:DisplayTrigger|undefined,listener:PoolClient|undefined;
 let listenerReady=false;
 let lastFailure:{kind:'listen'|'price'|'event';at:string}|null=null;
@@ -36,7 +38,7 @@ async function listen(){
   if(message.channel===priceChannel){reader.invalidate();pricePending=true;}
   else if(message.channel===changesChannel)preparePending=true;
   else if(message.channel===eventChannel){
-   if(message.payload==='recover'){gapObserved=true;lastResult='gap:upstream-recovery-required';}
+   if(message.payload==='recover'){gapObserved=true;gapToPersist='upstream-recovery-required';lastResult='gap:upstream-recovery-required';}
    else if(/^\d+$/.test(message.payload??''))eventPending=true;
    else {try{const p=JSON.parse(message.payload??'');if(p.type==='request'&&typeof p.id==='string'&&p.id.trim())requested={kind:'request',id:p.id,...(typeof p.transactionHash==='string'?{transactionHash:p.transactionHash}:{})};}catch{}}
   }
@@ -46,6 +48,7 @@ async function listen(){
  try{
   for(const channel of [eventChannel,priceChannel,changesChannel])await client.query(`LISTEN ${channel}`);
   // A persisted unprocessed event is authority; a process restart alone is not.
+  gapObserved=(await readDisplayCoverage(pool,deployment,env.TG_DATABASE_SCHEMA??'tickergarden_serverless')).status==='gap'||gapObserved;
   listenerReady=true;eventPending=true;if(lastFailure?.kind==='listen'){lastFailure=null;lastResult='idle';}wake.wake();
  }catch(e){listenerReady=false;if(listener===client){listener=undefined;client.release(true);}throw e;}
 }
@@ -58,6 +61,7 @@ server.listen(Number(env.TG_DISPLAY_HEALTH_PORT??8084),'127.0.0.1');
 try{while(!stopped){
  try{
   operation='listen';await listen();
+  if(gapToPersist){await recordDisplayGap(pool,deployment,env.TG_DATABASE_SCHEMA??'tickergarden_serverless',gapToPersist);gapToPersist=undefined;}
   if(pricePending||preparePending){
    operation='price';const price=pricePending;pricePending=false;preparePending=false;
    const input={pool,deployment,priceBatch:createPriceBatch(deployment,env.TG_DATABASE_SCHEMA,new Date(),reader),...(env.TG_DATABASE_SCHEMA?{schemaName:env.TG_DATABASE_SCHEMA}:{})};
@@ -71,12 +75,12 @@ try{while(!stopped){
    if(trigger){
     lastResult=await advanceConfirmedDisplay({pool,deployment,rpc,trigger,priceBatch:createPriceBatch(deployment,env.TG_DATABASE_SCHEMA,new Date(),reader),...(env.TG_DATABASE_SCHEMA?{schemaName:env.TG_DATABASE_SCHEMA}:{})});lastSuccess=Date.now();if(lastFailure?.kind==='event')lastFailure=null;
     // Continue only after progress, and reselect a concrete durable event each pass.
-    if(lastResult.startsWith('gap:'))gapObserved=true;
+    if(lastResult.startsWith('gap:')){gapObserved=true;await recordDisplayGap(pool,deployment,env.TG_DATABASE_SCHEMA??'tickergarden_serverless',lastResult);}
     if(lastResult.startsWith('confirmed:')||lastResult.startsWith('initialized:')){eventPending=true;continue;}
-    if(trigger.kind==='event'&&await pendingEvent()){gapObserved=true;lastResult='blocked:event-repair-required';lastFailure={kind:'event',at:new Date().toISOString()};}
+    if(trigger.kind==='event'&&await pendingEvent()){gapObserved=true;lastResult='blocked:event-repair-required';await recordDisplayGap(pool,deployment,env.TG_DATABASE_SCHEMA??'tickergarden_serverless','event-repair-required');lastFailure={kind:'event',at:new Date().toISOString()};}
    }
   }
- }catch(error){lastFailure={kind:operation,at:new Date().toISOString()};if(operation==='event')gapObserved=true;lastResult='retrying';reportError('display-worker','confirmed_display_blocked',error,{},'warn');}
+ }catch(error){lastFailure={kind:operation,at:new Date().toISOString()};if(operation==='event'){gapObserved=true;gapToPersist='event-processing-failed';}lastResult='retrying';reportError('display-worker','confirmed_display_blocked',error,{},'warn');}
  // Timeout only repairs the database listener. It never authorizes chain work.
  await wake.wait(30000,abort.signal);
 }}

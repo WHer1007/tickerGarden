@@ -91,9 +91,9 @@ function parseReference(raw: unknown, chainId: number, now: number): AssetPrice 
         || compareDecimal(value.bidUsd, decimalProduct(value.uiBidUsd, value.multiplier)) !== 0
         || compareDecimal(value.askUsd, decimalProduct(value.uiAskUsd, value.multiplier)) !== 0) return null;
     } else if (value.multiplier !== '1') return null;
-    if (expiresAt <= now) return Object.freeze({ token: token as `0x${string}`, assetUid: value.assetUid, symbol: value.symbol,
-      source: value.source, status: 'stale', bidUsd: null, askUsd: null, midpointUsd: null, asOf, expiresAt });
   }
+  if ([56,4663].includes(chainId) && value.status === 'available' && expiresAt <= now) return Object.freeze({ token: token as `0x${string}`, assetUid: value.assetUid, symbol: value.symbol,
+    source: value.source, status: 'stale', bidUsd: null, askUsd: null, midpointUsd: null, asOf, expiresAt });
   return Object.freeze({ token: token as `0x${string}`, assetUid: value.assetUid, symbol: value.symbol, source: value.source, status: value.status,
     bidUsd: value.status === 'available' ? value.bidUsd : null, askUsd: value.status === 'available' ? value.askUsd : null,
     midpointUsd: value.status === 'available' ? midpoint(value.bidUsd, value.askUsd) : null, asOf, expiresAt });
@@ -117,11 +117,12 @@ export function parseAssetPriceSnapshot(payload: unknown, chainId: number, now =
 export function createAssetPriceStore(options: { baseUrl: string | null; chainId: number; fetcher?: typeof fetch; pollIntervalMs?: number }) {
   const listeners = new Set<Listener>(); const fetcher = options.fetcher ?? fetch; const pollInterval = options.pollIntervalMs ?? 60_000;
   let snapshot = parseAssetPriceSnapshot(null, options.chainId); let pending: Promise<void> | null = null; let stopped = false; let active = false; let lastRequestAt = 0;
+  const demand=new Map<string,number>();let catalogLoaded=false,demandVersion=0;
   let pollTimer: ReturnType<typeof setInterval> | undefined;
   let expiryTimer: ReturnType<typeof setTimeout> | undefined;
   const notify = () => listeners.forEach(listener => listener(snapshot));
   const scheduleExpiry = () => {
-    clearTimeout(expiryTimer);if(options.chainId!==56||stopped)return;
+    clearTimeout(expiryTimer);if(![56,4663].includes(options.chainId)||stopped)return;
     const deadlines=Object.values(snapshot.prices).filter(p=>p.status==='available'&&p.expiresAt!==null).map(p=>p.expiresAt!);
     if(!deadlines.length)return;
     expiryTimer=setTimeout(()=>{
@@ -131,7 +132,8 @@ export function createAssetPriceStore(options: { baseUrl: string | null; chainId
   };
   const currentPrice = (token: string | null | undefined): AssetPrice | null => {
     const key = token?.toLowerCase(), price = key && ADDRESS.test(key) ? snapshot.prices[key] ?? null : null;
-    return options.chainId === 56 && price?.status === 'available' && price.expiresAt !== null && price.expiresAt <= Date.now()
+    if(options.chainId===4663&&key&&price){const added=!demand.has(key);demand.set(key,Date.now());if(added){demandVersion++;if(active&&!pending)queueMicrotask(()=>{if(active&&!stopped)void refresh();});}}
+    return [56,4663].includes(options.chainId) && price?.status === 'available' && price.expiresAt !== null && price.expiresAt <= Date.now()
       ? { ...price, status: 'stale', bidUsd: null, askUsd: null, midpointUsd: null } : price;
   };
   const refresh = (): Promise<void> => {
@@ -139,11 +141,16 @@ export function createAssetPriceStore(options: { baseUrl: string | null; chainId
     lastRequestAt = Date.now();
     const client = new TickerGardenV1Client(options.baseUrl, (input, init) => fetcher(input, { ...init, signal: AbortSignal.timeout(8_000) }));
     // BSC views consume paired assets. Local stock labels never authorize a full multiplier refresh.
-    const request = options.chainId === 56 ? client.listSelectedDisplayPrices([ZERO_TOKEN,...Object.values(BSC_STABLES)]) : client.listDisplayPriceReferences();
+    for(const [token,at] of demand)if(Date.now()-at>120000)demand.delete(token);
+    const version=demandVersion,loadingCatalog=options.chainId===4663&&!catalogLoaded;
+    const tokens=[...new Set([ZERO_TOKEN,...demand.keys()])].sort();
+    const request = options.chainId === 56 ? client.listSelectedDisplayPrices([ZERO_TOKEN,...Object.values(BSC_STABLES)]) : options.chainId===4663&&!loadingCatalog?client.listSelectedDisplayPrices(tokens):client.listDisplayPriceReferences();
     pending = request.then(value => { if (stopped) return;
       if (!value || value.chainId !== options.chainId || value.displayOnly !== true || value.confidence !== 'provider_reported' || value.status !== 'configured' || !Array.isArray(value.references)) throw new Error('invalid asset price catalog');
-      const next = parseAssetPriceSnapshot(value, options.chainId); if (value.references.length > 0 && Object.keys(next.prices).length === 0) throw new Error('empty asset price catalog');
-      if (JSON.stringify(next) !== JSON.stringify(snapshot)) { snapshot = next; notify(); scheduleExpiry(); } }).catch(() => { /* Retain evidence; BSC expiration still invalidates its displayed value. */ }).finally(() => { pending = null; });
+      if(loadingCatalog)catalogLoaded=true;
+      const parsed = parseAssetPriceSnapshot(value, options.chainId);
+      const next=options.chainId===4663&&!loadingCatalog?Object.freeze({...parsed,prices:Object.freeze({...snapshot.prices,...parsed.prices})}):parsed; if (value.references.length > 0 && Object.keys(next.prices).length === 0) throw new Error('empty asset price catalog');
+      if (JSON.stringify(next) !== JSON.stringify(snapshot)) { snapshot = next; notify(); scheduleExpiry(); } }).catch(() => { /* Retain evidence; BSC expiration still invalidates its displayed value. */ }).finally(() => { pending = null;if(options.chainId===4663&&active&&(loadingCatalog&&catalogLoaded||version!==demandVersion))void refresh(); });
     return pending;
   };
   const start = () => { if (stopped || pollTimer) return; active = true; void refresh(); pollTimer = setInterval(() => { if (typeof document === 'undefined' || document.visibilityState === 'visible') void refresh(); }, pollInterval); };

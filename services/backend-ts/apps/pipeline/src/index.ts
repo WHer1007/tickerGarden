@@ -1,3 +1,4 @@
+import {requestedPriceTokens} from '../../../packages/display-price/src/index.ts';
 import {runScheduledQueueRetention} from '../../../packages/jobs/src/retention.ts';
 import {createPriceBatch,SharedPriceReader} from '../../../packages/display-price/src/batch.ts';
 import {withDatabaseTask,databaseTimingSnapshot} from '../../../packages/db/src/telemetry.ts';
@@ -193,7 +194,10 @@ export function createPipelineApp(options: PipelineAppOptions = {}) {
     if (!priceRefreshAuthorized(context.req.header('authorization'))) return context.json({ error: 'unauthorized', requestId: context.get('requestId') }, 401);
     const deployment = { environment: environmentName(env.TG_ENVIRONMENT), chainId: CURRENT_CHAIN_ID,
       deploymentDigest: CURRENT_RELEASE_ID, activationBlock: CURRENT_ACTIVATION_BLOCK };
-    const references = await fetchRuntimePriceReferences(f72PriceTargets(), { rpc: new RpcTransport({...rpcRuntime,
+    let tokens:string[]|undefined;
+    try {const body=context.req.method==='POST'?await context.req.text():'';if(body.length>16384)throw Error('Invalid price request');const parsed=body?JSON.parse(body):{};if(parsed.reason==='active-read'&&parsed.tokens===undefined)throw Error('Active prices require selected tokens');if(parsed.tokens!==undefined)tokens=requestedPriceTokens(parsed.tokens);}catch{return context.json({error:'invalid_price_request'},400);}
+    const targets=f72PriceTargets().filter(t=>!tokens||tokens.includes(t.token));
+    const references = await fetchRuntimePriceReferences(targets, { ...(tokens?{tokens}:{}),rpc: new RpcTransport({...rpcRuntime,
       ...(rpc.mode==='single'?rpcFailoverOptions(env):{}),url: rpc.verificationUrl ?? '', provider: rpc.mode === 'single' ? 'display-price-primary' : 'display-price-secondary', observe: (metric) => emitMetric(env, metric),
     }) });
     await storePriceReferences(databasePool(), deployment, references, env.TG_DATABASE_SCHEMA);

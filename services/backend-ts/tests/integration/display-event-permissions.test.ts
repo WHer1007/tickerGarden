@@ -13,6 +13,8 @@ test('relay source role can append/deduplicate inbox events but cannot read or m
   await pool.query(`SET ROLE "${role}"`);
   const insert=`INSERT INTO "${schema}".display_event_inbox(environment,chain_id,deployment_digest,block_number,block_hash,transaction_hash,log_index,removed,payload) VALUES('test',46630,'fixture',1,'hash','tx',0,false,'{}') ON CONFLICT DO NOTHING`;
   await pool.query(insert);await pool.query(insert);
+  await pool.query(`INSERT INTO "${schema}".display_health(environment,chain_id,deployment_digest,status,reason) VALUES('test',46630,'fixture','gap','upstream-recovery-required')`);
+  await assert.rejects(pool.query(`DELETE FROM "${schema}".display_health`),/permission denied/);
   for(const query of [`SELECT * FROM "${schema}".display_event_inbox`,`DELETE FROM "${schema}".display_event_inbox`,`UPDATE "${schema}".display_event_coverage SET block_number=100`,`SELECT * FROM "${schema}".holder_reward_rounds`]){await pool.query(`SET ROLE "${role}"`);await assert.rejects(pool.query(query),/permission denied/,query);}
   await pool.query('RESET ROLE');
   assert.equal((await pool.query(`SELECT count(*)::int n FROM "${schema}".display_event_inbox`)).rows[0].n,1);

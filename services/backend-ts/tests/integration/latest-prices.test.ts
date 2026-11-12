@@ -38,13 +38,13 @@ test('current prices stay bounded, reject delayed writes, retain fresh values on
  const beforeBatch=(await latestPrices(pool,d,new Date(at(450)),s))[0]!.payload;
  await assert.rejects(storePriceReferences(pool,d,[price(500),{...price(500),token:`0x${'2'.repeat(40)}`,expiresAt:at(499)}],s),{code:'23514'});
  assert.deepEqual((await latestPrices(pool,d,new Date(at(450)),s))[0]!.payload,beforeBatch);
- assert.ok(logs.some(l=>JSON.parse(l).token===`0x${'2'.repeat(40)}`));
+ assert.ok(logs.some(l=>JSON.parse(l).references.some((r:PriceReference)=>r.token===`0x${'2'.repeat(40)}`)));
  await storePriceReferences(pool,{...d,deploymentDigest:other},[price(500)],s);
  await write({...price(450),source:'coinbase_spot'});
  rows=await latestPrices(pool,d,new Date(at(450)),s);assert.equal(rows.length,2);assert.deepEqual(rows.map(r=>r.payload.source),['coinbase_spot','robinhood_rest']);
  assert.equal(Number((await pool.query(`SELECT count(*) FROM ${s}.price_references`)).rows[0].count),3);
  assert.equal(preferredPrices(rows,new Date(at(750))).get(token)?.status,'stale');
- assert.ok(logs.length>100);assert.ok(logs.some(l=>JSON.parse(l).status==='unavailable'));assert.ok(logs.every(l=>JSON.parse(l).event==='price_reference'));
+ assert.ok(logs.length>100);assert.ok(logs.some(l=>JSON.parse(l).references.some((r:PriceReference)=>r.status==='unavailable')));assert.ok(logs.every(l=>JSON.parse(l).event==='price_batch'));
  await pool.query(`DELETE FROM ${s}.price_references WHERE deployment_digest=$1`,[hash]);assert.deepEqual(await latestPrices(pool,d,new Date(at(750)),s),[]);
  }finally{await pool.query(`DROP SCHEMA IF EXISTS ${s} CASCADE`);await pool.end();}
 });

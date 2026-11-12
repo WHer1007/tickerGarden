@@ -19,6 +19,8 @@ export function permissionsSql(schemaName: string, roles: DatabaseRoles): string
 
   return `
 REVOKE ALL ON SCHEMA ${schema} FROM PUBLIC;
+GRANT SELECT ON ${schema}.display_health TO ${readApi};
+GRANT SELECT,INSERT,UPDATE ON ${schema}.display_health TO ${pipeline};
 GRANT SELECT, INSERT, UPDATE, DELETE ON ${schema}.rpc_budgets, ${schema}.rpc_leases, ${schema}.rpc_read_cache, ${schema}.rpc_scan_cache, ${schema}.rpc_read_locks TO ${pipeline}, ${readApi};
 GRANT SELECT, INSERT, UPDATE, DELETE ON ${schema}.display_event_inbox, ${schema}.display_event_applied, ${schema}.display_event_coverage TO ${pipeline};
 GRANT SELECT, INSERT ON ${schema}.holder_snapshot_evidence TO ${pipeline};
@@ -232,7 +234,7 @@ CREATE POLICY pipeline_generation_queue ON ${schema}.queue_generations TO ${pipe
 `;
 }
 
-/** The relay source role may append events, but cannot change display/settlement state. */
+/** The relay source role may append events and mark operational gaps, but cannot change display/settlement state. */
 export function displayRelayPermissionsSql(schemaName:string,role:string):string {
- return `GRANT USAGE ON SCHEMA ${identifier(schemaName)} TO ${identifier(role)};\nGRANT INSERT ON ${identifier(schemaName)}.display_event_inbox TO ${identifier(role)};`;
+ return `GRANT USAGE ON SCHEMA ${identifier(schemaName)} TO ${identifier(role)};\nGRANT INSERT ON ${identifier(schemaName)}.display_event_inbox TO ${identifier(role)};\nGRANT SELECT,INSERT,UPDATE ON ${identifier(schemaName)}.display_health TO ${identifier(role)};`;
 }

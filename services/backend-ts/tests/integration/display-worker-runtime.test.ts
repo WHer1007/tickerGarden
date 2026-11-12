@@ -14,7 +14,8 @@ test('real worker startup, 30-second idle timeout, price push, recovery hint and
  let child:ReturnType<typeof spawn>|undefined;let output='';
  try{
   await applyCoreMigration(pool,schemaName);
-  child=spawn(process.execPath,['--experimental-strip-types','scripts/confirmed-display-worker.ts'],{cwd:process.cwd(),env:{PATH:process.env.PATH,USER:process.env.USER,TG_ENVIRONMENT:'test',TG_CHAIN_ID:'46630',TG_PIPELINE_DATABASE_URL:'postgresql:///postgres?host=/tmp',TG_DATABASE_SCHEMA:schemaName,TG_RPC_URL:`http://127.0.0.1:${(upstream.address() as {port:number}).port}`,TG_DISPLAY_HEALTH_PORT:String(port)},stdio:['ignore','pipe','pipe']});
+  const startWorker=()=>spawn(process.execPath,['--experimental-strip-types','scripts/confirmed-display-worker.ts'],{cwd:process.cwd(),env:{PATH:process.env.PATH,USER:process.env.USER,TG_ENVIRONMENT:'test',TG_CHAIN_ID:'46630',TG_PIPELINE_DATABASE_URL:'postgresql:///postgres?host=/tmp',TG_DATABASE_SCHEMA:schemaName,TG_RPC_URL:`http://127.0.0.1:${(upstream.address() as {port:number}).port}`,TG_DISPLAY_HEALTH_PORT:String(port)},stdio:['ignore','pipe','pipe']});
+  child=startWorker();
   child.stdout?.on('data',v=>output+=v);child.stderr?.on('data',v=>output+=v);
   const health=()=>fetch(`http://127.0.0.1:${port}/healthz`);
   let ready=false;for(let i=0;i<100;i++){try{if((await health()).ok){ready=true;break;}}catch{}await delay(50);}
@@ -27,6 +28,10 @@ test('real worker startup, 30-second idle timeout, price push, recovery hint and
   await pool.query('SELECT pg_notify($1,$2)',[displayWakeChannel(d,schemaName),'recover']);
   await delay(32000);
   const response=await health();assert.equal(response.status,200);const state=await response.json();assert.equal(state.mode,'push-only');assert.equal(state.coverage,'gap');assert.equal(calls,0,output);
+  const durable=(await pool.query(`SELECT status FROM \"${schemaName}\".display_health`)).rows;assert.equal(durable[0]?.status,'gap');
+  const exited=once(child,'exit');child.kill('SIGTERM');await exited;child=startWorker();
+  let recovered=false;for(let i=0;i<100;i++){try{const r=await health();if(r.ok&&(await r.json()).coverage==='gap'){recovered=true;break;}}catch{}await delay(50);}
+  assert.ok(recovered,'gap survives process restart');assert.equal(calls,0);
  }finally{
   if(child&&child.exitCode===null){const exited=once(child,'exit');child.kill('SIGTERM');await Promise.race([exited,delay(3000)]);if(child.exitCode===null)child.kill('SIGKILL');}
   await new Promise<void>(r=>upstream.close(()=>r()));await pool.query(`DROP SCHEMA IF EXISTS "${schemaName}" CASCADE`);await pool.end();

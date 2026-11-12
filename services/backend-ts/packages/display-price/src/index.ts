@@ -129,7 +129,7 @@ export async function storePriceReferences(pool: Pool, deployment: DeploymentIde
   });
   // Record every observation, including failures and out-of-order responses,
   // outside the database. No credentials or request headers are included.
-  for(const reference of references)console.info(JSON.stringify({level:'info',service:'price-refresh',event:'price_reference',environment:deployment.environment,deploymentDigest:deployment.deploymentDigest,...reference}));
+  console.info(JSON.stringify({level:'info',service:'price-refresh',event:'price_batch',environment:deployment.environment,deploymentDigest:deployment.deploymentDigest,targets:references.length,available:references.filter(r=>r.status==='available').length,references}));
   // Publish the complete refresh atomically; consumers cannot see half a batch.
   await pool.query(`WITH updated AS (INSERT INTO ${schema}.price_references AS current(environment,chain_id,deployment_digest,asset,source,status,value,as_of,expires_at,payload,observed_at)
     SELECT $1,$2,$3,r.asset,r.source,r.status,r.value::numeric,r.as_of::timestamptz,r.expires_at::timestamptz,r.payload,r.observed_at::timestamptz
@@ -179,16 +179,16 @@ function identifier(value: string): string { if (!/^[a-z][a-z0-9_]{0,62}$/.test(
 
 
 /** One shared provider snapshot per refresh; never use testnet pool quotes on mainnet. */
-export async function fetchRuntimePriceReferences(targets:readonly PriceTarget[],options:Parameters<typeof fetchTestnetPriceReferences>[1]):Promise<PriceReference[]> {
+export async function fetchRuntimePriceReferences(targets:readonly PriceTarget[],options:Parameters<typeof fetchTestnetPriceReferences>[1]&{tokens?:readonly string[]}):Promise<PriceReference[]> {
  if(CURRENT_CHAIN_ID===46630)return fetchTestnetPriceReferences(targets,options);
  if(targets.some(t=>t.chainId!==4663))throw Error('Mainnet price target mismatch');
  const result:PriceReference[]=[];
- result.push(...await fetchPriceReferences(targets,{...options,maxAgeSeconds:300}));
+ if(targets.length)result.push(...await fetchPriceReferences(targets,{...options,maxAgeSeconds:300}));
  const now=options.now??new Date();
  const currencies:PriceTarget[]=[{chainId:4663,token:NATIVE_TOKEN,assetUid:NATIVE_ASSET_UID,symbol:'ETH'}];
  const usdg=f72BootstrapConfigs.find(c=>c.kind==='quote'&&c.values.symbol==='USDG');
  if(usdg)currencies.push({chainId:4663,token:String(usdg.values.quoteAsset) as Address,assetUid:usdg.id,symbol:'USDG'});
- for(const target of currencies){
+ for(const target of currencies.filter(t=>!options.tokens||options.tokens.includes(t.token))){
   if(target.symbol==='USDG'){
    result.push({...target,source:'fixed_usd',unit:'USD_PER_WHOLE_TOKEN',status:'available',bidUsd:'1',askUsd:'1',multiplier:'1',asOf:now.toISOString(),expiresAt:new Date(now.getTime()+300_000).toISOString(),retrievedAt:now.toISOString()});
    continue;
@@ -197,4 +197,17 @@ export async function fetchRuntimePriceReferences(targets:readonly PriceTarget[]
   catch{result.push(unavailableFrom(target,now,'coinbase_spot','spot_price_unavailable'));}
  }
  return result;
+}
+
+export function runtimePriceTargets():PriceTarget[]{
+ const targets=f72PriceTargets();
+ const currencies:PriceTarget[]=[{chainId:CURRENT_CHAIN_ID,token:NATIVE_TOKEN,assetUid:NATIVE_ASSET_UID,symbol:'ETH'}];
+ const usdg=CURRENT_CHAIN_ID===4663?f72BootstrapConfigs.find(c=>c.kind==='quote'&&c.values.symbol==='USDG'):undefined;
+ if(usdg)currencies.push({chainId:4663,token:String(usdg.values.quoteAsset).toLowerCase() as Address,assetUid:usdg.id,symbol:'USDG'});
+ return [...currencies,...targets.filter(t=>!currencies.some(c=>c.token===t.token))];
+}
+export function requestedPriceTokens(value:unknown):string[]{
+ const allowed=new Set<string>(runtimePriceTargets().map(t=>t.token));
+ if(!Array.isArray(value)||!value.length||value.length>256||new Set(value).size!==value.length||value.some(t=>typeof t!=='string'||!allowed.has(t)))throw Error('Invalid price tokens');
+ return [...value].sort();
 }

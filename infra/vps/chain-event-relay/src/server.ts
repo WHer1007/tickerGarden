@@ -1,3 +1,4 @@
+import {createIdleClaimer} from './idle-claim.ts';
 import {IdleWake} from './idle-wake.ts';
 import {budgetedRpcFetch} from './rpc-budget.ts';
 import {WsRpcClient} from './ws-client.ts';
@@ -79,6 +80,7 @@ const healthServer = createServer(async (request, response) => {
 });
 healthServer.listen(port);
 
+const claimNext=createIdleClaimer(()=>claimEvent(relayPool),()=>publishWake.revision);
 for (let worker = 0; worker < publishConcurrency; worker++) void publishLoop();
 void connectionLoop();
 
@@ -106,7 +108,7 @@ async function connectionLoop(): Promise<void> {
       await assertChainId(await client.request<string>('eth_chainId', []));
       subscriptionIds = await subscribe(client, routing);
       if(recoveryOwner==='relay')await reconcile(client, routing);
-      else await sourcePool.query('SELECT pg_notify($1,$2)',[wakeChannel,'recover']);
+      else await markRecoveryGap();
       activeSources = routing.sources.length;
       activePools = routing.pools.length;
       ready = true;
@@ -128,7 +130,7 @@ async function connectionLoop(): Promise<void> {
         const head = await latestHead(client);
         const additions = [...addedSources, ...addedPools];
         if (recoveryOwner==='relay' && additions.length > 0) await backfill({ sources: addedSources, pools: addedPools }, minimumBirthBlock(additions), head.number, false);
-        if(recoveryOwner==='display'&&additions.length>0)await sourcePool.query('SELECT pg_notify($1,$2)',[wakeChannel,'recover']);
+        if(recoveryOwner==='display'&&additions.length>0)await markRecoveryGap();
         for (const id of subscriptionIds) await client.request<boolean>('eth_unsubscribe', [id]);
         subscriptionIds = nextSubscriptions;
         currentRouting = nextRouting;
@@ -219,7 +221,7 @@ async function publishLoop(): Promise<void> {
     const observed=publishWake.revision;
     let event: { event_key: string; payload: string; attempt: number } | undefined;
     try {
-      event = await claimEvent(relayPool);
+      event = await claimNext();
       if (!event) { await publishWake.wait(idleMs,observed);idleMs=Math.min(5000,idleMs*2);continue; }
       idleMs=500;
       const endpoint = `${queueUrl}/v2/publish/${encodeURIComponent(destination.toString())}`;
@@ -446,4 +448,10 @@ function delay(ms: number,signal?:AbortSignal): Promise<void> {
 async function releaseIdentity(){
  const schema=(await relayPool.query<{digest:string;n:number}>(`SELECT md5(string_agg(table_name||':'||column_name||':'||data_type||':'||is_nullable,',' ORDER BY table_name,ordinal_position)) digest,count(DISTINCT table_name)::int n FROM information_schema.columns WHERE table_schema='public' AND table_name=ANY($1::text[])`,[["chain_relay_events", "chain_relay_batches", "chain_relay_state"]])).rows[0];
  return {commit:/^[0-9a-f]{40}$/.test(process.env.TG_RELEASE_COMMIT??'')?process.env.TG_RELEASE_COMMIT:null,imageDigest:/^sha256:[0-9a-f]{64}$/.test(process.env.TG_IMAGE_DIGEST??'')?process.env.TG_IMAGE_DIGEST:null,schemaDigest:schema?.n===3?schema.digest:null};
+}
+
+async function markRecoveryGap(){
+ const schema=sqlIdentifier(process.env.TG_DATABASE_SCHEMA??'tickergarden_serverless');
+ await sourcePool.query(`INSERT INTO ${schema}.display_health AS current(environment,chain_id,deployment_digest,status,reason) VALUES($1,$2,$3,'gap','upstream-recovery-required') ON CONFLICT(environment,chain_id,deployment_digest) DO UPDATE SET status='gap',reason=EXCLUDED.reason,updated_at=now() WHERE current.reason IS DISTINCT FROM EXCLUDED.reason`,[filter.environment,filter.chainId,filter.releaseId]);
+ await sourcePool.query('SELECT pg_notify($1,$2)',[wakeChannel,'recover']);
 }

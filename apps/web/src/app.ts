@@ -616,7 +616,9 @@ async function prepareFoundation(api: TickerGardenV1Client | null, expectedSync?
     throw new Error("Read API does not advertise this V1 execution contract");
   }
   if (health.custody || health.transactionSubmission) throw new Error("Read API violates the non-custodial read-only boundary");
-  assertFinalizedSync(health.sync, undefined, "Read API health");
+  // Loading persisted display/config data does not claim live event coverage.
+  if(health.publishedSnapshot)health={...health,sync:health.publishedSnapshot};
+  assertFinalizedSync(health.sync, undefined, "Read API snapshot");
   if (expectedSync) { assertFinalizedSync(expectedSync); health = { ...health, sync: expectedSync }; }
   const revision = health.sync.revision;
   const requestedMarket = currentPage() === "trade" ? new URL(window.location.href).searchParams.get("marketId")?.trim().toLowerCase() : undefined;

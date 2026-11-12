@@ -1,3 +1,6 @@
+import {requestedPriceTokens} from '../../../packages/display-price/src/index.ts';
+import {createRequestedPriceRefresh,canReuseRequestedPrices} from './requested-prices.ts';
+import {readDisplayCoverage,healthSync} from '../../../packages/confirmed-display/src/health.ts';
 import {withPriceReadConnection} from './price-read.ts';
 import {rpcBudgetEndpoint} from './rpc-budget.ts';
 import {rpcRuntimeOptions} from '../../../packages/rpc-control/src/runtime.ts';
@@ -141,8 +144,10 @@ export function createReadApiApp(options: ReadApiOptions = {}) {
     try { sync = await readPublishedSync({ pool: pool(), deployment, scope: 'markets', ...(schemaName ? { schemaName } : {}) }); } catch (error) {
       if (!(error instanceof PublicationUnavailableError)) throw error;
     }
-    context.header('cache-control', 'public, max-age=2, s-maxage=5, stale-while-revalidate=10');
-    return context.json({ executionSpecId: 'V1-EXEC-11' as const, status: 'read-api' as const, readApiImplemented: true as const,
+    const publishedSnapshot=sync,coverage=await readDisplayCoverage(pool(),deployment,schemaName??'tickergarden_serverless');
+    sync=healthSync(publishedSnapshot);
+    context.header('cache-control', 'no-store');
+    return context.json({publishedSnapshot,coverage,snapshotAvailable:publishedSnapshot.status!=='unavailable',synchronized:false, executionSpecId: 'V1-EXEC-11' as const, status: 'read-api' as const, readApiImplemented: true as const,
       productRuntimeImplemented: true as const, custody: false as const, transactionSubmission: false as const, sync, syncBasis: "persisted-publication", liveChainHeadVerified: false });
   });
 
@@ -385,8 +390,21 @@ export function createReadApiApp(options: ReadApiOptions = {}) {
   const sharePrices = createReadAdmission({concurrency:1,maxPending:0,unavailable:()=>new PublicationUnavailableError('Price read capacity is busy')});
   const sharedPrices = () => sharePrices('prices:references', () => withPriceReadConnection(pool(), client => readDisplayPrices({ pool: client, deployment, ...(schemaName ? { schemaName } : {}) })));
 
+  const refreshRequestedPrices=createRequestedPriceRefresh(env);
   app.get('/v1/prices/references', async (context) => {
-    try { rejectUnknown(context.req.query(), []); return context.json(await sharedPrices()); }
+    try {
+      const q=context.req.query();rejectUnknown(q,['tokens']);
+      const tokens=q.tokens===undefined?undefined:requestedPriceTokens(q.tokens.split(','));
+      let result=await sharedPrices();
+      if(tokens&&deployment.environment==='production'){
+        const selected=result.references.filter(r=>tokens.includes(r.token));
+        if(selected.length!==tokens.length||!canReuseRequestedPrices(selected)){
+          await refreshRequestedPrices(context.get('requestId'),tokens).catch(()=>undefined);
+          result=await sharedPrices();
+        }
+      }
+      return context.json(tokens?{...result,references:result.references.filter(r=>tokens.includes(r.token))}:result);
+    }
     catch (error) { return analyticsError(context, error, 'candle'); }
   });
 
