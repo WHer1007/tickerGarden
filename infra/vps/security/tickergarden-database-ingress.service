@@ -1,0 +1,14 @@
+[Unit]
+Description=Block public database ingress before network and Docker startup
+DefaultDependencies=no
+After=local-fs.target
+Before=network-pre.target docker.service
+Wants=network-pre.target
+
+[Service]
+Type=oneshot
+ExecStart=/bin/bash /opt/tickergarden/security/database-ingress.sh
+RemainAfterExit=yes
+
+[Install]
+WantedBy=multi-user.target

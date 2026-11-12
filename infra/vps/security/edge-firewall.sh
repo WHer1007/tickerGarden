@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Apply on the VPS only after all four HTTPS endpoints work through Cloudflare.
-# Database ports remain public for authenticated Vercel clients without static egress.
+# Migrated applications connect from the host/private network; public DB access is forbidden.
 set -euo pipefail
 mode=${1:?usage: edge-firewall.sh prepare|cloudflare-only}
 [[ $mode == prepare || $mode == cloudflare-only ]] || exit 2
@@ -25,11 +25,13 @@ for version in 4 6; do
   # First build an unreferenced chain; existing traffic rules stay intact on error.
   next=TG-G-$$-$version
   $tool -w -N "$next"
+  # Before ESTABLISHED: closing ingress must also close previously accepted public sessions.
+  $tool -w -A "$next" -p tcp -m multiport --dports 5432,5433,5434 -j DROP
   $tool -w -A "$next" -m conntrack --ctstate ESTABLISHED,RELATED -j RETURN
   $tool -w -A "$next" -p tcp -m multiport --dports 5432,5433,5434 --syn -m connlimit --connlimit-above 80 --connlimit-mask $([[ $version == 4 ]] && echo 32 || echo 128) -j DROP
   $tool -w -A "$next" -p tcp -m multiport --dports 5432,5433,5434 --syn -m hashlimit --hashlimit-above 20/second --hashlimit-burst 80 --hashlimit-mode srcip --hashlimit-name tg_db_new --hashlimit-htable-max 8192 -j DROP
   if [[ $mode == cloudflare-only ]]; then
-    while read -r cidr; do
+    while IFS= read -r cidr || [[ -n $cidr ]]; do
       [[ -z $cidr ]] || $tool -w -A "$next" -p tcp -s "$cidr" -m multiport --dports 80,443 -j RETURN
     done < "$base/cloudflare-v$version"
     $tool -w -A "$next" -p tcp -m multiport --dports 80,443 -j DROP
