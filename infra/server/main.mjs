@@ -31,6 +31,8 @@ if(config.kind==='gateway'){
 }
 const server=serveFetch(handler,{host:config.host,port:config.port});
 console.info(JSON.stringify({event:'server_started',name:config.name,port:config.port}));
+// Release temporary TypeScript/module initialization objects on small resident hosts.
+setTimeout(()=>globalThis.gc?.(),1000).unref();
 let closing=false;
 for(const signal of ['SIGTERM','SIGINT'])process.on(signal,async()=>{
   if(closing)return;closing=true;const timeout=setTimeout(()=>process.exit(1),15000);timeout.unref();
