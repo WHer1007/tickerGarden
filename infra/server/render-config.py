@@ -10,6 +10,7 @@ import os
 import pathlib
 import pwd
 import re
+import ipaddress
 import tempfile
 from urllib.parse import urlsplit
 
@@ -21,6 +22,17 @@ a = p.parse_args()
 root = pathlib.Path(a.root).resolve()
 config = json.loads(pathlib.Path(a.config).read_text())
 services = config['services']
+network_projection = config.get('composeNetworkProjection')
+if network_projection:
+    assert network_projection['file'] == '/opt/tickergarden/production-init.override.json', 'Unexpected Compose projection path'
+    seen = set()
+    for service, networks in network_projection['services'].items():
+        assert re.fullmatch(r'[a-z][a-z0-9-]+', service), 'Invalid Compose service'
+        for network, address in networks.items():
+            subnet = {'edge': '172.18.0.0/16', 'production': '172.19.0.0/16', 'test': '172.20.0.0/16'}.get(network)
+            assert subnet and ipaddress.ip_address(address) in ipaddress.ip_network(subnet), 'Invalid container address'
+            assert address not in seen and not address.endswith('.0') and not address.endswith('.1'), 'Duplicate/reserved container address'
+            seen.add(address)
 ports = set()
 routes = None
 for name, c in services.items():
@@ -83,3 +95,12 @@ transport = root / 'private-transport.json'
 transport.write_text(json.dumps(routes, indent=2) + '\n')
 os.chmod(transport, 0o644)
 print('Rendered runtime projections; restart only the services whose configuration changed')
+if network_projection:
+    file = pathlib.Path(network_projection['file'])
+    projection = json.loads(file.read_text())
+    for service, networks in network_projection['services'].items():
+        entry = projection.setdefault('services', {}).setdefault(service, {})
+        for network, address in networks.items():
+            entry.setdefault('networks', {}).setdefault(network, {})['ipv4_address'] = address
+    write(file, projection, 0o600)
+    print('Rendered pinned Compose network addresses; no containers recreated')
