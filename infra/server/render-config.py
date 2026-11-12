@@ -14,6 +14,18 @@ import ipaddress
 import tempfile
 from urllib.parse import urlsplit
 
+def project_networks(projection, services):
+    for service, networks in services.items():
+        entry = projection.setdefault('services', {}).setdefault(service, {})
+        current = entry.get('networks') or {}
+        if isinstance(current, list):
+            current = {name: {} for name in current}
+        assert isinstance(current, dict), 'Invalid Compose networks'
+        entry['networks'] = current
+        for network, address in networks.items():
+            current[network] = {**(current.get(network) or {}), 'ipv4_address': address}
+    return projection
+
 p = argparse.ArgumentParser(description=__doc__)
 p.add_argument('--config', default='/etc/tickergarden/hosting.json')
 p.add_argument('--root', required=True)
@@ -64,6 +76,7 @@ for name, c in services.items():
     if c.get('bsc'):
         profile = c['bscProfile']
         assert profile['chainId'] == 56 and profile['backend']['schema'] == 'tickergarden_bsc', 'BSC isolation mismatch'
+projected_networks = [(pathlib.Path(n['file']), project_networks(json.loads(pathlib.Path(n['file']).read_text()), n['services'])) for n in network_projections]
 print(f'Validated {len(services)} isolated services')
 if a.check:
     raise SystemExit(0)
@@ -95,12 +108,6 @@ transport = root / 'private-transport.json'
 transport.write_text(json.dumps(routes, indent=2) + '\n')
 os.chmod(transport, 0o644)
 print('Rendered runtime projections; restart only the services whose configuration changed')
-for network_projection in network_projections:
-    file = pathlib.Path(network_projection['file'])
-    projection = json.loads(file.read_text())
-    for service, networks in network_projection['services'].items():
-        entry = projection.setdefault('services', {}).setdefault(service, {})
-        for network, address in networks.items():
-            entry.setdefault('networks', {}).setdefault(network, {})['ipv4_address'] = address
+for file, projection in projected_networks:
     write(file, projection, 0o600)
     print('Rendered pinned Compose network addresses; no containers recreated')
