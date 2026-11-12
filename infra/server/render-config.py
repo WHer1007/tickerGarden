@@ -22,10 +22,10 @@ a = p.parse_args()
 root = pathlib.Path(a.root).resolve()
 config = json.loads(pathlib.Path(a.config).read_text())
 services = config['services']
-network_projection = config.get('composeNetworkProjection')
-if network_projection:
-    assert network_projection['file'] == '/opt/tickergarden/production-init.override.json', 'Unexpected Compose projection path'
-    seen = set()
+network_projections = config.get('composeNetworkProjections', [])
+seen = set()
+for network_projection in network_projections:
+    assert network_projection['file'] in ['/opt/tickergarden/production-init.override.json', '/opt/tickergarden/production-release.override.json', '/opt/tickergarden/test-release.override.json'], 'Unexpected Compose projection path'
     for service, networks in network_projection['services'].items():
         assert re.fullmatch(r'[a-z][a-z0-9-]+', service), 'Invalid Compose service'
         for network, address in networks.items():
@@ -95,7 +95,7 @@ transport = root / 'private-transport.json'
 transport.write_text(json.dumps(routes, indent=2) + '\n')
 os.chmod(transport, 0o644)
 print('Rendered runtime projections; restart only the services whose configuration changed')
-if network_projection:
+for network_projection in network_projections:
     file = pathlib.Path(network_projection['file'])
     projection = json.loads(file.read_text())
     for service, networks in network_projection['services'].items():
