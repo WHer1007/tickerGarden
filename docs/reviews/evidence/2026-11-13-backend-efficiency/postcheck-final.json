@@ -1,0 +1,99 @@
+{
+  "at": "2026-11-12T19:20:29.722875+00:00",
+  "logs": {
+    "tickergarden-confirmed-display-production": {
+      "counts": {
+        "price_batch_read": 3,
+        "database_task": 9
+      },
+      "rpcNetworkCalls": 0,
+      "rpcMethods": {},
+      "priceBatchTargets": [],
+      "timeouts": 0
+    },
+    "tickergarden-bsc-display": {
+      "counts": {
+        "database_slow_connection": 1,
+        "database_task": 2,
+        "price_batch_read": 1
+      },
+      "rpcNetworkCalls": 0,
+      "rpcMethods": {},
+      "priceBatchTargets": [],
+      "timeouts": 0
+    },
+    "tickergarden-bsc-event-relay": {
+      "counts": {
+        "chain_relay_disconnected": 9,
+        "chain_relay_ws_request": 2,
+        "chain_relay_ws_frame": 2,
+        "chain_relay_ws_response": 2
+      },
+      "rpcNetworkCalls": 2,
+      "rpcMethods": {
+        "eth_chainId": 1,
+        "eth_subscribe": 1
+      },
+      "priceBatchTargets": [],
+      "timeouts": 0
+    },
+    "tg-hosting-rh-pipeline": {
+      "counts": {
+        "server_started": 1,
+        "http_request": 12,
+        "price_batch": 3,
+        "price_refresh": 3,
+        "database_task": 3
+      },
+      "rpcNetworkCalls": 0,
+      "rpcMethods": {},
+      "priceBatchTargets": [
+        1,
+        1,
+        1
+      ],
+      "timeouts": 0
+    }
+  },
+  "rhDisplayHealth": {
+    "lastSuccess": 0,
+    "lastResult": "gap:upstream-recovery-required",
+    "lastFailure": null,
+    "displayOnly": true,
+    "mode": "push-only",
+    "coverage": "gap",
+    "synchronized": false,
+    "idleIsHealthy": true,
+    "database": {
+      "connectionCount": 13,
+      "queryCount": 63,
+      "slowQueryCount": 0,
+      "sqlTimeoutCount": 0,
+      "connectionTimeoutCount": 0,
+      "taskCount": 9,
+      "taskFailedCount": 0,
+      "connectionWaitMs": 244.60018200006016,
+      "sqlMs": 562.1981789999663,
+      "taskMs": 482.09086900000693
+    }
+  },
+  "rhRelayHealth": {
+    "ok": true,
+    "release": {
+      "commit": "7bf2ee9875f1d8a96118441c00eed8f9fa1983f9",
+      "imageDigest": "sha256:ec0f4efc098686bdbd58d396738bb082d6a2ed1909bf1f56d5c6a45861508c23",
+      "schemaDigest": "4ced6b51b004ee3cf86698812e4fad58"
+    },
+    "mode": "filtered-logs",
+    "recoveryOwner": "durable-inbox",
+    "activeSources": 20,
+    "activePools": 0,
+    "subscriptions": 1,
+    "reconnects": 0,
+    "pending": 0,
+    "dead": 0,
+    "oldestPendingSeconds": 0,
+    "publishConcurrency": 8,
+    "lastError": null
+  }
+}

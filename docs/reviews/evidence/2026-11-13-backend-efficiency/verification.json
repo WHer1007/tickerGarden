@@ -1,0 +1,104 @@
+{
+  "at": "2026-11-12T19:17:47.788320+00:00",
+  "rh-read": {
+    "status": 200,
+    "snapshotAvailable": true,
+    "coverage": {
+      "status": "gap",
+      "synchronized": false,
+      "reason": "upstream-recovery-required",
+      "updatedAt": "2026-11-12T19:14:51.221Z",
+      "recoveryOwner": "durable-inbox"
+    },
+    "syncStatus": "lagging"
+  },
+  "bsc-read": {
+    "status": 200,
+    "snapshotAvailable": true,
+    "coverage": {
+      "status": "gap",
+      "synchronized": false,
+      "reason": "upstream-recovery-required",
+      "updatedAt": "2026-11-12T19:17:20.247Z",
+      "recoveryOwner": "durable-inbox"
+    },
+    "syncStatus": "lagging"
+  },
+  "permitUnauthorized": 403,
+  "backgroundSaturation": 429,
+  "interactiveReserve": 200,
+  "bsc-display": {
+    "http": 200,
+    "health": {
+      "lastSuccess": 0,
+      "lastResult": "gap:upstream-recovery-required",
+      "lastFailure": null,
+      "displayOnly": true,
+      "mode": "push-only",
+      "coverage": "gap",
+      "synchronized": false,
+      "idleIsHealthy": true,
+      "database": {
+        "connectionCount": 4,
+        "queryCount": 6,
+        "slowQueryCount": 0,
+        "sqlTimeoutCount": 0,
+        "connectionTimeoutCount": 0,
+        "taskCount": 0,
+        "taskFailedCount": 0,
+        "connectionWaitMs": 398.78309600000284,
+        "sqlMs": 46.4646289999946,
+        "taskMs": 0
+      }
+    }
+  },
+  "bsc-relay": {
+    "http": 200,
+    "health": {
+      "ok": true,
+      "release": {
+        "commit": "a156eeedb8903d02d12eed25dfb4bdcdb6ef1f31",
+        "imageDigest": null,
+        "schemaDigest": "4ced6b51b004ee3cf86698812e4fad58"
+      },
+      "mode": "filtered-logs",
+      "recoveryOwner": "durable-inbox",
+      "activeSources": 16,
+      "activePools": 0,
+      "subscriptions": 1,
+      "reconnects": 9,
+      "pending": 0,
+      "dead": 0,
+      "oldestPendingSeconds": 0,
+      "publishConcurrency": 1,
+      "lastError": null
+    }
+  },
+  "passiveCatalogCount": 196,
+  "prices": [
+    {
+      "symbol": "USDG",
+      "status": "available",
+      "retrievedAt": "2026-11-12T19:17:48.285Z",
+      "expiresAt": "2026-11-12T19:22:48.285Z",
+      "reason": null
+    },
+    {
+      "symbol": "ETH",
+      "status": "available",
+      "retrievedAt": "2026-11-12T19:17:48.406Z",
+      "expiresAt": "2026-11-12T19:22:48.406Z",
+      "reason": null
+    },
+    {
+      "symbol": "AAPL",
+      "status": "available",
+      "retrievedAt": "2026-11-12T19:17:48.645Z",
+      "expiresAt": "2026-11-12T19:22:38.512Z",
+      "reason": null
+    }
+  ],
+  "rhPriceSchedule": false,
+  "testPriceSchedule": true,
+  "failedUnits": ""
+}

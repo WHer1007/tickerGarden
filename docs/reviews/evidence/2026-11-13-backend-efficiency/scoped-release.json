@@ -1,0 +1,161 @@
+{
+  "commits": {
+    "main": "7bf2ee9875f1d8a96118441c00eed8f9fa1983f9",
+    "bsc": "251e89e52fb184b2f5795ffb77189d977490d5b0"
+  },
+  "components": {
+    "rh-read": {
+      "target": "/opt/tickergarden-hosting/releases/20261112/sources/rh-read",
+      "commit": "7bf2ee9875f1d8a96118441c00eed8f9fa1983f9",
+      "files": {
+        "services/backend-ts/apps/read-api/src/index.ts": {
+          "before": "37c57a610237f1a64f8ab071edbd2fb37f22dbe69e0f925faea6582c078628ee",
+          "after": "37005bab6233173599274e6f45944f436ac7d2f252203a8ee731bf3a75d40263"
+        },
+        "services/backend-ts/apps/read-api/src/requested-prices.ts": {
+          "before": "absent",
+          "after": "4631b278bdd5fe42e52ed422d1b00b63cd07844a845426aac0b737f8d9d62155"
+        },
+        "services/backend-ts/packages/confirmed-display/src/health.ts": {
+          "before": "absent",
+          "after": "ade4b506560fef4d5f01902ed064c31bfcae9af8737f2d5eaf32c17ce46fc7bf"
+        },
+        "services/backend-ts/packages/display-price/src/index.ts": {
+          "before": "23bab3d0ae830e0f8e300d33bdd1ad854bb0ac48ed2571d3247c0f09663c97a8",
+          "after": "834f52519c10506006c3977392c076418a530bf96bf4d9d58b6cc9bc1c94cab0"
+        }
+      }
+    },
+    "rh-pipeline": {
+      "target": "/opt/tickergarden-hosting/releases/20261112/sources/rh-pipeline",
+      "commit": "7bf2ee9875f1d8a96118441c00eed8f9fa1983f9",
+      "files": {
+        "services/backend-ts/apps/pipeline/src/index.ts": {
+          "before": "b7880cc1bfc5c0f16fce0e08269a9d3285343dcaba4f19f51d981b6dc0cff7f3",
+          "after": "f58686d4113335e57bf60715e82fb9b11336666d9a00326755da76e039fa1a4b"
+        },
+        "services/backend-ts/packages/display-price/src/index.ts": {
+          "before": "23bab3d0ae830e0f8e300d33bdd1ad854bb0ac48ed2571d3247c0f09663c97a8",
+          "after": "834f52519c10506006c3977392c076418a530bf96bf4d9d58b6cc9bc1c94cab0"
+        }
+      }
+    },
+    "rh-display": {
+      "target": "/opt/tickergarden-releases/295c186633-runtime-only",
+      "commit": "7bf2ee9875f1d8a96118441c00eed8f9fa1983f9",
+      "files": {
+        "services/backend-ts/scripts/confirmed-display-worker.ts": {
+          "before": "361a6ad14b1f9e9231715dffd6fa0ddb095927a216fa3b3fc64c41e5c8f26b4e",
+          "after": "318dfe02c670f5a3ac9c6e34f75f0d594a333db728971d3afb7788a0faf9a71a"
+        },
+        "services/backend-ts/packages/confirmed-display/src/health.ts": {
+          "before": "absent",
+          "after": "ade4b506560fef4d5f01902ed064c31bfcae9af8737f2d5eaf32c17ce46fc7bf"
+        }
+      }
+    },
+    "bsc-read": {
+      "target": "/opt/tickergarden-hosting/releases/20261112/sources/bsc-read",
+      "commit": "251e89e52fb184b2f5795ffb77189d977490d5b0",
+      "files": {
+        "services/backend-ts/apps/read-api/src/index.ts": {
+          "before": "2f67d3d5c732e193e94cecc0a224ae5dca9d9555ccbb8d66ec55d29adaaa5bd3",
+          "after": "c1b39a685ac3c7390c8f00849c56af85d22ed59f725b8720b60ccec920d4c6a8"
+        },
+        "services/backend-ts/packages/confirmed-display/src/health.ts": {
+          "before": "absent",
+          "after": "ade4b506560fef4d5f01902ed064c31bfcae9af8737f2d5eaf32c17ce46fc7bf"
+        }
+      }
+    },
+    "bsc-display": {
+      "target": "/opt/tickergarden-bsc/releases/774b1c5-runtime-only",
+      "commit": "251e89e52fb184b2f5795ffb77189d977490d5b0",
+      "files": {
+        "services/backend-ts/scripts/confirmed-display-worker.ts": {
+          "before": "9d81fc44b82aad772838c60cea136c443c7553d3daf376bad9bae066b8a0be5c",
+          "after": "4f0512fd28ecf19a3c81c646dab4e34892209af416ce564e7b694776ef2b6d0b"
+        },
+        "services/backend-ts/packages/confirmed-display/src/health.ts": {
+          "before": "absent",
+          "after": "ade4b506560fef4d5f01902ed064c31bfcae9af8737f2d5eaf32c17ce46fc7bf"
+        },
+        "services/backend-ts/packages/rpc-control/src/worker-policy.ts": {
+          "before": "absent",
+          "after": "3aaf0f697e790df8d64710ef992292e1ddbb7b81030c333e62e810d6c1931755"
+        },
+        "services/backend-ts/packages/rpc-control/src/runtime.ts": {
+          "before": "cbe7c592702cd29b3c33016d7788699cdfcf80397b2d0535a4d07beffb0ec019",
+          "after": "8ac2e07e7c21ecc8557124370bd9def8d04a583b2f8c764cae2386d616dbb9f6"
+        },
+        "services/backend-ts/packages/rpc-control/src/store.ts": {
+          "before": "44eedb9a636f8e1ad80b0a49d7decb658271ac490d8eadb4dd4025e1760c6a6d",
+          "after": "d258d2a5aa3e8353c13322930b1265c9f824dac635f0df65ab276e330eb36e7c"
+        },
+        "services/backend-ts/packages/rpc-control/src/attempt.ts": {
+          "before": "6e51000aa49be42609a16fa8642e02bce88fe9b674567e910763e79e612d306e",
+          "after": "6e51000aa49be42609a16fa8642e02bce88fe9b674567e910763e79e612d306e"
+        }
+      }
+    },
+    "bsc-relay": {
+      "target": "/opt/tickergarden-bsc/releases/a156eee",
+      "commit": "251e89e52fb184b2f5795ffb77189d977490d5b0",
+      "files": {
+        "services/backend-ts/scripts/relay/server.ts": {
+          "before": "e6789bd83f1c7e0d8746d4e21afadd799e7667e7644ebe1ae16843b8fc590e18",
+          "after": "06d1a57be94dc4d1cf8721ce505e4abc977de363dab48b9809cc74812edcd727"
+        },
+        "services/backend-ts/scripts/relay/rpc-budget.ts": {
+          "before": "7488bc2e3de61135ffad698ca506f674c3a030082bb9269f8ec6ec3853cce2b6",
+          "after": "f1b91ad7b64dd0c0ae129517178d328ce71c48dcc3ffccd0415f99a6b4ad4c0c"
+        },
+        "services/backend-ts/scripts/relay/routing-pools.ts": {
+          "before": "absent",
+          "after": "0cde6d9bdc6357acd8b446eeb27b76498141dbacbe105cbb9c3ff284c31e2c05"
+        },
+        "services/backend-ts/packages/confirmed-display/src/health.ts": {
+          "before": "absent",
+          "after": "ade4b506560fef4d5f01902ed064c31bfcae9af8737f2d5eaf32c17ce46fc7bf"
+        },
+        "services/backend-ts/packages/rpc-control/src/worker-policy.ts": {
+          "before": "absent",
+          "after": "3aaf0f697e790df8d64710ef992292e1ddbb7b81030c333e62e810d6c1931755"
+        },
+        "services/backend-ts/packages/rpc-control/src/runtime.ts": {
+          "before": "cbe7c592702cd29b3c33016d7788699cdfcf80397b2d0535a4d07beffb0ec019",
+          "after": "8ac2e07e7c21ecc8557124370bd9def8d04a583b2f8c764cae2386d616dbb9f6"
+        },
+        "services/backend-ts/packages/rpc-control/src/store.ts": {
+          "before": "44eedb9a636f8e1ad80b0a49d7decb658271ac490d8eadb4dd4025e1760c6a6d",
+          "after": "d258d2a5aa3e8353c13322930b1265c9f824dac635f0df65ab276e330eb36e7c"
+        },
+        "services/backend-ts/packages/rpc-control/src/attempt.ts": {
+          "before": "6e51000aa49be42609a16fa8642e02bce88fe9b674567e910763e79e612d306e",
+          "after": "6e51000aa49be42609a16fa8642e02bce88fe9b674567e910763e79e612d306e"
+        }
+      }
+    }
+  },
+  "configBefore": "c0e36ffc6aae44f8a57578b18f0e40b237518e760f00732ecbd2e31445db9168",
+  "rendererBefore": "c3102b39bfee223450808a23a30a249b4f55ef1f100a57e937ce61b3f9822ad0",
+  "relayImage": {
+    "id": "sha256:3bb579310e35fc27a4c03d3f399438991af862bd3058a8d614b187508390e74b",
+    "tag": "tg-rh-relay:b06326367b08",
+    "containerId": "a0c119f1d466eab87360c3e91d58851767df67af69e2370bd76c175d8304b49f"
+  },
+  "relayBefore": {
+    "server.ts": "37c8f2358a953b9929de1b33f8276970400525a23001a212ef23d6ae435287ff"
+  },
+  "previousWebTree": "f9b3d2767927c8ec234bc85522e53cd5d1aa0078",
+  "adapter": {
+    "render-config.py": "bad82f9d94bcf378cffec718dab7b5bc345f6e14dbb7e173d61af7f9b4f4f274",
+    "worker_config.py": "d11fe91354a4aa02ba6b885d473d50fc57ea56746cf36c57b253901ece75e220"
+  },
+  "relayFiles": {
+    "idle-claim.ts": "e18bcaf349a995ce86850eac1397be8f003428544e858daf9ef324184c70b80c",
+    "server.ts": "9e0866b747a32571579b7360974090ae806cb9afa80610ca1d173fe6c8bc1bd3"
+  },
+  "migrationSha256": "cb152ffe23d445cdf7a894596e23b113c1251f3f6c366a6c412a0ba30e382d5e",
+  "webArtifact": "00d64a39c9eac3b4f84439a03ef1fdaf3062341982f5fac78258c24c8ceeaf04"
+}
