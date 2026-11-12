@@ -45,6 +45,9 @@ for network_projection in network_projections:
             assert subnet and ipaddress.ip_address(address) in ipaddress.ip_network(subnet), 'Invalid container address'
             assert address not in seen and not address.endswith('.0') and not address.endswith('.1'), 'Duplicate/reserved container address'
             seen.add(address)
+retention = config.get('journalRetention')
+if retention:
+    assert 64 <= retention['systemMaxMiB'] <= 2048 and 16 <= retention['runtimeMaxMiB'] <= 512 and 1 <= retention['days'] <= 30, 'Invalid journal retention'
 ports = set()
 routes = None
 for name, c in services.items():
@@ -123,3 +126,15 @@ print('Rendered runtime projections; restart only the services whose configurati
 for file, projection in projected_networks:
     write(file, projection, 0o600)
     print('Rendered pinned Compose network addresses; no containers recreated')
+
+if retention:
+    destination = pathlib.Path('/etc/systemd/journald.conf.d/60-tickergarden.conf')
+    destination.parent.mkdir(parents=True, exist_ok=True)
+    text = '[Journal]\nSystemMaxUse={systemMaxMiB}M\nRuntimeMaxUse={runtimeMaxMiB}M\nMaxRetentionSec={days}day\nCompress=yes\n'.format(**retention)
+    fd, temporary = tempfile.mkstemp(prefix='.tickergarden-', dir=destination.parent)
+    with os.fdopen(fd, 'w') as f:
+        f.write(text)
+        f.flush()
+        os.fsync(f.fileno())
+    os.chmod(temporary, 0o644)
+    os.replace(temporary, destination)
