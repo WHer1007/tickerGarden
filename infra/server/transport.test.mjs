@@ -13,6 +13,13 @@ test('prefix routing sends BSC queue publication only to its isolated queue',asy
  let seen;const f=mappedFetch({'https://queue.example/bsc':'http://172.18.0.4:8080','https://queue.example':'http://172.18.0.5:8080'},async r=>{seen=r.url;return new Response();});
  await f('https://queue.example/bsc/v2/publish/x');assert.equal(seen,'http://172.18.0.4:8080/v2/publish/x');
 });
+test('Web selectors reach the gateway while private RPC permits retain their direct route',async()=>{
+ const seen=[];const shared={'https://api.example':'http://172.18.0.1:8201','https://read.example':'http://172.18.0.1:8201'};
+ const web=mappedFetch({...shared,'https://api.example':'http://172.18.0.1:8300'},async r=>{seen.push(r.url);return new Response();});
+ await web('https://api.example/v1/rpc-scope?addresses=0x123&chainId=56');
+ await web('https://read.example/v1/internal/rpc-budget',{method:'POST',body:'permit'});
+ assert.deepEqual(seen,['http://172.18.0.1:8300/v1/rpc-scope?addresses=0x123&chainId=56','http://172.18.0.1:8201/v1/internal/rpc-budget']);
+});
 test('HTTP adapter preserves callback URL and cancels upstream on disconnect',async(t)=>{
  let signal,seen;const server=serveFetch(async req=>{signal=req.signal;seen=req.url;return new Response(new ReadableStream({start(c){c.enqueue(new TextEncoder().encode('ready\n'));}}));},{host:'127.0.0.1',port:0});await new Promise(r=>server.once('listening',r));
  t.after(()=>{server.closeAllConnections();server.close();});

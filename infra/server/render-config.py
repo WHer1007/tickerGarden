@@ -42,6 +42,13 @@ for name, c in services.items():
             assert public.scheme == 'https' and not public.username and not public.password and not public.query and not public.fragment, 'Invalid public origin'
             assert private.scheme == 'http' and re.fullmatch(r'172\.18\.0\.\d+', private.hostname or '') and not private.username and not private.password and not private.query and not private.fragment, 'Invalid private target'
     assert routes == c['transport'], 'Private transport projections disagree'
+    overrides = c.get('transportOverrides', {})
+    assert not overrides or c['kind'] == 'web', 'Only Web may override shared upstream routing'
+    for origin, target in overrides.items():
+        public, private = urlsplit(origin), urlsplit(target)
+        assert public.scheme == 'https' and not public.username and not public.password and not public.query and not public.fragment, 'Invalid override origin'
+        assert private.scheme == 'http' and private.hostname == '172.18.0.1' and private.port in [8300, 8310] and private.path in ['', '/'] and not private.username and not private.password and not private.query and not private.fragment, 'Override must route through an isolated gateway'
+        assert private.port == (8310 if c['environment'] == 'test' else 8300), 'Cross-environment gateway override'
     if c.get('bsc'):
         profile = c['bscProfile']
         assert profile['chainId'] == 56 and profile['backend']['schema'] == 'tickergarden_bsc', 'BSC isolation mismatch'

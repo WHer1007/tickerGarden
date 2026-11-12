@@ -7,7 +7,7 @@ const config=JSON.parse(fs.readFileSync(process.argv[2],'utf8'));
 if(!config.name||!path.isAbsolute(config.source)||!Number.isInteger(config.port))throw Error('Invalid generated service configuration');
 for(const key of Object.keys(process.env))if(key.startsWith('VERCEL'))delete process.env[key];
 Object.assign(process.env,config.env,{NODE_ENV:config.environment==='test'?'test':'production'});
-globalThis.fetch=mappedFetch(config.transport);
+globalThis.fetch=mappedFetch({...config.transport,...config.transportOverrides});
 const load=relative=>import(pathToFileURL(path.join(config.source,relative)).href);
 let handler,pool,stopScheduler;
 if(config.kind==='gateway'){
@@ -18,6 +18,9 @@ if(config.kind==='gateway'){
 }else{
   const backend='services/backend-ts/';
   const env=config.bsc?(await load(backend+'packages/bsc/src/runtime.ts')).serviceEnvironment():process.env;
+  // SDKs such as QStash read process.env rather than the app's injected env.
+  // Keep them on the same service-scoped configuration, including private URLs.
+  Object.assign(process.env,env);
   const {createDatabasePool}=await load(backend+'packages/db/src/index.ts');
   pool=createDatabasePool(env[config.kind==='read-api'?'TG_READ_DATABASE_URL':config.kind==='pipeline'?'TG_PIPELINE_DATABASE_URL':'TG_CONTENT_DATABASE_URL'],{}, {role:config.kind,env}).pool;
   const factories={'read-api':'createReadApiApp',pipeline:'createPipelineApp',content:'createContentApp'};
