@@ -1,4 +1,10 @@
 import test from 'node:test';import assert from 'node:assert/strict';import {scopedEvmUrl,EVM_GATEWAY_ORIGIN} from '../src/v1/evmTransport.ts';import {evmEnvironment,selectedEvmChain} from '../src/v1/evmContext.ts';import {proxyReadRpc} from '../api/rpc.ts';
+test('test gateway preserves its explicit chain without touching production or signed URLs',()=>{
+ const origin='https://test.tickergarden.com';
+ assert.equal(scopedEvmUrl(origin+'/v1/markets',46630,origin),origin+'/v1/markets?chainId=46630');
+ assert.equal(scopedEvmUrl('https://api.tickergarden.com/v1/markets',46630,origin),'https://api.tickergarden.com/v1/markets');
+ assert.throws(()=>scopedEvmUrl(origin+'/v1/markets?chainId=4663',46630,origin));
+});
 import {parseV1RuntimeConfig,SNAPSHOT_HOLDER_RELEASE_APPROVAL} from '../src/v1/runtimeConfig.ts';
 test('first BSC release cannot enable Holder claims through stale candidate or RH approvals',()=>{
  const env={VITE_BSC_USER_WRITES:'approved',VITE_HOLDER_SNAPSHOT_RELEASE_APPROVAL:SNAPSHOT_HOLDER_RELEASE_APPROVAL,VITE_BSC_HOLDER_SNAPSHOT_RELEASE_APPROVAL:SNAPSHOT_HOLDER_RELEASE_APPROVAL,VITE_BSC_CONTINUOUS_HOLDER_RELEASE_APPROVAL:'HOLDER_DUAL_ASSET_24H_V4:DEPLOYED_E2E_APPROVED'};

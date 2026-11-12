@@ -1,10 +1,10 @@
 import {selectedEvmChain} from './evmContext.ts';
-export const EVM_GATEWAY_ORIGIN='https://api.tickergarden.com';
+export const EVM_GATEWAY_ORIGIN=import.meta.env?.VITE_EVM_GATEWAY_ORIGIN??'https://api.tickergarden.com';
 /** Only the explicit unified endpoint receives a selector. RPC, IPFS and signed PUTs stay byte-identical. */
 export function scopedEvmUrl(input:string|URL,chainId:number,origin=EVM_GATEWAY_ORIGIN):string {
  const url=new URL(input,typeof location==='undefined'?'https://local.invalid':location.href??'https://local.invalid');
  if(url.origin!==origin)return String(input);
- if(![56,4663].includes(chainId))throw Error('Unsupported gateway chain');
+ if(![56,4663,46630].includes(chainId))throw Error('Unsupported gateway chain');
  const ids=url.searchParams.getAll('chainId');
  if(ids.length>1||ids.length===1&&ids[0]!==String(chainId))throw Error('Conflicting gateway chain');
  url.searchParams.set('chainId',String(chainId));return url.href;
