@@ -557,7 +557,8 @@ function renderCreateIdentity(): void {
   ctx.text("[data-fee-staking-note]", stakingEnabled
     ? "Staker fees apply after Bloomed, with active stake."
     : "Staking is off. Fee split stays unchanged.");
-  ctx.text("[data-preview-asset]", !stakingEnabled ? "Staking disabled" : stockSelect?.value ? stockSelect.selectedOptions[0]?.textContent?.split(" · ")[0] ?? "-" : "-");
+  const selectedStock = ctx.foundation?.assets.find(item => item.id === stockSelect?.value);
+  ctx.text("[data-preview-asset]", !stakingEnabled ? "Staking disabled" : selectedStock ? ctx.stockSymbol(selectedStock) : "-");
   const selection = ctx.query<HTMLSelectElement>("[name=quoteAssetConfigId]")?.value ?? "";
   const quote = ctx.foundation?.quotes.find(item => item.id === selection);
   const releaseAsset = releasePairForSelection(selection, ctx.foundation?.quotes ?? []);
