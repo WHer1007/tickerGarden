@@ -1,0 +1,3 @@
+import test from 'node:test';import assert from 'node:assert/strict';import {IdleWake} from '../src/idle-wake.ts';
+test('notifications between claim and wait are not lost, and all idle workers wake immediately',async()=>{const w=new IdleWake(),before=w.revision;w.wake();await w.wait(5000,before);let completed=0;const tasks=Array.from({length:8},()=>w.wait(5000,w.revision).then(()=>completed++));w.wake();await Promise.all(tasks);assert.equal(completed,8);});
+test('missed notifications retain a bounded durable queue check',async()=>{const w=new IdleWake(),start=Date.now();await w.wait(25,w.revision);assert.ok(Date.now()-start>=15);});

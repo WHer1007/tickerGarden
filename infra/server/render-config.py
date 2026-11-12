@@ -77,6 +77,18 @@ for name, c in services.items():
         profile = c['bscProfile']
         assert profile['chainId'] == 56 and profile['backend']['schema'] == 'tickergarden_bsc', 'BSC isolation mismatch'
 projected_networks = [(pathlib.Path(n['file']), project_networks(json.loads(pathlib.Path(n['file']).read_text()), n['services'])) for n in network_projections]
+for service, image in config.get('productionContainerImages', {}).items():
+    assert service in ['chain-event-relay-prod', 'queue-prod', 'tickergarden-bsc-queue-prod-1'], 'Unexpected production container'
+    assert re.fullmatch(r'[a-z0-9-]+:[a-z0-9-]+', image['image']), 'Invalid local image'
+    assert re.fullmatch(r'sha256:[a-f0-9]{64}', image['digest']) and re.fullmatch(r'[a-f0-9]{40}', image['commit']), 'Invalid image provenance'
+    if service == 'tickergarden-bsc-queue-prod-1':
+        continue  # This standalone container is recreated by the release script.
+    target = next((projection for file, projection in projected_networks if str(file) == '/opt/tickergarden/production-release.override.json'), None)
+    assert target is not None, 'Production Compose projection required'
+    entry = target.setdefault('services', {}).setdefault(service, {})
+    entry['image'] = image['image']
+    entry['environment'] = {**(entry.get('environment') or {}), 'TG_RELEASE_COMMIT': image['commit'], 'TG_IMAGE_DIGEST': image['digest']}
+
 print(f'Validated {len(services)} isolated services')
 if a.check:
     raise SystemExit(0)

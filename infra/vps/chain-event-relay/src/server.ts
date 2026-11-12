@@ -1,3 +1,4 @@
+import {IdleWake} from './idle-wake.ts';
 import {budgetedRpcFetch} from './rpc-budget.ts';
 import {WsRpcClient} from './ws-client.ts';
 import { createHash } from 'node:crypto';
@@ -49,6 +50,7 @@ const publishConcurrency = positiveInteger(process.env.CHAIN_RELAY_PUBLISH_CONCU
 const recoveryOverlap = BigInt(positiveInteger(process.env.CHAIN_RELAY_RECOVERY_OVERLAP_BLOCKS ?? '12', 1, 1000));
 const port = positiveInteger(process.env.PORT ?? '8081', 1, 65_535);
 
+const publishWake=new IdleWake();
 await initialize(relayPool);
 let stopping = false;
 let ready = false;
@@ -69,7 +71,7 @@ const healthServer = createServer(async (request, response) => {
     );
     const healthy = ready && lastError === null && (counts.rows[0]?.dead??0)===0 && (counts.rows[0]?.oldest_pending_seconds??0)<300;
     response.writeHead(healthy ? 200 : 503, { 'content-type': 'application/json', 'cache-control': 'no-store' });
-    response.end(JSON.stringify({ ok: healthy, release: await releaseIdentity(), mode: 'filtered-logs', recoveryOwner, activeSources, activePools, subscriptions: subscriptionIds.length, reconnects,
+    response.end(JSON.stringify({ ok: healthy, release: await releaseIdentity(), mode: 'filtered-logs', recoveryOwner:recoveryOwner==='display'?'durable-inbox':recoveryOwner, activeSources, activePools, subscriptions: subscriptionIds.length, reconnects,
       pending: counts.rows[0]?.pending ?? 0, dead: counts.rows[0]?.dead ?? 0, oldestPendingSeconds:counts.rows[0]?.oldest_pending_seconds??0,publishConcurrency,lastError }));
   } catch {
     response.writeHead(503, { 'content-type': 'application/json' }).end(JSON.stringify({ ok: false }));
@@ -200,22 +202,26 @@ async function handleSubscriptionLog(value: unknown): Promise<void> {
     `INSERT INTO chain_relay_events(event_key,payload) VALUES($1,$2) ON CONFLICT(event_key) DO NOTHING`,
     [eventKey(log), payload],
   );
+  publishWake.wake();
   // Separate source-database inbox lets display consume the push directly. Both
   // inserts are idempotent; failures close WS and trigger bounded recovery.
   const schema=sqlIdentifier(process.env.TG_DATABASE_SCHEMA??'tickergarden_serverless');
   const raw={...log,blockNumber:hexQuantity(log.blockNumber),transactionIndex:hexQuantity(log.transactionIndex),logIndex:hexQuantity(log.logIndex)};
   await sourcePool.query(`INSERT INTO ${schema}.display_event_inbox(environment,chain_id,deployment_digest,block_number,block_hash,transaction_hash,log_index,removed,payload) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9) ON CONFLICT DO NOTHING`,
     [filter.environment,filter.chainId,filter.releaseId,log.blockNumber.toString(),log.blockHash,log.transactionHash,log.logIndex.toString(),log.removed,JSON.stringify(raw)]);
-  // The raw event is durable before waking the single display recovery scanner.
+  // The raw event is durable before waking the display event consumer.
   await sourcePool.query('SELECT pg_notify($1,$2)',[wakeChannel,log.blockNumber.toString()]);
 }
 
 async function publishLoop(): Promise<void> {
+  let idleMs=500;
   while (!stopping) {
+    const observed=publishWake.revision;
     let event: { event_key: string; payload: string; attempt: number } | undefined;
     try {
       event = await claimEvent(relayPool);
-      if (!event) { await delay(500); continue; }
+      if (!event) { await publishWake.wait(idleMs,observed);idleMs=Math.min(5000,idleMs*2);continue; }
+      idleMs=500;
       const endpoint = `${queueUrl}/v2/publish/${encodeURIComponent(destination.toString())}`;
       const response = await fetch(endpoint, {
         method: 'POST', body: event.payload, redirect: 'error', signal: AbortSignal.timeout(15_000),
@@ -233,8 +239,8 @@ async function publishLoop(): Promise<void> {
   }
 }
 
-// Every raw event stays in the inbox. A sealed batch sends one head/range wake-up;
-// downstream still independently retrieves and verifies the complete finalized range.
+// Every raw event stays in the inbox. A sealed batch wakes the durable event consumer.
+// Missing ranges remain explicit; this notification does not authorize scanning.
 async function claimEvent(pool:Pool):Promise<{event_key:string;payload:string;attempt:number}|undefined>{
   const client=await pool.connect();
   try{

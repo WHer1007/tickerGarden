@@ -1,3 +1,4 @@
+import {IdleWake} from './idle-wake.ts';
 import { randomUUID, timingSafeEqual } from 'node:crypto';
 import { serve } from '@hono/node-server';
 import { Hono } from 'hono';
@@ -16,6 +17,7 @@ const publishToken = process.env.QUEUE_PUBLISH_TOKEN!;
 const signingKey = process.env.QUEUE_SIGNING_KEY!;
 const port = Number(process.env.PORT ?? '8080');
 const app = new Hono();
+const workWake=new IdleWake();
 
 await pool.query(`CREATE TABLE IF NOT EXISTS queue_messages (
   id uuid PRIMARY KEY,
@@ -60,6 +62,7 @@ app.post('/v2/publish/*', async (c) => {
      ON CONFLICT (deduplication_id) DO UPDATE SET updated_at=queue_messages.updated_at RETURNING id`,
     [id, destination, body, dedup, maxAttempts],
   );
+  workWake.wake();
   return c.json({ messageId: inserted.rows[0]!.id });
 });
 
@@ -115,11 +118,13 @@ async function retry(message: Lease, status: number | null, error: string): Prom
 
 let stopping = false;
 async function work(): Promise<void> {
+  let idleMs=500;
   while (!stopping) {
+    const observed=workWake.revision;
     try {
       const message = await claim();
-      if (message) await deliver(message);
-      else await new Promise((resolve) => setTimeout(resolve, 500));
+      if (message) {idleMs=500;await deliver(message);}
+      else {await workWake.wait(idleMs,observed);idleMs=Math.min(5000,idleMs*2);}
     } catch { await new Promise((resolve) => setTimeout(resolve, 1_000)); }
   }
 }
@@ -130,7 +135,7 @@ server.headersTimeout = 10_000;
 server.keepAliveTimeout = 5_000;
 void work();
 for (const signal of ['SIGTERM', 'SIGINT'] as const) process.on(signal, () => {
-  stopping = true;
+  stopping = true;workWake.wake();
   server.close(() => void pool.end().finally(() => process.exit(0)));
 });
 
