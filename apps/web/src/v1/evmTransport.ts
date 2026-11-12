@@ -1,5 +1,5 @@
 import {selectedEvmChain} from './evmContext.ts';
-export const EVM_GATEWAY_ORIGIN='https://tickergarden-evm-api.vercel.app';
+export const EVM_GATEWAY_ORIGIN='https://api.tickergarden.com';
 /** Only the explicit unified endpoint receives a selector. RPC, IPFS and signed PUTs stay byte-identical. */
 export function scopedEvmUrl(input:string|URL,chainId:number,origin=EVM_GATEWAY_ORIGIN):string {
  const url=new URL(input,typeof location==='undefined'?'https://local.invalid':location.href??'https://local.invalid');
