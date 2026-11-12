@@ -20,7 +20,9 @@ if(config.kind==='gateway'){
   const env=config.bsc?(await load(backend+'packages/bsc/src/runtime.ts')).serviceEnvironment():process.env;
   // SDKs such as QStash read process.env rather than the app's injected env.
   // Keep them on the same service-scoped configuration, including private URLs.
-  Object.assign(process.env,env);
+  for(const [key,value] of Object.entries(env)){
+    if(value===undefined)delete process.env[key];else process.env[key]=value;
+  }
   const {createDatabasePool}=await load(backend+'packages/db/src/index.ts');
   pool=createDatabasePool(env[config.kind==='read-api'?'TG_READ_DATABASE_URL':config.kind==='pipeline'?'TG_PIPELINE_DATABASE_URL':'TG_CONTENT_DATABASE_URL'],{}, {role:config.kind,env}).pool;
   const factories={'read-api':'createReadApiApp',pipeline:'createPipelineApp',content:'createContentApp'};
