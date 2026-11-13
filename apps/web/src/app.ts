@@ -58,7 +58,7 @@ import { type ListingPackageSnapshot } from "./create/listing-package.ts";
 import { metadataOrigin } from "./create/metadata.ts";
 import { assetLogoUrl,quoteIconUrl } from './create/quote-icons.ts';
 import { destroyQuotePicker } from "./create/quote-picker.ts";
-import { stakingAssetForConfig,STAKING_ASSETS } from './create/staking-assets.ts';
+import { stakingAssetForConfig,STAKING_ASSETS,stockTokenAddress as stockToken } from './create/staking-assets.ts';
 import { loadPageTemplate } from "./routing/pages.ts";
 import { createRouter } from "./routing/router.ts";
 import type { PageName,Route } from "./routing/routes.ts";
@@ -1233,11 +1233,6 @@ function configLabel(config: ConfigReadModel): string {
     if (typeof token === "string") return `${shortHex(token)} · ${shortHex(config.id)}`;
   }
   return shortHex(config.id, 8, 6);
-}
-
-function stockToken(config: ConfigReadModel): string | null {
-  const value = config.values.stockToken;
-  return typeof value === "string" && ADDRESS_PATTERN.test(value) ? value : null;
 }
 
 function stockCategoryLabel(config: ConfigReadModel): string {

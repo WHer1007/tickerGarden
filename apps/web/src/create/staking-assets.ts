@@ -7,9 +7,17 @@ import type { ConfigReadModel } from '../v1/readApi.ts';
 
 export const STAKING_ASSETS = [...catalog.assets.map(asset => ({...asset, logoUrl: undefined as string | undefined, minimumAllocation: undefined as string | undefined})), ...production.assets.map(asset => ({...asset, logo: '', logoUrl: asset.logoUrl as string | undefined})),...bscStakingAssets.map(asset=>({...asset,logo:'',enabled:asset.enabled&&isFrontendAssetOpen(asset.chainId,asset.tokenAddress),logoUrl:stockBrandLogoUrl(asset.symbol)}))];
 
+/** Registry projections may carry checksum addresses; catalog/map keys use lowercase. */
+export function stockTokenAddress(config: Pick<ConfigReadModel, 'values'>): string | null {
+  const value = config.values.stockToken;
+  if (typeof value !== 'string') return null;
+  const token = value.toLowerCase();
+  return /^0x[0-9a-f]{40}$/.test(token) ? token : null;
+}
+
 /** Identity is chain + token + asset UID, never the ticker alone. */
 export function stakingAssetForConfig(chainId: number, config: ConfigReadModel) {
-  const token = String(config.values.stockToken ?? '').toLowerCase();
+  const token = stockTokenAddress(config);
   return STAKING_ASSETS.find(asset => asset.chainId === chainId
     && asset.tokenAddress.toLowerCase() === token
     && asset.assetUid.toLowerCase() === config.id.toLowerCase());

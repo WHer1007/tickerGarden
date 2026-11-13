@@ -1,7 +1,8 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { access } from 'node:fs/promises';
-import { STAKING_ASSETS, stakingAssetForConfig, isListedStakingAsset } from '../src/create/staking-assets.ts';
+import { STAKING_ASSETS, stakingAssetForConfig, isListedStakingAsset, stockTokenAddress } from '../src/create/staking-assets.ts';
+import {getAddress} from 'viem';
 import type { ConfigReadModel } from '../src/v1/readApi.ts';
 
 const asset = STAKING_ASSETS[0]!;
@@ -37,3 +38,27 @@ test('production lists all 194 official assets with 0.5 minimum total stake',()=
 });
 
 test('BSC keeps 78 asset identities and opens 77 with the production minimum',()=>{const rows=STAKING_ASSETS.filter(a=>a.chainId===56);assert.equal(rows.length,78);assert.equal(rows.filter(a=>a.enabled).length,77);assert.ok(rows.every(a=>a.minimumAllocation==='500000000000000000'));assert.deepEqual(rows.filter(a=>!a.enabled).map(a=>a.symbol),['GPROB']);});
+
+test('TBULL Explore stock identity accepts the checksum address returned by the production bootstrap',()=>{
+ const c=config({id:'0x962d12a104378c952e72340f6289a88d5e7317c4c658f49b16986d1a7046689a',values:{stockToken:'0x02Fca66C1D1aFB4E2A7884261eB00F63598a7436'}});
+ assert.equal(stockTokenAddress(c),'0x02fca66c1d1afb4e2a7884261eb00f63598a7436');
+ assert.equal(stakingAssetForConfig(56,c)?.symbol,'NVDAB');
+ assert.equal(stakingAssetForConfig(4663,c),undefined);
+});
+
+test('checksum and lowercase registry addresses map every catalog entry without changing admission',()=>{
+ for(const asset of STAKING_ASSETS){
+  const c=config({id:asset.assetUid,values:{stockToken:getAddress(asset.tokenAddress)}});
+  assert.equal(stockTokenAddress(c),asset.tokenAddress);
+  assert.equal(stakingAssetForConfig(asset.chainId,c)?.symbol,asset.symbol);
+  assert.equal(isListedStakingAsset(asset.chainId,c),asset.enabled);
+  assert.equal(isListedStakingAsset(asset.chainId,{...c,status:2}),false);
+ }
+});
+
+test('missing or malformed stock addresses remain unavailable instead of inventing an identity',()=>{
+ for(const value of [undefined,null,123,{},'','0x1234','0x'+'g'.repeat(40),' '+asset.tokenAddress]){
+  const c=config({values:{stockToken:value}});
+  assert.equal(stockTokenAddress(c),null);assert.equal(stakingAssetForConfig(46630,c),undefined);
+ }
+});
