@@ -32,6 +32,11 @@ test('real worker startup, 30-second idle timeout, price push, recovery hint and
   const exited=once(child,'exit');child.kill('SIGTERM');await exited;child=startWorker();
   let recovered=false;for(let i=0;i<100;i++){try{const r=await health();if(r.ok&&(await r.json()).coverage==='gap'){recovered=true;break;}}catch{}await delay(50);}
   assert.ok(recovered,'gap survives process restart');assert.equal(calls,0);
+  await pool.query(`UPDATE "${schemaName}".display_health SET status='unverified',reason='recorded-events-reconciled-upstream-unverified'`);
+  const stopped=once(child,'exit');child.kill('SIGTERM');await stopped;child=startWorker();
+  let reconciled=false;for(let i=0;i<100;i++){try{const r=await health();if(r.ok&&(await r.json()).coverage==='unverified'){reconciled=true;break;}}catch{}await delay(50);}
+  assert.ok(reconciled,'reconciled durable status survives restart without claiming synchronization');assert.equal(calls,0);
+
  }finally{
   if(child&&child.exitCode===null){const exited=once(child,'exit');child.kill('SIGTERM');await Promise.race([exited,delay(3000)]);if(child.exitCode===null)child.kill('SIGKILL');}
   await new Promise<void>(r=>upstream.close(()=>r()));await pool.query(`DROP SCHEMA IF EXISTS "${schemaName}" CASCADE`);await pool.end();

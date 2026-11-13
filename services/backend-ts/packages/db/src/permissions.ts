@@ -19,7 +19,8 @@ export function permissionsSql(schemaName: string, roles: DatabaseRoles): string
 
   return `
 REVOKE ALL ON SCHEMA ${schema} FROM PUBLIC;
-GRANT SELECT ON ${schema}.display_health TO ${readApi};
+GRANT SELECT ON ${schema}.display_health, ${schema}.display_recovery_runs TO ${readApi};
+GRANT SELECT,INSERT ON ${schema}.display_recovery_runs TO ${pipeline};
 GRANT SELECT,INSERT,UPDATE ON ${schema}.display_health TO ${pipeline};
 GRANT SELECT, INSERT, UPDATE, DELETE ON ${schema}.rpc_budgets, ${schema}.rpc_leases, ${schema}.rpc_read_cache, ${schema}.rpc_scan_cache, ${schema}.rpc_read_locks TO ${pipeline}, ${readApi};
 GRANT SELECT, INSERT, UPDATE, DELETE ON ${schema}.display_event_inbox, ${schema}.display_event_applied, ${schema}.display_event_coverage TO ${pipeline};

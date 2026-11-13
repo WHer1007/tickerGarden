@@ -1,3 +1,4 @@
+import {replayDisplayBatch} from './display-retry.ts';
 import {createIdleClaimer} from './idle-claim.ts';
 import {IdleWake} from './idle-wake.ts';
 import {budgetedRpcFetch} from './rpc-budget.ts';
@@ -197,7 +198,7 @@ async function backfill(routing: Routing, requestedFrom: bigint, toBlock: bigint
 
 async function handleSubscriptionLog(value: unknown): Promise<void> {
   const log = parseSubscriptionLog(value);
-  if (!matchesFilter(filter, log, allowedAddresses, allowedPoolIds)) throw new Error('Alchemy emitted a log outside the project filter');
+  if (!matchesFilter(filter, log, allowedAddresses, allowedPoolIds)) throw new Error('Upstream emitted a log outside the project filter');
   const head = log.removed ? await httpLatestHead() : { number: log.blockNumber, hash: log.blockHash };
   const payload = serializeTrigger(filter, log, head);
   await relayPool.query(
@@ -205,14 +206,22 @@ async function handleSubscriptionLog(value: unknown): Promise<void> {
     [eventKey(log), payload],
   );
   publishWake.wake();
-  // Separate source-database inbox lets display consume the push directly. Both
-  // inserts are idempotent; failures close WS and trigger bounded recovery.
+  await persistDisplayLog(log);
+}
+
+async function persistDisplayLog(log: ReturnType<typeof parseSubscriptionLog>):Promise<void>{
+  // The relay record is the retry authority if this second database is unavailable.
   const schema=sqlIdentifier(process.env.TG_DATABASE_SCHEMA??'tickergarden_serverless');
   const raw={...log,blockNumber:hexQuantity(log.blockNumber),transactionIndex:hexQuantity(log.transactionIndex),logIndex:hexQuantity(log.logIndex)};
   await sourcePool.query(`INSERT INTO ${schema}.display_event_inbox(environment,chain_id,deployment_digest,block_number,block_hash,transaction_hash,log_index,removed,payload) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9) ON CONFLICT DO NOTHING`,
     [filter.environment,filter.chainId,filter.releaseId,log.blockNumber.toString(),log.blockHash,log.transactionHash,log.logIndex.toString(),log.removed,JSON.stringify(raw)]);
   // The raw event is durable before waking the display event consumer.
   await sourcePool.query('SELECT pg_notify($1,$2)',[wakeChannel,log.blockNumber.toString()]);
+}
+
+async function ensureDisplayBatch(batchKey:string):Promise<void>{
+ const rows=(await relayPool.query<{payload:string}>('SELECT payload FROM chain_relay_events WHERE batch_key=$1 ORDER BY event_key LIMIT 257',[batchKey])).rows;
+ await replayDisplayBatch(rows,filter,persistDisplayLog);
 }
 
 async function publishLoop(): Promise<void> {
@@ -224,6 +233,7 @@ async function publishLoop(): Promise<void> {
       event = await claimNext();
       if (!event) { await publishWake.wait(idleMs,observed);idleMs=Math.min(5000,idleMs*2);continue; }
       idleMs=500;
+      await ensureDisplayBatch(event.event_key);
       const endpoint = `${queueUrl}/v2/publish/${encodeURIComponent(destination.toString())}`;
       const response = await fetch(endpoint, {
         method: 'POST', body: event.payload, redirect: 'error', signal: AbortSignal.timeout(15_000),
