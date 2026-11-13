@@ -8,7 +8,7 @@ test('foreground expires at its persisted deadline even if RPC never answers',t=
 test('fresh observed pending preserves duplicate protection but stale evidence cannot lock forever',t=>{
  t.mock.timers.enable({apis:['setTimeout','Date'],now:20000});let expired=0;
  const stop=watchSubmissionDeadline(0,{current:()=>true,busy:()=>false,observation:()=>({state:'pending',checkedAt:20000}),expire:()=>{expired++;}});
- t.mock.timers.tick(0);assert.equal(expired,0);t.mock.timers.tick(15000);assert.equal(expired,1);stop();
+ t.mock.timers.tick(0);assert.equal(expired,0);t.mock.timers.tick(60000);assert.equal(expired,0);t.mock.timers.tick(5000);assert.equal(expired,1);stop();
 });
 test('stopped or changed wallet context cannot retire an operation',t=>{
  t.mock.timers.enable({apis:['setTimeout','Date'],now:0});let expired=0;

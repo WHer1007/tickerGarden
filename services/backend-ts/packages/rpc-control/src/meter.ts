@@ -19,3 +19,14 @@ export function summarizeRpcUsage(records:Record<string,unknown>[]):UsageRow[]{
  }
  return [...rows.values()].sort((a,b)=>JSON.stringify([a.service,a.provider,a.method]).localeCompare(JSON.stringify([b.service,b.provider,b.method])));
 }
+
+/** Canonical boundary checks remain visible separately from reusable reads. */
+export function summarizeBlockReads(records:Record<string,unknown>[]){
+ const rows=new Map<string,{service:string;purpose:string;blockTag:string;requests:number}>();
+ for(const record of records){
+  if(record.event!=='rpc_usage'||record.transport!=='http'||record.method!=='eth_getBlockByNumber'||record.networkCalls!==1)continue;
+  const service=String(record.service??'unknown'),purpose=String(record.purpose??'unattributed'),blockTag=String(record.blockTag??'unknown');
+  const key=JSON.stringify([service,purpose,blockTag]);const row=rows.get(key)??{service,purpose,blockTag,requests:0};row.requests++;rows.set(key,row);
+ }
+ return [...rows.values()].sort((a,b)=>b.requests-a.requests||a.purpose.localeCompare(b.purpose));
+}

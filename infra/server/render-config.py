@@ -5,6 +5,7 @@ Run as root on the server. --check validates without modifying files or services
 This never starts workers, dispatches jobs, or contacts an RPC endpoint.
 """
 from worker_config import worker_projections
+from web_rpc_config import web_rpc_projection
 from observability_config import worker_observability_projections
 import argparse
 import json
@@ -34,7 +35,7 @@ p.add_argument('--root', required=True)
 p.add_argument('--check', action='store_true')
 a = p.parse_args()
 root = pathlib.Path(a.root).resolve()
-config = json.loads(pathlib.Path(a.config).read_text())
+config = web_rpc_projection(json.loads(pathlib.Path(a.config).read_text()))
 services = config['services']
 workers = worker_projections(config)
 observability = worker_observability_projections(config, root)

@@ -1,4 +1,4 @@
-import {rpcAttemptContext} from '../../rpc-control/src/attempt.ts';
+import {rpcAttemptContext,currentRpcPurpose,withRpcPurpose,type RpcPurpose} from '../../rpc-control/src/attempt.ts';
 import {scanFilter,filterScan,type ScanFilter,type ScanRecord} from '../../rpc-control/src/scan.ts';
 import { createHash } from 'node:crypto';
 import {fixedBlockContext,fixedReadScope} from './read-context.ts';
@@ -98,6 +98,7 @@ export interface RpcTransportOptions {
 export interface RpcCallMetric {
   readonly event: 'rpc_call';
   readonly reuse?: 'context'|'shared'|'coalesced';
+  readonly purpose?: RpcPurpose;
   readonly provider: string;
   readonly method: string;
   readonly attempt: number;
@@ -218,8 +219,8 @@ export class RpcTransport {
 
   /** Fresh boundary reads deliberately bypass completed/context caches. */
   async atBlock<T>(number:bigint,hash:string,run:()=>Promise<T>):Promise<T>{
-    if((await this.block(number)).hash!==hash)throw new RpcError('Fixed RPC block changed');
-    return fixedBlockContext(number,hash,run,async()=>{if((await this.block(number)).hash!==hash)throw new RpcError('Fixed RPC block changed');});
+    if((await this.block(number,'canonical-before')).hash!==hash)throw new RpcError('Fixed RPC block changed');
+    return fixedBlockContext(number,hash,run,async()=>{if((await this.block(number,'canonical-after')).hash!==hash)throw new RpcError('Fixed RPC block changed');});
   }
 
   async #perform<TResult>(method: string, params: readonly unknown[]): Promise<TResult> {
@@ -240,7 +241,7 @@ export class RpcTransport {
       try {
         const endpoint = attempt === 1 && this.#fallbackUrl ? this.#fallbackUrl : this.#url;
         if (this.#fallbackUrl) await verifyEndpointChain(this.#fetch, endpoint, this.#expectedChainId!, Math.min(this.#timeoutMs,2000));
-        const response = await rpcAttemptContext.run({attempt:attempt+1,failover:attempt===1&&!!this.#fallbackUrl,purpose:'read'},()=>this.#fetch(endpoint, {
+        const response = await rpcAttemptContext.run({attempt:attempt+1,failover:attempt===1&&!!this.#fallbackUrl,purpose:currentRpcPurpose()},()=>this.#fetch(endpoint, {
           method: 'POST', headers: { 'content-type': 'application/json' },
           body: requestBody, redirect: 'error',
           signal: AbortSignal.timeout(this.#timeoutMs),
@@ -276,21 +277,21 @@ export class RpcTransport {
   }
 
   #emit(metric: RpcCallMetric): void {
-    try { this.#observe?.(metric); } catch { /* telemetry must not alter RPC correctness */ }
+    try { this.#observe?.({...metric,purpose:currentRpcPurpose()}); } catch { /* telemetry must not alter RPC correctness */ }
   }
 
   async chainId(): Promise<bigint> {
     return hexQuantity(await this.call<string>('eth_chainId', []));
   }
 
-  async block(number: bigint): Promise<RpcBlock> {
-    const raw = await this.call<Record<string, unknown> | null>('eth_getBlockByNumber', [toHexQuantity(number), false]);
+  async block(number: bigint, purpose:RpcPurpose=currentRpcPurpose()): Promise<RpcBlock> {
+    const raw = await withRpcPurpose(purpose,()=>this.call<Record<string, unknown> | null>('eth_getBlockByNumber', [toHexQuantity(number), false]));
     if (!raw) throw new RpcError('RPC block was not found');
     return parseBlock(raw, number);
   }
 
   async finalizedBlock(): Promise<RpcBlock> {
-    const raw = await this.call<Record<string, unknown> | null>('eth_getBlockByNumber', ['finalized', false]);
+    const raw = await withRpcPurpose('finality',()=>this.call<Record<string, unknown> | null>('eth_getBlockByNumber', ['finalized', false]));
     if (!raw || typeof raw.number !== 'string') throw new RpcError('Finalized RPC block unavailable');
     return parseBlock(raw, hexQuantity(raw.number));
   }
@@ -335,16 +336,31 @@ function elapsed(started: number): number {
   return Math.round((performance.now() - started) * 100) / 100;
 }
 
-export async function verifyChainIdentity(transport: RpcTransport, expectedChainId: bigint, expectedGenesisHash: string): Promise<void> {
-  const [chainId, genesis] = await Promise.all([transport.chainId(), transport.block(0n)]);
-  if (chainId !== expectedChainId) throw new RpcError('RPC chain ID mismatch');
-  if (genesis.hash !== expectedGenesisHash) throw new RpcError('RPC genesis hash mismatch');
+const verifiedIdentities = new WeakMap<RpcTransport,Map<string,{until:number;pending:Promise<void>}>>();
+/** Only pipeline jobs opt in to a 60s static identity cache. Release/tooling checks
+ * stay fresh by default. Endpoint/expectation changes and failures never reuse it. */
+export async function verifyChainIdentity(transport: RpcTransport, expectedChainId: bigint, expectedGenesisHash: string, reuseStatic=false): Promise<void> {
+  let entries=verifiedIdentities.get(transport);
+  if(!entries){entries=new Map();verifiedIdentities.set(transport,entries);}
+  const key=`${expectedChainId}:${expectedGenesisHash}`;
+  const old=entries.get(key);
+  if(reuseStatic&&old&&old.until>Date.now())return old.pending;
+  // A fresh audit also invalidates the previous success before attempting I/O.
+  entries.delete(key);
+  const pending=withRpcPurpose('identity',async()=>{
+    const [chainId, genesis] = await Promise.all([transport.chainId(), transport.block(0n)]);
+    if (chainId !== expectedChainId) throw new RpcError('RPC chain ID mismatch');
+    if (genesis.hash !== expectedGenesisHash) throw new RpcError('RPC genesis hash mismatch');
+  });
+  const entry={until:Date.now()+60000,pending};
+  if(reuseStatic){if(entries.size>=8)entries.clear();entries.set(key,entry);}
+  try{await pending;}catch(error){entries.clear();throw error;}
 }
 
-export async function consensusBlock(primary: RpcTransport, secondary: RpcTransport | undefined, number: bigint): Promise<RpcBlock> {
-  const first = await primary.block(number);
+export async function consensusBlock(primary: RpcTransport, secondary: RpcTransport | undefined, number: bigint, purpose:RpcPurpose=currentRpcPurpose()): Promise<RpcBlock> {
+  const first = await primary.block(number,purpose);
   if (!secondary||primary===secondary||primary.sameSource?.(secondary)) return first;
-  const second = await secondary.block(number);
+  const second = await secondary.block(number,purpose);
   if (first.hash !== second.hash || first.parentHash !== second.parentHash || first.timestamp !== second.timestamp) {
     throw new RpcError('RPC providers disagree on block identity');
   }

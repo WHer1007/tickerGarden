@@ -35,3 +35,22 @@ test('complete scan reuse requires a superset at every topic position including 
  assert.equal(filterScan([{address,blockNumber:'0x3',topics:[hash,hash]},{address,blockNumber:'0x3',topics:[hash,other]}],f).length,1);
  assert.equal(scanFilter('eth_getLogs',[{fromBlock:'latest',toBlock:'latest',address,topics:[hash]}]),undefined);
 });
+
+test('static pipeline identity cache expires, isolates transports and expectations, and fresh audits bypass it',async t=>{
+ const {verifyChainIdentity}=await import('../../packages/chain/src/index.ts');
+ t.mock.timers.enable({apis:['Date'],now:1000});let calls=0,identity='0x38';
+ const fetcher:typeof fetch=async(_url,init)=>{calls++;const b=JSON.parse(String(init?.body));return Response.json({jsonrpc:'2.0',id:b.id,result:b.method==='eth_chainId'?identity:{number:'0x0',hash,parentHash:other,timestamp:'0x0'}});};
+ const rpc=new RpcTransport({url:'https://rpc.example',fetch:fetcher});
+ for(let i=0;i<10;i++)await verifyChainIdentity(rpc,56n,hash,true);
+ assert.equal(calls,2,'ten jobs share one validated static chain/genesis pair');
+ await verifyChainIdentity(rpc,56n,hash);assert.equal(calls,4,'explicit audit remains fresh');
+ await verifyChainIdentity(rpc,56n,hash,true);assert.equal(calls,6);
+ t.mock.timers.tick(60001);identity='0x1';
+ await assert.rejects(verifyChainIdentity(rpc,56n,hash,true),/chain ID mismatch/);
+ await assert.rejects(verifyChainIdentity(rpc,56n,hash,true),/chain ID mismatch/);assert.equal(calls,10,'failed verification is not cached');
+ identity='0x38';await assert.rejects(verifyChainIdentity(rpc,56n,other,true),/genesis hash mismatch/);
+ const another=new RpcTransport({url:'https://other.example',fetch:fetcher});await verifyChainIdentity(another,56n,hash,true);assert.equal(calls,14);
+ await verifyChainIdentity(rpc,56n,hash,true);assert.equal(calls,16);
+ await assert.rejects(verifyChainIdentity(rpc,1n,hash),/chain ID mismatch/);
+ await verifyChainIdentity(rpc,56n,hash,true);assert.equal(calls,20,'a failed fresh audit invalidates all positive identity entries');
+});

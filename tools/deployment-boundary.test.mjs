@@ -133,3 +133,9 @@ test('deployment provenance rejects missing files, mismatched commits, services 
   assert.throws(()=>assertSourceReleaseProvenance('test',{VERCEL:'1'},file,'read-api'),/service disagrees/);
  }finally{fs.rmSync(dir,{recursive:true,force:true});}
 });
+
+test('BSC Web budgets require independent private credentials and cannot be disabled under global control',()=>{
+ const env={...web('production'),TG_WEB_RPC_URL:'https://rh.quiknode.pro/key',TG_BSC_WEB_RPC_URL:'https://bsc.quiknode.pro/key',TG_RPC_CONTROL_ENABLED:'true',TG_RPC_BUDGET_URL:'https://rh-budget.example',TG_RPC_BUDGET_TOKEN:'r'.repeat(40),TG_BSC_RPC_BUDGET_URL:'https://bsc-budget.example',TG_BSC_RPC_BUDGET_TOKEN:'b'.repeat(40),TG_BSC_RPC_BUDGET_ACCESS_TOKEN:'a'.repeat(40)};
+ assert.doesNotThrow(()=>assertDeploymentBoundary('production','web',env,'master'));
+ for(const mutation of [{TG_BSC_RPC_BUDGET_TOKEN:undefined},{TG_BSC_RPC_BUDGET_TOKEN:env.TG_RPC_BUDGET_TOKEN},{TG_BSC_RPC_CONTROL_ENABLED:'false'},{VITE_BSC_RPC_BUDGET_TOKEN:'secret'}])assert.throws(()=>assertDeploymentBoundary('production','web',{...env,...mutation},'master'));
+});

@@ -20,3 +20,16 @@ test('runtime metering counts internal chain probes, failed attempts and standby
  const rows=summarizeRpcUsage(records);assert.equal(rows.reduce((n,r)=>n+r.httpRequests,0),4);assert.equal(rows.reduce((n,r)=>n+r.retries,0),1);
  assert.ok(!JSON.stringify(records).includes('SECRET-'));assert.ok(!JSON.stringify(records).includes('0x'+'a'.repeat(40)));
 });
+
+test('block reads expose purpose and height while pre/post canonical checks remain separate',async context=>{
+ const records:Record<string,unknown>[]=[];const hash='0x'+'1'.repeat(64);
+ context.mock.method(console,'info',(line:string)=>records.push(JSON.parse(line)));
+ context.mock.method(globalThis,'fetch',async(_url:unknown,init?:RequestInit)=>{
+  const b=JSON.parse(String(init?.body));return Response.json({jsonrpc:'2.0',id:b.id,result:{number:b.params[0],hash,parentHash:'0x'+'2'.repeat(64),timestamp:'0x1'}});
+ });
+ const rpc=new RpcTransport({...rpcRuntimeOptions({},'pipeline','background'),url:'https://meter.quiknode.pro/SECRET'});
+ await rpc.atBlock(10n,hash,async()=>{});
+ const physical=records.filter(r=>r.networkCalls===1);
+ assert.deepEqual(physical.map(r=>[r.purpose,r.blockTag]),[['canonical-before','0xa'],['canonical-after','0xa']]);
+ assert.doesNotMatch(JSON.stringify(records),/SECRET/);
+});

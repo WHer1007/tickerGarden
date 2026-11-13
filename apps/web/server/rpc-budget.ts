@@ -6,7 +6,7 @@ export async function acquireRpcPermit(fetcher:typeof fetch,env:Readonly<Record<
  if(endpoint.protocol!=='https:'||endpoint.username||endpoint.password)throw Error('Invalid RPC budget endpoint');
  if(!env.TG_RPC_BUDGET_TOKEN||env.TG_RPC_BUDGET_TOKEN.length<32)throw Error('RPC budget authentication unavailable');
  const host=new URL(url).hostname,provider=host.endsWith('.quiknode.pro')?'quicknode':host.includes('alchemy')?'alchemy':'other';
- const control=(body:unknown)=>fetcher(endpoint,{method:'POST',headers:{authorization:`Bearer ${env.TG_RPC_BUDGET_TOKEN}`,'content-type':'application/json'},body:JSON.stringify(body),redirect:'error',signal:AbortSignal.timeout(1500)});
+ const control=(body:unknown)=>fetcher(endpoint,{method:'POST',headers:{authorization:`Bearer ${env.TG_RPC_BUDGET_TOKEN}`,'content-type':'application/json',...(env.TG_RPC_BUDGET_ACCESS_TOKEN?{'x-tg-candidate-token':env.TG_RPC_BUDGET_ACCESS_TOKEN}:{})},body:JSON.stringify(body),redirect:'error',signal:AbortSignal.timeout(1500)});
  const r=await control({action:'acquire',provider,tier});if(!r.ok)throw Object.assign(Error('RPC capacity is busy'),{name:'RpcBudgetBusy'});
  const b=await r.json() as {id?:string};if(!b.id||!/^[0-9a-f-]{36}$/.test(b.id))throw Error('Invalid RPC permit');
  return async()=>{await control({action:'release',id:b.id}).catch(()=>undefined);};

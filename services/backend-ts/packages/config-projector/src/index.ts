@@ -59,7 +59,7 @@ export async function verifyF72BootstrapSourceBlocks(primary: RpcTransport, seco
 async function verifySourceBlocks(configs: readonly Config[], primary: RpcTransport, secondary: RpcTransport): Promise<void> {
   const unique = new Map(configs.map((config) => [config.source.blockNumber, config.source.blockHash]));
   for (const [number, expected] of unique) {
-    const block = await consensusBlock(primary, secondary, BigInt(number));
+    const block = await consensusBlock(primary, secondary, BigInt(number),'bootstrap-source');
     if (block.hash !== expected) throw new Error('bootstrap config source block mismatch');
   }
 }

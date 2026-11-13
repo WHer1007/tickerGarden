@@ -77,8 +77,16 @@ export async function loadF72MarketCreations(input: {
 }
 
 export async function observeF72Market(input: ObserveF72MarketInput): Promise<Json> {
- const run=()=>observeF72MarketAtBlock(input);
- if(!input.primary.atBlock)return run(); // Lightweight fixtures preserve their structural RPC contract.
+ return (await observeF72Markets([input]))[0]!;
+}
+/** Read-only batch: one fresh boundary pair for a common block, with hash-bound
+ * registry/code reads shared inside. Database commit checks remain independent. */
+export async function observeF72Markets(inputs:readonly ObserveF72MarketInput[]):Promise<Json[]> {
+ if(!inputs.length)return [];
+ const input=inputs[0]!;
+ if(inputs.some(item=>item.blockNumber!==input.blockNumber||item.blockHash!==input.blockHash||item.primary!==input.primary||item.secondary!==input.secondary))throw Error('Mixed market observation anchors');
+ const run=()=>mapBounded(inputs,8,observeF72MarketAtBlock);
+ if(!input.primary.atBlock)return run(); // Structural fixtures retain their own boundary checks.
  return input.primary.atBlock(input.blockNumber,input.blockHash,()=>input.primary.sameSource(input.secondary)?run():input.secondary.atBlock(input.blockNumber,input.blockHash,run));
 }
 async function observeF72MarketAtBlock(input: ObserveF72MarketInput): Promise<Json> {
@@ -247,7 +255,7 @@ export async function projectF72Markets(input: {
   const previous=(await input.pool.query<{revision:string;block_number:string;generation:string;payload:{algorithmVersion:string;recordCount:number;deltaDepth?:number}}>(`SELECT p.revision,p.block_number,p.generation,p.payload FROM ${schema}.publication_pointers pointer JOIN ${schema}.publications p USING(environment,chain_id,deployment_digest,scope,revision) JOIN ${schema}.chain_blocks b ON b.environment=p.environment AND b.chain_id=p.chain_id AND b.deployment_digest=p.deployment_digest AND b.hash=p.block_hash WHERE p.environment=$1 AND p.chain_id=$2 AND p.deployment_digest=$3 AND p.scope='markets' AND b.canonical AND b.finalized`,id)).rows[0];
   const publish={pool:input.pool,deployment:input.deployment,scope:'markets',algorithmVersion,incrementalMarketVersions:true,blockNumber:input.blockNumber,blockHash:input.blockHash,generation:input.generation,...(input.schemaName?{schemaName:input.schemaName}:{})};
   if(previous&&previous.payload.algorithmVersion===algorithmVersion&&BigInt(previous.generation)===input.generation&&BigInt(previous.block_number)===input.blockNumber){
-    if(previous.revision!==`${input.blockNumber}:${input.blockHash}`||(await consensusBlock(input.primary,input.secondary,input.blockNumber)).hash!==input.blockHash)throw Error('market retry anchor changed');
+    if(previous.revision!==`${input.blockNumber}:${input.blockHash}`||(await consensusBlock(input.primary,input.secondary,input.blockNumber,'projection-anchor')).hash!==input.blockHash)throw Error('market retry anchor changed');
     return acknowledgeMarketPublication({...publish,records:[]});
   }
   type Candidate={base_revision:string|null;expected_population:number;work_count:number};
@@ -282,10 +290,10 @@ export async function projectF72Markets(input: {
   for(let offset=0;offset<Math.min(pending.length,128);offset+=8){
     const batch=pending.slice(offset,Math.min(offset+8,128));
     const cached=candidate.base_revision?(await input.pool.query<{identity:string;payload:MarketReadModel}>(`SELECT identity,payload FROM ${schema}.projection_read_records WHERE environment=$1 AND chain_id=$2 AND deployment_digest=$3 AND scope='markets' AND revision=$4 AND identity=ANY($5::text[])`,[...id,candidate.base_revision,batch.map(c=>c.marketId)])).rows:[];
-    const values=await mapBounded(batch,8,creation=>{const previous=cached.find(r=>r.identity===creation.marketId)?.payload;return observeF72Market({creation,blockNumber:input.blockNumber,blockHash:input.blockHash,blockTimestamp:input.blockTimestamp,primary:input.primary,secondary:input.secondary,...(previous?{previous}:{})});});
-    if((await consensusBlock(input.primary,input.secondary,input.blockNumber)).hash!==input.blockHash)throw Error('market observation anchor changed');
+    const values=await observeF72Markets(batch.map(creation=>{const previous=cached.find(r=>r.identity===creation.marketId)?.payload;return {creation,blockNumber:input.blockNumber,blockHash:input.blockHash,blockTimestamp:input.blockTimestamp,primary:input.primary,secondary:input.secondary,...(previous?{previous}:{})};}));
+    if((await consensusBlock(input.primary,input.secondary,input.blockNumber,'projection-anchor')).hash!==input.blockHash)throw Error('market observation anchor changed');
     const schedules=await mapBounded(batch,8,(creation)=>nextMarketActivation({creation,blockNumber:input.blockNumber,blockHash:input.blockHash,blockTimestamp:input.blockTimestamp,primary:input.primary,secondary:input.secondary},values[batch.indexOf(creation)]!).catch(()=>input.blockTimestamp.toString()));
-    if((await consensusBlock(input.primary,input.secondary,input.blockNumber)).hash!==input.blockHash)throw Error('market schedule anchor changed');
+    if((await consensusBlock(input.primary,input.secondary,input.blockNumber,'projection-anchor')).hash!==input.blockHash)throw Error('market schedule anchor changed');
     const records=batch.map((c,i)=>({identity:c.marketId,payload:values[i]!}));
     const written=await input.pool.query(`INSERT INTO ${schema}.projection_observations AS current(environment,chain_id,deployment_digest,scope,block_number,block_hash,generation,algorithm_version,identity,payload) SELECT $1,$2,$3,'markets',$7,$4,$5,$6,r.identity,r.payload FROM jsonb_to_recordset($8::jsonb) r(identity text,payload jsonb) ON CONFLICT(environment,chain_id,deployment_digest,scope,block_hash,generation,algorithm_version,identity) DO UPDATE SET payload=current.payload WHERE current.payload=EXCLUDED.payload RETURNING identity`,[...args,input.blockNumber.toString(),JSON.stringify(records)]);
     if(written.rowCount!==records.length)throw Error('conflicting market observation at finalized anchor');
@@ -409,9 +417,10 @@ function identifier(value: string): string { if (!/^[a-z][a-z0-9_]{0,62}$/.test(
 async function mapBounded<T, R>(values: readonly T[], concurrency: number, fn: (value: T) => Promise<R>): Promise<R[]> {
   const output = new Array<R>(values.length);
   let cursor = 0;
-  await Promise.all(Array.from({ length: Math.min(concurrency, values.length) }, async () => {
+  const settled=await Promise.allSettled(Array.from({ length: Math.min(concurrency, values.length) }, async () => {
     while (cursor < values.length) { const index = cursor++; output[index] = await fn(values[index]!); }
   }));
+  const failed=settled.find(r=>r.status==='rejected');if(failed?.status==='rejected')throw failed.reason;
   return output;
 }
 

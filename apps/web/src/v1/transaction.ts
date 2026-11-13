@@ -559,7 +559,7 @@ export class V1TransactionExecutor {
     try {
       const receiptRequest = this.clients.publicClient.waitForTransactionReceipt({
         hash,
-        timeout:Math.max(1,submissionStartedAt+20000-Date.now()),pollingInterval:1000,
+        timeout:Math.max(1,submissionStartedAt+20000-Date.now()),pollingInterval:2000,
         ...(input.confirmations === undefined ? {} : { confirmations: input.confirmations }),
         onReplaced: (replacement) => {
           finalHash = replacement.transaction.hash;

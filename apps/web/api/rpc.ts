@@ -87,7 +87,18 @@ function logRangeExceedsCap(call:Call,cap:number):boolean{
 export async function proxyReadRpc(request:Request,environment:RpcEnvironment,fetcher:typeof fetch=fetch):Promise<Response>{
  const chain=new URL(request.url).searchParams.getAll('chain');
  if(chain.length>1||chain.length===1&&chain[0]!=='bsc')return json({error:'unsupported_chain'},400,{'cache-control':'no-store'});
- if(chain[0]==='bsc')return proxyChainRpc(request,{TG_WEB_RPC_URL:environment.TG_BSC_WEB_RPC_URL,TG_WEB_RPC_FALLBACK_URL:environment.TG_BSC_WEB_RPC_FALLBACK_URL,VITE_V1_CHAIN_ID:'56',VITE_V1_READ_API_URL:environment.VITE_BSC_READ_API_URL},fetcher);
+ if(chain[0]==='bsc')return proxyChainRpc(request,{
+  TG_WEB_RPC_URL:environment.TG_BSC_WEB_RPC_URL,
+  TG_WEB_RPC_FALLBACK_URL:environment.TG_BSC_WEB_RPC_FALLBACK_URL,
+  TG_WEB_RPC_LOG_MAX_BLOCKS:environment.TG_BSC_WEB_RPC_LOG_MAX_BLOCKS,
+  // Share BSC's private budget with its backend, never RH's credentials or scope.
+  // If global control is enabled, an incomplete BSC projection must fail closed.
+  TG_RPC_CONTROL_ENABLED:environment.TG_RPC_CONTROL_ENABLED==='true'?'true':environment.TG_BSC_RPC_CONTROL_ENABLED,
+  TG_RPC_BUDGET_URL:environment.TG_BSC_RPC_BUDGET_URL,
+  TG_RPC_BUDGET_TOKEN:environment.TG_BSC_RPC_BUDGET_TOKEN,
+  TG_RPC_BUDGET_ACCESS_TOKEN:environment.TG_BSC_RPC_BUDGET_ACCESS_TOKEN,
+  VITE_V1_CHAIN_ID:'56',VITE_V1_READ_API_URL:environment.VITE_BSC_READ_API_URL,
+ },fetcher);
  return proxyChainRpc(request,environment,fetcher);
 }
 async function proxyChainRpc(request:Request,environment:RpcEnvironment,fetcher:typeof fetch):Promise<Response>{
@@ -110,7 +121,7 @@ async function proxyChainRpc(request:Request,environment:RpcEnvironment,fetcher:
  const capValue=environment.TG_WEB_RPC_LOG_MAX_BLOCKS;
  const logCap=capValue===undefined?null:/^[1-9][0-9]*$/.test(capValue)&&Number.isSafeInteger(Number(capValue))?Number(capValue):null;
  if(capValue!==undefined&&logCap===null)return json({error:'rpc_upstream_unavailable'},503,headers);
- const state=stateFor(fetcher,upstream+':'+(fallback??'')+':'+(environment.VITE_V1_READ_API_URL??'')+':'+(environment.VITE_V1_CHAIN_ID??''));
+ const state=stateFor(fetcher,upstream+':'+(fallback??'')+':'+(environment.VITE_V1_READ_API_URL??'')+':'+(environment.VITE_V1_CHAIN_ID??'')+':'+JSON.stringify([environment.TG_RPC_CONTROL_ENABLED,environment.TG_RPC_BUDGET_URL,environment.TG_RPC_BUDGET_TOKEN,environment.TG_RPC_BUDGET_ACCESS_TOKEN]));
  // Vercel overwrites x-vercel-forwarded-for. Never trust caller-selected X-Forwarded-For.
  const ip=request.headers.get('x-vercel-forwarded-for')?.split(',')[0]?.trim()??'local';
  if(!admit(state,ip,calls.length))return json({error:'rpc_rate_limited'},429,{...headers,'retry-after':'10'});

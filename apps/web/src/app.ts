@@ -1,6 +1,7 @@
 import {verifyBscEntry} from './chains/bsc/risk.ts';
 import {assertFrontendAssetOpen,isFrontendAssetOpen} from './chains/asset-availability.ts';
 import {createStreamHealth} from './v1/streamHealth.ts';
+import {createPageReadTransport} from './v1/rpcReads.ts';
 import {evmFetch as fetch, evmUrl} from './v1/evmTransport.ts';
 import {inspectPendingNetwork,createUnobservedSubmissionTracker} from './v1/pendingNetwork.ts';
 import {RewardClaimError,rewardErrorNotice} from './ui/reward-error.ts';
@@ -243,9 +244,10 @@ const runtimeConfig = parseV1RuntimeConfig(evmEnv);
 const runtimeRpcUrl = import.meta.env.PROD && typeof window !== 'undefined'
   ? new URL(robinhoodChain.id===56?'/api/rpc?chain=bsc':'/api/rpc', window.location.origin).toString()
   : evmEnv.VITE_V1_RPC_URL || robinhoodChain.rpcUrls.default.http[0];
+const pageRpcReads=createPageReadTransport(http(runtimeRpcUrl, { batch: { batchSize: 20, wait: 8 } }));
 const publicClient = createPublicClient({
   chain: robinhoodChain,
-  transport: http(runtimeRpcUrl, { batch: { batchSize: 20, wait: 8 } }),
+  transport: pageRpcReads.transport,
 });
 const readApi = runtimeConfig.readApi.available
   ? new TickerGardenV1Client(runtimeConfig.readApi.value,(input,init)=>fetch(input,{...init,signal:AbortSignal.timeout(12000)}))
@@ -4759,6 +4761,7 @@ async function refreshCurrentPage(preserveSnapshot = false): Promise<void> {
 }
 
 function invalidateWalletReads(): void {
+  pageRpcReads.clear();
   clearCreatorDirectory();
   clearCreatorRewardView();
   syncUserActivity();

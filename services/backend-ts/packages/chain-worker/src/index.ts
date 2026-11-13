@@ -45,8 +45,8 @@ export function createChainProcessor(options: ChainProcessorOptions): (lease: Le
   };
   return async (lease) => {
     await Promise.all([
-      verifyChainIdentity(options.primary, BigInt(CURRENT_CHAIN_ID), GENESIS_HASH),
-      verifyChainIdentity(options.secondary, BigInt(CURRENT_CHAIN_ID), GENESIS_HASH),
+      verifyChainIdentity(options.primary, BigInt(CURRENT_CHAIN_ID), GENESIS_HASH, true),
+      verifyChainIdentity(options.secondary, BigInt(CURRENT_CHAIN_ID), GENESIS_HASH, true),
     ]);
     const head = await resolveHead(lease, options.primary, options.secondary, deployment);
     await ensureBootstrap({ ...options, deployment });
@@ -147,7 +147,7 @@ export function createChainProcessor(options: ChainProcessorOptions): (lease: Le
 }
 
 async function projectBatch(options: ChainProcessorOptions, deployment: DeploymentIdentity, blockNumber: bigint, generation: bigint): Promise<void> {
-  const anchor = await consensusBlock(options.primary, options.secondary, blockNumber);
+  const anchor = await consensusBlock(options.primary, options.secondary, blockNumber,'projection-anchor');
   const schema = options.schemaName ? { schemaName: options.schemaName } : {};
   const completed=(await options.pool.query<{scope:string;next_block:string;generation:string;algorithm_version:string}>(`SELECT scope,next_block,generation,algorithm_version FROM ${identifier(options.schemaName??'tickergarden_serverless')}.projection_checkpoints WHERE environment=$1 AND chain_id=$2 AND deployment_digest=$3`,[deployment.environment,deployment.chainId,deployment.deploymentDigest])).rows;
   const done=(scope:string)=>completed.some(row=>row.scope===scope&&(scope!=='history'||row.algorithm_version==='history-incremental-v3-creator')&&BigInt(row.generation)===generation&&BigInt(row.next_block)>blockNumber);
@@ -295,7 +295,7 @@ async function ensureBootstrap(options: ChainProcessorOptions & { readonly deplo
     [options.deployment.environment, options.deployment.chainId, options.deployment.deploymentDigest],
   );
   if (existing.rowCount) return;
-  const activation = await consensusBlock(options.primary, options.secondary, CURRENT_ACTIVATION_BLOCK);
+  const activation = await consensusBlock(options.primary, options.secondary, CURRENT_ACTIVATION_BLOCK,'bootstrap-source');
   if (activation.hash !== ACTIVATION_HASH) throw new Error('deployment activation hash mismatch');
   const sources = fixedF72Sources();
   await Promise.all(sources.map(async (source) => {
@@ -329,7 +329,7 @@ async function latestFinalizedBlock(primary: RpcTransport, secondary: RpcTranspo
   let high = upper;
   while (low < high) {
     const middle = (low + high + 1n) / 2n;
-    const block = await consensusBlock(primary, secondary, middle);
+    const block = await consensusBlock(primary, secondary, middle,'finality');
     if (block.timestamp <= cutoff) low = middle;
     else high = middle - 1n;
   }
@@ -355,7 +355,7 @@ function identifier(value: string): string {
 export async function settlementFinalizedUpper(primary:RpcTransport,secondary:RpcTransport,head:RpcBlock):Promise<bigint>{
  const [a,b]=await Promise.all([primary.finalizedBlock(),secondary.finalizedBlock()]);
  const number=a.number<b.number?a.number:b.number;
- const canonical=await consensusBlock(primary,secondary,number);
+ const canonical=await consensusBlock(primary,secondary,number,'finality');
  const tagged=a.number===number?a:b;
  if(canonical.hash!==tagged.hash||number>head.number||canonical.timestamp>head.timestamp)throw Error('Invalid finalized settlement anchor');
  return number;

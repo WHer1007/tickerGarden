@@ -1,5 +1,5 @@
 import {currentDisplayTrigger} from '../../confirmed-display/src/rpc-boundary.ts';
-import {rpcAttemptContext} from './attempt.ts';
+import {rpcAttemptContext,rpcBlockTag} from './attempt.ts';
 import {AsyncLocalStorage} from 'node:async_hooks';
 import type {Pool} from 'pg';
 import {createDatabasePool} from '../../db/src/pool.ts';
@@ -28,7 +28,7 @@ export function rpcRuntimeOptions(env:Readonly<Record<string,string|undefined>>,
  const scope=[env.TG_ENVIRONMENT,env.TG_CHAIN_ID].join(':');
  let lastPrune=0;
  const fetcher:typeof fetch=async(input,init)=>{
-  const endpoint=String(input),provider=providerName(endpoint),request=JSON.parse(String(init?.body??'{}')) as {method?:string};
+  const endpoint=String(input),provider=providerName(endpoint),request=JSON.parse(String(init?.body??'{}')) as {method?:string;params?:unknown[]};
   const method=request.method??'unknown',started=performance.now(),flow=tiers.getStore()??tier;
   let release:(()=>Promise<void>)|undefined,networkCalls=0,responseBytes=0,outcome='failed';
   try{
@@ -42,7 +42,7 @@ export function rpcRuntimeOptions(env:Readonly<Record<string,string|undefined>>,
    return new Response(raw,{status:r.status,statusText:r.statusText,headers:r.headers});
   }catch(error){if(networkCalls===0||error instanceof RpcBudgetBusy){outcome='budget_denied';throw new RpcBudgetBusy();}throw error;}
   finally{
-   usage(service,{environment:env.TG_ENVIRONMENT,chainId:env.TG_CHAIN_ID,trigger:service==='confirmed-display-worker'?currentDisplayTrigger():undefined,provider,method,flow,networkCalls,responseBytes,requestBytes:networkCalls?Buffer.byteLength(String(init?.body??'')):0,outcome,durationMs:Math.round(performance.now()-started),transport:'http',...rpcAttemptContext.getStore()});
+   usage(service,{environment:env.TG_ENVIRONMENT,chainId:env.TG_CHAIN_ID,trigger:service==='confirmed-display-worker'?currentDisplayTrigger():undefined,provider,method,blockTag:rpcBlockTag(Array.isArray(request)?request[0]:request),flow,networkCalls,responseBytes,requestBytes:networkCalls?Buffer.byteLength(String(init?.body??'')):0,outcome,durationMs:Math.round(performance.now()-started),transport:'http',...rpcAttemptContext.getStore()});
    await release?.().catch(()=>usage(service,{provider,method,flow,networkCalls:0,outcome:'lease_release_failed'}));
    if(store&&Date.now()-lastPrune>60000){lastPrune=Date.now();void store.prune().catch(()=>usage(service,{networkCalls:0,outcome:'prune_failed'}));}
   }
