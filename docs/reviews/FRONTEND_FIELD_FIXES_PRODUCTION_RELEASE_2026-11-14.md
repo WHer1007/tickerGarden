@@ -16,7 +16,7 @@
 
 只停止并启动 `tg-hosting-web.service`，存在短暂重启窗口。其余 **23 个相关 systemd 服务**的 PID、状态和重启次数前后完全一致。
 
-生产唯一人工配置 `/etc/tickergarden/hosting.json` 只改变 Web 的 `TG_RELEASE_COMMIT` 和 `VITE_RELEASE_COMMIT`。仅重新生成 Web 私有运行投影，没有重写其他服务的配置。未读取或输出生产凭据。
+生产唯一人工配置 `/etc/tickergarden/hosting.json` 只改变 Web 的 `TG_RELEASE_COMMIT` 和 `VITE_RELEASE_COMMIT`。仅重新生成 Web 私有运行投影，没有重写其他服务的配置。生产凭据只在服务器配置投影中使用，未输出到日志或纳入发布包。
 
 旧哈希静态资源继续保留，供已打开的页面加载；CSS 字节指纹与原生产一致。上传 CSP 的 `https://storage.tickergarden.com` 仍有效。
 
