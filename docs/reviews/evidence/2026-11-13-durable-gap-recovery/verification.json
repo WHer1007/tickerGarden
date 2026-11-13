@@ -1,0 +1,106 @@
+{
+  "at": "2026-11-13T04:07:36.273480+00:00",
+  "chains": {
+    "rh": {
+      "apiCoverage": {
+        "status": "unverified",
+        "synchronized": false,
+        "reason": "recorded-events-reconciled-upstream-unverified",
+        "updatedAt": "2026-11-13T04:06:35.607Z",
+        "recoveryOwner": "durable-inbox"
+      },
+      "snapshotAvailable": true,
+      "synchronized": false,
+      "records": {
+        "inbox": 8,
+        "applied": 8,
+        "pending": 0,
+        "auditRuns": 1
+      },
+      "workerHealth": {
+        "lastSuccess": 0,
+        "lastResult": "idle",
+        "lastFailure": null,
+        "displayOnly": true,
+        "mode": "push-only",
+        "coverage": "unverified",
+        "synchronized": false,
+        "idleIsHealthy": true,
+        "database": {
+          "connectionCount": 3,
+          "queryCount": 5,
+          "slowQueryCount": 0,
+          "sqlTimeoutCount": 0,
+          "connectionTimeoutCount": 0,
+          "taskCount": 0,
+          "taskFailedCount": 0,
+          "connectionWaitMs": 128.77402900000016,
+          "sqlMs": 40.628953999999794,
+          "taskMs": 0
+        }
+      }
+    },
+    "bsc": {
+      "apiCoverage": {
+        "status": "unverified",
+        "synchronized": false,
+        "reason": "recorded-events-reconciled-upstream-unverified",
+        "updatedAt": "2026-11-13T04:06:39.236Z",
+        "recoveryOwner": "durable-inbox"
+      },
+      "snapshotAvailable": true,
+      "synchronized": false,
+      "records": {
+        "inbox": 1,
+        "applied": 1,
+        "pending": 0,
+        "auditRuns": 1
+      },
+      "workerHealth": {
+        "lastSuccess": 0,
+        "lastResult": "idle",
+        "lastFailure": null,
+        "displayOnly": true,
+        "mode": "push-only",
+        "coverage": "unverified",
+        "synchronized": false,
+        "idleIsHealthy": true,
+        "database": {
+          "connectionCount": 3,
+          "queryCount": 5,
+          "slowQueryCount": 0,
+          "sqlTimeoutCount": 0,
+          "connectionTimeoutCount": 0,
+          "taskCount": 0,
+          "taskFailedCount": 0,
+          "connectionWaitMs": 225.0476809999982,
+          "sqlMs": 21.551367000000027,
+          "taskMs": 0
+        }
+      }
+    }
+  },
+  "logs": {
+    "tickergarden-confirmed-display-production": {
+      "since": "2026-11-13 04:01:31 UTC",
+      "events": {},
+      "rpcNetworkCalls": 0,
+      "rpcCallEvents": 0
+    },
+    "tickergarden-bsc-display": {
+      "since": "2026-11-13 04:01:31 UTC",
+      "events": {
+        "database_slow_connection": 1
+      },
+      "rpcNetworkCalls": 0,
+      "rpcCallEvents": 0
+    }
+  },
+  "failedUnits": "",
+  "appliedAt": "2026-11-13T04:06:39.698044+00:00",
+  "testServicesUnchanged": true,
+  "chainCursorsUnchanged": {
+    "rh": true,
+    "bsc": true
+  }
+}

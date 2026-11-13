@@ -1,0 +1,12 @@
+{
+  "rh": {
+    "canonicalBlocksBeyondBaseline": false,
+    "canonicalLogsBeyondBaseline": false,
+    "activeJobs": 0
+  },
+  "bsc": {
+    "canonicalBlocksBeyondBaseline": false,
+    "canonicalLogsBeyondBaseline": false,
+    "activeJobs": 0
+  }
+}

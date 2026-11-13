@@ -1,0 +1,98 @@
+{
+  "commits": {
+    "main": "382e46a397b69995e44bec6f7c1262ccff695268",
+    "bsc": "df8a1501e3b36193b307507c9b2d955a9a708db2"
+  },
+  "configBefore": "0047cf42f1823d07b081f5e7e571566ef4b2a8c47860099865975deabc63fb82",
+  "relayBefore": {
+    "image": "sha256:ec0f4efc098686bdbd58d396738bb082d6a2ed1909bf1f56d5c6a45861508c23",
+    "tag": "tg-rh-relay:7bf2ee9875f1",
+    "container": "2251a149f7c835e67559640691d481e944b53c4418580249671127b5c88460a5",
+    "serverHash": "9e0866b747a32571579b7360974090ae806cb9afa80610ca1d173fe6c8bc1bd3"
+  },
+  "components": {
+    "rh-read": {
+      "root": "/opt/tickergarden-hosting/releases/20261112/sources/rh-read",
+      "files": [
+        "services/backend-ts/packages/confirmed-display/src/health.ts"
+      ],
+      "before": {
+        "services/backend-ts/packages/confirmed-display/src/health.ts": "ade4b506560fef4d5f01902ed064c31bfcae9af8737f2d5eaf32c17ce46fc7bf"
+      },
+      "after": {
+        "services/backend-ts/packages/confirmed-display/src/health.ts": "e3b46d263b05510ff3e8d5205be3aa312beb62f3df73d0a8b3b1097b44b2f3d3"
+      }
+    },
+    "bsc-read": {
+      "root": "/opt/tickergarden-hosting/releases/20261112/sources/bsc-read",
+      "files": [
+        "services/backend-ts/packages/confirmed-display/src/health.ts"
+      ],
+      "before": {
+        "services/backend-ts/packages/confirmed-display/src/health.ts": "ade4b506560fef4d5f01902ed064c31bfcae9af8737f2d5eaf32c17ce46fc7bf"
+      },
+      "after": {
+        "services/backend-ts/packages/confirmed-display/src/health.ts": "e3b46d263b05510ff3e8d5205be3aa312beb62f3df73d0a8b3b1097b44b2f3d3"
+      }
+    },
+    "rh-display": {
+      "root": "/opt/tickergarden-releases/295c186633-runtime-only",
+      "files": [
+        "services/backend-ts/packages/confirmed-display/src/health.ts"
+      ],
+      "before": {
+        "services/backend-ts/packages/confirmed-display/src/health.ts": "ade4b506560fef4d5f01902ed064c31bfcae9af8737f2d5eaf32c17ce46fc7bf"
+      },
+      "after": {
+        "services/backend-ts/packages/confirmed-display/src/health.ts": "e3b46d263b05510ff3e8d5205be3aa312beb62f3df73d0a8b3b1097b44b2f3d3"
+      }
+    },
+    "bsc-display": {
+      "root": "/opt/tickergarden-bsc/releases/774b1c5-runtime-only",
+      "files": [
+        "services/backend-ts/packages/confirmed-display/src/health.ts"
+      ],
+      "before": {
+        "services/backend-ts/packages/confirmed-display/src/health.ts": "ade4b506560fef4d5f01902ed064c31bfcae9af8737f2d5eaf32c17ce46fc7bf"
+      },
+      "after": {
+        "services/backend-ts/packages/confirmed-display/src/health.ts": "e3b46d263b05510ff3e8d5205be3aa312beb62f3df73d0a8b3b1097b44b2f3d3"
+      }
+    },
+    "rh-pipeline": {
+      "root": "/opt/tickergarden-hosting/releases/20261112/sources/rh-pipeline",
+      "files": [
+        "services/backend-ts/packages/confirmed-display/src/recovery.ts",
+        "services/backend-ts/scripts/reconcile-display-events.ts"
+      ],
+      "before": {
+        "services/backend-ts/packages/confirmed-display/src/recovery.ts": "absent",
+        "services/backend-ts/scripts/reconcile-display-events.ts": "absent"
+      },
+      "after": {
+        "services/backend-ts/packages/confirmed-display/src/recovery.ts": "d3f9b5ae852ee0841a5fcf873a77c1863f11574d1f505c65838471c93b7b545a",
+        "services/backend-ts/scripts/reconcile-display-events.ts": "25fe97a18f476e7739eb5a9b52ebe3d0ed20bda6e3f98fae11f64896966595c0"
+      }
+    },
+    "bsc-pipeline": {
+      "root": "/opt/tickergarden-hosting/releases/20261112/sources/bsc-pipeline",
+      "files": [
+        "services/backend-ts/packages/confirmed-display/src/recovery.ts",
+        "services/backend-ts/scripts/reconcile-display-events.ts"
+      ],
+      "before": {
+        "services/backend-ts/packages/confirmed-display/src/recovery.ts": "absent",
+        "services/backend-ts/scripts/reconcile-display-events.ts": "absent"
+      },
+      "after": {
+        "services/backend-ts/packages/confirmed-display/src/recovery.ts": "d3f9b5ae852ee0841a5fcf873a77c1863f11574d1f505c65838471c93b7b545a",
+        "services/backend-ts/scripts/reconcile-display-events.ts": "25fe97a18f476e7739eb5a9b52ebe3d0ed20bda6e3f98fae11f64896966595c0"
+      }
+    }
+  },
+  "relayFiles": {
+    "display-retry.ts": "f4f459b271cce9a1038349c896ff398e13651ccab0bb6712f2eb95ecd68974d7",
+    "server.ts": "68d09fe2dc4b72549edf7f6fdbbbcf305059d277ebf0408a18985a3e198f0164"
+  },
+  "migrationSha256": "5752958f384499f11e8b763ae5dcf223a201b329d15b4ae32b9e6866026355c8"
+}

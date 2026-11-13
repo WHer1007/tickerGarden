@@ -1,0 +1,18 @@
+{
+  "rh": {
+    "ok": true,
+    "recoveryOwner": "durable-inbox",
+    "pending": 0,
+    "dead": 0,
+    "subscriptions": 1,
+    "lastError": null
+  },
+  "bsc": {
+    "ok": true,
+    "recoveryOwner": "durable-inbox",
+    "pending": 0,
+    "dead": 0,
+    "subscriptions": 1,
+    "lastError": null
+  }
+}

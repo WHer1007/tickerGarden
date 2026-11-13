@@ -1,0 +1,54 @@
+{
+  "rh": {
+    "mode": "plan",
+    "identity": {
+      "environment": "production",
+      "chainId": 4663,
+      "deploymentDigest": "0xda13cee41cf89064426e10cd5b2f63cb8448fb5b4e8713f2d48d2f99b9570cd5"
+    },
+    "schema": "tickergarden_serverless",
+    "sourceDigest": "0x51e32c17f833f377048661d491bcfc76d7859fce6e85a25d5140274ec48820cd",
+    "sourceRecords": 8,
+    "baseline": {
+      "block_number": "109907167",
+      "block_hash": "0x93b76768bb61cbb0e8471554c61bb44435ea0a12ffbfb07e90b3b337d767a747"
+    },
+    "health": {
+      "status": "gap",
+      "reason": "upstream-recovery-required",
+      "updated_at": "2026-11-12T19:14:51.221Z"
+    },
+    "missing": 8,
+    "baselineMatched": 8,
+    "alreadyApplied": 0,
+    "inboxRecords": 0,
+    "planDigest": "0xa34910aa867d2b296ed354ca73170d10ac9bfb76fdb77b66a20a26cbf275d488",
+    "chainCursorsUnchanged": true
+  },
+  "bsc": {
+    "mode": "plan",
+    "identity": {
+      "environment": "production",
+      "chainId": 56,
+      "deploymentDigest": "0x182de16882fbe6f2305871fbdf4f21f64ae5404a43d8ff0d434096bbce067d64"
+    },
+    "schema": "tickergarden_bsc",
+    "sourceDigest": "0xa1d6b999ad8ff77a13efbb27e5877ddc02110a5db225e5ecec1e825c54f48e8e",
+    "sourceRecords": 1,
+    "baseline": {
+      "block_number": "131638020",
+      "block_hash": "0x8c56333534f48f6e478b314918bc489b6779ef8455fba2a37e12e4fad5b24a55"
+    },
+    "health": {
+      "status": "gap",
+      "reason": "upstream-recovery-required",
+      "updated_at": "2026-11-12T19:17:20.247Z"
+    },
+    "missing": 0,
+    "baselineMatched": 1,
+    "alreadyApplied": 1,
+    "inboxRecords": 1,
+    "planDigest": "0x0ec01365b9dcc1b8208322d48cfec2967c11b427fbd520dc1ea1a172b30feb71",
+    "chainCursorsUnchanged": true
+  }
+}
