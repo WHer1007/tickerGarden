@@ -10,7 +10,7 @@ test('period switches fetch only candles, preserve summary DOM and reject late r
  class Element {
   textContent='';title='';hidden=false;writes=0;rows=0;onclick?:()=>void;dataset:Record<string,string>={};style={};
   classList={toggle(){},add(){}};
-  setAttribute(){} removeAttribute(){} append(..._args:unknown[]){this.writes++;}
+  hasAttribute(){return false;} setAttribute(){} removeAttribute(){} append(..._args:unknown[]){this.writes++;}
   replaceChildren(){this.writes++;this.rows=0;} insertRow(){this.rows++;return {insertCell:()=>new Element()};}
   getContext(){return null;} querySelector(){return null;} querySelectorAll(){return [];}
  }

@@ -1,10 +1,12 @@
 import {StatsDisplayStore,type StatsSection} from './statsDisplay.ts';
 
 type StatsEventSource = {addEventListener:(type:string,listener:(event:MessageEvent<string>)=>void)=>void;close:()=>void};
+export type StatsReadStatus = Readonly<{state:'idle'|'loading'|'ready'|'error';readAt:number|null}>;
 type Options = {
   chainId:number;
   fetcher:(section:StatsSection,signal:AbortSignal)=>Promise<unknown>;
   onSection:(section:StatsSection)=>void;
+  onStatus?:(section:StatsSection)=>void;
   getSections:()=>readonly StatsSection[];
   eventSource?:()=>StatsEventSource;
   debounceMs?:number;
@@ -16,14 +18,21 @@ type Options = {
 /** Scoped, retained Stats reads with event coalescing and lifecycle fencing. */
 export function createStatsDisplayUpdater(options:Options){
  const store=new StatsDisplayStore(options.chainId),flights=new Map<StatsSection,Promise<void>>(),controllers=new Map<StatsSection,AbortController>();
+ const statuses=new Map<StatsSection,StatsReadStatus>();
+ const status=(section:StatsSection):StatsReadStatus=>statuses.get(section)??{state:'idle',readAt:null};
+ function setStatus(section:StatsSection,state:StatsReadStatus['state']){statuses.set(section,{state,readAt:state==='ready'?now():status(section).readAt});options.onStatus?.(section);}
  const dirty=new Set<StatsSection>(),updatedAt=new Map<StatsSection,number>(),pending=new Set<StatsSection>();
  const now=options.now??Date.now,debounceMs=options.debounceMs??150,refreshMs=options.refreshMs??60_000,requestTimeoutMs=options.requestTimeoutMs??15_000;
  let source:StatsEventSource|undefined,timer:ReturnType<typeof setInterval>|undefined,debounce:ReturnType<typeof setTimeout>|undefined;
  let epoch=0,started=false;
- function apply(section:StatsSection,raw:unknown,requestEpoch:number,signal:AbortSignal){if(requestEpoch!==epoch||signal.aborted)return;store.apply(raw,section);updatedAt.set(section,now());options.onSection(section);}
+ function apply(section:StatsSection,raw:unknown,requestEpoch:number,signal:AbortSignal){if(requestEpoch!==epoch||signal.aborted)return;store.apply(raw,section);updatedAt.set(section,now());setStatus(section,'ready');options.onSection(section);}
  async function read(section:StatsSection,controller:AbortController,requestEpoch:number){
+  const failed=()=>{if(requestEpoch===epoch)setStatus(section,'error');};
+  setStatus(section,'loading');controller.signal.addEventListener('abort',failed,{once:true});
   const timeout=setTimeout(()=>controller.abort(),requestTimeoutMs);
-  try{const raw=await options.fetcher(section,controller.signal);apply(section,raw,requestEpoch,controller.signal);}catch{/* Retain the last valid section on errors and aborts. */}finally{clearTimeout(timeout);}
+  try{const raw=await options.fetcher(section,controller.signal);apply(section,raw,requestEpoch,controller.signal);}
+  catch{/* Retain the last valid section on errors and aborts. */failed();}
+  finally{clearTimeout(timeout);controller.signal.removeEventListener('abort',failed);}
  }
  function refresh(section:StatsSection,force=false):Promise<void>{
   const active=flights.get(section);
@@ -65,6 +74,7 @@ export function createStatsDisplayUpdater(options:Options){
   source?.close();source=undefined;
   for(const controller of controllers.values())controller.abort();
   controllers.clear();flights.clear();
+  for(const [section,value] of statuses)if(value.state==='loading')statuses.set(section,{...value,state:value.readAt===null?'idle':'ready'});
  }
- return {get snapshot(){return store.snapshot;},start,stop,refresh:(sections:readonly StatsSection[],force=false)=>refreshMany(sections,force)};
+ return {status,get snapshot(){return store.snapshot;},start,stop,refresh:(sections:readonly StatsSection[],force=false)=>refreshMany(sections,force)};
 }

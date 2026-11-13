@@ -1,3 +1,4 @@
+import {bscStockCount} from '../chains/public-content.ts';
 const asset3Large = new URL('../../assets/step-liquidity-640.webp', import.meta.url).href;
 const asset2Large = new URL('../../assets/step-earn-640.webp', import.meta.url).href;
 const asset1Large = new URL('../../assets/step-stake-640.webp', import.meta.url).href;
@@ -26,7 +27,7 @@ const asset3 = new URL('../../assets/step-liquidity-320.webp', import.meta.url).
  * </section>
  */
 
-export default {
+const page = {
   title: 'TickerGarden — Grow community signals',
   html: `
 <main class="home-main">
@@ -72,3 +73,6 @@ export default {
     </main>
 `,
 };
+
+export function forChain(chainId:number){return chainId===56?{...page,html:page.html.replace('194 Stock tokens',`${bscStockCount} Stock tokens`).replace('Official Robinhood assets','bStocks on BNB Chain')}:page;}
+export default page;

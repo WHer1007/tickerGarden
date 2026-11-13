@@ -4,7 +4,7 @@ import {test} from 'node:test';
 const names = ['home', 'markets', 'create', 'trade', 'staking', 'rewards', 'stats', 'docs', 'privacy', 'terms'];
 const template = (name: string): string => {
   const source = readFileSync(new URL(`../src/pages/${name}.ts`, import.meta.url), 'utf8');
-  const match = source.match(/html\s*:\s*`([\s\S]*)`\s*,?\s*};\s*$/);
+  const match = source.match(/html\s*:\s*`([\s\S]*)`\s*,?\s*};/);
   assert.ok(match, `${name} has no page template`);
   return match[1]!;
 };

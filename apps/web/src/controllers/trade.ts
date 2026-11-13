@@ -1,3 +1,5 @@
+import {displayDecimal} from '../v1/tokenDetail.ts';
+import {applyPageMetadata} from '../routing/metadata.ts';
 import {tradeSubmissionError} from '../trade/submission-error.ts';
 import {assertFrontendAssetOpen,isFrontendAssetOpen} from '../chains/asset-availability.ts';
 import {tradeConfirmationContent} from '../trade/confirmation.ts';
@@ -346,7 +348,7 @@ async function refreshMarketOverview(_preserve=false):Promise<void>{
  // Display values come exclusively from the database response. An old event
  // timestamp is not evidence that an unchanged supply or price is invalid.
  const display=market.display;
- ctx.tokenDetailWidget?.setOverview({asOf:display?Number(display.asOfTimestamp):undefined,supply:display?.totalSupplyRaw,price:display?.priceQuote??undefined,usd:ctx.assetPrices.midpointUsd(market.quoteAsset)??undefined});
+ ctx.tokenDetailWidget?.setOverview({asOf:display?Number(display.asOfTimestamp):undefined,supply:display?.totalSupplyRaw,price:display?.priceQuote??undefined,usd:ctx.assetPrices.midpointUsd(market.quoteAsset),usdAsOf:ctx.assetPrices.get(market.quoteAsset)?.asOf??null});
  void renderTradeFeeDetails(market,ctx.tradeLoadGeneration);
 }
 
@@ -595,7 +597,8 @@ async function loadTradeMarket(explicit?: string): Promise<void> {
     ctx.text('[data-detail-progress-label]',progress===null?'-':`${progress.toFixed(2)}%`);
     const bar=ctx.query<HTMLProgressElement>('[data-detail-progress]');if(bar){if(progress===null)bar.removeAttribute('value');else bar.value=progress;}
     renderTradePoolAddress(response.market);
-    ctx.text('[data-detail-supply]',typeof supply==='string'?formatTokenAmount(BigInt(supply),18):'-');
+    ctx.text('[data-detail-supply]',typeof supply==='string'?displayDecimal(formatUnits(BigInt(supply),18),6):'-');
+    applyPageMetadata('trade',`${metadata.name} (${metadata.symbol}) — TickerGarden`);
     ctx.tokenDetailWidget?.setMarket({marketId:response.market.marketId,memeToken:response.market.memeToken,quoteAsset:response.market.quoteAsset,quoteDecimals:metadata.quoteDecimals,symbol:metadata.symbol,quoteSymbol:metadata.quoteSymbol,createdAt:Number(response.market.identity?.deployedAt??metadata.deployedAt)||undefined});
     void refreshMarketOverview();
     void loadDetailContent(response.market,generation);

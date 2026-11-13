@@ -15,6 +15,24 @@ export function createStatsController(ctx:StatsContext){
  const endpoint=(section:StatsSection)=>{const api=ctx.runtimeConfig.readApi;return `${api.available?api.value.replace(/\/$/,''):''}/v1/stats/display?section=${section}`;};
  function statsAsset(address:string):{label:string;icon?:string}{return {label:address,icon:quoteIconUrl(address)};}
  function usdText(value:string|null|undefined):string{return value===undefined||value===null?'-':ctx.formatMarketUSD(value,true);}
+ function displayStatus(){
+  if(!['stats','statsStocks'].includes(ctx.currentPage()))return;
+  const labels={overview:'Overview',allocations:'Allocations',stocks:'Stock values'};
+  const sections=sectionsForPage(),messages:string[]=[];
+  for(const section of sections){
+   const status=updater.status(section);
+   const saved=updater.snapshot.sections[section]!==undefined;
+   if(status.state==='loading')messages.push(`${labels[section]}: ${saved?'refreshing saved values':'loading'}`);
+   if(status.state==='error')messages.push(`${labels[section]}: ${saved?'update failed; showing saved values':'unavailable'}`);
+   const value=updater.snapshot.sections[section];
+   if(value&&(Array.isArray(value)?value.some(row=>row.valueUsd===null):Object.values(value).some(field=>field===null)))messages.push(`${labels[section]}: some estimates unavailable`);
+   if(status.readAt)messages.push(`${labels[section]} last read ${new Date(status.readAt).toLocaleString()}`);
+  }
+  ctx.text('[data-stats-status]',messages.join(' · '));
+  const retry=ctx.query<HTMLAnchorElement>('[data-stats-retry]');
+  if(retry)retry.hidden=!sections.some(section=>updater.status(section).state==='error');
+  ctx.query<HTMLElement>('[data-stats-summary]')?.setAttribute('aria-busy',String(updater.status('overview').state==='loading'));
+ }
  function display(section?:StatsSection){
   if(!['stats','statsStocks'].includes(ctx.currentPage()))return;
   const sections=updater.snapshot.sections;
@@ -38,7 +56,7 @@ export function createStatsController(ctx:StatsContext){
     return {id:row.id,label:asset?.symbol??row.label,name:row.name??asset?.name,icon:asset?.logoUrl??(asset?.symbol?quoteIconUrl(asset.symbol):statsAsset(row.label).icon),decimals:row.decimals,amount:BigInt(row.amountRaw),value:row.valueUsd};
    }));
   }
-  ctx.query<HTMLElement>('[data-stats-summary]')?.setAttribute('aria-busy','false');
+  displayStatus();
  }
  const updater=createStatsDisplayUpdater({
   chainId:robinhoodChain.id,
@@ -50,6 +68,7 @@ export function createStatsController(ctx:StatsContext){
   },
   getSections:sectionsForPage,
   onSection:section=>display(section),
+  onStatus:()=>displayStatus(),
   eventSource:()=>{
    const api=ctx.runtimeConfig.readApi;
    if(!api.available)throw Error('Stats read API unavailable');
@@ -60,7 +79,8 @@ export function createStatsController(ctx:StatsContext){
  function setupStats():void{
   const container=ctx.query<HTMLElement>('[data-stats-staking-values]');
   if(container&&container!==stockContainer){statsStockList?.destroy();stockContainer=container;statsStockList=undefined;}
-  ctx.text('[data-stats-network]',robinhoodChain.id===46630?'Testnet data':'Robinhood Chain');
+  const retry=ctx.query<HTMLAnchorElement>('[data-stats-retry]');
+  if(retry)retry.onclick=event=>{event.preventDefault();void updater.refresh(sectionsForPage().filter(section=>updater.status(section).state==='error'),true);};
   display();
   document.removeEventListener('visibilitychange',onVisibility);
   document.addEventListener('visibilitychange',onVisibility);
@@ -68,7 +88,7 @@ export function createStatsController(ctx:StatsContext){
  }
  function applyStatsSnapshot():void{display();}
  async function renderStats(force=false):Promise<void>{
-  if(document.hidden||!ctx.runtimeConfig.readApi.available)return;
+  if(document.hidden)return;
   if(!started){updater.start();started=true;}
   await updater.refresh(sectionsForPage(),force);
  }

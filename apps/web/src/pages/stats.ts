@@ -2,6 +2,7 @@ export default {title:'Stats — TickerGarden',html:`
 <main class="page stats-page">
 <header class="stats-heading"><h1>Stats</h1></header>
 <p class="stats-valuation-note">USD estimates use current prices. Volume excludes known internal trades.</p>
+<p class="stats-valuation-note" role="status"><span data-stats-status></span> <a class="stats-view-all" href="#" data-stats-retry hidden>Retry</a></p>
 <section class="stats-grid" data-stats-summary aria-label="Protocol overview" aria-busy="true">
 <article class="stat-card"><div><span>24h volume</span><i class="ph ph-chart-bar" aria-hidden="true"></i></div><strong data-stat-volume>-</strong></article>
 <article class="stat-card"><div><span>Token launches in 24h</span><i class="ph ph-plant" aria-hidden="true"></i></div><strong data-stat-launches>-</strong></article>

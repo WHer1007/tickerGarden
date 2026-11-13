@@ -32,8 +32,8 @@ test('historical widgets use database series and never live transaction override
 
 test('period selection requests only the chart and preserves independent summary state',()=>{
  const start=widget.indexOf("for(const b of root.querySelectorAll<HTMLButtonElement>('[data-detail-period]'))");
- const handler=widget.slice(start,widget.indexOf(" q('[data-detail-more-trades]')",start));
- assert.match(handler,/void refreshChart\(\)/);
+ const handler=widget.slice(start,widget.indexOf(" const retry=",start));
+ assert.match(handler,/void refreshChart\(force\)/);
  assert.doesNotMatch(handler,/void refresh\(|render\(|data=null|cache.clear/);
  const refresh=widget.slice(widget.indexOf(' const refreshChart='),widget.indexOf(' // Fetch analytics while'));
  assert.match(refresh,/loadDetailChart/);assert.doesNotMatch(refresh,/getTokenDetail|render\(/);

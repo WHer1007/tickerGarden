@@ -10,3 +10,7 @@ export function isFrontendAssetOpen(chainId: number, token: string): boolean {
 export function assertFrontendAssetOpen(chainId: number, token: string): void {
   if (!isFrontendAssetOpen(chainId, token)) throw new Error('This asset is not available on the platform. Choose another asset.');
 }
+
+export function holderClaimsNotice(chainId:number):string {
+ return chainId===56?'BSC Holder claims are not open yet. Reward information is read-only.':'';
+}

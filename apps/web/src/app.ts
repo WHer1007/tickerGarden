@@ -1,3 +1,4 @@
+import {holderClaimsNotice} from './chains/asset-availability.ts';
 import {verifyBscEntry} from './chains/bsc/risk.ts';
 import {assertFrontendAssetOpen,isFrontendAssetOpen} from './chains/asset-availability.ts';
 import {createStreamHealth} from './v1/streamHealth.ts';
@@ -11,6 +12,7 @@ import {createInvalidatedRead} from './ui/invalidated-read.ts';
 import {verifyStakeReceipt} from './ui/stake-receipt.ts';
 import type {ConversionQuote} from './trade/conversion.ts';
 import {loadRewardPageDependencies} from './routing/reward-dependencies.ts';
+import {marketHref,scopeChainLinks} from './routing/chain-links.ts';
 import { applyPageMetadata } from "./routing/metadata.ts";
 import { renderRouteLoading, renderRouteFailure } from "./routing/load-state.ts";
 import { publicError } from "./ui/public-error.ts";
@@ -1341,7 +1343,7 @@ async function renderHome(): Promise<void> {
     const link = document.createElement("a");
     link.className = "garden-card home-market-card";
     link.dataset.runtimeMarket = market.marketId;
-    link.href = `/trade?marketId=${encodeURIComponent(market.marketId)}`;
+    link.href = marketHref(market.marketId,robinhoodChain.id);
     const heading = document.createElement("h3");
     heading.textContent = metadata ? metadata.name : `Market ${shortHex(market.marketId)}`;
     const detail = document.createElement("p");
@@ -1661,7 +1663,7 @@ async function renderExploreStage(phase:0|1,direction:'current'|'next'|'previous
     const cardLink = required<HTMLAnchorElement>("[data-market-link]", fragment);
     card.dataset.runtimeMarket = market.marketId;
     card.dataset.category = market.launchPhase === 1 ? "pool" : "curve";
-    cardLink.href = `/trade?marketId=${encodeURIComponent(market.marketId)}`;
+    cardLink.href = marketHref(market.marketId,robinhoodChain.id);
     cardLink.setAttribute("aria-label", `View ${market.identity?.name ?? "Token"}`);
     text("[data-market-name]", market.identity?.name ?? `Token ${shortHex(market.memeToken)}`, fragment);
     text('[data-market-symbol]',market.identity?.symbol?`$${market.identity.symbol}`:'-',fragment);
@@ -2558,7 +2560,7 @@ function setupRewards(): void {
   if(currentPage()==='staking')stakeCountdownTimer=window.setInterval(renderStakeCountdown,1000);
   query<HTMLButtonElement>('[data-stake-token-details]')?.addEventListener('click',()=>{
     const id=query<HTMLSelectElement>('[data-position-market]')?.value;
-    if(id&&foundation?.markets.some(m=>m.marketId===id))router.navigate(`/trade?marketId=${encodeURIComponent(id)}`);
+    if(id&&foundation?.markets.some(m=>m.marketId===id))router.navigate(marketHref(id,robinhoodChain.id));
   });
   query<HTMLButtonElement>('[data-stake-empty-action]')?.addEventListener('click',()=>{
     const mode=query<HTMLElement>('[data-stake-portfolio-empty]')?.dataset.state;
@@ -3786,7 +3788,7 @@ function updateRewardsAvailability(): void {
   if(!wallet)queryAll<HTMLElement>("[data-legacy-treasury],[data-continuous-treasury],[data-snapshot-rewards]").forEach(panel=>panel.hidden=true);
   const prerequisite = !wallet ? 'Connect your wallet.' : !foundation?.writeReady ? 'Transactions are unavailable until the market connection is restored.' : '';
   if(creatorDirectoryError)text('[data-creator-status]',creatorDirectoryError);
-  text('[data-holder-action-help]', prerequisite || (snapshotRewardStatus ? '' : continuousReward ? continuousReward.claimable > 0n ? '' : 'No rewards available yet.' : treasuryReward ? treasuryReward.accountClaimed ? 'You have already claimed this reward cycle.' : treasuryReward.status === 3 && treasuryReward.proof ? treasuryReward.now > treasuryReward.claimUntil ? 'This reward cycle has expired.' : 'Your verified reward is ready to claim.' : 'Rewards will be available after this cycle closes and its distribution is ready. See cycle status below.' : ''));
+  text('[data-holder-action-help]', holderClaimsNotice(robinhoodChain.id) || prerequisite || (snapshotRewardStatus ? '' : continuousReward ? continuousReward.claimable > 0n ? '' : 'No rewards available yet.' : treasuryReward ? treasuryReward.accountClaimed ? 'You have already claimed this reward cycle.' : treasuryReward.status === 3 && treasuryReward.proof ? treasuryReward.now > treasuryReward.claimUntil ? 'This reward cycle has expired.' : 'Your verified reward is ready to claim.' : 'Rewards will be available after this cycle closes and its distribution is ready. See cycle status below.' : ''));
 
   queryAll<HTMLButtonElement>("[data-reward-action]").forEach((button) => {setDisabled(button, true);if(currentPage()==='rewards')button.hidden=!wallet;});
   const direct = rewardActionButton("directVaultRageQuit");
@@ -4939,10 +4941,11 @@ function mountRoute(route: Route): Promise<void> {
   return (async () => {
     await Promise.all([route.page==='rewards'||route.page==='staking'?loadRewardPageDependencies(route.page):Promise.resolve(),['stats','statsStocks'].includes(route.page)?ensureStatsController():Promise.resolve(),route.page==='create'?ensureCreateController():Promise.resolve(),route.page==='trade'?ensureTradeController():Promise.resolve()]);
     if(generation!==routeGeneration)return;
-    const page = await loadPageTemplate(route.page);
+    const page = await loadPageTemplate(route.page,robinhoodChain.id);
     if (generation !== routeGeneration) return;
     applyPageMetadata(route.page, undefined, route.pathname + window.location.search);
     outlet.innerHTML = page.html;
+    scopeChainLinks(document,robinhoodChain.id);
     const main = outlet.querySelector<HTMLElement>("main");
     if (main) {
       main.id = "main-content";
@@ -5200,7 +5203,7 @@ const unsubscribeAssetPrices = assetPrices.subscribe(snapshot => {
   marketStockSymbols = robinhoodChain.id===56
     ? new Map(STAKING_ASSETS.filter(a=>a.chainId===56).map(a=>[a.tokenAddress.toLowerCase(),a.symbol]))
     : new Map(Object.values(snapshot.prices).map(price => [price.token, price.symbol]));
-  if (tradeMarket) tokenDetailWidget?.setOverview({ usd: assetPrices.midpointUsd(tradeMarket.market.quoteAsset) ?? undefined });
+  if (tradeMarket) tokenDetailWidget?.setOverview({ usd: assetPrices.midpointUsd(tradeMarket.market.quoteAsset), usdAsOf: assetPrices.get(tradeMarket.market.quoteAsset)?.asOf ?? null });
 });
 void restoreLaunchProgress();
 startSnapshotUpdates();

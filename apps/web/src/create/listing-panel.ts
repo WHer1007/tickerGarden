@@ -1,3 +1,4 @@
+import {marketHref} from '../routing/chain-links.ts';
 import { LISTING_SUBMISSION_LINKS, serializeListingPackageJSON, serializeListingPackageText, type ListingPackageSnapshot } from './listing-package.ts';
 import { ipfsGatewayURL } from './ipfs.ts';
 
@@ -26,7 +27,7 @@ export function renderListingPanel(host: HTMLElement, snapshot: ListingPackageSn
  const copyAddress=button('','ph-copy',()=>{void copy(snapshot.tokenAddress,'Address Copied');});copyAddress.setAttribute('aria-label','Copy token address');copyAddress.title='Copy Address';
  address.append(label,value,copyAddress);host.append(address);
  const primary=document.createElement('div');primary.className='listing-primary-actions';
- const view=button('View Token','ph-arrow-up-right',()=>{const url=`/trade?marketId=${encodeURIComponent(marketId)}`;if(navigate)navigate(url);else window.location.assign(url);});view.className='listing-view-token';
+ const view=button('View Token','ph-arrow-up-right',()=>{const url=marketHref(marketId,snapshot.chainId);if(navigate)navigate(url);else window.location.assign(url);});view.className='listing-view-token';
  primary.append(view,external('View On Explorer',`${explorer}/token/${snapshot.tokenAddress}`));host.append(primary);
  const pack=document.createElement('section');pack.className='listing-info-pack';
  const packHeading=document.createElement('h2');packHeading.textContent='Token Info Pack';

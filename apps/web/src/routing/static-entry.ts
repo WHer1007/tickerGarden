@@ -1,3 +1,4 @@
+import {scopeChainLinks} from './chain-links.ts';
 import {withCssRecovery} from './resource-recovery.ts';
 import {applyPageMetadata} from './metadata.ts';
 import {mountPageVisuals} from './visuals.ts';
@@ -7,17 +8,19 @@ import {resolveRoute} from './routes.ts';
 import {renderShell} from '../ui/shell.ts';
 import {setupDocs} from '../ui/docs-search.ts';
 async function mountStaticPage() {
+const bsc=new URL(location.href).searchParams.get('chain')==='bsc';
 const route=resolveRoute(new URL(location.href));
 if(['privacy','terms'].includes(route.page))await import('../../legal.css');
 if(location.pathname+location.search+location.hash!==route.href)history.replaceState(history.state,'',route.href);
-renderShell(route.page, 'Robinhood Chain');
+renderShell(route.page,bsc?'BNB Smart Chain':'Robinhood Chain');
 document.body.dataset.page=route.page;
 const outlet=document.querySelector<HTMLElement>('[data-route-outlet]')!;
-if (!outlet.querySelector('main')) {
-  const page=await loadPageTemplate(route.page);
+if (bsc||!outlet.querySelector('main')) {
+  const page=await loadPageTemplate(route.page,bsc?56:4663);
   document.title=page.title;outlet.innerHTML=page.html;
 }
-applyPageMetadata(route.page, undefined, route.pathname);
+applyPageMetadata(route.page, undefined, route.pathname+location.search);
+scopeChainLinks(document,bsc?56:4663);
 const main=outlet.querySelector<HTMLElement>('main');if(main)main.id='main-content';
 const disposeDocs=route.page==='docs'?setupDocs():undefined;
 const disposeVisuals=mountPageVisuals(outlet);

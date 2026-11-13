@@ -42,3 +42,12 @@ test('a timed-out late response cannot replace the last valid section',async()=>
  await updater.refresh(['overview'],true);const pending=updater.refresh(['overview'],true);await wait(10);release(overview('late','2'));await pending;
  assert.equal(call,2);assert.equal(updater.snapshot.sections.overview?.volumeUsd,'9');updater.stop();
 });
+
+test('per-section failures expose status and keep the last read time until recovery',async()=>{
+ let clock=1000,fail=false;
+ const changes:StatsSection[]=[];
+ const updater=createStatsDisplayUpdater({chainId:4663,now:()=>clock,getSections:()=>['overview','allocations'],onSection:()=>{},onStatus:s=>changes.push(s),fetcher:async section=>{if(fail&&section==='overview')throw Error('offline');return section==='overview'?overview('r1','12'):allocations('r1');}});
+ await updater.refresh(['overview','allocations'],true);assert.deepEqual(updater.status('overview'),{state:'ready',readAt:1000});
+ fail=true;clock=2000;await updater.refresh(['overview'],true);assert.deepEqual(updater.status('overview'),{state:'error',readAt:1000});assert.equal(updater.snapshot.sections.overview?.volumeUsd,'12');assert.equal(updater.status('allocations').state,'ready');
+ fail=false;clock=3000;await updater.refresh(['overview'],true);assert.deepEqual(updater.status('overview'),{state:'ready',readAt:3000});assert.ok(changes.length>=6);updater.stop();
+});

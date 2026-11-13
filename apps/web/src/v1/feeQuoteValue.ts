@@ -22,7 +22,7 @@ export function feeQuoteValue(rows:readonly TokenDetailFee[],quote:string,meme:s
 }
 
 /** Current database prices value both payout assets in USD, using integer arithmetic. */
-export function feeUsdValue(rows:readonly TokenDetailFee[],quote:string,meme:string,quoteDecimals:number,price:string|null|undefined,quoteUsd:string|undefined):string|null{
+export function feeUsdValue(rows:readonly TokenDetailFee[],quote:string,meme:string,quoteDecimals:number,price:string|null|undefined,quoteUsd:string|null|undefined):string|null{
  const value=feeQuoteValue(rows,quote,meme,quoteDecimals,price);
  if(value===null)return null;
  if(value==='0')return '0';

@@ -4,7 +4,7 @@ import type { PageName } from "./routes.ts";
 
 export type PageTemplate = Readonly<{ title: string; html: string }>;
 
-const loaders: Record<Exclude<PageName, "not-found">, () => Promise<{ default: PageTemplate }>> = {
+const loaders: Record<Exclude<PageName, "not-found">, () => Promise<{ default: PageTemplate; forChain?:(chainId:number)=>PageTemplate }>> = {
   home: async () => { await import("../home/signal-arbor.css"); return import("../pages/home.ts"); },
   markets: async () => { await import("../pages/markets.css"); return import("../pages/markets.ts"); },
   trade: async () => { await Promise.all([import("../pages/tradeReference.css"),import("../pages/tradeLive.css")]); return import("../pages/trade.ts"); },
@@ -19,6 +19,8 @@ const loaders: Record<Exclude<PageName, "not-found">, () => Promise<{ default: P
 };
 
 
-export async function loadPageTemplate(page: PageName): Promise<PageTemplate> {
-  return page === "not-found" ? notFound : (await withCssRecovery(loaders[page])).default;
+export async function loadPageTemplate(page: PageName, chainId=4663): Promise<PageTemplate> {
+  if(page==="not-found")return notFound;
+  const module=await withCssRecovery(loaders[page]);
+  return module.forChain?.(chainId)??module.default;
 }
