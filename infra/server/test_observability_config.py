@@ -40,5 +40,15 @@ class ObservabilityConfigTests(unittest.TestCase):
             worker_observability_projections({'workerObservability': {'tickergarden-confirmed-display-production': {}}}, '/tmp/not-a-release')
         self.assertEqual(worker_observability_projections({}, '/tmp/unaffected-test'), [])
 
+    def test_resident_worker_release_is_projected_without_credentials(self):
+        config = {'workerObservability': {'tickergarden-resident-worker-production': {'TG_RELEASE_COMMIT': 'c' * 40, 'TG_CHAIN_ID': '4663'}}}
+        entries = worker_observability_projections(config, '/opt/tickergarden-hosting/releases/20261112')
+        self.assertEqual(len(entries), 2)
+        self.assertIn('tickergarden-resident-worker-production-observability.env', entries[0][0])
+        self.assertEqual(entries[0][1], 'TG_CHAIN_ID=4663\nTG_RELEASE_COMMIT=' + 'c' * 40 + '\n')
+        config['workerObservability']['tickergarden-resident-worker-production']['TG_RPC_URL'] = 'forbidden'
+        with self.assertRaises(AssertionError):
+            worker_observability_projections(config, '/opt/tickergarden-hosting/releases/20261112')
+
 if __name__ == '__main__':
     unittest.main()

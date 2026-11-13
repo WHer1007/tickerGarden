@@ -32,7 +32,7 @@ export default defineConfig(({command})=>{
   if(id.includes('vite/preload-helper'))return 'preload';
   if(id.includes("/src/controllers/create.ts"))return "create-controller";
   if(id.includes("/src/controllers/trade.ts"))return "trade-controller";
-  if(id.includes("/src/create/generated/"))return "asset-catalogs";
+  if(id.includes("/src/create/generated/")||id.endsWith("/src/chains/bsc/generated.ts"))return "asset-catalogs";
   const abi=id.match(/\/generated\/contracts\/(current|burn|legacy)\/([^/]+)\.ts$/);
   if(abi)return `abi-${abi[1]}-${abi[2]}`;
   if(id.includes('/node_modules/')&&!id.includes('/node_modules/three/')&&!id.includes('/node_modules/@phosphor-icons/'))return 'chain';

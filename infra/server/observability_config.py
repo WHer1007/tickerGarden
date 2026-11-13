@@ -38,7 +38,7 @@ def worker_observability_projections(config, root):
     assert re.fullmatch(r'/opt/tickergarden-hosting/releases/[a-zA-Z0-9-]+', str(root)), 'Unexpected release root'
     output = []
     for name, values in config.get('workerObservability', {}).items():
-        assert name == 'tickergarden-confirmed-display-production', 'Unexpected worker'
+        assert name in ['tickergarden-confirmed-display-production', 'tickergarden-resident-worker-production'], 'Unexpected worker'
         assert set(values) == {'TG_RELEASE_COMMIT', 'TG_CHAIN_ID'}, 'Only public release metadata is allowed'
         assert re.fullmatch(r'[0-9a-f]{40}', values['TG_RELEASE_COMMIT']) and values['TG_CHAIN_ID'] == '4663', 'Invalid worker identity'
         env_file = root / 'runtime' / (name + '-observability.env')
