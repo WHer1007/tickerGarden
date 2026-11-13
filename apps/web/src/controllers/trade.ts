@@ -474,12 +474,12 @@ async function verifyTradeMarket(detail: MarketDetailResponse, generation: numbe
 async function loadDetailContent(market:MarketReadModel,generation:number):Promise<void>{
   if(generation!==ctx.tradeLoadGeneration)return;
   const value=market.content;
+  for(const key of ['website','x'] as const){const link=ctx.query<HTMLButtonElement>(`[data-detail-${key}]`);if(link){const url=value?.[key];link.hidden=false;link.disabled=!url;if(url){link.dataset.externalUrl=url;link.title=url;}else{delete link.dataset.externalUrl;link.removeAttribute('title');}}}
   if(!value){ctx.text('[data-detail-description]','');return;}
   ctx.text('[data-detail-description]',value.description||'No description added.');
   const imageUrl=value.imageURI?ipfsGatewayURL(value.imageURI,import.meta.env.VITE_IPFS_GATEWAY):null;
   const image=ctx.query<HTMLImageElement>('[data-detail-image]');if(image&&imageUrl)image.src=imageUrl;
   ctx.tradeMemeLogoUrl=imageUrl||ctx.tradeTokenLogoFallback;renderTradeQuote();
-  for(const key of ['website','x'] as const){const link=ctx.query<HTMLButtonElement>(`[data-detail-${key}]`);if(link){const url=value[key];link.hidden=!url;link.disabled=!url;if(url){link.dataset.externalUrl=url;link.title=url;}else delete link.dataset.externalUrl;}}
 }
 
 function renderDetailBalances():void{
