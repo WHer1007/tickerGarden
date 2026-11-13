@@ -35,7 +35,7 @@ export function launchNotificationTarget(env:Record<string,unknown>,chainId:numb
  const pipelineUrl=chainId===56?env.VITE_BSC_PIPELINE_URL:env.VITE_V1_PIPELINE_URL;
  return typeof pipelineUrl==='string'&&[56,4663,46630,421614].includes(chainId)?{chainId,pipelineUrl}:undefined;
 }
-export function notifyLaunchDatabase(hash:string,target:LaunchNotificationTarget|undefined,fetcher:typeof fetch=fetch):Promise<boolean>{
+export function notifyLaunchDatabase(hash:string,target:LaunchNotificationTarget|undefined,fetcher:typeof fetch=fetch,mode:'background'|'prepare'='background'):Promise<boolean>{
  if(!/^0x[0-9a-f]{64}$/.test(hash)||!target||![56,4663,46630,421614].includes(target.chainId))return Promise.resolve(false);
  let url:URL;
  try{
@@ -46,16 +46,17 @@ export function notifyLaunchDatabase(hash:string,target:LaunchNotificationTarget
   if(base.searchParams.size&&(![...base.searchParams.keys()].every(k=>k==='chainId')||base.searchParams.getAll('chainId').length!==1||base.searchParams.get('chainId')!==String(target.chainId)))return Promise.resolve(false);
   url=new URL(scopedEvmUrl(new URL('/v1/launches',base),target.chainId));
  }catch{return Promise.resolve(false);}
- const key=`${target.chainId}:${url.href}:${hash}`;const pending=notifications.get(key);if(pending)return pending;
- const work=(async()=>{for(let attempt=0;attempt<6;attempt++){
-  try{const response=await fetcher(url,{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({transactionHash:hash}),signal:AbortSignal.timeout(25000)});
+ const key=`${target.chainId}:${url.href}:${hash}:${mode}`;const pending=notifications.get(key);if(pending)return pending;
+ const attempts=mode==='prepare'?1:6;
+ const work=(async()=>{for(let attempt=0;attempt<attempts;attempt++){
+  try{const response=await fetcher(url,{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({transactionHash:hash}),signal:AbortSignal.timeout(mode==='prepare'?8000:25000)});
    const selected=response.headers.get('x-chain-id');
    if((response.ok&&url.origin===EVM_GATEWAY_ORIGIN&&selected!==String(target.chainId))||(selected!==null&&selected!==String(target.chainId)))return false;
    if(response.ok){const result=await response.json();if(result.chainId!==undefined&&result.chainId!==target.chainId)return false;if(result.transactionHash!==undefined&&result.transactionHash!==hash)return false;if(result.status==='confirmed'&&/^0x[0-9a-f]{64}$/.test(result.marketId))return true;}
    // Configuration and validation failures cannot be recovered by repeating the same request.
    if(response.status>=400&&response.status<500&&![408,429].includes(response.status))return false;
   }catch{/* The durable WebSocket relay is an independent delivery path. */}
-  if(attempt<5)await new Promise(resolve=>setTimeout(resolve,5000));
+  if(attempt<attempts-1)await new Promise(resolve=>setTimeout(resolve,5000));
  }return false;})();
  notifications.set(key,work);void work.finally(()=>notifications.delete(key));return work;
 }

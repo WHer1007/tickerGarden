@@ -211,7 +211,8 @@ function rpcUrl(value: string | undefined): string | null {
 }
 
 function json(value: unknown, status: number, headers: Record<string, string>): Response {
-  rpcTelemetry('web_rpc_proxy_response',{status});
+  const code=(value as {error?:unknown})?.error;
+  rpcTelemetry('web_rpc_proxy_response',{status,...(typeof code==='string'&&/^[a-z_]{1,64}$/.test(code)?{code}:{})});
   return new Response(JSON.stringify(value), { status, headers });
 }
 

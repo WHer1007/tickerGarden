@@ -8,7 +8,7 @@ import {refreshDisplayPreparation,refreshDisplayPrices} from '../packages/confir
 import {displayWakeChannel,DisplayWake} from '../packages/confirmed-display/src/wake.ts';
 import {displayRpcFetch,type DisplayTrigger} from '../packages/confirmed-display/src/rpc-boundary.ts';
 import {displaySchema,advanceConfirmedDisplay} from '../packages/confirmed-display/src/worker.ts';
-import type {PoolClient} from 'pg';
+import {DisplayListener} from '../packages/confirmed-display/src/listener.ts';
 import {createServer} from 'node:http';
 import {createDatabasePool} from '../packages/db/src/index.ts';
 import {RpcTransport} from '../packages/chain/src/index.ts';
@@ -25,7 +25,7 @@ const schema=displaySchema(env.TG_DATABASE_SCHEMA),id=[deployment.environment,de
 const reader=new SharedPriceReader(deployment,env.TG_DATABASE_SCHEMA),priceChannel=priceBatchChannel(deployment,env.TG_DATABASE_SCHEMA),changesChannel=changeChannel(deployment,env.TG_DATABASE_SCHEMA),eventChannel=displayWakeChannel(deployment,env.TG_DATABASE_SCHEMA);
 let stopped=false,lastSuccess=0,lastResult='idle',gapObserved=false,eventPending=false,pricePending=false,preparePending=false;
 let gapToPersist:string|undefined;
-let requested:DisplayTrigger|undefined,listener:PoolClient|undefined;
+let requested:DisplayTrigger|undefined,listener:DisplayListener|undefined;
 let listenerReady=false;
 let lastFailure:{kind:'listen'|'price'|'event';at:string}|null=null;
 let operation:'listen'|'price'|'event'='listen';
@@ -33,7 +33,7 @@ const wake=new DisplayWake(),abort=new AbortController();
 const stop=()=>{stopped=true;abort.abort();};process.once('SIGTERM',stop);process.once('SIGINT',stop);
 async function listen(){
  if(listener)return;
- const client=await pool.connect();listener=client;
+ const client=await pool.connect(),lease=new DisplayListener(client);listener=lease;
  client.on('notification',message=>{
   if(message.channel===priceChannel){reader.invalidate();pricePending=true;}
   else if(message.channel===changesChannel)preparePending=true;
@@ -44,13 +44,14 @@ async function listen(){
   }
   wake.wake();
  });
- client.once('error',()=>{listenerReady=false;if(listener===client)listener=undefined;client.release(true);wake.wake();});
+ client.once('error',()=>{if(listener===lease){listenerReady=false;listener=undefined;wake.wake();}lease.release(true);});
  try{
   for(const channel of [eventChannel,priceChannel,changesChannel])await client.query(`LISTEN ${channel}`);
   // A persisted unprocessed event is authority; a process restart alone is not.
   gapObserved=(await readDisplayCoverage(pool,deployment,env.TG_DATABASE_SCHEMA??'tickergarden_serverless')).status==='gap'||gapObserved;
+  if(listener!==lease||stopped)throw Error('Database listener closed during initialization');
   listenerReady=true;eventPending=true;if(lastFailure?.kind==='listen'){lastFailure=null;lastResult='idle';}wake.wake();
- }catch(e){listenerReady=false;if(listener===client){listener=undefined;client.release(true);}throw e;}
+ }catch(e){if(listener===lease){listenerReady=false;listener=undefined;}lease.release(true);throw e;}
 }
 async function pendingEvent():Promise<DisplayTrigger|undefined>{
  const row=(await pool.query<{transaction_hash:string}>(`SELECT e.transaction_hash FROM ${schema}.display_event_inbox e WHERE e.environment=$1 AND e.chain_id=$2 AND e.deployment_digest=$3 AND ((NOT e.removed AND e.block_number>=coalesce((SELECT next_block FROM ${schema}.projection_checkpoints WHERE environment=$1 AND chain_id=$2 AND deployment_digest=$3 AND scope='analytics'),0) AND NOT EXISTS(SELECT 1 FROM ${schema}.display_event_applied a WHERE a.environment=e.environment AND a.chain_id=e.chain_id AND a.deployment_digest=e.deployment_digest AND a.block_hash=e.block_hash AND a.transaction_hash=e.transaction_hash AND a.log_index=e.log_index)) OR (e.removed AND EXISTS(SELECT 1 FROM ${schema}.display_event_applied a WHERE a.environment=e.environment AND a.chain_id=e.chain_id AND a.deployment_digest=e.deployment_digest AND a.block_hash=e.block_hash AND a.transaction_hash=e.transaction_hash AND a.log_index=e.log_index))) ORDER BY e.block_number,e.log_index LIMIT 1`,id)).rows[0];
@@ -84,4 +85,4 @@ try{while(!stopped){
  // Timeout only repairs the database listener. It never authorizes chain work.
  await wake.wait(30000,abort.signal);
 }}
-finally{stop();server.close();await flushErrors(1000);if(listener){await listener.query('UNLISTEN *').catch(()=>{});listener.release();}await pool.end();}
+finally{stop();server.close();const closing=listener;listener=undefined;listenerReady=false;try{await flushErrors(1000);await closing?.close();}finally{await pool.end();}}

@@ -65,6 +65,7 @@ findCanonicalMarketCreated,launchAbis,resolveBurnLaunchConfig,resolveLpLaunchCon
 
 import { resolveLaunchFunding,type LaunchFunding } from "../v1/launchFunding.ts";
 import { LAUNCH_CONFIRMED_COPY,launchNotificationTarget,notifyLaunchDatabase } from "../v1/pendingMarket.ts";
+import {verifyRegisteredLaunch} from '../create/registered-launch.ts';
 import {
 TickerGardenV1Client
 } from "../v1/readApi.ts";
@@ -1021,6 +1022,7 @@ async function performLaunch(reviewedPurchase?:PurchaseQuote): Promise<void> {
       verifyChain,
       confirm: async (receipt) => {
         operation='verify_launch';
+        return verifyRegisteredLaunch({verifyReceipt:()=>{
         const result = findCanonicalMarketCreated(receipt, contracts.factoryAddress, {
           params: preview.params,
           quoteAsset: preview.selected.quote.quoteAsset,
@@ -1038,6 +1040,9 @@ async function performLaunch(reviewedPurchase?:PurchaseQuote): Promise<void> {
             && args.tokensOut >= expectedMinimum,
           );
         }
+        return result;
+        },register:()=>notifyLaunchDatabase(receipt.transactionHash,launchNotificationTarget(import.meta.env,robinhoodChain.id),fetch,'prepare'),
+        verifyDeployment:async result=>{
         const [code, quoteAsset, createdMarket] = await Promise.all([
           ctx.publicClient.getCode({ address: result.curve }),
           ctx.publicClient.readContract({ abi: v1Abis_TickerGardenCurve, address: result.curve, functionName: "quoteAsset" }),
@@ -1050,7 +1055,7 @@ async function performLaunch(reviewedPurchase?:PurchaseQuote): Promise<void> {
         if (preview.params.burnMemeFees !== undefined && tupleField(tupleField(createdMarket, "config", 0), "burnMemeFees", 17) !== preview.params.burnMemeFees) throw new Error("Created token fee burn choice differs from the signed choice");
         ctx.directMarkets?.receipt(receipt);
         confirmedHash = receipt.transactionHash;
-        return result;
+        }});
       },
     });
     clearCreateDraft(localStorage, robinhoodChain.id); ctx.pendingCreateDraft = null;
@@ -1065,7 +1070,7 @@ async function performLaunch(reviewedPurchase?:PurchaseQuote): Promise<void> {
     try { localStorage.setItem(`tg-listing:${robinhoodChain.id}`,JSON.stringify(ctx.latestListing)); } catch { /* Downloads still work without browser storage. */ }
     if(ctx.launchProgress?.listing)ctx.launchProgress.listing.txHash=confirmedHash;
     if(ctx.launchProgress){ctx.launchProgress={...ctx.launchProgress,phase:'complete',detail:LAUNCH_CONFIRMED_COPY};saveLaunchState(localStorage,ctx.launchProgress);}
-    void notifyLaunchDatabase(confirmedHash,launchNotificationTarget(import.meta.env,robinhoodChain.id)).then(()=>ctx.snapshotPoller?.reconnect());
+    ctx.snapshotPoller?.reconnect();
     await presentCompletedLaunch();
   } catch (error) {
     let failureMessage=publicError(error,'transaction');
@@ -1073,7 +1078,7 @@ async function performLaunch(reviewedPurchase?:PurchaseQuote): Promise<void> {
       let purchasePending=true;try{purchasePending=Boolean(recoveryRead(localStorage,purchaseStateKey(ctx.launchProgress.account)));}catch{/* Unknown storage state retains the duplicate-submission guard. */}
       const pending=purchasePending||(ctx.launchProgress.phase!=='failed'&&Boolean(ctx.launchProgress.hash||['wallet','pending','confirming'].includes(ctx.launchProgress.phase)));
       ctx.launchProgress.diagnostic=await recordLaunchFailure(localStorage,ctx.launchProgress,operation,error,pending);
-      reportClientError(error,{flow:'launch',step:operation,code:ctx.launchProgress.diagnostic.code,reference:ctx.launchProgress.diagnostic.reference});
+      reportClientError(error,{chainId:String(ctx.launchProgress.chainId),flow:'launch',step:operation,code:ctx.launchProgress.diagnostic.code,reference:ctx.launchProgress.diagnostic.reference});
       failureMessage=launchFailureMessage(ctx.launchProgress.diagnostic.code,ctx.launchProgress.diagnostic.phase,pending);
       if(pending){
        updateLaunchProgress('paused',failureMessage);

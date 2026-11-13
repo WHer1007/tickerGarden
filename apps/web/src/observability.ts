@@ -1,8 +1,9 @@
 import {configureResourceRecovery,recoverStylesheet,cssFailurePath,builtCssPath,resourceContext} from './routing/resource-recovery.ts';
 /** No UI, wallet payloads or request bodies. SDK loads only when a DSN is configured. */
 import {cleanText} from '../../../services/backend-ts/packages/observability/src/sanitize.ts';
+import {errorDiagnosticTags} from './error-diagnostics.ts';
 const telemetryEnv=import.meta.env??{};
-type Fields={flow?:string;step?:string;code?:string;reference?:string;operationId?:string;requestId?:string;resourcePath?:string;pagePath?:string;online?:string;visibility?:string;retryCount?:string};
+type Fields={chainId?:string;flow?:string;step?:string;code?:string;reference?:string;operationId?:string;requestId?:string;resourcePath?:string;pagePath?:string;online?:string;visibility?:string;retryCount?:string};
 let sdk:typeof import('./observability-sdk.ts')|undefined;
 let starting:Promise<void>|undefined;
 let retryAfter=0;
@@ -33,7 +34,7 @@ export function reportClientError(error:unknown,fields:Fields={}){
 function capture(error:unknown,fields:Fields){
  const body=error&&typeof error==='object'?(error as {body?:{requestId?:unknown}}).body:undefined;
  if(typeof body?.requestId==='string'&&/^[A-Za-z0-9._:-]{1,128}$/.test(body.requestId))fields={...fields,requestId:body.requestId};
- sdk?.captureException(error instanceof Error?error:new Error('Non-Error rejection'),{tags:Object.fromEntries(Object.entries(fields).map(([k,v])=>[k,cleanText(v??'',160)]))});
+ sdk?.captureException(error instanceof Error?error:new Error('Non-Error rejection'),{tags:{...errorDiagnosticTags(error),...Object.fromEntries(Object.entries(fields).map(([k,v])=>[k,cleanText(v??'',160)]))}});
 }
 export function startObservability():Promise<void>{
  if(starting)return starting;

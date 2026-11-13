@@ -15,8 +15,15 @@ test('BSC completion and saved launch recovery notify only the selected gateway 
  assert.deepEqual(calls,[0,1].map(()=>({url:EVM_GATEWAY_ORIGIN+'/v1/launches?chainId=56',body:{transactionHash:hash}})));
  const source=readFileSync(new URL('../src/controllers/create.ts',import.meta.url),'utf8');
  assert.match(source,/notifyLaunchDatabase\(receipt.transactionHash,launchNotificationTarget\(import.meta.env,state.chainId\)\)/);
- assert.match(source,/notifyLaunchDatabase\(confirmedHash,launchNotificationTarget\(import.meta.env,robinhoodChain.id\)\)/);
+ assert.match(source,/notifyLaunchDatabase\(receipt.transactionHash,launchNotificationTarget\(import.meta.env,robinhoodChain.id\),fetch,'prepare'\)/);
  assert.doesNotMatch(source,/notifyLaunchDatabase\([^\n]*import.meta.env.VITE_V1_PIPELINE_URL/);
+});
+
+test('pre-confirmation notification is one bounded attempt; background recovery can still retry',async()=>{
+ let calls=0;
+ assert.equal(await notifyLaunchDatabase(hash,launchNotificationTarget(env,56),async(_url,init)=>{calls++;assert.ok(init?.signal);return Response.json({error:'unavailable'},{status:503});},'prepare'),false);
+ assert.equal(calls,1);
+ assert.equal(await notifyLaunchDatabase(hash,launchNotificationTarget(env,56),async()=>confirmed(56)),true);
 });
 
 test('RH mainnet and existing testnet notification URLs and payload remain unchanged',async()=>{

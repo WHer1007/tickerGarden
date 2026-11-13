@@ -16,11 +16,13 @@ let sentryStarted=false;
 const windows=new Map<string,{at:number;count:number}>();
 const deliveries=new Set<Promise<unknown>>();
 let localDelivery=Promise.resolve();
-const releaseMetadata=(()=>{
- const env=process.env;let dir=process.cwd();
+const sourceReleaseMetadata=(()=>{
+ let dir=process.cwd();
  for(let i=0;i<8;i++){const file=join(dir,'source-release.json');if(existsSync(file)){try{const value=JSON.parse(readFileSync(file,'utf8'));if(value.schemaVersion===1&&typeof value.commit==='string'&&/^[0-9a-f]{40}$/i.test(value.commit))return {releaseCommit:value.commit};}catch{} }const parent=dirname(dir);if(parent===dir)break;dir=parent;}
- return {releaseCommit:env.TG_RELEASE_COMMIT??env.VERCEL_GIT_COMMIT_SHA??'unconfigured'};
+ return {releaseCommit:'unconfigured'};
 })();
+function releaseMetadata(){const commit=process.env.TG_RELEASE_COMMIT??process.env.VERCEL_GIT_COMMIT_SHA;return commit&&/^[a-f0-9]{40}$/i.test(commit)?{releaseCommit:commit}:sourceReleaseMetadata;}
+function chainMetadata(){const id=process.env.TG_CHAIN_ID;return id&&/^[1-9][0-9]{0,9}$/.test(id)?{chainId:id}:{};}
 function deploymentId(){const value=process.env.VERCEL_DEPLOYMENT_ID??process.env.VERCEL_URL;return value&&/^[A-Za-z0-9._-]{1,128}$/.test(value)?value:undefined;}
 function track(promise:Promise<unknown>){deliveries.add(promise);void promise.finally(()=>deliveries.delete(promise)).catch(()=>{});if(process.env.VERCEL)try{waitUntil(promise);}catch{}}
 function alertDelivery(alert:Alert){
@@ -35,7 +37,7 @@ function logger(service:string){
  let log=loggers.get(service);if(log)return log;
  const env=process.env;
  log=pino({level:['debug','info','warn','error','fatal','silent'].includes(env.TG_LOG_LEVEL??'')?env.TG_LOG_LEVEL!:'info',
-  base:{service,environment:env.TG_ENVIRONMENT??'local',...releaseMetadata,...(deploymentId()?{deploymentId:deploymentId()}: {})},
+  base:{service,environment:env.TG_ENVIRONMENT??'local',...releaseMetadata(),...chainMetadata(),...(deploymentId()?{deploymentId:deploymentId()}: {})},
   timestamp:pino.stdTimeFunctions.isoTime,redact:{paths:['authorization','cookie','signature','privateKey','password','secret','dsn'],remove:true}});
  loggers.set(service,log);return log;
 }
@@ -45,7 +47,7 @@ export function logEvent(service:string,level:'info'|'warn'|'error',event:string
 }
 function startSentry(){
  if(sentryStarted||!process.env.TG_SENTRY_DSN)return;
- Sentry.init({dsn:process.env.TG_SENTRY_DSN,environment:process.env.TG_ENVIRONMENT??'local',release:releaseMetadata.releaseCommit,
+ Sentry.init({dsn:process.env.TG_SENTRY_DSN,environment:process.env.TG_ENVIRONMENT??'local',release:releaseMetadata().releaseCommit,
   sendDefaultPii:false,defaultIntegrations:false,skipOpenTelemetrySetup:true,
   beforeSend(event){
    delete event.request;delete event.user;delete event.breadcrumbs;delete event.contexts;delete event.extra;
@@ -63,17 +65,20 @@ export function reportError(service:string,event:string,error:unknown,fields:Con
   if(windows.size>=1000)windows.delete(windows.keys().next().value!);
   windows.set(fingerprint,{at:now,count:1});
   logger(service)[level]({...metadata,event:cleanText(event,100),fingerprint,count:previous?.count??1,error:safe});
-  alertDelivery({environment:process.env.TG_ENVIRONMENT??'local',service,event,severity:level==='warn'?'warning':'error',summary:String(safe.message??'Unknown error'),...(metadata.requestId?{requestId:String(metadata.requestId)}:{}),releaseCommit:releaseMetadata.releaseCommit});
+  alertDelivery({environment:process.env.TG_ENVIRONMENT??'local',service,event,severity:level==='warn'?'warning':'error',summary:String(safe.message??'Unknown error'),...(metadata.requestId?{requestId:String(metadata.requestId)}:{}),releaseCommit:releaseMetadata().releaseCommit});
   startSentry();if(!sentryStarted)return;
   const diagnostic=new Error(String(safe.message??'Unknown error'));diagnostic.name=String(safe.type??'Error');if(safe.stack)diagnostic.stack=String(safe.stack);
-  Sentry.captureException(diagnostic,{level:level==='warn'?'warning':'error',tags:{service,event:cleanText(event,100),releaseCommit:releaseMetadata.releaseCommit,...(deploymentId()?{deploymentId:deploymentId()}:{}),...Object.fromEntries(Object.entries(metadata).map(([k,v])=>[k,String(v)]))},fingerprint:[service,event,fingerprint]});
+  Sentry.captureException(diagnostic,{level:level==='warn'?'warning':'error',tags:{...chainMetadata(),service,event:cleanText(event,100),releaseCommit:releaseMetadata().releaseCommit,...(deploymentId()?{deploymentId:deploymentId()}:{}),...Object.fromEntries(Object.entries(metadata).map(([k,v])=>[k,String(v)]))},fingerprint:[service,event,fingerprint]});
   if(process.env.VERCEL){const flush=Sentry.flush(1500).catch(()=>false);try{waitUntil(flush);}catch{void flush;}}
  }catch{/* Avoid recursive failures and preserve the original outcome. */}
 }
 export async function flushErrors(timeout=1500):Promise<void>{const deadline=Date.now()+timeout;let timer:ReturnType<typeof setTimeout>|undefined;try{await Promise.race([Promise.allSettled([...deliveries]),new Promise(r=>{timer=setTimeout(r,timeout);timer.unref();})]);const remaining=deadline-Date.now();if(sentryStarted&&remaining>0)await Sentry.flush(remaining);}catch{}finally{if(timer)clearTimeout(timer);}}
 
 const observedProcesses=new Set<string>();
-export function installProcessDiagnostics(service:string){
+export function installProcessDiagnostics(service:string,env?:Readonly<Record<string,string|undefined>>){
+ // Standalone BSC workers load a scoped profile instead of process environment.
+ if(env)for(const key of ['TG_ENVIRONMENT','TG_CHAIN_ID','TG_RELEASE_COMMIT','TG_SENTRY_DSN']){if(env[key]!==undefined)process.env[key]=env[key];}
+
  if(observedProcesses.has(service))return;observedProcesses.add(service);
  // Preserve fatal exit after a bounded flush; never resume after an uncaught error.
  process.once('uncaughtException',error=>{reportError(service,'process_uncaught_exception',error);void flushErrors(1000).finally(()=>process.exit(1));});
