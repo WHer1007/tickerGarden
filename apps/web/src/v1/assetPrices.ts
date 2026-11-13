@@ -117,10 +117,18 @@ export function parseAssetPriceSnapshot(payload: unknown, chainId: number, now =
 export function createAssetPriceStore(options: { baseUrl: string | null; chainId: number; fetcher?: typeof fetch; pollIntervalMs?: number }) {
   const listeners = new Set<Listener>(); const fetcher = options.fetcher ?? fetch; const pollInterval = options.pollIntervalMs ?? 60_000;
   let snapshot = parseAssetPriceSnapshot(null, options.chainId); let pending: Promise<void> | null = null; let stopped = false; let active = false; let lastRequestAt = 0;
-  const demand=new Map<string,number>();let catalogLoaded=false,demandVersion=0;
+  const demand=new Map<string,number>();let visibleTokens:readonly string[]=[];let catalogLoaded=false,demandVersion=0;
   let pollTimer: ReturnType<typeof setInterval> | undefined;
   let expiryTimer: ReturnType<typeof setTimeout> | undefined;
   const notify = () => listeners.forEach(listener => listener(snapshot));
+  // Explore consumes server-valued cards rather than calling get(). Keep its
+  // visible quote demand alive until pagination/navigation replaces it.
+  const setVisibleTokens = (tokens:readonly string[]) => {
+    if(options.chainId!==4663||stopped)return;
+    const next=[...new Set(tokens.map(token=>token.toLowerCase()).filter(token=>ADDRESS.test(token)))].sort();
+    const added=next.some(token=>!visibleTokens.includes(token));visibleTokens=next;
+    if(added){demandVersion++;if(active&&!pending)queueMicrotask(()=>{if(active&&!stopped)void refresh();});}
+  };
   const scheduleExpiry = () => {
     clearTimeout(expiryTimer);if(![56,4663].includes(options.chainId)||stopped)return;
     const deadlines=Object.values(snapshot.prices).filter(p=>p.status==='available'&&p.expiresAt!==null).map(p=>p.expiresAt!);
@@ -143,7 +151,7 @@ export function createAssetPriceStore(options: { baseUrl: string | null; chainId
     // BSC views consume paired assets. Local stock labels never authorize a full multiplier refresh.
     for(const [token,at] of demand)if(Date.now()-at>120000)demand.delete(token);
     const version=demandVersion,loadingCatalog=options.chainId===4663&&!catalogLoaded;
-    const tokens=[...new Set([ZERO_TOKEN,...demand.keys()])].sort();
+    const tokens=[...new Set([ZERO_TOKEN,...demand.keys(),...visibleTokens.filter(token=>snapshot.prices[token])])].sort();
     const request = options.chainId === 56 ? client.listSelectedDisplayPrices([ZERO_TOKEN,...Object.values(BSC_STABLES)]) : options.chainId===4663&&!loadingCatalog?client.listSelectedDisplayPrices(tokens):client.listDisplayPriceReferences();
     pending = request.then(value => { if (stopped) return;
       if (!value || value.chainId !== options.chainId || value.displayOnly !== true || value.confidence !== 'provider_reported' || value.status !== 'configured' || !Array.isArray(value.references)) throw new Error('invalid asset price catalog');
@@ -157,7 +165,7 @@ export function createAssetPriceStore(options: { baseUrl: string | null; chainId
   const resume = () => { if (active && Date.now() - lastRequestAt >= 1000 && (typeof document === 'undefined' || document.visibilityState === 'visible') && (typeof navigator === 'undefined' || navigator.onLine)) void refresh(); };
   if (typeof window !== 'undefined') { window.addEventListener('pageshow', resume); window.addEventListener('online', resume); if(typeof document!=='undefined')document.addEventListener('visibilitychange',resume); }
   return {
-    start, refresh,
+    start, refresh, setVisibleTokens,
     pause() { active = false; clearInterval(pollTimer); pollTimer = undefined; },
     snapshot: () => snapshot,
     get: currentPrice,

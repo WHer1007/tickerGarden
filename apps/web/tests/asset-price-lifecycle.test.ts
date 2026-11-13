@@ -36,3 +36,42 @@ test('mainnet first reads a passive catalog then requests only consumed approved
  store.pause();store.get(unused);await tick();assert.equal(seen.length,3);
  }finally{store.stop();}
 });
+
+test('visible market quotes refresh even when cards never read prices, survive quiet pages and clear on navigation',async(t)=>{
+ t.mock.timers.enable({apis:['Date'],now:Date.parse('2026-11-13T12:00:00Z')});
+ const native='0x'+'0'.repeat(40),other='0x'+'3'.repeat(40),unknown='0x'+'4'.repeat(40),seen:URL[]=[];
+ const refs=[reference('unavailable'),reference('unavailable',{token:other}),reference('unavailable',{token:native})];
+ const store=createAssetPriceStore({baseUrl:'https://example.test',chainId:4663,fetcher:async(input)=>{
+  const url=new URL(String(input));seen.push(url);const tokens=url.searchParams.get('tokens')?.split(',');
+  return Response.json(response(tokens?refs.filter(r=>tokens.includes(r.token)):refs));
+ }});
+ try{
+  store.setVisibleTokens([token,token,unknown,'invalid']);store.start();await tick();await tick();
+  assert.equal(seen.length,2);assert.equal(seen[0]!.searchParams.has('tokens'),false);
+  assert.deepEqual(seen[1]!.searchParams.get('tokens')?.split(','),[native,token]);
+  t.mock.timers.tick(180000);await store.refresh();
+  assert.deepEqual(seen.at(-1)!.searchParams.get('tokens')?.split(','),[native,token],'visible demand does not expire with get() demand');
+  const count=seen.length;store.setVisibleTokens([token,unknown]);await tick();assert.equal(seen.length,count,'unchanged cards do not trigger another fetch');
+  store.setVisibleTokens([other]);await tick();
+  assert.deepEqual(seen.at(-1)!.searchParams.get('tokens')?.split(','),[native,other]);
+  store.setVisibleTokens([]);await tick();assert.equal(seen.length,count+1,'leaving the page does not trigger work');
+  await store.refresh();assert.equal(seen.at(-1)!.searchParams.get('tokens'),native);
+  store.pause();store.setVisibleTokens([token]);await tick();assert.equal(seen.length,count+2,'paused routes do not refresh');
+ }finally{store.stop();}
+});
+
+test('visible quote demand added during a pending request is fetched afterwards',async()=>{
+ let release:()=>void=()=>{};const seen:URL[]=[];
+ const store=createAssetPriceStore({baseUrl:'https://example.test',chainId:4663,fetcher:async(input)=>{
+  seen.push(new URL(String(input)));if(seen.length===2)await new Promise<void>(resolve=>{release=resolve;});
+  return Response.json(response([reference('unavailable')]));
+ }});
+ try{store.start();await tick();store.setVisibleTokens([token]);release();await tick();await tick();assert.equal(seen.length,3);assert.ok(seen[2]!.searchParams.get('tokens')?.split(',').includes(token));}
+ finally{store.stop();}
+});
+
+test('visible market quote demand leaves BSC selected-price policy unchanged',async()=>{
+ const seen:URL[]=[];const store=createAssetPriceStore({baseUrl:'https://example.test',chainId:56,fetcher:async(input)=>{seen.push(new URL(String(input)));return Response.json({...response([]),chainId:56});}});
+ try{store.setVisibleTokens([token]);await store.refresh();assert.ok(!seen[0]!.searchParams.get('tokens')?.includes(token));assert.equal(seen[0]!.searchParams.get('tokens')?.split(',').length,3);}
+ finally{store.stop();}
+});

@@ -1431,6 +1431,7 @@ function marketBloomProgress(market:MarketReadModel):number|null {
 }
 function applyExploreStatistics(dirtyIds?:readonly string[]):void {
  reconcileExploreStages(dirtyIds);
+ syncExplorePriceDemand();
  for(const market of [...exploreVisibleRows[0],...exploreVisibleRows[1]]){
   if(dirtyIds&&!dirtyIds.includes(market.marketId))continue;
   const stat=exploreStatistics[market.marketId];
@@ -1487,6 +1488,9 @@ function reconcileExploreStages(dirtyIds?:readonly string[]):void{
  }
 }
 let explorePagers={0:createExplorePager<MarketReadModel>(40,fetchExplorePage),1:createExplorePager<MarketReadModel>(10,fetchExplorePage)};
+function syncExplorePriceDemand():void {
+ assetPrices.setVisibleTokens(currentPage()==='markets'?[...exploreVisibleRows[0],...exploreVisibleRows[1]].map(m=>m.quoteAsset):[]);
+}
 const explorePageGeneration={0:0,1:0};
 const exploreRenderedPages={0:"",1:""};
 function resetExplorePages(){exploreLiveGeneration++;exploreLiveRequest?.abort();exploreLiveRequest=null;exploreRecentHead="";exploreRankings[0]=undefined;exploreRankings[1]=undefined;exploreFrozenRows.clear();explorePagers[0].reset();explorePagers[1].reset();explorePageGeneration[0]++;explorePageGeneration[1]++;}
@@ -1494,6 +1498,7 @@ function clearMarketDirectoryView(resetPages=true):void {
  exploreRenderedPages[0]="";exploreRenderedPages[1]="";
  if(resetPages)resetExplorePages();
  exploreVisibleRows[0]=[];exploreVisibleRows[1]=[];
+ syncExplorePriceDemand();
  const list=query<HTMLElement>("[data-market-list]");if(!list)return;
  list.querySelectorAll("[data-runtime-market]").forEach(item=>item.remove());
  list.setAttribute("aria-busy","false");
@@ -1638,6 +1643,7 @@ async function renderExploreStage(phase:0|1,direction:'current'|'next'|'previous
   if(page.recovered)setPageStatus('The market list has updated. Showing the first page.');
   const filtered=page.items;grid.dataset.loadState=filtered.length?'ready':'empty';
   exploreVisibleRows[phase]=filtered;
+  syncExplorePriceDemand();
   const renderedKey=JSON.stringify(page);
   if(exploreRenderedPages[phase]===renderedKey&&grid.querySelector('[data-runtime-market]')){
    if(empty)empty.hidden=true;
@@ -4879,6 +4885,7 @@ function isStaticPage(): boolean {
 let disposeDocs: (() => void) | undefined;
 let disposeFieldValidation: (() => void) | undefined;
 function unmountPage(): void {
+  assetPrices.setVisibleTokens([]);
   disposeDocs?.();disposeDocs=undefined;
   statsController?.dispose();
 

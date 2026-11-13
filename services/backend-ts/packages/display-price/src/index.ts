@@ -28,13 +28,16 @@ export function multiplyDecimal(left: string, right: string): string {
 
 export async function fetchPriceReferences(targets: readonly PriceTarget[], options: { readonly fetcher?: typeof fetch; readonly now?: Date; readonly maxAgeSeconds?: number } = {}): Promise<PriceReference[]> {
   if (!targets.length || targets.length > 256) throw new Error('invalid display price targets');
-  const fetcher = options.fetcher ?? fetch; const retrieved = options.now ?? new Date(); const maxAge = options.maxAgeSeconds ?? 60;
+  const fetcher = options.fetcher ?? fetch; const maxAge = options.maxAgeSeconds ?? 60;
   if (!Number.isSafeInteger(maxAge) || maxAge < 15 || maxAge > 300) throw new Error('invalid display price max age');
   const get = async (path: string) => { const response = await fetcher(`${API}${path}`, { headers: { accept: 'application/json' }, redirect: 'error', signal: AbortSignal.timeout(5_000) });
     if (!response.ok) throw new Error(`upstream_${response.status}`); const text = await response.text(); if (Buffer.byteLength(text) > 2 * 1024 * 1024) throw new Error('response_too_large'); return JSON.parse(text) as Record<string, unknown>; };
   let assets: unknown[]; let quotes: unknown[];
   try { [assets, quotes] = await Promise.all([get('/assets').then((v) => array(v.assets)), get('/prices').then((v) => array(v.quotes))]); }
-  catch (error) { return targets.map((target) => unavailable(target, retrieved, error instanceof Error ? error.message : 'upstream_error')); }
+  catch (error) { const retrieved=options.now??new Date();return targets.map((target) => unavailable(target, retrieved, error instanceof Error ? error.message : 'upstream_error')); }
+  // A quote may be generated while HTTP is in flight. Validate freshness and
+  // scheduled multiplier transitions at receipt, not at request start.
+  const retrieved = options.now ?? new Date();
   return targets.map((target) => {
     try {
       const asset = unique(assets, (row) => object(row) && (row.id === target.assetUid || row.tokenSymbol === target.symbol));

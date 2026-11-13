@@ -24,6 +24,23 @@ test('display price returns stale or unavailable records without publishing a us
   const [reference]=await fetchPriceReferences([target],{fetcher,now,maxAgeSeconds:60});assert.equal(reference?.status,'stale');assert.equal(reference?.bidUsd,null);assert.equal(reference?.askUsd,null);
 });
 
+test('quote freshness is checked at HTTP receipt, retaining future and expired price rejection',async(t)=>{
+ const start=Date.parse('2026-11-13T12:00:00Z');t.mock.timers.enable({apis:['Date'],now:start});
+ const target={...fixture,chainId:4663 as const};const deployments=[{chainId:target.chainId,contractAddress:target.token}];
+ let generatedAt=new Date(start+500).toISOString(),assetChanges={};
+ const fetcher:typeof fetch=async input=>{
+  if(String(input).endsWith('/assets'))return Response.json({assets:[{id:target.assetUid,tokenSymbol:target.symbol,status:'ASSET_STATUS_ACTIVE',currentMultiplier:'1',pendingMultiplier:'',deployments,...assetChanges}]});
+  t.mock.timers.tick(1000);
+  return Response.json({quotes:[{tokenSymbol:target.symbol,bid:'80',ask:'88',currency:'USD',isTradingHalt:false,generatedAt,deployments}]});
+ };
+ const read=async()=> (await fetchPriceReferences([target],{fetcher,maxAgeSeconds:60}))[0]!;
+ const valid=await read();assert.equal(valid.status,'available');assert.equal(valid.retrievedAt,new Date(start+1000).toISOString());assert.equal(valid.asOf,generatedAt);
+ generatedAt=new Date(start+10000).toISOString();assert.equal((await read()).reason,'invalid_timestamp');
+ generatedAt=new Date(start-59000).toISOString();assert.equal((await read()).status,'stale','HTTP latency counts toward expiry');
+ generatedAt=new Date(start+3500).toISOString();assetChanges={pendingMultiplier:'2',pendingMultiplierEffectiveTime:new Date(start+3500).toISOString()};
+ assert.equal((await read()).reason,'multiplier_transition_pending','a transition due during the request remains blocked');
+});
+
 test('testnet display prices bind the saved pool and combine its spot with native USD', async () => {
   const route=robinhoodTestnetStockRoutes[0];const target={...fixture,token:route.tokenOut,symbol:route.symbol};
   const word=(address:string)=>`0x${'0'.repeat(24)}${address.slice(2)}` as `0x${string}`;
