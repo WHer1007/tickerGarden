@@ -1,5 +1,5 @@
 import unittest
-from observability_config import configure_bsc_observability
+from observability_config import configure_bsc_observability, configure_main_observability, worker_observability_projections
 
 class ObservabilityConfigTests(unittest.TestCase):
     def test_updates_only_bsc_sdk_services_without_mutating_input(self):
@@ -16,6 +16,29 @@ class ObservabilityConfigTests(unittest.TestCase):
         self.assertEqual(updated['productionWorkers']['bsc-display']['profile']['backend']['runtime']['rpc'], 'unchanged')
         with self.assertRaises(AssertionError):
             configure_bsc_observability(c, 'unconfigured')
+
+    def test_worker_metadata_uses_a_later_environment_file(self):
+        config = {'services': {'web': {'environment': 'production', 'env': {'unchanged': 'yes'}}, 'test-web': {'env': {}}}}
+        updated = configure_main_observability(config, 'b' * 40)
+        self.assertEqual(config['services']['web']['env'], {'unchanged': 'yes'})
+        self.assertEqual(updated['services']['test-web'], config['services']['test-web'])
+        self.assertEqual(updated['services']['web']['env']['TG_ENVIRONMENT'], 'production')
+        self.assertEqual(updated['services']['web']['env']['TG_RELEASE_COMMIT'], 'b' * 40)
+        entries = worker_observability_projections(updated, '/opt/tickergarden-hosting/releases/20261112')
+        self.assertEqual(len(entries), 2)
+        self.assertEqual(entries[1][1], '[Service]\nEnvironmentFile=' + entries[0][0] + '\n')
+        self.assertIn('TG_RELEASE_COMMIT=' + 'b' * 40, entries[0][1])
+        self.assertIn('TG_CHAIN_ID=4663', entries[0][1])
+        updated['workerObservability']['tickergarden-confirmed-display-production']['TG_SECRET'] = 'forbidden'
+        with self.assertRaises(AssertionError):
+            worker_observability_projections(updated, '/opt/tickergarden-hosting/releases/20261112')
+
+    def test_worker_metadata_refuses_other_units_and_unsafe_roots(self):
+        with self.assertRaises(AssertionError):
+            worker_observability_projections({'workerObservability': {'another-worker': {}}}, '/opt/tickergarden-hosting/releases/20261112')
+        with self.assertRaises(AssertionError):
+            worker_observability_projections({'workerObservability': {'tickergarden-confirmed-display-production': {}}}, '/tmp/not-a-release')
+        self.assertEqual(worker_observability_projections({}, '/tmp/unaffected-test'), [])
 
 if __name__ == '__main__':
     unittest.main()

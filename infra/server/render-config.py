@@ -5,6 +5,7 @@ Run as root on the server. --check validates without modifying files or services
 This never starts workers, dispatches jobs, or contacts an RPC endpoint.
 """
 from worker_config import worker_projections
+from observability_config import worker_observability_projections
 import argparse
 import json
 import os
@@ -36,6 +37,7 @@ root = pathlib.Path(a.root).resolve()
 config = json.loads(pathlib.Path(a.config).read_text())
 services = config['services']
 workers = worker_projections(config)
+observability = worker_observability_projections(config, root)
 network_projections = config.get('composeNetworkProjections', [])
 seen = set()
 for network_projection in network_projections:
@@ -104,7 +106,7 @@ def write(file, value, mode, owner=None):
     fd, temporary = tempfile.mkstemp(prefix='.' + file.name, dir=file.parent)
     try:
         with os.fdopen(fd, 'w') as f:
-            f.write(json.dumps(value, indent=2) + '\n')
+            f.write(value if isinstance(value, str) else json.dumps(value, indent=2) + '\n')
             f.flush()
             os.fsync(f.fileno())
         os.chmod(temporary, mode)
@@ -121,6 +123,8 @@ for name, c in services.items():
         write(pathlib.Path(c['source']) / 'config/service-runtime.json', c['bscProfile'], 0o600, user)
 for file, profile in workers:
     write(pathlib.Path(file), profile, 0o600, user)
+for file, content in observability:
+    write(pathlib.Path(file), content, 0o644)
 # This file contains only public hostname to private network mappings, never keys.
 # Containers bind-mount its inode: update the existing file after validation.
 transport = root / 'private-transport.json'
